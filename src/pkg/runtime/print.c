@@ -115,11 +115,11 @@ vprintf(int8 *s, byte *base)
 		case 'U':
 		case 'X':
 		case 'f':
-			arg = ROUND(arg, sizeof(uintptr));
+			arg = ROUND(arg, sizeof(uintreg));
 			siz = 8;
 			break;
 		case 'C':
-			arg = ROUND(arg, sizeof(uintptr));
+			arg = ROUND(arg, sizeof(uintreg));
 			siz = 16;
 			break;
 		case 'p':	// pointer-sized

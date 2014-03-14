@@ -22,7 +22,7 @@ defframe(Prog *ptxt)
 
 	// fill in final stack size
 	ptxt->to.offset <<= 32;
-	frame = rnd(stksize+maxarg, widthptr);
+	frame = rnd(stksize+maxarg, widthreg);
 	ptxt->to.offset |= frame;
 	
 	// insert code to contain ambiguously live variables

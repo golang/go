@@ -353,10 +353,11 @@ runtime·unwindstack(G *gp, byte *sp)
 // find the stack segment of its caller.
 #pragma textflag NOSPLIT
 void
-runtime·recover(byte *argp, Eface ret)
+runtime·recover(byte *argp, GoOutput retbase, ...)
 {
 	Panic *p;
 	Stktop *top;
+	Eface *ret;
 
 	// Must be an unrecovered panic in progress.
 	// Must be on a stack segment created for a deferred call during a panic.
@@ -367,16 +368,16 @@ runtime·recover(byte *argp, Eface ret)
 	// do not count as official calls to adjust what we consider the top frame
 	// while they are active on the stack. The linker emits adjustments of
 	// g->panicwrap in the prologue and epilogue of functions marked as wrappers.
+	ret = (Eface*)&retbase;
 	top = (Stktop*)g->stackbase;
 	p = g->panic;
 	if(p != nil && !p->recovered && top->panic && argp == (byte*)top - top->argsize - g->panicwrap) {
 		p->recovered = 1;
-		ret = p->arg;
+		*ret = p->arg;
 	} else {
-		ret.type = nil;
-		ret.data = nil;
+		ret->type = nil;
+		ret->data = nil;
 	}
-	FLUSH(&ret);
 }
 
 void

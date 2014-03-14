@@ -12,15 +12,16 @@
 
 #pragma textflag NOSPLIT
 void
-HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
+HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, GoOutput base, ...)
 {
 	uintptr bucket, i;
 	Bucket *b;
 	KEYTYPE *k;
-	byte *v;
+	byte *v, **valueptr;
 	uint8 top;
 	int8 keymaybe;
 
+	valueptr = (byte**)&base;
 	if(debug) {
 		runtime·prints("runtime.mapaccess1_fastXXX: map=");
 		runtime·printpointer(h);
@@ -29,8 +30,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 		runtime·prints("\n");
 	}
 	if(h == nil || h->count == 0) {
-		value = t->elem->zero;
-		FLUSH(&value);
+		*valueptr = t->elem->zero;
 		return;
 	}
 	if(raceenabled)
@@ -48,8 +48,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 				if(QUICK_NE(key, *k))
 					continue;
 				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
-					value = v;
-					FLUSH(&value);
+					*valueptr = v;
 					return;
 				}
 			}
@@ -61,8 +60,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 				if(QUICK_NE(key, *k))
 					continue;
 				if(QUICK_EQ(key, *k)) {
-					value = v;
-					FLUSH(&value);
+					*valueptr = v;
 					return;
 				}
 				if(MAYBE_EQ(key, *k)) {
@@ -80,8 +78,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
 			if(keymaybe >= 0) {
 				k = (KEYTYPE*)b->data + keymaybe;
 				if(SLOW_EQ(key, *k)) {
-					value = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
-					FLUSH(&value);
+					*valueptr = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
 					return;
 				}
 			}
@@ -110,29 +107,30 @@ dohash:
 				if(QUICK_NE(key, *k))
 					continue;
 				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
-					value = v;
-					FLUSH(&value);
+					*valueptr = v;
 					return;
 				}
 			}
 			b = b->overflow;
 		} while(b != nil);
 	}
-	value = t->elem->zero;
-	FLUSH(&value);
+	*valueptr = t->elem->zero;
 }
 
 #pragma textflag NOSPLIT
 void
-HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
+HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, GoOutput base, ...)
 {
 	uintptr bucket, i;
 	Bucket *b;
 	KEYTYPE *k;
-	byte *v;
+	byte *v, **valueptr;
 	uint8 top;
 	int8 keymaybe;
+	bool *okptr;
 
+	valueptr = (byte**)&base;
+	okptr = (bool*)(valueptr+1);
 	if(debug) {
 		runtime·prints("runtime.mapaccess2_fastXXX: map=");
 		runtime·printpointer(h);
@@ -141,10 +139,8 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 		runtime·prints("\n");
 	}
 	if(h == nil || h->count == 0) {
-		value = t->elem->zero;
-		res = false;
-		FLUSH(&value);
-		FLUSH(&res);
+		*valueptr = t->elem->zero;
+		*okptr = false;
 		return;
 	}
 	if(raceenabled)
@@ -162,10 +158,8 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 				if(QUICK_NE(key, *k))
 					continue;
 				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
-					value = v;
-					res = true;
-					FLUSH(&value);
-					FLUSH(&res);
+					*valueptr = v;
+					*okptr = true;
 					return;
 				}
 			}
@@ -177,10 +171,8 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 				if(QUICK_NE(key, *k))
 					continue;
 				if(QUICK_EQ(key, *k)) {
-					value = v;
-					res = true;
-					FLUSH(&value);
-					FLUSH(&res);
+					*valueptr = v;
+					*okptr = true;
 					return;
 				}
 				if(MAYBE_EQ(key, *k)) {
@@ -198,10 +190,8 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
 			if(keymaybe >= 0) {
 				k = (KEYTYPE*)b->data + keymaybe;
 				if(SLOW_EQ(key, *k)) {
-					value = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
-					res = true;
-					FLUSH(&value);
-					FLUSH(&res);
+					*valueptr = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
+					*okptr = true;
 					return;
 				}
 			}
@@ -230,18 +220,14 @@ dohash:
 				if(QUICK_NE(key, *k))
 					continue;
 				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
-					value = v;
-					res = true;
-					FLUSH(&value);
-					FLUSH(&res);
+					*valueptr = v;
+					*okptr = true;
 					return;
 				}
 			}
 			b = b->overflow;
 		} while(b != nil);
 	}
-	value = t->elem->zero;
-	res = false;
-	FLUSH(&value);
-	FLUSH(&res);
+	*valueptr = t->elem->zero;
+	*okptr = false;
 }
