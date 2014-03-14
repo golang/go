@@ -21,7 +21,7 @@ runtime·memhash(uintptr *h, uintptr s, void *a)
 {
 	byte *b;
 	uintptr hash;
-	if(use_aeshash) {
+	if(!NaCl && use_aeshash) {
 		runtime·aeshash(h, s, a);
 		return;
 	}
@@ -470,6 +470,9 @@ byte runtime·aeskeysched[HashRandomBytes];
 void
 runtime·hashinit(void)
 {
+        if(NaCl)
+                return;
+
 	// Install aes hash algorithm if we have the instructions we need
 	if((runtime·cpuid_ecx & (1 << 25)) != 0 &&  // aes (aesenc)
 	   (runtime·cpuid_ecx & (1 << 9)) != 0 &&   // sse3 (pshufb)
