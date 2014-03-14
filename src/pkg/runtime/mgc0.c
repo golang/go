@@ -1906,6 +1906,12 @@ bgsweep(void)
 				runtime·ready(fing);
 			}
 		}
+		if(!runtime·mheap.sweepdone) {
+			// It's possible if GC has happened between sweepone has
+			// returned -1 and gclock lock.
+			runtime·unlock(&gclock);
+			continue;
+		}
 		sweep.parked = true;
 		runtime·parkunlock(&gclock, "GC sweep wait");
 	}
