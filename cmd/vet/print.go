@@ -386,7 +386,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 		f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), state.verb, typeString)
 		return false
 	}
-	if v.typ&argString != 0 && !bytes.Contains(state.flags, []byte{'#'}) && f.recursiveStringer(arg) {
+	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) && f.recursiveStringer(arg) {
 		f.Badf(call.Pos(), "arg %s for printf causes recursive call to String method", f.gofmt(arg))
 		return false
 	}

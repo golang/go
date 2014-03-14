@@ -286,6 +286,7 @@ func (s recursiveStringer) String() string {
 	fmt.Sprintf("%#v", s)
 	fmt.Sprintf("%v", s)   // ERROR "arg s for printf causes recursive call to String method"
 	fmt.Sprintf("%v", &s)  // ERROR "arg &s for printf causes recursive call to String method"
+	fmt.Sprintf("%T", s)   // ok; does not recursively call String
 	return fmt.Sprintln(s) // ERROR "arg s for print causes recursive call to String method"
 }
 
