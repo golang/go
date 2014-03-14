@@ -776,6 +776,8 @@ runtime·shrinkstack(G *gp)
 	uintptr used, oldsize, newsize;
 	MSpan *span;
 
+	if(!runtime·copystack)
+		return;
 	oldstk = (byte*)gp->stackguard - StackGuard;
 	oldbase = (byte*)gp->stackbase + sizeof(Stktop);
 	oldsize = oldbase - oldstk;
