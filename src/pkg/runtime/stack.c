@@ -102,8 +102,12 @@ runtime·stackalloc(G *gp, uint32 n)
 		runtime·printf("stackalloc %d\n", n);
 
 	gp->stacksize += n;
-	if(runtime·debug.efence || StackFromSystem)
-		return runtime·SysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
+	if(runtime·debug.efence || StackFromSystem) {
+		v = runtime·SysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
+		if(v == nil)
+			runtime·throw("out of memory (stackalloc)");
+		return v;
+	}
 
 	// Minimum-sized stacks are allocated with a fixed-size free-list allocator,
 	// but if we need a stack of a bigger size, we fall back on malloc
