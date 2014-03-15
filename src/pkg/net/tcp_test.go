@@ -185,7 +185,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 		for p := 0; p < P; p++ {
 			s, err := ln.Accept()
 			if err != nil {
-				b.Fatalf("Accept failed: %v", err)
+				b.Errorf("Accept failed: %v", err)
+				return
 			}
 			servers[p] = s
 		}
@@ -217,7 +218,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 				buf[0] = v
 				_, err := c.Write(buf[:])
 				if err != nil {
-					b.Fatalf("Write failed: %v", err)
+					b.Errorf("Write failed: %v", err)
+					return
 				}
 			}
 		}(clients[p])
@@ -232,7 +234,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 			for i := 0; i < N; i++ {
 				_, err := s.Read(buf[:])
 				if err != nil {
-					b.Fatalf("Read failed: %v", err)
+					b.Errorf("Read failed: %v", err)
+					return
 				}
 				pipe <- buf[0]
 			}
@@ -250,7 +253,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 				buf[0] = v
 				_, err := s.Write(buf[:])
 				if err != nil {
-					b.Fatalf("Write failed: %v", err)
+					b.Errorf("Write failed: %v", err)
+					return
 				}
 			}
 			s.Close()
@@ -263,7 +267,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
 			for i := 0; i < N; i++ {
 				_, err := c.Read(buf[:])
 				if err != nil {
-					b.Fatalf("Read failed: %v", err)
+					b.Errorf("Read failed: %v", err)
+					return
 				}
 			}
 			c.Close()
