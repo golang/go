@@ -80,7 +80,7 @@ setexp(void)
 
 	precisestack_enabled = 1; // on by default
 
-	// The makefile #defines GOEXPERIMENT for us.
+	// cmd/dist #defines GOEXPERIMENT for us.
 	nf = getfields(GOEXPERIMENT, f, nelem(f), 1, ",");
 	for(i=0; i<nf; i++)
 		addexp(f[i]);
