@@ -348,7 +348,8 @@ func TestReadWriteDeadline(t *testing.T) {
 	go func() {
 		c, err := ln.Accept()
 		if err != nil {
-			t.Fatalf("Accept: %v", err)
+			t.Errorf("Accept: %v", err)
+			return
 		}
 		defer c.Close()
 		lnquit <- true
@@ -536,7 +537,8 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
 	go func() {
 		c, err := ln.Accept()
 		if err != nil {
-			t.Fatalf("Accept: %v", err)
+			t.Errorf("Accept: %v", err)
+			return
 		}
 		defer c.Close()
 		n, err := c.Write([]byte(msg))
@@ -574,7 +576,8 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
 	go func() {
 		c, err := ln.Accept()
 		if err != nil {
-			t.Fatalf("Accept: %v", err)
+			t.Errorf("Accept: %v", err)
+			return
 		}
 		defer c.Close()
 		c.SetWriteDeadline(time.Now().Add(-5 * time.Second)) // in the past
@@ -610,7 +613,8 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
 	go func() {
 		c, err := Dial("tcp", ln.Addr().String())
 		if err != nil {
-			t.Fatalf("Dial: %v", err)
+			t.Errorf("Dial: %v", err)
+			return
 		}
 		defer c.Close()
 		var buf [1]byte
@@ -669,7 +673,8 @@ func TestProlongTimeout(t *testing.T) {
 		s, err := ln.Accept()
 		connected <- true
 		if err != nil {
-			t.Fatalf("ln.Accept: %v", err)
+			t.Errorf("ln.Accept: %v", err)
+			return
 		}
 		defer s.Close()
 		s.SetDeadline(time.Now().Add(time.Hour))
