@@ -45,9 +45,13 @@ tree to make sure the changes don't break other packages or programs:
 </p>
 
 <pre>
-cd $GOROOT/src
-./all.bash    # On Windows, run all.bat
+$ cd go/src
+$ ./all.bash
 </pre>
+
+<p>
+(To build under Windows use <code>all.bat</code>.)
+</p>
 
 <p>
 After running for a while, the command should print "<code>ALL TESTS PASSED</code>".
@@ -95,11 +99,11 @@ command.
 
 <h3>Configure the extension</h3>
 
-<p>Edit <code>$GOROOT/.hg/hgrc</code> to add:</p>
+<p>Edit <code>.hg/hgrc</code> in the root of your Go checkout to add:</p>
 
 <pre>
 [extensions]
-codereview = $GOROOT/lib/codereview/codereview.py
+codereview = /path/to/go/lib/codereview/codereview.py
 
 [ui]
 username = Your Name &lt;you@server.dom&gt;
@@ -108,6 +112,16 @@ username = Your Name &lt;you@server.dom&gt;
 <p>
 The <code>username</code> information will not be used unless
 you are a committer (see below), but Mercurial complains if it is missing.
+</p>
+
+<p>
+As the codereview extension is only enabled for your Go checkout, the remainder of this document assumes you
+are inside the go directory when issuing commands.
+</p>
+
+<p>To contribute to subrepositories, edit the <code>.hg/hgrc</code> for each
+subrepository in the same way. For example, add the codereview extension to
+<code>code.google.com/p/go.tools/.hg/hgrc</code>.
 </p>
 
 <h3>Understanding the extension</h3>
@@ -126,15 +140,9 @@ $ hg help change
 </pre>
 
 <p>
-As the codereview extension is only enabled for your checkout
-in <code>$GOROOT</code>, the remainder of this document assumes you
-are inside <code>$GOROOT</code> when issuing commands.
-</p>
-
-<p>
-Windows users may need to perform extra steps to get the code review 
+Windows users may need to perform extra steps to get the code review
 extension working. See the
-<a href="https://code.google.com/p/go-wiki/wiki/CodeReview">CodeReview page</a> 
+<a href="https://code.google.com/p/go-wiki/wiki/CodeReview">CodeReview page</a>
 on the <a href="https://code.google.com/p/go-wiki/wiki">Go Wiki</a> for details.
 </p>
 
@@ -155,7 +163,6 @@ application-specific password and use that when prompted for a password.
 </p>
 
 <pre>
-$ cd $GOROOT
 $ hg code-login
 Email (login for uploading to codereview.appspot.com): rsc@golang.org
 Password for rsc@golang.org:
@@ -473,10 +480,19 @@ to send comments back.
 <h3>Revise and upload</h3>
 
 <p>
-You will probably revise your code in response to the reviewer comments. When
-you have done this, you can upload your change to the code review server
-without sending a notification by running <code>hg upload</code> using the change
-list number assigned during <code>hg change</code>
+When you have revised the code and are ready for another round of review,
+you can upload your change and send mail asking the reviewers to
+please take another look (<code>PTAL</code>). Use the change list number
+assigned during <code>hg change</code>
+</p>
+
+<pre>
+$ hg mail 99999
+</pre>
+
+
+<p>
+Or to upload your change without sending a notification, run
 </p>
 
 <pre>
@@ -484,20 +500,13 @@ $ hg upload 99999
 </pre>
 
 <p>
-When you have revised the code and are ready for another round of review, run
-</p>
-
-<pre>
-$ hg mail 99999
-</pre>
-
-<p>again to upload the latest copy and send mail asking the reviewers to please take another look
-(<code>PTAL</code>).
+You will probably revise your code in response to the reviewer comments.
 You might also visit the code review web page and reply to the comments,
 letting the reviewer know that you've addressed them or explain why you
 haven't.  When you're done replying, click &ldquo;Publish and Mail comments&rdquo;
 to send the line-by-line replies and any other comments.
 </p>
+
 <p>
 The reviewer can comment on the new copy, and the process repeats.
 The reviewer approves the change by replying with a mail that says
