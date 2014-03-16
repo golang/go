@@ -218,6 +218,9 @@ func (res *Result) fileInfo(url string) *fileInfo {
 	res.mu.Lock()
 	fi, ok := res.fileInfos[url]
 	if !ok {
+		if res.fileInfos == nil {
+			res.fileInfos = make(map[string]*fileInfo)
+		}
 		fi = new(fileInfo)
 		res.fileInfos[url] = fi
 	}
@@ -240,6 +243,9 @@ func (res *Result) pkgInfo(importPath string) *pkgInfo {
 	res.mu.Lock()
 	pi, ok := res.pkgInfos[importPath]
 	if !ok {
+		if res.pkgInfos == nil {
+			res.pkgInfos = make(map[string]*pkgInfo)
+		}
 		pi = new(pkgInfo)
 		res.pkgInfos[importPath] = pi
 	}
@@ -297,9 +303,6 @@ func (a *analysis) posURL(pos token.Pos, len int) string {
 // enabled by the pta flag.
 //
 func Run(pta bool, result *Result) {
-	result.fileInfos = make(map[string]*fileInfo)
-	result.pkgInfos = make(map[string]*pkgInfo)
-
 	conf := loader.Config{
 		SourceImports:   true,
 		AllowTypeErrors: true,
