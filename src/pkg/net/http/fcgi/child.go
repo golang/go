@@ -16,6 +16,7 @@ import (
 	"net/http/cgi"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -126,8 +127,10 @@ func (r *response) Close() error {
 }
 
 type child struct {
-	conn     *conn
-	handler  http.Handler
+	conn    *conn
+	handler http.Handler
+
+	mu       sync.Mutex          // protects requests:
 	requests map[uint16]*request // keyed by request ID
 }
 
@@ -157,7 +160,9 @@ var errCloseConn = errors.New("fcgi: connection should be closed")
 var emptyBody = ioutil.NopCloser(strings.NewReader(""))
 
 func (c *child) handleRecord(rec *record) error {
+	c.mu.Lock()
 	req, ok := c.requests[rec.h.Id]
+	c.mu.Unlock()
 	if !ok && rec.h.Type != typeBeginRequest && rec.h.Type != typeGetValues {
 		// The spec says to ignore unknown request IDs.
 		return nil
@@ -179,7 +184,10 @@ func (c *child) handleRecord(rec *record) error {
 			c.conn.writeEndRequest(rec.h.Id, 0, statusUnknownRole)
 			return nil
 		}
-		c.requests[rec.h.Id] = newRequest(rec.h.Id, br.flags)
+		req = newRequest(rec.h.Id, br.flags)
+		c.mu.Lock()
+		c.requests[rec.h.Id] = req
+		c.mu.Unlock()
 		return nil
 	case typeParams:
 		// NOTE(eds): Technically a key-value pair can straddle the boundary
@@ -220,7 +228,9 @@ func (c *child) handleRecord(rec *record) error {
 		return nil
 	case typeAbortRequest:
 		println("abort")
+		c.mu.Lock()
 		delete(c.requests, rec.h.Id)
+		c.mu.Unlock()
 		c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
 		if !req.keepConn {
 			// connection will close upon return
@@ -247,6 +257,9 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 		c.handler.ServeHTTP(r, httpReq)
 	}
 	r.Close()
+	c.mu.Lock()
+	delete(c.requests, req.reqId)
+	c.mu.Unlock()
 	c.conn.writeEndRequest(req.reqId, 0, statusRequestComplete)
 
 	// Consume the entire body, so the host isn't still writing to
