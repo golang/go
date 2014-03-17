@@ -35,6 +35,10 @@ import (
 	"code.google.com/p/go.net/websocket"
 )
 
+// RunScripts specifies whether the socket handler should execute shell scripts
+// (snippets that start with a shebang).
+var RunScripts = true
+
 // Handler implements a WebSocket handler for a client connection.
 var Handler = websocket.Handler(socketHandler)
 
@@ -141,7 +145,7 @@ func startProcess(id, body string, out chan<- *Message, opt *Options) *process {
 		done: make(chan struct{}),
 	}
 	var err error
-	if path, args := shebang(body); path != "" {
+	if path, args := shebang(body); RunScripts && path != "" {
 		err = p.startProcess(path, args, body)
 	} else {
 		err = p.start(body, opt)
