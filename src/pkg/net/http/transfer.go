@@ -17,6 +17,14 @@ import (
 	"sync"
 )
 
+type errorReader struct {
+	err error
+}
+
+func (r *errorReader) Read(p []byte) (n int, err error) {
+	return 0, r.err
+}
+
 // transferWriter inspects the fields of a user-supplied Request or Response,
 // sanitizes them without changing the user object and provides methods for
 // writing the respective header, body and trailer in wire format.
@@ -53,8 +61,11 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 			if t.ContentLength == 0 {
 				// Test to see if it's actually zero or just unset.
 				var buf [1]byte
-				n, _ := io.ReadFull(t.Body, buf[:])
-				if n == 1 {
+				n, rerr := io.ReadFull(t.Body, buf[:])
+				if rerr != nil && rerr != io.EOF {
+					t.ContentLength = -1
+					t.Body = &errorReader{rerr}
+				} else if n == 1 {
 					// Oh, guess there is data in this Body Reader after all.
 					// The ContentLength field just wasn't set.
 					// Stich the Body back together again, re-attaching our
