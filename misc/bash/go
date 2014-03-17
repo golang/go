@@ -20,7 +20,7 @@ _go()
 
   local cmd="${COMP_WORDS[1]}"
 
-  local cmds="build clean doc fix fmt get
+  local cmds="build clean env doc fix fmt get
     install list run test tool version vet"
   local addhelp="gopath importpath remote
     testflag testfunc"
