@@ -146,6 +146,9 @@ func (h *dumper) Write(data []byte) (n int, err error) {
 			h.buf[12] = ' '
 			h.buf[13] = ' '
 			_, err = h.w.Write(h.buf[4:])
+			if err != nil {
+				return
+			}
 		}
 		Encode(h.buf[:], data[i:i+1])
 		h.buf[2] = ' '
