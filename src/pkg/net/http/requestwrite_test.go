@@ -310,6 +310,46 @@ var reqWriteTests = []reqWriteTest{
 		WantError: errors.New("http: Request.ContentLength=5 with nil Body"),
 	},
 
+	// Request with a 0 ContentLength and a body with 1 byte content and an error.
+	{
+		Req: Request{
+			Method:        "POST",
+			URL:           mustParseURL("/"),
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 0, // as if unset by user
+		},
+
+		Body: func() io.ReadCloser {
+			err := errors.New("Custom reader error")
+			errReader := &errorReader{err}
+			return ioutil.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
+		},
+
+		WantError: errors.New("Custom reader error"),
+	},
+
+	// Request with a 0 ContentLength and a body without content and an error.
+	{
+		Req: Request{
+			Method:        "POST",
+			URL:           mustParseURL("/"),
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 0, // as if unset by user
+		},
+
+		Body: func() io.ReadCloser {
+			err := errors.New("Custom reader error")
+			errReader := &errorReader{err}
+			return ioutil.NopCloser(errReader)
+		},
+
+		WantError: errors.New("Custom reader error"),
+	},
+
 	// Verify that DumpRequest preserves the HTTP version number, doesn't add a Host,
 	// and doesn't add a User-Agent.
 	{
