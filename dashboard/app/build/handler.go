@@ -381,7 +381,7 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
 		key := r.FormValue("key")
 		builder := r.FormValue("builder")
 		if r.Method == "POST" && !validKey(c, key, builder) {
-			err = errors.New("invalid key: " + key)
+			err = fmt.Errorf("invalid key %q for builder %q", key, builder)
 		}
 
 		// Call the original HandlerFunc and return the response.
