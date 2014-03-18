@@ -115,7 +115,9 @@
 	will print 23.
 
 	If an operand implements interface Formatter, that interface
-	can be used for fine control of formatting.
+	can be used for fine control of formatting. Similarly, if an
+	operand implements the GoStringer interface, that will be
+	invoked if the '%#v' verb is used to format the operand.
 
 	If the format (which is implicitly %v for Println etc.) is valid
 	for a string (%s %q %v %x %X), the following two rules also apply:
@@ -127,6 +129,12 @@
 	2. If an operand implements method String() string, that method
 	will be used to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
+
+	For compound operands such as slices and structs, the format
+	applies to the elements of each operand, recursively, not to the
+	operand as a whole. Thus %q will quote each element of a slice
+	of strings, and %6.2f will control formatting for each element
+	of a floating-point array.
 
 	To avoid recursion in cases such as
 		type X string
