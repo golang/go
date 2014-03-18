@@ -140,6 +140,7 @@ var canbackquotetests = []canBackquoteTest{
 	{string(29), false},
 	{string(30), false},
 	{string(31), false},
+	{string(0x7F), false},
 	{`' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true},
 	{`0123456789`, true},
 	{`ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true},

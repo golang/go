@@ -144,7 +144,8 @@ func AppendQuoteRuneToASCII(dst []byte, r rune) []byte {
 // characters other than space and tab.
 func CanBackquote(s string) bool {
 	for i := 0; i < len(s); i++ {
-		if (s[i] < ' ' && s[i] != '\t') || s[i] == '`' {
+		c := s[i]
+		if (c < ' ' && c != '\t') || c == '`' || c == '\u007F' {
 			return false
 		}
 	}
