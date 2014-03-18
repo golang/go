@@ -1357,7 +1357,13 @@ func (b *builder) processOutput(out []byte) string {
 func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...interface{}) ([]byte, error) {
 	cmdline := stringList(cmdargs...)
 	if buildN || buildX {
-		b.showcmd(dir, "%s", joinUnambiguously(cmdline))
+		var envcmdline string
+		for i := range env {
+			envcmdline += env[i]
+			envcmdline += " "
+		}
+		envcmdline += joinUnambiguously(cmdline)
+		b.showcmd(dir, "%s", envcmdline)
 		if buildN {
 			return nil, nil
 		}
