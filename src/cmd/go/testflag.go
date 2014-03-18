@@ -117,7 +117,6 @@ var testFlagDefn = []*testFlagSpec{
 func testFlags(args []string) (packageNames, passToTest []string) {
 	inPkg := false
 	outputDir := ""
-	testCoverMode = "set"
 	for i := 0; i < len(args); i++ {
 		if !strings.HasPrefix(args[i], "-") {
 			if !inPkg && packageNames == nil {
@@ -215,6 +214,14 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 		if f.passToTest {
 			passToTest = append(passToTest, "-test."+f.name+"="+value)
+		}
+	}
+
+	if testCoverMode == "" {
+		testCoverMode = "set"
+		if buildRace {
+			// Default coverage mode is atomic when -race is set.
+			testCoverMode = "atomic"
 		}
 	}
 
