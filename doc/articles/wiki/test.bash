@@ -7,7 +7,7 @@ set -e
 wiki_pid=
 cleanup() {
 	kill $wiki_pid
-	rm -f test_*.out Test.txt final-test.bin final-test.go a.out get.bin
+	rm -f test_*.out Test.txt final.bin final-port.txt a.out get.bin
 }
 trap cleanup 0 INT
 
@@ -19,13 +19,25 @@ if [ "$1" == "-all" ]; then
 fi
 
 go build -o get.bin get.go
-addr=$(./get.bin -addr)
-sed s/:8080/$addr/ < final.go > final-test.go
-go build -o final-test.bin final-test.go
-(./final-test.bin) &
+go build -o final.bin final.go
+(./final.bin --addr) &
 wiki_pid=$!
 
-./get.bin --wait_for_port=5s http://$addr/edit/Test > test_edit.out
+l=0
+while [ ! -f ./final-port.txt ]
+do
+	l=$(($l+1))
+	if [ "$l" -gt 5 ]
+	then
+		echo "port not available within 5 seconds"
+		exit 1
+		break
+	fi
+	sleep 1
+done
+
+addr=$(cat final-port.txt)
+./get.bin http://$addr/edit/Test > test_edit.out
 diff -u test_edit.out test_edit.good
 ./get.bin -post=body=some%20content http://$addr/save/Test > test_save.out
 diff -u test_save.out test_view.good # should be the same as viewing
