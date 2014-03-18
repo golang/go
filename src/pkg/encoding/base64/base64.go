@@ -159,13 +159,11 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 		nn := len(e.out) / 4 * 3
 		if nn > len(p) {
 			nn = len(p)
+			nn -= nn % 3
 		}
-		nn -= nn % 3
-		if nn > 0 {
-			e.enc.Encode(e.out[0:], p[0:nn])
-			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
-				return n, e.err
-			}
+		e.enc.Encode(e.out[0:], p[0:nn])
+		if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
+			return n, e.err
 		}
 		n += nn
 		p = p[nn:]
