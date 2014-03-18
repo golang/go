@@ -137,7 +137,8 @@ control the execution of any test:
 
 	-covermode set,count,atomic
 	    Set the mode for coverage analysis for the package[s]
-	    being tested. The default is "set".
+	    being tested. The default is "set" unless -race is enabled,
+	    in which case it is "atomic".
 	    The values:
 		set: bool: does this statement run?
 		count: int: how many times does this statement run?

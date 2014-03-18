@@ -568,6 +568,37 @@ TEST coverage runs
 ./testgo test -short -coverpkg=strings strings regexp || ok=false
 ./testgo test -short -cover strings math regexp || ok=false
 
+# Check that coverage analysis uses set mode.
+TEST coverage uses set mode
+if ./testgo test -short -coverpkg=encoding/binary -coverprofile=testdata/cover.out; then
+	if ! grep -q 'mode: set' testdata/cover.out; then
+		ok=false
+	fi
+else
+	ok=false
+fi
+rm -f testdata/cover.out
+
+TEST coverage uses atomic mode for -race.
+if ./testgo test -short -race -coverpkg=encoding/binary -coverprofile=testdata/cover.out; then
+	if ! grep -q 'mode: atomic' testdata/cover.out; then
+		ok=false
+	fi
+else
+	ok=false
+fi
+rm -f testdata/cover.out
+
+TEST coverage uses actual setting to override even for -race.
+if ./testgo test -short -race -coverpkg=encoding/binary -covermode=count -coverprofile=testdata/cover.out; then
+	if ! grep -q 'mode: count' testdata/cover.out; then
+		ok=false
+	fi
+else
+	ok=false
+fi
+rm -f testdata/cover.out
+
 TEST coverage with cgo
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 ./testgo test -short -cover ./testdata/cgocover >$d/cgo.out 2>&1 || ok=false
