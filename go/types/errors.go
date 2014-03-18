@@ -27,16 +27,19 @@ func (check *checker) sprintf(format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case nil:
-			args[i] = "<nil>"
+			arg = "<nil>"
 		case operand:
 			panic("internal error: should always pass *operand")
 		case token.Pos:
-			args[i] = check.fset.Position(a).String()
+			arg = check.fset.Position(a).String()
 		case ast.Expr:
-			args[i] = ExprString(a)
+			arg = ExprString(a)
+		case Object:
+			arg = ObjectString(check.pkg, a)
 		case Type:
-			args[i] = TypeString(check.pkg, a)
+			arg = TypeString(check.pkg, a)
 		}
+		args[i] = arg
 	}
 	return fmt.Sprintf(format, args...)
 }
