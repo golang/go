@@ -349,10 +349,11 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 		resp, err := c.Get(ts.URL)
 		if err != nil {
 			t.Error(err)
+			return
 		}
-		_, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatalf("ReadAll: %v", err)
+		if _, err := ioutil.ReadAll(resp.Body); err != nil {
+			t.Errorf("ReadAll: %v", err)
+			return
 		}
 		donech <- true
 	}
@@ -1808,15 +1809,18 @@ func TestTransportTLSHandshakeTimeout(t *testing.T) {
 		cl := &Client{Transport: tr}
 		_, err := cl.Get("https://dummy.tld/")
 		if err == nil {
-			t.Fatal("expected error")
+			t.Error("expected error")
+			return
 		}
 		ue, ok := err.(*url.Error)
 		if !ok {
-			t.Fatalf("expected url.Error; got %#v", err)
+			t.Errorf("expected url.Error; got %#v", err)
+			return
 		}
 		ne, ok := ue.Err.(net.Error)
 		if !ok {
-			t.Fatalf("expected net.Error; got %#v", err)
+			t.Errorf("expected net.Error; got %#v", err)
+			return
 		}
 		if !ne.Timeout() {
 			t.Error("expected timeout error; got %v", err)
