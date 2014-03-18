@@ -4,7 +4,7 @@
 
 all: index.html
 
-CLEANFILES=get.bin final-test.bin a.out
+CLEANFILES=get.bin final.bin a.out
 
 clean:
 	rm -f $(CLEANFILES)
