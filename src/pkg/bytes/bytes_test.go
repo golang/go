@@ -785,6 +785,16 @@ func TestMap(t *testing.T) {
 	if string(m) != expect {
 		t.Errorf("drop: expected %q got %q", expect, m)
 	}
+
+	// 6. Invalid rune
+	invalidRune := func(r rune) rune {
+		return utf8.MaxRune + 1
+	}
+	m = Map(invalidRune, []byte("x"))
+	expect = "\uFFFD"
+	if string(m) != expect {
+		t.Errorf("invalidRune: expected %q got %q", expect, m)
+	}
 }
 
 func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
