@@ -16,6 +16,7 @@ defframe(Prog *ptxt)
 {
 	uint32 frame;
 	Prog *p;
+	vlong i;
 
 	// fill in argument size
 	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
@@ -29,12 +30,25 @@ defframe(Prog *ptxt)
 	// so that garbage collector only sees initialized values
 	// when it looks for pointers.
 	p = ptxt;
-	if(stkzerosize > 0) {
-		p = appendpp(p, movptr, D_CONST, 0, D_AX, 0);	
-		p = appendpp(p, movptr, D_CONST, stkzerosize/widthptr, D_CX, 0);	
-		p = appendpp(p, leaptr, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);	
-		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);	
-		appendpp(p, stosptr, D_NONE, 0, D_NONE, 0);	
+	if(stkzerosize % widthreg != 0)
+		fatal("zero size not a multiple of ptr size");
+	if(stkzerosize == 0) {
+		// nothing
+	} else if(stkzerosize <= 2*widthreg) {
+		for(i = 0; i < stkzerosize; i += widthreg) {
+			p = appendpp(p, AMOVQ, D_CONST, 0, D_SP+D_INDIR, frame-stkzerosize+i);
+		}
+	} else if(stkzerosize <= 16*widthreg) {
+		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
+		for(i = 0; i < stkzerosize; i += widthreg) {
+			p = appendpp(p, AMOVQ, D_AX, 0, D_SP+D_INDIR, frame-stkzerosize+i);
+		}
+	} else {
+		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
+		p = appendpp(p, AMOVQ, D_CONST, stkzerosize/widthreg, D_CX, 0);
+		p = appendpp(p, leaptr, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);
+		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);
+		appendpp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);
 	}
 }
 
