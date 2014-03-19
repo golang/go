@@ -356,7 +356,11 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 		}
 		r = mapping(r)
 		if r >= 0 {
-			if nbytes+utf8.RuneLen(r) > maxbytes {
+			rl := utf8.RuneLen(r)
+			if rl < 0 {
+				rl = len(string(utf8.RuneError))
+			}
+			if nbytes+rl > maxbytes {
 				// Grow the buffer.
 				maxbytes = maxbytes*2 + utf8.UTFMax
 				nb := make([]byte, maxbytes)
