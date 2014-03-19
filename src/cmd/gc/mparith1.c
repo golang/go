@@ -416,7 +416,7 @@ mpatoflt(Mpflt *a, char *as)
 	if(eb) {
 		if(dp)
 			goto bad;
-		a->exp += ex;
+		mpsetexp(a, a->exp+ex);
 		goto out;
 	}
 
@@ -427,8 +427,13 @@ mpatoflt(Mpflt *a, char *as)
 			mppow10flt(&b, ex-dp);
 			mpmulfltflt(a, &b);
 		} else {
-			mppow10flt(&b, dp-ex);
-			mpdivfltflt(a, &b);
+			if((short)(dp-ex) != dp-ex) {
+				mpmovecflt(a, 0.0);
+			}
+			else {
+				mppow10flt(&b, dp-ex);
+				mpdivfltflt(a, &b);
+			}
 		}
 	}
 
