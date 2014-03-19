@@ -1696,6 +1696,7 @@ exitsyscall0(G *gp)
 }
 
 // Called from syscall package before fork.
+#pragma textflag NOSPLIT
 void
 syscall·runtime_BeforeFork(void)
 {
