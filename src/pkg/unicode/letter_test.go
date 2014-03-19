@@ -387,32 +387,20 @@ func TestTurkishCase(t *testing.T) {
 }
 
 var simpleFoldTests = []string{
-	// SimpleFold could order its returned slices in any order it wants,
-	// but we know it orders them in increasing order starting at in
-	// and looping around from MaxRune to 0.
+	// SimpleFold(x) returns the next equivalent rune > x or wraps
+	// around to smaller values.
 
 	// Easy cases.
 	"Aa",
-	"aA",
 	"δΔ",
-	"Δδ",
 
 	// ASCII special cases.
 	"KkK",
-	"kKK",
-	"KKk",
 	"Ssſ",
-	"sſS",
-	"ſSs",
 
 	// Non-ASCII special cases.
 	"ρϱΡ",
-	"ϱΡρ",
-	"Ρρϱ",
 	"ͅΙιι",
-	"Ιιιͅ",
-	"ιιͅΙ",
-	"ιͅΙι",
 
 	// Extra special cases: has lower/upper but no case fold.
 	"İ",
