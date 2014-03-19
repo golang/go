@@ -49,3 +49,7 @@ func _() {
 func _() {
 	if err := foo /* ERROR undeclared */ (); err != nil /* no error here */ {}
 }
+
+// Use unqualified names for package-local objects.
+type T struct{}
+var _ int = T /* ERROR value of type T */ {} // use T in error message rather then errors.T

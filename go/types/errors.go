@@ -30,6 +30,8 @@ func (check *checker) sprintf(format string, args ...interface{}) string {
 			arg = "<nil>"
 		case operand:
 			panic("internal error: should always pass *operand")
+		case *operand:
+			arg = operandString(check.pkg, a)
 		case token.Pos:
 			arg = check.fset.Position(a).String()
 		case ast.Expr:
