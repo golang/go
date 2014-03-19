@@ -447,7 +447,7 @@ func (f *fmt) fmt_c64(v complex64, verb rune) {
 			f.fmt_e32(r)
 		case 'E':
 			f.fmt_E32(r)
-		case 'f':
+		case 'f', 'F':
 			f.fmt_f32(r)
 		case 'g':
 			f.fmt_g32(r)
@@ -477,7 +477,7 @@ func (f *fmt) fmt_c128(v complex128, verb rune) {
 			f.fmt_e64(r)
 		case 'E':
 			f.fmt_E64(r)
-		case 'f':
+		case 'f', 'F':
 			f.fmt_f64(r)
 		case 'g':
 			f.fmt_g64(r)

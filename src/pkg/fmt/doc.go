@@ -37,6 +37,7 @@
 		%e	scientific notation, e.g. -1234.456e+78
 		%E	scientific notation, e.g. -1234.456E+78
 		%f	decimal point but no exponent, e.g. 123.456
+		%F	synonym for %f
 		%g	whichever of %e or %f produces more compact output
 		%G	whichever of %E or %f produces more compact output
 	String and slice of bytes:

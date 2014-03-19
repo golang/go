@@ -447,7 +447,7 @@ func (p *pp) fmtFloat32(v float32, verb rune) {
 		p.fmt.fmt_e32(v)
 	case 'E':
 		p.fmt.fmt_E32(v)
-	case 'f':
+	case 'f', 'F':
 		p.fmt.fmt_f32(v)
 	case 'g', 'v':
 		p.fmt.fmt_g32(v)
@@ -466,7 +466,7 @@ func (p *pp) fmtFloat64(v float64, verb rune) {
 		p.fmt.fmt_e64(v)
 	case 'E':
 		p.fmt.fmt_E64(v)
-	case 'f':
+	case 'f', 'F':
 		p.fmt.fmt_f64(v)
 	case 'g', 'v':
 		p.fmt.fmt_g64(v)
