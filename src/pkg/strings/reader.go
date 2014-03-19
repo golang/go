@@ -29,6 +29,7 @@ func (r *Reader) Len() int {
 }
 
 func (r *Reader) Read(b []byte) (n int, err error) {
+	r.prevRune = -1
 	if len(b) == 0 {
 		return 0, nil
 	}
@@ -37,11 +38,11 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 	}
 	n = copy(b, r.s[r.i:])
 	r.i += n
-	r.prevRune = -1
 	return
 }
 
 func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+	r.prevRune = -1
 	if off < 0 {
 		return 0, errors.New("strings: invalid offset")
 	}
@@ -56,12 +57,12 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
 }
 
 func (r *Reader) ReadByte() (b byte, err error) {
+	r.prevRune = -1
 	if r.i >= len(r.s) {
 		return 0, io.EOF
 	}
 	b = r.s[r.i]
 	r.i++
-	r.prevRune = -1
 	return
 }
 
@@ -76,6 +77,7 @@ func (r *Reader) UnreadByte() error {
 
 func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	if r.i >= len(r.s) {
+		r.prevRune = -1
 		return 0, 0, io.EOF
 	}
 	r.prevRune = r.i
@@ -99,6 +101,7 @@ func (r *Reader) UnreadRune() error {
 
 // Seek implements the io.Seeker interface.
 func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+	r.prevRune = -1
 	var abs int64
 	switch whence {
 	case 0:

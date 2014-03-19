@@ -858,6 +858,33 @@ func TestReadRune(t *testing.T) {
 	}
 }
 
+var UnreadRuneErrorTests = []struct {
+	name string
+	f    func(*Reader)
+}{
+	{"Read", func(r *Reader) { r.Read([]byte{}) }},
+	{"ReadAt", func(r *Reader) { r.ReadAt([]byte{}, 0) }},
+	{"ReadByte", func(r *Reader) { r.ReadByte() }},
+	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
+	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
+	{"WriteTo", func(r *Reader) { r.WriteTo(&bytes.Buffer{}) }},
+}
+
+func TestUnreadRuneError(t *testing.T) {
+	for _, tt := range UnreadRuneErrorTests {
+		reader := NewReader("0123456789")
+		if _, _, err := reader.ReadRune(); err != nil {
+			// should not happen
+			t.Fatal(err)
+		}
+		tt.f(reader)
+		err := reader.UnreadRune()
+		if err == nil {
+			t.Errorf("Unreading after %s: expected error", tt.name)
+		}
+	}
+}
+
 var ReplaceTests = []struct {
 	in       string
 	old, new string
