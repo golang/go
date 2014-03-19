@@ -303,14 +303,13 @@ func reduceScope(pos string, conf *loader.Config) {
 	if err != nil {
 		return // no files for package
 	}
-	_ = bp
 
-	// TODO(adonovan): fix: also check that the queried file appears in the package.
-	//  for _, f := range bp.GoFiles, bp.TestGoFiles, bp.XTestGoFiles {
-	//  	if sameFile(f, fqpos.filename) { goto found }
-	//  }
-	//  return // not found
-	// found:
+	// Check that the queried file appears in the package:
+	// it might be a '// +build ignore' from an ad-hoc main
+	// package, e.g. $GOROOT/src/pkg/net/http/triv.go.
+	if !pkgContainsFile(bp, fqpos.fset.File(fqpos.start).Name()) {
+		return // not found
+	}
 
 	conf.TypeCheckFuncBodies = func(p string) bool { return p == importPath }
 
@@ -323,6 +322,17 @@ func reduceScope(pos string, conf *loader.Config) {
 	// TODO(adonovan): set 'augment' based on which file list
 	// contains
 	_ = conf.ImportWithTests(importPath) // ignore error
+}
+
+func pkgContainsFile(bp *build.Package, filename string) bool {
+	for _, files := range [][]string{bp.GoFiles, bp.TestGoFiles, bp.XTestGoFiles} {
+		for _, file := range files {
+			if sameFile(file, filename) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // New constructs a new Oracle that can be used for a sequence of queries.
