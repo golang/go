@@ -23,6 +23,27 @@ sigfig(Mpflt *a)
 }
 
 /*
+ * sets the exponent.
+ * a too large exponent is an error.
+ * a too small exponent rounds the number to zero.
+ */
+void
+mpsetexp(Mpflt *a, int exp) {
+	if((short)exp != exp) {
+		if(exp > 0) {
+			yyerror("float constant is too large");
+			a->exp = 0x7fff;
+		}
+		else {
+			mpmovecflt(a, 0);
+		}
+	}
+	else {
+		a->exp = exp;
+	}
+}
+
+/*
  * shifts the leading non-zero
  * word of the number to Mpnorm
  */
@@ -60,7 +81,7 @@ mpnorm(Mpflt *a)
 	}
 
 	mpshiftfix(&a->val, s);
-	a->exp -= s;
+	mpsetexp(a, a->exp-s);
 }
 
 /// implements float arihmetic
@@ -95,7 +116,7 @@ mpaddfltflt(Mpflt *a, Mpflt *b)
 	if(s < 0) {
 		// b is larger, shift a right
 		mpshiftfix(&a->val, s);
-		a->exp -= s;
+		mpsetexp(a, a->exp-s);
 		mpaddfixfix(&a->val, &b->val, 0);
 		goto out;
 	}
@@ -131,7 +152,7 @@ mpmulfltflt(Mpflt *a, Mpflt *b)
 	}
 
 	mpmulfract(&a->val, &b->val);
-	a->exp = (a->exp + b->exp) + Mpscale*Mpprec - Mpscale - 1;
+	mpsetexp(a, (a->exp + b->exp) + Mpscale*Mpprec - Mpscale - 1);
 
 	mpnorm(a);
 	if(Mpdebug)
@@ -171,7 +192,7 @@ mpdivfltflt(Mpflt *a, Mpflt *b)
 
 	// divide
 	mpdivfract(&a->val, &c.val);
-	a->exp = (a->exp-c.exp) - Mpscale*(Mpprec-1) + 1;
+	mpsetexp(a, (a->exp-c.exp) - Mpscale*(Mpprec-1) + 1);
 
 	mpnorm(a);
 	if(Mpdebug)
@@ -199,7 +220,10 @@ mpgetflt(Mpflt *a)
 
 	while((a->val.a[Mpnorm-1] & Mpsign) == 0) {
 		mpshiftfix(&a->val, 1);
-		a->exp -= 1;
+		mpsetexp(a, a->exp-1);	// can set 'a' to zero
+		s = sigfig(a);
+		if(s == 0)
+			return 0;
 	}
 
 	// the magic numbers (64, 63, 53, 10, -1074) are

@@ -1255,6 +1255,7 @@ void	mpmovecflt(Mpflt *a, double c);
 void	mpmulfltflt(Mpflt *a, Mpflt *b);
 void	mpnegflt(Mpflt *a);
 void	mpnorm(Mpflt *a);
+void	mpsetexp(Mpflt *a, int exp);
 int	mptestflt(Mpflt *a);
 int	sigfig(Mpflt *a);
 
