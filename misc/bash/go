@@ -20,7 +20,7 @@ _go()
 
   local cmd="${COMP_WORDS[1]}"
 
-  local cmds="build clean env doc fix fmt get
+  local cmds="build clean env fix fmt get
     install list run test tool version vet"
   local addhelp="gopath importpath remote
     testflag testfunc"
@@ -87,9 +87,6 @@ _go()
       else
         COMPREPLY=(`_go_importpath "$cur"`)
       fi
-      ;;
-    'doc')
-      COMPREPLY=(`_go_importpath "$cur"`)
       ;;
     'fix')
       COMPREPLY=(`_go_importpath "$cur"`)
