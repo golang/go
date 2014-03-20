@@ -1386,8 +1386,9 @@ func (file *File) Read(buf []byte) (n int, err error)
 </pre>
 <p>
 The method returns the number of bytes read and an error value, if
-any.  To read into the first 32 bytes of a larger buffer
-<code>b</code>, <i>slice</i> (here used as a verb) the buffer.
+any.
+To read into the first 32 bytes of a larger buffer
+<code>buf</code>, <i>slice</i> (here used as a verb) the buffer.
 </p>
 <pre>
     n, err := f.Read(buf[0:32])
@@ -1488,7 +1489,7 @@ If the slices might grow or shrink, they should be allocated independently
 to avoid overwriting the next line; if not, it can be more efficient to construct
 the object with a single allocation.
 For reference, here are sketches of the two methods.
-First, a line a time:
+First, a line at a time:
 </p>
 
 <pre>
