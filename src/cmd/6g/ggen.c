@@ -31,7 +31,7 @@ defframe(Prog *ptxt)
 	// when it looks for pointers.
 	p = ptxt;
 	if(stkzerosize % widthreg != 0)
-		fatal("zero size not a multiple of ptr size");
+		fatal("zero size not a multiple of reg size");
 	if(stkzerosize == 0) {
 		// nothing
 	} else if(stkzerosize <= 2*widthreg) {
