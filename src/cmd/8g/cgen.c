@@ -935,6 +935,13 @@ bgen(Node *n, int true, int likely, Prog *to)
 		patch(gins(AEND, N, N), to);
 		return;
 	}
+
+	while(n->op == OCONVNOP) {
+		n = n->left;
+		if(n->ninit != nil)
+			genlist(n->ninit);
+	}
+
 	nl = n->left;
 	nr = N;
 
