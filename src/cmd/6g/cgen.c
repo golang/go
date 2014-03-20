@@ -1061,6 +1061,12 @@ bgen(Node *n, int true, int likely, Prog *to)
 	}
 	nr = N;
 
+	while(n->op == OCONVNOP) {
+		n = n->left;
+		if(n->ninit != nil)
+			genlist(n->ninit);
+	}
+
 	switch(n->op) {
 	default:
 	def:
