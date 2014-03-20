@@ -201,12 +201,15 @@ type ClientSessionCache interface {
 	Put(sessionKey string, cs *ClientSessionState)
 }
 
-// A Config structure is used to configure a TLS client or server. After one
-// has been passed to a TLS function it must not be modified.
+// A Config structure is used to configure a TLS client or server.
+// After one has been passed to a TLS function it must not be
+// modified. A Config may be reused; the tls package will also not
+// modify it.
 type Config struct {
 	// Rand provides the source of entropy for nonces and RSA blinding.
 	// If Rand is nil, TLS uses the cryptographic random reader in package
 	// crypto/rand.
+	// The Reader must be safe for use by multiple goroutines.
 	Rand io.Reader
 
 	// Time returns the current time as the number of seconds since the epoch.
