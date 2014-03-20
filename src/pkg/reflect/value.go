@@ -532,7 +532,7 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 
 	// Compute frame type, allocate a chunk of memory for frame
-	frametype := funcLayout(t, rcvrtype)
+	frametype, _, retOffset := funcLayout(t, rcvrtype)
 	args := unsafe_New(frametype)
 	off := uintptr(0)
 
@@ -558,13 +558,13 @@ func (v Value) call(op string, in []Value) []Value {
 		}
 		off += n
 	}
-	off = (off + ptrSize - 1) &^ (ptrSize - 1)
 
 	// Call.
 	call(fn, args, uint32(frametype.size))
 
 	// Copy return values out of args.
 	ret := make([]Value, nout)
+	off = retOffset
 	for i := 0; i < nout; i++ {
 		tv := t.Out(i)
 		a := uintptr(tv.Align())
@@ -628,6 +628,9 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 	// Copy results back into argument frame.
 	if len(ftyp.out) > 0 {
 		off += -off & (ptrSize - 1)
+		if runtime.GOARCH == "amd64p32" {
+			off = align(off, 8)
+		}
 		for i, arg := range ftyp.out {
 			typ := arg
 			v := out[i]
@@ -738,20 +741,29 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	rcvr := ctxt.rcvr
 	rcvrtype := rcvr.typ
 	t, fn := methodReceiver("call", rcvr, ctxt.method)
-	frametype := funcLayout(t, rcvrtype)
+	frametype, argSize, retOffset := funcLayout(t, rcvrtype)
 
 	// Make a new frame that is one word bigger so we can store the receiver.
 	args := unsafe_New(frametype)
 
 	// Copy in receiver and rest of args.
 	storeRcvr(rcvr, args)
-	memmove(unsafe.Pointer(uintptr(args)+ptrSize), frame, frametype.size-ptrSize)
+	memmove(unsafe.Pointer(uintptr(args)+ptrSize), frame, argSize-ptrSize)
 
 	// Call.
 	call(fn, args, uint32(frametype.size))
 
-	// Copy return values.
-	memmove(frame, unsafe.Pointer(uintptr(args)+ptrSize), frametype.size-ptrSize)
+	// Copy return values. On amd64p32, the beginning of return values
+	// is 64-bit aligned, so the caller's frame layout (which doesn't have
+	// a receiver) is different from the layout of the fn call, which has
+	// a receiver.
+	// Ignore any changes to args and just copy return values.
+	callerRetOffset := retOffset - ptrSize
+	if runtime.GOARCH == "amd64p32" {
+		callerRetOffset = align(argSize-ptrSize, 8)
+	}
+	memmove(unsafe.Pointer(uintptr(frame)+callerRetOffset),
+		unsafe.Pointer(uintptr(args)+retOffset), frametype.size-retOffset)
 }
 
 // funcName returns the name of f, for use in error messages.
