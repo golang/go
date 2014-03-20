@@ -16,7 +16,7 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 	switch x.mode {
 	case invalid:
-		check.use(e.Args)
+		check.use(e.Args...)
 		x.mode = invalid
 		x.expr = e
 		return statement
@@ -82,12 +82,12 @@ func (check *checker) call(x *operand, e *ast.CallExpr) exprKind {
 	}
 }
 
-// use type-checks each list element.
-// Useful to make sure a list of expressions is evaluated
+// use type-checks each argument.
+// Useful to make sure expressions are evaluated
 // (and variables are "used") in the presence of other errors.
-func (check *checker) use(list []ast.Expr) {
+func (check *checker) use(arg ...ast.Expr) {
 	var x operand
-	for _, e := range list {
+	for _, e := range arg {
 		check.rawExpr(&x, e, nil)
 	}
 }

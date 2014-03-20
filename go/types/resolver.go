@@ -57,9 +57,11 @@ func (check *checker) arityMatch(s, init *ast.ValueSpec) {
 			// init exprs from s
 			n := s.Values[l]
 			check.errorf(n.Pos(), "extra init expr %s", n)
+			// TODO(gri) avoid declared but not used error here
 		} else {
 			// init exprs "inherited"
 			check.errorf(s.Pos(), "extra init expr at %s", init.Pos())
+			// TODO(gri) avoid declared but not used error here
 		}
 	case l > r && (init != nil || r != 1):
 		n := s.Names[r]

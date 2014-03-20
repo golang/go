@@ -341,6 +341,7 @@ func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			}
 		} else if len(s.Results) > 0 {
 			check.error(s.Results[0].Pos(), "no result values expected")
+			check.use(s.Results...)
 		}
 
 	case *ast.BranchStmt:

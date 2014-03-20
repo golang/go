@@ -23,7 +23,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	bin := predeclaredFuncs[id]
 	if call.Ellipsis.IsValid() && id != _Append {
 		check.invalidOp(call.Ellipsis, "invalid use of ... with built-in %s", bin.name)
-		check.use(call.Args)
+		check.use(call.Args...)
 		return
 	}
 
@@ -481,7 +481,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		selx, _ := unparen(arg0).(*ast.SelectorExpr)
 		if selx == nil {
 			check.invalidArg(arg0.Pos(), "%s is not a selector expression", arg0)
-			check.rawExpr(x, arg0, nil) // evaluate to avoid spurious "declared but not used" errors
+			check.use(arg0)
 			return
 		}
 		check.expr(x, selx.X)

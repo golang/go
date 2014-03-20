@@ -5,6 +5,7 @@
 package vardecl
 
 // Prerequisites.
+import "math"
 func f() {}
 func g() (x, y int) { return }
 var m map[string]int
@@ -145,6 +146,26 @@ func (r T) _(a, b, c int) (u, v, w int) {
 		}
 	}
 	return
+}
+
+// Invalid (unused) expressions must not lead to spurious "declared but not used errors"
+func _() {
+	var a, b, c int
+	var x, y int
+	x, y = a /* ERROR assignment count mismatch */ , b, c
+	_ = x
+	_ = y
+}
+
+func _() {
+	var x int
+	return x /* ERROR no result values expected */
+	return math /* ERROR no result values expected */ .Sin(0)
+}
+
+func _() int {
+	var x, y int
+	return /* ERROR wrong number of return values */ x, y
 }
 
 // Short variable declarations must declare at least one new non-blank variable.
