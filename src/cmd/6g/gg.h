@@ -28,7 +28,6 @@ extern	int	addptr;
 extern	int	cmpptr;
 extern	int	movptr;
 extern	int	leaptr;
-extern	int	stosptr;
 
 /*
  * ggen.c

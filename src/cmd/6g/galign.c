@@ -22,7 +22,6 @@ vlong MAXWIDTH = 1LL<<50;
 int	addptr = AADDQ;
 int	movptr = AMOVQ;
 int	leaptr = ALEAQ;
-int	stosptr = ASTOSQ;
 int	cmpptr = ACMPQ;
 
 /*
@@ -49,7 +48,6 @@ betypeinit(void)
 		addptr = AADDL;
 		movptr = AMOVL;
 		leaptr = ALEAL;
-		stosptr = ASTOSL;
 		cmpptr = ACMPL;
 		typedefs[0].sameas = TINT32;
 		typedefs[1].sameas = TUINT32;
