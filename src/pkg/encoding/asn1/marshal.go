@@ -295,8 +295,23 @@ func marshalTwoDigits(out *forkableWriter, v int) (err error) {
 	return out.WriteByte(byte('0' + v%10))
 }
 
+func marshalFourDigits(out *forkableWriter, v int) (err error) {
+	var bytes [4]byte
+	for i := range bytes {
+		bytes[3-i] = '0' + byte(v%10)
+		v /= 10
+	}
+	_, err = out.Write(bytes[:])
+	return
+}
+
+func outsideUTCRange(t time.Time) bool {
+	year := t.Year()
+	return year < 1950 || year >= 2050
+}
+
 func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
-	year, month, day := t.Date()
+	year := t.Year()
 
 	switch {
 	case 1950 <= year && year < 2000:
@@ -309,6 +324,24 @@ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
 	if err != nil {
 		return
 	}
+
+	return marshalTimeCommon(out, t)
+}
+
+func marshalGeneralizedTime(out *forkableWriter, t time.Time) (err error) {
+	year := t.Year()
+	if year < 0 || year > 9999 {
+		return StructuralError{"cannot represent time as GeneralizedTime"}
+	}
+	if err = marshalFourDigits(out, year); err != nil {
+		return
+	}
+
+	return marshalTimeCommon(out, t)
+}
+
+func marshalTimeCommon(out *forkableWriter, t time.Time) (err error) {
+	_, month, day := t.Date()
 
 	err = marshalTwoDigits(out, int(month))
 	if err != nil {
@@ -378,7 +411,12 @@ func stripTagAndLength(in []byte) []byte {
 func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameters) (err error) {
 	switch value.Type() {
 	case timeType:
-		return marshalUTCTime(out, value.Interface().(time.Time))
+		t := value.Interface().(time.Time)
+		if outsideUTCRange(t) {
+			return marshalGeneralizedTime(out, t)
+		} else {
+			return marshalUTCTime(out, t)
+		}
 	case bitStringType:
 		return marshalBitString(out, value.Interface().(BitString))
 	case objectIdentifierType:
@@ -504,7 +542,8 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 		return StructuralError{"explicit string type given to non-string member"}
 	}
 
-	if tag == tagPrintableString {
+	switch tag {
+	case tagPrintableString:
 		if params.stringType == 0 {
 			// This is a string without an explicit string type. We'll use
 			// a PrintableString if the character set in the string is
@@ -520,6 +559,10 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 			}
 		} else {
 			tag = params.stringType
+		}
+	case tagUTCTime:
+		if outsideUTCRange(v.Interface().(time.Time)) {
+			tag = tagGeneralizedTime
 		}
 	}
 
