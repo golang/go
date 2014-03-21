@@ -592,7 +592,7 @@ machosymtab(void)
 		} else {
 			p = s->extname;
 			while (*p++ != '\0') {
-				if(*p == '\xc2' && *(p+1) == '\xb7') {
+				if((uchar)*p == 0xc2 && (uchar)*(p+1) == 0xb7) {
 					adduint8(ctxt, symstr, '.');
 					p++;
 				} else {
