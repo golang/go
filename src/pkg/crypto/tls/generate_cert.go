@@ -58,12 +58,6 @@ func main() {
 
 	notAfter := notBefore.Add(*validFor)
 
-	// end of ASN.1 time
-	endOfTime := time.Date(2049, 12, 31, 23, 59, 59, 0, time.UTC)
-	if notAfter.After(endOfTime) {
-		notAfter = endOfTime
-	}
-
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {

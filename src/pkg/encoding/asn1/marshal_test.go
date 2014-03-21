@@ -67,6 +67,14 @@ type marshalTest struct {
 	out string // hex encoded
 }
 
+func farFuture() time.Time {
+	t, err := time.Parse(time.RFC3339, "2100-04-05T12:01:01Z")
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
 var marshalTests = []marshalTest{
 	{10, "02010a"},
 	{127, "02017f"},
@@ -83,6 +91,7 @@ var marshalTests = []marshalTest{
 	{time.Unix(0, 0).UTC(), "170d3730303130313030303030305a"},
 	{time.Unix(1258325776, 0).UTC(), "170d3039313131353232353631365a"},
 	{time.Unix(1258325776, 0).In(PST), "17113039313131353134353631362d30383030"},
+	{farFuture(), "180f32313030303430353132303130315a"},
 	{BitString{[]byte{0x80}, 1}, "03020780"},
 	{BitString{[]byte{0x81, 0xf0}, 12}, "03030481f0"},
 	{ObjectIdentifier([]int{1, 2, 3, 4}), "06032a0304"},
