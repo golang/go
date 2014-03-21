@@ -60,7 +60,7 @@ putelfstr(char *s)
 	if(p != nil) {
 		p = q = elfstrdat+off;
 		while (*q != '\0') {
-			if(*q == '\xc2' && *(q+1) == '\xb7') {
+			if((uchar)*q == 0xc2 && (uchar)*(q+1) == 0xb7) {
 				q += 2;
 				*p++ = '.';
 				elfstrsize--;
