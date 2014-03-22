@@ -668,7 +668,6 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 		c          rune
 		op         Op
 		lastRepeat string
-		min, max   int
 	)
 	p.flags = flags
 	p.wholeRegexp = s
@@ -740,7 +739,7 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 				op = OpQuest
 			}
 			after := t[1:]
-			if after, err = p.repeat(op, min, max, before, after, lastRepeat); err != nil {
+			if after, err = p.repeat(op, 0, 0, before, after, lastRepeat); err != nil {
 				return nil, err
 			}
 			repeat = before
