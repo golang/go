@@ -240,6 +240,9 @@ func (s *Scanner) next() rune {
 			s.srcEnd = i + n
 			s.srcBuf[s.srcEnd] = utf8.RuneSelf // sentinel
 			if err != nil {
+				if err != io.EOF {
+					s.error(err.Error())
+				}
 				if s.srcEnd == 0 {
 					if s.lastCharLen > 0 {
 						// previous character was not EOF
@@ -247,9 +250,6 @@ func (s *Scanner) next() rune {
 					}
 					s.lastCharLen = 0
 					return EOF
-				}
-				if err != io.EOF {
-					s.error(err.Error())
 				}
 				// If err == EOF, we won't be getting more
 				// bytes; break to avoid infinite loop. If

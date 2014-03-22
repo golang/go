@@ -462,6 +462,33 @@ func TestError(t *testing.T) {
 	testError(t, `/*/`, "1:4", "comment not terminated", EOF)
 }
 
+// An errReader returns (0, err) where err is not io.EOF.
+type errReader struct{}
+
+func (errReader) Read(b []byte) (int, error) {
+	return 0, io.ErrNoProgress // some error that is not io.EOF
+}
+
+func TestIOError(t *testing.T) {
+	s := new(Scanner).Init(errReader{})
+	errorCalled := false
+	s.Error = func(s *Scanner, msg string) {
+		if !errorCalled {
+			if want := io.ErrNoProgress.Error(); msg != want {
+				t.Errorf("msg = %q, want %q", msg, want)
+			}
+			errorCalled = true
+		}
+	}
+	tok := s.Scan()
+	if tok != EOF {
+		t.Errorf("tok = %s, want EOF", TokenString(tok))
+	}
+	if !errorCalled {
+		t.Errorf("error handler not called")
+	}
+}
+
 func checkPos(t *testing.T, got, want Position) {
 	if got.Offset != want.Offset || got.Line != want.Line || got.Column != want.Column {
 		t.Errorf("got offset, line, column = %d, %d, %d; want %d, %d, %d",
