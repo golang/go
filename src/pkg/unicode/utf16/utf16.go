@@ -36,7 +36,7 @@ func IsSurrogate(r rune) bool {
 // the Unicode replacement code point U+FFFD.
 func DecodeRune(r1, r2 rune) rune {
 	if surr1 <= r1 && r1 < surr2 && surr2 <= r2 && r2 < surr3 {
-		return (rune(r1)-surr1)<<10 | (rune(r2) - surr2) + 0x10000
+		return (r1-surr1)<<10 | (r2 - surr2) + 0x10000
 	}
 	return replacementChar
 }
