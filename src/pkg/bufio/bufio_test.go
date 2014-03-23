@@ -1056,7 +1056,7 @@ func TestWriterReadFromWhileFull(t *testing.T) {
 	// Use ReadFrom to read in some data.
 	n2, err := w.ReadFrom(strings.NewReader("abcdef"))
 	if n2 != 6 || err != nil {
-		t.Fatalf("ReadFrom returned (%v, %v), want (6, nil)", n, err)
+		t.Fatalf("ReadFrom returned (%v, %v), want (6, nil)", n2, err)
 	}
 }
 
