@@ -3174,7 +3174,10 @@ typecheckdef(Node *n)
 			goto ret;
 		}
 		if(e->type != T && e->op != OLITERAL || !isgoconst(e)) {
-			yyerror("const initializer %N is not a constant", e);
+			if(!e->diag) {
+				yyerror("const initializer %N is not a constant", e);
+				e->diag = 1;
+			}
 			goto ret;
 		}
 		t = n->type;
