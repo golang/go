@@ -445,9 +445,6 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 }
 
 func TestTCPConcurrentAccept(t *testing.T) {
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on Solaris, see issue 7400")
-	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -468,15 +465,25 @@ func TestTCPConcurrentAccept(t *testing.T) {
 			wg.Done()
 		}()
 	}
-	for i := 0; i < 10*N; i++ {
-		c, err := Dial("tcp", ln.Addr().String())
+	attempts := 10 * N
+	fails := 0
+	d := &Dialer{Timeout: 200 * time.Millisecond}
+	for i := 0; i < attempts; i++ {
+		c, err := d.Dial("tcp", ln.Addr().String())
 		if err != nil {
-			t.Fatalf("Dial failed: %v", err)
+			fails++
+		} else {
+			c.Close()
 		}
-		c.Close()
 	}
 	ln.Close()
 	wg.Wait()
+	if fails > attempts/9 { // see issues 7400 and 7541
+		t.Fatalf("too many Dial failed: %v", fails)
+	}
+	if fails > 0 {
+		t.Logf("# of failed Dials: %v", fails)
+	}
 }
 
 func TestTCPReadWriteMallocs(t *testing.T) {
