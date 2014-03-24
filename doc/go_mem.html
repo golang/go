@@ -274,6 +274,41 @@ then the program would not be guaranteed to print
 crash, or do something else.)
 </p>
 
+<p class="rule">
+The <i>k</i>th send on a channel with capacity <i>C</i> happens before the <i>k</i>+<i>C</i>th receive from that channel completes.
+</p>
+
+<p>
+This rule generalizes the previous rule to buffered channels.
+It allows a counting semaphore to be modeled by a buffered channel:
+the number of items in the channel corresponds to the semaphore count,
+the capacity of the channel corresponds to the semaphore maximum,
+sending an item acquires the semaphore, and receiving an item releases
+the semaphore.
+This is a common idiom for rate-limiting work.
+</p>
+
+<p>
+This program starts a goroutine for every entry in the work list, but the
+goroutines coordinate using the <code>limit</code> channel to ensure
+that at most three are running work functions at a time.
+</p>
+
+<pre>
+var limit = make(chan int, 3)
+
+func main() {
+	for _, w := range work {
+		go func() {
+			limit <- 1
+			w()
+			<-limit
+		}()
+	}
+	select{}
+}
+</pre>
+
 <h3>Locks</h3>
 
 <p>
