@@ -427,7 +427,8 @@ mpatoflt(Mpflt *a, char *as)
 			mppow10flt(&b, ex-dp);
 			mpmulfltflt(a, &b);
 		} else {
-			if((short)(dp-ex) != dp-ex) {
+			// 4 approximates least_upper_bound(log2(10)).
+			if(dp-ex >= (1<<(8*sizeof(dp)-3)) || (short)(4*(dp-ex)) != 4*(dp-ex)) {
 				mpmovecflt(a, 0.0);
 			}
 			else {
