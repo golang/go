@@ -492,7 +492,7 @@ func (r *byteStringReplacer) Replace(s string) string {
 	for i := 0; i < len(s); i++ {
 		b := s[i]
 		if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
-			n := copy(bi[:], r.new[b])
+			n := copy(bi, r.new[b])
 			bi = bi[n:]
 		} else {
 			bi[0] = b
