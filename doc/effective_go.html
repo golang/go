@@ -2942,26 +2942,19 @@ means waiting until some receiver has retrieved a value.
 <p>
 A buffered channel can be used like a semaphore, for instance to
 limit throughput.  In this example, incoming requests are passed
-to <code>handle</code>, which receives a value from the channel, processes
-the request, and then sends a value back to the channel
-to ready the "semaphore" for the next consumer.
+to <code>handle</code>, which sends a value into the channel, processes
+the request, and then receives a value from the channel
+to ready the &ldquo;semaphore&rdquo; for the next consumer.
 The capacity of the channel buffer limits the number of
-simultaneous calls to <code>process</code>,
-so during initialization we prime the channel by filling it to capacity.
+simultaneous calls to <code>process</code>.
 </p>
 <pre>
 var sem = make(chan int, MaxOutstanding)
 
 func handle(r *Request) {
-    &lt;-sem          // Wait for active queue to drain.
-    process(r)     // May take a long time.
-    sem &lt;- 1       // Done; enable next request to run.
-}
-
-func init() {
-    for i := 0; i &lt; MaxOutstanding; i++ {
-        sem &lt;- 1
-    }
+    sem &lt;- 1    // Wait for active queue to drain.
+    process(r)  // May take a long time.
+    &lt;-sem       // Done; enable next request to run.
 }
 
 func Serve(queue chan *Request) {
@@ -2973,10 +2966,9 @@ func Serve(queue chan *Request) {
 </pre>
 
 <p>
-Because data synchronization occurs on a receive from a channel
-(that is, the send "happens before" the receive; see
-<a href="/ref/mem">The Go Memory Model</a>),
-acquisition of the semaphore must be on a channel receive, not a send.
+Once <code>MaxOutstanding</code> handlers are executing <code>process</code>,
+any more will block trying to send into the filled channel buffer,
+until one of the existing handlers finishes and receives from the buffer.
 </p>
 
 <p>
@@ -2993,10 +2985,10 @@ Here's an obvious solution, but beware it has a bug we'll fix subsequently:
 <pre>
 func Serve(queue chan *Request) {
     for req := range queue {
-        &lt;-sem
+        sem &lt;- 1
         go func() {
             process(req) // Buggy; see explanation below.
-            sem &lt;- 1
+            &lt;-sem
         }()
     }
 }</pre>
@@ -3014,10 +3006,10 @@ to the closure in the goroutine:
 <pre>
 func Serve(queue chan *Request) {
     for req := range queue {
-        &lt;-sem
+        sem &lt;- 1
         go func(req *Request) {
             process(req)
-            sem &lt;- 1
+            &lt;-sem
         }(req)
     }
 }</pre>
@@ -3032,11 +3024,11 @@ name, as in this example:
 <pre>
 func Serve(queue chan *Request) {
     for req := range queue {
-        &lt;-sem
         req := req // Create new instance of req for the goroutine.
+        sem &lt;- 1
         go func() {
             process(req)
-            sem &lt;- 1
+            &lt;-sem
         }()
     }
 }</pre>
