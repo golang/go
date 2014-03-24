@@ -1,0 +1,65 @@
+Native Client
+=============
+
+This document outlines the basics of building and developing the Go runtime and programs in the Native Client (NaCl) environment.
+
+Go 1.3 supports two architectures
+
+ * nacl/386 which is standard 386.
+ * nacl/amd64p32 which is a 64 bit architecture, where the address space is limited to a 4gb window. 
+
+For background it is recommended that you read http://golang.org/s/go13nacl.
+
+Prerequisites
+-------------
+
+Native Client programs are executed inside a sandbox, the NaCl runtime. This runtime must be installed before you can use NaCl programs.
+
+The NaCl distribution comes with an installer which ensures you have access to the latest version of the runtime. The version tracks the Chome numbering scheme.
+
+# Download NaCl
+
+Download nacl_sdk.zip file from https://developers.google.com/native-client/dev/sdk/download, and unpack it. I chose /opt/nacl_sdk
+
+# Update
+
+The zip file contains a small skeleton that can be used to download the correct sdk. These are released every 6-8 weeks, in line with Chrome releases.
+	
+	% cd /opt/nacl_sdk
+	% ./naclsdk update
+
+At this time pepper_33 is the stable version. If naclsdk downloads a later version, please adjust accordingly.
+
+The cmd/go helper scripts expect that the runtime loaders, sel_ldr_x86_{32,64} are in your path. I find it easiest to make a symlink from the NaCl distribution to my $GOPATH/bin directory.
+
+	% ln -nfs /opt/nacl_sdk/pepper_33/tools/sel_ldr_x86_32 $GOPATH/bin/sel_ldr_x86_32
+	% ln -nfs /opt/nacl_sdk/pepper_33/tools/sel_ldr_x86_64 $GOPATH/bin/sel_ldr_x86_64
+
+Support scripts
+---------------
+
+Symlink the two scripts in this directory into your $PATH, just as you did with NaCl sdk above.
+
+	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_amd64p32_exec $GOPATH/bin/go_nacl_amd64p32_exec
+	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_386_exec $GOPATH/bin/go_nacl_386_exec
+
+Building and testing
+--------------------
+
+Building for NaCl is similar to cross compiling for other platforms. However, as it is not possible to ever build in a `native` NaCl environment, the cmd/go tool has been enhanced to allow the full build, all.bash, to be executed, rather than just the compile stage, make.bash.
+
+The cmd/go tool knows that if GOOS is set to `nacl` it should not try to execute any binaries itself. Instead it passes their execution to a support script which sets up a Native Client environment and invokes the NaCl sandbox.
+
+The script's name has a special format, go_$GOOS_$GOARCH_exec, so cmd/go can find it.
+
+In short, if the support scripts are in place, the cmd/go tool can be used as per normal.
+
+# Build the Go toolchain.
+
+	% cd go/src
+	% env GOOS=nacl GOARCH=amd64p32 ./make.bash
+
+# Test the Go toolchain.
+
+	% cd go/src
+	% env GOOS=nacl GOARCH=amd64p32 ./run.bash
