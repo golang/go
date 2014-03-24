@@ -2243,6 +2243,7 @@ adddot(Node *n)
 	int c, d;
 
 	typecheck(&n->left, Etype|Erv);
+	n->diag |= n->left->diag;
 	t = n->left->type;
 	if(t == T)
 		goto ret;
