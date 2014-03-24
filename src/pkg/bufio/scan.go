@@ -172,7 +172,7 @@ func (s *Scanner) Scan() bool {
 				break
 			}
 			loop++
-			if loop > 100 {
+			if loop > maxConsecutiveEmptyReads {
 				s.setErr(io.ErrNoProgress)
 				break
 			}

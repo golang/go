@@ -1060,6 +1060,60 @@ func TestWriterReadFromWhileFull(t *testing.T) {
 	}
 }
 
+type emptyThenNonEmptyReader struct {
+	r io.Reader
+	n int
+}
+
+func (r *emptyThenNonEmptyReader) Read(p []byte) (int, error) {
+	if r.n <= 0 {
+		return r.r.Read(p)
+	}
+	r.n--
+	return 0, nil
+}
+
+// Test for golang.org/issue/7611
+func TestWriterReadFromUntilEOF(t *testing.T) {
+	buf := new(bytes.Buffer)
+	w := NewWriterSize(buf, 5)
+
+	// Partially fill buffer
+	n, err := w.Write([]byte("0123"))
+	if n != 4 || err != nil {
+		t.Fatalf("Write returned (%v, %v), want (4, nil)", n, err)
+	}
+
+	// Use ReadFrom to read in some data.
+	r := &emptyThenNonEmptyReader{r: strings.NewReader("abcd"), n: 3}
+	n2, err := w.ReadFrom(r)
+	if n2 != 4 || err != nil {
+		t.Fatalf("ReadFrom returned (%v, %v), want (4, nil)", n2, err)
+	}
+	w.Flush()
+	if got, want := string(buf.Bytes()), "0123abcd"; got != want {
+		t.Fatalf("buf.Bytes() returned %q, want %q", got, want)
+	}
+}
+
+func TestWriterReadFromErrNoProgress(t *testing.T) {
+	buf := new(bytes.Buffer)
+	w := NewWriterSize(buf, 5)
+
+	// Partially fill buffer
+	n, err := w.Write([]byte("0123"))
+	if n != 4 || err != nil {
+		t.Fatalf("Write returned (%v, %v), want (4, nil)", n, err)
+	}
+
+	// Use ReadFrom to read in some data.
+	r := &emptyThenNonEmptyReader{r: strings.NewReader("abcd"), n: 100}
+	n2, err := w.ReadFrom(r)
+	if n2 != 0 || err != io.ErrNoProgress {
+		t.Fatalf("buf.Bytes() returned (%v, %v), want (0, io.ErrNoProgress)", n2, err)
+	}
+}
+
 func TestReaderReset(t *testing.T) {
 	r := NewReader(strings.NewReader("foo foo"))
 	buf := make([]byte, 3)
