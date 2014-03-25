@@ -440,12 +440,14 @@ runtime·mallocinit(void)
 	extern byte end[];
 	uintptr limit;
 	uint64 i;
+	bool reserved;
 
 	p = nil;
 	p_size = 0;
 	arena_size = 0;
 	bitmap_size = 0;
 	spans_size = 0;
+	reserved = false;
 
 	// for 64-bit build
 	USED(p);
@@ -499,7 +501,7 @@ runtime·mallocinit(void)
 		for(i = 0; i <= 0x7f; i++) {
 			p = (void*)(i<<40 | 0x00c0ULL<<32);
 			p_size = bitmap_size + spans_size + arena_size + PageSize;
-			p = runtime·SysReserve(p, p_size);
+			p = runtime·SysReserve(p, p_size, &reserved);
 			if(p != nil)
 				break;
 		}
@@ -543,7 +545,7 @@ runtime·mallocinit(void)
 		// to a MB boundary.
 		p = (byte*)ROUND((uintptr)end + (1<<18), 1<<20);
 		p_size = bitmap_size + spans_size + arena_size + PageSize;
-		p = runtime·SysReserve(p, p_size);
+		p = runtime·SysReserve(p, p_size, &reserved);
 		if(p == nil)
 			runtime·throw("runtime: cannot reserve arena virtual address space");
 	}
@@ -558,6 +560,7 @@ runtime·mallocinit(void)
 	runtime·mheap.arena_start = p1 + spans_size + bitmap_size;
 	runtime·mheap.arena_used = runtime·mheap.arena_start;
 	runtime·mheap.arena_end = p + p_size;
+	runtime·mheap.arena_reserved = reserved;
 
 	if(((uintptr)runtime·mheap.arena_start & (PageSize-1)) != 0)
 		runtime·throw("misrounded allocation in mallocinit");
@@ -575,6 +578,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 {
 	byte *p, *p_end;
 	uintptr p_size;
+	bool reserved;
 
 	if(n > h->arena_end - h->arena_used) {
 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
@@ -584,14 +588,19 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 		p_size = ROUND(n + PageSize, 256<<20);
 		new_end = h->arena_end + p_size;
 		if(new_end <= h->arena_start + MaxArena32) {
-			p = runtime·SysReserve(h->arena_end, p_size);
-			if(p == h->arena_end)
+			// TODO: It would be bad if part of the arena
+			// is reserved and part is not.
+			p = runtime·SysReserve(h->arena_end, p_size, &reserved);
+			if(p == h->arena_end) {
 				h->arena_end = new_end;
+				h->arena_reserved = reserved;
+			}
 			else if(p+p_size <= h->arena_start + MaxArena32) {
 				// Keep everything page-aligned.
 				// Our pages are bigger than hardware pages.
 				h->arena_end = p+p_size;
 				h->arena_used = p + (-(uintptr)p&(PageSize-1));
+				h->arena_reserved = reserved;
 			} else {
 				uint64 stat;
 				stat = 0;
@@ -602,7 +611,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	if(n <= h->arena_end - h->arena_used) {
 		// Keep taking from our reservation.
 		p = h->arena_used;
-		runtime·SysMap(p, n, &mstats.heap_sys);
+		runtime·SysMap(p, n, h->arena_reserved, &mstats.heap_sys);
 		h->arena_used += n;
 		runtime·MHeap_MapBits(h);
 		runtime·MHeap_MapSpans(h);
@@ -615,7 +624,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	}
 	
 	// If using 64-bit, our reservation is all we have.
-	if(sizeof(void*) == 8 && (uintptr)h->bitmap >= 0xffffffffU)
+	if(h->arena_end - h->arena_start >= MaxArena32)
 		return nil;
 
 	// On 32-bit, once the reservation is gone we can

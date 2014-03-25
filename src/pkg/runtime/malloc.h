@@ -175,12 +175,18 @@ struct MLink
 // SysReserve reserves address space without allocating memory.
 // If the pointer passed to it is non-nil, the caller wants the
 // reservation there, but SysReserve can still choose another
-// location if that one is unavailable.
+// location if that one is unavailable.  On some systems and in some
+// cases SysReserve will simply check that the address space is
+// available and not actually reserve it.  If SysReserve returns
+// non-nil, it sets *reserved to true if the address space is
+// reserved, false if it has merely been checked.
 // NOTE: SysReserve returns OS-aligned memory, but the heap allocator
 // may use larger alignment, so the caller must be careful to realign the
 // memory obtained by SysAlloc.
 //
 // SysMap maps previously reserved address space for use.
+// The reserved argument is true if the address space was really
+// reserved, not merely checked.
 //
 // SysFault marks a (already SysAlloc'd) region to fault
 // if accessed.  Used only for debugging the runtime.
@@ -189,8 +195,8 @@ void*	runtime·SysAlloc(uintptr nbytes, uint64 *stat);
 void	runtime·SysFree(void *v, uintptr nbytes, uint64 *stat);
 void	runtime·SysUnused(void *v, uintptr nbytes);
 void	runtime·SysUsed(void *v, uintptr nbytes);
-void	runtime·SysMap(void *v, uintptr nbytes, uint64 *stat);
-void*	runtime·SysReserve(void *v, uintptr nbytes);
+void	runtime·SysMap(void *v, uintptr nbytes, bool reserved, uint64 *stat);
+void*	runtime·SysReserve(void *v, uintptr nbytes, bool *reserved);
 void	runtime·SysFault(void *v, uintptr nbytes);
 
 // FixAlloc is a simple free-list allocator for fixed size objects.
@@ -492,6 +498,7 @@ struct MHeap
 	byte *arena_start;
 	byte *arena_used;
 	byte *arena_end;
+	bool arena_reserved;
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are

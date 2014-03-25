@@ -2773,6 +2773,6 @@ runtime·MHeap_MapBits(MHeap *h)
 	if(h->bitmap_mapped >= n)
 		return;
 
-	runtime·SysMap(h->arena_start - n, n - h->bitmap_mapped, &mstats.gc_sys);
+	runtime·SysMap(h->arena_start - n, n - h->bitmap_mapped, h->arena_reserved, &mstats.gc_sys);
 	h->bitmap_mapped = n;
 }
