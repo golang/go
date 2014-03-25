@@ -64,13 +64,7 @@
 enum {
 	Debug = 0,
 	CollectStats = 0,
-	ScanStackByFrames = 1,
-	IgnorePreciseGC = 0,
 	ConcurrentSweep = 1,
-
-	// Four bits per word (see #defines below).
-	wordsPerBitmapWord = sizeof(void*)*8/4,
-	bitShift = sizeof(void*)*8/4,
 
 	WorkbufSize	= 16*1024,
 	FinBlockSize	= 4*1024,
@@ -145,38 +139,6 @@ clearpools(void)
 			p->deferpool[i] = nil;
 	}
 }
-
-// Bits in per-word bitmap.
-// #defines because enum might not be able to hold the values.
-//
-// Each word in the bitmap describes wordsPerBitmapWord words
-// of heap memory.  There are 4 bitmap bits dedicated to each heap word,
-// so on a 64-bit system there is one bitmap word per 16 heap words.
-// The bits in the word are packed together by type first, then by
-// heap location, so each 64-bit bitmap word consists of, from top to bottom,
-// the 16 bitMarked bits for the corresponding heap words,
-// then the 16 bitScan/bitBlockBoundary bits, then the 16 bitAllocated bits.
-// This layout makes it easier to iterate over the bits of a given type.
-//
-// The bitmap starts at mheap.arena_start and extends *backward* from
-// there.  On a 64-bit system the off'th word in the arena is tracked by
-// the off/16+1'th word before mheap.arena_start.  (On a 32-bit system,
-// the only difference is that the divisor is 8.)
-//
-// To pull out the bits corresponding to a given pointer p, we use:
-//
-//	off = p - (uintptr*)mheap.arena_start;  // word offset
-//	b = (uintptr*)mheap.arena_start - off/wordsPerBitmapWord - 1;
-//	shift = off % wordsPerBitmapWord
-//	bits = *b >> shift;
-//	/* then test bits & bitAllocated, bits & bitMarked, etc. */
-//
-#define bitAllocated		((uintptr)1<<(bitShift*0))	/* block start; eligible for garbage collection */
-#define bitScan			((uintptr)1<<(bitShift*1))	/* when bitAllocated is set */
-#define bitMarked		((uintptr)1<<(bitShift*2))	/* when bitAllocated is set */
-#define bitBlockBoundary	((uintptr)1<<(bitShift*1))	/* when bitAllocated is NOT set - mark for FlagNoGC objects */
-
-#define bitMask (bitAllocated | bitScan | bitMarked)
 
 // Holding worldsema grants an M the right to try to stop the world.
 // The procedure is:
@@ -1270,6 +1232,7 @@ markroot(ParFor *desc, uint32 i)
 
 	USED(&desc);
 	wbuf = getempty(nil);
+	// Note: if you add a case here, please also update heapdump.c:dumproots.
 	switch(i) {
 	case RootData:
 		enqueue1(&wbuf, (Obj){data, edata - data, (uintptr)gcdata});
@@ -1715,6 +1678,21 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType 
 }
 
 void
+runtime·iterate_finq(void (*callback)(FuncVal*, byte*, uintptr, Type*, PtrType*))
+{
+	FinBlock *fb;
+	Finalizer *f;
+	uintptr i;
+
+	for(fb = allfin; fb; fb = fb->alllink) {
+		for(i = 0; i < fb->cnt; i++) {
+			f = &fb->fin[i];
+			callback(f->fn, f->arg, f->nret, f->fint, f->ot);
+		}
+	}
+}
+
+void
 runtime·MSpan_EnsureSwept(MSpan *s)
 {
 	uint32 sg;
@@ -2120,8 +2098,8 @@ flushallmcaches(void)
 	}
 }
 
-static void
-updatememstats(GCStats *stats)
+void
+runtime·updatememstats(GCStats *stats)
 {
 	M *mp;
 	MSpan *s;
@@ -2388,7 +2366,7 @@ gc(struct gc_args *args)
 
 	if(runtime·debug.gctrace) {
 		heap1 = mstats.heap_alloc;
-		updatememstats(&stats);
+		runtime·updatememstats(&stats);
 		if(heap1 != mstats.heap_alloc) {
 			runtime·printf("runtime: mstats skew: heap=%D/%D\n", heap1, mstats.heap_alloc);
 			runtime·throw("mstats skew");
@@ -2488,7 +2466,7 @@ runtime·ReadMemStats(MStats *stats)
 	runtime·semacquire(&runtime·worldsema, false);
 	m->gcing = 1;
 	runtime·stoptheworld();
-	updatememstats(nil);
+	runtime·updatememstats(nil);
 	// Size of the trailing by_size array differs between Go and C,
 	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
 	runtime·memcopy(runtime·sizeof_C_MStats, stats, &mstats);

@@ -146,3 +146,8 @@ func SetMaxThreads(threads int) int {
 // SetPanicOnFault applies only to the current goroutine.
 // It returns the previous setting.
 func SetPanicOnFault(enabled bool) bool
+
+// WriteHeapDump writes a description of the heap and the objects in
+// it to the given file descriptor.
+// The heap dump format is defined at http://golang.org/s/go13heapdump.
+func WriteHeapDump(fd uintptr)

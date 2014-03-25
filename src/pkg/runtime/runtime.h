@@ -950,6 +950,8 @@ void	_rt0_go(void);
 void*	runtime·funcdata(Func*, int32);
 int32	runtime·setmaxthreads(int32);
 G*	runtime·timejump(void);
+void	runtime·iterate_itabs(void (*callback)(Itab*));
+void	runtime·iterate_finq(void (*callback)(FuncVal*, byte*, uintptr, Type*, PtrType*));
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"c"	int32
