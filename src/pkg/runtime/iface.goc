@@ -134,6 +134,20 @@ out:
 	return m;
 }
 
+// call the callback for every itab that is currently allocated.
+void
+runtime·iterate_itabs(void (*callback)(Itab*))
+{
+	int32 i;
+	Itab *tab;
+
+	for(i = 0; i < nelem(hash); i++) {
+		for(tab = hash[i]; tab != nil; tab = tab->link) {
+			callback(tab);
+		}
+	}
+}
+
 static void
 copyin(Type *t, void *src, void **dst)
 {
