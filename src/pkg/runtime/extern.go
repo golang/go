@@ -36,6 +36,9 @@ a comma-separated list of name=val pairs. Supported names are:
 	length of the pause. Setting gctrace=2 emits the same summary but also
 	repeats each collection.
 
+	gcdead: setting gcdead=1 causes the garbage collector to clobber all stack slots
+	that it thinks are dead.
+
 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
 	detailed multiline info every X milliseconds, describing state of the scheduler,
 	processors, threads and goroutines.

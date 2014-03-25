@@ -606,8 +606,14 @@ struct StackMap
 enum {
 	// Pointer map
 	BitsPerPointer = 2,
-	BitsNoPointer = 0,
-	BitsPointer = 1,
+	BitsDead = 0,
+	BitsScalar = 1,
+	BitsPointer = 2,
+	BitsMultiWord = 3,
+	// BitsMultiWord will be set for the first word of a multi-word item.
+	// When it is set, one of the following will be set for the second word.
+	BitsString = 0,
+	BitsSlice = 1,
 	BitsIface = 2,
 	BitsEface = 3,
 };

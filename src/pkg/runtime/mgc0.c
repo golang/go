@@ -1489,6 +1489,7 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
 	uintptr word, bits;
 	uint32 *wordp;
 	int32 i, remptrs;
+	byte *p;
 
 	wordp = bv->data;
 	for(remptrs = bv->n; remptrs > 0; remptrs -= 32) {
@@ -1500,11 +1501,52 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
 		i /= BitsPerPointer;
 		for(; i > 0; i--) {
 			bits = word & 3;
-			if(bits != BitsNoPointer && *(void**)scanp != nil)
-				if(bits == BitsPointer)
+			switch(bits) {
+			case BitsDead:
+				if(runtime·debug.gcdead)
+					*(uintptr*)scanp = (uintptr)0x6969696969696969LL;
+				break;
+			case BitsScalar:
+				break;
+			case BitsPointer:
+				p = *(byte**)scanp;
+				if(p != nil)
 					enqueue1(wbufp, (Obj){scanp, PtrSize, 0});
-				else
-					scaninterfacedata(bits, scanp, afterprologue, wbufp);
+				break;
+			case BitsMultiWord:
+				p = *(byte**)scanp;
+				if(p != nil) {
+					word >>= BitsPerPointer;
+					scanp += PtrSize;
+					i--;
+					if(i == 0) {
+						// Get next chunk of bits
+						remptrs -= 32;
+						word = *wordp++;
+						if(remptrs < 32)
+							i = remptrs;
+						else
+							i = 32;
+						i /= BitsPerPointer;
+					}
+					switch(word & 3) {
+					case BitsString:
+						if(((String*)(scanp - PtrSize))->len != 0)
+							markonly(p);
+						break;
+					case BitsSlice:
+						if(((Slice*)(scanp - PtrSize))->cap < ((Slice*)(scanp - PtrSize))->len)
+							runtime·throw("slice capacity smaller than length");
+						if(((Slice*)(scanp - PtrSize))->cap != 0)
+							enqueue1(wbufp, (Obj){scanp - PtrSize, PtrSize, 0});
+						break;
+					case BitsIface:
+					case BitsEface:
+						scaninterfacedata(word & 3, scanp - PtrSize, afterprologue, wbufp);
+						break;
+					}
+				}
+			}
 			word >>= BitsPerPointer;
 			scanp += PtrSize;
 		}

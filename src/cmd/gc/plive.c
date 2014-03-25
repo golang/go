@@ -1065,6 +1065,9 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 	case TFLOAT64:
 	case TCOMPLEX64:
 	case TCOMPLEX128:
+		for(i = 0; i < t->width; i++) {
+			bvset(bv, ((*xoffset + i) / widthptr) * BitsPerPointer); // 1 = live scalar
+		}
 		*xoffset += t->width;
 		break;
 
@@ -1076,7 +1079,7 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 	case TMAP:
 		if((*xoffset & (widthptr-1)) != 0)
 			fatal("twobitwalktype1: invalid alignment, %T", t);
-		bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
+		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr
 		*xoffset += t->width;
 		break;
 
@@ -1084,7 +1087,8 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 		// struct { byte *str; intgo len; }
 		if((*xoffset & (widthptr-1)) != 0)
 			fatal("twobitwalktype1: invalid alignment, %T", t);
-		bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
+		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 0);
+		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 3:0 = multiword:string
 		*xoffset += t->width;
 		break;
 
@@ -1094,9 +1098,15 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 		// struct { Type *type; union { void *ptr, uintptr val } data; }
 		if((*xoffset & (widthptr-1)) != 0)
 			fatal("twobitwalktype1: invalid alignment, %T", t);
-		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 1);
-		if(isnilinter(t))
-			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer));
+		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 0);
+		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 1); // 3 = multiword
+		// next word contains 2 = Iface, 3 = Eface
+		if(isnilinter(t)) {
+			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 2);
+			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 3);
+		} else {
+			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 3);
+		}
 		*xoffset += t->width;
 		break;
 
@@ -1109,11 +1119,20 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 			// struct { byte *array; uintgo len; uintgo cap; }
 			if((*xoffset & (widthptr-1)) != 0)
 				fatal("twobitwalktype1: invalid TARRAY alignment, %T", t);
-			bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
+			if(0) {
+				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 0);
+				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);
+				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2); // 3:1 = multiword/slice
+			} else {
+				// Until bug 7564 is fixed, we consider a slice as
+				// a separate pointer and integer.
+				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);  // 2 = live ptr
+				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2);  // 1 = live scalar
+			}
+			// mark capacity as live
+			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 4);  // 1 = live scalar
 			*xoffset += t->width;
-		} else if(!haspointers(t->type))
-				*xoffset += t->width;
-		else
+		} else
 			for(i = 0; i < t->bound; i++)
 				twobitwalktype1(t->type, xoffset, bv);
 		break;
@@ -1164,14 +1183,14 @@ twobitlivepointermap(Liveness *lv, Bvec *liveout, Array *vars, Bvec *args, Bvec 
 		node = *(Node**)arrayget(vars, i);
 		switch(node->class) {
 		case PAUTO:
-			if(bvget(liveout, i) && haspointers(node->type)) {
+			if(bvget(liveout, i)) {
 				xoffset = node->xoffset + stkptrsize;
 				twobitwalktype1(node->type, &xoffset, locals);
 			}
 			break;
 		case PPARAM:
 		case PPARAMOUT:
-			if(bvget(liveout, i) && haspointers(node->type)) {
+			if(bvget(liveout, i)) {
 				xoffset = node->xoffset;
 				twobitwalktype1(node->type, &xoffset, args);
 			}

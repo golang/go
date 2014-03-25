@@ -354,7 +354,11 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 		if(StackDebug >= 4)
 			runtime·printf("        %p:%s:%p\n", &scanp[i], mapnames[bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3], scanp[i]);
 		switch(bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3) {
-		case BitsNoPointer:
+		case BitsDead:
+			if(runtime·debug.gcdead)
+				scanp[i] = (byte*)0x6868686868686868LL;
+			break;
+		case BitsScalar:
 			break;
 		case BitsPointer:
 			p = scanp[i];
@@ -370,33 +374,53 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 				scanp[i] = p + delta;
 			}
 			break;
-		case BitsEface:
-			t = (Type*)scanp[i];
-			if(t != nil && (t->size > PtrSize || (t->kind & KindNoPointers) == 0)) {
-				p = scanp[i+1];
+		case BitsMultiWord:
+			switch(bv->data[(i+1) / (32 / BitsPerPointer)] >> ((i+1) * BitsPerPointer & 31) & 3) {
+			case BitsString:
+				// string referents are never on the stack, never need to be adjusted
+				i++; // skip len
+				break;
+			case BitsSlice:
+				p = scanp[i];
 				if(minp <= p && p < maxp) {
 					if(StackDebug >= 3)
-						runtime·printf("adjust eface %p\n", p);
-					if(t->size > PtrSize) // currently we always allocate such objects on the heap
-						runtime·throw("large interface value found on stack");
-					scanp[i+1] = p + delta;
+						runtime·printf("adjust slice %p\n", p);
+					scanp[i] = p + delta;
 				}
-			}
-			break;
-		case BitsIface:
-			tab = (Itab*)scanp[i];
-			if(tab != nil) {
-				t = tab->type;
-				if(t->size > PtrSize || (t->kind & KindNoPointers) == 0) {
+				i += 2; // skip len, cap
+				break;
+			case BitsEface:
+				t = (Type*)scanp[i];
+				if(t != nil && (t->size > PtrSize || (t->kind & KindNoPointers) == 0)) {
 					p = scanp[i+1];
 					if(minp <= p && p < maxp) {
 						if(StackDebug >= 3)
-							runtime·printf("adjust iface %p\n", p);
+							runtime·printf("adjust eface %p\n", p);
 						if(t->size > PtrSize) // currently we always allocate such objects on the heap
 							runtime·throw("large interface value found on stack");
 						scanp[i+1] = p + delta;
 					}
 				}
+				i++;
+				break;
+			case BitsIface:
+				tab = (Itab*)scanp[i];
+				if(tab != nil) {
+					t = tab->type;
+					//runtime·printf("          type=%p\n", t);
+					if(t->size > PtrSize || (t->kind & KindNoPointers) == 0) {
+						p = scanp[i+1];
+						if(minp <= p && p < maxp) {
+							if(StackDebug >= 3)
+								runtime·printf("adjust iface %p\n", p);
+							if(t->size > PtrSize) // currently we always allocate such objects on the heap
+								runtime·throw("large interface value found on stack");
+							scanp[i+1] = p + delta;
+						}
+					}
+				}
+				i++;
+				break;
 			}
 			break;
 		}
