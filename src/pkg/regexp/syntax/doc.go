@@ -46,6 +46,10 @@ Repetitions:
   x{n,}?         n or more x, prefer fewer
   x{n}?          exactly n x
 
+Implementation restriction: The counting forms x{n} etc. (but not the other
+forms x* etc.) have an upper limit of n=1000. Negative or higher explicit
+counts yield the parse error ErrInvalidRepeatSize.
+
 Grouping:
   (re)           numbered capturing group (submatch)
   (?P<name>re)   named & numbered capturing group (submatch)
