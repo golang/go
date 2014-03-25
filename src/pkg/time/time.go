@@ -934,6 +934,8 @@ func (t *Time) GobDecode(data []byte) error {
 // The time is a quoted string in RFC 3339 format, with sub-second precision added if present.
 func (t Time) MarshalJSON() ([]byte, error) {
 	if y := t.Year(); y < 0 || y >= 10000 {
+		// RFC 3339 is clear that years are 4 digits exactly.
+		// See golang.org/issue/4556#c15 for more discussion.
 		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
 	}
 	return []byte(t.Format(`"` + RFC3339Nano + `"`)), nil
