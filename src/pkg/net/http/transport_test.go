@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/rand"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -1833,6 +1834,71 @@ func TestTransportTLSHandshakeTimeout(t *testing.T) {
 	case <-getdonec:
 	case <-time.After(5 * time.Second):
 		t.Error("test timeout; TLS handshake hung?")
+	}
+}
+
+// Trying to repro golang.org/issue/3514
+func TestTLSServerClosesConnection(t *testing.T) {
+	defer afterTest(t)
+	closedc := make(chan bool, 1)
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if strings.Contains(r.URL.Path, "/keep-alive-then-die") {
+			conn, _, _ := w.(Hijacker).Hijack()
+			conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nfoo"))
+			conn.Close()
+			closedc <- true
+			return
+		}
+		fmt.Fprintf(w, "hello")
+	}))
+	defer ts.Close()
+	tr := &Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+	defer tr.CloseIdleConnections()
+	client := &Client{Transport: tr}
+
+	var nSuccess = 0
+	var errs []error
+	const trials = 20
+	for i := 0; i < trials; i++ {
+		tr.CloseIdleConnections()
+		res, err := client.Get(ts.URL + "/keep-alive-then-die")
+		if err != nil {
+			t.Fatal(err)
+		}
+		<-closedc
+		slurp, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(slurp) != "foo" {
+			t.Errorf("Got %q, want foo", slurp)
+		}
+
+		// Now try again and see if we successfully
+		// pick a new connection.
+		res, err = client.Get(ts.URL + "/")
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		slurp, err = ioutil.ReadAll(res.Body)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		nSuccess++
+	}
+	if nSuccess > 0 {
+		t.Logf("successes = %d of %d", nSuccess, trials)
+	} else {
+		t.Errorf("All runs failed:")
+	}
+	for _, err := range errs {
+		t.Logf("  err: %v", err)
 	}
 }
 

@@ -588,7 +588,7 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
 		pconn.conn = tlsConn
 	}
 
-	pconn.br = bufio.NewReader(pconn.conn)
+	pconn.br = bufio.NewReader(noteEOFReader{pconn.conn, &pconn.sawEOF})
 	pconn.bw = bufio.NewWriter(pconn.conn)
 	go pconn.readLoop()
 	go pconn.writeLoop()
@@ -723,6 +723,7 @@ type persistConn struct {
 	tlsState *tls.ConnectionState
 	closed   bool                // whether conn has been closed
 	br       *bufio.Reader       // from conn
+	sawEOF   bool                // whether we've seen EOF from conn; owned by readLoop
 	bw       *bufio.Writer       // to conn
 	reqch    chan requestAndChan // written by roundTrip; read by readLoop
 	writech  chan writeRequest   // written by roundTrip; read by writeLoop
@@ -839,6 +840,9 @@ func (pc *persistConn) readLoop() {
 			resp.Body.(*bodyEOFSignal).fn = func(err error) {
 				alive1 := alive
 				if err != nil {
+					alive1 = false
+				}
+				if alive1 && pc.sawEOF {
 					alive1 = false
 				}
 				if alive1 && !pc.t.putIdleConn(pc) {
@@ -1134,3 +1138,16 @@ type tlsHandshakeTimeoutError struct{}
 func (tlsHandshakeTimeoutError) Timeout() bool   { return true }
 func (tlsHandshakeTimeoutError) Temporary() bool { return true }
 func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handshake timeout" }
+
+type noteEOFReader struct {
+	r      io.Reader
+	sawEOF *bool
+}
+
+func (nr noteEOFReader) Read(p []byte) (n int, err error) {
+	n, err = nr.r.Read(p)
+	if err == io.EOF {
+		*nr.sawEOF = true
+	}
+	return
+}
