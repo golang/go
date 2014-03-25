@@ -73,6 +73,7 @@ runtime·SysFault(void *v, uintptr n)
 void*
 runtime·SysReserve(void *v, uintptr n)
 {
+	*reserved = true;
 	// v is just a hint.
 	// First try at v.
 	v = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_RESERVE, (uintptr)PAGE_READWRITE);
@@ -84,10 +85,12 @@ runtime·SysReserve(void *v, uintptr n)
 }
 
 void
-runtime·SysMap(void *v, uintptr n, uint64 *stat)
+runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
 {
 	void *p;
-	
+
+	USED(reserved);
+
 	runtime·xadd64(stat, n);
 	p = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_READWRITE);
 	if(p != v)

@@ -53,31 +53,34 @@ runtime·SysFault(void *v, uintptr n)
 }
 
 void*
-runtime·SysReserve(void *v, uintptr n)
+runtime·SysReserve(void *v, uintptr n, bool *reserved)
 {
 	void *p;
 
 	// On 64-bit, people with ulimit -v set complain if we reserve too
 	// much address space.  Instead, assume that the reservation is okay
 	// and check the assumption in SysMap.
-	if(sizeof(void*) == 8)
+	if(sizeof(void*) == 8 && n > 1LL<<32) {
+		*reserved = false;
 		return v;
+	}
 	
 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
 	if(p < (void*)4096)
 		return nil;
+	*reserved = true;
 	return p;
 }
 
 void
-runtime·SysMap(void *v, uintptr n, uint64 *stat)
+runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
 {
 	void *p;
 	
 	runtime·xadd64(stat, n);
 
 	// On 64-bit, we don't actually have v reserved, so tread carefully.
-	if(sizeof(void*) == 8) {
+	if(!reserved) {
 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
 		if(p == (void*)ENOMEM)
 			runtime·throw("runtime: out of memory");

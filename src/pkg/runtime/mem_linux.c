@@ -99,7 +99,7 @@ runtime·SysFault(void *v, uintptr n)
 }
 
 void*
-runtime·SysReserve(void *v, uintptr n)
+runtime·SysReserve(void *v, uintptr n, bool *reserved)
 {
 	void *p;
 
@@ -107,7 +107,7 @@ runtime·SysReserve(void *v, uintptr n)
 	// much address space.  Instead, assume that the reservation is okay
 	// if we can reserve at least 64K and check the assumption in SysMap.
 	// Only user-mode Linux (UML) rejects these requests.
-	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
+	if(sizeof(void*) == 8 && n > 1LL<<32) {
 		p = mmap_fixed(v, 64<<10, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
 		if (p != v) {
 			if(p >= (void*)4096)
@@ -115,24 +115,26 @@ runtime·SysReserve(void *v, uintptr n)
 			return nil;
 		}
 		runtime·munmap(p, 64<<10);
+		*reserved = false;
 		return v;
 	}
 
 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
 	if((uintptr)p < 4096)
 		return nil;
+	*reserved = true;
 	return p;
 }
 
 void
-runtime·SysMap(void *v, uintptr n, uint64 *stat)
+runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
 {
 	void *p;
 	
 	runtime·xadd64(stat, n);
 
 	// On 64-bit, we don't actually have v reserved, so tread carefully.
-	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
+	if(!reserved) {
 		p = mmap_fixed(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
 		if(p == (void*)ENOMEM)
 			runtime·throw("runtime: out of memory");
