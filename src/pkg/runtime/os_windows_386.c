@@ -24,19 +24,41 @@ runtime·dumpregs(Context *r)
 	runtime·printf("gs      %x\n", r->SegGs);
 }
 
+#define DBG_PRINTEXCEPTION_C 0x40010006
+
+// Called by sigtramp from Windows VEH handler.
+// Return value signals whether the exception has been handled (-1)
+// or should be made available to other handlers in the chain (0).
 uint32
 runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 {
 	bool crash;
 	uintptr *sp;
 
-	/*
 	switch(info->ExceptionCode) {
+	case DBG_PRINTEXCEPTION_C:
+		// This exception is intended to be caught by debuggers.
+		// There is a not-very-informational message like
+		// "Invalid parameter passed to C runtime function"
+		// sitting at info->ExceptionInformation[0] (a wchar_t*),
+		// with length info->ExceptionInformation[1].
+		// The default behavior is to ignore this exception,
+		// but somehow returning 0 here (meaning keep going)
+		// makes the program crash instead. Maybe Windows has no
+		// other handler registered? In any event, ignore it.
+		return -1;
+
 	case EXCEPTION_BREAKPOINT:
-		r->Eip--;	// because 8l generates 2 bytes for INT3
-		return 1;
+		// It is unclear whether this is needed, unclear whether it
+		// would work, and unclear how to test it. Leave out for now.
+		// This only handles breakpoint instructions written in the
+		// assembly sources, not breakpoints set by a debugger, and
+		// there are very few of the former.
+		//
+		// r->Eip--;	// because 8l generates 2 bytes for INT3
+		// return 0;
+		break;
 	}
-	*/
 
 	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
 		// Make it look like a call to the signal func.
@@ -60,15 +82,15 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 			r->Esp = (uintptr)sp;
 		}
 		r->Eip = (uintptr)runtime·sigpanic;
-		return 0;
+		return -1;
 	}
 
 	if(runtime·panicking)	// traceback already printed
 		runtime·exit(2);
 	runtime·panicking = 1;
 
-	runtime·printf("Exception %x %p %p\n", info->ExceptionCode,
-		info->ExceptionInformation[0], info->ExceptionInformation[1]);
+	runtime·printf("Exception %x %p %p %p\n", info->ExceptionCode,
+		info->ExceptionInformation[0], info->ExceptionInformation[1], r->Eip);
 
 	runtime·printf("PC=%x\n", r->Eip);
 	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
@@ -86,9 +108,8 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 	if(crash)
 		runtime·crash();
 
-
 	runtime·exit(2);
-	return 0;
+	return -1; // not reached
 }
 
 void
