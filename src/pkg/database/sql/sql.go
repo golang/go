@@ -1494,6 +1494,7 @@ func (s *Stmt) finalClose() error {
 //
 //     rows, err := db.Query("SELECT ...")
 //     ...
+//     defer rows.Close()
 //     for rows.Next() {
 //         var id int
 //         var name string
