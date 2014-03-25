@@ -451,6 +451,8 @@ func (b *block) readFromUntil(r io.Reader, n int) error {
 		m, err := r.Read(b.data[len(b.data):cap(b.data)])
 		b.data = b.data[0 : len(b.data)+m]
 		if len(b.data) >= n {
+			// TODO(bradfitz,agl): slightly suspicious
+			// that we're throwing away r.Read's err here.
 			break
 		}
 		if err != nil {
@@ -904,6 +906,25 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 		if c.input.off >= len(c.input.data) {
 			c.in.freeBlock(c.input)
 			c.input = nil
+		}
+
+		// If a close-notify alert is waiting, read it so that
+		// we can return (n, EOF) instead of (n, nil), to signal
+		// to the HTTP response reading goroutine that the
+		// connection is now closed. This eliminates a race
+		// where the HTTP response reading goroutine would
+		// otherwise not observe the EOF until its next read,
+		// by which time a client goroutine might have already
+		// tried to reuse the HTTP connection for a new
+		// request.
+		// See https://codereview.appspot.com/76400046
+		// and http://golang.org/issue/3514
+		if ri := c.rawInput; ri != nil &&
+			n != 0 && err == nil &&
+			c.input == nil && len(ri.data) > 0 && recordType(ri.data[0]) == recordTypeAlert {
+			if recErr := c.readRecord(recordTypeApplicationData); recErr != nil {
+				err = recErr // will be io.EOF on closeNotify
+			}
 		}
 
 		if n != 0 || err != nil {
