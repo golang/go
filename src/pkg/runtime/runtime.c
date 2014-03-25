@@ -314,6 +314,7 @@ static struct {
 	{"allocfreetrace", &runtime·debug.allocfreetrace},
 	{"efence", &runtime·debug.efence},
 	{"gctrace", &runtime·debug.gctrace},
+	{"gcdead", &runtime·debug.gcdead},
 	{"scheddetail", &runtime·debug.scheddetail},
 	{"schedtrace", &runtime·debug.schedtrace},
 };

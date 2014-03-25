@@ -661,7 +661,9 @@ walktype1(Type *t, int32 offset, Bvec *bv, int param)
 {
 	Type *t1;
 	int32 o;
+	int32 widthptr;
 
+	widthptr = ewidth[TIND];
 	switch(t->etype) {
 	case TCHAR:
 	case TUCHAR:
@@ -676,14 +678,16 @@ walktype1(Type *t, int32 offset, Bvec *bv, int param)
 	case TFLOAT:
 	case TDOUBLE:
 		// non-pointer types
+		for(o = 0; o < t->width; o++)
+			bvset(bv, ((offset + t->offset + o) / widthptr) * BitsPerPointer); // 1 = live scalar
 		break;
 
 	case TIND:
 	pointer:
 		// pointer types
-		if((offset + t->offset) % ewidth[TIND] != 0)
+		if((offset + t->offset) % widthptr != 0)
 			yyerror("unaligned pointer");
-		bvset(bv, ((offset + t->offset) / ewidth[TIND])*BitsPerPointer);
+		bvset(bv, ((offset + t->offset) / widthptr)*BitsPerPointer + 1); // 2 = live ptr
 		break;
 
 	case TARRAY:
@@ -735,7 +739,7 @@ dumpgcargs(Type *fn, Sym *sym)
 		// argument is a pointer.
 		if(argoffset != ewidth[TIND])
 			yyerror("passbyptr arg not the right size");
-		bvset(bv, 0);
+		bvset(bv, 1); // 2 = live ptr
 	}
 	for(t = fn->down; t != T; t = t->down) {
 		if(t->etype == TVOID)

@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 type Tintptr *int // assignable to *int
@@ -135,3 +136,83 @@ func BenchmarkFinalizerRun(b *testing.B) {
 		}
 	})
 }
+
+// One chunk must be exactly one sizeclass in size.
+// It should be a sizeclass not used much by others, so we
+// have a greater chance of finding adjacent ones.
+// size class 19: 320 byte objects, 25 per page, 1 page alloc at a time
+const objsize = 320
+
+type objtype [objsize]byte
+
+func adjChunks() (*objtype, *objtype) {
+	var s []*objtype
+
+	for {
+		c := new(objtype)
+		for _, d := range s {
+			if uintptr(unsafe.Pointer(c))+unsafe.Sizeof(*c) == uintptr(unsafe.Pointer(d)) {
+				return c, d
+			}
+			if uintptr(unsafe.Pointer(d))+unsafe.Sizeof(*c) == uintptr(unsafe.Pointer(c)) {
+				return d, c
+			}
+		}
+		s = append(s, c)
+	}
+}
+
+// Make sure an empty slice on the stack doesn't pin the next object in memory.
+func TestEmptySlice(t *testing.T) {
+	if true { // disable until bug 7564 is fixed.
+		return
+	}
+	x, y := adjChunks()
+
+	// the pointer inside xs points to y.
+	xs := x[objsize:] // change objsize to objsize-1 and the test passes
+
+	fin := make(chan bool, 1)
+	runtime.SetFinalizer(y, func(z *objtype) { fin <- true })
+	runtime.GC()
+	select {
+	case <-fin:
+	case <-time.After(4 * time.Second):
+		t.Errorf("finalizer of next object in memory didn't run")
+	}
+	xsglobal = xs // keep empty slice alive until here
+}
+
+var xsglobal []byte
+
+func adjStringChunk() (string, *objtype) {
+	b := make([]byte, objsize)
+	for {
+		s := string(b)
+		t := new(objtype)
+		p := *(*uintptr)(unsafe.Pointer(&s))
+		q := uintptr(unsafe.Pointer(t))
+		if p+objsize == q {
+			return s, t
+		}
+	}
+}
+
+// Make sure an empty string on the stack doesn't pin the next object in memory.
+func TestEmptyString(t *testing.T) {
+	x, y := adjStringChunk()
+
+	ss := x[objsize:] // change objsize to objsize-1 and the test passes
+	fin := make(chan bool, 1)
+	// set finalizer on string contents of y
+	runtime.SetFinalizer(y, func(z *objtype) { fin <- true })
+	runtime.GC()
+	select {
+	case <-fin:
+	case <-time.After(4 * time.Second):
+		t.Errorf("finalizer of next string in memory didn't run")
+	}
+	ssglobal = ss // keep 0-length string live until here
+}
+
+var ssglobal string

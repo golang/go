@@ -578,6 +578,7 @@ struct DebugVars
 	int32	allocfreetrace;
 	int32	efence;
 	int32	gctrace;
+	int32	gcdead;
 	int32	scheddetail;
 	int32	schedtrace;
 };
