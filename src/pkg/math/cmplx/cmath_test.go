@@ -656,6 +656,19 @@ func TestPolar(t *testing.T) {
 	}
 }
 func TestPow(t *testing.T) {
+	// Special cases for Pow(0, c).
+	var zero = complex(0, 0)
+	zeroPowers := [][2]complex128{
+		{0, 1 + 0i},
+		{1.5, 0 + 0i},
+		{-1.5, complex(math.Inf(0), 0)},
+		{-1.5 + 1.5i, Inf()},
+	}
+	for _, zp := range zeroPowers {
+		if f := Pow(zero, zp[0]); f != zp[1] {
+			t.Errorf("Pow(%g, %g) = %g, want %g", zero, zp[0], f, zp[1])
+		}
+	}
 	var a = complex(3.0, 3.0)
 	for i := 0; i < len(vc); i++ {
 		if f := Pow(a, vc[i]); !cSoclose(pow[i], f, 4e-15) {
