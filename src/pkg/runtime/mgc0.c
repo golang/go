@@ -2033,7 +2033,7 @@ runtime·memorydump(void)
 void
 runtime·gchelper(void)
 {
-	int32 nproc;
+	uint32 nproc;
 
 	gchelperstart();
 
