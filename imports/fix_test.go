@@ -507,6 +507,20 @@ var (
 )
 `,
 	},
+
+	{
+		name: "renamed package",
+		in: `package main
+
+var _ = str.HasPrefix
+`,
+		out: `package main
+
+import str "strings"
+
+var _ = str.HasPrefix
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
@@ -519,9 +533,10 @@ func TestFixImports(t *testing.T) {
 		"zip":       "archive/zip",
 		"bytes":     "bytes",
 		"snappy":    "code.google.com/p/snappy-go/snappy",
+		"str":       "strings",
 	}
-	findImport = func(pkgName string, symbols map[string]bool) (string, error) {
-		return simplePkgs[pkgName], nil
+	findImport = func(pkgName string, symbols map[string]bool) (string, bool, error) {
+		return simplePkgs[pkgName], pkgName == "str", nil
 	}
 
 	for _, tt := range tests {
@@ -577,20 +592,20 @@ type Buffer2 struct {}
 		build.Default.GOPATH = oldGOPATH
 	}()
 
-	got, err := findImportGoPath("bytes", map[string]bool{"Buffer2": true})
+	got, rename, err := findImportGoPath("bytes", map[string]bool{"Buffer2": true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != bytesPkgPath {
-		t.Errorf(`findImportGoPath("bytes", Buffer2 ...)=%q, want "%s"`, got, bytesPkgPath)
+	if got != bytesPkgPath || rename {
+		t.Errorf(`findImportGoPath("bytes", Buffer2 ...)=%q, %t, want "%s", false`, got, rename, bytesPkgPath)
 	}
 
-	got, err = findImportGoPath("bytes", map[string]bool{"Missing": true})
+	got, rename, err = findImportGoPath("bytes", map[string]bool{"Missing": true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "" {
-		t.Errorf(`findImportGoPath("bytes", Missing ...)=%q, want ""`, got)
+	if got != "" || rename {
+		t.Errorf(`findImportGoPath("bytes", Missing ...)=%q, %t, want "", false`, got, rename)
 	}
 }
 
@@ -607,12 +622,12 @@ func TestFindImportStdlib(t *testing.T) {
 		{"ioutil", []string{"Discard"}, "io/ioutil"},
 	}
 	for _, tt := range tests {
-		got, ok := findImportStdlib(tt.pkg, strSet(tt.symbols))
+		got, rename, ok := findImportStdlib(tt.pkg, strSet(tt.symbols))
 		if (got != "") != ok {
 			t.Error("findImportStdlib return value inconsistent")
 		}
-		if got != tt.want {
-			t.Errorf("findImportStdlib(%q, %q) = %q; want %q", tt.pkg, tt.symbols, got, tt.want)
+		if got != tt.want || rename {
+			t.Errorf("findImportStdlib(%q, %q) = %q, %t; want %q, false", tt.pkg, tt.symbols, got, rename, tt.want)
 		}
 	}
 }
