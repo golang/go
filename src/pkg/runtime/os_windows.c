@@ -8,6 +8,7 @@
 #include "os_GOOS.h"
 #include "../../cmd/ld/textflag.h"
 
+#pragma dynimport runtime·AddVectoredExceptionHandler AddVectoredExceptionHandler "kernel32.dll"
 #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
 #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
 #pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
@@ -20,26 +21,27 @@
 #pragma dynimport runtime·FreeEnvironmentStringsW FreeEnvironmentStringsW "kernel32.dll"
 #pragma dynimport runtime·GetEnvironmentStringsW GetEnvironmentStringsW "kernel32.dll"
 #pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
+#pragma dynimport runtime·GetQueuedCompletionStatusEx GetQueuedCompletionStatusEx "kernel32.dll"
 #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
 #pragma dynimport runtime·GetSystemInfo GetSystemInfo "kernel32.dll"
 #pragma dynimport runtime·GetSystemTimeAsFileTime GetSystemTimeAsFileTime "kernel32.dll"
 #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
 #pragma dynimport runtime·LoadLibrary LoadLibraryW "kernel32.dll"
 #pragma dynimport runtime·LoadLibraryA LoadLibraryA "kernel32.dll"
+#pragma dynimport runtime·NtWaitForSingleObject NtWaitForSingleObject "ntdll.dll"
 #pragma dynimport runtime·ResumeThread ResumeThread "kernel32.dll"
 #pragma dynimport runtime·SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
 #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
+#pragma dynimport runtime·SetProcessPriorityBoost SetProcessPriorityBoost "kernel32.dll"
 #pragma dynimport runtime·SetThreadPriority SetThreadPriority "kernel32.dll"
 #pragma dynimport runtime·SetWaitableTimer SetWaitableTimer "kernel32.dll"
 #pragma dynimport runtime·Sleep Sleep "kernel32.dll"
 #pragma dynimport runtime·SuspendThread SuspendThread "kernel32.dll"
-#pragma dynimport runtime·timeBeginPeriod timeBeginPeriod "winmm.dll"
 #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
 #pragma dynimport runtime·WriteFile WriteFile "kernel32.dll"
-#pragma dynimport runtime·NtWaitForSingleObject NtWaitForSingleObject "ntdll.dll"
+#pragma dynimport runtime·timeBeginPeriod timeBeginPeriod "winmm.dll"
 
-extern void *runtime·NtWaitForSingleObject;
-
+extern void *runtime·AddVectoredExceptionHandler;
 extern void *runtime·CloseHandle;
 extern void *runtime·CreateEvent;
 extern void *runtime·CreateThread;
@@ -52,27 +54,29 @@ extern void *runtime·ExitProcess;
 extern void *runtime·FreeEnvironmentStringsW;
 extern void *runtime·GetEnvironmentStringsW;
 extern void *runtime·GetProcAddress;
+extern void *runtime·GetQueuedCompletionStatusEx;
 extern void *runtime·GetStdHandle;
 extern void *runtime·GetSystemInfo;
 extern void *runtime·GetSystemTimeAsFileTime;
 extern void *runtime·GetThreadContext;
 extern void *runtime·LoadLibrary;
 extern void *runtime·LoadLibraryA;
+extern void *runtime·NtWaitForSingleObject;
 extern void *runtime·ResumeThread;
 extern void *runtime·SetConsoleCtrlHandler;
 extern void *runtime·SetEvent;
+extern void *runtime·SetProcessPriorityBoost;
 extern void *runtime·SetThreadPriority;
 extern void *runtime·SetWaitableTimer;
 extern void *runtime·Sleep;
 extern void *runtime·SuspendThread;
-extern void *runtime·timeBeginPeriod;
 extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
-
-void *runtime·GetQueuedCompletionStatusEx;
+extern void *runtime·timeBeginPeriod;
 
 extern uintptr runtime·externalthreadhandlerp;
 void runtime·externalthreadhandler(void);
+void runtime·sigtramp(void);
 
 static int32
 getproccount(void)
@@ -86,26 +90,18 @@ getproccount(void)
 void
 runtime·osinit(void)
 {
-	void *kernel32;
-	void *SetProcessPriorityBoost;
-
 	runtime·externalthreadhandlerp = (uintptr)runtime·externalthreadhandler;
 
+	runtime·stdcall(runtime·AddVectoredExceptionHandler, 2, (uintptr)1, (uintptr)runtime·sigtramp);
 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
 	runtime·ncpu = getproccount();
-
-	kernel32 = runtime·stdcall(runtime·LoadLibraryA, 1, "kernel32.dll");
-	if(kernel32 != nil) {
-		// Windows dynamic priority boosting assumes that a process has different types
-		// of dedicated threads -- GUI, IO, computational, etc. Go processes use
-		// equivalent threads that all do a mix of GUI, IO, computations, etc.
-		// In such context dynamic priority boosting does nothing but harm, so we turn it off.
-		SetProcessPriorityBoost = runtime·stdcall(runtime·GetProcAddress, 2, kernel32, "SetProcessPriorityBoost");
-		if(SetProcessPriorityBoost != nil)  // supported since Windows XP
-			runtime·stdcall(SetProcessPriorityBoost, 2, (uintptr)-1, (uintptr)1);
-		runtime·GetQueuedCompletionStatusEx = runtime·stdcall(runtime·GetProcAddress, 2, kernel32, "GetQueuedCompletionStatusEx");
-	}
+	
+	// Windows dynamic priority boosting assumes that a process has different types
+	// of dedicated threads -- GUI, IO, computational, etc. Go processes use
+	// equivalent threads that all do a mix of GUI, IO, computations, etc.
+	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
+	runtime·stdcall(runtime·SetProcessPriorityBoost, 2, (uintptr)-1, (uintptr)1);
 }
 
 void
@@ -368,8 +364,6 @@ runtime·sigpanic(void)
 	}
 	runtime·throw("fault");
 }
-
-extern void *runtime·sigtramp;
 
 void
 runtime·initsig(void)

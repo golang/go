@@ -657,7 +657,6 @@ havem:
 	// Save current sp in m->g0->sched.sp in preparation for
 	// switch back to m->curg stack.
 	// NOTE: unwindm knows that the saved g->sched.sp is at 0(SP).
-	// On Windows, the SEH is at 4(SP) and 8(SP).
 	MOVL	m_g0(BP), SI
 	MOVL	(g_sched+gobuf_sp)(SI), AX
 	MOVL	AX, 0(SP)
