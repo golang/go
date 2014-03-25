@@ -5,6 +5,7 @@
 package tls
 
 import (
+	"io"
 	"net"
 	"strings"
 	"testing"
@@ -109,18 +110,22 @@ func TestX509MixedKeyPair(t *testing.T) {
 	}
 }
 
-func TestDialTimeout(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
-
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+func newLocalListener(t *testing.T) net.Listener {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		listener, err = net.Listen("tcp6", "[::1]:0")
+		ln, err = net.Listen("tcp6", "[::1]:0")
 	}
 	if err != nil {
 		t.Fatal(err)
 	}
+	return ln
+}
+
+func TestDialTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	listener := newLocalListener(t)
 
 	addr := listener.Addr().String()
 	defer listener.Close()
@@ -142,11 +147,68 @@ func TestDialTimeout(t *testing.T) {
 		Timeout: 10 * time.Millisecond,
 	}
 
+	var err error
 	if _, err = DialWithDialer(dialer, "tcp", addr, nil); err == nil {
 		t.Fatal("DialWithTimeout completed successfully")
 	}
 
 	if !strings.Contains(err.Error(), "timed out") {
 		t.Errorf("resulting error not a timeout: %s", err)
+	}
+}
+
+// tests that Conn.Read returns (non-zero, io.EOF) instead of
+// (non-zero, nil) when a Close (alertCloseNotify) is sitting right
+// behind the application data in the buffer.
+func TestConnReadNonzeroAndEOF(t *testing.T) {
+	ln := newLocalListener(t)
+	defer ln.Close()
+
+	srvCh := make(chan *Conn, 1)
+	go func() {
+		sconn, err := ln.Accept()
+		if err != nil {
+			t.Error(err)
+			srvCh <- nil
+			return
+		}
+		serverConfig := *testConfig
+		srv := Server(sconn, &serverConfig)
+		if err := srv.Handshake(); err != nil {
+			t.Error("handshake: %v", err)
+			srvCh <- nil
+			return
+		}
+		srvCh <- srv
+	}()
+
+	clientConfig := *testConfig
+	conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	srv := <-srvCh
+	if srv == nil {
+		return
+	}
+
+	buf := make([]byte, 6)
+
+	srv.Write([]byte("foobar"))
+	n, err := conn.Read(buf)
+	if n != 6 || err != nil || string(buf) != "foobar" {
+		t.Fatalf("Read = %d, %v, data %q; want 6, nil, foobar", n, err, buf)
+	}
+
+	srv.Write([]byte("abcdef"))
+	srv.Close()
+	n, err = conn.Read(buf)
+	if n != 6 || string(buf) != "abcdef" {
+		t.Fatalf("Read = %d, buf= %q; want 6, abcdef", n, buf)
+	}
+	if err != io.EOF {
+		t.Errorf("Second Read error = %v; want io.EOF", err)
 	}
 }
