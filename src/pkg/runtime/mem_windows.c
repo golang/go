@@ -71,7 +71,7 @@ runtime·SysFault(void *v, uintptr n)
 }
 
 void*
-runtime·SysReserve(void *v, uintptr n)
+runtime·SysReserve(void *v, uintptr n, bool *reserved)
 {
 	*reserved = true;
 	// v is just a hint.
