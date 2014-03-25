@@ -11,6 +11,14 @@
 // For an overview of the syntax, run
 //   godoc regexp/syntax
 //
+// The regexp implementation provided by this package is
+// guaranteed to run in time linear in the size of the input.
+// (This is a property not guaranteed by most open source
+// implementations of regular expressions.) For more information
+// about this property, see
+//	http://swtch.com/~rsc/regexp/regexp1.html
+// or any book about automata theory.
+//
 // All characters are UTF-8-encoded code points.
 //
 // There are 16 methods of Regexp that match a regular expression and identify
