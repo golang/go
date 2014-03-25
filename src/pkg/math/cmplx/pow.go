@@ -43,7 +43,25 @@ import "math"
 //    IEEE      -10,+10     30000       9.4e-15     1.5e-15
 
 // Pow returns x**y, the base-x exponential of y.
+// For generalized compatiblity with math.Pow:
+// Pow(0, ±0) returns 1+0i
+// Pow(0, c) for real(c)<0 returns Inf+0i if imag(c) is zero, otherwise Inf+Inf i.
 func Pow(x, y complex128) complex128 {
+	if x == 0 { // Guaranteed also true for x == -0.
+		r, i := real(y), imag(y)
+		switch {
+		case r == 0:
+			return 1
+		case r < 0:
+			if i == 0 {
+				return complex(math.Inf(1), 0)
+			}
+			return Inf()
+		case r > 0:
+			return 0
+		}
+		panic("not reached")
+	}
 	modulus := Abs(x)
 	if modulus == 0 {
 		return complex(0, 0)
