@@ -457,7 +457,6 @@ static char *proto_gccargs[] = {
 	"-Wstrict-prototypes",
 	"-Wextra",
 	"-Wunused",
-	"-Wuninitialized",
 	"-Wno-sign-compare",
 	"-Wno-missing-braces",
 	"-Wno-parentheses",
@@ -469,17 +468,19 @@ static char *proto_gccargs[] = {
 	"-fno-common",
 	"-ggdb",
 	"-pipe",
-#if defined(__NetBSD__) && defined(__arm__)
-	// GCC 4.5.4 (NetBSD nb1 20120916) on ARM is known to mis-optimize gc/mparith3.c
-	// Fix available at http://patchwork.ozlabs.org/patch/64562/.
-	"-O1",
-#endif
 };
 
 // gccargs2 is the second part of gccargs.
 // it is used if the environment isn't defining CFLAGS.
 static char *proto_gccargs2[] = {
+	// on older versions of GCC, -Wuninitialized is not supported
+	// without -O, so put it here together with -O settings in case
+	// the user's $CFLAGS doesn't include -O.
+	"-Wuninitialized",
 #if defined(__NetBSD__) && defined(__arm__)
+	// GCC 4.5.4 (NetBSD nb1 20120916) on ARM is known to mis-optimize gc/mparith3.c
+	// Fix available at http://patchwork.ozlabs.org/patch/64562/.
+	"-O1",
 #else
 	"-O2",
 #endif
