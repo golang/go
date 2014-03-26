@@ -1867,7 +1867,12 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 		if !a.p.Standard {
 			if a.p != nil && !apackagesSeen[a.p] {
 				apackagesSeen[a.p] = true
-				afiles = append(afiles, a.target)
+				if a.p.fake {
+					// move _test files to the top of the link order
+					afiles = append([]string{a.target}, afiles...)
+				} else {
+					afiles = append(afiles, a.target)
+				}
 			}
 		}
 	}
