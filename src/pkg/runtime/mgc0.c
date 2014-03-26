@@ -913,10 +913,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
 
 		case GC_STRING:
 			stringptr = (String*)(stack_top.b + pc[1]);
-			if(stringptr->len != 0) {
-				obj = stringptr->str;
-				markonly(obj);
-			}
+			if(stringptr->len != 0)
+				markonly(stringptr->str);
 			pc += 2;
 			continue;
 
