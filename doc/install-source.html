@@ -69,8 +69,8 @@ goroutines, such as stacks that grow and shrink on demand.
 </p>
 
 <p>
-The compilers can target the FreeBSD, Linux, NetBSD, OpenBSD, OS X (Darwin), Plan 9,
-Solaris and Windows operating systems.
+The compilers can target the DragonFly BSD, FreeBSD, Linux, NetBSD, OpenBSD,
+OS X (Darwin), Plan 9, Solaris and Windows operating systems.
 The full set of supported combinations is listed in the discussion of
 <a href="#environment">environment variables</a> below.
 </p>
@@ -358,7 +358,7 @@ These default to the values of <code>$GOHOSTOS</code> and
 
 <p>
 Choices for <code>$GOOS</code> are
-<code>darwin</code> (Mac OS X 10.6 and above), <code>freebsd</code>,
+<code>darwin</code> (Mac OS X 10.6 and above), <code>dragonfly</code>, <code>freebsd</code>,
 <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>, 
 <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
 Choices for <code>$GOARCH</code> are
@@ -374,6 +374,12 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 </tr>
 <tr>
 <td></td><td><code>darwin</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>dragonfly</code></td> <td><code>386</code></td>
+</tr>
+<tr>
+<td></td><td><code>dragonfly</code></td> <td><code>amd64</code></td>
 </tr>
 <tr>
 <td></td><td><code>freebsd</code></td> <td><code>386</code></td>
