@@ -115,20 +115,25 @@
 		fmt.Printf("%v\n", i)
 	will print 23.
 
-	If an operand implements interface Formatter, that interface
-	can be used for fine control of formatting. Similarly, if an
-	operand implements the GoStringer interface, that will be
-	invoked if the '%#v' verb is used to format the operand.
+	Except when printed using the the verbs %T and %p, special
+	formatting considerations apply for operands that implement
+	certain interfaces. In order of application:
+
+	1. If an operand implements the Formatter interface, it will
+	be invoked. Formatter provides fine control of formatting.
+
+	2. If the %v verb is used with the # flag (%#v) and the operand
+	implements the GoStringer interface, that will be invoked.
 
 	If the format (which is implicitly %v for Println etc.) is valid
-	for a string (%s %q %v %x %X), the following two rules also apply:
+	for a string (%s %q %v %x %X), the following two rules apply:
 
-	1. If an operand implements the error interface, the Error method
-	will be used to convert the object to a string, which will then
+	3. If an operand implements the error interface, the Error method
+	will be invoked to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
 
-	2. If an operand implements method String() string, that method
-	will be used to convert the object to a string, which will then
+	4. If an operand implements method String() string, that method
+	will be invoked to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
 
 	For compound operands such as slices and structs, the format
