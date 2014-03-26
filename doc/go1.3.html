@@ -1,0 +1,183 @@
+<!--{
+	"Title": "Go 1.3 Release Notes",
+	"Path":  "/doc/go1.3",
+	"Template": true
+}-->
+
+<h2 id="introduction">Introduction to Go 1.3</h2>
+
+<p>
+The latest Go release, version 1.3, arrives six months after 1.2,
+and contains no language changes.
+It does have some important developments, though,
+including a refinement to the memory model regarding synchronization,
+precise garbage collection,
+significant performance improvements,
+including TODO,
+and support for Google's Native Client architecture (NaCl).
+As always, Go 1.3 keeps the <a href="/doc/go1compat.html">promise
+of compatibility</a>,
+and almost everything 
+will continue to compile and run without change when moved to 1.3.
+</p>
+
+<h2 id="os">Changes to the supported operating systems and architectures</h2>
+
+<h3 id="nacl">Support for Native Client</h3>
+<p>
+TODO
+</p>
+
+<h3 id="solaris">Support for Solaris</h3>
+
+<p>
+TODO
+</p>
+
+
+<h3 id="windows2000">Removal of support for Windows 2000</h3>
+
+<p>
+TODO
+windows 2000 removed (CL 74790043)
+</p>
+
+
+<h2 id="memory">Changes to the memory model</h2>
+
+<p>
+TODO:
+early go documentation suggested using a channel as a semaphore like this: (previous example).
+the go memory model has been updated to make explicit that this idiom is allowed.  (new example).
+the previous example is also correct, just requiring needless func init work.
+(CL 75130045)
+</p>
+
+<h2 id="impl">Changes to the implementations and tools</h2>
+
+<h3 id="stacks">Stack</h3>
+
+<p>
+TODO stack copying, no longer segmented
+</p>
+
+<h3 id="stack_size">Stack size</h3>
+
+<p>
+Go 1.2 increased the minimum stack size to 8 kilobytes; with the new stack model, it has been
+put back to 4 kilobytes.
+</p>
+
+<p>
+<em>Updating</em>: TODO
+</p>
+
+<h3 id="garbage_collector">Changes to the garbage collector</h3>
+
+<p>
+precision (TODO what to say)
+liveness (TODO what to say)
+</p>
+
+<h3 id="liblink">The linker</h3>
+
+<p>
+TODO compiler/linker boundary moved
+</p>
+
+<p>
+<em>Updating</em>: TODO
+</p>
+
+<h3 id="gccgo">Status of gccgo</h3>
+
+<p>
+TODO
+</p>
+
+<h3 id="gocmd">Changes to the go command</h3>
+
+<p>
+TODO
+cmd/go, go/build: support .m files (CL 60590044)
+cmd/go: add -exec to 'go run' and 'go test' (CL 68580043)
+cmd/go: cover -atomic for -race (CL 76370043)
+</p>
+
+<h3 id="misc">Miscellany</h3>
+
+<ul>
+<li> TODO: misc/benchcmp: removed and replaced by go.tools/cmd/benchcmp (CL 47980043)</li>
+<li> TODO: misc/dist: renamed misc/makerelease (CL 39920043)</li>
+</ul>
+
+
+<h2 id="performance">Performance</h2>
+
+<p>
+TODO
+</p>
+
+<ul> 
+
+<li>
+TODO
+</li>
+
+</ul>
+
+<h2 id="library">Changes to the standard library</h2>
+
+<p>
+TODO: Which should be called out?
+</p>
+
+
+
+<h3 id="new_packages">New packages</h3>
+
+<p>
+There is one new package added to the standard library: <a href="/pkg/sync/pool/"><code>sync/pool</code></a>.
+TODO: sync: add Pool (CL 41860043, 46010043)
+</p>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+The following list summarizes a number of minor changes to the library, mostly additions.
+See the relevant package documentation for more information about each change.
+</p>
+
+<ul>
+
+<li> TODO: cmplx.Pow(0, x): https://codereview.appspot.com/76940044</li>
+<li> TODO: crypto/tls: ServerName or InsecureSkipVerify (CL 67010043)</li>
+<li> TODO: crypto/tls: add DialWithDialer (CL 68920045)</li>
+<li> TODO: crypto/tls: report TLS version in ConnectionState (CL 68250043)</li>
+<li> TODO: crypto/x509: support CSRs (CL 49830048)</li>
+<li> TODO: fmt %F: 77580044</li>
+<li> TODO: liblink: pull linker i/o into separate liblink C library (CL 35790044)</li>
+<li> TODO: net/http: add Request.TLS (CL 52660047)</li>
+<li> TODO: net/http: add Server.ErrorLog; log and test TLS handshake errors (CL 70250044)</li>
+<li> TODO: net/http: add Server.SetKeepAlivesEnabled (CL 69670043)</li>
+<li> TODO: net/http: add Transport.TLSHandshakeTimeout; set it by default (CL 68150045)</li>
+<li> TODO: net/http: add optional Server.ConnState callback (CL 69260044)</li>
+<li> TODO: net/http: use TCP Keep-Alives on DefaultTransport's connections (CL 68330046)</li>
+<li> TODO: net/http: use TCP keep-alives for ListenAndServe and ListenAndServeTLS (CL 48300043)</li>
+<li> TODO: net: add Dialer.KeepAlive option (CL 68380043)</li>
+<li> TODO: net: enable fast socket creation using SOCK_CLOEXEC and Accept4 on FreeBSD 10 (69100043)</li>
+<li> TODO: os/exec: fix Command with relative paths (CL 59580044)</li>
+<li> TODO: regexp: add one-pass optimization from RE2 (CL 13345046)</li>
+<li> TODO: runtime/debug: add SetPanicOnFault (CL 66590044)</li>
+<li> TODO: runtime: output how long goroutines are blocked (CL 50420043)</li>
+<li> TODO: runtime: better handling of defers, reduces goroutine memory footprint by 2K (CL 42750044)</li>
+<li> TODO: runtime: faster GC: concurrent sweep, better parallelization, 8K pages (up to 50-70% pause reduction) (CL 46430043, 46860043, 58230043)</li>
+<li> TODO: runtime/race: faster by ~40% (CL 55100044)</li>
+<li> TODO: strconv.CanBackquote rejects U+007F CL 77300043</li>
+<li> TODO: syscall: add Accept4 for freebsd (CL 68880043)</li>
+<li> TODO: syscall: add NewCallbackCDecl to use for windows callbacks (CL 36180044)</li>
+<li> TODO: syscall: add support for FreeBSD 10 (CL 56770044, 56980043)</li>
+<li> TODO: testing: add b.RunParallel function (CL 57270043)</li>
+<li> TODO: testing: diagnose buggy tests that panic(nil) (CL 55780043)</li>
+<li> TODO: unicode: upgrade from Unicode 6.2.0 to 6.3.0 (CL 65400044)</li>
+</ul>
