@@ -202,15 +202,17 @@ extern byte ebss[];
 extern byte gcdata[];
 extern byte gcbss[];
 
-static G	*fing;
-static FinBlock	*finq; // list of finalizers that are to be executed
-static FinBlock	*finc; // cache of free blocks
-static FinBlock	*allfin; // list of all blocks
-static int32	fingwait;
+static Lock	finlock;	// protects the following variables
+static FinBlock	*finq;		// list of finalizers that are to be executed
+static FinBlock	*finc;		// cache of free blocks
+static FinBlock	*allfin;	// list of all blocks
+bool	runtime·fingwait;
+bool	runtime·fingwake;
+
 static Lock	gclock;
+static G*	fing;
 
 static void	runfinq(void);
-static void	wakefing(void);
 static void	bgsweep(void);
 static Workbuf* getempty(Workbuf*);
 static Workbuf* getfull(Workbuf*);
@@ -1652,7 +1654,7 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType 
 	FinBlock *block;
 	Finalizer *f;
 
-	runtime·lock(&gclock);
+	runtime·lock(&finlock);
 	if(finq == nil || finq->cnt == finq->cap) {
 		if(finc == nil) {
 			finc = runtime·persistentalloc(FinBlockSize, 0, &mstats.gc_sys);
@@ -1672,7 +1674,8 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType 
 	f->fint = fint;
 	f->ot = ot;
 	f->arg = p;
-	runtime·unlock(&gclock);
+	runtime·fingwake = true;
+	runtime·unlock(&finlock);
 }
 
 void
@@ -1769,7 +1772,7 @@ runtime·MSpan_Sweep(MSpan *s)
 		shift = off % wordsPerBitmapWord;
 		*bitp |= bitMarked<<shift;
 	}
-	
+
 	// Unlink & free special records for any objects we're about to free.
 	specialp = &s->specials;
 	special = *specialp;
@@ -1899,7 +1902,6 @@ static struct
 {
 	G*	g;
 	bool	parked;
-	uint32	lastsweepgen;
 
 	MSpan**	spans;
 	uint32	nspan;
@@ -1914,17 +1916,8 @@ bgsweep(void)
 	for(;;) {
 		while(runtime·sweepone() != -1) {
 			gcstats.nbgsweep++;
-			if(sweep.lastsweepgen != runtime·mheap.sweepgen) {
-				// If bgsweep does not catch up for any reason
-				// (does not finish before next GC),
-				// we still need to kick off runfinq at least once per GC.
-				sweep.lastsweepgen = runtime·mheap.sweepgen;
-				wakefing();
-			}
 			runtime·gosched();
 		}
-		// kick off goroutine to run queued finalizers
-		wakefing();
 		runtime·lock(&gclock);
 		if(!runtime·mheap.sweepdone) {
 			// It's possible if GC has happened between sweepone has
@@ -2277,8 +2270,6 @@ runtime·gc(int32 force)
 
 	// now that gc is done, kick off finalizer thread if needed
 	if(!ConcurrentSweep) {
-		// kick off goroutine to run queued finalizers
-		wakefing();
 		// give the queued finalizers, if any, a chance to run
 		runtime·gosched();
 	}
@@ -2565,15 +2556,15 @@ runfinq(void)
 	USED(&ef1);
 
 	for(;;) {
-		runtime·lock(&gclock);
+		runtime·lock(&finlock);
 		fb = finq;
 		finq = nil;
 		if(fb == nil) {
-			fingwait = 1;
-			runtime·parkunlock(&gclock, "finalizer wait");
+			runtime·fingwait = true;
+			runtime·parkunlock(&finlock, "finalizer wait");
 			continue;
 		}
-		runtime·unlock(&gclock);
+		runtime·unlock(&finlock);
 		if(raceenabled)
 			runtime·racefingo();
 		for(; fb; fb=next) {
@@ -2613,10 +2604,10 @@ runfinq(void)
 				f->ot = nil;
 			}
 			fb->cnt = 0;
-			runtime·lock(&gclock);
+			runtime·lock(&finlock);
 			fb->next = finc;
 			finc = fb;
-			runtime·unlock(&gclock);
+			runtime·unlock(&finlock);
 		}
 
 		// Zero everything that's dead, to avoid memory leaks.
@@ -2632,20 +2623,34 @@ runfinq(void)
 	}
 }
 
-static void
-wakefing(void)
+void
+runtime·createfing(void)
 {
-	if(finq == nil)
+	if(fing != nil)
 		return;
+	// Here we use gclock instead of finlock,
+	// because newproc1 can allocate, which can cause on-demand span sweep,
+	// which can queue finalizers, which would deadlock.
 	runtime·lock(&gclock);
-	// kick off or wake up goroutine to run queued finalizers
 	if(fing == nil)
 		fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
-	else if(fingwait) {
-		fingwait = 0;
-		runtime·ready(fing);
-	}
 	runtime·unlock(&gclock);
+}
+
+G*
+runtime·wakefing(void)
+{
+	G *res;
+
+	res = nil;
+	runtime·lock(&finlock);
+	if(runtime·fingwait && runtime·fingwake) {
+		runtime·fingwait = false;
+		runtime·fingwake = false;
+		res = fing;
+	}
+	runtime·unlock(&finlock);
+	return res;
 }
 
 void

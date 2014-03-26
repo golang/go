@@ -893,6 +893,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		}
 	}
 	if(finalizer.type != nil) {
+		runtime·createfing();
 		if(finalizer.type->kind != KindFunc)
 			goto badfunc;
 		ft = (FuncType*)finalizer.type;

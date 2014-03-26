@@ -1144,6 +1144,8 @@ top:
 		gcstopm();
 		goto top;
 	}
+	if(runtime·fingwait && runtime·fingwake && (gp = runtime·wakefing()) != nil)
+		runtime·ready(gp);
 	// local runq
 	gp = runqget(m->p);
 	if(gp)
