@@ -21,10 +21,10 @@ func init() {
 	// importer for default gccgo
 	var inst gccgoimporter.GccgoInstallation
 	inst.InitFromDriver("gccgo")
-	register("gccgo", protect(inst.GetImporter(nil)))
+	register("gccgo", inst.GetImporter(nil))
 
 	// importer for gccgo using condensed export format (experimental)
-	register("gccgo-new", protect(gccgoNewImporter))
+	register("gccgo-new", gccgoNewImporter)
 }
 
 func gccgoNewImporter(packages map[string]*types.Package, path string) (*types.Package, error) {

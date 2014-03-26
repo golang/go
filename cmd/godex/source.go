@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	register("source", protect(sourceImporter))
+	register("source", sourceImporter)
 }
 
 func sourceImporter(packages map[string]*types.Package, path string) (*types.Package, error) {

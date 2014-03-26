@@ -8,6 +8,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/build"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,16 +18,19 @@ import (
 )
 
 var (
-	source  = flag.String("s", "", "only consider packages from this source")
+	source  = flag.String("s", "", "only consider packages from src, where src is one of the supported compilers")
 	verbose = flag.Bool("v", false, "verbose mode")
 )
 
+// lists of registered sources and corresponding importers
 var (
-	sources      []string         // sources of export data corresponding to importers
-	importers    []types.Importer // importers for corresponding sources
+	sources      []string
+	importers    []types.Importer
 	importFailed = errors.New("import failed")
-	packages     = make(map[string]*types.Package)
 )
+
+// map of imported packages
+var packages = make(map[string]*types.Package)
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "usage: godex [flags] {path|qualifiedIdent}")
@@ -46,7 +51,7 @@ func main() {
 		report("no package name, path, or file provided")
 	}
 
-	imp := tryImport
+	imp := tryImports
 	if *source != "" {
 		imp = lookup(*source)
 		if imp == nil {
@@ -56,14 +61,17 @@ func main() {
 
 	for _, arg := range flag.Args() {
 		path, name := splitPathIdent(arg)
-		if *verbose {
-			fmt.Fprintf(os.Stderr, "(processing %q: path = %q, name = %s)\n", arg, path, name)
-		}
+		logf("\tprocessing %q: path = %q, name = %s\n", arg, path, name)
+
+		// generate possible package path prefixes
+		// (at the moment we do this for each argument - should probably cache this)
+		prefixes := make(chan string)
+		go genPrefixes(prefixes)
 
 		// import package
-		pkg, err := imp(packages, path)
+		pkg, err := tryPrefixes(packages, prefixes, path, imp)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ignoring %q: %s\n", path, err)
+			logf("\t=> ignoring %q: %s\n", path, err)
 			continue
 		}
 
@@ -82,6 +90,57 @@ func main() {
 	}
 }
 
+func logf(format string, args ...interface{}) {
+	if *verbose {
+		fmt.Fprintf(os.Stderr, format, args...)
+	}
+}
+
+// splitPathIdent splits a path.name argument into its components.
+// All but the last path element may contain dots.
+func splitPathIdent(arg string) (path, name string) {
+	if i := strings.LastIndex(arg, "."); i >= 0 {
+		if j := strings.LastIndex(arg, "/"); j < i {
+			// '.' is not part of path
+			path = arg[:i]
+			name = arg[i+1:]
+			return
+		}
+	}
+	path = arg
+	return
+}
+
+// tryPrefixes tries to import the package given by (the possibly partial) path using the given importer imp
+// by prepending all possible prefixes to path. It returns with the first package that it could import, or
+// with an error.
+func tryPrefixes(packages map[string]*types.Package, prefixes chan string, path string, imp types.Importer) (pkg *types.Package, err error) {
+	for prefix := range prefixes {
+		logf("\ttrying prefix %q\n", prefix)
+		prepath := filepath.Join(prefix, path)
+		pkg, err = imp(packages, prepath)
+		if err == nil {
+			break
+		}
+		logf("\t=> importing %q failed: %s\n", prepath, err)
+	}
+	return
+}
+
+// tryImports is an importer that tries all registered importers
+// successively until one of them succeeds or all of them failed.
+func tryImports(packages map[string]*types.Package, path string) (pkg *types.Package, err error) {
+	for i, imp := range importers {
+		logf("\t\ttrying %s import\n", sources[i])
+		pkg, err = imp(packages, path)
+		if err == nil {
+			break
+		}
+		logf("\t\t=> %s import failed: %s\n", sources[i], err)
+	}
+	return
+}
+
 // protect protects an importer imp from panics and returns the protected importer.
 func protect(imp types.Importer) types.Importer {
 	return func(packages map[string]*types.Package, path string) (pkg *types.Package, err error) {
@@ -95,44 +154,16 @@ func protect(imp types.Importer) types.Importer {
 	}
 }
 
-func tryImport(packages map[string]*types.Package, path string) (pkg *types.Package, err error) {
-	for i, imp := range importers {
-		if *verbose {
-			fmt.Fprintf(os.Stderr, "(trying source: %s)\n", sources[i])
-		}
-		pkg, err = imp(packages, path)
-		if err == nil {
-			break
-		}
-	}
-	return
-}
-
-// splitPathIdent splits a path.name argument into its components.
-// All but the last path element may contain dots.
-// TODO(gri) document this also in doc.go.
-func splitPathIdent(arg string) (path, name string) {
-	const sep = string(filepath.Separator)
-	if i := strings.LastIndex(arg, "."); i >= 0 {
-		if j := strings.LastIndex(arg, sep); j < i {
-			// '.' is not part of path
-			path = arg[:i]
-			name = arg[i+1:]
-			return
-		}
-	}
-	path = arg
-	return
-}
-
+// register registers an importer imp for a given source src.
 func register(src string, imp types.Importer) {
 	if lookup(src) != nil {
 		panic(src + " importer already registered")
 	}
 	sources = append(sources, src)
-	importers = append(importers, imp)
+	importers = append(importers, protect(imp))
 }
 
+// lookup returns the importer imp for a given source src.
 func lookup(src string) types.Importer {
 	for i, s := range sources {
 		if s == src {
@@ -140,4 +171,27 @@ func lookup(src string) types.Importer {
 		}
 	}
 	return nil
+}
+
+func genPrefixes(out chan string) {
+	out <- "" // try no prefix
+	platform := build.Default.GOOS + "_" + build.Default.GOARCH
+	for _, dirname := range filepath.SplitList(build.Default.GOPATH) {
+		walkDir(filepath.Join(dirname, "pkg", platform), "", out)
+	}
+	close(out)
+}
+
+func walkDir(dirname, prefix string, out chan string) {
+	fiList, err := ioutil.ReadDir(dirname)
+	if err != nil {
+		return
+	}
+	for _, fi := range fiList {
+		if fi.IsDir() && !strings.HasPrefix(fi.Name(), ".") {
+			prefix := filepath.Join(prefix, fi.Name())
+			out <- prefix
+			walkDir(filepath.Join(dirname, fi.Name()), prefix, out)
+		}
+	}
 }

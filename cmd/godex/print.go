@@ -85,7 +85,7 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 		}
 	}
 
-	p.printf("package %s\n\n", pkg.Name())
+	p.printf("package %s  // %q\n\n", pkg.Name(), pkg.Path())
 
 	if len(consts) > 0 {
 		p.print("const (\n")

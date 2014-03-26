@@ -11,5 +11,5 @@ import (
 )
 
 func init() {
-	register("gc", protect(gcimporter.Import))
+	register("gc", gcimporter.Import)
 }
