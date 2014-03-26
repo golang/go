@@ -803,7 +803,7 @@ playgcprog(uintptr offset, uintptr *prog, void (*callback)(void*,uintptr,uintptr
 			prog += 4;
 			break;
 		default:
-			runtime·printf("%D\n", prog[0]);
+			runtime·printf("%D\n", (uint64)prog[0]);
 			runtime·throw("bad gc op");
 		}
 	}
