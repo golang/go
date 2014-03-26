@@ -669,6 +669,31 @@ if ! ./testgo test -c -test.bench=XXX fmt; then
 fi
 rm -f fmt.test
 
+TEST 'Issue 7573: cmd/cgo: undefined reference when linking a C-library using gccgo'
+d=$(mktemp -d -t testgoXXX)
+export GOPATH=$d
+mkdir -p $d/src/cgoref
+ldflags="-L alibpath -lalib"
+echo "
+package main
+// #cgo LDFLAGS: $ldflags
+// void f(void) {}
+import \"C\"
+
+func main() { C.f() }
+" >$d/src/cgoref/cgoref.go
+go_cmds="$(./testgo build -n -compiler gccgo cgoref 2>&1 1>/dev/null)"
+ldflags_count="$(echo "$go_cmds" | egrep -c "^gccgo.*$(echo $ldflags | sed -e 's/-/\\-/g')" || true)"
+if [ "$ldflags_count" -lt 1 ]; then
+	echo "No Go-inline "#cgo LDFLAGS:" (\"$ldflags\") passed to gccgo linking stage."
+	ok=false
+fi
+rm -rf $d
+unset ldflags_count
+unset go_cmds
+unset ldflags
+unset GOPATH
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
