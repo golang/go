@@ -608,7 +608,8 @@ runtime·newstack(void)
 	uintptr sp;
 	uintptr *src, *dst, *dstend;
 	G *gp;
-	Gobuf label;
+	Gobuf label, morebuf;
+	void *moreargp;
 	bool newstackcall;
 
 	if(m->forkstackguard)
@@ -627,6 +628,12 @@ runtime·newstack(void)
 
 	framesize = m->moreframesize;
 	argsize = m->moreargsize;
+	moreargp = m->moreargp;
+	m->moreargp = nil;
+	morebuf = m->morebuf;
+	m->morebuf.pc = (uintptr)nil;
+	m->morebuf.lr = (uintptr)nil;
+	m->morebuf.sp = (uintptr)nil;
 	gp->status = Gwaiting;
 	gp->waitreason = "stack split";
 	newstackcall = framesize==1;
@@ -727,13 +734,9 @@ runtime·newstack(void)
 
 	top->stackbase = gp->stackbase;
 	top->stackguard = gp->stackguard;
-	top->gobuf = m->morebuf;
-	top->argp = m->moreargp;
+	top->gobuf = morebuf;
+	top->argp = moreargp;
 	top->argsize = argsize;
-	m->moreargp = nil;
-	m->morebuf.pc = (uintptr)nil;
-	m->morebuf.lr = (uintptr)nil;
-	m->morebuf.sp = (uintptr)nil;
 
 	// copy flag from panic
 	top->panic = gp->ispanic;
