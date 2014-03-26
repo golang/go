@@ -652,7 +652,7 @@ example.org/user/foo or foo.hg, and
 	import "example.org/repo.git/foo/bar"
 
 denotes the foo/bar directory of the Git repository at
-example.com/repo or repo.git.
+example.org/repo or repo.git.
 
 When a version control system supports multiple protocols,
 each is tried in turn when downloading.  For example, a Git
