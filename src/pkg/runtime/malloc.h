@@ -571,6 +571,10 @@ void	runtime·MProf_TraceGC(void);
 int32	runtime·gcprocs(void);
 void	runtime·helpgc(int32 nproc);
 void	runtime·gchelper(void);
+void	runtime·createfing(void);
+G*	runtime·wakefing(void);
+extern bool	runtime·fingwait;
+extern bool	runtime·fingwake;
 
 void	runtime·setprofilebucket(void *p, Bucket *b);
 
