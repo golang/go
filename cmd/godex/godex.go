@@ -9,12 +9,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"code.google.com/p/go.tools/go/types"
 )
-
-// BUG(gri) cannot specify package paths with dots (code.google.com/p/go.tools/cmd/ssadump)
 
 var (
 	source  = flag.String("s", "", "only consider packages from this source")
@@ -22,8 +21,9 @@ var (
 )
 
 var (
+	sources      []string         // sources of export data corresponding to importers
+	importers    []types.Importer // importers for corresponding sources
 	importFailed = errors.New("import failed")
-	importers    = make(map[string]types.Importer)
 	packages     = make(map[string]*types.Package)
 )
 
@@ -48,29 +48,16 @@ func main() {
 
 	imp := tryImport
 	if *source != "" {
-		imp = importers[*source]
+		imp = lookup(*source)
 		if imp == nil {
-			report("source must be one of: " + importersList())
+			report("source (-s argument) must be one of: " + strings.Join(sources, ", "))
 		}
 	}
 
 	for _, arg := range flag.Args() {
+		path, name := splitPathIdent(arg)
 		if *verbose {
-			fmt.Fprintf(os.Stderr, "(processing %s)\n", arg)
-		}
-
-		// determine import path, object name
-		var path, name string
-		elems := strings.Split(arg, ".")
-		switch len(elems) {
-		case 2:
-			name = elems[1]
-			fallthrough
-		case 1:
-			path = elems[0]
-		default:
-			fmt.Fprintf(os.Stderr, "ignoring %q: invalid path or (qualified) identifier\n", arg)
-			continue
+			fmt.Fprintf(os.Stderr, "(processing %q: path = %q, name = %s)\n", arg, path, name)
 		}
 
 		// import package
@@ -81,7 +68,7 @@ func main() {
 		}
 
 		// filter objects if needed
-		filter := exportFilter
+		filter := types.Object.Exported
 		if name != "" {
 			f := filter
 			filter = func(obj types.Object) bool {
@@ -109,9 +96,9 @@ func protect(imp types.Importer) types.Importer {
 }
 
 func tryImport(packages map[string]*types.Package, path string) (pkg *types.Package, err error) {
-	for source, imp := range importers {
+	for i, imp := range importers {
 		if *verbose {
-			fmt.Fprintf(os.Stderr, "(trying as %s)\n", source)
+			fmt.Fprintf(os.Stderr, "(trying source: %s)\n", sources[i])
 		}
 		pkg, err = imp(packages, path)
 		if err == nil {
@@ -121,25 +108,36 @@ func tryImport(packages map[string]*types.Package, path string) (pkg *types.Pack
 	return
 }
 
-func register(source string, imp types.Importer) {
-	if _, ok := importers[source]; ok {
-		panic(source + " importer already registered")
-	}
-	importers[source] = imp
-}
-
-func importersList() string {
-	var s string
-	for n := range importers {
-		if len(s) == 0 {
-			s = n
-		} else {
-			s = s + ", " + n
+// splitPathIdent splits a path.name argument into its components.
+// All but the last path element may contain dots.
+// TODO(gri) document this also in doc.go.
+func splitPathIdent(arg string) (path, name string) {
+	const sep = string(filepath.Separator)
+	if i := strings.LastIndex(arg, "."); i >= 0 {
+		if j := strings.LastIndex(arg, sep); j < i {
+			// '.' is not part of path
+			path = arg[:i]
+			name = arg[i+1:]
+			return
 		}
 	}
-	return s
+	path = arg
+	return
 }
 
-func exportFilter(obj types.Object) bool {
-	return obj.Exported()
+func register(src string, imp types.Importer) {
+	if lookup(src) != nil {
+		panic(src + " importer already registered")
+	}
+	sources = append(sources, src)
+	importers = append(importers, imp)
+}
+
+func lookup(src string) types.Importer {
+	for i, s := range sources {
+		if s == src {
+			return importers[i]
+		}
+	}
+	return nil
 }
