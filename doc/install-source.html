@@ -70,7 +70,7 @@ goroutines, such as stacks that grow and shrink on demand.
 
 <p>
 The compilers can target the FreeBSD, Linux, NetBSD, OpenBSD, OS X (Darwin), Plan 9,
-and Windows operating systems.
+Solaris and Windows operating systems.
 The full set of supported combinations is listed in the discussion of
 <a href="#environment">environment variables</a> below.
 </p>
@@ -360,7 +360,7 @@ These default to the values of <code>$GOHOSTOS</code> and
 Choices for <code>$GOOS</code> are
 <code>darwin</code> (Mac OS X 10.6 and above), <code>freebsd</code>,
 <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>, 
-<code>plan9</code>, and <code>windows</code>.
+<code>plan9</code>, <code>solaris</code> and <code>windows</code>.
 Choices for <code>$GOARCH</code> are
 <code>amd64</code> (64-bit x86, the most mature port),
 <code>386</code> (32-bit x86), and <code>arm</code> (32-bit ARM).
@@ -413,6 +413,9 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 </tr>
 <tr>
 <td></td><td><code>plan9</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>solaris</code></td> <td><code>amd64</code></td>
 </tr>
 <tr>
 <td></td><td><code>windows</code></td> <td><code>386</code></td>
