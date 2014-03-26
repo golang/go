@@ -14,6 +14,8 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+// BUG(gri) cannot specify package paths with dots (code.google.com/p/go.tools/cmd/ssadump)
+
 var (
 	source  = flag.String("s", "", "only consider packages from this source")
 	verbose = flag.Bool("v", false, "verbose mode")

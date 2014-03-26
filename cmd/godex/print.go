@@ -12,7 +12,6 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-// TODO(gri) handle indentation
 // TODO(gri) filter unexported fields of struct types?
 // TODO(gri) use tabwriter for alignment?
 
@@ -26,25 +25,40 @@ func print(w io.Writer, pkg *types.Package, filter func(types.Object) bool) {
 type printer struct {
 	pkg    *types.Package
 	buf    bytes.Buffer
-	indent int
+	indent int  // current indentation level
+	last   byte // last byte written
 }
 
 func (p *printer) print(s string) {
-	p.buf.WriteString(s)
+	// Write the string one byte at a time. We care about the presence of
+	// newlines for indentation which we will see even in the presence of
+	// (non-corrupted) Unicode; no need to read one rune at a time.
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch != '\n' && p.last == '\n' {
+			// Note: This could lead to a range overflow for very large
+			// indentations, but it's extremely unlikely to happen for
+			// non-pathological code.
+			p.buf.WriteString("\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"[:p.indent])
+		}
+		p.buf.WriteByte(ch)
+		p.last = ch
+	}
 }
 
 func (p *printer) printf(format string, args ...interface{}) {
-	fmt.Fprintf(&p.buf, format, args...)
+	p.print(fmt.Sprintf(format, args...))
 }
 
 func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) bool) {
 	// collect objects by kind
 	var (
-		consts []*types.Const
-		typez  []*types.TypeName // types without methods
-		typem  []*types.TypeName // types with methods
-		vars   []*types.Var
-		funcs  []*types.Func
+		consts   []*types.Const
+		typez    []*types.TypeName // types without methods
+		typem    []*types.TypeName // types with methods
+		vars     []*types.Var
+		funcs    []*types.Func
+		builtins []*types.Builtin
 	)
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
@@ -56,7 +70,7 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 		case *types.Const:
 			consts = append(consts, obj)
 		case *types.TypeName:
-			if obj.Type().(*types.Named).NumMethods() > 0 {
+			if named, _ := obj.Type().(*types.Named); named != nil && named.NumMethods() > 0 {
 				typem = append(typem, obj)
 			} else {
 				typez = append(typez, obj)
@@ -65,6 +79,9 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 			vars = append(vars, obj)
 		case *types.Func:
 			funcs = append(funcs, obj)
+		case *types.Builtin:
+			// for unsafe.Sizeof, etc.
+			builtins = append(builtins, obj)
 		}
 	}
 
@@ -72,36 +89,42 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 
 	if len(consts) > 0 {
 		p.print("const (\n")
+		p.indent++
 		for _, obj := range consts {
 			p.printObj(obj)
 			p.print("\n")
 		}
+		p.indent--
 		p.print(")\n\n")
 	}
 
 	if len(vars) > 0 {
 		p.print("var (\n")
+		p.indent++
 		for _, obj := range vars {
 			p.printObj(obj)
 			p.print("\n")
 		}
+		p.indent--
 		p.print(")\n\n")
 	}
 
 	if len(typez) > 0 {
 		p.print("type (\n")
+		p.indent++
 		for _, obj := range typez {
-			p.printf("\t%s ", obj.Name())
-			types.WriteType(&p.buf, p.pkg, obj.Type().Underlying())
+			p.printf("%s ", obj.Name())
+			p.writeType(p.pkg, obj.Type().Underlying())
 			p.print("\n")
 		}
+		p.indent--
 		p.print(")\n\n")
 	}
 
 	for _, obj := range typem {
 		p.printf("type %s ", obj.Name())
 		typ := obj.Type().(*types.Named)
-		types.WriteType(&p.buf, p.pkg, typ.Underlying())
+		p.writeType(p.pkg, typ.Underlying())
 		p.print("\n")
 		for i, n := 0, typ.NumMethods(); i < n; i++ {
 			p.printFunc(typ.Method(i))
@@ -115,15 +138,20 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 		p.print("\n")
 	}
 
+	// TODO(gri) better handling of builtins (package unsafe only)
+	for _, obj := range builtins {
+		p.printf("func %s() // builtin\n", obj.Name())
+	}
+
 	p.print("\n")
 }
 
 func (p *printer) printObj(obj types.Object) {
-	p.printf("\t %s", obj.Name())
+	p.printf("%s", obj.Name())
 	// don't write untyped types (for constants)
 	if typ := obj.Type(); typed(typ) {
 		p.print(" ")
-		types.WriteType(&p.buf, p.pkg, typ)
+		p.writeType(p.pkg, typ)
 	}
 	// write constant value
 	if obj, ok := obj.(*types.Const); ok {
@@ -140,11 +168,11 @@ func (p *printer) printFunc(obj *types.Func) {
 			p.print(name)
 			p.print(" ")
 		}
-		types.WriteType(&p.buf, p.pkg, recv.Type())
+		p.writeType(p.pkg, recv.Type())
 		p.print(") ")
 	}
 	p.print(obj.Name())
-	types.WriteSignature(&p.buf, p.pkg, sig)
+	p.writeSignature(p.pkg, sig)
 }
 
 func typed(typ types.Type) bool {
