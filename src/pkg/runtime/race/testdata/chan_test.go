@@ -568,10 +568,12 @@ func TestRaceChanCloseLen(t *testing.T) {
 }
 
 func TestRaceChanSameCell(t *testing.T) {
-	c := make(chan int, 1)
+	c := make(chan int, 2)
 	v := 0
 	go func() {
 		v = 1
+		c <- 42
+		<-c
 		c <- 42
 		<-c
 	}()
@@ -590,4 +592,65 @@ func TestRaceChanCloseSend(t *testing.T) {
 	}()
 	c <- 0
 	<-compl
+}
+
+func TestNoRaceChanMutex(t *testing.T) {
+	done := make(chan struct{})
+	mtx := make(chan struct{}, 1)
+	data := 0
+	go func() {
+		mtx <- struct{}{}
+		data = 42
+		<-mtx
+		done <- struct{}{}
+	}()
+	mtx <- struct{}{}
+	data = 43
+	<-mtx
+	<-done
+}
+
+func TestNoRaceSelectMutex(t *testing.T) {
+	done := make(chan struct{})
+	mtx := make(chan struct{}, 1)
+	aux := make(chan bool)
+	data := 0
+	go func() {
+		select {
+		case mtx <- struct{}{}:
+		case <-aux:
+		}
+		data = 42
+		select {
+		case <-mtx:
+		case <-aux:
+		}
+		done <- struct{}{}
+	}()
+	select {
+	case mtx <- struct{}{}:
+	case <-aux:
+	}
+	data = 43
+	select {
+	case <-mtx:
+	case <-aux:
+	}
+	<-done
+}
+
+func TestRaceChanSem(t *testing.T) {
+	done := make(chan struct{})
+	mtx := make(chan struct{}, 2)
+	data := 0
+	go func() {
+		mtx <- struct{}{}
+		data = 42
+		<-mtx
+		done <- struct{}{}
+	}()
+	mtx <- struct{}{}
+	data = 43
+	<-mtx
+	<-done
 }
