@@ -529,49 +529,6 @@ addpersrc(void)
 	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h->VirtualSize;
 }
 
-static void
-addexcept(IMAGE_SECTION_HEADER *text)
-{
-	IMAGE_SECTION_HEADER *pdata, *xdata;
-	vlong startoff;
-	uvlong n;
-	LSym *sym;
-
-	USED(text);
-	if(thechar != '6')
-		return;
-
-	// write unwind info
-	sym = linklookup(ctxt, "runtime.sigtramp", 0);
-	startoff = cpos();
-	lputl(9);	// version=1, flags=UNW_FLAG_EHANDLER, rest 0
-	lputl(sym->value - PEBASE);
-	lputl(0);
-
-	n = cpos() - startoff;
-	xdata = addpesection(".xdata", n, n);
-	xdata->Characteristics = IMAGE_SCN_MEM_READ|
-		IMAGE_SCN_CNT_INITIALIZED_DATA;
-	chksectoff(xdata, startoff);
-	strnput("", xdata->SizeOfRawData - n);
-
-	// write a function table entry for the whole text segment
-	startoff = cpos();
-	lputl(text->VirtualAddress);
-	lputl(text->VirtualAddress + text->VirtualSize);
-	lputl(xdata->VirtualAddress);
-
-	n = cpos() - startoff;
-	pdata = addpesection(".pdata", n, n);
-	pdata->Characteristics = IMAGE_SCN_MEM_READ|
-		IMAGE_SCN_CNT_INITIALIZED_DATA;
-	chksectoff(pdata, startoff);
-	strnput("", pdata->SizeOfRawData - n);
-
-	dd[IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = pdata->VirtualAddress;
-	dd[IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = pdata->VirtualSize;
-}
-
 void
 asmbpe(void)
 {
@@ -609,7 +566,6 @@ asmbpe(void)
 	addexports();
 	addsymtable();
 	addpersrc();
-	addexcept(t);
 
 	fh.NumberOfSections = nsect;
 	fh.TimeDateStamp = time(0);

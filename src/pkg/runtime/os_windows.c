@@ -248,15 +248,12 @@ runtime·minit(void)
 		(uintptr)-1, (uintptr)-2, (uintptr)-1, &thandle,
 		(uintptr)0, (uintptr)0, (uintptr)DUPLICATE_SAME_ACCESS);
 	runtime·atomicstorep(&m->thread, thandle);
-
-	runtime·install_exception_handler();
 }
 
 // Called from dropm to undo the effect of an minit.
 void
 runtime·unminit(void)
 {
-	runtime·remove_exception_handler();
 }
 
 #pragma textflag NOSPLIT

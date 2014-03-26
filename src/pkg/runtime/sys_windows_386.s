@@ -313,14 +313,6 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 	MOVL	CX, 0x14(FS)
 	RET
 
-// void install_exception_handler()
-TEXT runtime·install_exception_handler(SB),NOSPLIT,$0
-	RET
-
-// void remove_exception_handler()
-TEXT runtime·remove_exception_handler(SB),NOSPLIT,$0
-	RET
-
 // Sleep duration is in 100ns units.
 TEXT runtime·usleep1(SB),NOSPLIT,$0
 	MOVL	duration+0(FP), BX
