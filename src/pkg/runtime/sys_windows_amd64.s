@@ -95,49 +95,55 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 	MOVL	AX, 0x68(CX)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
-	// CX: exception record
-	// R8: context
+// Called by Windows as a Vectored Exception Handler (VEH).
+// First argument is pointer to struct containing
+// exception record and context pointers.
+// Return 0 for 'not handled', -1 for handled.
+TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+	// CX: PEXCEPTION_POINTERS ExceptionInfo
 
-	// unwinding?
-	TESTL	$6, 4(CX)		// exception flags
-	MOVL	$1, AX
-	JNZ	sigdone
+	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
+	// as required by windows callback convention.
+	PUSHFQ
+	SUBQ	$88, SP
+	MOVQ	DI, 80(SP)
+	MOVQ	SI, 72(SP)
+	MOVQ	BP, 64(SP)
+	MOVQ	BX, 56(SP)
+	MOVQ	R12, 48(SP)
+	MOVQ	R13, 40(SP)
+	MOVQ	R14, 32(SP)
+	MOVQ	R15, 24(SP)
 
-	// copy arguments for call to sighandler.
+	MOVQ	0(CX), BX // ExceptionRecord*
+	MOVQ	8(CX), CX // Context*
 
-	// Stack adjustment is here to hide from 6l,
-	// which doesn't understand that sigtramp
-	// runs on essentially unlimited stack.
-	SUBQ	$56, SP
-	MOVQ	CX, 0(SP)
-	MOVQ	R8, 8(SP)
-
-	get_tls(CX)
-
-	// check that m exists
-	MOVQ	m(CX), AX
+	// fetch g
+	get_tls(DX)
+	MOVQ	m(DX), AX
 	CMPQ	AX, $0
 	JNE	2(PC)
 	CALL	runtime·badsignal2(SB)
-
-	MOVQ	g(CX), CX
-	MOVQ	CX, 16(SP)
-
-	MOVQ	BX, 24(SP)
-	MOVQ	BP, 32(SP)
-	MOVQ	SI, 40(SP)
-	MOVQ	DI, 48(SP)
-
+	MOVQ	g(DX), DX
+	// call sighandler(ExceptionRecord*, Context*, G*)
+	MOVQ	BX, 0(SP)
+	MOVQ	CX, 8(SP)
+	MOVQ	DX, 16(SP)
 	CALL	runtime·sighandler(SB)
+	// AX is set to report result back to Windows
 
-	MOVQ	24(SP), BX
-	MOVQ	32(SP), BP
-	MOVQ	40(SP), SI
-	MOVQ	48(SP), DI
-	ADDQ	$56, SP
+	// restore registers as required for windows callback
+	MOVQ	24(SP), R15
+	MOVQ	32(SP), R14
+	MOVQ	40(SP), R13
+	MOVQ	48(SP), R12
+	MOVQ	56(SP), BX
+	MOVQ	64(SP), BP
+	MOVQ	72(SP), SI
+	MOVQ	80(SP), DI
+	ADDQ	$88, SP
+	POPFQ
 
-sigdone:
 	RET
 
 TEXT runtime·ctrlhandler(SB),NOSPLIT,$8
@@ -277,13 +283,6 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
 	RET
 
-TEXT runtime·setstacklimits(SB),NOSPLIT,$0
-	MOVQ	0x30(GS), CX
-	MOVQ	$0, 0x10(CX)
-	MOVQ	$0xffffffffffff, AX
-	MOVQ	AX, 0x08(CX)
-	RET
-
 // uint32 tstart_stdcall(M *newm);
 TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	// CX contains first arg newm
@@ -313,14 +312,6 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 // set tls base to DI
 TEXT runtime·settls(SB),NOSPLIT,$0
 	MOVQ	DI, 0x28(GS)
-	RET
-
-// void install_exception_handler()
-TEXT runtime·install_exception_handler(SB),NOSPLIT,$0
-	CALL	runtime·setstacklimits(SB)
-	RET
-
-TEXT runtime·remove_exception_handler(SB),NOSPLIT,$0
 	RET
 
 // Sleep duration is in 100ns units.
