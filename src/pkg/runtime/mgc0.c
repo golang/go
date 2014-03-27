@@ -1447,7 +1447,7 @@ scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue, void *wbufp)
 
 // Starting from scanp, scans words corresponding to set bits.
 static void
-scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
+scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
 {
 	uintptr word, bits;
 	uint32 *wordp;
@@ -1473,8 +1473,16 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
 				break;
 			case BitsPointer:
 				p = *(byte**)scanp;
-				if(p != nil)
+				if(p != nil) {
+					if(precise && p < (byte*)PageSize) {
+						// Looks like a junk value in a pointer slot.
+						// Liveness analysis wrong?
+						m->traceback = 2;
+						runtime·printf("bad pointer in frame %s at %p: %p\n", runtime·funcname(f), scanp, p);
+						runtime·throw("bad pointer in scanbitvector");
+					}
 					enqueue1(wbufp, (Obj){scanp, PtrSize, 0});
+				}
 				break;
 			case BitsMultiWord:
 				p = *(byte**)scanp;
@@ -1498,8 +1506,11 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
 							markonly(p);
 						break;
 					case BitsSlice:
-						if(((Slice*)(scanp - PtrSize))->cap < ((Slice*)(scanp - PtrSize))->len)
+						if(((Slice*)(scanp - PtrSize))->cap < ((Slice*)(scanp - PtrSize))->len) {
+							m->traceback = 2;
+							runtime·printf("bad slice in frame %s at %p: %p/%p/%p\n", runtime·funcname(f), scanp, ((byte**)scanp)[0], ((byte**)scanp)[1], ((byte**)scanp)[2]);
 							runtime·throw("slice capacity smaller than length");
+						}
 						if(((Slice*)(scanp - PtrSize))->cap != 0)
 							enqueue1(wbufp, (Obj){scanp - PtrSize, PtrSize, 0});
 						break;
@@ -1527,6 +1538,7 @@ scanframe(Stkframe *frame, void *wbufp)
 	uintptr targetpc;
 	int32 pcdata;
 	bool afterprologue;
+	bool precise;
 
 	f = frame->fn;
 	targetpc = frame->pc;
@@ -1543,6 +1555,7 @@ scanframe(Stkframe *frame, void *wbufp)
 	// Scan local variables if stack frame has been allocated.
 	// Use pointer information if known.
 	afterprologue = (frame->varp > (byte*)frame->sp);
+	precise = false;
 	if(afterprologue) {
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 		if(stackmap == nil) {
@@ -1564,7 +1577,8 @@ scanframe(Stkframe *frame, void *wbufp)
 			}
 			bv = runtime·stackmapdata(stackmap, pcdata);
 			size = (bv->n * PtrSize) / BitsPerPointer;
-			scanbitvector(frame->varp - size, bv, afterprologue, wbufp);
+			precise = true;
+			scanbitvector(f, true, frame->varp - size, bv, afterprologue, wbufp);
 		}
 	}
 
@@ -1573,7 +1587,7 @@ scanframe(Stkframe *frame, void *wbufp)
 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 	if(stackmap != nil) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
-		scanbitvector(frame->argp, bv, true, wbufp);
+		scanbitvector(f, precise, frame->argp, bv, true, wbufp);
 	} else
 		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
 	return true;

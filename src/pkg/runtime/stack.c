@@ -365,6 +365,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 			if(f != nil && (byte*)0 < p && p < (byte*)PageSize) {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
+				m->traceback = 2;
 				runtime·printf("%p: %p %s\n", &scanp[i], p, runtime·funcname(f));
 				runtime·throw("bad pointer!");
 			}
