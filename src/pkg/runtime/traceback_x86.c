@@ -28,7 +28,7 @@ void runtime·sigtramp(void);
 int32
 runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, bool (*callback)(Stkframe*, void*), void *v, bool printall)
 {
-	int32 i, n, nprint, line;
+	int32 i, n, nprint, line, gotraceback;
 	uintptr tracepc;
 	bool waspanic, printing;
 	Func *f, *flr;
@@ -37,6 +37,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	String file;
 
 	USED(lr0);
+	
+	gotraceback = runtime·gotraceback(nil);
 	
 	if(pc0 == ~(uintptr)0 && sp0 == ~(uintptr)0) { // Signal to fetch saved values from gp.
 		if(gp->syscallstack != (uintptr)nil) {
@@ -228,7 +230,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				runtime·printf("\t%S:%d", file, line);
 				if(frame.pc > f->entry)
 					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
-				if(m->throwing > 0 && gp == m->curg)
+				if(m->throwing > 0 && gp == m->curg || gotraceback >= 2)
 					runtime·printf(" fp=%p", frame.fp);
 				runtime·printf("\n");
 				nprint++;

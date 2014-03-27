@@ -25,8 +25,11 @@ runtime·gotraceback(bool *crash)
 	if(crash != nil)
 		*crash = false;
 	p = runtime·getenv("GOTRACEBACK");
-	if(p == nil || p[0] == '\0')
+	if(p == nil || p[0] == '\0') {
+		if(m->traceback != 0)
+			return m->traceback;
 		return 1;	// default is on
+	}
 	if(runtime·strcmp(p, (byte*)"crash") == 0) {
 		if(crash != nil)
 			*crash = true;

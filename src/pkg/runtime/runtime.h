@@ -342,6 +342,7 @@ struct	M
 	uint32	waitsemalock;
 	GCStats	gcstats;
 	bool	needextram;
+	uint8	traceback;
 	bool	(*waitunlockf)(G*, void*);
 	void*	waitlock;
 	uintptr	forkstackguard;
