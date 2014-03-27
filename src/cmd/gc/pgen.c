@@ -363,7 +363,6 @@ allocauto(Prog* ptxt)
 
 	stksize = 0;
 	stkptrsize = 0;
-	stkzerosize = 0;
 
 	if(curfn->dcl == nil)
 		return;
@@ -374,13 +373,6 @@ allocauto(Prog* ptxt)
 			ll->n->used = 0;
 
 	markautoused(ptxt);
-
-	if(precisestack_enabled) {
-		// TODO: Remove when liveness analysis sets needzero instead.
-		for(ll=curfn->dcl; ll != nil; ll=ll->next)
-			if(ll->n->class == PAUTO)
-				ll->n->needzero = 1; // ll->n->addrtaken;
-	}
 
 	listsort(&curfn->dcl, cmpstackvar);
 
@@ -415,11 +407,8 @@ allocauto(Prog* ptxt)
 			fatal("bad width");
 		stksize += w;
 		stksize = rnd(stksize, n->type->align);
-		if(haspointers(n->type)) {
+		if(haspointers(n->type))
 			stkptrsize = stksize;
-			if(n->needzero)
-				stkzerosize = stksize;
-		}
 		if(thechar == '5')
 			stksize = rnd(stksize, widthptr);
 		if(stksize >= (1ULL<<31)) {
@@ -430,7 +419,6 @@ allocauto(Prog* ptxt)
 	}
 	stksize = rnd(stksize, widthreg);
 	stkptrsize = rnd(stkptrsize, widthreg);
-	stkzerosize = rnd(stkzerosize, widthreg);
 
 	fixautoused(ptxt);
 

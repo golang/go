@@ -16,6 +16,9 @@ defframe(Prog *ptxt)
 {
 	uint32 frame;
 	Prog *p, *p1;
+	NodeList *l;
+	Node *n;
+	vlong i;
 
 	// fill in argument size
 	ptxt->to.type = D_CONST2;
@@ -25,19 +28,39 @@ defframe(Prog *ptxt)
 	frame = rnd(stksize+maxarg, widthptr);
 	ptxt->to.offset = frame;
 	
+	// insert code to contain ambiguously live variables
+	// so that garbage collector only sees initialized values
+	// when it looks for pointers.
+	//
+	// TODO: determine best way to zero the given values.
+	// among other problems, R0 is initialized to 0 multiple times,
+	// but that's really the tip of the iceberg.
 	p = ptxt;
-	if(stkzerosize > 0) {
-		p = appendpp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
-		p = appendpp(p, AADD, D_CONST, NREG, 4+frame-stkzerosize, D_REG, 1, 0);
-		p->reg = REGSP;	
-		p = appendpp(p, AADD, D_CONST, NREG, stkzerosize, D_REG, 2, 0);	
-		p->reg = 1;	
-		p1 = p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, 1, 4);	
-		p->scond |= C_PBIT;	
-		p = appendpp(p, ACMP, D_REG, 1, 0, D_NONE, 0, 0);	
-		p->reg = 2;	
-		p = appendpp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);	
-		patch(p, p1);
+	for(l=curfn->dcl; l != nil; l = l->next) {
+		n = l->n;
+		if(!n->needzero)
+			continue;
+		if(n->class != PAUTO)
+			fatal("needzero class %d", n->class);
+		if(n->type->width % widthptr != 0 || n->xoffset % widthptr != 0 || n->type->width == 0)
+			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
+		if(n->type->width <= 8*widthptr) {
+			p = appendpp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
+			for(i = 0; i < n->type->width; i += widthptr) 
+				p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, REGSP, 4+frame+n->xoffset+i);
+		} else {
+			p = appendpp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
+			p = appendpp(p, AADD, D_CONST, NREG, 4+frame+n->xoffset, D_REG, 1, 0);
+			p->reg = REGSP;	
+			p = appendpp(p, AADD, D_CONST, NREG, n->type->width, D_REG, 2, 0);	
+			p->reg = 1;	
+			p1 = p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, 1, 4);	
+			p->scond |= C_PBIT;	
+			p = appendpp(p, ACMP, D_REG, 1, 0, D_NONE, 0, 0);	
+			p->reg = 2;	
+			p = appendpp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);	
+			patch(p, p1);
+		}
 	}	
 }
 

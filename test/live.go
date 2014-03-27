@@ -38,7 +38,7 @@ func f3(b bool) {
 		print(&y) // ERROR "live at call to printpointer: y$"
 		print(&y) // ERROR "live at call to printpointer: y$"
 	}
-	print(0) // ERROR "live at call to printint: x y$"
+	print(0) // ERROR "live at call to printint: x y$" "x \(type \*int\) is ambiguously live" "y \(type \*int\) is ambiguously live"
 }
 
 // The old algorithm treated x as live on all code that
@@ -77,7 +77,7 @@ func f5(b1 bool) {
 		*y = 54
 		z = &y
 	}
-	print(**z) // ERROR "live at call to printint: x y$"
+	print(**z) // ERROR "live at call to printint: x y$" "x \(type \*int\) is ambiguously live" "y \(type \*int\) is ambiguously live"
 }
 
 // confusion about the _ result used to cause spurious "live at entry to f6: _".
@@ -194,3 +194,21 @@ func f13() {
 
 func g13(string) string
 func h13(string, string) string
+
+// more incorrectly placed VARDEF.
+
+func f14() {
+	x := g14()
+	print(&x) // ERROR "live at call to printpointer: x"
+}
+
+func g14() string
+
+func f15() {
+	var x string
+	_ = &x
+	x = g15() // ERROR "live at call to g15: x"
+	print(x) // ERROR "live at call to printstring: x"
+}
+
+func g15() string

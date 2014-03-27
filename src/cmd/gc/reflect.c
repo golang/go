@@ -704,6 +704,10 @@ haspointers(Type *t)
 			ret = 1;
 			break;
 		}
+		if(t->bound == 0) {	// empty array
+			ret = 0;
+			break;
+		}
 		ret = haspointers(t->type);
 		break;
 	case TSTRUCT:
