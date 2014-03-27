@@ -187,16 +187,14 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
 	case *Named:
 		s := "<Named w/o object>"
 		if obj := t.obj; obj != nil {
-			if obj.pkg != nil {
-				if obj.pkg != this {
-					buf.WriteString(obj.pkg.path)
-					buf.WriteByte('.')
-				}
-				// TODO(gri): function-local named types should be displayed
-				// differently from named types at package level to avoid
-				// ambiguity.
+			if pkg := obj.pkg; pkg != nil && pkg != this {
+				buf.WriteString(pkg.path)
+				buf.WriteByte('.')
 			}
-			s = t.obj.name
+			// TODO(gri): function-local named types should be displayed
+			// differently from named types at package level to avoid
+			// ambiguity.
+			s = obj.name
 		}
 		buf.WriteString(s)
 
