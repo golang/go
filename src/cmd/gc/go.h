@@ -722,6 +722,7 @@ struct	Var
 {
 	vlong	offset;
 	Node*	node;
+	Var*	nextinnode;
 	int	width;
 	char	name;
 	char	etype;
@@ -943,7 +944,6 @@ EXTERN	Node*	lasttype;
 EXTERN	vlong	maxarg;
 EXTERN	vlong	stksize;		// stack size for current frame
 EXTERN	vlong	stkptrsize;		// prefix of stack containing pointers
-EXTERN	vlong	stkzerosize;		// prefix of stack that must be zeroed on entry
 EXTERN	int32	blockgen;		// max block number
 EXTERN	int32	block;			// current block number
 EXTERN	int	hasdefer;		// flag that curfn has defer statetment

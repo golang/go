@@ -701,7 +701,10 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 			node = *(Node**)arrayget(vars, i);
 			switch(node->class & ~PHEAP) {
 			case PPARAM:
+				if(node->addrtaken)
+					bvset(avarinit, i);
 				bvset(varkill, i);
+				break;
 			}
 		}
 		return;
@@ -717,7 +720,8 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 				if(pos == -1)
 					goto Next;
 				if(from->node->addrtaken) {
-					bvset(avarinit, pos);
+					if(info.flags & (LeftRead|LeftWrite))
+						bvset(avarinit, pos);
 				} else {
 					if(info.flags & (LeftRead | LeftAddr))
 						bvset(uevar, pos);
@@ -1528,7 +1532,7 @@ livenessepilogue(Liveness *lv)
 							n = *(Node**)arrayget(lv->vars, pos);
 							if(!n->needzero) {
 								n->needzero = 1;
-								if(debuglive >= 3)
+								if(debuglive >= 1)
 									warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
 							}
 						}
@@ -1694,6 +1698,8 @@ livenessepilogue(Liveness *lv)
 	free(avarinit);
 	free(any);
 	free(all);
+	
+	flusherrors();
 }
 
 static int

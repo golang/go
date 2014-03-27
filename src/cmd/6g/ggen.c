@@ -17,6 +17,8 @@ defframe(Prog *ptxt)
 	uint32 frame;
 	Prog *p;
 	vlong i;
+	NodeList *l;
+	Node *n;
 
 	// fill in argument size
 	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
@@ -29,26 +31,33 @@ defframe(Prog *ptxt)
 	// insert code to contain ambiguously live variables
 	// so that garbage collector only sees initialized values
 	// when it looks for pointers.
+	//
+	// TODO: determine best way to zero the given values.
+	// among other problems, AX is initialized to 0 multiple times,
+	// but that's really the tip of the iceberg.
 	p = ptxt;
-	if(stkzerosize % widthreg != 0)
-		fatal("zero size not a multiple of reg size");
-	if(stkzerosize == 0) {
-		// nothing
-	} else if(stkzerosize <= 2*widthreg) {
-		for(i = 0; i < stkzerosize; i += widthreg) {
-			p = appendpp(p, AMOVQ, D_CONST, 0, D_SP+D_INDIR, frame-stkzerosize+i);
+	for(l=curfn->dcl; l != nil; l = l->next) {
+		n = l->n;
+		if(!n->needzero)
+			continue;
+		if(n->class != PAUTO)
+			fatal("needzero class %d", n->class);
+		if(n->type->width % widthreg != 0 || n->xoffset % widthreg != 0 || n->type->width == 0)
+			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
+		if(n->type->width <= 2*widthreg) {
+			for(i = 0; i < n->type->width; i += widthreg)
+				p = appendpp(p, AMOVQ, D_CONST, 0, D_SP+D_INDIR, frame+n->xoffset+i);
+		} else if(n->type->width <= 16*widthreg) {
+			p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
+			for(i = 0; i < n->type->width; i += widthreg)
+				p = appendpp(p, AMOVQ, D_AX, 0, D_SP+D_INDIR, frame+n->xoffset+i);
+		} else {
+			p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
+			p = appendpp(p, AMOVQ, D_CONST, n->type->width/widthreg, D_CX, 0);
+			p = appendpp(p, leaptr, D_SP+D_INDIR, frame+n->xoffset, D_DI, 0);
+			p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);
+			p = appendpp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);
 		}
-	} else if(stkzerosize <= 16*widthreg) {
-		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
-		for(i = 0; i < stkzerosize; i += widthreg) {
-			p = appendpp(p, AMOVQ, D_AX, 0, D_SP+D_INDIR, frame-stkzerosize+i);
-		}
-	} else {
-		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
-		p = appendpp(p, AMOVQ, D_CONST, stkzerosize/widthreg, D_CX, 0);
-		p = appendpp(p, leaptr, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);
-		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);
-		appendpp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);
 	}
 }
 
