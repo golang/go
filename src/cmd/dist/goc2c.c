@@ -524,6 +524,7 @@ write_6g_func_header(char *package, char *name, struct params *params,
 		     int paramwid, struct params *rets)
 {
 	int first, n;
+	struct params *p;
 
 	bwritef(output, "void\n");
 	if(!contains(name, "·"))
@@ -546,6 +547,24 @@ write_6g_func_header(char *package, char *name, struct params *params,
 
 	write_params(rets, &first);
 	bwritef(output, ")\n{\n");
+	
+	for (p = rets; p != nil; p = p->next) {
+		if(streq(p->name, "..."))
+			continue;
+		if(streq(p->type, "Slice"))
+			bwritef(output, "\t%s.array = 0;\n\t%s.len = 0;\n\t%s.cap = 0;\n", p->name, p->name, p->name);
+		else if(streq(p->type, "String"))
+			bwritef(output, "\t%s.str = 0;\n\t%s.len = 0;\n", p->name, p->name);
+		else if(streq(p->type, "Eface"))
+			bwritef(output, "\t%s.type = 0;\n\t%s.data = 0;\n", p->name, p->name);
+		else if(streq(p->type, "Iface"))
+			bwritef(output, "\t%s.tab = 0;\n\t%s.data = 0;\n", p->name, p->name);
+		else if(streq(p->type, "Complex128"))
+			bwritef(output, "\t%s.real = 0;\n\t%s.imag = 0;\n", p->name, p->name);
+		else
+			bwritef(output, "\t%s = 0;\n", p->name);
+		bwritef(output, "\tFLUSH(&%s);\n", p->name);
+	}
 }
 
 /* Write a 6g function trailer.  */
