@@ -1327,9 +1327,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		// be correct, so calling dtype.Size again will produce the correct value.
 		t.Size = dtype.Size()
 		if t.Size < 0 {
-			// Unsized types are [0]byte
+			// Unsized types are [0]byte, unless they're typedefs of other types.
+			// if so, use the name of the typedef for the go name.
 			t.Size = 0
-			t.Go = c.Opaque(0)
+			if _, ok := dtype.(*dwarf.TypedefType); !ok {
+				t.Go = c.Opaque(0)
+			}
 			if t.C.Empty() {
 				t.C.Set("void")
 			}
