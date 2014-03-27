@@ -36,7 +36,6 @@ const (
 	InstRune1
 	InstRuneAny
 	InstRuneAnyNotNL
-	InstLast
 )
 
 var instOpNames = []string{
@@ -54,7 +53,7 @@ var instOpNames = []string{
 }
 
 func (i InstOp) String() string {
-	if i >= InstLast {
+	if uint(i) >= uint(len(instOpNames)) {
 		return ""
 	}
 	return instOpNames[i]
