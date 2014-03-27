@@ -46,11 +46,12 @@ windows 2000 removed (CL 74790043)
 <h2 id="memory">Changes to the memory model</h2>
 
 <p>
-TODO:
-early go documentation suggested using a channel as a semaphore like this: (previous example).
-the go memory model has been updated to make explicit that this idiom is allowed.  (new example).
-the previous example is also correct, just requiring needless func init work.
-(CL 75130045)
+The Go 1.3 memory model <a href="https://codereview.appspot.com/75130045">adds a new rule</a>
+concerning sending and receiving on buffered channels,
+to make explicit that a buffered channel can be used as a simple
+semaphore, using a send into the
+channel to acquire and a receive from the channel to release.
+This is not a language change, just a clarification about an expected property of communication.
 </p>
 
 <h2 id="impl">Changes to the implementations and tools</h2>
