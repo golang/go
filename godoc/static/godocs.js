@@ -448,6 +448,8 @@ function setupCallgraphs() {
   if (document.CALLGRAPH == null) {
     return
   }
+  document.getElementById("pkg-callgraph").style.display = "block";
+
   var treeviews = document.getElementsByClassName("treeview");
   for (var i in treeviews) {
     var tree = treeviews[i];
