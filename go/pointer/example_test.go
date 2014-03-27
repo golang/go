@@ -45,7 +45,7 @@ func main() {
 	conf := loader.Config{SourceImports: true}
 
 	// Parse the input file.
-	file, err := conf.ParseFile("myprog.go", myprog, 0)
+	file, err := conf.ParseFile("myprog.go", myprog)
 	if err != nil {
 		fmt.Print(err) // parse error
 		return

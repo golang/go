@@ -21,7 +21,7 @@ import (
 // I/O is done via ctxt, which may specify a virtual file system.
 // displayPath is used to transform the filenames attached to the ASTs.
 //
-func parseFiles(fset *token.FileSet, ctxt *build.Context, displayPath func(string) string, dir string, files ...string) ([]*ast.File, error) {
+func parseFiles(fset *token.FileSet, ctxt *build.Context, displayPath func(string) string, dir string, files []string, mode parser.Mode) ([]*ast.File, error) {
 	if displayPath == nil {
 		displayPath = func(path string) string { return path }
 	}
@@ -56,7 +56,7 @@ func parseFiles(fset *token.FileSet, ctxt *build.Context, displayPath func(strin
 				errors[i] = err
 				return
 			}
-			parsed[i], errors[i] = parser.ParseFile(fset, displayPath(file), rd, 0)
+			parsed[i], errors[i] = parser.ParseFile(fset, displayPath(file), rd, mode)
 		}(i, file)
 	}
 	wg.Wait()

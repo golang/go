@@ -145,6 +145,10 @@ type Config struct {
 	// method of Config.
 	Fset *token.FileSet
 
+	// ParserMode specifies the mode to be used by the parser when
+	// loading source packages.
+	ParserMode parser.Mode
+
 	// TypeChecker contains options relating to the type checker.
 	//
 	// The supplied IgnoreFuncBodies is not used; the effective
@@ -255,8 +259,8 @@ func (conf *Config) fset() *token.FileSet {
 // ParseFile is a convenience function that invokes the parser using
 // the Config's FileSet, which is initialized if nil.
 //
-func (conf *Config) ParseFile(filename string, src interface{}, mode parser.Mode) (*ast.File, error) {
-	return parser.ParseFile(conf.fset(), filename, src, mode)
+func (conf *Config) ParseFile(filename string, src interface{}) (*ast.File, error) {
+	return parser.ParseFile(conf.fset(), filename, src, conf.ParserMode)
 }
 
 // FromArgsUsage is a partial usage message that applications calling
@@ -340,7 +344,7 @@ func (conf *Config) FromArgs(args []string, xtest bool) (rest []string, err erro
 // conf.CreatePkgs.
 //
 func (conf *Config) CreateFromFilenames(path string, filenames ...string) error {
-	files, err := parseFiles(conf.fset(), conf.build(), nil, ".", filenames...)
+	files, err := parseFiles(conf.fset(), conf.build(), nil, ".", filenames, conf.ParserMode)
 	if err != nil {
 		return err
 	}
@@ -638,7 +642,7 @@ func (conf *Config) parsePackageFiles(path string, which rune) ([]*ast.File, err
 	default:
 		panic(which)
 	}
-	return parseFiles(conf.fset(), &ctxt, conf.DisplayPath, bp.Dir, filenames...)
+	return parseFiles(conf.fset(), &ctxt, conf.DisplayPath, bp.Dir, filenames, conf.ParserMode)
 }
 
 // doImport imports the package denoted by path.

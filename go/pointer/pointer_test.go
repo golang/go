@@ -154,7 +154,7 @@ func doOneInput(input, filename string) bool {
 	conf := loader.Config{SourceImports: true}
 
 	// Parsing.
-	f, err := conf.ParseFile(filename, input, 0)
+	f, err := conf.ParseFile(filename, input)
 	if err != nil {
 		fmt.Println(err)
 		return false

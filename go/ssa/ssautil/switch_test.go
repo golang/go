@@ -15,8 +15,8 @@ import (
 )
 
 func TestSwitches(t *testing.T) {
-	var conf loader.Config
-	f, err := conf.ParseFile("testdata/switches.go", nil, parser.ParseComments)
+	conf := loader.Config{ParserMode: parser.ParseComments}
+	f, err := conf.ParseFile("testdata/switches.go", nil)
 	if err != nil {
 		t.Error(err)
 		return

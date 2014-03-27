@@ -42,7 +42,7 @@ func main() {
 
 	// Create a single-file main package.
 	var conf loader.Config
-	f, err := conf.ParseFile("<input>", test, 0)
+	f, err := conf.ParseFile("<input>", test)
 	if err != nil {
 		t.Error(err)
 		return
@@ -211,7 +211,7 @@ func TestTypesWithMethodSets(t *testing.T) {
 	for _, test := range tests {
 		// Create a single-file main package.
 		var conf loader.Config
-		f, err := conf.ParseFile("<input>", test.input, 0)
+		f, err := conf.ParseFile("<input>", test.input)
 		if err != nil {
 			t.Errorf("test %q: %s", test.input[:15], err)
 			continue

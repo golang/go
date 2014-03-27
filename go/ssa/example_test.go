@@ -43,7 +43,7 @@ func main() {
 	var conf loader.Config
 
 	// Parse the input file.
-	file, err := conf.ParseFile("hello.go", hello, 0)
+	file, err := conf.ParseFile("hello.go", hello)
 	if err != nil {
 		fmt.Print(err) // parse error
 		return
