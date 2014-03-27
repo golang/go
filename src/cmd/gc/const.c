@@ -1144,7 +1144,10 @@ defaultlit(Node **np, Type *t)
 		}
 		if(n->val.ctype == CTNIL) {
 			lineno = lno;
-			yyerror("use of untyped nil");
+			if(!n->diag) {
+				yyerror("use of untyped nil");
+				n->diag = 1;
+			}
 			n->type = T;
 			break;
 		}
