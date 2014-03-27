@@ -1004,6 +1004,14 @@ func reflect·mapdelete(t *MapType, h *Hmap, key *byte) {
 
 #pragma textflag NOSPLIT
 func mapiterinit(t *MapType, h *Hmap, it *Hiter) {
+	// Clear pointer fields so garbage collector does not complain.
+	it->key = nil;
+	it->value = nil;
+	it->t = nil;
+	it->h = nil;
+	it->buckets = nil;
+	it->bptr = nil;
+
 	if(h == nil || h->count == 0) {
 		it->key = nil;
 		return;
