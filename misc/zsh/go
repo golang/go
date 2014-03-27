@@ -19,7 +19,6 @@ __go_tool_complete() {
   commands+=(
     'build[compile packages and dependencies]'
     'clean[remove object files]'
-    'doc[run godoc on package sources]'
     'env[print Go environment information]'
     'fix[run go tool fix on packages]'
     'fmt[run gofmt on package sources]'
@@ -92,6 +91,7 @@ __go_tool_complete() {
         "-short[use short mode]" \
         "-parallel[number of parallel tests]:number" \
         "-cpu[values of GOMAXPROCS to use]:number list" \
+	"-cover[enable coverage analysis]" \
         "-run[run tests and examples matching regexp]:regexp" \
         "-bench[run benchmarks matching regexp]:regexp" \
         "-benchmem[print memory allocation stats]" \
@@ -106,9 +106,10 @@ __go_tool_complete() {
       ;;
   help)
       _values "${commands[@]}" \
+        'c[how to call C code]' \
+        'importpath[description of import path]' \
         'gopath[GOPATH environment variable]' \
         'packages[description of package lists]' \
-        'remote[remote import path syntax]' \
         'testflag[description of testing flags]' \
         'testfunc[description of testing functions]'
       ;;
