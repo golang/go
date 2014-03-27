@@ -55,33 +55,41 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 	var (
 		consts   []*types.Const
 		typez    []*types.TypeName // types without methods
-		typem    []*types.TypeName // types with methods
+		typem    []*types.Named    // types with methods
 		vars     []*types.Var
 		funcs    []*types.Func
 		builtins []*types.Builtin
 	)
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
-		obj := scope.Lookup(name)
-		if !filter(obj) {
-			continue
-		}
-		switch obj := obj.(type) {
-		case *types.Const:
-			consts = append(consts, obj)
-		case *types.TypeName:
-			if named, _ := obj.Type().(*types.Named); named != nil && named.NumMethods() > 0 {
-				typem = append(typem, obj)
-			} else {
-				typez = append(typez, obj)
+		if obj := scope.Lookup(name); filter(obj) {
+			switch obj := obj.(type) {
+			case *types.Const:
+				consts = append(consts, obj)
+			case *types.TypeName:
+				// group into types with methods and types without
+				// (for now this is only considering explicitly declared - not "inherited" methods)
+				if named, _ := obj.Type().(*types.Named); named != nil && named.NumMethods() > 0 {
+					typem = append(typem, named)
+				} else {
+					typez = append(typez, obj)
+				}
+			case *types.Var:
+				vars = append(vars, obj)
+			case *types.Func:
+				funcs = append(funcs, obj)
+			case *types.Builtin:
+				// for unsafe.Sizeof, etc.
+				builtins = append(builtins, obj)
 			}
-		case *types.Var:
-			vars = append(vars, obj)
-		case *types.Func:
-			funcs = append(funcs, obj)
-		case *types.Builtin:
-			// for unsafe.Sizeof, etc.
-			builtins = append(builtins, obj)
+		} else {
+			// type is filtered out but may contain visible methods
+			if obj, _ := obj.(*types.TypeName); obj != nil {
+				// see case *types.TypeName above
+				if named, _ := obj.Type().(*types.Named); named != nil && named.NumMethods() > 0 {
+					typem = append(typem, named)
+				}
+			}
 		}
 	}
 
@@ -121,16 +129,24 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 		p.print(")\n\n")
 	}
 
-	for _, obj := range typem {
-		p.printf("type %s ", obj.Name())
-		typ := obj.Type().(*types.Named)
-		p.writeType(p.pkg, typ.Underlying())
-		p.print("\n")
+	for _, typ := range typem {
+		hasEntries := false
+		if obj := typ.Obj(); filter(obj) {
+			p.printf("type %s ", obj.Name())
+			p.writeType(p.pkg, typ.Underlying())
+			p.print("\n")
+			hasEntries = true
+		}
 		for i, n := 0, typ.NumMethods(); i < n; i++ {
-			p.printFunc(typ.Method(i))
+			if obj := typ.Method(i); filter(obj) {
+				p.printFunc(obj)
+				p.print("\n")
+				hasEntries = true
+			}
+		}
+		if hasEntries {
 			p.print("\n")
 		}
-		p.print("\n")
 	}
 
 	for _, obj := range funcs {
