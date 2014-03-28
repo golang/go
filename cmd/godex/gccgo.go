@@ -21,13 +21,15 @@ import (
 )
 
 func init() {
+	incpaths := []string{"/"}
+
 	// importer for default gccgo
 	var inst gccgoimporter.GccgoInstallation
 	inst.InitFromDriver("gccgo")
-	register("gccgo", inst.GetImporter(nil))
+	register("gccgo", inst.GetImporter(incpaths))
 
 	// importer for gccgo using condensed export format (experimental)
-	register("gccgo-new", getNewImporter(append(inst.SearchPaths(), ".")))
+	register("gccgo-new", getNewImporter(append(append(incpaths, inst.SearchPaths()...), ".")))
 }
 
 // This function is an adjusted variant of gccgoimporter.GccgoInstallation.GetImporter.
@@ -72,6 +74,7 @@ func findExportFile(searchpaths []string, pkgpath string) (string, error) {
 			pkgdir + "lib" + name + ".a",
 			pkgfullpath + ".o",
 		} {
+			println("trying", filepath)
 			fi, err := os.Stat(filepath)
 			if err == nil && !fi.IsDir() {
 				return filepath, nil
