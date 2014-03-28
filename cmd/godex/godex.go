@@ -76,12 +76,11 @@ func main() {
 		}
 
 		// filter objects if needed
-		filter := types.Object.Exported
+		var filter func(types.Object) bool
 		if name != "" {
-			f := filter
 			filter = func(obj types.Object) bool {
 				// TODO(gri) perhaps use regular expression matching here?
-				return f(obj) && obj.Name() == name
+				return obj.Name() == name
 			}
 		}
 
@@ -176,7 +175,8 @@ func lookup(src string) types.Importer {
 func genPrefixes(out chan string) {
 	out <- "" // try no prefix
 	platform := build.Default.GOOS + "_" + build.Default.GOARCH
-	for _, dirname := range filepath.SplitList(build.Default.GOPATH) {
+	dirnames := append([]string{build.Default.GOROOT}, filepath.SplitList(build.Default.GOPATH)...)
+	for _, dirname := range dirnames {
 		walkDir(filepath.Join(dirname, "pkg", platform), "", out)
 	}
 	close(out)

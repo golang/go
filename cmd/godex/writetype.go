@@ -64,7 +64,6 @@ func (p *printer) writeTypeInternal(this *types.Package, typ types.Type, visited
 		p.writeTypeInternal(this, t.Elem(), visited)
 
 	case *types.Struct:
-		// TODO(gri) filter fields?
 		n := t.NumFields()
 		if n == 0 {
 			p.print("struct{}")
@@ -110,7 +109,6 @@ func (p *printer) writeTypeInternal(this *types.Package, typ types.Type, visited
 		//         m() interface{ T }
 		//     }
 		//
-		// TODO(gri) filter methods?
 		n := t.NumMethods()
 		if n == 0 {
 			p.print("interface{}")

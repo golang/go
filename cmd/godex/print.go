@@ -12,8 +12,8 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-// TODO(gri) filter unexported fields of struct types?
 // TODO(gri) use tabwriter for alignment?
+// TODO(gri) should print intuitive method sets
 
 func print(w io.Writer, pkg *types.Package, filter func(types.Object) bool) {
 	var p printer
@@ -62,28 +62,32 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 	)
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
-		if obj := scope.Lookup(name); filter(obj) {
-			switch obj := obj.(type) {
-			case *types.Const:
-				consts = append(consts, obj)
-			case *types.TypeName:
-				// group into types with methods and types without
-				// (for now this is only considering explicitly declared - not "inherited" methods)
-				if named, _ := obj.Type().(*types.Named); named != nil && named.NumMethods() > 0 {
-					typem = append(typem, named)
-				} else {
-					typez = append(typez, obj)
+		obj := scope.Lookup(name)
+		if obj.Exported() {
+			// collect top-level exported and possibly filtered objects
+			if filter == nil || filter(obj) {
+				switch obj := obj.(type) {
+				case *types.Const:
+					consts = append(consts, obj)
+				case *types.TypeName:
+					// group into types with methods and types without
+					// (for now this is only considering explicitly declared - not "inherited" methods)
+					if named, _ := obj.Type().(*types.Named); named != nil && named.NumMethods() > 0 {
+						typem = append(typem, named)
+					} else {
+						typez = append(typez, obj)
+					}
+				case *types.Var:
+					vars = append(vars, obj)
+				case *types.Func:
+					funcs = append(funcs, obj)
+				case *types.Builtin:
+					// for unsafe.Sizeof, etc.
+					builtins = append(builtins, obj)
 				}
-			case *types.Var:
-				vars = append(vars, obj)
-			case *types.Func:
-				funcs = append(funcs, obj)
-			case *types.Builtin:
-				// for unsafe.Sizeof, etc.
-				builtins = append(builtins, obj)
 			}
-		} else {
-			// type is filtered out but may contain visible methods
+		} else if filter == nil {
+			// no filtering: collect top-level unexported types with methods
 			if obj, _ := obj.(*types.TypeName); obj != nil {
 				// see case *types.TypeName above
 				if named, _ := obj.Type().(*types.Named); named != nil && named.NumMethods() > 0 {
@@ -93,73 +97,86 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 		}
 	}
 
-	p.printf("package %s  // %q\n\n", pkg.Name(), pkg.Path())
+	p.printf("package %s  // %q\n", pkg.Name(), pkg.Path())
 
-	if len(consts) > 0 {
-		p.print("const (\n")
-		p.indent++
+	p.printDecl("const", len(consts), func() {
 		for _, obj := range consts {
 			p.printObj(obj)
 			p.print("\n")
 		}
-		p.indent--
-		p.print(")\n\n")
-	}
+	})
 
-	if len(vars) > 0 {
-		p.print("var (\n")
-		p.indent++
+	p.printDecl("var", len(vars), func() {
 		for _, obj := range vars {
 			p.printObj(obj)
 			p.print("\n")
 		}
-		p.indent--
-		p.print(")\n\n")
-	}
+	})
 
-	if len(typez) > 0 {
-		p.print("type (\n")
-		p.indent++
+	p.printDecl("type", len(typez), func() {
 		for _, obj := range typez {
 			p.printf("%s ", obj.Name())
 			p.writeType(p.pkg, obj.Type().Underlying())
 			p.print("\n")
 		}
-		p.indent--
-		p.print(")\n\n")
-	}
+	})
 
 	for _, typ := range typem {
-		hasEntries := false
-		if obj := typ.Obj(); filter(obj) {
+		first := true
+		if obj := typ.Obj(); obj.Exported() {
+			if first {
+				p.print("\n")
+				first = false
+			}
 			p.printf("type %s ", obj.Name())
 			p.writeType(p.pkg, typ.Underlying())
 			p.print("\n")
-			hasEntries = true
 		}
 		for i, n := 0, typ.NumMethods(); i < n; i++ {
-			if obj := typ.Method(i); filter(obj) {
+			if obj := typ.Method(i); obj.Exported() {
+				if first {
+					p.print("\n")
+					first = false
+				}
 				p.printFunc(obj)
 				p.print("\n")
-				hasEntries = true
 			}
 		}
-		if hasEntries {
+	}
+
+	if len(funcs) > 0 {
+		p.print("\n")
+		for _, obj := range funcs {
+			p.printFunc(obj)
 			p.print("\n")
 		}
 	}
 
-	for _, obj := range funcs {
-		p.printFunc(obj)
-		p.print("\n")
-	}
-
 	// TODO(gri) better handling of builtins (package unsafe only)
-	for _, obj := range builtins {
-		p.printf("func %s() // builtin\n", obj.Name())
+	if len(builtins) > 0 {
+		p.print("\n")
+		for _, obj := range builtins {
+			p.printf("func %s() // builtin\n", obj.Name())
+		}
 	}
 
 	p.print("\n")
+}
+
+func (p *printer) printDecl(keyword string, n int, printGroup func()) {
+	switch n {
+	case 0:
+		// nothing to do
+	case 1:
+		p.printf("\n%s ", keyword)
+		printGroup()
+	default:
+		p.printf("\n%s (\n", keyword)
+		p.indent++
+		printGroup()
+		p.indent--
+		p.print(")\n")
+	}
 }
 
 func (p *printer) printObj(obj types.Object) {
@@ -170,6 +187,7 @@ func (p *printer) printObj(obj types.Object) {
 		p.writeType(p.pkg, typ)
 	}
 	// write constant value
+	// TODO(gri) use floating-point notation for exact floating-point numbers (fractions)
 	if obj, ok := obj.(*types.Const); ok {
 		p.printf(" = %s", obj.Val())
 	}
