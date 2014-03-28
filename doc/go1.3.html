@@ -59,7 +59,14 @@ This is not a language change, just a clarification about an expected property o
 <h3 id="stacks">Stack</h3>
 
 <p>
-TODO stack copying, no longer segmented
+Go 1.3 has changed the implementation of goroutine stacks away from the old,
+"segmented" model to a contiguous model.
+When a goroutine needs more stack
+than is available, its stack is transferred to a larger single block of memory.
+The overhead of this transfer operation amortizes well and eliminates the old "hot spot"
+problem when a calculation repeatedly steps across a segment boundary.
+Details including performance numbers are in this
+<a href="http://golang.org/s/contigstacks">design document</a>.
 </p>
 
 <h3 id="stack_size">Stack size</h3>
