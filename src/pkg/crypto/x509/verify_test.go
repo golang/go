@@ -105,6 +105,10 @@ var verifyTests = []verifyTest{
 			//            twice.
 			{"Google", "Google Internet Authority", "GeoTrust", "GeoTrust"},
 		},
+		// CAPI doesn't build the chain with the duplicated GeoTrust
+		// entry so the results don't match. Thus we skip this test
+		// until that's fixed.
+		systemSkip: true,
 	},
 	{
 		leaf:          dnssecExpLeaf,
