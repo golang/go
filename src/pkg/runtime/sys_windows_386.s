@@ -74,36 +74,17 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // exception record and context pointers.
 // Return 0 for 'not handled', -1 for handled.
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
-	MOVL	ptrs+0(FP), DI
+	MOVL	ptrs+0(FP), CX
 	SUBL	$28, SP
-	MOVL	0(DI), BX // ExceptionRecord*
-	MOVL	4(DI), CX // Context*
 
-	// Only handle exception if executing instructions in Go binary
-	// (not Windows library code). Except don't - keep reading.
-	// 
-	// This sounds like a good idea but the tracebacks that
-	// Go provides are better than the Windows crash dialog,
-	// especially if it's something that Go needs to do.
-	// So take all the exceptions, not just the ones at Go PCs.
-	// If you re-enable this check by removing the JMP, you will
-	// need to arrange to handle exception 0x40010006 during
-	// non-Go code here. Right now that case is handled by sighandler
-	// in os_windows_386.c.
-	JMP skipcheckpc
-	MOVL	$0, AX
-	MOVL	184(CX), DX // saved PC
-	CMPL	DX, $text(SB)
-	JB	vehret
-	CMPL	DX, $etext(SB)
-	JA	vehret
-
-skipcheckpc:
 	// save callee-saved registers
 	MOVL	BX, 12(SP)
 	MOVL	BP, 16(SP)
 	MOVL	SI, 20(SP)
 	MOVL	DI, 24(SP)
+
+	MOVL	0(CX), BX // ExceptionRecord*
+	MOVL	4(CX), CX // Context*
 
 	// fetch g
 	get_tls(DX)
@@ -117,6 +98,7 @@ skipcheckpc:
 	MOVL	CX, 4(SP)
 	MOVL	DX, 8(SP)
 	CALL	runtime·sighandler(SB)
+	// AX is set to report result back to Windows
 
 	// restore callee-saved registers
 	MOVL	24(SP), DI
@@ -124,7 +106,6 @@ skipcheckpc:
 	MOVL	16(SP), BP
 	MOVL	12(SP), BX
 
-vehret:
 	ADDL	$28, SP
 	// RET 4 (return and pop 4 bytes parameters)
 	BYTE $0xC2; WORD $4
