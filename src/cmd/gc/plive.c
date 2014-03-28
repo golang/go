@@ -720,8 +720,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 				if(pos == -1)
 					goto Next;
 				if(from->node->addrtaken) {
-					if(info.flags & (LeftRead|LeftWrite))
-						bvset(avarinit, pos);
+					bvset(avarinit, pos);
 				} else {
 					if(info.flags & (LeftRead | LeftAddr))
 						bvset(uevar, pos);

@@ -671,6 +671,12 @@ walkexpr(Node **np, NodeList **init)
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r->left, init);
 		var = temp(r->left->type->type);
+		if(haspointers(var->type)) {
+			// clear for garbage collector - var is live during chanrecv2 call.
+			a = nod(OAS, var, N);
+			typecheck(&a, Etop);
+			*init = concat(*init, list1(a));
+		}
 		n1 = nod(OADDR, var, N);
 		fn = chanfn("chanrecv2", 2, r->left->type);
 		r = mkcall1(fn, types[TBOOL], init, typename(r->left->type), r->left, n1);
@@ -1177,6 +1183,12 @@ walkexpr(Node **np, NodeList **init)
 	case ORECV:
 		walkexpr(&n->left, init);
 		var = temp(n->left->type->type);
+		if(haspointers(var->type)) {
+			// clear for garbage collector - var is live during chanrecv1 call.
+			a = nod(OAS, var, N);
+			typecheck(&a, Etop);
+			*init = concat(*init, list1(a));
+		}
 		n1 = nod(OADDR, var, N);
 		n = mkcall1(chanfn("chanrecv1", 2, n->left->type), T, init, typename(n->left->type), n->left, n1);
 		walkexpr(&n, init);
@@ -1440,6 +1452,7 @@ walkexpr(Node **np, NodeList **init)
 	case OMAPLIT:
 	case OSTRUCTLIT:
 	case OPTRLIT:
+		// XXX TODO do we need to clear var?
 		var = temp(n->type);
 		anylit(0, n, var, init);
 		n = var;
