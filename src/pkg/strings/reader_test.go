@@ -27,8 +27,8 @@ func TestReader(t *testing.T) {
 		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
 		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
 		{seek: os.SEEK_SET, off: -1, seekerr: "strings: negative position"},
-		{seek: os.SEEK_SET, off: 1<<31 - 1},
-		{seek: os.SEEK_CUR, off: 1, seekerr: "strings: position out of range"},
+		{seek: os.SEEK_SET, off: 1 << 33, wantpos: 1 << 33},
+		{seek: os.SEEK_CUR, off: 1, wantpos: 1<<33 + 1},
 		{seek: os.SEEK_SET, n: 5, want: "01234"},
 		{seek: os.SEEK_CUR, n: 5, want: "56789"},
 		{seek: os.SEEK_END, off: -1, n: 1, wantpos: 9, want: "9"},
@@ -57,6 +57,16 @@ func TestReader(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("%d. got %q; want %q", i, got, tt.want)
 		}
+	}
+}
+
+func TestReadAfterBigSeek(t *testing.T) {
+	r := strings.NewReader("0123456789")
+	if _, err := r.Seek(1<<31+5, os.SEEK_SET); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := r.Read(make([]byte, 10)); n != 0 || err != io.EOF {
+		t.Errorf("Read = %d, %v; want 0, EOF", n, err)
 	}
 }
 
