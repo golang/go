@@ -40,12 +40,13 @@ func probeIPv4Stack() bool {
 func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	var probes = []struct {
 		laddr TCPAddr
+		value int
 		ok    bool
 	}{
 		// IPv6 communication capability
-		{TCPAddr{IP: ParseIP("::1")}, false},
+		{laddr: TCPAddr{IP: ParseIP("::1")}, value: 1},
 		// IPv6 IPv4-mapped address communication capability
-		{TCPAddr{IP: IPv4(127, 0, 0, 1)}, false},
+		{laddr: TCPAddr{IP: IPv4(127, 0, 0, 1)}, value: 0},
 	}
 
 	for i := range probes {
@@ -54,7 +55,7 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 			continue
 		}
 		defer closesocket(s)
-		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, probes[i].value)
 		sa, err := probes[i].laddr.sockaddr(syscall.AF_INET6)
 		if err != nil {
 			continue
