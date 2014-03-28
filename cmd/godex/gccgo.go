@@ -10,7 +10,10 @@ import (
 	"debug/elf"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"code.google.com/p/go.tools/go/gccgoimporter"
 	"code.google.com/p/go.tools/go/importer"
@@ -24,31 +27,63 @@ func init() {
 	register("gccgo", inst.GetImporter(nil))
 
 	// importer for gccgo using condensed export format (experimental)
-	register("gccgo-new", gccgoNewImporter)
+	register("gccgo-new", getNewImporter(append(inst.SearchPaths(), ".")))
 }
 
-func gccgoNewImporter(packages map[string]*types.Package, path string) (*types.Package, error) {
-	reader, closer, err := openGccgoExportFile(path)
-	if err != nil {
-		return nil, err
-	}
-	defer closer.Close()
+// This function is an adjusted variant of gccgoimporter.GccgoInstallation.GetImporter.
+func getNewImporter(searchpaths []string) types.Importer {
+	return func(imports map[string]*types.Package, pkgpath string) (pkg *types.Package, err error) {
+		if pkgpath == "unsafe" {
+			return types.Unsafe, nil
+		}
 
-	// TODO(gri) importer.ImportData takes a []byte instead of an io.Reader;
-	// hence the need to read some amount of data. At the same time we don't
-	// want to read the entire, potentially very large object file. For now,
-	// read 10K. Fix this!
-	var data = make([]byte, 10<<10)
-	n, err := reader.Read(data)
-	if err != nil && err != io.EOF {
-		return nil, err
-	}
+		fpath, err := findExportFile(searchpaths, pkgpath)
+		if err != nil {
+			return
+		}
 
-	return importer.ImportData(packages, data[:n])
+		reader, closer, err := openExportFile(fpath)
+		if err != nil {
+			return nil, err
+		}
+		defer closer.Close()
+
+		// TODO(gri) At the moment we just read the entire file.
+		// We should change importer.ImportData to take an io.Reader instead.
+		data, err := ioutil.ReadAll(reader)
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+
+		return importer.ImportData(packages, data)
+	}
 }
 
-// openGccgoExportFile was copied from gccgoimporter.
-func openGccgoExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err error) {
+// This function is an exact copy of gccgoimporter.findExportFile.
+func findExportFile(searchpaths []string, pkgpath string) (string, error) {
+	for _, spath := range searchpaths {
+		pkgfullpath := filepath.Join(spath, pkgpath)
+		pkgdir, name := filepath.Split(pkgfullpath)
+
+		for _, filepath := range [...]string{
+			pkgfullpath,
+			pkgfullpath + ".gox",
+			pkgdir + "lib" + name + ".so",
+			pkgdir + "lib" + name + ".a",
+			pkgfullpath + ".o",
+		} {
+			fi, err := os.Stat(filepath)
+			if err == nil && !fi.IsDir() {
+				return filepath, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("%s: could not find export data (tried %s)", pkgpath, strings.Join(searchpaths, ":"))
+}
+
+// This function is an exact copy of gccgoimporter.openExportFile.
+func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err error) {
 	f, err := os.Open(fpath)
 	if err != nil {
 		return
