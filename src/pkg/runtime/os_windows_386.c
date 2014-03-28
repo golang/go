@@ -34,9 +34,9 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 {
 	bool crash;
 	uintptr *sp;
+	extern byte text[], etext[];
 
-	switch(info->ExceptionCode) {
-	case DBG_PRINTEXCEPTION_C:
+	if(info->ExceptionCode == DBG_PRINTEXCEPTION_C) {
 		// This exception is intended to be caught by debuggers.
 		// There is a not-very-informational message like
 		// "Invalid parameter passed to C runtime function"
@@ -47,7 +47,14 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 		// makes the program crash instead. Maybe Windows has no
 		// other handler registered? In any event, ignore it.
 		return -1;
+	}
 
+	// Only handle exception if executing instructions in Go binary
+	// (not Windows library code). 
+	if(r->Eip < (uint32)text || (uint32)etext < r->Eip)
+		return 0;
+
+	switch(info->ExceptionCode) {
 	case EXCEPTION_BREAKPOINT:
 		// It is unclear whether this is needed, unclear whether it
 		// would work, and unclear how to test it. Leave out for now.
