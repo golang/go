@@ -21,7 +21,6 @@
 #pragma dynimport runtime·FreeEnvironmentStringsW FreeEnvironmentStringsW "kernel32.dll"
 #pragma dynimport runtime·GetEnvironmentStringsW GetEnvironmentStringsW "kernel32.dll"
 #pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
-#pragma dynimport runtime·GetQueuedCompletionStatusEx GetQueuedCompletionStatusEx "kernel32.dll"
 #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
 #pragma dynimport runtime·GetSystemInfo GetSystemInfo "kernel32.dll"
 #pragma dynimport runtime·GetSystemTimeAsFileTime GetSystemTimeAsFileTime "kernel32.dll"
@@ -54,7 +53,6 @@ extern void *runtime·ExitProcess;
 extern void *runtime·FreeEnvironmentStringsW;
 extern void *runtime·GetEnvironmentStringsW;
 extern void *runtime·GetProcAddress;
-extern void *runtime·GetQueuedCompletionStatusEx;
 extern void *runtime·GetStdHandle;
 extern void *runtime·GetSystemInfo;
 extern void *runtime·GetSystemTimeAsFileTime;
@@ -74,6 +72,8 @@ extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
 extern void *runtime·timeBeginPeriod;
 
+void *runtime·GetQueuedCompletionStatusEx;
+
 extern uintptr runtime·externalthreadhandlerp;
 void runtime·externalthreadhandler(void);
 void runtime·sigtramp(void);
@@ -90,6 +90,8 @@ getproccount(void)
 void
 runtime·osinit(void)
 {
+	void *kernel32;
+
 	runtime·externalthreadhandlerp = (uintptr)runtime·externalthreadhandler;
 
 	runtime·stdcall(runtime·AddVectoredExceptionHandler, 2, (uintptr)1, (uintptr)runtime·sigtramp);
@@ -102,6 +104,11 @@ runtime·osinit(void)
 	// equivalent threads that all do a mix of GUI, IO, computations, etc.
 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
 	runtime·stdcall(runtime·SetProcessPriorityBoost, 2, (uintptr)-1, (uintptr)1);
+
+	kernel32 = runtime·stdcall(runtime·LoadLibraryA, 1, "kernel32.dll");
+	if(kernel32 != nil) {
+		runtime·GetQueuedCompletionStatusEx = runtime·stdcall(runtime·GetProcAddress, 2, kernel32, "GetQueuedCompletionStatusEx");
+	}
 }
 
 void
