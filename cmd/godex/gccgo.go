@@ -74,7 +74,6 @@ func findExportFile(searchpaths []string, pkgpath string) (string, error) {
 			pkgdir + "lib" + name + ".a",
 			pkgfullpath + ".o",
 		} {
-			println("trying", filepath)
 			fi, err := os.Stat(filepath)
 			if err == nil && !fi.IsDir() {
 				return filepath, nil
