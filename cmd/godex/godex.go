@@ -64,9 +64,9 @@ func main() {
 		logf("\tprocessing %q: path = %q, name = %s\n", arg, path, name)
 
 		// generate possible package path prefixes
-		// (at the moment we do this for each argument - should probably cache this)
+		// (at the moment we do this for each argument - should probably cache the generated prefixes)
 		prefixes := make(chan string)
-		go genPrefixes(prefixes)
+		go genPrefixes(prefixes, !filepath.IsAbs(path) && !build.IsLocalImport(path))
 
 		// import package
 		pkg, err := tryPrefixes(packages, prefixes, path, imp)
@@ -172,12 +172,14 @@ func lookup(src string) types.Importer {
 	return nil
 }
 
-func genPrefixes(out chan string) {
-	out <- "" // try no prefix
-	platform := build.Default.GOOS + "_" + build.Default.GOARCH
-	dirnames := append([]string{build.Default.GOROOT}, filepath.SplitList(build.Default.GOPATH)...)
-	for _, dirname := range dirnames {
-		walkDir(filepath.Join(dirname, "pkg", platform), "", out)
+func genPrefixes(out chan string, all bool) {
+	out <- ""
+	if all {
+		platform := build.Default.GOOS + "_" + build.Default.GOARCH
+		dirnames := append([]string{build.Default.GOROOT}, filepath.SplitList(build.Default.GOPATH)...)
+		for _, dirname := range dirnames {
+			walkDir(filepath.Join(dirname, "pkg", platform), "", out)
+		}
 	}
 	close(out)
 }
