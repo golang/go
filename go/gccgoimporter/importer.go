@@ -48,12 +48,16 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
 	if err != nil {
 		return
 	}
+	defer func() {
+		if err != nil {
+			f.Close()
+		}
+	}()
 	closer = f
 
 	var magic [4]byte
 	_, err = f.ReadAt(magic[:], 0)
 	if err != nil {
-		f.Close()
 		return
 	}
 
@@ -65,14 +69,12 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
 
 	ef, err := elf.NewFile(f)
 	if err != nil {
-		f.Close()
 		return
 	}
 
 	sec := ef.Section(".go_export")
 	if sec == nil {
 		err = fmt.Errorf("%s: .go_export section not found", fpath)
-		f.Close()
 		return
 	}
 
