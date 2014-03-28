@@ -211,6 +211,11 @@ walkselect(Node *sel)
 			else if(n->left->op == ONAME &&
 					(!n->colas || (n->left->class&PHEAP) == 0) &&
 					convertop(ch->type->type, n->left->type, nil) == OCONVNOP) {
+				if(n->colas && haspointers(ch->type->type)) {
+					r = nod(OAS, n->left, N);
+					typecheck(&r, Etop);
+					sel->ninit = concat(sel->ninit, list1(r));
+				}
 				n->left = nod(OADDR, n->left, N);
 				n->left->etype = 1;  // pointer does not escape
 				typecheck(&n->left, Erv);
@@ -222,6 +227,13 @@ walkselect(Node *sel)
 			} else {
 				tmp = temp(ch->type->type);
 				a = nod(OADDR, tmp, N);
+				if(haspointers(ch->type->type)) {
+					// clear tmp for garbage collector, because the recv
+					// must execute with tmp appearing to be live.
+					r = nod(OAS, tmp, N);
+					typecheck(&r, Etop);
+					sel->ninit = concat(sel->ninit, list1(r));
+				}
 				a->etype = 1;  // pointer does not escape
 				typecheck(&a, Erv);
 				r = nod(OAS, n->left, tmp);

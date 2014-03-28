@@ -197,6 +197,7 @@ walkrange(Node *n)
 		// allocate an iterator state structure on the stack
 		th = hiter(t);
 		hit = temp(th);
+		init = list(init, nod(OAS, hit, N));
 		keyname = newname(th->type->sym);  // depends on layout of iterator struct.  See reflect.c:hiter
 		valname = newname(th->type->down->sym); // ditto
 
@@ -227,6 +228,8 @@ walkrange(Node *n)
 
 	case TCHAN:
 		hv1 = temp(t->type);
+		if(haspointers(t->type))
+			init = list(init, nod(OAS, hv1, N));
 		hb = temp(types[TBOOL]);
 
 		n->ntest = nod(ONE, hb, nodbool(0));
