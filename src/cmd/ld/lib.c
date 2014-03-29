@@ -562,7 +562,7 @@ hostlink(void)
 		p = strchr(p + 1, ' ');
 	}
 
-	argv = malloc((13+nhostobj+nldflag+c)*sizeof argv[0]);
+	argv = malloc((14+nhostobj+nldflag+c)*sizeof argv[0]);
 	argc = 0;
 	if(extld == nil)
 		extld = "gcc";
@@ -604,6 +604,9 @@ hostlink(void)
 	// Force global symbols to be exported for dlopen, etc.
 	if(iself)
 		argv[argc++] = "-rdynamic";
+
+	if(strstr(argv[0], "clang") != nil)
+		argv[argc++] = "-Qunused-arguments";
 
 	// already wrote main object file
 	// copy host objects to temporary directory
