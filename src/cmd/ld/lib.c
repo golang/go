@@ -37,6 +37,9 @@
 #include	"../../pkg/runtime/funcdata.h"
 
 #include	<ar.h>
+#if !(defined(_WIN32) || defined(PLAN9))
+#include	<sys/stat.h>
+#endif
 
 enum
 {
@@ -106,8 +109,13 @@ libinit(void)
 	// Unix doesn't like it when we write to a running (or, sometimes,
 	// recently run) binary, so remove the output file before writing it.
 	// On Windows 7, remove() can force the following create() to fail.
-#ifndef _WIN32
-	remove(outfile);
+	// S_ISREG() does not exist on Plan 9.
+#if !(defined(_WIN32) || defined(PLAN9))
+	{
+		struct stat st;
+		if(lstat(outfile, &st) == 0 && S_ISREG(st.st_mode))
+			remove(outfile);
+	}
 #endif
 	cout = create(outfile, 1, 0775);
 	if(cout < 0) {
