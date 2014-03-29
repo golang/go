@@ -2525,8 +2525,9 @@ typecheckcomplit(Node **np)
 			typecheck(&l->left, Erv);
 			evconst(l->left);
 			i = nonnegconst(l->left);
-			if(i < 0) {
+			if(i < 0 && !l->left->diag) {
 				yyerror("array index must be non-negative integer constant");
+				l->left->diag = 1;
 				i = -(1<<30);	// stay negative for a while
 			}
 			if(i >= 0)
