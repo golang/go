@@ -42,7 +42,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
 //sys	sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
 //sysnb	socketpair(domain int, typ int, flags int, fd *[2]int32) (err error)
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
-//sys	sendmsg(s int, msg *Msghdr, flags int) (err error)
+//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
 
 // 64-bit file system and 32-bit uid calls
 // (16-bit uid calls are not always supported in newer kernels)

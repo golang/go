@@ -284,8 +284,8 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
 	return
 }
 
-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
-	_, e := socketcall(_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
+func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+	n, e := socketcall(_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
 	if e != 0 {
 		err = e
 	}
