@@ -389,15 +389,20 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	return
 }
 
-//sys	sendmsg(s int, msg *Msghdr, flags int) (err error)
+//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
 
 func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+	_, err = SendmsgN(fd, p, oob, to, flags)
+	return
+}
+
+func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
 	var ptr unsafe.Pointer
 	var salen _Socklen
 	if to != nil {
 		ptr, salen, err = to.sockaddr()
 		if err != nil {
-			return
+			return 0, err
 		}
 	}
 	var msg Msghdr
@@ -420,10 +425,13 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
 	}
 	msg.Iov = &iov
 	msg.Iovlen = 1
-	if err = sendmsg(fd, &msg, flags); err != nil {
-		return
+	if n, err = sendmsg(fd, &msg, flags); err != nil {
+		return 0, err
 	}
-	return
+	if len(oob) > 0 && len(p) == 0 {
+		n = 0
+	}
+	return n, nil
 }
 
 //sys	kevent(kq int, change unsafe.Pointer, nchange int, event unsafe.Pointer, nevent int, timeout *Timespec) (n int, err error)
