@@ -56,7 +56,7 @@
       .dashboards, .paginate {
         padding: 0.5em;
       }
-      .dashboards a, .paginate a {
+      .dashboards > a, .paginate a {
         padding: 0.5em;
         background: #eee;
         color: blue;
@@ -68,6 +68,19 @@
         color: #C00;
       }
     </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script>
+    var showUnsupported = window.location.hash.substr(1) != "short";
+    function redraw() {
+        showUnsupported = !$("#showshort").prop('checked');
+        $('.unsupported')[showUnsupported?'show':'hide']();
+        window.location.hash = showUnsupported?'':'short';
+    }
+    $(document).ready(function() {
+        $("#showshort").attr('checked', !showUnsupported).change(redraw);
+        redraw();
+    })
+    </script>
   </head>
   <body>
     <h1>{{$.Dashboard.Name}} Build Status</h1>
@@ -75,6 +88,10 @@
       {{range buildDashboards}}
         <a href="{{.RelPath}}">{{.Name}}</a>
       {{end}}
+      <label>
+        <input type=checkbox id="showshort">
+        show only <a href="http://golang.org/wiki/PortingPolicy">first-class ports</a>
+      </label>
     </nav>
     {{with $.Package.Name}}<h2>{{.}}</h2>{{end}}
 
@@ -83,7 +100,7 @@
     <table class="build">
       <colgroup class="col-hash" {{if $.Package.Path}}span="2"{{end}}></colgroup>
     {{range $.Builders | builderSpans}}
-      <colgroup class="col-result" span="{{.N}}"></colgroup>
+      <colgroup class="col-result{{if (unsupportedOS .OS)}} unsupported{{end}}" span="{{.N}}"></colgroup>
     {{end}}
       <colgroup class="col-user"></colgroup>
       <colgroup class="col-time"></colgroup>
@@ -98,7 +115,7 @@
         <th>&nbsp;</th>
     {{end}}
     {{range $.Builders | builderSpans}}
-        <th colspan="{{.N}}">{{.OS}}</th>
+        <th {{if (unsupportedOS .OS)}}class="unsupported"{{end}} colspan="{{.N}}">{{.OS}}</th>
     {{end}}
         <th></th>
         <th></th>
@@ -112,8 +129,11 @@
         <th>&nbsp;</th>
     {{end}}
     {{range $.Builders}}
-        <th class="result arch" title="{{.}}">{{builderSubheading .}}</th>
+        <th class="result arch{{if (unsupportedOS (builderOS .))}} unsupported{{end}}" title="{{.}}">{{builderSubheading .}}</th>
     {{end}}
+        <th></th>
+        <th></th>
+        <th></th>
       </tr>
     {{range $c := $.Commits}}
       {{range $i, $h := $c.ResultGoHashes}}
@@ -127,7 +147,7 @@
           <td class="hash"><a href="{{repoURL $.Dashboard.Name $h ""}}">{{shortHash $h}}</a></td>
         {{end}}
           {{range $.Builders}}
-            <td class="result">
+            <td class="result{{if (unsupportedOS (builderOS .))}} unsupported{{end}}">
               {{with $c.Result . $h}}
                 {{if .OK}}
                   <span class="ok">ok</span>
@@ -177,7 +197,7 @@
       <colgroup class="col-package"></colgroup>
       <colgroup class="col-hash"></colgroup>
       {{range $.Builders | builderSpans}}
-        <colgroup class="col-result" span="{{.N}}"></colgroup>
+        <colgroup class="col-result{{if (unsupportedOS .OS)}} unsupported{{end}}" span="{{.N}}"></colgroup>
       {{end}}
       <colgroup class="col-user"></colgroup>
       <colgroup class="col-time"></colgroup>
@@ -189,7 +209,7 @@
         <th></th>
         <th></th>
         {{range $.Builders | builderSpans}}
-          <th colspan="{{.N}}">{{.OS}}</th>
+          <th {{if (unsupportedOS .OS)}}class="unsupported"{{end}} colspan="{{.N}}">{{.OS}}</th>
         {{end}}
         <th></th>
         <th></th>
@@ -199,7 +219,7 @@
         <th></th>
         <th></th>
         {{range $.Builders}}
-          <th class="result arch" title="{{.}}">{{builderSubheading .}}</th>
+          <th class="result arch{{if (unsupportedOS (builderOS .))}} unsupported{{end}}" title="{{.}}">{{builderSubheading .}}</th>
         {{end}}
         <th></th>
         <th></th>
@@ -213,7 +233,7 @@
           <a href="{{repoURL $.Dashboard.Name $h $pkg.Commit.PackagePath}}">{{shortHash $h}}</a>
         </td>
         {{range $.Builders}}
-          <td class="result">
+          <td class="result{{if (unsupportedOS (builderOS .))}} unsupported{{end}}">
             {{with $pkg.Commit.Result . $goHash}}
               {{if .OK}}
                 <span class="ok">ok</span>

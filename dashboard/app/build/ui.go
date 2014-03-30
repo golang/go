@@ -175,6 +175,14 @@ func isRace(s string) bool {
 	return strings.Contains(s, "-race-") || strings.HasSuffix(s, "-race")
 }
 
+func unsupportedOS(os string) bool {
+	if os == "race" {
+		return false
+	}
+	p, ok := osPriority[os]
+	return !ok || p > 0
+}
+
 // Priorities for specific operating systems.
 var osPriority = map[string]int{
 	"darwin":  0,
@@ -239,15 +247,17 @@ var uiTemplate = template.Must(
 )
 
 var tmplFuncs = template.FuncMap{
+	"buildDashboards":   buildDashboards,
+	"builderOS":         builderOS,
+	"builderSpans":      builderSpans,
 	"builderSubheading": builderSubheading,
 	"builderTitle":      builderTitle,
-	"builderSpans":      builderSpans,
-	"buildDashboards":   buildDashboards,
 	"repoURL":           repoURL,
 	"shortDesc":         shortDesc,
 	"shortHash":         shortHash,
 	"shortUser":         shortUser,
 	"tail":              tail,
+	"unsupportedOS":     unsupportedOS,
 }
 
 func splitDash(s string) (string, string) {
