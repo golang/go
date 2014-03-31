@@ -17,7 +17,7 @@ import (
 
 // ident type-checks identifier e and initializes x with the value or type of e.
 // If an error occurred, x.mode is set to invalid.
-// For the meaning of def and cycle, see check.typ, below.
+// For the meaning of def and path, see check.typ, below.
 //
 func (check *checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeName) {
 	x.mode = invalid
@@ -71,7 +71,6 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 		x.mode = typexpr
 		// check for cycle
 		// (it's ok to iterate forward because each named type appears at most once in path)
-		// TODO(gri) consider passing []*Named instead of []*TypeName for cycle
 		for i, prev := range path {
 			if prev == obj {
 				check.errorf(obj.pos, "illegal cycle in declaration of %s", obj.name)
