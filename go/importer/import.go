@@ -24,14 +24,29 @@ import (
 // data.
 func ImportData(imports map[string]*types.Package, data []byte) (*types.Package, error) {
 	// check magic string
-	if n := len(magic); len(data) < n || string(data[:n]) != magic {
-		return nil, fmt.Errorf("incorrect magic string: got %q; want %q", data[:n], magic)
+	var s string
+	if len(data) >= len(magic) {
+		s = string(data[:len(magic)])
+		data = data[len(magic):]
+	}
+	if s != magic {
+		return nil, fmt.Errorf("incorrect magic string: got %q; want %q", s, magic)
+	}
+
+	// check low-level encoding format
+	var m byte = 'm' // missing format
+	if len(data) > 0 {
+		m = data[0]
+		data = data[1:]
+	}
+	if m != format() {
+		return nil, fmt.Errorf("incorrect low-level encoding format: got %c; want %c", m, format())
 	}
 
 	p := importer{
-		data:     data[len(magic):],
+		data:     data,
 		imports:  imports,
-		consumed: len(magic), // for debugging only
+		consumed: len(magic) + 1, // for debugging only
 	}
 
 	// populate typList with predeclared types

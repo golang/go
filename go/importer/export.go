@@ -21,12 +21,21 @@ const (
 	trace = false // print emitted data
 )
 
+// format returns a byte indicating the low-level encoding/decoding format
+// (debug vs product).
+func format() byte {
+	if debug {
+		return 'd'
+	}
+	return 'p'
+}
+
 // ExportData serializes the interface (exported package objects)
 // of package pkg and returns the corresponding data. The export
 // format is described elsewhere (TODO).
 func ExportData(pkg *types.Package) []byte {
 	p := exporter{
-		data:     []byte(magic),
+		data:     append([]byte(magic), format()),
 		pkgIndex: make(map[*types.Package]int),
 		typIndex: make(map[types.Type]int),
 	}
@@ -394,8 +403,8 @@ func (p *exporter) bytes(b []byte) {
 }
 
 // marker emits a marker byte and position information which makes
-// it easy for a reader to detect if it is "out of sync". Used in
-// debug mode only.
+// it easy for a reader to detect if it is "out of sync". Used for
+// debug format only.
 func (p *exporter) marker(m byte) {
 	if debug {
 		p.data = append(p.data, m)
