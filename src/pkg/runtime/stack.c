@@ -362,7 +362,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 			break;
 		case BitsPointer:
 			p = scanp[i];
-			if(f != nil && (byte*)0 < p && p < (byte*)PageSize) {
+			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize || (uintptr)p == PoisonPtr)) {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
 				m->traceback = 2;
