@@ -230,9 +230,9 @@ uintptr runtime·maxstacksize = 1<<20; // enough until runtime.main sets it for 
 static uint8*
 mapnames[] = {
 	(uint8*)"---",
+	(uint8*)"scalar",
 	(uint8*)"ptr",
-	(uint8*)"iface",
-	(uint8*)"eface",
+	(uint8*)"multi",
 };
 
 // Stack frame layout
@@ -437,14 +437,18 @@ adjustframe(Stkframe *frame, void *arg)
 	StackMap *stackmap;
 	int32 pcdata;
 	BitVector *bv;
+	uintptr targetpc;
 
 	adjinfo = arg;
 	f = frame->fn;
 	if(StackDebug >= 2)
-		runtime·printf("    adjusting %s frame=[%p,%p]\n", runtime·funcname(f), frame->sp, frame->fp);
+		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc);
 	if(f->entry == (uintptr)runtime·main)
 		return true;
-	pcdata = runtime·pcdatavalue(f, PCDATA_StackMapIndex, frame->pc);
+	targetpc = frame->pc;
+	if(targetpc != f->entry)
+		targetpc--;
+	pcdata = runtime·pcdatavalue(f, PCDATA_StackMapIndex, targetpc);
 	if(pcdata == -1)
 		pcdata = 0; // in prologue
 
