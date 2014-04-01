@@ -199,7 +199,7 @@ regopt(Prog *firstp)
 
 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
 		p = r->f.prog;
-		if(p->as == AVARDEF)
+		if(p->as == AVARDEF || p->as == AVARKILL)
 			continue;
 		proginfo(&info, p);
 

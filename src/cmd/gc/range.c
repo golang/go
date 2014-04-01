@@ -164,8 +164,7 @@ walkrange(Node *n)
 		}
 
 		n->ntest = nod(OLT, hv1, hn);
-		n->nincr = nod(OASOP, hv1, nodintconst(1));
-		n->nincr->etype = OADD;
+		n->nincr = nod(OAS, hv1, nod(OADD, hv1, nodintconst(1)));
 		if(v2 == N)
 			body = list1(nod(OAS, v1, hv1));
 		else {

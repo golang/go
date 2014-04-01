@@ -287,7 +287,7 @@ subprop(Flow *r0)
 		if(uniqs(r) == nil)
 			break;
 		p = r->prog;
-		if(p->as == AVARDEF)
+		if(p->as == AVARDEF || p->as == AVARKILL)
 			continue;
 		proginfo(&info, p);
 		if(info.flags & Call)
@@ -1167,6 +1167,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case APCDATA:
 	case AFUNCDATA:
 	case AVARDEF:
+	case AVARKILL:
 		return 0;
 	}
 }

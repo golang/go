@@ -581,6 +581,7 @@ enum
 	OCLOSUREVAR, // variable reference at beginning of closure function
 	OCFUNC,	// reference to c function pointer (not go func value)
 	OCHECKNIL, // emit code to ensure pointer/interface not nil
+	OVARKILL, // variable is dead
 
 	// arch-specific registers
 	OREGISTER,	// a register, such as AX.
@@ -1502,6 +1503,7 @@ void	gdatastring(Node*, Strlit*);
 void	ggloblnod(Node *nam);
 void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
 void	gvardef(Node*);
+void	gvarkill(Node*);
 Prog*	gjmp(Prog*);
 void	gused(Node*);
 void	movelarge(NodeList*);

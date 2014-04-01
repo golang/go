@@ -202,6 +202,7 @@ walkstmt(Node **np)
 	case ODCLCONST:
 	case ODCLTYPE:
 	case OCHECKNIL:
+	case OVARKILL:
 		break;
 
 	case OBLOCK:
@@ -361,8 +362,8 @@ void
 walkexpr(Node **np, NodeList **init)
 {
 	Node *r, *l, *var, *a;
-	Node *map, *key, *keyvar;
-	NodeList *ll, *lr, *lpost;
+	Node *map, *key;
+	NodeList *ll, *lr;
 	Type *t;
 	int et, old_safemode;
 	int64 v;
@@ -476,7 +477,6 @@ walkexpr(Node **np, NodeList **init)
 	case ORSH:
 		walkexpr(&n->left, init);
 		walkexpr(&n->right, init);
-	shiftwalked:
 		t = n->left->type;
 		n->bounded = bounded(n->right, 8*t->width);
 		if(debug['m'] && n->etype && !isconst(n->right, CTINT))
@@ -602,13 +602,32 @@ walkexpr(Node **np, NodeList **init)
 	case OAS:
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
+
 		walkexpr(&n->left, init);
 		n->left = safeexpr(n->left, init);
 
 		if(oaslit(n, init))
 			goto ret;
 
-		walkexpr(&n->right, init);
+		if(n->right == N)
+			goto ret;
+
+		switch(n->right->op) {
+		default:
+			walkexpr(&n->right, init);
+			break;
+		
+		case ORECV:
+			// x = <-c; n->left is x, n->right->left is c.
+			// orderstmt made sure x is addressable.
+			walkexpr(&n->right->left, init);
+			n1 = nod(OADDR, n->left, N);
+			r = n->right->left; // the channel
+			n = mkcall1(chanfn("chanrecv1", 2, r->type), T, init, typename(r->type), r, n1);
+			walkexpr(&n, init);
+			goto ret;
+		}
+
 		if(n->left != N && n->right != N) {
 			r = convas(nod(OAS, n->left, n->right), init);
 			r->dodata = n->dodata;
@@ -618,7 +637,6 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OAS2:
-	as2:
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		walkexprlistsafe(n->list, init);
@@ -637,52 +655,26 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&r, init);
 		l = n->list->n;
 
-		// all the really hard stuff - explicit function calls and so on -
-		// is gone, but map assignments remain.
-		// if there are map assignments here, assign via
-		// temporaries, because ascompatet assumes
-		// the targets can be addressed without function calls
-		// and map index has an implicit one.
-		lpost = nil;
-		if(l->op == OINDEXMAP) {
-			var = temp(l->type);
-			n->list->n = var;
-			a = nod(OAS, l, var);
-			typecheck(&a, Etop);
-			lpost = list(lpost, a);
-		}
 		l = n->list->next->n;
-		if(l->op == OINDEXMAP) {
-			var = temp(l->type);
-			n->list->next->n = var;
-			a = nod(OAS, l, var);
-			typecheck(&a, Etop);
-			lpost = list(lpost, a);
-		}
 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
-		walkexprlist(lpost, init);
-		n = liststmt(concat(concat(list1(r), ll), lpost));
+		n = liststmt(concat(list1(r), ll));
 		goto ret;
 
 	case OAS2RECV:
+		// x, y = <-c
+		// orderstmt made sure x is addressable.
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r->left, init);
-		var = temp(r->left->type->type);
-		if(haspointers(var->type)) {
-			// clear for garbage collector - var is live during chanrecv2 call.
-			a = nod(OAS, var, N);
-			typecheck(&a, Etop);
-			*init = concat(*init, list1(a));
-		}
-		n1 = nod(OADDR, var, N);
+		n1 = nod(OADDR, n->list->n, N);
+		n1->etype = 1; // addr does not escape
 		fn = chanfn("chanrecv2", 2, r->left->type);
 		r = mkcall1(fn, types[TBOOL], init, typename(r->left->type), r->left, n1);
-		n->op = OAS2;
-		n->rlist = concat(list1(var), list1(r));
-		goto as2;
+		n = nod(OAS, n->list->next->n, r);
+		typecheck(&n, Etop);
+		goto ret;
 
 	case OAS2MAPR:
 		// a,b = m[i];
@@ -714,15 +706,8 @@ walkexpr(Node **np, NodeList **init)
 			key = r->right;
 		} else {
 			// standard version takes key by reference
-			if(islvalue(r->right)) {
-				key = nod(OADDR, r->right, N);
-			} else {
-				keyvar = temp(t->down);
-				n1 = nod(OAS, keyvar, r->right);
-				typecheck(&n1, Etop);
-				*init = list(*init, n1);
-				key = nod(OADDR, keyvar, N);
-			}
+			// orderexpr made sure key is addressable.
+			key = nod(OADDR, r->right, N);
 			p = "mapaccess2";
 		}
 
@@ -741,7 +726,6 @@ walkexpr(Node **np, NodeList **init)
 		n->list->n = var;
 		walkexpr(&n, init);
 		*init = list(*init, n);
-		
 		n = nod(OAS, a, nod(OIND, var, N));
 		typecheck(&n, Etop);
 		walkexpr(&n, init);
@@ -758,15 +742,8 @@ walkexpr(Node **np, NodeList **init)
 		key = n->list->next->n;
 		walkexpr(&map, init);
 		walkexpr(&key, init);
-		if(islvalue(key)) {
-			key = nod(OADDR, key, N);
-		} else {
-			keyvar = temp(key->type);
-			n1 = nod(OAS, keyvar, key);
-			typecheck(&n1, Etop);
-			*init = list(*init, n1);
-			key = nod(OADDR, keyvar, N);
-		}
+		// orderstmt made sure key is addressable.
+		key = nod(OADDR, key, N);
 		t = map->type;
 		n = mkcall1(mapfndel("mapdelete", t), T, init, typename(t), map, key);
 		goto ret;
@@ -981,51 +958,6 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->left, init);
 		goto ret;
 
-	case OASOP:
-		if(n->etype == OANDNOT) {
-			n->etype = OAND;
-			n->right = nod(OCOM, n->right, N);
-			typecheck(&n->right, Erv);
-		}
-		n->left = safeexpr(n->left, init);
-		walkexpr(&n->left, init);
-		l = n->left;
-		walkexpr(&n->right, init);
-
-		/*
-		 * on 32-bit arch, rewrite 64-bit ops into l = l op r.
-		 * on 386, rewrite float ops into l = l op r.
-		 * everywhere, rewrite map ops into l = l op r.
-		 * everywhere, rewrite string += into l = l op r.
-		 * everywhere, rewrite integer/complex /= into l = l op r.
-		 * TODO(rsc): Maybe this rewrite should be done always?
-		 */
-		et = n->left->type->etype;
-		if((widthptr == 4 && (et == TUINT64 || et == TINT64)) ||
-		   (thechar == '8' && isfloat[et]) ||
-		   l->op == OINDEXMAP ||
-		   et == TSTRING ||
-		   (!isfloat[et] && n->etype == ODIV) ||
-		   n->etype == OMOD) {
-			l = safeexpr(n->left, init);
-			a = l;
-			if(a->op == OINDEXMAP) {
-				// map index has "lhs" bit set in a->etype.
-				// make a copy so we can clear it on the rhs.
-				a = nod(OXXX, N, N);
-				*a = *l;
-				a->etype = 0;
-			}
-			r = nod(OAS, l, nod(n->etype, a, n->right));
-			typecheck(&r, Etop);
-			walkexpr(&r, init);
-			n = r;
-			goto ret;
-		}
-		if(n->etype == OLSH || n->etype == ORSH)
-			goto shiftwalked;
-		goto ret;
-
 	case OANDNOT:
 		walkexpr(&n->left, init);
 		n->op = OAND;
@@ -1159,16 +1091,9 @@ walkexpr(Node **np, NodeList **init)
 			// fast versions take key by value
 			key = n->right;
 		} else {
-			// standard version takes key by reference
-			if(islvalue(n->right)) {
-				key = nod(OADDR, n->right, N);
-			} else {
-				keyvar = temp(t->down);
-				n1 = nod(OAS, keyvar, n->right);
-				typecheck(&n1, Etop);
-				*init = list(*init, n1);
-				key = nod(OADDR, keyvar, N);
-			}
+			// standard version takes key by reference.
+			// orderexpr made sure key is addressable.
+			key = nod(OADDR, n->right, N);
 			p = "mapaccess1";
 		}
 		n = mkcall1(mapfn(p, t), ptrto(t->type), init, typename(t), n->left, key);
@@ -1181,20 +1106,7 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case ORECV:
-		walkexpr(&n->left, init);
-		var = temp(n->left->type->type);
-		if(haspointers(var->type)) {
-			// clear for garbage collector - var is live during chanrecv1 call.
-			a = nod(OAS, var, N);
-			typecheck(&a, Etop);
-			*init = concat(*init, list1(a));
-		}
-		n1 = nod(OADDR, var, N);
-		n = mkcall1(chanfn("chanrecv1", 2, n->left->type), T, init, typename(n->left->type), n->left, n1);
-		walkexpr(&n, init);
-		*init = list(*init, n);
-		n = var;
-		goto ret;
+		fatal("walkexpr ORECV"); // should see inside OAS only
 
 	case OSLICE:
 		if(n->right != N && n->right->left == N && n->right->right == N) { // noop
@@ -1462,15 +1374,7 @@ walkexpr(Node **np, NodeList **init)
 		n1 = n->right;
 		n1 = assignconv(n1, n->left->type->type, "chan send");
 		walkexpr(&n1, init);
-		if(islvalue(n1)) {
-			n1 = nod(OADDR, n1, N);
-		} else {
-			var = temp(n1->type);
-			n1 = nod(OAS, var, n1);
-			typecheck(&n1, Etop);
-			*init = list(*init, n1);
-			n1 = nod(OADDR, var, N);
-		}
+		n1 = nod(OADDR, n1, N);
 		n = mkcall1(chanfn("chansend1", 2, n->left->type), T, init, typename(n->left->type), n->left, n1);
 		goto ret;
 
@@ -2008,8 +1912,7 @@ static Node*
 convas(Node *n, NodeList **init)
 {
 	Type *lt, *rt;
-	Node *map, *key, *keyvar, *val, *valvar;
-	Node *n1;
+	Node *map, *key, *val;
 
 	if(n->op != OAS)
 		fatal("convas: not OAS %O", n->op);
@@ -2036,24 +1939,9 @@ convas(Node *n, NodeList **init)
 		walkexpr(&map, init);
 		walkexpr(&key, init);
 		walkexpr(&val, init);
-		if(islvalue(key)) {
-			key = nod(OADDR, key, N);
-		} else {
-			keyvar = temp(key->type);
-			n1 = nod(OAS, keyvar, key);
-			typecheck(&n1, Etop);
-			*init = list(*init, n1);
-			key = nod(OADDR, keyvar, N);
-		}
-		if(islvalue(val)) {
-			val = nod(OADDR, val, N);
-		} else {
-			valvar = temp(val->type);
-			n1 = nod(OAS, valvar, val);
-			typecheck(&n1, Etop);
-			*init = list(*init, n1);
-			val = nod(OADDR, valvar, N);
-		}
+		// orderexpr made sure key and val are addressable.
+		key = nod(OADDR, key, N);
+		val = nod(OADDR, val, N);
 		n = mkcall1(mapfn("mapassign1", map->type), T, init,
 			typename(map->type), map, key, val);
 		goto out;

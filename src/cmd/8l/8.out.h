@@ -580,6 +580,7 @@ enum	as
 	APCDATA,
 	ACHECKNIL,
 	AVARDEF,
+	AVARKILL,
 	
 	ALAST
 };

@@ -387,7 +387,7 @@ subprop(Flow *r0)
 		if(uniqs(r) == nil)
 			break;
 		p = r->prog;
-		if(p->as == AVARDEF)
+		if(p->as == AVARDEF || p->as == AVARKILL)
 			continue;
 		proginfo(&info, p);
 		if(info.flags & Call)
@@ -586,7 +586,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 0;
 	}
 
-	if(p->as == AVARDEF)
+	if(p->as == AVARDEF || p->as == AVARKILL)
 		return 0;
 	proginfo(&info, p);
 

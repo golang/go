@@ -5,79 +5,349 @@
 // Rewrite tree to use separate statements to enforce
 // order of evaluation.  Makes walk easier, because it
 // can (after this runs) reorder at will within an expression.
+//
+// Rewrite x op= y into x = x op y.
+//
+// Introduce temporaries as needed by runtime routines.
+// For example, the map runtime routines take the map key
+// by reference, so make sure all map keys are addressable
+// by copying them to temporaries as needed.
+// The same is true for channel operations.
+//
+// Arrange that map index expressions only appear in direct
+// assignments x = m[k] or m[k] = x, never in larger expressions.
+//
+// Arrange that receive expressions only appear in direct assignments
+// x = <-c or as standalone statements <-c, never in larger expressions.
+
+// TODO(rsc): Temporaries are not cleaned in for, if, select, and swtch
+// statements. The cleaning needs to be introduced aggressively, so
+// that for example a temporary introduced during evaluation of an
+// if condition is killed in both the 'if' and 'else' bodies, not delayed
+// until after the entire if statement has completed.
+
+// TODO(rsc): Goto and multilevel break/continue can jump over
+// inserted VARKILL annotations. Work out a way to handle these.
+// The current implementation is safe, in that it will execute correctly.
+// But it won't reuse temporaries as aggressively as it might, and
+// it can result in unnecessary zeroing of those variables in the function
+// prologue.
 
 #include	<u.h>
 #include	<libc.h>
 #include	"go.h"
 
-static void	orderstmt(Node*, NodeList**);
-static void	orderstmtlist(NodeList*, NodeList**);
-static void	orderblock(NodeList **l);
-static void	orderexpr(Node**, NodeList**);
-static void	orderexprlist(NodeList*, NodeList**);
+// Order holds state during the ordering process.
+typedef struct Order Order;
+struct Order
+{
+	NodeList *out; // list of generated statements
+	NodeList *temp; // head of stack of temporary variables
+	NodeList *free; // free list of NodeList* structs (for use in temp)
+};
 
+static void	orderstmt(Node*, Order*);
+static void	orderstmtlist(NodeList*, Order*);
+static void	orderblock(NodeList **l);
+static void	orderexpr(Node**, Order*);
+static void orderexprinplace(Node**, Order*);
+static void	orderexprlist(NodeList*, Order*);
+static void	orderexprlistinplace(NodeList*, Order*);
+
+// Order rewrites fn->nbody to apply the ordering constraints
+// described in the comment at the top of the file.
 void
 order(Node *fn)
 {
 	orderblock(&fn->nbody);
 }
 
-static void
-orderstmtlist(NodeList *l, NodeList **out)
+// Ordertemp allocates a new temporary with the given type,
+// pushes it onto the temp stack, and returns it.
+// If clear is true, ordertemp emits code to zero the temporary.
+static Node*
+ordertemp(Type *t, Order *order, int clear)
 {
-	for(; l; l=l->next)
-		orderstmt(l->n, out);
+	Node *var, *a;
+	NodeList *l;
+
+	var = temp(t);
+	if(clear) {
+		a = nod(OAS, var, N);
+		typecheck(&a, Etop);
+		order->out = list(order->out, a);
+	}
+	if((l = order->free) == nil)
+		l = mal(sizeof *l);
+	order->free = l->next;
+	l->next = order->temp;
+	l->n = var;
+	order->temp = l;
+	return var;
 }
 
-// Order the block of statements *l onto a new list,
-// and then replace *l with that list.
+// Ordercopyexpr behaves like ordertemp but also emits
+// code to initialize the temporary to the value n.
+//
+// The clear argument is provided for use when the evaluation
+// of tmp = n turns into a function call that is passed a pointer
+// to the temporary as the output space. If the call blocks before
+// tmp has been written, the garbage collector will still treat the
+// temporary as live, so we must zero it before entering that call.
+// Today, this only happens for channel receive operations.
+// (The other candidate would be map access, but map access
+// returns a pointer to the result data instead of taking a pointer
+// to be filled in.)
+static Node*
+ordercopyexpr(Node *n, Type *t, Order *order, int clear)
+{
+	Node *a, *var;
+
+	var = ordertemp(t, order, clear);
+	a = nod(OAS, var, n);
+	typecheck(&a, Etop);
+	order->out = list(order->out, a);
+	return var;
+}
+
+// Ordercheapexpr returns a cheap version of n.
+// The definition of cheap is that n is a variable or constant.
+// If not, ordercheapexpr allocates a new tmp, emits tmp = n,
+// and then returns tmp.
+static Node*
+ordercheapexpr(Node *n, Order *order)
+{
+	switch(n->op) {
+	case ONAME:
+	case OLITERAL:
+		return n;
+	}
+	return ordercopyexpr(n, n->type, order, 0);
+}
+
+// Ordersafeexpr returns a safe version of n.
+// The definition of safe is that n can appear multiple times
+// without violating the semantics of the original program,
+// and that assigning to the safe version has the same effect
+// as assigning to the original n.
+//
+// The intended use is to apply to x when rewriting x += y into x = x + y.
+static Node*
+ordersafeexpr(Node *n, Order *order)
+{
+	Node *l, *r, *a;
+	
+	switch(n->op) {
+	default:
+		fatal("ordersafeexpr %O", n->op);
+
+	case ONAME:
+	case OLITERAL:
+		return n;
+
+	case ODOT:
+		l = ordersafeexpr(n->left, order);
+		if(l == n->left)
+			return n;
+		a = nod(OXXX, N, N);
+		*a = *n;
+		a->orig = a;
+		a->left = l;
+		typecheck(&a, Erv);
+		return a;
+
+	case ODOTPTR:
+	case OIND:
+		l = ordercheapexpr(n->left, order);
+		if(l == n->left)
+			return n;
+		a = nod(OXXX, N, N);
+		*a = *n;
+		a->orig = a;
+		a->left = l;
+		typecheck(&a, Erv);
+		return a;
+		
+	case OINDEX:
+	case OINDEXMAP:
+		if(isfixedarray(n->left->type))
+			l = ordersafeexpr(n->left, order);
+		else
+			l = ordercheapexpr(n->left, order);
+		r = ordercheapexpr(n->right, order);
+		if(l == n->left && r == n->right)
+			return n;
+		a = nod(OXXX, N, N);
+		*a = *n;
+		a->orig = a;
+		a->left = l;
+		a->right = r;
+		typecheck(&a, Erv);
+		return a;
+	}
+}		
+
+// Istemp reports whether n is a temporary variable.
+static int
+istemp(Node *n)
+{
+	if(n->op != ONAME)
+		return 0;
+	return strncmp(n->sym->name, "autotmp_", 8) == 0;
+}
+
+// Isaddrokay reports whether it is okay to pass n's address to runtime routines.
+// Taking the address of a variable makes the liveness and optimization analyses
+// lose track of where the variable's lifetime ends. To avoid hurting the analyses
+// of ordinary stack variables, those are not 'isaddrokay'. Temporaries are okay,
+// because we emit explicit VARKILL instructions marking the end of those
+// temporaries' lifetimes.
+static int
+isaddrokay(Node *n)
+{
+	return islvalue(n) && (n->op != ONAME || n->class == PEXTERN || istemp(n));
+}
+
+// Orderaddrtemp ensures that *np is okay to pass by address to runtime routines.
+// If the original argument *np is not okay, orderaddrtemp creates a tmp, emits
+// tmp = *np, and then sets *np to the tmp variable.
+static void
+orderaddrtemp(Node **np, Order *order)
+{
+	Node *n;
+	
+	n = *np;
+	if(isaddrokay(n))
+		return;
+	*np = ordercopyexpr(n, n->type, order, 0);
+}
+
+// Marktemp returns the top of the temporary variable stack.
+static NodeList*
+marktemp(Order *order)
+{
+	return order->temp;
+}
+
+// Poptemp pops temporaries off the stack until reaching the mark,
+// which must have been returned by marktemp.
+static void
+poptemp(NodeList *mark, Order *order)
+{
+	NodeList *l;
+
+	while((l = order->temp) != mark) {
+		order->temp = l->next;
+		l->next = order->free;
+		order->free = l;
+	}
+}
+
+// Cleantempnopop emits VARKILL instructions for each temporary
+// above the mark on the temporary stack, but it does not pop them
+// from the stack.
+static void
+cleantempnopop(NodeList *mark, Order *order)
+{
+	NodeList *l;
+	Node *kill;
+
+	for(l=order->temp; l != mark; l=l->next) {
+		kill = nod(OVARKILL, l->n, N);
+		typecheck(&kill, Etop);
+		order->out = list(order->out, kill);
+	}
+}
+
+// Cleantemp emits VARKILL instructions for each temporary above the
+// mark on the temporary stack and removes them from the stack.
+static void
+cleantemp(NodeList *top, Order *order)
+{
+	cleantempnopop(top, order);
+	poptemp(top, order);
+}
+
+// Orderstmtlist orders each of the statements in the list.
+static void
+orderstmtlist(NodeList *l, Order *order)
+{
+	for(; l; l=l->next)
+		orderstmt(l->n, order);
+}
+
+// Orderblock orders the block of statements *l onto a new list,
+// and then replaces *l with that list.
 static void
 orderblock(NodeList **l)
 {
-	NodeList *out;
+	Order order;
 	
-	out = nil;
-	orderstmtlist(*l, &out);
-	*l = out;
+	memset(&order, 0, sizeof order);
+	orderstmtlist(*l, &order);
+	*l = order.out;
 }
 
-// Order the side effects in *np and leave them as
-// the init list of the final *np.
+// Orderexprinplace orders the side effects in *np and
+// leaves them as the init list of the final *np.
 static void
-orderexprinplace(Node **np)
+orderexprinplace(Node **np, Order *TODO)
 {
 	Node *n;
-	NodeList *out;
+	Order order;
 	
+	// TODO(rsc): Decide how much of the passed-in order to use.
+	// For example, should the temporaries created during the
+	// ordering of expr be added onto the caller's order temp list
+	// for freeing? Probably.
+	USED(TODO);
+
 	n = *np;
-	out = nil;
-	orderexpr(&n, &out);
-	addinit(&n, out);
+	memset(&order, 0, sizeof order);
+	orderexpr(&n, &order);
+	addinit(&n, order.out);
 	*np = n;
 }
 
-// Like orderblock, but applied to a single statement.
+// Orderexprtolist orders the side effects in *np and
+// appends them to *out.
+static void
+orderexprtolist(Node **np, NodeList **out)
+{
+	Node *n;
+	Order order;
+	
+	n = *np;
+	memset(&order, 0, sizeof order);
+	orderexpr(&n, &order);
+	*out = concat(*out, order.out);
+	*np = n;
+}
+
+// Orderstmtinplace orders the side effects of the single statement *np
+// and replaces it with the resulting statement list.
 static void
 orderstmtinplace(Node **np)
 {
 	Node *n;
-	NodeList *out;
+	Order order;
 
 	n = *np;
-	out = nil;
-	orderstmt(n, &out);
-	*np = liststmt(out);
+	memset(&order, 0, sizeof order);
+	orderstmt(n, &order);
+	*np = liststmt(order.out);
 }
 
-// Move n's init list to *out.
+// Orderinit moves n's init list to order->out.
 static void
-orderinit(Node *n, NodeList **out)
+orderinit(Node *n, Order *order)
 {
-	orderstmtlist(n->ninit, out);
+	orderstmtlist(n->ninit, order);
 	n->ninit = nil;
 }
 
-// Is the list l actually just f() for a multi-value function?
+// Ismulticall reports whether the list l is f() for a multi-value function.
+// Such an f() could appear as the lone argument to a multi-arg function.
 static int
 ismulticall(NodeList *l)
 {
@@ -102,10 +372,10 @@ ismulticall(NodeList *l)
 	return n->left->type->outtuple > 1;
 }
 
-// n is a multi-value function call.  Add t1, t2, .. = n to out
-// and return the list t1, t2, ...
+// Copyret emits t1, t2, ... = n, where n is a function call,
+// and then returns the list t1, t2, ....
 static NodeList*
-copyret(Node *n, NodeList **out)
+copyret(Node *n, Order *order)
 {
 	Type *t;
 	Node *tmp, *as;
@@ -127,86 +397,216 @@ copyret(Node *n, NodeList **out)
 	as->list = l1;
 	as->rlist = list1(n);
 	typecheck(&as, Etop);
-	orderstmt(as, out);
+	orderstmt(as, order);
 
 	return l2;
 }
 
+// Ordercallargs orders the list of call arguments *l.
 static void
-ordercallargs(NodeList **l, NodeList **out)
+ordercallargs(NodeList **l, Order *order)
 {
 	if(ismulticall(*l)) {
 		// return f() where f() is multiple values.
-		*l = copyret((*l)->n, out);
+		*l = copyret((*l)->n, order);
 	} else {
-		orderexprlist(*l, out);
+		orderexprlist(*l, order);
 	}
 }
 
+// Ordercall orders the call expression n.
+// n->op is  OCALLMETH/OCALLFUNC/OCALLINTER.
 static void
-ordercall(Node *n, NodeList **out)
+ordercall(Node *n, Order *order)
 {
-	orderexpr(&n->left, out);
-	ordercallargs(&n->list, out);
+	orderexpr(&n->left, order);
+	ordercallargs(&n->list, order);
 }
 
+// Ordermapassign appends n to order->out, introducing temporaries
+// to make sure that all map assignments have the form m[k] = x,
+// where x is adressable.
+// (Orderexpr has already been called on n, so we know k is addressable.)
+//
+// If n is m[k] = x where x is not addressable, the rewrite is:
+//	tmp = x
+//	m[k] = tmp
+//
+// If n is the multiple assignment form ..., m[k], ... = ..., the rewrite is
+//	t1 = m
+//	t2 = k
+//	...., t3, ... = x
+//	t1[t2] = t3
+//
+// The temporaries t1, t2 are needed in case the ... being assigned
+// contain m or k. They are usually unnecessary, but in the unnecessary
+// cases they are also typically registerizable, so not much harm done.
+// And this only applies to the multiple-assignment form.
+// We could do a more precise analysis if needed, like in walk.c.
 static void
-orderstmt(Node *n, NodeList **out)
+ordermapassign(Node *n, Order *order)
+{
+	Node *m, *a;
+	NodeList *l;
+	NodeList *post;
+
+	switch(n->op) {
+	default:
+		fatal("ordermapassign %O", n->op);
+
+	case OAS:
+		order->out = list(order->out, n);
+		if(n->left->op == OINDEXMAP && !isaddrokay(n->right)) {
+			m = n->left;
+			n->left = ordertemp(m->type, order, 0);
+			a = nod(OAS, m, n->left);
+			typecheck(&a, Etop);
+			order->out = list(order->out, a);
+		}
+		break;
+
+	case OAS2:
+	case OAS2DOTTYPE:
+	case OAS2MAPR:
+	case OAS2FUNC:
+		post = nil;
+		for(l=n->list; l != nil; l=l->next) {
+			if(l->n->op == OINDEXMAP) {
+				m = l->n;
+				if(!istemp(m->left))
+					m->left = ordercopyexpr(m->left, m->left->type, order, 0);
+				if(!istemp(m->right))
+					m->right = ordercopyexpr(m->left, m->left->type, order, 0);
+				l->n = ordertemp(m->type, order, 0);
+				a = nod(OAS, m, l->n);
+				typecheck(&a, Etop);
+				post = list(post, a);
+			}
+		}
+		order->out = list(order->out, n);
+		order->out = concat(order->out, post);
+		break;
+	}
+}
+
+// Orderstmt orders the statement n, appending to order->out.
+// Temporaries created during the statement are cleaned
+// up using VARKILL instructions as possible.
+static void
+orderstmt(Node *n, Order *order)
 {
 	int lno;
-	NodeList *l;
-	Node *r;
+	NodeList *l, *t, *t1;
+	Node *r, *tmp1, *tmp2, **np;
+	Type *ch;
 
 	if(n == N)
 		return;
 
 	lno = setlineno(n);
 
-	orderinit(n, out);
+	orderinit(n, order);
 
 	switch(n->op) {
 	default:
 		fatal("orderstmt %O", n->op);
 
+	case OAS:
 	case OAS2:
 	case OAS2DOTTYPE:
-	case OAS2MAPR:
-	case OAS:
-	case OASOP:
 	case OCLOSE:
 	case OCOPY:
-	case ODELETE:
 	case OPANIC:
 	case OPRINT:
 	case OPRINTN:
 	case ORECOVER:
 	case ORECV:
-	case OSEND:
-		orderexpr(&n->left, out);
-		orderexpr(&n->right, out);
-		orderexprlist(n->list, out);
-		orderexprlist(n->rlist, out);
-		*out = list(*out, n);
+		t = marktemp(order);
+		orderexpr(&n->left, order);
+		orderexpr(&n->right, order);
+		orderexprlist(n->list, order);
+		orderexprlist(n->rlist, order);
+		switch(n->op) {
+		case OAS:
+		case OAS2:
+		case OAS2DOTTYPE:
+			ordermapassign(n, order);
+			break;
+		default:
+			order->out = list(order->out, n);
+			break;
+		}
+		cleantemp(t, order);
 		break;
-	
+
+	case OASOP:
+		// Special: rewrite l op= r into l = l op r.
+		// This simplies quite a few operations;
+		// most important is that it lets us separate
+		// out map read from map write when l is
+		// a map index expression.
+		t = marktemp(order);
+		orderexpr(&n->left, order);
+		orderexpr(&n->right, order);
+		n->left = ordersafeexpr(n->left, order);
+		tmp1 = treecopy(n->left);
+		if(tmp1->op == OINDEXMAP)
+			tmp1->etype = 0; // now an rvalue not an lvalue
+		tmp1 = ordercopyexpr(tmp1, n->left->type, order, 0);
+		n->right = nod(n->etype, tmp1, n->right);
+		typecheck(&n->right, Erv);
+		n->etype = 0;
+		n->op = OAS;
+		ordermapassign(n, order);
+		cleantemp(t, order);
+		break;
+
+	case OAS2MAPR:
+		// Special: make sure key is addressable,
+		// and make sure OINDEXMAP is not copied out.
+		t = marktemp(order);
+		orderexprlist(n->list, order);
+		orderexpr(&n->rlist->n->left, order);
+		orderexpr(&n->rlist->n->right, order);
+		orderaddrtemp(&n->rlist->n->right, order);
+		ordermapassign(n, order);
+		cleantemp(t, order);
+		break;
+
 	case OAS2FUNC:
 		// Special: avoid copy of func call n->rlist->n.
-		orderexprlist(n->list, out);
-		ordercall(n->rlist->n, out);
-		*out = list(*out, n);
+		t = marktemp(order);
+		orderexprlist(n->list, order);
+		ordercall(n->rlist->n, order);
+		ordermapassign(n, order);
+		cleantemp(t, order);
 		break;
 
 	case OAS2RECV:
 		// Special: avoid copy of receive.
-		orderexprlist(n->list, out);
-		orderexpr(&n->rlist->n->left, out);  // arg to recv
-		*out = list(*out, n);
+		// Use temporary variables to hold result,
+		// so that chanrecv can take address of temporary.
+		t = marktemp(order);
+		orderexprlist(n->list, order);
+		orderexpr(&n->rlist->n->left, order);  // arg to recv
+		ch = n->rlist->n->left->type;
+		tmp1 = ordertemp(ch->type, order, haspointers(ch->type));
+		tmp2 = ordertemp(types[TBOOL], order, 0);
+		order->out = list(order->out, n);
+		r = nod(OAS, n->list->n, tmp1);
+		typecheck(&r, Etop);
+		ordermapassign(r, order);
+		r = nod(OAS, n->list->next->n, tmp2);
+		typecheck(&r, Etop);
+		ordermapassign(r, order);
+		n->list = list(list1(tmp1), tmp2);
+		cleantemp(t, order);
 		break;
 
 	case OBLOCK:
 	case OEMPTY:
 		// Special: does not save n onto out.
-		orderstmtlist(n->list, out);
+		orderstmtlist(n->list, order);
 		break;
 
 	case OBREAK:
@@ -215,107 +615,158 @@ orderstmt(Node *n, NodeList **out)
 	case ODCLCONST:
 	case ODCLTYPE:
 	case OFALL:
-	case_OFALL:
+	case OXFALL:
 	case OGOTO:
 	case OLABEL:
 	case ORETJMP:
 		// Special: n->left is not an expression; save as is.
-		*out = list(*out, n);
+		order->out = list(order->out, n);
 		break;
 
 	case OCALLFUNC:
 	case OCALLINTER:
 	case OCALLMETH:
 		// Special: handle call arguments.
-		ordercall(n, out);
-		*out = list(*out, n);
+		t = marktemp(order);
+		ordercall(n, order);
+		order->out = list(order->out, n);
+		cleantemp(t, order);
 		break;
 
 	case ODEFER:
 	case OPROC:
 		// Special: order arguments to inner call but not call itself.
-		ordercall(n->left, out);
-		*out = list(*out, n);
+		t = marktemp(order);
+		switch(n->left->op) {
+		case ODELETE:
+			// Delete will take the address of the key.
+			// Copy key into new temp and do not clean it
+			// (it persists beyond the statement).
+			orderexprlist(n->left->list, order);
+			t1 = marktemp(order);
+			np = &n->left->list->next->n; // map key
+			*np = ordercopyexpr(*np, (*np)->type, order, 0);
+			poptemp(t1, order);
+			break;
+		default:
+			ordercall(n->left, order);
+			break;
+		}
+		order->out = list(order->out, n);
+		cleantemp(t, order);
+		break;
+
+	case ODELETE:
+		t = marktemp(order);
+		orderexpr(&n->list->n, order);
+		orderexpr(&n->list->next->n, order);
+		orderaddrtemp(&n->list->next->n, order); // map key
+		order->out = list(order->out, n);
+		cleantemp(t, order);
 		break;
 
 	case OFOR:
-		orderexprinplace(&n->ntest);
+		// TODO(rsc): Clean temporaries.
+		orderexprinplace(&n->ntest, order);
 		orderstmtinplace(&n->nincr);
 		orderblock(&n->nbody);
-		*out = list(*out, n);
+		order->out = list(order->out, n);
 		break;
 		
 	case OIF:
-		orderexprinplace(&n->ntest);
+		// TODO(rsc): Clean temporaries.
+		orderexprinplace(&n->ntest, order);
 		orderblock(&n->nbody);
 		orderblock(&n->nelse);
-		*out = list(*out, n);
+		order->out = list(order->out, n);
 		break;
 
 	case ORANGE:
-		orderexpr(&n->right, out);
+		// TODO(rsc): Clean temporaries.
+		orderexpr(&n->right, order);
 		for(l=n->list; l; l=l->next)
-			orderexprinplace(&l->n);
+			orderexprinplace(&l->n, order);
 		orderblock(&n->nbody);
-		*out = list(*out, n);
+		order->out = list(order->out, n);
 		break;
 
 	case ORETURN:
-		ordercallargs(&n->list, out);
-		*out = list(*out, n);
+		ordercallargs(&n->list, order);
+		order->out = list(order->out, n);
 		break;
 	
 	case OSELECT:
+		// TODO(rsc): Clean temporaries.
 		for(l=n->list; l; l=l->next) {
 			if(l->n->op != OXCASE)
 				fatal("order select case %O", l->n->op);
 			r = l->n->left;
-			if(r == nil)
-				continue;
-			switch(r->op) {
-			case OSELRECV:
-			case OSELRECV2:
-				orderexprinplace(&r->left);
-				orderexprinplace(&r->ntest);
-				orderexpr(&r->right->left, &l->n->ninit);
-				break;
-			case OSEND:
-				orderexpr(&r->left, &l->n->ninit);
-				orderexpr(&r->right, &l->n->ninit);
-				break;
+			if(r != nil) {
+				switch(r->op) {
+				case OSELRECV:
+				case OSELRECV2:
+					orderexprinplace(&r->left, order);
+					orderexprinplace(&r->ntest, order);
+					orderexprtolist(&r->right->left, &l->n->ninit);
+					break;
+				case OSEND:
+					orderexprtolist(&r->left, &l->n->ninit);
+					orderexprtolist(&r->right, &l->n->ninit);
+					break;
+				}
 			}
+			orderblock(&l->n->nbody);
 		}
-		*out = list(*out, n);
+		order->out = list(order->out, n);
+		break;
+
+	case OSEND:
+		// Special: value being sent is passed as a pointer; make it addressable.
+		t = marktemp(order);
+		orderexpr(&n->left, order);
+		orderexpr(&n->right, order);
+		orderaddrtemp(&n->right, order);
+		order->out = list(order->out, n);
+		cleantemp(t, order);
 		break;
 
 	case OSWITCH:
-		orderexpr(&n->ntest, out);
+		// TODO(rsc): Clean temporaries.
+		orderexpr(&n->ntest, order);
 		for(l=n->list; l; l=l->next) {
 			if(l->n->op != OXCASE)
 				fatal("order switch case %O", l->n->op);
-			orderexpr(&l->n->left, &l->n->ninit);
+			orderexprlistinplace(l->n->list, order);
+			orderblock(&l->n->nbody);
 		}
-		*out = list(*out, n);
+		order->out = list(order->out, n);
 		break;
-
-	case OXFALL:
-		yyerror("fallthrough statement out of place");
-		n->op = OFALL;
-		goto case_OFALL;
 	}
 	
 	lineno = lno;
 }
 
+// Orderexprlist orders the expression list l into order.
 static void
-orderexprlist(NodeList *l, NodeList **out)
+orderexprlist(NodeList *l, Order *order)
 {
 	for(; l; l=l->next)
-		orderexpr(&l->n, out);
+		orderexpr(&l->n, order);
 }
 
+// Orderexprlist orders the expression list l but saves
+// the side effects on the individual expression ninit lists.
 static void
-orderexpr(Node **np, NodeList **out)
+orderexprlistinplace(NodeList *l, Order *order)
+{
+	for(; l; l=l->next)
+		orderexprinplace(&l->n, order);
+}
+
+// Orderexpr orders a single expression, appending side
+// effects to order->out as needed.
+static void
+orderexpr(Node **np, Order *order)
 {
 	Node *n;
 	int lno;
@@ -325,20 +776,32 @@ orderexpr(Node **np, NodeList **out)
 		return;
 
 	lno = setlineno(n);
-	orderinit(n, out);
+	orderinit(n, order);
 
 	switch(n->op) {
 	default:
-		orderexpr(&n->left, out);
-		orderexpr(&n->right, out);
-		orderexprlist(n->list, out);
-		orderexprlist(n->rlist, out);
+		orderexpr(&n->left, order);
+		orderexpr(&n->right, order);
+		orderexprlist(n->list, order);
+		orderexprlist(n->rlist, order);
+		break;
+	
+	case OINDEXMAP:
+		// key must be addressable
+		orderexpr(&n->left, order);
+		orderexpr(&n->right, order);
+		orderaddrtemp(&n->right, order);
+		if(n->etype == 0) {
+			// use of value (not being assigned);
+			// make copy in temporary.
+			n = ordercopyexpr(n, n->type, order, 0);
+		}
 		break;
 	
 	case OANDAND:
 	case OOROR:
-		orderexpr(&n->left, out);
-		orderexprinplace(&n->right);
+		orderexpr(&n->left, order);
+		orderexprinplace(&n->right, order);
 		break;
 	
 	case OCALLFUNC:
@@ -346,12 +809,12 @@ orderexpr(Node **np, NodeList **out)
 	case OCALLINTER:
 	case OAPPEND:
 	case OCOMPLEX:
-		ordercall(n, out);
-		n = copyexpr(n, n->type, out);
+		ordercall(n, order);
+		n = ordercopyexpr(n, n->type, order, 0);
 		break;
 
 	case ORECV:
-		n = copyexpr(n, n->type, out);
+		n = ordercopyexpr(n, n->type, order, 1);
 		break;
 	}
 	

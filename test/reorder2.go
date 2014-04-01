@@ -167,6 +167,175 @@ func main() {
 		err++
 	}
 	log = ""
+	
+	x := 0
+	switch x {
+	case 0:
+		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
+			println("in switch, expecting a(1)a(2)a(3) , got ", log)
+			err++
+		}
+		log = ""
+	
+		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+			println("in switch, expecting a(1)b(2)a(2), got ", log)
+			err++
+		}
+		log = ""
+		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
+			println("in switch, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
+			err++
+		}
+		log = ""
+		var i I = T1(0)
+		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
+			println("in switch, expecting a(6)ba(7)ba(8)ba(9), got", log)
+			err++
+		}
+		log = ""
+	}
+	
+	c := make(chan int, 1)
+	c <- 1
+	select {
+	case c <- 0:
+	case c <- 1:
+	case <-c:
+		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
+			println("in select1, expecting a(1)a(2)a(3) , got ", log)
+			err++
+		}
+		log = ""
+	
+		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+			println("in select1, expecting a(1)b(2)a(2), got ", log)
+			err++
+		}
+		log = ""
+		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
+			println("in select1, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
+			err++
+		}
+		log = ""
+		var i I = T1(0)
+		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
+			println("in select1, expecting a(6)ba(7)ba(8)ba(9), got", log)
+			err++
+		}
+		log = ""
+	}
+
+	c <- 1
+	select {
+	case <-c:
+		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
+			println("in select2, expecting a(1)a(2)a(3) , got ", log)
+			err++
+		}
+		log = ""
+	
+		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+			println("in select2, expecting a(1)b(2)a(2), got ", log)
+			err++
+		}
+		log = ""
+		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
+			println("in select2, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
+			err++
+		}
+		log = ""
+		var i I = T1(0)
+		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
+			println("in select2, expecting a(6)ba(7)ba(8)ba(9), got", log)
+			err++
+		}
+		log = ""
+	}
+
+	c <- 1
+	select {
+	default:
+	case c<-1:
+	case <-c:
+		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
+			println("in select3, expecting a(1)a(2)a(3) , got ", log)
+			err++
+		}
+		log = ""
+	
+		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+			println("in select3, expecting a(1)b(2)a(2), got ", log)
+			err++
+		}
+		log = ""
+		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
+			println("in select3, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
+			err++
+		}
+		log = ""
+		var i I = T1(0)
+		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
+			println("in select3, expecting a(6)ba(7)ba(8)ba(9), got", log)
+			err++
+		}
+		log = ""
+	}
+
+	c <- 1
+	select {
+	default:
+	case <-c:
+		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
+			println("in select4, expecting a(1)a(2)a(3) , got ", log)
+			err++
+		}
+		log = ""
+	
+		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+			println("in select4, expecting a(1)b(2)a(2), got ", log)
+			err++
+		}
+		log = ""
+		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
+			println("in select4, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
+			err++
+		}
+		log = ""
+		var i I = T1(0)
+		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
+			println("in select4, expecting a(6)ba(7)ba(8)ba(9), got", log)
+			err++
+		}
+		log = ""
+	}
+
+	select {
+	case <-c:
+	case <-c:
+	default:
+		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
+			println("in select5, expecting a(1)a(2)a(3) , got ", log)
+			err++
+		}
+		log = ""
+	
+		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+			println("in select5, expecting a(1)b(2)a(2), got ", log)
+			err++
+		}
+		log = ""
+		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
+			println("in select5, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
+			err++
+		}
+		log = ""
+		var i I = T1(0)
+		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
+			println("in select5, expecting a(6)ba(7)ba(8)ba(9), got", log)
+			err++
+		}
+		log = ""
+	}
 
 	if err > 0 {
 		panic("fail")
