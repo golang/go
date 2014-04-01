@@ -950,7 +950,7 @@ reswitch:
 		r = n->right;
 		if(r->type == T)
 			goto error;
-		r = assignconv(r, l->type->type, "send");
+		n->right = assignconv(r, l->type->type, "send");
 		// TODO: more aggressive
 		n->etype = 0;
 		n->type = T;
@@ -1655,6 +1655,7 @@ reswitch:
 	case OGOTO:
 	case OLABEL:
 	case OXFALL:
+	case OVARKILL:
 		ok |= Etop;
 		goto ret;
 

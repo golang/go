@@ -166,6 +166,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case OCFUNC:
+	case OVARKILL:
 		// can't matter
 		goto ret;
 

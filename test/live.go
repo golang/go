@@ -212,3 +212,121 @@ func f15() {
 }
 
 func g15() string
+
+// Checking that various temporaries do not persist or cause
+// ambiguously live values that must be zeroed.
+// The exact temporary names are inconsequential but we are
+// trying to check that there is only one at any given site,
+// and also that none show up in "ambiguously live" messages.
+
+var m map[string]int
+
+func f16() {
+	if b {
+		delete(m, "hi") // ERROR "live at call to mapdelete: autotmp_[0-9]+$"
+	}
+	delete(m, "hi") // ERROR "live at call to mapdelete: autotmp_[0-9]+$"
+	delete(m, "hi") // ERROR "live at call to mapdelete: autotmp_[0-9]+$"
+}
+
+var m2s map[string]*byte
+var m2 map[[2]string]*byte
+var x2 [2]string
+var bp *byte
+
+func f17a() {
+	// value temporary only
+	if b {
+		m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+	}
+	m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+	m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+}
+
+func f17b() {
+	// key temporary only
+	if b {
+		m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+	}
+	m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+	m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+}
+
+func f17c() {
+	// key and value temporaries
+	if b {
+		m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+	}
+	m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+	m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+}
+
+func g18() [2]string
+
+func f18() {
+	// key temporary for mapaccess.
+	// temporary introduced by orderexpr.
+	var z *byte
+	if b {
+		z = m2[g18()] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	}
+	z = m2[g18()] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	z = m2[g18()] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	print(z)
+}
+
+var ch chan *byte
+
+func f19() {
+	// dest temporary for channel receive.
+	var z *byte
+	
+	if b {
+		z = <-ch // ERROR "live at call to chanrecv1: autotmp_[0-9]+$"
+	}
+	z = <-ch // ERROR "live at call to chanrecv1: autotmp_[0-9]+$"
+	z = <-ch // ERROR "live at call to chanrecv1: autotmp_[0-9]+$"
+	print(z)
+}
+
+func f20() {
+	// src temporary for channel send
+	if b {
+		ch <- nil // ERROR "live at call to chansend1: autotmp_[0-9]+$"
+	}
+	ch <- nil // ERROR "live at call to chansend1: autotmp_[0-9]+$"
+	ch <- nil // ERROR "live at call to chansend1: autotmp_[0-9]+$"
+}
+
+func f21() {
+	// key temporary for mapaccess using array literal key.
+	var z *byte
+	if b {
+		z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	}
+	z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+	print(z)
+}
+
+func f23() {
+	// key temporary for two-result map access using array literal key.
+	var z *byte
+	var ok bool
+	if b {
+		z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: autotmp_[0-9]+$"
+	}
+	z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: autotmp_[0-9]+$"
+	z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: autotmp_[0-9]+$"
+	print(z, ok)
+}
+
+func f24() {
+	// key temporary for map access using array literal key.
+	// value temporary too.
+	if b {
+		m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+	}
+	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+}

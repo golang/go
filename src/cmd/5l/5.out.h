@@ -199,6 +199,7 @@ enum	as
 	APCDATA,
 	ACHECKNIL,
 	AVARDEF,
+	AVARKILL,
 
 	AMRC, // MRC/MCR
 

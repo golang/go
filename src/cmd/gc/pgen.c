@@ -79,10 +79,16 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 // wants to work on individual variables, which might be multi-word
 // aggregates. It might make sense at some point to look into letting
 // the liveness analysis work on single-word values as well, although
-// there are complications around interface values, which cannot be
-// treated as individual words.
-void
-gvardef(Node *n)
+// there are complications around interface values, slices, and strings,
+// all of which cannot be treated as individual words.
+//
+// VARKILL is the opposite of VARDEF: it marks a value as no longer needed,
+// even if its address has been taken. That is, a VARKILL annotation asserts
+// that its argument is certainly dead, for use when the liveness analysis
+// would not otherwise be able to deduce that fact.
+
+static void
+gvardefx(Node *n, int as)
 {
 	if(n == N)
 		fatal("gvardef nil");
@@ -94,8 +100,20 @@ gvardef(Node *n)
 	case PAUTO:
 	case PPARAM:
 	case PPARAMOUT:
-		gins(AVARDEF, N, n);
+		gins(as, N, n);
 	}
+}
+
+void
+gvardef(Node *n)
+{
+	gvardefx(n, AVARDEF);
+}
+
+void
+gvarkill(Node *n)
+{
+	gvardefx(n, AVARKILL);
 }
 
 static void
@@ -104,10 +122,10 @@ removevardef(Prog *firstp)
 	Prog *p;
 
 	for(p = firstp; p != P; p = p->link) {
-		while(p->link != P && p->link->as == AVARDEF)
+		while(p->link != P && (p->link->as == AVARDEF || p->link->as == AVARKILL))
 			p->link = p->link->link;
 		if(p->to.type == D_BRANCH)
-			while(p->to.u.branch != P && p->to.u.branch->as == AVARDEF)
+			while(p->to.u.branch != P && (p->to.u.branch->as == AVARDEF || p->to.u.branch->as == AVARKILL))
 				p->to.u.branch = p->to.u.branch->link;
 	}
 }

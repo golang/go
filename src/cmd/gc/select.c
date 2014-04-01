@@ -110,7 +110,9 @@ walkselect(Node *sel)
 	}
 
 	// optimization: one-case select: single op.
-	if(i == 1) {
+	// TODO(rsc): Reenable optimization once order.c can handle it.
+	// golang.org/issue/7672.
+	if(0 && i == 1) {
 		cas = sel->list->n;
 		setlineno(cas);
 		l = cas->ninit;

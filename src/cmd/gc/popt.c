@@ -531,10 +531,11 @@ startcmp(const void *va, const void *vb)
 static int
 canmerge(Node *n)
 {
-	return n->class == PAUTO && !n->addrtaken && strncmp(n->sym->name, "autotmp", 7) == 0;
+	return n->class == PAUTO && strncmp(n->sym->name, "autotmp", 7) == 0;
 }
 
 static void mergewalk(TempVar*, TempFlow*, uint32);
+static void varkillwalk(TempVar*, TempFlow*, uint32);
 
 void
 mergetemp(Prog *firstp)
@@ -555,7 +556,7 @@ mergetemp(Prog *firstp)
 	g = flowstart(firstp, sizeof(TempFlow));
 	if(g == nil)
 		return;
-
+	
 	// Build list of all mergeable variables.
 	nvar = 0;
 	for(l = curfn->dcl; l != nil; l = l->next)
@@ -651,6 +652,11 @@ mergetemp(Prog *firstp)
 		gen++;
 		for(r = v->use; r != nil; r = r->uselink)
 			mergewalk(v, r, gen);
+		if(v->addr) {
+			gen++;
+			for(r = v->use; r != nil; r = r->uselink)
+				varkillwalk(v, r, gen);
+		}
 	}
 
 	// Sort variables by start.
@@ -670,7 +676,7 @@ mergetemp(Prog *firstp)
 	nfree = nvar;
 	for(i=0; i<nvar; i++) {
 		v = bystart[i];
-		if(v->addr || v->removed)
+		if(v->removed)
 			continue;
 
 		// Expire no longer in use.
@@ -683,7 +689,12 @@ mergetemp(Prog *firstp)
 		t = v->node->type;
 		for(j=nfree; j<nvar; j++) {
 			v1 = inuse[j];
-			if(eqtype(t, v1->node->type)) {
+			// Require the types to match but also require the addrtaken bits to match.
+			// If a variable's address is taken, that disables registerization for the individual
+			// words of the variable (for example, the base,len,cap of a slice).
+			// We don't want to merge a non-addressed var with an addressed one and
+			// inhibit registerization of the former.
+			if(eqtype(t, v1->node->type) && v->node->addrtaken == v1->node->addrtaken) {
 				inuse[j] = inuse[nfree++];
 				if(v1->merge)
 					v->merge = v1->merge;
@@ -774,6 +785,29 @@ mergewalk(TempVar *v, TempFlow *r0, uint32 gen)
 	for(r = r0; r != r1; r = (TempFlow*)r->f.p1)
 		for(r2 = (TempFlow*)r->f.p2; r2 != nil; r2 = (TempFlow*)r2->f.p2link)
 			mergewalk(v, r2, gen);
+}
+
+static void
+varkillwalk(TempVar *v, TempFlow *r0, uint32 gen)
+{
+	Prog *p;
+	TempFlow *r1, *r;
+	
+	for(r1 = r0; r1 != nil; r1 = (TempFlow*)r1->f.s1) {
+		if(r1->f.active == gen)
+			break;
+		r1->f.active = gen;
+		p = r1->f.prog;
+		if(v->end < p->pc)
+			v->end = p->pc;
+		if(v->start > p->pc)
+			v->start = p->pc;
+		if(p->as == ARET || (p->as == AVARKILL && p->to.node == v->node))
+			break;
+	}
+	
+	for(r = r0; r != r1; r = (TempFlow*)r->f.s1)
+		varkillwalk(v, (TempFlow*)r->f.s2, gen);
 }
 
 // Eliminate redundant nil pointer checks.

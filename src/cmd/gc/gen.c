@@ -495,6 +495,11 @@ gen(Node *n)
 	
 	case OCHECKNIL:
 		cgen_checknil(n->left);
+		break;
+	
+	case OVARKILL:
+		gvarkill(n->left);
+		break;
 	}
 
 ret:

@@ -743,8 +743,9 @@ Next:
 				if(pos == -1)
 					goto Next1;
 				if(to->node->addrtaken) {
-					bvset(avarinit, pos);
-					if(prog->as == AVARDEF)
+					if(prog->as != AVARKILL)
+						bvset(avarinit, pos);
+					if(prog->as == AVARDEF || prog->as == AVARKILL)
 						bvset(varkill, pos);
 				} else {
 					if(info.flags & (RightRead | RightAddr))
@@ -1310,7 +1311,7 @@ livenessprologue(Liveness *lv)
 {
 	BasicBlock *bb;
 	Bvec *uevar, *varkill, *avarinit;
-	Prog *prog;
+	Prog *p;
 	int32 i;
 	int32 nvars;
 
@@ -1322,14 +1323,25 @@ livenessprologue(Liveness *lv)
 		bb = *(BasicBlock**)arrayget(lv->cfg, i);
 		// Walk the block instructions backward and update the block
 		// effects with the each prog effects.
-		for(prog = bb->last; prog != nil; prog = prog->opt) {
-			progeffects(prog, lv->vars, uevar, varkill, avarinit);
+		for(p = bb->last; p != nil; p = p->opt) {
+			progeffects(p, lv->vars, uevar, varkill, avarinit);
 			if(debuglive >= 3)
-				printeffects(prog, uevar, varkill, avarinit);
+				printeffects(p, uevar, varkill, avarinit);
 			bvor(lv->varkill[i], lv->varkill[i], varkill);
 			bvandnot(lv->uevar[i], lv->uevar[i], varkill);
 			bvor(lv->uevar[i], lv->uevar[i], uevar);			
+		}
+		// Walk the block instructions forward to update avarinit bits.
+		// avarinit describes the effect at the end of the block, not the beginning.
+		bvresetall(varkill);
+		for(p = bb->first;; p = p->link) {
+			progeffects(p, lv->vars, uevar, varkill, avarinit);
+			if(debuglive >= 3)
+				printeffects(p, uevar, varkill, avarinit);
+			bvandnot(lv->avarinit[i], lv->avarinit[i], varkill);
 			bvor(lv->avarinit[i], lv->avarinit[i], avarinit);
+			if(p == bb->last)
+				break;
 		}
 	}
 	free(uevar);
@@ -1385,6 +1397,8 @@ livenesssolve(Liveness *lv)
 					bvand(all, all, lv->avarinitall[pred->rpo]);
 				}
 			}
+			bvandnot(any, any, lv->varkill[rpo]);
+			bvandnot(all, all, lv->varkill[rpo]);
 			bvor(any, any, lv->avarinit[rpo]);
 			bvor(all, all, lv->avarinit[rpo]);
 			if(bvcmp(any, lv->avarinitany[rpo])) {
@@ -1511,6 +1525,8 @@ livenessepilogue(Liveness *lv)
 		// Seed the maps with information about the addrtaken variables.
 		for(p = bb->first;; p = p->link) {
 			progeffects(p, lv->vars, uevar, varkill, avarinit);
+			bvandnot(any, any, varkill);
+			bvandnot(all, all, varkill);
 			bvor(any, any, avarinit);
 			bvor(all, all, avarinit);
 
@@ -1572,7 +1588,7 @@ livenessepilogue(Liveness *lv)
 				break;
 		}
 		
-		if(debuglive >= 1 && strcmp(curfn->nname->sym->name, "init") != 0) {
+		if(debuglive >= 1 && strcmp(curfn->nname->sym->name, "init") != 0 && curfn->nname->sym->name[0] != '.') {
 			nmsg = arraylength(lv->livepointers);
 			startmsg = nmsg;
 			msg = xmalloc(nmsg*sizeof msg[0]);
