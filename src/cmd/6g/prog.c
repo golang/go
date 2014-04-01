@@ -170,6 +170,7 @@ static ProgInfo progtable[ALAST] = {
 	[AMOVSL]=	{OK, DI|SI, DI|SI},
 	[AMOVSQ]=	{OK, DI|SI, DI|SI},
 	[AMOVSW]=	{OK, DI|SI, DI|SI},
+	[ADUFFCOPY]=	{OK, DI|SI, DI|SI|CX},
 
 	[AMOVSD]=	{SizeD | LeftRead | RightWrite | Move},
 	[AMOVSS]=	{SizeF | LeftRead | RightWrite | Move},
@@ -257,6 +258,7 @@ static ProgInfo progtable[ALAST] = {
 	[ASTOSL]=	{OK, AX|DI, DI},
 	[ASTOSQ]=	{OK, AX|DI, DI},
 	[ASTOSW]=	{OK, AX|DI, DI},
+	[ADUFFZERO]=	{OK, AX|DI, DI},
 
 	[ASUBB]=	{SizeB | LeftRead | RightRdwr | SetCarry},
 	[ASUBL]=	{SizeL | LeftRead | RightRdwr | SetCarry},

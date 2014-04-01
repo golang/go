@@ -161,3 +161,83 @@ func BenchmarkMemclr64(b *testing.B)    { bmMemclr(b, 64) }
 func BenchmarkMemclr256(b *testing.B)   { bmMemclr(b, 256) }
 func BenchmarkMemclr4096(b *testing.B)  { bmMemclr(b, 4096) }
 func BenchmarkMemclr65536(b *testing.B) { bmMemclr(b, 65536) }
+
+func BenchmarkClearFat32(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [32]byte
+		_ = x
+	}
+}
+func BenchmarkClearFat64(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [64]byte
+		_ = x
+	}
+}
+func BenchmarkClearFat128(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [128]byte
+		_ = x
+	}
+}
+func BenchmarkClearFat256(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [256]byte
+		_ = x
+	}
+}
+func BenchmarkClearFat512(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [512]byte
+		_ = x
+	}
+}
+func BenchmarkClearFat1024(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [1024]byte
+		_ = x
+	}
+}
+
+func BenchmarkCopyFat32(b *testing.B) {
+	var x [32]byte
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}
+func BenchmarkCopyFat64(b *testing.B) {
+	var x [64]byte
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}
+func BenchmarkCopyFat128(b *testing.B) {
+	var x [128]byte
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}
+func BenchmarkCopyFat256(b *testing.B) {
+	var x [256]byte
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}
+func BenchmarkCopyFat512(b *testing.B) {
+	var x [512]byte
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}
+func BenchmarkCopyFat1024(b *testing.B) {
+	var x [1024]byte
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}

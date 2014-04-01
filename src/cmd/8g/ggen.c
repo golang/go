@@ -130,6 +130,7 @@ clearfat(Node *nl)
 {
 	uint32 w, c, q;
 	Node n1;
+	Prog *p;
 
 	/* clear a fat object */
 	if(debug['g'])
@@ -147,10 +148,16 @@ clearfat(Node *nl)
 	agen(nl, &n1);
 	gconreg(AMOVL, 0, D_AX);
 
-	if(q >= 4) {
+	if(q > 128) {
 		gconreg(AMOVL, q, D_CX);
 		gins(AREP, N, N);	// repeat
 		gins(ASTOSL, N, N);	// STOL AL,*(DI)+
+	} else if(q >= 4) {
+		p = gins(ADUFFZERO, N, N);
+		p->to.type = D_ADDR;
+		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
+		// 1 and 128 = magic constants: see ../../pkg/runtime/asm_386.s
+		p->to.offset = 1*(128-q);
 	} else
 	while(q > 0) {
 		gins(ASTOSL, N, N);	// STOL AL,*(DI)+
