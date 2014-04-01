@@ -28,7 +28,7 @@ extern MStats mstats;	// defined in zruntime_def_$GOOS_$GOARCH.go
 extern volatile intgo runtime·MemProfileRate;
 
 static MSpan* largealloc(uint32, uintptr*);
-static void profilealloc(void *v, uintptr size, uintptr typ);
+static void profilealloc(void *v, uintptr size);
 static void settype(MSpan *s, void *v, uintptr typ);
 
 // Allocate an object of at least size bytes.
@@ -187,15 +187,13 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 		runtime·racemalloc(v, size);
 
 	if(runtime·debug.allocfreetrace)
-		goto profile;
+		runtime·tracealloc(v, size, typ);
 
 	if(!(flag & FlagNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
 		if(size < rate && size < c->next_sample)
 			c->next_sample -= size;
-		else {
-		profile:
-			profilealloc(v, size, typ);
-		}
+		else
+			profilealloc(v, size);
 	}
 
 	m->locks--;
@@ -234,7 +232,7 @@ largealloc(uint32 flag, uintptr *sizep)
 }
 
 static void
-profilealloc(void *v, uintptr size, uintptr typ)
+profilealloc(void *v, uintptr size)
 {
 	uintptr rate;
 	int32 next;
@@ -256,7 +254,7 @@ profilealloc(void *v, uintptr size, uintptr typ)
 			next = 0;
 		c->next_sample = next;
 	}
-	runtime·MProf_Malloc(v, size, typ);
+	runtime·MProf_Malloc(v, size);
 }
 
 void*
@@ -294,6 +292,9 @@ runtime·free(void *v)
 	// if then such object is combined with an object with finalizer, we will crash.
 	if(size < TinySize)
 		runtime·throw("freeing too small block");
+
+	if(runtime·debug.allocfreetrace)
+		runtime·tracefree(v, size);
 
 	// Ensure that the span is swept.
 	// If we free into an unswept span, we will corrupt GC bitmaps.

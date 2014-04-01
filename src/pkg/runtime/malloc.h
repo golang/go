@@ -551,6 +551,9 @@ void	runtime·unmarkspan(void *v, uintptr size);
 void	runtime·purgecachedstats(MCache*);
 void*	runtime·cnew(Type*);
 void*	runtime·cnewarray(Type*, intgo);
+void	runtime·tracealloc(void*, uintptr, uintptr);
+void	runtime·tracefree(void*, uintptr);
+void	runtime·tracegc(void);
 
 uintptr	runtime·gettype(void*);
 
@@ -564,10 +567,9 @@ enum
 	FlagNoInvokeGC	= 1<<4, // don't invoke GC
 };
 
-void	runtime·MProf_Malloc(void*, uintptr, uintptr);
-void	runtime·MProf_Free(Bucket*, void*, uintptr, bool);
+void	runtime·MProf_Malloc(void*, uintptr);
+void	runtime·MProf_Free(Bucket*, uintptr, bool);
 void	runtime·MProf_GC(void);
-void	runtime·MProf_TraceGC(void);
 int32	runtime·gcprocs(void);
 void	runtime·helpgc(int32 nproc);
 void	runtime·gchelper(void);
@@ -632,3 +634,6 @@ void	runtime·gc_itab_ptr(Eface*);
 
 void	runtime·memorydump(void);
 int32	runtime·setgcpercent(int32);
+
+// Value we use to mark dead pointers when GODEBUG=gcdead=1.
+#define PoisonPtr ((uintptr)0x6969696969696969LL)

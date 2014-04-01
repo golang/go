@@ -169,75 +169,16 @@ runtime·MProf_GC(void)
 	runtime·unlock(&proflock);
 }
 
-static int8*
-typeinfoname(int32 typeinfo)
-{
-	if(typeinfo == TypeInfo_SingleObject)
-		return "single object";
-	else if(typeinfo == TypeInfo_Array)
-		return "array";
-	else if(typeinfo == TypeInfo_Chan)
-		return "channel";
-	runtime·throw("typinfoname: unknown type info");
-	return nil;
-}
-
-static void
-printstackframes(uintptr *stk, int32 nstk)
-{
-	String file;
-	Func *f;
-	int8 *name;
-	uintptr pc;
-	int32 frame;
-	int32 line;
-
-	for(frame = 0; frame < nstk; frame++) {
-		pc = stk[frame];
-		f = runtime·findfunc(pc);
-		if(f != nil) {
-			name = runtime·funcname(f);
-			line = runtime·funcline(f, pc, &file);
-			runtime·printf("\t#%d %p %s %S:%d\n", frame, pc, name, file, line);
-		} else {
-			runtime·printf("\t#%d %p\n", frame, pc);
-		}
-	}
-}
-
-// Called by collector to report a gc in allocfreetrace mode.
-void
-runtime·MProf_TraceGC(void)
-{
-	uintptr stk[32];
-	int32 nstk;
-
-	nstk = runtime·callers(1, stk, nelem(stk));
-	runtime·printf("MProf_TraceGC\n");
-	printstackframes(stk, nstk);
-}
-
 // Called by malloc to record a profiled block.
 void
-runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
+runtime·MProf_Malloc(void *p, uintptr size)
 {
 	uintptr stk[32];
 	Bucket *b;
-	Type *type;
-	int8 *name;
 	int32 nstk;
 
 	nstk = runtime·callers(1, stk, nelem(stk));
 	runtime·lock(&proflock);
-	if(runtime·debug.allocfreetrace) {
-		type = (Type*)(typ & ~3);
-		name = typeinfoname(typ & 3);
-		runtime·printf("MProf_Malloc(p=%p, size=%p, type=%p <%s", p, size, type, name);
-		if(type != nil)
-			runtime·printf(" of %S", *type->string);
-		runtime·printf(">)\n");
-		printstackframes(stk, nstk);
-	}
 	b = stkbucket(MProf, size, stk, nstk, true);
 	b->recent_allocs++;
 	b->recent_alloc_bytes += size;
@@ -252,7 +193,7 @@ runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
 
 // Called when freeing a profiled block.
 void
-runtime·MProf_Free(Bucket *b, void *p, uintptr size, bool freed)
+runtime·MProf_Free(Bucket *b, uintptr size, bool freed)
 {
 	runtime·lock(&proflock);
 	if(freed) {
@@ -261,10 +202,6 @@ runtime·MProf_Free(Bucket *b, void *p, uintptr size, bool freed)
 	} else {
 		b->prev_frees++;
 		b->prev_free_bytes += size;
-	}
-	if(runtime·debug.allocfreetrace) {
-		runtime·printf("MProf_Free(p=%p, size=%p)\n", p, size);
-		printstackframes(b->stk, b->nstk);
 	}
 	runtime·unlock(&proflock);
 }
@@ -505,4 +442,74 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 		runtime·semrelease(&runtime·worldsema);
 		runtime·starttheworld();
 	}
+}
+
+// Tracing of alloc/free/gc.
+
+static Lock tracelock;
+
+static int8*
+typeinfoname(int32 typeinfo)
+{
+	if(typeinfo == TypeInfo_SingleObject)
+		return "single object";
+	else if(typeinfo == TypeInfo_Array)
+		return "array";
+	else if(typeinfo == TypeInfo_Chan)
+		return "channel";
+	runtime·throw("typinfoname: unknown type info");
+	return nil;
+}
+
+void
+runtime·tracealloc(void *p, uintptr size, uintptr typ)
+{
+	int8 *name;
+	Type *type;
+
+	runtime·lock(&tracelock);
+	m->traceback = 2;
+	type = (Type*)(typ & ~3);
+	name = typeinfoname(typ & 3);
+	if(type == nil)
+		runtime·printf("tracealloc(%p, %p, %s)\n", p, size, name);
+	else	
+		runtime·printf("tracealloc(%p, %p, %s of %S)\n", p, size, name, *type->string);
+	if(m->curg == nil || g == m->curg) {
+		runtime·goroutineheader(g);
+		runtime·traceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g);
+	} else {
+		runtime·goroutineheader(m->curg);
+		runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, m->curg);
+	}
+	runtime·printf("\n");
+	m->traceback = 0;
+	runtime·unlock(&tracelock);
+}
+
+void
+runtime·tracefree(void *p, uintptr size)
+{
+	runtime·lock(&tracelock);
+	m->traceback = 2;
+	runtime·printf("tracefree(%p, %p)\n", p, size);
+	runtime·goroutineheader(g);
+	runtime·traceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g);
+	runtime·printf("\n");
+	m->traceback = 0;
+	runtime·unlock(&tracelock);
+}
+
+void
+runtime·tracegc(void)
+{
+	runtime·lock(&tracelock);
+	m->traceback = 2;
+	runtime·printf("tracegc()\n");
+	// running on m->g0 stack; show all non-g0 goroutines
+	runtime·tracebackothers(g);
+	runtime·printf("end tracegc\n");
+	runtime·printf("\n");
+	m->traceback = 0;
+	runtime·unlock(&tracelock);
 }

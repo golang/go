@@ -1467,14 +1467,14 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
 			switch(bits) {
 			case BitsDead:
 				if(runtime·debug.gcdead)
-					*(uintptr*)scanp = (uintptr)0x6969696969696969LL;
+					*(uintptr*)scanp = PoisonPtr;
 				break;
 			case BitsScalar:
 				break;
 			case BitsPointer:
 				p = *(byte**)scanp;
 				if(p != nil) {
-					if(precise && p < (byte*)PageSize) {
+					if(precise && (p < (byte*)PageSize || (uintptr)p == PoisonPtr)) {
 						// Looks like a junk value in a pointer slot.
 						// Liveness analysis wrong?
 						m->traceback = 2;
@@ -1844,6 +1844,9 @@ runtime·MSpan_Sweep(MSpan *s)
 			continue;
 		}
 
+		if(runtime·debug.allocfreetrace)
+			runtime·tracefree(p, size);
+
 		// Clear mark and scan bits.
 		*bitp &= ~((bitScan|bitMarked)<<shift);
 
@@ -2060,6 +2063,7 @@ runtime·gchelper(void)
 {
 	uint32 nproc;
 
+	m->traceback = 2;
 	gchelperstart();
 
 	// parallel mark for over gc roots
@@ -2072,6 +2076,7 @@ runtime·gchelper(void)
 	nproc = work.nproc;  // work.nproc can change right after we increment work.ndone
 	if(runtime·xadd(&work.ndone, +1) == nproc-1)
 		runtime·notewakeup(&work.alldone);
+	m->traceback = 0;
 }
 
 static void
@@ -2255,9 +2260,6 @@ runtime·gc(int32 force)
 	m->gcing = 1;
 	runtime·stoptheworld();
 	
-	if(runtime·debug.allocfreetrace)
-		runtime·MProf_TraceGC();
-
 	clearpools();
 
 	// Run gc on the g0 stack.  We do this so that the g stack
@@ -2307,6 +2309,10 @@ gc(struct gc_args *args)
 	uint32 i;
 	Eface eface;
 
+	if(runtime·debug.allocfreetrace)
+		runtime·tracegc();
+
+	m->traceback = 2;
 	t0 = args->start_time;
 	work.tstart = args->start_time; 
 
@@ -2455,6 +2461,7 @@ gc(struct gc_args *args)
 		runtime·shrinkstack(runtime·allg[i]);
 
 	runtime·MProf_GC();
+	m->traceback = 0;
 }
 
 extern uintptr runtime·sizeof_C_MStats;
