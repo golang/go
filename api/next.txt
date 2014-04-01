@@ -266,7 +266,15 @@ pkg net/http, type Response struct, TLS *tls.ConnectionState
 pkg net/http, type Server struct, ConnState func(net.Conn, ConnState)
 pkg net/http, type Server struct, ErrorLog *log.Logger
 pkg net/http, type Transport struct, TLSHandshakeTimeout time.Duration
+pkg regexp/syntax, method (*Inst) MatchRunePos(int32) int
+pkg regexp/syntax, method (*Inst) OnePassNext(int32) uint32
+pkg regexp/syntax, method (*Prog) CompileOnePass() *Prog
+pkg regexp/syntax, method (*Prog) OnePassPrefix() (string, bool, uint32)
+pkg regexp/syntax, method (InstOp) String() string
+pkg regexp/syntax, type Inst struct, Next []uint32
+pkg regexp/syntax, var NotOnePass *Prog
 pkg runtime/debug, func SetPanicOnFault(bool) bool
+pkg runtime/debug, func WriteHeapDump(uintptr)
 pkg sync, method (*Pool) Get() interface{}
 pkg sync, method (*Pool) Put(interface{})
 pkg sync, type Pool struct
@@ -277,24 +285,28 @@ pkg syscall (darwin-386), func Mlockall(int) error
 pkg syscall (darwin-386), func Mprotect([]uint8, int) error
 pkg syscall (darwin-386), func Munlock([]uint8) error
 pkg syscall (darwin-386), func Munlockall() error
+pkg syscall (darwin-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (darwin-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (darwin-386-cgo), func Mlock([]uint8) error
 pkg syscall (darwin-386-cgo), func Mlockall(int) error
 pkg syscall (darwin-386-cgo), func Mprotect([]uint8, int) error
 pkg syscall (darwin-386-cgo), func Munlock([]uint8) error
 pkg syscall (darwin-386-cgo), func Munlockall() error
+pkg syscall (darwin-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (darwin-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (darwin-amd64), func Mlock([]uint8) error
 pkg syscall (darwin-amd64), func Mlockall(int) error
 pkg syscall (darwin-amd64), func Mprotect([]uint8, int) error
 pkg syscall (darwin-amd64), func Munlock([]uint8) error
 pkg syscall (darwin-amd64), func Munlockall() error
+pkg syscall (darwin-amd64), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (darwin-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (darwin-amd64-cgo), func Mlock([]uint8) error
 pkg syscall (darwin-amd64-cgo), func Mlockall(int) error
 pkg syscall (darwin-amd64-cgo), func Mprotect([]uint8, int) error
 pkg syscall (darwin-amd64-cgo), func Munlock([]uint8) error
 pkg syscall (darwin-amd64-cgo), func Munlockall() error
+pkg syscall (darwin-amd64-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (freebsd-386), const AF_INET6_SDP = 42
 pkg syscall (freebsd-386), const AF_INET6_SDP ideal-int
 pkg syscall (freebsd-386), const AF_INET_SDP = 40
@@ -359,6 +371,7 @@ pkg syscall (freebsd-386), const WTRAPPED = 32
 pkg syscall (freebsd-386), const WTRAPPED ideal-int
 pkg syscall (freebsd-386), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (freebsd-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (freebsd-386), type Termios struct
 pkg syscall (freebsd-386), type Termios struct, Cc [20]uint8
 pkg syscall (freebsd-386), type Termios struct, Cflag uint32
@@ -431,6 +444,7 @@ pkg syscall (freebsd-386-cgo), const WTRAPPED = 32
 pkg syscall (freebsd-386-cgo), const WTRAPPED ideal-int
 pkg syscall (freebsd-386-cgo), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (freebsd-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (freebsd-386-cgo), type Termios struct
 pkg syscall (freebsd-386-cgo), type Termios struct, Cc [20]uint8
 pkg syscall (freebsd-386-cgo), type Termios struct, Cflag uint32
@@ -505,6 +519,7 @@ pkg syscall (freebsd-amd64), const WTRAPPED = 32
 pkg syscall (freebsd-amd64), const WTRAPPED ideal-int
 pkg syscall (freebsd-amd64), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (freebsd-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-amd64), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (freebsd-amd64), type Termios struct
 pkg syscall (freebsd-amd64), type Termios struct, Cc [20]uint8
 pkg syscall (freebsd-amd64), type Termios struct, Cflag uint32
@@ -579,6 +594,7 @@ pkg syscall (freebsd-amd64-cgo), const WTRAPPED = 32
 pkg syscall (freebsd-amd64-cgo), const WTRAPPED ideal-int
 pkg syscall (freebsd-amd64-cgo), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (freebsd-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-amd64-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (freebsd-amd64-cgo), type Termios struct
 pkg syscall (freebsd-amd64-cgo), type Termios struct, Cc [20]uint8
 pkg syscall (freebsd-amd64-cgo), type Termios struct, Cflag uint32
@@ -650,6 +666,7 @@ pkg syscall (freebsd-arm), const TIOCTIMESTAMP = 1074820185
 pkg syscall (freebsd-arm), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (freebsd-arm), func Fchflags(int, int) error
 pkg syscall (freebsd-arm), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-arm), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (freebsd-arm), type BpfHdr struct, Pad_cgo_0 [6]uint8
 pkg syscall (freebsd-arm), type Flock_t struct, Pad_cgo_0 [4]uint8
 pkg syscall (freebsd-arm), type IfData struct, Pad_cgo_0 [4]uint8
@@ -726,6 +743,7 @@ pkg syscall (freebsd-arm-cgo), const TIOCTIMESTAMP = 1074820185
 pkg syscall (freebsd-arm-cgo), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (freebsd-arm-cgo), func Fchflags(int, int) error
 pkg syscall (freebsd-arm-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (freebsd-arm-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (freebsd-arm-cgo), type BpfHdr struct, Pad_cgo_0 [6]uint8
 pkg syscall (freebsd-arm-cgo), type Flock_t struct, Pad_cgo_0 [4]uint8
 pkg syscall (freebsd-arm-cgo), type IfData struct, Pad_cgo_0 [4]uint8
@@ -740,6 +758,7 @@ pkg syscall (freebsd-arm-cgo), type Termios struct, Ospeed uint32
 pkg syscall (freebsd-arm-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
 pkg syscall (freebsd-arm-cgo), type Timeval struct, Pad_cgo_0 [4]uint8
 pkg syscall (linux-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (linux-386), type Flock_t struct
 pkg syscall (linux-386), type Flock_t struct, Len int64
 pkg syscall (linux-386), type Flock_t struct, Pid int32
@@ -747,6 +766,7 @@ pkg syscall (linux-386), type Flock_t struct, Start int64
 pkg syscall (linux-386), type Flock_t struct, Type int16
 pkg syscall (linux-386), type Flock_t struct, Whence int16
 pkg syscall (linux-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (linux-386-cgo), type Flock_t struct
 pkg syscall (linux-386-cgo), type Flock_t struct, Len int64
 pkg syscall (linux-386-cgo), type Flock_t struct, Pid int32
@@ -754,6 +774,7 @@ pkg syscall (linux-386-cgo), type Flock_t struct, Start int64
 pkg syscall (linux-386-cgo), type Flock_t struct, Type int16
 pkg syscall (linux-386-cgo), type Flock_t struct, Whence int16
 pkg syscall (linux-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-amd64), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (linux-amd64), type Flock_t struct
 pkg syscall (linux-amd64), type Flock_t struct, Len int64
 pkg syscall (linux-amd64), type Flock_t struct, Pad_cgo_0 [4]uint8
@@ -763,6 +784,7 @@ pkg syscall (linux-amd64), type Flock_t struct, Start int64
 pkg syscall (linux-amd64), type Flock_t struct, Type int16
 pkg syscall (linux-amd64), type Flock_t struct, Whence int16
 pkg syscall (linux-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-amd64-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (linux-amd64-cgo), type Flock_t struct
 pkg syscall (linux-amd64-cgo), type Flock_t struct, Len int64
 pkg syscall (linux-amd64-cgo), type Flock_t struct, Pad_cgo_0 [4]uint8
@@ -772,6 +794,7 @@ pkg syscall (linux-amd64-cgo), type Flock_t struct, Start int64
 pkg syscall (linux-amd64-cgo), type Flock_t struct, Type int16
 pkg syscall (linux-amd64-cgo), type Flock_t struct, Whence int16
 pkg syscall (linux-arm), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-arm), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (linux-arm), type Flock_t struct
 pkg syscall (linux-arm), type Flock_t struct, Len int64
 pkg syscall (linux-arm), type Flock_t struct, Pad_cgo_0 [4]uint8
@@ -781,6 +804,7 @@ pkg syscall (linux-arm), type Flock_t struct, Start int64
 pkg syscall (linux-arm), type Flock_t struct, Type int16
 pkg syscall (linux-arm), type Flock_t struct, Whence int16
 pkg syscall (linux-arm-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (linux-arm-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (linux-arm-cgo), type Flock_t struct
 pkg syscall (linux-arm-cgo), type Flock_t struct, Len int64
 pkg syscall (linux-arm-cgo), type Flock_t struct, Pad_cgo_0 [4]uint8
@@ -888,6 +912,7 @@ pkg syscall (netbsd-386), const PROT_READ ideal-int
 pkg syscall (netbsd-386), const PROT_WRITE = 2
 pkg syscall (netbsd-386), const PROT_WRITE ideal-int
 pkg syscall (netbsd-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (netbsd-386), type Termios struct
 pkg syscall (netbsd-386), type Termios struct, Cc [20]uint8
 pkg syscall (netbsd-386), type Termios struct, Cflag uint32
@@ -995,6 +1020,7 @@ pkg syscall (netbsd-386-cgo), const PROT_READ ideal-int
 pkg syscall (netbsd-386-cgo), const PROT_WRITE = 2
 pkg syscall (netbsd-386-cgo), const PROT_WRITE ideal-int
 pkg syscall (netbsd-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (netbsd-386-cgo), type Termios struct
 pkg syscall (netbsd-386-cgo), type Termios struct, Cc [20]uint8
 pkg syscall (netbsd-386-cgo), type Termios struct, Cflag uint32
@@ -1102,6 +1128,7 @@ pkg syscall (netbsd-amd64), const PROT_READ ideal-int
 pkg syscall (netbsd-amd64), const PROT_WRITE = 2
 pkg syscall (netbsd-amd64), const PROT_WRITE ideal-int
 pkg syscall (netbsd-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-amd64), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (netbsd-amd64), type Termios struct
 pkg syscall (netbsd-amd64), type Termios struct, Cc [20]uint8
 pkg syscall (netbsd-amd64), type Termios struct, Cflag uint32
@@ -1209,6 +1236,7 @@ pkg syscall (netbsd-amd64-cgo), const PROT_READ ideal-int
 pkg syscall (netbsd-amd64-cgo), const PROT_WRITE = 2
 pkg syscall (netbsd-amd64-cgo), const PROT_WRITE ideal-int
 pkg syscall (netbsd-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-amd64-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (netbsd-amd64-cgo), type Termios struct
 pkg syscall (netbsd-amd64-cgo), type Termios struct, Cc [20]uint8
 pkg syscall (netbsd-amd64-cgo), type Termios struct, Cflag uint32
@@ -1292,6 +1320,7 @@ pkg syscall (netbsd-arm), const PROT_WRITE ideal-int
 pkg syscall (netbsd-arm), const SizeofIfData = 136
 pkg syscall (netbsd-arm), func Fchflags(int, int) error
 pkg syscall (netbsd-arm), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-arm), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (netbsd-arm), type Kevent_t struct, Pad_cgo_0 [4]uint8
 pkg syscall (netbsd-arm), type Stat_t struct, Pad_cgo_0 [4]uint8
 pkg syscall (netbsd-arm), type Stat_t struct, Pad_cgo_1 [4]uint8
@@ -1381,6 +1410,7 @@ pkg syscall (netbsd-arm-cgo), const PROT_WRITE ideal-int
 pkg syscall (netbsd-arm-cgo), const SizeofIfData = 136
 pkg syscall (netbsd-arm-cgo), func Fchflags(int, int) error
 pkg syscall (netbsd-arm-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (netbsd-arm-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (netbsd-arm-cgo), type Kevent_t struct, Pad_cgo_0 [4]uint8
 pkg syscall (netbsd-arm-cgo), type Stat_t struct, Pad_cgo_0 [4]uint8
 pkg syscall (netbsd-arm-cgo), type Stat_t struct, Pad_cgo_1 [4]uint8
@@ -1535,6 +1565,7 @@ pkg syscall (openbsd-386), const TCP_NOPUSH = 16
 pkg syscall (openbsd-386), const TCP_NOPUSH ideal-int
 pkg syscall (openbsd-386), const TIOCGTSTAMP = 1074558043
 pkg syscall (openbsd-386), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (openbsd-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (openbsd-386), type Dirent struct, Fileno uint64
 pkg syscall (openbsd-386), type Dirent struct, Off int64
 pkg syscall (openbsd-386), type Dirent struct, X__d_padding [4]uint8
@@ -1697,6 +1728,7 @@ pkg syscall (openbsd-386-cgo), const TCP_NOPUSH = 16
 pkg syscall (openbsd-386-cgo), const TCP_NOPUSH ideal-int
 pkg syscall (openbsd-386-cgo), const TIOCGTSTAMP = 1074558043
 pkg syscall (openbsd-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (openbsd-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (openbsd-386-cgo), type Dirent struct, Fileno uint64
 pkg syscall (openbsd-386-cgo), type Dirent struct, Off int64
 pkg syscall (openbsd-386-cgo), type Dirent struct, X__d_padding [4]uint8
@@ -1855,6 +1887,7 @@ pkg syscall (openbsd-amd64), const TCP_NOPUSH ideal-int
 pkg syscall (openbsd-amd64), const TIOCGSID = 1074033763
 pkg syscall (openbsd-amd64), const TIOCGSID ideal-int
 pkg syscall (openbsd-amd64), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (openbsd-amd64), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (openbsd-amd64), type Dirent struct, Fileno uint64
 pkg syscall (openbsd-amd64), type Dirent struct, Off int64
 pkg syscall (openbsd-amd64), type Dirent struct, X__d_padding [4]uint8
@@ -2014,6 +2047,7 @@ pkg syscall (openbsd-amd64-cgo), const TCP_NOPUSH ideal-int
 pkg syscall (openbsd-amd64-cgo), const TIOCGSID = 1074033763
 pkg syscall (openbsd-amd64-cgo), const TIOCGSID ideal-int
 pkg syscall (openbsd-amd64-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
+pkg syscall (openbsd-amd64-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
 pkg syscall (openbsd-amd64-cgo), type Dirent struct, Fileno uint64
 pkg syscall (openbsd-amd64-cgo), type Dirent struct, Off int64
 pkg syscall (openbsd-amd64-cgo), type Dirent struct, X__d_padding [4]uint8
