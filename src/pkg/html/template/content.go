@@ -16,7 +16,8 @@ type (
 	//   2. The CSS3 rule production, such as `a[href=~"https:"].foo#bar`.
 	//   3. CSS3 declaration productions, such as `color: red; margin: 2px`.
 	//   4. The CSS3 value production, such as `rgba(0, 0, 255, 127)`.
-	// See http://www.w3.org/TR/css3-syntax/#style
+	// See http://www.w3.org/TR/css3-syntax/#parsing and
+	// https://web.archive.org/web/20090211114933/http://w3.org/TR/css3-syntax#style
 	CSS string
 
 	// HTML encapsulates a known safe HTML document fragment.

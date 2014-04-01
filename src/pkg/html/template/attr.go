@@ -90,7 +90,7 @@ var attrTypeMap = map[string]contentType{
 	"name":            contentTypePlain,
 	"novalidate":      contentTypeUnsafe,
 	// Skip handler names from
-	// http://www.w3.org/TR/html5/Overview.html#event-handlers-on-elements-document-objects-and-window-objects
+	// http://www.w3.org/TR/html5/webappapis.html#event-handlers-on-elements,-document-objects,-and-window-objects
 	// since we have special handling in attrType.
 	"open":        contentTypePlain,
 	"optimum":     contentTypePlain,
@@ -160,7 +160,7 @@ func attrType(name string) contentType {
 
 	// Heuristics to prevent "javascript:..." injection in custom
 	// data attributes and custom attributes like g:tweetUrl.
-	// http://www.w3.org/TR/html5/elements.html#embedding-custom-non-visible-data-with-the-data-attributes:
+	// http://www.w3.org/TR/html5/dom.html#embedding-custom-non-visible-data-with-the-data-*-attributes
 	// "Custom data attributes are intended to store custom data
 	//  private to the page or application, for which there are no
 	//  more appropriate attributes or elements."
