@@ -664,7 +664,7 @@ func contextAfterText(c context, s []byte) (context, int) {
 		i = len(s)
 	}
 	if c.delim == delimSpaceOrTagEnd {
-		// http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state
+		// http://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
 		// lists the runes below as error characters.
 		// Error out because HTML parsers may differ on whether
 		// "<a id= onclick=f("     ends inside id's or onclick's value,

@@ -13,7 +13,7 @@ import (
 //
 // The zero value of type context is the start context for a template that
 // produces an HTML fragment as defined at
-// http://www.w3.org/TR/html5/the-end.html#parsing-html-fragments
+// http://www.w3.org/TR/html5/syntax.html#the-end
 // where the context element is null.
 type context struct {
 	state   state
@@ -96,7 +96,7 @@ const (
 	// stateHTMLCmt occurs inside an <!-- HTML comment -->.
 	stateHTMLCmt
 	// stateRCDATA occurs inside an RCDATA element (<textarea> or <title>)
-	// as described at http://dev.w3.org/html5/spec/syntax.html#elements-0
+	// as described at http://www.w3.org/TR/html5/syntax.html#elements-0
 	stateRCDATA
 	// stateAttr occurs inside an HTML attribute whose content is text.
 	stateAttr
