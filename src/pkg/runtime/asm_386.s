@@ -1348,3 +1348,797 @@ cmp_allsame:
 	SETEQ	CX	// 1 if alen == blen
 	LEAL	-1(CX)(AX*2), AX	// 1,0,-1 result
 	RET
+
+// A Duff's device for zeroing memory.
+// The compiler jumps to computed addresses within
+// this routine to zero chunks of memory.  Do not
+// change this code without also changing the code
+// in ../../cmd/8g/ggen.c:clearfat.
+// AX: zero
+// DI: ptr to memory to be zeroed
+// DI is updated as a side effect.
+TEXT runtime·duffzero(SB), NOSPLIT, $0-0
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	STOSL
+	RET
+
+// A Duff's device for copying memory.
+// The compiler jumps to computed addresses within
+// this routine to copy chunks of memory.  Source
+// and destination must not overlap.  Do not
+// change this code without also changing the code
+// in ../../cmd/6g/cgen.c:sgen.
+// SI: ptr to source memory
+// DI: ptr to destination memory
+// SI and DI are updated as a side effect.
+
+// NOTE: this is equivalent to a sequence of MOVSL but
+// for some reason MOVSL is really slow.
+TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	MOVL	(SI),CX
+	ADDL	$4,SI
+	MOVL	CX,(DI)
+	ADDL	$4,DI
+	
+	RET

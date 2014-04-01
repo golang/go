@@ -1345,6 +1345,7 @@ sgen(Node *n, Node *ns, int64 w)
 	Node nodl, nodr, nodsi, noddi, cx, oldcx, tmp;
 	vlong c, q, odst, osrc;
 	NodeList *l;
+	Prog *p;
 
 	if(debug['g']) {
 		print("\nsgen w=%lld\n", w);
@@ -1447,10 +1448,16 @@ sgen(Node *n, Node *ns, int64 w)
 		gins(ACLD, N, N);
 	} else {
 		// normal direction
-		if(q >= 4) {
+		if(q > 128) {
 			gconreg(movptr, q, D_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
+		} else if (q >= 4) {
+			p = gins(ADUFFCOPY, N, N);
+			p->to.type = D_ADDR;
+			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
+			// 14 and 128 = magic constants: see ../../pkg/runtime/asm_amd64.s
+			p->to.offset = 14*(128-q);
 		} else
 		while(q > 0) {
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+

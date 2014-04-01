@@ -507,6 +507,11 @@ static uchar	ycall[] =
 	Ynone,	Ybr,	Zcall,	1,
 	0
 };
+static uchar	yduff[] =
+{
+	Ynone,	Yi32,	Zcall,	1,
+	0
+};
 static uchar	yjmp[] =
 {
 	Ynone,	Yml,	Zo_m64,	2,
@@ -1519,6 +1524,9 @@ Optab optab[] =
 	{ APCDATA,	ypcdata,	Px, 0,0 },
 	{ ACHECKNIL },
 	{ AVARDEF },
+	{ AVARKILL },
+	{ ADUFFCOPY,	yduff,	Px, 0xe8 },
+	{ ADUFFZERO,	yduff,	Px, 0xe8 },
 
 	{ AEND },
 	0
@@ -3030,6 +3038,7 @@ found:
 		r = addrel(ctxt->cursym);
 		r->off = p->pc + ctxt->andptr - ctxt->and;
 		r->sym = p->to.sym;
+		r->add = p->to.offset;
 		r->type = D_PCREL;
 		r->siz = 4;
 		put4(ctxt, 0);
