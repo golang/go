@@ -2140,6 +2140,10 @@ hidden_literal:
 		case CTFLT:
 			mpnegflt($$->val.u.fval);
 			break;
+		case CTCPLX:
+			mpnegflt(&$$->val.u.cval->real);
+			mpnegflt(&$$->val.u.cval->imag);
+			break;
 		default:
 			yyerror("bad negated constant");
 		}
