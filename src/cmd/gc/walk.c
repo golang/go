@@ -653,9 +653,7 @@ walkexpr(Node **np, NodeList **init)
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r, init);
-		l = n->list->n;
 
-		l = n->list->next->n;
 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
 		n = liststmt(concat(list1(r), ll));
 		goto ret;
