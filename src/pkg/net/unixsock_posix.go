@@ -171,6 +171,9 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
+	if c.fd.isConnected {
+		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: ErrWriteToConnected}
+	}
 	if addr == nil {
 		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
 	}
@@ -199,6 +202,9 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err error) {
 	if !c.ok() {
 		return 0, 0, syscall.EINVAL
+	}
+	if c.fd.sotype == syscall.SOCK_DGRAM && c.fd.isConnected {
+		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: ErrWriteToConnected}
 	}
 	if addr != nil {
 		if addr.Net != sotypeToNet(c.fd.sotype) {
