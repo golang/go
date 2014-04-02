@@ -9,12 +9,11 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"strconv"
 	"testing"
 	"time"
 )
 
-func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxonly bool) bool {
+func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxOnly bool) bool {
 	switch runtime.GOOS {
 	case "linux":
 	case "plan9", "windows":
@@ -23,7 +22,7 @@ func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxonly bool)
 			return true
 		}
 	default:
-		if net == unixsotype && linuxonly {
+		if net == unixsotype && linuxOnly {
 			return true
 		}
 	}
@@ -42,21 +41,15 @@ func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxonly bool)
 	return false
 }
 
-func tempfile(filename string) string {
-	// use /tmp in case it is prohibited to create
-	// UNIX sockets in TMPDIR
-	return "/tmp/" + filename + "." + strconv.Itoa(os.Getpid())
-}
-
 var streamConnServerTests = []struct {
-	snet    string // server side
-	saddr   string
-	cnet    string // client side
-	caddr   string
-	ipv6    bool // test with underlying AF_INET6 socket
-	ipv4map bool // test with IPv6 IPv4-mapping functionality
-	empty   bool // test with empty data
-	linux   bool // test with abstract unix domain socket, a Linux-ism
+	snet      string // server side
+	saddr     string
+	cnet      string // client side
+	caddr     string
+	ipv6      bool // test with underlying AF_INET6 socket
+	ipv4map   bool // test with IPv6 IPv4-mapping functionality
+	empty     bool // test with empty data
+	linuxOnly bool // test with abstract unix domain socket, a Linux-ism
 }{
 	{snet: "tcp", saddr: "", cnet: "tcp", caddr: "127.0.0.1"},
 	{snet: "tcp", saddr: "0.0.0.0", cnet: "tcp", caddr: "127.0.0.1"},
@@ -93,13 +86,13 @@ var streamConnServerTests = []struct {
 
 	{snet: "tcp6", saddr: "[::1]", cnet: "tcp6", caddr: "[::1]", ipv6: true},
 
-	{snet: "unix", saddr: tempfile("gotest1.net"), cnet: "unix", caddr: tempfile("gotest1.net.local")},
-	{snet: "unix", saddr: "@gotest2/net", cnet: "unix", caddr: "@gotest2/net.local", linux: true},
+	{snet: "unix", saddr: testUnixAddr(), cnet: "unix", caddr: testUnixAddr()},
+	{snet: "unix", saddr: "@gotest2/net", cnet: "unix", caddr: "@gotest2/net.local", linuxOnly: true},
 }
 
 func TestStreamConnServer(t *testing.T) {
 	for _, tt := range streamConnServerTests {
-		if skipServerTest(tt.snet, "unix", tt.saddr, tt.ipv6, tt.ipv4map, tt.linux) {
+		if skipServerTest(tt.snet, "unix", tt.saddr, tt.ipv6, tt.ipv4map, tt.linuxOnly) {
 			continue
 		}
 
@@ -137,21 +130,28 @@ func TestStreamConnServer(t *testing.T) {
 }
 
 var seqpacketConnServerTests = []struct {
-	net   string
-	saddr string // server address
-	caddr string // client address
-	empty bool   // test with empty data
+	net       string
+	saddr     string // server address
+	caddr     string // client address
+	empty     bool   // test with empty data
+	linuxOnly bool   // test with abstract unix domain socket, a Linux-ism
 }{
-	{net: "unixpacket", saddr: tempfile("/gotest3.net"), caddr: tempfile("gotest3.net.local")},
-	{net: "unixpacket", saddr: "@gotest4/net", caddr: "@gotest4/net.local"},
+	{net: "unixpacket", saddr: testUnixAddr(), caddr: testUnixAddr()},
+	{net: "unixpacket", saddr: "@gotest4/net", caddr: "@gotest4/net.local", linuxOnly: true},
 }
 
 func TestSeqpacketConnServer(t *testing.T) {
-	if runtime.GOOS != "linux" {
+	switch runtime.GOOS {
+	case "darwin", "nacl", "openbsd", "plan9", "windows":
+		fallthrough
+	case "freebsd": // FreeBSD 8 doesn't support unixpacket
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	for _, tt := range seqpacketConnServerTests {
+		if runtime.GOOS != "linux" && tt.linuxOnly {
+			continue
+		}
 		listening := make(chan string)
 		done := make(chan int)
 		switch tt.net {
@@ -248,15 +248,15 @@ func runStreamConnClient(t *testing.T, net, taddr string, isEmpty bool) {
 var testDatagram = flag.Bool("datagram", false, "whether to test udp and unixgram")
 
 var datagramPacketConnServerTests = []struct {
-	snet    string // server side
-	saddr   string
-	cnet    string // client side
-	caddr   string
-	ipv6    bool // test with underlying AF_INET6 socket
-	ipv4map bool // test with IPv6 IPv4-mapping functionality
-	dial    bool // test with Dial or DialUnix
-	empty   bool // test with empty data
-	linux   bool // test with abstract unix domain socket, a Linux-ism
+	snet      string // server side
+	saddr     string
+	cnet      string // client side
+	caddr     string
+	ipv6      bool // test with underlying AF_INET6 socket
+	ipv4map   bool // test with IPv6 IPv4-mapping functionality
+	dial      bool // test with Dial or DialUnix
+	empty     bool // test with empty data
+	linuxOnly bool // test with abstract unix domain socket, a Linux-ism
 }{
 	{snet: "udp", saddr: "", cnet: "udp", caddr: "127.0.0.1"},
 	{snet: "udp", saddr: "0.0.0.0", cnet: "udp", caddr: "127.0.0.1"},
@@ -301,12 +301,12 @@ var datagramPacketConnServerTests = []struct {
 	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true, empty: true},
 	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true, dial: true, empty: true},
 
-	{snet: "unixgram", saddr: tempfile("gotest5.net"), cnet: "unixgram", caddr: tempfile("gotest5.net.local")},
-	{snet: "unixgram", saddr: tempfile("gotest5.net"), cnet: "unixgram", caddr: tempfile("gotest5.net.local"), dial: true},
-	{snet: "unixgram", saddr: tempfile("gotest5.net"), cnet: "unixgram", caddr: tempfile("gotest5.net.local"), empty: true},
-	{snet: "unixgram", saddr: tempfile("gotest5.net"), cnet: "unixgram", caddr: tempfile("gotest5.net.local"), dial: true, empty: true},
+	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr()},
+	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr(), dial: true},
+	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr(), empty: true},
+	{snet: "unixgram", saddr: testUnixAddr(), cnet: "unixgram", caddr: testUnixAddr(), dial: true, empty: true},
 
-	{snet: "unixgram", saddr: "@gotest6/net", cnet: "unixgram", caddr: "@gotest6/net.local", linux: true},
+	{snet: "unixgram", saddr: "@gotest6/net", cnet: "unixgram", caddr: "@gotest6/net.local", linuxOnly: true},
 }
 
 func TestDatagramPacketConnServer(t *testing.T) {
@@ -315,7 +315,7 @@ func TestDatagramPacketConnServer(t *testing.T) {
 	}
 
 	for _, tt := range datagramPacketConnServerTests {
-		if skipServerTest(tt.snet, "unixgram", tt.saddr, tt.ipv6, tt.ipv4map, tt.linux) {
+		if skipServerTest(tt.snet, "unixgram", tt.saddr, tt.ipv6, tt.ipv4map, tt.linuxOnly) {
 			continue
 		}
 

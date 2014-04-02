@@ -16,11 +16,11 @@ import (
 
 var connTests = []struct {
 	net  string
-	addr func() string
+	addr string
 }{
-	{"tcp", func() string { return "127.0.0.1:0" }},
-	{"unix", testUnixAddr},
-	{"unixpacket", testUnixAddr},
+	{"tcp", "127.0.0.1:0"},
+	{"unix", testUnixAddr()},
+	{"unixpacket", testUnixAddr()},
 }
 
 // someTimeout is used just to test that net.Conn implementations
@@ -31,18 +31,21 @@ const someTimeout = 10 * time.Second
 func TestConnAndListener(t *testing.T) {
 	for _, tt := range connTests {
 		switch tt.net {
-		case "unix", "unixpacket":
+		case "unix":
 			switch runtime.GOOS {
-			case "plan9", "windows", "nacl":
+			case "nacl", "plan9", "windows":
 				continue
 			}
-			if tt.net == "unixpacket" && runtime.GOOS != "linux" {
+		case "unixpacket":
+			switch runtime.GOOS {
+			case "darwin", "nacl", "openbsd", "plan9", "windows":
+				continue
+			case "freebsd": // FreeBSD 8 doesn't support unixpacket
 				continue
 			}
 		}
 
-		addr := tt.addr()
-		ln, err := Listen(tt.net, addr)
+		ln, err := Listen(tt.net, tt.addr)
 		if err != nil {
 			t.Fatalf("Listen failed: %v", err)
 		}
@@ -52,7 +55,7 @@ func TestConnAndListener(t *testing.T) {
 			case "unix", "unixpacket":
 				os.Remove(addr)
 			}
-		}(ln, tt.net, addr)
+		}(ln, tt.net, tt.addr)
 		if ln.Addr().Network() != tt.net {
 			t.Fatalf("got %v; expected %v", ln.Addr().Network(), tt.net)
 		}
