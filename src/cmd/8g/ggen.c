@@ -42,7 +42,7 @@ defframe(Prog *ptxt)
 			fatal("needzero class %d", n->class);
 		if(n->type->width % widthptr != 0 || n->xoffset % widthptr != 0 || n->type->width == 0)
 			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
-		if(n->xoffset + n->type->width == lo - 2*widthptr) {
+		if(lo != hi && n->xoffset + n->type->width == lo - 2*widthptr) {
 			// merge with range we already have
 			lo = n->xoffset;
 			continue;

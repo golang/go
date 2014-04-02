@@ -45,7 +45,7 @@ defframe(Prog *ptxt)
 		if(n->type->width % widthreg != 0 || n->xoffset % widthreg != 0 || n->type->width == 0)
 			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
 
-		if(n->xoffset + n->type->width >= lo - 2*widthptr) {
+		if(lo != hi && n->xoffset + n->type->width >= lo - 2*widthptr) {
 			// merge with range we already have
 			lo = n->xoffset;
 			continue;
