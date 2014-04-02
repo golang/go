@@ -462,13 +462,13 @@ cgen_ret(Node *n)
 {
 	Prog *p;
 
-	genlist(n->list);		// copy out args
-	if(retpc) {
-		gjmp(retpc);
-		return;
-	}
+	if(n != N)
+		genlist(n->list);		// copy out args
+	if(hasdefer)
+		ginscall(deferreturn, 0);
+	genlist(curfn->exit);
 	p = gins(ARET, N, N);
-	if(n->op == ORETJMP) {
+	if(n != N && n->op == ORETJMP) {
 		p->to.type = D_EXTERN;
 		p->to.sym = linksym(n->left->sym);
 	}
