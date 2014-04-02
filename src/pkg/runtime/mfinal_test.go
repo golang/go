@@ -216,3 +216,24 @@ func TestEmptyString(t *testing.T) {
 }
 
 var ssglobal string
+
+// Test for issue 7656.
+func TestFinalizerOnGlobal(t *testing.T) {
+	runtime.SetFinalizer(Foo1, func(p *Object1) {})
+	runtime.SetFinalizer(Foo2, func(p *Object2) {})
+	runtime.SetFinalizer(Foo1, nil)
+	runtime.SetFinalizer(Foo2, nil)
+}
+
+type Object1 struct {
+	Something []byte
+}
+
+type Object2 struct {
+	Something byte
+}
+
+var (
+	Foo2 = &Object2{}
+	Foo1 = &Object1{}
+)
