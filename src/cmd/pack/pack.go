@@ -344,7 +344,7 @@ func (ar *Archive) addFile(fd FileLike) {
 		log.Fatal("writing file: ", err)
 	}
 	if n64 != info.Size() {
-		log.Fatal("writing file: wrote %d bytes; file is size %d", n64, info.Size())
+		log.Fatalf("writing file: wrote %d bytes; file is size %d", n64, info.Size())
 	}
 	ar.endFile()
 }
