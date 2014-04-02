@@ -2,19 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
-
-import (
-	"code.google.com/p/go.tools/go/types"
-)
-
-// This file implements writing of types. The functionlity is lifted
+// This file implements writing of types. The functionality is lifted
 // directly from go/types, but now contains various modifications for
 // nicer output.
 //
 // TODO(gri) back-port once we have a fixed interface and once the
 // go/types API is not frozen anymore for the 1.3 release; and remove
 // this implementation if possible.
+
+package main
+
+import "code.google.com/p/go.tools/go/types"
 
 func (p *printer) writeType(this *types.Package, typ types.Type) {
 	p.writeTypeInternal(this, typ, make([]types.Type, 8))

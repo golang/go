@@ -13,7 +13,6 @@ import (
 )
 
 // TODO(gri) use tabwriter for alignment?
-// TODO(gri) should print intuitive method sets
 
 func print(w io.Writer, pkg *types.Package, filter func(types.Object) bool) {
 	var p printer
@@ -50,15 +49,37 @@ func (p *printer) printf(format string, args ...interface{}) {
 	p.print(fmt.Sprintf(format, args...))
 }
 
+// methodsFor returns the named type and corresponding methods if the type
+// denoted by obj is not an interface and has methods. Otherwise it returns
+// the zero value.
+func methodsFor(obj *types.TypeName) (*types.Named, []*types.Selection) {
+	named, _ := obj.Type().(*types.Named)
+	if named == nil {
+		// A type name's type can also be the
+		// exported basic type unsafe.Pointer.
+		return nil, nil
+	}
+	if _, ok := named.Underlying().(*types.Interface); ok {
+		// ignore interfaces
+		return nil, nil
+	}
+	methods := combinedMethodSet(named)
+	if len(methods) == 0 {
+		return nil, nil
+	}
+	return named, methods
+}
+
 func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) bool) {
 	// collect objects by kind
 	var (
 		consts   []*types.Const
-		typez    []*types.TypeName // types without methods
-		typem    []*types.Named    // types with methods
+		typem    []*types.Named    // non-interface types with methods
+		typez    []*types.TypeName // interfaces or types without methods
 		vars     []*types.Var
 		funcs    []*types.Func
 		builtins []*types.Builtin
+		methods  = make(map[*types.Named][]*types.Selection) // method sets for named types
 	)
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
@@ -71,9 +92,9 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 					consts = append(consts, obj)
 				case *types.TypeName:
 					// group into types with methods and types without
-					// (for now this is only considering explicitly declared - not "inherited" methods)
-					if named, _ := obj.Type().(*types.Named); named != nil && named.NumMethods() > 0 {
+					if named, m := methodsFor(obj); named != nil {
 						typem = append(typem, named)
+						methods[named] = m
 					} else {
 						typez = append(typez, obj)
 					}
@@ -90,8 +111,9 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 			// no filtering: collect top-level unexported types with methods
 			if obj, _ := obj.(*types.TypeName); obj != nil {
 				// see case *types.TypeName above
-				if named, _ := obj.Type().(*types.Named); named != nil && named.NumMethods() > 0 {
+				if named, m := methodsFor(obj); named != nil {
 					typem = append(typem, named)
+					methods[named] = m
 				}
 			}
 		}
@@ -121,24 +143,25 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 		}
 	})
 
-	for _, typ := range typem {
+	// non-interface types with methods
+	for _, named := range typem {
 		first := true
-		if obj := typ.Obj(); obj.Exported() {
+		if obj := named.Obj(); obj.Exported() {
 			if first {
 				p.print("\n")
 				first = false
 			}
 			p.printf("type %s ", obj.Name())
-			p.writeType(p.pkg, typ.Underlying())
+			p.writeType(p.pkg, named.Underlying())
 			p.print("\n")
 		}
-		for i, n := 0, typ.NumMethods(); i < n; i++ {
-			if obj := typ.Method(i); obj.Exported() {
+		for _, m := range methods[named] {
+			if obj := m.Obj(); obj.Exported() {
 				if first {
 					p.print("\n")
 					first = false
 				}
-				p.printFunc(obj)
+				p.printFunc(m.Recv(), obj.(*types.Func))
 				p.print("\n")
 			}
 		}
@@ -147,7 +170,7 @@ func (p *printer) printPackage(pkg *types.Package, filter func(types.Object) boo
 	if len(funcs) > 0 {
 		p.print("\n")
 		for _, obj := range funcs {
-			p.printFunc(obj)
+			p.printFunc(nil, obj)
 			p.print("\n")
 		}
 	}
@@ -193,16 +216,12 @@ func (p *printer) printObj(obj types.Object) {
 	}
 }
 
-func (p *printer) printFunc(obj *types.Func) {
+func (p *printer) printFunc(recvType types.Type, obj *types.Func) {
 	p.print("func ")
 	sig := obj.Type().(*types.Signature)
-	if recv := sig.Recv(); recv != nil {
+	if recvType != nil {
 		p.print("(")
-		if name := recv.Name(); name != "" {
-			p.print(name)
-			p.print(" ")
-		}
-		p.writeType(p.pkg, recv.Type())
+		p.writeType(p.pkg, recvType)
 		p.print(") ")
 	}
 	p.print(obj.Name())
@@ -214,4 +233,32 @@ func typed(typ types.Type) bool {
 		return t.Info()&types.IsUntyped == 0
 	}
 	return true
+}
+
+// combinedMethodSet returns the method set for a named type T
+// merged with all the methods of *T that have different names than
+// the methods of T.
+//
+// combinedMethodSet is analogous to types/typeutil.IntuitiveMethodSet
+// but doesn't require a MethodSetCache.
+// TODO(gri) If this functionality doesn't change over time, consider
+// just calling IntuitiveMethodSet eventually.
+func combinedMethodSet(T *types.Named) []*types.Selection {
+	// method set for T
+	mset := types.NewMethodSet(T)
+	var res []*types.Selection
+	for i, n := 0, mset.Len(); i < n; i++ {
+		res = append(res, mset.At(i))
+	}
+
+	// add all *T methods with names different from T methods
+	pmset := types.NewMethodSet(types.NewPointer(T))
+	for i, n := 0, pmset.Len(); i < n; i++ {
+		pm := pmset.At(i)
+		if obj := pm.Obj(); mset.Lookup(obj.Pkg(), obj.Name()) == nil {
+			res = append(res, pm)
+		}
+	}
+
+	return res
 }
