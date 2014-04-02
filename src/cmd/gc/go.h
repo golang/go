@@ -1508,7 +1508,7 @@ void	gused(Node*);
 void	movelarge(NodeList*);
 int	isfat(Type*);
 void	linkarchinit(void);
-void	liveness(Node*, Prog*, Sym*, Sym*, Sym*);
+void	liveness(Node*, Prog*, Sym*, Sym*);
 void	markautoused(Prog*);
 Plist*	newplist(void);
 Node*	nodarg(Type*, int);

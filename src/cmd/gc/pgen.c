@@ -8,6 +8,7 @@
 
 #include	<u.h>
 #include	<libc.h>
+#include	"md5.h"
 #include	"gg.h"
 #include	"opt.h"
 #include	"../../pkg/runtime/funcdata.h"
@@ -130,6 +131,23 @@ removevardef(Prog *firstp)
 	}
 }
 
+static void
+gcsymdup(Sym *s)
+{
+	LSym *ls;
+	uint64 lo, hi;
+	
+	ls = linksym(s);
+	if(ls->nr > 0)
+		fatal("cannot rosymdup %s with relocations", ls->name);
+	MD5 d;
+	md5reset(&d);
+	md5write(&d, ls->p, ls->np);
+	lo = md5sum(&d, &hi);
+	ls->name = smprint("gclocals·%016llux%016llux", lo, hi);
+	ls->dupok = 1;
+}
+
 void
 compile(Node *fn)
 {
@@ -143,7 +161,6 @@ compile(Node *fn)
 	NodeList *l;
 	Sym *gcargs;
 	Sym *gclocals;
-	Sym *gcdead;
 
 	if(newproc == N) {
 		newproc = sysfunc("newproc");
@@ -227,15 +244,6 @@ compile(Node *fn)
 
 	gcargs = makefuncdatasym("gcargs·%d", FUNCDATA_ArgsPointerMaps);
 	gclocals = makefuncdatasym("gclocals·%d", FUNCDATA_LocalsPointerMaps);
-	// TODO(cshapiro): emit the dead value map when the garbage collector
-	// pre-verification pass is checked in.  It is otherwise harmless to
-	// emit this information if it is not used but it does cost RSS at
-	// compile time.  At present, the amount of additional RSS is
-	// substantial enough to affect our smallest build machines.
-	if(0)
-		gcdead = makefuncdatasym("gcdead·%d", FUNCDATA_DeadValueMaps);
-	else
-		gcdead = nil;
 
 	for(t=curfn->paramfld; t; t=t->down)
 		gtrack(tracksym(t->type));
@@ -304,7 +312,9 @@ compile(Node *fn)
 	}
 
 	// Emit garbage collection symbols.
-	liveness(curfn, ptxt, gcargs, gclocals, gcdead);
+	liveness(curfn, ptxt, gcargs, gclocals);
+	gcsymdup(gcargs);
+	gcsymdup(gclocals);
 
 	defframe(ptxt);
 

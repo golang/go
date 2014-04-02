@@ -189,6 +189,7 @@ main(int argc, char *argv[])
 		Bprint(&bso, "%d symbols\n", ctxt->nsymbol);
 		Bprint(&bso, "%d sizeof adr\n", sizeof(Addr));
 		Bprint(&bso, "%d sizeof prog\n", sizeof(Prog));
+		Bprint(&bso, "%lld liveness data\n", liveness);
 	}
 	Bflush(&bso);
 

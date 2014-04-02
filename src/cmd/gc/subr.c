@@ -1678,7 +1678,7 @@ typehash(Type *t)
 	md5reset(&d);
 	md5write(&d, (uchar*)p, strlen(p));
 	free(p);
-	return md5sum(&d);
+	return md5sum(&d, nil);
 }
 
 Type*

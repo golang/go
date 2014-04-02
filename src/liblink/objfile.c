@@ -485,7 +485,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	static int ndup;
 	char *name;
 	Reloc *r;
-	LSym *s;
+	LSym *s, *dup;
 	Pcln *pc;
 	Auto *a;
 	
@@ -502,11 +502,14 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	if(v != 0)
 		v = ctxt->version;
 	s = linklookup(ctxt, name, v);
+	dup = nil;
 	if(s->type != 0 && s->type != SXREF) {
 		if(s->type != SBSS && s->type != SNOPTRBSS && !dupok && !s->dupok)
 			sysfatal("duplicate symbol %s (types %d and %d) in %s and %s", s->name, s->type, t, s->file, pn);
-		if(s->np > 0)
+		if(s->np > 0) {
+			dup = s;
 			s = linklookup(ctxt, ".dup", ndup++); // scratch
+		}
 	}
 	s->file = pkg;
 	s->dupok = dupok;
@@ -535,6 +538,13 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 			r->sym = rdsym(ctxt, f, pkg);
 			r->xsym = rdsym(ctxt, f, pkg);
 		}
+	}
+	
+	if(s->np > 0 && dup != nil && dup->np > 0 && strncmp(s->name, "gclocals·", 10) == 0) {
+		// content-addressed garbage collection liveness bitmap symbol.
+		// double check for hash collisions.
+		if(s->np != dup->np || memcmp(s->p, dup->p, s->np) != 0)
+			sysfatal("dupok hash collision for %s in %s and %s", s->name, s->file, pn);
 	}
 	
 	if(s->type == STEXT) {

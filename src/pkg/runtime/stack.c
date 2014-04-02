@@ -436,7 +436,7 @@ adjustframe(Stkframe *frame, void *arg)
 	Func *f;
 	StackMap *stackmap;
 	int32 pcdata;
-	BitVector *bv;
+	BitVector bv;
 	uintptr targetpc;
 
 	adjinfo = arg;
@@ -462,7 +462,7 @@ adjustframe(Stkframe *frame, void *arg)
 		bv = runtime·stackmapdata(stackmap, pcdata);
 		if(StackDebug >= 3)
 			runtime·printf("      locals\n");
-		adjustpointers((byte**)frame->varp - bv->n / BitsPerPointer, bv, adjinfo, f);
+		adjustpointers((byte**)frame->varp - bv.n / BitsPerPointer, &bv, adjinfo, f);
 	}
 	// adjust inargs and outargs
 	if(frame->arglen != 0) {
@@ -472,7 +472,7 @@ adjustframe(Stkframe *frame, void *arg)
 		bv = runtime·stackmapdata(stackmap, pcdata);
 		if(StackDebug >= 3)
 			runtime·printf("      args\n");
-		adjustpointers((byte**)frame->argp, bv, adjinfo, nil);
+		adjustpointers((byte**)frame->argp, &bv, adjinfo, nil);
 	}
 	return true;
 }
@@ -491,7 +491,7 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 	Func *f;
 	FuncVal *fn;
 	StackMap *stackmap;
-	BitVector *bv;
+	BitVector bv;
 
 	for(dp = &gp->defer, d = *dp; d != nil; dp = &d->link, d = *dp) {
 		if(adjinfo->oldstk <= (byte*)d && (byte*)d < adjinfo->oldbase) {
@@ -526,7 +526,7 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 			if(stackmap == nil)
 				runtime·throw("runtime: deferred function has no arg ptr map");
 			bv = runtime·stackmapdata(stackmap, 0);
-			adjustpointers(d->args, bv, adjinfo, f);
+			adjustpointers(d->args, &bv, adjinfo, f);
 		}
 		d->argp += adjinfo->delta;
 	}
