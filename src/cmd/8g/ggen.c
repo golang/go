@@ -10,13 +10,14 @@
 #include "opt.h"
 
 static Prog *appendpp(Prog*, int, int, vlong, int, vlong);
+static Prog *zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *ax);
 
 void
 defframe(Prog *ptxt)
 {
-	uint32 frame;
+	uint32 frame, ax;
 	Prog *p;
-	vlong i;
+	vlong lo, hi;
 	NodeList *l;
 	Node *n;
 
@@ -27,14 +28,12 @@ defframe(Prog *ptxt)
 	frame = rnd(stksize+maxarg, widthptr);
 	ptxt->to.offset = frame;
 	
-	// insert code to contain ambiguously live variables
-	// so that garbage collector only sees initialized values
+	// insert code to zero ambiguously live variables
+	// so that the garbage collector only sees initialized values
 	// when it looks for pointers.
-	//
-	// TODO: determine best way to zero the given values.
-	// among other problems, AX is initialized to 0 multiple times,
-	// but that's really the tip of the iceberg.
 	p = ptxt;
+	lo = hi = 0;
+	ax = 0;
 	for(l=curfn->dcl; l != nil; l = l->next) {
 		n = l->n;
 		if(!n->needzero)
@@ -43,21 +42,49 @@ defframe(Prog *ptxt)
 			fatal("needzero class %d", n->class);
 		if(n->type->width % widthptr != 0 || n->xoffset % widthptr != 0 || n->type->width == 0)
 			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
-		if(n->type->width <= 2*widthptr) {
-			for(i = 0; i < n->type->width; i += widthptr)
-				p = appendpp(p, AMOVL, D_CONST, 0, D_SP+D_INDIR, frame+n->xoffset+i);
-		} else if(n->type->width <= 16*widthptr) {
-			p = appendpp(p, AMOVL, D_CONST, 0, D_AX, 0);
-			for(i = 0; i < n->type->width; i += widthptr)
-				p = appendpp(p, AMOVL, D_AX, 0, D_SP+D_INDIR, frame+n->xoffset+i);
-		} else {
-			p = appendpp(p, AMOVL, D_CONST, 0, D_AX, 0);
-			p = appendpp(p, AMOVL, D_CONST, n->type->width/widthptr, D_CX, 0);
-			p = appendpp(p, ALEAL, D_SP+D_INDIR, frame+n->xoffset, D_DI, 0);
-			p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);
-			p = appendpp(p, ASTOSL, D_NONE, 0, D_NONE, 0);
+		if(n->xoffset + n->type->width == lo - 2*widthptr) {
+			// merge with range we already have
+			lo = n->xoffset;
+			continue;
 		}
+		// zero old range
+		p = zerorange(p, frame, lo, hi, &ax);
+
+		// set new range
+		hi = n->xoffset + n->type->width;
+		lo = n->xoffset;
 	}
+	// zero final range
+	zerorange(p, frame, lo, hi, &ax);
+}
+
+static Prog*
+zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *ax)
+{
+	vlong cnt, i;
+
+	cnt = hi - lo;
+	if(cnt == 0)
+		return p;
+	if(*ax == 0) {
+		p = appendpp(p, AMOVL, D_CONST, 0, D_AX, 0);
+		*ax = 1;
+	}
+	if(cnt <= 4*widthreg) {
+		for(i = 0; i < cnt; i += widthreg) {
+			p = appendpp(p, AMOVL, D_AX, 0, D_SP+D_INDIR, frame+lo+i);
+		}
+	} else if(cnt <= 128*widthreg) {
+		p = appendpp(p, ALEAL, D_SP+D_INDIR, frame+lo, D_DI, 0);
+		p = appendpp(p, ADUFFZERO, D_NONE, 0, D_ADDR, 1*(128-cnt/widthreg));
+		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
+	} else {
+		p = appendpp(p, AMOVL, D_CONST, cnt/widthreg, D_CX, 0);
+		p = appendpp(p, ALEAL, D_SP+D_INDIR, frame+lo, D_DI, 0);
+		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);
+		p = appendpp(p, ASTOSL, D_NONE, 0, D_NONE, 0);
+	}
+	return p;
 }
 
 static Prog*	
