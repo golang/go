@@ -1,0 +1,6 @@
+package template
+
+const shouldFail = "after: must contain a single statement"
+
+func before() int { return 0 }
+func after() int  { println(); return 0 }

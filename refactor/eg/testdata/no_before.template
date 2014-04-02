@@ -1,0 +1,5 @@
+package template
+
+const shouldFail = "no 'before' func found in template"
+
+func Before() {}

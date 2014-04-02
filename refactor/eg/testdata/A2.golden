@@ -1,0 +1,15 @@
+// +build ignore
+
+package A2
+
+// This refactoring causes addition of "errors" import.
+// TODO(adonovan): fix: it should also remove "fmt".
+
+import (
+	myfmt "fmt"
+	"errors"
+)
+
+func example(n int) {
+	errors.New("")
+}

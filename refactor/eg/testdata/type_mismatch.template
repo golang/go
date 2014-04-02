@@ -1,0 +1,6 @@
+package template
+
+const shouldFail = "different signatures"
+
+func before() int   { return 0 }
+func after() string { return "" }

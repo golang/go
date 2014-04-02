@@ -1,0 +1,9 @@
+package template
+
+// Basic test of expression refactoring.
+// (Types are not important in this case; it could be done with gofmt -r.)
+
+import "time"
+
+func before(t time.Time) time.Duration { return time.Now().Sub(t) }
+func after(t time.Time) time.Duration  { return time.Since(t) }

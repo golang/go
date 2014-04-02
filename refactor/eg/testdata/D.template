@@ -1,0 +1,8 @@
+package template
+
+import "fmt"
+
+// Test of semantic (not syntactic) matching of basic literals.
+
+func before() (int, error) { return fmt.Println(123, "a") }
+func after() (int, error)  { return fmt.Println(456, "!") }

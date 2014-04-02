@@ -1,0 +1,13 @@
+// +build ignore
+
+package E1
+
+import (
+	"log"
+	"os"
+	"fmt"
+)
+
+func example() {
+	fmt.Fprintf(os.Stderr, "warning: %v", "oops")	// match
+}

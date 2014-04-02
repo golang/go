@@ -1,0 +1,12 @@
+package template
+
+import (
+	"fmt"
+	"log"
+	"os"
+)
+
+// Replace call to void function by call to non-void function.
+
+func before(x interface{}) { log.Fatal(x) }
+func after(x interface{})  { fmt.Fprintf(os.Stderr, "warning: %v", x) }

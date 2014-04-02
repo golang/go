@@ -1,0 +1,8 @@
+package template
+
+// Test in which replacement has a different type.
+
+const shouldFail = "int is not a safe replacement for string"
+
+func before() interface{} { return "three" }
+func after() interface{}  { return 3 }
