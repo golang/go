@@ -255,11 +255,11 @@ walkclosure(Node *func, NodeList **init)
 	clos->left->esc = func->esc;
 	// non-escaping temp to use, if any.
 	// orderexpr did not compute the type; fill it in now.
-	if(func->left != N) {
-		func->left->type = clos->left->left->type;
-		func->left->orig->type = func->left->type;
-		clos->left->right = func->left;
-		func->left = N;
+	if(func->alloc != N) {
+		func->alloc->type = clos->left->left->type;
+		func->alloc->orig->type = func->alloc->type;
+		clos->left->right = func->alloc;
+		func->alloc = N;
 	}
 	walkexpr(&clos, init);
 
@@ -451,6 +451,14 @@ walkpartialcall(Node *n, NodeList **init)
 	// typecheck will insert a PTRLIT node under CONVNOP,
 	// tag it with escape analysis result.
 	clos->left->esc = n->esc;
+	// non-escaping temp to use, if any.
+	// orderexpr did not compute the type; fill it in now.
+	if(n->alloc != N) {
+		n->alloc->type = clos->left->left->type;
+		n->alloc->orig->type = n->alloc->type;
+		clos->left->right = n->alloc;
+		n->alloc = N;
+	}
 	walkexpr(&clos, init);
 
 	return clos;

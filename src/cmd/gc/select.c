@@ -69,6 +69,7 @@ typecheckselect(Node *sel)
 				n->op = OSELRECV2;
 				n->left = n->list->n;
 				n->ntest = n->list->next->n;
+				n->list = nil;
 				n->right = n->rlist->n;
 				n->rlist = nil;
 				break;
@@ -94,7 +95,7 @@ void
 walkselect(Node *sel)
 {
 	int lno, i;
-	Node *n, *r, *a, *tmp, *var, *cas, *dflt, *ch;
+	Node *n, *r, *a, *var, *cas, *dflt, *ch;
 	NodeList *l, *init;
 	
 	if(sel->list == nil && sel->xoffset != 0)
@@ -112,7 +113,7 @@ walkselect(Node *sel)
 	// optimization: one-case select: single op.
 	// TODO(rsc): Reenable optimization once order.c can handle it.
 	// golang.org/issue/7672.
-	if(0 && i == 1) {
+	if(i == 1) {
 		cas = sel->list->n;
 		setlineno(cas);
 		l = cas->ninit;
@@ -125,32 +126,34 @@ walkselect(Node *sel)
 				fatal("select %O", n->op);
 
 			case OSEND:
-				ch = cheapexpr(n->left, &l);
-				n->left = ch;
+				// ok already
+				ch = n->left;
 				break;
 
 			case OSELRECV:
-				r = n->right;
-				ch = cheapexpr(r->left, &l);
-				r->left = ch;
-
+				ch = n->right->left;
+			Selrecv1:
 				if(n->left == N)
-					n = r;
-				else {
-					n = nod(OAS, n->left, r);
-					typecheck(&n, Etop);
-				}
+					n = n->right;
+				else
+					n->op = OAS;
 				break;
 			
 			case OSELRECV2:
-				r = n->right;
-				ch = cheapexpr(r->left, &l);
-				r->left = ch;
-				
-				a = nod(OAS2, N, N);
-				a->list = n->list;
-				a->rlist = list1(n->right);
-				n = a;
+				ch = n->right->left;
+				if(n->ntest == N)
+					goto Selrecv1;
+				if(n->left == N) {
+					typecheck(&nblank, Erv | Easgn);
+					n->left = nblank;
+				}
+				n->op = OAS2;
+				n->list = list(list1(n->left), n->ntest);
+				n->rlist = list1(n->right);
+				n->right = N;
+				n->left = N;
+				n->ntest = N;
+				n->typecheck = 0;
 				typecheck(&n, Etop);
 				break;
 			}
@@ -168,7 +171,7 @@ walkselect(Node *sel)
 		goto out;
 	}
 
-	// introduce temporary variables for OSELRECV where needed.
+	// convert case value arguments to addresses.
 	// this rewrite is used by both the general code and the next optimization.
 	for(l=sel->list; l; l=l->next) {
 		cas = l->n;
@@ -177,75 +180,24 @@ walkselect(Node *sel)
 		if(n == N)
 			continue;
 		switch(n->op) {
+		case OSEND:
+			n->right = nod(OADDR, n->right, N);
+			typecheck(&n->right, Erv);
+			break;
 		case OSELRECV:
 		case OSELRECV2:
-			ch = n->right->left;
-
-			// If we can use the address of the target without
-			// violating addressability or order of operations, do so.
-			// Otherwise introduce a temporary.
-			// Also introduce a temporary for := variables that escape,
-			// so that we can delay the heap allocation until the case
-			// is selected.
+			if(n->op == OSELRECV2 && n->ntest == N)
+				n->op = OSELRECV;
 			if(n->op == OSELRECV2) {
-				if(n->ntest == N || isblank(n->ntest))
-					n->ntest = nodnil();
-				else if(n->ntest->op == ONAME &&
-						(!n->colas || (n->ntest->class&PHEAP) == 0) &&
-						convertop(types[TBOOL], n->ntest->type, nil) == OCONVNOP) {
-					n->ntest = nod(OADDR, n->ntest, N);
-					n->ntest->etype = 1;  // pointer does not escape
-					typecheck(&n->ntest, Erv);
-				} else {
-					tmp = temp(types[TBOOL]);
-					a = nod(OADDR, tmp, N);
-					a->etype = 1;  // pointer does not escape
-					typecheck(&a, Erv);
-					r = nod(OAS, n->ntest, tmp);
-					typecheck(&r, Etop);
-					cas->nbody = concat(list1(r), cas->nbody);
-					n->ntest = a;
-				}
+				n->ntest = nod(OADDR, n->ntest, N);
+				typecheck(&n->ntest, Erv);
 			}
-
-			if(n->left == N || isblank(n->left))
+			if(n->left == N)
 				n->left = nodnil();
-			else if(n->left->op == ONAME &&
-					(!n->colas || (n->left->class&PHEAP) == 0) &&
-					convertop(ch->type->type, n->left->type, nil) == OCONVNOP) {
-				if(n->colas && haspointers(ch->type->type)) {
-					r = nod(OAS, n->left, N);
-					typecheck(&r, Etop);
-					sel->ninit = concat(sel->ninit, list1(r));
-				}
+			else {
 				n->left = nod(OADDR, n->left, N);
-				n->left->etype = 1;  // pointer does not escape
 				typecheck(&n->left, Erv);
-				if(!eqtype(ch->type->type, n->left->type->type)) {
-					n->left = nod(OCONVNOP, n->left, N);
-					n->left->type = ptrto(ch->type->type);
-					n->left->typecheck = 1;
-				}
-			} else {
-				tmp = temp(ch->type->type);
-				a = nod(OADDR, tmp, N);
-				if(haspointers(ch->type->type)) {
-					// clear tmp for garbage collector, because the recv
-					// must execute with tmp appearing to be live.
-					r = nod(OAS, tmp, N);
-					typecheck(&r, Etop);
-					sel->ninit = concat(sel->ninit, list1(r));
-				}
-				a->etype = 1;  // pointer does not escape
-				typecheck(&a, Erv);
-				r = nod(OAS, n->left, tmp);
-				typecheck(&r, Etop);
-				cas->nbody = concat(list1(r), cas->nbody);
-				n->left = a;
-			}
-			
-			cas->nbody = concat(n->ninit, cas->nbody);
-			n->ninit = nil;
+			}			
 			break;
 		}
 	}
@@ -269,29 +221,17 @@ walkselect(Node *sel)
 			fatal("select %O", n->op);
 
 		case OSEND:
-			// if c != nil && selectnbsend(c, v) { body } else { default body }
-			ch = cheapexpr(n->left, &r->ninit);
-			a = n->right;
-			a = assignconv(a, ch->type->type, "select chan send");
-			walkexpr(&a, &r->ninit);
-			if(islvalue(a)) {
-				a = nod(OADDR, a, N);
-			} else {
-				var = temp(a->type);
-				tmp = nod(OAS, var, a);
-				typecheck(&tmp, Etop);
-				r->ninit = list(r->ninit, tmp);
-				a = nod(OADDR, var, N);
-			}
+			// if selectnbsend(c, v) { body } else { default body }
+			ch = n->left;
 			r->ntest = mkcall1(chanfn("selectnbsend", 2, ch->type),
-					types[TBOOL], &r->ninit, typename(ch->type), ch, a);
+					types[TBOOL], &r->ninit, typename(ch->type), ch, n->right);
 			break;
 			
 		case OSELRECV:
 			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
 			r = nod(OIF, N, N);
 			r->ninit = cas->ninit;
-			ch = cheapexpr(n->right->left, &r->ninit);
+			ch = n->right->left;
 			r->ntest = mkcall1(chanfn("selectnbrecv", 2, ch->type),
 					types[TBOOL], &r->ninit, typename(ch->type), n->left, ch);
 			break;
@@ -300,7 +240,7 @@ walkselect(Node *sel)
 			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
 			r = nod(OIF, N, N);
 			r->ninit = cas->ninit;
-			ch = cheapexpr(n->right->left, &r->ninit);
+			ch = n->right->left;
 			r->ntest = mkcall1(chanfn("selectnbrecv2", 2, ch->type),
 					types[TBOOL], &r->ninit, typename(ch->type), n->left, n->ntest, ch);
 			break;
@@ -344,18 +284,6 @@ walkselect(Node *sel)
 	
 			case OSEND:
 				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
-				n->left = localexpr(safeexpr(n->left, &r->ninit), n->left->type, &r->ninit);
-				n->right = localexpr(n->right, n->left->type->type, &r->ninit);
-				n->right = nod(OADDR, n->right, N);
-				n->right->etype = 1;  // pointer does not escape
-				typecheck(&n->right, Erv);
-				// cast to appropriate type if necessary.
-				if(!eqtype(n->right->type->type, n->left->type->type) &&
-					assignop(n->right->type->type, n->left->type->type, nil) == OCONVNOP) {
-					n->right = nod(OCONVNOP, n->right, N);
-					n->right->type = ptrto(n->left->type->type);
-					n->right->typecheck = 1;
-				}
 				r->ntest = mkcall1(chanfn("selectsend", 2, n->left->type), types[TBOOL],
 					&r->ninit, var, n->left, n->right);
 				break;

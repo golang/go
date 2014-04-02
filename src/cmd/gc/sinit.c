@@ -767,14 +767,15 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 	vauto = temp(ptrto(t));
 
 	// set auto to point at new temp or heap (3 assign)
-	if(n->left != N) {
+	if(n->alloc != N) {
 		// temp allocated during order.c for dddarg
+		n->alloc->type = t;
 		if(vstat == N) {
-			a = nod(OAS, n->left, N);
+			a = nod(OAS, n->alloc, N);
 			typecheck(&a, Etop);
 			*init = list(*init, a);  // zero new temp
 		}
-		a = nod(OADDR, n->left, N);
+		a = nod(OADDR, n->alloc, N);
 	} else if(n->esc == EscNone) {
 		a = temp(t);
 		if(vstat == N) {

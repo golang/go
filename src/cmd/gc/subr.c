@@ -2101,7 +2101,7 @@ cheapexpr(Node *n, NodeList **init)
 Node*
 localexpr(Node *n, Type *t, NodeList **init)
 {
-	if(n->op == ONAME && !n->addrtaken &&
+	if(n->op == ONAME && (!n->addrtaken || strncmp(n->sym->name, "autotmp_", 8) == 0) &&
 		(n->class == PAUTO || n->class == PPARAM || n->class == PPARAMOUT) &&
 		convertop(n->type, t, nil) == OCONVNOP)
 		return n;
