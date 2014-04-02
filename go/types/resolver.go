@@ -25,14 +25,24 @@ type declInfo struct {
 	init  ast.Expr      // init expression, or nil
 	fdecl *ast.FuncDecl // func declaration, or nil
 
-	deps map[Object]*declInfo // init dependencies; lazily allocated
-	mark int                  // see check.dependencies
+	deps map[Object]bool // init dependencies; lazily allocated
+	mark int             // see check.dependencies
 }
 
 // hasInitializer reports whether the declared object has an initialization
 // expression or function body.
 func (d *declInfo) hasInitializer() bool {
 	return d.init != nil || d.fdecl != nil && d.fdecl.Body != nil
+}
+
+// addDep adds obj as a dependency to d.
+func (d *declInfo) addDep(obj Object) {
+	m := d.deps
+	if m == nil {
+		m = make(map[Object]bool)
+		d.deps = m
+	}
+	m[obj] = true
 }
 
 // arityMatch checks that the lhs and rhs of a const or var decl
@@ -378,8 +388,8 @@ func (check *checker) initDependencies(objList []Object) {
 	for _, obj := range objList {
 		switch obj.(type) {
 		case *Const, *Var:
-			if d := check.objMap[obj]; d.hasInitializer() {
-				check.dependencies(obj, d, initPath)
+			if check.objMap[obj].hasInitializer() {
+				check.dependencies(obj, initPath)
 			}
 		}
 	}
@@ -427,22 +437,22 @@ func (check *checker) unusedImports() {
 	}
 }
 
-// TODO(gri) Instead of this support function, introduce type
-// that combines an map[Object]*declInfo and []Object so that
-// we can encapsulate this and don't have to depend on correct
-// Pos() information.
-
-// objectsOf returns the keys of m in source order.
-func objectsOf(m map[Object]*declInfo) []Object {
-	list := make([]Object, len(m))
+func setObjects(set map[Object]bool) []Object {
+	list := make([]Object, len(set))
 	i := 0
-	for obj := range m {
+	for obj := range set {
+		// we don't care about the map element value
 		list[i] = obj
 		i++
 	}
 	sort.Sort(inSourceOrder(list))
 	return list
 }
+
+// TODO(gri) Instead of this support function, introduce type
+// that combines an map[Object]*declInfo and []Object so that
+// we can encapsulate this and don't have to depend on correct
+// Pos() information.
 
 // inSourceOrder implements the sort.Sort interface.
 type inSourceOrder []Object
@@ -455,8 +465,7 @@ func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 // manner and appends the encountered variables in postorder to the Info.InitOrder list.
 // As a result, that list ends up being sorted topologically in the order of dependencies.
 //
-// The current node is represented by the pair (obj, init); and path contains all nodes
-// on the path to the current node (excluding the current node).
+// Path contains all nodes on the path to the current node obj (excluding obj).
 //
 // To detect cyles, the nodes are marked as follows: Initially, all nodes are unmarked
 // (declInfo.mark == 0). On the way down, a node is appended to the path, and the node
@@ -474,7 +483,8 @@ func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 // start of the cycle in the path. The tail of the path (path[mark-1:]) contains all
 // nodes of the cycle.
 //
-func (check *checker) dependencies(obj Object, init *declInfo, path []Object) {
+func (check *checker) dependencies(obj Object, path []Object) {
+	init := check.objMap[obj]
 	if init.mark < 0 {
 		return // finished
 	}
@@ -516,9 +526,8 @@ func (check *checker) dependencies(obj Object, init *declInfo, path []Object) {
 
 	path = append(path, obj) // len(path) > 0
 	init.mark = len(path)    // init.mark > 0
-	for _, obj := range objectsOf(init.deps) {
-		dep := init.deps[obj]
-		check.dependencies(obj, dep, path)
+	for _, obj := range setObjects(init.deps) {
+		check.dependencies(obj, path)
 	}
 	init.mark = -1 // init.mark < 0
 

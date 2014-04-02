@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"sort"
 
 	"code.google.com/p/go.tools/go/exact"
 )
@@ -84,16 +85,10 @@ func (check *checker) addDeclDep(to Object) {
 	if from == nil {
 		return // not in a package-level init expression
 	}
-	decl := check.objMap[to]
-	if decl == nil || !decl.hasInitializer() {
+	if decl := check.objMap[to]; decl == nil || !decl.hasInitializer() {
 		return // to is not a package-level object or has no initializer
 	}
-	m := from.deps
-	if m == nil {
-		m = make(map[Object]*declInfo)
-		from.deps = m
-	}
-	m[to] = decl
+	from.addDep(to)
 }
 
 func (check *checker) assocMethod(tname string, meth *Func) {
@@ -205,6 +200,17 @@ func (check *checker) handleBailout(err *error) {
 	}
 }
 
+func mapObjects(m map[Object]*declInfo) []Object {
+	list := make([]Object, len(m))
+	i := 0
+	for obj := range m {
+		list[i] = obj
+		i++
+	}
+	sort.Sort(inSourceOrder(list))
+	return list
+}
+
 // Files checks the provided files as part of the checker's package.
 func (check *checker) Files(files []*ast.File) (err error) {
 	defer check.handleBailout(&err)
@@ -213,7 +219,8 @@ func (check *checker) Files(files []*ast.File) (err error) {
 
 	check.collectObjects()
 
-	objList := objectsOf(check.objMap)
+	objList := mapObjects(check.objMap)
+
 	check.packageObjects(objList)
 
 	check.functionBodies()
