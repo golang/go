@@ -19,7 +19,7 @@ import (
 // also uses /tmp directory in case it is prohibited to create UNIX
 // sockets in TMPDIR.
 func testUnixAddr() string {
-	f, err := ioutil.TempFile("/tmp", "nettest")
+	f, err := ioutil.TempFile("", "nettest")
 	if err != nil {
 		panic(err)
 	}
