@@ -1403,24 +1403,12 @@ handoff(Workbuf *b)
 
 extern byte pclntab[]; // base for f->ptrsoff
 
-BitVector*
+BitVector
 runtime·stackmapdata(StackMap *stackmap, int32 n)
 {
-	BitVector *bv;
-	uint32 *ptr;
-	uint32 words;
-	int32 i;
-
-	if(n < 0 || n >= stackmap->n) {
+	if(n < 0 || n >= stackmap->n)
 		runtime·throw("stackmapdata: index out of range");
-	}
-	ptr = stackmap->data;
-	for(i = 0; i < n; i++) {
-		bv = (BitVector*)ptr;
-		words = ((bv->n + 31) / 32) + 1;
-		ptr += words;
-	}
-	return (BitVector*)ptr;
+	return (BitVector){stackmap->nbit, stackmap->data + n*((stackmap->nbit+31)/32)};
 }
 
 // Scans an interface data value when the interface type indicates
@@ -1533,7 +1521,7 @@ scanframe(Stkframe *frame, void *wbufp)
 {
 	Func *f;
 	StackMap *stackmap;
-	BitVector *bv;
+	BitVector bv;
 	uintptr size;
 	uintptr targetpc;
 	int32 pcdata;
@@ -1576,9 +1564,9 @@ scanframe(Stkframe *frame, void *wbufp)
 				runtime·throw("scanframe: bad symbol table");
 			}
 			bv = runtime·stackmapdata(stackmap, pcdata);
-			size = (bv->n * PtrSize) / BitsPerPointer;
+			size = (bv.n * PtrSize) / BitsPerPointer;
 			precise = true;
-			scanbitvector(f, true, frame->varp - size, bv, afterprologue, wbufp);
+			scanbitvector(f, true, frame->varp - size, &bv, afterprologue, wbufp);
 		}
 	}
 
@@ -1587,7 +1575,7 @@ scanframe(Stkframe *frame, void *wbufp)
 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 	if(stackmap != nil) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
-		scanbitvector(f, precise, frame->argp, bv, true, wbufp);
+		scanbitvector(f, precise, frame->argp, &bv, true, wbufp);
 	} else
 		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
 	return true;

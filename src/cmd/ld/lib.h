@@ -98,6 +98,7 @@ EXTERN	char*	paramspace;
 EXTERN	int	nerrors;
 
 EXTERN	int	linkmode;
+EXTERN	int64	liveness;
 
 // for dynexport field of LSym
 enum

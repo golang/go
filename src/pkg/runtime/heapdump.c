@@ -244,7 +244,7 @@ struct ChildInfo {
 	// the layout of the outargs region.
 	uintptr argoff;     // where the arguments start in the frame
 	uintptr arglen;     // size of args region
-	BitVector *args;    // if not nil, pointer map of args region
+	BitVector args;    // if args.n >= 0, pointer map of args region
 
 	byte *sp;           // callee sp
 	uintptr depth;      // depth in call stack (0 == most recent)
@@ -301,7 +301,7 @@ dumpframe(Stkframe *s, void *arg)
 	int32 pcdata;
 	StackMap *stackmap;
 	int8 *name;
-	BitVector *bv;
+	BitVector bv;
 
 	child = (ChildInfo*)arg;
 	f = s->fn;
@@ -320,13 +320,13 @@ dumpframe(Stkframe *s, void *arg)
 	stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 
 	// Dump any types we will need to resolve Efaces.
-	if(child->args != nil)
-		dumpbvtypes(child->args, (byte*)s->sp + child->argoff);
+	if(child->args.n >= 0)
+		dumpbvtypes(&child->args, (byte*)s->sp + child->argoff);
 	if(stackmap != nil && stackmap->n > 0) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
-		dumpbvtypes(bv, s->varp - bv->n / BitsPerPointer * PtrSize);
+		dumpbvtypes(&bv, s->varp - bv.n / BitsPerPointer * PtrSize);
 	} else {
-		bv = nil;
+		bv.n = -1;
 	}
 
 	// Dump main body of stack frame.
@@ -343,8 +343,8 @@ dumpframe(Stkframe *s, void *arg)
 	dumpcstr(name);
 
 	// Dump fields in the outargs section
-	if(child->args != nil) {
-		dumpbv(child->args, child->argoff);
+	if(child->args.n >= 0) {
+		dumpbv(&child->args, child->argoff);
 	} else {
 		// conservative - everything might be a pointer
 		for(off = child->argoff; off < child->argoff + child->arglen; off += PtrSize) {
@@ -370,7 +370,7 @@ dumpframe(Stkframe *s, void *arg)
 	} else if(stackmap->n > 0) {
 		// Locals bitmap information, scan just the pointers in
 		// locals.
-		dumpbv(bv, s->varp - bv->n / BitsPerPointer * PtrSize - (byte*)s->sp);
+		dumpbv(&bv, s->varp - bv.n / BitsPerPointer * PtrSize - (byte*)s->sp);
 	}
 	dumpint(FieldKindEol);
 
@@ -383,7 +383,7 @@ dumpframe(Stkframe *s, void *arg)
 	if(stackmap != nil)
 		child->args = runtime·stackmapdata(stackmap, pcdata);
 	else
-		child->args = nil;
+		child->args.n = -1;
 	return true;
 }
 
@@ -421,7 +421,7 @@ dumpgoroutine(G *gp)
 	dumpint((uintptr)gp->panic);
 
 	// dump stack
-	child.args = nil;
+	child.args.n = -1;
 	child.arglen = 0;
 	child.sp = nil;
 	child.depth = 0;

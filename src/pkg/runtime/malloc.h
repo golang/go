@@ -602,12 +602,13 @@ typedef struct BitVector BitVector;
 struct BitVector
 {
 	int32 n; // # of bits
-	uint32 data[];
+	uint32 *data;
 };
 typedef struct StackMap StackMap;
 struct StackMap
 {
-	int32 n;
+	int32 n; // number of bitmaps
+	int32 nbit; // number of bits in each bitmap
 	uint32 data[];
 };
 enum {
@@ -626,7 +627,7 @@ enum {
 };
 // Returns pointer map data for the given stackmap index
 // (the index is encoded in PCDATA_StackMapIndex).
-BitVector*	runtime·stackmapdata(StackMap *stackmap, int32 n);
+BitVector	runtime·stackmapdata(StackMap *stackmap, int32 n);
 
 // defined in mgc0.go
 void	runtime·gc_m_ptr(Eface*);
@@ -636,4 +637,4 @@ void	runtime·memorydump(void);
 int32	runtime·setgcpercent(int32);
 
 // Value we use to mark dead pointers when GODEBUG=gcdead=1.
-#define PoisonPtr ((uintptr)0x6969696969696969LL)
+#define PoisonPtr ((uintptr)0xf9696969f9696969LL)

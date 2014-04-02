@@ -13,4 +13,4 @@ struct MD5
 
 void md5reset(MD5*);
 void md5write(MD5*, uchar*, int);
-uint64 md5sum(MD5*);
+uint64 md5sum(MD5*, uint64*);

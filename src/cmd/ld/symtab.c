@@ -429,6 +429,8 @@ symtab(void)
 			s->type = SGOFUNC;
 			s->hide = 1;
 			s->outer = symgofunc;
+			s->align = 4;
+			liveness += (s->size+s->align-1)&~(s->align-1);
 		}
 	}
 }
