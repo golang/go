@@ -155,18 +155,14 @@ type (
 	I8 /* ERROR "illegal cycle" */ interface {
 		I8
 	}
-	// Use I09 (rather than I9) because it appears lexically before
-	// I10 so that we get the illegal cycle here rather then in the
-	// declaration of I10. If the implementation sorts by position
-	// rather than name, the error message will still be here.
-	I09 /* ERROR "illegal cycle" */ interface {
+	I9 interface {
 		I10
 	}
 	I10 interface {
 		I11
 	}
-	I11 interface {
-		I09
+	I11 /* ERROR "illegal cycle" */ interface {
+		I9
 	}
 
 	C1 chan int

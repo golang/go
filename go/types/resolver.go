@@ -25,8 +25,8 @@ type declInfo struct {
 	init  ast.Expr      // init expression, or nil
 	fdecl *ast.FuncDecl // func declaration, or nil
 
-	deps map[Object]bool // init dependencies; lazily allocated
-	mark int             // see check.dependencies
+	deps map[Object]bool // type and init dependencies; lazily allocated
+	mark int             // for dependency analysis
 }
 
 // hasInitializer reports whether the declared object has an initialization
@@ -437,7 +437,7 @@ func (check *checker) unusedImports() {
 	}
 }
 
-func setObjects(set map[Object]bool) []Object {
+func orderedSetObjects(set map[Object]bool) []Object {
 	list := make([]Object, len(set))
 	i := 0
 	for obj := range set {
@@ -448,11 +448,6 @@ func setObjects(set map[Object]bool) []Object {
 	sort.Sort(inSourceOrder(list))
 	return list
 }
-
-// TODO(gri) Instead of this support function, introduce type
-// that combines an map[Object]*declInfo and []Object so that
-// we can encapsulate this and don't have to depend on correct
-// Pos() information.
 
 // inSourceOrder implements the sort.Sort interface.
 type inSourceOrder []Object
@@ -526,7 +521,7 @@ func (check *checker) dependencies(obj Object, path []Object) {
 
 	path = append(path, obj) // len(path) > 0
 	init.mark = len(path)    // init.mark > 0
-	for _, obj := range setObjects(init.deps) {
+	for _, obj := range orderedSetObjects(init.deps) {
 		check.dependencies(obj, path)
 	}
 	init.mark = -1 // init.mark < 0

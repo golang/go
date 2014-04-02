@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"sort"
 
 	"code.google.com/p/go.tools/go/exact"
 )
@@ -200,17 +199,6 @@ func (check *checker) handleBailout(err *error) {
 	}
 }
 
-func mapObjects(m map[Object]*declInfo) []Object {
-	list := make([]Object, len(m))
-	i := 0
-	for obj := range m {
-		list[i] = obj
-		i++
-	}
-	sort.Sort(inSourceOrder(list))
-	return list
-}
-
 // Files checks the provided files as part of the checker's package.
 func (check *checker) Files(files []*ast.File) (err error) {
 	defer check.handleBailout(&err)
@@ -219,7 +207,7 @@ func (check *checker) Files(files []*ast.File) (err error) {
 
 	check.collectObjects()
 
-	objList := mapObjects(check.objMap)
+	objList := check.resolveOrder()
 
 	check.packageObjects(objList)
 

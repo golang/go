@@ -66,3 +66,45 @@ type T4 interface {
 func _(x T1, y T3) {
 	x = y
 }
+
+// Check that interfaces are type-checked in order of
+// (embedded interface) dependencies (was issue 7158).
+
+var x1 T5 = T7(nil)
+
+type T5 interface {
+	T6
+}
+
+type T6 interface {
+	m() T7
+}
+type T7 interface {
+	T5
+}
+
+// Actual test case from issue 7158.
+
+func wrapNode() Node {
+	return wrapElement()
+}
+
+func wrapElement() Element {
+	return nil
+}
+
+type EventTarget interface {
+	AddEventListener(Event)
+}
+
+type Node interface {
+	EventTarget
+}
+
+type Element interface {
+	Node
+}
+
+type Event interface {
+	Target() Element
+}
