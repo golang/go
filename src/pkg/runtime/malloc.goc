@@ -885,11 +885,20 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 	// because we use &runtime·zerobase for all such allocations.
 	if(ot->elem != nil && ot->elem->size == 0)
 		return;
+	// The following check is required for cases when a user passes a pointer to composite literal,
+	// but compiler makes it a pointer to global. For example:
+	//	var Foo = &Object{}
+	//	func main() {
+	//		runtime.SetFinalizer(Foo, nil)
+	//	}
+	// See issue 7656.
+	if((byte*)obj.data < runtime·mheap.arena_start || runtime·mheap.arena_used <= (byte*)obj.data)
+		return;
 	if(!runtime·mlookup(obj.data, &base, &size, nil) || obj.data != base) {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
 		if(ot->elem == nil || (ot->elem->kind&KindNoPointers) == 0 || ot->elem->size >= TinySize) {
-			runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
+			runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block (%p)\n", obj.data);
 			goto throw;
 		}
 	}
