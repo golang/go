@@ -135,7 +135,7 @@ compile(Node *fn)
 {
 	Plist *pl;
 	Node nod1, *n;
-	Prog *ptxt, *p, *p1;
+	Prog *ptxt, *p;
 	int32 lno;
 	Type *t;
 	Iter save;
@@ -256,14 +256,6 @@ compile(Node *fn)
 	}
 
 	genlist(curfn->enter);
-
-	retpc = nil;
-	if(hasdefer || curfn->exit) {
-		p1 = gjmp(nil);
-		retpc = gjmp(nil);
-		patch(p1, pc);
-	}
-
 	genlist(curfn->nbody);
 	gclean();
 	checklabels();
@@ -275,18 +267,15 @@ compile(Node *fn)
 	if(curfn->type->outtuple != 0)
 		ginscall(throwreturn, 0);
 
-	if(retpc)
-		patch(retpc, pc);
 	ginit();
+	// TODO: Determine when the final cgen_ret can be omitted. Perhaps always?
+	cgen_ret(nil);
 	if(hasdefer) {
-		ginscall(deferreturn, 0);
 		// deferreturn pretends to have one uintptr argument.
 		// Reserve space for it so stack scanner is happy.
 		if(maxarg < widthptr)
 			maxarg = widthptr;
 	}
-	if(curfn->exit)
-		genlist(curfn->exit);
 	gclean();
 	if(nerrors != 0)
 		goto ret;

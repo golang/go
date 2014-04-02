@@ -1190,9 +1190,10 @@ walkexpr(Node **np, NodeList **init)
 		// s + "badgerbadgerbadger" == "badgerbadgerbadger"
 		if((n->etype == OEQ || n->etype == ONE) &&
 		   isconst(n->right, CTSTR) &&
-		   n->left->op == OADDSTR && isconst(n->left->right, CTSTR) &&
-		   cmpslit(n->right, n->left->right) == 0) {
-			r = nod(n->etype, nod(OLEN, n->left->left, N), nodintconst(0));
+		   n->left->op == OADDSTR && count(n->left->list) == 2 &&
+		   isconst(n->left->list->next->n, CTSTR) &&
+		   cmpslit(n->right, n->left->list->next->n) == 0) {
+			r = nod(n->etype, nod(OLEN, n->left->list->n, N), nodintconst(0));
 			typecheck(&r, Erv);
 			walkexpr(&r, init);
 			r->type = n->type;
@@ -1535,11 +1536,16 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
  * package all the arguments that match a ... T parameter into a []T.
  */
 static NodeList*
-mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, int esc)
+mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, Node *ddd)
 {
 	Node *a, *n;
 	Type *tslice;
-
+	int esc;
+	
+	esc = EscUnknown;
+	if(ddd != nil)
+		esc = ddd->esc;
+	
 	tslice = typ(TARRAY);
 	tslice->type = l->type->type;
 	tslice->bound = -1;
@@ -1549,6 +1555,8 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, int
 		n->type = tslice;
 	} else {
 		n = nod(OCOMPLIT, N, typenod(tslice));
+		if(ddd != nil)
+			n->left = ddd->left; // temporary to use
 		n->list = lr0;
 		n->esc = esc;
 		typecheck(&n, Erv);
@@ -1620,7 +1628,6 @@ dumpnodetypes(NodeList *l, char *what)
 static NodeList*
 ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeList **init)
 {
-	int esc;
 	Type *l, *ll;
 	Node *r, *a;
 	NodeList *nn, *lr0, *alist;
@@ -1683,10 +1690,7 @@ loop:
 		// normal case -- make a slice of all
 		// remaining arguments and pass it to
 		// the ddd parameter.
-		esc = EscUnknown;
-		if(call->right)
-			esc = call->right->esc;
-		nn = mkdotargslice(lr, nn, l, fp, init, esc);
+		nn = mkdotargslice(lr, nn, l, fp, init, call->right);
 		goto ret;
 	}
 
@@ -2504,26 +2508,24 @@ static Node*
 addstr(Node *n, NodeList **init)
 {
 	Node *r, *cat, *slice;
-	NodeList *args;
-	int count;
+	NodeList *args, *l;
+	int c;
 	Type *t;
 
-	count = 0;
-	for(r=n; r->op == OADDSTR; r=r->left)
-		count++;	// r->right
-	count++;	// r
-	if(count < 2)
-		yyerror("addstr count %d too small", count);
+	// orderexpr rewrote OADDSTR to have a list of strings.
+	c = count(n->list);
+	if(c < 2)
+		yyerror("addstr count %d too small", c);
 
 	// build list of string arguments
 	args = nil;
-	for(r=n; r->op == OADDSTR; r=r->left)
-		args = concat(list1(conv(r->right, types[TSTRING])), args);
-	args = concat(list1(conv(r, types[TSTRING])), args);
+	for(l=n->list; l != nil; l=l->next)
+		args = list(args, conv(l->n, types[TSTRING]));
 
-	if(count <= 5) {
+	if(c <= 5) {
 		// small numbers of strings use direct runtime helpers.
-		snprint(namebuf, sizeof(namebuf), "concatstring%d", count);
+		// note: orderexpr knows this cutoff too.
+		snprint(namebuf, sizeof(namebuf), "concatstring%d", c);
 	} else {
 		// large numbers of strings are passed to the runtime as a slice.
 		strcpy(namebuf, "concatstrings");
@@ -2531,6 +2533,7 @@ addstr(Node *n, NodeList **init)
 		t->type = types[TSTRING];
 		t->bound = -1;
 		slice = nod(OCOMPLIT, N, typenod(t));
+		slice->left = n->left;
 		slice->list = args;
 		slice->esc = EscNone;
 		args = list1(slice);

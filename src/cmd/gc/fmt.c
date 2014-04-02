@@ -1339,7 +1339,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 
 	// Binary
 	case OADD:
-	case OADDSTR:
 	case OAND:
 	case OANDAND:
 	case OANDNOT:
@@ -1362,6 +1361,14 @@ exprfmt(Fmt *f, Node *n, int prec)
 		exprfmt(f, n->left, nprec);
 		fmtprint(f, " %#O ", n->op);
 		exprfmt(f, n->right, nprec+1);
+		return 0;
+
+	case OADDSTR:
+		for(l=n->list; l; l=l->next) {
+			if(l != n->list)
+				fmtprint(f, " + ");
+			exprfmt(f, l->n, nprec);
+		}
 		return 0;
 
 	case OCMPSTR:

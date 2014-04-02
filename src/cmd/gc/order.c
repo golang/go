@@ -417,10 +417,12 @@ ordercallargs(NodeList **l, Order *order)
 // Ordercall orders the call expression n.
 // n->op is  OCALLMETH/OCALLFUNC/OCALLINTER.
 static void
-ordercall(Node *n, Order *order)
+ordercall(Node *n, Order *order, int special)
 {
 	orderexpr(&n->left, order);
 	ordercallargs(&n->list, order);
+	if(!special)
+		orderexpr(&n->right, order); // ODDDARG temp
 }
 
 // Ordermapassign appends n to order->out, introducing temporaries
@@ -547,7 +549,6 @@ orderstmt(Node *n, Order *order)
 		// a map index expression.
 		t = marktemp(order);
 		orderexpr(&n->left, order);
-		orderexpr(&n->right, order);
 		n->left = ordersafeexpr(n->left, order);
 		tmp1 = treecopy(n->left);
 		if(tmp1->op == OINDEXMAP)
@@ -555,6 +556,7 @@ orderstmt(Node *n, Order *order)
 		tmp1 = ordercopyexpr(tmp1, n->left->type, order, 0);
 		n->right = nod(n->etype, tmp1, n->right);
 		typecheck(&n->right, Erv);
+		orderexpr(&n->right, order);
 		n->etype = 0;
 		n->op = OAS;
 		ordermapassign(n, order);
@@ -577,7 +579,7 @@ orderstmt(Node *n, Order *order)
 		// Special: avoid copy of func call n->rlist->n.
 		t = marktemp(order);
 		orderexprlist(n->list, order);
-		ordercall(n->rlist->n, order);
+		ordercall(n->rlist->n, order, 0);
 		ordermapassign(n, order);
 		cleantemp(t, order);
 		break;
@@ -628,7 +630,7 @@ orderstmt(Node *n, Order *order)
 	case OCALLMETH:
 		// Special: handle call arguments.
 		t = marktemp(order);
-		ordercall(n, order);
+		ordercall(n, order, 0);
 		order->out = list(order->out, n);
 		cleantemp(t, order);
 		break;
@@ -649,7 +651,7 @@ orderstmt(Node *n, Order *order)
 			poptemp(t1, order);
 			break;
 		default:
-			ordercall(n->left, order);
+			ordercall(n->left, order, 1);
 			break;
 		}
 		order->out = list(order->out, n);
@@ -682,12 +684,53 @@ orderstmt(Node *n, Order *order)
 		break;
 
 	case ORANGE:
-		// TODO(rsc): Clean temporaries.
+		// n->right is the expression being ranged over.
+		// order it, and then make a copy if we need one.
+		// We almost always do, to ensure that we don't
+		// see any value changes made during the loop.
+		// Usually the copy is cheap (e.g., array pointer, chan, slice, string are all tiny).
+		// The exception is ranging over an array value (not a slice, not a pointer to array),
+		// which must make a copy to avoid seeing updates made during
+		// the range body. Ranging over an array value is uncommon though.
+		t = marktemp(order);
 		orderexpr(&n->right, order);
+		switch(n->type->etype) {
+		default:
+			fatal("orderstmt range %T", n->type);
+		case TARRAY:
+			if(count(n->list) < 2 || isblank(n->list->next->n)) {
+				// for i := range x will only use x once, to compute len(x).
+				// No need to copy it.
+				break;
+			}
+			// fall through
+		case TCHAN:
+		case TSTRING:
+			// chan, string, slice, array ranges use value multiple times.
+			// make copy.
+			r = n->right;
+			if(r->type->etype == TSTRING && r->type != types[TSTRING]) {
+				r = nod(OCONV, r, N);
+				r->type = types[TSTRING];
+				typecheck(&r, Erv);
+			}
+			n->right = ordercopyexpr(r, r->type, order, 0);
+			break;
+		case TMAP:
+			// copy the map value in case it is a map literal.
+			// TODO(rsc): Make tmp = literal expressions reuse tmp.
+			// For maps tmp is just one word so it hardly matters.
+			r = n->right;
+			n->right = ordercopyexpr(r, r->type, order, 0);
+			// temp is the iterator instead of the map value.
+			n->left = ordertemp(hiter(n->right->type), order, 1);
+			break;
+		}
 		for(l=n->list; l; l=l->next)
 			orderexprinplace(&l->n, order);
 		orderblock(&n->nbody);
 		order->out = list(order->out, n);
+		cleantemp(t, order);
 		break;
 
 	case ORETURN:
@@ -769,6 +812,7 @@ static void
 orderexpr(Node **np, Order *order)
 {
 	Node *n;
+	Type *t;
 	int lno;
 
 	n = *np;
@@ -786,6 +830,19 @@ orderexpr(Node **np, Order *order)
 		orderexprlist(n->rlist, order);
 		break;
 	
+	case OADDSTR:
+		// Addition of strings turns into a function call.
+		// Allocate a temporary to hold the strings.
+		// Fewer than 5 strings use direct runtime helpers.
+		orderexprlist(n->list, order);
+		if(count(n->list) > 5) {
+			t = typ(TARRAY);
+			t->bound = count(n->list);
+			t->type = types[TSTRING];
+			n->left = ordertemp(t, order, 0);
+		}
+		break;
+
 	case OINDEXMAP:
 		// key must be addressable
 		orderexpr(&n->left, order);
@@ -809,8 +866,27 @@ orderexpr(Node **np, Order *order)
 	case OCALLINTER:
 	case OAPPEND:
 	case OCOMPLEX:
-		ordercall(n, order);
+		ordercall(n, order, 0);
 		n = ordercopyexpr(n, n->type, order, 0);
+		break;
+
+	case OCLOSURE:
+		if(n->noescape && n->cvars != nil) {
+			t = typ(TARRAY);
+			t->type = types[TUNSAFEPTR];
+			t->bound = 1+count(n->cvars);
+			n->left = ordertemp(t, order, 0);
+		}
+		break;
+	
+	case ODDDARG:
+		if(n->noescape) {
+			// The ddd argument does not live beyond the call it is created for.
+			// Allocate a temporary that will be cleaned up when this statement
+			// completes. We could be more aggressive and try to arrange for it
+			// to be cleaned up when the call completes.
+			n->left = ordertemp(n->type, order, 0);
+		}
 		break;
 
 	case ORECV:

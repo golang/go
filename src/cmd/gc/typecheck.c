@@ -654,8 +654,20 @@ reswitch:
 			if(iscmp[n->op]) {
 				n->etype = n->op;
 				n->op = OCMPSTR;
-			} else if(n->op == OADD)
+			} else if(n->op == OADD) {
+				// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
 				n->op = OADDSTR;
+				if(l->op == OADDSTR)
+					n->list = l->list;
+				else
+					n->list = list1(l);
+				if(r->op == OADDSTR)
+					n->list = concat(n->list, r->list);
+				else
+					n->list = list(n->list, r);
+				n->left = N;
+				n->right = N;
+			}
 		}
 		if(et == TINTER) {
 			if(l->op == OLITERAL && l->val.ctype == CTNIL) {

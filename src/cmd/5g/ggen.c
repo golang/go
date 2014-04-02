@@ -256,7 +256,9 @@ ginscall(Node *f, int proc)
 			nodconst(&con, types[TINT32], 0);
 			p = gins(ACMP, &con, N);
 			p->reg = 0;
-			patch(gbranch(ABNE, T, -1), retpc);
+			p = gbranch(ABEQ, T, +1);
+			cgen_ret(N);
+			patch(p, pc);
 		}
 		break;
 	}

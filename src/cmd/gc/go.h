@@ -1470,7 +1470,6 @@ EXTERN	Prog*	continpc;
 EXTERN	Prog*	breakpc;
 EXTERN	Prog*	pc;
 EXTERN	Prog*	firstpc;
-EXTERN	Prog*	retpc;
 
 EXTERN	Node*	nodfp;
 EXTERN	int	disable_checknil;

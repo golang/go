@@ -232,7 +232,9 @@ ginscall(Node *f, int proc)
 		if(proc == 2) {
 			nodreg(&reg, types[TINT64], D_AX);
 			gins(ATESTQ, &reg, &reg);
-			patch(gbranch(AJNE, T, -1), retpc);
+			p = gbranch(AJEQ, T, +1);
+			cgen_ret(N);
+			patch(p, pc);
 		}
 		break;
 	}
@@ -432,13 +434,13 @@ cgen_ret(Node *n)
 {
 	Prog *p;
 
-	genlist(n->list);		// copy out args
-	if(hasdefer || curfn->exit) {
-		gjmp(retpc);
-		return;
-	}
+	if(n != N)
+		genlist(n->list);		// copy out args
+	if(hasdefer)
+		ginscall(deferreturn, 0);
+	genlist(curfn->exit);
 	p = gins(ARET, N, N);
-	if(n->op == ORETJMP) {
+	if(n != N && n->op == ORETJMP) {
 		p->to.type = D_EXTERN;
 		p->to.sym = linksym(n->left->sym);
 	}
