@@ -811,24 +811,29 @@ escassign(EscState *e, Node *dst, Node *src)
 	lineno = lno;
 }
 
-static void
+static int
 escassignfromtag(EscState *e, Strlit *note, NodeList *dsts, Node *src)
 {
-	int em;
+	int em, em0;
 	
 	em = parsetag(note);
-	
+
 	if(em == EscUnknown) {
 		escassign(e, &e->theSink, src);
-		return;
+		return em;
 	}
-		
+	
+	if(em == EscNone)
+		return em;
+
+	em0 = em;
 	for(em >>= EscBits; em && dsts; em >>= 1, dsts=dsts->next)
 		if(em & 1)
 			escassign(e, dsts->n, src);
 
 	if (em != 0 && dsts == nil)
 		fatal("corrupt esc tag %Z or messed up escretval list\n", note);
+	return em0;
 }
 
 // This is a bit messier than fortunate, pulled out of esc's big
@@ -875,7 +880,7 @@ esccall(EscState *e, Node *n)
 		if(a->type->etype == TSTRUCT && a->type->funarg) // f(g()).
 			ll = a->escretval;
 	}
-			
+
 	if(fn && fn->op == ONAME && fn->class == PFUNC && fn->defn && fn->defn->nbody && fn->ntype && fn->defn->esc < EscFuncTagged) {
 		// function in same mutually recursive group.  Incorporate into flow graph.
 //		print("esc local fn: %N\n", fn->ntype);
@@ -895,6 +900,9 @@ esccall(EscState *e, Node *n)
 			if(lr->n->isddd && !n->isddd) {
 				// Introduce ODDDARG node to represent ... allocation.
 				src = nod(ODDDARG, N, N);
+				src->type = typ(TARRAY);
+				src->type->type = lr->n->type->type;
+				src->type->bound = count(ll);
 				src->escloopdepth = e->loopdepth;
 				src->lineno = n->lineno;
 				src->esc = EscNone;  // until we find otherwise
@@ -949,12 +957,32 @@ esccall(EscState *e, Node *n)
 			src = nod(ODDDARG, N, N);
 			src->escloopdepth = e->loopdepth;
 			src->lineno = n->lineno;
+			src->type = typ(TARRAY);
+			src->type->type = t->type->type;
+			src->type->bound = count(ll);
 			src->esc = EscNone;  // until we find otherwise
 			e->noesc = list(e->noesc, src);
 			n->right = src;
 		}
-		if(haspointers(t->type))
-			escassignfromtag(e, t->note, n->escretval, src);
+		if(haspointers(t->type)) {
+			if(escassignfromtag(e, t->note, n->escretval, src) == EscNone) {
+				switch(src->op) {
+				case OCLOSURE:
+				case ODDDARG:
+					// The callee has already been analyzed, so its arguments have esc tags.
+					// The argument is marked as not escaping at all.
+					// Record that fact so that any temporary used for
+					// synthesizing this expression can be reclaimed when
+					// the function returns.
+					// This 'noescape' is even stronger than the usual esc == EscNone.
+					// src->esc == EscNone means that src does not escape the current function.
+					// src->noescape = 1 here means that src does not escape this statement
+					// in the current function.
+					src->noescape = 1;
+					break;
+				}
+			}
+		}
 		if(src != ll->n)
 			break;
 		t = t->down;

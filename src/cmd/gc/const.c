@@ -521,6 +521,7 @@ evconst(Node *n)
 	int wl, wr, lno, et;
 	Val v, rv;
 	Mpint b;
+	NodeList *l1, *l2;
 
 	// pick off just the opcodes that can be
 	// constant evaluated.
@@ -528,7 +529,6 @@ evconst(Node *n)
 	default:
 		return;
 	case OADD:
-	case OADDSTR:
 	case OAND:
 	case OANDAND:
 	case OANDNOT:
@@ -559,6 +559,47 @@ evconst(Node *n)
 		if(!okforconst[n->type->etype] && n->type->etype != TNIL)
 			return;
 		break;
+	
+	case OADDSTR:
+		// merge adjacent constants in the argument list.
+		for(l1=n->list; l1 != nil; l1= l1->next) {
+			if(isconst(l1->n, CTSTR) && l1->next != nil && isconst(l1->next->n, CTSTR)) {
+				l2 = l1;
+				len = 0;
+				while(l2 != nil && isconst(l2->n, CTSTR)) {
+					nr = l2->n;
+					len += nr->val.u.sval->len;
+					l2 = l2->next;
+				}
+				// merge from l1 up to but not including l2
+				str = mal(sizeof(*str) + len);
+				str->len = len;
+				len = 0;
+				l2 = l1;
+				while(l2 != nil && isconst(l2->n, CTSTR)) {
+					nr = l2->n;
+					memmove(str->s+len, nr->val.u.sval->s, nr->val.u.sval->len);
+					len += nr->val.u.sval->len;
+					l2 = l2->next;
+				}
+				nl = nod(OXXX, N, N);
+				*nl = *l1->n;
+				nl->orig = nl;
+				nl->val.ctype = CTSTR;
+				nl->val.u.sval = str;
+				l1->n = nl;
+				l1->next = l2;
+			}
+		}
+		// fix list end pointer.
+		for(l2=n->list; l2 != nil; l2=l2->next)
+			n->list->end = l2;
+		// collapse single-constant list to single constant.
+		if(count(n->list) == 1 && isconst(n->list->n, CTSTR)) {
+			n->op = OLITERAL;
+			n->val = n->list->n->val;
+		}
+		return;
 	}
 
 	nl = n->left;
@@ -861,15 +902,6 @@ evconst(Node *n)
 		if(cmpslit(nl, nr) > 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(OADDSTR, CTSTR):
-		len = v.u.sval->len + rv.u.sval->len;
-		str = mal(sizeof(*str) + len);
-		str->len = len;
-		memcpy(str->s, v.u.sval->s, v.u.sval->len);
-		memcpy(str->s+v.u.sval->len, rv.u.sval->s, rv.u.sval->len);
-		str->len = len;
-		v.u.sval = str;
-		break;
 
 	case TUP(OOROR, CTBOOL):
 		if(v.u.bval || rv.u.bval)

@@ -330,3 +330,96 @@ func f24() {
 	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
 	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
 }
+
+// defer should not cause spurious ambiguously live variables
+
+func f25(b bool) {
+	defer g25()
+	if b {
+		return
+	}
+	var x string
+	_ = &x
+	x = g15() // ERROR "live at call to g15: x"
+	print(x) // ERROR "live at call to printstring: x"
+} // ERROR "live at call to deferreturn: x"
+
+func g25()
+	
+// non-escaping ... slices passed to function call should die on return,
+// so that the temporaries do not stack and do not cause ambiguously
+// live variables.
+
+func f26(b bool) {
+	if b {
+		print26(1,2,3) // ERROR "live at call to print26: autotmp_[0-9]+$"
+	}
+	print26(4,5,6) // ERROR "live at call to print26: autotmp_[0-9]+$"
+	print26(7,8,9) // ERROR "live at call to print26: autotmp_[0-9]+$"
+	println()
+}
+
+//go:noescape
+func print26(...interface{})
+
+// non-escaping closures passed to function call should die on return
+
+func f27(b bool) {
+	x := 0
+	if b {
+		call27(func() {x++}) // ERROR "live at call to call27: autotmp_[0-9]+$"
+	}
+	call27(func() {x++}) // ERROR "live at call to call27: autotmp_[0-9]+$"
+	call27(func() {x++}) // ERROR "live at call to call27: autotmp_[0-9]+$"
+}
+
+//go:noescape
+func call27(func())
+
+// concatstring slice should die on return
+
+var s1, s2, s3, s4, s5, s6, s7, s8, s9, s10 string
+
+func f28(b bool) {
+	if b {
+		print(s1+s2+s3+s4+s5+s6+s7+s8+s9+s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
+	}
+	print(s1+s2+s3+s4+s5+s6+s7+s8+s9+s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
+	print(s1+s2+s3+s4+s5+s6+s7+s8+s9+s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
+}	
+
+// map iterator should die on end of range loop
+
+func f29(b bool) {
+	if b {
+		for k := range m { // ERROR "live at call to mapiterinit: autotmp_[0-9]+$" "live at call to mapiternext: autotmp_[0-9]+$"
+			print(k) // ERROR "live at call to printstring: autotmp_[0-9]+$"
+		}
+	}
+	for k := range m { // ERROR "live at call to mapiterinit: autotmp_[0-9]+$" "live at call to mapiternext: autotmp_[0-9]+$"
+		print(k) // ERROR "live at call to printstring: autotmp_[0-9]+$"
+	}
+	for k := range m { // ERROR "live at call to mapiterinit: autotmp_[0-9]+$" "live at call to mapiternext: autotmp_[0-9]+$"
+		print(k) // ERROR "live at call to printstring: autotmp_[0-9]+$"
+	}
+}
+
+// copy of array of pointers should die at end of range loop
+
+var ptrarr [10]*int
+
+func f30(b bool) {
+	// two live temps during print(p):
+	// the copy of ptrarr and the internal iterator pointer.
+	if b {
+		for _, p := range ptrarr {
+			print(p) // ERROR "live at call to printpointer: autotmp_[0-9]+ autotmp_[0-9]+$"
+		}
+	}
+	for _, p := range ptrarr {
+		print(p) // ERROR "live at call to printpointer: autotmp_[0-9]+ autotmp_[0-9]+$"
+	}
+	for _, p := range ptrarr {
+		print(p) // ERROR "live at call to printpointer: autotmp_[0-9]+ autotmp_[0-9]+$"
+	}
+}

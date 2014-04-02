@@ -767,11 +767,23 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 	vauto = temp(ptrto(t));
 
 	// set auto to point at new temp or heap (3 assign)
-	if(n->esc == EscNone) {
-		a = nod(OAS, temp(t), N);
-		typecheck(&a, Etop);
-		*init = list(*init, a);  // zero new temp
-		a = nod(OADDR, a->left, N);
+	if(n->left != N) {
+		// temp allocated during order.c for dddarg
+		if(vstat == N) {
+			a = nod(OAS, n->left, N);
+			typecheck(&a, Etop);
+			*init = list(*init, a);  // zero new temp
+		}
+		a = nod(OADDR, n->left, N);
+	} else if(n->esc == EscNone) {
+		a = temp(t);
+		if(vstat == N) {
+			a = nod(OAS, temp(t), N);
+			typecheck(&a, Etop);
+			*init = list(*init, a);  // zero new temp
+			a = a->left;
+		}
+		a = nod(OADDR, a, N);
 	} else {
 		a = nod(ONEW, N, N);
 		a->list = list1(typenod(t));
@@ -1022,12 +1034,16 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 		if(!isptr[t->etype])
 			fatal("anylit: not ptr");
 
-		r = nod(ONEW, N, N);
-		r->typecheck = 1;
-		r->type = t;
-		r->esc = n->esc;
+		if(n->right != N) {
+			r = nod(OADDR, n->right, N);
+			typecheck(&r, Erv);
+		} else {
+			r = nod(ONEW, N, N);
+			r->typecheck = 1;
+			r->type = t;
+			r->esc = n->esc;
+		}
 		walkexpr(&r, init);
-
 		a = nod(OAS, var, r);
 
 		typecheck(&a, Etop);

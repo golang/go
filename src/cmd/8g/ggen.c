@@ -259,7 +259,9 @@ ginscall(Node *f, int proc)
 		if(proc == 2) {
 			nodreg(&reg, types[TINT64], D_AX);
 			gins(ATESTL, &reg, &reg);
-			patch(gbranch(AJNE, T, -1), retpc);
+			p = gbranch(AJEQ, T, +1);
+			cgen_ret(N);
+			patch(p, pc);
 		}
 		break;
 	}
