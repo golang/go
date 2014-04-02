@@ -32,7 +32,8 @@ defframe(Prog *ptxt)
 	// so that the garbage collector only sees initialized values
 	// when it looks for pointers.
 	p = ptxt;
-	lo = hi = 0;
+	hi = 0;
+	lo = hi;
 	ax = 0;
 	for(l=curfn->dcl; l != nil; l = l->next) {
 		n = l->n;
