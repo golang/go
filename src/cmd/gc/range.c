@@ -186,7 +186,8 @@ walkrange(Node *n)
 		// we only use a once, so no copy needed.
 		ha = a;
 		th = hiter(t);
-		hit = n->left;
+		hit = n->alloc;
+		hit->type = th;
 		n->left = N;
 		keyname = newname(th->type->sym);  // depends on layout of iterator struct.  See reflect.c:hiter
 		valname = newname(th->type->down->sym); // ditto

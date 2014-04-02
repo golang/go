@@ -20,11 +20,10 @@
 // Arrange that receive expressions only appear in direct assignments
 // x = <-c or as standalone statements <-c, never in larger expressions.
 
-// TODO(rsc): Temporaries are not cleaned in for, if, select, and swtch
-// statements. The cleaning needs to be introduced aggressively, so
-// that for example a temporary introduced during evaluation of an
-// if condition is killed in both the 'if' and 'else' bodies, not delayed
-// until after the entire if statement has completed.
+// TODO(rsc): The temporary introduction during multiple assignments
+// should be moved into this file, so that the temporaries can be cleaned
+// and so that conversions implicit in the OAS2FUNC and OAS2RECV
+// nodes can be made explicit and then have their temporaries cleaned.
 
 // TODO(rsc): Goto and multilevel break/continue can jump over
 // inserted VARKILL annotations. Work out a way to handle these.
@@ -243,11 +242,11 @@ poptemp(NodeList *mark, Order *order)
 	}
 }
 
-// Cleantempnopop emits VARKILL instructions for each temporary
+// Cleantempnopop emits to *out VARKILL instructions for each temporary
 // above the mark on the temporary stack, but it does not pop them
 // from the stack.
 static void
-cleantempnopop(NodeList *mark, Order *order)
+cleantempnopop(NodeList *mark, Order *order, NodeList **out)
 {
 	NodeList *l;
 	Node *kill;
@@ -255,7 +254,7 @@ cleantempnopop(NodeList *mark, Order *order)
 	for(l=order->temp; l != mark; l=l->next) {
 		kill = nod(OVARKILL, l->n, N);
 		typecheck(&kill, Etop);
-		order->out = list(order->out, kill);
+		*out = list(*out, kill);
 	}
 }
 
@@ -264,7 +263,7 @@ cleantempnopop(NodeList *mark, Order *order)
 static void
 cleantemp(NodeList *top, Order *order)
 {
-	cleantempnopop(top, order);
+	cleantempnopop(top, order, &order->out);
 	poptemp(top, order);
 }
 
@@ -282,45 +281,37 @@ static void
 orderblock(NodeList **l)
 {
 	Order order;
+	NodeList *mark;
 	
 	memset(&order, 0, sizeof order);
+	mark = marktemp(&order);
 	orderstmtlist(*l, &order);
+	cleantemp(mark, &order);
 	*l = order.out;
 }
 
 // Orderexprinplace orders the side effects in *np and
 // leaves them as the init list of the final *np.
 static void
-orderexprinplace(Node **np, Order *TODO)
+orderexprinplace(Node **np, Order *outer)
 {
 	Node *n;
+	NodeList **lp;
 	Order order;
 	
-	// TODO(rsc): Decide how much of the passed-in order to use.
-	// For example, should the temporaries created during the
-	// ordering of expr be added onto the caller's order temp list
-	// for freeing? Probably.
-	USED(TODO);
-
 	n = *np;
 	memset(&order, 0, sizeof order);
 	orderexpr(&n, &order);
 	addinit(&n, order.out);
-	*np = n;
-}
-
-// Orderexprtolist orders the side effects in *np and
-// appends them to *out.
-static void
-orderexprtolist(Node **np, NodeList **out)
-{
-	Node *n;
-	Order order;
 	
-	n = *np;
-	memset(&order, 0, sizeof order);
-	orderexpr(&n, &order);
-	*out = concat(*out, order.out);
+	// insert new temporaries from order
+	// at head of outer list.
+	lp = &order.temp;
+	while(*lp != nil)
+		lp = &(*lp)->next;
+	*lp = outer->temp;
+	outer->temp = order.temp;
+
 	*np = n;
 }
 
@@ -331,10 +322,13 @@ orderstmtinplace(Node **np)
 {
 	Node *n;
 	Order order;
-
+	NodeList *mark;
+	
 	n = *np;
 	memset(&order, 0, sizeof order);
+	mark = marktemp(&order);
 	orderstmt(n, &order);
+	cleantemp(mark, &order);
 	*np = liststmt(order.out);
 }
 
@@ -513,12 +507,15 @@ orderstmt(Node *n, Order *order)
 	default:
 		fatal("orderstmt %O", n->op);
 
+	case OVARKILL:
+		order->out = list(order->out, n);
+		break;
+
 	case OAS:
 	case OAS2:
 	case OAS2DOTTYPE:
 	case OCLOSE:
 	case OCOPY:
-	case OPANIC:
 	case OPRINT:
 	case OPRINTN:
 	case ORECOVER:
@@ -668,19 +665,45 @@ orderstmt(Node *n, Order *order)
 		break;
 
 	case OFOR:
-		// TODO(rsc): Clean temporaries.
+		// Clean temporaries from condition evaluation at
+		// beginning of loop body and after for statement.
+		t = marktemp(order);
 		orderexprinplace(&n->ntest, order);
-		orderstmtinplace(&n->nincr);
+		l = nil;
+		cleantempnopop(t, order, &l);
+		n->nbody = concat(l, n->nbody);
 		orderblock(&n->nbody);
+		orderstmtinplace(&n->nincr);
 		order->out = list(order->out, n);
+		cleantemp(t, order);
 		break;
 		
 	case OIF:
-		// TODO(rsc): Clean temporaries.
+		// Clean temporaries from condition at
+		// beginning of both branches.
+		t = marktemp(order);
 		orderexprinplace(&n->ntest, order);
+		l = nil;
+		cleantempnopop(t, order, &l);
+		n->nbody = concat(l, n->nbody);
+		l = nil;
+		cleantempnopop(t, order, &l);
+		n->nelse = concat(l, n->nelse);
+		poptemp(t, order);
 		orderblock(&n->nbody);
 		orderblock(&n->nelse);
 		order->out = list(order->out, n);
+		break;
+
+	case OPANIC:
+		// Special: argument will be converted to interface using convT2E
+		// so make sure it is an addressable temporary.
+		t = marktemp(order);
+		orderexpr(&n->left, order);
+		if(!isinter(n->left->type))
+			orderaddrtemp(&n->left, order);
+		order->out = list(order->out, n);
+		cleantemp(t, order);
 		break;
 
 	case ORANGE:
@@ -722,8 +745,8 @@ orderstmt(Node *n, Order *order)
 			// For maps tmp is just one word so it hardly matters.
 			r = n->right;
 			n->right = ordercopyexpr(r, r->type, order, 0);
-			// temp is the iterator instead of the map value.
-			n->left = ordertemp(hiter(n->right->type), order, 1);
+			// n->alloc is the temp for the iterator.
+			n->alloc = ordertemp(types[TUINT8], order, 1);
 			break;
 		}
 		for(l=n->list; l; l=l->next)
@@ -739,28 +762,84 @@ orderstmt(Node *n, Order *order)
 		break;
 	
 	case OSELECT:
-		// TODO(rsc): Clean temporaries.
+		// Special: clean case temporaries in each block entry.
+		// Select must enter one of its blocks, so there is no
+		// need for a cleaning at the end.
+		t = marktemp(order);
 		for(l=n->list; l; l=l->next) {
 			if(l->n->op != OXCASE)
 				fatal("order select case %O", l->n->op);
 			r = l->n->left;
+			setlineno(l->n);
+			// Append any new body prologue to ninit.
+			// The next loop will insert ninit into nbody.
+			if(l->n->ninit != nil)
+				fatal("order select ninit");
 			if(r != nil) {
 				switch(r->op) {
 				case OSELRECV:
 				case OSELRECV2:
-					orderexprinplace(&r->left, order);
-					orderexprinplace(&r->ntest, order);
-					orderexprtolist(&r->right->left, &l->n->ninit);
+					// case x = <-c
+					// case x, ok = <-c
+					// r->left is x, r->ntest is ok, r->right is ORECV, r->right->left is c.
+					// r->left == N means 'case <-c'.
+					// c is always evaluated; x and ok are only evaluated when assigned.
+					orderexpr(&r->right->left, order);
+
+					// Introduce temporary for receive and move actual copy into case body.
+					// avoids problems with target being addressed, as usual.
+					// NOTE: If we wanted to be clever, we could arrange for just one
+					// temporary per distinct type, sharing the temp among all receives
+					// with that temp. Similarly one ok bool could be shared among all
+					// the x,ok receives. Not worth doing until there's a clear need.
+					if(r->left != N && isblank(r->left))
+						r->left = N;
+					if(r->left != N) {
+						// use channel element type for temporary to avoid conversions,
+						// such as in case interfacevalue = <-intchan.
+						// the conversion happens in the OAS instead.
+						tmp1 = r->left;
+						r->left = ordertemp(r->right->left->type->type, order, haspointers(r->right->left->type->type));
+						tmp2 = nod(OAS, tmp1, r->left);
+						typecheck(&tmp2, Etop);
+						l->n->ninit = list(l->n->ninit, tmp2);
+					}
+					if(r->ntest != N && isblank(r->ntest))
+						r->ntest = N;
+					if(r->ntest != N) {
+						tmp1 = r->ntest;
+						r->ntest = ordertemp(tmp1->type, order, 0);
+						tmp2 = nod(OAS, tmp1, r->ntest);
+						typecheck(&tmp2, Etop);
+						l->n->ninit = list(l->n->ninit, tmp2);
+					}
+					orderblock(&l->n->ninit);
 					break;
+
 				case OSEND:
-					orderexprtolist(&r->left, &l->n->ninit);
-					orderexprtolist(&r->right, &l->n->ninit);
+					// case c <- x
+					// r->left is c, r->right is x, both are always evaluated.
+					orderexpr(&r->left, order);
+					if(!istemp(r->left))
+						r->left = ordercopyexpr(r->left, r->left->type, order, 0);
+					orderexpr(&r->right, order);
+					if(!istemp(r->right))
+						r->right = ordercopyexpr(r->right, r->right->type, order, 0);
 					break;
 				}
 			}
 			orderblock(&l->n->nbody);
 		}
+		// Now that we have accumulated all the temporaries, clean them.
+		// Also insert any ninit queued during the previous loop.
+		// (The temporary cleaning must follow that ninit work.)
+		for(l=n->list; l; l=l->next) {
+			cleantempnopop(t, order, &l->n->ninit);
+			l->n->nbody = concat(l->n->ninit, l->n->nbody);
+			l->n->ninit = nil;
+		}
 		order->out = list(order->out, n);
+		poptemp(t, order);
 		break;
 
 	case OSEND:
@@ -774,7 +853,14 @@ orderstmt(Node *n, Order *order)
 		break;
 
 	case OSWITCH:
-		// TODO(rsc): Clean temporaries.
+		// TODO(rsc): Clean temporaries more aggressively.
+		// Note that because walkswitch will rewrite some of the
+		// switch into a binary search, this is not as easy as it looks.
+		// (If we ran that code here we could invoke orderstmt on
+		// the if-else chain instead.)
+		// For now just clean all the temporaries at the end.
+		// In practice that's fine.
+		t = marktemp(order);
 		orderexpr(&n->ntest, order);
 		for(l=n->list; l; l=l->next) {
 			if(l->n->op != OXCASE)
@@ -783,6 +869,7 @@ orderstmt(Node *n, Order *order)
 			orderblock(&l->n->nbody);
 		}
 		order->out = list(order->out, n);
+		cleantemp(t, order);
 		break;
 	}
 	
@@ -812,6 +899,7 @@ static void
 orderexpr(Node **np, Order *order)
 {
 	Node *n;
+	NodeList *mark, *l;
 	Type *t;
 	int lno;
 
@@ -839,7 +927,7 @@ orderexpr(Node **np, Order *order)
 			t = typ(TARRAY);
 			t->bound = count(n->list);
 			t->type = types[TSTRING];
-			n->left = ordertemp(t, order, 0);
+			n->alloc = ordertemp(t, order, 0);
 		}
 		break;
 
@@ -855,9 +943,24 @@ orderexpr(Node **np, Order *order)
 		}
 		break;
 	
+	case OCONVIFACE:
+		// concrete type (not interface) argument must be addressable
+		// temporary to pass to runtime.
+		orderexpr(&n->left, order);
+		if(!isinter(n->left->type))
+			orderaddrtemp(&n->left, order);
+		break;
+	
 	case OANDAND:
 	case OOROR:
+		mark = marktemp(order);
 		orderexpr(&n->left, order);
+		// Clean temporaries from first branch at beginning of second.
+		// Leave them on the stack so that they can be killed in the outer
+		// context in case the short circuit is taken.
+		l = nil;
+		cleantempnopop(mark, order, &l);
+		n->right->ninit = concat(l, n->right->ninit);
 		orderexprinplace(&n->right, order);
 		break;
 	
@@ -871,21 +974,27 @@ orderexpr(Node **np, Order *order)
 		break;
 
 	case OCLOSURE:
-		if(n->noescape && n->cvars != nil) {
-			t = typ(TARRAY);
-			t->type = types[TUNSAFEPTR];
-			t->bound = 1+count(n->cvars);
-			n->left = ordertemp(t, order, 0);
-		}
+		if(n->noescape && n->cvars != nil)
+			n->alloc = ordertemp(types[TUINT8], order, 0); // walk will fill in correct type
 		break;
-	
+
+	case OARRAYLIT:
+	case OCALLPART:
+		orderexpr(&n->left, order);
+		orderexpr(&n->right, order);
+		orderexprlist(n->list, order);
+		orderexprlist(n->rlist, order);
+		if(n->noescape)
+			n->alloc = ordertemp(types[TUINT8], order, 0); // walk will fill in correct type
+		break;
+
 	case ODDDARG:
 		if(n->noescape) {
 			// The ddd argument does not live beyond the call it is created for.
 			// Allocate a temporary that will be cleaned up when this statement
 			// completes. We could be more aggressive and try to arrange for it
 			// to be cleaned up when the call completes.
-			n->left = ordertemp(n->type, order, 0);
+			n->alloc = ordertemp(n->type, order, 0);
 		}
 		break;
 

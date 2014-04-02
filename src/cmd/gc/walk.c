@@ -912,15 +912,15 @@ walkexpr(Node **np, NodeList **init)
 			ll = list(ll, n->left);
 		} else {
 			// regular types are passed by reference to avoid C vararg calls
-			if(islvalue(n->left)) {
+			// orderexpr arranged for n->left to be a temporary for all
+			// the conversions it could see. comparison of an interface
+			// with a non-interface, especially in a switch on interface value
+			// with non-interface cases, is not visible to orderstmt, so we
+			// have to fall back on allocating a temp here.
+			if(islvalue(n->left))
 				ll = list(ll, nod(OADDR, n->left, N));
-			} else {
-				var = temp(n->left->type);
-				n1 = nod(OAS, var, n->left);
-				typecheck(&n1, Etop);
-				*init = list(*init, n1);
-				ll = list(ll, nod(OADDR, var, N));
-			}
+			else
+				ll = list(ll, nod(OADDR, copyexpr(n->left, n->left->type, init), N));
 		}
 		argtype(fn, n->left->type);
 		argtype(fn, n->type);
@@ -1556,7 +1556,7 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, Nod
 	} else {
 		n = nod(OCOMPLIT, N, typenod(tslice));
 		if(ddd != nil)
-			n->left = ddd->left; // temporary to use
+			n->alloc = ddd->alloc; // temporary to use
 		n->list = lr0;
 		n->esc = esc;
 		typecheck(&n, Erv);
@@ -2533,7 +2533,7 @@ addstr(Node *n, NodeList **init)
 		t->type = types[TSTRING];
 		t->bound = -1;
 		slice = nod(OCOMPLIT, N, typenod(t));
-		slice->left = n->left;
+		slice->alloc = n->alloc;
 		slice->list = args;
 		slice->esc = EscNone;
 		args = list1(slice);

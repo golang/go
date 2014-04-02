@@ -423,3 +423,117 @@ func f30(b bool) {
 		print(p) // ERROR "live at call to printpointer: autotmp_[0-9]+ autotmp_[0-9]+$"
 	}
 }
+
+// conversion to interface should not leave temporary behind
+
+func f31(b1, b2, b3 bool) {
+	if b1 {
+		g31("a") // ERROR "live at call to convT2E: autotmp_[0-9]+$" "live at call to g31: autotmp_[0-9]+$"
+	}
+	if b2 {
+		h31("b") // ERROR "live at call to new: autotmp_[0-9]+$" "live at call to convT2E: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to h31: autotmp_[0-9]+$"
+	}
+	if b3 {
+		panic("asdf") // ERROR "live at call to convT2E: autotmp_[0-9]+$" "live at call to panic: autotmp_[0-9]+$"
+	}
+	print(b3)
+}
+
+func g31(interface{})
+func h31(...interface{})
+
+// non-escaping partial functions passed to function call should die on return
+
+type T32 int
+
+func (t *T32) Inc() { // ERROR "live at entry"
+	*t++
+}
+
+var t32 T32
+
+func f32(b bool) {
+	if b {
+		call32(t32.Inc) // ERROR "live at call to call32: autotmp_[0-9]+$"
+	}
+	call32(t32.Inc) // ERROR "live at call to call32: autotmp_[0-9]+$"
+	call32(t32.Inc) // ERROR "live at call to call32: autotmp_[0-9]+$"
+}
+
+//go:noescape
+func call32(func())
+
+// temporaries introduced during if conditions and && || expressions
+// should die once the condition has been acted upon.
+
+var m33 map[interface{}]int
+
+func f33() {
+	if m33[nil] == 0 { // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+		println()
+		return
+	} else {
+		println()
+	}
+	println()
+}
+
+func f34() {
+	if m33[nil] == 0 { // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+		println()
+		return
+	}
+	println()
+}
+
+func f35() {
+	if m33[nil] == 0 && m33[nil] == 0 { // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+		println()
+		return
+	}
+	println()
+}
+
+func f36() {
+	if m33[nil] == 0 || m33[nil] == 0 { // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+		println()
+		return
+	}
+	println()
+}
+
+func f37() {
+	if (m33[nil] == 0 || m33[nil] == 0) && m33[nil] == 0 { // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
+		println()
+		return
+	}
+	println()
+}
+
+// select temps should disappear in the case bodies
+
+var c38 chan string
+
+func fc38() chan string
+func fi38(int) *string
+func fb38() *bool
+
+func f38(b bool) {
+	// we don't care what temps are printed on the lines with output.
+	// we care that the println lines have no live variables
+	// and therefore no output.
+	if b {
+		select { // ERROR "live at call"
+		case <-fc38(): // ERROR "live at call"
+			println()
+		case fc38() <- *fi38(1): // ERROR "live at call"
+			println()
+		case *fi38(2) = <-fc38(): // ERROR "live at call"
+			println()
+		case *fi38(3), *fb38() = <-fc38(): // ERROR "live at call"
+			println()
+		}
+		println()
+	}
+	println()
+}

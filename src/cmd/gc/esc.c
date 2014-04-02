@@ -966,9 +966,16 @@ esccall(EscState *e, Node *n)
 		}
 		if(haspointers(t->type)) {
 			if(escassignfromtag(e, t->note, n->escretval, src) == EscNone) {
-				switch(src->op) {
+				a = src;
+				while(a->op == OCONVNOP)
+					a = a->left;
+				switch(a->op) {
+				case OCALLPART:
 				case OCLOSURE:
 				case ODDDARG:
+				case OARRAYLIT:
+				case OPTRLIT:
+				case OSTRUCTLIT:
 					// The callee has already been analyzed, so its arguments have esc tags.
 					// The argument is marked as not escaping at all.
 					// Record that fact so that any temporary used for
@@ -978,7 +985,7 @@ esccall(EscState *e, Node *n)
 					// src->esc == EscNone means that src does not escape the current function.
 					// src->noescape = 1 here means that src does not escape this statement
 					// in the current function.
-					src->noescape = 1;
+					a->noescape = 1;
 					break;
 				}
 			}
