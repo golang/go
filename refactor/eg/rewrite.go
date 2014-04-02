@@ -338,10 +338,3 @@ func updateTypeInfo(info *types.Info, new, old ast.Expr) {
 		info.Types[new] = tv
 	}
 }
-
-func F() {}
-func G() {}
-
-func init() {
-	F()
-}
