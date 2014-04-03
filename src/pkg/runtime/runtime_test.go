@@ -134,6 +134,43 @@ func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
 	SetCPUProfileRate(0)
 }
 
+// Addresses to test for faulting behavior.
+// This is less a test of SetPanicOnFault and more a check that
+// the operating system and the runtime can process these faults
+// correctly. That is, we're indirectly testing that without SetPanicOnFault
+// these would manage to turn into ordinary crashes.
+// Note that these are truncated on 32-bit systems, so the bottom 32 bits
+// of the larger addresses must themselves be invalid addresses.
+// We might get unlucky and the OS might have mapped one of these
+// addresses, but probably not: they're all in the first page, very high
+// adderesses that normally an OS would reserve for itself, or malformed
+// addresses. Even so, we might have to remove one or two on different
+// systems. We will see.
+
+var faultAddrs = []uint64{
+	// low addresses
+	0,
+	1,
+	0xfff,
+	// high (kernel) addresses
+	// or else malformed.
+	0xffffffffffffffff,
+	0xfffffffffffff001,
+	// no 0xffffffffffff0001; 0xffff0001 is mapped for 32-bit user space on OS X
+	0xfffffffffff00001,
+	0xffffffffff000001,
+	0xfffffffff0000001,
+	0xffffffff00000001,
+	0xfffffff000000001,
+	0xffffff0000000001,
+	0xfffff00000000001,
+	0xffff000000000001,
+	0xfff0000000000001,
+	0xff00000000000001,
+	0xf000000000000001,
+	0x8000000000000001,
+}
+
 func TestSetPanicOnFault(t *testing.T) {
 	// This currently results in a fault in the signal trampoline on
 	// dragonfly/386 - see issue 7421.
@@ -144,6 +181,12 @@ func TestSetPanicOnFault(t *testing.T) {
 	old := debug.SetPanicOnFault(true)
 	defer debug.SetPanicOnFault(old)
 
+	for _, addr := range faultAddrs {
+		testSetPanicOnFault(t, uintptr(addr))
+	}
+}
+
+func testSetPanicOnFault(t *testing.T, addr uintptr) {
 	defer func() {
 		if err := recover(); err == nil {
 			t.Fatalf("did not find error in recover")
@@ -151,7 +194,7 @@ func TestSetPanicOnFault(t *testing.T) {
 	}()
 
 	var p *int
-	p = (*int)(unsafe.Pointer(^uintptr(0)))
+	p = (*int)(unsafe.Pointer(addr))
 	println(*p)
-	t.Fatalf("still here - should have faulted")
+	t.Fatalf("still here - should have faulted on address %#x", addr)
 }

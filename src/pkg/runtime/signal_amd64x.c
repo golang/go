@@ -52,6 +52,27 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 		return;
 	}
 
+#ifdef GOOS_darwin
+	// x86-64 has 48-bit virtual addresses. The top 16 bits must echo bit 47.
+	// The hardware delivers a different kind of fault for a malformed address
+	// than it does for an attempt to access a valid but unmapped address.
+	// OS X 10.9.2 mishandles the malformed address case, making it look like
+	// a user-generated signal (like someone ran kill -SEGV ourpid).
+	// We pass user-generated signals to os/signal, or else ignore them.
+	// Doing that here - and returning to the faulting code - results in an
+	// infinite loop. It appears the best we can do is rewrite what the kernel
+	// delivers into something more like the truth. The address used below
+	// has very little chance of being the one that caused the fault, but it is
+	// malformed, it is clearly not a real pointer, and if it does get printed
+	// in real life, people will probably search for it and find this code.
+	// There are no Google hits for b01dfacedebac1e or 0xb01dfacedebac1e
+	// as I type this comment.
+	if(sig == SIGSEGV && SIG_CODE0(info, ctxt) == SI_USER) {
+		SIG_CODE0(info, ctxt) = SI_USER+1;
+		info->si_addr = (void*)(uintptr)0xb01dfacedebac1eULL;
+	}
+#endif
+
 	t = &runtime·sigtab[sig];
 	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
 		// Make it look like a call to the signal func.
