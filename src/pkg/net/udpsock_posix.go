@@ -64,7 +64,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
-	n, sa, err := c.fd.ReadFrom(b)
+	n, sa, err := c.fd.readFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
@@ -93,7 +93,7 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, 
 		return 0, 0, 0, nil, syscall.EINVAL
 	}
 	var sa syscall.Sockaddr
-	n, oobn, flags, sa, err = c.fd.ReadMsg(b, oob)
+	n, oobn, flags, sa, err = c.fd.readMsg(b, oob)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
@@ -124,7 +124,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	if err != nil {
 		return 0, &OpError{"write", c.fd.net, addr, err}
 	}
-	return c.fd.WriteTo(b, sa)
+	return c.fd.writeTo(b, sa)
 }
 
 // WriteTo implements the PacketConn WriteTo method.
@@ -156,7 +156,7 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
 	if err != nil {
 		return 0, 0, &OpError{"write", c.fd.net, addr, err}
 	}
-	return c.fd.WriteMsg(b, oob, sa)
+	return c.fd.writeMsg(b, oob, sa)
 }
 
 // DialUDP connects to the remote address raddr on the network net,
