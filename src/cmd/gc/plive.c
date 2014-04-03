@@ -1633,8 +1633,8 @@ livenessepilogue(Liveness *lv)
 }
 
 // FNV-1 hash function constants.
-#define H0 2166136261
-#define Hp 16777619
+#define H0 2166136261UL
+#define Hp 16777619UL
 
 static uint32
 hashbitmap(uint32 h, Bvec *bv)
