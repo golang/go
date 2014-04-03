@@ -1099,20 +1099,28 @@ defptrto(DWDie *dwtype)
 }
 
 // Copies src's children into dst. Copies attributes by value.
-// DWAttr.data is copied as pointer only.
+// DWAttr.data is copied as pointer only.  If except is one of
+// the top-level children, it will not be copied.
 static void
-copychildren(DWDie *dst, DWDie *src)
+copychildrenexcept(DWDie *dst, DWDie *src, DWDie *except)
 {
 	DWDie *c;
 	DWAttr *a;
 
 	for (src = src->child; src != nil; src = src->link) {
+		if(src == except)
+			continue;
 		c = newdie(dst, src->abbrev, getattr(src, DW_AT_name)->data);
 		for (a = src->attr; a != nil; a = a->link)
 			newattr(c, a->atr, a->cls, a->value, a->data);
-		copychildren(c, src);
+		copychildrenexcept(c, src, nil);
 	}
 	reverselist(&dst->child);
+}
+static void
+copychildren(DWDie *dst, DWDie *src)
+{
+	copychildrenexcept(dst, src, nil);
 }
 
 // Search children (assumed to have DW_TAG_member) for the one named
@@ -1253,7 +1261,10 @@ synthesizemaptypes(DWDie *die)
 			      mkinternaltypename("bucket",
 						 getattr(keytype, DW_AT_name)->data,
 						 getattr(valtype, DW_AT_name)->data));
-		copychildren(dwhb, bucket);
+		// Copy over all fields except the field "data" from the generic bucket.
+		// "data" will be replaced with keys/values below.
+		copychildrenexcept(dwhb, bucket, find(bucket, "data"));
+		
 		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "keys");
 		newrefattr(fld, DW_AT_type, dwhk);
 		newmemberoffsetattr(fld, BucketSize + PtrSize);
