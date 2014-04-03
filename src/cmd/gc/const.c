@@ -1629,10 +1629,25 @@ hascallchan(Node *n)
 	if(n == N)
 		return 0;
 	switch(n->op) {
+	case OAPPEND:
 	case OCALL:
 	case OCALLFUNC:
-	case OCALLMETH:
 	case OCALLINTER:
+	case OCALLMETH:
+	case OCAP:
+	case OCLOSE:
+	case OCOMPLEX:
+	case OCOPY:
+	case ODELETE:
+	case OIMAG:
+	case OLEN:
+	case OMAKE:
+	case ONEW:
+	case OPANIC:
+	case OPRINT:
+	case OPRINTN:
+	case OREAL:
+	case ORECOVER:
 	case ORECV:
 		return 1;
 	}
