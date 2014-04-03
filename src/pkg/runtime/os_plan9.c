@@ -352,6 +352,9 @@ runtime·sigpanic(void)
 {
 	byte *p;
 
+	if(!runtime·canpanic(g))
+		runtime·throw("unexpected signal during runtime execution");
+
 	switch(g->sig) {
 	case SIGRFAULT:
 	case SIGWFAULT:
