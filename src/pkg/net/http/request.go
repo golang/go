@@ -69,18 +69,31 @@ var reqWriteExcludeHeader = map[string]bool{
 
 // A Request represents an HTTP request received by a server
 // or to be sent by a client.
+//
+// The field semantics differ slightly between client and server
+// usage. In addition to the notes on the fields below, see the
+// documentation for Request.Write and RoundTripper.
 type Request struct {
-	Method string // GET, POST, PUT, etc.
+	// Method specifies the HTTP method (GET, POST, PUT, etc.).
+	// For client requests an empty string means GET.
+	Method string
 
-	// URL is created from the URI supplied on the Request-Line
-	// as stored in RequestURI.
+	// URL specifies either the URI being requested (for server
+	// requests) or the URL to access (for client requests).
 	//
-	// For most requests, fields other than Path and RawQuery
-	// will be empty. (See RFC 2616, Section 5.1.2)
+	// For server requests the URL is parsed from the URI
+	// supplied on the Request-Line as stored in RequestURI.  For
+	// most requests, fields other than Path and RawQuery will be
+	// empty. (See RFC 2616, Section 5.1.2)
+	//
+	// For client requests, the URL's Host specifies the server to
+	// connect to, while the Request's Host field optionally
+	// specifies the Host header value to send in the HTTP
+	// request.
 	URL *url.URL
 
 	// The protocol version for incoming requests.
-	// Outgoing requests always use HTTP/1.1.
+	// Client requests always use HTTP/1.1.
 	Proto      string // "HTTP/1.0"
 	ProtoMajor int    // 1
 	ProtoMinor int    // 0
@@ -104,15 +117,20 @@ type Request struct {
 	// The request parser implements this by canonicalizing the
 	// name, making the first character and any characters
 	// following a hyphen uppercase and the rest lowercase.
+	//
+	// For client requests certain headers are automatically
+	// added and may override values in Header.
+	//
+	// See the documentation for the Request.Write method.
 	Header Header
 
 	// Body is the request's body.
 	//
-	// For client requests, a nil body means the request has no
+	// For client requests a nil body means the request has no
 	// body, such as a GET request. The HTTP Client's Transport
 	// is responsible for calling the Close method.
 	//
-	// For server requests, the Request Body is always non-nil
+	// For server requests the Request Body is always non-nil
 	// but will return EOF immediately when no body is present.
 	// The Server will close the request body. The ServeHTTP
 	// Handler does not need to.
@@ -122,7 +140,7 @@ type Request struct {
 	// The value -1 indicates that the length is unknown.
 	// Values >= 0 indicate that the given number of bytes may
 	// be read from Body.
-	// For outgoing requests, a value of 0 means unknown if Body is not nil.
+	// For client requests, a value of 0 means unknown if Body is not nil.
 	ContentLength int64
 
 	// TransferEncoding lists the transfer encodings from outermost to
@@ -133,13 +151,18 @@ type Request struct {
 	TransferEncoding []string
 
 	// Close indicates whether to close the connection after
-	// replying to this request.
+	// replying to this request (for servers) or after sending
+	// the request (for clients).
 	Close bool
 
-	// The host on which the URL is sought.
-	// Per RFC 2616, this is either the value of the Host: header
-	// or the host name given in the URL itself.
+	// For server requests Host specifies the host on which the
+	// URL is sought. Per RFC 2616, this is either the value of
+	// the "Host" header or the host name given in the URL itself.
 	// It may be of the form "host:port".
+	//
+	// For client requests Host optionally overrides the Host
+	// header to send. If empty, the Request.Write method uses
+	// the value of URL.Host.
 	Host string
 
 	// Form contains the parsed form data, including both the URL
@@ -162,7 +185,7 @@ type Request struct {
 	// Trailer maps trailer keys to values.  Like for Header, if the
 	// response has multiple trailer lines with the same key, they will be
 	// concatenated, delimited by commas.
-	// For server requests, Trailer is only populated after Body has been
+	// For server requests Trailer is only populated after Body has been
 	// closed or fully consumed.
 	// Trailer support is only partially complete.
 	Trailer Header
