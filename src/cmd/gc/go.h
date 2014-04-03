@@ -450,6 +450,7 @@ enum
 	OANDAND,	// b0 && b1
 	OAPPEND,	// append
 	OARRAYBYTESTR,	// string(bytes)
+	OARRAYBYTESTRTMP, // string(bytes) ephemeral
 	OARRAYRUNESTR,	// string(runes)
 	OSTRARRAYBYTE,	// []byte(s)
 	OSTRARRAYRUNE,	// []rune(s)

@@ -565,9 +565,13 @@ orderstmt(Node *n, Order *order)
 		// and make sure OINDEXMAP is not copied out.
 		t = marktemp(order);
 		orderexprlist(n->list, order);
-		orderexpr(&n->rlist->n->left, order);
-		orderexpr(&n->rlist->n->right, order);
-		orderaddrtemp(&n->rlist->n->right, order);
+		r = n->rlist->n;
+		orderexpr(&r->left, order);
+		orderexpr(&r->right, order);
+		// See case OINDEXMAP below.
+		if(r->right->op == OARRAYBYTESTR)
+			r->right->op = OARRAYBYTESTRTMP;
+		orderaddrtemp(&r->right, order);
 		ordermapassign(n, order);
 		cleantemp(t, order);
 		break;
@@ -935,6 +939,20 @@ orderexpr(Node **np, Order *order)
 		// key must be addressable
 		orderexpr(&n->left, order);
 		orderexpr(&n->right, order);
+
+		// For x = m[string(k)] where k is []byte, the allocation of
+		// backing bytes for the string can be avoided by reusing
+		// the []byte backing array. This is a special case that it
+		// would be nice to handle more generally, but because
+		// there are no []byte-keyed maps, this specific case comes
+		// up in important cases in practice. See issue 3512.
+		// Nothing can change the []byte we are not copying before
+		// the map index, because the map access is going to
+		// be forced to happen immediately following this
+		// conversion (by the ordercopyexpr a few lines below).
+		if(n->etype == 0 && n->right->op == OARRAYBYTESTR)
+			n->right->op = OARRAYBYTESTRTMP;
+
 		orderaddrtemp(&n->right, order);
 		if(n->etype == 0) {
 			// use of value (not being assigned);

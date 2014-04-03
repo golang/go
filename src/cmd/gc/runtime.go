@@ -47,6 +47,7 @@ func cmpstring(string, string) int
 func eqstring(string, string) bool
 func intstring(int64) string
 func slicebytetostring([]byte) string
+func slicebytetostringtmp([]byte) string
 func slicerunetostring([]rune) string
 func stringtoslicebyte(string) []byte
 func stringtoslicerune(string) []rune

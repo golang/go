@@ -1316,6 +1316,11 @@ walkexpr(Node **np, NodeList **init)
 		n = mkcall("slicebytetostring", n->type, init, n->left);
 		goto ret;
 
+	case OARRAYBYTESTRTMP:
+		// slicebytetostringtmp([]byte) string;
+		n = mkcall("slicebytetostringtmp", n->type, init, n->left);
+		goto ret;
+
 	case OARRAYRUNESTR:
 		// slicerunetostring([]rune) string;
 		n = mkcall("slicerunetostring", n->type, init, n->left);

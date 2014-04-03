@@ -33,6 +33,7 @@ char *runtimeimport =
 	"func @\"\".eqstring (? string, ? string) (? bool)\n"
 	"func @\"\".intstring (? int64) (? string)\n"
 	"func @\"\".slicebytetostring (? []byte) (? string)\n"
+	"func @\"\".slicebytetostringtmp (? []byte) (? string)\n"
 	"func @\"\".slicerunetostring (? []rune) (? string)\n"
 	"func @\"\".stringtoslicebyte (? string) (? []byte)\n"
 	"func @\"\".stringtoslicerune (? string) (? []rune)\n"

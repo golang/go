@@ -438,3 +438,40 @@ func TestMapIterOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestMapStringBytesLookup(t *testing.T) {
+	// Use large string keys to avoid small-allocation coalescing,
+	// which can cause AllocsPerRun to report lower counts than it should.
+	m := map[string]int{
+		"1000000000000000000000000000000000000000000000000": 1,
+		"2000000000000000000000000000000000000000000000000": 2,
+	}
+	buf := []byte("1000000000000000000000000000000000000000000000000")
+	if x := m[string(buf)]; x != 1 {
+		t.Errorf(`m[string([]byte("1"))] = %d, want 1`, x)
+	}
+	buf[0] = '2'
+	if x := m[string(buf)]; x != 2 {
+		t.Errorf(`m[string([]byte("2"))] = %d, want 2`, x)
+	}
+
+	var x int
+	n := testing.AllocsPerRun(100, func() {
+		x += m[string(buf)]
+	})
+	if n != 0 {
+		t.Errorf("AllocsPerRun for m[string(buf)] = %v, want 0", n)
+	}
+
+	x = 0
+	n = testing.AllocsPerRun(100, func() {
+		y, ok := m[string(buf)]
+		if !ok {
+			panic("!ok")
+		}
+		x += y
+	})
+	if n != 0 {
+		t.Errorf("AllocsPerRun for x,ok = m[string(buf)] = %v, want 0", n)
+	}
+}
