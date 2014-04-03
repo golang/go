@@ -498,7 +498,7 @@ runtime·canpanic(G *gp)
 	// and not stuck in a system call.
 	if(gp == nil || gp != m->curg)
 		return false;
-	if(m->locks != 0 || m->mallocing != 0 || m->throwing != 0 || m->gcing != 0 || m->dying != 0)
+	if(m->locks-m->softfloat != 0 || m->mallocing != 0 || m->throwing != 0 || m->gcing != 0 || m->dying != 0)
 		return false;
 	if(gp->status != Grunning || gp->syscallsp != 0)
 		return false;
@@ -526,6 +526,16 @@ runtime·panicstring(int8 *s)
 {
 	Eface err;
 
+	// m->softfloat is set during software floating point,
+	// which might cause a fault during a memory load.
+	// It increments m->locks to avoid preemption.
+	// If we're panicking, the software floating point frames
+	// will be unwound, so decrement m->locks as they would.
+	if(m->softfloat) {
+		m->locks--;
+		m->softfloat = 0;
+	}
+
 	if(m->mallocing) {
 		runtime·printf("panic: %s\n", s);
 		runtime·throw("panic during malloc");
@@ -533,6 +543,10 @@ runtime·panicstring(int8 *s)
 	if(m->gcing) {
 		runtime·printf("panic: %s\n", s);
 		runtime·throw("panic during gc");
+	}
+	if(m->locks) {
+		runtime·printf("panic: %s\n", s);
+		runtime·throw("panic holding locks");
 	}
 	runtime·newErrorCString(s, &err);
 	runtime·panic(err);

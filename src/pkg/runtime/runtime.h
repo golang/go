@@ -312,6 +312,7 @@ struct	M
 	int32	throwing;
 	int32	gcing;
 	int32	locks;
+	int32	softfloat;
 	int32	dying;
 	int32	profilehz;
 	int32	helpgc;
