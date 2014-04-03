@@ -20,15 +20,22 @@ addrspace_free(void *v, uintptr n)
 	int32 errval;
 	uintptr chunk;
 	uintptr off;
-	static byte vec[4096];
+	
+	// NOTE: vec must be just 1 byte long here.
+	// Mincore returns ENOMEM if any of the pages are unmapped,
+	// but we want to know that all of the pages are unmapped.
+	// To make these the same, we can only ask about one page
+	// at a time. See golang.org/issue/7476.
+	static byte vec[1];
 
 	for(off = 0; off < n; off += chunk) {
 		chunk = _PAGE_SIZE * sizeof vec;
 		if(chunk > (n - off))
 			chunk = n - off;
 		errval = runtime·mincore((int8*)v + off, chunk, vec);
-		// errval is 0 if success, or -(error_code) if error.
-		if (errval == 0 || errval != -ENOMEM)
+		// ENOMEM means unmapped, which is what we want.
+		// Anything else we assume means the pages are mapped.
+		if (errval != -ENOMEM)
 			return 0;
 	}
 	return 1;
