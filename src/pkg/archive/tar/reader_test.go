@@ -9,6 +9,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -54,8 +55,92 @@ var gnuTarTest = &untarTest{
 	},
 }
 
+var sparseTarTest = &untarTest{
+	file: "testdata/sparse-formats.tar",
+	headers: []*Header{
+		{
+			Name:     "sparse-gnu",
+			Mode:     420,
+			Uid:      1000,
+			Gid:      1000,
+			Size:     200,
+			ModTime:  time.Unix(1392395740, 0),
+			Typeflag: 0x53,
+			Linkname: "",
+			Uname:    "david",
+			Gname:    "david",
+			Devmajor: 0,
+			Devminor: 0,
+		},
+		{
+			Name:     "sparse-posix-0.0",
+			Mode:     420,
+			Uid:      1000,
+			Gid:      1000,
+			Size:     200,
+			ModTime:  time.Unix(1392342187, 0),
+			Typeflag: 0x30,
+			Linkname: "",
+			Uname:    "david",
+			Gname:    "david",
+			Devmajor: 0,
+			Devminor: 0,
+		},
+		{
+			Name:     "sparse-posix-0.1",
+			Mode:     420,
+			Uid:      1000,
+			Gid:      1000,
+			Size:     200,
+			ModTime:  time.Unix(1392340456, 0),
+			Typeflag: 0x30,
+			Linkname: "",
+			Uname:    "david",
+			Gname:    "david",
+			Devmajor: 0,
+			Devminor: 0,
+		},
+		{
+			Name:     "sparse-posix-1.0",
+			Mode:     420,
+			Uid:      1000,
+			Gid:      1000,
+			Size:     200,
+			ModTime:  time.Unix(1392337404, 0),
+			Typeflag: 0x30,
+			Linkname: "",
+			Uname:    "david",
+			Gname:    "david",
+			Devmajor: 0,
+			Devminor: 0,
+		},
+		{
+			Name:     "end",
+			Mode:     420,
+			Uid:      1000,
+			Gid:      1000,
+			Size:     4,
+			ModTime:  time.Unix(1392398319, 0),
+			Typeflag: 0x30,
+			Linkname: "",
+			Uname:    "david",
+			Gname:    "david",
+			Devmajor: 0,
+			Devminor: 0,
+		},
+	},
+	cksums: []string{
+		"6f53234398c2449fe67c1812d993012f",
+		"6f53234398c2449fe67c1812d993012f",
+		"6f53234398c2449fe67c1812d993012f",
+		"6f53234398c2449fe67c1812d993012f",
+		"b0061974914468de549a2af8ced10316",
+	},
+}
+
 var untarTests = []*untarTest{
 	gnuTarTest,
+	sparseTarTest,
 	{
 		file: "testdata/star.tar",
 		headers: []*Header{
@@ -421,5 +506,222 @@ func TestMergePAX(t *testing.T) {
 	}
 	if !reflect.DeepEqual(hdr, want) {
 		t.Errorf("incorrect merge: got %+v, want %+v", hdr, want)
+	}
+}
+
+func TestSparseEndToEnd(t *testing.T) {
+	test := sparseTarTest
+	f, err := os.Open(test.file)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	defer f.Close()
+
+	tr := NewReader(f)
+
+	headers := test.headers
+	cksums := test.cksums
+	nread := 0
+
+	// loop over all files
+	for ; ; nread++ {
+		hdr, err := tr.Next()
+		if hdr == nil || err == io.EOF {
+			break
+		}
+
+		// check the header
+		if !reflect.DeepEqual(*hdr, *headers[nread]) {
+			t.Errorf("Incorrect header:\nhave %+v\nwant %+v",
+				*hdr, headers[nread])
+		}
+
+		// read and checksum the file data
+		h := md5.New()
+		_, err = io.Copy(h, tr)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// verify checksum
+		have := fmt.Sprintf("%x", h.Sum(nil))
+		want := cksums[nread]
+		if want != have {
+			t.Errorf("Bad checksum on file %s:\nhave %+v\nwant %+v", hdr.Name, have, want)
+		}
+	}
+	if nread != len(headers) {
+		t.Errorf("Didn't process all files\nexpected: %d\nprocessed %d\n", len(headers), nread)
+	}
+}
+
+type sparseFileReadTest struct {
+	sparseData []byte
+	sparseMap  []sparseEntry
+	realSize   int64
+	expected   []byte
+}
+
+var sparseFileReadTests = []sparseFileReadTest{
+	{
+		sparseData: []byte("abcde"),
+		sparseMap: []sparseEntry{
+			{offset: 0, numBytes: 2},
+			{offset: 5, numBytes: 3},
+		},
+		realSize: 8,
+		expected: []byte("ab\x00\x00\x00cde"),
+	},
+	{
+		sparseData: []byte("abcde"),
+		sparseMap: []sparseEntry{
+			{offset: 0, numBytes: 2},
+			{offset: 5, numBytes: 3},
+		},
+		realSize: 10,
+		expected: []byte("ab\x00\x00\x00cde\x00\x00"),
+	},
+	{
+		sparseData: []byte("abcde"),
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 6, numBytes: 2},
+		},
+		realSize: 8,
+		expected: []byte("\x00abc\x00\x00de"),
+	},
+	{
+		sparseData: []byte("abcde"),
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 6, numBytes: 2},
+		},
+		realSize: 10,
+		expected: []byte("\x00abc\x00\x00de\x00\x00"),
+	},
+	{
+		sparseData: []byte(""),
+		sparseMap:  nil,
+		realSize:   2,
+		expected:   []byte("\x00\x00"),
+	},
+}
+
+func TestSparseFileReader(t *testing.T) {
+	for i, test := range sparseFileReadTests {
+		r := bytes.NewReader(test.sparseData)
+		nb := int64(r.Len())
+		sfr := &sparseFileReader{
+			rfr: &regFileReader{r: r, nb: nb},
+			sp:  test.sparseMap,
+			pos: 0,
+			tot: test.realSize,
+		}
+		if sfr.numBytes() != nb {
+			t.Errorf("test %d: Before reading, sfr.numBytes() = %d, want %d", i, sfr.numBytes, nb)
+		}
+		buf, err := ioutil.ReadAll(sfr)
+		if err != nil {
+			t.Errorf("test %d: Unexpected error: %v", i, err)
+		}
+		if e := test.expected; !bytes.Equal(buf, e) {
+			t.Errorf("test %d: Contents = %v, want %v", i, buf, e)
+		}
+		if sfr.numBytes() != 0 {
+			t.Errorf("test %d: After draining the reader, numBytes() was nonzero", i)
+		}
+	}
+}
+
+func TestSparseIncrementalRead(t *testing.T) {
+	sparseMap := []sparseEntry{{10, 2}}
+	sparseData := []byte("Go")
+	expected := "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00Go\x00\x00\x00\x00\x00\x00\x00\x00"
+
+	r := bytes.NewReader(sparseData)
+	nb := int64(r.Len())
+	sfr := &sparseFileReader{
+		rfr: &regFileReader{r: r, nb: nb},
+		sp:  sparseMap,
+		pos: 0,
+		tot: int64(len(expected)),
+	}
+
+	// We'll read the data 6 bytes at a time, with a hole of size 10 at
+	// the beginning and one of size 8 at the end.
+	var outputBuf bytes.Buffer
+	buf := make([]byte, 6)
+	for {
+		n, err := sfr.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Errorf("Read: unexpected error %v\n", err)
+		}
+		if n > 0 {
+			_, err := outputBuf.Write(buf[:n])
+			if err != nil {
+				t.Errorf("Write: unexpected error %v\n", err)
+			}
+		}
+	}
+	got := outputBuf.String()
+	if got != expected {
+		t.Errorf("Contents = %v, want %v", got, expected)
+	}
+}
+
+func TestReadGNUSparseMap0x1(t *testing.T) {
+	headers := map[string]string{
+		paxGNUSparseNumBlocks: "4",
+		paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+	}
+	expected := []sparseEntry{
+		{offset: 0, numBytes: 5},
+		{offset: 10, numBytes: 5},
+		{offset: 20, numBytes: 5},
+		{offset: 30, numBytes: 5},
+	}
+
+	sp, err := readGNUSparseMap0x1(headers)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if !reflect.DeepEqual(sp, expected) {
+		t.Errorf("Incorrect sparse map: got %v, wanted %v", sp, expected)
+	}
+}
+
+func TestReadGNUSparseMap1x0(t *testing.T) {
+	// This test uses lots of holes so the sparse header takes up more than two blocks
+	numEntries := 100
+	expected := make([]sparseEntry, 0, numEntries)
+	sparseMap := new(bytes.Buffer)
+
+	fmt.Fprintf(sparseMap, "%d\n", numEntries)
+	for i := 0; i < numEntries; i++ {
+		offset := int64(2048 * i)
+		numBytes := int64(1024)
+		expected = append(expected, sparseEntry{offset: offset, numBytes: numBytes})
+		fmt.Fprintf(sparseMap, "%d\n%d\n", offset, numBytes)
+	}
+
+	// Make the header the smallest multiple of blockSize that fits the sparseMap
+	headerBlocks := (sparseMap.Len() + blockSize - 1) / blockSize
+	bufLen := blockSize * headerBlocks
+	buf := make([]byte, bufLen)
+	copy(buf, sparseMap.Bytes())
+
+	// Get an reader to read the sparse map
+	r := bytes.NewReader(buf)
+
+	// Read the sparse map
+	sp, err := readGNUSparseMap1x0(r)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if !reflect.DeepEqual(sp, expected) {
+		t.Errorf("Incorrect sparse map: got %v, wanted %v", sp, expected)
 	}
 }
