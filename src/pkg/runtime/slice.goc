@@ -65,7 +65,7 @@ func growslice(t *SliceType, old Slice, n int64) (ret Slice) {
 
 	cap = old.cap + n;
 
-	if((intgo)cap != cap || cap < old.cap || (t->elem->size > 0 && cap > MaxMem/t->elem->size))
+	if((intgo)cap != cap || cap < (int64)old.cap || (t->elem->size > 0 && cap > MaxMem/t->elem->size))
 		runtime·panicstring("growslice: cap out of range");
 
 	if(raceenabled) {
