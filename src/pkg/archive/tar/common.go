@@ -38,6 +38,7 @@ const (
 	TypeXGlobalHeader = 'g'    // global extended header
 	TypeGNULongName   = 'L'    // Next file has a long name
 	TypeGNULongLink   = 'K'    // Next file symlinks to a file w/ a long name
+	TypeGNUSparse     = 'S'    // sparse file
 )
 
 // A Header represents a single header in a tar archive.
