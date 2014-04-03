@@ -49,8 +49,13 @@ func accept(s int) (int, syscall.Sockaddr, error) {
 	// kernel and on FreeBSD it was introduced in 10 kernel. If we
 	// get an ENOSYS error on both Linux and FreeBSD, or EINVAL
 	// error on Linux, fall back to using accept.
-	if err == nil || (err != syscall.ENOSYS && err != syscall.EINVAL) {
+	switch err {
+	default: // nil and errors other than the ones listed
 		return ns, sa, err
+	case syscall.ENOSYS: // syscall missing
+	case syscall.EINVAL: // some Linux use this instead of ENOSYS
+	case syscall.EACCES: // some Linux use this instead of ENOSYS
+	case syscall.EFAULT: // some Linux use this instead of ENOSYS
 	}
 
 	// See ../syscall/exec_unix.go for description of ForkLock.
