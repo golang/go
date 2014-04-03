@@ -458,7 +458,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	return n, err
 }
 
-func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
+func (fd *netFD) readFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 	if len(buf) == 0 {
 		return 0, nil, nil
 	}
@@ -497,7 +497,7 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 	})
 }
 
-func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	if len(buf) == 0 {
 		return 0, nil
 	}
@@ -628,10 +628,10 @@ func (fd *netFD) dup() (*os.File, error) {
 
 var errNoSupport = errors.New("address family not supported")
 
-func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
 	return 0, 0, 0, nil, errNoSupport
 }
 
-func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
 	return 0, 0, errNoSupport
 }
