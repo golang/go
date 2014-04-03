@@ -8,6 +8,7 @@
 package godoc
 
 import (
+	"bytes"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -16,11 +17,45 @@ import (
 	"code.google.com/p/go.tools/godoc/vfs"
 )
 
+var linePrefix = []byte("//line ")
+
+// This function replaces source lines starting with "//line " with a blank line.
+// It does this irrespective of whether the line is truly a line comment or not;
+// e.g., the line may be inside a string, or a /*-style comment; however that is
+// rather unlikely (proper testing would require a full Go scan which we want to
+// avoid for performance).
+func replaceLinePrefixCommentsWithBlankLine(src []byte) {
+	for {
+		i := bytes.Index(src, linePrefix)
+		if i < 0 {
+			break // we're done
+		}
+		// 0 <= i && i+len(linePrefix) <= len(src)
+		if i == 0 || src[i-1] == '\n' {
+			// at beginning of line: blank out line
+			for i < len(src) && src[i] != '\n' {
+				src[i] = ' '
+				i++
+			}
+		} else {
+			// not at beginning of line: skip over prefix
+			i += len(linePrefix)
+		}
+		// i <= len(src)
+		src = src[i:]
+	}
+}
+
 func (c *Corpus) parseFile(fset *token.FileSet, filename string, mode parser.Mode) (*ast.File, error) {
 	src, err := vfs.ReadFile(c.fs, filename)
 	if err != nil {
 		return nil, err
 	}
+
+	// Temporary ad-hoc fix for issue 5247.
+	// TODO(gri) Remove this in favor of a better fix, eventually (see issue 7702).
+	replaceLinePrefixCommentsWithBlankLine(src)
+
 	return parser.ParseFile(fset, filename, src, mode)
 }
 

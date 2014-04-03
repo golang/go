@@ -169,6 +169,14 @@ func First() {
 func Second() {
 }
 `,
+		"src/pkg/gen/gen.go": `// Package gen
+package gen
+
+//line notgen.go:3
+// F doc //line 1 should appear
+// line 2 should appear
+func F()
+//line foo.go:100`, // no newline on end to check corner cases!
 		"src/pkg/vet/vet.go": `// Package vet
 package vet
 `,
@@ -231,6 +239,11 @@ package main
 			exp:  "// Second function is second.\nfunc Second() {\n}",
 		},
 		{
+			desc: "package w. //line comments",
+			args: []string{"gen", "F"},
+			exp:  "PACKAGE \nfunc F()\n    F doc //line 1 should appear line 2 should appear\n",
+		},
+		{
 			desc: "command",
 			args: []string{"go"},
 			exp:  "COMMAND The go command\n",
@@ -259,7 +272,7 @@ package main
 		w := new(bytes.Buffer)
 		err := CommandLine(w, fs, p, tc.args)
 		if got, want := w.String(), tc.exp; got != want || tc.err == (err == nil) {
-			t.Errorf("%s: CommandLine(%v) = %q,%v; want %q,%v",
+			t.Errorf("%s: CommandLine(%v) = %q (%v); want %q (%v)",
 				tc.desc, tc.args, got, err, want, tc.err)
 		}
 	}
