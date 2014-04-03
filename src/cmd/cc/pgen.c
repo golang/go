@@ -51,6 +51,7 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 	nod.sym = sym;
 	nod.class = CSTATIC;
 	gins(AFUNCDATA, nodconst(funcdatakind), &nod);
+	linksym(sym)->type = SRODATA;
 	return sym;
 }
 
