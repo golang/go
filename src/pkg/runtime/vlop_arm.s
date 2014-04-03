@@ -75,10 +75,14 @@ TEXT _sfloat(SB), NOSPLIT, $64-0 // 4 arg + 14*4 saved regs + cpsr
 	MOVW	m_locks(m), R1
 	ADD	$1, R1
 	MOVW	R1, m_locks(m)
+	MOVW	$1, R1
+	MOVW	R1, m_softfloat(m)
 	BL	runtime·_sfloat2(SB)
 	MOVW	m_locks(m), R1
 	SUB	$1, R1
 	MOVW	R1, m_locks(m)
+	MOVW	$0, R1
+	MOVW	R1, m_softfloat(m)
 	MOVW	R0, 0(R13)
 	MOVW	64(R13), R1
 	WORD	$0xe128f001	// msr cpsr_f, r1
