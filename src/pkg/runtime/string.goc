@@ -294,6 +294,25 @@ func slicebytetostring(b Slice) (s String) {
 	runtime·memmove(s.str, b.array, s.len);
 }
 
+func slicebytetostringtmp(b Slice) (s String) {
+	void *pc;
+
+	if(raceenabled) {
+		pc = runtime·getcallerpc(&b);
+		runtime·racereadrangepc(b.array, b.len, pc, runtime·slicebytetostringtmp);
+	}
+	
+	// Return a "string" referring to the actual []byte bytes.
+	// This is only for use by internal compiler optimizations
+	// that know that the string form will be discarded before
+	// the calling goroutine could possibly modify the original
+	// slice or synchronize with another goroutine.
+	// Today, the only such case is a m[string(k)] lookup where
+	// m is a string-keyed map and k is a []byte.
+	s.str = b.array;
+	s.len = b.len;
+}
+
 func stringtoslicebyte(s String) (b Slice) {
 	uintptr cap;
 
