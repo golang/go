@@ -217,7 +217,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 					tracepc--;
 				runtime·printf("%s(", runtime·funcname(f));
 				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
-					if(i >= 5) {
+					if(i >= 10) {
 						runtime·prints(", ...");
 						break;
 					}
