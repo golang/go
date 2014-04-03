@@ -45,9 +45,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 
 	t = &runtime·sigtab[sig];
 	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
-		if(!runtime·canpanic(gp))
-			goto Throw;
-
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
 		// augmenting the stack frame would break
@@ -94,7 +91,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 	if(!(t->flags & SigThrow))
 		return;
 
-Throw:
 	m->throwing = 1;
 	m->caughtsig = gp;
 	runtime·startpanic();

@@ -434,6 +434,9 @@ runtime·mach_semrelease(uint32 sem)
 void
 runtime·sigpanic(void)
 {
+	if(!runtime·canpanic(g))
+		runtime·throw("unexpected signal during runtime execution");
+
 	switch(g->sig) {
 	case SIGBUS:
 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {

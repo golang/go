@@ -346,6 +346,9 @@ runtime·issigpanic(uint32 code)
 void
 runtime·sigpanic(void)
 {
+	if(!runtime·canpanic(g))
+		runtime·throw("unexpected signal during runtime execution");
+
 	switch(g->sig) {
 	case EXCEPTION_ACCESS_VIOLATION:
 		if(g->sigcode1 < 0x1000 || g->paniconfault) {
