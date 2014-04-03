@@ -523,6 +523,15 @@ func (p *pp) fmtString(v string, verb rune, goSyntax bool) {
 func (p *pp) fmtBytes(v []byte, verb rune, goSyntax bool, typ reflect.Type, depth int) {
 	if verb == 'v' || verb == 'd' {
 		if goSyntax {
+			if v == nil {
+				if typ == nil {
+					p.buf.WriteString("[]byte(nil)")
+				} else {
+					p.buf.WriteString(typ.String())
+					p.buf.Write(nilParenBytes)
+				}
+				return
+			}
 			if typ == nil {
 				p.buf.Write(bytesBytes)
 			} else {
