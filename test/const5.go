@@ -18,6 +18,7 @@ var s [][30]int
 
 func f() *[40]int
 var c chan *[50]int
+var z complex128
 
 const (
 	n1 = len(b.a)
@@ -29,5 +30,8 @@ const (
 
 	n6 = cap(f())  // ERROR "is not a constant|is not constant"
 	n7 = cap(<-c) // ERROR "is not a constant|is not constant"
+	n8 = real(z) // ERROR "is not a constant|is not constant"
+	n9 = len([4]float64{real(z)}) // ERROR "is not a constant|is not constant"
+
 )
 
