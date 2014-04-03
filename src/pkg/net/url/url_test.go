@@ -251,6 +251,17 @@ var urltests = []URLTest{
 		},
 		"file:///home/adg/rabbits",
 	},
+	// "Windows" paths are no exception to the rule.
+	// See golang.org/issue/6027, especially comment #9.
+	{
+		"file:///C:/FooBar/Baz.txt",
+		&URL{
+			Scheme: "file",
+			Host:   "",
+			Path:   "/C:/FooBar/Baz.txt",
+		},
+		"file:///C:/FooBar/Baz.txt",
+	},
 	// case-insensitive scheme
 	{
 		"MaIlTo:webmaster@golang.org",
