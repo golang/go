@@ -1315,7 +1315,7 @@ sgen(Node *n, Node *res, int64 w)
 	} else {
 		gins(ACLD, N, N);	// paranoia.  TODO(rsc): remove?
 		// normal direction
-		if(q > 128) {
+		if(q > 128 || (q >= 4 && nacl)) {
 			gconreg(AMOVL, q, D_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
