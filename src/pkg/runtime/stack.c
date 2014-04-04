@@ -356,17 +356,17 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 		switch(bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3) {
 		case BitsDead:
 			if(runtime·debug.gcdead)
-				scanp[i] = (byte*)0x6868686868686868LL;
+				scanp[i] = (byte*)PoisonStack;
 			break;
 		case BitsScalar:
 			break;
 		case BitsPointer:
 			p = scanp[i];
-			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize || (uintptr)p == PoisonPtr)) {
+			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
 				m->traceback = 2;
-				runtime·printf("%p: %p %s\n", &scanp[i], p, runtime·funcname(f));
+				runtime·printf("runtime: bad pointer in frame %s at %p: %p\n", runtime·funcname(f), &scanp[i], p);
 				runtime·throw("bad pointer!");
 			}
 			if(minp <= p && p < maxp) {

@@ -1014,7 +1014,7 @@ ctxt = 0;
 		a = nod(OVARKILL, key, N);
 		typecheck(&a, Etop);
 		*init = list(*init, a);
-		a = nod(OVARKILL, var, N);
+		a = nod(OVARKILL, val, N);
 		typecheck(&a, Etop);
 		*init = list(*init, a);
 	}

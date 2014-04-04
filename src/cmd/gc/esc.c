@@ -185,12 +185,12 @@ visitcode(Node *n, uint32 min)
 typedef struct EscState EscState;
 
 static void escfunc(EscState*, Node *func);
-static void esclist(EscState*, NodeList *l);
-static void esc(EscState*, Node *n);
+static void esclist(EscState*, NodeList *l, Node *up);
+static void esc(EscState*, Node *n, Node *up);
 static void escloopdepthlist(EscState*, NodeList *l);
 static void escloopdepth(EscState*, Node *n);
 static void escassign(EscState*, Node *dst, Node *src);
-static void esccall(EscState*, Node*);
+static void esccall(EscState*, Node*, Node *up);
 static void escflows(EscState*, Node *dst, Node *src);
 static void escflood(EscState*, Node *dst);
 static void escwalk(EscState*, int level, Node *dst, Node *src);
@@ -347,7 +347,7 @@ escfunc(EscState *e, Node *func)
 				escflows(e, &e->theSink, ll->n);
 
 	escloopdepthlist(e, curfn->nbody);
-	esclist(e, curfn->nbody);
+	esclist(e, curfn->nbody, curfn);
 	curfn = savefn;
 	e->loopdepth = saveld;
 }
@@ -405,14 +405,14 @@ escloopdepth(EscState *e, Node *n)
 }
 
 static void
-esclist(EscState *e, NodeList *l)
+esclist(EscState *e, NodeList *l, Node *up)
 {
 	for(; l; l=l->next)
-		esc(e, l->n);
+		esc(e, l->n, up);
 }
 
 static void
-esc(EscState *e, Node *n)
+esc(EscState *e, Node *n, Node *up)
 {
 	int lno;
 	NodeList *ll, *lr;
@@ -424,19 +424,19 @@ esc(EscState *e, Node *n)
 	lno = setlineno(n);
 
 	// ninit logically runs at a different loopdepth than the rest of the for loop.
-	esclist(e, n->ninit);
+	esclist(e, n->ninit, n);
 
 	if(n->op == OFOR || n->op == ORANGE)
 		e->loopdepth++;
 
-	esc(e, n->left);
-	esc(e, n->right);
-	esc(e, n->ntest);
-	esc(e, n->nincr);
-	esclist(e, n->nbody);
-	esclist(e, n->nelse);
-	esclist(e, n->list);
-	esclist(e, n->rlist);
+	esc(e, n->left, n);
+	esc(e, n->right, n);
+	esc(e, n->ntest, n);
+	esc(e, n->nincr, n);
+	esclist(e, n->nbody, n);
+	esclist(e, n->nelse, n);
+	esclist(e, n->list, n);
+	esclist(e, n->rlist, n);
 
 	if(n->op == OFOR || n->op == ORANGE)
 		e->loopdepth--;
@@ -522,7 +522,7 @@ esc(EscState *e, Node *n)
 	case OCALLMETH:
 	case OCALLFUNC:
 	case OCALLINTER:
-		esccall(e, n);
+		esccall(e, n, up);
 		break;
 
 	case OAS2FUNC:	// x,y = f()
@@ -843,7 +843,7 @@ escassignfromtag(EscState *e, Strlit *note, NodeList *dsts, Node *src)
 // different for methods vs plain functions and for imported vs
 // this-package
 static void
-esccall(EscState *e, Node *n)
+esccall(EscState *e, Node *n, Node *up)
 {
 	NodeList *ll, *lr;
 	Node *a, *fn, *src;
@@ -965,7 +965,7 @@ esccall(EscState *e, Node *n)
 			n->right = src;
 		}
 		if(haspointers(t->type)) {
-			if(escassignfromtag(e, t->note, n->escretval, src) == EscNone) {
+			if(escassignfromtag(e, t->note, n->escretval, src) == EscNone && up->op != ODEFER && up->op != OPROC) {
 				a = src;
 				while(a->op == OCONVNOP)
 					a = a->left;
