@@ -1448,7 +1448,7 @@ sgen(Node *n, Node *ns, int64 w)
 		gins(ACLD, N, N);
 	} else {
 		// normal direction
-		if(q > 128) {
+		if(q > 128 || (nacl && q >= 4)) {
 			gconreg(movptr, q, D_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+

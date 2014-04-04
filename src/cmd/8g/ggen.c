@@ -75,7 +75,7 @@ zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *ax)
 		for(i = 0; i < cnt; i += widthreg) {
 			p = appendpp(p, AMOVL, D_AX, 0, D_SP+D_INDIR, frame+lo+i);
 		}
-	} else if(cnt <= 128*widthreg) {
+	} else if(!nacl && cnt <= 128*widthreg) {
 		p = appendpp(p, ALEAL, D_SP+D_INDIR, frame+lo, D_DI, 0);
 		p = appendpp(p, ADUFFZERO, D_NONE, 0, D_ADDR, 1*(128-cnt/widthreg));
 		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
@@ -176,7 +176,7 @@ clearfat(Node *nl)
 	agen(nl, &n1);
 	gconreg(AMOVL, 0, D_AX);
 
-	if(q > 128) {
+	if(q > 128 || (q >= 4 && nacl)) {
 		gconreg(AMOVL, q, D_CX);
 		gins(AREP, N, N);	// repeat
 		gins(ASTOSL, N, N);	// STOL AL,*(DI)+
