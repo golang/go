@@ -95,7 +95,7 @@ runtime·sighandler(void *v, int8 *note, G *gp)
 		if(ureg->ip != 0) {
 			sp = (uintptr*)ureg->sp;
 			*--sp = ureg->ip;
-			ureg->sp = (uint32)sp;
+			ureg->sp = (uint64)sp;
 		}
 		ureg->ip = (uintptr)runtime·sigpanic;
 		return NCONT;
