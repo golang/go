@@ -682,6 +682,24 @@ func TestHelperProcess(*testing.T) {
 		}
 		fmt.Fprintf(os.Stderr, "child: %s", response)
 		os.Exit(0)
+	case "exec":
+		cmd := exec.Command(args[1])
+		cmd.Dir = args[0]
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Child: %s %s", err, string(output))
+			os.Exit(1)
+		}
+		fmt.Printf("%s", string(output))
+		os.Exit(0)
+	case "lookpath":
+		p, err := exec.LookPath(args[0])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "LookPath failed: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Print(p)
+		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
 		os.Exit(2)
