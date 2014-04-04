@@ -23,20 +23,24 @@ func f2(b bool) {
 }
 
 func f3(b bool) {
-	print(0)
+	// Because x and y are ambiguously live, they appear
+	// live throughout the function, to avoid being poisoned
+	// in GODEBUG=gcdead=1 mode.
+
+	print(0) // ERROR "live at call to printint: x y$"
 	if b == false {
-		print(0) // nothing live here
+		print(0) // ERROR "live at call to printint: x y$"
 		return
 	}
 
 	if b {
 		var x *int
-		print(&x) // ERROR "live at call to printpointer: x$"
-		print(&x) // ERROR "live at call to printpointer: x$"
+		print(&x) // ERROR "live at call to printpointer: x y$"
+		print(&x) // ERROR "live at call to printpointer: x y$"
 	} else {
 		var y *int
-		print(&y) // ERROR "live at call to printpointer: y$"
-		print(&y) // ERROR "live at call to printpointer: y$"
+		print(&y) // ERROR "live at call to printpointer: x y$"
+		print(&y) // ERROR "live at call to printpointer: x y$"
 	}
 	print(0) // ERROR "live at call to printint: x y$" "x \(type \*int\) is ambiguously live" "y \(type \*int\) is ambiguously live"
 }
@@ -371,6 +375,29 @@ func f27(b bool) {
 	}
 	call27(func() {x++}) // ERROR "live at call to call27: autotmp_[0-9]+$"
 	call27(func() {x++}) // ERROR "live at call to call27: autotmp_[0-9]+$"
+	println()
+}
+
+// but defer does escape to later execution in the function
+
+func f27defer(b bool) {
+	x := 0
+	if b {
+		defer call27(func() {x++}) // ERROR "live at call to deferproc: autotmp_[0-9]+$" "live at call to deferreturn: autotmp_[0-9]+$"
+	}
+	defer call27(func() {x++}) // ERROR "live at call to deferproc: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to deferreturn: autotmp_[0-9]+ autotmp_[0-9]+$" "ambiguously live"
+	println() // ERROR "live at call to printnl: autotmp_[0-9]+ autotmp_[0-9]+$"
+} // ERROR "live at call to deferreturn: autotmp_[0-9]+ autotmp_[0-9]+$"
+
+// and newproc (go) escapes to the heap
+
+func f27go(b bool) {
+	x := 0
+	if b {
+		go call27(func() {x++}) // ERROR "live at call to new: &x" "live at call to newproc: &x$"
+	}
+	go call27(func() {x++}) // ERROR "live at call to new: &x"
+	println()
 }
 
 //go:noescape

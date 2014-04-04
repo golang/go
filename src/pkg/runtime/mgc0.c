@@ -1455,14 +1455,14 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
 			switch(bits) {
 			case BitsDead:
 				if(runtime·debug.gcdead)
-					*(uintptr*)scanp = PoisonPtr;
+					*(uintptr*)scanp = PoisonGC;
 				break;
 			case BitsScalar:
 				break;
 			case BitsPointer:
 				p = *(byte**)scanp;
 				if(p != nil) {
-					if(precise && (p < (byte*)PageSize || (uintptr)p == PoisonPtr)) {
+					if(precise && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
 						// Looks like a junk value in a pointer slot.
 						// Liveness analysis wrong?
 						m->traceback = 2;
@@ -1473,8 +1473,26 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
 				}
 				break;
 			case BitsMultiWord:
-				p = *(byte**)scanp;
-				if(p != nil) {
+				p = scanp;
+				word >>= BitsPerPointer;
+				scanp += PtrSize;
+				i--;
+				if(i == 0) {
+					// Get next chunk of bits
+					remptrs -= 32;
+					word = *wordp++;
+					if(remptrs < 32)
+						i = remptrs;
+					else
+						i = 32;
+					i /= BitsPerPointer;
+				}
+				switch(word & 3) {
+				case BitsString:
+					if(((String*)p)->len != 0)
+						markonly(((String*)p)->str);
+					break;
+				case BitsSlice:
 					word >>= BitsPerPointer;
 					scanp += PtrSize;
 					i--;
@@ -1488,25 +1506,19 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
 							i = 32;
 						i /= BitsPerPointer;
 					}
-					switch(word & 3) {
-					case BitsString:
-						if(((String*)(scanp - PtrSize))->len != 0)
-							markonly(p);
-						break;
-					case BitsSlice:
-						if(((Slice*)(scanp - PtrSize))->cap < ((Slice*)(scanp - PtrSize))->len) {
-							m->traceback = 2;
-							runtime·printf("bad slice in frame %s at %p: %p/%p/%p\n", runtime·funcname(f), scanp, ((byte**)scanp)[0], ((byte**)scanp)[1], ((byte**)scanp)[2]);
-							runtime·throw("slice capacity smaller than length");
-						}
-						if(((Slice*)(scanp - PtrSize))->cap != 0)
-							enqueue1(wbufp, (Obj){scanp - PtrSize, PtrSize, 0});
-						break;
-					case BitsIface:
-					case BitsEface:
-						scaninterfacedata(word & 3, scanp - PtrSize, afterprologue, wbufp);
-						break;
+					if(((Slice*)p)->cap < ((Slice*)p)->len) {
+						m->traceback = 2;
+						runtime·printf("bad slice in frame %s at %p: %p/%p/%p\n", runtime·funcname(f), p, ((byte**)p)[0], ((byte**)p)[1], ((byte**)p)[2]);
+						runtime·throw("slice capacity smaller than length");
 					}
+					if(((Slice*)p)->cap != 0)
+						enqueue1(wbufp, (Obj){p, PtrSize, 0});
+					break;
+				case BitsIface:
+				case BitsEface:
+					if(*(byte**)p != nil)
+						scaninterfacedata(word & 3, p, afterprologue, wbufp);
+					break;
 				}
 			}
 			word >>= BitsPerPointer;

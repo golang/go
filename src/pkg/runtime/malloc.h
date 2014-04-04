@@ -637,4 +637,5 @@ void	runtime·memorydump(void);
 int32	runtime·setgcpercent(int32);
 
 // Value we use to mark dead pointers when GODEBUG=gcdead=1.
-#define PoisonPtr ((uintptr)0x6969696969696969LL)
+#define PoisonGC ((uintptr)0xf969696969696969ULL)
+#define PoisonStack ((uintptr)0x6868686868686868ULL)

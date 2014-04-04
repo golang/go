@@ -69,6 +69,9 @@ struct BasicBlock {
 	// State to denote whether the block has been visited during a
 	// traversal.
 	int mark;
+	
+	// For use during livenessepilogue.
+	int lastbitmapindex;
 };
 
 // A collection of global state used by liveness analysis.
@@ -273,12 +276,21 @@ getvariables(Node *fn)
 	result = arraynew(0, sizeof(Node*));
 	for(ll = fn->dcl; ll != nil; ll = ll->next) {
 		if(ll->n->op == ONAME) {
+			// In order for GODEBUG=gcdead=1 to work, each bitmap needs
+			// to contain information about all variables covered by the bitmap.
+			// For local variables, the bitmap only covers the stkptrsize
+			// bytes in the frame where variables containing pointers live.
+			// For arguments and results, the bitmap covers all variables,
+			// so we must include all the variables, even the ones without
+			// pointers.
 			switch(ll->n->class) {
 			case PAUTO:
-			case PPARAM:
-			case PPARAMOUT:
 				if(haspointers(ll->n->type))
 					arrayadd(result, &ll->n);
+				break;
+			case PPARAM:
+			case PPARAMOUT:
+				arrayadd(result, &ll->n);
 				break;
 			}
 		}
@@ -1101,18 +1113,9 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 			// struct { byte *array; uintgo len; uintgo cap; }
 			if((*xoffset & (widthptr-1)) != 0)
 				fatal("twobitwalktype1: invalid TARRAY alignment, %T", t);
-			if(0) {
-				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 0);
-				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);
-				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2); // 3:1 = multiword/slice
-			} else {
-				// Until bug 7564 is fixed, we consider a slice as
-				// a separate pointer and integer.
-				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);  // 2 = live ptr
-				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2);  // 1 = live scalar
-			}
-			// mark capacity as live
-			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 4);  // 1 = live scalar
+			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 0);
+			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);
+			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2); // 3:1 = multiword/slice
 			*xoffset += t->width;
 		} else
 			for(i = 0; i < t->bound; i++)
@@ -1412,10 +1415,11 @@ static void
 livenessepilogue(Liveness *lv)
 {
 	BasicBlock *bb, *pred;
-	Bvec *livein, *liveout, *uevar, *varkill, *args, *locals, *avarinit, *any, *all;
+	Bvec *ambig, *livein, *liveout, *uevar, *varkill, *args, *locals, *avarinit, *any, *all;
 	Node *n;
 	Prog *p, *next;
 	int32 i, j, numlive, startmsg, nmsg, nvars, pos;
+	int64 xoffset;
 	char **msg;
 	Fmt fmt;
 
@@ -1427,6 +1431,7 @@ livenessepilogue(Liveness *lv)
 	avarinit = bvalloc(nvars);
 	any = bvalloc(nvars);
 	all = bvalloc(nvars);
+	ambig = bvalloc(localswords() * BitsPerPointer);
 	msg = nil;
 	nmsg = 0;
 	startmsg = 0;
@@ -1471,14 +1476,17 @@ livenessepilogue(Liveness *lv)
 					bvandnot(liveout, any, all);
 					if(!bvisempty(liveout)) {
 						for(pos = 0; pos < liveout->n; pos++) {
-							bvset(all, pos); // silence future warnings in this block
 							if(!bvget(liveout, pos))
 								continue;
+							bvset(all, pos); // silence future warnings in this block
 							n = *(Node**)arrayget(lv->vars, pos);
 							if(!n->needzero) {
 								n->needzero = 1;
 								if(debuglive >= 1)
 									warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
+								// Record in 'ambiguous' bitmap.
+								xoffset = n->xoffset + stkptrsize;
+								twobitwalktype1(n->type, &xoffset, ambig);
 							}
 						}
 					}
@@ -1509,6 +1517,11 @@ livenessepilogue(Liveness *lv)
 			if(p == bb->last)
 				break;
 		}
+		bb->lastbitmapindex = arraylength(lv->livepointers) - 1;
+	}
+	
+	for(i = 0; i < arraylength(lv->cfg); i++) {
+		bb = *(BasicBlock**)arrayget(lv->cfg, i);
 		
 		if(debuglive >= 1 && strcmp(curfn->nname->sym->name, "init") != 0 && curfn->nname->sym->name[0] != '.') {
 			nmsg = arraylength(lv->livepointers);
@@ -1519,7 +1532,7 @@ livenessepilogue(Liveness *lv)
 		}
 
 		// walk backward, emit pcdata and populate the maps
-		pos = arraylength(lv->livepointers) - 1;
+		pos = bb->lastbitmapindex;
 		if(pos < 0) {
 			// the first block we encounter should have the ATEXT so
 			// at no point should pos ever be less than zero.
@@ -1562,6 +1575,12 @@ livenessepilogue(Liveness *lv)
 				args = *(Bvec**)arrayget(lv->argslivepointers, pos);
 				locals = *(Bvec**)arrayget(lv->livepointers, pos);
 				twobitlivepointermap(lv, liveout, lv->vars, args, locals);
+				
+				// Ambiguously live variables are zeroed immediately after
+				// function entry. Mark them live for all the non-entry bitmaps
+				// so that GODEBUG=gcdead=1 mode does not poison them.
+				if(p->as == ACALL)
+					bvor(locals, locals, ambig);
 
 				// Show live pointer bitmaps.
 				// We're interpreting the args and locals bitmap instead of liveout so that we
@@ -1628,6 +1647,7 @@ livenessepilogue(Liveness *lv)
 	free(avarinit);
 	free(any);
 	free(all);
+	free(ambig);
 	
 	flusherrors();
 }
@@ -1772,7 +1792,7 @@ printbitset(int printed, char *name, Array *vars, Bvec *bits)
 static void
 livenessprintdebug(Liveness *lv)
 {
-	int i, j, printed, nsafe;
+	int i, j, pcdata, printed;
 	BasicBlock *bb;
 	Prog *p;
 	Bvec *uevar, *varkill, *avarinit, *args, *locals;
@@ -1784,7 +1804,7 @@ livenessprintdebug(Liveness *lv)
 	varkill = bvalloc(arraylength(lv->vars));
 	avarinit = bvalloc(arraylength(lv->vars));
 
-	nsafe = 0;
+	pcdata = 0;
 	for(i = 0; i < arraylength(lv->cfg); i++) {
 		if(i > 0)
 			print("\n");
@@ -1815,6 +1835,8 @@ livenessprintdebug(Liveness *lv)
 		// program listing, with individual effects listed
 		for(p = bb->first;; p = p->link) {
 			print("%P\n", p);
+			if(p->as == APCDATA && p->from.offset == PCDATA_StackMapIndex)
+				pcdata = p->to.offset;
 			progeffects(p, lv->vars, uevar, varkill, avarinit);
 			printed = 0;
 			printed = printbitset(printed, "uevar", lv->vars, uevar);
@@ -1823,9 +1845,8 @@ livenessprintdebug(Liveness *lv)
 			if(printed)
 				print("\n");
 			if(issafepoint(p)) {
-				args = *(Bvec**)arrayget(lv->argslivepointers, nsafe);
-				locals = *(Bvec**)arrayget(lv->livepointers, nsafe);
-				nsafe++;
+				args = *(Bvec**)arrayget(lv->argslivepointers, pcdata);
+				locals = *(Bvec**)arrayget(lv->livepointers, pcdata);
 				print("\tlive=");
 				printed = 0;
 				for(j = 0; j < arraylength(lv->vars); j++) {
