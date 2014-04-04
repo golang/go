@@ -32,7 +32,7 @@ func (c *TCPConn) CloseRead() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.CloseRead()
+	return c.fd.closeRead()
 }
 
 // CloseWrite shuts down the writing side of the TCP connection.
@@ -41,7 +41,7 @@ func (c *TCPConn) CloseWrite() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.CloseWrite()
+	return c.fd.closeWrite()
 }
 
 // SetLinger sets the behavior of Close() on a connection which still

@@ -222,7 +222,7 @@ func (c *UnixConn) CloseRead() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.CloseRead()
+	return c.fd.closeRead()
 }
 
 // CloseWrite shuts down the writing side of the Unix domain connection.
@@ -231,7 +231,7 @@ func (c *UnixConn) CloseWrite() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return c.fd.CloseWrite()
+	return c.fd.closeWrite()
 }
 
 // DialUnix connects to the remote address raddr on the network net,
