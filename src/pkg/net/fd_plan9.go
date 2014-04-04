@@ -150,14 +150,14 @@ func (fd *netFD) Write(b []byte) (n int, err error) {
 	return fd.data.Write(b)
 }
 
-func (fd *netFD) CloseRead() error {
+func (fd *netFD) closeRead() error {
 	if !fd.ok() {
 		return syscall.EINVAL
 	}
 	return syscall.EPLAN9
 }
 
-func (fd *netFD) CloseWrite() error {
+func (fd *netFD) closeWrite() error {
 	if !fd.ok() {
 		return syscall.EINVAL
 	}
