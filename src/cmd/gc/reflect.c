@@ -125,6 +125,8 @@ mapbucket(Type *t)
 
 	keytype = t->down;
 	valtype = t->type;
+	dowidth(keytype);
+	dowidth(valtype);
 	if(keytype->width > MAXKEYSIZE)
 		keytype = ptrto(keytype);
 	if(valtype->width > MAXVALSIZE)
