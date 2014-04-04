@@ -1419,7 +1419,7 @@ livenessepilogue(Liveness *lv)
 	Node *n;
 	Prog *p, *next;
 	int32 i, j, numlive, startmsg, nmsg, nvars, pos;
-	int64 xoffset;
+	vlong xoffset;
 	char **msg;
 	Fmt fmt;
 
