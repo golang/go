@@ -2304,10 +2304,13 @@ keydup(Node *n, Node *hash[], ulong nhash)
 	ulong b;
 	double d;
 	int i;
-	Node *a;
+	Node *a, *orign;
 	Node cmp;
 	char *s;
 
+	orign = n;
+	if(n->op == OCONVIFACE)
+		n = n->left;
 	evconst(n);
 	if(n->op != OLITERAL)
 		return;	// we dont check variables
@@ -2340,17 +2343,29 @@ keydup(Node *n, Node *hash[], ulong nhash)
 	for(a=hash[h]; a!=N; a=a->ntest) {
 		cmp.op = OEQ;
 		cmp.left = n;
-		cmp.right = a;
-		evconst(&cmp);
-		b = cmp.val.u.bval;
+		if(a->op == OCONVIFACE && orign->op == OCONVIFACE) {
+			if(a->left->type == n->type) {
+				cmp.right = a->left;
+				evconst(&cmp);
+				b = cmp.val.u.bval;
+			}
+			else {
+				b = 0;
+			}
+		}
+		else {
+			cmp.right = a;
+			evconst(&cmp);
+			b = cmp.val.u.bval;
+		}
 		if(b) {
 			// too lazy to print the literal
 			yyerror("duplicate key %N in map literal", n);
 			return;
 		}
 	}
-	n->ntest = hash[h];
-	hash[h] = n;
+	orign->ntest = hash[h];
+	hash[h] = orign;
 }
 
 static void
