@@ -1323,7 +1323,7 @@ func Getsockopt(s Handle, level int32, optname int32, optval *byte, optlen *int3
 	return
 }
 
-func bind(s Handle, name uintptr, namelen int32) (err error) {
+func bind(s Handle, name unsafe.Pointer, namelen int32) (err error) {
 	r1, _, e1 := Syscall(procbind.Addr(), 3, uintptr(s), uintptr(name), uintptr(namelen))
 	if r1 == socket_error {
 		if e1 != 0 {
@@ -1335,7 +1335,7 @@ func bind(s Handle, name uintptr, namelen int32) (err error) {
 	return
 }
 
-func connect(s Handle, name uintptr, namelen int32) (err error) {
+func connect(s Handle, name unsafe.Pointer, namelen int32) (err error) {
 	r1, _, e1 := Syscall(procconnect.Addr(), 3, uintptr(s), uintptr(name), uintptr(namelen))
 	if r1 == socket_error {
 		if e1 != 0 {
