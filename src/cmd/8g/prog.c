@@ -138,11 +138,16 @@ static ProgInfo progtable[ALAST] = {
 	[AFMOVW]=	{SizeW | LeftAddr | RightWrite},
 	[AFMOVV]=	{SizeQ | LeftAddr | RightWrite},
 
-	[AFMOVDP]=	{SizeD | LeftRead | RightAddr},
-	[AFMOVFP]=	{SizeF | LeftRead | RightAddr},
-	[AFMOVLP]=	{SizeL | LeftRead | RightAddr},
-	[AFMOVWP]=	{SizeW | LeftRead | RightAddr},
-	[AFMOVVP]=	{SizeQ | LeftRead | RightAddr},
+	// These instructions are marked as RightAddr
+	// so that the register optimizer does not try to replace the
+	// memory references with integer register references.
+	// But they do not use the previous value at the address, so
+	// we also mark them RightWrite.
+	[AFMOVDP]=	{SizeD | LeftRead | RightWrite | RightAddr},
+	[AFMOVFP]=	{SizeF | LeftRead | RightWrite | RightAddr},
+	[AFMOVLP]=	{SizeL | LeftRead | RightWrite | RightAddr},
+	[AFMOVWP]=	{SizeW | LeftRead | RightWrite | RightAddr},
+	[AFMOVVP]=	{SizeQ | LeftRead | RightWrite | RightAddr},
 
 	[AFMULD]=	{SizeD | LeftAddr | RightRdwr},
 	[AFMULDP]=	{SizeD | LeftAddr | RightRdwr},
