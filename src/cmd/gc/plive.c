@@ -755,7 +755,15 @@ Next:
 					if(prog->as == AVARDEF || prog->as == AVARKILL)
 						bvset(varkill, pos);
 				} else {
-					if(info.flags & (RightRead | RightAddr))
+					// RightRead is a read, obviously.
+					// RightAddr by itself is also implicitly a read.
+					//
+					// RightAddr|RightWrite means that the address is being taken
+					// but only so that the instruction can write to the value.
+					// It is not a read. It is equivalent to RightWrite except that
+					// having the RightAddr bit set keeps the registerizer from
+					// trying to substitute a register for the memory location.
+					if((info.flags & RightRead) || (info.flags & (RightAddr|RightWrite)) == RightAddr)
 						bvset(uevar, pos);
 					if(info.flags & RightWrite)
 						if(to->node != nil && (!isfat(to->node->type) || prog->as == AVARDEF))
