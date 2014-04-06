@@ -42,7 +42,7 @@ var godocTests = []struct {
 	{
 		args: []string{"nonexistingpkg"},
 		matches: []string{
-			`no such file or directory|does not exist`,
+			`no such file or directory|does not exist|cannot find the file`,
 		},
 	},
 	{
