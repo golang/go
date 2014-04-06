@@ -523,8 +523,8 @@ const socket_error = uintptr(^uint32(0))
 //sys	socket(af int32, typ int32, protocol int32) (handle Handle, err error) [failretval==InvalidHandle] = ws2_32.socket
 //sys	Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (err error) [failretval==socket_error] = ws2_32.setsockopt
 //sys	Getsockopt(s Handle, level int32, optname int32, optval *byte, optlen *int32) (err error) [failretval==socket_error] = ws2_32.getsockopt
-//sys	bind(s Handle, name uintptr, namelen int32) (err error) [failretval==socket_error] = ws2_32.bind
-//sys	connect(s Handle, name uintptr, namelen int32) (err error) [failretval==socket_error] = ws2_32.connect
+//sys	bind(s Handle, name unsafe.Pointer, namelen int32) (err error) [failretval==socket_error] = ws2_32.bind
+//sys	connect(s Handle, name unsafe.Pointer, namelen int32) (err error) [failretval==socket_error] = ws2_32.connect
 //sys	getsockname(s Handle, rsa *RawSockaddrAny, addrlen *int32) (err error) [failretval==socket_error] = ws2_32.getsockname
 //sys	getpeername(s Handle, rsa *RawSockaddrAny, addrlen *int32) (err error) [failretval==socket_error] = ws2_32.getpeername
 //sys	listen(s Handle, backlog int32) (err error) [failretval==socket_error] = ws2_32.listen
@@ -579,7 +579,7 @@ type RawSockaddrAny struct {
 }
 
 type Sockaddr interface {
-	sockaddr() (ptr uintptr, len int32, err error) // lowercase; only we can define Sockaddrs
+	sockaddr() (ptr unsafe.Pointer, len int32, err error) // lowercase; only we can define Sockaddrs
 }
 
 type SockaddrInet4 struct {
@@ -588,9 +588,9 @@ type SockaddrInet4 struct {
 	raw  RawSockaddrInet4
 }
 
-func (sa *SockaddrInet4) sockaddr() (uintptr, int32, error) {
+func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, int32, error) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
-		return 0, 0, EINVAL
+		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_INET
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
@@ -599,7 +599,7 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, int32, error) {
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
-	return uintptr(unsafe.Pointer(&sa.raw)), int32(unsafe.Sizeof(sa.raw)), nil
+	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
 }
 
 type SockaddrInet6 struct {
@@ -609,9 +609,9 @@ type SockaddrInet6 struct {
 	raw    RawSockaddrInet6
 }
 
-func (sa *SockaddrInet6) sockaddr() (uintptr, int32, error) {
+func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, int32, error) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
-		return 0, 0, EINVAL
+		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_INET6
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
@@ -621,16 +621,16 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, int32, error) {
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
-	return uintptr(unsafe.Pointer(&sa.raw)), int32(unsafe.Sizeof(sa.raw)), nil
+	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
 }
 
 type SockaddrUnix struct {
 	Name string
 }
 
-func (sa *SockaddrUnix) sockaddr() (uintptr, int32, error) {
+func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, int32, error) {
 	// TODO(brainman): implement SockaddrUnix.sockaddr()
-	return 0, 0, EWINDOWS
+	return nil, 0, EWINDOWS
 }
 
 func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
@@ -754,7 +754,7 @@ func LoadConnectEx() error {
 	return connectExFunc.err
 }
 
-func connectEx(s Handle, name uintptr, namelen int32, sendBuf *byte, sendDataLen uint32, bytesSent *uint32, overlapped *Overlapped) (err error) {
+func connectEx(s Handle, name unsafe.Pointer, namelen int32, sendBuf *byte, sendDataLen uint32, bytesSent *uint32, overlapped *Overlapped) (err error) {
 	r1, _, e1 := Syscall9(connectExFunc.addr, 7, uintptr(s), uintptr(name), uintptr(namelen), uintptr(unsafe.Pointer(sendBuf)), uintptr(sendDataLen), uintptr(unsafe.Pointer(bytesSent)), uintptr(unsafe.Pointer(overlapped)), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
