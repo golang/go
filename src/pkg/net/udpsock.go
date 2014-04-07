@@ -4,10 +4,6 @@
 
 package net
 
-import "errors"
-
-var ErrWriteToConnected = errors.New("use of WriteTo with pre-connected UDP")
-
 // UDPAddr represents the address of a UDP end point.
 type UDPAddr struct {
 	IP   IP
