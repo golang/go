@@ -17,18 +17,31 @@
 //	godex math
 //	godex math.Sin
 //	godex math.Sin fmt.Printf
-//      godex go/types
+//	godex go/types
 //
-// All but the last path element may contain dots. godex automatically
-// tries all possible package path prefixes for non-standard library
-// packages if only a partial package path is given. For instance, for
-// the path "go/types", godex prepends "code.google.com/p/go.tools".
+// godex automatically tries all possible package path prefixes if only a
+// partial package path is given. For instance, for the path "go/types",
+// godex prepends "code.google.com/p/go.tools".
 //
 // The prefixes are computed by searching the directories specified by
-// the GOPATH environment variable (and by excluding the build os and
-// architecture specific directory names from the path). The search
-// order is depth-first and alphabetic; for a partial path "foo", a
-// package "a/foo" is found before "b/foo".
+// the GOROOT and GOPATH environment variables (and by excluding the
+// build OS- and architecture-specific directory names from the path).
+// The search order is depth-first and alphabetic; for a partial path
+// "foo", a package "a/foo" is found before "b/foo".
+//
+// Absolute and relative paths may be provided, which disable automatic
+// prefix generation:
+//
+//	godex $GOROOT/pkg/darwin_amd64/sort
+//	godex ./sort
+//
+// All but the last path element may contain dots; a dot in the last path
+// element separates the package path from the package object name. If the
+// last path element contains a dot, terminate the argument with another
+// dot (indicating an empty object name). For instance, the path for a
+// package foo.bar would be specified as in:
+//
+//	godex foo.bar.
 //
 // The flags are:
 //
@@ -52,4 +65,5 @@
 //
 package main
 
-// BUG(gri) std-library packages should also benefit from auto-generated prefixes.
+// BUG(gri): support for -s=source is not yet implemented
+// BUG(gri): gccgo-importing appears to have occasional problems stalling godex; try -s=gc as work-around
