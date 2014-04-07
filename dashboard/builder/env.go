@@ -20,6 +20,7 @@ import (
 // to the envv of its subprocesses.
 var extraEnv = []string{
 	"GOARM",
+	"GO386",
 	"CGO_ENABLED",
 
 	// For Unix derivatives.
