@@ -166,7 +166,6 @@ time ./run || exit 1
 
 [ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
 (xcd ../doc/articles/wiki
-make clean || exit 1
 ./test.bash || exit 1
 ) || exit $?
 
