@@ -1292,18 +1292,18 @@ function cgAddChild(tree, ul, cgn) {
 			{{end}}
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
-				<dd><a href="#{{$name_html}}">{{node_html $ .Decl false}}</a></dd>
+				<dd><a href="#{{$name_html}}">{{node_html $ .Decl false | sanitize}}</a></dd>
 			{{end}}
 			{{range .Types}}
 				{{$tname_html := html .Name}}
 				<dd><a href="#{{$tname_html}}">type {{$tname_html}}</a></dd>
 				{{range .Funcs}}
 					{{$name_html := html .Name}}
-					<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html $ .Decl false}}</a></dd>
+					<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html $ .Decl false | sanitize}}</a></dd>
 				{{end}}
 				{{range .Methods}}
 					{{$name_html := html .Name}}
-					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html $ .Decl false}}</a></dd>
+					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html $ .Decl false | sanitize}}</a></dd>
 				{{end}}
 			{{end}}
 			{{if $.Notes}}

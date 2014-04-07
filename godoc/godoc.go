@@ -76,6 +76,7 @@ func (p *Presentation) initFuncMap() {
 		"node_html":    p.node_htmlFunc,
 		"comment_html": comment_htmlFunc,
 		"comment_text": comment_textFunc,
+		"sanitize":     sanitizeFunc,
 
 		// support for URL attributes
 		"pkgLink":     pkgLinkFunc,
@@ -226,6 +227,50 @@ func comment_textFunc(comment, indent, preIndent string) string {
 		return ""
 	}
 	return buf.String()
+}
+
+// sanitizeFunc sanitizes the argument src by replacing newlines with
+// blanks, removing extra blanks, and by removing trailing whitespace
+// and commas before closing parentheses.
+func sanitizeFunc(src string) string {
+	buf := make([]byte, len(src))
+	j := 0      // buf index
+	comma := -1 // comma index if >= 0
+	for i := 0; i < len(src); i++ {
+		ch := src[i]
+		switch ch {
+		case '\t', '\n', ' ':
+			// ignore whitespace at the beginning, after a blank, or after opening parentheses
+			if j == 0 {
+				continue
+			}
+			if p := buf[j-1]; p == ' ' || p == '(' || p == '{' || p == '[' {
+				continue
+			}
+			// replace all whitespace with blanks
+			ch = ' '
+		case ',':
+			comma = j
+		case ')', '}', ']':
+			// remove any trailing comma
+			if comma >= 0 {
+				j = comma
+			}
+			// remove any trailing whitespace
+			if j > 0 && buf[j-1] == ' ' {
+				j--
+			}
+		default:
+			comma = -1
+		}
+		buf[j] = ch
+		j++
+	}
+	// remove trailing blank, if any
+	if j > 0 && buf[j-1] == ' ' {
+		j--
+	}
+	return string(buf[:j])
 }
 
 type PageInfo struct {
@@ -576,7 +621,8 @@ func (p *Presentation) writeNode(w io.Writer, fset *token.FileSet, x interface{}
 	}
 }
 
-// WriteNote writes x to w.
+// WriteNode writes x to w.
+// TODO(bgarcia) Is this method needed? It's just a wrapper for p.writeNode.
 func (p *Presentation) WriteNode(w io.Writer, fset *token.FileSet, x interface{}) {
 	p.writeNode(w, fset, x)
 }
