@@ -2522,7 +2522,9 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
 	}
 	ldflags := stringList(osldflags[goos], cflags, cgoLDFLAGS, cxxlib)
 	target := filepath.Join(obj, soname)
-	b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", target, gccObj, extraObj, ldflags)
+	if err := b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", target, gccObj, extraObj, ldflags); err != nil {
+		return "", "", err
+	}
 
 	return obj + goFile, cObj, nil
 }
