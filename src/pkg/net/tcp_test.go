@@ -97,6 +97,7 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 		b.Fatalf("Listen failed: %v", err)
 	}
 	defer ln.Close()
+	serverSem := make(chan bool, numConcurrent)
 	// Acceptor.
 	go func() {
 		for {
@@ -104,9 +105,13 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 			if err != nil {
 				break
 			}
+			serverSem <- true
 			// Server connection.
 			go func(c Conn) {
-				defer c.Close()
+				defer func() {
+					c.Close()
+					<-serverSem
+				}()
 				if timeout {
 					c.SetDeadline(time.Now().Add(time.Hour)) // Not intended to fire.
 				}
@@ -119,13 +124,13 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 			}(c)
 		}
 	}()
-	sem := make(chan bool, numConcurrent)
+	clientSem := make(chan bool, numConcurrent)
 	for i := 0; i < conns; i++ {
-		sem <- true
+		clientSem <- true
 		// Client connection.
 		go func() {
 			defer func() {
-				<-sem
+				<-clientSem
 			}()
 			c, err := Dial("tcp", ln.Addr().String())
 			if err != nil {
@@ -144,8 +149,9 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 			}
 		}()
 	}
-	for i := 0; i < cap(sem); i++ {
-		sem <- true
+	for i := 0; i < numConcurrent; i++ {
+		clientSem <- true
+		serverSem <- true
 	}
 }
 
