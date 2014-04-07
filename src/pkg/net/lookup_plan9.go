@@ -63,7 +63,7 @@ func queryCS1(net string, ip IP, port int) (clone, dest string, err error) {
 	}
 	f := getFields(lines[0])
 	if len(f) < 2 {
-		return "", "", errors.New("net: bad response from ndb/cs")
+		return "", "", errors.New("bad response from ndb/cs")
 	}
 	clone, dest = f[0], f[1]
 	return
@@ -199,7 +199,7 @@ func lookupCNAME(name string) (cname string, err error) {
 			return f[2] + ".", nil
 		}
 	}
-	return "", errors.New("net: bad response from ndb/dns")
+	return "", errors.New("bad response from ndb/dns")
 }
 
 func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {

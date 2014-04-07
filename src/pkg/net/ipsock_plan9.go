@@ -60,12 +60,12 @@ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
 	if i >= 0 {
 		addr = ParseIP(s[:i])
 		if addr == nil {
-			return nil, 0, errors.New("net: parsing IP failed")
+			return nil, 0, errors.New("parsing IP failed")
 		}
 	}
 	p, _, ok := dtoi(s[i+1:], 0)
 	if !ok {
-		return nil, 0, errors.New("net: parsing port failed")
+		return nil, 0, errors.New("parsing port failed")
 	}
 	if p < 0 || p > 0xFFFF {
 		return nil, 0, &AddrError{"invalid port", string(p)}

@@ -7,11 +7,11 @@ package net
 import "errors"
 
 var (
-	errInvalidInterface         = errors.New("net: invalid interface")
-	errInvalidInterfaceIndex    = errors.New("net: invalid interface index")
-	errInvalidInterfaceName     = errors.New("net: invalid interface name")
-	errNoSuchInterface          = errors.New("net: no such interface")
-	errNoSuchMulticastInterface = errors.New("net: no such multicast interface")
+	errInvalidInterface         = errors.New("invalid network interface")
+	errInvalidInterfaceIndex    = errors.New("invalid network interface index")
+	errInvalidInterfaceName     = errors.New("invalid network interface name")
+	errNoSuchInterface          = errors.New("no such network interface")
+	errNoSuchMulticastInterface = errors.New("no such multicast network interface")
 )
 
 // Interface represents a mapping between network interface name
