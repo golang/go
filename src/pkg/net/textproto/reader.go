@@ -562,19 +562,12 @@ const toLower = 'a' - 'A'
 // allowed to mutate the provided byte slice before returning the
 // string.
 func canonicalMIMEHeaderKey(a []byte) string {
-	// Look for it in commonHeaders , so that we can avoid an
-	// allocation by sharing the strings among all users
-	// of textproto. If we don't find it, a has been canonicalized
-	// so just return string(a).
 	upper := true
-	lo := 0
-	hi := len(commonHeaders)
-	for i := 0; i < len(a); i++ {
+	for i, c := range a {
 		// Canonicalize: first letter upper case
 		// and upper case after each dash.
 		// (Host, User-Agent, If-Modified-Since).
 		// MIME headers are ASCII only, so no Unicode issues.
-		c := a[i]
 		if c == ' ' {
 			c = '-'
 		} else if upper && 'a' <= c && c <= 'z' {
@@ -584,60 +577,61 @@ func canonicalMIMEHeaderKey(a []byte) string {
 		}
 		a[i] = c
 		upper = c == '-' // for next time
-
-		if lo < hi {
-			for lo < hi && (len(commonHeaders[lo]) <= i || commonHeaders[lo][i] < c) {
-				lo++
-			}
-			for hi > lo && commonHeaders[hi-1][i] > c {
-				hi--
-			}
-		}
 	}
-	if lo < hi && len(commonHeaders[lo]) == len(a) {
-		return commonHeaders[lo]
+	// The compiler recognizes m[string(byteSlice)] as a special
+	// case, so a copy of a's bytes into a new string does not
+	// happen in this map lookup:
+	if v := commonHeader[string(a)]; v != "" {
+		return v
 	}
 	return string(a)
 }
 
-var commonHeaders = []string{
-	"Accept",
-	"Accept-Charset",
-	"Accept-Encoding",
-	"Accept-Language",
-	"Accept-Ranges",
-	"Cache-Control",
-	"Cc",
-	"Connection",
-	"Content-Id",
-	"Content-Language",
-	"Content-Length",
-	"Content-Transfer-Encoding",
-	"Content-Type",
-	"Cookie",
-	"Date",
-	"Dkim-Signature",
-	"Etag",
-	"Expires",
-	"From",
-	"Host",
-	"If-Modified-Since",
-	"If-None-Match",
-	"In-Reply-To",
-	"Last-Modified",
-	"Location",
-	"Message-Id",
-	"Mime-Version",
-	"Pragma",
-	"Received",
-	"Return-Path",
-	"Server",
-	"Set-Cookie",
-	"Subject",
-	"To",
-	"User-Agent",
-	"Via",
-	"X-Forwarded-For",
-	"X-Imforwards",
-	"X-Powered-By",
+// commonHeader interns common header strings.
+var commonHeader = make(map[string]string)
+
+func init() {
+	for _, v := range []string{
+		"Accept",
+		"Accept-Charset",
+		"Accept-Encoding",
+		"Accept-Language",
+		"Accept-Ranges",
+		"Cache-Control",
+		"Cc",
+		"Connection",
+		"Content-Id",
+		"Content-Language",
+		"Content-Length",
+		"Content-Transfer-Encoding",
+		"Content-Type",
+		"Cookie",
+		"Date",
+		"Dkim-Signature",
+		"Etag",
+		"Expires",
+		"From",
+		"Host",
+		"If-Modified-Since",
+		"If-None-Match",
+		"In-Reply-To",
+		"Last-Modified",
+		"Location",
+		"Message-Id",
+		"Mime-Version",
+		"Pragma",
+		"Received",
+		"Return-Path",
+		"Server",
+		"Set-Cookie",
+		"Subject",
+		"To",
+		"User-Agent",
+		"Via",
+		"X-Forwarded-For",
+		"X-Imforwards",
+		"X-Powered-By",
+	} {
+		commonHeader[v] = v
+	}
 }
