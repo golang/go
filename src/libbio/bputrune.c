@@ -36,7 +36,8 @@ Bputrune(Biobuf *bp, long c)
 
 	rune = (Rune)c;
 	if(rune < Runeself) {
-		BPUTC(bp, (int)rune);
+		n = BPUTC(bp, (int)rune);
+		USED(n);
 		return 1;
 	}
 	n = runetochar(str, &rune);

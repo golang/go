@@ -195,33 +195,36 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 			break;
 
 		if(s.value == morestack) {
-			// This code is old and won't work anymore.
-			// But no one uses it anyway.
-			// Leave it obviously broken until someone needs it.
-			werrstr("morestack not implemented correctly");
-			return -1;
-			// In the middle of morestack.
-			// Caller is m->morepc.
-			// Caller's caller is in m->morearg.
-			// TODO(rsc): 386
-			geta(map, offsetof(struct UregAmd64, r14), &m);
-
-			pc = 0;
-			sp = 0;
-			pc1 = 0;
-			s1 = s;
-			memset(&s, 0, sizeof s);
-			geta(map, m+1*mach->szaddr, &pc1);	// m->morepc
-			geta(map, m+2*mach->szaddr, &sp);	// m->morebuf.sp
-			geta(map, m+3*mach->szaddr, &pc);	// m->morebuf.pc
-			findsym(pc1, CTEXT, &s);
-			(*trace)(map, pc1, sp-mach->szaddr, &s1);	// morestack symbol; caller's PC/SP
-
-			// caller's caller
-			s1 = s;
-			findsym(pc, CTEXT, &s);
-			(*trace)(map, pc, sp, &s1);		// morestack's caller; caller's caller's PC/SP
-			continue;
+			if (0) {
+				// This code is old and won't work anymore.
+				// But no one uses it anyway.
+				// Leave it obviously broken until someone needs it.
+				// In the middle of morestack.
+				// Caller is m->morepc.
+				// Caller's caller is in m->morearg.
+				// TODO(rsc): 386
+				geta(map, offsetof(struct UregAmd64, r14), &m);
+	
+				pc = 0;
+				sp = 0;
+				pc1 = 0;
+				s1 = s;
+				memset(&s, 0, sizeof s);
+				geta(map, m+1*mach->szaddr, &pc1);	// m->morepc
+				geta(map, m+2*mach->szaddr, &sp);	// m->morebuf.sp
+				geta(map, m+3*mach->szaddr, &pc);	// m->morebuf.pc
+				findsym(pc1, CTEXT, &s);
+				(*trace)(map, pc1, sp-mach->szaddr, &s1);	// morestack symbol; caller's PC/SP
+	
+				// caller's caller
+				s1 = s;
+				findsym(pc, CTEXT, &s);
+				(*trace)(map, pc, sp, &s1);		// morestack's caller; caller's caller's PC/SP
+				continue;
+			} else {
+				werrstr("morestack not implemented correctly");
+				return -1;
+			}
 		}
 
 		if(pc == lessstack) {
