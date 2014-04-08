@@ -567,22 +567,6 @@ func TestRaceChanCloseLen(t *testing.T) {
 	v = 2
 }
 
-func TestRaceChanSameCell(t *testing.T) {
-	c := make(chan int, 2)
-	v := 0
-	go func() {
-		v = 1
-		c <- 42
-		<-c
-		c <- 42
-		<-c
-	}()
-	time.Sleep(1e7)
-	c <- 43
-	<-c
-	_ = v
-}
-
 func TestRaceChanCloseSend(t *testing.T) {
 	compl := make(chan bool, 1)
 	c := make(chan int, 10)
@@ -641,16 +625,35 @@ func TestNoRaceSelectMutex(t *testing.T) {
 
 func TestRaceChanSem(t *testing.T) {
 	done := make(chan struct{})
-	mtx := make(chan struct{}, 2)
+	mtx := make(chan bool, 2)
 	data := 0
 	go func() {
-		mtx <- struct{}{}
+		mtx <- true
 		data = 42
 		<-mtx
 		done <- struct{}{}
 	}()
-	mtx <- struct{}{}
+	mtx <- true
 	data = 43
 	<-mtx
 	<-done
+}
+
+func TestNoRaceChanWaitGroup(t *testing.T) {
+	const N = 10
+	chanWg := make(chan bool, N/2)
+	data := make([]int, N)
+	for i := 0; i < N; i++ {
+		chanWg <- true
+		go func(i int) {
+			data[i] = 42
+			<-chanWg
+		}(i)
+	}
+	for i := 0; i < cap(chanWg); i++ {
+		chanWg <- true
+	}
+	for i := 0; i < N; i++ {
+		_ = data[i]
+	}
 }
