@@ -685,3 +685,30 @@ func TestUnmarshaler(t *testing.T) {
 		t.Errorf("m=%#+v\n", m)
 	}
 }
+
+type Pea struct {
+	Cotelydon string
+}
+
+type Pod struct {
+	Pea interface{} `xml:"Pea"`
+}
+
+// https://code.google.com/p/go/issues/detail?id=6836
+func TestUnmarshalIntoInterface(t *testing.T) {
+	pod := new(Pod)
+	pod.Pea = new(Pea)
+	xml := `<Pod><Pea><Cotelydon>Green stuff</Cotelydon></Pea></Pod>`
+	err := Unmarshal([]byte(xml), pod)
+	if err != nil {
+		t.Fatalf("failed to unmarshal %q: %v", xml, err)
+	}
+	pea, ok := pod.Pea.(*Pea)
+	if !ok {
+		t.Fatalf("unmarshalled into wrong type: have %T want *Pea", pod.Pea)
+	}
+	have, want := pea.Cotelydon, "Green stuff"
+	if have != want {
+		t.Errorf("failed to unmarshal into interface, have %q want %q", have, want)
+	}
+}

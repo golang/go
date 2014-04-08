@@ -284,6 +284,15 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 		}
 	}
 
+	// Load value from interface, but only if the result will be
+	// usefully addressable.
+	if val.Kind() == reflect.Interface && !val.IsNil() {
+		e := val.Elem()
+		if e.Kind() == reflect.Ptr && !e.IsNil() {
+			val = e
+		}
+	}
+
 	if val.Kind() == reflect.Ptr {
 		if val.IsNil() {
 			val.Set(reflect.New(val.Type().Elem()))
