@@ -257,3 +257,20 @@ func growStackWithCallback(cb func()) {
 		f(i)
 	}
 }
+
+// TestDeferPtrs tests the adjustment of Defer's argument pointers (p aka &y)
+// during a stack copy.
+func set(p *int, x int) {
+	*p = x
+}
+func TestDeferPtrs(t *testing.T) {
+	var y int
+
+	defer func() {
+		if y != 42 {
+			t.Errorf("defer's stack references were not adjusted appropriately")
+		}
+	}()
+	defer set(&y, 42)
+	growStack()
+}
