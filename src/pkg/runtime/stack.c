@@ -194,7 +194,7 @@ runtime·oldstack(void)
 			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, (uintptr)m->cret, (uintptr)argsize);
 	}
 
-	// gp->status is usually Grunning, but it could be Gsyscall if a stack split
+	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
 	// happens during a function call inside entersyscall.
 	oldstatus = gp->status;
 	
@@ -318,13 +318,61 @@ static int32
 copyabletopsegment(G *gp)
 {
 	CopyableInfo cinfo;
+	Defer *d;
+	Func *f;
+	FuncVal *fn;
+	StackMap *stackmap;
 
 	cinfo.stk = (byte*)gp->stackguard - StackGuard;
 	cinfo.base = (byte*)gp->stackbase + sizeof(Stktop);
 	cinfo.frames = 0;
+
+	// Check that each frame is copyable.  As a side effect,
+	// count the frames.
 	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, checkframecopy, &cinfo, false);
 	if(StackDebug >= 1 && cinfo.frames != -1)
 		runtime·printf("copystack: %d copyable frames\n", cinfo.frames);
+
+	// Check to make sure all Defers are copyable
+	for(d = gp->defer; d != nil; d = d->link) {
+		if(cinfo.stk <= (byte*)d && (byte*)d < cinfo.base) {
+			// Defer is on the stack.  Its copyableness has
+			// been established during stack walking.
+			// For now, this only happens with the Defer in runtime.main.
+			continue;
+		}
+		if(d->argp < cinfo.stk || cinfo.base <= d->argp)
+			break; // a defer for the next segment
+		fn = d->fn;
+		f = runtime·findfunc((uintptr)fn->fn);
+		if(f == nil)
+			return -1;
+
+		// Check to make sure we have an args pointer map for the defer's args.
+		// We only need the args map, but we check
+		// for the locals map also, because when the locals map
+		// isn't provided it means the ptr map came from C and
+		// C (particularly, cgo) lies to us.  See issue 7695.
+		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+		if(stackmap == nil || stackmap->n <= 0)
+			return -1;
+		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+		if(stackmap == nil || stackmap->n <= 0)
+			return -1;
+
+		if(cinfo.stk <= (byte*)fn && (byte*)fn < cinfo.base) {
+			// FuncVal is on the stack.  Again, its copyableness
+			// was established during stack walking.
+			continue;
+		}
+		// The FuncVal may have pointers in it, but fortunately for us
+		// the compiler won't put pointers into the stack in a
+		// heap-allocated FuncVal.
+		// One day if we do need to check this, we'll need maps of the
+		// pointerness of the closure args.  The only place we have that map
+		// right now is in the gc program for the FuncVal.  Ugh.
+	}
+
 	return cinfo.frames;
 }
 
@@ -371,7 +419,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 			}
 			if(minp <= p && p < maxp) {
 				if(StackDebug >= 3)
-					runtime·printf("adjust ptr %p\n", p);
+					runtime·printf("adjust ptr %p %s\n", p, runtime·funcname(f));
 				scanp[i] = p + delta;
 			}
 			break;
@@ -505,11 +553,8 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 		if(d->argp < adjinfo->oldstk || adjinfo->oldbase <= d->argp)
 			break; // a defer for the next segment
 		f = runtime·findfunc((uintptr)d->fn->fn);
-		if(f == nil) {
-			runtime·printf("runtime: bad defer %p %d %d %p %p\n", d->fn->fn, d->siz, d->special, d->argp, d->pc);
-			runtime·printf("caller %s\n", runtime·funcname(runtime·findfunc((uintptr)d->pc)));
+		if(f == nil)
 			runtime·throw("can't adjust unknown defer");
-		}
 		if(StackDebug >= 4)
 			runtime·printf("  checking defer %s\n", runtime·funcname(f));
 		// Defer's FuncVal might be on the stack
@@ -519,7 +564,7 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 				runtime·printf("    adjust defer fn %s\n", runtime·funcname(f));
 			d->fn = (FuncVal*)((byte*)fn + adjinfo->delta);
 		} else {
-			// deferred function's closure args might point into the stack.
+			// deferred function's args might point into the stack.
 			if(StackDebug >= 3)
 				runtime·printf("    adjust deferred args for %s\n", runtime·funcname(f));
 			stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
@@ -626,7 +671,7 @@ runtime·newstack(void)
 		runtime·throw("runtime: wrong goroutine in newstack");
 	}
 
-	// gp->status is usually Grunning, but it could be Gsyscall if a stack split
+	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
 	// happens during a function call inside entersyscall.
 	gp = m->curg;
 	oldstatus = gp->status;
@@ -640,7 +685,7 @@ runtime·newstack(void)
 	m->morebuf.lr = (uintptr)nil;
 	m->morebuf.sp = (uintptr)nil;
 	gp->status = Gwaiting;
-	gp->waitreason = "stack split";
+	gp->waitreason = "stack growth";
 	newstackcall = framesize==1;
 	if(newstackcall)
 		framesize = 0;
@@ -668,8 +713,8 @@ runtime·newstack(void)
 	}
 
 	if(argsize % sizeof(uintptr) != 0) {
-		runtime·printf("runtime: stack split with misaligned argsize %d\n", argsize);
-		runtime·throw("runtime: stack split argsize");
+		runtime·printf("runtime: stack growth with misaligned argsize %d\n", argsize);
+		runtime·throw("runtime: stack growth argsize");
 	}
 
 	if(gp->stackguard0 == (uintptr)StackPreempt) {
@@ -678,7 +723,7 @@ runtime·newstack(void)
 		if(oldstatus == Grunning && m->p == nil && m->locks == 0)
 			runtime·throw("runtime: g is running but p is not");
 		if(oldstatus == Gsyscall && m->locks == 0)
-			runtime·throw("runtime: stack split during syscall");
+			runtime·throw("runtime: stack growth during syscall");
 		// Be conservative about where we preempt.
 		// We are interested in preempting user Go code, not runtime code.
 		if(oldstatus != Grunning || m->locks || m->mallocing || m->gcing || m->p->status != Prunning) {
