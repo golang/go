@@ -186,7 +186,14 @@ dumptype(Type *t)
 	dumpint(TagType);
 	dumpint((uintptr)t);
 	dumpint(t->size);
-	dumpstr(*t->string);
+	if(t->x == nil || t->x->pkgPath == nil || t->x->name == nil) {
+		dumpstr(*t->string);
+	} else {
+		dumpint(t->x->pkgPath->len + 1 + t->x->name->len);
+		write(t->x->pkgPath->str, t->x->pkgPath->len);
+		write((byte*)".", 1);
+		write(t->x->name->str, t->x->name->len);
+	}
 	dumpbool(t->size > PtrSize || (t->kind & KindNoPointers) == 0);
 	dumpfields((uintptr*)t->gc + 1);
 }
@@ -375,7 +382,7 @@ dumpframe(Stkframe *s, void *arg)
 	dumpint(FieldKindEol);
 
 	// Record arg info for parent.
-	child->argoff = s->argp - (byte*)s->sp;
+	child->argoff = s->argp - (byte*)s->fp;
 	child->arglen = s->arglen;
 	child->sp = (byte*)s->sp;
 	child->depth++;
@@ -853,11 +860,13 @@ dumpefacetypes(void *obj, uintptr size, Type *type, uintptr kind)
 		playgcprog(0, (uintptr*)type->gc + 1, dumpeface_callback, obj);
 		break;
 	case TypeInfo_Array:
-		for(i = 0; i < size; i += type->size)
+		for(i = 0; i <= size - type->size; i += type->size)
 			playgcprog(i, (uintptr*)type->gc + 1, dumpeface_callback, obj);
 		break;
 	case TypeInfo_Chan:
-		for(i = runtime·Hchansize; i < size; i += type->size)
+		if(type->size == 0) // channels may have zero-sized objects in them
+			break;
+		for(i = runtime·Hchansize; i <= size - type->size; i += type->size)
 			playgcprog(i, (uintptr*)type->gc + 1, dumpeface_callback, obj);
 		break;
 	}
