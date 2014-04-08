@@ -16,3 +16,4 @@ func IsRO(v Value) bool {
 }
 
 var ArrayOf = arrayOf
+var CallGC = &callGC
