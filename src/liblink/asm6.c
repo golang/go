@@ -2415,21 +2415,6 @@ putrelv:
 		r = addrel(ctxt->cursym);
 		*r = rel;
 		r->off = ctxt->curp->pc + ctxt->andptr - ctxt->and;
-	} else if(ctxt->iself && ctxt->linkmode == LinkExternal && a->type == D_INDIR+D_FS
-		&& ctxt->headtype != Hopenbsd) {
-		Reloc *r;
-		LSym *s;
-		
-		r = addrel(ctxt->cursym);
-		r->off = ctxt->curp->pc + ctxt->andptr - ctxt->and;
-		r->add = a->offset - ctxt->tlsoffset;
-		r->xadd = r->add;
-		r->siz = 4;
-		r->type = D_TLS;
-		s = linklookup(ctxt, "runtime.tlsgm", 0);
-		r->sym = s;
-		r->xsym = s;
-		v = 0;
 	}
 		
 	put4(ctxt, v);

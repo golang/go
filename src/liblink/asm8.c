@@ -1728,14 +1728,6 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
 	return v;
 }
 
-static int
-istls(Link *ctxt, Addr *a)
-{
-	if(ctxt->headtype == Hlinux || ctxt->headtype == Hnacl)
-		return a->index == D_GS;
-	return a->type == D_INDIR+D_GS;
-}
-
 static void
 asmand(Link *ctxt, Addr *a, int r)
 {
@@ -1857,20 +1849,6 @@ putrelv:
 		r = addrel(ctxt->cursym);
 		*r = rel;
 		r->off = ctxt->curp->pc + ctxt->andptr - ctxt->and;
-	} else if(ctxt->iself && ctxt->linkmode == LinkExternal && istls(ctxt, a) && ctxt->headtype != Hopenbsd) {
-		Reloc *r;
-		LSym *s;
-
-		r = addrel(ctxt->cursym);
-		r->off = ctxt->curp->pc + ctxt->andptr - ctxt->and;
-		r->add = a->offset - ctxt->tlsoffset;
-		r->xadd = r->add;
-		r->siz = 4;
-		r->type = D_TLS;
-		s = linklookup(ctxt, "runtime.tlsgm", 0);
-		r->sym = s;
-		r->xsym = s;
-		v = 0;
 	}
 
 	put4(ctxt, v);
