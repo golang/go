@@ -424,6 +424,8 @@ func (v Value) CallSlice(in []Value) []Value {
 	return v.call("CallSlice", in)
 }
 
+var callGC bool // for testing; see TestCallMethodJump
+
 var makeFuncStubFn = makeFuncStub
 var makeFuncStubCode = **(**uintptr)(unsafe.Pointer(&makeFuncStubFn))
 var methodValueCallFn = methodValueCall
@@ -560,7 +562,12 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 
 	// Call.
-	call(fn, args, uint32(frametype.size))
+	call(fn, args, uint32(frametype.size), uint32(retOffset))
+
+	// For testing; see TestCallMethodJump.
+	if callGC {
+		runtime.GC()
+	}
 
 	// Copy return values out of args.
 	ret := make([]Value, nout)
@@ -751,7 +758,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	memmove(unsafe.Pointer(uintptr(args)+ptrSize), frame, argSize-ptrSize)
 
 	// Call.
-	call(fn, args, uint32(frametype.size))
+	call(fn, args, uint32(frametype.size), uint32(retOffset))
 
 	// Copy return values. On amd64p32, the beginning of return values
 	// is 64-bit aligned, so the caller's frame layout (which doesn't have
@@ -2658,7 +2665,7 @@ func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
 func mapiternext(it unsafe.Pointer)
 func maplen(m unsafe.Pointer) int
 
-func call(fn, arg unsafe.Pointer, n uint32)
+func call(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
 func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
 
 // Dummy annotation marking that the value x escapes,

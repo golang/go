@@ -289,7 +289,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
 	JMP	AX
 // Note: can't just "JMP runtime·NAME(SB)" - bad inlining results.
 
-TEXT reflect·call(SB), NOSPLIT, $0-20
+TEXT reflect·call(SB), NOSPLIT, $0-24
 	MOVLQZX argsize+16(FP), CX
 	DISPATCH(call16, 16)
 	DISPATCH(call32, 32)
@@ -322,7 +322,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-20
 	JMP	AX
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-20;		\
+TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-24;	\
 	/* copy arguments to stack */		\
 	MOVQ	argptr+8(FP), SI;		\
 	MOVLQZX argsize+16(FP), CX;		\
@@ -334,7 +334,11 @@ TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	/* copy return values back */		\
 	MOVQ	argptr+8(FP), DI;		\
 	MOVLQZX	argsize+16(FP), CX;		\
+	MOVLQZX retoffset+20(FP), BX;		\
 	MOVQ	SP, SI;				\
+	ADDQ	BX, DI;				\
+	ADDQ	BX, SI;				\
+	SUBQ	BX, CX;				\
 	REP;MOVSB;				\
 	RET
 

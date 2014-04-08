@@ -55,6 +55,7 @@
 #include "malloc.h"
 #include "stack.h"
 #include "mgc0.h"
+#include "chan.h"
 #include "race.h"
 #include "type.h"
 #include "typekind.h"
@@ -796,9 +797,6 @@ scanblock(Workbuf *wbuf, bool keepworking)
 	for(;;) {
 		// Each iteration scans the block b of length n, queueing pointers in
 		// the work buffer.
-		if(Debug > 1) {
-			runtime·printf("scanblock %p %D\n", b, (int64)n);
-		}
 
 		if(CollectStats) {
 			runtime·xadd64(&gcstats.nbytes, n);
@@ -807,6 +805,9 @@ scanblock(Workbuf *wbuf, bool keepworking)
 		}
 
 		if(ti != 0) {
+			if(Debug > 1) {
+				runtime·printf("scanblock %p %D ti %p\n", b, (int64)n, ti);
+			}
 			pc = (uintptr*)(ti & ~(uintptr)PC_BITS);
 			precise_type = (ti & PRECISE);
 			stack_top.elemsize = pc[0];
@@ -862,14 +863,22 @@ scanblock(Workbuf *wbuf, bool keepworking)
 					pc = chanProg;
 					break;
 				default:
+					if(Debug > 1)
+						runtime·printf("scanblock %p %D type %p %S\n", b, (int64)n, type, *t->string);
 					runtime·throw("scanblock: invalid type");
 					return;
 				}
+				if(Debug > 1)
+					runtime·printf("scanblock %p %D type %p %S pc=%p\n", b, (int64)n, type, *t->string, pc);
 			} else {
 				pc = defaultProg;
+				if(Debug > 1)
+					runtime·printf("scanblock %p %D unknown type\n", b, (int64)n);
 			}
 		} else {
 			pc = defaultProg;
+			if(Debug > 1)
+				runtime·printf("scanblock %p %D no span types\n", b, (int64)n);
 		}
 
 		if(IgnorePreciseGC)
@@ -877,7 +886,6 @@ scanblock(Workbuf *wbuf, bool keepworking)
 
 		pc++;
 		stack_top.b = (uintptr)b;
-
 		end_b = (uintptr)b + n - PtrSize;
 
 	for(;;) {
@@ -890,6 +898,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
 		case GC_PTR:
 			obj = *(void**)(stack_top.b + pc[1]);
 			objti = pc[2];
+			if(Debug > 2)
+				runtime·printf("gc_ptr @%p: %p ti=%p\n", stack_top.b+pc[1], obj, objti);
 			pc += 3;
 			if(Debug)
 				checkptr(obj, objti);
@@ -897,6 +907,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
 
 		case GC_SLICE:
 			sliceptr = (Slice*)(stack_top.b + pc[1]);
+			if(Debug > 2)
+				runtime·printf("gc_slice @%p: %p/%D/%D\n", sliceptr, sliceptr->array, (int64)sliceptr->len, (int64)sliceptr->cap);
 			if(sliceptr->cap != 0) {
 				obj = sliceptr->array;
 				// Can't use slice element type for scanning,
@@ -910,11 +922,15 @@ scanblock(Workbuf *wbuf, bool keepworking)
 
 		case GC_APTR:
 			obj = *(void**)(stack_top.b + pc[1]);
+			if(Debug > 2)
+				runtime·printf("gc_aptr @%p: %p\n", stack_top.b+pc[1], obj);
 			pc += 2;
 			break;
 
 		case GC_STRING:
 			stringptr = (String*)(stack_top.b + pc[1]);
+			if(Debug > 2)
+				runtime·printf("gc_string @%p: %p/%D\n", stack_top.b+pc[1], stringptr->str, (int64)stringptr->len);
 			if(stringptr->len != 0)
 				markonly(stringptr->str);
 			pc += 2;
@@ -923,6 +939,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
 		case GC_EFACE:
 			eface = (Eface*)(stack_top.b + pc[1]);
 			pc += 2;
+			if(Debug > 2)
+				runtime·printf("gc_eface @%p: %p %p\n", stack_top.b+pc[1], eface->type, eface->data);
 			if(eface->type == nil)
 				continue;
 
@@ -953,6 +971,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
 		case GC_IFACE:
 			iface = (Iface*)(stack_top.b + pc[1]);
 			pc += 2;
+			if(Debug > 2)
+				runtime·printf("gc_iface @%p: %p/%p %p\n", stack_top.b+pc[1], iface->tab, nil, iface->data);
 			if(iface->tab == nil)
 				continue;
 			
@@ -983,6 +1003,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
 		case GC_DEFAULT_PTR:
 			while(stack_top.b <= end_b) {
 				obj = *(byte**)stack_top.b;
+				if(Debug > 2)
+					runtime·printf("gc_default_ptr @%p: %p\n", stack_top.b, obj);
 				stack_top.b += PtrSize;
 				if(obj >= arena_start && obj < arena_used) {
 					*sbuf.ptr.pos++ = (PtrTarget){obj, 0};
@@ -1062,6 +1084,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
 			objti = pc[3];
 			pc += 4;
 
+			if(Debug > 2)
+				runtime·printf("gc_region @%p: %D %p\n", stack_top.b+pc[1], (int64)size, objti);
 			*sbuf.obj.pos++ = (Obj){obj, size, objti};
 			if(sbuf.obj.pos == sbuf.obj.end)
 				flushobjbuf(&sbuf);
@@ -1069,6 +1093,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
 
 		case GC_CHAN_PTR:
 			chan = *(Hchan**)(stack_top.b + pc[1]);
+			if(Debug > 2 && chan != nil)
+				runtime·printf("gc_chan_ptr @%p: %p/%D/%D %p\n", stack_top.b+pc[1], chan, (int64)chan->qcount, (int64)chan->dataqsiz, pc[2]);
 			if(chan == nil) {
 				pc += 3;
 				continue;
@@ -1462,6 +1488,8 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
 			case BitsPointer:
 				p = *(byte**)scanp;
 				if(p != nil) {
+					if(Debug > 2)
+						runtime·printf("frame %s @%p: ptr %p\n", runtime·funcname(f), scanp, p);
 					if(precise && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
 						// Looks like a junk value in a pointer slot.
 						// Liveness analysis wrong?
@@ -1489,6 +1517,8 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
 				}
 				switch(word & 3) {
 				case BitsString:
+					if(Debug > 2)
+						runtime·printf("frame %s @%p: string %p/%D\n", runtime·funcname(f), p, ((String*)p)->str, (int64)((String*)p)->len);
 					if(((String*)p)->len != 0)
 						markonly(((String*)p)->str);
 					break;
@@ -1506,6 +1536,8 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
 							i = 32;
 						i /= BitsPerPointer;
 					}
+					if(Debug > 2)
+						runtime·printf("frame %s @%p: slice %p/%D/%D\n", runtime·funcname(f), p, ((Slice*)p)->array, (int64)((Slice*)p)->len, (int64)((Slice*)p)->cap);
 					if(((Slice*)p)->cap < ((Slice*)p)->len) {
 						m->traceback = 2;
 						runtime·printf("bad slice in frame %s at %p: %p/%p/%p\n", runtime·funcname(f), p, ((byte**)p)[0], ((byte**)p)[1], ((byte**)p)[2]);
@@ -1516,8 +1548,15 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
 					break;
 				case BitsIface:
 				case BitsEface:
-					if(*(byte**)p != nil)
+					if(*(byte**)p != nil) {
+						if(Debug > 2) {
+							if((word&3) == BitsEface)
+								runtime·printf("frame %s @%p: eface %p %p\n", runtime·funcname(f), p, ((uintptr*)p)[0], ((uintptr*)p)[1]);
+							else
+								runtime·printf("frame %s @%p: iface %p %p\n", runtime·funcname(f), p, ((uintptr*)p)[0], ((uintptr*)p)[1]);
+						}
 						scaninterfacedata(word & 3, p, afterprologue, wbufp);
+					}
 					break;
 				}
 			}
@@ -1561,10 +1600,14 @@ scanframe(Stkframe *frame, void *wbufp)
 		if(stackmap == nil) {
 			// No locals information, scan everything.
 			size = frame->varp - (byte*)frame->sp;
+			if(Debug > 2)
+				runtime·printf("frame %s unsized locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
 			enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
 		} else if(stackmap->n < 0) {
 			// Locals size information, scan just the locals.
 			size = -stackmap->n;
+			if(Debug > 2)
+				runtime·printf("frame %s conservative locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
 			enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
 		} else if(stackmap->n > 0) {
 			// Locals bitmap information, scan just the pointers in
@@ -1588,8 +1631,11 @@ scanframe(Stkframe *frame, void *wbufp)
 	if(stackmap != nil) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
 		scanbitvector(f, precise, frame->argp, &bv, true, wbufp);
-	} else
+	} else {
+		if(Debug > 2)
+			runtime·printf("frame %s conservative args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
 		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
+	}
 	return true;
 }
 
@@ -1653,6 +1699,8 @@ addstackroots(G *gp, Workbuf **wbufp)
 				runtime·printf("scanstack inconsistent: g%D#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
 				runtime·throw("scanstack");
 			}
+			if(Debug > 2)
+				runtime·printf("conservative stack %p+%p\n", (byte*)sp, (uintptr)stk-sp);
 			enqueue1(wbufp, (Obj){(byte*)sp, (uintptr)stk - sp, (uintptr)defaultProg | PRECISE | LOOP});
 			sp = stk->gobuf.sp;
 			guard = stk->stackguard;
@@ -2619,7 +2667,7 @@ runfinq(void)
 					if(!runtime·ifaceE2I2((InterfaceType*)f->fint, ef1, (Iface*)frame))
 						runtime·throw("invalid type conversion in runfinq");
 				}
-				reflect·call(f->fn, frame, framesz);
+				reflect·call(f->fn, frame, framesz, framesz);
 				f->fn = nil;
 				f->arg = nil;
 				f->ot = nil;

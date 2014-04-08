@@ -184,7 +184,7 @@ rundefer(void)
 
 	while((d = g->defer) != nil) {
 		g->defer = d->link;
-		reflect·call(d->fn, (byte*)d->args, d->siz);
+		reflect·call(d->fn, (byte*)d->args, d->siz, d->siz);
 		freedefer(d);
 	}
 }
