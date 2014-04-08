@@ -314,6 +314,31 @@ type MarshalerStruct struct {
 	Foo MyMarshalerAttrTest `xml:",attr"`
 }
 
+type InnerStruct struct {
+	XMLName Name `xml:"testns outer"`
+}
+
+type OuterStruct struct {
+	InnerStruct
+	IntAttr int `xml:"int,attr"`
+}
+
+type OuterNamedStruct struct {
+	InnerStruct
+	XMLName Name `xml:"outerns test"`
+	IntAttr int  `xml:"int,attr"`
+}
+
+type OuterNamedOrderedStruct struct {
+	XMLName Name `xml:"outerns test"`
+	InnerStruct
+	IntAttr int `xml:"int,attr"`
+}
+
+type OuterOuterStruct struct {
+	OuterStruct
+}
+
 func ifaceptr(x interface{}) interface{} {
 	return &x
 }
@@ -882,6 +907,22 @@ var marshalTests = []struct {
 	{
 		ExpectXML: `<MarshalerStruct Foo="hello world"></MarshalerStruct>`,
 		Value:     &MarshalerStruct{},
+	},
+	{
+		ExpectXML: `<outer xmlns="testns" int="10"></outer>`,
+		Value:     &OuterStruct{IntAttr: 10},
+	},
+	{
+		ExpectXML: `<test xmlns="outerns" int="10"></test>`,
+		Value:     &OuterNamedStruct{XMLName: Name{Space: "outerns", Local: "test"}, IntAttr: 10},
+	},
+	{
+		ExpectXML: `<test xmlns="outerns" int="10"></test>`,
+		Value:     &OuterNamedOrderedStruct{XMLName: Name{Space: "outerns", Local: "test"}, IntAttr: 10},
+	},
+	{
+		ExpectXML: `<outer xmlns="testns" int="10"></outer>`,
+		Value:     &OuterOuterStruct{OuterStruct{IntAttr: 10}},
 	},
 }
 
