@@ -9,11 +9,13 @@
 <p>
 The latest Go release, version 1.3, arrives six months after 1.2,
 and contains no language changes.
-It does have some important developments, though,
-including a refinement to the memory model regarding synchronization,
+It focuses primarily on implementation work, providing 
 precise garbage collection,
+a major refactoring of the compiler tool chain that results in
+faster builds, especially for large projects,
 significant performance improvements across the board,
-and support for Google's Native Client architecture (NaCl).
+and support for Solaris and Google's Native Client architecture (NaCl).
+It also has an important refinement to the memory model regarding synchronization.
 As always, Go 1.3 keeps the <a href="/doc/go1compat.html">promise
 of compatibility</a>,
 and almost everything 
@@ -34,7 +36,7 @@ TODO
 </p>
 
 
-<h3 id="windows2000">Removal of support for Windows 2000</h3>
+<h3 id="win2000">Removal of support for Windows 2000</h3>
 
 <p>
 Microsoft stopped supporting Windows 2000 in 2010.
@@ -77,10 +79,6 @@ Go 1.2 increased the minimum stack size to 8 kilobytes; with the new stack model
 put back to 4 kilobytes.
 </p>
 
-<p>
-<em>Updating</em>: TODO
-</p>
-
 <h3 id="garbage_collector">Changes to the garbage collector</h3>
 
 <p>
@@ -91,13 +89,18 @@ liveness (TODO what to say)
 <h3 id="liblink">The linker</h3>
 
 <p>
-TODO compiler/linker boundary moved
-
-TODO: liblink: pull linker i/o into separate liblink C library (CL 35790044)
+As part of the general <a href="http://golang.org/s/go13linker">overhaul</a> to
+the Go linker, the compilers and linkers have been refactored.
+The linker is still a C program, but now the instruction selection phase that
+was part of the linker has been moved to the compiler through the creation of a new
+library called <code>liblink</code>.
+By doing instruction selection only once, when the package is first compiled,
+this can speed up compilation of large projects significantly.
 </p>
 
 <p>
-<em>Updating</em>: TODO
+<em>Updating</em>: Although this is a major internal change, it should have no
+effect on programs.
 </p>
 
 <h3 id="gccgo">Status of gccgo</h3>
@@ -117,9 +120,16 @@ cmd/go: cover -atomic for -race (CL 76370043)
 
 <h3 id="misc">Miscellany</h3>
 
+<p>
+The program <code>misc/benchcmp</code> that compares
+performance across benchmarking runs has been rewritten.
+Once a shell and awk script in the main repository, it is now a Go program in the <code>go.tools</code> repo.
+Documentation is <a href="http://godoc.org/code.google.com/p/go.tools/cmd/benchcmp">here</a>.
+</p>
+
 <ul>
-<li> TODO: misc/benchcmp: removed and replaced by go.tools/cmd/benchcmp (CL 47980043)</li>
-<li> TODO: misc/dist: renamed misc/makerelease (CL 39920043)</li>
+For the few of us that build Go distributions, the tool <code>misc/dist</code> has been
+moved and renamed; it now lives in <code>misc/makerelease</code>, still in the main repository.
 </ul>
 
 
@@ -256,7 +266,7 @@ non-printing.
 
 <li>
 The <a href="/pkg/testing/"><code>testing</code></a> package now
-diagnoses tests that call <code>panic(nil)</code>, which is almost always erroneous.
+diagnoses tests that call <code>panic(nil)</code>, which are almost always erroneous.
 </li>
 
 <li>
