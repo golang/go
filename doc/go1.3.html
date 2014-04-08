@@ -12,8 +12,7 @@ and contains no language changes.
 It does have some important developments, though,
 including a refinement to the memory model regarding synchronization,
 precise garbage collection,
-significant performance improvements,
-including TODO,
+significant performance improvements across the board,
 and support for Google's Native Client architecture (NaCl).
 As always, Go 1.3 keeps the <a href="/doc/go1compat.html">promise
 of compatibility</a>,
@@ -38,8 +37,10 @@ TODO
 <h3 id="windows2000">Removal of support for Windows 2000</h3>
 
 <p>
-TODO
-windows 2000 removed (CL 74790043)
+Microsoft stopped supporting Windows 2000 in 2010.
+Since it has <a href="https://codereview.appspot.com/74790043">implementation difficulties</a>
+regarding exception handling (signals in Unix terminology),
+as of Go 1.3 it is not supported by Go either.
 </p>
 
 
@@ -140,13 +141,17 @@ TODO
 TODO: Which should be called out?
 </p>
 
+<p>
+There is an important new type added to the standard library: <a href="/pkg/sync/pool/"><code>sync/pool</code></a>.
+TODO: sync: add Pool (CL 41860043, 46010043)
+</p>
+
 
 
 <h3 id="new_packages">New packages</h3>
 
 <p>
-There is one new package added to the standard library: <a href="/pkg/sync/pool/"><code>sync/pool</code></a>.
-TODO: sync: add Pool (CL 41860043, 46010043)
+No new packages appear in the core libraries in Go 1.3.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
