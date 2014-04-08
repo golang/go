@@ -174,6 +174,16 @@ var pkgIndex struct {
 	m map[string][]pkg // shortname => []pkg, e.g "http" => "net/http"
 }
 
+// gate is a semaphore for limiting concurrency.
+type gate chan bool
+
+func (g gate) enter() { g <- true }
+func (g gate) leave() { <-g }
+
+// fsgate protects the OS & filesystem from too much concurrency.
+// Too much disk I/O -> too many threads -> swapping and bad scheduling.
+var fsgate = make(gate, 8)
+
 func loadPkgIndex() {
 	pkgIndex.Lock()
 	pkgIndex.m = make(map[string][]pkg)
@@ -181,13 +191,16 @@ func loadPkgIndex() {
 
 	var wg sync.WaitGroup
 	for _, path := range build.Default.SrcDirs() {
+		fsgate.enter()
 		f, err := os.Open(path)
 		if err != nil {
+			fsgate.leave()
 			fmt.Fprint(os.Stderr, err)
 			continue
 		}
 		children, err := f.Readdir(-1)
 		f.Close()
+		fsgate.leave()
 		if err != nil {
 			fmt.Fprint(os.Stderr, err)
 			continue
@@ -207,16 +220,10 @@ func loadPkgIndex() {
 
 func loadPkg(wg *sync.WaitGroup, root, pkgrelpath string) {
 	importpath := filepath.ToSlash(pkgrelpath)
-	shortName := importPathToName(importpath)
-
 	dir := filepath.Join(root, importpath)
-	pkgIndex.Lock()
-	pkgIndex.m[shortName] = append(pkgIndex.m[shortName], pkg{
-		importpath: importpath,
-		dir:        dir,
-	})
-	pkgIndex.Unlock()
 
+	fsgate.enter()
+	defer fsgate.leave()
 	pkgDir, err := os.Open(dir)
 	if err != nil {
 		return
@@ -226,6 +233,11 @@ func loadPkg(wg *sync.WaitGroup, root, pkgrelpath string) {
 	if err != nil {
 		return
 	}
+	// hasGo tracks whether a directory actually appears to be a
+	// Go source code directory. If $GOPATH == $HOME, and
+	// $HOME/src has lots of other large non-Go projects in it,
+	// then the calls to importPathToName below can be expensive.
+	hasGo := false
 	for _, child := range children {
 		name := child.Name()
 		if name == "" {
@@ -233,6 +245,9 @@ func loadPkg(wg *sync.WaitGroup, root, pkgrelpath string) {
 		}
 		if c := name[0]; c == '.' || ('0' <= c && c <= '9') {
 			continue
+		}
+		if strings.HasSuffix(name, ".go") {
+			hasGo = true
 		}
 		if child.IsDir() {
 			wg.Add(1)
@@ -242,6 +257,16 @@ func loadPkg(wg *sync.WaitGroup, root, pkgrelpath string) {
 			}(root, filepath.Join(importpath, name))
 		}
 	}
+	if hasGo {
+		shortName := importPathToName(importpath)
+		pkgIndex.Lock()
+		pkgIndex.m[shortName] = append(pkgIndex.m[shortName], pkg{
+			importpath: importpath,
+			dir:        dir,
+		})
+		pkgIndex.Unlock()
+	}
+
 }
 
 // loadExports returns a list exports for a package.
