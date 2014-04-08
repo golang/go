@@ -148,13 +148,16 @@ func TestToText(t *testing.T) {
 }
 
 var emphasizeTests = []struct {
-	in  string
-	out string
+	in, out string
 }{
 	{"http://www.google.com/", `<a href="http://www.google.com/">http://www.google.com/</a>`},
 	{"https://www.google.com/", `<a href="https://www.google.com/">https://www.google.com/</a>`},
 	{"http://www.google.com/path.", `<a href="http://www.google.com/path">http://www.google.com/path</a>.`},
+	{"http://en.wikipedia.org/wiki/Camellia_(cipher)", `<a href="http://en.wikipedia.org/wiki/Camellia_(cipher)">http://en.wikipedia.org/wiki/Camellia_(cipher)</a>`},
 	{"(http://www.google.com/)", `(<a href="http://www.google.com/">http://www.google.com/</a>)`},
+	{"http://gmail.com)", `<a href="http://gmail.com">http://gmail.com</a>)`},
+	{"((http://gmail.com))", `((<a href="http://gmail.com">http://gmail.com</a>))`},
+	{"http://gmail.com ((http://gmail.com)) ()", `<a href="http://gmail.com">http://gmail.com</a> ((<a href="http://gmail.com">http://gmail.com</a>)) ()`},
 	{"Foo bar http://example.com/ quux!", `Foo bar <a href="http://example.com/">http://example.com/</a> quux!`},
 	{"Hello http://example.com/%2f/ /world.", `Hello <a href="http://example.com/%2f/">http://example.com/%2f/</a> /world.`},
 	{"Lorem http: ipsum //host/path", "Lorem http: ipsum //host/path"},
@@ -168,6 +171,37 @@ func TestEmphasize(t *testing.T) {
 		out := buf.String()
 		if out != tt.out {
 			t.Errorf("#%d: mismatch\nhave: %v\nwant: %v", i, out, tt.out)
+		}
+	}
+}
+
+var pairedParensPrefixLenTests = []struct {
+	in, out string
+}{
+	{"", ""},
+	{"foo", "foo"},
+	{"()", "()"},
+	{"foo()", "foo()"},
+	{"foo()()()", "foo()()()"},
+	{"foo()((()()))", "foo()((()()))"},
+	{"foo()((()()))bar", "foo()((()()))bar"},
+	{"foo)", "foo"},
+	{"foo))", "foo"},
+	{"foo)))))", "foo"},
+	{"(foo", ""},
+	{"((foo", ""},
+	{"(((((foo", ""},
+	{"(foo)", "(foo)"},
+	{"((((foo))))", "((((foo))))"},
+	{"foo()())", "foo()()"},
+	{"foo((()())", "foo"},
+	{"foo((()())) (() foo ", "foo((()())) "},
+}
+
+func TestPairedParensPrefixLen(t *testing.T) {
+	for i, tt := range pairedParensPrefixLenTests {
+		if out := tt.in[:pairedParensPrefixLen(tt.in)]; out != tt.out {
+			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)
 		}
 	}
 }
