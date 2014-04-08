@@ -92,6 +92,8 @@ liveness (TODO what to say)
 
 <p>
 TODO compiler/linker boundary moved
+
+TODO: liblink: pull linker i/o into separate liblink C library (CL 35790044)
 </p>
 
 <p>
@@ -124,34 +126,66 @@ cmd/go: cover -atomic for -race (CL 76370043)
 <h2 id="performance">Performance</h2>
 
 <p>
-TODO
+The performance of Go binaries for this release has improved in many cases due to changes
+in the runtime and garbage collection, plus some changes to libraries.
+Significant instances include:
 </p>
 
 <ul> 
 
 <li>
-TODO
+As mentioned above, the default stack size has been reduced from 8 kilobytes to 4 kilobytes.
+</li>
+
+<li>
+The runtime handles defers more efficiently, reducing the memory footprint by about two kilobytes
+per goroutine that calls defer.
+</li>
+
+<li>
+The garbage collector has been sped up, using a concurrent sweep algorithm,
+better parallelization, and larger pages.
+The cumulative effect can be a 50-70% reduction in collector pause time.
+</li>
+
+<li>
+The race detector (see <a href="http://golang.org/doc/articles/race_detector.html">this guide</a>)
+is now about 40% faster.
+</li>
+
+<li>
+The regular expression package <a href="/pkg/regexp/"><code>regexp</code></a>
+is now significantly faster for certain simple expressions due to the implemenation of
+a second, one-pass execution engine. The choice of which engine to use is automatic;
+the details are hidden from the user.
 </li>
 
 </ul>
 
+<p>
+Also, the runtime now includes in stack dumps how long a goroutine has been blocked,
+which can be useful information when debugging deadlocks or performance issues.
+</p>
+
 <h2 id="library">Changes to the standard library</h2>
-
-<p>
-TODO: Which should be called out?
-</p>
-
-<p>
-There is an important new type added to the standard library: <a href="/pkg/sync/pool/"><code>sync/pool</code></a>.
-TODO: sync: add Pool (CL 41860043, 46010043)
-</p>
-
-
 
 <h3 id="new_packages">New packages</h3>
 
 <p>
 No new packages appear in the core libraries in Go 1.3.
+</p>
+
+<h3 id="major_library_changes">Major changes to the library</h3>
+
+<p>
+There is an important new type added to the standard library: <a href="/pkg/sync/#Pool"><code>sync.Pool</code></a>.
+It provides an efficient mechanism for implementing certain types of caches whose memory
+can be reclaimed automatically by the system.
+</p>
+
+<p>
+TODO: crypto/tls: ServerName or InsecureSkipVerify (CL 67010043)
+possible breaking change
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -163,34 +197,72 @@ See the relevant package documentation for more information about each change.
 
 <ul>
 
-<li> TODO: cmplx.Pow(0, x): https://codereview.appspot.com/76940044</li>
-<li> TODO: crypto/tls: ServerName or InsecureSkipVerify (CL 67010043)</li>
+<li>
+The complex power function, <a href="/pkg/math/cmplx/#Pow"><code>Pow</code></a>,
+now specifies the behavior when the first argument is zero. It was undefined before.
+The details are in the <a href="/pkg/math/cmplx/#Pow">documentation for the function</a>.
+</li>
+
 <li> TODO: crypto/tls: add DialWithDialer (CL 68920045)</li>
+
 <li> TODO: crypto/tls: report TLS version in ConnectionState (CL 68250043)</li>
+
 <li> TODO: crypto/x509: support CSRs (CL 49830048)</li>
-<li> TODO: fmt %F: 77580044</li>
-<li> TODO: liblink: pull linker i/o into separate liblink C library (CL 35790044)</li>
+
+<li>
+The formatted print functions of the <code>fmt</code> package now define <code>%F</code>
+as a synonym for <code>%f</code> when printing floating-point values.
+</li>
+
 <li> TODO: net/http: add Request.TLS (CL 52660047)</li>
+
 <li> TODO: net/http: add Server.ErrorLog; log and test TLS handshake errors (CL 70250044)</li>
+
 <li> TODO: net/http: add Server.SetKeepAlivesEnabled (CL 69670043)</li>
+
 <li> TODO: net/http: add Transport.TLSHandshakeTimeout; set it by default (CL 68150045)</li>
+
 <li> TODO: net/http: add optional Server.ConnState callback (CL 69260044)</li>
+
 <li> TODO: net/http: use TCP Keep-Alives on DefaultTransport's connections (CL 68330046)</li>
+
 <li> TODO: net/http: use TCP keep-alives for ListenAndServe and ListenAndServeTLS (CL 48300043)</li>
+
 <li> TODO: net: add Dialer.KeepAlive option (CL 68380043)</li>
+
 <li> TODO: net: enable fast socket creation using SOCK_CLOEXEC and Accept4 on FreeBSD 10 (69100043)</li>
-<li> TODO: os/exec: fix Command with relative paths (CL 59580044)</li>
-<li> TODO: regexp: add one-pass optimization from RE2 (CL 13345046)</li>
-<li> TODO: runtime/debug: add SetPanicOnFault (CL 66590044)</li>
-<li> TODO: runtime: output how long goroutines are blocked (CL 50420043)</li>
-<li> TODO: runtime: better handling of defers, reduces goroutine memory footprint by 2K (CL 42750044)</li>
-<li> TODO: runtime: faster GC: concurrent sweep, better parallelization, 8K pages (up to 50-70% pause reduction) (CL 46430043, 46860043, 58230043)</li>
-<li> TODO: runtime/race: faster by ~40% (CL 55100044)</li>
-<li> TODO: strconv.CanBackquote rejects U+007F CL 77300043</li>
+
+<li>
+The <a href="/pkg/os/exec/"><code>os/exec</code></a> package now implements
+what the documentation has always said with regard to relative paths for the binary.
+In particular, it only calls <a href="/pkg/os/exec/#LookPath"><code>LookPath</code></a>
+when the binary's file name contains no path separators.
+</li>
+
+<li>
+The <a href="/pkg/strconv/#CanBackquote"><code>CanBackquote</code></a>
+function in the <a href="/pkg/strconv/"><code>strconv</code></a> package
+now considers the <code>DEL</code> character, <code>U+007F</code>, to be
+non-printing.
+</li>
+
 <li> TODO: syscall: add Accept4 for freebsd (CL 68880043)</li>
+
 <li> TODO: syscall: add NewCallbackCDecl to use for windows callbacks (CL 36180044)</li>
+
 <li> TODO: syscall: add support for FreeBSD 10 (CL 56770044, 56980043)</li>
+
 <li> TODO: testing: add b.RunParallel function (CL 57270043)</li>
-<li> TODO: testing: diagnose buggy tests that panic(nil) (CL 55780043)</li>
-<li> TODO: unicode: upgrade from Unicode 6.2.0 to 6.3.0 (CL 65400044)</li>
+
+<li>
+The <a href="/pkg/testing/"><code>testing</code></a> package now
+diagnoses tests that call <code>panic(nil)</code>, which is almost always erroneous.
+</li>
+
+<li>
+The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
+support throughout the system has been upgraded from
+Unicode 6.2.0 to <a href="http://www.unicode.org/versions/Unicode6.3.0/">Unicode 6.3.0</a>.
+</li>
+
 </ul>
