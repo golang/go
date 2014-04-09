@@ -25,14 +25,22 @@ will continue to compile and run without change when moved to 1.3.
 <h2 id="os">Changes to the supported operating systems and architectures</h2>
 
 <h3 id="nacl">Support for Native Client</h3>
+
 <p>
-TODO
+Support for the Native Client virtual machine architecture has returned to Go with the 1.3 release.
+It runs on the 32-bit Intel architectures (<code>GOARCH=386</code>) and also on 64-bit Intel, but using
+32-bit pointers (<code>GOARCH=amd64p32</code>).
+There is not yet support for Native Client on ARM.
+Note that this is Native Client (NaCl), not Portable Native Client (PNaCl).
+Details about Native Client are <a href="https://developers.google.com/native-client/dev/">here</a>;
+how to set up the Go version is described <a href="http://golang.org/wiki/NativeClient">here</a>.
 </p>
 
 <h3 id="solaris">Support for Solaris</h3>
 
 <p>
-TODO
+Go 1.3 now includes preliminary support for Solaris on the <code>amd64</code> (64-bit x86) architecture.
+The Solaris port of Go is not ready for production use and must be built from source.
 </p>
 
 
@@ -82,8 +90,10 @@ put back to 4 kilobytes.
 <h3 id="garbage_collector">Changes to the garbage collector</h3>
 
 <p>
-precision (TODO what to say)
-liveness (TODO what to say)
+For a while now, the garbage collector has been <em>precise</em> when examining
+values in the heap; the Go 1.3 release adds equivalent precision to values on the stack.
+This means that a non-pointer Go value such as an integer will never be mistaken for a
+pointer and prevent unused memory from being reclaimed.
 </p>
 
 <h3 id="liblink">The linker</h3>
