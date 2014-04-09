@@ -227,9 +227,18 @@ The formatted print functions of the <code>fmt</code> package now define <code>%
 as a synonym for <code>%f</code> when printing floating-point values.
 </li>
 
-<li> TODO: net/http: add Request.TLS (CL 52660047)</li>
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package now exposes the
+the properties of a TLS connection used to make a client request in the new
+<a href="/pkg/net/http/#Response"><code>Response.TLS</code></a> field.
+</li>
 
-<li> TODO: net/http: add Server.ErrorLog; log and test TLS handshake errors (CL 70250044)</li>
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package now
+allows setting an optional server error logger
+with <a href="/pkg/net/http/#Server"><code>Server.ErrorLog</code></a>.
+The default is still that all errors go to stderr.
+</li>
 
 <li> TODO: net/http: add Server.SetKeepAlivesEnabled (CL 69670043)</li>
 
