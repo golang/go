@@ -127,6 +127,7 @@ func TestStdFixed(t *testing.T) {
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"bug459.go",    // likely incorrect test - see issue 6703 (pending spec clarification)
 		"issue3924.go", // likely incorrect test - see issue 6671 (pending spec clarification)
+		"issue6889.go", // incorrect test
 	)
 }
 
