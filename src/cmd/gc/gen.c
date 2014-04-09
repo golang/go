@@ -301,6 +301,10 @@ gen(Node *n)
 		break;
 
 	case OLABEL:
+		if(isblanksym(n->left->sym)) {
+			break;
+		}
+		
 		lab = newlab(n);
 
 		// if there are pending gotos, resolve them all to the current pc.
