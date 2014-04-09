@@ -300,13 +300,21 @@ mpmulfixfix(Mpint *a, Mpint *b)
 	for(i=0; i<na; i++) {
 		x = *a1++;
 		for(j=0; j<Mpscale; j++) {
-			if(x & 1)
+			if(x & 1) {
+				if(s.ovf) {
+					q.ovf = 1;
+					goto out;
+				}
 				mpaddfixfix(&q, &s, 1);
+				if(q.ovf)
+					goto out;
+			}
 			mplsh(&s, 1);
 			x >>= 1;
 		}
 	}
 
+out:
 	q.neg = a->neg ^ b->neg;
 	mpmovefixfix(a, &q);
 	if(a->ovf)
