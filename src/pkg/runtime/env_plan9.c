@@ -12,6 +12,7 @@ runtime·getenv(int8 *s)
 	intgo len;
 	byte file[128];
 	byte *p;
+	static byte b[128];
 
 	len = runtime·findnull((byte*)s);
 	if(len > sizeof file-6)
@@ -25,7 +26,14 @@ runtime·getenv(int8 *s)
 	if(fd < 0)
 		return nil;
 	n = runtime·seek(fd, 0, 2);
-	p = runtime·malloc(n+1);
+	if(runtime·strcmp((byte*)s, (byte*)"GOTRACEBACK") == 0){
+		// should not call malloc
+		if(n >= sizeof b)
+			return nil;
+		runtime·memclr(b, sizeof b);
+		p = b;
+	}else
+		p = runtime·malloc(n+1);
 	r = runtime·pread(fd, p, n, 0);
 	runtime·close(fd);
 	if(r < 0)
