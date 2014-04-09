@@ -294,7 +294,7 @@ For mode=set, all covered lines will have this weight."
 (defconst go--font-lock-syntactic-keywords
   ;; Override syntax property of raw string literal contents, so that
   ;; backslashes have no special meaning in ``. Used in Emacs 23 or older.
-  '(("\\(`\\)\\([^`]*\\)\\(`\\)"
+  '((go--match-raw-string-literal
      (1 (7 . ?`))
      (2 (15 . nil))  ;; 15 = "generic string"
      (3 (7 . ?`)))))
@@ -366,6 +366,18 @@ STOP-AT-STRING is not true, over strings."
   (/= (buffer-size)
       (- (point-max)
          (point-min))))
+
+(defun go--match-raw-string-literal (end)
+  "Search for a raw string literal. Set point to the end of the
+occurence found on success. Returns nil on failure."
+  (when (search-forward "`" end t)
+    (goto-char (match-beginning 0))
+    (if (go-in-string-or-comment-p)
+        (progn (goto-char (match-end 0))
+               (go--match-raw-string-literal end))
+      (when (looking-at "\\(`\\)\\([^`]*\\)\\(`\\)")
+        (goto-char (match-end 0))
+        t))))
 
 (defun go-previous-line-has-dangling-op-p ()
   "Returns non-nil if the current line is a continuation line."
