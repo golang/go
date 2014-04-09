@@ -40,10 +40,14 @@ func escapeTemplates(tmpl *Template, names ...string) error {
 			}
 			return err
 		}
-		tmpl.escaped = true
-		tmpl.Tree = tmpl.text.Tree
 	}
 	e.commit()
+	for _, name := range names {
+		if t := tmpl.set[name]; t != nil {
+			t.escaped = true
+			t.Tree = t.text.Tree
+		}
+	}
 	return nil
 }
 
@@ -207,6 +211,19 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	return c
 }
 
+// allIdents returns the names of the identifiers under the Ident field of the node,
+// which might be a singleton (Identifier) or a slice (Field).
+func allIdents(node parse.Node) []string {
+	switch node := node.(type) {
+	case *parse.IdentifierNode:
+		return []string{node.Ident}
+	case *parse.FieldNode:
+		return node.Ident
+	}
+	panic("unidentified node type in allIdents")
+	return nil
+}
+
 // ensurePipelineContains ensures that the pipeline has commands with
 // the identifiers in s in order.
 // If the pipeline already has some of the sanitizers, do not interfere.
@@ -229,27 +246,31 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 		idents = p.Cmds[i+1:]
 	}
 	dups := 0
-	for _, id := range idents {
-		if escFnsEq(s[dups], (id.Args[0].(*parse.IdentifierNode)).Ident) {
-			dups++
-			if dups == len(s) {
-				return
+	for _, idNode := range idents {
+		for _, ident := range allIdents(idNode.Args[0]) {
+			if escFnsEq(s[dups], ident) {
+				dups++
+				if dups == len(s) {
+					return
+				}
 			}
 		}
 	}
 	newCmds := make([]*parse.CommandNode, n-len(idents), n+len(s)-dups)
 	copy(newCmds, p.Cmds)
 	// Merge existing identifier commands with the sanitizers needed.
-	for _, id := range idents {
-		pos := id.Args[0].Position()
-		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s, escFnsEq)
-		if i != -1 {
-			for _, name := range s[:i] {
-				newCmds = appendCmd(newCmds, newIdentCmd(name, pos))
+	for _, idNode := range idents {
+		pos := idNode.Args[0].Position()
+		for _, ident := range allIdents(idNode.Args[0]) {
+			i := indexOfStr(ident, s, escFnsEq)
+			if i != -1 {
+				for _, name := range s[:i] {
+					newCmds = appendCmd(newCmds, newIdentCmd(name, pos))
+				}
+				s = s[i+1:]
 			}
-			s = s[i+1:]
 		}
-		newCmds = appendCmd(newCmds, id)
+		newCmds = appendCmd(newCmds, idNode)
 	}
 	// Create any remaining sanitizers.
 	for _, name := range s {
