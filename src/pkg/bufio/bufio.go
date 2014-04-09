@@ -177,7 +177,7 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 // If no byte is available, returns an error.
 func (b *Reader) ReadByte() (c byte, err error) {
 	b.lastRuneSize = -1
-	for b.w == b.r {
+	for b.r == b.w {
 		if b.err != nil {
 			return 0, b.readErr()
 		}
@@ -191,19 +191,19 @@ func (b *Reader) ReadByte() (c byte, err error) {
 
 // UnreadByte unreads the last byte.  Only the most recently read byte can be unread.
 func (b *Reader) UnreadByte() error {
-	b.lastRuneSize = -1
-	if b.r == b.w && b.lastByte >= 0 {
-		b.w = 1
-		b.r = 0
-		b.buf[0] = byte(b.lastByte)
-		b.lastByte = -1
-		return nil
-	}
-	if b.r <= 0 {
+	if b.lastByte < 0 || b.r == 0 && b.w > 0 {
 		return ErrInvalidUnreadByte
 	}
-	b.r--
+	// b.r > 0 || b.w == 0
+	if b.r > 0 {
+		b.r--
+	} else {
+		// b.r == 0 && b.w == 0
+		b.w = 1
+	}
+	b.buf[b.r] = byte(b.lastByte)
 	b.lastByte = -1
+	b.lastRuneSize = -1
 	return nil
 }
 
@@ -233,7 +233,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 // regard it is stricter than UnreadByte, which will unread the last byte
 // from any read operation.)
 func (b *Reader) UnreadRune() error {
-	if b.lastRuneSize < 0 || b.r == 0 {
+	if b.lastRuneSize < 0 || b.r < b.lastRuneSize {
 		return ErrInvalidUnreadRune
 	}
 	b.r -= b.lastRuneSize
