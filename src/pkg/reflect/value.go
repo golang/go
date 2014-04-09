@@ -453,17 +453,6 @@ func (v Value) call(op string, in []Value) []Value {
 		panic("reflect.Value.Call: call of nil function")
 	}
 
-	// If target is makeFuncStub, short circuit the unpack onto stack /
-	// pack back into []Value for the args and return values.  Just do the
-	// call directly.
-	// We need to do this here because otherwise we have a situation where
-	// reflect.callXX calls makeFuncStub, neither of which knows the
-	// layout of the args.  That's bad for precise gc & stack copying.
-	x := (*makeFuncImpl)(fn)
-	if x.code == makeFuncStubCode {
-		return x.fn(in)
-	}
-
 	isSlice := op == "CallSlice"
 	n := t.NumIn()
 	if isSlice {
@@ -520,6 +509,17 @@ func (v Value) call(op string, in []Value) []Value {
 		panic("reflect.Value.Call: wrong argument count")
 	}
 	nout := t.NumOut()
+
+	// If target is makeFuncStub, short circuit the unpack onto stack /
+	// pack back into []Value for the args and return values.  Just do the
+	// call directly.
+	// We need to do this here because otherwise we have a situation where
+	// reflect.callXX calls makeFuncStub, neither of which knows the
+	// layout of the args.  That's bad for precise gc & stack copying.
+	x := (*makeFuncImpl)(fn)
+	if x.code == makeFuncStubCode {
+		return x.fn(in)
+	}
 
 	// If the target is methodValueCall, do its work here: add the receiver
 	// argument and call the real target directly.

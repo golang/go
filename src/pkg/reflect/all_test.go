@@ -1512,6 +1512,23 @@ func TestMakeFuncInterface(t *testing.T) {
 	}
 }
 
+func TestMakeFuncVariadic(t *testing.T) {
+	// Test that variadic arguments are packed into a slice and passed as last arg
+	fn := func(_ int, is ...int) []int { return nil }
+	fv := MakeFunc(TypeOf(fn), func(in []Value) []Value { return in[1:2] })
+	ValueOf(&fn).Elem().Set(fv)
+
+	r := fv.Call([]Value{ValueOf(1), ValueOf(2), ValueOf(3)})[0].Interface().([]int)
+	if r[0] != 2 || r[1] != 3 {
+		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
+	}
+
+	r = fv.CallSlice([]Value{ValueOf(1), ValueOf([]int{2, 3})})[0].Interface().([]int)
+	if r[0] != 2 || r[1] != 3 {
+		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
+	}
+}
+
 type Point struct {
 	x, y int
 }
