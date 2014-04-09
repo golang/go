@@ -125,10 +125,25 @@ that the next GCC release, 4.10, will likely have the Go 1.4 version of gccgo.
 <h3 id="gocmd">Changes to the go command</h3>
 
 <p>
-TODO
-cmd/go, go/build: support .m files (CL 60590044)
-cmd/go: add -exec to 'go run' and 'go test' (CL 68580043)
-cmd/go: cover -atomic for -race (CL 76370043)
+The <a href="/cmd/go/"><code>cmd/go</code></a> command has several new
+features.
+The <a href="/cmd/go/"><code>go run</code></a> and
+<a href="/cmd/go/"><code>go test</code></a> subcommands
+support a new <code>-exec</code> option to specify an alternate
+way to run the resulting binary.
+Its immediate purpose is to support NaCl.
+</p>
+
+<p>
+The test coverage support of the <a href="/cmd/go/"><code>go test</code></a>
+subcommand now automatically sets the coverage mode to <code>-atomic</code>
+when the race detector is enabled, to eliminate false reports about unsafe
+access to coverage counters.
+</p>
+
+<p>
+Finally, the go command now supports packages that import Objective-C
+files (suffixed <code>.m</code>) through cgo.
 </p>
 
 <h3 id="misc">Miscellany</h3>
@@ -140,10 +155,10 @@ Once a shell and awk script in the main repository, it is now a Go program in th
 Documentation is <a href="http://godoc.org/code.google.com/p/go.tools/cmd/benchcmp">here</a>.
 </p>
 
-<ul>
+<p>
 For the few of us that build Go distributions, the tool <code>misc/dist</code> has been
 moved and renamed; it now lives in <code>misc/makerelease</code>, still in the main repository.
-</ul>
+</p>
 
 
 <h2 id="performance">Performance</h2>
@@ -201,14 +216,30 @@ No new packages appear in the core libraries in Go 1.3.
 <h3 id="major_library_changes">Major changes to the library</h3>
 
 <p>
+A previous bug in <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a>
+made it possible to skip verfication in TLS inadvertently.
+In Go 1.3, the bug is fixed: one must specify either ServerName or
+InsecureSkipVerify, and if ServerName is specified it is enforced.
+This may break existing code that incorrectly depended on insecure
+behavior.
+</p>
+
+<p>
 There is an important new type added to the standard library: <a href="/pkg/sync/#Pool"><code>sync.Pool</code></a>.
 It provides an efficient mechanism for implementing certain types of caches whose memory
 can be reclaimed automatically by the system.
 </p>
 
 <p>
-TODO: crypto/tls: ServerName or InsecureSkipVerify (CL 67010043)
-possible breaking change
+The <a href="/pkg/testing/"><code>testing</code></a> package's benchmarking helper,
+<a href="/pkg/testing/#B"><code>B</code></a>, now has a
+<a href="/pkg/testing/#B.RunParallel"><code>RunParallel</code></a> method
+to make it easier to run benchmarks that exercise multiple CPUs.
+</p>
+
+<p>
+<em>Updating</em>: The crypto/tls fix may break existing code, but such
+code was erroneous and should be updated.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -283,8 +314,6 @@ non-printing.
 <li> TODO: syscall: add NewCallbackCDecl to use for windows callbacks (CL 36180044)</li>
 
 <li> TODO: syscall: add support for FreeBSD 10 (CL 56770044, 56980043)</li>
-
-<li> TODO: testing: add b.RunParallel function (CL 57270043)</li>
 
 <li>
 The <a href="/pkg/testing/"><code>testing</code></a> package now
