@@ -694,6 +694,12 @@ unset go_cmds
 unset ldflags
 unset GOPATH
 
+TEST list template can use context function
+if ! ./testgo list -f "GOARCH: {{context.GOARCH}}"; then 
+	echo unable to use context in list template
+	ok=false
+fi
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
