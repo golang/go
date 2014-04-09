@@ -27,8 +27,7 @@ The default output shows the package import path:
 
 The -f flag specifies an alternate format for the list, using the
 syntax of package template.  The default output is equivalent to -f
-'{{.ImportPath}}'.  One extra template function is available, "join",
-which calls strings.Join. The struct being passed to the template is:
+'{{.ImportPath}}'. The struct being passed to the template is:
 
     type Package struct {
         Dir        string // directory containing package sources
@@ -75,6 +74,26 @@ which calls strings.Join. The struct being passed to the template is:
         XTestGoFiles []string // _test.go files outside package
         XTestImports []string // imports from XTestGoFiles
     }
+
+The template function "join" calls strings.Join.
+
+The template function "context" returns the build context, defined as:
+
+	type Context struct {
+		GOARCH        string   // target architecture
+		GOOS          string   // target operating system
+		GOROOT        string   // Go root
+		GOPATH        string   // Go path
+		CgoEnabled    bool     // whether cgo can be used
+		UseAllFiles   bool     // use files regardless of +build lines, file names
+		Compiler      string   // compiler to assume when computing target paths
+		BuildTags     []string // build constraints to match in +build lines
+		ReleaseTags   []string // releases the current release is compatible with
+		InstallSuffix string   // suffix to use in the name of the install dir
+	}
+
+For more information about the meaning of these fields see the documentation
+for the go/build package's Context type.
 
 The -json flag causes the package data to be printed in JSON format
 instead of using the template format.
@@ -131,7 +150,18 @@ func runList(cmd *Command, args []string) {
 			out.Write(nl)
 		}
 	} else {
-		tmpl, err := template.New("main").Funcs(template.FuncMap{"join": strings.Join}).Parse(*listFmt)
+		var cachedCtxt *Context
+		context := func() *Context {
+			if cachedCtxt == nil {
+				cachedCtxt = newContext(&buildContext)
+			}
+			return cachedCtxt
+		}
+		fm := template.FuncMap{
+			"join":    strings.Join,
+			"context": context,
+		}
+		tmpl, err := template.New("main").Funcs(fm).Parse(*listFmt)
 		if err != nil {
 			fatalf("%s", err)
 		}
