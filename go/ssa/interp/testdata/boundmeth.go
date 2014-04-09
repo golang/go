@@ -2,6 +2,8 @@
 
 package main
 
+import "fmt"
+
 func assert(b bool) {
 	if !b {
 		panic("oops")
@@ -100,6 +102,32 @@ func regress1(x error) func() string {
 	return x.Error
 }
 
+// Regression test for b/7269:
+// taking the value of an interface method performs a nil check.
+func nilInterfaceMethodValue() {
+	err := fmt.Errorf("ok")
+	f := err.Error
+	if got := f(); got != "ok" {
+		panic(got)
+	}
+
+	err = nil
+	if got := f(); got != "ok" {
+		panic(got)
+	}
+
+	defer func() {
+		r := fmt.Sprint(recover())
+		// runtime panic string varies across toolchains
+		if r != "runtime error: interface conversion: interface is nil, not error" &&
+			r != "runtime error: invalid memory address or nil pointer dereference" {
+			panic("want runtime panic from nil interface method value, got " + r)
+		}
+	}()
+	f = err.Error // runtime panic: err is nil
+	panic("unreachable")
+}
+
 func main() {
 	valueReceiver()
 	pointerReceiver()
@@ -111,4 +139,6 @@ func main() {
 	if e := regress1(errString("hi"))(); e != "hi" {
 		panic(e)
 	}
+
+	nilInterfaceMethodValue()
 }

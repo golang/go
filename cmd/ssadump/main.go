@@ -130,8 +130,7 @@ func doMain() error {
 		case 'R':
 			interpMode |= interp.DisableRecover
 		default:
-			fmt.Fprintf(os.Stderr, "ssadump: unknown -interp option: '%c'.", c)
-			os.Exit(1)
+			return fmt.Errorf("unknown -interp option: '%c'", c)
 		}
 	}
 

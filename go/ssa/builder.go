@@ -631,9 +631,16 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 			// e.f where e is an expression and f is a method.
 			// The result is a bound method closure.
 			obj := sel.Obj().(*types.Func)
-			wantAddr := isPointer(recvType(obj))
+			rt := recvType(obj)
+			wantAddr := isPointer(rt)
 			escaping := true
 			v := b.receiver(fn, e.X, wantAddr, escaping, sel)
+			if _, ok := rt.Underlying().(*types.Interface); ok {
+				// If v has interface type I,
+				// we must emit a check that v is non-nil.
+				// We use: typeassert v.(I).
+				emitTypeAssert(fn, v, rt, token.NoPos)
+			}
 			c := &MakeClosure{
 				Fn:       boundMethodWrapper(fn.Prog, obj),
 				Bindings: []Value{v},
