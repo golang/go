@@ -157,7 +157,7 @@ var faultAddrs = []uint64{
 	0xffffffffffffffff,
 	0xfffffffffffff001,
 	// no 0xffffffffffff0001; 0xffff0001 is mapped for 32-bit user space on OS X
-	0xfffffffffff00001,
+	// no 0xfffffffffff00001; 0xfff00001 is mapped for 32-bit user space sometimes on Linux
 	0xffffffffff000001,
 	0xfffffffff0000001,
 	0xffffffff00000001,
