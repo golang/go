@@ -155,6 +155,10 @@ runtime·schedinit(void)
 	// in a fault during a garbage collection, it will not
 	// need to allocated memory.
 	runtime·newErrorCString(0, &i);
+	
+	// Initialize the cached gotraceback value, since
+	// gotraceback calls getenv, which mallocs on Plan 9.
+	runtime·gotraceback(nil);
 
 	runtime·goargs();
 	runtime·goenvs();

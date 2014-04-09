@@ -20,22 +20,35 @@ enum {
 int32
 runtime·gotraceback(bool *crash)
 {
+	// Keep a cached value to make gotraceback fast,
+	// since we call it on every call to gentraceback.
+	// The cached value is a uint32 in which the low bit
+	// is the "crash" setting and the top 31 bits are the
+	// gotraceback value.
+	static uint32 cache = ~(uint32)0;
 	byte *p;
+	uint32 x;
 
 	if(crash != nil)
 		*crash = false;
-	p = runtime·getenv("GOTRACEBACK");
-	if(p == nil || p[0] == '\0') {
-		if(m->traceback != 0)
-			return m->traceback;
-		return 1;	// default is on
+	if(m->traceback != 0)
+		return m->traceback;
+	x = runtime·atomicload(&cache);
+	if(x == ~(uint32)0) {
+		p = runtime·getenv("GOTRACEBACK");
+		if(p == nil)
+			p = (byte*)"";
+		if(p[0] == '\0')
+			x = 1<<1;
+		else if(runtime·strcmp(p, (byte*)"crash") == 0)
+			x = (2<<1) | 1;
+		else
+			x = runtime·atoi(p)<<1;	
+		runtime·atomicstore(&cache, x);
 	}
-	if(runtime·strcmp(p, (byte*)"crash") == 0) {
-		if(crash != nil)
-			*crash = true;
-		return 2;	// extra information
-	}
-	return runtime·atoi(p);
+	if(crash != nil)
+		*crash = x&1;
+	return x>>1;
 }
 
 int32
