@@ -2316,13 +2316,13 @@ runtime·gc(int32 force)
 	// we don't need to scan gc's internal state).  Also an
 	// enabler for copyable stacks.
 	for(i = 0; i < (runtime·debug.gctrace > 1 ? 2 : 1); i++) {
+		if(i > 0)
+			a.start_time = runtime·nanotime();
 		// switch to g0, call gc(&a), then switch back
 		g->param = &a;
 		g->status = Gwaiting;
 		g->waitreason = "garbage collection";
 		runtime·mcall(mgc);
-		// record a new start time in case we're going around again
-		a.start_time = runtime·nanotime();
 	}
 
 	// all done
@@ -2378,7 +2378,9 @@ gc(struct gc_args *args)
 		itabtype = ((PtrType*)eface.type)->elem;
 	}
 
-	t1 = runtime·nanotime();
+	t1 = 0;
+	if(runtime·debug.gctrace)
+		t1 = runtime·nanotime();
 
 	// Sweep what is not sweeped by bgsweep.
 	while(runtime·sweepone() != -1)
@@ -2393,13 +2395,17 @@ gc(struct gc_args *args)
 		runtime·helpgc(work.nproc);
 	}
 
-	t2 = runtime·nanotime();
+	t2 = 0;
+	if(runtime·debug.gctrace)
+		t2 = runtime·nanotime();
 
 	gchelperstart();
 	runtime·parfordo(work.markfor);
 	scanblock(nil, true);
 
-	t3 = runtime·nanotime();
+	t3 = 0;
+	if(runtime·debug.gctrace)
+		t3 = runtime·nanotime();
 
 	bufferList[m->helpgc].busy = 0;
 	if(work.nproc > 1)
