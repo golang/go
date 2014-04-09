@@ -301,9 +301,8 @@ gen(Node *n)
 		break;
 
 	case OLABEL:
-		if(isblanksym(n->left->sym)) {
+		if(isblanksym(n->left->sym))
 			break;
-		}
 		
 		lab = newlab(n);
 
