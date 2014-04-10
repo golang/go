@@ -812,13 +812,7 @@ func (pc *persistConn) readLoop() {
 				resp.Header.Del("Content-Encoding")
 				resp.Header.Del("Content-Length")
 				resp.ContentLength = -1
-				gzReader, zerr := gzip.NewReader(resp.Body)
-				if zerr != nil {
-					pc.close()
-					err = zerr
-				} else {
-					resp.Body = &readerAndCloser{gzReader, resp.Body}
-				}
+				resp.Body = &gzipReader{body: resp.Body}
 			}
 			resp.Body = &bodyEOFSignal{body: resp.Body}
 		}
@@ -1154,6 +1148,27 @@ func (es *bodyEOFSignal) condfn(err error) {
 	}
 	es.fn(err)
 	es.fn = nil
+}
+
+// gzipReader wraps a response body so it can lazily
+// call gzip.NewReader on the first call to Read
+type gzipReader struct {
+	body io.ReadCloser // underlying Response.Body
+	zr   io.Reader     // lazily-initialized gzip reader
+}
+
+func (gz *gzipReader) Read(p []byte) (n int, err error) {
+	if gz.zr == nil {
+		gz.zr, err = gzip.NewReader(gz.body)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return gz.zr.Read(p)
+}
+
+func (gz *gzipReader) Close() error {
+	return gz.body.Close()
 }
 
 type readerAndCloser struct {

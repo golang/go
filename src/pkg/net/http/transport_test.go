@@ -803,6 +803,33 @@ func TestTransportGzipRecursive(t *testing.T) {
 	}
 }
 
+// golang.org/issue/7750: request fails when server replies with
+// a short gzip body
+func TestTransportGzipShort(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Write([]byte{0x1f, 0x8b})
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	_, err = ioutil.ReadAll(res.Body)
+	if err == nil {
+		t.Fatal("Expect an error from reading a body.")
+	}
+	if err != io.ErrUnexpectedEOF {
+		t.Errorf("ReadAll error = %v; want io.ErrUnexpectedEOF", err)
+	}
+}
+
 // tests that persistent goroutine connections shut down when no longer desired.
 func TestTransportPersistConnLeak(t *testing.T) {
 	if runtime.GOOS == "plan9" {
