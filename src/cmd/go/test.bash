@@ -700,6 +700,14 @@ if ! ./testgo list -f "GOARCH: {{context.GOARCH}}"; then
 	ok=false
 fi
 
+TEST 'Issue 7108: cmd/go: "go test" should fail if package does not build'
+export GOPATH=$(pwd)/testdata
+if ./testgo test notest >/dev/null 2>&1; then
+	echo 'go test notest succeeded, but should fail'
+	ok=false
+fi
+unset GOPATH
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
