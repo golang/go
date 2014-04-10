@@ -57,21 +57,21 @@ func (c *testCloseConn) Close() error {
 // been closed.
 type testConnSet struct {
 	t      *testing.T
+	mu     sync.Mutex // guards closed and list
 	closed map[net.Conn]bool
 	list   []net.Conn // in order created
-	mutex  sync.Mutex
 }
 
 func (tcs *testConnSet) insert(c net.Conn) {
-	tcs.mutex.Lock()
-	defer tcs.mutex.Unlock()
+	tcs.mu.Lock()
+	defer tcs.mu.Unlock()
 	tcs.closed[c] = false
 	tcs.list = append(tcs.list, c)
 }
 
 func (tcs *testConnSet) remove(c net.Conn) {
-	tcs.mutex.Lock()
-	defer tcs.mutex.Unlock()
+	tcs.mu.Lock()
+	defer tcs.mu.Unlock()
 	tcs.closed[c] = true
 }
 
@@ -94,11 +94,19 @@ func makeTestDial(t *testing.T) (*testConnSet, func(n, addr string) (net.Conn, e
 }
 
 func (tcs *testConnSet) check(t *testing.T) {
-	tcs.mutex.Lock()
-	defer tcs.mutex.Unlock()
-
-	for i, c := range tcs.list {
-		if !tcs.closed[c] {
+	tcs.mu.Lock()
+	defer tcs.mu.Unlock()
+	for i := 4; i >= 0; i-- {
+		for i, c := range tcs.list {
+			if tcs.closed[c] {
+				continue
+			}
+			if i != 0 {
+				tcs.mu.Unlock()
+				time.Sleep(50 * time.Millisecond)
+				tcs.mu.Lock()
+				continue
+			}
 			t.Errorf("TCP connection #%d, %p (of %d total) was not closed", i+1, c, len(tcs.list))
 		}
 	}
@@ -1903,6 +1911,111 @@ func TestTLSServerClosesConnection(t *testing.T) {
 	for _, err := range errs {
 		t.Logf("  err: %v", err)
 	}
+}
+
+// byteFromChanReader is an io.Reader that reads a single byte at a
+// time from the channel.  When the channel is closed, the reader
+// returns io.EOF.
+type byteFromChanReader chan byte
+
+func (c byteFromChanReader) Read(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return
+	}
+	b, ok := <-c
+	if !ok {
+		return 0, io.EOF
+	}
+	p[0] = b
+	return 1, nil
+}
+
+// Verifies that the Transport doesn't reuse a connection in the case
+// where the server replies before the request has been fully
+// written. We still honor that reply (see TestIssue3595), but don't
+// send future requests on the connection because it's then in a
+// questionable state.
+// golang.org/issue/7569
+func TestTransportNoReuseAfterEarlyResponse(t *testing.T) {
+	defer afterTest(t)
+	var sconn struct {
+		sync.Mutex
+		c net.Conn
+	}
+	var getOkay bool
+	closeConn := func() {
+		sconn.Lock()
+		defer sconn.Unlock()
+		if sconn.c != nil {
+			sconn.c.Close()
+			sconn.c = nil
+			if !getOkay {
+				t.Logf("Closed server connection")
+			}
+		}
+	}
+	defer closeConn()
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method == "GET" {
+			io.WriteString(w, "bar")
+			return
+		}
+		conn, _, _ := w.(Hijacker).Hijack()
+		sconn.Lock()
+		sconn.c = conn
+		sconn.Unlock()
+		conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nfoo")) // keep-alive
+		go io.Copy(ioutil.Discard, conn)
+	}))
+	defer ts.Close()
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	client := &Client{Transport: tr}
+
+	const bodySize = 256 << 10
+	finalBit := make(byteFromChanReader, 1)
+	req, _ := NewRequest("POST", ts.URL, io.MultiReader(io.LimitReader(neverEnding('x'), bodySize-1), finalBit))
+	req.ContentLength = bodySize
+	res, err := client.Do(req)
+	if err := wantBody(res, err, "foo"); err != nil {
+		t.Errorf("POST response: %v", err)
+	}
+	donec := make(chan bool)
+	go func() {
+		defer close(donec)
+		res, err = client.Get(ts.URL)
+		if err := wantBody(res, err, "bar"); err != nil {
+			t.Errorf("GET response: %v", err)
+			return
+		}
+		getOkay = true // suppress test noise
+	}()
+	time.AfterFunc(5*time.Second, closeConn)
+	select {
+	case <-donec:
+		finalBit <- 'x' // unblock the writeloop of the first Post
+		close(finalBit)
+	case <-time.After(7 * time.Second):
+		t.Fatal("timeout waiting for GET request to finish")
+	}
+}
+
+func wantBody(res *http.Response, err error, want string) error {
+	if err != nil {
+		return err
+	}
+	slurp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("error reading body: %v", err)
+	}
+	if string(slurp) != want {
+		return fmt.Errorf("body = %q; want %q", slurp, want)
+	}
+	if err := res.Body.Close(); err != nil {
+		return fmt.Errorf("body Close = %v", err)
+	}
+	return nil
 }
 
 func newLocalListener(t *testing.T) net.Listener {
