@@ -117,17 +117,17 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 
 func TestStdTest(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
-		"cmplxdivide.go",          // also needs file cmplxdivide1.go - ignore
-		"mapnan.go", "sigchld.go", // don't work on Windows; testTestDir should consult build tags
+		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+		"sigchld.go",     // don't work on Windows; testTestDir should consult build tags
 	)
 }
 
 func TestStdFixed(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
-		"bug459.go",    // likely incorrect test - see issue 6703 (pending spec clarification)
-		"issue3924.go", // likely incorrect test - see issue 6671 (pending spec clarification)
-		"issue6889.go", // incorrect test
+		"bug459.go",    // possibly incorrect test - see issue 6703 (pending spec clarification)
+		"issue3924.go", // possibly incorrect test - see issue 6671 (pending spec clarification)
+		"issue6889.go", // gc-specific test
 	)
 }
 
