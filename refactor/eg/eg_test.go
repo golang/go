@@ -119,6 +119,7 @@ func Test(t *testing.T) {
 		if err := eg.WriteAST(iprog.Fset, got, file); err != nil {
 			t.Error(err)
 		}
+		defer os.Remove(got)
 
 		// Compare foo.got with foo.golden.
 		var cmd *exec.Cmd
