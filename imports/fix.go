@@ -175,9 +175,9 @@ var pkgIndex struct {
 }
 
 // gate is a semaphore for limiting concurrency.
-type gate chan bool
+type gate chan struct{}
 
-func (g gate) enter() { g <- true }
+func (g gate) enter() { g <- struct{}{} }
 func (g gate) leave() { <-g }
 
 // fsgate protects the OS & filesystem from too much concurrency.
