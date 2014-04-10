@@ -192,7 +192,7 @@ is now about 40% faster.
 
 <li>
 The regular expression package <a href="/pkg/regexp/"><code>regexp</code></a>
-is now significantly faster for certain simple expressions due to the implemenation of
+is now significantly faster for certain simple expressions due to the implementation of
 a second, one-pass execution engine. The choice of which engine to use is automatic;
 the details are hidden from the user.
 </li>
@@ -216,7 +216,7 @@ No new packages appear in the core libraries in Go 1.3.
 
 <p>
 A previous bug in <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a>
-made it possible to skip verfication in TLS inadvertently.
+made it possible to skip verification in TLS inadvertently.
 In Go 1.3, the bug is fixed: one must specify either ServerName or
 InsecureSkipVerify, and if ServerName is specified it is enforced.
 This may break existing code that incorrectly depended on insecure
