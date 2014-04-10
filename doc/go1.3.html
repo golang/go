@@ -278,7 +278,7 @@ as a synonym for <code>%f</code> when printing floating-point values.
 
 <li>
 The <a href="/pkg/net/http/"><code>net/http</code></a> package now exposes the
-the properties of a TLS connection used to make a client request in the new
+properties of a TLS connection used to make a client request in the new
 <a href="/pkg/net/http/#Response"><code>Response.TLS</code></a> field.
 </li>
 
@@ -289,15 +289,61 @@ with <a href="/pkg/net/http/#Server"><code>Server.ErrorLog</code></a>.
 The default is still that all errors go to stderr.
 </li>
 
-<li> TODO: net/http: add Server.SetKeepAlivesEnabled (CL 69670043)</li>
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package now
+supports disabling HTTP keep-alive connections on the server
+with <a href="/pkg/net/http/#Server.SetKeepAlivesEnabled"><code>Server.SetKeepAlivesEnabled</code></a>.
+The default continues to be that the server does keep-alive (reuses
+connections for multiple requests) by default.  Only
+resource-constrained servers or those in the process of graceful
+shutdown will want to disable them.
+</li>
 
-<li> TODO: net/http: add Transport.TLSHandshakeTimeout; set it by default (CL 68150045)</li>
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package adds an optional
+<a href="/pkg/net/http/#Transport"><code>Transport.TLSHandshakeTimeout</code></a>
+setting to cap the amount of time HTTP client requests will wait for
+TLS handshakes to complete. It's now also set by default
+on <a href="/pkg/net/http#DefaultTransport"><code>DefaultTransport</code></a>.
+</li>
 
-<li> TODO: net/http: add optional Server.ConnState callback (CL 69260044)</li>
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package's
+<a href="/pkg/net/http/#DefaultTransport"><code>DefaultTransport</code></a>,
+used by the HTTP client code, now
+enables <a href="http://en.wikipedia.org/wiki/Keepalive#TCP_keepalive">TCP
+keep-alives</a> by
+default. Other <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
+values with a nil <code>Dial</code> field continue to function the same
+as before: no TCP keep-alives are used.
+</li>
 
-<li> TODO: net/http: use TCP Keep-Alives on DefaultTransport's connections (CL 68330046)</li>
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package
+now enables <a href="http://en.wikipedia.org/wiki/Keepalive#TCP_keepalive">TCP
+keep-alives</a> for incoming server requests when
+<a href="/pkg/net/http/#ListenAndServe"><code>ListenAndServe</code></a>
+or
+<a href="/pkg/net/http/#ListenAndServeTLS"><code>ListenAndServeTLS</code></a>
+are used. When a server is started otherwise, TCP keep-alives are not enabled.
+</li>
 
-<li> TODO: net/http: use TCP keep-alives for ListenAndServe and ListenAndServeTLS (CL 48300043)</li>
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package now
+provides an
+optional <a href="/pkg/net/http/#Server"><code>Server.ConnState</code></a>
+callback to hook various phases of a server connection's lifecycle
+(see <a href="/pkg/net/http/#ConnState"><code>ConnState</code></a>). This
+can be used to implement rate limiting or graceful shutdown.
+</li>
+
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package's HTTP
+client now has an
+optional <a href="/pkg/net/http/#Client"><code>Client.Timeout</code></a>
+field to specify an end-to-end timeout on requests made using the
+client.
+</li>
 
 <li> In the <a href="/pkg/net/"><code>net</code></a> package,
 the <a href="/pkg/net/#Dialer"><code>Dialer</code></a> struct now
