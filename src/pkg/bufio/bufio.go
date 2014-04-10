@@ -88,15 +88,22 @@ func (b *Reader) fill() {
 		b.r = 0
 	}
 
-	// Read new data.
-	n, err := b.rd.Read(b.buf[b.w:])
-	if n < 0 {
-		panic(errNegativeRead)
+	// Read new data: try a limited number of times.
+	for i := maxConsecutiveEmptyReads; i > 0; i-- {
+		n, err := b.rd.Read(b.buf[b.w:])
+		if n < 0 {
+			panic(errNegativeRead)
+		}
+		b.w += n
+		if err != nil {
+			b.err = err
+			return
+		}
+		if n > 0 {
+			return
+		}
 	}
-	b.w += n
-	if err != nil {
-		b.err = err
-	}
+	b.err = io.ErrNoProgress
 }
 
 func (b *Reader) readErr() error {
@@ -151,6 +158,9 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 			// Large read, empty buffer.
 			// Read directly into p to avoid copy.
 			n, b.err = b.rd.Read(p)
+			if n < 0 {
+				panic(errNegativeRead)
+			}
 			if n > 0 {
 				b.lastByte = int(p[n-1])
 				b.lastRuneSize = -1
