@@ -14,7 +14,6 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
-	"time"
 	"unicode/utf8"
 )
 
@@ -172,34 +171,6 @@ func TestReader(t *testing.T) {
 				}
 			}
 		}
-	}
-}
-
-type zeroReader struct{}
-
-func (zeroReader) Read(p []byte) (int, error) {
-	return 0, nil
-}
-
-func TestZeroReader(t *testing.T) {
-	var z zeroReader
-	r := NewReader(z)
-
-	c := make(chan error)
-	go func() {
-		_, err := r.ReadByte()
-		c <- err
-	}()
-
-	select {
-	case err := <-c:
-		if err == nil {
-			t.Error("error expected")
-		} else if err != io.ErrNoProgress {
-			t.Error("unexpected error:", err)
-		}
-	case <-time.After(time.Second):
-		t.Error("test timed out (endless loop in ReadByte?)")
 	}
 }
 
