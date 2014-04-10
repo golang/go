@@ -73,6 +73,14 @@ zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *ax)
 		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
 		*ax = 1;
 	}
+	if(cnt % widthreg != 0) {
+		// should only happen with nacl
+		if(cnt % widthptr != 0)
+			fatal("zerorange count not a multiple of widthptr %d", cnt);
+		p = appendpp(p, AMOVL, D_AX, 0, D_SP+D_INDIR, frame+lo);
+		lo += widthptr;
+		cnt -= widthptr;
+	}
 	if(cnt <= 4*widthreg) {
 		for(i = 0; i < cnt; i += widthreg) {
 			p = appendpp(p, AMOVQ, D_AX, 0, D_SP+D_INDIR, frame+lo+i);
