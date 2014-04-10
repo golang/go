@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -96,6 +97,22 @@ func TestReaderAt(t *testing.T) {
 			t.Errorf("%d. got error = %v; want %v", i, err, tt.wanterr)
 		}
 	}
+}
+
+func TestReaderAtConcurrent(t *testing.T) {
+	// Test for the race detector, to verify ReadAt doesn't mutate
+	// any state.
+	r := NewReader([]byte("0123456789"))
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			var buf [1]byte
+			r.ReadAt(buf[:], int64(i))
+		}(i)
+	}
+	wg.Wait()
 }
 
 func TestReaderWriteTo(t *testing.T) {
