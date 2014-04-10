@@ -256,11 +256,20 @@ now specifies the behavior when the first argument is zero. It was undefined bef
 The details are in the <a href="/pkg/math/cmplx/#Pow">documentation for the function</a>.
 </li>
 
-<li> TODO: crypto/tls: add DialWithDialer (CL 68920045)</li>
+<li> In the <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package,
+a new <a href="/pkg/crypto/tls/#DialWithDialer"><code>DialWithDialer</code></a>
+function lets one establish a TLS connection using an existing dialer, making it easier
+to control dial options such as timeouts.
+The package also now reports the TLS version used by the connection in the
+<a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
+struct.
+</li>
 
-<li> TODO: crypto/tls: report TLS version in ConnectionState (CL 68250043)</li>
-
-<li> TODO: crypto/x509: support CSRs (CL 49830048)</li>
+<li> The <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+function of the <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+now supports parsing (and elsewhere, serialization) of PKCS #10 certificate
+signature requests.
+</li>
 
 <li>
 The formatted print functions of the <code>fmt</code> package now define <code>%F</code>
@@ -290,7 +299,10 @@ The default is still that all errors go to stderr.
 
 <li> TODO: net/http: use TCP keep-alives for ListenAndServe and ListenAndServeTLS (CL 48300043)</li>
 
-<li> TODO: net: add Dialer.KeepAlive option (CL 68380043)</li>
+<li> In the <a href="/pkg/net/"><code>net</code></a> package,
+the <a href="/pkg/net/#Dialer"><code>Dialer</code></a> struct now
+has a <code>KeepAlive</code> option to specify a keep-alive period for the connection.
+</li>
 
 <li> TODO: net: enable fast socket creation using SOCK_CLOEXEC and Accept4 on FreeBSD 10 (69100043)</li>
 
