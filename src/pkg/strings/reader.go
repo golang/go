@@ -42,6 +42,7 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 }
 
 func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+	// cannot modify state - see io.ReaderAt
 	if off < 0 {
 		return 0, errors.New("strings: invalid offset")
 	}
