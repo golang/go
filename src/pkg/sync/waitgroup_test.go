@@ -6,6 +6,7 @@ package sync_test
 
 import (
 	. "sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -57,6 +58,31 @@ func TestWaitGroupMisuse(t *testing.T) {
 	wg.Done()
 	wg.Done()
 	t.Fatal("Should panic")
+}
+
+func TestWaitGroupRace(t *testing.T) {
+	// Run this test for about 1ms.
+	for i := 0; i < 1000; i++ {
+		wg := &WaitGroup{}
+		n := new(int32)
+		// spawn goroutine 1
+		wg.Add(1)
+		go func() {
+			atomic.AddInt32(n, 1)
+			wg.Done()
+		}()
+		// spawn goroutine 2
+		wg.Add(1)
+		go func() {
+			atomic.AddInt32(n, 1)
+			wg.Done()
+		}()
+		// Wait for goroutine 1 and 2
+		wg.Wait()
+		if atomic.LoadInt32(n) != 2 {
+			t.Fatal("Spurious wakeup from Wait")
+		}
+	}
 }
 
 func BenchmarkWaitGroupUncontended(b *testing.B) {
