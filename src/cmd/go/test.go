@@ -524,7 +524,7 @@ func contains(x []string, s string) bool {
 
 func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
-		build := &action{p: p}
+		build := b.action(modeBuild, modeBuild, p)
 		run := &action{p: p, deps: []*action{build}}
 		print := &action{f: (*builder).notest, p: p, deps: []*action{run}}
 		return build, run, print, nil
