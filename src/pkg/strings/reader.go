@@ -44,7 +44,7 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
 	// cannot modify state - see io.ReaderAt
 	if off < 0 {
-		return 0, errors.New("strings: invalid offset")
+		return 0, errors.New("strings.Reader.ReadAt: negative offset")
 	}
 	if off >= int64(len(r.s)) {
 		return 0, io.EOF
@@ -67,11 +67,11 @@ func (r *Reader) ReadByte() (b byte, err error) {
 }
 
 func (r *Reader) UnreadByte() error {
+	r.prevRune = -1
 	if r.i <= 0 {
-		return errors.New("strings.Reader: at beginning of string")
+		return errors.New("strings.Reader.UnreadByte: at beginning of string")
 	}
 	r.i--
-	r.prevRune = -1
 	return nil
 }
 
@@ -92,7 +92,7 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
 
 func (r *Reader) UnreadRune() error {
 	if r.prevRune < 0 {
-		return errors.New("strings.Reader: previous operation was not ReadRune")
+		return errors.New("strings.Reader.UnreadRune: previous operation was not ReadRune")
 	}
 	r.i = int64(r.prevRune)
 	r.prevRune = -1
@@ -111,10 +111,10 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	case 2:
 		abs = int64(len(r.s)) + offset
 	default:
-		return 0, errors.New("strings: invalid whence")
+		return 0, errors.New("strings.Reader.Seek: invalid whence")
 	}
 	if abs < 0 {
-		return 0, errors.New("strings: negative position")
+		return 0, errors.New("strings.Reader.Seek: negative position")
 	}
 	r.i = abs
 	return abs, nil

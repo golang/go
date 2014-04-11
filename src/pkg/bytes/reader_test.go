@@ -27,7 +27,7 @@ func TestReader(t *testing.T) {
 		{seek: os.SEEK_SET, off: 0, n: 20, want: "0123456789"},
 		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
 		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
-		{seek: os.SEEK_SET, off: -1, seekerr: "bytes: negative position"},
+		{seek: os.SEEK_SET, off: -1, seekerr: "bytes.Reader.Seek: negative position"},
 		{seek: os.SEEK_SET, off: 1 << 33, wantpos: 1 << 33},
 		{seek: os.SEEK_CUR, off: 1, wantpos: 1<<33 + 1},
 		{seek: os.SEEK_SET, n: 5, want: "01234"},
@@ -84,7 +84,7 @@ func TestReaderAt(t *testing.T) {
 		{1, 9, "123456789", nil},
 		{11, 10, "", io.EOF},
 		{0, 0, "", nil},
-		{-1, 0, "", "bytes: invalid offset"},
+		{-1, 0, "", "bytes.Reader.ReadAt: negative offset"},
 	}
 	for i, tt := range tests {
 		b := make([]byte, tt.n)
