@@ -8,6 +8,7 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"errors"
 	"io"
@@ -199,7 +200,6 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //
 // Body is closed after it is sent.
 func (r *Response) Write(w io.Writer) error {
-
 	// Status line
 	text := r.Status
 	if text == "" {
@@ -212,10 +212,45 @@ func (r *Response) Write(w io.Writer) error {
 	protoMajor, protoMinor := strconv.Itoa(r.ProtoMajor), strconv.Itoa(r.ProtoMinor)
 	statusCode := strconv.Itoa(r.StatusCode) + " "
 	text = strings.TrimPrefix(text, statusCode)
-	io.WriteString(w, "HTTP/"+protoMajor+"."+protoMinor+" "+statusCode+text+"\r\n")
+	if _, err := io.WriteString(w, "HTTP/"+protoMajor+"."+protoMinor+" "+statusCode+text+"\r\n"); err != nil {
+		return err
+	}
+
+	// Clone it, so we can modify r1 as needed.
+	r1 := new(Response)
+	*r1 = *r
+	if r1.ContentLength == 0 && r1.Body != nil {
+		// Is it actually 0 length? Or just unknown?
+		var buf [1]byte
+		n, err := r1.Body.Read(buf[:])
+		if err != nil && err != io.EOF {
+			return err
+		}
+		if n == 0 {
+			// Reset it to a known zero reader, in case underlying one
+			// is unhappy being read repeatedly.
+			r1.Body = eofReader
+		} else {
+			r1.ContentLength = -1
+			r1.Body = struct {
+				io.Reader
+				io.Closer
+			}{
+				io.MultiReader(bytes.NewReader(buf[:1]), r.Body),
+				r.Body,
+			}
+		}
+	}
+	// If we're sending a non-chunked HTTP/1.1 response without a
+	// content-length, the only way to do that is the old HTTP/1.0
+	// way, by noting the EOF with a connection close, so we need
+	// to set Close.
+	if r1.ContentLength == -1 && !r1.Close && r1.ProtoAtLeast(1, 1) && !chunked(r1.TransferEncoding) {
+		r1.Close = true
+	}
 
 	// Process Body,ContentLength,Close,Trailer
-	tw, err := newTransferWriter(r)
+	tw, err := newTransferWriter(r1)
 	if err != nil {
 		return err
 	}
@@ -230,8 +265,16 @@ func (r *Response) Write(w io.Writer) error {
 		return err
 	}
 
+	if r1.ContentLength == 0 && !chunked(r1.TransferEncoding) {
+		if _, err := io.WriteString(w, "Content-Length: 0\r\n"); err != nil {
+			return err
+		}
+	}
+
 	// End-of-header
-	io.WriteString(w, "\r\n")
+	if _, err := io.WriteString(w, "\r\n"); err != nil {
+		return err
+	}
 
 	// Write body and trailer
 	err = tw.WriteBody(w)
