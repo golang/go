@@ -154,7 +154,25 @@ func TestMultipartReader(t *testing.T) {
 	req.Header = Header{"Content-Type": {"text/plain"}}
 	multipart, err = req.MultipartReader()
 	if multipart != nil {
-		t.Errorf("unexpected multipart for text/plain")
+		t.Error("unexpected multipart for text/plain")
+	}
+}
+
+func TestParseMultipartForm(t *testing.T) {
+	req := &Request{
+		Method: "POST",
+		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
+		Body:   ioutil.NopCloser(new(bytes.Buffer)),
+	}
+	err := req.ParseMultipartForm(25)
+	if err == nil {
+		t.Error("expected multipart EOF, got nil")
+	}
+
+	req.Header = Header{"Content-Type": {"text/plain"}}
+	err = req.ParseMultipartForm(25)
+	if err != ErrNotMultipart {
+		t.Error("expected ErrNotMultipart for text/plain")
 	}
 }
 
@@ -220,14 +238,36 @@ func TestMultipartRequestAuto(t *testing.T) {
 	validateTestMultipartContents(t, req, true)
 }
 
-func TestEmptyMultipartRequest(t *testing.T) {
-	// Test that FormValue and FormFile automatically invoke
-	// ParseMultipartForm and return the right values.
-	req, err := NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Errorf("NewRequest err = %q", err)
-	}
+func TestMissingFileMultipartRequest(t *testing.T) {
+	// Test that FormFile returns an error if
+	// the named file is missing.
+	req := newTestMultipartRequest(t)
 	testMissingFile(t, req)
+}
+
+// Test that FormValue invokes ParseMultipartForm.
+func TestFormValueCallsParseMultipartForm(t *testing.T) {
+	req, _ := NewRequest("POST", "http://www.google.com/", strings.NewReader("z=post"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
+	if req.Form != nil {
+		t.Fatal("Unexpected request Form, want nil")
+	}
+	req.FormValue("z")
+	if req.Form == nil {
+		t.Fatal("ParseMultipartForm not called by FormValue")
+	}
+}
+
+// Test that FormFile invokes ParseMultipartForm.
+func TestFormFileCallsParseMultipartForm(t *testing.T) {
+	req := newTestMultipartRequest(t)
+	if req.Form != nil {
+		t.Fatal("Unexpected request Form, want nil")
+	}
+	req.FormFile("")
+	if req.Form == nil {
+		t.Fatal("ParseMultipartForm not called by FormFile")
+	}
 }
 
 // Test that ParseMultipartForm errors if called

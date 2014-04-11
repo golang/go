@@ -789,9 +789,7 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 	}
 
 	mr, err := r.multipartReader()
-	if err == ErrNotMultipart {
-		return nil
-	} else if err != nil {
+	if err != nil {
 		return err
 	}
 
