@@ -472,7 +472,7 @@ ordermapassign(Node *n, Order *order)
 				if(!istemp(m->left))
 					m->left = ordercopyexpr(m->left, m->left->type, order, 0);
 				if(!istemp(m->right))
-					m->right = ordercopyexpr(m->left, m->left->type, order, 0);
+					m->right = ordercopyexpr(m->right, m->right->type, order, 0);
 				l->n = ordertemp(m->type, order, 0);
 				a = nod(OAS, m, l->n);
 				typecheck(&a, Etop);
