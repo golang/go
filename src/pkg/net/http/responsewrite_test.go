@@ -26,7 +26,7 @@ func TestResponseWrite(t *testing.T) {
 				ProtoMinor:    0,
 				Request:       dummyReq("GET"),
 				Header:        Header{},
-				Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
 				ContentLength: 6,
 			},
 
@@ -48,6 +48,106 @@ func TestResponseWrite(t *testing.T) {
 			"HTTP/1.0 200 OK\r\n" +
 				"\r\n" +
 				"abcdef",
+		},
+		// HTTP/1.1 response with unknown length and Connection: close
+		{
+			Response{
+				StatusCode:    200,
+				ProtoMajor:    1,
+				ProtoMinor:    1,
+				Request:       dummyReq("GET"),
+				Header:        Header{},
+				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
+				ContentLength: -1,
+				Close:         true,
+			},
+			"HTTP/1.1 200 OK\r\n" +
+				"Connection: close\r\n" +
+				"\r\n" +
+				"abcdef",
+		},
+		// HTTP/1.1 response with unknown length and not setting connection: close
+		{
+			Response{
+				StatusCode:    200,
+				ProtoMajor:    1,
+				ProtoMinor:    1,
+				Request:       dummyReq11("GET"),
+				Header:        Header{},
+				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
+				ContentLength: -1,
+				Close:         false,
+			},
+			"HTTP/1.1 200 OK\r\n" +
+				"Connection: close\r\n" +
+				"\r\n" +
+				"abcdef",
+		},
+		// HTTP/1.1 response with unknown length and not setting connection: close, but
+		// setting chunked.
+		{
+			Response{
+				StatusCode:       200,
+				ProtoMajor:       1,
+				ProtoMinor:       1,
+				Request:          dummyReq11("GET"),
+				Header:           Header{},
+				Body:             ioutil.NopCloser(strings.NewReader("abcdef")),
+				ContentLength:    -1,
+				TransferEncoding: []string{"chunked"},
+				Close:            false,
+			},
+			"HTTP/1.1 200 OK\r\n" +
+				"Transfer-Encoding: chunked\r\n\r\n" +
+				"6\r\nabcdef\r\n0\r\n\r\n",
+		},
+		// HTTP/1.1 response 0 content-length, and nil body
+		{
+			Response{
+				StatusCode:    200,
+				ProtoMajor:    1,
+				ProtoMinor:    1,
+				Request:       dummyReq11("GET"),
+				Header:        Header{},
+				Body:          nil,
+				ContentLength: 0,
+				Close:         false,
+			},
+			"HTTP/1.1 200 OK\r\n" +
+				"Content-Length: 0\r\n" +
+				"\r\n",
+		},
+		// HTTP/1.1 response 0 content-length, and non-nil empty body
+		{
+			Response{
+				StatusCode:    200,
+				ProtoMajor:    1,
+				ProtoMinor:    1,
+				Request:       dummyReq11("GET"),
+				Header:        Header{},
+				Body:          ioutil.NopCloser(strings.NewReader("")),
+				ContentLength: 0,
+				Close:         false,
+			},
+			"HTTP/1.1 200 OK\r\n" +
+				"Content-Length: 0\r\n" +
+				"\r\n",
+		},
+		// HTTP/1.1 response 0 content-length, and non-nil non-empty body
+		{
+			Response{
+				StatusCode:    200,
+				ProtoMajor:    1,
+				ProtoMinor:    1,
+				Request:       dummyReq11("GET"),
+				Header:        Header{},
+				Body:          ioutil.NopCloser(strings.NewReader("foo")),
+				ContentLength: 0,
+				Close:         false,
+			},
+			"HTTP/1.1 200 OK\r\n" +
+				"Connection: close\r\n" +
+				"\r\nfoo",
 		},
 		// HTTP/1.1, chunked coding; empty trailer; close
 		{

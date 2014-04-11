@@ -29,6 +29,10 @@ func dummyReq(method string) *Request {
 	return &Request{Method: method}
 }
 
+func dummyReq11(method string) *Request {
+	return &Request{Method: method, Proto: "HTTP/1.1", ProtoMajor: 1, ProtoMinor: 1}
+}
+
 var respTests = []respTest{
 	// Unchunked response without Content-Length.
 	{
