@@ -97,15 +97,15 @@ func TestMapCounter(t *testing.T) {
 	colors.Add("red", 1)
 	colors.Add("red", 2)
 	colors.Add("blue", 4)
-	colors.AddFloat("green", 4.125)
+	colors.AddFloat(`green "midori"`, 4.125)
 	if x := colors.m["red"].(*Int).i; x != 3 {
 		t.Errorf("colors.m[\"red\"] = %v, want 3", x)
 	}
 	if x := colors.m["blue"].(*Int).i; x != 4 {
 		t.Errorf("colors.m[\"blue\"] = %v, want 4", x)
 	}
-	if x := colors.m["green"].(*Float).f; x != 4.125 {
-		t.Errorf("colors.m[\"green\"] = %v, want 3.14", x)
+	if x := colors.m[`green "midori"`].(*Float).f; x != 4.125 {
+		t.Errorf("colors.m[`green \"midori\"] = %v, want 3.14", x)
 	}
 
 	// colors.String() should be '{"red":3, "blue":4}',
