@@ -132,6 +132,7 @@ func TestStackGrowth(t *testing.T) {
 		defer wg.Done()
 		growStack()
 	}()
+	wg.Wait()
 
 	// in locked goroutine
 	wg.Add(1)
@@ -141,6 +142,7 @@ func TestStackGrowth(t *testing.T) {
 		growStack()
 		UnlockOSThread()
 	}()
+	wg.Wait()
 
 	// in finalizer
 	wg.Add(1)
@@ -150,6 +152,7 @@ func TestStackGrowth(t *testing.T) {
 		go func() {
 			s := new(string)
 			SetFinalizer(s, func(ss *string) {
+				growStack()
 				done <- true
 			})
 			s = nil
@@ -163,17 +166,20 @@ func TestStackGrowth(t *testing.T) {
 			t.Fatal("finalizer did not run")
 		}
 	}()
-
 	wg.Wait()
 }
 
 // ... and in init
-func init() {
-	growStack()
-}
+//func init() {
+//	growStack()
+//}
 
 func growStack() {
-	for i := 0; i < 1<<10; i++ {
+	n := 1 << 10
+	if testing.Short() {
+		n = 1 << 8
+	}
+	for i := 0; i < n; i++ {
 		x := 0
 		growStackIter(&x, i)
 		if x != i+1 {
