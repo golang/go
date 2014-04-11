@@ -719,7 +719,6 @@ type persistConn struct {
 	cacheKey connectMethodKey
 	conn     net.Conn
 	tlsState *tls.ConnectionState
-	closed   bool                // whether conn has been closed
 	br       *bufio.Reader       // from conn
 	sawEOF   bool                // whether we've seen EOF from conn; owned by readLoop
 	bw       *bufio.Writer       // to conn
@@ -733,8 +732,9 @@ type persistConn struct {
 	// whether or not a connection can be reused. Issue 7569.
 	writeErrCh chan error
 
-	lk                   sync.Mutex // guards following 3 fields
+	lk                   sync.Mutex // guards following fields
 	numExpectedResponses int
+	closed               bool // whether conn has been closed
 	broken               bool // an error has happened on this connection; marked broken so it's not reused.
 	// mutateHeaderFunc is an optional func to modify extra
 	// headers on each outbound request before it's written. (the
@@ -774,12 +774,14 @@ func (pc *persistConn) readLoop() {
 
 		pc.lk.Lock()
 		if pc.numExpectedResponses == 0 {
-			pc.closeLocked()
-			pc.lk.Unlock()
-			if len(pb) > 0 {
-				log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v",
-					string(pb), err)
+			if !pc.closed {
+				pc.closeLocked()
+				if len(pb) > 0 {
+					log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v",
+						string(pb), err)
+				}
 			}
+			pc.lk.Unlock()
 			return
 		}
 		pc.lk.Unlock()
