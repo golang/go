@@ -1158,15 +1158,9 @@ func (c *conn) serve() {
 		// Expect 100 Continue support
 		req := w.req
 		if req.expectsContinue() {
-			if req.ProtoAtLeast(1, 1) {
+			if req.ProtoAtLeast(1, 1) && req.ContentLength != 0 {
 				// Wrap the Body reader with one that replies on the connection
 				req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
-			}
-			if req.ContentLength == 0 {
-				w.Header().Set("Connection", "close")
-				w.WriteHeader(StatusBadRequest)
-				w.finishRequest()
-				break
 			}
 			req.Header.Del("Expect")
 		} else if req.Header.get("Expect") != "" {
