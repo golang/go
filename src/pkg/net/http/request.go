@@ -182,12 +182,24 @@ type Request struct {
 	// The HTTP client ignores MultipartForm and uses Body instead.
 	MultipartForm *multipart.Form
 
-	// Trailer maps trailer keys to values.  Like for Header, if the
-	// response has multiple trailer lines with the same key, they will be
-	// concatenated, delimited by commas.
-	// For server requests Trailer is only populated after Body has been
-	// closed or fully consumed.
-	// Trailer support is only partially complete.
+	// Trailer specifies additional headers that are sent after the request
+	// body.
+	//
+	// For server requests the Trailer map initially contains only the
+	// trailer keys, with nil values. (The client declares which trailers it
+	// will later send.)  While the handler is reading from Body, it must
+	// not reference Trailer. After reading from Body returns EOF, Trailer
+	// can be read again and will contain non-nil values, if they were sent
+	// by the client.
+	//
+	// For client requests Trailer must be initialized to a map containing
+	// the trailer keys to later send. The values may be nil or their final
+	// values. The ContentLength must be 0 or -1, to send a chunked request.
+	// After the HTTP request is sent the map values can be updated while
+	// the request body is read. Once the body returns EOF, the caller must
+	// not mutate Trailer.
+	//
+	// Few HTTP clients, servers, or proxies support HTTP trailers.
 	Trailer Header
 
 	// RemoteAddr allows HTTP servers and other software to record
@@ -405,7 +417,6 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 		return err
 	}
 
-	// TODO: split long values?  (If so, should share code with Conn.Write)
 	err = req.Header.WriteSubset(w, reqWriteExcludeHeader)
 	if err != nil {
 		return err
@@ -606,32 +617,6 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 	delete(req.Header, "Host")
 
 	fixPragmaCacheControl(req.Header)
-
-	// TODO: Parse specific header values:
-	//	Accept
-	//	Accept-Encoding
-	//	Accept-Language
-	//	Authorization
-	//	Cache-Control
-	//	Connection
-	//	Date
-	//	Expect
-	//	From
-	//	If-Match
-	//	If-Modified-Since
-	//	If-None-Match
-	//	If-Range
-	//	If-Unmodified-Since
-	//	Max-Forwards
-	//	Proxy-Authorization
-	//	Referer [sic]
-	//	TE (transfer-codings)
-	//	Trailer
-	//	Transfer-Encoding
-	//	Upgrade
-	//	User-Agent
-	//	Via
-	//	Warning
 
 	err = readTransfer(req, b)
 	if err != nil {

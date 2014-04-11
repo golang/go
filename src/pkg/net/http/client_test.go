@@ -20,6 +20,8 @@ import (
 	. "net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -942,5 +944,95 @@ func TestClientRedirectEatsBody(t *testing.T) {
 
 	if first != second {
 		t.Fatal("server saw different client ports before & after the redirect")
+	}
+}
+
+// eofReaderFunc is an io.Reader that runs itself, and then returns io.EOF.
+type eofReaderFunc func()
+
+func (f eofReaderFunc) Read(p []byte) (n int, err error) {
+	f()
+	return 0, io.EOF
+}
+
+func TestClientTrailers(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Connection", "close")
+		w.Header().Set("Trailer", "Server-Trailer-A, Server-Trailer-B")
+		w.Header().Add("Trailer", "Server-Trailer-C")
+
+		var decl []string
+		for k := range r.Trailer {
+			decl = append(decl, k)
+		}
+		sort.Strings(decl)
+
+		slurp, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("Server reading request body: %v", err)
+		}
+		if string(slurp) != "foo" {
+			t.Errorf("Server read request body %q; want foo", slurp)
+		}
+		if r.Trailer == nil {
+			io.WriteString(w, "nil Trailer")
+		} else {
+			fmt.Fprintf(w, "decl: %v, vals: %s, %s",
+				decl,
+				r.Trailer.Get("Client-Trailer-A"),
+				r.Trailer.Get("Client-Trailer-B"))
+		}
+
+		// TODO: golang.org/issue/7759: there's no way yet for
+		// the server to set trailers without hijacking, so do
+		// that for now, just to test the client.  Later, in
+		// Go 1.4, it should be be implicit that any mutations
+		// to w.Header() after the initial write are the
+		// trailers to be sent, if and only if they were
+		// previously declared with w.Header().Set("Trailer",
+		// ..keys..)
+		w.(Flusher).Flush()
+		conn, buf, _ := w.(Hijacker).Hijack()
+		t := Header{}
+		t.Set("Server-Trailer-A", "valuea")
+		t.Set("Server-Trailer-C", "valuec") // skipping B
+		buf.WriteString("0\r\n")            // eof
+		t.Write(buf)
+		buf.WriteString("\r\n") // end of trailers
+		buf.Flush()
+		conn.Close()
+	}))
+	defer ts.Close()
+
+	var req *Request
+	req, _ = NewRequest("POST", ts.URL, io.MultiReader(
+		eofReaderFunc(func() {
+			req.Trailer["Client-Trailer-A"] = []string{"valuea"}
+		}),
+		strings.NewReader("foo"),
+		eofReaderFunc(func() {
+			req.Trailer["Client-Trailer-B"] = []string{"valueb"}
+		}),
+	))
+	req.Trailer = Header{
+		"Client-Trailer-A": nil, //  to be set later
+		"Client-Trailer-B": nil, //  to be set later
+	}
+	req.ContentLength = -1
+	res, err := DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := wantBody(res, err, "decl: [Client-Trailer-A Client-Trailer-B], vals: valuea, valueb"); err != nil {
+		t.Error(err)
+	}
+	want := Header{
+		"Server-Trailer-A": []string{"valuea"},
+		"Server-Trailer-B": nil,
+		"Server-Trailer-C": []string{"valuec"},
+	}
+	if !reflect.DeepEqual(res.Trailer, want) {
+		t.Errorf("Response trailers = %#v; want %#v", res.Trailer, want)
 	}
 }
