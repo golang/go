@@ -933,31 +933,50 @@ func TestTLSServer(t *testing.T) {
 }
 
 type serverExpectTest struct {
-	contentLength    int    // of request body
+	contentLength    int // of request body
+	chunked          bool
 	expectation      string // e.g. "100-continue"
 	readBody         bool   // whether handler should read the body (if false, sends StatusUnauthorized)
 	expectedResponse string // expected substring in first line of http response
 }
 
+func expectTest(contentLength int, expectation string, readBody bool, expectedResponse string) serverExpectTest {
+	return serverExpectTest{
+		contentLength:    contentLength,
+		expectation:      expectation,
+		readBody:         readBody,
+		expectedResponse: expectedResponse,
+	}
+}
+
 var serverExpectTests = []serverExpectTest{
 	// Normal 100-continues, case-insensitive.
-	{100, "100-continue", true, "100 Continue"},
-	{100, "100-cOntInUE", true, "100 Continue"},
+	expectTest(100, "100-continue", true, "100 Continue"),
+	expectTest(100, "100-cOntInUE", true, "100 Continue"),
 
 	// No 100-continue.
-	{100, "", true, "200 OK"},
+	expectTest(100, "", true, "200 OK"),
 
 	// 100-continue but requesting client to deny us,
 	// so it never reads the body.
-	{100, "100-continue", false, "401 Unauthorized"},
+	expectTest(100, "100-continue", false, "401 Unauthorized"),
 	// Likewise without 100-continue:
-	{100, "", false, "401 Unauthorized"},
+	expectTest(100, "", false, "401 Unauthorized"),
 
 	// Non-standard expectations are failures
-	{0, "a-pony", false, "417 Expectation Failed"},
+	expectTest(0, "a-pony", false, "417 Expectation Failed"),
 
-	// Expect-100 requested but no body
-	{0, "100-continue", true, "400 Bad Request"},
+	// Expect-100 requested but no body (is apparently okay: Issue 7625)
+	expectTest(0, "100-continue", true, "200 OK"),
+	// Expect-100 requested but handler doesn't read the body
+	expectTest(0, "100-continue", false, "401 Unauthorized"),
+	// Expect-100 continue with no body, but a chunked body.
+	{
+		expectation:      "100-continue",
+		readBody:         true,
+		chunked:          true,
+		expectedResponse: "100 Continue",
+	},
 }
 
 // Tests that the server responds to the "Expect" request header
@@ -986,21 +1005,38 @@ func TestServerExpect(t *testing.T) {
 
 		// Only send the body immediately if we're acting like an HTTP client
 		// that doesn't send 100-continue expectations.
-		writeBody := test.contentLength > 0 && strings.ToLower(test.expectation) != "100-continue"
+		writeBody := test.contentLength != 0 && strings.ToLower(test.expectation) != "100-continue"
 
 		go func() {
+			contentLen := fmt.Sprintf("Content-Length: %d", test.contentLength)
+			if test.chunked {
+				contentLen = "Transfer-Encoding: chunked"
+			}
 			_, err := fmt.Fprintf(conn, "POST /?readbody=%v HTTP/1.1\r\n"+
 				"Connection: close\r\n"+
-				"Content-Length: %d\r\n"+
+				"%s\r\n"+
 				"Expect: %s\r\nHost: foo\r\n\r\n",
-				test.readBody, test.contentLength, test.expectation)
+				test.readBody, contentLen, test.expectation)
 			if err != nil {
 				t.Errorf("On test %#v, error writing request headers: %v", test, err)
 				return
 			}
 			if writeBody {
+				var targ io.WriteCloser = struct {
+					io.Writer
+					io.Closer
+				}{
+					conn,
+					ioutil.NopCloser(nil),
+				}
+				if test.chunked {
+					targ = httputil.NewChunkedWriter(conn)
+				}
 				body := strings.Repeat("A", test.contentLength)
-				_, err = fmt.Fprint(conn, body)
+				_, err = fmt.Fprint(targ, body)
+				if err == nil {
+					err = targ.Close()
+				}
 				if err != nil {
 					if !test.readBody {
 						// Server likely already hung up on us.
