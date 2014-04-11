@@ -115,7 +115,7 @@
 		fmt.Printf("%v\n", i)
 	will print 23.
 
-	Except when printed using the the verbs %T and %p, special
+	Except when printed using the verbs %T and %p, special
 	formatting considerations apply for operands that implement
 	certain interfaces. In order of application:
 
