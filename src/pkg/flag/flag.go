@@ -754,7 +754,7 @@ func (f *FlagSet) parseOne() (bool, error) {
 	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
 		if has_value {
 			if err := fv.Set(value); err != nil {
-				return false, f.failf("invalid boolean value %q for  -%s: %v", value, name, err)
+				return false, f.failf("invalid boolean value %q for -%s: %v", value, name, err)
 			}
 		} else {
 			fv.Set("true")
