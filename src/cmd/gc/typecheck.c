@@ -310,7 +310,7 @@ typecheck1(Node **np, int top)
 	int ok, ntop;
 	Type *t, *tp, *missing, *have, *badtype;
 	Val v;
-	char *why;
+	char *why, *desc, descbuf[64];
 	
 	n = *np;
 
@@ -1139,7 +1139,11 @@ reswitch:
 			}
 			break;
 		}
-		typecheckaste(OCALL, n->left, n->isddd, getinargx(t), n->list, "function argument");
+		if(snprint(descbuf, sizeof descbuf, "argument to %N", n->left) < sizeof descbuf)
+			desc = descbuf;
+		else
+			desc = "function argument";
+		typecheckaste(OCALL, n->left, n->isddd, getinargx(t), n->list, desc);
 		ok |= Etop;
 		if(t->outtuple == 0)
 			goto ret;
