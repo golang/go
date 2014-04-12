@@ -368,7 +368,13 @@ non-printing.
 
 <li> TODO: syscall: add Accept4 for freebsd (CL 68880043)</li>
 
-<li> TODO: syscall: add NewCallbackCDecl to use for windows callbacks (CL 36180044)</li>
+<li>
+On Windows, the <a href="/pkg/syscall/"><code>syscall</code></a> package now
+supports the cdecl calling convention through the addition of a new function
+<a href="/pkg/syscall/#NewCallbackCDecl"><code>NewCallbackCDecl</code></a>
+alongside the existing function
+<a href="/pkg/syscall/#NewCallback"><code>NewCallback</code></a>.
+</li>
 
 <li> TODO: syscall: add support for FreeBSD 10 (CL 56770044, 56980043)</li>
 
