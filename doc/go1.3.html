@@ -350,6 +350,14 @@ the <a href="/pkg/net/#Dialer"><code>Dialer</code></a> struct now
 has a <code>KeepAlive</code> option to specify a keep-alive period for the connection.
 </li>
 
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package's 
+<a href="/pkg/net/http/#Transport"><code>Transport</code></a>
+now closes <a href="/pkg/net/http/#Request"><code>Request.Body</code></a>
+consistently, even on errors. Previously it was closed on success and
+closed on some errors, sometimes depending on timing.
+</li>
+
 <li> TODO: net: enable fast socket creation using SOCK_CLOEXEC and Accept4 on FreeBSD 10 (69100043)</li>
 
 <li>
