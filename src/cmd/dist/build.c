@@ -373,7 +373,6 @@ static char *oldtool[] = {
 // Unreleased directories (relative to $GOROOT) that should
 // not be in release branches.
 static char *unreleased[] = {
-	"src/cmd/prof",
 	"src/pkg/old",
 };
 
@@ -517,19 +516,6 @@ static struct {
 		"$GOROOT/include/libc.h",
 		"$GOROOT/include/bio.h",
 	}},
-	{"libmach", {
-		"$GOROOT/include/u.h",
-		"$GOROOT/include/utf.h",
-		"$GOROOT/include/fmt.h",
-		"$GOROOT/include/libc.h",
-		"$GOROOT/include/bio.h",
-		"$GOROOT/include/ar.h",
-		"$GOROOT/include/bootexec.h",
-		"$GOROOT/include/mach.h",
-		"$GOROOT/include/ureg_amd64.h",
-		"$GOROOT/include/ureg_arm.h",
-		"$GOROOT/include/ureg_x86.h",
-	}},
 	{"liblink", {
 		"$GOROOT/include/u.h",
 		"$GOROOT/include/utf.h",
@@ -607,7 +593,6 @@ static struct {
 	}},
 	{"cmd/", {
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/liblink.a",
-		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libmach.a",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libbio.a",
 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/lib9.a",
 	}},
@@ -693,13 +678,6 @@ install(char *dir)
 	if(hasprefix(dir, "misc/")) {
 		copy(bpathf(&b, "%s/%s", tooldir, name),
 			bpathf(&b1, "%s/misc/%s", goroot, name), 1);
-		goto out;
-	}
-
-	// For release, cmd/prof is not included.
-	if((streq(dir, "cmd/prof")) && !isdir(bstr(&path))) {
-		if(vflag > 1)
-			errprintf("skipping %s - does not exist\n", dir);
 		goto out;
 	}
 
@@ -1327,12 +1305,9 @@ dopack(char *dst, char *src, char **extra, int nextra)
 static char *buildorder[] = {
 	"lib9",
 	"libbio",
-	"libmach",
 	"liblink",
 
 	"misc/pprof",
-
-	"cmd/prof",
 
 	"cmd/cc",  // must be before c
 	"cmd/gc",  // must be before g
@@ -1408,10 +1383,8 @@ static char *cleantab[] = {
 	"cmd/cc",
 	"cmd/gc",
 	"cmd/go",	
-	"cmd/prof",
 	"lib9",
 	"libbio",
-	"libmach",
 	"liblink",
 	"pkg/bufio",
 	"pkg/bytes",
@@ -1467,8 +1440,6 @@ clean(void)
 	vinit(&dir);
 
 	for(i=0; i<nelem(cleantab); i++) {
-		if((streq(cleantab[i], "cmd/prof")) && !isdir(cleantab[i]))
-			continue;
 		bpathf(&path, "%s/src/%s", goroot, cleantab[i]);
 		xreaddir(&dir, bstr(&path));
 		// Remove generated files.
