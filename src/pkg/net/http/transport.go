@@ -160,9 +160,11 @@ func (tr *transportRequest) extraHeaders() Header {
 // and redirects), see Get, Post, and the Client type.
 func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 	if req.URL == nil {
+		req.closeBody()
 		return nil, errors.New("http: nil Request.URL")
 	}
 	if req.Header == nil {
+		req.closeBody()
 		return nil, errors.New("http: nil Request.Header")
 	}
 	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
@@ -173,16 +175,19 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 		}
 		t.altMu.RUnlock()
 		if rt == nil {
+			req.closeBody()
 			return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
 		}
 		return rt.RoundTrip(req)
 	}
 	if req.URL.Host == "" {
+		req.closeBody()
 		return nil, errors.New("http: no Host in request URL")
 	}
 	treq := &transportRequest{Request: req}
 	cm, err := t.connectMethodForRequest(treq)
 	if err != nil {
+		req.closeBody()
 		return nil, err
 	}
 
@@ -193,6 +198,7 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 	pconn, err := t.getConn(req, cm)
 	if err != nil {
 		t.setReqCanceler(req, nil)
+		req.closeBody()
 		return nil, err
 	}
 
@@ -885,6 +891,7 @@ func (pc *persistConn) writeLoop() {
 			}
 			if err != nil {
 				pc.markBroken()
+				wr.req.Request.closeBody()
 			}
 			pc.writeErrCh <- err // to the body reader, which might recycle us
 			wr.ch <- err         // to the roundTrip function

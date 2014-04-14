@@ -2028,6 +2028,52 @@ func TestTransportNoReuseAfterEarlyResponse(t *testing.T) {
 	}
 }
 
+type errorReader struct {
+	err error
+}
+
+func (e errorReader) Read(p []byte) (int, error) { return 0, e.err }
+
+type closerFunc func() error
+
+func (f closerFunc) Close() error { return f() }
+
+// Issue 6981
+func TestTransportClosesBodyOnError(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		ioutil.ReadAll(r.Body)
+	}))
+	defer ts.Close()
+	fakeErr := errors.New("fake error")
+	didClose := make(chan bool, 1)
+	req, _ := NewRequest("POST", ts.URL, struct {
+		io.Reader
+		io.Closer
+	}{
+		io.MultiReader(io.LimitReader(neverEnding('x'), 1<<20), errorReader{fakeErr}),
+		closerFunc(func() error {
+			select {
+			case didClose <- true:
+			default:
+			}
+			return nil
+		}),
+	})
+	res, err := DefaultClient.Do(req)
+	if res != nil {
+		defer res.Body.Close()
+	}
+	if err == nil || !strings.Contains(err.Error(), fakeErr.Error()) {
+		t.Fatalf("Do error = %v; want something containing %q", fakeErr.Error())
+	}
+	select {
+	case <-didClose:
+	default:
+		t.Errorf("didn't see Body.Close")
+	}
+}
+
 func wantBody(res *http.Response, err error, want string) error {
 	if err != nil {
 		return err

@@ -91,8 +91,9 @@ type RoundTripper interface {
 	// authentication, or cookies.
 	//
 	// RoundTrip should not modify the request, except for
-	// consuming and closing the Body. The request's URL and
-	// Header fields are guaranteed to be initialized.
+	// consuming and closing the Body, including on errors. The
+	// request's URL and Header fields are guaranteed to be
+	// initialized.
 	RoundTrip(*Request) (*Response, error)
 }
 
@@ -140,6 +141,9 @@ func (c *Client) send(req *Request) (*Response, error) {
 // (typically Transport) may not be able to re-use a persistent TCP
 // connection to the server for a subsequent "keep-alive" request.
 //
+// The request Body, if non-nil, will be closed by the underlying
+// Transport, even on errors.
+//
 // Generally Get, Post, or PostForm will be used instead of Do.
 func (c *Client) Do(req *Request) (resp *Response, err error) {
 	if req.Method == "GET" || req.Method == "HEAD" {
@@ -162,14 +166,17 @@ func (c *Client) transport() RoundTripper {
 // Caller should close resp.Body when done reading from it.
 func send(req *Request, t RoundTripper) (resp *Response, err error) {
 	if t == nil {
+		req.closeBody()
 		return nil, errors.New("http: no Client.Transport or DefaultTransport")
 	}
 
 	if req.URL == nil {
+		req.closeBody()
 		return nil, errors.New("http: nil Request.URL")
 	}
 
 	if req.RequestURI != "" {
+		req.closeBody()
 		return nil, errors.New("http: Request.RequestURI can't be set in client requests.")
 	}
 
@@ -277,6 +284,7 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
 	var via []*Request
 
 	if ireq.URL == nil {
+		ireq.closeBody()
 		return nil, errors.New("http: nil Request.URL")
 	}
 
@@ -399,7 +407,7 @@ func Post(url string, bodyType string, body io.Reader) (resp *Response, err erro
 // Caller should close resp.Body when done reading from it.
 //
 // If the provided body is also an io.Closer, it is closed after the
-// body is successfully written to the server.
+// request.
 func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
