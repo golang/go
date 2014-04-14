@@ -867,3 +867,9 @@ func (r *Request) wantsHttp10KeepAlive() bool {
 func (r *Request) wantsClose() bool {
 	return hasToken(r.Header.get("Connection"), "close")
 }
+
+func (r *Request) closeBody() {
+	if r.Body != nil {
+		r.Body.Close()
+	}
+}
