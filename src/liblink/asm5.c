@@ -1302,7 +1302,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			rel->siz = 4;
 			rel->sym = p->to.sym;
 			rel->add = o1 | ((v >> 2) & 0xffffff);
-			rel->type = D_CALL;
+			rel->type = R_CALL;
 			break;
 		}
 		if(p->pcond != nil)
@@ -1372,16 +1372,16 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			// to the thread-local g and m pointers.
 			// Emit a TLS relocation instead of a standard one.
 			if(rel->sym == ctxt->gmsym) {
-				rel->type = D_TLS;
+				rel->type = R_TLS;
 				if(ctxt->flag_shared)
 					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;
 				rel->xadd = rel->add;
 				rel->xsym = rel->sym;
 			} else if(ctxt->flag_shared) {
-				rel->type = D_PCREL;
+				rel->type = R_PCREL;
 				rel->add += ctxt->pc - p->pcrel->pc - 8;
 			} else
-				rel->type = D_ADDR;
+				rel->type = R_ADDR;
 			o1 = 0;
 		}
 		break;
@@ -1720,10 +1720,10 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 				rel->add = p->pcond->pc;
 			}
 			if(o->flag & LPCREL) {
-				rel->type = D_PCREL;
+				rel->type = R_PCREL;
 				rel->add += ctxt->pc - p->pcrel->pc - 16 + rel->siz;
 			} else
-				rel->type = D_ADDR;
+				rel->type = R_ADDR;
 			o1 = 0;
 		}
 		break;

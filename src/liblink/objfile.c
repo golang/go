@@ -83,10 +83,7 @@
 //	- nfile [int]
 //	- file [nfile symbol references]
 //
-// The file layout is architecture-independent.
-// The meaning is almost architecture-independent:
-// the only field with architecture-dependent meaning is the
-// relocation's type field.
+// The file layout and meaning of type integers are architecture-independent.
 //
 // TODO(rsc): The file format is good for a first pass but needs work.
 //	- There are SymID in the object file that should really just be strings.
@@ -346,7 +343,12 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 		for(a = s->autom; a != nil; a = a->link) {
 			wrsym(b, a->asym);
 			wrint(b, a->aoffset);
-			wrint(b, a->type);
+			if(a->type == ctxt->arch->D_AUTO)
+				wrint(b, A_AUTO);
+			else if(a->type == ctxt->arch->D_PARAM)
+				wrint(b, A_PARAM);
+			else
+				sysfatal("%s: invalid local variable type %d", s->name, a->type);
 			wrsym(b, a->gotype);
 		}
 

@@ -223,6 +223,28 @@ enum
 	SHIDDEN = 1<<9, // hidden or local symbol
 };
 
+// Reloc.type
+enum
+{
+	R_ADDR = 1,
+	R_SIZE,
+	R_CALL,
+	R_CONST,
+	R_PCREL,
+	R_TLS,
+	R_GOTOFF,
+	R_PLT0,
+	R_PLT1,
+	R_PLT2,
+};
+
+// Auto.type
+enum
+{
+	A_AUTO = 1,
+	A_PARAM,
+};
+
 struct	Auto
 {
 	LSym*	asym;
@@ -420,14 +442,14 @@ struct LinkArch
 	
 	// TODO: Give these the same values on all systems.
 	int	D_ADDR;
+	int	D_AUTO;
 	int	D_BRANCH;
 	int	D_CONST;
 	int	D_EXTERN;
 	int	D_FCONST;
 	int	D_NONE;
-	int	D_PCREL;
+	int	D_PARAM;
 	int	D_SCONST;
-	int	D_SIZE;
 	int	D_STATIC;
 
 	int	ACALL;

@@ -102,7 +102,7 @@ adddynrel(LSym *s, Reloc *r)
 
 	// Handle relocations found in ELF object files.
 	case 256 + R_ARM_PLT32:
-		r->type = D_CALL;
+		r->type = R_CALL;
 		if(targ->type == SDYNIMPORT) {
 			addpltsym(ctxt, targ);
 			r->sym = linklookup(ctxt, ".plt", 0);
@@ -121,7 +121,7 @@ adddynrel(LSym *s, Reloc *r)
 		} else {
 			addgotsym(ctxt, targ);
 		}
-		r->type = D_CONST;	// write r->add during relocsym
+		r->type = R_CONST;	// write r->add during relocsym
 		r->sym = S;
 		r->add += targ->got;
 		return;
@@ -132,23 +132,23 @@ adddynrel(LSym *s, Reloc *r)
 		} else {
 			addgotsym(ctxt, targ);
 		}
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->sym = linklookup(ctxt, ".got", 0);
 		r->add += targ->got + 4;
 		return;
 
 	case 256 + R_ARM_GOTOFF: // R_ARM_GOTOFF32
-		r->type = D_GOTOFF;
+		r->type = R_GOTOFF;
 		return;
 
 	case 256 + R_ARM_GOTPC: // R_ARM_BASE_PREL
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->sym = linklookup(ctxt, ".got", 0);
 		r->add += 4;
 		return;
 
 	case 256 + R_ARM_CALL:
-		r->type = D_CALL;
+		r->type = R_CALL;
 		if(targ->type == SDYNIMPORT) {
 			addpltsym(ctxt, targ);
 			r->sym = linklookup(ctxt, ".plt", 0);
@@ -157,14 +157,14 @@ adddynrel(LSym *s, Reloc *r)
 		return;
 
 	case 256 + R_ARM_REL32: // R_ARM_REL32
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->add += 4;
 		return;
 
 	case 256 + R_ARM_ABS32: 
 		if(targ->type == SDYNIMPORT)
 			diag("unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ->name);
-		r->type = D_ADDR;
+		r->type = R_ADDR;
 		return;
 
 	case 256 + R_ARM_V4BX:
@@ -178,7 +178,7 @@ adddynrel(LSym *s, Reloc *r)
 
 	case 256 + R_ARM_PC24:
 	case 256 + R_ARM_JUMP24:
-		r->type = D_CALL;
+		r->type = R_CALL;
 		if(targ->type == SDYNIMPORT) {
 			addpltsym(ctxt, targ);
 			r->sym = linklookup(ctxt, ".plt", 0);
@@ -192,13 +192,13 @@ adddynrel(LSym *s, Reloc *r)
 		return;
 
 	switch(r->type) {
-	case D_PCREL:
+	case R_PCREL:
 		addpltsym(ctxt, targ);
 		r->sym = linklookup(ctxt, ".plt", 0);
 		r->add = targ->plt;
 		return;
 	
-	case D_ADDR:
+	case R_ADDR:
 		if(s->type != SDATA)
 			break;
 		if(iself) {
@@ -206,7 +206,7 @@ adddynrel(LSym *s, Reloc *r)
 			rel = linklookup(ctxt, ".rel", 0);
 			addaddrplus(ctxt, rel, s, r->off);
 			adduint32(ctxt, rel, ELF32_R_INFO(targ->dynid, R_ARM_GLOB_DAT)); // we need a S + A dynmic reloc
-			r->type = D_CONST;	// write r->add during relocsym
+			r->type = R_CONST;	// write r->add during relocsym
 			r->sym = S;
 			return;
 		}
@@ -229,21 +229,21 @@ elfreloc1(Reloc *r, vlong sectoff)
 	default:
 		return -1;
 
-	case D_ADDR:
+	case R_ADDR:
 		if(r->siz == 4)
 			LPUT(R_ARM_ABS32 | elfsym<<8);
 		else
 			return -1;
 		break;
 
-	case D_PCREL:
+	case R_PCREL:
 		if(r->siz == 4)
 			LPUT(R_ARM_REL32 | elfsym<<8);
 		else
 			return -1;
 		break;
 
-	case D_CALL:
+	case R_CALL:
 		if(r->siz == 4) {
 			if((r->add & 0xff000000) == 0xeb000000) // BL
 				LPUT(R_ARM_CALL | elfsym<<8);
@@ -253,7 +253,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 			return -1;
 		break;
 
-	case D_TLS:
+	case R_TLS:
 		if(r->siz == 4) {
 			if(flag_shared)
 				LPUT(R_ARM_TLS_IE32 | elfsym<<8);
@@ -310,7 +310,7 @@ archreloc(Reloc *r, LSym *s, vlong *val)
 
 	if(linkmode == LinkExternal) {
 		switch(r->type) {
-		case D_CALL:
+		case R_CALL:
 			r->done = 0;
 
 			// set up addend for eventual relocation via outer symbol.
@@ -335,29 +335,29 @@ archreloc(Reloc *r, LSym *s, vlong *val)
 		return -1;
 	}
 	switch(r->type) {
-	case D_CONST:
+	case R_CONST:
 		*val = r->add;
 		return 0;
-	case D_GOTOFF:
+	case R_GOTOFF:
 		*val = symaddr(r->sym) + r->add - symaddr(linklookup(ctxt, ".got", 0));
 		return 0;
 	// The following three arch specific relocations are only for generation of 
 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
-	case D_PLT0: // add ip, pc, #0xXX00000
+	case R_PLT0: // add ip, pc, #0xXX00000
 		if (symaddr(linklookup(ctxt, ".got.plt", 0)) < symaddr(linklookup(ctxt, ".plt", 0)))
 			diag(".got.plt should be placed after .plt section.");
 		*val = 0xe28fc600U +
 			(0xff & ((uint32)(symaddr(r->sym) - (symaddr(linklookup(ctxt, ".plt", 0)) + r->off) + r->add) >> 20));
 		return 0;
-	case D_PLT1: // add ip, ip, #0xYY000
+	case R_PLT1: // add ip, ip, #0xYY000
 		*val = 0xe28cca00U +
 			(0xff & ((uint32)(symaddr(r->sym) - (symaddr(linklookup(ctxt, ".plt", 0)) + r->off) + r->add + 4) >> 12));
 		return 0;
-	case D_PLT2: // ldr pc, [ip, #0xZZZ]!
+	case R_PLT2: // ldr pc, [ip, #0xZZZ]!
 		*val = 0xe5bcf000U +
 			(0xfff & (uint32)(symaddr(r->sym) - (symaddr(linklookup(ctxt, ".plt", 0)) + r->off) + r->add + 8));
 		return 0;
-	case D_CALL: // bl XXXXXX or b YYYYYY
+	case R_CALL: // bl XXXXXX or b YYYYYY
 		*val = braddoff((0xff000000U & (uint32)r->add), 
 		                (0xffffff & (uint32)
 		                   ((symaddr(r->sym) + ((uint32)r->add) * 4 - (s->value + r->off)) / 4)));
@@ -411,9 +411,9 @@ addpltsym(Link *ctxt, LSym *s)
 
 		// .plt entry, this depends on the .got entry
 		s->plt = plt->size;
-		addpltreloc(ctxt, plt, got, s, D_PLT0); // add lr, pc, #0xXX00000
-		addpltreloc(ctxt, plt, got, s, D_PLT1); // add lr, lr, #0xYY000
-		addpltreloc(ctxt, plt, got, s, D_PLT2); // ldr pc, [lr, #0xZZZ]!
+		addpltreloc(ctxt, plt, got, s, R_PLT0); // add lr, pc, #0xXX00000
+		addpltreloc(ctxt, plt, got, s, R_PLT1); // add lr, lr, #0xYY000
+		addpltreloc(ctxt, plt, got, s, R_PLT2); // ldr pc, [lr, #0xZZZ]!
 
 		// rel
 		addaddrplus(ctxt, rel, got, s->got);

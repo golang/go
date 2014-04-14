@@ -130,15 +130,13 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
 				s->p[off+i] = cast[inuxi8[i]];
 			break;
 		}
-	} else if(p->to.type == ctxt->arch->D_ADDR || p->to.type == ctxt->arch->D_SIZE) {
+	} else if(p->to.type == ctxt->arch->D_ADDR) {
 	addr:
 		r = addrel(s);
 		r->off = off;
 		r->siz = siz;
 		r->sym = p->to.sym;
-		r->type = p->to.type;
-		if(r->type != ctxt->arch->D_SIZE)
-			r->type = ctxt->arch->D_ADDR;
+		r->type = R_ADDR;
 		r->add = p->to.offset;
 	} else {
 		ctxt->diag("bad data: %P", p);
@@ -271,7 +269,7 @@ addaddrplus(Link *ctxt, LSym *s, LSym *t, vlong add)
 	r->sym = t;
 	r->off = i;
 	r->siz = ctxt->arch->ptrsize;
-	r->type = ctxt->arch->D_ADDR;
+	r->type = R_ADDR;
 	r->add = add;
 	return i + r->siz;
 }
@@ -292,7 +290,7 @@ addpcrelplus(Link *ctxt, LSym *s, LSym *t, vlong add)
 	r->sym = t;
 	r->off = i;
 	r->add = add;
-	r->type = ctxt->arch->D_PCREL;
+	r->type = R_PCREL;
 	r->siz = 4;
 	return i + r->siz;
 }
@@ -319,7 +317,7 @@ setaddrplus(Link *ctxt, LSym *s, vlong off, LSym *t, vlong add)
 	r->sym = t;
 	r->off = off;
 	r->siz = ctxt->arch->ptrsize;
-	r->type = ctxt->arch->D_ADDR;
+	r->type = R_ADDR;
 	r->add = add;
 	return off + r->siz;
 }
@@ -346,7 +344,7 @@ addsize(Link *ctxt, LSym *s, LSym *t)
 	r->sym = t;
 	r->off = i;
 	r->siz = ctxt->arch->ptrsize;
-	r->type = ctxt->arch->D_SIZE;
+	r->type = R_SIZE;
 	return i + r->siz;
 }
 
@@ -366,7 +364,7 @@ addaddrplus4(Link *ctxt, LSym *s, LSym *t, vlong add)
 	r->sym = t;
 	r->off = i;
 	r->siz = 4;
-	r->type = ctxt->arch->D_ADDR;
+	r->type = R_ADDR;
 	r->add = add;
 	return i + r->siz;
 }

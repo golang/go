@@ -103,12 +103,12 @@ adddynrel(LSym *s, Reloc *r)
 			diag("unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ->name);
 		if(targ->type == 0 || targ->type == SXREF)
 			diag("unknown symbol %s in pcrel", targ->name);
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->add += 4;
 		return;
 	
 	case 256 + R_X86_64_PLT32:
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->add += 4;
 		if(targ->type == SDYNIMPORT) {
 			addpltsym(targ);
@@ -123,7 +123,7 @@ adddynrel(LSym *s, Reloc *r)
 			if(r->off >= 2 && s->p[r->off-2] == 0x8b) {
 				// turn MOVQ of GOT entry into LEAQ of symbol itself
 				s->p[r->off-2] = 0x8d;
-				r->type = D_PCREL;
+				r->type = R_PCREL;
 				r->add += 4;
 				return;
 			}
@@ -131,7 +131,7 @@ adddynrel(LSym *s, Reloc *r)
 			// TODO: just needs relocation, no need to put in .dynsym
 		}
 		addgotsym(targ);
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->sym = linklookup(ctxt, ".got", 0);
 		r->add += 4;
 		r->add += targ->got;
@@ -140,7 +140,7 @@ adddynrel(LSym *s, Reloc *r)
 	case 256 + R_X86_64_64:
 		if(targ->type == SDYNIMPORT)
 			diag("unexpected R_X86_64_64 relocation for dynamic symbol %s", targ->name);
-		r->type = D_ADDR;
+		r->type = R_ADDR;
 		return;
 	
 	// Handle relocations found in Mach-O object files.
@@ -148,7 +148,7 @@ adddynrel(LSym *s, Reloc *r)
 	case 512 + MACHO_X86_64_RELOC_SIGNED*2 + 0:
 	case 512 + MACHO_X86_64_RELOC_BRANCH*2 + 0:
 		// TODO: What is the difference between all these?
-		r->type = D_ADDR;
+		r->type = R_ADDR;
 		if(targ->type == SDYNIMPORT)
 			diag("unexpected reloc for dynamic symbol %s", targ->name);
 		return;
@@ -158,7 +158,7 @@ adddynrel(LSym *s, Reloc *r)
 			addpltsym(targ);
 			r->sym = linklookup(ctxt, ".plt", 0);
 			r->add = targ->plt;
-			r->type = D_PCREL;
+			r->type = R_PCREL;
 			return;
 		}
 		// fall through
@@ -167,7 +167,7 @@ adddynrel(LSym *s, Reloc *r)
 	case 512 + MACHO_X86_64_RELOC_SIGNED_1*2 + 1:
 	case 512 + MACHO_X86_64_RELOC_SIGNED_2*2 + 1:
 	case 512 + MACHO_X86_64_RELOC_SIGNED_4*2 + 1:
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		if(targ->type == SDYNIMPORT)
 			diag("unexpected pc-relative reloc for dynamic symbol %s", targ->name);
 		return;
@@ -181,7 +181,7 @@ adddynrel(LSym *s, Reloc *r)
 				return;
 			}
 			s->p[r->off-2] = 0x8d;
-			r->type = D_PCREL;
+			r->type = R_PCREL;
 			return;
 		}
 		// fall through
@@ -189,7 +189,7 @@ adddynrel(LSym *s, Reloc *r)
 		if(targ->type != SDYNIMPORT)
 			diag("unexpected GOT reloc for non-dynamic symbol %s", targ->name);
 		addgotsym(targ);
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->sym = linklookup(ctxt, ".got", 0);
 		r->add += targ->got;
 		return;
@@ -200,13 +200,13 @@ adddynrel(LSym *s, Reloc *r)
 		return;
 
 	switch(r->type) {
-	case D_PCREL:
+	case R_PCREL:
 		addpltsym(targ);
 		r->sym = linklookup(ctxt, ".plt", 0);
 		r->add = targ->plt;
 		return;
 	
-	case D_ADDR:
+	case R_ADDR:
 		if(s->type == STEXT && iself) {
 			// The code is asking for the address of an external
 			// function.  We provide it with the address of the
@@ -272,7 +272,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 	default:
 		return -1;
 
-	case D_ADDR:
+	case R_ADDR:
 		if(r->siz == 4)
 			VPUT(R_X86_64_32 | (uint64)elfsym<<32);
 		else if(r->siz == 8)
@@ -281,7 +281,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 			return -1;
 		break;
 
-	case D_PCREL:
+	case R_PCREL:
 		if(r->siz == 4) {
 			if(r->xsym->type == SDYNIMPORT)
 				VPUT(R_X86_64_GOTPCREL | (uint64)elfsym<<32);
@@ -291,7 +291,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 			return -1;
 		break;
 	
-	case D_TLS:
+	case R_TLS:
 		if(r->siz == 4) {
 			if(flag_shared)
 				VPUT(R_X86_64_GOTTPOFF | (uint64)elfsym<<32);
@@ -332,10 +332,10 @@ machoreloc1(Reloc *r, vlong sectoff)
 	switch(r->type) {
 	default:
 		return -1;
-	case D_ADDR:
+	case R_ADDR:
 		v |= MACHO_X86_64_RELOC_UNSIGNED<<28;
 		break;
-	case D_PCREL:
+	case R_PCREL:
 		v |= 1<<24; // pc-relative bit
 		v |= MACHO_X86_64_RELOC_BRANCH<<28;
 		break;

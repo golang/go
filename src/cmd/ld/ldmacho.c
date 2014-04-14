@@ -744,7 +744,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 				// want to make it pc-relative aka relative to rp->off+4
 				// but the scatter asks for relative to off = (rel+1)->value - sect->addr.
 				// adjust rp->add accordingly.
-				rp->type = D_PCREL;
+				rp->type = R_PCREL;
 				rp->add += (rp->off+4) - ((rel+1)->value - sect->addr);
 				
 				// now consider the desired symbol.

@@ -1717,7 +1717,7 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
 				ctxt->diag("need reloc for %D", a);
 				sysfatal("bad code");
 			}
-			r->type = D_ADDR;
+			r->type = R_ADDR;
 			r->siz = 4;
 			r->off = -1;
 			r->sym = s;
@@ -2360,7 +2360,7 @@ found:
 		*ctxt->andptr++ = op;
 		r = addrel(ctxt->cursym);
 		r->off = p->pc + ctxt->andptr - ctxt->and;
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->siz = 4;
 		r->sym = p->to.sym;
 		r->add = p->to.offset;
@@ -2379,7 +2379,7 @@ found:
 			r = addrel(ctxt->cursym);
 			r->off = p->pc + ctxt->andptr - ctxt->and;
 			r->sym = p->to.sym;
-			r->type = D_PCREL;
+			r->type = R_PCREL;
 			r->siz = 4;
 			put4(ctxt, 0);
 			break;
@@ -2445,7 +2445,7 @@ found:
 			*ctxt->andptr++ = o->op[z+1];
 		r = addrel(ctxt->cursym);
 		r->off = p->pc + ctxt->andptr - ctxt->and;
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->siz = 4;
 		r->add = p->to.offset;
 		put4(ctxt, 0);
@@ -2456,7 +2456,7 @@ found:
 		*ctxt->andptr++ = o->op[z+1];
 		r = addrel(ctxt->cursym);
 		r->off = p->pc + ctxt->andptr - ctxt->and;
-		r->type = D_ADDR;
+		r->type = R_ADDR;
 		r->siz = 4;
 		r->add = p->to.offset;
 		r->sym = p->to.sym;
