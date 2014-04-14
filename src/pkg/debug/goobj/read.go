@@ -573,6 +573,11 @@ func (r *objReader) parseObject(prefix []byte) error {
 		return r.error(errCorruptObject)
 	}
 
+	b := r.readByte()
+	if b != 1 {
+		return r.error(errCorruptObject)
+	}
+
 	// Direct package dependencies.
 	for {
 		s := r.readString()
