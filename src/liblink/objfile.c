@@ -16,6 +16,7 @@
 // The file format is:
 //
 //	- magic header: "\x00\x00go13ld"
+//	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
 //	- sequence of defined symbols
@@ -248,7 +249,8 @@ linkwriteobj(Link *ctxt, Biobuf *b)
 	Bputc(b, 0);
 	Bputc(b, 0);
 	Bprint(b, "go13ld");
-	
+	Bputc(b, 1); // version
+
 	// Emit autolib.
 	for(h = ctxt->hist; h != nil; h = h->link)
 		if(h->offset < 0)
@@ -453,6 +455,8 @@ ldobjfile(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn)
 	Bread(f, buf, sizeof buf);
 	if(memcmp(buf, startmagic, sizeof buf) != 0)
 		sysfatal("%s: invalid file start %x %x %x %x %x %x %x %x", pn, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+	if((c = Bgetc(f)) != 1)
+		sysfatal("%s: invalid file version number %d", pn, c);
 
 	for(;;) {
 		lib = rdstring(f);
