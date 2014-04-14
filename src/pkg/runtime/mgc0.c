@@ -91,42 +91,24 @@ enum {
 // Initialized from $GOGC.  GOGC=off means no gc.
 static int32 gcpercent = GcpercentUnknown;
 
-static struct
-{
-	Lock;  
-	void* head;
-} pools;
+static FuncVal* poolcleanup;
 
 void
-sync·runtime_registerPool(void **p)
+sync·runtime_registerPoolCleanup(FuncVal *f)
 {
-	runtime·lock(&pools);
-	p[0] = pools.head;
-	pools.head = p;
-	runtime·unlock(&pools);
+	poolcleanup = f;
 }
 
 static void
 clearpools(void)
 {
-	void **pool, **next;
 	P *p, **pp;
 	MCache *c;
-	uintptr off;
 	int32 i;
 
 	// clear sync.Pool's
-	for(pool = pools.head; pool != nil; pool = next) {
-		next = pool[0];
-		pool[0] = nil; // next
-		pool[1] = nil; // local
-		pool[2] = nil; // localSize
-		off = (uintptr)pool[3] / sizeof(void*);
-		pool[off+0] = nil; // global slice
-		pool[off+1] = nil;
-		pool[off+2] = nil;
-	}
-	pools.head = nil;
+	if(poolcleanup != nil)
+		reflect·call(poolcleanup, nil, 0, 0);
 
 	for(pp=runtime·allp; p=*pp; pp++) {
 		// clear tinyalloc pool
