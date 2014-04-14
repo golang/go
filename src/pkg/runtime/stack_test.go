@@ -162,7 +162,7 @@ func TestStackGrowth(t *testing.T) {
 		GC()
 		select {
 		case <-done:
-		case <-time.After(4 * time.Second):
+		case <-time.After(20 * time.Second):
 			t.Fatal("finalizer did not run")
 		}
 	}()
