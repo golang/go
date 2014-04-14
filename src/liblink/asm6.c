@@ -2272,12 +2272,12 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
 		if(ctxt->flag_shared || ctxt->headtype == Hnacl) {
 			if(s->type == STLSBSS) {
 				r->xadd = r->add - r->siz;
-				r->type = D_TLS;
+				r->type = R_TLS;
 				r->xsym = s;
 			} else
-				r->type = D_PCREL;
+				r->type = R_PCREL;
 		} else
-			r->type = D_ADDR;
+			r->type = R_ADDR;
 	}
 	return v;
 }
@@ -3024,7 +3024,7 @@ found:
 		r->off = p->pc + ctxt->andptr - ctxt->and;
 		r->sym = p->to.sym;
 		r->add = p->to.offset;
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->siz = 4;
 		put4(ctxt, 0);
 		break;
@@ -3042,7 +3042,7 @@ found:
 			r = addrel(ctxt->cursym);
 			r->off = p->pc + ctxt->andptr - ctxt->and;
 			r->sym = p->to.sym;
-			r->type = D_PCREL;
+			r->type = R_PCREL;
 			r->siz = 4;
 			put4(ctxt, 0);
 			break;
@@ -3461,7 +3461,7 @@ asmins(Link *ctxt, Prog *p)
 			break;
 		if(ctxt->rexflag)
 			r->off++;
-		if(r->type == D_PCREL)
+		if(r->type == R_PCREL)
 			r->add -= p->pc + n - (r->off + r->siz);
 	}
 

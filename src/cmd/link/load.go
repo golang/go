@@ -73,17 +73,11 @@ func (p *Prog) loadPackage(pkg *Package) {
 	}
 }
 
-// TODO(rsc): These are the relocation types and should be
-// loaded from debug/goobj. They are not in debug/goobj
-// because they are different for each architecture.
-// The symbol file format needs to be revised to use an
-// architecture-independent set of numbers, and then
-// those should be fetched from debug/goobj instead of
-// defined here. These are the amd64 numbers.
+// TODO(rsc): Define full enumeration for relocation types.
 const (
-	D_ADDR  = 120
-	D_SIZE  = 246
-	D_PCREL = 247
+	R_ADDR  = 1
+	R_SIZE  = 2
+	R_PCREL = 5
 )
 
 // relocateSym applies relocations to sym's data.
@@ -99,9 +93,9 @@ func (p *Prog) relocateSym(sym *Sym, data []byte) {
 		switch r.Type {
 		default:
 			p.errorf("%v: unknown relocation type %d", sym, r.Type)
-		case D_ADDR:
+		case R_ADDR:
 			// ok
-		case D_PCREL:
+		case R_PCREL:
 			val -= sym.Addr + Addr(r.Offset+r.Size)
 		}
 		frag := data[r.Offset : r.Offset+r.Size]

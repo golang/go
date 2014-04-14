@@ -271,16 +271,6 @@ enum
 	D_STATIC = (D_NONE+4),
 	D_AUTO = (D_NONE+5),
 	D_PARAM = (D_NONE+6),
-
-/* internal only */
-	D_SIZE = (D_NONE+40),
-	D_PCREL = (D_NONE+41),
-	D_GOTOFF = (D_NONE+42), // R_ARM_GOTOFF
-	D_PLT0 = (D_NONE+43), // R_ARM_PLT32, 1st inst: add ip, pc, #0xNN00000
-	D_PLT1 = (D_NONE+44), // R_ARM_PLT32, 2nd inst: add ip, ip, #0xNN000
-	D_PLT2 = (D_NONE+45), // R_ARM_PLT32, 3rd inst: ldr pc, [ip, #0xNNN]!
-	D_CALL = (D_NONE+46), // R_ARM_PLT32/R_ARM_CALL/R_ARM_JUMP24, bl xxxxx or b yyyyy
-	D_TLS = (D_NONE+47), // R_ARM_TLS_LE32/R_ARM_TLS_IE32
 };
 
 /*

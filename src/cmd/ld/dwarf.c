@@ -603,7 +603,7 @@ adddwarfrel(LSym* sec, LSym* sym, vlong offsetbase, int siz, vlong addend)
 	r->xsym = sym;
 	r->off = cpos() - offsetbase;
 	r->siz = siz;
-	r->type = D_ADDR;
+	r->type = R_ADDR;
 	r->add = addend;
 	r->xadd = addend;
 	if(iself && thechar == '6')
@@ -1638,11 +1638,11 @@ writelines(void)
 		memset(varhash, 0, sizeof varhash);
 		for(a = s->autom; a; a = a->link) {
 			switch (a->type) {
-			case D_AUTO:
+			case A_AUTO:
 				dt = DW_ABRV_AUTO;
 				offs = a->aoffset - PtrSize;
 				break;
-			case D_PARAM:
+			case A_PARAM:
 				dt = DW_ABRV_PARAM;
 				offs = a->aoffset;
 				break;

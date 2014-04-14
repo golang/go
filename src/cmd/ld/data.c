@@ -166,7 +166,7 @@ relocsym(LSym *s)
 			if(archreloc(r, s, &o) < 0)
 				diag("unknown reloc %d", r->type);
 			break;
-		case D_TLS:
+		case R_TLS:
 			if(linkmode == LinkInternal && iself && thechar == '5') {
 				// On ELF ARM, the thread pointer is 8 bytes before
 				// the start of the thread-local data block, so add 8
@@ -183,7 +183,7 @@ relocsym(LSym *s)
 			if(thechar != '6')
 				o = r->add;
 			break;
-		case D_ADDR:
+		case R_ADDR:
 			if(linkmode == LinkExternal && r->sym->type != SCONST) {
 				r->done = 0;
 
@@ -212,7 +212,7 @@ relocsym(LSym *s)
 			}
 			o = symaddr(r->sym) + r->add;
 			break;
-		case D_PCREL:
+		case R_PCREL:
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 			if(linkmode == LinkExternal && r->sym && r->sym->type != SCONST && r->sym->sect != ctxt->cursym->sect) {
 				r->done = 0;
@@ -253,7 +253,7 @@ relocsym(LSym *s)
 			// the standard host compiler (gcc on most other systems).
 			o += r->add - (s->value + r->off + (int32)r->siz);
 			break;
-		case D_SIZE:
+		case R_SIZE:
 			o = r->sym->size + r->add;
 			break;
 		}
@@ -263,7 +263,7 @@ relocsym(LSym *s)
 			ctxt->cursym = s;
 			diag("bad reloc size %#ux for %s", siz, r->sym->name);
 		case 4:
-			if(r->type == D_PCREL) {
+			if(r->type == R_PCREL) {
 				if(o != (int32)o)
 					diag("pc-relative relocation address is too big: %#llx", o);
 			} else {
@@ -524,10 +524,10 @@ datblk(int32 addr, int32 size)
 					rsname = r->sym->name;
 				typ = "?";
 				switch(r->type) {
-				case D_ADDR:
+				case R_ADDR:
 					typ = "addr";
 					break;
-				case D_PCREL:
+				case R_PCREL:
 					typ = "pcrel";
 					break;
 				}

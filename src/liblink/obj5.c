@@ -1039,14 +1039,14 @@ LinkArch linkarm = {
 	.regsize = 4,
 
 	.D_ADDR = D_ADDR,
+	.D_AUTO = D_AUTO,
 	.D_BRANCH = D_BRANCH,
 	.D_CONST = D_CONST,
 	.D_EXTERN = D_EXTERN,
 	.D_FCONST = D_FCONST,
 	.D_NONE = D_NONE,
-	.D_PCREL = D_PCREL,
+	.D_PARAM = D_PARAM,
 	.D_SCONST = D_SCONST,
-	.D_SIZE = D_SIZE,
 	.D_STATIC = D_STATIC,
 
 	.ACALL = ABL,

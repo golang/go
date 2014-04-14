@@ -100,12 +100,12 @@ adddynrel(LSym *s, Reloc *r)
 			diag("unexpected R_386_PC32 relocation for dynamic symbol %s", targ->name);
 		if(targ->type == 0 || targ->type == SXREF)
 			diag("unknown symbol %s in pcrel", targ->name);
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->add += 4;
 		return;
 
 	case 256 + R_386_PLT32:
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->add += 4;
 		if(targ->type == SDYNIMPORT) {
 			addpltsym(ctxt, targ);
@@ -123,21 +123,21 @@ adddynrel(LSym *s, Reloc *r)
 				return;
 			}
 			s->p[r->off-2] = 0x8d;
-			r->type = D_GOTOFF;
+			r->type = R_GOTOFF;
 			return;
 		}
 		addgotsym(ctxt, targ);
-		r->type = D_CONST;	// write r->add during relocsym
+		r->type = R_CONST;	// write r->add during relocsym
 		r->sym = S;
 		r->add += targ->got;
 		return;
 	
 	case 256 + R_386_GOTOFF:
-		r->type = D_GOTOFF;
+		r->type = R_GOTOFF;
 		return;
 	
 	case 256 + R_386_GOTPC:
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		r->sym = linklookup(ctxt, ".got", 0);
 		r->add += 4;
 		return;
@@ -145,11 +145,11 @@ adddynrel(LSym *s, Reloc *r)
 	case 256 + R_386_32:
 		if(targ->type == SDYNIMPORT)
 			diag("unexpected R_386_32 relocation for dynamic symbol %s", targ->name);
-		r->type = D_ADDR;
+		r->type = R_ADDR;
 		return;
 	
 	case 512 + MACHO_GENERIC_RELOC_VANILLA*2 + 0:
-		r->type = D_ADDR;
+		r->type = R_ADDR;
 		if(targ->type == SDYNIMPORT)
 			diag("unexpected reloc for dynamic symbol %s", targ->name);
 		return;
@@ -159,10 +159,10 @@ adddynrel(LSym *s, Reloc *r)
 			addpltsym(ctxt, targ);
 			r->sym = linklookup(ctxt, ".plt", 0);
 			r->add = targ->plt;
-			r->type = D_PCREL;
+			r->type = R_PCREL;
 			return;
 		}
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		return;
 	
 	case 512 + MACHO_FAKE_GOTPCREL:
@@ -174,13 +174,13 @@ adddynrel(LSym *s, Reloc *r)
 				return;
 			}
 			s->p[r->off-2] = 0x8d;
-			r->type = D_PCREL;
+			r->type = R_PCREL;
 			return;
 		}
 		addgotsym(ctxt, targ);
 		r->sym = linklookup(ctxt, ".got", 0);
 		r->add += targ->got;
-		r->type = D_PCREL;
+		r->type = R_PCREL;
 		return;
 	}
 	
@@ -189,13 +189,13 @@ adddynrel(LSym *s, Reloc *r)
 		return;
 
 	switch(r->type) {
-	case D_PCREL:
+	case R_PCREL:
 		addpltsym(ctxt, targ);
 		r->sym = linklookup(ctxt, ".plt", 0);
 		r->add = targ->plt;
 		return;
 	
-	case D_ADDR:
+	case R_ADDR:
 		if(s->type != SDATA)
 			break;
 		if(iself) {
@@ -203,7 +203,7 @@ adddynrel(LSym *s, Reloc *r)
 			rel = linklookup(ctxt, ".rel", 0);
 			addaddrplus(ctxt, rel, s, r->off);
 			adduint32(ctxt, rel, ELF32_R_INFO(targ->dynid, R_386_32));
-			r->type = D_CONST;	// write r->add during relocsym
+			r->type = R_CONST;	// write r->add during relocsym
 			r->sym = S;
 			return;
 		}
@@ -249,21 +249,21 @@ elfreloc1(Reloc *r, vlong sectoff)
 	default:
 		return -1;
 
-	case D_ADDR:
+	case R_ADDR:
 		if(r->siz == 4)
 			LPUT(R_386_32 | elfsym<<8);
 		else
 			return -1;
 		break;
 
-	case D_PCREL:
+	case R_PCREL:
 		if(r->siz == 4)
 			LPUT(R_386_PC32 | elfsym<<8);
 		else
 			return -1;
 		break;
 	
-	case D_TLS:
+	case R_TLS:
 		if(r->siz == 4)
 			LPUT(R_386_TLS_LE | elfsym<<8);
 		else
@@ -299,10 +299,10 @@ machoreloc1(Reloc *r, vlong sectoff)
 	switch(r->type) {
 	default:
 		return -1;
-	case D_ADDR:
+	case R_ADDR:
 		v |= MACHO_GENERIC_RELOC_VANILLA<<28;
 		break;
-	case D_PCREL:
+	case R_PCREL:
 		v |= 1<<24; // pc-relative bit
 		v |= MACHO_GENERIC_RELOC_VANILLA<<28;
 		break;
@@ -337,10 +337,10 @@ archreloc(Reloc *r, LSym *s, vlong *val)
 	if(linkmode == LinkExternal)
 		return -1;
 	switch(r->type) {
-	case D_CONST:
+	case R_CONST:
 		*val = r->add;
 		return 0;
-	case D_GOTOFF:
+	case R_GOTOFF:
 		*val = symaddr(r->sym) + r->add - symaddr(linklookup(ctxt, ".got", 0));
 		return 0;
 	}
