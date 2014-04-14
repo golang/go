@@ -1332,7 +1332,6 @@ static char *buildorder[] = {
 
 	"misc/pprof",
 
-	"cmd/objdump",
 	"cmd/prof",
 
 	"cmd/cc",  // must be before c
@@ -1409,7 +1408,6 @@ static char *cleantab[] = {
 	"cmd/cc",
 	"cmd/gc",
 	"cmd/go",	
-	"cmd/objdump",
 	"cmd/prof",
 	"lib9",
 	"libbio",
