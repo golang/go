@@ -373,6 +373,8 @@ static char *oldtool[] = {
 // Unreleased directories (relative to $GOROOT) that should
 // not be in release branches.
 static char *unreleased[] = {
+	"src/cmd/link",
+	"src/pkg/debug/goobj",
 	"src/pkg/old",
 };
 
