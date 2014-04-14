@@ -83,7 +83,7 @@ Bgetle4(Biobuf *bp)
 
 	l = Bgetle2(bp);
 	h = Bgetle2(bp);
-	return l|((uint32)h<<16);
+	return (int)((uint32)l|((uint32)h<<16));
 }
 
 int
