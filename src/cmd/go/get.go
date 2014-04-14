@@ -143,6 +143,10 @@ var downloadRootCache = map[string]bool{}
 // for the package named by the argument.
 func download(arg string, stk *importStack, getTestDeps bool) {
 	p := loadPackage(arg, stk)
+	if p.Error != nil {
+		errorf("%s", p.Error)
+		return
+	}
 
 	// There's nothing to do if this is a package in the standard library.
 	if p.Standard {
