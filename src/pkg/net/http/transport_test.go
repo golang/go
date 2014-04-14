@@ -2041,8 +2041,10 @@ func (f closerFunc) Close() error { return f() }
 // Issue 6981
 func TestTransportClosesBodyOnError(t *testing.T) {
 	defer afterTest(t)
+	readBody := make(chan error, 1)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		ioutil.ReadAll(r.Body)
+		_, err := ioutil.ReadAll(r.Body)
+		readBody <- err
 	}))
 	defer ts.Close()
 	fakeErr := errors.New("fake error")
@@ -2066,6 +2068,14 @@ func TestTransportClosesBodyOnError(t *testing.T) {
 	}
 	if err == nil || !strings.Contains(err.Error(), fakeErr.Error()) {
 		t.Fatalf("Do error = %v; want something containing %q", fakeErr.Error())
+	}
+	select {
+	case err := <-readBody:
+		if err == nil {
+			t.Errorf("Unexpected success reading request body from handler; want 'unexpected EOF reading trailer'")
+		}
+	case <-time.After(5 * time.Second):
+		t.Error("timeout waiting for server handler to complete")
 	}
 	select {
 	case <-didClose:
