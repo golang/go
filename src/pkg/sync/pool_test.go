@@ -25,11 +25,11 @@ func TestPool(t *testing.T) {
 	}
 	p.Put("a")
 	p.Put("b")
-	if g := p.Get(); g != "b" {
-		t.Fatalf("got %#v; want b", g)
-	}
 	if g := p.Get(); g != "a" {
 		t.Fatalf("got %#v; want a", g)
+	}
+	if g := p.Get(); g != "b" {
+		t.Fatalf("got %#v; want b", g)
 	}
 	if g := p.Get(); g != nil {
 		t.Fatalf("got %#v; want nil", g)
