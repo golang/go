@@ -144,6 +144,15 @@ panic: again
 
 }
 
+func TestGoexitExit(t *testing.T) {
+	output := executeTest(t, goexitExitSource, nil)
+	want := ""
+	if output != want {
+		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
+	}
+
+}
+
 const crashSource = `
 package main
 
@@ -308,5 +317,24 @@ func main() {
 		}(x)
 	}()
 	panic("again")
+}
+`
+
+const goexitExitSource = `
+package main
+
+import (
+	"runtime"
+	"time"
+)
+
+func main() {
+	go func() {
+		time.Sleep(time.Millisecond)
+	}()
+	i := 0
+	runtime.SetFinalizer(&i, func(p *int) {})
+	runtime.GC()
+	runtime.Goexit()
 }
 `

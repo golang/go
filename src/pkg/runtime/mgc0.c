@@ -1973,7 +1973,9 @@ bgsweep(void)
 			continue;
 		}
 		sweep.parked = true;
+		g->isbackground = true;
 		runtime·parkunlock(&gclock, "GC sweep wait");
+		g->isbackground = false;
 	}
 }
 
@@ -2618,7 +2620,9 @@ runfinq(void)
 		finq = nil;
 		if(fb == nil) {
 			runtime·fingwait = true;
+			g->isbackground = true;
 			runtime·parkunlock(&finlock, "finalizer wait");
+			g->isbackground = false;
 			continue;
 		}
 		runtime·unlock(&finlock);
