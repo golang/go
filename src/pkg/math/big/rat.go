@@ -477,7 +477,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	return z, true
 }
 
-// String returns a string representation of z in the form "a/b" (even if b == 1).
+// String returns a string representation of x in the form "a/b" (even if b == 1).
 func (x *Rat) String() string {
 	s := "/1"
 	if len(x.b.abs) != 0 {
@@ -486,7 +486,7 @@ func (x *Rat) String() string {
 	return x.a.String() + s
 }
 
-// RatString returns a string representation of z in the form "a/b" if b != 1,
+// RatString returns a string representation of x in the form "a/b" if b != 1,
 // and in the form "a" if b == 1.
 func (x *Rat) RatString() string {
 	if x.IsInt() {
@@ -495,7 +495,7 @@ func (x *Rat) RatString() string {
 	return x.String()
 }
 
-// FloatString returns a string representation of z in decimal form with prec
+// FloatString returns a string representation of x in decimal form with prec
 // digits of precision after the decimal point and the last digit rounded.
 func (x *Rat) FloatString(prec int) string {
 	if x.IsInt() {
