@@ -238,7 +238,9 @@ timerproc(void)
 		if(delta < 0) {
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true;
+			g->isbackground = true;
 			runtime·parkunlock(&timers, "timer goroutine (idle)");
+			g->isbackground = false;
 			continue;
 		}
 		// At least one timer pending.  Sleep until then.
