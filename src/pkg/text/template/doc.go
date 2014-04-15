@@ -20,7 +20,7 @@ The input text for a template is UTF-8-encoded text in any format.
 "{{" and "}}"; all text outside actions is copied to the output unchanged.
 Actions may not span newlines, although comments can.
 
-Once constructed, a template may be executed safely in parallel.
+Once parsed, a template may be executed safely in parallel.
 
 Here is a trivial example that prints "17 items are made of wool".
 
