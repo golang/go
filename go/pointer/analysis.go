@@ -322,6 +322,10 @@ func (a *analysis) callEdge(caller *cgnode, site *callsite, calleeid nodeid) {
 	callee := obj.cgn
 
 	if cg := a.result.CallGraph; cg != nil {
+		// TODO(adonovan): opt: I would expect duplicate edges
+		// (to wrappers) to arise due to the elimination of
+		// context information, but I haven't observed any.
+		// Understand this better.
 		callgraph.AddEdge(cg.CreateNode(caller.fn), site.instr, cg.CreateNode(callee.fn))
 	}
 
