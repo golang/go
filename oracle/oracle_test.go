@@ -252,6 +252,7 @@ func TestOracle(t *testing.T) {
 		}
 		buf := new(bytes.Buffer)
 		cmd.Stdout = buf
+		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			t.Errorf("Oracle tests for %s failed: %s.\n%s\n",
 				filename, err, buf)
