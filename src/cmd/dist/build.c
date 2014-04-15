@@ -545,17 +545,17 @@ static struct {
 	{"cmd/5c", {
 		"../cc/pgen.c",
 		"../cc/pswt.c",
-		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libcc.a",
 	}},
 	{"cmd/6c", {
 		"../cc/pgen.c",
 		"../cc/pswt.c",
-		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libcc.a",
 	}},
 	{"cmd/8c", {
 		"../cc/pgen.c",
 		"../cc/pswt.c",
-		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libcc.a",
 	}},
 	{"cmd/5g", {
 		"../gc/cplx.c",
@@ -563,7 +563,7 @@ static struct {
 		"../gc/plive.c",
 		"../gc/popt.c",
 		"../gc/popt.h",
-		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libgc.a",
 	}},
 	{"cmd/6g", {
 		"../gc/cplx.c",
@@ -571,7 +571,7 @@ static struct {
 		"../gc/plive.c",
 		"../gc/popt.c",
 		"../gc/popt.h",
-		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libgc.a",
 	}},
 	{"cmd/8g", {
 		"../gc/cplx.c",
@@ -579,7 +579,7 @@ static struct {
 		"../gc/plive.c",
 		"../gc/popt.c",
 		"../gc/popt.h",
-		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libgc.a",
 	}},
 	{"cmd/5l", {
 		"../ld/*",
@@ -594,9 +594,9 @@ static struct {
 		"zdefaultcc.go",
 	}},
 	{"cmd/", {
-		"$GOROOT/pkg/obj/$GOOS_$GOARCH/liblink.a",
-		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libbio.a",
-		"$GOROOT/pkg/obj/$GOOS_$GOARCH/lib9.a",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/liblink.a",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libbio.a",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/lib9.a",
 	}},
 	{"pkg/runtime", {
 		"zaexperiment.h", // must sort above zasm
@@ -804,6 +804,8 @@ install(char *dir)
 				bsubst(&b1, "$GOROOT", goroot);
 				bsubst(&b1, "$GOOS", goos);
 				bsubst(&b1, "$GOARCH", goarch);
+				bsubst(&b1, "$GOHOSTOS", gohostos);
+				bsubst(&b1, "$GOHOSTARCH", gohostarch);
 				p = bstr(&b1);
 				if(hassuffix(p, ".a")) {
 					vadd(&lib, bpathf(&b, "%s", p));
