@@ -46,7 +46,7 @@ type context struct {
 }
 
 // A checker maintains the state of the type checker.
-// It must be created with newChecker.
+// It must be created with NewChecker.
 type checker struct {
 	// package information
 	// (initialized by NewChecker, valid for the life-time of checker)
