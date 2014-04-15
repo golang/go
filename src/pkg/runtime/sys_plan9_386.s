@@ -100,8 +100,9 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVL	DX, g(AX)
 	MOVL	BX, m(AX)
 
-	// Initialize AX from TOS struct.
-	MOVL	procid(AX), AX
+	// Initialize procid from TOS struct.
+	// TODO: Be explicit and insert a new MOVL _tos(SB), AX here.
+	MOVL	48(AX), AX // procid
 	MOVL	AX, m_procid(BX)	// save pid as m->procid
 	
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX

@@ -457,8 +457,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	 * we use its pthread_create and let it set up %gs
 	 * for us.  When we do that, the private storage
 	 * we get is not at 0(GS) but at 0x468(GS).
-	 * To insulate the rest of the tool chain from this ugliness,
-	 * 8l rewrites 0(GS) into 0x468(GS) for us.
+	 * 8l rewrites 0(TLS) into 0x468(GS) for us.
 	 * To accommodate that rewrite, we translate the
 	 * address and limit here so that 0x468(GS) maps to 0(address).
 	 *

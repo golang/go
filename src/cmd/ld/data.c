@@ -183,6 +183,17 @@ relocsym(LSym *s)
 			if(thechar != '6')
 				o = r->add;
 			break;
+		case R_TLS_LE:
+			o = ctxt->tlsoffset + r->add;
+			break;
+		case R_TLS_IE:
+			if(iself || ctxt->headtype == Hplan9)
+				o = ctxt->tlsoffset + r->add;
+			else if(ctxt->headtype == Hwindows)
+				o = r->add;
+			else
+				sysfatal("unexpected R_TLS_IE relocation for %s", headstr(ctxt->headtype));
+			break;
 		case R_ADDR:
 			if(linkmode == LinkExternal && r->sym->type != SCONST) {
 				r->done = 0;
@@ -262,6 +273,10 @@ relocsym(LSym *s)
 		default:
 			ctxt->cursym = s;
 			diag("bad reloc size %#ux for %s", siz, r->sym->name);
+		case 1:
+			// TODO(rsc): Remove.
+			s->p[off] = (int8)o;
+			break;
 		case 4:
 			if(r->type == R_PCREL) {
 				if(o != (int32)o)
@@ -312,6 +327,8 @@ dynrelocsym(LSym *s)
 			return;
 		for(r=s->r; r<s->r+s->nr; r++) {
 			targ = r->sym;
+			if(targ == nil)
+				continue;
 			if(!targ->reachable)
 				diag("internal inconsistency: dynamic symbol %s is not reachable.", targ->name);
 			if(r->sym->plt == -2 && r->sym->got != -2) { // make dynimport JMP table for PE object files.

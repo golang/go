@@ -636,21 +636,19 @@ enum
 	D_X5,
 	D_X6,
 	D_X7,
+	
+	D_TLS		= 67,
+	D_NONE		= 68,
 
-	D_NONE		= 67,
-
-	D_BRANCH	= 68,
-	D_EXTERN	= 69,
-	D_STATIC	= 70,
-	D_AUTO		= 71,
-	D_PARAM		= 72,
-	D_CONST		= 73,
-	D_FCONST	= 74,
-	D_SCONST	= 75,
-	D_ADDR		= 76,
-
-	D_FILE,
-	D_FILE1,
+	D_BRANCH	= 69,
+	D_EXTERN	= 70,
+	D_STATIC	= 71,
+	D_AUTO		= 72,
+	D_PARAM		= 73,
+	D_CONST		= 74,
+	D_FCONST	= 75,
+	D_SCONST	= 76,
+	D_ADDR		= 77,
 
 	D_INDIR,	/* additive */
 

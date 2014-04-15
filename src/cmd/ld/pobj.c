@@ -143,7 +143,6 @@ main(int argc, char *argv[])
 		headstring = headstr(HEADTYPE);
 
 	archinit();
-	ctxt->linkmode = linkmode;
 	ctxt->debugfloat = debug['F'];
 
 	if(debug['v'])

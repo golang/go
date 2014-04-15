@@ -232,6 +232,8 @@ enum
 	R_CONST,
 	R_PCREL,
 	R_TLS,
+	R_TLS_LE, // TLS local exec offset from TLS segment register
+	R_TLS_IE, // TLS initial exec offset from TLS base pointer
 	R_GOTOFF,
 	R_PLT0,
 	R_PLT1,
@@ -340,7 +342,6 @@ struct	Link
 	char*	thestring; // full name of architecture ("arm", "amd64", ..)
 	int32	goarm; // for arm only, GOARM setting
 	int	headtype;
-	int	linkmode;
 
 	LinkArch*	arch;
 	int32	(*ignore)(char*);	// do not emit names satisfying this function

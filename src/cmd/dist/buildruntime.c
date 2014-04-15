@@ -127,99 +127,22 @@ static struct {
 	char *goos;
 	char *hdr;
 } zasmhdr[] = {
-	{"386", "windows",
-		"#define	get_tls(r)	MOVL 0x14(FS), r\n"
-		"#define	g(r)	0(r)\n"
-		"#define	m(r)	4(r)\n"
-	},
-	{"386", "plan9",
-		"// Plan 9 does not have per-process segment descriptors with\n"
-		"// which to do thread-local storage. Instead, we will use a\n"
-		"// fixed offset from the per-process TOS struct address for\n"
-		"// the local storage. Since the process ID is contained in the\n"
-		"// TOS struct, we specify an offset for that here as well.\n"
-		"#define	get_tls(r)	MOVL _tos(SB), r \n"
-		"#define	g(r)	-8(r)\n"
-		"#define	m(r)	-4(r)\n"
-		"#define	procid(r)	48(r)\n"
-	},
-	{"386", "linux",
-		"// On Linux systems, what we call 0(GS) and 4(GS) for g and m\n"
-		"// turn into %gs:-8 and %gs:-4 (using gcc syntax to denote\n"
-		"// what the machine sees as opposed to 8l input).\n"
-		"// 8l rewrites 0(GS) and 4(GS) into these.\n"
-		"//\n"
-		"// On Linux Xen, it is not allowed to use %gs:-8 and %gs:-4\n"
-		"// directly.  Instead, we have to store %gs:0 into a temporary\n"
-		"// register and then use -8(%reg) and -4(%reg).  This kind\n"
-		"// of addressing is correct even when not running Xen.\n"
-		"//\n"
-		"// 8l can rewrite MOVL 0(GS), CX into the appropriate pair\n"
-		"// of mov instructions, using CX as the intermediate register\n"
-		"// (safe because CX is about to be written to anyway).\n"
-		"// But 8l cannot handle other instructions, like storing into 0(GS),\n"
-		"// which is where these macros come into play.\n"
-		"// get_tls sets up the temporary and then g and r use it.\n"
-		"//\n"
-		"// Another wrinkle is that get_tls needs to read from %gs:0,\n"
-		"// but in 8l input it's called 8(GS), because 8l is going to\n"
-		"// subtract 8 from all the offsets, as described above.\n"
-		"//\n"
-		"// The final wrinkle is that when generating an ELF .o file for\n"
-		"// external linking mode, we need to be able to relocate the\n"
-		"// -8(r) and -4(r) instructions. Tag them with an extra (GS*1)\n"
-		"// that is ignored by the linker except for that identification.\n"
-		"#define	get_tls(r)	MOVL 8(GS), r\n"
-		"#define	g(r)	-8(r)(GS*1)\n"
-		"#define	m(r)	-4(r)(GS*1)\n"
-	},
-	{"386", "nacl",
-		// Same as Linux above.
-		"#define	get_tls(r)	MOVL 8(GS), r\n"
-		"#define	g(r)	-8(r)(GS*1)\n"
-		"#define	m(r)	-4(r)(GS*1)\n"
-	},
 	{"386", "",
-		"#define	get_tls(r)\n"
-		"#define	g(r)	0(GS)\n"
-		"#define	m(r)	4(GS)\n"
+		"#define	get_tls(r)	MOVL TLS, r\n"
+		"#define	g(r)	0(r)(TLS*1)\n"
+		"#define	m(r)	4(r)(TLS*1)\n"
 	},
-
-	{"amd64p32", "nacl",
-		"#define get_tls(r)\n"
-		"#define g(r) 0(GS)\n"
-		"#define m(r) 4(GS)\n"
-	},
-	{"amd64", "windows",
-		"#define	get_tls(r) MOVQ 0x28(GS), r\n"
-		"#define	g(r) 0(r)\n"
-		"#define	m(r) 8(r)\n"
-	},
-	{"amd64", "plan9",
-		"#define	get_tls(r)\n"
-		"#define	g(r) 0(GS)\n"
-		"#define	m(r) 8(GS)\n"
-		"#define	procid(r) 16(GS)\n"
-	},
-	{"amd64", "solaris",
-		"#define	get_tls(r) MOVQ 0(FS), r\n"
-		"#define	g(r) -16(r)(FS*1)\n"
-		"#define	m(r) -8(r)(FS*1)\n"
-	},
-	// The TLS accessors here are defined here to use initial exec model.
-	// If the linker is not outputting a shared library, it will reduce
-	// the TLS accessors to the local exec model, effectively removing
-	// get_tls().
-	{"amd64", "linux",
-		"#define	get_tls(r) MOVQ runtime·tlsgm(SB), r\n"
-		"#define	g(r) 0(r)(GS*1)\n"
-		"#define	m(r) 8(r)(GS*1)\n"
+	{"amd64p32", "",
+		"#define	get_tls(r)	MOVL TLS, r\n"
+		"#define	g(r)	0(r)(TLS*1)\n"
+		"#define	m(r)	4(r)(TLS*1)\n"
 	},
 	{"amd64", "",
-		"#define get_tls(r)\n"
-		"#define g(r) 0(GS)\n"
-		"#define m(r) 8(GS)\n"
+		"#define	get_tls(r)	MOVQ TLS, r\n"
+		"#define	g(r)	0(r)(TLS*1)\n"
+		"#define	m(r)	8(r)(TLS*1)\n"
 	},	
+
 	{"arm", "",
 	"#define	LR	R14\n"
 	},

@@ -274,6 +274,7 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 	Pcln *pc;
 	Prog *p;
 	Auto *a;
+	char *name;
 
 	if(ctxt->debugasm) {
 		Bprint(ctxt->bso, "%s ", s->name);
@@ -308,7 +309,10 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 		}
 		for(i=0; i<s->nr; i++) {
 			r = &s->r[i];
-			Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%lld\n", (int)r->off, r->siz, r->type, r->sym->name, (vlong)r->add);
+			name = "";
+			if(r->sym != nil)
+				name = r->sym->name;
+			Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%lld\n", (int)r->off, r->siz, r->type, name, (vlong)r->add);
 		}
 	}
 

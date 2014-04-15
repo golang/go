@@ -13,7 +13,7 @@
 	MOVL $(0x10000 + ((code)<<5)), AX; JMP AX
 
 TEXT runtime·settls(SB),NOSPLIT,$0
-	MOVL	DI, GS // really BP
+	MOVL	DI, TLS // really BP
 	RET
 
 TEXT runtime·exit(SB),NOSPLIT,$0
@@ -173,7 +173,7 @@ TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
 TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
 	NACL_SYSCALL(SYS_tls_get)
 	SUBL	$8, AX
-	MOVL	AX, GS
+	MOVL	AX, TLS
 	JMP runtime·mstart(SB)
 
 TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$0
@@ -254,12 +254,12 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
 	// restore TLS register at time of execution,
 	// in case it's been smashed.
 	// the TLS register is really BP, but for consistency
-	// with non-NaCl systems it is referred to here as GS.
+	// with non-NaCl systems it is referred to here as TLS.
 	// NOTE: Cannot use SYS_tls_get here (like we do in mstart_nacl),
 	// because the main thread never calls tls_set.
 	LEAL ctxt+0(FP), AX
 	MOVL (16*4+5*8)(AX), AX
-	MOVL	AX, GS
+	MOVL	AX, TLS
 
 	// check that m exists
 	get_tls(CX)
@@ -305,7 +305,7 @@ sigtramp_ret:
 	MOVQ	16(SI), DX
 	MOVQ	24(SI), BX
 	MOVL	32(SI), SP	// MOVL for SP sandboxing
-	// 40(SI) is saved BP aka GS, already restored above
+	// 40(SI) is saved BP aka TLS, already restored above
 	// 48(SI) is saved SI, never to be seen again
 	MOVQ	56(SI), DI
 	MOVQ	64(SI), R8

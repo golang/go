@@ -79,7 +79,6 @@ archinit(void)
 	case Hsolaris:
 		break;
 	}
-	ctxt->linkmode = linkmode;
 
 	switch(HEADTYPE) {
 	default:

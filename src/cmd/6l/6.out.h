@@ -850,20 +850,18 @@ enum
 	D_DR		= 95,
 	D_TR		= 103,
 
-	D_NONE		= 111,
+	D_TLS		= 111,
+	D_NONE		= 112,
 
-	D_BRANCH	= 112,
-	D_EXTERN	= 113,
-	D_STATIC	= 114,
-	D_AUTO		= 115,
-	D_PARAM		= 116,
-	D_CONST		= 117,
-	D_FCONST	= 118,
-	D_SCONST	= 119,
-	D_ADDR		= 120,
-
-	D_FILE,
-	D_FILE1,
+	D_BRANCH	= 113,
+	D_EXTERN	= 114,
+	D_STATIC	= 115,
+	D_AUTO		= 116,
+	D_PARAM		= 117,
+	D_CONST		= 118,
+	D_FCONST	= 119,
+	D_SCONST	= 120,
+	D_ADDR		= 121,
 
 	D_INDIR,	/* additive */
 
