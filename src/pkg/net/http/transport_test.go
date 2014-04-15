@@ -2040,6 +2040,9 @@ func (f closerFunc) Close() error { return f() }
 
 // Issue 6981
 func TestTransportClosesBodyOnError(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test; see http://golang.org/issue/7782")
+	}
 	defer afterTest(t)
 	readBody := make(chan error, 1)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
