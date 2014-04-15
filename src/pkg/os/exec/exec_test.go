@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -401,11 +402,15 @@ func TestExtraFiles(t *testing.T) {
 
 	// Force TLS root certs to be loaded (which might involve
 	// cgo), to make sure none of that potential C code leaks fds.
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello"))
-	}))
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	// quiet expected TLS handshake error "remote error: bad certificate"
+	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+	ts.StartTLS()
 	defer ts.Close()
-	http.Get(ts.URL) // ignore result; just calling to force root cert loading
+	_, err = http.Get(ts.URL)
+	if err == nil {
+		t.Errorf("success trying to fetch %s; want an error", ts.URL)
+	}
 
 	tf, err := ioutil.TempFile("", "")
 	if err != nil {
