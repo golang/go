@@ -8,7 +8,11 @@
 <p>
 This document is a quick outline of the unusual form of assembly language used by the <code>gc</code>
 suite of Go compilers (<code>6g</code>, <code>8g</code>, etc.).
-It is based on the input to the Plan 9 assemblers, which is documented in detail
+The document is not comprehensive.
+</p>
+
+<p>
+The assembler is based on the input to the Plan 9 assemblers, which is documented in detail
 <a href="http://plan9.bell-labs.com/sys/doc/asm.html">on the Plan 9 site</a>.
 If you plan to write assembly language, you should read that document although much of it is Plan 9-specific.
 This document provides a summary of the syntax and
@@ -70,6 +74,8 @@ The <code>FUNCDATA</code> and <code>PCDATA</code> directives contain information
 for use by the garbage collector; they are introduced by the compiler.
 </p> 
 
+<!-- Commenting out because the feature is gone but it's popular and may come back.
+
 <p>
 To see what gets put in the binary after linking, add the <code>-a</code> flag to the linker:
 </p>
@@ -98,6 +104,7 @@ codeblk [0x2000,0x1d059) at offset 0x1000
 ...
 </pre>
 
+-->
 
 <h3 id="symbols">Symbols</h3>
 
