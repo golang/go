@@ -184,9 +184,30 @@ relocsym(LSym *s)
 				o = r->add;
 			break;
 		case R_TLS_LE:
+			if(linkmode == LinkExternal && iself) {
+				r->done = 0;
+				r->sym = ctxt->gmsym;
+				r->xsym = ctxt->gmsym;
+				r->xadd = r->add;
+				o = 0;
+				if(thechar != '6')
+					o = r->add;
+				break;
+			}
 			o = ctxt->tlsoffset + r->add;
 			break;
+
 		case R_TLS_IE:
+			if(linkmode == LinkExternal && iself) {
+				r->done = 0;
+				r->sym = ctxt->gmsym;
+				r->xsym = ctxt->gmsym;
+				r->xadd = r->add;
+				o = 0;
+				if(thechar != '6')
+					o = r->add;
+				break;
+			}
 			if(iself || ctxt->headtype == Hplan9)
 				o = ctxt->tlsoffset + r->add;
 			else if(ctxt->headtype == Hwindows)

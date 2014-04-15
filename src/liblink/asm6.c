@@ -2427,30 +2427,6 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
 		goto putrelv;
 	}
 	if(t >= D_AX && t <= D_R15) {
-		// TODO: Remove Hwindows condition.
-		if(v == 0 && t != D_BP && t != D_R13 && (a->index != D_TLS || (ctxt->headtype == Hwindows && a->scale == 2))) {
-			*ctxt->andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
-			return;
-		}
-		if(v >= -128 && v < 128 && (a->index != D_TLS || a->scale != 1)) {
-			ctxt->andptr[0] = (1 << 6) | (reg[t] << 0) | (r << 3);
-			if(a->index == D_TLS) {
-				Reloc *r;
-				memset(&rel, 0, sizeof rel);
-				rel.type = R_TLS_IE;
-				rel.siz = 1;
-				rel.sym = nil;
-				rel.add = v;
-				r = addrel(ctxt->cursym);
-				*r = rel;
-				r->off = ctxt->curp->pc + ctxt->andptr + 1 - ctxt->and;
-				v = 0;
-			}
-			ctxt->andptr[1] = v;
-			ctxt->andptr += 2;
-			return;
-		}
-		*ctxt->andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
 		if(a->index == D_TLS) {
 			memset(&rel, 0, sizeof rel);
 			rel.type = R_TLS_IE;
@@ -2459,6 +2435,17 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
 			rel.add = v;
 			v = 0;
 		}
+		if(v == 0 && rel.siz == 0 && t != D_BP && t != D_R13) {
+			*ctxt->andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
+			return;
+		}
+		if(v >= -128 && v < 128 && rel.siz == 0) {
+			ctxt->andptr[0] = (1 << 6) | (reg[t] << 0) | (r << 3);
+			ctxt->andptr[1] = v;
+			ctxt->andptr += 2;
+			return;
+		}
+		*ctxt->andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
 		goto putrelv;
 	}
 	goto bad;

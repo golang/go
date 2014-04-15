@@ -240,6 +240,7 @@ loadlib(void)
 	gmsym->size = 2*PtrSize;
 	gmsym->hide = 1;
 	gmsym->reachable = 1;
+	ctxt->gmsym = gmsym;
 
 	// Now that we know the link mode, trim the dynexp list.
 	x = CgoExportDynamic;
