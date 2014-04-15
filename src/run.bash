@@ -131,6 +131,7 @@ dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | linux-386 | linu
 	go test -ldflags '-linkmode=external' || exit 1
 	go test -ldflags '-linkmode=auto' ../testtls || exit 1
 	go test -ldflags '-linkmode=external' ../testtls || exit 1
+	go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../testtls || exit 1
 esac
 ) || exit $?
 

@@ -281,6 +281,13 @@ elfreloc1(Reloc *r, vlong sectoff)
 			return -1;
 		break;
 
+	case R_TLS_LE:
+		if(r->siz == 4)
+			VPUT(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
+		else
+			return -1;
+		break;
+		
 	case R_PCREL:
 		if(r->siz == 4) {
 			if(r->xsym->type == SDYNIMPORT)
