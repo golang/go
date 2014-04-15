@@ -118,6 +118,7 @@ linknew(LinkArch *arch)
 		sysfatal("unknown goos %s", getgoos());
 	
 	// Record thread-local storage offset.
+	// TODO(rsc): Move tlsoffset back into the linker.
 	switch(ctxt->headtype) {
 	default:
 		sysfatal("unknown thread-local storage offset for %s", headstr(ctxt->headtype));

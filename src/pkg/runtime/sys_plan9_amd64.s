@@ -136,7 +136,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVQ	BX, m(AX)
 
 	// Initialize AX from pid in TLS.
-	MOVQ	procid(AX), AX
+	MOVQ	0(FS), AX
 	MOVQ	AX, m_procid(BX)	// save pid as m->procid
 	
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX

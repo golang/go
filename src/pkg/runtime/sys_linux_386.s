@@ -383,7 +383,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	 * for us.  When we do that, the private storage
 	 * we get is not at 0(GS), 4(GS), but -8(GS), -4(GS).
 	 * To insulate the rest of the tool chain from this
-	 * ugliness, 8l rewrites 0(GS) into -8(GS) for us.
+	 * ugliness, 8l rewrites 0(TLS) into -8(GS) for us.
 	 * To accommodate that rewrite, we translate
 	 * the address here and bump the limit to 0xffffffff (no limit)
 	 * so that -8(GS) maps to 0(address).

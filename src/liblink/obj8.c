@@ -91,78 +91,78 @@ settextflag(Prog *p, int f)
 	p->from.scale = f;
 }
 
+static int
+canuselocaltls(Link *ctxt)
+{
+	switch(ctxt->headtype) {
+	case Hlinux:
+	case Hnacl:
+	case Hplan9:
+	case Hwindows:
+		return 0;
+	}
+	return 1;
+}
+
 static void
 progedit(Link *ctxt, Prog *p)
 {
-	Prog *q;
 	char literal[64];
 	LSym *s;
-
-	if(p->from.type == D_INDIR+D_GS)
-		p->from.offset += ctxt->tlsoffset;
-	if(p->to.type == D_INDIR+D_GS)
-		p->to.offset += ctxt->tlsoffset;
-
-	if(ctxt->headtype == Hwindows) {
-		// Convert
-		//   op	  n(GS), reg
-		// to
-		//   MOVL 0x14(FS), reg
-		//   op	  n(reg), reg
-		// The purpose of this patch is to fix some accesses
-		// to extern register variables (TLS) on Windows, as
-		// a different method is used to access them.
-		if(p->from.type == D_INDIR+D_GS
-		&& p->to.type >= D_AX && p->to.type <= D_DI) {
+	Prog *q;
+	
+	// See obj6.c for discussion of TLS.
+	if(canuselocaltls(ctxt)) {
+		// Reduce TLS initial exec model to TLS local exec model.
+		// Sequences like
+		//	MOVL TLS, BX
+		//	... off(BX)(TLS*1) ...
+		// become
+		//	NOP
+		//	... off(TLS) ...
+		if(p->as == AMOVL && p->from.type == D_TLS && D_AX <= p->to.type && p->to.type <= D_DI) {
+			p->as = ANOP;
+			p->from.type = D_NONE;
+			p->to.type = D_NONE;
+		}
+		if(p->from.index == D_TLS && D_INDIR+D_AX <= p->from.type && p->from.type <= D_INDIR+D_DI) {
+			p->from.type = D_INDIR+D_TLS;
+			p->from.scale = 0;
+			p->from.index = D_NONE;
+		}
+		if(p->to.index == D_TLS && D_INDIR+D_AX <= p->to.type && p->to.type <= D_INDIR+D_DI) {
+			p->to.type = D_INDIR+D_TLS;
+			p->to.scale = 0;
+			p->to.index = D_NONE;
+		}
+	} else {
+		// As a courtesy to the C compilers, rewrite TLS local exec load as TLS initial exec load.
+		// The instruction
+		//	MOVL off(TLS), BX
+		// becomes the sequence
+		//	MOVL TLS, BX
+		//	MOVL off(BX)(TLS*1), BX
+		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
+		if(p->as == AMOVL && p->from.type == D_INDIR+D_TLS && D_AX <= p->to.type && p->to.type <= D_DI) {
 			q = appendp(ctxt, p);
+			q->as = p->as;
 			q->from = p->from;
 			q->from.type = D_INDIR + p->to.type;
+			q->from.index = D_TLS;
+			q->from.scale = 2; // TODO: use 1
 			q->to = p->to;
-			q->as = p->as;
-			p->as = AMOVL;
-			p->from.type = D_INDIR+D_FS;
-			p->from.offset = 0x14;
-		}
-	}
-	if(ctxt->headtype == Hlinux || ctxt->headtype == Hnacl) {
-		// Running binaries under Xen requires using
-		//	MOVL 0(GS), reg
-		// and then off(reg) instead of saying off(GS) directly
-		// when the offset is negative.
-		// In external mode we just produce a reloc.
-		if(p->from.type == D_INDIR+D_GS && p->from.offset < 0
-		&& p->to.type >= D_AX && p->to.type <= D_DI) {
-			if(ctxt->linkmode != LinkExternal) {
-				q = appendp(ctxt, p);
-				q->from = p->from;
-				q->from.type = D_INDIR + p->to.type;
-				q->to = p->to;
-				q->as = p->as;
-				p->as = AMOVL;
-				p->from.type = D_INDIR+D_GS;
-				p->from.offset = 0;
-			} else {
-				// Add signals to relocate.
-				p->from.index = D_GS;
-				p->from.scale = 1;
-			}
-		}
-	}
-	if(ctxt->headtype == Hplan9) {
-		if(p->from.type == D_INDIR+D_GS
-		&& p->to.type >= D_AX && p->to.type <= D_DI) {
-			if(ctxt->plan9tos == nil)
-				ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
-			q = appendp(ctxt, p);
-			q->from = p->from;
-			q->from.type = D_INDIR + p->to.type;
-			q->to = p->to;
-			q->as = p->as;
-			p->as = AMOVL;
-			p->from.type = D_EXTERN;
-			p->from.sym = ctxt->plan9tos;
+			p->from.type = D_TLS;
+			p->from.index = D_NONE;
 			p->from.offset = 0;
 		}
+	}
+
+	// TODO: Remove.
+	if(ctxt->headtype == Hplan9) {
+		if(p->from.scale == 1 && p->from.index == D_TLS)
+			p->from.scale = 2;
+		if(p->to.scale == 1 && p->to.index == D_TLS)
+			p->to.scale = 2;
 	}
 
 	// Rewrite CALL/JMP/RET to symbol as D_BRANCH.
@@ -435,62 +435,21 @@ addstacksplit(Link *ctxt, LSym *cursym)
 static Prog*
 load_g_cx(Link *ctxt, Prog *p)
 {
-	switch(ctxt->headtype) {
-	case Hwindows:
-		p->as = AMOVL;
-		p->from.type = D_INDIR+D_FS;
-		p->from.offset = 0x14;
-		p->to.type = D_CX;
+	Prog *next;
 
-		p = appendp(ctxt, p);
-		p->as = AMOVL;
-		p->from.type = D_INDIR+D_CX;
-		p->from.offset = 0;
-		p->to.type = D_CX;
-		break;
-	
-	case Hlinux:
-	case Hnacl:
-		if(ctxt->linkmode != LinkExternal) {
-			p->as = AMOVL;
-			p->from.type = D_INDIR+D_GS;
-			p->from.offset = 0;
-			p->to.type = D_CX;
+	p->as = AMOVL;
+	p->from.type = D_INDIR+D_TLS;
+	p->from.offset = 0;
+	p->to.type = D_CX;
 
-			p = appendp(ctxt, p);
-			p->as = AMOVL;
-			p->from.type = D_INDIR+D_CX;
-			p->from.offset = ctxt->tlsoffset + 0;
-			p->to.type = D_CX;
-		} else {
-			p->as = AMOVL;
-			p->from.type = D_INDIR+D_GS;
-			p->from.offset = ctxt->tlsoffset + 0;
-			p->to.type = D_CX;
-			p->from.index = D_GS;
-			p->from.scale = 1;
-		}
-		break;
+	next = p->link;
+	progedit(ctxt, p);
+	while(p->link != next)
+		p = p->link;
 	
-	case Hplan9:
-		p->as = AMOVL;
-		p->from.type = D_EXTERN;
-		p->from.sym = ctxt->plan9tos;
-		p->to.type = D_CX;
-		
-		p = appendp(ctxt, p);
-		p->as = AMOVL;
-		p->from.type = D_INDIR+D_CX;
-		p->from.offset = ctxt->tlsoffset + 0;
-		p->to.type = D_CX;				
-		break;
-	
-	default:
-		p->as = AMOVL;
-		p->from.type = D_INDIR+D_GS;
-		p->from.offset = ctxt->tlsoffset + 0;
-		p->to.type = D_CX;
-	}
+	if(p->from.index == D_TLS)
+		p->from.scale = 2;
+
 	return p;
 }
 

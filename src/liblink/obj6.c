@@ -99,6 +99,17 @@ settextflag(Prog *p, int f)
 
 static void nacladdr(Link*, Prog*, Addr*);
 
+static int
+canuselocaltls(Link *ctxt)
+{
+	switch(ctxt->headtype) {
+//	case Hlinux:
+	case Hwindows:
+		return 0;
+	}
+	return 1;
+}
+
 static void
 progedit(Link *ctxt, Prog *p)
 {
@@ -106,103 +117,96 @@ progedit(Link *ctxt, Prog *p)
 	LSym *s;
 	Prog *q;
 
+	// Thread-local storage references use the TLS pseudo-register.
+	// As a register, TLS refers to the thread-local storage base, and it
+	// can only be loaded into another register:
+	//
+	//         MOVQ TLS, AX
+	//
+	// An offset from the thread-local storage base is written off(reg)(TLS*1).
+	// Semantically it is off(reg), but the (TLS*1) annotation marks this as
+	// indexing from the loaded TLS base. This emits a relocation so that
+	// if the linker needs to adjust the offset, it can. For example:
+	//
+	//         MOVQ TLS, AX
+	//         MOVQ 8(AX)(TLS*1), CX // load m into CX
+	// 
+	// On systems that support direct access to the TLS memory, this
+	// pair of instructions can be reduced to a direct TLS memory reference:
+	// 
+	//         MOVQ 8(TLS), CX // load m into CX
+	//
+	// The 2-instruction and 1-instruction forms correspond roughly to
+	// ELF TLS initial exec mode and ELF TLS local exec mode, respectively.
+	// 
+	// We applies this rewrite on systems that support the 1-instruction form.
+	// The decision is made using only the operating system (and probably
+	// the -shared flag, eventually), not the link mode. If some link modes
+	// on a particular operating system require the 2-instruction form,
+	// then all builds for that operating system will use the 2-instruction
+	// form, so that the link mode decision can be delayed to link time.
+	//
+	// In this way, all supported systems use identical instructions to
+	// access TLS, and they are rewritten appropriately first here in
+	// liblink and then finally using relocations in the linker.
+
+	if(canuselocaltls(ctxt)) {
+		// Reduce TLS initial exec model to TLS local exec model.
+		// Sequences like
+		//	MOVQ TLS, BX
+		//	... off(BX)(TLS*1) ...
+		// become
+		//	NOP
+		//	... off(TLS) ...
+		//
+		// TODO(rsc): Remove the Hsolaris special case. It exists only to
+		// guarantee we are producing byte-identical binaries as before this code.
+		// But it should be unnecessary.
+		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == D_TLS && D_AX <= p->to.type && p->to.type <= D_R15 && ctxt->headtype != Hsolaris)
+			nopout(p);
+		if(p->from.index == D_TLS && D_INDIR+D_AX <= p->from.type && p->from.type <= D_INDIR+D_R15) {
+			p->from.type = D_INDIR+D_TLS;
+			p->from.scale = 0;
+			p->from.index = D_NONE;
+		}
+		if(p->to.index == D_TLS && D_INDIR+D_AX <= p->to.type && p->to.type <= D_INDIR+D_R15) {
+			p->to.type = D_INDIR+D_TLS;
+			p->to.scale = 0;
+			p->to.index = D_NONE;
+		}
+	} else {
+		// As a courtesy to the C compilers, rewrite TLS local exec load as TLS initial exec load.
+		// The instruction
+		//	MOVQ off(TLS), BX
+		// becomes the sequence
+		//	MOVQ TLS, BX
+		//	MOVQ off(BX)(TLS*1), BX
+		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
+		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == D_INDIR+D_TLS && D_AX <= p->to.type && p->to.type <= D_R15) {
+			q = appendp(ctxt, p);
+			q->as = p->as;
+			q->from = p->from;
+			q->from.type = D_INDIR + p->to.type;
+			q->from.index = D_TLS;
+			q->from.scale = 2; // TODO: use 1
+			q->to = p->to;
+			p->from.type = D_TLS;
+			p->from.index = D_NONE;
+			p->from.offset = 0;
+		}
+	}
+
+	// TODO: Remove.
+	if(ctxt->headtype == Hwindows || ctxt->headtype == Hplan9) {
+		if(p->from.scale == 1 && p->from.index == D_TLS)
+			p->from.scale = 2;
+		if(p->to.scale == 1 && p->to.index == D_TLS)
+			p->to.scale = 2;
+	}
+
 	if(ctxt->headtype == Hnacl) {
 		nacladdr(ctxt, p, &p->from);
 		nacladdr(ctxt, p, &p->to);
-	}
-
-	if(p->from.type == D_INDIR+D_GS || p->from.index == D_GS)
-		p->from.offset += ctxt->tlsoffset;
-	if(p->to.type == D_INDIR+D_GS || p->to.index == D_GS)
-		p->to.offset += ctxt->tlsoffset;
-
-	if(ctxt->gmsym == nil)
-		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
-
-	if(ctxt->headtype == Hwindows) { 
-		// Windows
-		// Convert
-		//   op	  n(GS), reg
-		// to
-		//   MOVL 0x28(GS), reg
-		//   op	  n(reg), reg
-		// The purpose of this patch is to fix some accesses
-		// to extern register variables (TLS) on Windows, as
-		// a different method is used to access them.
-		if(p->from.type == D_INDIR+D_GS
-		&& p->to.type >= D_AX && p->to.type <= D_DI 
-		&& p->from.offset <= 8) {
-			q = appendp(ctxt, p);
-			q->from = p->from;
-			q->from.type = D_INDIR + p->to.type;
-			q->to = p->to;
-			q->as = p->as;
-			p->as = AMOVQ;
-			p->from.type = D_INDIR+D_GS;
-			p->from.offset = 0x28;
-		}
-	}
-	if(ctxt->headtype == Hlinux || ctxt->headtype == Hfreebsd
-	|| ctxt->headtype == Hopenbsd || ctxt->headtype == Hnetbsd
-	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly
-	|| ctxt->headtype == Hsolaris) {
-		// ELF uses FS instead of GS.
-		if(p->from.type == D_INDIR+D_GS)
-			p->from.type = D_INDIR+D_FS;
-		if(p->to.type == D_INDIR+D_GS)
-			p->to.type = D_INDIR+D_FS;
-		if(p->from.index == D_GS)
-			p->from.index = D_FS;
-		if(p->to.index == D_GS)
-			p->to.index = D_FS;
-	}
-	if(!ctxt->flag_shared) {
-		// Convert g() or m() accesses of the form
-		//   op n(reg)(GS*1), reg
-		// to
-		//   op n(GS*1), reg
-		if(p->from.index == D_FS || p->from.index == D_GS) {
-			p->from.type = D_INDIR + p->from.index;
-			p->from.index = D_NONE;
-		}
-		// Convert g() or m() accesses of the form
-		//   op reg, n(reg)(GS*1)
-		// to
-		//   op reg, n(GS*1)
-		if(p->to.index == D_FS || p->to.index == D_GS) {
-			p->to.type = D_INDIR + p->to.index;
-			p->to.index = D_NONE;
-		}
-		// Convert get_tls access of the form
-		//   op runtime.tlsgm(SB), reg
-		// to
-		//   NOP
-		if(ctxt->gmsym != nil && p->from.sym == ctxt->gmsym) {
-			p->as = ANOP;
-			p->from.type = D_NONE;
-			p->to.type = D_NONE;
-			p->from.sym = nil;
-			p->to.sym = nil;
-		}
-	} else {
-		// Convert TLS reads of the form
-		//   op n(GS), reg
-		// to
-		//   MOVQ $runtime.tlsgm(SB), reg
-		//   op n(reg)(GS*1), reg
-		if((p->from.type == D_INDIR+D_FS || p->from.type == D_INDIR + D_GS) && p->to.type >= D_AX && p->to.type <= D_DI) {
-			q = appendp(ctxt, p);
-			q->to = p->to;
-			q->as = p->as;
-			q->from.type = D_INDIR+p->to.type;
-			q->from.index = p->from.type - D_INDIR;
-			q->from.scale = 1;
-			q->from.offset = p->from.offset;
-			p->as = AMOVQ;
-			p->from.type = D_EXTERN;
-			p->from.sym = ctxt->gmsym;
-			p->from.offset = 0;
-		}
 	}
 
 	// Maintain information about code generation mode.
@@ -315,9 +319,9 @@ nacladdr(Link *ctxt, Prog *p, Addr *a)
 		ctxt->diag("invalid address: %P", p);
 		return;
 	}
-	if(a->type == D_INDIR+D_GS)
+	if(a->type == D_INDIR+D_TLS)
 		a->type = D_INDIR+D_BP;
-	else if(a->type == D_GS)
+	else if(a->type == D_TLS)
 		a->type = D_BP;
 	if(D_INDIR <= a->type && a->type <= D_INDIR+D_INDIR) {
 		switch(a->type) {
@@ -632,48 +636,24 @@ indir_cx(Link *ctxt, Addr *a)
 // Returns last new instruction.
 static Prog*
 load_g_cx(Link *ctxt, Prog *p)
-{
-	if(ctxt->flag_shared) {
-		// Load TLS offset with MOVQ $runtime.tlsgm(SB), CX
-		p->as = AMOVQ;
-		p->from.type = D_EXTERN;
-		p->from.sym = ctxt->gmsym;
-		p->to.type = D_CX;
-		p = appendp(ctxt, p);
-	}
-	p->as = AMOVQ;
-	if(ctxt->headtype == Hlinux || ctxt->headtype == Hfreebsd
-	|| ctxt->headtype == Hopenbsd || ctxt->headtype == Hnetbsd
-	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly
-	|| ctxt->headtype == Hsolaris)
-		// ELF uses FS
-		p->from.type = D_INDIR+D_FS;
-	else if(ctxt->headtype == Hnacl) {
-		p->as = AMOVL;
-		p->from.type = D_INDIR+D_BP;
-	} else
-		p->from.type = D_INDIR+D_GS;
-	if(ctxt->flag_shared) {
-		// Add TLS offset stored in CX
-		p->from.index = p->from.type - D_INDIR;
-		indir_cx(ctxt, &p->from);
-	}
-	p->from.offset = ctxt->tlsoffset+0;
-	p->to.type = D_CX;
-	if(ctxt->headtype == Hwindows) {
-		// movq %gs:0x28, %rcx
-		// movq (%rcx), %rcx
-		p->as = AMOVQ;
-		p->from.type = D_INDIR+D_GS;
-		p->from.offset = 0x28;
-		p->to.type = D_CX;
+{	
+	Prog *next;
 
-		p = appendp(ctxt, p);
-		p->as = AMOVQ;
-		indir_cx(ctxt, &p->from);
-		p->from.offset = 0;
-		p->to.type = D_CX;
-	}
+	p->as = AMOVQ;
+	if(ctxt->arch->ptrsize == 4)
+		p->as = AMOVL;
+	p->from.type = D_INDIR+D_TLS;
+	p->from.offset = 0;
+	p->to.type = D_CX;
+	
+	next = p->link;
+	progedit(ctxt, p);
+	while(p->link != next)
+		p = p->link;
+	
+	if(p->from.index == D_TLS)
+		p->from.scale = 2;
+
 	return p;
 }
 

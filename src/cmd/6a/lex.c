@@ -334,6 +334,7 @@ struct
 	"TR5",		LBREG,	D_TR+5,
 	"TR6",		LBREG,	D_TR+6,
 	"TR7",		LBREG,	D_TR+7,
+	"TLS",		LSREG,	D_TLS,
 
 	"AAA",		LTYPE0,	AAAA,
 	"AAD",		LTYPE0,	AAAD,

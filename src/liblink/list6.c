@@ -341,6 +341,7 @@ char*	regstr[] =
 	"TR6",
 	"TR7",
 
+	"TLS",	/* [D_TLS] */
 	"NONE",	/* [D_NONE] */
 };
 

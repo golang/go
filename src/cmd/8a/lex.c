@@ -241,6 +241,7 @@ struct
 	"ES",		LSREG,	D_ES,
 	"FS",		LSREG,	D_FS,
 	"GS",		LSREG,	D_GS,
+	"TLS",		LSREG,	D_TLS,
 
 	"GDTR",		LBREG,	D_GDTR,
 	"IDTR",		LBREG,	D_IDTR,

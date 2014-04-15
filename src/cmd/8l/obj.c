@@ -69,7 +69,6 @@ archinit(void)
 	case Hopenbsd:
 		break;
 	}
-	ctxt->linkmode = linkmode;
 
 	switch(HEADTYPE) {
 	default:

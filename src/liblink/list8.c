@@ -289,6 +289,7 @@ char*	regstr[] =
 	"X6",
 	"X7",
 
+	"TLS",	/* [D_TLS] */
 	"NONE",	/* [D_NONE] */
 };
 
