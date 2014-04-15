@@ -139,10 +139,8 @@ func wrapError(err error) value {
 }
 
 func ext۰sync۰Pool۰Get(fr *frame, args []value) value {
-	// It would be nice if this were less verbose.
-	sync := fr.i.prog.ImportedPackage("sync")
-	Pool := sync.Type("Pool").Type()
-	_, newIndex, _ := types.LookupFieldOrMethod(Pool, sync.Object, "New")
+	Pool := fr.i.prog.ImportedPackage("sync").Type("Pool").Object()
+	_, newIndex, _ := types.LookupFieldOrMethod(Pool.Type(), Pool.Pkg(), "New")
 
 	if New := (*args[0].(*value)).(structure)[newIndex[0]]; New != nil {
 		return call(fr.i, fr, 0, New, nil)
