@@ -184,7 +184,7 @@ relocsym(LSym *s)
 				o = r->add;
 			break;
 		case R_TLS_LE:
-			if(linkmode == LinkExternal && iself) {
+			if(linkmode == LinkExternal && iself && HEADTYPE != Hopenbsd) {
 				r->done = 0;
 				r->sym = ctxt->gmsym;
 				r->xsym = ctxt->gmsym;
@@ -198,7 +198,7 @@ relocsym(LSym *s)
 			break;
 
 		case R_TLS_IE:
-			if(linkmode == LinkExternal && iself) {
+			if(linkmode == LinkExternal && iself && HEADTYPE != Hopenbsd) {
 				r->done = 0;
 				r->sym = ctxt->gmsym;
 				r->xsym = ctxt->gmsym;
