@@ -498,7 +498,7 @@ func describePackage(o *Oracle, qpos *QueryPos, path []ast.Node) (*describePacka
 	switch n := path[0].(type) {
 	case *ast.ImportSpec:
 		pkgname := qpos.info.ImportSpecPkg(n)
-		description = fmt.Sprintf("import of package %q", pkgname.Name())
+		description = fmt.Sprintf("import of package %q", pkgname.Pkg().Path())
 		pkg = pkgname.Pkg()
 
 	case *ast.Ident:

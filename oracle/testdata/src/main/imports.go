@@ -1,7 +1,8 @@
 package imports
 
 import (
-	"lib" // @describe ref-pkg-import "lib"
+	"hash/fnv" // @describe ref-pkg-import2 "fnv"
+	"lib"      // @describe ref-pkg-import "lib"
 )
 
 // Tests that import another package.  (To make the tests run quickly,
@@ -23,4 +24,6 @@ func main() {
 	print(*p + 1) // @pointsto p "p "
 
 	var _ lib.Type // @describe ref-pkg "lib"
+
+	fnv.New32()
 }
