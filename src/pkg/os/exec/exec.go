@@ -429,15 +429,17 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
 type closeOnce struct {
 	*os.File
 
-	close    sync.Once
-	closeErr error
+	once sync.Once
+	err  error
 }
 
 func (c *closeOnce) Close() error {
-	c.close.Do(func() {
-		c.closeErr = c.File.Close()
-	})
-	return c.closeErr
+	c.once.Do(c.close)
+	return c.err
+}
+
+func (c *closeOnce) close() {
+	c.err = c.File.Close()
 }
 
 // StdoutPipe returns a pipe that will be connected to the command's
