@@ -506,6 +506,13 @@ func (p *Presentation) serveTextFile(w http.ResponseWriter, r *http.Request, abs
 		buf.Write(marshalJSON(data))
 		buf.WriteString(";</script>\n")
 
+		// TODO(adonovan): indicate whether analysis is
+		// disabled, pending, completed or failed.
+		// For now, display help link only if 'completed'.
+		if links != nil {
+			buf.WriteString("<a href='/lib/godoc/analysis/help.html'>Static analysis features</a><br/>")
+		}
+
 		buf.WriteString("<pre>")
 		formatGoSource(&buf, src, links, h, s)
 		buf.WriteString("</pre>")

@@ -6,6 +6,22 @@
 set -e
 
 STATIC="
+	analysis/call3.png
+	analysis/call-eg.png
+	analysis/callers1.png
+	analysis/callers2.png
+	analysis/chan1.png
+	analysis/chan2a.png
+	analysis/chan2b.png
+	analysis/error1.png
+	analysis/help.html
+	analysis/ident-def.png
+	analysis/ident-field.png
+	analysis/ident-func.png
+	analysis/ipcg-func.png
+	analysis/ipcg-pkg.png
+	analysis/typeinfo-pkg.png
+	analysis/typeinfo-src.png
 	callgraph.html
 	codewalk.html
 	codewalkdir.html

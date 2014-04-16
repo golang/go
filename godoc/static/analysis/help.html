@@ -1,0 +1,270 @@
+<!--{
+        "Title": "Static analysis features of godoc"
+}-->
+
+<style>
+  span.err { 'font-size:120%; color:darkred; background-color: yellow; }
+  img.ss { margin-left: 1in; } /* screenshot */
+  img.dotted { border: thin dotted; }
+</style>
+
+<!-- Images were grabbed from Chrome/Linux at 150% zoom, and are
+     displayed at 66% of natural size.  This allows users to zoom a
+     little before seeing pixels. -->
+
+<p>
+  When invoked with the <code>-analysis</code> flag, godoc performs
+  static analysis on the Go packages it indexes and displays the
+  results in the source and package views.  This document provides a
+  brief tour of these features.
+</p>
+<p>
+  The current status of the analysis features is that of a technology
+  preview; there are many problems and user-interface difficulties
+  which will be addressed in due course.  Some known problems are
+  mentioned in passing, accompanied by a warning triangle, <span
+  style='font-size:120%; color:darkred; background-color:
+  yellow'>⚠</span>.
+
+  Nonetheless, godoc's static analysis may be immediately useful today
+  for small-to-medium sized Go corpora, and it contains several
+  advances over the state of the art in code browsing.
+</p>
+
+<h2>Type analysis features</h2>
+<p>
+  <code>godoc -analysis=type</code> performs static checking similar
+  to that done by a compiler: it detects ill-formed programs, resolves
+  each identifier to the entity it denotes, computes the type of each
+  expression and the method set of each type, and determines which
+  types are assignable to each interface type.
+
+  <b>Type analysis</b> is relatively quick, requiring just a few seconds for
+  the >200 packages of the standard library, for example.
+</p>
+
+<h3>Compiler errors</h3>
+<p>
+  If any source file contains a compilation error, the source view
+  will highlight the errant location in red.  Hovering over it
+  displays the error message.
+</p>
+<img class="ss" width='811' src='error1.png'><br/>
+<p>
+  <span class='err'>⚠</span> The mark-up for compilation errors may
+  cause duplication of portions of the input.
+</p>
+
+<h3>Identifier resolution</h3>
+<p>
+  In the source view, every referring identifier is annotated with
+  information about the language entity it refers to: a package,
+  constant, variable, type, function or statement label.
+
+  Hovering over the identifier reveals the entity's kind and type
+  (e.g. <code>var x int</code> or <code>func f
+  func(int) string</code>).
+</p>
+<img class="ss" width='652' src='ident-field.png'><br/>
+<br/>
+<img class="ss" width='652' src='ident-func.png'>
+<p>
+  Clicking the link takes you to the entity's definition.
+</p>
+<img class="ss" width='652' src='ident-def.png'><br/>
+
+<h3>Type information: size/alignment, method set, interfaces</h3>
+<p>
+  Clicking on the identifier that defines a named type causes a panel
+  to appear, displaying information about the named type, including
+  its size and alignment in bytes, its <a href='http://golang.org/ref/spec#Method_sets'>method set</a>, and its
+  <i>implements</i> relation: the set of types T that are assignable to
+  or from this type U where at least one of T or U is an interface.
+
+  This example shows information about <code>net/rpc.methodType</code>.
+</p>
+<img class="ss" width='470' src='typeinfo-src.png'>
+<p>
+  The method set includes not only the declared methods of the type,
+  but also any methods "promoted" from anonymous fields of structs,
+  such as <code>sync.Mutex</code> in this example.
+
+  In addition, the receiver type is displayed as <code>*T</code> or
+  <code>T</code> depending on whether it requires the address or just
+  a copy of the receiver value.
+</p>
+<p>
+  The method set and <i>implements</i> relation are also available
+  via the package view.
+</p>
+<img class="ss dotted" width='716' src='typeinfo-pkg.png'>
+
+<h2>Pointer analysis features</h2>
+<p>
+  <code>godoc -analysis=pointer</code> performs a precise
+  whole-program <b>pointer analysis</b>.  In other words, it
+  approximates the set of memory locations to which each
+  reference&mdash;not just vars of kind <code>*T</code>, but also
+  <code>[]T</code>, <code>func</code>, <code>map</code>,
+  <code>chan</code>, and <code>interface</code>&mdash;may refer.  This
+  information reveals the possible destinations of each dynamic call
+  (via a <code>func</code> variable or interface method), and the
+  relationship between send and receive operations on the same
+  channel.
+</p>
+<p>
+  <span class='err'>⚠</span> Pointer analysis is currently quite slow,
+  taking around two minutes for the standard library.  This will
+  improve markedly with the planned addition of a constraint
+  optimizer.
+</p>
+
+<h3>Call graph navigation</h3>
+<p>
+  When pointer analysis is complete, the source view annotates the
+  code with <b>callers</b> and <b>callees</b> information: callers
+  information is associated with the <code>func</code> keyword that
+  declares a function, and callees information is associated with the
+  open paren '<span style="color: dark-blue"><code>(</code></span>' of
+  a function call.
+</p>
+<p>
+  In this example, hovering over the declaration of the
+  <code>rot13</code> function (defined in in strings/strings.test.go)
+  reveals that it is called in exactly one place.
+</p>
+<img class="ss" width='612' src='callers1.png'>
+<p>
+  Clicking the link navigates to the sole caller.  (If there were
+  multiple callers, a list of choices would be displayed first.)
+</p>
+<img class="ss" width='680' src='callers2.png'>
+<p>
+  Notice that hovering over this call reveals that there are 19
+  possible callees at this site, of which our <code>rot13</code>
+  function was just one: this is a dynamic call through a variable of
+  type <code>func(rune) rune</code>.
+
+  Clicking on the call brings up the list of all 19 potential callees,
+  shown truncated.  Many of them are anonymous functions.
+</p>
+<img class="ss" width='564' src='call3.png'>
+<p>
+  Pointer analysis gives a very precise approximation of the call
+  graph compared to type-based techniques.
+
+  As a case in point, the next example shows the dynamic call inside
+  the <code>testing</code> package responsible for calling all
+  user-defined functions named <code>Example<i>XYZ</i></code>.
+</p>
+<img class="ss" width='361' src='call-eg.png'>
+<p>
+  Recall that all such functions have type <code>func()</code>,
+  i.e. no arguments and no results.  A type-based approximation could
+  only conclude that this call might dispatch to any function matching
+  that type&mdash;and these are very numerous in most
+  programs&mdash;but pointer analysis can track the flow of specific
+  <code>func</code> values through the testing package.
+
+  As an indication of its precision, the result contains only
+  functions whose name starts with <code>Example</code>.
+</p>
+
+<h3>Intra-package call graph</h3>
+<p>
+  The same call graph information is presented in a very different way
+  in the package view.  For each package, an interactive tree view
+  allows exploration of the call graph as it relates to just that
+  package; all functions from other packages are elided.
+
+  The roots of the tree are the external entry points of the package:
+  not only its exported functions, but also any unexported or
+  anonymous functions that are called (dynamically) from outside the
+  package.
+</p>
+<p>
+  This example shows the entry points of the
+  <code>path/filepath</code> package, with the call graph for
+  <code>Glob</code> expanded several levels
+</p>
+<img class="ss dotted" width='501' src='ipcg-pkg.png'>
+<p>
+  Notice that the nodes for Glob and Join appear multiple times: the
+  tree is a partial unrolling of a cyclic graph; the full unrolling
+  is in general infinite.
+</p>
+<p>
+  For each function documented in the package view, another
+  interactive tree view allows exploration of the same graph starting
+  at that function.
+
+  This is a portion of the internal graph of
+  <code>net/http.ListenAndServe</code>.
+</p>
+<img class="ss dotted" width='455' src='ipcg-func.png'>
+
+<h3>Channel peers (send ↔ receive)</h3>
+<p>
+  Because concurrent Go programs use channels to pass not just values
+  but also control between different goroutines, it is natural when
+  reading Go code to want to navigate from a channel send to the
+  corresponding receive so as to understand the sequence of events.
+</p>
+<p>
+  Godoc annotates every channel operation&mdash;make, send, range,
+  receive, close&mdash;with a link to a panel displaying information
+  about other operations that might alias the same channel.
+</p>
+<p>
+  This example, from the tests of <code>net/http</code>, shows a send
+  operation on a <code>chan bool</code>.
+</p>
+<img class="ss" width='811' src='chan1.png'>
+<p>
+  Clicking on the <code>&lt;-</code> send operator reveals that this
+  channel is made at a unique location (line 332) and that there are
+  three receive operations that might read this value.
+
+  It hardly needs pointing out that some channel element types are
+  very widely used (e.g. struct{}, bool, int, interface{}) and that a
+  typical Go program might contain dozens of receive operations on a
+  value of type <code>chan bool</code>; yet the pointer analysis is
+  able to distinguish operations on channels at a much finer precision
+  than based on their type alone.
+</p>
+<p>
+  Notice also that the send occurs in a different (anonymous) function
+  from the outer one containing the <code>make</code> and the receive
+  operations.
+</p>
+<p>
+  Here's another example of send on a different <code>chan
+  bool</code>, also in package <code>net/http</code>:
+</p>
+<img class="ss" width='774' src='chan2a.png'>
+<p>
+  The analysis finds just one receive operation that might receive
+  from this channel, in the test for this feature.
+</p>
+<img class="ss" width='737' src='chan2b.png'>
+
+<h2>Known issues</h2>
+<p>
+  <span class='err'>⚠</span> There is no UI indication of the state of
+  the analysis (pending, complete, failed) during warm-up.</br>
+
+  <span class='err'>⚠</span> All analysis results pertain to exactly
+  one configuration (e.g. amd64 linux).  Files that are conditionally
+  compiled based on different platforms or build tags are not visible
+  to the analysis.</br>
+
+  <span class='err'>⚠</span> Files that <code>import "C"</code> require
+  preprocessing by the cgo tool.  The file offsets after preprocessing
+  do not align with the unpreprocessed file, so markup is misaligned.<br/>
+
+  <span class='err'>⚠</span> Files are not periodically re-analyzed.
+  If the files change underneath the running server, the displayed
+  markup is misaligned.</br>
+
+  <span class='err'>⚠</span> Additional issues are listed at <a href='https://code.google.com/p/go/source/browse/godoc/analysis/README?repo=tools'>go.tools/godoc/analysis/README</a>.</br>
+</p>

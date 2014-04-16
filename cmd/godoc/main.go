@@ -66,9 +66,7 @@ var (
 	// file-based index
 	writeIndex = flag.Bool("write_index", false, "write index to a file; the file name must be specified with -index_files")
 
-	analysisFlag = flag.String("analysis", "", `comma-separated list of analyses to perform.
-"type":   display identifier resolution, type info, method sets, 'implements', and static callees.
-"pointer" display channel peers, callers and dynamic callees. (Slower.)`)
+	analysisFlag = flag.String("analysis", "", `comma-separated list of analyses to perform (supported: type, pointer). See http://golang.org/lib/godoc/analysis/help.html`)
 
 	// network
 	httpAddr   = flag.String("http", "", "HTTP service address (e.g., '"+defaultAddr+"')")
