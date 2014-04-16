@@ -145,6 +145,19 @@ Finally, the go command now supports packages that import Objective-C
 files (suffixed <code>.m</code>) through cgo.
 </p>
 
+<h3 id="gc_flag">Command-line flag parsing</h3>
+
+<p>
+In the gc tool chain, the assemblers now use the
+same command-line flag parsing rules as the Go flag package, a departure
+from the traditional Unix flag parsing. This may affect scripts that invoke
+the tool directly.
+For example,
+<code>go tool 6a -SDfoo</code> must now be written
+<code>go tool 6a -S -D foo</code>.
+(The same change was made to the compilers and linkers in <a href="/doc/go1.1#gc_flag">Go 1.1</a>.)
+</p>
+
 <h3 id="misc">Miscellany</h3>
 
 <p>
