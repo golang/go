@@ -1833,7 +1833,10 @@ var layoutCache struct {
 // the name for possible debugging use.
 func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr) {
 	if t.Kind() != Func {
-		panic("reflect: funcSignature of non-func type")
+		panic("reflect: funcLayout of non-func type")
+	}
+	if rcvr != nil && rcvr.Kind() == Interface {
+		panic("reflect: funcLayout with interface receiver " + rcvr.String())
 	}
 	k := layoutKey{t, rcvr}
 	layoutCache.RLock()

@@ -440,9 +440,8 @@ func (v Value) call(op string, in []Value) []Value {
 		rcvrtype *rtype
 	)
 	if v.flag&flagMethod != 0 {
-		rcvrtype = t
 		rcvr = v
-		t, fn = methodReceiver(op, v, int(v.flag)>>flagMethodShift)
+		rcvrtype, t, fn = methodReceiver(op, v, int(v.flag)>>flagMethodShift)
 	} else if v.flag&flagIndir != 0 {
 		fn = *(*unsafe.Pointer)(v.ptr)
 	} else {
@@ -529,8 +528,7 @@ func (v Value) call(op string, in []Value) []Value {
 	y := (*methodValue)(fn)
 	if y.fn == methodValueCallCode {
 		rcvr = y.rcvr
-		rcvrtype = rcvr.typ
-		t, fn = methodReceiver("call", rcvr, y.method)
+		rcvrtype, t, fn = methodReceiver("call", rcvr, y.method)
 	}
 
 	// Compute frame type, allocate a chunk of memory for frame
@@ -668,9 +666,10 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 // described by v. The Value v may or may not have the
 // flagMethod bit set, so the kind cached in v.flag should
 // not be used.
+// The return value rcvrtype gives the method's actual receiver type.
 // The return value t gives the method type signature (without the receiver).
 // The return value fn is a pointer to the method code.
-func methodReceiver(op string, v Value, methodIndex int) (t *rtype, fn unsafe.Pointer) {
+func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn unsafe.Pointer) {
 	i := methodIndex
 	if v.typ.Kind() == Interface {
 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
@@ -685,9 +684,11 @@ func methodReceiver(op string, v Value, methodIndex int) (t *rtype, fn unsafe.Po
 		if iface.itab == nil {
 			panic("reflect: " + op + " of method on nil interface value")
 		}
+		rcvrtype = iface.itab.typ
 		fn = unsafe.Pointer(&iface.itab.fun[i])
 		t = m.typ
 	} else {
+		rcvrtype = v.typ
 		ut := v.typ.uncommon()
 		if ut == nil || i < 0 || i >= len(ut.methods) {
 			panic("reflect: internal error: invalid method index")
@@ -746,8 +747,7 @@ func align(x, n uintptr) uintptr {
 // The gc compilers know to do that for the name "reflect.callMethod".
 func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	rcvr := ctxt.rcvr
-	rcvrtype := rcvr.typ
-	t, fn := methodReceiver("call", rcvr, ctxt.method)
+	rcvrtype, t, fn := methodReceiver("call", rcvr, ctxt.method)
 	frametype, argSize, retOffset := funcLayout(t, rcvrtype)
 
 	// Make a new frame that is one word bigger so we can store the receiver.
