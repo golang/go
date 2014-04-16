@@ -47,7 +47,7 @@ func BenchmarkAESGCMOpen1K(b *testing.B) {
 }
 
 // If we test exactly 1K blocks, we would generate exact multiples of
-// the cipher's block size, and and the cipher stream fragments would
+// the cipher's block size, and the cipher stream fragments would
 // always be wordsize aligned, whereas non-aligned is a more typical
 // use-case.
 const almost1K = 1024 - 5

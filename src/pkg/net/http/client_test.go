@@ -987,7 +987,7 @@ func TestClientTrailers(t *testing.T) {
 		// TODO: golang.org/issue/7759: there's no way yet for
 		// the server to set trailers without hijacking, so do
 		// that for now, just to test the client.  Later, in
-		// Go 1.4, it should be be implicit that any mutations
+		// Go 1.4, it should be implicit that any mutations
 		// to w.Header() after the initial write are the
 		// trailers to be sent, if and only if they were
 		// previously declared with w.Header().Set("Trailer",

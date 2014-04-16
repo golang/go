@@ -131,7 +131,7 @@ func TestQPExhaustive(t *testing.T) {
 					return
 				}
 				if strings.HasSuffix(errStr, "0x0a") || strings.HasSuffix(errStr, "0x0d") {
-					// bunch of cases; since whitespace at the end of of a line before \n is removed.
+					// bunch of cases; since whitespace at the end of a line before \n is removed.
 					return
 				}
 			}

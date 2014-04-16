@@ -266,7 +266,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				// 7, 5 and 2 are not valid padding lengths, and so 1, 3 and 6 are not
 				// valid dlen values. See RFC 4648 Section 6 "Base 32 Encoding" listing
 				// the five valid padding lengths, and Section 9 "Illustrations and
-				// Examples" for an illustration for how the the 1st, 3rd and 6th base32
+				// Examples" for an illustration for how the 1st, 3rd and 6th base32
 				// src bytes do not yield enough information to decode a dst byte.
 				if dlen == 1 || dlen == 3 || dlen == 6 {
 					return n, false, CorruptInputError(olen - len(src) - 1)

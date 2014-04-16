@@ -188,7 +188,7 @@ type Var struct {
 
 // Func contains additional per-symbol information specific to functions.
 type Func struct {
-	Args     int        // size in bytes of of argument frame: inputs and outputs
+	Args     int        // size in bytes of argument frame: inputs and outputs
 	Frame    int        // size in bytes of local variable frame
 	Leaf     bool       // function omits save of link register (ARM)
 	Var      []Var      // detail about local variables

@@ -102,7 +102,7 @@ const (
 // std0x records the std values for "01", "02", ..., "06".
 var std0x = [...]int{stdZeroMonth, stdZeroDay, stdZeroHour12, stdZeroMinute, stdZeroSecond, stdYear}
 
-// startsWithLowerCase reports whether the the string has a lower-case letter at the beginning.
+// startsWithLowerCase reports whether the string has a lower-case letter at the beginning.
 // Its purpose is to prevent matching strings like "Month" when looking for "Mon".
 func startsWithLowerCase(str string) bool {
 	if len(str) == 0 {
