@@ -5,7 +5,6 @@
 package httptest
 
 import (
-	"flag"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -30,15 +29,13 @@ func TestServer(t *testing.T) {
 	}
 }
 
-var testIssue7264 = flag.Bool("issue7264", false, "enable failing test for issue 7264")
-
 func TestIssue7264(t *testing.T) {
-	if !*testIssue7264 {
-		t.Skip("skipping failing test for issue 7264")
-	}
 	for i := 0; i < 1000; i++ {
 		func() {
-			ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+			inHandler := make(chan bool, 1)
+			ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				inHandler <- true
+			}))
 			defer ts.Close()
 			tr := &http.Transport{
 				ResponseHeaderTimeout: time.Nanosecond,
@@ -46,6 +43,7 @@ func TestIssue7264(t *testing.T) {
 			defer tr.CloseIdleConnections()
 			c := &http.Client{Transport: tr}
 			res, err := c.Get(ts.URL)
+			<-inHandler
 			if err == nil {
 				res.Body.Close()
 			}

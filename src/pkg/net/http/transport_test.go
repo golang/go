@@ -1250,9 +1250,13 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timeout test in -short mode")
 	}
+	inHandler := make(chan bool, 1)
 	mux := NewServeMux()
-	mux.HandleFunc("/fast", func(w ResponseWriter, r *Request) {})
+	mux.HandleFunc("/fast", func(w ResponseWriter, r *Request) {
+		inHandler <- true
+	})
 	mux.HandleFunc("/slow", func(w ResponseWriter, r *Request) {
+		inHandler <- true
 		time.Sleep(2 * time.Second)
 	})
 	ts := httptest.NewServer(mux)
@@ -1275,6 +1279,12 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
 	}
 	for i, tt := range tests {
 		res, err := c.Get(ts.URL + tt.path)
+		select {
+		case <-inHandler:
+		case <-time.After(5 * time.Second):
+			t.Errorf("never entered handler for test index %d, %s", i, tt.path)
+			continue
+		}
 		if err != nil {
 			uerr, ok := err.(*url.Error)
 			if !ok {
