@@ -625,6 +625,16 @@ mkvar(Reg *r, Adr *a)
 	if(nvar >= NVAR) {
 		if(debug['w'] > 1 && node != N)
 			fatal("variable not optimized: %D", a);
+		
+		// If we're not tracking a word in a variable, mark the rest as
+		// having its address taken, so that we keep the whole thing
+		// live at all calls. otherwise we might optimize away part of
+		// a variable but not all of it.
+		for(i=0; i<nvar; i++) {
+			v = var+i;
+			if(v->node == node)
+				v->addr = 1;
+		}
 		goto none;
 	}
 
