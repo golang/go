@@ -112,7 +112,7 @@ pclntab(void)
 {
 	int32 i, nfunc, start, funcstart;
 	LSym *ftab, *s;
-	int32 off, end;
+	int32 off, end, frameptrsize;
 	int64 funcdata_bytes;
 	Pcln *pcln;
 	Pciter it;
@@ -173,7 +173,10 @@ pclntab(void)
 		// when a called function doesn't have argument information.
 		// We need to make sure everything has argument information
 		// and then remove this.
-		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + PtrSize);
+		frameptrsize = PtrSize;
+		if(ctxt->cursym->leaf)
+			frameptrsize = 0;
+		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + frameptrsize);
 		
 		if(pcln != &zpcln) {
 			renumberfiles(pcln->file, pcln->nfile, &pcln->pcfile);
