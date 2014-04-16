@@ -214,7 +214,7 @@ func TestStdinClose(t *testing.T) {
 
 // Issue 5071
 func TestPipeLookPathLeak(t *testing.T) {
-	fd0 := numOpenFDS(t)
+	fd0, lsof0 := numOpenFDS(t)
 	for i := 0; i < 4; i++ {
 		cmd := exec.Command("something-that-does-not-exist-binary")
 		cmd.StdoutPipe()
@@ -224,19 +224,19 @@ func TestPipeLookPathLeak(t *testing.T) {
 			t.Fatal("unexpected success")
 		}
 	}
-	fdGrowth := numOpenFDS(t) - fd0
+	open, lsof := numOpenFDS(t)
+	fdGrowth := open - fd0
 	if fdGrowth > 2 {
-		t.Errorf("leaked %d fds; want ~0", fdGrowth)
+		t.Errorf("leaked %d fds; want ~0; have:\n%s\noriginally:\n%s", fdGrowth, lsof, lsof0)
 	}
 }
 
-func numOpenFDS(t *testing.T) int {
+func numOpenFDS(t *testing.T) (n int, lsof []byte) {
 	lsof, err := exec.Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
 	if err != nil {
 		t.Skip("skipping test; error finding or running lsof")
-		return 0
 	}
-	return bytes.Count(lsof, []byte("\n"))
+	return bytes.Count(lsof, []byte("\n")), lsof
 }
 
 var testedAlreadyLeaked = false
