@@ -80,6 +80,9 @@ never matches.
 There is no way to generalize over related types, e.g. to express that
 a wildcard may have any integer type, for example.
 
+It is not possible to replace an expression by one of a different
+type, even in contexts where this is legal, such as x in fmt.Print(x).
+
 
 SAFETY
 
@@ -88,9 +91,6 @@ complex in the general case.  An innocuous-looking replacement of one
 constant by another (e.g. 1 to 2) may cause type errors relating to
 array types and indices, for example.  The tool performs only very
 superficial checks of type preservation.
-
-It is not possible to replace an expression by one of a different
-type, even in contexts where this is legal, such as x in fmt.Print(x).
 
 
 IMPORTS
