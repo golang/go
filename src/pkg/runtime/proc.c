@@ -2501,7 +2501,7 @@ checkdead(void)
 	}
 	runtime·unlock(&allglock);
 	if(grunning == 0)  // possible if main goroutine calls runtime·Goexit()
-		runtime·exit(0);
+		runtime·throw("no goroutines (main called runtime.Goexit) - deadlock!");
 	m->throwing = -1;  // do not dump full stacks
 	runtime·throw("all goroutines are asleep - deadlock!");
 }

@@ -111,8 +111,9 @@ func TestLockedDeadlock2(t *testing.T) {
 
 func TestGoexitDeadlock(t *testing.T) {
 	output := executeTest(t, goexitDeadlockSource, nil)
-	if output != "" {
-		t.Fatalf("expected no output, got:\n%s", output)
+	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+	if !strings.Contains(output, want) {
+		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
 	}
 }
 
@@ -144,13 +145,12 @@ panic: again
 
 }
 
-func TestGoexitExit(t *testing.T) {
+func TestGoexitCrash(t *testing.T) {
 	output := executeTest(t, goexitExitSource, nil)
-	want := ""
-	if output != want {
-		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
+	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+	if !strings.Contains(output, want) {
+		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
 	}
-
 }
 
 const crashSource = `
