@@ -757,6 +757,9 @@ dodata(void)
 		if(!s->reachable || s->special)
 			continue;
 		if(STEXT < s->type && s->type < SXREF) {
+			if(s->onlist)
+				sysfatal("symbol %s listed multiple times", s->name);
+			s->onlist = 1;
 			if(last == nil)
 				datap = s;
 			else

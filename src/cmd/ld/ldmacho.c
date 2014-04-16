@@ -679,12 +679,18 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			}
 		}
 		if(s->type == STEXT) {
+			if(s->onlist)
+				sysfatal("symbol %s listed multiple times", s->name);
+			s->onlist = 1;
 			if(ctxt->etextp)
 				ctxt->etextp->next = s;
 			else
 				ctxt->textp = s;
 			ctxt->etextp = s;
 			for(s1 = s->sub; s1 != S; s1 = s1->sub) {
+				if(s1->onlist)
+					sysfatal("symbol %s listed multiple times", s1->name);
+				s1->onlist = 1;
 				ctxt->etextp->next = s1;
 				ctxt->etextp = s1;
 			}

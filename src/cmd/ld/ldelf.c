@@ -631,12 +631,18 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		if(s->sub)
 			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
 		if(s->type == STEXT) {
+			if(s->onlist)
+				sysfatal("symbol %s listed multiple times", s->name);
+			s->onlist = 1;
 			if(ctxt->etextp)
 				ctxt->etextp->next = s;
 			else
 				ctxt->textp = s;
 			ctxt->etextp = s;
 			for(s = s->sub; s != S; s = s->sub) {
+				if(s->onlist)
+					sysfatal("symbol %s listed multiple times", s->name);
+				s->onlist = 1;
 				ctxt->etextp->next = s;
 				ctxt->etextp = s;
 			}

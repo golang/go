@@ -618,6 +618,7 @@ deadcode(void)
 	for(s = ctxt->textp; s != nil; s = s->next) {
 		if(!s->reachable)
 			continue;
+		// NOTE: Removing s from old textp and adding to new, shorter textp.
 		if(last == nil)
 			ctxt->textp = s;
 		else

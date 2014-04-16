@@ -232,7 +232,7 @@ _lookup(Link *ctxt, char *symb, int v, int creat)
 	h &= 0xffffff;
 	h %= LINKHASH;
 	for(s = ctxt->hash[h]; s != nil; s = s->hash)
-		if(strcmp(s->name, symb) == 0)
+		if(s->version == v && strcmp(s->name, symb) == 0)
 			return s;
 	if(!creat)
 		return nil;

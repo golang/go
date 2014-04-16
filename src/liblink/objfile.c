@@ -167,6 +167,9 @@ linkwriteobj(Link *ctxt, Biobuf *b)
 				s = p->from.sym;
 				if(s->seenglobl++)
 					print("duplicate %P\n", p);
+				if(s->onlist)
+					sysfatal("symbol %s listed multiple times", s->name);
+				s->onlist = 1;
 				if(data == nil)
 					data = s;
 				else
@@ -205,6 +208,9 @@ linkwriteobj(Link *ctxt, Biobuf *b)
 				}
 				if(s->text != nil)
 					sysfatal("duplicate TEXT for %s", s->name);
+				if(s->onlist)
+					sysfatal("symbol %s listed multiple times", s->name);
+				s->onlist = 1;
 				if(text == nil)
 					text = s;
 				else
@@ -518,7 +524,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 			sysfatal("duplicate symbol %s (types %d and %d) in %s and %s", s->name, s->type, t, s->file, pn);
 		if(s->np > 0) {
 			dup = s;
-			s = linklookup(ctxt, ".dup", ndup++); // scratch
+			s = linknewsym(ctxt, ".dup", ndup++); // scratch
 		}
 	}
 	s->file = pkg;
@@ -595,11 +601,16 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 		for(i=0; i<n; i++)
 			pc->file[i] = rdsym(ctxt, f, pkg);
 
-		if(ctxt->etextp)
-			ctxt->etextp->next = s;
-		else
-			ctxt->textp = s;
-		ctxt->etextp = s;
+		if(dup == nil) {
+			if(s->onlist)
+				sysfatal("symbol %s listed multiple times", s->name);
+			s->onlist = 1;
+			if(ctxt->etextp)
+				ctxt->etextp->next = s;
+			else
+				ctxt->textp = s;
+			ctxt->etextp = s;
+		}
 	}
 
 	if(ctxt->debugasm) {
