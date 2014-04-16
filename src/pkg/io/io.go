@@ -74,6 +74,7 @@ type Reader interface {
 // It returns the number of bytes written from p (0 <= n <= len(p))
 // and any error encountered that caused the write to stop early.
 // Write must return a non-nil error if it returns n < len(p).
+// Write must not modify the slice data, even temporarily.
 type Writer interface {
 	Write(p []byte) (n int, err error)
 }
