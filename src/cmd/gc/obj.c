@@ -87,7 +87,7 @@ dumpobj(void)
 	ggloblsym(zero, zerosize, 1, 1);
 
 	dumpdata();
-	linkwriteobj(ctxt, bout);
+	writeobj(ctxt, bout);
 
 	if(writearchive) {
 		Bflush(bout);

@@ -239,7 +239,7 @@ outcode(void)
 	}
 	Bprint(&b, "!\n");
 
-	linkwriteobj(ctxt, &b);
+	writeobj(ctxt, &b);
 	Bterm(&b);
 	close(f);
 	lastp = P;
