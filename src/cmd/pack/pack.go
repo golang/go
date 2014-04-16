@@ -52,6 +52,8 @@ func main() {
 	log.SetPrefix("pack: ")
 	// need "pack op archive" at least.
 	if len(os.Args) < 3 {
+		log.Print("not enough arguments")
+		fmt.Fprintln(os.Stderr)
 		usage()
 	}
 	setOp(os.Args[1])
@@ -75,6 +77,8 @@ func main() {
 		ar = archive(os.Args[2], os.O_RDONLY, os.Args[3:])
 		ar.scan(ar.extractContents)
 	default:
+		log.Printf("invalid operation %q", os.Args[1])
+		fmt.Fprintln(os.Stderr)
 		usage()
 	}
 	if len(ar.files) > 0 {
