@@ -334,7 +334,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 			return nil, ErrHeader
 		}
 		// Extract everything between the decimal and the n -1 on the
-		// beginning to to eat the ' ', -1 on the end to skip the newline.
+		// beginning to eat the ' ', -1 on the end to skip the newline.
 		var record []byte
 		record, buf = buf[sp+1:n-1], buf[n:]
 		// The first equals is guaranteed to mark the end of the key.
