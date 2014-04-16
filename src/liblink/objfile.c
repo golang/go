@@ -49,6 +49,7 @@
 //
 //	- args [int]
 //	- locals [int]
+//	- leaf [int]
 //	- nlocal [int]
 //	- local [nlocal automatics]
 //	- pcln [pcln table]
@@ -291,8 +292,11 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 		if(s->dupok)
 			Bprint(ctxt->bso, "dupok ");
 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
-		if(s->type == STEXT)
+		if(s->type == STEXT) {
 			Bprint(ctxt->bso, " args=%#llux locals=%#llux", (uvlong)s->args, (uvlong)s->locals);
+			if(s->leaf)
+				Bprint(ctxt->bso, " leaf");
+		}
 		Bprint(ctxt->bso, "\n");
 		for(p=s->text; p != nil; p = p->link)
 			Bprint(ctxt->bso, "\t%#06ux %P\n", (int)p->pc, p);
@@ -346,6 +350,7 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 	if(s->type == STEXT) {
 		wrint(b, s->args);
 		wrint(b, s->locals);
+		wrint(b, s->leaf);
 		n = 0;
 		for(a = s->autom; a != nil; a = a->link)
 			n++;
@@ -566,6 +571,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	if(s->type == STEXT) {
 		s->args = rdint(f);
 		s->locals = rdint(f);
+		s->leaf = rdint(f);
 		n = rdint(f);
 		for(i=0; i<n; i++) {
 			a = emallocz(sizeof *a);

@@ -190,6 +190,7 @@ type Var struct {
 type Func struct {
 	Args     int        // size in bytes of of argument frame: inputs and outputs
 	Frame    int        // size in bytes of local variable frame
+	Leaf     bool       // function omits save of link register (ARM)
 	Var      []Var      // detail about local variables
 	PCSP     Data       // PC → SP offset map
 	PCFile   Data       // PC → file number map (index into File)
@@ -621,6 +622,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 			s.Func = f
 			f.Args = r.readInt()
 			f.Frame = r.readInt()
+			f.Leaf = r.readInt() != 0
 			f.Var = make([]Var, r.readInt())
 			for i := range f.Var {
 				v := &f.Var[i]
