@@ -225,8 +225,8 @@ func (e *encoder) Close() error {
 	return e.w.Flush()
 }
 
-// NewWriter creates a new io.WriteCloser that satisfies writes by compressing
-// the data and writing it to w.
+// NewWriter creates a new io.WriteCloser.
+// Writes to the returned io.WriteCloser are compressed and written to w.
 // It is the caller's responsibility to call Close on the WriteCloser when
 // finished writing.
 // The number of bits to use for literal codes, litWidth, must be in the

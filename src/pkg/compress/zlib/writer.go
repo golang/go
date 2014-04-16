@@ -34,8 +34,8 @@ type Writer struct {
 	wroteHeader bool
 }
 
-// NewWriter creates a new Writer that satisfies writes by compressing data
-// written to w.
+// NewWriter creates a new Writer.
+// Writes to the returned Writer are compressed and written to w.
 //
 // It is the caller's responsibility to call Close on the WriteCloser when done.
 // Writes may be buffered and not flushed until Close.

@@ -216,8 +216,8 @@ func (d *decoder) Close() error {
 	return nil
 }
 
-// NewReader creates a new io.ReadCloser that satisfies reads by decompressing
-// the data read from r.
+// NewReader creates a new io.ReadCloser.
+// Reads from the returned io.ReadCloser read and decompress data from r.
 // It is the caller's responsibility to call Close on the ReadCloser when
 // finished reading.
 // The number of bits to use for literal codes, litWidth, must be in the
