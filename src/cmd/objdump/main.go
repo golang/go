@@ -2,8 +2,31 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// objdump simulation - only enough to make pprof work on Macs
-
+// Objdump is a minimal simulation of the GNU objdump tool,
+// just enough to support pprof.
+//
+// Usage:
+//	go tool objdump binary start end
+//
+// Objdump disassembles the binary starting at the start address and
+// stopping at the end address. The start and end addresses are program
+// counters written in hexadecimal without a leading 0x prefix.
+//
+// It prints a sequence of stanzas of the form:
+//
+//	file:line
+//	 address: assembly
+//	 address: assembly
+//	 ...
+//
+// Each stanza gives the disassembly for a contiguous range of addresses
+// all mapped to the same original source file and line number.
+//
+// The disassembler is missing (golang.org/issue/7452) but will be added
+// before the Go 1.3 release.
+//
+// This tool is intended for use only by pprof; its interface may change or
+// it may be deleted entirely in future releases.
 package main
 
 import (
@@ -22,6 +45,7 @@ import (
 func printUsage(w *os.File) {
 	fmt.Fprintf(w, "usage: objdump binary start end\n")
 	fmt.Fprintf(w, "disassembles binary from start PC to end PC.\n")
+	fmt.Fprintf(w, "start and end are hexadecimal numbers with no 0x prefix.\n")
 }
 
 func usage() {
