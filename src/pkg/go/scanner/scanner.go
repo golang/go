@@ -150,10 +150,7 @@ func (s *Scanner) interpretLineComment(text []byte) {
 			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
 				// valid //line filename:line comment
 				filename := string(bytes.TrimSpace(text[len(prefix):i]))
-				if filename == "" {
-					// assume same file as for previous line
-					filename = s.file.Position(s.file.Pos(s.lineOffset)).Filename
-				} else {
+				if filename != "" {
 					filename = filepath.Clean(filename)
 					if !filepath.IsAbs(filename) {
 						// make filename relative to current directory
