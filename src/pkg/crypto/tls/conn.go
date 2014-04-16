@@ -884,6 +884,11 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 	if err = c.Handshake(); err != nil {
 		return
 	}
+	if len(b) == 0 {
+		// Put this after Handshake, in case people were calling
+		// Read(nil) for the side effect of the Handshake.
+		return
+	}
 
 	c.in.Lock()
 	defer c.in.Unlock()
