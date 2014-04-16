@@ -702,8 +702,8 @@ checkptr(void *obj, uintptr objti)
 		// A simple best-effort check until first GC_END.
 		for(j = 1; pc1[j] != GC_END && pc2[j] != GC_END; j++) {
 			if(pc1[j] != pc2[j]) {
-				runtime·printf("invalid gc type info for '%s' at %p, type info %p, block info %p\n",
-					       t->string ? (int8*)t->string->str : (int8*)"?", j, pc1[j], pc2[j]);
+				runtime·printf("invalid gc type info for '%s', type info %p [%d]=%p, block info %p [%d]=%p\n",
+					       t->string ? (int8*)t->string->str : (int8*)"?", pc1, (int32)j, pc1[j], pc2, (int32)j, pc2[j]);
 				runtime·throw("invalid gc type info");
 			}
 		}
