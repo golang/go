@@ -288,9 +288,6 @@ func (a *analysis) posURL(pos token.Pos, len int) string {
 	}
 	posn := a.prog.Fset.Position(pos)
 	url := a.path2url[posn.Filename]
-	// The URLs use #L%d fragment ids, but they are just decorative.
-	// Emitting an anchor for each line caused page bloat, so
-	// instead we use onload JS code to jump to the selection.
 	return fmt.Sprintf("%s?s=%d:%d#L%d",
 		url, posn.Offset, posn.Offset+len, posn.Line)
 }
@@ -342,7 +339,9 @@ func Run(pta bool, result *Result) {
 
 	log.Print("Loading and type-checking packages...")
 	iprog, err := conf.Load()
-	log.Printf("Loaded %d packages.", len(iprog.AllPackages))
+	if iprog != nil {
+		log.Printf("Loaded %d packages.", len(iprog.AllPackages))
+	}
 	if err != nil {
 		// TODO(adonovan): loader: don't give up just because
 		// of one parse error.
@@ -382,6 +381,7 @@ func Run(pta bool, result *Result) {
 	// i.e. "/src/pkg/" plus path relative to GOROOT/src/pkg or GOPATH[i]/src.
 	a.path2url = make(map[string]string)
 	for _, info := range iprog.AllPackages {
+	nextfile:
 		for _, f := range info.Files {
 			abs := iprog.Fset.File(f.Pos()).Name()
 			// Find the root to which this file belongs.
@@ -389,9 +389,12 @@ func Run(pta bool, result *Result) {
 				rel := strings.TrimPrefix(abs, root)
 				if len(rel) < len(abs) {
 					a.path2url[abs] = "/src/pkg/" + rel
-					break
+					goto nextfile
 				}
 			}
+
+			log.Printf("Can't locate file %s (package %q) beneath any root",
+				abs, info.Pkg.Path())
 		}
 	}
 
