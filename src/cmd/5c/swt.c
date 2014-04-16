@@ -365,7 +365,7 @@ outcode(void)
 	}
 	Bprint(&outbuf, "!\n");
 
-	linkwriteobj(ctxt, &outbuf);
+	writeobj(ctxt, &outbuf);
 	lastp = P;
 }
 

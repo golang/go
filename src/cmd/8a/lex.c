@@ -177,7 +177,7 @@ assemble(char *file)
 			return nerrors;
 	}
 
-	linkwriteobj(ctxt, &obuf);
+	writeobj(ctxt, &obuf);
 	Bflush(&obuf);
 	return 0;
 }

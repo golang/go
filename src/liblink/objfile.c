@@ -114,8 +114,11 @@ static char *rdstring(Biobuf*);
 static void rddata(Biobuf*, uchar**, int*);
 static LSym *rdsym(Link*, Biobuf*, char*);
 
+// The Go and C compilers, and the assembler, call writeobj to write
+// out a Go object file.  The linker does not call this; the linker
+// does not write out object files.
 void
-linkwriteobj(Link *ctxt, Biobuf *b)
+writeobj(Link *ctxt, Biobuf *b)
 {
 	int flag;
 	Hist *h;

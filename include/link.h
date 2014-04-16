@@ -571,7 +571,7 @@ void	linkprfile(Link *ctxt, int32 l);
 
 // objfile.c
 void	ldobjfile(Link *ctxt, Biobuf *b, char *pkg, int64 len, char *path);
-void	linkwriteobj(Link *ctxt, Biobuf *b);
+void	writeobj(Link *ctxt, Biobuf *b);
 
 // pass.c
 Prog*	brchain(Link *ctxt, Prog *p);
