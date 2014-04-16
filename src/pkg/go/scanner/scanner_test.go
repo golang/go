@@ -493,9 +493,8 @@ var segments = []segment{
 	{"\nline3  //line File1.go:100", filepath.Join("dir", "TestLineComments"), 3}, // bad line comment, ignored
 	{"\nline4", filepath.Join("dir", "TestLineComments"), 4},
 	{"\n//line File1.go:100\n  line100", filepath.Join("dir", "File1.go"), 100},
-	{"\n//line :42\n  line1", "dir/File1.go", 42},
+	{"\n//line  \t :42\n  line1", "", 42},
 	{"\n//line File2.go:200\n  line200", filepath.Join("dir", "File2.go"), 200},
-	{"\n//line  \t :123\n  line1", "dir/File2.go", 123},
 	{"\n//line foo\t:42\n  line42", filepath.Join("dir", "foo"), 42},
 	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44},           // bad line comment, ignored
 	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46},            // bad line comment, ignored
