@@ -250,7 +250,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				}
 				if len(src) > 0 {
 					// trailing garbage
-					return n, false, CorruptInputError(olen - len(src))
+					err = CorruptInputError(olen - len(src))
 				}
 				dlen, end = j, true
 				break
@@ -277,7 +277,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		n += dlen - 1
 	}
 
-	return n, end, nil
+	return n, end, err
 }
 
 // Decode decodes src using the encoding enc.  It writes at most

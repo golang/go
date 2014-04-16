@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -165,6 +166,7 @@ func TestDecodeCorrupt(t *testing.T) {
 		{"AAA=", -1},
 		{"AAAA", -1},
 		{"AAAAAA=", 7},
+		{"YWJjZA=====", 8},
 	}
 	for _, tc := range testCases {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(tc.input)))
@@ -327,5 +329,16 @@ bqbPb06551Y4
 
 	if !bytes.Equal(res1, res2) {
 		t.Error("Decoded results not equal")
+	}
+}
+
+func TestDecoderIssue7733(t *testing.T) {
+	s, err := StdEncoding.DecodeString("YWJjZA=====")
+	want := CorruptInputError(8)
+	if !reflect.DeepEqual(want, err) {
+		t.Errorf("Error = %v; want CorruptInputError(8)")
+	}
+	if string(s) != "abcd" {
+		t.Errorf("DecodeString = %q; want abcd", s)
 	}
 }
