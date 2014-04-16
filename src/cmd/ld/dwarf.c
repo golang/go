@@ -1393,26 +1393,26 @@ movetomodule(DWDie *parent)
 	die->link = parent->child;
 }
 
-// if the histfile stack contains ..../runtime/runtime_defs.go
-// use that to set gdbscript
+// If the pcln table contains runtime/zruntime_defs_*.go, use that to set gdbscript path.
 static void
 finddebugruntimepath(LSym *s)
 {
-	USED(s);
+	int i;
+	char *p;
+	LSym *f;
+	
+	if(gdbscript[0] != '\0')
+		return;
 
-/* TODO
-	int i, l;
-	char *c;
-
-	for (i = 1; i < histfilesize; i++) {
-		if ((c = strstr(histfile[i], "runtime/zruntime_defs")) != nil) {
-			l = c - histfile[i];
-			memmove(gdbscript, histfile[i], l);
-			memmove(gdbscript + l, "runtime/runtime-gdb.py", strlen("runtime/runtime-gdb.py") + 1);
+	for(i=0; i<s->pcln->nfile; i++) {
+		f = s->pcln->file[i];
+		if((p = strstr(f->name, "runtime/string.goc")) != nil) {
+			*p = '\0';
+			snprint(gdbscript, sizeof gdbscript, "%sruntime/runtime-gdb.py", f->name);
+			*p = 'r';
 			break;
 		}
 	}
-*/
 }
 
 /*
