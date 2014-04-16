@@ -148,11 +148,17 @@ func (s *Scanner) interpretLineComment(text []byte) {
 		// get filename and line number, if any
 		if i := bytes.LastIndex(text, []byte{':'}); i > 0 {
 			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
-				// valid //line filename:line comment;
-				filename := filepath.Clean(string(text[len(prefix):i]))
-				if !filepath.IsAbs(filename) {
-					// make filename relative to current directory
-					filename = filepath.Join(s.dir, filename)
+				// valid //line filename:line comment
+				filename := string(bytes.TrimSpace(text[len(prefix):i]))
+				if filename == "" {
+					// assume same file as for previous line
+					filename = s.file.Position(s.file.Pos(s.lineOffset)).Filename
+				} else {
+					filename = filepath.Clean(filename)
+					if !filepath.IsAbs(filename) {
+						// make filename relative to current directory
+						filename = filepath.Join(s.dir, filename)
+					}
 				}
 				// update scanner position
 				s.file.AddLineInfo(s.lineOffset+len(text)+1, filename, line) // +len(text)+1 since comment applies to next line
