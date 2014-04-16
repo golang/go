@@ -64,10 +64,25 @@ Lconv(Fmt *fp)
 }
 
 void
+dodef(char *p)
+{
+	if(nDlist%8 == 0)
+		Dlist = allocn(Dlist, nDlist*sizeof(char *),
+			8*sizeof(char *));
+	Dlist[nDlist++] = p;
+}
+
+void
+usage(void)
+{
+	print("usage: %ca [options] file.c...\n", thechar);
+	flagprint(1);
+	errorexit();
+}
+void
 main(int argc, char *argv[])
 {
 	char *p;
-	int c;
 
 	thechar = '8';
 	thestring = "386";
@@ -90,44 +105,24 @@ main(int argc, char *argv[])
 	cinit();
 	outfile = 0;
 	setinclude(".");
-	ARGBEGIN {
-	default:
-		c = ARGC();
-		if(c >= 0 && c < sizeof(debug))
-			debug[c] = 1;
-		break;
+	
+	flagfn1("D", "name[=value]: add #define", dodef);
+	flagfn1("I", "dir: add dir to include path", setinclude);
+	flagcount("S", "print assembly and machine code", &debug['S']);
+	flagcount("m", "debug preprocessor macros", &debug['m']);
+	flagstr("o", "file: set output file", &outfile);
+	flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt->trimpath);
 
-	case 'o':
-		outfile = ARGF();
-		break;
+	flagparse(&argc, &argv, usage);
+	ctxt->debugasm = debug['S'];
 
-	case 'D':
-		p = ARGF();
-		if(p) {
-			if (nDlist%8 == 0)
-				Dlist = allocn(Dlist, nDlist*sizeof(char *), 
-					8*sizeof(char *));
-			Dlist[nDlist++] = p;
-		}
-		break;
-
-	case 'I':
-		p = ARGF();
-		setinclude(p);
-		break;
-
-	case 'S':
-		ctxt->debugasm++;
-		break;
-	} ARGEND
-	if(*argv == 0) {
-		print("usage: %ca [-options] file.s\n", thechar);
-		errorexit();
-	}
+	if(argc < 1)
+		usage();
 	if(argc > 1){
 		print("can't assemble multiple files\n");
 		errorexit();
 	}
+
 	if(assemble(argv[0]))
 		errorexit();
 	Bflush(&bstdout);

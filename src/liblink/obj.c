@@ -87,6 +87,34 @@ linklinefmt(Link *ctxt, Fmt *fp)
 	return 0;
 }
 
+// Does s have t as a path prefix?
+// That is, does s == t or does s begin with t followed by a slash?
+// For portability, we allow ASCII case folding, so that haspathprefix("a/b/c", "A/B") is true.
+// Similarly, we allow slash folding, so that haspathprefix("a/b/c", "a\\b") is true.
+static int
+haspathprefix(char *s, char *t)
+{
+	int i, cs, ct;
+
+	if(t == nil)
+		return 0;
+	for(i=0; t[i]; i++) {
+		cs = s[i];
+		ct = t[i];
+		if('A' <= cs && cs <= 'Z')
+			cs += 'a' - 'A';
+		if('A' <= ct && ct <= 'Z')
+			ct += 'a' - 'A';
+		if(cs == '\\')
+			cs = '/';
+		if(ct == '\\')
+			ct = '/';
+		if(cs != ct)
+			return 0;
+	}
+	return s[i] == '\0' || s[i] == '/' || s[i] == '\\';
+}
+
 // This is a simplified copy of linklinefmt above.
 // It doesn't allow printing the full stack, and it returns the file name and line number separately.
 // TODO: Unify with linklinefmt somehow.
@@ -103,7 +131,7 @@ linkgetline(Link *ctxt, int32 line, LSym **f, int32 *l)
 	int32 lno, d, dlno;
 	int n;
 	Hist *h;
-	char buf[1024], *file;
+	char buf[1024], buf1[1024], *file;
 
 	lno = line;
 	n = 0;
@@ -159,6 +187,22 @@ linkgetline(Link *ctxt, int32 line, LSym **f, int32 *l)
 		snprint(buf, sizeof buf, "%s", file);
 	else
 		snprint(buf, sizeof buf, "%s/%s", ctxt->pathname, file);
+
+	// Remove leading ctxt->trimpath, or else rewrite $GOROOT to $GOROOT_FINAL.
+	if(haspathprefix(buf, ctxt->trimpath)) {
+		if(strlen(buf) == strlen(ctxt->trimpath))
+			strcpy(buf, "??");
+		else {
+			snprint(buf1, sizeof buf1, "%s", buf+strlen(ctxt->trimpath)+1);
+			if(buf1[0] == '\0')
+				strcpy(buf1, "??");
+			strcpy(buf, buf1);
+		}
+	} else if(ctxt->goroot_final != nil && haspathprefix(buf, ctxt->goroot)) {
+		snprint(buf1, sizeof buf1, "%s%s", ctxt->goroot_final, buf+strlen(ctxt->goroot));
+		strcpy(buf, buf1);
+	}
+
 	lno -= dlno;
 	*f = linklookup(ctxt, buf, HistVersion);
 	*l = lno;

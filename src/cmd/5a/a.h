@@ -97,7 +97,7 @@ enum
 	Always	= 14,
 };
 
-EXTERN	char	debug[256];
+EXTERN	int	debug[256];
 EXTERN	Sym*	hash[NHASH];
 EXTERN	char**	Dlist;
 EXTERN	int	nDlist;

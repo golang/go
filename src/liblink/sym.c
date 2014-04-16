@@ -95,6 +95,10 @@ linknew(LinkArch *arch)
 	ctxt = emallocz(sizeof *ctxt);
 	ctxt->arch = arch;
 	ctxt->version = HistVersion;
+	ctxt->goroot = getgoroot();
+	ctxt->goroot_final = getenv("GOROOT_FINAL");
+	if(ctxt->goroot_final != nil && ctxt->goroot_final[0] == '\0')
+		ctxt->goroot_final = nil;
 
 	p = getgoarch();
 	if(strcmp(p, arch->name) != 0)

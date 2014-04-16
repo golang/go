@@ -195,6 +195,7 @@ main(int argc, char *argv[])
 	flagcount("q", "print Go definitions", &debug['q']);
 	flagcount("s", "print #define assembly offsets", &debug['s']);
 	flagcount("t", "debug code generation", &debug['t']);
+	flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt->trimpath);
 	flagcount("w", "enable warnings", &debug['w']);
 	flagcount("v", "increase debug verbosity", &debug['v']);	
 	if(thechar == '6')
