@@ -1393,7 +1393,7 @@ movetomodule(DWDie *parent)
 	die->link = parent->child;
 }
 
-// If the pcln table contains runtime/zruntime_defs_*.go, use that to set gdbscript path.
+// If the pcln table contains runtime/string.goc, use that to set gdbscript path.
 static void
 finddebugruntimepath(LSym *s)
 {
