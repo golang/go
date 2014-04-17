@@ -52,6 +52,44 @@ var writeSetCookiesTests = []struct {
 		&Cookie{Name: "cookie-8", Value: "eight", Domain: "::1"},
 		"cookie-8=eight",
 	},
+	// The "special" cookies have values containing commas or spaces which
+	// are disallowed by RFC 6265 but are common in the wild.
+	{
+		&Cookie{Name: "special-1", Value: "a z"},
+		`special-1=a z`,
+	},
+	{
+		&Cookie{Name: "special-2", Value: " z"},
+		`special-2=" z"`,
+	},
+	{
+		&Cookie{Name: "special-3", Value: "a "},
+		`special-3="a "`,
+	},
+	{
+		&Cookie{Name: "special-4", Value: " "},
+		`special-4=" "`,
+	},
+	{
+		&Cookie{Name: "special-5", Value: "a,z"},
+		`special-5=a,z`,
+	},
+	{
+		&Cookie{Name: "special-6", Value: ",z"},
+		`special-6=",z"`,
+	},
+	{
+		&Cookie{Name: "special-7", Value: "a,"},
+		`special-7="a,"`,
+	},
+	{
+		&Cookie{Name: "special-8", Value: ","},
+		`special-8=","`,
+	},
+	{
+		&Cookie{Name: "empty-value", Value: ""},
+		`empty-value=`,
+	},
 }
 
 func TestWriteSetCookies(t *testing.T) {
@@ -178,6 +216,40 @@ var readSetCookiesTests = []struct {
 			Raw:      "ASP.NET_SessionId=foo; path=/; HttpOnly",
 		}},
 	},
+	// Make sure we can properly read back the Set-Cookie headers we create
+	// for values containing spaces or commas:
+	{
+		Header{"Set-Cookie": {`special-1=a z`}},
+		[]*Cookie{{Name: "special-1", Value: "a z", Raw: `special-1=a z`}},
+	},
+	{
+		Header{"Set-Cookie": {`special-2=" z"`}},
+		[]*Cookie{{Name: "special-2", Value: " z", Raw: `special-2=" z"`}},
+	},
+	{
+		Header{"Set-Cookie": {`special-3="a "`}},
+		[]*Cookie{{Name: "special-3", Value: "a ", Raw: `special-3="a "`}},
+	},
+	{
+		Header{"Set-Cookie": {`special-4=" "`}},
+		[]*Cookie{{Name: "special-4", Value: " ", Raw: `special-4=" "`}},
+	},
+	{
+		Header{"Set-Cookie": {`special-5=a,z`}},
+		[]*Cookie{{Name: "special-5", Value: "a,z", Raw: `special-5=a,z`}},
+	},
+	{
+		Header{"Set-Cookie": {`special-6=",z"`}},
+		[]*Cookie{{Name: "special-6", Value: ",z", Raw: `special-6=",z"`}},
+	},
+	{
+		Header{"Set-Cookie": {`special-7=a,`}},
+		[]*Cookie{{Name: "special-7", Value: "a,", Raw: `special-7=a,`}},
+	},
+	{
+		Header{"Set-Cookie": {`special-8=","`}},
+		[]*Cookie{{Name: "special-8", Value: ",", Raw: `special-8=","`}},
+	},
 
 	// TODO(bradfitz): users have reported seeing this in the
 	// wild, but do browsers handle it? RFC 6265 just says "don't
@@ -264,9 +336,14 @@ func TestCookieSanitizeValue(t *testing.T) {
 		in, want string
 	}{
 		{"foo", "foo"},
-		{"foo bar", "foobar"},
+		{"foo;bar", "foobar"},
+		{"foo\\bar", "foobar"},
+		{"foo\"bar", "foobar"},
 		{"\x00\x7e\x7f\x80", "\x7e"},
 		{`"withquotes"`, "withquotes"},
+		{"a z", "a z"},
+		{" z", `" z"`},
+		{"a ", `"a "`},
 	}
 	for _, tt := range tests {
 		if got := sanitizeCookieValue(tt.in); got != tt.want {

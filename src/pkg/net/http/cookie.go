@@ -76,11 +76,7 @@ func readSetCookies(h Header) []*Cookie {
 				attr, val = attr[:j], attr[j+1:]
 			}
 			lowerAttr := strings.ToLower(attr)
-			parseCookieValueFn := parseCookieValue
-			if lowerAttr == "expires" {
-				parseCookieValueFn = parseCookieExpiresValue
-			}
-			val, success = parseCookieValueFn(val)
+			val, success = parseCookieValue(val)
 			if !success {
 				c.Unparsed = append(c.Unparsed, parts[i])
 				continue
@@ -298,12 +294,23 @@ func sanitizeCookieName(n string) string {
 //           ; US-ASCII characters excluding CTLs,
 //           ; whitespace DQUOTE, comma, semicolon,
 //           ; and backslash
+// We loosen this as spaces and commas are common in cookie values
+// but we produce a quoted cookie-value in when value starts or ends
+// with a comma or space.
+// See http://golang.org/issue/7243 for the discussion.
 func sanitizeCookieValue(v string) string {
-	return sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)
+	v = sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)
+	if len(v) == 0 {
+		return v
+	}
+	if v[0] == ' ' || v[0] == ',' || v[len(v)-1] == ' ' || v[len(v)-1] == ',' {
+		return `"` + v + `"`
+	}
+	return v
 }
 
 func validCookieValueByte(b byte) bool {
-	return 0x20 < b && b < 0x7f && b != '"' && b != ',' && b != ';' && b != '\\'
+	return 0x20 <= b && b < 0x7f && b != '"' && b != ';' && b != '\\'
 }
 
 // path-av           = "Path=" path-value
@@ -338,38 +345,13 @@ func sanitizeOrWarn(fieldName string, valid func(byte) bool, v string) string {
 	return string(buf)
 }
 
-func unquoteCookieValue(v string) string {
-	if len(v) > 1 && v[0] == '"' && v[len(v)-1] == '"' {
-		return v[1 : len(v)-1]
-	}
-	return v
-}
-
-func isCookieByte(c byte) bool {
-	switch {
-	case c == 0x21, 0x23 <= c && c <= 0x2b, 0x2d <= c && c <= 0x3a,
-		0x3c <= c && c <= 0x5b, 0x5d <= c && c <= 0x7e:
-		return true
-	}
-	return false
-}
-
-func isCookieExpiresByte(c byte) (ok bool) {
-	return isCookieByte(c) || c == ',' || c == ' '
-}
-
 func parseCookieValue(raw string) (string, bool) {
-	return parseCookieValueUsing(raw, isCookieByte)
-}
-
-func parseCookieExpiresValue(raw string) (string, bool) {
-	return parseCookieValueUsing(raw, isCookieExpiresByte)
-}
-
-func parseCookieValueUsing(raw string, validByte func(byte) bool) (string, bool) {
-	raw = unquoteCookieValue(raw)
+	// Strip the quotes, if present.
+	if len(raw) > 1 && raw[0] == '"' && raw[len(raw)-1] == '"' {
+		raw = raw[1 : len(raw)-1]
+	}
 	for i := 0; i < len(raw); i++ {
-		if !validByte(raw[i]) {
+		if !validCookieValueByte(raw[i]) {
 			return "", false
 		}
 	}
