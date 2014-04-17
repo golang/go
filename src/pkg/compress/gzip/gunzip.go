@@ -89,6 +89,17 @@ func NewReader(r io.Reader) (*Reader, error) {
 	return z, nil
 }
 
+// Reset discards the Reader z's state and makes it equivalent to the
+// result of its original state from NewReader, but reading from r instead.
+// This permits reusing a Reader rather than allocating a new one.
+func (z *Reader) Reset(r io.Reader) error {
+	z.r = makeReader(r)
+	z.digest.Reset()
+	z.size = 0
+	z.err = nil
+	return z.readHeader(true)
+}
+
 // GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
 func get4(p []byte) uint32 {
 	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
