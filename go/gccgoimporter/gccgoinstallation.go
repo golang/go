@@ -46,9 +46,6 @@ func (inst *GccgoInstallation) InitFromDriver(gccgoPath string) (err error) {
 		case strings.HasPrefix(line, "Target: "):
 			inst.TargetTriple = line[8:]
 
-		case strings.HasPrefix(line, "gcc version "):
-			inst.GccVersion = strings.SplitN(line[12:], " ", 2)[0]
-
 		case line[0] == ' ':
 			args := strings.Fields(line)
 			for _, arg := range args[1:] {
@@ -58,6 +55,12 @@ func (inst *GccgoInstallation) InitFromDriver(gccgoPath string) (err error) {
 			}
 		}
 	}
+
+	stdout, err := exec.Command(gccgoPath, "-dumpversion").Output()
+	if err != nil {
+		return
+	}
+	inst.GccVersion = strings.TrimSpace(string(stdout))
 
 	return
 }
