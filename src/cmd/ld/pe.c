@@ -32,15 +32,11 @@ static char dosstub[] =
 	0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-// Note: currently only up to 8 chars plus \0.
-static char *symlabels[] = {
-	"symtab", "esymtab", "pclntab", "epclntab"
-};
-
 static LSym *rsrcsym;
 
-static char symnames[256]; 
-static int  nextsymoff;
+static char* strtbl;
+static int strtblnextoff;
+static int strtblsize;
 
 int32 PESECTHEADR;
 int32 PEFILEHEADR;
@@ -50,6 +46,7 @@ static int nsect;
 static int nextsectoff;
 static int nextfileoff;
 static int textsect;
+static int datasect;
 
 static IMAGE_FILE_HEADER fh;
 static IMAGE_OPTIONAL_HEADER oh;
@@ -80,6 +77,17 @@ static Dll* dr;
 
 static LSym *dexport[1024];
 static int nexport;
+
+typedef struct COFFSym COFFSym;
+struct COFFSym
+{
+	LSym* sym;
+	int strtbloff;
+	int sect;
+};
+
+static COFFSym* coffsym;
+static int ncoffsym;
 
 static IMAGE_SECTION_HEADER*
 addpesection(char *name, int sectsize, int filesize)
@@ -421,6 +429,24 @@ dope(void)
 	initdynexport();
 }
 
+static int
+strtbladd(char *name)
+{
+	int newsize, thisoff;
+
+	newsize = strtblnextoff + strlen(name) + 1;
+	if(newsize > strtblsize) {
+		strtblsize = 2 * (newsize + (1<<18));
+		strtbl = realloc(strtbl, strtblsize);
+	}
+	thisoff = strtblnextoff+4; // first string starts at offset=4
+	strcpy(&strtbl[strtblnextoff], name);
+	strtblnextoff += strlen(name);
+	strtbl[strtblnextoff] = 0;
+	strtblnextoff++;
+	return thisoff;
+}
+
 /*
  * For more than 8 characters section names, name contains a slash (/) that is 
  * followed by an ASCII representation of a decimal number that is an offset into 
@@ -433,20 +459,13 @@ newPEDWARFSection(char *name, vlong size)
 {
 	IMAGE_SECTION_HEADER *h;
 	char s[8];
+	int off;
 
 	if(size == 0)
 		return nil;
 
-	if(nextsymoff+strlen(name)+1 > sizeof(symnames)) {
-		diag("pe string table is full");
-		errorexit();
-	}
-
-	strcpy(&symnames[nextsymoff], name);
-	sprint(s, "/%d\0", nextsymoff+4);
-	nextsymoff += strlen(name);
-	symnames[nextsymoff] = 0;
-	nextsymoff ++;
+	off = strtbladd(name);
+	sprint(s, "/%d\0", off);
 	h = addpesection(s, size, size);
 	h->Characteristics = IMAGE_SCN_MEM_READ|
 		IMAGE_SCN_MEM_DISCARDABLE;
@@ -455,35 +474,83 @@ newPEDWARFSection(char *name, vlong size)
 }
 
 static void
+addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *gotype)
+{
+	USED(name);
+	USED(addr);
+	USED(size);
+	USED(ver);
+	USED(gotype);
+
+	if(s == nil)
+		return;
+
+	if(s->sect == nil)
+		return;
+
+	switch(type) {
+	default:
+		return;
+	case 'D':
+	case 'B':
+	case 'T':
+		break;
+	}
+
+	if(coffsym) {
+		coffsym[ncoffsym].sym = s;
+		if(strlen(s->name) > 8)
+			coffsym[ncoffsym].strtbloff = strtbladd(s->name);
+		if(type == 'T')
+			coffsym[ncoffsym].sect = textsect;
+		else
+			coffsym[ncoffsym].sect = datasect;
+	}
+	ncoffsym++;
+}
+
+static void
 addsymtable(void)
 {
 	IMAGE_SECTION_HEADER *h;
 	int i, size;
-	LSym *s;
-	
-	fh.NumberOfSymbols = sizeof(symlabels)/sizeof(symlabels[0]);
-	size = nextsymoff + 4 + 18*fh.NumberOfSymbols;
+	COFFSym *s;
+
+	if(!debug['s']) {
+		genasmsym(addsym);
+		coffsym = mal(ncoffsym * sizeof coffsym[0]);
+		ncoffsym = 0;
+		genasmsym(addsym);
+	}
+
+	size = strtblnextoff + 4 + 18*ncoffsym;
 	h = addpesection(".symtab", size, size);
 	h->Characteristics = IMAGE_SCN_MEM_READ|
 		IMAGE_SCN_MEM_DISCARDABLE;
 	chksectoff(h, cpos());
 	fh.PointerToSymbolTable = cpos();
+	fh.NumberOfSymbols = ncoffsym;
 	
 	// put COFF symbol table
-	for (i=0; i<fh.NumberOfSymbols; i++) {
-		s = linkrlookup(ctxt, symlabels[i], 0);
-		strnput(s->name, 8);
-		lputl(datoff(s->value));
-		wputl(textsect);
+	for (i=0; i<ncoffsym; i++) {
+		s = &coffsym[i];
+		if(s->strtbloff == 0)
+			strnput(s->sym->name, 8);
+		else {
+			lputl(0);
+			lputl(s->strtbloff);
+		}
+		lputl(datoff(s->sym->value));
+		wputl(s->sect);
 		wputl(0x0308);  // "array of structs"
 		cput(2);        // storage class: external
 		cput(0);        // no aux entries
 	}
 
 	// put COFF string table
-	lputl(nextsymoff + 4);
-	for (i=0; i<nextsymoff; i++)
-		cput(symnames[i]);
+	lputl(strtblnextoff + 4);
+	for (i=0; i<strtblnextoff; i++)
+		cput(strtbl[i]);
 	strnput("", h->SizeOfRawData - size);
 }
 
@@ -557,6 +624,7 @@ asmbpe(void)
 	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 	chksectseg(d, &segdata);
+	datasect = nsect;
 
 	if(!debug['s'])
 		dwarfaddpeheaders();
