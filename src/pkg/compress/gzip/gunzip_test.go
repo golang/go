@@ -303,6 +303,26 @@ func TestDecompressor(t *testing.T) {
 		if s != tt.raw {
 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
 		}
+
+		// Test Reader Reset.
+		in = bytes.NewReader(tt.gzip)
+		err = gzip.Reset(in)
+		if err != nil {
+			t.Errorf("%s: Reset: %s", tt.name, err)
+			continue
+		}
+		if tt.name != gzip.Name {
+			t.Errorf("%s: got name %s", tt.name, gzip.Name)
+		}
+		b.Reset()
+		n, err = io.Copy(b, gzip)
+		if err != tt.err {
+			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err)
+		}
+		s = b.String()
+		if s != tt.raw {
+			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
+		}
 	}
 }
 
