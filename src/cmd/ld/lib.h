@@ -178,6 +178,7 @@ void	asmplan9sym(void);
 uint16	be16(uchar *b);
 uint32	be32(uchar *b);
 uint64	be64(uchar *b);
+void	callgraph(void);
 void	cflush(void);
 void	codeblk(int32 addr, int32 size);
 vlong	cpos(void);

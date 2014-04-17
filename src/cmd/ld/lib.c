@@ -1484,6 +1484,27 @@ undef(void)
 }
 
 void
+callgraph(void)
+{
+	LSym *s;
+	Reloc *r;
+	int i;
+
+	if(!debug['c'])
+		return;
+
+	for(s = ctxt->textp; s != nil; s = s->next) {
+		for(i=0; i<s->nr; i++) {
+			r = &s->r[i];
+			if(r->sym == nil)
+				continue;
+			if((r->type == R_CALL || r->type == R_CALLARM) && r->sym->type == STEXT)
+				Bprint(&bso, "%s calls %s\n", s->name, r->sym->name);
+		}
+	}
+}
+
+void
 diag(char *fmt, ...)
 {
 	char buf[1024], *tn, *sep;
