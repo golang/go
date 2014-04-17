@@ -19,6 +19,7 @@
 //	d	static data segment symbol
 //	B	bss segment symbol
 //	b	static bss segment symbol
+//	C	constant address
 //	U	referenced but undefined symbol
 //
 // Following established convention, the address is omitted for undefined
