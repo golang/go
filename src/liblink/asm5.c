@@ -1302,7 +1302,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			rel->siz = 4;
 			rel->sym = p->to.sym;
 			rel->add = o1 | ((v >> 2) & 0xffffff);
-			rel->type = R_CALL;
+			rel->type = R_CALLARM;
 			break;
 		}
 		if(p->pcond != nil)
@@ -1324,6 +1324,10 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			ctxt->diag("%P: doesn't support BL offset(REG) where offset != 0", p);
 		o1 = oprrr(ctxt, ABL, p->scond);
 		o1 |= p->to.reg;
+		rel = addrel(ctxt->cursym);
+		rel->off = ctxt->pc;
+		rel->siz = 0;
+		rel->type = R_CALLIND;
 		break;
 
 	case 8:		/* sll $c,[R],R -> mov (R<<$c),R */

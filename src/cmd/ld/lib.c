@@ -1021,50 +1021,59 @@ dostkcheck(void)
 	morestack = linklookup(ctxt, "runtime.morestack", 0);
 	newstack = linklookup(ctxt, "runtime.newstack", 0);
 
-	// TODO
-	// First the nosplits on their own.
+	// Every splitting function ensures that there are at least StackLimit
+	// bytes available below SP when the splitting prologue finishes.
+	// If the splitting function calls F, then F begins execution with
+	// at least StackLimit - callsize() bytes available.
+	// Check that every function behaves correctly with this amount
+	// of stack, following direct calls in order to piece together chains
+	// of non-splitting functions.
+	ch.up = nil;
+	ch.limit = StackLimit - callsize();
+
+	// Check every function, but do the nosplit functions in a first pass,
+	// to make the printed failure chains as short as possible.
 	for(s = ctxt->textp; s != nil; s = s->next) {
-		if(s->text == nil || s->text->link == nil || (ctxt->arch->textflag(s->text) & NOSPLIT) == 0)
+		// runtime.racesymbolizethunk is called from gcc-compiled C
+		// code running on the operating system thread stack.
+		// It uses more than the usual amount of stack but that's okay.
+		if(strcmp(s->name, "runtime.racesymbolizethunk") == 0)
 			continue;
+
+		if(s->nosplit) {
 		ctxt->cursym = s;
-		ch.up = nil;
 		ch.sym = s;
-		ch.limit = StackLimit - callsize();
-		stkcheck(&ch, 0);
-		s->stkcheck = 1;
-	}
-	
-	// Check calling contexts.
-	// Some nosplits get called a little further down,
-	// like newproc and deferproc.	We could hard-code
-	// that knowledge but it's more robust to look at
-	// the actual call sites.
-	for(s = ctxt->textp; s != nil; s = s->next) {
-		if(s->text == nil || s->text->link == nil || (ctxt->arch->textflag(s->text) & NOSPLIT) != 0)
-			continue;
-		ctxt->cursym = s;
-		ch.up = nil;
-		ch.sym = s;
-		ch.limit = StackLimit - callsize();
 		stkcheck(&ch, 0);
 	}
+	}
+	for(s = ctxt->textp; s != nil; s = s->next) {
+		if(!s->nosplit) {
+		ctxt->cursym = s;
+		ch.sym = s;
+		stkcheck(&ch, 0);
+	}
+}
 }
 
 static int
 stkcheck(Chain *up, int depth)
 {
 	Chain ch, ch1;
-	Prog *p;
 	LSym *s;
-	int limit, prolog;
+	int limit;
+	Reloc *r, *endr;
+	Pciter pcsp;
 	
 	limit = up->limit;
 	s = up->sym;
-	p = s->text;
 	
-	// Small optimization: don't repeat work at top.
-	if(s->stkcheck && limit == StackLimit-callsize())
+	// Don't duplicate work: only need to consider each
+	// function at top of safe zone once.
+	if(limit == StackLimit-callsize()) {
+		if(s->stkcheck)
 		return 0;
+		s->stkcheck = 1;
+	}
 	
 	if(depth > 100) {
 		diag("nosplit stack check too deep");
@@ -1072,7 +1081,7 @@ stkcheck(Chain *up, int depth)
 		return -1;
 	}
 
-	if(p == nil || p->link == nil) {
+	if(s->external || s->pcln == nil) {
 		// external function.
 		// should never be called directly.
 		// only diagnose the direct caller.
@@ -1092,50 +1101,56 @@ stkcheck(Chain *up, int depth)
 		return 0;
 
 	ch.up = up;
-	prolog = (ctxt->arch->textflag(s->text) & NOSPLIT) == 0;
-	for(p = s->text; p != P; p = p->link) {
-		limit -= p->spadj;
-		if(prolog && p->spadj != 0) {
-			// The first stack adjustment in a function with a
-			// split-checking prologue marks the end of the
-			// prologue.  Assuming the split check is correct,
-			// after the adjustment there should still be at least
-			// StackLimit bytes available below the stack pointer.
-			// If this is not the top call in the chain, no need
-			// to duplicate effort, so just stop.
-			if(depth > 0)
-				return 0;
-			prolog = 0;
-			limit = StackLimit;
-		}
-		if(limit < 0) {
-			stkbroke(up, limit);
+	
+	// Walk through sp adjustments in function, consuming relocs.
+	r = s->r;
+	endr = r + s->nr;
+	for(pciterinit(ctxt, &pcsp, &s->pcln->pcsp); !pcsp.done; pciternext(&pcsp)) {
+		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
+
+		// Check stack size in effect for this span.
+		if(limit - pcsp.value < 0) {
+			stkbroke(up, limit - pcsp.value);
 			return -1;
 		}
-		if(ctxt->arch->iscall(p)) {
-			limit -= callsize();
-			ch.limit = limit;
-			if(p->to.type == D_BRANCH) {
+
+		// Process calls in this span.
+		for(; r < endr && r->off < pcsp.nextpc; r++) {
+			switch(r->type) {
+			case R_CALL:
+			case R_CALLARM:
 				// Direct call.
-				ch.sym = p->to.sym;
+				ch.limit = limit - pcsp.value - callsize();
+				ch.sym = r->sym;
 				if(stkcheck(&ch, depth+1) < 0)
 					return -1;
-			} else {
-				// Indirect call.  Assume it is a splitting function,
+
+				// If this is a call to morestack, we've just raised our limit back
+				// to StackLimit beyond the frame size.
+				if(strncmp(r->sym->name, "runtime.morestack", 17) == 0) {
+					limit = StackLimit + s->locals;
+					if(thechar == '5')
+						limit += 4; // saved LR
+				}
+				break;
+
+			case R_CALLIND:
+				// Indirect call.  Assume it is a call to a splitting function,
 				// so we have to make sure it can call morestack.
-				limit -= callsize();
+				// Arrange the data structures to report both calls, so that
+				// if there is an error, stkprint shows all the steps involved.
+				ch.limit = limit - pcsp.value - callsize();
 				ch.sym = nil;
-				ch1.limit = limit;
+				ch1.limit = ch.limit - callsize(); // for morestack in called prologue
 				ch1.up = &ch;
 				ch1.sym = morestack;
 				if(stkcheck(&ch1, depth+2) < 0)
 					return -1;
-				limit += callsize();
+				break;
 			}
-			limit += callsize();
+		}
 		}
 		
-	}
 	return 0;
 }
 
@@ -1158,7 +1173,7 @@ stkprint(Chain *ch, int limit)
 
 	if(ch->up == nil) {
 		// top of chain.  ch->sym != nil.
-		if(ctxt->arch->textflag(ch->sym->text) & NOSPLIT)
+		if(ch->sym->nosplit)
 			print("\t%d\tassumed on entry to %s\n", ch->limit, name);
 		else
 			print("\t%d\tguaranteed after split check in %s\n", ch->limit, name);

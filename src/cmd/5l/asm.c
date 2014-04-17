@@ -102,7 +102,7 @@ adddynrel(LSym *s, Reloc *r)
 
 	// Handle relocations found in ELF object files.
 	case 256 + R_ARM_PLT32:
-		r->type = R_CALL;
+		r->type = R_CALLARM;
 		if(targ->type == SDYNIMPORT) {
 			addpltsym(ctxt, targ);
 			r->sym = linklookup(ctxt, ".plt", 0);
@@ -148,7 +148,7 @@ adddynrel(LSym *s, Reloc *r)
 		return;
 
 	case 256 + R_ARM_CALL:
-		r->type = R_CALL;
+		r->type = R_CALLARM;
 		if(targ->type == SDYNIMPORT) {
 			addpltsym(ctxt, targ);
 			r->sym = linklookup(ctxt, ".plt", 0);
@@ -178,7 +178,7 @@ adddynrel(LSym *s, Reloc *r)
 
 	case 256 + R_ARM_PC24:
 	case 256 + R_ARM_JUMP24:
-		r->type = R_CALL;
+		r->type = R_CALLARM;
 		if(targ->type == SDYNIMPORT) {
 			addpltsym(ctxt, targ);
 			r->sym = linklookup(ctxt, ".plt", 0);
@@ -192,7 +192,7 @@ adddynrel(LSym *s, Reloc *r)
 		return;
 
 	switch(r->type) {
-	case R_PCREL:
+	case R_CALLARM:
 		addpltsym(ctxt, targ);
 		r->sym = linklookup(ctxt, ".plt", 0);
 		r->add = targ->plt;
@@ -243,7 +243,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 			return -1;
 		break;
 
-	case R_CALL:
+	case R_CALLARM:
 		if(r->siz == 4) {
 			if((r->add & 0xff000000) == 0xeb000000) // BL
 				LPUT(R_ARM_CALL | elfsym<<8);
@@ -310,7 +310,7 @@ archreloc(Reloc *r, LSym *s, vlong *val)
 
 	if(linkmode == LinkExternal) {
 		switch(r->type) {
-		case R_CALL:
+		case R_CALLARM:
 			r->done = 0;
 
 			// set up addend for eventual relocation via outer symbol.
@@ -357,7 +357,7 @@ archreloc(Reloc *r, LSym *s, vlong *val)
 		*val = 0xe5bcf000U +
 			(0xfff & (uint32)(symaddr(r->sym) - (symaddr(linklookup(ctxt, ".plt", 0)) + r->off) + r->add + 8));
 		return 0;
-	case R_CALL: // bl XXXXXX or b YYYYYY
+	case R_CALLARM: // bl XXXXXX or b YYYYYY
 		*val = braddoff((0xff000000U & (uint32)r->add), 
 		                (0xffffff & (uint32)
 		                   ((symaddr(r->sym) + ((uint32)r->add) * 4 - (s->value + r->off)) / 4)));

@@ -75,9 +75,13 @@ func (p *Prog) loadPackage(pkg *Package) {
 
 // TODO(rsc): Define full enumeration for relocation types.
 const (
-	R_ADDR  = 1
-	R_SIZE  = 2
-	R_PCREL = 5
+	R_ADDR    = 1
+	R_SIZE    = 2
+	R_CALL    = 3
+	R_CALLARM = 4
+	R_CALLIND = 5
+	R_CONST   = 6
+	R_PCREL   = 7
 )
 
 // relocateSym applies relocations to sym's data.
@@ -93,9 +97,9 @@ func (p *Prog) relocateSym(sym *Sym, data []byte) {
 		switch r.Type {
 		default:
 			p.errorf("%v: unknown relocation type %d", sym, r.Type)
-		case R_ADDR:
+		case R_ADDR, R_CALLIND:
 			// ok
-		case R_PCREL:
+		case R_PCREL, R_CALL:
 			val -= sym.Addr + Addr(r.Offset+r.Size)
 		}
 		frag := data[r.Offset : r.Offset+r.Size]

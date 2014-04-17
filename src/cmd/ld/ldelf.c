@@ -601,24 +601,9 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		s->size = sym.size;
 		s->outer = sect->sym;
 		if(sect->sym->type == STEXT) {
-			Prog *p;
-
-			if(s->text != P) {
-				if(!s->dupok)
+			if(s->external && !s->dupok)
 					diag("%s: duplicate definition of %s", pn, s->name);
-			} else {
-				// build a TEXT instruction with a unique pc
-				// just to make the rest of the linker happy.
-				p = ctxt->arch->prg();
-				p->as = ATEXT;
-				p->from.type = D_EXTERN;
-				p->from.sym = s;
-				ctxt->arch->settextflag(p, 7);
-				p->to.type = D_CONST;
-				p->link = nil;
-				p->pc = ctxt->pc++;
-				s->text = p;
-			}
+			s->external = 1;
 		}
 	}
 	
