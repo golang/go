@@ -654,6 +654,20 @@ hostlink(void)
 		if(*p == '\0')
 			break;
 		argv[argc++] = p;
+
+		// clang, unlike GCC, passes -rdynamic to the linker
+		// even when linking with -static, causing a linker
+		// error when using GNU ld.  So take out -rdynamic if
+		// we added it.  We do it in this order, rather than
+		// only adding -rdynamic later, so that -extldflags
+		// can override -rdynamic without using -static.
+		if(iself && strncmp(p, "-static", 7) == 0 && (p[7]==' ' || p[7]=='\0')) {
+			for(i=0; i<argc; i++) {
+				if(strcmp(argv[i], "-rdynamic") == 0)
+					argv[i] = "-static";
+			}
+		}
+
 		p = strchr(p + 1, ' ');
 	}
 
