@@ -2167,6 +2167,31 @@ nokeys(NodeList *l)
 	return 1;
 }
 
+static int
+hasddd(Type *t)
+{
+	Type *tl;
+
+	for(tl=t->type; tl; tl=tl->down) {
+		if(tl->isddd)
+			return 1;
+	}
+	return 0;
+}
+
+static int
+downcount(Type *t)
+{
+	Type *tl;
+	int n;
+
+	n = 0;
+	for(tl=t->type; tl; tl=tl->down) {
+		n++;
+	}
+	return n;
+}
+
 /*
  * typecheck assignment: type list = expression list
  */
@@ -2177,6 +2202,7 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
 	Node *n;
 	int lno;
 	char *why;
+	int n1, n2;
 
 	lno = lineno;
 
@@ -2186,6 +2212,15 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
 	n = N;
 	if(nl != nil && nl->next == nil && (n = nl->n)->type != T)
 	if(n->type->etype == TSTRUCT && n->type->funarg) {
+		if(!hasddd(tstruct)) {
+			n1 = downcount(tstruct);
+			n2 = downcount(n->type);
+			if(n2 > n1)
+				goto toomany;
+			if(n2 < n1)
+				goto notenough;
+		}
+		
 		tn = n->type->type;
 		for(tl=tstruct->type; tl; tl=tl->down) {
 			if(tl->isddd) {
@@ -2212,6 +2247,26 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
 		if(tn != T)
 			goto toomany;
 		goto out;
+	}
+
+	n1 = downcount(tstruct);
+	n2 = count(nl);
+	if(!hasddd(tstruct)) {
+		if(n2 > n1)
+			goto toomany;
+		if(n2 < n1)
+			goto notenough;
+	}
+	else {
+		if(!isddd) {
+			if(n2 < n1-1)
+				goto notenough;
+		} else {
+			if(n2 > n1)
+				goto toomany;
+			if(n2 < n1)
+				goto notenough;
+		}
 	}
 
 	for(tl=tstruct->type; tl; tl=tl->down) {
