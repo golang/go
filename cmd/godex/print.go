@@ -7,8 +7,11 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"go/token"
 	"io"
+	"math/big"
 
+	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 )
 
@@ -202,17 +205,122 @@ func (p *printer) printDecl(keyword string, n int, printGroup func()) {
 	}
 }
 
+// absInt returns the absolute value of v as a *big.Int.
+// v must be a numeric value.
+func absInt(v exact.Value) *big.Int {
+	// compute big-endian representation of v
+	b := exact.Bytes(v) // little-endian
+	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+		b[i], b[j] = b[j], b[i]
+	}
+	return new(big.Int).SetBytes(b)
+}
+
+var (
+	one = big.NewRat(1, 1)
+	ten = big.NewRat(10, 1)
+)
+
+// floatString returns the string representation for a
+// numeric value v in normalized floating-point format.
+func floatString(v exact.Value) string {
+	if exact.Sign(v) == 0 {
+		return "0.0"
+	}
+	// x != 0
+
+	// convert |v| into a big.Rat x
+	x := new(big.Rat).SetFrac(absInt(exact.Num(v)), absInt(exact.Denom(v)))
+
+	// normalize x and determine exponent e
+	// (This is not very efficient, but also not speed-critical.)
+	var e int
+	for x.Cmp(ten) >= 0 {
+		x.Quo(x, ten)
+		e++
+	}
+	for x.Cmp(one) < 0 {
+		x.Mul(x, ten)
+		e--
+	}
+
+	// TODO(gri) Values such as 1/2 are easier to read in form 0.5
+	// rather than 5.0e-1. Similarly, 1.0e1 is easier to read as
+	// 10.0. Fine-tune best exponent range for readability.
+
+	s := x.FloatString(100) // good-enough precision
+
+	// trim trailing 0's
+	i := len(s)
+	for i > 0 && s[i-1] == '0' {
+		i--
+	}
+	s = s[:i]
+
+	// add a 0 if the number ends in decimal point
+	if len(s) > 0 && s[len(s)-1] == '.' {
+		s += "0"
+	}
+
+	// add exponent and sign
+	if e != 0 {
+		s += fmt.Sprintf("e%+d", e)
+	}
+	if exact.Sign(v) < 0 {
+		s = "-" + s
+	}
+
+	// TODO(gri) If v is a "small" fraction (i.e., numerator and denominator
+	// are just a small number of decimal digits), add the exact fraction as
+	// a comment. For instance: 3.3333...e-1 /* = 1/3 */
+
+	return s
+}
+
+// valString returns the string representation for the value v.
+// Setting floatFmt forces an integer value to be formatted in
+// normalized floating-point format.
+// TODO(gri) Move this code into package exact.
+func valString(v exact.Value, floatFmt bool) string {
+	switch v.Kind() {
+	case exact.Int:
+		if floatFmt {
+			return floatString(v)
+		}
+	case exact.Float:
+		return floatString(v)
+	case exact.Complex:
+		re := exact.Real(v)
+		im := exact.Imag(v)
+		var s string
+		if exact.Sign(re) != 0 {
+			s = floatString(re)
+			if exact.Sign(im) >= 0 {
+				s += " + "
+			} else {
+				s += " - "
+				im = exact.UnaryOp(token.SUB, im, 0) // negate im
+			}
+		}
+		// im != 0, otherwise v would be exact.Int or exact.Float
+		return s + floatString(im) + "i"
+	}
+	return v.String()
+}
+
 func (p *printer) printObj(obj types.Object) {
-	p.printf("%s", obj.Name())
+	p.print(obj.Name())
 	// don't write untyped types (for constants)
-	if typ := obj.Type(); typed(typ) {
+	typ, basic := obj.Type().Underlying().(*types.Basic)
+	if basic && typ.Info()&types.IsUntyped == 0 {
 		p.print(" ")
 		p.writeType(p.pkg, typ)
 	}
 	// write constant value
-	// TODO(gri) use floating-point notation for exact floating-point numbers (fractions)
 	if obj, ok := obj.(*types.Const); ok {
-		p.printf(" = %s", obj.Val())
+		floatFmt := basic && typ.Info()&(types.IsFloat|types.IsComplex) != 0
+		p.print(" = ")
+		p.print(valString(obj.Val(), floatFmt))
 	}
 }
 
@@ -226,13 +334,6 @@ func (p *printer) printFunc(recvType types.Type, obj *types.Func) {
 	}
 	p.print(obj.Name())
 	p.writeSignature(p.pkg, sig)
-}
-
-func typed(typ types.Type) bool {
-	if t, ok := typ.Underlying().(*types.Basic); ok {
-		return t.Info()&types.IsUntyped == 0
-	}
-	return true
 }
 
 // combinedMethodSet returns the method set for a named type T
