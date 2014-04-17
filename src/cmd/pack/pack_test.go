@@ -198,17 +198,97 @@ func TestHello(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	char := findChar(t, dir)
+
 	run := func(args ...string) string {
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Dir = dir
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("%v: %v\n%s", args, err, string(out))
-		}
-		return string(out)
+		return doRun(t, dir, args...)
 	}
 
-	out := run("go", "env")
+	run("go", "build", "cmd/pack") // writes pack binary to dir
+	run("go", "tool", char+"g", "hello.go")
+	run("./pack", "grc", "hello.a", "hello."+char)
+	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
+	out := run("./a.out")
+	if out != "hello world\n" {
+		t.Fatal("incorrect output: %q, want %q", out, "hello world\n")
+	}
+}
+
+// Test that pack works with very long lines in PKGDEF.
+func TestLargeDefs(t *testing.T) {
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	large := filepath.Join(dir, "large.go")
+	f, err := os.Create(large)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	printf := func(format string, args ...interface{}) {
+		_, err := fmt.Fprintf(f, format, args...)
+		if err != nil {
+			t.Fatalf("Writing to %s: %v", large, err)
+		}
+	}
+
+	printf("package large\n\ntype T struct {\n")
+	for i := 0; i < 10000; i++ {
+		printf("f%d int `tag:\"", i)
+		for j := 0; j < 100; j++ {
+			printf("t%d=%d,", j, j)
+		}
+		printf("\"`\n")
+	}
+	printf("}\n")
+	if err = f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	main := filepath.Join(dir, "main.go")
+	prog := `
+		package main
+		import "./large"
+		var V large.T
+		func main() {
+			println("ok")
+		}
+	`
+	err = ioutil.WriteFile(main, []byte(prog), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	char := findChar(t, dir)
+
+	run := func(args ...string) string {
+		return doRun(t, dir, args...)
+	}
+
+	run("go", "build", "cmd/pack") // writes pack binary to dir
+	run("go", "tool", char+"g", "large.go")
+	run("./pack", "grc", "large.a", "large."+char)
+	run("go", "tool", char+"g", "main.go")
+	run("go", "tool", char+"l", "-o", "a.out", "main."+char)
+	out := run("./a.out")
+	if out != "ok\n" {
+		t.Fatal("incorrect output: %q, want %q", out, "ok\n")
+	}
+}
+
+// doRun runs a program in a directory and returns the output.
+func doRun(t *testing.T, dir string, args ...string) string {
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v: %v\n%s", args, err, string(out))
+	}
+	return string(out)
+}
+
+// findChar returns the architecture character for the go command.
+func findChar(t *testing.T, dir string) string {
+	out := doRun(t, dir, "go", "env")
 	re, err := regexp.Compile(`\s*GOCHAR=['"]?(\w)['"]?`)
 	if err != nil {
 		t.Fatal(err)
@@ -217,15 +297,7 @@ func TestHello(t *testing.T) {
 	if fields == nil {
 		t.Fatal("cannot find GOCHAR in 'go env' output:\n", out)
 	}
-	char := fields[1]
-	run("go", "build", "cmd/pack") // writes pack binary to dir
-	run("go", "tool", char+"g", "hello.go")
-	run("./pack", "grc", "hello.a", "hello."+char)
-	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
-	out = run("./a.out")
-	if out != "hello world\n" {
-		t.Fatal("incorrect output: %q, want %q", out, "hello world\n")
-	}
+	return fields[1]
 }
 
 // Fake implementation of files.
