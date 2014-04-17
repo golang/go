@@ -50,7 +50,8 @@
 	("-" is a non-flag argument) or after the terminator "--".
 
 	Integer flags accept 1234, 0664, 0x1234 and may be negative.
-	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
+	Boolean flags may be:
+		1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False
 	Duration flags accept any input valid for time.ParseDuration.
 
 	The default set of command-line flags is controlled by
