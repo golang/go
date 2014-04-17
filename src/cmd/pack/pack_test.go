@@ -247,7 +247,7 @@ func TestLargeDefs(t *testing.T) {
 	main := filepath.Join(dir, "main.go")
 	prog := `
 		package main
-		import "./large"
+		import "large"
 		var V large.T
 		func main() {
 			println("ok")
@@ -267,8 +267,8 @@ func TestLargeDefs(t *testing.T) {
 	run("go", "build", "cmd/pack") // writes pack binary to dir
 	run("go", "tool", char+"g", "large.go")
 	run("./pack", "grc", "large.a", "large."+char)
-	run("go", "tool", char+"g", "main.go")
-	run("go", "tool", char+"l", "-o", "a.out", "main."+char)
+	run("go", "tool", char+"g", "-I", ".", "main.go")
+	run("go", "tool", char+"l", "-L", ".", "-o", "a.out", "main."+char)
 	out := run("./a.out")
 	if out != "ok\n" {
 		t.Fatal("incorrect output: %q, want %q", out, "ok\n")
