@@ -164,6 +164,7 @@ main(int argc, char *argv[])
 	}
 
 	deadcode();
+	callgraph();
 	paramspace = "SP";	/* (FP) now (SP) on output */
 
 	doelf();
