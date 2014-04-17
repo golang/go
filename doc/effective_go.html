@@ -2056,10 +2056,22 @@ We pass the address of a <code>ByteSlice</code>
 because only <code>*ByteSlice</code> satisfies <code>io.Writer</code>.
 The rule about pointers vs. values for receivers is that value methods
 can be invoked on pointers and values, but pointer methods can only be
-invoked on pointers.  This is because pointer methods can modify the
-receiver; invoking them on a copy of the value would cause those
-modifications to be discarded.
+invoked on pointers.
 </p>
+
+<p>
+This rule arises because pointer methods can modify the receiver; invoking
+them on a value would cause the method to receive a copy of the value, so
+any modifications would be discarded.
+The language therefore disallows this mistake.
+There is a handy exception, though. When the value is addressable, the
+language takes care of the common case of invoking a pointer method on a
+value by inserting the address operator automatically.
+In our example, the variable <code>b</code> is addressable, so we can call
+its <code>Write</code> method with just <code>b.Write</code>. The compiler
+will rewrite that to <code>(&amp;b).Write</code> for us.
+</p>
+
 <p>
 By the way, the idea of using <code>Write</code> on a slice of bytes
 is central to the implementation of <code>bytes.Buffer</code>.
