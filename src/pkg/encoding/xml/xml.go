@@ -200,6 +200,8 @@ type Decoder struct {
 }
 
 // NewDecoder creates a new XML parser reading from r.
+// If r does not implement io.ByteReader, NewDecoder will
+// do its own buffering.
 func NewDecoder(r io.Reader) *Decoder {
 	d := &Decoder{
 		ns:       make(map[string]string),
