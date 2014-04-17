@@ -406,20 +406,22 @@ func readPkgdef(file string) (data []byte, err error) {
 	// Read from file, collecting header for __.PKGDEF.
 	// The header is from the beginning of the file until a line
 	// containing just "!". The first line must begin with "go object ".
-	var buf bytes.Buffer
-	scan := bufio.NewScanner(f)
-	for scan.Scan() {
-		line := scan.Text()
-		if buf.Len() == 0 && !strings.HasPrefix(line, "go object ") {
+	rbuf := bufio.NewReader(f)
+	var wbuf bytes.Buffer
+	for {
+		line, err := rbuf.ReadBytes('\n')
+		if err != nil {
+			return nil, err
+		}
+		if wbuf.Len() == 0 && !bytes.HasPrefix(line, []byte("go object ")) {
 			return nil, errors.New("not a Go object file")
 		}
-		if line == "!" {
+		if bytes.Equal(line, []byte("!\n")) {
 			break
 		}
-		buf.WriteString(line)
-		buf.WriteString("\n")
+		wbuf.Write(line)
 	}
-	return buf.Bytes(), nil
+	return wbuf.Bytes(), nil
 }
 
 // exactly16Bytes truncates the string if necessary so it is at most 16 bytes long,
