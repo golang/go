@@ -1594,7 +1594,7 @@ isgoconst(Node *n)
 
 	case ONAME:
 		l = n->sym->def;
-		if(l->op == OLITERAL && n->val.ctype != CTNIL)
+		if(l && l->op == OLITERAL && n->val.ctype != CTNIL)
 			return 1;
 		break;
 	
