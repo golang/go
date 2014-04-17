@@ -176,3 +176,89 @@ func TestWeb(t *testing.T) {
 		}
 	}
 }
+
+// Basic integration test for godoc -analysis=type (via HTTP interface).
+func TestTypeAnalysis(t *testing.T) {
+	// Write a fake GOROOT/GOPATH.
+	tmpdir, err := ioutil.TempDir("", "godoc-analysis")
+	if err != nil {
+		t.Fatal("ioutil.TempDir failed: %s", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	for _, f := range []struct{ file, content string }{
+		{"goroot/src/pkg/lib/lib.go", `
+package lib
+type T struct{}
+const C = 3
+var V T
+func (T) F() int { return C }
+`},
+		{"gopath/src/app/main.go", `
+package main
+import "lib"
+func main() { print(lib.V) }
+`},
+	} {
+		file := filepath.Join(tmpdir, f.file)
+		if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
+			t.Fatalf("MkdirAll(%s) failed: %s", filepath.Dir(file), err)
+		}
+		if err := ioutil.WriteFile(file, []byte(f.content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Start the server.
+	bin, cleanup := buildGodoc(t)
+	defer cleanup()
+	addr := serverAddress(t)
+	cmd := exec.Command(bin, fmt.Sprintf("-http=%s", addr), "-analysis=type")
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GOROOT=%s/goroot", tmpdir))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GOPATH=%s/gopath", tmpdir))
+	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	cmd.Args[0] = "godoc"
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("failed to start godoc: %s", err)
+	}
+	defer cmd.Process.Kill()
+	waitForServer(t, addr)
+
+	// Make an HTTP request and check for a regular expression match.
+	// The patterns are very crude checks that basic type information
+	// has been annotated onto the source view.
+	for _, test := range []struct{ url, pattern string }{
+		{"/src/pkg/lib/lib.go", "L2.*package .*Package docs for lib.*/pkg/lib"},
+		{"/src/pkg/lib/lib.go", "L3.*type .*type info for T.*struct"},
+		{"/src/pkg/lib/lib.go", "L5.*var V .*type T struct"},
+		{"/src/pkg/lib/lib.go", "L6.*func .*type T struct.*T.*return .*const C untyped int.*C"},
+
+		{"/src/pkg/app/main.go", "L2.*package .*Package docs for app"},
+		{"/src/pkg/app/main.go", "L3.*import .*Package docs for lib.*lib"},
+		{"/src/pkg/app/main.go", "L4.*func main.*package lib.*lib.*var lib.V lib.T.*V"},
+	} {
+		url := fmt.Sprintf("http://%s%s", addr, test.url)
+		resp, err := http.Get(url)
+		if err != nil {
+			t.Errorf("GET %s failed: %s", url, err)
+			continue
+		}
+		body, err := ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			t.Errorf("GET %s: failed to read body: %s (response: %v)", url, err, resp)
+			continue
+		}
+		match, err := regexp.Match(test.pattern, body)
+		if err != nil {
+			t.Errorf("regexp.Match(%q) failed: %s", test.pattern, err)
+			continue
+		}
+		if !match {
+			// This is a really ugly failure message.
+			t.Errorf("GET %s: body doesn't match %q, got:\n%s",
+				url, test.pattern, string(body))
+		}
+	}
+}

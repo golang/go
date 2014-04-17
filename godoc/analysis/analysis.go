@@ -389,7 +389,7 @@ func Run(pta bool, result *Result) {
 				rel := strings.TrimPrefix(abs, root)
 				if len(rel) < len(abs) {
 					a.path2url[abs] = "/src/pkg/" + rel
-					goto nextfile
+					continue nextfile
 				}
 			}
 
