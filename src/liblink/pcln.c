@@ -347,11 +347,11 @@ pciternext(Pciter *it)
 	
 	// pc delta
 	v = getvarint(&it->p);
-	it->nextpc = it->pc + v;
+	it->nextpc = it->pc + v*it->pcscale;
 }
 
 void
-pciterinit(Pciter *it, Pcdata *d)
+pciterinit(Link *ctxt, Pciter *it, Pcdata *d)
 {
 	it->d = *d;
 	it->p = it->d.p;
@@ -360,5 +360,6 @@ pciterinit(Pciter *it, Pcdata *d)
 	it->value = -1;
 	it->start = 1;
 	it->done = 0;
+	it->pcscale = ctxt->arch->minlc;
 	pciternext(it);
 }

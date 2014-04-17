@@ -124,6 +124,8 @@ struct	LSym
 	short	type;
 	short	version;
 	uchar	dupok;
+	uchar	external;
+	uchar	nosplit;
 	uchar	reachable;
 	uchar	cgoexport;
 	uchar	special;
@@ -229,7 +231,9 @@ enum
 {
 	R_ADDR = 1,
 	R_SIZE,
-	R_CALL,
+	R_CALL, // relocation for direct PC-relative call
+	R_CALLARM, // relocation for ARM direct call
+	R_CALLIND, // marker for indirect call (no actual relocating necessary)
 	R_CONST,
 	R_PCREL,
 	R_TLS,
@@ -313,19 +317,20 @@ struct Pcln
 };
 
 // Pcdata iterator.
-//	for(pciterinit(&it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
+//	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
 struct Pciter
 {
 	Pcdata d;
 	uchar *p;
 	uint32 pc;
 	uint32 nextpc;
+	uint32 pcscale;
 	int32 value;
 	int start;
 	int done;
 };
 
-void	pciterinit(Pciter*, Pcdata*);
+void	pciterinit(Link*, Pciter*, Pcdata*);
 void	pciternext(Pciter*);
 
 // symbol version, incremented each time a file is loaded.

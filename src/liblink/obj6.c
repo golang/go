@@ -417,15 +417,15 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	cursym->locals = textstksiz;
 
 	if(autoffset < StackSmall && !(p->from.scale & NOSPLIT)) {
-		for(q = p; q != nil; q = q->link)
+		for(q = p; q != nil; q = q->link) {
 			if(q->as == ACALL)
 				goto noleaf;
+			if((q->as == ADUFFCOPY || q->as == ADUFFZERO) && autoffset >= StackSmall - 8)
+				goto noleaf;
+		}
 		p->from.scale |= NOSPLIT;
 	noleaf:;
 	}
-
-	if((p->from.scale & NOSPLIT) && autoffset >= StackLimit)
-		ctxt->diag("nosplit func likely to overflow stack");
 
 	q = nil;
 	if(!(p->from.scale & NOSPLIT) || (p->from.scale & WRAPPER)) {

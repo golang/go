@@ -55,7 +55,7 @@ ftabaddstring(LSym *ftab, char *s)
 }
 
 static void
-renumberfiles(LSym **files, int nfiles, Pcdata *d)
+renumberfiles(Link *ctxt, LSym **files, int nfiles, Pcdata *d)
 {
 	int i;
 	LSym *f;
@@ -78,7 +78,7 @@ renumberfiles(LSym **files, int nfiles, Pcdata *d)
 	newval = -1;
 	memset(&out, 0, sizeof out);
 
-	for(pciterinit(&it, d); !it.done; pciternext(&it)) {
+	for(pciterinit(ctxt, &it, d); !it.done; pciternext(&it)) {
 		// value delta
 		oldval = it.value;
 		if(oldval == -1)
@@ -94,7 +94,7 @@ renumberfiles(LSym **files, int nfiles, Pcdata *d)
 		addvarint(&out, v);
 
 		// pc delta
-		addvarint(&out, it.nextpc - it.pc);
+		addvarint(&out, (it.nextpc - it.pc) / it.pcscale);
 	}
 	
 	// terminating value delta
@@ -179,10 +179,10 @@ pclntab(void)
 		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + frameptrsize);
 		
 		if(pcln != &zpcln) {
-			renumberfiles(pcln->file, pcln->nfile, &pcln->pcfile);
+			renumberfiles(ctxt, pcln->file, pcln->nfile, &pcln->pcfile);
 			if(0) {
 				// Sanity check the new numbering
-				for(pciterinit(&it, &pcln->pcfile); !it.done; pciternext(&it)) {
+				for(pciterinit(ctxt, &it, &pcln->pcfile); !it.done; pciternext(&it)) {
 					if(it.value < 1 || it.value > ctxt->nhistfile) {
 						diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, ctxt->nhistfile);
 						errorexit();

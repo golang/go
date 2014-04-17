@@ -1604,8 +1604,8 @@ writelines(void)
 
 		finddebugruntimepath(s);
 
-		pciterinit(&pcfile, &s->pcln->pcfile);
-		pciterinit(&pcline, &s->pcln->pcline);
+		pciterinit(ctxt, &pcfile, &s->pcln->pcfile);
+		pciterinit(ctxt, &pcline, &s->pcln->pcline);
 		epc = pc;
 		while(!pcfile.done && !pcline.done) {
 			if(epc - s->value >= pcfile.nextpc) {
@@ -1761,7 +1761,7 @@ writeframes(void)
 		addrput(0);	// initial location
 		addrput(0);	// address range
 
-		for(pciterinit(&pcsp, &s->pcln->pcsp); !pcsp.done; pciternext(&pcsp))
+		for(pciterinit(ctxt, &pcsp, &s->pcln->pcsp); !pcsp.done; pciternext(&pcsp))
 			putpccfadelta(pcsp.nextpc - pcsp.pc, PtrSize + pcsp.value);
 
 		fdesize = cpos() - fdeo - 4;	// exclude the length field.

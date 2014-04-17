@@ -200,6 +200,7 @@ adddynrel(LSym *s, Reloc *r)
 		return;
 
 	switch(r->type) {
+	case R_CALL:
 	case R_PCREL:
 		addpltsym(targ);
 		r->sym = linklookup(ctxt, ".plt", 0);
@@ -288,6 +289,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 			return -1;
 		break;
 		
+	case R_CALL:
 	case R_PCREL:
 		if(r->siz == 4) {
 			if(r->xsym->type == SDYNIMPORT)
@@ -342,6 +344,7 @@ machoreloc1(Reloc *r, vlong sectoff)
 	case R_ADDR:
 		v |= MACHO_X86_64_RELOC_UNSIGNED<<28;
 		break;
+	case R_CALL:
 	case R_PCREL:
 		v |= 1<<24; // pc-relative bit
 		v |= MACHO_X86_64_RELOC_BRANCH<<28;

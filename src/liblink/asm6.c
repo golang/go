@@ -124,6 +124,7 @@ enum
 	Z_rp,
 	Zbr,
 	Zcall,
+	Zcallindreg,
 	Zib_,
 	Zib_rp,
 	Zibo_m,
@@ -503,8 +504,8 @@ static uchar	yloop[] =
 };
 static uchar	ycall[] =
 {
-	Ynone,	Yml,	Zo_m64,	0,
-	Yrx,	Yrx,	Zo_m64,	2,
+	Ynone,	Yml,	Zcallindreg,	0,
+	Yrx,	Yrx,	Zcallindreg,	2,
 	Ynone,	Ybr,	Zcall,	1,
 	0
 };
@@ -2903,6 +2904,7 @@ found:
 		break;
 
 	case Zo_m64:
+	case_Zo_m64:
 		*ctxt->andptr++ = op;
 		asmandsz(ctxt, &p->to, o->op[z+1], 0, 1);
 		break;
@@ -3074,10 +3076,17 @@ found:
 		r->off = p->pc + ctxt->andptr - ctxt->and;
 		r->sym = p->to.sym;
 		r->add = p->to.offset;
-		r->type = R_PCREL;
+		r->type = R_CALL;
 		r->siz = 4;
 		put4(ctxt, 0);
 		break;
+
+	case Zcallindreg:
+		r = addrel(ctxt->cursym);
+		r->off = p->pc;
+		r->type = R_CALLIND;
+		r->siz = 0;
+		goto case_Zo_m64;
 
 	case Zbr:
 	case Zjmp:
@@ -3548,7 +3557,7 @@ asmins(Link *ctxt, Prog *p)
 			break;
 		if(ctxt->rexflag)
 			r->off++;
-		if(r->type == R_PCREL)
+		if(r->type == R_PCREL || r->type == R_CALL)
 			r->add -= p->pc + n - (r->off + r->siz);
 	}
 

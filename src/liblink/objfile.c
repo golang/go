@@ -43,12 +43,13 @@
 //	- gotype [symbol reference]
 //	- p [data block]
 //	- nr [int]
-//	- r [nr relocations]
+//	- r [nr relocations, sorted by off]
 //
 // If type == STEXT, there are a few more fields:
 //
 //	- args [int]
 //	- locals [int]
+//	- nosplit [int]
 //	- leaf [int]
 //	- nlocal [int]
 //	- local [nlocal automatics]
@@ -226,6 +227,8 @@ writeobj(Link *ctxt, Biobuf *b)
 					flag = p->from.scale;
 				if(flag & DUPOK)
 					s->dupok = 1;
+				if(flag & NOSPLIT)
+					s->nosplit = 1;
 				s->next = nil;
 				s->type = STEXT;
 				s->text = p;
@@ -294,6 +297,8 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 			Bprint(ctxt->bso, "t=%d ", s->type);
 		if(s->dupok)
 			Bprint(ctxt->bso, "dupok ");
+		if(s->nosplit)
+			Bprint(ctxt->bso, "nosplit ");
 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
 		if(s->type == STEXT) {
 			Bprint(ctxt->bso, " args=%#llux locals=%#llux", (uvlong)s->args, (uvlong)s->locals);
@@ -353,6 +358,7 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 	if(s->type == STEXT) {
 		wrint(b, s->args);
 		wrint(b, s->locals);
+		wrint(b, s->nosplit);
 		wrint(b, s->leaf);
 		n = 0;
 		for(a = s->autom; a != nil; a = a->link)
@@ -574,6 +580,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	if(s->type == STEXT) {
 		s->args = rdint(f);
 		s->locals = rdint(f);
+		s->nosplit = rdint(f);
 		s->leaf = rdint(f);
 		n = rdint(f);
 		for(i=0; i<n; i++) {
@@ -630,6 +637,8 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 			Bprint(ctxt->bso, "t=%d ", s->type);
 		if(s->dupok)
 			Bprint(ctxt->bso, "dupok ");
+		if(s->nosplit)
+			Bprint(ctxt->bso, "nosplit ");
 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
 		if(s->type == STEXT)
 			Bprint(ctxt->bso, " args=%#llux locals=%#llux", (uvlong)s->args, (uvlong)s->locals);

@@ -132,13 +132,11 @@ relocsym(LSym *s)
 {
 	Reloc *r;
 	LSym *rs;
-	Prog p;
 	int32 i, off, siz, fl;
 	vlong o;
 	uchar *cast;
 
 	ctxt->cursym = s;
-	memset(&p, 0, sizeof p);
 	for(r=s->r; r<s->r+s->nr; r++) {
 		r->done = 1;
 		off = r->off;
@@ -152,6 +150,8 @@ relocsym(LSym *s)
 			continue;
 		}
 		if(r->type >= 256)
+			continue;
+		if(r->siz == 0) // informational relocation - no work to do
 			continue;
 
 		// Solaris needs the ability to reference dynimport symbols.
@@ -244,6 +244,7 @@ relocsym(LSym *s)
 			}
 			o = symaddr(r->sym) + r->add;
 			break;
+		case R_CALL:
 		case R_PCREL:
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 			if(linkmode == LinkExternal && r->sym && r->sym->type != SCONST && r->sym->sect != ctxt->cursym->sect) {
@@ -299,7 +300,7 @@ relocsym(LSym *s)
 			s->p[off] = (int8)o;
 			break;
 		case 4:
-			if(r->type == R_PCREL) {
+			if(r->type == R_PCREL || r->type == R_CALL) {
 				if(o != (int32)o)
 					diag("pc-relative relocation address is too big: %#llx", o);
 			} else {
@@ -567,6 +568,9 @@ datblk(int32 addr, int32 size)
 					break;
 				case R_PCREL:
 					typ = "pcrel";
+					break;
+				case R_CALL:
+					typ = "call";
 					break;
 				}
 				Bprint(&bso, "\treloc %.8ux/%d %s %s+%#llx [%#llx]\n",

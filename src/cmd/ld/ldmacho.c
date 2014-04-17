@@ -641,22 +641,9 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 		if(!(s->cgoexport & CgoExportDynamic))
 			s->dynimplib = nil;	// satisfy dynimport
 		if(outer->type == STEXT) {
-			Prog *p;
-
-			if(s->text != P)
-				diag("%s sym#%d: duplicate definition of %s", pn, i, s->name);
-			// build a TEXT instruction with a unique pc
-			// just to make the rest of the linker happy.
-			// TODO: this is too 6l-specific ?
-			p = ctxt->arch->prg();
-			p->as = ATEXT;
-			p->from.type = D_EXTERN;
-			p->from.sym = s;
-			ctxt->arch->settextflag(p, 7);
-			p->to.type = D_CONST;
-			p->link = nil;
-			p->pc = ctxt->pc++;
-			s->text = p;
+			if(s->external && !s->dupok)
+				diag("%s: duplicate definition of %s", pn, s->name);
+			s->external = 1;
 		}
 		sym->sym = s;
 	}

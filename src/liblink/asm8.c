@@ -98,6 +98,7 @@ enum
 	Zcall,
 	Zcallcon,
 	Zcallind,
+	Zcallindreg,
 	Zib_,
 	Zib_rp,
 	Zibo_m,
@@ -414,8 +415,8 @@ static uchar	yloop[] =
 };
 static uchar	ycall[] =
 {
-	Ynone,	Yml,	Zo_m,	0,
-	Yrx,	Yrx,	Zo_m,	2,
+	Ynone,	Yml,	Zcallindreg,	0,
+	Yrx,	Yrx,	Zcallindreg,	2,
 	Ynone,	Ycol,	Zcallind,	2,
 	Ynone,	Ybr,	Zcall,	0,
 	Ynone,	Yi32,	Zcallcon,	1,
@@ -2289,6 +2290,7 @@ found:
 		break;
 
 	case Zo_m:
+	case_Zo_m:
 		*ctxt->andptr++ = op;
 		asmand(ctxt, &p->to, o->op[z+1]);
 		break;
@@ -2406,7 +2408,7 @@ found:
 		*ctxt->andptr++ = op;
 		r = addrel(ctxt->cursym);
 		r->off = p->pc + ctxt->andptr - ctxt->and;
-		r->type = R_PCREL;
+		r->type = R_CALL;
 		r->siz = 4;
 		r->sym = p->to.sym;
 		r->add = p->to.offset;
@@ -2508,6 +2510,13 @@ found:
 		r->sym = p->to.sym;
 		put4(ctxt, 0);
 		break;
+
+	case Zcallindreg:
+		r = addrel(ctxt->cursym);
+		r->off = p->pc;
+		r->type = R_CALLIND;
+		r->siz = 0;
+		goto case_Zo_m;
 
 	case Zbyte:
 		v = vaddr(ctxt, &p->from, &rel);
