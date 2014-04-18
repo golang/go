@@ -115,13 +115,21 @@ func splitPathIdent(arg string) (path, name string) {
 // with an error.
 func tryPrefixes(packages map[string]*types.Package, prefixes chan string, path string, imp types.Importer) (pkg *types.Package, err error) {
 	for prefix := range prefixes {
-		logf("\ttrying prefix %q\n", prefix)
-		prepath := filepath.Join(prefix, path)
-		pkg, err = imp(packages, prepath)
+		actual := path
+		if prefix == "" {
+			// don't use filepath.Join as it will sanitize the path and remove
+			// a leading dot and then the path is not recognized as a relative
+			// package path by the importers anymore
+			logf("\ttrying no prefix\n")
+		} else {
+			actual = filepath.Join(prefix, path)
+			logf("\ttrying prefix %q\n", prefix)
+		}
+		pkg, err = imp(packages, actual)
 		if err == nil {
 			break
 		}
-		logf("\t=> importing %q failed: %s\n", prepath, err)
+		logf("\t=> importing %q failed: %s\n", actual, err)
 	}
 	return
 }
