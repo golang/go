@@ -83,6 +83,23 @@ Lflag(char *arg)
 	ctxt->libdir[ctxt->nlibdir++] = arg;
 }
 
+/*
+ * Unix doesn't like it when we write to a running (or, sometimes,
+ * recently run) binary, so remove the output file before writing it.
+ * On Windows 7, remove() can force a subsequent create() to fail.
+ * S_ISREG() does not exist on Plan 9.
+ */
+static void
+mayberemoveoutfile(void) 
+{
+#if !(defined(_WIN32) || defined(PLAN9))
+	struct stat st;
+	if(lstat(outfile, &st) == 0 && !S_ISREG(st.st_mode))
+		return;
+#endif
+	remove(outfile);
+}
+
 void
 libinit(void)
 {
@@ -106,17 +123,7 @@ libinit(void)
 	}
 	Lflag(smprint("%s/pkg/%s_%s%s%s", goroot, goos, goarch, suffixsep, suffix));
 
-	// Unix doesn't like it when we write to a running (or, sometimes,
-	// recently run) binary, so remove the output file before writing it.
-	// On Windows 7, remove() can force the following create() to fail.
-	// S_ISREG() does not exist on Plan 9.
-#if !(defined(_WIN32) || defined(PLAN9))
-	{
-		struct stat st;
-		if(lstat(outfile, &st) == 0 && S_ISREG(st.st_mode))
-			remove(outfile);
-	}
-#endif
+	mayberemoveoutfile();
 	cout = create(outfile, 1, 0775);
 	if(cout < 0) {
 		diag("cannot create %s: %r", outfile);
@@ -139,7 +146,7 @@ errorexit(void)
 {
 	if(nerrors) {
 		if(cout >= 0)
-			remove(outfile);
+			mayberemoveoutfile();
 		exits("error");
 	}
 	exits(0);
