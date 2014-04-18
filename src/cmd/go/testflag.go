@@ -76,6 +76,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "p"},
 	{name: "x", boolVar: &buildX},
 	{name: "work", boolVar: &buildWork},
+	{name: "ccflags"},
 	{name: "gcflags"},
 	{name: "exec"},
 	{name: "ldflags"},
