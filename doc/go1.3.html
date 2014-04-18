@@ -153,6 +153,12 @@ access to coverage counters.
 </p>
 
 <p>
+The <a href="/cmd/go/"><code>go test</code></a> subcommand
+now always builds the package, even if it has no test files.
+Previously, it would do nothing if no test files were present.
+</p>
+
+<p>
 Finally, the go command now supports packages that import Objective-C
 files (suffixed <code>.m</code>) through cgo.
 </p>
