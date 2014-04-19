@@ -9,6 +9,7 @@ package main
 import (
 	"debug/pe"
 	"os"
+	"sort"
 )
 
 func peSymbols(f *os.File) []Sym {
@@ -17,6 +18,10 @@ func peSymbols(f *os.File) []Sym {
 		errorf("parsing %s: %v", f.Name(), err)
 		return nil
 	}
+
+	// Build sorted list of addresses of all symbols.
+	// We infer the size of a symbol by looking at where the next symbol begins.
+	var addrs []uint64
 
 	var imageBase uint64
 	switch oh := p.OptionalHeader.(type) {
@@ -78,6 +83,15 @@ func peSymbols(f *os.File) []Sym {
 			sym.Addr += imageBase + uint64(sect.VirtualAddress)
 		}
 		syms = append(syms, sym)
+		addrs = append(addrs, sym.Addr)
+	}
+
+	sort.Sort(uint64s(addrs))
+	for i := range syms {
+		j := sort.Search(len(addrs), func(x int) bool { return addrs[x] > syms[i].Addr })
+		if j < len(addrs) {
+			syms[i].Size = int64(addrs[j] - syms[i].Addr)
+		}
 	}
 
 	return syms
