@@ -1,13 +1,8 @@
 #!/bin/rc
 
 pattern='/umuldiv/d
-	/UTFmax/d
-	/Runesync/d
-	/Runeself/d
-	/Runeerror/d
-	/Runemax/d
 	/rune routines/,/^\/\*/d
 	/print routines/,/^\/\*/d
 	/error string for/,/^\/\*/d'
 
-sed -e $pattern /sys/include/libc.h
+sed -e $pattern /sys/include/libc.h | awk '/^enum/ && !n++, /^};/ {next}1'
