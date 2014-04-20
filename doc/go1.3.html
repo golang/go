@@ -403,7 +403,7 @@ when the binary's file name contains no path separators.
 
 <li>
 If the main goroutine calls 
-<a href="/pkg/runtime/#Goexit"><code>runtime.Goexit</code>
+<a href="/pkg/runtime/#Goexit"><code>runtime.Goexit</code></a>
 and all other goroutines finish execution, the program now always crashes,
 reporting a detected deadlock.
 Earlier versions of Go handled this situation inconsistently: most instances
