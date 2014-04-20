@@ -214,7 +214,7 @@ main(int argc, char *argv[])
 	// but not other values.	
 	p = getgoarch();
 	if(strncmp(p, thestring, strlen(thestring)) != 0)
-		fatal("cannot use %cg with GOARCH=%s", thechar, p);
+		sysfatal("cannot use %cg with GOARCH=%s", thechar, p);
 	goarch = p;
 
 	linkarchinit();
