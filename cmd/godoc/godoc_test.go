@@ -225,9 +225,12 @@ func main() { print(lib.V) }
 	defer cmd.Process.Kill()
 	waitForServer(t, addr)
 
+	t0 := time.Now()
+
 	// Make an HTTP request and check for a regular expression match.
 	// The patterns are very crude checks that basic type information
 	// has been annotated onto the source view.
+tryagain:
 	for _, test := range []struct{ url, pattern string }{
 		{"/src/pkg/lib/lib.go", "L2.*package .*Package docs for lib.*/pkg/lib"},
 		{"/src/pkg/lib/lib.go", "L3.*type .*type info for T.*struct"},
@@ -250,6 +253,17 @@ func main() { print(lib.V) }
 			t.Errorf("GET %s: failed to read body: %s (response: %v)", url, err, resp)
 			continue
 		}
+
+		if !bytes.Contains(body, []byte("Static analysis features")) {
+			// Type analysis results usually become available within
+			// ~4ms after godoc startup (for this input on my machine).
+			if elapsed := time.Since(t0); elapsed > 500*time.Millisecond {
+				t.Fatalf("type analysis results still unavailable after %s", elapsed)
+			}
+			time.Sleep(10 * time.Millisecond)
+			goto tryagain
+		}
+
 		match, err := regexp.Match(test.pattern, body)
 		if err != nil {
 			t.Errorf("regexp.Match(%q) failed: %s", test.pattern, err)
