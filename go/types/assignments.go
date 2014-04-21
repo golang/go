@@ -289,14 +289,13 @@ func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 				} else {
 					check.errorf(lhs.Pos(), "cannot assign to %s", lhs)
 				}
+				check.recordUse(ident, alt)
 			} else {
 				// declare new variable, possibly a blank (_) variable
 				obj = NewVar(ident.Pos(), check.pkg, name, nil)
 				if name != "_" {
 					newVars = append(newVars, obj)
 				}
-			}
-			if obj != nil {
 				check.recordDef(ident, obj)
 			}
 		} else {

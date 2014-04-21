@@ -7,8 +7,10 @@
 package types_test
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
+	"sort"
 	"strings"
 	"testing"
 
@@ -142,5 +144,62 @@ type T struct{} // receiver type after method declaration
 
 	if res1 != res2 {
 		t.Errorf("got %s (%p) != %s (%p)", res1, res2, res1, res2)
+	}
+}
+
+// This tests that uses of existing vars on the LHS of an assignment
+// are Uses, not Defs; and also that the (illegal) use of a non-var on
+// the LHS of an assignment is a Use nonetheless.
+func TestIssue7827(t *testing.T) {
+	const src = `
+package p
+func _() {
+	const w = 1        // defs w
+        x, y := 2, 3       // defs x, y
+        w, x, z := 4, 5, 6 // uses w, x, defs z; error: cannot assign to w
+        _, _, _ = x, y, z  // uses x, y, z
+}
+`
+	const want = `L3 defs func p._()
+L4 defs const w untyped int
+L5 defs var x int
+L5 defs var y int
+L6 defs var z int
+L6 uses const w untyped int
+L6 uses var x int
+L7 uses var x int
+L7 uses var y int
+L7 uses var z int`
+
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// don't abort at the first error
+	conf := Config{Error: func(err error) { t.Log(err) }}
+	defs := make(map[*ast.Ident]Object)
+	uses := make(map[*ast.Ident]Object)
+	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Defs: defs, Uses: uses})
+	if s := fmt.Sprint(err); !strings.HasSuffix(s, "cannot assign to w") {
+		t.Errorf("Check: unexpected error: %s", s)
+	}
+
+	var facts []string
+	for id, obj := range defs {
+		if obj != nil {
+			fact := fmt.Sprintf("L%d defs %s", fset.Position(id.Pos()).Line, obj)
+			facts = append(facts, fact)
+		}
+	}
+	for id, obj := range uses {
+		fact := fmt.Sprintf("L%d uses %s", fset.Position(id.Pos()).Line, obj)
+		facts = append(facts, fact)
+	}
+	sort.Strings(facts)
+
+	got := strings.Join(facts, "\n")
+	if got != want {
+		t.Errorf("Unexpected defs/uses\ngot:\n%s\nwant:\n%s", got, want)
 	}
 }
