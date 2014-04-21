@@ -160,6 +160,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			if err != nil {
 				fatalf("invalid flag argument for -%s: %v", f.name, err)
 			}
+		case "ccflags":
+			buildCcflags, err = splitQuotedFields(value)
+			if err != nil {
+				fatalf("invalid flag argument for -%s: %v", f.name, err)
+			}
 		case "gcflags":
 			buildGcflags, err = splitQuotedFields(value)
 			if err != nil {
