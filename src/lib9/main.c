@@ -52,8 +52,8 @@ main(int argc, char **argv)
 	// don't display the crash dialog
 	DWORD mode = SetErrorMode(SEM_NOGPFAULTERRORBOX);
 	SetErrorMode(mode | SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-	argv0 = argv[0];
 #endif
+	argv0 = argv[0];
 	p9main(argc, argv);
 	exits("main");
 	return 99;
