@@ -127,13 +127,18 @@ darwin-386 | darwin-amd64)
 	*) go test -ldflags '-linkmode=external'  || exit 1;;
 	esac
 	;;
-dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
+dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | freebsd-arm | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
 	go test -ldflags '-linkmode=external' || exit 1
 	go test -ldflags '-linkmode=auto' ../testtls || exit 1
 	go test -ldflags '-linkmode=external' ../testtls || exit 1
 	
 	case "$GOHOSTOS-$GOARCH" in
 	netbsd-386 | netbsd-amd64) ;; # no static linking
+	freebsd-arm) ;; # -fPIC compiled tls code will use __tls_get_addr instead
+	                # of __aeabi_read_tp, however, on FreeBSD/ARM, __tls_get_addr
+	                # is implemented in rtld-elf, so -fPIC isn't compatible with
+	                # static linking on FreeBSD/ARM with clang. (cgo depends on
+			# -fPIC fundamentally.)
 	*)
 		go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../testtls || exit 1
 		;;
