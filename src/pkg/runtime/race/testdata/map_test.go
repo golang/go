@@ -198,6 +198,7 @@ func TestRaceMapDeletePartKey(t *testing.T) {
 	delete(m, *k)
 	<-ch
 }
+
 func TestRaceMapInsertPartKey(t *testing.T) {
 	k := &Big{}
 	m := make(map[Big]bool)
@@ -209,6 +210,7 @@ func TestRaceMapInsertPartKey(t *testing.T) {
 	m[*k] = true
 	<-ch
 }
+
 func TestRaceMapInsertPartVal(t *testing.T) {
 	v := &Big{}
 	m := make(map[int]Big)
@@ -218,5 +220,21 @@ func TestRaceMapInsertPartVal(t *testing.T) {
 		ch <- true
 	}()
 	m[1] = *v
+	<-ch
+}
+
+// Test for issue 7561.
+func TestRaceMapAssignMultipleReturn(t *testing.T) {
+	connect := func() (int, error) { return 42, nil }
+	conns := make(map[int][]int)
+	conns[1] = []int{0}
+	ch := make(chan bool, 1)
+	var err error
+	go func() {
+		conns[1][0], err = connect()
+		ch <- true
+	}()
+	x := conns[1][0]
+	_ = x
 	<-ch
 }
