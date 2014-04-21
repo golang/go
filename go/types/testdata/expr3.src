@@ -44,6 +44,7 @@ func indexes() {
 	_ = a[10:0:10] /* ERROR "invalid slice indices" */
 	_ = a[0:10:0] /* ERROR "invalid slice indices" */
 	_ = a[10:0:0] /* ERROR "invalid slice indices" */
+	_ = &a /* ERROR "cannot take address" */ [:10]
 
 	pa := &a
 	_ = pa[9]
@@ -61,6 +62,7 @@ func indexes() {
 	_ = pa[10:0:10] /* ERROR "invalid slice indices" */
 	_ = pa[0:10:0] /* ERROR "invalid slice indices" */
 	_ = pa[10:0:0] /* ERROR "invalid slice indices" */
+	_ = &pa /* ERROR "cannot take address" */ [:10]
 
 	var b [0]int
 	_ = b[0 /* ERROR "index .* out of bounds" */ ]
@@ -87,6 +89,7 @@ func indexes() {
 	_ = s[10:0:10] /* ERROR "invalid slice indices" */
 	_ = s[0:10:0] /* ERROR "invalid slice indices" */
 	_ = s[10:0:0] /* ERROR "invalid slice indices" */
+	_ = &s /* ERROR "cannot take address" */ [:10]
 
 	var t string
 	_ = t[- /* ERROR "negative" */ 1]

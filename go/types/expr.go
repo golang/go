@@ -84,14 +84,12 @@ func (check *checker) unary(x *operand, op token.Token) {
 	case token.AND:
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
-		if _, ok := unparen(x.expr).(*ast.CompositeLit); ok {
-			x.mode = variable
-		}
-		if x.mode != variable {
+		if _, ok := unparen(x.expr).(*ast.CompositeLit); !ok && x.mode != variable {
 			check.invalidOp(x.pos(), "cannot take address of %s", x)
 			x.mode = invalid
 			return
 		}
+		x.mode = value
 		x.typ = &Pointer{base: x.typ}
 		return
 
@@ -1228,7 +1226,6 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				}
 				// spec: "For untyped string operands the result
 				// is a non-constant value of type string."
-				x.mode = value
 				if typ.kind == UntypedString {
 					x.typ = Typ[String]
 				}
@@ -1247,13 +1244,11 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 				valid = true
 				length = typ.len
-				x.mode = variable
 				x.typ = &Slice{elem: typ.elem}
 			}
 
 		case *Slice:
 			valid = true
-			x.mode = variable
 			// x.typ doesn't change
 		}
 
@@ -1261,6 +1256,8 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidOp(x.pos(), "cannot slice %s", x)
 			goto Error
 		}
+
+		x.mode = value
 
 		// spec: "Only the first index may be omitted; it defaults to 0."
 		if slice3(e) && (e.High == nil || sliceMax(e) == nil) {

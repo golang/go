@@ -21,6 +21,7 @@ var (
 	b10 = &true /* ERROR "cannot take address" */
 	b11 = &b0
 	b12 = <-b0 /* ERROR "cannot receive" */
+	b13 = & & /* ERROR "cannot take address" */ b0
 
 	// int
 	i0 = 1
