@@ -494,10 +494,7 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
 				clientc <- copyRes{n, err, d}
 			}()
 
-			tooLong := 2 * time.Second
-			if runtime.GOOS == "windows" {
-				tooLong = 5 * time.Second
-			}
+			tooLong := 5 * time.Second
 			select {
 			case res := <-clientc:
 				if isTimeout(res.err) {
