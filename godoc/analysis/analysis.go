@@ -311,17 +311,17 @@ func Run(pta bool, result *Result) {
 		errors[err.Pos] = append(errors[err.Pos], err.Msg)
 	}
 
-	var roots, args []string
+	var roots, args []string // roots[i] ends with os.PathSeparator
 
 	// Enumerate packages in $GOROOT.
-	root := runtime.GOROOT() + "/src/pkg/"
+	root := filepath.Join(runtime.GOROOT(), "src", "pkg") + string(os.PathSeparator)
 	roots = append(roots, root)
 	args = allPackages(root)
 	log.Printf("GOROOT=%s: %s\n", root, args)
 
 	// Enumerate packages in $GOPATH.
 	for i, dir := range filepath.SplitList(build.Default.GOPATH) {
-		root := dir + "/src/"
+		root := filepath.Join(dir, "src") + string(os.PathSeparator)
 		roots = append(roots, root)
 		pkgs := allPackages(root)
 		log.Printf("GOPATH[%d]=%s: %s\n", i, root, pkgs)
@@ -524,10 +524,8 @@ func (a linksByStart) Len() int           { return len(a) }
 // allPackages returns a new sorted slice of all packages beneath the
 // specified package root directory, e.g. $GOROOT/src/pkg or $GOPATH/src.
 // Derived from from go/ssa/stdlib_test.go
+// root must end with os.PathSeparator.
 func allPackages(root string) []string {
-	if !strings.HasSuffix(root, "/") {
-		root += "/"
-	}
 	var pkgs []string
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if info == nil {
