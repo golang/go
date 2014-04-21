@@ -144,9 +144,8 @@ type Info struct {
 	// Defs maps identifiers to the objects they define (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).
 	// For identifiers that do not denote objects (e.g., the package name
-	// in package clauses, blank identifiers on the lhs of assignments, or
-	// symbolic variables t in t := x.(type) of type switch headers), the
-	// corresponding objects are nil.
+	// in package clauses, or symbolic variables t in t := x.(type) of
+	// type switch headers), the corresponding objects are nil.
 	//
 	// For an anonymous field, Defs returns the field *Var it defines.
 	//
