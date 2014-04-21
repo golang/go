@@ -19,6 +19,10 @@ import (
 var testData uint32
 
 func checkSymbols(t *testing.T, nmoutput []byte) {
+	switch runtime.GOOS {
+	case "linux", "darwin", "solaris":
+		t.Skip("skipping test; see http://golang.org/issue/7829")
+	}
 	var checkSymbolsFound, testDataFound bool
 	scanner := bufio.NewScanner(bytes.NewBuffer(nmoutput))
 	for scanner.Scan() {
