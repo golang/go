@@ -436,6 +436,7 @@ func make1() {
 	_ = make([]int, 10 /* ERROR length and capacity swapped */ , 9)
 	_ = make([]int, 1 /* ERROR overflows */ <<100, 12345)
 	_ = make([]int, m /* ERROR must be integer */ )
+        _ = &make /* ERROR cannot take address */ ([]int, 0)
 
 	// maps
 	_ = make /* ERROR arguments */ (map[int]string, 10, 20)
@@ -446,6 +447,7 @@ func make1() {
 	_ = make(map[int]float32, int64(n))
 	_ = make(map[string]bool, 10.0)
 	_ = make(map[string]bool, 10.0<<s)
+        _ = &make /* ERROR cannot take address */ (map[string]bool)
 
 	// channels
 	_ = make /* ERROR arguments */ (chan int, 10, 20)
@@ -456,6 +458,7 @@ func make1() {
 	_ = make(chan string, int64(n))
 	_ = make(chan bool, 10.0)
 	_ = make(chan bool, 10.0<<s)
+        _ = &make /* ERROR cannot take address */ (chan bool)
 
 	make /* ERROR not used */ ([]int, 10)
 
@@ -479,6 +482,7 @@ func new1() {
 	q := new(*float64)
 	_ = *p == **q
 	new /* ERROR not used */ (int)
+        _ = &new /* ERROR cannot take address */ (int)
 
 	_ = new(int... /* ERROR invalid use of \.\.\. */ )
 }

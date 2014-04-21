@@ -397,7 +397,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.invalidArg(call.Args[1].Pos(), "length and capacity swapped")
 			// safe to continue
 		}
-		x.mode = variable
+		x.mode = value
 		x.typ = T
 		if check.Types != nil {
 			params := [...]Type{T, Typ[Int], Typ[Int]}
@@ -412,7 +412,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		x.mode = variable
+		x.mode = value
 		x.typ = &Pointer{base: T}
 		if check.Types != nil {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, T))
