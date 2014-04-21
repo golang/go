@@ -127,7 +127,7 @@ func Test(t *testing.T) {
 		case "plan9":
 			cmd = exec.Command("/bin/diff", "-c", golden, got)
 		default:
-			cmd = exec.Command("/usr/bin/diff", "-u", "-N", golden, got)
+			cmd = exec.Command("/usr/bin/diff", "-u", golden, got)
 		}
 		buf := new(bytes.Buffer)
 		cmd.Stdout = buf
