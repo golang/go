@@ -5,12 +5,54 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
+
+var testData uint32
+
+func checkSymbols(t *testing.T, nmoutput []byte) {
+	var checkSymbolsFound, testDataFound bool
+	scanner := bufio.NewScanner(bytes.NewBuffer(nmoutput))
+	for scanner.Scan() {
+		f := strings.Fields(scanner.Text())
+		if len(f) < 3 {
+			t.Error("nm must have at least 3 columns")
+			continue
+		}
+		switch f[2] {
+		case "cmd/nm.checkSymbols":
+			checkSymbolsFound = true
+			addr := "0x" + f[0]
+			if addr != fmt.Sprintf("%p", checkSymbols) {
+				t.Errorf("nm shows wrong address %v for checkSymbols (%p)", addr, checkSymbols)
+			}
+		case "cmd/nm.testData":
+			testDataFound = true
+			addr := "0x" + f[0]
+			if addr != fmt.Sprintf("%p", &testData) {
+				t.Errorf("nm shows wrong address %v for testData (%p)", addr, &testData)
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Errorf("error while reading symbols: %v", err)
+		return
+	}
+	if !checkSymbolsFound {
+		t.Error("nm shows no checkSymbols symbol")
+	}
+	if !testDataFound {
+		t.Error("nm shows no testData symbol")
+	}
+}
 
 func TestNM(t *testing.T) {
 	out, err := exec.Command("go", "build", "-o", "testnm.exe", "cmd/nm").CombinedOutput()
@@ -37,4 +79,11 @@ func TestNM(t *testing.T) {
 			t.Fatalf("go tool nm %v: %v\n%s", exepath, err, string(out))
 		}
 	}
+
+	cmd := exec.Command("./testnm.exe", os.Args[0])
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go tool nm %v: %v\n%s", os.Args[0], err, string(out))
+	}
+	checkSymbols(t, out)
 }

@@ -509,6 +509,17 @@ addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *got
 	ncoffsym++;
 }
 
+static vlong
+datoffsect(vlong addr)
+{
+	if(addr >= segdata.vaddr)
+		return addr - segdata.vaddr;
+	if(addr >= segtext.vaddr)
+		return addr - segtext.vaddr;
+	diag("datoff %#llx", addr);
+	return 0;
+}
+
 static void
 addsymtable(void)
 {
@@ -540,7 +551,7 @@ addsymtable(void)
 			lputl(0);
 			lputl(s->strtbloff);
 		}
-		lputl(datoff(s->sym->value));
+		lputl(datoffsect(s->sym->value));
 		wputl(s->sect);
 		wputl(0x0308);  // "array of structs"
 		cput(2);        // storage class: external
