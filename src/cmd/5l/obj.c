@@ -62,6 +62,7 @@ archinit(void)
 			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
 		break;
 	case Hlinux:
+	case Hfreebsd:
 		break;
 	}
 
