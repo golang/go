@@ -61,7 +61,7 @@ package {{.Name}}
 
 */}}{{if .Vars}}{{range .Vars}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{example_text $ .Name "    "}}{{end}}{{end}}{{/*
+{{range $name := .Names}}{{example_text $ $name "    "}}{{end}}{{end}}{{end}}{{/*
 
 ---------------------------------------
 
