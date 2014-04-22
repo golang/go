@@ -652,7 +652,7 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
 	e1 := Split(s1, "")
 	e2 := Split(s2, "")
 	for i, c1 := range e1 {
-		if i > len(e2) {
+		if i >= len(e2) {
 			break
 		}
 		r1, _ := utf8.DecodeRuneInString(c1)
