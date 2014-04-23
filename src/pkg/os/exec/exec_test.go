@@ -224,10 +224,21 @@ func TestPipeLookPathLeak(t *testing.T) {
 			t.Fatal("unexpected success")
 		}
 	}
-	open, lsof := numOpenFDS(t)
-	fdGrowth := open - fd0
-	if fdGrowth > 2 {
-		t.Errorf("leaked %d fds; want ~0; have:\n%s\noriginally:\n%s", fdGrowth, lsof, lsof0)
+	for triesLeft := 3; triesLeft >= 0; triesLeft-- {
+		open, lsof := numOpenFDS(t)
+		fdGrowth := open - fd0
+		if fdGrowth > 2 {
+			if triesLeft > 0 {
+				// Work around what appears to be a race with Linux's
+				// proc filesystem (as used by lsof). It seems to only
+				// be eventually consistent. Give it awhile to settle.
+				// See golang.org/issue/7808
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			t.Errorf("leaked %d fds; want ~0; have:\n%s\noriginally:\n%s", fdGrowth, lsof, lsof0)
+		}
+		break
 	}
 }
 
