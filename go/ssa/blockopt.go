@@ -117,6 +117,14 @@ func fuseBlocks(f *Function, a *BasicBlock) bool {
 	if len(b.Preds) != 1 {
 		return false
 	}
+
+	// Degenerate &&/|| ops may result in a straight-line CFG
+	// containing φ-nodes. (Ideally we'd replace such them with
+	// their sole operand but that requires Referrers, built later.)
+	if b.hasPhi() {
+		return false // not sound without further effort
+	}
+
 	// Eliminate jump at end of A, then copy all of B across.
 	a.Instrs = append(a.Instrs[:len(a.Instrs)-1], b.Instrs...)
 	for _, instr := range b.Instrs {

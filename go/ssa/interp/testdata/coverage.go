@@ -636,3 +636,9 @@ func init() {
 		panic(got)
 	}
 }
+
+// Regression test for issue 7840 (covered by SSA sanity checker).
+func bug7840() bool {
+	// This creates a single-predecessor block with a φ-node.
+	return false && a == 0 && a == 0
+}
