@@ -375,7 +375,7 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 		return 0, 0, &OpError{"write", fd.net, fd.raddr, err}
 	}
 	for {
-		err = syscall.Sendmsg(fd.sysfd, p, oob, sa, 0)
+		n, err = syscall.SendmsgN(fd.sysfd, p, oob, sa, 0)
 		if err == syscall.EAGAIN {
 			if err = fd.pd.WaitWrite(); err == nil {
 				continue
@@ -384,7 +384,6 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 		break
 	}
 	if err == nil {
-		n = len(p)
 		oobn = len(oob)
 	} else {
 		err = &OpError{"write", fd.net, fd.raddr, err}
