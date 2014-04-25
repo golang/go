@@ -274,26 +274,36 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
 	for {
 		// Search buffer.
 		if i := bytes.IndexByte(b.buf[b.r:b.w], delim); i >= 0 {
-			line := b.buf[b.r : b.r+i+1]
+			line = b.buf[b.r : b.r+i+1]
 			b.r += i + 1
-			return line, nil
+			break
 		}
 
 		// Pending error?
 		if b.err != nil {
-			line := b.buf[b.r:b.w]
+			line = b.buf[b.r:b.w]
 			b.r = b.w
-			return line, b.readErr()
+			err = b.readErr()
+			break
 		}
 
 		// Buffer full?
 		if n := b.Buffered(); n >= len(b.buf) {
 			b.r = b.w
-			return b.buf, ErrBufferFull
+			line = b.buf
+			err = ErrBufferFull
+			break
 		}
 
 		b.fill() // buffer is not full
 	}
+
+	// Handle last byte, if any.
+	if i := len(line) - 1; i >= 0 {
+		b.lastByte = int(line[i])
+	}
+
+	return
 }
 
 // ReadLine is a low-level line-reading primitive. Most callers should use
@@ -309,6 +319,9 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
 //
 // The text returned from ReadLine does not include the line end ("\r\n" or "\n").
 // No indication or error is given if the input ends without a final line end.
+// Calling UnreadByte after ReadLine will always unread the last byte read
+// (possibly a character belonging to the line end) even if that byte is not
+// part of the line returned by ReadLine.
 func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
 	line, err = b.ReadSlice('\n')
 	if err == ErrBufferFull {
