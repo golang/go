@@ -348,6 +348,62 @@ func TestUnreadByteMultiple(t *testing.T) {
 	}
 }
 
+func TestUnreadByteOthers(t *testing.T) {
+	// A list of readers to use in conjuction with UnreadByte.
+	var readers = []func(*Reader, byte) ([]byte, error){
+		(*Reader).ReadBytes,
+		(*Reader).ReadSlice,
+		func(r *Reader, delim byte) ([]byte, error) {
+			data, err := r.ReadString(delim)
+			return []byte(data), err
+		},
+		// ReadLine doesn't fit the data/pattern easily
+		// so we leave it out. It should be covered via
+		// the ReadSlice test since ReadLine simply calls
+		// ReadSlice, and it's that function that handles
+		// the last byte.
+	}
+
+	// Try all readers with UnreadByte.
+	for rno, read := range readers {
+		// Some input data that is longer than the minimum reader buffer size.
+		const n = 10
+		var buf bytes.Buffer
+		for i := 0; i < n; i++ {
+			buf.WriteString("abcdefg")
+		}
+
+		r := NewReaderSize(&buf, minReadBufferSize)
+		readTo := func(delim byte, want string) {
+			data, err := read(r, delim)
+			if err != nil {
+				t.Fatalf("#%d: unexpected error reading to %c: %v", rno, delim, err)
+			}
+			if got := string(data); got != want {
+				t.Fatalf("#%d: got %q, want %q", rno, got, want)
+			}
+		}
+
+		// Read the data with occasional UnreadByte calls.
+		for i := 0; i < n; i++ {
+			readTo('d', "abcd")
+			for j := 0; j < 3; j++ {
+				if err := r.UnreadByte(); err != nil {
+					t.Fatalf("#%d: unexpected error on UnreadByte: %v", rno, err)
+				}
+				readTo('d', "d")
+			}
+			readTo('g', "efg")
+		}
+
+		// All data should have been read.
+		_, err := r.ReadByte()
+		if err != io.EOF {
+			t.Errorf("#%d: got error %v; want EOF", rno, err)
+		}
+	}
+}
+
 // Test that UnreadRune fails if the preceding operation was not a ReadRune.
 func TestUnreadRuneError(t *testing.T) {
 	buf := make([]byte, 3) // All runes in this test are 3 bytes long
