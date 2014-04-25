@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -113,6 +114,7 @@ var dumpTests = []dumpTest{
 }
 
 func TestDumpRequest(t *testing.T) {
+	numg0 := runtime.NumGoroutine()
 	for i, tt := range dumpTests {
 		setBody := func() {
 			if tt.Body == nil {
@@ -155,6 +157,9 @@ func TestDumpRequest(t *testing.T) {
 				continue
 			}
 		}
+	}
+	if dg := runtime.NumGoroutine() - numg0; dg > 4 {
+		t.Errorf("Unexpectedly large number of new goroutines: %d new", dg)
 	}
 }
 
