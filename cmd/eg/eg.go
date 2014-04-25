@@ -42,7 +42,7 @@ func doMain() error {
 	args := flag.Args()
 
 	if *helpFlag {
-		fmt.Fprintf(os.Stderr, eg.Help)
+		fmt.Fprint(os.Stderr, eg.Help)
 		os.Exit(2)
 	}
 
