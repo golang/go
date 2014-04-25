@@ -1971,16 +1971,23 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	}
 }
 
+type eofReaderWithWriteTo struct{}
+
+func (eofReaderWithWriteTo) WriteTo(io.Writer) (int64, error) { return 0, nil }
+func (eofReaderWithWriteTo) Read([]byte) (int, error)         { return 0, io.EOF }
+
 // eofReader is a non-nil io.ReadCloser that always returns EOF.
-// It embeds a *strings.Reader so it still has a WriteTo method
-// and io.Copy won't need a buffer.
+// It has a WriteTo method so io.Copy won't need a buffer.
 var eofReader = &struct {
-	*strings.Reader
+	eofReaderWithWriteTo
 	io.Closer
 }{
-	strings.NewReader(""),
+	eofReaderWithWriteTo{},
 	ioutil.NopCloser(nil),
 }
+
+// Verify that an io.Copy from an eofReader won't require a buffer.
+var _ io.WriterTo = eofReader
 
 // initNPNRequest is an HTTP handler that initializes certain
 // uninitialized fields in its *Request. Such partially-initialized

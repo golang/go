@@ -2461,6 +2461,39 @@ func TestServerKeepAlivesEnabled(t *testing.T) {
 	}
 }
 
+// golang.org/issue/7856
+func TestServerEmptyBodyRace(t *testing.T) {
+	defer afterTest(t)
+	var n int32
+	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		atomic.AddInt32(&n, 1)
+	}))
+	defer ts.Close()
+	var wg sync.WaitGroup
+	const reqs = 20
+	for i := 0; i < reqs; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			res, err := Get(ts.URL)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer res.Body.Close()
+			_, err = io.Copy(ioutil.Discard, res.Body)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+		}()
+	}
+	wg.Wait()
+	if got := atomic.LoadInt32(&n); got != reqs {
+		t.Errorf("handler ran %d times; want %d", got, reqs)
+	}
+}
+
 func TestServerConnStateNew(t *testing.T) {
 	sawNew := false // if the test is buggy, we'll race on this variable.
 	srv := &Server{
