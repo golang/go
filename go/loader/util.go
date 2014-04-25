@@ -71,29 +71,9 @@ func parseFiles(fset *token.FileSet, ctxt *build.Context, displayPath func(strin
 
 // ---------- Internal helpers ----------
 
-// unparen returns e with any enclosing parentheses stripped.
-func unparen(e ast.Expr) ast.Expr {
-	for {
-		p, ok := e.(*ast.ParenExpr)
-		if !ok {
-			break
-		}
-		e = p.X
-	}
-	return e
-}
-
-func unreachable() {
-	panic("unreachable")
-}
-
 // TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)
 func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
 	p := int(pos)
 	base := f.Base()
 	return base <= p && p < base+f.Size()
-}
-
-func filename(file *ast.File, fset *token.FileSet) string {
-	return fset.File(file.Pos()).Name()
 }

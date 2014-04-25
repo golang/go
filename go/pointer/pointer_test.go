@@ -423,17 +423,6 @@ func checkPointsToExpectation(e *expectation, pts pointer.PointsToSet, lineMappi
 	return ok
 }
 
-// underlying returns the underlying type of typ.  Copied from go/types.
-func underlyingType(typ types.Type) types.Type {
-	if typ, ok := typ.(*types.Named); ok {
-		return typ.Underlying() // underlying types are never NamedTypes
-	}
-	if typ == nil {
-		panic("underlying(nil)")
-	}
-	return typ
-}
-
 func checkTypesExpectation(e *expectation, pts pointer.PointsToSet, typ types.Type) bool {
 	var expected typeutil.Map
 	var surplus typeutil.Map
