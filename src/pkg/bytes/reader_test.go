@@ -115,6 +115,27 @@ func TestReaderAtConcurrent(t *testing.T) {
 	wg.Wait()
 }
 
+func TestEmptyReaderConcurrent(t *testing.T) {
+	// Test for the race detector, to verify a Read that doesn't yield any bytes
+	// is okay to use from multiple goroutines. This was our historic behavior.
+	// See golang.org/issue/7856
+	r := NewReader([]byte{})
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			var buf [1]byte
+			r.Read(buf[:])
+		}()
+		go func() {
+			defer wg.Done()
+			r.Read(nil)
+		}()
+	}
+	wg.Wait()
+}
+
 func TestReaderWriteTo(t *testing.T) {
 	for i := 0; i < 30; i += 3 {
 		var l int
@@ -164,7 +185,7 @@ var UnreadRuneErrorTests = []struct {
 	name string
 	f    func(*Reader)
 }{
-	{"Read", func(r *Reader) { r.Read([]byte{}) }},
+	{"Read", func(r *Reader) { r.Read([]byte{0}) }},
 	{"ReadByte", func(r *Reader) { r.ReadByte() }},
 	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
 	{"Seek", func(r *Reader) { r.Seek(0, 1) }},

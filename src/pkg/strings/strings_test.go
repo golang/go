@@ -862,7 +862,7 @@ var UnreadRuneErrorTests = []struct {
 	name string
 	f    func(*Reader)
 }{
-	{"Read", func(r *Reader) { r.Read([]byte{}) }},
+	{"Read", func(r *Reader) { r.Read([]byte{0}) }},
 	{"ReadByte", func(r *Reader) { r.ReadByte() }},
 	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
 	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
