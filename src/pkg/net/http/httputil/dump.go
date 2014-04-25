@@ -107,6 +107,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 			return &dumpConn{io.MultiWriter(&buf, pw), dr}, nil
 		},
 	}
+	defer t.CloseIdleConnections()
 
 	_, err := t.RoundTrip(reqSend)
 
