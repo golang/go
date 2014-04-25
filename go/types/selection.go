@@ -84,6 +84,7 @@ func (s *Selection) Type() Type {
 		// TODO(gri) Similar code is already in call.go - factor!
 		sig := *s.obj.(*Func).typ.(*Signature)
 		arg0 := *sig.recv
+		sig.recv = nil
 		arg0.typ = s.recv
 		var params []*Var
 		if sig.params != nil {
