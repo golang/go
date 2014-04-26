@@ -705,13 +705,14 @@ func TestGobEncoderExtraIndirect(t *testing.T) {
 }
 
 // Another bug: this caused a crash with the new Go1 Time type.
-// We throw in a gob-encoding array, to test another case of isZero
-
+// We throw in a gob-encoding array, to test another case of isZero,
+// and a struct containing an nil interface, to test a third.
 type isZeroBug struct {
 	T time.Time
 	S string
 	I int
 	A isZeroBugArray
+	F isZeroBugInterface
 }
 
 type isZeroBugArray [2]uint8
@@ -731,8 +732,20 @@ func (a *isZeroBugArray) GobDecode(data []byte) error {
 	return nil
 }
 
+type isZeroBugInterface struct {
+	I interface{}
+}
+
+func (i isZeroBugInterface) GobEncode() (b []byte, e error) {
+	return []byte{}, nil
+}
+
+func (i *isZeroBugInterface) GobDecode(data []byte) error {
+	return nil
+}
+
 func TestGobEncodeIsZero(t *testing.T) {
-	x := isZeroBug{time.Now(), "hello", -55, isZeroBugArray{1, 2}}
+	x := isZeroBug{time.Now(), "hello", -55, isZeroBugArray{1, 2}, isZeroBugInterface{}}
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
 	err := enc.Encode(x)
