@@ -9,6 +9,23 @@ Besides this overview you might want to consult the
 <a href="http://sourceware.org/gdb/current/onlinedocs/gdb/">GDB manual</a>.
 </i></p>
 
+<p>
+GDB does not understand Go programs well.
+The stack management, threading, and runtime contain aspects that differ
+enough from the execution model GDB expects that they can confuse
+the debugger, even when the program is compiled with gccgo.
+As a consequence, although GDB can be useful in some situations, it is
+not a reliable debugger for Go programs, particularly heavily concurrent ones.
+Moreover, it is not a priority for the Go project to address these issues, which
+are difficult.
+In short, the instructions below should be taken only as a guide to how
+to use GDB when it works, not as a guarantee of success.
+</p>
+
+<p>
+In time, a more Go-centric debugging architecture may be required.
+</p>
+
 <h2 id="Introduction">Introduction</h2>
 
 <p>
