@@ -172,16 +172,29 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
 	return fi, err
 }
 
+// Darwin and FreeBSD can't read or write 2GB+ at a time,
+// even on 64-bit systems. See golang.org/issue/7812.
+const (
+	needsMaxRW = runtime.GOOS == "darwin" || runtime.GOOS == "freebsd"
+	maxRW      = 2<<30 - 1
+)
+
 // read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an error, if any.
 func (f *File) read(b []byte) (n int, err error) {
+	if needsMaxRW && len(b) > maxRW {
+		b = b[:maxRW]
+	}
 	return syscall.Read(f.fd, b)
 }
 
 // pread reads len(b) bytes from the File starting at byte offset off.
 // It returns the number of bytes read and the error, if any.
-// EOF is signaled by a zero count with err set to 0.
+// EOF is signaled by a zero count with err set to nil.
 func (f *File) pread(b []byte, off int64) (n int, err error) {
+	if needsMaxRW && len(b) > maxRW {
+		b = b[:maxRW]
+	}
 	return syscall.Pread(f.fd, b, off)
 }
 
@@ -189,13 +202,22 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 // It returns the number of bytes written and an error, if any.
 func (f *File) write(b []byte) (n int, err error) {
 	for {
-		m, err := syscall.Write(f.fd, b)
+		bcap := b
+		if needsMaxRW && len(bcap) > maxRW {
+			bcap = bcap[:maxRW]
+		}
+		m, err := syscall.Write(f.fd, bcap)
 		n += m
 
 		// If the syscall wrote some data but not all (short write)
 		// or it returned EINTR, then assume it stopped early for
 		// reasons that are uninteresting to the caller, and try again.
-		if 0 < m && m < len(b) || err == syscall.EINTR {
+		if 0 < m && m < len(bcap) || err == syscall.EINTR {
+			b = b[m:]
+			continue
+		}
+
+		if needsMaxRW && len(bcap) != len(b) && err == nil {
 			b = b[m:]
 			continue
 		}
@@ -207,6 +229,9 @@ func (f *File) write(b []byte) (n int, err error) {
 // pwrite writes len(b) bytes to the File starting at byte offset off.
 // It returns the number of bytes written and an error, if any.
 func (f *File) pwrite(b []byte, off int64) (n int, err error) {
+	if needsMaxRW && len(b) > maxRW {
+		b = b[:maxRW]
+	}
 	return syscall.Pwrite(f.fd, b, off)
 }
 
