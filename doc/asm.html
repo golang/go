@@ -201,7 +201,7 @@ TEXT runtime·profileloop(SB),NOSPLIT,$8
 
 <p>
 In the general case, the frame size is followed by an argument size, separated by a minus sign.
-(It's not an subtraction, just idiosyncratic syntax.)
+(It's not a subtraction, just idiosyncratic syntax.)
 The frame size <code>$24-8</code> states that the function has a 24-byte frame
 and is called with 8 bytes of argument, which live on the caller's frame.
 If <code>NOSPLIT</code> is not specified for the <code>TEXT</code>,
