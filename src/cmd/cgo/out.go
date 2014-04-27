@@ -1225,7 +1225,10 @@ struct __go_string __go_byte_array_to_string(const void* p, intgo len);
 struct __go_open_array __go_string_to_byte_array (struct __go_string str);
 
 const char *_cgoPREFIX_Cfunc_CString(struct __go_string s) {
-	return strndup((const char*)s.__data, s.__length);
+	char *p = malloc(s.__length+1);
+	memmove(p, s.__data, s.__length);
+	p[s.__length] = 0;
+	return p;
 }
 
 struct __go_string _cgoPREFIX_Cfunc_GoString(char *p) {
