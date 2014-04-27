@@ -197,3 +197,14 @@ func TestBig(t *testing.T) {
 		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i)
 	}
 }
+
+func TestDecoderInternalWhitespace(t *testing.T) {
+	s := strings.Repeat(" ", 2048) + "z"
+	decoded, err := ioutil.ReadAll(NewDecoder(strings.NewReader(s)))
+	if err != nil {
+		t.Errorf("Decode gave error %v", err)
+	}
+	if want := []byte("\000\000\000\000"); !bytes.Equal(want, decoded) {
+		t.Errorf("Decode failed: got %v, want %v", decoded, want)
+	}
+}
