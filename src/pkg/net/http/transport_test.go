@@ -1412,7 +1412,6 @@ func TestTransportCancelRequestInDial(t *testing.T) {
 	case <-gotres:
 	case <-time.After(5 * time.Second):
 		panic("hang. events are: " + logbuf.String())
-		t.Fatal("timeout; cancel didn't work?")
 	}
 
 	got := logbuf.String()
@@ -1869,10 +1868,10 @@ func TestTransportTLSHandshakeTimeout(t *testing.T) {
 			return
 		}
 		if !ne.Timeout() {
-			t.Error("expected timeout error; got %v", err)
+			t.Errorf("expected timeout error; got %v", err)
 		}
 		if !strings.Contains(err.Error(), "handshake timeout") {
-			t.Error("expected 'handshake timeout' in error; got %v", err)
+			t.Errorf("expected 'handshake timeout' in error; got %v", err)
 		}
 	}()
 	select {

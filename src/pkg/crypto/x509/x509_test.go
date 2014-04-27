@@ -395,7 +395,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		}
 
 		if cert.SignatureAlgorithm != test.sigAlgo {
-			t.Errorf("%s: SignatureAlgorithm wasn't copied from template. Got %s, want %s", test.name, cert.SignatureAlgorithm, test.sigAlgo)
+			t.Errorf("%s: SignatureAlgorithm wasn't copied from template. Got %v, want %v", test.name, cert.SignatureAlgorithm, test.sigAlgo)
 		}
 
 		if !reflect.DeepEqual(cert.ExtKeyUsage, testExtKeyUsage) {

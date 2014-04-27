@@ -336,7 +336,7 @@ func TestDecoderIssue7733(t *testing.T) {
 	s, err := StdEncoding.DecodeString("YWJjZA=====")
 	want := CorruptInputError(8)
 	if !reflect.DeepEqual(want, err) {
-		t.Errorf("Error = %v; want CorruptInputError(8)")
+		t.Errorf("Error = %v; want CorruptInputError(8)", err)
 	}
 	if string(s) != "abcd" {
 		t.Errorf("DecodeString = %q; want abcd", s)

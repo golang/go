@@ -184,7 +184,7 @@ func TestOpenFat(t *testing.T) {
 		ftArch := &fileTests[i]
 
 		if arch.Cpu != ftArch.hdr.Cpu || arch.SubCpu != ftArch.hdr.SubCpu {
-			t.Error("OpenFat: architecture #%d got cpu=%#x subtype=%#x, expected cpu=%#x, subtype=%#x", i, arch.Cpu, arch.SubCpu, ftArch.hdr.Cpu, ftArch.hdr.SubCpu)
+			t.Errorf("OpenFat: architecture #%d got cpu=%#x subtype=%#x, expected cpu=%#x, subtype=%#x", i, arch.Cpu, arch.SubCpu, ftArch.hdr.Cpu, ftArch.hdr.SubCpu)
 		}
 
 		if !reflect.DeepEqual(arch.FileHeader, ftArch.hdr) {
@@ -202,9 +202,9 @@ func TestOpenFatFailure(t *testing.T) {
 	filename = "testdata/gcc-386-darwin-exec" // not a fat Mach-O
 	ff, err := OpenFat(filename)
 	if err != ErrNotFat {
-		t.Errorf("OpenFat %s: got %v, want ErrNotFat", err)
+		t.Errorf("OpenFat %s: got %v, want ErrNotFat", filename, err)
 	}
 	if ff != nil {
-		t.Errorf("OpenFat %s: got %v, want nil", ff)
+		t.Errorf("OpenFat %s: got %v, want nil", filename, ff)
 	}
 }

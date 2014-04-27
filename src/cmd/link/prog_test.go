@@ -75,11 +75,11 @@ func diffProg(p, q *Prog) []string {
 
 		for j := 0; j < len(pseg.Sections) || j < len(qseg.Sections); j++ {
 			if j >= len(pseg.Sections) {
-				errors = append(errors, fmt.Sprintf("segment %q missing section %q", qseg.Sections[i].Name))
+				errors = append(errors, fmt.Sprintf("segment %q missing section %q", pseg.Name, qseg.Sections[i].Name))
 				continue
 			}
 			if j >= len(qseg.Sections) {
-				errors = append(errors, fmt.Sprintf("segment %q has extra section %q", pseg.Sections[i].Name))
+				errors = append(errors, fmt.Sprintf("segment %q has extra section %q", pseg.Name, pseg.Sections[i].Name))
 				continue
 			}
 			psect := pseg.Sections[j]

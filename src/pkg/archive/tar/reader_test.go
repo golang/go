@@ -618,7 +618,7 @@ func TestSparseFileReader(t *testing.T) {
 			tot: test.realSize,
 		}
 		if sfr.numBytes() != nb {
-			t.Errorf("test %d: Before reading, sfr.numBytes() = %d, want %d", i, sfr.numBytes, nb)
+			t.Errorf("test %d: Before reading, sfr.numBytes() = %d, want %d", i, sfr.numBytes(), nb)
 		}
 		buf, err := ioutil.ReadAll(sfr)
 		if err != nil {

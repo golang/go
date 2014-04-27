@@ -210,7 +210,7 @@ func TestHello(t *testing.T) {
 	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
 	out := run("./a.out")
 	if out != "hello world\n" {
-		t.Fatal("incorrect output: %q, want %q", out, "hello world\n")
+		t.Fatalf("incorrect output: %q, want %q", out, "hello world\n")
 	}
 }
 
@@ -271,7 +271,7 @@ func TestLargeDefs(t *testing.T) {
 	run("go", "tool", char+"l", "-L", ".", "-o", "a.out", "main."+char)
 	out := run("./a.out")
 	if out != "ok\n" {
-		t.Fatal("incorrect output: %q, want %q", out, "ok\n")
+		t.Fatalf("incorrect output: %q, want %q", out, "ok\n")
 	}
 }
 
