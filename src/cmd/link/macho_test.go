@@ -324,7 +324,7 @@ func machoRead(arch machoArch, data []byte) (*Prog, error) {
 			}
 			if load.Maxprot != maxprot || load.Prot != prot {
 				errorf("segment %q protection is %d, %d, want %d, %d",
-					load.Maxprot, load.Prot, maxprot, prot)
+					load.Name, load.Maxprot, load.Prot, maxprot, prot)
 			}
 
 			for len(msects) > 0 && msects[0].Addr < load.Addr+load.Memsz {
@@ -374,7 +374,7 @@ func machoRead(arch machoArch, data []byte) (*Prog, error) {
 					flags = 1
 				}
 				if msect.Flags != flags {
-					errorf("section %q flags = %#x, want %#x", msect.Flags, flags)
+					errorf("section %q flags = %#x, want %#x", msect.Name, msect.Flags, flags)
 				}
 				sect := &Section{
 					Name:     strings.ToLower(strings.TrimPrefix(msect.Name, "__")),

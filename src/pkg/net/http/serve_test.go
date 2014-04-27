@@ -2325,7 +2325,7 @@ func TestServerConnState(t *testing.T) {
 	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
 	ts.Config.ConnState = func(c net.Conn, state ConnState) {
 		if c == nil {
-			t.Error("nil conn seen in state %s", state)
+			t.Errorf("nil conn seen in state %s", state)
 			return
 		}
 		mu.Lock()

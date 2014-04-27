@@ -92,6 +92,6 @@ func checkDeadSlice(t *testing.T, obj, name string, old, new []*Sym) {
 		new = new[1:]
 	}
 	if len(new) > 0 {
-		t.Errorf("%s: %s has unexpected symbols: %v", new)
+		t.Errorf("%s: %s has unexpected symbols: %v", obj, name, new)
 	}
 }
