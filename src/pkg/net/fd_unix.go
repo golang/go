@@ -482,7 +482,6 @@ func dupCloseOnExecOld(fd int) (newfd int, err error) {
 func (fd *netFD) dup() (f *os.File, err error) {
 	ns, err := dupCloseOnExec(fd.sysfd)
 	if err != nil {
-		syscall.ForkLock.RUnlock()
 		return nil, &OpError{"dup", fd.net, fd.laddr, err}
 	}
 
