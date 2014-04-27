@@ -19,8 +19,9 @@ var (
 )
 
 const (
-	darwin64Bit = runtime.GOOS == "darwin" && sizeofPtr == 8
-	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
+	darwin64Bit    = runtime.GOOS == "darwin" && sizeofPtr == 8
+	dragonfly64Bit = runtime.GOOS == "dragonfly" && sizeofPtr == 8
+	netbsd32Bit    = runtime.GOOS == "netbsd" && sizeofPtr == 4
 )
 
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
