@@ -567,7 +567,6 @@ dumpobjs(void)
 		s = runtime·mheap.allspans[i];
 		if(s->state != MSpanInUse)
 			continue;
-		runtime·MSpan_EnsureSwept(s);
 		p = (byte*)(s->start << PageShift);
 		size = s->elemsize;
 		n = (s->npages << PageShift) / size;
@@ -694,6 +693,15 @@ static void
 mdump(G *gp)
 {
 	byte *hdr;
+	uintptr i;
+	MSpan *s;
+
+	// make sure we're done sweeping
+	for(i = 0; i < runtime·mheap.nspan; i++) {
+		s = runtime·mheap.allspans[i];
+		if(s->state == MSpanInUse)
+			runtime·MSpan_EnsureSwept(s);
+	}
 
 	runtime·memclr((byte*)&typecache[0], sizeof(typecache));
 	hdr = (byte*)"go1.3 heap dump\n";
