@@ -399,7 +399,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 		{"tcp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
 	}
 	switch runtime.GOOS {
-	case "darwin", "freebsd", "opensbd", "netbsd":
+	case "darwin", "freebsd", "openbsd", "netbsd":
 		tests = append(tests, []test{
 			{"tcp", "[localhost%" + ifi.Name + "]:0", true},
 			{"tcp6", "[localhost%" + ifi.Name + "]:0", true},
