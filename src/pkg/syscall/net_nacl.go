@@ -808,11 +808,26 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn, recvflags int, from Soc
 }
 
 func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) error {
+	_, err := SendmsgN(fd, p, oob, to, flags)
+	return err
+}
+
+func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
 	f, err := fdToNetFile(fd)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return f.sendto(p, flags, to)
+	switch f.sotype {
+	case SOCK_STREAM:
+		n, err = f.write(p)
+	case SOCK_DGRAM:
+		n = len(p)
+		err = f.sendto(p, flags, to)
+	}
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
 func GetsockoptInt(fd, level, opt int) (value int, err error) {
