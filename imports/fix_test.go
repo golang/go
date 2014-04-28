@@ -521,6 +521,25 @@ import str "strings"
 var _ = str.HasPrefix
 `,
 	},
+
+	{
+		name: "fragment with main",
+		in:   `func main(){fmt.Println("Hello, world")}`,
+		out: `package main
+
+import "fmt"
+
+func main() { fmt.Println("Hello, world") }
+`,
+	},
+
+	{
+		name: "fragment without main",
+		in:   `func notmain(){fmt.Println("Hello, world")}`,
+		out: `import "fmt"
+
+func notmain() { fmt.Println("Hello, world") }`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
@@ -539,11 +558,18 @@ func TestFixImports(t *testing.T) {
 		return simplePkgs[pkgName], pkgName == "str", nil
 	}
 
+	options := &Options{
+		TabWidth:  8,
+		TabIndent: true,
+		Comments:  true,
+		Fragment:  true,
+	}
+
 	for _, tt := range tests {
 		if *only != "" && tt.name != *only {
 			continue
 		}
-		buf, err := Process(tt.name+".go", []byte(tt.in), nil)
+		buf, err := Process(tt.name+".go", []byte(tt.in), options)
 		if err != nil {
 			t.Errorf("error on %q: %v", tt.name, err)
 			continue

@@ -30,6 +30,7 @@ var (
 		TabWidth:  8,
 		TabIndent: true,
 		Comments:  true,
+		Fragment:  true,
 	}
 	exitCode = 0
 )

@@ -119,13 +119,19 @@ func parse(fset *token.FileSet, filename string, src []byte, opt *Options) (*ast
 	// by inserting a package clause.
 	// Insert using a ;, not a newline, so that the line numbers
 	// in psrc match the ones in src.
-	psrc := append([]byte("package p;"), src...)
+	psrc := append([]byte("package main;"), src...)
 	file, err = parser.ParseFile(fset, filename, psrc, parserMode)
 	if err == nil {
+		// If a main function exists, we will assume this is a main
+		// package and leave the file.
+		if containsMainFunc(file) {
+			return file, nil, nil
+		}
+
 		adjust := func(orig, src []byte) []byte {
 			// Remove the package clause.
 			// Gofmt has turned the ; into a \n.
-			src = src[len("package p\n"):]
+			src = src[len("package main\n"):]
 			return matchSpace(orig, src)
 		}
 		return file, adjust, nil
@@ -160,6 +166,30 @@ func parse(fset *token.FileSet, filename string, src []byte, opt *Options) (*ast
 
 	// Failed, and out of options.
 	return nil, nil, err
+}
+
+// containsMainFunc checks if a file contains a function declaration with the
+// function signature 'func main()'
+func containsMainFunc(file *ast.File) bool {
+	for _, decl := range file.Decls {
+		if f, ok := decl.(*ast.FuncDecl); ok {
+			if f.Name.Name != "main" {
+				continue
+			}
+
+			if len(f.Type.Params.List) != 0 {
+				continue
+			}
+
+			if f.Type.Results != nil && len(f.Type.Results.List) != 0 {
+				continue
+			}
+
+			return true
+		}
+	}
+
+	return false
 }
 
 func cutSpace(b []byte) (before, middle, after []byte) {
