@@ -687,6 +687,21 @@ runtime·allocm(P *p)
 	return mp;
 }
 
+static G*
+allocg(void)
+{
+	G *gp;
+	static Type *gtype;
+	
+	if(gtype == nil) {
+		Eface e;
+		runtime·gc_g_ptr(&e);
+		gtype = ((PtrType*)e.type)->elem;
+	}
+	gp = runtime·cnew(gtype);
+	return gp;
+}
+
 static M* lockextra(bool nilokay);
 static void unlockextra(M*);
 
@@ -1746,7 +1761,7 @@ runtime·malg(int32 stacksize)
 		runtime·throw("runtime: bad stack.h");
 	}
 
-	newg = runtime·malloc(sizeof(G));
+	newg = allocg();
 	if(stacksize >= 0) {
 		stacksize = runtime·round2(StackSystem + stacksize);
 		if(g == m->g0) {
