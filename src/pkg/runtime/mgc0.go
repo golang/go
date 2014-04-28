@@ -9,6 +9,11 @@ func gc_m_ptr(ret *interface{}) {
 	*ret = (*m)(nil)
 }
 
+// Called from C. Returns the Go type *g.
+func gc_g_ptr(ret *interface{}) {
+	*ret = (*g)(nil)
+}
+
 // Called from C. Returns the Go type *itab.
 func gc_itab_ptr(ret *interface{}) {
 	*ret = (*itab)(nil)

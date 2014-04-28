@@ -631,6 +631,7 @@ BitVector	runtime·stackmapdata(StackMap *stackmap, int32 n);
 
 // defined in mgc0.go
 void	runtime·gc_m_ptr(Eface*);
+void	runtime·gc_g_ptr(Eface*);
 void	runtime·gc_itab_ptr(Eface*);
 
 void	runtime·memorydump(void);
