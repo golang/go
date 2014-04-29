@@ -471,7 +471,7 @@ func TestParsePAXHeader(t *testing.T) {
 func TestParsePAXTime(t *testing.T) {
 	// Some valid PAX time values
 	timestamps := map[string]time.Time{
-		"1350244992.023960108":  time.Unix(1350244992, 23960108), // The commoon case
+		"1350244992.023960108":  time.Unix(1350244992, 23960108), // The common case
 		"1350244992.02396010":   time.Unix(1350244992, 23960100), // Lower precision value
 		"1350244992.0239601089": time.Unix(1350244992, 23960108), // Higher precision value
 		"1350244992":            time.Unix(1350244992, 0),        // Low precision value

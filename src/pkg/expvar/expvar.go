@@ -205,7 +205,7 @@ func (v *Map) Do(f func(KeyValue)) {
 	v.doLocked(f)
 }
 
-// doRLocked calls f for each entry in the map.
+// doLocked calls f for each entry in the map.
 // v.mu must be held for reads.
 func (v *Map) doLocked(f func(KeyValue)) {
 	for _, k := range v.keys {

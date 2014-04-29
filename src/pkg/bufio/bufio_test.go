@@ -349,7 +349,7 @@ func TestUnreadByteMultiple(t *testing.T) {
 }
 
 func TestUnreadByteOthers(t *testing.T) {
-	// A list of readers to use in conjuction with UnreadByte.
+	// A list of readers to use in conjunction with UnreadByte.
 	var readers = []func(*Reader, byte) ([]byte, error){
 		(*Reader).ReadBytes,
 		(*Reader).ReadSlice,

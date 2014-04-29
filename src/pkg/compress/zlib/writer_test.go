@@ -120,7 +120,7 @@ func testFileLevelDictReset(t *testing.T, fn string, level int, dict []byte) {
 	}
 	out := buf.String()
 
-	// Reset and comprses again.
+	// Reset and compress again.
 	buf2 := new(bytes.Buffer)
 	zlibw.Reset(buf2)
 	_, err = zlibw.Write(b0)

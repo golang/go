@@ -496,7 +496,7 @@ func syncDecl(p *parser) {
 // is valid to begin with, safePos returns pos. If pos is out-of-range,
 // safePos returns the EOF position.
 //
-// This is hack to work around "artifical" end positions in the AST which
+// This is hack to work around "artificial" end positions in the AST which
 // are computed by adding 1 to (presumably valid) token positions. If the
 // token positions are invalid due to parse errors, the resulting end position
 // may be past the file's EOF position, which would lead to panics if used

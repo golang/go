@@ -255,7 +255,7 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 		}
 	}
 
-	// Strip "Output:" commment and adjust body end position.
+	// Strip "Output:" comment and adjust body end position.
 	body, comments = stripOutputComment(body, comments)
 
 	// Synthesize import declaration.
@@ -318,7 +318,7 @@ func playExampleFile(file *ast.File) *ast.File {
 	return &f
 }
 
-// stripOutputComment finds and removes an "Output:" commment from body
+// stripOutputComment finds and removes an "Output:" comment from body
 // and comments, and adjusts the body block's end position.
 func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast.BlockStmt, []*ast.CommentGroup) {
 	// Do nothing if no "Output:" comment found.

@@ -517,7 +517,7 @@ const (
 	DT_INIT_ARRAY   DynTag = 25 /* Address of the array of pointers to initialization functions */
 	DT_FINI_ARRAY   DynTag = 26 /* Address of the array of pointers to termination functions */
 	DT_INIT_ARRAYSZ DynTag = 27 /* Size in bytes of the array of initialization functions. */
-	DT_FINI_ARRAYSZ DynTag = 28 /* Size in bytes of the array of terminationfunctions. */
+	DT_FINI_ARRAYSZ DynTag = 28 /* Size in bytes of the array of termination functions. */
 	DT_RUNPATH      DynTag = 29 /* String table offset of a null-terminated library search path string. */
 	DT_FLAGS        DynTag = 30 /* Object specific flag values. */
 	DT_ENCODING     DynTag = 32 /* Values greater than or equal to DT_ENCODING

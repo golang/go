@@ -214,7 +214,7 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
 // hashed is the result of hashing the input message using the given hash
 // function and sig is the signature. A valid signature is indicated by
 // returning a nil error. If hash is zero then hashed is used directly. This
-// isn't advisable except for interopability.
+// isn't advisable except for interoperability.
 func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) (err error) {
 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
 	if err != nil {

@@ -4,7 +4,7 @@
 
 package rsa
 
-// This file implementes the PSS signature scheme [1].
+// This file implements the PSS signature scheme [1].
 //
 // [1] http://www.rsa.com/rsalabs/pkcs/files/h11300-wp-pkcs-1v2-2-rsa-cryptography-standard.pdf
 
@@ -189,7 +189,7 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
 
 // signPSSWithSalt calculates the signature of hashed using PSS [1] with specified salt.
 // Note that hashed must be the result of hashing the input message using the
-// given hash funcion. salt is a random sequence of bytes whose length will be
+// given hash function. salt is a random sequence of bytes whose length will be
 // later used to verify the signature.
 func signPSSWithSalt(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) (s []byte, err error) {
 	nBits := priv.N.BitLen()
@@ -233,7 +233,7 @@ func (opts *PSSOptions) saltLength() int {
 
 // SignPSS calculates the signature of hashed using RSASSA-PSS [1].
 // Note that hashed must be the result of hashing the input message using the
-// given hash funcion. The opts argument may be nil, in which case sensible
+// given hash function. The opts argument may be nil, in which case sensible
 // defaults are used.
 func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, opts *PSSOptions) (s []byte, err error) {
 	saltLength := opts.saltLength()

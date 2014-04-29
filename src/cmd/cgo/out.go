@@ -485,7 +485,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	fgcc.Close()
 }
 
-// fixGo convers the internal Name.Go field into the name we should show
+// fixGo converts the internal Name.Go field into the name we should show
 // to users in error messages. There's only one for now: on input we rewrite
 // C.malloc into C._CMalloc, so change it back here.
 func fixGo(name string) string {

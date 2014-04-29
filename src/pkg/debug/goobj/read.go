@@ -135,7 +135,7 @@ type SymID struct {
 
 	// Version is zero for symbols with global visibility.
 	// Symbols with only file visibility (such as file-level static
-	// declarations in C) have a non-zero version distinguising
+	// declarations in C) have a non-zero version distinguishing
 	// a symbol in one file from a symbol of the same name
 	// in another file
 	Version int

@@ -54,7 +54,7 @@ func (e *WriteError) Error() string {
 	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
 }
 
-// Note that much of the implemenation of huffmanDecoder is also copied
+// Note that much of the implementation of huffmanDecoder is also copied
 // into gen.go (in package main) for the purpose of precomputing the
 // fixed huffman tables so they can be included statically.
 

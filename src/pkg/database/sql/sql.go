@@ -405,7 +405,7 @@ func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
 // This value should be larger than the maximum typical value
 // used for db.maxOpen. If maxOpen is significantly larger than
 // connectionRequestQueueSize then it is possible for ALL calls into the *DB
-// to block until the connectionOpener can satify the backlog of requests.
+// to block until the connectionOpener can satisfy the backlog of requests.
 var connectionRequestQueueSize = 1000000
 
 // Open opens a database specified by its database driver name and a
@@ -778,7 +778,7 @@ func (db *DB) putConn(dc *driverConn, err error) {
 // connection limit will not be exceeded.
 // If err != nil, the value of dc is ignored.
 // If err == nil, then dc must not equal nil.
-// If a connRequest was fullfilled or the *driverConn was placed in the
+// If a connRequest was fulfilled or the *driverConn was placed in the
 // freeConn list, then true is returned, otherwise false is returned.
 func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 	if db.connRequests.Len() > 0 {

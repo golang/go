@@ -63,7 +63,7 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 		return nil, fmt.Errorf("print: %s", err)
 	}
 
-	// make sure formated output is syntactically correct
+	// make sure formatted output is syntactically correct
 	res := buf.Bytes()
 	if _, err := parser.ParseFile(fset, "", res, 0); err != nil {
 		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
@@ -179,7 +179,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 		// test running past time out
 		t.Errorf("%s: running too slowly", source)
 	case <-cc:
-		// test finished within alloted time margin
+		// test finished within allotted time margin
 	}
 }
 
@@ -212,7 +212,7 @@ func TestFiles(t *testing.T) {
 	}
 }
 
-// TestLineComments, using a simple test case, checks that consequtive line
+// TestLineComments, using a simple test case, checks that consecutive line
 // comments are properly terminated with a newline even if the AST position
 // information is incorrect.
 //
