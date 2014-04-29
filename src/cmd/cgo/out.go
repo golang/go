@@ -880,9 +880,23 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm *os.File) {
 		fmt.Fprintf(cdeclBuf, ")")
 		cParams := cdeclBuf.String()
 
+		// We need to use a name that will be exported by the
+		// Go code; otherwise gccgo will make it static and we
+		// will not be able to link against it from the C
+		// code.
 		goName := "Cgoexp_" + exp.ExpName
 		fmt.Fprintf(fgcch, `extern %s %s %s __asm__("%s.%s");`, cRet, goName, cParams, gccgoSymbolPrefix, goName)
 		fmt.Fprint(fgcch, "\n")
+
+		// Use a #define so that the C code that includes
+		// cgo_export.h will be able to refer to the Go
+		// function using the expected name.
+		fmt.Fprintf(fgcch, "#define %s %s\n", exp.ExpName, goName)
+
+		// Use a #undef in _cgo_export.c so that we ignore the
+		// #define from cgo_export.h, since here we are
+		// defining the real function.
+		fmt.Fprintf(fgcc, "#undef %s\n", exp.ExpName)
 
 		fmt.Fprint(fgcc, "\n")
 		fmt.Fprintf(fgcc, "%s %s %s {\n", cRet, exp.ExpName, cParams)
