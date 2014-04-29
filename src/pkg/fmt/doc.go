@@ -82,7 +82,7 @@
 	number of digits necessary to identify the value uniquely.
 
 	For complex numbers, the width and precision apply to the two
-	components independently and the result is parenthsized, so %f applied
+	components independently and the result is parenthesized, so %f applied
 	to 1.2+3.4i produces (1.200000+3.400000i).
 
 	Other flags:

@@ -277,7 +277,7 @@ func TestScanLineNoNewline(t *testing.T) {
 	testNoNewline(text, lines, t)
 }
 
-// Test that the line splitter handles a final line with a carriage return but nonewline.
+// Test that the line splitter handles a final line with a carriage return but no newline.
 func TestScanLineReturnButNoNewline(t *testing.T) {
 	const text = "abcdefghijklmn\nopqrstuvwxyz\r"
 	lines := []string{

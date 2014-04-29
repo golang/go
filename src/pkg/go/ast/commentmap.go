@@ -149,7 +149,7 @@ func NewCommentMap(fset *token.FileSet, node Node, comments []*CommentGroup) Com
 
 	// set up comment reader r
 	tmp := make([]*CommentGroup, len(comments))
-	copy(tmp, comments) // don't change incomming comments
+	copy(tmp, comments) // don't change incoming comments
 	sortComments(tmp)
 	r := commentListReader{fset: fset, list: tmp} // !r.eol() because len(comments) > 0
 	r.next()

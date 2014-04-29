@@ -29,7 +29,7 @@ const (
 
 var testfiles = []string{
 	// Digits is the digits of the irrational number e. Its decimal representation
-	// does not repeat, but there are only 10 posible digits, so it should be
+	// does not repeat, but there are only 10 possible digits, so it should be
 	// reasonably compressible.
 	digits: "../testdata/e.txt",
 	// Twain is Project Gutenberg's edition of Mark Twain's classic English novel.

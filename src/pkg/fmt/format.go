@@ -369,7 +369,7 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
 	switch slice[1] {
 	case '-', '+':
 		// If we're zero padding, want the sign before the leading zeros.
-		// Achieve this by writing the sign out and padding the postive number.
+		// Achieve this by writing the sign out and padding the positive number.
 		if f.zero && f.widPresent && f.wid > len(slice) {
 			f.buf.WriteByte(slice[1])
 			f.wid--

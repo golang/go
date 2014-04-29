@@ -135,7 +135,7 @@ func (s *Scanner) Scan() bool {
 		}
 		// Must read more data.
 		// First, shift data to beginning of buffer if there's lots of empty space
-		// or space is neded.
+		// or space is needed.
 		if s.start > 0 && (s.end == len(s.buf) || s.start > len(s.buf)/2) {
 			copy(s.buf, s.buf[s.start:s.end])
 			s.end -= s.start
