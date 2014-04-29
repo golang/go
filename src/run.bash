@@ -6,6 +6,7 @@
 set -e
 
 eval $(go env)
+export GOROOT   # the api test requires GOROOT to be set.
 
 unset CDPATH	# in case user has it set
 unset GOPATH    # we disallow local import for non-local packages, if $GOROOT happens
@@ -140,7 +141,11 @@ dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | freebsd-arm | li
 	                # static linking on FreeBSD/ARM with clang. (cgo depends on
 			# -fPIC fundamentally.)
 	*)
-		go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../testtls || exit 1
+		if ! $CC -xc -o /dev/null -static - 2>/dev/null <<<'int main() {}' ; then
+			echo "No support for static linking found (lacks libc.a?), skip cgo static linking test."
+		else
+			go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../testtls || exit 1
+		fi
 		;;
 	esac
 	;;
