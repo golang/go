@@ -447,7 +447,8 @@ func (b *builder) init() {
 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.work)
 		}
 		if !buildWork {
-			atexit(func() { os.RemoveAll(b.work) })
+			workdir := b.work
+			atexit(func() { os.RemoveAll(workdir) })
 		}
 	}
 }
