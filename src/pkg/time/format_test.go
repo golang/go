@@ -331,6 +331,7 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
 	{"GMT-5 hi there", 5, true},
 	{"GMT-51 hi there", 3, true},
 	{"ChST hi there", 4, true},
+	{"MeST hi there", 4, true},
 	{"MSDx", 3, true},
 	{"MSDY", 0, false}, // four letters must end in T.
 	{"ESAST hi", 5, true},
