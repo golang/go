@@ -1037,8 +1037,8 @@ func parseTimeZone(value string) (length int, ok bool) {
 	if len(value) < 3 {
 		return 0, false
 	}
-	// Special case 1: This is the only zone with a lower-case letter.
-	if len(value) >= 4 && value[:4] == "ChST" {
+	// Special case 1: ChST and MeST are the only zones with a lower-case letter.
+	if len(value) >= 4 && (value[:4] == "ChST" || value[:4] == "MeST") {
 		return 4, true
 	}
 	// Special case 2: GMT may have an hour offset; treat it specially.
