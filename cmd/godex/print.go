@@ -310,13 +310,15 @@ func valString(v exact.Value, floatFmt bool) string {
 
 func (p *printer) printObj(obj types.Object) {
 	p.print(obj.Name())
-	// don't write untyped types (for constants)
+
 	typ, basic := obj.Type().Underlying().(*types.Basic)
-	if basic && typ.Info()&types.IsUntyped == 0 {
+	if basic && typ.Info()&types.IsUntyped != 0 {
+		// don't write untyped types
+	} else {
 		p.print(" ")
-		p.writeType(p.pkg, typ)
+		p.writeType(p.pkg, obj.Type())
 	}
-	// write constant value
+
 	if obj, ok := obj.(*types.Const); ok {
 		floatFmt := basic && typ.Info()&(types.IsFloat|types.IsComplex) != 0
 		p.print(" = ")
