@@ -161,7 +161,7 @@ copyin(Type *t, void *src, void **dst)
 	if(size <= sizeof(*dst))
 		alg->copy(size, dst, src);
 	else {
-		p = runtime·mal(size);
+		p = runtime·cnew(t);
 		alg->copy(size, p, src);
 		*dst = p;
 	}
