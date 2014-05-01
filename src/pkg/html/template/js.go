@@ -99,7 +99,7 @@ func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
 	return jsCtxDivOp
 }
 
-// regexPrecederKeywords is a set of reserved JS keywords that can precede a
+// regexpPrecederKeywords is a set of reserved JS keywords that can precede a
 // regular expression in JS source.
 var regexpPrecederKeywords = map[string]bool{
 	"break":      true,
