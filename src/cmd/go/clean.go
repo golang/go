@@ -153,7 +153,7 @@ func clean(p *Package) {
 		elem+".test.exe",
 	)
 
-	// Remove a potental executable for each .go file in the directory that
+	// Remove a potential executable for each .go file in the directory that
 	// is not part of the directory's package.
 	for _, dir := range dirs {
 		name := dir.Name()

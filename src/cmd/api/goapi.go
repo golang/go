@@ -817,7 +817,7 @@ func (w *Walker) emitFunc(f *types.Func) {
 func (w *Walker) emitMethod(m *types.Selection) {
 	sig := m.Type().(*types.Signature)
 	recv := sig.Recv().Type()
-	// report exported methods with unexported reveiver base type
+	// report exported methods with unexported receiver base type
 	if true {
 		base := recv
 		if p, _ := recv.(*types.Pointer); p != nil {

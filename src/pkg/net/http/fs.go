@@ -527,7 +527,7 @@ func (w *countingWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// rangesMIMESize returns the nunber of bytes it takes to encode the
+// rangesMIMESize returns the number of bytes it takes to encode the
 // provided ranges as a multipart response.
 func rangesMIMESize(ranges []httpRange, contentType string, contentSize int64) (encSize int64) {
 	var w countingWriter

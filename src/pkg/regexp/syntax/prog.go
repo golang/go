@@ -597,7 +597,7 @@ func (p runeSlice) Sort() {
 // makeOnePass creates a onepass Prog, if possible. It is possible if at any alt,
 // the match engine can always tell which branch to take. The routine may modify
 // p if it is turned into a onepass Prog. If it isn't possible for this to be a
-// onepass Prog, the Prog syntax.NotOnePass is returned. makeOnePass is resursive
+// onepass Prog, the Prog syntax.NotOnePass is returned. makeOnePass is recursive
 // to the size of the Prog
 func (p *Prog) makeOnePass() *Prog {
 	var (

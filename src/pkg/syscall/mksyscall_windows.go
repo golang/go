@@ -135,7 +135,7 @@ func (p *Param) TmpVarCode() string {
 }
 
 // SyscallArgList returns source code fragments representing p parameter
-// in syscall. Slices are transated into 2 syscall parameters: pointer to
+// in syscall. Slices are translated into 2 syscall parameters: pointer to
 // the first element and length.
 func (p *Param) SyscallArgList() []string {
 	var s string
@@ -321,7 +321,7 @@ func extractParams(s string, f *Fn) ([]*Param, error) {
 
 // extractSection extracts text out of string s starting after start
 // and ending just before end. found return value will indicate success,
-// and prefix, body and sufix will contain correspondent parts of string s.
+// and prefix, body and suffix will contain correspondent parts of string s.
 func extractSection(s string, start, end rune) (prefix, body, suffix string, found bool) {
 	s = trim(s)
 	if strings.HasPrefix(s, string(start)) {
@@ -617,7 +617,7 @@ func main() {
 	}
 }
 
-// TODO: use println instead to print in the folowing template
+// TODO: use println instead to print in the following template
 const srcTemplate = `
 
 {{define "main"}}// go build mksyscall_windows.go && ./mksyscall_windows{{range .Files}} {{.}}{{end}}

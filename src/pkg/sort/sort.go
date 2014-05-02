@@ -287,7 +287,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
 // Notes on stable sorting:
 // The used algorithms are simple and provable correct on all input and use
 // only logarithmic additional stack space.  They perform well if compared
-// experimentaly to other stable in-place sorting algorithms.
+// experimentally to other stable in-place sorting algorithms.
 //
 // Remarks on other algorithms evaluated:
 //  - GCC's 4.6.3 stable_sort with merge_without_buffer from libstdc++:
