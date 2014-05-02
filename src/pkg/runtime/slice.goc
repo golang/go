@@ -118,21 +118,17 @@ growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
 	if(newcap1 > MaxMem/typ->size)
 		runtime·panicstring("growslice: cap out of range");
 	capmem = runtime·roundupsize(newcap1*typ->size);
-	flag = FlagNoZero;
+	flag = 0;
+	// Can't use FlagNoZero w/o FlagNoScan, because otherwise GC can scan unitialized memory.
 	if(typ->kind&KindNoPointers)
-		flag |= FlagNoScan;
-	// Here we allocate with FlagNoZero but potentially w/o FlagNoScan,
-	// GC must not see this blocks until memclr below.
-	m->locks++;
+		flag = FlagNoScan|FlagNoZero;
 	ret->array = runtime·mallocgc(capmem, (uintptr)typ|TypeInfo_Array, flag);
 	ret->len = x.len;
 	ret->cap = capmem/typ->size;
 	lenmem = x.len*typ->size;
 	runtime·memmove(ret->array, x.array, lenmem);
-	runtime·memclr(ret->array+lenmem, capmem-lenmem);
-	m->locks--;
-	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
-		g->stackguard0 = StackPreempt;
+	if(typ->kind&KindNoPointers)
+		runtime·memclr(ret->array+lenmem, capmem-lenmem);
 }
 
 #pragma textflag NOSPLIT
