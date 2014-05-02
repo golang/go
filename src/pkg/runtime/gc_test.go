@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"testing"
+	"time"
 )
 
 func TestGcSys(t *testing.T) {
@@ -149,6 +150,18 @@ func TestGcRescan(t *testing.T) {
 		if *p.p != 42 {
 			t.Fatal("corrupted heap")
 		}
+	}
+}
+
+func TestGcLastTime(t *testing.T) {
+	ms := new(runtime.MemStats)
+	t0 := time.Now().UnixNano()
+	runtime.GC()
+	t1 := time.Now().UnixNano()
+	runtime.ReadMemStats(ms)
+	last := int64(ms.LastGC)
+	if t0 > last || last > t1 {
+		t.Fatalf("bad last GC time: got %v, want [%v, %v]", last, t0, t1)
 	}
 }
 

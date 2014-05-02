@@ -91,6 +91,8 @@ enum {
 // Initialized from $GOGC.  GOGC=off means no gc.
 static int32 gcpercent = GcpercentUnknown;
 
+void runtime·gc_unixnanotime(int64 *now);
+
 static FuncVal* poolcleanup;
 
 void
@@ -2404,7 +2406,7 @@ gc(struct gc_args *args)
 	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
 
 	t4 = runtime·nanotime();
-	mstats.last_gc = t4;
+	runtime·gc_unixnanotime((int64*)&mstats.last_gc);  // must be Unix time to make sense to user
 	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t4 - t0;
 	mstats.pause_total_ns += t4 - t0;
 	mstats.numgc++;

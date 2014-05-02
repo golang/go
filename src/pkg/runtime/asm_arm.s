@@ -747,3 +747,6 @@ _sib_notfound:
 	MOVW	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
+
+TEXT runtime·timenow(SB), NOSPLIT, $0-0
+	B	time·now(SB)

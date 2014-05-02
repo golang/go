@@ -18,3 +18,10 @@ func gc_g_ptr(ret *interface{}) {
 func gc_itab_ptr(ret *interface{}) {
 	*ret = (*itab)(nil)
 }
+
+func timenow() (sec int64, nsec int32)
+
+func gc_unixnanotime(now *int64) {
+	sec, nsec := timenow()
+	*now = sec*1e9 + int64(nsec)
+}
