@@ -73,7 +73,7 @@ func runGet(cmd *Command, args []string) {
 	}
 	exitIfErrors()
 
-	// Phase 2. Rescan packages and reevaluate args list.
+	// Phase 2. Rescan packages and re-evaluate args list.
 
 	// Code we downloaded and all code that depends on it
 	// needs to be evicted from the package cache so that

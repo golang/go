@@ -16,7 +16,7 @@ var (
 	// networking functionality.
 	supportsIPv4 bool
 
-	// supportsIPv6 reports whether the platfrom supports IPv6
+	// supportsIPv6 reports whether the platform supports IPv6
 	// networking functionality.
 	supportsIPv6 bool
 
@@ -207,7 +207,7 @@ missingBrackets:
 }
 
 func splitHostZone(s string) (host, zone string) {
-	// The IPv6 scoped addressing zone identifer starts after the
+	// The IPv6 scoped addressing zone identifier starts after the
 	// last percent sign.
 	if i := last(s, '%'); i > 0 {
 		host, zone = s[:i], s[i+1:]
@@ -232,7 +232,7 @@ func JoinHostPort(host, port string) string {
 // address or a DNS name and returns an internet protocol family
 // address. It returns a list that contains a pair of different
 // address family addresses when addr is a DNS name and the name has
-// mutiple address family records. The result contains at least one
+// multiple address family records. The result contains at least one
 // address when error is nil.
 func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) {
 	var (

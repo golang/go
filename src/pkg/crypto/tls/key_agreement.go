@@ -141,7 +141,7 @@ func hashForServerKeyExchange(sigType, hashFunc uint8, version uint16, slices ..
 
 // pickTLS12HashForSignature returns a TLS 1.2 hash identifier for signing a
 // ServerKeyExchange given the signature type being used and the client's
-// advertized list of supported signature and hash combinations.
+// advertised list of supported signature and hash combinations.
 func pickTLS12HashForSignature(sigType uint8, clientSignatureAndHashes []signatureAndHash) (uint8, error) {
 	if len(clientSignatureAndHashes) == 0 {
 		// If the client didn't specify any signature_algorithms

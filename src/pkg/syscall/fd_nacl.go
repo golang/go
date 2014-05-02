@@ -194,7 +194,7 @@ func Seek(fd int, offset int64, whence int) (int64, error) {
 	return f.impl.seek(offset, whence)
 }
 
-// defaulFileImpl imlements fileImpl.
+// defaulFileImpl implements fileImpl.
 // It can be embedded to complete a partial fileImpl implementation.
 type defaultFileImpl struct{}
 

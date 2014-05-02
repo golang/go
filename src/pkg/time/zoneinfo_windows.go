@@ -90,7 +90,7 @@ func toEnglishName(stdname, dstname string) (string, error) {
 	return "", errors.New(`English name for time zone "` + stdname + `" not found in registry`)
 }
 
-// extractCAPS exracts capital letters from description desc.
+// extractCAPS extracts capital letters from description desc.
 func extractCAPS(desc string) string {
 	var short []rune
 	for _, c := range desc {

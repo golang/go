@@ -23,7 +23,7 @@ const maxSendfileSize int = 4 << 20
 // if handled == false, sendFile performed no work.
 func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	// DragonFly uses 0 as the "until EOF" value. If you pass in more bytes than the
-	// file contains, it will loop back to the beginning ad nauseum until it's sent
+	// file contains, it will loop back to the beginning ad nauseam until it's sent
 	// exactly the number of bytes told to. As such, we need to know exactly how many
 	// bytes to send.
 	var remain int64 = 0

@@ -47,7 +47,7 @@ func (z *Rat) SetFloat64(f float64) *Rat {
 
 	shift := 52 - exp
 
-	// Optimisation (?): partially pre-normalise.
+	// Optimization (?): partially pre-normalise.
 	for mantissa&1 == 0 && shift > 0 {
 		mantissa >>= 1
 		shift--
