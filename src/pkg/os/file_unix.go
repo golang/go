@@ -174,9 +174,11 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
 
 // Darwin and FreeBSD can't read or write 2GB+ at a time,
 // even on 64-bit systems. See golang.org/issue/7812.
+// Use 1GB instead of, say, 2GB-1, to keep subsequent
+// reads aligned.
 const (
 	needsMaxRW = runtime.GOOS == "darwin" || runtime.GOOS == "freebsd"
-	maxRW      = 2<<30 - 1
+	maxRW      = 1 << 30
 )
 
 // read reads up to len(b) bytes from the File.
