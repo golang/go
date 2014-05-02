@@ -19,7 +19,7 @@ func reflectValueSlice() {
 	print(rvsl.Interface().([]*int))     // @pointsto makeslice@slice:15
 	print(rvsl.Interface().([]*int)[42]) // @pointsto main.a
 
-	// reflect.Value contains an arrayay (non-addressable).
+	// reflect.Value contains an array (non-addressable).
 	array := [10]*int{&a} // @line array
 	rvarray := reflect.ValueOf(array).Slice(0, 0)
 	print(rvarray.Interface())              // @types

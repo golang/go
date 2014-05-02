@@ -292,7 +292,7 @@ func (f *File) addImport(path string) string {
 var slashslash = []byte("//")
 
 // initialComments returns the prefix of content containing only
-// whitepace and line comments.  Any +build directives must appear
+// whitespace and line comments.  Any +build directives must appear
 // within this region.  This approach is more reliable than using
 // go/printer to print a modified AST containing comments.
 //
@@ -432,7 +432,7 @@ func (f *File) newCounter(start, end token.Pos, numStmt int) ast.Stmt {
 //
 // counters will be added before S1 and before S3. The block containing S2
 // will be visited in a separate call.
-// TODO: Nested simple blocks get unecessary (but correct) counters
+// TODO: Nested simple blocks get unnecessary (but correct) counters
 func (f *File) addCounters(pos, blockEnd token.Pos, list []ast.Stmt, extendToClosingBrace bool) []ast.Stmt {
 	// Special case: make sure we add a counter to an empty block. Can't do this below
 	// or we will add a counter to an empty statement list after, say, a return statement.

@@ -404,7 +404,7 @@ func init() {
 	// defer func() {
 	// 	r := fmt.Sprint(recover())
 	// 	if r != "interface conversion: interface is nil, not main.I" {
-	// 		panic("I->I type assertion succeeed for nil value")
+	// 		panic("I->I type assertion succeeded for nil value")
 	// 	}
 	// }()
 	// var x I

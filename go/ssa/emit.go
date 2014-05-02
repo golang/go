@@ -240,7 +240,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 }
 
 // emitStore emits to f an instruction to store value val at location
-// addr, applying implicit conversions as required by assignabilty rules.
+// addr, applying implicit conversions as required by assignability rules.
 //
 func emitStore(f *Function, addr, val Value) *Store {
 	s := &Store{

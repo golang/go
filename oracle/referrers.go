@@ -71,7 +71,7 @@ func (p byNamePos) Less(i, j int) bool { return p[i].NamePos < p[j].NamePos }
 func (p byNamePos) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type referrersResult struct {
-	query *ast.Ident   // identifer of query
+	query *ast.Ident   // identifier of query
 	obj   types.Object // object it denotes
 	refs  []*ast.Ident // set of all other references to it
 }

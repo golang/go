@@ -23,8 +23,8 @@ import (
 //      - arrays created by conversions (e.g. []byte("foo"), []byte(s))
 //      - stack- and heap-allocated variables (including composite literals)
 //      - channels, maps and arrays created by make()
-//      - instrinsic or reflective operations that allocate (e.g. append, reflect.New)
-//      - instrinsic objects, e.g. the initial array behind os.Args.
+//      - intrinsic or reflective operations that allocate (e.g. append, reflect.New)
+//      - intrinsic objects, e.g. the initial array behind os.Args.
 //      - and their subelements, e.g. "alloc.y[*].z"
 //
 // Labels are so varied that they defy good generalizations;
@@ -87,7 +87,7 @@ func (l Label) Pos() token.Pos {
 //      makeinterface                           (tagged object allocated by makeinterface)
 //      <alloc in reflect.Zero>                 (allocation in instrinsic)
 //      sync.Mutex                              (a reflect.rtype instance)
-//      <command-line arguments>                (an instrinsic object)
+//      <command-line arguments>                (an intrinsic object)
 //
 // Labels within compound objects have subelement paths:
 //      x.y[*].z                                (a struct variable, x)

@@ -303,7 +303,7 @@ func (tr *Transformer) subst(env map[string]ast.Expr, pattern, pos reflect.Value
 	return pattern
 }
 
-// -- utilitiies -------------------------------------------------------
+// -- utilities -------------------------------------------------------
 
 func rvToExpr(rv reflect.Value) ast.Expr {
 	if rv.CanInterface() {

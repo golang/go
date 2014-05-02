@@ -20,7 +20,7 @@ is limited since all variants must be created a priori.
 
 We intend to add various presolving optimisations such as Pointer and
 Location Equivalence from (Hardekopf & Lin, SAS '07) and solver
-optimisatisions such as Hybrid- and Lazy- Cycle Detection from
+optimisations such as Hybrid- and Lazy- Cycle Detection from
 (Hardekopf & Lin, PLDI'07),
 
 

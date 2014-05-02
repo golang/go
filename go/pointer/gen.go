@@ -755,7 +755,7 @@ func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ss
 	}
 }
 
-// genCall generates contraints for call instruction instr.
+// genCall generates constraints for call instruction instr.
 func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 	call := instr.Common()
 
@@ -926,7 +926,7 @@ func (a *analysis) genStore(cgn *cgnode, ptr ssa.Value, val nodeid, offset, size
 	}
 }
 
-// genInstr generates contraints for instruction instr in context cgn.
+// genInstr generates constraints for instruction instr in context cgn.
 func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 	if a.log != nil {
 		var prefix string

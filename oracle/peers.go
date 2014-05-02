@@ -153,7 +153,7 @@ func chanOps(instr ssa.Instruction) []chanOp {
 type peersResult struct {
 	queryPos               token.Pos   // of queried '<-' token
 	queryType              types.Type  // type of queried channel
-	makes, sends, receives []token.Pos // positions of alisaed makechan/send/receive instrs
+	makes, sends, receives []token.Pos // positions of aliased makechan/send/receive instrs
 }
 
 func (r *peersResult) display(printf printfFunc) {

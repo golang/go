@@ -34,7 +34,7 @@ func (check *checker) resolveOrder() []Object {
 			for _, f := range ityp.Methods.List {
 				if len(f.Names) == 0 {
 					// Embedded interface: The type must be a (possibly
-					// qualified) identifer denoting another interface.
+					// qualified) identifier denoting another interface.
 					// Imported interfaces are already fully resolved,
 					// so we can ignore qualified identifiers.
 					if ident, _ := f.Type.(*ast.Ident); ident != nil {

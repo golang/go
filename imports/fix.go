@@ -46,7 +46,7 @@ func importGroup(importPath string) int {
 }
 
 func fixImports(fset *token.FileSet, f *ast.File) (added []string, err error) {
-	// refs are a set of possible package references currently unsatisified by imports.
+	// refs are a set of possible package references currently unsatisfied by imports.
 	// first key: either base package (e.g. "fmt") or renamed package
 	// second key: referenced package symbol (e.g. "Println")
 	refs := make(map[string]map[string]bool)

@@ -102,7 +102,7 @@ func (b *Bench) String() string {
 }
 
 // BenchSet is a collection of benchmarks from one
-// testing.B run, keyed by name to faciliate comparison.
+// testing.B run, keyed by name to facilitate comparison.
 type BenchSet map[string][]*Bench
 
 // Parse extracts a BenchSet from testing.B output. Parse

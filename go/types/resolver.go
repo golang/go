@@ -259,7 +259,7 @@ func (check *checker) collectObjects() {
 							// rhs initializer (n:1 var declaration).
 							var d1 *declInfo
 							if len(s.Values) == 1 {
-								// The lhs elements are only set up after the foor loop below,
+								// The lhs elements are only set up after the for loop below,
 								// but that's ok because declareVar only collects the declInfo
 								// for a later phase.
 								d1 = &declInfo{file: fileScope, lhs: lhs, typ: s.Type, init: s.Values[0]}

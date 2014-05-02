@@ -24,7 +24,7 @@ import (
 
 // Options specifies options for processing files.
 type Options struct {
-	Fragment  bool // Accept fragement of a source file (no package statement)
+	Fragment  bool // Accept fragment of a source file (no package statement)
 	AllErrors bool // Report all errors (not just the first 10 on different lines)
 
 	Comments  bool // Print comments (true if nil *Options provided)

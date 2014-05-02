@@ -88,7 +88,7 @@ func main() {
 		Master: rr,
 	}
 
-	// set up work environment, use existing enviroment if possible
+	// set up work environment, use existing environment if possible
 	if goroot.Exists() || *failAll {
 		log.Print("Found old workspace, will use it")
 	} else {

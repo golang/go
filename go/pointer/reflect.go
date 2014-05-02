@@ -7,7 +7,7 @@ package pointer
 // For consistency, the names of all parameters match those of the
 // actual functions in the "reflect" package.
 //
-// To avoid proliferation of equivalent labels, instrinsics should
+// To avoid proliferation of equivalent labels, intrinsics should
 // memoize as much as possible, like TypeOf and Zero do for their
 // tagged objects.
 //
