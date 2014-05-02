@@ -1064,3 +1064,6 @@ TEXT bytes·Equal(SB),NOSPLIT,$0-25
 eqret:
 	MOVB	AX, ret+24(FP)
 	RET
+
+TEXT runtime·timenow(SB), NOSPLIT, $0-0
+	JMP	time·now(SB)

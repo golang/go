@@ -2146,3 +2146,6 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
 	ADDL	$4,DI
 	
 	RET
+
+TEXT runtime·timenow(SB), NOSPLIT, $0-0
+	JMP	time·now(SB)
