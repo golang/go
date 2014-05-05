@@ -1,0 +1,51 @@
+/* set page layout */
+@page {
+  size: A4 landscape;
+}
+
+body { 
+  display: block !important;
+}
+
+.slides {
+  left: 0;
+  top: 0;
+}
+
+.slides > article {
+  position: relative;
+
+  left: 0;
+  top: 0;
+
+  margin: 0 !important;
+  page-break-inside: avoid;
+
+  text-shadow: none; /* disable shadow */
+
+  display: block !important;
+  transform: translate(0) !important;
+  -o-transform: translate(0) !important;
+  -moz-transform: translate(0) !important;
+  -webkit-transform: translate3d(0, 0, 0) !important;
+}
+
+div.code {
+  background: rgb(240, 240, 240);
+}
+
+/* hide click areas */
+.slide-area, #prev-slide-area, #next-slide-area {
+  display: none;
+}
+
+/* add explicit links */
+a:link:after, a:visited:after {
+ content: " (" attr(href) ") ";
+ font-size: 50%;
+}
+
+/* white background */
+body {
+  background: rgb(255,255,255) !important;
+}

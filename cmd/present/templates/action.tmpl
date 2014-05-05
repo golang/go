@@ -1,0 +1,46 @@
+{/*
+This is the action template.
+It determines how the formatting actions are rendered.
+*/}
+
+{{define "section"}}
+  <h{{len .Number}} id="TOC_{{.FormattedNumber}}">{{.FormattedNumber}} {{.Title}}</h{{len .Number}}>
+  {{range .Elem}}{{elem $.Template .}}{{end}}
+{{end}}
+
+{{define "list"}}
+  <ul>
+  {{range .Bullet}}
+    <li>{{style .}}</li>
+  {{end}}
+  </ul>
+{{end}}
+
+{{define "text"}}
+  {{if .Pre}}
+  <div class="code"><pre>{{range .Lines}}{{.}}{{end}}</pre></div>
+  {{else}}
+  <p>
+    {{range $i, $l := .Lines}}{{if $i}}{{template "newline"}}
+    {{end}}{{style $l}}{{end}}
+  </p>
+  {{end}}
+{{end}}
+
+{{define "code"}}
+  <div class="code{{if playable .}} playground{{end}}" contenteditable="true" spellcheck="false">{{.Text}}</div>
+{{end}}
+
+{{define "image"}}
+<div class="image">
+  <img src="{{.URL}}"{{with .Height}} height="{{.}}"{{end}}{{with .Width}} width="{{.}}"{{end}}>
+</div>
+{{end}}
+
+{{define "iframe"}}
+<iframe src="{{.URL}}"{{with .Height}} height="{{.}}"{{end}}{{with .Width}} width="{{.}}"{{end}}></iframe>
+{{end}}
+
+{{define "link"}}<p class="link"><a href="{{.URL}}" target="_blank">{{style .Label}}</a></p>{{end}}
+
+{{define "html"}}{{.HTML}}{{end}}

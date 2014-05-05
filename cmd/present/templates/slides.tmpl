@@ -1,0 +1,58 @@
+{/* This is the slide template. It defines how presentations are formatted. */}
+
+{{define "root"}}
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{.Title}}</title>
+    <meta charset='utf-8'>
+    <script src='/static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+
+    <section class='slides layout-widescreen'>
+      
+      <article>
+        <h1>{{.Title}}</h1>
+        {{with .Subtitle}}<h3>{{.}}</h3>{{end}}
+        {{if not .Time.IsZero}}<h3>{{.Time.Format "2 January 2006"}}</h3>{{end}}
+        {{range .Authors}}
+          <div class="presenter">
+            {{range .TextElem}}{{elem $.Template .}}{{end}}
+          </div>
+        {{end}}
+      </article>
+      
+  {{range $i, $s := .Sections}}
+  <!-- start of slide {{$s.Number}} -->
+      <article>
+      {{if $s.Elem}}
+        <h3>{{$s.Title}}</h3>
+        {{range $s.Elem}}{{elem $.Template .}}{{end}}
+      {{else}}
+        <h2>{{$s.Title}}</h2>
+      {{end}}
+      </article>
+  <!-- end of slide {{$i}} -->
+  {{end}}{{/* of Slide block */}}
+
+      <article>
+        <h3>Thank you</h1>
+        {{range .Authors}}
+          <div class="presenter">
+            {{range .Elem}}{{elem $.Template .}}{{end}}
+          </div>
+        {{end}}
+      </article>
+
+  </body>
+  {{if .PlayEnabled}}
+  <script src='/play.js'></script>
+  {{end}}
+</html>
+{{end}}
+
+{{define "newline"}}
+<br>
+{{end}}
