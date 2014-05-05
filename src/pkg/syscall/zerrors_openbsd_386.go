@@ -1228,6 +1228,7 @@ const (
 	TIOCGETD                          = 0x4004741a
 	TIOCGFLAGS                        = 0x4004745d
 	TIOCGPGRP                         = 0x40047477
+	TIOCGSID                          = 0x40047463
 	TIOCGTSTAMP                       = 0x400c745b
 	TIOCGWINSZ                        = 0x40087468
 	TIOCMBIC                          = 0x8004746b
