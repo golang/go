@@ -453,6 +453,7 @@ func make1() {
 	_ = make /* ERROR arguments */ (chan int, 10, 20)
 	_ = make(chan int, int /* ERROR not an expression */)
 	_ = make(chan<- int, "foo" /* ERROR cannot convert */)
+	_ = make(chan int, - /* ERROR must not be negative */ 10)
 	_ = make(<-chan float64, 10)
 	_ = make(chan chan int, n)
 	_ = make(chan string, int64(n))
