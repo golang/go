@@ -22,6 +22,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,9 +40,6 @@ import (
 // RunScripts specifies whether the socket handler should execute shell scripts
 // (snippets that start with a shebang).
 var RunScripts = true
-
-// Handler implements a WebSocket handler for a client connection.
-var Handler = websocket.Handler(socketHandler)
 
 // Environ provides an environment when a binary, such as the go tool, is
 // invoked.
@@ -67,6 +66,30 @@ type Message struct {
 // Options specify additional message options.
 type Options struct {
 	Race bool // use -race flag when building code (for "run" only)
+}
+
+// NewHandler returns a websocket server which checks the origin of requests.
+func NewHandler(origin *url.URL) websocket.Server {
+	return websocket.Server{
+		Config:    websocket.Config{Origin: origin},
+		Handshake: handshake,
+		Handler:   websocket.Handler(socketHandler),
+	}
+}
+
+// handshake checks the origin of a request during the websocket handshake.
+func handshake(c *websocket.Config, req *http.Request) error {
+	o, err := websocket.Origin(c, req)
+	if err != nil {
+		log.Println("bad websocket origin:", err)
+		return websocket.ErrBadWebSocketOrigin
+	}
+	ok := c.Origin.Scheme == o.Scheme && c.Origin.Host == o.Host
+	if !ok {
+		log.Println("bad websocket origin:", o)
+		return websocket.ErrBadWebSocketOrigin
+	}
+	return nil
 }
 
 // socketHandler handles the websocket connection for a given present session.
