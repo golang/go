@@ -84,6 +84,7 @@ struct COFFSym
 	LSym* sym;
 	int strtbloff;
 	int sect;
+	vlong value;
 };
 
 static COFFSym* coffsym;
@@ -476,6 +477,7 @@ newPEDWARFSection(char *name, vlong size)
 static void
 addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *gotype)
 {
+	COFFSym *cs;
 	USED(name);
 	USED(addr);
 	USED(size);
@@ -498,26 +500,23 @@ addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *got
 	}
 
 	if(coffsym) {
-		coffsym[ncoffsym].sym = s;
+		cs = &coffsym[ncoffsym];
+		cs->sym = s;
 		if(strlen(s->name) > 8)
-			coffsym[ncoffsym].strtbloff = strtbladd(s->name);
-		if(type == 'T')
-			coffsym[ncoffsym].sect = textsect;
-		else
-			coffsym[ncoffsym].sect = datasect;
+			cs->strtbloff = strtbladd(s->name);
+		if(s->value >= segdata.vaddr) {
+			cs->value = s->value - segdata.vaddr;
+			cs->sect = datasect;
+		} else if(s->value >= segtext.vaddr) {
+			cs->value = s->value - segtext.vaddr;
+			cs->sect = textsect;
+		} else {
+			cs->value = 0;
+			cs->sect = 0;
+			diag("addsym %#llx", addr);
+		}
 	}
 	ncoffsym++;
-}
-
-static vlong
-datoffsect(vlong addr)
-{
-	if(addr >= segdata.vaddr)
-		return addr - segdata.vaddr;
-	if(addr >= segtext.vaddr)
-		return addr - segtext.vaddr;
-	diag("datoff %#llx", addr);
-	return 0;
 }
 
 static void
@@ -551,7 +550,7 @@ addsymtable(void)
 			lputl(0);
 			lputl(s->strtbloff);
 		}
-		lputl(datoffsect(s->sym->value));
+		lputl(s->value);
 		wputl(s->sect);
 		wputl(0x0308);  // "array of structs"
 		cput(2);        // storage class: external
