@@ -276,7 +276,6 @@ var (
 	testCoverPkgs    []*Package // -coverpkg flag
 	testProfile      bool       // some profiling flag
 	testNeedBinary   bool       // profile needs to keep binary around
-	testI            bool       // -i flag
 	testV            bool       // -v flag
 	testFiles        []string   // -file flag(s)  TODO: not respected
 	testTimeout      string     // -timeout flag
@@ -339,7 +338,7 @@ func runTest(cmd *Command, args []string) {
 	var b builder
 	b.init()
 
-	if testI {
+	if buildI {
 		buildV = testV
 
 		deps := make(map[string]bool)

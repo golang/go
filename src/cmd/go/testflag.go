@@ -66,7 +66,6 @@ var testFlagDefn = []*testFlagSpec{
 	// local.
 	{name: "c", boolVar: &testC},
 	{name: "file", multiOK: true},
-	{name: "i", boolVar: &testI},
 	{name: "cover", boolVar: &testCover},
 	{name: "coverpkg"},
 
@@ -75,6 +74,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "n", boolVar: &buildN},
 	{name: "p"},
 	{name: "x", boolVar: &buildX},
+	{name: "i", boolVar: &buildI},
 	{name: "work", boolVar: &buildWork},
 	{name: "ccflags"},
 	{name: "gcflags"},

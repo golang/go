@@ -28,7 +28,7 @@ import (
 )
 
 var cmdBuild = &Command{
-	UsageLine: "build [-o output] [build flags] [packages]",
+	UsageLine: "build [-o output] [-i] [build flags] [packages]",
 	Short:     "compile packages and dependencies",
 	Long: `
 Build compiles the packages named by the import paths,
@@ -49,6 +49,8 @@ the package is main and file names are provided, the file name
 derives from the first file name mentioned, such as f1 for 'go build
 f1.go f2.go'; with no files provided ('go build'), the output file
 name is the base name of the containing directory.
+
+The -i flag installs the packages that are dependencies of the target.
 
 The build flags are shared by the build, install, run, and test commands:
 
@@ -107,6 +109,8 @@ func init() {
 	cmdBuild.Run = runBuild
 	cmdInstall.Run = runInstall
 
+	cmdBuild.Flag.BoolVar(&buildI, "i", false, "")
+
 	addBuildFlags(cmdBuild)
 	addBuildFlags(cmdInstall)
 }
@@ -117,6 +121,7 @@ var buildN bool               // -n flag
 var buildP = runtime.NumCPU() // -p flag
 var buildV bool               // -v flag
 var buildX bool               // -x flag
+var buildI bool               // -i flag
 var buildO = cmdBuild.Flag.String("o", "", "output file")
 var buildWork bool           // -work flag
 var buildGcflags []string    // -gcflags flag
@@ -290,8 +295,12 @@ func runBuild(cmd *Command, args []string) {
 	}
 
 	a := &action{}
+	depMode := modeBuild
+	if buildI {
+		depMode = modeInstall
+	}
 	for _, p := range packages(args) {
-		a.deps = append(a.deps, b.action(modeBuild, modeBuild, p))
+		a.deps = append(a.deps, b.action(modeBuild, depMode, p))
 	}
 	b.do(a)
 }
