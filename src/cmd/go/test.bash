@@ -708,6 +708,46 @@ if ./testgo test notest >/dev/null 2>&1; then
 fi
 unset GOPATH
 
+TEST list template can use context function
+if ! ./testgo list -f "GOARCH: {{context.GOARCH}}"; then 
+	echo unable to use context in list template
+	ok=false
+fi
+
+TEST build -i installs dependencies
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d
+mkdir -p $d/src/x/y/foo $d/src/x/y/bar
+echo '
+package foo
+func F() {}
+' >$d/src/x/y/foo/foo.go
+echo '
+package bar
+import "x/y/foo"
+func F() { foo.F() }
+' >$d/src/x/y/bar/bar.go
+if ! ./testgo build -v -i x/y/bar &> $d/err; then
+	echo build -i failed
+	cat $d/err
+	ok=false
+elif ! grep x/y/foo $d/err >/dev/null; then
+	echo first build -i did not build x/y/foo
+	cat $d/err
+	ok=false
+fi
+if ! ./testgo build -v -i x/y/bar &> $d/err; then
+	echo second build -i failed
+	cat $d/err
+	ok=false
+elif grep x/y/foo $d/err >/dev/null; then
+	echo second build -i built x/y/foo
+	cat $d/err
+	ok=false
+fi
+rm -rf $d
+unset GOPATH
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
