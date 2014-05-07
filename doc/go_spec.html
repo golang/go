@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 7, 2014",
+	"Subtitle": "Version of May 7, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -1771,9 +1771,9 @@ last non-empty expression list.
 
 <p>
 A type declaration binds an identifier, the <i>type name</i>, to a new type
-that has the same <a href="#Types">underlying type</a> as
-an existing type.  The new type is <a href="#Type_identity">different</a> from
-the existing type.
+that has the same <a href="#Types">underlying type</a> as an existing type,
+and operations defined for the existing type are also defined for the new type.
+The new type is <a href="#Type_identity">different</a> from the existing type.
 </p>
 
 <pre class="ebnf">
