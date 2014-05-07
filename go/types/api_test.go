@@ -469,3 +469,170 @@ func TestFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestSelection(t *testing.T) {
+	selections := make(map[*ast.SelectorExpr]*Selection)
+
+	fset := token.NewFileSet()
+	conf := Config{
+		Packages: make(map[string]*Package),
+		Import: func(imports map[string]*Package, path string) (*Package, error) {
+			return imports[path], nil
+		},
+	}
+	makePkg := func(path, src string) {
+		f, err := parser.ParseFile(fset, path+".go", src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pkg, err := conf.Check(path, fset, []*ast.File{f}, &Info{Selections: selections})
+		if err != nil {
+			t.Fatal(err)
+		}
+		conf.Packages[path] = pkg
+	}
+
+	libSrc := `
+package lib
+type T float64
+const C T = 3
+var V T
+func F() {}
+func (T) M() {}
+`
+	mainSrc := `
+package main
+import "lib"
+
+type A struct {
+	*B
+	C
+}
+
+type B struct {
+	b int
+}
+
+func (B) f(int)
+
+type C struct {
+	c int
+}
+
+func (C) g()
+func (*C) h()
+
+func main() {
+	// qualified identifiers
+	var _ lib.T
+        _ = lib.C
+        _ = lib.F
+        _ = lib.V
+	_ = lib.T.M
+
+	// fields
+	_ = A{}.B
+	_ = new(A).B
+
+	_ = A{}.C
+	_ = new(A).C
+
+	_ = A{}.b
+	_ = new(A).b
+
+	_ = A{}.c
+	_ = new(A).c
+
+	// methods
+        _ = A{}.f
+        _ = new(A).f
+        _ = A{}.g
+        _ = new(A).g
+        _ = new(A).h
+
+        _ = B{}.f
+        _ = new(B).f
+
+        _ = C{}.g
+        _ = new(C).g
+        _ = new(C).h
+
+	// method expressions
+        _ = A.f
+        _ = (*A).f
+        _ = B.f
+        _ = (*B).f
+}`
+
+	// TODO(adonovan): assert all map entries are used at least once.
+	wantOut := map[string][2]string{
+		"lib.T":   {"qualified ident type lib.T float64", ".[]"},
+		"lib.C":   {"qualified ident const lib.C lib.T", ".[]"},
+		"lib.F":   {"qualified ident func lib.F()", ".[]"},
+		"lib.V":   {"qualified ident var lib.V lib.T", ".[]"},
+		"lib.T.M": {"method expr (lib.T) M(lib.T)", ".[0]"},
+
+		"A{}.B":    {"field (main.A) B *main.B", ".[0]"},
+		"new(A).B": {"field (*main.A) B *main.B", "->[0]"},
+		"A{}.C":    {"field (main.A) C main.C", ".[1]"},
+		"new(A).C": {"field (*main.A) C main.C", "->[1]"},
+		"A{}.b":    {"field (main.A) b int", "->[0 0]"},
+		"new(A).b": {"field (*main.A) b int", "->[0 0]"},
+		"A{}.c":    {"field (main.A) c int", ".[1 0]"},
+		"new(A).c": {"field (*main.A) c int", "->[1 0]"},
+
+		"A{}.f":    {"method (main.A) f(int)", "->[0 0]"},
+		"new(A).f": {"method (*main.A) f(int)", "->[0 0]"},
+		"A{}.g":    {"method (main.A) g()", ".[1 0]"},
+		"new(A).g": {"method (*main.A) g()", "->[1 0]"},
+		"new(A).h": {"method (*main.A) h()", "->[1 1]"},
+		"B{}.f":    {"method (main.B) f(int)", ".[0]"},
+		"new(B).f": {"method (*main.B) f(int)", "->[0]"},
+		"C{}.g":    {"method (main.C) g()", ".[0]"},
+		"new(C).g": {"method (*main.C) g()", "->[0]"},
+		"new(C).h": {"method (*main.C) h()", "->[1]"},
+
+		"A.f":    {"method expr (main.A) f(main.A, int)", "->[0 0]"},
+		"(*A).f": {"method expr (*main.A) f(*main.A, int)", "->[0 0]"},
+		"B.f":    {"method expr (main.B) f(main.B, int)", ".[0]"},
+		"(*B).f": {"method expr (*main.B) f(*main.B, int)", "->[0]"},
+	}
+
+	makePkg("lib", libSrc)
+	makePkg("main", mainSrc)
+
+	for e, sel := range selections {
+		sel.String() // assertion: must not panic
+
+		start := fset.Position(e.Pos()).Offset
+		end := fset.Position(e.End()).Offset
+		syntax := mainSrc[start:end] // (all SelectorExprs are in main, not lib)
+
+		direct := "."
+		if sel.Indirect() {
+			direct = "->"
+		}
+		got := [2]string{
+			sel.String(),
+			fmt.Sprintf("%s%v", direct, sel.Index()),
+		}
+		want := wantOut[syntax]
+		if want != got {
+			t.Errorf("%s: got %q; want %q", syntax, got, want)
+		}
+
+		// We must explicitly assert properties of the
+		// Signature's receiver since it doesn't participate
+		// in Identical() or String().
+		sig, _ := sel.Type().(*Signature)
+		if sel.Kind() == MethodVal {
+			got := sig.Recv().Type()
+			want := sel.Recv()
+			if !Identical(got, want) {
+				t.Errorf("%s: Recv() = %s, want %s", got, want)
+			}
+		} else if sig != nil && sig.Recv() != nil {
+			t.Error("%s: signature has receiver %s", sig, sig.Recv().Type())
+		}
+	}
+}

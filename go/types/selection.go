@@ -123,6 +123,12 @@ func (s *Selection) String() string { return SelectionString(nil, s) }
 // Type names are printed package-qualified
 // only if they do not belong to this package.
 //
+// Examples:
+//	"field (T) f int"
+//	"method (T) f(X) Y"
+//	"method expr (T) f(X) Y"
+//	"qualified ident var math.Pi float64"
+//
 func SelectionString(this *Package, s *Selection) string {
 	var k string
 	switch s.kind {
@@ -142,6 +148,12 @@ func SelectionString(this *Package, s *Selection) string {
 	buf.WriteByte('(')
 	WriteType(&buf, this, s.Recv())
 	fmt.Fprintf(&buf, ") %s", s.obj.Name())
-	WriteSignature(&buf, this, s.Type().(*Signature))
+	if T := s.Type(); s.kind == FieldVal {
+		// TODO(adonovan): use "T.f" not "(T) f".
+		buf.WriteByte(' ')
+		WriteType(&buf, this, T)
+	} else {
+		WriteSignature(&buf, this, T.(*Signature))
+	}
 	return buf.String()
 }
