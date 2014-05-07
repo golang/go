@@ -101,6 +101,8 @@ progedit(Link *ctxt, Prog *p)
 	switch(p->as) {
 	case AB:
 	case ABL:
+	case ADUFFZERO:
+	case ADUFFCOPY:
 		if(p->to.type == D_OREG && (p->to.name == D_EXTERN || p->to.name == D_STATIC) && p->to.sym != nil)
 			p->to.type = D_BRANCH;
 		break;
@@ -352,6 +354,8 @@ addstacksplit(Link *ctxt, LSym *cursym)
 
 		case ABL:
 		case ABX:
+		case ADUFFZERO:
+		case ADUFFCOPY:
 			cursym->text->mark &= ~LEAF;
 
 		case ABCASE:

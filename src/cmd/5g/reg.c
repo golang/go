@@ -562,6 +562,10 @@ addsplits(void)
 			continue;
 		if(r->f.prog->as == ABL)
 			continue;
+		if(r->f.prog->as == ADUFFZERO)
+			continue;
+		if(r->f.prog->as == ADUFFCOPY)
+			continue;
 		for(r1 = (Reg*)r->f.p2; r1 != R; r1 = (Reg*)r1->f.p2link) {
 			if(r1->f.loop <= 1)
 				continue;
