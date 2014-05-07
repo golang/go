@@ -81,7 +81,6 @@ struct Profile {
 	uintptr count;		// tick count
 	uintptr evicts;		// eviction count
 	uintptr lost;		// lost ticks that need to be logged
-	uintptr totallost;	// total lost ticks
 
 	// Active recent stack traces.
 	Bucket hash[HashSize];
@@ -244,7 +243,6 @@ add(Profile *p, uintptr *pc, int32 n)
 		if(!evict(p, e)) {
 			// Could not evict entry.  Record lost stack.
 			p->lost++;
-			p->totallost++;
 			return;
 		}
 		p->evicts++;
@@ -308,6 +306,7 @@ flushlog(Profile *p)
 		*q++ = p->lost;
 		*q++ = 1;
 		*q++ = (uintptr)LostProfileData;
+		p->lost = 0;
 	}
 	p->nlog = q - log;
 	return true;
