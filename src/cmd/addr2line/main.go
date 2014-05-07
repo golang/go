@@ -141,18 +141,50 @@ func loadTables(f *os.File) (textStart uint64, symtab, pclntab []byte, err error
 		if sect := obj.Section(".text"); sect != nil {
 			textStart = uint64(sect.VirtualAddress)
 		}
-		if sect := obj.Section(".gosymtab"); sect != nil {
-			if symtab, err = sect.Data(); err != nil {
-				return 0, nil, nil, err
-			}
+		if pclntab, err = loadPETable(obj, "pclntab", "epclntab"); err != nil {
+			return 0, nil, nil, err
 		}
-		if sect := obj.Section(".gopclntab"); sect != nil {
-			if pclntab, err = sect.Data(); err != nil {
-				return 0, nil, nil, err
-			}
+		if symtab, err = loadPETable(obj, "symtab", "esymtab"); err != nil {
+			return 0, nil, nil, err
 		}
 		return textStart, symtab, pclntab, nil
 	}
 
 	return 0, nil, nil, fmt.Errorf("unrecognized binary format")
+}
+
+func findPESymbol(f *pe.File, name string) (*pe.Symbol, error) {
+	for _, s := range f.Symbols {
+		if s.Name != name {
+			continue
+		}
+		if s.SectionNumber <= 0 {
+			return nil, fmt.Errorf("symbol %s: invalid section number %d", name, s.SectionNumber)
+		}
+		if len(f.Sections) < int(s.SectionNumber) {
+			return nil, fmt.Errorf("symbol %s: section number %d is larger than max %d", name, s.SectionNumber, len(f.Sections))
+		}
+		return s, nil
+	}
+	return nil, fmt.Errorf("no %s symbol found", name)
+}
+
+func loadPETable(f *pe.File, sname, ename string) ([]byte, error) {
+	ssym, err := findPESymbol(f, sname)
+	if err != nil {
+		return nil, err
+	}
+	esym, err := findPESymbol(f, ename)
+	if err != nil {
+		return nil, err
+	}
+	if ssym.SectionNumber != esym.SectionNumber {
+		return nil, fmt.Errorf("%s and %s symbols must be in the same section", sname, ename)
+	}
+	sect := f.Sections[ssym.SectionNumber-1]
+	data, err := sect.Data()
+	if err != nil {
+		return nil, err
+	}
+	return data[ssym.Value:esym.Value], nil
 }
