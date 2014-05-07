@@ -1278,20 +1278,23 @@ may be added.
 <h3 id="Channel_types">Channel types</h3>
 
 <p>
-A channel provides a mechanism for two concurrently executing functions
-to synchronize execution and communicate by passing a value of a
-specified element type.
+A channel provides a mechanism for
+<a href="#Go_statements">concurrently executing functions</a>
+to communicate by
+<a href="#Send_statements">sending</a> and
+<a href="#Receive_operator">receiving</a>
+values of a specified element type.
 The value of an uninitialized channel is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
-ChannelType = ( "chan" [ "&lt;-" ] | "&lt;-" "chan" ) ElementType .
+ChannelType = ( "chan" | "chan" "&lt;-" | "&lt;-" "chan" ) ElementType .
 </pre>
 
 <p>
-The <code>&lt;-</code> operator specifies the channel <i>direction</i>,
+The optional <code>&lt;-</code> operator specifies the channel <i>direction</i>,
 <i>send</i> or <i>receive</i>. If no direction is given, the channel is
-<i>bi-directional</i>.
+<i>bidirectional</i>.
 A channel may be constrained only to send or only to receive by
 <a href="#Conversions">conversion</a> or <a href="#Assignments">assignment</a>.
 </p>
@@ -1318,7 +1321,7 @@ chan (&lt;-chan int)
 A new, initialized channel
 value can be made using the built-in function
 <a href="#Making_slices_maps_and_channels"><code>make</code></a>,
-which takes the channel type and an optional capacity as arguments:
+which takes the channel type and an optional <i>capacity</i> as arguments:
 </p>
 
 <pre>
@@ -1326,21 +1329,35 @@ make(chan int, 100)
 </pre>
 
 <p>
-The capacity, in number of elements, sets the size of the buffer in the channel. If the
-capacity is greater than zero, the channel is asynchronous: communication operations
-succeed without blocking if the buffer is not full (sends) or not empty (receives),
-and elements are received in the order they are sent.
-If the capacity is zero or absent, the communication succeeds only when both a sender and
-receiver are ready.
+The capacity, in number of elements, sets the size of the buffer in the channel.
+If the capacity is zero or absent, the channel is unbuffered and communication
+succeeds only when both a sender and receiver are ready. Otherwise, the channel is
+buffered and communication operations succeed without blocking if the buffer
+is not full (sends) or not empty (receives).
 A <code>nil</code> channel is never ready for communication.
 </p>
 
 <p>
 A channel may be closed with the built-in function
-<a href="#Close"><code>close</code></a>; the
-multi-valued assignment form of the
+<a href="#Close"><code>close</code></a>.
+The multi-valued assignment form of the
 <a href="#Receive_operator">receive operator</a>
-tests whether a channel has been closed.
+reports whether a received value was sent before
+the channel was closed.
+</p>
+
+<p>
+A single channel may be used in
+<a href="#Send_statements">send statements</a>,
+<a href="#Receive_operator">receive operations</a>,
+and calls to the built-in functions
+<a href="#Length_and_capacity"><code>cap</code></a> and
+<a href="#Length_and_capacity"><code>len</code></a>
+by any number of goroutines without further synchronization.
+Channels act as first-in-first-out queues.
+For example, if one goroutine sends values on a channel
+and a second goroutine receives them, the values are
+received in the order sent.
 </p>
 
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
@@ -3389,7 +3406,8 @@ and the type of the receive operation is the element type of the channel.
 The expression blocks until a value is available.
 Receiving from a <code>nil</code> channel blocks forever.
 A receive operation on a <a href="#Close">closed</a> channel can always proceed
-immediately, yielding the element type's <a href="#The_zero_value">zero value</a>.
+immediately, yielding the element type's <a href="#The_zero_value">zero value</a>
+after any previously sent values have been received.
 </p>
 
 <pre>
@@ -4238,22 +4256,8 @@ A send on a closed channel proceeds by causing a <a href="#Run_time_panics">run-
 A send on a <code>nil</code> channel blocks forever.
 </p>
 
-<p>
-Channels act as first-in-first-out queues.
-For example, if a single goroutine sends on a channel values
-that are received by a single goroutine, the values are received in the order sent.
-</p>
-
-<p>
-A single channel may be used for send and receive
-operations and calls to the built-in functions
-<a href="#Length_and_capacity"><code>cap</code></a> and
-<a href="#Length_and_capacity"><code>len</code></a>
-by any number of goroutines without further synchronization.
-</p>
-
 <pre>
-ch &lt;- 3
+ch &lt;- 3  // send value 3 to channel ch
 </pre>
 
 
@@ -5383,8 +5387,8 @@ make(T, n, m)    slice      slice of type T with length n and capacity m
 make(T)          map        map of type T
 make(T, n)       map        map of type T with initial space for n elements
 
-make(T)          channel    synchronous channel of type T
-make(T, n)       channel    asynchronous channel of type T, buffer size n
+make(T)          channel    unbuffered channel of type T
+make(T, n)       channel    buffered channel of type T, buffer size n
 </pre>
 
 
