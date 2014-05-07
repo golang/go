@@ -36,6 +36,12 @@ go install -race cmd/cgo
 echo # go install -race std
 go install -race std
 if errorlevel 1 goto fail
+
+:: we must unset GOROOT_FINAL before tests, because runtime/debug requires
+:: correct access to source code, so if we have GOROOT_FINAL in effect,
+:: at least runtime/debug test will fail.
+set GOROOT_FINAL=
+
 echo # go test -race -short std
 go test -race -short std
 if errorlevel 1 goto fail
