@@ -200,42 +200,42 @@ func BenchmarkClearFat1024(b *testing.B) {
 }
 
 func BenchmarkCopyFat32(b *testing.B) {
-	var x [32]byte
+	var x [32 / 4]uint32
 	for i := 0; i < b.N; i++ {
 		y := x
 		_ = y
 	}
 }
 func BenchmarkCopyFat64(b *testing.B) {
-	var x [64]byte
+	var x [64 / 4]uint32
 	for i := 0; i < b.N; i++ {
 		y := x
 		_ = y
 	}
 }
 func BenchmarkCopyFat128(b *testing.B) {
-	var x [128]byte
+	var x [128 / 4]uint32
 	for i := 0; i < b.N; i++ {
 		y := x
 		_ = y
 	}
 }
 func BenchmarkCopyFat256(b *testing.B) {
-	var x [256]byte
+	var x [256 / 4]uint32
 	for i := 0; i < b.N; i++ {
 		y := x
 		_ = y
 	}
 }
 func BenchmarkCopyFat512(b *testing.B) {
-	var x [512]byte
+	var x [512 / 4]uint32
 	for i := 0; i < b.N; i++ {
 		y := x
 		_ = y
 	}
 }
 func BenchmarkCopyFat1024(b *testing.B) {
-	var x [1024]byte
+	var x [1024 / 4]uint32
 	for i := 0; i < b.N; i++ {
 		y := x
 		_ = y

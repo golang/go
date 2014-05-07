@@ -93,6 +93,12 @@ static ProgInfo progtable[ALAST] = {
 	[AMOVF]=		{SizeF | LeftRead | RightWrite | Move},
 	[AMOVH]=		{SizeW | LeftRead | RightWrite | Move},
 	[AMOVW]=		{SizeL | LeftRead | RightWrite | Move},
+	// In addtion, duffzero reads R0,R1 and writes R1.  This fact is
+	// encoded in peep.c
+	[ADUFFZERO]=		{Call},
+	// In addtion, duffcopy reads R1,R2 and writes R0,R1,R2.  This fact is
+	// encoded in peep.c
+	[ADUFFCOPY]=		{Call},
 
 	// These should be split into the two different conversions instead
 	// of overloading the one.

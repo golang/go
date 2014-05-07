@@ -1411,7 +1411,7 @@ stkof(Node *n)
 void
 sgen(Node *n, Node *res, int64 w)
 {
-	Node dst, src, tmp, nend;
+	Node dst, src, tmp, nend, r0, r1, r2, *f;
 	int32 c, odst, osrc;
 	int dir, align, op;
 	Prog *p, *ploop;
@@ -1495,6 +1495,42 @@ sgen(Node *n, Node *res, int64 w)
 	if(osrc < odst && odst < osrc+w)
 		dir = -dir;
 
+	if(op == AMOVW && dir > 0 && c >= 4 && c <= 128) {
+		r0.op = OREGISTER;
+		r0.val.u.reg = REGALLOC_R0;
+		r1.op = OREGISTER;
+		r1.val.u.reg = REGALLOC_R0 + 1;
+		r2.op = OREGISTER;
+		r2.val.u.reg = REGALLOC_R0 + 2;
+
+		regalloc(&src, types[tptr], &r1);
+		regalloc(&dst, types[tptr], &r2);
+		if(n->ullman >= res->ullman) {
+			// eval n first
+			agen(n, &src);
+			if(res->op == ONAME)
+				gvardef(res);
+			agen(res, &dst);
+		} else {
+			// eval res first
+			if(res->op == ONAME)
+				gvardef(res);
+			agen(res, &dst);
+			agen(n, &src);
+		}
+		regalloc(&tmp, types[tptr], &r0);
+		f = sysfunc("duffcopy");
+		p = gins(ADUFFCOPY, N, f);
+		afunclit(&p->to, f);
+		// 8 and 128 = magic constants: see ../../pkg/runtime/asm_arm.s
+		p->to.offset = 8*(128-c);
+
+		regfree(&tmp);
+		regfree(&src);
+		regfree(&dst);
+		return;
+	}
+	
 	if(n->ullman >= res->ullman) {
 		agenr(n, &dst, res);	// temporarily use dst
 		regalloc(&src, types[tptr], N);
