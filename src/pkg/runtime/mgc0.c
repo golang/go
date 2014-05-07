@@ -2785,7 +2785,7 @@ runtime·checkfreed(void *v, uintptr n)
 void
 runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 {
-	uintptr *b, off, shift, i;
+	uintptr *b, *b0, off, shift, i, x;
 	byte *p;
 
 	if((byte*)v+size*n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
@@ -2804,6 +2804,9 @@ runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 	p = v;
 	if(leftover)	// mark a boundary just past end of last block too
 		n++;
+
+	b0 = nil;
+	x = 0;
 	for(; n-- > 0; p += size) {
 		// Okay to use non-atomic ops here, because we control
 		// the entire span, and each bitmap word has bits for only
@@ -2812,8 +2815,15 @@ runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 		off = (uintptr*)p - (uintptr*)runtime·mheap.arena_start;  // word offset
 		b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 		shift = off % wordsPerBitmapWord;
-		*b = (*b & ~(bitMask<<shift)) | (bitAllocated<<shift);
+		if(b0 != b) {
+			if(b0 != nil)
+				*b0 = x;
+			b0 = b;
+			x = 0;
+		}
+		x |= bitAllocated<<shift;
 	}
+	*b0 = x;
 }
 
 // unmark the span of memory at v of length n bytes.
