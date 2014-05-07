@@ -652,13 +652,16 @@ func (db *DB) conn() (*driverConn, error) {
 		return conn, nil
 	}
 
+	db.numOpen++ // optimistically
 	db.mu.Unlock()
 	ci, err := db.driver.Open(db.dsn)
 	if err != nil {
+		db.mu.Lock()
+		db.numOpen-- // correct for earlier optimism
+		db.mu.Unlock()
 		return nil, err
 	}
 	db.mu.Lock()
-	db.numOpen++
 	dc := &driverConn{
 		db: db,
 		ci: ci,
