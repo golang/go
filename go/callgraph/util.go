@@ -80,19 +80,40 @@ func PathSearch(start *Node, isEnd func(*Node) bool) []*Edge {
 
 // DeleteSyntheticNodes removes from call graph g all nodes for
 // synthetic functions (except g.Root and package initializers),
-// preserving the topology.
+// preserving the topology.  In effect, calls to synthetic wrappers
+// are "inlined".
+//
 func (g *Graph) DeleteSyntheticNodes() {
-	// TODO(adonovan): opt: this step results in duplicate
-	// edges---approx 10% of the total.  I suspect this is due to
-	// some interface method calls dispatching to both (C).f and
-	// (*C).f where the latter is a wrapper.
+	// Measurements on the standard library and go.tools show that
+	// resulting graph has ~15% fewer nodes and 4-8% fewer edges
+	// than the input.
+	//
+	// Inlining a wrapper of in-degree m, out-degree n adds m*n
+	// and removes m+n edges.  Since most wrappers are monomorphic
+	// (n=1) this results in a slight reduction.  Polymorphic
+	// wrappers (n>1), e.g. from embedding an interface value
+	// inside a struct to satisfy some interface, cause an
+	// increase in the graph, but they seem to be uncommon.
+
+	// Hash all existing edges to avoid creating duplicates.
+	edges := make(map[Edge]bool)
+	for _, cgn := range g.Nodes {
+		for _, e := range cgn.Out {
+			edges[*e] = true
+		}
+	}
 	for fn, cgn := range g.Nodes {
 		if cgn == g.Root || fn.Synthetic == "" || isInit(cgn.Func) {
 			continue // keep
 		}
 		for _, eIn := range cgn.In {
 			for _, eOut := range cgn.Out {
+				newEdge := Edge{eIn.Caller, eIn.Site, eOut.Callee}
+				if edges[newEdge] {
+					continue // don't add duplicate
+				}
 				AddEdge(eIn.Caller, eIn.Site, eOut.Callee)
+				edges[newEdge] = true
 			}
 		}
 		g.DeleteNode(cgn)
