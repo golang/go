@@ -5,6 +5,7 @@
 package json_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -126,4 +127,35 @@ func ExampleRawMessage() {
 	// Output:
 	// YCbCr &{255 0 -10}
 	// RGB &{98 218 255}
+}
+
+func ExampleIndent() {
+	type Road struct {
+		Name   string
+		Number int
+	}
+	roads := []Road{
+		{"Diamond Fork", 29},
+		{"Sheep Creek", 51},
+	}
+
+	b, err := json.Marshal(roads)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	json.Indent(&out, b, "=", "\t")
+	out.WriteTo(os.Stdout)
+	// Output:
+	// [
+	// =	{
+	// =		"Name": "Diamond Fork",
+	// =		"Number": 29
+	// =	},
+	// =	{
+	// =		"Name": "Sheep Creek",
+	// =		"Number": 51
+	// =	}
+	// =]
 }
