@@ -69,8 +69,9 @@ func newline(dst *bytes.Buffer, prefix, indent string, depth int) {
 // Each element in a JSON object or array begins on a new,
 // indented line beginning with prefix followed by one or more
 // copies of indent according to the indentation nesting.
-// The data appended to dst has no trailing newline, to make it easier
-// to embed inside other formatted JSON data.
+// The data appended to dst does not begin with the prefix nor
+// any indentation, and has no trailing newline, to make it
+// easier to embed inside other formatted JSON data.
 func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 	origLen := dst.Len()
 	var scan scanner
