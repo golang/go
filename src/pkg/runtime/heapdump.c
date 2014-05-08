@@ -49,6 +49,8 @@ enum {
 	TagBss = 13,
 	TagDefer = 14,
 	TagPanic = 15,
+	TagMemProf = 16,
+	TagAllocSample = 17,
 
 	TypeInfo_Conservative = 127,
 };
@@ -690,6 +692,74 @@ dumpmemstats(void)
 }
 
 static void
+dumpmemprof_callback(Bucket *b, uintptr nstk, uintptr *stk, uintptr size, uintptr allocs, uintptr frees)
+{
+	uintptr i, pc;
+	Func *f;
+	byte buf[20];
+	String file;
+	int32 line;
+
+	dumpint(TagMemProf);
+	dumpint((uintptr)b);
+	dumpint(size);
+	dumpint(nstk);
+	for(i = 0; i < nstk; i++) {
+		pc = stk[i];
+		f = runtime·findfunc(pc);
+		if(f == nil) {
+			runtime·snprintf(buf, sizeof(buf), "%X", (uint64)pc);
+			dumpcstr((int8*)buf);
+			dumpcstr("?");
+			dumpint(0);
+		} else {
+			dumpcstr(runtime·funcname(f));
+			// TODO: Why do we need to back up to a call instruction here?
+			// Maybe profiler should do this.
+			if(i > 0 && pc > f->entry) {
+				if(thechar == '6' || thechar == '8')
+					pc--;
+				else
+					pc -= 4; // arm, etc
+			}
+			line = runtime·funcline(f, pc, &file);
+			dumpstr(file);
+			dumpint(line);
+		}
+	}
+	dumpint(allocs);
+	dumpint(frees);
+}
+
+static void
+dumpmemprof(void)
+{
+	MSpan *s, **allspans;
+	uint32 spanidx;
+	Special *sp;
+	SpecialProfile *spp;
+	byte *p;
+
+	runtime·iterate_memprof(dumpmemprof_callback);
+
+	allspans = runtime·mheap.allspans;
+	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
+		s = allspans[spanidx];
+		if(s->state != MSpanInUse)
+			continue;
+		for(sp = s->specials; sp != nil; sp = sp->next) {
+			if(sp->kind != KindSpecialProfile)
+				continue;
+			spp = (SpecialProfile*)sp;
+			p = (byte*)((s->start << PageShift) + spp->offset);
+			dumpint(TagAllocSample);
+			dumpint((uintptr)p);
+			dumpint((uintptr)spp->b);
+		}
+	}
+}
+
+static void
 mdump(G *gp)
 {
 	byte *hdr;
@@ -713,6 +783,7 @@ mdump(G *gp)
 	dumpms();
 	dumproots();
 	dumpmemstats();
+	dumpmemprof();
 	dumpint(TagEOF);
 	flush();
 

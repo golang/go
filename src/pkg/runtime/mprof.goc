@@ -309,6 +309,18 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
 	runtime·unlock(&proflock);
 }
 
+void
+runtime·iterate_memprof(void (*callback)(Bucket*, uintptr, uintptr*, uintptr, uintptr, uintptr))
+{
+	Bucket *b;
+
+	runtime·lock(&proflock);
+	for(b=mbuckets; b; b=b->allnext) {
+		callback(b, b->nstk, b->stk, b->size, b->allocs, b->frees);
+	}
+	runtime·unlock(&proflock);
+}
+
 // Must match BlockProfileRecord in debug.go.
 typedef struct BRecord BRecord;
 struct BRecord {
