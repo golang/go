@@ -10,7 +10,7 @@
 //
 // Objdump disassembles the binary starting at the start address and
 // stopping at the end address. The start and end addresses are program
-// counters written in hexadecimal without a leading 0x prefix.
+// counters written in hexadecimal with optional leading 0x prefix.
 //
 // It prints a sequence of stanzas of the form:
 //
@@ -40,12 +40,13 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func printUsage(w *os.File) {
 	fmt.Fprintf(w, "usage: objdump binary start end\n")
 	fmt.Fprintf(w, "disassembles binary from start PC to end PC.\n")
-	fmt.Fprintf(w, "start and end are hexadecimal numbers with no 0x prefix.\n")
+	fmt.Fprintf(w, "start and end are hexadecimal numbers with optional leading 0x prefix.\n")
 }
 
 func usage() {
@@ -79,11 +80,11 @@ func main() {
 		log.Fatalf("reading %s: %v", flag.Arg(0), err)
 	}
 
-	start, err := strconv.ParseUint(flag.Arg(1), 0, 64)
+	start, err := strconv.ParseUint(strings.TrimPrefix(flag.Arg(1), "0x"), 16, 64)
 	if err != nil {
 		log.Fatalf("invalid start PC: %v", err)
 	}
-	end, err := strconv.ParseUint(flag.Arg(2), 0, 64)
+	end, err := strconv.ParseUint(strings.TrimPrefix(flag.Arg(2), "0x"), 16, 64)
 	if err != nil {
 		log.Fatalf("invalid end PC: %v", err)
 	}
