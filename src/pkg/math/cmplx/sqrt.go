@@ -54,6 +54,7 @@ import "math"
 //    IEEE      -10,+10   1,000,000     2.9e-16     6.1e-17
 
 // Sqrt returns the square root of x.
+// The result r is chosen so that real(r) ≥ 0 and imag(r) has the same sign as imag(x).
 func Sqrt(x complex128) complex128 {
 	if imag(x) == 0 {
 		if real(x) == 0 {
