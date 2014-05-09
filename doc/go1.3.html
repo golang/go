@@ -439,6 +439,7 @@ alongside the existing function
 <li>
 The <a href="/pkg/testing/"><code>testing</code></a> package now
 diagnoses tests that call <code>panic(nil)</code>, which are almost always erroneous.
+Also, tests now write profiles (if invoked with profiling flags) even on failure.
 </li>
 
 <li>

@@ -437,6 +437,7 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
 	stopAlarm()
 	if !testOk || !exampleOk {
 		fmt.Println("FAIL")
+		after()
 		os.Exit(1)
 	}
 	fmt.Println("PASS")
