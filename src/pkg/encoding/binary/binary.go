@@ -133,6 +133,7 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // When reading into structs, the field data for fields with
 // blank (_) field names is skipped; i.e., blank field names
 // may be used for padding.
+// When reading into a struct, all non-blank fields must be exported.
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {

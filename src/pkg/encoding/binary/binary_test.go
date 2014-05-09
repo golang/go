@@ -265,6 +265,30 @@ func TestBlankFields(t *testing.T) {
 	}
 }
 
+// An attempt to read into a struct with an unexported field will
+// panic.  This is probably not the best choice, but at this point
+// anything else would be an API change.
+
+type Unexported struct {
+	a int32
+}
+
+func TestUnexportedRead(t *testing.T) {
+	var buf bytes.Buffer
+	u1 := Unexported{a: 1}
+	if err := Write(&buf, LittleEndian, &u1); err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("did not panic")
+		}
+	}()
+	var u2 Unexported
+	Read(&buf, LittleEndian, &u2)
+}
+
 type byteSliceReader struct {
 	remain []byte
 }
