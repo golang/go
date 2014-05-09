@@ -418,6 +418,7 @@ func runTest(cmd *Command, args []string) {
 			var coverFiles []string
 			coverFiles = append(coverFiles, p.GoFiles...)
 			coverFiles = append(coverFiles, p.CgoFiles...)
+			coverFiles = append(coverFiles, p.TestGoFiles...)
 			p.coverVars = declareCoverVars(p.ImportPath, coverFiles...)
 		}
 	}
@@ -676,7 +677,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	stk.push("testmain")
 	for dep := range testMainDeps {
 		if ptest.ImportPath != dep {
-			p1 := loadImport("testing", "", &stk, nil)
+			p1 := loadImport(dep, "", &stk, nil)
 			if p1.Error != nil {
 				return nil, nil, nil, p1.Error
 			}
