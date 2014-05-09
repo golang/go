@@ -1144,7 +1144,7 @@ func TestEqualFold(t *testing.T) {
 func TestBufferGrowNegative(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
-			t.Fatal("Grow(-1) should have paniced")
+			t.Fatal("Grow(-1) should have panicked")
 		}
 	}()
 	var b Buffer
@@ -1154,7 +1154,7 @@ func TestBufferGrowNegative(t *testing.T) {
 func TestBufferTruncateNegative(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
-			t.Fatal("Truncate(-1) should have paniced")
+			t.Fatal("Truncate(-1) should have panicked")
 		}
 	}()
 	var b Buffer
@@ -1164,7 +1164,7 @@ func TestBufferTruncateNegative(t *testing.T) {
 func TestBufferTruncateOutOfRange(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
-			t.Fatal("Truncate(20) should have paniced")
+			t.Fatal("Truncate(20) should have panicked")
 		}
 	}()
 	var b Buffer
