@@ -5,5 +5,5 @@
 // Package race implements data race detection logic.
 // No public interface is provided.
 // For details about the race detector see
-// http://golang.org/doc/articles/race_detector.html
+// http://blog.golang.org/race-detector
 package race
