@@ -1012,7 +1012,7 @@ orderexpr(Node **np, Order *order)
 			// Allocate a temporary that will be cleaned up when this statement
 			// completes. We could be more aggressive and try to arrange for it
 			// to be cleaned up when the call completes.
-			n->alloc = ordertemp(n->type, order, 0);
+			n->alloc = ordertemp(n->type->type, order, 0);
 		}
 		break;
 
