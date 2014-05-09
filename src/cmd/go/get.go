@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO: Dashboard upload
-
 package main
 
 import (
@@ -37,8 +35,7 @@ The -u flag instructs get to use the network to update the named packages
 and their dependencies.  By default, get uses the network to check out
 missing packages but does not use it to look for updates to existing packages.
 
-Get also accepts all the flags in the 'go build' and 'go install' commands,
-to control the installation. See 'go help build'.
+Get also accepts build flags to control the installation. See 'go help build'.
 
 When checking out or updating a package, get looks for a branch or tag
 that matches the locally installed version of Go. The most important

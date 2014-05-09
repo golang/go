@@ -13,7 +13,7 @@ import (
 )
 
 var cmdClean = &Command{
-	UsageLine: "clean [-i] [-r] [-n] [-x] [packages]",
+	UsageLine: "clean [-i] [-r] [-n] [-x] [build flags] [packages]",
 	Short:     "remove object files",
 	Long: `
 Clean removes object files from package source directories.
@@ -52,23 +52,26 @@ dependencies of the packages named by the import paths.
 
 The -x flag causes clean to print remove commands as it executes them.
 
+For more about build flags, see 'go help build'.
+
 For more about specifying packages, see 'go help packages'.
 	`,
 }
 
 var cleanI bool // clean -i flag
-var cleanN bool // clean -n flag
 var cleanR bool // clean -r flag
-var cleanX bool // clean -x flag
 
 func init() {
 	// break init cycle
 	cmdClean.Run = runClean
 
 	cmdClean.Flag.BoolVar(&cleanI, "i", false, "")
-	cmdClean.Flag.BoolVar(&cleanN, "n", false, "")
 	cmdClean.Flag.BoolVar(&cleanR, "r", false, "")
-	cmdClean.Flag.BoolVar(&cleanX, "x", false, "")
+	// -n and -x are important enough to be
+	// mentioned explicitly in the docs but they
+	// are part of the build flags.
+
+	addBuildFlags(cmdClean)
 }
 
 func runClean(cmd *Command, args []string) {
@@ -169,7 +172,7 @@ func clean(p *Package) {
 		}
 	}
 
-	if cleanN || cleanX {
+	if buildN || buildX {
 		b.showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
 	}
 
@@ -182,9 +185,9 @@ func clean(p *Package) {
 		if dir.IsDir() {
 			// TODO: Remove once Makefiles are forgotten.
 			if cleanDir[name] {
-				if cleanN || cleanX {
+				if buildN || buildX {
 					b.showcmd(p.Dir, "rm -r %s", name)
-					if cleanN {
+					if buildN {
 						continue
 					}
 				}
@@ -195,7 +198,7 @@ func clean(p *Package) {
 			continue
 		}
 
-		if cleanN {
+		if buildN {
 			continue
 		}
 
@@ -205,10 +208,10 @@ func clean(p *Package) {
 	}
 
 	if cleanI && p.target != "" {
-		if cleanN || cleanX {
+		if buildN || buildX {
 			b.showcmd("", "rm -f %s", p.target)
 		}
-		if !cleanN {
+		if !buildN {
 			removeFile(p.target)
 		}
 	}
@@ -218,10 +221,10 @@ func clean(p *Package) {
 			dir := p.swigDir(&buildContext)
 			soname := p.swigSoname(f)
 			target := filepath.Join(dir, soname)
-			if cleanN || cleanX {
+			if buildN || buildX {
 				b.showcmd("", "rm -f %s", target)
 			}
-			if !cleanN {
+			if !buildN {
 				removeFile(target)
 			}
 		}
