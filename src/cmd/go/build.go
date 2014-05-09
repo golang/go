@@ -52,7 +52,8 @@ name is the base name of the containing directory.
 
 The -i flag installs the packages that are dependencies of the target.
 
-The build flags are shared by the build, install, run, and test commands:
+The build flags are shared by the build, clean, get, install, list, run,
+and test commands:
 
 	-a
 		force rebuilding of packages that are already up-to-date.
@@ -164,7 +165,8 @@ func init() {
 	}
 }
 
-// addBuildFlags adds the flags common to the build and install commands.
+// addBuildFlags adds the flags common to the build, clean, get,
+// install, list, run, and test commands.
 func addBuildFlags(cmd *Command) {
 	// NOTE: If you add flags here, also add them to testflag.go.
 	cmd.Flag.BoolVar(&buildA, "a", false, "")

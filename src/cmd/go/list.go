@@ -14,7 +14,7 @@ import (
 )
 
 var cmdList = &Command{
-	UsageLine: "list [-e] [-race] [-f format] [-json] [-tags 'tag list'] [packages]",
+	UsageLine: "list [-e] [-f format] [-json] [build flags] [packages]",
 	Short:     "list packages",
 	Long: `
 List lists the packages named by the import paths, one per line.
@@ -108,11 +108,7 @@ printing.  Erroneous packages will have a non-empty ImportPath and
 a non-nil Error field; other information may or may not be missing
 (zeroed).
 
-The -tags flag specifies a list of build tags, like in the 'go build'
-command.
-
-The -race flag causes the package data to include the dependencies
-required by the race detector.
+For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 	`,
@@ -120,23 +116,17 @@ For more about specifying packages, see 'go help packages'.
 
 func init() {
 	cmdList.Run = runList // break init cycle
-	cmdList.Flag.Var(buildCompiler{}, "compiler", "")
-	cmdList.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
+	addBuildFlags(cmdList)
 }
 
 var listE = cmdList.Flag.Bool("e", false, "")
 var listFmt = cmdList.Flag.String("f", "{{.ImportPath}}", "")
 var listJson = cmdList.Flag.Bool("json", false, "")
-var listRace = cmdList.Flag.Bool("race", false, "")
 var nl = []byte{'\n'}
 
 func runList(cmd *Command, args []string) {
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
-
-	if *listRace {
-		buildRace = true
-	}
 
 	var do func(*Package)
 	if *listJson {

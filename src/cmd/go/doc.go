@@ -46,7 +46,7 @@ Compile packages and dependencies
 
 Usage:
 
-	go build [-o output] [build flags] [packages]
+	go build [-o output] [-i] [build flags] [packages]
 
 Build compiles the packages named by the import paths,
 along with their dependencies, but it does not install the results.
@@ -66,6 +66,8 @@ the package is main and file names are provided, the file name
 derives from the first file name mentioned, such as f1 for 'go build
 f1.go f2.go'; with no files provided ('go build'), the output file
 name is the base name of the containing directory.
+
+The -i flag installs the packages that are dependencies of the target.
 
 The build flags are shared by the build, install, run, and test commands:
 
@@ -122,7 +124,7 @@ Remove object files
 
 Usage:
 
-	go clean [-i] [-r] [-n] [-x] [packages]
+	go clean [-i] [-r] [-n] [-x] [build flags] [packages]
 
 Clean removes object files from package source directories.
 The go command builds most objects in a temporary directory,
@@ -159,6 +161,8 @@ The -r flag causes clean to be applied recursively to all the
 dependencies of the packages named by the import paths.
 
 The -x flag causes clean to print remove commands as it executes them.
+
+For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 
@@ -271,7 +275,7 @@ List packages
 
 Usage:
 
-	go list [-e] [-race] [-f format] [-json] [-tags 'tag list'] [packages]
+	go list [-e] [-f format] [-json] [build flags] [packages]
 
 List lists the packages named by the import paths, one per line.
 
@@ -364,11 +368,7 @@ printing.  Erroneous packages will have a non-empty ImportPath and
 a non-nil Error field; other information may or may not be missing
 (zeroed).
 
-The -tags flag specifies a list of build tags, like in the 'go build'
-command.
-
-The -race flag causes the package data to include the dependencies
-required by the race detector.
+For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 
