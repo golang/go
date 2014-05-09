@@ -942,12 +942,11 @@ paint1(Reg *r, int bn)
 	for(;;) {
 		r->act.b[z] |= bb;
 
-		if(r->use1.b[z] & bb) {
-			change += CREF * r->f.loop;
-		}
-
-		if((r->use2.b[z]|r->set.b[z]) & bb) {
-			change += CREF * r->f.loop;
+		if(r->f.prog->as != ANOP) { // don't give credit for NOPs
+			if(r->use1.b[z] & bb)
+				change += CREF * r->f.loop;
+			if((r->use2.b[z]|r->set.b[z]) & bb)
+				change += CREF * r->f.loop;
 		}
 
 		if(STORE(r) & r->regdiff.b[z] & bb) {

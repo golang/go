@@ -1097,18 +1097,20 @@ paint1(Reg *r, int bn)
 		r->act.b[z] |= bb;
 		p = r->f.prog;
 
-		if(r->use1.b[z] & bb) {
-			change += CREF * r->f.loop;
-			if(debug['R'] > 1)
-				print("%d%P\tu1 %Q $%d\n", r->f.loop,
-					p, blsh(bn), change);
-		}
 
-		if((r->use2.b[z]|r->set.b[z]) & bb) {
-			change += CREF * r->f.loop;
-			if(debug['R'] > 1)
-				print("%d%P\tu2 %Q $%d\n", r->f.loop,
-					p, blsh(bn), change);
+		if(r->f.prog->as != ANOP) { // don't give credit for NOPs
+			if(r->use1.b[z] & bb) {
+				change += CREF * r->f.loop;
+				if(debug['R'] > 1)
+					print("%d%P\tu1 %Q $%d\n", r->f.loop,
+						p, blsh(bn), change);
+			}
+			if((r->use2.b[z]|r->set.b[z]) & bb) {
+				change += CREF * r->f.loop;
+				if(debug['R'] > 1)
+					print("%d%P\tu2 %Q $%d\n", r->f.loop,
+						p, blsh(bn), change);
+			}
 		}
 
 		if(STORE(r) & r->regdiff.b[z] & bb) {
