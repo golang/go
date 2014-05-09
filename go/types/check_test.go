@@ -57,6 +57,7 @@ var tests = [][]string{
 	{"testdata/cycles4.src"},
 	{"testdata/init0.src"},
 	{"testdata/init1.src"},
+	{"testdata/init2.src"},
 	{"testdata/decls0.src"},
 	{"testdata/decls1.src"},
 	{"testdata/decls2a.src", "testdata/decls2b.src"},

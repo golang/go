@@ -14,7 +14,7 @@ func (T0) m() int { return y0 }
 
 var x0 = T0{}
 
-var y0 = x0.m() // no cycle reported
+var y0 /* ERROR initialization cycle */ = x0.m()
 
 type T1 struct{}
 
@@ -24,7 +24,7 @@ var x1 interface {
 	m() int
 } = T1{}
 
-var y1 = x1.m() // no cycle reported
+var y1 = x1.m() // no cycle reported, x1 is of interface type
 
 // issue 6703 (modified)
 
@@ -50,7 +50,7 @@ func (T3) m() int {
 	return 0
 }
 
-var x4 = T4{}.m // <<<< added {}
+var x4 /* ERROR initialization cycle */ = T4{}.m // <<<< added {}
 
 var y4 = x4
 
@@ -61,7 +61,7 @@ func (T4) m() int {
 	return 0
 }
 
-var x5 = T5{}.m() // <<<< added ()
+var x5 /* ERROR initialization cycle */ = T5{}.m() // <<<< added ()
 
 var y5 = x5
 

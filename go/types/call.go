@@ -408,6 +408,8 @@ func (check *checker) selector(x *operand, e *ast.SelectorExpr) {
 			sig.recv = nil
 			x.typ = &sig
 
+			check.addDeclDep(obj)
+
 		default:
 			unreachable()
 		}
