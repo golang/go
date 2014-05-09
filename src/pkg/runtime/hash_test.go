@@ -397,10 +397,10 @@ func avalancheTest1(t *testing.T, k Key) {
 	// all sums inside those bounds with 99% probability.
 	N := n * hashSize
 	var c float64
-	// find c such that Prob(mean-c*stddev < x < mean+c*stddev)^N > .99
-	for c = 0.0; math.Pow(math.Erf(c/math.Sqrt(2)), float64(N)) < .99; c += .1 {
+	// find c such that Prob(mean-c*stddev < x < mean+c*stddev)^N > .9999
+	for c = 0.0; math.Pow(math.Erf(c/math.Sqrt(2)), float64(N)) < .9999; c += .1 {
 	}
-	c *= 2.0 // allowed slack - we don't need to be perfectly random
+	c *= 4.0 // allowed slack - we don't need to be perfectly random
 	mean := .5 * REP
 	stddev := .5 * math.Sqrt(REP)
 	low := int(mean - c*stddev)
