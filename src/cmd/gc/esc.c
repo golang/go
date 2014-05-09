@@ -903,6 +903,7 @@ esccall(EscState *e, Node *n, Node *up)
 				src->type = typ(TARRAY);
 				src->type->type = lr->n->type->type;
 				src->type->bound = count(ll);
+				src->type = ptrto(src->type); // make pointer so it will be tracked
 				src->escloopdepth = e->loopdepth;
 				src->lineno = n->lineno;
 				src->esc = EscNone;  // until we find otherwise
@@ -960,6 +961,7 @@ esccall(EscState *e, Node *n, Node *up)
 			src->type = typ(TARRAY);
 			src->type->type = t->type->type;
 			src->type->bound = count(ll);
+			src->type = ptrto(src->type); // make pointer so it will be tracked
 			src->esc = EscNone;  // until we find otherwise
 			e->noesc = list(e->noesc, src);
 			n->right = src;
