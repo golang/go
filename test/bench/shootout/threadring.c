@@ -41,8 +41,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include <limits.h>
 
-#define THREADS (503)
+// PTHREAD_STACK_MIN undeclared on mingw
+#ifndef PTHREAD_STACK_MIN
+#define PTHREAD_STACK_MIN 65535
+#endif
 
+#define THREADS (503)
 
 struct stack {
    char x[PTHREAD_STACK_MIN];
@@ -94,7 +98,13 @@ int main(int argc, char **argv)
       pthread_mutex_init(mutex + i, NULL);
       pthread_mutex_lock(mutex + i);
 
+#if defined(__MINGW32__) || defined(__MINGW64__)
+      pthread_attr_setstackaddr(&stack_attr, &stacks[i]);
+      pthread_attr_setstacksize(&stack_attr, sizeof(struct stack));
+#else
       pthread_attr_setstack(&stack_attr, &stacks[i], sizeof(struct stack));
+#endif
+
       pthread_create(&cthread, &stack_attr, thread, (void*)(uintptr_t)i);
    }
 
