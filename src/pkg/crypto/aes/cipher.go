@@ -46,9 +46,21 @@ func NewCipher(key []byte) (cipher.Block, error) {
 func (c *aesCipher) BlockSize() int { return BlockSize }
 
 func (c *aesCipher) Encrypt(dst, src []byte) {
+	if len(src) < BlockSize {
+		panic("crypto/aes: input not full block")
+	}
+	if len(dst) < BlockSize {
+		panic("crypto/aes: output not full block")
+	}
 	encryptBlock(c.enc, dst, src)
 }
 
 func (c *aesCipher) Decrypt(dst, src []byte) {
+	if len(src) < BlockSize {
+		panic("crypto/aes: input not full block")
+	}
+	if len(dst) < BlockSize {
+		panic("crypto/aes: output not full block")
+	}
 	decryptBlock(c.dec, dst, src)
 }
