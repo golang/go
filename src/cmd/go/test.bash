@@ -708,12 +708,28 @@ if ./testgo test notest >/dev/null 2>&1; then
 fi
 unset GOPATH
 
+<<<<<<< local
+TEST 'Issue 6844: cmd/go: go test -a foo does not rebuild regexp'
+if ! ./testgo test -x -a -c testdata/dep_test.go 2>deplist; then
+	echo "go test -x -a -c testdata/dep_test.go failed"
+	ok=false
+elif ! grep -q regexp deplist; then
+	echo "go test -x -a -c testdata/dep_test.go did not rebuild regexp"
+=======
 TEST list template can use context function
 if ! ./testgo list -f "GOARCH: {{context.GOARCH}}"; then 
 	echo unable to use context in list template
+>>>>>>> other
 	ok=false
 fi
+<<<<<<< local
+rm -f deplist
+rm -f deps.test
+=======
+>>>>>>> other
 
+<<<<<<< local
+=======
 TEST build -i installs dependencies
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 export GOPATH=$d
@@ -748,6 +764,7 @@ fi
 rm -rf $d
 unset GOPATH
 
+>>>>>>> other
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
