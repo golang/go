@@ -286,8 +286,8 @@ staticcopy(Node *l, Node *r, NodeList **out)
 
 	if(r->op != ONAME || r->class != PEXTERN || r->sym->pkg != localpkg)
 		return 0;
-	if(r->defn == N)	// zeroed
-		return 1;
+	if(r->defn == N)	// probably zeroed but perhaps supplied externally and of unknown value
+		return 0;
 	if(r->defn->op != OAS)
 		return 0;
 	orig = r;
