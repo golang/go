@@ -425,60 +425,6 @@ func numFD() int {
 	panic("numFDs not implemented on " + runtime.GOOS)
 }
 
-// Assert that a failed Dial attempt does not leak
-// runtime.PollDesc structures
-func TestDialFailPDLeak(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode")
-	}
-	if runtime.GOOS == "windows" && runtime.GOARCH == "386" {
-		// Just skip the test because it takes too long.
-		t.Skipf("skipping test on %q/%q", runtime.GOOS, runtime.GOARCH)
-	}
-
-	maxprocs := runtime.GOMAXPROCS(0)
-	loops := 10 + maxprocs
-	// 500 is enough to turn over the chunk of pollcache.
-	// See allocPollDesc in runtime/netpoll.goc.
-	const count = 500
-	var old runtime.MemStats // used by sysdelta
-	runtime.ReadMemStats(&old)
-	sysdelta := func() uint64 {
-		var new runtime.MemStats
-		runtime.ReadMemStats(&new)
-		delta := old.Sys - new.Sys
-		old = new
-		return delta
-	}
-	d := &Dialer{Timeout: time.Nanosecond} // don't bother TCP with handshaking
-	failcount := 0
-	for i := 0; i < loops; i++ {
-		var wg sync.WaitGroup
-		for i := 0; i < count; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if c, err := d.Dial("tcp", "127.0.0.1:1"); err == nil {
-					t.Error("dial should not succeed")
-					c.Close()
-				}
-			}()
-		}
-		wg.Wait()
-		if t.Failed() {
-			t.FailNow()
-		}
-		if delta := sysdelta(); delta > 0 {
-			failcount++
-		}
-		// there are always some allocations on the first loop
-		if failcount > maxprocs+2 {
-			t.Error("detected possible memory leak in runtime")
-			t.FailNow()
-		}
-	}
-}
-
 func TestDialer(t *testing.T) {
 	ln, err := Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
