@@ -8,7 +8,7 @@
 // Usage:
 //	go tool addr2line binary
 //
-// Addr2line reads hexadecimal addresses, one per line and without a 0x prefix,
+// Addr2line reads hexadecimal addresses, one per line and with optional 0x prefix,
 // from standard input. For each input address, addr2line prints two output lines,
 // first the name of the function containing the address and second the file:line
 // of the source code corresponding to that address.
@@ -88,7 +88,7 @@ func main() {
 			fmt.Fprintf(stdout, "!reverse translation not implemented\n")
 			continue
 		}
-		pc, _ := strconv.ParseUint(p, 16, 64)
+		pc, _ := strconv.ParseUint(strings.TrimPrefix(p, "0x"), 16, 64)
 		file, line, fn := tab.PCToLine(pc)
 		name := "?"
 		if fn != nil {
