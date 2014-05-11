@@ -161,7 +161,7 @@ func runList(cmd *Command, args []string) {
 				fatalf("%s", err)
 			}
 			if out.NeedNL() {
-				out.Write([]byte{'\n'})
+				out.Write(nl)
 			}
 		}
 	}
