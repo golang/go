@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,11 +55,17 @@ func checkSymbols(t *testing.T, nmoutput []byte) {
 }
 
 func TestNM(t *testing.T) {
-	out, err := exec.Command("go", "build", "-o", "testnm.exe", "cmd/nm").CombinedOutput()
+	tmpDir, err := ioutil.TempDir("", "TestNM")
 	if err != nil {
-		t.Fatalf("go build -o testnm.exe cmd/nm: %v\n%s", err, string(out))
+		t.Fatal("TempDir failed: ", err)
 	}
-	defer os.Remove("testnm.exe")
+	defer os.RemoveAll(tmpDir)
+
+	testnmpath := filepath.Join(tmpDir, "testnm.exe")
+	out, err := exec.Command("go", "build", "-o", testnmpath, "cmd/nm").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build -o %v cmd/nm: %v\n%s", testnmpath, err, string(out))
+	}
 
 	testfiles := []string{
 		"elf/testdata/gcc-386-freebsd-exec",
@@ -72,14 +79,14 @@ func TestNM(t *testing.T) {
 	}
 	for _, f := range testfiles {
 		exepath := filepath.Join(runtime.GOROOT(), "src", "pkg", "debug", f)
-		cmd := exec.Command("./testnm.exe", exepath)
+		cmd := exec.Command(testnmpath, exepath)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("go tool nm %v: %v\n%s", exepath, err, string(out))
 		}
 	}
 
-	cmd := exec.Command("./testnm.exe", os.Args[0])
+	cmd := exec.Command(testnmpath, os.Args[0])
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm %v: %v\n%s", os.Args[0], err, string(out))
