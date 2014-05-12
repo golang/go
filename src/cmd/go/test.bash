@@ -770,6 +770,19 @@ elif ! grep 'no buildable Go' testdata/err.out >/dev/null; then
 fi
 rm -f testdata/err.out
 
+TEST 'go test detects test-only import cycles'
+export GOPATH=$(pwd)/testdata
+if ./testgo test -c testcycle/p3 2>testdata/err.out; then
+	echo "go test testcycle/p3 succeeded, should have failed"
+	ok=false
+elif ! grep 'import cycle not allowed in test' testdata/err.out >/dev/null; then
+	echo "go test testcycle/p3 produced unexpected error:"
+	cat testdata/err.out
+	ok=false
+fi
+rm -f testdata/err.out
+unset GOPATH
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1

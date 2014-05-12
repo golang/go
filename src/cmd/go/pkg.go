@@ -144,7 +144,7 @@ type PackageError struct {
 func (p *PackageError) Error() string {
 	// Import cycles deserve special treatment.
 	if p.isImportCycle {
-		return fmt.Sprintf("%s: %s\npackage %s\n", p.Pos, p.Err, strings.Join(p.ImportStack, "\n\timports "))
+		return fmt.Sprintf("%s\npackage %s\n", p.Err, strings.Join(p.ImportStack, "\n\timports "))
 	}
 	if p.Pos != "" {
 		// Omit import stack.  The full path to the file where the error
