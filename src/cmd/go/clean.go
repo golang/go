@@ -216,20 +216,6 @@ func clean(p *Package) {
 		}
 	}
 
-	if cleanI && p.usesSwig() {
-		for _, f := range stringList(p.SwigFiles, p.SwigCXXFiles) {
-			dir := p.swigDir(&buildContext)
-			soname := p.swigSoname(f)
-			target := filepath.Join(dir, soname)
-			if buildN || buildX {
-				b.showcmd("", "rm -f %s", target)
-			}
-			if !buildN {
-				removeFile(target)
-			}
-		}
-	}
-
 	if cleanR {
 		for _, p1 := range p.imports {
 			clean(p1)

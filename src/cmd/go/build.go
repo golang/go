@@ -1048,21 +1048,6 @@ func (b *builder) install(a *action) (err error) {
 		defer os.Remove(a1.target)
 	}
 
-	if a.p.usesSwig() {
-		for _, f := range stringList(a.p.SwigFiles, a.p.SwigCXXFiles) {
-			dir = a.p.swigDir(&buildContext)
-			if err := b.mkdir(dir); err != nil {
-				return err
-			}
-			soname := a.p.swigSoname(f)
-			source := filepath.Join(a.objdir, soname)
-			target := filepath.Join(dir, soname)
-			if err = b.copyFile(a, target, source, perm); err != nil {
-				return err
-			}
-		}
-	}
-
 	return b.moveOrCopyFile(a, a.target, a1.target, perm)
 }
 
@@ -1721,25 +1706,8 @@ func packInternal(b *builder, afile string, ofiles []string) error {
 
 func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	importArgs := b.includeArgs("-L", allactions)
-	swigDirs := make(map[string]bool)
-	swigArg := []string{}
 	cxx := false
 	for _, a := range allactions {
-		if a.p != nil && a.p.usesSwig() {
-			sd := a.p.swigDir(&buildContext)
-			if len(swigArg) == 0 {
-				swigArg = []string{"-r", sd}
-			} else if !swigDirs[sd] {
-				swigArg[1] += ":"
-				swigArg[1] += sd
-			}
-			swigDirs[sd] = true
-			if a.objdir != "" && !swigDirs[a.objdir] {
-				swigArg[1] += ":"
-				swigArg[1] += a.objdir
-				swigDirs[a.objdir] = true
-			}
-		}
 		if a.p != nil && len(a.p.CXXFiles) > 0 {
 			cxx = true
 		}
@@ -1792,7 +1760,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 			}
 		}
 	}
-	return b.run(".", p.ImportPath, nil, tool(archChar+"l"), "-o", out, importArgs, swigArg, ldflags, mainpkg)
+	return b.run(".", p.ImportPath, nil, tool(archChar+"l"), "-o", out, importArgs, ldflags, mainpkg)
 }
 
 func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
@@ -1865,7 +1833,6 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	// and all LDFLAGS from cgo dependencies.
 	apackagesSeen := make(map[*Package]bool)
 	afiles := []string{}
-	sfiles := []string{}
 	ldflags := b.gccArchArgs()
 	cgoldflags := []string{}
 	usesCgo := false
@@ -1898,14 +1865,6 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 				usesCgo = true
 			}
 			if a.p.usesSwig() {
-				sd := a.p.swigDir(&buildContext)
-				if a.objdir != "" {
-					sd = a.objdir
-				}
-				for _, f := range stringList(a.p.SwigFiles, a.p.SwigCXXFiles) {
-					soname := a.p.swigSoname(f)
-					sfiles = append(sfiles, filepath.Join(sd, soname))
-				}
 				usesCgo = true
 			}
 			if len(a.p.CXXFiles) > 0 {
@@ -1917,7 +1876,6 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 		}
 	}
 	ldflags = append(ldflags, afiles...)
-	ldflags = append(ldflags, sfiles...)
 	ldflags = append(ldflags, cgoldflags...)
 	ldflags = append(ldflags, p.CgoLDFLAGS...)
 	if usesCgo && goos == "linux" {
@@ -2364,13 +2322,12 @@ func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles, mfiles []stri
 	cflags := stringList(cgoCPPFLAGS, cgoCFLAGS)
 	cxxflags := stringList(cgoCPPFLAGS, cgoCXXFLAGS)
 
-	var extraObj []string
 	for _, file := range gccfiles {
 		ofile := obj + cgoRe.ReplaceAllString(file[:len(file)-1], "_") + "o"
 		if err := b.gcc(p, ofile, cflags, file); err != nil {
 			return nil, nil, err
 		}
-		extraObj = append(extraObj, ofile)
+		outObj = append(outObj, ofile)
 	}
 
 	for _, file := range gxxfiles {
@@ -2379,7 +2336,7 @@ func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles, mfiles []stri
 		if err := b.gxx(p, ofile, cxxflags, file); err != nil {
 			return nil, nil, err
 		}
-		extraObj = append(extraObj, ofile)
+		outObj = append(outObj, ofile)
 	}
 
 	for _, file := range mfiles {
@@ -2388,7 +2345,7 @@ func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles, mfiles []stri
 		if err := b.gcc(p, ofile, cflags, file); err != nil {
 			return nil, nil, err
 		}
-		extraObj = append(extraObj, ofile)
+		outObj = append(outObj, ofile)
 	}
 
 	intgosize, err := b.swigIntSize(obj)
@@ -2397,7 +2354,7 @@ func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles, mfiles []stri
 	}
 
 	for _, f := range p.SwigFiles {
-		goFile, objFile, err := b.swigOne(p, f, obj, false, intgosize, extraObj)
+		goFile, objFile, gccObjFile, err := b.swigOne(p, f, obj, false, intgosize)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2406,10 +2363,13 @@ func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles, mfiles []stri
 		}
 		if objFile != "" {
 			outObj = append(outObj, objFile)
+		}
+		if gccObjFile != "" {
+			outObj = append(outObj, gccObjFile)
 		}
 	}
 	for _, f := range p.SwigCXXFiles {
-		goFile, objFile, err := b.swigOne(p, f, obj, true, intgosize, extraObj)
+		goFile, objFile, gccObjFile, err := b.swigOne(p, f, obj, true, intgosize)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2418,6 +2378,9 @@ func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles, mfiles []stri
 		}
 		if objFile != "" {
 			outObj = append(outObj, objFile)
+		}
+		if gccObjFile != "" {
+			outObj = append(outObj, gccObjFile)
 		}
 	}
 	return outGo, outObj, nil
@@ -2450,13 +2413,13 @@ func (b *builder) swigIntSize(obj string) (intsize string, err error) {
 }
 
 // Run SWIG on one SWIG input file.
-func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize string, extraObj []string) (outGo, outObj string, err error) {
-	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoLDFLAGS := b.cflags(p, true)
+func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize string) (outGo, outObj, objGccObj string, err error) {
+	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _ := b.cflags(p, true)
 	var cflags []string
 	if cxx {
-		cflags = stringList(cgoCPPFLAGS, cgoCXXFLAGS, "-fPIC")
+		cflags = stringList(cgoCPPFLAGS, cgoCXXFLAGS)
 	} else {
-		cflags = stringList(cgoCPPFLAGS, cgoCFLAGS, "-fPIC")
+		cflags = stringList(cgoCPPFLAGS, cgoCFLAGS)
 	}
 
 	n := 5 // length of ".swig"
@@ -2471,7 +2434,6 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
 	if cxx {
 		gccExt = "cxx"
 	}
-	soname := p.swigSoname(file)
 
 	_, gccgo := buildToolchain.(gccgoToolchain)
 
@@ -2480,12 +2442,14 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
 		"-go",
 		"-intgosize", intgosize,
 		"-module", base,
-		"-soname", soname,
 		"-o", obj + gccBase + gccExt,
 		"-outdir", obj,
 	}
 	if gccgo {
 		args = append(args, "-gccgo")
+		if pkgpath := gccgoPkgpath(p); pkgpath != "" {
+			args = append(args, "-go-pkgpath", pkgpath)
+		}
 	}
 	if cxx {
 		args = append(args, "-c++")
@@ -2494,12 +2458,12 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
 	if out, err := b.runOut(p.Dir, p.ImportPath, nil, "swig", args, file); err != nil {
 		if len(out) > 0 {
 			if bytes.Contains(out, []byte("Unrecognized option -intgosize")) {
-				return "", "", errors.New("must have SWIG version >= 2.0.9\n")
+				return "", "", "", errors.New("must have SWIG version >= 3.0\n")
 			}
 			b.showOutput(p.Dir, p.ImportPath, b.processOutput(out))
-			return "", "", errPrintedOutput
+			return "", "", "", errPrintedOutput
 		}
-		return "", "", err
+		return "", "", "", err
 	}
 
 	var cObj string
@@ -2507,7 +2471,7 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
 		// cc
 		cObj = obj + cBase + archChar
 		if err := buildToolchain.cc(b, p, obj, cObj, obj+cBase+"c"); err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 	}
 
@@ -2515,32 +2479,15 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
 	gccObj := obj + gccBase + "o"
 	if !cxx {
 		if err := b.gcc(p, gccObj, cflags, obj+gccBase+gccExt); err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 	} else {
 		if err := b.gxx(p, gccObj, cflags, obj+gccBase+gccExt); err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 	}
 
-	// create shared library
-	osldflags := map[string][]string{
-		"darwin":  {"-dynamiclib", "-Wl,-undefined,dynamic_lookup"},
-		"freebsd": {"-shared", "-lpthread", "-lm"},
-		"linux":   {"-shared", "-lpthread", "-lm"},
-		"windows": {"-shared", "-lm", "-mthreads"},
-	}
-	var cxxlib []string
-	if cxx {
-		cxxlib = []string{"-lstdc++"}
-	}
-	ldflags := stringList(osldflags[goos], cflags, cgoLDFLAGS, cxxlib)
-	target := filepath.Join(obj, soname)
-	if err := b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", target, gccObj, extraObj, ldflags); err != nil {
-		return "", "", err
-	}
-
-	return obj + goFile, cObj, nil
+	return obj + goFile, cObj, gccObj, nil
 }
 
 // An actionQueue is a priority queue of actions.
