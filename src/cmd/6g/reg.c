@@ -55,7 +55,7 @@ rcmp(const void *a1, const void *a2)
 }
 
 static void
-setoutvar(void)
+setvar(Bits *dst, Type **args)
 {
 	Type *t;
 	Node *n;
@@ -64,18 +64,16 @@ setoutvar(void)
 	Bits bit;
 	int z;
 
-	t = structfirst(&save, getoutarg(curfn->type));
+	t = structfirst(&save, args);
 	while(t != T) {
 		n = nodarg(t, 1);
 		a = zprog.from;
 		naddr(n, &a, 0);
 		bit = mkvar(R, &a);
 		for(z=0; z<BITS; z++)
-			ovar.b[z] |= bit.b[z];
+			dst->b[z] |= bit.b[z];
 		t = structnext(&save);
 	}
-//if(bany(&ovar))
-//print("ovars = %Q\n", ovar);
 }
 
 static void
@@ -176,11 +174,14 @@ regopt(Prog *firstp)
 		params.b[z] = 0;
 		consts.b[z] = 0;
 		addrs.b[z] = 0;
+		ivar.b[z] = 0;
 		ovar.b[z] = 0;
 	}
 
-	// build list of return variables
-	setoutvar();
+	// build lists of parameters and results
+	setvar(&ivar, getthis(curfn->type));
+	setvar(&ivar, getinarg(curfn->type));
+	setvar(&ovar, getoutarg(curfn->type));
 
 	/*
 	 * pass 1
@@ -750,8 +751,12 @@ prop(Reg *r, Bits ref, Bits cal)
 		case ACALL:
 			if(noreturn(r1->f.prog))
 				break;
+
+			// Mark all input variables (ivar) as used, because that's what the
+			// liveness bitmaps say. The liveness bitmaps say that so that a
+			// panic will not show stale values in the parameter dump.
 			for(z=0; z<BITS; z++) {
-				cal.b[z] |= ref.b[z] | externs.b[z];
+				cal.b[z] |= ref.b[z] | externs.b[z] | ivar.b[z];
 				ref.b[z] = 0;
 			}
 			

@@ -94,6 +94,7 @@ EXTERN	Bits	externs;
 EXTERN	Bits	params;
 EXTERN	Bits	consts;
 EXTERN	Bits	addrs;
+EXTERN	Bits	ivar;
 EXTERN	Bits	ovar;
 EXTERN	int	change;
 EXTERN	int32	maxnr;
