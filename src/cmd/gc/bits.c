@@ -153,7 +153,7 @@ Qconv(Fmt *fp)
 		if(var[i].node == N || var[i].node->sym == S)
 			fmtprint(fp, "$%d", i);
 		else {
-			fmtprint(fp, "%s", var[i].node->sym->name);
+			fmtprint(fp, "%s(%d)", var[i].node->sym->name, i);
 			if(var[i].offset != 0)
 				fmtprint(fp, "%+lld", (vlong)var[i].offset);
 		}
