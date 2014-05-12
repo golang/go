@@ -538,14 +538,27 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 	var imports, ximports []*Package
 	var stk importStack
-	stk.push(p.ImportPath + "_test")
+	stk.push(p.ImportPath + " (test)")
 	for _, path := range p.TestImports {
 		p1 := loadImport(path, p.Dir, &stk, p.build.TestImportPos[path])
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
+		if contains(p1.Deps, p.ImportPath) {
+			// Same error that loadPackage returns (via reusePackage) in pkg.go.
+			// Can't change that code, because that code is only for loading the
+			// non-test copy of a package.
+			err := &PackageError{
+				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
+				Err:           "import cycle not allowed in test",
+				isImportCycle: true,
+			}
+			return nil, nil, nil, err
+		}
 		imports = append(imports, p1)
 	}
+	stk.pop()
+	stk.push(p.ImportPath + "_test")
 	for _, path := range p.XTestImports {
 		if path == p.ImportPath {
 			continue
@@ -775,6 +788,24 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	}
 
 	return pmainAction, runAction, printAction, nil
+}
+
+func testImportStack(top string, p *Package, target string) []string {
+	stk := []string{top, p.ImportPath}
+Search:
+	for p.ImportPath != target {
+		for _, p1 := range p.imports {
+			if p1.ImportPath == target || contains(p1.Deps, target) {
+				stk = append(stk, p1.ImportPath)
+				p = p1
+				continue Search
+			}
+		}
+		// Can't happen, but in case it does...
+		stk = append(stk, "<lost path to cycle>")
+		break
+	}
+	return stk
 }
 
 func recompileForTest(pmain, preal, ptest *Package, testDir string) {
