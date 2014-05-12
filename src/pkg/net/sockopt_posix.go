@@ -8,7 +8,6 @@ package net
 
 import (
 	"os"
-	"runtime"
 	"syscall"
 )
 
@@ -138,9 +137,5 @@ func setLinger(fd *netFD, sec int) error {
 		return err
 	}
 	defer fd.decref()
-	opt := syscall.SO_LINGER
-	if runtime.GOOS == "darwin" {
-		opt = syscall.SO_LINGER_SEC
-	}
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptLinger(fd.sysfd, syscall.SOL_SOCKET, opt, &l))
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptLinger(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_LINGER, &l))
 }
