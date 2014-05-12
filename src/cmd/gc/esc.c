@@ -767,8 +767,8 @@ escassign(EscState *e, Node *dst, Node *src)
 	case ODOTTYPE:
 	case ODOTTYPE2:
 	case OSLICE:
-	case OSLICEARR:
 	case OSLICE3:
+	case OSLICEARR:
 	case OSLICE3ARR:
 		// Conversions, field access, slice all preserve the input value.
 		escassign(e, dst, src->left);
@@ -1155,6 +1155,10 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 		break;
 
 	case ODOT:
+	case OSLICE:
+	case OSLICEARR:
+	case OSLICE3:
+	case OSLICE3ARR:
 		escwalk(e, level, dst, src->left);
 		break;
 
@@ -1164,7 +1168,6 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 			break;
 		}
 		// fall through
-	case OSLICE:
 	case ODOTPTR:
 	case OINDEXMAP:
 	case OIND:
