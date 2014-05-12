@@ -16,7 +16,7 @@
 #define FLAGS_V (1U << 28)
 
 void	runtime·abort(void);
-void	math·sqrtC(uint64, uint64*);
+void	runtime·sqrtC(uint64, uint64*);
 
 static	uint32	trace = 0;
 
@@ -413,7 +413,7 @@ stage3:	// regd, regm are 4bit variables
 		break;
 
 	case 0xeeb10bc0:	// D[regd] = sqrt D[regm]
-		math·sqrtC(getd(regm), &uval);
+		runtime·sqrtC(getd(regm), &uval);
 		putd(regd, uval);
 
 		if(trace)
