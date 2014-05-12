@@ -144,7 +144,6 @@ source directories corresponding to the import paths:
 	DIR(.exe)        from go build
 	DIR.test(.exe)   from go test -c
 	MAINFILE(.exe)   from go build MAINFILE.go
-	*.so             from SWIG
 
 In the list, DIR represents the final path element of the
 directory, and MAINFILE is the base name of any Go source

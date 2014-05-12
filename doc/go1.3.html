@@ -179,6 +179,15 @@ Finally, the go command now supports packages that import Objective-C
 files (suffixed <code>.m</code>) through cgo.
 </p>
 
+<h3 id="swig">SWIG 3.0 required for programs that use SWIG</h3>
+
+<p>
+For Go programs that use SWIG, SWIG version 3.0 is now required.  The
+<a href="/cmd/go"><code>cmd/go</code></a> command will now link the
+SWIG generated object files directly into the binary, rather than
+building and linking with a shared library.
+</p>
+
 <h3 id="gc_flag">Command-line flag parsing</h3>
 
 <p>

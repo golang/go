@@ -560,24 +560,6 @@ func (p *Package) usesCgo() bool {
 	return len(p.CgoFiles) > 0
 }
 
-// swigSoname returns the name of the shared library we create for a
-// SWIG input file.
-func (p *Package) swigSoname(file string) string {
-	return strings.Replace(p.ImportPath, "/", "-", -1) + "-" + strings.Replace(file, ".", "-", -1) + ".so"
-}
-
-// swigDir returns the name of the shared SWIG directory for a
-// package.
-func (p *Package) swigDir(ctxt *build.Context) string {
-	dir := p.build.PkgRoot
-	if ctxt.Compiler == "gccgo" {
-		dir = filepath.Join(dir, "gccgo_"+ctxt.GOOS+"_"+ctxt.GOARCH)
-	} else {
-		dir = filepath.Join(dir, ctxt.GOOS+"_"+ctxt.GOARCH)
-	}
-	return filepath.Join(dir, "swig")
-}
-
 // packageList returns the list of packages in the dag rooted at roots
 // as visited in a depth-first post-order traversal.
 func packageList(roots []*Package) []*Package {
