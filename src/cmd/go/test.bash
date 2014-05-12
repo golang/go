@@ -759,6 +759,17 @@ fi
 rm -rf $d
 unset GOPATH
 
+TEST 'go build in test-only directory fails with a good error'
+if ./testgo build ./testdata/testonly 2>testdata/err.out; then
+	echo "go build ./testdata/testonly succeeded, should have failed"
+	ok=false
+elif ! grep 'no buildable Go' testdata/err.out >/dev/null; then
+	echo "go build ./testdata/testonly produced unexpected error:"
+	cat testdata/err.out
+	ok=false
+fi
+rm -f testdata/err.out
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1

@@ -882,6 +882,10 @@ func (b *builder) build(a *action) (err error) {
 		gofiles = append(gofiles, outGo...)
 	}
 
+	if len(gofiles) == 0 {
+		return &build.NoGoError{a.p.Dir}
+	}
+
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
 	if a.p.coverMode != "" {
 		for i, file := range gofiles {
@@ -915,20 +919,18 @@ func (b *builder) build(a *action) (err error) {
 	inc := b.includeArgs("-I", a.deps)
 
 	// Compile Go.
-	if len(gofiles) > 0 {
-		ofile, out, err := buildToolchain.gc(b, a.p, a.objpkg, obj, inc, gofiles)
-		if len(out) > 0 {
-			b.showOutput(a.p.Dir, a.p.ImportPath, b.processOutput(out))
-			if err != nil {
-				return errPrintedOutput
-			}
-		}
+	ofile, out, err := buildToolchain.gc(b, a.p, a.objpkg, obj, inc, gofiles)
+	if len(out) > 0 {
+		b.showOutput(a.p.Dir, a.p.ImportPath, b.processOutput(out))
 		if err != nil {
-			return err
+			return errPrintedOutput
 		}
-		if ofile != a.objpkg {
-			objects = append(objects, ofile)
-		}
+	}
+	if err != nil {
+		return err
+	}
+	if ofile != a.objpkg {
+		objects = append(objects, ofile)
 	}
 
 	// Copy .h files named for goos or goarch or goos_goarch
