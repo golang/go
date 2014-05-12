@@ -7,16 +7,12 @@ Present displays slide presentations and articles. It runs a web server that
 presents slide and article files from the current directory.
 
 It may be run as a stand-alone command or an App Engine app.
-The stand-alone version permits the execution of programs from within a
-presentation. The App Engine version does not provide this functionality.
+Instructions for deployment to App Engine are in the README of the
+code.google.com/p/go.tools repository.
 
 Usage of present:
   -base="": base path for slide template and static resources
   -http="127.0.0.1:3999": host:port to listen on
-
-You may use the app.yaml file provided in the root of the go.talks repository
-to deploy present to App Engine:
-	appcfg.py update -A your-app-id -V your-app-version /path/to/go.talks
 
 Input files are named foo.extension, where "extension" defines the format of
 the generated output. The supported formats are:
