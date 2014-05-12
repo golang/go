@@ -1366,7 +1366,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		naddr(n->left, a, canemitcode);
 		if(a->type == D_CONST && a->offset == 0)
 			break;	// ptr(nil)
-		a->etype = simtype[TUINTPTR];
+		a->etype = simtype[tptr];
 		a->offset += Array_array;
 		a->width = widthptr;
 		break;
@@ -1592,6 +1592,7 @@ optoas(int op, Type *t)
 	case CASE(OADD, TINT32):
 	case CASE(OADD, TUINT32):
 	case CASE(OADD, TPTR32):
+	case CASE(OADDPTR, TPTR32):
 		a = AADD;
 		break;
 

@@ -242,6 +242,7 @@ cgen(Node *n, Node *res)
 	case OOR:
 	case OXOR:
 	case OADD:
+	case OADDPTR:
 	case OMUL:
 		a = optoas(n->op, nl->type);
 		if(a == AIMULB) {
