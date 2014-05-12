@@ -1411,3 +1411,35 @@ func foo150(x ...byte) { // ERROR "leaking param: x"
 func bar150() {
 	foo150(1, 2, 3) // ERROR "[.][.][.] argument escapes to heap"
 }
+
+// issue 7931: bad handling of slice of array
+
+var save151 *int
+
+func foo151(x *int) { // ERROR "leaking param: x"
+	save151 = x
+}
+
+func bar151() {
+	var a [64]int // ERROR "moved to heap: a"
+	a[4] = 101
+	foo151(&(&a)[4:8][0]) // ERROR "&\(&a\)\[4:8\]\[0\] escapes to heap" "&a escapes to heap"
+}
+
+func bar151b() {
+	var a [10]int      // ERROR "moved to heap: a"
+	b := a[:]          // ERROR "a escapes to heap"
+	foo151(&b[4:8][0]) // ERROR "&b\[4:8\]\[0\] escapes to heap"
+}
+
+func bar151c() {
+	var a [64]int // ERROR "moved to heap: a"
+	a[4] = 101
+	foo151(&(&a)[4:8:8][0]) // ERROR "&\(&a\)\[4:8:8\]\[0\] escapes to heap" "&a escapes to heap"
+}
+
+func bar151d() {
+	var a [10]int        // ERROR "moved to heap: a"
+	b := a[:]            // ERROR "a escapes to heap"
+	foo151(&b[4:8:8][0]) // ERROR "&b\[4:8:8\]\[0\] escapes to heap"
+}
