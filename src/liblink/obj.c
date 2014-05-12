@@ -183,7 +183,7 @@ linkgetline(Link *ctxt, int32 line, LSym **f, int32 *l)
 		file = a[n].incl->name;
 		dlno = a[n].idel-1;
 	}
-	if((!ctxt->windows && file[0] == '/') || (ctxt->windows && file[1] == ':'))
+	if((!ctxt->windows && file[0] == '/') || (ctxt->windows && file[1] == ':') || file[0] == '<')
 		snprint(buf, sizeof buf, "%s", file);
 	else
 		snprint(buf, sizeof buf, "%s/%s", ctxt->pathname, file);
