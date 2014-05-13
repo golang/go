@@ -789,6 +789,16 @@ if ! ./testgo test testdata/standalone_test.go; then
 	ok=false
 fi
 
+TEST 'go test xtestonly works'
+export GOPATH=$(pwd)/testdata
+./testgo clean -i xtestonly
+if ! ./testgo test xtestonly >/dev/null; then
+	echo "go test xtestonly failed"
+	ok=false
+fi
+unset GOPATH
+
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
