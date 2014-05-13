@@ -89,30 +89,36 @@ func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
 	return nil
 }
 
-// todo returns the next hash to build.
-func (b *Builder) todo(kind, pkg, goHash string) (rev string, err error) {
+// todo returns the next hash to build or benchmark.
+func (b *Builder) todo(kinds []string, pkg, goHash string) (kind, rev string, benchs []string, err error) {
 	args := url.Values{
-		"kind":        {kind},
 		"builder":     {b.name},
 		"packagePath": {pkg},
 		"goHash":      {goHash},
 	}
+	for _, k := range kinds {
+		args.Add("kind", k)
+	}
 	var resp *struct {
 		Kind string
 		Data struct {
-			Hash string
+			Hash        string
+			PerfResults []string
 		}
 	}
 	if err = dash("GET", "todo", args, nil, &resp); err != nil {
-		return "", err
+		return
 	}
 	if resp == nil {
-		return "", nil
+		return
 	}
-	if kind != resp.Kind {
-		return "", fmt.Errorf("expecting Kind %q, got %q", kind, resp.Kind)
+	for _, k := range kinds {
+		if k == resp.Kind {
+			return resp.Kind, resp.Data.Hash, resp.Data.PerfResults, nil
+		}
 	}
-	return resp.Data.Hash, nil
+	err = fmt.Errorf("expecting Kinds %q, got %q", kinds, resp.Kind)
+	return
 }
 
 // recordResult sends build results to the dashboard
@@ -130,18 +136,46 @@ func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string, runT
 	return dash("POST", "result", args, req, nil)
 }
 
+// Result of running a single benchmark on a single commit.
+type PerfResult struct {
+	Builder   string
+	Benchmark string
+	Hash      string
+	OK        bool
+	Metrics   []PerfMetric
+	Artifacts []PerfArtifact
+}
+
+type PerfMetric struct {
+	Type string
+	Val  uint64
+}
+
+type PerfArtifact struct {
+	Type string
+	Body string
+}
+
+// recordPerfResult sends benchmarking results to the dashboard
+func (b *Builder) recordPerfResult(req *PerfResult) error {
+	req.Builder = b.name
+	args := url.Values{"key": {b.key}, "builder": {b.name}}
+	return dash("POST", "perf-result", args, req, nil)
+}
+
 func postCommit(key, pkg string, l *HgLog) error {
 	t, err := time.Parse(time.RFC3339, l.Date)
 	if err != nil {
 		return fmt.Errorf("parsing %q: %v", l.Date, t)
 	}
 	return dash("POST", "commit", url.Values{"key": {key}}, obj{
-		"PackagePath": pkg,
-		"Hash":        l.Hash,
-		"ParentHash":  l.Parent,
-		"Time":        t.Format(time.RFC3339),
-		"User":        l.Author,
-		"Desc":        l.Desc,
+		"PackagePath":       pkg,
+		"Hash":              l.Hash,
+		"ParentHash":        l.Parent,
+		"Time":              t.Format(time.RFC3339),
+		"User":              l.Author,
+		"Desc":              l.Desc,
+		"NeedsBenchmarking": l.bench,
 	}, nil)
 }
 

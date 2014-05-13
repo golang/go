@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,9 +37,13 @@ type Builder struct {
 	goos, goarch string
 	key          string
 	env          builderEnv
+	// Last benchmarking workpath. We reuse it, if do successive benchmarks on the same commit.
+	lastWorkpath string
 }
 
 var (
+	doBuild        = flag.Bool("build", true, "Build and test packages")
+	doBench        = flag.Bool("bench", false, "Run benchmarks")
 	buildroot      = flag.String("buildroot", defaultBuildRoot(), "Directory under which to build")
 	dashboard      = flag.String("dashboard", "build.golang.org", "Go Dashboard Host")
 	buildRelease   = flag.Bool("release", false, "Build and upload binary release archives")
@@ -47,11 +52,16 @@ var (
 	buildTool      = flag.String("tool", "go", "Tool to build.")
 	gcPath         = flag.String("gcpath", "code.google.com/p/go", "Path to download gc from")
 	gccPath        = flag.String("gccpath", "https://github.com/mirrors/gcc.git", "Path to download gcc from")
+	benchPath      = flag.String("benchpath", "code.google.com/p/go.benchmarks/bench", "Path to download benchmarks from")
 	failAll        = flag.Bool("fail", false, "fail all builds")
 	parallel       = flag.Bool("parallel", false, "Build multiple targets in parallel")
 	buildTimeout   = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
 	cmdTimeout     = flag.Duration("cmdTimeout", 10*time.Minute, "Maximum time to wait for an external command")
 	commitInterval = flag.Duration("commitInterval", 1*time.Minute, "Time to wait between polling for new commits (0 disables commit poller)")
+	benchNum       = flag.Int("benchnum", 5, "Run each benchmark that many times")
+	benchTime      = flag.Duration("benchtime", 5*time.Second, "Benchmarking time for a single benchmark run")
+	benchMem       = flag.Int("benchmem", 64, "Approx RSS value to aim at in benchmarks, in MB")
+	fileLock       = flag.String("filelock", "", "File to lock around benchmaring (synchronizes several builders)")
 	verbose        = flag.Bool("v", false, "verbose")
 )
 
@@ -59,12 +69,54 @@ var (
 	binaryTagRe = regexp.MustCompile(`^(release\.r|weekly\.)[0-9\-.]+`)
 	releaseRe   = regexp.MustCompile(`^release\.r[0-9\-.]+`)
 	allCmd      = "all" + suffix
+	makeCmd     = "make" + suffix
 	raceCmd     = "race" + suffix
 	cleanCmd    = "clean" + suffix
 	suffix      = defaultSuffix()
+	exeExt      = defaultExeExt()
+
+	benchCPU      = CpuList([]int{1})
+	benchAffinity = CpuList([]int{})
+	benchMutex    *FileMutex // Isolates benchmarks from other activities
 )
 
+// CpuList is used as flag.Value for -benchcpu flag.
+type CpuList []int
+
+func (cl *CpuList) String() string {
+	str := ""
+	for _, cpu := range *cl {
+		if str == "" {
+			str = strconv.Itoa(cpu)
+		} else {
+			str += fmt.Sprintf(",%v", cpu)
+		}
+	}
+	return str
+}
+
+func (cl *CpuList) Set(str string) error {
+	*cl = []int{}
+	for _, val := range strings.Split(str, ",") {
+		val = strings.TrimSpace(val)
+		if val == "" {
+			continue
+		}
+		cpu, err := strconv.Atoi(val)
+		if err != nil || cpu <= 0 {
+			return fmt.Errorf("%v is a bad value for GOMAXPROCS", val)
+		}
+		*cl = append(*cl, cpu)
+	}
+	if len(*cl) == 0 {
+		*cl = append(*cl, 1)
+	}
+	return nil
+}
+
 func main() {
+	flag.Var(&benchCPU, "benchcpu", "Comma-delimited list of GOMAXPROCS values for benchmarking")
+	flag.Var(&benchAffinity, "benchaffinity", "Comma-delimited list of affinity values for benchmarking")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s goos-goarch...\n", os.Args[0])
 		flag.PrintDefaults()
@@ -77,6 +129,8 @@ func main() {
 
 	vcs.ShowCmd = *verbose
 	vcs.Verbose = *verbose
+
+	benchMutex = MakeFileMutex(*fileLock)
 
 	rr, err := repoForTool()
 	if err != nil {
@@ -139,11 +193,17 @@ func main() {
 		return
 	}
 
+	if !*doBuild && !*doBench {
+		fmt.Fprintf(os.Stderr, "Nothing to do, exiting (specify either -build or -bench or both)\n")
+		os.Exit(2)
+	}
+
 	// Start commit watcher
 	go commitWatcher(goroot)
 
 	// go continuous build mode
 	// check for new commits and build them
+	benchMutex.RLock()
 	for {
 		built := false
 		t := time.Now()
@@ -151,7 +211,7 @@ func main() {
 			done := make(chan bool)
 			for _, b := range builders {
 				go func(b *Builder) {
-					done <- b.build()
+					done <- b.buildOrBench()
 				}(b)
 			}
 			for _ = range builders {
@@ -159,13 +219,15 @@ func main() {
 			}
 		} else {
 			for _, b := range builders {
-				built = b.build() || built
+				built = b.buildOrBench() || built
 			}
 		}
 		// sleep if there was nothing to build
+		benchMutex.RUnlock()
 		if !built {
 			time.Sleep(waitInterval)
 		}
+		benchMutex.RLock()
 		// sleep if we're looping too fast.
 		dt := time.Now().Sub(t)
 		if dt < waitInterval {
@@ -256,11 +318,18 @@ func (b *Builder) buildCmd() string {
 	return *buildCmd
 }
 
-// build checks for a new commit for this builder
-// and builds it if one is found.
-// It returns true if a build was attempted.
-func (b *Builder) build() bool {
-	hash, err := b.todo("build-go-commit", "", "")
+// buildOrBench checks for a new commit for this builder
+// and builds or benchmarks it if one is found.
+// It returns true if a build/benchmark was attempted.
+func (b *Builder) buildOrBench() bool {
+	var kinds []string
+	if *doBuild {
+		kinds = append(kinds, "build-go-commit")
+	}
+	if *doBench {
+		kinds = append(kinds, "benchmark-go-commit")
+	}
+	kind, hash, benchs, err := b.todo(kinds, "", "")
 	if err != nil {
 		log.Println(err)
 		return false
@@ -268,11 +337,21 @@ func (b *Builder) build() bool {
 	if hash == "" {
 		return false
 	}
-
-	if err := b.buildHash(hash); err != nil {
-		log.Println(err)
+	switch kind {
+	case "build-go-commit":
+		if err := b.buildHash(hash); err != nil {
+			log.Println(err)
+		}
+		return true
+	case "benchmark-go-commit":
+		if err := b.benchHash(hash, benchs); err != nil {
+			log.Println(err)
+		}
+		return true
+	default:
+		log.Println("Unknown todo kind %v", kind)
+		return false
 	}
-	return true
 }
 
 func (b *Builder) buildHash(hash string) error {
@@ -283,58 +362,12 @@ func (b *Builder) buildHash(hash string) error {
 	if err := os.Mkdir(workpath, mkdirPerm); err != nil {
 		return err
 	}
-	defer os.RemoveAll(workpath)
+	defer removePath(workpath)
 
-	// pull before cloning to ensure we have the revision
-	if err := b.goroot.Pull(); err != nil {
-		return err
-	}
-
-	// set up builder's environment.
-	srcDir, err := b.env.setup(b.goroot, workpath, hash, b.envv())
+	buildLog, runTime, err := b.buildRepoOnHash(workpath, hash, b.buildCmd())
 	if err != nil {
-		return err
-	}
-
-	// build
-	var buildlog bytes.Buffer
-	logfile := filepath.Join(workpath, "build.log")
-	f, err := os.Create(logfile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	w := io.MultiWriter(f, &buildlog)
-
-	cmd := b.buildCmd()
-
-	// go's build command is a script relative to the srcDir, whereas
-	// gccgo's build command is usually "make check-go" in the srcDir.
-	if *buildTool == "go" {
-		if !filepath.IsAbs(cmd) {
-			cmd = filepath.Join(srcDir, cmd)
-		}
-	}
-
-	// make sure commands with extra arguments are handled properly
-	splitCmd := strings.Split(cmd, " ")
-	startTime := time.Now()
-	ok, err := runOutput(*buildTimeout, b.envv(), w, srcDir, splitCmd...)
-	runTime := time.Now().Sub(startTime)
-	errf := func() string {
-		if err != nil {
-			return fmt.Sprintf("error: %v", err)
-		}
-		if !ok {
-			return "failed"
-		}
-		return "success"
-	}
-	fmt.Fprintf(w, "Build complete, duration %v. Result: %v\n", runTime, errf())
-
-	if err != nil || !ok {
 		// record failure
-		return b.recordResult(false, "", hash, "", buildlog.String(), runTime)
+		return b.recordResult(false, "", hash, "", buildLog, runTime)
 	}
 
 	// record success
@@ -350,11 +383,74 @@ func (b *Builder) buildHash(hash string) error {
 	return nil
 }
 
+// buildRepoOnHash clones repo into workpath and builds it.
+func (b *Builder) buildRepoOnHash(workpath, hash, cmd string) (buildLog string, runTime time.Duration, err error) {
+	// Delete the previous workdir, if necessary
+	// (benchmarking code can execute several benchmarks in the same workpath).
+	if b.lastWorkpath != "" {
+		if b.lastWorkpath == workpath {
+			panic("workpath already exists: " + workpath)
+		}
+		removePath(b.lastWorkpath)
+		b.lastWorkpath = ""
+	}
+
+	// pull before cloning to ensure we have the revision
+	if err = b.goroot.Pull(); err != nil {
+		buildLog = err.Error()
+		return
+	}
+
+	// set up builder's environment.
+	srcDir, err := b.env.setup(b.goroot, workpath, hash, b.envv())
+	if err != nil {
+		buildLog = err.Error()
+		return
+	}
+
+	// build
+	var buildlog bytes.Buffer
+	logfile := filepath.Join(workpath, "build.log")
+	f, err := os.Create(logfile)
+	if err != nil {
+		buildLog = err.Error()
+		return
+	}
+	defer f.Close()
+	w := io.MultiWriter(f, &buildlog)
+
+	// go's build command is a script relative to the srcDir, whereas
+	// gccgo's build command is usually "make check-go" in the srcDir.
+	if *buildTool == "go" {
+		if !filepath.IsAbs(cmd) {
+			cmd = filepath.Join(srcDir, cmd)
+		}
+	}
+
+	// make sure commands with extra arguments are handled properly
+	splitCmd := strings.Split(cmd, " ")
+	startTime := time.Now()
+	ok, err := runOutput(*buildTimeout, b.envv(), w, srcDir, splitCmd...)
+	runTime = time.Now().Sub(startTime)
+	if !ok && err == nil {
+		err = fmt.Errorf("build failed")
+	}
+	errf := func() string {
+		if err != nil {
+			return fmt.Sprintf("error: %v", err)
+		}
+		return "success"
+	}
+	fmt.Fprintf(w, "Build complete, duration %v. Result: %v\n", runTime, errf())
+	buildLog = buildlog.String()
+	return
+}
+
 // failBuild checks for a new commit for this builder
 // and fails it if one is found.
 // It returns true if a build was "attempted".
 func (b *Builder) failBuild() bool {
-	hash, err := b.todo("build-go-commit", "", "")
+	_, hash, _, err := b.todo([]string{"build-go-commit"}, "", "")
 	if err != nil {
 		log.Println(err)
 		return false
@@ -374,7 +470,7 @@ func (b *Builder) failBuild() bool {
 func (b *Builder) buildSubrepos(goRoot, goPath, goHash string) {
 	for _, pkg := range dashboardPackages("subrepo") {
 		// get the latest todo for this package
-		hash, err := b.todo("build-package", pkg, goHash)
+		_, hash, _, err := b.todo([]string{"build-package"}, pkg, goHash)
 		if err != nil {
 			log.Printf("buildSubrepos %s: %v", pkg, err)
 			continue
@@ -406,7 +502,7 @@ func (b *Builder) buildSubrepos(goRoot, goPath, goHash string) {
 // buildSubrepo fetches the given package, updates it to the specified hash,
 // and runs 'go test -short pkg/...'. It returns the build log and any error.
 func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error) {
-	goTool := filepath.Join(goRoot, "bin", "go")
+	goTool := filepath.Join(goRoot, "bin", "go") + exeExt
 	env := append(b.envv(), "GOROOT="+goRoot, "GOPATH="+goPath)
 
 	// add $GOROOT/bin and $GOPATH/bin to PATH
@@ -485,6 +581,7 @@ func commitWatcher(goroot *Repo) {
 	}
 	key := b.key
 
+	benchMutex.RLock()
 	for {
 		if *verbose {
 			log.Printf("poll...")
@@ -504,10 +601,12 @@ func commitWatcher(goroot *Repo) {
 			}
 			commitPoll(pkgroot, pkg, key)
 		}
+		benchMutex.RUnlock()
 		if *verbose {
 			log.Printf("sleep...")
 		}
 		time.Sleep(*commitInterval)
+		benchMutex.RLock()
 	}
 }
 
@@ -556,6 +655,10 @@ func commitPoll(repo *Repo, pkg, key string) {
 			log.Printf("hg log %s: %s < %s\n", pkg, l.Hash, l.Parent)
 		}
 		if logByHash[l.Hash] == nil {
+			l.bench = needsBenchmarking(l)
+			// These fields are needed only for needsBenchmarking, do not waste memory.
+			l.Branch = ""
+			l.Files = ""
 			// Make copy to avoid pinning entire slice when only one entry is new.
 			t := *l
 			logByHash[t.Hash] = &t
@@ -619,6 +722,15 @@ func defaultSuffix() string {
 	}
 }
 
+func defaultExeExt() string {
+	switch runtime.GOOS {
+	case "windows":
+		return ".exe"
+	default:
+		return ""
+	}
+}
+
 // defaultBuildRoot returns default buildroot directory.
 func defaultBuildRoot() string {
 	var d string
@@ -630,4 +742,17 @@ func defaultBuildRoot() string {
 		d = os.TempDir()
 	}
 	return filepath.Join(d, "gobuilder")
+}
+
+// removePath is a more robust version of os.RemoveAll.
+// On windows, if remove fails (which can happen if test/benchmark timeouts
+// and keeps some files open) it tries to rename the dir.
+func removePath(path string) error {
+	if err := os.RemoveAll(path); err != nil {
+		if runtime.GOOS == "windows" {
+			err = os.Rename(path, filepath.Clean(path)+"_remove_me")
+		}
+		return err
+	}
+	return nil
 }
