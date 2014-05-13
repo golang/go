@@ -600,6 +600,11 @@ func (p runeSlice) Sort() {
 // onepass Prog, the Prog syntax.NotOnePass is returned. makeOnePass is recursive
 // to the size of the Prog
 func (p *Prog) makeOnePass() *Prog {
+	// If the machine is very long, it's not worth the time to check if we can use one pass.
+	if len(p.Inst) >= 1000 {
+		return NotOnePass
+	}
+
 	var (
 		instQueue    = newQueue(len(p.Inst))
 		visitQueue   = newQueue(len(p.Inst))
