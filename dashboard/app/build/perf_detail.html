@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+    <title>{{$.Dashboard.Name}} Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css"/>
+    <script type="text/javascript">
+      function kindBuilder() {
+        document.getElementById('checkBuilder').checked = true;
+        document.getElementById('controlBuilder').style.display='inline';
+        document.getElementById('controlBenchmark').style.display='none';
+      }
+      function kindBenchmark() {
+        document.getElementById('checkBenchmark').checked = true;
+        document.getElementById('controlBenchmark').style.display='inline';
+        document.getElementById('controlBuilder').style.display='none';
+      }
+      window.onload = {{if $.KindBuilder}} kindBuilder {{else}} kindBenchmark {{end}};
+    </script>
+</head>
+<body>
+  <header id="topbar">
+    <h1>Go Dashboard</h1>
+    <nav>
+        <a href="{{$.Dashboard.RelPath}}">Test</a>
+        <a href="{{$.Dashboard.RelPath}}perf">Perf</a>
+        <a href="{{$.Dashboard.RelPath}}perfgraph">Graphs</a>
+    </nav>
+    <div class="clear"></div>
+  </header>
+ 
+  <div class="page">
+    <div class="diff-container">
+      <div class="diff-meta">
+        <form>
+          <div><b>New: </b><input type="edit" name="commit" value="{{$.Commit1.Hash}}" /> {{shortUser $.Commit1.User}} {{$.Commit1.Time.Format "Mon 02 Jan 15:04"}} {{shortDesc $.Commit1.Desc}} </div>
+          <div><b>Old: </b><input type="edit" name="commit0" value="{{$.Commit0.Hash}}" /> {{shortUser $.Commit0.User}} {{$.Commit0.Time.Format "Mon 02 Jan 15:04"}} {{shortDesc $.Commit0.Desc}} </div>
+          <div>
+            <input id="checkBuilder" type="radio" name="kind" value="builder" required onclick="kindBuilder()">builder</input>
+            <input id="checkBenchmark" type="radio" name="kind" value="benchmark" required onclick="kindBenchmark()">benchmark</input>
+            <select id="controlBuilder" name="builder">
+              {{range $.Config.Builders}}
+                <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
+              {{end}}
+            </select>
+            <select id="controlBenchmark" name="benchmark">
+              {{range $.Config.Benchmarks}}
+                <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
+              {{end}}
+            </select>
+            <input type="submit" value="Refresh" />
+          </div>
+        </form>
+      </div>
+      <p></p>
+
+    {{range $b := $.Benchmarks}}
+      <div class="diff-benchmark">
+      <h2>{{$b.Name}}</h2>
+      {{range $p := $b.Procs}}
+      <div class="diff">
+        <h1>GOMAXPROCS={{$p.Procs}}</h1>
+        <table>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>old</th>
+              <th>new</th>
+              <th>delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range $m := $p.Metrics}}
+            <tr>
+              <td class="metric">{{$m.Name}}</td>
+              {{if $m.Link0}}
+                <td><a href="{{$.Dashboard.RelPath}}{{$m.Link0}}">{{$m.Val0}}</td>
+              {{else}}
+                <td>{{$m.Val0}}</td>
+              {{end}}
+              {{if $m.Link1}}
+                <td><a href="{{$.Dashboard.RelPath}}{{$m.Link1}}">{{$m.Val1}}</td>
+              {{else}}
+                <td>{{$m.Val1}}</td>
+              {{end}}
+              <td class="result"><span class="{{$m.Style}}">{{$m.Delta}}</span></td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{end}}
+      </div>
+    {{end}}
+
+      <div class="clear"></div>
+    </div>
+    <div class="clear"></div>
+  </div>
+</body>
+</html>

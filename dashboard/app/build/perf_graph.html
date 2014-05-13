@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+  <head>
+    <title>{{$.Dashboard.Name}} Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css"/>
+    <style>
+      .graph-container { background: #eee; }
+    </style>
+
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawCharts);
+      function drawCharts() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Commit');
+        {{range $.Headers}}
+          data.addColumn('number', '{{.}}');
+          data.addColumn({type: 'boolean', role: 'certainty'});
+          data.addColumn({type: 'string', role: 'tooltip', p: {html: true}});
+        {{end}}
+        data.addRows([
+        {{range $.Commits}}
+          [ '{{.Name}}',
+            {{range .Vals}}
+              {{if .Val}}
+                {{.Val}}, {{.Certainty}}, '{{.Hint}}',
+              {{else}}
+                ,,,
+              {{end}}
+            {{end}}
+          ],
+        {{end}}
+      ]);
+      new google.visualization.LineChart(document.getElementById('graph_div')).
+        draw(data, {
+          width: "100%",
+          height: 600,
+          legend: {position: "bottom"},
+          tooltip: {isHtml: true},
+          {{if not $.Absolute}}
+            vAxis: {textPosition: "none", ticks: [0,10,20,30,40,50,60,70,80,90,100]},
+          {{end}}
+          chartArea: {left: "10%", top: "5%", width: "85%", height:"85%"}
+        })
+      }
+    </script>
+</head>
+<body>
+ 
+   <header id="topbar">   
+    <h1>Go Dashboard</h1>
+    <nav>
+        <a href="{{$.Dashboard.RelPath}}">Test</a>
+        <a href="{{$.Dashboard.RelPath}}perf">Perf</a>
+        <a href="{{$.Dashboard.RelPath}}perfgraph">Graphs</a>
+    </nav>
+    <div class="clear"></div>
+  </header>
+ 
+  <div class="page">
+    <div id="graph_div" class="main-content graph-container">
+    </div>
+
+    <aside>
+      <form>
+        <div class="panel">
+          <h1>Builders</h1>
+          <select required multiple name="builder" size="{{len $.Config.Builders}}">
+            {{range $.Config.Builders}}
+              <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
+            {{end}}
+          </select>
+        </div>
+
+        <div class="panel">
+          <h1>Benchmarks</h1>
+          <select required multiple name="benchmark" size="{{len $.Config.Benchmarks}}">
+            {{range $.Config.Benchmarks}}
+              <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
+            {{end}}
+          </select>
+        </div>
+
+        <div class="panel">
+          <h1>Procs</h1>
+          <select required multiple name="procs" size="{{len $.Config.Procs}}">
+            {{range $.Config.Procs}}
+              <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
+            {{end}}
+          </select>
+        </div>
+
+        <div class="panel">
+          <h1>Metrics</h1>
+          <select required multiple name="metric" size="{{len $.Config.Metrics}}">
+            {{range $.Config.Metrics}}
+              <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
+            {{end}}
+          </select>
+        </div>
+
+        <input type="checkbox" name="absolute" value="1" {{if $.Absolute}} checked {{end}} >absolute scale</input>
+	<input type="hidden" name="startcommit" value="{{$.StartCommit}}" />
+	<input type="hidden" name="commitnum" value="{{$.CommitNum}}" />
+	<input class="button" type="submit" value="Refresh" name="refresh"/>
+        <input class="button" type="submit" value="Zoom in" name="zoomin"/>
+        <input class="button" type="submit" value="Zoom out" name="zoomout"/>
+        <input class="button" type="submit" value="Newer" name="newer"/>
+        <input class="button" type="submit" value="Older" name="older"/>
+      </form>
+    </aside>
+    <div class="clear"></div>
+  </div>
+</body>
+</html>

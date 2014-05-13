@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+    <title>{{$.Dashboard.Name}} Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+   <header id="topbar">   
+    <h1>Go Dashboard</h1>
+    <nav>
+      <a href="{{$.Dashboard.RelPath}}">Test</a>
+      <a href="{{$.Dashboard.RelPath}}perf">Perf</a>
+      <a href="{{$.Dashboard.RelPath}}perfgraph">Graphs</a>
+    </nav>
+    <div class="clear"></div>
+  </header>
+ 
+  <div class="page">
+    <div class="build-container">
+      <table class="build">
+        <colgroup class="col-hash"></colgroup>
+        <colgroup class="col-numresults"></colgroup>
+        <colgroup class="col-metric"></colgroup>
+        <colgroup class="col-result"></colgroup>
+        <colgroup class="col-result"></colgroup>
+        <colgroup class="col-user"></colgroup>
+        <colgroup class="col-time"></colgroup>
+        <colgroup class="col-desc"></colgroup>
+       <tbody>
+        {{range $c := $.Commits}}
+          {{range $m := $c.Metrics}}
+            {{if $m.First}}
+              <tr class="row-commit">
+                {{if $c.IsSummary}}
+                  <td class="hash">tip vs {{$c.ParentHash}}</td>
+                {{else}}
+                  <td class="hash"><a href="{{repoURL $.Dashboard.Name $c.Hash ""}}">{{shortHash $c.Hash}}</a></td>
+                {{end}}
+                <td class="numresults">{{$c.NumResults}}</td>
+            {{else}}
+              <tr>
+                <td class="user">&nbsp;</td>
+                <td class="numresults">&nbsp;</td>
+            {{end}}
+              <td>{{$m.Name}}</td>
+              <td>
+                {{range $ch := $m.BadChanges}}
+                  <a class="{{$ch.Style}}" href="{{$ch.Link}}" title="{{$ch.Hint}}">{{$ch.Val}}</a> &nbsp;
+                {{end}}
+              </td>
+              <td>
+                {{range $ch := $m.GoodChanges}}
+                  <a class="{{$ch.Style}}" href="{{$ch.Link}}" title="{{$ch.Hint}}">{{$ch.Val}}</a> &nbsp;
+                {{end}}
+              </td>
+            {{if $m.First}}
+              <td class="user" title="{{$c.User}}">{{shortUser $c.User}}</td>
+              <td class="time">{{$c.Time.Format "Mon 02 Jan 15:04"}}</td>
+              <td class="desc" title="{{$c.Desc}}">{{shortDesc $c.Desc}}</td>
+            {{else}}
+              <td class="user">&nbsp;</td>
+              <td class="time">&nbsp;</td>
+              <td class="desc">&nbsp;</td>
+            {{end}}
+              </tr>
+          {{end}}
+          {{if $c.IsSummary}}
+            <tr class="row-commit"><td>---</td></tr>
+          {{end}}
+        {{end}}
+      </tbody>
+    </table>
+
+    {{with $.Pagination}}
+    <div class="paginate">
+      <nav>
+        <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>newer</a>
+        <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>older</a>
+        <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>latest</a>
+      </nav>
+    </div>
+    {{end}}
+
+  </div>
+  <div class="clear"></div>
+</div>
+</body>
+</html>

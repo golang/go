@@ -71,7 +71,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	builders := commitBuilders(commits)
 
 	var tipState *TagState
-	if pkg.Kind == "" && page == 0 {
+	if pkg.Kind == "" && page == 0 && commits != nil {
 		// only show sub-repo state on first page of normal repo view
 		tipState, err = TagStateByName(c, "tip")
 		if err != nil {
@@ -354,7 +354,7 @@ func shortDesc(desc string) string {
 	if i := strings.Index(desc, "\n"); i != -1 {
 		desc = desc[:i]
 	}
-	return desc
+	return limitStringLength(desc, 100)
 }
 
 // shortHash returns a short version of a hash.

@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawCharts);
+      function drawCharts() {
+        {
+        {{range $ent := $.Entries}}
+          var data = new google.visualization.DataTable();
+          data.addColumn('number', 'idx');
+          data.addColumn('number', '95%');
+          data.addColumn({type: 'boolean', role: 'certainty'});
+          data.addColumn('number', 'signal');
+          data.addColumn({type: 'boolean', role: 'certainty'});
+          data.addColumn('number', 'diff');
+          data.addColumn({type: 'string', role: 'annotation'});
+          data.addRows([
+            {{range .Diffs}} [{{.Num}}, {{$ent.BaseVal}}, false, {{$ent.SignalVal}}, false, {{.Val}}, '{{.Hint}}'], {{end}}
+          ]);
+          new google.visualization.LineChart(document.getElementById('graph{{.Num}}')).
+            draw(data, {
+              width: 600,
+              height: 200,
+              legend: {position: "none"},
+              vAxis: {minValue: 0},
+              chartArea: {left: "10%", top: "1%", width: "90%", height:"95%"}
+            }
+          )
+        {{end}}
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    {{range $.Entries}}
+      <p>
+        {{.Name}}: base={{printf "%.2f[%d]" .BaseVal .NoiseNum}} signal={{printf "%.2f[%d]" .SignalVal .SignalNum}}
+        <div id="graph{{.Num}}" width="100px" height="100px"> </div>
+      </p>
+    {{end}}
+  </body>
+</html>
