@@ -54,6 +54,16 @@ func stopTimer(t *Timer) (stopped bool) {
 
 // C runtime.
 
+void runtime·gc_unixnanotime(int64 *now);
+
+int64 runtime·unixnanotime(void)
+{
+	int64 now;
+
+	runtime·gc_unixnanotime(&now);
+	return now;
+}
+
 static void timerproc(void);
 static void siftup(int32);
 static void siftdown(int32);

@@ -508,6 +508,7 @@ runtime·MHeap_Scavenger(void)
 {
 	MHeap *h;
 	uint64 tick, now, forcegc, limit;
+	int64 unixnow;
 	int32 k;
 	Note note, *notep;
 
@@ -531,8 +532,8 @@ runtime·MHeap_Scavenger(void)
 		runtime·notetsleepg(&note, tick);
 
 		runtime·lock(h);
-		now = runtime·nanotime();
-		if(now - mstats.last_gc > forcegc) {
+		unixnow = runtime·unixnanotime();
+		if(unixnow - mstats.last_gc > forcegc) {
 			runtime·unlock(h);
 			// The scavenger can not block other goroutines,
 			// otherwise deadlock detector can fire spuriously.
@@ -544,8 +545,8 @@ runtime·MHeap_Scavenger(void)
 			if(runtime·debug.gctrace > 0)
 				runtime·printf("scvg%d: GC forced\n", k);
 			runtime·lock(h);
-			now = runtime·nanotime();
 		}
+		now = runtime·nanotime();
 		scavenge(k, now, limit);
 		runtime·unlock(h);
 	}
