@@ -920,7 +920,8 @@ void	runtime·exitsyscall(void);
 G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
 bool	runtime·sigsend(int32 sig);
 int32	runtime·callers(int32, uintptr*, int32);
-int64	runtime·nanotime(void);
+int64	runtime·nanotime(void);	// monotonic time
+int64	runtime·unixnanotime(void); // real time, can skip
 void	runtime·dopanic(int32);
 void	runtime·startpanic(void);
 void	runtime·freezetheworld(void);
