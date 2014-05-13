@@ -1541,6 +1541,13 @@ func MapOf(key, elem Type) Type {
 	mt.uncommonType = nil
 	mt.ptrToThis = nil
 	mt.zero = unsafe.Pointer(&make([]byte, mt.size)[0])
+	mt.gc = unsafe.Pointer(&ptrGC{
+		width:  unsafe.Sizeof(uintptr(0)),
+		op:     _GC_PTR,
+		off:    0,
+		elemgc: mt.hmap.gc,
+		end:    _GC_END,
+	})
 
 	// INCORRECT. Uncomment to check that TestMapOfGC and TestMapOfGCValues
 	// fail when mt.gc is wrong.
