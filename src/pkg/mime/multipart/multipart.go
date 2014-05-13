@@ -81,12 +81,16 @@ func (p *Part) parseContentDisposition() {
 	}
 }
 
-// NewReader creates a new multipart Reader reading from reader using the
+// NewReader creates a new multipart Reader reading from r using the
 // given MIME boundary.
-func NewReader(reader io.Reader, boundary string) *Reader {
+//
+// The boundary is usually obtained from the "boundary" parameter of
+// the message's "Content-Type" header. Use mime.ParseMediaType to
+// parse such headers.
+func NewReader(r io.Reader, boundary string) *Reader {
 	b := []byte("\r\n--" + boundary + "--")
 	return &Reader{
-		bufReader: bufio.NewReader(reader),
+		bufReader: bufio.NewReader(r),
 
 		nl:               b[:2],
 		nlDashBoundary:   b[:len(b)-2],
