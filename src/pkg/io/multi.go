@@ -29,7 +29,9 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
 // inputs have returned EOF, Read will return EOF.  If any of the readers
 // return a non-nil, non-EOF error, Read will return that error.
 func MultiReader(readers ...Reader) Reader {
-	return &multiReader{readers}
+	r := make([]Reader, len(readers))
+	copy(r, readers)
+	return &multiReader{r}
 }
 
 type multiWriter struct {
@@ -53,5 +55,7 @@ func (t *multiWriter) Write(p []byte) (n int, err error) {
 // MultiWriter creates a writer that duplicates its writes to all the
 // provided writers, similar to the Unix tee(1) command.
 func MultiWriter(writers ...Writer) Writer {
-	return &multiWriter{writers}
+	w := make([]Writer, len(writers))
+	copy(w, writers)
+	return &multiWriter{w}
 }

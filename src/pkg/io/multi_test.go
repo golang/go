@@ -9,6 +9,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	. "io"
+	"io/ioutil"
 	"strings"
 	"testing"
 )
@@ -84,5 +85,31 @@ func TestMultiWriter(t *testing.T) {
 
 	if sink.String() != sourceString {
 		t.Errorf("expected %q; got %q", sourceString, sink.String())
+	}
+}
+
+// Test that MultiReader copies the input slice and is insulated from future modification.
+func TestMultiReaderCopy(t *testing.T) {
+	slice := []Reader{strings.NewReader("hello world")}
+	r := MultiReader(slice...)
+	slice[0] = nil
+	data, err := ioutil.ReadAll(r)
+	if err != nil || string(data) != "hello world" {
+		t.Errorf("ReadAll() = %q, %v, want %q, nil", data, err, "hello world")
+	}
+}
+
+// Test that MultiWriter copies the input slice and is insulated from future modification.
+func TestMultiWriterCopy(t *testing.T) {
+	var buf bytes.Buffer
+	slice := []Writer{&buf}
+	w := MultiWriter(slice...)
+	slice[0] = nil
+	n, err := w.Write([]byte("hello world"))
+	if err != nil || n != 11 {
+		t.Errorf("Write(`hello world`) = %d, %v, want 11, nil", n, err)
+	}
+	if buf.String() != "hello world" {
+		t.Errorf("buf.String() = %q, want %q", buf.String(), "hello world")
 	}
 }
