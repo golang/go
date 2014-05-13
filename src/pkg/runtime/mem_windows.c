@@ -36,10 +36,30 @@ void
 runtime·SysUnused(void *v, uintptr n)
 {
 	void *r;
+	uintptr small;
 
 	r = runtime·stdcall(runtime·VirtualFree, 3, v, n, (uintptr)MEM_DECOMMIT);
-	if(r == nil)
-		runtime·throw("runtime: failed to decommit pages");
+	if(r != nil)
+		return;
+
+	// Decommit failed. Usual reason is that we've merged memory from two different
+	// VirtualAlloc calls, and Windows will only let each VirtualFree handle pages from
+	// a single VirtualAlloc. It is okay to specify a subset of the pages from a single alloc,
+	// just not pages from multiple allocs. This is a rare case, arising only when we're
+	// trying to give memory back to the operating system, which happens on a time
+	// scale of minutes. It doesn't have to be terribly fast. Instead of extra bookkeeping
+	// on all our VirtualAlloc calls, try freeing successively smaller pieces until
+	// we manage to free something, and then repeat. This ends up being O(n log n)
+	// in the worst case, but that's fast enough.
+	while(n > 0) {
+		small = n;
+		while(small >= 4096 && runtime·stdcall(runtime·VirtualFree, 3, v, small, (uintptr)MEM_DECOMMIT) == nil)
+			small = (small / 2) & ~(4096-1);
+		if(small < 4096)
+			runtime·throw("runtime: failed to decommit pages");
+		v = (byte*)v + small;
+		n -= small;
+	}
 }
 
 void
