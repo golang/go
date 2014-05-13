@@ -661,10 +661,13 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			build: &build.Package{
 				ImportPos: p.build.XTestImportPos,
 			},
-			imports: append(ximports, ptest),
+			imports: ximports,
 			pkgdir:  testDir,
 			fake:    true,
 			Stale:   true,
+		}
+		if ptest != p {
+			pxtest.imports = append(pxtest.imports, ptest)
 		}
 	}
 
@@ -675,12 +678,14 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		GoFiles:    []string{"_testmain.go"},
 		ImportPath: "testmain",
 		Root:       p.Root,
-		imports:    []*Package{ptest},
 		build:      &build.Package{Name: "main"},
 		pkgdir:     testDir,
 		fake:       true,
 		Stale:      true,
 		omitDWARF:  !testC && !testNeedBinary,
+	}
+	if ptest != p {
+		pmain.imports = append(pmain.imports, ptest)
 	}
 	if pxtest != nil {
 		pmain.imports = append(pmain.imports, pxtest)
