@@ -1203,7 +1203,7 @@ var encodeTokenTests = []struct {
 	{Comment("foo"), "<!--foo-->", true},
 	{Comment("foo-->"), "", false},
 	{ProcInst{"Target", []byte("Instruction")}, "<?Target Instruction?>", true},
-	{ProcInst{"xml", []byte("Instruction")}, "", false},
+	{ProcInst{"", []byte("Instruction")}, "", false},
 	{ProcInst{"Target", []byte("Instruction?>")}, "", false},
 	{Directive("foo"), "<!foo>", true},
 	{Directive("foo>"), "", false},
@@ -1227,6 +1227,40 @@ func TestEncodeToken(t *testing.T) {
 		}
 		if got := buf.String(); got != tt.want {
 			t.Errorf("enc.EncodeToken = %s; want: %s", got, tt.want)
+		}
+	}
+}
+
+func TestProcInstEncodeToken(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+
+	if err := enc.EncodeToken(ProcInst{"xml", []byte("Instruction")}); err != nil {
+		t.Fatalf("enc.EncodeToken: expected to be able to encode xml target ProcInst as first token, %s", err)
+	}
+
+	if err := enc.EncodeToken(ProcInst{"Target", []byte("Instruction")}); err != nil {
+		t.Fatalf("enc.EncodeToken: expected to be able to add non-xml target ProcInst")
+	}
+
+	if err := enc.EncodeToken(ProcInst{"xml", []byte("Instruction")}); err == nil {
+		t.Fatalf("enc.EncodeToken: expected to not be allowed to encode xml target ProcInst when not first token")
+	}
+}
+
+func TestDecodeEncode(t *testing.T) {
+	var in, out bytes.Buffer
+	in.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
+<?Target Instruction?>
+<root>
+</root>	
+`)
+	dec := NewDecoder(&in)
+	enc := NewEncoder(&out)
+	for tok, err := dec.Token(); err == nil; tok, err = dec.Token() {
+		err = enc.EncodeToken(tok)
+		if err != nil {
+			t.Fatalf("enc.EncodeToken: Unable to encode token (%#v), %d", tok, err)
 		}
 	}
 }
