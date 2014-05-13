@@ -1,0 +1,5 @@
+cron:
+- description: updates noise level for benchmarking results
+  url: /perflearn
+  schedule: every 24 hours
+  

@@ -36,5 +36,9 @@ func initHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	// Create secret key.
+	secretKey(c)
+
 	fmt.Fprint(w, "OK")
 }
