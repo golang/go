@@ -559,8 +559,10 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	}
 	stk.pop()
 	stk.push(p.ImportPath + "_test")
+	pxtestNeedsPtest := false
 	for _, path := range p.XTestImports {
 		if path == p.ImportPath {
+			pxtestNeedsPtest = true
 			continue
 		}
 		p1 := loadImport(path, p.Dir, &stk, p.build.XTestImportPos[path])
@@ -666,7 +668,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			fake:    true,
 			Stale:   true,
 		}
-		if ptest != p {
+		if pxtestNeedsPtest {
 			pxtest.imports = append(pxtest.imports, ptest)
 		}
 	}
@@ -684,17 +686,13 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		Stale:      true,
 		omitDWARF:  !testC && !testNeedBinary,
 	}
-	if ptest != p {
-		pmain.imports = append(pmain.imports, ptest)
-	}
-	if pxtest != nil {
-		pmain.imports = append(pmain.imports, pxtest)
-	}
 
 	// The generated main also imports testing and regexp.
 	stk.push("testmain")
 	for dep := range testMainDeps {
-		if ptest.ImportPath != dep {
+		if dep == ptest.ImportPath {
+			pmain.imports = append(pmain.imports, ptest)
+		} else {
 			p1 := loadImport(dep, "", &stk, nil)
 			if p1.Error != nil {
 				return nil, nil, nil, p1.Error
@@ -717,6 +715,14 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		}
 	}
 
+	// writeTestmain writes _testmain.go but also updates
+	// pmain.imports to reflect the import statements written
+	// to _testmain.go. This metadata is needed for recompileForTest
+	// and the builds below.
+	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), pmain, ptest, pxtest); err != nil {
+		return nil, nil, nil, err
+	}
+
 	if ptest != p && localCover {
 		// We have made modifications to the package p being tested
 		// and are rebuilding p (as ptest), writing it to the testDir tree.
@@ -731,10 +737,6 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		// when testCover is set. The conditions are more general, though,
 		// and we may find that we need to do it always in the future.
 		recompileForTest(pmain, p, ptest, testDir)
-	}
-
-	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), pmain, ptest); err != nil {
-		return nil, nil, nil, err
 	}
 
 	computeStale(pmain)
@@ -1056,27 +1058,33 @@ type coverInfo struct {
 }
 
 // writeTestmain writes the _testmain.go file for package p to
-// the file named out.
-func writeTestmain(out string, pmain, p *Package) error {
-	var cover []coverInfo
-	for _, cp := range pmain.imports {
-		if len(cp.coverVars) > 0 {
-			cover = append(cover, coverInfo{cp, cp.coverVars})
+// the file named out. It also updates pmain.imports to include
+// ptest and/or pxtest, depending on what it writes to _testmain.go.
+func writeTestmain(out string, pmain, ptest, pxtest *Package) error {
+	t := &testFuncs{
+		Package: ptest,
+	}
+	for _, file := range ptest.TestGoFiles {
+		if err := t.load(filepath.Join(ptest.Dir, file), "_test", &t.NeedTest); err != nil {
+			return err
+		}
+	}
+	for _, file := range ptest.XTestGoFiles {
+		if err := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.NeedXtest); err != nil {
+			return err
 		}
 	}
 
-	t := &testFuncs{
-		Package: p,
-		Cover:   cover,
+	if t.NeedTest {
+		pmain.imports = append(pmain.imports, ptest)
 	}
-	for _, file := range p.TestGoFiles {
-		if err := t.load(filepath.Join(p.Dir, file), "_test", &t.NeedTest); err != nil {
-			return err
-		}
+	if t.NeedXtest {
+		pmain.imports = append(pmain.imports, pxtest)
 	}
-	for _, file := range p.XTestGoFiles {
-		if err := t.load(filepath.Join(p.Dir, file), "_xtest", &t.NeedXtest); err != nil {
-			return err
+
+	for _, cp := range pmain.imports {
+		if len(cp.coverVars) > 0 {
+			t.Cover = append(t.Cover, coverInfo{cp, cp.coverVars})
 		}
 	}
 
