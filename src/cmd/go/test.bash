@@ -783,6 +783,12 @@ fi
 rm -f testdata/err.out
 unset GOPATH
 
+TEST 'go test foo_test.go works'
+if ! ./testgo test testdata/standalone_test.go; then
+	echo "go test testdata/standalone_test.go failed"
+	ok=false
+fi
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
