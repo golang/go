@@ -68,6 +68,9 @@ Go references to C
 Within the Go file, C's struct field names that are keywords in Go
 can be accessed by prefixing them with an underscore: if x points at a C
 struct with a field named "type", x._type accesses the field.
+C struct fields that cannot be expressed in Go, such as bit fields
+or misaligned data, are omitted in the Go struct, replaced by
+appropriate padding to reach the next field or the end of the struct.
 
 The standard C numeric types are available under the names
 C.char, C.schar (signed char), C.uchar (unsigned char),
