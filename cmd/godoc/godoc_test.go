@@ -213,9 +213,14 @@ func main() { print(lib.V) }
 	defer cleanup()
 	addr := serverAddress(t)
 	cmd := exec.Command(bin, fmt.Sprintf("-http=%s", addr), "-analysis=type")
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GOROOT=%s/goroot", tmpdir))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GOPATH=%s/gopath", tmpdir))
-	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GOROOT=%s", filepath.Join(tmpdir, "goroot")))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GOPATH=%s", filepath.Join(tmpdir, "gopath")))
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") {
+			continue
+		}
+		cmd.Env = append(cmd.Env, e)
+	}
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	cmd.Args[0] = "godoc"
