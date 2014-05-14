@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 7, 2014",
+	"Subtitle": "Version of May 14, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -1331,8 +1331,8 @@ make(chan int, 100)
 <p>
 The capacity, in number of elements, sets the size of the buffer in the channel.
 If the capacity is zero or absent, the channel is unbuffered and communication
-succeeds only when both a sender and receiver are ready. Otherwise, the channel is
-buffered and communication operations succeed without blocking if the buffer
+succeeds only when both a sender and receiver are ready. Otherwise, the channel
+is buffered and communication succeeds without blocking if the buffer
 is not full (sends) or not empty (receives).
 A <code>nil</code> channel is never ready for communication.
 </p>
@@ -4879,8 +4879,12 @@ go func(ch chan&lt;- bool) { for { sleep(10); ch &lt;- true; }} (c)
 <h3 id="Select_statements">Select statements</h3>
 
 <p>
-A "select" statement chooses which of a set of possible communications
-will proceed.  It looks similar to a "switch" statement but with the
+A "select" statement chooses which of a set of possible
+<a href="#Send_statements">send</a> or
+<a href="#Receive_operator">receive</a>
+operations will proceed.
+It looks similar to a
+<a href="#Switch_statements">"switch"</a> statement but with the
 cases all referring to communication operations.
 </p>
 
@@ -4893,41 +4897,63 @@ RecvExpr   = Expression .
 </pre>
 
 <p>
-RecvExpr must be a <a href="#Receive_operator">receive operation</a>.
-For all the cases in the "select"
-statement, the channel expressions are evaluated in top-to-bottom order, along with
-any expressions that appear on the right hand side of send statements.
-A channel may be <code>nil</code>,
-which is equivalent to that case not
-being present in the select statement
-except, if a send, its expression is still evaluated.
-If any of the resulting operations can proceed, one of those is
-chosen and the corresponding communication and statements are
-evaluated.  Otherwise, if there is a default case, that executes;
-if there is no default case, the statement blocks until one of the communications can
-complete. There can be at most one default case and it may appear anywhere in the
-"select" statement.
-If there are no cases with non-<code>nil</code> channels,
-the statement blocks forever.
-Even if the statement blocks,
-the channel and send expressions are evaluated only once,
-upon entering the select statement.
-</p>
-<p>
-Since all the channels and send expressions are evaluated, any side
-effects in that evaluation will occur for all the communications
-in the "select" statement.
-</p>
-<p>
-If multiple cases can proceed, a uniform pseudo-random choice is made to decide
-which single communication will execute.
-<p>
-The receive case may declare one or two new variables using a
+A case with a RecvStmt may assign the result of a RecvExpr to one or
+two variables, which may be declared using a
 <a href="#Short_variable_declarations">short variable declaration</a>.
+The RecvExpr must be a (possibly parenthesized) receive operation.
+There can be at most one default case and it may appear anywhere
+in the list of cases.
+</p>
+
+<p>
+Execution of a "select" statement proceeds in several steps:
+</p>
+
+<ol>
+<li>
+For all the cases in the statement, the channel operands of receive operations
+and the channel and right-hand-side expressions of send statements are
+evaluated exactly once, in source order, upon entering the "select" statement.
+The result is a set of channels to receive from or send to,
+and the corresponding values to send.
+Any side effects in that evaluation will occur irrespective of which (if any)
+communication operation is selected to proceed.
+Expressions on the left-hand side of a RecvStmt with a short variable declaration
+or assignment are not yet evaluated.
+</li>
+
+<li>
+If one or more of the communications can proceed,
+a single one that can proceed is chosen via a uniform pseudo-random selection.
+Otherwise, if there is a default case, that case is chosen.
+If there is no default case, the "select" statement blocks until
+at least one of the communications can proceed.
+</li>
+
+<li>
+Unless the selected case is the default case, the respective communication
+operation is executed.
+</li>
+
+<li>
+If the selected case is a RecvStmt with a short variable declaration or
+an assignment, the left-hand side expressions are evaluated and the
+received value (or values) are assigned.
+</li>
+
+<li>
+The statement list of the selected case is executed.
+</li>
+</ol>
+
+<p>
+Since communication on <code>nil</code> channels can never proceed,
+a select with only <code>nil</code> channels and no default case blocks forever.
 </p>
 
 <pre>
-var c, c1, c2, c3 chan int
+var a []int
+var c, c1, c2, c3, c4 chan int
 var i1, i2 int
 select {
 case i1 = &lt;-c1:
@@ -4940,6 +4966,10 @@ case i3, ok := (&lt;-c3):  // same as: i3, ok := &lt;-c3
 	} else {
 		print("c3 is closed\n")
 	}
+case a[f()] = &lt;-c4:
+	// same as:
+	// case t := &lt;-c4
+	//	a[f()] = t
 default:
 	print("no communication\n")
 }
