@@ -468,14 +468,14 @@ func (tr *Reader) readHeader() *Header {
 	// so its magic bytes, like the rest of the block, are NULs.
 	magic := string(s.next(8)) // contains version field as well.
 	var format string
-	switch magic {
-	case "ustar\x0000": // POSIX tar (1003.1-1988)
+	switch {
+	case magic[:6] == "ustar\x00": // POSIX tar (1003.1-1988)
 		if string(header[508:512]) == "tar\x00" {
 			format = "star"
 		} else {
 			format = "posix"
 		}
-	case "ustar  \x00": // old GNU tar
+	case magic == "ustar  \x00": // old GNU tar
 		format = "gnu"
 	}
 
