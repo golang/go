@@ -174,7 +174,7 @@ compile(Node *fn)
 	lno = setlineno(fn);
 
 	if(fn->nbody == nil) {
-		if(pure_go || memcmp(fn->nname->sym->name, "init·", 6) == 0)
+		if(pure_go || strncmp(fn->nname->sym->name, "init·", 6) == 0)
 			yyerror("missing function body", fn);
 		goto ret;
 	}
