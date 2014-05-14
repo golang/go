@@ -38,4 +38,6 @@ func AtomicTests() {
 	ap := []*uint64{&au[0], &au[1]}
 	*ap[0] = atomic.AddUint64(ap[0], 1) // ERROR "direct assignment to atomic value"
 	*ap[1] = atomic.AddUint64(ap[0], 1)
+
+	x = atomic.AddUint64() // Used to make vet crash; now silently ignored.
 }

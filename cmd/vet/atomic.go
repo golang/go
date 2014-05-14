@@ -44,6 +44,9 @@ func (f *File) checkAtomicAssignment(n *ast.AssignStmt) {
 // checkAtomicAddAssignment walks the atomic.Add* method calls checking for assigning the return value
 // to the same variable being used in the operation
 func (f *File) checkAtomicAddAssignment(left ast.Expr, call *ast.CallExpr) {
+	if len(call.Args) != 2 {
+		return
+	}
 	arg := call.Args[0]
 	broken := false
 
