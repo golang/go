@@ -3287,9 +3287,18 @@ the garbage collector for bookkeeping.
 
 <p>
 Library routines must often return some sort of error indication to
-the caller.  As mentioned earlier, Go's multivalue return makes it
+the caller.
+As mentioned earlier, Go's multivalue return makes it
 easy to return a detailed error description alongside the normal
-return value.  By convention, errors have type <code>error</code>,
+return value.
+It is good style to use this feature to provide detailed error information.
+For example, as we'll see, <code>os.Open</code> doesn't
+just return a <code>nil</code> pointer on failure, it also returns an
+error value that describes what went wrong.
+</p>
+
+<p>
+By convention, errors have type <code>error</code>,
 a simple built-in interface.
 </p>
 <pre>
@@ -3301,7 +3310,12 @@ type error interface {
 A library writer is free to implement this interface with a
 richer model under the covers, making it possible not only
 to see the error but also to provide some context.
-For example, <code>os.Open</code> returns an <code>os.PathError</code>.
+As mentioned, alongside the usual <code>*os.File</code>
+return value, <code>os.Open</code> also returns an
+error value.
+If the file is opened successfully, the error will be <code>nil</code>,
+but when there is a problem, it will hold an
+<code>os.PathError</code>:
 </p>
 <pre>
 // PathError records an error and the operation and
