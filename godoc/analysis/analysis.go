@@ -388,7 +388,7 @@ func Run(pta bool, result *Result) {
 			for _, root := range roots {
 				rel := strings.TrimPrefix(abs, root)
 				if len(rel) < len(abs) {
-					a.path2url[abs] = "/src/pkg/" + rel
+					a.path2url[abs] = "/src/pkg/" + filepath.ToSlash(rel)
 					continue nextfile
 				}
 			}
