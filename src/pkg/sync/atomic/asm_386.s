@@ -13,7 +13,7 @@ TEXT ·SwapUint32(SB),NOSPLIT,$0-12
 	MOVL	addr+0(FP), BP
 	MOVL	new+4(FP), AX
 	XCHGL	AX, 0(BP)
-	MOVL	AX, new+8(FP)
+	MOVL	AX, old+8(FP)
 	RET
 
 TEXT ·SwapInt64(SB),NOSPLIT,$0-20
@@ -43,8 +43,8 @@ swaploop:
 
 	// success
 	// return DX:AX
-	MOVL	AX, new_lo+12(FP)
-	MOVL	DX, new_hi+16(FP)
+	MOVL	AX, old_lo+12(FP)
+	MOVL	DX, old_hi+16(FP)
 	RET
 
 TEXT ·SwapUintptr(SB),NOSPLIT,$0-12
@@ -155,10 +155,10 @@ TEXT ·LoadUint32(SB),NOSPLIT,$0-8
 	MOVL	AX, val+4(FP)
 	RET
 
-TEXT ·LoadInt64(SB),NOSPLIT,$0-16
+TEXT ·LoadInt64(SB),NOSPLIT,$0-12
 	JMP	·LoadUint64(SB)
 
-TEXT ·LoadUint64(SB),NOSPLIT,$0-16
+TEXT ·LoadUint64(SB),NOSPLIT,$0-12
 	MOVL	addr+0(FP), AX
 	TESTL	$7, AX
 	JZ	2(PC)
@@ -186,10 +186,10 @@ TEXT ·StoreUint32(SB),NOSPLIT,$0-8
 	XCHGL	AX, 0(BP)
 	RET
 
-TEXT ·StoreInt64(SB),NOSPLIT,$0-16
+TEXT ·StoreInt64(SB),NOSPLIT,$0-12
 	JMP	·StoreUint64(SB)
 
-TEXT ·StoreUint64(SB),NOSPLIT,$0-16
+TEXT ·StoreUint64(SB),NOSPLIT,$0-12
 	MOVL	addr+0(FP), AX
 	TESTL	$7, AX
 	JZ	2(PC)
