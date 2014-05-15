@@ -67,6 +67,30 @@ func runAddr2Line(t *testing.T, exepath, addr string) (funcname, path, lineno st
 	return funcname, f[0], f[1]
 }
 
+const symName = "cmd/addr2line.TestAddr2Line"
+
+func testAddr2Line(t *testing.T, exepath, addr string) {
+	funcName, srcPath, srcLineNo := runAddr2Line(t, exepath, addr)
+	if symName != funcName {
+		t.Fatalf("expected function name %v; got %v", symName, funcName)
+	}
+	fi1, err := os.Stat("addr2line_test.go")
+	if err != nil {
+		t.Fatalf("Stat failed: %v", err)
+	}
+	fi2, err := os.Stat(srcPath)
+	if err != nil {
+		t.Fatalf("Stat failed: %v", err)
+	}
+	if !os.SameFile(fi1, fi2) {
+		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
+	}
+	if srcLineNo != "94" {
+		t.Fatalf("line number = %v; want 94", srcLineNo)
+	}
+}
+
+// This is line 93. The test depends on that.
 func TestAddr2Line(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see http://golang.org/issue/7947")
@@ -85,23 +109,6 @@ func TestAddr2Line(t *testing.T) {
 		t.Fatalf("go build -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
 	}
 
-	const symName = "cmd/addr2line.TestAddr2Line"
-	funcName, srcPath, srcLineNo := runAddr2Line(t, exepath, syms[symName])
-	if symName != funcName {
-		t.Fatalf("expected function name %v; got %v", symName, funcName)
-	}
-	fi1, err := os.Stat("addr2line_test.go")
-	if err != nil {
-		t.Fatalf("Stat failed: %v", err)
-	}
-	fi2, err := os.Stat(srcPath)
-	if err != nil {
-		t.Fatalf("Stat failed: %v", err)
-	}
-	if !os.SameFile(fi1, fi2) {
-		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
-	}
-	if srcLineNo != "70" {
-		t.Fatalf("line number = %v; want 70", srcLineNo)
-	}
+	testAddr2Line(t, exepath, syms[symName])
+	testAddr2Line(t, exepath, "0x"+syms[symName])
 }
