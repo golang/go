@@ -13,7 +13,7 @@ TEXT ·SwapUint32(SB),NOSPLIT,$0-20
 	MOVQ	addr+0(FP), BP
 	MOVL	new+8(FP), AX
 	XCHGL	AX, 0(BP)
-	MOVL	AX, new+16(FP)
+	MOVL	AX, old+16(FP)
 	RET
 
 TEXT ·SwapInt64(SB),NOSPLIT,$0-24
@@ -23,7 +23,7 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0-24
 	MOVQ	addr+0(FP), BP
 	MOVQ	new+8(FP), AX
 	XCHGQ	AX, 0(BP)
-	MOVQ	AX, new+16(FP)
+	MOVQ	AX, old+16(FP)
 	RET
 
 TEXT ·SwapUintptr(SB),NOSPLIT,$0-24

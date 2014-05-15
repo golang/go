@@ -42,7 +42,7 @@ casagain:
 	BCC	cascheck
 	MOVW	$1, R0
 casret:
-	MOVW	R0, ret+12(FP)
+	MOVB	R0, swapped+12(FP)
 	RET
 cascheck:
 	// Kernel lies; double-check.
@@ -73,7 +73,7 @@ addloop1:
 	ADD	R4, R1
 	BL	cas<>(SB)
 	BCC	addloop1
-	MOVW	R1, ret+8(FP)
+	MOVW	R1, new+8(FP)
 	RET
 
 TEXT ·AddUintptr(SB),NOSPLIT,$0
@@ -132,13 +132,13 @@ TEXT ·generalCAS64(SB),NOSPLIT,$20-21
 	BEQ 	2(PC)
 	MOVW	R1, (R1)
 	MOVW	R0, 4(R13)
-	MOVW	oldlo+4(FP), R1
+	MOVW	old_lo+4(FP), R1
 	MOVW	R1, 8(R13)
-	MOVW	oldhi+8(FP), R1
+	MOVW	old_hi+8(FP), R1
 	MOVW	R1, 12(R13)
-	MOVW	newlo+12(FP), R2
+	MOVW	new_lo+12(FP), R2
 	MOVW	R2, 16(R13)
-	MOVW	newhi+16(FP), R3
+	MOVW	new_hi+16(FP), R3
 	MOVW	R3, 20(R13)
 	BL  	runtime·cas64(SB)
 	MOVB	R0, ret+20(FP)

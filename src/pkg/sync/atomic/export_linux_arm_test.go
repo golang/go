@@ -4,6 +4,6 @@
 
 package atomic
 
-func generalCAS64(*uint64, uint64, uint64) bool
+func generalCAS64(addr *uint64, old uint64, new uint64) bool
 
 var GeneralCAS64 = generalCAS64

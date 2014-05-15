@@ -11,7 +11,7 @@ TEXT ·SwapUint32(SB),NOSPLIT,$0-12
 	MOVL	addr+0(FP), BX
 	MOVL	new+4(FP), AX
 	XCHGL	AX, 0(BX)
-	MOVL	AX, new+8(FP)
+	MOVL	AX, old+8(FP)
 	RET
 
 TEXT ·SwapInt64(SB),NOSPLIT,$0-24
@@ -24,13 +24,13 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0-24
 	MOVL	0, BX // crash with nil ptr deref
 	MOVQ	new+8(FP), AX
 	XCHGQ	AX, 0(BX)
-	MOVQ	AX, new+16(FP)
+	MOVQ	AX, old+16(FP)
 	RET
 
-TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
+TEXT ·SwapUintptr(SB),NOSPLIT,$0-12
 	JMP	·SwapUint32(SB)
 
-TEXT ·SwapPointer(SB),NOSPLIT,$0-24
+TEXT ·SwapPointer(SB),NOSPLIT,$0-12
 	JMP	·SwapUint32(SB)
 
 TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
@@ -45,10 +45,10 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
 	SETEQ	swapped+16(FP)
 	RET
 
-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
+TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-17
 	JMP	·CompareAndSwapUint32(SB)
 
-TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0-25
+TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0-17
 	JMP	·CompareAndSwapUint32(SB)
 
 TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
@@ -82,7 +82,7 @@ TEXT ·AddUint32(SB),NOSPLIT,$0-12
 TEXT ·AddUintptr(SB),NOSPLIT,$0-12
 	JMP	·AddUint32(SB)
 
-TEXT ·AddInt64(SB),NOSPLIT,$0-12
+TEXT ·AddInt64(SB),NOSPLIT,$0-24
 	JMP	·AddUint64(SB)
 
 TEXT ·AddUint64(SB),NOSPLIT,$0-24
