@@ -34,10 +34,10 @@ func elfSymbols(f *os.File) []Sym {
 			sym.Code = 'B'
 		default:
 			i := int(s.Section)
-			if i <= 0 || i > len(p.Sections) {
+			if i < 0 || i >= len(p.Sections) {
 				break
 			}
-			sect := p.Sections[i-1]
+			sect := p.Sections[i]
 			switch sect.Flags & (elf.SHF_WRITE | elf.SHF_ALLOC | elf.SHF_EXECINSTR) {
 			case elf.SHF_ALLOC | elf.SHF_EXECINSTR:
 				sym.Code = 'T'
