@@ -197,6 +197,8 @@ const (
 	ECHONL                            = 0x10
 	ECHOPRT                           = 0x20
 	EMT_TAGOVF                        = 0x1
+	EMUL_ENABLED                      = 0x1
+	EMUL_NATIVE                       = 0x2
 	ENDRUNDISC                        = 0x9
 	ETHERMIN                          = 0x2e
 	ETHERMTU                          = 0x5dc
@@ -442,6 +444,7 @@ const (
 	IEXTEN                            = 0x400
 	IFAN_ARRIVAL                      = 0x0
 	IFAN_DEPARTURE                    = 0x1
+	IFA_ROUTE                         = 0x1
 	IFF_ALLMULTI                      = 0x200
 	IFF_BROADCAST                     = 0x2
 	IFF_CANTCHANGE                    = 0x8e52
@@ -756,6 +759,7 @@ const (
 	IPV6_DSTOPTS                      = 0x32
 	IPV6_ESP_NETWORK_LEVEL            = 0x37
 	IPV6_ESP_TRANS_LEVEL              = 0x36
+	IPV6_FAITH                        = 0x1d
 	IPV6_FLOWINFO_MASK                = 0xffffff0f
 	IPV6_FLOWLABEL_MASK               = 0xffff0f00
 	IPV6_FRAGTTL                      = 0x78
@@ -772,6 +776,7 @@ const (
 	IPV6_MULTICAST_IF                 = 0x9
 	IPV6_MULTICAST_LOOP               = 0xb
 	IPV6_NEXTHOP                      = 0x30
+	IPV6_OPTIONS                      = 0x1
 	IPV6_PATHMTU                      = 0x2c
 	IPV6_PIPEX                        = 0x3f
 	IPV6_PKTINFO                      = 0x2e
@@ -791,7 +796,9 @@ const (
 	IPV6_RTHDR                        = 0x33
 	IPV6_RTHDRDSTOPTS                 = 0x23
 	IPV6_RTHDR_LOOSE                  = 0x0
+	IPV6_RTHDR_STRICT                 = 0x1
 	IPV6_RTHDR_TYPE_0                 = 0x0
+	IPV6_SOCKOPT_RESERVED1            = 0x3
 	IPV6_TCLASS                       = 0x3d
 	IPV6_UNICAST_HOPS                 = 0x4
 	IPV6_USE_MIN_MTU                  = 0x2a
@@ -1107,6 +1114,7 @@ const (
 	SIOCGIFDSTADDR                    = 0xc0206922
 	SIOCGIFFLAGS                      = 0xc0206911
 	SIOCGIFGATTR                      = 0xc028698b
+	SIOCGIFGENERIC                    = 0xc020693a
 	SIOCGIFGMEMB                      = 0xc028698a
 	SIOCGIFGROUP                      = 0xc0286988
 	SIOCGIFHARDMTU                    = 0xc02069a5
@@ -1146,6 +1154,7 @@ const (
 	SIOCSIFDSTADDR                    = 0x8020690e
 	SIOCSIFFLAGS                      = 0x80206910
 	SIOCSIFGATTR                      = 0x8028698c
+	SIOCSIFGENERIC                    = 0x80206939
 	SIOCSIFLLADDR                     = 0x8020691f
 	SIOCSIFMEDIA                      = 0xc0206935
 	SIOCSIFMETRIC                     = 0x80206918
