@@ -4616,6 +4616,7 @@ sub ConfigureObjTools {
     # in the same directory as pprof.
     $obj_tool_map{"nm_pdb"} = "nm-pdb";
     $obj_tool_map{"addr2line_pdb"} = "addr2line-pdb";
+    $obj_tool_map{"objdump"} = "false";  # no objdump
   }
 
   if ($file_type =~ /Mach-O/) {
