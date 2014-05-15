@@ -20,29 +20,11 @@ pkg syscall (darwin-amd64), const ImplementsGetwd = false
 pkg syscall (darwin-amd64-cgo), const ImplementsGetwd = false
 pkg syscall (openbsd-386), const BIOCGRTIMEOUT = 1074283118
 pkg syscall (openbsd-386), const BIOCSRTIMEOUT = 2148024941
-pkg syscall (openbsd-386), const EMUL_ENABLED = 1
-pkg syscall (openbsd-386), const EMUL_ENABLED ideal-int
-pkg syscall (openbsd-386), const EMUL_NATIVE = 2
-pkg syscall (openbsd-386), const EMUL_NATIVE ideal-int
-pkg syscall (openbsd-386), const IFA_ROUTE = 1
-pkg syscall (openbsd-386), const IFA_ROUTE ideal-int
-pkg syscall (openbsd-386), const IPV6_FAITH = 29
-pkg syscall (openbsd-386), const IPV6_FAITH ideal-int
-pkg syscall (openbsd-386), const IPV6_OPTIONS = 1
-pkg syscall (openbsd-386), const IPV6_OPTIONS ideal-int
-pkg syscall (openbsd-386), const IPV6_RTHDR_STRICT = 1
-pkg syscall (openbsd-386), const IPV6_RTHDR_STRICT ideal-int
-pkg syscall (openbsd-386), const IPV6_SOCKOPT_RESERVED1 = 3
-pkg syscall (openbsd-386), const IPV6_SOCKOPT_RESERVED1 ideal-int
 pkg syscall (openbsd-386), const RTF_FMASK = 63496
 pkg syscall (openbsd-386), const RTM_VERSION = 4
 pkg syscall (openbsd-386), const SIOCBRDGDADDR = 2150132039
 pkg syscall (openbsd-386), const SIOCBRDGGPARAM = 3224922456
 pkg syscall (openbsd-386), const SIOCBRDGSADDR = 3223873860
-pkg syscall (openbsd-386), const SIOCGIFGENERIC = 3223349562
-pkg syscall (openbsd-386), const SIOCGIFGENERIC ideal-int
-pkg syscall (openbsd-386), const SIOCSIFGENERIC = 2149607737
-pkg syscall (openbsd-386), const SIOCSIFGENERIC ideal-int
 pkg syscall (openbsd-386), const SYS_CLOCK_GETRES = 234
 pkg syscall (openbsd-386), const SYS_CLOCK_GETTIME = 232
 pkg syscall (openbsd-386), const SYS_CLOCK_SETTIME = 233
@@ -90,29 +72,11 @@ pkg syscall (openbsd-386), type Timespec struct, Sec int32
 pkg syscall (openbsd-386), type Timeval struct, Sec int32
 pkg syscall (openbsd-386-cgo), const BIOCGRTIMEOUT = 1074283118
 pkg syscall (openbsd-386-cgo), const BIOCSRTIMEOUT = 2148024941
-pkg syscall (openbsd-386-cgo), const EMUL_ENABLED = 1
-pkg syscall (openbsd-386-cgo), const EMUL_ENABLED ideal-int
-pkg syscall (openbsd-386-cgo), const EMUL_NATIVE = 2
-pkg syscall (openbsd-386-cgo), const EMUL_NATIVE ideal-int
-pkg syscall (openbsd-386-cgo), const IFA_ROUTE = 1
-pkg syscall (openbsd-386-cgo), const IFA_ROUTE ideal-int
-pkg syscall (openbsd-386-cgo), const IPV6_FAITH = 29
-pkg syscall (openbsd-386-cgo), const IPV6_FAITH ideal-int
-pkg syscall (openbsd-386-cgo), const IPV6_OPTIONS = 1
-pkg syscall (openbsd-386-cgo), const IPV6_OPTIONS ideal-int
-pkg syscall (openbsd-386-cgo), const IPV6_RTHDR_STRICT = 1
-pkg syscall (openbsd-386-cgo), const IPV6_RTHDR_STRICT ideal-int
-pkg syscall (openbsd-386-cgo), const IPV6_SOCKOPT_RESERVED1 = 3
-pkg syscall (openbsd-386-cgo), const IPV6_SOCKOPT_RESERVED1 ideal-int
 pkg syscall (openbsd-386-cgo), const RTF_FMASK = 63496
 pkg syscall (openbsd-386-cgo), const RTM_VERSION = 4
 pkg syscall (openbsd-386-cgo), const SIOCBRDGDADDR = 2150132039
 pkg syscall (openbsd-386-cgo), const SIOCBRDGGPARAM = 3224922456
 pkg syscall (openbsd-386-cgo), const SIOCBRDGSADDR = 3223873860
-pkg syscall (openbsd-386-cgo), const SIOCGIFGENERIC = 3223349562
-pkg syscall (openbsd-386-cgo), const SIOCGIFGENERIC ideal-int
-pkg syscall (openbsd-386-cgo), const SIOCSIFGENERIC = 2149607737
-pkg syscall (openbsd-386-cgo), const SIOCSIFGENERIC ideal-int
 pkg syscall (openbsd-386-cgo), const SYS_CLOCK_GETRES = 234
 pkg syscall (openbsd-386-cgo), const SYS_CLOCK_GETTIME = 232
 pkg syscall (openbsd-386-cgo), const SYS_CLOCK_SETTIME = 233
@@ -170,30 +134,12 @@ pkg syscall (openbsd-amd64), const EFER_NXE = 2048
 pkg syscall (openbsd-amd64), const EFER_NXE ideal-int
 pkg syscall (openbsd-amd64), const EFER_SCE = 1
 pkg syscall (openbsd-amd64), const EFER_SCE ideal-int
-pkg syscall (openbsd-amd64), const EMUL_ENABLED = 1
-pkg syscall (openbsd-amd64), const EMUL_ENABLED ideal-int
-pkg syscall (openbsd-amd64), const EMUL_NATIVE = 2
-pkg syscall (openbsd-amd64), const EMUL_NATIVE ideal-int
-pkg syscall (openbsd-amd64), const IFA_ROUTE = 1
-pkg syscall (openbsd-amd64), const IFA_ROUTE ideal-int
-pkg syscall (openbsd-amd64), const IPV6_FAITH = 29
-pkg syscall (openbsd-amd64), const IPV6_FAITH ideal-int
-pkg syscall (openbsd-amd64), const IPV6_OPTIONS = 1
-pkg syscall (openbsd-amd64), const IPV6_OPTIONS ideal-int
-pkg syscall (openbsd-amd64), const IPV6_RTHDR_STRICT = 1
-pkg syscall (openbsd-amd64), const IPV6_RTHDR_STRICT ideal-int
-pkg syscall (openbsd-amd64), const IPV6_SOCKOPT_RESERVED1 = 3
-pkg syscall (openbsd-amd64), const IPV6_SOCKOPT_RESERVED1 ideal-int
 pkg syscall (openbsd-amd64), const PMC5_PIPELINE_FLUSH = 21
 pkg syscall (openbsd-amd64), const PMC5_PIPELINE_FLUSH ideal-int
 pkg syscall (openbsd-amd64), const RTF_FMASK = 63496
 pkg syscall (openbsd-amd64), const RTM_VERSION = 4
 pkg syscall (openbsd-amd64), const SIOCBRDGDADDR = 2150132039
 pkg syscall (openbsd-amd64), const SIOCBRDGSADDR = 3223873860
-pkg syscall (openbsd-amd64), const SIOCGIFGENERIC = 3223349562
-pkg syscall (openbsd-amd64), const SIOCGIFGENERIC ideal-int
-pkg syscall (openbsd-amd64), const SIOCSIFGENERIC = 2149607737
-pkg syscall (openbsd-amd64), const SIOCSIFGENERIC ideal-int
 pkg syscall (openbsd-amd64), const SYS_CLOCK_GETRES = 234
 pkg syscall (openbsd-amd64), const SYS_CLOCK_GETTIME = 232
 pkg syscall (openbsd-amd64), const SYS_CLOCK_SETTIME = 233
@@ -250,30 +196,12 @@ pkg syscall (openbsd-amd64-cgo), const EFER_NXE = 2048
 pkg syscall (openbsd-amd64-cgo), const EFER_NXE ideal-int
 pkg syscall (openbsd-amd64-cgo), const EFER_SCE = 1
 pkg syscall (openbsd-amd64-cgo), const EFER_SCE ideal-int
-pkg syscall (openbsd-amd64-cgo), const EMUL_ENABLED = 1
-pkg syscall (openbsd-amd64-cgo), const EMUL_ENABLED ideal-int
-pkg syscall (openbsd-amd64-cgo), const EMUL_NATIVE = 2
-pkg syscall (openbsd-amd64-cgo), const EMUL_NATIVE ideal-int
-pkg syscall (openbsd-amd64-cgo), const IFA_ROUTE = 1
-pkg syscall (openbsd-amd64-cgo), const IFA_ROUTE ideal-int
-pkg syscall (openbsd-amd64-cgo), const IPV6_FAITH = 29
-pkg syscall (openbsd-amd64-cgo), const IPV6_FAITH ideal-int
-pkg syscall (openbsd-amd64-cgo), const IPV6_OPTIONS = 1
-pkg syscall (openbsd-amd64-cgo), const IPV6_OPTIONS ideal-int
-pkg syscall (openbsd-amd64-cgo), const IPV6_RTHDR_STRICT = 1
-pkg syscall (openbsd-amd64-cgo), const IPV6_RTHDR_STRICT ideal-int
-pkg syscall (openbsd-amd64-cgo), const IPV6_SOCKOPT_RESERVED1 = 3
-pkg syscall (openbsd-amd64-cgo), const IPV6_SOCKOPT_RESERVED1 ideal-int
 pkg syscall (openbsd-amd64-cgo), const PMC5_PIPELINE_FLUSH = 21
 pkg syscall (openbsd-amd64-cgo), const PMC5_PIPELINE_FLUSH ideal-int
 pkg syscall (openbsd-amd64-cgo), const RTF_FMASK = 63496
 pkg syscall (openbsd-amd64-cgo), const RTM_VERSION = 4
 pkg syscall (openbsd-amd64-cgo), const SIOCBRDGDADDR = 2150132039
 pkg syscall (openbsd-amd64-cgo), const SIOCBRDGSADDR = 3223873860
-pkg syscall (openbsd-amd64-cgo), const SIOCGIFGENERIC = 3223349562
-pkg syscall (openbsd-amd64-cgo), const SIOCGIFGENERIC ideal-int
-pkg syscall (openbsd-amd64-cgo), const SIOCSIFGENERIC = 2149607737
-pkg syscall (openbsd-amd64-cgo), const SIOCSIFGENERIC ideal-int
 pkg syscall (openbsd-amd64-cgo), const SYS_CLOCK_GETRES = 234
 pkg syscall (openbsd-amd64-cgo), const SYS_CLOCK_GETTIME = 232
 pkg syscall (openbsd-amd64-cgo), const SYS_CLOCK_SETTIME = 233
