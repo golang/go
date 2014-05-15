@@ -140,7 +140,7 @@
 	MSGSCHEDULE1(index); \
 	SHA256ROUND(index, const, a, b, c, d, e, f, g, h)
 
-TEXT ·block(SB),0,$264-24
+TEXT ·block(SB),0,$264-32
 	MOVQ	p_base+8(FP), SI
 	MOVQ	p_len+16(FP), DX
 	SHRQ	$6, DX
