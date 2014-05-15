@@ -2415,23 +2415,19 @@ keydup(Node *n, Node *hash[], ulong nhash)
 	for(a=hash[h]; a!=N; a=a->ntest) {
 		cmp.op = OEQ;
 		cmp.left = n;
+		b = 0;
 		if(a->op == OCONVIFACE && orign->op == OCONVIFACE) {
-			if(a->left->type == n->type) {
+			if(eqtype(a->left->type, n->type)) {
 				cmp.right = a->left;
 				evconst(&cmp);
 				b = cmp.val.u.bval;
 			}
-			else {
-				b = 0;
-			}
-		}
-		else {
+		} else if(eqtype(a->type, n->type)) {
 			cmp.right = a;
 			evconst(&cmp);
 			b = cmp.val.u.bval;
 		}
 		if(b) {
-			// too lazy to print the literal
 			yyerror("duplicate key %N in map literal", n);
 			return;
 		}
