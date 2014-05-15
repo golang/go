@@ -2144,7 +2144,7 @@ func TestCodesPreventingContentTypeAndBody(t *testing.T) {
 			got := ht.rawResponse(req)
 			wantStatus := fmt.Sprintf("%d %s", code, StatusText(code))
 			if !strings.Contains(got, wantStatus) {
-				t.Errorf("Code %d: Wanted %q Modified for %q: %s", code, req, got)
+				t.Errorf("Code %d: Wanted %q Modified for %q: %s", code, wantStatus, req, got)
 			} else if strings.Contains(got, "Content-Length") {
 				t.Errorf("Code %d: Got a Content-Length from %q: %s", code, req, got)
 			} else if strings.Contains(got, "stuff") {

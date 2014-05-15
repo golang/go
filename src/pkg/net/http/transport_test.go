@@ -2081,7 +2081,7 @@ func TestTransportClosesBodyOnError(t *testing.T) {
 		defer res.Body.Close()
 	}
 	if err == nil || !strings.Contains(err.Error(), fakeErr.Error()) {
-		t.Fatalf("Do error = %v; want something containing %q", fakeErr.Error())
+		t.Fatalf("Do error = %v; want something containing %q", err, fakeErr.Error())
 	}
 	select {
 	case err := <-readBody:
