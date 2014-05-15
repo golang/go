@@ -725,3 +725,19 @@ func TestReadGNUSparseMap1x0(t *testing.T) {
 		t.Errorf("Incorrect sparse map: got %v, wanted %v", sp, expected)
 	}
 }
+
+func TestUninitializedRead(t *testing.T) {
+	test := gnuTarTest
+	f, err := os.Open(test.file)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	defer f.Close()
+
+	tr := NewReader(f)
+	_, err = tr.Read([]byte{})
+	if err == nil || err != io.EOF {
+		t.Errorf("Unexpected error: %v, wanted %v", err, io.EOF)
+	}
+
+}

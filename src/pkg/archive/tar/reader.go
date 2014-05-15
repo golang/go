@@ -724,6 +724,9 @@ func (tr *Reader) numBytes() int64 {
 // It returns 0, io.EOF when it reaches the end of that entry,
 // until Next is called to advance to the next entry.
 func (tr *Reader) Read(b []byte) (n int, err error) {
+	if tr.curr == nil {
+		return 0, io.EOF
+	}
 	n, err = tr.curr.Read(b)
 	if err != nil && err != io.EOF {
 		tr.err = err
