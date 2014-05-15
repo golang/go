@@ -117,6 +117,26 @@ This means that a non-pointer Go value such as an integer will never be mistaken
 pointer and prevent unused memory from being reclaimed.
 </p>
 
+<p>
+Starting with Go 1.3, the runtime assumes that values with pointer type
+contain pointers and other values do not.
+This assumption is fundamental to the precise behavior of both stack expansion
+and garbage collection.
+Programs that use <a href="/pkg/unsafe/">package unsafe</a>
+to store <code>uintptrs</code> in pointer values are illegal and will crash if the runtime detects the behavior.
+Programs that use <a href="/pkg/unsafe/">package unsafe</a> to store pointers
+in <code>uintptr</code> values are also illegal but more difficult to diagnose during execution.
+Because the pointers are hidden from the runtime, a stack expansion or garbage collection
+may reclaim the memory they point at, creating
+<a href="http://en.wikipedia.org/wiki/Dangling_pointer">dangling pointers</a>.
+</p>
+
+<p>
+<em>Updating</em>: Code that converts a <code>uintptr</code> value stored in memory
+to <code>unsafe.Pointer</code> is illegal and must be rewritten.
+Such code can be identified by <code>go vet</code>.
+</p>
+
 <h3 id="liblink">The linker</h3>
 
 <p>
