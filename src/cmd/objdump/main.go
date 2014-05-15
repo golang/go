@@ -318,8 +318,17 @@ func loadTables(f *os.File) (textStart uint64, textData, symtab, pclntab []byte,
 	}
 
 	if obj, err := pe.NewFile(f); err == nil {
+		var imageBase uint64
+		switch oh := obj.OptionalHeader.(type) {
+		case *pe.OptionalHeader32:
+			imageBase = uint64(oh.ImageBase)
+		case *pe.OptionalHeader64:
+			imageBase = oh.ImageBase
+		default:
+			return 0, nil, nil, nil, fmt.Errorf("pe file format not recognized")
+		}
 		if sect := obj.Section(".text"); sect != nil {
-			textStart = uint64(sect.VirtualAddress)
+			textStart = imageBase + uint64(sect.VirtualAddress)
 			textData, _ = sect.Data()
 		}
 		if pclntab, err = loadPETable(obj, "pclntab", "epclntab"); err != nil {
