@@ -237,6 +237,16 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 	return false
 }
 
+// hasBasicType reports whether x's type is a types.Basic with the given kind.
+func (f *File) hasBasicType(x ast.Expr, kind types.BasicKind) bool {
+	t := f.pkg.types[x].Type
+	if t != nil {
+		t = t.Underlying()
+	}
+	b, ok := t.(*types.Basic)
+	return ok && b.Kind() == kind
+}
+
 // matchStructArgType reports whether all the elements of the struct match the expected
 // type. For instance, with "%d" all the elements must be printable with the "%d" format.
 func (f *File) matchStructArgType(t printfArgType, typ *types.Struct, arg ast.Expr, inProgress map[types.Type]bool) bool {

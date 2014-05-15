@@ -133,6 +133,11 @@ Flag -shadow=false (experimental; must be set explicitly)
 
 Variables that may have been unintentionally shadowed.
 
+14. Misuse of unsafe.Pointer
+
+Flag -unsafeptr
+
+Likely incorrect uses of unsafe.Pointer to convert integers to pointers.
 
 Other flags
 

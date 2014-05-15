@@ -51,6 +51,7 @@ var report = map[string]*triState{
 	"shadow":      triStateFlag("shadow", unset, "check for shadowed variables (experimental; must be set explicitly)"),
 	"structtags":  triStateFlag("structtags", unset, "check that struct field tags have canonical format"),
 	"unreachable": triStateFlag("unreachable", unset, "check for unreachable code"),
+	"unsafeptr":   triStateFlag("unsafeptr", unset, "check for misuse of unsafe.Pointer"),
 }
 
 // experimental records the flags enabling experimental features. These must be
@@ -478,6 +479,7 @@ func (f *File) walkCallExpr(call *ast.CallExpr) {
 	case *ast.SelectorExpr:
 		f.walkCall(call, x.Sel.Name)
 	}
+	f.checkUnsafePointer(call)
 }
 
 // walkCompositeLit walks a composite literal.
