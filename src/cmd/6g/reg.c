@@ -55,28 +55,6 @@ rcmp(const void *a1, const void *a2)
 }
 
 static void
-setvar(Bits *dst, Type **args)
-{
-	Type *t;
-	Node *n;
-	Addr a;
-	Iter save;
-	Bits bit;
-	int z;
-
-	t = structfirst(&save, args);
-	while(t != T) {
-		n = nodarg(t, 1);
-		a = zprog.from;
-		naddr(n, &a, 0);
-		bit = mkvar(R, &a);
-		for(z=0; z<BITS; z++)
-			dst->b[z] |= bit.b[z];
-		t = structnext(&save);
-	}
-}
-
-static void
 setaddrs(Bits bit)
 {
 	int i, n;
@@ -177,11 +155,6 @@ regopt(Prog *firstp)
 		ivar.b[z] = 0;
 		ovar.b[z] = 0;
 	}
-
-	// build lists of parameters and results
-	setvar(&ivar, getthis(curfn->type));
-	setvar(&ivar, getinarg(curfn->type));
-	setvar(&ovar, getoutarg(curfn->type));
 
 	/*
 	 * pass 1
@@ -690,11 +663,6 @@ mkvar(Reg *r, Adr *a)
 	v->nextinnode = node->opt;
 	node->opt = v;
 
-	if(debug['R'])
-		print("bit=%2d et=%2E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
-
-	ostats.nvar++;
-
 	bit = blsh(i);
 	if(n == D_EXTERN || n == D_STATIC)
 		for(z=0; z<BITS; z++)
@@ -702,6 +670,13 @@ mkvar(Reg *r, Adr *a)
 	if(n == D_PARAM)
 		for(z=0; z<BITS; z++)
 			params.b[z] |= bit.b[z];
+
+	if(node->class == PPARAM)
+		for(z=0; z<BITS; z++)
+			ivar.b[z] |= bit.b[z];
+	if(node->class == PPARAMOUT)
+		for(z=0; z<BITS; z++)
+			ovar.b[z] |= bit.b[z];
 
 	// Treat values with their address taken as live at calls,
 	// because the garbage collector's liveness analysis in ../gc/plive.c does.
@@ -719,7 +694,22 @@ mkvar(Reg *r, Adr *a)
 	// The broader := in a closure problem is mentioned in a comment in
 	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
 	if(node->addrtaken)
-		setaddrs(bit);
+		v->addr = 1;
+
+	// Disable registerization for globals, because:
+	// (1) we might panic at any time and we want the recovery code
+	// to see the latest values (issue 1304).
+	// (2) we don't know what pointers might point at them and we want
+	// loads via those pointers to see updated values and vice versa (issue 7995).
+	//
+	// Disable registerization for results if using defer, because the deferred func
+	// might recover and return, causing the current values to be used.
+	if(node->class == PEXTERN || (hasdefer && node->class == PPARAMOUT))
+		v->addr = 1;
+
+	if(debug['R'])
+		print("bit=%2d et=%2E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+	ostats.nvar++;
 
 	return bit;
 
@@ -814,17 +804,6 @@ prop(Reg *r, Bits ref, Bits cal)
 			for(z=0; z<BITS; z++) {
 				cal.b[z] = externs.b[z] | ovar.b[z];
 				ref.b[z] = 0;
-			}
-			break;
-
-		default:
-			// Work around for issue 1304:
-			// flush modified globals before each instruction.
-			for(z=0; z<BITS; z++) {
-				cal.b[z] |= externs.b[z];
-				// issue 4066: flush modified return variables in case of panic
-				if(hasdefer)
-					cal.b[z] |= ovar.b[z];
 			}
 			break;
 		}
