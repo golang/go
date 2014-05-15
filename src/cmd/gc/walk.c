@@ -666,7 +666,10 @@ walkexpr(Node **np, NodeList **init)
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r->left, init);
-		n1 = nod(OADDR, n->list->n, N);
+		if(isblank(n->list->n))
+			n1 = nodnil();
+		else
+			n1 = nod(OADDR, n->list->n, N);
 		n1->etype = 1; // addr does not escape
 		fn = chanfn("chanrecv2", 2, r->left->type);
 		r = mkcall1(fn, types[TBOOL], init, typename(r->left->type), r->left, n1);
