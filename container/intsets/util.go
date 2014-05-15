@@ -19,8 +19,8 @@ func init() {
 }
 
 // popcount returns the population count (number of set bits) of x.
-func popcount(x word) word {
-	return word(a[byte(x>>(0*8))] +
+func popcount(x word) int {
+	return int(a[byte(x>>(0*8))] +
 		a[byte(x>>(1*8))] +
 		a[byte(x>>(2*8))] +
 		a[byte(x>>(3*8))] +
@@ -32,7 +32,7 @@ func popcount(x word) word {
 
 // nlz returns the number of leading zeros of x.
 // From Hacker's Delight, fig 5.11.
-func nlz(x word) word {
+func nlz(x word) int {
 	x |= (x >> 1)
 	x |= (x >> 2)
 	x |= (x >> 4)

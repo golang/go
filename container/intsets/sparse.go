@@ -18,9 +18,9 @@ package intsets
 // - Add InsertAll(...int), RemoveAll(...int)
 // - Add 'bool changed' results for {Intersection,Difference}With too.
 //
-// TODO(adonovan): implement Dense, a sparse bit vector with a similar
-// API.  The space usage would be proportional to Max(), not Len(),
-// and the implementation would be based upon big.Int.
+// TODO(adonovan): implement Dense, a dense bit vector with a similar API.
+// The space usage would be proportional to Max(), not Len(), and the
+// implementation would be based upon big.Int.
 
 import (
 	"bytes"
@@ -131,7 +131,7 @@ func (b *block) empty() bool {
 func (b *block) len() int {
 	var l int
 	for _, w := range b.bits {
-		l += int(popcount(w))
+		l += popcount(w)
 	}
 	return l
 }
@@ -144,7 +144,7 @@ func (b *block) max() int {
 	// Decrement bi by number of high zeros in last.bits.
 	for i := len(b.bits) - 1; i >= 0; i-- {
 		if w := b.bits[i]; w != 0 {
-			return bi - int(nlz(w)) - 1
+			return bi - nlz(w) - 1
 		}
 		bi -= bitsPerWord
 	}

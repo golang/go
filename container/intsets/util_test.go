@@ -7,8 +7,17 @@ package intsets
 import "testing"
 
 func TestNLZ(t *testing.T) {
-	if x := nlz(0x0000801000000000); x != 16 {
-		t.Errorf("bad %d", x)
+	// Test the platform-specific edge case.
+	// NB: v must be a var (not const) so that the word() conversion is dynamic.
+	// Otherwise the compiler will report an error.
+	v := uint64(0x0000801000000000)
+	n := nlz(word(v))
+	want := 32 // (on 32-bit)
+	if bitsPerWord == 64 {
+		want = 16
+	}
+	if n != want {
+		t.Errorf("%d-bit nlz(%d) = %d, want %d", bitsPerWord, v, n, want)
 	}
 }
 
