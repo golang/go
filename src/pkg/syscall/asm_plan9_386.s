@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+// so that go vet can check that they are correct.
+
 #include "../../cmd/ld/textflag.h"
 
 //
@@ -87,7 +90,7 @@ copyresult4:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT ·RawSyscall(SB),NOSPLIT,$0-32
+TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
@@ -102,7 +105,7 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-32
 	MOVL	AX, err+28(SP)
 	RET
 
-TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
+TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
@@ -123,7 +126,7 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
 #define SYS_SEEK 39	/* from zsysnum_plan9_386.go */
 
 //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
-TEXT ·seek(SB),NOSPLIT,$0-40
+TEXT ·seek(SB),NOSPLIT,$0-36
 	LEAL	newoffset+24(SP), AX
 	MOVL	AX, placeholder+4(SP)
 	

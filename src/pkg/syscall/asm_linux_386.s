@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+// so that go vet can check that they are correct.
+
 #include "../../cmd/ld/textflag.h"
 
 //
@@ -11,7 +14,7 @@
 // func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 // Trap # in AX, args in BX CX DX SI DI, return in AX
 
-TEXT	·Syscall(SB),NOSPLIT,$0-32
+TEXT	·Syscall(SB),NOSPLIT,$0-28
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
@@ -36,7 +39,7 @@ ok:
 	RET
 
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
-TEXT	·Syscall6(SB),NOSPLIT,$0-44
+TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
@@ -62,7 +65,7 @@ ok6:
 	RET
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
-TEXT ·RawSyscall(SB),NOSPLIT,$0-32
+TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
 	MOVL	12(SP), CX
@@ -84,7 +87,7 @@ ok1:
 	RET
 
 // func RawSyscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
-TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
+TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
 	MOVL	12(SP), CX
@@ -110,7 +113,7 @@ ok2:
 
 // func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
 // Kernel interface gets call sub-number and pointer to a0.
-TEXT ·socketcall(SB),NOSPLIT,$0-40
+TEXT ·socketcall(SB),NOSPLIT,$0-36
 	CALL	runtime·entersyscall(SB)
 	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
 	MOVL	4(SP), BX	// socket call number
@@ -134,7 +137,7 @@ oksock:
 
 // func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
 // Kernel interface gets call sub-number and pointer to a0.
-TEXT ·rawsocketcall(SB),NOSPLIT,$0-40
+TEXT ·rawsocketcall(SB),NOSPLIT,$0-36
 	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
 	MOVL	4(SP), BX	// socket call number
 	LEAL		8(SP), CX	// pointer to call arguments
