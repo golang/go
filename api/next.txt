@@ -1,4 +1,7 @@
+pkg archive/tar, const TypeGNUSparse = 83
+pkg archive/tar, const TypeGNUSparse ideal-char
 pkg archive/tar, type Header struct, Xattrs map[string]string
+pkg compress/gzip, method (*Reader) Reset(io.Reader) error
 pkg crypto/tls, const CurveP256 = 23
 pkg crypto/tls, const CurveP256 CurveID
 pkg crypto/tls, const CurveP384 = 24
@@ -126,6 +129,8 @@ pkg debug/goobj, type Func struct, Args int
 pkg debug/goobj, type Func struct, File []string
 pkg debug/goobj, type Func struct, Frame int
 pkg debug/goobj, type Func struct, FuncData []FuncData
+pkg debug/goobj, type Func struct, Leaf bool
+pkg debug/goobj, type Func struct, NoSplit bool
 pkg debug/goobj, type Func struct, PCData []Data
 pkg debug/goobj, type Func struct, PCFile Data
 pkg debug/goobj, type Func struct, PCLine Data
@@ -197,6 +202,73 @@ pkg debug/macho, type FatFile struct
 pkg debug/macho, type FatFile struct, Arches []FatArch
 pkg debug/macho, type FatFile struct, Magic uint32
 pkg debug/macho, var ErrNotFat *FormatError
+pkg debug/pe, type DataDirectory struct
+pkg debug/pe, type DataDirectory struct, Size uint32
+pkg debug/pe, type DataDirectory struct, VirtualAddress uint32
+pkg debug/pe, type File struct, OptionalHeader interface{}
+pkg debug/pe, type OptionalHeader32 struct
+pkg debug/pe, type OptionalHeader32 struct, AddressOfEntryPoint uint32
+pkg debug/pe, type OptionalHeader32 struct, BaseOfCode uint32
+pkg debug/pe, type OptionalHeader32 struct, BaseOfData uint32
+pkg debug/pe, type OptionalHeader32 struct, CheckSum uint32
+pkg debug/pe, type OptionalHeader32 struct, DataDirectory [16]DataDirectory
+pkg debug/pe, type OptionalHeader32 struct, DllCharacteristics uint16
+pkg debug/pe, type OptionalHeader32 struct, FileAlignment uint32
+pkg debug/pe, type OptionalHeader32 struct, ImageBase uint32
+pkg debug/pe, type OptionalHeader32 struct, LoaderFlags uint32
+pkg debug/pe, type OptionalHeader32 struct, Magic uint16
+pkg debug/pe, type OptionalHeader32 struct, MajorImageVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, MajorLinkerVersion uint8
+pkg debug/pe, type OptionalHeader32 struct, MajorOperatingSystemVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, MajorSubsystemVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, MinorImageVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, MinorLinkerVersion uint8
+pkg debug/pe, type OptionalHeader32 struct, MinorOperatingSystemVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, MinorSubsystemVersion uint16
+pkg debug/pe, type OptionalHeader32 struct, NumberOfRvaAndSizes uint32
+pkg debug/pe, type OptionalHeader32 struct, SectionAlignment uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfCode uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfHeaders uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfHeapCommit uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfHeapReserve uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfImage uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfInitializedData uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfStackCommit uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfStackReserve uint32
+pkg debug/pe, type OptionalHeader32 struct, SizeOfUninitializedData uint32
+pkg debug/pe, type OptionalHeader32 struct, Subsystem uint16
+pkg debug/pe, type OptionalHeader32 struct, Win32VersionValue uint32
+pkg debug/pe, type OptionalHeader64 struct
+pkg debug/pe, type OptionalHeader64 struct, AddressOfEntryPoint uint32
+pkg debug/pe, type OptionalHeader64 struct, BaseOfCode uint32
+pkg debug/pe, type OptionalHeader64 struct, CheckSum uint32
+pkg debug/pe, type OptionalHeader64 struct, DataDirectory [16]DataDirectory
+pkg debug/pe, type OptionalHeader64 struct, DllCharacteristics uint16
+pkg debug/pe, type OptionalHeader64 struct, FileAlignment uint32
+pkg debug/pe, type OptionalHeader64 struct, ImageBase uint64
+pkg debug/pe, type OptionalHeader64 struct, LoaderFlags uint32
+pkg debug/pe, type OptionalHeader64 struct, Magic uint16
+pkg debug/pe, type OptionalHeader64 struct, MajorImageVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, MajorLinkerVersion uint8
+pkg debug/pe, type OptionalHeader64 struct, MajorOperatingSystemVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, MajorSubsystemVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, MinorImageVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, MinorLinkerVersion uint8
+pkg debug/pe, type OptionalHeader64 struct, MinorOperatingSystemVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, MinorSubsystemVersion uint16
+pkg debug/pe, type OptionalHeader64 struct, NumberOfRvaAndSizes uint32
+pkg debug/pe, type OptionalHeader64 struct, SectionAlignment uint32
+pkg debug/pe, type OptionalHeader64 struct, SizeOfCode uint32
+pkg debug/pe, type OptionalHeader64 struct, SizeOfHeaders uint32
+pkg debug/pe, type OptionalHeader64 struct, SizeOfHeapCommit uint64
+pkg debug/pe, type OptionalHeader64 struct, SizeOfHeapReserve uint64
+pkg debug/pe, type OptionalHeader64 struct, SizeOfImage uint32
+pkg debug/pe, type OptionalHeader64 struct, SizeOfInitializedData uint32
+pkg debug/pe, type OptionalHeader64 struct, SizeOfStackCommit uint64
+pkg debug/pe, type OptionalHeader64 struct, SizeOfStackReserve uint64
+pkg debug/pe, type OptionalHeader64 struct, SizeOfUninitializedData uint32
+pkg debug/pe, type OptionalHeader64 struct, Subsystem uint16
+pkg debug/pe, type OptionalHeader64 struct, Win32VersionValue uint32
 pkg debug/plan9obj, func NewFile(io.ReaderAt) (*File, error)
 pkg debug/plan9obj, func Open(string) (*File, error)
 pkg debug/plan9obj, method (*File) Close() error
@@ -1563,6 +1635,8 @@ pkg syscall (openbsd-386), const SizeofRtMetrics = 56
 pkg syscall (openbsd-386), const SizeofRtMsghdr = 96
 pkg syscall (openbsd-386), const TCP_NOPUSH = 16
 pkg syscall (openbsd-386), const TCP_NOPUSH ideal-int
+pkg syscall (openbsd-386), const TIOCGSID = 1074033763
+pkg syscall (openbsd-386), const TIOCGSID ideal-int
 pkg syscall (openbsd-386), const TIOCGTSTAMP = 1074558043
 pkg syscall (openbsd-386), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (openbsd-386), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
@@ -1726,6 +1800,8 @@ pkg syscall (openbsd-386-cgo), const SizeofRtMetrics = 56
 pkg syscall (openbsd-386-cgo), const SizeofRtMsghdr = 96
 pkg syscall (openbsd-386-cgo), const TCP_NOPUSH = 16
 pkg syscall (openbsd-386-cgo), const TCP_NOPUSH ideal-int
+pkg syscall (openbsd-386-cgo), const TIOCGSID = 1074033763
+pkg syscall (openbsd-386-cgo), const TIOCGSID ideal-int
 pkg syscall (openbsd-386-cgo), const TIOCGTSTAMP = 1074558043
 pkg syscall (openbsd-386-cgo), func FcntlFlock(uintptr, int, *Flock_t) error
 pkg syscall (openbsd-386-cgo), func SendmsgN(int, []uint8, []uint8, Sockaddr, int) (int, error)
