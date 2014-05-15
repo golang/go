@@ -39,13 +39,8 @@ func loadSyms(t *testing.T) map[string]string {
 	return syms
 }
 
-func runObjDump(t *testing.T, exepath, startaddr string) (path, lineno string) {
-	addr, err := strconv.ParseUint(startaddr, 16, 64)
-	if err != nil {
-		t.Fatalf("invalid start address %v: %v", startaddr, err)
-	}
-	endaddr := fmt.Sprintf("%x", addr+10)
-	cmd := exec.Command(exepath, os.Args[0], "0x"+startaddr, "0x"+endaddr)
+func runObjDump(t *testing.T, exe, startaddr, endaddr string) (path, lineno string) {
+	cmd := exec.Command(exe, os.Args[0], startaddr, endaddr)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool objdump %v: %v\n%s", os.Args[0], err, string(out))
@@ -72,17 +67,8 @@ func runObjDump(t *testing.T, exepath, startaddr string) (path, lineno string) {
 	return f[0], f[1]
 }
 
-// This is line 75.  The test depends on that.
-func TestObjDump(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7947")
-	}
-	syms := loadSyms(t)
-
-	tmp, exe := buildObjdump(t)
-	defer os.RemoveAll(tmp)
-
-	srcPath, srcLineNo := runObjDump(t, exe, syms["cmd/objdump.TestObjDump"])
+func testObjDump(t *testing.T, exe, startaddr, endaddr string) {
+	srcPath, srcLineNo := runObjDump(t, exe, startaddr, endaddr)
 	fi1, err := os.Stat("objdump_test.go")
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
@@ -94,9 +80,29 @@ func TestObjDump(t *testing.T) {
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("objdump_test.go and %s are not same file", srcPath)
 	}
-	if srcLineNo != "76" {
-		t.Fatalf("line number = %v; want 76", srcLineNo)
+	if srcLineNo != "89" {
+		t.Fatalf("line number = %v; want 89", srcLineNo)
 	}
+}
+
+// This is line 88. The test depends on that.
+func TestObjDump(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test; see http://golang.org/issue/7947")
+	}
+	syms := loadSyms(t)
+
+	tmp, exe := buildObjdump(t)
+	defer os.RemoveAll(tmp)
+
+	startaddr := syms["cmd/objdump.TestObjDump"]
+	addr, err := strconv.ParseUint(startaddr, 16, 64)
+	if err != nil {
+		t.Fatalf("invalid start address %v: %v", startaddr, err)
+	}
+	endaddr := fmt.Sprintf("%x", addr+10)
+	testObjDump(t, exe, startaddr, endaddr)
+	testObjDump(t, exe, "0x"+startaddr, "0x"+endaddr)
 }
 
 func buildObjdump(t *testing.T) (tmp, exe string) {
