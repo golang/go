@@ -83,7 +83,7 @@ func errstr() string {
 }
 
 // Implemented in assembly to import from runtime.
-func exit(int)
+func exit(code int)
 
 func Exit(code int) { exit(code) }
 

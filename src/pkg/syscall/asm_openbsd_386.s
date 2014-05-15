@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+// so that go vet can check that they are correct.
+
 #include "../../cmd/ld/textflag.h"
 
 //
@@ -12,7 +15,7 @@
 // func Syscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
 // Trap # in AX, args on stack above caller pc.
 
-TEXT	·Syscall(SB),NOSPLIT,$0-32
+TEXT	·Syscall(SB),NOSPLIT,$0-28
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -36,7 +39,7 @@ ok:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT	·Syscall6(SB),NOSPLIT,$0-44
+TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -63,7 +66,7 @@ ok6:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT	·Syscall9(SB),NOSPLIT,$0-56
+TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -93,7 +96,7 @@ ok9:
 	CALL	runtime·exitsyscall(SB)
 	RET
 
-TEXT ·RawSyscall(SB),NOSPLIT,$0-32
+TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
@@ -114,7 +117,7 @@ ok1:
 	MOVL	$0, 28(SP)	// errno
 	RET
 
-TEXT	·RawSyscall6(SB),NOSPLIT,$0-44
+TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
