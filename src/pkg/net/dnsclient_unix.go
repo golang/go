@@ -8,7 +8,6 @@
 // Has to be linked into package net for Dial.
 
 // TODO(rsc):
-//	Check periodically whether /etc/resolv.conf has changed.
 //	Could potentially handle many outstanding lookups faster.
 //	Could have a small cache.
 //	Random UDP source port (net.Dial should do that for us).
@@ -19,6 +18,7 @@ package net
 import (
 	"io"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
 )
@@ -156,33 +156,90 @@ func convertRR_AAAA(records []dnsRR) []IP {
 	return addrs
 }
 
-var cfg *dnsConfig
-var dnserr error
+var cfg struct {
+	ch        chan struct{}
+	mu        sync.RWMutex // protects dnsConfig and dnserr
+	dnsConfig *dnsConfig
+	dnserr    error
+}
+var onceLoadConfig sync.Once
 
 // Assume dns config file is /etc/resolv.conf here
-func loadConfig() { cfg, dnserr = dnsReadConfig("/etc/resolv.conf") }
+func loadDefaultConfig() {
+	loadConfig("/etc/resolv.conf", 5*time.Second, nil)
+}
 
-var onceLoadConfig sync.Once
+func loadConfig(resolvConfPath string, reloadTime time.Duration, quit <-chan chan struct{}) {
+	var mtime time.Time
+	cfg.ch = make(chan struct{}, 1)
+	if fi, err := os.Stat(resolvConfPath); err != nil {
+		cfg.dnserr = err
+	} else {
+		mtime = fi.ModTime()
+		cfg.dnsConfig, cfg.dnserr = dnsReadConfig(resolvConfPath)
+	}
+	go func() {
+		for {
+			time.Sleep(reloadTime)
+			select {
+			case qresp := <-quit:
+				qresp <- struct{}{}
+				return
+			case <-cfg.ch:
+			}
+
+			// In case of error, we keep the previous config
+			fi, err := os.Stat(resolvConfPath)
+			if err != nil {
+				continue
+			}
+			// If the resolv.conf mtime didn't change, do not reload
+			m := fi.ModTime()
+			if m.Equal(mtime) {
+				continue
+			}
+			mtime = m
+			// In case of error, we keep the previous config
+			ncfg, err := dnsReadConfig(resolvConfPath)
+			if err != nil || len(ncfg.servers) == 0 {
+				continue
+			}
+			cfg.mu.Lock()
+			cfg.dnsConfig = ncfg
+			cfg.dnserr = nil
+			cfg.mu.Unlock()
+		}
+	}()
+}
 
 func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) {
 	if !isDomainName(name) {
 		return name, nil, &DNSError{Err: "invalid domain name", Name: name}
 	}
-	onceLoadConfig.Do(loadConfig)
-	if dnserr != nil || cfg == nil {
-		err = dnserr
+	onceLoadConfig.Do(loadDefaultConfig)
+
+	select {
+	case cfg.ch <- struct{}{}:
+	default:
+	}
+
+	cfg.mu.RLock()
+	defer cfg.mu.RUnlock()
+
+	if cfg.dnserr != nil || cfg.dnsConfig == nil {
+		err = cfg.dnserr
 		return
 	}
 	// If name is rooted (trailing dot) or has enough dots,
 	// try it by itself first.
 	rooted := len(name) > 0 && name[len(name)-1] == '.'
-	if rooted || count(name, '.') >= cfg.ndots {
+	if rooted || count(name, '.') >= cfg.dnsConfig.ndots {
 		rname := name
 		if !rooted {
 			rname += "."
 		}
 		// Can try as ordinary name.
-		cname, addrs, err = tryOneName(cfg, rname, qtype)
+		cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
 		if err == nil {
 			return
 		}
@@ -192,12 +249,12 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) 
 	}
 
 	// Otherwise, try suffixes.
-	for i := 0; i < len(cfg.search); i++ {
-		rname := name + "." + cfg.search[i]
+	for i := 0; i < len(cfg.dnsConfig.search); i++ {
+		rname := name + "." + cfg.dnsConfig.search[i]
 		if rname[len(rname)-1] != '.' {
 			rname += "."
 		}
-		cname, addrs, err = tryOneName(cfg, rname, qtype)
+		cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
 		if err == nil {
 			return
 		}
@@ -208,7 +265,7 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) 
 	if !rooted {
 		rname += "."
 	}
-	cname, addrs, err = tryOneName(cfg, rname, qtype)
+	cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
 	if err == nil {
 		return
 	}
@@ -231,11 +288,6 @@ func goLookupHost(name string) (addrs []string, err error) {
 	// Use entries from /etc/hosts if they match.
 	addrs = lookupStaticHost(name)
 	if len(addrs) > 0 {
-		return
-	}
-	onceLoadConfig.Do(loadConfig)
-	if dnserr != nil || cfg == nil {
-		err = dnserr
 		return
 	}
 	ips, err := goLookupIP(name)
@@ -267,11 +319,6 @@ func goLookupIP(name string) (addrs []IP, err error) {
 		if len(addrs) > 0 {
 			return
 		}
-	}
-	onceLoadConfig.Do(loadConfig)
-	if dnserr != nil || cfg == nil {
-		err = dnserr
-		return
 	}
 	var records []dnsRR
 	var cname string
@@ -308,11 +355,6 @@ func goLookupIP(name string) (addrs []IP, err error) {
 // depending on our lookup code, so that Go and C get the same
 // answers.
 func goLookupCNAME(name string) (cname string, err error) {
-	onceLoadConfig.Do(loadConfig)
-	if dnserr != nil || cfg == nil {
-		err = dnserr
-		return
-	}
 	_, rr, err := lookup(name, dnsTypeCNAME)
 	if err != nil {
 		return
