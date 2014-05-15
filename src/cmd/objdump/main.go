@@ -235,6 +235,15 @@ func gnuDump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, textData []
 	if err != nil {
 		log.Fatalf("invalid end PC: %v", err)
 	}
+	if start < textStart {
+		start = textStart
+	}
+	if end < start {
+		end = start
+	}
+	if end > textStart+uint64(len(textData)) {
+		end = textStart + uint64(len(textData))
+	}
 
 	stdout := bufio.NewWriter(os.Stdout)
 	defer stdout.Flush()
