@@ -781,8 +781,30 @@ orderstmt(Node *n, Order *order)
 				fatal("order select ninit");
 			if(r != nil) {
 				switch(r->op) {
+				default:
+					yyerror("unknown op in select %O", r->op);
+					dump("select case", r);
+					break;
+
 				case OSELRECV:
 				case OSELRECV2:
+					// If this is case x := <-ch or case x, y := <-ch, the case has
+					// the ODCL nodes to declare x and y. We want to delay that
+					// declaration (and possible allocation) until inside the case body.
+					// Delete the ODCL nodes here and recreate them inside the body below.
+					if(r->colas) {
+						t = r->ninit;
+						if(t != nil && t->n->op == ODCL && t->n->left == r->left)
+							t = t->next;
+						if(t != nil && t->n->op == ODCL && t->n->left == r->ntest)
+							t = t->next;
+						if(t == nil)
+							r->ninit = nil;
+					}
+					if(r->ninit != nil) {
+						yyerror("ninit on select recv");
+						dumplist("ninit", r->ninit);
+					}
 					// case x = <-c
 					// case x, ok = <-c
 					// r->left is x, r->ntest is ok, r->right is ORECV, r->right->left is c.
@@ -803,6 +825,11 @@ orderstmt(Node *n, Order *order)
 						// such as in case interfacevalue = <-intchan.
 						// the conversion happens in the OAS instead.
 						tmp1 = r->left;
+						if(r->colas) {
+							tmp2 = nod(ODCL, tmp1, N);
+							typecheck(&tmp2, Etop);
+							l->n->ninit = list(l->n->ninit, tmp2);
+						}
 						r->left = ordertemp(r->right->left->type->type, order, haspointers(r->right->left->type->type));
 						tmp2 = nod(OAS, tmp1, r->left);
 						typecheck(&tmp2, Etop);
@@ -812,6 +839,11 @@ orderstmt(Node *n, Order *order)
 						r->ntest = N;
 					if(r->ntest != N) {
 						tmp1 = r->ntest;
+						if(r->colas) {
+							tmp2 = nod(ODCL, tmp1, N);
+							typecheck(&tmp2, Etop);
+							l->n->ninit = list(l->n->ninit, tmp2);
+						}
 						r->ntest = ordertemp(tmp1->type, order, 0);
 						tmp2 = nod(OAS, tmp1, r->ntest);
 						typecheck(&tmp2, Etop);
@@ -821,6 +853,10 @@ orderstmt(Node *n, Order *order)
 					break;
 
 				case OSEND:
+					if(r->ninit != nil) {
+						yyerror("ninit on select send");
+						dumplist("ninit", r->ninit);
+					}
 					// case c <- x
 					// r->left is c, r->right is x, both are always evaluated.
 					orderexpr(&r->left, order);
