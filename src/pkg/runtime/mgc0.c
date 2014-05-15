@@ -724,7 +724,7 @@ scanblock(Workbuf *wbuf, bool keepworking)
 	uintptr *pc, precise_type, nominal_size;
 	uintptr *chan_ret, chancap;
 	void *obj;
-	Type *t;
+	Type *t, *et;
 	Slice *sliceptr;
 	String *stringptr;
 	Frame *stack_ptr, stack_top, stack[GC_STACK_CAPACITY+4];
@@ -941,8 +941,14 @@ scanblock(Workbuf *wbuf, bool keepworking)
 						continue;
 
 					obj = eface->data;
-					if((t->kind & ~KindNoPointers) == KindPtr)
-						objti = (uintptr)((PtrType*)t)->elem->gc;
+					if((t->kind & ~KindNoPointers) == KindPtr) {
+						// Only use type information if it is a pointer-containing type.
+						// This matches the GC programs written by cmd/gc/reflect.c's
+						// dgcsym1 in case TPTR32/case TPTR64. See rationale there.
+						et = ((PtrType*)t)->elem;
+						if(!(et->kind & KindNoPointers))
+							objti = (uintptr)((PtrType*)t)->elem->gc;
+					}
 				} else {
 					obj = eface->data;
 					objti = (uintptr)t->gc;
@@ -973,8 +979,14 @@ scanblock(Workbuf *wbuf, bool keepworking)
 						continue;
 
 					obj = iface->data;
-					if((t->kind & ~KindNoPointers) == KindPtr)
-						objti = (uintptr)((PtrType*)t)->elem->gc;
+					if((t->kind & ~KindNoPointers) == KindPtr) {
+						// Only use type information if it is a pointer-containing type.
+						// This matches the GC programs written by cmd/gc/reflect.c's
+						// dgcsym1 in case TPTR32/case TPTR64. See rationale there.
+						et = ((PtrType*)t)->elem;
+						if(!(et->kind & KindNoPointers))
+							objti = (uintptr)((PtrType*)t)->elem->gc;
+					}
 				} else {
 					obj = iface->data;
 					objti = (uintptr)t->gc;

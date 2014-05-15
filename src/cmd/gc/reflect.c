@@ -1322,7 +1322,22 @@ dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
 		// NOTE: Any changes here need to be made to reflect.PtrTo as well.
 		if(*off % widthptr != 0)
 			fatal("dgcsym1: invalid alignment, %T", t);
-		if(!haspointers(t->type) || t->type->etype == TUINT8) {
+
+		// NOTE(rsc): Emitting GC_APTR here for *nonptrtype
+		// (pointer to non-pointer-containing type) means that
+		// we do not record 'nonptrtype' and instead tell the 
+		// garbage collector to look up the type of the memory in
+		// type information stored in the heap. In effect we are telling
+		// the collector "we don't trust our information - use yours".
+		// It's not completely clear why we want to do this.
+		// It does have the effect that if you have a *SliceHeader and a *[]int
+		// pointing at the same actual slice header, *SliceHeader will not be
+		// used as an authoritative type for the memory, which is good:
+		// if the collector scanned the memory as type *SliceHeader, it would
+		// see no pointers inside but mark the block as scanned, preventing
+		// the seeing of pointers when we followed the *[]int pointer.
+		// Perhaps that kind of situation is the rationale.
+		if(!haspointers(t->type)) {
 			ot = duintptr(s, ot, GC_APTR);
 			ot = duintptr(s, ot, *off);
 		} else {
