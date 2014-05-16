@@ -49,7 +49,7 @@ func renderLink(href, text string) string {
 	// Open links in new window only when their url is absolute.
 	target := "_blank"
 	if u, err := url.Parse(href); err != nil {
-		log.Println("rendernLink parsing url: %v", err)
+		log.Println("rendernLink parsing url:", err)
 	} else if !u.IsAbs() || u.Scheme == "javascript" {
 		target = "_self"
 	}
