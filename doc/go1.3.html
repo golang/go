@@ -137,6 +137,28 @@ to <code>unsafe.Pointer</code> is illegal and must be rewritten.
 Such code can be identified by <code>go vet</code>.
 </p>
 
+<h3 id="map">Map iteration</h3>
+
+<p>
+Iterations over small maps no longer happen in a consistent order.
+Go 1 defines that &ldquo;<a href="http://golang.org/ref/spec#For_statements">The iteration order over maps
+is not specified and is not guaranteed to be the same from one iteration to the next.</a>&rdquo;
+To keep code from depending on map iteration order,
+Go 1.0 started each map iteration at a random index in the map.
+A new map implementation introduced in Go 1.1 neglected to randomize
+iteration for maps with eight or fewer entries, although the iteration order
+can still vary from system to system.
+This has allowed people to write Go 1.1 and Go 1.2 programs that
+depend on small map iteration order and therefore only work reliably on certain systems.
+Go 1.3 reintroduces random iteration for small maps in order to flush out these bugs.
+</p>
+
+<p>
+<em>Updating</em>: If code assumes a fixed iteration order for small maps,
+it will break and must be rewritten not to make that assumption.
+Because only small maps are affected, the problem arises most often in tests.
+</p>
+
 <h3 id="liblink">The linker</h3>
 
 <p>
