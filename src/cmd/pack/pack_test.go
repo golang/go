@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -223,9 +224,10 @@ func TestLargeDefs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	b := bufio.NewWriter(f)
 
 	printf := func(format string, args ...interface{}) {
-		_, err := fmt.Fprintf(f, format, args...)
+		_, err := fmt.Fprintf(b, format, args...)
 		if err != nil {
 			t.Fatalf("Writing to %s: %v", large, err)
 		}
@@ -240,6 +242,9 @@ func TestLargeDefs(t *testing.T) {
 		printf("\"`\n")
 	}
 	printf("}\n")
+	if err = b.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	if err = f.Close(); err != nil {
 		t.Fatal(err)
 	}
