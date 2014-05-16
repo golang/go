@@ -14,7 +14,7 @@ precise garbage collection,
 a major refactoring of the compiler tool chain that results in
 faster builds, especially for large projects,
 significant performance improvements across the board,
-and support for Solaris, Plan 9 and Google's Native Client architecture (NaCl).
+and support for DragonFly BSD, Solaris, Plan 9 and Google's Native Client architecture (NaCl).
 It also has an important refinement to the memory model regarding synchronization.
 As always, Go 1.3 keeps the <a href="/doc/go1compat.html">promise
 of compatibility</a>,
@@ -23,30 +23,6 @@ will continue to compile and run without change when moved to 1.3.
 </p>
 
 <h2 id="os">Changes to the supported operating systems and architectures</h2>
-
-<h3 id="nacl">Support for Native Client</h3>
-
-<p>
-Support for the Native Client virtual machine architecture has returned to Go with the 1.3 release.
-It runs on the 32-bit Intel architectures (<code>GOARCH=386</code>) and also on 64-bit Intel, but using
-32-bit pointers (<code>GOARCH=amd64p32</code>).
-There is not yet support for Native Client on ARM.
-Note that this is Native Client (NaCl), not Portable Native Client (PNaCl).
-Details about Native Client are <a href="https://developers.google.com/native-client/dev/">here</a>;
-how to set up the Go version is described <a href="http://golang.org/wiki/NativeClient">here</a>.
-</p>
-
-<h3 id="solaris">Support for Solaris</h3>
-
-<p>
-Go 1.3 now includes experimental support for Solaris on the <code>amd64</code> (64-bit x86) architecture.
-</p>
-
-<h3 id="plan9">Support for Plan 9</h3>
-
-<p>
-Go 1.3 now includes experimental support for Plan 9 on the <code>386</code> (32-bit x86) architecture.
-</p>
 
 <h3 id="win2000">Removal of support for Windows 2000</h3>
 
@@ -57,6 +33,11 @@ regarding exception handling (signals in Unix terminology),
 as of Go 1.3 it is not supported by Go either.
 </p>
 
+<h3 id="dragonfly">Support for DragonFly BSD</h3>
+
+<p>
+Go 1.3 now includes experimental support for DragonFly BSD on the <code>amd64</code> (64-bit x86) and <code>386</code> (32-bit x86) architectures. It uses DragonFly BSD 3.6 or above.
+</p>
 
 <h3 id="freebsd">Support for FreeBSD</h3>
 
@@ -73,6 +54,42 @@ As of Go 1.3, support for Go on FreeBSD requires that the kernel be compiled wit
 <p>
 In concert with the switch to EABI syscalls for ARM platforms, Go 1.3 will run only on
 FreeBSD 10. The x86 platforms, 386 and amd64, are unaffected.
+</p>
+
+<h3 id="nacl">Support for Native Client</h3>
+
+<p>
+Support for the Native Client virtual machine architecture has returned to Go with the 1.3 release.
+It runs on the 32-bit Intel architectures (<code>GOARCH=386</code>) and also on 64-bit Intel, but using
+32-bit pointers (<code>GOARCH=amd64p32</code>).
+There is not yet support for Native Client on ARM.
+Note that this is Native Client (NaCl), not Portable Native Client (PNaCl).
+Details about Native Client are <a href="https://developers.google.com/native-client/dev/">here</a>;
+how to set up the Go version is described <a href="http://golang.org/wiki/NativeClient">here</a>.
+</p>
+
+<h3 id="netbsd">Support for NetBSD</h3>
+
+<p>
+As of Go 1.3, support for Go on NetBSD requires NetBSD 6.0 or above.
+</p>
+
+<h3 id="openbsd">Support for OpenBSD</h3>
+
+<p>
+As of Go 1.3, support for Go on NetBSD requires OpenBSD 5.5 or above.
+</p>
+
+<h3 id="plan9">Support for Plan 9</h3>
+
+<p>
+Go 1.3 now includes experimental support for Plan 9 on the <code>386</code> (32-bit x86) architecture. It requires the <code>Tsemacquire</code> syscall, which has been in Plan 9 since June, 2012.
+</p>
+
+<h3 id="solaris">Support for Solaris</h3>
+
+<p>
+Go 1.3 now includes experimental support for Solaris on the <code>amd64</code> (64-bit x86) architecture. It uses illumos, equivalent to Solaris 11 or above.
 </p>
 
 <h2 id="memory">Changes to the memory model</h2>
