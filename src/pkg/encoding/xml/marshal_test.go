@@ -1260,7 +1260,7 @@ func TestDecodeEncode(t *testing.T) {
 	for tok, err := dec.Token(); err == nil; tok, err = dec.Token() {
 		err = enc.EncodeToken(tok)
 		if err != nil {
-			t.Fatalf("enc.EncodeToken: Unable to encode token (%#v), %d", tok, err)
+			t.Fatalf("enc.EncodeToken: Unable to encode token (%#v), %v", tok, err)
 		}
 	}
 }
