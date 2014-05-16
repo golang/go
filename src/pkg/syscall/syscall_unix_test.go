@@ -300,3 +300,15 @@ func TestRlimit(t *testing.T) {
 		t.Fatalf("Setrlimit: restore failed: %#v %v", rlimit, err)
 	}
 }
+
+func TestSeekFailure(t *testing.T) {
+	_, err := syscall.Seek(-1, 0, 0)
+	if err == nil {
+		t.Fatalf("Seek(-1, 0, 0) did not fail")
+	}
+	str := err.Error() // used to crash on Linux
+	t.Logf("Seek: %v", str)
+	if str == "" {
+		t.Fatalf("Seek(-1, 0, 0) return error with empty message")
+	}
+}

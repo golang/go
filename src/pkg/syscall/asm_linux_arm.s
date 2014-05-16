@@ -98,7 +98,7 @@ ok2:
 	RET
 
 #define SYS__LLSEEK 140  /* from zsysnum_linux_arm.go */
-// func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+// func seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 // Implemented in assembly to avoid allocation when
 // taking the address of the return value newoffset.
 // Underlying system call is

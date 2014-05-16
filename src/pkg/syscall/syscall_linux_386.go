@@ -135,7 +135,15 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
 
 // Underlying system call writes to newoffset via pointer.
 // Implemented in assembly to avoid allocation.
-func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
+func seek(fd int, offset int64, whence int) (newoffset int64, err Errno)
+
+func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+	newoffset, errno := seek(fd, offset, whence)
+	if errno != 0 {
+		return 0, errno
+	}
+	return newoffset, nil
+}
 
 // Vsyscalls on amd64.
 //sysnb	Gettimeofday(tv *Timeval) (err error)
