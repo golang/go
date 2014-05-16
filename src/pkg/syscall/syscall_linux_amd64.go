@@ -73,10 +73,10 @@ func Time(t *Time_t) (tt Time_t, err error) {
 	var tv Timeval
 	errno := gettimeofday(&tv)
 	if errno != 0 {
-		return errno
+		return 0, errno
 	}
 	if t != nil {
-		*t = tv.Sec
+		*t = Time_t(tv.Sec)
 	}
 	return Time_t(tv.Sec), nil
 }
