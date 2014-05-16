@@ -458,6 +458,14 @@ non-printing.
 </li>
 
 <li>
+The <a href="/pkg/syscall/"><code>syscall</code></a> package now provides
+<a href="/pkg/syscall/#SendmsgN"><code>SendmsgN</code></a>
+as an alternate version of
+<a href="/pkg/syscall/#Sendmsg"><code>Sendmsg</code></a>
+that returns the number of bytes written.
+</li>
+
+<li>
 On Windows, the <a href="/pkg/syscall/"><code>syscall</code></a> package now
 supports the cdecl calling convention through the addition of a new function
 <a href="/pkg/syscall/#NewCallbackCDecl"><code>NewCallbackCDecl</code></a>
