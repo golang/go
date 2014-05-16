@@ -58,8 +58,28 @@ package syscall
 
 func Getpagesize() int { return 4096 }
 
-func Gettimeofday(tv *Timeval) (err error)
-func Time(t *Time_t) (tt Time_t, err error)
+//go:noescape
+func gettimeofday(tv *Timeval) (err Errno)
+
+func Gettimeofday(tv *Timeval) (err error) {
+	errno := gettimeofday(tv)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
+func Time(t *Time_t) (tt Time_t, err error) {
+	var tv Timeval
+	errno := gettimeofday(&tv)
+	if errno != 0 {
+		return errno
+	}
+	if t != nil {
+		*t = tv.Sec
+	}
+	return Time_t(tv.Sec), nil
+}
 
 func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
 

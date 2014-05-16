@@ -110,7 +110,7 @@ ok2:
 	MOVQ	$0, 80(SP)	// errno
 	RET
 
-TEXT ·Gettimeofday(SB),NOSPLIT,$0-24
+TEXT ·gettimeofday(SB),NOSPLIT,$0-16
 	MOVQ	8(SP), DI
 	MOVQ	$0, SI
 	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
@@ -123,12 +123,4 @@ TEXT ·Gettimeofday(SB),NOSPLIT,$0-24
 	RET
 ok7:
 	MOVQ	$0, 16(SP)  // errno
-	RET
-
-TEXT ·Time(SB),NOSPLIT,$0-32
-	MOVQ	8(SP), DI
-	MOVQ	runtime·__vdso_time_sym(SB), AX
-	CALL	AX
-	MOVQ	AX, 16(SP)  // tt
-	MOVQ	$0, 24(SP)  // errno
 	RET
