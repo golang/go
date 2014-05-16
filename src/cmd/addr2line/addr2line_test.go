@@ -92,9 +92,6 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 
 // This is line 93. The test depends on that.
 func TestAddr2Line(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7947")
-	}
 	syms := loadSyms(t)
 
 	tmpDir, err := ioutil.TempDir("", "TestAddr2Line")
