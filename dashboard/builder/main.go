@@ -349,7 +349,7 @@ func (b *Builder) buildOrBench() bool {
 		}
 		return true
 	default:
-		log.Println("Unknown todo kind %v", kind)
+		log.Printf("Unknown todo kind %v", kind)
 		return false
 	}
 }
