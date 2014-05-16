@@ -690,7 +690,7 @@ func (s *Sparse) String() string {
 	buf.WriteByte('{')
 	s.forEach(func(x int) {
 		if buf.Len() > 1 {
-			buf.WriteString(", ")
+			buf.WriteByte(' ')
 		}
 		fmt.Fprintf(&buf, "%d", x)
 	})

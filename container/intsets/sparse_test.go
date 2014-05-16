@@ -43,8 +43,8 @@ func TestBasics(t *testing.T) {
 	if !s.Insert(435) {
 		t.Errorf("Insert(435): got false, want true")
 	}
-	if s := s.String(); s != "{3, 435}" {
-		t.Errorf("String({3, 435}): got %q, want \"{3, 435}\"", s)
+	if s := s.String(); s != "{3 435}" {
+		t.Errorf("String({3 435}): got %q, want \"{3 435}\"", s)
 	}
 	if max := s.Max(); max != 435 {
 		t.Errorf("Max: got %d, want 435", max)
