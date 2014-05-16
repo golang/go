@@ -2154,6 +2154,21 @@ func TestCodesPreventingContentTypeAndBody(t *testing.T) {
 	}
 }
 
+func TestContentTypeOkayOn204(t *testing.T) {
+	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Length", "123") // suppressed
+		w.Header().Set("Content-Type", "foo/bar")
+		w.WriteHeader(204)
+	}))
+	got := ht.rawResponse("GET / HTTP/1.1")
+	if !strings.Contains(got, "Content-Type: foo/bar") {
+		t.Errorf("Response = %q; want Content-Type: foo/bar", got)
+	}
+	if strings.Contains(got, "Content-Length: 123") {
+		t.Errorf("Response = %q; don't want a Content-Length", got)
+	}
+}
+
 // Issue 6995
 // A server Handler can receive a Request, and then turn around and
 // give a copy of that Request.Body out to the Transport (e.g. any
