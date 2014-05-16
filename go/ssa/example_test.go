@@ -85,21 +85,21 @@ func main() {
 	// # Package: main
 	// # Synthetic: package initializer
 	// func init():
-	// .0.entry:                                                               P:0 S:2
+	// 0:                                                                entry P:0 S:2
 	// 	t0 = *init$guard                                                   bool
-	// 	if t0 goto 2.init.done else 1.init.start
-	// .1.init.start:                                                          P:1 S:1
+	// 	if t0 goto 2 else 1
+	// 1:                                                           init.start P:1 S:1
 	// 	*init$guard = true:bool
 	// 	t1 = fmt.init()                                                      ()
-	// 	jump 2.init.done
-	// .2.init.done:                                                           P:2 S:0
+	// 	jump 2
+	// 2:                                                            init.done P:2 S:0
 	// 	return
 	//
 	// # Name: main.main
 	// # Package: main
 	// # Location: hello.go:8:6
 	// func main():
-	// .0.entry:                                                               P:0 S:0
+	// 0:                                                                entry P:0 S:0
 	// 	t0 = new [1]interface{} (varargs)                       *[1]interface{}
 	// 	t1 = &t0[0:int]                                            *interface{}
 	// 	t2 = make interface{} <- string ("Hello, World!":string)    interface{}

@@ -89,12 +89,11 @@ func (v *Phi) String() string {
 			b.WriteString(", ")
 		}
 		// Be robust against malformed CFG.
-		blockname := "?"
+		block := -1
 		if v.block != nil && i < len(v.block.Preds) {
-			blockname = v.block.Preds[i].String()
+			block = v.block.Preds[i].Index
 		}
-		b.WriteString(blockname)
-		b.WriteString(": ")
+		fmt.Fprintf(&b, "%d: ", block)
 		edgeVal := "<nil>" // be robust
 		if edge != nil {
 			edgeVal = relName(edge, v)
@@ -272,21 +271,21 @@ func (v *Extract) String() string {
 
 func (s *Jump) String() string {
 	// Be robust against malformed CFG.
-	blockname := "?"
+	block := -1
 	if s.block != nil && len(s.block.Succs) == 1 {
-		blockname = s.block.Succs[0].String()
+		block = s.block.Succs[0].Index
 	}
-	return fmt.Sprintf("jump %s", blockname)
+	return fmt.Sprintf("jump %d", block)
 }
 
 func (s *If) String() string {
 	// Be robust against malformed CFG.
-	tblockname, fblockname := "?", "?"
+	tblock, fblock := -1, -1
 	if s.block != nil && len(s.block.Succs) == 2 {
-		tblockname = s.block.Succs[0].String()
-		fblockname = s.block.Succs[1].String()
+		tblock = s.block.Succs[0].Index
+		fblock = s.block.Succs[1].Index
 	}
-	return fmt.Sprintf("if %s goto %s else %s", relName(s.Cond, s), tblockname, fblockname)
+	return fmt.Sprintf("if %s goto %d else %d", relName(s.Cond, s), tblock, fblock)
 }
 
 func (s *Go) String() string {

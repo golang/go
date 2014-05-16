@@ -31,7 +31,7 @@ func (b *BasicBlock) Parent() *Function { return b.parent }
 // It is not guaranteed unique within the function.
 //
 func (b *BasicBlock) String() string {
-	return fmt.Sprintf("%d.%s", b.Index, b.Comment)
+	return fmt.Sprintf("%d", b.Index)
 }
 
 // emit appends an instruction to the current basic block.
@@ -575,16 +575,19 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 		buf.WriteString("\t(external)\n")
 	}
 
-	// NB. column calculations are confused by non-ASCII characters.
+	// NB. column calculations are confused by non-ASCII
+	// characters and assume 8-space tabs.
 	const punchcard = 80 // for old time's sake.
+	const tabwidth = 8
 	for _, b := range f.Blocks {
 		if b == nil {
 			// Corrupt CFG.
 			fmt.Fprintf(buf, ".nil:\n")
 			continue
 		}
-		n, _ := fmt.Fprintf(buf, ".%s:", b)
-		fmt.Fprintf(buf, "%*sP:%d S:%d\n", punchcard-1-n-len("P:n S:n"), "", len(b.Preds), len(b.Succs))
+		n, _ := fmt.Fprintf(buf, "%d:", b.Index)
+		bmsg := fmt.Sprintf("%s P:%d S:%d", b.Comment, len(b.Preds), len(b.Succs))
+		fmt.Fprintf(buf, "%*s%s\n", punchcard-1-n-len(bmsg), "", bmsg)
 
 		if false { // CFG debugging
 			fmt.Fprintf(buf, "\t# CFG: %s --> %s --> %s\n", b.Preds, b, b.Succs)
@@ -593,18 +596,23 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 			buf.WriteString("\t")
 			switch v := instr.(type) {
 			case Value:
-				l := punchcard
+				l := punchcard - tabwidth
 				// Left-align the instruction.
 				if name := v.Name(); name != "" {
 					n, _ := fmt.Fprintf(buf, "%s = ", name)
 					l -= n
 				}
-				// TODO(adonovan): append instructions directly to w.
 				n, _ := buf.WriteString(instr.String())
 				l -= n
-				// Right-align the type.
+				// Right-align the type if there's space.
 				if t := v.Type(); t != nil {
-					fmt.Fprintf(buf, " %*s", l-10, relType(t, pkgobj))
+					buf.WriteByte(' ')
+					ts := relType(t, pkgobj)
+					l -= len(ts) + len("  ") // (spaces before and after type)
+					if l > 0 {
+						fmt.Fprintf(buf, "%*s", l, "")
+					}
+					buf.WriteString(ts)
 				}
 			case nil:
 				// Be robust against bad transforms.
