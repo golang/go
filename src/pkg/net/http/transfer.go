@@ -268,6 +268,22 @@ func bodyAllowedForStatus(status int) bool {
 	return true
 }
 
+var (
+	suppressedHeaders304    = []string{"Content-Type", "Content-Length", "Transfer-Encoding"}
+	suppressedHeadersNoBody = []string{"Content-Length", "Transfer-Encoding"}
+)
+
+func suppressedHeaders(status int) []string {
+	switch {
+	case status == 304:
+		// RFC 2616 section 10.3.5: "the response MUST NOT include other entity-headers"
+		return suppressedHeaders304
+	case !bodyAllowedForStatus(status):
+		return suppressedHeadersNoBody
+	}
+	return nil
+}
+
 // msg is *Request or *Response.
 func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	t := &transferReader{RequestMethod: "GET"}

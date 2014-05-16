@@ -799,17 +799,15 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	}
 
 	code := w.status
-	if !bodyAllowedForStatus(code) {
-		// Must not have body.
-		// RFC 2616 section 10.3.5: "the response MUST NOT include other entity-headers"
-		for _, k := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
-			delHeader(k)
-		}
-	} else {
+	if bodyAllowedForStatus(code) {
 		// If no content type, apply sniffing algorithm to body.
 		_, haveType := header["Content-Type"]
 		if !haveType {
 			setHeader.contentType = DetectContentType(p)
+		}
+	} else {
+		for _, k := range suppressedHeaders(code) {
+			delHeader(k)
 		}
 	}
 
