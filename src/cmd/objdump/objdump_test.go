@@ -87,9 +87,6 @@ func testObjDump(t *testing.T, exe, startaddr, endaddr string) {
 
 // This is line 88. The test depends on that.
 func TestObjDump(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7947")
-	}
 	syms := loadSyms(t)
 
 	tmp, exe := buildObjdump(t)

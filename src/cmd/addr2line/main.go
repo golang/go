@@ -23,6 +23,7 @@ import (
 	"debug/gosym"
 	"debug/macho"
 	"debug/pe"
+	"debug/plan9obj"
 	"flag"
 	"fmt"
 	"log"
@@ -159,6 +160,21 @@ func loadTables(f *os.File) (textStart uint64, symtab, pclntab []byte, err error
 		return textStart, symtab, pclntab, nil
 	}
 
+	if obj, err := plan9obj.NewFile(f); err == nil {
+		sym, err := findPlan9Symbol(obj, "text")
+		if err != nil {
+			return 0, nil, nil, err
+		}
+		textStart = sym.Value
+		if pclntab, err = loadPlan9Table(obj, "pclntab", "epclntab"); err != nil {
+			return 0, nil, nil, err
+		}
+		if symtab, err = loadPlan9Table(obj, "symtab", "esymtab"); err != nil {
+			return 0, nil, nil, err
+		}
+		return textStart, symtab, pclntab, nil
+	}
+
 	return 0, nil, nil, fmt.Errorf("unrecognized binary format")
 }
 
@@ -196,4 +212,42 @@ func loadPETable(f *pe.File, sname, ename string) ([]byte, error) {
 		return nil, err
 	}
 	return data[ssym.Value:esym.Value], nil
+}
+
+func findPlan9Symbol(f *plan9obj.File, name string) (*plan9obj.Sym, error) {
+	syms, err := f.Symbols()
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range syms {
+		if s.Name != name {
+			continue
+		}
+		return &s, nil
+	}
+	return nil, fmt.Errorf("no %s symbol found", name)
+}
+
+func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
+	ssym, err := findPlan9Symbol(f, sname)
+	if err != nil {
+		return nil, err
+	}
+	esym, err := findPlan9Symbol(f, ename)
+	if err != nil {
+		return nil, err
+	}
+	text, err := findPlan9Symbol(f, "text")
+	if err != nil {
+		return nil, err
+	}
+	sect := f.Section("text")
+	if sect == nil {
+		return nil, err
+	}
+	data, err := sect.Data()
+	if err != nil {
+		return nil, err
+	}
+	return data[ssym.Value-text.Value : esym.Value-text.Value], nil
 }
