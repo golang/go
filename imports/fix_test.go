@@ -540,6 +540,41 @@ func main() { fmt.Println("Hello, world") }
 
 func notmain() { fmt.Println("Hello, world") }`,
 	},
+
+	// Remove first import within in a 2nd/3rd/4th/etc. section.
+	// golang.org/issue/7679
+	{
+		name: "issue 7679",
+		in: `package main
+
+import (
+	"fmt"
+
+	"github.com/foo/bar"
+	"github.com/foo/qux"
+)
+
+func main() {
+	var _ = fmt.Println
+	//var _ = bar.A
+	var _ = qux.B
+}
+`,
+		out: `package main
+
+import (
+	"fmt"
+
+	"github.com/foo/qux"
+)
+
+func main() {
+	var _ = fmt.Println
+	//var _ = bar.A
+	var _ = qux.B
+}
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {

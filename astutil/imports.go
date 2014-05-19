@@ -160,11 +160,22 @@ func DeleteImport(fset *token.FileSet, f *ast.File, path string) (deleted bool) 
 				gen.Lparen = token.NoPos // drop parens
 			}
 			if j > 0 {
-				// We deleted an entry but now there will be
+				lastImpspec := gen.Specs[j-1].(*ast.ImportSpec)
+				lastLine := fset.Position(lastImpspec.Path.ValuePos).Line
+				line := fset.Position(impspec.Path.ValuePos).Line
+
+				// We deleted an entry but now there may be
 				// a blank line-sized hole where the import was.
-				// Close the hole by making the previous
-				// import appear to "end" where this one did.
-				gen.Specs[j-1].(*ast.ImportSpec).EndPos = impspec.End()
+				if line-lastLine > 1 {
+					// There was a blank line immediately preceeing the deleted import,
+					// so there's no need to close the hole.
+					// Do nothing.
+				} else {
+					// There was no blank line.
+					// Close the hole by making the previous
+					// import appear to "end" where this one did.
+					lastImpspec.EndPos = impspec.End()
+				}
 			}
 			break
 		}

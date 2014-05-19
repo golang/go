@@ -410,6 +410,61 @@ import (
 		out: `package main
 `,
 	},
+	{
+		name: "import.13",
+		pkg:  "io",
+		in: `package main
+
+import (
+	"fmt"
+
+	"io"
+	"os"
+	"utf8"
+
+	"go/format"
+)
+`,
+		out: `package main
+
+import (
+	"fmt"
+
+	"os"
+	"utf8"
+
+	"go/format"
+)
+`,
+	},
+	{
+		name: "import.14",
+		pkg:  "io",
+		in: `package main
+
+import (
+	"fmt" // a
+
+	"io"   // b
+	"os"   // c
+	"utf8" // d
+
+	"go/format" // e
+)
+`,
+		out: `package main
+
+import (
+	"fmt" // a
+
+	// b
+	"os"   // c
+	"utf8" // d
+
+	"go/format" // e
+)
+`,
+	},
 }
 
 func TestDeleteImport(t *testing.T) {
