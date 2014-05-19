@@ -181,7 +181,8 @@ type Scanner interface {
 // defers this error until a Scan.
 var ErrNoRows = errors.New("sql: no rows in result set")
 
-// DB is a database handle. It's safe for concurrent use by multiple
+// DB is a database handle representing a pool of zero or more
+// underlying connections. It's safe for concurrent use by multiple
 // goroutines.
 //
 // The sql package creates and frees connections automatically; it
@@ -420,6 +421,11 @@ var connectionRequestQueueSize = 1000000
 // Open may just validate its arguments without creating a connection
 // to the database. To verify that the data source name is valid, call
 // Ping.
+//
+// The returned DB is safe for concurrent use by multiple goroutines
+// and maintains its own pool of idle connections. Thus, the Open
+// function should be called just once. It is rarely necessary to
+// close a DB.
 func Open(driverName, dataSourceName string) (*DB, error) {
 	driveri, ok := drivers[driverName]
 	if !ok {
@@ -452,6 +458,9 @@ func (db *DB) Ping() error {
 }
 
 // Close closes the database, releasing any open resources.
+//
+// It is rare to Close a DB, as the DB handle is meant to be
+// long-lived and shared between many goroutines.
 func (db *DB) Close() error {
 	db.mu.Lock()
 	if db.closed { // Make DB.Close idempotent
