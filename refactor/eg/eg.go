@@ -29,7 +29,7 @@ replacement.
  	func before(s string) error { return fmt.Errorf("%s", s) }
  	func after(s string)  error { return errors.New(s) }
 
-The expression statement form is useful when the the expression has no
+The expression statement form is useful when the expression has no
 result, for example:
 
  	func before(msg string) { log.Fatalf("%s", msg) }

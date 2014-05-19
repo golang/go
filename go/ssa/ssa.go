@@ -860,7 +860,7 @@ type SelectState struct {
 // If the chosen channel was used for a receive, the r_i component is
 // set to the received value, where i is the index of that state among
 // all n receive states; otherwise r_i has the zero value of type T_i.
-// Note that the the receive index i is not the same as the state
+// Note that the receive index i is not the same as the state
 // index index.
 //
 // The second component of the triple, recvOk, is a boolean whose value
