@@ -2239,6 +2239,7 @@ runtime·updatememstats(GCStats *stats)
 struct gc_args
 {
 	int64 start_time; // start time of GC in ns (just before stoptheworld)
+	bool  eagersweep;
 };
 
 static void gc(struct gc_args *args);
@@ -2257,6 +2258,8 @@ readgogc(void)
 	return runtime·atoi(p);
 }
 
+// force = 1 - do GC regardless of current heap usage
+// force = 2 - go GC and eager sweep
 void
 runtime·gc(int32 force)
 {
@@ -2292,7 +2295,7 @@ runtime·gc(int32 force)
 		return;
 
 	runtime·semacquire(&runtime·worldsema, false);
-	if(!force && mstats.heap_alloc < mstats.next_gc) {
+	if(force==0 && mstats.heap_alloc < mstats.next_gc) {
 		// typically threads which lost the race to grab
 		// worldsema exit here when gc is done.
 		runtime·semrelease(&runtime·worldsema);
@@ -2301,6 +2304,7 @@ runtime·gc(int32 force)
 
 	// Ok, we're doing it!  Stop everybody else
 	a.start_time = runtime·nanotime();
+	a.eagersweep = force >= 2;
 	m->gcing = 1;
 	runtime·stoptheworld();
 	
@@ -2490,7 +2494,7 @@ gc(struct gc_args *args)
 	sweep.spanidx = 0;
 
 	// Temporary disable concurrent sweep, because we see failures on builders.
-	if(ConcurrentSweep) {
+	if(ConcurrentSweep && !args->eagersweep) {
 		runtime·lock(&gclock);
 		if(sweep.g == nil)
 			sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, runtime·gc);
