@@ -1053,6 +1053,7 @@ orderexpr(Node **np, Order *order)
 		break;
 
 	case ORECV:
+		orderexpr(&n->left, order);
 		n = ordercopyexpr(n, n->type, order, 1);
 		break;
 	}
