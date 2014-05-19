@@ -555,7 +555,7 @@ runtime·MHeap_Scavenger(void)
 void
 runtime∕debug·freeOSMemory(void)
 {
-	runtime·gc(1);
+	runtime·gc(2);  // force GC and do eager sweep
 	runtime·lock(&runtime·mheap);
 	scavenge(-1, ~(uintptr)0, 0);
 	runtime·unlock(&runtime·mheap);
