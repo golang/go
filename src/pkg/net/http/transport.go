@@ -109,6 +109,9 @@ type Transport struct {
 // An error is returned if the proxy environment is invalid.
 // A nil URL and nil error are returned if no proxy is defined in the
 // environment, or a proxy should not be used for the given request.
+//
+// As a special case, if req.URL.Host is "localhost" (with or without
+// a port number), then a nil URL and nil error will be returned.
 func ProxyFromEnvironment(req *Request) (*url.URL, error) {
 	proxy := httpProxyEnv.Get()
 	if proxy == "" {
