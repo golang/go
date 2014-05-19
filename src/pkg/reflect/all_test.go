@@ -973,6 +973,28 @@ func TestMap(t *testing.T) {
 	}
 }
 
+func TestNilMap(t *testing.T) {
+	var m map[string]int
+	mv := ValueOf(m)
+	keys := mv.MapKeys()
+	if len(keys) != 0 {
+		t.Errorf(">0 keys for nil map: %v", keys)
+	}
+
+	// Check that value for missing key is zero.
+	x := mv.MapIndex(ValueOf("hello"))
+	if x.Kind() != Invalid {
+		t.Errorf("m.MapIndex(\"hello\") for nil map = %v, want Invalid Value", x)
+	}
+
+	// Check big value too.
+	var mbig map[string][10 << 20]byte
+	x = ValueOf(mbig).MapIndex(ValueOf("hello"))
+	if x.Kind() != Invalid {
+		t.Errorf("mbig.MapIndex(\"hello\") for nil map = %v, want Invalid Value", x)
+	}
+}
+
 func TestChan(t *testing.T) {
 	for loop := 0; loop < 2; loop++ {
 		var c chan int

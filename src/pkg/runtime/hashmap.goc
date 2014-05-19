@@ -908,11 +908,15 @@ func mapaccess2(t *MapType, h *Hmap, key *byte) (val *byte, pres bool) {
 
 #pragma textflag NOSPLIT
 func reflect·mapaccess(t *MapType, h *Hmap, key *byte) (val *byte) {
-	if(raceenabled && h != nil) {
-		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
-		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapaccess);
+	if(h == nil)
+		val = nil;
+	else {
+		if(raceenabled) {
+			runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
+			runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapaccess);
+		}
+		val = hash_lookup(t, h, &key);
 	}
-	val = hash_lookup(t, h, &key);
 }
 
 #pragma textflag NOSPLIT
