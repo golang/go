@@ -62,6 +62,9 @@ func (t *Template) escape() error {
 
 // Execute applies a parsed template to the specified data object,
 // writing the output to wr.
+// If an error occurs executing the template or writing its output,
+// execution stops, but partial results may already have been written to
+// the output writer.
 // A template may be executed safely in parallel.
 func (t *Template) Execute(wr io.Writer, data interface{}) error {
 	if err := t.escape(); err != nil {
@@ -72,6 +75,9 @@ func (t *Template) Execute(wr io.Writer, data interface{}) error {
 
 // ExecuteTemplate applies the template associated with t that has the given
 // name to the specified data object and writes the output to wr.
+// If an error occurs executing the template or writing its output,
+// execution stops, but partial results may already have been written to
+// the output writer.
 // A template may be executed safely in parallel.
 func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
 	tmpl, err := t.lookupAndEscapeTemplate(name)
