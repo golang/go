@@ -71,17 +71,17 @@ func TestMoreBasics(t *testing.T) {
 		t.Errorf("%s.Len: got %d, want 3", set, set.Len())
 	}
 	if set.IsEmpty() {
-		t.Error("%s.IsEmpty: got true", set)
+		t.Errorf("%s.IsEmpty: got true", set)
 	}
 	if !set.Has(123) {
-		t.Error("%s.Has(123): got false", set)
+		t.Errorf("%s.Has(123): got false", set)
 	}
 	if set.Has(1234) {
-		t.Error("%s.Has(1234): got true", set)
+		t.Errorf("%s.Has(1234): got true", set)
 	}
 	got := set.AppendTo([]int{-1})
 	if want := []int{-1, 123, 456, 789}; fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Error("%s.AppendTo: got %v, want %v", got, want)
+		t.Errorf("%s.AppendTo: got %v, want %v", got, want)
 	}
 
 	set.Clear()
@@ -90,10 +90,10 @@ func TestMoreBasics(t *testing.T) {
 		t.Errorf("Clear: got %d, want 0", set.Len())
 	}
 	if !set.IsEmpty() {
-		t.Error("IsEmpty: got false")
+		t.Errorf("IsEmpty: got false")
 	}
 	if set.Has(123) {
-		t.Error("%s.Has: got false", set)
+		t.Errorf("%s.Has: got false", set)
 	}
 }
 
@@ -440,7 +440,7 @@ func TestFailFastOnShallowCopy(t *testing.T) {
 		got := fmt.Sprint(recover())
 		want := "A Sparse has been copied without (*Sparse).Copy()"
 		if got != want {
-			t.Error("shallow copy: recover() = %q, want %q", got, want)
+			t.Errorf("shallow copy: recover() = %q, want %q", got, want)
 		}
 	}()
 	y.String() // panics

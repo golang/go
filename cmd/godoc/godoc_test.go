@@ -182,7 +182,7 @@ func TestTypeAnalysis(t *testing.T) {
 	// Write a fake GOROOT/GOPATH.
 	tmpdir, err := ioutil.TempDir("", "godoc-analysis")
 	if err != nil {
-		t.Fatal("ioutil.TempDir failed: %s", err)
+		t.Fatalf("ioutil.TempDir failed: %s", err)
 	}
 	defer os.RemoveAll(tmpdir)
 	for _, f := range []struct{ file, content string }{

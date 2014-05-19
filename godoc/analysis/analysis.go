@@ -500,7 +500,7 @@ func (a *analysis) pointer(mainPkgs []*ssa.Package) {
 	ptares, err := pointer.Analyze(&a.ptaConfig)
 	if err != nil {
 		// If this happens, it indicates a bug.
-		log.Print("Pointer analysis failed: %s", err)
+		log.Printf("Pointer analysis failed: %s", err)
 		return
 	}
 	log.Print("Pointer analysis complete.")

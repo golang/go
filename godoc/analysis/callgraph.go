@@ -98,7 +98,7 @@ func (a *analysis) doCallgraph(cg *callgraph.Graph) {
 	for callee, sites := range callingSites {
 		pos := funcToken(callee)
 		if pos == token.NoPos {
-			log.Print("CALLERS: skipping %s: no pos", callee)
+			log.Printf("CALLERS: skipping %s: no pos", callee)
 			continue
 		}
 
