@@ -101,6 +101,7 @@ type Commit struct {
 	Desc              string `datastore:",noindex"`
 	Time              time.Time
 	NeedsBenchmarking bool
+	TryPatch          bool
 
 	// ResultData is the Data string of each build Result for this Commit.
 	// For non-Go commits, only the Results for the current Go tip, weekly,
@@ -144,7 +145,19 @@ func (com *Commit) AddResult(c appengine.Context, r *Result) error {
 	if err := datastore.Get(c, com.Key(c), com); err != nil {
 		return fmt.Errorf("getting Commit: %v", err)
 	}
-	com.ResultData = trim(append(com.ResultData, r.Data()), maxResults)
+
+	var resultExists bool
+	for i, s := range com.ResultData {
+		// if there already exists result data for this builder at com, overwrite it.
+		if strings.Contains(s, r.Builder) {
+			resultExists = true
+			com.ResultData[i] = r.Data()
+		}
+	}
+	if !resultExists {
+		// otherwise, add the new result data for this builder.
+		com.ResultData = trim(append(com.ResultData, r.Data()), maxResults)
+	}
 	if _, err := datastore.Put(c, com.Key(c), com); err != nil {
 		return fmt.Errorf("putting Commit: %v", err)
 	}
