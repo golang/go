@@ -38,12 +38,12 @@ except the printf check.
 
 Available checks:
 
-1. Printf family
+Printf family
 
-Flag -printf
+Flag: -printf
 
 Suspicious calls to functions in the Printf family, including any functions
-with these names:
+with these names, disregarding case:
 	Print Printf Println
 	Fprint Fprintf Fprintln
 	Sprint Sprintf Sprintln
@@ -57,9 +57,9 @@ complains about arguments that look like format descriptor strings.
 It also checks for errors such as using a Writer as the first argument of
 Printf.
 
-2. Methods
+Methods
 
-Flag -methods
+Flag: -methods
 
 Non-standard signatures for methods with familiar names, including:
 	Format GobEncode GobDecode MarshalJSON MarshalXML
@@ -67,77 +67,81 @@ Non-standard signatures for methods with familiar names, including:
 	UnmarshalJSON UnreadByte UnreadRune WriteByte
 	WriteTo
 
-3. Struct tags
+Struct tags
 
-Flag -structtags
+Flag: -structtags
 
 Struct tags that do not follow the format understood by reflect.StructTag.Get.
 
-4. Unkeyed composite literals
+Unkeyed composite literals
 
-Flag -composites
+Flag: -composites
 
 Composite struct literals that do not use the field-keyed syntax.
 
-5. Assembly declarations
+Assembly declarations
 
-Flag -asmdecl
+Flag: -asmdecl
 
 Mismatches between assembly files and Go function declarations.
 
-6. Useless assignments
+Useless assignments
 
-Flag -assign
+Flag: -assign
 
 Check for useless assignments.
 
-7. Atomic mistakes
+Atomic mistakes
 
-Flag -atomic
+Flag: -atomic
 
 Common mistaken usages of the sync/atomic package.
 
-8. Build tags
+Build tags
 
-Flag -buildtags
+Flag: -buildtags
 
 Badly formed or misplaced +build tags.
 
-9. Copying locks
+Copying locks
 
-Flag -copylocks
+Flag: -copylocks
 
 Locks that are erroneously passed by value.
 
-10. Nil function comparison
+Nil function comparison
 
-Flag -nilfunc
+Flag: -nilfunc
 
 Comparisons between functions and nil.
 
-11. Range loop variables
+Range loop variables
 
-Flag -rangeloops
+Flag: -rangeloops
 
 Incorrect uses of range loop variables in closures.
 
-12. Unreachable code
+Unreachable code
 
-Flag -unreachable
+Flag: -unreachable
 
 Unreachable code.
 
-13. Shadowed variables
+Shadowed variables
 
-Flag -shadow=false (experimental; must be set explicitly)
+Flag: -shadow=false (experimental; must be set explicitly)
 
 Variables that may have been unintentionally shadowed.
 
-14. Misuse of unsafe.Pointer
+Misuse of unsafe Pointers
 
-Flag -unsafeptr
+Flag: -unsafeptr
 
 Likely incorrect uses of unsafe.Pointer to convert integers to pointers.
+A conversion from uintptr to unsafe.Pointer is invalid if it implies that
+there is a uintptr-typed word in memory that holds a pointer value,
+because that word will be invisible to stack copying and to the garbage
+collector.
 
 Other flags
 

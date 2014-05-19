@@ -3,18 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Check for invalid uintptr -> unsafe.Pointer conversions.
-//
-// A conversion from uintptr to unsafe.Pointer is invalid if it implies that
-// there is a uintptr-typed word in memory that holds a pointer value,
-// because that word will be invisible to stack copying and to the garbage
-// collector.
-//
-// Allow pointer arithmetic: unsafe.Pointer(uintptr(p) + delta).
-// Allow use of reflect:
-//	unsafe.Pointer(reflect.ValueOf(v).Pointer())
-// 	unsafe.Pointer(reflect.ValueOf(v).UnsafeAddr()).
-// 	unsafe.Pointer(h.Data) for var h *reflect.SliceHeader
-//	unsafe.Pointer(h.Data) for var h *reflect.StringHeader
+
 package main
 
 import (
