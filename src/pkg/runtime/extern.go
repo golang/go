@@ -190,10 +190,8 @@ func GOROOT() string {
 }
 
 // Version returns the Go tree's version string.
-// It is either a sequence number or, when possible,
-// a release tag like "release.2010-03-04".
-// A trailing + indicates that the tree had local modifications
-// at the time of the build.
+// It is either the commit hash and date at the time of the build or,
+// when possible, a release tag like "go1.3".
 func Version() string {
 	return theVersion
 }
