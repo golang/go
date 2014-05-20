@@ -575,6 +575,49 @@ func main() {
 }
 `,
 	},
+
+	// Blank line can be added before all types of import declarations.
+	// golang.org/issue/7866
+	{
+		name: "issue 7866",
+		in: `package main
+
+import (
+	"fmt"
+	renamed_bar "github.com/foo/bar"
+
+	. "github.com/foo/baz"
+	"io"
+
+	_ "github.com/foo/qux"
+	"strings"
+)
+
+func main() {
+	_, _, _, _, _ = fmt.Errorf, io.Copy, strings.Contains, renamed_bar.A, B
+}
+`,
+		out: `package main
+
+import (
+	"fmt"
+
+	renamed_bar "github.com/foo/bar"
+
+	"io"
+
+	. "github.com/foo/baz"
+
+	"strings"
+
+	_ "github.com/foo/qux"
+)
+
+func main() {
+	_, _, _, _, _ = fmt.Errorf, io.Copy, strings.Contains, renamed_bar.A, B
+}
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
