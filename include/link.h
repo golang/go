@@ -243,6 +243,7 @@ enum
 	R_PLT0,
 	R_PLT1,
 	R_PLT2,
+	R_USEFIELD,
 };
 
 // Auto.type

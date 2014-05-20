@@ -3443,6 +3443,15 @@ asmins(Link *ctxt, Prog *p)
 	ctxt->andptr = ctxt->and;
 	ctxt->asmode = p->mode;
 	
+	if(p->as == AUSEFIELD) {
+		r = addrel(ctxt->cursym);
+		r->off = 0;
+		r->siz = 0;
+		r->sym = p->from.sym;
+		r->type = R_USEFIELD;
+		return;
+	}
+	
 	if(ctxt->headtype == Hnacl) {
 		if(p->as == AREP) {
 			ctxt->rep++;

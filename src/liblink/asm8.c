@@ -2744,7 +2744,18 @@ static uchar naclret[] = {
 static void
 asmins(Link *ctxt, Prog *p)
 {
+	Reloc *r;
+
 	ctxt->andptr = ctxt->and;
+	
+	if(p->as == AUSEFIELD) {
+		r = addrel(ctxt->cursym);
+		r->off = 0;
+		r->sym = p->from.sym;
+		r->type = R_USEFIELD;
+		r->siz = 0;
+		return;
+	}
 
 	if(ctxt->headtype == Hnacl) {
 		switch(p->as) {
