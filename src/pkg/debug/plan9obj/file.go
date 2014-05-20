@@ -13,9 +13,12 @@ import (
 	"os"
 )
 
-// A FileHeader represents an Plan 9 a.out file header.
+// A FileHeader represents a Plan 9 a.out file header.
 type FileHeader struct {
-	Ptrsz int
+	Magic   uint32
+	Bss     uint32
+	Entry   uint64
+	PtrSize int
 }
 
 // A File represents an open Plan 9 a.out file.
@@ -25,13 +28,16 @@ type File struct {
 	closer   io.Closer
 }
 
+// A SectionHeader represents a single Plan 9 a.out section header.
+// This structure doesn't exist on-disk, but eases navigation
+// through the object file.
 type SectionHeader struct {
 	Name   string
 	Size   uint32
 	Offset uint32
 }
 
-// A Section represents a single section in an Plan 9 a.out file.
+// A Section represents a single section in a Plan 9 a.out file.
 type Section struct {
 	SectionHeader
 
@@ -49,40 +55,14 @@ type Section struct {
 func (s *Section) Data() ([]byte, error) {
 	dat := make([]byte, s.sr.Size())
 	n, err := s.sr.ReadAt(dat, 0)
+	if n == len(dat) {
+		err = nil
+	}
 	return dat[0:n], err
 }
 
 // Open returns a new ReadSeeker reading the Plan 9 a.out section.
 func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<63-1) }
-
-// A ProgHeader represents a single Plan 9 a.out program header.
-type ProgHeader struct {
-	Magic uint32
-	Text  uint32
-	Data  uint32
-	Bss   uint32
-	Syms  uint32
-	Entry uint64
-	Spsz  uint32
-	Pcsz  uint32
-}
-
-// A Prog represents the program header in an Plan 9 a.out binary.
-type Prog struct {
-	ProgHeader
-
-	// Embed ReaderAt for ReadAt method.
-	// Do not embed SectionReader directly
-	// to avoid having Read and Seek.
-	// If a client wants Read and Seek it must use
-	// Open() to avoid fighting over the seek offset
-	// with other clients.
-	io.ReaderAt
-	sr *io.SectionReader
-}
-
-// Open returns a new ReadSeeker reading the Plan 9 a.out program body.
-func (p *Prog) Open() io.ReadSeeker { return io.NewSectionReader(p.sr, 0, 1<<63-1) }
 
 // A Symbol represents an entry in a Plan 9 a.out symbol table section.
 type Sym struct {
@@ -95,13 +75,15 @@ type Sym struct {
  * Plan 9 a.out reader
  */
 
-type FormatError struct {
+// formatError is returned by some operations if the data does
+// not have the correct format for an object file.
+type formatError struct {
 	off int
 	msg string
 	val interface{}
 }
 
-func (e *FormatError) Error() string {
+func (e *formatError) Error() string {
 	msg := e.msg
 	if e.val != nil {
 		msg += fmt.Sprintf(" '%v'", e.val)
@@ -110,7 +92,7 @@ func (e *FormatError) Error() string {
 	return msg
 }
 
-// Open opens the named file using os.Open and prepares it for use as an Plan 9 a.out binary.
+// Open opens the named file using os.Open and prepares it for use as a Plan 9 a.out binary.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -137,16 +119,16 @@ func (f *File) Close() error {
 	return err
 }
 
-func parseMagic(magic [4]byte) (*ExecTable, error) {
-	for _, e := range exectab {
-		if string(magic[:]) == e.Magic {
-			return &e, nil
-		}
+func parseMagic(magic []byte) (uint32, error) {
+	m := binary.BigEndian.Uint32(magic)
+	switch m {
+	case Magic386, MagicAMD64, MagicARM:
+		return m, nil
 	}
-	return nil, &FormatError{0, "bad magic number", magic[:]}
+	return 0, &formatError{0, "bad magic number", magic}
 }
 
-// NewFile creates a new File for accessing an Plan 9 binary in an underlying reader.
+// NewFile creates a new File for accessing a Plan 9 binary in an underlying reader.
 // The Plan 9 binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, error) {
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
@@ -155,34 +137,31 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if _, err := r.ReadAt(magic[:], 0); err != nil {
 		return nil, err
 	}
-	mp, err := parseMagic(magic)
+	_, err := parseMagic(magic[:])
 	if err != nil {
 		return nil, err
 	}
-
-	f := &File{FileHeader{mp.Ptrsz}, nil, nil}
 
 	ph := new(prog)
 	if err := binary.Read(sr, binary.BigEndian, ph); err != nil {
 		return nil, err
 	}
 
-	p := new(Prog)
-	p.ProgHeader = ProgHeader{
-		Magic: ph.Magic,
-		Text:  ph.Text,
-		Data:  ph.Data,
-		Bss:   ph.Bss,
-		Syms:  ph.Syms,
-		Entry: uint64(ph.Entry),
-		Spsz:  ph.Spsz,
-		Pcsz:  ph.Pcsz,
-	}
+	f := &File{FileHeader: FileHeader{
+		Magic:   ph.Magic,
+		Bss:     ph.Bss,
+		Entry:   uint64(ph.Entry),
+		PtrSize: 4,
+	}}
 
-	if mp.Ptrsz == 8 {
-		if err := binary.Read(sr, binary.BigEndian, &p.Entry); err != nil {
+	hdrSize := 4 * 8
+
+	if ph.Magic&Magic64 != 0 {
+		if err := binary.Read(sr, binary.BigEndian, &f.Entry); err != nil {
 			return nil, err
 		}
+		f.PtrSize = 8
+		hdrSize += 8
 	}
 
 	var sects = []struct {
@@ -198,7 +177,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 	f.Sections = make([]*Section, 5)
 
-	off := mp.Hsize
+	off := uint32(hdrSize)
 
 	for i, sect := range sects {
 		s := new(Section)
@@ -208,7 +187,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			Offset: off,
 		}
 		off += sect.size
-		s.sr = io.NewSectionReader(r, int64(s.SectionHeader.Offset), int64(s.SectionHeader.Size))
+		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.Size))
 		s.ReaderAt = s.sr
 		f.Sections[i] = s
 	}
@@ -223,7 +202,7 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
 	for len(p) >= 4 {
 		// Symbol type, value.
 		if len(p) < ptrsz {
-			return &FormatError{len(data), "unexpected EOF", nil}
+			return &formatError{len(data), "unexpected EOF", nil}
 		}
 		// fixed-width value
 		if ptrsz == 8 {
@@ -259,7 +238,7 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
 			}
 		}
 		if len(p) < i+nnul {
-			return &FormatError{len(data), "unexpected EOF", nil}
+			return &formatError{len(data), "unexpected EOF", nil}
 		}
 		s.name = p[0:i]
 		i += nnul
@@ -298,7 +277,7 @@ func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
 				eltIdx := binary.BigEndian.Uint16(s.name[i : i+2])
 				elt, ok := fname[eltIdx]
 				if !ok {
-					return &FormatError{-1, "bad filename code", eltIdx}
+					return &formatError{-1, "bad filename code", eltIdx}
 				}
 				if n := len(ts.Name); n > 0 && ts.Name[n-1] != '/' {
 					ts.Name += "/"
@@ -331,7 +310,7 @@ func (f *File) Symbols() ([]Sym, error) {
 		return nil, errors.New("cannot load symbol section")
 	}
 
-	return newTable(symtab, f.Ptrsz)
+	return newTable(symtab, f.PtrSize)
 }
 
 // Section returns a section with the given name, or nil if no such
