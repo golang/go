@@ -76,7 +76,7 @@ enum {
 	// The minimum stack segment size to allocate.
 	// If the amount needed for the splitting frame + StackExtra
 	// is less than this number, the stack will have this size instead.
-	StackMin = 4096,
+	StackMin = 8192,
 	StackSystemRounded = StackSystem + (-StackSystem & (StackMin-1)),
 	FixedStack = StackMin + StackSystemRounded,
 
