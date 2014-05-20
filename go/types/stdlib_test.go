@@ -119,6 +119,7 @@ func TestStdTest(t *testing.T) {
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 		"sigchld.go",     // don't work on Windows; testTestDir should consult build tags
+		"float_lit2.go",  // TODO(gri) 340282356779733661637539395458142568447 not representable as float32
 	)
 }
 
