@@ -1254,6 +1254,7 @@ void	mpxorfixfix(Mpint *a, Mpint *b);
 void	mpaddfltflt(Mpflt *a, Mpflt *b);
 void	mpdivfltflt(Mpflt *a, Mpflt *b);
 double	mpgetflt(Mpflt *a);
+double	mpgetflt32(Mpflt *a);
 void	mpmovecflt(Mpflt *a, double c);
 void	mpmulfltflt(Mpflt *a, Mpflt *b);
 void	mpnegflt(Mpflt *a);

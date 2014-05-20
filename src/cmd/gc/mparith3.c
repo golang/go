@@ -199,10 +199,10 @@ mpdivfltflt(Mpflt *a, Mpflt *b)
 		print(" = %F\n\n", a);
 }
 
-double
-mpgetflt(Mpflt *a)
+static double
+mpgetfltN(Mpflt *a, int prec, int bias)
 {
-	int s, i, e;
+	int s, i, e, minexp;
 	uvlong v, vm;
 	double f;
 
@@ -226,12 +226,8 @@ mpgetflt(Mpflt *a)
 			return 0;
 	}
 
-	// the magic numbers (64, 63, 53, 10, -1074) are
-	// IEEE specific. this should be done machine
-	// independently or in the 6g half of the compiler
-
 	// pick up the mantissa and a rounding bit in a uvlong
-	s = 53+1;
+	s = prec+1;
 	v = 0;
 	for(i=Mpnorm-1; s>=Mpscale; i--) {
 		v = (v<<Mpscale) | a->val.a[i];
@@ -251,14 +247,15 @@ mpgetflt(Mpflt *a)
 		v = (v<<s) | (a->val.a[i]>>(Mpscale-s));
 
 	// gradual underflow
-	e = Mpnorm*Mpscale + a->exp - 53;
-	if(e < -1074) {
-		s = -e - 1074;
-		if(s > 54)
-			s = 54;
+	e = Mpnorm*Mpscale + a->exp - prec;
+	minexp = bias+1-prec+1;
+	if(e < minexp) {
+		s = minexp - e;
+		if(s > prec+1)
+			s = prec+1;
 		v |= vm & ((1ULL<<s) - 1);
 		vm >>= s;
-		e = -1074;
+		e = minexp;
 	}
 
 //print("vm=%.16llux v=%.16llux\n", vm, v);
@@ -274,6 +271,18 @@ mpgetflt(Mpflt *a)
 	if(a->val.neg)
 		f = -f;
 	return f;
+}
+
+double
+mpgetflt(Mpflt *a)
+{
+	return mpgetfltN(a, 53, -1023);
+}
+
+double
+mpgetflt32(Mpflt *a)
+{
+	return mpgetfltN(a, 24, -127);
 }
 
 void
