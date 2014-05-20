@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 19, 2014",
+	"Subtitle": "Version of May 20, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -1533,6 +1533,9 @@ no identifier may be declared in both the file and package block.
 <p>
 The <a href="#Blank_identifier">blank identifier</a> may be used like any other identifier
 in a declaration, but it does not introduce a binding and thus is not declared.
+In the package block, the identifier <code>init</code> may only be used for
+<a href="#Package_initialization"><code>init</code> function</a> declarations,
+and like the blank identifier it does not introduce a new binding.
 </p>
 
 <pre class="ebnf">
@@ -4014,7 +4017,7 @@ precision.
 <h3 id="Order_of_evaluation">Order of evaluation</h3>
 
 <p>
-At package level, <a href="#Program_execution">initialization dependencies</a>
+At package level, <a href="#Package_initialization">initialization dependencies</a>
 determine the evaluation order of individual initialization expressions in
 <a href="#Variable_declarations">variable declarations</a>.
 Otherwise, when evaluating the <a href="#Operands">operands</a> of an
@@ -5907,62 +5910,125 @@ The same would also be true after
 var t T
 </pre>
 
-<h3 id="Program_execution">Program execution</h3>
+<h3 id="Package_initialization">Package initialization</h3>
 <p>
-A package with no imports is initialized by assigning initial values to
-all its package-level variables
-and then calling any
-package-level function with the name and signature of
+Within a package, package-level variables are initialized according
+to their <i>dependencies</i>: if a variable <code>x</code> depends on
+a variable <code>y</code>, <code>x</code> will be initialized after
+<code>y</code>.
 </p>
+
+<p>
+Dependency analysis does not rely on the actual values of the
+variables, only on lexical <i>references</i> to them in the source,
+analyzed transitively. For instance, a variable <code>x</code>'s
+<a href="#Variable_declarations">initialization expression</a>
+may refer to a function whose body refers to variable <code>y</code>;
+if so, <code>x</code> depends on <code>y</code>.
+Specifically:
+</p>
+
+<ul>
+<li>
+A reference to a variable or function is an identifier denoting that
+variable or function.
+</li>
+
+<li>
+A reference to a method <code>m</code> is a
+<a href="#Method_values">method value</a> or
+<a href="#Method_expressions">method expression</a> of the form 
+<code>t.m</code>, where the (static) type of <code>t</code> is
+not an interface type, and the method <code>m</code> is in the
+<a href="#Method_sets">method set</a> of <code>t</code>.
+It is immaterial whether the resulting function value
+<code>t.m</code> is invoked.
+</li>
+
+<li>
+A variable, function, or method <code>x</code> depends on a variable 
+<code>y</code> if <code>x</code>'s initialization expression or body
+(for functions and methods) contains a reference to <code>y</code>
+or to a function or method that depends on <code>y</code>.
+</li>
+</ul>
+
+<p>
+Dependency analysis is performed per package; only references referring
+to variables, functions, and methods declared in the current package
+are considered.
+It is an error if variable dependencies form a cycle
+(but dependency cycles containing no variables are permitted).
+If two variables are independent of each other,
+they are initialized in the order they are declared
+in the source, possibly in multiple files, as presented to the compiler.
+</p>
+
+<p>
+For example, given the declarations
+</p>
+
 <pre>
-func init()
+var (
+	a = c + b
+	b = f()
+	c = f()
+	d = 3
+)
+
+func f() int {
+	d++
+	return d
+}
 </pre>
+
 <p>
-defined in its source.
-A package-scope or file-scope identifier
-with name <code>init</code> may only be
-declared to be a function with this signature.
-Multiple such functions may be defined, even
-within a single source file; they execute
-in unspecified order.
+the initialization order is <code>d</code>, <code>b</code>, <code>c</code>, <code>a</code>.
+Since <code>b</code> and <code>c</code> are independent of each other, they are
+initialized in declaration order (<code>b</code> before <code>c</code>).
 </p>
+
 <p>
-Within a package, package-level variables are initialized,
-and constant values are determined, according to
-order of reference: if the initializer of <code>A</code>
-depends on <code>B</code>, <code>A</code>
-will be set after <code>B</code>.
-Dependency analysis does not depend on the actual values
-of the items being initialized, only on their appearance
-in the source.
-<code>A</code>
-depends on <code>B</code> if the value of <code>A</code>
-contains a mention of <code>B</code>, contains a value
-whose initializer
-mentions <code>B</code>, or mentions a function that
-mentions <code>B</code>, recursively.
-It is an error if such dependencies form a cycle.
-If two items are not interdependent, they will be initialized
-in the order they appear in the source, possibly in multiple files,
-as presented to the compiler.
-Since the dependency analysis is done per package, it can produce
-unspecified results  if <code>A</code>'s initializer calls a function defined
-in another package that refers to <code>B</code>.
+Variables may also be initialized using functions named <code>init</code>
+declared in the package block, with no arguments and no result parameters.
 </p>
+
+<pre>
+func init() { … }
+</pre>
+
 <p>
-An <code>init</code> function cannot be referred to from anywhere
-in a program. In particular, <code>init</code> cannot be called explicitly,
-nor can a pointer to <code>init</code> be assigned to a function variable.
+Multiple such functions may be defined, even within a single 
+source file. The <code>init</code> identifier is not
+<a href="#Declarations_and_scope">declared</a> and thus
+<code>init</code> functions cannot be referred to from anywhere
+in a program.
 </p>
+
 <p>
+A package with no imports is initialized by assigning initial values
+to all its package-level variables followed by calling all <code>init</code>
+functions in unspecified order.
 If a package has imports, the imported packages are initialized
 before initializing the package itself. If multiple packages import
-a package <code>P</code>, <code>P</code> will be initialized only once.
+a package, the imported package will be initialized only once.
+The importing of packages, by construction, guarantees that there
+can be no cyclic initialization dependencies.
 </p>
+
 <p>
-The importing of packages, by construction, guarantees that there can
-be no cyclic dependencies in initialization.
+Package initialization&mdash;variable initialization and the invocation of
+<code>init</code> functions&mdash;happens in a single goroutine,
+sequentially, one package at a time.
+An <code>init</code> function may launch other goroutines, which can run
+concurrently with the initialization code. However, initialization
+always sequences
+the <code>init</code> functions: it will not invoke the next one
+until the previous one has returned.
 </p>
+
+
+<h3 id="Program_execution">Program execution</h3>
 <p>
 A complete program is created by linking a single, unimported package
 called the <i>main package</i> with all the packages it imports, transitively.
@@ -5981,18 +6047,6 @@ Program execution begins by initializing the main package and then
 invoking the function <code>main</code>.
 When that function invocation returns, the program exits.
 It does not wait for other (non-<code>main</code>) goroutines to complete.
-</p>
-
-<p>
-Package initialization&mdash;variable initialization and the invocation of
-<code>init</code> functions&mdash;happens in a single goroutine,
-sequentially, one package at a time.
-An <code>init</code> function may launch other goroutines, which can run
-concurrently with the initialization code. However, initialization
-always sequences
-the <code>init</code> functions: it will not start the next
-<code>init</code> until
-the previous one has returned.
 </p>
 
 <h2 id="Errors">Errors</h2>
