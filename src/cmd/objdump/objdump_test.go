@@ -19,6 +19,10 @@ import (
 )
 
 func loadSyms(t *testing.T) map[string]string {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	cmd := exec.Command("go", "tool", "nm", os.Args[0])
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -40,6 +44,10 @@ func loadSyms(t *testing.T) map[string]string {
 }
 
 func runObjDump(t *testing.T, exe, startaddr, endaddr string) (path, lineno string) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	cmd := exec.Command(exe, os.Args[0], startaddr, endaddr)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -67,7 +75,7 @@ func runObjDump(t *testing.T, exe, startaddr, endaddr string) (path, lineno stri
 	return f[0], f[1]
 }
 
-func testObjDump(t *testing.T, exe, startaddr, endaddr string) {
+func testObjDump(t *testing.T, exe, startaddr, endaddr string, line int) {
 	srcPath, srcLineNo := runObjDump(t, exe, startaddr, endaddr)
 	fi1, err := os.Stat("objdump_test.go")
 	if err != nil {
@@ -80,13 +88,13 @@ func testObjDump(t *testing.T, exe, startaddr, endaddr string) {
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("objdump_test.go and %s are not same file", srcPath)
 	}
-	if srcLineNo != "89" {
-		t.Fatalf("line number = %v; want 89", srcLineNo)
+	if srcLineNo != fmt.Sprint(line) {
+		t.Fatalf("line number = %v; want %d", srcLineNo, line)
 	}
 }
 
-// This is line 88. The test depends on that.
 func TestObjDump(t *testing.T) {
+	_, _, line, _ := runtime.Caller(0)
 	syms := loadSyms(t)
 
 	tmp, exe := buildObjdump(t)
@@ -98,11 +106,15 @@ func TestObjDump(t *testing.T) {
 		t.Fatalf("invalid start address %v: %v", startaddr, err)
 	}
 	endaddr := fmt.Sprintf("%x", addr+10)
-	testObjDump(t, exe, startaddr, endaddr)
-	testObjDump(t, exe, "0x"+startaddr, "0x"+endaddr)
+	testObjDump(t, exe, startaddr, endaddr, line-1)
+	testObjDump(t, exe, "0x"+startaddr, "0x"+endaddr, line-1)
 }
 
 func buildObjdump(t *testing.T) (tmp, exe string) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	tmp, err := ioutil.TempDir("", "TestObjDump")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)

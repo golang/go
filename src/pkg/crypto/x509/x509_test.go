@@ -22,6 +22,7 @@ import (
 	"net"
 	"os/exec"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -727,6 +728,10 @@ func TestParsePEMCRL(t *testing.T) {
 }
 
 func TestImports(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	if err := exec.Command("go", "run", "x509_test_import.go").Run(); err != nil {
 		t.Errorf("failed to run x509_test_import.go: %s", err)
 	}

@@ -55,6 +55,10 @@ func checkSymbols(t *testing.T, nmoutput []byte) {
 }
 
 func TestNM(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	tmpDir, err := ioutil.TempDir("", "TestNM")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)

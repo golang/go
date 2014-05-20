@@ -153,6 +153,7 @@ echo "# Building compilers and Go bootstrap tool for host, $GOHOSTOS/$GOHOSTARCH
 buildall="-a"
 if [ "$1" = "--no-clean" ]; then
 	buildall=""
+	shift
 fi
 ./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
 # Delay move of dist tool to now, because bootstrap may clear tool directory.
