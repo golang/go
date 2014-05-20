@@ -2353,31 +2353,37 @@ dwarfaddmachoheaders(void)
 	ms = newMachoSeg("__DWARF", nsect);
 	ms->fileoffset = fakestart;
 	ms->filesize = abbrevo-fakestart;
+	ms->vaddr = ms->fileoffset + segdata.vaddr - segdata.fileoff;
 
 	msect = newMachoSect(ms, "__debug_abbrev", "__DWARF");
 	msect->off = abbrevo;
 	msect->size = abbrevsize;
+	msect->addr = msect->off + segdata.vaddr - segdata.fileoff;
 	ms->filesize += msect->size;
 
 	msect = newMachoSect(ms, "__debug_line", "__DWARF");
 	msect->off = lineo;
 	msect->size = linesize;
+	msect->addr = msect->off + segdata.vaddr - segdata.fileoff;
 	ms->filesize += msect->size;
 
 	msect = newMachoSect(ms, "__debug_frame", "__DWARF");
 	msect->off = frameo;
 	msect->size = framesize;
+	msect->addr = msect->off + segdata.vaddr - segdata.fileoff;
 	ms->filesize += msect->size;
 
 	msect = newMachoSect(ms, "__debug_info", "__DWARF");
 	msect->off = infoo;
 	msect->size = infosize;
+	msect->addr = msect->off + segdata.vaddr - segdata.fileoff;
 	ms->filesize += msect->size;
 
 	if (pubnamessize > 0) {
 		msect = newMachoSect(ms, "__debug_pubnames", "__DWARF");
 		msect->off = pubnameso;
 		msect->size = pubnamessize;
+		msect->addr = msect->off + segdata.vaddr - segdata.fileoff;
 		ms->filesize += msect->size;
 	}
 
@@ -2385,6 +2391,7 @@ dwarfaddmachoheaders(void)
 		msect = newMachoSect(ms, "__debug_pubtypes", "__DWARF");
 		msect->off = pubtypeso;
 		msect->size = pubtypessize;
+		msect->addr = msect->off + segdata.vaddr - segdata.fileoff;
 		ms->filesize += msect->size;
 	}
 
@@ -2392,6 +2399,7 @@ dwarfaddmachoheaders(void)
 		msect = newMachoSect(ms, "__debug_aranges", "__DWARF");
 		msect->off = arangeso;
 		msect->size = arangessize;
+		msect->addr = msect->off + segdata.vaddr - segdata.fileoff;
 		ms->filesize += msect->size;
 	}
 
@@ -2400,6 +2408,7 @@ dwarfaddmachoheaders(void)
 		msect = newMachoSect(ms, "__debug_gdb_scripts", "__DWARF");
 		msect->off = gdbscripto;
 		msect->size = gdbscriptsize;
+		msect->addr = msect->off + segdata.vaddr - segdata.fileoff;
 		ms->filesize += msect->size;
 	}
 }
