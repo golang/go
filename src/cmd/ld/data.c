@@ -243,6 +243,16 @@ relocsym(LSym *s)
 				break;
 			}
 			o = symaddr(r->sym) + r->add;
+
+			// On amd64, 4-byte offsets will be sign-extended, so it is impossible to
+			// access more than 2GB of static data; fail at link time is better than
+			// fail at runtime. See http://golang.org/issue/7980.
+			// Instead of special casing only amd64, we treat this as an error on all
+			// 64-bit architectures so as to be future-proof.
+			if((int32)o < 0 && PtrSize > 4 && siz == 4) {
+				diag("non-pc-relative relocation address is too big: %#llux", o);
+				errorexit();
+			}
 			break;
 		case R_CALL:
 		case R_PCREL:
