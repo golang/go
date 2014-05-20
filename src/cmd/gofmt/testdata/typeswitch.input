@@ -4,7 +4,7 @@
 	into the correct unparenthesized form.
 
 	Only type-switches that didn't declare a variable
-	in the the type switch type assertion and which
+	in the type switch type assertion and which
 	contained only "expression-like" (named) types in their
 	cases were permitted to have their type assertion parenthesized
 	by go/parser (due to a weak predicate in the parser). All others
