@@ -242,13 +242,12 @@ findgoversion(void)
 {
 	char *tag, *rev, *p;
 	int i, nrev;
-	Buf b, path, bmore, bplus, branch;
+	Buf b, path, bmore, branch;
 	Vec tags;
 
 	binit(&b);
 	binit(&path);
 	binit(&bmore);
-	binit(&bplus);
 	binit(&branch);
 	vinit(&tags);
 
@@ -315,16 +314,11 @@ findgoversion(void)
 		// Add extra information.
 		run(&bmore, goroot, CheckExit, "hg", "log", "--template", " +{node|short} {date|date}", "-r", rev, nil);
 		chomp(&bmore);
-		// Generate a list of local modifications, if any.
-		run(&bplus, goroot, CheckExit, "hg", "status", "-m", "-a", "-r", "-d", nil);
-		chomp(&bplus);
 	}
 
 	bprintf(&b, "%s", tag);
 	if(bmore.len > 0)
 		bwriteb(&b, &bmore);
-	if(bplus.len > 0)
-		bwritestr(&b, " +");
 
 	// Cache version.
 	writefile(&b, bstr(&path), 0);
@@ -336,7 +330,6 @@ done:
 	bfree(&b);
 	bfree(&path);
 	bfree(&bmore);
-	bfree(&bplus);
 	bfree(&branch);
 	vfree(&tags);
 
