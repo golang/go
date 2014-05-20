@@ -990,7 +990,7 @@ func reflect·mapassign(t *MapType, h *Hmap, key *byte, val *byte) {
 #pragma textflag NOSPLIT
 func reflect·mapdelete(t *MapType, h *Hmap, key *byte) {
 	if(h == nil)
-		runtime·panicstring("delete from nil map");
+		return; // see bug 8051
 	if(raceenabled) {
 		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapdelete);
 		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapdelete);
