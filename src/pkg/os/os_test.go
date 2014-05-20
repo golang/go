@@ -496,10 +496,10 @@ func TestHardLink(t *testing.T) {
 	}
 }
 
-func TestSymLink(t *testing.T) {
-	// Symlinks are not supported under windows or Plan 9.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return
+func TestSymlink(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "plan9", "nacl":
+		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 	from, to := "symlinktestfrom", "symlinktestto"
 	Remove(from) // Just in case.
@@ -559,9 +559,9 @@ func TestSymLink(t *testing.T) {
 }
 
 func TestLongSymlink(t *testing.T) {
-	// Symlinks are not supported under windows or Plan 9.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return
+	switch runtime.GOOS {
+	case "windows", "plan9", "nacl":
+		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 	s := "0123456789abcdef"
 	// Long, but not too long: a common limit is 255.
@@ -630,6 +630,10 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 }
 
 func TestStartProcess(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	var dir, cmd string
 	var args []string
 	if runtime.GOOS == "windows" {
@@ -703,8 +707,10 @@ func TestFTruncate(t *testing.T) {
 	checkSize(t, f, 1024)
 	f.Truncate(0)
 	checkSize(t, f, 0)
-	f.Write([]byte("surprise!"))
-	checkSize(t, f, 13+9) // wrote at offset past where hello, world was.
+	_, err := f.Write([]byte("surprise!"))
+	if err == nil {
+		checkSize(t, f, 13+9) // wrote at offset past where hello, world was.
+	}
 }
 
 func TestTruncate(t *testing.T) {
@@ -721,8 +727,10 @@ func TestTruncate(t *testing.T) {
 	checkSize(t, f, 1024)
 	Truncate(f.Name(), 0)
 	checkSize(t, f, 0)
-	f.Write([]byte("surprise!"))
-	checkSize(t, f, 13+9) // wrote at offset past where hello, world was.
+	_, err := f.Write([]byte("surprise!"))
+	if err == nil {
+		checkSize(t, f, 13+9) // wrote at offset past where hello, world was.
+	}
 }
 
 // Use TempDir() to make sure we're on a local file system,
@@ -757,13 +765,13 @@ func TestChtimes(t *testing.T) {
 	}
 	postStat := st
 
-	/* Plan 9:
+	/* Plan 9, NaCl:
 		Mtime is the time of the last change of content.  Similarly, atime is set whenever the
 	    contents are accessed; also, it is set whenever mtime is set.
 	*/
 	pat := Atime(postStat)
 	pmt := postStat.ModTime()
-	if !pat.Before(at) && runtime.GOOS != "plan9" {
+	if !pat.Before(at) && runtime.GOOS != "plan9" && runtime.GOOS != "nacl" {
 		t.Errorf("AccessTime didn't go backwards; was=%d, after=%d", at, pat)
 	}
 
@@ -965,8 +973,9 @@ func run(t *testing.T, cmd []string) string {
 func TestHostname(t *testing.T) {
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it is can be taken from #c/sysname as Hostname() does.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return
+	switch runtime.GOOS {
+	case "windows", "plan9", "nacl":
+		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 
 	// Check internal Hostname() against the output of /bin/hostname.
@@ -1225,6 +1234,10 @@ func TestReadAtEOF(t *testing.T) {
 }
 
 func testKillProcess(t *testing.T, processKiller func(p *Process)) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)

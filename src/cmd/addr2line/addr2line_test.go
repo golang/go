@@ -92,6 +92,10 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 
 // This is line 93. The test depends on that.
 func TestAddr2Line(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	syms := loadSyms(t)
 
 	tmpDir, err := ioutil.TempDir("", "TestAddr2Line")

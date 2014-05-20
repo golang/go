@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"text/template"
@@ -31,6 +32,10 @@ func testEnv(cmd *exec.Cmd) *exec.Cmd {
 }
 
 func executeTest(t *testing.T, templ string, data interface{}) string {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	checkStaleRuntime(t)
 
 	st := template.Must(template.New("crashSource").Parse(templ))

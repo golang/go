@@ -95,6 +95,10 @@ func BenchmarkDeferMany(b *testing.B) {
 // The value reported will include the padding between runtime.gogo and the
 // next function in memory. That's fine.
 func TestRuntimeGogoBytes(t *testing.T) {
+	if GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
@@ -183,6 +187,10 @@ func TestSetPanicOnFault(t *testing.T) {
 }
 
 func testSetPanicOnFault(t *testing.T, addr uintptr) {
+	if GOOS == "nacl" {
+		t.Skip("nacl doesn't seem to fault on high addresses")
+	}
+
 	defer func() {
 		if err := recover(); err == nil {
 			t.Fatalf("did not find error in recover")

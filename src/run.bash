@@ -34,7 +34,7 @@ fi
 
 # allow all.bash to avoid double-build of everything
 rebuild=true
-if [ "$1" = "--no-rebuild" ]; then
+if [ "$1" == "--no-rebuild" ]; then
 	shift
 else
 	echo '# Building packages and commands.'
@@ -178,15 +178,18 @@ go run main.go || exit 1
 ./test.bash || exit 1
 ) || exit $?
 
+[ "$GOOS" == nacl ] ||
 (xcd ../doc/progs
 time ./run || exit 1
 ) || exit $?
 
+[ "$GOOS" == nacl ] ||
 [ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
 (xcd ../doc/articles/wiki
 ./test.bash || exit 1
 ) || exit $?
 
+[ "$GOOS" == nacl ] ||
 (xcd ../doc/codewalk
 time ./run || exit 1
 ) || exit $?
@@ -196,6 +199,7 @@ echo '#' ../misc/goplay
 go build ../misc/goplay
 rm -f goplay
 
+[ "$GOOS" == nacl ] ||
 [ "$GOARCH" == arm ] ||
 (xcd ../test/bench/shootout
 time ./timing.sh -test || exit 1
@@ -210,12 +214,17 @@ go test ../test/bench/go1 || exit 1
 
 (xcd ../test
 unset GOMAXPROCS
-time go run run.go || exit 1
+GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build -o runtest run.go || exit 1
+time ./runtest || exit 1
+rm -f runtest
 ) || exit $?
 
+[ "$GOOS" == nacl ] ||
+(
 echo
 echo '# Checking API compatibility.'
-time go run $GOROOT/src/cmd/api/run.go
+time go run $GOROOT/src/cmd/api/run.go || exit 1
+) || exit $?
 
 echo
 echo ALL TESTS PASSED

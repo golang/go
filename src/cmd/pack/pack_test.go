@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -185,6 +186,10 @@ func TestExtract(t *testing.T) {
 
 // Test that pack-created archives can be understood by the tools.
 func TestHello(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 	hello := filepath.Join(dir, "hello.go")
@@ -217,6 +222,10 @@ func TestHello(t *testing.T) {
 
 // Test that pack works with very long lines in PKGDEF.
 func TestLargeDefs(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
+
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 	large := filepath.Join(dir, "large.go")

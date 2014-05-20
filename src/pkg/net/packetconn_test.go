@@ -40,7 +40,7 @@ func packetConnTestData(t *testing.T, net string, i int) ([]byte, func()) {
 		return b, nil
 	case "unixgram":
 		switch runtime.GOOS {
-		case "plan9", "windows":
+		case "nacl", "plan9", "windows":
 			return nil, func() {
 				t.Logf("skipping %q test on %q", net, runtime.GOOS)
 			}

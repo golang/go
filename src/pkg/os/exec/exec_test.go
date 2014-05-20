@@ -27,7 +27,10 @@ import (
 	"time"
 )
 
-func helperCommand(s ...string) *exec.Cmd {
+func helperCommand(t *testing.T, s ...string) *exec.Cmd {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping on nacl")
+	}
 	cs := []string{"-test.run=TestHelperProcess", "--"}
 	cs = append(cs, s...)
 	cmd := exec.Command(os.Args[0], cs...)
@@ -36,7 +39,7 @@ func helperCommand(s ...string) *exec.Cmd {
 }
 
 func TestEcho(t *testing.T) {
-	bs, err := helperCommand("echo", "foo bar", "baz").Output()
+	bs, err := helperCommand(t, "echo", "foo bar", "baz").Output()
 	if err != nil {
 		t.Errorf("echo: %v", err)
 	}
@@ -75,7 +78,7 @@ func TestCommandRelativeName(t *testing.T) {
 func TestCatStdin(t *testing.T) {
 	// Cat, testing stdin and stdout.
 	input := "Input string\nLine 2"
-	p := helperCommand("cat")
+	p := helperCommand(t, "cat")
 	p.Stdin = strings.NewReader(input)
 	bs, err := p.Output()
 	if err != nil {
@@ -89,7 +92,7 @@ func TestCatStdin(t *testing.T) {
 
 func TestCatGoodAndBadFile(t *testing.T) {
 	// Testing combined output and error values.
-	bs, err := helperCommand("cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
+	bs, err := helperCommand(t, "cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
 	if _, ok := err.(*exec.ExitError); !ok {
 		t.Errorf("expected *exec.ExitError from cat combined; got %T: %v", err, err)
 	}
@@ -117,7 +120,7 @@ func TestNoExistBinary(t *testing.T) {
 
 func TestExitStatus(t *testing.T) {
 	// Test that exit values are returned correctly
-	cmd := helperCommand("exit", "42")
+	cmd := helperCommand(t, "exit", "42")
 	err := cmd.Run()
 	want := "exit status 42"
 	switch runtime.GOOS {
@@ -140,7 +143,7 @@ func TestPipes(t *testing.T) {
 		}
 	}
 	// Cat, testing stdin and stdout.
-	c := helperCommand("pipetest")
+	c := helperCommand(t, "pipetest")
 	stdin, err := c.StdinPipe()
 	check("StdinPipe", err)
 	stdout, err := c.StdoutPipe()
@@ -193,7 +196,7 @@ func TestStdinClose(t *testing.T) {
 			t.Fatalf("%s: %v", what, err)
 		}
 	}
-	cmd := helperCommand("stdinClose")
+	cmd := helperCommand(t, "stdinClose")
 	stdin, err := cmd.StdinPipe()
 	check("StdinPipe", err)
 	// Check that we can access methods of the underlying os.File.`
@@ -313,7 +316,7 @@ func TestExtraFilesFDShuffle(t *testing.T) {
 	// Moving this test case around within the overall tests may
 	// affect the FDs obtained and hence the checks to catch these cases.
 	npipes := 2
-	c := helperCommand("extraFilesAndPipes", strconv.Itoa(npipes+1))
+	c := helperCommand(t, "extraFilesAndPipes", strconv.Itoa(npipes+1))
 	rd, wr, _ := os.Pipe()
 	defer rd.Close()
 	if rd.Fd() != 3 {
@@ -440,7 +443,7 @@ func TestExtraFiles(t *testing.T) {
 		t.Fatalf("Seek: %v", err)
 	}
 
-	c := helperCommand("read3")
+	c := helperCommand(t, "read3")
 	var stdout, stderr bytes.Buffer
 	c.Stdout = &stdout
 	c.Stderr = &stderr
@@ -483,10 +486,10 @@ func TestExtraFilesRace(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		la := listen()
-		ca := helperCommand("describefiles")
+		ca := helperCommand(t, "describefiles")
 		ca.ExtraFiles = []*os.File{listenerFile(la)}
 		lb := listen()
-		cb := helperCommand("describefiles")
+		cb := helperCommand(t, "describefiles")
 		cb.ExtraFiles = []*os.File{listenerFile(lb)}
 		ares := make(chan string)
 		bres := make(chan string)

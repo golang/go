@@ -1,5 +1,7 @@
 // run
 
+// +build !nacl
+
 // Copyright 2014 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -272,7 +274,6 @@ TestCases:
 		}
 
 		ioutil.WriteFile(filepath.Join(dir, "asm.s"), buf.Bytes(), 0666)
-
 
 		cmd := exec.Command("go", "build")
 		cmd.Dir = dir

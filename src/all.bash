@@ -9,7 +9,7 @@ if [ ! -f make.bash ]; then
 	exit 1
 fi
 OLDPATH="$PATH"
-. ./make.bash --no-banner
+. ./make.bash "$@" --no-banner
 bash run.bash --no-rebuild
 PATH="$OLDPATH"
 $GOTOOLDIR/dist banner  # print build info

@@ -120,6 +120,9 @@ func TestReadTimeout(t *testing.T) {
 			t.Fatalf("Read: expected err %v, got %v", errClosing, err)
 		}
 	default:
+		if err == io.EOF && runtime.GOOS == "nacl" { // close enough; golang.org/issue/8044
+			break
+		}
 		if err != errClosing {
 			t.Fatalf("Read: expected err %v, got %v", errClosing, err)
 		}
@@ -708,7 +711,7 @@ func TestProlongTimeout(t *testing.T) {
 
 func TestDeadlineRace(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9":
+	case "nacl", "plan9":
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 

@@ -16,7 +16,7 @@ import (
 func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxOnly bool) bool {
 	switch runtime.GOOS {
 	case "linux":
-	case "plan9", "windows":
+	case "nacl", "plan9", "windows":
 		// "unix" sockets are not supported on Windows and Plan 9.
 		if net == unixsotype {
 			return true
