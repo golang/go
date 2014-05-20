@@ -63,6 +63,18 @@ compilers may be changed by the CC and CXX environment variables,
 respectively; those environment variables may include command line
 options.
 
+To enable cgo during cross compiling builds, set the CGO_ENABLED
+environment variable to 1 when building the Go tools with make.bash.
+Also, set CC_FOR_TARGET to the C cross compiler for the target.  CC will
+be used for compiling for the host.
+
+After the Go tools are built, when running the go command, CC_FOR_TARGET is
+ignored.  The value of CC_FOR_TARGET when running make.bash is the default
+compiler.  However, you can set the environment variable CC, not CC_FOR_TARGET,
+to control the compiler when running the go tool.
+
+CXX_FOR_TARGET works in a similar way for C++ code.
+
 Go references to C
 
 Within the Go file, C's struct field names that are keywords in Go

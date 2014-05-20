@@ -227,6 +227,13 @@ of the specified target, but not the target itself.
 </p>
 
 <p>
+Cross compiling with <a href="/cmd/cgo/"><code>cgo</code></a> enabled
+is now supported. The CC_FOR_TARGET and CXX_FOR_TARGET environment
+variables are used when running all.bash to specify the cross compilers
+for C and C++ code, respectively.
+</p>
+
+<p>
 Finally, the go command now supports packages that import Objective-C
 files (suffixed <code>.m</code>) through cgo.
 </p>
