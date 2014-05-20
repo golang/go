@@ -162,7 +162,13 @@ func Read(fd int, b []byte) (int, error) {
 	return f.impl.read(b)
 }
 
+var zerobuf [0]byte
+
 func Write(fd int, b []byte) (int, error) {
+	if b == nil {
+		// avoid nil in syscalls; nacl doesn't like that.
+		b = zerobuf[:]
+	}
 	f, err := fdToFile(fd)
 	if err != nil {
 		return 0, err
