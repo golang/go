@@ -36,7 +36,8 @@ as of Go 1.3 it is not supported by Go either.
 <h3 id="dragonfly">Support for DragonFly BSD</h3>
 
 <p>
-Go 1.3 now includes experimental support for DragonFly BSD on the <code>amd64</code> (64-bit x86) and <code>386</code> (32-bit x86) architectures. It uses DragonFly BSD 3.6 or above.
+Go 1.3 now includes experimental support for DragonFly BSD on the <code>amd64</code> (64-bit x86) and <code>386</code> (32-bit x86) architectures.
+It uses DragonFly BSD 3.6 or above.
 </p>
 
 <h3 id="freebsd">Support for FreeBSD</h3>
@@ -52,8 +53,8 @@ As of Go 1.3, support for Go on FreeBSD requires that the kernel be compiled wit
 </p>
 
 <p>
-In concert with the switch to EABI syscalls for ARM platforms, Go 1.3 will run only on
-FreeBSD 10. The x86 platforms, 386 and amd64, are unaffected.
+In concert with the switch to EABI syscalls for ARM platforms, Go 1.3 will run only on FreeBSD 10.
+The x86 platforms, 386 and amd64, are unaffected.
 </p>
 
 <h3 id="nacl">Support for Native Client</h3>
@@ -83,13 +84,15 @@ As of Go 1.3, support for Go on OpenBSD requires OpenBSD 5.5 or above.
 <h3 id="plan9">Support for Plan 9</h3>
 
 <p>
-Go 1.3 now includes experimental support for Plan 9 on the <code>386</code> (32-bit x86) architecture. It requires the <code>Tsemacquire</code> syscall, which has been in Plan 9 since June, 2012.
+Go 1.3 now includes experimental support for Plan 9 on the <code>386</code> (32-bit x86) architecture.
+It requires the <code>Tsemacquire</code> syscall, which has been in Plan 9 since June, 2012.
 </p>
 
 <h3 id="solaris">Support for Solaris</h3>
 
 <p>
-Go 1.3 now includes experimental support for Solaris on the <code>amd64</code> (64-bit x86) architecture. It requires illumos, Solaris 11 or above.
+Go 1.3 now includes experimental support for Solaris on the <code>amd64</code> (64-bit x86) architecture.
+It requires illumos, Solaris 11 or above.
 </p>
 
 <h2 id="memory">Changes to the memory model</h2>
@@ -228,7 +231,8 @@ of the specified target, but not the target itself.
 
 <p>
 Cross compiling with <a href="/cmd/cgo/"><code>cgo</code></a> enabled
-is now supported. The CC_FOR_TARGET and CXX_FOR_TARGET environment
+is now supported.
+The CC_FOR_TARGET and CXX_FOR_TARGET environment
 variables are used when running all.bash to specify the cross compilers
 for C and C++ code, respectively.
 </p>
@@ -238,11 +242,36 @@ Finally, the go command now supports packages that import Objective-C
 files (suffixed <code>.m</code>) through cgo.
 </p>
 
+<h3 id="cgo">Changes to cgo</h3>
+
+<p>
+The <a href="/cmd/cgo/"><code>cmd/cgo</code></a> command,
+which processes <code>import "C"</code> declarations in Go packages,
+has corrected a serious bug that may cause some packages to stop compiling.
+Previously, all pointers to incomplete struct types translated to the Go type <code>*[0]byte</code>,
+with the effect that the Go compiler could not diagnose passing one kind of struct pointer
+to a function expecting another.
+Go 1.3 corrects this mistake by translating each different
+incomplete struct to a different named type.
+However, some Go code took advantage of this bug to pass (for example) a <code>*C.FILE</code>
+from one package to another.
+This is not legal and no longer works: in general Go packages
+should avoid exposing C types and names in their APIs.
+</p>
+
+<p>
+<em>Updating</em>: Code confusing pointers to incomplete types or
+passing them across package boundaries will no longer compile
+and must be rewritten.
+If the conversion is correct and must be preserved,
+use an explicit conversion via <a href="/pkg/unsafe/#Pointer"><code>unsafe.Pointer</code></a>.
+</p>
+
 <h3 id="swig">SWIG 3.0 required for programs that use SWIG</h3>
 
 <p>
-For Go programs that use SWIG, SWIG version 3.0 is now required.  The
-<a href="/cmd/go"><code>cmd/go</code></a> command will now link the
+For Go programs that use SWIG, SWIG version 3.0 is now required.
+The <a href="/cmd/go"><code>cmd/go</code></a> command will now link the
 SWIG generated object files directly into the binary, rather than
 building and linking with a shared library.
 </p>
@@ -252,8 +281,8 @@ building and linking with a shared library.
 <p>
 In the gc tool chain, the assemblers now use the
 same command-line flag parsing rules as the Go flag package, a departure
-from the traditional Unix flag parsing. This may affect scripts that invoke
-the tool directly.
+from the traditional Unix flag parsing.
+This may affect scripts that invoke the tool directly.
 For example,
 <code>go tool 6a -SDfoo</code> must now be written
 <code>go tool 6a -S -D foo</code>.
@@ -304,7 +333,8 @@ is now about 40% faster.
 <li>
 The regular expression package <a href="/pkg/regexp/"><code>regexp</code></a>
 is now significantly faster for certain simple expressions due to the implementation of
-a second, one-pass execution engine. The choice of which engine to use is automatic;
+a second, one-pass execution engine.
+The choice of which engine to use is automatic;
 the details are hidden from the user.
 </li>
 
@@ -364,7 +394,8 @@ See the relevant package documentation for more information about each change.
 
 <li>
 The complex power function, <a href="/pkg/math/cmplx/#Pow"><code>Pow</code></a>,
-now specifies the behavior when the first argument is zero. It was undefined before.
+now specifies the behavior when the first argument is zero.
+It was undefined before.
 The details are in the <a href="/pkg/math/cmplx/#Pow">documentation for the function</a>.
 </li>
 
@@ -406,8 +437,8 @@ The <a href="/pkg/net/http/"><code>net/http</code></a> package now
 supports disabling HTTP keep-alive connections on the server
 with <a href="/pkg/net/http/#Server.SetKeepAlivesEnabled"><code>Server.SetKeepAlivesEnabled</code></a>.
 The default continues to be that the server does keep-alive (reuses
-connections for multiple requests) by default.  Only
-resource-constrained servers or those in the process of graceful
+connections for multiple requests) by default.
+Only resource-constrained servers or those in the process of graceful
 shutdown will want to disable them.
 </li>
 
@@ -415,7 +446,8 @@ shutdown will want to disable them.
 The <a href="/pkg/net/http/"><code>net/http</code></a> package adds an optional
 <a href="/pkg/net/http/#Transport"><code>Transport.TLSHandshakeTimeout</code></a>
 setting to cap the amount of time HTTP client requests will wait for
-TLS handshakes to complete. It's now also set by default
+TLS handshakes to complete.
+It's now also set by default
 on <a href="/pkg/net/http#DefaultTransport"><code>DefaultTransport</code></a>.
 </li>
 
@@ -424,8 +456,8 @@ The <a href="/pkg/net/http/"><code>net/http</code></a> package's
 <a href="/pkg/net/http/#DefaultTransport"><code>DefaultTransport</code></a>,
 used by the HTTP client code, now
 enables <a href="http://en.wikipedia.org/wiki/Keepalive#TCP_keepalive">TCP
-keep-alives</a> by
-default. Other <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
+keep-alives</a> by default.
+Other <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
 values with a nil <code>Dial</code> field continue to function the same
 as before: no TCP keep-alives are used.
 </li>
@@ -437,7 +469,8 @@ keep-alives</a> for incoming server requests when
 <a href="/pkg/net/http/#ListenAndServe"><code>ListenAndServe</code></a>
 or
 <a href="/pkg/net/http/#ListenAndServeTLS"><code>ListenAndServeTLS</code></a>
-are used. When a server is started otherwise, TCP keep-alives are not enabled.
+are used.
+When a server is started otherwise, TCP keep-alives are not enabled.
 </li>
 
 <li>
@@ -445,8 +478,8 @@ The <a href="/pkg/net/http/"><code>net/http</code></a> package now
 provides an
 optional <a href="/pkg/net/http/#Server"><code>Server.ConnState</code></a>
 callback to hook various phases of a server connection's lifecycle
-(see <a href="/pkg/net/http/#ConnState"><code>ConnState</code></a>). This
-can be used to implement rate limiting or graceful shutdown.
+(see <a href="/pkg/net/http/#ConnState"><code>ConnState</code></a>).
+This can be used to implement rate limiting or graceful shutdown.
 </li>
 
 <li>
