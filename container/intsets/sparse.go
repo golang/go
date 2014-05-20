@@ -698,19 +698,44 @@ func (s *Sparse) String() string {
 	return buf.String()
 }
 
-// BitString returns the set s as a non-empty string of 1s and 0s.
-// The ith character is 1 if the set contains i.
+// BitString returns the set as a string of 1s and 0s denoting the sum
+// of the i'th powers of 2, for each i in s.  A radix point, always
+// preceded by a digit, appears if the sum is non-integral.
+//
+// Examples:
+//              {}.BitString() =      "0"
+//	     {4,5}.BitString() = "110000"
+//            {-3}.BitString() =      "0.001"
+//      {-3,0,4,5}.BitString() = "110001.001"
 //
 func (s *Sparse) BitString() string {
 	if s.IsEmpty() {
 		return "0"
 	}
-	b := make([]byte, s.Max()+1)
+
+	min, max := s.Min(), s.Max()
+	var nbytes int
+	if max > 0 {
+		nbytes = max
+	}
+	nbytes++ // zero bit
+	radix := nbytes
+	if min < 0 {
+		nbytes += len(".") - min
+	}
+
+	b := make([]byte, nbytes)
 	for i := range b {
 		b[i] = '0'
 	}
+	if radix < nbytes {
+		b[radix] = '.'
+	}
 	s.forEach(func(x int) {
-		b[x] = '1'
+		if x >= 0 {
+			x += len(".")
+		}
+		b[radix-x] = '1'
 	})
 	return string(b)
 }

@@ -23,9 +23,6 @@ func TestBasics(t *testing.T) {
 	if s := s.String(); s != "{}" {
 		t.Errorf("String({}): got %q, want \"{}\"", s)
 	}
-	if s := s.BitString(); s != "0" {
-		t.Errorf("BitString({}): got %q, want \"0\"", s)
-	}
 	if s.Has(3) {
 		t.Errorf("Has(3): got true, want false")
 	}
@@ -421,13 +418,24 @@ func TestIntersectionWith(t *testing.T) {
 }
 
 func TestBitString(t *testing.T) {
-	var set intsets.Sparse
-	set.Insert(0)
-	set.Insert(7)
-	set.Insert(177)
-	want := "10000001" + strings.Repeat("0", 169) + "1"
-	if got := set.BitString(); got != want {
-		t.Errorf("BitString: got %s, want %s", got, want)
+	for _, test := range []struct {
+		input []int
+		want  string
+	}{
+		{nil, "0"},
+		{[]int{0}, "1"},
+		{[]int{0, 4, 5}, "110001"},
+		{[]int{0, 7, 177}, "1" + strings.Repeat("0", 169) + "10000001"},
+		{[]int{-3, 0, 4, 5}, "110001.001"},
+		{[]int{-3}, "0.001"},
+	} {
+		var set intsets.Sparse
+		for _, x := range test.input {
+			set.Insert(x)
+		}
+		if got := set.BitString(); got != test.want {
+			t.Errorf("BitString(%s) = %s, want %s", set.String(), got, test.want)
+		}
 	}
 }
 
