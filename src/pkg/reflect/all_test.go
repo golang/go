@@ -993,6 +993,9 @@ func TestNilMap(t *testing.T) {
 	if x.Kind() != Invalid {
 		t.Errorf("mbig.MapIndex(\"hello\") for nil map = %v, want Invalid Value", x)
 	}
+
+	// Test that deletes from a nil map succeed.
+	mv.SetMapIndex(ValueOf("hi"), Value{})
 }
 
 func TestChan(t *testing.T) {
