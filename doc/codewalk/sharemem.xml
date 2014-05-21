@@ -171,7 +171,7 @@ and/or writes to a shared map.
 
 <step title="Conclusion" src="doc/codewalk/urlpoll.go">
 In this codewalk we have explored a simple example of using Go's concurrency
-primitives to share memory through commmunication.
+primitives to share memory through communication.
 <br/><br/>
 This should provide a starting point from which to explore the ways in which
 goroutines and channels can be used to write expressive and concise concurrent
