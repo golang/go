@@ -715,12 +715,19 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		}
 	}
 
-	// writeTestmain writes _testmain.go but also updates
-	// pmain.imports to reflect the import statements written
-	// to _testmain.go. This metadata is needed for recompileForTest
-	// and the builds below.
-	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), pmain, ptest, pxtest); err != nil {
+	// Do initial scan for metadata needed for writing _testmain.go
+	// Use that metadata to update the list of imports for package main.
+	// The list of imports is used by recompileForTest and by the loop
+	// afterward that gathers t.Cover information.
+	t, err := loadTestFuncs(ptest)
+	if err != nil {
 		return nil, nil, nil, err
+	}
+	if t.NeedTest || ptest.coverMode != "" {
+		pmain.imports = append(pmain.imports, ptest)
+	}
+	if t.NeedXtest {
+		pmain.imports = append(pmain.imports, pxtest)
 	}
 
 	if ptest != p && localCover {
@@ -737,6 +744,18 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		// when testCover is set. The conditions are more general, though,
 		// and we may find that we need to do it always in the future.
 		recompileForTest(pmain, p, ptest, testDir)
+	}
+
+	for _, cp := range pmain.imports {
+		if len(cp.coverVars) > 0 {
+			t.Cover = append(t.Cover, coverInfo{cp, cp.coverVars})
+		}
+	}
+
+	// writeTestmain writes _testmain.go. This must happen after recompileForTest,
+	// because recompileForTest modifies XXX.
+	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), t); err != nil {
+		return nil, nil, nil, err
 	}
 
 	computeStale(pmain)
@@ -1057,37 +1076,26 @@ type coverInfo struct {
 	Vars    map[string]*CoverVar
 }
 
-// writeTestmain writes the _testmain.go file for package p to
-// the file named out. It also updates pmain.imports to include
-// ptest and/or pxtest, depending on what it writes to _testmain.go.
-func writeTestmain(out string, pmain, ptest, pxtest *Package) error {
+// loadTestFuncs returns the testFuncs describing the tests that will be run.
+func loadTestFuncs(ptest *Package) (*testFuncs, error) {
 	t := &testFuncs{
 		Package: ptest,
 	}
 	for _, file := range ptest.TestGoFiles {
 		if err := t.load(filepath.Join(ptest.Dir, file), "_test", &t.NeedTest); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	for _, file := range ptest.XTestGoFiles {
 		if err := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.NeedXtest); err != nil {
-			return err
+			return nil, err
 		}
 	}
+	return t, nil
+}
 
-	if t.NeedTest {
-		pmain.imports = append(pmain.imports, ptest)
-	}
-	if t.NeedXtest {
-		pmain.imports = append(pmain.imports, pxtest)
-	}
-
-	for _, cp := range pmain.imports {
-		if len(cp.coverVars) > 0 {
-			t.Cover = append(t.Cover, coverInfo{cp, cp.coverVars})
-		}
-	}
-
+// writeTestmain writes the _testmain.go file for t to the file named out.
+func writeTestmain(out string, t *testFuncs) error {
 	f, err := os.Create(out)
 	if err != nil {
 		return err
