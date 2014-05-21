@@ -5,6 +5,7 @@
 package fmt
 
 import (
+	"math"
 	"strconv"
 	"unicode/utf8"
 )
@@ -360,38 +361,37 @@ func doPrec(f *fmt, def int) int {
 
 // formatFloat formats a float64; it is an efficient equivalent to  f.pad(strconv.FormatFloat()...).
 func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
-	// We leave one byte at the beginning of f.intbuf for a sign if needed,
-	// and make it a space, which we might be able to use.
-	f.intbuf[0] = ' '
-	slice := strconv.AppendFloat(f.intbuf[0:1], v, verb, prec, n)
-	// Add a plus sign or space to the floating-point string representation if missing and required.
-	// The formatted number starts at slice[1].
-	switch slice[1] {
-	case '-', '+':
-		// If we're zero padding, want the sign before the leading zeros.
-		// Achieve this by writing the sign out and padding the positive number.
-		if f.zero && f.widPresent && f.wid > len(slice) {
-			f.buf.WriteByte(slice[1])
-			f.wid--
-			f.pad(slice[2:])
-			return
-		}
-		// We're set; drop the leading space.
-		slice = slice[1:]
-	default:
-		// There's no sign, but we might need one.
-		if f.plus {
-			f.buf.WriteByte('+')
-			f.wid--
-			f.pad(slice[1:])
-			return
-		} else if f.space {
-			// space is already there
-		} else {
-			slice = slice[1:]
-		}
+	// Format number, reserving space for leading + sign if needed.
+	num := strconv.AppendFloat(f.intbuf[0:1], v, verb, prec, n)
+	if num[1] == '-' || num[1] == '+' {
+		num = num[1:]
+	} else {
+		num[0] = '+'
 	}
-	f.pad(slice)
+	// num is now a signed version of the number.
+	// If we're zero padding, want the sign before the leading zeros.
+	// Achieve this by writing the sign out and then padding the unsigned number.
+	if f.zero && f.widPresent && f.wid > len(num) {
+		f.buf.WriteByte(num[0])
+		f.wid--
+		f.pad(num[1:])
+		f.wid++ // Restore width; complex numbers will reuse this value for imaginary part.
+		return
+	}
+	// f.space says to replace a leading + with a space.
+	if f.space && num[0] == '+' {
+		num[0] = ' '
+		f.pad(num)
+		return
+	}
+	// Now we know the sign is attached directly to the number, if present at all.
+	// We want a sign if asked for, if it's negative, or if it's infinity (+Inf vs. -Inf).
+	if f.plus || num[0] == '-' || math.IsInf(v, 0) {
+		f.pad(num)
+		return
+	}
+	// No sign to show and the number is positive; just print the unsigned number.
+	f.pad(num[1:])
 }
 
 // fmt_e64 formats a float64 in the form -1.23e+12.
