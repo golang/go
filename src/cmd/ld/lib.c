@@ -205,6 +205,8 @@ loadlib(void)
 		// whether to initialize the TLS.  So give it one.  This could
 		// be handled differently but it's an unusual case.
 		loadinternal("runtime/cgo");
+		if(i < ctxt->libraryp)
+			objfile(ctxt->library[i].file, ctxt->library[i].pkg);
 
 		// Pretend that we really imported the package.
 		s = linklookup(ctxt, "go.importpath.runtime/cgo.", 0);
