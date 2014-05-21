@@ -6008,7 +6008,8 @@ in a program.
 <p>
 A package with no imports is initialized by assigning initial values
 to all its package-level variables followed by calling all <code>init</code>
-functions in unspecified order.
+functions in the order they appear in the source, possibly in multiple files,
+as presented to the compiler.
 If a package has imports, the imported packages are initialized
 before initializing the package itself. If multiple packages import
 a package, the imported package will be initialized only once.
