@@ -203,7 +203,7 @@ static double
 mpgetfltN(Mpflt *a, int prec, int bias)
 {
 	int s, i, e, minexp;
-	uvlong v, vm;
+	uvlong v;
 	double f;
 
 	if(a->val.ovf && nsavederrors+nerrors == 0)
@@ -226,25 +226,23 @@ mpgetfltN(Mpflt *a, int prec, int bias)
 			return 0;
 	}
 
-	// pick up the mantissa and a rounding bit in a uvlong
-	s = prec+1;
+	// pick up the mantissa, a rounding bit, and a tie-breaking bit in a uvlong
+	s = prec+2;
 	v = 0;
 	for(i=Mpnorm-1; s>=Mpscale; i--) {
 		v = (v<<Mpscale) | a->val.a[i];
 		s -= Mpscale;
 	}
-	vm = v;
-	if(s > 0)
-		vm = (vm<<s) | (a->val.a[i]>>(Mpscale-s));
-
-	// continue with 64 more bits
-	s += 64;
-	for(; s>=Mpscale; i--) {
-		v = (v<<Mpscale) | a->val.a[i];
-		s -= Mpscale;
-	}
-	if(s > 0)
+	if(s > 0) {
 		v = (v<<s) | (a->val.a[i]>>(Mpscale-s));
+		if((a->val.a[i]&((1<<(Mpscale-s))-1)) != 0)
+			v |= 1;
+		i--;
+	}
+	for(; i >= 0; i--) {
+		if(a->val.a[i] != 0)
+			v |= 1;
+	}
 
 	// gradual underflow
 	e = Mpnorm*Mpscale + a->exp - prec;
@@ -253,23 +251,23 @@ mpgetfltN(Mpflt *a, int prec, int bias)
 		s = minexp - e;
 		if(s > prec+1)
 			s = prec+1;
-		v |= vm & ((1ULL<<s) - 1);
-		vm >>= s;
+		if((v & ((1<<s)-1)) != 0)
+			v |= 1<<s;
+		v >>= s;
 		e = minexp;
 	}
+	
+	// round to even
+	v |= (v&4)>>2;
+	v += v&1;
+	v >>= 2;
 
-//print("vm=%.16llux v=%.16llux\n", vm, v);
-	// round toward even
-	if(v != 0 || (vm&2ULL) != 0)
-		vm = (vm>>1) + (vm&1ULL);
-	else
-		vm >>= 1;
-
-	f = (double)(vm);
+	f = (double)(v);
 	f = ldexp(f, e);
 
 	if(a->val.neg)
 		f = -f;
+
 	return f;
 }
 
