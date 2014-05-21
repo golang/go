@@ -2120,7 +2120,7 @@ yyreduce:
     {
 		if((yyvsp[(2) - (4)].addr).type != D_CONST)
 			yyerror("index for FUNCDATA must be integer constant");
-		if((yyvsp[(4) - (4)].addr).type != D_EXTERN && (yyvsp[(4) - (4)].addr).type != D_STATIC)
+		if((yyvsp[(4) - (4)].addr).type != D_EXTERN && (yyvsp[(4) - (4)].addr).type != D_STATIC && (yyvsp[(4) - (4)].addr).type != D_OREG)
 			yyerror("value for FUNCDATA must be symbol reference");
  		outcode((yyvsp[(1) - (4)].lval), Always, &(yyvsp[(2) - (4)].addr), NREG, &(yyvsp[(4) - (4)].addr));
 	}

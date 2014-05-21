@@ -301,8 +301,22 @@ TEXT reflect·call(SB), NOSPLIT, $-4-16
 	MOVW	$runtime·badreflectcall(SB), R1
 	B	(R1)
 
+// Argument map for the callXX frames.  Each has one
+// stack map (for the single call) with 3 arguments.
+DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+DATA gcargs_reflectcall<>+0x04(SB)/4, $6  // 3 args
+DATA gcargs_reflectcall<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4))
+GLOBL gcargs_reflectcall<>(SB),RODATA,$12
+
+// callXX frames have no locals
+DATA gclocals_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
+GLOBL gclocals_reflectcall<>(SB),RODATA,$8
+
 #define CALLFN(NAME,MAXSIZE)			\
 TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-16;	\
+	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
+	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
 	/* copy arguments to stack */		\
 	MOVW	argptr+4(FP), R0;		\
 	MOVW	argsize+8(FP), R2;		\
@@ -316,6 +330,7 @@ TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-16;	\
 	/* call function */			\
 	MOVW	f+0(FP), R7;			\
 	MOVW	(R7), R0;			\
+	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(R0);				\
 	/* copy return values back */		\
 	MOVW	argptr+4(FP), R0;		\
