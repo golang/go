@@ -134,7 +134,7 @@ type Stmt interface {
 	// as an INSERT or UPDATE.
 	Exec(args []Value) (Result, error)
 
-	// Exec executes a query that may return rows, such as a
+	// Query executes a query that may return rows, such as a
 	// SELECT.
 	Query(args []Value) (Rows, error)
 }
