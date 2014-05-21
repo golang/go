@@ -563,37 +563,50 @@ TEST source file name order preserved
 ./testgo test testdata/example[12]_test.go || ok=false
 
 # Check that coverage analysis works at all.
-# Don't worry about the exact numbers
+# Don't worry about the exact numbers but require not 0.0%.
+checkcoverage() {
+	if grep '[^0-9]0\.0%' testdata/cover.txt >/dev/null; then
+		echo 'some coverage results are 0.0%'
+		ok=false
+	fi
+	cat testdata/cover.txt
+	rm -f testdata/cover.txt
+}
+	
 TEST coverage runs
-./testgo test -short -coverpkg=strings strings regexp || ok=false
-./testgo test -short -cover strings math regexp || ok=false
+./testgo test -short -coverpkg=strings strings regexp >testdata/cover.txt 2>&1 || ok=false
+./testgo test -short -cover strings math regexp >>testdata/cover.txt 2>&1 || ok=false
+checkcoverage
 
 # Check that coverage analysis uses set mode.
 TEST coverage uses set mode
-if ./testgo test -short -coverpkg=encoding/binary -coverprofile=testdata/cover.out; then
+if ./testgo test -short -cover encoding/binary -coverprofile=testdata/cover.out >testdata/cover.txt 2>&1; then
 	if ! grep -q 'mode: set' testdata/cover.out; then
 		ok=false
 	fi
+	checkcoverage
 else
 	ok=false
 fi
-rm -f testdata/cover.out
+rm -f testdata/cover.out testdata/cover.txt
 
 TEST coverage uses atomic mode for -race.
-if ./testgo test -short -race -coverpkg=encoding/binary -coverprofile=testdata/cover.out; then
+if ./testgo test -short -race -cover encoding/binary -coverprofile=testdata/cover.out >testdata/cover.txt 2>&1; then
 	if ! grep -q 'mode: atomic' testdata/cover.out; then
 		ok=false
 	fi
+	checkcoverage
 else
 	ok=false
 fi
 rm -f testdata/cover.out
 
 TEST coverage uses actual setting to override even for -race.
-if ./testgo test -short -race -coverpkg=encoding/binary -covermode=count -coverprofile=testdata/cover.out; then
+if ./testgo test -short -race -cover encoding/binary -covermode=count -coverprofile=testdata/cover.out >testdata/cover.txt 2>&1; then
 	if ! grep -q 'mode: count' testdata/cover.out; then
 		ok=false
 	fi
+	checkcoverage
 else
 	ok=false
 fi
@@ -601,13 +614,8 @@ rm -f testdata/cover.out
 
 TEST coverage with cgo
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
-./testgo test -short -cover ./testdata/cgocover >$d/cgo.out 2>&1 || ok=false
-cat $d/cgo.out
-if grep 'coverage: 0.0%' $d/cgo.out >/dev/null; then 
-	ok=false
-	echo no coverage for cgo package
-	ok=false
-fi
+./testgo test -short -cover ./testdata/cgocover >testdata/cover.txt 2>&1 || ok=false
+checkcoverage
 
 TEST cgo depends on syscall
 rm -rf $GOROOT/pkg/*_race
