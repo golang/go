@@ -67,12 +67,10 @@ body {
 
   border: 1px solid rgba(0, 0, 0, .3);
 
-  /*
   transition: transform .3s ease-out;
   -o-transition: -o-transform .3s ease-out;
   -moz-transition: -moz-transform .3s ease-out;
   -webkit-transition: -webkit-transform .3s ease-out;
-  */
 }
 .slides.layout-widescreen > article {
   margin-left: -550px;
