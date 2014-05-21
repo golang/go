@@ -388,7 +388,7 @@ elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
 {
 	int n;
 
-	n = ELF_NOTE_NETBSD_NAMESZ + ELF_NOTE_NETBSD_DESCSZ + 1;
+	n = rnd(ELF_NOTE_NETBSD_NAMESZ, 4) + rnd(ELF_NOTE_NETBSD_DESCSZ, 4);
 	return elfnote(sh, startva, resoff, n);
 }
 
