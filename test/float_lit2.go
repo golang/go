@@ -10,89 +10,155 @@ package main
 
 import (
 	"fmt"
+	"math"
 )
+
+// The largest exact float32 is f₁ = (1+(1-2²³))×2¹²⁷ = (1-2²⁴)×2¹²⁸ = 2¹²⁸ - 2¹⁰⁴.
+// The next float32 would be f₂ = (1+1)×2¹²⁷ = 1×2¹²⁸, except that exponent is out of range.
+// Float32 conversion rounds to the nearest float32, rounding to even mantissa:
+// between f₁ and f₂, values closer to f₁ round to f₁and values closer to f₂ are rejected as out of range.
+// f₁ is an odd mantissa, so the halfway point (f₁+f₂)/2 rounds to f₂ and is rejected.
+// The halfway point (f₁+f₂)/2 = 2¹²⁸ - 2¹⁰⁵.
+//
+// The same is true of float64, with different constants: s/24/53/ and s/128/1024/.
 
 const (
-	m32bits   = 23  // number of float32 mantissa bits
-	e32max    = 127 // max. float32 exponent
-	maxExp32  = e32max - m32bits
-	maxMant32 = 1<<(m32bits+1) - 1
+	two24   = 1.0 * (1 << 24)
+	two53   = 1.0 * (1 << 53)
+	two64   = 1.0 * (1 << 64)
+	two128  = two64 * two64
+	two256  = two128 * two128
+	two512  = two256 * two256
+	two768  = two512 * two256
+	two1024 = two512 * two512
 
-	maxFloat32_0 = (maxMant32 - 0) << maxExp32
-	maxFloat32_1 = (maxMant32 - 1) << maxExp32
-	maxFloat32_2 = (maxMant32 - 2) << maxExp32
+	ulp32 = two128 / two24
+	max32 = two128 - ulp32
+
+	ulp64 = two1024 / two53
+	max64 = two1024 - ulp64
 )
-
-func init() {
-	if maxExp32 != 104 {
-		panic("incorrect maxExp32")
-	}
-	if maxMant32 != 16777215 {
-		panic("incorrect maxMant32")
-	}
-	if maxFloat32_0 != 340282346638528859811704183484516925440 {
-		panic("incorrect maxFloat32_0")
-	}
-}
-
-const (
-	m64bits   = 52   // number of float64 mantissa bits
-	e64max    = 1023 // max. float64 exponent
-	maxExp64  = e64max - m64bits
-	maxMant64 = 1<<(m64bits+1) - 1
-
-	// These expressions are not permitted due to implementation restrictions.
-	// maxFloat64_0 = (maxMant64-0) << maxExp64
-	// maxFloat64_1 = (maxMant64-1) << maxExp64
-	// maxFloat64_2 = (maxMant64-2) << maxExp64
-
-	// These equivalent values were computed using math/big.
-	maxFloat64_0 = 1.7976931348623157e308
-	maxFloat64_1 = 1.7976931348623155e308
-	maxFloat64_2 = 1.7976931348623153e308
-)
-
-func init() {
-	if maxExp64 != 971 {
-		panic("incorrect maxExp64")
-	}
-	if maxMant64 != 9007199254740991 {
-		panic("incorrect maxMant64")
-	}
-}
 
 var cvt = []struct {
-	val    interface{}
-	binary string
+	bits   uint64 // keep us honest
+	exact  interface{}
+	approx interface{}
+	text   string
 }{
+	// 0
+	{0x7f7ffffe, float32(max32 - ulp32), float32(max32 - ulp32 - ulp32/2), "max32 - ulp32 - ulp32/2"},
+	{0x7f7ffffe, float32(max32 - ulp32), float32(max32 - ulp32), "max32 - ulp32"},
+	{0x7f7ffffe, float32(max32 - ulp32), float32(max32 - ulp32/2), "max32 - ulp32/2"},
+	{0x7f7ffffe, float32(max32 - ulp32), float32(max32 - ulp32 + ulp32/2), "max32 - ulp32 + ulp32/2"},
+	{0x7f7fffff, float32(max32), float32(max32 - ulp32 + ulp32/2 + ulp32/two64), "max32 - ulp32 + ulp32/2 + ulp32/two64"},
+	{0x7f7fffff, float32(max32), float32(max32 - ulp32/2 + ulp32/two64), "max32 - ulp32/2 + ulp32/two64"},
+	{0x7f7fffff, float32(max32), float32(max32), "max32"},
+	{0x7f7fffff, float32(max32), float32(max32 + ulp32/2 - ulp32/two64), "max32 + ulp32/2 - ulp32/two64"},
 
-	{float32(maxFloat32_0), fmt.Sprintf("%dp+%d", int32(maxMant32-0), maxExp32)},
-	{float32(maxFloat32_1), fmt.Sprintf("%dp+%d", int32(maxMant32-1), maxExp32)},
-	{float32(maxFloat32_2), fmt.Sprintf("%dp+%d", int32(maxMant32-2), maxExp32)},
+	{0xff7ffffe, float32(-(max32 - ulp32)), float32(-(max32 - ulp32 - ulp32/2)), "-(max32 - ulp32 - ulp32/2)"},
+	{0xff7ffffe, float32(-(max32 - ulp32)), float32(-(max32 - ulp32)), "-(max32 - ulp32)"},
+	{0xff7ffffe, float32(-(max32 - ulp32)), float32(-(max32 - ulp32/2)), "-(max32 - ulp32/2)"},
+	{0xff7ffffe, float32(-(max32 - ulp32)), float32(-(max32 - ulp32 + ulp32/2)), "-(max32 - ulp32 + ulp32/2)"},
+	{0xff7fffff, float32(-(max32)), float32(-(max32 - ulp32 + ulp32/2 + ulp32/two64)), "-(max32 - ulp32 + ulp32/2 + ulp32/two64)"},
+	{0xff7fffff, float32(-(max32)), float32(-(max32 - ulp32/2 + ulp32/two64)), "-(max32 - ulp32/2 + ulp32/two64)"},
+	{0xff7fffff, float32(-(max32)), float32(-(max32)), "-(max32)"},
+	{0xff7fffff, float32(-(max32)), float32(-(max32 + ulp32/2 - ulp32/two64)), "-(max32 + ulp32/2 - ulp32/two64)"},
 
-	{float64(maxFloat64_0), fmt.Sprintf("%dp+%d", int64(maxMant64-0), maxExp64)},
-	{float64(maxFloat64_1), fmt.Sprintf("%dp+%d", int64(maxMant64-1), maxExp64)},
-	{float64(maxFloat64_2), fmt.Sprintf("%dp+%d", int64(maxMant64-2), maxExp64)},
+	// These are required to work: according to the Go spec, the internal float mantissa must be at least 256 bits,
+	// and these expressions can be represented exactly with a 256-bit mantissa.
+	{0x7f7fffff, float32(max32), float32(max32 - ulp32 + ulp32/2 + 1), "max32 - ulp32 + ulp32/2 + 1"},
+	{0x7f7fffff, float32(max32), float32(max32 - ulp32/2 + 1), "max32 - ulp32/2 + 1"},
+	{0x7f7fffff, float32(max32), float32(max32 + ulp32/2 - 1), "max32 + ulp32/2 - 1"},
+	{0xff7fffff, float32(-(max32)), float32(-(max32 - ulp32 + ulp32/2 + 1)), "-(max32 - ulp32 + ulp32/2 + 1)"},
+	{0xff7fffff, float32(-(max32)), float32(-(max32 - ulp32/2 + 1)), "-(max32 - ulp32/2 + 1)"},
+	{0xff7fffff, float32(-(max32)), float32(-(max32 + ulp32/2 - 1)), "-(max32 + ulp32/2 - 1)"},
 
-	{float32(-maxFloat32_0), fmt.Sprintf("-%dp+%d", int32(maxMant32-0), maxExp32)},
-	{float32(-maxFloat32_1), fmt.Sprintf("-%dp+%d", int32(maxMant32-1), maxExp32)},
-	{float32(-maxFloat32_2), fmt.Sprintf("-%dp+%d", int32(maxMant32-2), maxExp32)},
+	{0x7f7fffff, float32(max32), float32(max32 - ulp32 + ulp32/2 + 1/two128), "max32 - ulp32 + ulp32/2 + 1/two128"},
+	{0x7f7fffff, float32(max32), float32(max32 - ulp32/2 + 1/two128), "max32 - ulp32/2 + 1/two128"},
+	{0x7f7fffff, float32(max32), float32(max32 + ulp32/2 - 1/two128), "max32 + ulp32/2 - 1/two128"},
+	{0xff7fffff, float32(-(max32)), float32(-(max32 - ulp32 + ulp32/2 + 1/two128)), "-(max32 - ulp32 + ulp32/2 + 1/two128)"},
+	{0xff7fffff, float32(-(max32)), float32(-(max32 - ulp32/2 + 1/two128)), "-(max32 - ulp32/2 + 1/two128)"},
+	{0xff7fffff, float32(-(max32)), float32(-(max32 + ulp32/2 - 1/two128)), "-(max32 + ulp32/2 - 1/two128)"},
 
-	{float64(-maxFloat64_0), fmt.Sprintf("-%dp+%d", int64(maxMant64-0), maxExp64)},
-	{float64(-maxFloat64_1), fmt.Sprintf("-%dp+%d", int64(maxMant64-1), maxExp64)},
-	{float64(-maxFloat64_2), fmt.Sprintf("-%dp+%d", int64(maxMant64-2), maxExp64)},
+	{0x7feffffffffffffe, float64(max64 - ulp64), float64(max64 - ulp64 - ulp64/2), "max64 - ulp64 - ulp64/2"},
+	{0x7feffffffffffffe, float64(max64 - ulp64), float64(max64 - ulp64), "max64 - ulp64"},
+	{0x7feffffffffffffe, float64(max64 - ulp64), float64(max64 - ulp64/2), "max64 - ulp64/2"},
+	{0x7feffffffffffffe, float64(max64 - ulp64), float64(max64 - ulp64 + ulp64/2), "max64 - ulp64 + ulp64/2"},
+	{0x7fefffffffffffff, float64(max64), float64(max64 - ulp64 + ulp64/2 + ulp64/two64), "max64 - ulp64 + ulp64/2 + ulp64/two64"},
+	{0x7fefffffffffffff, float64(max64), float64(max64 - ulp64/2 + ulp64/two64), "max64 - ulp64/2 + ulp64/two64"},
+	{0x7fefffffffffffff, float64(max64), float64(max64), "max64"},
+	{0x7fefffffffffffff, float64(max64), float64(max64 + ulp64/2 - ulp64/two64), "max64 + ulp64/2 - ulp64/two64"},
+
+	{0xffeffffffffffffe, float64(-(max64 - ulp64)), float64(-(max64 - ulp64 - ulp64/2)), "-(max64 - ulp64 - ulp64/2)"},
+	{0xffeffffffffffffe, float64(-(max64 - ulp64)), float64(-(max64 - ulp64)), "-(max64 - ulp64)"},
+	{0xffeffffffffffffe, float64(-(max64 - ulp64)), float64(-(max64 - ulp64/2)), "-(max64 - ulp64/2)"},
+	{0xffeffffffffffffe, float64(-(max64 - ulp64)), float64(-(max64 - ulp64 + ulp64/2)), "-(max64 - ulp64 + ulp64/2)"},
+	{0xffefffffffffffff, float64(-(max64)), float64(-(max64 - ulp64 + ulp64/2 + ulp64/two64)), "-(max64 - ulp64 + ulp64/2 + ulp64/two64)"},
+	{0xffefffffffffffff, float64(-(max64)), float64(-(max64 - ulp64/2 + ulp64/two64)), "-(max64 - ulp64/2 + ulp64/two64)"},
+	{0xffefffffffffffff, float64(-(max64)), float64(-(max64)), "-(max64)"},
+	{0xffefffffffffffff, float64(-(max64)), float64(-(max64 + ulp64/2 - ulp64/two64)), "-(max64 + ulp64/2 - ulp64/two64)"},
+
+	// These are required to work.
+	// The mantissas are exactly 256 bits.
+	// max64 is just below 2¹⁰²⁴ so the bottom bit we can use is 2⁷⁶⁸.
+	{0x7fefffffffffffff, float64(max64), float64(max64 - ulp64 + ulp64/2 + two768), "max64 - ulp64 + ulp64/2 + two768"},
+	{0x7fefffffffffffff, float64(max64), float64(max64 - ulp64/2 + two768), "max64 - ulp64/2 + two768"},
+	{0x7fefffffffffffff, float64(max64), float64(max64 + ulp64/2 - two768), "max64 + ulp64/2 - two768"},
+	{0xffefffffffffffff, float64(-(max64)), float64(-(max64 - ulp64 + ulp64/2 + two768)), "-(max64 - ulp64 + ulp64/2 + two768)"},
+	{0xffefffffffffffff, float64(-(max64)), float64(-(max64 - ulp64/2 + two768)), "-(max64 - ulp64/2 + two768)"},
+	{0xffefffffffffffff, float64(-(max64)), float64(-(max64 + ulp64/2 - two768)), "-(max64 + ulp64/2 - two768)"},
+}
+
+var bugged = false
+
+func bug() {
+	if !bugged {
+		bugged = true
+		fmt.Println("BUG")
+	}
 }
 
 func main() {
-	bug := false
-	for i, c := range cvt {
-		s := fmt.Sprintf("%b", c.val)
-		if s != c.binary {
-			if !bug {
-				bug = true
-				fmt.Println("BUG")
-			}
-			fmt.Printf("#%d: have %s, want %s\n", i, s, c.binary)
+	u64 := math.Float64frombits(0x7fefffffffffffff) - math.Float64frombits(0x7feffffffffffffe)
+	if ulp64 != u64 {
+		bug()
+		fmt.Printf("ulp64=%g, want %g", ulp64, u64)
+	}
+
+	u32 := math.Float32frombits(0x7f7fffff) - math.Float32frombits(0x7f7ffffe)
+	if ulp32 != u32 {
+		bug()
+		fmt.Printf("ulp32=%g, want %g", ulp32, u32)
+	}
+
+	for _, c := range cvt {
+		if bits(c.exact) != c.bits {
+			bug()
+			fmt.Printf("%s: inconsistent table: bits=%#x (%g) but exact=%g (%#x)\n", c.text, c.bits, fromBits(c.bits, c.exact), c.exact, bits(c.exact))
+		}
+		if c.approx != c.exact || bits(c.approx) != c.bits {
+			bug()
+			fmt.Printf("%s: have %g (%#x) want %g (%#x)\n", c.text, c.approx, bits(c.approx), c.exact, c.bits)
 		}
 	}
+}
+
+func bits(x interface{}) interface{} {
+	switch x := x.(type) {
+	case float32:
+		return uint64(math.Float32bits(x))
+	case float64:
+		return math.Float64bits(x)
+	}
+	return 0
+}
+
+func fromBits(b uint64, x interface{}) interface{} {
+	switch x.(type) {
+	case float32:
+		return math.Float32frombits(uint32(b))
+	case float64:
+		return math.Float64frombits(b)
+	}
+	return "?"
 }
