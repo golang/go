@@ -145,6 +145,9 @@ dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | freebsd-arm | li
 			echo "No support for static linking found (lacks libc.a?), skip cgo static linking test."
 		else
 			go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../testtls || exit 1
+			go test ../nocgo || exit 1
+			go test -ldflags '-linkmode=external' ../nocgo || exit 1
+			go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../nocgo || exit 1
 		fi
 		;;
 	esac
