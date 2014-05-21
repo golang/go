@@ -336,7 +336,7 @@ inst:
 	{
 		if($2.type != D_CONST)
 			yyerror("index for FUNCDATA must be integer constant");
-		if($4.type != D_EXTERN && $4.type != D_STATIC)
+		if($4.type != D_EXTERN && $4.type != D_STATIC && $4.type != D_OREG)
 			yyerror("value for FUNCDATA must be symbol reference");
  		outcode($1, Always, &$2, NREG, &$4);
 	}
