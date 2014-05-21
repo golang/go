@@ -66,21 +66,21 @@ var cvt = []struct {
 	binary string
 }{
 
-	{float32(maxFloat32_0), fmt.Sprintf("%dp+%d", maxMant32-0, maxExp32)},
-	{float32(maxFloat32_1), fmt.Sprintf("%dp+%d", maxMant32-1, maxExp32)},
-	{float32(maxFloat32_2), fmt.Sprintf("%dp+%d", maxMant32-2, maxExp32)},
+	{float32(maxFloat32_0), fmt.Sprintf("%dp+%d", int32(maxMant32-0), maxExp32)},
+	{float32(maxFloat32_1), fmt.Sprintf("%dp+%d", int32(maxMant32-1), maxExp32)},
+	{float32(maxFloat32_2), fmt.Sprintf("%dp+%d", int32(maxMant32-2), maxExp32)},
 
-	{float64(maxFloat64_0), fmt.Sprintf("%dp+%d", maxMant64-0, maxExp64)},
-	{float64(maxFloat64_1), fmt.Sprintf("%dp+%d", maxMant64-1, maxExp64)},
-	{float64(maxFloat64_2), fmt.Sprintf("%dp+%d", maxMant64-2, maxExp64)},
+	{float64(maxFloat64_0), fmt.Sprintf("%dp+%d", int64(maxMant64-0), maxExp64)},
+	{float64(maxFloat64_1), fmt.Sprintf("%dp+%d", int64(maxMant64-1), maxExp64)},
+	{float64(maxFloat64_2), fmt.Sprintf("%dp+%d", int64(maxMant64-2), maxExp64)},
 
-	{float32(-maxFloat32_0), fmt.Sprintf("-%dp+%d", maxMant32-0, maxExp32)},
-	{float32(-maxFloat32_1), fmt.Sprintf("-%dp+%d", maxMant32-1, maxExp32)},
-	{float32(-maxFloat32_2), fmt.Sprintf("-%dp+%d", maxMant32-2, maxExp32)},
+	{float32(-maxFloat32_0), fmt.Sprintf("-%dp+%d", int32(maxMant32-0), maxExp32)},
+	{float32(-maxFloat32_1), fmt.Sprintf("-%dp+%d", int32(maxMant32-1), maxExp32)},
+	{float32(-maxFloat32_2), fmt.Sprintf("-%dp+%d", int32(maxMant32-2), maxExp32)},
 
-	{float64(-maxFloat64_0), fmt.Sprintf("-%dp+%d", maxMant64-0, maxExp64)},
-	{float64(-maxFloat64_1), fmt.Sprintf("-%dp+%d", maxMant64-1, maxExp64)},
-	{float64(-maxFloat64_2), fmt.Sprintf("-%dp+%d", maxMant64-2, maxExp64)},
+	{float64(-maxFloat64_0), fmt.Sprintf("-%dp+%d", int64(maxMant64-0), maxExp64)},
+	{float64(-maxFloat64_1), fmt.Sprintf("-%dp+%d", int64(maxMant64-1), maxExp64)},
+	{float64(-maxFloat64_2), fmt.Sprintf("-%dp+%d", int64(maxMant64-2), maxExp64)},
 }
 
 func main() {
