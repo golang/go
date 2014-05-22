@@ -472,6 +472,12 @@ func (check *checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
 			// and we don't care if a constructed AST has more.
 			name := f.Names[0]
 			pos := name.Pos()
+			// spec: "As with all method sets, in an interface type,
+			// each method must have a unique non-blank name."
+			if name.Name == "_" {
+				check.errorf(pos, "invalid method name _")
+				continue
+			}
 			// Don't type-check signature yet - use an
 			// empty signature now and update it later.
 			// Since we know the receiver, set it up now
@@ -483,10 +489,6 @@ func (check *checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
 			sig := new(Signature)
 			sig.recv = NewVar(pos, check.pkg, "", recvTyp)
 			m := NewFunc(pos, check.pkg, name.Name, sig)
-			// spec: "As with all method sets, in an interface type,
-			// each method must have a unique name."
-			// (The spec does not exclude blank _ identifiers for
-			// interface methods.)
 			if check.declareInSet(&mset, pos, m) {
 				iface.methods = append(iface.methods, m)
 				iface.allMethods = append(iface.allMethods, m)
