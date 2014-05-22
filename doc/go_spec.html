@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 20, 2014",
+	"Subtitle": "Version of May 22, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -696,19 +696,19 @@ and <code>T4</code> is <code>[]T1</code>.
 
 <h3 id="Method_sets">Method sets</h3>
 <p>
-A type may have a <i>method set</i> associated with it
-(§<a href="#Interface_types">Interface types</a>, §<a href="#Method_declarations">Method declarations</a>).
+A type may have a <i>method set</i> associated with it.
 The method set of an <a href="#Interface_types">interface type</a> is its interface.
-The method set of any other type <code>T</code>
-consists of all methods with receiver type <code>T</code>.
-The method set of the corresponding pointer type <code>*T</code>
-is the set of all methods with receiver <code>*T</code> or <code>T</code>
+The method set of any other type <code>T</code> consists of all
+<a href="#Method_declarations">methods</a> declared with receiver type <code>T</code>.
+The method set of the corresponding <a href="#Pointer_types">pointer type</a> <code>*T</code>
+is the set of all methods declared with receiver <code>*T</code> or <code>T</code>
 (that is, it also contains the method set of <code>T</code>).
 Further rules apply to structs containing anonymous fields, as described
 in the section on <a href="#Struct_types">struct types</a>.
 Any other type has an empty method set.
 In a method set, each method must have a
-<a href="#Uniqueness_of_identifiers">unique</a> <a href="#MethodName">method name</a>.
+<a href="#Uniqueness_of_identifiers">unique</a>
+non-<a href="#Blank_identifier">blank</a> <a href="#MethodName">method name</a>.
 </p>
 
 <p>
@@ -818,8 +818,8 @@ ElementType = Type .
 </pre>
 
 <p>
-The length is part of the array's type; it must evaluate to a non-
-negative <a href="#Constants">constant</a> representable by a value
+The length is part of the array's type; it must evaluate to a
+non-negative <a href="#Constants">constant</a> representable by a value
 of type <code>int</code>.
 The length of array <code>a</code> can be discovered
 using the built-in function <a href="#Length_and_capacity"><code>len</code></a>.
@@ -1109,7 +1109,8 @@ InterfaceTypeName  = TypeName .
 
 <p>
 As with all method sets, in an interface type, each method must have a
-<a href="#Uniqueness_of_identifiers">unique</a> name.
+<a href="#Uniqueness_of_identifiers">unique</a>
+non-<a href="#Blank_identifier">blank</a> name.
 </p>
 
 <pre>
