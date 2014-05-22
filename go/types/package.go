@@ -16,9 +16,13 @@ type Package struct {
 	fake     bool // scope lookup errors are silently dropped if package is fake (internal use only)
 }
 
-// NewPackage returns a new Package for the given package path and name.
+// NewPackage returns a new Package for the given package path and name;
+// the name must not be the blank identifier.
 // The package is not complete and contains no explicit imports.
 func NewPackage(path, name string) *Package {
+	if name == "_" {
+		panic("invalid package name _")
+	}
 	scope := NewScope(Universe, fmt.Sprintf("package %q", path))
 	return &Package{path: path, name: name, scope: scope}
 }

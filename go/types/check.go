@@ -162,7 +162,11 @@ func (check *checker) initFiles(files []*ast.File) {
 	for i, file := range files {
 		switch name := file.Name.Name; pkg.name {
 		case "":
-			pkg.name = name
+			if name != "_" {
+				pkg.name = name
+			} else {
+				check.errorf(file.Name.Pos(), "invalid package name _")
+			}
 			fallthrough
 
 		case name:
