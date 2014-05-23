@@ -46,6 +46,7 @@ func (p *Process) Wait() (*ProcessState, error) {
 }
 
 // Signal sends a signal to the Process.
+// Sending Interrupt on Windows is not implemented.
 func (p *Process) Signal(sig Signal) error {
 	return p.signal(sig)
 }
