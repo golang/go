@@ -1620,6 +1620,7 @@ func (v Value) SetCap(n int) {
 // SetMapIndex sets the value associated with key in the map v to val.
 // It panics if v's Kind is not Map.
 // If val is the zero Value, SetMapIndex deletes the key from the map.
+// Otherwise if v holds a nil map, SetMapIndex will panic.
 // As in Go, key's value must be assignable to the map's key type,
 // and val's value must be assignable to the map's value type.
 func (v Value) SetMapIndex(key, val Value) {
