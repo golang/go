@@ -15,7 +15,7 @@ Prerequisites
 
 Native Client programs are executed inside a sandbox, the NaCl runtime. This runtime must be installed before you can use NaCl programs.
 
-The NaCl distribution comes with an installer which ensures you have access to the latest version of the runtime. The version tracks the Chome numbering scheme.
+The NaCl distribution comes with an installer which ensures you have access to the latest version of the runtime. The version tracks the Chrome numbering scheme.
 
 # Download NaCl
 
