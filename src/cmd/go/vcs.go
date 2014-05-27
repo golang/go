@@ -354,6 +354,8 @@ type repoRoot struct {
 	root string
 }
 
+var httpPrefixRE = regexp.MustCompile(`^https?:`)
+
 // repoRootForImportPath analyzes importPath to determine the
 // version control system, and code repository to use.
 func repoRootForImportPath(importPath string) (*repoRoot, error) {
@@ -390,8 +392,12 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
 //
 // If scheme is non-empty, that scheme is forced.
 func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
-	if strings.Contains(importPath, "://") {
-		return nil, fmt.Errorf("invalid import path %q", importPath)
+	// A common error is to use https://packagepath because that's what
+	// hg and git require. Diagnose this helpfully.
+	if loc := httpPrefixRE.FindStringIndex(importPath); loc != nil {
+		// The importPath has been cleaned, so has only one slash. The pattern
+		// ignores the slashes; the error message puts them back on the RHS at least.
+		return nil, fmt.Errorf("%q not allowed in import path", importPath[loc[0]:loc[1]]+"//")
 	}
 	for _, srv := range vcsPaths {
 		if !strings.HasPrefix(importPath, srv.prefix) {
