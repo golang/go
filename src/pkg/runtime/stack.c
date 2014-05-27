@@ -344,6 +344,8 @@ copyabletopsegment(G *gp)
 		if(d->argp < cinfo.stk || cinfo.base <= d->argp)
 			break; // a defer for the next segment
 		fn = d->fn;
+		if(fn == nil) // See issue 8047
+			continue;
 		f = runtime·findfunc((uintptr)fn->fn);
 		if(f == nil)
 			return -1;
@@ -552,13 +554,19 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 		}
 		if(d->argp < adjinfo->oldstk || adjinfo->oldbase <= d->argp)
 			break; // a defer for the next segment
-		f = runtime·findfunc((uintptr)d->fn->fn);
+		fn = d->fn;
+		if(fn == nil) {
+			// Defer of nil function.  It will panic when run, and there
+			// aren't any args to adjust.  See issue 8047.
+			d->argp += adjinfo->delta;
+			continue;
+		}
+		f = runtime·findfunc((uintptr)fn->fn);
 		if(f == nil)
 			runtime·throw("can't adjust unknown defer");
 		if(StackDebug >= 4)
 			runtime·printf("  checking defer %s\n", runtime·funcname(f));
 		// Defer's FuncVal might be on the stack
-		fn = d->fn;
 		if(adjinfo->oldstk <= (byte*)fn && (byte*)fn < adjinfo->oldbase) {
 			if(StackDebug >= 3)
 				runtime·printf("    adjust defer fn %s\n", runtime·funcname(f));
