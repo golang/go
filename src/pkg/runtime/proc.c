@@ -1816,6 +1816,10 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	int32 siz;
 
 //runtime·printf("newproc1 %p %p narg=%d nret=%d\n", fn->fn, argp, narg, nret);
+	if(fn == nil) {
+		m->throwing = -1;  // do not dump full stacks
+		runtime·throw("go of nil func value");
+	}
 	m->locks++;  // disable preemption because it can be holding p in a local var
 	siz = narg + nret;
 	siz = (siz+7) & ~7;
