@@ -951,6 +951,7 @@ unary:
 	case TUP(OCONV, CTFLT):
 	case TUP(OCONV, CTSTR):
 		convlit1(&nl, n->type, 1);
+		v = nl->val;
 		break;
 
 	case TUP(OPLUS, CTINT):
