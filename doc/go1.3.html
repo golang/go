@@ -253,7 +253,13 @@ with the effect that the Go compiler could not diagnose passing one kind of stru
 to a function expecting another.
 Go 1.3 corrects this mistake by translating each different
 incomplete struct to a different named type.
-However, some Go code took advantage of this bug to pass (for example) a <code>*C.FILE</code>
+</p>
+
+<p>
+Given the C declaration <code>typedef struct S T</code> for an incomplete <code>struct S</code>,
+some Go code used this bug to refer to the types <code>C.struct_S</code> and <code>C.T</code> interchangeably.
+Cgo now explicitly allows this use, even for completed struct types.
+However, some Go code also used this bug to pass (for example) a <code>*C.FILE</code>
 from one package to another.
 This is not legal and no longer works: in general Go packages
 should avoid exposing C types and names in their APIs.
