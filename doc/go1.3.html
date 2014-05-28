@@ -398,13 +398,6 @@ See the relevant package documentation for more information about each change.
 
 <ul>
 
-<li>
-The complex power function, <a href="/pkg/math/cmplx/#Pow"><code>Pow</code></a>,
-now specifies the behavior when the first argument is zero.
-It was undefined before.
-The details are in the <a href="/pkg/math/cmplx/#Pow">documentation for the function</a>.
-</li>
-
 <li> In the <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package,
 a new <a href="/pkg/crypto/tls/#DialWithDialer"><code>DialWithDialer</code></a>
 function lets one establish a TLS connection using an existing dialer, making it easier
@@ -423,6 +416,22 @@ signature requests.
 <li>
 The formatted print functions of the <code>fmt</code> package now define <code>%F</code>
 as a synonym for <code>%f</code> when printing floating-point values.
+</li>
+
+<li>
+The <a href="/pkg/math/big/"><code>math/big</code></a> package's
+<a href="/pkg/math/big/#Int"><code>Int</code></a> and
+<a href="/pkg/math/big/#Rat"><code>Rat</code></a> types
+now implement
+<a href="/pkg/encoding/#TextMarshaler"><code>encoding.TextMarshaler</code></a> and
+<a href="/pkg/encoding/#TextUnmarshaler"><code>encoding.TextUnmarshaler</code></a>.
+</li>
+
+<li>
+The complex power function, <a href="/pkg/math/cmplx/#Pow"><code>Pow</code></a>,
+now specifies the behavior when the first argument is zero.
+It was undefined before.
+The details are in the <a href="/pkg/math/cmplx/#Pow">documentation for the function</a>.
 </li>
 
 <li>
