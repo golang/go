@@ -158,6 +158,14 @@ func TestGoexitCrash(t *testing.T) {
 	}
 }
 
+func TestGoNil(t *testing.T) {
+	output := executeTest(t, goNilSource, nil)
+	want := "go of nil func value"
+	if !strings.Contains(output, want) {
+		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
+	}
+}
+
 const crashSource = `
 package main
 
@@ -341,5 +349,18 @@ func main() {
 	runtime.SetFinalizer(&i, func(p *int) {})
 	runtime.GC()
 	runtime.Goexit()
+}
+`
+
+const goNilSource = `
+package main
+
+func main() {
+	defer func() {
+		recover()
+	}()
+	var f func()
+	go f()
+	select{}
 }
 `
