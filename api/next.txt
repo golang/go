@@ -330,12 +330,7 @@ pkg net/http, type Server struct, ConnState func(net.Conn, ConnState)
 pkg net/http, type Server struct, ErrorLog *log.Logger
 pkg net/http, type Transport struct, TLSHandshakeTimeout time.Duration
 pkg regexp/syntax, method (*Inst) MatchRunePos(int32) int
-pkg regexp/syntax, method (*Inst) OnePassNext(int32) uint32
-pkg regexp/syntax, method (*Prog) CompileOnePass() *Prog
-pkg regexp/syntax, method (*Prog) OnePassPrefix() (string, bool, uint32)
 pkg regexp/syntax, method (InstOp) String() string
-pkg regexp/syntax, type Inst struct, Next []uint32
-pkg regexp/syntax, var NotOnePass *Prog
 pkg runtime/debug, func SetPanicOnFault(bool) bool
 pkg runtime/debug, func WriteHeapDump(uintptr)
 pkg sync, method (*Pool) Get() interface{}

@@ -83,7 +83,7 @@ type Regexp struct {
 	// read-only after Compile
 	expr           string         // as passed to Compile
 	prog           *syntax.Prog   // compiled program
-	onepass        *syntax.Prog   // onpass program or nil
+	onepass        *onePassProg   // onpass program or nil
 	prefix         string         // required prefix in unanchored matches
 	prefixBytes    []byte         // prefix, as a []byte
 	prefixComplete bool           // prefix is the entire regexp
@@ -165,16 +165,16 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 	regexp := &Regexp{
 		expr:        expr,
 		prog:        prog,
-		onepass:     prog.CompileOnePass(),
+		onepass:     compileOnePass(prog),
 		numSubexp:   maxCap,
 		subexpNames: capNames,
 		cond:        prog.StartCond(),
 		longest:     longest,
 	}
-	if regexp.onepass == syntax.NotOnePass {
+	if regexp.onepass == notOnePass {
 		regexp.prefix, regexp.prefixComplete = prog.Prefix()
 	} else {
-		regexp.prefix, regexp.prefixComplete, regexp.prefixEnd = prog.OnePassPrefix()
+		regexp.prefix, regexp.prefixComplete, regexp.prefixEnd = onePassPrefix(prog)
 	}
 	if regexp.prefix != "" {
 		// TODO(rsc): Remove this allocation by adding

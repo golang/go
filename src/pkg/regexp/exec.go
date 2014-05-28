@@ -37,7 +37,7 @@ type thread struct {
 type machine struct {
 	re       *Regexp      // corresponding Regexp
 	p        *syntax.Prog // compiled program
-	op       *syntax.Prog // compiled onepass program, or syntax.NotOnePass
+	op       *onePassProg // compiled onepass program, or notOnePass
 	q0, q1   queue        // two queues for runq, nextq
 	pool     []*thread    // pool of available threads
 	matched  bool         // whether a match was found
@@ -67,7 +67,7 @@ func (m *machine) newInputReader(r io.RuneReader) input {
 }
 
 // progMachine returns a new machine running the prog p.
-func progMachine(p, op *syntax.Prog) *machine {
+func progMachine(p *syntax.Prog, op *onePassProg) *machine {
 	m := &machine{p: p, op: op}
 	n := len(m.p.Inst)
 	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
@@ -382,7 +382,7 @@ func (m *machine) onepass(i input, pos int) bool {
 			}
 		// peek at the input rune to see which branch of the Alt to take
 		case syntax.InstAlt, syntax.InstAltMatch:
-			pc = int(inst.OnePassNext(r))
+			pc = int(onePassNext(&inst, r))
 			continue
 		case syntax.InstFail:
 			return m.matched
@@ -429,7 +429,7 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 	} else {
 		i = m.newInputString(s)
 	}
-	if m.op != syntax.NotOnePass {
+	if m.op != notOnePass {
 		if !m.onepass(i, pos) {
 			re.put(m)
 			return nil
