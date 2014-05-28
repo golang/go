@@ -956,7 +956,7 @@ nilwalkback(NilFlow *rcheck)
 static void
 nilwalkfwd(NilFlow *rcheck)
 {
-	NilFlow *r;
+	NilFlow *r, *last;
 	Prog *p;
 	ProgInfo info;
 	
@@ -967,6 +967,7 @@ nilwalkfwd(NilFlow *rcheck)
 	// avoid problems like:
 	//	_ = *x // should panic
 	//	for {} // no writes but infinite loop may be considered visible
+	last = nil;
 	for(r = (NilFlow*)uniqs(&rcheck->f); r != nil; r = (NilFlow*)uniqs(&r->f)) {
 		p = r->f.prog;
 		proginfo(&info, p);
@@ -989,5 +990,12 @@ nilwalkfwd(NilFlow *rcheck)
 		// Stop if memory write.
 		if((info.flags & RightWrite) && !regtyp(&p->to))
 			return;
+		// Stop if we jump backward.
+		// This test is valid because all the NilFlow* are pointers into
+		// a single contiguous array. We will need to add an explicit
+		// numbering when the code is converted to Go.
+		if(last != nil && r <= last)
+			return;
+		last = r;
 	}
 }
