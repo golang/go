@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 22, 2014",
+	"Subtitle": "Version of May 28, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -5093,7 +5093,8 @@ func f(n int) (res int, err error) {
 A "break" statement terminates execution of the innermost
 <a href="#For_statements">"for"</a>,
 <a href="#Switch_statements">"switch"</a>, or
-<a href="#Select_statements">"select"</a> statement.
+<a href="#Select_statements">"select"</a> statement
+within the same function.
 </p>
 
 <pre class="ebnf">
@@ -5127,6 +5128,7 @@ OuterLoop:
 <p>
 A "continue" statement begins the next iteration of the
 innermost <a href="#For_statements">"for" loop</a> at its post statement.
+The "for" loop must be within the same function.
 </p>
 
 <pre class="ebnf">
@@ -5154,7 +5156,8 @@ RowLoop:
 <h3 id="Goto_statements">Goto statements</h3>
 
 <p>
-A "goto" statement transfers control to the statement with the corresponding label.
+A "goto" statement transfers control to the statement with the corresponding label
+within the same function.
 </p>
 
 <pre class="ebnf">
