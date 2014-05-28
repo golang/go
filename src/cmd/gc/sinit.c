@@ -354,6 +354,7 @@ staticcopy(Node *l, Node *r, NodeList **out)
 			else {
 				ll = nod(OXXX, N, N);
 				*ll = n1;
+				ll->orig = ll; // completely separate copy
 				if(!staticassign(ll, e->expr, out)) {
 					// Requires computation, but we're
 					// copying someone else's computation.
