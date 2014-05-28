@@ -71,14 +71,14 @@ const maxTests = 5000
 func main() {
 	flag.Parse()
 
-	// Disable parallelism if printing
-	if *verbose {
-		*numParallel = 1
-	}
-
 	goos = os.Getenv("GOOS")
 	goarch = os.Getenv("GOARCH")
 	findExecCmd()
+
+	// Disable parallelism if printing or if using a simulator.
+	if *verbose || len(findExecCmd()) > 0 {
+		*numParallel = 1
+	}
 
 	ratec = make(chan bool, *numParallel)
 	rungatec = make(chan bool, *runoutputLimit)
