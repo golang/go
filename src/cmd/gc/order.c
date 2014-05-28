@@ -409,14 +409,13 @@ ordercallargs(NodeList **l, Order *order)
 }
 
 // Ordercall orders the call expression n.
-// n->op is  OCALLMETH/OCALLFUNC/OCALLINTER.
+// n->op is OCALLMETH/OCALLFUNC/OCALLINTER or a builtin like OCOPY.
 static void
-ordercall(Node *n, Order *order, int special)
+ordercall(Node *n, Order *order)
 {
 	orderexpr(&n->left, order);
+	orderexpr(&n->right, order); // ODDDARG temp
 	ordercallargs(&n->list, order);
-	if(!special)
-		orderexpr(&n->right, order); // ODDDARG temp
 }
 
 // Ordermapassign appends n to order->out, introducing temporaries
@@ -580,7 +579,7 @@ orderstmt(Node *n, Order *order)
 		// Special: avoid copy of func call n->rlist->n.
 		t = marktemp(order);
 		orderexprlist(n->list, order);
-		ordercall(n->rlist->n, order, 0);
+		ordercall(n->rlist->n, order);
 		ordermapassign(n, order);
 		cleantemp(t, order);
 		break;
@@ -631,7 +630,7 @@ orderstmt(Node *n, Order *order)
 	case OCALLMETH:
 		// Special: handle call arguments.
 		t = marktemp(order);
-		ordercall(n, order, 0);
+		ordercall(n, order);
 		order->out = list(order->out, n);
 		cleantemp(t, order);
 		break;
@@ -652,7 +651,7 @@ orderstmt(Node *n, Order *order)
 			poptemp(t1, order);
 			break;
 		default:
-			ordercall(n->left, order, 1);
+			ordercall(n->left, order);
 			break;
 		}
 		order->out = list(order->out, n);
@@ -1023,7 +1022,7 @@ orderexpr(Node **np, Order *order)
 	case OCALLINTER:
 	case OAPPEND:
 	case OCOMPLEX:
-		ordercall(n, order, 0);
+		ordercall(n, order);
 		n = ordercopyexpr(n, n->type, order, 0);
 		break;
 
