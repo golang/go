@@ -1438,6 +1438,8 @@ funccompile(Node *n, int isclosure)
 	
 	// record offset to actual frame pointer.
 	// for closure, have to skip over leading pointers and PC slot.
+	// TODO(rsc): this is the old jit closure handling code.
+	// with the new closures, isclosure is always 0; delete this block.
 	nodfp->xoffset = 0;
 	if(isclosure) {
 		NodeList *l;

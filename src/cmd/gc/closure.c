@@ -374,6 +374,8 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 	cv = nod(OCLOSUREVAR, N, N);
 	cv->xoffset = widthptr;
 	cv->type = rcvrtype;
+	if(cv->type->align > widthptr)
+		cv->xoffset = cv->type->align;
 	ptr = nod(ONAME, N, N);
 	ptr->sym = lookup("rcvr");
 	ptr->class = PAUTO;
