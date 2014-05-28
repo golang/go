@@ -269,39 +269,30 @@ pkg debug/pe, type OptionalHeader64 struct, SizeOfStackReserve uint64
 pkg debug/pe, type OptionalHeader64 struct, SizeOfUninitializedData uint32
 pkg debug/pe, type OptionalHeader64 struct, Subsystem uint16
 pkg debug/pe, type OptionalHeader64 struct, Win32VersionValue uint32
+pkg debug/plan9obj, const Magic386 = 491
+pkg debug/plan9obj, const Magic386 ideal-int
+pkg debug/plan9obj, const Magic64 = 32768
+pkg debug/plan9obj, const Magic64 ideal-int
+pkg debug/plan9obj, const MagicAMD64 = 35479
+pkg debug/plan9obj, const MagicAMD64 ideal-int
+pkg debug/plan9obj, const MagicARM = 1607
+pkg debug/plan9obj, const MagicARM ideal-int
 pkg debug/plan9obj, func NewFile(io.ReaderAt) (*File, error)
 pkg debug/plan9obj, func Open(string) (*File, error)
 pkg debug/plan9obj, method (*File) Close() error
 pkg debug/plan9obj, method (*File) Section(string) *Section
 pkg debug/plan9obj, method (*File) Symbols() ([]Sym, error)
-pkg debug/plan9obj, method (*FormatError) Error() string
-pkg debug/plan9obj, method (*Prog) Open() io.ReadSeeker
 pkg debug/plan9obj, method (*Section) Data() ([]uint8, error)
 pkg debug/plan9obj, method (*Section) Open() io.ReadSeeker
-pkg debug/plan9obj, method (Prog) ReadAt([]uint8, int64) (int, error)
 pkg debug/plan9obj, method (Section) ReadAt([]uint8, int64) (int, error)
-pkg debug/plan9obj, type ExecTable struct
-pkg debug/plan9obj, type ExecTable struct, Hsize uint32
-pkg debug/plan9obj, type ExecTable struct, Magic string
-pkg debug/plan9obj, type ExecTable struct, Ptrsz int
 pkg debug/plan9obj, type File struct
 pkg debug/plan9obj, type File struct, Sections []*Section
 pkg debug/plan9obj, type File struct, embedded FileHeader
 pkg debug/plan9obj, type FileHeader struct
-pkg debug/plan9obj, type FileHeader struct, Ptrsz int
-pkg debug/plan9obj, type FormatError struct
-pkg debug/plan9obj, type Prog struct
-pkg debug/plan9obj, type Prog struct, embedded ProgHeader
-pkg debug/plan9obj, type Prog struct, embedded io.ReaderAt
-pkg debug/plan9obj, type ProgHeader struct
-pkg debug/plan9obj, type ProgHeader struct, Bss uint32
-pkg debug/plan9obj, type ProgHeader struct, Data uint32
-pkg debug/plan9obj, type ProgHeader struct, Entry uint64
-pkg debug/plan9obj, type ProgHeader struct, Magic uint32
-pkg debug/plan9obj, type ProgHeader struct, Pcsz uint32
-pkg debug/plan9obj, type ProgHeader struct, Spsz uint32
-pkg debug/plan9obj, type ProgHeader struct, Syms uint32
-pkg debug/plan9obj, type ProgHeader struct, Text uint32
+pkg debug/plan9obj, type FileHeader struct, Bss uint32
+pkg debug/plan9obj, type FileHeader struct, Entry uint64
+pkg debug/plan9obj, type FileHeader struct, Magic uint32
+pkg debug/plan9obj, type FileHeader struct, PtrSize int
 pkg debug/plan9obj, type Section struct
 pkg debug/plan9obj, type Section struct, embedded SectionHeader
 pkg debug/plan9obj, type Section struct, embedded io.ReaderAt
