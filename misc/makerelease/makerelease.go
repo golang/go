@@ -12,13 +12,11 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
@@ -27,6 +25,9 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"code.google.com/p/goauth2/oauth"
+	"code.google.com/p/google-api-go-client/storage/v1beta2"
 )
 
 var (
@@ -40,8 +41,10 @@ var (
 	includeRace     = flag.Bool("race", true, "build race detector packages")
 	versionOverride = flag.String("version", "", "override version name")
 	staticToolchain = flag.Bool("static", true, "try to build statically linked toolchain (only supported on ELF targets)")
+	tokenCache      = flag.String("token", defaultCacheFile, "Authentication token cache file")
+	storageBucket   = flag.String("bucket", "golang", "Cloud Storage Bucket")
 
-	username, password string // for Google Code upload
+	defaultCacheFile = filepath.Join(os.Getenv("HOME"), ".makerelease-request-token")
 )
 
 const (
@@ -119,6 +122,12 @@ var staticLinkAvailable = []string{
 
 var fileRe = regexp.MustCompile(`^(go[a-z0-9-.]+)\.(src|([a-z0-9]+)-([a-z0-9]+)(?:-([a-z0-9.]+))?)\.(tar\.gz|zip|pkg|msi)$`)
 
+// OAuth2-authenticated HTTP client used to make calls to Cloud Storage.
+var oauthClient *http.Client
+
+// Builder key as specified in ~/.gobuildkey
+var builderKey string
+
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [flags] targets...\n", os.Args[0])
@@ -135,7 +144,10 @@ func main() {
 
 	if *upload {
 		if err := readCredentials(); err != nil {
-			log.Println("readCredentials:", err)
+			log.Fatalln("readCredentials:", err)
+		}
+		if err := setupOAuthClient(); err != nil {
+			log.Fatalln("setupOAuthClient:", err)
 		}
 	}
 	for _, targ := range flag.Args() {
@@ -641,121 +653,56 @@ func (b *Build) env() []string {
 }
 
 func (b *Build) Upload(version string, filename string) error {
-	// Prepare upload metadata.
-	var labels []string
-	os_, arch := b.OS, b.Arch
-	switch b.Arch {
-	case "386":
-		arch = "x86 32-bit"
-	case "amd64":
-		arch = "x86 64-bit"
-	}
-	if arch != "" {
-		labels = append(labels, "Arch-"+b.Arch)
-	}
-	var opsys, ftype string // labels
-	switch b.OS {
-	case "linux":
-		os_ = "Linux"
-		opsys = "Linux"
-	case "freebsd":
-		os_ = "FreeBSD"
-		opsys = "FreeBSD"
-	case "darwin":
-		os_ = "Mac OS X"
-		opsys = "OSX"
-	case "netbsd":
-		os_ = "NetBSD"
-		opsys = "NetBSD"
-	case "windows":
-		os_ = "Windows"
-		opsys = "Windows"
-	}
-	summary := fmt.Sprintf("%s %s (%s)", version, os_, arch)
-	switch {
-	case strings.HasSuffix(filename, ".msi"):
-		ftype = "Installer"
-		summary += " MSI installer"
-	case strings.HasSuffix(filename, ".pkg"):
-		ftype = "Installer"
-		summary += " PKG installer"
-	case strings.HasSuffix(filename, ".zip"):
-		ftype = "Archive"
-		summary += " ZIP archive"
-	case strings.HasSuffix(filename, ".tar.gz"):
-		ftype = "Archive"
-		summary += " tarball"
-	}
-	if b.Source {
-		ftype = "Source"
-		summary = fmt.Sprintf("%s (source only)", version)
-	}
-	if opsys != "" {
-		labels = append(labels, "OpSys-"+opsys)
-	}
-	if ftype != "" {
-		labels = append(labels, "Type-"+ftype)
-	}
-	if b.Label != "" {
-		labels = append(labels, b.Label)
-	}
-	if *addLabel != "" {
-		labels = append(labels, *addLabel)
-	}
-	// Put "Go" prefix on summary when it doesn't already begin with "go".
-	if !strings.HasPrefix(strings.ToLower(summary), "go") {
-		summary = "Go " + summary
+	svc, err := storage.New(oauthClient)
+	if err != nil {
+		return err
 	}
 
-	// Open file to upload.
+	obj := &storage.Object{
+		Acl:  []*storage.ObjectAccessControl{{Entity: "allUsers", Role: "READER"}},
+		Name: filename,
+	}
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-
-	// Prepare multipart payload.
-	body := new(bytes.Buffer)
-	w := multipart.NewWriter(body)
-	if err := w.WriteField("summary", summary); err != nil {
+	_, err = svc.Objects.Insert(*storageBucket, obj).Media(f).Do()
+	if err != nil {
 		return err
 	}
-	for _, l := range labels {
-		if err := w.WriteField("label", l); err != nil {
+
+	return nil
+}
+
+func setupOAuthClient() error {
+	config := &oauth.Config{
+		ClientId:     "999119582588-h7kpj5pcm6d9solh5lgrbusmvvk4m9dn.apps.googleusercontent.com",
+		ClientSecret: "8YLFgOhXIELWbO",
+		Scope:        storage.DevstorageRead_writeScope,
+		AuthURL:      "https://accounts.google.com/o/oauth2/auth",
+		TokenURL:     "https://accounts.google.com/o/oauth2/token",
+		TokenCache:   oauth.CacheFile(*tokenCache),
+		RedirectURL:  "oob",
+	}
+	transport := &oauth.Transport{Config: config}
+	if token, err := config.TokenCache.Token(); err != nil {
+		url := transport.Config.AuthCodeURL("")
+		fmt.Println("Visit the following URL, obtain an authentication" +
+			"code, and enter it below.")
+		fmt.Println(url)
+		fmt.Print("Enter authentication code: ")
+		code := ""
+		if _, err := fmt.Scan(&code); err != nil {
 			return err
 		}
+		if _, err := transport.Exchange(code); err != nil {
+			return err
+		}
+	} else {
+		transport.Token = token
 	}
-	fw, err := w.CreateFormFile("filename", filename)
-	if err != nil {
-		return err
-	}
-	if _, err = io.Copy(fw, f); err != nil {
-		return err
-	}
-	if err := w.Close(); err != nil {
-		return err
-	}
-
-	// Send the file to Google Code.
-	req, err := http.NewRequest("POST", uploadURL, body)
-	if err != nil {
-		return err
-	}
-	token := fmt.Sprintf("%s:%s", username, password)
-	token = base64.StdEncoding.EncodeToString([]byte(token))
-	req.Header.Set("Authorization", "Basic "+token)
-	req.Header.Set("Content-type", w.FormDataContentType())
-
-	resp, err := http.DefaultTransport.RoundTrip(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode/100 != 2 {
-		fmt.Fprintln(os.Stderr, "upload failed")
-		defer resp.Body.Close()
-		io.Copy(os.Stderr, resp.Body)
-		return fmt.Errorf("upload: %s", resp.Status)
-	}
+	oauthClient = transport.Client()
 	return nil
 }
 
@@ -785,21 +732,11 @@ func readCredentials() error {
 		return err
 	}
 	defer f.Close()
-	r := bufio.NewReader(f)
-	for i := 0; i < 3; i++ {
-		b, _, err := r.ReadLine()
-		if err != nil {
-			return err
-		}
-		b = bytes.TrimSpace(b)
-		switch i {
-		case 1:
-			username = string(b)
-		case 2:
-			password = string(b)
-		}
+	s := bufio.NewScanner(f)
+	if s.Scan() {
+		builderKey = s.Text()
 	}
-	return nil
+	return s.Err()
 }
 
 func cp(dst, src string) error {
