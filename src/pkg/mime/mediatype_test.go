@@ -293,6 +293,7 @@ var formatTests = []formatTest{
 	{"foo/BAR", map[string]string{"": "empty attribute"}, ""},
 	{"foo/BAR", map[string]string{"bad attribute": "baz"}, ""},
 	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
+	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
 }
 
 func TestFormatMediaType(t *testing.T) {

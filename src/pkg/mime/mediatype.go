@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"unicode"
 )
@@ -31,7 +32,14 @@ func FormatMediaType(t string, param map[string]string) string {
 	b.WriteByte('/')
 	b.WriteString(strings.ToLower(sub))
 
-	for attribute, value := range param {
+	attrs := make([]string, 0, len(param))
+	for a := range param {
+		attrs = append(attrs, a)
+	}
+	sort.Strings(attrs)
+
+	for _, attribute := range attrs {
+		value := param[attribute]
 		b.WriteByte(';')
 		b.WriteByte(' ')
 		if !isToken(attribute) {
