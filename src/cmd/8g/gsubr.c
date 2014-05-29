@@ -1044,6 +1044,7 @@ Node*
 nodarg(Type *t, int fp)
 {
 	Node *n;
+	NodeList *l;
 	Type *first;
 	Iter savet;
 
@@ -1068,6 +1069,14 @@ nodarg(Type *t, int fp)
 		break;
 
 	case TFIELD:
+		if(fp == 1 && t->sym != S && !isblanksym(t->sym)) {
+			for(l=curfn->dcl; l; l=l->next) {
+				n = l->n;
+				if((n->class == PPARAM || n->class == PPARAMOUT) && n->sym == t->sym)
+					return n;
+			}
+		}
+
 		n = nod(ONAME, N, N);
 		n->type = t->type;
 		n->sym = t->sym;
