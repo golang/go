@@ -470,6 +470,7 @@ Node*
 nodarg(Type *t, int fp)
 {
 	Node *n;
+	NodeList *l;
 	Type *first;
 	Iter savet;
 
@@ -490,6 +491,14 @@ nodarg(Type *t, int fp)
 
 	if(t->etype != TFIELD)
 		fatal("nodarg: not field %T", t);
+
+	if(fp == 1) {
+		for(l=curfn->dcl; l; l=l->next) {
+			n = l->n;
+			if((n->class == PPARAM || n->class == PPARAMOUT) && !isblanksym(t->sym) && n->sym == t->sym)
+				return n;
+		}
+	}
 
 	n = nod(ONAME, N, N);
 	n->type = t->type;
