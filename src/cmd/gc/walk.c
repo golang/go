@@ -1652,8 +1652,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
 		// optimization - can do block copy
 		if(eqtypenoname(r->type, *nl)) {
 			a = nodarg(*nl, fp);
-			r = nod(OCONVNOP, r, N);
-			r->type = a->type;
+			a->type = r->type;
 			nn = list1(convas(nod(OAS, a, r), init));
 			goto ret;
 		}

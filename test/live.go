@@ -564,29 +564,3 @@ func f38(b bool) {
 	}
 	println()
 }
-
-// issue 8097: mishandling of x = x during return.
-
-func f39() (x []int) {
-	x = []int{1}
-	println() // ERROR "live at call to printnl: x"
-	return x
-}
-
-func f39a() (x []int) {
-	x = []int{1}
-	println() // ERROR "live at call to printnl: x"
-	return
-}
-
-func f39b() (x [10]*int) {
-	x = [10]*int{new(int)} // ERROR "live at call to new: x"
-	println() // ERROR "live at call to printnl: x"
-	return x
-}
-
-func f39c() (x [10]*int) {
-	x = [10]*int{new(int)} // ERROR "live at call to new: x"
-	println() // ERROR "live at call to printnl: x"
-	return
-}
