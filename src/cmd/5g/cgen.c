@@ -1490,7 +1490,6 @@ sgen(Node *n, Node *res, int64 w)
 	}
 	if(osrc%align != 0 || odst%align != 0)
 		fatal("sgen: unaligned offset src %d or dst %d (align %d)", osrc, odst, align);
-
 	// if we are copying forward on the stack and
 	// the src and dst overlap, then reverse direction
 	dir = align;
@@ -1674,13 +1673,6 @@ componentgen(Node *nr, Node *nl)
 		gmove(&tmp, &nodr);
 		freer = 1;
 	}
-
-	// nl and nr are 'cadable' which basically means they are names (variables) now.
-	// If they are the same variable, don't generate any code, because the
-	// VARDEF we generate will mark the old value as dead incorrectly.
-	// (And also the assignments are useless.)
-	if(nr != N && nl->op == ONAME && nr->op == ONAME && nl == nr)
-		goto yes;
 
 	switch(nl->type->etype) {
 	case TARRAY:

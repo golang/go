@@ -1397,13 +1397,6 @@ componentgen(Node *nr, Node *nl)
 		}
 	}
 
-	// nl and nr are 'cadable' which basically means they are names (variables) now.
-	// If they are the same variable, don't generate any code, because the
-	// VARDEF we generate will mark the old value as dead incorrectly.
-	// (And also the assignments are useless.)
-	if(nr != N && nl->op == ONAME && nr->op == ONAME && nl == nr)
-		goto yes;
-
 	switch(nl->type->etype) {
 	case TARRAY:
 		if(nl->op == ONAME)
