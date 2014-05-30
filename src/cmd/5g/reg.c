@@ -129,13 +129,15 @@ static char* regname[] = {
 
 static Node* regnodes[NREGVAR];
 
+static void walkvardef(Node *n, Reg *r, int active);
+
 void
 regopt(Prog *firstp)
 {
 	Reg *r, *r1;
 	Prog *p;
 	Graph *g;
-	int i, z;
+	int i, z, active;
 	uint32 vreg;
 	Bits bit;
 	ProgInfo info;
@@ -248,6 +250,26 @@ regopt(Prog *firstp)
 
 	if(debug['R'] && debug['v'])
 		dumpit("pass2", &firstr->f, 1);
+
+	/*
+	 * pass 2.5
+	 * iterate propagating fat vardef covering forward
+	 * r->act records vars with a VARDEF since the last CALL.
+	 * (r->act will be reused in pass 5 for something else,
+	 * but we'll be done with it by then.)
+	 */
+	active = 0;
+	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+		r->f.active = 0;
+		r->act = zbits;
+	}
+	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+		p = r->f.prog;
+		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
+			active++;
+			walkvardef(p->to.node, r, active);
+		}
+	}
 
 	/*
 	 * pass 3
@@ -522,6 +544,32 @@ brk:
 			}
 		}
 	}
+}
+
+static void
+walkvardef(Node *n, Reg *r, int active)
+{
+	Reg *r1, *r2;
+	int bn;
+	Var *v;
+	
+	for(r1=r; r1!=R; r1=(Reg*)r1->f.s1) {
+		if(r1->f.active == active)
+			break;
+		r1->f.active = active;
+		if(r1->f.prog->as == AVARKILL && r1->f.prog->to.node == n)
+			break;
+		for(v=n->opt; v!=nil; v=v->nextinnode) {
+			bn = v - var;
+			r1->act.b[bn/32] |= 1L << (bn%32);
+		}
+		if(r1->f.prog->as == ABL)
+			break;
+	}
+
+	for(r2=r; r2!=r1; r2=(Reg*)r2->f.s1)
+		if(r2->f.s2 != nil)
+			walkvardef(n, (Reg*)r2->f.s2, active);
 }
 
 void
@@ -891,8 +939,13 @@ prop(Reg *r, Bits ref, Bits cal)
 			// Mark all input variables (ivar) as used, because that's what the
 			// liveness bitmaps say. The liveness bitmaps say that so that a
 			// panic will not show stale values in the parameter dump.
+			// Mark variables with a recent VARDEF (r1->act) as used,
+			// so that the optimizer flushes initializations to memory,
+			// so that if a garbage collection happens during this CALL,
+			// the collector will see initialized memory. Again this is to
+			// match what the liveness bitmaps say.
 			for(z=0; z<BITS; z++) {
-				cal.b[z] |= ref.b[z] | externs.b[z] | ivar.b[z];
+				cal.b[z] |= ref.b[z] | externs.b[z] | ivar.b[z] | r1->act.b[z];
 				ref.b[z] = 0;
 			}
 			
