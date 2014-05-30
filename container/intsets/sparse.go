@@ -21,6 +21,10 @@ package intsets
 // TODO(adonovan): implement Dense, a dense bit vector with a similar API.
 // The space usage would be proportional to Max(), not Len(), and the
 // implementation would be based upon big.Int.
+//
+// TODO(adonovan): experiment with making the root block indirect (nil
+// iff IsEmpty).  This would reduce the memory usage when empty and
+// might simplify the aliasing invariants.
 
 import (
 	"bytes"
@@ -50,7 +54,7 @@ type word uintptr
 const (
 	_m            = ^word(0)
 	bitsPerWord   = 8 << (_m>>8&1 + _m>>16&1 + _m>>32&1)
-	bitsPerBlock  = 128
+	bitsPerBlock  = 256 // optimal value for go/pointer solver performance
 	wordsPerBlock = bitsPerBlock / bitsPerWord
 )
 
@@ -161,9 +165,9 @@ func (b *block) min(take bool) int {
 		if w != 0 {
 			tz := ntz(w)
 			if take {
-				b.bits[i] = w &^ (1 << tz)
+				b.bits[i] = w &^ (1 << uint(tz))
 			}
-			return b.offset + int(i*bitsPerWord) + int(tz)
+			return b.offset + int(i*bitsPerWord) + tz
 		}
 	}
 	panic("BUG: empty block")

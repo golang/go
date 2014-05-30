@@ -44,11 +44,11 @@ func nlz(x word) int {
 
 // ntz returns the number of trailing zeros of x.
 // From Hacker's Delight, fig 5.13.
-func ntz(x word) word {
+func ntz(x word) int {
 	if x == 0 {
 		return bitsPerWord
 	}
-	var n word = 1
+	n := 1
 	if bitsPerWord == 64 {
 		if (x & 0xffffffff) == 0 {
 			n = n + 32
@@ -71,5 +71,5 @@ func ntz(x word) word {
 		n = n + 2
 		x = x >> 2
 	}
-	return n - x&1
+	return n - int(x&1)
 }
