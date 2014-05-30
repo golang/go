@@ -11,8 +11,6 @@ package pointer
 // memoize as much as possible, like TypeOf and Zero do for their
 // tagged objects.
 //
-// TODO(adonovan): all {} functions are TODO.
-//
 // TODO(adonovan): this file is rather subtle.  Explain how we derive
 // the implementation of each reflect operator from its spec,
 // including the subtleties of reflect.flag{Addr,RO,Indir}.
@@ -151,7 +149,7 @@ func init() {
 
 // -------------------- (reflect.Value) --------------------
 
-func ext۰reflect۰Value۰Addr(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰Value۰Addr(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
 // ---------- func (Value).Bytes() Value ----------
 
@@ -352,7 +350,7 @@ func ext۰reflect۰Value۰CallSlice(a *analysis, cgn *cgnode) {
 	}
 }
 
-func ext۰reflect۰Value۰Convert(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰Value۰Convert(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
 // ---------- func (Value).Elem() Value ----------
 
@@ -411,10 +409,10 @@ func ext۰reflect۰Value۰Elem(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰Value۰Field(a *analysis, cgn *cgnode)           {}
-func ext۰reflect۰Value۰FieldByIndex(a *analysis, cgn *cgnode)    {}
-func ext۰reflect۰Value۰FieldByName(a *analysis, cgn *cgnode)     {}
-func ext۰reflect۰Value۰FieldByNameFunc(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰Value۰Field(a *analysis, cgn *cgnode)           {} // TODO(adonovan)
+func ext۰reflect۰Value۰FieldByIndex(a *analysis, cgn *cgnode)    {} // TODO(adonovan)
+func ext۰reflect۰Value۰FieldByName(a *analysis, cgn *cgnode)     {} // TODO(adonovan)
+func ext۰reflect۰Value۰FieldByNameFunc(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
 // ---------- func (Value).Index() Value ----------
 
@@ -642,8 +640,8 @@ func ext۰reflect۰Value۰MapKeys(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰Value۰Method(a *analysis, cgn *cgnode)       {}
-func ext۰reflect۰Value۰MethodByName(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰Value۰Method(a *analysis, cgn *cgnode)       {} // TODO(adonovan)
+func ext۰reflect۰Value۰MethodByName(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
 // ---------- func (Value).Recv(Value) ----------
 
@@ -749,7 +747,7 @@ func ext۰reflect۰Value۰Send(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰Value۰Set(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰Value۰Set(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
 // ---------- func (Value).SetBytes(x []byte) ----------
 
@@ -857,7 +855,7 @@ func ext۰reflect۰Value۰SetMapIndex(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰Value۰SetPointer(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰Value۰SetPointer(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
 // ---------- func (Value).Slice(v Value, i, j int) ----------
 
@@ -932,9 +930,9 @@ func ext۰reflect۰Value۰Slice(a *analysis, cgn *cgnode) {
 
 // -------------------- Standalone reflect functions --------------------
 
-func ext۰reflect۰Append(a *analysis, cgn *cgnode)      {}
-func ext۰reflect۰AppendSlice(a *analysis, cgn *cgnode) {}
-func ext۰reflect۰Copy(a *analysis, cgn *cgnode)        {}
+func ext۰reflect۰Append(a *analysis, cgn *cgnode)      {} // TODO(adonovan)
+func ext۰reflect۰AppendSlice(a *analysis, cgn *cgnode) {} // TODO(adonovan)
+func ext۰reflect۰Copy(a *analysis, cgn *cgnode)        {} // TODO(adonovan)
 
 // ---------- func ChanOf(ChanDir, Type) Type ----------
 
@@ -961,6 +959,10 @@ func (c *reflectChanOfConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	changed := false
 	for tObj := range delta {
 		T := a.rtypeTaggedValue(tObj)
+
+		if typeTooHigh(T) {
+			continue
+		}
 
 		for _, dir := range c.dirs {
 			if a.addLabel(c.result, a.makeRtype(types.NewChan(dir, T))) {
@@ -1110,7 +1112,7 @@ func ext۰reflect۰MakeChan(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰MakeFunc(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰MakeFunc(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
 // ---------- func MakeMap(Type) Value ----------
 
@@ -1222,7 +1224,7 @@ func ext۰reflect۰MakeSlice(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰MapOf(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰MapOf(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
 // ---------- func New(Type) Value ----------
 
@@ -1310,6 +1312,10 @@ func (c *reflectPtrToConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	for tObj := range delta {
 		T := a.rtypeTaggedValue(tObj)
 
+		if typeTooHigh(T) {
+			continue
+		}
+
 		if a.addLabel(c.result, a.makeRtype(types.NewPointer(T))) {
 			changed = true
 		}
@@ -1327,7 +1333,7 @@ func ext۰reflect۰PtrTo(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰Select(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰Select(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
 // ---------- func SliceOf(Type) Type ----------
 
@@ -1353,6 +1359,10 @@ func (c *reflectSliceOfConstraint) solve(a *analysis, _ *node, delta nodeset) {
 	changed := false
 	for tObj := range delta {
 		T := a.rtypeTaggedValue(tObj)
+
+		if typeTooHigh(T) {
+			continue
+		}
 
 		if a.addLabel(c.result, a.makeRtype(types.NewSlice(T))) {
 			changed = true
@@ -1613,8 +1623,8 @@ func ext۰reflect۰rtype۰Field(a *analysis, cgn *cgnode) {
 	})
 }
 
-func ext۰reflect۰rtype۰FieldByIndex(a *analysis, cgn *cgnode)    {}
-func ext۰reflect۰rtype۰FieldByNameFunc(a *analysis, cgn *cgnode) {}
+func ext۰reflect۰rtype۰FieldByIndex(a *analysis, cgn *cgnode)    {} // TODO(adonovan)
+func ext۰reflect۰rtype۰FieldByNameFunc(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
 // ---------- func (*rtype) In/Out(i int) Type ----------
 
@@ -1843,4 +1853,46 @@ func ext۰reflect۰rtype۰Method(a *analysis, cgn *cgnode) {
 		t:      a.funcParams(cgn.obj),
 		result: a.funcResults(cgn.obj),
 	})
+}
+
+// typeHeight returns the "height" of the type, which is roughly
+// speaking the number of chan, map, pointer and slice type constructors
+// at the root of T; these are the four type kinds that can be created
+// via reflection.  Chan and map constructors are counted as double the
+// height of slice and pointer constructors since they are less often
+// deeply nested.
+//
+// The solver rules for type constructors must somehow bound the set of
+// types they create to ensure termination of the algorithm in cases
+// where the output of a type constructor flows to its input, e.g.
+//
+// 	func f(t reflect.Type) {
+// 		f(reflect.PtrTo(t))
+// 	}
+//
+// It does this by limiting the type height to k, but this still leaves
+// a potentially exponential (4^k) number of of types that may be
+// enumerated in pathological cases.
+//
+func typeHeight(T types.Type) int {
+	switch T := T.(type) {
+	case *types.Chan:
+		return 2 + typeHeight(T.Elem())
+	case *types.Map:
+		k := typeHeight(T.Key())
+		v := typeHeight(T.Elem())
+		if v > k {
+			k = v // max(k, v)
+		}
+		return 2 + k
+	case *types.Slice:
+		return 1 + typeHeight(T.Elem())
+	case *types.Pointer:
+		return 1 + typeHeight(T.Elem())
+	}
+	return 0
+}
+
+func typeTooHigh(T types.Type) bool {
+	return typeHeight(T) > 3
 }

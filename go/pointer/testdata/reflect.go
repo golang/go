@@ -78,10 +78,38 @@ func metareflection() {
 	print(x0a.Interface())                 // @types int
 }
 
+type T struct{}
+
+// When the output of a type constructor flows to its input, we must
+// bound the set of types created to ensure termination of the algorithm.
+func typeCycle() {
+	t := reflect.TypeOf(0)
+	u := reflect.TypeOf("")
+	v := reflect.TypeOf(T{})
+	for unknown {
+		t = reflect.PtrTo(t)
+		t = reflect.SliceOf(t)
+
+		u = reflect.SliceOf(u)
+
+		if unknown {
+			v = reflect.ChanOf(reflect.BothDir, v)
+		} else {
+			v = reflect.PtrTo(v)
+		}
+	}
+
+	// Type height is bounded to about 4 map/slice/chan/pointer constructors.
+	print(reflect.Zero(t).Interface()) // @types int | []*int | []*[]*int
+	print(reflect.Zero(u).Interface()) // @types string | []string | [][]string | [][][]string | [][][][]string
+	print(reflect.Zero(v).Interface()) // @types T | *T | **T | ***T | ****T | chan T | *chan T | **chan T | chan *T | *chan *T | chan **T | chan ***T | chan chan T | chan *chan T | chan chan *T
+}
+
 func main() {
 	reflectIndirect()
 	reflectNewAt()
 	reflectTypeOf()
 	reflectTypeElem()
 	metareflection()
+	typeCycle()
 }
