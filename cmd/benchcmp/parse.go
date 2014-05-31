@@ -114,8 +114,16 @@ func ParseBenchSet(r io.Reader) (BenchSet, error) {
 	for scan.Scan() {
 		if b, err := ParseLine(scan.Text()); err == nil {
 			b.ord = ord
-			bb[b.Name] = append(bb[b.Name], b)
 			ord++
+			old := bb[b.Name]
+			if *best && old != nil {
+				if old[0].NsOp < b.NsOp {
+					continue
+				}
+				b.ord = old[0].ord
+				bb[b.Name] = old[:0]
+			}
+			bb[b.Name] = append(bb[b.Name], b)
 		}
 	}
 

@@ -16,6 +16,7 @@ import (
 var (
 	changedOnly = flag.Bool("changed", false, "show only benchmarks that have changed")
 	magSort     = flag.Bool("mag", false, "sort benchmarks by magnitude of change")
+	best        = flag.Bool("best", false, "compare best times from old and new")
 )
 
 const usageFooter = `

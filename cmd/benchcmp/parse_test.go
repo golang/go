@@ -152,3 +152,43 @@ func TestParseBenchSet(t *testing.T) {
 		t.Errorf("parsed bench set incorrectly, want %v have %v", want, have)
 	}
 }
+
+func TestParseBenchSetBest(t *testing.T) {
+	// Test that -best mode takes best ns/op.
+	*best = true
+	defer func() {
+		*best = false
+	}()
+
+	in := `
+		Benchmark1 10 100 ns/op
+		Benchmark2 10 60 ns/op
+		Benchmark2 10 500 ns/op
+		Benchmark1 10 50 ns/op
+	`
+
+	want := BenchSet{
+		"Benchmark1": []*Bench{
+			{
+				Name: "Benchmark1",
+				N:    10, NsOp: 50, Measured: NsOp,
+				ord: 0,
+			},
+		},
+		"Benchmark2": []*Bench{
+			{
+				Name: "Benchmark2",
+				N:    10, NsOp: 60, Measured: NsOp,
+				ord: 1,
+			},
+		},
+	}
+
+	have, err := ParseBenchSet(strings.NewReader(in))
+	if err != nil {
+		t.Fatalf("unexpected err during ParseBenchSet: %v", err)
+	}
+	if !reflect.DeepEqual(want, have) {
+		t.Errorf("parsed bench set incorrectly, want %v have %v", want, have)
+	}
+}
