@@ -225,7 +225,7 @@ runtime·panic(Eface e)
 	dabort.fn = &abortpanicV;
 	dabort.siz = sizeof(&p);
 	dabort.args[0] = &p;
-	dabort.argp = (void*)-1;  // unused because abortpanic never recovers
+	dabort.argp = NoArgs;
 	dabort.special = true;
 
 	for(;;) {

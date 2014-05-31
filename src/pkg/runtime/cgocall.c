@@ -122,7 +122,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	d.fn = &endcgoV;
 	d.siz = 0;
 	d.link = g->defer;
-	d.argp = (void*)-1;  // unused because unlockm never recovers
+	d.argp = NoArgs;
 	d.special = true;
 	g->defer = &d;
 	
@@ -259,7 +259,7 @@ runtime·cgocallbackg1(void)
 	d.fn = &unwindmf;
 	d.siz = 0;
 	d.link = g->defer;
-	d.argp = (void*)-1;  // unused because unwindm never recovers
+	d.argp = NoArgs;
 	d.special = true;
 	g->defer = &d;
 

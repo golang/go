@@ -703,6 +703,11 @@ struct Defer
 	void*	args[1];	// padded to actual size
 };
 
+// argp used in Defer structs when there is no argp.
+// TODO(rsc): Maybe we could use nil instead, but we've always used -1
+// and I don't want to change this days before the Go 1.3 release.
+#define NoArgs ((byte*)-1)
+
 /*
  * panics
  */
@@ -724,6 +729,7 @@ struct Stkframe
 {
 	Func*	fn;	// function being run
 	uintptr	pc;	// program counter within fn
+	uintptr	continpc;	// program counter where execution can continue, or 0 if not
 	uintptr	lr;	// program counter at caller aka link register
 	uintptr	sp;	// stack pointer at pc
 	uintptr	fp;	// stack pointer at caller aka frame pointer

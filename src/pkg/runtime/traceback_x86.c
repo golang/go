@@ -13,6 +13,8 @@
 #endif
 
 void runtime·sigpanic(void);
+void runtime·newproc(void);
+void runtime·deferproc(void);
 
 #ifdef GOOS_windows
 void runtime·sigtramp(void);
@@ -29,12 +31,14 @@ int32
 runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, bool (*callback)(Stkframe*, void*), void *v, bool printall)
 {
 	int32 i, n, nprint, line, gotraceback;
-	uintptr tracepc;
-	bool waspanic, printing;
+	uintptr tracepc, sparg;
+	bool waspanic, wasnewproc, printing;
 	Func *f, *flr;
 	Stkframe frame;
 	Stktop *stk;
 	String file;
+	Panic *panic;
+	Defer *defer;
 
 	USED(lr0);
 	
@@ -55,8 +59,16 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	frame.pc = pc0;
 	frame.sp = sp0;
 	waspanic = false;
+	wasnewproc = false;
 	printing = pcbuf==nil && callback==nil;
-	
+	panic = gp->panic;
+	defer = gp->defer;
+
+	while(defer != nil && defer->argp == NoArgs)
+		defer = defer->link;	
+	while(panic != nil && panic->defer == nil)
+		panic = panic->link;
+
 	// If the PC is zero, it's likely a nil function call.
 	// Start in the caller's frame.
 	if(frame.pc == 0) {
@@ -119,6 +131,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			
 			// Invoke callback so that stack copier sees an uncopyable frame.
 			if(callback != nil) {
+				frame.continpc = frame.pc;
 				frame.argp = nil;
 				frame.arglen = 0;
 				if(!callback(&frame, v))
@@ -194,6 +207,40 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				frame.arglen = 0;
 			}
 		}
+		
+		// Determine function SP where deferproc would find its arguments.
+		// On x86 that's just the standard bottom-of-stack, so SP exactly.
+		// If the previous frame was a direct call to newproc/deferproc, however,
+		// the SP is two words lower than normal.
+		sparg = frame.sp;
+		if(wasnewproc)
+			sparg += 2*sizeof(uintreg);
+
+		// Determine frame's 'continuation PC', where it can continue.
+		// Normally this is the return address on the stack, but if sigpanic
+		// is immediately below this function on the stack, then the frame
+		// stopped executing due to a trap, and frame.pc is probably not
+		// a safe point for looking up liveness information. In this panicking case,
+		// the function either doesn't return at all (if it has no defers or if the
+		// defers do not recover) or it returns from one of the calls to 
+		// deferproc a second time (if the corresponding deferred func recovers).
+		// It suffices to assume that the most recent deferproc is the one that
+		// returns; everything live at earlier deferprocs is still live at that one.
+		frame.continpc = frame.pc;
+		if(waspanic) {
+			if(panic != nil && panic->defer->argp == (byte*)sparg)
+				frame.continpc = (uintptr)panic->defer->pc;
+			else if(defer != nil && defer->argp == (byte*)sparg)
+				frame.continpc = (uintptr)defer->pc;
+			else
+				frame.continpc = 0;
+		}
+
+		// Unwind our local panic & defer stacks past this frame.
+		while(panic != nil && (panic->defer == nil || panic->defer->argp == (byte*)sparg || panic->defer->argp == NoArgs))
+			panic = panic->link;
+		while(defer != nil && (defer->argp == (byte*)sparg || defer->argp == NoArgs))
+			defer = defer->link;	
 
 		if(skip > 0) {
 			skip--;
@@ -231,7 +278,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				if(frame.pc > f->entry)
 					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
 				if(m->throwing > 0 && gp == m->curg || gotraceback >= 2)
-					runtime·printf(" fp=%p", frame.fp);
+					runtime·printf(" fp=%p sp=%p", frame.fp, frame.sp);
 				runtime·printf("\n");
 				nprint++;
 			}
@@ -240,6 +287,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	
 	skipped:
 		waspanic = f->entry == (uintptr)runtime·sigpanic;
+		wasnewproc = f->entry == (uintptr)runtime·newproc || f->entry == (uintptr)runtime·deferproc;
 
 		// Do not unwind past the bottom of the stack.
 		if(flr == nil)
@@ -255,7 +303,15 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	
 	if(pcbuf == nil && callback == nil)
 		n = nprint;
-	
+
+	if(callback != nil && n < max && (defer != nil || panic != nil)) {
+		if(defer != nil)
+			runtime·printf("runtime: g%D: leftover defer argp=%p pc=%p\n", gp->goid, defer->argp, defer->pc);
+		if(panic != nil)
+			runtime·printf("runtime: g%D: leftover panic argp=%p pc=%p\n", gp->goid, panic->defer->argp, panic->defer->pc);
+		runtime·throw("traceback has leftover defers or panics");
+	}
+
 	return n;
 }
 

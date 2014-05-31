@@ -1574,7 +1574,11 @@ scanframe(Stkframe *frame, void *wbufp)
 	bool precise;
 
 	f = frame->fn;
-	targetpc = frame->pc;
+	targetpc = frame->continpc;
+	if(targetpc == 0) {
+		// Frame is dead.
+		return true;
+	}
 	if(targetpc != f->entry)
 		targetpc--;
 	pcdata = runtime·pcdatavalue(f, PCDATA_StackMapIndex, targetpc);
