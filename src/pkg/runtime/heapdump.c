@@ -17,6 +17,7 @@
 #include "typekind.h"
 #include "funcdata.h"
 #include "zaexperiment.h"
+#include "../../cmd/ld/textflag.h"
 
 extern byte data[];
 extern byte edata[];
@@ -67,6 +68,7 @@ static uintptr dumpfd;
 enum {
 	BufSize = 4096,
 };
+#pragma dataflag NOPTR
 static byte buf[BufSize];
 static uintptr nbuf;
 

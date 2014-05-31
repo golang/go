@@ -28,8 +28,11 @@
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
+#include "../../cmd/ld/textflag.h"
 
+#pragma dataflag NOPTR
 int32 runtime·class_to_size[NumSizeClasses];
+#pragma dataflag NOPTR
 int32 runtime·class_to_allocnpages[NumSizeClasses];
 
 // The SizeToClass lookup is implemented using two arrays,
@@ -41,7 +44,9 @@ int32 runtime·class_to_allocnpages[NumSizeClasses];
 // size divided by 128 (rounded up).  The arrays are filled in
 // by InitSizes.
 
+#pragma dataflag NOPTR
 int8 runtime·size_to_class8[1024/8 + 1];
+#pragma dataflag NOPTR
 int8 runtime·size_to_class128[(MaxSmallSize-1024)/128 + 1];
 
 void runtime·testdefersizes(void);

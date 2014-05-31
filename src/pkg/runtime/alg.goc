@@ -465,6 +465,7 @@ runtime·algarray[] =
 // Runtime helpers.
 
 // used in asm_{386,amd64}.s
+#pragma dataflag NOPTR
 byte runtime·aeskeysched[HashRandomBytes];
 
 void

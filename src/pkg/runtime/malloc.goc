@@ -19,6 +19,7 @@ package runtime
 // Mark mheap as 'no pointers', it does not contain interesting pointers but occupies ~45K.
 #pragma dataflag NOPTR
 MHeap runtime·mheap;
+#pragma dataflag NOPTR
 MStats mstats;
 
 int32	runtime·checking;

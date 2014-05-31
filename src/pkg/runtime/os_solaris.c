@@ -161,6 +161,7 @@ runtime·newosproc(M *mp, void *stk)
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {
+	#pragma dataflag NOPTR
 	static byte urandom_data[HashRandomBytes];
 	int32 fd;
 	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
