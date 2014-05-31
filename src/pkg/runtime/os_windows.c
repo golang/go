@@ -166,7 +166,7 @@ runtime·exit(int32 code)
 }
 
 int32
-runtime·write(int32 fd, void *buf, int32 n)
+runtime·write(uintptr fd, void *buf, int32 n)
 {
 	void *handle;
 	uint32 written;
@@ -180,7 +180,9 @@ runtime·write(int32 fd, void *buf, int32 n)
 		handle = runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-12);
 		break;
 	default:
-		return -1;
+		// assume fd is real windows handle.
+		handle = (void*)fd;
+		break;
 	}
 	runtime·stdcall(runtime·WriteFile, 5, handle, buf, (uintptr)n, &written, (uintptr)0);
 	return written;
