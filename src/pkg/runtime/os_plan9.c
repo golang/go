@@ -394,9 +394,9 @@ runtime·read(int32 fd, void *buf, int32 nbytes)
 }
 
 int32
-runtime·write(int32 fd, void *buf, int32 nbytes)
+runtime·write(uintptr fd, void *buf, int32 nbytes)
 {
-	return runtime·pwrite(fd, buf, nbytes, -1LL);
+	return runtime·pwrite((int32)fd, buf, nbytes, -1LL);
 }
 
 uintptr

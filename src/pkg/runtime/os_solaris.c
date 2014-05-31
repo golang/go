@@ -570,7 +570,7 @@ runtime·usleep(uint32 us)
 }
 
 int32
-runtime·write(int32 fd, void* buf, int32 nbyte)
+runtime·write(uintptr fd, void* buf, int32 nbyte)
 {
 	return runtime·sysvicall6(libc·write, 3, (uintptr)fd, (uintptr)buf, (uintptr)nbyte);
 }

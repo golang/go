@@ -838,7 +838,7 @@ int32	runtime·gotraceback(bool *crash);
 void	runtime·goroutineheader(G*);
 int32	runtime·open(int8*, int32, int32);
 int32	runtime·read(int32, void*, int32);
-int32	runtime·write(int32, void*, int32);
+int32	runtime·write(uintptr, void*, int32); // use uintptr to accommodate windows.
 int32	runtime·close(int32);
 int32	runtime·mincore(void*, uintptr, byte*);
 void	runtime·jmpdefer(FuncVal*, void*);
