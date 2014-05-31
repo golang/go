@@ -182,7 +182,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 			// x, y := f() becomes BLOCK{CALL f, AS x [SP+0], AS y [SP+n]}
 			// We don't want to instrument between the statements because it will
 			// smash the results.
-			racewalknode(&n->list->n, &n->ninit, 0, 0);
+			racewalknode(&n->list->n, &n->list->n->ninit, 0, 0);
 			fini = nil;
 			racewalklist(n->list->next, &fini);
 			n->list = concat(n->list, fini);
