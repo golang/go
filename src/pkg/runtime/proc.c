@@ -2597,6 +2597,7 @@ struct Pdesc
 	uint32	syscalltick;
 	int64	syscallwhen;
 };
+#pragma dataflag NOPTR
 static Pdesc pdesc[MaxGomaxprocs];
 
 static uint32
