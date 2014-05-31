@@ -7,10 +7,14 @@ package debug
 import (
 	"io/ioutil"
 	"os"
+	"runtime"
 	"testing"
 )
 
 func TestWriteHeapDumpNonempty(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("WriteHeapDump is not available on NaCl.")
+	}
 	f, err := ioutil.TempFile("", "heapdumptest")
 	if err != nil {
 		t.Fatalf("TempFile failed: %v", err)
