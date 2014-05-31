@@ -107,6 +107,11 @@ C's union types are represented as a Go byte array with the same length.
 
 Go structs cannot embed fields with C types.
 
+Cgo translates C types into equivalent unexported Go types.
+Because the translations are unexported, a Go package should not
+expose C types in its exported API: a C type used in one Go package
+is different from the same C type used in another.
+
 Any C function (even void functions) may be called in a multiple
 assignment context to retrieve both the return value (if any) and the
 C errno variable as an error (use _ to skip the result value if the
