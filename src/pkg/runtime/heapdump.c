@@ -346,6 +346,7 @@ dumpframe(Stkframe *s, void *arg)
 	dumpmemrange((byte*)s->sp, s->fp - s->sp);  // frame contents
 	dumpint(f->entry);
 	dumpint(s->pc);
+	dumpint(s->continpc);
 	name = runtime·funcname(f);
 	if(name == nil)
 		name = "unknown function";

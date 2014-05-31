@@ -492,10 +492,14 @@ adjustframe(Stkframe *frame, void *arg)
 	adjinfo = arg;
 	f = frame->fn;
 	if(StackDebug >= 2)
-		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc);
+		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p continpc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc, frame->continpc);
 	if(f->entry == (uintptr)runtime·main)
 		return true;
-	targetpc = frame->pc;
+	targetpc = frame->continpc;
+	if(targetpc == 0) {
+		// Frame is dead.
+		return true;
+	}
 	if(targetpc != f->entry)
 		targetpc--;
 	pcdata = runtime·pcdatavalue(f, PCDATA_StackMapIndex, targetpc);

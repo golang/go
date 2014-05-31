@@ -230,7 +230,7 @@ runtime·main(void)
 	d.fn = &initDone;
 	d.siz = 0;
 	d.link = g->defer;
-	d.argp = (void*)-1;
+	d.argp = NoArgs;
 	d.special = true;
 	g->defer = &d;
 
