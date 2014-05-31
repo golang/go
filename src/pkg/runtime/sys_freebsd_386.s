@@ -309,8 +309,7 @@ TEXT runtime·i386_set_ldt(SB),NOSPLIT,$16
 	MOVL	AX, 8(SP)
 	MOVL	$165, AX
 	INT	$0x80
-	CMPL	AX, $0xfffff001
-	JLS	2(PC)
+	JAE	2(PC)
 	INT	$3
 	RET
 
@@ -326,7 +325,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
 	MOVSL				// arg 6 - newlen
 	MOVL	$202, AX		// sys___sysctl
 	INT	$0x80
-	JCC	3(PC)
+	JAE	3(PC)
 	NEGL	AX
 	RET
 	MOVL	$0, AX
