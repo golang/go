@@ -49,10 +49,6 @@ fn xcd {
 }
 
 echo
-echo '#' ../misc/goplay
-go build ../misc/goplay
-
-echo
 echo '#' ../test/bench/go1
 go test ../test/bench/go1
 
