@@ -4,7 +4,7 @@
 
 // +build appengine
 
-package build
+package key
 
 import (
 	"sync"
@@ -15,18 +15,18 @@ import (
 
 var theKey struct {
 	sync.RWMutex
-	BuilderKey
+	builderKey
 }
 
-type BuilderKey struct {
+type builderKey struct {
 	Secret string
 }
 
-func (k *BuilderKey) Key(c appengine.Context) *datastore.Key {
+func (k *builderKey) Key(c appengine.Context) *datastore.Key {
 	return datastore.NewKey(c, "BuilderKey", "root", 0, nil)
 }
 
-func secretKey(c appengine.Context) string {
+func Secret(c appengine.Context) string {
 	// check with rlock
 	theKey.RLock()
 	k := theKey.Secret
@@ -43,7 +43,7 @@ func secretKey(c appengine.Context) string {
 	}
 
 	// fill
-	if err := datastore.Get(c, theKey.Key(c), &theKey.BuilderKey); err != nil {
+	if err := datastore.Get(c, theKey.Key(c), &theKey.builderKey); err != nil {
 		if err == datastore.ErrNoSuchEntity {
 			// If the key is not stored in datastore, write it.
 			// This only happens at the beginning of a new deployment.
@@ -54,7 +54,7 @@ func secretKey(c appengine.Context) string {
 				panic("lost key from datastore")
 			}
 			theKey.Secret = "gophers rule"
-			datastore.Put(c, theKey.Key(c), &theKey.BuilderKey)
+			datastore.Put(c, theKey.Key(c), &theKey.builderKey)
 			return theKey.Secret
 		}
 		panic("cannot load builder key: " + err.Error())

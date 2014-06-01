@@ -15,9 +15,11 @@ import (
 	"appengine/memcache"
 )
 
+// TimeKey specifies the memcache entity that keeps the logical datastore time.
+var TimeKey = "cachetime"
+
 const (
 	nocache = "nocache"
-	timeKey = "cachetime"
 	expiry  = 600 // 10 minutes
 )
 
@@ -25,7 +27,7 @@ func newTime() uint64 { return uint64(time.Now().Unix()) << 32 }
 
 // Now returns the current logical datastore time to use for cache lookups.
 func Now(c appengine.Context) uint64 {
-	t, err := memcache.Increment(c, timeKey, 0, newTime())
+	t, err := memcache.Increment(c, TimeKey, 0, newTime())
 	if err != nil {
 		c.Errorf("cache.Now: %v", err)
 		return 0
@@ -36,7 +38,7 @@ func Now(c appengine.Context) uint64 {
 // Tick sets the current logical datastore time to a never-before-used time
 // and returns that time. It should be called to invalidate the cache.
 func Tick(c appengine.Context) uint64 {
-	t, err := memcache.Increment(c, timeKey, 1, newTime())
+	t, err := memcache.Increment(c, TimeKey, 1, newTime())
 	if err != nil {
 		c.Errorf("cache.Tick: %v", err)
 		return 0

@@ -20,6 +20,7 @@ import (
 	"appengine/datastore"
 
 	"cache"
+	"key"
 )
 
 const commitsPerPage = 30
@@ -789,12 +790,12 @@ func validKey(c appengine.Context, key, builder string) bool {
 	return isMasterKey(c, key) || key == builderKey(c, builder)
 }
 
-func isMasterKey(c appengine.Context, key string) bool {
-	return appengine.IsDevAppServer() || key == secretKey(c)
+func isMasterKey(c appengine.Context, k string) bool {
+	return appengine.IsDevAppServer() || k == key.Secret(c)
 }
 
 func builderKey(c appengine.Context, builder string) string {
-	h := hmac.New(md5.New, []byte(secretKey(c)))
+	h := hmac.New(md5.New, []byte(key.Secret(c)))
 	h.Write([]byte(builder))
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
