@@ -73,11 +73,6 @@ if errorlevel 1 goto fail
 echo.
 :norace
 
-echo # ..\misc\goplay
-go build ..\misc\goplay
-if errorlevel 1 goto fail
-echo.
-
 echo # ..\test\bench\go1
 go test ..\test\bench\go1
 if errorlevel 1 goto fail
