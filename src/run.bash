@@ -197,11 +197,6 @@ time ./run || exit 1
 time ./run || exit 1
 ) || exit $?
 
-echo
-echo '#' ../misc/goplay
-go build ../misc/goplay
-rm -f goplay
-
 [ "$GOOS" == nacl ] ||
 [ "$GOARCH" == arm ] ||
 (xcd ../test/bench/shootout
