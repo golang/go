@@ -261,11 +261,20 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 	if(pcbuf == nil && callback == nil)
 		n = nprint;
 
-	if(callback != nil && n < max && (defer != nil || panic != nil && panic->defer != nil)) {
+	// For rationale, see long comment in traceback_x86.c.
+	if(callback != nil && n < max && defer != nil) {
 		if(defer != nil)
 			runtime·printf("runtime: g%D: leftover defer argp=%p pc=%p\n", gp->goid, defer->argp, defer->pc);
-		if(panic != nil && panic->defer != nil)
+		if(panic != nil)
 			runtime·printf("runtime: g%D: leftover panic argp=%p pc=%p\n", gp->goid, panic->defer->argp, panic->defer->pc);
+		for(defer = gp->defer; defer != nil; defer = defer->link)
+			runtime·printf("\tdefer %p argp=%p pc=%p\n", defer, defer->argp, defer->pc);
+		for(panic = gp->panic; panic != nil; panic = panic->link) {
+			runtime·printf("\tpanic %p defer %p", panic, panic->defer);
+			if(panic->defer != nil)
+				runtime·printf(" argp=%p pc=%p", panic->defer->argp, panic->defer->pc);
+			runtime·printf("\n");
+		}
 		runtime·throw("traceback has leftover defers or panics");
 	}
 
