@@ -290,9 +290,8 @@ findgoversion(void)
 		p = tags.p[i];
 		if(streq(p, "+"))
 			nrev++;
-		// NOTE: Can reenable the /* */ code when we want to
-		// start reporting versions named 'weekly' again.
-		if(/*hasprefix(p, "weekly.") ||*/ hasprefix(p, "go")) {
+		// Only show the beta tag for the exact revision.
+		if(hasprefix(p, "go") && (!contains(p, "beta") || nrev == 0)) {
 			tag = xstrdup(p);
 			// If this tag matches the current checkout
 			// exactly (no "+" yet), don't show extra
