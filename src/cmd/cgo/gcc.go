@@ -1269,7 +1269,8 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		sub := c.Type(dt.Type, pos)
 		t.Size = sub.Size
 		t.Align = sub.Align
-		if _, ok := typedef[name.Name]; !ok {
+		oldType := typedef[name.Name]
+		if oldType == nil {
 			tt := *t
 			tt.Go = sub.Go
 			typedef[name.Name] = &tt
@@ -1281,6 +1282,15 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		// In -godefs and -cdefs mode, do this for all typedefs.
 		if isStructUnionClass(sub.Go) || *godefs || *cdefs {
 			t.Go = sub.Go
+
+			// If we've seen this typedef before, and it
+			// was an anonymous struct/union/class before
+			// too, use the old definition.
+			// TODO: it would be safer to only do this if
+			// we verify that the types are the same.
+			if oldType != nil && isStructUnionClass(oldType.Go) {
+				t.Go = oldType.Go
+			}
 		}
 
 	case *dwarf.UcharType:
