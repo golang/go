@@ -721,7 +721,7 @@ type File struct {
 func setupOAuthClient() error {
 	config := &oauth.Config{
 		ClientId:     "999119582588-h7kpj5pcm6d9solh5lgrbusmvvk4m9dn.apps.googleusercontent.com",
-		ClientSecret: "8YLFgOhXIELWbO",
+		ClientSecret: "8YLFgOhXIELWbO-NtF3iqIQz",
 		Scope:        storage.DevstorageRead_writeScope,
 		AuthURL:      "https://accounts.google.com/o/oauth2/auth",
 		TokenURL:     "https://accounts.google.com/o/oauth2/token",
