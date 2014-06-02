@@ -7,12 +7,11 @@
 package main
 
 import (
-	"debug/goobj"
 	"fmt"
 	"os"
 )
 
-func goobjName(id goobj.SymID) string {
+func goobjName(id goobj_SymID) string {
 	if id.Version == 0 {
 		return id.Name
 	}
@@ -20,28 +19,28 @@ func goobjName(id goobj.SymID) string {
 }
 
 func goobjSymbols(f *os.File) []Sym {
-	pkg, err := goobj.Parse(f, `""`)
+	pkg, err := goobj_Parse(f, `""`)
 	if err != nil {
 		errorf("parsing %s: %v", f.Name(), err)
 		return nil
 	}
 
-	seen := make(map[goobj.SymID]bool)
+	seen := make(map[goobj_SymID]bool)
 
 	var syms []Sym
 	for _, s := range pkg.Syms {
-		seen[s.SymID] = true
-		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: int64(s.Size), Type: s.Type.Name, Code: '?'}
+		seen[s.goobj_SymID] = true
+		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.goobj_SymID), Size: int64(s.Size), Type: s.Type.Name, Code: '?'}
 		switch s.Kind {
-		case goobj.STEXT, goobj.SELFRXSECT:
+		case goobj_STEXT, goobj_SELFRXSECT:
 			sym.Code = 'T'
-		case goobj.STYPE, goobj.SSTRING, goobj.SGOSTRING, goobj.SGOFUNC, goobj.SRODATA, goobj.SFUNCTAB, goobj.STYPELINK, goobj.SSYMTAB, goobj.SPCLNTAB, goobj.SELFROSECT:
+		case goobj_STYPE, goobj_SSTRING, goobj_SGOSTRING, goobj_SGOFUNC, goobj_SRODATA, goobj_SFUNCTAB, goobj_STYPELINK, goobj_SSYMTAB, goobj_SPCLNTAB, goobj_SELFROSECT:
 			sym.Code = 'R'
-		case goobj.SMACHOPLT, goobj.SELFSECT, goobj.SMACHO, goobj.SMACHOGOT, goobj.SNOPTRDATA, goobj.SINITARR, goobj.SDATA, goobj.SWINDOWS:
+		case goobj_SMACHOPLT, goobj_SELFSECT, goobj_SMACHO, goobj_SMACHOGOT, goobj_SNOPTRDATA, goobj_SINITARR, goobj_SDATA, goobj_SWINDOWS:
 			sym.Code = 'D'
-		case goobj.SBSS, goobj.SNOPTRBSS, goobj.STLSBSS:
+		case goobj_SBSS, goobj_SNOPTRBSS, goobj_STLSBSS:
 			sym.Code = 'B'
-		case goobj.SXREF, goobj.SMACHOSYMSTR, goobj.SMACHOSYMTAB, goobj.SMACHOINDIRECTPLT, goobj.SMACHOINDIRECTGOT, goobj.SFILE, goobj.SFILEPATH, goobj.SCONST, goobj.SDYNIMPORT, goobj.SHOSTOBJ:
+		case goobj_SXREF, goobj_SMACHOSYMSTR, goobj_SMACHOSYMTAB, goobj_SMACHOINDIRECTPLT, goobj_SMACHOINDIRECTGOT, goobj_SFILE, goobj_SFILEPATH, goobj_SCONST, goobj_SDYNIMPORT, goobj_SHOSTOBJ:
 			sym.Code = 'X' // should not see
 		}
 		if s.Version != 0 {
