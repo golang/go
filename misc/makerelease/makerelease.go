@@ -12,12 +12,15 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"crypto/sha1"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -43,12 +46,13 @@ var (
 	staticToolchain = flag.Bool("static", true, "try to build statically linked toolchain (only supported on ELF targets)")
 	tokenCache      = flag.String("token", defaultCacheFile, "Authentication token cache file")
 	storageBucket   = flag.String("bucket", "golang", "Cloud Storage Bucket")
+	uploadURL       = flag.String("upload_url", defaultUploadURL, "Upload URL")
 
 	defaultCacheFile = filepath.Join(os.Getenv("HOME"), ".makerelease-request-token")
+	defaultUploadURL = "http://golang.org/dl/upload"
 )
 
 const (
-	uploadURL      = "https://go.googlecode.com/files"
 	blogPath       = "code.google.com/p/go.blog"
 	toolPath       = "code.google.com/p/go.tools"
 	tourPath       = "code.google.com/p/go-tour"
@@ -167,7 +171,7 @@ func main() {
 				continue
 			}
 			if err := b.Upload(version, targ); err != nil {
-				log.Printf("%s: %v", targ, err)
+				log.Printf("uploading %s: %v", targ, err)
 			}
 			continue
 		}
@@ -455,7 +459,7 @@ func (b *Build) Do() error {
 		for _, targ := range targs {
 			err = b.Upload(version, targ)
 			if err != nil {
-				return err
+				return fmt.Errorf("uploading %s: %v", targ, err)
 			}
 		}
 	}
@@ -653,26 +657,65 @@ func (b *Build) env() []string {
 }
 
 func (b *Build) Upload(version string, filename string) error {
+	file, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
 	svc, err := storage.New(oauthClient)
 	if err != nil {
 		return err
 	}
-
 	obj := &storage.Object{
 		Acl:  []*storage.ObjectAccessControl{{Entity: "allUsers", Role: "READER"}},
 		Name: filename,
 	}
-	f, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = svc.Objects.Insert(*storageBucket, obj).Media(f).Do()
+	_, err = svc.Objects.Insert(*storageBucket, obj).Media(bytes.NewReader(file)).Do()
 	if err != nil {
 		return err
 	}
 
+	sum := fmt.Sprintf("%x", sha1.Sum(file))
+	kind := "unknown"
+	switch {
+	case b.Source:
+		kind = "source"
+	case strings.HasSuffix(filename, ".tar.gz"), strings.HasSuffix(filename, ".zip"):
+		kind = "archive"
+	case strings.HasSuffix(filename, ".msi"), strings.HasSuffix(filename, ".pkg"):
+		kind = "installer"
+	}
+	req, err := json.Marshal(File{
+		Filename: filename,
+		Version:  version,
+		OS:       b.OS,
+		Arch:     b.Arch,
+		Checksum: sum,
+		Kind:     kind,
+	})
+	if err != nil {
+		return err
+	}
+	u := fmt.Sprintf("%s?%s", *uploadURL, url.Values{"key": []string{builderKey}}.Encode())
+	resp, err := http.Post(u, "application/json", bytes.NewReader(req))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("upload status: %v", resp.Status)
+	}
+
 	return nil
+}
+
+type File struct {
+	Filename string
+	OS       string
+	Arch     string
+	Version  string
+	Checksum string `datastore:",noindex"`
+	Kind     string // "archive", "installer", "source"
 }
 
 func setupOAuthClient() error {
