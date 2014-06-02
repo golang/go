@@ -24,16 +24,14 @@ import (
 
 const basePkg = "code.google.com/p/go.tools/cmd/present"
 
-var (
-	basePath     string
-	nativeClient bool
-)
+var basePath string
 
 func main() {
-	httpListen := flag.String("http", "127.0.0.1:3999", "host:port to listen on")
+	httpAddr := flag.String("http", "127.0.0.1:3999", "HTTP service address (e.g., '127.0.0.1:3999')")
+	originHost := flag.String("orighost", "", "host component of web origin URL (e.g., 'localhost')")
 	flag.StringVar(&basePath, "base", "", "base path for slide template and static resources")
 	flag.BoolVar(&present.PlayEnabled, "play", true, "enable playground (permit execution of arbitrary user code)")
-	flag.BoolVar(&nativeClient, "nacl", false, "use Native Client environment playground (prevents non-Go code execution)")
+	nativeClient := flag.Bool("nacl", false, "use Native Client environment playground (prevents non-Go code execution)")
 	flag.Parse()
 
 	if basePath == "" {
@@ -46,8 +44,36 @@ func main() {
 		basePath = p.Dir
 	}
 
+	ln, err := net.Listen("tcp", *httpAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer ln.Close()
+
+	_, port, err := net.SplitHostPort(ln.Addr().String())
+	if err != nil {
+		log.Fatal(err)
+	}
+	origin := &url.URL{Scheme: "http"}
+	if *originHost != "" {
+		origin.Host = net.JoinHostPort(*originHost, port)
+	} else if ln.Addr().(*net.TCPAddr).IP.IsUnspecified() {
+		name, _ := os.Hostname()
+		origin.Host = net.JoinHostPort(name, port)
+	} else {
+		reqHost, reqPort, err := net.SplitHostPort(*httpAddr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if reqPort == "0" {
+			origin.Host = net.JoinHostPort(reqHost, port)
+		} else {
+			origin.Host = *httpAddr
+		}
+	}
+
 	if present.PlayEnabled {
-		if nativeClient {
+		if *nativeClient {
 			socket.RunScripts = false
 			socket.Environ = func() []string {
 				if runtime.GOARCH == "amd64" {
@@ -57,24 +83,17 @@ func main() {
 			}
 		}
 		playScript(basePath, "SocketTransport")
-
-		host, port, err := net.SplitHostPort(*httpListen)
-		if err != nil {
-			log.Fatal(err)
-		}
-		origin := &url.URL{Scheme: "http", Host: host + ":" + port}
 		http.Handle("/socket", socket.NewHandler(origin))
 	}
 	http.Handle("/static/", http.FileServer(http.Dir(basePath)))
 
-	if !strings.HasPrefix(*httpListen, "127.0.0.1") &&
-		!strings.HasPrefix(*httpListen, "localhost") &&
-		present.PlayEnabled && !nativeClient {
+	if !ln.Addr().(*net.TCPAddr).IP.IsLoopback() &&
+		present.PlayEnabled && !*nativeClient {
 		log.Print(localhostWarning)
 	}
 
-	log.Printf("Open your web browser and visit http://%s/", *httpListen)
-	log.Fatal(http.ListenAndServe(*httpListen, nil))
+	log.Printf("Open your web browser and visit %s", origin.String())
+	log.Fatal(http.Serve(ln, nil))
 }
 
 func playable(c present.Code) bool {
