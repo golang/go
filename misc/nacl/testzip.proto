@@ -13,9 +13,6 @@ go	src=..
 			gofmt
 				testdata
 					+
-			link
-				testdata
-					+
 		pkg
 			archive
 				tar
