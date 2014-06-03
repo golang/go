@@ -209,9 +209,19 @@ func convT2E(t *Type, elem *byte) (ret Eface) {
 
 static void assertI2Tret(Type *t, Iface i, byte *ret);
 
+/*
+ * NOTE: Cannot use 'func' here, because we have to declare
+ * a return value, the only types we have are at least 1 byte large,
+ * goc2c will zero the return value, and the actual return value
+ * might have size 0 bytes, in which case the zeroing of the
+ * 1 or more bytes would be wrong.
+ * Using C lets us control (avoid) the initial zeroing.
+ */
 #pragma textflag NOSPLIT
-func assertI2T(t *Type, i Iface) (ret byte, ...) {
-	assertI2Tret(t, i, &ret);
+void
+runtime·assertI2T(Type *t, Iface i, GoOutput retbase)
+{
+	assertI2Tret(t, i, (byte*)&retbase);
 }
 
 static void
@@ -260,9 +270,14 @@ func assertI2TOK(t *Type, i Iface) (ok bool) {
 
 static void assertE2Tret(Type *t, Eface e, byte *ret);
 
+/*
+ * NOTE: Cannot use 'func' here. See assertI2T above.
+ */
 #pragma textflag NOSPLIT
-func assertE2T(t *Type, e Eface) (ret byte, ...) {
-	assertE2Tret(t, e, &ret);
+void
+runtime·assertE2T(Type *t, Eface e, GoOutput retbase)
+{
+	assertE2Tret(t, e, (byte*)&retbase);
 }
 
 static void
