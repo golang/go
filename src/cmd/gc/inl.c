@@ -802,6 +802,7 @@ inlvar(Node *var)
 	n->class = PAUTO;
 	n->used = 1;
 	n->curfn = curfn;   // the calling function, not the called one
+	n->addrtaken = var->addrtaken;
 
 	// esc pass wont run if we're inlining into a iface wrapper
 	// luckily, we can steal the results from the target func
