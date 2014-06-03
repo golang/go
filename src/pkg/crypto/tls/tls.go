@@ -28,7 +28,7 @@ func Server(conn net.Conn, config *Config) *Conn {
 
 // Client returns a new TLS client side connection
 // using conn as the underlying transport.
-// The config cannot be nil: users must set either ServerHostname or
+// The config cannot be nil: users must set either ServerName or
 // InsecureSkipVerify in the config.
 func Client(conn net.Conn, config *Config) *Conn {
 	return &Conn{conn: conn, config: config, isClient: true}
