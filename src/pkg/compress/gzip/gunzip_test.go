@@ -353,3 +353,17 @@ func TestIssue6550(t *testing.T) {
 		// ok
 	}
 }
+
+func TestInitialReset(t *testing.T) {
+	var r Reader
+	if err := r.Reset(bytes.NewReader(gunzipTests[1].gzip)); err != nil {
+		t.Error(err)
+	}
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, &r); err != nil {
+		t.Error(err)
+	}
+	if s := buf.String(); s != gunzipTests[1].raw {
+		t.Errorf("got %q want %q", s, gunzipTests[1].raw)
+	}
+}

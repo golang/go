@@ -94,7 +94,11 @@ func NewReader(r io.Reader) (*Reader, error) {
 // This permits reusing a Reader rather than allocating a new one.
 func (z *Reader) Reset(r io.Reader) error {
 	z.r = makeReader(r)
-	z.digest.Reset()
+	if z.digest == nil {
+		z.digest = crc32.NewIEEE()
+	} else {
+		z.digest.Reset()
+	}
 	z.size = 0
 	z.err = nil
 	return z.readHeader(true)
