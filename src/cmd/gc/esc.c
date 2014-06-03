@@ -204,6 +204,13 @@ struct EscState {
 	// flow to.
 	Node	theSink;
 	
+	// If an analyzed function is recorded to return
+	// pieces obtained via indirection from a parameter,
+	// and later there is a call f(x) to that function,
+	// we create a link funcParam <- x to record that fact.
+	// The funcParam node is handled specially in escflood.
+	Node	funcParam;	
+	
 	NodeList*	dsts;		// all dst nodes
 	int	loopdepth;	// for detecting nested loop scopes
 	int	pdepth;		// for debug printing in recursions.
@@ -269,7 +276,13 @@ analyze(NodeList *all, int recursive)
 	e->theSink.sym = lookup(".sink");
 	e->theSink.escloopdepth = -1;
 	e->recursive = recursive;
-
+	
+	e->funcParam.op = ONAME;
+	e->funcParam.orig = &e->funcParam;
+	e->funcParam.class = PAUTO;
+	e->funcParam.sym = lookup(".param");
+	e->funcParam.escloopdepth = 10000000;
+	
 	for(l=all; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
 			l->n->esc = EscFuncPlanned;
@@ -822,12 +835,17 @@ escassignfromtag(EscState *e, Strlit *note, NodeList *dsts, Node *src)
 		escassign(e, &e->theSink, src);
 		return em;
 	}
-	
+
 	if(em == EscNone)
 		return em;
+	
+	// If content inside parameter (reached via indirection)
+	// escapes back to results, mark as such.
+	if(em & EscContentEscapes)
+		escassign(e, &e->funcParam, src);
 
 	em0 = em;
-	for(em >>= EscBits; em && dsts; em >>= 1, dsts=dsts->next)
+	for(em >>= EscReturnBits; em && dsts; em >>= 1, dsts=dsts->next)
 		if(em & 1)
 			escassign(e, dsts->n, src);
 
@@ -1090,19 +1108,30 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 
 	// Input parameter flowing to output parameter?
 	if(dst->op == ONAME && dst->class == PPARAMOUT && dst->vargen <= 20) {
-		if(src->op == ONAME && src->class == PPARAM && level == 0 && src->curfn == dst->curfn) {
-			if(src->esc != EscScope && src->esc != EscHeap) {
+		if(src->op == ONAME && src->class == PPARAM && src->curfn == dst->curfn && src->esc != EscScope && src->esc != EscHeap) {
+			if(level == 0) {
 				if(debug['m'])
 					warnl(src->lineno, "leaking param: %hN to result %S", src, dst->sym);
 				if((src->esc&EscMask) != EscReturn)
 					src->esc = EscReturn;
-				src->esc |= 1<<((dst->vargen-1) + EscBits);
+				src->esc |= 1<<((dst->vargen-1) + EscReturnBits);
+				goto recurse;
+			} else if(level > 0) {
+				if(debug['m'])
+					warnl(src->lineno, "%N leaking param %hN content to result %S", src->curfn->nname, src, dst->sym);
+				if((src->esc&EscMask) != EscReturn)
+					src->esc = EscReturn;
+				src->esc |= EscContentEscapes;
 				goto recurse;
 			}
 		}
 	}
 
-	leaks = (level <= 0) && (dst->escloopdepth < src->escloopdepth);
+	// The second clause is for values pointed at by an object passed to a call
+	// that returns something reached via indirect from the object.
+	// We don't know which result it is or how many indirects, so we treat it as leaking.
+	leaks = level <= 0 && dst->escloopdepth < src->escloopdepth ||
+		level < 0 && dst == &e->funcParam && haspointers(src->type);
 
 	switch(src->op) {
 	case ONAME:

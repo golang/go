@@ -236,8 +236,10 @@ enum
 	EscNone,
 	EscReturn,
 	EscNever,
-	EscBits = 4,
+	EscBits = 3,
 	EscMask = (1<<EscBits) - 1,
+	EscContentEscapes = 1<<EscBits, // value obtained by indirect of parameter escapes to some returned result
+	EscReturnBits = EscBits+1,
 };
 
 struct	Node
