@@ -68,7 +68,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 
 	// 1-byte version, then 15 bytes of padding
 	var p []byte
-	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
+	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' && p[0] != '3' {
 		return nil, badData
 	}
 
@@ -123,7 +123,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 		return nil, badData
 	}
 
-	// If version == 2, the entire file repeats, this time using
+	// If version == 2 or 3, the entire file repeats, this time using
 	// 8-byte ints for txtimes and leap seconds.
 	// We won't need those until 2106.
 

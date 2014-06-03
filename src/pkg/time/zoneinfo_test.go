@@ -9,6 +9,15 @@ import (
 	"time"
 )
 
+func TestVersion3(t *testing.T) {
+	time.ForceZipFileForTesting(true)
+	defer time.ForceZipFileForTesting(false)
+	_, err := time.LoadLocation("Asia/Jerusalem")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Test that we get the correct results for times before the first
 // transition time.  To do this we explicitly check early dates in a
 // couple of specific timezones.
