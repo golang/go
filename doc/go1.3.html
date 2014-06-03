@@ -540,6 +540,12 @@ were reported as deadlocks, but some trivial cases exited cleanly instead.
 </li>
 
 <li>
+The runtime/debug package now has a new function
+<a href="/pkg/runtime/debug/#WriteHeapDump"><code>debug.WriteHeapDump</code></a>
+that writes out a description of the heap.
+</li>
+
+<li>
 The <a href="/pkg/strconv/#CanBackquote"><code>CanBackquote</code></a>
 function in the <a href="/pkg/strconv/"><code>strconv</code></a> package
 now considers the <code>DEL</code> character, <code>U+007F</code>, to be
