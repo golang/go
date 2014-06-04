@@ -261,6 +261,12 @@ var relocationTests = []relocationTest{
 		},
 	},
 	{
+		"testdata/go-relocation-test-clang-x86.obj",
+		[]relocationTestEntry{
+			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "clang version google3-trunk (trunk r209387)"}, {Attr: dwarf.AttrLanguage, Val: int64(12)}, {Attr: dwarf.AttrName, Val: "go-relocation-test-clang.c"}, {Attr: dwarf.AttrStmtList, Val: int64(0)}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}}}},
+		},
+	},
+	{
 		"testdata/gcc-amd64-openbsd-debug-with-rela.obj",
 		[]relocationTestEntry{
 			{203, &dwarf.Entry{Offset: 0xc62, Tag: dwarf.TagMember, Children: false, Field: []dwarf.Field{{Attr: dwarf.AttrName, Val: "it_interval"}, {Attr: dwarf.AttrDeclFile, Val: int64(7)}, {Attr: dwarf.AttrDeclLine, Val: int64(236)}, {Attr: dwarf.AttrType, Val: dwarf.Offset(0xb7f)}, {Attr: dwarf.AttrDataMemberLoc, Val: []byte{0x23, 0x0}}}}},
