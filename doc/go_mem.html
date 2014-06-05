@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Memory Model",
-	"Subtitle": "Version of March 6, 2012",
+	"Subtitle": "Version of May 31, 2014",
 	"Path": "/ref/mem"
 }-->
 
@@ -275,17 +275,17 @@ crash, or do something else.)
 </p>
 
 <p class="rule">
-The <i>k</i>th send on a channel with capacity <i>C</i> happens before the <i>k</i>+<i>C</i>th receive from that channel completes.
+The <i>k</i>th receive on a channel with capacity <i>C</i> happens before the <i>k</i>+<i>C</i>th send from that channel completes.
 </p>
 
 <p>
 This rule generalizes the previous rule to buffered channels.
 It allows a counting semaphore to be modeled by a buffered channel:
-the number of items in the channel corresponds to the semaphore count,
-the capacity of the channel corresponds to the semaphore maximum,
+the number of items in the channel corresponds to the number of active uses,
+the capacity of the channel corresponds to the maximum number of simultaneous uses,
 sending an item acquires the semaphore, and receiving an item releases
 the semaphore.
-This is a common idiom for rate-limiting work.
+This is a common idiom for limiting concurrency.
 </p>
 
 <p>
