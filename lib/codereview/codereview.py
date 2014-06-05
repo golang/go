@@ -846,7 +846,7 @@ def CommandLineCL(ui, repo, pats, opts, op="verb", defaultcc=None):
 		cl.reviewer = Add(cl.reviewer, SplitCommaSpace(opts.get('reviewer')))
 	if opts.get('cc'):
 		cl.cc = Add(cl.cc, SplitCommaSpace(opts.get('cc')))
-	if defaultcc:
+	if defaultcc and not cl.private:
 		cl.cc = Add(cl.cc, defaultcc)
 	if cl.name == "new":
 		if opts.get('message'):
@@ -1845,7 +1845,7 @@ def mail(ui, repo, *pats, **opts):
 		# This makes sure that it appears in the 
 		# codereview.appspot.com/user/defaultcc
 		# page, so that it doesn't get dropped on the floor.
-		if not defaultcc:
+		if not defaultcc or cl.private:
 			raise hg_util.Abort("no reviewers listed in CL")
 		cl.cc = Sub(cl.cc, defaultcc)
 		cl.reviewer = defaultcc
