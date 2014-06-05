@@ -1283,6 +1283,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		if isStructUnionClass(sub.Go) || *godefs || *cdefs {
 			t.Go = sub.Go
 
+			if isStructUnionClass(sub.Go) {
+				// Use the typedef name for C code.
+				typedef[sub.Go.(*ast.Ident).Name].C = t.C
+			}
+
 			// If we've seen this typedef before, and it
 			// was an anonymous struct/union/class before
 			// too, use the old definition.
