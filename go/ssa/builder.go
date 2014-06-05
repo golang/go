@@ -1641,7 +1641,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 				X:     x,
 				Index: k,
 			}
-			instr.setType(types.NewPointer(t.Elem().(*types.Array).Elem()))
+			instr.setType(types.NewPointer(t.Elem().Underlying().(*types.Array).Elem()))
 			v = emitLoad(fn, fn.emit(instr))
 
 		case *types.Slice:

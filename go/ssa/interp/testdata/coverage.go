@@ -642,3 +642,16 @@ func bug7840() bool {
 	// This creates a single-predecessor block with a φ-node.
 	return false && a == 0 && a == 0
 }
+
+// Regression test for range of pointer to named array type.
+func init() {
+	type intarr [3]int
+	ia := intarr{1, 2, 3}
+	var count int
+	for _, x := range &ia {
+		count += x
+	}
+	if count != 6 {
+		panic(count)
+	}
+}
