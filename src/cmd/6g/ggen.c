@@ -47,7 +47,7 @@ defframe(Prog *ptxt)
 
 		if(lo != hi && n->xoffset + n->type->width >= lo - 2*widthreg) {
 			// merge with range we already have
-			lo = rnd(n->xoffset, widthreg);
+			lo = n->xoffset;
 			continue;
 		}
 		// zero old range
