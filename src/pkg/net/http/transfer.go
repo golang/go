@@ -155,7 +155,9 @@ func (t *transferWriter) WriteHeader(w io.Writer) error {
 	// function of the sanitized field triple (Body, ContentLength,
 	// TransferEncoding)
 	if t.shouldSendContentLength() {
-		io.WriteString(w, "Content-Length: ")
+		if _, err := io.WriteString(w, "Content-Length: "); err != nil {
+			return err
+		}
 		if _, err := io.WriteString(w, strconv.FormatInt(t.ContentLength, 10)+"\r\n"); err != nil {
 			return err
 		}

@@ -191,6 +191,22 @@ func TestResponseWrite(t *testing.T) {
 				"Foo: Bar Baz\r\n" +
 				"\r\n",
 		},
+
+		// Want a single Content-Length header. Fixing issue 8180 where
+		// there were two.
+		{
+			Response{
+				StatusCode:       StatusOK,
+				ProtoMajor:       1,
+				ProtoMinor:       1,
+				Request:          &Request{Method: "POST"},
+				Header:           Header{},
+				ContentLength:    0,
+				TransferEncoding: nil,
+				Body:             nil,
+			},
+			"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
+		},
 	}
 
 	for i := range respWriteTests {
