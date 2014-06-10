@@ -26,52 +26,52 @@ func doCallgraph(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	cg.DeleteSyntheticNodes()
 
 	var qpkg *types.Package
-	var roots []*callgraph.Node
+	var isQueryPkg func(fn *ssa.Function) bool
+	var keep, remove, roots []*callgraph.Node
 	if qpos == nil {
 		// No -pos provided: show complete callgraph.
 		roots = append(roots, cg.Root)
-
+		isQueryPkg = func(fn *ssa.Function) bool { return true }
 	} else {
 		// A query -pos was provided: restrict result to
 		// functions belonging to the query package.
 		qpkg = qpos.info.Pkg
-		isQueryPkg := func(fn *ssa.Function) bool {
+		isQueryPkg = func(fn *ssa.Function) bool {
 			return fn.Pkg != nil && fn.Pkg.Object == qpkg
 		}
+	}
 
-		// First compute the nodes to keep and remove.
-		var nodes, remove []*callgraph.Node
-		for fn, cgn := range cg.Nodes {
-			if isQueryPkg(fn) {
-				nodes = append(nodes, cgn)
-			} else {
-				remove = append(remove, cgn)
+	// First compute the nodes to keep and remove.
+	for fn, cgn := range cg.Nodes {
+		if isQueryPkg(fn) {
+			keep = append(keep, cgn)
+		} else {
+			remove = append(remove, cgn)
+		}
+	}
+
+	// Compact the Node.ID sequence of the kept nodes,
+	// preserving the original order.
+	sort.Sort(nodesByID(keep))
+	for i, cgn := range keep {
+		cgn.ID = i
+	}
+
+	// Compute the set of roots:
+	// in-package nodes with out-of-package callers.
+	// For determinism, roots are ordered by original Node.ID.
+	for _, cgn := range keep {
+		for _, e := range cgn.In {
+			if !isQueryPkg(e.Caller.Func) {
+				roots = append(roots, cgn)
+				break
 			}
 		}
+	}
 
-		// Compact the Node.ID sequence of the remaining
-		// nodes, preserving the original order.
-		sort.Sort(nodesByID(nodes))
-		for i, cgn := range nodes {
-			cgn.ID = i
-		}
-
-		// Compute the set of roots:
-		// in-package nodes with out-of-package callers.
-		// For determinism, roots are ordered by original Node.ID.
-		for _, cgn := range nodes {
-			for _, e := range cgn.In {
-				if !isQueryPkg(e.Caller.Func) {
-					roots = append(roots, cgn)
-					break
-				}
-			}
-		}
-
-		// Finally, discard all out-of-package nodes.
-		for _, cgn := range remove {
-			cg.DeleteNode(cgn)
-		}
+	// Finally, discard all out-of-package nodes.
+	for _, cgn := range remove {
+		cg.DeleteNode(cgn)
 	}
 
 	return &callgraphResult{qpkg, cg.Nodes, roots}, nil
