@@ -673,12 +673,21 @@ esc(EscState *e, Node *n, Node *up)
 		// for &x, use loop depth of x if known.
 		// it should always be known, but if not, be conservative
 		// and keep the current loop depth.
-		if(n->left->op == ONAME && (n->left->escloopdepth != 0 || n->left->class == PPARAMOUT)) {
+		if(n->left->op == ONAME) {
 			switch(n->left->class) {
 			case PAUTO:
+				if(n->left->escloopdepth != 0)
+					n->escloopdepth = n->left->escloopdepth;
+				break;
 			case PPARAM:
 			case PPARAMOUT:
-				n->escloopdepth = n->left->escloopdepth;
+				// PPARAM is loop depth 1 always.
+				// PPARAMOUT is loop depth 0 for writes
+				// but considered loop depth 1 for address-of,
+				// so that writing the address of one result
+				// to another (or the same) result makes the
+				// first result move to the heap.
+				n->escloopdepth = 1;
 				break;
 			}
 		}
