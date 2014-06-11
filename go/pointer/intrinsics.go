@@ -272,9 +272,9 @@ func (c *runtimeSetFinalizerConstraint) String() string {
 	return fmt.Sprintf("runtime.SetFinalizer(n%d, n%d)", c.x, c.f)
 }
 
-func (c *runtimeSetFinalizerConstraint) solve(a *analysis, _ *node, delta nodeset) {
-	for fObj := range delta {
-		tDyn, f, indirect := a.taggedValue(fObj)
+func (c *runtimeSetFinalizerConstraint) solve(a *analysis, delta *nodeset) {
+	for _, fObj := range delta.AppendTo(a.deltaSpace) {
+		tDyn, f, indirect := a.taggedValue(nodeid(fObj))
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
 			// when we start creating indirect tagged objects.

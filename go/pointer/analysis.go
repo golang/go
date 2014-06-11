@@ -99,7 +99,7 @@ type node struct {
 	// - *typeFilterConstraint y=x.(I)
 	// - *untagConstraint      y=x.(C)
 	// - *invokeConstraint     y=x.f(params...)
-	complex constraintset
+	complex []constraint
 }
 
 // An analysis instance holds the state of a single pointer analysis problem.
@@ -119,9 +119,10 @@ type analysis struct {
 	globalobj   map[ssa.Value]nodeid        // maps v to sole member of pts(v), if singleton
 	localval    map[ssa.Value]nodeid        // node for each local ssa.Value
 	localobj    map[ssa.Value]nodeid        // maps v to sole member of pts(v), if singleton
-	work        worklist                    // solver's worklist
+	work        nodeset                     // solver's worklist
 	result      *Result                     // results of the analysis
 	track       track                       // pointerlike types whose aliasing we track
+	deltaSpace  []int                       // working space for iterating over PTS deltas
 
 	// Reflection & intrinsics:
 	hasher              typeutil.Hasher // cache of type hashes
@@ -223,11 +224,11 @@ func Analyze(config *Config) (result *Result, err error) {
 		trackTypes:  make(map[types.Type]bool),
 		hasher:      typeutil.MakeHasher(),
 		intrinsics:  make(map[*ssa.Function]intrinsic),
-		work:        makeMapWorklist(),
 		result: &Result{
 			Queries:         make(map[ssa.Value]Pointer),
 			IndirectQueries: make(map[ssa.Value]Pointer),
 		},
+		deltaSpace: make([]int, 0, 100),
 	}
 
 	if false {
@@ -300,10 +301,11 @@ func Analyze(config *Config) (result *Result, err error) {
 	}
 
 	// Add dynamic edges to call graph.
+	var space [100]int
 	for _, caller := range a.cgnodes {
 		for _, site := range caller.sites {
-			for callee := range a.nodes[site.targets].pts {
-				a.callEdge(caller, site, callee)
+			for _, callee := range a.nodes[site.targets].pts.AppendTo(space[:0]) {
+				a.callEdge(caller, site, nodeid(callee))
 			}
 		}
 	}

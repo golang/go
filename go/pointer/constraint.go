@@ -28,7 +28,7 @@ type constraint interface {
 
 	// solve is called for complex constraints when the pts for
 	// the node to which they are attached has changed.
-	solve(a *analysis, n *node, delta nodeset)
+	solve(a *analysis, delta *nodeset)
 
 	String() string
 }

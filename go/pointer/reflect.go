@@ -170,9 +170,10 @@ func (c *rVBytesConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Bytes()", c.result, c.v)
 }
 
-func (c *rVBytesConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rVBytesConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for vObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, slice, indirect := a.taggedValue(vObj)
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
@@ -231,13 +232,14 @@ func (c *rVCallConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Call(n%d)", c.result, c.v, c.arg)
 }
 
-func (c *rVCallConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rVCallConstraint) solve(a *analysis, delta *nodeset) {
 	if c.targets == 0 {
 		panic("no targets")
 	}
 
 	changed := false
-	for vObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, fn, indirect := a.taggedValue(vObj)
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
@@ -372,9 +374,10 @@ func (c *rVElemConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Elem()", c.result, c.v)
 }
 
-func (c *rVElemConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rVElemConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for vObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, payload, indirect := a.taggedValue(vObj)
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
@@ -434,9 +437,10 @@ func (c *rVIndexConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Index()", c.result, c.v)
 }
 
-func (c *rVIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rVIndexConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for vObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, payload, indirect := a.taggedValue(vObj)
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
@@ -495,9 +499,10 @@ func (c *rVInterfaceConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Interface()", c.result, c.v)
 }
 
-func (c *rVInterfaceConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rVInterfaceConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for vObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, payload, indirect := a.taggedValue(vObj)
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
@@ -547,9 +552,10 @@ func (c *rVMapIndexConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.MapIndex(_)", c.result, c.v)
 }
 
-func (c *rVMapIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rVMapIndexConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for vObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, m, indirect := a.taggedValue(vObj)
 		tMap, _ := tDyn.Underlying().(*types.Map)
 		if tMap == nil {
@@ -600,9 +606,10 @@ func (c *rVMapKeysConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.MapKeys()", c.result, c.v)
 }
 
-func (c *rVMapKeysConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rVMapKeysConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for vObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, m, indirect := a.taggedValue(vObj)
 		tMap, _ := tDyn.Underlying().(*types.Map)
 		if tMap == nil {
@@ -663,9 +670,10 @@ func (c *rVRecvConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Recv()", c.result, c.v)
 }
 
-func (c *rVRecvConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rVRecvConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for vObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, ch, indirect := a.taggedValue(vObj)
 		tChan, _ := tDyn.Underlying().(*types.Chan)
 		if tChan == nil {
@@ -717,8 +725,9 @@ func (c *rVSendConstraint) String() string {
 	return fmt.Sprintf("reflect n%d.Send(n%d)", c.v, c.x)
 }
 
-func (c *rVSendConstraint) solve(a *analysis, _ *node, delta nodeset) {
-	for vObj := range delta {
+func (c *rVSendConstraint) solve(a *analysis, delta *nodeset) {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, ch, indirect := a.taggedValue(vObj)
 		tChan, _ := tDyn.Underlying().(*types.Chan)
 		if tChan == nil {
@@ -769,8 +778,9 @@ func (c *rVSetBytesConstraint) String() string {
 	return fmt.Sprintf("reflect n%d.SetBytes(n%d)", c.v, c.x)
 }
 
-func (c *rVSetBytesConstraint) solve(a *analysis, _ *node, delta nodeset) {
-	for vObj := range delta {
+func (c *rVSetBytesConstraint) solve(a *analysis, delta *nodeset) {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, slice, indirect := a.taggedValue(vObj)
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
@@ -818,8 +828,9 @@ func (c *rVSetMapIndexConstraint) String() string {
 	return fmt.Sprintf("reflect n%d.SetMapIndex(n%d, n%d)", c.v, c.key, c.val)
 }
 
-func (c *rVSetMapIndexConstraint) solve(a *analysis, _ *node, delta nodeset) {
-	for vObj := range delta {
+func (c *rVSetMapIndexConstraint) solve(a *analysis, delta *nodeset) {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, m, indirect := a.taggedValue(vObj)
 		tMap, _ := tDyn.Underlying().(*types.Map)
 		if tMap == nil {
@@ -877,9 +888,10 @@ func (c *rVSliceConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect n%d.Slice(_, _)", c.result, c.v)
 }
 
-func (c *rVSliceConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rVSliceConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for vObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, payload, indirect := a.taggedValue(vObj)
 		if indirect {
 			// TODO(adonovan): we'll need to implement this
@@ -955,9 +967,10 @@ func (c *reflectChanOfConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.ChanOf(n%d)", c.result, c.t)
 }
 
-func (c *reflectChanOfConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *reflectChanOfConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for tObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		tObj := nodeid(x)
 		T := a.rtypeTaggedValue(tObj)
 
 		if typeTooHigh(T) {
@@ -1026,9 +1039,10 @@ func (c *reflectIndirectConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.Indirect(n%d)", c.result, c.v)
 }
 
-func (c *reflectIndirectConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *reflectIndirectConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for vObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		vObj := nodeid(x)
 		tDyn, _, _ := a.taggedValue(vObj)
 		var res nodeid
 		if tPtr, ok := tDyn.Underlying().(*types.Pointer); ok {
@@ -1077,9 +1091,10 @@ func (c *reflectMakeChanConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.MakeChan(n%d)", c.result, c.typ)
 }
 
-func (c *reflectMakeChanConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *reflectMakeChanConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for typObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		typObj := nodeid(x)
 		T := a.rtypeTaggedValue(typObj)
 		tChan, ok := T.Underlying().(*types.Chan)
 		if !ok || tChan.Dir() != types.SendRecv {
@@ -1134,9 +1149,10 @@ func (c *reflectMakeMapConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.MakeMap(n%d)", c.result, c.typ)
 }
 
-func (c *reflectMakeMapConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *reflectMakeMapConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for typObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		typObj := nodeid(x)
 		T := a.rtypeTaggedValue(typObj)
 		tMap, ok := T.Underlying().(*types.Map)
 		if !ok {
@@ -1190,9 +1206,10 @@ func (c *reflectMakeSliceConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.MakeSlice(n%d)", c.result, c.typ)
 }
 
-func (c *reflectMakeSliceConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *reflectMakeSliceConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for typObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		typObj := nodeid(x)
 		T := a.rtypeTaggedValue(typObj)
 		if _, ok := T.Underlying().(*types.Slice); !ok {
 			continue // not a slice type
@@ -1246,9 +1263,10 @@ func (c *reflectNewConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.New(n%d)", c.result, c.typ)
 }
 
-func (c *reflectNewConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *reflectNewConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for typObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		typObj := nodeid(x)
 		T := a.rtypeTaggedValue(typObj)
 
 		// allocate new T object
@@ -1307,9 +1325,10 @@ func (c *reflectPtrToConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.PtrTo(n%d)", c.result, c.t)
 }
 
-func (c *reflectPtrToConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *reflectPtrToConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for tObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		tObj := nodeid(x)
 		T := a.rtypeTaggedValue(tObj)
 
 		if typeTooHigh(T) {
@@ -1355,9 +1374,10 @@ func (c *reflectSliceOfConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.SliceOf(n%d)", c.result, c.t)
 }
 
-func (c *reflectSliceOfConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *reflectSliceOfConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for tObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		tObj := nodeid(x)
 		T := a.rtypeTaggedValue(tObj)
 
 		if typeTooHigh(T) {
@@ -1401,9 +1421,10 @@ func (c *reflectTypeOfConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.TypeOf(n%d)", c.result, c.i)
 }
 
-func (c *reflectTypeOfConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *reflectTypeOfConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for iObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		iObj := nodeid(x)
 		tDyn, _, _ := a.taggedValue(iObj)
 		if a.addLabel(c.result, a.makeRtype(tDyn)) {
 			changed = true
@@ -1451,9 +1472,10 @@ func (c *reflectZeroConstraint) String() string {
 	return fmt.Sprintf("n%d = reflect.Zero(n%d)", c.result, c.typ)
 }
 
-func (c *reflectZeroConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *reflectZeroConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for typObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		typObj := nodeid(x)
 		T := a.rtypeTaggedValue(typObj)
 
 		// TODO(adonovan): if T is an interface type, we need
@@ -1510,13 +1532,14 @@ func (c *rtypeElemConstraint) String() string {
 	return fmt.Sprintf("n%d = (*reflect.rtype).Elem(n%d)", c.result, c.t)
 }
 
-func (c *rtypeElemConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rtypeElemConstraint) solve(a *analysis, delta *nodeset) {
 	// Implemented by *types.{Map,Chan,Array,Slice,Pointer}.
 	type hasElem interface {
 		Elem() types.Type
 	}
 	changed := false
-	for tObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		tObj := nodeid(x)
 		T := a.nodes[tObj].obj.data.(types.Type)
 		if tHasElem, ok := T.Underlying().(hasElem); ok {
 			if a.addLabel(c.result, a.makeRtype(tHasElem.Elem())) {
@@ -1560,7 +1583,7 @@ func (c *rtypeFieldByNameConstraint) String() string {
 	return fmt.Sprintf("n%d = (*reflect.rtype).FieldByName(n%d, %q)", c.result, c.t, c.name)
 }
 
-func (c *rtypeFieldByNameConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rtypeFieldByNameConstraint) solve(a *analysis, delta *nodeset) {
 	// type StructField struct {
 	// 0	__identity__
 	// 1	Name      string
@@ -1572,7 +1595,8 @@ func (c *rtypeFieldByNameConstraint) solve(a *analysis, _ *node, delta nodeset) 
 	// 7	Anonymous bool
 	// }
 
-	for tObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		tObj := nodeid(x)
 		T := a.nodes[tObj].obj.data.(types.Type)
 		tStruct, ok := T.Underlying().(*types.Struct)
 		if !ok {
@@ -1648,9 +1672,10 @@ func (c *rtypeInOutConstraint) String() string {
 	return fmt.Sprintf("n%d = (*reflect.rtype).InOut(n%d, %d)", c.result, c.t, c.i)
 }
 
-func (c *rtypeInOutConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rtypeInOutConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for tObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		tObj := nodeid(x)
 		T := a.nodes[tObj].obj.data.(types.Type)
 		sig, ok := T.Underlying().(*types.Signature)
 		if !ok {
@@ -1722,9 +1747,10 @@ func (c *rtypeKeyConstraint) String() string {
 	return fmt.Sprintf("n%d = (*reflect.rtype).Key(n%d)", c.result, c.t)
 }
 
-func (c *rtypeKeyConstraint) solve(a *analysis, _ *node, delta nodeset) {
+func (c *rtypeKeyConstraint) solve(a *analysis, delta *nodeset) {
 	changed := false
-	for tObj := range delta {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		tObj := nodeid(x)
 		T := a.nodes[tObj].obj.data.(types.Type)
 		if tMap, ok := T.Underlying().(*types.Map); ok {
 			if a.addLabel(c.result, a.makeRtype(tMap.Key())) {
@@ -1782,8 +1808,9 @@ func changeRecv(sig *types.Signature) *types.Signature {
 	return types.NewSignature(nil, nil, types.NewTuple(p2...), sig.Results(), sig.Variadic())
 }
 
-func (c *rtypeMethodByNameConstraint) solve(a *analysis, _ *node, delta nodeset) {
-	for tObj := range delta {
+func (c *rtypeMethodByNameConstraint) solve(a *analysis, delta *nodeset) {
+	for _, x := range delta.AppendTo(a.deltaSpace) {
+		tObj := nodeid(x)
 		T := a.nodes[tObj].obj.data.(types.Type)
 
 		isIface := isInterface(T)

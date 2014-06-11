@@ -4,7 +4,9 @@ Pointer analysis to-do list
 ===========================
 
 CONSTRAINT GENERATION:
-- support reflection 
+- support reflection:
+  - a couple of operators are missing
+  - reflect.Values may contain lvalues (CanAddr)
 - implement native intrinsics.  These vary by platform.
 - unsafe.Pointer conversions.  Three options:
   1) unsoundly (but type-safely) treat p=unsafe.Pointer(x) conversions as
@@ -17,21 +19,8 @@ CONSTRAINT GENERATION:
      allocations that identifies the object.    
 
 OPTIMISATIONS
-- pre-solver: PE and LE via HVN/HRU.
+- pre-solver: PE via HVN/HRU and LE.
 - solver: HCD, LCD.
-- use sparse bitvectors for ptsets
-- use sparse bitvectors for graph edges
-- experiment with different worklist algorithms:
-   priority queue (solver visit-time order)
-   red-black tree (node id order)
-   double-ended queue (insertion order)
-   fast doubly-linked list (See Zhanh et al PLDI'13)
-     (insertion order with fast membership test)
-  dannyb recommends sparse bitmap.
-
-API:
-- Some optimisations (e.g. LE, PE) may change the API.
-  Think about them sooner rather than later.
 
 MISC:
 - Test on all platforms.  

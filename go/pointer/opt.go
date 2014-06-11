@@ -13,8 +13,7 @@ import (
 func (a *analysis) optimize() {
 	a.renumber()
 
-	// TODO(adonovan): opt:
-	// PE, LE, HVN, HRU, sparse bitsets, etc.
+	// TODO(adonovan): opt: PE (HVN, HRU), LE, etc.
 }
 
 // renumber permutes a.nodes so that all nodes within an addressable

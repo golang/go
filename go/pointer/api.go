@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"io"
 
+	"code.google.com/p/go.tools/container/intsets"
 	"code.google.com/p/go.tools/go/callgraph"
 	"code.google.com/p/go.tools/go/ssa"
 	"code.google.com/p/go.tools/go/types/typeutil"
@@ -134,18 +135,22 @@ type Pointer struct {
 // A PointsToSet is a set of labels (locations or allocations).
 type PointsToSet struct {
 	a   *analysis // may be nil if pts is nil
-	pts nodeset
+	pts *nodeset
 }
 
 func (s PointsToSet) String() string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "[")
-	sep := ""
-	for l := range s.pts {
-		fmt.Fprintf(&buf, "%s%s", sep, s.a.labelFor(l))
-		sep = ", "
+	buf.WriteByte('[')
+	if s.pts != nil {
+		var space [50]int
+		for i, l := range s.pts.AppendTo(space[:0]) {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(s.a.labelFor(nodeid(l)).String())
+		}
 	}
-	fmt.Fprintf(&buf, "]")
+	buf.WriteByte(']')
 	return buf.String()
 }
 
@@ -153,8 +158,11 @@ func (s PointsToSet) String() string {
 // contains.
 func (s PointsToSet) Labels() []*Label {
 	var labels []*Label
-	for l := range s.pts {
-		labels = append(labels, s.a.labelFor(l))
+	if s.pts != nil {
+		var space [50]int
+		for _, l := range s.pts.AppendTo(space[:0]) {
+			labels = append(labels, s.a.labelFor(nodeid(l)))
+		}
 	}
 	return labels
 }
@@ -173,20 +181,24 @@ func (s PointsToSet) Labels() []*Label {
 func (s PointsToSet) DynamicTypes() *typeutil.Map {
 	var tmap typeutil.Map
 	tmap.SetHasher(s.a.hasher)
-	for ifaceObjId := range s.pts {
-		if !s.a.isTaggedObject(ifaceObjId) {
-			continue // !CanHaveDynamicTypes(tDyn)
+	if s.pts != nil {
+		var space [50]int
+		for _, x := range s.pts.AppendTo(space[:0]) {
+			ifaceObjId := nodeid(x)
+			if !s.a.isTaggedObject(ifaceObjId) {
+				continue // !CanHaveDynamicTypes(tDyn)
+			}
+			tDyn, v, indirect := s.a.taggedValue(ifaceObjId)
+			if indirect {
+				panic("indirect tagged object") // implement later
+			}
+			pts, ok := tmap.At(tDyn).(PointsToSet)
+			if !ok {
+				pts = PointsToSet{s.a, new(nodeset)}
+				tmap.Set(tDyn, pts)
+			}
+			pts.pts.addAll(&s.a.nodes[v].pts)
 		}
-		tDyn, v, indirect := s.a.taggedValue(ifaceObjId)
-		if indirect {
-			panic("indirect tagged object") // implement later
-		}
-		pts, ok := tmap.At(tDyn).(PointsToSet)
-		if !ok {
-			pts = PointsToSet{s.a, make(nodeset)}
-			tmap.Set(tDyn, pts)
-		}
-		pts.pts.addAll(s.a.nodes[v].pts)
 	}
 	return &tmap
 }
@@ -194,12 +206,13 @@ func (s PointsToSet) DynamicTypes() *typeutil.Map {
 // Intersects reports whether this points-to set and the
 // argument points-to set contain common members.
 func (x PointsToSet) Intersects(y PointsToSet) bool {
-	for l := range x.pts {
-		if _, ok := y.pts[l]; ok {
-			return true
-		}
+	if x.pts == nil || y.pts == nil {
+		return false
 	}
-	return false
+	// This takes Θ(|x|+|y|) time.
+	var z intsets.Sparse
+	z.Intersection(&x.pts.Sparse, &y.pts.Sparse)
+	return !z.IsEmpty()
 }
 
 func (p Pointer) String() string {
@@ -208,7 +221,10 @@ func (p Pointer) String() string {
 
 // PointsTo returns the points-to set of this pointer.
 func (p Pointer) PointsTo() PointsToSet {
-	return PointsToSet{p.a, p.a.nodes[p.n].pts}
+	if p.n == 0 {
+		return PointsToSet{}
+	}
+	return PointsToSet{p.a, &p.a.nodes[p.n].pts}
 }
 
 // MayAlias reports whether the receiver pointer may alias
