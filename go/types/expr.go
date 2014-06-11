@@ -149,21 +149,14 @@ func isComparison(op token.Token) bool {
 }
 
 func fitsFloat32(x exact.Value) bool {
-	f, _ := exact.Float64Val(x)
-	// spec: "In all non-constant conversions involving floating-point
-	// or complex values, if the result type cannot represent the value
-	// the conversion succeeds but the result value is implementation-
-	// dependent."
-	//
-	// We assume that float32(f) returns an Inf if f is too large for
-	// a float32, or if f is an Inf; and that it returns 0 for values
-	// with too small a magnitude.
-	return !math.IsInf(float64(float32(f)), 0)
+	f32, _ := exact.Float32Val(x)
+	f := float64(f32)
+	return !math.IsInf(f, 0)
 }
 
 func roundFloat32(x exact.Value) exact.Value {
-	f, _ := exact.Float64Val(x)
-	f = float64(float32(f))
+	f32, _ := exact.Float32Val(x)
+	f := float64(f32)
 	if !math.IsInf(f, 0) {
 		return exact.MakeFloat64(f)
 	}

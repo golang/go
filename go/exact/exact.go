@@ -245,6 +245,22 @@ func Uint64Val(x Value) (uint64, bool) {
 	panic(fmt.Sprintf("%v not an Int", x))
 }
 
+// Float32Val is like Float64Val but for float32 instead of float64.
+func Float32Val(x Value) (float32, bool) {
+	switch x := x.(type) {
+	case int64Val:
+		f := float32(x)
+		return f, int64Val(f) == x
+	case intVal:
+		return new(big.Rat).SetFrac(x.val, int1).Float32()
+	case floatVal:
+		return x.val.Float32()
+	case unknownVal:
+		return 0, false
+	}
+	panic(fmt.Sprintf("%v not a Float", x))
+}
+
 // Float64Val returns the nearest Go float64 value of x and whether the result is exact;
 // x must be numeric but not Complex, or Unknown. For values too small (too close to 0)
 // to represent as float64, Float64Val silently underflows to 0. The result sign always
