@@ -100,6 +100,8 @@ func (c *Const) Referrers() *[]Instruction {
 	return nil
 }
 
+func (c *Const) Parent() *Function { return nil }
+
 func (c *Const) Pos() token.Pos {
 	return token.NoPos
 }

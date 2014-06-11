@@ -104,7 +104,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		name:      "matcher",
 		Signature: testingMainParams.At(0).Type().(*types.Signature),
 		Synthetic: "test matcher predicate",
-		Enclosing: main,
+		parent:    main,
 		Pkg:       testmain,
 		Prog:      prog,
 	}

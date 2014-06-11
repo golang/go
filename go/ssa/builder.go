@@ -472,7 +472,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 			name:      fmt.Sprintf("%s$%d", fn.Name(), 1+len(fn.AnonFuncs)),
 			Signature: fn.Pkg.typeOf(e.Type).Underlying().(*types.Signature),
 			pos:       e.Type.Func,
-			Enclosing: fn,
+			parent:    fn,
 			Pkg:       fn.Pkg,
 			Prog:      fn.Prog,
 			syntax:    e,

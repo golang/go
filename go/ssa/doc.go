@@ -42,6 +42,7 @@
 //    - Member: a named member of a Go package.
 //    - Value: an expression that yields a value.
 //    - Instruction: a statement that consumes values and performs computation.
+//    - Node: a Value or Instruction (emphasizing its membership in the SSA value graph)
 //
 // A computation that yields a result implements both the Value and
 // Instruction interfaces.  The following table shows for each

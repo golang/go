@@ -423,10 +423,10 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 
 	// Definition must be in an enclosing function;
 	// plumb it through intervening closures.
-	if f.Enclosing == nil {
+	if f.parent == nil {
 		panic("no Value for type.Object " + obj.Name())
 	}
-	outer := f.Enclosing.lookup(obj, true) // escaping
+	outer := f.parent.lookup(obj, true) // escaping
 	v := &Capture{
 		name:   obj.Name(),
 		typ:    outer.Type(),
@@ -466,7 +466,7 @@ func (f *Function) emit(instr Instruction) Value {
 //
 func (f *Function) RelString(from *types.Package) string {
 	// Anonymous?
-	if f.Enclosing != nil {
+	if f.parent != nil {
 		return f.name
 	}
 
@@ -544,8 +544,8 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 		fmt.Fprintf(buf, "# Location: %s\n", f.Prog.Fset.Position(pos))
 	}
 
-	if f.Enclosing != nil {
-		fmt.Fprintf(buf, "# Parent: %s\n", f.Enclosing.Name())
+	if f.parent != nil {
+		fmt.Fprintf(buf, "# Parent: %s\n", f.parent.Name())
 	}
 
 	if f.Recover != nil {

@@ -1104,7 +1104,6 @@ func (a *analysis) makeCGNode(fn *ssa.Function, obj nodeid, callersite *callsite
 func (a *analysis) genRootCalls() *cgnode {
 	r := ssa.NewFunction("<root>", new(types.Signature), "root of callgraph")
 	r.Prog = a.prog // hack.
-	r.Enclosing = r // hack, so Function.String() doesn't crash
 	r.String()      // (asserts that it doesn't crash)
 	root := a.makeCGNode(r, 0, nil)
 

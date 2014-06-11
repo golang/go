@@ -123,6 +123,10 @@ type Value interface {
 	// types of their operands.
 	Type() types.Type
 
+	// Parent returns the function to which this Value belongs.
+	// It returns nil for named Functions, Builtin, Const and Global.
+	Parent() *Function
+
 	// Referrers returns the list of instructions that have this
 	// value as one of their operands; it may contain duplicates
 	// if an instruction has a repeated operand.
@@ -130,9 +134,9 @@ type Value interface {
 	// Referrers actually returns a pointer through which the
 	// caller may perform mutations to the object's state.
 	//
-	// Referrers is currently only defined for the function-local
-	// values Capture, Parameter, Functions (iff anonymous) and
-	// all value-defining instructions.
+	// Referrers is currently only defined if Parent()!=nil,
+	// i.e. for the function-local values Capture, Parameter,
+	// Functions (iff anonymous) and all value-defining instructions.
 	// It returns nil for named Functions, Builtin, Const and Global.
 	//
 	// Instruction.Operands contains the inverse of this relation.
@@ -199,9 +203,10 @@ type Instruction interface {
 	// user-provided slice, and returns the resulting slice,
 	// permitting avoidance of memory allocation.
 	//
-	// The operands are appended in undefined order; the addresses
-	// are always non-nil but may point to a nil Value.  Clients
-	// may store through the pointers, e.g. to effect a value
+	// The operands are appended in undefined order, but the order
+	// is consistent for a given Instruction; the addresses are
+	// always non-nil but may point to a nil Value.  Clients may
+	// store through the pointers, e.g. to effect a value
 	// renaming.
 	//
 	// Value.Referrers is a subset of the inverse of this
@@ -229,6 +234,28 @@ type Instruction interface {
 	Pos() token.Pos
 }
 
+// A Node is a node in the SSA value graph.  Every concrete type that
+// implements Node is also either a Value, an Instruction, or both.
+//
+// Node contains the methods common to Value and Instruction, plus the
+// Operands and Referrers methods generalized to return nil for
+// non-Instructions and non-Values, respectively.
+//
+// Node is provided to simplify SSA graph algorithms.  Clients should
+// use the more specific and informative Value or Instruction
+// interfaces where appropriate.
+//
+type Node interface {
+	// Common methods:
+	String() string
+	Pos() token.Pos
+	Parent() *Function
+
+	// Partial methods:
+	Operands(rands []*Value) []*Value // nil for non-Instructions
+	Referrers() *[]Instruction        // nil for non-Values
+}
+
 // Function represents the parameters, results and code of a function
 // or method.
 //
@@ -250,11 +277,11 @@ type Instruction interface {
 // of the function's named return parameters followed by a return of
 // the loaded values.
 //
-// A nested function that refers to one or more lexically enclosing
-// local variables ("free variables") has Capture parameters.  Such
-// functions cannot be called directly but require a value created by
-// MakeClosure which, via its Bindings, supplies values for these
-// parameters.
+// A nested function (Parent()!=nil) that refers to one or more
+// lexically enclosing local variables ("free variables") has Capture
+// parameters.  Such functions cannot be called directly but require a
+// value created by MakeClosure which, via its Bindings, supplies
+// values for these parameters.
 //
 // If the function is a method (Signature.Recv() != nil) then the first
 // element of Params is the receiver parameter.
@@ -275,7 +302,7 @@ type Function struct {
 
 	Synthetic string       // provenance of synthetic function; "" for true source functions
 	syntax    ast.Node     // *ast.Func{Decl,Lit}; replaced with simple ast.Node after build, unless debug mode
-	Enclosing *Function    // enclosing function if anon; nil if global
+	parent    *Function    // enclosing function if anon; nil if global
 	Pkg       *Package     // enclosing package; nil for shared funcs (wrappers and error.Error)
 	Prog      *Program     // enclosing program
 	Params    []*Parameter // function parameters; for methods, includes receiver
@@ -284,7 +311,7 @@ type Function struct {
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
 	Recover   *BasicBlock   // optional; control transfers here after recovered panic
 	AnonFuncs []*Function   // anonymous functions directly beneath this one
-	referrers []Instruction // referring instructions (iff Enclosing != nil)
+	referrers []Instruction // referring instructions (iff Parent() != nil)
 
 	// The following fields are set transiently during building,
 	// then cleared.
@@ -1359,6 +1386,7 @@ func (v *Builtin) Name() string            { return v.object.Name() }
 func (*Builtin) Referrers() *[]Instruction { return nil }
 func (v *Builtin) Pos() token.Pos          { return token.NoPos }
 func (v *Builtin) Object() types.Object    { return v.object }
+func (v *Builtin) Parent() *Function       { return nil }
 
 func (v *Capture) Type() types.Type          { return v.typ }
 func (v *Capture) Name() string              { return v.name }
@@ -1368,6 +1396,7 @@ func (v *Capture) Parent() *Function         { return v.parent }
 
 func (v *Global) Type() types.Type                     { return v.typ }
 func (v *Global) Name() string                         { return v.name }
+func (v *Global) Parent() *Function                    { return nil }
 func (v *Global) Pos() token.Pos                       { return v.pos }
 func (v *Global) Referrers() *[]Instruction            { return nil }
 func (v *Global) Token() token.Token                   { return token.VAR }
@@ -1383,8 +1412,9 @@ func (v *Function) Token() token.Token   { return token.FUNC }
 func (v *Function) Object() types.Object { return v.object }
 func (v *Function) String() string       { return v.RelString(nil) }
 func (v *Function) Package() *Package    { return v.Pkg }
+func (v *Function) Parent() *Function    { return v.parent }
 func (v *Function) Referrers() *[]Instruction {
-	if v.Enclosing != nil {
+	if v.parent != nil {
 		return &v.referrers
 	}
 	return nil
@@ -1412,6 +1442,7 @@ func (v *register) setPos(pos token.Pos)      { v.pos = pos }
 func (v *anInstruction) Parent() *Function          { return v.block.parent }
 func (v *anInstruction) Block() *BasicBlock         { return v.block }
 func (v *anInstruction) setBlock(block *BasicBlock) { v.block = block }
+func (v *anInstruction) Referrers() *[]Instruction  { return nil }
 
 func (t *Type) Name() string                         { return t.object.Name() }
 func (t *Type) Pos() token.Pos                       { return t.object.Pos() }
@@ -1638,3 +1669,11 @@ func (v *TypeAssert) Operands(rands []*Value) []*Value {
 func (v *UnOp) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
+
+// Non-Instruction Values:
+func (v *Builtin) Operands(rands []*Value) []*Value   { return rands }
+func (v *Capture) Operands(rands []*Value) []*Value   { return rands }
+func (v *Const) Operands(rands []*Value) []*Value     { return rands }
+func (v *Function) Operands(rands []*Value) []*Value  { return rands }
+func (v *Global) Operands(rands []*Value) []*Value    { return rands }
+func (v *Parameter) Operands(rands []*Value) []*Value { return rands }

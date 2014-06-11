@@ -357,10 +357,12 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 			case *Const, *Global, *Builtin:
 				continue // not local
 			case *Function:
-				if val.Enclosing == nil {
+				if val.parent == nil {
 					continue // only anon functions are local
 				}
 			}
+
+			// TODO(adonovan): check val.Parent() != nil <=> val.Referrers() is defined.
 
 			if refs := val.Referrers(); refs != nil {
 				for _, ref := range *refs {
@@ -442,8 +444,8 @@ func (s *sanity) checkFunction(fn *Function) bool {
 
 	s.block = nil
 	for i, anon := range fn.AnonFuncs {
-		if anon.Enclosing != fn {
-			s.errorf("AnonFuncs[%d]=%s but %s.Enclosing=%s", i, anon, anon, anon.Enclosing)
+		if anon.Parent() != fn {
+			s.errorf("AnonFuncs[%d]=%s but %s.Parent()=%s", i, anon, anon, anon.Parent())
 		}
 	}
 	s.fn = nil
