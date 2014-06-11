@@ -1918,24 +1918,7 @@ start:
 		// locals (which may be mutated by the deferred call)
 		// and return them.
 		if fn.namedResults != nil {
-			// Optimization: if we can prove the deferred call
-			// won't cause recovery from panic, we can avoid a
-			// Recover block.
-			// We scan the callee for calls to recover() iff:
-			// - it's a static call
-			// - to a function in the same package
-			//   (other packages' SSA building happens concurrently)
-			// - whose SSA building has started (Blocks != nil)
-			// - and finished (i.e. not this function)
-			// NB, this is always true for: defer func() { ... } ()
-			//
-			// TODO(adonovan): optimize interpackage cases, e.g.
-			//   (sync.Mutex).Unlock(), (io.Closer).Close
-			if callee, ok := v.Call.Value.(*Function); ok && callee.Pkg == fn.Pkg && callee != fn && callee.Blocks != nil && !callsRecover(callee) {
-				// Deferred call cannot cause recovery from panic.
-			} else {
-				createRecoverBlock(fn)
-			}
+			createRecoverBlock(fn)
 		}
 
 	case *ast.ReturnStmt:

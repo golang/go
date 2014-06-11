@@ -103,22 +103,6 @@ func logStack(format string, args ...interface{}) func() {
 	}
 }
 
-// callsRecover reports whether f contains a direct call to recover().
-func callsRecover(f *Function) bool {
-	for _, b := range f.Blocks {
-		for _, instr := range b.Instrs {
-			if call, ok := instr.(*Call); ok {
-				if blt, ok := call.Call.Value.(*Builtin); ok {
-					if blt.Name() == "recover" {
-						return true
-					}
-				}
-			}
-		}
-	}
-	return false
-}
-
 // newVar creates a 'var' for use in a types.Tuple.
 func newVar(name string, typ types.Type) *types.Var {
 	return types.NewParam(token.NoPos, nil, name, typ)
