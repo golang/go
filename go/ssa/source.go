@@ -193,20 +193,19 @@ func (prog *Program) packageLevelValue(obj types.Object) Value {
 	return nil
 }
 
-// FuncValue returns the Function denoted by the source-level named
-// function obj.
+// FuncValue returns the concrete Function denoted by the source-level
+// named function obj, or nil if obj denotes an interface method.
+//
+// TODO(adonovan): check the invariant that obj.Type() matches the
+// result's Signature, both in the params/results and in the receiver.
 //
 func (prog *Program) FuncValue(obj *types.Func) *Function {
-	// Package-level function or declared method?
-	if v := prog.packageLevelValue(obj); v != nil {
-		return v.(*Function)
-	}
-	// Interface method wrapper?
-	return prog.LookupMethod(recvType(obj), obj.Pkg(), obj.Name())
+	fn, _ := prog.packageLevelValue(obj).(*Function)
+	return fn
 }
 
 // ConstValue returns the SSA Value denoted by the source-level named
-// constant obj.  The result may be a *Const, or nil if not found.
+// constant obj.
 //
 func (prog *Program) ConstValue(obj *types.Const) *Const {
 	// TODO(adonovan): opt: share (don't reallocate)

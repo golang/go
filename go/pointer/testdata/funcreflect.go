@@ -51,8 +51,8 @@ func reflectValueCallIndirect() {
 	print(res0.(*T))    // @pointsto new@newT2:19
 }
 
-// @calls main.reflectValueCallIndirect -> bound$(reflect.Value).Call
-// @calls bound$(reflect.Value).Call -> main.g
+// @calls main.reflectValueCallIndirect -> (reflect.Value).Call$bound
+// @calls (reflect.Value).Call$bound -> main.g
 
 func reflectTypeInOut() {
 	var f func(float64, bool) (string, int)
@@ -111,7 +111,7 @@ func reflectTypeMethodByName() {
 	print(reflect.Zero(rThasF)) // @types hasF
 	F2, _ := rThasF.MethodByName("F")
 	print(reflect.Zero(F2.Type)) // @types func()
-	print(F2.Func)               // @pointsto (main.hasF).F
+	print(F2.Func)               // @pointsto
 
 }
 

@@ -28,10 +28,10 @@ type Program struct {
 	mode       BuilderMode                 // set of mode bits for SSA construction
 	MethodSets types.MethodSetCache        // cache of type-checker's method-sets
 
-	methodsMu           sync.Mutex                // guards the following maps:
-	methodSets          typeutil.Map              // maps type to its concrete methodSet
-	boundMethodWrappers map[*types.Func]*Function // wrappers for curried x.Method closures
-	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
+	methodsMu  sync.Mutex                 // guards the following maps:
+	methodSets typeutil.Map               // maps type to its concrete methodSet
+	bounds     map[*types.Func]*Function  // bounds for curried x.Method closures
+	thunks     map[selectionKey]*Function // thunks for T.Method expressions
 }
 
 // A Package is a single analyzed Go package containing Members for
@@ -268,8 +268,8 @@ type Instruction interface {
 //
 type Function struct {
 	name      string
-	object    types.Object     // a declared *types.Func; nil for init, wrappers, etc.
-	method    *types.Selection // info about provenance of synthetic methods [currently unused]
+	object    types.Object     // a declared *types.Func or one of its wrappers
+	method    *types.Selection // info about provenance of synthetic methods
 	Signature *types.Signature
 	pos       token.Pos
 
@@ -548,7 +548,6 @@ type UnOp struct {
 //    - between a named type and its underlying type.
 //    - between two named types of the same underlying type.
 //    - between (possibly named) pointers to identical base types.
-//    - between f(T) functions and (T) func f() methods.
 //    - from a bidirectional channel to a read- or write-channel,
 //      optionally adding/removing a name.
 //

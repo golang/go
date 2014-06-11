@@ -548,6 +548,11 @@ func (a *analysis) genBuiltinCall(instr ssa.CallInstruction, cgn *cgnode) {
 			a.copy(a.valueNode(v), a.panicNode, 1)
 		}
 
+	case "print":
+		// In the tests, the probe might be the sole reference
+		// to its arg, so make sure we create nodes for it.
+		a.valueNode(call.Args[0])
+
 	default:
 		// No-ops: close len cap real imag complex print println delete.
 	}

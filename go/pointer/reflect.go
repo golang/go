@@ -1786,7 +1786,7 @@ func (c *rtypeMethodByNameConstraint) solve(a *analysis, _ *node, delta nodeset)
 	for tObj := range delta {
 		T := a.nodes[tObj].obj.data.(types.Type)
 
-		_, isInterface := T.Underlying().(*types.Interface)
+		isIface := isInterface(T)
 
 		// We don't use Lookup(c.name) when c.name != "" to avoid
 		// ambiguity: >1 unexported methods could match.
@@ -1802,24 +1802,26 @@ func (c *rtypeMethodByNameConstraint) solve(a *analysis, _ *node, delta nodeset)
 				// 4	Func    Value
 				// 5	Index   int
 				// }
-				fn := a.prog.Method(sel)
 
-				sig := fn.Signature
-				if isInterface {
-					// discard receiver
-					sig = types.NewSignature(nil, nil, sig.Params(), sig.Results(), sig.Variadic())
+				var sig *types.Signature
+				var fn *ssa.Function
+				if isIface {
+					sig = sel.Type().(*types.Signature)
 				} else {
+					fn = a.prog.Method(sel)
 					// move receiver to params[0]
-					sig = changeRecv(sig)
-
+					sig = changeRecv(fn.Signature)
 				}
+
 				// a.offsetOf(Type) is 3.
 				if id := c.result + 3; a.addLabel(id, a.makeRtype(sig)) {
 					a.addWork(id)
 				}
-				// a.offsetOf(Func) is 4.
-				if id := c.result + 4; a.addLabel(id, a.objectNode(nil, fn)) {
-					a.addWork(id)
+				if fn != nil {
+					// a.offsetOf(Func) is 4.
+					if id := c.result + 4; a.addLabel(id, a.objectNode(nil, fn)) {
+						a.addWork(id)
+					}
 				}
 			}
 		}

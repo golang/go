@@ -454,50 +454,49 @@ func (f *Function) emit(instr Instruction) Value {
 // Examples:
 //      "math.IsNaN"                // a package-level function
 //      "IsNaN"                     // intra-package reference to same
-//      "(*sync.WaitGroup).Add"     // a declared method
-//      "(*Return).Block"           // a promotion wrapper method (intra-package ref)
-//      "(Instruction).Block"       // an interface method wrapper (intra-package ref)
+//      "(*bytes.Buffer).Bytes"     // a declared method or a wrapper
+//      "(*Buffer).Bytes"           // intra-package reference to same
+//      "(*Buffer).Bytes$thunk"     // thunk (func wrapping method; receiver is param 0)
+//      "(*Buffer).Bytes$bound"     // bound (func wrapping method; receiver supplied by closure)
 //      "main$1"                    // an anonymous function
 //      "init$1"                    // a declared init function
 //      "init"                      // the synthesized package initializer
-//      "bound$(*T).f"              // a bound method wrapper
 //
 // If from==f.Pkg, suppress package qualification.
+//
 func (f *Function) RelString(from *types.Package) string {
-	// TODO(adonovan): expose less fragile case discrimination
-	// using f.method.
-
 	// Anonymous?
 	if f.Enclosing != nil {
 		return f.name
 	}
 
-	// Declared method, or promotion/indirection wrapper?
+	// Method (declared or wrapper)?
 	if recv := f.Signature.Recv(); recv != nil {
-		return fmt.Sprintf("(%s).%s", relType(recv.Type(), from), f.name)
+		return f.relMethod(from, recv.Type())
 	}
 
-	// Other synthetic wrapper?
-	if f.Synthetic != "" {
-		// Bound method wrapper?
-		if strings.HasPrefix(f.name, "bound$") {
-			return f.name
-		}
-
-		// Interface method wrapper?
-		if strings.HasPrefix(f.Synthetic, "interface ") {
-			return fmt.Sprintf("(%s).%s", relType(f.Params[0].Type(), from), f.name)
-		}
-
-		// "package initializer" or "loaded from GC object file": fall through.
+	// Thunk?
+	if f.method != nil {
+		return f.relMethod(from, f.method.Recv())
 	}
 
-	// Package-level function.
+	// Bound?
+	if len(f.FreeVars) == 1 && strings.HasSuffix(f.name, "$bound") {
+		return f.relMethod(from, f.FreeVars[0].Type())
+	}
+
+	// Package-level function?
 	// Prefix with package name for cross-package references only.
-	if p := f.pkgobj(); p != from {
+	if p := f.pkgobj(); p != nil && p != from {
 		return fmt.Sprintf("%s.%s", p.Path(), f.name)
 	}
+
+	// Unknown.
 	return f.name
+}
+
+func (f *Function) relMethod(from *types.Package, recv types.Type) string {
+	return fmt.Sprintf("(%s).%s", relType(recv, from), f.name)
 }
 
 // writeSignature writes to buf the signature sig in declaration syntax.

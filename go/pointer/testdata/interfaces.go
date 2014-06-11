@@ -135,12 +135,12 @@ func interface5() {
 
 func interface6() {
 	f := I.f
-	print(f) // @pointsto (main.I).f
+	print(f) // @pointsto (main.I).f$thunk
 	f(new(struct{ D }))
 }
 
-// @calls main.interface6 -> (main.I).f
-// @calls (main.I).f -> (*struct{main.D}).f
+// @calls main.interface6 -> (main.I).f$thunk
+// @calls (main.I).f$thunk -> (*struct{main.D}).f
 
 func main() {
 	interface1()

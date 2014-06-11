@@ -296,7 +296,10 @@ func doOneInput(input, filename string) bool {
 		Log:            &log,
 	}
 	for probe := range probes {
-		config.AddQuery(probe.Args[0])
+		v := probe.Args[0]
+		if pointer.CanPoint(v.Type()) {
+			config.AddQuery(v)
+		}
 	}
 
 	// Print the log is there was an error or a panic.

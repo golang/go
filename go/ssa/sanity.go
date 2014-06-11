@@ -389,11 +389,13 @@ func (s *sanity) checkFunction(fn *Function) bool {
 	fn.String()               // must not crash
 	fn.RelString(fn.pkgobj()) // must not crash
 
-	// All functions have a package, except wrappers (which are
+	// All functions have a package, except delegates (which are
 	// shared across packages, or duplicated as weak symbols in a
 	// separate-compilation model), and error.Error.
 	if fn.Pkg == nil {
-		if strings.Contains(fn.Synthetic, "wrapper") ||
+		if strings.HasPrefix(fn.Synthetic, "wrapper ") ||
+			strings.HasPrefix(fn.Synthetic, "bound ") ||
+			strings.HasPrefix(fn.Synthetic, "thunk ") ||
 			strings.HasSuffix(fn.name, "Error") {
 			// ok
 		} else {

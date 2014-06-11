@@ -113,8 +113,8 @@ func func5() {
 }
 
 // @calls main.func5 -> (*main.T).f
-// @calls main.func5 -> (*main.T).g
-// @calls main.func5 -> (*main.T).h
+// @calls main.func5 -> (*main.T).g$thunk
+// @calls main.func5 -> (*main.T).h$thunk
 
 func func6() {
 	A := &a
@@ -138,18 +138,18 @@ func func7() {
 	var i I = D{}
 	imethodClosure := i.f
 	imethodClosure()
-	// @calls main.func7 -> bound$(main.I).f
-	// @calls bound$(main.I).f -> (main.D).f
+	// @calls main.func7 -> (main.I).f$bound
+	// @calls (main.I).f$bound -> (main.D).f
 
 	var d D
 	cmethodClosure := d.f
 	cmethodClosure()
-	// @calls main.func7 -> bound$(main.D).f
-	// @calls bound$(main.D).f ->(main.D).f
+	// @calls main.func7 -> (main.D).f$bound
+	// @calls (main.D).f$bound ->(main.D).f
 
 	methodExpr := D.f
 	methodExpr(d)
-	// @calls main.func7 -> (main.D).f
+	// @calls main.func7 -> (main.D).f$thunk
 }
 
 func main() {

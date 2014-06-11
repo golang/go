@@ -39,12 +39,12 @@ const (
 //
 func Create(iprog *loader.Program, mode BuilderMode) *Program {
 	prog := &Program{
-		Fset:                iprog.Fset,
-		imported:            make(map[string]*Package),
-		packages:            make(map[*types.Package]*Package),
-		boundMethodWrappers: make(map[*types.Func]*Function),
-		ifaceMethodWrappers: make(map[*types.Func]*Function),
-		mode:                mode,
+		Fset:     iprog.Fset,
+		imported: make(map[string]*Package),
+		packages: make(map[*types.Package]*Package),
+		thunks:   make(map[selectionKey]*Function),
+		bounds:   make(map[*types.Func]*Function),
+		mode:     mode,
 	}
 
 	for _, info := range iprog.AllPackages {
@@ -242,10 +242,6 @@ func (prog *Program) CreatePackage(info *loader.PackageInfo) *Package {
 		prog.imported[info.Pkg.Path()] = p
 	}
 	prog.packages[p.Object] = p
-
-	if prog.mode&SanityCheckFunctions != 0 {
-		sanityCheckPackage(p)
-	}
 
 	return p
 }

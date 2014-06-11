@@ -14,17 +14,15 @@ this func() may point to these objects:
 	(pointsto.D).f
 
 -------- @pointsto func-ref-I.f --------
-this func() may point to these objects:
-	(pointsto.I).f
 
+Error: func (pointsto.I).f() is an interface method
 -------- @pointsto func-ref-d.f --------
 this func() may point to these objects:
 	(pointsto.D).f
 
 -------- @pointsto func-ref-i.f --------
-this func() may point to these objects:
-	(pointsto.I).f
 
+Error: func (pointsto.I).f() is an interface method
 -------- @pointsto ref-lexical-d.f --------
 this func() may point to these objects:
 	(pointsto.D).f

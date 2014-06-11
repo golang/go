@@ -431,7 +431,7 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 		}
 
 		if _, ok := loc.(*address); ok {
-			if _, ok := loc.typ().Underlying().(*types.Interface); ok {
+			if isInterface(loc.typ()) {
 				// e.g. var x interface{} = T{...}
 				// Can't in-place initialize an interface value.
 				// Fall back to copying.
@@ -624,25 +624,25 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 
 		case types.MethodExpr:
 			// (*T).f or T.f, the method f from the method-set of type T.
-			// For declared methods, a simple conversion will suffice.
-			return emitConv(fn, fn.Prog.Method(sel), fn.Pkg.typeOf(e))
+			// The result is a "thunk".
+			return emitConv(fn, makeThunk(fn.Prog, sel), fn.Pkg.typeOf(e))
 
 		case types.MethodVal:
 			// e.f where e is an expression and f is a method.
-			// The result is a bound method closure.
+			// The result is a "bound".
 			obj := sel.Obj().(*types.Func)
 			rt := recvType(obj)
 			wantAddr := isPointer(rt)
 			escaping := true
 			v := b.receiver(fn, e.X, wantAddr, escaping, sel)
-			if _, ok := rt.Underlying().(*types.Interface); ok {
+			if isInterface(rt) {
 				// If v has interface type I,
 				// we must emit a check that v is non-nil.
 				// We use: typeassert v.(I).
 				emitTypeAssert(fn, v, rt, token.NoPos)
 			}
 			c := &MakeClosure{
-				Fn:       boundMethodWrapper(fn.Prog, obj),
+				Fn:       makeBound(fn.Prog, obj),
 				Bindings: []Value{v},
 			}
 			c.setPos(e.Sel.Pos())
@@ -798,7 +798,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 			wantAddr := isPointer(recvType(obj))
 			escaping := true
 			v := b.receiver(fn, selector.X, wantAddr, escaping, sel)
-			if _, ok := deref(v.Type()).Underlying().(*types.Interface); ok {
+			if isInterface(deref(v.Type())) {
 				// Invoke-mode call.
 				c.Value = v
 				c.Method = obj
@@ -2265,6 +2265,10 @@ func (p *Package) Build() {
 	init.finishBody()
 
 	p.info = nil // We no longer need ASTs or go/types deductions.
+
+	if p.Prog.mode&SanityCheckFunctions != 0 {
+		sanityCheckPackage(p)
+	}
 }
 
 // Only valid during p's create and build phases.

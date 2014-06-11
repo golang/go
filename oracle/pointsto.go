@@ -48,7 +48,8 @@ func pointsto(o *Oracle, qpos *QueryPos) (queryResult, error) {
 		return nil, fmt.Errorf("unexpected AST for expr: %T", n)
 	}
 
-	// Reject non-pointerlike types (includes all constants).
+	// Reject non-pointerlike types (includes all constants---except nil).
+	// TODO(adonovan): reject nil too.
 	typ := qpos.info.TypeOf(expr)
 	if !pointer.CanPoint(typ) {
 		return nil, fmt.Errorf("pointer analysis wants an expression of reference type; got %s", typ)
@@ -96,7 +97,13 @@ func ssaValueForIdent(prog *ssa.Program, qinfo *loader.PackageInfo, obj types.Ob
 		return nil, false, fmt.Errorf("can't locate SSA Value for var %s", obj.Name())
 
 	case *types.Func:
-		return prog.FuncValue(obj), false, nil
+		fn := prog.FuncValue(obj)
+		if fn == nil {
+			return nil, false, fmt.Errorf("%s is an interface method", obj)
+		}
+		// TODO(adonovan): there's no point running PTA on a *Func ident.
+		// Eliminate this feature.
+		return fn, false, nil
 	}
 	panic(obj)
 }

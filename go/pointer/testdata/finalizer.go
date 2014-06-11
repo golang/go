@@ -52,7 +52,7 @@ func runtimeSetFinalizer3() {
 	runtime.SetFinalizer(x, (*T).finalize)
 }
 
-// @calls main.runtimeSetFinalizer3 -> (*main.T).finalize
+// @calls main.runtimeSetFinalizer3 -> (*main.T).finalize$thunk
 
 // I hope I never live to see this code in the wild.
 var setFinalizer = runtime.SetFinalizer
