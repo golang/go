@@ -2356,12 +2356,12 @@ func TestNextafter32(t *testing.T) {
 
 func TestNextafter64(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Nextafter64(vf[i], 10); nextafter64[i] != f {
+		if f := Nextafter(vf[i], 10); nextafter64[i] != f {
 			t.Errorf("Nextafter64(%g, %g) = %g want %g", vf[i], 10.0, f, nextafter64[i])
 		}
 	}
 	for i := 0; i < len(vfnextafter64SC); i++ {
-		if f := Nextafter64(vfnextafter64SC[i][0], vfnextafter64SC[i][1]); !alike(nextafter64SC[i], f) {
+		if f := Nextafter(vfnextafter64SC[i][0], vfnextafter64SC[i][1]); !alike(nextafter64SC[i], f) {
 			t.Errorf("Nextafter64(%g, %g) = %g want %g", vfnextafter64SC[i][0], vfnextafter64SC[i][1], f, nextafter64SC[i])
 		}
 	}
@@ -2886,7 +2886,7 @@ func BenchmarkNextafter32(b *testing.B) {
 
 func BenchmarkNextafter64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Nextafter64(.5, 1)
+		Nextafter(.5, 1)
 	}
 }
 

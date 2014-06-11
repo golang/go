@@ -760,7 +760,7 @@ var float64inputs = []string{
 	"22.222222222222222",
 	"long:2." + strings.Repeat("2", 4000) + "e+1",
 
-	// Exactly halfway between 1 and math.Nextafter64(1, 2).
+	// Exactly halfway between 1 and math.Nextafter(1, 2).
 	// Round to even (down).
 	"1.00000000000000011102230246251565404236316680908203125",
 	// Slightly lower; still round down.
@@ -1103,8 +1103,8 @@ func checkIsBestApprox64(t *testing.T, f float64, r *Rat) bool {
 	}
 
 	// r must be strictly between f0 and f1, the floats bracketing f.
-	f0 := math.Nextafter64(f, math.Inf(-1))
-	f1 := math.Nextafter64(f, math.Inf(+1))
+	f0 := math.Nextafter(f, math.Inf(-1))
+	f1 := math.Nextafter(f, math.Inf(+1))
 
 	// For f to be correct, r must be closer to f than to f0 or f1.
 	df := delta(r, f)
