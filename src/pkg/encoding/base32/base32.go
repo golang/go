@@ -330,7 +330,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 func (enc *Encoding) DecodeString(s string) ([]byte, error) {
 	s = strings.Map(removeNewlinesMapper, s)
 	dbuf := make([]byte, enc.DecodedLen(len(s)))
-	n, err := enc.Decode(dbuf, []byte(s))
+	n, _, err := enc.decode(dbuf, []byte(s))
 	return dbuf[:n], err
 }
 
