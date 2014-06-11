@@ -291,6 +291,9 @@ func slice_literals() {
 
 const index2 int = 2
 
+type N int
+func (N) f() {}
+
 func map_literals() {
 	type M0 map[string]int
 	type M1 map[bool]int
@@ -301,6 +304,23 @@ func map_literals() {
 	_ = M0{1 /* ERROR "cannot convert" */ : 2}
 	_ = M0{"foo": "bar" /* ERROR "cannot convert" */ }
 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
+
+	_ = map[interface{}]int{2: 1, 2 /* ERROR "duplicate key" */ : 1}
+	_ = map[interface{}]int{int(2): 1, int16(2): 1}
+	_ = map[interface{}]int{int16(2): 1, int16 /* ERROR "duplicate key" */ (2): 1}
+
+	type S string
+
+	_ = map[interface{}]int{"a": 1, "a" /* ERROR "duplicate key" */ : 1}
+	_ = map[interface{}]int{"a": 1, S("a"): 1}
+	_ = map[interface{}]int{S("a"): 1, S /* ERROR "duplicate key" */ ("a"): 1}
+
+	type I interface {
+		f()
+	}
+
+	_ = map[I]int{N(0): 1, N(2): 1}
+	_ = map[I]int{N(2): 1, N /* ERROR "duplicate key" */ (2): 1}
 
 	// map keys must be resolved correctly
 	key1 := "foo"

@@ -1081,7 +1081,7 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.indexedElts(e.Elts, utyp.elem, -1)
 
 		case *Map:
-			visited := make(map[interface{}]bool, len(e.Elts))
+			visited := make(map[interface{}][]Type, len(e.Elts))
 			for _, e := range e.Elts {
 				kv, _ := e.(*ast.KeyValueExpr)
 				if kv == nil {
@@ -1096,11 +1096,24 @@ func (check *checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					continue
 				}
 				if x.mode == constant {
-					if visited[x.val] {
+					duplicate := false
+					// if the key is of interface type, the type is also significant when checking for duplicates
+					if _, ok := utyp.key.Underlying().(*Interface); ok {
+						for _, vtyp := range visited[x.val] {
+							if Identical(vtyp, x.typ) {
+								duplicate = true
+								break
+							}
+						}
+						visited[x.val] = append(visited[x.val], x.typ)
+					} else {
+						_, duplicate = visited[x.val]
+						visited[x.val] = nil
+					}
+					if duplicate {
 						check.errorf(x.pos(), "duplicate key %s in map literal", x.val)
 						continue
 					}
-					visited[x.val] = true
 				}
 				check.exprWithHint(x, kv.Value, utyp.elem)
 				if !check.assignment(x, utyp.elem) {
