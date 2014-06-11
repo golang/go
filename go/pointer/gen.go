@@ -1102,9 +1102,7 @@ func (a *analysis) makeCGNode(fn *ssa.Function, obj nodeid, callersite *callsite
 // or a library.
 //
 func (a *analysis) genRootCalls() *cgnode {
-	r := ssa.NewFunction("<root>", new(types.Signature), "root of callgraph")
-	r.Prog = a.prog // hack.
-	r.String()      // (asserts that it doesn't crash)
+	r := a.prog.NewFunction("<root>", new(types.Signature), "root of callgraph")
 	root := a.makeCGNode(r, 0, nil)
 
 	// TODO(adonovan): make an ssa utility to construct an actual

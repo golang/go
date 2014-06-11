@@ -640,11 +640,11 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 	return b
 }
 
-// NewFunction returns a new synthetic Function instance with its name
-// and signature fields set as specified.
+// NewFunction returns a new synthetic Function instance belonging to
+// prog, with its name and signature fields set as specified.
 //
 // The caller is responsible for initializing the remaining fields of
-// the function object, e.g. Pkg, Prog, Params, Blocks.
+// the function object, e.g. Pkg, Params, Blocks.
 //
 // It is practically impossible for clients to construct well-formed
 // SSA functions/packages/programs directly, so we assume this is the
@@ -655,8 +655,8 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 //
 // TODO(adonovan): think harder about the API here.
 //
-func NewFunction(name string, sig *types.Signature, provenance string) *Function {
-	return &Function{name: name, Signature: sig, Synthetic: provenance}
+func (prog *Program) NewFunction(name string, sig *types.Signature, provenance string) *Function {
+	return &Function{Prog: prog, name: name, Signature: sig, Synthetic: provenance}
 }
 
 type extentNode [2]token.Pos
