@@ -54,12 +54,10 @@ The script's name has a special format, go_$GOOS_$GOARCH_exec, so cmd/go can fin
 
 In short, if the support scripts are in place, the cmd/go tool can be used as per normal.
 
-# Build the Go toolchain.
+# Build and test Go for NaCl
+
+NaCl does not permit direct file system access. Instead, package syscall provides a simulated file system served by in-memory data. The script nacltest.bash is the NaCl equivalent of all.bash. It builds NaCl with an in-memory file system containing files needed for tests, and then it runs the tests.
 
 	% cd go/src
-	% env GOOS=nacl GOARCH=amd64p32 ./make.bash
+	% env GOARCH=amd64p32 ./nacltest.bash
 
-# Test the Go toolchain.
-
-	% cd go/src
-	% env GOOS=nacl GOARCH=amd64p32 ./run.bash
