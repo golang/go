@@ -808,7 +808,8 @@ func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 // down the SSA value graph, e.g IndexAddr(FieldAddr(Alloc))).
 //
 func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
-	if cgn == nil {
+	switch v.(type) {
+	case *ssa.Global, *ssa.Function, *ssa.Const, *ssa.Capture:
 		// Global object.
 		obj, ok := a.globalobj[v]
 		if !ok {
@@ -822,11 +823,10 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 				obj = a.makeFunctionObject(v, nil)
 
 			case *ssa.Const:
-				// The only pointer-like Consts are nil.
+				// not addressable
 
 			case *ssa.Capture:
-				// For now, Captures have the same cardinality as globals.
-				// TODO(adonovan): treat captures context-sensitively.
+				// not addressable
 			}
 
 			if a.log != nil {
@@ -1178,9 +1178,11 @@ func (a *analysis) genFunc(cgn *cgnode) {
 		params += nodeid(a.sizeof(p.Type()))
 	}
 
-	// Free variables are treated like global variables:
+	// Free variables have global cardinality:
 	// the outer function sets them with MakeClosure;
 	// the inner function accesses them with Capture.
+	//
+	// TODO(adonovan): treat captures context-sensitively.
 
 	// Create value nodes for all value instructions
 	// since SSA may contain forward references.
