@@ -64,28 +64,27 @@ func (z *Rat) SetFloat64(f float64) *Rat {
 	return z.norm()
 }
 
-// isFinite reports whether f represents a finite rational value.
-// It is equivalent to !math.IsNan(f) && !math.IsInf(f, 0).
-func isFinite(f float64) bool {
-	return math.Abs(f) <= math.MaxFloat64
-}
-
-// low64 returns the least significant 64 bits of natural number z.
-func low64(z nat) uint64 {
-	if len(z) == 0 {
-		return 0
-	}
-	if _W == 32 && len(z) > 1 {
-		return uint64(z[1])<<32 | uint64(z[0])
-	}
-	return uint64(z[0])
-}
-
-// quotToFloat returns the non-negative IEEE 754 double-precision
-// value nearest to the quotient a/b, using round-to-even in halfway
-// cases.  It does not mutate its arguments.
+// quotToFloat32 returns the non-negative float32 value
+// nearest to the quotient a/b, using round-to-even in
+// halfway cases.  It does not mutate its arguments.
 // Preconditions: b is non-zero; a and b have no common factors.
-func quotToFloat(a, b nat) (f float64, exact bool) {
+func quotToFloat32(a, b nat) (f float32, exact bool) {
+	const (
+		// float size in bits
+		Fsize = 32
+
+		// mantissa
+		Msize  = 23
+		Msize1 = Msize + 1 // incl. implicit 1
+		Msize2 = Msize1 + 1
+
+		// exponent
+		Esize = Fsize - Msize1
+		Ebias = 1<<(Esize-1) - 1
+		Emin  = 1 - Ebias
+		Emax  = Ebias
+	)
+
 	// TODO(adonovan): specialize common degenerate cases: 1.0, integers.
 	alen := a.bitLen()
 	if alen == 0 {
@@ -96,17 +95,115 @@ func quotToFloat(a, b nat) (f float64, exact bool) {
 		panic("division by zero")
 	}
 
-	// 1. Left-shift A or B such that quotient A/B is in [1<<53, 1<<55).
-	// (54 bits if A<B when they are left-aligned, 55 bits if A>=B.)
-	// This is 2 or 3 more than the float64 mantissa field width of 52:
+	// 1. Left-shift A or B such that quotient A/B is in [1<<Msize1, 1<<(Msize2+1)
+	// (Msize2 bits if A < B when they are left-aligned, Msize2+1 bits if A >= B).
+	// This is 2 or 3 more than the float32 mantissa field width of Msize:
 	// - the optional extra bit is shifted away in step 3 below.
-	// - the high-order 1 is omitted in float64 "normal" representation;
+	// - the high-order 1 is omitted in "normal" representation;
 	// - the low-order 1 will be used during rounding then discarded.
 	exp := alen - blen
 	var a2, b2 nat
 	a2 = a2.set(a)
 	b2 = b2.set(b)
-	if shift := 54 - exp; shift > 0 {
+	if shift := Msize2 - exp; shift > 0 {
+		a2 = a2.shl(a2, uint(shift))
+	} else if shift < 0 {
+		b2 = b2.shl(b2, uint(-shift))
+	}
+
+	// 2. Compute quotient and remainder (q, r).  NB: due to the
+	// extra shift, the low-order bit of q is logically the
+	// high-order bit of r.
+	var q nat
+	q, r := q.div(a2, a2, b2) // (recycle a2)
+	mantissa := low32(q)
+	haveRem := len(r) > 0 // mantissa&1 && !haveRem => remainder is exactly half
+
+	// 3. If quotient didn't fit in Msize2 bits, redo division by b2<<1
+	// (in effect---we accomplish this incrementally).
+	if mantissa>>Msize2 == 1 {
+		if mantissa&1 == 1 {
+			haveRem = true
+		}
+		mantissa >>= 1
+		exp++
+	}
+	if mantissa>>Msize1 != 1 {
+		panic(fmt.Sprintf("expected exactly %d bits of result", Msize2))
+	}
+
+	// 4. Rounding.
+	if Emin-Msize <= exp && exp <= Emin {
+		// Denormal case; lose 'shift' bits of precision.
+		shift := uint(Emin - (exp - 1)) // [1..Esize1)
+		lostbits := mantissa & (1<<shift - 1)
+		haveRem = haveRem || lostbits != 0
+		mantissa >>= shift
+		exp = 2 - Ebias // == exp + shift
+	}
+	// Round q using round-half-to-even.
+	exact = !haveRem
+	if mantissa&1 != 0 {
+		exact = false
+		if haveRem || mantissa&2 != 0 {
+			if mantissa++; mantissa >= 1<<Msize2 {
+				// Complete rollover 11...1 => 100...0, so shift is safe
+				mantissa >>= 1
+				exp++
+			}
+		}
+	}
+	mantissa >>= 1 // discard rounding bit.  Mantissa now scaled by 1<<Msize1.
+
+	f = float32(math.Ldexp(float64(mantissa), exp-Msize1))
+	if math.IsInf(float64(f), 0) {
+		exact = false
+	}
+	return
+}
+
+// quotToFloat64 returns the non-negative float64 value
+// nearest to the quotient a/b, using round-to-even in
+// halfway cases.  It does not mutate its arguments.
+// Preconditions: b is non-zero; a and b have no common factors.
+func quotToFloat64(a, b nat) (f float64, exact bool) {
+	const (
+		// float size in bits
+		Fsize = 64
+
+		// mantissa
+		Msize  = 52
+		Msize1 = Msize + 1 // incl. implicit 1
+		Msize2 = Msize1 + 1
+
+		// exponent
+		Esize = Fsize - Msize1
+		Ebias = 1<<(Esize-1) - 1
+		Emin  = 1 - Ebias
+		Emax  = Ebias
+	)
+
+	// TODO(adonovan): specialize common degenerate cases: 1.0, integers.
+	alen := a.bitLen()
+	if alen == 0 {
+		return 0, true
+	}
+	blen := b.bitLen()
+	if blen == 0 {
+		panic("division by zero")
+	}
+
+	// 1. Left-shift A or B such that quotient A/B is in [1<<Msize1, 1<<(Msize2+1)
+	// (Msize2 bits if A < B when they are left-aligned, Msize2+1 bits if A >= B).
+	// This is 2 or 3 more than the float64 mantissa field width of Msize:
+	// - the optional extra bit is shifted away in step 3 below.
+	// - the high-order 1 is omitted in "normal" representation;
+	// - the low-order 1 will be used during rounding then discarded.
+	exp := alen - blen
+	var a2, b2 nat
+	a2 = a2.set(a)
+	b2 = b2.set(b)
+	if shift := Msize2 - exp; shift > 0 {
 		a2 = a2.shl(a2, uint(shift))
 	} else if shift < 0 {
 		b2 = b2.shl(b2, uint(-shift))
@@ -120,45 +217,61 @@ func quotToFloat(a, b nat) (f float64, exact bool) {
 	mantissa := low64(q)
 	haveRem := len(r) > 0 // mantissa&1 && !haveRem => remainder is exactly half
 
-	// 3. If quotient didn't fit in 54 bits, re-do division by b2<<1
+	// 3. If quotient didn't fit in Msize2 bits, redo division by b2<<1
 	// (in effect---we accomplish this incrementally).
-	if mantissa>>54 == 1 {
+	if mantissa>>Msize2 == 1 {
 		if mantissa&1 == 1 {
 			haveRem = true
 		}
 		mantissa >>= 1
 		exp++
 	}
-	if mantissa>>53 != 1 {
-		panic("expected exactly 54 bits of result")
+	if mantissa>>Msize1 != 1 {
+		panic(fmt.Sprintf("expected exactly %d bits of result", Msize2))
 	}
 
 	// 4. Rounding.
-	if -1022-52 <= exp && exp <= -1022 {
+	if Emin-Msize <= exp && exp <= Emin {
 		// Denormal case; lose 'shift' bits of precision.
-		shift := uint64(-1022 - (exp - 1)) // [1..53)
+		shift := uint(Emin - (exp - 1)) // [1..Esize1)
 		lostbits := mantissa & (1<<shift - 1)
 		haveRem = haveRem || lostbits != 0
 		mantissa >>= shift
-		exp = -1023 + 2
+		exp = 2 - Ebias // == exp + shift
 	}
 	// Round q using round-half-to-even.
 	exact = !haveRem
 	if mantissa&1 != 0 {
 		exact = false
 		if haveRem || mantissa&2 != 0 {
-			if mantissa++; mantissa >= 1<<54 {
+			if mantissa++; mantissa >= 1<<Msize2 {
 				// Complete rollover 11...1 => 100...0, so shift is safe
 				mantissa >>= 1
 				exp++
 			}
 		}
 	}
-	mantissa >>= 1 // discard rounding bit.  Mantissa now scaled by 2^53.
+	mantissa >>= 1 // discard rounding bit.  Mantissa now scaled by 1<<Msize1.
 
-	f = math.Ldexp(float64(mantissa), exp-53)
+	f = math.Ldexp(float64(mantissa), exp-Msize1)
 	if math.IsInf(f, 0) {
 		exact = false
+	}
+	return
+}
+
+// Float32 returns the nearest float32 value for x and a bool indicating
+// whether f represents x exactly. If the magnitude of x is too large to
+// be represented by a float32, f is an infinity and exact is false.
+// The sign of f always matches the sign of x, even if f == 0.
+func (x *Rat) Float32() (f float32, exact bool) {
+	b := x.b.abs
+	if len(b) == 0 {
+		b = b.set(natOne) // materialize denominator
+	}
+	f, exact = quotToFloat32(x.a.abs, b)
+	if x.a.neg {
+		f = -f
 	}
 	return
 }
@@ -172,7 +285,7 @@ func (x *Rat) Float64() (f float64, exact bool) {
 	if len(b) == 0 {
 		b = b.set(natOne) // materialize denominator
 	}
-	f, exact = quotToFloat(x.a.abs, b)
+	f, exact = quotToFloat64(x.a.abs, b)
 	if x.a.neg {
 		f = -f
 	}
