@@ -1624,13 +1624,13 @@ writelines(void)
 			}
 			putpclcdelta(s->value + pcline.pc - pc, pcline.value - line);
 
-			pc = epc;
+			pc = s->value + pcline.pc;
+			line = pcline.value;
 			if(pcfile.nextpc < pcline.nextpc)
 				epc = pcfile.nextpc;
 			else
 				epc = pcline.nextpc;
 			epc += s->value;
-			line = pcline.value;
 		}
 
 		da = 0;
