@@ -53,7 +53,6 @@
 //   *BinOp             ✔               ✔
 //   *Builtin           ✔
 //   *Call              ✔               ✔
-//   *Capture           ✔
 //   *ChangeInterface   ✔               ✔
 //   *ChangeType        ✔               ✔
 //   *Const             ✔
@@ -63,6 +62,7 @@
 //   *Extract           ✔               ✔
 //   *Field             ✔               ✔
 //   *FieldAddr         ✔               ✔
+//   *FreeVar           ✔
 //   *Function          ✔                               ✔ (func)
 //   *Global            ✔                               ✔ (var)
 //   *Go                                ✔

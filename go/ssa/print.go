@@ -63,8 +63,8 @@ func (v *Parameter) String() string {
 	return fmt.Sprintf("parameter %s : %s", v.Name(), v.Type())
 }
 
-func (v *Capture) String() string {
-	return fmt.Sprintf("capture %s : %s", v.Name(), v.Type())
+func (v *FreeVar) String() string {
+	return fmt.Sprintf("freevar %s : %s", v.Name(), v.Type())
 }
 
 func (v *Builtin) String() string {

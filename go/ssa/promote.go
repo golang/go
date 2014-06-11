@@ -366,17 +366,17 @@ func makeBound(prog *Program, obj *types.Func) *Function {
 			pos:       obj.Pos(),
 		}
 
-		cap := &Capture{name: "recv", typ: recvType(obj), parent: fn}
-		fn.FreeVars = []*Capture{cap}
+		fv := &FreeVar{name: "recv", typ: recvType(obj), parent: fn}
+		fn.FreeVars = []*FreeVar{fv}
 		fn.startBody()
 		createParams(fn, 0)
 		var c Call
 
 		if !isInterface(recvType(obj)) { // concrete
 			c.Call.Value = prog.declaredFunc(obj)
-			c.Call.Args = []Value{cap}
+			c.Call.Args = []Value{fv}
 		} else {
-			c.Call.Value = cap
+			c.Call.Value = fv
 			c.Call.Method = obj
 		}
 		for _, arg := range fn.Params {

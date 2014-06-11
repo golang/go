@@ -427,7 +427,7 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 		panic("no Value for type.Object " + obj.Name())
 	}
 	outer := f.parent.lookup(obj, true) // escaping
-	v := &Capture{
+	v := &FreeVar{
 		name:   obj.Name(),
 		typ:    outer.Type(),
 		pos:    outer.Pos(),

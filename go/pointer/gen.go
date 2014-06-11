@@ -802,14 +802,14 @@ func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 // Some SSA instructions always have singletons points-to sets:
 // 	Alloc, Function, Global, MakeChan, MakeClosure,  MakeInterface,  MakeMap,  MakeSlice.
 // Others may be singletons depending on their operands:
-// 	Capture, Const, Convert, FieldAddr, IndexAddr, Slice.
+// 	FreeVar, Const, Convert, FieldAddr, IndexAddr, Slice.
 //
 // Idempotent.  Objects are created as needed, possibly via recursion
 // down the SSA value graph, e.g IndexAddr(FieldAddr(Alloc))).
 //
 func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 	switch v.(type) {
-	case *ssa.Global, *ssa.Function, *ssa.Const, *ssa.Capture:
+	case *ssa.Global, *ssa.Function, *ssa.Const, *ssa.FreeVar:
 		// Global object.
 		obj, ok := a.globalobj[v]
 		if !ok {
@@ -825,7 +825,7 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 			case *ssa.Const:
 				// not addressable
 
-			case *ssa.Capture:
+			case *ssa.FreeVar:
 				// not addressable
 			}
 
@@ -1178,9 +1178,9 @@ func (a *analysis) genFunc(cgn *cgnode) {
 
 	// Free variables have global cardinality:
 	// the outer function sets them with MakeClosure;
-	// the inner function accesses them with Capture.
+	// the inner function accesses them with FreeVar.
 	//
-	// TODO(adonovan): treat captures context-sensitively.
+	// TODO(adonovan): treat free vars context-sensitively.
 
 	// Create value nodes for all value instructions
 	// since SSA may contain forward references.

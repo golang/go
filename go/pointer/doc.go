@@ -234,7 +234,7 @@ Functions
   the parameters and results of the function object, and are
   collectively known as its "P/R block".
 
-  The treatment of free variables of closures (*ssa.Capture) is like
+  The treatment of free variables of closures (*ssa.FreeVar) is like
   that of global variables; it is not context-sensitive.
   *ssa.MakeClosure instructions create copy edges to Captures.
 

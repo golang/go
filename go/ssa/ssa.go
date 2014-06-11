@@ -103,7 +103,7 @@ type Value interface {
 	// Instruction.
 	//
 	// This is the same as the source name for Parameters,
-	// Builtins, Functions, Captures, Globals.
+	// Builtins, Functions, FreeVars, Globals.
 	// For constants, it is a representation of the constant's value
 	// and type.  For all other Values this is the name of the
 	// virtual register defined by the instruction.
@@ -135,7 +135,7 @@ type Value interface {
 	// caller may perform mutations to the object's state.
 	//
 	// Referrers is currently only defined if Parent()!=nil,
-	// i.e. for the function-local values Capture, Parameter,
+	// i.e. for the function-local values FreeVar, Parameter,
 	// Functions (iff anonymous) and all value-defining instructions.
 	// It returns nil for named Functions, Builtin, Const and Global.
 	//
@@ -278,7 +278,7 @@ type Node interface {
 // the loaded values.
 //
 // A nested function (Parent()!=nil) that refers to one or more
-// lexically enclosing local variables ("free variables") has Capture
+// lexically enclosing local variables ("free variables") has FreeVar
 // parameters.  Such functions cannot be called directly but require a
 // value created by MakeClosure which, via its Bindings, supplies
 // values for these parameters.
@@ -306,7 +306,7 @@ type Function struct {
 	Pkg       *Package     // enclosing package; nil for shared funcs (wrappers and error.Error)
 	Prog      *Program     // enclosing program
 	Params    []*Parameter // function parameters; for methods, includes receiver
-	FreeVars  []*Capture   // free variables whose values must be supplied by closure
+	FreeVars  []*FreeVar   // free variables whose values must be supplied by closure
 	Locals    []*Alloc
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
 	Recover   *BasicBlock   // optional; control transfers here after recovered panic
@@ -356,23 +356,23 @@ type BasicBlock struct {
 
 // Pure values ----------------------------------------
 
-// A Capture represents a free variable of the function to which it
+// A FreeVar represents a free variable of the function to which it
 // belongs.
 //
-// Captures are used to implement anonymous functions, whose free
+// FreeVars are used to implement anonymous functions, whose free
 // variables are lexically captured in a closure formed by
-// MakeClosure.  The referent of such a capture is an Alloc or another
-// Capture and is considered a potentially escaping heap address, with
+// MakeClosure.  The value of such a free var is an Alloc or another
+// FreeVar and is considered a potentially escaping heap address, with
 // pointer type.
 //
-// Captures are also used to implement bound method closures.  Such a
-// capture represents the receiver value and may be of any type that
+// FreeVars are also used to implement bound method closures.  Such a
+// free var represents the receiver value and may be of any type that
 // has concrete methods.
 //
 // Pos() returns the position of the value that was captured, which
 // belongs to an enclosing function.
 //
-type Capture struct {
+type FreeVar struct {
 	name      string
 	typ       types.Type
 	pos       token.Pos
@@ -1388,11 +1388,11 @@ func (v *Builtin) Pos() token.Pos          { return token.NoPos }
 func (v *Builtin) Object() types.Object    { return v.object }
 func (v *Builtin) Parent() *Function       { return nil }
 
-func (v *Capture) Type() types.Type          { return v.typ }
-func (v *Capture) Name() string              { return v.name }
-func (v *Capture) Referrers() *[]Instruction { return &v.referrers }
-func (v *Capture) Pos() token.Pos            { return v.pos }
-func (v *Capture) Parent() *Function         { return v.parent }
+func (v *FreeVar) Type() types.Type          { return v.typ }
+func (v *FreeVar) Name() string              { return v.name }
+func (v *FreeVar) Referrers() *[]Instruction { return &v.referrers }
+func (v *FreeVar) Pos() token.Pos            { return v.pos }
+func (v *FreeVar) Parent() *Function         { return v.parent }
 
 func (v *Global) Type() types.Type                     { return v.typ }
 func (v *Global) Name() string                         { return v.name }
@@ -1672,7 +1672,7 @@ func (v *UnOp) Operands(rands []*Value) []*Value {
 
 // Non-Instruction Values:
 func (v *Builtin) Operands(rands []*Value) []*Value   { return rands }
-func (v *Capture) Operands(rands []*Value) []*Value   { return rands }
+func (v *FreeVar) Operands(rands []*Value) []*Value   { return rands }
 func (v *Const) Operands(rands []*Value) []*Value     { return rands }
 func (v *Function) Operands(rands []*Value) []*Value  { return rands }
 func (v *Global) Operands(rands []*Value) []*Value    { return rands }
