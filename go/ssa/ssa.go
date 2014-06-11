@@ -1655,7 +1655,7 @@ func (s *Send) Operands(rands []*Value) []*Value {
 }
 
 func (v *Slice) Operands(rands []*Value) []*Value {
-	return append(rands, &v.X, &v.Low, &v.High)
+	return append(rands, &v.X, &v.Low, &v.High, &v.Max)
 }
 
 func (s *Store) Operands(rands []*Value) []*Value {

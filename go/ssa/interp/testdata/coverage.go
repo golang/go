@@ -635,6 +635,13 @@ func init() {
 	if got := lenCapLoHi(s[1:3:3]); got != [4]int{2, 2, 1, 2} {
 		panic(got)
 	}
+	max := 3
+	if v[2] == 42 {
+		max = 2
+	}
+	if got := lenCapLoHi(s[1:2:max]); got != [4]int{1, 1, 1, 1} {
+		panic(got)
+	}
 }
 
 // Regression test for issue 7840 (covered by SSA sanity checker).
