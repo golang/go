@@ -442,6 +442,18 @@ esc(EscState *e, Node *n, Node *up)
 	if(n->op == OFOR || n->op == ORANGE)
 		e->loopdepth++;
 
+	// type switch variables have no ODCL.
+	// process type switch as declaration.
+	// must happen before processing of switch body,
+	// so before recursion.
+	if(n->op == OSWITCH && n->ntest && n->ntest->op == OTYPESW) {
+		for(ll=n->list; ll; ll=ll->next) {  // cases
+			// ll->n->nname is the variable per case
+			if(ll->n->nname)
+				ll->n->nname->escloopdepth = e->loopdepth;
+		}
+	}
+
 	esc(e, n->left, n);
 	esc(e, n->right, n);
 	esc(e, n->ntest, n);
@@ -658,13 +670,24 @@ esc(EscState *e, Node *n, Node *up)
 		// current loop depth is an upper bound on actual loop depth
 		// of addressed value.
 		n->escloopdepth = e->loopdepth;
-		// for &x, use loop depth of x.
+		// for &x, use loop depth of x if known.
+		// it should always be known, but if not, be conservative
+		// and keep the current loop depth.
 		if(n->left->op == ONAME) {
 			switch(n->left->class) {
 			case PAUTO:
+				if(n->left->escloopdepth != 0)
+					n->escloopdepth = n->left->escloopdepth;
+				break;
 			case PPARAM:
 			case PPARAMOUT:
-				n->escloopdepth = n->left->escloopdepth;
+				// PPARAM is loop depth 1 always.
+				// PPARAMOUT is loop depth 0 for writes
+				// but considered loop depth 1 for address-of,
+				// so that writing the address of one result
+				// to another (or the same) result makes the
+				// first result move to the heap.
+				n->escloopdepth = 1;
 				break;
 			}
 		}

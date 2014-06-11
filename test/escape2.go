@@ -1468,3 +1468,25 @@ func foo152() {
 	v := NewV(u)
 	println(v)
 }
+
+// issue 8176 - &x in type switch body not marked as escaping
+
+func foo153(v interface{}) *int { // ERROR "leaking param: v"
+	switch x := v.(type) {
+	case int: // ERROR "moved to heap: x"
+		return &x // ERROR "&x escapes to heap"
+	}
+	panic(0)
+}
+
+// issue 8185 - &result escaping into result
+
+func f() (x int, y *int) { // ERROR "moved to heap: x"
+	y = &x // ERROR "&x escapes to heap"
+	return
+}
+
+func g() (x interface{}) { // ERROR "moved to heap: x"
+	x = &x // ERROR "&x escapes to heap"
+	return
+}
