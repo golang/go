@@ -186,6 +186,11 @@ type Config struct {
 
 	// If Build is non-nil, it is used to locate source packages.
 	// Otherwise &build.Default is used.
+	//
+	// By default, cgo is invoked to preprocess Go files that
+	// import the fake package "C".  This behaviour can be
+	// disabled by setting CGO_ENABLED=0 in the environment prior
+	// to startup, or by setting Build.CgoEnabled=false.
 	Build *build.Context
 
 	// If DisplayPath is non-nil, it is used to transform each
@@ -612,18 +617,15 @@ func (conf *Config) build() *build.Context {
 // then loads, parses and returns them.
 //
 // 'which' indicates which files to include:
-//    'g': include non-test *.go source files (GoFiles)
+//    'g': include non-test *.go source files (GoFiles + processed CgoFiles)
 //    't': include in-package *_test.go source files (TestGoFiles)
 //    'x': include external *_test.go source files. (XTestGoFiles)
 //
+// TODO(adonovan): don't fail just because some files contain parse errors.
+//
 func (conf *Config) parsePackageFiles(path string, which rune) ([]*ast.File, error) {
-	// Set the "!cgo" go/build tag, preferring (dummy) Go to
-	// native C implementations of net.cgoLookupHost et al.
-	ctxt := *conf.build() // copy
-	ctxt.CgoEnabled = false
-
 	// Import(srcDir="") disables local imports, e.g. import "./foo".
-	bp, err := ctxt.Import(path, "", 0)
+	bp, err := conf.build().Import(path, "", 0)
 	if _, ok := err.(*build.NoGoError); ok {
 		return nil, nil // empty directory
 	}
@@ -642,7 +644,22 @@ func (conf *Config) parsePackageFiles(path string, which rune) ([]*ast.File, err
 	default:
 		panic(which)
 	}
-	return parseFiles(conf.fset(), &ctxt, conf.DisplayPath, bp.Dir, filenames, conf.ParserMode)
+
+	files, err := parseFiles(conf.fset(), conf.build(), conf.DisplayPath, bp.Dir, filenames, conf.ParserMode)
+	if err != nil {
+		return nil, err
+	}
+
+	// Preprocess CgoFiles and parse the outputs (sequentially).
+	if which == 'g' && bp.CgoFiles != nil {
+		cgofiles, err := processCgoFiles(bp, conf.fset(), conf.ParserMode)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, cgofiles...)
+	}
+
+	return files, nil
 }
 
 // doImport imports the package denoted by path.

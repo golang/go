@@ -11,9 +11,12 @@ package loader_test
 // Run test with GOMAXPROCS=8.
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/token"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -132,4 +135,71 @@ func TestStdlib(t *testing.T) {
 	t.Log("#Source lines:        ", lineCount)
 	t.Log("Load/parse/typecheck: ", t1.Sub(t0))
 	t.Log("#MB:                  ", int64(memstats.Alloc-alloc)/1000000)
+}
+
+func TestCgoOption(t *testing.T) {
+	// Test that we can load cgo-using packages with
+	// CGO_ENABLED=[01], which causes go/build to select pure
+	// Go/native implementations, respectively, based on build
+	// tags.
+	//
+	// Each entry specifies a package-level object and the generic
+	// file expected to define it when cgo is disabled.
+	// When cgo is enabled, the exact file is not specified (since
+	// it varies by platform), but must differ from the generic one.
+	//
+	// The test also loads the actual file to verify that the
+	// object is indeed defined at that location.
+	for _, test := range []struct {
+		pkg, name, genericFile string
+	}{
+		{"net", "cgoLookupHost", "cgo_stub.go"},
+		{"os/user", "lookupId", "lookup_stubs.go"},
+	} {
+		ctxt := build.Default
+		for _, ctxt.CgoEnabled = range []bool{false, true} {
+			conf := loader.Config{Build: &ctxt}
+			conf.Import(test.pkg)
+			prog, err := conf.Load()
+			if err != nil {
+				t.Errorf("Load failed: %v", err)
+				continue
+			}
+			info := prog.Imported[test.pkg]
+			if info == nil {
+				t.Errorf("package %s not found", test.pkg)
+				continue
+			}
+			obj := info.Pkg.Scope().Lookup(test.name)
+			if obj == nil {
+				t.Errorf("no object %s.%s", test.pkg, test.name)
+				continue
+			}
+			posn := prog.Fset.Position(obj.Pos())
+			t.Logf("%s: %s (CgoEnabled=%t)", posn, obj, ctxt.CgoEnabled)
+
+			gotFile := filepath.Base(posn.Filename)
+			filesMatch := gotFile == test.genericFile
+
+			if ctxt.CgoEnabled && filesMatch {
+				t.Errorf("CGO_ENABLED=1: %s found in %s, want native file",
+					obj, gotFile)
+			} else if !ctxt.CgoEnabled && !filesMatch {
+				t.Errorf("CGO_ENABLED=0: %s found in %s, want %s",
+					obj, gotFile, test.genericFile)
+			}
+
+			// Load the file and check the object is declared at the right place.
+			b, err := ioutil.ReadFile(posn.Filename)
+			if err != nil {
+				t.Errorf("can't read %s: %s", posn.Filename, err)
+				continue
+			}
+			line := string(bytes.Split(b, []byte("\n"))[posn.Line-1])
+			ident := line[posn.Column-1:]
+			if !strings.HasPrefix(ident, test.name) {
+				t.Errorf("%s: %s not declared here (looking at %q)", posn, obj, ident)
+			}
+		}
+	}
 }
