@@ -7,7 +7,8 @@
 # Builds a test file system and embeds it into package syscall
 # in every generated binary.
 #
-# Assumes that sel_ldr binaries are in $PATH; see ../misc/nacl/README.
+# Assumes that sel_ldr binaries and go_nacl_$GOARCH_exec scripts are in $PATH;
+# see ../misc/nacl/README.
 
 set -e
 ulimit -c 0
@@ -31,6 +32,11 @@ amd64p32)
 	echo 'unsupported $GOARCH for nacl: '"$naclGOARCH" 1>&2
 	exit 1
 esac
+
+if ! which go_nacl_${naclGOARCH}_exec >/dev/null; then
+	echo "cannot find go_nacl_${naclGOARCH}_exec, see ../misc/nacl/README." 1>&2
+	exit 1
+fi
 
 # Run host build to get toolchain for running zip generator.
 unset GOOS GOARCH
