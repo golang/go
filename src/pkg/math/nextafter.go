@@ -25,12 +25,12 @@ func Nextafter32(x, y float32) (r float32) {
 	return
 }
 
-// Nextafter64 returns the next representable float64 value after x towards y.
+// Nextafter returns the next representable float64 value after x towards y.
 // Special cases:
 //	Nextafter64(x, x)   = x
 //      Nextafter64(NaN, y) = NaN
 //      Nextafter64(x, NaN) = NaN
-func Nextafter64(x, y float64) (r float64) {
+func Nextafter(x, y float64) (r float64) {
 	switch {
 	case IsNaN(x) || IsNaN(y): // special case
 		r = NaN()
@@ -44,10 +44,4 @@ func Nextafter64(x, y float64) (r float64) {
 		r = Float64frombits(Float64bits(x) - 1)
 	}
 	return
-}
-
-// Nextafter is the same as Nextafter64.
-// It is provided for backward-compatibility only.
-func Nextafter(x, y float64) float64 {
-	return Nextafter64(x, y)
 }
