@@ -456,7 +456,19 @@ var modf = [][2]float64{
 	{1.0000000000000000e+00, 8.2530809168085506044576505e-01},
 	{-8.0000000000000000e+00, -6.8592476857560136238589621e-01},
 }
-var nextafter = []float64{
+var nextafter32 = []float32{
+	4.979012489318848e+00,
+	7.738873004913330e+00,
+	-2.768800258636475e-01,
+	-5.010602951049805e+00,
+	9.636294364929199e+00,
+	2.926377534866333e+00,
+	5.229084014892578e+00,
+	2.727940082550049e+00,
+	1.825308203697205e+00,
+	-8.685923576354980e+00,
+}
+var nextafter64 = []float64{
 	4.97901192488367438926388786e+00,
 	7.73887247457810545370193722e+00,
 	-2.7688005719200153853520874e-01,
@@ -1331,7 +1343,32 @@ var modfSC = [][2]float64{
 	{NaN(), NaN()},
 }
 
-var vfnextafterSC = [][2]float64{
+var vfnextafter32SC = [][2]float32{
+	{0, 0},
+	{0, float32(Copysign(0, -1))},
+	{0, -1},
+	{0, float32(NaN())},
+	{float32(Copysign(0, -1)), 1},
+	{float32(Copysign(0, -1)), 0},
+	{float32(Copysign(0, -1)), float32(Copysign(0, -1))},
+	{float32(Copysign(0, -1)), -1},
+	{float32(NaN()), 0},
+	{float32(NaN()), float32(NaN())},
+}
+var nextafter32SC = []float32{
+	0,
+	0,
+	-1.401298464e-45, // Float32frombits(0x80000001)
+	float32(NaN()),
+	1.401298464e-45, // Float32frombits(0x00000001)
+	float32(Copysign(0, -1)),
+	float32(Copysign(0, -1)),
+	-1.401298464e-45, // Float32frombits(0x80000001)
+	float32(NaN()),
+	float32(NaN()),
+}
+
+var vfnextafter64SC = [][2]float64{
 	{0, 0},
 	{0, Copysign(0, -1)},
 	{0, -1},
@@ -1343,7 +1380,7 @@ var vfnextafterSC = [][2]float64{
 	{NaN(), 0},
 	{NaN(), NaN()},
 }
-var nextafterSC = []float64{
+var nextafter64SC = []float64{
 	0,
 	0,
 	-4.9406564584124654418e-324, // Float64frombits(0x8000000000000001)
@@ -2303,15 +2340,29 @@ func TestModf(t *testing.T) {
 	}
 }
 
-func TestNextafter(t *testing.T) {
+func TestNextafter32(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Nextafter(vf[i], 10); nextafter[i] != f {
-			t.Errorf("Nextafter(%g, %g) = %g want %g", vf[i], 10.0, f, nextafter[i])
+		vfi := float32(vf[i])
+		if f := Nextafter32(vfi, 10); nextafter32[i] != f {
+			t.Errorf("Nextafter32(%g, %g) = %g want %g", vfi, 10.0, f, nextafter32[i])
 		}
 	}
-	for i := 0; i < len(vfnextafterSC); i++ {
-		if f := Nextafter(vfnextafterSC[i][0], vfnextafterSC[i][1]); !alike(nextafterSC[i], f) {
-			t.Errorf("Nextafter(%g, %g) = %g want %g", vfnextafterSC[i][0], vfnextafterSC[i][1], f, nextafterSC[i])
+	for i := 0; i < len(vfnextafter32SC); i++ {
+		if f := Nextafter32(vfnextafter32SC[i][0], vfnextafter32SC[i][1]); !alike(float64(nextafter32SC[i]), float64(f)) {
+			t.Errorf("Nextafter32(%g, %g) = %g want %g", vfnextafter32SC[i][0], vfnextafter32SC[i][1], f, nextafter32SC[i])
+		}
+	}
+}
+
+func TestNextafter64(t *testing.T) {
+	for i := 0; i < len(vf); i++ {
+		if f := Nextafter64(vf[i], 10); nextafter64[i] != f {
+			t.Errorf("Nextafter64(%g, %g) = %g want %g", vf[i], 10.0, f, nextafter64[i])
+		}
+	}
+	for i := 0; i < len(vfnextafter64SC); i++ {
+		if f := Nextafter64(vfnextafter64SC[i][0], vfnextafter64SC[i][1]); !alike(nextafter64SC[i], f) {
+			t.Errorf("Nextafter64(%g, %g) = %g want %g", vfnextafter64SC[i][0], vfnextafter64SC[i][1], f, nextafter64SC[i])
 		}
 	}
 }
@@ -2827,9 +2878,15 @@ func BenchmarkModf(b *testing.B) {
 	}
 }
 
-func BenchmarkNextafter(b *testing.B) {
+func BenchmarkNextafter32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Nextafter(.5, 1)
+		Nextafter32(.5, 1)
+	}
+}
+
+func BenchmarkNextafter64(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Nextafter64(.5, 1)
 	}
 }
 
