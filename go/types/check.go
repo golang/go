@@ -77,15 +77,14 @@ type checker struct {
 	indent int // indentation for tracing
 }
 
-// addDeclDep adds the dependency edge (check.decl -> to)
-// if check.decl exists and to has an initializer.
+// addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
 func (check *checker) addDeclDep(to Object) {
 	from := check.decl
 	if from == nil {
 		return // not in a package-level init expression
 	}
-	if decl := check.objMap[to]; decl == nil || !decl.hasInitializer() {
-		return // to is not a package-level object or has no initializer
+	if _, found := check.objMap[to]; !found {
+		return // to is not a package-level object
 	}
 	from.addDep(to)
 }
@@ -189,7 +188,7 @@ func (check *checker) initFiles(files []*ast.File) {
 	}
 }
 
-// A bailout panic is raised to indicate early termination.
+// A bailout panic is used for early termination.
 type bailout struct{}
 
 func (check *checker) handleBailout(err *error) {
@@ -211,13 +210,11 @@ func (check *checker) Files(files []*ast.File) (err error) {
 
 	check.collectObjects()
 
-	objList := check.resolveOrder()
-
-	check.packageObjects(objList)
+	check.packageObjects(check.resolveOrder())
 
 	check.functionBodies()
 
-	check.initDependencies(objList)
+	check.initOrder()
 
 	check.unusedImports()
 

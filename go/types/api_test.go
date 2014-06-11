@@ -406,7 +406,31 @@ func TestInitOrderInfo(t *testing.T) {
 			"y = 1", "x = T.m",
 		}},
 		{`package p10; var (d = c + b; a = 0; b = 0; c = 0)`, []string{
-			"b = 0", "c = 0", "d = c + b", "a = 0",
+			"a = 0", "b = 0", "c = 0", "d = c + b",
+		}},
+		{`package p11; var (a = e + c; b = d + c; c = 0; d = 0; e = 0)`, []string{
+			"c = 0", "d = 0", "b = d + c", "e = 0", "a = e + c",
+		}},
+		// emit an initializer for n:1 initializations only once (not for each node
+		// on the lhs which may appear in different order in the dependency graph)
+		{`package p12; var (a = x; b = 0; x, y = m[0]; m map[int]int)`, []string{
+			"b = 0", "x, y = m[0]", "a = x",
+		}},
+		// test case from spec section on package initialization
+		{`package p12
+
+		var (
+			a = c + b
+			b = f()
+			c = f()
+			d = 3
+		)
+
+		func f() int {
+			d++
+			return d
+		}`, []string{
+			"d = 3", "b = f()", "c = f()", "a = c + b",
 		}},
 		// test case for issue 7131
 		{`package main

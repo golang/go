@@ -354,7 +354,7 @@ var a, b = create(1), create(2)
 
 // Initialization order of package-level value specs.
 func init() {
-	if x := fmt.Sprint(order); x != "[2 3 1]" {
+	if x := fmt.Sprint(order); x != "[1 2 3]" {
 		panic(x)
 	}
 	if c != 3 {

@@ -70,7 +70,7 @@ var x4 = x5
 var x5 /* ERROR initialization cycle */ = f1()
 func f1() int { return x5*10 }
 
-var x6 /* ERROR initialization cycle */ , x7 = f2()
+var x6, x7 /* ERROR initialization cycle */ = f2()
 var x8 = x7
 func f2() (int, int) { return f3() + f3(), 0 }
 func f3() int { return x8 }

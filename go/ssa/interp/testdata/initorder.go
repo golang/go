@@ -26,9 +26,9 @@ func main() {
 	// - {f,b,c/d,e} < order  (ref graph traversal)
 	// - order < {a}          (lexical order)
 	// - b < c/d < e < f      (lexical order)
-	// Solution: b c/d e f a
+	// Solution: a b c/d e f
 	abcdef := [6]int{a, b, c, d, e, f}
-	if abcdef != [6]int{5, 0, 1, 2, 3, 4} {
+	if abcdef != [6]int{0, 1, 2, 3, 4, 5} {
 		panic(abcdef)
 	}
 }

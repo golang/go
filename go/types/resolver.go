@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -350,7 +349,7 @@ func (check *checker) collectObjects() {
 	}
 }
 
-// packageObjects typechecks all package objects in check.objMap, but not function bodies.
+// packageObjects typechecks all package objects in objList, but not function bodies.
 func (check *checker) packageObjects(objList []Object) {
 	// add new methods to already type-checked types (from a prior Checker.Files call)
 	for _, obj := range objList {
@@ -377,21 +376,6 @@ func (check *checker) packageObjects(objList []Object) {
 func (check *checker) functionBodies() {
 	for _, f := range check.funcs {
 		check.funcBody(f.decl, f.name, f.sig, f.body)
-	}
-}
-
-// initDependencies computes initialization dependencies.
-func (check *checker) initDependencies(objList []Object) {
-	// pre-allocate space for initialization paths so that the underlying array is reused
-	initPath := make([]Object, 0, 8)
-
-	for _, obj := range objList {
-		switch obj.(type) {
-		case *Const, *Var:
-			if check.objMap[obj].hasInitializer() {
-				check.dependencies(obj, initPath)
-			}
-		}
 	}
 }
 
@@ -434,104 +418,5 @@ func (check *checker) unusedImports() {
 				check.softErrorf(pos, "%q imported but not used", pkg.path)
 			}
 		}
-	}
-}
-
-func orderedSetObjects(set map[Object]bool) []Object {
-	list := make([]Object, len(set))
-	i := 0
-	for obj := range set {
-		// we don't care about the map element value
-		list[i] = obj
-		i++
-	}
-	sort.Sort(inSourceOrder(list))
-	return list
-}
-
-// inSourceOrder implements the sort.Sort interface.
-type inSourceOrder []Object
-
-func (a inSourceOrder) Len() int           { return len(a) }
-func (a inSourceOrder) Less(i, j int) bool { return a[i].Pos() < a[j].Pos() }
-func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-// dependencies recursively traverses the initialization dependency graph in a depth-first
-// manner and appends the encountered variables in postorder to the Info.InitOrder list.
-// As a result, that list ends up being sorted topologically in the order of dependencies.
-//
-// Path contains all nodes on the path to the current node obj (excluding obj).
-//
-// To detect cyles, the nodes are marked as follows: Initially, all nodes are unmarked
-// (declInfo.mark == 0). On the way down, a node is appended to the path, and the node
-// is marked with a value > 0 ("in progress"). On the way up, a node is marked with a
-// value < 0 ("finished"). A cycle is detected if a node is reached that is marked as
-// "in progress".
-//
-// A cycle must contain at least one variable to be invalid (cycles containing only
-// functions are permitted). To detect such a cycle, and in order to print it, the
-// mark value indicating "in progress" is the path length up to (and including) the
-// current node; i.e. the length of the path after appending the node. Naturally,
-// that value is > 0 as required for "in progress" marks. In other words, each node's
-// "in progress" mark value corresponds to the node's path index plus 1. Accordingly,
-// when the first node of a cycle is reached, that node's mark value indicates the
-// start of the cycle in the path. The tail of the path (path[mark-1:]) contains all
-// nodes of the cycle.
-//
-func (check *checker) dependencies(obj Object, path []Object) {
-	init := check.objMap[obj]
-	if init.mark < 0 {
-		return // finished
-	}
-
-	if init.mark > 0 {
-		// cycle detected - find index of first constant or variable in cycle, if any
-		first := -1
-		cycle := path[init.mark-1:]
-	L:
-		for i, obj := range cycle {
-			switch obj.(type) {
-			case *Const, *Var:
-				first = i
-				break L
-			}
-		}
-		// only report an error if there's at least one constant or variable
-		if first >= 0 {
-			obj := cycle[first]
-			check.errorf(obj.Pos(), "initialization cycle for %s", obj.Name())
-			// print cycle
-			i := first
-			for _ = range cycle {
-				check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
-				i++
-				if i >= len(cycle) {
-					i = 0
-				}
-				obj = cycle[i]
-			}
-			check.errorf(obj.Pos(), "\t%s", obj.Name())
-
-		}
-		init.mark = -1 // avoid further errors
-		return
-	}
-
-	// init.mark == 0
-
-	path = append(path, obj) // len(path) > 0
-	init.mark = len(path)    // init.mark > 0
-	for _, obj := range orderedSetObjects(init.deps) {
-		check.dependencies(obj, path)
-	}
-	init.mark = -1 // init.mark < 0
-
-	// record the init order for variables only
-	if this, _ := obj.(*Var); this != nil {
-		initLhs := init.lhs // possibly nil (see declInfo.lhs field comment)
-		if initLhs == nil {
-			initLhs = []*Var{this}
-		}
-		check.Info.InitOrder = append(check.Info.InitOrder, &Initializer{initLhs, init.init})
 	}
 }
