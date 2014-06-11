@@ -6,6 +6,8 @@
 
 package expr0 
 
+type mybool bool
+
 var (
 	// bool
 	b0 = true
@@ -133,6 +135,10 @@ var (
 	ch7 = <-ch
 	ch8 = <-rc
 	ch9 = <-sc /* ERROR "cannot receive" */
+	ch10, ok = <-ch
+	// ok is of type bool
+	ch11, myok = <-ch
+	_ mybool = myok /* ERROR "cannot initialize" */
 )
 
 // address of composite literals

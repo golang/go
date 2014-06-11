@@ -597,10 +597,21 @@ func init() {
 		// select to a simple receive statement.
 	}
 
+	// TODO(adonovan, gri) enable again once we accept issue 8189.
 	// value,ok-form receive where TypeOf(ok) is a named boolean.
-	type mybool bool
+	// type mybool bool
+	// var x int
+	// var y mybool
+	// select {
+	// case x, y = <-ch:
+	// default:
+	// 	// The default case disables the simplification of
+	// 	// select to a simple receive statement.
+	// }
+
+	// TODO(adonovan, gri) remove once we accept issue 8189.
 	var x int
-	var y mybool
+	var y bool
 	select {
 	case x, y = <-ch:
 	default:

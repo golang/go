@@ -167,9 +167,15 @@ func TestTypesInfo(t *testing.T) {
 			`x.(int)`,
 			`(int, bool)`,
 		},
-		{`package p2; type mybool bool; var m map[string]complex128; var b mybool; func _() { _, b = m["foo"] }`,
+		// TODO(gri): uncomment if we accept issue 8189.
+		// {`package p2; type mybool bool; var m map[string]complex128; var b mybool; func _() { _, b = m["foo"] }`,
+		// 	`m["foo"]`,
+		// 	`(complex128, p2.mybool)`,
+		// },
+		// TODO(gri): remove if we accept issue 8189.
+		{`package p2; var m map[string]complex128; var b bool; func _() { _, b = m["foo"] }`,
 			`m["foo"]`,
-			`(complex128, p2.mybool)`,
+			`(complex128, bool)`,
 		},
 		{`package p3; var c chan string; var _, _ = <-c`,
 			`<-c`,
