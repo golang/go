@@ -239,7 +239,11 @@ func parseArgs(name string, line int, args []string) (res []interface{}, err err
 		case '$':
 			res[i] = "$"
 		case '_':
-			// Do nothing; '_' indicates an intentionally empty parameter.
+			if len(v) == 1 {
+				// Do nothing; "_" indicates an intentionally empty parameter.
+				break
+			}
+			fallthrough
 		default:
 			return nil, fmt.Errorf("%s:%d bad code argument %q", name, line, v)
 		}
