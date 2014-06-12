@@ -90,8 +90,7 @@ func (p *Part) parseContentDisposition() {
 func NewReader(r io.Reader, boundary string) *Reader {
 	b := []byte("\r\n--" + boundary + "--")
 	return &Reader{
-		bufReader: bufio.NewReader(r),
-
+		bufReader:        bufio.NewReader(r),
 		nl:               b[:2],
 		nlDashBoundary:   b[:len(b)-2],
 		dashBoundaryDash: b[2:],
