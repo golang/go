@@ -1174,3 +1174,9 @@ func BenchmarkSplit3(b *testing.B) {
 		Split(benchInputHard, "hello")
 	}
 }
+
+func BenchmarkRepeat(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Repeat("-", 80)
+	}
+}

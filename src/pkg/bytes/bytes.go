@@ -377,9 +377,10 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 // Repeat returns a new byte slice consisting of count copies of b.
 func Repeat(b []byte, count int) []byte {
 	nb := make([]byte, len(b)*count)
-	bp := 0
-	for i := 0; i < count; i++ {
-		bp += copy(nb[bp:], b)
+	bp := copy(nb, b)
+	for bp < len(nb) {
+		copy(nb[bp:], nb[:bp])
+		bp *= 2
 	}
 	return nb
 }
