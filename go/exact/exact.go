@@ -252,9 +252,9 @@ func Float32Val(x Value) (float32, bool) {
 		f := float32(x)
 		return f, int64Val(f) == x
 	case intVal:
-		return new(big.Rat).SetFrac(x.val, int1).Float32()
+		return ratToFloat32(new(big.Rat).SetFrac(x.val, int1))
 	case floatVal:
-		return x.val.Float32()
+		return ratToFloat32(x.val)
 	case unknownVal:
 		return 0, false
 	}
