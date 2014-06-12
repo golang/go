@@ -168,9 +168,13 @@ The template uses the function "image" to inject picture files.
 The syntax is simple: 1 or 3 space-separated arguments.
 The first argument is always the file name.
 If there are more arguments, they are the height and width;
-both must be present.
+both must be present, or substituted with an underscore.
+Replacing a dimension argument with the underscore parameter
+preserves the aspect ratio of the image when scaling.
 
 	.image images/betsy.jpg 100 200
+
+	.image images/janet.jpg _ 300
 
 iframe:
 
