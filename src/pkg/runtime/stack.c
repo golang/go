@@ -856,7 +856,12 @@ runtime·newstack(void)
 void
 runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
 {
-	runtime·gostartcall(gobuf, fv->fn, fv);
+	void *fn;
+
+	fn = nil;
+	if(fv != nil)
+		fn = fv->fn;
+	runtime·gostartcall(gobuf, fn, fv);
 }
 
 // Maybe shrink the stack being used by gp.
