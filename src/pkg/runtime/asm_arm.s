@@ -394,6 +394,10 @@ TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
 // 1. grab stored LR for caller
 // 2. sub 4 bytes to get back to BL deferreturn
 // 3. B to fn
+// TODO(rsc): Push things on stack and then use pop
+// to load all registers simultaneously, so that a profiling
+// interrupt can never see mismatched SP/LR/PC.
+// (And double-check that pop is atomic in that way.)
 TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 	MOVW	0(SP), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
