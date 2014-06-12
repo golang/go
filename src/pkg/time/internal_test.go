@@ -4,11 +4,6 @@
 
 package time
 
-import (
-	"errors"
-	"runtime"
-)
-
 func init() {
 	// force US/Pacific for time zone tests
 	ForceUSPacificForTesting()
@@ -24,7 +19,7 @@ func empty(now int64, arg interface{}) {}
 //
 // This test has to be in internal_test.go since it fiddles with
 // unexported data structures.
-func CheckRuntimeTimerOverflow() error {
+func CheckRuntimeTimerOverflow() {
 	// We manually create a runtimeTimer to bypass the overflow
 	// detection logic in NewTimer: we're testing the underlying
 	// runtime.addtimer function.
@@ -35,17 +30,7 @@ func CheckRuntimeTimerOverflow() error {
 	}
 	startTimer(r)
 
-	timeout := 100 * Millisecond
-	switch runtime.GOOS {
-	// Allow more time for gobuilder to succeed.
-	case "windows":
-		timeout = Second
-	case "plan9":
-		// TODO(0intro): We don't know why it is needed.
-		timeout = 3 * Second
-	}
-
-	// Start a goroutine that should send on t.C before the timeout.
+	// Start a goroutine that should send on t.C right away.
 	t := NewTimer(1)
 
 	defer func() {
@@ -64,29 +49,11 @@ func CheckRuntimeTimerOverflow() error {
 		startTimer(r)
 	}()
 
-	// Try to receive from t.C before the timeout. It will succeed
-	// iff the previous sleep was able to finish. We're forced to
-	// spin and yield after trying to receive since we can't start
-	// any more timers (they might hang due to the same bug we're
-	// now testing).
-	stop := Now().Add(timeout)
-	for {
-		select {
-		case <-t.C:
-			return nil // It worked!
-		default:
-			if Now().After(stop) {
-				return errors.New("runtime timer stuck: overflow in addtimer")
-			}
-			// Issue 6874. This test previously called runtime.Gosched to try to yield
-			// to the goroutine servicing t, however the scheduler has a bias towards the
-			// previously running goroutine in an idle system. Combined with high load due
-			// to all CPUs busy running tests t's goroutine could be delayed beyond the
-			// timeout window.
-			//
-			// Calling runtime.GC() reduces the worst case lantency for scheduling t by 20x
-			// under the current Go 1.3 scheduler.
-			runtime.GC()
-		}
-	}
+	// If the test fails, we will hang here until the timeout in the testing package
+	// fires, which is 10 minutes. It would be nice to catch the problem sooner,
+	// but there is no reliable way to guarantee that timerproc schedules without
+	// doing something involving timerproc itself. Previous failed attempts have
+	// tried calling runtime.Gosched and runtime.GC, but neither is reliable.
+	// So we fall back to hope: We hope we don't hang here.
+	<-t.C
 }
