@@ -387,7 +387,7 @@ func TestOverflowRuntimeTimer(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode, see issue 6874")
 	}
-	if err := CheckRuntimeTimerOverflow(); err != nil {
-		t.Fatalf(err.Error())
-	}
+	// This may hang forever if timers are broken. See comment near
+	// the end of CheckRuntimeTimerOverflow in internal_test.go.
+	CheckRuntimeTimerOverflow()
 }
