@@ -295,6 +295,23 @@ For example,
 (The same change was made to the compilers and linkers in <a href="/doc/go1.1#gc_flag">Go 1.1</a>.)
 </p>
 
+<h3 id="godoc">Changes to godoc</h3>
+<p>
+When invoked with the <code>-analysis</code> flag, 
+<a href="http://godoc.org/code.google.com/p/go.tools/cmd/godoc">godoc</a>
+now performs sophisticated <a href="/lib/godoc/analysis/help.html">static
+analysis</a> of the code it indexes.  
+The results of analysis are presented in both the source view and the
+package documentation view, and include the call graph of each package
+and the relationships between 
+definitions and references,
+types and their methods,
+interfaces and their implementations,
+send and receive operations on channels,
+functions and their callers, and
+call sites and their callees.
+</p>
+
 <h3 id="misc">Miscellany</h3>
 
 <p>
@@ -308,7 +325,6 @@ Documentation is <a href="http://godoc.org/code.google.com/p/go.tools/cmd/benchc
 For the few of us that build Go distributions, the tool <code>misc/dist</code> has been
 moved and renamed; it now lives in <code>misc/makerelease</code>, still in the main repository.
 </p>
-
 
 <h2 id="performance">Performance</h2>
 
