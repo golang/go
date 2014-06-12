@@ -350,22 +350,20 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		return b.addr(fn, e.X, escaping)
 
 	case *ast.SelectorExpr:
-		switch sel := fn.Pkg.info.Selections[e]; sel.Kind() {
-		case types.PackageObj:
-			obj := sel.Obj()
-			if v := fn.Prog.packageLevelValue(obj); v != nil {
-				return &address{addr: v, expr: e}
-			}
-			panic("undefined package-qualified name: " + obj.Name())
-
-		case types.FieldVal:
-			wantAddr := true
-			v := b.receiver(fn, e.X, wantAddr, escaping, sel)
-			last := len(sel.Index()) - 1
-			return &address{
-				addr: emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos()),
-				expr: e.Sel,
-			}
+		sel, ok := fn.Pkg.info.Selections[e]
+		if !ok {
+			// qualified identifier
+			return b.addr(fn, e.Sel, escaping)
+		}
+		if sel.Kind() != types.FieldVal {
+			panic(sel)
+		}
+		wantAddr := true
+		v := b.receiver(fn, e.X, wantAddr, escaping, sel)
+		last := len(sel.Index()) - 1
+		return &address{
+			addr: emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos()),
+			expr: e.Sel,
 		}
 
 	case *ast.IndexExpr:
@@ -614,10 +612,12 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		return emitLoad(fn, fn.lookup(obj, false)) // var (address)
 
 	case *ast.SelectorExpr:
-		switch sel := fn.Pkg.info.Selections[e]; sel.Kind() {
-		case types.PackageObj:
+		sel, ok := fn.Pkg.info.Selections[e]
+		if !ok {
+			// qualified identifier
 			return b.expr(fn, e.Sel)
-
+		}
+		switch sel.Kind() {
 		case types.MethodExpr:
 			// (*T).f or T.f, the method f from the method-set of type T.
 			// The result is a "thunk".
@@ -749,47 +749,8 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 
 	// Is this a method call?
 	if selector, ok := unparen(e.Fun).(*ast.SelectorExpr); ok {
-		switch sel := fn.Pkg.info.Selections[selector]; sel.Kind() {
-		case types.PackageObj:
-			// e.g. fmt.Println
-
-		case types.MethodExpr:
-			// T.f() or (*T).f(): a statically dispatched
-			// call to the method f in the method-set of T
-			// or *T.  T may be an interface.
-
-			// e.Fun would evaluate to a concrete method,
-			// interface wrapper function, or promotion
-			// wrapper.
-			//
-			// For now, we evaluate it in the usual way.
-
-			// TODO(adonovan): opt: inline expr() here, to
-			// make the call static and to avoid
-			// generation of wrappers.  It's somewhat
-			// tricky as it may consume the first actual
-			// parameter if the call is "invoke" mode.
-			//
-			// Examples:
-			//  type T struct{}; func (T) f() {}   // "call" mode
-			//  type T interface { f() }           // "invoke" mode
-			//
-			//  type S struct{ T }
-			//
-			//  var s S
-			//  S.f(s)
-			//  (*S).f(&s)
-			//
-			// Suggested approach:
-			// - consume the first actual parameter expression
-			//   and build it with b.expr().
-			// - apply implicit field selections.
-			// - use MethodVal logic to populate fields of c.
-
-		case types.FieldVal:
-			// A field access, not a method call.
-
-		case types.MethodVal:
+		sel, ok := fn.Pkg.info.Selections[selector]
+		if ok && sel.Kind() == types.MethodVal {
 			obj := sel.Obj().(*types.Func)
 			wantAddr := isPointer(recvType(obj))
 			escaping := true
@@ -804,11 +765,37 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 				c.Args = append(c.Args, v)
 			}
 			return
-
-		default:
-			panic(fmt.Sprintf("illegal (%s).%s() call; X:%T",
-				fn.Pkg.typeOf(selector.X), selector.Sel.Name, selector.X))
 		}
+
+		// sel.Kind()==MethodExpr indicates T.f() or (*T).f():
+		// a statically dispatched call to the method f in the
+		// method-set of T or *T.  T may be an interface.
+		//
+		// e.Fun would evaluate to a concrete method, interface
+		// wrapper function, or promotion wrapper.
+		//
+		// For now, we evaluate it in the usual way.
+		//
+		// TODO(adonovan): opt: inline expr() here, to make the
+		// call static and to avoid generation of wrappers.
+		// It's somewhat tricky as it may consume the first
+		// actual parameter if the call is "invoke" mode.
+		//
+		// Examples:
+		//  type T struct{}; func (T) f() {}   // "call" mode
+		//  type T interface { f() }           // "invoke" mode
+		//
+		//  type S struct{ T }
+		//
+		//  var s S
+		//  S.f(s)
+		//  (*S).f(&s)
+		//
+		// Suggested approach:
+		// - consume the first actual parameter expression
+		//   and build it with b.expr().
+		// - apply implicit field selections.
+		// - use MethodVal logic to populate fields of c.
 	}
 
 	// Evaluate the function operand in the usual way.

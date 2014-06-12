@@ -244,9 +244,10 @@ func NewTransformer(fset *token.FileSet, template *loader.PackageInfo, verbose b
 	// TODO reject dot-imports in pattern
 	ast.Inspect(after, func(n ast.Node) bool {
 		if n, ok := n.(*ast.SelectorExpr); ok {
-			sel := tr.info.Selections[n]
-			if sel.Kind() == types.PackageObj {
-				tr.importedObjs[sel.Obj()] = n
+			if _, ok := tr.info.Selections[n]; !ok {
+				// qualified ident
+				obj := tr.info.Uses[n.Sel]
+				tr.importedObjs[obj] = n
 				return false // prune
 			}
 		}

@@ -11,14 +11,14 @@ import (
 	"fmt"
 )
 
-// SelectionKind describes the kind of a selector expression x.f.
+// SelectionKind describes the kind of a selector expression x.f
+// (excluding qualified identifiers).
 type SelectionKind int
 
 const (
 	FieldVal   SelectionKind = iota // x.f is a struct field selector
 	MethodVal                       // x.f is a method selector
 	MethodExpr                      // x.f is a method expression
-	PackageObj                      // x.f is a qualified identifier
 )
 
 // A Selection describes a selector expression x.f.
@@ -36,33 +36,23 @@ const (
 //	p.x         FieldVal      T       x      int                {0}       true
 //	p.m         MethodVal     *T      m      func (e *T) m()    {1, 0}    true
 //	T.m         MethodExpr    T       m      func m(_ T)        {1, 0}    false
-//	math.Pi     PackageObj    nil     Pi     untyped numeric    nil       false
 //
 type Selection struct {
 	kind     SelectionKind
-	recv     Type   // type of x, nil if kind == PackageObj
+	recv     Type   // type of x
 	obj      Object // object denoted by x.f
-	index    []int  // path from x to x.f, nil if kind == PackageObj
-	indirect bool   // set if there was any pointer indirection on the path, false if kind == PackageObj
+	index    []int  // path from x to x.f
+	indirect bool   // set if there was any pointer indirection on the path
 }
 
 // Kind returns the selection kind.
 func (s *Selection) Kind() SelectionKind { return s.kind }
 
 // Recv returns the type of x in x.f.
-// The result is nil if x.f is a qualified identifier (PackageObj).
 func (s *Selection) Recv() Type { return s.recv }
 
-// Obj returns the object denoted by x.f.
-// The following object types may appear:
-//
-//	Kind          Object
-//
-//	FieldVal      *Var                          field
-//	MethodVal     *Func                         method
-//	MethodExpr    *Func                         method
-//	PackageObj    *Const, *Type, *Var, *Func    imported const, type, var, or func
-//
+// Obj returns the object denoted by x.f; a *Var for
+// a field selection, and a *Func in all other cases.
 func (s *Selection) Obj() Object { return s.obj }
 
 // Type returns the type of x.f, which may be different from the type of f.
@@ -100,8 +90,6 @@ func (s *Selection) Type() Type {
 }
 
 // Index describes the path from x to f in x.f.
-// The result is nil if x.f is a qualified identifier (PackageObj).
-//
 // The last index entry is the field or method index of the type declaring f;
 // either:
 //
@@ -115,7 +103,6 @@ func (s *Selection) Index() []int { return s.index }
 
 // Indirect reports whether any pointer indirection was required to get from
 // x to f in x.f.
-// The result is false if x.f is a qualified identifier (PackageObj).
 func (s *Selection) Indirect() bool { return s.indirect }
 
 func (s *Selection) String() string { return SelectionString(nil, s) }
@@ -128,7 +115,6 @@ func (s *Selection) String() string { return SelectionString(nil, s) }
 //	"field (T) f int"
 //	"method (T) f(X) Y"
 //	"method expr (T) f(X) Y"
-//	"qualified ident var math.Pi float64"
 //
 func SelectionString(this *Package, s *Selection) string {
 	var k string
@@ -139,8 +125,6 @@ func SelectionString(this *Package, s *Selection) string {
 		k = "method "
 	case MethodExpr:
 		k = "method expr "
-	case PackageObj:
-		return fmt.Sprintf("qualified ident %s", s.obj)
 	default:
 		unreachable()
 	}
@@ -150,7 +134,6 @@ func SelectionString(this *Package, s *Selection) string {
 	WriteType(&buf, this, s.Recv())
 	fmt.Fprintf(&buf, ") %s", s.obj.Name())
 	if T := s.Type(); s.kind == FieldVal {
-		// TODO(adonovan): use "T.f" not "(T) f".
 		buf.WriteByte(' ')
 		WriteType(&buf, this, T)
 	} else {

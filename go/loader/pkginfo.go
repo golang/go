@@ -78,8 +78,9 @@ func (info *PackageInfo) ObjectOf(id *ast.Ident) types.Object {
 func (info *PackageInfo) IsType(e ast.Expr) bool {
 	switch e := e.(type) {
 	case *ast.SelectorExpr: // pkg.Type
-		if sel := info.Selections[e]; sel.Kind() == types.PackageObj {
-			_, isType := sel.Obj().(*types.TypeName)
+		if _, ok := info.Selections[e]; !ok {
+			// qualified identifier
+			_, isType := info.Uses[e.Sel].(*types.TypeName)
 			return isType
 		}
 	case *ast.StarExpr: // *T

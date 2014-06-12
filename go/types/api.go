@@ -170,7 +170,8 @@ type Info struct {
 	//
 	Implicits map[ast.Node]Object
 
-	// Selections maps selector expressions to their corresponding selections.
+	// Selections maps selector expressions (excluding qualified identifiers)
+	// to their corresponding selections.
 	Selections map[*ast.SelectorExpr]*Selection
 
 	// Scopes maps ast.Nodes to the scopes they define. Package scopes are not

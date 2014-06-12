@@ -217,9 +217,9 @@ func isRef(n ast.Node, info *loader.PackageInfo) types.Object {
 		return info.Uses[n]
 
 	case *ast.SelectorExpr:
-		sel := info.Selections[n]
-		if sel.Kind() == types.PackageObj {
-			return sel.Obj()
+		if _, ok := info.Selections[n]; !ok {
+			// qualified ident
+			return info.Uses[n.Sel]
 		}
 	}
 	return nil

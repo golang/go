@@ -267,7 +267,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				check.errorf(e.Pos(), "%s not exported by package %s", sel, ident)
 				// ok to continue
 			}
-			check.recordSelection(e, PackageObj, nil, exp, nil, false)
+			check.recordUse(e.Sel, exp)
 			// Simplified version of the code for *ast.Idents:
 			// - imported objects are always fully initialized
 			switch exp := exp.(type) {
