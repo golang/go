@@ -423,9 +423,10 @@ func Map(mapping func(rune) rune, s string) string {
 // Repeat returns a new string consisting of count copies of the string s.
 func Repeat(s string, count int) string {
 	b := make([]byte, len(s)*count)
-	bp := 0
-	for i := 0; i < count; i++ {
-		bp += copy(b[bp:], s)
+	bp := copy(b, s)
+	for bp < len(b) {
+		copy(b[bp:], b[:bp])
+		bp *= 2
 	}
 	return string(b)
 }
