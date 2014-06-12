@@ -197,9 +197,12 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		}
 	}
 
-	// TODO(adonovan): sanity-check Consts used as instruction Operands(),
-	// e.g. reject Consts with "untyped" types.
-	//
+	// Untyped constants are legal as instruction Operands(),
+	// for example:
+	//   _ = "foo"[0]
+	// or:
+	//   if wordsize==64 {...}
+
 	// All other non-Instruction Values can be found via their
 	// enclosing Function or Package.
 }

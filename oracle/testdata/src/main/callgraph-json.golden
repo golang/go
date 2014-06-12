@@ -6,6 +6,7 @@
 			"name": "main.main",
 			"pos": "testdata/src/main/callgraph-json.go:24:6",
 			"children": [
+				0,
 				1,
 				2,
 				3

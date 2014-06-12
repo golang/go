@@ -12,6 +12,7 @@ Non-numbered nodes indicate back- or cross-edges to the node whose
 4	        B
 5	    call2
 6	        main$1
+	    main (1)
 7	    nop
 
 -------- @callgraph callgraph-complete --------
@@ -31,5 +32,6 @@ Non-numbered nodes indicate back- or cross-edges to the node whose
 7	            main.B
 8	        main.call2
 9	            main$1
+	        main.main (3)
 10	        main.nop
 

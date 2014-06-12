@@ -71,8 +71,9 @@ Error: this is a type conversion, not a function call
 
 Error: ambiguous selection within function call (or conversion)
 -------- @callees callees-err-deadcode1 --------
+this static function call dispatches to:
+	main.main
 
-Error: this call site is unreachable in this analysis
 -------- @callees callees-err-nil-func --------
 dynamic function call on nil value
 

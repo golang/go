@@ -106,17 +106,13 @@ func (b *builder) cond(fn *Function, e ast.Expr, t, f *BasicBlock) {
 		}
 	}
 
-	switch cond := b.expr(fn, e).(type) {
-	case *Const:
-		// Dispatch constant conditions statically.
-		if exact.BoolVal(cond.Value) {
-			emitJump(fn, t)
-		} else {
-			emitJump(fn, f)
-		}
-	default:
-		emitIf(fn, cond, t, f)
-	}
+	// A traditional compiler would simplify "if false" (etc) here
+	// but we do not, for better fidelity to the source code.
+	//
+	// The value of a constant condition may be platform-specific,
+	// and may cause blocks that are reachable in some configuration
+	// to be hidden from subsequent analyses such as bug-finding tools.
+	emitIf(fn, b.expr(fn, e), t, f)
 }
 
 // logicalBinop emits code to fn to evaluate e, a &&- or

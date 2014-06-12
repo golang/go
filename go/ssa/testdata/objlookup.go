@@ -112,10 +112,10 @@ func main() {
 	_ = v11.method            // v11::Const
 	_ = (*struct{ J }).method // J::nil
 
-	// These vars are optimised away.
+	// These vars are not optimised away.
 	if false {
-		v13 := 0     // v13::nil
-		println(v13) // v13::nil
+		v13 := 0     // v13::Const
+		println(v13) // v13::Const
 	}
 
 	switch x := 1; x { // x::Const
