@@ -210,18 +210,18 @@ func itod(i uint) string {
 	return string(b[bp:])
 }
 
-// Convert i to hexadecimal string.
-func itox(i uint, min int) string {
-	// Assemble hexadecimal in reverse order.
-	var b [32]byte
-	bp := len(b)
-	for ; i > 0 || min > 0; i /= 16 {
-		bp--
-		b[bp] = "0123456789abcdef"[byte(i%16)]
-		min--
+// Convert i to a hexadecimal string. Leading zeros are not printed.
+func appendHex(dst []byte, i uint32) []byte {
+	if i == 0 {
+		return append(dst, '0')
 	}
-
-	return string(b[bp:])
+	for j := 7; j >= 0; j-- {
+		v := i >> uint(j*4)
+		if v > 0 {
+			dst = append(dst, hexDigit[v&0xf])
+		}
+	}
+	return dst
 }
 
 // Number of occurrences of b in s.

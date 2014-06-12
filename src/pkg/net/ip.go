@@ -287,6 +287,7 @@ func (ip IP) String() string {
 		if j > i && j-i > e1-e0 {
 			e0 = i
 			e1 = j
+			i = j
 		}
 	}
 	// The symbol "::" MUST NOT be used to shorten just one 16 bit 0 field.
@@ -295,21 +296,23 @@ func (ip IP) String() string {
 		e1 = -1
 	}
 
+	const maxLen = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
+	b := make([]byte, 0, maxLen)
+
 	// Print with possible :: in place of run of zeros
-	var s string
 	for i := 0; i < IPv6len; i += 2 {
 		if i == e0 {
-			s += "::"
+			b = append(b, ':', ':')
 			i = e1
 			if i >= IPv6len {
 				break
 			}
 		} else if i > 0 {
-			s += ":"
+			b = append(b, ':')
 		}
-		s += itox((uint(p[i])<<8)|uint(p[i+1]), 1)
+		b = appendHex(b, (uint32(p[i])<<8)|uint32(p[i+1]))
 	}
-	return s
+	return string(b)
 }
 
 // ipEmptyString is like ip.String except that it returns
@@ -419,14 +422,14 @@ func (m IPMask) Size() (ones, bits int) {
 
 // String returns the hexadecimal form of m, with no punctuation.
 func (m IPMask) String() string {
-	s := ""
-	for _, b := range m {
-		s += itox(uint(b), 2)
-	}
-	if len(s) == 0 {
+	if len(m) == 0 {
 		return "<nil>"
 	}
-	return s
+	buf := make([]byte, len(m)*2)
+	for i, b := range m {
+		buf[i*2], buf[i*2+1] = hexDigit[b>>4], hexDigit[b&0xf]
+	}
+	return string(buf)
 }
 
 func networkNumberAndMask(n *IPNet) (ip IP, m IPMask) {
@@ -646,11 +649,16 @@ func (e *ParseError) Error() string {
 // If s is not a valid textual representation of an IP address,
 // ParseIP returns nil.
 func ParseIP(s string) IP {
-	if ip := parseIPv4(s); ip != nil {
-		return ip
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '.':
+			return parseIPv4(s)
+		case ':':
+			ip, _ := parseIPv6(s, false)
+			return ip
+		}
 	}
-	ip, _ := parseIPv6(s, false)
-	return ip
+	return nil
 }
 
 // ParseCIDR parses s as a CIDR notation IP address and mask,
