@@ -110,6 +110,19 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		if(runtime·topofstack(f)) {
 			frame.lr = 0;
 			flr = nil;
+		} else if(f->entry == (uintptr)runtime·jmpdefer) {
+			// jmpdefer modifies SP/LR/PC non-atomically.
+			// If a profiling interrupt arrives during jmpdefer,
+			// the stack unwind may see a mismatched register set
+			// and get confused. Stop if we see PC within jmpdefer
+			// to avoid that confusion.
+			// See golang.org/issue/8153.
+			// This check can be deleted if jmpdefer is changed
+			// to restore all three atomically using pop.
+			if(callback != nil)
+				runtime·throw("traceback_arm: found jmpdefer when tracing with callback");
+			frame.lr = 0;
+			flr = nil;
 		} else {
 			if((n == 0 && frame.sp < frame.fp) || frame.lr == 0)
 				frame.lr = *(uintptr*)frame.sp;
