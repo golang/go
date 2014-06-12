@@ -10,7 +10,7 @@ import "code.google.com/p/go.tools/go/exact"
 
 // Conversion type-checks the conversion T(x).
 // The result is in x.
-func (check *checker) conversion(x *operand, T Type) {
+func (check *Checker) conversion(x *operand, T Type) {
 	constArg := x.mode == constant
 
 	var ok bool

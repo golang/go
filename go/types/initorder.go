@@ -10,7 +10,7 @@ import (
 )
 
 // initOrder computes the Info.InitOrder for package variables.
-func (check *checker) initOrder() {
+func (check *Checker) initOrder() {
 	// compute the object dependency graph and
 	// initialize a priority queue with the list
 	// of graph nodes
@@ -129,7 +129,7 @@ func valIndex(a []*objNode) int {
 }
 
 // reportCycle reports an error for the cycle starting at i.
-func (check *checker) reportCycle(cycle []*objNode, i int) {
+func (check *Checker) reportCycle(cycle []*objNode, i int) {
 	obj := cycle[i].obj
 	check.errorf(obj.Pos(), "initialization cycle for %s", obj.Name())
 	// print cycle

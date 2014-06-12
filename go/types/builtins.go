@@ -18,7 +18,7 @@ import (
 // but x.expr is not set. If the call is invalid, the result is
 // false, and *x is undefined.
 //
-func (check *checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ bool) {
+func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ bool) {
 	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]
 	if call.Ellipsis.IsValid() && id != _Append {
@@ -608,7 +608,7 @@ func unparen(x ast.Expr) ast.Expr {
 	return x
 }
 
-func (check *checker) complexArg(x *operand) bool {
+func (check *Checker) complexArg(x *operand) bool {
 	t, _ := x.typ.Underlying().(*Basic)
 	if t != nil && (t.info&IsFloat != 0 || t.kind == UntypedInt || t.kind == UntypedRune) {
 		return true

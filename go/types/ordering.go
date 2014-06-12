@@ -23,7 +23,7 @@ import (
 // in the process check _and_ report type cycles. This may simplify
 // the full type-checking phase.
 //
-func (check *checker) resolveOrder() []Object {
+func (check *Checker) resolveOrder() []Object {
 	var ifaces, others []Object
 
 	// collect interface types with their dependencies, and all other objects
@@ -72,7 +72,7 @@ func (check *checker) resolveOrder() []Object {
 }
 
 // interfaceFor returns the AST interface denoted by obj, or nil.
-func (check *checker) interfaceFor(obj Object) *ast.InterfaceType {
+func (check *Checker) interfaceFor(obj Object) *ast.InterfaceType {
 	tname, _ := obj.(*TypeName)
 	if tname == nil {
 		return nil // not a type
@@ -89,7 +89,7 @@ func (check *checker) interfaceFor(obj Object) *ast.InterfaceType {
 	return ityp
 }
 
-func (check *checker) appendInPostOrder(order *[]Object, obj Object) {
+func (check *Checker) appendInPostOrder(order *[]Object, obj Object) {
 	d := check.objMap[obj]
 	if d.mark != 0 {
 		// We've already seen this object; either because it's

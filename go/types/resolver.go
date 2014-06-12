@@ -48,7 +48,7 @@ func (d *declInfo) addDep(obj Object) {
 // have the appropriate number of names and init exprs. For const
 // decls, init is the value spec providing the init exprs; for
 // var decls, init is nil (the init exprs are in s in this case).
-func (check *checker) arityMatch(s, init *ast.ValueSpec) {
+func (check *Checker) arityMatch(s, init *ast.ValueSpec) {
 	l := len(s.Names)
 	r := len(s.Values)
 	if init != nil {
@@ -97,7 +97,7 @@ func validatedImportPath(path string) (string, error) {
 
 // declarePkgObj declares obj in the package scope, records its ident -> obj mapping,
 // and updates check.objMap. The object must not be a function or method.
-func (check *checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
+func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
 	assert(ident.Name == obj.Name())
 
 	// spec: "A package-scope or file-scope identifier with name init
@@ -114,7 +114,7 @@ func (check *checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
 // collectObjects collects all file and package objects and inserts them
 // into their respective scopes. It also performs imports and associates
 // methods with receiver base type names.
-func (check *checker) collectObjects() {
+func (check *Checker) collectObjects() {
 	pkg := check.pkg
 
 	importer := check.conf.Import
@@ -350,7 +350,7 @@ func (check *checker) collectObjects() {
 }
 
 // packageObjects typechecks all package objects in objList, but not function bodies.
-func (check *checker) packageObjects(objList []Object) {
+func (check *Checker) packageObjects(objList []Object) {
 	// add new methods to already type-checked types (from a prior Checker.Files call)
 	for _, obj := range objList {
 		if obj, _ := obj.(*TypeName); obj != nil && obj.typ != nil {
@@ -373,14 +373,14 @@ func (check *checker) packageObjects(objList []Object) {
 }
 
 // functionBodies typechecks all function bodies.
-func (check *checker) functionBodies() {
+func (check *Checker) functionBodies() {
 	for _, f := range check.funcs {
 		check.funcBody(f.decl, f.name, f.sig, f.body)
 	}
 }
 
 // unusedImports checks for unused imports.
-func (check *checker) unusedImports() {
+func (check *Checker) unusedImports() {
 	// if function bodies are not checked, packages' uses are likely missing - don't check
 	if check.conf.IgnoreFuncBodies {
 		return

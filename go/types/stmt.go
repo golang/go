@@ -14,7 +14,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 )
 
-func (check *checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
+func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
 	if trace {
 		if name == "" {
 			name = "<function literal>"
@@ -53,7 +53,7 @@ func (check *checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	check.usage(sig.scope)
 }
 
-func (check *checker) usage(scope *Scope) {
+func (check *Checker) usage(scope *Scope) {
 	for _, obj := range scope.elems {
 		if v, _ := obj.(*Var); v != nil && !v.used {
 			check.softErrorf(v.pos, "%s declared but not used", v.name)
@@ -74,13 +74,13 @@ const (
 	inContinuable
 )
 
-func (check *checker) initStmt(s ast.Stmt) {
+func (check *Checker) initStmt(s ast.Stmt) {
 	if s != nil {
 		check.stmt(0, s)
 	}
 }
 
-func (check *checker) stmtList(ctxt stmtContext, list []ast.Stmt) {
+func (check *Checker) stmtList(ctxt stmtContext, list []ast.Stmt) {
 	ok := ctxt&fallthroughOk != 0
 	inner := ctxt &^ fallthroughOk
 	for i, s := range list {
@@ -92,7 +92,7 @@ func (check *checker) stmtList(ctxt stmtContext, list []ast.Stmt) {
 	}
 }
 
-func (check *checker) multipleDefaults(list []ast.Stmt) {
+func (check *Checker) multipleDefaults(list []ast.Stmt) {
 	var first ast.Stmt
 	for _, s := range list {
 		var d ast.Stmt
@@ -118,13 +118,13 @@ func (check *checker) multipleDefaults(list []ast.Stmt) {
 	}
 }
 
-func (check *checker) openScope(s ast.Stmt, comment string) {
+func (check *Checker) openScope(s ast.Stmt, comment string) {
 	scope := NewScope(check.scope, comment)
 	check.recordScope(s, scope)
 	check.scope = scope
 }
 
-func (check *checker) closeScope() {
+func (check *Checker) closeScope() {
 	check.scope = check.scope.Parent()
 }
 
@@ -136,7 +136,7 @@ func assignOp(op token.Token) token.Token {
 	return token.ILLEGAL
 }
 
-func (check *checker) suspendedCall(keyword string, call *ast.CallExpr) {
+func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	var x operand
 	var msg string
 	switch check.rawExpr(&x, call, nil) {
@@ -152,7 +152,7 @@ func (check *checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	check.errorf(x.pos(), "%s %s %s", keyword, msg, &x)
 }
 
-func (check *checker) caseValues(x operand /* copy argument (not *operand!) */, values []ast.Expr) {
+func (check *Checker) caseValues(x operand /* copy argument (not *operand!) */, values []ast.Expr) {
 	// No duplicate checking for now. See issue 4524.
 	for _, e := range values {
 		var y operand
@@ -174,7 +174,7 @@ func (check *checker) caseValues(x operand /* copy argument (not *operand!) */, 
 	}
 }
 
-func (check *checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[Type]token.Pos) (T Type) {
+func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[Type]token.Pos) (T Type) {
 L:
 	for _, e := range types {
 		T = check.typOrNil(e)
@@ -200,7 +200,7 @@ L:
 }
 
 // stmt typechecks statement s.
-func (check *checker) stmt(ctxt stmtContext, s ast.Stmt) {
+func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	// statements cannot use iota in general
 	// (constant declarations set it explicitly)
 	assert(check.iota == nil)

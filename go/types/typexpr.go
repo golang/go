@@ -19,7 +19,7 @@ import (
 // If an error occurred, x.mode is set to invalid.
 // For the meaning of def and path, see check.typ, below.
 //
-func (check *checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeName) {
+func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeName) {
 	x.mode = invalid
 	x.expr = e
 
@@ -117,7 +117,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 // any components of e are type-checked. Path contains the path of named types
 // referring to this type.
 //
-func (check *checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type) {
+func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type) {
 	if trace {
 		check.trace(e.Pos(), "%s", e)
 		check.indent++
@@ -134,12 +134,12 @@ func (check *checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type)
 	return
 }
 
-func (check *checker) typ(e ast.Expr) Type {
+func (check *Checker) typ(e ast.Expr) Type {
 	return check.typExpr(e, nil, nil)
 }
 
 // funcType type-checks a function or method type and returns its signature.
-func (check *checker) funcType(sig *Signature, recv *ast.FieldList, ftyp *ast.FuncType) *Signature {
+func (check *Checker) funcType(sig *Signature, recv *ast.FieldList, ftyp *ast.FuncType) *Signature {
 	scope := NewScope(check.scope, "function")
 	check.recordScope(ftyp, scope)
 
@@ -198,7 +198,7 @@ func (check *checker) funcType(sig *Signature, recv *ast.FieldList, ftyp *ast.Fu
 // typExprInternal drives type checking of types.
 // Must only be called by typExpr.
 //
-func (check *checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) Type {
+func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) Type {
 	switch e := e.(type) {
 	case *ast.BadExpr:
 		// ignore - error reported before
@@ -334,7 +334,7 @@ func (check *checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) 
 // and returns the typ of e, or nil.
 // If e is neither a type nor nil, typOrNil returns Typ[Invalid].
 //
-func (check *checker) typOrNil(e ast.Expr) Type {
+func (check *Checker) typOrNil(e ast.Expr) Type {
 	var x operand
 	check.rawExpr(&x, e, nil)
 	switch x.mode {
@@ -355,7 +355,7 @@ func (check *checker) typOrNil(e ast.Expr) Type {
 	return Typ[Invalid]
 }
 
-func (check *checker) arrayLength(e ast.Expr) int64 {
+func (check *Checker) arrayLength(e ast.Expr) int64 {
 	var x operand
 	check.expr(&x, e)
 	if x.mode != constant {
@@ -376,7 +376,7 @@ func (check *checker) arrayLength(e ast.Expr) int64 {
 	return n
 }
 
-func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
+func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -431,7 +431,7 @@ func (check *checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	return
 }
 
-func (check *checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool {
+func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool {
 	if alt := oset.insert(obj); alt != nil {
 		check.errorf(pos, "%s redeclared", obj.Name())
 		check.reportAltDecl(alt)
@@ -440,7 +440,7 @@ func (check *checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
 	return true
 }
 
-func (check *checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, def *Named, path []*TypeName) {
+func (check *Checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, def *Named, path []*TypeName) {
 	// empty interface: common case
 	if ityp.Methods == nil {
 		return
@@ -589,7 +589,7 @@ func (a byUniqueMethodName) Len() int           { return len(a) }
 func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
 func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-func (check *checker) tag(t *ast.BasicLit) string {
+func (check *Checker) tag(t *ast.BasicLit) string {
 	if t != nil {
 		if t.Kind == token.STRING {
 			if val, err := strconv.Unquote(t.Value); err == nil {
@@ -601,7 +601,7 @@ func (check *checker) tag(t *ast.BasicLit) string {
 	return ""
 }
 
-func (check *checker) structType(styp *Struct, e *ast.StructType, path []*TypeName) {
+func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeName) {
 	list := e.Fields
 	if list == nil {
 		return

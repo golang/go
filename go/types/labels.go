@@ -10,7 +10,7 @@ import (
 )
 
 // labels checks correct label use in body.
-func (check *checker) labels(body *ast.BlockStmt) {
+func (check *Checker) labels(body *ast.BlockStmt) {
 	// set of all labels in this body
 	all := NewScope(nil, "label")
 
@@ -87,7 +87,7 @@ func (b *block) enclosingTarget(name string) *ast.LabeledStmt {
 // blockBranches processes a block's statement list and returns the set of outgoing forward jumps.
 // all is the scope of all declared labels, parent the set of labels declared in the immediately
 // enclosing block, and lstmt is the labeled statement this block is associated with (or nil).
-func (check *checker) blockBranches(all *Scope, parent *block, lstmt *ast.LabeledStmt, list []ast.Stmt) []*ast.BranchStmt {
+func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.LabeledStmt, list []ast.Stmt) []*ast.BranchStmt {
 	b := &block{parent: parent, lstmt: lstmt}
 
 	var (

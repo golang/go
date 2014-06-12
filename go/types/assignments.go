@@ -21,7 +21,7 @@ import (
 //
 // TODO(gri) Should find a better way to handle in-band errors.
 //
-func (check *checker) assignment(x *operand, T Type) bool {
+func (check *Checker) assignment(x *operand, T Type) bool {
 	switch x.mode {
 	case invalid:
 		return true // error reported before
@@ -67,7 +67,7 @@ func (check *checker) assignment(x *operand, T Type) bool {
 	return T == nil || x.assignableTo(check.conf, T)
 }
 
-func (check *checker) initConst(lhs *Const, x *operand) {
+func (check *Checker) initConst(lhs *Const, x *operand) {
 	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
@@ -102,7 +102,7 @@ func (check *checker) initConst(lhs *Const, x *operand) {
 }
 
 // If result is set, lhs is a function result parameter and x is a return result.
-func (check *checker) initVar(lhs *Var, x *operand, result bool) Type {
+func (check *Checker) initVar(lhs *Var, x *operand, result bool) Type {
 	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
@@ -140,7 +140,7 @@ func (check *checker) initVar(lhs *Var, x *operand, result bool) Type {
 	return x.typ
 }
 
-func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
+func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 	if x.mode == invalid || x.typ == Typ[Invalid] {
 		return nil
 	}
@@ -206,7 +206,7 @@ func (check *checker) assignVar(lhs ast.Expr, x *operand) Type {
 
 // If returnPos is valid, initVars is called to type-check the assignment of
 // return expressions, and returnPos is the position of the return statement.
-func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) {
+func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) {
 	l := len(lhs)
 	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
 	if l != r {
@@ -242,7 +242,7 @@ func (check *checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 	}
 }
 
-func (check *checker) assignVars(lhs, rhs []ast.Expr) {
+func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
 	l := len(lhs)
 	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2)
 	if l != r {
@@ -268,7 +268,7 @@ func (check *checker) assignVars(lhs, rhs []ast.Expr) {
 	}
 }
 
-func (check *checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
+func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 	scope := check.scope
 
 	// collect lhs variables

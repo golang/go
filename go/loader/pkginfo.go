@@ -24,10 +24,8 @@ type PackageInfo struct {
 	Files                 []*ast.File // abstract syntax for the package's files
 	TypeError             error       // non-nil if the package had type errors
 	types.Info                        // type-checker deductions.
-
-	checker interface {
-		Files(files []*ast.File) error
-	} // transient type-checker state
+	*types.Checker
+	checker *types.Checker // transient type-checker state
 }
 
 func (info *PackageInfo) String() string {
