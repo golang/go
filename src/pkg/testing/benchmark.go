@@ -205,10 +205,12 @@ func (b *B) launch() {
 		} else {
 			n = int(d.Nanoseconds() / b.nsPerOp())
 		}
-		// Run more iterations than we think we'll need for a second (1.5x).
-		// Don't grow too fast in case we had timing errors previously.
+		// If the last run was small, don't grow too fast.
+		if last < 1000 {
+			n = min(n, 100*last)
+		}
 		// Be sure to run at least one more than last time.
-		n = max(min(n+n/2, 100*last), last+1)
+		n = max(n, last+1)
 		// Round up to something easy to read.
 		n = roundUp(n)
 		b.runN(n)
