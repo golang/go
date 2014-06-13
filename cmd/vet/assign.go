@@ -14,15 +14,20 @@ import (
 	"reflect"
 )
 
+func init() {
+	register("assign",
+		"check for useless assignments",
+		checkAssignStmt,
+		assignStmt)
+}
+
 // TODO: should also check for assignments to struct fields inside methods
 // that are on T instead of *T.
 
 // checkAssignStmt checks for assignments of the form "<expr> = <expr>".
 // These are almost always useless, and even when they aren't they are usually a mistake.
-func (f *File) checkAssignStmt(stmt *ast.AssignStmt) {
-	if !vet("assign") {
-		return
-	}
+func checkAssignStmt(f *File, node ast.Node) {
+	stmt := node.(*ast.AssignStmt)
 	if stmt.Tok != token.ASSIGN {
 		return // ignore :=
 	}

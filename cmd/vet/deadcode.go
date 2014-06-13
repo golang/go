@@ -11,6 +11,13 @@ import (
 	"go/token"
 )
 
+func init() {
+	register("unreachable",
+		"check for unreachable code",
+		checkUnreachable,
+		funcDecl, funcLit)
+}
+
 type deadState struct {
 	f           *File
 	hasBreak    map[ast.Stmt]bool
@@ -22,8 +29,15 @@ type deadState struct {
 }
 
 // checkUnreachable checks a function body for dead code.
-func (f *File) checkUnreachable(body *ast.BlockStmt) {
-	if !vet("unreachable") || body == nil {
+func checkUnreachable(f *File, node ast.Node) {
+	var body *ast.BlockStmt
+	switch n := node.(type) {
+	case *ast.FuncDecl:
+		body = n.Body
+	case *ast.FuncLit:
+		body = n.Body
+	}
+	if body == nil {
 		return
 	}
 

@@ -12,11 +12,16 @@ import (
 	"strconv"
 )
 
-// checkField checks a struct field tag.
-func (f *File) checkCanonicalFieldTag(field *ast.Field) {
-	if !vet("structtags") {
-		return
-	}
+func init() {
+	register("structtags",
+		"check that struct field tags have canonical format",
+		checkCanonicalFieldTag,
+		field)
+}
+
+// checkCanonicalFieldTag checks a struct field tag.
+func checkCanonicalFieldTag(f *File, node ast.Node) {
+	field := node.(*ast.Field)
 	if field.Tag == nil {
 		return
 	}

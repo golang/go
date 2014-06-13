@@ -13,6 +13,13 @@ import (
 	"strings"
 )
 
+func init() {
+	register("methods",
+		"check that canonically named methods are canonically defined",
+		checkCanonicalMethod,
+		funcDecl, interfaceType)
+}
+
 type MethodSig struct {
 	args    []string
 	results []string
@@ -55,10 +62,22 @@ var canonicalMethods = map[string]MethodSig{
 	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "error"}}, // io.WriterTo
 }
 
-func (f *File) checkCanonicalMethod(id *ast.Ident, t *ast.FuncType) {
-	if !vet("methods") {
-		return
+func checkCanonicalMethod(f *File, node ast.Node) {
+	switch n := node.(type) {
+	case *ast.FuncDecl:
+		if n.Recv != nil {
+			canonicalMethod(f, n.Name, n.Type)
+		}
+	case *ast.InterfaceType:
+		for _, field := range n.Methods.List {
+			for _, id := range field.Names {
+				canonicalMethod(f, id, field.Type.(*ast.FuncType))
+			}
+		}
 	}
+}
+
+func canonicalMethod(f *File, id *ast.Ident, t *ast.FuncType) {
 	// Expected input/output.
 	expect, ok := canonicalMethods[id.Name]
 	if !ok {

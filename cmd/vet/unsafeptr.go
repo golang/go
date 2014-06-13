@@ -13,10 +13,15 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-func (f *File) checkUnsafePointer(x *ast.CallExpr) {
-	if !vet("unsafeptr") {
-		return
-	}
+func init() {
+	register("unsafeptr",
+		"check for misuse of unsafe.Pointer",
+		checkUnsafePointer,
+		callExpr)
+}
+
+func checkUnsafePointer(f *File, node ast.Node) {
+	x := node.(*ast.CallExpr)
 	if len(x.Args) != 1 {
 		return
 	}

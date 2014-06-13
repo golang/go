@@ -31,11 +31,31 @@ For example:
 package main
 
 import (
+	"flag"
 	"go/ast"
 	"go/token"
 
 	"code.google.com/p/go.tools/go/types"
 )
+
+var strictShadowing = flag.Bool("shadowstrict", false, "whether to be strict about shadowing; can be noisy")
+
+func init() {
+	register("shadow",
+		"check for shadowed variables (experimental; must be set explicitly)",
+		checkShadow,
+		assignStmt, genDecl)
+	experimental["shadow"] = true
+}
+
+func checkShadow(f *File, node ast.Node) {
+	switch n := node.(type) {
+	case *ast.AssignStmt:
+		checkShadowAssignment(f, n)
+	case *ast.GenDecl:
+		checkShadowDecl(f, n)
+	}
+}
 
 // Span stores the minimum range of byte positions in the file in which a
 // given variable (types.Object) is mentioned. It is lexically defined: it spans
@@ -90,10 +110,7 @@ func (pkg *Package) growSpan(ident *ast.Ident, obj types.Object) {
 }
 
 // checkShadowAssignment checks for shadowing in a short variable declaration.
-func (f *File) checkShadowAssignment(a *ast.AssignStmt) {
-	if !vet("shadow") {
-		return
-	}
+func checkShadowAssignment(f *File, a *ast.AssignStmt) {
 	if a.Tok != token.DEFINE {
 		return
 	}
@@ -106,7 +123,7 @@ func (f *File) checkShadowAssignment(a *ast.AssignStmt) {
 			f.Badf(expr.Pos(), "invalid AST: short variable declaration of non-identifier")
 			return
 		}
-		f.checkShadowing(ident)
+		checkShadowing(f, ident)
 	}
 }
 
@@ -163,10 +180,7 @@ func (f *File) idiomaticRedecl(d *ast.ValueSpec) bool {
 }
 
 // checkShadowDecl checks for shadowing in a general variable declaration.
-func (f *File) checkShadowDecl(d *ast.GenDecl) {
-	if !vet("shadow") {
-		return
-	}
+func checkShadowDecl(f *File, d *ast.GenDecl) {
 	if d.Tok != token.VAR {
 		return
 	}
@@ -182,13 +196,13 @@ func (f *File) checkShadowDecl(d *ast.GenDecl) {
 			return
 		}
 		for _, ident := range valueSpec.Names {
-			f.checkShadowing(ident)
+			checkShadowing(f, ident)
 		}
 	}
 }
 
 // checkShadowing checks whether the identifier shadows an identifier in an outer scope.
-func (f *File) checkShadowing(ident *ast.Ident) {
+func checkShadowing(f *File, ident *ast.Ident) {
 	if ident.Name == "_" {
 		// Can't shadow the blank identifier.
 		return

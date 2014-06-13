@@ -14,14 +14,19 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+func init() {
+	register("copylocks",
+		"check that locks are not passed by value",
+		checkCopyLocks,
+		funcDecl)
+}
+
 // checkCopyLocks checks whether a function might
 // inadvertently copy a lock, by checking whether
 // its receiver, parameters, or return values
 // are locks.
-func (f *File) checkCopyLocks(d *ast.FuncDecl) {
-	if !vet("copylocks") {
-		return
-	}
+func checkCopyLocks(f *File, node ast.Node) {
+	d := node.(*ast.FuncDecl)
 
 	if d.Recv != nil && len(d.Recv.List) > 0 {
 		expr := d.Recv.List[0].Type

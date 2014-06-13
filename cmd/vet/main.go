@@ -28,7 +28,6 @@ import (
 // TODO: Need a flag to set build tags when parsing the package.
 
 var verbose = flag.Bool("v", false, "verbose")
-var strictShadowing = flag.Bool("shadowstrict", false, "whether to be strict about shadowing; can be noisy")
 var testFlag = flag.Bool("test", false, "for testing only: sets -all and -shadow")
 var exitCode = 0
 
@@ -38,27 +37,15 @@ var all = flag.Bool("all", true, "check everything; disabled if any explicit che
 
 // Flags to control which individual checks to perform.
 var report = map[string]*triState{
-	"asmdecl":     triStateFlag("asmdecl", unset, "check assembly against Go declarations"),
-	"assign":      triStateFlag("assign", unset, "check for useless assignments"),
-	"atomic":      triStateFlag("atomic", unset, "check for common mistaken usages of the sync/atomic package"),
-	"buildtags":   triStateFlag("buildtags", unset, "check that +build tags are valid"),
-	"composites":  triStateFlag("composites", unset, "check that composite literals used field-keyed elements"),
-	"copylocks":   triStateFlag("copylocks", unset, "check that locks are not passed by value"),
-	"methods":     triStateFlag("methods", unset, "check that canonically named methods are canonically defined"),
-	"nilfunc":     triStateFlag("nilfunc", unset, "check for comparisons between functions and nil"),
-	"printf":      triStateFlag("printf", unset, "check printf-like invocations"),
-	"rangeloops":  triStateFlag("rangeloops", unset, "check that range loop variables are used correctly"),
-	"shadow":      triStateFlag("shadow", unset, "check for shadowed variables (experimental; must be set explicitly)"),
-	"structtags":  triStateFlag("structtags", unset, "check that struct field tags have canonical format"),
-	"unreachable": triStateFlag("unreachable", unset, "check for unreachable code"),
-	"unsafeptr":   triStateFlag("unsafeptr", unset, "check for misuse of unsafe.Pointer"),
+	// Only unusual checks are written here.
+	// Most checks that operate during the AST walk are added by register.
+	"asmdecl":   triStateFlag("asmdecl", unset, "check assembly against Go declarations"),
+	"buildtags": triStateFlag("buildtags", unset, "check that +build tags are valid"),
 }
 
 // experimental records the flags enabling experimental features. These must be
 // requested explicitly; they are not enabled by -all.
-var experimental = map[string]bool{
-	"shadow": true,
-}
+var experimental = map[string]bool{}
 
 // setTrueCount record how many flags are explicitly set to true.
 var setTrueCount int
@@ -135,6 +122,37 @@ func setExit(err int) {
 	}
 }
 
+var (
+	// Each of these vars has a corresponding case in (*File).Visit.
+	assignStmt    *ast.AssignStmt
+	binaryExpr    *ast.BinaryExpr
+	callExpr      *ast.CallExpr
+	compositeLit  *ast.CompositeLit
+	field         *ast.Field
+	funcDecl      *ast.FuncDecl
+	funcLit       *ast.FuncLit
+	genDecl       *ast.GenDecl
+	interfaceType *ast.InterfaceType
+	rangeStmt     *ast.RangeStmt
+
+	// checkers is a two-level map.
+	// The outer level is keyed by a nil pointer, one of the AST vars above.
+	// The inner level is keyed by checker name.
+	checkers = make(map[ast.Node]map[string]func(*File, ast.Node))
+)
+
+func register(name, usage string, fn func(*File, ast.Node), types ...ast.Node) {
+	report[name] = triStateFlag(name, unset, usage)
+	for _, typ := range types {
+		m := checkers[typ]
+		if m == nil {
+			m = make(map[string]func(*File, ast.Node))
+			checkers[typ] = m
+		}
+		m[name] = fn
+	}
+}
+
 // Usage is a replacement usage function for the flags package.
 func Usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
@@ -157,9 +175,12 @@ type File struct {
 	file    *ast.File
 	b       bytes.Buffer // for use by methods
 
-	// The last "String() string" method receiver we saw while walking.
+	// The objects that are receivers of a "String() string" method.
 	// This is used by the recursiveStringer method in print.go.
-	lastStringerReceiver *ast.Object
+	stringers map[*ast.Object]bool
+
+	// Registered checkers to run.
+	checkers map[ast.Node][]func(*File, ast.Node)
 }
 
 func main() {
@@ -321,8 +342,19 @@ func doPackage(directory string, names []string) bool {
 	if err != nil && *verbose {
 		warnf("%s", err)
 	}
+
+	// Check.
+	chk := make(map[ast.Node][]func(*File, ast.Node))
+	for typ, set := range checkers {
+		for name, fn := range set {
+			if vet(name) {
+				chk[typ] = append(chk[typ], fn)
+			}
+		}
+	}
 	for _, file := range files {
 		file.pkg = pkg
+		file.checkers = chk
 		if file.file != nil {
 			file.walkFile(file.name, file.file)
 		}
@@ -430,130 +462,33 @@ func (f *File) walkFile(name string, file *ast.File) {
 
 // Visit implements the ast.Visitor interface.
 func (f *File) Visit(node ast.Node) ast.Visitor {
-	switch n := node.(type) {
+	var key ast.Node
+	switch node.(type) {
 	case *ast.AssignStmt:
-		f.walkAssignStmt(n)
+		key = assignStmt
 	case *ast.BinaryExpr:
-		f.walkBinaryExpr(n)
+		key = binaryExpr
 	case *ast.CallExpr:
-		f.walkCallExpr(n)
+		key = callExpr
 	case *ast.CompositeLit:
-		f.walkCompositeLit(n)
+		key = compositeLit
 	case *ast.Field:
-		f.walkFieldTag(n)
+		key = field
 	case *ast.FuncDecl:
-		f.walkFuncDecl(n)
+		key = funcDecl
 	case *ast.FuncLit:
-		f.walkFuncLit(n)
+		key = funcLit
 	case *ast.GenDecl:
-		f.walkGenDecl(n)
+		key = genDecl
 	case *ast.InterfaceType:
-		f.walkInterfaceType(n)
+		key = interfaceType
 	case *ast.RangeStmt:
-		f.walkRangeStmt(n)
+		key = rangeStmt
+	}
+	for _, fn := range f.checkers[key] {
+		fn(f, node)
 	}
 	return f
-}
-
-// walkAssignStmt walks an assignment statement
-func (f *File) walkAssignStmt(stmt *ast.AssignStmt) {
-	f.checkAssignStmt(stmt)
-	f.checkAtomicAssignment(stmt)
-	f.checkShadowAssignment(stmt)
-}
-
-func (f *File) walkBinaryExpr(expr *ast.BinaryExpr) {
-	f.checkNilFuncComparison(expr)
-}
-
-// walkCall walks a call expression.
-func (f *File) walkCall(call *ast.CallExpr, name string) {
-	f.checkFmtPrintfCall(call, name)
-}
-
-// walkCallExpr walks a call expression.
-func (f *File) walkCallExpr(call *ast.CallExpr) {
-	switch x := call.Fun.(type) {
-	case *ast.Ident:
-		f.walkCall(call, x.Name)
-	case *ast.SelectorExpr:
-		f.walkCall(call, x.Sel.Name)
-	}
-	f.checkUnsafePointer(call)
-}
-
-// walkCompositeLit walks a composite literal.
-func (f *File) walkCompositeLit(c *ast.CompositeLit) {
-	f.checkUnkeyedLiteral(c)
-}
-
-// walkFieldTag walks a struct field tag.
-func (f *File) walkFieldTag(field *ast.Field) {
-	if field.Tag == nil {
-		return
-	}
-	f.checkCanonicalFieldTag(field)
-}
-
-// walkMethod walks the method's signature.
-func (f *File) walkMethod(id *ast.Ident, t *ast.FuncType) {
-	f.checkCanonicalMethod(id, t)
-}
-
-// walkFuncDecl walks a function declaration.
-func (f *File) walkFuncDecl(d *ast.FuncDecl) {
-	f.checkUnreachable(d.Body)
-	if d.Recv != nil {
-		f.walkMethod(d.Name, d.Type)
-	}
-	f.prepStringerReceiver(d)
-	f.checkCopyLocks(d)
-}
-
-// prepStringerReceiver checks whether the given declaration is a fmt.Stringer
-// implementation, and if so sets the File's lastStringerReceiver field to the
-// declaration's receiver object.
-func (f *File) prepStringerReceiver(d *ast.FuncDecl) {
-	if !f.isStringer(d) {
-		return
-	}
-	if l := d.Recv.List; len(l) == 1 {
-		if n := l[0].Names; len(n) == 1 {
-			f.lastStringerReceiver = n[0].Obj
-		}
-	}
-}
-
-// isStringer returns true if the provided declaration is a "String() string"
-// method; an implementation of fmt.Stringer.
-func (f *File) isStringer(d *ast.FuncDecl) bool {
-	return d.Recv != nil && d.Name.Name == "String" && d.Type.Results != nil &&
-		len(d.Type.Params.List) == 0 && len(d.Type.Results.List) == 1 &&
-		f.pkg.types[d.Type.Results.List[0].Type].Type == types.Typ[types.String]
-}
-
-// walkGenDecl walks a general declaration.
-func (f *File) walkGenDecl(d *ast.GenDecl) {
-	f.checkShadowDecl(d)
-}
-
-// walkFuncLit walks a function literal.
-func (f *File) walkFuncLit(x *ast.FuncLit) {
-	f.checkUnreachable(x.Body)
-}
-
-// walkInterfaceType walks the method signatures of an interface.
-func (f *File) walkInterfaceType(t *ast.InterfaceType) {
-	for _, field := range t.Methods.List {
-		for _, id := range field.Names {
-			f.walkMethod(id, field.Type.(*ast.FuncType))
-		}
-	}
-}
-
-// walkRangeStmt walks a range statement.
-func (f *File) walkRangeStmt(n *ast.RangeStmt) {
-	checkRangeLoop(f, n)
 }
 
 // gofmt returns a string representation of the expression.

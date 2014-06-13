@@ -16,10 +16,15 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-func (f *File) checkNilFuncComparison(e *ast.BinaryExpr) {
-	if !vet("nilfunc") {
-		return
-	}
+func init() {
+	register("nilfunc",
+		"check for comparisons between functions and nil",
+		checkNilFuncComparison,
+		binaryExpr)
+}
+
+func checkNilFuncComparison(f *File, node ast.Node) {
+	e := node.(*ast.BinaryExpr)
 
 	// Only want == or != comparisons.
 	if e.Op != token.EQL && e.Op != token.NEQ {
