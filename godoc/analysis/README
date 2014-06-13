@@ -26,9 +26,6 @@ Testing: how does one test that a web page "looks right"?
 Bugs
 ----
 
-(*go/loader.Program).Load fails if it encounters a single parse error.
-Make this more robust.
-
 (*ssa.Program).Create requires transitively error-free packages.  We
 can make this more robust by making the requirement transitively free
 of "hard" errors; soft errors are fine.

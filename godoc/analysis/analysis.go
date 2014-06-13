@@ -36,15 +36,16 @@
 // CHANNEL PEERS: for each channel operation make/<-/close, the set of
 // other channel ops that alias the same channel(s).
 //
-// ERRORS: for each locus of a static (go/types) error, the location
-// is highlighted in red and hover text provides the compiler error
-// message.
+// ERRORS: for each locus of a frontend (scanner/parser/type) error, the
+// location is highlighted in red and hover text provides the compiler
+// error message.
 //
 package analysis
 
 import (
 	"fmt"
 	"go/build"
+	"go/scanner"
 	"go/token"
 	"html"
 	"io"
@@ -274,9 +275,13 @@ type analysis struct {
 	pcgs      map[*ssa.Package]*packageCallGraph
 }
 
-// fileAndOffset returns the file and offset for a given position.
+// fileAndOffset returns the file and offset for a given pos.
 func (a *analysis) fileAndOffset(pos token.Pos) (fi *fileInfo, offset int) {
-	posn := a.prog.Fset.Position(pos)
+	return a.fileAndOffsetPosn(a.prog.Fset.Position(pos))
+}
+
+// fileAndOffsetPosn returns the file and offset for a given position.
+func (a *analysis) fileAndOffsetPosn(posn token.Position) (fi *fileInfo, offset int) {
 	url := a.path2url[posn.Filename]
 	return a.result.fileInfo(url), posn.Offset
 }
@@ -301,15 +306,10 @@ func (a *analysis) posURL(pos token.Pos, len int) string {
 //
 func Run(pta bool, result *Result) {
 	conf := loader.Config{
-		SourceImports:   true,
-		AllowTypeErrors: true,
+		SourceImports: true,
+		AllowErrors:   true,
 	}
-
-	errors := make(map[token.Pos][]string)
-	conf.TypeChecker.Error = func(e error) {
-		err := e.(types.Error)
-		errors[err.Pos] = append(errors[err.Pos], err.Msg)
-	}
+	conf.TypeChecker.Error = func(e error) {} // silence the default error handler
 
 	var roots, args []string // roots[i] ends with os.PathSeparator
 
@@ -333,7 +333,7 @@ func Run(pta bool, result *Result) {
 	//args = []string{"fmt"}
 
 	if _, err := conf.FromArgs(args, true); err != nil {
-		log.Print(err) // import error
+		log.Printf("Analysis failed: %s\n", err) // import error
 		return
 	}
 
@@ -343,9 +343,7 @@ func Run(pta bool, result *Result) {
 		log.Printf("Loaded %d packages.", len(iprog.AllPackages))
 	}
 	if err != nil {
-		// TODO(adonovan): loader: don't give up just because
-		// of one parse error.
-		log.Print(err) // parse error in some package
+		log.Printf("Analysis failed: %s\n", err)
 		return
 	}
 
@@ -398,12 +396,28 @@ func Run(pta bool, result *Result) {
 		}
 	}
 
-	// Add links for type-checker errors.
+	// Add links for scanner, parser, type-checker errors.
 	// TODO(adonovan): fix: these links can overlap with
 	// identifier markup, causing the renderer to emit some
 	// characters twice.
-	for pos, errs := range errors {
-		fi, offset := a.fileAndOffset(pos)
+	errors := make(map[token.Position][]string)
+	for _, info := range iprog.AllPackages {
+		for _, err := range info.Errors {
+			switch err := err.(type) {
+			case types.Error:
+				posn := a.prog.Fset.Position(err.Pos)
+				errors[posn] = append(errors[posn], err.Msg)
+			case scanner.ErrorList:
+				for _, e := range err {
+					errors[e.Pos] = append(errors[e.Pos], e.Msg)
+				}
+			default:
+				log.Printf("Error (%T) without position: %v\n", err, err)
+			}
+		}
+	}
+	for posn, errs := range errors {
+		fi, offset := a.fileAndOffsetPosn(posn)
 		fi.addLink(errorLink{
 			start: offset,
 			msg:   strings.Join(errs, "\n"),

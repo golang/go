@@ -131,15 +131,15 @@ var justXgo = [1]os.FileInfo{fakeFileInfo{}} // ["x.go"]
 
 func TestTransitivelyErrorFreeFlag(t *testing.T) {
 	conf := loader.Config{
-		AllowTypeErrors: true,
-		SourceImports:   true,
+		AllowErrors:   true,
+		SourceImports: true,
 	}
 
 	// Create an minimal custom build.Context
 	// that fakes the following packages:
 	//
-	// a --> b --> c!   c has a TypeError
-	//   \              d and e are transitively error free.
+	// a --> b --> c!   c has an error
+	//   \              d and e are transitively error-free.
 	//    e --> d
 	//
 	// Each package [a-e] consists of one file, x.go.
@@ -184,12 +184,12 @@ func TestTransitivelyErrorFreeFlag(t *testing.T) {
 			continue
 		}
 
-		if (info.TypeError != nil) != wantErr {
+		if (info.Errors != nil) != wantErr {
 			if wantErr {
-				t.Errorf("Package %q.TypeError = nil, want error", pkg.Path())
+				t.Errorf("Package %q.Error = nil, want error", pkg.Path())
 			} else {
-				t.Errorf("Package %q has unexpected TypeError: %s",
-					pkg.Path(), info.TypeError)
+				t.Errorf("Package %q has unexpected Errors: %v",
+					pkg.Path(), info.Errors)
 			}
 		}
 
