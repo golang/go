@@ -122,7 +122,7 @@ func ExampleTime_Round() {
 	}
 	// Output:
 	// t.Round(   1ns) = 12:15:30.918273645
-	// t.Round(   1us) = 12:15:30.918274
+	// t.Round(   1µs) = 12:15:30.918274
 	// t.Round(   1ms) = 12:15:30.918
 	// t.Round(    1s) = 12:15:31
 	// t.Round(    2s) = 12:15:30
@@ -150,7 +150,7 @@ func ExampleTime_Truncate() {
 
 	// Output:
 	// t.Truncate(   1ns) = 12:15:30.918273645
-	// t.Truncate(   1us) = 12:15:30.918273
+	// t.Truncate(   1µs) = 12:15:30.918273
 	// t.Truncate(   1ms) = 12:15:30.918
 	// t.Truncate(    1s) = 12:15:30
 	// t.Truncate(    2s) = 12:15:30
