@@ -1895,14 +1895,9 @@ start:
 		b.setCall(fn, s.Call, &v.Call)
 		fn.emit(&v)
 
-		// A deferred call can cause recovery from panic.
-		// If the panicking function has named results,
-		// control resumes at the Recover block to load those
-		// locals (which may be mutated by the deferred call)
-		// and return them.
-		if fn.namedResults != nil {
-			createRecoverBlock(fn)
-		}
+		// A deferred call can cause recovery from panic,
+		// and control resumes at the Recover block.
+		createRecoverBlock(fn)
 
 	case *ast.ReturnStmt:
 		var results []Value

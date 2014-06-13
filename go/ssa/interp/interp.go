@@ -555,9 +555,6 @@ func runFrame(fr *frame) {
 		}
 		fr.runDefers()
 		fr.block = fr.fn.Recover
-		if fr.block == nil {
-			fr.result = zero(fr.fn.Signature.Results())
-		}
 	}()
 
 	for {

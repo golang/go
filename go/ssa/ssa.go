@@ -273,9 +273,9 @@ type Node interface {
 // To iterate over the blocks in dominance order, use DomPreorder().
 //
 // Recover is an optional second entry point to which control resumes
-// after a recovered panic.  The Recover block may contain only a load
-// of the function's named return parameters followed by a return of
-// the loaded values.
+// after a recovered panic.  The Recover block may contain only a return
+// statement, preceded by a load of the function's named return
+// parameters, if any.
 //
 // A nested function (Parent()!=nil) that refers to one or more
 // lexically enclosing local variables ("free variables") has FreeVar
