@@ -1,0 +1,6 @@
+This file collects notes about what has changed since Go 1.3
+and should be mentioned in the Go 1.4 release notes.
+
+Please keep the descriptions to a single line, starting with the
+package or cmd/xxx directory name, and ending in a CL number.
+Please keep the list sorted (as in sort.Strings of the lines).
