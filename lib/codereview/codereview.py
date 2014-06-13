@@ -1954,7 +1954,7 @@ def submit(ui, repo, *pats, **opts):
 	if cl.cc:
 		about += "CC=" + JoinComma([CutDomain(s) for s in cl.cc]) + "\n"
 
-	if not cl.reviewer:
+	if not cl.reviewer and needLGTM(cl):
 		raise hg_util.Abort("no reviewers listed in CL")
 
 	if not cl.local:
