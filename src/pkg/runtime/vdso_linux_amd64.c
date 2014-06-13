@@ -4,12 +4,24 @@
 
 #include "runtime.h"
 
+// Look up symbols in the Linux vDSO.
+
+// This code was originally based on the sample Linux vDSO parser at
+// https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/vDSO/parse_vdso.c
+
+// This implements the ELF dynamic linking spec at
+// http://sco.com/developers/gabi/latest/ch5.dynamic.html
+
+// The version section is documented at
+// http://refspecs.linuxfoundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/symversion.html
+
 #define AT_RANDOM 25
 #define AT_SYSINFO_EHDR 33
 #define AT_NULL	0    /* End of vector */
 #define PT_LOAD	1    /* Loadable program segment */
 #define PT_DYNAMIC 2 /* Dynamic linking information */
 #define DT_NULL 0    /* Marks end of dynamic section */
+#define DT_HASH 4    /* Dynamic symbol hash table */
 #define DT_STRTAB 5  /* Address of string table */
 #define DT_SYMTAB 6  /* Address of symbol table */
 #define DT_VERSYM 0x6ffffff0
@@ -132,6 +144,7 @@ typedef struct
 
 typedef struct {
 	byte* name;
+	int32 sym_hash;
 	void** var_ptr;
 } symbol_key;
 
@@ -148,9 +161,10 @@ struct vdso_info {
 	uintptr load_offset;  /* load_addr - recorded vaddr */
 
 	/* Symbol table */
-	int32 num_sym;
 	Elf64_Sym *symtab;
 	const byte *symstrings;
+	Elf64_Word *bucket, *chain;
+	Elf64_Word nbucket, nchain;
 
 	/* Version table */
 	Elf64_Versym *versym;
@@ -166,9 +180,9 @@ void* runtime·__vdso_clock_gettime_sym = (void*)0;
 
 #define SYM_KEYS_COUNT 3
 static symbol_key sym_keys[] = {
-	{ (byte*)"__vdso_time", &runtime·__vdso_time_sym },
-	{ (byte*)"__vdso_gettimeofday", &runtime·__vdso_gettimeofday_sym },
-	{ (byte*)"__vdso_clock_gettime", &runtime·__vdso_clock_gettime_sym },
+	{ (byte*)"__vdso_time", 0xa33c485, &runtime·__vdso_time_sym },
+	{ (byte*)"__vdso_gettimeofday", 0x315ca59, &runtime·__vdso_gettimeofday_sym },
+	{ (byte*)"__vdso_clock_gettime", 0xd35ec75, &runtime·__vdso_clock_gettime_sym },
 };
 
 static void
@@ -176,18 +190,15 @@ vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr* hdr)
 {
 	uint64 i;
 	bool found_vaddr = false;
+	Elf64_Phdr *pt;
+	Elf64_Dyn *dyn;
+	Elf64_Word *hash;
 
+	vdso_info->valid = false;
 	vdso_info->load_addr = (uintptr) hdr;
 
-	Elf64_Phdr *pt = (Elf64_Phdr*)(vdso_info->load_addr + hdr->e_phoff);
-	Elf64_Shdr *sh = (Elf64_Shdr*)(vdso_info->load_addr + hdr->e_shoff);
-	Elf64_Dyn *dyn = 0;
-
-	for(i=0; i<hdr->e_shnum; i++) {
-		if(sh[i].sh_type == SHT_DYNSYM) {
-			vdso_info->num_sym = sh[i].sh_size / sizeof(Elf64_Sym);
-		}
-	}
+	pt = (Elf64_Phdr*)(vdso_info->load_addr + hdr->e_phoff);
+	dyn = nil;
 
 	// We need two things from the segment table: the load offset
 	// and the dynamic table.
@@ -206,6 +217,11 @@ vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr* hdr)
 		return;  // Failed
 
 	// Fish out the useful bits of the dynamic table.
+	hash = nil;
+	vdso_info->symstrings = nil;
+	vdso_info->symtab = nil;
+	vdso_info->versym = nil;
+	vdso_info->verdef = nil;
 	for(i=0; dyn[i].d_tag!=DT_NULL; i++) {
 		switch(dyn[i].d_tag) {
 		case DT_STRTAB:
@@ -217,6 +233,11 @@ vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr* hdr)
 			vdso_info->symtab = (Elf64_Sym *)
 				((uintptr)dyn[i].d_un.d_ptr
 				 + vdso_info->load_offset);
+			break;
+		case DT_HASH:
+			hash = (Elf64_Word *)
+			  ((uintptr)dyn[i].d_un.d_ptr
+			   + vdso_info->load_offset);
 			break;
 		case DT_VERSYM:
 			vdso_info->versym = (Elf64_Versym *)
@@ -230,11 +251,17 @@ vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr* hdr)
 			break;
 		}
 	}
-	if(vdso_info->symstrings == nil || vdso_info->symtab == nil)
+	if(vdso_info->symstrings == nil || vdso_info->symtab == nil || hash == nil)
 		return;  // Failed
 
 	if(vdso_info->verdef == nil)
 		vdso_info->versym = 0;
+
+	// Parse the hash table header.
+	vdso_info->nbucket = hash[0];
+	vdso_info->nchain = hash[1];
+	vdso_info->bucket = &hash[2];
+	vdso_info->chain = &hash[vdso_info->nbucket + 2];
 
 	// That's all we need.
 	vdso_info->valid = true;
@@ -261,39 +288,41 @@ vdso_find_version(struct vdso_info *vdso_info, version_key* ver)
 		}
 		def = (Elf64_Verdef *)((byte *)def + def->vd_next);
 	}
-	return 0;
+	return -1; // can not match any version
 }
 
 static void
 vdso_parse_symbols(struct vdso_info *vdso_info, int32 version)
 {
-	int32 i, j;
+	int32 i;
+	Elf64_Word chain;
+	Elf64_Sym *sym;
 
 	if(vdso_info->valid == false)
 		return;
 
-	for(i=0; i<vdso_info->num_sym; i++) {
-		Elf64_Sym *sym = &vdso_info->symtab[i];
+	for(i=0; i<SYM_KEYS_COUNT; i++) {
+		for(chain = vdso_info->bucket[sym_keys[i].sym_hash % vdso_info->nbucket];
+			chain != 0; chain = vdso_info->chain[chain]) {
 
-		// Check for a defined global or weak function w/ right name.
-		if(ELF64_ST_TYPE(sym->st_info) != STT_FUNC)
-			continue;
-		if(ELF64_ST_BIND(sym->st_info) != STB_GLOBAL &&
-			ELF64_ST_BIND(sym->st_info) != STB_WEAK)
-			continue;
-		if(sym->st_shndx == SHN_UNDEF)
-			continue;
-
-		for(j=0; j<SYM_KEYS_COUNT; j++) {
-			if(runtime·strcmp(sym_keys[j].name, vdso_info->symstrings + sym->st_name) != 0)
+			sym = &vdso_info->symtab[chain];
+			if(ELF64_ST_TYPE(sym->st_info) != STT_FUNC)
+				continue;
+			if(ELF64_ST_BIND(sym->st_info) != STB_GLOBAL &&
+				 ELF64_ST_BIND(sym->st_info) != STB_WEAK)
+				continue;
+			if(sym->st_shndx == SHN_UNDEF)
+				continue;
+			if(runtime·strcmp(sym_keys[i].name, vdso_info->symstrings + sym->st_name) != 0)
 				continue;
 
 			// Check symbol version.
 			if(vdso_info->versym != nil && version != 0
-				&& vdso_info->versym[i] & 0x7fff != version)
+				&& vdso_info->versym[chain] & 0x7fff != version)
 				continue;
 
-			*sym_keys[j].var_ptr = (void *)(vdso_info->load_offset + sym->st_value);
+			*sym_keys[i].var_ptr = (void *)(vdso_info->load_offset + sym->st_value);
+			break;
 		}
 	}
 }
