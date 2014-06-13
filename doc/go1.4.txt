@@ -4,3 +4,5 @@ and should be mentioned in the Go 1.4 release notes.
 Please keep the descriptions to a single line, starting with the
 package or cmd/xxx directory name, and ending in a CL number.
 Please keep the list sorted (as in sort.Strings of the lines).
+
+time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)
