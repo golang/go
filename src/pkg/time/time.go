@@ -475,29 +475,28 @@ func (d Duration) String() string {
 	if u < uint64(Second) {
 		// Special case: if duration is smaller than a second,
 		// use smaller units, like 1.2ms
-		var (
-			prec int
-			unit byte
-		)
+		var prec int
+		w--
+		buf[w] = 's'
+		w--
 		switch {
 		case u == 0:
 			return "0"
 		case u < uint64(Microsecond):
 			// print nanoseconds
 			prec = 0
-			unit = 'n'
+			buf[w] = 'n'
 		case u < uint64(Millisecond):
 			// print microseconds
 			prec = 3
-			unit = 'u'
+			// U+00B5 'µ' micro sign == 0xC2 0xB5
+			w-- // Need room for two bytes.
+			copy(buf[w:], "µ")
 		default:
 			// print milliseconds
 			prec = 6
-			unit = 'm'
+			buf[w] = 'm'
 		}
-		w -= 2
-		buf[w] = unit
-		buf[w+1] = 's'
 		w, u = fmtFrac(buf[:w], u, prec)
 		w = fmtInt(buf[:w], u)
 	} else {
