@@ -1446,12 +1446,6 @@ func (c *Corpus) UpdateIndex() {
 		log.Printf("updating index...")
 	}
 	start := time.Now()
-	throttle := c.IndexThrottle
-	if throttle <= 0 {
-		throttle = 0.9
-	} else if throttle > 1.0 {
-		throttle = 1.0
-	}
 	index := c.NewIndex()
 	stop := time.Now()
 	c.searchIndex.Set(index)
