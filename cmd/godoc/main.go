@@ -221,6 +221,7 @@ func main() {
 	corpus.IndexThrottle = *indexThrottle
 	if *writeIndex {
 		corpus.IndexThrottle = 1.0
+		corpus.IndexEnabled = true
 	}
 	if *writeIndex || httpMode || *urlFlag != "" {
 		if err := corpus.Init(); err != nil {

@@ -1471,10 +1471,11 @@ func (c *Corpus) UpdateIndex() {
 func (c *Corpus) RunIndexer() {
 	// initialize the index from disk if possible
 	if c.IndexFiles != "" {
+		c.initFSTree()
 		if err := c.readIndex(c.IndexFiles); err != nil {
 			log.Printf("error reading index from file %s: %v", c.IndexFiles, err)
-			return
 		}
+		return
 	}
 
 	// Repeatedly update the package directory tree and index.
