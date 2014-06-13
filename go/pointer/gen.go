@@ -531,7 +531,7 @@ func (a *analysis) genAppend(instr *ssa.Call, cgn *cgnode) {
 // genBuiltinCall generates contraints for a call to a built-in.
 func (a *analysis) genBuiltinCall(instr ssa.CallInstruction, cgn *cgnode) {
 	call := instr.Common()
-	switch call.Value.(*ssa.Builtin).Object().Name() {
+	switch call.Value.(*ssa.Builtin).Name() {
 	case "append":
 		// Safe cast: append cannot appear in a go or defer statement.
 		a.genAppend(instr.(*ssa.Call), cgn)
@@ -552,6 +552,9 @@ func (a *analysis) genBuiltinCall(instr ssa.CallInstruction, cgn *cgnode) {
 		// In the tests, the probe might be the sole reference
 		// to its arg, so make sure we create nodes for it.
 		a.valueNode(call.Args[0])
+
+	case "ssa:wrapnilchk":
+		a.copy(a.valueNode(instr.Value()), a.valueNode(call.Args[0]), 1)
 
 	default:
 		// No-ops: close len cap real imag complex print println delete.

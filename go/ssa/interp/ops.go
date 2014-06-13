@@ -1059,6 +1059,16 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value
 
 	case "recover":
 		return doRecover(caller)
+
+	case "ssa:wrapnilchk":
+		recv := args[0]
+		if recv.(*value) == nil {
+			recvType := args[1]
+			methodName := args[2]
+			panic(fmt.Sprintf("value method (%s).%s called using nil *%s pointer",
+				recvType, methodName, recvType))
+		}
+		return recv
 	}
 
 	panic("unknown built-in: " + fn.Name())

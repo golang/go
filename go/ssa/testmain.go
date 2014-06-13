@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 
-	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 )
 
@@ -167,7 +166,6 @@ func testMainSlice(fn *Function, expfuncs []*Function, prefix string, slice type
 		return nilConst(slice)
 	}
 
-	tString := types.Typ[types.String]
 	tPtrString := types.NewPointer(tString)
 	tPtrElem := types.NewPointer(tElem)
 	tPtrFunc := types.NewPointer(tFunc)
@@ -188,7 +186,7 @@ func testMainSlice(fn *Function, expfuncs []*Function, prefix string, slice type
 		pname := fn.emit(fa)
 
 		// Emit: *pname = "testfunc"
-		emitStore(fn, pname, NewConst(exact.MakeString(testfunc.Name()), tString))
+		emitStore(fn, pname, stringConst(testfunc.Name()))
 
 		// Emit: pfunc = &pitem.F
 		fa = &FieldAddr{X: pitem, Field: 1} // .F

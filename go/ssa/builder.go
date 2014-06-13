@@ -57,6 +57,7 @@ var (
 	tByte       = types.Typ[types.Byte]
 	tInt        = types.Typ[types.Int]
 	tInvalid    = types.Typ[types.Invalid]
+	tString     = types.Typ[types.String]
 	tUntypedNil = types.Typ[types.UntypedNil]
 	tRangeIter  = &opaqueType{nil, "iter"} // the type of all "range" iterators
 	tEface      = new(types.Interface)
@@ -597,7 +598,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		// Universal built-in or nil?
 		switch obj := obj.(type) {
 		case *types.Builtin:
-			return &Builtin{object: obj, sig: fn.Pkg.typeOf(e).(*types.Signature)}
+			return &Builtin{name: obj.Name(), sig: fn.Pkg.typeOf(e).(*types.Signature)}
 		case *types.Nil:
 			return nilConst(fn.Pkg.typeOf(e))
 		}
@@ -1414,7 +1415,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	for _, st := range states {
 		if st.Dir == types.RecvOnly {
 			tElem := st.Chan.Type().Underlying().(*types.Chan).Elem()
-			vars = append(vars, newVar("", tElem))
+			vars = append(vars, anonVar(tElem))
 		}
 	}
 	sel.setType(types.NewTuple(vars...))
@@ -1489,7 +1490,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		// A blocking select must match some case.
 		// (This should really be a runtime.errorString, not a string.)
 		fn.emit(&Panic{
-			X: emitConv(fn, NewConst(exact.MakeString("blocking select matched no case"), types.Typ[types.String]), tEface),
+			X: emitConv(fn, stringConst("blocking select matched no case"), tEface),
 		})
 		fn.currentBlock = fn.newBasicBlock("unreachable")
 	}

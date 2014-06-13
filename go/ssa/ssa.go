@@ -440,14 +440,23 @@ type Global struct {
 // Builtins are immutable values.  Builtins do not have addresses.
 // Builtins can only appear in CallCommon.Func.
 //
-// Object() returns a *types.Builtin.
+// Name() indicates the function: one of the built-in functions from the
+// Go spec (excluding "make" and "new") or one of these ssa-defined
+// intrinsics:
+//
+//   // wrapnilchk returns ptr if non-nil, panics otherwise.
+//   // (For use in indirection wrappers.)
+//   func ssa:wrapnilchk(ptr *T, recvType, methodName string) *T
+//
+// Object() returns a *types.Builtin for built-ins defined by the spec,
+// nil for others.
 //
 // Type() returns a *types.Signature representing the effective
 // signature of the built-in for this call.
 //
 type Builtin struct {
-	object *types.Builtin // canonical types.Universe object for this built-in
-	sig    *types.Signature
+	name string
+	sig  *types.Signature
 }
 
 // Value-defining instructions  ----------------------------------------
@@ -1382,10 +1391,10 @@ func (s *Defer) Value() *Call { return nil }
 func (s *Go) Value() *Call    { return nil }
 
 func (v *Builtin) Type() types.Type        { return v.sig }
-func (v *Builtin) Name() string            { return v.object.Name() }
+func (v *Builtin) Name() string            { return v.name }
 func (*Builtin) Referrers() *[]Instruction { return nil }
 func (v *Builtin) Pos() token.Pos          { return token.NoPos }
-func (v *Builtin) Object() types.Object    { return v.object }
+func (v *Builtin) Object() types.Object    { return types.Universe.Lookup(v.name) }
 func (v *Builtin) Parent() *Function       { return nil }
 
 func (v *FreeVar) Type() types.Type          { return v.typ }

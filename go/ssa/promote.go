@@ -264,12 +264,30 @@ func makeWrapper(prog *Program, meth *types.Selection) *Function {
 	fn.addSpilledParam(recv)
 	createParams(fn, start)
 
+	indices := meth.Index()
+
 	var v Value = fn.Locals[0] // spilled receiver
 	if isPointer(meth.Recv()) {
-		// TODO(adonovan): consider emitting a nil-pointer
-		// check here with a nice error message, like gc does.
-		// We could define a new builtin for the purpose.
 		v = emitLoad(fn, v)
+
+		// For simple indirection wrappers, perform an informative nil-check:
+		// "value method (T).f called using nil *T pointer"
+		if len(indices) == 1 && !isPointer(recvType(obj)) {
+			var c Call
+			c.Call.Value = &Builtin{
+				name: "ssa:wrapnilchk",
+				sig: types.NewSignature(nil, nil,
+					types.NewTuple(anonVar(meth.Recv()), anonVar(tString), anonVar(tString)),
+					types.NewTuple(anonVar(meth.Recv())), false),
+			}
+			c.Call.Args = []Value{
+				v,
+				stringConst(deref(meth.Recv()).String()),
+				stringConst(meth.Obj().Name()),
+			}
+			c.setType(v.Type())
+			v = fn.emit(&c)
+		}
 	}
 
 	// Invariant: v is a pointer, either
@@ -280,7 +298,6 @@ func makeWrapper(prog *Program, meth *types.Selection) *Function {
 	// Load) in preference to value extraction (Field possibly
 	// preceded by Load).
 
-	indices := meth.Index()
 	v = emitImplicitSelections(fn, v, indices[:len(indices)-1])
 
 	// Invariant: v is a pointer, either

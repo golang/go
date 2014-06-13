@@ -25,7 +25,7 @@ func NewConst(val exact.Value, typ types.Type) *Const {
 // intConst returns an 'int' constant that evaluates to i.
 // (i is an int64 in case the host is narrower than the target.)
 func intConst(i int64) *Const {
-	return NewConst(exact.MakeInt64(i), types.Typ[types.Int])
+	return NewConst(exact.MakeInt64(i), tInt)
 }
 
 // nilConst returns a nil constant of the specified type, which may
@@ -33,6 +33,11 @@ func intConst(i int64) *Const {
 //
 func nilConst(typ types.Type) *Const {
 	return NewConst(nil, typ)
+}
+
+// stringConst returns a 'string' constant that evaluates to s.
+func stringConst(s string) *Const {
+	return NewConst(exact.MakeString(s), tString)
 }
 
 // zeroConst returns a new "zero" constant of the specified type,

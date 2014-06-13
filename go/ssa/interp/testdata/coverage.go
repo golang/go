@@ -673,3 +673,20 @@ func init() {
 		panic(count)
 	}
 }
+
+// Test that a nice error is issue by indirection wrappers.
+func init() {
+	var ptr *T
+	var i I = ptr
+
+	defer func() {
+		r := fmt.Sprint(recover())
+		// Exact error varies by toolchain:
+		if r != "runtime error: value method (main.T).f called using nil *main.T pointer" &&
+			r != "value method main.T.f called using nil *T pointer" {
+			panic("want panic from call with nil receiver, got " + r)
+		}
+	}()
+	i.f()
+	panic("unreachable")
+}
