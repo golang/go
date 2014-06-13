@@ -9,6 +9,7 @@
 #include "funcdata.h"
 #include "typekind.h"
 #include "type.h"
+#include "../../cmd/ld/textflag.h"
 
 enum
 {
@@ -851,6 +852,13 @@ runtime·newstack(void)
 	*(int32*)345 = 123;	// never return
 }
 
+#pragma textflag NOSPLIT
+void
+runtime·nilfunc(void)
+{
+	*(byte*)0 = 0;
+}
+
 // adjust Gobuf as if it executed a call to fn
 // and then did an immediate gosave.
 void
@@ -858,9 +866,10 @@ runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
 {
 	void *fn;
 
-	fn = nil;
 	if(fv != nil)
 		fn = fv->fn;
+	else
+		fn = runtime·nilfunc;
 	runtime·gostartcall(gobuf, fn, fv);
 }
 
