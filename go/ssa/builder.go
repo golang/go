@@ -854,8 +854,8 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 		} else {
 			// Replace a suffix of args with a slice containing it.
 			at := types.NewArray(vt, int64(len(varargs)))
-			// Don't set pos for implicit Allocs.
 			a := emitNew(fn, at, token.NoPos)
+			a.setPos(e.Rparen)
 			a.Comment = "varargs"
 			for i, arg := range varargs {
 				iaddr := &IndexAddr{

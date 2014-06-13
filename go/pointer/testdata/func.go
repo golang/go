@@ -152,6 +152,10 @@ func func7() {
 	// @calls main.func7 -> (main.D).f$thunk
 }
 
+func func8(x ...int) {
+	print(&x[0]) // @pointsto varargs[*]@varargs:15
+}
+
 func main() {
 	func1()
 	func2()
@@ -160,6 +164,7 @@ func main() {
 	func5()
 	func6()
 	func7()
+	func8(1, 2, 3) // @line varargs
 }
 
 // @calls <root> -> main.main

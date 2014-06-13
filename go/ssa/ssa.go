@@ -474,7 +474,7 @@ type Builtin struct {
 // instantiate these types.
 //
 // Pos() returns the ast.CompositeLit.Lbrace for a composite literal,
-// or the ast.CallExpr.Lparen for a call to new() or for a call that
+// or the ast.CallExpr.Rparen for a call to new() or for a call that
 // allocates a varargs slice.
 //
 // Example printed form:
