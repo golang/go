@@ -72,6 +72,7 @@ Struct tags
 Flag: -structtags
 
 Struct tags that do not follow the format understood by reflect.StructTag.Get.
+Well-known encoding struct tags (json, xml) used with unexported fields.
 
 Unkeyed composite literals
 

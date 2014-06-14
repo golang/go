@@ -14,7 +14,7 @@ import (
 
 func init() {
 	register("structtags",
-		"check that struct field tags have canonical format",
+		"check that struct field tags have canonical format and apply to exported fields as needed",
 		checkCanonicalFieldTag,
 		field)
 }
@@ -35,8 +35,28 @@ func checkCanonicalFieldTag(f *File, node ast.Node) {
 	// Check tag for validity by appending
 	// new key:value to end and checking that
 	// the tag parsing code can find it.
-	if reflect.StructTag(tag+` _gofix:"_magic"`).Get("_gofix") != "_magic" {
+	st := reflect.StructTag(tag + ` _gofix:"_magic"`)
+	if st.Get("_gofix") != "_magic" {
 		f.Badf(field.Pos(), "struct field tag %s not compatible with reflect.StructTag.Get", field.Tag.Value)
 		return
+	}
+
+	// Check for use of json or xml tags with unexported fields.
+
+	// Embedded struct. Nothing to do for now, but that
+	// may change, depending on what happens with issue 7363.
+	if len(field.Names) == 0 {
+		return
+	}
+
+	if field.Names[0].IsExported() {
+		return
+	}
+
+	for _, enc := range [...]string{"json", "xml"} {
+		if st.Get(enc) != "" {
+			f.Badf(field.Pos(), "struct field %s has %s tag but is not exported", field.Names[0].Name, enc)
+			return
+		}
 	}
 }
