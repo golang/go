@@ -204,6 +204,9 @@ func NewCallbackCDecl(fn interface{}) uintptr
 //sys	GetConsoleMode(console Handle, mode *uint32) (err error) = kernel32.GetConsoleMode
 //sys	WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) = kernel32.WriteConsoleW
 //sys	ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) = kernel32.ReadConsoleW
+//sys	CreateToolhelp32Snapshot(flags uint32, processId uint32) (handle Handle, err error) [failretval==InvalidHandle] = kernel32.CreateToolhelp32Snapshot
+//sys	Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32FirstW
+//sys	Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32NextW
 
 // syscall interface implementation for other packages
 
@@ -902,9 +905,37 @@ func FindNextFile(handle Handle, data *Win32finddata) (err error) {
 	return
 }
 
-// TODO(brainman): fix all needed for os
-func Getppid() (ppid int) { return -1 }
+func getProcessEntry(pid int) (*ProcessEntry32, error) {
+	snapshot, err := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer CloseHandle(snapshot)
+	var procEntry ProcessEntry32
+	procEntry.Size = uint32(unsafe.Sizeof(procEntry))
+	if err = Process32First(snapshot, &procEntry); err != nil {
+		return nil, err
+	}
+	for {
+		if procEntry.ProcessID == uint32(pid) {
+			return &procEntry, nil
+		}
+		err = Process32Next(snapshot, &procEntry)
+		if err != nil {
+			return nil, err
+		}
+	}
+}
 
+func Getppid() (ppid int) {
+	pe, err := getProcessEntry(Getpid())
+	if err != nil {
+		return -1
+	}
+	return int(pe.ParentProcessID)
+}
+
+// TODO(brainman): fix all needed for os
 func Fchdir(fd Handle) (err error)                        { return EWINDOWS }
 func Link(oldpath, newpath string) (err error)            { return EWINDOWS }
 func Symlink(path, link string) (err error)               { return EWINDOWS }
