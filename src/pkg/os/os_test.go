@@ -1294,8 +1294,12 @@ func TestKillStartProcess(t *testing.T) {
 }
 
 func TestGetppid(t *testing.T) {
-	if runtime.GOOS == "nacl" {
+	switch runtime.GOOS {
+	case "nacl":
 		t.Skip("skipping on nacl")
+	case "plan9":
+		// TODO: golang.org/issue/8206
+		t.Skipf("skipping test on plan9; see issue 8206")
 	}
 
 	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
