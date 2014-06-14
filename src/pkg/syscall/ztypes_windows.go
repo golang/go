@@ -176,6 +176,17 @@ const (
 )
 
 const (
+	// flags for CreateToolhelp32Snapshot
+	TH32CS_SNAPHEAPLIST = 0x01
+	TH32CS_SNAPPROCESS  = 0x02
+	TH32CS_SNAPTHREAD   = 0x04
+	TH32CS_SNAPMODULE   = 0x08
+	TH32CS_SNAPMODULE32 = 0x10
+	TH32CS_SNAPALL      = TH32CS_SNAPHEAPLIST | TH32CS_SNAPMODULE | TH32CS_SNAPPROCESS | TH32CS_SNAPTHREAD
+	TH32CS_INHERIT      = 0x80000000
+)
+
+const (
 	// do not reorder
 	FILE_NOTIFY_CHANGE_FILE_NAME = 1 << iota
 	FILE_NOTIFY_CHANGE_DIR_NAME
@@ -460,6 +471,19 @@ type ProcessInformation struct {
 	Thread    Handle
 	ProcessId uint32
 	ThreadId  uint32
+}
+
+type ProcessEntry32 struct {
+	Size            uint32
+	Usage           uint32
+	ProcessID       uint32
+	DefaultHeapID   uintptr
+	ModuleID        uint32
+	Threads         uint32
+	ParentProcessID uint32
+	PriClassBase    int32
+	Flags           uint32
+	ExeFile         [MAX_PATH]uint16
 }
 
 type Systemtime struct {

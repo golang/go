@@ -108,6 +108,9 @@ var (
 	procGetConsoleMode                     = modkernel32.NewProc("GetConsoleMode")
 	procWriteConsoleW                      = modkernel32.NewProc("WriteConsoleW")
 	procReadConsoleW                       = modkernel32.NewProc("ReadConsoleW")
+	procCreateToolhelp32Snapshot           = modkernel32.NewProc("CreateToolhelp32Snapshot")
+	procProcess32FirstW                    = modkernel32.NewProc("Process32FirstW")
+	procProcess32NextW                     = modkernel32.NewProc("Process32NextW")
 	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
 	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
 	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
@@ -1244,6 +1247,43 @@ func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, 
 
 func ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) {
 	r1, _, e1 := Syscall6(procReadConsoleW.Addr(), 5, uintptr(console), uintptr(unsafe.Pointer(buf)), uintptr(toread), uintptr(unsafe.Pointer(read)), uintptr(unsafe.Pointer(inputControl)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func CreateToolhelp32Snapshot(flags uint32, processId uint32) (handle Handle, err error) {
+	r0, _, e1 := Syscall(procCreateToolhelp32Snapshot.Addr(), 2, uintptr(flags), uintptr(processId), 0)
+	handle = Handle(r0)
+	if handle == InvalidHandle {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) {
+	r1, _, e1 := Syscall(procProcess32FirstW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(procEntry)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) {
+	r1, _, e1 := Syscall(procProcess32NextW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(procEntry)), 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
