@@ -20,6 +20,17 @@ type cgnode struct {
 	callersite *callsite   // where called from, if known; nil for shared contours
 }
 
+// contour returns a description of this node's contour.
+func (n *cgnode) contour() string {
+	if n.callersite == nil {
+		return "shared contour"
+	}
+	if n.callersite.instr != nil {
+		return fmt.Sprintf("as called from %s", n.callersite.instr.Parent())
+	}
+	return fmt.Sprintf("as called from intrinsic (targets=n%d)", n.callersite.targets)
+}
+
 func (n *cgnode) String() string {
 	return fmt.Sprintf("cg%d:%s", n.obj, n.fn)
 }

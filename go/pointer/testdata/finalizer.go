@@ -68,6 +68,13 @@ func runtimeSetFinalizerIndirect() {
 	setFinalizer(x, final4)
 }
 
+// Exercise the elimination of SetFinalizer
+// constraints with non-pointer operands.
+func runtimeSetFinalizerNonpointer() {
+	runtime.SetFinalizer(nil, (*T).finalize) // x is a non-pointer
+	runtime.SetFinalizer((*T).finalize, nil) // f is a non-pointer
+}
+
 // @calls main.runtimeSetFinalizerIndirect -> runtime.SetFinalizer
 // @calls runtime.SetFinalizer -> main.final4
 
@@ -76,6 +83,7 @@ func main() {
 	runtimeSetFinalizer2()
 	runtimeSetFinalizer3()
 	runtimeSetFinalizerIndirect()
+	runtimeSetFinalizerNonpointer()
 }
 
 var unknown bool // defeat dead-code elimination

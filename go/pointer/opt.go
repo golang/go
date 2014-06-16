@@ -4,17 +4,12 @@
 
 package pointer
 
-// This file defines the constraint optimiser ("pre-solver").
+// This file implements renumbering, a pre-solver optimization to
+// improve the efficiency of the solver's points-to set representation.
+//
+// TODO(adonovan): rename file "renumber.go"
 
-import (
-	"fmt"
-)
-
-func (a *analysis) optimize() {
-	a.renumber()
-
-	// TODO(adonovan): opt: PE (HVN, HRU), LE, etc.
-}
+import "fmt"
 
 // renumber permutes a.nodes so that all nodes within an addressable
 // object appear before all non-addressable nodes, maintaining the
@@ -30,7 +25,14 @@ func (a *analysis) optimize() {
 // NB: nodes added during solving (e.g. for reflection, SetFinalizer)
 // will be appended to the end.
 //
+// Renumbering makes the PTA log inscrutable.  To aid debugging, later
+// phases (e.g. HVN) must not rely on it having occurred.
+//
 func (a *analysis) renumber() {
+	if a.log != nil {
+		fmt.Fprintf(a.log, "\n\n==== Renumbering\n\n")
+	}
+
 	N := nodeid(len(a.nodes))
 	newNodes := make([]*node, N, N)
 	renumbering := make([]nodeid, N, N) // maps old to new

@@ -124,12 +124,12 @@ type Result struct {
 
 // A Pointer is an equivalence class of pointer-like values.
 //
-// A pointer doesn't have a unique type because pointers of distinct
+// A Pointer doesn't have a unique type because pointers of distinct
 // types may alias the same object.
 //
 type Pointer struct {
 	a *analysis
-	n nodeid // non-zero
+	n nodeid
 }
 
 // A PointsToSet is a set of labels (locations or allocations).
@@ -197,7 +197,7 @@ func (s PointsToSet) DynamicTypes() *typeutil.Map {
 				pts = PointsToSet{s.a, new(nodeset)}
 				tmap.Set(tDyn, pts)
 			}
-			pts.pts.addAll(&s.a.nodes[v].pts)
+			pts.pts.addAll(&s.a.nodes[v].solve.pts)
 		}
 	}
 	return &tmap
@@ -224,7 +224,7 @@ func (p Pointer) PointsTo() PointsToSet {
 	if p.n == 0 {
 		return PointsToSet{}
 	}
-	return PointsToSet{p.a, &p.a.nodes[p.n].pts}
+	return PointsToSet{p.a, &p.a.nodes[p.n].solve.pts}
 }
 
 // MayAlias reports whether the receiver pointer may alias

@@ -44,7 +44,7 @@ var inputs = []string{
 	"testdata/fmtexcerpt.go",
 	"testdata/func.go",
 	"testdata/funcreflect.go",
-	"testdata/hello.go",
+	"testdata/hello.go", // NB: causes spurious failure of HVN cross-check
 	"testdata/interfaces.go",
 	"testdata/mapreflect.go",
 	"testdata/maps.go",
@@ -287,6 +287,7 @@ func doOneInput(input, filename string) bool {
 	}
 
 	var log bytes.Buffer
+	fmt.Fprintf(&log, "Input: %s\n", filename)
 
 	// Run the analysis.
 	config := &pointer.Config{

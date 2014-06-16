@@ -17,11 +17,26 @@ CONSTRAINT GENERATION:
   3) soundly track physical field offsets.  (Summarise dannyb's email here.)
      A downside is that we can't keep the identity field of struct
      allocations that identifies the object.    
+- add to pts(a.panic) a label representing all runtime panics, e.g.
+  runtime.{TypeAssertionError,errorString,errorCString}.
 
 OPTIMISATIONS
-- pre-solver: PE via HVN/HRU and LE.
+- pre-solver: 
+  pointer equivalence: extend HVN to HRU
+  location equivalence
 - solver: HCD, LCD.
+- experiment with map+slice worklist in lieu of bitset.
+  It may have faster insert.
 
 MISC:
 - Test on all platforms.  
   Currently we assume these go/build tags: linux, amd64, !cgo.
+
+MAINTAINABILITY
+- Think about ways to make debugging this code easier.  PTA logs
+  routinely exceed a million lines and require training to read.
+
+BUGS: 
+- There's a crash bug in stdlib_test + reflection, rVCallConstraint.
+
+

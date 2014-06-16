@@ -13,15 +13,22 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+type solverState struct {
+	complex []constraint // complex constraints attached to this node
+	copyTo  nodeset      // simple copy constraint edges
+	pts     nodeset      // points-to set of this node
+	prevPTS nodeset      // pts(n) in previous iteration (for difference propagation)
+}
+
 func (a *analysis) solve() {
-	var delta nodeset
+	start("Solving")
+	if a.log != nil {
+		fmt.Fprintf(a.log, "\n\n==== Solving constraints\n\n")
+	}
 
 	// Solver main loop.
-	for round := 1; ; round++ {
-		if a.log != nil {
-			fmt.Fprintf(a.log, "Solving, round %d\n", round)
-		}
-
+	var delta nodeset
+	for {
 		// Add new constraints to the graph:
 		// static constraints from SSA on round 1,
 		// dynamic constraints from reflection thereafter.
@@ -39,22 +46,33 @@ func (a *analysis) solve() {
 		n := a.nodes[id]
 
 		// Difference propagation.
-		delta.Difference(&n.pts.Sparse, &n.prevPts.Sparse)
+		delta.Difference(&n.solve.pts.Sparse, &n.solve.prevPTS.Sparse)
 		if delta.IsEmpty() {
 			continue
 		}
-		n.prevPts.Copy(&n.pts.Sparse)
+		if a.log != nil {
+			fmt.Fprintf(a.log, "\t\tpts(n%d : %s) = %s + %s\n",
+				id, n.typ, &delta, &n.solve.prevPTS)
+		}
+		n.solve.prevPTS.Copy(&n.solve.pts.Sparse)
 
 		// Apply all resolution rules attached to n.
 		a.solveConstraints(n, &delta)
 
 		if a.log != nil {
-			fmt.Fprintf(a.log, "\t\tpts(n%d) = %s\n", id, &n.pts)
+			fmt.Fprintf(a.log, "\t\tpts(n%d) = %s\n", id, &n.solve.pts)
 		}
 	}
 
-	if !a.nodes[0].pts.IsEmpty() {
-		panic(fmt.Sprintf("pts(0) is nonempty: %s", &a.nodes[0].pts))
+	if !a.nodes[0].solve.pts.IsEmpty() {
+		panic(fmt.Sprintf("pts(0) is nonempty: %s", &a.nodes[0].solve.pts))
+	}
+
+	// Release working state (but keep final PTS).
+	for _, n := range a.nodes {
+		n.solve.complex = nil
+		n.solve.copyTo.Clear()
+		n.solve.prevPTS.Clear()
 	}
 
 	if a.log != nil {
@@ -62,11 +80,12 @@ func (a *analysis) solve() {
 
 		// Dump solution.
 		for i, n := range a.nodes {
-			if !n.pts.IsEmpty() {
-				fmt.Fprintf(a.log, "pts(n%d) = %s : %s\n", i, &n.pts, n.typ)
+			if !n.solve.pts.IsEmpty() {
+				fmt.Fprintf(a.log, "pts(n%d) = %s : %s\n", i, &n.solve.pts, n.typ)
 			}
 		}
 	}
+	stop("Solving")
 }
 
 // processNewConstraints takes the new constraints from a.constraints
@@ -84,13 +103,13 @@ func (a *analysis) processNewConstraints() {
 	for _, c := range constraints {
 		if c, ok := c.(*addrConstraint); ok {
 			dst := a.nodes[c.dst]
-			dst.pts.add(c.src)
+			dst.solve.pts.add(c.src)
 
 			// Populate the worklist with nodes that point to
 			// something initially (due to addrConstraints) and
 			// have other constraints attached.
 			// (A no-op in round 1.)
-			if !dst.copyTo.IsEmpty() || len(dst.complex) > 0 {
+			if !dst.solve.copyTo.IsEmpty() || len(dst.solve.complex) > 0 {
 				a.addWork(c.dst)
 			}
 		}
@@ -107,16 +126,16 @@ func (a *analysis) processNewConstraints() {
 		case *copyConstraint:
 			// simple (copy) constraint
 			id = c.src
-			a.nodes[id].copyTo.add(c.dst)
+			a.nodes[id].solve.copyTo.add(c.dst)
 		default:
 			// complex constraint
 			id = c.ptr()
-			ptr := a.nodes[id]
-			ptr.complex = append(ptr.complex, c)
+			solve := a.nodes[id].solve
+			solve.complex = append(solve.complex, c)
 		}
 
-		if n := a.nodes[id]; !n.pts.IsEmpty() {
-			if !n.prevPts.IsEmpty() {
+		if n := a.nodes[id]; !n.solve.pts.IsEmpty() {
+			if !n.solve.prevPTS.IsEmpty() {
 				stale.add(id)
 			}
 			a.addWork(id)
@@ -125,8 +144,8 @@ func (a *analysis) processNewConstraints() {
 	// Apply new constraints to pre-existing PTS labels.
 	var space [50]int
 	for _, id := range stale.AppendTo(space[:0]) {
-		n := a.nodes[id]
-		a.solveConstraints(n, &n.prevPts)
+		n := a.nodes[nodeid(id)]
+		a.solveConstraints(n, &n.solve.prevPTS)
 	}
 }
 
@@ -140,7 +159,7 @@ func (a *analysis) solveConstraints(n *node, delta *nodeset) {
 	}
 
 	// Process complex constraints dependent on n.
-	for _, c := range n.complex {
+	for _, c := range n.solve.complex {
 		if a.log != nil {
 			fmt.Fprintf(a.log, "\t\tconstraint %s\n", c)
 		}
@@ -149,10 +168,10 @@ func (a *analysis) solveConstraints(n *node, delta *nodeset) {
 
 	// Process copy constraints.
 	var copySeen nodeset
-	for _, x := range n.copyTo.AppendTo(a.deltaSpace) {
+	for _, x := range n.solve.copyTo.AppendTo(a.deltaSpace) {
 		mid := nodeid(x)
 		if copySeen.add(mid) {
-			if a.nodes[mid].pts.addAll(delta) {
+			if a.nodes[mid].solve.pts.addAll(delta) {
 				a.addWork(mid)
 			}
 		}
@@ -161,7 +180,11 @@ func (a *analysis) solveConstraints(n *node, delta *nodeset) {
 
 // addLabel adds label to the points-to set of ptr and reports whether the set grew.
 func (a *analysis) addLabel(ptr, label nodeid) bool {
-	return a.nodes[ptr].pts.add(label)
+	b := a.nodes[ptr].solve.pts.add(label)
+	if b && a.log != nil {
+		fmt.Fprintf(a.log, "\t\tpts(n%d) += n%d\n", ptr, label)
+	}
+	return b
 }
 
 func (a *analysis) addWork(id nodeid) {
@@ -180,7 +203,7 @@ func (a *analysis) addWork(id nodeid) {
 //
 func (a *analysis) onlineCopy(dst, src nodeid) bool {
 	if dst != src {
-		if nsrc := a.nodes[src]; nsrc.copyTo.add(dst) {
+		if nsrc := a.nodes[src]; nsrc.solve.copyTo.add(dst) {
 			if a.log != nil {
 				fmt.Fprintf(a.log, "\t\t\tdynamic copy n%d <- n%d\n", dst, src)
 			}
@@ -188,7 +211,7 @@ func (a *analysis) onlineCopy(dst, src nodeid) bool {
 			// are followed by addWork, possibly batched
 			// via a 'changed' flag; see if there's a
 			// noticeable penalty to calling addWork here.
-			return a.nodes[dst].pts.addAll(&nsrc.pts)
+			return a.nodes[dst].solve.pts.addAll(&nsrc.solve.pts)
 		}
 	}
 	return false
@@ -239,7 +262,7 @@ func (c *offsetAddrConstraint) solve(a *analysis, delta *nodeset) {
 	dst := a.nodes[c.dst]
 	for _, x := range delta.AppendTo(a.deltaSpace) {
 		k := nodeid(x)
-		if dst.pts.add(k + nodeid(c.offset)) {
+		if dst.solve.pts.add(k + nodeid(c.offset)) {
 			a.addWork(c.dst)
 		}
 	}

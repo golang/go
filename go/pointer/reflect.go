@@ -20,6 +20,9 @@ package pointer
 // yet implemented) correspond to reflect.Values with
 // reflect.flagAddr.]
 // A picture would help too.
+//
+// TODO(adonovan): try factoring up the common parts of the majority of
+// these constraints that are single input, single output.
 
 import (
 	"fmt"
@@ -159,8 +162,10 @@ type rVBytesConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rVBytesConstraint) ptr() nodeid                      { return c.v }
-func (c *rVBytesConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVBytesConstraint) ptr() nodeid { return c.v }
+func (c *rVBytesConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rVBytes.result")
+}
 func (c *rVBytesConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.result = mapping[c.result]
@@ -205,7 +210,7 @@ func ext۰reflect۰Value۰Bytes(a *analysis, cgn *cgnode) {
 // result = v.Call(in)
 type rVCallConstraint struct {
 	cgn       *cgnode
-	targets   nodeid
+	targets   nodeid // (indirect)
 	v         nodeid // (ptr)
 	arg       nodeid // = in[*]
 	result    nodeid // (indirect)
@@ -213,13 +218,9 @@ type rVCallConstraint struct {
 }
 
 func (c *rVCallConstraint) ptr() nodeid { return c.v }
-func (c *rVCallConstraint) indirect(nodes []nodeid) []nodeid {
-	nodes = append(nodes, c.result)
-	// TODO(adonovan): we may be able to handle 'targets' out-of-band
-	// so that all implementations indirect() return a single value.
-	// We can then dispense with the slice.
-	nodes = append(nodes, c.targets)
-	return nodes
+func (c *rVCallConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.targets), "rVCall.targets")
+	h.markIndirect(onodeid(c.result), "rVCall.result")
 }
 func (c *rVCallConstraint) renumber(mapping []nodeid) {
 	c.targets = mapping[c.targets]
@@ -363,8 +364,10 @@ type rVElemConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rVElemConstraint) ptr() nodeid                      { return c.v }
-func (c *rVElemConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVElemConstraint) ptr() nodeid { return c.v }
+func (c *rVElemConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rVElem.result")
+}
 func (c *rVElemConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.result = mapping[c.result]
@@ -426,8 +429,10 @@ type rVIndexConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rVIndexConstraint) ptr() nodeid                      { return c.v }
-func (c *rVIndexConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVIndexConstraint) ptr() nodeid { return c.v }
+func (c *rVIndexConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rVIndex.result")
+}
 func (c *rVIndexConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.result = mapping[c.result]
@@ -488,8 +493,10 @@ type rVInterfaceConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rVInterfaceConstraint) ptr() nodeid                      { return c.v }
-func (c *rVInterfaceConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVInterfaceConstraint) ptr() nodeid { return c.v }
+func (c *rVInterfaceConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rVInterface.result")
+}
 func (c *rVInterfaceConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.result = mapping[c.result]
@@ -541,8 +548,10 @@ type rVMapIndexConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rVMapIndexConstraint) ptr() nodeid                      { return c.v }
-func (c *rVMapIndexConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVMapIndexConstraint) ptr() nodeid { return c.v }
+func (c *rVMapIndexConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rVMapIndex.result")
+}
 func (c *rVMapIndexConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.result = mapping[c.result]
@@ -595,8 +604,10 @@ type rVMapKeysConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rVMapKeysConstraint) ptr() nodeid                      { return c.v }
-func (c *rVMapKeysConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVMapKeysConstraint) ptr() nodeid { return c.v }
+func (c *rVMapKeysConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rVMapKeys.result")
+}
 func (c *rVMapKeysConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.result = mapping[c.result]
@@ -650,7 +661,7 @@ func ext۰reflect۰Value۰MapKeys(a *analysis, cgn *cgnode) {
 func ext۰reflect۰Value۰Method(a *analysis, cgn *cgnode)       {} // TODO(adonovan)
 func ext۰reflect۰Value۰MethodByName(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
-// ---------- func (Value).Recv(Value) ----------
+// ---------- func (Value).Recv(Value) Value ----------
 
 // result, _ = v.Recv()
 type rVRecvConstraint struct {
@@ -659,8 +670,10 @@ type rVRecvConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rVRecvConstraint) ptr() nodeid                      { return c.v }
-func (c *rVRecvConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVRecvConstraint) ptr() nodeid { return c.v }
+func (c *rVRecvConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rVRecv.result")
+}
 func (c *rVRecvConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.result = mapping[c.result]
@@ -714,8 +727,8 @@ type rVSendConstraint struct {
 	x   nodeid
 }
 
-func (c *rVSendConstraint) ptr() nodeid                      { return c.v }
-func (c *rVSendConstraint) indirect(nodes []nodeid) []nodeid { return nodes }
+func (c *rVSendConstraint) ptr() nodeid   { return c.v }
+func (c *rVSendConstraint) presolve(*hvn) {}
 func (c *rVSendConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.x = mapping[c.x]
@@ -767,8 +780,8 @@ type rVSetBytesConstraint struct {
 	x   nodeid
 }
 
-func (c *rVSetBytesConstraint) ptr() nodeid                      { return c.v }
-func (c *rVSetBytesConstraint) indirect(nodes []nodeid) []nodeid { return nodes }
+func (c *rVSetBytesConstraint) ptr() nodeid   { return c.v }
+func (c *rVSetBytesConstraint) presolve(*hvn) {}
 func (c *rVSetBytesConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.x = mapping[c.x]
@@ -816,8 +829,8 @@ type rVSetMapIndexConstraint struct {
 	val nodeid
 }
 
-func (c *rVSetMapIndexConstraint) ptr() nodeid                      { return c.v }
-func (c *rVSetMapIndexConstraint) indirect(nodes []nodeid) []nodeid { return nodes }
+func (c *rVSetMapIndexConstraint) ptr() nodeid   { return c.v }
+func (c *rVSetMapIndexConstraint) presolve(*hvn) {}
 func (c *rVSetMapIndexConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.key = mapping[c.key]
@@ -868,7 +881,7 @@ func ext۰reflect۰Value۰SetMapIndex(a *analysis, cgn *cgnode) {
 
 func ext۰reflect۰Value۰SetPointer(a *analysis, cgn *cgnode) {} // TODO(adonovan)
 
-// ---------- func (Value).Slice(v Value, i, j int) ----------
+// ---------- func (Value).Slice(v Value, i, j int) Value ----------
 
 // result = v.Slice(_, _)
 type rVSliceConstraint struct {
@@ -877,8 +890,10 @@ type rVSliceConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rVSliceConstraint) ptr() nodeid                      { return c.v }
-func (c *rVSliceConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rVSliceConstraint) ptr() nodeid { return c.v }
+func (c *rVSliceConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rVSlice.result")
+}
 func (c *rVSliceConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.result = mapping[c.result]
@@ -956,8 +971,10 @@ type reflectChanOfConstraint struct {
 	dirs   []types.ChanDir
 }
 
-func (c *reflectChanOfConstraint) ptr() nodeid                      { return c.t }
-func (c *reflectChanOfConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectChanOfConstraint) ptr() nodeid { return c.t }
+func (c *reflectChanOfConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "reflectChanOf.result")
+}
 func (c *reflectChanOfConstraint) renumber(mapping []nodeid) {
 	c.t = mapping[c.t]
 	c.result = mapping[c.result]
@@ -1028,8 +1045,10 @@ type reflectIndirectConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *reflectIndirectConstraint) ptr() nodeid                      { return c.v }
-func (c *reflectIndirectConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectIndirectConstraint) ptr() nodeid { return c.v }
+func (c *reflectIndirectConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "reflectIndirect.result")
+}
 func (c *reflectIndirectConstraint) renumber(mapping []nodeid) {
 	c.v = mapping[c.v]
 	c.result = mapping[c.result]
@@ -1080,8 +1099,10 @@ type reflectMakeChanConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *reflectMakeChanConstraint) ptr() nodeid                      { return c.typ }
-func (c *reflectMakeChanConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectMakeChanConstraint) ptr() nodeid { return c.typ }
+func (c *reflectMakeChanConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "reflectMakeChan.result")
+}
 func (c *reflectMakeChanConstraint) renumber(mapping []nodeid) {
 	c.typ = mapping[c.typ]
 	c.result = mapping[c.result]
@@ -1138,8 +1159,10 @@ type reflectMakeMapConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *reflectMakeMapConstraint) ptr() nodeid                      { return c.typ }
-func (c *reflectMakeMapConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectMakeMapConstraint) ptr() nodeid { return c.typ }
+func (c *reflectMakeMapConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "reflectMakeMap.result")
+}
 func (c *reflectMakeMapConstraint) renumber(mapping []nodeid) {
 	c.typ = mapping[c.typ]
 	c.result = mapping[c.result]
@@ -1195,8 +1218,10 @@ type reflectMakeSliceConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *reflectMakeSliceConstraint) ptr() nodeid                      { return c.typ }
-func (c *reflectMakeSliceConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectMakeSliceConstraint) ptr() nodeid { return c.typ }
+func (c *reflectMakeSliceConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "reflectMakeSlice.result")
+}
 func (c *reflectMakeSliceConstraint) renumber(mapping []nodeid) {
 	c.typ = mapping[c.typ]
 	c.result = mapping[c.result]
@@ -1252,8 +1277,10 @@ type reflectNewConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *reflectNewConstraint) ptr() nodeid                      { return c.typ }
-func (c *reflectNewConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectNewConstraint) ptr() nodeid { return c.typ }
+func (c *reflectNewConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "reflectNew.result")
+}
 func (c *reflectNewConstraint) renumber(mapping []nodeid) {
 	c.typ = mapping[c.typ]
 	c.result = mapping[c.result]
@@ -1314,8 +1341,10 @@ type reflectPtrToConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *reflectPtrToConstraint) ptr() nodeid                      { return c.t }
-func (c *reflectPtrToConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectPtrToConstraint) ptr() nodeid { return c.t }
+func (c *reflectPtrToConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "reflectPtrTo.result")
+}
 func (c *reflectPtrToConstraint) renumber(mapping []nodeid) {
 	c.t = mapping[c.t]
 	c.result = mapping[c.result]
@@ -1363,8 +1392,10 @@ type reflectSliceOfConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *reflectSliceOfConstraint) ptr() nodeid                      { return c.t }
-func (c *reflectSliceOfConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectSliceOfConstraint) ptr() nodeid { return c.t }
+func (c *reflectSliceOfConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "reflectSliceOf.result")
+}
 func (c *reflectSliceOfConstraint) renumber(mapping []nodeid) {
 	c.t = mapping[c.t]
 	c.result = mapping[c.result]
@@ -1410,8 +1441,10 @@ type reflectTypeOfConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *reflectTypeOfConstraint) ptr() nodeid                      { return c.i }
-func (c *reflectTypeOfConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectTypeOfConstraint) ptr() nodeid { return c.i }
+func (c *reflectTypeOfConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "reflectTypeOf.result")
+}
 func (c *reflectTypeOfConstraint) renumber(mapping []nodeid) {
 	c.i = mapping[c.i]
 	c.result = mapping[c.result]
@@ -1461,8 +1494,10 @@ type reflectZeroConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *reflectZeroConstraint) ptr() nodeid                      { return c.typ }
-func (c *reflectZeroConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *reflectZeroConstraint) ptr() nodeid { return c.typ }
+func (c *reflectZeroConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "reflectZero.result")
+}
 func (c *reflectZeroConstraint) renumber(mapping []nodeid) {
 	c.typ = mapping[c.typ]
 	c.result = mapping[c.result]
@@ -1521,8 +1556,10 @@ type rtypeElemConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rtypeElemConstraint) ptr() nodeid                      { return c.t }
-func (c *rtypeElemConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rtypeElemConstraint) ptr() nodeid { return c.t }
+func (c *rtypeElemConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rtypeElem.result")
+}
 func (c *rtypeElemConstraint) renumber(mapping []nodeid) {
 	c.t = mapping[c.t]
 	c.result = mapping[c.result]
@@ -1572,8 +1609,10 @@ type rtypeFieldByNameConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rtypeFieldByNameConstraint) ptr() nodeid                      { return c.t }
-func (c *rtypeFieldByNameConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rtypeFieldByNameConstraint) ptr() nodeid { return c.t }
+func (c *rtypeFieldByNameConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result+3), "rtypeFieldByName.result.Type")
+}
 func (c *rtypeFieldByNameConstraint) renumber(mapping []nodeid) {
 	c.t = mapping[c.t]
 	c.result = mapping[c.result]
@@ -1661,8 +1700,10 @@ type rtypeInOutConstraint struct {
 	i      int // -ve if not a constant
 }
 
-func (c *rtypeInOutConstraint) ptr() nodeid                      { return c.t }
-func (c *rtypeInOutConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rtypeInOutConstraint) ptr() nodeid { return c.t }
+func (c *rtypeInOutConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rtypeInOut.result")
+}
 func (c *rtypeInOutConstraint) renumber(mapping []nodeid) {
 	c.t = mapping[c.t]
 	c.result = mapping[c.result]
@@ -1736,8 +1777,10 @@ type rtypeKeyConstraint struct {
 	result nodeid // (indirect)
 }
 
-func (c *rtypeKeyConstraint) ptr() nodeid                      { return c.t }
-func (c *rtypeKeyConstraint) indirect(nodes []nodeid) []nodeid { return append(nodes, c.result) }
+func (c *rtypeKeyConstraint) ptr() nodeid { return c.t }
+func (c *rtypeKeyConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result), "rtypeKey.result")
+}
 func (c *rtypeKeyConstraint) renumber(mapping []nodeid) {
 	c.t = mapping[c.t]
 	c.result = mapping[c.result]
@@ -1784,8 +1827,9 @@ type rtypeMethodByNameConstraint struct {
 }
 
 func (c *rtypeMethodByNameConstraint) ptr() nodeid { return c.t }
-func (c *rtypeMethodByNameConstraint) indirect(nodes []nodeid) []nodeid {
-	return append(nodes, c.result)
+func (c *rtypeMethodByNameConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.result+3), "rtypeMethodByName.result.Type")
+	h.markIndirect(onodeid(c.result+4), "rtypeMethodByName.result.Func")
 }
 func (c *rtypeMethodByNameConstraint) renumber(mapping []nodeid) {
 	c.t = mapping[c.t]

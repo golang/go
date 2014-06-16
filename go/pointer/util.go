@@ -7,6 +7,11 @@ package pointer
 import (
 	"bytes"
 	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"runtime"
+	"time"
 
 	"code.google.com/p/go.tools/container/intsets"
 	"code.google.com/p/go.tools/go/types"
@@ -220,7 +225,7 @@ func (a *analysis) shouldTrack(T types.Type) bool {
 		}
 		a.trackTypes[T] = track
 		if !track && a.log != nil {
-			fmt.Fprintf(a.log, "Type not tracked: %s\n", T)
+			fmt.Fprintf(a.log, "\ttype not tracked: %s\n", T)
 		}
 	}
 	return track
@@ -279,4 +284,35 @@ func (ns *nodeset) add(n nodeid) bool {
 
 func (x *nodeset) addAll(y *nodeset) bool {
 	return x.UnionWith(&y.Sparse)
+}
+
+// Profiling & debugging -------------------------------------------------------
+
+var timers = make(map[string]time.Time)
+
+func start(name string) {
+	if debugTimers {
+		timers[name] = time.Now()
+		log.Printf("%s...\n", name)
+	}
+}
+
+func stop(name string) {
+	if debugTimers {
+		log.Printf("%s took %s\n", name, time.Since(timers[name]))
+	}
+}
+
+// diff runs the command "diff a b" and reports its success.
+func diff(a, b string) bool {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "plan9":
+		cmd = exec.Command("/bin/diff", "-c", a, b)
+	default:
+		cmd = exec.Command("/usr/bin/diff", "-u", a, b)
+	}
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	return cmd.Run() == nil
 }

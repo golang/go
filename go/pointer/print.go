@@ -35,7 +35,7 @@ func (c *untagConstraint) String() string {
 }
 
 func (c *invokeConstraint) String() string {
-	return fmt.Sprintf("invoke n%d.%s(n%d ...)", c.iface, c.method.Name(), c.params+1)
+	return fmt.Sprintf("invoke n%d.%s(n%d ...)", c.iface, c.method.Name(), c.params)
 }
 
 func (n nodeid) String() string {

@@ -7,21 +7,20 @@
 Package pointer implements Andersen's analysis, an inclusion-based
 pointer analysis algorithm first described in (Andersen, 1994).
 
-The implementation is similar to that described in (Pearce et al,
-PASTE'04).  Unlike many algorithms which interleave constraint
-generation and solving, constructing the callgraph as they go, this
-implementation for the most part observes a phase ordering (generation
-before solving), with only simple (copy) constraints being generated
-during solving.  (The exception is reflection, which creates various
-constraints during solving as new types flow to reflect.Value
-operations.)  This improves the traction of presolver optimisations,
-but imposes certain restrictions, e.g. potential context sensitivity
-is limited since all variants must be created a priori.
+A pointer analysis relates every pointer expression in a whole program
+to the set of memory locations to which it might point.  This
+information can be used to construct a call graph of the program that
+precisely represents the destinations of dynamic function and method
+calls.  It can also be used to determine, for example, which pairs of
+channel operations operate on the same channel.
 
-We intend to add various presolving optimisations such as Pointer and
-Location Equivalence from (Hardekopf & Lin, SAS '07) and solver
-optimisations such as Hybrid- and Lazy- Cycle Detection from
-(Hardekopf & Lin, PLDI'07),
+The package allows the client to request a set of expressions of
+interest for which the points-to information will be returned once the
+analysis is complete.  In addition, the client may request that a
+callgraph is constructed.  The example program in example_test.go
+demonstrates both of these features.  Clients should not request more
+information than they need since it may increase the cost of the
+analysis significantly.
 
 
 CLASSIFICATION
@@ -41,7 +40,7 @@ fields, such as x and y in struct { x, y *int }.
 It is mostly CONTEXT-INSENSITIVE: most functions are analyzed once,
 so values can flow in at one call to the function and return out at
 another.  Only some smaller functions are analyzed with consideration
-to their calling context.
+of their calling context.
 
 It has a CONTEXT-SENSITIVE HEAP: objects are named by both allocation
 site and context, so the objects returned by two distinct calls to f:
@@ -54,10 +53,86 @@ complete Go program and summaries for native code.
 See the (Hind, PASTE'01) survey paper for an explanation of these terms.
 
 
+SOUNDNESS
+
+The analysis is fully sound when invoked on pure Go programs that do not
+use reflection or unsafe.Pointer conversions.  In other words, if there
+is any possible execution of the program in which pointer P may point to
+object O, the analysis will report that fact.
+
+
+REFLECTION
+
+By default, the "reflect" library is ignored by the analysis, as if all
+its functions were no-ops, but if the client enables the Reflection flag,
+the analysis will make a reasonable attempt to model the effects of
+calls into this library.  However, this comes at a significant
+performance cost, and not all features of that library are yet
+implemented.  In addition, some simplifying approximations must be made
+to ensure that the analysis terminates; for example, reflection can be
+used to construct an infinite set of types and values of those types,
+but the analysis arbitrarily bounds the depth of such types.
+
+Most but not all reflection operations are supported.
+In particular, addressable reflect.Values are not yet implemented, so
+operations such as (reflect.Value).Set have no analytic effect.
+
+
+UNSAFE POINTER CONVERSIONS
+
+The pointer analysis makes no attempt to understand aliasing between the
+operand x and result y of an unsafe.Pointer conversion:
+   y = (*T)(unsafe.Pointer(x))
+It is as if the conversion allocated an entirely new object:
+   y = new(T)
+
+
+NATIVE CODE
+
+The analysis cannot model the aliasing effects of functions written in
+languages other than Go, such as runtime intrinsics in C or assembly, or
+code accessed via cgo.  The result is as if such functions are no-ops.
+However, various important intrinsics are understood by the analysis,
+along with built-ins such as append.
+
+The analysis currently provides no way for users to specify the aliasing
+effects of native code.
+
+------------------------------------------------------------------------
+
+IMPLEMENTATION
+
+The remaining documentation is intended for package maintainers and
+pointer analysis specialists.  Maintainers should have a solid
+understanding of the referenced papers (especially those by H&L and PKH)
+before making making significant changes.
+
+The implementation is similar to that described in (Pearce et al,
+PASTE'04).  Unlike many algorithms which interleave constraint
+generation and solving, constructing the callgraph as they go, this
+implementation for the most part observes a phase ordering (generation
+before solving), with only simple (copy) constraints being generated
+during solving.  (The exception is reflection, which creates various
+constraints during solving as new types flow to reflect.Value
+operations.)  This improves the traction of presolver optimisations,
+but imposes certain restrictions, e.g. potential context sensitivity
+is limited since all variants must be created a priori.
+
+
 TERMINOLOGY
+
+A type is said to be "pointer-like" if it is a reference to an object.
+Pointer-like types include pointers and also interfaces, maps, channels,
+functions and slices.
 
 We occasionally use C's x->f notation to distinguish the case where x
 is a struct pointer from x.f where is a struct value.
+
+Pointer analysis literature (and our comments) often uses the notation
+dst=*src+offset to mean something different than what it means in Go.
+It means: for each node index p in pts(src), the node index p+offset is
+in pts(dst).  Similarly *dst+offset=src is used for store constraints
+and dst=src+offset for offset-address constraints.
 
 
 NODES
@@ -68,18 +143,19 @@ pointers) and members of points-to sets (things that can be pointed
 at, i.e. "labels").
 
 Nodes are naturally numbered.  The numbering enables compact
-representations of sets of nodes such as bitvectors or BDDs; and the
-ordering enables a very cheap way to group related nodes together.
-(For example, passing n parameters consists of generating n parallel
-constraints from caller+i to callee+i for 0<=i<n.)
+representations of sets of nodes such as bitvectors (or BDDs); and the
+ordering enables a very cheap way to group related nodes together.  For
+example, passing n parameters consists of generating n parallel
+constraints from caller+i to callee+i for 0<=i<n.
 
-The zero nodeid means "not a pointer".  Currently it's only used for
-struct{} or ().  We generate all flow constraints, even for non-pointer
-types, with the expectations that (a) presolver optimisations will
-quickly collapse all the non-pointer ones and (b) we may get more
-precise results by treating uintptr as a possible pointer.
+The zero nodeid means "not a pointer".  For simplicity, we generate flow
+constraints even for non-pointer types such as int.  The pointer
+equivalence (PE) presolver optimization detects which variables cannot
+point to anything; this includes not only all variables of non-pointer
+types (such as int) but also variables of pointer-like types if they are
+always nil, or are parameters to a function that is never called.
 
-Each node represents a scalar (word-sized) part of a value or object.
+Each node represents a scalar part of a value or object.
 Aggregate types (structs, tuples, arrays) are recursively flattened
 out into a sequential list of scalar component types, and all the
 elements of an array are represented by a single node.  (The
@@ -103,26 +179,24 @@ Objects include:
    - variable allocations in the stack frame or heap;
    - maps, channels and slices created by calls to make();
    - allocations to construct an interface;
-   - allocations caused by literals and conversions,
-     e.g. []byte("foo"), []byte(str).
+   - allocations caused by conversions, e.g. []byte(str).
    - arrays allocated by calls to append();
 
-Many objects have no Go types.  For example, the func, map and chan
-type kinds in Go are all varieties of pointers, but the respective
-objects are actual functions, maps, and channels.  Given the way we
-model interfaces, they too are pointers to tagged objects with no
-Go type.  And an *ssa.Global denotes the address of a global variable,
-but the object for a Global is the actual data.  So, types of objects
-are usually "off by one indirection".
+Many objects have no Go types.  For example, the func, map and chan type
+kinds in Go are all varieties of pointers, but their respective objects
+are actual functions (executable code), maps (hash tables), and channels
+(synchronized queues).  Given the way we model interfaces, they too are
+pointers to "tagged" objects with no Go type.  And an *ssa.Global denotes
+the address of a global variable, but the object for a Global is the
+actual data.  So, the types of an ssa.Value that creates an object is
+"off by one indirection": a pointer to the object.
 
-The individual nodes of an object are sometimes referred to as
-"labels".
+The individual nodes of an object are sometimes referred to as "labels".
 
-Objects containing no nodes (i.e. just empty structs; tuples may be
-values but never objects in Go) are padded with an invalid-type node
-to have at least one node so that there is something to point to.
-(TODO(adonovan): I think this is unnecessary now that we have identity
-nodes; check.)
+For uniformity, all objects have a non-zero number of fields, even those
+of the empty type struct{}.  (All arrays are treated as if of length 1,
+so there are no empty arrays.  The empty tuple is never address-taken,
+so is never an object.)
 
 
 TAGGED OBJECTS
@@ -133,7 +207,7 @@ An tagged object has the following layout:
     v
     ...
 
-The T node's typ field is the dynamic type of the "payload", the value
+The T node's typ field is the dynamic type of the "payload": the value
 v which follows, flattened out.  The T node's obj has the otTagged
 flag.
 
@@ -143,7 +217,7 @@ as a pointer that exclusively points to tagged objects.
 
 Tagged objects may be indirect (obj.flags ⊇ {otIndirect}) meaning that
 the value v is not of type T but *T; this is used only for
-reflect.Values that represent lvalues.
+reflect.Values that represent lvalues.  (These are not implemented yet.)
 
 
 ANALYSIS ABSTRACTION OF EACH TYPE
@@ -153,7 +227,7 @@ single node: basic types, pointers, channels, maps, slices, 'func'
 pointers, interfaces.
 
 Pointers
-  Nothing to say here.
+  Nothing to say here, oddly.
 
 Basic types (bool, string, numbers, unsafe.Pointer)
   Currently all fields in the flattening of a type, including
@@ -172,9 +246,8 @@ Basic types (bool, string, numbers, unsafe.Pointer)
   zero nodeid, and fields of these types within aggregate other types
   are omitted.
 
-  unsafe.Pointer conversions are not yet modelled as pointer
-  conversions.  Consequently uintptr is always a number and uintptr
-  nodes do not point to any object.
+  unsafe.Pointers are not modelled as pointers, so a conversion of an
+  unsafe.Pointer to *T is (unsoundly) treated equivalent to new(T).
 
 Channels
   An expression of type 'chan T' is a kind of pointer that points
@@ -227,12 +300,14 @@ Functions
 
   The first node is the function's identity node.
   Associated with every callsite is a special "targets" variable,
-  whose pts(·) contains the identity node of each function to which
-  the call may dispatch.  Identity words are not otherwise used.
+  whose pts() contains the identity node of each function to which
+  the call may dispatch.  Identity words are not otherwise used during
+  the analysis, but we construct the call graph from the pts()
+  solution for such nodes.
 
-  The following block of nodes represent the flattened-out types of
-  the parameters and results of the function object, and are
-  collectively known as its "P/R block".
+  The following block of contiguous nodes represents the flattened-out
+  types of the parameters ("P-block") and results ("R-block") of the
+  function object.
 
   The treatment of free variables of closures (*ssa.FreeVar) is like
   that of global variables; it is not context-sensitive.
@@ -255,18 +330,20 @@ Interfaces
   all of the concrete type's methods; we can't tell a priori which
   ones may be called.
 
-  TypeAssert y = x.(T) is implemented by a dynamic filter triggered by
-  each tagged object E added to pts(x).  If T is an interface that E.T
-  implements, E is added to pts(y).  If T is a concrete type then edge
-  E.v -> pts(y) is added.
+  TypeAssert y = x.(T) is implemented by a dynamic constraint
+  triggered by each tagged object O added to pts(x): a typeFilter
+  constraint if T is an interface type, or an untag constraint if T is
+  a concrete type.  A typeFilter tests whether O.typ implements T; if
+  so, O is added to pts(y).  An untagFilter tests whether O.typ is
+  assignable to T,and if so, a copy edge O.v -> y is added.
 
   ChangeInterface is a simple copy because the representation of
   tagged objects is independent of the interface type (in contrast
   to the "method tables" approach used by the gc runtime).
 
-  y := Invoke x.m(...) is implemented by allocating a contiguous P/R
-  block for the callsite and adding a dynamic rule triggered by each
-  tagged object E added to pts(x).  The rule adds param/results copy
+  y := Invoke x.m(...) is implemented by allocating contiguous P/R
+  blocks for the callsite and adding a dynamic rule triggered by each
+  tagged object added to pts(x).  The rule adds param/results copy
   edges to/from each discovered concrete method.
 
   (Q. Why do we model an interface as a pointer to a pair of type and
@@ -279,8 +356,7 @@ Interfaces
 
 reflect.Value
   A reflect.Value is modelled very similar to an interface{}, i.e. as
-  a pointer exclusively to tagged objects, but with two
-  generalizations.
+  a pointer exclusively to tagged objects, but with two generalizations.
 
   1) a reflect.Value that represents an lvalue points to an indirect
      (obj.flags ⊇ {otIndirect}) tagged object, which has a similar
@@ -303,6 +379,8 @@ reflect.Value
      Whether indirect or not, the concrete type of the tagged object
      corresponds to the user-visible dynamic type, and the existence
      of a pointer is an implementation detail.
+
+     (NB: indirect tagged objects are not yet implemented)
 
   2) The dynamic type tag of a tagged object pointed to by a
      reflect.Value may be an interface type; it need not be concrete.
@@ -350,15 +428,15 @@ Structs
   struct is a pointer to its identity node.  That node allows us to
   distinguish a pointer to a struct from a pointer to its first field.
 
-  Field offsets are currently the logical field offsets (plus one for
-  the identity node), so the sizes of the fields can be ignored by the
-  analysis.
+  Field offsets are logical field offsets (plus one for the identity
+  node), so the sizes of the fields can be ignored by the analysis.
 
-  Sound treatment of unsafe.Pointer conversions (not yet implemented)
-  would require us to model memory layout using physical field offsets
-  to ascertain which object field(s) might be aliased by a given
-  FieldAddr of a different base pointer type.  It would also require
-  us to dispense with the identity node.
+  (The identity node is non-traditional but enables the distiction
+  described above, which is valuable for code comprehension tools.
+  Typical pointer analyses for C, whose purpose is compiler
+  optimization, must soundly model unsafe.Pointer (void*) conversions,
+  and this requires fidelity to the actual memory layout using physical
+  field offsets.)
 
   *ssa.Field y = x.f creates a simple edge to y from x's node at f's offset.
 
@@ -403,10 +481,16 @@ FUNCTION CALLS
     A static call consists three steps:
     - finding the function object of the callee;
     - creating copy edges from the actual parameter value nodes to the
-      params block in the function object (this includes the receiver
-      if the callee is a method);
-    - creating copy edges from the results block in the function
-      object to the value nodes for the result of the call.
+      P-block in the function object (this includes the receiver if
+      the callee is a method);
+    - creating copy edges from the R-block in the function object to
+      the value nodes for the result of the call.
+
+    A static function call is little more than two struct value copies
+    between the P/R blocks of caller and callee:
+
+       callee.P = caller.P
+       caller.R = callee.R
 
     Context sensitivity
 
@@ -422,13 +506,12 @@ FUNCTION CALLS
 
     Dynamic calls work in a similar manner except that the creation of
     copy edges occurs dynamically, in a similar fashion to a pair of
-    struct copies:
+    struct copies in which the callee is indirect:
 
-      *fn->params = callargs
-      callresult = *fn->results
+       callee->P = caller.P
+       caller.R = callee->R
 
-    (Recall that the function object's params and results blocks are
-    contiguous.)
+    (Recall that the function object's P- and R-blocks are contiguous.)
 
   Interface method invocation
 
@@ -436,7 +519,8 @@ FUNCTION CALLS
     callsite and attach a dynamic closure rule to the interface.  For
     each new tagged object that flows to the interface, we look up
     the concrete method, find its function object, and connect its P/R
-    block to the callsite's P/R block.
+    blocks to the callsite's P/R blocks, adding copy edges to the graph
+    during solving.
 
   Recording call targets
 
@@ -451,14 +535,38 @@ FUNCTION CALLS
     internally this just iterates all "targets" variables' pts(·)s.
 
 
+PRESOLVER
+
+We implement Hash-Value Numbering (HVN), a pre-solver constraint
+optimization described in Hardekopf & Lin, SAS'07.  This is documented
+in more detail in hvn.go.  We intend to add its cousins HR and HU in
+future.
+
+
 SOLVER
 
-The solver is currently a very naive Andersen-style implementation,
-although it does use difference propagation (Pearce et al, SQC'04).
-There is much to do.
+The solver is currently a naive Andersen-style implementation; it does
+not perform online cycle detection, though we plan to add solver
+optimisations such as Hybrid- and Lazy- Cycle Detection from (Hardekopf
+& Lin, PLDI'07).
+
+It uses difference propagation (Pearce et al, SQC'04) to avoid
+redundant re-triggering of closure rules for values already seen.
+
+Points-to sets are represented using sparse bit vectors (similar to
+those used in LLVM and gcc), which are more space- and time-efficient
+than sets based on Go's built-in map type or dense bit vectors.
+
+Nodes are permuted prior to solving so that object nodes (which may
+appear in points-to sets) are lower numbered than non-object (var)
+nodes.  This improves the density of the set over which the PTSs
+range, and thus the efficiency of the representation.
+
+Partly thanks to avoiding map iteration, the execution of the solver is
+100% deterministic, a great help during debugging.
 
 
-FURTHER READING.
+FURTHER READING
 
 Andersen, L. O. 1994. Program analysis and specialization for the C
 programming language. Ph.D. dissertation. DIKU, University of
@@ -491,6 +599,12 @@ equivalence to optimize pointer analysis. In Proceedings of the 14th
 international conference on Static Analysis (SAS'07), Hanne Riis
 Nielson and Gilberto Filé (Eds.). Springer-Verlag, Berlin, Heidelberg,
 265-280.
+
+Atanas Rountev and Satish Chandra. 2000. Off-line variable substitution
+for scaling points-to analysis. In Proceedings of the ACM SIGPLAN 2000
+conference on Programming language design and implementation (PLDI '00).
+ACM, New York, NY, USA, 47-56. DOI=10.1145/349299.349310
+http://doi.acm.org/10.1145/349299.349310
 
 */
 package pointer

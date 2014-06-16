@@ -255,13 +255,15 @@ func ext۰NotYetImplemented(a *analysis, cgn *cgnode) {
 
 // runtime.SetFinalizer(x, f)
 type runtimeSetFinalizerConstraint struct {
-	targets nodeid
+	targets nodeid // (indirect)
 	f       nodeid // (ptr)
 	x       nodeid
 }
 
-func (c *runtimeSetFinalizerConstraint) ptr() nodeid                      { return c.f }
-func (c *runtimeSetFinalizerConstraint) indirect(nodes []nodeid) []nodeid { return nodes }
+func (c *runtimeSetFinalizerConstraint) ptr() nodeid { return c.f }
+func (c *runtimeSetFinalizerConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.targets), "SetFinalizer.targets")
+}
 func (c *runtimeSetFinalizerConstraint) renumber(mapping []nodeid) {
 	c.targets = mapping[c.targets]
 	c.f = mapping[c.f]

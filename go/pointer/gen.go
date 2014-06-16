@@ -59,7 +59,7 @@ func (a *analysis) addNodes(typ types.Type, comment string) nodeid {
 //
 func (a *analysis) addOneNode(typ types.Type, comment string, subelement *fieldInfo) nodeid {
 	id := a.nextNode()
-	a.nodes = append(a.nodes, &node{typ: typ, subelement: subelement})
+	a.nodes = append(a.nodes, &node{typ: typ, subelement: subelement, solve: new(solverState)})
 	if a.log != nil {
 		fmt.Fprintf(a.log, "\tcreate n%d %s for %s%s\n",
 			id, typ, comment, subelement.path())
@@ -178,6 +178,9 @@ func (a *analysis) makeTagged(typ types.Type, cgn *cgnode, data interface{}) nod
 
 // makeRtype returns the canonical tagged object of type *rtype whose
 // payload points to the sole rtype object for T.
+//
+// TODO(adonovan): move to reflect.go; it's part of the solver really.
+//
 func (a *analysis) makeRtype(T types.Type) nodeid {
 	if v := a.rtypes.At(T); v != nil {
 		return v.(nodeid)
@@ -261,7 +264,7 @@ func (a *analysis) taggedValue(obj nodeid) (tDyn types.Type, v nodeid, indirect 
 	return n.typ, obj + 1, flags&otIndirect != 0
 }
 
-// funcParams returns the first node of the params block of the
+// funcParams returns the first node of the params (P) block of the
 // function whose object node (obj.flags&otFunction) is id.
 //
 func (a *analysis) funcParams(id nodeid) nodeid {
@@ -272,7 +275,7 @@ func (a *analysis) funcParams(id nodeid) nodeid {
 	return id + 1
 }
 
-// funcResults returns the first node of the results block of the
+// funcResults returns the first node of the results (R) block of the
 // function whose object node (obj.flags&otFunction) is id.
 //
 func (a *analysis) funcResults(id nodeid) nodeid {
@@ -662,9 +665,9 @@ func (a *analysis) genDynamicCall(caller *cgnode, site *callsite, call *ssa.Call
 	// pts(targets) will be the set of possible call targets.
 	site.targets = a.valueNode(call.Value)
 
-	// We add dynamic closure rules that store the arguments into,
-	// and load the results from, the P/R block of each function
-	// discovered in pts(targets).
+	// We add dynamic closure rules that store the arguments into
+	// the P-block and load the results from the R-block of each
+	// function discovered in pts(targets).
 
 	sig := call.Signature()
 	var offset uint32 = 1 // P/R block starts at offset 1
@@ -705,9 +708,9 @@ func (a *analysis) genInvoke(caller *cgnode, site *callsite, call *ssa.CallCommo
 		a.copy(result, r, a.sizeof(sig.Results()))
 	}
 
-	// We add a dynamic invoke constraint that will add
-	// edges from the caller's P/R block to the callee's
-	// P/R block for each discovered call target.
+	// We add a dynamic invoke constraint that will connect the
+	// caller's and the callee's P/R blocks for each discovered
+	// call target.
 	a.addConstraint(&invokeConstraint{call.Method, a.valueNode(call.Value), block})
 }
 
@@ -749,7 +752,7 @@ func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ss
 	a.copy(params, rtype, 1)
 	params++
 
-	// Copy actual parameters into formal params block.
+	// Copy actual parameters into formal P-block.
 	// Must loop, since the actuals aren't contiguous.
 	for i, arg := range call.Args {
 		sz := a.sizeof(sig.Params().At(i).Type())
@@ -757,7 +760,7 @@ func (a *analysis) genInvokeReflectType(caller *cgnode, site *callsite, call *ss
 		params += nodeid(sz)
 	}
 
-	// Copy formal results block to actual result.
+	// Copy formal R-block to actual R-block.
 	if result != 0 {
 		a.copy(result, a.funcResults(obj), a.sizeof(sig.Results()))
 	}
@@ -790,6 +793,7 @@ func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 	caller.sites = append(caller.sites, site)
 
 	if a.log != nil {
+		// TODO(adonovan): debug: improve log message.
 		fmt.Fprintf(a.log, "\t%s to targets %s from %s\n", site, site.targets, caller)
 	}
 }
@@ -863,7 +867,15 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 			obj = a.nextNode()
 			tmap := v.Type().Underlying().(*types.Map)
 			a.addNodes(tmap.Key(), "makemap.key")
-			a.addNodes(tmap.Elem(), "makemap.value")
+			elem := a.addNodes(tmap.Elem(), "makemap.value")
+
+			// To update the value field, MapUpdate
+			// generates store-with-offset constraints which
+			// the presolver can't model, so we must mark
+			// those nodes indirect.
+			for id, end := elem, elem+nodeid(a.sizeof(tmap.Elem())); id < end; id++ {
+				a.mapValues = append(a.mapValues, id)
+			}
 			a.endObject(obj, cgn, v)
 
 		case *ssa.MakeInterface:
@@ -1140,8 +1152,7 @@ func (a *analysis) genFunc(cgn *cgnode) {
 	impl := a.findIntrinsic(fn)
 
 	if a.log != nil {
-		fmt.Fprintln(a.log)
-		fmt.Fprintln(a.log)
+		fmt.Fprintf(a.log, "\n\n==== Generating constraints for %s, %s\n", cgn, cgn.contour())
 
 		// Hack: don't display body if intrinsic.
 		if impl != nil {
@@ -1187,6 +1198,7 @@ func (a *analysis) genFunc(cgn *cgnode) {
 
 	// Create value nodes for all value instructions
 	// since SSA may contain forward references.
+	var space [10]*ssa.Value
 	for _, b := range fn.Blocks {
 		for _, instr := range b.Instrs {
 			switch instr := instr.(type) {
@@ -1201,6 +1213,19 @@ func (a *analysis) genFunc(cgn *cgnode) {
 				}
 				id := a.addNodes(instr.Type(), comment)
 				a.setValueNode(instr, id, cgn)
+			}
+
+			// Record all address-taken functions (for presolver).
+			rands := instr.Operands(space[:0])
+			if call, ok := instr.(ssa.CallInstruction); ok && !call.Common().IsInvoke() {
+				// Skip CallCommon.Value in "call" mode.
+				// TODO(adonovan): fix: relies on unspecified ordering.  Specify it.
+				rands = rands[1:]
+			}
+			for _, rand := range rands {
+				if atf, ok := (*rand).(*ssa.Function); ok {
+					a.atFuncs[atf] = true
+				}
 			}
 		}
 	}
@@ -1218,14 +1243,29 @@ func (a *analysis) genFunc(cgn *cgnode) {
 
 // genMethodsOf generates nodes and constraints for all methods of type T.
 func (a *analysis) genMethodsOf(T types.Type) {
+	itf := isInterface(T)
+
+	// TODO(adonovan): can we skip this entirely if itf is true?
+	// I think so, but the answer may depend on reflection.
 	mset := a.prog.MethodSets.MethodSet(T)
 	for i, n := 0, mset.Len(); i < n; i++ {
-		a.valueNode(a.prog.Method(mset.At(i)))
+		m := a.prog.Method(mset.At(i))
+		a.valueNode(m)
+
+		if !itf {
+			// Methods of concrete types are address-taken functions.
+			a.atFuncs[m] = true
+		}
 	}
 }
 
 // generate generates offline constraints for the entire program.
 func (a *analysis) generate() {
+	start("Constraint generation")
+	if a.log != nil {
+		fmt.Fprintln(a.log, "==== Generating constraints")
+	}
+
 	// Create a dummy node since we use the nodeid 0 for
 	// non-pointerlike variables.
 	a.addNodes(tInvalid, "(zero)")
@@ -1273,4 +1313,6 @@ func (a *analysis) generate() {
 	a.globalval = nil
 	a.localval = nil
 	a.localobj = nil
+
+	stop("Constraint generation")
 }
