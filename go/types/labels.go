@@ -131,7 +131,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 		case *ast.LabeledStmt:
 			// declare non-blank label
 			if name := s.Label.Name; name != "_" {
-				lbl := NewLabel(s.Label.Pos(), name)
+				lbl := NewLabel(s.Label.Pos(), check.pkg, name)
 				if alt := all.Insert(lbl); alt != nil {
 					check.softErrorf(lbl.pos, "label %s already declared", name)
 					check.reportAltDecl(alt)

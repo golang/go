@@ -174,8 +174,25 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	// typecheck package files
 	var conf Config
 	conf.Error = func(err error) { t.Error(err) }
-	conf.Check(path, fset, files, nil)
+	info := Info{Uses: make(map[*ast.Ident]Object)}
+	conf.Check(path, fset, files, &info)
 	pkgCount++
+
+	// Perform checks of API invariants.
+
+	// All Objects have a package, except predeclared ones.
+	errorError := Universe.Lookup("error").Type().Underlying().(*Interface).ExplicitMethod(0) // (error).Error
+	for id, obj := range info.Uses {
+		predeclared := obj == Universe.Lookup(obj.Name()) || obj == errorError
+		if predeclared == (obj.Pkg() != nil) {
+			posn := fset.Position(id.Pos())
+			if predeclared {
+				t.Errorf("%s: predeclared object with package: %s", posn, obj)
+			} else {
+				t.Errorf("%s: user-defined object without package: %s", posn, obj)
+			}
+		}
+	}
 }
 
 // pkgFilenames returns the list of package filenames for the given directory.

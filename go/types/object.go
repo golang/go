@@ -201,8 +201,8 @@ type Label struct {
 	object
 }
 
-func NewLabel(pos token.Pos, name string) *Label {
-	return &Label{object{pos: pos, name: name, typ: Typ[Invalid]}}
+func NewLabel(pos token.Pos, pkg *Package, name string) *Label {
+	return &Label{object{pos: pos, pkg: pkg, name: name, typ: Typ[Invalid]}}
 }
 
 // A Builtin represents a built-in function.
