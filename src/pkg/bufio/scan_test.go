@@ -15,6 +15,8 @@ import (
 	"unicode/utf8"
 )
 
+const smallMaxTokenSize = 256 // Much smaller for more efficient testing.
+
 // Test white space table matches the Unicode definition.
 func TestSpace(t *testing.T) {
 	for r := rune(0); r <= utf8.MaxRune; r++ {
@@ -172,7 +174,6 @@ func genLine(buf *bytes.Buffer, lineNum, n int, addNewline bool) {
 
 // Test the line splitter, including some carriage returns but no long lines.
 func TestScanLongLines(t *testing.T) {
-	const smallMaxTokenSize = 256 // Much smaller for more efficient testing.
 	// Build a buffer of lots of line lengths up to but not exceeding smallMaxTokenSize.
 	tmp := new(bytes.Buffer)
 	buf := new(bytes.Buffer)
@@ -402,5 +403,19 @@ func TestBadReader(t *testing.T) {
 	err := scanner.Err()
 	if err != io.ErrNoProgress {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestScanWordsExcessiveWhiteSpace(t *testing.T) {
+	const word = "ipsum"
+	s := strings.Repeat(" ", 4*smallMaxTokenSize) + word
+	scanner := NewScanner(strings.NewReader(s))
+	scanner.MaxTokenSize(smallMaxTokenSize)
+	scanner.Split(ScanWords)
+	if !scanner.Scan() {
+		t.Fatal("scan failed: %v", scanner.Err())
+	}
+	if token := scanner.Text(); token != word {
+		t.Fatal("unexpected token: %v", token)
 	}
 }
