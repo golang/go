@@ -11,7 +11,7 @@
 // By default, a Scanner skips white space and Go comments and recognizes all
 // literals as defined by the Go language specification.  It may be
 // customized to recognize only a subset of those literals and to recognize
-// different white space characters.
+// different identifier and white space characters.
 //
 // Basic usage pattern:
 //
@@ -33,8 +33,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 )
-
-// TODO(gri): Consider changing this to use the new (token) Position package.
 
 // A source position is represented by a Position value.
 // A position is valid if Line > 0.
@@ -163,6 +161,13 @@ type Scanner struct {
 	// set the ch'th bit in Whitespace (the Scanner's behavior is undefined
 	// for values ch > ' '). The field may be changed at any time.
 	Whitespace uint64
+
+	// IsIdentRune is a predicate controlling the characters accepted
+	// as the ith rune in an identifier. The set of valid characters
+	// must not intersect with the set of white space characters.
+	// If no IsIdentRune function is set, regular Go identifiers are
+	// accepted instead. The field may be changed at any time.
+	IsIdentRune func(ch rune, i int) bool
 
 	// Start position of most recently scanned token; set by Scan.
 	// Calling Init or Next invalidates the position (Line == 0).
@@ -334,9 +339,17 @@ func (s *Scanner) error(msg string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, msg)
 }
 
+func (s *Scanner) isIdentRune(ch rune, i int) bool {
+	if s.IsIdentRune != nil {
+		return s.IsIdentRune(ch, i)
+	}
+	return ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch) && i > 0
+}
+
 func (s *Scanner) scanIdentifier() rune {
-	ch := s.next() // read character after first '_' or letter
-	for ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch) {
+	// we know the zero'th rune is OK; start with 2nd one
+	ch := s.next()
+	for i := 1; s.isIdentRune(ch, i); i++ {
 		ch = s.next()
 	}
 	return ch
@@ -563,7 +576,7 @@ redo:
 	// determine token value
 	tok := ch
 	switch {
-	case unicode.IsLetter(ch) || ch == '_':
+	case s.isIdentRune(ch, 0):
 		if s.Mode&ScanIdents != 0 {
 			tok = Ident
 			ch = s.scanIdentifier()

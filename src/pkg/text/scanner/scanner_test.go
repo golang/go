@@ -357,6 +357,28 @@ func TestScanSelectedMask(t *testing.T) {
 	testScanSelectedMode(t, ScanComments, Comment)
 }
 
+func TestScanCustomIdent(t *testing.T) {
+	const src = "faab12345 a12b123 a12 3b"
+	s := new(Scanner).Init(strings.NewReader(src))
+	// ident = ( 'a' | 'b' ) { digit } .
+	// digit = '0' .. '3' .
+	// with a maximum length of 4
+	s.IsIdentRune = func(ch rune, i int) bool {
+		return i == 0 && (ch == 'a' || ch == 'b') || 0 < i && i < 4 && '0' <= ch && ch <= '3'
+	}
+	checkTok(t, s, 1, s.Scan(), 'f', "f")
+	checkTok(t, s, 1, s.Scan(), Ident, "a")
+	checkTok(t, s, 1, s.Scan(), Ident, "a")
+	checkTok(t, s, 1, s.Scan(), Ident, "b123")
+	checkTok(t, s, 1, s.Scan(), Int, "45")
+	checkTok(t, s, 1, s.Scan(), Ident, "a12")
+	checkTok(t, s, 1, s.Scan(), Ident, "b123")
+	checkTok(t, s, 1, s.Scan(), Ident, "a12")
+	checkTok(t, s, 1, s.Scan(), Int, "3")
+	checkTok(t, s, 1, s.Scan(), Ident, "b")
+	checkTok(t, s, 1, s.Scan(), EOF, "")
+}
+
 func TestScanNext(t *testing.T) {
 	const BOM = '\uFEFF'
 	BOMs := string(BOM)
