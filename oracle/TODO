@@ -21,9 +21,6 @@ Include complete pos/end information Serial output.
   But beware that sometimes a single token (e.g. +) is more helpful
   than the pos/end of the containing expression (e.g. x \n + \n y).
 
-Remove pointer analysis context information when printing results as
-it tends to be unhelpful.
-
 Specific queries
 ================
 
