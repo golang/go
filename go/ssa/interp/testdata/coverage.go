@@ -690,3 +690,56 @@ func init() {
 	i.f()
 	panic("unreachable")
 }
+
+// Test for in-place initialization.
+func init() {
+	// struct
+	type S struct {
+		a, b int
+	}
+	s := S{1, 2}
+	s = S{b: 3}
+	if s.a != 0 {
+		panic("s.a != 0")
+	}
+	if s.b != 3 {
+		panic("s.b != 3")
+	}
+	s = S{}
+	if s.a != 0 {
+		panic("s.a != 0")
+	}
+	if s.b != 0 {
+		panic("s.b != 0")
+	}
+
+	// array
+	type A [4]int
+	a := A{2, 4, 6, 8}
+	a = A{1: 6, 2: 4}
+	if a[0] != 0 {
+		panic("a[0] != 0")
+	}
+	if a[1] != 6 {
+		panic("a[1] != 6")
+	}
+	if a[2] != 4 {
+		panic("a[2] != 4")
+	}
+	if a[3] != 0 {
+		panic("a[3] != 0")
+	}
+	a = A{}
+	if a[0] != 0 {
+		panic("a[0] != 0")
+	}
+	if a[1] != 0 {
+		panic("a[1] != 0")
+	}
+	if a[2] != 0 {
+		panic("a[2] != 0")
+	}
+	if a[3] != 0 {
+		panic("a[3] != 0")
+	}
+}

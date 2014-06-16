@@ -344,7 +344,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			v = fn.addLocal(t, e.Lbrace)
 		}
 		v.Comment = "complit"
-		b.compLit(fn, v, e) // initialize in place
+		b.compLit(fn, v, e, true) // initialize in place
 		return &address{addr: v, expr: e}
 
 	case *ast.ParenExpr:
@@ -406,13 +406,14 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 }
 
 // exprInPlace emits to fn code to initialize the lvalue loc with the
-// value of expression e.
+// value of expression e. If isZero is true, exprInPlace assumes that loc
+// holds the zero value for its type.
 //
 // This is equivalent to loc.store(fn, b.expr(fn, e)) but may
 // generate better code in some cases, e.g. for composite literals
 // in an addressable location.
 //
-func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
+func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr, isZero bool) {
 	if e, ok := unparen(e).(*ast.CompositeLit); ok {
 		// A CompositeLit never evaluates to a pointer,
 		// so if the type of the location is a pointer,
@@ -432,7 +433,7 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 				// Fall back to copying.
 			} else {
 				addr := loc.address(fn)
-				b.compLit(fn, addr, e) // in place
+				b.compLit(fn, addr, e, isZero) // in place
 				emitDebugRef(fn, e, addr, true)
 				return
 			}
@@ -910,7 +911,7 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 				fn.addLocalForIdent(id)
 			}
 			lval := b.addr(fn, id, false) // non-escaping
-			b.exprInPlace(fn, lval, spec.Values[i])
+			b.exprInPlace(fn, lval, spec.Values[i], true)
 		}
 
 	case len(spec.Values) == 0:
@@ -967,7 +968,7 @@ func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 			// x = type{...}
 			// Optimization: in-place construction
 			// of composite literals.
-			b.exprInPlace(fn, lvals[0], rhss[0])
+			b.exprInPlace(fn, lvals[0], rhss[0], false)
 		} else {
 			// Parallel assignment.  All reads must occur
 			// before all updates, precluding exprInPlace.
@@ -1010,17 +1011,22 @@ func (b *builder) arrayLen(fn *Function, elts []ast.Expr) int64 {
 // compLit emits to fn code to initialize a composite literal e at
 // address addr with type typ, typically allocated by Alloc.
 // Nested composite literals are recursively initialized in place
-// where possible.
+// where possible. If isZero is true, compLit assumes that addr
+// holds the zero value for typ.
 //
 // A CompositeLit may have pointer type only in the recursive (nested)
 // case when the type name is implicit.  e.g. in []*T{{}}, the inner
 // literal has type *T behaves like &T{}.
 // In that case, addr must hold a T, not a *T.
 //
-func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit) {
+func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero bool) {
 	typ := deref(fn.Pkg.typeOf(e))
 	switch t := typ.Underlying().(type) {
 	case *types.Struct:
+		if !isZero && len(e.Elts) != t.NumFields() {
+			emitMemClear(fn, addr)
+			isZero = true
+		}
 		for i, e := range e.Elts {
 			fieldIndex := i
 			if kv, ok := e.(*ast.KeyValueExpr); ok {
@@ -1041,7 +1047,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit) {
 			}
 			faddr.setType(types.NewPointer(sf.Type()))
 			fn.emit(faddr)
-			b.exprInPlace(fn, &address{addr: faddr, expr: e}, e)
+			b.exprInPlace(fn, &address{addr: faddr, expr: e}, e, isZero)
 		}
 
 	case *types.Array, *types.Slice:
@@ -1053,9 +1059,15 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit) {
 			alloc := emitNew(fn, at, e.Lbrace)
 			alloc.Comment = "slicelit"
 			array = alloc
+			isZero = true
 		case *types.Array:
 			at = t
 			array = addr
+		}
+
+		if !isZero && int64(len(e.Elts)) != at.Len() {
+			emitMemClear(fn, array)
+			isZero = true
 		}
 
 		var idx *Const
@@ -1076,7 +1088,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit) {
 			}
 			iaddr.setType(types.NewPointer(at.Elem()))
 			fn.emit(iaddr)
-			b.exprInPlace(fn, &address{addr: iaddr, expr: e}, e)
+			b.exprInPlace(fn, &address{addr: iaddr, expr: e}, e, isZero)
 		}
 		if t != at { // slice
 			s := &Slice{X: array}
@@ -1098,7 +1110,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit) {
 				t:   t.Elem(),
 				pos: e.Colon,
 			}
-			b.exprInPlace(fn, loc, e.Value)
+			b.exprInPlace(fn, loc, e.Value, true)
 		}
 
 	default:
@@ -2196,7 +2208,7 @@ func (p *Package) Build() {
 			} else {
 				lval = blank{}
 			}
-			b.exprInPlace(init, lval, varinit.Rhs)
+			b.exprInPlace(init, lval, varinit.Rhs, true)
 		} else {
 			// n:1 initialization: var x, y :=  f()
 			tuple := b.exprN(init, varinit.Rhs)

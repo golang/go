@@ -415,6 +415,24 @@ func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, pos toke
 	return v
 }
 
+// zeroValue emits to f code to produce a zero value of type t,
+// and returns it.
+//
+func zeroValue(f *Function, t types.Type) Value {
+	switch t.Underlying().(type) {
+	case *types.Struct, *types.Array:
+		return emitLoad(f, f.addLocal(t, token.NoPos))
+	default:
+		return zeroConst(t)
+	}
+}
+
+// emitMemClear emits to f code to zero the value pointed to by ptr.
+func emitMemClear(f *Function, ptr Value) {
+	// TODO(adonovan): define and use a 'memclr' intrinsic for aggregate types.
+	emitStore(f, ptr, zeroValue(f, deref(ptr.Type())))
+}
+
 // createRecoverBlock emits to f a block of code to return after a
 // recovered panic, and sets f.Recover to it.
 //
@@ -443,16 +461,9 @@ func createRecoverBlock(f *Function) {
 		R := f.Signature.Results()
 		for i, n := 0, R.Len(); i < n; i++ {
 			T := R.At(i).Type()
-			var v Value
 
 			// Return zero value of each result type.
-			switch T.Underlying().(type) {
-			case *types.Struct, *types.Array:
-				v = emitLoad(f, f.addLocal(T, token.NoPos))
-			default:
-				v = zeroConst(T)
-			}
-			results = append(results, v)
+			results = append(results, zeroValue(f, T))
 		}
 	}
 	f.emit(&Return{Results: results})
