@@ -275,7 +275,7 @@ function PlaygroundOutput(el) {
     }
   
     function keyHandler(e) {
-      if (e.keyCode == 9) { // tab
+      if (e.keyCode == 9 && !e.ctrlKey) { // tab (but not ctrl-tab)
         insertTabs(1);
         e.preventDefault();
         return false;
