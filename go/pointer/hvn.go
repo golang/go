@@ -160,7 +160,6 @@ package pointer
 import (
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 
 	"code.google.com/p/go.tools/container/intsets"
@@ -939,7 +938,9 @@ func (h *hvn) simplify() {
 	}
 	h.a.constraints = cc
 
-	log.Printf("#constraints: was %d, now %d\n", nbefore, len(h.a.constraints))
+	if h.log != nil {
+		fmt.Fprintf(h.log, "#constraints: was %d, now %d\n", nbefore, len(h.a.constraints))
+	}
 }
 
 // find returns the canonical onodeid for x.

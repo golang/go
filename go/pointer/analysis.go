@@ -31,7 +31,7 @@ const (
 	debugHVN           = false // enable assertions in HVN
 	debugHVNVerbose    = false // enable extra HVN logging
 	debugHVNCrossCheck = false // run solver with/without HVN and compare (caveats below)
-	debugTimers        = true  // show running time of each phase
+	debugTimers        = false // show running time of each phase
 )
 
 // object.flags bitmask values.
