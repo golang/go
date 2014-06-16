@@ -298,7 +298,7 @@ func (f *fmt) fmt_sbx(s string, b []byte, digits string) {
 		if i > 0 && f.space {
 			buf = append(buf, ' ')
 		}
-		if f.sharp {
+		if f.sharp && (f.space || i == 0) {
 			buf = append(buf, '0', x)
 		}
 		var c byte

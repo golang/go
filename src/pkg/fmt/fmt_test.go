@@ -125,13 +125,17 @@ var fmtTests = []struct {
 	{"%x", "xyz", "78797a"},
 	{"%X", "xyz", "78797A"},
 	{"%q", "abc", `"abc"`},
+	{"%#x", []byte("abc\xff"), "0x616263ff"},
+	{"%#X", []byte("abc\xff"), "0X616263FF"},
+	{"%# x", []byte("abc\xff"), "0x61 0x62 0x63 0xff"},
+	{"%# X", []byte("abc\xff"), "0X61 0X62 0X63 0XFF"},
 
 	// basic bytes
 	{"%s", []byte("abc"), "abc"},
 	{"%x", []byte("abc"), "616263"},
 	{"% x", []byte("abc\xff"), "61 62 63 ff"},
-	{"%#x", []byte("abc\xff"), "0x610x620x630xff"},
-	{"%#X", []byte("abc\xff"), "0X610X620X630XFF"},
+	{"%#x", []byte("abc\xff"), "0x616263ff"},
+	{"%#X", []byte("abc\xff"), "0X616263FF"},
 	{"%# x", []byte("abc\xff"), "0x61 0x62 0x63 0xff"},
 	{"%# X", []byte("abc\xff"), "0X61 0X62 0X63 0XFF"},
 	{"% X", []byte("abc\xff"), "61 62 63 FF"},
@@ -379,7 +383,7 @@ var fmtTests = []struct {
 	{"%s", I(23), `<23>`},
 	{"%q", I(23), `"<23>"`},
 	{"%x", I(23), `3c32333e`},
-	{"%#x", I(23), `0x3c0x320x330x3e`},
+	{"%#x", I(23), `0x3c32333e`},
 	{"%# x", I(23), `0x3c 0x32 0x33 0x3e`},
 	{"%d", I(23), `23`}, // Stringer applies only to string formats.
 
