@@ -326,9 +326,6 @@ func ScanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
 			break
 		}
 	}
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
-	}
 	// Scan until space, marking end of word.
 	for width, i := 0, start; i < len(data); i += width {
 		var r rune
@@ -342,5 +339,5 @@ func ScanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		return len(data), data[start:], nil
 	}
 	// Request more data.
-	return 0, nil, nil
+	return start, nil, nil
 }
