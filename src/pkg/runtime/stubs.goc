@@ -64,3 +64,9 @@ func rawruneslice(size intgo) (b Slice) {
 	b.len = size;
 	b.cap = mem/sizeof(int32);
 }
+
+// entry point for testing
+// TODO: mcall and run on M stack
+func gostringW(str Slice) (s String) {
+	s = runtime·gostringw((uint16*)str.array);
+}

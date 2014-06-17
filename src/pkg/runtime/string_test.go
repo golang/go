@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -96,6 +97,28 @@ func BenchmarkRuneIterate2(b *testing.B) {
 	s := string(bytes)
 	for i := 0; i < b.N; i++ {
 		for _, _ = range s {
+		}
+	}
+}
+
+func TestStringW(t *testing.T) {
+	strings := []string{
+		"hello",
+		"a\u5566\u7788\b",
+	}
+
+	for _, s := range strings {
+		var b []byte
+		for _, c := range s {
+			b = append(b, byte(c&255))
+			b = append(b, byte(c>>8))
+			if c>>16 != 0 {
+				t.Errorf("bad test: stringW can't handle >16 bit runes")
+			}
+		}
+		r := runtime.GostringW(b)
+		if r != s {
+			t.Errorf("gostringW(%v) = %s, want %s", b, r, s)
 		}
 	}
 }
