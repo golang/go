@@ -347,7 +347,7 @@ func (s *Scanner) isIdentRune(ch rune, i int) bool {
 }
 
 func (s *Scanner) scanIdentifier() rune {
-	// we know the zero'th rune is OK; start with 2nd one
+	// we know the zero'th rune is OK; start scanning at the next one
 	ch := s.next()
 	for i := 1; s.isIdentRune(ch, i); i++ {
 		ch = s.next()
