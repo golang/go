@@ -1311,6 +1311,7 @@ xfndcl:
 		$$->nbody = $3;
 		$$->endlineno = lineno;
 		$$->noescape = noescape;
+		$$->nosplit = nosplit;
 		funcbody($$);
 	}
 
@@ -1495,6 +1496,7 @@ xdcl_list:
 			testdclstack();
 		nointerface = 0;
 		noescape = 0;
+		nosplit = 0;
 	}
 
 vardcl_list:

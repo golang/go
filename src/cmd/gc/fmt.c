@@ -649,7 +649,7 @@ typefmt(Fmt *fp, Type *t)
 
 		if(t->funarg) {
 			fmtstrcpy(fp, "(");
-			if(fmtmode == FTypeId || fmtmode == FErr) {	// no argument names on function signature, and no "noescape" tags
+			if(fmtmode == FTypeId || fmtmode == FErr) {	// no argument names on function signature, and no "noescape"/"nosplit" tags
 				for(t1=t->type; t1!=T; t1=t1->down)
 					if(t1->down)
 						fmtprint(fp, "%hT, ", t1);
