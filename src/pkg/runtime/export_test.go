@@ -91,6 +91,6 @@ func gogoBytes() int32
 
 var GogoBytes = gogoBytes
 
-func gostringW([]byte) string
+func gostringW([]uint16) string
 
 var GostringW = gostringW

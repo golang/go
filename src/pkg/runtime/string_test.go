@@ -104,18 +104,18 @@ func BenchmarkRuneIterate2(b *testing.B) {
 func TestStringW(t *testing.T) {
 	strings := []string{
 		"hello",
-		//"a\u5566\u7788b",
+		"a\u5566\u7788b",
 	}
 
 	for _, s := range strings {
-		var b []byte
+		var b []uint16
 		for _, c := range s {
-			b = append(b, byte(c&255))
-			b = append(b, byte(c>>8))
-			if c>>16 != 0 {
+			b = append(b, uint16(c))
+			if c != rune(uint16(c)) {
 				t.Errorf("bad test: stringW can't handle >16 bit runes")
 			}
 		}
+		b = append(b, 0)
 		r := runtime.GostringW(b)
 		if r != s {
 			t.Errorf("gostringW(%v) = %s, want %s", b, r, s)
