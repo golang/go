@@ -196,9 +196,7 @@ func (addrs byPriorityWeight) shuffleByWeight() {
 			s += int(addrs[i].Weight)
 			if s > n {
 				if i > 0 {
-					t := addrs[i]
-					copy(addrs[1:i+1], addrs[0:i])
-					addrs[0] = t
+					addrs[0], addrs[i] = addrs[i], addrs[0]
 				}
 				break
 			}
