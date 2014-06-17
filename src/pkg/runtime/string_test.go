@@ -75,3 +75,27 @@ func BenchmarkCompareStringBig(b *testing.B) {
 	}
 	b.SetBytes(int64(len(s1)))
 }
+
+func BenchmarkRuneIterate(b *testing.B) {
+	bytes := make([]byte, 100)
+	for i := range bytes {
+		bytes[i] = byte('A')
+	}
+	s := string(bytes)
+	for i := 0; i < b.N; i++ {
+		for _ = range s {
+		}
+	}
+}
+
+func BenchmarkRuneIterate2(b *testing.B) {
+	bytes := make([]byte, 100)
+	for i := range bytes {
+		bytes[i] = byte('A')
+	}
+	s := string(bytes)
+	for i := 0; i < b.N; i++ {
+		for _, _ = range s {
+		}
+	}
+}

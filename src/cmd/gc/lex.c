@@ -1592,6 +1592,10 @@ go:
 		noescape = 1;
 		goto out;
 	}
+	if(strcmp(lexbuf, "go:nosplit") == 0) {
+		nosplit = 1;
+		goto out;
+	}
 	
 out:
 	return c;

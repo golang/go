@@ -560,6 +560,10 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
 	MOVW	0(SP), R0
 	RET
 
+TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
+	MOVW	R14, 4(FP)
+	RET
+
 TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
 	MOVW	x+4(FP), R0
 	MOVW	R0, 0(SP)

@@ -858,6 +858,12 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
 	MOVQ	-8(AX),AX		// get calling pc
 	RET
 
+TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-8
+	MOVQ	x+0(FP),AX		// addr of first arg
+	MOVQ	-8(AX),AX		// get calling pc
+	MOVQ	AX,r+4(FP)
+	RET
+
 TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	x+8(FP), BX
