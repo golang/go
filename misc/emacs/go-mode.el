@@ -762,7 +762,7 @@ you save any file, kind of defeating the point of autoloading."
 
 ;;;###autoload
 (defun godoc (query)
-  "Show go documentation for a query, much like M-x man."
+  "Show Go documentation for a query, much like M-x man."
   (interactive (list (godoc--read-query)))
   (unless (string= query "")
     (set-process-sentinel
@@ -770,6 +770,31 @@ you save any file, kind of defeating the point of autoloading."
                                   (concat "godoc " query))
      'godoc--buffer-sentinel)
     nil))
+
+(defun godoc-at-point (point)
+  "Show Go documentation for the identifier at POINT.
+
+`godoc-at-point' requires godef to work.
+
+Due to a limitation in godoc, it is not possible to differentiate
+between functions and methods, which may cause `godoc-at-point'
+to display more documentation than desired."
+  ;; TODO(dominikh): Support executing godoc-at-point on a package
+  ;; name.
+  (interactive "d")
+  (condition-case nil
+      (let* ((output (godef--call point))
+             (file (car output))
+             (name-parts (split-string (cadr output) " "))
+             (first (car name-parts)))
+        (if (not (godef--successful-p file))
+            (message "%s" (godef--error file))
+          (godoc (format "%s %s"
+                         (file-name-directory file)
+                         (if (or (string= first "type") (string= first "const"))
+                             (cadr name-parts)
+                           (car name-parts))))))
+    (file-error (message "Could not run godef binary"))))
 
 (defun go-goto-imports ()
   "Move point to the block of imports.
@@ -1039,6 +1064,21 @@ description at POINT."
       (with-current-buffer outbuf
         (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n")))))
 
+(defun godef--successful-p (output)
+  (not (or (string= "-" output)
+           (string= "godef: no identifier found" output)
+           (go--string-prefix-p "godef: no declaration found for " output)
+           (go--string-prefix-p "error finding import path for " output))))
+
+(defun godef--error (output)
+  (cond
+   ((godef--successful-p output)
+    nil)
+   ((string= "-" output)
+    "godef: expression is not defined anywhere")
+   (t
+    output)))
+
 (defun godef-describe (point)
   "Describe the expression at POINT."
   (interactive "d")
@@ -1054,19 +1094,11 @@ description at POINT."
   (interactive "d")
   (condition-case nil
       (let ((file (car (godef--call point))))
-        (cond
-         ((string= "-" file)
-          (message "godef: expression is not defined anywhere"))
-         ((string= "godef: no identifier found" file)
-          (message "%s" file))
-         ((go--string-prefix-p "godef: no declaration found for " file)
-          (message "%s" file))
-         ((go--string-prefix-p "error finding import path for " file)
-          (message "%s" file))
-         (t
+        (if (not (godef--successful-p file))
+            (message "%s" (godef--error file))
           (push-mark)
           (ring-insert find-tag-marker-ring (point-marker))
-          (godef--find-file-line-column file other-window))))
+          (godef--find-file-line-column file other-window)))
     (file-error (message "Could not run godef binary"))))
 
 (defun godef-jump-other-window (point)
