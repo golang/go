@@ -646,6 +646,33 @@ _next:
 	MOVW	$0, R0
 	RET
 
+// eqstring tests whether two strings are equal.
+// See runtime_test.go:eqstring_generic for
+// equivlaent Go code.
+TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
+	MOVW	s1len+4(FP), R0
+	MOVW	s2len+12(FP), R1
+	MOVW	$0, R7
+	CMP	R0, R1
+	MOVB.NE R7, v+16(FP)
+	RET.NE
+	MOVW	s1str+0(FP), R2
+	MOVW	s2str+8(FP), R3
+	MOVW	$1, R8
+	MOVB	R8, v+16(FP)
+	CMP	R2, R3
+	RET.EQ
+	ADD	R2, R0, R6
+_eqnext:
+	CMP	R2, R6
+	RET.EQ
+	MOVBU.P	1(R2), R4
+	MOVBU.P	1(R3), R5
+	CMP	R4, R5
+	BEQ	_eqnext
+	MOVB	R7, v+16(FP)
+	RET
+
 // We have to resort to TLS variable to save g(R10) and
 // m(R9). One reason is that external code might trigger
 // SIGSEGV, and our runtime.sigtramp don't even know we
