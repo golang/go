@@ -368,14 +368,25 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
 	} else {
 		num[0] = '+'
 	}
+	// Special handling for infinity, which doesn't look like a number so shouldn't be padded with zeros.
+	if math.IsInf(v, 0) {
+		if f.zero {
+			defer func() { f.zero = true }()
+			f.zero = false
+		}
+	}
 	// num is now a signed version of the number.
 	// If we're zero padding, want the sign before the leading zeros.
 	// Achieve this by writing the sign out and then padding the unsigned number.
 	if f.zero && f.widPresent && f.wid > len(num) {
-		f.buf.WriteByte(num[0])
-		f.wid--
+		if f.space && v >= 0 {
+			f.buf.WriteByte(' ') // This is what C does: even with zero, f.space means space.
+			f.wid--
+		} else if f.plus || v < 0 {
+			f.buf.WriteByte(num[0])
+			f.wid--
+		}
 		f.pad(num[1:])
-		f.wid++ // Restore width; complex numbers will reuse this value for imaginary part.
 		return
 	}
 	// f.space says to replace a leading + with a space.
@@ -436,60 +447,46 @@ func (f *fmt) fmt_fb32(v float32) { f.formatFloat(float64(v), 'b', 0, 32) }
 
 // fmt_c64 formats a complex64 according to the verb.
 func (f *fmt) fmt_c64(v complex64, verb rune) {
-	f.buf.WriteByte('(')
-	r := real(v)
-	oldPlus := f.plus
-	for i := 0; ; i++ {
-		switch verb {
-		case 'b':
-			f.fmt_fb32(r)
-		case 'e':
-			f.fmt_e32(r)
-		case 'E':
-			f.fmt_E32(r)
-		case 'f', 'F':
-			f.fmt_f32(r)
-		case 'g':
-			f.fmt_g32(r)
-		case 'G':
-			f.fmt_G32(r)
-		}
-		if i != 0 {
-			break
-		}
-		f.plus = true
-		r = imag(v)
-	}
-	f.plus = oldPlus
-	f.buf.Write(irparenBytes)
+	f.fmt_complex(float64(real(v)), float64(imag(v)), 32, verb)
 }
 
 // fmt_c128 formats a complex128 according to the verb.
 func (f *fmt) fmt_c128(v complex128, verb rune) {
+	f.fmt_complex(real(v), imag(v), 64, verb)
+}
+
+// fmt_complex formats a complex number as (r+ji).
+func (f *fmt) fmt_complex(r, j float64, size int, verb rune) {
 	f.buf.WriteByte('(')
-	r := real(v)
 	oldPlus := f.plus
+	oldSpace := f.space
+	oldWid := f.wid
 	for i := 0; ; i++ {
 		switch verb {
 		case 'b':
-			f.fmt_fb64(r)
+			f.formatFloat(r, 'b', 0, size)
 		case 'e':
-			f.fmt_e64(r)
+			f.formatFloat(r, 'e', doPrec(f, 6), size)
 		case 'E':
-			f.fmt_E64(r)
+			f.formatFloat(r, 'E', doPrec(f, 6), size)
 		case 'f', 'F':
-			f.fmt_f64(r)
+			f.formatFloat(r, 'f', doPrec(f, 6), size)
 		case 'g':
-			f.fmt_g64(r)
+			f.formatFloat(r, 'g', doPrec(f, -1), size)
 		case 'G':
-			f.fmt_G64(r)
+			f.formatFloat(r, 'G', doPrec(f, -1), size)
 		}
 		if i != 0 {
 			break
 		}
+		// Imaginary part always has a sign.
 		f.plus = true
-		r = imag(v)
+		f.space = false
+		f.wid = oldWid
+		r = j
 	}
+	f.space = oldSpace
 	f.plus = oldPlus
+	f.wid = oldWid
 	f.buf.Write(irparenBytes)
 }
