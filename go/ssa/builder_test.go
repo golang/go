@@ -5,6 +5,7 @@
 package ssa_test
 
 import (
+	"bytes"
 	"reflect"
 	"sort"
 	"strings"
@@ -235,6 +236,84 @@ func TestTypesWithMethodSets(t *testing.T) {
 
 		if !reflect.DeepEqual(typstrs, test.want) {
 			t.Errorf("test 'package %s': got %q, want %q", f.Name.Name, typstrs, test.want)
+		}
+	}
+}
+
+// Tests that synthesized init functions are correctly formed.
+// Bare init functions omit calls to dependent init functions and the use of
+// an init guard. They are useful in cases where the client uses a different
+// calling convention for init functions, or cases where it is easier for a
+// client to analyze bare init functions. Both of these aspects are used by
+// the llgo compiler for simpler integration with gccgo's runtime library,
+// and to simplify the analysis whereby it deduces which stores to globals
+// can be lowered to global initializers.
+func TestInit(t *testing.T) {
+	tests := []struct {
+		mode        ssa.BuilderMode
+		input, want string
+	}{
+		{0, `package A; import _ "errors"; var i int = 42`,
+			`# Name: A.init
+# Package: A
+# Synthetic: package initializer
+func init():
+0:                                                                entry P:0 S:2
+	t0 = *init$guard                                                   bool
+	if t0 goto 2 else 1
+1:                                                           init.start P:1 S:1
+	*init$guard = true:bool
+	t1 = errors.init()                                                   ()
+	*i = 42:int
+	jump 2
+2:                                                            init.done P:2 S:0
+	return
+
+`},
+		{ssa.BareInits, `package B; import _ "errors"; var i int = 42`,
+			`# Name: B.init
+# Package: B
+# Synthetic: package initializer
+func init():
+0:                                                                entry P:0 S:0
+	*i = 42:int
+	return
+
+`},
+	}
+	for _, test := range tests {
+		// Create a single-file main package.
+		var conf loader.Config
+		f, err := conf.ParseFile("<input>", test.input)
+		if err != nil {
+			t.Errorf("test %q: %s", test.input[:15], err)
+			continue
+		}
+		conf.CreateFromFiles(f.Name.Name, f)
+
+		iprog, err := conf.Load()
+		if err != nil {
+			t.Errorf("test 'package %s': Load: %s", f.Name.Name, err)
+			continue
+		}
+		prog := ssa.Create(iprog, test.mode)
+		mainPkg := prog.Package(iprog.Created[0].Pkg)
+		prog.BuildAll()
+		initFunc := mainPkg.Func("init")
+		if initFunc == nil {
+			t.Errorf("test 'package %s': no init function", f.Name.Name)
+			continue
+		}
+
+		var initbuf bytes.Buffer
+		_, err = initFunc.WriteTo(&initbuf)
+		if err != nil {
+			t.Errorf("test 'package %s': WriteTo: %s", f.Name.Name, err)
+			continue
+		}
+
+		if initbuf.String() != test.want {
+			t.Errorf("test 'package %s': got %q, want %q", f.Name.Name, initbuf.String(), test.want)
 		}
 	}
 }

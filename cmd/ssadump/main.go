@@ -29,6 +29,7 @@ S	log [S]ource locations as SSA builder progresses.
 G	use binary object files from gc to provide imports (no code).
 L	build distinct packages seria[L]ly instead of in parallel.
 N	build [N]aive SSA form: don't replace local loads/stores with registers.
+I	build bare [I]nit functions: no init guards or calls to dependent inits.
 `)
 
 var testFlag = flag.Bool("test", false, "Loads test code (*_test.go) for imported packages.")
@@ -117,6 +118,8 @@ func doMain() error {
 			conf.SourceImports = false
 		case 'L':
 			mode |= ssa.BuildSerially
+		case 'I':
+			mode |= ssa.BareInits
 		default:
 			return fmt.Errorf("unknown -build option: '%c'", c)
 		}

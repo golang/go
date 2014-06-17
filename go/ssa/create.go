@@ -27,6 +27,7 @@ const (
 	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
 	BuildSerially                                // Build packages serially, not in parallel.
 	GlobalDebug                                  // Enable debug info for all packages
+	BareInits                                    // Build init functions without guards or calls to dependent inits
 )
 
 // Create returns a new SSA Program.  An SSA Package is created for
@@ -222,13 +223,15 @@ func (prog *Program) CreatePackage(info *loader.PackageInfo) *Package {
 		}
 	}
 
-	// Add initializer guard variable.
-	initguard := &Global{
-		Pkg:  p,
-		name: "init$guard",
-		typ:  types.NewPointer(tBool),
+	if prog.mode&BareInits == 0 {
+		// Add initializer guard variable.
+		initguard := &Global{
+			Pkg:  p,
+			name: "init$guard",
+			typ:  types.NewPointer(tBool),
+		}
+		p.Members[initguard.Name()] = initguard
 	}
-	p.Members[initguard.Name()] = initguard
 
 	if prog.mode&GlobalDebug != 0 {
 		p.SetDebugMode(true)
