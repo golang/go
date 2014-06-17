@@ -206,18 +206,6 @@ func concatstrings(s Slice) (res String) {
 	res = concatstring(s.len, (String*)s.array);
 }
 
-func eqstring(s1 String, s2 String) (v bool) {
-	if(s1.len != s2.len) {
-		v = false;
-		return;
-	}
-	if(s1.str == s2.str) {
-		v = true;
-		return;
-	}
-	v = runtime·memeq(s1.str, s2.str, s1.len);
-}
-
 int32
 runtime·strcmp(byte *s1, byte *s2)
 {

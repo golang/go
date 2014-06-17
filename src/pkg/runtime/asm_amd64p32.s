@@ -715,6 +715,28 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-12
 	MOVL	count+8(FP), BX
 	JMP	runtime·memeqbody(SB)
 
+// eqstring tests whether two strings are equal.
+// See runtime_test.go:eqstring_generic for
+// equivlaent Go code.
+TEXT runtime·eqstring(SB),NOSPLIT,$0-17
+	MOVL	s1len+4(FP), AX
+	MOVL	s2len+12(FP), BX
+	CMPL	AX, BX
+	JNE	different
+	MOVL	s1str+0(FP), SI
+	MOVL	s2str+8(FP), DI
+	CMPL	SI, DI
+	JEQ	same
+	CALL	runtime·memeqbody(SB)
+	MOVB	AX, v+16(FP)
+	RET
+same:
+	MOVB	$1, v+16(FP)
+	RET
+different:
+	MOVB	$0, v+16(FP)
+	RET
+
 // a in SI
 // b in DI
 // count in BX
