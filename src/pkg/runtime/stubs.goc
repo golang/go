@@ -1,0 +1,66 @@
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package runtime
+#include "runtime.h"
+#include "arch_GOARCH.h"
+#include "malloc.h"
+#include "../../cmd/ld/textflag.h"
+
+// This file contains functions called by Go but written
+// in C.  These functions are problematic for the garbage
+// collector and stack copier because we don't have
+// stack maps for them.  So we must ensure that the
+// garbage collector and stack copier cannot see these
+// frames.  So we impose the following invariants:
+
+// 1) Functions should be marked NOSPLIT and call
+//    out to only NOSPLIT functions (recursively).
+// 2) Functions should not block.
+
+// During conversion, we can still call out to splittable
+// functions.  But once conversion is done the invariants
+// above should hold.
+
+#pragma textflag NOSPLIT
+func rawstring(size intgo) (s String, b Slice) {
+	byte *p;
+
+	p = runtime·mallocgc(size, 0, FlagNoScan|FlagNoZero);
+	s.str = p;
+	s.len = size;
+	b.array = p;
+	b.len = size;
+	b.cap = size;
+}
+
+#pragma textflag NOSPLIT
+func rawbyteslice(size intgo) (b Slice) {
+	uintptr cap;
+	byte *p;
+
+	cap = runtime·roundupsize(size);
+	p = runtime·mallocgc(cap, 0, FlagNoScan|FlagNoZero);
+	if(cap != size)
+		runtime·memclr(p + size, cap - size);
+	b.array = p;
+	b.len = size;
+	b.cap = cap;
+}
+
+#pragma textflag NOSPLIT
+func rawruneslice(size intgo) (b Slice) {
+	uintptr mem;
+	byte *p;
+
+	if(size > MaxMem/sizeof(int32))
+		runtime·throw("out of memory");
+	mem = runtime·roundupsize(size*sizeof(int32));
+	p = runtime·mallocgc(mem, 0, FlagNoScan|FlagNoZero);
+	if(mem != size*sizeof(int32))
+		runtime·memclr(p + size*sizeof(int32), mem - size*sizeof(int32));
+	b.array = p;
+	b.len = size;
+	b.cap = mem/sizeof(int32);
+}

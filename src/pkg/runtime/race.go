@@ -29,3 +29,6 @@ func RaceWriteRange(addr unsafe.Pointer, len int)
 
 func RaceSemacquire(s *uint32)
 func RaceSemrelease(s *uint32)
+
+// private interface for the runtime
+const raceenabled = true
