@@ -104,7 +104,7 @@ func BenchmarkRuneIterate2(b *testing.B) {
 func TestStringW(t *testing.T) {
 	strings := []string{
 		"hello",
-		"a\u5566\u7788\b",
+		//"a\u5566\u7788b",
 	}
 
 	for _, s := range strings {
