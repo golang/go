@@ -517,9 +517,76 @@ var fmtTests = []struct {
 	{"%0.100f", 1.0, zeroFill("1.", 100, "")},
 	{"%0.100f", -1.0, zeroFill("-1.", 100, "")},
 
-	// Zero padding floats used to put the minus sign in the middle.
-	{"%020f", -1.0, "-000000000001.000000"},
+	// Comparison of padding rules with C printf.
+	/*
+		C program:
+		#include <stdio.h>
+
+		char *format[] = {
+			"[%.2f]",
+			"[% .2f]",
+			"[%+.2f]",
+			"[%7.2f]",
+			"[% 7.2f]",
+			"[%+7.2f]",
+			"[%07.2f]",
+			"[% 07.2f]",
+			"[%+07.2f]",
+		};
+
+		int main(void) {
+			int i;
+			for(i = 0; i < 9; i++) {
+				printf("%s: ", format[i]);
+				printf(format[i], 1.0);
+				printf(" ");
+				printf(format[i], -1.0);
+				printf("\n");
+			}
+		}
+
+		Output:
+			[%.2f]: [1.00] [-1.00]
+			[% .2f]: [ 1.00] [-1.00]
+			[%+.2f]: [+1.00] [-1.00]
+			[%7.2f]: [   1.00] [  -1.00]
+			[% 7.2f]: [   1.00] [  -1.00]
+			[%+7.2f]: [  +1.00] [  -1.00]
+			[%07.2f]: [0001.00] [-001.00]
+			[% 07.2f]: [ 001.00] [-001.00]
+			[%+07.2f]: [+001.00] [-001.00]
+	*/
+	{"%.2f", 1.0, "1.00"},
+	{"%.2f", -1.0, "-1.00"},
+	{"% .2f", 1.0, " 1.00"},
+	{"% .2f", -1.0, "-1.00"},
+	{"%+.2f", 1.0, "+1.00"},
+	{"%+.2f", -1.0, "-1.00"},
+	{"%7.2f", 1.0, "   1.00"},
+	{"%7.2f", -1.0, "  -1.00"},
+	{"% 7.2f", 1.0, "   1.00"},
+	{"% 7.2f", -1.0, "  -1.00"},
+	{"%+7.2f", 1.0, "  +1.00"},
+	{"%+7.2f", -1.0, "  -1.00"},
+	{"%07.2f", 1.0, "0001.00"},
+	{"%07.2f", -1.0, "-001.00"},
+	{"% 07.2f", 1.0, " 001.00"},
+	{"% 07.2f", -1.0, "-001.00"},
+	{"%+07.2f", 1.0, "+001.00"},
+	{"%+07.2f", -1.0, "-001.00"},
+
+	// Complex numbers: exhaustively tested in TestComplexFormatting.
+	{"%7.2f", 1 + 2i, "(   1.00  +2.00i)"},
+	{"%+07.2f", -1 - 2i, "(-001.00-002.00i)"},
+	// Zero padding does not apply to infinities.
+	{"%020f", math.Inf(-1), "                -Inf"},
+	{"%020f", math.Inf(+1), "                +Inf"},
+	{"% 020f", math.Inf(-1), "                -Inf"},
+	{"% 020f", math.Inf(+1), "                 Inf"},
+	{"%+020f", math.Inf(-1), "                -Inf"},
+	{"%+020f", math.Inf(+1), "                +Inf"},
 	{"%20f", -1.0, "           -1.000000"},
+	// Make sure we can handle very large widths.
 	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
 
 	// Complex fmt used to leave the plus flag set for future entries in the array
@@ -600,6 +667,50 @@ func TestSprintf(t *testing.T) {
 				t.Errorf("Sprintf(%q, %q) = <%s> want <%s>", tt.fmt, tt.val, s, tt.out)
 			} else {
 				t.Errorf("Sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out)
+			}
+		}
+	}
+}
+
+// TestComplexFormatting checks that a complex always formats to the same
+// thing as if done by hand with two singleton prints.
+func TestComplexFormatting(t *testing.T) {
+	var yesNo = []bool{true, false}
+	var signs = []float64{1, 0, -1}
+	for _, plus := range yesNo {
+		for _, zero := range yesNo {
+			for _, space := range yesNo {
+				for _, char := range "fFeEgG" {
+					realFmt := "%"
+					if zero {
+						realFmt += "0"
+					}
+					if space {
+						realFmt += " "
+					}
+					if plus {
+						realFmt += "+"
+					}
+					realFmt += "10.2"
+					realFmt += string(char)
+					// Imaginary part always has a sign, so force + and ignore space.
+					imagFmt := "%"
+					if zero {
+						imagFmt += "0"
+					}
+					imagFmt += "+"
+					imagFmt += "10.2"
+					imagFmt += string(char)
+					for _, realSign := range signs {
+						for _, imagSign := range signs {
+							one := Sprintf(realFmt, complex(realSign, imagSign))
+							two := Sprintf("("+realFmt+imagFmt+"i)", realSign, imagSign)
+							if one != two {
+								t.Error(f, one, two)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
