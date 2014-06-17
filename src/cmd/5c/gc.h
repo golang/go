@@ -144,7 +144,6 @@ EXTERN	Prog*	lastp;
 EXTERN	int32	maxargsafe;
 EXTERN	int	mnstring;
 EXTERN	Multab	multab[20];
-EXTERN	int	retok;
 extern	int	hintabsize;
 EXTERN	Node*	nodrat;
 EXTERN	Node*	nodret;
