@@ -3828,7 +3828,6 @@ yyreduce:
 		(yyval.node)->nbody = (yyvsp[(3) - (3)].list);
 		(yyval.node)->endlineno = lineno;
 		(yyval.node)->noescape = noescape;
-		(yyval.node)->nosplit = nosplit;
 		funcbody((yyval.node));
 	}
     break;
@@ -4038,7 +4037,6 @@ yyreduce:
 			testdclstack();
 		nointerface = 0;
 		noescape = 0;
-		nosplit = 0;
 	}
     break;
 
