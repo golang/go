@@ -74,36 +74,54 @@ func TestParseExpr(t *testing.T) {
 	src := "a + b"
 	x, err := ParseExpr(src)
 	if err != nil {
-		t.Fatalf("ParseExpr(%s): %v", src, err)
+		t.Errorf("ParseExpr(%q): %v", src, err)
 	}
 	// sanity check
 	if _, ok := x.(*ast.BinaryExpr); !ok {
-		t.Errorf("ParseExpr(%s): got %T, want *ast.BinaryExpr", src, x)
+		t.Errorf("ParseExpr(%q): got %T, want *ast.BinaryExpr", src, x)
 	}
 
 	// a valid type expression
 	src = "struct{x *int}"
 	x, err = ParseExpr(src)
 	if err != nil {
-		t.Fatalf("ParseExpr(%s): %v", src, err)
+		t.Errorf("ParseExpr(%q): %v", src, err)
 	}
 	// sanity check
 	if _, ok := x.(*ast.StructType); !ok {
-		t.Errorf("ParseExpr(%s): got %T, want *ast.StructType", src, x)
+		t.Errorf("ParseExpr(%q): got %T, want *ast.StructType", src, x)
 	}
 
 	// an invalid expression
 	src = "a + *"
-	_, err = ParseExpr(src)
-	if err == nil {
-		t.Fatalf("ParseExpr(%s): got no error", src)
+	if _, err := ParseExpr(src); err == nil {
+		t.Errorf("ParseExpr(%q): got no error", src)
 	}
 
 	// a valid expression followed by extra tokens is invalid
 	src = "a[i] := x"
-	_, err = ParseExpr(src)
-	if err == nil {
-		t.Fatalf("ParseExpr(%s): got no error", src)
+	if _, err := ParseExpr(src); err == nil {
+		t.Errorf("ParseExpr(%q): got no error", src)
+	}
+
+	// a semicolon is not permitted unless automatically inserted
+	src = "a + b\n"
+	if _, err := ParseExpr(src); err != nil {
+		t.Errorf("ParseExpr(%q): got error %s", src, err)
+	}
+	src = "a + b;"
+	if _, err := ParseExpr(src); err == nil {
+		t.Errorf("ParseExpr(%q): got no error", src)
+	}
+
+	// various other stuff following a valid expression
+	const validExpr = "a + b"
+	const anything = "dh3*#D)#_"
+	for _, c := range "!)]};," {
+		src := validExpr + string(c) + anything
+		if _, err := ParseExpr(src); err == nil {
+			t.Errorf("ParseExpr(%q): got no error", src)
+		}
 	}
 
 	// ParseExpr must not crash

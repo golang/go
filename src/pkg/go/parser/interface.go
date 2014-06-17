@@ -184,7 +184,7 @@ func ParseExpr(x string) (ast.Expr, error) {
 
 	// If a semicolon was inserted, consume it;
 	// report an error if there's more tokens.
-	if p.tok == token.SEMICOLON {
+	if p.tok == token.SEMICOLON && p.lit == "\n" {
 		p.next()
 	}
 	p.expect(token.EOF)
