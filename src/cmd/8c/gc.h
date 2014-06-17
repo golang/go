@@ -143,7 +143,6 @@ EXTERN	int32	cursafe;
 EXTERN	Prog*	lastp;
 EXTERN	int32	maxargsafe;
 EXTERN	int	mnstring;
-EXTERN	int	retok;
 EXTERN	Node*	nodrat;
 EXTERN	Node*	nodret;
 EXTERN	Node*	nodsafe;

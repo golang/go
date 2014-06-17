@@ -155,8 +155,6 @@ codgen(Node *n, Node *nn)
 		}
 	}
 
-	retok = 0;
-
 	canreach = 1;
 	warnreach = 1;
 	gen(n);
