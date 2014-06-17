@@ -229,8 +229,6 @@ compile(Node *fn)
 		ptxt->TEXTFLAG |= WRAPPER;
 	if(fn->needctxt)
 		ptxt->TEXTFLAG |= NEEDCTXT;
-	if(fn->nosplit)
-		ptxt->TEXTFLAG |= NOSPLIT;
 
 	// Clumsy but important.
 	// See test/recover.go for test cases and src/pkg/reflect/value.go
