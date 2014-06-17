@@ -161,7 +161,7 @@ func TestInstallationImporter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	imp := inst.GetImporter(nil)
+	imp := inst.GetImporter(nil, nil)
 
 	// Ensure we don't regress the number of packages we can parse. First import
 	// all packages into the same map and then each individually.
@@ -189,6 +189,6 @@ func TestInstallationImporter(t *testing.T) {
 		{pkgpath: "sort", name: "Ints", want: "func Ints(a []int)"},
 		{pkgpath: "unsafe", name: "Pointer", want: "type Pointer unsafe.Pointer"},
 	} {
-		runImporterTest(t, imp, &test)
+		runImporterTest(t, imp, nil, &test)
 	}
 }

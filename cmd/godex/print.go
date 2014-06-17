@@ -21,6 +21,7 @@ func print(w io.Writer, pkg *types.Package, filter func(types.Object) bool) {
 	var p printer
 	p.pkg = pkg
 	p.printPackage(pkg, filter)
+	p.printGccgoExtra(pkg)
 	io.Copy(w, &p.buf)
 }
 
