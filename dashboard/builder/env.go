@@ -16,25 +16,6 @@ import (
 	"code.google.com/p/go.tools/go/vcs"
 )
 
-// These variables are copied from the gobuilder's environment
-// to the envv of its subprocesses.
-var extraEnv = []string{
-	"GOARM",
-	"GO386",
-	"CGO_ENABLED",
-
-	// For Unix derivatives.
-	"CC",
-	"PATH",
-	"TMPDIR",
-	"USER",
-
-	// For Plan 9.
-	"objtype",
-	"cputype",
-	"path",
-}
-
 // builderEnv represents the environment that a Builder will run tests in.
 type builderEnv interface {
 	// setup sets up the builder environment and returns the directory to run the buildCmd in.
@@ -71,7 +52,7 @@ func (b *Builder) envv() []string {
 		}
 	}
 
-	for _, k := range extraEnv {
+	for _, k := range extraEnv() {
 		if s, ok := getenvOk(k); ok {
 			e = append(e, k+"="+s)
 		}
@@ -92,7 +73,7 @@ func (b *Builder) envvWindows() []string {
 		}
 	}
 
-	for _, name := range extraEnv {
+	for _, name := range extraEnv() {
 		if s, ok := getenvOk(name); ok {
 			start[name] = s
 		}
@@ -275,4 +256,22 @@ func getenvOk(k string) (v string, ok bool) {
 		}
 	}
 	return "", false
+}
+
+// extraEnv returns environment variables that need to be copied from
+// the gobuilder's environment to the envv of its subprocesses.
+func extraEnv() []string {
+	extra := []string{
+		"GOARM",
+		"GO386",
+		"CGO_ENABLED",
+		"CC",
+		"PATH",
+		"TMPDIR",
+		"USER",
+	}
+	if runtime.GOOS == "plan9" {
+		extra = append(extra, "objtype", "cputype", "path")
+	}
+	return extra
 }
