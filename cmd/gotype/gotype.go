@@ -200,7 +200,7 @@ func checkPkgFiles(files []*ast.File) {
 	if *gccgo {
 		var inst gccgoimporter.GccgoInstallation
 		inst.InitFromDriver("gccgo")
-		conf.Import = inst.GetImporter(nil)
+		conf.Import = inst.GetImporter(nil, nil)
 	}
 
 	defer func() {
