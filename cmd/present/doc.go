@@ -12,7 +12,13 @@ code.google.com/p/go.tools repository.
 
 Usage of present:
   -base="": base path for slide template and static resources
-  -http="127.0.0.1:3999": host:port to listen on
+  -http="127.0.0.1:3999": HTTP service address (e.g., '127.0.0.1:3999')
+  -nacl=false: use Native Client environment playground (prevents non-Go code execution)
+  -orighost="": host component of web origin URL (e.g., 'localhost')
+  -play=true: enable playground (permit execution of arbitrary user code)
+
+The setup of the Go version of NaCl is documented at:
+https://code.google.com/p/go-wiki/wiki/NativeClient
 
 Input files are named foo.extension, where "extension" defines the format of
 the generated output. The supported formats are:
