@@ -676,7 +676,7 @@ func TestSprintf(t *testing.T) {
 // thing as if done by hand with two singleton prints.
 func TestComplexFormatting(t *testing.T) {
 	var yesNo = []bool{true, false}
-	var signs = []float64{1, 0, -1}
+	var values = []float64{1, 0, -1, math.Inf(1), math.Inf(-1), math.NaN()}
 	for _, plus := range yesNo {
 		for _, zero := range yesNo {
 			for _, space := range yesNo {
@@ -701,10 +701,10 @@ func TestComplexFormatting(t *testing.T) {
 					imagFmt += "+"
 					imagFmt += "10.2"
 					imagFmt += string(char)
-					for _, realSign := range signs {
-						for _, imagSign := range signs {
-							one := Sprintf(realFmt, complex(realSign, imagSign))
-							two := Sprintf("("+realFmt+imagFmt+"i)", realSign, imagSign)
+					for _, realValue := range values {
+						for _, imagValue := range values {
+							one := Sprintf(realFmt, complex(realValue, imagValue))
+							two := Sprintf("("+realFmt+imagFmt+"i)", realValue, imagValue)
 							if one != two {
 								t.Error(f, one, two)
 							}
