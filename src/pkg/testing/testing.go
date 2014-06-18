@@ -223,6 +223,11 @@ func decorate(s string) string {
 	return buf.String()
 }
 
+// fmtDuration returns a string representing d in the form "87.00s".
+func fmtDuration(d time.Duration) string {
+	return fmt.Sprintf("%.2fs", d.Seconds())
+}
+
 // TB is the interface common to T and B.
 type TB interface {
 	Error(args ...interface{})
@@ -446,15 +451,15 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
 }
 
 func (t *T) report() {
-	tstr := fmt.Sprintf("(%.2f seconds)", t.duration.Seconds())
-	format := "--- %s: %s %s\n%s"
+	dstr := fmtDuration(t.duration)
+	format := "--- %s: %s (%s)\n%s"
 	if t.Failed() {
-		fmt.Printf(format, "FAIL", t.name, tstr, t.output)
+		fmt.Printf(format, "FAIL", t.name, dstr, t.output)
 	} else if *chatty {
 		if t.Skipped() {
-			fmt.Printf(format, "SKIP", t.name, tstr, t.output)
+			fmt.Printf(format, "SKIP", t.name, dstr, t.output)
 		} else {
-			fmt.Printf(format, "PASS", t.name, tstr, t.output)
+			fmt.Printf(format, "PASS", t.name, dstr, t.output)
 		}
 	}
 }
