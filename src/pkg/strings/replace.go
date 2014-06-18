@@ -323,6 +323,15 @@ func (r *genericReplacer) WriteString(w io.Writer, s string) (n int, err error) 
 	var last, wn int
 	var prevMatchEmpty bool
 	for i := 0; i <= len(s); {
+		// Fast path: s[i] is not a prefix of any pattern.
+		if i != len(s) && r.root.priority == 0 {
+			index := int(r.mapping[s[i]])
+			if index == r.tableSize || r.root.table[index] == nil {
+				i++
+				continue
+			}
+		}
+
 		// Ignore the empty match iff the previous loop found the empty match.
 		val, keylen, match := r.lookup(s[i:], prevMatchEmpty)
 		prevMatchEmpty = match && keylen == 0
