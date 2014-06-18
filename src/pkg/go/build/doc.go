@@ -99,6 +99,7 @@
 //	- "cgo", if ctxt.CgoEnabled is true
 //	- "go1.1", from Go version 1.1 onward
 //	- "go1.2", from Go version 1.2 onward
+//	- "go1.3", from Go version 1.3 onward
 //	- any additional words listed in ctxt.BuildTags
 //
 // If a file's name, after stripping the extension and a possible _test suffix,
