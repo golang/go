@@ -73,45 +73,43 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	}
 
 	for len(src) > 0 {
-		dst[0] = 0
-		dst[1] = 0
-		dst[2] = 0
-		dst[3] = 0
-		dst[4] = 0
-		dst[5] = 0
-		dst[6] = 0
-		dst[7] = 0
+		var b0, b1, b2, b3, b4, b5, b6, b7 byte
 
 		// Unpack 8x 5-bit source blocks into a 5 byte
 		// destination quantum
 		switch len(src) {
 		default:
-			dst[7] |= src[4] & 0x1F
-			dst[6] |= src[4] >> 5
+			b7 |= src[4] & 0x1F
+			b6 |= src[4] >> 5
 			fallthrough
 		case 4:
-			dst[6] |= (src[3] << 3) & 0x1F
-			dst[5] |= (src[3] >> 2) & 0x1F
-			dst[4] |= src[3] >> 7
+			b6 |= (src[3] << 3) & 0x1F
+			b5 |= (src[3] >> 2) & 0x1F
+			b4 |= src[3] >> 7
 			fallthrough
 		case 3:
-			dst[4] |= (src[2] << 1) & 0x1F
-			dst[3] |= (src[2] >> 4) & 0x1F
+			b4 |= (src[2] << 1) & 0x1F
+			b3 |= (src[2] >> 4) & 0x1F
 			fallthrough
 		case 2:
-			dst[3] |= (src[1] << 4) & 0x1F
-			dst[2] |= (src[1] >> 1) & 0x1F
-			dst[1] |= (src[1] >> 6) & 0x1F
+			b3 |= (src[1] << 4) & 0x1F
+			b2 |= (src[1] >> 1) & 0x1F
+			b1 |= (src[1] >> 6) & 0x1F
 			fallthrough
 		case 1:
-			dst[1] |= (src[0] << 2) & 0x1F
-			dst[0] |= src[0] >> 3
+			b1 |= (src[0] << 2) & 0x1F
+			b0 |= src[0] >> 3
 		}
 
 		// Encode 5-bit blocks using the base32 alphabet
-		for j := 0; j < 8; j++ {
-			dst[j] = enc.encode[dst[j]]
-		}
+		dst[0] = enc.encode[b0]
+		dst[1] = enc.encode[b1]
+		dst[2] = enc.encode[b2]
+		dst[3] = enc.encode[b3]
+		dst[4] = enc.encode[b4]
+		dst[5] = enc.encode[b5]
+		dst[6] = enc.encode[b6]
+		dst[7] = enc.encode[b7]
 
 		// Pad the final quantum
 		if len(src) < 5 {

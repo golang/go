@@ -74,31 +74,29 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	}
 
 	for len(src) > 0 {
-		dst[0] = 0
-		dst[1] = 0
-		dst[2] = 0
-		dst[3] = 0
+		var b0, b1, b2, b3 byte
 
 		// Unpack 4x 6-bit source blocks into a 4 byte
 		// destination quantum
 		switch len(src) {
 		default:
-			dst[3] |= src[2] & 0x3F
-			dst[2] |= src[2] >> 6
+			b3 |= src[2] & 0x3F
+			b2 |= src[2] >> 6
 			fallthrough
 		case 2:
-			dst[2] |= (src[1] << 2) & 0x3F
-			dst[1] |= src[1] >> 4
+			b2 |= (src[1] << 2) & 0x3F
+			b1 |= src[1] >> 4
 			fallthrough
 		case 1:
-			dst[1] |= (src[0] << 4) & 0x3F
-			dst[0] |= src[0] >> 2
+			b1 |= (src[0] << 4) & 0x3F
+			b0 |= src[0] >> 2
 		}
 
 		// Encode 6-bit blocks using the base64 alphabet
-		for j := 0; j < 4; j++ {
-			dst[j] = enc.encode[dst[j]]
-		}
+		dst[0] = enc.encode[b0]
+		dst[1] = enc.encode[b1]
+		dst[2] = enc.encode[b2]
+		dst[3] = enc.encode[b3]
 
 		// Pad the final quantum
 		if len(src) < 3 {
