@@ -49,9 +49,17 @@ func conv4() {
 	print(p)                        // @pointsto convert@c2p:13
 }
 
+// Regression test for b/8231.
+func conv5() {
+	type P unsafe.Pointer
+	var i *struct{}
+	_ = P(i)
+}
+
 func main() {
 	conv1()
 	conv2()
 	conv3()
 	conv4()
+	conv5()
 }

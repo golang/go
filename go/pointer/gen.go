@@ -434,7 +434,7 @@ func (a *analysis) genConv(conv *ssa.Convert, cgn *cgnode) {
 
 	case *types.Pointer:
 		// *T -> unsafe.Pointer?
-		if tDst == tUnsafePtr {
+		if tDst.Underlying() == tUnsafePtr {
 			// ignore for now
 			// a.copy(res, a.valueNode(conv.X), 1)
 			return
