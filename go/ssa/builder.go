@@ -972,8 +972,6 @@ func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 		} else {
 			// Parallel assignment.  All reads must occur
 			// before all updates, precluding exprInPlace.
-			// TODO(adonovan): opt: is it sound to
-			// perform exprInPlace if !isDef?
 			var rvals []Value
 			for _, rval := range rhss {
 				rvals = append(rvals, b.expr(fn, rval))
