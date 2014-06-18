@@ -561,7 +561,7 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
 	RET
 
 TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
-	MOVW	R14, 4(FP)
+	MOVW	R14, ret+4(FP)
 	RET
 
 TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8

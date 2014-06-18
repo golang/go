@@ -19,9 +19,8 @@ package runtime
 //    out to only NOSPLIT functions (recursively).
 // 2) Functions should not block.
 
-// During conversion, we can still call out to splittable
-// functions.  But once conversion is done the invariants
-// above should hold.
+// These invariants do not hold yet but will be established once we have
+// finished converting runtime support code from C to Go.
 
 #pragma textflag NOSPLIT
 func rawstring(size intgo) (s String, b Slice) {
