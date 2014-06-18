@@ -71,7 +71,7 @@ func runExample(eg InternalExample) (ok bool) {
 
 	// Clean up in a deferred call so we can recover if the example panics.
 	defer func() {
-		d := time.Now().Sub(start)
+		dstr := fmtDuration(time.Now().Sub(start))
 
 		// Close pipe, restore stdout, get output.
 		w.Close()
@@ -84,10 +84,10 @@ func runExample(eg InternalExample) (ok bool) {
 			fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", g, e)
 		}
 		if fail != "" || err != nil {
-			fmt.Printf("--- FAIL: %s (%v)\n%s", eg.Name, d, fail)
+			fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
 			ok = false
 		} else if *chatty {
-			fmt.Printf("--- PASS: %s (%v)\n", eg.Name, d)
+			fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
 		}
 		if err != nil {
 			panic(err)
