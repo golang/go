@@ -143,15 +143,19 @@ func slicerunetostring(a []rune) string {
 	return s[:size2]
 }
 
+type stringStruct struct {
+	str *byte
+	len int
+}
+
 func cstringToGo(str uintptr) (s string) {
-	// Note: we need i to be the same type as _string.len and to start at 0.
-	i := _string{}.len
+	i := 0
 	for ; ; i++ {
 		if *(*byte)(unsafe.Pointer(str + uintptr(i))) == 0 {
 			break
 		}
 	}
-	t := (*_string)(unsafe.Pointer(&s))
+	t := (*stringStruct)(unsafe.Pointer(&s))
 	t.str = (*byte)(unsafe.Pointer(str))
 	t.len = i
 	return

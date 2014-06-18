@@ -664,9 +664,9 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
 	RET
 
 TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-8
-	MOVL	x+0(FP),AX		// addr of first arg
+	MOVL	p+0(FP),AX		// addr of first arg
 	MOVL	-8(AX),AX		// get calling pc
-	MOVL	AX, r+4(FP)
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16
@@ -686,7 +686,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	ADDQ	DX, AX
 	RET
 
-TEXT runtime·stackguard(SB),NOSPLIT,$0-16
+TEXT runtime·stackguard(SB),NOSPLIT,$0-8
 	MOVL	SP, DX
 	MOVL	DX, sp+0(FP)
 	get_tls(CX)
