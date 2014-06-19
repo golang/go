@@ -72,6 +72,10 @@ func (p *RGBA) ColorModel() color.Model { return color.RGBAModel }
 func (p *RGBA) Bounds() Rectangle { return p.Rect }
 
 func (p *RGBA) At(x, y int) color.Color {
+	return p.RGBAAt(x, y)
+}
+
+func (p *RGBA) RGBAAt(x, y int) color.RGBA {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.RGBA{}
 	}
@@ -167,6 +171,10 @@ func (p *RGBA64) ColorModel() color.Model { return color.RGBA64Model }
 func (p *RGBA64) Bounds() Rectangle { return p.Rect }
 
 func (p *RGBA64) At(x, y int) color.Color {
+	return p.RGBA64At(x, y)
+}
+
+func (p *RGBA64) RGBA64At(x, y int) color.RGBA64 {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.RGBA64{}
 	}
@@ -275,6 +283,10 @@ func (p *NRGBA) ColorModel() color.Model { return color.NRGBAModel }
 func (p *NRGBA) Bounds() Rectangle { return p.Rect }
 
 func (p *NRGBA) At(x, y int) color.Color {
+	return p.NRGBAAt(x, y)
+}
+
+func (p *NRGBA) NRGBAAt(x, y int) color.NRGBA {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.NRGBA{}
 	}
@@ -370,6 +382,10 @@ func (p *NRGBA64) ColorModel() color.Model { return color.NRGBA64Model }
 func (p *NRGBA64) Bounds() Rectangle { return p.Rect }
 
 func (p *NRGBA64) At(x, y int) color.Color {
+	return p.NRGBA64At(x, y)
+}
+
+func (p *NRGBA64) NRGBA64At(x, y int) color.NRGBA64 {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.NRGBA64{}
 	}
@@ -478,6 +494,10 @@ func (p *Alpha) ColorModel() color.Model { return color.AlphaModel }
 func (p *Alpha) Bounds() Rectangle { return p.Rect }
 
 func (p *Alpha) At(x, y int) color.Color {
+	return p.AlphaAt(x, y)
+}
+
+func (p *Alpha) AlphaAt(x, y int) color.Alpha {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Alpha{}
 	}
@@ -566,6 +586,10 @@ func (p *Alpha16) ColorModel() color.Model { return color.Alpha16Model }
 func (p *Alpha16) Bounds() Rectangle { return p.Rect }
 
 func (p *Alpha16) At(x, y int) color.Color {
+	return p.Alpha16At(x, y)
+}
+
+func (p *Alpha16) Alpha16At(x, y int) color.Alpha16 {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Alpha16{}
 	}
@@ -657,6 +681,10 @@ func (p *Gray) ColorModel() color.Model { return color.GrayModel }
 func (p *Gray) Bounds() Rectangle { return p.Rect }
 
 func (p *Gray) At(x, y int) color.Color {
+	return p.GrayAt(x, y)
+}
+
+func (p *Gray) GrayAt(x, y int) color.Gray {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Gray{}
 	}
@@ -732,6 +760,10 @@ func (p *Gray16) ColorModel() color.Model { return color.Gray16Model }
 func (p *Gray16) Bounds() Rectangle { return p.Rect }
 
 func (p *Gray16) At(x, y int) color.Color {
+	return p.Gray16At(x, y)
+}
+
+func (p *Gray16) Gray16At(x, y int) color.Gray16 {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Gray16{}
 	}

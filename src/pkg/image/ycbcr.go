@@ -60,6 +60,10 @@ func (p *YCbCr) Bounds() Rectangle {
 }
 
 func (p *YCbCr) At(x, y int) color.Color {
+	return p.YCbCrAt(x, y)
+}
+
+func (p *YCbCr) YCbCrAt(x, y int) color.YCbCr {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.YCbCr{}
 	}
