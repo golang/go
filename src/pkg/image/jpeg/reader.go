@@ -8,7 +8,6 @@
 package jpeg
 
 import (
-	"bufio"
 	"image"
 	"image/color"
 	"io"
@@ -84,15 +83,36 @@ var unzig = [blockSize]int{
 	53, 60, 61, 54, 47, 55, 62, 63,
 }
 
-// If the passed in io.Reader does not also have ReadByte, then Decode will introduce its own buffering.
+// Reader is deprecated.
 type Reader interface {
+	io.ByteReader
 	io.Reader
-	ReadByte() (c byte, err error)
+}
+
+// bits holds the unprocessed bits that have been taken from the byte-stream.
+// The n least significant bits of a form the unread bits, to be read in MSB to
+// LSB order.
+type bits struct {
+	a uint32 // accumulator.
+	m uint32 // mask. m==1<<(n-1) when n>0, with m==0 when n==0.
+	n int32  // the number of unread bits in a.
 }
 
 type decoder struct {
-	r             Reader
-	b             bits
+	r    io.Reader
+	bits bits
+	// bytes is a byte buffer, similar to a bufio.Reader, except that it
+	// has to be able to unread more than 1 byte, due to byte stuffing.
+	// Byte stuffing is specified in section F.1.2.3.
+	bytes struct {
+		// buf[i:j] are the buffered bytes read from the underlying
+		// io.Reader that haven't yet been passed further on.
+		buf  [4096]byte
+		i, j int
+		// nUnreadable is the number of bytes to back up i after
+		// overshooting. It can be 0, 1 or 2.
+		nUnreadable int
+	}
 	width, height int
 	img1          *image.Gray
 	img3          *image.YCbCr
@@ -104,21 +124,157 @@ type decoder struct {
 	progCoeffs    [nColorComponent][]block // Saved state between progressive-mode scans.
 	huff          [maxTc + 1][maxTh + 1]huffman
 	quant         [maxTq + 1]block // Quantization tables, in zig-zag order.
-	tmp           [1024]byte
+	tmp           [blockSize + 1]byte
 }
 
-// Reads and ignores the next n bytes.
+// fill fills up the d.bytes.buf buffer from the underlying io.Reader. It
+// should only be called when there are no unread bytes in d.bytes.
+func (d *decoder) fill() error {
+	if d.bytes.i != d.bytes.j {
+		panic("jpeg: fill called when unread bytes exist")
+	}
+	// Move the last 2 bytes to the start of the buffer, in case we need
+	// to call unreadByteStuffedByte.
+	if d.bytes.j > 2 {
+		d.bytes.buf[0] = d.bytes.buf[d.bytes.j-2]
+		d.bytes.buf[1] = d.bytes.buf[d.bytes.j-1]
+		d.bytes.i, d.bytes.j = 2, 2
+	}
+	// Fill in the rest of the buffer.
+	n, err := d.r.Read(d.bytes.buf[d.bytes.j:])
+	d.bytes.j += n
+	return err
+}
+
+// unreadByteStuffedByte undoes the most recent readByteStuffedByte call,
+// giving a byte of data back from d.bits to d.bytes. The Huffman look-up table
+// requires at least 8 bits for look-up, which means that Huffman decoding can
+// sometimes overshoot and read one or two too many bytes. Two-byte overshoot
+// can happen when expecting to read a 0xff 0x00 byte-stuffed byte.
+func (d *decoder) unreadByteStuffedByte() {
+	if d.bytes.nUnreadable == 0 {
+		panic("jpeg: unreadByteStuffedByte call cannot be fulfilled")
+	}
+	d.bytes.i -= d.bytes.nUnreadable
+	d.bytes.nUnreadable = 0
+	if d.bits.n >= 8 {
+		d.bits.a >>= 8
+		d.bits.n -= 8
+		d.bits.m >>= 8
+	}
+}
+
+// readByte returns the next byte, whether buffered or not buffered. It does
+// not care about byte stuffing.
+func (d *decoder) readByte() (x byte, err error) {
+	for d.bytes.i == d.bytes.j {
+		if err = d.fill(); err != nil {
+			return 0, err
+		}
+	}
+	x = d.bytes.buf[d.bytes.i]
+	d.bytes.i++
+	d.bytes.nUnreadable = 0
+	return x, nil
+}
+
+// errMissingFF00 means that readByteStuffedByte encountered an 0xff byte (a
+// marker byte) that wasn't the expected byte-stuffed sequence 0xff, 0x00.
+var errMissingFF00 = FormatError("missing 0xff00 sequence")
+
+// readByteStuffedByte is like readByte but is for byte-stuffed Huffman data.
+func (d *decoder) readByteStuffedByte() (x byte, err error) {
+	// Take the fast path if d.bytes.buf contains at least two bytes.
+	if d.bytes.i+2 <= d.bytes.j {
+		x = d.bytes.buf[d.bytes.i]
+		d.bytes.i++
+		d.bytes.nUnreadable = 1
+		if x != 0xff {
+			return x, err
+		}
+		if d.bytes.buf[d.bytes.i] != 0x00 {
+			return 0, errMissingFF00
+		}
+		d.bytes.i++
+		d.bytes.nUnreadable = 2
+		return 0xff, nil
+	}
+
+	x, err = d.readByte()
+	if err != nil {
+		return 0, err
+	}
+	if x != 0xff {
+		d.bytes.nUnreadable = 1
+		return x, nil
+	}
+
+	x, err = d.readByte()
+	if err != nil {
+		d.bytes.nUnreadable = 1
+		return 0, err
+	}
+	d.bytes.nUnreadable = 2
+	if x != 0x00 {
+		return 0, errMissingFF00
+	}
+	return 0xff, nil
+}
+
+// readFull reads exactly len(p) bytes into p. It does not care about byte
+// stuffing.
+func (d *decoder) readFull(p []byte) error {
+	// Unread the overshot bytes, if any.
+	if d.bytes.nUnreadable != 0 {
+		if d.bits.n >= 8 {
+			d.unreadByteStuffedByte()
+		}
+		d.bytes.nUnreadable = 0
+	}
+
+	for {
+		n := copy(p, d.bytes.buf[d.bytes.i:d.bytes.j])
+		p = p[n:]
+		d.bytes.i += n
+		if len(p) == 0 {
+			break
+		}
+		if err := d.fill(); err != nil {
+			if err == io.EOF {
+				err = io.ErrUnexpectedEOF
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+// ignore ignores the next n bytes.
 func (d *decoder) ignore(n int) error {
-	for n > 0 {
-		m := len(d.tmp)
+	// Unread the overshot bytes, if any.
+	if d.bytes.nUnreadable != 0 {
+		if d.bits.n >= 8 {
+			d.unreadByteStuffedByte()
+		}
+		d.bytes.nUnreadable = 0
+	}
+
+	for {
+		m := d.bytes.j - d.bytes.i
 		if m > n {
 			m = n
 		}
-		_, err := io.ReadFull(d.r, d.tmp[0:m])
-		if err != nil {
+		d.bytes.i += m
+		n -= m
+		if n == 0 {
+			break
+		}
+		if err := d.fill(); err != nil {
+			if err == io.EOF {
+				err = io.ErrUnexpectedEOF
+			}
 			return err
 		}
-		n -= m
 	}
 	return nil
 }
@@ -133,8 +289,7 @@ func (d *decoder) processSOF(n int) error {
 	default:
 		return UnsupportedError("SOF has wrong length")
 	}
-	_, err := io.ReadFull(d.r, d.tmp[:n])
-	if err != nil {
+	if err := d.readFull(d.tmp[:n]); err != nil {
 		return err
 	}
 	// We only support 8-bit precision.
@@ -187,8 +342,7 @@ func (d *decoder) processSOF(n int) error {
 func (d *decoder) processDQT(n int) error {
 	const qtLength = 1 + blockSize
 	for ; n >= qtLength; n -= qtLength {
-		_, err := io.ReadFull(d.r, d.tmp[0:qtLength])
-		if err != nil {
+		if err := d.readFull(d.tmp[:qtLength]); err != nil {
 			return err
 		}
 		pq := d.tmp[0] >> 4
@@ -214,8 +368,7 @@ func (d *decoder) processDRI(n int) error {
 	if n != 2 {
 		return FormatError("DRI has wrong length")
 	}
-	_, err := io.ReadFull(d.r, d.tmp[0:2])
-	if err != nil {
+	if err := d.readFull(d.tmp[:2]); err != nil {
 		return err
 	}
 	d.ri = int(d.tmp[0])<<8 + int(d.tmp[1])
@@ -224,15 +377,10 @@ func (d *decoder) processDRI(n int) error {
 
 // decode reads a JPEG image from r and returns it as an image.Image.
 func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
-	if rr, ok := r.(Reader); ok {
-		d.r = rr
-	} else {
-		d.r = bufio.NewReader(r)
-	}
+	d.r = r
 
 	// Check for the Start Of Image marker.
-	_, err := io.ReadFull(d.r, d.tmp[0:2])
-	if err != nil {
+	if err := d.readFull(d.tmp[:2]); err != nil {
 		return nil, err
 	}
 	if d.tmp[0] != 0xff || d.tmp[1] != soiMarker {
@@ -241,7 +389,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 
 	// Process the remaining segments until the End Of Image marker.
 	for {
-		_, err := io.ReadFull(d.r, d.tmp[0:2])
+		err := d.readFull(d.tmp[:2])
 		if err != nil {
 			return nil, err
 		}
@@ -267,7 +415,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 			// Note that extraneous 0xff bytes in e.g. SOS data are escaped as
 			// "\xff\x00", and so are detected a little further down below.
 			d.tmp[0] = d.tmp[1]
-			d.tmp[1], err = d.r.ReadByte()
+			d.tmp[1], err = d.readByte()
 			if err != nil {
 				return nil, err
 			}
@@ -280,7 +428,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 		for marker == 0xff {
 			// Section B.1.1.2 says, "Any marker may optionally be preceded by any
 			// number of fill bytes, which are bytes assigned code X'FF'".
-			marker, err = d.r.ReadByte()
+			marker, err = d.readByte()
 			if err != nil {
 				return nil, err
 			}
@@ -300,8 +448,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 
 		// Read the 16-bit length of the segment. The value includes the 2 bytes for the
 		// length itself, so we subtract 2 to get the number of remaining bytes.
-		_, err = io.ReadFull(d.r, d.tmp[0:2])
-		if err != nil {
+		if err = d.readFull(d.tmp[:2]); err != nil {
 			return nil, err
 		}
 		n := int(d.tmp[0])<<8 + int(d.tmp[1]) - 2
