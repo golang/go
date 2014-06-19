@@ -212,6 +212,9 @@ func (a *analysis) computeTrackBits() {
 // always succeed.  An error can occur only due to an internal bug.
 //
 func Analyze(config *Config) (result *Result, err error) {
+	if config.Mains == nil {
+		return nil, fmt.Errorf("no main/test packages to analyze (check $GOROOT/$GOPATH)")
+	}
 	defer func() {
 		if p := recover(); p != nil {
 			err = fmt.Errorf("internal error in pointer analysis: %v (please report this bug)", p)

@@ -226,7 +226,7 @@ func (a *analysis) valueNode(v ssa.Value) nodeid {
 		if a.log != nil {
 			comment = v.String()
 		}
-		id = a.addOneNode(v.Type(), comment, nil)
+		id = a.addNodes(v.Type(), comment)
 		if obj := a.objectNode(nil, v); obj != 0 {
 			a.addressOf(v.Type(), id, obj)
 		}

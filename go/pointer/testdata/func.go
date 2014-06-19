@@ -156,6 +156,39 @@ func func8(x ...int) {
 	print(&x[0]) // @pointsto varargs[*]@varargs:15
 }
 
+type E struct {
+	x1, x2, x3, x4, x5 *int
+}
+
+func (e E) f() {}
+
+func func9() {
+	// Regression test for bug reported by Jon Valdes on golang-dev, Jun 19 2014.
+	// The receiver of a bound method closure may be of a multi-node type, E.
+	// valueNode was reserving only a single node for it, so the
+	// nodes used by the immediately following constraints
+	// (e.g. param 'i') would get clobbered.
+
+	var e E
+	e.x1 = &a
+	e.x2 = &a
+	e.x3 = &a
+	e.x4 = &a
+	e.x5 = &a
+
+	_ = e.f // form a closure---must reserve sizeof(E) nodes
+
+	func(i I) {
+		i.f() // must not crash the solver
+	}(new(D))
+
+	print(e.x1) // @pointsto main.a
+	print(e.x2) // @pointsto main.a
+	print(e.x3) // @pointsto main.a
+	print(e.x4) // @pointsto main.a
+	print(e.x5) // @pointsto main.a
+}
+
 func main() {
 	func1()
 	func2()
@@ -165,6 +198,7 @@ func main() {
 	func6()
 	func7()
 	func8(1, 2, 3) // @line varargs
+	func9()
 }
 
 // @calls <root> -> main.main
