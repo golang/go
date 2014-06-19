@@ -511,48 +511,32 @@ func (r *byteStringReplacer) Replace(s string) string {
 	return string(buf)
 }
 
-// WriteString maintains one buffer that's at most 32KB.  The bytes in
-// s are enumerated and the buffer is filled.  If it reaches its
-// capacity or a byte has a replacement, the buffer is flushed to w.
 func (r *byteStringReplacer) WriteString(w io.Writer, s string) (n int, err error) {
-	// TODO(bradfitz): use io.WriteString with slices of s instead.
-	bufsize := 32 << 10
-	if len(s) < bufsize {
-		bufsize = len(s)
-	}
-	buf := make([]byte, bufsize)
-	bi := buf[:0]
-
+	sw := getStringWriter(w)
+	last := 0
 	for i := 0; i < len(s); i++ {
 		b := s[i]
-		var new []byte
-		if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
-			new = r.new[b]
-		} else {
-			bi = append(bi, b)
+		if r.old[b>>5]&uint32(1<<(b&31)) == 0 {
+			continue
 		}
-		if len(bi) == cap(bi) || (len(bi) > 0 && len(new) > 0) {
-			nw, err := w.Write(bi)
-			n += nw
-			if err != nil {
-				return n, err
-			}
-			bi = buf[:0]
-		}
-		if len(new) > 0 {
-			nw, err := w.Write(new)
+		if last != i {
+			nw, err := sw.WriteString(s[last:i])
 			n += nw
 			if err != nil {
 				return n, err
 			}
 		}
-	}
-	if len(bi) > 0 {
-		nw, err := w.Write(bi)
+		last = i + 1
+		nw, err := w.Write(r.new[b])
 		n += nw
 		if err != nil {
 			return n, err
 		}
 	}
-	return n, nil
+	if last != len(s) {
+		var nw int
+		nw, err = sw.WriteString(s[last:])
+		n += nw
+	}
+	return
 }

@@ -480,6 +480,15 @@ func BenchmarkHTMLEscapeOld(b *testing.B) {
 	}
 }
 
+func BenchmarkWriteString(b *testing.B) {
+	str := Repeat("I <3 to escape HTML & other text too.", 100)
+	buf := new(bytes.Buffer)
+	for i := 0; i < b.N; i++ {
+		htmlEscaper.WriteString(buf, str)
+		buf.Reset()
+	}
+}
+
 // BenchmarkByteByteReplaces compares byteByteImpl against multiple Replaces.
 func BenchmarkByteByteReplaces(b *testing.B) {
 	str := Repeat("a", 100) + Repeat("b", 100)
