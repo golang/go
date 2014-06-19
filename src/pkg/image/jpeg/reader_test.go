@@ -86,7 +86,6 @@ func decodeFile(filename string) (image.Image, error) {
 	}
 	defer f.Close()
 	return Decode(f)
-
 }
 
 // check checks that the two pix data are equal, within the given bounds.

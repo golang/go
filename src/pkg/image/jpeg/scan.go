@@ -6,7 +6,6 @@ package jpeg
 
 import (
 	"image"
-	"io"
 )
 
 // makeImg allocates and initializes the destination image.
@@ -41,8 +40,7 @@ func (d *decoder) processSOS(n int) error {
 	if n < 6 || 4+2*d.nComp < n || n%2 != 0 {
 		return FormatError("SOS has wrong length")
 	}
-	_, err := io.ReadFull(d.r, d.tmp[:n])
-	if err != nil {
+	if err := d.readFull(d.tmp[:n]); err != nil {
 		return err
 	}
 	nComp := int(d.tmp[0])
@@ -119,7 +117,7 @@ func (d *decoder) processSOS(n int) error {
 		}
 	}
 
-	d.b = bits{}
+	d.bits = bits{}
 	mcu, expectedRST := 0, uint8(rst0Marker)
 	var (
 		// b is the decoded coefficients, in natural (not zig-zag) order.
@@ -217,8 +215,9 @@ func (d *decoder) processSOS(n int) error {
 							d.eobRun--
 						} else {
 							// Decode the AC coefficients, as specified in section F.2.2.2.
+							huff := &d.huff[acTable][scan[i].ta]
 							for ; zig <= zigEnd; zig++ {
-								value, err := d.decodeHuffman(&d.huff[acTable][scan[i].ta])
+								value, err := d.decodeHuffman(huff)
 								if err != nil {
 									return err
 								}
@@ -238,7 +237,7 @@ func (d *decoder) processSOS(n int) error {
 									if val0 != 0x0f {
 										d.eobRun = uint16(1 << val0)
 										if val0 != 0 {
-											bits, err := d.decodeBits(int(val0))
+											bits, err := d.decodeBits(int32(val0))
 											if err != nil {
 												return err
 											}
@@ -308,8 +307,7 @@ func (d *decoder) processSOS(n int) error {
 			if d.ri > 0 && mcu%d.ri == 0 && mcu < mxx*myy {
 				// A more sophisticated decoder could use RST[0-7] markers to resynchronize from corrupt input,
 				// but this one assumes well-formed input, and hence the restart marker follows immediately.
-				_, err := io.ReadFull(d.r, d.tmp[0:2])
-				if err != nil {
+				if err := d.readFull(d.tmp[:2]); err != nil {
 					return err
 				}
 				if d.tmp[0] != 0xff || d.tmp[1] != expectedRST {
@@ -320,7 +318,7 @@ func (d *decoder) processSOS(n int) error {
 					expectedRST = rst0Marker
 				}
 				// Reset the Huffman decoder.
-				d.b = bits{}
+				d.bits = bits{}
 				// Reset the DC components, as per section F.2.1.3.1.
 				dc = [nColorComponent]int32{}
 				// Reset the progressive decoder state, as per section G.1.2.2.
@@ -368,7 +366,7 @@ func (d *decoder) refine(b *block, h *huffman, zigStart, zigEnd, delta int32) er
 				if val0 != 0x0f {
 					d.eobRun = uint16(1 << val0)
 					if val0 != 0 {
-						bits, err := d.decodeBits(int(val0))
+						bits, err := d.decodeBits(int32(val0))
 						if err != nil {
 							return err
 						}

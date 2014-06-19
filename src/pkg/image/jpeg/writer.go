@@ -249,7 +249,7 @@ func (e *encoder) writeByte(b byte) {
 	e.err = e.w.WriteByte(b)
 }
 
-// emit emits the least significant nBits bits of bits to the bitstream.
+// emit emits the least significant nBits bits of bits to the bit-stream.
 // The precondition is bits < 1<<nBits && nBits <= 16.
 func (e *encoder) emit(bits, nBits uint32) {
 	nBits += e.nBits
