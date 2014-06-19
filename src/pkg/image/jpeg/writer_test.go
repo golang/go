@@ -160,6 +160,34 @@ func TestWriter(t *testing.T) {
 	}
 }
 
+// TestWriteGrayscale tests that a grayscale images survives a round-trip
+// through encode/decode cycle.
+func TestWriteGrayscale(t *testing.T) {
+	m0 := image.NewGray(image.Rect(0, 0, 32, 32))
+	for i := range m0.Pix {
+		m0.Pix[i] = uint8(i)
+	}
+	var buf bytes.Buffer
+	if err := Encode(&buf, m0, nil); err != nil {
+		t.Fatal(err)
+	}
+	m1, err := Decode(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m0.Bounds() != m1.Bounds() {
+		t.Fatalf("bounds differ: %v and %v", m0.Bounds(), m1.Bounds())
+	}
+	if _, ok := m1.(*image.Gray); !ok {
+		t.Errorf("got %T, want *image.Gray", m1)
+	}
+	// Compare the average delta to the tolerance level.
+	want := int64(2 << 8)
+	if got := averageDelta(m0, m1); got > want {
+		t.Errorf("average delta too high; got %d, want <= %d", got, want)
+	}
+}
+
 // averageDelta returns the average delta in RGB space. The two images must
 // have the same bounds.
 func averageDelta(m0, m1 image.Image) int64 {
