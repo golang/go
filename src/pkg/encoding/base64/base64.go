@@ -80,16 +80,16 @@ func (enc *Encoding) Encode(dst, src []byte) {
 		// destination quantum
 		switch len(src) {
 		default:
-			b3 |= src[2] & 0x3F
-			b2 |= src[2] >> 6
+			b3 = src[2] & 0x3F
+			b2 = src[2] >> 6
 			fallthrough
 		case 2:
 			b2 |= (src[1] << 2) & 0x3F
-			b1 |= src[1] >> 4
+			b1 = src[1] >> 4
 			fallthrough
 		case 1:
 			b1 |= (src[0] << 4) & 0x3F
-			b0 |= src[0] >> 2
+			b0 = src[0] >> 2
 		}
 
 		// Encode 6-bit blocks using the base64 alphabet
