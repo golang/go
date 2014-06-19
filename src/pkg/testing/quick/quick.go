@@ -225,12 +225,12 @@ func (s *CheckEqualError) Error() string {
 // 			t.Error(err)
 // 		}
 // 	}
-func Check(function interface{}, config *Config) (err error) {
+func Check(f interface{}, config *Config) (err error) {
 	if config == nil {
 		config = &defaultConfig
 	}
 
-	f, fType, ok := functionAndType(function)
+	fVal, fType, ok := functionAndType(f)
 	if !ok {
 		err = SetupError("argument is not a function")
 		return
@@ -255,7 +255,7 @@ func Check(function interface{}, config *Config) (err error) {
 			return
 		}
 
-		if !f.Call(arguments)[0].Bool() {
+		if !fVal.Call(arguments)[0].Bool() {
 			err = &CheckError{i + 1, toInterfaces(arguments)}
 			return
 		}
