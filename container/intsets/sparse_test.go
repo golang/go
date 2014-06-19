@@ -466,7 +466,7 @@ func BenchmarkSparseBitVector(b *testing.B) {
 	for tries := 0; tries < b.N; tries++ {
 		var x, y, z intsets.Sparse
 		for i := 0; i < 1000; i++ {
-			n := int(prng.Int()) % 10000
+			n := int(prng.Int()) % 100000
 			if i%2 == 0 {
 				x.Insert(n)
 			} else {
@@ -483,7 +483,7 @@ func BenchmarkHashTable(b *testing.B) {
 	for tries := 0; tries < b.N; tries++ {
 		x, y, z := make(map[int]bool), make(map[int]bool), make(map[int]bool)
 		for i := 0; i < 1000; i++ {
-			n := int(prng.Int()) % 10000
+			n := int(prng.Int()) % 100000
 			if i%2 == 0 {
 				x[n] = true
 			} else {
@@ -504,5 +504,17 @@ func BenchmarkHashTable(b *testing.B) {
 				z[n] = true
 			}
 		}
+	}
+}
+
+func BenchmarkAppendTo(b *testing.B) {
+	prng := rand.New(rand.NewSource(0))
+	var x intsets.Sparse
+	for i := 0; i < 1000; i++ {
+		x.Insert(int(prng.Int()) % 10000)
+	}
+	var space [1000]int
+	for tries := 0; tries < b.N; tries++ {
+		x.AppendTo(space[:0])
 	}
 }

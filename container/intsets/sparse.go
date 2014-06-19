@@ -178,8 +178,6 @@ func (b *block) min(take bool) int {
 func (b *block) forEach(f func(int)) {
 	for i, w := range b.bits {
 		offset := b.offset + i*bitsPerWord
-		// TODO(adonovan): opt: uses subword
-		// masks to avoid testing every bit.
 		for bi := 0; w != 0 && bi < bitsPerWord; bi++ {
 			if w&1 != 0 {
 				f(offset)
@@ -210,10 +208,11 @@ func offsetAndBitIndex(x int) (int, uint) {
 // initialized.
 //
 func (s *Sparse) start() *block {
-	if s.root.next == nil {
-		s.root.next = &s.root
-		s.root.prev = &s.root
-	} else if s.root.next.prev != &s.root {
+	root := &s.root
+	if root.next == nil {
+		root.next = root
+		root.prev = root
+	} else if root.next.prev != root {
 		// Copying a Sparse x leads to pernicious corruption: the
 		// new Sparse y shares the old linked list, but iteration
 		// on y will never encounter &y.root so it goes into a
@@ -221,7 +220,7 @@ func (s *Sparse) start() *block {
 		panic("A Sparse has been copied without (*Sparse).Copy()")
 	}
 
-	return s.root.next
+	return root.next
 }
 
 // IsEmpty reports whether the set s is empty.
