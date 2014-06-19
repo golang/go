@@ -79,26 +79,26 @@ func (enc *Encoding) Encode(dst, src []byte) {
 		// destination quantum
 		switch len(src) {
 		default:
-			b7 |= src[4] & 0x1F
-			b6 |= src[4] >> 5
+			b7 = src[4] & 0x1F
+			b6 = src[4] >> 5
 			fallthrough
 		case 4:
 			b6 |= (src[3] << 3) & 0x1F
-			b5 |= (src[3] >> 2) & 0x1F
-			b4 |= src[3] >> 7
+			b5 = (src[3] >> 2) & 0x1F
+			b4 = src[3] >> 7
 			fallthrough
 		case 3:
 			b4 |= (src[2] << 1) & 0x1F
-			b3 |= (src[2] >> 4) & 0x1F
+			b3 = (src[2] >> 4) & 0x1F
 			fallthrough
 		case 2:
 			b3 |= (src[1] << 4) & 0x1F
-			b2 |= (src[1] >> 1) & 0x1F
-			b1 |= (src[1] >> 6) & 0x1F
+			b2 = (src[1] >> 1) & 0x1F
+			b1 = (src[1] >> 6) & 0x1F
 			fallthrough
 		case 1:
 			b1 |= (src[0] << 2) & 0x1F
-			b0 |= src[0] >> 3
+			b0 = src[0] >> 3
 		}
 
 		// Encode 5-bit blocks using the base32 alphabet
