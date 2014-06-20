@@ -53,6 +53,9 @@ func NewReplacer(oldnew ...string) *Replacer {
 
 	if allNewBytes {
 		bb := &byteReplacer{}
+		for i := range bb.new {
+			bb.new[i] = byte(i)
+		}
 		for i := 0; i < len(oldnew); i += 2 {
 			o, n := oldnew[i][0], oldnew[i+1][0]
 			if bb.old.isSet(o) {
@@ -426,8 +429,8 @@ type byteReplacer struct {
 	// old has a bit set for each old byte that should be replaced.
 	old byteBitmap
 
-	// replacement byte, indexed by old byte. only valid if
-	// corresponding old bit is set.
+	// replacement byte, indexed by old byte. old byte and new
+	// byte are the same if corresponding old bit is not set.
 	new [256]byte
 }
 
@@ -460,9 +463,7 @@ func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 		ncopy := copy(buf, s[:])
 		s = s[ncopy:]
 		for i, b := range buf[:ncopy] {
-			if r.old.isSet(b) {
-				buf[i] = r.new[b]
-			}
+			buf[i] = r.new[b]
 		}
 		wn, err := w.Write(buf[:ncopy])
 		n += wn
