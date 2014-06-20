@@ -1430,8 +1430,13 @@ func (c *Corpus) readIndex(filenames string) error {
 		defer f.Close()
 		files = append(files, f)
 	}
+	return c.ReadIndexFrom(io.MultiReader(files...))
+}
+
+// ReadIndexFrom sets the current index from the serialized version found in r.
+func (c *Corpus) ReadIndexFrom(r io.Reader) error {
 	x := new(Index)
-	if _, err := x.ReadFrom(io.MultiReader(files...)); err != nil {
+	if _, err := x.ReadFrom(r); err != nil {
 		return err
 	}
 	if !x.CompatibleWith(c) {
