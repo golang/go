@@ -51,7 +51,11 @@ func (rw *RWMutex) RUnlock() {
 		raceReleaseMerge(unsafe.Pointer(&rw.writerSem))
 		raceDisable()
 	}
-	if atomic.AddInt32(&rw.readerCount, -1) < 0 {
+	if r := atomic.AddInt32(&rw.readerCount, -1); r < 0 {
+		if r+1 == 0 || r+1 == -rwmutexMaxReaders {
+			raceEnable()
+			panic("sync: RUnlock of unlocked RWMutex")
+		}
 		// A writer is pending.
 		if atomic.AddInt32(&rw.readerWait, -1) == 0 {
 			// The last reader unblocks the writer.
@@ -105,6 +109,10 @@ func (rw *RWMutex) Unlock() {
 
 	// Announce to readers there is no active writer.
 	r := atomic.AddInt32(&rw.readerCount, rwmutexMaxReaders)
+	if r >= rwmutexMaxReaders {
+		raceEnable()
+		panic("sync: Unlock of unlocked RWMutex")
+	}
 	// Unblock blocked readers, if any.
 	for i := 0; i < int(r); i++ {
 		runtime_Semrelease(&rw.readerSem)
