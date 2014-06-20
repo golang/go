@@ -26,6 +26,10 @@ func (m *byteBitmap) set(b byte) {
 	m[b>>5] |= uint32(1 << (b & 31))
 }
 
+func (m *byteBitmap) isSet(b byte) bool {
+	return m[b>>5]&uint32(1<<(b&31)) != 0
+}
+
 // NewReplacer returns a new Replacer from a list of old, new string pairs.
 // Replacements are performed in order, without overlapping matches.
 func NewReplacer(oldnew ...string) *Replacer {
@@ -51,7 +55,7 @@ func NewReplacer(oldnew ...string) *Replacer {
 		bb := &byteReplacer{}
 		for i := 0; i < len(oldnew); i += 2 {
 			o, n := oldnew[i][0], oldnew[i+1][0]
-			if bb.old[o>>5]&uint32(1<<(o&31)) != 0 {
+			if bb.old.isSet(o) {
 				// Later old->new maps do not override previous ones with the same old string.
 				continue
 			}
@@ -64,7 +68,7 @@ func NewReplacer(oldnew ...string) *Replacer {
 	bs := &byteStringReplacer{}
 	for i := 0; i < len(oldnew); i += 2 {
 		o, new := oldnew[i][0], oldnew[i+1]
-		if bs.old[o>>5]&uint32(1<<(o&31)) != 0 {
+		if bs.old.isSet(o) {
 			// Later old->new maps do not override previous ones with the same old string.
 			continue
 		}
@@ -431,7 +435,7 @@ func (r *byteReplacer) Replace(s string) string {
 	var buf []byte // lazily allocated
 	for i := 0; i < len(s); i++ {
 		b := s[i]
-		if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
+		if r.old.isSet(b) {
 			if buf == nil {
 				buf = []byte(s)
 			}
@@ -456,7 +460,7 @@ func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 		ncopy := copy(buf, s[:])
 		s = s[ncopy:]
 		for i, b := range buf[:ncopy] {
-			if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
+			if r.old.isSet(b) {
 				buf[i] = r.new[b]
 			}
 		}
@@ -486,7 +490,7 @@ func (r *byteStringReplacer) Replace(s string) string {
 	anyChanges := false
 	for i := 0; i < len(s); i++ {
 		b := s[i]
-		if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
+		if r.old.isSet(b) {
 			anyChanges = true
 			newSize += len(r.new[b])
 		} else {
@@ -500,7 +504,7 @@ func (r *byteStringReplacer) Replace(s string) string {
 	bi := buf
 	for i := 0; i < len(s); i++ {
 		b := s[i]
-		if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
+		if r.old.isSet(b) {
 			n := copy(bi, r.new[b])
 			bi = bi[n:]
 		} else {
@@ -516,7 +520,7 @@ func (r *byteStringReplacer) WriteString(w io.Writer, s string) (n int, err erro
 	last := 0
 	for i := 0; i < len(s); i++ {
 		b := s[i]
-		if r.old[b>>5]&uint32(1<<(b&31)) == 0 {
+		if !r.old.isSet(b) {
 			continue
 		}
 		if last != i {
