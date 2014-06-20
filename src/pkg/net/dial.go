@@ -214,14 +214,12 @@ func dialMulti(net, addr string, la Addr, ras addrList, deadline time.Time) (Con
 	nracers := len(ras)
 	for nracers > 0 {
 		sig <- true
-		select {
-		case racer := <-lane:
-			if racer.error == nil {
-				return racer.Conn, nil
-			}
-			lastErr = racer.error
-			nracers--
+		racer := <-lane
+		if racer.error == nil {
+			return racer.Conn, nil
 		}
+		lastErr = racer.error
+		nracers--
 	}
 	return nil, lastErr
 }
