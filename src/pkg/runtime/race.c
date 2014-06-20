@@ -63,6 +63,17 @@ void runtime·racesymbolizethunk(void*);
 // with up to 4 uintptr arguments.
 void runtime·racecall(void(*f)(void), ...);
 
+// checks if the address has shadow (i.e. heap or data/bss)
+static bool
+isvalidaddr(uintptr addr)
+{
+	if(addr >= runtime·racearenastart && addr < runtime·racearenaend)
+		return true;
+	if(addr >= (uintptr)noptrdata && addr < (uintptr)enoptrbss)
+		return true;
+	return false;
+}
+
 uintptr
 runtime·raceinit(void)
 {
@@ -169,7 +180,7 @@ runtime·raceacquire(void *addr)
 void
 runtime·raceacquireg(G *gp, void *addr)
 {
-	if(g->raceignore)
+	if(g->raceignore || !isvalidaddr((uintptr)addr))
 		return;
 	runtime·racecall(__tsan_acquire, gp->racectx, addr);
 }
@@ -177,13 +188,15 @@ runtime·raceacquireg(G *gp, void *addr)
 void
 runtime·racerelease(void *addr)
 {
+	if(g->raceignore || !isvalidaddr((uintptr)addr))
+		return;
 	runtime·racereleaseg(g, addr);
 }
 
 void
 runtime·racereleaseg(G *gp, void *addr)
 {
-	if(g->raceignore)
+	if(g->raceignore || !isvalidaddr((uintptr)addr))
 		return;
 	runtime·racecall(__tsan_release, gp->racectx, addr);
 }
@@ -197,7 +210,7 @@ runtime·racereleasemerge(void *addr)
 void
 runtime·racereleasemergeg(G *gp, void *addr)
 {
-	if(g->raceignore)
+	if(g->raceignore || !isvalidaddr((uintptr)addr))
 		return;
 	runtime·racecall(__tsan_release_merge, gp->racectx, addr);
 }
