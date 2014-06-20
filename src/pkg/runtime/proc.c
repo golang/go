@@ -143,6 +143,11 @@ runtime·schedinit(void)
 	byte *p;
 	Eface i;
 
+	// raceinit must be the first call to race detector.
+	// In particular, it must be done before mallocinit below calls racemapshadow.
+	if(raceenabled)
+		g->racectx = runtime·raceinit();
+
 	runtime·sched.maxmcount = 10000;
 	runtime·precisestack = true; // haveexperiment("precisestack");
 
@@ -181,9 +186,6 @@ runtime·schedinit(void)
 		runtime·copystack = false;
 
 	mstats.enablegc = 1;
-
-	if(raceenabled)
-		g->racectx = runtime·raceinit();
 }
 
 extern void main·init(void);
