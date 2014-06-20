@@ -7,6 +7,7 @@
 
 TEXT ·arg1(SB),0,$0-2
 	MOVB	x+0(FP), AX
+	// MOVB x+0(FP), AX // commented out instructions used to panic
 	MOVB	y+1(FP), BX
 	MOVW	x+0(FP), AX // ERROR "\[amd64\] invalid MOVW of x\+0\(FP\); int8 is 1-byte value"
 	MOVW	y+1(FP), AX // ERROR "invalid MOVW of y\+1\(FP\); uint8 is 1-byte value"

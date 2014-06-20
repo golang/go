@@ -423,7 +423,10 @@ func (f *File) asmParseDecl(decl *ast.FuncDecl) map[string]*asmFunc {
 func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr string, off int, v *asmVar) {
 	m := asmOpcode.FindStringSubmatch(line)
 	if m == nil {
-		badf("cannot find assembly opcode")
+		if !strings.HasPrefix(strings.TrimSpace(line), "//") {
+			badf("cannot find assembly opcode")
+		}
+		return
 	}
 
 	// Determine operand sizes from instruction.
