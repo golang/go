@@ -155,6 +155,48 @@ func TestRLocker(t *testing.T) {
 	}
 }
 
+func TestUnlockPanic(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatalf("unlock of unlocked RWMutex did not panic")
+		}
+	}()
+	var mu RWMutex
+	mu.Unlock()
+}
+
+func TestUnlockPanic2(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatalf("unlock of unlocked RWMutex did not panic")
+		}
+	}()
+	var mu RWMutex
+	mu.RLock()
+	mu.Unlock()
+}
+
+func TestRUnlockPanic(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatalf("read unlock of unlocked RWMutex did not panic")
+		}
+	}()
+	var mu RWMutex
+	mu.RUnlock()
+}
+
+func TestRUnlockPanic2(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatalf("read unlock of unlocked RWMutex did not panic")
+		}
+	}()
+	var mu RWMutex
+	mu.Lock()
+	mu.RUnlock()
+}
+
 func BenchmarkRWMutexUncontended(b *testing.B) {
 	type PaddedRWMutex struct {
 		RWMutex
