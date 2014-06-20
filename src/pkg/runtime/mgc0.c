@@ -1434,12 +1434,12 @@ runtime·stackmapdata(StackMap *stackmap, int32 n)
 // Scans an interface data value when the interface type indicates
 // that it is a pointer.
 static void
-scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue, void *wbufp)
+scaninterfacedata(uintptr bits, byte *scanp, void *wbufp)
 {
 	Itab *tab;
 	Type *type;
 
-	if(runtime·precisestack && afterprologue) {
+	if(runtime·precisestack) {
 		if(bits == BitsIface) {
 			tab = *(Itab**)scanp;
 			if(tab->type->size <= sizeof(void*) && (tab->type->kind & KindNoPointers))
@@ -1455,7 +1455,7 @@ scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue, void *wbufp)
 
 // Starting from scanp, scans words corresponding to set bits.
 static void
-scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
+scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, void *wbufp)
 {
 	uintptr word, bits;
 	uint32 *wordp;
@@ -1549,7 +1549,7 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
 							else
 								runtime·printf("frame %s @%p: iface %p %p\n", runtime·funcname(f), p, ((uintptr*)p)[0], ((uintptr*)p)[1]);
 						}
-						scaninterfacedata(word & 3, p, afterprologue, wbufp);
+						scaninterfacedata(word & 3, p, wbufp);
 					}
 					break;
 				}
@@ -1570,7 +1570,6 @@ scanframe(Stkframe *frame, void *wbufp)
 	uintptr size;
 	uintptr targetpc;
 	int32 pcdata;
-	bool afterprologue;
 	bool precise;
 
 	f = frame->fn;
@@ -1591,36 +1590,33 @@ scanframe(Stkframe *frame, void *wbufp)
 
 	// Scan local variables if stack frame has been allocated.
 	// Use pointer information if known.
-	afterprologue = (frame->varp > (byte*)frame->sp);
 	precise = false;
-	if(afterprologue) {
-		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
-		if(stackmap == nil) {
-			// No locals information, scan everything.
-			size = frame->varp - (byte*)frame->sp;
-			if(Debug > 2)
-				runtime·printf("frame %s unsized locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
-			enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
-		} else if(stackmap->n < 0) {
-			// Locals size information, scan just the locals.
-			size = -stackmap->n;
-			if(Debug > 2)
-				runtime·printf("frame %s conservative locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
-			enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
-		} else if(stackmap->n > 0) {
-			// Locals bitmap information, scan just the pointers in
-			// locals.
-			if(pcdata < 0 || pcdata >= stackmap->n) {
-				// don't know where we are
-				runtime·printf("pcdata is %d and %d stack map entries for %s (targetpc=%p)\n",
-					pcdata, stackmap->n, runtime·funcname(f), targetpc);
-				runtime·throw("scanframe: bad symbol table");
-			}
-			bv = runtime·stackmapdata(stackmap, pcdata);
-			size = (bv.n * PtrSize) / BitsPerPointer;
-			precise = true;
-			scanbitvector(f, true, frame->varp - size, &bv, afterprologue, wbufp);
+	stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+	if(stackmap == nil) {
+		// No locals information, scan everything.
+		size = frame->varp - (byte*)frame->sp;
+		if(Debug > 2)
+			runtime·printf("frame %s unsized locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
+		enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
+	} else if(stackmap->n < 0) {
+		// Locals size information, scan just the locals.
+		size = -stackmap->n;
+		if(Debug > 2)
+			runtime·printf("frame %s conservative locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
+		enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
+	} else if(stackmap->n > 0) {
+		// Locals bitmap information, scan just the pointers in
+		// locals.
+		if(pcdata < 0 || pcdata >= stackmap->n) {
+			// don't know where we are
+			runtime·printf("pcdata is %d and %d stack map entries for %s (targetpc=%p)\n",
+				pcdata, stackmap->n, runtime·funcname(f), targetpc);
+			runtime·throw("scanframe: bad symbol table");
 		}
+		bv = runtime·stackmapdata(stackmap, pcdata);
+		size = (bv.n * PtrSize) / BitsPerPointer;
+		precise = true;
+		scanbitvector(f, true, frame->varp - size, &bv, wbufp);
 	}
 
 	// Scan arguments.
@@ -1628,7 +1624,7 @@ scanframe(Stkframe *frame, void *wbufp)
 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 	if(stackmap != nil) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
-		scanbitvector(f, precise, frame->argp, &bv, true, wbufp);
+		scanbitvector(f, precise, frame->argp, &bv, wbufp);
 	} else {
 		if(Debug > 2)
 			runtime·printf("frame %s conservative args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
