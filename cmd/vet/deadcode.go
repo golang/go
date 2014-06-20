@@ -81,7 +81,9 @@ func (d *deadState) findLabels(stmt ast.Stmt) {
 	case *ast.BranchStmt:
 		switch x.Tok {
 		case token.GOTO:
-			d.hasGoto[x.Label.Name] = true
+			if x.Label != nil {
+				d.hasGoto[x.Label.Name] = true
+			}
 
 		case token.BREAK:
 			stmt := d.breakTarget

@@ -2118,3 +2118,8 @@ var _ = func() int {
 	}
 	println() // ok
 }
+
+var _ = func() {
+	// goto without label used to panic
+	goto
+}
