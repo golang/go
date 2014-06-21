@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"os"
@@ -126,6 +127,10 @@ func (r *Repo) Log() ([]HgLog, error) {
 		if err != nil {
 			return err
 		}
+
+		// We have a commit with description that contains 0x1b byte.
+		// Mercurial does not escape it, but xml.Unmarshal does not accept it.
+		data = bytes.Replace(data, []byte{0x1b}, []byte{'?'}, -1)
 
 		err = xml.Unmarshal([]byte("<Top>"+string(data)+"</Top>"), &logStruct)
 		if err != nil {
