@@ -5,4 +5,5 @@ Please keep the descriptions to a single line, starting with the
 package or cmd/xxx directory name, and ending in a CL number.
 Please keep the list sorted (as in sort.Strings of the lines).
 
+runtime/race: freebsd is supported (CL 107270043)
 time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)
