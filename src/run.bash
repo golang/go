@@ -64,10 +64,10 @@ echo
 echo '# sync -cpu=10'
 go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
 
-# Race detector only supported on Linux and OS X,
+# Race detector only supported on Linux, FreeBSD and OS X,
 # and only on amd64, and only when cgo is enabled.
 case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
-linux-linux-amd64-1 | darwin-darwin-amd64-1)
+linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
 	echo
 	echo '# Testing race detector.'
 	go test -race -i runtime/race flag
