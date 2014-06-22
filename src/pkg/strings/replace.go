@@ -4,7 +4,10 @@
 
 package strings
 
-import "io"
+import (
+	"io"
+	"sync"
+)
 
 // A Replacer replaces a list of strings with replacements.
 type Replacer struct {
@@ -451,27 +454,31 @@ func (r *byteReplacer) Replace(s string) string {
 	return string(buf)
 }
 
-func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
-	// TODO(bradfitz): use io.WriteString with slices of s, avoiding allocation.
-	bufsize := 32 << 10
-	if len(s) < bufsize {
-		bufsize = len(s)
-	}
-	buf := make([]byte, bufsize)
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		b := make([]byte, 4096)
+		return &b
+	},
+}
 
+func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
+	bp := bufferPool.Get().(*[]byte)
+	buf := *bp
 	for len(s) > 0 {
-		ncopy := copy(buf, s[:])
-		s = s[ncopy:]
+		ncopy := copy(buf, s)
 		for i, b := range buf[:ncopy] {
 			buf[i] = r.new[b]
 		}
-		wn, err := w.Write(buf[:ncopy])
+		s = s[ncopy:]
+		var wn int
+		wn, err = w.Write(buf[:ncopy])
 		n += wn
 		if err != nil {
-			return n, err
+			break
 		}
 	}
-	return n, nil
+	bufferPool.Put(bp)
+	return
 }
 
 // byteStringReplacer is the implementation that's used when all the
