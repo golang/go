@@ -188,7 +188,7 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
 	// The Paeth filter.
 	sum = 0
 	for i := 0; i < bpp; i++ {
-		cdat4[i] = cdat0[i] - paeth(0, pdat[i], 0)
+		cdat4[i] = cdat0[i] - pdat[i]
 		sum += abs8(cdat4[i])
 	}
 	for i := bpp; i < n; i++ {
