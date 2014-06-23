@@ -47,7 +47,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
 //sys	Setfsuid(uid int) (err error) = SYS_SETFSUID32
-//sysnb	Setgid(gid int) (err error) = SYS_SETGID32
 //sysnb	Setregid(rgid int, egid int) (err error) = SYS_SETREGID32
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error) = SYS_SETRESGID32
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32

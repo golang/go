@@ -807,7 +807,20 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	Setpgid(pid int, pgid int) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tv *Timeval) (err error)
-//sysnb	Setuid(uid int) (err error)
+
+// issue 1435.
+// On linux Setuid and Setgid only affects the current thread, not the process.
+// This does not match what most callers expect so we must return an error
+// here rather than letting the caller think that the call succeeded.
+
+func Setuid(uid int) (err error) {
+	return EOPNOTSUPP
+}
+
+func Setgid(uid int) (err error) {
+	return EOPNOTSUPP
+}
+
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sys	Setxattr(path string, attr string, data []byte, flags int) (err error)
 //sys	Symlink(oldpath string, newpath string) (err error)
