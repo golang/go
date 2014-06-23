@@ -224,6 +224,8 @@ type RawSockaddr C.struct_sockaddr
 
 type RawSockaddrAny C.struct_sockaddr_any
 
+type RawSockaddrStorage C.struct_sockaddr_storage
+
 type _Socklen C.socklen_t
 
 type Linger C.struct_linger
@@ -235,6 +237,10 @@ type IPMreq C.struct_ip_mreq
 type IPMreqn C.struct_ip_mreqn
 
 type IPv6Mreq C.struct_ipv6_mreq
+
+type GroupReq C.struct_group_req
+
+type GroupSourceReq C.struct_group_source_req
 
 type Msghdr C.struct_msghdr
 
@@ -252,10 +258,13 @@ const (
 	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
 	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
 	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
+	SizeofSockaddrStorage  = C.sizeof_struct_sockaddr_storage
 	SizeofLinger           = C.sizeof_struct_linger
 	SizeofIPMreq           = C.sizeof_struct_ip_mreq
 	SizeofIPMreqn          = C.sizeof_struct_ip_mreqn
 	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
+	SizeofGroupReq         = C.sizeof_struct_group_req
+	SizeofGroupSourceReq   = C.sizeof_struct_group_source_req
 	SizeofMsghdr           = C.sizeof_struct_msghdr
 	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
 	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
