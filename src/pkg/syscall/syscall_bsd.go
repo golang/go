@@ -498,6 +498,7 @@ func SysctlUint32(name string) (value uint32, err error) {
 }
 
 //sys	utimes(path string, timeval *[2]Timeval) (err error)
+
 func Utimes(path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
@@ -521,6 +522,7 @@ func UtimesNano(path string, ts []Timespec) error {
 }
 
 //sys	futimes(fd int, timeval *[2]Timeval) (err error)
+
 func Futimes(fd int, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
