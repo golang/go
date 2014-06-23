@@ -36,10 +36,13 @@ TEXT runtime·memmove(SB), NOSPLIT, $0-24
 
 	// REP instructions have a high startup cost, so we handle small sizes
 	// with some straightline code.  The REP MOVSQ instruction is really fast
-	// for large sizes.  The cutover is approximately 1K.  We implement up to
-	// 256 because that is the maximum SSE register load (loading all data
-	// into registers lets us ignore copy direction).
+	// for large sizes.  The cutover is approximately 2K.
 tail:
+	// move_129through256 or smaller work whether or not the source and the
+	// destination memory regions overlap because they load all data into
+	// registers before writing it back.  move_256through2048 on the other
+	// hand can be used only when the memory regions don't overlap or the copy
+	// direction is forward.
 	TESTQ	BX, BX
 	JEQ	move_0
 	CMPQ	BX, $2
@@ -70,10 +73,12 @@ tail:
  * forward copy loop
  */
 forward:
+	CMPQ	BX, $2048
+	JLS	move_256through2048
+
 	MOVQ	BX, CX
 	SHRQ	$3, CX
 	ANDQ	$7, BX
-
 	REP;	MOVSQ
 	JMP	tail
 
@@ -205,3 +210,42 @@ move_129through256:
 	MOVOU	X14, -32(DI)(BX*1)
 	MOVOU	X15, -16(DI)(BX*1)
 	RET
+move_256through2048:
+	SUBQ	$256, BX
+	MOVOU	(SI), X0
+	MOVOU	16(SI), X1
+	MOVOU	32(SI), X2
+	MOVOU	48(SI), X3
+	MOVOU	64(SI), X4
+	MOVOU	80(SI), X5
+	MOVOU	96(SI), X6
+	MOVOU	112(SI), X7
+	MOVOU	128(SI), X8
+	MOVOU	144(SI), X9
+	MOVOU	160(SI), X10
+	MOVOU	176(SI), X11
+	MOVOU	192(SI), X12
+	MOVOU	208(SI), X13
+	MOVOU	224(SI), X14
+	MOVOU	240(SI), X15
+	MOVOU	X0, (DI)
+	MOVOU	X1, 16(DI)
+	MOVOU	X2, 32(DI)
+	MOVOU	X3, 48(DI)
+	MOVOU	X4, 64(DI)
+	MOVOU	X5, 80(DI)
+	MOVOU	X6, 96(DI)
+	MOVOU	X7, 112(DI)
+	MOVOU	X8, 128(DI)
+	MOVOU	X9, 144(DI)
+	MOVOU	X10, 160(DI)
+	MOVOU	X11, 176(DI)
+	MOVOU	X12, 192(DI)
+	MOVOU	X13, 208(DI)
+	MOVOU	X14, 224(DI)
+	MOVOU	X15, 240(DI)
+	CMPQ	BX, $256
+	LEAQ	256(SI), SI
+	LEAQ	256(DI), DI
+	JGE	move_256through2048
+	JMP	tail
