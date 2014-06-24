@@ -212,12 +212,6 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 			code = StatusPartialContent
 			w.Header().Set("Content-Range", ra.contentRange(size))
 		case len(ranges) > 1:
-			for _, ra := range ranges {
-				if ra.start > size {
-					Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
-					return
-				}
-			}
 			sendSize = rangesMIMESize(ranges, ctype, size)
 			code = StatusPartialContent
 
