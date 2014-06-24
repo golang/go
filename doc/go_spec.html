@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 28, 2014",
+	"Subtitle": "Version of June 24, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -2029,13 +2029,14 @@ and associates the method with the receiver's <i>base type</i>.
 
 <pre class="ebnf">
 MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
-Receiver     = "(" [ identifier ] [ "*" ] BaseTypeName ")" .
-BaseTypeName = identifier .
+Receiver     = Parameters .
 </pre>
 
 <p>
-The receiver type must be of the form <code>T</code> or <code>*T</code> where
-<code>T</code> is a type name. The type denoted by <code>T</code> is called
+The receiver is specified via an extra parameter section preceeding the method
+name. That parameter section must declare a single parameter, the receiver.
+Its type must be of the form <code>T</code> or <code>*T</code> (possibly using
+parentheses) where <code>T</code> is a type name. The type denoted by <code>T</code> is called
 the receiver <i>base type</i>; it must not be a pointer or interface type and
 it must be declared in the same package as the method.
 The method is said to be <i>bound</i> to the base type and the method name
