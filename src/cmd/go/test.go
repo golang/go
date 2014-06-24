@@ -1177,12 +1177,12 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
 	ex := doc.Examples(f)
 	sort.Sort(byOrder(ex))
 	for _, e := range ex {
+		*seen = true // Build the file even if the example is not runnable.
 		if e.Output == "" && !e.EmptyOutput {
 			// Don't run examples with no output.
 			continue
 		}
 		t.Examples = append(t.Examples, testFunc{pkg, "Example" + e.Name, e.Output})
-		*seen = true
 	}
 	return nil
 }
