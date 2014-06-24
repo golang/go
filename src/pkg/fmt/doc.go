@@ -160,7 +160,7 @@
 
 	For example,
 		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
-	will yield "22, 11", while
+	will yield "22 11", while
 		fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6),
 	equivalent to
 		fmt.Sprintf("%6.2f", 12.0),
