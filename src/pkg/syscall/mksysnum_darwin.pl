@@ -18,13 +18,39 @@ package syscall
 const (
 EOF
 
+my %syscalls;
+
 while(<>){
 	if(/^#define\s+SYS_(\w+)\s+([0-9]+)/){
 		my $name = $1;
 		my $num = $2;
 		$name =~ y/a-z/A-Z/;
-		print "	SYS_$name = $num;"
+		$syscalls{"SYS_$name"} = "$num";
 	}
+}
+
+# We keep some constants not supported in OS X Mavericks and beyond
+# for the promise of compatibility.
+$syscalls{"SYS_PROFIL"} = 44;
+$syscalls{"SYS_ADD_PROFIL"} = 176;
+$syscalls{"SYS_ATSOCKET"} = 206;
+$syscalls{"SYS_ATGETMSG"} = 207;
+$syscalls{"SYS_ATPUTMSG"} = 208;
+$syscalls{"SYS_ATPSNDREQ"} = 209;
+$syscalls{"SYS_ATPSNDRSP"} = 210;
+$syscalls{"SYS_ATPGETREQ"} = 211;
+$syscalls{"SYS_ATPGETRSP"} = 212;
+$syscalls{"SYS_MKCOMPLEX"} = 216;
+$syscalls{"SYS_STATV"} = 217;
+$syscalls{"SYS_LSTATV"} = 218;
+$syscalls{"SYS_FSTATV"} = 219;
+$syscalls{"SYS_GETAUDIT"} = 355;
+$syscalls{"SYS_SETAUDIT"} = 356;
+$syscalls{"SYS_PID_HIBERNATE"} = 435;
+$syscalls{"SYS_PID_SHUTDOWN_SOCKETS"} = 436;
+
+for my $key (sort {$syscalls{$a} <=> $syscalls{$b} || $a cmp $b} keys %syscalls){ 
+	print "$key = $syscalls{$key};\n";
 }
 
 print <<EOF;

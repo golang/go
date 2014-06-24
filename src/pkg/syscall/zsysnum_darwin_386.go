@@ -118,6 +118,7 @@ const (
 	SYS_QUOTACTL                       = 165
 	SYS_MOUNT                          = 167
 	SYS_CSOPS                          = 169
+	SYS_CSOPS_AUDITTOKEN               = 170
 	SYS_WAITID                         = 173
 	SYS_ADD_PROFIL                     = 176
 	SYS_KDEBUG_TRACE                   = 180
@@ -151,6 +152,7 @@ const (
 	SYS_ATPGETREQ                      = 211
 	SYS_ATPGETRSP                      = 212
 	SYS_MKCOMPLEX                      = 216
+	SYS_OPEN_DPROTECTED_NP             = 216
 	SYS_STATV                          = 217
 	SYS_LSTATV                         = 218
 	SYS_FSTATV                         = 219
@@ -298,6 +300,7 @@ const (
 	SYS___OLD_SEMWAIT_SIGNAL           = 370
 	SYS___OLD_SEMWAIT_SIGNAL_NOCANCEL  = 371
 	SYS_THREAD_SELFID                  = 372
+	SYS_LEDGER                         = 373
 	SYS___MAC_EXECVE                   = 380
 	SYS___MAC_SYSCALL                  = 381
 	SYS___MAC_GET_FILE                 = 382
@@ -356,5 +359,21 @@ const (
 	SYS_PID_HIBERNATE                  = 435
 	SYS_PID_SHUTDOWN_SOCKETS           = 436
 	SYS_SHARED_REGION_MAP_AND_SLIDE_NP = 438
-	SYS_MAXSYSCALL                     = 439
+	SYS_KAS_INFO                       = 439
+	SYS_MEMORYSTATUS_CONTROL           = 440
+	SYS_GUARDED_OPEN_NP                = 441
+	SYS_GUARDED_CLOSE_NP               = 442
+	SYS_GUARDED_KQUEUE_NP              = 443
+	SYS_CHANGE_FDGUARD_NP              = 444
+	SYS_PROC_RLIMIT_CONTROL            = 446
+	SYS_CONNECTX                       = 447
+	SYS_DISCONNECTX                    = 448
+	SYS_PEELOFF                        = 449
+	SYS_SOCKET_DELEGATE                = 450
+	SYS_TELEMETRY                      = 451
+	SYS_PROC_UUID_POLICY               = 452
+	SYS_MEMORYSTATUS_GET_LEVEL         = 453
+	SYS_SYSTEM_OVERRIDE                = 454
+	SYS_VFS_PURGE                      = 455
+	SYS_MAXSYSCALL                     = 456
 )
