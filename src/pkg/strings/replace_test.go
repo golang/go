@@ -308,23 +308,41 @@ func TestReplacer(t *testing.T) {
 	}
 }
 
+var algorithmTestCases = []struct {
+	r    *Replacer
+	want string
+}{
+	{capitalLetters, "*strings.byteReplacer"},
+	{htmlEscaper, "*strings.byteStringReplacer"},
+	{NewReplacer("12", "123"), "*strings.singleStringReplacer"},
+	{NewReplacer("1", "12"), "*strings.byteStringReplacer"},
+	{NewReplacer("", "X"), "*strings.genericReplacer"},
+	{NewReplacer("a", "1", "b", "12", "cde", "123"), "*strings.genericReplacer"},
+}
+
 // TestPickAlgorithm tests that NewReplacer picks the correct algorithm.
 func TestPickAlgorithm(t *testing.T) {
-	testCases := []struct {
-		r    *Replacer
-		want string
-	}{
-		{capitalLetters, "*strings.byteReplacer"},
-		{htmlEscaper, "*strings.byteStringReplacer"},
-		{NewReplacer("12", "123"), "*strings.singleStringReplacer"},
-		{NewReplacer("1", "12"), "*strings.byteStringReplacer"},
-		{NewReplacer("", "X"), "*strings.genericReplacer"},
-		{NewReplacer("a", "1", "b", "12", "cde", "123"), "*strings.genericReplacer"},
-	}
-	for i, tc := range testCases {
+	for i, tc := range algorithmTestCases {
 		got := fmt.Sprintf("%T", tc.r.Replacer())
 		if got != tc.want {
 			t.Errorf("%d. algorithm = %s, want %s", i, got, tc.want)
+		}
+	}
+}
+
+type errWriter struct{}
+
+func (errWriter) Write(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("unwritable")
+}
+
+// TestWriteStringError tests that WriteString returns an error
+// received from the underlying io.Writer.
+func TestWriteStringError(t *testing.T) {
+	for i, tc := range algorithmTestCases {
+		n, err := tc.r.WriteString(errWriter{}, "abc")
+		if n != 0 || err == nil || err.Error() != "unwritable" {
+			t.Errorf("%d. WriteStringError = %d, %v, want 0, unwritable", i, n, err)
 		}
 	}
 }
