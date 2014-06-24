@@ -157,7 +157,7 @@ func roundDown10(n int) int {
 	return result
 }
 
-// roundUp rounds x up to a number of the form [1eX, 2eX, 5eX].
+// roundUp rounds x up to a number of the form [1eX, 2eX, 3eX, 5eX].
 func roundUp(n int) int {
 	base := roundDown10(n)
 	switch {
@@ -165,6 +165,8 @@ func roundUp(n int) int {
 		return base
 	case n <= (2 * base):
 		return 2 * base
+	case n <= (3 * base):
+		return 3 * base
 	case n <= (5 * base):
 		return 5 * base
 	default:
@@ -180,10 +182,10 @@ func (b *B) run() BenchmarkResult {
 }
 
 // launch launches the benchmark function.  It gradually increases the number
-// of benchmark iterations until the benchmark runs for a second in order
-// to get a reasonable measurement.  It prints timing information in this form
+// of benchmark iterations until the benchmark runs for the requested benchtime.
+// It prints timing information in this form
 //		testing.BenchmarkHello	100000		19 ns/op
-// launch is run by the fun function as a separate goroutine.
+// launch is run by the run function as a separate goroutine.
 func (b *B) launch() {
 	// Run the benchmark for a single iteration in case it's expensive.
 	n := 1
@@ -199,16 +201,16 @@ func (b *B) launch() {
 	d := *benchTime
 	for !b.failed && b.duration < d && n < 1e9 {
 		last := n
-		// Predict iterations/sec.
+		// Predict required iterations.
 		if b.nsPerOp() == 0 {
 			n = 1e9
 		} else {
 			n = int(d.Nanoseconds() / b.nsPerOp())
 		}
-		// Run more iterations than we think we'll need for a second (1.5x).
+		// Run more iterations than we think we'll need (1.2x).
 		// Don't grow too fast in case we had timing errors previously.
 		// Be sure to run at least one more than last time.
-		n = max(min(n+n/2, 100*last), last+1)
+		n = max(min(n+n/5, 100*last), last+1)
 		// Round up to something easy to read.
 		n = roundUp(n)
 		b.runN(n)
