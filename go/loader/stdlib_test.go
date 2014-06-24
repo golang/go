@@ -138,8 +138,9 @@ func TestStdlib(t *testing.T) {
 }
 
 func TestCgoOption(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		// on windows, the net and os/user packages don't use cgo.
+	switch runtime.GOOS {
+	// on these systems, the net and os/user packages don't use cgo.
+	case "plan9", "solaris", "windows":
 		return
 	}
 	// Test that we can load cgo-using packages with
