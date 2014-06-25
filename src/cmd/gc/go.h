@@ -574,7 +574,6 @@ enum
 	OTINTER,	// interface{}
 	OTFUNC,	// func()
 	OTARRAY,	// []int, [8]int, [N]int or [...]int
-	OTPAREN,	// (T)
 
 	// misc
 	ODDD,	// func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.

@@ -974,7 +974,6 @@ static int opprec[] = {
 	[OTFUNC] = 8,
 	[OTINTER] = 8,
 	[OTMAP] = 8,
-	[OTPAREN] = 8,
 	[OTSTRUCT] = 8,
 
 	[OINDEXMAP] = 8,
@@ -1139,9 +1138,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 		if(n->left)
 			return fmtprint(f, "[]%N", n->left);
 		return fmtprint(f, "[]%N", n->right);  // happens before typecheck
-
-	case OTPAREN:
-		return fmtprint(f, "(%N)", n->left);
 
 	case OTMAP:
 		return fmtprint(f, "map[%N]%N", n->left, n->right);

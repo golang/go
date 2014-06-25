@@ -1180,7 +1180,7 @@ ntype:
 |	dotname
 |	'(' ntype ')'
 	{
-		$$ = nod(OTPAREN, $2, N);
+		$$ = $2;
 	}
 
 non_expr_type:
@@ -1199,7 +1199,7 @@ non_recvchantype:
 |	dotname
 |	'(' ntype ')'
 	{
-		$$ = nod(OTPAREN, $2, N);
+		$$ = $2;
 	}
 
 convtype:
@@ -1366,8 +1366,6 @@ fndcl:
 			yyerror("bad receiver in method");
 			break;
 		}
-		if(rcvr->right->op == OTPAREN || (rcvr->right->op == OIND && rcvr->right->left->op == OTPAREN))
-			yyerror("cannot parenthesize receiver type");
 
 		t = nod(OTFUNC, rcvr, N);
 		t->list = $6;
