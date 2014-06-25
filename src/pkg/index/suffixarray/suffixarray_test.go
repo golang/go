@@ -287,7 +287,7 @@ func BenchmarkNewIndexRepeat(b *testing.B) {
 func BenchmarkSaveRestore(b *testing.B) {
 	b.StopTimer()
 	r := rand.New(rand.NewSource(0x5a77a1)) // guarantee always same sequence
-	data := make([]byte, 10<<20)            // 10MB of data to index
+	data := make([]byte, 1<<20)             // 1MB of data to index
 	for i := range data {
 		data[i] = byte(r.Intn(256))
 	}
