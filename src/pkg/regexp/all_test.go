@@ -475,6 +475,9 @@ func TestSplit(t *testing.T) {
 
 // This ran out of stack before issue 7608 was fixed.
 func TestOnePassCutoff(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
 	MustCompile(`^(?:x{1,1000}){1,1000}$`)
 }
 
