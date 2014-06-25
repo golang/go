@@ -382,16 +382,6 @@ reswitch:
 		if(n->type == T)
 			goto error;
 		break;
-
-	case OTPAREN:
-		ok |= Etype;
-		l = typecheck(&n->left, Etype);
-		if(l->type == T)
-			goto error;
-		n->op = OTYPE;
-		n->type = l->type;
-		n->left = N;
-		break;
 	
 	case OTARRAY:
 		ok |= Etype;
