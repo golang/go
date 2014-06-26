@@ -2310,9 +2310,9 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
 		return par
 	}
 
-	// recv type must be of the form ["*"] identifier
+	// recv type must be of the form ["*"] identifier, possibly using parentheses
 	recv := par.List[0]
-	base := deref(recv.Type)
+	base := unparen(deref(unparen(recv.Type)))
 	if _, isIdent := base.(*ast.Ident); !isIdent {
 		if _, isBad := base.(*ast.BadExpr); !isBad {
 			// only report error if it's a new one
