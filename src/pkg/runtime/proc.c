@@ -297,10 +297,12 @@ runtime·goroutineheader(G *gp)
 	if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince != 0)
 		waitfor = (runtime·nanotime() - gp->waitsince) / (60LL*1000*1000*1000);
 
-	if(waitfor < 1)
-		runtime·printf("goroutine %D [%s]:\n", gp->goid, status);
-	else
-		runtime·printf("goroutine %D [%s, %D minutes]:\n", gp->goid, status, waitfor);
+	runtime·printf("goroutine %D [%s", gp->goid, status);
+	if(waitfor >= 1)
+		runtime·printf(", %D minutes", waitfor);
+	if(gp->lockedm != nil)
+		runtime·printf(", locked to thread");
+	runtime·printf("]:\n");
 }
 
 void
