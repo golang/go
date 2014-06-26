@@ -1069,8 +1069,11 @@ func makeBenchInputHard() string {
 		"hello", "world",
 	}
 	x := make([]byte, 0, 1<<20)
-	for len(x) < 1<<20 {
+	for {
 		i := rand.Intn(len(tokens))
+		if len(x)+len(tokens[i]) >= 1<<20 {
+			break
+		}
 		x = append(x, tokens[i]...)
 	}
 	return string(x)
