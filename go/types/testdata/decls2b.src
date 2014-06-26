@@ -51,3 +51,15 @@ func (Foo /* ERROR "undeclared" */ ) m() int { return "foo" /* ERROR "cannot con
 func (Foo /* ERROR "undeclared" */ ) _() {}
 func (Foo /* ERROR "undeclared" */ ) _(undeclared /* ERROR "undeclared" */ ) {}
 func (Foo /* ERROR "undeclared" */ ) _() int { return "foo" /* ERROR "cannot convert" */ }
+
+// Receiver declarations are regular parameter lists;
+// receiver types may use parentheses, and the list
+// may have a trailing comma.
+type T7 struct {}
+
+func (T7) m1() {}
+func ((T7)) m2() {}
+func ((*T7)) m3() {}
+func (x *(T7),) m4() {}
+func (x (*(T7)),) m5() {}
+func (x ((*((T7)))),) m6() {}
