@@ -261,18 +261,18 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
 	MOVL (16*4+5*8)(AX), AX
 	MOVL	AX, TLS
 
-	// check that m exists
+	// check that g exists
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), DI
 	
-	CMPL	BX, $0
-	JEQ	nom
+	CMPL	DI, $0
+	JEQ	nog
 
 	// save g
-	MOVL	g(CX), DI
 	MOVL	DI, 20(SP)
 	
 	// g = m->gsignal
+	MOVL	g_m(DI), BX
 	MOVL	m_gsignal(BX), BX
 	MOVL	BX, g(CX)
 
@@ -359,7 +359,7 @@ notls:
 	MOVL	0, AX
 	RET
 
-nom:
+nog:
 	MOVL	0, AX
 	RET
 

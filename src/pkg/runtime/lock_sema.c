@@ -39,15 +39,15 @@ runtime·lock(Lock *l)
 	uintptr v;
 	uint32 i, spin;
 
-	if(m->locks++ < 0)
+	if(g->m->locks++ < 0)
 		runtime·throw("runtime·lock: lock count");
 
 	// Speculative grab for lock.
 	if(runtime·casp((void**)&l->key, nil, (void*)LOCKED))
 		return;
 
-	if(m->waitsema == 0)
-		m->waitsema = runtime·semacreate();
+	if(g->m->waitsema == 0)
+		g->m->waitsema = runtime·semacreate();
 
 	// On uniprocessor's, no point spinning.
 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
@@ -73,8 +73,8 @@ unlocked:
 			// for this lock, chained through m->nextwaitm.
 			// Queue this M.
 			for(;;) {
-				m->nextwaitm = (void*)(v&~LOCKED);
-				if(runtime·casp((void**)&l->key, (void*)v, (void*)((uintptr)m|LOCKED)))
+				g->m->nextwaitm = (void*)(v&~LOCKED);
+				if(runtime·casp((void**)&l->key, (void*)v, (void*)((uintptr)g->m|LOCKED)))
 					break;
 				v = (uintptr)runtime·atomicloadp((void**)&l->key);
 				if((v&LOCKED) == 0)
@@ -112,9 +112,9 @@ runtime·unlock(Lock *l)
 		}
 	}
 
-	if(--m->locks < 0)
+	if(--g->m->locks < 0)
 		runtime·throw("runtime·unlock: lock count");
-	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+	if(g->m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
 		g->stackguard0 = StackPreempt;
 }
 
@@ -150,20 +150,20 @@ runtime·notewakeup(Note *n)
 void
 runtime·notesleep(Note *n)
 {
-	if(g != m->g0)
+	if(g != g->m->g0)
 		runtime·throw("notesleep not on g0");
 
-	if(m->waitsema == 0)
-		m->waitsema = runtime·semacreate();
-	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup)
+	if(g->m->waitsema == 0)
+		g->m->waitsema = runtime·semacreate();
+	if(!runtime·casp((void**)&n->key, nil, g->m)) {  // must be LOCKED (got wakeup)
 		if(n->key != LOCKED)
 			runtime·throw("notesleep - waitm out of sync");
 		return;
 	}
 	// Queued.  Sleep.
-	m->blocked = true;
+	g->m->blocked = true;
 	runtime·semasleep(-1);
-	m->blocked = false;
+	g->m->blocked = false;
 }
 
 #pragma textflag NOSPLIT
@@ -175,7 +175,7 @@ notetsleep(Note *n, int64 ns, int64 deadline, M *mp)
 	// does not count against our nosplit stack sequence.
 
 	// Register for wakeup on n->waitm.
-	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup already)
+	if(!runtime·casp((void**)&n->key, nil, g->m)) {  // must be LOCKED (got wakeup already)
 		if(n->key != LOCKED)
 			runtime·throw("notetsleep - waitm out of sync");
 		return true;
@@ -183,23 +183,23 @@ notetsleep(Note *n, int64 ns, int64 deadline, M *mp)
 
 	if(ns < 0) {
 		// Queued.  Sleep.
-		m->blocked = true;
+		g->m->blocked = true;
 		runtime·semasleep(-1);
-		m->blocked = false;
+		g->m->blocked = false;
 		return true;
 	}
 
 	deadline = runtime·nanotime() + ns;
 	for(;;) {
 		// Registered.  Sleep.
-		m->blocked = true;
+		g->m->blocked = true;
 		if(runtime·semasleep(ns) >= 0) {
-			m->blocked = false;
+			g->m->blocked = false;
 			// Acquired semaphore, semawakeup unregistered us.
 			// Done.
 			return true;
 		}
-		m->blocked = false;
+		g->m->blocked = false;
 
 		// Interrupted or timed out.  Still registered.  Semaphore not acquired.
 		ns = deadline - runtime·nanotime();
@@ -214,17 +214,17 @@ notetsleep(Note *n, int64 ns, int64 deadline, M *mp)
 	// try to grant us the semaphore when we don't expect it.
 	for(;;) {
 		mp = runtime·atomicloadp((void**)&n->key);
-		if(mp == m) {
+		if(mp == g->m) {
 			// No wakeup yet; unregister if possible.
 			if(runtime·casp((void**)&n->key, mp, nil))
 				return false;
 		} else if(mp == (M*)LOCKED) {
 			// Wakeup happened so semaphore is available.
 			// Grab it to avoid getting out of sync.
-			m->blocked = true;
+			g->m->blocked = true;
 			if(runtime·semasleep(-1) < 0)
 				runtime·throw("runtime: unable to acquire - semaphore out of sync");
-			m->blocked = false;
+			g->m->blocked = false;
 			return true;
 		} else
 			runtime·throw("runtime: unexpected waitm - semaphore out of sync");
@@ -236,11 +236,11 @@ runtime·notetsleep(Note *n, int64 ns)
 {
 	bool res;
 
-	if(g != m->g0 && !m->gcing)
+	if(g != g->m->g0 && !g->m->gcing)
 		runtime·throw("notetsleep not on g0");
 
-	if(m->waitsema == 0)
-		m->waitsema = runtime·semacreate();
+	if(g->m->waitsema == 0)
+		g->m->waitsema = runtime·semacreate();
 
 	res = notetsleep(n, ns, 0, nil);
 	return res;
@@ -253,11 +253,11 @@ runtime·notetsleepg(Note *n, int64 ns)
 {
 	bool res;
 
-	if(g == m->g0)
+	if(g == g->m->g0)
 		runtime·throw("notetsleepg on g0");
 
-	if(m->waitsema == 0)
-		m->waitsema = runtime·semacreate();
+	if(g->m->waitsema == 0)
+		g->m->waitsema = runtime·semacreate();
 
 	runtime·entersyscallblock();
 	res = notetsleep(n, ns, 0, nil);

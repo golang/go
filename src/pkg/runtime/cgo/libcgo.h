@@ -32,7 +32,6 @@ struct G
 typedef struct ThreadStart ThreadStart;
 struct ThreadStart
 {
-	uintptr m;
 	G *g;
 	uintptr *tls;
 	void (*fn)(void);

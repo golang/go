@@ -173,8 +173,8 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool 
 	MSpan *s;
 
 	runtime·lock(h);
-	mstats.heap_alloc += m->mcache->local_cachealloc;
-	m->mcache->local_cachealloc = 0;
+	mstats.heap_alloc += g->m->mcache->local_cachealloc;
+	g->m->mcache->local_cachealloc = 0;
 	s = MHeap_AllocLocked(h, npage, sizeclass);
 	if(s != nil) {
 		mstats.heap_inuse += npage<<PageShift;
@@ -384,8 +384,8 @@ void
 runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
 {
 	runtime·lock(h);
-	mstats.heap_alloc += m->mcache->local_cachealloc;
-	m->mcache->local_cachealloc = 0;
+	mstats.heap_alloc += g->m->mcache->local_cachealloc;
+	g->m->mcache->local_cachealloc = 0;
 	mstats.heap_inuse -= s->npages<<PageShift;
 	if(acct) {
 		mstats.heap_alloc -= s->npages<<PageShift;
@@ -656,7 +656,7 @@ addspecial(void *p, Special *s)
 
 	// Ensure that the span is swept.
 	// GC accesses specials list w/o locks. And it's just much safer.
-	m->locks++;
+	g->m->locks++;
 	runtime·MSpan_EnsureSwept(span);
 
 	offset = (uintptr)p - (span->start << PageShift);
@@ -669,7 +669,7 @@ addspecial(void *p, Special *s)
 	while((x = *t) != nil) {
 		if(offset == x->offset && kind == x->kind) {
 			runtime·unlock(&span->specialLock);
-			m->locks--;
+			g->m->locks--;
 			return false; // already exists
 		}
 		if(offset < x->offset || (offset == x->offset && kind < x->kind))
@@ -681,7 +681,7 @@ addspecial(void *p, Special *s)
 	s->next = x;
 	*t = s;
 	runtime·unlock(&span->specialLock);
-	m->locks--;
+	g->m->locks--;
 	return true;
 }
 
@@ -701,7 +701,7 @@ removespecial(void *p, byte kind)
 
 	// Ensure that the span is swept.
 	// GC accesses specials list w/o locks. And it's just much safer.
-	m->locks++;
+	g->m->locks++;
 	runtime·MSpan_EnsureSwept(span);
 
 	offset = (uintptr)p - (span->start << PageShift);
@@ -714,13 +714,13 @@ removespecial(void *p, byte kind)
 		if(offset == s->offset && kind == s->kind) {
 			*t = s->next;
 			runtime·unlock(&span->specialLock);
-			m->locks--;
+			g->m->locks--;
 			return s;
 		}
 		t = &s->next;
 	}
 	runtime·unlock(&span->specialLock);
-	m->locks--;
+	g->m->locks--;
 	return nil;
 }
 

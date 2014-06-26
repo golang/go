@@ -57,7 +57,7 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
 	MCacheList *l;
 	MSpan *s;
 
-	m->locks++;
+	g->m->locks++;
 	// Return the current cached span to the central lists.
 	s = c->alloc[sizeclass];
 	if(s->freelist != nil)
@@ -83,7 +83,7 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
 		runtime·throw("empty span");
 	}
 	c->alloc[sizeclass] = s;
-	m->locks--;
+	g->m->locks--;
 	return s;
 }
 

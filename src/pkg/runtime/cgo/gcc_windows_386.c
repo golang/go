@@ -54,8 +54,7 @@ threadentry(void *v)
 		"movl %0, %%fs:0x14\n"	// MOVL tls0, 0x14(FS)
 		"movl %%fs:0x14, %%eax\n"	// MOVL 0x14(FS), tmp
 		"movl %1, 0(%%eax)\n"	// MOVL g, 0(FS)
-		"movl %2, 4(%%eax)\n"	// MOVL m, 4(FS)
-		:: "r"(ts.tls), "r"(ts.g), "r"(ts.m) : "%eax"
+		:: "r"(ts.tls), "r"(ts.g) : "%eax"
 	);
 	
 	crosscall_386(ts.fn);

@@ -9,15 +9,15 @@
 #include "libcgo.h"
 
 static void* threadentry(void*);
-static void (*setmg_gcc)(void*, void*);
+static void (*setg_gcc)(void*);
 
 void
-x_cgo_init(G *g, void (*setmg)(void*, void*))
+x_cgo_init(G *g, void (*setg)(void*))
 {
 	pthread_attr_t attr;
 	size_t size;
 
-	setmg_gcc = setmg;
+	setg_gcc = setg;
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
 	g->stackguard = (uintptr)&attr - size + 4096;
@@ -69,7 +69,7 @@ threadentry(void *v)
 	/*
 	 * Set specific keys.
 	 */
-	setmg_gcc((void*)ts.m, (void*)ts.g);
+	setg_gcc((void*)ts.g);
 
 	crosscall_386(ts.fn);
 	return nil;

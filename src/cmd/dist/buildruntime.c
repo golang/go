@@ -130,17 +130,14 @@ static struct {
 	{"386", "",
 		"#define	get_tls(r)	MOVL TLS, r\n"
 		"#define	g(r)	0(r)(TLS*1)\n"
-		"#define	m(r)	4(r)(TLS*1)\n"
 	},
 	{"amd64p32", "",
 		"#define	get_tls(r)	MOVL TLS, r\n"
 		"#define	g(r)	0(r)(TLS*1)\n"
-		"#define	m(r)	4(r)(TLS*1)\n"
 	},
 	{"amd64", "",
 		"#define	get_tls(r)	MOVQ TLS, r\n"
 		"#define	g(r)	0(r)(TLS*1)\n"
-		"#define	m(r)	8(r)(TLS*1)\n"
 	},	
 
 	{"arm", "",

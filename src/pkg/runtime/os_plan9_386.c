@@ -73,7 +73,7 @@ runtime·sighandler(void *v, int8 *note, G *gp)
 	if(flags & SigPanic) {
 		// Copy the error string from sigtramp's stack into m->notesig so
 		// we can reliably access it from the panic routines.
-		runtime·memmove(m->notesig, note, len+1);
+		runtime·memmove(g->m->notesig, note, len+1);
 
 		gp->sig = sig;
 		gp->sigpc = ureg->pc;
@@ -104,8 +104,8 @@ runtime·sighandler(void *v, int8 *note, G *gp)
 		return NCONT;
 
 Throw:
-	m->throwing = 1;
-	m->caughtsig = gp;
+	g->m->throwing = 1;
+	g->m->caughtsig = gp;
 	runtime·startpanic();
 
 	runtime·printf("%s\n", note);
@@ -146,5 +146,5 @@ runtime·resetcpuprofiler(int32 hz)
 {
 	// TODO: Enable profiling interrupts.
 	
-	m->profilehz = hz;
+	g->m->profilehz = hz;
 }

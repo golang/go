@@ -102,16 +102,16 @@ retry:
 		if(n < 8)
 			n = 8;
 		if(block)
-			m->blocked = true;
+			g->m->blocked = true;
 		if(runtime·stdcall(runtime·GetQueuedCompletionStatusEx, 6, iocphandle, entries, (uintptr)n, &n, (uintptr)wait, (uintptr)0) == 0) {
-			m->blocked = false;
+			g->m->blocked = false;
 			errno = runtime·getlasterror();
 			if(!block && errno == WAIT_TIMEOUT)
 				return nil;
 			runtime·printf("netpoll: GetQueuedCompletionStatusEx failed (errno=%d)\n", errno);
 			runtime·throw("netpoll: GetQueuedCompletionStatusEx failed");
 		}
-		m->blocked = false;
+		g->m->blocked = false;
 		for(i = 0; i < n; i++) {
 			op = entries[i].op;
 			errno = 0;
@@ -125,9 +125,9 @@ retry:
 		errno = 0;
 		qty = 0;
 		if(block)
-			m->blocked = true;
+			g->m->blocked = true;
 		if(runtime·stdcall(runtime·GetQueuedCompletionStatus, 5, iocphandle, &qty, &key, &op, (uintptr)wait) == 0) {
-			m->blocked = false;
+			g->m->blocked = false;
 			errno = runtime·getlasterror();
 			if(!block && errno == WAIT_TIMEOUT)
 				return nil;
@@ -137,7 +137,7 @@ retry:
 			}
 			// dequeued failed IO packet, so report that
 		}
-		m->blocked = false;
+		g->m->blocked = false;
 		handlecompletion(&gp, op, errno, qty);
 	}
 	if(block && gp == nil)

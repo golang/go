@@ -80,7 +80,7 @@ TEXT runtime·lwp_self(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
-	MOVW R0, m
+	MOVW R0, g_m(R1)
 	MOVW R1, g
 
 	BL runtime·emptyfunc(SB) // fault if stack check is wrong
@@ -200,14 +200,14 @@ TEXT runtime·sigaction(SB),NOSPLIT,$4
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	// this might be called in external code context,
-	// where g and m are not set.
-	// first save R0, because runtime·load_gm will clobber it
+	// where g is not set.
+	// first save R0, because runtime·load_g will clobber it
 	MOVW	R0, 4(R13) // signum
 	MOVB	runtime·iscgo(SB), R0
 	CMP 	$0, R0
-	BL.NE	runtime·load_gm(SB)
+	BL.NE	runtime·load_g(SB)
 
-	CMP $0, m
+	CMP $0, g
 	BNE 4(PC)
 	// signal number is already prepared in 4(R13)
 	MOVW $runtime·badsignal(SB), R11
@@ -219,7 +219,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	MOVW g, 20(R13)
 
 	// g = m->signal
-	MOVW m_gsignal(m), g
+	MOVW g_m(g), R8
+	MOVW m_gsignal(R8), g
 
 	// R0 is already saved
 	MOVW R1, 8(R13) // info

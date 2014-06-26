@@ -120,11 +120,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 
 	// fetch g
 	get_tls(DX)
-	MOVQ	m(DX), AX
-	CMPQ	AX, $0
+	MOVQ	g(DX), DX
+	CMPQ	DX, $0
 	JNE	2(PC)
 	CALL	runtime·badsignal2(SB)
-	MOVQ	g(DX), DX
 	// call sighandler(ExceptionRecord*, Context*, G*)
 	MOVQ	BX, 0(SP)
 	MOVQ	CX, 8(SP)
@@ -176,7 +175,6 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 	LEAQ	m_tls(SP), CX
 	MOVQ	CX, 0x28(GS)
-	MOVQ	SP, m(CX)
 	MOVQ	SP, BX
 	SUBQ	$g_end, SP		// space for G
 	MOVQ	SP, g(CX)
@@ -185,6 +183,9 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	MOVQ	SP, 0(SP)
 	MOVQ	$g_end, 8(SP)
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+	LEAQ	g_end(SP), BX
+	MOVQ	BX, g_m(SP)
+
 	LEAQ	-8192(SP), CX
 	MOVQ	CX, g_stackguard(SP)
 	MOVQ	DX, g_stackbase(SP)
@@ -297,7 +298,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	// Set up tls.
 	LEAQ	m_tls(CX), SI
 	MOVQ	SI, 0x28(GS)
-	MOVQ	CX, m(SI)
+	MOVQ	CX, g_m(DX)
 	MOVQ	DX, g(SI)
 
 	// Someday the convention will be D is always cleared.
@@ -328,7 +329,8 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	CALL	AX
 	RET
 
-	MOVQ	m(R15), R13
+	MOVQ	g(R15), R13
+	MOVQ	g_m(R13), R13
 
 	// leave pc/sp for cpu profiler
 	MOVQ	(SP), R12

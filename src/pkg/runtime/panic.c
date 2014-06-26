@@ -34,7 +34,7 @@ newdefer(int32 siz)
 	d = nil;
 	sc = DEFERCLASS(siz);
 	if(sc < nelem(p->deferpool)) {
-		p = m->p;
+		p = g->m->p;
 		d = p->deferpool[sc];
 		if(d)
 			p->deferpool[sc] = d->link;
@@ -63,7 +63,7 @@ freedefer(Defer *d)
 		return;
 	sc = DEFERCLASS(d->siz);
 	if(sc < nelem(p->deferpool)) {
-		p = m->p;
+		p = g->m->p;
 		d->link = p->deferpool[sc];
 		p->deferpool[sc] = d;
 		// No need to wipe out pointers in argp/pc/fn/args,
@@ -134,13 +134,13 @@ runtime·deferreturn(uintptr arg0)
 	// Do not allow preemption here, because the garbage collector
 	// won't know the form of the arguments until the jmpdefer can
 	// flip the PC over to fn.
-	m->locks++;
+	g->m->locks++;
 	runtime·memmove(argp, d->args, d->siz);
 	fn = d->fn;
 	g->defer = d->link;
 	freedefer(d);
-	m->locks--;
-	if(m->locks == 0 && g->preempt)
+	g->m->locks--;
+	if(g->m->locks == 0 && g->preempt)
 		g->stackguard0 = StackPreempt;
 	runtime·jmpdefer(fn, argp);
 }
@@ -385,12 +385,12 @@ runtime·startpanic(void)
 {
 	if(runtime·mheap.cachealloc.size == 0) { // very early
 		runtime·printf("runtime: panic before malloc heap initialized\n");
-		m->mallocing = 1; // tell rest of panic not to try to malloc
-	} else if(m->mcache == nil) // can happen if called from signal handler or throw
-		m->mcache = runtime·allocmcache();
-	switch(m->dying) {
+		g->m->mallocing = 1; // tell rest of panic not to try to malloc
+	} else if(g->m->mcache == nil) // can happen if called from signal handler or throw
+		g->m->mcache = runtime·allocmcache();
+	switch(g->m->dying) {
 	case 0:
-		m->dying = 1;
+		g->m->dying = 1;
 		if(g != nil)
 			g->writebuf = nil;
 		runtime·xadd(&runtime·panicking, 1);
@@ -402,14 +402,14 @@ runtime·startpanic(void)
 	case 1:
 		// Something failed while panicing, probably the print of the
 		// argument to panic().  Just print a stack trace and exit.
-		m->dying = 2;
+		g->m->dying = 2;
 		runtime·printf("panic during panic\n");
 		runtime·dopanic(0);
 		runtime·exit(3);
 	case 2:
 		// This is a genuine bug in the runtime, we couldn't even
 		// print the stack trace successfully.
-		m->dying = 3;
+		g->m->dying = 3;
 		runtime·printf("stack trace unavailable\n");
 		runtime·exit(4);
 	default:
@@ -430,11 +430,11 @@ runtime·dopanic(int32 unused)
 			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
 
 	if((t = runtime·gotraceback(&crash)) > 0){
-		if(g != m->g0) {
+		if(g != g->m->g0) {
 			runtime·printf("\n");
 			runtime·goroutineheader(g);
 			runtime·traceback((uintptr)runtime·getcallerpc(&unused), (uintptr)runtime·getcallersp(&unused), 0, g);
-		} else if(t >= 2 || m->throwing > 0) {
+		} else if(t >= 2 || g->m->throwing > 0) {
 			runtime·printf("\nruntime stack:\n");
 			runtime·traceback((uintptr)runtime·getcallerpc(&unused), (uintptr)runtime·getcallersp(&unused), 0, g);
 		}
@@ -489,9 +489,12 @@ runtime·throwinit(void)
 bool
 runtime·canpanic(G *gp)
 {
-	byte g;
+	M *m;
 
-	USED(&g);  // don't use global g, it points to gsignal
+	// Note that g is m->gsignal, different from gp.
+	// Note also that g->m can change at preemption, so m can go stale
+	// if this function ever makes a function call.
+	m = g->m;
 
 	// Is it okay for gp to panic instead of crashing the program?
 	// Yes, as long as it is running Go code, not runtime code,
@@ -512,8 +515,8 @@ runtime·canpanic(G *gp)
 void
 runtime·throw(int8 *s)
 {
-	if(m->throwing == 0)
-		m->throwing = 1;
+	if(g->m->throwing == 0)
+		g->m->throwing = 1;
 	runtime·startpanic();
 	runtime·printf("fatal error: %s\n", s);
 	runtime·dopanic(0);
@@ -531,20 +534,20 @@ runtime·panicstring(int8 *s)
 	// It increments m->locks to avoid preemption.
 	// If we're panicking, the software floating point frames
 	// will be unwound, so decrement m->locks as they would.
-	if(m->softfloat) {
-		m->locks--;
-		m->softfloat = 0;
+	if(g->m->softfloat) {
+		g->m->locks--;
+		g->m->softfloat = 0;
 	}
 
-	if(m->mallocing) {
+	if(g->m->mallocing) {
 		runtime·printf("panic: %s\n", s);
 		runtime·throw("panic during malloc");
 	}
-	if(m->gcing) {
+	if(g->m->gcing) {
 		runtime·printf("panic: %s\n", s);
 		runtime·throw("panic during gc");
 	}
-	if(m->locks) {
+	if(g->m->locks) {
 		runtime·printf("panic: %s\n", s);
 		runtime·throw("panic holding locks");
 	}

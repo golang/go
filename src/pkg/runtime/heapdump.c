@@ -800,8 +800,8 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 {
 	// Stop the world.
 	runtime·semacquire(&runtime·worldsema, false);
-	m->gcing = 1;
-	m->locks++;
+	g->m->gcing = 1;
+	g->m->locks++;
 	runtime·stoptheworld();
 
 	// Update stats so we can dump them.
@@ -821,10 +821,10 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 	dumpfd = 0;
 
 	// Start up the world again.
-	m->gcing = 0;
+	g->m->gcing = 0;
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
-	m->locks--;
+	g->m->locks--;
 }
 
 // Runs the specified gc program.  Calls the callback for every

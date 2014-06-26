@@ -39,7 +39,7 @@ runtime·lock(Lock *l)
 {
 	uint32 i, v, wait, spin;
 
-	if(m->locks++ < 0)
+	if(g->m->locks++ < 0)
 		runtime·throw("runtime·lock: lock count");
 
 	// Speculative grab for lock.
@@ -99,9 +99,9 @@ runtime·unlock(Lock *l)
 	if(v == MUTEX_SLEEPING)
 		runtime·futexwakeup((uint32*)&l->key, 1);
 
-	if(--m->locks < 0)
+	if(--g->m->locks < 0)
 		runtime·throw("runtime·unlock: lock count");
-	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+	if(g->m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
 		g->stackguard0 = StackPreempt;
 }
 
@@ -128,12 +128,12 @@ runtime·notewakeup(Note *n)
 void
 runtime·notesleep(Note *n)
 {
-	if(g != m->g0)
+	if(g != g->m->g0)
 		runtime·throw("notesleep not on g0");
 	while(runtime·atomicload((uint32*)&n->key) == 0) {
-		m->blocked = true;
+		g->m->blocked = true;
 		runtime·futexsleep((uint32*)&n->key, 0, -1);
-		m->blocked = false;
+		g->m->blocked = false;
 	}
 }
 
@@ -147,9 +147,9 @@ notetsleep(Note *n, int64 ns, int64 deadline, int64 now)
 
 	if(ns < 0) {
 		while(runtime·atomicload((uint32*)&n->key) == 0) {
-			m->blocked = true;
+			g->m->blocked = true;
 			runtime·futexsleep((uint32*)&n->key, 0, -1);
-			m->blocked = false;
+			g->m->blocked = false;
 		}
 		return true;
 	}
@@ -159,9 +159,9 @@ notetsleep(Note *n, int64 ns, int64 deadline, int64 now)
 
 	deadline = runtime·nanotime() + ns;
 	for(;;) {
-		m->blocked = true;
+		g->m->blocked = true;
 		runtime·futexsleep((uint32*)&n->key, 0, ns);
-		m->blocked = false;
+		g->m->blocked = false;
 		if(runtime·atomicload((uint32*)&n->key) != 0)
 			break;
 		now = runtime·nanotime();
@@ -177,7 +177,7 @@ runtime·notetsleep(Note *n, int64 ns)
 {
 	bool res;
 
-	if(g != m->g0 && !m->gcing)
+	if(g != g->m->g0 && !g->m->gcing)
 		runtime·throw("notetsleep not on g0");
 
 	res = notetsleep(n, ns, 0, 0);
@@ -191,7 +191,7 @@ runtime·notetsleepg(Note *n, int64 ns)
 {
 	bool res;
 
-	if(g == m->g0)
+	if(g == g->m->g0)
 		runtime·throw("notetsleepg on g0");
 
 	runtime·entersyscallblock();

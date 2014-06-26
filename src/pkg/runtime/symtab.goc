@@ -316,7 +316,7 @@ runtime·showframe(Func *f, G *gp)
 	static int32 traceback = -1;
 	String name;
 
-	if(m->throwing > 0 && gp != nil && (gp == m->curg || gp == m->caughtsig))
+	if(g->m->throwing > 0 && gp != nil && (gp == g->m->curg || gp == g->m->caughtsig))
 		return 1;
 	if(traceback < 0)
 		traceback = runtime·gotraceback(nil);

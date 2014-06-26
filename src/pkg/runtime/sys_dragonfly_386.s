@@ -42,7 +42,7 @@ TEXT runtime·lwp_start(SB),NOSPLIT,$0
 	
 	// Now segment is established.  Initialize m, g.
 	get_tls(CX)
-	MOVL	BX, m(CX)
+	MOVL	BX, g_m(DX)
 	MOVL	DX, g(CX)
 
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
@@ -201,9 +201,9 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-4
 TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	get_tls(CX)
 
-	// check that m exists
-	MOVL	m(CX), BX
-	CMPL	BX, $0
+	// check that g exists
+	MOVL	g(CX), DI
+	CMPL	DI, $0
 	JNE	6(PC)
 	MOVL	signo+0(FP), BX
 	MOVL	BX, 0(SP)
@@ -212,10 +212,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	JMP 	sigtramp_ret
 
 	// save g
-	MOVL	g(CX), DI
 	MOVL	DI, 20(SP)
 	
 	// g = m->gsignal
+	MOVL	g_m(DI), BX
 	MOVL	m_gsignal(BX), BX
 	MOVL	BX, g(CX)
 

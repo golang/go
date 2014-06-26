@@ -149,7 +149,7 @@ hardware's <code>SP</code> register.
 <p>
 Instructions, registers, and assembler directives are always in UPPER CASE to remind you
 that assembly programming is a fraught endeavor.
-(Exceptions: the <code>m</code> and <code>g</code> register renamings on ARM.)
+(Exception: the <code>g</code> register renaming on ARM.)
 </p>
 
 <p>
@@ -344,7 +344,7 @@ Here follows some descriptions of key Go-specific details for the supported arch
 <h3 id="x86">32-bit Intel 386</h3>
 
 <p>
-The runtime pointers to the <code>m</code> and <code>g</code> structures are maintained
+The runtime pointer to the <code>g</code> structure is maintained
 through the value of an otherwise unused (as far as Go is concerned) register in the MMU.
 A OS-dependent macro <code>get_tls</code> is defined for the assembler if the source includes
 an architecture-dependent header file, like this:
@@ -356,14 +356,15 @@ an architecture-dependent header file, like this:
 
 <p>
 Within the runtime, the <code>get_tls</code> macro loads its argument register
-with a pointer to a pair of words representing the <code>g</code> and <code>m</code> pointers.
+with a pointer to the <code>g</code> pointer, and the <code>g</code> struct
+contains the <code>m</code> pointer.
 The sequence to load <code>g</code> and <code>m</code> using <code>CX</code> looks like this:
 </p>
 
 <pre>
 get_tls(CX)
-MOVL	g(CX), AX	// Move g into AX.
-MOVL	m(CX), BX	// Move m into BX.
+MOVL	g(CX), AX     // Move g into AX.
+MOVL	g_m(AX), BX   // Move g->m into BX.
 </pre>
 
 <h3 id="amd64">64-bit Intel 386 (a.k.a. amd64)</h3>
@@ -376,22 +377,21 @@ pointers is the same as on the 386, except it uses <code>MOVQ</code> rather than
 
 <pre>
 get_tls(CX)
-MOVQ	g(CX), AX	// Move g into AX.
-MOVQ	m(CX), BX	// Move m into BX.
+MOVQ	g(CX), AX     // Move g into AX.
+MOVQ	g_m(AX), BX   // Move g->m into BX.
 </pre>
 
 <h3 id="arm">ARM</h3>
 
 <p>
-The registers <code>R9</code>, <code>R10</code>, and <code>R11</code>
+The registers <code>R10</code> and <code>R11</code>
 are reserved by the compiler and linker.
 </p>
 
 <p>
-<code>R9</code> and <code>R10</code> point to the <code>m</code> (machine) and <code>g</code>
-(goroutine) structures, respectively.
-Within assembler source code, these pointers must be referred to as <code>m</code> and <code>g</code>;
-the names <code>R9</code> and <code>R10</code> are not recognized.
+<code>R10</code> points to the <code>g</code> (goroutine) structure.
+Within assembler source code, this pointer must be referred to as <code>g</code>;
+the name <code>R10</code> is not recognized.
 </p>
 
 <p>

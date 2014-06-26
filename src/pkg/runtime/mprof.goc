@@ -387,7 +387,7 @@ func Stack(b Slice, all bool) (n int) {
 
 	if(all) {
 		runtime·semacquire(&runtime·worldsema, false);
-		m->gcing = 1;
+		g->m->gcing = 1;
 		runtime·stoptheworld();
 	}
 
@@ -406,7 +406,7 @@ func Stack(b Slice, all bool) (n int) {
 	}
 	
 	if(all) {
-		m->gcing = 0;
+		g->m->gcing = 0;
 		runtime·semrelease(&runtime·worldsema);
 		runtime·starttheworld();
 	}
@@ -434,7 +434,7 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 	n = runtime·gcount();
 	if(n <= b.len) {
 		runtime·semacquire(&runtime·worldsema, false);
-		m->gcing = 1;
+		g->m->gcing = 1;
 		runtime·stoptheworld();
 
 		n = runtime·gcount();
@@ -450,7 +450,7 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 			}
 		}
 	
-		m->gcing = 0;
+		g->m->gcing = 0;
 		runtime·semrelease(&runtime·worldsema);
 		runtime·starttheworld();
 	}
@@ -480,22 +480,22 @@ runtime·tracealloc(void *p, uintptr size, uintptr typ)
 	Type *type;
 
 	runtime·lock(&tracelock);
-	m->traceback = 2;
+	g->m->traceback = 2;
 	type = (Type*)(typ & ~3);
 	name = typeinfoname(typ & 3);
 	if(type == nil)
 		runtime·printf("tracealloc(%p, %p, %s)\n", p, size, name);
 	else	
 		runtime·printf("tracealloc(%p, %p, %s of %S)\n", p, size, name, *type->string);
-	if(m->curg == nil || g == m->curg) {
+	if(g->m->curg == nil || g == g->m->curg) {
 		runtime·goroutineheader(g);
 		runtime·traceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g);
 	} else {
-		runtime·goroutineheader(m->curg);
-		runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, m->curg);
+		runtime·goroutineheader(g->m->curg);
+		runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, g->m->curg);
 	}
 	runtime·printf("\n");
-	m->traceback = 0;
+	g->m->traceback = 0;
 	runtime·unlock(&tracelock);
 }
 
@@ -503,12 +503,12 @@ void
 runtime·tracefree(void *p, uintptr size)
 {
 	runtime·lock(&tracelock);
-	m->traceback = 2;
+	g->m->traceback = 2;
 	runtime·printf("tracefree(%p, %p)\n", p, size);
 	runtime·goroutineheader(g);
 	runtime·traceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g);
 	runtime·printf("\n");
-	m->traceback = 0;
+	g->m->traceback = 0;
 	runtime·unlock(&tracelock);
 }
 
@@ -516,12 +516,12 @@ void
 runtime·tracegc(void)
 {
 	runtime·lock(&tracelock);
-	m->traceback = 2;
+	g->m->traceback = 2;
 	runtime·printf("tracegc()\n");
 	// running on m->g0 stack; show all non-g0 goroutines
 	runtime·tracebackothers(g);
 	runtime·printf("end tracegc\n");
 	runtime·printf("\n");
-	m->traceback = 0;
+	g->m->traceback = 0;
 	runtime·unlock(&tracelock);
 }

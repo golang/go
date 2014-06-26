@@ -54,8 +54,7 @@ threadentry(void *v)
 	  "movq %0, %%gs:0x28\n"	// MOVL tls0, 0x28(GS)
 	  "movq %%gs:0x28, %%rax\n" // MOVQ 0x28(GS), tmp
 	  "movq %1, 0(%%rax)\n" // MOVQ g, 0(GS)
-	  "movq %2, 8(%%rax)\n" // MOVQ m, 8(GS)
-	  :: "r"(ts.tls), "r"(ts.g), "r"(ts.m) : "%rax"
+	  :: "r"(ts.tls), "r"(ts.g) : "%rax"
 	);
 
 	crosscall_amd64(ts.fn);

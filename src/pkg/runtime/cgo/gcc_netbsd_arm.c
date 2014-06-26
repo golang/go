@@ -10,15 +10,15 @@
 
 static void *threadentry(void*);
 
-static void (*setmg_gcc)(void*, void*);
+static void (*setg_gcc)(void*);
 
 void
-x_cgo_init(G *g, void (*setmg)(void*, void*))
+x_cgo_init(G *g, void (*setg)(void*))
 {
 	pthread_attr_t attr;
 	size_t size;
 
-	setmg_gcc = setmg;
+	setg_gcc = setg;
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
 	g->stackguard = (uintptr)&attr - size + 4096;
@@ -51,7 +51,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	}
 }
 
-extern void crosscall_arm2(void (*fn)(void), void (*setmg_gcc)(void*, void*), void *g, void *m);
+extern void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 static void*
 threadentry(void *v)
 {
@@ -68,6 +68,6 @@ threadentry(void *v)
 	 */
 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096 * 2;
 
-	crosscall_arm2(ts.fn, setmg_gcc, (void*)ts.m, (void*)ts.g);
+	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }

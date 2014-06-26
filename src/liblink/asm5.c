@@ -572,8 +572,8 @@ span5(Link *ctxt, LSym *cursym)
 	 * code references to be relocated too, and then
 	 * perhaps we'd be able to parallelize the span loop above.
 	 */
-	if(ctxt->gmsym == nil)
-		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+	if(ctxt->tlsg == nil)
+		ctxt->tlsg = linklookup(ctxt, "runtime.tlsg", 0);
 
 	p = cursym->text;
 	ctxt->autosize = p->to.offset + 4;
@@ -1377,11 +1377,11 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			rel->sym = p->to.sym;
 			rel->add = p->to.offset;
 			
-			// runtime.tlsgm (aka gmsym) is special.
+			// runtime.tlsg is special.
 			// Its "address" is the offset from the TLS thread pointer
 			// to the thread-local g and m pointers.
 			// Emit a TLS relocation instead of a standard one.
-			if(rel->sym == ctxt->gmsym) {
+			if(rel->sym == ctxt->tlsg) {
 				rel->type = R_TLS;
 				if(ctxt->flag_shared)
 					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;

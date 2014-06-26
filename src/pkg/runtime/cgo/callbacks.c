@@ -40,9 +40,9 @@ _cgo_allocate_internal(uintptr len, byte *ret)
 
 	ret = runtime·mal(len);
 	c = runtime·mal(sizeof(*c));
-	c->next = m->cgomal;
+	c->next = g->m->cgomal;
 	c->alloc = ret;
-	m->cgomal = c;
+	g->m->cgomal = c;
 	FLUSH(&ret);
 }
 

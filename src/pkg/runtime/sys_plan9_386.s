@@ -98,7 +98,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	// Initialize m, g.
 	get_tls(AX)
 	MOVL	DX, g(AX)
-	MOVL	BX, m(AX)
+	MOVL	BX, g_m(DX)
 
 	// Initialize procid from TOS struct.
 	// TODO: Be explicit and insert a new MOVL _tos(SB), AX here.
@@ -123,8 +123,8 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	get_tls(AX)
 
-	// check that m exists
-	MOVL	m(AX), BX
+	// check that g exists
+	MOVL	g(AX), BX
 	CMPL	BX, $0
 	JNE	3(PC)
 	CALL	runtime·badsignal2(SB) // will exit
@@ -135,6 +135,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVL	note+8(SP), DX
 
 	// change stack
+	MOVL	g_m(BX), BX
 	MOVL	m_gsignal(BX), BP
 	MOVL	g_stackbase(BP), BP
 	MOVL	BP, SP
@@ -181,7 +182,8 @@ TEXT runtime·setfpmasks(SB),NOSPLIT,$0
 // See ../syscall/asm_plan9_386.s:/·Syscall/
 TEXT runtime·errstr(SB),NOSPLIT,$0
 	get_tls(AX)
-	MOVL	m(AX), BX
+	MOVL	g(AX), BX
+	MOVL	g_m(BX), BX
 	MOVL	m_errstr(BX), CX
 	MOVL	CX, 4(SP)
 	MOVL	$ERRMAX, 8(SP)

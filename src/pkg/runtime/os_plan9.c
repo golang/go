@@ -88,7 +88,7 @@ void
 runtime·osinit(void)
 {
 	runtime·ncpu = getproccount();
-	m->procid = getpid();
+	g->m->procid = getpid();
 	runtime·notify(runtime·sigtramp);
 }
 
@@ -285,13 +285,13 @@ runtime·semasleep(int64 ns)
 		ms = runtime·timediv(ns, 1000000, nil);
 		if(ms == 0)
 			ms = 1;
-		ret = runtime·plan9_tsemacquire(&m->waitsemacount, ms);
+		ret = runtime·plan9_tsemacquire(&g->m->waitsemacount, ms);
 		if(ret == 1)
 			return 0;  // success
 		return -1;  // timeout or interrupted
 	}
 
-	while(runtime·plan9_semacquire(&m->waitsemacount, 1) < 0) {
+	while(runtime·plan9_semacquire(&g->m->waitsemacount, 1) < 0) {
 		/* interrupted; try again (c.f. lock_sema.c) */
 	}
 	return 0;  // success
@@ -360,7 +360,7 @@ runtime·sigpanic(void)
 	switch(g->sig) {
 	case SIGRFAULT:
 	case SIGWFAULT:
-		p = runtime·strstr((byte*)m->notesig, (byte*)"addr=")+5;
+		p = runtime·strstr((byte*)g->m->notesig, (byte*)"addr=")+5;
 		g->sigcode1 = atolwhex(p);
 		if(g->sigcode1 < 0x1000 || g->paniconfault) {
 			if(g->sigpc == 0)
@@ -373,7 +373,7 @@ runtime·sigpanic(void)
 	case SIGTRAP:
 		if(g->paniconfault)
 			runtime·panicstring("invalid memory address or nil pointer dereference");
-		runtime·throw(m->notesig);
+		runtime·throw(g->m->notesig);
 		break;
 	case SIGINTDIV:
 		runtime·panicstring("integer divide by zero");
@@ -382,7 +382,7 @@ runtime·sigpanic(void)
 		runtime·panicstring("floating point error");
 		break;
 	default:
-		runtime·panicstring(m->notesig);
+		runtime·panicstring(g->m->notesig);
 		break;
 	}
 }

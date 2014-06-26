@@ -8,64 +8,56 @@
 #include "libcgo.h"
 
 static void* threadentry(void*);
-static pthread_key_t k1, k2;
+static pthread_key_t k1;
 
 #define magic1 (0x23581321345589ULL)
 
 static void
 inittls(void)
 {
-	uint64 x, y;
+	uint64 x;
 	pthread_key_t tofree[128], k;
 	int i, ntofree;
-	int havek1, havek2;
 
 	/*
 	 * Same logic, code as darwin_386.c:/inittls, except that words
 	 * are 8 bytes long now, and the thread-local storage starts
-	 * at 0x60 on Leopard / Snow Leopard. So the offsets are
-	 * 0x60+8*0x108 = 0x8a0 and 0x60+8*0x109 = 0x8a8.
+	 * at 0x60 on Leopard / Snow Leopard. So the offset is
+	 * 0x60+8*0x108 = 0x8a0.
 	 *
-	 * The linker and runtime hard-code these constant offsets
-	 * from %gs where we expect to find m and g.
-	 * Known to ../../../cmd/6l/obj.c:/8a0
+	 * The linker and runtime hard-code this constant offset
+	 * from %gs where we expect to find g.
+	 * Known to ../../../liblink/sym.c:/8a0
 	 * and to ../sys_darwin_amd64.s:/8a0
 	 *
 	 * As disgusting as on the 386; same justification.
 	 */
-	havek1 = 0;
-	havek2 = 0;
 	ntofree = 0;
-	while(!havek1 || !havek2) {
+	for(;;) {
 		if(pthread_key_create(&k, nil) < 0) {
 			fprintf(stderr, "runtime/cgo: pthread_key_create failed\n");
 			abort();
 		}
 		pthread_setspecific(k, (void*)magic1);
 		asm volatile("movq %%gs:0x8a0, %0" : "=r"(x));
-		asm volatile("movq %%gs:0x8a8, %0" : "=r"(y));
-		if(x == magic1) {
-			havek1 = 1;
-			k1 = k;
-		} else if(y == magic1) {
-			havek2 = 1;
-			k2 = k;
-		} else {
-			if(ntofree >= nelem(tofree)) {
-				fprintf(stderr, "runtime/cgo: could not obtain pthread_keys\n");
-				fprintf(stderr, "\ttried");
-				for(i=0; i<ntofree; i++)
-					fprintf(stderr, " %#x", (unsigned)tofree[i]);
-				fprintf(stderr, "\n");
-				abort();
-			}
-			tofree[ntofree++] = k;
-		}
 		pthread_setspecific(k, 0);
+		if(x == magic1) {
+			k1 = k;
+			break;
+		}
+		if(ntofree >= nelem(tofree)) {
+			fprintf(stderr, "runtime/cgo: could not obtain pthread_keys\n");
+			fprintf(stderr, "\ttried");
+			for(i=0; i<ntofree; i++)
+				fprintf(stderr, " %#x", (unsigned)tofree[i]);
+			fprintf(stderr, "\n");
+			abort();
+		}
+		tofree[ntofree++] = k;
 	}
 
 	/*
-	 * We got the keys we wanted.  Free the others.
+	 * We got the key we wanted.  Free the others.
 	 */
 	for(i=0; i<ntofree; i++)
 		pthread_key_delete(tofree[i]);
@@ -128,7 +120,6 @@ threadentry(void *v)
 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
 
 	pthread_setspecific(k1, (void*)ts.g);
-	pthread_setspecific(k2, (void*)ts.m);
 
 	crosscall_amd64(ts.fn);
 	return nil;

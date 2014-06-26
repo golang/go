@@ -112,7 +112,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	if(runtime·needextram && runtime·cas(&runtime·needextram, 1, 0))
 		runtime·newextram();
 
-	m->ncgocall++;
+	g->m->ncgocall++;
 
 	/*
 	 * Lock g to m to ensure we stay on the same stack if we do a
@@ -126,7 +126,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	d.special = true;
 	g->defer = &d;
 	
-	m->ncgo++;
+	g->m->ncgo++;
 
 	/*
 	 * Announce we are entering a system call
@@ -153,12 +153,12 @@ static void
 endcgo(void)
 {
 	runtime·unlockOSThread();
-	m->ncgo--;
-	if(m->ncgo == 0) {
+	g->m->ncgo--;
+	if(g->m->ncgo == 0) {
 		// We are going back to Go and are not in a recursive
 		// call.  Let the GC collect any memory allocated via
 		// _cgo_allocate that is no longer referenced.
-		m->cgomal = nil;
+		g->m->cgomal = nil;
 	}
 
 	if(raceenabled)
@@ -210,12 +210,12 @@ struct CallbackArgs
 // On arm, stack frame is two words and there's a saved LR between
 // SP and the stack frame and between the stack frame and the arguments.
 #ifdef GOARCH_arm
-#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+4*sizeof(void*))
+#define CBARGS (CallbackArgs*)((byte*)g->m->g0->sched.sp+4*sizeof(void*))
 #endif
 
 // On amd64, stack frame is one word, plus caller PC.
 #ifdef GOARCH_amd64
-#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+2*sizeof(void*))
+#define CBARGS (CallbackArgs*)((byte*)g->m->g0->sched.sp+2*sizeof(void*))
 #endif
 
 // Unimplemented on amd64p32
@@ -225,7 +225,7 @@ struct CallbackArgs
 
 // On 386, stack frame is three words, plus caller PC.
 #ifdef GOARCH_386
-#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+4*sizeof(void*))
+#define CBARGS (CallbackArgs*)((byte*)g->m->g0->sched.sp+4*sizeof(void*))
 #endif
 
 void runtime·cgocallbackg1(void);
@@ -234,7 +234,7 @@ void runtime·cgocallbackg1(void);
 void
 runtime·cgocallbackg(void)
 {
-	if(g != m->curg) {
+	if(g != g->m->curg) {
 		runtime·prints("runtime: bad g in cgocallback");
 		runtime·exit(2);
 	}
@@ -250,8 +250,8 @@ runtime·cgocallbackg1(void)
 	CallbackArgs *cb;
 	Defer d;
 
-	if(m->needextram) {
-		m->needextram = 0;
+	if(g->m->needextram) {
+		g->m->needextram = 0;
 		runtime·newextram();
 	}
 
@@ -291,10 +291,10 @@ unwindm(void)
 		runtime·throw("runtime: unwindm not implemented");
 	case '8':
 	case '6':
-		m->g0->sched.sp = *(uintptr*)m->g0->sched.sp;
+		g->m->g0->sched.sp = *(uintptr*)g->m->g0->sched.sp;
 		break;
 	case '5':
-		m->g0->sched.sp = *(uintptr*)((byte*)m->g0->sched.sp + 4);
+		g->m->g0->sched.sp = *(uintptr*)((byte*)g->m->g0->sched.sp + 4);
 		break;
 	}
 }

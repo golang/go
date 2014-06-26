@@ -394,8 +394,8 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	uint32 i;
 	vlong textstksiz, textarg;
 
-	if(ctxt->gmsym == nil)
-		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+	if(ctxt->tlsg == nil)
+		ctxt->tlsg = linklookup(ctxt, "runtime.tlsg", 0);
 	if(ctxt->symmorestack[0] == nil) {
 		if(nelem(morename) > nelem(ctxt->symmorestack))
 			sysfatal("Link.symmorestack needs at least %d elements", nelem(morename));

@@ -32,8 +32,8 @@ runtime·gotraceback(bool *crash)
 
 	if(crash != nil)
 		*crash = false;
-	if(m->traceback != 0)
-		return m->traceback;
+	if(g->m->traceback != 0)
+		return g->m->traceback;
 	x = runtime·atomicload(&traceback_cache);
 	if(x == ~(uint32)0) {
 		p = runtime·getenv("GOTRACEBACK");
@@ -286,11 +286,11 @@ runtime·fastrand1(void)
 {
 	uint32 x;
 
-	x = m->fastrand;
+	x = g->m->fastrand;
 	x += x;
 	if(x & 0x80000000L)
 		x ^= 0x88888eefUL;
-	m->fastrand = x;
+	g->m->fastrand = x;
 	return x;
 }
 

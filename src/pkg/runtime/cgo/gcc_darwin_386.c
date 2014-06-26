@@ -8,46 +8,44 @@
 #include "libcgo.h"
 
 static void* threadentry(void*);
-static pthread_key_t k1, k2;
+static pthread_key_t k1;
 
 #define magic1 (0x23581321U)
 
 static void
 inittls(void)
 {
-	uint32 x, y;
+	uint32 x;
 	pthread_key_t tofree[128], k;
 	int i, ntofree;
-	int havek1, havek2;
 
 	/*
-	 * Allocate thread-local storage slots for m, g.
+	 * Allocate thread-local storage slot for g.
 	 * The key numbers start at 0x100, and we expect to be
 	 * one of the early calls to pthread_key_create, so we
-	 * should be able to get pretty low numbers.
+	 * should be able to get a pretty low number.
 	 *
 	 * In Darwin/386 pthreads, %gs points at the thread
 	 * structure, and each key is an index into the thread-local
 	 * storage array that begins at offset 0x48 within in that structure.
 	 * It may happen that we are not quite the first function to try
 	 * to allocate thread-local storage keys, so instead of depending
-	 * on getting 0x100 and 0x101, we try for 0x108 and 0x109,
-	 * allocating keys until we get the ones we want and then freeing
-	 * the ones we didn't want.
+	 * on getting 0x100, we try for 0x108, allocating keys until
+	 * we get the one we want and then freeing the ones we didn't want.
 	 *
-	 * Thus the final offsets to use in %gs references are
-	 * 0x48+4*0x108 = 0x468 and 0x48+4*0x109 = 0x46c.
+	 * Thus the final offset to use in %gs references is
+	 * 0x48+4*0x108 = 0x468.
 	 *
-	 * The linker and runtime hard-code these constant offsets
-	 * from %gs where we expect to find m and g.
-	 * Known to ../../../cmd/8l/obj.c:/468
+	 * The linker and runtime hard-code this constant offset
+	 * from %gs where we expect to find g.
+	 * Known to ../../../liblink/sym.c:/468
 	 * and to ../sys_darwin_386.s:/468
 	 *
 	 * This is truly disgusting and a bit fragile, but taking care
 	 * of it here protects the rest of the system from damage.
 	 * The alternative would be to use a global variable that
 	 * held the offset and refer to that variable each time we
-	 * need a %gs variable (m or g).  That approach would
+	 * need a %gs variable (g).  That approach would
 	 * require an extra instruction and memory reference in
 	 * every stack growth prolog and would also require
 	 * rewriting the code that 8c generates for extern registers.
@@ -63,39 +61,32 @@ inittls(void)
 	 * storage until we find a key that writes to the memory location
 	 * we want.  Then keep that key.
 	 */
-	havek1 = 0;
-	havek2 = 0;
 	ntofree = 0;
-	while(!havek1 || !havek2) {
+	for(;;) {
 		if(pthread_key_create(&k, nil) < 0) {
 			fprintf(stderr, "runtime/cgo: pthread_key_create failed\n");
 			abort();
 		}
 		pthread_setspecific(k, (void*)magic1);
 		asm volatile("movl %%gs:0x468, %0" : "=r"(x));
-		asm volatile("movl %%gs:0x46c, %0" : "=r"(y));
-		if(x == magic1) {
-			havek1 = 1;
-			k1 = k;
-		} else if(y == magic1) {
-			havek2 = 1;
-			k2 = k;
-		} else {
-			if(ntofree >= nelem(tofree)) {
-				fprintf(stderr, "runtime/cgo: could not obtain pthread_keys\n");
-				fprintf(stderr, "\ttried");
-				for(i=0; i<ntofree; i++)
-					fprintf(stderr, " %#x", (unsigned)tofree[i]);
-				fprintf(stderr, "\n");
-				abort();
-			}
-			tofree[ntofree++] = k;
-		}
 		pthread_setspecific(k, 0);
+		if(x == magic1) {
+			k1 = k;
+			break;
+		}
+		if(ntofree >= nelem(tofree)) {
+			fprintf(stderr, "runtime/cgo: could not obtain pthread_keys\n");
+			fprintf(stderr, "\ttried");
+			for(i=0; i<ntofree; i++)
+				fprintf(stderr, " %#x", (unsigned)tofree[i]);
+			fprintf(stderr, "\n");
+			abort();
+		}
+		tofree[ntofree++] = k;
 	}
 
 	/*
-	 * We got the keys we wanted.  Free the others.
+	 * We got the key we wanted.  Free the others.
 	 */
 	for(i=0; i<ntofree; i++)
 		pthread_key_delete(tofree[i]);
@@ -158,7 +149,6 @@ threadentry(void *v)
 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
 
 	pthread_setspecific(k1, (void*)ts.g);
-	pthread_setspecific(k2, (void*)ts.m);
 
 	crosscall_386(ts.fn);
 	return nil;
