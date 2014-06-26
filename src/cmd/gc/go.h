@@ -1303,7 +1303,6 @@ Sym*	typenamesym(Type *t);
 Sym*	tracksym(Type *t);
 Sym*	typesymprefix(char *prefix, Type *t);
 int	haspointers(Type *t);
-void	usefield(Node*);
 Type*	hiter(Type* t);
 
 /*
@@ -1466,6 +1465,7 @@ void	walkstmtlist(NodeList *l);
 Node*	conv(Node*, Type*);
 int	candiscard(Node*);
 Node*	outervalue(Node*);
+void	usefield(Node*);
 
 /*
  *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c/plive.c
