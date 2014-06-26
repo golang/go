@@ -244,11 +244,12 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	BEQ	2(PC)
 	BL	runtime·abort(SB)
 
-	MOVW	0(R13), m
 	MOVW	4(R13), g
+	MOVW	0(R13), R8
+	MOVW	R8, g_m(g)
 
 	// paranoia; check they are not nil
-	MOVW	0(m), R0
+	MOVW	0(R8), R0
 	MOVW	0(g), R0
 
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
@@ -256,7 +257,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	// Initialize m->procid to Linux tid
 	MOVW	$SYS_gettid, R7
 	SWI	$0
-	MOVW	R0, m_procid(m)
+	MOVW	g_m(g), R8
+	MOVW	R0, m_procid(R8)
 
 	// Call fn
 	MOVW	8(R13), R0
@@ -285,14 +287,14 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	// this might be called in external code context,
-	// where g and m are not set.
-	// first save R0, because runtime·load_gm will clobber it
+	// where g is not set.
+	// first save R0, because runtime·load_g will clobber it
 	MOVW	R0, 4(R13)
 	MOVB	runtime·iscgo(SB), R0
 	CMP 	$0, R0
-	BL.NE	runtime·load_gm(SB)
+	BL.NE	runtime·load_g(SB)
 
-	CMP 	$0, m
+	CMP 	$0, g
 	BNE 	4(PC)
 	// signal number is already prepared in 4(R13)
 	MOVW  	$runtime·badsignal(SB), R11
@@ -304,7 +306,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	MOVW	g, 20(R13)
 
 	// g = m->gsignal
-	MOVW	m_gsignal(m), g
+	MOVW	g_m(g), R8
+	MOVW	m_gsignal(R8), g
 
 	// copy arguments for call to sighandler
 	// R0 is already saved above

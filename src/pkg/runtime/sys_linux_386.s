@@ -166,9 +166,9 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	get_tls(CX)
 
-	// check that m exists
-	MOVL	m(CX), BX
-	CMPL	BX, $0
+	// check that g exists
+	MOVL	g(CX), DI
+	CMPL	DI, $0
 	JNE	6(PC)
 	MOVL	sig+0(FP), BX
 	MOVL	BX, 0(SP)
@@ -177,11 +177,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	RET
 
 	// save g
-	MOVL	g(CX), DI
 	MOVL	DI, 20(SP)
 
 	// g = m->gsignal
-	MOVL	m(CX), BX
+	MOVL	g_m(DI), BX
 	MOVL	m_gsignal(BX), BX
 	MOVL	BX, g(CX)
 
@@ -324,7 +323,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	// Now segment is established.  Initialize m, g.
 	get_tls(AX)
 	MOVL	DX, g(AX)
-	MOVL	BX, m(AX)
+	MOVL	BX, g_m(DX)
 
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	MOVL	0(DX), DX	// paranoia; check they are not nil

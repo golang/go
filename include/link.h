@@ -390,7 +390,7 @@ struct	Link
 	LSym*	sym_mod;
 	LSym*	sym_modu;
 	LSym*	symmorestack[20];
-	LSym*	gmsym;
+	LSym*	tlsg;
 	LSym*	plan9tos;
 	Prog*	curp;
 	Prog*	printp;

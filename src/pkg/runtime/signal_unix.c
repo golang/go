@@ -89,7 +89,7 @@ runtime·resetcpuprofiler(int32 hz)
 		it.it_value = it.it_interval;
 		runtime·setitimer(ITIMER_PROF, &it, nil);
 	}
-	m->profilehz = hz;
+	g->m->profilehz = hz;
 }
 
 void

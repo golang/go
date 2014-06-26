@@ -20,6 +20,7 @@ void
 runtime·mpreinit(M *mp)
 {
 	mp->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+	mp->gsignal->m = mp;
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -30,7 +31,7 @@ runtime·minit(void)
 	int32 ret;
 
 	// Initialize signal handling
-	ret = runtime·nacl_exception_stack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+	ret = runtime·nacl_exception_stack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
 	if(ret < 0)
 		runtime·printf("runtime: nacl_exception_stack: error %d\n", -ret);
 
@@ -54,7 +55,7 @@ void
 runtime·osinit(void)
 {
 	runtime·ncpu = 1;
-	m->procid = 2;
+	g->m->procid = 2;
 //runtime·nacl_exception_handler(runtime·sigtramp, nil);
 }
 
@@ -126,7 +127,7 @@ runtime·semacreate(void)
 		runtime·printf("nacl_cond_create: error %d\n", -cond);
 		runtime·throw("semacreate");
 	}
-	m->waitsemalock = mu;
+	g->m->waitsemalock = mu;
 	return cond; // assigned to m->waitsema
 }
 
@@ -136,20 +137,20 @@ runtime·semasleep(int64 ns)
 {
 	int32 ret;
 	
-	ret = runtime·nacl_mutex_lock(m->waitsemalock);
+	ret = runtime·nacl_mutex_lock(g->m->waitsemalock);
 	if(ret < 0) {
 		//runtime·printf("nacl_mutex_lock: error %d\n", -ret);
 		runtime·throw("semasleep");
 	}
-	if(m->waitsemacount > 0) {
-		m->waitsemacount = 0;
-		runtime·nacl_mutex_unlock(m->waitsemalock);
+	if(g->m->waitsemacount > 0) {
+		g->m->waitsemacount = 0;
+		runtime·nacl_mutex_unlock(g->m->waitsemalock);
 		return 0;
 	}
 
-	while(m->waitsemacount == 0) {
+	while(g->m->waitsemacount == 0) {
 		if(ns < 0) {
-			ret = runtime·nacl_cond_wait(m->waitsema, m->waitsemalock);
+			ret = runtime·nacl_cond_wait(g->m->waitsema, g->m->waitsemalock);
 			if(ret < 0) {
 				//runtime·printf("nacl_cond_wait: error %d\n", -ret);
 				runtime·throw("semasleep");
@@ -159,9 +160,9 @@ runtime·semasleep(int64 ns)
 			
 			ns += runtime·nanotime();
 			ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
-			ret = runtime·nacl_cond_timed_wait_abs(m->waitsema, m->waitsemalock, &ts);
+			ret = runtime·nacl_cond_timed_wait_abs(g->m->waitsema, g->m->waitsemalock, &ts);
 			if(ret == -ETIMEDOUT) {
-				runtime·nacl_mutex_unlock(m->waitsemalock);
+				runtime·nacl_mutex_unlock(g->m->waitsemalock);
 				return -1;
 			}
 			if(ret < 0) {
@@ -171,8 +172,8 @@ runtime·semasleep(int64 ns)
 		}
 	}
 			
-	m->waitsemacount = 0;
-	runtime·nacl_mutex_unlock(m->waitsemalock);
+	g->m->waitsemacount = 0;
+	runtime·nacl_mutex_unlock(g->m->waitsemalock);
 	return 0;
 }
 

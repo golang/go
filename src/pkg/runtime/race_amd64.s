@@ -192,8 +192,8 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
 // Switches SP to g0 stack and calls (AX). Arguments already set.
 TEXT	racecall<>(SB), NOSPLIT, $0-0
 	get_tls(R12)
-	MOVQ	m(R12), R13
 	MOVQ	g(R12), R14
+	MOVQ	g_m(R14), R13
 	// Switch to g0 stack.
 	MOVQ	SP, R12		// callee-saved, preserved across the CALL
 	MOVQ	m_g0(R13), R10
@@ -222,14 +222,16 @@ TEXT	runtime·racesymbolizethunk(SB), NOSPLIT, $56-8
 	PUSHQ	R15
 	// Set g = g0.
 	get_tls(R12)
-	MOVQ	m(R12), R13
+	MOVQ	g(R12), R13
+	MOVQ	g_m(R13), R13
 	MOVQ	m_g0(R13), R14
 	MOVQ	R14, g(R12)	// g = m->g0
 	MOVQ	RARG0, 0(SP)	// func arg
 	CALL	runtime·racesymbolize(SB)
 	// All registers are smashed after Go code, reload.
 	get_tls(R12)
-	MOVQ	m(R12), R13
+	MOVQ	g(R12), R13
+	MOVQ	g_m(R13), R13
 	MOVQ	m_curg(R13), R14
 	MOVQ	R14, g(R12)	// g = m->curg
 	// Restore callee-saved registers.

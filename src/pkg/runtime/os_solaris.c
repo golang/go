@@ -102,14 +102,14 @@ static Sigset sigset_all = { ~(uint32)0, ~(uint32)0, ~(uint32)0, ~(uint32)0, };
 uintptr
 runtime·sysvicall6(uintptr fn, int32 count, ...)
 {
-	runtime·memclr((byte*)&m->scratch, sizeof(m->scratch));
-	m->libcall.fn = (void*)fn;
-	m->libcall.n = (uintptr)count;
+	runtime·memclr((byte*)&g->m->scratch, sizeof(g->m->scratch));
+	g->m->libcall.fn = (void*)fn;
+	g->m->libcall.n = (uintptr)count;
 	for(;count; count--)
-		m->scratch.v[count - 1] = *((uintptr*)&count + count);
-	m->libcall.args = (uintptr*)&m->scratch.v[0];
-	runtime·asmcgocall(runtime·asmsysvicall6, &m->libcall);
-	return m->libcall.r1;
+		g->m->scratch.v[count - 1] = *((uintptr*)&count + count);
+	g->m->libcall.args = (uintptr*)&g->m->scratch.v[0];
+	runtime·asmcgocall(runtime·asmsysvicall6, &g->m->libcall);
+	return g->m->libcall.r1;
 }
 
 static int32
@@ -187,6 +187,7 @@ void
 runtime·mpreinit(M *mp)
 {
 	mp->gsignal = runtime·malg(32*1024);
+	mp->gsignal->m = mp;
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -196,7 +197,7 @@ runtime·minit(void)
 {
 	runtime·asmcgocall(runtime·miniterrno, (void *)libc·___errno);
 	// Initialize signal handling
-	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
 }
 
@@ -337,13 +338,13 @@ runtime·semacreate(void)
 	// Call libc's malloc rather than runtime·malloc.  This will
 	// allocate space on the C heap.  We can't call runtime·malloc
 	// here because it could cause a deadlock.
-	m->libcall.fn = (void*)libc·malloc;
-	m->libcall.n = 1;
-	runtime·memclr((byte*)&m->scratch, sizeof(m->scratch));
-	m->scratch.v[0] = (uintptr)sizeof(*sem);
-	m->libcall.args = (uintptr*)&m->scratch;
-	runtime·asmcgocall(runtime·asmsysvicall6, &m->libcall);
-	sem = (void*)m->libcall.r1;
+	g->m->libcall.fn = (void*)libc·malloc;
+	g->m->libcall.n = 1;
+	runtime·memclr((byte*)&g->m->scratch, sizeof(g->m->scratch));
+	g->m->scratch.v[0] = (uintptr)sizeof(*sem);
+	g->m->libcall.args = (uintptr*)&g->m->scratch;
+	runtime·asmcgocall(runtime·asmsysvicall6, &g->m->libcall);
+	sem = (void*)g->m->libcall.r1;
 	if(runtime·sem_init(sem, 0, 0) != 0)
 		runtime·throw("sem_init");
 	return (uintptr)sem;
@@ -353,6 +354,9 @@ runtime·semacreate(void)
 int32
 runtime·semasleep(int64 ns)
 {
+	M *m;
+
+	m = g->m;
 	if(ns >= 0) {
 		m->ts.tv_sec = ns / 1000000000LL;
 		m->ts.tv_nsec = ns % 1000000000LL;

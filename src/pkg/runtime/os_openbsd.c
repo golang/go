@@ -67,34 +67,34 @@ runtime·semasleep(int64 ns)
 	Timespec ts;
 
 	// spin-mutex lock
-	while(runtime·xchg(&m->waitsemalock, 1))
+	while(runtime·xchg(&g->m->waitsemalock, 1))
 		runtime·osyield();
 
 	for(;;) {
 		// lock held
-		if(m->waitsemacount == 0) {
+		if(g->m->waitsemacount == 0) {
 			// sleep until semaphore != 0 or timeout.
 			// thrsleep unlocks m->waitsemalock.
 			if(ns < 0)
-				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock, nil);
+				runtime·thrsleep(&g->m->waitsemacount, 0, nil, &g->m->waitsemalock, nil);
 			else {
 				ns += runtime·nanotime();
 				// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
 				ts.tv_nsec = 0;
 				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
-				runtime·thrsleep(&m->waitsemacount, CLOCK_MONOTONIC, &ts, &m->waitsemalock, nil);
+				runtime·thrsleep(&g->m->waitsemacount, CLOCK_MONOTONIC, &ts, &g->m->waitsemalock, nil);
 			}
 			// reacquire lock
-			while(runtime·xchg(&m->waitsemalock, 1))
+			while(runtime·xchg(&g->m->waitsemalock, 1))
 				runtime·osyield();
 		}
 
 		// lock held (again)
-		if(m->waitsemacount != 0) {
+		if(g->m->waitsemacount != 0) {
 			// semaphore is available.
-			m->waitsemacount--;
+			g->m->waitsemacount--;
 			// spin-mutex unlock
-			runtime·atomicstore(&m->waitsemalock, 0);
+			runtime·atomicstore(&g->m->waitsemalock, 0);
 			return 0;  // semaphore acquired
 		}
 
@@ -107,7 +107,7 @@ runtime·semasleep(int64 ns)
 
 	// lock held but giving up
 	// spin-mutex unlock
-	runtime·atomicstore(&m->waitsemalock, 0);
+	runtime·atomicstore(&g->m->waitsemalock, 0);
 	return -1;
 }
 
@@ -193,6 +193,7 @@ void
 runtime·mpreinit(M *mp)
 {
 	mp->gsignal = runtime·malg(32*1024);
+	mp->gsignal->m = mp;
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -201,7 +202,7 @@ void
 runtime·minit(void)
 {
 	// Initialize signal handling
-	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
 	runtime·sigprocmask(SIG_SETMASK, sigset_none);
 }
 

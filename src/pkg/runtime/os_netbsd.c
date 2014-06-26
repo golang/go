@@ -70,12 +70,12 @@ runtime·semasleep(int64 ns)
 	Timespec ts;
 
 	// spin-mutex lock
-	while(runtime·xchg(&m->waitsemalock, 1))
+	while(runtime·xchg(&g->m->waitsemalock, 1))
 		runtime·osyield();
 
 	for(;;) {
 		// lock held
-		if(m->waitsemacount == 0) {
+		if(g->m->waitsemacount == 0) {
 			// sleep until semaphore != 0 or timeout.
 			// thrsleep unlocks m->waitsemalock.
 			if(ns < 0) {
@@ -92,8 +92,8 @@ runtime·semasleep(int64 ns)
 				// the NetBSD kernel does not appear to provide
 				// a mechanism for unlocking the userspace
 				// mutex once the thread is actually parked.
-				runtime·atomicstore(&m->waitsemalock, 0);
-				runtime·lwp_park(nil, 0, &m->waitsemacount, nil);
+				runtime·atomicstore(&g->m->waitsemalock, 0);
+				runtime·lwp_park(nil, 0, &g->m->waitsemacount, nil);
 			} else {
 				ns = ns + runtime·nanotime();
 				// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
@@ -101,20 +101,20 @@ runtime·semasleep(int64 ns)
 				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
 				// TODO(jsing) - potential deadlock!
 				// See above for details.
-				runtime·atomicstore(&m->waitsemalock, 0);
-				runtime·lwp_park(&ts, 0, &m->waitsemacount, nil);
+				runtime·atomicstore(&g->m->waitsemalock, 0);
+				runtime·lwp_park(&ts, 0, &g->m->waitsemacount, nil);
 			}
 			// reacquire lock
-			while(runtime·xchg(&m->waitsemalock, 1))
+			while(runtime·xchg(&g->m->waitsemalock, 1))
 				runtime·osyield();
 		}
 
 		// lock held (again)
-		if(m->waitsemacount != 0) {
+		if(g->m->waitsemacount != 0) {
 			// semaphore is available.
-			m->waitsemacount--;
+			g->m->waitsemacount--;
 			// spin-mutex unlock
-			runtime·atomicstore(&m->waitsemalock, 0);
+			runtime·atomicstore(&g->m->waitsemalock, 0);
 			return 0;  // semaphore acquired
 		}
 
@@ -127,7 +127,7 @@ runtime·semasleep(int64 ns)
 
 	// lock held but giving up
 	// spin-mutex unlock
-	runtime·atomicstore(&m->waitsemalock, 0);
+	runtime·atomicstore(&g->m->waitsemalock, 0);
 	return -1;
 }
 
@@ -214,6 +214,7 @@ void
 runtime·mpreinit(M *mp)
 {
 	mp->gsignal = runtime·malg(32*1024);
+	mp->gsignal->m = mp;
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -221,10 +222,10 @@ runtime·mpreinit(M *mp)
 void
 runtime·minit(void)
 {
-	m->procid = runtime·lwp_self();
+	g->m->procid = runtime·lwp_self();
 
 	// Initialize signal handling
-	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
 }
 

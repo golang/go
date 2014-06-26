@@ -236,9 +236,9 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	get_tls(CX)
 	
-	// check that m exists
-	MOVL	m(CX), BP
-	CMPL	BP, $0
+	// check that g exists
+	MOVL	g(CX), DI
+	CMPL	DI, $0
 	JNE	6(PC)
 	MOVL	sig+8(FP), BX
 	MOVL	BX, 0(SP)
@@ -247,10 +247,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	JMP 	sigtramp_ret
 
 	// save g
-	MOVL	g(CX), DI
 	MOVL	DI, 20(SP)
 
 	// g = m->gsignal
+	MOVL	g_m(DI), BP
 	MOVL	m_gsignal(BP), BP
 	MOVL	BP, g(CX)
 
@@ -362,7 +362,7 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	// Now segment is established.  Initialize m, g.
 	get_tls(BP)
 	MOVL	AX, g(BP)
-	MOVL	DX, m(BP)
+	MOVL	DX, g_m(AX)
 	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
 	CALL	runtime·stackcheck(SB)		// smashes AX
 	CALL	CX	// fn()

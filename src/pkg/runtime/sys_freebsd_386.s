@@ -37,7 +37,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	get_tls(CX)
 	MOVL	BX, g(CX)
 	
-	MOVL	AX, m(CX)
+	MOVL	AX, g_m(BX)
 	CALL	runtime·stackcheck(SB)		// smashes AX
 	CALL	runtime·mstart(SB)
 
@@ -183,9 +183,9 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-4
 TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	get_tls(CX)
 
-	// check that m exists
-	MOVL	m(CX), BX
-	CMPL	BX, $0
+	// check that g exists
+	MOVL	g(CX), DI
+	CMPL	DI, $0
 	JNE	6(PC)
 	MOVL	signo+0(FP), BX
 	MOVL	BX, 0(SP)
@@ -194,10 +194,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	JMP 	sigtramp_ret
 
 	// save g
-	MOVL	g(CX), DI
 	MOVL	DI, 20(SP)
 	
 	// g = m->gsignal
+	MOVL	g_m(DI), BX
 	MOVL	m_gsignal(BX), BX
 	MOVL	BX, g(CX)
 

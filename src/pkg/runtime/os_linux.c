@@ -196,6 +196,7 @@ void
 runtime·mpreinit(M *mp)
 {
 	mp->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+	mp->gsignal->m = mp;
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -204,7 +205,7 @@ void
 runtime·minit(void)
 {
 	// Initialize signal handling.
-	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
 	runtime·rtsigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof(Sigset));
 }
 

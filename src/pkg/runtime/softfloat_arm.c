@@ -32,20 +32,20 @@ fabort(void)
 static void
 putf(uint32 reg, uint32 val)
 {
-	m->freglo[reg] = val;
+	g->m->freglo[reg] = val;
 }
 
 static void
 putd(uint32 reg, uint64 val)
 {
-	m->freglo[reg] = (uint32)val;
-	m->freghi[reg] = (uint32)(val>>32);
+	g->m->freglo[reg] = (uint32)val;
+	g->m->freghi[reg] = (uint32)(val>>32);
 }
 
 static uint64
 getd(uint32 reg)
 {
-	return (uint64)m->freglo[reg] | ((uint64)m->freghi[reg]<<32);
+	return (uint64)g->m->freglo[reg] | ((uint64)g->m->freghi[reg]<<32);
 }
 
 static void
@@ -53,7 +53,7 @@ fprint(void)
 {
 	uint32 i;
 	for (i = 0; i < 16; i++) {
-		runtime·printf("\tf%d:\t%X %X\n", i, m->freghi[i], m->freglo[i]);
+		runtime·printf("\tf%d:\t%X %X\n", i, g->m->freghi[i], g->m->freglo[i]);
 	}
 }
 
@@ -111,7 +111,11 @@ stepflt(uint32 *pc, uint32 *regs)
 	int64 sval;
 	bool nan, ok;
 	int32 cmp;
+	M *m;
 
+	// m is locked in vlop_arm.s, so g->m cannot change during this function call,
+	// so caching it in a local variable is safe.
+	m = g->m;
 	i = *pc;
 
 	if(trace)

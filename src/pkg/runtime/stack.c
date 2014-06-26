@@ -53,15 +53,15 @@ stackcacherefill(void)
 		for(i = 0; i < StackCacheBatch-1; i++)
 			n->batch[i] = (byte*)n + (i+1)*FixedStack;
 	}
-	pos = m->stackcachepos;
+	pos = g->m->stackcachepos;
 	for(i = 0; i < StackCacheBatch-1; i++) {
-		m->stackcache[pos] = n->batch[i];
+		g->m->stackcache[pos] = n->batch[i];
 		pos = (pos + 1) % StackCacheSize;
 	}
-	m->stackcache[pos] = n;
+	g->m->stackcache[pos] = n;
 	pos = (pos + 1) % StackCacheSize;
-	m->stackcachepos = pos;
-	m->stackcachecnt += StackCacheBatch;
+	g->m->stackcachepos = pos;
+	g->m->stackcachecnt += StackCacheBatch;
 }
 
 static void
@@ -70,14 +70,14 @@ stackcacherelease(void)
 	StackCacheNode *n;
 	uint32 i, pos;
 
-	pos = (m->stackcachepos - m->stackcachecnt) % StackCacheSize;
-	n = (StackCacheNode*)m->stackcache[pos];
+	pos = (g->m->stackcachepos - g->m->stackcachecnt) % StackCacheSize;
+	n = (StackCacheNode*)g->m->stackcache[pos];
 	pos = (pos + 1) % StackCacheSize;
 	for(i = 0; i < StackCacheBatch-1; i++) {
-		n->batch[i] = m->stackcache[pos];
+		n->batch[i] = g->m->stackcache[pos];
 		pos = (pos + 1) % StackCacheSize;
 	}
-	m->stackcachecnt -= StackCacheBatch;
+	g->m->stackcachecnt -= StackCacheBatch;
 	runtime·lock(&stackcachemu);
 	n->next = stackcache;
 	stackcache = n;
@@ -95,7 +95,7 @@ runtime·stackalloc(G *gp, uint32 n)
 	// Stackalloc must be called on scheduler stack, so that we
 	// never try to grow the stack during the code that stackalloc runs.
 	// Doing so would cause a deadlock (issue 1547).
-	if(g != m->g0)
+	if(g != g->m->g0)
 		runtime·throw("stackalloc not on scheduler stack");
 	if((n & (n-1)) != 0)
 		runtime·throw("stack size not a power of 2");
@@ -115,19 +115,19 @@ runtime·stackalloc(G *gp, uint32 n)
 	// (assuming that inside malloc all the stack frames are small,
 	// so that we do not deadlock).
 	malloced = true;
-	if(n == FixedStack || m->mallocing) {
+	if(n == FixedStack || g->m->mallocing) {
 		if(n != FixedStack) {
 			runtime·printf("stackalloc: in malloc, size=%d want %d\n", FixedStack, n);
 			runtime·throw("stackalloc");
 		}
-		if(m->stackcachecnt == 0)
+		if(g->m->stackcachecnt == 0)
 			stackcacherefill();
-		pos = m->stackcachepos;
+		pos = g->m->stackcachepos;
 		pos = (pos - 1) % StackCacheSize;
-		v = m->stackcache[pos];
-		m->stackcachepos = pos;
-		m->stackcachecnt--;
-		m->stackinuse++;
+		v = g->m->stackcache[pos];
+		g->m->stackcachepos = pos;
+		g->m->stackcachecnt--;
+		g->m->stackinuse++;
 		malloced = false;
 	} else
 		v = runtime·mallocgc(n, 0, FlagNoProfiling|FlagNoGC|FlagNoZero|FlagNoInvokeGC);
@@ -161,13 +161,13 @@ runtime·stackfree(G *gp, void *v, Stktop *top)
 	}
 	if(n != FixedStack)
 		runtime·throw("stackfree: bad fixed size");
-	if(m->stackcachecnt == StackCacheSize)
+	if(g->m->stackcachecnt == StackCacheSize)
 		stackcacherelease();
-	pos = m->stackcachepos;
-	m->stackcache[pos] = v;
-	m->stackcachepos = (pos + 1) % StackCacheSize;
-	m->stackcachecnt++;
-	m->stackinuse--;
+	pos = g->m->stackcachepos;
+	g->m->stackcache[pos] = v;
+	g->m->stackcachepos = (pos + 1) % StackCacheSize;
+	g->m->stackcachecnt++;
+	g->m->stackinuse--;
 }
 
 // Called from runtime·lessstack when returning from a function which
@@ -184,7 +184,7 @@ runtime·oldstack(void)
 	int64 goid;
 	int32 oldstatus;
 
-	gp = m->curg;
+	gp = g->m->curg;
 	top = (Stktop*)gp->stackbase;
 	old = (byte*)gp->stackguard - StackGuard;
 	sp = (byte*)top;
@@ -192,7 +192,7 @@ runtime·oldstack(void)
 
 	if(StackDebug >= 1) {
 		runtime·printf("runtime: oldstack gobuf={pc:%p sp:%p lr:%p} cret=%p argsize=%p\n",
-			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, (uintptr)m->cret, (uintptr)argsize);
+			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, (uintptr)g->m->cret, (uintptr)argsize);
 	}
 
 	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
@@ -200,8 +200,8 @@ runtime·oldstack(void)
 	oldstatus = gp->status;
 	
 	gp->sched = top->gobuf;
-	gp->sched.ret = m->cret;
-	m->cret = 0; // drop reference
+	gp->sched.ret = g->m->cret;
+	g->m->cret = 0; // drop reference
 	gp->status = Gwaiting;
 	gp->waitreason = "stack unsplit";
 
@@ -416,7 +416,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
-				m->traceback = 2;
+				g->m->traceback = 2;
 				runtime·printf("runtime: bad pointer in frame %s at %p: %p\n", runtime·funcname(f), &scanp[i], p);
 				runtime·throw("bad pointer!");
 			}
@@ -675,28 +675,28 @@ runtime·newstack(void)
 	void *moreargp;
 	bool newstackcall;
 
-	if(m->forkstackguard)
+	if(g->m->forkstackguard)
 		runtime·throw("split stack after fork");
-	if(m->morebuf.g != m->curg) {
+	if(g->m->morebuf.g != g->m->curg) {
 		runtime·printf("runtime: newstack called from g=%p\n"
 			"\tm=%p m->curg=%p m->g0=%p m->gsignal=%p\n",
-			m->morebuf.g, m, m->curg, m->g0, m->gsignal);
+			g->m->morebuf.g, g->m, g->m->curg, g->m->g0, g->m->gsignal);
 		runtime·throw("runtime: wrong goroutine in newstack");
 	}
 
 	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
 	// happens during a function call inside entersyscall.
-	gp = m->curg;
+	gp = g->m->curg;
 	oldstatus = gp->status;
 
-	framesize = m->moreframesize;
-	argsize = m->moreargsize;
-	moreargp = m->moreargp;
-	m->moreargp = nil;
-	morebuf = m->morebuf;
-	m->morebuf.pc = (uintptr)nil;
-	m->morebuf.lr = (uintptr)nil;
-	m->morebuf.sp = (uintptr)nil;
+	framesize = g->m->moreframesize;
+	argsize = g->m->moreargsize;
+	moreargp = g->m->moreargp;
+	g->m->moreargp = nil;
+	morebuf = g->m->morebuf;
+	g->m->morebuf.pc = (uintptr)nil;
+	g->m->morebuf.lr = (uintptr)nil;
+	g->m->morebuf.sp = (uintptr)nil;
 	gp->status = Gwaiting;
 	gp->waitreason = "stack growth";
 	newstackcall = framesize==1;
@@ -717,7 +717,7 @@ runtime·newstack(void)
 			"\tmorebuf={pc:%p sp:%p lr:%p}\n"
 			"\tsched={pc:%p sp:%p lr:%p ctxt:%p}\n",
 			(uintptr)framesize, (uintptr)argsize, sp, gp->stackguard - StackGuard, gp->stackbase,
-			m->morebuf.pc, m->morebuf.sp, m->morebuf.lr,
+			g->m->morebuf.pc, g->m->morebuf.sp, g->m->morebuf.lr,
 			gp->sched.pc, gp->sched.sp, gp->sched.lr, gp->sched.ctxt);
 	}
 	if(sp < gp->stackguard - StackGuard) {
@@ -731,15 +731,15 @@ runtime·newstack(void)
 	}
 
 	if(gp->stackguard0 == (uintptr)StackPreempt) {
-		if(gp == m->g0)
+		if(gp == g->m->g0)
 			runtime·throw("runtime: preempt g0");
-		if(oldstatus == Grunning && m->p == nil && m->locks == 0)
+		if(oldstatus == Grunning && g->m->p == nil && g->m->locks == 0)
 			runtime·throw("runtime: g is running but p is not");
-		if(oldstatus == Gsyscall && m->locks == 0)
+		if(oldstatus == Gsyscall && g->m->locks == 0)
 			runtime·throw("runtime: stack growth during syscall");
 		// Be conservative about where we preempt.
 		// We are interested in preempting user Go code, not runtime code.
-		if(oldstatus != Grunning || m->locks || m->mallocing || m->gcing || m->p->status != Prunning) {
+		if(oldstatus != Grunning || g->m->locks || g->m->mallocing || g->m->gcing || g->m->p->status != Prunning) {
 			// Let the goroutine keep running for now.
 			// gp->preempt is set, so it will be preempted next time.
 			gp->stackguard0 = gp->stackguard;
@@ -839,9 +839,9 @@ runtime·newstack(void)
 	runtime·memclr((byte*)&label, sizeof label);
 	label.sp = sp;
 	label.pc = (uintptr)runtime·lessstack;
-	label.g = m->curg;
+	label.g = g->m->curg;
 	if(newstackcall)
-		runtime·gostartcallfn(&label, (FuncVal*)m->cret);
+		runtime·gostartcallfn(&label, (FuncVal*)g->m->cret);
 	else {
 		runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
 		gp->sched.ctxt = nil;

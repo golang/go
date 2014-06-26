@@ -102,14 +102,13 @@ typedef	struct	DebugVars	DebugVars;
  * local storage indexed by a pseudo-register TLS. See zasmhdr in
  * src/cmd/dist/buildruntime.c for details, and be aware that the linker may
  * make further OS-specific changes to the compiler's output. For example,
- * 6l/linux rewrites 0(TLS) as -16(FS).
+ * 6l/linux rewrites 0(TLS) as -8(FS).
  *
  * Every C file linked into a Go program must include runtime.h so that the
  * C compiler (6c, 8c, etc.) knows to avoid other uses of these dedicated
  * registers. The Go compiler (6g, 8g, etc.) knows to avoid them.
  */
 extern	register	G*	g;
-extern	register	M*	m;
 
 /*
  * defined constants
@@ -907,7 +906,7 @@ uint64	runtime·atomicload64(uint64 volatile*);
 void*	runtime·atomicloadp(void* volatile*);
 void	runtime·atomicstorep(void* volatile*, void*);
 
-void	runtime·setmg(M*, G*);
+void	runtime·setg(G*);
 void	runtime·newextram(void);
 void	runtime·exit(int32);
 void	runtime·breakpoint(void);

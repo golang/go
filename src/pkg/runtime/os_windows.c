@@ -202,7 +202,7 @@ runtime·semasleep(int64 ns)
 		if(ns == 0)
 			ns = 1;
 	}
-	if(runtime·stdcall(runtime·WaitForSingleObject, 2, m->waitsema, (uintptr)ns) != 0)
+	if(runtime·stdcall(runtime·WaitForSingleObject, 2, g->m->waitsema, (uintptr)ns) != 0)
 		return -1;  // timeout
 	return 0;
 }
@@ -256,7 +256,7 @@ runtime·minit(void)
 	runtime·stdcall(runtime·DuplicateHandle, 7,
 		(uintptr)-1, (uintptr)-2, (uintptr)-1, &thandle,
 		(uintptr)0, (uintptr)0, (uintptr)DUPLICATE_SAME_ACCESS);
-	runtime·atomicstorep(&m->thread, thandle);
+	runtime·atomicstorep(&g->m->thread, thandle);
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -295,20 +295,20 @@ time·now(int64 sec, int32 usec)
 void *
 runtime·stdcall(void *fn, int32 count, ...)
 {
-	m->libcall.fn = fn;
-	m->libcall.n = count;
-	m->libcall.args = (uintptr*)&count + 1;
-	if(m->profilehz != 0) {
+	g->m->libcall.fn = fn;
+	g->m->libcall.n = count;
+	g->m->libcall.args = (uintptr*)&count + 1;
+	if(g->m->profilehz != 0) {
 		// leave pc/sp for cpu profiler
-		m->libcallg = g;
-		m->libcallpc = (uintptr)runtime·getcallerpc(&fn);
+		g->m->libcallg = g;
+		g->m->libcallpc = (uintptr)runtime·getcallerpc(&fn);
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		m->libcallsp = (uintptr)runtime·getcallersp(&fn);
+		g->m->libcallsp = (uintptr)runtime·getcallersp(&fn);
 	}
-	runtime·asmcgocall(runtime·asmstdcall, &m->libcall);
-	m->libcallsp = 0;
-	return (void*)m->libcall.r1;
+	runtime·asmcgocall(runtime·asmstdcall, &g->m->libcall);
+	g->m->libcallsp = 0;
+	return (void*)g->m->libcall.r1;
 }
 
 extern void runtime·usleep1(uint32);
@@ -484,7 +484,7 @@ runtime·resetcpuprofiler(int32 hz)
 	}
 	runtime·stdcall(runtime·SetWaitableTimer, 6,
 		profiletimer, &due, (uintptr)ms, nil, nil, nil);
-	runtime·atomicstore((uint32*)&m->profilehz, hz);
+	runtime·atomicstore((uint32*)&g->m->profilehz, hz);
 }
 
 void

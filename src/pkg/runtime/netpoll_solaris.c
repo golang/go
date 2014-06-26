@@ -79,7 +79,7 @@ extern uintptr libc·port_associate;
 extern uintptr libc·port_dissociate;
 extern uintptr libc·port_getn;
 
-#define errno (*m->perrno)
+#define errno (*g->m->perrno)
 
 int32
 runtime·fcntl(int32 fd, int32 cmd, uintptr arg)

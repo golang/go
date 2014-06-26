@@ -177,7 +177,7 @@ void
 loadlib(void)
 {
 	int i, w, x;
-	LSym *s, *gmsym;
+	LSym *s, *tlsg;
 	char* cgostrsym;
 
 	if(flag_shared) {
@@ -244,12 +244,12 @@ loadlib(void)
 			}
 	}
 	
-	gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
-	gmsym->type = STLSBSS;
-	gmsym->size = 2*PtrSize;
-	gmsym->hide = 1;
-	gmsym->reachable = 1;
-	ctxt->gmsym = gmsym;
+	tlsg = linklookup(ctxt, "runtime.tlsg", 0);
+	tlsg->type = STLSBSS;
+	tlsg->size = PtrSize;
+	tlsg->hide = 1;
+	tlsg->reachable = 1;
+	ctxt->tlsg = tlsg;
 
 	// Now that we know the link mode, trim the dynexp list.
 	x = CgoExportDynamic;

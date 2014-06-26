@@ -72,30 +72,25 @@ TEXT _sfloat(SB), NOSPLIT, $64-0 // 4 arg + 14*4 saved regs + cpsr
 	// registers into G, but they do not need to be kept at the 
 	// usual places a goroutine reschedules (at function calls),
 	// so it would be a waste of 132 bytes per G.
-	MOVW	m_locks(m), R1
+	MOVW	g_m(g), R8
+	MOVW	m_locks(R8), R1
 	ADD	$1, R1
-	MOVW	R1, m_locks(m)
+	MOVW	R1, m_locks(R8)
 	MOVW	$1, R1
-	MOVW	R1, m_softfloat(m)
+	MOVW	R1, m_softfloat(R8)
 	BL	runtime·_sfloat2(SB)
-	MOVW	m_locks(m), R1
+	MOVW	g_m(g), R8
+	MOVW	m_locks(R8), R1
 	SUB	$1, R1
-	MOVW	R1, m_locks(m)
+	MOVW	R1, m_locks(R8)
 	MOVW	$0, R1
-	MOVW	R1, m_softfloat(m)
+	MOVW	R1, m_softfloat(R8)
 	MOVW	R0, 0(R13)
 	MOVW	64(R13), R1
 	WORD	$0xe128f001	// msr cpsr_f, r1
 	MOVW	$12(R13), R0
-	// Restore R1-R8 and R11-R12, but ignore the saved R9 (m) and R10 (g).
-	// Both are maintained by the runtime and always have correct values,
-	// so there is no need to restore old values here.
-	// The g should not have changed, but m may have, if we were preempted
-	// and restarted on a different thread, in which case restoring the old
-	// value is incorrect and will cause serious confusion in the runtime.
-	MOVM.IA.W	(R0), [R1-R8]
-	MOVW	$52(R13), R0
-	MOVM.IA.W	(R0), [R11-R12]
+	// Restore R1-R12, R0.
+	MOVM.IA.W	(R0), [R1-R12]
 	MOVW	8(R13), R0
 	RET
 

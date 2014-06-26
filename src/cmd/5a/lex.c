@@ -199,8 +199,8 @@ struct
 	"R6",		LREG,	6,
 	"R7",		LREG,	7,
 	"R8",		LREG,	8,
-	"m",		LREG,	9, // avoid unintentionally clobber m/g using R9/R10
-	"g",		LREG,	10,
+	"R9",		LREG,	9,
+	"g",		LREG,	10, // avoid unintentionally clobber g using R10
 	"R11",		LREG,	11,
 	"R12",		LREG,	12,
 	"R13",		LREG,	13,

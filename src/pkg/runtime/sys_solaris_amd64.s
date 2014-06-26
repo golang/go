@@ -22,7 +22,8 @@ TEXT runtime·miniterrno(SB),NOSPLIT,$0
 	// asmcgocall will put first argument into DI.
 	CALL	DI	// SysV ABI so returns in AX
 	get_tls(CX)
-	MOVQ	m(CX), BX
+	MOVQ	g(CX), BX
+	MOVQ	g_m(BX), BX
 	MOVQ	AX,	m_perrno(BX)
 	RET
 
@@ -73,7 +74,8 @@ TEXT runtime·asmsysvicall6(SB),NOSPLIT,$0
 	MOVQ	libcall_n(DI), R10
 
 	get_tls(CX)
-	MOVQ	m(CX), BX
+	MOVQ	g(CX), BX
+	MOVQ	g_m(BX), BX
 	MOVQ	m_perrno(BX), DX
 	CMPQ	DX, $0
 	JEQ	skiperrno1
@@ -100,7 +102,8 @@ skipargs:
 	MOVQ	DX, libcall_r2(DI)
 
 	get_tls(CX)
-	MOVQ	m(CX), BX
+	MOVQ	g(CX), BX
+	MOVQ	g_m(BX), BX
 	MOVQ	m_perrno(BX), AX
 	CMPQ	AX, $0
 	JEQ	skiperrno2
@@ -118,7 +121,7 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
 	// Make TLS entries point at g and m.
 	get_tls(BX)
 	MOVQ	DX, g(BX)
-	MOVQ	DI, m(BX)
+	MOVQ	DI, g_m(DX)
 
 	// Layout new m scheduler stack on os stack.
 	MOVQ	SP, AX
@@ -154,9 +157,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVQ	R15, 72(SP)
 
 	get_tls(BX)
-	// check that m exists
-	MOVQ	m(BX), BP
-	CMPQ	BP, $0
+	// check that g exists
+	MOVQ	g(BX), R10
+	CMPQ	R10, $0
 	JNE	allgood
 	MOVQ	DI, 0(SP)
 	MOVQ	$runtime·badsignal(SB), AX
@@ -165,13 +168,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 
 allgood:
 	// save g
-	MOVQ	g(BX), R10
 	MOVQ	R10, 80(SP)
 
 	// Save m->libcall and m->scratch. We need to do this because we
 	// might get interrupted by a signal in runtime·asmcgocall.
 
 	// save m->libcall 
+	MOVQ	g_m(R10), BP
 	LEAQ	m_libcall(BP), R11
 	MOVQ	libcall_fn(R11), R10
 	MOVQ	R10, 88(SP)
@@ -217,7 +220,8 @@ allgood:
 	CALL	runtime·sighandler(SB)
 
 	get_tls(BX)
-	MOVQ	m(BX), BP
+	MOVQ	g(BX), BP
+	MOVQ	g_m(BP), BP
 	// restore libcall
 	LEAQ	m_libcall(BP), R11
 	MOVQ	88(SP), R10

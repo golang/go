@@ -757,7 +757,7 @@ scanblock(Workbuf *wbuf, bool keepworking)
 	}
 
 	// Initialize sbuf
-	scanbuffers = &bufferList[m->helpgc];
+	scanbuffers = &bufferList[g->m->helpgc];
 
 	sbuf.ptr.begin = sbuf.ptr.pos = &scanbuffers->ptrtarget[0];
 	sbuf.ptr.end = sbuf.ptr.begin + nelem(scanbuffers->ptrtarget);
@@ -1389,13 +1389,13 @@ getfull(Workbuf *b)
 		if(work.nwait == work.nproc)
 			return nil;
 		if(i < 10) {
-			m->gcstats.nprocyield++;
+			g->m->gcstats.nprocyield++;
 			runtime·procyield(20);
 		} else if(i < 20) {
-			m->gcstats.nosyield++;
+			g->m->gcstats.nosyield++;
 			runtime·osyield();
 		} else {
-			m->gcstats.nsleep++;
+			g->m->gcstats.nsleep++;
 			runtime·usleep(100);
 		}
 	}
@@ -1413,8 +1413,8 @@ handoff(Workbuf *b)
 	b->nobj -= n;
 	b1->nobj = n;
 	runtime·memmove(b1->obj, b->obj+b->nobj, n*sizeof b1->obj[0]);
-	m->gcstats.nhandoff++;
-	m->gcstats.nhandoffcnt += n;
+	g->m->gcstats.nhandoff++;
+	g->m->gcstats.nhandoffcnt += n;
 
 	// Put b on full list - let first half of b get stolen.
 	runtime·lfstackpush(&work.full, &b->node);
@@ -1487,7 +1487,7 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, void *wbufp)
 					if(precise && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
 						// Looks like a junk value in a pointer slot.
 						// Liveness analysis wrong?
-						m->traceback = 2;
+						g->m->traceback = 2;
 						runtime·printf("bad pointer in frame %s at %p: %p\n", runtime·funcname(f), scanp, p);
 						runtime·throw("bad pointer in scanbitvector");
 					}
@@ -1533,7 +1533,7 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, void *wbufp)
 					if(Debug > 2)
 						runtime·printf("frame %s @%p: slice %p/%D/%D\n", runtime·funcname(f), p, ((Slice*)p)->array, (int64)((Slice*)p)->len, (int64)((Slice*)p)->cap);
 					if(((Slice*)p)->cap < ((Slice*)p)->len) {
-						m->traceback = 2;
+						g->m->traceback = 2;
 						runtime·printf("bad slice in frame %s at %p: %p/%p/%p\n", runtime·funcname(f), p, ((byte**)p)[0], ((byte**)p)[1], ((byte**)p)[2]);
 						runtime·throw("slice capacity smaller than length");
 					}
@@ -1757,7 +1757,7 @@ runtime·MSpan_EnsureSwept(MSpan *s)
 	// Caller must disable preemption.
 	// Otherwise when this function returns the span can become unswept again
 	// (if GC is triggered on another goroutine).
-	if(m->locks == 0 && m->mallocing == 0 && g != m->g0)
+	if(g->m->locks == 0 && g->m->mallocing == 0 && g != g->m->g0)
 		runtime·throw("MSpan_EnsureSwept: m is not locked");
 
 	sg = runtime·mheap.sweepgen;
@@ -1794,7 +1794,7 @@ runtime·MSpan_Sweep(MSpan *s)
 
 	// It's critical that we enter this function with preemption disabled,
 	// GC must not start while we are in the middle of this function.
-	if(m->locks == 0 && m->mallocing == 0 && g != m->g0)
+	if(g->m->locks == 0 && g->m->mallocing == 0 && g != g->m->g0)
 		runtime·throw("MSpan_Sweep: m is not locked");
 	sweepgen = runtime·mheap.sweepgen;
 	if(s->state != MSpanInUse || s->sweepgen != sweepgen-1) {
@@ -1815,7 +1815,7 @@ runtime·MSpan_Sweep(MSpan *s)
 	res = false;
 	nfree = 0;
 	end = &head;
-	c = m->mcache;
+	c = g->m->mcache;
 	sweepgenset = false;
 
 	// mark any free objects in this span so we don't collect them
@@ -2002,13 +2002,13 @@ runtime·sweepone(void)
 
 	// increment locks to ensure that the goroutine is not preempted
 	// in the middle of sweep thus leaving the span in an inconsistent state for next GC
-	m->locks++;
+	g->m->locks++;
 	sg = runtime·mheap.sweepgen;
 	for(;;) {
 		idx = runtime·xadd(&sweep.spanidx, 1) - 1;
 		if(idx >= sweep.nspan) {
 			runtime·mheap.sweepdone = true;
-			m->locks--;
+			g->m->locks--;
 			return -1;
 		}
 		s = sweep.spans[idx];
@@ -2023,7 +2023,7 @@ runtime·sweepone(void)
 		npages = s->npages;
 		if(!runtime·MSpan_Sweep(s))
 			npages = 0;
-		m->locks--;
+		g->m->locks--;
 		return npages;
 	}
 }
@@ -2107,7 +2107,7 @@ runtime·gchelper(void)
 {
 	uint32 nproc;
 
-	m->traceback = 2;
+	g->m->traceback = 2;
 	gchelperstart();
 
 	// parallel mark for over gc roots
@@ -2116,11 +2116,11 @@ runtime·gchelper(void)
 	// help other threads scan secondary blocks
 	scanblock(nil, true);
 
-	bufferList[m->helpgc].busy = 0;
+	bufferList[g->m->helpgc].busy = 0;
 	nproc = work.nproc;  // work.nproc can change right after we increment work.ndone
 	if(runtime·xadd(&work.ndone, +1) == nproc-1)
 		runtime·notewakeup(&work.alldone);
-	m->traceback = 0;
+	g->m->traceback = 0;
 }
 
 static void
@@ -2282,7 +2282,7 @@ runtime·gc(int32 force)
 	// problems, don't bother trying to run gc
 	// while holding a lock.  The next mallocgc
 	// without a lock will do the gc instead.
-	if(!mstats.enablegc || g == m->g0 || m->locks > 0 || runtime·panicking)
+	if(!mstats.enablegc || g == g->m->g0 || g->m->locks > 0 || runtime·panicking)
 		return;
 
 	if(gcpercent == GcpercentUnknown) {	// first time through
@@ -2305,7 +2305,7 @@ runtime·gc(int32 force)
 	// Ok, we're doing it!  Stop everybody else
 	a.start_time = runtime·nanotime();
 	a.eagersweep = force >= 2;
-	m->gcing = 1;
+	g->m->gcing = 1;
 	runtime·stoptheworld();
 	
 	clearpools();
@@ -2326,11 +2326,11 @@ runtime·gc(int32 force)
 	}
 
 	// all done
-	m->gcing = 0;
-	m->locks++;
+	g->m->gcing = 0;
+	g->m->locks++;
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
-	m->locks--;
+	g->m->locks--;
 
 	// now that gc is done, kick off finalizer thread if needed
 	if(!ConcurrentSweep) {
@@ -2360,17 +2360,17 @@ gc(struct gc_args *args)
 	if(runtime·debug.allocfreetrace)
 		runtime·tracegc();
 
-	m->traceback = 2;
+	g->m->traceback = 2;
 	t0 = args->start_time;
 	work.tstart = args->start_time; 
 
 	if(CollectStats)
 		runtime·memclr((byte*)&gcstats, sizeof(gcstats));
 
-	m->locks++;	// disable gc during mallocs in parforalloc
+	g->m->locks++;	// disable gc during mallocs in parforalloc
 	if(work.markfor == nil)
 		work.markfor = runtime·parforalloc(MaxGcproc);
-	m->locks--;
+	g->m->locks--;
 
 	if(itabtype == nil) {
 		// get C pointer to the Go type "itab"
@@ -2407,7 +2407,7 @@ gc(struct gc_args *args)
 	if(runtime·debug.gctrace)
 		t3 = runtime·nanotime();
 
-	bufferList[m->helpgc].busy = 0;
+	bufferList[g->m->helpgc].busy = 0;
 	if(work.nproc > 1)
 		runtime·notesleep(&work.alldone);
 
@@ -2515,7 +2515,7 @@ gc(struct gc_args *args)
 		runtime·shrinkstack(runtime·allg[i]);
 
 	runtime·MProf_GC();
-	m->traceback = 0;
+	g->m->traceback = 0;
 }
 
 extern uintptr runtime·sizeof_C_MStats;
@@ -2528,17 +2528,17 @@ runtime·ReadMemStats(MStats *stats)
 	// one goroutine at a time, and there might be
 	// a pending garbage collection already calling it.
 	runtime·semacquire(&runtime·worldsema, false);
-	m->gcing = 1;
+	g->m->gcing = 1;
 	runtime·stoptheworld();
 	runtime·updatememstats(nil);
 	// Size of the trailing by_size array differs between Go and C,
 	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
 	runtime·memcopy(runtime·sizeof_C_MStats, stats, &mstats);
-	m->gcing = 0;
-	m->locks++;
+	g->m->gcing = 0;
+	g->m->locks++;
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
-	m->locks--;
+	g->m->locks--;
 }
 
 void
@@ -2590,11 +2590,11 @@ runtime·setgcpercent(int32 in) {
 static void
 gchelperstart(void)
 {
-	if(m->helpgc < 0 || m->helpgc >= MaxGcproc)
+	if(g->m->helpgc < 0 || g->m->helpgc >= MaxGcproc)
 		runtime·throw("gchelperstart: bad m->helpgc");
-	if(runtime·xchg(&bufferList[m->helpgc].busy, 1))
+	if(runtime·xchg(&bufferList[g->m->helpgc].busy, 1))
 		runtime·throw("gchelperstart: already busy");
-	if(g != m->g0)
+	if(g != g->m->g0)
 		runtime·throw("gchelper not running on g0 stack");
 }
 

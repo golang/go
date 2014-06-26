@@ -53,10 +53,11 @@ ok:
 	LEAL	runtime·g0(SB), CX
 	MOVL	CX, g(BX)
 	LEAL	runtime·m0(SB), AX
-	MOVL	AX, m(BX)
 
 	// save m->g0 = g0
 	MOVL	CX, m_g0(AX)
+	// save m0 to g0->m
+	MOVL	AX, g_m(CX)
 
 	CLD				// convention is D is always left cleared
 	CALL	runtime·check(SB)
@@ -147,7 +148,8 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	MOVL	AX, (g_sched+gobuf_g)(AX)
 
 	// switch to m->g0 & its stack, call fn
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 	MOVL	m_g0(BX), SI
 	CMPL	SI, AX	// if g == m->g0 call badmcall
 	JNE	3(PC)
@@ -215,7 +217,8 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 // func call(fn *byte, arg *byte, argsize uint32).
 TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 
 	// Save our caller's state as the PC and SP to
 	// restore when returning from f.
@@ -358,7 +361,8 @@ CALLFN(call1073741824, 1073741824)
 TEXT runtime·lessstack(SB), NOSPLIT, $0-0
 	// Save return value in m->cret
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 	MOVQ	AX, m_cret(BX)	// MOVQ, to save all 64 bits
 
 	// Call oldstack on m->g0's stack.
@@ -372,7 +376,8 @@ TEXT runtime·lessstack(SB), NOSPLIT, $0-0
 // morestack trampolines
 TEXT runtime·morestack00(SB),NOSPLIT,$0
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 	MOVQ	$0, AX
 	MOVQ	AX, m_moreframesize(BX)
 	MOVL	$runtime·morestack(SB), AX
@@ -380,7 +385,8 @@ TEXT runtime·morestack00(SB),NOSPLIT,$0
 
 TEXT runtime·morestack01(SB),NOSPLIT,$0
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 	SHLQ	$32, AX
 	MOVQ	AX, m_moreframesize(BX)
 	MOVL	$runtime·morestack(SB), AX
@@ -388,7 +394,8 @@ TEXT runtime·morestack01(SB),NOSPLIT,$0
 
 TEXT runtime·morestack10(SB),NOSPLIT,$0
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 	MOVLQZX	AX, AX
 	MOVQ	AX, m_moreframesize(BX)
 	MOVL	$runtime·morestack(SB), AX
@@ -396,7 +403,8 @@ TEXT runtime·morestack10(SB),NOSPLIT,$0
 
 TEXT runtime·morestack11(SB),NOSPLIT,$0
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 	MOVQ	AX, m_moreframesize(BX)
 	MOVL	$runtime·morestack(SB), AX
 	JMP	AX
@@ -435,7 +443,8 @@ TEXT runtime·morestack48(SB),NOSPLIT,$0
 
 TEXT morestack<>(SB),NOSPLIT,$0
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 	SHLQ	$35, R8
 	MOVQ	R8, m_moreframesize(BX)
 	MOVL	$runtime·morestack(SB), AX
@@ -625,9 +634,9 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$0-12
 	MOVL	0, AX
 	RET
 
-// void setmg(M*, G*); set m and g. for use by needm.
+// void setg(G*); set g. for use by needm.
 // Not implemented.
-TEXT runtime·setmg(SB), NOSPLIT, $0-8
+TEXT runtime·setg(SB), NOSPLIT, $0-8
 	MOVL	0, AX
 	RET
 

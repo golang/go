@@ -186,8 +186,8 @@ relocsym(LSym *s)
 		case R_TLS_LE:
 			if(linkmode == LinkExternal && iself && HEADTYPE != Hopenbsd) {
 				r->done = 0;
-				r->sym = ctxt->gmsym;
-				r->xsym = ctxt->gmsym;
+				r->sym = ctxt->tlsg;
+				r->xsym = ctxt->tlsg;
 				r->xadd = r->add;
 				o = 0;
 				if(thechar != '6')
@@ -200,8 +200,8 @@ relocsym(LSym *s)
 		case R_TLS_IE:
 			if(linkmode == LinkExternal && iself && HEADTYPE != Hopenbsd) {
 				r->done = 0;
-				r->sym = ctxt->gmsym;
-				r->xsym = ctxt->gmsym;
+				r->sym = ctxt->tlsg;
+				r->xsym = ctxt->tlsg;
 				r->xadd = r->add;
 				o = 0;
 				if(thechar != '6')
@@ -951,9 +951,9 @@ dodata(void)
 		sect->len = datsize;
 	} else {
 		// Might be internal linking but still using cgo.
-		// In that case, the only possible STLSBSS symbol is tlsgm.
+		// In that case, the only possible STLSBSS symbol is runtime.tlsg.
 		// Give it offset 0, because it's the only thing here.
-		if(s != nil && s->type == STLSBSS && strcmp(s->name, "runtime.tlsgm") == 0) {
+		if(s != nil && s->type == STLSBSS && strcmp(s->name, "runtime.tlsg") == 0) {
 			s->value = 0;
 			s = s->next;
 		}

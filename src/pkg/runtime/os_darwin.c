@@ -119,6 +119,7 @@ void
 runtime·mpreinit(M *mp)
 {
 	mp->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+	mp->gsignal->m = mp;
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -127,7 +128,7 @@ void
 runtime·minit(void)
 {
 	// Initialize signal handling.
-	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
 
 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
 }
@@ -202,9 +203,9 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	uint32 port;
 	CodeMsg *c;
 
-	if((port = m->machport) == 0){
+	if((port = g->m->machport) == 0){
 		port = runtime·mach_reply_port();
-		m->machport = port;
+		g->m->machport = port;
 	}
 
 	h->msgh_bits |= MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, MACH_MSG_TYPE_MAKE_SEND_ONCE);
@@ -405,14 +406,14 @@ runtime·semasleep(int64 ns)
 
 	if(ns >= 0) {
 		secs = runtime·timediv(ns, 1000000000, &nsecs);
-		r = runtime·mach_semaphore_timedwait(m->waitsema, secs, nsecs);
+		r = runtime·mach_semaphore_timedwait(g->m->waitsema, secs, nsecs);
 		if(r == KERN_ABORTED || r == KERN_OPERATION_TIMED_OUT)
 			return -1;
 		if(r != 0)
 			macherror(r, "semaphore_wait");
 		return 0;
 	}
-	while((r = runtime·mach_semaphore_wait(m->waitsema)) != 0) {
+	while((r = runtime·mach_semaphore_wait(g->m->waitsema)) != 0) {
 		if(r == KERN_ABORTED)	// interrupted
 			continue;
 		macherror(r, "semaphore_wait");

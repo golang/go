@@ -40,7 +40,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$32
 
 	// In child, set up new stack.
 	get_tls(CX)
-	MOVQ	R8, m(CX)
+	MOVQ	R8, g_m(R9)
 	MOVQ	R9, g(CX)
 	CALL	runtime·stackcheck(SB)
 
@@ -204,9 +204,9 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	get_tls(BX)
 	
-	// check that m exists
-	MOVQ	m(BX), BP
-	CMPQ	BP, $0
+	// check that g exists
+	MOVQ	g(BX), R10
+	CMPQ	R10, $0
 	JNE	5(PC)
 	MOVQ	DI, 0(SP)
 	MOVQ	$runtime·badsignal(SB), AX
@@ -214,10 +214,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	RET
 
 	// save g
-	MOVQ	g(BX), R10
 	MOVQ	R10, 40(SP)
 	
 	// g = m->signal
+	MOVQ	g_m(R10), BP
 	MOVQ	m_gsignal(BP), BP
 	MOVQ	BP, g(BX)
 	

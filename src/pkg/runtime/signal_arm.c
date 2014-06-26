@@ -46,7 +46,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 	bool crash;
 
 	if(sig == SIGPROF) {
-		runtime·sigprof((uint8*)SIG_PC(info, ctxt), (uint8*)SIG_SP(info, ctxt), (uint8*)SIG_LR(info, ctxt), gp, m);
+		runtime·sigprof((uint8*)SIG_PC(info, ctxt), (uint8*)SIG_SP(info, ctxt), (uint8*)SIG_LR(info, ctxt), gp, g->m);
 		return;
 	}
 
@@ -76,7 +76,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 			SIG_LR(info, ctxt) = gp->sigpc;
 		// In case we are panicking from external C code
 		SIG_R10(info, ctxt) = (uintptr)gp;
-		SIG_R9(info, ctxt) = (uintptr)m;
+		SIG_R9(info, ctxt) = (uintptr)g->m;
 		SIG_PC(info, ctxt) = (uintptr)runtime·sigpanic;
 		return;
 	}
@@ -89,8 +89,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 	if(!(t->flags & SigThrow))
 		return;
 
-	m->throwing = 1;
-	m->caughtsig = gp;
+	g->m->throwing = 1;
+	g->m->caughtsig = gp;
 	if(runtime·panicking)	// traceback already printed
 		runtime·exit(2);
 	runtime·panicking = 1;
@@ -101,9 +101,9 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 		runtime·printf("%s\n", runtime·sigtab[sig].name);
 
 	runtime·printf("PC=%x\n", SIG_PC(info, ctxt));
-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+	if(g->m->lockedg != nil && g->m->ncgo > 0 && gp == g->m->g0) {
 		runtime·printf("signal arrived during cgo execution\n");
-		gp = m->lockedg;
+		gp = g->m->lockedg;
 	}
 	runtime·printf("\n");
 

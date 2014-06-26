@@ -196,9 +196,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	MOVQ	R8, 32(SP)	// save ucontext
 	MOVQ	SI, 40(SP)	// save infostyle
 
-	// check that m exists
-	MOVQ	m(BX), BP
-	CMPQ	BP, $0
+	// check that g exists
+	MOVQ	g(BX), R10
+	CMPQ	R10, $0
 	JNE	5(PC)
 	MOVL	DX, 0(SP)
 	MOVQ	$runtime·badsignal(SB), AX
@@ -206,10 +206,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	JMP 	sigtramp_ret
 
 	// save g
-	MOVQ	g(BX), R10
 	MOVQ	R10, 48(SP)
 
 	// g = m->gsignal
+	MOVQ	g_m(R10), BP
 	MOVQ	m_gsignal(BP), BP
 	MOVQ	BP, g(BX)
 
@@ -325,10 +325,10 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	POPQ	DX
 
 	get_tls(BX)
-	MOVQ	CX, m(BX)
 	MOVQ	SI, m_procid(CX)	// thread port is m->procid
 	MOVQ	m_g0(CX), AX
 	MOVQ	AX, g(BX)
+	MOVQ	CX, g_m(AX)
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	CALL	DX	// fn
 	CALL	runtime·exit1(SB)

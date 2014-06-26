@@ -40,7 +40,7 @@ nocpuinfo:
 	MOVL	_cgo_init(SB), AX
 	TESTL	AX, AX
 	JZ	needtls
-	MOVL	$setmg_gcc<>(SB), BX
+	MOVL	$setg_gcc<>(SB), BX
 	MOVL	BX, 4(SP)
 	MOVL	BP, 0(SP)
 	CALL	AX
@@ -72,10 +72,11 @@ ok:
 	LEAL	runtime·g0(SB), CX
 	MOVL	CX, g(BX)
 	LEAL	runtime·m0(SB), AX
-	MOVL	AX, m(BX)
 
 	// save m->g0 = g0
 	MOVL	CX, m_g0(AX)
+	// save g0->m = m0
+	MOVL	AX, g_m(CX)
 
 	CALL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
@@ -178,7 +179,8 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	MOVL	AX, (g_sched+gobuf_g)(AX)
 
 	// switch to m->g0 & its stack, call fn
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 	MOVL	m_g0(BX), SI
 	CMPL	SI, AX	// if g == m->g0 call badmcall
 	JNE	3(PC)
@@ -206,7 +208,8 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 	MOVL	m_g0(BX), SI
 	CMPL	g(CX), SI
 	JNE	2(PC)
@@ -258,7 +261,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 // func call(fn *byte, arg *byte, argsize uint32).
 TEXT runtime·newstackcall(SB), NOSPLIT, $0-12
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 
 	// Save our caller's state as the PC and SP to
 	// restore when returning from f.
@@ -415,7 +419,8 @@ CALLFN(call1073741824, 1073741824)
 TEXT runtime·lessstack(SB), NOSPLIT, $0-0
 	// Save return value in m->cret
 	get_tls(CX)
-	MOVL	m(CX), BX
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
 	MOVL	AX, m_cret(BX)
 
 	// Call oldstack on m->g0's stack.
@@ -606,7 +611,8 @@ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
 	get_tls(CX)
-	MOVL	m(CX), BP
+	MOVL	g(CX), BP
+	MOVL	g_m(BP), BP
 	MOVL	m_g0(BP), SI
 	MOVL	g(CX), DI
 	CMPL	SI, DI
@@ -647,7 +653,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
 TEXT runtime·cgocallback_gofunc(SB),NOSPLIT,$12-12
-	// If m is nil, Go did not create the current thread.
+	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
@@ -656,19 +662,22 @@ TEXT runtime·cgocallback_gofunc(SB),NOSPLIT,$12-12
 #ifdef GOOS_windows
 	MOVL	$0, BP
 	CMPL	CX, $0
-	JEQ	2(PC)
+	JEQ	2(PC) // TODO
 #endif
-	MOVL	m(CX), BP
-	MOVL	BP, DX // saved copy of oldm
+	MOVL	g(CX), BP
 	CMPL	BP, $0
-	JNE	havem
+	JEQ	needm
+	MOVL	g_m(BP), BP
+	MOVL	BP, DX // saved copy of oldm
+	JMP	havem
 needm:
-	MOVL	DX, 0(SP)
+	MOVL	$0, 0(SP)
 	MOVL	$runtime·needm(SB), AX
 	CALL	AX
 	MOVL	0(SP), DX
 	get_tls(CX)
-	MOVL	m(CX), BP
+	MOVL	g(CX), BP
+	MOVL	g_m(BP), BP
 
 havem:
 	// Now there's a valid m, and we're running on its m->g0.
@@ -718,7 +727,8 @@ havem:
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
 	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
 	// so we do not have to restore it.)
-	MOVL	m(CX), BP
+	MOVL	g(CX), BP
+	MOVL	g_m(BP), BP
 	MOVL	m_g0(BP), SI
 	MOVL	SI, g(CX)
 	MOVL	(g_sched+gobuf_sp)(SI), SP
@@ -735,33 +745,28 @@ havem:
 	// Done!
 	RET
 
-// void setmg(M*, G*); set m and g. for use by needm.
-TEXT runtime·setmg(SB), NOSPLIT, $0-8
+// void setg(G*); set g. for use by needm.
+TEXT runtime·setg(SB), NOSPLIT, $0-8
+	MOVL	gg+0(FP), BX
 #ifdef GOOS_windows
-	MOVL	mm+0(FP), AX
-	CMPL	AX, $0
+	CMPL	BX, $0
 	JNE	settls
 	MOVL	$0, 0x14(FS)
 	RET
 settls:
+	MOVL	g_m(BX), AX
 	LEAL	m_tls(AX), AX
 	MOVL	AX, 0x14(FS)
 #endif
-	MOVL	mm+0(FP), AX
 	get_tls(CX)
-	MOVL	mm+0(FP), AX
-	MOVL	AX, m(CX)
-	MOVL	gg+4(FP), BX
 	MOVL	BX, g(CX)
 	RET
 
-// void setmg_gcc(M*, G*); set m and g. for use by gcc
-TEXT setmg_gcc<>(SB), NOSPLIT, $0
+// void setg_gcc(G*); set g. for use by gcc
+TEXT setg_gcc<>(SB), NOSPLIT, $0
 	get_tls(AX)
-	MOVL	mm+0(FP), DX
-	MOVL	DX, m(AX)
-	MOVL	gg+4(FP), DX
-	MOVL	DX,g (AX)
+	MOVL	gg+0(FP), DX
+	MOVL	DX, g(AX)
 	RET
 
 // check that SP is in range [g->stackbase, g->stackguard)

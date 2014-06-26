@@ -53,17 +53,17 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 		// have distinct values.
 		return &runtime·zerobase;
 	}
-	if(m->mallocing)
+	if(g->m->mallocing)
 		runtime·throw("malloc/free - deadlock");
 	// Disable preemption during settype.
 	// We can not use m->mallocing for this, because settype calls mallocgc.
-	m->locks++;
-	m->mallocing = 1;
+	g->m->locks++;
+	g->m->mallocing = 1;
 
 	if(DebugTypeAtBlockEnd)
 		size += sizeof(uintptr);
 
-	c = m->mcache;
+	c = g->m->mcache;
 	if(!runtime·debug.efence && size <= MaxSmallSize) {
 		if((flag&(FlagNoScan|FlagNoGC)) == FlagNoScan && size < TinySize) {
 			// Tiny allocator.
@@ -112,9 +112,9 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 					v = (MLink*)tiny;
 					c->tiny += size1;
 					c->tinysize -= size1;
-					m->mallocing = 0;
-					m->locks--;
-					if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+					g->m->mallocing = 0;
+					g->m->locks--;
+					if(g->m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
 						g->stackguard0 = StackPreempt;
 					return v;
 				}
@@ -178,7 +178,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	if(DebugTypeAtBlockEnd)
 		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = typ;
 
-	m->mallocing = 0;
+	g->m->mallocing = 0;
 	// TODO: save type even if FlagNoScan?  Potentially expensive but might help
 	// heap profiling/tracing.
 	if(UseSpanType && !(flag & FlagNoScan) && typ != 0)
@@ -197,8 +197,8 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 			profilealloc(v, size);
 	}
 
-	m->locks--;
-	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+	g->m->locks--;
+	if(g->m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
 		g->stackguard0 = StackPreempt;
 
 	if(!(flag & FlagNoInvokeGC) && mstats.heap_alloc >= mstats.next_gc)
@@ -239,7 +239,7 @@ profilealloc(void *v, uintptr size)
 	int32 next;
 	MCache *c;
 
-	c = m->mcache;
+	c = g->m->mcache;
 	rate = runtime·MemProfileRate;
 	if(size < rate) {
 		// pick next profile time
@@ -279,9 +279,9 @@ runtime·free(void *v)
 	// If you change this also change mgc0.c:/^sweep,
 	// which has a copy of the guts of free.
 
-	if(m->mallocing)
+	if(g->m->mallocing)
 		runtime·throw("malloc/free - deadlock");
-	m->mallocing = 1;
+	g->m->mallocing = 1;
 
 	if(!runtime·mlookup(v, nil, nil, &s)) {
 		runtime·printf("free %p: not an allocated block\n", v);
@@ -304,7 +304,7 @@ runtime·free(void *v)
 	if(s->specials != nil)
 		runtime·freeallspecials(s, v, size);
 
-	c = m->mcache;
+	c = g->m->mcache;
 	if(sizeclass == 0) {
 		// Large object.
 		s->needzero = 1;
@@ -354,7 +354,7 @@ runtime·free(void *v)
 			runtime·MCache_Free(c, v, sizeclass, size);
 		}
 	}
-	m->mallocing = 0;
+	g->m->mallocing = 0;
 }
 
 int32
@@ -364,11 +364,11 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 	byte *p;
 	MSpan *s;
 
-	m->mcache->local_nlookup++;
-	if (sizeof(void*) == 4 && m->mcache->local_nlookup >= (1<<30)) {
+	g->m->mcache->local_nlookup++;
+	if (sizeof(void*) == 4 && g->m->mcache->local_nlookup >= (1<<30)) {
 		// purge cache stats to prevent overflow
 		runtime·lock(&runtime·mheap);
-		runtime·purgecachedstats(m->mcache);
+		runtime·purgecachedstats(g->m->mcache);
 		runtime·unlock(&runtime·mheap);
 	}
 
@@ -569,7 +569,7 @@ runtime·mallocinit(void)
 
 	// Initialize the rest of the allocator.	
 	runtime·MHeap_Init(&runtime·mheap);
-	m->mcache = runtime·allocmcache();
+	g->m->mcache = runtime·allocmcache();
 
 	// See if it works.
 	runtime·free(runtime·malloc(TinySize));

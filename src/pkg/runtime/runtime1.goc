@@ -117,12 +117,12 @@ func runtime∕pprof·runtime_cyclesPerSecond() (res int64) {
 func sync·runtime_procPin() (p int) {
 	M *mp;
 
-	mp = m;
+	mp = g->m;
 	// Disable preemption.
 	mp->locks++;
 	p = mp->p->id;
 }
 
 func sync·runtime_procUnpin() {
-	m->locks--;
+	g->m->locks--;
 }

@@ -19,13 +19,15 @@ TEXT _rt0_go(SB),NOSPLIT,$-4
 	MOVW	R0, 60(R13)		// save argc, argv away
 	MOVW	R1, 64(R13)
 
-	// set up m and g registers
-	// g is R10, m is R9
+	// set up g register
+	// g is R10
 	MOVW	$runtime·g0(SB), g
-	MOVW	$runtime·m0(SB), m
+	MOVW	$runtime·m0(SB), R8
 
 	// save m->g0 = g0
-	MOVW	g, m_g0(m)
+	MOVW	g, m_g0(R8)
+	// save g->m = m0
+	MOVW	R8, g_m(g)
 
 	// create istack out of the OS stack
 	MOVW	$(-8192+104)(R13), R0
@@ -38,9 +40,9 @@ TEXT _rt0_go(SB),NOSPLIT,$-4
 	MOVW	_cgo_init(SB), R4
 	CMP	$0, R4
 	B.EQ	nocgo
-	BL		runtime·save_gm(SB);
+	BL		runtime·save_g(SB);
 	MOVW	g, R0 // first argument of _cgo_init is g
-	MOVW	$setmg_gcc<>(SB), R1 // second argument is address of save_gm
+	MOVW	$setg_gcc<>(SB), R1 // second argument is address of save_g
 	BL		(R4) // will clobber R0-R3
 
 nocgo:
@@ -124,7 +126,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
 	MOVW	0(g), R2		// make sure g != nil
 	MOVB	runtime·iscgo(SB), R2
 	CMP 	$0, R2 // if in Cgo, we have to save g and m
-	BL.NE	runtime·save_gm(SB) // this call will clobber R0
+	BL.NE	runtime·save_g(SB) // this call will clobber R0
 	MOVW	gobuf_sp(R1), SP	// restore SP
 	MOVW	gobuf_lr(R1), LR
 	MOVW	gobuf_ret(R1), R0
@@ -142,8 +144,6 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
 // Fn must never return.  It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $-4-4
-	MOVW	fn+0(FP), R0
-
 	// Save caller state in g->sched.
 	MOVW	SP, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_pc)(g)
@@ -153,10 +153,15 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
 
 	// Switch to m->g0 & its stack, call fn.
 	MOVW	g, R1
-	MOVW	m_g0(m), g
+	MOVW	g_m(g), R8
+	MOVW	m_g0(R8), g
 	CMP	g, R1
 	B.NE	2(PC)
 	B	runtime·badmcall(SB)
+	MOVB	runtime·iscgo(SB), R11
+	CMP	$0, R11
+	BL.NE	runtime·save_g(SB)
+	MOVW	fn+0(FP), R0
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	SUB	$8, SP
 	MOVW	R1, 4(SP)
@@ -182,12 +187,13 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
 // record an argument size. For that purpose, it has no arguments.
 TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	// Cannot grow scheduler stack (m->g0).
-	MOVW	m_g0(m), R4
+	MOVW	g_m(g), R8
+	MOVW	m_g0(R8), R4
 	CMP	g, R4
 	BL.EQ	runtime·abort(SB)
 
-	MOVW	R1, m_moreframesize(m)
-	MOVW	R2, m_moreargsize(m)
+	MOVW	R1, m_moreframesize(R8)
+	MOVW	R2, m_moreargsize(R8)
 
 	// Called from f.
 	// Set g->sched to context in f.
@@ -198,14 +204,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
-	MOVW	R3, (m_morebuf+gobuf_pc)(m)	// f's caller's PC
-	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// f's caller's SP
+	MOVW	R3, (m_morebuf+gobuf_pc)(R8)	// f's caller's PC
+	MOVW	SP, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
 	MOVW	$4(SP), R3			// f's argument pointer
-	MOVW	R3, m_moreargp(m)	
-	MOVW	g, (m_morebuf+gobuf_g)(m)
+	MOVW	R3, m_moreargp(R8)	
+	MOVW	g, (m_morebuf+gobuf_g)(R8)
 
 	// Call newstack on m->g0's stack.
-	MOVW	m_g0(m), g
+	MOVW	m_g0(R8), g
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	BL	runtime·newstack(SB)
 
@@ -225,9 +231,10 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 TEXT runtime·newstackcall(SB), NOSPLIT, $-4-12
 	// Save our caller's state as the PC and SP to
 	// restore when returning from f.
-	MOVW	LR, (m_morebuf+gobuf_pc)(m)	// our caller's PC
-	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// our caller's SP
-	MOVW	g,  (m_morebuf+gobuf_g)(m)
+	MOVW	g_m(g), R8
+	MOVW	LR, (m_morebuf+gobuf_pc)(R8)	// our caller's PC
+	MOVW	SP, (m_morebuf+gobuf_sp)(R8)	// our caller's SP
+	MOVW	g,  (m_morebuf+gobuf_g)(R8)
 
 	// Save our own state as the PC and SP to restore
 	// if this goroutine needs to be restarted.
@@ -246,14 +253,14 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $-4-12
 	MOVW	8(SP), R1			// arg frame
 	MOVW	12(SP), R2			// arg size
 
-	MOVW	R0, m_cret(m)			// f's PC
-	MOVW	R1, m_moreargp(m)		// f's argument pointer
-	MOVW	R2, m_moreargsize(m)		// f's argument size
+	MOVW	R0, m_cret(R8)			// f's PC
+	MOVW	R1, m_moreargp(R8)		// f's argument pointer
+	MOVW	R2, m_moreargsize(R8)		// f's argument size
 	MOVW	$1, R3
-	MOVW	R3, m_moreframesize(m)		// f's frame size
+	MOVW	R3, m_moreframesize(R8)		// f's frame size
 
 	// Call newstack on m->g0's stack.
-	MOVW	m_g0(m), g
+	MOVW	m_g0(R8), g
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	B	runtime·newstack(SB)
 
@@ -382,10 +389,11 @@ CALLFN(call1073741824, 1073741824)
 // as morestack; in that context, it has 0 arguments.
 TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
 	// Save return value in m->cret
-	MOVW	R0, m_cret(m)
+	MOVW	g_m(g), R8
+	MOVW	R0, m_cret(R8)
 
 	// Call oldstack on m->g0's stack.
-	MOVW	m_g0(m), g
+	MOVW	m_g0(R8), g
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	BL	runtime·oldstack(SB)
 
@@ -430,7 +438,8 @@ TEXT	runtime·asmcgocall(SB),NOSPLIT,$0-8
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
-	MOVW	m_g0(m), R3
+	MOVW	g_m(g), R8
+	MOVW	m_g0(R8), R3
 	CMP	R3, g
 	BEQ	4(PC)
 	BL	gosave<>(SB)
@@ -470,26 +479,28 @@ TEXT	runtime·cgocallback_gofunc(SB),NOSPLIT,$8-12
 	// Load m and g from thread-local storage.
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
-	BL.NE	runtime·load_gm(SB)
+	BL.NE	runtime·load_g(SB)
 
-	// If m is nil, Go did not create the current thread.
+	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
 	// the linker analysis by using an indirect call.
-	MOVW	m, savedm-4(SP)
-	CMP	$0, m
+	CMP	$0, g
 	B.NE	havem
+	MOVW	g, savedm-4(SP) // g is zero, so is m.
 	MOVW	$runtime·needm(SB), R0
 	BL	(R0)
 
 havem:
+	MOVW	g_m(g), R8
+	MOVW	R8, savedm-4(SP)
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
 	// switch back to m->curg stack.
 	// NOTE: unwindm knows that the saved g->sched.sp is at 4(R13) aka savedsp-8(SP).
-	MOVW	m_g0(m), R3
+	MOVW	m_g0(R8), R3
 	MOVW	(g_sched+gobuf_sp)(R3), R4
 	MOVW	R4, savedsp-8(SP)
 	MOVW	R13, (g_sched+gobuf_sp)(R3)
@@ -512,7 +523,7 @@ havem:
 	MOVW	fn+4(FP), R0
 	MOVW	frame+8(FP), R1
 	MOVW	framesize+12(FP), R2
-	MOVW	m_curg(m), g
+	MOVW	m_curg(R8), g
 	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVW	(g_sched+gobuf_pc)(g), R5
 	MOVW	R5, -12(R4)
@@ -528,7 +539,8 @@ havem:
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
 	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
 	// so we do not have to restore it.)
-	MOVW	m_g0(m), g
+	MOVW	g_m(g), R8
+	MOVW	m_g0(R8), g
 	MOVW	(g_sched+gobuf_sp)(g), R13
 	MOVW	savedsp-8(SP), R4
 	MOVW	R4, (g_sched+gobuf_sp)(g)
@@ -544,15 +556,14 @@ havem:
 	// Done!
 	RET
 
-// void setmg(M*, G*); set m and g. for use by needm.
-TEXT runtime·setmg(SB), NOSPLIT, $0-8
-	MOVW	mm+0(FP), m
-	MOVW	gg+4(FP), g
+// void setg(G*); set g. for use by needm.
+TEXT runtime·setg(SB), NOSPLIT, $0-8
+	MOVW	gg+0(FP), g
 
-	// Save m and g to thread-local storage.
+	// Save g to thread-local storage.
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
-	BL.NE	runtime·save_gm(SB)
+	BL.NE	runtime·save_g(SB)
 
 	RET
 
@@ -685,40 +696,38 @@ _eqnext:
 // Note: all three functions will clobber R0, and the last
 // two can be called from 5c ABI code.
 
-// save_gm saves the g and m registers into pthread-provided
+// save_g saves the g register into pthread-provided
 // thread-local memory, so that we can call externally compiled
 // ARM code that will overwrite those registers.
 // NOTE: runtime.gogo assumes that R1 is preserved by this function.
-TEXT runtime·save_gm(SB),NOSPLIT,$0
+//       runtime.mcall assumes this function only clobbers R0 and R11.
+TEXT runtime·save_g(SB),NOSPLIT,$0
 	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
-	// $runtime.tlsgm(SB) is a special linker symbol.
+	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the TLS base pointer to our
-	// thread-local storage for g and m.
-	MOVW	$runtime·tlsgm(SB), R11
+	// thread-local storage for g.
+	MOVW	$runtime·tlsg(SB), R11
 	ADD	R11, R0
 	MOVW	g, 0(R0)
-	MOVW	m, 4(R0)
 	RET
 
-// load_gm loads the g and m registers from pthread-provided
+// load_g loads the g register from pthread-provided
 // thread-local memory, for use after calling externally compiled
 // ARM code that overwrote those registers.
-TEXT runtime·load_gm(SB),NOSPLIT,$0
+TEXT runtime·load_g(SB),NOSPLIT,$0
 	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
-	// $runtime.tlsgm(SB) is a special linker symbol.
+	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the TLS base pointer to our
-	// thread-local storage for g and m.
-	MOVW	$runtime·tlsgm(SB), R11
+	// thread-local storage for g.
+	MOVW	$runtime·tlsg(SB), R11
 	ADD	R11, R0
 	MOVW	0(R0), g
-	MOVW	4(R0), m
 	RET
 
-// void setmg_gcc(M*, G*); set m and g called from gcc.
-TEXT setmg_gcc<>(SB),NOSPLIT,$0
-	MOVW	R0, m
-	MOVW	R1, g
-	B		runtime·save_gm(SB)
+// void setg_gcc(M*, G*); set m and g called from gcc.
+TEXT setg_gcc<>(SB),NOSPLIT,$0
+	MOVW	R0, g
+	B		runtime·save_g(SB)
 
 // TODO: share code with memeq?
 TEXT bytes·Equal(SB),NOSPLIT,$0

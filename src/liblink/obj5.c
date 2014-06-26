@@ -173,15 +173,15 @@ progedit(Link *ctxt, Prog *p)
 	if(ctxt->flag_shared) {
 		// Shared libraries use R_ARM_TLS_IE32 instead of 
 		// R_ARM_TLS_LE32, replacing the link time constant TLS offset in
-		// runtime.tlsgm with an address to a GOT entry containing the 
-		// offset. Rewrite $runtime.tlsgm(SB) to runtime.tlsgm(SB) to
+		// runtime.tlsg with an address to a GOT entry containing the 
+		// offset. Rewrite $runtime.tlsg(SB) to runtime.tlsg(SB) to
 		// compensate.
-		if(ctxt->gmsym == nil)
-			ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+		if(ctxt->tlsg == nil)
+			ctxt->tlsg = linklookup(ctxt, "runtime.tlsg", 0);
 
-		if(p->from.type == D_CONST && p->from.name == D_EXTERN && p->from.sym == ctxt->gmsym)
+		if(p->from.type == D_CONST && p->from.name == D_EXTERN && p->from.sym == ctxt->tlsg)
 			p->from.type = D_OREG;
-		if(p->to.type == D_CONST && p->to.name == D_EXTERN && p->to.sym == ctxt->gmsym)
+		if(p->to.type == D_CONST && p->to.name == D_EXTERN && p->to.sym == ctxt->tlsg)
 			p->to.type = D_OREG;
 	}
 }

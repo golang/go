@@ -133,7 +133,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	// Initialize m, g.
 	get_tls(AX)
 	MOVQ	DX, g(AX)
-	MOVQ	BX, m(AX)
+	MOVQ	BX, g_m(DX)
 
 	// Initialize AX from pid in TLS.
 	MOVQ	0(FS), AX
@@ -156,8 +156,8 @@ TEXT runtime·settls(SB),NOSPLIT,$0
 TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	get_tls(AX)
 
-	// check that m exists
-	MOVQ	m(AX), BX
+	// check that g exists
+	MOVQ	g(AX), BX
 	CMPQ	BX, $0
 	JNE	3(PC)
 	CALL	runtime·badsignal2(SB) // will exit
@@ -168,6 +168,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVQ	note+16(SP), DX
 
 	// change stack
+	MOVQ	g_m(BX), BX
 	MOVQ	m_gsignal(BX), R10
 	MOVQ	g_stackbase(R10), BP
 	MOVQ	BP, SP
@@ -218,7 +219,8 @@ TEXT runtime·setfpmasks(SB),NOSPLIT,$8
 // See ../syscall/asm_plan9_386.s:/·Syscall/
 TEXT runtime·errstr(SB),NOSPLIT,$0
 	get_tls(AX)
-	MOVQ	m(AX), BX
+	MOVQ	g(AX), BX
+	MOVQ	g_m(BX), BX
 	MOVQ	m_errstr(BX), CX
 	MOVQ	CX, 8(SP)
 	MOVQ	$ERRMAX, 16(SP)

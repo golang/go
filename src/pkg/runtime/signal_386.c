@@ -39,7 +39,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 	bool crash;
 
 	if(sig == SIGPROF) {
-		runtime·sigprof((byte*)SIG_EIP(info, ctxt), (byte*)SIG_ESP(info, ctxt), nil, gp, m);
+		runtime·sigprof((byte*)SIG_EIP(info, ctxt), (byte*)SIG_ESP(info, ctxt), nil, gp, g->m);
 		return;
 	}
 
@@ -91,8 +91,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 	if(!(t->flags & SigThrow))
 		return;
 
-	m->throwing = 1;
-	m->caughtsig = gp;
+	g->m->throwing = 1;
+	g->m->caughtsig = gp;
 	runtime·startpanic();
 
 	if(sig < 0 || sig >= NSIG)
@@ -101,10 +101,10 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 		runtime·printf("%s\n", runtime·sigtab[sig].name);
 
 	runtime·printf("PC=%x\n", SIG_EIP(info, ctxt));
-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+	if(g->m->lockedg != nil && g->m->ncgo > 0 && gp == g->m->g0) {
 		runtime·printf("signal arrived during cgo execution\n");
-		gp = m->lockedg;
-	}	
+		gp = g->m->lockedg;
+	}
 	runtime·printf("\n");
 
 	if(runtime·gotraceback(&crash)){

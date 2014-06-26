@@ -88,11 +88,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 
 	// fetch g
 	get_tls(DX)
-	MOVL	m(DX), AX
-	CMPL	AX, $0
+	MOVL	g(DX), DX
+	CMPL	DX, $0
 	JNE	2(PC)
 	CALL	runtime·badsignal2(SB)
-	MOVL	g(DX), DX
 	// call sighandler(ExceptionRecord*, Context*, G*)
 	MOVL	BX, 0(SP)
 	MOVL	CX, 4(SP)
@@ -142,7 +141,6 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 	LEAL	m_tls(SP), CX
 	MOVL	CX, 0x14(FS)
-	MOVL	SP, m(CX)
 	MOVL	SP, BX
 	SUBL	$g_end, SP		// space for G
 	MOVL	SP, g(CX)
@@ -151,6 +149,8 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	MOVL	SP, 0(SP)
 	MOVL	$g_end, 4(SP)
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+	LEAL	g_end(SP), BX
+	MOVL	BX, g_m(SP)
 	LEAL	-4096(SP), CX
 	MOVL	CX, g_stackguard(SP)
 	MOVL	DX, g_stackbase(SP)
@@ -260,7 +260,7 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
 	// Set up tls.
 	LEAL	m_tls(CX), SI
 	MOVL	SI, 0x14(FS)
-	MOVL	CX, m(SI)
+	MOVL	CX, g_m(DX)
 	MOVL	DX, g(SI)
 
 	// Someday the convention will be D is always cleared.
@@ -308,7 +308,8 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	CALL	AX
 	RET
 
-	MOVL	m(CX), BP
+	MOVL	g(CX), BP
+	MOVL	g_m(BP), BP
 
 	// leave pc/sp for cpu profiler
 	MOVL	(SP), SI
@@ -337,7 +338,8 @@ usleep1_switch:
 
 usleep1_ret:
 	get_tls(CX)
-	MOVL	m(CX), BP
+	MOVL	g(CX), BP
+	MOVL	g_m(BP), BP
 	MOVL	$0, m_libcallsp(BP)
 	RET
 
