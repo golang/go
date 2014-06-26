@@ -50,7 +50,10 @@ var builtinCalls = []struct {
 	{"complex", `type F64 float64; var re, im F64; _ = complex(re, im)`, `func(p.F64, p.F64) complex128`},
 
 	{"copy", `var src, dst []byte; copy(dst, src)`, `func([]byte, []byte) int`},
-	{"copy", `type T [][]int; var src, dst T; _ = copy(dst, src)`, `func([][]int, [][]int) int`},
+	{"copy", `type T [][]int; var src, dst T; _ = copy(dst, src)`, `func(p.T, p.T) int`},
+	{"copy", `var src string; var dst []byte; copy(dst, src)`, `func([]byte, string) int`},
+	{"copy", `type T string; type U []byte; var src T; var dst U; copy(dst, src)`, `func(p.U, p.T) int`},
+	{"copy", `var dst []byte; copy(dst, "hello")`, `func([]byte, string) int`},
 
 	{"delete", `var m map[string]bool; delete(m, "foo")`, `func(map[string]bool, string)`},
 	{"delete", `type (K string; V int); var m map[K]V; delete(m, "foo")`, `func(map[p.K]p.V, p.K)`},
