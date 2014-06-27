@@ -358,30 +358,60 @@ type Ident struct {
 	Doc     string // e.g. "NewRequest returns a new Request..."
 }
 
-type byPackage []Ident
-
-func (s byPackage) Len() int { return len(s) }
-func (s byPackage) Less(i, j int) bool {
-	if s[i].Package == s[j].Package {
-		return s[i].Path < s[j].Path
-	}
-	return s[i].Package < s[j].Package
+// byImportCount sorts the given slice of Idents by the import
+// counts of the packages to which they belong.
+type byImportCount struct {
+	Idents      []Ident
+	ImportCount map[string]int
 }
-func (s byPackage) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
-// Filter creates a new Ident list where the results match the given
+func (ic byImportCount) Len() int {
+	return len(ic.Idents)
+}
+
+func (ic byImportCount) Less(i, j int) bool {
+	ri := ic.ImportCount[ic.Idents[i].Path]
+	rj := ic.ImportCount[ic.Idents[j].Path]
+	if ri == rj {
+		return ic.Idents[i].Path < ic.Idents[j].Path
+	}
+	return ri > rj
+}
+
+func (ic byImportCount) Swap(i, j int) {
+	ic.Idents[i], ic.Idents[j] = ic.Idents[j], ic.Idents[i]
+}
+
+func (ic byImportCount) String() string {
+	buf := bytes.NewBuffer([]byte("["))
+	for _, v := range ic.Idents {
+		buf.WriteString(fmt.Sprintf("\n\t%s, %s (%d)", v.Path, v.Name, ic.ImportCount[v.Path]))
+	}
+	buf.WriteString("\n]")
+	return buf.String()
+}
+
+// filter creates a new Ident list where the results match the given
 // package name.
-func (s byPackage) filter(pakname string) []Ident {
-	if s == nil {
+func (ic byImportCount) filter(pakname string) []Ident {
+	if ic.Idents == nil {
 		return nil
 	}
 	var res []Ident
-	for _, i := range s {
+	for _, i := range ic.Idents {
 		if i.Package == pakname {
 			res = append(res, i)
 		}
 	}
 	return res
+}
+
+// top returns the top n identifiers.
+func (ic byImportCount) top(n int) []Ident {
+	if len(ic.Idents) > n {
+		return ic.Idents[:n]
+	}
+	return ic.Idents
 }
 
 // ----------------------------------------------------------------------------
@@ -719,23 +749,45 @@ func (x *Indexer) indexDocs(dirname string, filename string, astFile *ast.File) 
 			Doc:     doc.Synopsis(docstr),
 		})
 	}
-	foundPkg := false
-	if x.idents[PackageClause] != nil {
-		pkgs := x.idents[PackageClause][docPkg.Name]
+
+	if x.idents[PackageClause] == nil {
+		x.idents[PackageClause] = make(map[string][]Ident)
+	}
+	// List of words under which the package identifier will be stored.
+	// This includes the package name and the components of the directory
+	// in which it resides.
+	words := strings.Split(pathpkg.Dir(pkgPath), "/")
+	if words[0] == "." {
+		words = []string{}
+	}
+	name := x.intern(docPkg.Name)
+	synopsis := doc.Synopsis(docPkg.Doc)
+	words = append(words, name)
+	pkgIdent := Ident{
+		Path:    pkgPath,
+		Package: pkgName,
+		Name:    name,
+		Doc:     synopsis,
+	}
+	for _, word := range words {
+		word = x.intern(word)
+		found := false
+		pkgs := x.idents[PackageClause][word]
 		for i, p := range pkgs {
 			if p.Path == pkgPath {
-				foundPkg = true
 				if docPkg.Doc != "" {
-					p.Doc = doc.Synopsis(docPkg.Doc)
+					p.Doc = synopsis
 					pkgs[i] = p
 				}
+				found = true
 				break
 			}
 		}
+		if !found {
+			x.idents[PackageClause][word] = append(x.idents[PackageClause][word], pkgIdent)
+		}
 	}
-	if !foundPkg {
-		addIdent(PackageClause, docPkg.Name, docPkg.Doc)
-	}
+
 	for _, c := range docPkg.Consts {
 		for _, name := range c.Names {
 			addIdent(ConstDecl, name, c.Doc)
@@ -1027,9 +1079,10 @@ func (c *Corpus) NewIndex() *Index {
 		suffixes = suffixarray.New(x.sources.Bytes())
 	}
 
+	// sort idents by the number of imports of their respective packages
 	for _, idMap := range x.idents {
 		for _, ir := range idMap {
-			sort.Sort(byPackage(ir))
+			sort.Sort(byImportCount{ir, x.importCount})
 		}
 	}
 
@@ -1238,7 +1291,9 @@ func (x *Index) Lookup(query string) (*SearchResult, error) {
 			rslt.Pak = rslt.Hit.Others.filter(ident)
 		}
 		for k, v := range x.idents {
-			rslt.Idents[k] = v[ident]
+			const rsltLimit = 50
+			ids := byImportCount{v[ident], x.importCount}
+			rslt.Idents[k] = ids.top(rsltLimit)
 		}
 
 	case 2:
@@ -1252,7 +1307,8 @@ func (x *Index) Lookup(query string) (*SearchResult, error) {
 			rslt.Hit = &LookupResult{decls, others}
 		}
 		for k, v := range x.idents {
-			rslt.Idents[k] = byPackage(v[ident]).filter(pakname)
+			ids := byImportCount{v[ident], x.importCount}
+			rslt.Idents[k] = ids.filter(pakname)
 		}
 
 	default:

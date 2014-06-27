@@ -234,7 +234,8 @@ func checkIdents(t *testing.T, c *Corpus, ix *Index) {
 					{"bar", "bar", "bar", "Package bar is another example to test races."},
 					{"other/bar", "bar", "bar", "Package bar is another bar package."},
 				},
-				"foo": []Ident{{"foo", "foo", "foo", "Package foo is an example."}},
+				"foo":   []Ident{{"foo", "foo", "foo", "Package foo is an example."}},
+				"other": []Ident{{"other/bar", "bar", "bar", "Package bar is another bar package."}},
 			},
 			ConstDecl: map[string][]Ident{
 				"Pi": []Ident{{"foo", "foo", "Pi", ""}},
@@ -257,6 +258,11 @@ func checkIdents(t *testing.T, c *Corpus, ix *Index) {
 }
 
 func TestIdentResultSort(t *testing.T) {
+	ic := map[string]int{
+		"/a/b/pkg1": 10,
+		"/a/b/pkg2": 2,
+		"/b/d/pkg3": 20,
+	}
 	for _, tc := range []struct {
 		ir  []Ident
 		exp []Ident
@@ -268,19 +274,30 @@ func TestIdentResultSort(t *testing.T) {
 				{"/a/b/pkg1", "pkg1", "MyFunc1", ""},
 			},
 			exp: []Ident{
+				{"/b/d/pkg3", "pkg3", "MyFunc3", ""},
 				{"/a/b/pkg1", "pkg1", "MyFunc1", ""},
 				{"/a/b/pkg2", "pkg2", "MyFunc2", ""},
-				{"/b/d/pkg3", "pkg3", "MyFunc3", ""},
+			},
+		},
+		{
+			ir: []Ident{
+				{"/a/a/pkg1", "pkg1", "MyFunc1", ""},
+				{"/a/b/pkg1", "pkg1", "MyFunc1", ""},
+			},
+			exp: []Ident{
+				{"/a/b/pkg1", "pkg1", "MyFunc1", ""},
+				{"/a/a/pkg1", "pkg1", "MyFunc1", ""},
 			},
 		},
 	} {
-		if sort.Sort(byPackage(tc.ir)); !reflect.DeepEqual(tc.ir, tc.exp) {
+		if sort.Sort(byImportCount{tc.ir, ic}); !reflect.DeepEqual(tc.ir, tc.exp) {
 			t.Errorf("got: %v, want %v", tc.ir, tc.exp)
 		}
 	}
 }
 
-func TestIdentPackageFilter(t *testing.T) {
+func TestIdentFilter(t *testing.T) {
+	ic := map[string]int{}
 	for _, tc := range []struct {
 		ir  []Ident
 		pak string
@@ -298,7 +315,8 @@ func TestIdentPackageFilter(t *testing.T) {
 			},
 		},
 	} {
-		if res := byPackage(tc.ir).filter(tc.pak); !reflect.DeepEqual(res, tc.exp) {
+		res := byImportCount{tc.ir, ic}.filter(tc.pak)
+		if !reflect.DeepEqual(res, tc.exp) {
 			t.Errorf("got: %v, want %v", res, tc.exp)
 		}
 	}
