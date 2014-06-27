@@ -217,8 +217,14 @@ func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool, vis
 			}
 			typ := v.typ
 			if variadic && i == len(tup.vars)-1 {
-				buf.WriteString("...")
-				typ = typ.(*Slice).elem
+				if s, ok := typ.(*Slice); ok {
+					buf.WriteString("...")
+					typ = s.elem
+				} else {
+					writeType(buf, this, typ, visited)
+					buf.WriteString("...")
+					continue
+				}
 			}
 			writeType(buf, this, typ, visited)
 		}

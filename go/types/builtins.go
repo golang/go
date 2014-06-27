@@ -100,7 +100,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 			if isString(x.typ) {
 				if check.Types != nil {
-					sig := makeSig(S, S, NewSlice(UniverseByte))
+					sig := makeSig(S, S, x.typ)
 					sig.variadic = true
 					check.recordBuiltinType(call.Fun, sig)
 				}
