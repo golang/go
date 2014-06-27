@@ -303,11 +303,12 @@ func (info *PageInfo) IsEmpty() bool {
 }
 
 func pkgLinkFunc(path string) string {
-	relpath := path[1:]
 	// because of the irregular mapping under goroot
 	// we need to correct certain relative paths
-	relpath = strings.TrimPrefix(relpath, "src/pkg/")
-	return "pkg/" + relpath // remove trailing '/' for relative URL
+	path = strings.TrimPrefix(path, "/")
+	path = strings.TrimPrefix(path, "src/")
+	path = strings.TrimPrefix(path, "pkg/")
+	return "pkg/" + path
 }
 
 func newPosLink_urlFunc(srcPosLinkFunc func(s string, line, low, high int) string) func(info *PageInfo, n interface{}) string {
@@ -368,6 +369,7 @@ func srcPosLinkFunc(s string, line, low, high int) string {
 
 func srcLinkFunc(s string) string {
 	s = pathpkg.Clean("/" + s)
+	// TODO(bgarcia): Once the /src/pkg -> /src transition occurs, update this function.
 	if !strings.HasPrefix(s, "/src/pkg/") {
 		s = "/src/pkg" + s
 	}
@@ -388,8 +390,7 @@ func queryLinkFunc(s, query string, line int) string {
 }
 
 func docLinkFunc(s string, ident string) string {
-	s = strings.TrimPrefix(s, "/src")
-	return pathpkg.Clean("/"+s) + "/#" + ident
+	return pathpkg.Clean("/pkg/"+s) + "/#" + ident
 }
 
 func (p *Presentation) example_textFunc(info *PageInfo, funcName, indent string) string {

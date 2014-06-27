@@ -231,23 +231,23 @@ func checkIdents(t *testing.T, c *Corpus, ix *Index) {
 		want = map[SpotKind]map[string][]Ident{
 			PackageClause: map[string][]Ident{
 				"bar": []Ident{
-					{"/src/pkg/bar", "bar", "bar", "Package bar is another example to test races."},
-					{"/src/pkg/other/bar", "bar", "bar", "Package bar is another bar package."},
+					{"bar", "bar", "bar", "Package bar is another example to test races."},
+					{"other/bar", "bar", "bar", "Package bar is another bar package."},
 				},
-				"foo": []Ident{{"/src/pkg/foo", "foo", "foo", "Package foo is an example."}},
+				"foo": []Ident{{"foo", "foo", "foo", "Package foo is an example."}},
 			},
 			ConstDecl: map[string][]Ident{
-				"Pi": []Ident{{"/src/pkg/foo", "foo", "Pi", ""}},
+				"Pi": []Ident{{"foo", "foo", "Pi", ""}},
 			},
 			VarDecl: map[string][]Ident{
-				"Foos": []Ident{{"/src/pkg/foo", "foo", "Foos", ""}},
+				"Foos": []Ident{{"foo", "foo", "Foos", ""}},
 			},
 			TypeDecl: map[string][]Ident{
-				"Foo": []Ident{{"/src/pkg/foo", "foo", "Foo", "Foo is stuff."}},
+				"Foo": []Ident{{"foo", "foo", "Foo", "Foo is stuff."}},
 			},
 			FuncDecl: map[string][]Ident{
-				"New": []Ident{{"/src/pkg/foo", "foo", "New", ""}},
-				"X":   []Ident{{"/src/pkg/other/bar", "bar", "X", ""}},
+				"New": []Ident{{"foo", "foo", "New", ""}},
+				"X":   []Ident{{"other/bar", "bar", "X", ""}},
 			},
 		}
 	}

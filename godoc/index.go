@@ -694,11 +694,11 @@ func isWhitelisted(filename string) bool {
 }
 
 func (x *Indexer) indexDocs(dirname string, filename string, astFile *ast.File) {
-	pkgName := astFile.Name.Name
+	pkgName := x.intern(astFile.Name.Name)
 	if pkgName == "main" {
 		return
 	}
-	dirname = pathpkg.Clean(dirname)
+	pkgPath := x.intern(strings.TrimPrefix(strings.TrimPrefix(dirname, "/src/"), "pkg/"))
 	astPkg := ast.Package{
 		Name: pkgName,
 		Files: map[string]*ast.File{
@@ -711,8 +711,9 @@ func (x *Indexer) indexDocs(dirname string, filename string, astFile *ast.File) 
 		if x.idents[sk] == nil {
 			x.idents[sk] = make(map[string][]Ident)
 		}
+		name = x.intern(name)
 		x.idents[sk][name] = append(x.idents[sk][name], Ident{
-			Path:    dirname,
+			Path:    pkgPath,
 			Package: pkgName,
 			Name:    name,
 			Doc:     doc.Synopsis(docstr),
@@ -722,7 +723,7 @@ func (x *Indexer) indexDocs(dirname string, filename string, astFile *ast.File) 
 	if x.idents[PackageClause] != nil {
 		pkgs := x.idents[PackageClause][docPkg.Name]
 		for i, p := range pkgs {
-			if p.Path == dirname {
+			if p.Path == pkgPath {
 				foundPkg = true
 				if docPkg.Doc != "" {
 					p.Doc = doc.Synopsis(docPkg.Doc)
@@ -760,7 +761,7 @@ func (x *Indexer) indexDocs(dirname string, filename string, astFile *ast.File) 
 			// Change the name of methods to be "<typename>.<methodname>".
 			// They will still be indexed as <methodname>.
 			idents := x.idents[MethodDecl][f.Name]
-			idents[len(idents)-1].Name = t.Name + "." + f.Name
+			idents[len(idents)-1].Name = x.intern(t.Name + "." + f.Name)
 		}
 	}
 	for _, v := range docPkg.Vars {
@@ -797,7 +798,7 @@ func (x *Indexer) indexGoFile(dirname string, filename string, file *token.File,
 	if _, ok := x.packagePath[ppKey]; !ok {
 		x.packagePath[ppKey] = make(map[string]bool)
 	}
-	pkgPath := x.intern(strings.TrimPrefix(dirname, "/src/pkg/"))
+	pkgPath := x.intern(strings.TrimPrefix(strings.TrimPrefix(dirname, "/src/"), "pkg/"))
 	x.packagePath[ppKey][pkgPath] = true
 
 	// Merge in exported symbols found walking this file into

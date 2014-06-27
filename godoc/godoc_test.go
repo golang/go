@@ -14,7 +14,9 @@ func TestPkgLinkFunc(t *testing.T) {
 		want string
 	}{
 		{"/src/pkg/fmt", "pkg/fmt"},
+		{"src/pkg/fmt", "pkg/fmt"},
 		{"/fmt", "pkg/fmt"},
+		{"fmt", "pkg/fmt"},
 	} {
 		if got := pkgLinkFunc(tc.path); got != tc.want {
 			t.Errorf("pkgLinkFunc(%v) = %v; want %v", tc.path, got, tc.want)
@@ -84,8 +86,8 @@ func TestDocLinkFunc(t *testing.T) {
 		ident string
 		want  string
 	}{
-		{"/src/pkg/fmt", "Sprintf", "/pkg/fmt/#Sprintf"},
-		{"/src/pkg/fmt", "EOF", "/pkg/fmt/#EOF"},
+		{"fmt", "Sprintf", "/pkg/fmt/#Sprintf"},
+		{"fmt", "EOF", "/pkg/fmt/#EOF"},
 	} {
 		if got := docLinkFunc(tc.src, tc.ident); got != tc.want {
 			t.Errorf("docLinkFunc(%v, %v) = %v; want %v", tc.src, tc.ident, got, tc.want)
