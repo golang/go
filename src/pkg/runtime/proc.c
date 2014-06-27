@@ -2730,12 +2730,12 @@ runtime·schedtrace(bool detailed)
 		starttime = now;
 
 	runtime·lock(&runtime·sched);
-	runtime·printf("SCHED %Dms: gomaxprocs=%d idleprocs=%d threads=%d idlethreads=%d runqueue=%d",
+	runtime·printf("SCHED %Dms: gomaxprocs=%d idleprocs=%d threads=%d spinningthreads=%d idlethreads=%d runqueue=%d",
 		(now-starttime)/1000000, runtime·gomaxprocs, runtime·sched.npidle, runtime·sched.mcount,
-		runtime·sched.nmidle, runtime·sched.runqsize);
+		runtime·sched.nmspinning, runtime·sched.nmidle, runtime·sched.runqsize);
 	if(detailed) {
-		runtime·printf(" gcwaiting=%d nmidlelocked=%d nmspinning=%d stopwait=%d sysmonwait=%d\n",
-			runtime·sched.gcwaiting, runtime·sched.nmidlelocked, runtime·sched.nmspinning,
+		runtime·printf(" gcwaiting=%d nmidlelocked=%d stopwait=%d sysmonwait=%d\n",
+			runtime·sched.gcwaiting, runtime·sched.nmidlelocked,
 			runtime·sched.stopwait, runtime·sched.sysmonwait);
 	}
 	// We must be careful while reading data from P's, M's and G's.
