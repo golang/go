@@ -19,6 +19,7 @@ runtime·mpreinit(M *mp)
 {
 	// Initialize stack and goroutine for note handling.
 	mp->gsignal = runtime·malg(32*1024);
+	mp->gsignal->m = mp;
 	mp->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
 
 	// Initialize stack for handling strings from the
