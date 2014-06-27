@@ -723,10 +723,10 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if t.NeedTest || ptest.coverMode != "" {
+	if t.ImportTest || ptest.coverMode != "" {
 		pmain.imports = append(pmain.imports, ptest)
 	}
-	if t.NeedXtest {
+	if t.ImportXtest {
 		pmain.imports = append(pmain.imports, pxtest)
 	}
 
@@ -1082,12 +1082,12 @@ func loadTestFuncs(ptest *Package) (*testFuncs, error) {
 		Package: ptest,
 	}
 	for _, file := range ptest.TestGoFiles {
-		if err := t.load(filepath.Join(ptest.Dir, file), "_test", &t.NeedTest); err != nil {
+		if err := t.load(filepath.Join(ptest.Dir, file), "_test", &t.ImportTest, &t.NeedTest); err != nil {
 			return nil, err
 		}
 	}
 	for _, file := range ptest.XTestGoFiles {
-		if err := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.NeedXtest); err != nil {
+		if err := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.ImportXtest, &t.NeedXtest); err != nil {
 			return nil, err
 		}
 	}
@@ -1110,13 +1110,15 @@ func writeTestmain(out string, t *testFuncs) error {
 }
 
 type testFuncs struct {
-	Tests      []testFunc
-	Benchmarks []testFunc
-	Examples   []testFunc
-	Package    *Package
-	NeedTest   bool
-	NeedXtest  bool
-	Cover      []coverInfo
+	Tests       []testFunc
+	Benchmarks  []testFunc
+	Examples    []testFunc
+	Package     *Package
+	ImportTest  bool
+	NeedTest    bool
+	ImportXtest bool
+	NeedXtest   bool
+	Cover       []coverInfo
 }
 
 func (t *testFuncs) CoverMode() string {
@@ -1151,7 +1153,7 @@ type testFunc struct {
 
 var testFileSet = token.NewFileSet()
 
-func (t *testFuncs) load(filename, pkg string, seen *bool) error {
+func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
 	if err != nil {
 		return expandScanner(err)
@@ -1168,15 +1170,16 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
 		switch {
 		case isTest(name, "Test"):
 			t.Tests = append(t.Tests, testFunc{pkg, name, ""})
-			*seen = true
+			*doImport, *seen = true, true
 		case isTest(name, "Benchmark"):
 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
-			*seen = true
+			*doImport, *seen = true, true
 		}
 	}
 	ex := doc.Examples(f)
 	sort.Sort(byOrder(ex))
 	for _, e := range ex {
+		*doImport = true // import test file whether executed or not
 		if e.Output == "" && !e.EmptyOutput {
 			// Don't run examples with no output.
 			continue
@@ -1200,11 +1203,11 @@ import (
 	"regexp"
 	"testing"
 
-{{if .NeedTest}}
-	_test {{.Package.ImportPath | printf "%q"}}
+{{if .ImportTest}}
+	{{if .NeedTest}}_test{{else}}_{{end}} {{.Package.ImportPath | printf "%q"}}
 {{end}}
-{{if .NeedXtest}}
-	_xtest {{.Package.ImportPath | printf "%s_test" | printf "%q"}}
+{{if .ImportXtest}}
+	{{if .NeedXtest}}_xtest{{else}}_{{end}} {{.Package.ImportPath | printf "%s_test" | printf "%q"}}
 {{end}}
 {{range $i, $p := .Cover}}
 	_cover{{$i}} {{$p.Package.ImportPath | printf "%q"}}

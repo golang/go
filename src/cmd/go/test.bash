@@ -806,6 +806,14 @@ if ! ./testgo test xtestonly >/dev/null; then
 fi
 unset GOPATH
 
+TEST 'go test builds an xtest containing only non-runnable examples'
+if ! ./testgo test -v ./testdata/norunexample > testdata/std.out; then
+	echo "go test ./testdata/norunexample failed"
+	ok=false
+elif ! grep 'File with non-runnable example was built.' testdata/std.out > /dev/null; then
+	echo "file with non-runnable example was not built"
+	ok=false
+fi
 
 # clean up
 if $started; then stop; fi
