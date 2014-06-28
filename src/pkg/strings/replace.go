@@ -6,7 +6,8 @@ package strings
 
 import "io"
 
-// A Replacer replaces a list of strings with replacements.
+// Replacer replaces a list of strings with replacements.
+// It is safe for concurrent use by multiple goroutines.
 type Replacer struct {
 	r replacer
 }
