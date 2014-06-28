@@ -270,7 +270,7 @@ static bool
 markonly(void *obj)
 {
 	byte *p;
-	uintptr *bitp, bits, shift, x, xbits, off, j;
+	uintptr *bitp, bits, shift, x, xbits, off;
 	MSpan *s;
 	PageID k;
 
@@ -296,18 +296,6 @@ markonly(void *obj)
 		if(CollectStats)
 			runtime·xadd64(&gcstats.markonly.foundbit, 1);
 		goto found;
-	}
-
-	// Pointing just past the beginning?
-	// Scan backward a little to find a block boundary.
-	for(j=shift; j-->0; ) {
-		if(((xbits>>j) & (bitAllocated|bitBlockBoundary)) != 0) {
-			shift = j;
-			bits = xbits>>shift;
-			if(CollectStats)
-				runtime·xadd64(&gcstats.markonly.foundword, 1);
-			goto found;
-		}
 	}
 
 	// Otherwise consult span table to find beginning.
@@ -424,7 +412,7 @@ static void
 flushptrbuf(Scanbuf *sbuf)
 {
 	byte *p, *arena_start, *obj;
-	uintptr size, *bitp, bits, shift, j, x, xbits, off, nobj, ti, n;
+	uintptr size, *bitp, bits, shift, x, xbits, off, nobj, ti, n;
 	MSpan *s;
 	PageID k;
 	Obj *wp;
@@ -495,19 +483,6 @@ flushptrbuf(Scanbuf *sbuf)
 		}
 
 		ti = 0;
-
-		// Pointing just past the beginning?
-		// Scan backward a little to find a block boundary.
-		for(j=shift; j-->0; ) {
-			if(((xbits>>j) & (bitAllocated|bitBlockBoundary)) != 0) {
-				obj = (byte*)obj - (shift-j)*PtrSize;
-				shift = j;
-				bits = xbits>>shift;
-				if(CollectStats)
-					runtime·xadd64(&gcstats.flushptrbuf.foundword, 1);
-				goto found;
-			}
-		}
 
 		// Otherwise consult span table to find beginning.
 		// (Manually inlined copy of MHeap_LookupMaybe.)
