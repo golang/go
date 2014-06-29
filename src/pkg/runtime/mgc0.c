@@ -2731,7 +2731,7 @@ runtime·markscan(void *v)
 void
 runtime·markfreed(void *v)
 {
-	uintptr *b, off, shift;
+	uintptr *b, off, shift, xbits;
 
 	if(0)
 		runtime·printf("markfreed %p\n", v);
@@ -2742,7 +2742,18 @@ runtime·markfreed(void *v)
 	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	shift = off % wordsPerBitmapWord;
-	*b = (*b & ~(bitMask<<shift)) | (bitAllocated<<shift);
+	if(!g->m->gcing || work.nproc == 1) {
+		// During normal operation (not GC), the span bitmap is not updated concurrently,
+		// because either the span is cached or accesses are protected with MCentral lock.
+		*b = (*b & ~(bitMask<<shift)) | (bitAllocated<<shift);
+	} else {
+		// During GC other threads concurrently mark heap.
+		for(;;) {
+			xbits = *b;
+			if(runtime·casp((void**)b, (void*)xbits, (void*)((xbits & ~(bitMask<<shift)) | (bitAllocated<<shift))))
+				break;
+		}
+	}
 }
 
 // check that the block at v of size n is marked freed.
