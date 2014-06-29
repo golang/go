@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// issue 8073.
+// issue 8074.
 // was "cannot take the address of 1"
 
 package main
