@@ -23,7 +23,7 @@ func benchmarkEndToEnd(r io.Reader, w io.Writer, b *testing.B) {
 	b.StopTimer()
 	enc := NewEncoder(w)
 	dec := NewDecoder(r)
-	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
+	bench := &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if enc.Encode(bench) != nil {
@@ -103,7 +103,7 @@ func TestCountDecodeMallocs(t *testing.T) {
 			t.Fatal("decode:", err)
 		}
 	})
-	if allocs != 3 {
-		t.Fatalf("mallocs per decode of type Bench: %v; wanted 3\n", allocs)
+	if allocs != 4 {
+		t.Fatalf("mallocs per decode of type Bench: %v; wanted 4\n", allocs)
 	}
 }

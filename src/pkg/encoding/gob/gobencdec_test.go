@@ -279,7 +279,7 @@ func TestGobEncoderValueField(t *testing.T) {
 	b := new(bytes.Buffer)
 	// First a field that's a structure.
 	enc := NewEncoder(b)
-	err := enc.Encode(GobTestValueEncDec{17, StringStruct{"HIJKL"}})
+	err := enc.Encode(&GobTestValueEncDec{17, StringStruct{"HIJKL"}})
 	if err != nil {
 		t.Fatal("encode error:", err)
 	}
@@ -326,7 +326,7 @@ func TestGobEncoderArrayField(t *testing.T) {
 	for i := range a.A.a {
 		a.A.a[i] = byte(i)
 	}
-	err := enc.Encode(a)
+	err := enc.Encode(&a)
 	if err != nil {
 		t.Fatal("encode error:", err)
 	}
@@ -589,7 +589,8 @@ func TestGobEncoderStructSingleton(t *testing.T) {
 func TestGobEncoderNonStructSingleton(t *testing.T) {
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
-	err := enc.Encode(Gobber(1234))
+	var g Gobber = 1234
+	err := enc.Encode(&g)
 	if err != nil {
 		t.Fatal("encode error:", err)
 	}

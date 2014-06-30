@@ -13,6 +13,52 @@ import (
 	"testing"
 )
 
+// Test basic operations in a safe manner.
+func TestBasicEncoderDecoder(t *testing.T) {
+	var values = []interface{}{
+		true,
+		int(123),
+		int8(123),
+		int16(-12345),
+		int32(123456),
+		int64(-1234567),
+		uint(123),
+		uint8(123),
+		uint16(12345),
+		uint32(123456),
+		uint64(1234567),
+		uintptr(12345678),
+		float32(1.2345),
+		float64(1.2345678),
+		complex64(1.2345 + 2.3456i),
+		complex128(1.2345678 + 2.3456789i),
+		[]byte("hello"),
+		string("hello"),
+	}
+	for _, value := range values {
+		b := new(bytes.Buffer)
+		enc := NewEncoder(b)
+		err := enc.Encode(value)
+		if err != nil {
+			t.Error("encoder fail:", err)
+		}
+		dec := NewDecoder(b)
+		result := reflect.New(reflect.TypeOf(value))
+		err = dec.Decode(result.Interface())
+		if err != nil {
+			t.Fatalf("error decoding %T: %v:", reflect.TypeOf(value), err)
+		}
+		if !reflect.DeepEqual(value, result.Elem().Interface()) {
+			t.Fatalf("%T: expected %v got %v", value, value, result.Elem().Interface())
+		}
+	}
+}
+
+type ET0 struct {
+	A int
+	B string
+}
+
 type ET2 struct {
 	X string
 }
@@ -40,14 +86,40 @@ type ET4 struct {
 func TestEncoderDecoder(t *testing.T) {
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
-	et1 := new(ET1)
-	et1.A = 7
-	et1.Et2 = new(ET2)
-	err := enc.Encode(et1)
+	et0 := new(ET0)
+	et0.A = 7
+	et0.B = "gobs of fun"
+	err := enc.Encode(et0)
 	if err != nil {
 		t.Error("encoder fail:", err)
 	}
+	//fmt.Printf("% x %q\n", b, b)
+	//Debug(b)
 	dec := NewDecoder(b)
+	newEt0 := new(ET0)
+	err = dec.Decode(newEt0)
+	if err != nil {
+		t.Fatal("error decoding ET0:", err)
+	}
+
+	if !reflect.DeepEqual(et0, newEt0) {
+		t.Fatalf("invalid data for et0: expected %+v; got %+v", *et0, *newEt0)
+	}
+	if b.Len() != 0 {
+		t.Error("not at eof;", b.Len(), "bytes left")
+	}
+	//	t.FailNow()
+
+	b = new(bytes.Buffer)
+	enc = NewEncoder(b)
+	et1 := new(ET1)
+	et1.A = 7
+	et1.Et2 = new(ET2)
+	err = enc.Encode(et1)
+	if err != nil {
+		t.Error("encoder fail:", err)
+	}
+	dec = NewDecoder(b)
 	newEt1 := new(ET1)
 	err = dec.Decode(newEt1)
 	if err != nil {
