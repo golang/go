@@ -306,7 +306,7 @@ func (deb *debugger) common() CommonType {
 			// Id typeId
 			id = deb.typeId()
 		default:
-			errorf("corrupted CommonType")
+			errorf("corrupted CommonType, delta is %d fieldNum is %d", delta, fieldNum)
 		}
 	}
 	return CommonType{name, id}
@@ -598,11 +598,11 @@ func (deb *debugger) printBuiltin(indent tab, id typeId) {
 		fmt.Fprintf(os.Stderr, "%s%d\n", indent, x)
 	case tFloat:
 		x := deb.uint64()
-		fmt.Fprintf(os.Stderr, "%s%g\n", indent, floatFromBits(x))
+		fmt.Fprintf(os.Stderr, "%s%g\n", indent, float64FromBits(x))
 	case tComplex:
 		r := deb.uint64()
 		i := deb.uint64()
-		fmt.Fprintf(os.Stderr, "%s%g+%gi\n", indent, floatFromBits(r), floatFromBits(i))
+		fmt.Fprintf(os.Stderr, "%s%g+%gi\n", indent, float64FromBits(r), float64FromBits(i))
 	case tBytes:
 		x := int(deb.uint64())
 		b := make([]byte, x)
