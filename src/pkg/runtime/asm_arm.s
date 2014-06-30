@@ -125,7 +125,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
 	MOVW	gobuf_g(R1), g
 	MOVW	0(g), R2		// make sure g != nil
 	MOVB	runtime·iscgo(SB), R2
-	CMP 	$0, R2 // if in Cgo, we have to save g and m
+	CMP 	$0, R2 // if in Cgo, we have to save g
 	BL.NE	runtime·save_g(SB) // this call will clobber R0
 	MOVW	gobuf_sp(R1), SP	// restore SP
 	MOVW	gobuf_lr(R1), LR
@@ -688,10 +688,10 @@ _eqnext:
 	MOVB	R7, v+16(FP)
 	RET
 
-// We have to resort to TLS variable to save g(R10) and
-// m(R9). One reason is that external code might trigger
+// We have to resort to TLS variable to save g(R10).
+// One reason is that external code might trigger
 // SIGSEGV, and our runtime.sigtramp don't even know we
-// are in external code, and will continue to use R10/R9,
+// are in external code, and will continue to use R10,
 // this might as well result in another SIGSEGV.
 // Note: all three functions will clobber R0, and the last
 // two can be called from 5c ABI code.
@@ -724,7 +724,7 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	MOVW	0(R0), g
 	RET
 
-// void setg_gcc(M*, G*); set m and g called from gcc.
+// void setg_gcc(G*); set g called from gcc.
 TEXT setg_gcc<>(SB),NOSPLIT,$0
 	MOVW	R0, g
 	B		runtime·save_g(SB)
