@@ -226,9 +226,6 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 		return true
 
 	case reflect.Struct:
-		if p.NumField() != v.NumField() {
-			return false
-		}
 		for i := 0; i < p.NumField(); i++ {
 			if !match(m, p.Field(i), v.Field(i)) {
 				return false
