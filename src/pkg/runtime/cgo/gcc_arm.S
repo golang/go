@@ -31,7 +31,7 @@ EXT(crosscall_arm1):
 	mov r4, r0
 	mov r5, r1
 	mov r0, r2
-	blx r5 // setmg(g) 
+	blx r5 // setg(g) 
 	blx r4 // fn() 
 	pop {r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
 
