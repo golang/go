@@ -131,27 +131,7 @@ type decInstr struct {
 	op    decOp
 	field int   // field number of the wire type
 	index []int // field access indices for destination type
-	indir int   // how many pointer indirections to reach the value in the struct
 	ovfl  error // error message for overflow/underflow (for arrays, of the elements)
-}
-
-// Since the encoder writes no zeros, if we arrive at a decoder we have
-// a value to extract and store.  The field number has already been read
-// (it's how we knew to call this decoder).
-// Each decoder is responsible for handling any indirections associated
-// with the data structure.  If any pointer so reached is nil, allocation must
-// be done.
-
-// decIndirect walks the pointer hierarchy, allocating if we find a nil.  Stop one before the end.
-func decIndirect(pv reflect.Value, indir int) reflect.Value {
-	for ; indir > 1; indir-- {
-		if pv.IsNil() {
-			// Allocation required
-			pv.Set(reflect.New(pv.Type().Elem())) // New will always allocate a pointer here.
-		}
-		pv = pv.Elem()
-	}
-	return pv
 }
 
 // ignoreUint discards a uint value with no destination.
@@ -166,11 +146,17 @@ func ignoreTwoUints(i *decInstr, state *decoderState, v reflect.Value) {
 	state.decodeUint()
 }
 
+// Since the encoder writes no zeros, if we arrive at a decoder we have
+// a value to extract and store.  The field number has already been read
+// (it's how we knew to call this decoder).
+// Each decoder is responsible for handling any indirections associated
+// with the data structure.  If any pointer so reached is nil, allocation must
+// be done.
+
 // decAlloc takes a value and returns a settable value that can
-// be assigned to. If the value is a pointer (i.indir is positive),
-// decAlloc guarantees it points to storage.
-func (i *decInstr) decAlloc(v reflect.Value) reflect.Value {
-	if i.indir > 0 {
+// be assigned to. If the value is a pointer, decAlloc guarantees it points to storage.
+func decAlloc(v reflect.Value) reflect.Value {
+	for v.Kind() == reflect.Ptr {
 		if v.IsNil() {
 			v.Set(reflect.New(v.Type().Elem()))
 		}
@@ -181,7 +167,7 @@ func (i *decInstr) decAlloc(v reflect.Value) reflect.Value {
 
 // decBool decodes a uint and stores it as a boolean in value.
 func decBool(i *decInstr, state *decoderState, value reflect.Value) {
-	i.decAlloc(value).SetBool(state.decodeUint() != 0)
+	decAlloc(value).SetBool(state.decodeUint() != 0)
 }
 
 // decInt8 decodes an integer and stores it as an int8 in value.
@@ -190,7 +176,7 @@ func decInt8(i *decInstr, state *decoderState, value reflect.Value) {
 	if v < math.MinInt8 || math.MaxInt8 < v {
 		error_(i.ovfl)
 	}
-	i.decAlloc(value).SetInt(v)
+	decAlloc(value).SetInt(v)
 }
 
 // decUint8 decodes an unsigned integer and stores it as a uint8 in value.
@@ -199,7 +185,7 @@ func decUint8(i *decInstr, state *decoderState, value reflect.Value) {
 	if math.MaxUint8 < v {
 		error_(i.ovfl)
 	}
-	i.decAlloc(value).SetUint(v)
+	decAlloc(value).SetUint(v)
 }
 
 // decInt16 decodes an integer and stores it as an int16 in value.
@@ -208,7 +194,7 @@ func decInt16(i *decInstr, state *decoderState, value reflect.Value) {
 	if v < math.MinInt16 || math.MaxInt16 < v {
 		error_(i.ovfl)
 	}
-	i.decAlloc(value).SetInt(v)
+	decAlloc(value).SetInt(v)
 }
 
 // decUint16 decodes an unsigned integer and stores it as a uint16 in value.
@@ -217,7 +203,7 @@ func decUint16(i *decInstr, state *decoderState, value reflect.Value) {
 	if math.MaxUint16 < v {
 		error_(i.ovfl)
 	}
-	i.decAlloc(value).SetUint(v)
+	decAlloc(value).SetUint(v)
 }
 
 // decInt32 decodes an integer and stores it as an int32 in value.
@@ -226,7 +212,7 @@ func decInt32(i *decInstr, state *decoderState, value reflect.Value) {
 	if v < math.MinInt32 || math.MaxInt32 < v {
 		error_(i.ovfl)
 	}
-	i.decAlloc(value).SetInt(v)
+	decAlloc(value).SetInt(v)
 }
 
 // decUint32 decodes an unsigned integer and stores it as a uint32 in value.
@@ -235,19 +221,19 @@ func decUint32(i *decInstr, state *decoderState, value reflect.Value) {
 	if math.MaxUint32 < v {
 		error_(i.ovfl)
 	}
-	i.decAlloc(value).SetUint(v)
+	decAlloc(value).SetUint(v)
 }
 
 // decInt64 decodes an integer and stores it as an int64 in value.
 func decInt64(i *decInstr, state *decoderState, value reflect.Value) {
 	v := state.decodeInt()
-	i.decAlloc(value).SetInt(v)
+	decAlloc(value).SetInt(v)
 }
 
 // decUint64 decodes an unsigned integer and stores it as a uint64 in value.
 func decUint64(i *decInstr, state *decoderState, value reflect.Value) {
 	v := state.decodeUint()
-	i.decAlloc(value).SetUint(v)
+	decAlloc(value).SetUint(v)
 }
 
 // Floating-point numbers are transmitted as uint64s holding the bits
@@ -285,94 +271,74 @@ func float32FromBits(i *decInstr, u uint64) float64 {
 // decFloat32 decodes an unsigned integer, treats it as a 32-bit floating-point
 // number, and stores it in value.
 func decFloat32(i *decInstr, state *decoderState, value reflect.Value) {
-	i.decAlloc(value).SetFloat(float32FromBits(i, state.decodeUint()))
+	decAlloc(value).SetFloat(float32FromBits(i, state.decodeUint()))
 }
 
 // decFloat64 decodes an unsigned integer, treats it as a 64-bit floating-point
 // number, and stores it in value.
 func decFloat64(i *decInstr, state *decoderState, value reflect.Value) {
-	i.decAlloc(value).SetFloat(float64FromBits(state.decodeUint()))
+	decAlloc(value).SetFloat(float64FromBits(state.decodeUint()))
 }
 
 // decComplex64 decodes a pair of unsigned integers, treats them as a
-// pair of floating point numbers, and stores them as a complex64 through v.
+// pair of floating point numbers, and stores them as a complex64 in value.
 // The real part comes first.
 func decComplex64(i *decInstr, state *decoderState, value reflect.Value) {
 	real := float32FromBits(i, state.decodeUint())
 	imag := float32FromBits(i, state.decodeUint())
-	i.decAlloc(value).SetComplex(complex(real, imag))
+	decAlloc(value).SetComplex(complex(real, imag))
 }
 
 // decComplex128 decodes a pair of unsigned integers, treats them as a
-// pair of floating point numbers, and stores them as a complex128 through v.
+// pair of floating point numbers, and stores them as a complex128 in value.
 // The real part comes first.
 func decComplex128(i *decInstr, state *decoderState, value reflect.Value) {
 	real := float64FromBits(state.decodeUint())
 	imag := float64FromBits(state.decodeUint())
-	i.decAlloc(value).SetComplex(complex(real, imag))
+	decAlloc(value).SetComplex(complex(real, imag))
 }
 
-// decUint8Slice decodes a byte slice and stores through v a slice header
+// decUint8Slice decodes a byte slice and stores in value a slice header
 // describing the data.
 // uint8 slices are encoded as an unsigned count followed by the raw bytes.
 func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 	u := state.decodeUint()
 	n := int(u)
-	if n < 0 {
-		errorf("negative slice length: %d", n)
+	if n < 0 || uint64(n) != u {
+		errorf("length of %s exceeds input size (%d bytes)", value.Type(), u)
 	}
 	if n > state.b.Len() {
 		errorf("%s data too long for buffer: %d", value.Type(), n)
 	}
-	// Indirect if necessary until we have a settable slice header with enough storage.
-	typ := value.Type()
-	switch typ.Kind() {
-	default:
-		panic("should be slice " + typ.String())
-	case reflect.Slice:
-		if value.Cap() < n {
-			value.Set(reflect.MakeSlice(typ, n, n))
-		}
-	case reflect.Ptr:
-		for typ.Elem().Kind() == reflect.Ptr {
-			if value.IsNil() {
-				value.Set(reflect.New(typ.Elem()))
-			}
-			value = value.Elem()
-			typ = typ.Elem()
-		}
-		// Value is now a pointer to a slice header.
-		// It might be nil. If so, allocate the header.
-		if value.IsNil() {
-			value.Set(reflect.New(typ.Elem()))
-		}
-		if value.Elem().IsNil() || value.Elem().Cap() < n {
-			value.Elem().Set(reflect.MakeSlice(typ.Elem(), n, n))
-		} else {
-			value.Elem().Set(value.Elem().Slice(0, n))
-		}
-		value = value.Elem()
+	value = decAlloc(value)
+	if value.Cap() < n {
+		value.Set(reflect.MakeSlice(value.Type(), n, n))
+	} else {
+		value.Set(value.Slice(0, n))
 	}
 	if _, err := state.b.Read(value.Bytes()); err != nil {
 		errorf("error decoding []byte: %s", err)
 	}
 }
 
-// decString decodes byte array and stores through v a string header
+// decString decodes byte array and stores in value a string header
 // describing the data.
 // Strings are encoded as an unsigned count followed by the raw bytes.
 func decString(i *decInstr, state *decoderState, value reflect.Value) {
 	u := state.decodeUint()
 	n := int(u)
-	if n < 0 || uint64(n) < u || n > state.b.Len() {
-		errorf("length of string exceeds input size (%d bytes)", n)
+	if n < 0 || uint64(n) != u || n > state.b.Len() {
+		errorf("length of %s exceeds input size (%d bytes)", value.Type(), u)
+	}
+	if n > state.b.Len() {
+		errorf("%s data too long for buffer: %d", value.Type(), n)
 	}
 	// Read the data.
 	data := make([]byte, n)
 	if _, err := state.b.Read(data); err != nil {
 		errorf("error decoding string: %s", err)
 	}
-	i.decAlloc(value).SetString(string(data))
+	decAlloc(value).SetString(string(data))
 }
 
 // ignoreUint8Array skips over the data for a byte slice value with no destination.
@@ -390,22 +356,6 @@ type decEngine struct {
 	numInstr int // the number of active instructions
 }
 
-// allocate makes sure storage is available for an object of underlying type rtyp
-// that is indir levels of indirection through p.
-func allocate(rtyp reflect.Type, v reflect.Value, indir int) reflect.Value {
-	if indir == 0 {
-		return v
-	}
-	if indir > 1 {
-		v = decIndirect(v, indir)
-	}
-	if v.IsNil() {
-		// Allocate object.
-		v.Set(reflect.New(v.Type().Elem()))
-	}
-	return v.Elem()
-}
-
 // decodeSingle decodes a top-level value that is not a struct and stores it in value.
 // Such values are preceded by a zero, making them have the memory layout of a
 // struct field (although with an illegal field number).
@@ -417,12 +367,6 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, value refl
 		errorf("decode: corrupted data: non-zero delta for singleton")
 	}
 	instr := &engine.instr[singletonField]
-	if instr.indir != ut.indir {
-		errorf("internal error: inconsistent indirection instr %d ut %d", instr.indir, ut.indir)
-	}
-	if instr.indir > 1 {
-		value = decIndirect(value, instr.indir)
-	}
 	instr.op(instr, state, value)
 }
 
@@ -431,8 +375,9 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, value refl
 // differ from ut.indir, which was computed when the engine was built.
 // This state cannot arise for decodeSingle, which is called directly
 // from the user's value, not from the innards of an engine.
-func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, value reflect.Value, indir int) {
-	value = allocate(ut.base, value, indir)
+func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, value reflect.Value) {
+	value = decAlloc(value)
+	//	println(value.Kind() == reflect.Ptr)
 	state := dec.newDecoderState(&dec.buf)
 	defer dec.freeDecoderState(state)
 	state.fieldnum = -1
@@ -454,16 +399,13 @@ func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, value refl
 		if instr.index != nil {
 			// Otherwise the field is unknown to us and instr.op is an ignore op.
 			field = value.FieldByIndex(instr.index)
-			if instr.indir > 1 {
-				field = decIndirect(field, instr.indir)
-			}
 		}
 		instr.op(instr, state, field)
 		state.fieldnum = fieldnum
 	}
 }
 
-var zeroValue reflect.Value
+var noValue reflect.Value
 
 // ignoreStruct discards the data for a struct with no destination.
 func (dec *Decoder) ignoreStruct(engine *decEngine) {
@@ -483,7 +425,7 @@ func (dec *Decoder) ignoreStruct(engine *decEngine) {
 			error_(errRange)
 		}
 		instr := &engine.instr[fieldnum]
-		instr.op(instr, state, zeroValue)
+		instr.op(instr, state, noValue)
 		state.fieldnum = fieldnum
 	}
 }
@@ -499,43 +441,34 @@ func (dec *Decoder) ignoreSingle(engine *decEngine) {
 		errorf("decode: corrupted data: non-zero delta for singleton")
 	}
 	instr := &engine.instr[singletonField]
-	instr.op(instr, state, zeroValue)
+	instr.op(instr, state, noValue)
 }
 
 // decodeArrayHelper does the work for decoding arrays and slices.
-func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, elemOp decOp, length, elemIndir int, ovfl error) {
-	instr := &decInstr{elemOp, 0, nil, elemIndir, ovfl}
+func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error) {
+	instr := &decInstr{elemOp, 0, nil, ovfl}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
 		}
-		elem := value.Index(i)
-		if elemIndir > 1 {
-			elem = decIndirect(elem, elemIndir)
-		}
-		elemOp(instr, state, elem)
+		elemOp(instr, state, value.Index(i))
 	}
 }
 
 // decodeArray decodes an array and stores it in value.
 // The length is an unsigned integer preceding the elements.  Even though the length is redundant
 // (it's part of the type), it's a useful check and is included in the encoding.
-func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, value reflect.Value, elemOp decOp, length, indir, elemIndir int, ovfl error) {
-	if indir > 0 {
-		value = allocate(atyp, value, 1) // All but the last level has been allocated by dec.Indirect
-	}
+func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error) {
+	value = decAlloc(value)
 	if n := state.decodeUint(); n != uint64(length) {
 		errorf("length mismatch in decodeArray")
 	}
-	dec.decodeArrayHelper(state, value, elemOp, length, elemIndir, ovfl)
+	dec.decodeArrayHelper(state, value, elemOp, length, ovfl)
 }
 
 // decodeIntoValue is a helper for map decoding.
-func decodeIntoValue(state *decoderState, op decOp, indir int, value reflect.Value, ovfl error) reflect.Value {
-	instr := &decInstr{op, 0, nil, indir, ovfl}
-	if indir > 1 {
-		value = decIndirect(value, indir)
-	}
+func decodeIntoValue(state *decoderState, op decOp, value reflect.Value, ovfl error) reflect.Value {
+	instr := &decInstr{op, 0, nil, ovfl}
 	op(instr, state, value)
 	return value
 }
@@ -544,27 +477,25 @@ func decodeIntoValue(state *decoderState, op decOp, indir int, value reflect.Val
 // Maps are encoded as a length followed by key:value pairs.
 // Because the internals of maps are not visible to us, we must
 // use reflection rather than pointer magic.
-func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value reflect.Value, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl error) {
-	if indir > 0 {
-		value = allocate(mtyp, value, 1) // All but the last level has been allocated by dec.Indirect
-	}
+func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value reflect.Value, keyOp, elemOp decOp, ovfl error) {
+	value = decAlloc(value)
 	if value.IsNil() {
 		// Allocate map.
 		value.Set(reflect.MakeMap(mtyp))
 	}
 	n := int(state.decodeUint())
 	for i := 0; i < n; i++ {
-		key := decodeIntoValue(state, keyOp, keyIndir, allocValue(mtyp.Key()), ovfl)
-		elem := decodeIntoValue(state, elemOp, elemIndir, allocValue(mtyp.Elem()), ovfl)
+		key := decodeIntoValue(state, keyOp, allocValue(mtyp.Key()), ovfl)
+		elem := decodeIntoValue(state, elemOp, allocValue(mtyp.Elem()), ovfl)
 		value.SetMapIndex(key, elem)
 	}
 }
 
 // ignoreArrayHelper does the work for discarding arrays and slices.
 func (dec *Decoder) ignoreArrayHelper(state *decoderState, elemOp decOp, length int) {
-	instr := &decInstr{elemOp, 0, nil, 0, errors.New("no error")}
+	instr := &decInstr{elemOp, 0, nil, errors.New("no error")}
 	for i := 0; i < length; i++ {
-		elemOp(instr, state, zeroValue)
+		elemOp(instr, state, noValue)
 	}
 }
 
@@ -579,52 +510,31 @@ func (dec *Decoder) ignoreArray(state *decoderState, elemOp decOp, length int) {
 // ignoreMap discards the data for a map value with no destination.
 func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 	n := int(state.decodeUint())
-	keyInstr := &decInstr{keyOp, 0, nil, 0, errors.New("no error")}
-	elemInstr := &decInstr{elemOp, 0, nil, 0, errors.New("no error")}
+	keyInstr := &decInstr{keyOp, 0, nil, errors.New("no error")}
+	elemInstr := &decInstr{elemOp, 0, nil, errors.New("no error")}
 	for i := 0; i < n; i++ {
-		keyOp(keyInstr, state, zeroValue)
-		elemOp(elemInstr, state, zeroValue)
+		keyOp(keyInstr, state, noValue)
+		elemOp(elemInstr, state, noValue)
 	}
 }
 
 // decodeSlice decodes a slice and stores it in value.
 // Slices are encoded as an unsigned length followed by the elements.
-func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp decOp, indir, elemIndir int, ovfl error) {
+func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp decOp, ovfl error) {
 	u := state.decodeUint()
 	n := int(u)
-	if n < 0 {
-		errorf("negative slice length: %d", n)
+	if n < 0 || uint64(n) != u {
+		// We don't check n against buffer length here because if it's a slice
+		// of interfaces, there will be buffer reloads.
+		errorf("length of %s is negative (%d bytes)", value.Type(), u)
 	}
-	// Indirect if necessary until we have a settable slice header with enough storage.
-	typ := value.Type()
-	switch typ.Kind() {
-	default:
-		panic("should be slice " + typ.String())
-	case reflect.Slice:
-		if value.Cap() < n {
-			value.Set(reflect.MakeSlice(typ, n, n))
-		}
-	case reflect.Ptr:
-		for typ.Elem().Kind() == reflect.Ptr {
-			if value.IsNil() {
-				value.Set(reflect.New(typ.Elem()))
-			}
-			value = value.Elem()
-			typ = typ.Elem()
-		}
-		// Value is now a pointer to a slice header.
-		// It might be nil. If so, allocate the header.
-		if value.IsNil() {
-			value.Set(reflect.New(typ.Elem()))
-		}
-		if value.Elem().IsNil() || value.Elem().Cap() < n {
-			value.Elem().Set(reflect.MakeSlice(typ.Elem(), n, n))
-		} else {
-			value.Elem().Set(value.Elem().Slice(0, n))
-		}
-		value = value.Elem()
+	value = decAlloc(value)
+	if value.Cap() < n {
+		value.Set(reflect.MakeSlice(value.Type(), n, n))
+	} else {
+		value.Set(value.Slice(0, n))
 	}
-	dec.decodeArrayHelper(state, value, elemOp, n, elemIndir, ovfl)
+	dec.decodeArrayHelper(state, value, elemOp, n, ovfl)
 }
 
 // ignoreSlice skips over the data for a slice value with no destination.
@@ -632,21 +542,10 @@ func (dec *Decoder) ignoreSlice(state *decoderState, elemOp decOp) {
 	dec.ignoreArrayHelper(state, elemOp, int(state.decodeUint()))
 }
 
-// setInterfaceValue sets an interface value to a concrete value,
-// but first it checks that the assignment will succeed.
-func setInterfaceValue(ivalue reflect.Value, value reflect.Value) {
-	if !value.Type().AssignableTo(ivalue.Type()) {
-		errorf("%s is not assignable to type %s", value.Type(), ivalue.Type())
-	}
-	ivalue.Set(value)
-}
-
 // decodeInterface decodes an interface value and stores it in value.
 // Interfaces are encoded as the name of a concrete type followed by a value.
 // If the name is empty, the value is nil and no value is sent.
-func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, v reflect.Value, indir int) {
-	// Create a writable interface reflect.Value.  We need one even for the nil case.
-	ivalue := allocValue(ityp)
+func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, value reflect.Value) {
 	// Read the name of the concrete type.
 	nr := state.decodeUint()
 	if nr < 0 || nr > 1<<31 { // zero is permissible for anonymous types
@@ -658,12 +557,11 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, v re
 	b := make([]byte, nr)
 	state.b.Read(b)
 	name := string(b)
+	// Allocate the destination interface value.
+	value = decAlloc(value)
 	if name == "" {
 		// Copy the nil interface value to the target.
-		if indir > 0 {
-			v = allocate(ityp, v, 1) // All but the last level has been allocated by dec.Indirect
-		}
-		v.Set(ivalue)
+		value.Set(reflect.Zero(value.Type()))
 		return
 	}
 	if len(name) > 1024 {
@@ -685,20 +583,18 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, v re
 	// in case we want to ignore the value by skipping it completely).
 	state.decodeUint()
 	// Read the concrete value.
-	value := allocValue(typ)
-	dec.decodeValue(concreteId, value)
+	v := allocValue(typ)
+	dec.decodeValue(concreteId, v)
 	if dec.err != nil {
 		error_(dec.err)
 	}
-	// Allocate the destination interface value.
-	if indir > 0 {
-		v = allocate(ityp, v, 1) // All but the last level has been allocated by dec.Indirect
-	}
 	// Assign the concrete value to the interface.
 	// Tread carefully; it might not satisfy the interface.
-	setInterfaceValue(ivalue, value)
+	if !typ.AssignableTo(ityp) {
+		errorf("%s is not assignable to type %s", typ, ityp)
+	}
 	// Copy the interface value to the target.
-	v.Set(value)
+	value.Set(v)
 }
 
 // ignoreInterface discards the data for an interface value with no destination.
@@ -719,7 +615,7 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 
 // decodeGobDecoder decodes something implementing the GobDecoder interface.
 // The data is encoded as a byte slice.
-func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, v reflect.Value) {
+func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, value reflect.Value) {
 	// Read the bytes for the value.
 	b := make([]byte, state.decodeUint())
 	_, err := state.b.Read(b)
@@ -729,11 +625,11 @@ func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, v re
 	// We know it's one of these.
 	switch ut.externalDec {
 	case xGob:
-		err = v.Interface().(GobDecoder).GobDecode(b)
+		err = value.Interface().(GobDecoder).GobDecode(b)
 	case xBinary:
-		err = v.Interface().(encoding.BinaryUnmarshaler).UnmarshalBinary(b)
+		err = value.Interface().(encoding.BinaryUnmarshaler).UnmarshalBinary(b)
 	case xText:
-		err = v.Interface().(encoding.TextUnmarshaler).UnmarshalText(b)
+		err = value.Interface().(encoding.TextUnmarshaler).UnmarshalText(b)
 	}
 	if err != nil {
 		error_(err)
@@ -781,7 +677,7 @@ var decIgnoreOpMap = map[typeId]decOp{
 
 // decOpFor returns the decoding op for the base type under rt and
 // the indirection count to reach it.
-func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProgress map[reflect.Type]*decOp) (*decOp, int) {
+func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProgress map[reflect.Type]*decOp) *decOp {
 	ut := userType(rt)
 	// If the type implements GobEncoder, we handle it without further processing.
 	if ut.externalDec != 0 {
@@ -791,10 +687,9 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 	// If this type is already in progress, it's a recursive type (e.g. map[string]*T).
 	// Return the pointer to the op we're already building.
 	if opPtr := inProgress[rt]; opPtr != nil {
-		return opPtr, ut.indir
+		return opPtr
 	}
 	typ := ut.base
-	indir := ut.indir
 	var op decOp
 	k := typ.Kind()
 	if int(k) < len(decOpTable) {
@@ -807,20 +702,20 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 		case reflect.Array:
 			name = "element of " + name
 			elemId := dec.wireType[wireId].ArrayT.Elem
-			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name, inProgress)
+			elemOp := dec.decOpFor(elemId, t.Elem(), name, inProgress)
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeArray(t, state, value, *elemOp, t.Len(), i.indir, elemIndir, ovfl)
+				state.dec.decodeArray(t, state, value, *elemOp, t.Len(), ovfl)
 			}
 
 		case reflect.Map:
 			keyId := dec.wireType[wireId].MapT.Key
 			elemId := dec.wireType[wireId].MapT.Elem
-			keyOp, keyIndir := dec.decOpFor(keyId, t.Key(), "key of "+name, inProgress)
-			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), "element of "+name, inProgress)
+			keyOp := dec.decOpFor(keyId, t.Key(), "key of "+name, inProgress)
+			elemOp := dec.decOpFor(elemId, t.Elem(), "element of "+name, inProgress)
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeMap(t, state, value, *keyOp, *elemOp, i.indir, keyIndir, elemIndir, ovfl)
+				state.dec.decodeMap(t, state, value, *keyOp, *elemOp, ovfl)
 			}
 
 		case reflect.Slice:
@@ -835,10 +730,10 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			} else {
 				elemId = dec.wireType[wireId].SliceT.Elem
 			}
-			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name, inProgress)
+			elemOp := dec.decOpFor(elemId, t.Elem(), name, inProgress)
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeSlice(state, value, *elemOp, i.indir, elemIndir, ovfl)
+				state.dec.decodeSlice(state, value, *elemOp, ovfl)
 			}
 
 		case reflect.Struct:
@@ -849,18 +744,18 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			}
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
 				// indirect through enginePtr to delay evaluation for recursive structs.
-				dec.decodeStruct(*enginePtr, userType(typ), value, i.indir)
+				dec.decodeStruct(*enginePtr, userType(typ), value)
 			}
 		case reflect.Interface:
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeInterface(t, state, value, i.indir)
+				state.dec.decodeInterface(t, state, value)
 			}
 		}
 	}
 	if op == nil {
 		errorf("decode can't handle type %s", rt)
 	}
-	return &op, indir
+	return &op
 }
 
 // decIgnoreOpFor returns the decoding op for a field that has no destination.
@@ -928,7 +823,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 
 // gobDecodeOpFor returns the op for a type that is known to implement
 // GobDecoder.
-func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
+func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) *decOp {
 	rcvrType := ut.user
 	if ut.decIndir == -1 {
 		rcvrType = reflect.PtrTo(rcvrType)
@@ -939,20 +834,14 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
 	}
 	var op decOp
 	op = func(i *decInstr, state *decoderState, value reflect.Value) {
-		// Caller has gotten us to within one indirection of our value.
-		if i.indir > 0 {
-			if value.IsNil() {
-				value.Set(reflect.New(ut.base))
-			}
-		}
-		// Now value is a pointer to the base type.  Do we need to climb out to
-		// get to the receiver type?
-		if ut.decIndir == -1 {
+		value = decAlloc(value)
+		// We now have the base type. We need its address if the receiver is a pointer.
+		if value.Kind() != reflect.Ptr && rcvrType.Kind() == reflect.Ptr {
 			value = value.Addr()
 		}
 		state.dec.decodeGobDecoder(ut, state, value)
 	}
-	return &op, int(ut.indir)
+	return &op
 }
 
 // compatibleType asks: Are these two gob Types compatible?
@@ -1053,9 +942,9 @@ func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *de
 		}
 		return nil, errors.New("gob: decoding into local type " + name + ", received remote type " + remoteType)
 	}
-	op, indir := dec.decOpFor(remoteId, rt, name, make(map[reflect.Type]*decOp))
+	op := dec.decOpFor(remoteId, rt, name, make(map[reflect.Type]*decOp))
 	ovfl := errors.New(`value for "` + name + `" out of range`)
-	engine.instr[singletonField] = decInstr{*op, singletonField, nil, indir, ovfl}
+	engine.instr[singletonField] = decInstr{*op, singletonField, nil, ovfl}
 	engine.numInstr = 1
 	return
 }
@@ -1066,7 +955,7 @@ func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err
 	engine.instr = make([]decInstr, 1) // one item
 	op := dec.decIgnoreOpFor(remoteId)
 	ovfl := overflow(dec.typeString(remoteId))
-	engine.instr[0] = decInstr{op, 0, nil, 0, ovfl}
+	engine.instr[0] = decInstr{op, 0, nil, ovfl}
 	engine.numInstr = 1
 	return
 }
@@ -1109,14 +998,14 @@ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEn
 		// TODO(r): anonymous names
 		if !present || !isExported(wireField.Name) {
 			op := dec.decIgnoreOpFor(wireField.Id)
-			engine.instr[fieldnum] = decInstr{op, fieldnum, nil, 0, ovfl}
+			engine.instr[fieldnum] = decInstr{op, fieldnum, nil, ovfl}
 			continue
 		}
 		if !dec.compatibleType(localField.Type, wireField.Id, make(map[reflect.Type]typeId)) {
 			errorf("wrong type (%s) for received field %s.%s", localField.Type, wireStruct.Name, wireField.Name)
 		}
-		op, indir := dec.decOpFor(wireField.Id, localField.Type, localField.Name, seen)
-		engine.instr[fieldnum] = decInstr{*op, fieldnum, localField.Index, indir, ovfl}
+		op := dec.decOpFor(wireField.Id, localField.Type, localField.Name, seen)
+		engine.instr[fieldnum] = decInstr{*op, fieldnum, localField.Index, ovfl}
 		engine.numInstr++
 	}
 	return
@@ -1190,7 +1079,7 @@ func (dec *Decoder) decodeValue(wireId typeId, value reflect.Value) {
 			name := base.Name()
 			errorf("type mismatch: no fields matched compiling decoder for %s", name)
 		}
-		dec.decodeStruct(engine, ut, value, ut.indir)
+		dec.decodeStruct(engine, ut, value)
 	} else {
 		dec.decodeSingle(engine, ut, value)
 	}
