@@ -134,4 +134,7 @@
 // building the package for Windows; similarly, math_386.s will be included
 // only when building the package for 32-bit x86.
 //
+// Using GOOS=android matches build tags and files as for GOOS=linux
+// in addition to android tags and files.
+//
 package build

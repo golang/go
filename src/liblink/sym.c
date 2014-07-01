@@ -49,6 +49,7 @@ static struct {
 	"elf",		Helf,
 	"freebsd",	Hfreebsd,
 	"linux",	Hlinux,
+	"android",	Hlinux,
 	"nacl",		Hnacl,
 	"netbsd",	Hnetbsd,
 	"openbsd",	Hopenbsd,
