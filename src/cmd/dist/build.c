@@ -56,6 +56,7 @@ static char *okgoos[] = {
 	"darwin",
 	"dragonfly",
 	"linux",
+	"android",
 	"solaris",
 	"freebsd",
 	"nacl",
@@ -1149,7 +1150,7 @@ matchfield(char *f)
 
 	p = xstrrchr(f, ',');
 	if(p == nil)
-		return streq(f, goos) || streq(f, goarch) || streq(f, "cmd_go_bootstrap") || streq(f, "go1.1");
+		return streq(f, goos) || streq(f, goarch) || streq(f, "cmd_go_bootstrap") || streq(f, "go1.1") || (streq(goos, "android") && streq(f, "linux"));
 	*p = 0;
 	res = matchfield(f) && matchfield(p+1);
 	*p = ',';

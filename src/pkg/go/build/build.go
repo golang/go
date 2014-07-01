@@ -268,6 +268,9 @@ var cgoEnabled = map[string]bool{
 	"linux/386":       true,
 	"linux/amd64":     true,
 	"linux/arm":       true,
+	"android/386":     true,
+	"android/amd64":   true,
+	"android/arm":     true,
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,
 	"netbsd/arm":      true,
@@ -1124,6 +1127,9 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
 	if name == ctxt.GOOS || name == ctxt.GOARCH || name == ctxt.Compiler {
 		return true
 	}
+	if ctxt.GOOS == "android" && name == "linux" {
+		return true
+	}
 
 	// other tags
 	for _, tag := range ctxt.BuildTags {
@@ -1151,6 +1157,7 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
 //     name_$(GOARCH)_test.*
 //     name_$(GOOS)_$(GOARCH)_test.*
 //
+// An exception: if GOOS=android, then files with GOOS=linux are also matched.
 func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	if dot := strings.Index(name, "."); dot != -1 {
 		name = name[:dot]
@@ -1165,11 +1172,20 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 			allTags[l[n-2]] = true
 			allTags[l[n-1]] = true
 		}
-		return l[n-2] == ctxt.GOOS && l[n-1] == ctxt.GOARCH
+		if l[n-1] != ctxt.GOARCH {
+			return false
+		}
+		if ctxt.GOOS == "android" && l[n-2] == "linux" {
+			return true
+		}
+		return l[n-2] == ctxt.GOOS
 	}
 	if n >= 1 && knownOS[l[n-1]] {
 		if allTags != nil {
 			allTags[l[n-1]] = true
+		}
+		if ctxt.GOOS == "android" && l[n-1] == "linux" {
+			return true
 		}
 		return l[n-1] == ctxt.GOOS
 	}
