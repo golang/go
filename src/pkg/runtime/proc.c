@@ -152,7 +152,6 @@ runtime·schedinit(void)
 	runtime·precisestack = true; // haveexperiment("precisestack");
 
 	runtime·symtabinit();
-	runtime·stackinit();
 	runtime·mallocinit();
 	mcommoninit(g->m);
 	
@@ -1927,7 +1926,7 @@ gfput(P *p, G *gp)
 		runtime·throw("gfput: bad stacksize");
 	}
 	top = (Stktop*)gp->stackbase;
-	if(stksize != FixedStack) {
+	if(top->malloced) {
 		// non-standard stack size - free it.
 		runtime·stackfree(gp, (void*)gp->stack0, top);
 		gp->stack0 = 0;

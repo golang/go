@@ -30,7 +30,7 @@ type MemStats struct {
 	// Low-level fixed-size structure allocator statistics.
 	//	Inuse is bytes used now.
 	//	Sys is bytes obtained from system.
-	StackInuse  uint64 // bytes used by stack allocator
+	StackInuse  uint64 // bootstrap stacks
 	StackSys    uint64
 	MSpanInuse  uint64 // mspan structures
 	MSpanSys    uint64
