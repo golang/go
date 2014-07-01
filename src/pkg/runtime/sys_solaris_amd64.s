@@ -164,7 +164,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVQ	DI, 0(SP)
 	MOVQ	$runtime·badsignal(SB), AX
 	CALL	AX
-	RET
+	JMP	exit
 
 allgood:
 	// save g
@@ -259,6 +259,7 @@ allgood:
 	MOVQ	80(SP), R10
 	MOVQ	R10, g(BX)
 
+exit:
 	// restore registers
 	MOVQ	32(SP), BX
 	MOVQ	40(SP), BP
