@@ -87,8 +87,9 @@ var tests = []struct {
 	{"testdata/stdin*.input", "-stdin"},
 	{"testdata/comments.input", ""},
 	{"testdata/import.input", ""},
-	{"testdata/crlf.input", ""},       // test case for issue 3961; see also TestCRLF
-	{"testdata/typeswitch.input", ""}, // test case for issue 4470
+	{"testdata/crlf.input", ""},        // test case for issue 3961; see also TestCRLF
+	{"testdata/typeswitch.input", ""},  // test case for issue 4470
+	{"testdata/emptydecl.input", "-s"}, // test case for issue 7631
 }
 
 func TestRewrite(t *testing.T) {
