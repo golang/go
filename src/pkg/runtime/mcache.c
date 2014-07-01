@@ -43,6 +43,7 @@ void
 runtime·freemcache(MCache *c)
 {
 	runtime·MCache_ReleaseAll(c);
+	runtime·stackcache_clear(c);
 	runtime·lock(&runtime·mheap);
 	runtime·purgecachedstats(c);
 	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
