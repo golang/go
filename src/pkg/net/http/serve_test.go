@@ -2404,13 +2404,13 @@ func TestServerConnState(t *testing.T) {
 	}
 
 	want := map[int][]ConnState{
-		1: []ConnState{StateNew, StateActive, StateIdle, StateActive, StateClosed},
-		2: []ConnState{StateNew, StateActive, StateIdle, StateActive, StateClosed},
-		3: []ConnState{StateNew, StateActive, StateHijacked},
-		4: []ConnState{StateNew, StateActive, StateHijacked},
-		5: []ConnState{StateNew, StateClosed},
-		6: []ConnState{StateNew, StateActive, StateClosed},
-		7: []ConnState{StateNew, StateActive, StateIdle, StateClosed},
+		1: {StateNew, StateActive, StateIdle, StateActive, StateClosed},
+		2: {StateNew, StateActive, StateIdle, StateActive, StateClosed},
+		3: {StateNew, StateActive, StateHijacked},
+		4: {StateNew, StateActive, StateHijacked},
+		5: {StateNew, StateClosed},
+		6: {StateNew, StateActive, StateClosed},
+		7: {StateNew, StateActive, StateIdle, StateClosed},
 	}
 	logString := func(m map[int][]ConnState) string {
 		var b bytes.Buffer

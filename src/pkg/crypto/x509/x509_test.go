@@ -850,7 +850,7 @@ func TestCertificateRequestOverrides(t *testing.T) {
 		// An explicit extension should override the DNSNames from the
 		// template.
 		ExtraExtensions: []pkix.Extension{
-			pkix.Extension{
+			{
 				Id:    oidExtensionSubjectAltName,
 				Value: sanContents,
 			},
@@ -868,11 +868,11 @@ func TestCertificateRequestOverrides(t *testing.T) {
 	// with two extension attributes.
 
 	template.Attributes = []pkix.AttributeTypeAndValueSET{
-		pkix.AttributeTypeAndValueSET{
+		{
 			Type: oidExtensionRequest,
 			Value: [][]pkix.AttributeTypeAndValue{
-				[]pkix.AttributeTypeAndValue{
-					pkix.AttributeTypeAndValue{
+				{
+					{
 						Type:  oidExtensionAuthorityInfoAccess,
 						Value: []byte("foo"),
 					},
