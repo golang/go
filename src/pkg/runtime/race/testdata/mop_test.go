@@ -233,7 +233,7 @@ func TestRaceCaseFallthrough(t *testing.T) {
 
 func TestRaceCaseIssue6418(t *testing.T) {
 	m := map[string]map[string]string{
-		"a": map[string]string{
+		"a": {
 			"b": "c",
 		},
 	}

@@ -525,7 +525,7 @@ func TestCipherSuiteCertPreferenceECDSA(t *testing.T) {
 	config = *testConfig
 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA}
 	config.Certificates = []Certificate{
-		Certificate{
+		{
 			Certificate: [][]byte{testECDSACertificate},
 			PrivateKey:  testECDSAPrivateKey,
 		},

@@ -18,7 +18,7 @@ import (
 func ExampleNewReader() {
 	msg := &mail.Message{
 		Header: map[string][]string{
-			"Content-Type": []string{"multipart/mixed; boundary=foo"},
+			"Content-Type": {"multipart/mixed; boundary=foo"},
 		},
 		Body: strings.NewReader(
 			"--foo\r\nFoo: one\r\n\r\nA section\r\n" +

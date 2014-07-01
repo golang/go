@@ -484,7 +484,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 		}
 	}
 	if p != notOnePass {
-		for i, _ := range p.Inst {
+		for i := range p.Inst {
 			p.Inst[i].Rune = onePassRunes[i]
 		}
 	}
