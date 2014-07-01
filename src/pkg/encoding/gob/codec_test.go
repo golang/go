@@ -323,7 +323,7 @@ func execDec(typ string, instr *decInstr, state *decoderState, t *testing.T, val
 	if v+state.fieldnum != 6 {
 		t.Fatalf("decoding field number %d, got %d", 6, v+state.fieldnum)
 	}
-	instr.op(instr, state, value)
+	instr.op(instr, state, value.Elem())
 	state.fieldnum = 6
 }
 
