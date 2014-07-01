@@ -263,6 +263,8 @@ MCentral_Grow(MCentral *c)
 	runtime·unlock(c);
 	runtime·MGetSizeClassInfo(c->sizeclass, &size, &npages, &n);
 	s = runtime·MHeap_Alloc(&runtime·mheap, npages, c->sizeclass, 0, 1);
+	if(s->next != nil || s->prev != nil)
+		runtime·throw("internal error: MSpan should not be in a list");
 	if(s == nil) {
 		// TODO(rsc): Log out of memory
 		runtime·lock(c);

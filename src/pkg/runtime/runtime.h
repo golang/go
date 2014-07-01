@@ -146,13 +146,6 @@ enum
 {
 	PtrSize = sizeof(void*),
 };
-enum
-{
-	// Per-M stack segment cache size.
-	StackCacheSize = 32,
-	// Global <-> per-M stack segment cache transfer batch size.
-	StackCacheBatch = 16,
-};
 /*
  * structures
  */
@@ -326,10 +319,6 @@ struct	M
 	M*	schedlink;
 	uint32	machport;	// Return address for Mach IPC (OS X)
 	MCache*	mcache;
-	int32	stackinuse;
-	uint32	stackcachepos;
-	uint32	stackcachecnt;
-	void*	stackcache[StackCacheSize];
 	G*	lockedg;
 	uintptr	createstack[32];// Stack that created this thread.
 	uint32	freglo[16];	// D[i] lsb and F[i]
@@ -346,6 +335,8 @@ struct	M
 	bool	(*waitunlockf)(G*, void*);
 	void*	waitlock;
 	uintptr	forkstackguard;
+	uintptr scalararg[4];	// scalar argument/return for mcall
+	void*   ptrarg[4];	// pointer argument/return for mcall
 #ifdef GOOS_windows
 	void*	thread;		// thread handle
 	// these are here because they are too large to be on the stack
@@ -428,7 +419,6 @@ struct	Stktop
 
 	uint8*	argp;	// pointer to arguments in old frame
 	bool	panic;	// is this frame the top of a panic?
-	bool	malloced;
 };
 struct	SigTab
 {
@@ -866,6 +856,7 @@ int32	runtime·funcarglen(Func*, uintptr);
 int32	runtime·funcspdelta(Func*, uintptr);
 int8*	runtime·funcname(Func*);
 int32	runtime·pcdatavalue(Func*, int32, uintptr);
+void	runtime·stackinit(void);
 void*	runtime·stackalloc(G*, uint32);
 void	runtime·stackfree(G*, void*, Stktop*);
 void	runtime·shrinkstack(G*);

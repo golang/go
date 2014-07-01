@@ -116,6 +116,12 @@ enum
 	MaxMHeapList = 1<<(20 - PageShift),	// Maximum page length for fixed-size list in MHeap.
 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
 
+	// Per-P, per order stack segment cache size.
+	StackCacheSize = 32*1024,
+	// Number of orders that get caching.  Order 0 is StackMin
+	// and each successive order is twice as large.
+	NumStackOrders = 3,
+
 	// Number of bits in page to span calculations (4k pages).
 	// On Windows 64-bit we limit the arena to 32GB or 35 bits (see below for reason).
 	// On other 64-bit platforms, we limit the arena to 128GB, or 37 bits.
@@ -247,8 +253,8 @@ struct MStats
 
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
-	uint64	stacks_inuse;	// bootstrap stacks
-	uint64	stacks_sys;
+	uint64	stacks_inuse;	// this number is included in heap_inuse above
+	uint64	stacks_sys;	// always 0 in mstats
 	uint64	mspan_inuse;	// MSpan structures
 	uint64	mspan_sys;
 	uint64	mcache_inuse;	// MCache structures
@@ -305,6 +311,13 @@ struct MCacheList
 	uint32 nlist;
 };
 
+typedef struct StackFreeList StackFreeList;
+struct StackFreeList
+{
+	MLink *list;  // linked list of free stacks
+	uintptr size; // total size of stacks in list
+};
+
 // Per-thread (in Go, per-P) cache for small objects.
 // No locking needed because it is per-thread (per-P).
 struct MCache
@@ -320,6 +333,9 @@ struct MCache
 	// The rest is not accessed on every malloc.
 	MSpan*	alloc[NumSizeClasses];	// spans to allocate from
 	MCacheList free[NumSizeClasses];// lists of explicitly freed objects
+
+	StackFreeList stackcache[NumStackOrders];
+
 	// Local allocator stats, flushed during GC.
 	uintptr local_nlookup;		// number of pointer lookups
 	uintptr local_largefree;	// bytes freed for large objects (>MaxSmallSize)
@@ -330,6 +346,7 @@ struct MCache
 MSpan*	runtime·MCache_Refill(MCache *c, int32 sizeclass);
 void	runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size);
 void	runtime·MCache_ReleaseAll(MCache *c);
+void	runtime·stackcache_clear(MCache *c);
 
 // MTypes describes the types of blocks allocated within a span.
 // The compression field describes the layout of the data.
@@ -409,7 +426,8 @@ struct SpecialProfile
 // An MSpan is a run of pages.
 enum
 {
-	MSpanInUse = 0,
+	MSpanInUse = 0, // allocated for garbage collected heap
+	MSpanStack,     // allocated for use by stack allocator
 	MSpanFree,
 	MSpanListHead,
 	MSpanDead,
@@ -525,7 +543,9 @@ extern MHeap runtime·mheap;
 
 void	runtime·MHeap_Init(MHeap *h);
 MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool needzero);
+MSpan*	runtime·MHeap_AllocStack(MHeap *h, uintptr npage);
 void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
+void	runtime·MHeap_FreeStack(MHeap *h, MSpan *s);
 MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
 MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
 void	runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *size, int32 *npages, int32 *nobj);
@@ -533,7 +553,6 @@ void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
 void	runtime·MHeap_MapBits(MHeap *h);
 void	runtime·MHeap_MapSpans(MHeap *h);
 void	runtime·MHeap_Scavenger(void);
-void	runtime·MHeap_SplitSpan(MHeap *h, MSpan *s);
 
 void*	runtime·mallocgc(uintptr size, uintptr typ, uint32 flag);
 void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);

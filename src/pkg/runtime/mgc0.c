@@ -1252,12 +1252,12 @@ markroot(ParFor *desc, uint32 i)
 			SpecialFinalizer *spf;
 
 			s = allspans[spanidx];
+			if(s->state != MSpanInUse)
+				continue;
 			if(s->sweepgen != sg) {
 				runtime·printf("sweep %d %d\n", s->sweepgen, sg);
 				runtime·throw("gc: unswept span");
 			}
-			if(s->state != MSpanInUse)
-				continue;
 			// The garbage collector ignores type pointers stored in MSpan.types:
 			//  - Compiler-generated types are stored outside of heap.
 			//  - The reflect package has runtime-generated types cached in its data structures.
@@ -2124,6 +2124,7 @@ flushallmcaches(void)
 		if(c==nil)
 			continue;
 		runtime·MCache_ReleaseAll(c);
+		runtime·stackcache_clear(c);
 	}
 }
 
@@ -2133,14 +2134,12 @@ runtime·updatememstats(GCStats *stats)
 	M *mp;
 	MSpan *s;
 	int32 i;
-	uint64 stacks_inuse, smallfree;
+	uint64 smallfree;
 	uint64 *src, *dst;
 
 	if(stats)
 		runtime·memclr((byte*)stats, sizeof(*stats));
-	stacks_inuse = 0;
 	for(mp=runtime·allm; mp; mp=mp->alllink) {
-		stacks_inuse += mp->stackinuse*FixedStack;
 		if(stats) {
 			src = (uint64*)&mp->gcstats;
 			dst = (uint64*)stats;
@@ -2149,7 +2148,6 @@ runtime·updatememstats(GCStats *stats)
 			runtime·memclr((byte*)&mp->gcstats, sizeof(mp->gcstats));
 		}
 	}
-	mstats.stacks_inuse = stacks_inuse;
 	mstats.mcache_inuse = runtime·mheap.cachealloc.inuse;
 	mstats.mspan_inuse = runtime·mheap.spanalloc.inuse;
 	mstats.sys = mstats.heap_sys + mstats.stacks_sys + mstats.mspan_sys +
@@ -2509,6 +2507,12 @@ runtime·ReadMemStats(MStats *stats)
 	// Size of the trailing by_size array differs between Go and C,
 	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
 	runtime·memcopy(runtime·sizeof_C_MStats, stats, &mstats);
+
+	// Stack numbers are part of the heap numbers, separate those out for user consumption
+	stats->stacks_sys = stats->stacks_inuse;
+	stats->heap_inuse -= stats->stacks_inuse;
+	stats->heap_sys -= stats->stacks_inuse;
+	
 	g->m->gcing = 0;
 	g->m->locks++;
 	runtime·semrelease(&runtime·worldsema);
