@@ -9,11 +9,11 @@ It's a drop-in replacement for your editor's gofmt-on-save hook.
 It has the same command-line interface as gofmt and formats
 your code in the same way.
 
-For emacs, make sure you have the latest (Go 1.2+) go-mode.el:
-   https://go.googlecode.com/hg/misc/emacs/go-mode.el
+For emacs, make sure you have the latest go-mode.el:
+   https://github.com/dominikh/go-mode.el
 Then in your .emacs file:
    (setq gofmt-command "goimports")
-   (add-to-list 'load-path "/home/you/goroot/misc/emacs/")
+   (add-to-list 'load-path "/home/you/somewhere/emacs/")
    (require 'go-mode-load)
    (add-hook 'before-save-hook 'gofmt-before-save)
 
