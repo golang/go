@@ -68,9 +68,10 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
 		// a slice expression of the form: s[a:len(s)]
 		// can be simplified to: s[a:]
 		// if s is "simple enough" (for now we only accept identifiers)
-		if s.hasDotImport {
-			// if dot imports are present, we cannot be certain that an
-			// unresolved "len" identifier refers to the predefined len()
+		if n.Max != nil || s.hasDotImport {
+			// - 3-index slices always require the 2nd and 3rd index
+			// - if dot imports are present, we cannot be certain that an
+			//   unresolved "len" identifier refers to the predefined len()
 			break
 		}
 		if s, _ := n.X.(*ast.Ident); s != nil && s.Obj != nil {
