@@ -1,3 +1,0 @@
-This directory contains files for Go syntax highlighting in Xcode 3.x.
-See the comments in go.pbfilespec and go.xclangspec for installation
-instructions.
