@@ -117,5 +117,34 @@ func simplify(f *ast.File) {
 		}
 	}
 
+	// remove empty declarations such as "const ()", etc
+	removeEmptyDeclGroups(f)
+
 	ast.Walk(&s, f)
+}
+
+func removeEmptyDeclGroups(f *ast.File) {
+	i := 0
+	for _, d := range f.Decls {
+		if g, ok := d.(*ast.GenDecl); !ok || !isEmpty(f, g) {
+			f.Decls[i] = d
+			i++
+		}
+	}
+	f.Decls = f.Decls[:i]
+}
+
+func isEmpty(f *ast.File, g *ast.GenDecl) bool {
+	if g.Doc != nil || g.Specs != nil {
+		return false
+	}
+
+	for _, c := range f.Comments {
+		// if there is a comment in the declaration, it is not considered empty
+		if g.Pos() <= c.Pos() && c.End() <= g.End() {
+			return false
+		}
+	}
+
+	return true
 }
