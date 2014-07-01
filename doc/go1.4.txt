@@ -6,6 +6,7 @@ package or cmd/xxx directory name, and ending in a CL number.
 Please keep the list sorted (as in sort.Strings of the lines).
 
 encoding/gob: remove unsafe (CL 102680045)
+misc: deleted editor support; refer to https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins instead (CL 105470043)
 runtime/race: freebsd is supported (CL 107270043)
 syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved (CL 106170043)
 text/scanner: add IsIdentRune field of Scanner. (CL 108030044)
