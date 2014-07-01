@@ -71,7 +71,13 @@ func main() {
 
 	var w io.Writer = zf
 	if *gopackage != "" {
-		fmt.Fprintf(zf, "package %s\n\nfunc init() {\n\tunzip(\"", *gopackage)
+		fmt.Fprintf(zf, `package %s
+import "sync"
+func init() {
+	var once sync.Once
+	fsinit = func() {
+		once.Do(func() {
+			unzip("`, *gopackage)
 		gw := &goWriter{b: bufio.NewWriter(w)}
 		defer func() {
 			if err := gw.Close(); err != nil {
@@ -214,7 +220,7 @@ func (w *goWriter) Write(b []byte) (int, error) {
 }
 
 func (w *goWriter) Close() error {
-	fmt.Fprintf(w.b, "\")\n}\n")
+	fmt.Fprintf(w.b, "\")\n\t\t})\n\t}\n}")
 	w.b.Flush()
 	return nil
 }
