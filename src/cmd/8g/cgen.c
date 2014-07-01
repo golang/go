@@ -347,8 +347,11 @@ cgen(Node *n, Node *res)
 		if(istype(nl->type, TCHAN)) {
 			// chan has cap in the second 32-bit word.
 			// a zero pointer means zero length
-			regalloc(&n1, types[tptr], res);
+			tempname(&n1, types[tptr]);
 			cgen(nl, &n1);
+			regalloc(&n2, types[tptr], N);
+			gmove(&n1, &n2);
+			n1 = n2;
 
 			nodconst(&n2, types[tptr], 0);
 			gins(optoas(OCMP, types[tptr]), &n1, &n2);

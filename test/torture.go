@@ -337,3 +337,10 @@ func ChainDivConst(a int) int {
 func ChainMulBytes(a, b, c byte) byte {
 	return a*(a*(a*(a*(a*(a*(a*(a*(a*b+c)+c)+c)+c)+c)+c)+c)+c) + c
 }
+
+func ChainCap() {
+	select {
+	case <-make(chan int, cap(make(chan int, cap(make(chan int, cap(make(chan int, cap(make(chan int))))))))):
+	default:
+	}
+}
