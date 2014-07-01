@@ -79,8 +79,13 @@ func newFsys() *fsys {
 }
 
 var fs = newFsys()
+var fsinit = func() {}
 
 func init() {
+	// do not trigger loading of zipped file system here
+	oldFsinit := fsinit
+	defer func() { fsinit = oldFsinit }()
+	fsinit = func() {}
 	Mkdir("/dev", 0555)
 	Mkdir("/tmp", 0777)
 	mkdev("/dev/null", 0666, openNull)
@@ -93,7 +98,7 @@ func init() {
 func chdirEnv() {
 	pwd, ok := Getenv("NACLPWD")
 	if ok {
-		Chdir(pwd)
+		chdir(pwd)
 	}
 }
 
@@ -465,6 +470,7 @@ func (f *fsysFile) pwriteLocked(b []byte, offset int64) (int, error) {
 // Standard Unix system calls.
 
 func Open(path string, openmode int, perm uint32) (fd int, err error) {
+	fsinit()
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	f, err := fs.open(path, openmode, perm&0777|S_IFREG)
@@ -487,6 +493,7 @@ func Getcwd(buf []byte) (n int, err error) {
 }
 
 func Stat(path string, st *Stat_t) error {
+	fsinit()
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	ip, _, err := fs.namei(path, false)
@@ -502,6 +509,7 @@ func Lstat(path string, st *Stat_t) error {
 }
 
 func unlink(path string, isdir bool) error {
+	fsinit()
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	dp, elem, err := fs.namei(path, true)
@@ -543,6 +551,7 @@ func Rmdir(path string) error {
 }
 
 func Chmod(path string, mode uint32) error {
+	fsinit()
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	ip, _, err := fs.namei(path, false)
@@ -565,6 +574,7 @@ func Fchmod(fd int, mode uint32) error {
 }
 
 func Chown(path string, uid, gid int) error {
+	fsinit()
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	ip, _, err := fs.namei(path, false)
@@ -598,6 +608,7 @@ func UtimesNano(path string, ts []Timespec) error {
 	if len(ts) != 2 {
 		return EINVAL
 	}
+	fsinit()
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	ip, _, err := fs.namei(path, false)
@@ -612,6 +623,7 @@ func UtimesNano(path string, ts []Timespec) error {
 }
 
 func Link(path, link string) error {
+	fsinit()
 	ip, _, err := fs.namei(path, false)
 	if err != nil {
 		return err
@@ -628,6 +640,7 @@ func Link(path, link string) error {
 }
 
 func Rename(from, to string) error {
+	fsinit()
 	fdp, felem, err := fs.namei(from, true)
 	if err != nil {
 		return err
@@ -664,6 +677,7 @@ func (fs *fsys) truncate(ip *inode, length int64) error {
 }
 
 func Truncate(path string, length int64) error {
+	fsinit()
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	ip, _, err := fs.namei(path, false)
@@ -684,6 +698,11 @@ func Ftruncate(fd int, length int64) error {
 }
 
 func Chdir(path string) error {
+	fsinit()
+	return chdir(path)
+}
+
+func chdir(path string) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	ip, _, err := fs.namei(path, false)
@@ -723,8 +742,6 @@ func Fsync(fd int) error {
 // Special devices.
 
 func mkdev(path string, mode uint32, open func() (devFile, error)) error {
-	fs.mu.Lock()
-	fs.mu.Unlock()
 	f, err := fs.open(path, O_CREATE|O_RDONLY|O_EXCL, S_IFCHR|mode)
 	if err != nil {
 		return err
