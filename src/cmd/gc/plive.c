@@ -657,8 +657,8 @@ static void
 progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 {
 	ProgInfo info;
-	Adr *from;
-	Adr *to;
+	Addr *from;
+	Addr *to;
 	Node *node;
 	int32 i;
 	int32 pos;
@@ -1663,6 +1663,13 @@ livenessepilogue(Liveness *lv)
 // FNV-1 hash function constants.
 #define H0 2166136261UL
 #define Hp 16777619UL
+/*c2go
+enum
+{
+	H0 = 2166136261,
+	Hp = 16777619,
+};
+*/
 
 static uint32
 hashbitmap(uint32 h, Bvec *bv)

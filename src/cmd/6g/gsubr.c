@@ -584,6 +584,7 @@ ginscon(int as, vlong c, Node *n2)
 }
 
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
+/*c2go int CASE(int, int); */
 
 /*
  * Is this node a memory operand?

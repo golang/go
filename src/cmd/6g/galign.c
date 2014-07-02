@@ -30,10 +30,10 @@ int	cmpptr = ACMPQ;
  */
 Typedef	typedefs[] =
 {
-	"int",		TINT,		TINT64,
-	"uint",		TUINT,		TUINT64,
-	"uintptr",	TUINTPTR,	TUINT64,
-	0
+	{"int",		TINT,		TINT64},
+	{"uint",		TUINT,		TUINT64},
+	{"uintptr",	TUINTPTR,	TUINT64},
+	{0}
 };
 
 void

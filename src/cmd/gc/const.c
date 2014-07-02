@@ -6,6 +6,7 @@
 #include	<libc.h>
 #include	"go.h"
 #define	TUP(x,y)	(((x)<<16)|(y))
+/*c2go int TUP(int, int); */
 
 static	Val	tocplx(Val);
 static	Val	toflt(Val);

@@ -129,6 +129,14 @@ int	Bungetc(Biobuf*);
 int	Bungetrune(Biobuf*);
 long	Bwrite(Biobuf*, void*, long);
 int	Bvprint(Biobuf*, char*, va_list);
+/*c2go
+int	BGETC(Biobuf*);
+int	BGETLE2(Biobuf*);
+int	BGETLE4(Biobuf*);
+int	BPUTC(Biobuf*, int);
+int	BPUTLE2(Biobuf*, int);
+int	BPUTLE4(Biobuf*, int);
+*/
 
 #if defined(__cplusplus)
 }

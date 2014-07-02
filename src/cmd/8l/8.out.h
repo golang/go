@@ -32,7 +32,7 @@
 #define	NSNAME	8
 #include "../ld/textflag.h"
 
-enum	as
+enum
 {
 	AXXX,
 	AAAA,

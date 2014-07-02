@@ -34,6 +34,7 @@ struct	Case
 	Case*	link;		// linked list to link
 };
 #define	C	((Case*)nil)
+/*c2go Case *C; */
 
 void
 dumpcase(Case *c0)

@@ -636,6 +636,7 @@ splitclean(void)
 }
 
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
+/*c2go int CASE(int, int); */
 
 void
 gmove(Node *f, Node *t)

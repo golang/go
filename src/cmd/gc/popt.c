@@ -98,6 +98,10 @@ chasejmp(Prog *p, int *jmploop)
  */
 #define alive ((void*)0)
 #define dead ((void*)1)
+/*c2go
+extern void *alive;
+extern void *dead;
+*/
 
 /* mark all code reachable from firstp as alive */
 static void

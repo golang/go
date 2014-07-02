@@ -82,7 +82,16 @@ mkanames(char *dir, char *file)
 	bprintf(&b, "%s/../cmd/%cl/%c.out.h", dir, ch, ch);
 	readfile(&in, bstr(&b));
 	splitlines(&lines, bstr(&in));
-	bprintf(&out, "char*	anames%c[] = {\n", ch);
+	
+	// Include link.h so that the extern declaration there is
+	// checked against the non-extern declaration we are generating.
+	bwritestr(&out, bprintf(&b, "#include <u.h>\n"));
+	bwritestr(&out, bprintf(&b, "#include <libc.h>\n"));
+	bwritestr(&out, bprintf(&b, "#include <bio.h>\n"));
+	bwritestr(&out, bprintf(&b, "#include <link.h>\n"));
+	bwritestr(&out, bprintf(&b, "\n"));
+
+	bwritestr(&out, bprintf(&b, "char*	anames%c[] = {\n", ch));
 	for(i=0; i<lines.len; i++) {
 		if(hasprefix(lines.p[i], "\tA")) {
 			p = xstrstr(lines.p[i], ",");

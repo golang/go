@@ -23,10 +23,10 @@ vlong MAXWIDTH = (1LL<<32) - 1;
  */
 Typedef	typedefs[] =
 {
-	"int",		TINT,		TINT32,
-	"uint",		TUINT,		TUINT32,
-	"uintptr",	TUINTPTR,	TUINT32,
-	0
+	{"int",		TINT,		TINT32},
+	{"uint",		TUINT,		TUINT32},
+	{"uintptr",	TUINTPTR,	TUINT32},
+	{0}
 };
 
 void

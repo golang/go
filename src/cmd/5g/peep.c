@@ -564,6 +564,8 @@ gotit:
  * ..
  */
 #define FAIL(msg) { if(debug['P']) print("\t%s; FAILURE\n", msg); return 0; }
+/*c2go void FAIL(char*); */
+
 int
 shiftprop(Flow *r)
 {

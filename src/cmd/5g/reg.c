@@ -36,6 +36,11 @@
 
 #define	NREGVAR	32
 #define	REGBITS	((uint32)0xffffffff)
+/*c2go enum {
+	NREGVAR = 32,
+	REGBITS = 0xffffffff,
+};
+*/
 
 	void	addsplits(void);
 static	Reg*	firstr;
