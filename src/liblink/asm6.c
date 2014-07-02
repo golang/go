@@ -1901,7 +1901,6 @@ prefixof(Link *ctxt, Addr *a)
 		case Hlinux:
 		case Hnetbsd:
 		case Hopenbsd:
-		case Hplan9:
 		case Hsolaris:
 			return 0x64; // FS
 		case Hdarwin:
@@ -3364,6 +3363,19 @@ mfound:
 		switch(ctxt->headtype) {
 		default:
 			sysfatal("unknown TLS base location for %s", headstr(ctxt->headtype));
+
+		case Hplan9:
+			if(ctxt->plan9privates == nil)
+				ctxt->plan9privates = linklookup(ctxt, "_privates", 0);
+			memset(&pp.from, 0, sizeof pp.from);
+			pp.from.type = D_EXTERN;
+			pp.from.sym = ctxt->plan9privates;
+			pp.from.offset = 0;
+			pp.from.index = D_NONE;
+			ctxt->rexflag |= Pw;
+			*ctxt->andptr++ = 0x8B;
+			asmand(ctxt, &pp.from, &p->to);
+			break;
 
 		case Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
 			// TLS base is 0(FS).

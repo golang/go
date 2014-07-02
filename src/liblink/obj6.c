@@ -103,7 +103,7 @@ static int
 canuselocaltls(Link *ctxt)
 {
 	switch(ctxt->headtype) {
-//	case Hlinux:
+	case Hplan9:
 	case Hwindows:
 		return 0;
 	}
@@ -402,6 +402,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		for(i=0; i<nelem(morename); i++)
 			ctxt->symmorestack[i] = linklookup(ctxt, morename[i], 0);
 	}
+
+	if(ctxt->headtype == Hplan9 && ctxt->plan9privates == nil)
+		ctxt->plan9privates = linklookup(ctxt, "_privates", 0);
+
 	ctxt->cursym = cursym;
 
 	if(cursym->text == nil || cursym->text->link == nil)

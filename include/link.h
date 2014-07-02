@@ -391,7 +391,7 @@ struct	Link
 	LSym*	sym_modu;
 	LSym*	symmorestack[20];
 	LSym*	tlsg;
-	LSym*	plan9tos;
+	LSym*	plan9privates;
 	Prog*	curp;
 	Prog*	printp;
 	Prog*	blitrl;

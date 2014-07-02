@@ -2707,11 +2707,11 @@ mfound:
 			break;
 		
 		case Hplan9:
-			if(ctxt->plan9tos == nil)
-				ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
+			if(ctxt->plan9privates == nil)
+				ctxt->plan9privates = linklookup(ctxt, "_privates", 0);
 			memset(&pp.from, 0, sizeof pp.from);
 			pp.from.type = D_EXTERN;
-			pp.from.sym = ctxt->plan9tos;
+			pp.from.sym = ctxt->plan9privates;
 			pp.from.offset = 0;
 			pp.from.index = D_NONE;
 			*ctxt->andptr++ = 0x8B;

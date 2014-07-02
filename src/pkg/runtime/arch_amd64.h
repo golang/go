@@ -12,7 +12,11 @@ enum {
 #ifdef GOOS_windows
 	RuntimeGogoBytes = 80,
 #else
+#ifdef GOOS_plan9
+	RuntimeGogoBytes = 80,
+#else
 	RuntimeGogoBytes = 64,
+#endif	// Plan 9
 #endif	// Windows
 #endif	// Solaris
 	PhysPageSize = 4096,

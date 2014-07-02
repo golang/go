@@ -4,39 +4,20 @@
 
 #include "../../cmd/ld/textflag.h"
 
-TEXT _rt0_386_plan9(SB),NOSPLIT, $0
+TEXT _rt0_386_plan9(SB),NOSPLIT,$12
 	MOVL	AX, _tos(SB)
-	
-	// move arguments down to make room for
-	// m and g at top of stack, right before Tos.
-	MOVL	SP, SI
-	SUBL	$8, SP
-	MOVL	SP, DI
-		
-	MOVL	AX, CX
-	SUBL	SI, CX
-	CLD
-	REP; MOVSB
-	
-	// adjust argv
-	SUBL	SI, DI
-	MOVL	newargc+0(SP), CX
-	LEAL	newargv+4(SP), BP
-argv_fix:
-	ADDL	DI, 0(BP)
-	ADDL	$4, BP
-	LOOP	argv_fix
-	
+	LEAL	8(SP), AX
+	MOVL	AX, _privates(SB)
+	MOVL	$1, _nprivates(SB)
 	CALL	runtime·asminit(SB)
-
-	MOVL	0(SP), AX
-	LEAL	4(SP), BX
-	PUSHL	BX
-	PUSHL	AX
-	PUSHL	$-1
-
-	JMP	_rt0_go(SB)
+	MOVL	inargc-4(FP), AX
+	MOVL	AX, 0(SP)
+	LEAL	inargv+0(FP), AX
+	MOVL	AX, 4(SP)
+	CALL	_rt0_go(SB)
 
 DATA  runtime·isplan9(SB)/4, $1
 GLOBL runtime·isplan9(SB), $4
 GLOBL _tos(SB), $4
+GLOBL _privates(SB), $4
+GLOBL _nprivates(SB), $4

@@ -270,8 +270,8 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		ctxt->symmorestack[1] = linklookup(ctxt, "runtime.morestack_noctxt", 0);
 	}
 
-	if(ctxt->headtype == Hplan9 && ctxt->plan9tos == nil)
-		ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
+	if(ctxt->headtype == Hplan9 && ctxt->plan9privates == nil)
+		ctxt->plan9privates = linklookup(ctxt, "_privates", 0);
 
 	ctxt->cursym = cursym;
 
