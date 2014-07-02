@@ -277,7 +277,7 @@ func ExampleStreamWriter() {
 	}
 
 	// Note that this example is simplistic in that it omits any
-	// authentication of the encrypted data. It you were actually to use
+	// authentication of the encrypted data. If you were actually to use
 	// StreamReader in this manner, an attacker could flip arbitrary bits in
 	// the decrypted result.
 }
