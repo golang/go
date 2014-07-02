@@ -29,10 +29,11 @@ const maxNanoSecondIntSize = 9
 // The Next method advances to the next file in the archive (including the first),
 // and then it can be treated as an io.Reader to access the file's data.
 type Reader struct {
-	r    io.Reader
-	err  error
-	pad  int64          // amount of padding (ignored) after current file entry
-	curr numBytesReader // reader for current file entry
+	r       io.Reader
+	err     error
+	pad     int64           // amount of padding (ignored) after current file entry
+	curr    numBytesReader  // reader for current file entry
+	hdrBuff [blockSize]byte // buffer to use in readHeader
 }
 
 // A numBytesReader is an io.Reader with a numBytes method, returning the number
@@ -426,7 +427,9 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
 }
 
 func (tr *Reader) readHeader() *Header {
-	header := make([]byte, blockSize)
+	header := tr.hdrBuff[:]
+	copy(header, zeroBlock)
+
 	if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
 		return nil
 	}
