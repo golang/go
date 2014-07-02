@@ -10,26 +10,22 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·open(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$14, BP
 	SYSCALL
 	RET
 
 TEXT runtime·pread(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$50, BP
 	SYSCALL
 	RET
 
 TEXT runtime·pwrite(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$51, BP
 	SYSCALL
 	RET
 
 // int32 _seek(int64*, int32, int64, int32)
 TEXT _seek<>(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$39, BP
 	SYSCALL
 	RET
@@ -52,67 +48,51 @@ TEXT runtime·seek(SB),NOSPLIT,$56
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$4, BP
 	SYSCALL
 	RET
 
 TEXT runtime·exits(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$8, BP
 	SYSCALL
 	RET
 
 TEXT runtime·brk_(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$24, BP
 	SYSCALL
 	RET
 
 TEXT runtime·sleep(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$17, BP
 	SYSCALL
 	RET
 
 TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$37, BP
 	SYSCALL
 	RET
 
 TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$52, BP
 	SYSCALL
 	RET
 
 TEXT runtime·notify(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$28, BP
 	SYSCALL
 	RET
 
 TEXT runtime·noted(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$29, BP
 	SYSCALL
 	RET
 	
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$38, BP
 	SYSCALL
 	RET
 
-TEXT runtime·nanotime(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
-	MOVQ	$60, BP
-	SYSCALL
-	RET
-
 TEXT runtime·rfork(SB),NOSPLIT,$0
-	MOVQ	$0x8000, AX
 	MOVQ	$19, BP // rfork
 	SYSCALL
 
@@ -135,8 +115,9 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVQ	DX, g(AX)
 	MOVQ	BX, g_m(DX)
 
-	// Initialize AX from pid in TLS.
-	MOVQ	0(FS), AX
+	// Initialize procid from TOS struct.
+	MOVQ	_tos(SB), AX
+	MOVQ	64(AX), AX
 	MOVQ	AX, m_procid(BX)	// save pid as m->procid
 	
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
@@ -224,7 +205,6 @@ TEXT runtime·errstr(SB),NOSPLIT,$0
 	MOVQ	m_errstr(BX), CX
 	MOVQ	CX, 8(SP)
 	MOVQ	$ERRMAX, 16(SP)
-	MOVQ	$0x8000, AX
 	MOVQ	$41, BP
 	SYSCALL
 

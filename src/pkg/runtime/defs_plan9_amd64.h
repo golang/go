@@ -1,4 +1,4 @@
-#define PAGESIZE 0x200000ULL
+#define PAGESIZE 0x1000
 
 typedef struct Ureg Ureg;
 

@@ -4,11 +4,18 @@
 
 #include "../../cmd/ld/textflag.h"
 
-TEXT _rt0_amd64_plan9(SB),NOSPLIT,$-8
-	LEAQ	8(SP), SI // argv
-	MOVQ	0(SP), DI // argc
+TEXT _rt0_amd64_plan9(SB),NOSPLIT,$24
+	MOVQ	AX, _tos(SB)
+	LEAQ	16(SP), AX
+	MOVQ	AX, _privates(SB)
+	MOVL	$1, _nprivates(SB)
+	MOVL	inargc-8(FP), DI
+	LEAQ	inargv+0(FP), SI
 	MOVQ	$_rt0_go(SB), AX
 	JMP	AX
 
 DATA runtime·isplan9(SB)/4, $1
 GLOBL runtime·isplan9(SB), $4
+GLOBL _tos(SB), $8
+GLOBL _privates(SB), $8
+GLOBL _nprivates(SB), $4
