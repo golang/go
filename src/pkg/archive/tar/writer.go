@@ -37,8 +37,9 @@ type Writer struct {
 	nb         int64 // number of unwritten bytes for current file entry
 	pad        int64 // amount of padding to write after current file entry
 	closed     bool
-	usedBinary bool // whether the binary numeric field extension was used
-	preferPax  bool // use pax header instead of binary numeric header
+	usedBinary bool            // whether the binary numeric field extension was used
+	preferPax  bool            // use pax header instead of binary numeric header
+	hdrBuff    [blockSize]byte // buffer to use in writeHeader
 }
 
 // NewWriter creates a new Writer writing to w.
@@ -160,7 +161,8 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 	// subsecond time resolution, but for now let's just capture
 	// too long fields or non ascii characters
 
-	header := make([]byte, blockSize)
+	header := tw.hdrBuff[:]
+	copy(header, zeroBlock)
 	s := slicer(header)
 
 	// keep a reference to the filename to allow to overwrite it later if we detect that we can use ustar longnames instead of pax
