@@ -20,7 +20,15 @@ enum {
 #define _Init1 0xEFCDAB89
 #define _Init2 0x98BADCFE
 #define _Init3 0x10325476
-
+/*c2go
+enum {
+	_Init0 = 0x67452301,
+	_Init1 = 0xEFCDAB89,
+	_Init2 = 0x98BADCFE,
+	_Init3 = 0x10325476
+};
+*/
+	
 void
 md5reset(MD5 *d)
 {

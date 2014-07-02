@@ -43,7 +43,7 @@ typedef	uchar	Opcross[32][2][32];
 
 struct	Optab
 {
-	char	as;
+	uchar	as;
 	uchar	a1;
 	char	a2;
 	uchar	a3;
@@ -2038,64 +2038,6 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 	out[4] = o5;
 	out[5] = o6;
 	return;
-
-#ifdef NOTDEF
-	v = p->pc;
-	switch(o->size) {
-	default:
-		if(debug['a'])
-			Bprint(&bso, " %.8ux:\t\t%P\n", v, p);
-		break;
-	case 4:
-		if(debug['a'])
-			Bprint(&bso, " %.8ux: %.8ux\t%P\n", v, o1, p);
-		lputl(o1);
-		break;
-	case 8:
-		if(debug['a'])
-			Bprint(&bso, " %.8ux: %.8ux %.8ux%P\n", v, o1, o2, p);
-		lputl(o1);
-		lputl(o2);
-		break;
-	case 12:
-		if(debug['a'])
-			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux%P\n", v, o1, o2, o3, p);
-		lputl(o1);
-		lputl(o2);
-		lputl(o3);
-		break;
-	case 16:
-		if(debug['a'])
-			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux %.8ux%P\n",
-				v, o1, o2, o3, o4, p);
-		lputl(o1);
-		lputl(o2);
-		lputl(o3);
-		lputl(o4);
-		break;
-	case 20:
-		if(debug['a'])
-			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux %.8ux %.8ux%P\n",
-				v, o1, o2, o3, o4, o5, p);
-		lputl(o1);
-		lputl(o2);
-		lputl(o3);
-		lputl(o4);
-		lputl(o5);
-		break;
-	case 24:
-		if(debug['a'])
-			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux %.8ux %.8ux %.8ux%P\n",
-				v, o1, o2, o3, o4, o5, o6, p);
-		lputl(o1);
-		lputl(o2);
-		lputl(o3);
-		lputl(o4);
-		lputl(o5);
-		lputl(o6);
-		break;
-	}
-#endif
 }
 
 static int32

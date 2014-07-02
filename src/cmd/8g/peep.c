@@ -33,7 +33,9 @@
 #include "gg.h"
 #include "opt.h"
 
-#define	REGEXT	0
+enum {
+	REGEXT = 0,
+};
 
 static void	conprop(Flow *r);
 static void	elimshortmov(Graph*);

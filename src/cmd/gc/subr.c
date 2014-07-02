@@ -3445,7 +3445,7 @@ smagic(Magic *m)
 		mask = 0xffffffffLL;
 		break;
 	case 64:
-		mask = 0xffffffffffffffffLL;
+		mask = 0xffffffffffffffffULL;
 		break;
 	}
 	two31 = mask ^ (mask>>1);
@@ -3543,7 +3543,7 @@ umagic(Magic *m)
 		mask = 0xffffffffLL;
 		break;
 	case 64:
-		mask = 0xffffffffffffffffLL;
+		mask = 0xffffffffffffffffULL;
 		break;
 	}
 	two31 = mask ^ (mask>>1);

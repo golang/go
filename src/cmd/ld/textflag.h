@@ -21,3 +21,16 @@
 #define WRAPPER 32
 // This function uses its incoming context register.
 #define NEEDCTXT 64
+
+/*c2go
+enum
+{
+	NOPROF = 1,
+	DUPOK = 2,
+	NOSPLIT = 4,
+	RODATA = 8,
+	NOPTR = 16,
+	WRAPPER = 32,
+	NEEDCTXT = 64,
+};
+*/

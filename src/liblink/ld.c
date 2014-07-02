@@ -161,7 +161,10 @@ uchar	inuxi2[2];
 uchar	inuxi4[4];
 uchar	inuxi8[8];
 
-#define	LOG	5
+enum
+{
+	LOG = 5,
+};
 void
 mkfwd(LSym *sym)
 {

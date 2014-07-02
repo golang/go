@@ -1110,6 +1110,7 @@ escflood(EscState *e, Node *dst)
 // pass all the tests we have written so far, which we assume matches
 // the level of complexity we want the escape analysis code to handle.
 #define MinLevel (-2)
+/*c2go enum { MinLevel = -2 };*/
 
 static void
 escwalk(EscState *e, int level, Node *dst, Node *src)

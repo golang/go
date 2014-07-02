@@ -49,6 +49,24 @@
 typedef	struct	Reg	Reg;
 typedef	struct	Rgn	Rgn;
 
+/*c2go
+extern Node *Z;
+enum
+{
+	D_HI = D_NONE,
+	D_LO = D_NONE,
+	CLOAD = 5,
+	CREF = 5,
+	CINF = 1000,
+	LOOP = 3,
+};
+
+uint32 BLOAD(Reg*);
+uint32 BSTORE(Reg*);
+uint32 LOAD(Reg*);
+uint32 STORE(Reg*);
+*/
+
 // A Reg is a wrapper around a single Prog (one instruction) that holds
 // register optimization information while the optimizer runs.
 // r->prog is the instruction.
@@ -71,8 +89,10 @@ struct	Reg
 	int32	regu;		// register used bitmap
 };
 #define	R	((Reg*)0)
+/*c2go extern Reg *R; */
 
 #define	NRGN	600
+/*c2go enum { NRGN = 600 }; */
 struct	Rgn
 {
 	Reg*	enter;

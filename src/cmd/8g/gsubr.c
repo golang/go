@@ -39,6 +39,7 @@
 uint32 unmappedzero = 4096;
 
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
+/*c2go int CASE(int, int);*/
 
 void
 clearp(Prog *p)
@@ -697,6 +698,7 @@ optoas(int op, Type *t)
 }
 
 #define FCASE(a, b, c)  (((a)<<16)|((b)<<8)|(c))
+/*c2go int FCASE(int, int, int); */
 int
 foptoas(int op, Type *t, int flg)
 {

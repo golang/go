@@ -112,6 +112,8 @@ struct	Prog
 
 	char	width;	/* fake for DATA */
 	char	mode;	/* 16, 32, or 64 in 6l, 8l; internal use in 5g, 6g, 8g */
+	
+	/*c2go uchar TEXTFLAG; */
 };
 
 // prevent incompatible type signatures between liblink and 8l on Plan 9
@@ -167,7 +169,7 @@ struct	LSym
 
 	// SDATA, SBSS
 	uchar*	p;
-	int32	np;
+	int	np;
 	int32	maxp;
 	Reloc*	r;
 	int32	nr;

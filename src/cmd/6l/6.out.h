@@ -36,7 +36,7 @@
  *	amd64
  */
 
-enum	as
+enum
 {
 	AXXX,
 	AAAA,

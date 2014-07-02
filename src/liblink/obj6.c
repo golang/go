@@ -958,7 +958,7 @@ xfol(Link *ctxt, Prog *p, Prog **last)
 {
 	Prog *q;
 	int i;
-	enum as a;
+	int a;
 
 loop:
 	if(p == nil)

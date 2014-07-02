@@ -28,34 +28,43 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#define	NSNAME		8
-#define	NSYM		50
-#define	NREG		16
+enum
+{
+	NSNAME = 8,
+	NSYM = 50,
+	NREG = 16,
+};
 #include "../ld/textflag.h"
 
-#define	REGRET		0
 /* -1 disables use of REGARG */
 #define	REGARG		-1
-/* compiler allocates R1 up as temps */
-/* compiler allocates register variables R3 up */
-#define	REGEXT		10
-/* these two registers are declared in runtime.h */
-#define REGG        (REGEXT-0)
-#define REGM        (REGEXT-1)
-/* compiler allocates external registers R10 down */
-#define	REGTMP		11
-#define	REGSP		13
-#define	REGLINK		14
-#define	REGPC		15
+/*c2go enum { REGARG = -1 }; */
 
-#define	NFREG		16
-#define	FREGRET		0
-#define	FREGEXT		7
-#define	FREGTMP		15
+enum
+{
+	REGRET = 0,
+	/* compiler allocates R1 up as temps */
+	/* compiler allocates register variables R3 up */
+	/* compiler allocates external registers R10 down */
+	REGEXT = 10,
+	/* these two registers are declared in runtime.h */
+	REGG = REGEXT-0,
+	REGM = REGEXT-1,
+
+	REGTMP = 11,
+	REGSP = 13,
+	REGLINK = 14,
+	REGPC = 15,
+	
+	NFREG = 16,
+	FREGRET = 0,
+	FREGEXT = 7,
+	FREGTMP = 15,
+};
 /* compiler allocates register variables F0 up */
 /* compiler allocates external registers F7 down */
 
-enum	as
+enum
 {
 	AXXX,
 
@@ -209,35 +218,38 @@ enum	as
 };
 
 /* scond byte */
-#define	C_SCOND	((1<<4)-1)
-#define	C_SBIT	(1<<4)
-#define	C_PBIT	(1<<5)
-#define	C_WBIT	(1<<6)
-#define	C_FBIT	(1<<7)	/* psr flags-only */
-#define	C_UBIT	(1<<7)	/* up bit, unsigned bit */
+enum
+{
+	C_SCOND = (1<<4)-1,
+	C_SBIT = 1<<4,
+	C_PBIT = 1<<5,
+	C_WBIT = 1<<6,
+	C_FBIT = 1<<7,	/* psr flags-only */
+	C_UBIT = 1<<7,	/* up bit, unsigned bit */
 
-#define C_SCOND_EQ	0
-#define C_SCOND_NE	1
-#define C_SCOND_HS	2
-#define C_SCOND_LO	3
-#define C_SCOND_MI	4
-#define C_SCOND_PL	5
-#define C_SCOND_VS	6
-#define C_SCOND_VC	7
-#define C_SCOND_HI	8
-#define C_SCOND_LS	9
-#define C_SCOND_GE	10
-#define C_SCOND_LT	11
-#define C_SCOND_GT	12
-#define C_SCOND_LE	13
-#define C_SCOND_NONE	14
-#define C_SCOND_NV	15
+	C_SCOND_EQ = 0,
+	C_SCOND_NE = 1,
+	C_SCOND_HS = 2,
+	C_SCOND_LO = 3,
+	C_SCOND_MI = 4,
+	C_SCOND_PL = 5,
+	C_SCOND_VS = 6,
+	C_SCOND_VC = 7,
+	C_SCOND_HI = 8,
+	C_SCOND_LS = 9,
+	C_SCOND_GE = 10,
+	C_SCOND_LT = 11,
+	C_SCOND_GT = 12,
+	C_SCOND_LE = 13,
+	C_SCOND_NONE = 14,
+	C_SCOND_NV = 15,
 
-/* D_SHIFT type */
-#define SHIFT_LL		0<<5
-#define SHIFT_LR		1<<5
-#define SHIFT_AR		2<<5
-#define SHIFT_RR		3<<5
+	/* D_SHIFT type */
+	SHIFT_LL = 0<<5,
+	SHIFT_LR = 1<<5,
+	SHIFT_AR = 2<<5,
+	SHIFT_RR = 3<<5,
+};
 
 enum
 {
@@ -279,3 +291,4 @@ enum
  * this is the ranlib header
  */
 #define	SYMDEF	"__.GOSYMDEF"
+/*c2go extern char SYMDEF[]; */

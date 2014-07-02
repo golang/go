@@ -44,20 +44,20 @@ static struct {
 	char *name;
 	int val;
 } headers[] = {
-	"darwin",	Hdarwin,
-	"dragonfly",	Hdragonfly,
-	"elf",		Helf,
-	"freebsd",	Hfreebsd,
-	"linux",	Hlinux,
-	"android",	Hlinux,
-	"nacl",		Hnacl,
-	"netbsd",	Hnetbsd,
-	"openbsd",	Hopenbsd,
-	"plan9",	Hplan9,
-	"solaris",	Hsolaris,
-	"windows",	Hwindows,
-	"windowsgui",	Hwindows,
-	0, 0
+	{"android",	Hlinux},
+	{"darwin",	Hdarwin},
+	{"dragonfly",	Hdragonfly},
+	{"elf",		Helf},
+	{"freebsd",	Hfreebsd},
+	{"linux",	Hlinux},
+	{"nacl",		Hnacl},
+	{"netbsd",	Hnetbsd},
+	{"openbsd",	Hopenbsd},
+	{"plan9",	Hplan9},
+	{"solaris",	Hsolaris},
+	{"windows",	Hwindows},
+	{"windowsgui",	Hwindows},
+	{0, 0},
 };
 
 int

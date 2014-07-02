@@ -111,3 +111,9 @@ enum {
 // Must be greater than any real sp.
 // 0xfffffade in hex.
 #define StackPreempt ((uint64)-1314)
+/*c2go
+enum
+{
+	StackPreempt = -1314,
+};
+*/

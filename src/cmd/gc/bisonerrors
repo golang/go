@@ -22,6 +22,7 @@ BEGIN{
 	bison = 1
 	grammar = 0
 	states = 0
+	open = 0
 }
 
 # In Grammar section of y.output,
@@ -130,11 +131,26 @@ $1 == "%" {
 			continue
 
 		# No shift or reduce applied - found the error.
-		printf("\t%s, %s,\n", state, tok);
+		printf("\t{%s, %s,\n", state, tok);
+		open = 1;
 		break
 	}
 	next
 }
 
 # Print other lines verbatim.
+open && /,$/ {
+	s = $0;
+	sub(",", "},", s)
+	print s
+	open = 0
+	next
+}
+
+open && /"$/ {
+	print $0 "}"
+	open = 0
+	next
+}
+
 {print}
