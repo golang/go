@@ -413,9 +413,9 @@ func TestScanWordsExcessiveWhiteSpace(t *testing.T) {
 	scanner.MaxTokenSize(smallMaxTokenSize)
 	scanner.Split(ScanWords)
 	if !scanner.Scan() {
-		t.Fatal("scan failed: %v", scanner.Err())
+		t.Fatalf("scan failed: %v", scanner.Err())
 	}
 	if token := scanner.Text(); token != word {
-		t.Fatal("unexpected token: %v", token)
+		t.Fatalf("unexpected token: %v", token)
 	}
 }
