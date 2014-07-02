@@ -98,6 +98,12 @@ Flag: -atomic
 
 Common mistaken usages of the sync/atomic package.
 
+Boolean conditions
+
+Flag: -bool
+
+Mistakes involving boolean operators.
+
 Build tags
 
 Flag: -buildtags
