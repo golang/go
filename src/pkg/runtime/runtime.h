@@ -213,7 +213,7 @@ struct	Gobuf
 	uintptr	sp;
 	uintptr	pc;
 	G*	g;
-	void*	ctxt;
+	void*	ctxt; // this has to be a pointer so that GC scans it
 	uintreg	ret;
 	uintptr	lr;
 };
