@@ -568,10 +568,13 @@ runtime·sysconf(int32 name)
 	return runtime·sysvicall6(libc·sysconf, 1, (uintptr)name);
 }
 
+extern void runtime·usleep1(uint32);
+
+#pragma textflag NOSPLIT
 void
-runtime·usleep(uint32 us)
+runtime·usleep(uint32 µs)
 {
-	runtime·sysvicall6(libc·usleep, 1, (uintptr)us);
+	runtime·usleep1(µs);
 }
 
 int32
@@ -580,8 +583,17 @@ runtime·write(uintptr fd, void* buf, int32 nbyte)
 	return runtime·sysvicall6(libc·write, 3, (uintptr)fd, (uintptr)buf, (uintptr)nbyte);
 }
 
+extern void runtime·osyield1(void);
+
+#pragma textflag NOSPLIT
 void
 runtime·osyield(void)
 {
-	runtime·sysvicall6(libc·sched_yield, 0);
+	// Check the validity of m because we might be called in cgo callback
+	// path early enough where there isn't a m available yet.
+	if(g && g->m != nil) {
+		runtime·sysvicall6(libc·sched_yield, 0);
+		return;
+	}
+	runtime·osyield1();
 }
