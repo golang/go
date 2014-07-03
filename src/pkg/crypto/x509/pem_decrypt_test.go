@@ -14,7 +14,7 @@ import (
 
 func TestDecrypt(t *testing.T) {
 	for i, data := range testData {
-		t.Logf("test %d. %s", i, data.kind)
+		t.Logf("test %v. %v", i, data.kind)
 		block, rest := pem.Decode(data.pemData)
 		if len(rest) > 0 {
 			t.Error("extra data")
@@ -39,7 +39,7 @@ func TestDecrypt(t *testing.T) {
 
 func TestEncrypt(t *testing.T) {
 	for i, data := range testData {
-		t.Logf("test %d. %s", i, data.kind)
+		t.Logf("test %v. %v", i, data.kind)
 		plainDER, err := base64.StdEncoding.DecodeString(data.plainDER)
 		if err != nil {
 			t.Fatal("cannot decode test DER data: ", err)
