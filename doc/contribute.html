@@ -312,6 +312,90 @@ which <code>hg change</code> will print, something like:
 CL created: https://codereview.appspot.com/99999
 </pre>
 
+<h3>Mail the change for review</h3>
+
+<p>
+Creating or uploading the change uploads a copy of the diff to the code review server,
+but it does not notify anyone about it. To do that, you need to run <code>hg mail</code>
+(see below).
+</p>
+
+<p>To send out a change for review, run <code>hg mail</code> using the change list number
+assigned during <code>hg change</code>:</p>
+
+<pre>
+$ hg mail 99999
+</pre>
+
+<p>You can add to the <code>Reviewer:</code> and <code>CC:</code> lines
+using the <code>-r</code> or <code>--cc</code> options.
+In the above example, we could have left the <code>Reviewer</code> and <code>CC</code>
+lines blank and then run:
+</p>
+
+<pre>
+$ hg mail -r golang-codereviews@googlegroups.com --cc math-nuts@swtch.com 99999
+</pre>
+
+<p>to achieve the same effect.</p>
+
+<p>Note that <code>-r</code> and <code>--cc</code> cannot be spelled <code>--r</code> or <code>-cc</code>.</p>
+
+<p>
+If your change relates to an open issue, please add a comment to the issue
+announcing your proposed fix, including a link to your CL.
+</p>
+
+<h3>Reviewing code</h3>
+
+<p>
+Running <code>hg mail</code> will send an email to you and the reviewers
+asking them to visit the issue's URL and make comments on the change.
+When done, the reviewer clicks &ldquo;Publish and Mail comments&rdquo;
+to send comments back.
+</p>
+
+
+<h3>Revise and upload</h3>
+
+<p>
+When you have revised the code and are ready for another round of review,
+you can upload your change and send mail asking the reviewers to
+please take another look (<code>PTAL</code>). Use the change list number
+assigned during <code>hg change</code>
+</p>
+
+<pre>
+$ hg mail 99999
+</pre>
+
+
+<p>
+Or to upload your change without sending a notification, run
+</p>
+
+<pre>
+$ hg upload 99999
+</pre>
+
+<p>
+You will probably revise your code in response to the reviewer comments.
+You might also visit the code review web page and reply to the comments,
+letting the reviewer know that you've addressed them or explain why you
+haven't.  When you're done replying, click &ldquo;Publish and Mail comments&rdquo;
+to send the line-by-line replies and any other comments.
+</p>
+
+<p>
+The reviewer can comment on the new copy, and the process repeats.
+The reviewer approves the change by replying with a mail that says
+<code>LGTM</code>: looks good to me.
+</p>
+
+<p>
+You can see a list of your pending changes by running <code>hg pending</code> (<code>hg p</code> for short).
+</p>
+
 <h3>Adding or removing files from an existing change</h3>
 
 <p>
@@ -431,90 +515,6 @@ care to preserve your changes, you can run
 <code>hg revert flag_test.go</code> to abandon your
 changes, but you may still need to run
 <code>hg resolve -m</code> to mark the conflict resolved.
-</p>
-
-<h3>Mail the change for review</h3>
-
-<p>
-Creating or uploading the change uploads a copy of the diff to the code review server,
-but it does not notify anyone about it. To do that, you need to run <code>hg mail</code>
-(see below).
-</p>
-
-<p>To send out a change for review, run <code>hg mail</code> using the change list number
-assigned during <code>hg change</code>:</p>
-
-<pre>
-$ hg mail 99999
-</pre>
-
-<p>You can add to the <code>Reviewer:</code> and <code>CC:</code> lines
-using the <code>-r</code> or <code>--cc</code> options.
-In the above example, we could have left the <code>Reviewer</code> and <code>CC</code>
-lines blank and then run:
-</p>
-
-<pre>
-$ hg mail -r golang-codereviews@googlegroups.com --cc math-nuts@swtch.com 99999
-</pre>
-
-<p>to achieve the same effect.</p>
-
-<p>Note that <code>-r</code> and <code>--cc</code> cannot be spelled <code>--r</code> or <code>-cc</code>.</p>
-
-<p>
-If your change relates to an open issue, please add a comment to the issue
-announcing your proposed fix, including a link to your CL.
-</p>
-
-<h3>Reviewing code</h3>
-
-<p>
-Running <code>hg mail</code> will send an email to you and the reviewers
-asking them to visit the issue's URL and make comments on the change.
-When done, the reviewer clicks &ldquo;Publish and Mail comments&rdquo;
-to send comments back.
-</p>
-
-
-<h3>Revise and upload</h3>
-
-<p>
-When you have revised the code and are ready for another round of review,
-you can upload your change and send mail asking the reviewers to
-please take another look (<code>PTAL</code>). Use the change list number
-assigned during <code>hg change</code>
-</p>
-
-<pre>
-$ hg mail 99999
-</pre>
-
-
-<p>
-Or to upload your change without sending a notification, run
-</p>
-
-<pre>
-$ hg upload 99999
-</pre>
-
-<p>
-You will probably revise your code in response to the reviewer comments.
-You might also visit the code review web page and reply to the comments,
-letting the reviewer know that you've addressed them or explain why you
-haven't.  When you're done replying, click &ldquo;Publish and Mail comments&rdquo;
-to send the line-by-line replies and any other comments.
-</p>
-
-<p>
-The reviewer can comment on the new copy, and the process repeats.
-The reviewer approves the change by replying with a mail that says
-<code>LGTM</code>: looks good to me.
-</p>
-
-<p>
-You can see a list of your pending changes by running <code>hg pending</code> (<code>hg p</code> for short).
 </p>
 
 <h3>Reviewing code by others</h3>
