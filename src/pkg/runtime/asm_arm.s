@@ -40,10 +40,12 @@ TEXT _rt0_go(SB),NOSPLIT,$-4
 	MOVW	_cgo_init(SB), R4
 	CMP	$0, R4
 	B.EQ	nocgo
-	BL		runtime·save_g(SB);
-	MOVW	g, R0 // first argument of _cgo_init is g
-	MOVW	$setg_gcc<>(SB), R1 // second argument is address of save_g
-	BL		(R4) // will clobber R0-R3
+	MRC     15, 0, R0, C13, C0, 3 	// load TLS base pointer
+	MOVW 	R0, R3 			// arg 3: TLS base pointer
+	MOVW 	$runtime·tlsg(SB), R2 	// arg 2: tlsg
+	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
+	MOVW	g, R0 			// arg 0: G
+	BL	(R4) // will clobber R0-R3
 
 nocgo:
 	// update stackguard after _cgo_init
@@ -686,42 +688,6 @@ _eqnext:
 	CMP	R4, R5
 	BEQ	_eqnext
 	MOVB	R7, v+16(FP)
-	RET
-
-// We have to resort to TLS variable to save g(R10).
-// One reason is that external code might trigger
-// SIGSEGV, and our runtime.sigtramp don't even know we
-// are in external code, and will continue to use R10,
-// this might as well result in another SIGSEGV.
-// Note: all three functions will clobber R0, and the last
-// two can be called from 5c ABI code.
-
-// save_g saves the g register into pthread-provided
-// thread-local memory, so that we can call externally compiled
-// ARM code that will overwrite those registers.
-// NOTE: runtime.gogo assumes that R1 is preserved by this function.
-//       runtime.mcall assumes this function only clobbers R0 and R11.
-TEXT runtime·save_g(SB),NOSPLIT,$0
-	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
-	// $runtime.tlsg(SB) is a special linker symbol.
-	// It is the offset from the TLS base pointer to our
-	// thread-local storage for g.
-	MOVW	$runtime·tlsg(SB), R11
-	ADD	R11, R0
-	MOVW	g, 0(R0)
-	RET
-
-// load_g loads the g register from pthread-provided
-// thread-local memory, for use after calling externally compiled
-// ARM code that overwrote those registers.
-TEXT runtime·load_g(SB),NOSPLIT,$0
-	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
-	// $runtime.tlsg(SB) is a special linker symbol.
-	// It is the offset from the TLS base pointer to our
-	// thread-local storage for g.
-	MOVW	$runtime·tlsg(SB), R11
-	ADD	R11, R0
-	MOVW	0(R0), g
 	RET
 
 // void setg_gcc(G*); set g called from gcc.

@@ -226,6 +226,10 @@ loadlib(void)
 			linkmode = LinkExternal;
 		else
 			linkmode = LinkInternal;
+
+		// Force external linking for android.
+		if(strcmp(goos, "android") == 0)
+			linkmode = LinkExternal;
 	}
 
 	if(linkmode == LinkInternal) {
