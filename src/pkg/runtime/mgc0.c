@@ -1615,8 +1615,6 @@ addstackroots(G *gp, Workbuf **wbufp)
 	int32 n;
 	Stktop *stk;
 	uintptr sp, guard;
-	void *base;
-	uintptr size;
 
 	switch(gp->status){
 	default:
@@ -1652,9 +1650,6 @@ addstackroots(G *gp, Workbuf **wbufp)
 		sp = gp->sched.sp;
 		stk = (Stktop*)gp->stackbase;
 		guard = gp->stackguard;
-		// For function about to start, context argument is a root too.
-		if(gp->sched.ctxt != 0 && runtime·mlookup(gp->sched.ctxt, &base, &size, nil))
-			enqueue1(wbufp, (Obj){base, size, 0});
 	}
 	if(ScanStackByFrames) {
 		USED(sp);
