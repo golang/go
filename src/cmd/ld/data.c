@@ -160,6 +160,10 @@ relocsym(LSym *s)
 		if(r->sym != S && r->sym->type != STLSBSS && !r->sym->reachable)
 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);
 
+		// Android emulates runtime.tlsg as a regular variable.
+		if (r->type == R_TLS && strcmp(goos, "android") == 0)
+			r->type = R_ADDR;
+
 		switch(r->type) {
 		default:
 			o = 0;

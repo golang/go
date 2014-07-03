@@ -14,7 +14,8 @@ package cgo
 #cgo darwin LDFLAGS: -lpthread
 #cgo dragonfly LDFLAGS: -lpthread
 #cgo freebsd LDFLAGS: -lpthread
-#cgo linux LDFLAGS: -lpthread
+#cgo android LDFLAGS: -llog
+#cgo !android,linux LDFLAGS: -lpthread
 #cgo netbsd LDFLAGS: -lpthread
 #cgo openbsd LDFLAGS: -lpthread
 #cgo windows LDFLAGS: -lm -mthreads

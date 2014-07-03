@@ -9,21 +9,7 @@
 
 static void *threadentry(void*);
 
-static void (*setg_gcc)(void*);
-
-void
-x_cgo_init(G *g, void (*setg)(void*))
-{
-	pthread_attr_t attr;
-	size_t size;
-
-	setg_gcc = setg;
-	pthread_attr_init(&attr);
-	pthread_attr_getstacksize(&attr, &size);
-	g->stackguard = (uintptr)&attr - size + 4096;
-	pthread_attr_destroy(&attr);
-}
-
+void (*setg_gcc)(void*);
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)
@@ -50,8 +36,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	pthread_sigmask(SIG_SETMASK, &oset, nil);
 
 	if (err != 0) {
-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
-		abort();
+		fatalf("pthread_create failed: %s", strerror(err));
 	}
 }
 
@@ -74,4 +59,23 @@ threadentry(void *v)
 
 	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
+}
+
+void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
+
+void
+x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+{
+	pthread_attr_t attr;
+	size_t size;
+
+	setg_gcc = setg;
+	pthread_attr_init(&attr);
+	pthread_attr_getstacksize(&attr, &size);
+	g->stackguard = (uintptr)&attr - size + 4096;
+	pthread_attr_destroy(&attr);
+
+	if (x_cgo_inittls) {
+		x_cgo_inittls(tlsg, tlsbase);
+	}
 }
