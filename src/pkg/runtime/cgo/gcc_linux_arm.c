@@ -9,6 +9,7 @@
 
 static void *threadentry(void*);
 
+void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
 void (*setg_gcc)(void*);
 
 void
@@ -36,8 +37,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	pthread_sigmask(SIG_SETMASK, &oset, nil);
 
 	if (err != 0) {
-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
-		abort();
+		fatalf("pthread_create failed: %s", strerror(err));
 	}
 }
 
@@ -61,8 +61,6 @@ threadentry(void *v)
 	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }
-
-void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
 
 void
 x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)

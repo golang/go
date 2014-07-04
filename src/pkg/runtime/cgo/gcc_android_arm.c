@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <android/log.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -28,9 +27,7 @@ inittls(void **tlsg, void **tlsbase)
 
 	err = pthread_key_create(&k, nil);
 	if(err != 0) {
-		fprintf(stderr, "runtime/cgo: pthread_key_create failed: %d\n", err);
-		__android_log_print(ANDROID_LOG_FATAL, "runtime/cgo", "pthread_key_create failed: %d", err);
-		abort();
+		fatalf("pthread_key_create failed: %d", err);
 	}
 	pthread_setspecific(k, (void*)magic1);
 	for (i=0; i<PTHREAD_KEYS_MAX; i++) {
@@ -40,9 +37,7 @@ inittls(void **tlsg, void **tlsbase)
 			return;
 		}
 	}
-	fprintf(stderr, "runtime/cgo: could not find pthread key\n");
-	__android_log_print(ANDROID_LOG_FATAL, "runtime/cgo", "could not find pthread key");
-	abort();
+	fatalf("could not find pthread key");
 }
 
 void (*x_cgo_inittls)(void **tlsg, void **tlsbase) = inittls;
