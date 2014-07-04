@@ -49,8 +49,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	pthread_sigmask(SIG_SETMASK, &oset, nil);
 
 	if (err != 0) {
-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
-		abort();
+		fatalf("pthread_create failed: %s", strerror(err));
 	}
 }
 
