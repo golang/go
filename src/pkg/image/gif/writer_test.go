@@ -116,7 +116,7 @@ func TestEncodeAll(t *testing.T) {
 	for i, f := range frames {
 		m, err := readGIF(f)
 		if err != nil {
-			t.Error(f, err)
+			t.Fatal(f, err)
 		}
 		g0.Image[i] = m.Image[0]
 	}
