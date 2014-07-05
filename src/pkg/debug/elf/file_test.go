@@ -166,11 +166,11 @@ func TestOpen(t *testing.T) {
 		} else {
 			f, err = Open(tt.file)
 		}
-		defer f.Close()
 		if err != nil {
 			t.Errorf("cannot open file %s: %v", tt.file, err)
 			continue
 		}
+		defer f.Close()
 		if !reflect.DeepEqual(f.FileHeader, tt.hdr) {
 			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr)
 			continue
