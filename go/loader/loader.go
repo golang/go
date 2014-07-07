@@ -460,16 +460,6 @@ func (prog *Program) InitialPackages() []*PackageInfo {
 	return infos
 }
 
-// FilePath returns the full path to the specified file.  It returns the empty
-// string if the file does not belong to one of this Program's packages.
-//
-func (prog *Program) FilePath(file *ast.File) string {
-	if f := prog.Fset.File(file.Package); f != nil {
-		return f.Name()
-	}
-	return ""
-}
-
 // ---------- Implementation ----------
 
 // importer holds the working state of the algorithm.
