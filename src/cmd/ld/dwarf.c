@@ -1696,6 +1696,9 @@ enum
 static void
 putpccfadelta(vlong deltapc, vlong cfa)
 {
+	cput(DW_CFA_def_cfa_offset_sf);
+	sleb128put(cfa / DATAALIGNMENTFACTOR);
+
 	if (deltapc < 0x40) {
 		cput(DW_CFA_advance_loc + deltapc);
 	} else if (deltapc < 0x100) {
@@ -1708,9 +1711,6 @@ putpccfadelta(vlong deltapc, vlong cfa)
 		cput(DW_CFA_advance_loc4);
 		LPUT(deltapc);
 	}
-
-	cput(DW_CFA_def_cfa_offset_sf);
-	sleb128put(cfa / DATAALIGNMENTFACTOR);
 }
 
 static void
