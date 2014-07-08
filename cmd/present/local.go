@@ -43,6 +43,10 @@ func main() {
 		}
 		basePath = p.Dir
 	}
+	err := initTemplates(basePath)
+	if err != nil {
+		log.Fatalf("Failed to parse templates: %v", err)
+	}
 
 	ln, err := net.Listen("tcp", *httpAddr)
 	if err != nil {

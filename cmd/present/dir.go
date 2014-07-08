@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"io"
 	"log"
@@ -30,7 +29,7 @@ func dirHandler(w http.ResponseWriter, r *http.Request) {
 	const base = "."
 	name := filepath.Join(base, r.URL.Path)
 	if isDoc(name) {
-		err := renderDoc(w, basePath, name)
+		err := renderDoc(w, name)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), 500)
@@ -47,21 +46,53 @@ func dirHandler(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(http.Dir(base)).ServeHTTP(w, r)
 }
 
-// extensions maps the presentable file extensions to the name of the
-// template to be executed.
-var extensions = map[string]string{
-	".slide":   "slides.tmpl",
-	".article": "article.tmpl",
-}
-
 func isDoc(path string) bool {
-	_, ok := extensions[filepath.Ext(path)]
+	_, ok := contentTemplate[filepath.Ext(path)]
 	return ok
 }
 
-// renderDoc reads the present file, builds its template representation,
+var (
+	// dirListTemplate holds the front page template.
+	dirListTemplate *template.Template
+
+	// contentTemplate maps the presentable file extensions to the
+	// template to be executed.
+	contentTemplate map[string]*template.Template
+)
+
+func initTemplates(base string) error {
+	// Locate the template file.
+	actionTmpl := filepath.Join(base, "templates/action.tmpl")
+
+	contentTemplate = make(map[string]*template.Template)
+
+	for ext, contentTmpl := range map[string]string{
+		".slide":   "slides.tmpl",
+		".article": "article.tmpl",
+	} {
+		contentTmpl = filepath.Join(base, "templates", contentTmpl)
+
+		// Read and parse the input.
+		tmpl := present.Template()
+		tmpl = tmpl.Funcs(template.FuncMap{"playable": playable})
+		if _, err := tmpl.ParseFiles(actionTmpl, contentTmpl); err != nil {
+			return err
+		}
+		contentTemplate[ext] = tmpl
+	}
+
+	var err error
+	dirListTemplate, err = template.ParseFiles(filepath.Join(base, "templates/dir.tmpl"))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// renderDoc reads the present file, gets its template representation,
 // and executes the template, sending output to w.
-func renderDoc(w io.Writer, base, docFile string) error {
+func renderDoc(w io.Writer, docFile string) error {
 	// Read the input and build the doc structure.
 	doc, err := parse(docFile, 0)
 	if err != nil {
@@ -69,22 +100,7 @@ func renderDoc(w io.Writer, base, docFile string) error {
 	}
 
 	// Find which template should be executed.
-	ext := filepath.Ext(docFile)
-	contentTmpl, ok := extensions[ext]
-	if !ok {
-		return fmt.Errorf("no template for extension %v", ext)
-	}
-
-	// Locate the template file.
-	actionTmpl := filepath.Join(base, "templates/action.tmpl")
-	contentTmpl = filepath.Join(base, "templates", contentTmpl)
-
-	// Read and parse the input.
-	tmpl := present.Template()
-	tmpl = tmpl.Funcs(template.FuncMap{"playable": playable})
-	if _, err := tmpl.ParseFiles(actionTmpl, contentTmpl); err != nil {
-		return err
-	}
+	tmpl := contentTemplate[filepath.Ext(docFile)]
 
 	// Execute the template.
 	return doc.Render(w, tmpl)
@@ -195,87 +211,3 @@ type dirEntrySlice []dirEntry
 func (s dirEntrySlice) Len() int           { return len(s) }
 func (s dirEntrySlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s dirEntrySlice) Less(i, j int) bool { return s[i].Name < s[j].Name }
-
-var dirListTemplate = template.Must(template.New("").Parse(dirListHTML))
-
-const dirListHTML = `<!DOCTYPE html>
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <title>Talks - The Go Programming Language</title>
-  <link type="text/css" rel="stylesheet" href="/static/dir.css">
-  <script src="/static/dir.js"></script>
-</head>
-<body>
-
-<div id="topbar"><div class="container">
-
-<form method="GET" action="http://golang.org/search">
-<div id="menu">
-<a href="http://golang.org/doc/">Documents</a>
-<a href="http://golang.org/ref/">References</a>
-<a href="http://golang.org/pkg/">Packages</a>
-<a href="http://golang.org/project/">The Project</a>
-<a href="http://golang.org/help/">Help</a>
-<input type="text" id="search" name="q" class="inactive" value="Search">
-</div>
-<div id="heading"><a href="/">The Go Programming Language</a></div>
-</form>
-
-</div></div>
-
-<div id="page">
-
-  <h1>Go talks</h1>
-
-  {{with .Path}}<h2>{{.}}</h2>{{end}}
-
-  {{with .Articles}}
-  <h4>Articles:</h4>
-  <dl>
-  {{range .}}
-  <dd><a href="/{{.Path}}">{{.Name}}</a>: {{.Title}}</dd>
-  {{end}}
-  </dl>
-  {{end}}
-
-  {{with .Slides}}
-  <h4>Slide decks:</h4>
-  <dl>
-  {{range .}}
-  <dd><a href="/{{.Path}}">{{.Name}}</a>: {{.Title}}</dd>
-  {{end}}
-  </dl>
-  {{end}}
-
-  {{with .Other}}
-  <h4>Files:</h4>
-  <dl>
-  {{range .}}
-  <dd><a href="/{{.Path}}">{{.Name}}</a></dd>
-  {{end}}
-  </dl>
-  {{end}}
-
-  {{with .Dirs}}
-  <h4>Sub-directories:</h4>
-  <dl>
-  {{range .}}
-  <dd><a href="/{{.Path}}">{{.Name}}</a></dd>
-  {{end}}
-  </dl>
-  {{end}}
-
-</div>
-
-<div id="footer">
-Except as <a href="https://developers.google.com/site-policies#restrictions">noted</a>,
-the content of this page is licensed under the
-Creative Commons Attribution 3.0 License,
-and code is licensed under a <a href="http://golang.org/LICENSE">BSD license</a>.<br>
-<a href="http://golang.org/doc/tos.html">Terms of Service</a> | 
-<a href="http://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>
-</div>
-
-</body>
-</html>`
