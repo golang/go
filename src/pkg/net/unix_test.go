@@ -256,8 +256,11 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 			t.Fatalf("UnixConn.Write failed: %v", err)
 		}
 
-		if runtime.GOOS == "linux" && laddr == "" {
-			laddr = "@" // autobind feature
+		switch runtime.GOOS {
+		case "android", "linux":
+			if laddr == "" {
+				laddr = "@" // autobind feature
+			}
 		}
 		var connAddrs = [3]struct{ got, want Addr }{
 			{ln.Addr(), ta},
@@ -308,9 +311,13 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
 			}
 		}()
 
-		if runtime.GOOS == "linux" && laddr == "" {
-			laddr = "@" // autobind feature
+		switch runtime.GOOS {
+		case "android", "linux":
+			if laddr == "" {
+				laddr = "@" // autobind feature
+			}
 		}
+
 		var connAddrs = [4]struct{ got, want Addr }{
 			{c1.LocalAddr(), ta},
 			{c1.RemoteAddr(), nil},
