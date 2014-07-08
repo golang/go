@@ -38,7 +38,7 @@ func TestConnAndListener(t *testing.T) {
 			}
 		case "unixpacket":
 			switch runtime.GOOS {
-			case "darwin", "nacl", "openbsd", "plan9", "windows":
+			case "android", "darwin", "nacl", "openbsd", "plan9", "windows":
 				continue
 			case "freebsd": // FreeBSD 8 doesn't support unixpacket
 				continue
