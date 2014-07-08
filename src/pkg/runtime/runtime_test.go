@@ -95,8 +95,9 @@ func BenchmarkDeferMany(b *testing.B) {
 // The value reported will include the padding between runtime.gogo and the
 // next function in memory. That's fine.
 func TestRuntimeGogoBytes(t *testing.T) {
-	if GOOS == "nacl" {
-		t.Skip("skipping on nacl")
+	switch GOOS {
+	case "android", "nacl":
+		t.Skipf("skipping on %s", GOOS)
 	}
 
 	dir, err := ioutil.TempDir("", "go-build")
