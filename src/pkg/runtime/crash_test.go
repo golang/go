@@ -32,8 +32,9 @@ func testEnv(cmd *exec.Cmd) *exec.Cmd {
 }
 
 func executeTest(t *testing.T, templ string, data interface{}) string {
-	if runtime.GOOS == "nacl" {
-		t.Skip("skipping on nacl")
+	switch runtime.GOOS {
+	case "android", "nacl":
+		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 
 	checkStaleRuntime(t)
