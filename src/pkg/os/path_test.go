@@ -198,8 +198,9 @@ func TestMkdirAllWithSymlink(t *testing.T) {
 }
 
 func TestMkdirAllAtSlash(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return
+	switch runtime.GOOS {
+	case "android", "plan9", "windows":
+		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 	RemoveAll("/_go_os_test")
 	err := MkdirAll("/_go_os_test/dir", 0777)
