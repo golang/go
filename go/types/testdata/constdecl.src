@@ -82,4 +82,13 @@ func _() {
 	)
 }
 
+// Test case for constant with invalid initialization.
+// Caused panic because the constant value was not set up (gri - 7/8/2014).
+func _() {
+	const (
+	    x string = missing /* ERROR "undeclared name" */
+	    y = x + ""
+	)
+}
+
 // TODO(gri) move extra tests from testdata/const0.src into here

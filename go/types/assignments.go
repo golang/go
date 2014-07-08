@@ -9,8 +9,6 @@ package types
 import (
 	"go/ast"
 	"go/token"
-
-	"code.google.com/p/go.tools/go/exact"
 )
 
 // assignment reports whether x can be assigned to a variable of type T,
@@ -94,7 +92,6 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 		if x.mode != invalid {
 			check.errorf(x.pos(), "cannot define constant %s (type %s) as %s", lhs.Name(), lhs.typ, x)
 		}
-		lhs.val = exact.MakeUnknown()
 		return
 	}
 

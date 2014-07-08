@@ -99,6 +99,9 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	check.iota = obj.val
 	defer func() { check.iota = nil }()
 
+	// provide valid constant value under all circumstances
+	obj.val = exact.MakeUnknown()
+
 	// determine type, if any
 	if typ != nil {
 		t := check.typ(typ)
