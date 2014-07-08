@@ -8,15 +8,6 @@ CONSTRAINT GENERATION:
   - a couple of operators are missing
   - reflect.Values may contain lvalues (CanAddr)
 - implement native intrinsics.  These vary by platform.
-- unsafe.Pointer conversions.  Three options:
-  1) unsoundly (but type-safely) treat p=unsafe.Pointer(x) conversions as
-     allocations, losing aliases.  This is what's currently implemented.
-  2) unsoundly (but type-safely) treat p=unsafe.Pointer(x) and T(p)
-     conversions as interface boxing and unboxing operations.  
-     This may preserve some aliasing relations at little cost.
-  3) soundly track physical field offsets.  (Summarise dannyb's email here.)
-     A downside is that we can't keep the identity field of struct
-     allocations that identifies the object.    
 - add to pts(a.panic) a label representing all runtime panics, e.g.
   runtime.{TypeAssertionError,errorString,errorCString}.
 

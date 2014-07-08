@@ -435,29 +435,15 @@ func (a *analysis) genConv(conv *ssa.Convert, cgn *cgnode) {
 	case *types.Pointer:
 		// *T -> unsafe.Pointer?
 		if tDst.Underlying() == tUnsafePtr {
-			// ignore for now
-			// a.copy(res, a.valueNode(conv.X), 1)
-			return
+			return // we don't model unsafe aliasing (unsound)
 		}
 
 	case *types.Basic:
-		switch utDst := tDst.Underlying().(type) {
+		switch tDst.Underlying().(type) {
 		case *types.Pointer:
-			// unsafe.Pointer -> *T?  (currently unsound)
+			// Treat unsafe.Pointer->*T conversions like
+			// new(T) and create an unaliased object.
 			if utSrc == tUnsafePtr {
-				// For now, suppress unsafe.Pointer conversion
-				// warnings on "syscall" package.
-				// TODO(adonovan): audit for soundness.
-				if conv.Parent().Pkg.Object.Path() != "syscall" {
-					a.warnf(conv.Pos(),
-						"unsound: %s contains an unsafe.Pointer conversion (to %s)",
-						conv.Parent(), tDst)
-				}
-
-				// For now, we treat unsafe.Pointer->*T
-				// conversion like new(T) and create an
-				// unaliased object.  In future we may handle
-				// unsafe conversions soundly; see TODO file.
 				obj := a.addNodes(mustDeref(tDst), "unsafe.Pointer conversion")
 				a.endObject(obj, cgn, conv)
 				a.addressOf(tDst, res, obj)
@@ -474,25 +460,10 @@ func (a *analysis) genConv(conv *ssa.Convert, cgn *cgnode) {
 			}
 
 		case *types.Basic:
-			// TODO(adonovan):
-			// unsafe.Pointer -> uintptr?
-			// uintptr -> unsafe.Pointer
-			//
-			// The language doesn't adequately specify the
-			// behaviour of these operations, but almost
-			// all uses of these conversions (even in the
-			// spec) seem to imply a non-moving garbage
-			// collection strategy, or implicit "pinning"
-			// semantics for unsafe.Pointer conversions.
-
-			// TODO(adonovan): we need more work before we can handle
-			// cryptopointers well.
-			if utSrc == tUnsafePtr || utDst == tUnsafePtr {
-				// Ignore for now.  See TODO file for ideas.
-				return
-			}
-
-			return // ignore all other basic type conversions
+			// All basic-to-basic type conversions are no-ops.
+			// This includes uintptr<->unsafe.Pointer conversions,
+			// which we (unsoundly) ignore.
+			return
 		}
 	}
 

@@ -152,12 +152,12 @@ func init() {
 		"sync/atomic.CompareAndSwapUintptr":     ext۰NoEffect,
 		"sync/atomic.LoadInt32":                 ext۰NoEffect,
 		"sync/atomic.LoadInt64":                 ext۰NoEffect,
-		"sync/atomic.LoadPointer":               ext۰NoEffect, // ignore unsafe.Pointer for now
+		"sync/atomic.LoadPointer":               ext۰NoEffect, // ignore unsafe.Pointers
 		"sync/atomic.LoadUint32":                ext۰NoEffect,
 		"sync/atomic.LoadUint64":                ext۰NoEffect,
 		"sync/atomic.LoadUintptr":               ext۰NoEffect,
 		"sync/atomic.StoreInt32":                ext۰NoEffect,
-		"sync/atomic.StorePointer":              ext۰NoEffect, // ignore unsafe.Pointer for now
+		"sync/atomic.StorePointer":              ext۰NoEffect, // ignore unsafe.Pointers
 		"sync/atomic.StoreUint32":               ext۰NoEffect,
 		"sync/atomic.StoreUintptr":              ext۰NoEffect,
 		"syscall.Close":                         ext۰NoEffect,
