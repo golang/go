@@ -24,6 +24,7 @@ package runtime
 
 #pragma textflag NOSPLIT
 func rawstring(size intgo) (s String, b Slice) {
+	uintptr ms;
 	byte *p;
 
 	p = runtime·mallocgc(size, 0, FlagNoScan|FlagNoZero);
@@ -32,6 +33,11 @@ func rawstring(size intgo) (s String, b Slice) {
 	b.array = p;
 	b.len = size;
 	b.cap = size;
+	for(;;) {
+		ms = runtime·maxstring;
+		if((uintptr)size <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)size))
+			break;
+	}
 }
 
 #pragma textflag NOSPLIT
