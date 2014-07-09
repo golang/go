@@ -295,29 +295,24 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	return
 }
 
-func DecodeBintime(b []byte) (nsec int64, err error) {
-	if len(b) != 8 {
-		return -1, NewError("bad /dev/bintime format")
+func nsec() int64 {
+	var scratch int64
+
+	r0, _, _ := Syscall(SYS_NSEC, uintptr(unsafe.Pointer(&scratch)), 0, 0)
+	// TODO(aram): remove hack after I fix _nsec in the pc64 kernel.
+	if r0 == 0 {
+		return scratch
 	}
-	nsec = int64(b[0])<<56 |
-		int64(b[1])<<48 |
-		int64(b[2])<<40 |
-		int64(b[3])<<32 |
-		int64(b[4])<<24 |
-		int64(b[5])<<16 |
-		int64(b[6])<<8 |
-		int64(b[7])
-	return
+	return int64(r0)
 }
 
 func Gettimeofday(tv *Timeval) error {
-	nsec, e := nanotime()
-	if e != nil {
-		return e
-	}
+	nsec := nsec()
 	*tv = NsecToTimeval(nsec)
-	return e
+	return nil
 }
+
+func Getpagesize() int { return 0x1000 }
 
 func Getegid() (egid int) { return -1 }
 func Geteuid() (euid int) { return -1 }
