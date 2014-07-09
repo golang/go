@@ -926,6 +926,12 @@ func TestOpenError(t *testing.T) {
 				syscallErrStr := perr.Err.Error()
 				expectedErrStr := strings.Replace(tt.error.Error(), "file ", "", 1)
 				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
+					// Some Plan 9 file servers incorrectly return
+					// EACCES rather than EISDIR when a directory is
+					// opened for write.
+					if tt.error == syscall.EISDIR && strings.HasSuffix(syscallErrStr, syscall.EACCES.Error()) {
+						continue
+					}
 					t.Errorf("Open(%q, %d) = _, %q; want suffix %q", tt.path, tt.mode, syscallErrStr, expectedErrStr)
 				}
 				continue
