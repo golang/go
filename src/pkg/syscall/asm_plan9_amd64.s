@@ -16,12 +16,8 @@
 //func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
 //func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 
-// Trap # in BP, args on stack above caller pc.
-// NxM requires that Plan 9 system calls be
-// marked with $0x8000 in AX.
 TEXT	·Syscall(SB),NOSPLIT,$0-64
 	CALL	runtime·entersyscall(SB)
-	MOVQ	$0x8000, AX	// for NxM
 	MOVQ	8(SP), BP	// syscall entry
 	// slide args down on top of system call number
 	LEAQ	16(SP), SI
@@ -57,7 +53,6 @@ copyresult3:
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-88
 	CALL	runtime·entersyscall(SB)
-	MOVQ	$0x8000, AX	// for NxM
 	MOVQ	8(SP), BP	// syscall entry
 	// slide args down on top of system call number
 	LEAQ		16(SP), SI
@@ -95,7 +90,6 @@ copyresult4:
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-56
-	MOVQ	$0x8000, AX	// for NxM
 	MOVQ	8(SP), BP	// syscall entry
 	// slide args down on top of system call number
 	LEAQ		16(SP), SI
@@ -111,7 +105,6 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
-	MOVQ	$0x8000, AX	// for NxM
 	MOVQ	8(SP), BP	// syscall entry
 	// slide args down on top of system call number
 	LEAQ		16(SP), SI
@@ -136,7 +129,6 @@ TEXT ·seek(SB),NOSPLIT,$0-56
 	LEAQ	newoffset+40(SP), AX
 	MOVQ	AX, placeholder+8(SP)
 	
-	MOVQ	$0x8000, AX	// for NxM
 	MOVQ	$SYS_SEEK, BP	// syscall entry
 	SYSCALL
 	
