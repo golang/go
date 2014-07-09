@@ -451,3 +451,6 @@ div.output .buttons {
   left: -5px;
   top: -5px;
 }
+iframe {
+  border: none;
+}
