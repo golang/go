@@ -77,6 +77,11 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
 	SYSCALL
 	RET
 
+TEXT runtime·nsec(SB),NOSPLIT,$0
+	MOVQ	$53, BP
+	SYSCALL
+	RET
+
 TEXT runtime·notify(SB),NOSPLIT,$0
 	MOVQ	$28, BP
 	SYSCALL

@@ -64,6 +64,16 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
 	INT	$64
 	RET
 
+TEXT runtime·nsec(SB),NOSPLIT,$0
+	MOVL	$53, AX
+	INT	$64
+	CMPL	AX, $-1
+	JNE	4(PC)
+	MOVL	a+0(FP), CX
+	MOVL	AX, 0(CX)
+	MOVL	AX, 4(CX)
+	RET
+
 TEXT runtime·notify(SB),NOSPLIT,$0
 	MOVL	$28, AX
 	INT	$64
