@@ -95,6 +95,7 @@ func handshake(c *websocket.Config, req *http.Request) error {
 		log.Println("bad websocket origin:", o)
 		return websocket.ErrBadWebSocketOrigin
 	}
+	log.Println("accepting connection from:", req.RemoteAddr)
 	return nil
 }
 
@@ -136,6 +137,7 @@ func socketHandler(c *websocket.Conn) {
 		case m := <-in:
 			switch m.Kind {
 			case "run":
+				log.Println("running snippet from:", c.Request().RemoteAddr)
 				proc[m.Id].Kill()
 				lOut := limiter(in, out)
 				proc[m.Id] = startProcess(m.Id, m.Body, lOut, m.Options)
