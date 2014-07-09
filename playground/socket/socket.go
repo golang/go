@@ -341,7 +341,7 @@ func (p *process) naclCmd(bin string) (*exec.Cmd, error) {
 	if err != nil {
 		return nil, err
 	}
-	var ldr string
+	var args []string
 	env := []string{
 		"NACLENV_GOOS=" + runtime.GOOS,
 		"NACLENV_GOROOT=/go",
@@ -349,16 +349,19 @@ func (p *process) naclCmd(bin string) (*exec.Cmd, error) {
 	}
 	switch runtime.GOARCH {
 	case "amd64":
-		env = append(env, "NACLENV_GOARCH=amd64")
-		ldr = "sel_ldr_x86_64"
+		env = append(env, "NACLENV_GOARCH=amd64p32")
+		args = []string{"sel_ldr_x86_64"}
 	case "386":
 		env = append(env, "NACLENV_GOARCH=386")
-		ldr = "sel_ldr_x86_32"
+		args = []string{"sel_ldr_x86_32"}
+	case "arm":
+		env = append(env, "NACLENV_GOARCH=arm")
+		args = []string{"nacl_helper_bootstrap_arm", "sel_ldr_arm", "--reserved_at_zero=0xXXXXXXXXXXXXXXXX"}
 	default:
 		return nil, errors.New("native client does not support GOARCH=" + runtime.GOARCH)
 	}
 
-	cmd := p.cmd("", ldr, "-l", "/dev/null", "-S", "-e", bin)
+	cmd := p.cmd("", append(args, "-l", "/dev/null", "-S", "-e", bin)...)
 	cmd.Env = append(cmd.Env, env...)
 
 	return cmd, nil
