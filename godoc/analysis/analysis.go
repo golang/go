@@ -123,6 +123,13 @@ func (e errorLink) Write(w io.Writer, _ int, start bool) {
 
 // -- fileInfo ---------------------------------------------------------
 
+// FileInfo holds analysis information for the source file view.
+// Clients must not mutate it.
+type FileInfo struct {
+	Data  []interface{} // JSON serializable values
+	Links []Link        // HTML link markup
+}
+
 // A fileInfo is the server's store of hyperlinks and JSON data for a
 // particular file.
 type fileInfo struct {
@@ -154,20 +161,28 @@ func (fi *fileInfo) addData(x interface{}) int {
 	return index
 }
 
-// get returns new slices containing opaque JSON values and the HTML link markup for fi.
-// Callers must not mutate the elements.
-func (fi *fileInfo) get() (data []interface{}, links []Link) {
+// get returns the file info in external form.
+// Callers must not mutate its fields.
+func (fi *fileInfo) get() FileInfo {
+	var r FileInfo
 	// Copy slices, to avoid races.
 	fi.mu.Lock()
-	data = append(data, fi.data...)
+	r.Data = append(r.Data, fi.data...)
 	if !fi.sorted {
 		sort.Sort(linksByStart(fi.links))
 		fi.sorted = true
 	}
-	links = append(links, fi.links...)
+	r.Links = append(r.Links, fi.links...)
 	fi.mu.Unlock()
+	return r
+}
 
-	return
+// PackageInfo holds analysis information for the package view.
+// Clients must not mutate it.
+type PackageInfo struct {
+	CallGraph      []*PCGNodeJSON
+	CallGraphIndex map[string]int
+	Types          []*TypeInfoJSON
 }
 
 type pkgInfo struct {
@@ -190,16 +205,17 @@ func (pi *pkgInfo) addType(t *TypeInfoJSON) {
 	pi.mu.Unlock()
 }
 
-// get returns new slices of JSON values for the callgraph and type info for pi.
-// Callers must not mutate the slice elements or the map.
-func (pi *pkgInfo) get() (callGraph []*PCGNodeJSON, callGraphIndex map[string]int, types []*TypeInfoJSON) {
+// get returns the package info in external form.
+// Callers must not mutate its fields.
+func (pi *pkgInfo) get() PackageInfo {
+	var r PackageInfo
 	// Copy slices, to avoid races.
 	pi.mu.Lock()
-	callGraph = append(callGraph, pi.callGraph...)
-	callGraphIndex = pi.callGraphIndex
-	types = append(types, pi.types...)
+	r.CallGraph = append(r.CallGraph, pi.callGraph...)
+	r.CallGraphIndex = pi.callGraphIndex
+	r.Types = append(r.Types, pi.types...)
 	pi.mu.Unlock()
-	return
+	return r
 }
 
 // -- Result -----------------------------------------------------------
@@ -209,6 +225,7 @@ func (pi *pkgInfo) get() (callGraph []*PCGNodeJSON, callGraphIndex map[string]in
 // and JavaScript data referenced by the links.
 type Result struct {
 	mu        sync.Mutex           // guards maps (but not their contents)
+	status    string               // global analysis status
 	fileInfos map[string]*fileInfo // keys are godoc file URLs
 	pkgInfos  map[string]*pkgInfo  // keys are import paths
 }
@@ -229,12 +246,26 @@ func (res *Result) fileInfo(url string) *fileInfo {
 	return fi
 }
 
+// Status returns a human-readable description of the current analysis status.
+func (res *Result) Status() string {
+	res.mu.Lock()
+	defer res.mu.Unlock()
+	return res.status
+}
+
+func (res *Result) setStatusf(format string, args ...interface{}) {
+	res.mu.Lock()
+	res.status = fmt.Sprintf(format, args...)
+	log.Printf(format, args...)
+	res.mu.Unlock()
+}
+
 // FileInfo returns new slices containing opaque JSON values and the
 // HTML link markup for the specified godoc file URL.  Thread-safe.
 // Callers must not mutate the elements.
 // It returns "zero" if no data is available.
 //
-func (res *Result) FileInfo(url string) ([]interface{}, []Link) {
+func (res *Result) FileInfo(url string) (fi FileInfo) {
 	return res.fileInfo(url).get()
 }
 
@@ -256,10 +287,10 @@ func (res *Result) pkgInfo(importPath string) *pkgInfo {
 
 // PackageInfo returns new slices of JSON values for the callgraph and
 // type info for the specified package.  Thread-safe.
-// Callers must not mutate the elements.
+// Callers must not mutate its fields.
 // PackageInfo returns "zero" if no data is available.
 //
-func (res *Result) PackageInfo(importPath string) ([]*PCGNodeJSON, map[string]int, []*TypeInfoJSON) {
+func (res *Result) PackageInfo(importPath string) PackageInfo {
 	return res.pkgInfo(importPath).get()
 }
 
@@ -333,17 +364,18 @@ func Run(pta bool, result *Result) {
 	//args = []string{"fmt"}
 
 	if _, err := conf.FromArgs(args, true); err != nil {
-		log.Printf("Analysis failed: %s\n", err) // import error
+		// TODO(adonovan): degrade gracefully, not fail totally.
+		result.setStatusf("Analysis failed: %s.", err) // import error
 		return
 	}
 
-	log.Print("Loading and type-checking packages...")
+	result.setStatusf("Loading and type-checking packages...")
 	iprog, err := conf.Load()
 	if iprog != nil {
 		log.Printf("Loaded %d packages.", len(iprog.AllPackages))
 	}
 	if err != nil {
-		log.Printf("Analysis failed: %s\n", err)
+		result.setStatusf("Loading failed: %s.\n", err)
 		return
 	}
 
@@ -365,9 +397,9 @@ func Run(pta bool, result *Result) {
 	log.Print("Main packages: ", mainPkgs)
 
 	// Build SSA code for bodies of all functions in the whole program.
-	log.Print("Building SSA...")
+	result.setStatusf("Constructing SSA form...")
 	prog.BuildAll()
-	log.Print("SSA building complete")
+	log.Print("SSA construction complete")
 
 	a := analysis{
 		result: result,
@@ -443,19 +475,18 @@ func Run(pta bool, result *Result) {
 			}
 		}
 	}
-	log.Print("Computing implements...")
+	log.Print("Computing implements relation...")
 	facts := computeImplements(&a.prog.MethodSets, a.allNamed)
 
 	// Add the type-based analysis results.
 	log.Print("Extracting type info...")
-
 	for _, info := range iprog.AllPackages {
 		a.doTypeInfo(info, facts)
 	}
 
 	a.visitInstrs(pta)
 
-	log.Print("Extracting type info complete")
+	result.setStatusf("Type analysis complete.")
 
 	if pta {
 		a.pointer(mainPkgs)
@@ -514,23 +545,24 @@ func (a *analysis) pointer(mainPkgs []*ssa.Package) {
 	a.ptaConfig.BuildCallGraph = true
 	a.ptaConfig.Reflection = false // (for now)
 
-	log.Print("Running pointer analysis...")
+	a.result.setStatusf("Pointer analysis running...")
+
 	ptares, err := pointer.Analyze(&a.ptaConfig)
 	if err != nil {
 		// If this happens, it indicates a bug.
-		log.Printf("Pointer analysis failed: %s", err)
+		a.result.setStatusf("Pointer analysis failed: %s.", err)
 		return
 	}
 	log.Print("Pointer analysis complete.")
 
 	// Add the results of pointer analysis.
 
-	log.Print("Computing channel peers...")
+	a.result.setStatusf("Computing channel peers...")
 	a.doChannelPeers(ptares.Queries)
-	log.Print("Computing dynamic call graph edges...")
+	a.result.setStatusf("Computing dynamic call graph edges...")
 	a.doCallgraph(ptares.CallGraph)
 
-	log.Print("Done")
+	a.result.setStatusf("Analysis complete.")
 }
 
 type linksByStart []Link

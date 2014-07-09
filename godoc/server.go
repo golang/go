@@ -260,14 +260,13 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Emit JSON array for type information.
-	// TODO(adonovan): issue a "pending..." message if results not ready.
-	var callGraph []*analysis.PCGNodeJSON
-	var typeInfos []*analysis.TypeInfoJSON
-	callGraph, info.CallGraphIndex, typeInfos = h.c.Analysis.PackageInfo(relpath)
-	info.CallGraph = htmltemplate.JS(marshalJSON(callGraph))
-	info.AnalysisData = htmltemplate.JS(marshalJSON(typeInfos))
+	// TODO(adonovan): display the h.c.Analysis.Status() message in the UI.
+	pi := h.c.Analysis.PackageInfo(relpath)
+	info.CallGraphIndex = pi.CallGraphIndex
+	info.CallGraph = htmltemplate.JS(marshalJSON(pi.CallGraph))
+	info.AnalysisData = htmltemplate.JS(marshalJSON(pi.Types))
 	info.TypeInfoIndex = make(map[string]int)
-	for i, ti := range typeInfos {
+	for i, ti := range pi.Types {
 		info.TypeInfoIndex[ti.Name] = i
 	}
 
@@ -501,20 +500,19 @@ func (p *Presentation) serveTextFile(w http.ResponseWriter, r *http.Request, abs
 	var buf bytes.Buffer
 	if pathpkg.Ext(abspath) == ".go" {
 		// Find markup links for this file (e.g. "/src/pkg/fmt/print.go").
-		data, links := p.Corpus.Analysis.FileInfo(abspath)
+		fi := p.Corpus.Analysis.FileInfo(abspath)
 		buf.WriteString("<script type='text/javascript'>document.ANALYSIS_DATA = ")
-		buf.Write(marshalJSON(data))
+		buf.Write(marshalJSON(fi.Data))
 		buf.WriteString(";</script>\n")
 
-		// TODO(adonovan): indicate whether analysis is
-		// disabled, pending, completed or failed.
-		// For now, display help link only if 'completed'.
-		if links != nil {
-			buf.WriteString("<a href='/lib/godoc/analysis/help.html'>Static analysis features</a><br/>")
+		if status := p.Corpus.Analysis.Status(); status != "" {
+			buf.WriteString("<a href='/lib/godoc/analysis/help.html'>Static analysis features</a> ")
+			// TODO(adonovan): show analysis status at per-file granularity.
+			fmt.Fprintf(&buf, "<span style='color: grey'>[%s]</span><br/>", htmlpkg.EscapeString(status))
 		}
 
 		buf.WriteString("<pre>")
-		formatGoSource(&buf, src, links, h, s)
+		formatGoSource(&buf, src, fi.Links, h, s)
 		buf.WriteString("</pre>")
 	} else {
 		buf.WriteString("<pre>")

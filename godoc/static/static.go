@@ -60,7 +60,7 @@ var Files = map[string]string{
   expression and the method set of each type, and determines which
   types are assignable to each interface type.
 
-  <b>Type analysis</b> is relatively quick, requiring just a few seconds for
+  <b>Type analysis</b> is relatively quick, requiring about 10 seconds for
   the >200 packages of the standard library, for example.
 </p>
 
@@ -122,7 +122,7 @@ var Files = map[string]string{
 
 <h2>Pointer analysis features</h2>
 <p>
-  <code>godoc -analysis=pointer</code> performs a precise
+  <code>godoc -analysis=pointer</code> additionally performs a precise
   whole-program <b>pointer analysis</b>.  In other words, it
   approximates the set of memory locations to which each
   reference&mdash;not just vars of kind <code>*T</code>, but also
@@ -134,10 +134,8 @@ var Files = map[string]string{
   channel.
 </p>
 <p>
-  <span class='err'>⚠</span> Pointer analysis is currently quite slow,
-  taking around two minutes for the standard library.  This will
-  improve markedly with the planned addition of a constraint
-  optimizer.
+  Pointer analysis is slower than type analysis, taking an additional
+  15 seconds or so for the standard libraries and their tests.
 </p>
 
 <h3>Call graph navigation</h3>
@@ -271,9 +269,6 @@ var Files = map[string]string{
 
 <h2>Known issues</h2>
 <p>
-  <span class='err'>⚠</span> There is no UI indication of the state of
-  the analysis (pending, complete, failed) during warm-up.</br>
-
   <span class='err'>⚠</span> All analysis results pertain to exactly
   one configuration (e.g. amd64 linux).  Files that are conditionally
   compiled based on different platforms or build tags are not visible

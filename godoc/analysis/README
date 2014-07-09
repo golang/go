@@ -59,7 +59,6 @@ Type info:
 - Suppress toggle divs for empty method sets.
 
 Misc:
-- Add an "analysis help" page explaining the features and UI in more detail.
 - The [X] button in the lower pane is subject to scrolling.
 - Should the lower pane be floating?  An iframe?
   When we change document.location by clicking on a link, it will go away.
@@ -110,9 +109,3 @@ contains a lot of filenames (e.g. 820 copies of 16 distinct
 filenames).  20% of the HTML is L%d spans (now disabled).  The HTML
 also contains lots of tooltips for long struct/interface types.
 De-dup or just abbreviate?  The actual formatting is very fast.
-
-The pointer analysis constraint solver is way too slow.  We really
-need to implement the constraint optimizer.  Also: performance has
-been quite unpredictable; I recently optimized it fourfold with
-type-based label tracking, but the benefit seems to have evaporated.
-TODO(adonovan): take a look at recent CLs for regressions.
