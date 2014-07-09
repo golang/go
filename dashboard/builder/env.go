@@ -39,15 +39,18 @@ func (b *Builder) envv() []string {
 			"GOARCH=" + b.goarch,
 			"GOROOT_FINAL=/usr/local/go",
 		}
-		if b.goos != "nacl" {
+		switch b.goos {
+		case "android", "nacl":
+			// Cross compile.
+		default:
 			// If we are building, for example, linux/386 on a linux/amd64 machine we want to
 			// make sure that the whole build is done as a if this were compiled on a real
 			// linux/386 machine. In other words, we want to not do a cross compilation build.
 			// To do this we set GOHOSTOS and GOHOSTARCH to override the detection in make.bash.
 			//
-			// The exception to this rule is when we are doing nacl builds. These are by definition
-			// always cross compilation, and we have support built into cmd/go to be able to handle
-			// this case.
+			// The exception to this rule is when we are doing nacl/android builds. These are by
+			// definition always cross compilation, and we have support built into cmd/go to be
+			// able to handle this case.
 			e = append(e, "GOHOSTOS="+b.goos, "GOHOSTARCH="+b.goarch)
 		}
 	}
@@ -266,6 +269,7 @@ func extraEnv() []string {
 		"GO386",
 		"CGO_ENABLED",
 		"CC",
+		"CC_FOR_TARGET",
 		"PATH",
 		"TMPDIR",
 		"USER",
