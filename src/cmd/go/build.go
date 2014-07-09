@@ -287,6 +287,8 @@ func runBuild(cmd *Command, args []string) {
 	if *buildO != "" {
 		if len(pkgs) > 1 {
 			fatalf("go build: cannot use -o with multiple packages")
+		} else if len(pkgs) == 0 {
+			fatalf("no packages to build")
 		}
 		p := pkgs[0]
 		p.target = "" // must build - not up to date
