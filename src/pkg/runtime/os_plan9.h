@@ -15,6 +15,7 @@ int32	runtime·plan9_tsemacquire(uint32 *addr, int32 ms);
 int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
 int32	runtime·notify(void (*fn)(void*, int8*));
 int32	runtime·noted(int32);
+int64	runtime·nsec(int64*);
 void	runtime·sigtramp(void*, int8*);
 void	runtime·sigpanic(void);
 void	runtime·goexitsall(int8*);
