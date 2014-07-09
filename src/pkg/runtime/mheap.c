@@ -310,8 +310,8 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	// Ask for a big chunk, to reduce the number of mappings
 	// the operating system needs to track; also amortizes
 	// the overhead of an operating system mapping.
-	// Allocate a multiple of 64kB (16 pages).
-	npage = (npage+15)&~15;
+	// Allocate a multiple of 64kB.
+	npage = ROUND(npage, (64<<10)/PageSize);
 	ask = npage<<PageShift;
 	if(ask < HeapAllocChunk)
 		ask = HeapAllocChunk;
