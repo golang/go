@@ -64,9 +64,10 @@ func NetlinkRIB(proto, family int) ([]byte, error) {
 		return nil, err
 	}
 	var tab []byte
+	rbNew := make([]byte, Getpagesize())
 done:
 	for {
-		rb := make([]byte, Getpagesize())
+		rb := rbNew
 		nr, _, err := Recvfrom(s, rb, 0)
 		if err != nil {
 			return nil, err
