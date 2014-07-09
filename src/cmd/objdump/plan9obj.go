@@ -34,7 +34,14 @@ func plan9Symbols(f *os.File) (syms []Sym, goarch string) {
 		return
 	}
 
-	goarch = "386"
+	switch p.Magic {
+	case plan9obj.MagicAMD64:
+		goarch = "amd64"
+	case plan9obj.Magic386:
+		goarch = "386"
+	case plan9obj.MagicARM:
+		goarch = "arm"
+	}
 
 	// Build sorted list of addresses of all symbols.
 	// We infer the size of a symbol by looking at where the next symbol begins.
