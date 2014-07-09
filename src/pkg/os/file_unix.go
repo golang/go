@@ -308,7 +308,11 @@ func basename(name string) string {
 func TempDir() string {
 	dir := Getenv("TMPDIR")
 	if dir == "" {
-		dir = "/tmp"
+		if runtime.GOOS == "android" {
+			dir = "/data/local/tmp"
+		} else {
+			dir = "/tmp"
+		}
 	}
 	return dir
 }
