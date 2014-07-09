@@ -18,7 +18,7 @@ type fileTest struct {
 var fileTests = []fileTest{
 	{
 		"testdata/386-plan9-exec",
-		FileHeader{Magic386, 0x324, 0x14, 4},
+		FileHeader{Magic386, 0x324, 0x14, 4, 0x1000, 32},
 		[]*SectionHeader{
 			{"text", 0x4c5f, 0x20},
 			{"data", 0x94c, 0x4c7f},
@@ -29,7 +29,7 @@ var fileTests = []fileTest{
 	},
 	{
 		"testdata/amd64-plan9-exec",
-		FileHeader{MagicAMD64, 0x618, 0x13, 8},
+		FileHeader{MagicAMD64, 0x618, 0x13, 8, 0x200000, 40},
 		[]*SectionHeader{
 			{"text", 0x4213, 0x28},
 			{"data", 0xa80, 0x423b},
