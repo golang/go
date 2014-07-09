@@ -1900,8 +1900,7 @@ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) er
 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
 		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
 	}
-	// TODO: Support using clang here (during gccgo build)?
-	return b.run(p.Dir, p.ImportPath, nil, "gcc", "-Wall", "-g",
+	return b.run(p.Dir, p.ImportPath, nil, envList("CC", defaultCC), "-Wall", "-g",
 		"-I", objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
 }
 
