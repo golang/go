@@ -237,10 +237,6 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	text, err := findPlan9Symbol(f, "text")
-	if err != nil {
-		return nil, err
-	}
 	sect := f.Section("text")
 	if sect == nil {
 		return nil, err
@@ -249,5 +245,5 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return data[ssym.Value-text.Value : esym.Value-text.Value], nil
+	return data[ssym.Value-(f.LoadAddress+f.HdrSize) : esym.Value-(f.LoadAddress+f.HdrSize)], nil
 }
