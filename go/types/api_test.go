@@ -479,14 +479,16 @@ func TestInitOrderInfo(t *testing.T) {
 func TestFiles(t *testing.T) {
 	var sources = []string{
 		"package p; type T struct{}; func (T) m1() {}",
-		"package p; func (T) m2() {}; var _ interface{ m1(); m2() } = T{}",
-		"package p; func (T) m3() {}; var _ interface{ m1(); m2(); m3() } = T{}",
+		"package p; func (T) m2() {}; var x interface{ m1(); m2() } = T{}",
+		"package p; func (T) m3() {}; var y interface{ m1(); m2(); m3() } = T{}",
+		"package p",
 	}
 
 	var conf Config
 	fset := token.NewFileSet()
 	pkg := NewPackage("p", "p")
-	check := NewChecker(&conf, fset, pkg, nil)
+	var info Info
+	check := NewChecker(&conf, fset, pkg, &info)
 
 	for i, src := range sources {
 		filename := fmt.Sprintf("sources%d", i)
@@ -497,6 +499,17 @@ func TestFiles(t *testing.T) {
 		if err := check.Files([]*ast.File{f}); err != nil {
 			t.Error(err)
 		}
+	}
+
+	// check InitOrder is [x y]
+	var vars []string
+	for _, init := range info.InitOrder {
+		for _, v := range init.Lhs {
+			vars = append(vars, v.Name())
+		}
+	}
+	if got, want := fmt.Sprint(vars), "[x y]"; got != want {
+		t.Errorf("InitOrder == %s, want %s", got, want)
 	}
 }
 
