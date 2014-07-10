@@ -451,7 +451,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 	}
 
 	// Everything's fine, record final type and value for x.
-	check.recordTypeAndValue(x, typ, old.val)
+	check.recordTypeAndValue(x, old.mode, typ, old.val)
 }
 
 // updateExprVal updates the value of x to val.
@@ -908,6 +908,7 @@ func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
 	kind := check.exprInternal(x, e, hint)
 
 	// convert x into a user-friendly set of values
+	// TODO(gri) this code can be simplified
 	var typ Type
 	var val exact.Value
 	switch x.mode {
@@ -926,9 +927,9 @@ func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
 	if isUntyped(typ) {
 		// delay type and value recording until we know the type
 		// or until the end of type checking
-		check.rememberUntyped(x.expr, false, typ.(*Basic), val)
+		check.rememberUntyped(x.expr, false, x.mode, typ.(*Basic), val)
 	} else {
-		check.recordTypeAndValue(e, typ, val)
+		check.recordTypeAndValue(e, x.mode, typ, val)
 	}
 
 	return kind

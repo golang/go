@@ -20,9 +20,10 @@ const (
 	trace = false // turn on for detailed type resolution traces
 )
 
-// exprInfo stores type and constant value for an untyped expression.
+// exprInfo stores information about an untyped expression.
 type exprInfo struct {
 	isLhs bool // expression is lhs operand of a shift with delayed type-check
+	mode  operandMode
 	typ   *Basic
 	val   exact.Value // constant value; or nil (if not a constant)
 }
@@ -98,13 +99,13 @@ func (check *Checker) assocMethod(tname string, meth *Func) {
 	m[tname] = append(m[tname], meth)
 }
 
-func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, typ *Basic, val exact.Value) {
+func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val exact.Value) {
 	m := check.untyped
 	if m == nil {
 		m = make(map[ast.Expr]exprInfo)
 		check.untyped = m
 	}
-	m[e] = exprInfo{lhs, typ, val}
+	m[e] = exprInfo{lhs, mode, typ, val}
 }
 
 func (check *Checker) later(name string, decl *declInfo, sig *Signature, body *ast.BlockStmt) {
@@ -239,17 +240,23 @@ func (check *Checker) recordUntyped() {
 			check.dump("%s: %s (type %s) is typed", x.Pos(), x, info.typ)
 			unreachable()
 		}
-		check.recordTypeAndValue(x, info.typ, info.val)
+		check.recordTypeAndValue(x, info.mode, info.typ, info.val)
 	}
 }
 
-func (check *Checker) recordTypeAndValue(x ast.Expr, typ Type, val exact.Value) {
-	assert(x != nil && typ != nil)
-	if val != nil {
+func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type, val exact.Value) {
+	assert(x != nil)
+	assert(typ != nil)
+	if mode == invalid {
+		return // omit
+	}
+	assert(typ != nil)
+	if mode == constant {
+		assert(val != nil)
 		assert(isConstType(typ))
 	}
 	if m := check.Types; m != nil {
-		m[x] = TypeAndValue{typ, val}
+		m[x] = TypeAndValue{mode, typ, val}
 	}
 }
 
@@ -259,7 +266,7 @@ func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
 	// we don't record their signatures, so we don't see qualified idents
 	// here): record the signature for f and possible children.
 	for {
-		check.recordTypeAndValue(f, sig, nil)
+		check.recordTypeAndValue(f, builtin, sig, nil)
 		switch p := f.(type) {
 		case *ast.Ident:
 			return // we're done
@@ -313,7 +320,8 @@ func (check *Checker) recordUse(id *ast.Ident, obj Object) {
 }
 
 func (check *Checker) recordImplicit(node ast.Node, obj Object) {
-	assert(node != nil && obj != nil)
+	assert(node != nil)
+	assert(obj != nil)
 	if m := check.Implicits; m != nil {
 		m[node] = obj
 	}
@@ -329,7 +337,8 @@ func (check *Checker) recordSelection(x *ast.SelectorExpr, kind SelectionKind, r
 }
 
 func (check *Checker) recordScope(node ast.Node, scope *Scope) {
-	assert(node != nil && scope != nil)
+	assert(node != nil)
+	assert(scope != nil)
 	if m := check.Scopes; m != nil {
 		m[node] = scope
 	}

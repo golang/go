@@ -5,6 +5,7 @@
 package types_test
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -251,6 +252,117 @@ func TestTypesInfo(t *testing.T) {
 		// check that type is correct
 		if got := typ.String(); got != test.typ {
 			t.Errorf("package %s: got %s; want %s", name, got, test.typ)
+		}
+	}
+}
+
+func predString(tv TypeAndValue) string {
+	var buf bytes.Buffer
+	pred := func(b bool, s string) {
+		if b {
+			if buf.Len() > 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(s)
+		}
+	}
+
+	pred(tv.IsVoid(), "void")
+	pred(tv.IsType(), "type")
+	pred(tv.IsBuiltin(), "builtin")
+	pred(tv.IsValue() && tv.Value != nil, "const")
+	pred(tv.IsValue() && tv.Value == nil, "value")
+	pred(tv.IsNil(), "nil")
+	pred(tv.Addressable(), "addressable")
+	pred(tv.Assignable(), "assignable")
+	pred(tv.HasOk(), "hasOk")
+
+	if buf.Len() == 0 {
+		return "invalid"
+	}
+	return buf.String()
+}
+
+func TestPredicatesInfo(t *testing.T) {
+	var tests = []struct {
+		src  string
+		expr string
+		pred string
+	}{
+		// void
+		{`package n0; func f() { f() }`, `f()`, `void`},
+
+		// types
+		{`package t0; type _ int`, `int`, `type`},
+		{`package t1; type _ []int`, `[]int`, `type`},
+		{`package t2; type _ func()`, `func()`, `type`},
+
+		// built-ins
+		{`package b0; var _ = len("")`, `len`, `builtin`},
+		{`package b1; var _ = (len)("")`, `(len)`, `builtin`},
+
+		// constants
+		{`package c0; var _ = 42`, `42`, `const`},
+		{`package c1; var _ = "foo" + "bar"`, `"foo" + "bar"`, `const`},
+		{`package c2; const (i = 1i; _ = i)`, `i`, `const`},
+
+		// values
+		{`package v0; var (a, b int; _ = a + b)`, `a + b`, `value`},
+		{`package v1; var _ = &[]int{1}`, `([]int literal)`, `value`},
+		{`package v2; var _ = func(){}`, `(func() literal)`, `value`},
+		{`package v4; func f() { _ = f }`, `f`, `value`},
+		{`package v3; var _ *int = nil`, `nil`, `value, nil`},
+		{`package v3; var _ *int = (nil)`, `(nil)`, `value, nil`},
+
+		// addressable (and thus assignable) operands
+		{`package a0; var (x int; _ = x)`, `x`, `value, addressable, assignable`},
+		{`package a1; var (p *int; _ = *p)`, `*p`, `value, addressable, assignable`},
+		{`package a2; var (s []int; _ = s[0])`, `s[0]`, `value, addressable, assignable`},
+		{`package a3; var (s struct{f int}; _ = s.f)`, `s.f`, `value, addressable, assignable`},
+		{`package a4; var (a [10]int; _ = a[0])`, `a[0]`, `value, addressable, assignable`},
+		{`package a5; func _(x int) { _ = x }`, `x`, `value, addressable, assignable`},
+		{`package a6; func _()(x int) { _ = x; return }`, `x`, `value, addressable, assignable`},
+		{`package a7; type T int; func (x T) _() { _ = x }`, `x`, `value, addressable, assignable`},
+		// composite literals are not addressable
+
+		// assignable but not addressable values
+		{`package s0; var (m map[int]int; _ = m[0])`, `m[0]`, `value, assignable, hasOk`},
+		{`package s1; var (m map[int]int; _, _ = m[0])`, `m[0]`, `value, assignable, hasOk`},
+
+		// hasOk expressions
+		{`package k0; var (ch chan int; _ = <-ch)`, `<-ch`, `value, hasOk`},
+		{`package k1; var (ch chan int; _, _ = <-ch)`, `<-ch`, `value, hasOk`},
+
+		// missing entries
+		// - package names are collected in the Uses map
+		// - identifiers being declared are collected in the Defs map
+		{`package m0; import "os"; func _() { _ = os.Stdout }`, `os`, `<missing>`},
+		{`package m1; import p "os"; func _() { _ = p.Stdout }`, `p`, `<missing>`},
+		{`package m2; const c = 0`, `c`, `<missing>`},
+		{`package m3; type T int`, `T`, `<missing>`},
+		{`package m4; var v int`, `v`, `<missing>`},
+		{`package m5; func f() {}`, `f`, `<missing>`},
+		{`package m6; func _(x int) {}`, `x`, `<missing>`},
+		{`package m6; func _()(x int) { return }`, `x`, `<missing>`},
+		{`package m6; type T int; func (x T) _() {}`, `x`, `<missing>`},
+	}
+
+	for _, test := range tests {
+		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
+		name := mustTypecheck(t, "PredicatesInfo", test.src, &info)
+
+		// look for expression predicates
+		got := "<missing>"
+		for e, tv := range info.Types {
+			//println(name, ExprString(e))
+			if ExprString(e) == test.expr {
+				got = predString(tv)
+				break
+			}
+		}
+
+		if got != test.pred {
+			t.Errorf("package %s: got %s; want %s", name, got, test.pred)
 		}
 	}
 }

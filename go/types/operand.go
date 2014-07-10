@@ -15,7 +15,7 @@ import (
 )
 
 // An operandMode specifies the (addressing) mode of an operand.
-type operandMode int
+type operandMode byte
 
 const (
 	invalid  operandMode = iota // operand is invalid
