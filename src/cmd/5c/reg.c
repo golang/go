@@ -204,6 +204,16 @@ regopt(Prog *p)
 			break;
 		}
 
+		/* the mod/div runtime routines smash R12 */
+		switch(p->as) {
+		case AMOD:
+		case AMODU:
+		case ADIV:
+		case ADIVU:
+			regbits |= RtoB(12);
+			break;
+		}
+
 		if(p->as == AMOVM) {
 			if(p->from.type == D_CONST)
 				z = p->from.offset;

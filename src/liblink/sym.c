@@ -154,6 +154,9 @@ linknew(LinkArch *arch)
 		case '8':
 			ctxt->tlsoffset = -8;
 			break;
+		case '5':
+			ctxt->tlsoffset = 0;
+			break;
 		}
 		break;
 

@@ -76,7 +76,7 @@ zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *r0)
 	if(cnt < 4*widthptr) {
 		for(i = 0; i < cnt; i += widthptr) 
 			p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, REGSP, 4+frame+lo+i);
-	} else if(cnt <= 128*widthptr) {
+	} else if(!nacl && (cnt <= 128*widthptr)) {
 		p = appendpp(p, AADD, D_CONST, NREG, 4+frame+lo, D_REG, 1, 0);
 		p->reg = REGSP;
 		p = appendpp(p, ADUFFZERO, D_NONE, NREG, 0, D_OREG, NREG, 0);
@@ -906,7 +906,7 @@ clearfat(Node *nl)
 		patch(gbranch(ABNE, T, 0), pl);
 
 		regfree(&end);
-	} else if(q >= 4) {
+	} else if(q >= 4 && !nacl) {
 		f = sysfunc("duffzero");
 		p = gins(ADUFFZERO, N, f);
 		afunclit(&p->to, f);

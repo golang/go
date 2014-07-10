@@ -359,6 +359,9 @@ static Optab	optab[] =
 	{ ADUFFZERO,	C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },  // same as ABL
 	{ ADUFFCOPY,	C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },  // same as ABL
 
+	{ ADATABUNDLE,	C_NONE, C_NONE, C_NONE,		100, 4, 0 },
+	{ ADATABUNDLEEND,	C_NONE, C_NONE, C_NONE,		100, 0, 0 },
+
 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
 };
 
@@ -372,6 +375,7 @@ static int	checkpool(Link*, Prog*, int);
 static int 	flushpool(Link*, Prog*, int, int);
 static void	addpool(Link*, Prog*, Addr*);
 static void	asmout(Link*, Prog*, Optab*, int32*);
+static int	asmoutnacl(Link*, int32, Prog*, Optab*, int32 *);
 static Optab*	oplook(Link*, Prog*);
 static int32	oprrr(Link*, int, int);
 static int32	olr(Link*, int32, int, int, int);
@@ -411,25 +415,14 @@ static Prog zprg = {
 	},
 };
 
+static LSym *deferreturn;
+
 static void
 nocache(Prog *p)
 {
 	p->optab = 0;
 	p->from.class = 0;
 	p->to.class = 0;
-}
-
-static int
-scan(Link *ctxt, Prog *op, Prog *p, int c)
-{
-	Prog *q;
-
-	for(q = op->link; q != p && q != nil; q = q->link){
-		q->pc = c;
-		c += oplook(ctxt, q)->size;
-		nocache(q);
-	}
-	return c;
 }
 
 /* size of a case statement including jump table */
@@ -453,13 +446,250 @@ casesz(Link *ctxt, Prog *p)
 
 static void buildop(Link*);
 
+// asmoutnacl assembles the instruction p. It replaces asmout for NaCl.
+// It returns the total number of bytes put in out, and it can change
+// p->pc if extra padding is necessary.
+// In rare cases, asmoutnacl might split p into two instructions.
+// origPC is the PC for this Prog (no padding is taken into account).
+static int
+asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, int32 *out)
+{
+	int size, reg;
+	Prog *q;
+	Addr *a, *a2;
+
+	size = o->size;
+
+	// instruction specific
+	switch(p->as) {
+	default:
+		if(out != nil)
+			asmout(ctxt, p, o, out);
+		break;
+	case ADATABUNDLE: // align to 16-byte boundary
+	case ADATABUNDLEEND: // zero width instruction, just to align next instruction to 16-byte boundary
+		p->pc = (p->pc+15) & ~15;
+		if(out != nil)
+			asmout(ctxt, p, o, out);
+		break;
+	case AUNDEF:
+	case APLD:
+		size = 4;
+		if(out != nil) {
+			switch(p->as) {
+			case AUNDEF:
+				out[0] = 0xe7fedef0; // NACL_INSTR_ARM_ABORT_NOW (UDF #0xEDE0)
+				break;
+			case APLD:
+				out[0] = 0xe1a01001; // (MOVW R1, R1)
+				break;
+			}
+		}
+		break;
+	case AB:
+	case ABL:
+		if(p->to.type != D_OREG) {
+			if(out != nil)
+				asmout(ctxt, p, o, out);
+		} else {
+			if(p->to.offset != 0 || size != 4 || p->to.reg >= 16 || p->to.reg < 0)
+				ctxt->diag("unsupported instruction: %P", p);
+			if((p->pc&15) == 12)
+				p->pc += 4;
+			if(out != nil) {
+				out[0] = ((p->scond&C_SCOND)<<28) | 0x03c0013f | (p->to.reg << 12) | (p->to.reg << 16); // BIC $0xc000000f, Rx
+				if(p->as == AB)
+					out[1] = ((p->scond&C_SCOND)<<28) | 0x012fff10 | p->to.reg; // BX Rx
+				else // ABL
+					out[1] = ((p->scond&C_SCOND)<<28) | 0x012fff30 | p->to.reg; // BLX Rx
+			}
+			size = 8;
+		}
+		// align the last instruction (the actual BL) to the last instruction in a bundle
+		if(p->as == ABL) {
+			if(deferreturn == nil)
+				deferreturn = linklookup(ctxt, "runtime.deferreturn", 0);
+			if(p->to.sym == deferreturn)
+				p->pc = ((origPC+15) & ~15) + 16 - size;
+			else
+				p->pc += (16 - ((p->pc+size)&15)) & 15;
+		}
+		break;
+	case ALDREX:
+	case ALDREXD:
+	case AMOVB:
+	case AMOVBS:
+	case AMOVBU:
+	case AMOVD:
+	case AMOVF:
+	case AMOVH:
+	case AMOVHS:
+	case AMOVHU:
+	case AMOVM:
+	case AMOVW:
+	case ASTREX:
+	case ASTREXD:
+		if(p->to.type == D_REG && p->to.reg == 15 && p->from.reg == 13) { // MOVW.W x(R13), PC
+			if(out != nil)
+				asmout(ctxt, p, o, out);
+			if(size == 4) {
+				if(out != nil) {
+					// Note: 5c and 5g reg.c know that DIV/MOD smashes R12
+					// so that this return instruction expansion is valid.
+					out[0] = out[0] & ~0x3000; // change PC to R12
+					out[1] = ((p->scond&C_SCOND)<<28) | 0x03ccc13f; // BIC $0xc000000f, R12
+					out[2] = ((p->scond&C_SCOND)<<28) | 0x012fff1c; // BX R12
+				}
+				size += 8;
+				if(((p->pc+size) & 15) == 4)
+					p->pc += 4;
+				break;
+			} else {
+				// if the instruction used more than 4 bytes, then it must have used a very large
+				// offset to update R13, so we need to additionally mask R13.
+				if(out != nil) {
+					out[size/4-1] &= ~0x3000; // change PC to R12
+					out[size/4] = ((p->scond&C_SCOND)<<28) | 0x03cdd103; // BIC $0xc0000000, R13
+					out[size/4+1] = ((p->scond&C_SCOND)<<28) | 0x03ccc13f; // BIC $0xc000000f, R12
+					out[size/4+2] = ((p->scond&C_SCOND)<<28) | 0x012fff1c; // BX R12
+				}
+				// p->pc+size is only ok at 4 or 12 mod 16.
+				if((p->pc+size)%8 == 0)
+					p->pc += 4;
+				size += 12;
+				break;
+			}
+		}
+
+		if(p->to.type == D_REG && p->to.reg == 15)
+			ctxt->diag("unsupported instruction (move to another register and use indirect jump instead): %P", p);
+
+		if(p->to.type == D_OREG && p->to.reg == 13 && (p->scond & C_WBIT) && size > 4) {
+			// function prolog with very large frame size: MOVW.W R14,-100004(R13)
+			// split it into two instructions:
+			// 	ADD $-100004, R13
+			// 	MOVW R14, 0(R13)
+			q = ctxt->arch->prg();
+			p->scond &= ~C_WBIT;
+			*q = *p;
+			a = &p->to;
+			if(p->to.type == D_OREG)
+				a2 = &q->to;
+			else
+				a2 = &q->from;
+			nocache(q);
+			nocache(p);
+			// insert q after p
+			q->link = p->link;
+			p->link = q;
+			q->pcond = nil;
+			// make p into ADD $X, R13
+			p->as = AADD;
+			p->from = *a;
+			p->from.reg = NREG;
+			p->from.type = D_CONST;
+			p->to = zprg.to;
+			p->to.type = D_REG;
+			p->to.reg = 13;
+			// make q into p but load/store from 0(R13)
+			q->spadj = 0;
+			*a2 = zprg.from;
+			a2->type = D_OREG;
+			a2->reg = 13;
+			a2->sym = nil;
+			a2->offset = 0;
+			size = oplook(ctxt, p)->size;
+			break;
+		}
+
+		if((p->to.type == D_OREG && p->to.reg != 13 && p->to.reg != 9) || // MOVW Rx, X(Ry), y != 13 && y != 9
+		   (p->from.type == D_OREG && p->from.reg != 13 && p->from.reg != 9)) { // MOVW X(Rx), Ry, x != 13 && x != 9
+			if(p->to.type == D_OREG)
+				a = &p->to;
+			else
+				a = &p->from;
+			reg = a->reg;
+			if(size == 4) {
+				// if addr.reg == NREG, then it is probably load from x(FP) with small x, no need to modify.
+				if(reg == NREG) {
+					if(out != nil)
+						asmout(ctxt, p, o, out);
+				} else {
+					if(out != nil)
+						out[0] = ((p->scond&C_SCOND)<<28) | 0x03c00103 | (reg << 16) | (reg << 12); // BIC $0xc0000000, Rx
+					if((p->pc&15) == 12)
+						p->pc += 4;
+					size += 4;
+					if(out != nil)
+						asmout(ctxt, p, o, &out[1]);
+				}
+				break;
+			} else {
+				// if a load/store instruction takes more than 1 word to implement, then
+				// we need to seperate the instruction into two:
+				// 1. explicitly load the address into R11.
+				// 2. load/store from R11.
+				// This won't handle .W/.P, so we should reject such code.
+				if(p->scond & (C_PBIT|C_WBIT))
+					ctxt->diag("unsupported instruction (.P/.W): %P", p);
+				q = ctxt->arch->prg();
+				*q = *p;
+				if(p->to.type == D_OREG)
+					a2 = &q->to;
+				else
+					a2 = &q->from;
+				nocache(q);
+				nocache(p);
+				// insert q after p
+				q->link = p->link;
+				p->link = q;
+				q->pcond = nil;
+				// make p into MOVW $X(R), R11
+				p->as = AMOVW;
+				p->from = *a;
+				p->from.type = D_CONST;
+				p->to = zprg.to;
+				p->to.type = D_REG;
+				p->to.reg = 11;
+				// make q into p but load/store from 0(R11)
+				*a2 = zprg.from;
+				a2->type = D_OREG;
+				a2->reg = 11;
+				a2->sym = nil;
+				a2->offset = 0;
+				size = oplook(ctxt, p)->size;
+				break;
+			}
+		} else if(out != nil)
+			asmout(ctxt, p, o, out);
+		break;
+	}
+
+	// destination register specific
+	if(p->to.type == D_REG) {
+		switch(p->to.reg) {
+		case 9:
+			ctxt->diag("invalid instruction, cannot write to R9: %P", p);
+			break;
+		case 13:
+			if(out != nil)
+				out[size/4] = 0xe3cdd103; // BIC $0xc0000000, R13
+			if(((p->pc+size) & 15) == 0)
+				p->pc += 4;
+			size += 4;
+			break;
+		}
+	}
+	return size;
+}
+
 void
 span5(Link *ctxt, LSym *cursym)
 {
 	Prog *p, *op;
 	Optab *o;
-	int m, bflag, i, v;
-	int32 c, out[6];
+	int m, bflag, i, v, times;
+	int32 c, opc, out[6+3];
 	uchar *bp;
 
 	p = cursym->text;
@@ -472,21 +702,40 @@ span5(Link *ctxt, LSym *cursym)
  	ctxt->cursym = cursym;
 
 	ctxt->autosize = p->to.offset + 4;
-	c = 0;	
+	c = 0;
 
-	for(op = p, p = p->link; p != nil; op = p, p = p->link) {
+	for(op = p, p = p->link; p != nil || ctxt->blitrl != nil; op = p, p = p->link) {
+		if(p == nil) {
+		       	if(checkpool(ctxt, op, 0)) {
+				p = op;
+				continue;
+			}
+			// can't happen: blitrl is not nil, but checkpool didn't flushpool
+			ctxt->diag("internal inconsistency");
+			break;
+		}
 		ctxt->curp = p;
 		p->pc = c;
 		o = oplook(ctxt, p);
 		m = o->size;
+		if(ctxt->headtype != Hnacl) {
+			m = o->size;
+		} else {
+			m = asmoutnacl(ctxt, c, p, o, nil);
+			c = p->pc; // asmoutnacl might change pc for alignment
+			o = oplook(ctxt, p); // asmoutnacl might change p in rare cases
+		}
+		if(m % 4 != 0 || p->pc % 4 != 0) {
+			ctxt->diag("!pc invalid: %P size=%d", p, m);
+		}
 		// must check literal pool here in case p generates many instructions
 		if(ctxt->blitrl){
 			if(checkpool(ctxt, op, p->as == ACASE ? casesz(ctxt, p) : m)) {
-				p->pc = scan(ctxt, op, p, c);
-				c = p->pc;
+				p = op;
+				continue;
 			}
 		}
-		if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA)) {
+		if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND)) {
 			ctxt->diag("zero-width instruction\n%P", p);
 			continue;
 		}
@@ -506,10 +755,6 @@ span5(Link *ctxt, LSym *cursym)
 			flushpool(ctxt, p, 0, 0);
 		c += m;
 	}
-	if(ctxt->blitrl){
-		if(checkpool(ctxt, op, 0))
-			c = scan(ctxt, op, nil, c);
-	}
 	cursym->size = c;
 
 	/*
@@ -518,15 +763,19 @@ span5(Link *ctxt, LSym *cursym)
 	 * generate extra passes putting branches
 	 * around jmps to fix. this is rare.
 	 */
+	times = 0;
 	do {
 		if(ctxt->debugvlog)
 			Bprint(ctxt->bso, "%5.2f span1\n", cputime());
 		bflag = 0;
 		c = 0;
+		times++;
+		cursym->text->pc = 0; // force re-layout the code.
 		for(p = cursym->text; p != nil; p = p->link) {
 			ctxt->curp = p;
-			p->pc = c;
 			o = oplook(ctxt,p);
+			if(c > p->pc)
+				p->pc = c;
 /* very large branches
 			if(o->type == 6 && p->pcond) {
 				otxt = p->pcond->pc - c;
@@ -550,8 +799,24 @@ span5(Link *ctxt, LSym *cursym)
 				}
 			}
  */
-			m = o->size;
-			if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA)) {
+			opc = p->pc;
+			if(ctxt->headtype != Hnacl) {
+				m = o->size;
+			} else {
+				m = asmoutnacl(ctxt, c, p, o, nil);
+				c = p->pc; // asmoutnacl might change pc for alignment
+			}
+			if(p->pc != opc) {
+				bflag = 1;
+				//print("%P pc changed %d to %d in iter. %d\n", p, opc, (int32)p->pc, times);
+			}
+			c = p->pc + m;
+			if(m % 4 != 0 || p->pc % 4 != 0) {
+				ctxt->diag("pc invalid: %P size=%d", p, m);
+			}
+			if(m > sizeof(out))
+				ctxt->diag("instruction size too large: %d > %d", m, sizeof(out));
+			if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND)) {
 				if(p->as == ATEXT) {
 					ctxt->autosize = p->to.offset + 4;
 					continue;
@@ -559,10 +824,12 @@ span5(Link *ctxt, LSym *cursym)
 				ctxt->diag("zero-width instruction\n%P", p);
 				continue;
 			}
-			c += m;
 		}
 		cursym->size = c;
 	} while(bflag);
+	if(c % 4 != 0) {
+		ctxt->diag("sym->size=%d, invalid", c);
+	}
 
 	/*
 	 * lay out the code.  all the pc-relative code references,
@@ -580,18 +847,41 @@ span5(Link *ctxt, LSym *cursym)
 	symgrow(ctxt, cursym, cursym->size);
 
 	bp = cursym->p;
+	c = p->pc; // even p->link might need extra padding
 	for(p = p->link; p != nil; p = p->link) {
 		ctxt->pc = p->pc;
 		ctxt->curp = p;
 		o = oplook(ctxt, p);
-		asmout(ctxt, p, o, out);
-		for(i=0; i<o->size/4; i++) {
+		opc = p->pc;
+		if(ctxt->headtype != Hnacl) {
+			asmout(ctxt, p, o, out);
+			m = o->size;
+		} else {
+			m = asmoutnacl(ctxt, c, p, o, out);
+			if(opc != p->pc)
+				ctxt->diag("asmoutnacl broken: pc changed (%d->%d) in last stage: %P", opc, (int32)p->pc, p);
+		}
+		if(m % 4 != 0 || p->pc % 4 != 0) {
+			ctxt->diag("final stage: pc invalid: %P size=%d", p, m);
+		}
+		if(c > p->pc)
+			ctxt->diag("PC padding invalid: want %#lld, has %#d: %P", p->pc, c, p);
+		while(c != p->pc) {
+			// emit 0xe1a00000 (MOVW R0, R0)
+			*bp++ = 0x00;
+			*bp++ = 0x00;
+			*bp++ = 0xa0;
+			*bp++ = 0xe1;
+			c += 4;
+		}
+		for(i=0; i<m/4; i++) {
 			v = out[i];
 			*bp++ = v;
 			*bp++ = v>>8;
 			*bp++ = v>>16;
 			*bp++ = v>>24;
 		}
+		c += m;
 	}
 }
 
@@ -604,7 +894,7 @@ span5(Link *ctxt, LSym *cursym)
 static int
 checkpool(Link *ctxt, Prog *p, int sz)
 {
-	if(pool.size >= 0xffc || immaddr((p->pc+sz+4)+4+pool.size - pool.start+8) == 0)
+	if(pool.size >= 0xff0 || immaddr((p->pc+sz+4)+4+(12+pool.size) - (pool.start+8)) == 0)
 		return flushpool(ctxt, p, 1, 0);
 	else if(p->link == nil)
 		return flushpool(ctxt, p, 2, 0);
@@ -627,8 +917,15 @@ flushpool(Link *ctxt, Prog *p, int skip, int force)
 			q->lineno = p->lineno;
 			ctxt->blitrl = q;
 		}
-		else if(!force && (p->pc+pool.size-pool.start < 2048))
+		else if(!force && (p->pc+(12+pool.size)-pool.start < 2048)) // 12 take into account the maximum nacl literal pool alignment padding size
 			return 0;
+		if(ctxt->headtype == Hnacl && pool.size % 16 != 0) {
+			// if pool is not multiple of 16 bytes, add an alignment marker
+			q = ctxt->arch->prg();
+			q->as = ADATABUNDLEEND;
+			ctxt->elitrl->link = q;
+			ctxt->elitrl = q;
+		}
 		ctxt->elitrl->link = p->link;
 		p->link = ctxt->blitrl;
 		// BUG(minux): how to correctly handle line number for constant pool entries?
@@ -687,6 +984,22 @@ addpool(Link *ctxt, Prog *p, Addr *a)
 				p->pcond = q;
 				return;
 			}
+	}
+
+	if(ctxt->headtype == Hnacl && pool.size%16 == 0) {
+		// start a new data bundle
+		q = ctxt->arch->prg();
+		*q = zprg;
+		q->as = ADATABUNDLE;
+		q->pc = pool.size;
+		pool.size += 4;
+		if(ctxt->blitrl == nil) {
+			ctxt->blitrl = q;
+			pool.start = p->pc;
+		} else {
+			ctxt->elitrl->link = q;
+		}
+		ctxt->elitrl = q;
 	}
 
 	q = ctxt->arch->prg();
@@ -1210,6 +1523,8 @@ buildop(Link *ctxt)
 		case ACLZ:
 		case AFUNCDATA:
 		case APCDATA:
+		case ADATABUNDLE:
+		case ADATABUNDLEEND:
 			break;
 		}
 	}
@@ -2028,6 +2343,12 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= p->from.reg << 8;
 		o1 |= p->reg;
 		o1 |= p->to.offset << 16;
+		break;
+	case 100:
+		// DATABUNDLE: BKPT $0x5be0, signify the start of NaCl data bundle;
+		// DATABUNDLEEND: zero width alignment marker
+		if(p->as == ADATABUNDLE)
+			o1 = 0xe125be70;
 		break;
 	}
 	

@@ -877,11 +877,15 @@ xtramodes(Graph *g, Flow *r, Adr *a)
 				switch (p1->from.type) {
 				case D_REG:
 					/* register offset */
+					if(nacl)
+						return 0;
 					a->type = D_SHIFT;
 					a->offset = p1->from.reg;
 					break;
 				case D_SHIFT:
 					/* scaled register offset */
+					if(nacl)
+						return 0;
 					a->type = D_SHIFT;
 				case D_CONST:
 					/* immediate offset */
