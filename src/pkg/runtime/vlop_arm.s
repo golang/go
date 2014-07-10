@@ -108,7 +108,8 @@ TEXT udiv<>(SB),NOSPLIT,$-4
 	CLZ 	R(q), R(s) // find normalizing shift
 	MOVW.S	R(q)<<R(s), R(a)
 	MOVW	$fast_udiv_tab<>-64(SB), R(M)
-	MOVBU.NE	R(a)>>25(R(M)), R(a) // index by most significant 7 bits of divisor
+	ADD.NE	R(a)>>25, R(M), R(a) // index by most significant 7 bits of divisor
+	MOVBU.NE	(R(a)), R(a)
 
 	SUB.S	$7, R(s)
 	RSB 	$0, R(q), R(M) // M = -q
@@ -181,26 +182,26 @@ udiv_by_0:
 	MOVW	R1, 0(R13) // expected here for traceback
 	B 	runtime·panicdivide(SB)
 
-TEXT fast_udiv_tab<>(SB),NOSPLIT,$-4
-	// var tab [64]byte
-	// tab[0] = 255; for i := 1; i <= 63; i++ { tab[i] = (1<<14)/(64+i) }
-	// laid out here as little-endian uint32s
-	WORD $0xf4f8fcff
-	WORD $0xe6eaedf0
-	WORD $0xdadde0e3
-	WORD $0xcfd2d4d7
-	WORD $0xc5c7cacc
-	WORD $0xbcbec0c3
-	WORD $0xb4b6b8ba
-	WORD $0xacaeb0b2
-	WORD $0xa5a7a8aa
-	WORD $0x9fa0a2a3
-	WORD $0x999a9c9d
-	WORD $0x93949697
-	WORD $0x8e8f9092
-	WORD $0x898a8c8d
-	WORD $0x85868788
-	WORD $0x81828384
+// var tab [64]byte
+// tab[0] = 255; for i := 1; i <= 63; i++ { tab[i] = (1<<14)/(64+i) }
+// laid out here as little-endian uint32s
+DATA fast_udiv_tab<>+0x00(SB)/4, $0xf4f8fcff
+DATA fast_udiv_tab<>+0x04(SB)/4, $0xe6eaedf0
+DATA fast_udiv_tab<>+0x08(SB)/4, $0xdadde0e3
+DATA fast_udiv_tab<>+0x0c(SB)/4, $0xcfd2d4d7
+DATA fast_udiv_tab<>+0x10(SB)/4, $0xc5c7cacc
+DATA fast_udiv_tab<>+0x14(SB)/4, $0xbcbec0c3
+DATA fast_udiv_tab<>+0x18(SB)/4, $0xb4b6b8ba
+DATA fast_udiv_tab<>+0x1c(SB)/4, $0xacaeb0b2
+DATA fast_udiv_tab<>+0x20(SB)/4, $0xa5a7a8aa
+DATA fast_udiv_tab<>+0x24(SB)/4, $0x9fa0a2a3
+DATA fast_udiv_tab<>+0x28(SB)/4, $0x999a9c9d
+DATA fast_udiv_tab<>+0x2c(SB)/4, $0x93949697
+DATA fast_udiv_tab<>+0x30(SB)/4, $0x8e8f9092
+DATA fast_udiv_tab<>+0x34(SB)/4, $0x898a8c8d
+DATA fast_udiv_tab<>+0x38(SB)/4, $0x85868788
+DATA fast_udiv_tab<>+0x3c(SB)/4, $0x81828384
+GLOBL fast_udiv_tab<>(SB), RODATA, $64
 
 // The linker will pass numerator in R(TMP), and it also
 // expects the result in R(TMP)

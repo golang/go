@@ -23,6 +23,10 @@
 // NOTE: runtime.gogo assumes that R1 is preserved by this function.
 //       runtime.mcall assumes this function only clobbers R0 and R11.
 TEXT runtime·save_g(SB),NOSPLIT,$0
+#ifdef GOOS_nacl
+	// nothing to do as nacl/arm does not use TLS at all.
+	RET
+#endif
 	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the TLS base pointer to our
@@ -40,6 +44,10 @@ TEXT runtime·save_g(SB),NOSPLIT,$0
 // thread-local memory, for use after calling externally compiled
 // ARM code that overwrote those registers.
 TEXT runtime·load_g(SB),NOSPLIT,$0
+#ifdef GOOS_nacl
+	// nothing to do as nacl/arm does not use TLS at all.
+	RET
+#endif
 	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the TLS base pointer to our
