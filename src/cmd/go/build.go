@@ -1951,9 +1951,9 @@ func (b *builder) libgcc(p *Package) (string, error) {
 		return "$LIBGCC", nil
 	}
 
-	// clang might not be able to find libgcc, and in that case,
+	// The compiler might not be able to find libgcc, and in that case,
 	// it will simply return "libgcc.a", which is of no use to us.
-	if strings.Contains(gccCmd[0], "clang") && !filepath.IsAbs(string(f)) {
+	if !filepath.IsAbs(string(f)) {
 		return "", nil
 	}
 
