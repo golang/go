@@ -356,7 +356,11 @@ func (p *process) naclCmd(bin string) (*exec.Cmd, error) {
 		args = []string{"sel_ldr_x86_32"}
 	case "arm":
 		env = append(env, "NACLENV_GOARCH=arm")
-		args = []string{"nacl_helper_bootstrap_arm", "sel_ldr_arm", "--reserved_at_zero=0xXXXXXXXXXXXXXXXX"}
+		selLdr, err := exec.LookPath("sel_ldr_arm")
+		if err != nil {
+			return nil, err
+		}
+		args = []string{"nacl_helper_bootstrap_arm", selLdr, "--reserved_at_zero=0xXXXXXXXXXXXXXXXX"}
 	default:
 		return nil, errors.New("native client does not support GOARCH=" + runtime.GOARCH)
 	}
