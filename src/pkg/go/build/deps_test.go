@@ -327,7 +327,7 @@ var pkgDeps = map[string][]string{
 	"net/http/httptest": {"L4", "NET", "OS", "crypto/tls", "flag", "net/http"},
 	"net/http/httputil": {"L4", "NET", "OS", "net/http"},
 	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof"},
-	"net/rpc":           {"L4", "NET", "encoding/gob", "net/http", "text/template"},
+	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
 	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
 }
 
