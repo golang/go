@@ -60,7 +60,7 @@ swit2(C1 *q, int nc, int32 def, Node *n)
 
 	if(nc >= 3) {
 		i = (q+nc-1)->val - (q+0)->val;
-		if(i > 0 && i < nc*2)
+		if(!nacl && i > 0 && i < nc*2)
 			goto direct;
 	}
 	if(nc < 5) {

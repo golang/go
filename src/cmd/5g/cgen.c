@@ -1497,7 +1497,7 @@ sgen(Node *n, Node *res, int64 w)
 	if(osrc < odst && odst < osrc+w)
 		dir = -dir;
 
-	if(op == AMOVW && dir > 0 && c >= 4 && c <= 128) {
+	if(op == AMOVW && !nacl && dir > 0 && c >= 4 && c <= 128) {
 		r0.op = OREGISTER;
 		r0.val.u.reg = REGALLOC_R0;
 		r1.op = OREGISTER;
