@@ -21,7 +21,8 @@ xgetgoarm(void)
 	// FreeBSD has broken VFP support
 	return "5";
 #endif
-	if(xtryexecfunc(useVFPv3))
+	// NaCl always has VFP support.
+	if(streq(goos, "nacl") || xtryexecfunc(useVFPv3))
 		return "7";
 	else if(xtryexecfunc(useVFPv1))
 		return "6";
