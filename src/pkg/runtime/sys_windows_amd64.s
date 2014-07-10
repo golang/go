@@ -367,7 +367,10 @@ usleep1_ret:
 	RET
 
 // Runs on OS stack. duration (in 100ns units) is in BX.
-TEXT runtime·usleep2(SB),NOSPLIT,$8
+TEXT runtime·usleep2(SB),NOSPLIT,$16
+	MOVQ	SP, AX
+	ANDQ	$~15, SP	// alignment as per Windows requirement
+	MOVQ	AX, 8(SP)
 	// Want negative 100ns units.
 	NEGQ	BX
 	MOVQ	SP, R8 // ptime
@@ -376,4 +379,5 @@ TEXT runtime·usleep2(SB),NOSPLIT,$8
 	MOVQ	$0, DX // alertable
 	MOVQ	runtime·NtWaitForSingleObject(SB), AX
 	CALL	AX
+	MOVQ	8(SP), SP
 	RET
