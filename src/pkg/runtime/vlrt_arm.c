@@ -506,6 +506,7 @@ _mmv(Vlong *l, Vlong *r)
 	l->lo = r->lo;
 }
 
+#pragma textflag NOSPLIT
 void
 _vasop(Vlong *ret, void *lv, void fn(Vlong*, Vlong, Vlong), int type, Vlong rv)
 {

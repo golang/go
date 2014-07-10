@@ -36,6 +36,7 @@ TEXT _rt0_go(SB),NOSPLIT,$-4
 	MOVW	R13, g_stackbase(g)
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
+#ifndef GOOS_nacl
 	// if there is an _cgo_init, call it.
 	MOVW	_cgo_init(SB), R4
 	CMP	$0, R4
@@ -46,6 +47,7 @@ TEXT _rt0_go(SB),NOSPLIT,$-4
 	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
 	MOVW	g, R0 			// arg 0: G
 	BL	(R4) // will clobber R0-R3
+#endif
 
 nocgo:
 	// update stackguard after _cgo_init
@@ -90,7 +92,11 @@ GLOBL	runtime·main·f(SB),RODATA,$4
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	// gdb won't skip this breakpoint instruction automatically,
 	// so you must manually "set $pc+=4" to skip it and continue.
+#ifdef GOOS_nacl
+	WORD	$0xe125be7f	// BKPT 0x5bef, NACL_INSTR_ARM_BREAKPOINT
+#else
 	WORD	$0xe1200071	// BKPT 0x0001
+#endif
 	RET
 
 TEXT runtime·asminit(SB),NOSPLIT,$0-0
@@ -139,7 +145,8 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
 	MOVW	R11, gobuf_lr(R1)
 	MOVW	R11, gobuf_ctxt(R1)
 	CMP	R11, R11 // set condition codes for == test, needed by stack split
-	MOVW	gobuf_pc(R1), PC
+	MOVW	gobuf_pc(R1), R11
+	B	(R11)
 
 // void mcall(void (*fn)(G*))
 // Switch to m->g0's stack, call fn(g).
