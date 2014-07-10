@@ -67,6 +67,9 @@ if [ ! -f make.bash ]; then
 fi
 GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH ./make.bash
 
+# the builder might have set GOROOT_FINAL.
+export GOROOT=$(pwd)/..
+
 # Build zip file embedded in package syscall.
 gobin=${GOBIN:-$(pwd)/../bin}
 rm -f pkg/syscall/fstest_nacl.go
