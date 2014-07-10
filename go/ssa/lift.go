@@ -108,6 +108,21 @@ func buildDomFrontier(fn *Function) domFrontier {
 	return df
 }
 
+func removeInstr(refs []Instruction, instr Instruction) []Instruction {
+	i := 0
+	for _, ref := range refs {
+		if ref == instr {
+			continue
+		}
+		refs[i] = ref
+		i++
+	}
+	for j := i; j != len(refs); j++ {
+		refs[j] = nil // aid GC
+	}
+	return refs[:i]
+}
+
 // lift attempts to replace local and new Allocs accessed only with
 // load/store by SSA registers, inserting φ-nodes where necessary.
 // The result is a program in classical pruned SSA form.
@@ -208,7 +223,13 @@ func lift(fn *Function) {
 		j := 0
 		for _, np := range nps {
 			if !phiIsLive(np.phi) {
-				continue // discard it
+				// discard it, first removing it from referrers
+				for _, newval := range np.phi.Edges {
+					if refs := newval.Referrers(); refs != nil {
+						*refs = removeInstr(*refs, np.phi)
+					}
+				}
+				continue
 			}
 			nps[j] = np
 			j++
@@ -494,6 +515,10 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 				if debugLifting {
 					fmt.Fprintf(os.Stderr, "\tkill store %s; new value: %s\n",
 						instr, instr.Val.Name())
+				}
+				// Remove the store from the referrer list of the stored value.
+				if refs := instr.Val.Referrers(); refs != nil {
+					*refs = removeInstr(*refs, instr)
 				}
 				// Delete the Store.
 				u.Instrs[i] = nil

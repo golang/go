@@ -20,6 +20,7 @@ type sanity struct {
 	reporter io.Writer
 	fn       *Function
 	block    *BasicBlock
+	instrs   map[Instruction]struct{}
 	insane   bool
 }
 
@@ -185,7 +186,8 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		}
 	}
 
-	// Check that value-defining instructions have valid types.
+	// Check that value-defining instructions have valid types
+	// and a valid referrer list.
 	if v, ok := instr.(Value); ok {
 		t := v.Type()
 		if t == nil {
@@ -195,6 +197,7 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		} else if b, ok := t.Underlying().(*types.Basic); ok && b.Info()&types.IsUntyped != 0 {
 			s.errorf("instruction has 'untyped' result: %s = %s : %s", v.Name(), v, t)
 		}
+		s.checkReferrerList(v)
 	}
 
 	// Untyped constants are legal as instruction Operands(),
@@ -381,6 +384,19 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 	}
 }
 
+func (s *sanity) checkReferrerList(v Value) {
+	refs := v.Referrers()
+	if refs == nil {
+		s.errorf("%s has missing referrer list", v.Name())
+		return
+	}
+	for i, ref := range *refs {
+		if _, ok := s.instrs[ref]; !ok {
+			s.errorf("%s.Referrers()[%d] = %s is not an instruction belonging to this function", v.Name(), i, ref)
+		}
+	}
+}
+
 func (s *sanity) checkFunction(fn *Function) bool {
 	// TODO(adonovan): check Function invariants:
 	// - check params match signature
@@ -418,15 +434,24 @@ func (s *sanity) checkFunction(fn *Function) bool {
 			s.errorf("Local %s at index %d has Heap flag set", l.Name(), i)
 		}
 	}
+	// Build the set of valid referrers.
+	s.instrs = make(map[Instruction]struct{})
+	for _, b := range fn.Blocks {
+		for _, instr := range b.Instrs {
+			s.instrs[instr] = struct{}{}
+		}
+	}
 	for i, p := range fn.Params {
 		if p.Parent() != fn {
 			s.errorf("Param %s at index %d has wrong parent", p.Name(), i)
 		}
+		s.checkReferrerList(p)
 	}
 	for i, fv := range fn.FreeVars {
 		if fv.Parent() != fn {
 			s.errorf("FreeVar %s at index %d has wrong parent", fv.Name(), i)
 		}
+		s.checkReferrerList(fv)
 	}
 
 	if fn.Blocks != nil && len(fn.Blocks) == 0 {
