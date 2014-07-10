@@ -405,10 +405,14 @@ func (f *File) getSymbols(typ SectionType) ([]Symbol, []byte, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
+// ErrNoSymbols is returned by File.Symbols and File.DynamicSymbols
+// if there is no such section in the File.
+var ErrNoSymbols = errors.New("no symbol section")
+
 func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 	symtabSection := f.SectionByType(typ)
 	if symtabSection == nil {
-		return nil, nil, errors.New("no symbol section")
+		return nil, nil, ErrNoSymbols
 	}
 
 	data, err := symtabSection.Data()
@@ -451,7 +455,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	symtabSection := f.SectionByType(typ)
 	if symtabSection == nil {
-		return nil, nil, errors.New("no symbol section")
+		return nil, nil, ErrNoSymbols
 	}
 
 	data, err := symtabSection.Data()
@@ -698,13 +702,25 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	return d, nil
 }
 
-// Symbols returns the symbol table for f.
+// Symbols returns the symbol table for f. The symbols will be listed in the order
+// they appear in f.
 //
 // For compatibility with Go 1.0, Symbols omits the null symbol at index 0.
 // After retrieving the symbols as symtab, an externally supplied index x
 // corresponds to symtab[x-1], not symtab[x].
 func (f *File) Symbols() ([]Symbol, error) {
 	sym, _, err := f.getSymbols(SHT_SYMTAB)
+	return sym, err
+}
+
+// DynamicSymbols returns the dynamic symbol table for f. The symbols
+// will be listed in the order they appear in f.
+//
+// For compatibility with Symbols, DynamicSymbols omits the null symbol at index 0.
+// After retrieving the symbols as symtab, an externally supplied index x
+// corresponds to symtab[x-1], not symtab[x].
+func (f *File) DynamicSymbols() ([]Symbol, error) {
+	sym, _, err := f.getSymbols(SHT_DYNSYM)
 	return sym, err
 }
 
