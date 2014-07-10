@@ -529,6 +529,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 				// &*p must panic if p is nil (http://golang.org/s/go12nil).
 				// For simplicity, we'll just (suboptimally) rely
 				// on the side effects of a load.
+				// TODO(adonovan): emit dedicated nilcheck.
 				addr.load(fn)
 			}
 			return addr.address(fn)
@@ -1563,7 +1564,7 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	fn.currentBlock = done
 }
 
-// rangeIndexed emits to fn the header for an integer indexed loop
+// rangeIndexed emits to fn the header for an integer-indexed loop
 // over array, *array or slice value x.
 // The v result is defined only if tv is non-nil.
 //
@@ -2079,7 +2080,7 @@ func (b *builder) buildFunction(fn *Function) {
 		// Control fell off the end of the function's body block.
 		//
 		// Block optimizations eliminate the current block, if
-		// unreachable.  It is an ssa.builder invariant that
+		// unreachable.  It is a builder invariant that
 		// if this no-arg return is ill-typed for
 		// fn.Signature.Results, this block must be
 		// unreachable.  The sanity checker checks this.

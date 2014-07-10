@@ -264,8 +264,6 @@ type Node interface {
 // will be nil too.  Clients performing whole-program analysis must
 // handle external functions specially.
 //
-// Functions are immutable values; they do not have addresses.
-//
 // Blocks contains the function's control-flow graph (CFG).
 // Blocks[0] is the function entry point; block order is not otherwise
 // semantically significant, though it may affect the readability of
