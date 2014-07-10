@@ -72,6 +72,13 @@ func ImportData(imports map[string]*types.Package, data []byte) (int, *types.Pac
 		p.obj(pkg)
 	}
 
+	// complete interfaces
+	for _, typ := range p.typList {
+		if it, ok := typ.(*types.Interface); ok {
+			it.Complete()
+		}
+	}
+
 	// package was imported completely and without errors
 	pkg.MarkComplete()
 
@@ -254,8 +261,12 @@ func (p *importer) typ() types.Type {
 		return t
 
 	case interfaceTag:
-		t := new(types.Interface)
-		p.record(t)
+		// Create a dummy entry in the type list. This is safe because we
+		// cannot expect the interface type to appear in a cycle, as any
+		// such cycle must contain a named type which would have been
+		// first defined earlier.
+		n := len(p.typList)
+		p.record(nil)
 
 		// read embedded interfaces
 		embeddeds := make([]*types.Named, p.int())
@@ -270,7 +281,8 @@ func (p *importer) typ() types.Type {
 			methods[i] = types.NewFunc(token.NoPos, pkg, name, p.typ().(*types.Signature))
 		}
 
-		*t = *types.NewInterface(methods, embeddeds)
+		t := types.NewInterface(methods, embeddeds)
+		p.typList[n] = t
 		return t
 
 	case mapTag:

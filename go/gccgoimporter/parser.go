@@ -839,6 +839,11 @@ func (p *parser) parsePackage() *types.Package {
 	for p.tok != scanner.EOF {
 		p.parseDirective()
 	}
+	for _, typ := range p.typeMap {
+		if it, ok := typ.(*types.Interface); ok {
+			it.Complete()
+		}
+	}
 	p.pkg.MarkComplete()
 	return p.pkg
 }

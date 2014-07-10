@@ -61,6 +61,8 @@ var tests = []string{
 	`package p; type T chan int`,
 	`package p; type T <-chan complex64`,
 	`package p; type T chan<- map[int]string`,
+	// test case for issue 8177
+	`package p; type T1 interface { F(T2) }; type T2 interface { T1 }`,
 
 	// vars
 	`package p; var X int`,

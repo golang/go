@@ -328,16 +328,21 @@ func (p *exporter) qualifiedName(pkg *types.Package, name string) {
 }
 
 func (p *exporter) signature(sig *types.Signature) {
-	// TODO(gri) We only need to record the receiver type
-	//           for interface methods if we flatten them
-	//           out. If we track embedded types instead,
-	//           the information is already present.
-	// We do need the receiver information (T vs *T)
+	// We need the receiver information (T vs *T)
 	// for methods associated with named types.
+	// We do not record interface receiver types in the
+	// export data because 1) the importer can derive them
+	// from the interface type and 2) they create cycles
+	// in the type graph.
 	if recv := sig.Recv(); recv != nil {
-		// 1-element tuple
-		p.int(1)
-		p.param(recv)
+		if _, ok := recv.Type().Underlying().(*types.Interface); !ok {
+			// 1-element tuple
+			p.int(1)
+			p.param(recv)
+		} else {
+			// 0-element tuple
+			p.int(0)
+		}
 	} else {
 		// 0-element tuple
 		p.int(0)

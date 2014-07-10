@@ -263,29 +263,12 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	}
 	sort.Sort(byUniqueMethodName(methods))
 
-	var allMethods []*Func
 	if embeddeds == nil {
-		allMethods = methods
-	} else {
-		allMethods = append(allMethods, methods...)
-		for _, t := range embeddeds {
-			it := t.Underlying().(*Interface)
-			for _, tm := range it.allMethods {
-				// Make a copy of the method and adjust its receiver type.
-				newm := *tm
-				newmtyp := *tm.typ.(*Signature)
-				newm.typ = &newmtyp
-				newmtyp.recv = NewVar(newm.pos, newm.pkg, "", typ)
-				allMethods = append(allMethods, &newm)
-			}
-		}
 		sort.Sort(byUniqueTypeName(embeddeds))
-		sort.Sort(byUniqueMethodName(allMethods))
 	}
 
 	typ.methods = methods
 	typ.embeddeds = embeddeds
-	typ.allMethods = allMethods
 	return typ
 }
 
@@ -312,6 +295,43 @@ func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
 
 // Empty returns true if t is the empty interface.
 func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
+
+// Complete computes the interface's method set. It must be called by users of
+// NewInterface after the interface's embedded types are fully defined and
+// before using the interface type in any way other than to form other types.
+// Complete returns the receiver.
+func (t *Interface) Complete() *Interface {
+	if t.allMethods != nil {
+		return t
+	}
+
+	var allMethods []*Func
+	if t.embeddeds == nil {
+		if t.methods == nil {
+			allMethods = make([]*Func, 0, 1)
+		} else {
+			allMethods = t.methods
+		}
+	} else {
+		allMethods = append(allMethods, t.methods...)
+		for _, et := range t.embeddeds {
+			it := et.Underlying().(*Interface)
+			it.Complete()
+			for _, tm := range it.allMethods {
+				// Make a copy of the method and adjust its receiver type.
+				newm := *tm
+				newmtyp := *tm.typ.(*Signature)
+				newm.typ = &newmtyp
+				newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
+				allMethods = append(allMethods, &newm)
+			}
+		}
+		sort.Sort(byUniqueMethodName(allMethods))
+	}
+	t.allMethods = allMethods
+
+	return t
+}
 
 // A Map represents a map type.
 type Map struct {
