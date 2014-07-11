@@ -298,14 +298,14 @@ type Function struct {
 	Signature *types.Signature
 	pos       token.Pos
 
-	Synthetic string       // provenance of synthetic function; "" for true source functions
-	syntax    ast.Node     // *ast.Func{Decl,Lit}; replaced with simple ast.Node after build, unless debug mode
-	parent    *Function    // enclosing function if anon; nil if global
-	Pkg       *Package     // enclosing package; nil for shared funcs (wrappers and error.Error)
-	Prog      *Program     // enclosing program
-	Params    []*Parameter // function parameters; for methods, includes receiver
-	FreeVars  []*FreeVar   // free variables whose values must be supplied by closure
-	Locals    []*Alloc
+	Synthetic string        // provenance of synthetic function; "" for true source functions
+	syntax    ast.Node      // *ast.Func{Decl,Lit}; replaced with simple ast.Node after build, unless debug mode
+	parent    *Function     // enclosing function if anon; nil if global
+	Pkg       *Package      // enclosing package; nil for shared funcs (wrappers and error.Error)
+	Prog      *Program      // enclosing program
+	Params    []*Parameter  // function parameters; for methods, includes receiver
+	FreeVars  []*FreeVar    // free variables whose values must be supplied by closure
+	Locals    []*Alloc      // local variables of this function
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
 	Recover   *BasicBlock   // optional; control transfers here after recovered panic
 	AnonFuncs []*Function   // anonymous functions directly beneath this one

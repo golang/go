@@ -38,13 +38,13 @@ func callees(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	// not what the user intended.
 
 	// Reject type conversions.
-	if qpos.info.IsType(e.Fun) {
+	if qpos.info.Types[e.Fun].IsType() {
 		return nil, fmt.Errorf("this is a type conversion, not a function call")
 	}
 
 	// Reject calls to built-ins.
 	if id, ok := unparen(e.Fun).(*ast.Ident); ok {
-		if b, ok := qpos.info.ObjectOf(id).(*types.Builtin); ok {
+		if b, ok := qpos.info.Uses[id].(*types.Builtin); ok {
 			return nil, fmt.Errorf("this is a call to the built-in '%s' operator", b.Name())
 		}
 	}

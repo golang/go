@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"log"
 	"os"
 	"strings"
 
@@ -180,7 +181,8 @@ func findInterestingNode(pkginfo *loader.PackageInfo, path []ast.Node) ([]ast.No
 			return path, actionExpr
 
 		case *ast.SelectorExpr:
-			if pkginfo.ObjectOf(n.Sel) == nil {
+			// TODO(adonovan): use Selections info directly.
+			if pkginfo.Uses[n.Sel] == nil {
 				// TODO(adonovan): is this reachable?
 				return path, actionUnknown
 			}
@@ -267,15 +269,15 @@ func findInterestingNode(pkginfo *loader.PackageInfo, path []ast.Node) ([]ast.No
 				return path[1:], actionPackage
 
 			default:
-				// e.g. blank identifier (go/types bug?)
-				// or y in "switch y := x.(type)" (go/types bug?)
+				// e.g. blank identifier
+				// or y in "switch y := x.(type)"
 				// or code in a _test.go file that's not part of the package.
-				fmt.Printf("unknown reference %s in %T\n", n, path[1])
+				log.Printf("unknown reference %s in %T\n", n, path[1])
 				return path, actionUnknown
 			}
 
 		case *ast.StarExpr:
-			if pkginfo.IsType(n) {
+			if pkginfo.Types[n].IsType() {
 				return path, actionType
 			}
 			return path, actionExpr
@@ -311,7 +313,7 @@ func describeValue(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeValueRe
 	}
 
 	typ := qpos.info.TypeOf(expr)
-	constVal := qpos.info.ValueOf(expr)
+	constVal := qpos.info.Types[expr].Value
 
 	return &describeValueResult{
 		qpos:     qpos,
@@ -497,7 +499,12 @@ func describePackage(o *Oracle, qpos *QueryPos, path []ast.Node) (*describePacka
 	var pkg *types.Package
 	switch n := path[0].(type) {
 	case *ast.ImportSpec:
-		pkgname := qpos.info.ImportSpecPkg(n)
+		var pkgname *types.PkgName
+		if n.Name != nil {
+			pkgname = qpos.info.Defs[n.Name].(*types.PkgName)
+		} else if p := qpos.info.Implicits[n]; p != nil {
+			pkgname = p.(*types.PkgName)
+		}
 		description = fmt.Sprintf("import of package %q", pkgname.Pkg().Path())
 		pkg = pkgname.Pkg()
 
@@ -507,7 +514,7 @@ func describePackage(o *Oracle, qpos *QueryPos, path []ast.Node) (*describePacka
 			pkg = qpos.info.Pkg
 			description = fmt.Sprintf("definition of package %q", pkg.Path())
 		} else {
-			// e.g. import id
+			// e.g. import id "..."
 			//  or  id.F()
 			pkg = qpos.info.ObjectOf(n).Pkg()
 			description = fmt.Sprintf("reference to package %q", pkg.Path())
@@ -662,7 +669,7 @@ func describeStmt(o *Oracle, qpos *QueryPos, path []ast.Node) (*describeStmtResu
 	var description string
 	switch n := path[0].(type) {
 	case *ast.Ident:
-		if qpos.info.ObjectOf(n).Pos() == n.Pos() {
+		if qpos.info.Defs[n] != nil {
 			description = "labelled statement"
 		} else {
 			description = "reference to labelled statement"

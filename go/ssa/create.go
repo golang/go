@@ -131,7 +131,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 			for _, spec := range decl.Specs {
 				for _, id := range spec.(*ast.ValueSpec).Names {
 					if !isBlankIdent(id) {
-						memberFromObject(pkg, pkg.objectOf(id), nil)
+						memberFromObject(pkg, pkg.info.Defs[id], nil)
 					}
 				}
 			}
@@ -140,7 +140,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 			for _, spec := range decl.Specs {
 				for _, id := range spec.(*ast.ValueSpec).Names {
 					if !isBlankIdent(id) {
-						memberFromObject(pkg, pkg.objectOf(id), spec)
+						memberFromObject(pkg, pkg.info.Defs[id], spec)
 					}
 				}
 			}
@@ -149,7 +149,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 			for _, spec := range decl.Specs {
 				id := spec.(*ast.TypeSpec).Name
 				if !isBlankIdent(id) {
-					memberFromObject(pkg, pkg.objectOf(id), nil)
+					memberFromObject(pkg, pkg.info.Defs[id], nil)
 				}
 			}
 		}
@@ -160,7 +160,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 			return // no object
 		}
 		if !isBlankIdent(id) {
-			memberFromObject(pkg, pkg.objectOf(id), decl)
+			memberFromObject(pkg, pkg.info.Defs[id], decl)
 		}
 	}
 }

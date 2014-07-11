@@ -446,19 +446,23 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr, isZero bool)
 // to fn and returning the Value defined by the expression.
 //
 func (b *builder) expr(fn *Function, e ast.Expr) Value {
-	// Is expression a constant?
-	if v := fn.Pkg.info.ValueOf(e); v != nil {
-		return NewConst(v, fn.Pkg.typeOf(e))
-	}
 	e = unparen(e)
-	v := b.expr0(fn, e)
+
+	tv := fn.Pkg.info.Types[e]
+
+	// Is expression a constant?
+	if tv.Value != nil {
+		return NewConst(tv.Value, tv.Type)
+	}
+
+	v := b.expr0(fn, e, tv)
 	if fn.debugInfo() {
 		emitDebugRef(fn, e, v, false)
 	}
 	return v
 }
 
-func (b *builder) expr0(fn *Function, e ast.Expr) Value {
+func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 	switch e := e.(type) {
 	case *ast.BasicLit:
 		panic("non-constant BasicLit") // unreachable
@@ -479,7 +483,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 			return fn2
 		}
 		v := &MakeClosure{Fn: fn2}
-		v.setType(fn.Pkg.typeOf(e))
+		v.setType(tv.Type)
 		for _, fv := range fn2.FreeVars {
 			v.Bindings = append(v.Bindings, fv.outer)
 			fv.outer = nil
@@ -487,14 +491,13 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		return fn.emit(v)
 
 	case *ast.TypeAssertExpr: // single-result form only
-		return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
+		return emitTypeAssert(fn, b.expr(fn, e.X), tv.Type, e.Lparen)
 
 	case *ast.CallExpr:
-		typ := fn.Pkg.typeOf(e)
-		if fn.Pkg.info.IsType(e.Fun) {
+		if fn.Pkg.info.Types[e.Fun].IsType() {
 			// Explicit type conversion, e.g. string(x) or big.Int(x)
 			x := b.expr(fn, e.Args[0])
-			y := emitConv(fn, x, typ)
+			y := emitConv(fn, x, tv.Type)
 			if y != x {
 				switch y := y.(type) {
 				case *Convert:
@@ -509,8 +512,8 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		}
 		// Call to "intrinsic" built-ins, e.g. new, make, panic.
 		if id, ok := unparen(e.Fun).(*ast.Ident); ok {
-			if obj, ok := fn.Pkg.objectOf(id).(*types.Builtin); ok {
-				if v := b.builtin(fn, obj, e.Args, typ, e.Lparen); v != nil {
+			if obj, ok := fn.Pkg.info.Uses[id].(*types.Builtin); ok {
+				if v := b.builtin(fn, obj, e.Args, tv.Type, e.Lparen); v != nil {
 					return v
 				}
 			}
@@ -518,7 +521,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		// Regular function call.
 		var v Call
 		b.setCall(fn, e, &v.Call)
-		v.setType(typ)
+		v.setType(tv.Type)
 		return fn.emit(&v)
 
 	case *ast.UnaryExpr:
@@ -541,7 +544,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 				X:  b.expr(fn, e.X),
 			}
 			v.setPos(e.OpPos)
-			v.setType(fn.Pkg.typeOf(e))
+			v.setType(tv.Type)
 			return fn.emit(v)
 		default:
 			panic(e.Op)
@@ -554,12 +557,12 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		case token.SHL, token.SHR:
 			fallthrough
 		case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
-			return emitArith(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), fn.Pkg.typeOf(e), e.OpPos)
+			return emitArith(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), tv.Type, e.OpPos)
 
 		case token.EQL, token.NEQ, token.GTR, token.LSS, token.LEQ, token.GEQ:
 			cmp := emitCompare(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), e.OpPos)
 			// The type of x==y may be UntypedBool.
-			return emitConv(fn, cmp, DefaultType(fn.Pkg.typeOf(e)))
+			return emitConv(fn, cmp, DefaultType(tv.Type))
 		default:
 			panic("illegal op in BinaryExpr: " + e.Op.String())
 		}
@@ -592,17 +595,17 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 			Max:  max,
 		}
 		v.setPos(e.Lbrack)
-		v.setType(fn.Pkg.typeOf(e))
+		v.setType(tv.Type)
 		return fn.emit(v)
 
 	case *ast.Ident:
-		obj := fn.Pkg.objectOf(e)
+		obj := fn.Pkg.info.Uses[e]
 		// Universal built-in or nil?
 		switch obj := obj.(type) {
 		case *types.Builtin:
-			return &Builtin{name: obj.Name(), sig: fn.Pkg.typeOf(e).(*types.Signature)}
+			return &Builtin{name: obj.Name(), sig: tv.Type.(*types.Signature)}
 		case *types.Nil:
-			return nilConst(fn.Pkg.typeOf(e))
+			return nilConst(tv.Type)
 		}
 		// Package-level func or var?
 		if v := fn.Prog.packageLevelValue(obj); v != nil {
@@ -624,7 +627,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 		case types.MethodExpr:
 			// (*T).f or T.f, the method f from the method-set of type T.
 			// The result is a "thunk".
-			return emitConv(fn, makeThunk(fn.Prog, sel), fn.Pkg.typeOf(e))
+			return emitConv(fn, makeThunk(fn.Prog, sel), tv.Type)
 
 		case types.MethodVal:
 			// e.f where e is an expression and f is a method.
@@ -645,7 +648,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 				Bindings: []Value{v},
 			}
 			c.setPos(e.Sel.Pos())
-			c.setType(fn.Pkg.typeOf(e))
+			c.setType(tv.Type)
 			return fn.emit(c)
 
 		case types.FieldVal:
@@ -952,10 +955,7 @@ func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 		var lval lvalue = blank{}
 		if !isBlankIdent(lhs) {
 			if isDef {
-				// Local may be "redeclared" in the same
-				// scope, so don't blindly create anew.
-				obj := fn.Pkg.objectOf(lhs.(*ast.Ident))
-				if _, ok := fn.objects[obj]; !ok {
+				if obj := fn.Pkg.info.Defs[lhs.(*ast.Ident)]; obj != nil {
 					fn.addNamedLocal(obj)
 				}
 			}
@@ -1310,7 +1310,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 }
 
 func (b *builder) typeCaseBody(fn *Function, cc *ast.CaseClause, x Value, done *BasicBlock) {
-	if obj := fn.Pkg.info.TypeCaseVar(cc); obj != nil {
+	if obj := fn.Pkg.info.Implicits[cc]; obj != nil {
 		// In a switch y := x.(type), each case clause
 		// implicitly declares a distinct object y.
 		// In a single-type case, y has that type.
@@ -2115,7 +2115,7 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 		v.setType(types.NewTuple())
 		pkg.init.emit(&v)
 	} else {
-		fn = pkg.values[pkg.objectOf(id)].(*Function)
+		fn = pkg.values[pkg.info.Defs[id]].(*Function)
 	}
 	b.buildFunction(fn)
 }
@@ -2250,6 +2250,7 @@ func (p *Package) Build() {
 	}
 }
 
+// Like ObjectOf, but panics instead of returning nil.
 // Only valid during p's create and build phases.
 func (p *Package) objectOf(id *ast.Ident) types.Object {
 	if o := p.info.ObjectOf(id); o != nil {
@@ -2259,9 +2260,14 @@ func (p *Package) objectOf(id *ast.Ident) types.Object {
 		id.Name, p.Prog.Fset.Position(id.Pos())))
 }
 
+// Like TypeOf, but panics instead of returning nil.
 // Only valid during p's create and build phases.
 func (p *Package) typeOf(e ast.Expr) types.Type {
-	return p.info.TypeOf(e)
+	if T := p.info.TypeOf(e); T != nil {
+		return T
+	}
+	panic(fmt.Sprintf("no type for %T @ %s",
+		e, p.Prog.Fset.Position(e.Pos())))
 }
 
 // needMethodsOf ensures that runtime type information (including the

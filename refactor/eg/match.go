@@ -105,7 +105,7 @@ func (tr *Transformer) matchExpr(x, y ast.Expr) bool {
 	case *ast.CallExpr:
 		y := y.(*ast.CallExpr)
 		match := tr.matchExpr // function call
-		if tr.info.IsType(x.Fun) {
+		if tr.info.Types[x.Fun].IsType() {
 			match = tr.matchType // type conversion
 		}
 		return x.Ellipsis.IsValid() == y.Ellipsis.IsValid() &&

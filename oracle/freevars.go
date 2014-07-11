@@ -51,16 +51,12 @@ func freevars(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	}
 
 	id = func(n *ast.Ident) types.Object {
-		obj := qpos.info.ObjectOf(n)
+		obj := qpos.info.Uses[n]
 		if obj == nil {
-			return nil // TODO(adonovan): fix: this fails for *types.Label.
-			panic("no types.Object for ast.Ident")
+			return nil // not a reference
 		}
 		if _, ok := obj.(*types.PkgName); ok {
 			return nil // imported package
-		}
-		if n.Pos() == obj.Pos() {
-			return nil // this ident is the definition, not a reference
 		}
 		if !(file.Pos() <= obj.Pos() && obj.Pos() <= file.End()) {
 			return nil // not defined in this file

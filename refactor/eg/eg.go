@@ -113,7 +113,7 @@ Dot imports are forbidden in the template.
 // TODO(adonovan): expand upon the above documentation as an HTML page.
 
 // TODO(adonovan): eliminate dependency on loader.PackageInfo.
-// Move its ObjectOf/IsType/TypeOf methods into go/types.
+// Move its TypeOf method into go/types.
 
 // A Transformer represents a single example-based transformation.
 type Transformer struct {
