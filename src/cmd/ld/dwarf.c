@@ -835,11 +835,8 @@ newmemberoffsetattr(DWDie *die, int32 offs)
 	int i;
 
 	i = 0;
-	if (offs != 0) {
-		block[i++] = DW_OP_consts;
-		i += sleb128enc(offs, block+i);
-		block[i++] = DW_OP_plus;
-	}
+	block[i++] = DW_OP_plus_uconst;
+	i += uleb128enc(offs, block+i);
 	newattr(die, DW_AT_data_member_location, DW_CLS_BLOCK, i, mal(i));
 	memmove(die->attr->data, block, i);
 }
