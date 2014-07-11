@@ -717,7 +717,6 @@ span5(Link *ctxt, LSym *cursym)
 		ctxt->curp = p;
 		p->pc = c;
 		o = oplook(ctxt, p);
-		m = o->size;
 		if(ctxt->headtype != Hnacl) {
 			m = o->size;
 		} else {
@@ -800,12 +799,10 @@ span5(Link *ctxt, LSym *cursym)
 			}
  */
 			opc = p->pc;
-			if(ctxt->headtype != Hnacl) {
+			if(ctxt->headtype != Hnacl)
 				m = o->size;
-			} else {
+			else
 				m = asmoutnacl(ctxt, c, p, o, nil);
-				c = p->pc; // asmoutnacl might change pc for alignment
-			}
 			if(p->pc != opc) {
 				bflag = 1;
 				//print("%P pc changed %d to %d in iter. %d\n", p, opc, (int32)p->pc, times);
