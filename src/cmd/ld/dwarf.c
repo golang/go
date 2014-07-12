@@ -141,14 +141,20 @@ sleb128put(vlong v)
  * only a handful of them.  The DWARF spec places no restriction on
  * the ordering of attributes in the Abbrevs and DIEs, and we will
  * always write them out in the order of declaration in the abbrev.
- * This implementation relies on tag, attr < 127, so they serialize as
- * a char.  Higher numbered user-defined tags or attributes can be used
- * for storing internal data but won't be serialized.
  */
 typedef struct DWAttrForm DWAttrForm;
 struct DWAttrForm {
-	uint8 attr;
+	uint16 attr;
 	uint8 form;
+};
+
+// Go-specific type attributes.
+enum {
+	DW_AT_go_kind = 0x2900,
+	DW_AT_go_key = 0x2901,
+	DW_AT_go_elem = 0x2902,
+
+	DW_AT_internal_location = 253,	 // params and locals; not emitted
 };
 
 // Index into the abbrevs table below.
@@ -277,6 +283,7 @@ static struct DWAbbrev {
 		DW_AT_name,	 DW_FORM_string,
 		DW_AT_encoding,	 DW_FORM_data1,
 		DW_AT_byte_size, DW_FORM_data1,
+		DW_AT_go_kind, DW_FORM_data1,
 		0, 0
 	},
 	/* ARRAYTYPE */
@@ -286,6 +293,7 @@ static struct DWAbbrev {
 		DW_AT_name,	DW_FORM_string,
 		DW_AT_type,	DW_FORM_ref_addr,
 		DW_AT_byte_size, DW_FORM_udata,
+		DW_AT_go_kind, DW_FORM_data1,
 		0, 0
 	},
 
@@ -294,6 +302,8 @@ static struct DWAbbrev {
 		DW_TAG_typedef, DW_CHILDREN_no,
 		DW_AT_name,	DW_FORM_string,
 		DW_AT_type,	DW_FORM_ref_addr,
+		DW_AT_go_kind, DW_FORM_data1,
+		DW_AT_go_elem, DW_FORM_ref_addr,
 		0, 0
 	},
 
@@ -302,6 +312,7 @@ static struct DWAbbrev {
 		DW_TAG_subroutine_type, DW_CHILDREN_yes,
 		DW_AT_name,	DW_FORM_string,
 //		DW_AT_type,	DW_FORM_ref_addr,
+		DW_AT_go_kind, DW_FORM_data1,
 		0, 0
 	},
 
@@ -310,6 +321,7 @@ static struct DWAbbrev {
 		DW_TAG_typedef, DW_CHILDREN_yes,
 		DW_AT_name,	 DW_FORM_string,
 		DW_AT_type,	DW_FORM_ref_addr,
+		DW_AT_go_kind, DW_FORM_data1,
 		0, 0
 	},
 
@@ -318,6 +330,9 @@ static struct DWAbbrev {
 		DW_TAG_typedef, DW_CHILDREN_no,
 		DW_AT_name,	DW_FORM_string,
 		DW_AT_type,	DW_FORM_ref_addr,
+		DW_AT_go_kind, DW_FORM_data1,
+		DW_AT_go_key, DW_FORM_ref_addr,
+		DW_AT_go_elem, DW_FORM_ref_addr,
 		0, 0
 	},
 
@@ -326,6 +341,7 @@ static struct DWAbbrev {
 		DW_TAG_pointer_type, DW_CHILDREN_no,
 		DW_AT_name,	DW_FORM_string,
 		DW_AT_type,	DW_FORM_ref_addr,
+		DW_AT_go_kind, DW_FORM_data1,
 		0, 0
 	},
 	/* BARE_PTRTYPE */
@@ -340,6 +356,8 @@ static struct DWAbbrev {
 		DW_TAG_structure_type, DW_CHILDREN_yes,
 		DW_AT_name,	DW_FORM_string,
 		DW_AT_byte_size, DW_FORM_udata,
+		DW_AT_go_kind, DW_FORM_data1,
+		DW_AT_go_elem, DW_FORM_ref_addr,
 		0, 0
 	},
 
@@ -348,6 +366,7 @@ static struct DWAbbrev {
 		DW_TAG_structure_type, DW_CHILDREN_yes,
 		DW_AT_name,	DW_FORM_string,
 		DW_AT_byte_size, DW_FORM_udata,
+		DW_AT_go_kind, DW_FORM_data1,
 		0, 0
 	},
 
@@ -356,6 +375,7 @@ static struct DWAbbrev {
 		DW_TAG_structure_type, DW_CHILDREN_yes,
 		DW_AT_name,	DW_FORM_string,
 		DW_AT_byte_size, DW_FORM_udata,
+		DW_AT_go_kind, DW_FORM_data1,
 		0, 0
 	},
 
@@ -371,7 +391,8 @@ static struct DWAbbrev {
 static void
 writeabbrev(void)
 {
-	int i, n;
+	int i, j;
+	DWAttrForm *f;
 
 	abbrevo = cpos();
 	for (i = 1; i < DW_NABRV; i++) {
@@ -379,11 +400,13 @@ writeabbrev(void)
 		uleb128put(i);
 		uleb128put(abbrevs[i].tag);
 		cput(abbrevs[i].children);
-		// 0 is not a valid attr or form, and DWAbbrev.attr is
-		// 0-terminated, so we can treat it as a string
-		n = strlen((char*)abbrevs[i].attr) / 2;
-		strnput((char*)abbrevs[i].attr,
-			(n+1) * sizeof(DWAttrForm));
+		for(j=0; j<nelem(abbrevs[i].attr); j++) {
+			f = &abbrevs[i].attr[j];
+			uleb128put(f->attr);
+			uleb128put(f->form);
+			if(f->attr == 0)
+				break;
+		}
 	}
 	cput(0);
 	abbrevsize = cpos() - abbrevo;
@@ -417,7 +440,7 @@ hashstr(char* s)
 typedef struct DWAttr DWAttr;
 struct DWAttr {
 	DWAttr *link;
-	uint8 atr;  // DW_AT_
+	uint16 atr;  // DW_AT_
 	uint8 cls;  // DW_CLS_
 	vlong value;
 	char *data;
@@ -445,7 +468,7 @@ static DWDie dwtypes;
 static DWDie dwglobals;
 
 static DWAttr*
-newattr(DWDie *die, uint8 attr, int cls, vlong value, char *data)
+newattr(DWDie *die, uint16 attr, int cls, vlong value, char *data)
 {
 	DWAttr *a;
 
@@ -463,7 +486,7 @@ newattr(DWDie *die, uint8 attr, int cls, vlong value, char *data)
 // name. getattr moves the desired one to the front so
 // frequently searched ones are found faster.
 static DWAttr*
-getattr(DWDie *die, uint8 attr)
+getattr(DWDie *die, uint16 attr)
 {
 	DWAttr *a, *b;
 
@@ -622,7 +645,7 @@ adddwarfrel(LSym* sec, LSym* sym, vlong offsetbase, int siz, vlong addend)
 }
 
 static DWAttr*
-newrefattr(DWDie *die, uint8 attr, DWDie* ref)
+newrefattr(DWDie *die, uint16 attr, DWDie* ref)
 {
 	if (ref == nil)
 		return nil;
@@ -762,22 +785,22 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 static void
 putattrs(int abbrev, DWAttr* attr)
 {
-	DWAttr *attrs[DW_AT_recursive + 1];
 	DWAttrForm* af;
+	DWAttr *ap;
 
-	memset(attrs, 0, sizeof attrs);
-	for( ; attr; attr = attr->link)
-		if (attr->atr < nelem(attrs))
-			attrs[attr->atr] = attr;
-
-	for(af = abbrevs[abbrev].attr; af->attr; af++)
-		if (attrs[af->attr])
-			putattr(abbrev, af->form,
-				attrs[af->attr]->cls,
-				attrs[af->attr]->value,
-				attrs[af->attr]->data);
-		else
-			putattr(abbrev, af->form, 0, 0, nil);
+	for(af = abbrevs[abbrev].attr; af->attr; af++) {
+		for(ap=attr; ap; ap=ap->link) {
+			if(ap->atr == af->attr) {
+				putattr(abbrev, af->form,
+					ap->cls,
+					ap->value,
+					ap->data);
+				goto done;
+			}
+		}
+		putattr(abbrev, af->form, 0, 0, nil);
+	done:;
+	}
 }
 
 static void putdie(DWDie* die);
@@ -848,15 +871,6 @@ newabslocexprattr(DWDie *die, vlong addr, LSym *sym)
 {
 	newattr(die, DW_AT_location, DW_CLS_ADDRESS, addr, (char*)sym);
 }
-
-
-// Fake attributes for slices, maps and channel
-enum {
-	DW_AT_internal_elem_type = 250,	 // channels and slices
-	DW_AT_internal_key_type = 251,	 // maps
-	DW_AT_internal_val_type = 252,	 // maps
-	DW_AT_internal_location = 253,	 // params and locals
-};
 
 static DWDie* defptrto(DWDie *dwtype);	// below
 
@@ -986,7 +1000,7 @@ defgotype(LSym *gotype)
 		die = newdie(&dwtypes, DW_ABRV_CHANTYPE, name);
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		s = decodetype_chanelem(gotype);
-		newrefattr(die, DW_AT_internal_elem_type, defgotype(s));
+		newrefattr(die, DW_AT_go_elem, defgotype(s));
 		break;
 
 	case KindFunc:
@@ -1024,9 +1038,9 @@ defgotype(LSym *gotype)
 	case KindMap:
 		die = newdie(&dwtypes, DW_ABRV_MAPTYPE, name);
 		s = decodetype_mapkey(gotype);
-		newrefattr(die, DW_AT_internal_key_type, defgotype(s));
+		newrefattr(die, DW_AT_go_key, defgotype(s));
 		s = decodetype_mapvalue(gotype);
-		newrefattr(die, DW_AT_internal_val_type, defgotype(s));
+		newrefattr(die, DW_AT_go_elem, defgotype(s));
 		break;
 
 	case KindPtr:
@@ -1041,7 +1055,7 @@ defgotype(LSym *gotype)
 		dotypedef(&dwtypes, name, die);
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		s = decodetype_arrayelem(gotype);
-		newrefattr(die, DW_AT_internal_elem_type, defgotype(s));
+		newrefattr(die, DW_AT_go_elem, defgotype(s));
 		break;
 
 	case KindString:
@@ -1073,7 +1087,9 @@ defgotype(LSym *gotype)
 		diag("dwarf: definition of unknown kind %d: %s", kind, gotype->name);
 		die = newdie(&dwtypes, DW_ABRV_TYPEDECL, name);
 		newrefattr(die, DW_AT_type, find_or_diag(&dwtypes, "<unspecified>"));
-	 }
+	}
+
+	newattr(die, DW_AT_go_kind, DW_CLS_CONSTANT, kind, 0);
 
 	return die;
 }
@@ -1168,7 +1184,7 @@ synthesizeslicetypes(DWDie *die)
 		if (die->abbrev != DW_ABRV_SLICETYPE)
 			continue;
 		copychildren(die, prototype);
-		elem = (DWDie*) getattr(die, DW_AT_internal_elem_type)->data;
+		elem = (DWDie*) getattr(die, DW_AT_go_elem)->data;
 		substitutetype(die, "array", defptrto(elem));
 	}
 }
@@ -1214,8 +1230,8 @@ synthesizemaptypes(DWDie *die)
 		if (die->abbrev != DW_ABRV_MAPTYPE)
 			continue;
 
-		keytype = walktypedef((DWDie*) getattr(die, DW_AT_internal_key_type)->data);
-		valtype = walktypedef((DWDie*) getattr(die, DW_AT_internal_val_type)->data);
+		keytype = walktypedef((DWDie*) getattr(die, DW_AT_go_key)->data);
+		valtype = walktypedef((DWDie*) getattr(die, DW_AT_go_elem)->data);
 
 		// compute size info like hashmap.c does.
 		a = getattr(keytype, DW_AT_byte_size);
@@ -1306,7 +1322,7 @@ synthesizechantypes(DWDie *die)
 	for (; die != nil; die = die->link) {
 		if (die->abbrev != DW_ABRV_CHANTYPE)
 			continue;
-		elemtype = (DWDie*) getattr(die, DW_AT_internal_elem_type)->data;
+		elemtype = (DWDie*) getattr(die, DW_AT_go_elem)->data;
 		a = getattr(elemtype, DW_AT_byte_size);
 		elemsize = a ? a->value : PtrSize;
 
@@ -2025,9 +2041,11 @@ dwarfemitdebugsections(void)
 	newdie(&dwtypes, DW_ABRV_NULLTYPE, "<unspecified>");
 	newdie(&dwtypes, DW_ABRV_NULLTYPE, "void");
 	newdie(&dwtypes, DW_ABRV_BARE_PTRTYPE, "unsafe.Pointer");
+
 	die = newdie(&dwtypes, DW_ABRV_BASETYPE, "uintptr");  // needed for array size
 	newattr(die, DW_AT_encoding,  DW_CLS_CONSTANT, DW_ATE_unsigned, 0);
 	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, PtrSize, 0);
+	newattr(die, DW_AT_go_kind, DW_CLS_CONSTANT, KindUintptr, 0);
 
 	// Needed by the prettyprinter code for interface inspection.
 	defgotype(lookup_or_diag("type.runtime.rtype"));
