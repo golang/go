@@ -1775,7 +1775,15 @@ func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error
 // The Gccgo toolchain.
 type gccgoToolchain struct{}
 
-var gccgoBin, _ = exec.LookPath("gccgo")
+var gccgoName, gccgoBin string
+
+func init() {
+	gccgoName = os.Getenv("GCCGO")
+	if gccgoName == "" {
+		gccgoName = "gccgo"
+	}
+	gccgoBin, _ = exec.LookPath(gccgoName)
+}
 
 func (gccgoToolchain) compiler() string {
 	return gccgoBin
@@ -1796,7 +1804,7 @@ func (gccgoToolchain) gc(b *builder, p *Package, archive, obj string, importArgs
 	if p.localPrefix != "" {
 		gcargs = append(gcargs, "-fgo-relative-import-path="+p.localPrefix)
 	}
-	args := stringList("gccgo", importArgs, "-c", gcargs, "-o", ofile, buildGccgoflags)
+	args := stringList(gccgoName, importArgs, "-c", gcargs, "-o", ofile, buildGccgoflags)
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
 	}
@@ -1812,7 +1820,7 @@ func (gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) erro
 		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
 	}
 	defs = append(defs, b.gccArchArgs()...)
-	return b.run(p.Dir, p.ImportPath, nil, "gccgo", "-I", obj, "-o", ofile, defs, sfile)
+	return b.run(p.Dir, p.ImportPath, nil, gccgoName, "-I", obj, "-o", ofile, defs, sfile)
 }
 
 func (gccgoToolchain) pkgpath(basedir string, p *Package) string {
@@ -1889,7 +1897,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	if objc {
 		ldflags = append(ldflags, "-lobjc")
 	}
-	return b.run(".", p.ImportPath, nil, "gccgo", "-o", out, ofiles, "-Wl,-(", ldflags, "-Wl,-)", buildGccgoflags)
+	return b.run(".", p.ImportPath, nil, gccgoName, "-o", out, ofiles, "-Wl,-(", ldflags, "-Wl,-)", buildGccgoflags)
 }
 
 func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
