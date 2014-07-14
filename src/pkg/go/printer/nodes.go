@@ -1216,14 +1216,17 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 
 	case *ast.RangeStmt:
 		p.print(token.FOR, blank)
-		p.expr(s.Key)
-		if s.Value != nil {
-			// use position of value following the comma as
-			// comma position for correct comment placement
-			p.print(s.Value.Pos(), token.COMMA, blank)
-			p.expr(s.Value)
+		if s.Key != nil {
+			p.expr(s.Key)
+			if s.Value != nil {
+				// use position of value following the comma as
+				// comma position for correct comment placement
+				p.print(s.Value.Pos(), token.COMMA, blank)
+				p.expr(s.Value)
+			}
+			p.print(blank, s.TokPos, s.Tok, blank)
 		}
-		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)
+		p.print(token.RANGE, blank)
 		p.expr(stripParens(s.X))
 		p.print(blank)
 		p.block(s.Body, 1)

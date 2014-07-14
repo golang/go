@@ -269,6 +269,8 @@ func _() {
 	for x := expr;expr;expr = false {
 	use(x)
 	}
+	for range []int{} {
+	println("foo")}
 	for x := range []int{} {
 	use(x) }
 	for x := range (([]int{})) {
@@ -289,6 +291,9 @@ func _() {
 	for i := 0; i < len(a); 1++ { a[i] = i
 	} // multiple lines
 
+	for range a{}
+	for _ = range a{}
+	for _, _ = range a{}
 	for i := range a {}
 	for i := range a { a[i] = i }
 	for i := range a { a[i] = i
