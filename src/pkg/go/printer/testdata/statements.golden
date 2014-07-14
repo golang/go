@@ -309,6 +309,9 @@ func _() {
 	for x := expr; expr; expr = false {
 		use(x)
 	}
+	for range []int{} {
+		println("foo")
+	}
 	for x := range []int{} {
 		use(x)
 	}
@@ -338,6 +341,12 @@ func _() {
 		a[i] = i
 	}	// multiple lines
 
+	for range a {
+	}
+	for _ = range a {
+	}
+	for _, _ = range a {
+	}
 	for i := range a {
 	}
 	for i := range a {

@@ -38,6 +38,7 @@ var valids = []string{
 	`package p; func ((T),) m() {}`,
 	`package p; func ((*T),) m() {}`,
 	`package p; func (*(T),) m() {}`,
+	`package p; func _(x []int) { for range x {} }`,
 }
 
 func TestValid(t *testing.T) {

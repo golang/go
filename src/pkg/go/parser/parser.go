@@ -2041,7 +2041,16 @@ func (p *parser) parseForStmt() ast.Stmt {
 		prevLev := p.exprLev
 		p.exprLev = -1
 		if p.tok != token.SEMICOLON {
-			s2, isRange = p.parseSimpleStmt(rangeOk)
+			if p.tok == token.RANGE {
+				// "for range x" (nil lhs in assignment)
+				pos := p.pos
+				p.next()
+				y := []ast.Expr{&ast.UnaryExpr{OpPos: pos, Op: token.RANGE, X: p.parseRhs()}}
+				s2 = &ast.AssignStmt{Rhs: y}
+				isRange = true
+			} else {
+				s2, isRange = p.parseSimpleStmt(rangeOk)
+			}
 		}
 		if !isRange && p.tok == token.SEMICOLON {
 			p.next()
@@ -2066,12 +2075,14 @@ func (p *parser) parseForStmt() ast.Stmt {
 		// check lhs
 		var key, value ast.Expr
 		switch len(as.Lhs) {
-		case 2:
-			key, value = as.Lhs[0], as.Lhs[1]
+		case 0:
+			// nothing to do
 		case 1:
 			key = as.Lhs[0]
+		case 2:
+			key, value = as.Lhs[0], as.Lhs[1]
 		default:
-			p.errorExpected(as.Lhs[0].Pos(), "1 or 2 expressions")
+			p.errorExpected(as.Lhs[len(as.Lhs)-1].Pos(), "at most 2 expressions")
 			return &ast.BadStmt{From: pos, To: p.safePos(body.End())}
 		}
 		// parseSimpleStmt returned a right-hand side that
