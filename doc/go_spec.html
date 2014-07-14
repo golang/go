@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 24, 2014",
+	"Subtitle": "Version of July 14, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -4714,41 +4714,42 @@ for      { S() }    is the same as    for true     { S() }
 A "for" statement with a "range" clause
 iterates through all entries of an array, slice, string or map,
 or values received on a channel. For each entry it assigns <i>iteration values</i>
-to corresponding <i>iteration variables</i> and then executes the block.
+to corresponding <i>iteration variables</i> if present and then executes the block.
 </p>
 
 <pre class="ebnf">
-RangeClause = ( ExpressionList "=" | IdentifierList ":=" ) "range" Expression .
+RangeClause = [ ExpressionList "=" | IdentifierList ":=" ] "range" Expression .
 </pre>
 
 <p>
 The expression on the right in the "range" clause is called the <i>range expression</i>,
 which may be an array, pointer to an array, slice, string, map, or channel permitting
 <a href="#Receive_operator">receive operations</a>.
-As with an assignment, the operands on the left must be
+As with an assignment, if present the operands on the left must be
 <a href="#Address_operators">addressable</a> or map index expressions; they
-denote the iteration variables. If the range expression is a channel, only
-one iteration variable is permitted, otherwise there may be one or two. In the latter case,
-if the second iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
-the range clause is equivalent to the same clause with only the first variable present.
+denote the iteration variables. If the range expression is a channel, at most
+one iteration variable is permitted, otherwise there may be up to two.
+If the last iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
+the range clause is equivalent to the same clause without that identifier.
 </p>
 
 <p>
 The range expression is evaluated once before beginning the loop,
-with one exception. If the range expression is an array or a pointer to an array
-and only the first iteration value is present, only the range expression's
-length is evaluated; if that length is constant
-<a href="#Length_and_capacity">by definition</a>,
+with one exception: if the range expression is an array or a pointer to an array
+and at most one iteration variable is present, only the range expression's
+length is evaluated; if that length is constant,
+<a href="#Length_and_capacity">by definition</a>
 the range expression itself will not be evaluated.
 </p>
 
 <p>
 Function calls on the left are evaluated once per iteration.
-For each iteration, iteration values are produced as follows:
+For each iteration, iteration values are produced as follows
+if the respective iteration variables are present:
 </p>
 
 <pre class="grammar">
-Range expression                          1st value          2nd value (if 2nd variable is present)
+Range expression                          1st value          2nd value
 
 array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
 string          s  string type            index    i  int    see below  rune
@@ -4760,7 +4761,7 @@ channel         c  chan E, &lt;-chan E       element  e  E
 <li>
 For an array, pointer to array, or slice value <code>a</code>, the index iteration
 values are produced in increasing order, starting at element index 0.
-If only the first iteration variable is present, the range loop produces
+If at most one iteration variable is present, the range loop produces
 iteration values from 0 up to <code>len(a)-1</code> and does not index into the array
 or slice itself. For a <code>nil</code> slice, the number of iterations is 0.
 </li>
@@ -4841,6 +4842,9 @@ var ch chan Work = producer()
 for w := range ch {
 	doWork(w)
 }
+
+// empty a channel
+for range ch {}
 </pre>
 
 
