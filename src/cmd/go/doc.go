@@ -681,6 +681,11 @@ A few common code hosting sites have special syntax:
 		import "launchpad.net/~user/project/branch"
 		import "launchpad.net/~user/project/branch/sub/directory"
 
+	IBM DevOps Services (Git)
+
+		import "hub.jazz.net/git/user/project"
+		import "hub.jazz.net/git/user/project/sub/directory"
+
 For code hosted on other servers, import paths may either be qualified
 with the version control type, or the go tool can dynamically fetch
 the import path over https/http and discover where the code resides
