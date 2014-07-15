@@ -1105,6 +1105,8 @@ loop:
 	if(sgp == nil)
 		return nil;
 	q->first = sgp->link;
+	if(q->last == sgp)
+		q->last = nil;
 
 	// if sgp participates in a select and is already signaled, ignore it
 	if(sgp->selectdone != nil) {
