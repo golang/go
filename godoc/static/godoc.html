@@ -16,7 +16,10 @@
 </head>
 <body>
 
-<div id="mainframe" style="position: fixed; bottom: 0; top:0; overflow: auto; width: 100%;">
+<div id='lowframe' style="position: fixed; bottom: 0; left: 0; height: 0; width: 100%; border-top: thin solid grey; background-color: white; overflow: auto;">
+...
+</div><!-- #lowframe -->
+
 <div id="topbar"{{if .Title}} class="wide"{{end}}><div class="container">
 
 <form method="GET" action="/search">
@@ -84,11 +87,6 @@ and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
 
 </div><!-- .container -->
 </div><!-- #page -->
-
-</div><!-- #mainframe -->
-<div id='lowframe' style="position: absolute; bottom: 0; left: 0; height: 0; width: 100%; border-top: thin solid grey; background-color: white; overflow: auto;">
-...
-</div><!-- #lowframe -->
 
 <!-- TODO(adonovan): load these from <head> using "defer" attribute? -->
 <script type="text/javascript" src="/lib/godoc/jquery.js"></script>

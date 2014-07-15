@@ -61,7 +61,7 @@ var Files = map[string]string{
   types are assignable to each interface type.
 
   <b>Type analysis</b> is relatively quick, requiring about 10 seconds for
-  the >200 packages of the standard library, for example.
+  the &gt;200 packages of the standard library, for example.
 </p>
 
 <h3>Compiler errors</h3>
@@ -149,7 +149,7 @@ var Files = map[string]string{
 </p>
 <p>
   In this example, hovering over the declaration of the
-  <code>rot13</code> function (defined in in strings/strings.test.go)
+  <code>rot13</code> function (defined in strings/strings_test.go)
   reveals that it is called in exactly one place.
 </p>
 <img class="ss" width='612' src='callers1.png'>
@@ -485,7 +485,10 @@ var Files = map[string]string{
 </head>
 <body>
 
-<div id="mainframe" style="position: fixed; bottom: 0; top:0; overflow: auto; width: 100%;">
+<div id='lowframe' style="position: fixed; bottom: 0; left: 0; height: 0; width: 100%; border-top: thin solid grey; background-color: white; overflow: auto;">
+...
+</div><!-- #lowframe -->
+
 <div id="topbar"{{if .Title}} class="wide"{{end}}><div class="container">
 
 <form method="GET" action="/search">
@@ -553,11 +556,6 @@ and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
 
 </div><!-- .container -->
 </div><!-- #page -->
-
-</div><!-- #mainframe -->
-<div id='lowframe' style="position: absolute; bottom: 0; left: 0; height: 0; width: 100%; border-top: thin solid grey; background-color: white; overflow: auto;">
-...
-</div><!-- #lowframe -->
 
 <!-- TODO(adonovan): load these from <head> using "defer" attribute? -->
 <script type="text/javascript" src="/lib/godoc/jquery.js"></script>
