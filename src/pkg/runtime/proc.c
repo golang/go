@@ -1320,6 +1320,11 @@ schedule(void)
 	if(g->m->locks)
 		runtime·throw("schedule: holding locks");
 
+	if(g->m->lockedg) {
+		stoplockedm();
+		execute(g->m->lockedg);  // Never returns.
+	}
+
 top:
 	if(runtime·sched.gcwaiting) {
 		gcstopm();
@@ -1360,6 +1365,22 @@ top:
 	execute(gp);
 }
 
+// dropg removes the association between m and the current goroutine m->curg (gp for short).
+// Typically a caller sets gp's status away from Grunning and then
+// immediately calls dropg to finish the job. The caller is also responsible
+// for arranging that gp will be restarted using runtime·ready at an
+// appropriate time. After calling dropg and arranging for gp to be
+// readied later, the caller can do other work but eventually should
+// call schedule to restart the scheduling of goroutines on this m.
+void
+dropg(void)
+{
+	if(g->m->lockedg == nil) {
+		g->m->curg->m = nil;
+		g->m->curg = nil;
+	}
+}
+
 // Puts the current goroutine into a waiting state and calls unlockf.
 // If unlockf returns false, the goroutine is resumed.
 void
@@ -1396,8 +1417,8 @@ park0(G *gp)
 	bool ok;
 
 	gp->status = Gwaiting;
-	gp->m = nil;
-	g->m->curg = nil;
+	dropg();
+
 	if(g->m->waitunlockf) {
 		ok = g->m->waitunlockf(gp, g->m->waitlock);
 		g->m->waitunlockf = nil;
@@ -1407,10 +1428,7 @@ park0(G *gp)
 			execute(gp);  // Schedule it back, never returns.
 		}
 	}
-	if(g->m->lockedg) {
-		stoplockedm();
-		execute(gp);  // Never returns.
-	}
+
 	schedule();
 }
 
@@ -1428,15 +1446,11 @@ void
 runtime·gosched0(G *gp)
 {
 	gp->status = Grunnable;
-	gp->m = nil;
-	g->m->curg = nil;
+	dropg();
 	runtime·lock(&runtime·sched);
 	globrunqput(gp);
 	runtime·unlock(&runtime·sched);
-	if(g->m->lockedg) {
-		stoplockedm();
-		execute(gp);  // Never returns.
-	}
+
 	schedule();
 }
 
@@ -1462,6 +1476,7 @@ goexit0(G *gp)
 	gp->status = Gdead;
 	gp->m = nil;
 	gp->lockedm = nil;
+	g->m->lockedg = nil;
 	gp->paniconfault = 0;
 	gp->defer = nil; // should be true already but just in case.
 	gp->panic = nil; // non-nil for Goexit during panic. points at stack-allocated data.
@@ -1469,8 +1484,9 @@ goexit0(G *gp)
 	gp->writebuf = nil;
 	gp->waitreason = nil;
 	gp->param = nil;
-	g->m->curg = nil;
-	g->m->lockedg = nil;
+	
+	dropg();
+
 	if(g->m->locked & ~LockExternal) {
 		runtime·printf("invalid m->locked = %d\n", g->m->locked);
 		runtime·throw("internal lockOSThread error");
@@ -1680,8 +1696,7 @@ exitsyscall0(G *gp)
 	P *p;
 
 	gp->status = Grunnable;
-	gp->m = nil;
-	g->m->curg = nil;
+	dropg();
 	runtime·lock(&runtime·sched);
 	p = pidleget();
 	if(p == nil)
