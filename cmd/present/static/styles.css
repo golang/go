@@ -454,3 +454,8 @@ div.output .buttons {
 iframe {
   border: none;
 }
+figcaption {
+  color: #666;
+  text-align: center;
+  font-size: 0.75em;
+}

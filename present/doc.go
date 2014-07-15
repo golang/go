@@ -61,6 +61,7 @@ After that come slides/sections, each after a blank line:
 	.iframe http://foo
 	.link http://foo label
 	.html file.html
+	.caption _Gopher_ by [[http://www.reneefrench.com][Renée French]]
 
 	Again, more text
 
@@ -175,6 +176,16 @@ preserves the aspect ratio of the image when scaling.
 	.image images/betsy.jpg 100 200
 
 	.image images/janet.jpg _ 300
+
+
+caption:
+
+The template uses the function "caption" to inject figure captions.
+
+The text after ".caption" is embedded in a figcaption element after
+processing styling and links as in standard text lines.
+
+	.caption _Gopher_ by [[http://www.reneefrench.com][Renée French]]
 
 iframe:
 

@@ -44,3 +44,5 @@ It determines how the formatting actions are rendered.
 {{define "link"}}<p class="link"><a href="{{.URL}}" target="_blank">{{style .Label}}</a></p>{{end}}
 
 {{define "html"}}{{.HTML}}{{end}}
+
+{{define "caption"}}<figcaption>{{style .Text}}</figcaption>{{end}}
