@@ -275,7 +275,9 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.Body)
 
 	case *RangeStmt:
-		Walk(v, n.Key)
+		if n.Key != nil {
+			Walk(v, n.Key)
+		}
 		if n.Value != nil {
 			Walk(v, n.Value)
 		}
