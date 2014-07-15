@@ -613,6 +613,15 @@ var vcsPaths = []*vcsPath{
 		check:  launchpadVCS,
 	},
 
+	// IBM DevOps Services (JazzHub)
+	{
+		prefix: "hub.jazz.net/git",
+		re:     `^(?P<root>hub.jazz.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
+		vcs:    "git",
+		repo:   "https://{root}",
+		check:  noVCSSuffix,
+	},
+
 	// General syntax for any server.
 	{
 		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?/[A-Za-z0-9_.\-/]*?)\.(?P<vcs>bzr|git|hg|svn))(/[A-Za-z0-9_.\-]+)*$`,
