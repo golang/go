@@ -1590,6 +1590,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 		// data dependence upon x, permitting later dead-code
 		// elimination if x is pure, static unrolling, etc.
 		// Ranging over a nil *array may have >0 iterations.
+		// We still generate code for x, in case it has effects.
 		length = intConst(arr.Len())
 	} else {
 		// length = len(x).
@@ -1764,7 +1765,7 @@ func (b *builder) rangeChan(fn *Function, x Value, tk types.Type, pos token.Pos)
 //
 func (b *builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 	var tk, tv types.Type
-	if !isBlankIdent(s.Key) {
+	if s.Key != nil && !isBlankIdent(s.Key) {
 		tk = fn.Pkg.typeOf(s.Key)
 	}
 	if s.Value != nil && !isBlankIdent(s.Value) {
@@ -2156,6 +2157,11 @@ func (p *Package) Build() {
 	if p.info == nil {
 		return // synthetic package, e.g. "testmain"
 	}
+	if len(p.info.Files) == 0 {
+		p.info = nil
+		return // package loaded from export data
+	}
+
 	// Ensure we have runtime type info for all exported members.
 	// TODO(adonovan): ideally belongs in memberFromObject, but
 	// that would require package creation in topological order.

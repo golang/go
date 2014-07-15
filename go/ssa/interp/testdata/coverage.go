@@ -150,6 +150,14 @@ func init() {
 	if s != "Hello, 世界" {
 		panic(s)
 	}
+
+	var x int
+	for range "Hello, 世界" {
+		x++
+	}
+	if x != len(indices) {
+		panic(x)
+	}
 }
 
 func main() {
