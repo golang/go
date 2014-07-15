@@ -631,9 +631,11 @@ func rangeloops1() {
 		rc <-chan int
 	)
 
+	for range x /* ERROR "cannot range over" */ {}
 	for _ = range x /* ERROR "cannot range over" */ {}
 	for i := range x /* ERROR "cannot range over" */ {}
 
+	for range a {}
 	for i := range a {
 		var ii int
 		ii = i
@@ -652,6 +654,7 @@ func rangeloops1() {
 	for ii, xx = range a {}
 	_, _ = ii, xx
 
+	for range b {}
 	for i := range b {
 		var ii int
 		ii = i
@@ -666,6 +669,7 @@ func rangeloops1() {
 		_ = xx
 	}
 
+	for range s {}
 	for i := range s {
 		var ii int
 		ii = i
@@ -680,14 +684,17 @@ func rangeloops1() {
 		_ = xx
 	}
 
+	for range p {}
 	for _, x := range p {
 		var xx complex128
 		xx = x
 		_ = xx
 	}
 
+	for range pp /* ERROR "cannot range over" */ {}
 	for _, x := range pp /* ERROR "cannot range over" */ {}
 
+	for range m {}
 	for k := range m {
 		var kk int32
 		kk = k /* ERROR "cannot assign" */
@@ -700,6 +707,7 @@ func rangeloops1() {
 		if v {}
 	}
 
+	for range c {}
 	for _, _ /* ERROR "only one iteration variable" */ = range c {}
 	for e := range c {
 		var ee int
@@ -711,6 +719,8 @@ func rangeloops1() {
 
 	// constant strings
 	const cs = "foo"
+	for range cs {}
+	for range "" {}
 	for i, x := range cs { _, _ = i, x }
 	for i, x := range "" {
 		var ii int

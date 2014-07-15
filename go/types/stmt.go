@@ -656,10 +656,6 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		// check assignment to/declaration of iteration variables
 		// (irregular assignment, cannot easily map to existing assignment checks)
-		if s.Key == nil {
-			check.invalidAST(s.Pos(), "range clause requires index iteration variable")
-			// ok to continue
-		}
 
 		// lhs expressions and initialization value (rhs) types
 		lhs := [2]ast.Expr{s.Key, s.Value}
@@ -701,7 +697,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			// declare variables
 			if len(vars) > 0 {
 				for _, obj := range vars {
-					check.declare(check.scope, nil, obj) // recordObject already called
+					check.declare(check.scope, nil /* recordDef already called */, obj)
 				}
 			} else {
 				check.error(s.TokPos, "no new variables on left side of :=")
