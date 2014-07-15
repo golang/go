@@ -29,9 +29,6 @@
 // Each stanza gives the disassembly for a contiguous range of addresses
 // all mapped to the same original source file and line number.
 // This mode is intended for use by pprof.
-//
-// The ARM disassembler is missing (golang.org/issue/7452) but will be added
-// before the Go 1.3 release.
 package main
 
 import (
