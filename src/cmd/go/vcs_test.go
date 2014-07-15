@@ -5,12 +5,17 @@
 package main
 
 import (
+	"runtime"
 	"testing"
 )
 
 // Test that RepoRootForImportPath creates the correct RepoRoot for a given importPath.
 // TODO(cmang): Add tests for SVN and BZR.
 func TestRepoRootForImportPath(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "android":
+		t.Skipf("no networking available on %s", runtime.GOOS)
+	}
 	tests := []struct {
 		path string
 		want *repoRoot
