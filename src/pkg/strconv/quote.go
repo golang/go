@@ -143,9 +143,16 @@ func AppendQuoteRuneToASCII(dst []byte, r rune) []byte {
 // unchanged as a single-line backquoted string without control
 // characters other than space and tab.
 func CanBackquote(s string) bool {
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if (c < ' ' && c != '\t') || c == '`' || c == '\u007F' {
+	for len(s) > 0 {
+		r, wid := utf8.DecodeRuneInString(s)
+		s = s[wid:]
+		if wid > 1 {
+			continue // All multibyte runes are correctly encoded and assumed printable.
+		}
+		if r == utf8.RuneError {
+			return false
+		}
+		if (r < ' ' && r != '\t') || r == '`' || r == '\u007F' {
 			return false
 		}
 	}
