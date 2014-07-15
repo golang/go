@@ -96,11 +96,11 @@ main(int argc, char *argv[])
 	flagcount("a", "disassemble output", &debug['a']);
 	flagcount("c", "dump call graph", &debug['c']);
 	flagcount("d", "disable dynamic executable", &debug['d']);
-	flagstr("extld", "linker to run in external mode", &extld);
-	flagstr("extldflags", "flags for external linker", &extldflags);
+	flagstr("extld", "ld: linker to run in external mode", &extld);
+	flagstr("extldflags", "ldflags: flags for external linker", &extldflags);
 	flagcount("f", "ignore version mismatch", &debug['f']);
 	flagcount("g", "disable go package data checks", &debug['g']);
-	flagstr("installsuffix", "pkg directory suffix", &flag_installsuffix);
+	flagstr("installsuffix", "suffix: pkg directory suffix", &flag_installsuffix);
 	flagstr("k", "sym: set field tracking symbol", &tracksym);
 	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
 	flagcount("n", "dump symbol table", &debug['n']);
@@ -110,7 +110,7 @@ main(int argc, char *argv[])
 	flagcount("s", "disable symbol table", &debug['s']);
 	if(thechar == '5' || thechar == '6')
 		flagcount("shared", "generate shared object (implies -linkmode external)", &flag_shared);
-	flagstr("tmpdir", "leave temporary files in this directory", &tmpdir);
+	flagstr("tmpdir", "dir: leave temporary files in this directory", &tmpdir);
 	flagcount("u", "reject unsafe packages", &debug['u']);
 	flagcount("v", "print link trace", &debug['v']);
 	flagcount("w", "disable DWARF generation", &debug['w']);
