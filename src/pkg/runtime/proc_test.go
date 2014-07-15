@@ -101,6 +101,10 @@ func TestGoroutineParallelism(t *testing.T) {
 		N = 3
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P))
+	// If runtime triggers a forced GC during this test then it will deadlock,
+	// since the goroutines can't be stopped/preempted.
+	// So give this test as much time as possible.
+	runtime.GC()
 	for try := 0; try < N; try++ {
 		done := make(chan bool)
 		x := uint32(0)
