@@ -75,19 +75,19 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
 			for i := 1; i < len(f); i++ {
 				s := f[i]
 				switch {
-				case len(s) >= 6 && s[0:6] == "ndots:":
+				case hasPrefix(s, "ndots:"):
 					n, _, _ := dtoi(s, 6)
 					if n < 1 {
 						n = 1
 					}
 					conf.ndots = n
-				case len(s) >= 8 && s[0:8] == "timeout:":
+				case hasPrefix(s, "timeout:"):
 					n, _, _ := dtoi(s, 8)
 					if n < 1 {
 						n = 1
 					}
 					conf.timeout = n
-				case len(s) >= 8 && s[0:9] == "attempts:":
+				case hasPrefix(s, "attempts:"):
 					n, _, _ := dtoi(s, 9)
 					if n < 1 {
 						n = 1
@@ -102,4 +102,8 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
 	file.close()
 
 	return conf, nil
+}
+
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
