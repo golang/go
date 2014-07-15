@@ -266,7 +266,7 @@ static struct DWAbbrev {
 		DW_TAG_subrange_type, DW_CHILDREN_no,
 		// No name!
 		DW_AT_type,	 DW_FORM_ref_addr,
-		DW_AT_upper_bound, DW_FORM_data1,
+		DW_AT_upper_bound, DW_FORM_udata,
 		0, 0
 	},
 
