@@ -104,7 +104,7 @@ decodetype_arrayelem(LSym *s)
 vlong
 decodetype_arraylen(LSym *s)
 {
-	return decode_inuxi(s->p + commonsize()+PtrSize, PtrSize);
+	return decode_inuxi(s->p + commonsize()+2*PtrSize, PtrSize);
 }
 
 // Type.PtrType.elem
@@ -120,6 +120,7 @@ decodetype_mapkey(LSym *s)
 {
 	return decode_reloc_sym(s, commonsize());	// 0x1c / 0x30
 }
+
 LSym*
 decodetype_mapvalue(LSym *s)
 {

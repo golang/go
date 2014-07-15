@@ -992,7 +992,7 @@ defgotype(LSym *gotype)
 		s = decodetype_arrayelem(gotype);
 		newrefattr(die, DW_AT_type, defgotype(s));
 		fld = newdie(die, DW_ABRV_ARRAYRANGE, "range");
-		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, decodetype_arraylen(gotype), 0);
+		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, decodetype_arraylen(gotype)-1, 0); // -1: want upper bound, not count.
 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
 		break;
 
