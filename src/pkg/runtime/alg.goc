@@ -425,6 +425,8 @@ runtime·nohash(uintptr *h, uintptr s, void *a)
 	runtime·panicstring("hash of unhashable type");
 }
 
+extern uintptr runtime·nohashcode;
+
 void
 runtime·noequal(bool *eq, uintptr s, void *a, void *b)
 {
@@ -471,6 +473,7 @@ byte runtime·aeskeysched[HashRandomBytes];
 void
 runtime·hashinit(void)
 {
+	runtime·nohashcode = (uintptr)runtime·nohash;
         if(NaCl)
                 return;
 

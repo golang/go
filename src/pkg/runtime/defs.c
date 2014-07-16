@@ -10,5 +10,5 @@
 #include "malloc.h"
 #include "type.h"
 #include "race.h"
-#include "hashmap.h"
 #include "chan.h"
+#include "mprof.h"

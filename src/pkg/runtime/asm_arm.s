@@ -670,6 +670,25 @@ _next:
 	MOVW	$0, R0
 	RET
 
+TEXT runtime·gomemeq(SB),NOSPLIT,$-4-13
+	MOVW	a+0(FP), R1
+	MOVW	b+4(FP), R2
+	MOVW	size+8(FP), R3
+	ADD	R1, R3, R6
+	MOVW	$1, R0
+	MOVB	R0, ret+12(FP)
+_next2:
+	CMP	R1, R6
+	RET.EQ
+	MOVBU.P	1(R1), R4
+	MOVBU.P	1(R2), R5
+	CMP	R4, R5
+	BEQ	_next2
+
+	MOVW	$0, R0
+	MOVB	R0, ret+12(FP)
+	RET
+
 // eqstring tests whether two strings are equal.
 // See runtime_test.go:eqstring_generic for
 // equivlaent Go code.
@@ -1190,3 +1209,77 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
 	MOVW.P	4(R1), R0
 	MOVW.P	R0, 4(R2)
 	RET
+
+TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
+	MOVW	g_m(g), R1
+	MOVW	m_fastrand(R1), R0
+	ADD.S	R0, R0
+	EOR.MI	$0x88888eef, R0
+	MOVW	R0, m_fastrand(R1)
+	MOVW	R0, ret+0(FP)
+	RET
+
+// The gohash and goeq trampolines are necessary while we have
+// both Go and C calls to alg functions.  Once we move all call
+// sites to Go, we can redo the hash/eq functions to use the
+// Go calling convention and remove these.
+
+// convert call to:
+//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
+// to:
+//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
+TEXT runtime·gohash(SB), NOSPLIT, $12-20
+	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
+	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
+	MOVW	a+0(FP), R0
+	MOVW	alg_hash(R0), R0
+	MOVW	p+4(FP), R1
+	MOVW	size+8(FP), R2
+	MOVW	seed+12(FP), R3
+	MOVW	R3, ret+16(FP)
+	ADD	$36, R13, R4
+	MOVW	R4, 4(R13)
+	MOVW	R2, 8(R13)
+	MOVW	R1, 12(R13)
+	PCDATA  $PCDATA_StackMapIndex, $0
+	BL	(R0)
+	RET
+
+DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
+DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
+DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
+GLOBL gcargs_gohash<>(SB),RODATA,$12
+
+DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
+DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
+GLOBL gclocals_gohash<>(SB),RODATA,$8
+
+// convert call to:
+//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
+// to:
+//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
+TEXT runtime·goeq(SB), NOSPLIT, $16-17
+	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
+	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
+	MOVW	alg+0(FP), R0
+	MOVW	alg_equal(R0), R0
+	MOVW	p+4(FP), R1
+	MOVW	q+8(FP), R2
+	MOVW	size+12(FP), R3
+	ADD	$40, R13, R4
+	MOVW	R4, 4(R13)
+	MOVW	R3, 8(R13)
+	MOVW	R2, 12(R13)
+	MOVW	R1, 16(R13)
+	PCDATA  $PCDATA_StackMapIndex, $0
+	BL	(R0)
+	RET
+
+DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
+DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
+DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
+GLOBL gcargs_goeq<>(SB),RODATA,$12
+
+DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
+DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
+GLOBL gclocals_goeq<>(SB),RODATA,$8
