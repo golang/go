@@ -9,6 +9,7 @@ package runtime
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
+#include "mprof.h"
 #include "defs_GOOS_GOARCH.h"
 #include "type.h"
 
@@ -20,58 +21,6 @@ static Lock proflock;
 
 enum { MProf, BProf };  // profile types
 
-// Per-call-stack profiling information.
-// Lookup by hashing call stack into a linked-list hash table.
-struct Bucket
-{
-	Bucket	*next;	// next in hash list
-	Bucket	*allnext;	// next in list of all mbuckets/bbuckets
-	int32	typ;
-	// Generally unions can break precise GC,
-	// this one is fine because it does not contain pointers.
-	union
-	{
-		struct  // typ == MProf
-		{
-			// The following complex 3-stage scheme of stats accumulation
-			// is required to obtain a consistent picture of mallocs and frees
-			// for some point in time.
-			// The problem is that mallocs come in real time, while frees
-			// come only after a GC during concurrent sweeping. So if we would
-			// naively count them, we would get a skew toward mallocs.
-			//
-			// Mallocs are accounted in recent stats.
-			// Explicit frees are accounted in recent stats.
-			// GC frees are accounted in prev stats.
-			// After GC prev stats are added to final stats and
-			// recent stats are moved into prev stats.
-			uintptr	allocs;
-			uintptr	frees;
-			uintptr	alloc_bytes;
-			uintptr	free_bytes;
-
-			uintptr	prev_allocs;  // since last but one till last gc
-			uintptr	prev_frees;
-			uintptr	prev_alloc_bytes;
-			uintptr	prev_free_bytes;
-
-			uintptr	recent_allocs;  // since last gc till now
-			uintptr	recent_frees;
-			uintptr	recent_alloc_bytes;
-			uintptr	recent_free_bytes;
-
-		};
-		struct  // typ == BProf
-		{
-			int64	count;
-			int64	cycles;
-		};
-	};
-	uintptr	hash;	// hash of size + stk
-	uintptr	size;
-	uintptr	nstk;
-	uintptr	stk[1];
-};
 enum {
 	BuckHashSize = 179999,
 };

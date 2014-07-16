@@ -75,3 +75,18 @@ func rawruneslice(size intgo) (b Slice) {
 func gostringW(str Slice) (s String) {
 	s = runtime·gostringw((uint16*)str.array);
 }
+
+#pragma textflag NOSPLIT
+func runtime·unsafe_New(t *Type) (ret *byte) {
+	ret = runtime·cnew(t);
+}
+
+#pragma textflag NOSPLIT
+func runtime·unsafe_NewArray(t *Type, n int) (ret *byte) {
+	ret = runtime·cnewarray(t, n);
+}
+
+#pragma textflag NOSPLIT
+func runtime·gocas(p *uint32, x uint32, y uint32) (ret bool) {
+	ret = runtime·cas(p, x, y);
+}

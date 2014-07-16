@@ -231,6 +231,8 @@ ok:
 				aggr = "cbctxt";
 			else if(streq(fields.p[1], "SEH"))
 				aggr = "seh";
+			else if(streq(fields.p[1], "Alg"))
+				aggr = "alg";
 		}
 		if(hasprefix(lines.p[i], "}"))
 			aggr = nil;

@@ -8,4 +8,11 @@
 
 package runtime
 
+import (
+	"unsafe"
+)
+
 const raceenabled = false
+
+func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+}

@@ -12,6 +12,13 @@ import (
 	"unsafe"
 )
 
+const (
+	// TODO: where should these live?
+	kindNoPointers = 1 << 7
+	kindArray      = 17
+	kindStruct     = 25
+)
+
 // RaceDisable disables handling of race events in the current goroutine.
 func RaceDisable()
 
@@ -32,3 +39,16 @@ func RaceSemrelease(s *uint32)
 
 // private interface for the runtime
 const raceenabled = true
+
+func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+	kind := t.kind &^ kindNoPointers
+	if kind == kindArray || kind == kindStruct {
+		// for composite objects we have to read every address
+		// because a write might happen to any subobject.
+		racereadrangepc(addr, int(t.size), callerpc, pc)
+	} else {
+		// for non-composite objects we can read just the start
+		// address, as any write must write the first byte.
+		racereadpc(addr, callerpc, pc)
+	}
+}

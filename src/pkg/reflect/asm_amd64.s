@@ -25,3 +25,24 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
 	MOVQ	CX, 8(SP)
 	CALL	·callMethod(SB)
 	RET
+
+// Stubs to give reflect package access to runtime services
+// TODO: should probably be done another way.
+TEXT ·makemap(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_makemap(SB)
+TEXT ·mapaccess(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapaccess(SB)
+TEXT ·mapassign(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapassign(SB)
+TEXT ·mapdelete(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapdelete(SB)
+TEXT ·mapiterinit(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapiterinit(SB)
+TEXT ·mapiterkey(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapiterkey(SB)
+TEXT ·mapiternext(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapiternext(SB)
+TEXT ·maplen(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_maplen(SB)
+TEXT ·ismapkey(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_ismapkey(SB)

@@ -398,7 +398,7 @@ struct SpecialFinalizer
 };
 
 // The described object is being heap profiled.
-typedef struct Bucket Bucket; // from mprof.goc
+typedef struct Bucket Bucket; // from mprof.h
 typedef struct SpecialProfile SpecialProfile;
 struct SpecialProfile
 {

@@ -1222,7 +1222,7 @@ synthesizemaptypes(DWDie *die)
 	DWAttr *a;
 
 	hash		= walktypedef(defgotype(lookup_or_diag("type.runtime.hmap")));
-	bucket		= walktypedef(defgotype(lookup_or_diag("type.runtime.bucket")));
+	bucket		= walktypedef(defgotype(lookup_or_diag("type.runtime.bmap")));
 
 	if (hash == nil)
 		return;
