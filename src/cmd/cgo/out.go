@@ -1016,7 +1016,7 @@ func forFieldList(fl *ast.FieldList, fn func(int, ast.Expr)) {
 			fn(i, r.Type)
 			i++
 		} else {
-			for _ = range r.Names {
+			for range r.Names {
 				fn(i, r.Type)
 				i++
 			}

@@ -198,7 +198,7 @@ func TestNoRaceStructSlicesRangeWrite(t *testing.T) {
 	s.a = make([]int, 10)
 	s.b = make([]int, 10)
 	go func() {
-		for _ = range s.a {
+		for range s.a {
 		}
 		ch <- true
 	}()
@@ -240,7 +240,7 @@ func TestNoRaceSliceRangeWrite(t *testing.T) {
 		s[3] = 3
 		c <- true
 	}()
-	for _ = range s {
+	for range s {
 	}
 	<-c
 }
@@ -252,7 +252,7 @@ func TestRaceSliceRangeAppend(t *testing.T) {
 		s = append(s, 3)
 		c <- true
 	}()
-	for _ = range s {
+	for range s {
 	}
 	<-c
 }
@@ -264,7 +264,7 @@ func TestNoRaceSliceRangeAppend(t *testing.T) {
 		_ = append(s, 3)
 		c <- true
 	}()
-	for _ = range s {
+	for range s {
 	}
 	<-c
 }
@@ -295,7 +295,7 @@ func TestRaceSliceVarRange(t *testing.T) {
 	c := make(chan bool, 1)
 	s := make([]int, 10)
 	go func() {
-		for _ = range s {
+		for range s {
 		}
 		c <- true
 	}()

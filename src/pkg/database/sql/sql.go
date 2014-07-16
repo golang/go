@@ -580,7 +580,7 @@ func (db *DB) maybeOpenNewConnections() {
 
 // Runs in a separate goroutine, opens new connections when requested.
 func (db *DB) connectionOpener() {
-	for _ = range db.openerCh {
+	for range db.openerCh {
 		db.openNewConnection()
 	}
 }

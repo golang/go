@@ -85,7 +85,7 @@ func BenchmarkRuneIterate(b *testing.B) {
 	}
 	s := string(bytes)
 	for i := 0; i < b.N; i++ {
-		for _ = range s {
+		for range s {
 		}
 	}
 }
@@ -97,7 +97,7 @@ func BenchmarkRuneIterate2(b *testing.B) {
 	}
 	s := string(bytes)
 	for i := 0; i < b.N; i++ {
-		for _ = range s {
+		for range s {
 		}
 	}
 }

@@ -100,7 +100,7 @@ func BenchmarkGoroutineBlocking(b *testing.B) {
 
 func BenchmarkGoroutineForRange(b *testing.B) {
 	read := func(ch chan struct{}) {
-		for _ = range ch {
+		for range ch {
 		}
 	}
 	benchHelper(b, *n, read)

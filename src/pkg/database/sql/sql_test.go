@@ -1708,7 +1708,7 @@ func doConcurrentTest(t testing.TB, ct concurrentTest) {
 
 	for i := 0; i < maxProcs*2; i++ {
 		go func() {
-			for _ = range reqs {
+			for range reqs {
 				err := ct.test(t)
 				if err != nil {
 					wg.Done()
@@ -1750,7 +1750,7 @@ func manyConcurrentQueries(t testing.TB) {
 
 	for i := 0; i < maxProcs*2; i++ {
 		go func() {
-			for _ = range reqs {
+			for range reqs {
 				rows, err := stmt.Query()
 				if err != nil {
 					t.Errorf("error on query:  %v", err)

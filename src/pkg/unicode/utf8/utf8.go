@@ -372,7 +372,7 @@ func RuneCount(p []byte) int {
 
 // RuneCountInString is like RuneCount but its input is a string.
 func RuneCountInString(s string) (n int) {
-	for _ = range s {
+	for range s {
 		n++
 	}
 	return
