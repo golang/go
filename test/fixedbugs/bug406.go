@@ -14,6 +14,8 @@ type matrix struct {
 func (a matrix) equal() bool {
 	for _ = range a.e {
 	}
+	for range a.e {
+	}
 	return true
 }
 

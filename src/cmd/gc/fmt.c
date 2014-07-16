@@ -880,7 +880,11 @@ stmtfmt(Fmt *f, Node *n)
 			fmtstrcpy(f, "for loop");
 			break;
 		}
-
+		
+		if(n->list == nil) {
+			fmtprint(f, "for range %N { %H }", n->right, n->nbody);
+			break;
+		}
 		fmtprint(f, "for %,H = range %N { %H }", n->list, n->right, n->nbody);
 		break;
 

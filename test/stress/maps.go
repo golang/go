@@ -97,6 +97,8 @@ func (m intMap) Len() int { return len(m) }
 func (m intMap) RangeAll() {
 	for _ = range m {
 	}
+	for range m {
+	}
 }
 
 func stressMaps() {

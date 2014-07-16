@@ -32,6 +32,13 @@ func testchan() {
 		println("Wanted lowercase alphabet; got", s)
 		panic("fail")
 	}
+	n := 0
+	for range seq('a', 'z') {
+		n++
+	}
+	if n != 26 {
+		println("testchan wrong count", n, "want 26")
+	}
 }
 
 // test that range over slice only evaluates
@@ -87,6 +94,22 @@ func testslice1() {
 	}
 }
 
+func testslice2() {
+	n := 0
+	nmake = 0
+	for range makeslice() {
+		n++
+	}
+	if nmake != 1 {
+		println("range called makeslice", nmake, "times")
+		panic("fail")
+	}
+	if n != 5 {
+		println("wrong count ranging over makeslice", n)
+		panic("fail")
+	}
+}
+
 // test that range over array only evaluates
 // the expression after "range" once.
 
@@ -123,6 +146,22 @@ func testarray1() {
 	}
 	if s != 10 {
 		println("wrong sum ranging over makearray", s)
+		panic("fail")
+	}
+}
+
+func testarray2() {
+	n := 0
+	nmake = 0
+	for range makearray() {
+		n++
+	}
+	if nmake != 1 {
+		println("range called makearray", nmake, "times")
+		panic("fail")
+	}
+	if n != 5 {
+		println("wrong count ranging over makearray", n)
 		panic("fail")
 	}
 }
@@ -176,6 +215,22 @@ func testarrayptr1() {
 	}
 }
 
+func testarrayptr2() {
+	n := 0
+	nmake = 0
+	for range makearrayptr() {
+		n++
+	}
+	if nmake != 1 {
+		println("range called makearrayptr", nmake, "times")
+		panic("fail")
+	}
+	if n != 5 {
+		println("wrong count ranging over makearrayptr", n)
+		panic("fail")
+	}
+}
+
 // test that range over string only evaluates
 // the expression after "range" once.
 
@@ -216,6 +271,22 @@ func teststring1() {
 	}
 }
 
+func teststring2() {
+	n := 0
+	nmake = 0
+	for range makestring() {
+		n++
+	}
+	if nmake != 1 {
+		println("range called makestring", nmake, "times")
+		panic("fail")
+	}
+	if n != 5 {
+		println("wrong count ranging over makestring", n)
+		panic("fail")
+	}
+}
+
 // test that range over map only evaluates
 // the expression after "range" once.
 
@@ -252,6 +323,22 @@ func testmap1() {
 	}
 	if s != 10 {
 		println("wrong sum ranging over makemap", s)
+		panic("fail")
+	}
+}
+
+func testmap2() {
+	n := 0
+	nmake = 0
+	for range makemap() {
+		n++
+	}
+	if nmake != 1 {
+		println("range called makemap", nmake, "times")
+		panic("fail")
+	}
+	if n != 5 {
+		println("wrong count ranging over makemap", n)
 		panic("fail")
 	}
 }
@@ -298,13 +385,18 @@ func main() {
 	testchan()
 	testarray()
 	testarray1()
+	testarray2()
 	testarrayptr()
 	testarrayptr1()
+	testarrayptr2()
 	testslice()
 	testslice1()
+	testslice2()
 	teststring()
 	teststring1()
+	teststring2()
 	testmap()
 	testmap1()
+	testmap2()
 	testcalls()
 }

@@ -495,7 +495,7 @@ esc(EscState *e, Node *n, Node *up)
 
 	case ORANGE:
 		// Everything but fixed array is a dereference.
-		if(isfixedarray(n->type) && n->list->next)
+		if(isfixedarray(n->type) && n->list && n->list->next)
 			escassign(e, n->list->next->n, n->right);
 		break;
 

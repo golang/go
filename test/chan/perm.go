@@ -56,6 +56,9 @@ func main() {
 	for _ = range cs {// ERROR "receive"
 	}
 
+	for range cs {// ERROR "receive"
+	}
+
 	close(c)
 	close(cs)
 	close(cr)  // ERROR "receive"
