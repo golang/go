@@ -167,6 +167,14 @@ func TestGoNil(t *testing.T) {
 	}
 }
 
+func TestMainGoroutineId(t *testing.T) {
+	output := executeTest(t, mainGoroutineIdSource, nil)
+	want := "panic: test\n\ngoroutine 1 [running]:\n"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
 const crashSource = `
 package main
 
@@ -363,5 +371,12 @@ func main() {
 	var f func()
 	go f()
 	select{}
+}
+`
+
+const mainGoroutineIdSource = `
+package main
+func main() {
+	panic("test")
 }
 `
