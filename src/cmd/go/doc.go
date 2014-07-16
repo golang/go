@@ -750,10 +750,10 @@ will result in the following request(s):
 
 If that page contains the meta tag
 
-	<meta name="go-import" content="example.org git https://code.org/r/p/exproj">
+	<meta name="go-import" content="example.org git https://code.example/r/p/exproj">
 
 the go tool will verify that https://example.org/?go-get=1 contains the
-same meta tag and then git clone https://code.org/r/p/exproj into
+same meta tag and then git clone https://code.example/r/p/exproj into
 GOPATH/src/example.org.
 
 New downloaded packages are written to the first directory
