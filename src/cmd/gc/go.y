@@ -613,6 +613,11 @@ range_stmt:
 		$$->colas = 1;
 		colasdefn($1, $$);
 	}
+|	LRANGE expr
+	{
+		$$ = nod(ORANGE, N, $2);
+		$$->etype = 0; // := flag
+	}
 
 for_header:
 	osimple_stmt ';' osimple_stmt ';' osimple_stmt

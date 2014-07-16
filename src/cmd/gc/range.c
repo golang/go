@@ -67,9 +67,11 @@ typecheckrange(Node *n)
 		yyerror("too many variables in range");
 	}
 
-	v1 = n->list->n;
+	v1 = N;
+	if(n->list)
+		v1 = n->list->n;
 	v2 = N;
-	if(n->list->next)
+	if(n->list && n->list->next)
 		v2 = n->list->next->n;
 
 	// this is not only a optimization but also a requirement in the spec.
@@ -77,14 +79,17 @@ typecheckrange(Node *n)
 	// clause is equivalent to the same clause with only the first variable
 	// present."
 	if(isblank(v2)) {
-		n->list = list1(v1);
+		if(v1 != N)
+			n->list = list1(v1);
 		v2 = N;
 	}
 
-	if(v1->defn == n)
-		v1->type = t1;
-	else if(v1->type != T && assignop(t1, v1->type, &why) == 0)
-		yyerror("cannot assign type %T to %lN in range%s", t1, v1, why);
+	if(v1) {
+		if(v1->defn == n)
+			v1->type = t1;
+		else if(v1->type != T && assignop(t1, v1->type, &why) == 0)
+			yyerror("cannot assign type %T to %lN in range%s", t1, v1, why);
+	}
 	if(v2) {
 		if(v2->defn == n)
 			v2->type = t2;
@@ -123,9 +128,11 @@ walkrange(Node *n)
 	a = n->right;
 	lno = setlineno(a);
 
-	v1 = n->list->n;
+	v1 = N;
+	if(n->list)
+		v1 = n->list->n;
 	v2 = N;
-	if(n->list->next && !isblank(n->list->next->n))
+	if(n->list && n->list->next && !isblank(n->list->next->n))
 		v2 = n->list->next->n;
 	// n->list has no meaning anymore, clear it
 	// to avoid erroneous processing by racewalk.
@@ -154,7 +161,9 @@ walkrange(Node *n)
 
 		n->ntest = nod(OLT, hv1, hn);
 		n->nincr = nod(OAS, hv1, nod(OADD, hv1, nodintconst(1)));
-		if(v2 == N)
+		if(v1 == N)
+			body = nil;
+		else if(v2 == N)
 			body = list1(nod(OAS, v1, hv1));
 		else {
 			a = nod(OAS2, N, N);
@@ -205,16 +214,18 @@ walkrange(Node *n)
 
 		key = nod(ODOT, hit, keyname);
 		key = nod(OIND, key, N);
-		if(v2 == N) {
-			a = nod(OAS, v1, key);
+		if(v1 == N)
+			body = nil;
+		else if(v2 == N) {
+			body = list1(nod(OAS, v1, key));
 		} else {
 			val = nod(ODOT, hit, valname);
 			val = nod(OIND, val, N);
 			a = nod(OAS2, N, N);
 			a->list = list(list1(v1), v2);
 			a->rlist = list(list1(key), val);
+			body = list1(a);
 		}
-		body = list1(a);
 		break;
 
 	case TCHAN:
@@ -223,6 +234,7 @@ walkrange(Node *n)
 		n->ntest = N;
 		
 		hv1 = temp(t->type);
+		hv1->typecheck = 1;
 		if(haspointers(t->type))
 			init = list(init, nod(OAS, hv1, N));
 		hb = temp(types[TBOOL]);
@@ -233,7 +245,10 @@ walkrange(Node *n)
 		a->list = list(list1(hv1), hb);
 		a->rlist = list1(nod(ORECV, ha, N));
 		n->ntest->ninit = list1(a);
-		body = list1(nod(OAS, v1, hv1));
+		if(v1 == N)
+			body = nil;
+		else
+			body = list1(nod(OAS, v1, hv1));
 		break;
 
 	case TSTRING:
@@ -257,7 +272,10 @@ walkrange(Node *n)
 		n->ntest = nod(ONE, hv1, nodintconst(0));
 		n->ntest->ninit = list(list1(nod(OAS, ohv1, hv1)), a);
 
-		body = list1(nod(OAS, v1, ohv1));
+		
+		body = nil;
+		if(v1 != N)
+			body = list1(nod(OAS, v1, ohv1));
 		if(v2 != N)
 			body = list(body, nod(OAS, v2, hv2));
 		break;
