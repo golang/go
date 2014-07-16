@@ -39,14 +39,7 @@ type Time struct {
 	// nsec specifies a non-negative nanosecond
 	// offset within the second named by Seconds.
 	// It must be in the range [0, 999999999].
-	//
-	// It is declared as uintptr instead of int32 or uint32
-	// to avoid garbage collector aliasing in the case where
-	// on a 64-bit system the int32 or uint32 field is written
-	// over the low half of a pointer, creating another pointer.
-	// TODO(rsc): When the garbage collector is completely
-	// precise, change back to int32.
-	nsec uintptr
+	nsec int32
 
 	// loc specifies the Location that should be used to
 	// determine the minute, hour, month, day, and year
@@ -619,7 +612,7 @@ func (t Time) Add(d Duration) Time {
 		t.sec--
 		nsec += 1e9
 	}
-	t.nsec = uintptr(nsec)
+	t.nsec = nsec
 	return t
 }
 
@@ -782,7 +775,7 @@ func now() (sec int64, nsec int32)
 // Now returns the current local time.
 func Now() Time {
 	sec, nsec := now()
-	return Time{sec + unixToInternal, uintptr(nsec), Local}
+	return Time{sec + unixToInternal, nsec, Local}
 }
 
 // UTC returns t with the location set to UTC.
@@ -899,7 +892,7 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 		int64(buf[3])<<32 | int64(buf[2])<<40 | int64(buf[1])<<48 | int64(buf[0])<<56
 
 	buf = buf[8:]
-	t.nsec = uintptr(int32(buf[3]) | int32(buf[2])<<8 | int32(buf[1])<<16 | int32(buf[0])<<24)
+	t.nsec = int32(buf[3]) | int32(buf[2])<<8 | int32(buf[1])<<16 | int32(buf[0])<<24
 
 	buf = buf[4:]
 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
@@ -978,7 +971,7 @@ func Unix(sec int64, nsec int64) Time {
 			sec--
 		}
 	}
-	return Time{sec + unixToInternal, uintptr(nsec), Local}
+	return Time{sec + unixToInternal, int32(nsec), Local}
 }
 
 func isLeap(year int) bool {
@@ -1087,7 +1080,7 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 		unix -= int64(offset)
 	}
 
-	return Time{unix + unixToInternal, uintptr(nsec), loc}
+	return Time{unix + unixToInternal, int32(nsec), loc}
 }
 
 // Truncate returns the result of rounding t down to a multiple of d (since the zero time).
