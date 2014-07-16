@@ -147,7 +147,10 @@ func CanBackquote(s string) bool {
 		r, wid := utf8.DecodeRuneInString(s)
 		s = s[wid:]
 		if wid > 1 {
-			continue // All multibyte runes are correctly encoded and assumed printable.
+			if r == '\ufeff' {
+				return false // BOMs are invisible and should not be quoted.
+			}
+			continue // All other multibyte runes are correctly encoded and assumed printable.
 		}
 		if r == utf8.RuneError {
 			return false
