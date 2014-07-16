@@ -370,16 +370,22 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 			// but haven't seen that in the wild yet.
 			switch kid.Tag {
 			case TagSubrangeType:
-				max, ok := kid.Val(AttrUpperBound).(int64)
+				count, ok := kid.Val(AttrCount).(int64)
 				if !ok {
-					max = -2 // Count == -1, as in x[].
+					// Old binaries may have an upper bound instead.
+					count, ok = kid.Val(AttrUpperBound).(int64)
+					if ok {
+						count++ // Length is one more than upper bound.
+					} else {
+						count = -1 // As in x[].
+					}
 				}
 				if ndim == 0 {
-					t.Count = max + 1
+					t.Count = count
 				} else {
 					// Multidimensional array.
 					// Create new array type underneath this one.
-					t.Type = &ArrayType{Type: t.Type, Count: max + 1}
+					t.Type = &ArrayType{Type: t.Type, Count: count}
 				}
 				ndim++
 			case TagEnumerationType:
