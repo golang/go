@@ -266,7 +266,7 @@ static struct DWAbbrev {
 		DW_TAG_subrange_type, DW_CHILDREN_no,
 		// No name!
 		DW_AT_type,	 DW_FORM_ref_addr,
-		DW_AT_upper_bound, DW_FORM_udata,
+		DW_AT_count, DW_FORM_udata,
 		0, 0
 	},
 
@@ -992,7 +992,8 @@ defgotype(LSym *gotype)
 		s = decodetype_arrayelem(gotype);
 		newrefattr(die, DW_AT_type, defgotype(s));
 		fld = newdie(die, DW_ABRV_ARRAYRANGE, "range");
-		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, decodetype_arraylen(gotype)-1, 0); // -1: want upper bound, not count.
+		// use actual length not upper bound; correct for 0-length arrays.
+		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, decodetype_arraylen(gotype), 0);
 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
 		break;
 
@@ -1256,7 +1257,7 @@ synthesizemaptypes(DWDie *die)
 		newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * keysize, 0);
 		newrefattr(dwhk, DW_AT_type, indirect_key ? defptrto(keytype) : keytype);
 		fld = newdie(dwhk, DW_ABRV_ARRAYRANGE, "size");
-		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, BucketSize, 0);
+		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0);
 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
 		
 		// Construct type to represent an array of BucketSize values
@@ -1266,7 +1267,7 @@ synthesizemaptypes(DWDie *die)
 		newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * valsize, 0);
 		newrefattr(dwhv, DW_AT_type, indirect_val ? defptrto(valtype) : valtype);
 		fld = newdie(dwhv, DW_ABRV_ARRAYRANGE, "size");
-		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, BucketSize, 0);
+		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0);
 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
 
 		// Construct bucket<K,V>
