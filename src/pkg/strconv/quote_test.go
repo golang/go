@@ -148,8 +148,8 @@ var canbackquotetests = []canBackquoteTest{
 	{`☺`, true},
 	{"\x80", false},
 	{"a\xe0\xa0z", false},
-	{"\ufeffabc", true},
-	{"a\ufeffz", true},
+	{"\ufeffabc", false},
+	{"a\ufeffz", false},
 }
 
 func TestCanBackquote(t *testing.T) {
