@@ -1882,7 +1882,11 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	newg->gopc = (uintptr)callerpc;
 	newg->status = Grunnable;
 	if(p->goidcache == p->goidcacheend) {
+		// Sched.goidgen is the last allocated id,
+		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
+		// At startup sched.goidgen=0, so main goroutine receives goid=1.
 		p->goidcache = runtime·xadd64(&runtime·sched.goidgen, GoidCacheBatch);
+		p->goidcache -= GoidCacheBatch - 1;
 		p->goidcacheend = p->goidcache + GoidCacheBatch;
 	}
 	newg->goid = p->goidcache++;
