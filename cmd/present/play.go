@@ -28,7 +28,7 @@ func playScript(root, transport string) {
 			buf.WriteString(s)
 			continue
 		}
-		b, err := ioutil.ReadFile(filepath.Join(root, "js", p))
+		b, err := ioutil.ReadFile(filepath.Join(root, "static", p))
 		if err != nil {
 			panic(err)
 		}
