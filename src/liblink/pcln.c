@@ -279,7 +279,7 @@ linkpcln(Link *ctxt, LSym *cursym)
 	}
 	// pcdata.
 	for(i=0; i<npcdata; i++) {
-		if(!(havepc[i/32]>>(i%32))&1) 
+		if(((havepc[i/32]>>(i%32))&1) == 0) 
 			continue;
 		funcpctab(ctxt, &pcln->pcdata[i], cursym, "pctopcdata", pctopcdata, (void*)(uintptr)i);
 	}
