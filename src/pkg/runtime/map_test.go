@@ -253,7 +253,7 @@ func testConcurrentReadsAfterGrowth(t *testing.T, useReflect bool) {
 			for nr := 0; nr < numReader; nr++ {
 				go func() {
 					defer wg.Done()
-					for _ = range m {
+					for range m {
 					}
 				}()
 				go func() {

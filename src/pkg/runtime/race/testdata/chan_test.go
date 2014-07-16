@@ -88,7 +88,7 @@ func TestNoRaceChanAsyncCloseRecv3(t *testing.T) {
 		v = 1
 		close(c)
 	}()
-	for _ = range c {
+	for range c {
 	}
 	v = 2
 }
@@ -127,7 +127,7 @@ func TestNoRaceChanSyncCloseRecv3(t *testing.T) {
 		v = 1
 		close(c)
 	}()
-	for _ = range c {
+	for range c {
 	}
 	v = 2
 }

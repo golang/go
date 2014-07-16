@@ -57,7 +57,7 @@ func TestRaceMapRange(t *testing.T) {
 	m := make(map[int]int)
 	ch := make(chan bool, 1)
 	go func() {
-		for _ = range m {
+		for range m {
 		}
 		ch <- true
 	}()
@@ -69,7 +69,7 @@ func TestRaceMapRange2(t *testing.T) {
 	m := make(map[int]int)
 	ch := make(chan bool, 1)
 	go func() {
-		for _ = range m {
+		for range m {
 		}
 		ch <- true
 	}()
@@ -85,11 +85,11 @@ func TestNoRaceMapRangeRange(t *testing.T) {
 	m[0] = 0
 	ch := make(chan bool, 1)
 	go func() {
-		for _ = range m {
+		for range m {
 		}
 		ch <- true
 	}()
-	for _ = range m {
+	for range m {
 	}
 	<-ch
 }

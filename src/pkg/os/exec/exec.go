@@ -358,7 +358,7 @@ func (c *Cmd) Wait() error {
 	c.ProcessState = state
 
 	var copyError error
-	for _ = range c.goroutine {
+	for range c.goroutine {
 		if err := <-c.errch; err != nil && copyError == nil {
 			copyError = err
 		}

@@ -488,7 +488,7 @@ func TestDialDualStackLocalhost(t *testing.T) {
 	}
 
 	d := &Dialer{DualStack: true}
-	for _ = range dss.lns {
+	for range dss.lns {
 		if c, err := d.Dial("tcp", "localhost:"+dss.port); err != nil {
 			t.Errorf("Dial failed: %v", err)
 		} else {

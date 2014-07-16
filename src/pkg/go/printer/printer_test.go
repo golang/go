@@ -357,7 +357,7 @@ func idents(f *ast.File) <-chan *ast.Ident {
 // identCount returns the number of identifiers found in f.
 func identCount(f *ast.File) int {
 	n := 0
-	for _ = range idents(f) {
+	for range idents(f) {
 		n++
 	}
 	return n

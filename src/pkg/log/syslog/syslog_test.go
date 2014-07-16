@@ -314,7 +314,7 @@ func TestConcurrentReconnect(t *testing.T) {
 	count := make(chan int)
 	go func() {
 		ct := 0
-		for _ = range done {
+		for range done {
 			ct++
 			// we are looking for 500 out of 1000 events
 			// here because lots of log messages are lost
