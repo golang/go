@@ -454,3 +454,38 @@ func TestUSTARLongName(t *testing.T) {
 		t.Fatal("Couldn't recover long name")
 	}
 }
+
+func TestValidTypeflagWithPAXHeader(t *testing.T) {
+	var buffer bytes.Buffer
+	tw := NewWriter(&buffer)
+
+	fileName := strings.Repeat("ab", 100)
+
+	hdr := &Header{
+		Name:     fileName,
+		Size:     4,
+		Typeflag: 0,
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("Failed to write header: %s", err)
+	}
+	if _, err := tw.Write([]byte("fooo")); err != nil {
+		t.Fatalf("Failed to write the file's data: %s", err)
+	}
+	tw.Close()
+
+	tr := NewReader(&buffer)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Failed to read header: %s", err)
+		}
+		if header.Typeflag != 0 {
+			t.Fatalf("Typeflag should've been 0, found %d", header.Typeflag)
+		}
+	}
+}
