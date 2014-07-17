@@ -47,6 +47,7 @@ struct Sched {
 	// Global cache of dead G's.
 	Lock	gflock;
 	G*	gfree;
+	int32	ngfree;
 
 	uint32	gcwaiting;	// gc is waiting to run
 	int32	stopwait;
@@ -1964,6 +1965,7 @@ gfput(P *p, G *gp)
 			p->gfree = gp->schedlink;
 			gp->schedlink = runtime·sched.gfree;
 			runtime·sched.gfree = gp;
+			runtime·sched.ngfree++;
 		}
 		runtime·unlock(&runtime·sched.gflock);
 	}
@@ -1981,10 +1983,11 @@ retry:
 	gp = p->gfree;
 	if(gp == nil && runtime·sched.gfree) {
 		runtime·lock(&runtime·sched.gflock);
-		while(p->gfreecnt < 32 && runtime·sched.gfree) {
+		while(p->gfreecnt < 32 && runtime·sched.gfree != nil) {
 			p->gfreecnt++;
 			gp = runtime·sched.gfree;
 			runtime·sched.gfree = gp->schedlink;
+			runtime·sched.ngfree--;
 			gp->schedlink = p->gfree;
 			p->gfree = gp;
 		}
@@ -2022,12 +2025,13 @@ gfpurge(P *p)
 	G *gp;
 
 	runtime·lock(&runtime·sched.gflock);
-	while(p->gfreecnt) {
+	while(p->gfreecnt != 0) {
 		p->gfreecnt--;
 		gp = p->gfree;
 		p->gfree = gp->schedlink;
 		gp->schedlink = runtime·sched.gfree;
 		runtime·sched.gfree = gp;
+		runtime·sched.ngfree++;
 	}
 	runtime·unlock(&runtime·sched.gflock);
 }
@@ -2136,23 +2140,16 @@ runtime·lockedOSThread(void)
 int32
 runtime·gcount(void)
 {
-	G *gp;
-	int32 n, s;
-	uintptr i;
+	P *p, **pp;
+	int32 n;
 
-	n = 0;
-	runtime·lock(&allglock);
-	// TODO(dvyukov): runtime.NumGoroutine() is O(N).
-	// We do not want to increment/decrement centralized counter in newproc/goexit,
-	// just to make runtime.NumGoroutine() faster.
-	// Compromise solution is to introduce per-P counters of active goroutines.
-	for(i = 0; i < runtime·allglen; i++) {
-		gp = runtime·allg[i];
-		s = gp->status;
-		if(s == Grunnable || s == Grunning || s == Gsyscall || s == Gwaiting)
-			n++;
-	}
-	runtime·unlock(&allglock);
+	n = runtime·allglen - runtime·sched.ngfree;
+	for(pp=runtime·allp; p=*pp; pp++)
+		n -= p->gfreecnt;
+	// All these variables can be changed concurrently, so the result can be inconsistent.
+	// But at least the current goroutine is running.
+	if(n < 1)
+		n = 1;
 	return n;
 }
 
