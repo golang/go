@@ -258,6 +258,24 @@ type Program struct {
 	AllPackages map[*types.Package]*PackageInfo
 }
 
+// PackageInfo holds the ASTs and facts derived by the type-checker
+// for a single package.
+//
+// Not mutated once exposed via the API.
+//
+type PackageInfo struct {
+	Pkg                   *types.Package
+	Importable            bool        // true if 'import "Pkg.Path()"' would resolve to this
+	TransitivelyErrorFree bool        // true if Pkg and all its dependencies are free of errors
+	Files                 []*ast.File // syntax trees for the package's files
+	Errors                []error     // non-nil if the package had errors
+	types.Info                        // type-checker deductions.
+
+	checker *types.Checker // transient type-checker state
+}
+
+func (info *PackageInfo) String() string { return info.Pkg.Path() }
+
 func (conf *Config) fset() *token.FileSet {
 	if conf.Fset == nil {
 		conf.Fset = token.NewFileSet()
