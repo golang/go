@@ -39,14 +39,33 @@ runtime·allocmcache(void)
 	return c;
 }
 
-void
-runtime·freemcache(MCache *c)
+static void
+freemcache(MCache *c)
 {
 	runtime·MCache_ReleaseAll(c);
+	runtime·stackcache_clear(c);
 	runtime·lock(&runtime·mheap);
 	runtime·purgecachedstats(c);
 	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
 	runtime·unlock(&runtime·mheap);
+}
+
+static void
+freemcache_m(G *gp)
+{
+	MCache *c;
+
+	c = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	freemcache(c);
+	runtime·gogo(&gp->sched);
+}
+
+void
+runtime·freemcache(MCache *c)
+{
+	g->m->ptrarg[0] = c;
+	runtime·mcall(freemcache_m);
 }
 
 // Gets a span that has a free object in it and assigns it

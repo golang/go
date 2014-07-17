@@ -164,6 +164,8 @@ MCentral_Free(MCentral *c, MLink *v)
 	s = runtime·MHeap_Lookup(&runtime·mheap, v);
 	if(s == nil || s->ref == 0)
 		runtime·throw("invalid free");
+	if(s->state != MSpanInUse)
+		runtime·throw("free into stack span");
 	if(s->sweepgen != runtime·mheap.sweepgen)
 		runtime·throw("free into unswept span");
 	
