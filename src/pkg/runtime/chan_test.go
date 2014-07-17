@@ -458,7 +458,35 @@ func BenchmarkSelectUncontended(b *testing.B) {
 	})
 }
 
-func BenchmarkSelectContended(b *testing.B) {
+func BenchmarkSelectSyncContended(b *testing.B) {
+	myc1 := make(chan int)
+	myc2 := make(chan int)
+	myc3 := make(chan int)
+	done := make(chan int)
+	b.RunParallel(func(pb *testing.PB) {
+		go func() {
+			for {
+				select {
+				case myc1 <- 0:
+				case myc2 <- 0:
+				case myc3 <- 0:
+				case <-done:
+					return
+				}
+			}
+		}()
+		for pb.Next() {
+			select {
+			case <-myc1:
+			case <-myc2:
+			case <-myc3:
+			}
+		}
+	})
+	close(done)
+}
+
+func BenchmarkSelectAsyncContended(b *testing.B) {
 	procs := runtime.GOMAXPROCS(0)
 	myc1 := make(chan int, procs)
 	myc2 := make(chan int, procs)
@@ -476,11 +504,11 @@ func BenchmarkSelectContended(b *testing.B) {
 }
 
 func BenchmarkSelectNonblock(b *testing.B) {
+	myc1 := make(chan int)
+	myc2 := make(chan int)
+	myc3 := make(chan int, 1)
+	myc4 := make(chan int, 1)
 	b.RunParallel(func(pb *testing.PB) {
-		myc1 := make(chan int)
-		myc2 := make(chan int)
-		myc3 := make(chan int, 1)
-		myc4 := make(chan int, 1)
 		for pb.Next() {
 			select {
 			case <-myc1:
