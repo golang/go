@@ -97,14 +97,24 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
 		//       x, y := b[:n], b[n:]
 
 	case *ast.RangeStmt:
-		// a range of the form: for x, _ = range v {...}
+		// - a range of the form: for x, _ = range v {...}
 		// can be simplified to: for x = range v {...}
-		if ident, _ := n.Value.(*ast.Ident); ident != nil && ident.Name == "_" {
+		// - a range of the form: for _ = range v {...}
+		// can be simplified to: for range v {...}
+		if isBlank(n.Value) {
 			n.Value = nil
+		}
+		if isBlank(n.Key) && n.Value == nil {
+			n.Key = nil
 		}
 	}
 
 	return s
+}
+
+func isBlank(x ast.Expr) bool {
+	ident, ok := x.(*ast.Ident)
+	return ok && ident.Name == "_"
 }
 
 func simplify(f *ast.File) {
