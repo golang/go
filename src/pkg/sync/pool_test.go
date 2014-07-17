@@ -136,7 +136,7 @@ func BenchmarkPool(b *testing.B) {
 	})
 }
 
-func BenchmarkPoolOverlflow(b *testing.B) {
+func BenchmarkPoolOverflow(b *testing.B) {
 	var p Pool
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
