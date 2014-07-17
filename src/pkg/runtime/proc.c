@@ -153,6 +153,7 @@ runtime·schedinit(void)
 	runtime·precisestack = true; // haveexperiment("precisestack");
 
 	runtime·symtabinit();
+	runtime·stackinit();
 	runtime·mallocinit();
 	mcommoninit(g->m);
 	
@@ -1946,7 +1947,7 @@ gfput(P *p, G *gp)
 		runtime·throw("gfput: bad stacksize");
 	}
 	top = (Stktop*)gp->stackbase;
-	if(top->malloced) {
+	if(stksize != FixedStack) {
 		// non-standard stack size - free it.
 		runtime·stackfree(gp, (void*)gp->stack0, top);
 		gp->stack0 = 0;
@@ -2013,6 +2014,9 @@ retry:
 			gp->stackbase = (uintptr)stk + FixedStack - sizeof(Stktop);
 			gp->stackguard = (uintptr)stk + StackGuard;
 			gp->stackguard0 = gp->stackguard;
+		} else {
+			if(raceenabled)
+				runtime·racemalloc((void*)gp->stack0, gp->stackbase + sizeof(Stktop) - gp->stack0);
 		}
 	}
 	return gp;
