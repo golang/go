@@ -363,7 +363,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		v := b.receiver(fn, e.X, wantAddr, escaping, sel)
 		last := len(sel.Index()) - 1
 		return &address{
-			addr: emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos()),
+			addr: emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel),
 			expr: e.Sel,
 		}
 
@@ -455,7 +455,15 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		return NewConst(tv.Value, tv.Type)
 	}
 
-	v := b.expr0(fn, e, tv)
+	var v Value
+	if tv.Addressable() {
+		// Prefer pointer arithmetic ({Index,Field}Addr) followed
+		// by Load over subelement extraction (e.g. Index, Field),
+		// to avoid large copies.
+		v = b.addr(fn, e, false).load(fn)
+	} else {
+		v = b.expr0(fn, e, tv)
+	}
 	if fn.debugInfo() {
 		emitDebugRef(fn, e, v, false)
 	}
@@ -656,8 +664,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			last := len(indices) - 1
 			v := b.expr(fn, e.X)
 			v = emitImplicitSelections(fn, v, indices[:last])
-			v = emitFieldSelection(fn, v, indices[last], false, e.Sel.Pos())
-			emitDebugRef(fn, e.Sel, v, false)
+			v = emitFieldSelection(fn, v, indices[last], false, e.Sel)
 			return v
 		}
 

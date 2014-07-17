@@ -235,28 +235,26 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 // pkg is the package enclosing the reference.  (A reference to a var
 // always occurs within a function, so we need to know where to find it.)
 //
-// The Value of a defining (as opposed to referring) identifier is the
-// value assigned to it in its definition.  Similarly, the Value of an
-// identifier that is the LHS of an assignment is the value assigned
-// to it in that statement.  In all these examples, VarValue(x) returns
-// the value of x and isAddr==false.
+// If the identifier is a field selector and its base expression is
+// non-addressable, then VarValue returns the value of that field.
+// For example:
+//    func f() struct {x int}
+//    f().x  // VarValue(x) returns a *Field instruction of type int
 //
-//    var x X
-//    var x = X{}
-//    x := X{}
-//    x = X{}
+// All other identifiers denote addressable locations (variables).
+// For them, VarValue may return either the variable's address or its
+// value, even when the expression is evaluated only for its value; the
+// situation is reported by isAddr, the second component of the result.
 //
-// When an identifier appears in an lvalue context other than as the
-// LHS of an assignment, the resulting Value is the var's address, not
-// its value.  This situation is reported by isAddr, the second
-// component of the result.  In these examples, VarValue(x) returns
-// the address of x and isAddr==true.
+// If !isAddr, the returned value is the one associated with the
+// specific identifier.  For example,
+//       var x int    // VarValue(x) returns Const 0 here
+//       x = 1        // VarValue(x) returns Const 1 here
 //
-//    x.y = 0
-//    x[0] = 0
-//    _ = x[:]      (where x is an array)
-//    _ = &x
-//    x.method()    (iff method is on &x)
+// It is not specified whether the value or the address is returned in
+// any particular case, as it may depend upon optimizations performed
+// during SSA code generation, such as registerization, constant
+// folding, avoidance of materialization of subexpressions, etc.
 //
 func (prog *Program) VarValue(obj *types.Var, pkg *Package, ref []ast.Node) (value Value, isAddr bool) {
 	// All references to a var are local to some function, possibly init.

@@ -388,15 +388,16 @@ func emitImplicitSelections(f *Function, v Value, indices []int) Value {
 // If wantAddr, the input must be a pointer-to-struct and the result
 // will be the field's address; otherwise the result will be the
 // field's value.
+// Ident id is used for position and debug info.
 //
-func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, pos token.Pos) Value {
+func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, id *ast.Ident) Value {
 	fld := deref(v.Type()).Underlying().(*types.Struct).Field(index)
 	if isPointer(v.Type()) {
 		instr := &FieldAddr{
 			X:     v,
 			Field: index,
 		}
-		instr.setPos(pos)
+		instr.setPos(id.Pos())
 		instr.setType(types.NewPointer(fld.Type()))
 		v = f.emit(instr)
 		// Load the field's value iff we don't want its address.
@@ -408,10 +409,11 @@ func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, pos toke
 			X:     v,
 			Field: index,
 		}
-		instr.setPos(pos)
+		instr.setPos(id.Pos())
 		instr.setType(fld.Type())
 		v = f.emit(instr)
 	}
+	emitDebugRef(f, id, v, wantAddr)
 	return v
 }
 
