@@ -493,3 +493,101 @@ func TempDir() string {
 	}
 	return string(utf16.Decode(dirw[0:n]))
 }
+
+// Link creates newname as a hard link to the oldname file.
+// If there is an error, it will be of type *LinkError.
+func Link(oldname, newname string) error {
+	n, err := syscall.UTF16PtrFromString(newname)
+	if err != nil {
+		return &LinkError{"link", oldname, newname, err}
+	}
+	o, err := syscall.UTF16PtrFromString(oldname)
+	if err != nil {
+		return &LinkError{"link", oldname, newname, err}
+	}
+
+	e := syscall.CreateHardLink(n, o, 0)
+	if e != nil {
+		return &LinkError{"link", oldname, newname, err}
+	}
+	return nil
+}
+
+// Symlink creates newname as a symbolic link to oldname.
+// If there is an error, it will be of type *LinkError.
+func Symlink(oldname, newname string) error {
+	// CreateSymbolicLink is not supported before Windows Vista
+	if syscall.LoadCreateSymbolicLink() != nil {
+		return &LinkError{"symlink", oldname, newname, syscall.EWINDOWS}
+	}
+
+	// '/' does not work in link's content
+	oldname = fromSlash(oldname)
+
+	// need the exact location of the oldname when its relative to determine if its a directory
+	destpath := oldname
+	if !isAbs(oldname) {
+		destpath = dirname(newname) + `\` + oldname
+	}
+
+	fi, err := Lstat(destpath)
+	isdir := err == nil && fi.IsDir()
+
+	n, err := syscall.UTF16PtrFromString(newname)
+	if err != nil {
+		return &LinkError{"symlink", oldname, newname, err}
+	}
+	o, err := syscall.UTF16PtrFromString(oldname)
+	if err != nil {
+		return &LinkError{"symlink", oldname, newname, err}
+	}
+
+	var flags uint32
+	if isdir {
+		flags |= syscall.SYMBOLIC_LINK_FLAG_DIRECTORY
+	}
+	err = syscall.CreateSymbolicLink(n, o, flags)
+	if err != nil {
+		return &LinkError{"symlink", oldname, newname, err}
+	}
+	return nil
+}
+
+func fromSlash(path string) string {
+	// Replace each '/' with '\\' if present
+	var pathbuf []byte
+	var lastSlash int
+	for i, b := range path {
+		if b == '/' {
+			if pathbuf == nil {
+				pathbuf = make([]byte, len(path))
+			}
+			copy(pathbuf[lastSlash:], path[lastSlash:i])
+			pathbuf[i] = '\\'
+			lastSlash = i + 1
+		}
+	}
+	if pathbuf == nil {
+		return path
+	}
+
+	copy(pathbuf[lastSlash:], path[lastSlash:])
+	return string(pathbuf)
+}
+
+func dirname(path string) string {
+	vol := volumeName(path)
+	i := len(path) - 1
+	for i >= len(vol) && !IsPathSeparator(path[i]) {
+		i--
+	}
+	dir := path[len(vol) : i+1]
+	last := len(dir) - 1
+	if last > 0 && IsPathSeparator(dir[last]) {
+		dir = dir[:last]
+	}
+	if dir == "" {
+		dir = "."
+	}
+	return vol + dir
+}

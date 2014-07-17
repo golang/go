@@ -50,6 +50,11 @@ func toLong(path string) (string, error) {
 }
 
 func evalSymlinks(path string) (string, error) {
+	path, err := walkSymlinks(path)
+	if err != nil {
+		return "", err
+	}
+
 	p, err := toShort(path)
 	if err != nil {
 		return "", err

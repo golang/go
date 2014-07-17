@@ -2,18 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows
-
 package filepath
 
 import (
 	"bytes"
 	"errors"
 	"os"
-	"strings"
 )
 
-func evalSymlinks(path string) (string, error) {
+const utf8RuneSelf = 0x80
+
+func walkSymlinks(path string) (string, error) {
 	const maxIter = 255
 	originalPath := path
 	// consume path by taking each frontmost path element,
@@ -25,7 +24,13 @@ func evalSymlinks(path string) (string, error) {
 		}
 
 		// find next path component, p
-		i := strings.IndexRune(path, Separator)
+		var i = -1
+		for j, c := range path {
+			if c < utf8RuneSelf && os.IsPathSeparator(uint8(c)) {
+				i = j
+				break
+			}
+		}
 		var p string
 		if i == -1 {
 			p, path = path, ""
@@ -47,7 +52,7 @@ func evalSymlinks(path string) (string, error) {
 		}
 		if fi.Mode()&os.ModeSymlink == 0 {
 			b.WriteString(p)
-			if path != "" {
+			if path != "" || (b.Len() == 2 && len(p) == 2 && p[1] == ':') {
 				b.WriteRune(Separator)
 			}
 			continue
@@ -58,7 +63,7 @@ func evalSymlinks(path string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if IsAbs(dest) {
+		if IsAbs(dest) || os.IsPathSeparator(dest[0]) {
 			b.Reset()
 		}
 		path = dest + string(Separator) + path

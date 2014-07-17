@@ -207,6 +207,10 @@ func NewCallbackCDecl(fn interface{}) uintptr
 //sys	CreateToolhelp32Snapshot(flags uint32, processId uint32) (handle Handle, err error) [failretval==InvalidHandle] = kernel32.CreateToolhelp32Snapshot
 //sys	Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32FirstW
 //sys	Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32NextW
+//sys	DeviceIoControl(handle Handle, ioControlCode uint32, inBuffer *byte, inBufferSize uint32, outBuffer *byte, outBufferSize uint32, bytesReturned *uint32, overlapped *Overlapped) (err error)
+// This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
+//sys	CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) [failretval&0xff==0] = CreateSymbolicLinkW
+//sys	CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) [failretval&0xff==0] = CreateHardLinkW
 
 // syscall interface implementation for other packages
 
@@ -936,10 +940,9 @@ func Getppid() (ppid int) {
 }
 
 // TODO(brainman): fix all needed for os
-func Fchdir(fd Handle) (err error)                        { return EWINDOWS }
-func Link(oldpath, newpath string) (err error)            { return EWINDOWS }
-func Symlink(path, link string) (err error)               { return EWINDOWS }
-func Readlink(path string, buf []byte) (n int, err error) { return 0, EWINDOWS }
+func Fchdir(fd Handle) (err error)             { return EWINDOWS }
+func Link(oldpath, newpath string) (err error) { return EWINDOWS }
+func Symlink(path, link string) (err error)    { return EWINDOWS }
 
 func Fchmod(fd Handle, mode uint32) (err error)        { return EWINDOWS }
 func Chown(path string, uid int, gid int) (err error)  { return EWINDOWS }
@@ -964,4 +967,36 @@ func (s Signal) String() string {
 		}
 	}
 	return "signal " + itoa(int(s))
+}
+
+func LoadCreateSymbolicLink() error {
+	return procCreateSymbolicLinkW.Find()
+}
+
+// Readlink returns the destination of the named symbolic link.
+func Readlink(path string, buf []byte) (n int, err error) {
+	fd, err := CreateFile(StringToUTF16Ptr(path), GENERIC_READ, 0, nil, OPEN_EXISTING,
+		FILE_FLAG_OPEN_REPARSE_POINT|FILE_FLAG_BACKUP_SEMANTICS, 0)
+	if err != nil {
+		return -1, err
+	}
+	defer CloseHandle(fd)
+
+	rdbbuf := make([]byte, MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+	var bytesReturned uint32
+	err = DeviceIoControl(fd, FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
+	if err != nil {
+		return -1, err
+	}
+
+	rdb := (*reparseDataBuffer)(unsafe.Pointer(&rdbbuf[0]))
+	if uintptr(bytesReturned) < unsafe.Sizeof(*rdb) ||
+		rdb.ReparseTag != IO_REPARSE_TAG_SYMLINK {
+		// the path is not a symlink but another type of reparse point
+		return -1, ENOENT
+	}
+
+	s := UTF16ToString((*[0xffff]uint16)(unsafe.Pointer(&rdb.PathBuffer[0]))[:rdb.PrintNameLength/2])
+	n = copy(buf, []byte(s))
+	return n, nil
 }

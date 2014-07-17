@@ -15,6 +15,8 @@ import (
 	"testing"
 )
 
+var supportsSymlinks = true
+
 type PathTest struct {
 	path, result string
 }
@@ -716,7 +718,7 @@ func TestEvalSymlinks(t *testing.T) {
 		if d.dest == "" {
 			err = os.Mkdir(path, 0755)
 		} else {
-			if runtime.GOOS != "windows" {
+			if supportsSymlinks {
 				err = os.Symlink(d.dest, path)
 			}
 		}
@@ -726,7 +728,9 @@ func TestEvalSymlinks(t *testing.T) {
 	}
 
 	var tests []EvalSymlinksTest
-	if runtime.GOOS == "windows" {
+	if supportsSymlinks {
+		tests = EvalSymlinksTests
+	} else {
 		for _, d := range EvalSymlinksTests {
 			if d.path == d.dest {
 				// will test only real files and directories
@@ -739,15 +743,13 @@ func TestEvalSymlinks(t *testing.T) {
 				tests = append(tests, d2)
 			}
 		}
-	} else {
-		tests = EvalSymlinksTests
 	}
 
 	// Evaluate the symlink farm.
 	for _, d := range tests {
 		path := simpleJoin(tmpDir, d.path)
 		dest := simpleJoin(tmpDir, d.dest)
-		if filepath.IsAbs(d.dest) {
+		if filepath.IsAbs(d.dest) || os.IsPathSeparator(d.dest[0]) {
 			dest = d.dest
 		}
 		if p, err := filepath.EvalSymlinks(path); err != nil {

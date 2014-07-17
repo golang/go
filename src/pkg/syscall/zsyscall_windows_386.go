@@ -111,6 +111,9 @@ var (
 	procCreateToolhelp32Snapshot           = modkernel32.NewProc("CreateToolhelp32Snapshot")
 	procProcess32FirstW                    = modkernel32.NewProc("Process32FirstW")
 	procProcess32NextW                     = modkernel32.NewProc("Process32NextW")
+	procDeviceIoControl                    = modkernel32.NewProc("DeviceIoControl")
+	procCreateSymbolicLinkW                = modkernel32.NewProc("CreateSymbolicLinkW")
+	procCreateHardLinkW                    = modkernel32.NewProc("CreateHardLinkW")
 	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
 	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
 	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
@@ -1285,6 +1288,42 @@ func Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) {
 func Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) {
 	r1, _, e1 := Syscall(procProcess32NextW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(procEntry)), 0)
 	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func DeviceIoControl(handle Handle, ioControlCode uint32, inBuffer *byte, inBufferSize uint32, outBuffer *byte, outBufferSize uint32, bytesReturned *uint32, overlapped *Overlapped) (err error) {
+	r1, _, e1 := Syscall9(procDeviceIoControl.Addr(), 8, uintptr(handle), uintptr(ioControlCode), uintptr(unsafe.Pointer(inBuffer)), uintptr(inBufferSize), uintptr(unsafe.Pointer(outBuffer)), uintptr(outBufferSize), uintptr(unsafe.Pointer(bytesReturned)), uintptr(unsafe.Pointer(overlapped)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) {
+	r1, _, e1 := Syscall(procCreateSymbolicLinkW.Addr(), 3, uintptr(unsafe.Pointer(symlinkfilename)), uintptr(unsafe.Pointer(targetfilename)), uintptr(flags))
+	if r1&0xff == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) {
+	r1, _, e1 := Syscall(procCreateHardLinkW.Addr(), 3, uintptr(unsafe.Pointer(filename)), uintptr(unsafe.Pointer(existingfilename)), uintptr(reserved))
+	if r1&0xff == 0 {
 		if e1 != 0 {
 			err = error(e1)
 		} else {
