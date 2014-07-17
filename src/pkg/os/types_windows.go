@@ -39,6 +39,9 @@ func (fs *fileStat) Mode() (m FileMode) {
 	} else {
 		m |= 0666
 	}
+	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		m |= ModeSymlink
+	}
 	return m
 }
 

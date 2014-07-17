@@ -13,26 +13,6 @@ import (
 
 func sigpipe() // implemented in package runtime
 
-// Link creates newname as a hard link to the oldname file.
-// If there is an error, it will be of type *LinkError.
-func Link(oldname, newname string) error {
-	e := syscall.Link(oldname, newname)
-	if e != nil {
-		return &LinkError{"link", oldname, newname, e}
-	}
-	return nil
-}
-
-// Symlink creates newname as a symbolic link to oldname.
-// If there is an error, it will be of type *LinkError.
-func Symlink(oldname, newname string) error {
-	e := syscall.Symlink(oldname, newname)
-	if e != nil {
-		return &LinkError{"symlink", oldname, newname, e}
-	}
-	return nil
-}
-
 // Readlink returns the destination of the named symbolic link.
 // If there is an error, it will be of type *PathError.
 func Readlink(name string) (string, error) {

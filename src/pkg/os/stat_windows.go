@@ -49,8 +49,29 @@ func (file *File) Stat() (fi FileInfo, err error) {
 // Stat returns a FileInfo structure describing the named file.
 // If there is an error, it will be of type *PathError.
 func Stat(name string) (fi FileInfo, err error) {
+	for {
+		fi, err = Lstat(name)
+		if err != nil {
+			return
+		}
+		if fi.Mode()&ModeSymlink == 0 {
+			return
+		}
+		name, err = Readlink(name)
+		if err != nil {
+			return
+		}
+	}
+	return fi, err
+}
+
+// Lstat returns the FileInfo structure describing the named file.
+// If the file is a symbolic link, the returned FileInfo
+// describes the symbolic link.  Lstat makes no attempt to follow the link.
+// If there is an error, it will be of type *PathError.
+func Lstat(name string) (fi FileInfo, err error) {
 	if len(name) == 0 {
-		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+		return nil, &PathError{"Lstat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
 	if name == DevNull {
 		return &devNullStat, nil
@@ -58,7 +79,7 @@ func Stat(name string) (fi FileInfo, err error) {
 	fs := &fileStat{name: basename(name)}
 	namep, e := syscall.UTF16PtrFromString(name)
 	if e != nil {
-		return nil, &PathError{"Stat", name, e}
+		return nil, &PathError{"Lstat", name, e}
 	}
 	e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fs.sys)))
 	if e != nil {
@@ -70,15 +91,6 @@ func Stat(name string) (fi FileInfo, err error) {
 		fs.path = cwd + `\` + fs.path
 	}
 	return fs, nil
-}
-
-// Lstat returns the FileInfo structure describing the named file.
-// If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link.  Lstat makes no attempt to follow the link.
-// If there is an error, it will be of type *PathError.
-func Lstat(name string) (fi FileInfo, err error) {
-	// No links on Windows
-	return Stat(name)
 }
 
 // basename removes trailing slashes and the leading
@@ -105,10 +117,6 @@ func basename(name string) string {
 	return name
 }
 
-func isSlash(c uint8) bool {
-	return c == '\\' || c == '/'
-}
-
 func isAbs(path string) (b bool) {
 	v := volumeName(path)
 	if v == "" {
@@ -118,7 +126,7 @@ func isAbs(path string) (b bool) {
 	if path == "" {
 		return false
 	}
-	return isSlash(path[0])
+	return IsPathSeparator(path[0])
 }
 
 func volumeName(path string) (v string) {
@@ -133,20 +141,20 @@ func volumeName(path string) (v string) {
 		return path[:2]
 	}
 	// is it UNC
-	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
-		!isSlash(path[2]) && path[2] != '.' {
+	if l := len(path); l >= 5 && IsPathSeparator(path[0]) && IsPathSeparator(path[1]) &&
+		!IsPathSeparator(path[2]) && path[2] != '.' {
 		// first, leading `\\` and next shouldn't be `\`. its server name.
 		for n := 3; n < l-1; n++ {
 			// second, next '\' shouldn't be repeated.
-			if isSlash(path[n]) {
+			if IsPathSeparator(path[n]) {
 				n++
 				// third, following something characters. its share name.
-				if !isSlash(path[n]) {
+				if !IsPathSeparator(path[n]) {
 					if path[n] == '.' {
 						break
 					}
 					for ; n < l; n++ {
-						if isSlash(path[n]) {
+						if IsPathSeparator(path[n]) {
 							break
 						}
 					}
