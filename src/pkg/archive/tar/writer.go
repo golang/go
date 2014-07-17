@@ -39,7 +39,8 @@ type Writer struct {
 	closed     bool
 	usedBinary bool            // whether the binary numeric field extension was used
 	preferPax  bool            // use pax header instead of binary numeric header
-	hdrBuff    [blockSize]byte // buffer to use in writeHeader
+	hdrBuff    [blockSize]byte // buffer to use in writeHeader when writing a regular header
+	paxHdrBuff [blockSize]byte // buffer to use in writeHeader when writing a pax header
 }
 
 // NewWriter creates a new Writer writing to w.
@@ -161,7 +162,17 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 	// subsecond time resolution, but for now let's just capture
 	// too long fields or non ascii characters
 
-	header := tw.hdrBuff[:]
+	var header []byte
+
+	// We need to select which scratch buffer to use carefully,
+	// since this method is called recursively to write PAX headers.
+	// If allowPax is true, this is the non-recursive call, and we will use hdrBuff.
+	// If allowPax is false, we are being called by writePAXHeader, and hdrBuff is
+	// already being used by the non-recursive call, so we must use paxHdrBuff.
+	header = tw.hdrBuff[:]
+	if !allowPax {
+		header = tw.paxHdrBuff[:]
+	}
 	copy(header, zeroBlock)
 	s := slicer(header)
 
