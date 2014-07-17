@@ -730,12 +730,12 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-12
 	MOVL	count+8(FP), BX
 	JMP	runtime·memeqbody(SB)
 
-TEXT runtime·gomemeq(SB),NOSPLIT,$0-13
+TEXT runtime·gomemeq(SB),NOSPLIT,$0-17
 	MOVL	a+0(FP), SI
 	MOVL	b+4(FP), DI
 	MOVL	size+8(FP), BX
 	CALL	runtime·memeqbody(SB)
-	MOVB	AX, ret+12(FP)
+	MOVB	AX, ret+16(FP)
 	RET
 
 // eqstring tests whether two strings are equal.
