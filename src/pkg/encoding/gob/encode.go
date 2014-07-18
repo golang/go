@@ -470,11 +470,11 @@ var encOpTable = [...]encOp{
 
 // encOpFor returns (a pointer to) the encoding op for the base type under rt and
 // the indirection count to reach it.
-func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int) {
+func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int) {
 	ut := userType(rt)
 	// If the type implements GobEncoder, we handle it without further processing.
 	if ut.externalEnc != 0 {
-		return enc.gobEncodeOpFor(ut)
+		return gobEncodeOpFor(ut)
 	}
 	// If this type is already in progress, it's a recursive type (e.g. map[string]*T).
 	// Return the pointer to the op we're already building.
@@ -498,7 +498,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 				break
 			}
 			// Slices have a header; we decode it to find the underlying array.
-			elemOp, elemIndir := enc.encOpFor(t.Elem(), inProgress)
+			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
 			op = func(i *encInstr, state *encoderState, slice reflect.Value) {
 				if !state.sendZero && slice.Len() == 0 {
 					return
@@ -508,14 +508,14 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 			}
 		case reflect.Array:
 			// True arrays have size in the type.
-			elemOp, elemIndir := enc.encOpFor(t.Elem(), inProgress)
+			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
 			op = func(i *encInstr, state *encoderState, array reflect.Value) {
 				state.update(i)
 				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len())
 			}
 		case reflect.Map:
-			keyOp, keyIndir := enc.encOpFor(t.Key(), inProgress)
-			elemOp, elemIndir := enc.encOpFor(t.Elem(), inProgress)
+			keyOp, keyIndir := encOpFor(t.Key(), inProgress)
+			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
 			op = func(i *encInstr, state *encoderState, mv reflect.Value) {
 				// We send zero-length (but non-nil) maps because the
 				// receiver might want to use the map.  (Maps don't use append.)
@@ -527,7 +527,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 			}
 		case reflect.Struct:
 			// Generate a closure that calls out to the engine for the nested type.
-			enc.getEncEngine(userType(typ))
+			getEncEngine(userType(typ))
 			info := mustGetTypeInfo(typ)
 			op = func(i *encInstr, state *encoderState, sv reflect.Value) {
 				state.update(i)
@@ -550,9 +550,8 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 	return &op, indir
 }
 
-// gobEncodeOpFor returns the op for a type that is known to implement
-// GobEncoder.
-func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
+// gobEncodeOpFor returns the op for a type that is known to implement GobEncoder.
+func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 	rt := ut.user
 	if ut.encIndir == -1 {
 		rt = reflect.PtrTo(rt)
@@ -580,7 +579,7 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 }
 
 // compileEnc returns the engine to compile the type.
-func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
+func compileEnc(ut *userTypeInfo) *encEngine {
 	srt := ut.base
 	engine := new(encEngine)
 	seen := make(map[reflect.Type]*encOp)
@@ -594,7 +593,7 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
 			if !isSent(&f) {
 				continue
 			}
-			op, indir := enc.encOpFor(f.Type, seen)
+			op, indir := encOpFor(f.Type, seen)
 			engine.instr = append(engine.instr, encInstr{*op, wireFieldNum, f.Index, indir})
 			wireFieldNum++
 		}
@@ -604,7 +603,7 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
 		engine.instr = append(engine.instr, encInstr{encStructTerminator, 0, nil, 0})
 	} else {
 		engine.instr = make([]encInstr, 1)
-		op, indir := enc.encOpFor(rt, seen)
+		op, indir := encOpFor(rt, seen)
 		engine.instr[0] = encInstr{*op, singletonField, nil, indir}
 	}
 	return engine
@@ -612,7 +611,7 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
 
 // getEncEngine returns the engine to compile the type.
 // typeLock must be held (or we're in initialization and guaranteed single-threaded).
-func (enc *Encoder) getEncEngine(ut *userTypeInfo) *encEngine {
+func getEncEngine(ut *userTypeInfo) *encEngine {
 	info, err1 := getTypeInfo(ut)
 	if err1 != nil {
 		error_(err1)
@@ -630,7 +629,7 @@ func (enc *Encoder) getEncEngine(ut *userTypeInfo) *encEngine {
 				info.encoder = nil
 			}
 		}()
-		info.encoder = enc.compileEnc(ut)
+		info.encoder = compileEnc(ut)
 		ok = true
 	}
 	return info.encoder
@@ -638,15 +637,15 @@ func (enc *Encoder) getEncEngine(ut *userTypeInfo) *encEngine {
 
 // lockAndGetEncEngine is a function that locks and compiles.
 // This lets us hold the lock only while compiling, not when encoding.
-func (enc *Encoder) lockAndGetEncEngine(ut *userTypeInfo) *encEngine {
+func lockAndGetEncEngine(ut *userTypeInfo) *encEngine {
 	typeLock.Lock()
 	defer typeLock.Unlock()
-	return enc.getEncEngine(ut)
+	return getEncEngine(ut)
 }
 
 func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInfo) {
 	defer catchError(&enc.err)
-	engine := enc.lockAndGetEncEngine(ut)
+	engine := lockAndGetEncEngine(ut)
 	indir := ut.indir
 	if ut.externalEnc != 0 {
 		indir = int(ut.encIndir)
