@@ -517,7 +517,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		return
 	}
 
-	ctype, offset := p.structType(n)
+	ctype, _ := p.structType(n)
 
 	// Gcc wrapper unpacks the C argument struct
 	// and calls the actual C function.
@@ -530,9 +530,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	// We're trying to write a gcc struct that matches 6c/8c/5c's layout.
 	// Use packed attribute to force no padding in this struct in case
 	// gcc has different packing requirements.
-	if offset != 0 {
-		fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
-	}
+	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
 	fmt.Fprintf(fgcc, "\t")
 	if t := n.FuncType.Result; t != nil {
 		fmt.Fprintf(fgcc, "a->r = ")
