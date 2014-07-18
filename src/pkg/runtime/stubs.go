@@ -82,3 +82,7 @@ func gomemeq(a, b unsafe.Pointer, size uintptr) bool
 
 // Code pointer for the nohash algorithm. Used for producing better error messages.
 var nohashcode uintptr
+
+// Go version of runtime.throw.
+// in panic.c
+func throwgo(s string)

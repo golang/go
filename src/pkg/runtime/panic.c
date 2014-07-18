@@ -525,6 +525,18 @@ runtime·throw(int8 *s)
 }
 
 void
+runtime·throwgo(String s)
+{
+	if(g->m->throwing == 0)
+		g->m->throwing = 1;
+	runtime·startpanic();
+	runtime·printf("fatal error: %S\n", s);
+	runtime·dopanic(0);
+	*(int32*)0 = 0;	// not reached
+	runtime·exit(1);	// even more not reached
+}
+
+void
 runtime·panicstring(int8 *s)
 {
 	Eface err;
