@@ -2172,7 +2172,10 @@ runtime·updatememstats(GCStats *stats)
 	}
 
 	// Flush MCache's to MCentral.
-	runtime·mcall(flushallmcaches_m);
+	if(g == g->m->g0)
+		flushallmcaches();
+	else
+		runtime·mcall(flushallmcaches_m);
 
 	// Aggregate local stats.
 	cachestats();
