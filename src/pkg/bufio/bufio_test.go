@@ -463,6 +463,18 @@ func TestUnreadRuneError(t *testing.T) {
 	if r.UnreadRune() == nil {
 		t.Error("expected error after UnreadByte (3)")
 	}
+	// Test error after ReadSlice.
+	_, _, err = r.ReadRune() // reset state
+	if err != nil {
+		t.Error("unexpected error on ReadRune (4):", err)
+	}
+	_, err = r.ReadSlice(0)
+	if err != io.EOF {
+		t.Error("unexpected error on ReadSlice (4):", err)
+	}
+	if r.UnreadRune() == nil {
+		t.Error("expected error after ReadSlice (4)")
+	}
 }
 
 func TestUnreadRuneAtEOF(t *testing.T) {
