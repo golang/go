@@ -64,8 +64,9 @@ var (
 )
 
 const (
-	// Maximum size used to buffer a token. The actual maximum token size
-	// may be smaller as the buffer may need to include, for instance, a newline.
+	// MaxScanTokenSize is the maximum size used to buffer a token.
+	// The actual maximum token size may be smaller as the buffer
+	// may need to include, for instance, a newline.
 	MaxScanTokenSize = 64 * 1024
 )
 
