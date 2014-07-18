@@ -25,7 +25,7 @@ func isNotExist(err error) bool {
 	case *LinkError:
 		err = pe.Err
 	}
-	return contains(err.Error(), "does not exist")
+	return contains(err.Error(), "does not exist") || contains(err.Error(), "not found")
 }
 
 func isPermission(err error) bool {
