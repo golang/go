@@ -161,11 +161,7 @@ func loadTables(f *os.File) (textStart uint64, symtab, pclntab []byte, err error
 	}
 
 	if obj, err := plan9obj.NewFile(f); err == nil {
-		sym, err := findPlan9Symbol(obj, "text")
-		if err != nil {
-			return 0, nil, nil, err
-		}
-		textStart = sym.Value
+		textStart = obj.LoadAddress + obj.HdrSize
 		if pclntab, err = loadPlan9Table(obj, "pclntab", "epclntab"); err != nil {
 			return 0, nil, nil, err
 		}
@@ -245,5 +241,6 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return data[ssym.Value-(f.LoadAddress+f.HdrSize) : esym.Value-(f.LoadAddress+f.HdrSize)], nil
+	textStart := f.LoadAddress + f.HdrSize
+	return data[ssym.Value-textStart : esym.Value-textStart], nil
 }
