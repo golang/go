@@ -2289,6 +2289,10 @@ codereview_init = False
 def uisetup(ui):
 	global testing
 	testing = ui.config("codereview", "testing")
+	# Disable the Mercurial commands that might change the repository.
+	# Only commands in this extension are supposed to do that.
+	ui.setconfig("hooks", "pre-commit.codereview", precommithook) # runs before 'hg commit'
+	ui.setconfig("hooks", "precommit.codereview", precommithook) # catches all cases
 
 def reposetup(ui, repo):
 	global codereview_disabled
@@ -2337,10 +2341,6 @@ def reposetup(ui, repo):
 
 	InstallMatch(ui, repo)
 	RietveldSetup(ui, repo)
-
-	# Disable the Mercurial commands that might change the repository.
-	# Only commands in this extension are supposed to do that.
-	ui.setconfig("hooks", "precommit.codereview", precommithook)
 
 	# Rollback removes an existing commit.  Don't do that either.
 	global real_rollback
