@@ -7,7 +7,7 @@
 # Assumes a local Rietveld is running using the App Engine SDK
 # at http://localhost:7777/
 #
-# dev_appserver.py -p 7777 $HOME/pub/rietveld
+# dev_appserver.py --port 7777 $HOME/pub/rietveld
 
 codereview_script=$(pwd)/codereview.py
 server=localhost:7777
@@ -57,6 +57,7 @@ username=Grace R Emlin <gre@golang.org>
 [extensions]
 codereview=$codereview_script
 [codereview]
+testing=true
 server=$server
 " >>$clone1/.hg/hgrc
 cp $clone1/.hg/hgrc $clone2/.hg/hgrc
@@ -78,7 +79,7 @@ echo 'Grace R Emlin <gre@golang.org>' >CONTRIBUTORS
 must hg add lib/codereview/codereview.cfg CONTRIBUTORS
 
 status First submit.
-must hg submit -r gre@golang.org -m codereview \
+must hg submit --tbr gre@golang.org -m codereview \
 	lib/codereview/codereview.cfg CONTRIBUTORS
 
 status Should see change in other client.
@@ -93,8 +94,8 @@ test_clpatch() {
 	# Clpatch will check.
 	
 	cd $clone1
-	# Tried to use UTF-8 here to test that, but dev_appserver.py crashes.  Ha ha.
-	if false; then
+	# dev_appserver.py used to crash with UTF-8 input.
+	if true; then
 		status Using UTF-8.
 		name="Grácè T Emlïn <test@example.com>"
 	else
@@ -103,20 +104,20 @@ test_clpatch() {
 	fi
 	echo "$name" >>CONTRIBUTORS
 	cat .hg/hgrc | sed "s/Grace.*/$name/" >/tmp/x && mv /tmp/x .hg/hgrc
-	echo '
+	echo "
 Reviewer: gre@golang.org
 Description:
 	CONTRIBUTORS: add $name
 Files:
 	CONTRIBUTORS
-'	| must hg change -i
+"	| must hg change -i
 	num=$(hg pending | sed 1q | tr -d :)
 	
 	status Patch CL.
 	cd $clone2
 	must hg clpatch $num
 	must [ "$num" = "$(firstcl)" ]
-	must hg submit $num
+	must hg submit --tbr gre@golang.org $num
 	
 	status Issue should be open with no reviewers.
 	must curl http://$server/api/$num >/tmp/x
@@ -160,7 +161,7 @@ Reviewer: gre@golang.org
 Description: file1
 Files: file1
 	' | must hg change -i
-	must hg submit $(firstcl)
+	must hg submit --tbr gre@golang.org $(firstcl)
 	
 	cd $clone2
 	echo file2 >file2
@@ -170,9 +171,9 @@ Reviewer: gre@golang.org
 Description: file2
 Files: file2
 	' | must hg change -i
-	must not hg submit $(firstcl)
+	must not hg submit --tbr gre@golang.org $(firstcl)
 	must hg sync
-	must hg submit $(firstcl)
+	must hg submit --tbr gre@golang.org $(firstcl)
 }
 
 test_restrict() {
