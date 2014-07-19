@@ -365,11 +365,7 @@ func loadTables(f *os.File) (textStart uint64, textData, symtab, pclntab []byte,
 	}
 
 	if obj, err := plan9obj.NewFile(f); err == nil {
-		sym, err := findPlan9Symbol(obj, "text")
-		if err != nil {
-			return 0, nil, nil, nil, err
-		}
-		textStart = sym.Value
+		textStart = obj.LoadAddress + obj.HdrSize
 		if sect := obj.Section("text"); sect != nil {
 			textData, _ = sect.Data()
 		}
@@ -444,10 +440,6 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	text, err := findPlan9Symbol(f, "text")
-	if err != nil {
-		return nil, err
-	}
 	sect := f.Section("text")
 	if sect == nil {
 		return nil, err
@@ -456,7 +448,8 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return data[ssym.Value-text.Value : esym.Value-text.Value], nil
+	textStart := f.LoadAddress + f.HdrSize
+	return data[ssym.Value-textStart : esym.Value-textStart], nil
 }
 
 // TODO(rsc): This code is taken from cmd/nm. Arrange some way to share the code.
