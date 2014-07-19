@@ -75,6 +75,7 @@ real_rollback = None
 releaseBranch = None
 server = "codereview.appspot.com"
 server_url_base = None
+testing = None
 
 #######################################################################
 # Normally I would split this into multiple files, but it simplifies
@@ -2285,6 +2286,10 @@ def norollback(*pats, **opts):
 
 codereview_init = False
 
+def uisetup(ui):
+	global testing
+	testing = ui.config("codereview", "testing")
+
 def reposetup(ui, repo):
 	global codereview_disabled
 	global defaultcc
@@ -2327,7 +2332,7 @@ def reposetup(ui, repo):
 		return
 
 	remote = ui.config("paths", "default", "")
-	if remote.find("://") < 0:
+	if remote.find("://") < 0 and not testing:
 		raise hg_util.Abort("codereview: default path '%s' is not a URL" % (remote,))
 
 	InstallMatch(ui, repo)
@@ -2434,7 +2439,10 @@ def IsRietveldSubmitted(ui, clname, hex):
 		return False
 	for msg in dict.get("messages", []):
 		text = msg.get("text", "")
-		m = re.match('\*\*\* Submitted as [^*]*?r=([0-9a-f]+)[^ ]* \*\*\*', text)
+		regex = '\*\*\* Submitted as [^*]*?r=([0-9a-f]+)[^ ]* \*\*\*'
+		if testing:
+			regex = '\*\*\* Submitted as ([0-9a-f]+) \*\*\*'
+		m = re.match(regex, text)
 		if m is not None and len(m.group(1)) >= 8 and hex.startswith(m.group(1)):
 			return True
 	return False
@@ -2539,6 +2547,8 @@ def MySend1(request_path, payload=None,
 			tries += 1
 			args = dict(kwargs)
 			url = "https://%s%s" % (self.host, request_path)
+			if testing:
+				url = url.replace("https://", "http://")
 			if args:
 				url += "?" + urllib.urlencode(args)
 			req = self._CreateRequest(url=url, data=payload)
@@ -2651,8 +2661,9 @@ def RietveldSetup(ui, repo):
 		email = x
 
 	server_url_base = "https://" + server + "/"
+	if testing:
+		server_url_base = server_url_base.replace("https://", "http://")
 
-	testing = ui.config("codereview", "testing")
 	force_google_account = ui.configbool("codereview", "force_google_account", False)
 
 	upload_options = opt()
@@ -2929,7 +2940,10 @@ class AbstractRpcServer(object):
 		# This is a dummy value to allow us to identify when we're successful.
 		continue_location = "http://localhost/"
 		args = {"continue": continue_location, "auth": auth_token}
-		req = self._CreateRequest("https://%s/_ah/login?%s" % (self.host, urllib.urlencode(args)))
+		reqUrl = "https://%s/_ah/login?%s" % (self.host, urllib.urlencode(args))
+		if testing:
+			reqUrl = reqUrl.replace("https://", "http://")
+		req = self._CreateRequest(reqUrl)
 		try:
 			response = self.opener.open(req)
 		except urllib2.HTTPError, e:
@@ -3020,6 +3034,8 @@ class AbstractRpcServer(object):
 				tries += 1
 				args = dict(kwargs)
 				url = "https://%s%s" % (self.host, request_path)
+				if testing:
+					url = url.replace("https://", "http://")
 				if args:
 					url += "?" + urllib.urlencode(args)
 				req = self._CreateRequest(url=url, data=payload)
