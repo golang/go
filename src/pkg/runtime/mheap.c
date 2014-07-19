@@ -507,8 +507,8 @@ runtime·MHeap_FreeStack(MHeap *h, MSpan *s)
 		runtime·throw("mheap_freestack not on M stack");
 	s->needzero = 1;
 	runtime·lock(h);
-	MHeap_FreeSpanLocked(h, s);
 	mstats.stacks_inuse -= s->npages<<PageShift;
+	MHeap_FreeSpanLocked(h, s);
 	runtime·unlock(h);
 }
 
