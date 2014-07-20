@@ -238,4 +238,6 @@ func _() {
 	z = (1. << s) << (1 << s)    // ERROR "non-integer|type complex128"
 	z = (1. << s) << (1. << s)   // ERROR "non-integer|type complex128"
 	z = (1.1 << s) << (1.1 << s) // ERROR "invalid|truncated|complex128"
+
+	_, _, _ = x, y, z
 }
