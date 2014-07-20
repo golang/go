@@ -20,5 +20,6 @@ enum {
 #endif	// Windows
 #endif	// Solaris
 	PhysPageSize = 4096,
-	PCQuantum = 1
+	PCQuantum = 1,
+	Int64Align = 8
 };

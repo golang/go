@@ -9,13 +9,15 @@ typedef	struct	SudoG	SudoG;
 typedef	struct	Select	Select;
 typedef	struct	Scase	Scase;
 
+// Known to compiler.
+// Changes here must also be made in src/cmd/gc/select.c's selecttype.
 struct	SudoG
 {
 	G*	g;
 	uint32*	selectdone;
 	SudoG*	link;
-	int64	releasetime;
 	byte*	elem;		// data element
+	int64	releasetime;
 };
 
 struct	WaitQ
@@ -55,6 +57,8 @@ enum
 	CaseDefault,
 };
 
+// Known to compiler.
+// Changes here must also be made in src/cmd/gc/select.c's selecttype.
 struct	Scase
 {
 	SudoG	sg;			// must be first member (cast to Scase)
@@ -65,6 +69,8 @@ struct	Scase
 	bool*	receivedp;		// pointer to received bool (recv2)
 };
 
+// Known to compiler.
+// Changes here must also be made in src/cmd/gc/select.c's selecttype.
 struct	Select
 {
 	uint16	tcase;			// total count of scase[]
