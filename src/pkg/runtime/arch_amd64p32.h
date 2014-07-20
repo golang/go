@@ -12,5 +12,6 @@ enum {
 #else
 	PhysPageSize = 4096,
 #endif
-	PCQuantum = 1
+	PCQuantum = 1,
+	Int64Align = 8
 };

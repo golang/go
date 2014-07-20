@@ -434,32 +434,25 @@ func reflect·chanrecv(t *ChanType, c *Hchan, nb bool, elem *byte) (selected boo
 	selected = chanrecv(t, c, elem, !nb, &received);
 }
 
-static Select* newselect(int32);
+static int64
+selectsize(int32 size)
+{
+	Select *sel;
+	int64 selsize;
 
-#pragma textflag NOSPLIT
-func newselect(size int32) (sel *byte) {
-	sel = (byte*)newselect(size);
+	selsize = sizeof(*sel) +
+		(size-1)*sizeof(sel->scase[0]) +
+		size*sizeof(sel->lockorder[0]) +
+		size*sizeof(sel->pollorder[0]);
+	return ROUND(selsize, Int64Align);
 }
 
-static Select*
-newselect(int32 size)
-{
-	int32 n;
-	Select *sel;
-
-	n = 0;
-	if(size > 1)
-		n = size-1;
-
-	// allocate all the memory we need in a single allocation
-	// start with Select with size cases
-	// then lockorder with size entries
-	// then pollorder with size entries
-	sel = runtime·mal(sizeof(*sel) +
-		n*sizeof(sel->scase[0]) +
-		size*sizeof(sel->lockorder[0]) +
-		size*sizeof(sel->pollorder[0]));
-
+#pragma textflag NOSPLIT
+func newselect(sel *Select, selsize int64, size int32) {
+	if(selsize != selectsize(size)) {
+		runtime·printf("runtime: bad select size %D, want %D\n", selsize, selectsize(size));
+		runtime·throw("bad select size");
+	}
 	sel->tcase = size;
 	sel->ncase = 0;
 	sel->lockorder = (void*)(sel->scase + size);
@@ -467,7 +460,6 @@ newselect(int32 size)
 
 	if(debug)
 		runtime·printf("newselect s=%p size=%d\n", sel, size);
-	return sel;
 }
 
 // cut in half to give stack a chance to split
@@ -960,7 +952,6 @@ retc:
 	}
 	if(cas->sg.releasetime > 0)
 		runtime·blockevent(cas->sg.releasetime - t0, 2);
-	runtime·free(sel);
 	return pc;
 
 sclose:
@@ -997,7 +988,9 @@ func reflect·rselect(cases Slice) (chosen int, recvOK bool) {
 
 	rcase = (runtimeSelect*)cases.array;
 
-	sel = newselect(cases.len);
+	// FlagNoScan is safe here, because all objects are also referenced from cases.
+	sel = runtime·mallocgc(selectsize(cases.len), 0, FlagNoScan);
+	runtime·newselect(sel, selectsize(cases.len), cases.len);
 	for(i=0; i<cases.len; i++) {
 		rc = &rcase[i];
 		switch(rc->dir) {

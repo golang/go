@@ -10,6 +10,8 @@
 #include <libc.h>
 #include "go.h"
 
+static Type* selecttype(int32 size);
+
 void
 typecheckselect(Node *sel)
 {
@@ -95,7 +97,7 @@ void
 walkselect(Node *sel)
 {
 	int lno, i;
-	Node *n, *r, *a, *var, *cas, *dflt, *ch;
+	Node *n, *r, *a, *var, *selv, *cas, *dflt, *ch;
 	NodeList *l, *init;
 	
 	if(sel->list == nil && sel->xoffset != 0)
@@ -257,8 +259,13 @@ walkselect(Node *sel)
 
 	// generate sel-struct
 	setlineno(sel);
-	var = temp(ptrto(types[TUINT8]));
-	r = nod(OAS, var, mkcall("newselect", var->type, nil, nodintconst(sel->xoffset)));
+	selv = temp(selecttype(sel->xoffset));
+	selv->esc = EscNone;
+	r = nod(OAS, selv, N);
+	typecheck(&r, Etop);
+	init = list(init, r);
+	var = conv(conv(nod(OADDR, selv, N), types[TUNSAFEPTR]), ptrto(types[TUINT8]));
+	r = mkcall("newselect", T, nil, var, nodintconst(selv->type->width), nodintconst(sel->xoffset));
 	typecheck(&r, Etop);
 	init = list(init, r);
 
@@ -301,6 +308,8 @@ walkselect(Node *sel)
 				break;
 			}
 		}
+		// selv is no longer alive after use.
+		r->nbody = list(r->nbody, nod(OVARKILL, selv, N));
 		r->nbody = concat(r->nbody, cas->nbody);
 		r->nbody = list(r->nbody, nod(OBREAK, N, N));
 		init = list(init, r);
@@ -315,4 +324,51 @@ out:
 	sel->list = nil;
 	walkstmtlist(sel->nbody);
 	lineno = lno;
+}
+
+// Keep in sync with src/pkg/runtime/chan.h.
+static Type*
+selecttype(int32 size)
+{
+	Node *sel, *sudog, *scase, *arr;
+
+	// TODO(dvyukov): it's possible to generate SudoG and Scase only once
+	// and then cache; and also cache Select per size.
+	sudog = nod(OTSTRUCT, N, N);
+	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("g")), typenod(ptrto(types[TUINT8]))));
+	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("selectdone")), typenod(ptrto(types[TUINT8]))));
+	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("link")), typenod(ptrto(types[TUINT8]))));
+	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("elem")), typenod(ptrto(types[TUINT8]))));
+	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("releasetime")), typenod(types[TUINT64])));
+	typecheck(&sudog, Etype);
+	sudog->type->noalg = 1;
+	sudog->type->local = 1;
+
+	scase = nod(OTSTRUCT, N, N);
+	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("sg")), sudog));
+	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("chan")), typenod(ptrto(types[TUINT8]))));
+	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("pc")), typenod(ptrto(types[TUINT8]))));
+	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("kind")), typenod(types[TUINT16])));
+	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("so")), typenod(types[TUINT16])));
+	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("receivedp")), typenod(ptrto(types[TUINT8]))));
+	typecheck(&scase, Etype);
+	scase->type->noalg = 1;
+	scase->type->local = 1;
+
+	sel = nod(OTSTRUCT, N, N);
+	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("tcase")), typenod(types[TUINT16])));
+	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("ncase")), typenod(types[TUINT16])));
+	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("pollorder")), typenod(ptrto(types[TUINT8]))));
+	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("lockorder")), typenod(ptrto(types[TUINT8]))));
+	arr = nod(OTARRAY, nodintconst(size), scase);
+	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("scase")), arr));
+	arr = nod(OTARRAY, nodintconst(size), typenod(ptrto(types[TUINT8])));
+	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("lockorderarr")), arr));
+	arr = nod(OTARRAY, nodintconst(size), typenod(types[TUINT16]));
+	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("pollorderarr")), arr));
+	typecheck(&sel, Etype);
+	sel->type->noalg = 1;
+	sel->type->local = 1;
+
+	return sel->type;
 }

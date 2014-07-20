@@ -112,7 +112,7 @@ func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
 func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
 func selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool
 
-func newselect(size int32) (sel *byte)
+func newselect(sel *byte, selsize int64, size int32)
 func selectsend(sel *byte, hchan chan<- any, elem *any) (selected bool)
 func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
 func selectrecv2(sel *byte, hchan <-chan any, elem *any, received *bool) (selected bool)
