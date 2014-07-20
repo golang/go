@@ -858,7 +858,7 @@ func hammerCompareAndSwapInt32(uaddr *uint32, count int) {
 	addr := (*int32)(unsafe.Pointer(uaddr))
 	for i := 0; i < count; i++ {
 		for {
-			v := *addr
+			v := LoadInt32(addr)
 			if CompareAndSwapInt32(addr, v, v+1) {
 				break
 			}
@@ -869,7 +869,7 @@ func hammerCompareAndSwapInt32(uaddr *uint32, count int) {
 func hammerCompareAndSwapUint32(addr *uint32, count int) {
 	for i := 0; i < count; i++ {
 		for {
-			v := *addr
+			v := LoadUint32(addr)
 			if CompareAndSwapUint32(addr, v, v+1) {
 				break
 			}
@@ -883,7 +883,7 @@ func hammerCompareAndSwapUintptr32(uaddr *uint32, count int) {
 	addr := (*uintptr)(unsafe.Pointer(uaddr))
 	for i := 0; i < count; i++ {
 		for {
-			v := *addr
+			v := LoadUintptr(addr)
 			if CompareAndSwapUintptr(addr, v, v+1) {
 				break
 			}
@@ -897,7 +897,7 @@ func hammerCompareAndSwapPointer32(uaddr *uint32, count int) {
 	addr := (*unsafe.Pointer)(unsafe.Pointer(uaddr))
 	for i := 0; i < count; i++ {
 		for {
-			v := *addr
+			v := LoadPointer(addr)
 			if CompareAndSwapPointer(addr, v, unsafe.Pointer(uintptr(v)+1)) {
 				break
 			}
@@ -1039,7 +1039,7 @@ func hammerCompareAndSwapInt64(uaddr *uint64, count int) {
 	addr := (*int64)(unsafe.Pointer(uaddr))
 	for i := 0; i < count; i++ {
 		for {
-			v := *addr
+			v := LoadInt64(addr)
 			if CompareAndSwapInt64(addr, v, v+1) {
 				break
 			}
@@ -1050,7 +1050,7 @@ func hammerCompareAndSwapInt64(uaddr *uint64, count int) {
 func hammerCompareAndSwapUint64(addr *uint64, count int) {
 	for i := 0; i < count; i++ {
 		for {
-			v := *addr
+			v := LoadUint64(addr)
 			if CompareAndSwapUint64(addr, v, v+1) {
 				break
 			}
@@ -1064,7 +1064,7 @@ func hammerCompareAndSwapUintptr64(uaddr *uint64, count int) {
 	addr := (*uintptr)(unsafe.Pointer(uaddr))
 	for i := 0; i < count; i++ {
 		for {
-			v := *addr
+			v := LoadUintptr(addr)
 			if CompareAndSwapUintptr(addr, v, v+1) {
 				break
 			}
@@ -1078,7 +1078,7 @@ func hammerCompareAndSwapPointer64(uaddr *uint64, count int) {
 	addr := (*unsafe.Pointer)(unsafe.Pointer(uaddr))
 	for i := 0; i < count; i++ {
 		for {
-			v := *addr
+			v := LoadPointer(addr)
 			if CompareAndSwapPointer(addr, v, unsafe.Pointer(uintptr(v)+1)) {
 				break
 			}
