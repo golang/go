@@ -117,14 +117,18 @@ growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
 
 	if(newcap1 > MaxMem/typ->size)
 		runtime·panicstring("growslice: cap out of range");
+	// Try to use all memory that malloc will give us...
 	capmem = runtime·roundupsize(newcap1*typ->size);
+	// ...but don't ask for fractional number of elements (that can confuse GC).
+	newcap1 = capmem/typ->size;
+	capmem = newcap1*typ->size;
 	flag = 0;
 	// Can't use FlagNoZero w/o FlagNoScan, because otherwise GC can scan unitialized memory.
 	if(typ->kind&KindNoPointers)
 		flag = FlagNoScan|FlagNoZero;
 	ret->array = runtime·mallocgc(capmem, (uintptr)typ|TypeInfo_Array, flag);
 	ret->len = x.len;
-	ret->cap = capmem/typ->size;
+	ret->cap = newcap1;
 	lenmem = x.len*typ->size;
 	runtime·memmove(ret->array, x.array, lenmem);
 	if(typ->kind&KindNoPointers)
