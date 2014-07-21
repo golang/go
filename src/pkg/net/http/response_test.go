@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http/internal"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -451,7 +452,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		}
 		var wr io.Writer = &buf
 		if test.chunked {
-			wr = newChunkedWriter(wr)
+			wr = internal.NewChunkedWriter(wr)
 		}
 		if test.compressed {
 			buf.WriteString("Content-Encoding: gzip\r\n")

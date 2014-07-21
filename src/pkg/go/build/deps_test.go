@@ -318,6 +318,7 @@ var pkgDeps = map[string][]string{
 	"net/http": {
 		"L4", "NET", "OS",
 		"compress/gzip", "crypto/tls", "mime/multipart", "runtime/debug",
+		"net/http/internal",
 	},
 
 	// HTTP-using packages.
@@ -325,7 +326,7 @@ var pkgDeps = map[string][]string{
 	"net/http/cgi":      {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
 	"net/http/fcgi":     {"L4", "NET", "OS", "net/http", "net/http/cgi"},
 	"net/http/httptest": {"L4", "NET", "OS", "crypto/tls", "flag", "net/http"},
-	"net/http/httputil": {"L4", "NET", "OS", "net/http"},
+	"net/http/httputil": {"L4", "NET", "OS", "net/http", "net/http/internal"},
 	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof"},
 	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
 	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},

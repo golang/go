@@ -11,12 +11,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http/internal"
 	"net/textproto"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 )
+
+// ErrLineTooLong is returned when reading request or response bodies
+// with malformed chunked encoding.
+var ErrLineTooLong = internal.ErrLineTooLong
 
 type errorReader struct {
 	err error
@@ -198,7 +203,7 @@ func (t *transferWriter) WriteBody(w io.Writer) error {
 	// Write body
 	if t.Body != nil {
 		if chunked(t.TransferEncoding) {
-			cw := newChunkedWriter(w)
+			cw := internal.NewChunkedWriter(w)
 			_, err = io.Copy(cw, t.Body)
 			if err == nil {
 				err = cw.Close()
@@ -365,7 +370,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 		if noBodyExpected(t.RequestMethod) {
 			t.Body = eofReader
 		} else {
-			t.Body = &body{src: newChunkedReader(r), hdr: msg, r: r, closing: t.Close}
+			t.Body = &body{src: internal.NewChunkedReader(r), hdr: msg, r: r, closing: t.Close}
 		}
 	case realLength == 0:
 		t.Body = eofReader
