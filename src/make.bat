@@ -115,6 +115,6 @@ goto end
 
 :fail
 set GOBUILDFAIL=1
+if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
 
 :end
-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
