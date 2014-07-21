@@ -1139,7 +1139,7 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
 //   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
 // to:
 //   func (hash *uintptr, size uintptr, p unsafe.Pointer)
-TEXT runtime·gohash(SB), NOSPLIT, $12-20
+TEXT runtime·gohash(SB), NOSPLIT, $16-20
 	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
 	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
 	MOVL	a+0(FP), AX
