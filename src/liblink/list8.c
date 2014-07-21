@@ -211,7 +211,7 @@ conv:
 	return fmtstrcpy(fp, str);
 }
 
-char*	regstr[] =
+static char*	regstr[] =
 {
 	"AL",	/* [D_AL] */
 	"CL",

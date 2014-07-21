@@ -105,8 +105,8 @@ struct	Prog
 	int32	spadj;
 	uchar	mark;
 	uchar	back;	// 6l, 8l
-	char	ft;	/* 6l, 8l oclass cache */
-	char	tt;	// 6l, 8l
+	uchar	ft;	/* 6l, 8l oclass cache */
+	uchar	tt;	// 6l, 8l
 	uchar	optab;	// 5l
 	uchar	isize;	// 6l, 8l
 
