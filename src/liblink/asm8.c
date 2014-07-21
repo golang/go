@@ -43,8 +43,6 @@ enum
 	FuncAlign = 16
 };
 
-extern char *anames6[];
-
 typedef	struct	Optab	Optab;
 
 struct	Optab
@@ -142,7 +140,7 @@ enum
 };
 
 static	uchar	ycover[Ymax*Ymax];
-static	char	reg[D_NONE];
+static	int	reg[D_NONE];
 static	void	asmins(Link *ctxt, Prog *p);
 
 static uchar	ynone[] =
@@ -1902,7 +1900,11 @@ bad:
 	return;
 }
 
-#define	E	0xff
+enum
+{
+	E = 0xff,
+};
+
 static uchar	ymovtab[] =
 {
 /* push */
@@ -2134,7 +2136,7 @@ mediaop(Link *ctxt, Optab *o, int op, int osize, int z)
 			break;
 		}
 	default:
-		if(ctxt->andptr == ctxt->and || ctxt->andptr[-1] != Pm)
+		if(ctxt->andptr == ctxt->and || ctxt->and[ctxt->andptr - ctxt->and - 1] != Pm)
 			*ctxt->andptr++ = Pm;
 		break;
 	}
@@ -2289,8 +2291,13 @@ found:
 		*ctxt->andptr++ = p->from.offset;
 		break;
 
+	case Zcallindreg:
+		r = addrel(ctxt->cursym);
+		r->off = p->pc;
+		r->type = R_CALLIND;
+		r->siz = 0;
+		// fallthrough
 	case Zo_m:
-	case_Zo_m:
 		*ctxt->andptr++ = op;
 		asmand(ctxt, &p->to, o->op[z+1]);
 		break;
@@ -2510,13 +2517,6 @@ found:
 		r->sym = p->to.sym;
 		put4(ctxt, 0);
 		break;
-
-	case Zcallindreg:
-		r = addrel(ctxt->cursym);
-		r->off = p->pc;
-		r->type = R_CALLIND;
-		r->siz = 0;
-		goto case_Zo_m;
 
 	case Zbyte:
 		v = vaddr(ctxt, &p->from, &rel);

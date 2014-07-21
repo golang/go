@@ -707,28 +707,28 @@ softfloat(Link *ctxt, LSym *cursym)
 
 		default:
 			goto notsoft;
-
-		soft:
-			if (!wasfloat || (p->mark&LABEL)) {
-				next = ctxt->arch->prg();
-				*next = *p;
-
-				// BL _sfloat(SB)
-				*p = zprg;
-				p->link = next;
-				p->as = ABL;
- 				p->to.type = D_BRANCH;
-				p->to.sym = symsfloat;
-				p->lineno = next->lineno;
-
-				p = next;
-				wasfloat = 1;
-			}
-			break;
-
-		notsoft:
-			wasfloat = 0;
 		}
+
+	soft:
+		if (!wasfloat || (p->mark&LABEL)) {
+			next = ctxt->arch->prg();
+			*next = *p;
+
+			// BL _sfloat(SB)
+			*p = zprg;
+			p->link = next;
+			p->as = ABL;
+ 				p->to.type = D_BRANCH;
+			p->to.sym = symsfloat;
+			p->lineno = next->lineno;
+
+			p = next;
+			wasfloat = 1;
+		}
+		continue;
+
+	notsoft:
+		wasfloat = 0;
 	}
 }
 

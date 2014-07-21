@@ -394,10 +394,8 @@ static int32	immrot(uint32);
 static int32	immaddr(int32);
 static int32	opbra(Link*, int, int);
 
-static	Opcross	opcross[8];
 static	Oprang	oprange[ALAST];
-static	char	xcmp[C_GOK+1][C_GOK+1];
-static	uchar	repop[ALAST];
+static	uchar	xcmp[C_GOK+1][C_GOK+1];
 
 static Prog zprg = {
 	.as = AGOK,
@@ -811,8 +809,8 @@ span5(Link *ctxt, LSym *cursym)
 			if(m % 4 != 0 || p->pc % 4 != 0) {
 				ctxt->diag("pc invalid: %P size=%d", p, m);
 			}
-			if(m > sizeof(out))
-				ctxt->diag("instruction size too large: %d > %d", m, sizeof(out));
+			if(m/4 > nelem(out))
+				ctxt->diag("instruction size too large: %d > %d", m/4, nelem(out));
 			if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND)) {
 				if(p->as == ATEXT) {
 					ctxt->autosize = p->to.offset + 4;
@@ -1068,6 +1066,8 @@ immhalf(int32 v)
 	return 0;
 }
 
+static int aconsize(Link *ctxt);
+
 static int
 aclass(Link *ctxt, Addr *a)
 {
@@ -1179,7 +1179,7 @@ aclass(Link *ctxt, Addr *a)
 		case D_NONE:
 			ctxt->instoffset = a->offset;
 			if(a->reg != NREG)
-				goto aconsize;
+				return aconsize(ctxt);
 
 			t = immrot(ctxt->instoffset);
 			if(t)
@@ -1199,15 +1199,11 @@ aclass(Link *ctxt, Addr *a)
 
 		case D_AUTO:
 			ctxt->instoffset = ctxt->autosize + a->offset;
-			goto aconsize;
+			return aconsize(ctxt);
 
 		case D_PARAM:
 			ctxt->instoffset = ctxt->autosize + a->offset + 4L;
-		aconsize:
-			t = immrot(ctxt->instoffset);
-			if(t)
-				return C_RACON;
-			return C_LACON;
+			return aconsize(ctxt);
 		}
 		return C_GOK;
 
@@ -1215,6 +1211,17 @@ aclass(Link *ctxt, Addr *a)
 		return C_SBRA;
 	}
 	return C_GOK;
+}
+
+static int
+aconsize(Link *ctxt)
+{
+	int t;
+
+	t = immrot(ctxt->instoffset);
+	if(t)
+		return C_RACON;
+	return C_LACON;
 }
 
 static void
@@ -1227,7 +1234,7 @@ static Optab*
 oplook(Link *ctxt, Prog *p)
 {
 	int a1, a2, a3, r;
-	char *c1, *c3;
+	uchar *c1, *c3;
 	Optab *o, *e;
 
 	a1 = p->optab;
@@ -1251,11 +1258,6 @@ oplook(Link *ctxt, Prog *p)
 	r = p->as;
 	o = oprange[r].start;
 	if(o == 0) {
-		a1 = opcross[repop[r]][a1][a2][a3];
-		if(a1) {
-			p->optab = a1+1;
-			return optab+a1;
-		}
 		o = oprange[r].stop; /* just generate an error */
 	}
 	if(0 /*debug['O']*/) {
@@ -1527,6 +1529,8 @@ buildop(Link *ctxt)
 	}
 }
 
+static int32 mov(Link*, Prog*);
+
 static void
 asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 {
@@ -1584,19 +1588,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 		break;
 
 	case 3:		/* add R<<[IR],[R],R */
-	mov:
-		aclass(ctxt, &p->from);
-		o1 = oprrr(ctxt, p->as, p->scond);
-		o1 |= p->from.offset;
-		rt = p->to.reg;
-		r = p->reg;
-		if(p->to.type == D_NONE)
-			rt = 0;
-		if(p->as == AMOVW || p->as == AMVN)
-			r = 0;
-		else if(r == NREG)
-			r = rt;
-		o1 |= (r<<16) | (rt<<12);
+		o1 = mov(ctxt, p);
 		break;
 
 	case 4:		/* add $I,[R],R */
@@ -1869,19 +1861,23 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= p->from.reg << 0;
 		break;
 
-	case 38:	/* movm $con,oreg -> stm */
-		o1 = (0x4 << 25);
-		o1 |= p->from.offset & 0xffff;
-		o1 |= p->to.reg << 16;
-		aclass(ctxt, &p->to);
-		goto movm;
-
-	case 39:	/* movm oreg,$con -> ldm */
-		o1 = (0x4 << 25) | (1 << 20);
-		o1 |= p->to.offset & 0xffff;
-		o1 |= p->from.reg << 16;
-		aclass(ctxt, &p->from);
-	movm:
+	case 38:
+	case 39:
+		switch(o->type) {
+		case 38:	/* movm $con,oreg -> stm */
+			o1 = (0x4 << 25);
+			o1 |= p->from.offset & 0xffff;
+			o1 |= p->to.reg << 16;
+			aclass(ctxt, &p->to);
+			break;
+	
+		case 39:	/* movm oreg,$con -> ldm */
+			o1 = (0x4 << 25) | (1 << 20);
+			o1 |= p->to.offset & 0xffff;
+			o1 |= p->from.reg << 16;
+			aclass(ctxt, &p->from);
+			break;
+		}
 		if(ctxt->instoffset != 0)
 			ctxt->diag("offset must be zero in MOVM; %P", p);
 		o1 |= (p->scond & C_SCOND) << 28;
@@ -1989,7 +1985,8 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 		if(p->from.reg == NREG) {
 			if(p->as != AMOVW)
 				ctxt->diag("byte MOV from shifter operand");
-			goto mov;
+			o1 = mov(ctxt, p);
+			break;
 		}
 		if(p->from.offset&(1<<4))
 			ctxt->diag("bad shift in LDR");
@@ -2001,7 +1998,8 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 	case 60:	/* movb R(R),R -> ldrsb indexed */
 		if(p->from.reg == NREG) {
 			ctxt->diag("byte MOV from shifter operand");
-			goto mov;
+			o1 = mov(ctxt, p);
+			break;
 		}
 		if(p->from.offset&(~0xf))
 			ctxt->diag("bad shift in LDRSB");
@@ -2356,6 +2354,27 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 	out[4] = o5;
 	out[5] = o6;
 	return;
+}
+
+static int32
+mov(Link *ctxt, Prog *p)
+{
+	int32 o1;
+	int rt, r;
+
+	aclass(ctxt, &p->from);
+	o1 = oprrr(ctxt, p->as, p->scond);
+	o1 |= p->from.offset;
+	rt = p->to.reg;
+	r = p->reg;
+	if(p->to.type == D_NONE)
+		rt = 0;
+	if(p->as == AMOVW || p->as == AMVN)
+		r = 0;
+	else if(r == NREG)
+		r = rt;
+	o1 |= (r<<16) | (rt<<12);
+	return o1;
 }
 
 static int32

@@ -194,19 +194,14 @@ LSym*
 linknewsym(Link *ctxt, char *symb, int v)
 {
 	LSym *s;
-	int l;
 
-	l = strlen(symb) + 1;
 	s = malloc(sizeof(*s));
 	memset(s, 0, sizeof(*s));
 
 	s->dynid = -1;
 	s->plt = -1;
 	s->got = -1;
-	s->name = malloc(l + 1);
-	memmove(s->name, symb, l);
-	s->name[l] = '\0';
-
+	s->name = estrdup(symb);
 	s->type = 0;
 	s->version = v;
 	s->value = 0;

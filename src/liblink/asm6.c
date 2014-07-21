@@ -60,8 +60,6 @@ enum
 	FuncAlign = 16
 };
 
-extern char *anames6[];
-
 typedef	struct	Optab	Optab;
 typedef	struct	Movtab	Movtab;
 
@@ -187,7 +185,7 @@ enum
 	Maxand	= 10,		/* in -a output width of the byte codes */
 };
 
-static char ycover[Ymax*Ymax];
+static uchar ycover[Ymax*Ymax];
 static	int	reg[D_NONE];
 static	int	regrex[D_NONE+1];
 static	void	asmins(Link *ctxt, Prog *p);
@@ -2484,7 +2482,7 @@ asmando(Link *ctxt, Addr *a, int o)
 }
 
 static void
-bytereg(Addr *a, char *t)
+bytereg(Addr *a, uint8 *t)
 {
 	if(a->index == D_NONE && (a->type >= D_AX && a->type <= D_R15)) {
 		a->type = D_AL + (a->type-D_AX);
@@ -2688,7 +2686,7 @@ mediaop(Link *ctxt, Optab *o, int op, int osize, int z)
 			break;
 		}
 	default:
-		if(ctxt->andptr == ctxt->and || ctxt->andptr[-1] != Pm)
+		if(ctxt->andptr == ctxt->and || ctxt->and[ctxt->andptr - ctxt->and - 1] != Pm)
 			*ctxt->andptr++ = Pm;
 		break;
 	}
@@ -2904,8 +2902,13 @@ found:
 		asmando(ctxt, &p->to, o->op[z+1]);
 		break;
 
+	case Zcallindreg:
+		r = addrel(ctxt->cursym);
+		r->off = p->pc;
+		r->type = R_CALLIND;
+		r->siz = 0;
+		// fallthrough
 	case Zo_m64:
-	case_Zo_m64:
 		*ctxt->andptr++ = op;
 		asmandsz(ctxt, &p->to, o->op[z+1], 0, 1);
 		break;
@@ -3081,13 +3084,6 @@ found:
 		r->siz = 4;
 		put4(ctxt, 0);
 		break;
-
-	case Zcallindreg:
-		r = addrel(ctxt->cursym);
-		r->off = p->pc;
-		r->type = R_CALLIND;
-		r->siz = 0;
-		goto case_Zo_m64;
 
 	case Zbr:
 	case Zjmp:
@@ -3450,7 +3446,7 @@ nacltrunc(Link *ctxt, int reg)
 static void
 asmins(Link *ctxt, Prog *p)
 {
-	int n, np, c;
+	int i, n, np, c;
 	uchar *and0;
 	Reloc *r;
 	
@@ -3575,7 +3571,8 @@ asmins(Link *ctxt, Prog *p)
 		ctxt->andptr++;
 	}
 	n = ctxt->andptr - ctxt->and;
-	for(r=ctxt->cursym->r+ctxt->cursym->nr; r-- > ctxt->cursym->r; ) {
+	for(i=ctxt->cursym->nr-1; i>=0; i--) {
+		r = ctxt->cursym->r+i;
 		if(r->off < p->pc)
 			break;
 		if(ctxt->rexflag)
