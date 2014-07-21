@@ -162,6 +162,18 @@ func BenchmarkMemclr256(b *testing.B)   { bmMemclr(b, 256) }
 func BenchmarkMemclr4096(b *testing.B)  { bmMemclr(b, 4096) }
 func BenchmarkMemclr65536(b *testing.B) { bmMemclr(b, 65536) }
 
+func BenchmarkClearFat8(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [8 / 4]uint32
+		_ = x
+	}
+}
+func BenchmarkClearFat12(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [12 / 4]uint32
+		_ = x
+	}
+}
 func BenchmarkClearFat16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var x [16 / 4]uint32
@@ -211,6 +223,20 @@ func BenchmarkClearFat1024(b *testing.B) {
 	}
 }
 
+func BenchmarkCopyFat8(b *testing.B) {
+	var x [8 / 4]uint32
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}
+func BenchmarkCopyFat12(b *testing.B) {
+	var x [12 / 4]uint32
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}
 func BenchmarkCopyFat16(b *testing.B) {
 	var x [16 / 4]uint32
 	for i := 0; i < b.N; i++ {
