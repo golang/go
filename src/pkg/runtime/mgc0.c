@@ -219,10 +219,6 @@ static struct {
 	volatile uint32	ndone;
 	Note	alldone;
 	ParFor	*markfor;
-
-	Lock;
-	byte	*chunk;
-	uintptr	nchunk;
 } work;
 
 enum {
@@ -1310,20 +1306,8 @@ getempty(Workbuf *b)
 	if(b != nil)
 		runtime·lfstackpush(&work.full, &b->node);
 	b = (Workbuf*)runtime·lfstackpop(&work.empty);
-	if(b == nil) {
-		// Need to allocate.
-		runtime·lock(&work);
-		if(work.nchunk < sizeof *b) {
-			work.nchunk = 1<<20;
-			work.chunk = runtime·SysAlloc(work.nchunk, &mstats.gc_sys);
-			if(work.chunk == nil)
-				runtime·throw("runtime: cannot allocate memory");
-		}
-		b = (Workbuf*)work.chunk;
-		work.chunk += sizeof *b;
-		work.nchunk -= sizeof *b;
-		runtime·unlock(&work);
-	}
+	if(b == nil)
+		b = runtime·persistentalloc(sizeof(*b), CacheLineSize, &mstats.gc_sys);
 	b->nobj = 0;
 	return b;
 }
