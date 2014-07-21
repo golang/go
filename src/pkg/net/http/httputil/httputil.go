@@ -6,7 +6,10 @@
 // more common ones in the net/http package.
 package httputil
 
-import "io"
+import (
+	"io"
+	"net/http/internal"
+)
 
 // NewChunkedReader returns a new chunkedReader that translates the data read from r
 // out of HTTP "chunked" format before returning it.
@@ -15,7 +18,7 @@ import "io"
 // NewChunkedReader is not needed by normal applications. The http package
 // automatically decodes chunking when reading response bodies.
 func NewChunkedReader(r io.Reader) io.Reader {
-	return newChunkedReader(r)
+	return internal.NewChunkedReader(r)
 }
 
 // NewChunkedWriter returns a new chunkedWriter that translates writes into HTTP
@@ -28,5 +31,9 @@ func NewChunkedReader(r io.Reader) io.Reader {
 // would result in double chunking or chunking with a Content-Length
 // length, both of which are wrong.
 func NewChunkedWriter(w io.Writer) io.WriteCloser {
-	return newChunkedWriter(w)
+	return internal.NewChunkedWriter(w)
 }
+
+// ErrLineTooLong is returned when reading malformed chunked data
+// with lines that are too long.
+var ErrLineTooLong = internal.ErrLineTooLong

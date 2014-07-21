@@ -4,10 +4,9 @@
 
 // The wire protocol for HTTP's "chunked" Transfer-Encoding.
 
-// This code is duplicated in net/http and net/http/httputil.
-// Please make any changes in both files.
-
-package http
+// Package internal contains HTTP internals shared by net/http and
+// net/http/httputil.
+package internal
 
 import (
 	"bufio"
@@ -21,13 +20,13 @@ const maxLineLength = 4096 // assumed <= bufio.defaultBufSize
 
 var ErrLineTooLong = errors.New("header line too long")
 
-// newChunkedReader returns a new chunkedReader that translates the data read from r
+// NewChunkedReader returns a new chunkedReader that translates the data read from r
 // out of HTTP "chunked" format before returning it.
 // The chunkedReader returns io.EOF when the final 0-length chunk is read.
 //
-// newChunkedReader is not needed by normal applications. The http package
+// NewChunkedReader is not needed by normal applications. The http package
 // automatically decodes chunking when reading response bodies.
-func newChunkedReader(r io.Reader) io.Reader {
+func NewChunkedReader(r io.Reader) io.Reader {
 	br, ok := r.(*bufio.Reader)
 	if !ok {
 		br = bufio.NewReader(r)
@@ -135,16 +134,16 @@ func isASCIISpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
-// newChunkedWriter returns a new chunkedWriter that translates writes into HTTP
+// NewChunkedWriter returns a new chunkedWriter that translates writes into HTTP
 // "chunked" format before writing them to w. Closing the returned chunkedWriter
 // sends the final 0-length chunk that marks the end of the stream.
 //
-// newChunkedWriter is not needed by normal applications. The http
+// NewChunkedWriter is not needed by normal applications. The http
 // package adds chunking automatically if handlers don't set a
 // Content-Length header. Using newChunkedWriter inside a handler
 // would result in double chunking or chunking with a Content-Length
 // length, both of which are wrong.
-func newChunkedWriter(w io.Writer) io.WriteCloser {
+func NewChunkedWriter(w io.Writer) io.WriteCloser {
 	return &chunkedWriter{w}
 }
 

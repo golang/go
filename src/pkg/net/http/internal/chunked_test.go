@@ -2,10 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This code is duplicated in net/http and net/http/httputil.
-// Please make any changes in both files.
-
-package http
+package internal
 
 import (
 	"bufio"
@@ -20,7 +17,7 @@ import (
 func TestChunk(t *testing.T) {
 	var b bytes.Buffer
 
-	w := newChunkedWriter(&b)
+	w := NewChunkedWriter(&b)
 	const chunk1 = "hello, "
 	const chunk2 = "world! 0123456789abcdef"
 	w.Write([]byte(chunk1))
@@ -31,7 +28,7 @@ func TestChunk(t *testing.T) {
 		t.Fatalf("chunk writer wrote %q; want %q", g, e)
 	}
 
-	r := newChunkedReader(&b)
+	r := NewChunkedReader(&b)
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		t.Logf(`data: "%s"`, data)
@@ -46,12 +43,12 @@ func TestChunkReadMultiple(t *testing.T) {
 	// Bunch of small chunks, all read together.
 	{
 		var b bytes.Buffer
-		w := newChunkedWriter(&b)
+		w := NewChunkedWriter(&b)
 		w.Write([]byte("foo"))
 		w.Write([]byte("bar"))
 		w.Close()
 
-		r := newChunkedReader(&b)
+		r := NewChunkedReader(&b)
 		buf := make([]byte, 10)
 		n, err := r.Read(buf)
 		if n != 6 || err != io.EOF {
@@ -67,7 +64,7 @@ func TestChunkReadMultiple(t *testing.T) {
 	// should prevent the second chunk header from being read.
 	{
 		var b bytes.Buffer
-		w := newChunkedWriter(&b)
+		w := NewChunkedWriter(&b)
 		// fillBufChunk is 11 bytes + 3 bytes header + 2 bytes footer = 16 bytes,
 		// the same as the bufio ReaderSize below (the minimum), so even
 		// though we're going to try to Read with a buffer larger enough to also
@@ -78,7 +75,7 @@ func TestChunkReadMultiple(t *testing.T) {
 		w.Write([]byte(shortChunk))
 		w.Close()
 
-		r := newChunkedReader(bufio.NewReaderSize(&b, 16))
+		r := NewChunkedReader(bufio.NewReaderSize(&b, 16))
 		buf := make([]byte, len(fillBufChunk)+len(shortChunk))
 		n, err := r.Read(buf)
 		if n != len(fillBufChunk) || err != nil {
@@ -97,7 +94,7 @@ func TestChunkReadMultiple(t *testing.T) {
 
 	// And test that we see an EOF chunk, even though our buffer is already full:
 	{
-		r := newChunkedReader(bufio.NewReader(strings.NewReader("3\r\nfoo\r\n0\r\n")))
+		r := NewChunkedReader(bufio.NewReader(strings.NewReader("3\r\nfoo\r\n0\r\n")))
 		buf := make([]byte, 3)
 		n, err := r.Read(buf)
 		if n != 3 || err != io.EOF {
@@ -114,7 +111,7 @@ func TestChunkReaderAllocs(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 	var buf bytes.Buffer
-	w := newChunkedWriter(&buf)
+	w := NewChunkedWriter(&buf)
 	a, b, c := []byte("aaaaaa"), []byte("bbbbbbbbbbbb"), []byte("cccccccccccccccccccccccc")
 	w.Write(a)
 	w.Write(b)
@@ -127,7 +124,7 @@ func TestChunkReaderAllocs(t *testing.T) {
 	mallocs := testing.AllocsPerRun(100, func() {
 		byter.Seek(0, 0)
 		bufr.Reset(byter)
-		r := newChunkedReader(bufr)
+		r := NewChunkedReader(bufr)
 		n, err := io.ReadFull(r, readBuf)
 		if n != len(readBuf)-1 {
 			t.Fatalf("read %d bytes; want %d", n, len(readBuf)-1)
