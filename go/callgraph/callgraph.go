@@ -41,6 +41,7 @@ package callgraph
 
 import (
 	"fmt"
+	"go/token"
 
 	"code.google.com/p/go.tools/go/ssa"
 )
@@ -97,6 +98,20 @@ type Edge struct {
 
 func (e Edge) String() string {
 	return fmt.Sprintf("%s --> %s", e.Caller, e.Callee)
+}
+
+func (e Edge) Description() string {
+	if e.Site == nil {
+		return "synthetic call"
+	}
+	return e.Site.Common().Description()
+}
+
+func (e Edge) Pos() token.Pos {
+	if e.Site == nil {
+		return token.NoPos
+	}
+	return e.Site.Pos()
 }
 
 // AddEdge adds the edge (caller, site, callee) to the call graph.

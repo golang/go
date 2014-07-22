@@ -63,25 +63,20 @@ func (r *callersResult) display(printf printfFunc) {
 			if edge.Caller == root {
 				printf(r.target, "the root of the call graph")
 			} else {
-				printf(edge.Site, "\t%s from %s", edge.Site.Common().Description(), edge.Caller.Func)
+				printf(edge, "\t%s from %s", edge.Description(), edge.Caller.Func)
 			}
 		}
 	}
 }
 
 func (r *callersResult) toSerial(res *serial.Result, fset *token.FileSet) {
-	root := r.callgraph.Root
 	var callers []serial.Caller
 	for _, edge := range r.edges {
-		var c serial.Caller
-		c.Caller = edge.Caller.Func.String()
-		if edge.Caller == root {
-			c.Desc = "synthetic call"
-		} else {
-			c.Pos = fset.Position(edge.Site.Pos()).String()
-			c.Desc = edge.Site.Common().Description()
-		}
-		callers = append(callers, c)
+		callers = append(callers, serial.Caller{
+			Caller: edge.Caller.Func.String(),
+			Pos:    fset.Position(edge.Pos()).String(),
+			Desc:   edge.Description(),
+		})
 	}
 	res.Callers = callers
 }

@@ -54,6 +54,7 @@ var inputs = []string{
 	"testdata/rtti.go",
 	"testdata/structreflect.go",
 	"testdata/structs.go",
+	"testdata/timer.go",
 }
 
 // Expectation grammar:

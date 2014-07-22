@@ -43,7 +43,7 @@ func (a *analysis) doCallgraph(cg *callgraph.Graph) {
 	for _, n := range cg.Nodes {
 		for _, e := range n.Out {
 			if e.Site == nil {
-				continue // a call from the <root> node
+				continue // a call from a synthetic node such as <root>
 			}
 
 			// Add (site pos, callee) to calledFuncs.

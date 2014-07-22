@@ -174,7 +174,7 @@ func init() {
 		"syscall.setenv_c":                      ext۰NoEffect,
 		"time.Sleep":                            ext۰NoEffect,
 		"time.now":                              ext۰NoEffect,
-		"time.startTimer":                       ext۰NoEffect,
+		"time.startTimer":                       ext۰time۰startTimer,
 		"time.stopTimer":                        ext۰NoEffect,
 	} {
 		intrinsicsByName[name] = fn
@@ -243,12 +243,8 @@ func (a *analysis) isReflect(fn *ssa.Function) bool {
 func ext۰NoEffect(a *analysis, cgn *cgnode) {}
 
 func ext۰NotYetImplemented(a *analysis, cgn *cgnode) {
-	// TODO(adonovan): enable this warning when we've implemented
-	// enough that it's not unbearably annoying.
-	if true {
-		fn := cgn.fn
-		a.warnf(fn.Pos(), "unsound: intrinsic treatment of %s not yet implemented", fn)
-	}
+	fn := cgn.fn
+	a.warnf(fn.Pos(), "unsound: intrinsic treatment of %s not yet implemented", fn)
 }
 
 // ---------- func runtime.SetFinalizer(x, f interface{}) ----------
@@ -318,5 +314,67 @@ func ext۰runtime۰SetFinalizer(a *analysis, cgn *cgnode) {
 		targets: targets,
 		x:       params,
 		f:       params + 1,
+	})
+}
+
+// ---------- func time.startTimer(t *runtimeTimer) ----------
+
+// time.StartTimer(t)
+type timeStartTimerConstraint struct {
+	targets nodeid // (indirect)
+	t       nodeid // (ptr)
+}
+
+func (c *timeStartTimerConstraint) ptr() nodeid { return c.t }
+func (c *timeStartTimerConstraint) presolve(h *hvn) {
+	h.markIndirect(onodeid(c.targets), "StartTimer.targets")
+}
+func (c *timeStartTimerConstraint) renumber(mapping []nodeid) {
+	c.targets = mapping[c.targets]
+	c.t = mapping[c.t]
+}
+
+func (c *timeStartTimerConstraint) String() string {
+	return fmt.Sprintf("time.startTimer(n%d)", c.t)
+}
+
+func (c *timeStartTimerConstraint) solve(a *analysis, delta *nodeset) {
+	for _, tObj := range delta.AppendTo(a.deltaSpace) {
+		t := nodeid(tObj)
+
+		// We model startTimer as if it was defined thus:
+		// 	func startTimer(t *runtimeTimer) { t.f(0, t.arg) }
+
+		// We hard-code the field offsets of time.runtimeTimer:
+		// type runtimeTimer struct {
+		//  0     __identity__
+		//  1    i      int32
+		//  2    when   int64
+		//  3    period int64
+		//  4    f      func(int64, interface{})
+		//  5    arg    interface{}
+		// }
+		f := t + 4
+		arg := t + 5
+
+		// store t.arg to t.f.params[1]
+		// (offset 2 => skip identity and int64 param)
+		a.store(f, arg, 2, 1)
+
+		// Add dynamic call target.
+		if a.onlineCopy(c.targets, f) {
+			a.addWork(c.targets)
+		}
+	}
+}
+
+func ext۰time۰startTimer(a *analysis, cgn *cgnode) {
+	// This is the shared contour, used for dynamic calls.
+	targets := a.addOneNode(tInvalid, "startTimer.targets", nil)
+	cgn.sites = append(cgn.sites, &callsite{targets: targets})
+	params := a.funcParams(cgn.obj)
+	a.addConstraint(&timeStartTimerConstraint{
+		targets: targets,
+		t:       params,
 	})
 }
