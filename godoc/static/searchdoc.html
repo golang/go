@@ -5,7 +5,7 @@
 -->
 {{range $key, $val := .Idents}}
         {{if $val}}
-                <h2 id="Global">{{$key.Name}}</h2>
+		<h2 id="{{$key.Name}}">{{$key.Name}}</h2>
                 {{range $val}}
 	                {{$pkg_html := pkgLink .Path | html}}
 			{{if eq "Packages" $key.Name}}
