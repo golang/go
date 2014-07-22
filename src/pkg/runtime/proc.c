@@ -129,6 +129,8 @@ static bool exitsyscallfast(void);
 static bool haveexperiment(int8*);
 static void allgadd(G*);
 
+extern String runtime·buildVersion;
+
 // The bootstrap sequence is:
 //
 //	call osinit
@@ -188,6 +190,13 @@ runtime·schedinit(void)
 		runtime·copystack = false;
 
 	mstats.enablegc = 1;
+
+	if(runtime·buildVersion.str == nil) {
+		// Condition should never trigger.  This code just serves
+		// to ensure runtime·buildVersion is kept in the resulting binary.
+		runtime·buildVersion.str = (uint8*)"unknown";
+		runtime·buildVersion.len = 7;
+	}
 }
 
 extern void main·init(void);
