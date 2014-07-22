@@ -672,10 +672,10 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
 	MOVL	-8(AX),AX		// get calling pc
 	RET
 
-TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-8
+TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-12
 	MOVL	p+0(FP),AX		// addr of first arg
 	MOVL	-8(AX),AX		// get calling pc
-	MOVL	AX, ret+4(FP)
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16

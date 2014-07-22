@@ -2276,7 +2276,7 @@ TEXT runtime·gohash(SB), NOSPLIT, $24-40
 	MOVQ	size+16(FP), DX
 	MOVQ	seed+24(FP), DI
 	MOVQ	DI, ret+32(FP)
-	LEAQ	ret+32(FP), SI	// TODO: go vet complains here: "invalid LEAQ of ret+32(FP); bool is 1-byte value"
+	LEAQ	ret+32(FP), SI
 	MOVQ	SI, 0(SP)
 	MOVQ	DX, 8(SP)
 	MOVQ	CX, 16(SP)
