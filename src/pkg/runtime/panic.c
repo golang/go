@@ -525,7 +525,7 @@ runtime·throw(int8 *s)
 }
 
 void
-runtime·throwgo(String s)
+runtime·gothrow(String s)
 {
 	if(g->m->throwing == 0)
 		g->m->throwing = 1;

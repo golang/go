@@ -154,7 +154,7 @@ func evacuated(b *bmap) bool {
 
 func makemap(t *maptype, hint int64) *hmap {
 	if unsafe.Sizeof(hmap{}) > 48 {
-		throwgo("hmap too large")
+		gothrow("hmap too large")
 	}
 
 	if hint < 0 || int64(int32(hint)) != hint {
@@ -163,7 +163,7 @@ func makemap(t *maptype, hint int64) *hmap {
 	}
 
 	if !ismapkey(t.key) {
-		throwgo("runtime.makemap: unsupported map key type")
+		gothrow("runtime.makemap: unsupported map key type")
 	}
 
 	flags := uint32(0)
@@ -181,31 +181,31 @@ func makemap(t *maptype, hint int64) *hmap {
 	}
 	bucketsize := dataOffset + bucketCnt*(keysize+valuesize)
 	if bucketsize != uintptr(t.bucket.size) {
-		throwgo("bucketsize wrong")
+		gothrow("bucketsize wrong")
 	}
 
 	// invariants we depend on.  We should probably check these at compile time
 	// somewhere, but for now we'll do it here.
 	if t.key.align > bucketCnt {
-		throwgo("key align too big")
+		gothrow("key align too big")
 	}
 	if t.elem.align > bucketCnt {
-		throwgo("value align too big")
+		gothrow("value align too big")
 	}
 	if uintptr(t.key.size)%uintptr(t.key.align) != 0 {
-		throwgo("key size not a multiple of key align")
+		gothrow("key size not a multiple of key align")
 	}
 	if uintptr(t.elem.size)%uintptr(t.elem.align) != 0 {
-		throwgo("value size not a multiple of value align")
+		gothrow("value size not a multiple of value align")
 	}
 	if bucketCnt < 8 {
-		throwgo("bucketsize too small for proper alignment")
+		gothrow("bucketsize too small for proper alignment")
 	}
 	if dataOffset%uintptr(t.key.align) != 0 {
-		throwgo("need padding in bucket (key)")
+		gothrow("need padding in bucket (key)")
 	}
 	if dataOffset%uintptr(t.elem.align) != 0 {
-		throwgo("need padding in bucket (value)")
+		gothrow("need padding in bucket (value)")
 	}
 
 	// find size parameter which will hold the requested # of elements
@@ -568,7 +568,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	}
 
 	if unsafe.Sizeof(hiter{})/ptrSize != 10 {
-		throwgo("hash_iter size incorrect") // see ../../cmd/gc/reflect.c
+		gothrow("hash_iter size incorrect") // see ../../cmd/gc/reflect.c
 	}
 	it.t = t
 	it.h = h
@@ -736,7 +736,7 @@ next:
 
 func hashGrow(t *maptype, h *hmap) {
 	if h.oldbuckets != nil {
-		throwgo("evacuation not done in time")
+		gothrow("evacuation not done in time")
 	}
 	oldbuckets := h.buckets
 	if checkgc {
@@ -796,7 +796,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 					continue
 				}
 				if top < minTopHash {
-					throwgo("bad map state")
+					gothrow("bad map state")
 				}
 				k2 := k
 				if h.flags&indirectKey != 0 {
