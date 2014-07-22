@@ -132,8 +132,10 @@ func ssaValueForExpr(prog *ssa.Program, qinfo *loader.PackageInfo, path []ast.No
 func runPTA(o *Oracle, v ssa.Value, isAddr bool) (ptrs []pointerResult, err error) {
 	buildSSA(o)
 
+	T := v.Type()
 	if isAddr {
 		o.ptaConfig.AddIndirectQuery(v)
+		T = deref(T)
 	} else {
 		o.ptaConfig.AddQuery(v)
 	}
@@ -150,7 +152,7 @@ func runPTA(o *Oracle, v ssa.Value, isAddr bool) (ptrs []pointerResult, err erro
 	}
 	pts := ptr.PointsTo()
 
-	if pointer.CanHaveDynamicTypes(v.Type()) {
+	if pointer.CanHaveDynamicTypes(T) {
 		// Show concrete types for interface/reflect.Value expression.
 		if concs := pts.DynamicTypes(); concs.Len() > 0 {
 			concs.Iterate(func(conc types.Type, pta interface{}) {
@@ -163,7 +165,7 @@ func runPTA(o *Oracle, v ssa.Value, isAddr bool) (ptrs []pointerResult, err erro
 		// Show labels for other expressions.
 		labels := pts.Labels()
 		sort.Sort(byPosAndString(labels)) // to ensure determinism
-		ptrs = append(ptrs, pointerResult{v.Type(), labels})
+		ptrs = append(ptrs, pointerResult{T, labels})
 	}
 	sort.Sort(byTypeString(ptrs)) // to ensure determinism
 	return ptrs, nil

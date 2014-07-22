@@ -46,7 +46,14 @@ func main() {
 	_ = mapval          // @pointsto mapval "mapval"
 	_ = m               // @pointsto m "m"
 
-	panic(3) // @pointsto builtin-panic "panic"
+	if false {
+		panic(3) // @pointsto builtin-panic "panic"
+	}
+
+	// NB: s.f is addressable per (*ssa.Program).VarValue,
+	// but our query concerns the object, not its address.
+	s := struct{ f interface{} }{f: make(chan bool)}
+	print(s.f) // @pointsto var-ref-s-f "s.f"
 }
 
 func livecode() {} // @pointsto func-live "livecode"
