@@ -230,10 +230,10 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 				s->type = SRODATA;
 				break;
 			case IMAGE_SCN_CNT_UNINITIALIZED_DATA|IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE: //.bss
-				s->type = SBSS;
+				s->type = SNOPTRBSS;
 				break;
 			case IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE: //.data
-				s->type = SDATA;
+				s->type = SNOPTRDATA;
 				break;
 			case IMAGE_SCN_CNT_CODE|IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ: //.text
 				s->type = STEXT;
@@ -338,7 +338,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			if(s->type == SDYNIMPORT)
 				s->plt = -2; // flag for dynimport in PE object files.
 			if (s->type == SXREF && sym->value > 0) {// global data
-				s->type = SDATA; 
+				s->type = SNOPTRDATA;
 				s->size = sym->value;
 			}
 			continue;

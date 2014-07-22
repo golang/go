@@ -539,7 +539,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			s->type = SRODATA;
 			break;
 		case ElfSectFlagAlloc + ElfSectFlagWrite:
-			s->type = SDATA;
+			s->type = SNOPTRDATA;
 			break;
 		case ElfSectFlagAlloc + ElfSectFlagExec:
 			s->type = STEXT;
@@ -572,7 +572,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			if(s->size < sym.size)
 				s->size = sym.size;
 			if(s->type == 0 || s->type == SXREF)
-				s->type = SBSS;
+				s->type = SNOPTRBSS;
 			continue;
 		}
 		if(sym.shndx >= obj->nsect || sym.shndx == 0)

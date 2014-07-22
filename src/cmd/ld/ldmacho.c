@@ -589,10 +589,10 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 				s->type = SRODATA;
 		} else {
 			if (strcmp(sect->name, "__bss") == 0) {
-				s->type = SBSS;
+				s->type = SNOPTRBSS;
 				s->np = 0;
 			} else
-				s->type = SDATA;
+				s->type = SNOPTRDATA;
 		}
 		sect->sym = s;
 	}
