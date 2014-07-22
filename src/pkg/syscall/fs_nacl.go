@@ -186,7 +186,7 @@ func skipelem(path string) (elem, rest string) {
 
 // namei translates a file system path name into an inode.
 // If parent is false, the returned ip corresponds to the given name, and elem is the empty string.
-// If parent is false, the walk stops at the next-to-last element in the name,
+// If parent is true, the walk stops at the next-to-last element in the name,
 // so that ip is the parent directory and elem is the final element in the path.
 func (fs *fsys) namei(path string, parent bool) (ip *inode, elem string, err error) {
 	// Reject NUL in name.
