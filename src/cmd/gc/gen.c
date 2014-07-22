@@ -584,6 +584,8 @@ cgen_dcl(Node *n)
 	}
 	if(!(n->class & PHEAP))
 		return;
+	if(compiling_runtime)
+		fatal("%N escapes to heap, not allowed in runtime.", n);
 	if(n->alloc == nil)
 		n->alloc = callnew(n->type);
 	cgen_as(n->heapaddr, n->alloc);
