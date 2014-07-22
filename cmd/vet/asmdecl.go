@@ -444,6 +444,14 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 		src = 2
 	case "arm.MOVB", "arm.MOVBU":
 		src = 1
+	// LEA* opcodes don't really read the second arg.
+	// They just take the address of it.
+	case "386.LEAL":
+		dst = 4
+	case "amd64.LEAQ":
+		dst = 8
+	case "amd64p32.LEAL":
+		dst = 4
 	default:
 		if fn.arch.name == "386" || fn.arch.name == "amd64" {
 			if strings.HasPrefix(op, "F") && (strings.HasSuffix(op, "D") || strings.HasSuffix(op, "DP")) {
