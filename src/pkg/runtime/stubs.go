@@ -85,4 +85,4 @@ var nohashcode uintptr
 
 // Go version of runtime.throw.
 // in panic.c
-func throwgo(s string)
+func gothrow(s string)
