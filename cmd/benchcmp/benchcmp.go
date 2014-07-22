@@ -21,7 +21,7 @@ var (
 
 const usageFooter = `
 Each input file should be from:
-	go test -test.run=NONE -test.bench=. > [old,new].txt
+	go test -run=NONE -bench=. > [old,new].txt
 
 Benchcmp compares old and new for each benchmark.
 
