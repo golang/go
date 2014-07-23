@@ -491,12 +491,6 @@ __ifmt(Fmt *f)
 			if(fl & FmtApost)
 				__needsep(&ndig, &grouping);
 		}
-
-		/*
-		 * Zero values don't get 0x.
-		 */
-		if(f->r == 'x' || f->r == 'X')
-			fl &= ~(ulong)FmtSharp;
 	}
 	for(w = f->prec; n < w && p > buf+3; n++){
 		if((fl & FmtApost) && __needsep(&ndig, &grouping)){
