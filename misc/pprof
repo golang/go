@@ -724,16 +724,22 @@ sub RunWeb {
   my $fname = shift;
   print STDERR "Loading web page file:///$fname\n";
 
-  if (`uname` =~ /Darwin/) {
+  my $uname = `uname`;
+  if ($uname =~ /Darwin/) {
     # OS X: open will use standard preference for SVG files.
     system("/usr/bin/open", $fname);
     return;
   }
 
-  if (`uname` =~ /CYGWIN/) {
+  if ($uname =~ /CYGWIN/) {
     # Windows(cygwin): open will use standard preference for SVG files.
     my $winname = `cygpath -wa $fname`;
     system("explorer.exe", $winname);
+    return;
+  }
+  if ($uname =~ /MINGW/) {
+    # Windows(MinGW): open will use standard preference for SVG files.
+    system("cmd", "/c", "start", $fname);
     return;
   }
 
