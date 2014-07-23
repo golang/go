@@ -953,7 +953,11 @@ addpool(Link *ctxt, Prog *p, Addr *a)
 
 	switch(c) {
 	default:
-		t.to = *a;
+		t.to.offset = a->offset;
+		t.to.sym = a->sym;
+		t.to.type = a->type;
+		t.to.name = a->name;
+		
 		if(ctxt->flag_shared && t.to.sym != nil)
 			t.pcrel = p;
 		break;
@@ -1102,7 +1106,6 @@ aclass(Link *ctxt, Addr *a)
 		case D_STATIC:
 			if(a->sym == 0 || a->sym->name == 0) {
 				print("null sym external\n");
-				print("%D\n", a);
 				return C_GOK;
 			}
 			ctxt->instoffset = 0;	// s.b. unused but just in case
