@@ -5,6 +5,7 @@
 #include <u.h>
 #include <libc.h>
 #include "go.h"
+#include "../ld/textflag.h"
 #include "../../pkg/runtime/mgc0.h"
 
 /*
@@ -524,7 +525,7 @@ dimportpath(Pkg *p)
 	p->pathsym = n->sym;
 
 	gdatastring(n, p->path);
-	ggloblsym(n->sym, types[TSTRING]->width, 1, 1);
+	ggloblsym(n->sym, types[TSTRING]->width, DUPOK|RODATA);
 }
 
 static int
@@ -975,7 +976,9 @@ dtypesym(Type *t)
 	tbase = t;
 	if(isptr[t->etype] && t->sym == S && t->type->sym != S)
 		tbase = t->type;
-	dupok = tbase->sym == S;
+	dupok = 0;
+	if(tbase->sym == S)
+		dupok = DUPOK;
 
 	if(compiling_runtime &&
 			(tbase == types[tbase->etype] ||
@@ -1150,7 +1153,7 @@ ok:
 		break;
 	}
 	ot = dextratype(s, ot, t, xt);
-	ggloblsym(s, ot, dupok, 1);
+	ggloblsym(s, ot, dupok|RODATA);
 
 	// generate typelink.foo pointing at s = type.foo.
 	// The linker will leave a table of all the typelinks for
@@ -1164,7 +1167,7 @@ ok:
 		case TMAP:
 			slink = typelinksym(t);
 			dsymptr(slink, 0, s, 0);
-			ggloblsym(slink, widthptr, dupok, 1);
+			ggloblsym(slink, widthptr, dupok|RODATA);
 		}
 	}
 
@@ -1267,7 +1270,7 @@ dalgsym(Type *t)
 		break;
 	}
 
-	ggloblsym(s, ot, 1, 1);
+	ggloblsym(s, ot, DUPOK|RODATA);
 	return s;
 }
 
@@ -1489,7 +1492,7 @@ dgcsym(Type *t)
 	ot = duintptr(s, ot, t->width);
 	ot = dgcsym1(s, ot, t, &off, 0);
 	ot = duintptr(s, ot, GC_END);
-	ggloblsym(s, ot, 1, 1);
+	ggloblsym(s, ot, DUPOK|RODATA);
 
 	if(t->align > 0)
 		off = rnd(off, t->align);

@@ -5,6 +5,7 @@
 #include	<u.h>
 #include	<libc.h>
 #include	"go.h"
+#include	"../ld/textflag.h"
 
 static	Node*	walkprint(Node*, NodeList**, int);
 static	Node*	mapfn(char*, Type*);
@@ -865,7 +866,7 @@ walkexpr(Node **np, NodeList **init)
 				l->class = PEXTERN;
 				l->xoffset = 0;
 				sym->def = l;
-				ggloblsym(sym, widthptr, 1, 0);
+				ggloblsym(sym, widthptr, DUPOK|NOPTR);
 			}
 			l = nod(OADDR, sym->def, N);
 			l->addable = 1;
