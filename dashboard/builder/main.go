@@ -623,12 +623,14 @@ func commitPoll(repo *Repo, pkg, key string) {
 		repo, err = RemoteRepo(pkg, pkgPath)
 		if err != nil {
 			log.Printf("Error cloning package (%s): %s", pkg, err)
+			return
 		}
 
-		repo, err = repo.Clone(repo.Path, "tip")
+		path := repo.Path
+		repo, err = repo.Clone(path, "tip")
 		if err != nil {
 			log.Printf("%s: hg clone failed: %v", pkg, err)
-			if err := os.RemoveAll(repo.Path); err != nil {
+			if err := os.RemoveAll(path); err != nil {
 				log.Printf("%s: %v", pkg, err)
 			}
 		}
