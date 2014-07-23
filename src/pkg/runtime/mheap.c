@@ -642,7 +642,6 @@ static FuncVal forcegchelperv = {(void(*)(void))forcegchelper};
 void
 runtime·MHeap_Scavenger(void)
 {
-	MHeap *h;
 	uint64 tick, forcegc, limit;
 	int64 unixnow;
 	int32 k;
@@ -662,15 +661,12 @@ runtime·MHeap_Scavenger(void)
 	else
 		tick = limit/2;
 
-	h = &runtime·mheap;
 	for(k=0;; k++) {
 		runtime·noteclear(&note);
 		runtime·notetsleepg(&note, tick);
 
-		runtime·lock(h);
 		unixnow = runtime·unixnanotime();
 		if(unixnow - mstats.last_gc > forcegc) {
-			runtime·unlock(h);
 			// The scavenger can not block other goroutines,
 			// otherwise deadlock detector can fire spuriously.
 			// GC blocks other goroutines via the runtime·worldsema.
@@ -680,13 +676,13 @@ runtime·MHeap_Scavenger(void)
 			runtime·notetsleepg(&note, -1);
 			if(runtime·debug.gctrace > 0)
 				runtime·printf("scvg%d: GC forced\n", k);
-			runtime·lock(h);
 		}
-		runtime·unlock(h);
+		g->m->locks++;	// ensure that we are on the same m while filling arguments
 		g->m->scalararg[0] = k;
 		g->m->scalararg[1] = runtime·nanotime();
 		g->m->scalararg[2] = limit;
 		runtime·mcall(scavenge_m);
+		g->m->locks--;
 	}
 }
 
