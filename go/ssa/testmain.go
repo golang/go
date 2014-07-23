@@ -17,6 +17,12 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+// If non-nil, testMainStartBodyHook is called immediately after
+// startBody for main.init and main.main, making it easy for users to
+// add custom imports and initialization steps for proprietary build
+// systems that don't exactly follow 'go test' conventions.
+var testMainStartBodyHook func(*Function)
+
 // CreateTestMainPackage creates and returns a synthetic "main"
 // package that runs all the tests of the supplied packages, similar
 // to the one that would be created by the 'go test' tool.
@@ -43,6 +49,11 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Prog:      prog,
 	}
 	init.startBody()
+
+	if testMainStartBodyHook != nil {
+		testMainStartBodyHook(init)
+	}
+
 	// TODO(adonovan): use lexical order.
 	var expfuncs []*Function // all exported functions of *_test.go in pkgs, unordered
 	for _, pkg := range pkgs {
@@ -113,6 +124,11 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 	matcher.finishBody()
 
 	main.startBody()
+
+	if testMainStartBodyHook != nil {
+		testMainStartBodyHook(main)
+	}
+
 	var c Call
 	c.Call.Value = testingMain
 
