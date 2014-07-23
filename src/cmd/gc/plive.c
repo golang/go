@@ -17,6 +17,7 @@
 #include <libc.h>
 #include "gg.h"
 #include "opt.h"
+#include "../ld/textflag.h"
 #include "../../pkg/runtime/funcdata.h"
 
 enum { BitsPerPointer = 2 };
@@ -1923,7 +1924,7 @@ twobitwritesymbol(Array *arr, Sym *sym)
 		}
 	}
 	duint32(sym, 0, i); // number of bitmaps
-	ggloblsym(sym, off, 0, 1);
+	ggloblsym(sym, off, RODATA);
 }
 
 static void

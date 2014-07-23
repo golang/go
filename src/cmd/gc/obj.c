@@ -5,6 +5,7 @@
 #include <u.h>
 #include <libc.h>
 #include "go.h"
+#include "../ld/textflag.h"
 
 /*
  * architecture-independent object file output
@@ -84,7 +85,7 @@ dumpobj(void)
 	externdcl = tmp;
 
 	zero = pkglookup("zerovalue", runtimepkg);
-	ggloblsym(zero, zerosize, 1, 1);
+	ggloblsym(zero, zerosize, DUPOK|RODATA);
 
 	dumpdata();
 	writeobj(ctxt, bout);
@@ -128,7 +129,7 @@ dumpglobls(void)
 	for(l=funcsyms; l; l=l->next) {
 		n = l->n;
 		dsymptr(n->sym, 0, n->sym->def->shortname->sym, 0);
-		ggloblsym(n->sym, widthptr, 1, 1);
+		ggloblsym(n->sym, widthptr, DUPOK|RODATA);
 	}
 	
 	// Do not reprocess funcsyms on next dumpglobls call.
@@ -249,7 +250,7 @@ stringsym(char *s, int len)
 	}
 	off = duint8(sym, off, 0);  // terminating NUL for runtime
 	off = (off+widthptr-1)&~(widthptr-1);  // round to pointer alignment
-	ggloblsym(sym, off, 1, 1);
+	ggloblsym(sym, off, DUPOK|RODATA);
 
 	return sym;	
 }
@@ -272,7 +273,7 @@ slicebytes(Node *nam, char *s, int len)
 			m = len-n;
 		off = dsname(sym, off, s+n, m);
 	}
-	ggloblsym(sym, off, 0, 0);
+	ggloblsym(sym, off, NOPTR);
 	
 	if(nam->op != ONAME)
 		fatal("slicebytes %N", nam);

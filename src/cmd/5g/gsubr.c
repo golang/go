@@ -216,7 +216,7 @@ gargsize(int32 size)
 }
 
 void
-ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ggloblsym(Sym *s, int32 width, int8 flags)
 {
 	Prog *p;
 
@@ -227,10 +227,7 @@ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
 	p->to.type = D_CONST;
 	p->to.name = D_NONE;
 	p->to.offset = width;
-	if(dupok)
-		p->reg |= DUPOK;
-	if(rodata)
-		p->reg |= RODATA;
+	p->reg = flags;
 }
 
 void

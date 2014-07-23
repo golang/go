@@ -1506,7 +1506,7 @@ void	gdata(Node*, Node*, int);
 void	gdatacomplex(Node*, Mpcplx*);
 void	gdatastring(Node*, Strlit*);
 void	ggloblnod(Node *nam);
-void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
+void	ggloblsym(Sym *s, int32 width, int8 flags);
 void	gvardef(Node*);
 void	gvarkill(Node*);
 Prog*	gjmp(Prog*);
