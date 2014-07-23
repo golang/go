@@ -363,9 +363,8 @@ checkmcount(void)
 static void
 mcommoninit(M *mp)
 {
-	// If there is no mcache runtime·callers() will crash,
-	// and we are most likely in sysmon thread so the stack is senseless anyway.
-	if(g->m->mcache)
+	// g0 stack won't make sense for user (and is not necessary unwindable).
+	if(g != g->m->g0)
 		runtime·callers(1, mp->createstack, nelem(mp->createstack));
 
 	mp->fastrand = 0x49f6428aUL + mp->id + runtime·cputicks();
