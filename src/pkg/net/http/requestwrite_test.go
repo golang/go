@@ -563,3 +563,61 @@ func mustParseURL(s string) *url.URL {
 	}
 	return u
 }
+
+type writerFunc func([]byte) (int, error)
+
+func (f writerFunc) Write(p []byte) (int, error) { return f(p) }
+
+// TestRequestWriteError tests the Write err != nil checks in (*Request).write.
+func TestRequestWriteError(t *testing.T) {
+	failAfter, writeCount := 0, 0
+	errFail := errors.New("fake write failure")
+
+	// w is the buffered io.Writer to write the request to.  It
+	// fails exactly once on its Nth Write call, as controlled by
+	// failAfter. It also tracks the number of calls in
+	// writeCount.
+	w := struct {
+		io.ByteWriter // to avoid being wrapped by a bufio.Writer
+		io.Writer
+	}{
+		nil,
+		writerFunc(func(p []byte) (n int, err error) {
+			writeCount++
+			if failAfter == 0 {
+				err = errFail
+			}
+			failAfter--
+			return len(p), err
+		}),
+	}
+
+	req, _ := NewRequest("GET", "http://example.com/", nil)
+	const writeCalls = 4 // number of Write calls in current implementation
+	sawGood := false
+	for n := 0; n <= writeCalls+2; n++ {
+		failAfter = n
+		writeCount = 0
+		err := req.Write(w)
+		var wantErr error
+		if n < writeCalls {
+			wantErr = errFail
+		}
+		if err != wantErr {
+			t.Errorf("for fail-after %d Writes, err = %v; want %v", n, err, wantErr)
+			continue
+		}
+		if err == nil {
+			sawGood = true
+			if writeCount != writeCalls {
+				t.Fatalf("writeCalls constant is outdated in test")
+			}
+		}
+		if writeCount > writeCalls || writeCount > n+1 {
+			t.Errorf("for fail-after %d, saw unexpectedly high (%d) write calls", n, writeCount)
+		}
+	}
+	if !sawGood {
+		t.Fatalf("writeCalls constant is outdated in test")
+	}
+}

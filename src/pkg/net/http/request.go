@@ -390,10 +390,16 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 		w = bw
 	}
 
-	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
+	_, err := fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
+	if err != nil {
+		return err
+	}
 
 	// Header lines
-	fmt.Fprintf(w, "Host: %s\r\n", host)
+	_, err = fmt.Fprintf(w, "Host: %s\r\n", host)
+	if err != nil {
+		return err
+	}
 
 	// Use the defaultUserAgent unless the Header contains one, which
 	// may be blank to not send the header.
@@ -404,7 +410,10 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 		}
 	}
 	if userAgent != "" {
-		fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)
+		_, err = fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Process Body,ContentLength,Close,Trailer
@@ -429,7 +438,10 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 		}
 	}
 
-	io.WriteString(w, "\r\n")
+	_, err = io.WriteString(w, "\r\n")
+	if err != nil {
+		return err
+	}
 
 	// Write body and trailer
 	err = tw.WriteBody(w)
