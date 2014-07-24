@@ -71,8 +71,9 @@ const maxTests = 5000
 func main() {
 	flag.Parse()
 
-	goos = os.Getenv("GOOS")
-	goarch = os.Getenv("GOARCH")
+	goos = getenv("GOOS", runtime.GOOS)
+	goarch = getenv("GOARCH", runtime.GOARCH)
+
 	findExecCmd()
 
 	// Disable parallelism if printing or if using a simulator.
@@ -971,4 +972,12 @@ func envForDir(dir string) []string {
 	}
 	env = append(env, "PWD="+dir)
 	return env
+}
+
+func getenv(key, def string) string {
+	value := os.Getenv(key)
+	if value != "" {
+		return value
+	}
+	return def
 }
