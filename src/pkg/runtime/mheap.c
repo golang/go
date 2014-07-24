@@ -189,13 +189,13 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
 	if(s != nil) {
 		// Record span info, because gc needs to be
 		// able to map interior pointer to containing span.
+		runtime·atomicstore(&s->sweepgen, h->sweepgen);
 		s->state = MSpanInUse;
 		s->freelist = nil;
 		s->ref = 0;
 		s->sizeclass = sizeclass;
 		s->elemsize = (sizeclass==0 ? s->npages<<PageShift : runtime·class_to_size[sizeclass]);
 		s->types.compression = MTypes_Empty;
-		s->sweepgen = h->sweepgen;
 
 		// update stats, sweep lists
 		if(large) {
