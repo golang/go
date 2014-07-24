@@ -704,7 +704,7 @@ func skip(value, prefix string) (string, error) {
 // The zone abbreviation "UTC" is recognized as UTC regardless of location.
 // If the zone abbreviation is unknown, Parse records the time as being
 // in a fabricated location with the given zone abbreviation and a zero offset.
-// This choice means that such a time can be parse and reformatted with the
+// This choice means that such a time can be parsed and reformatted with the
 // same layout losslessly, but the exact instant used in the representation will
 // differ by the actual zone offset. To avoid such problems, prefer time layouts
 // that use a numeric zone offset, or use ParseInLocation.
