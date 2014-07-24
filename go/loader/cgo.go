@@ -65,14 +65,19 @@ import (
 // processCgoFiles invokes the cgo preprocessor on bp.CgoFiles, parses
 // the output and returns the resulting ASTs.
 //
-func processCgoFiles(bp *build.Package, fset *token.FileSet, mode parser.Mode) ([]*ast.File, error) {
+func processCgoFiles(bp *build.Package, fset *token.FileSet, DisplayPath func(path string) string, mode parser.Mode) ([]*ast.File, error) {
 	tmpdir, err := ioutil.TempDir("", strings.Replace(bp.ImportPath, "/", "_", -1)+"_C")
 	if err != nil {
 		return nil, err
 	}
 	defer os.RemoveAll(tmpdir)
 
-	cgoFiles, cgoDisplayFiles, err := runCgo(bp, tmpdir)
+	pkgdir := bp.Dir
+	if DisplayPath != nil {
+		pkgdir = DisplayPath(pkgdir)
+	}
+
+	cgoFiles, cgoDisplayFiles, err := runCgo(bp, pkgdir, tmpdir)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +108,7 @@ var cgoRe = regexp.MustCompile(`[/\\:]`)
 // $GOROOT/src/cmd/go/build.go, but these features are unsupported:
 // pkg-config, Objective C, CGOPKGPATH, CGO_FLAGS.
 //
-func runCgo(bp *build.Package, tmpdir string) (files, displayFiles []string, err error) {
+func runCgo(bp *build.Package, pkgdir, tmpdir string) (files, displayFiles []string, err error) {
 	cgoCPPFLAGS, _, _, _ := cflags(bp, true)
 	_, cgoexeCFLAGS, _, _ := cflags(bp, false)
 
@@ -137,10 +142,10 @@ func runCgo(bp *build.Package, tmpdir string) (files, displayFiles []string, err
 		cgoCPPFLAGS, cgoexeCFLAGS, bp.CgoFiles,
 	)
 	if false {
-		log.Printf("Running cgo for package %q: %s", bp.ImportPath, args)
+		log.Printf("Running cgo for package %q: %s (dir=%s)", bp.ImportPath, args, pkgdir)
 	}
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Dir = bp.Dir
+	cmd.Dir = pkgdir
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
