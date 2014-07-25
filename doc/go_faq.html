@@ -57,7 +57,7 @@ software on multicore machines.
 
 <p>
 A much more expansive answer to this question is available in the article,
-<a href="http://talks.golang.org/2012/splash.article">Go at Google:
+<a href="//talks.golang.org/2012/splash.article">Go at Google:
 Language Design in the Service of Software Engineering</a>.
 
 <h3 id="What_is_the_status_of_the_project">
@@ -66,7 +66,7 @@ What is the status of the project?</h3>
 <p>
 Go became a public open source project on November 10, 2009.
 After a couple of years of very active design and development, stability was called for and
-Go 1 was <a href="http://blog.golang.org/2012/03/go-version-1-is-released.html">released</a>
+Go 1 was <a href="//blog.golang.org/2012/03/go-version-1-is-released.html">released</a>
 on March 28, 2012.
 Go 1, which includes a <a href="/ref/spec">language specification</a>,
 <a href="/pkg/">standard libraries</a>,
@@ -163,7 +163,7 @@ language was called for.
 </p>
 
 <p>
-The article <a href="http://talks.golang.org/2012/splash.article">Go at Google</a>
+The article <a href="//talks.golang.org/2012/splash.article">Go at Google</a>
 discusses the background and motivation behind the design of the Go language,
 as well as providing more detail about many of the answers presented in this FAQ.
 </p>
@@ -221,7 +221,7 @@ easier to understand what happens when things combine.
 <p>
 Yes. There are now several Go programs deployed in
 production inside Google.  A public example is the server behind
-<a href="http://golang.org">http://golang.org</a>.
+<a href="//golang.org">golang.org</a>.
 It's just the <a href="/cmd/godoc"><code>godoc</code></a>
 document server running in a production configuration on
 <a href="https://developers.google.com/appengine/">Google App Engine</a>.
@@ -260,7 +260,7 @@ Does Go support Google's protocol buffers?</h3>
 <p>
 A separate open source project provides the necessary compiler plugin and library.
 It is available at
-<a href="http://code.google.com/p/goprotobuf/">http://code.google.com/p/goprotobuf/</a>
+<a href="//code.google.com/p/goprotobuf/">code.google.com/p/goprotobuf/</a>
 </p>
 
 
@@ -270,9 +270,9 @@ Can I translate the Go home page into another language?</h3>
 <p>
 Absolutely. We encourage developers to make Go Language sites in their own languages.
 However, if you choose to add the Google logo or branding to your site
-(it does not appear on <a href="http://golang.org/">golang.org</a>),
+(it does not appear on <a href="//golang.org/">golang.org</a>),
 you will need to abide by the guidelines at
-<a href="http://www.google.com/permissions/guidelines.html">http://www.google.com/permissions/guidelines.html</a>
+<a href="//www.google.com/permissions/guidelines.html">www.google.com/permissions/guidelines.html</a>
 </p>
 
 <h2 id="Design">Design</h2>
@@ -466,7 +466,7 @@ Will you accept my language change?</h3>
 
 <p>
 People often suggest improvements to the language—the
-<a href="http://groups.google.com/group/golang-nuts">mailing list</a>
+<a href="//groups.google.com/group/golang-nuts">mailing list</a>
 contains a rich history of such discussions—but very few of these changes have
 been accepted.
 </p>
@@ -484,7 +484,7 @@ to start talking about what that might be.
 <p>
 Even if your proposal is compatible with the Go 1 spec, it might
 not be in the spirit of Go's design goals.
-The article <i><a href="http://talks.golang.org/2012/splash.article">Go
+The article <i><a href="//talks.golang.org/2012/splash.article">Go
 at Google: Language Design in the Service of Software Engineering</a></i>
 explains Go's origins and the motivation behind its design.
 </p>
@@ -940,9 +940,9 @@ How are libraries documented?</h3>
 There is a program, <code>godoc</code>, written in Go, that extracts
 package documentation from the source code. It can be used on the
 command line or on the web. An instance is running at
-<a href="/pkg/">http://golang.org/pkg/</a>.
+<a href="/pkg/">golang.org/pkg/</a>.
 In fact, <code>godoc</code> implements the full site at
-<a href="/">http://golang.org/</a>.
+<a href="/">golang.org/</a>.
 </p>
 
 <h3 id="Is_there_a_Go_programming_style_guide">
@@ -961,7 +961,7 @@ All the Go code in the repository has been run through <code>gofmt</code>.
 
 <p>
 The document titled
-<a href="http://golang.org/s/comments">Go Code Review Comments</a>
+<a href="//golang.org/s/comments">Go Code Review Comments</a>
 is a collection of very short essays about details of Go idiom that are often
 missed by programmers.
 It is a handy reference for people doing code reviews for Go projects.
@@ -986,14 +986,14 @@ Why does the project use Mercurial and not git?</h3>
 
 <p>
 The Go project, hosted by Google Code at
-<a href="http://code.google.com/p/go">code.google.com/p/go</a>,
+<a href="//code.google.com/p/go">code.google.com/p/go</a>,
 uses Mercurial as its version control system.
 When the project launched,
 Google Code supported only Subversion and Mercurial.
 Mercurial was a better choice because of its plugin mechanism
 that allowed us to create the "codereview" plugin to connect
 the project to the excellent code review tools at
-<a href="http://codereview.appspot.com">codereview.appspot.com</a>.
+<a href="//codereview.appspot.com">codereview.appspot.com</a>.
 </p>
 
 <p>
@@ -1304,7 +1304,7 @@ Do not communicate by sharing memory. Instead, share memory by communicating.
 </p>
 
 <p>
-See the <a href="/doc/codewalk/sharemem/">Share Memory By Communicating</a> code walk and its <a href="http://blog.golang.org/2010/07/share-memory-by-communicating.html">associated article</a> for a detailed discussion of this concept.
+See the <a href="/doc/codewalk/sharemem/">Share Memory By Communicating</a> code walk and its <a href="//blog.golang.org/2010/07/share-memory-by-communicating.html">associated article</a> for a detailed discussion of this concept.
 </p>
 
 <h3 id="Why_no_multi_CPU">
@@ -1321,7 +1321,7 @@ run-time support to utilize more than one OS thread.
 Programs that perform parallel computation should benefit from an increase in
 <code>GOMAXPROCS</code>.
 However, be aware that
-<a href="http://blog.golang.org/2013/01/concurrency-is-not-parallelism.html">concurrency
+<a href="//blog.golang.org/2013/01/concurrency-is-not-parallelism.html">concurrency
 is not parallelism</a>.
 </p>
 
@@ -1358,7 +1358,7 @@ should recognize such cases and optimize its use of OS threads. For now,
 
 <p>
 For more detail on this topic see the talk entitled,
-<a href="http://blog.golang.org/2013/01/concurrency-is-not-parallelism.html">Concurrency
+<a href="//blog.golang.org/2013/01/concurrency-is-not-parallelism.html">Concurrency
 is not Parallelism</a>.
 
 <h2 id="Functions_methods">Functions and Methods</h2>
@@ -1736,7 +1736,7 @@ In any case, Go can often be very competitive.
 There has been significant improvement in the performance of many programs
 as the language and tools have developed.
 See the blog post about
-<a href="http://blog.golang.org/2011/06/profiling-go-programs.html">profiling
+<a href="//blog.golang.org/2011/06/profiling-go-programs.html">profiling
 Go programs</a> for an informative example.
 
 <h2 id="change_from_c">Changes from C</h2>
@@ -1895,7 +1895,7 @@ considerable control over memory layout and allocation, much more than
 is typical in garbage-collected languages. A careful programmer can reduce
 the garbage collection overhead dramatically by using the language well;
 see the article about
-<a href="http://blog.golang.org/2011/06/profiling-go-programs.html">profiling
+<a href="//blog.golang.org/2011/06/profiling-go-programs.html">profiling
 Go programs</a> for a worked example, including a demonstration of Go's
 profiling tools.
 </p>
