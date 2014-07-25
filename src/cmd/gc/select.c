@@ -260,7 +260,6 @@ walkselect(Node *sel)
 	// generate sel-struct
 	setlineno(sel);
 	selv = temp(selecttype(sel->xoffset));
-	selv->esc = EscNone;
 	r = nod(OAS, selv, N);
 	typecheck(&r, Etop);
 	init = list(init, r);
