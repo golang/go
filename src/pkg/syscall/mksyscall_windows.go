@@ -283,9 +283,12 @@ func (r *Rets) SetErrorCode() string {
 		return fmt.Sprintf(code, r.Name, syscalldot())
 	}
 	s := ""
-	if r.Type[0] == '*' {
+	switch {
+	case r.Type[0] == '*':
 		s = fmt.Sprintf("%s = (%s)(unsafe.Pointer(r0))", r.Name, r.Type)
-	} else {
+	case r.Type == "bool":
+		s = fmt.Sprintf("%s = r0 != 0", r.Name)
+	default:
 		s = fmt.Sprintf("%s = %s(r0)", r.Name, r.Type)
 	}
 	if !r.ReturnsError {
