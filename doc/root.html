@@ -26,7 +26,7 @@ Hello, 世界
 <div class="buttons">
 <a class="run" href="#" title="Run this code [shift-enter]">Run</a>
 <a class="share" href="#" title="Share this code">Share</a>
-<a class="tour" href="http://tour.golang.org/" title="Learn Go from your browser">Tour</a>
+<a class="tour" href="//tour.golang.org/" title="Learn Go from your browser">Tour</a>
 </div>
 <div class="toys">
 <select>
@@ -78,7 +78,7 @@ Linux, Mac OS X, Windows, and more.
 
 <div id="blog">
 <div class="rootHeading">Featured articles</div>
-<div class="read"><a href="http://blog.golang.org/">Read more</a></div>
+<div class="read"><a href="//blog.golang.org/">Read more</a></div>
 </div>
 
 </div>
@@ -124,7 +124,7 @@ window.initFuncs.push(function() {
 			"outputEl":      "#learn .output",
 			"runEl":         "#learn .run",
 			"shareEl":       "#learn .share",
-			"shareRedirect": "http://play.golang.org/p/",
+			"shareRedirect": "//play.golang.org/p/",
 			"toysEl":        "#learn .toys select"
 		});
 	} else {
@@ -133,7 +133,7 @@ window.initFuncs.push(function() {
 
 	// Load blog feed.
 	$('<script/>').attr('text', 'text/javascript')
-		.attr('src', 'http://blog.golang.org/.json?jsonp=feedLoaded')
+		.attr('src', '//blog.golang.org/.json?jsonp=feedLoaded')
 		.appendTo('body');
 
 	// Set the video at random.
