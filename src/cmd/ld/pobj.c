@@ -63,7 +63,6 @@ main(int argc, char *argv[])
 	INITRND = -1;
 	INITENTRY = 0;
 	linkmode = LinkAuto;
-	nuxiinit();
 	
 	if(thechar == '5' && ctxt->goarm == 5)
 		debug['F'] = 1;
