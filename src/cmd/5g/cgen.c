@@ -1107,11 +1107,10 @@ bgen(Node *n, int true, int likely, Prog *to)
 {
 	int et, a;
 	Node *nl, *nr, *r;
-	Node n1, n2, n3, n4, tmp;
+	Node n1, n2, n3, tmp;
 	NodeList *ll;
 	Prog *p1, *p2;
 
-	USED(n4);			// in unreachable code below
 	if(debug['g']) {
 		dump("\nbgen", n);
 	}
