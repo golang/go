@@ -160,7 +160,6 @@ void	listinit(void);
 void	lput(int32 l);
 int	machoreloc1(Reloc *r, vlong sectoff);
 void	main(int argc, char *argv[]);
-void	noops(void);
 void	nopstat(char *f, Count *c);
 int32	rnd(int32 v, int32 r);
 void	wput(int32 l);
