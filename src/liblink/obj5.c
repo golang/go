@@ -92,7 +92,7 @@ progedit(Link *ctxt, Prog *p)
 {
 	char literal[64];
 	LSym *s;
-	LSym *tlsfallback;
+	static LSym *tlsfallback;
 
 	p->from.class = 0;
 	p->to.class = 0;
@@ -111,19 +111,27 @@ progedit(Link *ctxt, Prog *p)
 	// Replace TLS register fetches on older ARM procesors.
 	switch(p->as) {
 	case AMRC:
-		// If the instruction matches MRC 15, 0, <reg>, C13, C0, 3, replace it.
-		if(ctxt->goarm < 7 && (p->to.offset & 0xffff0fff) == 0xee1d0f70) {
-			tlsfallback = linklookup(ctxt, "runtime.read_tls_fallback", 0);
+		// Treat MRC 15, 0, <reg>, C13, C0, 3 specially.
+		if((p->to.offset & 0xffff0fff) == 0xee1d0f70) {
+			// Because the instruction might be rewriten to a BL which returns in R0
+			// the register must be zero.
+		       	if ((p->to.offset & 0xf000) != 0)
+				ctxt->diag("%L: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p->lineno);
 
-			// BL runtime.read_tls_fallback(SB)
-			p->as = ABL;
-			p->to.type = D_BRANCH;
-			p->to.sym = tlsfallback;
-			p->to.offset = 0;
-		} else {
-			// Otherwise, MRC/MCR instructions need no further treatment.
-			p->as = AWORD;
+			if(ctxt->goarm < 7) {
+				// Replace it with BL runtime.read_tls_fallback(SB).
+				if(tlsfallback == nil)
+					tlsfallback = linklookup(ctxt, "runtime.read_tls_fallback", 0);
+				// BL runtime.read_tls_fallback(SB)
+				p->as = ABL;
+				p->to.type = D_BRANCH;
+				p->to.sym = tlsfallback;
+				p->to.offset = 0;
+				break;
+			}
 		}
+		// Otherwise, MRC/MCR instructions need no further treatment.
+		p->as = AWORD;
 		break;
 	}
 
