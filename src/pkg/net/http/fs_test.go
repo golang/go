@@ -721,6 +721,28 @@ func TestServeContent(t *testing.T) {
 			wantStatus:      200,
 			wantContentType: "text/css; charset=utf-8",
 		},
+		"range_with_modtime": {
+			file:    "testdata/style.css",
+			modtime: time.Date(2014, 6, 25, 17, 12, 18, 0 /* nanos */, time.UTC),
+			reqHeader: map[string]string{
+				"Range":    "bytes=0-4",
+				"If-Range": "Wed, 25 Jun 2014 17:12:18 GMT",
+			},
+			wantStatus:      StatusPartialContent,
+			wantContentType: "text/css; charset=utf-8",
+			wantLastMod:     "Wed, 25 Jun 2014 17:12:18 GMT",
+		},
+		"range_with_modtime_nanos": {
+			file:    "testdata/style.css",
+			modtime: time.Date(2014, 6, 25, 17, 12, 18, 123 /* nanos */, time.UTC),
+			reqHeader: map[string]string{
+				"Range":    "bytes=0-4",
+				"If-Range": "Wed, 25 Jun 2014 17:12:18 GMT",
+			},
+			wantStatus:      StatusPartialContent,
+			wantContentType: "text/css; charset=utf-8",
+			wantLastMod:     "Wed, 25 Jun 2014 17:12:18 GMT",
+		},
 	}
 	for testName, tt := range tests {
 		var content io.ReadSeeker
