@@ -58,6 +58,10 @@ type omitEmptyTest struct {
 	A []string `asn1:"omitempty"`
 }
 
+type defaultTest struct {
+	A int `asn1:"optional,default:1"`
+}
+
 type testSET []int
 
 var PST = time.FixedZone("PST", -8*60*60)
@@ -133,6 +137,9 @@ var marshalTests = []marshalTest{
 	{omitEmptyTest{[]string{}}, "3000"},
 	{omitEmptyTest{[]string{"1"}}, "30053003130131"},
 	{"Σ", "0c02cea3"},
+	{defaultTest{0}, "3003020100"},
+	{defaultTest{1}, "3000"},
+	{defaultTest{2}, "3003020102"},
 }
 
 func TestMarshal(t *testing.T) {
