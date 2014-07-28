@@ -513,8 +513,22 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 		return
 	}
 
-	if params.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
-		return
+	if params.optional && params.defaultValue != nil && canHaveDefaultValue(v.Kind()) {
+		defaultValue := reflect.New(v.Type()).Elem()
+		defaultValue.SetInt(*params.defaultValue)
+
+		if reflect.DeepEqual(v.Interface(), defaultValue.Interface()) {
+			return
+		}
+	}
+
+	// If no default value is given then the zero value for the type is
+	// assumed to be the default value. This isn't obviously the correct
+	// behaviour, but it's what Go has traditionally done.
+	if params.optional && params.defaultValue == nil {
+		if reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
+			return
+		}
 	}
 
 	if v.Type() == rawValueType {

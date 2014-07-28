@@ -822,8 +822,19 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	return
 }
 
+// canHaveDefaultValue reports whether k is a Kind that we will set a default
+// value for. (A signed integer, essentially.)
+func canHaveDefaultValue(k reflect.Kind) bool {
+	switch k {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	}
+
+	return false
+}
+
 // setDefaultValue is used to install a default value, from a tag string, into
-// a Value. It is successful is the field was optional, even if a default value
+// a Value. It is successful if the field was optional, even if a default value
 // wasn't provided or it failed to install it into the Value.
 func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 	if !params.optional {
@@ -833,9 +844,8 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 	if params.defaultValue == nil {
 		return
 	}
-	switch val := v; val.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		val.SetInt(*params.defaultValue)
+	if canHaveDefaultValue(v.Kind()) {
+		v.SetInt(*params.defaultValue)
 	}
 	return
 }
