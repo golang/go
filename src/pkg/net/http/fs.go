@@ -139,7 +139,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	if checkLastModified(w, r, modtime) {
 		return
 	}
-	rangeReq, done := checkETag(w, r)
+	rangeReq, done := checkETag(w, r, modtime)
 	if done {
 		return
 	}
@@ -275,11 +275,14 @@ func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
 }
 
 // checkETag implements If-None-Match and If-Range checks.
-// The ETag must have been previously set in the ResponseWriter's headers.
+//
+// The ETag or modtime must have been previously set in the
+// ResponseWriter's headers.  The modtime is only compared at second
+// granularity and may be the zero value to mean unknown.
 //
 // The return value is the effective request "Range" header to use and
 // whether this request is now considered done.
-func checkETag(w ResponseWriter, r *Request) (rangeReq string, done bool) {
+func checkETag(w ResponseWriter, r *Request, modtime time.Time) (rangeReq string, done bool) {
 	etag := w.Header().get("Etag")
 	rangeReq = r.Header.get("Range")
 
@@ -290,11 +293,17 @@ func checkETag(w ResponseWriter, r *Request) (rangeReq string, done bool) {
 	// We only support ETag versions.
 	// The caller must have set the ETag on the response already.
 	if ir := r.Header.get("If-Range"); ir != "" && ir != etag {
-		// TODO(bradfitz): handle If-Range requests with Last-Modified
-		// times instead of ETags? I'd rather not, at least for
-		// now. That seems like a bug/compromise in the RFC 2616, and
-		// I've never heard of anybody caring about that (yet).
-		rangeReq = ""
+		// The If-Range value is typically the ETag value, but it may also be
+		// the modtime date. See golang.org/issue/8367.
+		timeMatches := false
+		if !modtime.IsZero() {
+			if t, err := ParseTime(ir); err == nil && t.Unix() == modtime.Unix() {
+				timeMatches = true
+			}
+		}
+		if !timeMatches {
+			rangeReq = ""
+		}
 	}
 
 	if inm := r.Header.get("If-None-Match"); inm != "" {
