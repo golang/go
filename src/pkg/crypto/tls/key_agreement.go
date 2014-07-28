@@ -292,6 +292,9 @@ func (ka *ecdheKeyAgreement) processClientKeyExchange(config *Config, cert *Cert
 	if x == nil {
 		return nil, errClientKeyExchange
 	}
+	if !ka.curve.IsOnCurve(x, y) {
+		return nil, errClientKeyExchange
+	}
 	x, _ = ka.curve.ScalarMult(x, y, ka.privateKey)
 	preMasterSecret := make([]byte, (ka.curve.Params().BitSize+7)>>3)
 	xBytes := x.Bytes()
@@ -320,6 +323,9 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	}
 	ka.x, ka.y = elliptic.Unmarshal(ka.curve, skx.key[4:4+publicLen])
 	if ka.x == nil {
+		return errServerKeyExchange
+	}
+	if !ka.curve.IsOnCurve(ka.x, ka.y) {
 		return errServerKeyExchange
 	}
 	serverECDHParams := skx.key[:4+publicLen]
