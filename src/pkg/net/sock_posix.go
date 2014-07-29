@@ -107,24 +107,18 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(sys
 			}
 		}
 	}
-	if err := fd.init(); err != nil {
-		return err
-	}
 	var rsa syscall.Sockaddr
 	if raddr != nil {
 		if rsa, err = raddr.sockaddr(fd.family); err != nil {
 			return err
-		} else if rsa != nil {
-			if !deadline.IsZero() {
-				fd.setWriteDeadline(deadline)
-			}
-			if err := fd.connect(lsa, rsa); err != nil {
-				return err
-			}
-			fd.isConnected = true
-			if !deadline.IsZero() {
-				fd.setWriteDeadline(noDeadline)
-			}
+		}
+		if err := fd.connect(lsa, rsa, deadline); err != nil {
+			return err
+		}
+		fd.isConnected = true
+	} else {
+		if err := fd.init(); err != nil {
+			return err
 		}
 	}
 	lsa, _ = syscall.Getsockname(fd.sysfd)

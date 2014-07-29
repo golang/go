@@ -313,10 +313,17 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
-func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
+func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
+	if err := fd.init(); err != nil {
+		return err
+	}
+	if !deadline.IsZero() {
+		fd.setWriteDeadline(deadline)
+		defer fd.setWriteDeadline(noDeadline)
+	}
 	if !canUseConnectEx(fd.net) {
 		return syscall.Connect(fd.sysfd, ra)
 	}
