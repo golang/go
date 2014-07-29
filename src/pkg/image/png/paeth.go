@@ -4,6 +4,21 @@
 
 package png
 
+// intSize is either 32 or 64.
+const intSize = 32 << (^uint(0) >> 63)
+
+func abs(x int) int {
+	// m := -1 if x < 0. m := 0 otherwise.
+	m := x >> (intSize - 1)
+
+	// In two's complement representation, the negative number
+	// of any number (except the smallest one) can be computed
+	// by flipping all the bits and add 1. This is faster than
+	// code with a branch.
+	// See Hacker's Delight, section 2-4.
+	return (x ^ m) - m
+}
+
 // paeth implements the Paeth filter function, as per the PNG specification.
 func paeth(a, b, c uint8) uint8 {
 	// This is an optimized version of the sample code in the PNG spec.
@@ -16,16 +31,9 @@ func paeth(a, b, c uint8) uint8 {
 	pc := int(c)
 	pa := int(b) - pc
 	pb := int(a) - pc
-	pc = pa + pb
-	if pa < 0 {
-		pa = -pa
-	}
-	if pb < 0 {
-		pb = -pb
-	}
-	if pc < 0 {
-		pc = -pc
-	}
+	pc = abs(pa + pb)
+	pa = abs(pa)
+	pb = abs(pb)
 	if pa <= pb && pa <= pc {
 		return a
 	} else if pb <= pc {
@@ -44,16 +52,9 @@ func filterPaeth(cdat, pdat []byte, bytesPerPixel int) {
 			b = int(pdat[j])
 			pa = b - c
 			pb = a - c
-			pc = pa + pb
-			if pa < 0 {
-				pa = -pa
-			}
-			if pb < 0 {
-				pb = -pb
-			}
-			if pc < 0 {
-				pc = -pc
-			}
+			pc = abs(pa + pb)
+			pa = abs(pa)
+			pb = abs(pb)
 			if pa <= pb && pa <= pc {
 				// No-op.
 			} else if pb <= pc {
