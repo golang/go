@@ -52,17 +52,17 @@ enum {
 	TagPanic = 15,
 	TagMemProf = 16,
 	TagAllocSample = 17,
-
-	TypeInfo_Conservative = 127,
 };
 
 static uintptr* playgcprog(uintptr offset, uintptr *prog, void (*callback)(void*,uintptr,uintptr), void *arg);
-static void dumpfields(uintptr *prog);
-static void dumpefacetypes(void *obj, uintptr size, Type *type, uintptr kind);
+static void dumpfields(BitVector bv);
 static void dumpbvtypes(BitVector *bv, byte *base);
+static BitVector makeheapobjbv(byte *p, uintptr size);
 
 // fd to write the dump to.
-static uintptr dumpfd;
+static uintptr	dumpfd;
+static byte	*tmpbuf;
+static uintptr	tmpbufsize;
 
 // buffer of pending write data
 enum {
@@ -199,34 +199,18 @@ dumptype(Type *t)
 		write(t->x->name->str, t->x->name->len);
 	}
 	dumpbool(t->size > PtrSize || (t->kind & KindNoPointers) == 0);
-	dumpfields((uintptr*)t->gc + 1);
-}
-
-// returns true if object is scannable
-static bool
-scannable(byte *obj)
-{
-	uintptr *b, off, shift;
-
-	off = (uintptr*)obj - (uintptr*)runtime·mheap.arena_start;  // word offset
-	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-	shift = off % wordsPerBitmapWord;
-	return ((*b >> shift) & bitScan) != 0;
+	dumpfields((BitVector){0, nil});
 }
 
 // dump an object
 static void
-dumpobj(byte *obj, uintptr size, Type *type, uintptr kind)
+dumpobj(byte *obj, uintptr size, BitVector bv)
 {
-	if(type != nil) {
-		dumptype(type);
-		dumpefacetypes(obj, size, type, kind);
-	}
-
+	dumpbvtypes(&bv, obj);
 	dumpint(TagObject);
 	dumpint((uintptr)obj);
-	dumpint((uintptr)type);
-	dumpint(kind);
+	dumpint(0); // Type*
+	dumpint(0); // kind
 	dumpmemrange(obj, size);
 }
 
@@ -513,33 +497,19 @@ dumproots(void)
 	dumpint(TagData);
 	dumpint((uintptr)data);
 	dumpmemrange(data, edata - data);
-	dumpfields((uintptr*)gcdata + 1);
+	dumpfields((BitVector){(edata - data)*8, (uint32*)gcdata});
 
 	// bss segment
 	dumpint(TagBss);
 	dumpint((uintptr)bss);
 	dumpmemrange(bss, ebss - bss);
-	dumpfields((uintptr*)gcbss + 1);
-	
+	dumpfields((BitVector){(ebss - bss)*8, (uint32*)gcbss});
+
 	// MSpan.types
 	allspans = runtime·mheap.allspans;
 	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
 		s = allspans[spanidx];
 		if(s->state == MSpanInUse) {
-			// The garbage collector ignores type pointers stored in MSpan.types:
-			//  - Compiler-generated types are stored outside of heap.
-			//  - The reflect package has runtime-generated types cached in its data structures.
-			//    The garbage collector relies on finding the references via that cache.
-			switch(s->types.compression) {
-			case MTypes_Empty:
-			case MTypes_Single:
-				break;
-			case MTypes_Words:
-			case MTypes_Bytes:
-				dumpotherroot("runtime type info", (byte*)s->types.data);
-				break;
-			}
-
 			// Finalizers
 			for(sp = s->specials; sp != nil; sp = sp->next) {
 				if(sp->kind != KindSpecialFinalizer)
@@ -555,18 +525,12 @@ dumproots(void)
 	runtime·iterate_finq(finq_callback);
 }
 
-// Bit vector of free marks.
-// Needs to be as big as the largest number of objects per span.
-static byte free[PageSize/8];
-
 static void
 dumpobjs(void)
 {
-	uintptr i, j, size, n, off, shift, *bitp, bits, ti, kind;
+	uintptr i, j, size, n, off, shift, *bitp, bits;
 	MSpan *s;
-	MLink *l;
 	byte *p;
-	Type *t;
 
 	for(i = 0; i < runtime·mheap.nspan; i++) {
 		s = runtime·mheap.allspans[i];
@@ -575,36 +539,16 @@ dumpobjs(void)
 		p = (byte*)(s->start << PageShift);
 		size = s->elemsize;
 		n = (s->npages << PageShift) / size;
-		if(n > PageSize/8)
-			runtime·throw("free array doesn't have enough entries");
-		for(l = s->freelist; l != nil; l = l->next) {
-			free[((byte*)l - p) / size] = true;
-		}
 		for(j = 0; j < n; j++, p += size) {
-			if(free[j]) {
-				free[j] = false;
-				continue;
-			}
 			off = (uintptr*)p - (uintptr*)runtime·mheap.arena_start;
 			bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-			shift = off % wordsPerBitmapWord;
-			bits = *bitp >> shift;
+			shift = (off % wordsPerBitmapWord) * gcBits;
+			bits = (*bitp >> shift) & bitMask;
 
 			// Skip FlagNoGC allocations (stacks)
-			if((bits & bitAllocated) == 0)
+			if(bits != bitAllocated)
 				continue;
-
-			// extract type and kind
-			ti = runtime·gettype(p);
-			t = (Type*)(ti & ~(uintptr)(PtrSize-1));
-			kind = ti & (PtrSize-1);
-			
-			// dump it
-			if(kind == TypeInfo_Chan)
-				t = ((ChanType*)t)->elem; // use element type for chan encoding
-			if(t == nil && scannable(p))
-				kind = TypeInfo_Conservative; // special kind for conservatively scanned objects
-			dumpobj(p, size, t, kind);
+			dumpobj(p, size, makeheapobjbv(p, size));
 		}
 	}
 }
@@ -621,7 +565,6 @@ dumpparams(void)
 	else
 		dumpbool(true); // big-endian ptrs
 	dumpint(PtrSize);
-	dumpint(runtime·Hchansize);
 	dumpint((uintptr)runtime·mheap.arena_start);
 	dumpint((uintptr)runtime·mheap.arena_used);
 	dumpint(thechar);
@@ -819,6 +762,11 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 
 	// Reset dump file.
 	dumpfd = 0;
+	if(tmpbuf != nil) {
+		runtime·SysFree(tmpbuf, tmpbufsize, &mstats.other_sys);
+		tmpbuf = nil;
+		tmpbufsize = 0;
+	}
 
 	// Start up the world again.
 	g->m->gcing = 0;
@@ -827,132 +775,17 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 	g->m->locks--;
 }
 
-// Runs the specified gc program.  Calls the callback for every
-// pointer-like field specified by the program and passes to the
-// callback the kind and offset of that field within the object.
-// offset is the offset in the object of the start of the program.
-// Returns a pointer to the opcode that ended the gc program (either
-// GC_END or GC_ARRAY_NEXT).
-static uintptr*
-playgcprog(uintptr offset, uintptr *prog, void (*callback)(void*,uintptr,uintptr), void *arg)
-{
-	uintptr len, elemsize, i, *end;
-
-	for(;;) {
-		switch(prog[0]) {
-		case GC_END:
-			return prog;
-		case GC_PTR:
-			callback(arg, FieldKindPtr, offset + prog[1]);
-			prog += 3;
-			break;
-		case GC_APTR:
-			callback(arg, FieldKindPtr, offset + prog[1]);
-			prog += 2;
-			break;
-		case GC_ARRAY_START:
-			len = prog[2];
-			elemsize = prog[3];
-			end = nil;
-			for(i = 0; i < len; i++) {
-				end = playgcprog(offset + prog[1] + i * elemsize, prog + 4, callback, arg);
-				if(end[0] != GC_ARRAY_NEXT)
-					runtime·throw("GC_ARRAY_START did not have matching GC_ARRAY_NEXT");
-			}
-			prog = end + 1;
-			break;
-		case GC_ARRAY_NEXT:
-			return prog;
-		case GC_CALL:
-			playgcprog(offset + prog[1], (uintptr*)((byte*)prog + *(int32*)&prog[2]), callback, arg);
-			prog += 3;
-			break;
-		case GC_CHAN_PTR:
-			callback(arg, FieldKindPtr, offset + prog[1]);
-			prog += 3;
-			break;
-		case GC_STRING:
-			callback(arg, FieldKindString, offset + prog[1]);
-			prog += 2;
-			break;
-		case GC_EFACE:
-			callback(arg, FieldKindEface, offset + prog[1]);
-			prog += 2;
-			break;
-		case GC_IFACE:
-			callback(arg, FieldKindIface, offset + prog[1]);
-			prog += 2;
-			break;
-		case GC_SLICE:
-			callback(arg, FieldKindSlice, offset + prog[1]);
-			prog += 3;
-			break;
-		case GC_REGION:
-			playgcprog(offset + prog[1], (uintptr*)prog[3] + 1, callback, arg);
-			prog += 4;
-			break;
-		default:
-			runtime·printf("%D\n", (uint64)prog[0]);
-			runtime·throw("bad gc op");
-		}
-	}
-}
-
-static void
-dump_callback(void *p, uintptr kind, uintptr offset)
-{
-	USED(&p);
-	dumpint(kind);
-	dumpint(offset);
-}
-
 // dumpint() the kind & offset of each field in an object.
 static void
-dumpfields(uintptr *prog)
+dumpfields(BitVector bv)
 {
-	playgcprog(0, prog, dump_callback, nil);
+	dumpbv(&bv, 0);
 	dumpint(FieldKindEol);
-}
-
-static void
-dumpeface_callback(void *p, uintptr kind, uintptr offset)
-{
-	Eface *e;
-
-	if(kind != FieldKindEface)
-		return;
-	e = (Eface*)((byte*)p + offset);
-	dumptype(e->type);
 }
 
 // The heap dump reader needs to be able to disambiguate
 // Eface entries.  So it needs to know every type that might
-// appear in such an entry.  The following two routines accomplish
-// that.
-
-// Dump all the types that appear in the type field of
-// any Eface contained in obj.
-static void
-dumpefacetypes(void *obj, uintptr size, Type *type, uintptr kind)
-{
-	uintptr i;
-
-	switch(kind) {
-	case TypeInfo_SingleObject:
-		playgcprog(0, (uintptr*)type->gc + 1, dumpeface_callback, obj);
-		break;
-	case TypeInfo_Array:
-		for(i = 0; i <= size - type->size; i += type->size)
-			playgcprog(i, (uintptr*)type->gc + 1, dumpeface_callback, obj);
-		break;
-	case TypeInfo_Chan:
-		if(type->size == 0) // channels may have zero-sized objects in them
-			break;
-		for(i = runtime·Hchansize; i <= size - type->size; i += type->size)
-			playgcprog(i, (uintptr*)type->gc + 1, dumpeface_callback, obj);
-		break;
-	}
-}
+// appear in such an entry.  The following routine accomplishes that.
 
 // Dump all the types that appear in the type field of
 // any Eface described by this bit vector.
@@ -978,4 +811,37 @@ dumpbvtypes(BitVector *bv, byte *base)
 			break;
 		}
 	}
+}
+
+static BitVector
+makeheapobjbv(byte *p, uintptr size)
+{
+	uintptr off, shift, *bitp, bits, nptr, i;
+	bool mw;
+
+	// Extend the temp buffer if necessary.
+	nptr = size/PtrSize;
+	if(tmpbufsize < nptr*BitsPerPointer/8+1) {
+		if(tmpbuf != nil)
+			runtime·SysFree(tmpbuf, tmpbufsize, &mstats.other_sys);
+		tmpbufsize = nptr*BitsPerPointer/8+1;
+		tmpbuf = runtime·SysAlloc(tmpbufsize, &mstats.other_sys);
+		if(tmpbuf == nil)
+			runtime·throw("heapdump: out of memory");
+	}
+
+	// Copy and compact the bitmap.
+	mw = false;
+	for(i = 0; i < nptr; i++) {
+		off = (uintptr*)(p + i*PtrSize) - (uintptr*)runtime·mheap.arena_start;
+		bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+		shift = (off % wordsPerBitmapWord) * gcBits;
+		bits = (*bitp >> (shift + 2)) & 3;
+		if(!mw && bits == BitsDead)
+			break;  // end of heap object
+		mw = !mw && bits == BitsMultiWord;
+		tmpbuf[i*BitsPerPointer/8] &= ~(3<<((i*BitsPerPointer)%8));
+		tmpbuf[i*BitsPerPointer/8] |= bits<<((i*BitsPerPointer)%8);
+	}
+	return (BitVector){i*BitsPerPointer, (uint32*)tmpbuf};
 }

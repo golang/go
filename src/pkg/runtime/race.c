@@ -152,7 +152,7 @@ runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
 {
 	uint8 kind;
 
-	kind = t->kind & ~KindNoPointers;
+	kind = t->kind & KindMask;
 	if(kind == KindArray || kind == KindStruct)
 		runtime·racewriterangepc(addr, t->size, callpc, pc);
 	else
@@ -164,7 +164,7 @@ runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
 {
 	uint8 kind;
 
-	kind = t->kind & ~KindNoPointers;
+	kind = t->kind & KindMask;
 	if(kind == KindArray || kind == KindStruct)
 		runtime·racereadrangepc(addr, t->size, callpc, pc);
 	else

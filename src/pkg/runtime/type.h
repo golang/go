@@ -16,7 +16,8 @@ typedef struct IMethod IMethod;
 typedef struct SliceType SliceType;
 typedef struct FuncType FuncType;
 
-// Needs to be in sync with ../../cmd/ld/decodesym.c:/^commonsize
+// Needs to be in sync with ../../cmd/ld/decodesym.c:/^commonsize,
+// pkg/reflect/type.go:/type anf type.go:/rtype
 struct Type
 {
 	uintptr size;
@@ -26,7 +27,17 @@ struct Type
 	uint8 fieldAlign;
 	uint8 kind;
 	Alg *alg;
-	void *gc;
+	// gc stores type info required for garbage collector.
+	// If (kind&KindGCProg)==0, then gc directly contains sparse GC bitmap
+	// (no indirection), 4 bits per word.
+	// If (kind&KindGCProg)!=0, then gc[1] points to a compiler-generated
+	// read-only GC program; and gc[0] points to BSS space for sparse GC bitmap.
+	// For huge types (>MaxGCMask), runtime unrolls the program directly into
+	// GC bitmap and gc[0] is not used. For moderately-sized types, runtime
+	// unrolls the program into gc[0] space on first use. The first byte of gc[0]
+	// (gc[0][0]) contains 'unroll' flag saying whether the program is already
+	// unrolled into gc[0] or not.
+	uintptr gc[2];
 	String *string;
 	UncommonType *x;
 	Type *ptrto;

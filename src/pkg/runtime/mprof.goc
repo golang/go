@@ -409,33 +409,15 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 
 static Lock tracelock;
 
-static int8*
-typeinfoname(int32 typeinfo)
-{
-	if(typeinfo == TypeInfo_SingleObject)
-		return "single object";
-	else if(typeinfo == TypeInfo_Array)
-		return "array";
-	else if(typeinfo == TypeInfo_Chan)
-		return "channel";
-	runtime·throw("typinfoname: unknown type info");
-	return nil;
-}
-
 void
-runtime·tracealloc(void *p, uintptr size, uintptr typ)
+runtime·tracealloc(void *p, uintptr size, Type *type)
 {
-	int8 *name;
-	Type *type;
-
 	runtime·lock(&tracelock);
 	g->m->traceback = 2;
-	type = (Type*)(typ & ~3);
-	name = typeinfoname(typ & 3);
 	if(type == nil)
-		runtime·printf("tracealloc(%p, %p, %s)\n", p, size, name);
+		runtime·printf("tracealloc(%p, %p)\n", p, size);
 	else	
-		runtime·printf("tracealloc(%p, %p, %s of %S)\n", p, size, name, *type->string);
+		runtime·printf("tracealloc(%p, %p, %S)\n", p, size, *type->string);
 	if(g->m->curg == nil || g == g->m->curg) {
 		runtime·goroutineheader(g);
 		runtime·traceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g);

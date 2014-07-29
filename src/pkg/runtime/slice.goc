@@ -126,7 +126,7 @@ growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
 	// Can't use FlagNoZero w/o FlagNoScan, because otherwise GC can scan unitialized memory.
 	if(typ->kind&KindNoPointers)
 		flag = FlagNoScan|FlagNoZero;
-	ret->array = runtime·mallocgc(capmem, (uintptr)typ|TypeInfo_Array, flag);
+	ret->array = runtime·mallocgc(capmem, typ, flag);
 	ret->len = x.len;
 	ret->cap = newcap1;
 	lenmem = x.len*typ->size;

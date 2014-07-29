@@ -63,29 +63,21 @@
 #include "../../cmd/ld/textflag.h"
 
 enum {
-	Debug = 0,
-	CollectStats = 0,
-	ConcurrentSweep = 1,
+	Debug		= 0,
+	ConcurrentSweep	= 1,
+	PreciseScan	= 1,
 
-	WorkbufSize	= 16*1024,
+	WorkbufSize	= 4*1024,
 	FinBlockSize	= 4*1024,
-
-	handoffThreshold = 4,
-	IntermediateBufferCapacity = 64,
-
-	// Bits in type information
-	PRECISE = 1,
-	LOOP = 2,
-	PC_BITS = PRECISE | LOOP,
-
 	RootData	= 0,
 	RootBss		= 1,
 	RootFinalizers	= 2,
-	RootSpanTypes	= 3,
+	RootSpans	= 3,
 	RootFlushCaches = 4,
 	RootCount	= 5,
 };
 
+#define ScanConservatively ((byte*)1)
 #define GcpercentUnknown (-2)
 
 // Initialized from $GOGC.  GOGC=off means no gc.
@@ -138,23 +130,12 @@ clearpools(void)
 //
 uint32 runtime·worldsema = 1;
 
-typedef struct Obj Obj;
-struct Obj
-{
-	byte	*p;	// data pointer
-	uintptr	n;	// size of data in bytes
-	uintptr	ti;	// type info
-};
-
 typedef struct Workbuf Workbuf;
 struct Workbuf
 {
-#define SIZE (WorkbufSize-sizeof(LFNode)-sizeof(uintptr))
-	LFNode  node; // must be first
-	uintptr nobj;
-	Obj     obj[SIZE/sizeof(Obj) - 1];
-	uint8   _padding[SIZE%sizeof(Obj) + sizeof(Obj)];
-#undef SIZE
+	LFNode	node; // must be first
+	uintptr	nobj;
+	byte*	obj[(WorkbufSize-sizeof(LFNode)-sizeof(uintptr))/PtrSize];
 };
 
 typedef struct Finalizer Finalizer;
@@ -203,8 +184,9 @@ static void	putempty(Workbuf*);
 static Workbuf* handoff(Workbuf*);
 static void	gchelperstart(void);
 static void	flushallmcaches(void);
-static bool	scanframe(Stkframe *frame, void *wbufp);
-static void	addstackroots(G *gp, Workbuf **wbufp);
+static bool	scanframe(Stkframe *frame, void *unused);
+static void	scanstack(G *gp);
+static byte*	unrollglobgcprog(byte *prog, uintptr size);
 
 static FuncVal runfinqv = {runfinq};
 static FuncVal bgsweepv = {bgsweep};
@@ -218,468 +200,10 @@ static struct {
 	volatile uint32	nwait;
 	volatile uint32	ndone;
 	Note	alldone;
-	ParFor	*markfor;
+	ParFor*	markfor;
+	byte*	gcdata;
+	byte*	gcbss;
 } work;
-
-enum {
-	GC_DEFAULT_PTR = GC_NUM_INSTR,
-	GC_CHAN,
-
-	GC_NUM_INSTR2
-};
-
-static struct {
-	struct {
-		uint64 sum;
-		uint64 cnt;
-	} ptr;
-	uint64 nbytes;
-	struct {
-		uint64 sum;
-		uint64 cnt;
-		uint64 notype;
-		uint64 typelookup;
-	} obj;
-	uint64 rescan;
-	uint64 rescanbytes;
-	uint64 instr[GC_NUM_INSTR2];
-	uint64 putempty;
-	uint64 getfull;
-	struct {
-		uint64 foundbit;
-		uint64 foundword;
-		uint64 foundspan;
-	} flushptrbuf;
-	struct {
-		uint64 foundbit;
-		uint64 foundword;
-		uint64 foundspan;
-	} markonly;
-	uint32 nbgsweep;
-	uint32 npausesweep;
-} gcstats;
-
-// markonly marks an object. It returns true if the object
-// has been marked by this function, false otherwise.
-// This function doesn't append the object to any buffer.
-static bool
-markonly(void *obj)
-{
-	byte *p;
-	uintptr *bitp, bits, shift, x, xbits, off;
-	MSpan *s;
-	PageID k;
-
-	// Words outside the arena cannot be pointers.
-	if(obj < runtime·mheap.arena_start || obj >= runtime·mheap.arena_used)
-		return false;
-
-	// obj may be a pointer to a live object.
-	// Try to find the beginning of the object.
-
-	// Round down to word boundary.
-	obj = (void*)((uintptr)obj & ~((uintptr)PtrSize-1));
-
-	// Find bits for this word.
-	off = (uintptr*)obj - (uintptr*)runtime·mheap.arena_start;
-	bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-	shift = off % wordsPerBitmapWord;
-	xbits = *bitp;
-	bits = xbits >> shift;
-
-	// Pointing at the beginning of a block?
-	if((bits & (bitAllocated|bitBlockBoundary)) != 0) {
-		if(CollectStats)
-			runtime·xadd64(&gcstats.markonly.foundbit, 1);
-		goto found;
-	}
-
-	// Otherwise consult span table to find beginning.
-	// (Manually inlined copy of MHeap_LookupMaybe.)
-	k = (uintptr)obj>>PageShift;
-	x = k;
-	x -= (uintptr)runtime·mheap.arena_start>>PageShift;
-	s = runtime·mheap.spans[x];
-	if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
-		return false;
-	p = (byte*)((uintptr)s->start<<PageShift);
-	if(s->sizeclass == 0) {
-		obj = p;
-	} else {
-		uintptr size = s->elemsize;
-		int32 i = ((byte*)obj - p)/size;
-		obj = p+i*size;
-	}
-
-	// Now that we know the object header, reload bits.
-	off = (uintptr*)obj - (uintptr*)runtime·mheap.arena_start;
-	bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-	shift = off % wordsPerBitmapWord;
-	xbits = *bitp;
-	bits = xbits >> shift;
-	if(CollectStats)
-		runtime·xadd64(&gcstats.markonly.foundspan, 1);
-
-found:
-	// Now we have bits, bitp, and shift correct for
-	// obj pointing at the base of the object.
-	// Only care about allocated and not marked.
-	if((bits & (bitAllocated|bitMarked)) != bitAllocated)
-		return false;
-	if(work.nproc == 1)
-		*bitp |= bitMarked<<shift;
-	else {
-		for(;;) {
-			x = *bitp;
-			if(x & (bitMarked<<shift))
-				return false;
-			if(runtime·casp((void**)bitp, (void*)x, (void*)(x|(bitMarked<<shift))))
-				break;
-		}
-	}
-
-	// The object is now marked
-	return true;
-}
-
-// PtrTarget is a structure used by intermediate buffers.
-// The intermediate buffers hold GC data before it
-// is moved/flushed to the work buffer (Workbuf).
-// The size of an intermediate buffer is very small,
-// such as 32 or 64 elements.
-typedef struct PtrTarget PtrTarget;
-struct PtrTarget
-{
-	void *p;
-	uintptr ti;
-};
-
-typedef	struct Scanbuf Scanbuf;
-struct	Scanbuf
-{
-	struct {
-		PtrTarget *begin;
-		PtrTarget *end;
-		PtrTarget *pos;
-	} ptr;
-	struct {
-		Obj *begin;
-		Obj *end;
-		Obj *pos;
-	} obj;
-	Workbuf *wbuf;
-	Obj *wp;
-	uintptr nobj;
-};
-
-typedef struct BufferList BufferList;
-struct BufferList
-{
-	PtrTarget ptrtarget[IntermediateBufferCapacity];
-	Obj obj[IntermediateBufferCapacity];
-	uint32 busy;
-	byte pad[CacheLineSize];
-};
-#pragma dataflag NOPTR
-static BufferList bufferList[MaxGcproc];
-
-static Type *itabtype;
-
-static void enqueue(Obj obj, Workbuf **_wbuf, Obj **_wp, uintptr *_nobj);
-
-// flushptrbuf moves data from the PtrTarget buffer to the work buffer.
-// The PtrTarget buffer contains blocks irrespective of whether the blocks have been marked or scanned,
-// while the work buffer contains blocks which have been marked
-// and are prepared to be scanned by the garbage collector.
-//
-// _wp, _wbuf, _nobj are input/output parameters and are specifying the work buffer.
-//
-// A simplified drawing explaining how the todo-list moves from a structure to another:
-//
-//     scanblock
-//  (find pointers)
-//    Obj ------> PtrTarget (pointer targets)
-//     ↑          |
-//     |          |
-//     `----------'
-//     flushptrbuf
-//  (find block start, mark and enqueue)
-static void
-flushptrbuf(Scanbuf *sbuf)
-{
-	byte *p, *arena_start, *obj;
-	uintptr size, *bitp, bits, shift, x, xbits, off, nobj, ti, n;
-	MSpan *s;
-	PageID k;
-	Obj *wp;
-	Workbuf *wbuf;
-	PtrTarget *ptrbuf;
-	PtrTarget *ptrbuf_end;
-
-	arena_start = runtime·mheap.arena_start;
-
-	wp = sbuf->wp;
-	wbuf = sbuf->wbuf;
-	nobj = sbuf->nobj;
-
-	ptrbuf = sbuf->ptr.begin;
-	ptrbuf_end = sbuf->ptr.pos;
-	n = ptrbuf_end - sbuf->ptr.begin;
-	sbuf->ptr.pos = sbuf->ptr.begin;
-
-	if(CollectStats) {
-		runtime·xadd64(&gcstats.ptr.sum, n);
-		runtime·xadd64(&gcstats.ptr.cnt, 1);
-	}
-
-	// If buffer is nearly full, get a new one.
-	if(wbuf == nil || nobj+n >= nelem(wbuf->obj)) {
-		if(wbuf != nil)
-			wbuf->nobj = nobj;
-		wbuf = getempty(wbuf);
-		wp = wbuf->obj;
-		nobj = 0;
-
-		if(n >= nelem(wbuf->obj))
-			runtime·throw("ptrbuf has to be smaller than WorkBuf");
-	}
-
-	while(ptrbuf < ptrbuf_end) {
-		obj = ptrbuf->p;
-		ti = ptrbuf->ti;
-		ptrbuf++;
-
-		// obj belongs to interval [mheap.arena_start, mheap.arena_used).
-		if(Debug > 1) {
-			if(obj < runtime·mheap.arena_start || obj >= runtime·mheap.arena_used)
-				runtime·throw("object is outside of mheap");
-		}
-
-		// obj may be a pointer to a live object.
-		// Try to find the beginning of the object.
-
-		// Round down to word boundary.
-		if(((uintptr)obj & ((uintptr)PtrSize-1)) != 0) {
-			obj = (void*)((uintptr)obj & ~((uintptr)PtrSize-1));
-			ti = 0;
-		}
-
-		// Find bits for this word.
-		off = (uintptr*)obj - (uintptr*)arena_start;
-		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = off % wordsPerBitmapWord;
-		xbits = *bitp;
-		bits = xbits >> shift;
-
-		// Pointing at the beginning of a block?
-		if((bits & (bitAllocated|bitBlockBoundary)) != 0) {
-			if(CollectStats)
-				runtime·xadd64(&gcstats.flushptrbuf.foundbit, 1);
-			goto found;
-		}
-
-		ti = 0;
-
-		// Otherwise consult span table to find beginning.
-		// (Manually inlined copy of MHeap_LookupMaybe.)
-		k = (uintptr)obj>>PageShift;
-		x = k;
-		x -= (uintptr)arena_start>>PageShift;
-		s = runtime·mheap.spans[x];
-		if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
-			continue;
-		p = (byte*)((uintptr)s->start<<PageShift);
-		if(s->sizeclass == 0) {
-			obj = p;
-		} else {
-			size = s->elemsize;
-			int32 i = ((byte*)obj - p)/size;
-			obj = p+i*size;
-		}
-
-		// Now that we know the object header, reload bits.
-		off = (uintptr*)obj - (uintptr*)arena_start;
-		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = off % wordsPerBitmapWord;
-		xbits = *bitp;
-		bits = xbits >> shift;
-		if(CollectStats)
-			runtime·xadd64(&gcstats.flushptrbuf.foundspan, 1);
-
-	found:
-		// Now we have bits, bitp, and shift correct for
-		// obj pointing at the base of the object.
-		// Only care about allocated and not marked.
-		if((bits & (bitAllocated|bitMarked)) != bitAllocated)
-			continue;
-		if(work.nproc == 1)
-			*bitp |= bitMarked<<shift;
-		else {
-			for(;;) {
-				x = *bitp;
-				if(x & (bitMarked<<shift))
-					goto continue_obj;
-				if(runtime·casp((void**)bitp, (void*)x, (void*)(x|(bitMarked<<shift))))
-					break;
-			}
-		}
-
-		// If object has no pointers, don't need to scan further.
-		if((bits & bitScan) == 0)
-			continue;
-
-		// Ask span about size class.
-		// (Manually inlined copy of MHeap_Lookup.)
-		x = (uintptr)obj >> PageShift;
-		x -= (uintptr)arena_start>>PageShift;
-		s = runtime·mheap.spans[x];
-
-		PREFETCH(obj);
-
-		*wp = (Obj){obj, s->elemsize, ti};
-		wp++;
-		nobj++;
-	continue_obj:;
-	}
-
-	// If another proc wants a pointer, give it some.
-	if(work.nwait > 0 && nobj > handoffThreshold && work.full == 0) {
-		wbuf->nobj = nobj;
-		wbuf = handoff(wbuf);
-		nobj = wbuf->nobj;
-		wp = wbuf->obj + nobj;
-	}
-
-	sbuf->wp = wp;
-	sbuf->wbuf = wbuf;
-	sbuf->nobj = nobj;
-}
-
-static void
-flushobjbuf(Scanbuf *sbuf)
-{
-	uintptr nobj, off;
-	Obj *wp, obj;
-	Workbuf *wbuf;
-	Obj *objbuf;
-	Obj *objbuf_end;
-
-	wp = sbuf->wp;
-	wbuf = sbuf->wbuf;
-	nobj = sbuf->nobj;
-
-	objbuf = sbuf->obj.begin;
-	objbuf_end = sbuf->obj.pos;
-	sbuf->obj.pos = sbuf->obj.begin;
-
-	while(objbuf < objbuf_end) {
-		obj = *objbuf++;
-
-		// Align obj.b to a word boundary.
-		off = (uintptr)obj.p & (PtrSize-1);
-		if(off != 0) {
-			obj.p += PtrSize - off;
-			obj.n -= PtrSize - off;
-			obj.ti = 0;
-		}
-
-		if(obj.p == nil || obj.n == 0)
-			continue;
-
-		// If buffer is full, get a new one.
-		if(wbuf == nil || nobj >= nelem(wbuf->obj)) {
-			if(wbuf != nil)
-				wbuf->nobj = nobj;
-			wbuf = getempty(wbuf);
-			wp = wbuf->obj;
-			nobj = 0;
-		}
-
-		*wp = obj;
-		wp++;
-		nobj++;
-	}
-
-	// If another proc wants a pointer, give it some.
-	if(work.nwait > 0 && nobj > handoffThreshold && work.full == 0) {
-		wbuf->nobj = nobj;
-		wbuf = handoff(wbuf);
-		nobj = wbuf->nobj;
-		wp = wbuf->obj + nobj;
-	}
-
-	sbuf->wp = wp;
-	sbuf->wbuf = wbuf;
-	sbuf->nobj = nobj;
-}
-
-// Program that scans the whole block and treats every block element as a potential pointer
-static uintptr defaultProg[2] = {PtrSize, GC_DEFAULT_PTR};
-
-// Hchan program
-static uintptr chanProg[2] = {0, GC_CHAN};
-
-// Local variables of a program fragment or loop
-typedef struct Frame Frame;
-struct Frame {
-	uintptr count, elemsize, b;
-	uintptr *loop_or_ret;
-};
-
-// Sanity check for the derived type info objti.
-static void
-checkptr(void *obj, uintptr objti)
-{
-	uintptr *pc1, *pc2, type, tisize, i, j, x;
-	byte *objstart;
-	Type *t;
-	MSpan *s;
-
-	if(!Debug)
-		runtime·throw("checkptr is debug only");
-
-	if(obj < runtime·mheap.arena_start || obj >= runtime·mheap.arena_used)
-		return;
-	type = runtime·gettype(obj);
-	t = (Type*)(type & ~(uintptr)(PtrSize-1));
-	if(t == nil)
-		return;
-	x = (uintptr)obj >> PageShift;
-	x -= (uintptr)(runtime·mheap.arena_start)>>PageShift;
-	s = runtime·mheap.spans[x];
-	objstart = (byte*)((uintptr)s->start<<PageShift);
-	if(s->sizeclass != 0) {
-		i = ((byte*)obj - objstart)/s->elemsize;
-		objstart += i*s->elemsize;
-	}
-	tisize = *(uintptr*)objti;
-	// Sanity check for object size: it should fit into the memory block.
-	if((byte*)obj + tisize > objstart + s->elemsize) {
-		runtime·printf("object of type '%S' at %p/%p does not fit in block %p/%p\n",
-			       *t->string, obj, tisize, objstart, s->elemsize);
-		runtime·throw("invalid gc type info");
-	}
-	if(obj != objstart)
-		return;
-	// If obj points to the beginning of the memory block,
-	// check type info as well.
-	if(t->string == nil ||
-		// Gob allocates unsafe pointers for indirection.
-		(runtime·strcmp(t->string->str, (byte*)"unsafe.Pointer") &&
-		// Runtime and gc think differently about closures.
-		runtime·strstr(t->string->str, (byte*)"struct { F uintptr") != t->string->str)) {
-		pc1 = (uintptr*)objti;
-		pc2 = (uintptr*)t->gc;
-		// A simple best-effort check until first GC_END.
-		for(j = 1; pc1[j] != GC_END && pc2[j] != GC_END; j++) {
-			if(pc1[j] != pc2[j]) {
-				runtime·printf("invalid gc type info for '%s', type info %p [%d]=%p, block info %p [%d]=%p\n",
-					       t->string ? (int8*)t->string->str : (int8*)"?", pc1, (int32)j, pc1[j], pc2, (int32)j, pc2[j]);
-				runtime·throw("invalid gc type info");
-			}
-		}
-	}
-}					
 
 // scanblock scans a block of n bytes starting at pointer b for references
 // to other objects, scanning any it finds recursively until there are no
@@ -688,532 +212,288 @@ checkptr(void *obj, uintptr objti)
 // body.  Keeping an explicit work list is easier on the stack allocator and
 // more efficient.
 static void
-scanblock(Workbuf *wbuf, bool keepworking)
+scanblock(byte *b, uintptr n, byte *ptrmask)
 {
-	byte *b, *arena_start, *arena_used;
-	uintptr n, i, end_b, elemsize, size, ti, objti, count, type, nobj;
-	uintptr *pc, precise_type, nominal_size;
-	uintptr *chan_ret, chancap;
-	void *obj;
-	Type *t, *et;
-	Slice *sliceptr;
-	String *stringptr;
-	Frame *stack_ptr, stack_top, stack[GC_STACK_CAPACITY+4];
-	BufferList *scanbuffers;
-	Scanbuf sbuf;
-	Eface *eface;
+	byte *obj, *p, *arena_start, *arena_used, **wp, *scanbuf[8];
+	uintptr i, nobj, size, idx, *bitp, bits, xbits, shift, x, off, cached, scanbufpos;
+	intptr ncached;
+	Workbuf *wbuf;
+	String *str;
+	Slice *slice;
 	Iface *iface;
-	Hchan *chan;
-	ChanType *chantype;
-	Obj *wp;
+	Eface *eface;
+	Type *typ;
+	MSpan *s;
+	PageID k;
+	bool keepworking;
 
-	if(sizeof(Workbuf) % WorkbufSize != 0)
-		runtime·throw("scanblock: size of Workbuf is suboptimal");
-
-	// Memory arena parameters.
+	// Cache memory arena parameters in local vars.
 	arena_start = runtime·mheap.arena_start;
 	arena_used = runtime·mheap.arena_used;
 
-	stack_ptr = stack+nelem(stack)-1;
+	wbuf = getempty(nil);
+	nobj = wbuf->nobj;
+	wp = &wbuf->obj[nobj];
+	keepworking = b == nil;
+	scanbufpos = 0;
+	for(i = 0; i < nelem(scanbuf); i++)
+		scanbuf[i] = nil;
 
-	precise_type = false;
-	nominal_size = 0;
-
-	if(wbuf) {
-		nobj = wbuf->nobj;
-		wp = &wbuf->obj[nobj];
-	} else {
-		nobj = 0;
-		wp = nil;
-	}
-
-	// Initialize sbuf
-	scanbuffers = &bufferList[g->m->helpgc];
-
-	sbuf.ptr.begin = sbuf.ptr.pos = &scanbuffers->ptrtarget[0];
-	sbuf.ptr.end = sbuf.ptr.begin + nelem(scanbuffers->ptrtarget);
-
-	sbuf.obj.begin = sbuf.obj.pos = &scanbuffers->obj[0];
-	sbuf.obj.end = sbuf.obj.begin + nelem(scanbuffers->obj);
-
-	sbuf.wbuf = wbuf;
-	sbuf.wp = wp;
-	sbuf.nobj = nobj;
-
-	// (Silence the compiler)
-	chan = nil;
-	chantype = nil;
-	chan_ret = nil;
-
-	goto next_block;
-
+	// ptrmask can have 3 possible values:
+	// 1. nil - obtain pointer mask from GC bitmap.
+	// 2. ScanConservatively - don't use any mask, scan conservatively.
+	// 3. pointer to a compact mask (for stacks and data).
+	if(b != nil)
+		goto scanobj;
 	for(;;) {
-		// Each iteration scans the block b of length n, queueing pointers in
-		// the work buffer.
-
-		if(CollectStats) {
-			runtime·xadd64(&gcstats.nbytes, n);
-			runtime·xadd64(&gcstats.obj.sum, sbuf.nobj);
-			runtime·xadd64(&gcstats.obj.cnt, 1);
+		if(nobj == 0) {
+			// Out of work in workbuf.
+			// First, see is there is any work in scanbuf.
+			for(i = 0; i < nelem(scanbuf); i++) {
+				b = scanbuf[scanbufpos];
+				scanbuf[scanbufpos++] = nil;
+				if(scanbufpos == nelem(scanbuf))
+					scanbufpos = 0;
+				if(b != nil) {
+					n = arena_used - b; // scan until bitBoundary or BitsDead
+					ptrmask = nil; // use GC bitmap for pointer info
+					goto scanobj;
+				}
+			}
+			if(!keepworking) {
+				putempty(wbuf);
+				return;
+			}
+			// Refill workbuf from global queue.
+			wbuf = getfull(wbuf);
+			if(wbuf == nil)
+				return;
+			nobj = wbuf->nobj;
+			wp = &wbuf->obj[nobj];
 		}
 
-		if(ti != 0) {
-			if(Debug > 1) {
-				runtime·printf("scanblock %p %D ti %p\n", b, (int64)n, ti);
-			}
-			pc = (uintptr*)(ti & ~(uintptr)PC_BITS);
-			precise_type = (ti & PRECISE);
-			stack_top.elemsize = pc[0];
-			if(!precise_type)
-				nominal_size = pc[0];
-			if(ti & LOOP) {
-				stack_top.count = 0;	// 0 means an infinite number of iterations
-				stack_top.loop_or_ret = pc+1;
-			} else {
-				stack_top.count = 1;
-			}
-			if(Debug) {
-				// Simple sanity check for provided type info ti:
-				// The declared size of the object must be not larger than the actual size
-				// (it can be smaller due to inferior pointers).
-				// It's difficult to make a comprehensive check due to inferior pointers,
-				// reflection, gob, etc.
-				if(pc[0] > n) {
-					runtime·printf("invalid gc type info: type info size %p, block size %p\n", pc[0], n);
-					runtime·throw("invalid gc type info");
-				}
-			}
-		} else if(UseSpanType) {
-			if(CollectStats)
-				runtime·xadd64(&gcstats.obj.notype, 1);
-
-			type = runtime·gettype(b);
-			if(type != 0) {
-				if(CollectStats)
-					runtime·xadd64(&gcstats.obj.typelookup, 1);
-
-				t = (Type*)(type & ~(uintptr)(PtrSize-1));
-				switch(type & (PtrSize-1)) {
-				case TypeInfo_SingleObject:
-					pc = (uintptr*)t->gc;
-					precise_type = true;  // type information about 'b' is precise
-					stack_top.count = 1;
-					stack_top.elemsize = pc[0];
-					break;
-				case TypeInfo_Array:
-					pc = (uintptr*)t->gc;
-					if(pc[0] == 0)
-						goto next_block;
-					precise_type = true;  // type information about 'b' is precise
-					stack_top.count = 0;  // 0 means an infinite number of iterations
-					stack_top.elemsize = pc[0];
-					stack_top.loop_or_ret = pc+1;
-					break;
-				case TypeInfo_Chan:
-					chan = (Hchan*)b;
-					chantype = (ChanType*)t;
-					chan_ret = nil;
-					pc = chanProg;
-					break;
-				default:
-					if(Debug > 1)
-						runtime·printf("scanblock %p %D type %p %S\n", b, (int64)n, type, *t->string);
-					runtime·throw("scanblock: invalid type");
-					return;
-				}
-				if(Debug > 1)
-					runtime·printf("scanblock %p %D type %p %S pc=%p\n", b, (int64)n, type, *t->string, pc);
-			} else {
-				pc = defaultProg;
-				if(Debug > 1)
-					runtime·printf("scanblock %p %D unknown type\n", b, (int64)n);
-			}
-		} else {
-			pc = defaultProg;
-			if(Debug > 1)
-				runtime·printf("scanblock %p %D no span types\n", b, (int64)n);
-		}
-
-		if(IgnorePreciseGC)
-			pc = defaultProg;
-
-		pc++;
-		stack_top.b = (uintptr)b;
-		end_b = (uintptr)b + n - PtrSize;
-
-	for(;;) {
-		if(CollectStats)
-			runtime·xadd64(&gcstats.instr[pc[0]], 1);
-
-		obj = nil;
-		objti = 0;
-		switch(pc[0]) {
-		case GC_PTR:
-			obj = *(void**)(stack_top.b + pc[1]);
-			objti = pc[2];
-			if(Debug > 2)
-				runtime·printf("gc_ptr @%p: %p ti=%p\n", stack_top.b+pc[1], obj, objti);
-			pc += 3;
-			if(Debug)
-				checkptr(obj, objti);
-			break;
-
-		case GC_SLICE:
-			sliceptr = (Slice*)(stack_top.b + pc[1]);
-			if(Debug > 2)
-				runtime·printf("gc_slice @%p: %p/%D/%D\n", sliceptr, sliceptr->array, (int64)sliceptr->len, (int64)sliceptr->cap);
-			if(sliceptr->cap != 0) {
-				obj = sliceptr->array;
-				// Can't use slice element type for scanning,
-				// because if it points to an array embedded
-				// in the beginning of a struct,
-				// we will scan the whole struct as the slice.
-				// So just obtain type info from heap.
-			}
-			pc += 3;
-			break;
-
-		case GC_APTR:
-			obj = *(void**)(stack_top.b + pc[1]);
-			if(Debug > 2)
-				runtime·printf("gc_aptr @%p: %p\n", stack_top.b+pc[1], obj);
-			pc += 2;
-			break;
-
-		case GC_STRING:
-			stringptr = (String*)(stack_top.b + pc[1]);
-			if(Debug > 2)
-				runtime·printf("gc_string @%p: %p/%D\n", stack_top.b+pc[1], stringptr->str, (int64)stringptr->len);
-			if(stringptr->len != 0)
-				markonly(stringptr->str);
-			pc += 2;
-			continue;
-
-		case GC_EFACE:
-			eface = (Eface*)(stack_top.b + pc[1]);
-			pc += 2;
-			if(Debug > 2)
-				runtime·printf("gc_eface @%p: %p %p\n", stack_top.b+pc[1], eface->type, eface->data);
-			if(eface->type == nil)
-				continue;
-
-			// eface->type
-			t = eface->type;
-			if((void*)t >= arena_start && (void*)t < arena_used) {
-				*sbuf.ptr.pos++ = (PtrTarget){t, 0};
-				if(sbuf.ptr.pos == sbuf.ptr.end)
-					flushptrbuf(&sbuf);
-			}
-
-			// eface->data
-			if(eface->data >= arena_start && eface->data < arena_used) {
-				if(t->size <= sizeof(void*)) {
-					if((t->kind & KindNoPointers))
-						continue;
-
-					obj = eface->data;
-					if((t->kind & ~KindNoPointers) == KindPtr) {
-						// Only use type information if it is a pointer-containing type.
-						// This matches the GC programs written by cmd/gc/reflect.c's
-						// dgcsym1 in case TPTR32/case TPTR64. See rationale there.
-						et = ((PtrType*)t)->elem;
-						if(!(et->kind & KindNoPointers))
-							objti = (uintptr)((PtrType*)t)->elem->gc;
-					}
-				} else {
-					obj = eface->data;
-					objti = (uintptr)t->gc;
-				}
-			}
-			break;
-
-		case GC_IFACE:
-			iface = (Iface*)(stack_top.b + pc[1]);
-			pc += 2;
-			if(Debug > 2)
-				runtime·printf("gc_iface @%p: %p/%p %p\n", stack_top.b+pc[1], iface->tab, nil, iface->data);
-			if(iface->tab == nil)
-				continue;
-			
-			// iface->tab
-			if((void*)iface->tab >= arena_start && (void*)iface->tab < arena_used) {
-				*sbuf.ptr.pos++ = (PtrTarget){iface->tab, (uintptr)itabtype->gc};
-				if(sbuf.ptr.pos == sbuf.ptr.end)
-					flushptrbuf(&sbuf);
-			}
-
-			// iface->data
-			if(iface->data >= arena_start && iface->data < arena_used) {
-				t = iface->tab->type;
-				if(t->size <= sizeof(void*)) {
-					if((t->kind & KindNoPointers))
-						continue;
-
-					obj = iface->data;
-					if((t->kind & ~KindNoPointers) == KindPtr) {
-						// Only use type information if it is a pointer-containing type.
-						// This matches the GC programs written by cmd/gc/reflect.c's
-						// dgcsym1 in case TPTR32/case TPTR64. See rationale there.
-						et = ((PtrType*)t)->elem;
-						if(!(et->kind & KindNoPointers))
-							objti = (uintptr)((PtrType*)t)->elem->gc;
-					}
-				} else {
-					obj = iface->data;
-					objti = (uintptr)t->gc;
-				}
-			}
-			break;
-
-		case GC_DEFAULT_PTR:
-			while(stack_top.b <= end_b) {
-				obj = *(byte**)stack_top.b;
-				if(Debug > 2)
-					runtime·printf("gc_default_ptr @%p: %p\n", stack_top.b, obj);
-				stack_top.b += PtrSize;
-				if(obj >= arena_start && obj < arena_used) {
-					*sbuf.ptr.pos++ = (PtrTarget){obj, 0};
-					if(sbuf.ptr.pos == sbuf.ptr.end)
-						flushptrbuf(&sbuf);
-				}
-			}
-			goto next_block;
-
-		case GC_END:
-			if(--stack_top.count != 0) {
-				// Next iteration of a loop if possible.
-				stack_top.b += stack_top.elemsize;
-				if(stack_top.b + stack_top.elemsize <= end_b+PtrSize) {
-					pc = stack_top.loop_or_ret;
-					continue;
-				}
-				i = stack_top.b;
-			} else {
-				// Stack pop if possible.
-				if(stack_ptr+1 < stack+nelem(stack)) {
-					pc = stack_top.loop_or_ret;
-					stack_top = *(++stack_ptr);
-					continue;
-				}
-				i = (uintptr)b + nominal_size;
-			}
-			if(!precise_type) {
-				// Quickly scan [b+i,b+n) for possible pointers.
-				for(; i<=end_b; i+=PtrSize) {
-					if(*(byte**)i != nil) {
-						// Found a value that may be a pointer.
-						// Do a rescan of the entire block.
-						enqueue((Obj){b, n, 0}, &sbuf.wbuf, &sbuf.wp, &sbuf.nobj);
-						if(CollectStats) {
-							runtime·xadd64(&gcstats.rescan, 1);
-							runtime·xadd64(&gcstats.rescanbytes, n);
-						}
-						break;
-					}
-				}
-			}
-			goto next_block;
-
-		case GC_ARRAY_START:
-			i = stack_top.b + pc[1];
-			count = pc[2];
-			elemsize = pc[3];
-			pc += 4;
-
-			// Stack push.
-			*stack_ptr-- = stack_top;
-			stack_top = (Frame){count, elemsize, i, pc};
-			continue;
-
-		case GC_ARRAY_NEXT:
-			if(--stack_top.count != 0) {
-				stack_top.b += stack_top.elemsize;
-				pc = stack_top.loop_or_ret;
-			} else {
-				// Stack pop.
-				stack_top = *(++stack_ptr);
-				pc += 1;
-			}
-			continue;
-
-		case GC_CALL:
-			// Stack push.
-			*stack_ptr-- = stack_top;
-			stack_top = (Frame){1, 0, stack_top.b + pc[1], pc+3 /*return address*/};
-			pc = (uintptr*)((byte*)pc + *(int32*)(pc+2));  // target of the CALL instruction
-			continue;
-
-		case GC_REGION:
-			obj = (void*)(stack_top.b + pc[1]);
-			size = pc[2];
-			objti = pc[3];
-			pc += 4;
-
-			if(Debug > 2)
-				runtime·printf("gc_region @%p: %D %p\n", stack_top.b+pc[1], (int64)size, objti);
-			*sbuf.obj.pos++ = (Obj){obj, size, objti};
-			if(sbuf.obj.pos == sbuf.obj.end)
-				flushobjbuf(&sbuf);
-			continue;
-
-		case GC_CHAN_PTR:
-			chan = *(Hchan**)(stack_top.b + pc[1]);
-			if(Debug > 2 && chan != nil)
-				runtime·printf("gc_chan_ptr @%p: %p/%D/%D %p\n", stack_top.b+pc[1], chan, (int64)chan->qcount, (int64)chan->dataqsiz, pc[2]);
-			if(chan == nil) {
-				pc += 3;
-				continue;
-			}
-			if(markonly(chan)) {
-				chantype = (ChanType*)pc[2];
-				if(!(chantype->elem->kind & KindNoPointers)) {
-					// Start chanProg.
-					chan_ret = pc+3;
-					pc = chanProg+1;
-					continue;
-				}
-			}
-			pc += 3;
-			continue;
-
-		case GC_CHAN:
-			// There are no heap pointers in struct Hchan,
-			// so we can ignore the leading sizeof(Hchan) bytes.
-			if(!(chantype->elem->kind & KindNoPointers)) {
-				// Channel's buffer follows Hchan immediately in memory.
-				// Size of buffer (cap(c)) is second int in the chan struct.
-				chancap = ((uintgo*)chan)[1];
-				if(chancap > 0) {
-					// TODO(atom): split into two chunks so that only the
-					// in-use part of the circular buffer is scanned.
-					// (Channel routines zero the unused part, so the current
-					// code does not lead to leaks, it's just a little inefficient.)
-					*sbuf.obj.pos++ = (Obj){(byte*)chan+runtime·Hchansize, chancap*chantype->elem->size,
-						(uintptr)chantype->elem->gc | PRECISE | LOOP};
-					if(sbuf.obj.pos == sbuf.obj.end)
-						flushobjbuf(&sbuf);
-				}
-			}
-			if(chan_ret == nil)
-				goto next_block;
-			pc = chan_ret;
-			continue;
-
-		default:
-			runtime·printf("runtime: invalid GC instruction %p at %p\n", pc[0], pc);
-			runtime·throw("scanblock: invalid GC instruction");
-			return;
-		}
-
-		if(obj >= arena_start && obj < arena_used) {
-			*sbuf.ptr.pos++ = (PtrTarget){obj, objti};
-			if(sbuf.ptr.pos == sbuf.ptr.end)
-				flushptrbuf(&sbuf);
-		}
-	}
-
-	next_block:
-		// Done scanning [b, b+n).  Prepare for the next iteration of
-		// the loop by setting b, n, ti to the parameters for the next block.
-
-		if(sbuf.nobj == 0) {
-			flushptrbuf(&sbuf);
-			flushobjbuf(&sbuf);
-
-			if(sbuf.nobj == 0) {
-				if(!keepworking) {
-					if(sbuf.wbuf)
-						putempty(sbuf.wbuf);
-					return;
-				}
-				// Emptied our buffer: refill.
-				sbuf.wbuf = getfull(sbuf.wbuf);
-				if(sbuf.wbuf == nil)
-					return;
-				sbuf.nobj = sbuf.wbuf->nobj;
-				sbuf.wp = sbuf.wbuf->obj + sbuf.wbuf->nobj;
-			}
-		}
-
-		// Fetch b from the work buffer.
-		--sbuf.wp;
-		b = sbuf.wp->p;
-		n = sbuf.wp->n;
-		ti = sbuf.wp->ti;
-		sbuf.nobj--;
-	}
-}
-
-// Append obj to the work buffer.
-// _wbuf, _wp, _nobj are input/output parameters and are specifying the work buffer.
-static void
-enqueue(Obj obj, Workbuf **_wbuf, Obj **_wp, uintptr *_nobj)
-{
-	uintptr nobj, off;
-	Obj *wp;
-	Workbuf *wbuf;
-
-	if(Debug > 1)
-		runtime·printf("append obj(%p %D %p)\n", obj.p, (int64)obj.n, obj.ti);
-
-	// Align obj.b to a word boundary.
-	off = (uintptr)obj.p & (PtrSize-1);
-	if(off != 0) {
-		obj.p += PtrSize - off;
-		obj.n -= PtrSize - off;
-		obj.ti = 0;
-	}
-
-	if(obj.p == nil || obj.n == 0)
-		return;
-
-	// Load work buffer state
-	wp = *_wp;
-	wbuf = *_wbuf;
-	nobj = *_nobj;
-
-	// If another proc wants a pointer, give it some.
-	if(work.nwait > 0 && nobj > handoffThreshold && work.full == 0) {
-		wbuf->nobj = nobj;
-		wbuf = handoff(wbuf);
-		nobj = wbuf->nobj;
-		wp = wbuf->obj + nobj;
-	}
-
-	// If buffer is full, get a new one.
-	if(wbuf == nil || nobj >= nelem(wbuf->obj)) {
-		if(wbuf != nil)
+		// If another proc wants a pointer, give it some.
+		if(work.nwait > 0 && nobj > 4 && work.full == 0) {
 			wbuf->nobj = nobj;
-		wbuf = getempty(wbuf);
-		wp = wbuf->obj;
-		nobj = 0;
+			wbuf = handoff(wbuf);
+			nobj = wbuf->nobj;
+			wp = &wbuf->obj[nobj];
+		}
+
+		wp--;
+		nobj--;
+		b = *wp;
+		n = arena_used - b; // scan until next bitBoundary or BitsDead
+		ptrmask = nil; // use GC bitmap for pointer info
+
+	scanobj:
+		if(!PreciseScan) {
+			if(ptrmask == nil) {
+				// Heap obj, obtain real size.
+				if(!runtime·mlookup(b, &p, &n, nil))
+					continue; // not an allocated obj
+				if(b != p)
+					runtime·throw("bad heap object");
+			}
+			ptrmask = ScanConservatively;
+		}
+		cached = 0;
+		ncached = 0;
+		for(i = 0; i < n; i += PtrSize) {
+			obj = nil;
+			// Find bits for this word.
+			if(ptrmask == nil) {
+				// Check is we have reached end of span.
+				if((((uintptr)b+i)%PageSize) == 0 &&
+					runtime·mheap.spans[(b-arena_start)>>PageShift] != runtime·mheap.spans[(b+i-arena_start)>>PageShift])
+					break;
+				// Consult GC bitmap.
+				if(ncached <= 0) {
+					// Refill cache.
+					off = (uintptr*)(b+i) - (uintptr*)arena_start;
+					bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+					shift = (off % wordsPerBitmapWord) * gcBits;
+					cached = *bitp >> shift;
+					ncached = (PtrSize*8 - shift)/gcBits;
+				}
+				bits = cached;
+				cached >>= gcBits;
+				ncached--;
+				if(i != 0 && (bits&bitMask) != bitMiddle)
+					break; // reached beginning of the next object
+				bits = (bits>>2)&BitsMask;
+				if(bits == BitsDead)
+					break; // reached no-scan part of the object
+			} else if(ptrmask != ScanConservatively) // dense mask (stack or data)
+				bits = (ptrmask[(i/PtrSize)/4]>>(((i/PtrSize)%4)*BitsPerPointer))&BitsMask;
+			else
+				bits = BitsPointer;
+
+			if(bits == BitsScalar || bits == BitsDead)
+				continue;
+			if(bits == BitsPointer) {
+				obj = *(byte**)(b+i);
+				goto markobj;
+			}
+			// Find the next pair of bits.
+			if(ptrmask == nil) {
+				if(ncached <= 0) {
+					off = (uintptr*)(b+i+PtrSize) - (uintptr*)arena_start;
+					bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+					shift = (off % wordsPerBitmapWord) * gcBits;
+					cached = *bitp >> shift;
+					ncached = (PtrSize*8 - shift)/gcBits;
+				}
+				bits = (cached>>2)&BitsMask;
+			} else
+				bits = (ptrmask[((i+PtrSize)/PtrSize)/4]>>((((i+PtrSize)/PtrSize)%4)*BitsPerPointer))&BitsMask;
+
+			switch(bits) {
+			case BitsString:
+				str = (String*)(b+i);
+				if(str->len > 0)
+					obj = str->str;
+				break;
+			case BitsSlice:
+				slice = (Slice*)(b+i);
+				if(Debug && slice->cap < slice->len) {
+					g->m->traceback = 2;
+					runtime·printf("bad slice in object %p: %p/%p/%p\n",
+						b, slice->array, slice->len, slice->cap);
+					runtime·throw("bad slice in heap object");
+				}
+				if(slice->cap > 0)
+					obj = slice->array;
+				break;
+			case BitsIface:
+				iface = (Iface*)(b+i);
+				if(iface->tab != nil) {
+					typ = iface->tab->type;
+					if(typ->size > PtrSize || !(typ->kind&KindNoPointers))
+						obj = iface->data;
+				}
+				break;
+			case BitsEface:
+				eface = (Eface*)(b+i);
+				typ = eface->type;
+				if(typ != nil) {
+					if(typ->size > PtrSize || !(typ->kind&KindNoPointers))
+						obj = eface->data;
+				}
+				break;
+			}
+
+			if(bits == BitsSlice) {
+				i += 2*PtrSize;
+				cached >>= 2*gcBits;
+				ncached -= 2;
+			} else {
+				i += PtrSize;
+				cached >>= gcBits;
+				ncached--;
+			}
+
+		markobj:
+			// At this point we have extracted the next potential pointer.
+			// Check if it points into heap.
+			if(obj == nil || obj < arena_start || obj >= arena_used)
+				continue;
+			// Mark the object.
+			off = (uintptr*)obj - (uintptr*)arena_start;
+			bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+			shift = (off % wordsPerBitmapWord) * gcBits;
+			xbits = *bitp;
+			bits = (xbits >> shift) & bitMask;
+			if(bits == bitMiddle) {
+				// Not a beginning of a block, check if we have block boundary in xbits.
+				while(shift > 0) {
+					obj -= PtrSize;
+					shift -= gcBits;
+					bits = (xbits >> shift) & bitMask;
+					if(bits != bitMiddle)
+						goto havebits;
+				}
+				// Otherwise consult span table to find the block beginning.
+				k = (uintptr)obj>>PageShift;
+				x = k;
+				x -= (uintptr)arena_start>>PageShift;
+				s = runtime·mheap.spans[x];
+				if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
+					continue;
+				p = (byte*)((uintptr)s->start<<PageShift);
+				if(s->sizeclass != 0) {
+					size = s->elemsize;
+					idx = ((byte*)obj - p)/size;
+					p = p+idx*size;
+				}
+				if(p == obj) {
+					runtime·printf("runtime: failed to find block beginning for %p s->limit=%p\n", p, s->limit);
+					runtime·throw("failed to find block beginning");
+				}
+				obj = p;
+				goto markobj;
+			}
+
+		havebits:
+			// Now we have bits, bitp, and shift correct for
+			// obj pointing at the base of the object.
+			// Only care about allocated and not marked.
+			if(bits != bitAllocated)
+				continue;
+			if(work.nproc == 1)
+				*bitp |= bitMarked<<shift;
+			else {
+				for(;;) {
+					xbits = *bitp;
+					bits = (xbits>>shift) & bitMask;
+					if(bits != bitAllocated)
+						break;
+					if(runtime·casp((void**)bitp, (void*)xbits, (void*)(xbits|(bitMarked<<shift))))
+						break;
+				}
+				if(bits != bitAllocated)
+					continue;
+			}
+			if(((xbits>>(shift+2))&BitsMask) == BitsDead)
+				continue;  // noscan object
+
+			// Queue the obj for scanning.
+			PREFETCH(obj);
+			obj = (byte*)((uintptr)obj & ~(PtrSize-1));
+			p = scanbuf[scanbufpos];
+			scanbuf[scanbufpos++] = obj;
+			if(scanbufpos == nelem(scanbuf))
+				scanbufpos = 0;
+			if(p == nil)
+				continue;
+
+			// If workbuf is full, obtain an empty one.
+			if(nobj >= nelem(wbuf->obj)) {
+				wbuf->nobj = nobj;
+				wbuf = getempty(wbuf);
+				nobj = wbuf->nobj;
+				wp = &wbuf->obj[nobj];
+			}
+			*wp = p;
+			wp++;
+			nobj++;
+		}
+
+		if(Debug && ptrmask == nil) {
+			// For heap objects ensure that we did not overscan.
+			n = 0;
+			p = nil;
+			if(!runtime·mlookup(b, &p, &n, nil) || b != p || i > n) {
+				runtime·printf("runtime: scanned (%p,%p), heap object (%p,%p)\n", b, i, p, n);
+				runtime·throw("scanblock: scanned invalid object");
+			}
+		}
 	}
-
-	*wp = obj;
-	wp++;
-	nobj++;
-
-	// Save work buffer state
-	*_wp = wp;
-	*_wbuf = wbuf;
-	*_nobj = nobj;
-}
-
-static void
-enqueue1(Workbuf **wbufp, Obj obj)
-{
-	Workbuf *wbuf;
-
-	wbuf = *wbufp;
-	if(wbuf->nobj >= nelem(wbuf->obj))
-		*wbufp = wbuf = getempty(wbuf);
-	wbuf->obj[wbuf->nobj++] = obj;
 }
 
 static void
 markroot(ParFor *desc, uint32 i)
 {
-	Workbuf *wbuf;
 	FinBlock *fb;
 	MHeap *h;
 	MSpan **allspans, *s;
@@ -1222,24 +502,25 @@ markroot(ParFor *desc, uint32 i)
 	void *p;
 
 	USED(&desc);
-	wbuf = getempty(nil);
 	// Note: if you add a case here, please also update heapdump.c:dumproots.
 	switch(i) {
 	case RootData:
-		enqueue1(&wbuf, (Obj){data, edata - data, (uintptr)gcdata});
+		scanblock(data, edata - data, work.gcdata);
+		//scanblock(data, edata - data, ScanConservatively);
 		break;
 
 	case RootBss:
-		enqueue1(&wbuf, (Obj){bss, ebss - bss, (uintptr)gcbss});
+		scanblock(bss, ebss - bss, work.gcbss);
+		//scanblock(bss, ebss - bss, ScanConservatively);
 		break;
 
 	case RootFinalizers:
 		for(fb=allfin; fb; fb=fb->alllink)
-			enqueue1(&wbuf, (Obj){(byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), 0});
+			scanblock((byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), ScanConservatively);
 		break;
 
-	case RootSpanTypes:
-		// mark span types and MSpan.specials (to walk spans only once)
+	case RootSpans:
+		// mark MSpan.specials
 		h = &runtime·mheap;
 		sg = h->sweepgen;
 		allspans = h->allspans;
@@ -1254,12 +535,6 @@ markroot(ParFor *desc, uint32 i)
 				runtime·printf("sweep %d %d\n", s->sweepgen, sg);
 				runtime·throw("gc: unswept span");
 			}
-			// The garbage collector ignores type pointers stored in MSpan.types:
-			//  - Compiler-generated types are stored outside of heap.
-			//  - The reflect package has runtime-generated types cached in its data structures.
-			//    The garbage collector relies on finding the references via that cache.
-			if(s->types.compression == MTypes_Words || s->types.compression == MTypes_Bytes)
-				markonly((byte*)s->types.data);
 			for(sp = s->specials; sp != nil; sp = sp->next) {
 				if(sp->kind != KindSpecialFinalizer)
 					continue;
@@ -1268,10 +543,8 @@ markroot(ParFor *desc, uint32 i)
 				spf = (SpecialFinalizer*)sp;
 				// A finalizer can be set for an inner byte of an object, find object beginning.
 				p = (void*)((s->start << PageShift) + spf->offset/s->elemsize*s->elemsize);
-				enqueue1(&wbuf, (Obj){p, s->elemsize, 0});
-				enqueue1(&wbuf, (Obj){(void*)&spf->fn, PtrSize, 0});
-				enqueue1(&wbuf, (Obj){(void*)&spf->fint, PtrSize, 0});
-				enqueue1(&wbuf, (Obj){(void*)&spf->ot, PtrSize, 0});
+				scanblock(p, s->elemsize, nil);
+				scanblock((void*)&spf->fn, PtrSize, ScanConservatively);
 			}
 		}
 		break;
@@ -1289,13 +562,10 @@ markroot(ParFor *desc, uint32 i)
 		// needed only to output in traceback
 		if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince == 0)
 			gp->waitsince = work.tstart;
-		addstackroots(gp, &wbuf);
+		scanstack(gp);
 		break;
 		
 	}
-
-	if(wbuf)
-		scanblock(wbuf, false);
 }
 
 // Get an empty work buffer off the work.empty list,
@@ -1315,9 +585,6 @@ getempty(Workbuf *b)
 static void
 putempty(Workbuf *b)
 {
-	if(CollectStats)
-		runtime·xadd64(&gcstats.putempty, 1);
-
 	runtime·lfstackpush(&work.empty, &b->node);
 }
 
@@ -1326,9 +593,6 @@ static Workbuf*
 getfull(Workbuf *b)
 {
 	int32 i;
-
-	if(CollectStats)
-		runtime·xadd64(&gcstats.getfull, 1);
 
 	if(b != nil)
 		runtime·lfstackpush(&work.empty, &b->node);
@@ -1380,8 +644,6 @@ handoff(Workbuf *b)
 	return b1;
 }
 
-extern byte pclntab[]; // base for f->ptrsoff
-
 BitVector
 runtime·stackmapdata(StackMap *stackmap, int32 n)
 {
@@ -1390,138 +652,9 @@ runtime·stackmapdata(StackMap *stackmap, int32 n)
 	return (BitVector){stackmap->nbit, stackmap->data + n*((stackmap->nbit+31)/32)};
 }
 
-// Scans an interface data value when the interface type indicates
-// that it is a pointer.
-static void
-scaninterfacedata(uintptr bits, byte *scanp, void *wbufp)
-{
-	Itab *tab;
-	Type *type;
-
-	if(runtime·precisestack) {
-		if(bits == BitsIface) {
-			tab = *(Itab**)scanp;
-			if(tab->type->size <= sizeof(void*) && (tab->type->kind & KindNoPointers))
-				return;
-		} else { // bits == BitsEface
-			type = *(Type**)scanp;
-			if(type->size <= sizeof(void*) && (type->kind & KindNoPointers))
-				return;
-		}
-	}
-	enqueue1(wbufp, (Obj){scanp+PtrSize, PtrSize, 0});
-}
-
-// Starting from scanp, scans words corresponding to set bits.
-static void
-scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, void *wbufp)
-{
-	uintptr word, bits;
-	uint32 *wordp;
-	int32 i, remptrs;
-	byte *p;
-
-	wordp = bv->data;
-	for(remptrs = bv->n; remptrs > 0; remptrs -= 32) {
-		word = *wordp++;
-		if(remptrs < 32)
-			i = remptrs;
-		else
-			i = 32;
-		i /= BitsPerPointer;
-		for(; i > 0; i--) {
-			bits = word & 3;
-			switch(bits) {
-			case BitsDead:
-				if(runtime·debug.gcdead)
-					*(uintptr*)scanp = PoisonGC;
-				break;
-			case BitsScalar:
-				break;
-			case BitsPointer:
-				p = *(byte**)scanp;
-				if(p != nil) {
-					if(Debug > 2)
-						runtime·printf("frame %s @%p: ptr %p\n", runtime·funcname(f), scanp, p);
-					if(precise && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
-						// Looks like a junk value in a pointer slot.
-						// Liveness analysis wrong?
-						g->m->traceback = 2;
-						runtime·printf("bad pointer in frame %s at %p: %p\n", runtime·funcname(f), scanp, p);
-						runtime·throw("bad pointer in scanbitvector");
-					}
-					enqueue1(wbufp, (Obj){scanp, PtrSize, 0});
-				}
-				break;
-			case BitsMultiWord:
-				p = scanp;
-				word >>= BitsPerPointer;
-				scanp += PtrSize;
-				i--;
-				if(i == 0) {
-					// Get next chunk of bits
-					remptrs -= 32;
-					word = *wordp++;
-					if(remptrs < 32)
-						i = remptrs;
-					else
-						i = 32;
-					i /= BitsPerPointer;
-				}
-				switch(word & 3) {
-				case BitsString:
-					if(Debug > 2)
-						runtime·printf("frame %s @%p: string %p/%D\n", runtime·funcname(f), p, ((String*)p)->str, (int64)((String*)p)->len);
-					if(((String*)p)->len != 0)
-						markonly(((String*)p)->str);
-					break;
-				case BitsSlice:
-					word >>= BitsPerPointer;
-					scanp += PtrSize;
-					i--;
-					if(i == 0) {
-						// Get next chunk of bits
-						remptrs -= 32;
-						word = *wordp++;
-						if(remptrs < 32)
-							i = remptrs;
-						else
-							i = 32;
-						i /= BitsPerPointer;
-					}
-					if(Debug > 2)
-						runtime·printf("frame %s @%p: slice %p/%D/%D\n", runtime·funcname(f), p, ((Slice*)p)->array, (int64)((Slice*)p)->len, (int64)((Slice*)p)->cap);
-					if(((Slice*)p)->cap < ((Slice*)p)->len) {
-						g->m->traceback = 2;
-						runtime·printf("bad slice in frame %s at %p: %p/%p/%p\n", runtime·funcname(f), p, ((byte**)p)[0], ((byte**)p)[1], ((byte**)p)[2]);
-						runtime·throw("slice capacity smaller than length");
-					}
-					if(((Slice*)p)->cap != 0)
-						enqueue1(wbufp, (Obj){p, PtrSize, 0});
-					break;
-				case BitsIface:
-				case BitsEface:
-					if(*(byte**)p != nil) {
-						if(Debug > 2) {
-							if((word&3) == BitsEface)
-								runtime·printf("frame %s @%p: eface %p %p\n", runtime·funcname(f), p, ((uintptr*)p)[0], ((uintptr*)p)[1]);
-							else
-								runtime·printf("frame %s @%p: iface %p %p\n", runtime·funcname(f), p, ((uintptr*)p)[0], ((uintptr*)p)[1]);
-						}
-						scaninterfacedata(word & 3, p, wbufp);
-					}
-					break;
-				}
-			}
-			word >>= BitsPerPointer;
-			scanp += PtrSize;
-		}
-	}
-}
-
 // Scan a stack frame: local variables and function arguments/results.
 static bool
-scanframe(Stkframe *frame, void *wbufp)
+scanframe(Stkframe *frame, void *unused)
 {
 	Func *f;
 	StackMap *stackmap;
@@ -1529,8 +662,8 @@ scanframe(Stkframe *frame, void *wbufp)
 	uintptr size;
 	uintptr targetpc;
 	int32 pcdata;
-	bool precise;
 
+	USED(unused);
 	f = frame->fn;
 	targetpc = frame->continpc;
 	if(targetpc == 0) {
@@ -1549,23 +682,21 @@ scanframe(Stkframe *frame, void *wbufp)
 
 	// Scan local variables if stack frame has been allocated.
 	// Use pointer information if known.
-	precise = false;
 	stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 	if(stackmap == nil) {
 		// No locals information, scan everything.
 		size = frame->varp - (byte*)frame->sp;
 		if(Debug > 2)
 			runtime·printf("frame %s unsized locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
-		enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
+		scanblock(frame->varp - size, size, ScanConservatively);
 	} else if(stackmap->n < 0) {
 		// Locals size information, scan just the locals.
 		size = -stackmap->n;
 		if(Debug > 2)
 			runtime·printf("frame %s conservative locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
-		enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
+		scanblock(frame->varp - size, size, ScanConservatively);
 	} else if(stackmap->n > 0) {
-		// Locals bitmap information, scan just the pointers in
-		// locals.
+		// Locals bitmap information, scan just the pointers in locals.
 		if(pcdata < 0 || pcdata >= stackmap->n) {
 			// don't know where we are
 			runtime·printf("pcdata is %d and %d stack map entries for %s (targetpc=%p)\n",
@@ -1574,8 +705,7 @@ scanframe(Stkframe *frame, void *wbufp)
 		}
 		bv = runtime·stackmapdata(stackmap, pcdata);
 		size = (bv.n * PtrSize) / BitsPerPointer;
-		precise = true;
-		scanbitvector(f, true, frame->varp - size, &bv, wbufp);
+		scanblock(frame->varp - size, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
 	}
 
 	// Scan arguments.
@@ -1583,17 +713,17 @@ scanframe(Stkframe *frame, void *wbufp)
 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 	if(stackmap != nil) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
-		scanbitvector(f, precise, frame->argp, &bv, wbufp);
+		scanblock(frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
 	} else {
 		if(Debug > 2)
 			runtime·printf("frame %s conservative args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
-		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
+		scanblock(frame->argp, frame->arglen, ScanConservatively);
 	}
 	return true;
 }
 
 static void
-addstackroots(G *gp, Workbuf **wbufp)
+scanstack(G *gp)
 {
 	M *mp;
 	int32 n;
@@ -1639,7 +769,7 @@ addstackroots(G *gp, Workbuf **wbufp)
 		USED(sp);
 		USED(stk);
 		USED(guard);
-		runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, scanframe, wbufp, false);
+		runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, scanframe, nil, false);
 	} else {
 		n = 0;
 		while(stk) {
@@ -1649,7 +779,7 @@ addstackroots(G *gp, Workbuf **wbufp)
 			}
 			if(Debug > 2)
 				runtime·printf("conservative stack %p+%p\n", (byte*)sp, (uintptr)stk-sp);
-			enqueue1(wbufp, (Obj){(byte*)sp, (uintptr)stk - sp, (uintptr)defaultProg | PRECISE | LOOP});
+			scanblock((byte*)sp, (uintptr)stk - sp, ScanConservatively);
 			sp = stk->gobuf.sp;
 			guard = stk->stackguard;
 			stk = (Stktop*)stk->stackbase;
@@ -1733,16 +863,12 @@ bool
 runtime·MSpan_Sweep(MSpan *s)
 {
 	int32 cl, n, npages, nfree;
-	uintptr size, off, *bitp, shift, bits;
+	uintptr size, off, *bitp, shift, xbits, bits;
 	uint32 sweepgen;
 	byte *p;
 	MCache *c;
 	byte *arena_start;
 	MLink head, *end;
-	byte *type_data;
-	byte compression;
-	uintptr type_data_inc;
-	MLink *x;
 	Special *special, **specialp, *y;
 	bool res, sweepgenset;
 
@@ -1772,17 +898,6 @@ runtime·MSpan_Sweep(MSpan *s)
 	c = g->m->mcache;
 	sweepgenset = false;
 
-	// mark any free objects in this span so we don't collect them
-	for(x = s->freelist; x != nil; x = x->next) {
-		// This is markonly(x) but faster because we don't need
-		// atomic access and we're guaranteed to be pointing at
-		// the head of a valid object.
-		off = (uintptr*)x - (uintptr*)runtime·mheap.arena_start;
-		bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-		shift = off % wordsPerBitmapWord;
-		*bitp |= bitMarked<<shift;
-	}
-
 	// Unlink & free special records for any objects we're about to free.
 	specialp = &s->specials;
 	special = *specialp;
@@ -1791,9 +906,9 @@ runtime·MSpan_Sweep(MSpan *s)
 		p = (byte*)(s->start << PageShift) + special->offset/size*size;
 		off = (uintptr*)p - (uintptr*)arena_start;
 		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = off % wordsPerBitmapWord;
-		bits = *bitp>>shift;
-		if((bits & (bitAllocated|bitMarked)) == bitAllocated) {
+		shift = (off % wordsPerBitmapWord) * gcBits;
+		bits = (*bitp>>shift) & bitMask;
+		if(bits == bitAllocated) {
 			// Find the exact byte for which the special was setup
 			// (as opposed to object beginning).
 			p = (byte*)(s->start << PageShift) + special->offset;
@@ -1807,56 +922,52 @@ runtime·MSpan_Sweep(MSpan *s)
 			}
 		} else {
 			// object is still live: keep special record
+			if(bits != bitMarked) {
+				runtime·printf("runtime: bad bits for special object %p: %d\n", p, (int32)bits);
+				runtime·throw("runtime: bad bits for special object");
+			}
 			specialp = &special->next;
 			special = *specialp;
 		}
-	}
-
-	type_data = (byte*)s->types.data;
-	type_data_inc = sizeof(uintptr);
-	compression = s->types.compression;
-	switch(compression) {
-	case MTypes_Bytes:
-		type_data += 8*sizeof(uintptr);
-		type_data_inc = 1;
-		break;
 	}
 
 	// Sweep through n objects of given size starting at p.
 	// This thread owns the span now, so it can manipulate
 	// the block bitmap without atomic operations.
 	p = (byte*)(s->start << PageShift);
-	for(; n > 0; n--, p += size, type_data+=type_data_inc) {
+	for(; n > 0; n--, p += size) {
 		off = (uintptr*)p - (uintptr*)arena_start;
 		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = off % wordsPerBitmapWord;
-		bits = *bitp>>shift;
+		shift = (off % wordsPerBitmapWord) * gcBits;
+		xbits = *bitp;
+		bits = (xbits>>shift) & bitMask;
 
-		if((bits & bitAllocated) == 0)
+		// Non-allocated or FlagNoGC object, ignore.
+		if(bits == bitBoundary)
 			continue;
-
-		if((bits & bitMarked) != 0) {
-			*bitp &= ~(bitMarked<<shift);
+		// Allocated and marked object, reset bits to allocated.
+		if(bits == bitMarked) {
+			*bitp = (xbits & ~(bitMarked<<shift)) | (bitAllocated<<shift);
 			continue;
 		}
-
+		// At this point we know that we are looking at garbage object
+		// that needs to be collected.
 		if(runtime·debug.allocfreetrace)
 			runtime·tracefree(p, size);
-
-		// Clear mark and scan bits.
-		*bitp &= ~((bitScan|bitMarked)<<shift);
-
+		// Reset to boundary.
+		*bitp = (xbits & ~(bitAllocated<<shift)) | (bitBoundary<<shift);
 		if(cl == 0) {
 			// Free large span.
-			runtime·unmarkspan(p, 1<<PageShift);
+			runtime·unmarkspan(p, s->npages<<PageShift);
 			s->needzero = 1;
 			// important to set sweepgen before returning it to heap
 			runtime·atomicstore(&s->sweepgen, sweepgen);
 			sweepgenset = true;
 			// See note about SysFault vs SysFree in malloc.goc.
-			if(runtime·debug.efence)
+			if(runtime·debug.efence) {
+				s->limit = nil;	// prevent mlookup from finding this span
 				runtime·SysFault(p, size);
-			else
+			} else
 				runtime·MHeap_Free(&runtime·mheap, s, 1);
 			c->local_nlargefree++;
 			c->local_largefree += size;
@@ -1864,14 +975,6 @@ runtime·MSpan_Sweep(MSpan *s)
 			res = true;
 		} else {
 			// Free small object.
-			switch(compression) {
-			case MTypes_Words:
-				*(uintptr*)type_data = 0;
-				break;
-			case MTypes_Bytes:
-				*(byte*)type_data = 0;
-				break;
-			}
 			if(size > 2*sizeof(uintptr))
 				((uintptr*)p)[1] = (uintptr)0xdeaddeaddeaddeadll;	// mark as "needs to be zeroed"
 			else if(size > sizeof(uintptr))
@@ -1904,7 +1007,7 @@ runtime·MSpan_Sweep(MSpan *s)
 		c->local_cachealloc -= nfree * size;
 		runtime·xadd64(&mstats.next_gc, -(uint64)(nfree * size * (gcpercent + 100)/100));
 		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
-		//MCentral_FreeSpan updates sweepgen
+		// MCentral_FreeSpan updates sweepgen
 	}
 	return res;
 }
@@ -1919,6 +1022,9 @@ static struct
 	MSpan**	spans;
 	uint32	nspan;
 	uint32	spanidx;
+
+	uint32	nbgsweep;
+	uint32	npausesweep;
 } sweep;
 
 // background sweeping goroutine
@@ -1928,7 +1034,7 @@ bgsweep(void)
 	g->issystem = 1;
 	for(;;) {
 		while(runtime·sweepone() != -1) {
-			gcstats.nbgsweep++;
+			sweep.nbgsweep++;
 			runtime·gosched();
 		}
 		runtime·lock(&gclock);
@@ -1982,80 +1088,6 @@ runtime·sweepone(void)
 	}
 }
 
-static void
-dumpspan(uint32 idx)
-{
-	int32 sizeclass, n, npages, i, column;
-	uintptr size;
-	byte *p;
-	byte *arena_start;
-	MSpan *s;
-	bool allocated;
-
-	s = runtime·mheap.allspans[idx];
-	if(s->state != MSpanInUse)
-		return;
-	arena_start = runtime·mheap.arena_start;
-	p = (byte*)(s->start << PageShift);
-	sizeclass = s->sizeclass;
-	size = s->elemsize;
-	if(sizeclass == 0) {
-		n = 1;
-	} else {
-		npages = runtime·class_to_allocnpages[sizeclass];
-		n = (npages << PageShift) / size;
-	}
-	
-	runtime·printf("%p .. %p:\n", p, p+n*size);
-	column = 0;
-	for(; n>0; n--, p+=size) {
-		uintptr off, *bitp, shift, bits;
-
-		off = (uintptr*)p - (uintptr*)arena_start;
-		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = off % wordsPerBitmapWord;
-		bits = *bitp>>shift;
-
-		allocated = ((bits & bitAllocated) != 0);
-
-		for(i=0; i<size; i+=sizeof(void*)) {
-			if(column == 0) {
-				runtime·printf("\t");
-			}
-			if(i == 0) {
-				runtime·printf(allocated ? "(" : "[");
-				runtime·printf("%p: ", p+i);
-			} else {
-				runtime·printf(" ");
-			}
-
-			runtime·printf("%p", *(void**)(p+i));
-
-			if(i+sizeof(void*) >= size) {
-				runtime·printf(allocated ? ") " : "] ");
-			}
-
-			column++;
-			if(column == 8) {
-				runtime·printf("\n");
-				column = 0;
-			}
-		}
-	}
-	runtime·printf("\n");
-}
-
-// A debugging function to dump the contents of memory
-void
-runtime·memorydump(void)
-{
-	uint32 spanidx;
-
-	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
-		dumpspan(spanidx);
-	}
-}
-
 void
 runtime·gchelper(void)
 {
@@ -2068,9 +1100,8 @@ runtime·gchelper(void)
 	runtime·parfordo(work.markfor);
 
 	// help other threads scan secondary blocks
-	scanblock(nil, true);
+	scanblock(nil, 0, nil);
 
-	bufferList[g->m->helpgc].busy = 0;
 	nproc = work.nproc;  // work.nproc can change right after we increment work.ndone
 	if(runtime·xadd(&work.ndone, +1) == nproc-1)
 		runtime·notewakeup(&work.alldone);
@@ -2235,6 +1266,8 @@ runtime·gc(int32 force)
 		runtime·throw("runtime: gc work buffer is misaligned");
 	if((((uintptr)&work.full) & 7) != 0)
 		runtime·throw("runtime: gc work buffer is misaligned");
+	if(sizeof(Workbuf) != WorkbufSize)
+		runtime·throw("runtime: size of Workbuf is suboptimal");
 
 	// The gc is turned off (via enablegc) until
 	// the bootstrap has completed.
@@ -2314,31 +1347,32 @@ static void
 gc(struct gc_args *args)
 {
 	int64 t0, t1, t2, t3, t4;
-	uint64 heap0, heap1, obj, ninstr;
+	uint64 heap0, heap1, obj;
 	GCStats stats;
 	uint32 i;
-	Eface eface;
 
 	if(runtime·debug.allocfreetrace)
 		runtime·tracegc();
+
+	// This is required while we explicitly free objects and have imprecise GC.
+	// If we don't do this, then scanblock can queue an object for scanning;
+	// then another thread frees this object during RootFlushCaches;
+	// then the first thread scans the object; then debug check in scanblock
+	// finds this object already freed and throws.
+	if(Debug)
+		flushallmcaches();
 
 	g->m->traceback = 2;
 	t0 = args->start_time;
 	work.tstart = args->start_time; 
 
-	if(CollectStats)
-		runtime·memclr((byte*)&gcstats, sizeof(gcstats));
+	if(work.gcdata == nil) {
+		work.gcdata = unrollglobgcprog(gcdata, edata - data);
+		work.gcbss = unrollglobgcprog(gcbss, ebss - bss);
+	}
 
-	g->m->locks++;	// disable gc during mallocs in parforalloc
 	if(work.markfor == nil)
 		work.markfor = runtime·parforalloc(MaxGcproc);
-	g->m->locks--;
-
-	if(itabtype == nil) {
-		// get C pointer to the Go type "itab"
-		runtime·gc_itab_ptr(&eface);
-		itabtype = ((PtrType*)eface.type)->elem;
-	}
 
 	t1 = 0;
 	if(runtime·debug.gctrace)
@@ -2346,7 +1380,7 @@ gc(struct gc_args *args)
 
 	// Sweep what is not sweeped by bgsweep.
 	while(runtime·sweepone() != -1)
-		gcstats.npausesweep++;
+		sweep.npausesweep++;
 
 	work.nwait = 0;
 	work.ndone = 0;
@@ -2363,13 +1397,12 @@ gc(struct gc_args *args)
 
 	gchelperstart();
 	runtime·parfordo(work.markfor);
-	scanblock(nil, true);
+	scanblock(nil, 0, nil);
 
 	t3 = 0;
 	if(runtime·debug.gctrace)
 		t3 = runtime·nanotime();
 
-	bufferList[g->m->helpgc].busy = 0;
 	if(work.nproc > 1)
 		runtime·notesleep(&work.alldone);
 
@@ -2408,35 +1441,11 @@ gc(struct gc_args *args)
 			mstats.numgc, work.nproc, (t1-t0)/1000, (t2-t1)/1000, (t3-t2)/1000, (t4-t3)/1000,
 			heap0>>20, heap1>>20, obj,
 			mstats.nmalloc, mstats.nfree,
-			sweep.nspan, gcstats.nbgsweep, gcstats.npausesweep,
+			sweep.nspan, sweep.nbgsweep, sweep.npausesweep,
 			stats.nhandoff, stats.nhandoffcnt,
 			work.markfor->nsteal, work.markfor->nstealcnt,
 			stats.nprocyield, stats.nosyield, stats.nsleep);
-		gcstats.nbgsweep = gcstats.npausesweep = 0;
-		if(CollectStats) {
-			runtime·printf("scan: %D bytes, %D objects, %D untyped, %D types from MSpan\n",
-				gcstats.nbytes, gcstats.obj.cnt, gcstats.obj.notype, gcstats.obj.typelookup);
-			if(gcstats.ptr.cnt != 0)
-				runtime·printf("avg ptrbufsize: %D (%D/%D)\n",
-					gcstats.ptr.sum/gcstats.ptr.cnt, gcstats.ptr.sum, gcstats.ptr.cnt);
-			if(gcstats.obj.cnt != 0)
-				runtime·printf("avg nobj: %D (%D/%D)\n",
-					gcstats.obj.sum/gcstats.obj.cnt, gcstats.obj.sum, gcstats.obj.cnt);
-			runtime·printf("rescans: %D, %D bytes\n", gcstats.rescan, gcstats.rescanbytes);
-
-			runtime·printf("instruction counts:\n");
-			ninstr = 0;
-			for(i=0; i<nelem(gcstats.instr); i++) {
-				runtime·printf("\t%d:\t%D\n", i, gcstats.instr[i]);
-				ninstr += gcstats.instr[i];
-			}
-			runtime·printf("\ttotal:\t%D\n", ninstr);
-
-			runtime·printf("putempty: %D, getfull: %D\n", gcstats.putempty, gcstats.getfull);
-
-			runtime·printf("markonly base lookup: bit %D word %D span %D\n", gcstats.markonly.foundbit, gcstats.markonly.foundword, gcstats.markonly.foundspan);
-			runtime·printf("flushptrbuf base lookup: bit %D word %D span %D\n", gcstats.flushptrbuf.foundbit, gcstats.flushptrbuf.foundword, gcstats.flushptrbuf.foundspan);
-		}
+		sweep.nbgsweep = sweep.npausesweep = 0;
 	}
 
 	// We cache current runtime·mheap.allspans array in sweep.spans,
@@ -2468,7 +1477,7 @@ gc(struct gc_args *args)
 	} else {
 		// Sweep all spans eagerly.
 		while(runtime·sweepone() != -1)
-			gcstats.npausesweep++;
+			sweep.npausesweep++;
 	}
 
 	// Shrink a stack if not much of it is being used.
@@ -2560,8 +1569,6 @@ gchelperstart(void)
 {
 	if(g->m->helpgc < 0 || g->m->helpgc >= MaxGcproc)
 		runtime·throw("gchelperstart: bad m->helpgc");
-	if(runtime·xchg(&bufferList[g->m->helpgc].busy, 1))
-		runtime·throw("gchelperstart: already busy");
 	if(g != g->m->g0)
 		runtime·throw("gchelper not running on g0 stack");
 }
@@ -2698,78 +1705,275 @@ runtime·wakefing(void)
 	return res;
 }
 
-void
-runtime·marknogc(void *v)
+// Recursively GC program in prog.
+// mask is where to store the result.
+// ppos is a pointer to position in mask, in bits.
+// sparse says to generate 4-bits per word mask for heap (2-bits for data/bss otherwise).
+static byte*
+unrollgcprog1(byte *mask, byte *prog, uintptr *ppos, bool inplace, bool sparse)
 {
-	uintptr *b, off, shift;
+	uintptr *b, off, shift, pos, siz, i;
+	byte *arena_start, *prog1, v;
 
-	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
-	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-	shift = off % wordsPerBitmapWord;
-	*b = (*b & ~(bitAllocated<<shift)) | bitBlockBoundary<<shift;
+	arena_start = runtime·mheap.arena_start;
+	pos = *ppos;
+	for(;;) {
+		switch(prog[0]) {
+		case insData:
+			prog++;
+			siz = prog[0];
+			prog++;
+			for(i = 0; i < siz; i++) {
+				v = prog[i/PointersPerByte];
+				v >>= (i%PointersPerByte)*BitsPerPointer;
+				v &= BitsMask;
+				if(inplace) {
+					// Store directly into GC bitmap.
+					off = (uintptr*)(mask+pos) - (uintptr*)arena_start;
+					b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+					shift = (off % wordsPerBitmapWord) * gcBits;
+					if((shift%8)==0)
+						((byte*)b)[shift/8] = 0;
+					((byte*)b)[shift/8] |= v<<((shift%8)+2);
+					pos += PtrSize;
+				} else if(sparse) {
+					// 4-bits per word
+					v <<= (pos%8)+2;
+					mask[pos/8] |= v;
+					pos += gcBits;
+				} else {
+					// 2-bits per word
+					v <<= pos%8;
+					mask[pos/8] |= v;
+					pos += BitsPerPointer;
+				}
+			}
+			prog += ROUND(siz*BitsPerPointer, 8)/8;
+			break;
+		case insArray:
+			prog++;
+			siz = 0;
+			for(i = 0; i < PtrSize; i++)
+				siz = (siz<<8) + prog[PtrSize-i-1];
+			prog += PtrSize;
+			prog1 = nil;
+			for(i = 0; i < siz; i++)
+				prog1 = unrollgcprog1(mask, prog, &pos, inplace, sparse);
+			if(prog1[0] != insArrayEnd)
+				runtime·throw("unrollgcprog: array does not end with insArrayEnd");
+			prog = prog1+1;
+			break;
+		case insArrayEnd:
+		case insEnd:
+			*ppos = pos;
+			return prog;
+		default:
+			runtime·throw("unrollgcprog: unknown instruction");
+		}
+	}
+}
+
+// Unrolls GC program prog for data/bss, returns dense GC mask.
+static byte*
+unrollglobgcprog(byte *prog, uintptr size)
+{
+	byte *mask;
+	uintptr pos, masksize;
+
+	masksize = ROUND(ROUND(size, PtrSize)/PtrSize*BitsPerPointer, 8)/8;
+	mask = runtime·persistentalloc(masksize+1, 0, &mstats.gc_sys);
+	mask[masksize] = 0xa1;
+	pos = 0;
+	prog = unrollgcprog1(mask, prog, &pos, false, false);
+	if(pos != size/PtrSize*BitsPerPointer) {
+		runtime·printf("unrollglobgcprog: bad program size, got %D, expect %D\n",
+			(uint64)pos, (uint64)size/PtrSize*BitsPerPointer);
+		runtime·throw("unrollglobgcprog: bad program size");
+	}
+	if(prog[0] != insEnd)
+		runtime·throw("unrollglobgcprog: program does not end with insEnd");
+	if(mask[masksize] != 0xa1)
+		runtime·throw("unrollglobgcprog: overflow");
+	return mask;
+}
+
+static void
+unrollgcproginplace(void *v, uintptr size, uintptr size0, Type *typ)
+{
+	uintptr *b, off, shift, pos;
+	byte *arena_start, *prog;
+
+	pos = 0;
+	prog = (byte*)typ->gc[1];
+	while(pos != size0)
+		unrollgcprog1(v, prog, &pos, true, true);
+	// Mark first word as bitAllocated.
+	arena_start = runtime·mheap.arena_start;
+	off = (uintptr*)v - (uintptr*)arena_start;
+	b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+	shift = (off % wordsPerBitmapWord) * gcBits;
+	*b |= bitAllocated<<shift;
+	// Mark word after last as BitsDead.
+	if(size0 < size) {
+		off = (uintptr*)((byte*)v + size0) - (uintptr*)arena_start;
+		b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+		shift = (off % wordsPerBitmapWord) * gcBits;
+		*b &= ~(bitPtrMask<<shift) | (BitsDead<<(shift+2));
+	}
+}
+
+// Unrolls GC program in typ->gc[1] into typ->gc[0]
+static void
+unrollgcprog(Type *typ)
+{
+	static Lock lock;
+	byte *mask, *prog;
+	uintptr pos;
+	uint32 x;
+
+	runtime·lock(&lock);
+	mask = (byte*)typ->gc[0];
+	if(mask[0] == 0) {
+		pos = 8;  // skip the unroll flag
+		prog = (byte*)typ->gc[1];
+		prog = unrollgcprog1(mask, prog, &pos, false, true);
+		if(prog[0] != insEnd)
+			runtime·throw("unrollgcprog: program does not end with insEnd");
+		if(((typ->size/PtrSize)%2) != 0) {
+			// repeat the program twice
+			prog = (byte*)typ->gc[1];
+			unrollgcprog1(mask, prog, &pos, false, true);
+		}
+		// atomic way to say mask[0] = 1
+		x = ((uint32*)mask)[0];
+		runtime·atomicstore((uint32*)mask, x|1);
+	}
+	runtime·unlock(&lock);
 }
 
 void
-runtime·markscan(void *v)
+runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool scan)
 {
-	uintptr *b, off, shift;
+	uintptr *b, off, shift, i, ti, te, nptr, masksize;
+	byte *arena_start, x;
+	bool *ptrmask;
 
-	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
-	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-	shift = off % wordsPerBitmapWord;
-	*b |= bitScan<<shift;
+	arena_start = runtime·mheap.arena_start;
+	off = (uintptr*)v - (uintptr*)arena_start;
+	b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+	shift = (off % wordsPerBitmapWord) * gcBits;
+	if(Debug && (((*b)>>shift)&bitMask) != bitBoundary) {
+		runtime·printf("runtime: bad bits in markallocated (%p) b=%p[%p]\n", v, b, *b);
+		runtime·throw("bad bits in markallocated");
+	}
+
+	if(!scan) {
+		// BitsDead in the first quadruple means don't scan.
+		if(size == PtrSize)
+			*b = (*b & ~((bitBoundary|bitPtrMask)<<shift)) | ((bitAllocated+(BitsDead<<2))<<shift);
+		else
+			((byte*)b)[shift/8] = bitAllocated+(BitsDead<<2);
+		return;
+	}
+	if(size == PtrSize) {
+		// It's one word and it has pointers, it must be a pointer.
+		*b = (*b & ~((bitBoundary|bitPtrMask)<<shift)) | ((bitAllocated | (BitsPointer<<2))<<shift);
+		return;
+	}
+	ti = te = 0;
+	ptrmask = nil;
+	if(typ != nil && (typ->gc[0]|typ->gc[1]) != 0 && typ->size > PtrSize) {
+		if(typ->kind&KindGCProg) {
+			nptr = ROUND(typ->size, PtrSize)/PtrSize;
+			masksize = nptr;
+			if(masksize%2)
+				masksize *= 2;	// repeated twice
+			masksize = masksize*PointersPerByte/8;	// 4 bits per word
+			masksize++;	// unroll flag in the beginning
+			if(masksize > MaxGCMask && typ->gc[1] != 0) {
+				// If the mask is too large, unroll the program directly
+				// into the GC bitmap. It's 7 times slower than copying
+				// from the pre-unrolled mask, but saves 1/16 of type size
+				// memory for the mask.
+				unrollgcproginplace(v, size, size0, typ);
+				return;
+			}
+			ptrmask = (byte*)typ->gc[0];
+			// check whether the program is already unrolled
+			if((runtime·atomicload((uint32*)ptrmask)&0xff) == 0)
+				unrollgcprog(typ);
+			ptrmask++;  // skip the unroll flag byte
+		} else
+			ptrmask = (byte*)&typ->gc[0];  // embed mask
+		if(size == 2*PtrSize) {
+			((byte*)b)[shift/8] = ptrmask[0] | bitAllocated;
+			return;
+		}
+		te = typ->size/PtrSize;
+		// if the type occupies odd number of words, its mask is repeated twice
+		if((te%2) == 0)
+			te /= 2;
+	}
+	if(size == 2*PtrSize) {
+		((byte*)b)[shift/8] = (BitsPointer<<2) | (BitsPointer<<6) | bitAllocated;
+		return;
+	}
+	// Copy pointer bitmask into the bitmap.
+	for(i=0; i<size0; i+=2*PtrSize) {
+		x = (BitsPointer<<2) | (BitsPointer<<6);
+		if(ptrmask != nil) {
+			x = ptrmask[ti++];
+			if(ti == te)
+				ti = 0;
+		}
+		off = (uintptr*)((byte*)v + i) - (uintptr*)arena_start;
+		b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+		shift = (off % wordsPerBitmapWord) * gcBits;
+		if(i == 0)
+			x |= bitAllocated;
+		if(i+PtrSize == size0)
+			x &= ~(bitPtrMask<<4);
+		((byte*)b)[shift/8] = x;
+	}
+	if(size0 == i && size0 < size) {
+		// mark the word after last object's word as BitsDead
+		off = (uintptr*)((byte*)v + size0) - (uintptr*)arena_start;
+		b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+		shift = (off % wordsPerBitmapWord) * gcBits;
+		((byte*)b)[shift/8] = 0;
+	}
 }
 
 // mark the block at v as freed.
 void
 runtime·markfreed(void *v)
 {
-	uintptr *b, off, shift, xbits;
-
-	if(0)
-		runtime·printf("markfreed %p\n", v);
+	uintptr *b, off, shift, xbits, bits;
 
 	if((byte*)v > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		runtime·throw("markfreed: bad pointer");
 
 	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-	shift = off % wordsPerBitmapWord;
+	shift = (off % wordsPerBitmapWord) * gcBits;
+	xbits = *b;
+	bits = (xbits>>shift) & bitMask;
+
+	if(bits == bitMiddle)
+		runtime·throw("bad bits in markfreed");
+	if(bits == bitBoundary)
+		return;  // FlagNoGC object
 	if(!g->m->gcing || work.nproc == 1) {
 		// During normal operation (not GC), the span bitmap is not updated concurrently,
 		// because either the span is cached or accesses are protected with MCentral lock.
-		*b = (*b & ~(bitMask<<shift)) | (bitAllocated<<shift);
+		*b = (xbits & ~(bitMask<<shift)) | (bitBoundary<<shift);
 	} else {
 		// During GC other threads concurrently mark heap.
 		for(;;) {
 			xbits = *b;
-			if(runtime·casp((void**)b, (void*)xbits, (void*)((xbits & ~(bitMask<<shift)) | (bitAllocated<<shift))))
+			if(runtime·casp((void**)b, (void*)xbits, (void*)((xbits & ~(bitMask<<shift)) | (bitBoundary<<shift))))
 				break;
 		}
-	}
-}
-
-// check that the block at v of size n is marked freed.
-void
-runtime·checkfreed(void *v, uintptr n)
-{
-	uintptr *b, bits, off, shift;
-
-	if(!runtime·checking)
-		return;
-
-	if((byte*)v+n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
-		return;	// not allocated, so okay
-
-	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
-	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-	shift = off % wordsPerBitmapWord;
-
-	bits = *b>>shift;
-	if((bits & bitAllocated) != 0) {
-		runtime·printf("checkfreed %p+%p: off=%p have=%p\n",
-			v, n, off, bits & bitMask);
-		runtime·throw("checkfreed: not freed");
 	}
 }
 
@@ -2778,21 +1982,11 @@ runtime·checkfreed(void *v, uintptr n)
 void
 runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 {
-	uintptr *b, *b0, off, shift, i, x;
+	uintptr *b, *b0, off, shift, x;
 	byte *p;
 
 	if((byte*)v+size*n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		runtime·throw("markspan: bad pointer");
-
-	if(runtime·checking) {
-		// bits should be all zero at the start
-		off = (byte*)v + size - runtime·mheap.arena_start;
-		b = (uintptr*)(runtime·mheap.arena_start - off/wordsPerBitmapWord);
-		for(i = 0; i < size/PtrSize/wordsPerBitmapWord; i++) {
-			if(b[i] != 0)
-				runtime·throw("markspan: span bits not zero");
-		}
-	}
 
 	p = v;
 	if(leftover)	// mark a boundary just past end of last block too
@@ -2807,14 +2001,14 @@ runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 		// bitmap words.
 		off = (uintptr*)p - (uintptr*)runtime·mheap.arena_start;  // word offset
 		b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-		shift = off % wordsPerBitmapWord;
+		shift = (off % wordsPerBitmapWord) * gcBits;
 		if(b0 != b) {
 			if(b0 != nil)
 				*b0 = x;
 			b0 = b;
 			x = 0;
 		}
-		x |= bitAllocated<<shift;
+		x |= bitBoundary<<shift;
 	}
 	*b0 = x;
 }
@@ -2830,7 +2024,7 @@ runtime·unmarkspan(void *v, uintptr n)
 
 	p = v;
 	off = p - (uintptr*)runtime·mheap.arena_start;  // word offset
-	if(off % wordsPerBitmapWord != 0)
+	if((off % wordsPerBitmapWord) != 0)
 		runtime·throw("markspan: unaligned pointer");
 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 	n /= PtrSize;
@@ -2864,4 +2058,102 @@ runtime·MHeap_MapBits(MHeap *h)
 
 	runtime·SysMap(h->arena_start - n, n - h->bitmap_mapped, h->arena_reserved, &mstats.gc_sys);
 	h->bitmap_mapped = n;
+}
+
+static bool
+getgcmaskcb(Stkframe *frame, void *ctxt)
+{
+	Stkframe *frame0;
+
+	frame0 = ctxt;
+	if(frame0->sp >= (uintptr)frame->varp - frame->sp && frame0->sp < (uintptr)frame->varp) {
+		*frame0 = *frame;
+		return false;
+	}
+	return true;
+}
+
+// Returns GC type info for object p for testing.
+void
+runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+{
+	Stkframe frame;
+	uintptr i, n, off, bits, shift, *b;
+	byte *base;
+
+	*mask = nil;
+	*len = 0;
+
+	// data
+	if(p >= data && p < edata) {
+		n = ((PtrType*)t)->elem->size;
+		*len = n/PtrSize;
+		*mask = runtime·mallocgc(*len, nil, 0);
+		for(i = 0; i < n; i += PtrSize) {
+			off = (p+i-data)/PtrSize;
+			bits = (work.gcdata[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			(*mask)[i/PtrSize] = bits;
+		}
+		return;
+	}
+	// bss
+	if(p >= bss && p < ebss) {
+		n = ((PtrType*)t)->elem->size;
+		*len = n/PtrSize;
+		*mask = runtime·mallocgc(*len, nil, 0);
+		for(i = 0; i < n; i += PtrSize) {
+			off = (p+i-bss)/PtrSize;
+			bits = (work.gcbss[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			(*mask)[i/PtrSize] = bits;
+		}
+		return;
+	}
+	// heap
+	if(runtime·mlookup(p, &base, &n, nil)) {
+		*len = n/PtrSize;
+		*mask = runtime·mallocgc(*len, nil, 0);
+		for(i = 0; i < n; i += PtrSize) {
+			off = (uintptr*)(base+i) - (uintptr*)runtime·mheap.arena_start;
+			b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+			shift = (off % wordsPerBitmapWord) * gcBits;
+			bits = (*b >> (shift+2))&BitsMask;
+			(*mask)[i/PtrSize] = bits;
+		}
+		return;
+	}
+	// stack
+	frame.fn = nil;
+	frame.sp = (uintptr)p;
+	runtime·gentraceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g, 0, nil, 1000, getgcmaskcb, &frame, false);
+	if(frame.fn != nil) {
+		Func *f;
+		StackMap *stackmap;
+		BitVector bv;
+		uintptr size;
+		uintptr targetpc;
+		int32 pcdata;
+
+		f = frame.fn;
+		targetpc = frame.continpc;
+		if(targetpc == 0)
+			return;
+		if(targetpc != f->entry)
+			targetpc--;
+		pcdata = runtime·pcdatavalue(f, PCDATA_StackMapIndex, targetpc);
+		if(pcdata == -1)
+			return;
+		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+		if(stackmap == nil || stackmap->n <= 0)
+			return;
+		bv = runtime·stackmapdata(stackmap, pcdata);
+		size = bv.n/BitsPerPointer*PtrSize;
+		n = ((PtrType*)t)->elem->size;
+		*len = n/PtrSize;
+		*mask = runtime·mallocgc(*len, nil, 0);
+		for(i = 0; i < n; i += PtrSize) {
+			off = (p+i-frame.varp+size)/PtrSize;
+			bits = (bv.data[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			(*mask)[i/PtrSize] = bits;
+		}
+	}
 }

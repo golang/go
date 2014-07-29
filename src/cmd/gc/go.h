@@ -381,7 +381,6 @@ enum
 	SymExported	= 1<<2,	// already written out by export
 	SymUniq		= 1<<3,
 	SymSiggen	= 1<<4,
-	SymGcgen	= 1<<5,
 };
 
 struct	Sym
@@ -1515,6 +1514,7 @@ void	movelarge(NodeList*);
 int	isfat(Type*);
 void	linkarchinit(void);
 void	liveness(Node*, Prog*, Sym*, Sym*);
+void	twobitwalktype1(Type*, vlong*, Bvec*);
 void	markautoused(Prog*);
 Plist*	newplist(void);
 Node*	nodarg(Type*, int);

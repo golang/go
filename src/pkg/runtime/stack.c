@@ -10,6 +10,7 @@
 #include "typekind.h"
 #include "type.h"
 #include "race.h"
+#include "mgc0.h"
 #include "../../cmd/ld/textflag.h"
 
 enum

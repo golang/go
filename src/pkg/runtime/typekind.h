@@ -33,6 +33,8 @@ enum {
 	KindStruct,
 	KindUnsafePointer,
 
+	KindGCProg = 1<<6,	// Type.gc points to GC program
 	KindNoPointers = 1<<7,
+	KindMask = (1<<6)-1,
 };
 

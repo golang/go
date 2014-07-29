@@ -19,8 +19,7 @@
 #include "opt.h"
 #include "../ld/textflag.h"
 #include "../../pkg/runtime/funcdata.h"
-
-enum { BitsPerPointer = 2 };
+#include "../../pkg/runtime/mgc0.h"
 
 enum {
 	UNVISITED = 0,
@@ -1040,7 +1039,7 @@ checkptxt(Node *fn, Prog *firstp)
 // and then simply copied into bv at the correct offset on future calls with
 // the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, twobitwalktype1
 // accounts for 40% of the 6g execution time.
-static void
+void
 twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 {
 	vlong fieldoffset;

@@ -62,6 +62,9 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
 	return uint32(begin), uint32(end)
 }
 
+//go:noescape
+func GCMask(x interface{}) []byte
+
 func testSchedLocalQueue()
 func testSchedLocalQueueSteal()
 

@@ -7,6 +7,7 @@
 #include "go.h"
 #include "../ld/textflag.h"
 #include "../../pkg/runtime/mgc0.h"
+#include "../../pkg/runtime/typekind.h"
 
 /*
  * runtime interface and reflection data structures
@@ -16,7 +17,9 @@ static	NodeList*	signatlist;
 static	Sym*	dtypesym(Type*);
 static	Sym*	weaktypesym(Type*);
 static	Sym*	dalgsym(Type*);
-static	Sym*	dgcsym(Type*);
+static	int	usegcprog(Type*);
+static	void	gengcprog(Type*, Sym**, Sym**);
+static	void	gengcmask(Type*, uint8[16]);
 
 static int
 sigcmp(Sig *a, Sig *b)
@@ -612,37 +615,6 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 	return ot;
 }
 
-enum {
-	KindBool = 1,
-	KindInt,
-	KindInt8,
-	KindInt16,
-	KindInt32,
-	KindInt64,
-	KindUint,
-	KindUint8,
-	KindUint16,
-	KindUint32,
-	KindUint64,
-	KindUintptr,
-	KindFloat32,
-	KindFloat64,
-	KindComplex64,
-	KindComplex128,
-	KindArray,
-	KindChan,
-	KindFunc,
-	KindInterface,
-	KindMap,
-	KindPtr,
-	KindSlice,
-	KindString,
-	KindStruct,
-	KindUnsafePointer,
-
-	KindNoPointers = 1<<7,
-};
-
 static int
 kinds[] =
 {
@@ -746,8 +718,9 @@ haspointers(Type *t)
 static int
 dcommontype(Sym *s, int ot, Type *t)
 {
-	int i, alg, sizeofAlg;
-	Sym *sptr, *algsym, *zero;
+	int i, alg, sizeofAlg, gcprog;
+	Sym *sptr, *algsym, *zero, *gcprog0, *gcprog1;
+	uint8 gcmask[16];
 	static Sym *algarray;
 	char *p;
 	
@@ -809,17 +782,32 @@ dcommontype(Sym *s, int ot, Type *t)
 	ot = duint8(s, ot, t->align);	// align
 	ot = duint8(s, ot, t->align);	// fieldAlign
 
+	gcprog = usegcprog(t);
 	i = kinds[t->etype];
 	if(t->etype == TARRAY && t->bound < 0)
 		i = KindSlice;
 	if(!haspointers(t))
 		i |= KindNoPointers;
+	if(gcprog)
+		i |= KindGCProg;
 	ot = duint8(s, ot, i);  // kind
 	if(alg >= 0)
 		ot = dsymptr(s, ot, algarray, alg*sizeofAlg);
 	else
 		ot = dsymptr(s, ot, algsym, 0);
-	ot = dsymptr(s, ot, dgcsym(t), 0);  // gc
+	// gc
+	if(gcprog) {
+		gengcprog(t, &gcprog0, &gcprog1);
+		if(gcprog0 != S)
+			ot = dsymptr(s, ot, gcprog0, 0);
+		else
+			ot = duintptr(s, ot, 0);
+		ot = dsymptr(s, ot, gcprog1, 0);
+	} else {
+		gengcmask(t, gcmask);
+		for(i = 0; i < 2*widthptr; i++)
+			ot = duint8(s, ot, gcmask[i]);
+	}
 	p = smprint("%-uT", t);
 	//print("dcommontype: %s\n", p);
 	ot = dgostringptr(s, ot, p);	// string
@@ -1275,31 +1263,207 @@ dalgsym(Type *t)
 }
 
 static int
-gcinline(Type *t)
+usegcprog(Type *t)
 {
-	switch(t->etype) {
-	case TARRAY:
-		if(t->bound == 1)
-			return 1;
-		if(t->width <= 4*widthptr)
-			return 1;
-		break;
-	}
-	return 0;
-}
+	vlong size, nptr;
 
-static int
-dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
-{
-	Type *t1;
-	vlong o, off2, fieldoffset, i;
-
-	if(t->align > 0 && (*off % t->align) != 0)
-		fatal("dgcsym1: invalid initial alignment, %T", t);
-
+	if(!haspointers(t))
+		return 0;
 	if(t->width == BADWIDTH)
 		dowidth(t);
-	
+	// Calculate size of the unrolled GC mask.
+	nptr = (t->width+widthptr-1)/widthptr;
+	size = nptr;
+	if(size%2)
+		size *= 2;	// repeated
+	size = size*gcBits/8;	// 4 bits per word
+	// Decide whether to use unrolled GC mask or GC program.
+	// We could use a more elaborate condition, but this seems to work well in practice.
+	// For small objects GC program can't give significant reduction.
+	// While large objects usually contain arrays; and even if it don't
+	// the program uses 2-bits per word while mask uses 4-bits per word,
+	// so the program is still smaller.
+	return size > 2*widthptr;
+}
+
+// Generates sparse GC bitmask (4 bits per word).
+static void
+gengcmask(Type *t, uint8 gcmask[16])
+{
+	Bvec *vec;
+	vlong xoffset, nptr, i, j;
+	int  half, mw;
+	uint8 bits, *pos;
+
+	memset(gcmask, 0, 16);
+	if(!haspointers(t))
+		return;
+
+	// Generate compact mask as stacks use.
+	xoffset = 0;
+	vec = bvalloc(2*widthptr*8);
+	twobitwalktype1(t, &xoffset, vec);
+
+	// Unfold the mask for the GC bitmap format:
+	// 4 bits per word, 2 high bits encode pointer info.
+	pos = (uint8*)gcmask;
+	nptr = (t->width+widthptr-1)/widthptr;
+	half = 0;
+	mw = 0;
+	// If number of words is odd, repeat the mask.
+	// This makes simpler handling of arrays in runtime.
+	for(j=0; j<=(nptr%2); j++) {
+		for(i=0; i<nptr; i++) {
+			bits = bvget(vec, i*BitsPerPointer) | bvget(vec, i*BitsPerPointer+1)<<1;
+			// Some fake types (e.g. Hmap) has missing fileds.
+			// twobitwalktype1 generates BitsDead for that holes,
+			// replace BitsDead with BitsScalar.
+			if(!mw && bits == BitsDead)
+				bits = BitsScalar;
+			mw = !mw && bits == BitsMultiWord;
+			bits <<= 2;
+			if(half)
+				bits <<= 4;
+			*pos |= bits;
+			half = !half;
+			if(!half)
+				pos++;
+		}
+	}
+}
+
+// Helper object for generation of GC programs.
+typedef struct ProgGen ProgGen;
+struct ProgGen
+{
+	Sym*	s;
+	int32	datasize;
+	uint8	data[256/PointersPerByte];
+	vlong	ot;
+};
+
+static void
+proggeninit(ProgGen *g, Sym *s)
+{
+	g->s = s;
+	g->datasize = 0;
+	g->ot = 0;
+	memset(g->data, 0, sizeof(g->data));
+}
+
+static void
+proggenemit(ProgGen *g, uint8 v)
+{
+	g->ot = duint8(g->s, g->ot, v);
+}
+
+// Emits insData block from g->data.
+static void
+proggendataflush(ProgGen *g)
+{
+	int32 i, s;
+
+	if(g->datasize == 0)
+		return;
+	proggenemit(g, insData);
+	proggenemit(g, g->datasize);
+	s = (g->datasize + PointersPerByte - 1)/PointersPerByte;
+	for(i = 0; i < s; i++)
+		proggenemit(g, g->data[i]);
+	g->datasize = 0;
+	memset(g->data, 0, sizeof(g->data));
+}
+
+static void
+proggendata(ProgGen *g, uint8 d)
+{
+	g->data[g->datasize/PointersPerByte] |= d << ((g->datasize%PointersPerByte)*BitsPerPointer);
+	g->datasize++;
+	if(g->datasize == 255)
+		proggendataflush(g);
+}
+
+// Skip v bytes due to alignment, etc.
+static void
+proggenskip(ProgGen *g, vlong off, vlong v)
+{
+	vlong i;
+
+	for(i = off; i < off+v; i++) {
+		if((i%widthptr) == 0)
+			proggendata(g, BitsScalar);
+	}
+}
+
+// Emit insArray instruction.
+static void
+proggenarray(ProgGen *g, vlong len)
+{
+	int32 i;
+
+	proggendataflush(g);
+	proggenemit(g, insArray);
+	for(i = 0; i < widthptr; i++, len >>= 8)
+		proggenemit(g, len);
+}
+
+static void
+proggenarrayend(ProgGen *g)
+{
+	proggendataflush(g);
+	proggenemit(g, insArrayEnd);
+}
+
+static vlong
+proggenfini(ProgGen *g)
+{
+	proggendataflush(g);
+	proggenemit(g, insEnd);
+	return g->ot;
+}
+
+static void gengcprog1(ProgGen *g, Type *t, vlong *xoffset);
+
+// Generates GC program for large types.
+static void
+gengcprog(Type *t, Sym **pgc0, Sym **pgc1)
+{
+	Sym *gc0, *gc1;
+	vlong nptr, size, ot, xoffset;
+	ProgGen g;
+
+	nptr = (t->width+widthptr-1)/widthptr;
+	size = nptr;
+	if(size%2)
+		size *= 2;	// repeated twice
+	size = size*PointersPerByte/8;	// 4 bits per word
+	size++;	// unroll flag in the beginning, used by runtime (see runtime.markallocated)
+	// emity space in BSS for unrolled program
+	*pgc0 = S;
+	// Don't generate it if it's too large, runtime will unroll directly into GC bitmap.
+	if(size <= MaxGCMask) {
+		gc0 = typesymprefix(".gc", t);
+		ggloblsym(gc0, size, DUPOK|NOPTR);
+		*pgc0 = gc0;
+	}
+
+	// program in RODATA
+	gc1 = typesymprefix(".gcprog", t);
+	proggeninit(&g, gc1);
+	xoffset = 0;
+	gengcprog1(&g, t, &xoffset);
+	ot = proggenfini(&g);
+	ggloblsym(gc1, ot, DUPOK|RODATA);
+	*pgc1 = gc1;
+}
+
+// Recursively walks type t and writes GC program into g.
+static void
+gengcprog1(ProgGen *g, Type *t, vlong *xoffset)
+{
+	vlong fieldoffset, i, o, n;
+	Type *t1;
+
 	switch(t->etype) {
 	case TINT8:
 	case TUINT8:
@@ -1317,187 +1481,71 @@ dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
 	case TFLOAT64:
 	case TCOMPLEX64:
 	case TCOMPLEX128:
-		*off += t->width;
+		proggenskip(g, *xoffset, t->width);
+		*xoffset += t->width;
 		break;
-
 	case TPTR32:
 	case TPTR64:
-		// NOTE: Any changes here need to be made to reflect.PtrTo as well.
-		if(*off % widthptr != 0)
-			fatal("dgcsym1: invalid alignment, %T", t);
-
-		// NOTE(rsc): Emitting GC_APTR here for *nonptrtype
-		// (pointer to non-pointer-containing type) means that
-		// we do not record 'nonptrtype' and instead tell the 
-		// garbage collector to look up the type of the memory in
-		// type information stored in the heap. In effect we are telling
-		// the collector "we don't trust our information - use yours".
-		// It's not completely clear why we want to do this.
-		// It does have the effect that if you have a *SliceHeader and a *[]int
-		// pointing at the same actual slice header, *SliceHeader will not be
-		// used as an authoritative type for the memory, which is good:
-		// if the collector scanned the memory as type *SliceHeader, it would
-		// see no pointers inside but mark the block as scanned, preventing
-		// the seeing of pointers when we followed the *[]int pointer.
-		// Perhaps that kind of situation is the rationale.
-		if(!haspointers(t->type)) {
-			ot = duintptr(s, ot, GC_APTR);
-			ot = duintptr(s, ot, *off);
-		} else {
-			ot = duintptr(s, ot, GC_PTR);
-			ot = duintptr(s, ot, *off);
-			ot = dsymptr(s, ot, dgcsym(t->type), 0);
-		}
-		*off += t->width;
-		break;
-
 	case TUNSAFEPTR:
 	case TFUNC:
-		if(*off % widthptr != 0)
-			fatal("dgcsym1: invalid alignment, %T", t);
-		ot = duintptr(s, ot, GC_APTR);
-		ot = duintptr(s, ot, *off);
-		*off += t->width;
-		break;
-
-	// struct Hchan*
 	case TCHAN:
-		// NOTE: Any changes here need to be made to reflect.ChanOf as well.
-		if(*off % widthptr != 0)
-			fatal("dgcsym1: invalid alignment, %T", t);
-		ot = duintptr(s, ot, GC_CHAN_PTR);
-		ot = duintptr(s, ot, *off);
-		ot = dsymptr(s, ot, dtypesym(t), 0);
-		*off += t->width;
-		break;
-
-	// struct Hmap*
 	case TMAP:
-		// NOTE: Any changes here need to be made to reflect.MapOf as well.
-		if(*off % widthptr != 0)
-			fatal("dgcsym1: invalid alignment, %T", t);
-		ot = duintptr(s, ot, GC_PTR);
-		ot = duintptr(s, ot, *off);
-		ot = dsymptr(s, ot, dgcsym(hmap(t)), 0);
-		*off += t->width;
+		proggendata(g, BitsPointer);
+		*xoffset += t->width;
 		break;
-
-	// struct { byte *str; int32 len; }
 	case TSTRING:
-		if(*off % widthptr != 0)
-			fatal("dgcsym1: invalid alignment, %T", t);
-		ot = duintptr(s, ot, GC_STRING);
-		ot = duintptr(s, ot, *off);
-		*off += t->width;
+		proggendata(g, BitsMultiWord);
+		proggendata(g, BitsString);
+		*xoffset += t->width;
 		break;
-
-	// struct { Itab* tab;  void* data; }
-	// struct { Type* type; void* data; }	// When isnilinter(t)==true
 	case TINTER:
-		if(*off % widthptr != 0)
-			fatal("dgcsym1: invalid alignment, %T", t);
-		if(isnilinter(t)) {
-			ot = duintptr(s, ot, GC_EFACE);
-			ot = duintptr(s, ot, *off);
-		} else {
-			ot = duintptr(s, ot, GC_IFACE);
-			ot = duintptr(s, ot, *off);
-		}
-		*off += t->width;
+		proggendata(g, BitsMultiWord);
+		if(isnilinter(t))
+			proggendata(g, BitsEface);
+		else
+			proggendata(g, BitsIface);
+		*xoffset += t->width;
 		break;
-
 	case TARRAY:
-		if(t->bound < -1)
-			fatal("dgcsym1: invalid bound, %T", t);
-		if(t->type->width == BADWIDTH)
-			dowidth(t->type);
 		if(isslice(t)) {
-			// NOTE: Any changes here need to be made to reflect.SliceOf as well.
-			// struct { byte* array; uint32 len; uint32 cap; }
-			if(*off % widthptr != 0)
-				fatal("dgcsym1: invalid alignment, %T", t);
-			if(t->type->width != 0) {
-				ot = duintptr(s, ot, GC_SLICE);
-				ot = duintptr(s, ot, *off);
-				ot = dsymptr(s, ot, dgcsym(t->type), 0);
-			} else {
-				ot = duintptr(s, ot, GC_APTR);
-				ot = duintptr(s, ot, *off);
-			}
-			*off += t->width;
+			proggendata(g, BitsMultiWord);
+			proggendata(g, BitsSlice);
+			proggendata(g, BitsScalar);
 		} else {
-			// NOTE: Any changes here need to be made to reflect.ArrayOf as well,
-			// at least once ArrayOf's gc info is implemented and ArrayOf is exported.
-			// struct { byte* array; uint32 len; uint32 cap; }
-			if(t->bound < 1 || !haspointers(t->type)) {
-				*off += t->width;
-			} else if(gcinline(t)) {
-				for(i=0; i<t->bound; i++)
-					ot = dgcsym1(s, ot, t->type, off, stack_size);  // recursive call of dgcsym1
+			t1 = t->type;
+			if(t1->width == 0) {
+				// ignore
+			} if(t->bound <= 1 || t->bound*t1->width < 32*widthptr) {
+				for(i = 0; i < t->bound; i++)
+					gengcprog1(g, t1, xoffset);
+			} else if(!haspointers(t1)) {
+				n = t->width;
+				n -= -*xoffset&(widthptr-1); // skip to next ptr boundary
+				proggenarray(g, (n+widthptr-1)/widthptr);
+				proggendata(g, BitsScalar);
+				proggenarrayend(g);
+				*xoffset -= (n+widthptr-1)/widthptr*widthptr - t->width;
 			} else {
-				if(stack_size < GC_STACK_CAPACITY) {
-					ot = duintptr(s, ot, GC_ARRAY_START);  // a stack push during GC
-					ot = duintptr(s, ot, *off);
-					ot = duintptr(s, ot, t->bound);
-					ot = duintptr(s, ot, t->type->width);
-					off2 = 0;
-					ot = dgcsym1(s, ot, t->type, &off2, stack_size+1);  // recursive call of dgcsym1
-					ot = duintptr(s, ot, GC_ARRAY_NEXT);  // a stack pop during GC
-				} else {
-					ot = duintptr(s, ot, GC_REGION);
-					ot = duintptr(s, ot, *off);
-					ot = duintptr(s, ot, t->width);
-					ot = dsymptr(s, ot, dgcsym(t), 0);
-				}
-				*off += t->width;
+				proggenarray(g, t->bound);
+				gengcprog1(g, t1, xoffset);
+				*xoffset += (t->bound-1)*t1->width;
+				proggenarrayend(g);
 			}
 		}
 		break;
-
 	case TSTRUCT:
 		o = 0;
-		for(t1=t->type; t1!=T; t1=t1->down) {
+		for(t1 = t->type; t1 != T; t1 = t1->down) {
 			fieldoffset = t1->width;
-			*off += fieldoffset - o;
-			ot = dgcsym1(s, ot, t1->type, off, stack_size);  // recursive call of dgcsym1
+			proggenskip(g, *xoffset, fieldoffset - o);
+			*xoffset += fieldoffset - o;
+			gengcprog1(g, t1->type, xoffset);
 			o = fieldoffset + t1->type->width;
 		}
-		*off += t->width - o;
+		proggenskip(g, *xoffset, t->width - o);
+		*xoffset += t->width - o;
 		break;
-
 	default:
-		fatal("dgcsym1: unexpected type %T", t);
+		fatal("gengcprog1: unexpected type, %T", t);
 	}
-
-	return ot;
-}
-
-static Sym*
-dgcsym(Type *t)
-{
-	int ot;
-	vlong off;
-	Sym *s;
-
-	s = typesymprefix(".gc", t);
-	if(s->flags & SymGcgen)
-		return s;
-	s->flags |= SymGcgen;
-
-	if(t->width == BADWIDTH)
-		dowidth(t);
-
-	ot = 0;
-	off = 0;
-	ot = duintptr(s, ot, t->width);
-	ot = dgcsym1(s, ot, t, &off, 0);
-	ot = duintptr(s, ot, GC_END);
-	ggloblsym(s, ot, DUPOK|RODATA);
-
-	if(t->align > 0)
-		off = rnd(off, t->align);
-	if(off != t->width)
-		fatal("dgcsym: off=%lld, size=%lld, type %T", off, t->width, t);
-
-	return s;
 }

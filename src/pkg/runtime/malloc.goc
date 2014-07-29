@@ -22,8 +22,6 @@ MHeap runtime·mheap;
 #pragma dataflag NOPTR
 MStats mstats;
 
-int32	runtime·checking;
-
 extern MStats mstats;	// defined in zruntime_def_$GOOS_$GOARCH.go
 
 extern volatile intgo runtime·MemProfileRate;
@@ -37,10 +35,10 @@ static void settype(MSpan *s, void *v, uintptr typ);
 // Large objects (> 32 kB) are allocated straight from the heap.
 // If the block will be freed with runtime·free(), typ must be 0.
 void*
-runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
 {
 	int32 sizeclass;
-	uintptr tinysize, size1;
+	uintptr tinysize, size0, size1;
 	intgo rate;
 	MCache *c;
 	MSpan *s;
@@ -60,9 +58,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 	g->m->locks++;
 	g->m->mallocing = 1;
 
-	if(DebugTypeAtBlockEnd)
-		size += sizeof(uintptr);
-
+	size0 = size;
 	c = g->m->mcache;
 	if(!runtime·debug.efence && size <= MaxSmallSize) {
 		if((flag&(FlagNoScan|FlagNoGC)) == FlagNoScan && size < TinySize) {
@@ -170,19 +166,10 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
 		v = (void*)(s->start << PageShift);
 	}
 
-	if(flag & FlagNoGC)
-		runtime·marknogc(v);
-	else if(!(flag & FlagNoScan))
-		runtime·markscan(v);
-
-	if(DebugTypeAtBlockEnd)
-		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = typ;
+	if(!(flag & FlagNoGC))
+		runtime·markallocated(v, size, size0, typ, !(flag&FlagNoScan));
 
 	g->m->mallocing = 0;
-	// TODO: save type even if FlagNoScan?  Potentially expensive but might help
-	// heap profiling/tracing.
-	if(UseSpanType && !(flag & FlagNoScan) && typ != 0)
-		settype(s, v, typ);
 
 	if(raceenabled)
 		runtime·racemalloc(v, size);
@@ -261,7 +248,7 @@ profilealloc(void *v, uintptr size)
 void*
 runtime·malloc(uintptr size)
 {
-	return runtime·mallocgc(size, 0, FlagNoInvokeGC);
+	return runtime·mallocgc(size, nil, FlagNoInvokeGC);
 }
 
 // Free the object whose base pointer is v.
@@ -311,7 +298,7 @@ runtime·free(void *v)
 		// Must mark v freed before calling unmarkspan and MHeap_Free:
 		// they might coalesce v into other spans and change the bitmap further.
 		runtime·markfreed(v);
-		runtime·unmarkspan(v, 1<<PageShift);
+		runtime·unmarkspan(v, s->npages<<PageShift);
 		// NOTE(rsc,dvyukov): The original implementation of efence
 		// in CL 22060046 used SysFree instead of SysFault, so that
 		// the operating system would eventually give the memory
@@ -326,9 +313,10 @@ runtime·free(void *v)
 		// have mysterious crashes due to confused memory reuse.
 		// It should be possible to switch back to SysFree if we also 
 		// implement and then call some kind of MHeap_DeleteSpan.
-		if(runtime·debug.efence)
+		if(runtime·debug.efence) {
+			s->limit = nil;	// prevent mlookup from finding this span
 			runtime·SysFault((void*)(s->start<<PageShift), size);
-		else
+		} else
 			runtime·MHeap_Free(&runtime·mheap, s, 1);
 		c->local_nlargefree++;
 		c->local_largefree += size;
@@ -376,7 +364,6 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 	if(sp)
 		*sp = s;
 	if(s == nil) {
-		runtime·checkfreed(v, 1);
 		if(base)
 			*base = nil;
 		if(size)
@@ -713,140 +700,38 @@ runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
 	return p;
 }
 
-static void
-settype(MSpan *s, void *v, uintptr typ)
-{
-	uintptr size, ofs, j, t;
-	uintptr ntypes, nbytes2, nbytes3;
-	uintptr *data2;
-	byte *data3;
-
-	if(s->sizeclass == 0) {
-		s->types.compression = MTypes_Single;
-		s->types.data = typ;
-		return;
-	}
-	size = s->elemsize;
-	ofs = ((uintptr)v - (s->start<<PageShift)) / size;
-
-	switch(s->types.compression) {
-	case MTypes_Empty:
-		ntypes = (s->npages << PageShift) / size;
-		nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
-		data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
-		s->types.compression = MTypes_Bytes;
-		s->types.data = (uintptr)data3;
-		((uintptr*)data3)[1] = typ;
-		data3[8*sizeof(uintptr) + ofs] = 1;
-		break;
-		
-	case MTypes_Words:
-		((uintptr*)s->types.data)[ofs] = typ;
-		break;
-		
-	case MTypes_Bytes:
-		data3 = (byte*)s->types.data;
-		for(j=1; j<8; j++) {
-			if(((uintptr*)data3)[j] == typ) {
-				break;
-			}
-			if(((uintptr*)data3)[j] == 0) {
-				((uintptr*)data3)[j] = typ;
-				break;
-			}
-		}
-		if(j < 8) {
-			data3[8*sizeof(uintptr) + ofs] = j;
-		} else {
-			ntypes = (s->npages << PageShift) / size;
-			nbytes2 = ntypes * sizeof(uintptr);
-			data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
-			s->types.compression = MTypes_Words;
-			s->types.data = (uintptr)data2;
-			
-			// Move the contents of data3 to data2. Then deallocate data3.
-			for(j=0; j<ntypes; j++) {
-				t = data3[8*sizeof(uintptr) + j];
-				t = ((uintptr*)data3)[t];
-				data2[j] = t;
-			}
-			data2[ofs] = typ;
-		}
-		break;
-	}
-}
-
-uintptr
-runtime·gettype(void *v)
-{
-	MSpan *s;
-	uintptr t, ofs;
-	byte *data;
-
-	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
-	if(s != nil) {
-		t = 0;
-		switch(s->types.compression) {
-		case MTypes_Empty:
-			break;
-		case MTypes_Single:
-			t = s->types.data;
-			break;
-		case MTypes_Words:
-			ofs = (uintptr)v - (s->start<<PageShift);
-			t = ((uintptr*)s->types.data)[ofs/s->elemsize];
-			break;
-		case MTypes_Bytes:
-			ofs = (uintptr)v - (s->start<<PageShift);
-			data = (byte*)s->types.data;
-			t = data[8*sizeof(uintptr) + ofs/s->elemsize];
-			t = ((uintptr*)data)[t];
-			break;
-		default:
-			runtime·throw("runtime·gettype: invalid compression kind");
-		}
-		if(0) {
-			runtime·printf("%p -> %d,%X\n", v, (int32)s->types.compression, (int64)t);
-		}
-		return t;
-	}
-	return 0;
-}
-
 // Runtime stubs.
 
 void*
 runtime·mal(uintptr n)
 {
-	return runtime·mallocgc(n, 0, 0);
+	return runtime·mallocgc(n, nil, 0);
 }
 
 #pragma textflag NOSPLIT
 func new(typ *Type) (ret *uint8) {
-	ret = runtime·mallocgc(typ->size, (uintptr)typ | TypeInfo_SingleObject, typ->kind&KindNoPointers ? FlagNoScan : 0);
+	ret = runtime·mallocgc(typ->size, typ, typ->kind&KindNoPointers ? FlagNoScan : 0);
 }
 
 static void*
-cnew(Type *typ, intgo n, int32 objtyp)
+cnew(Type *typ, intgo n)
 {
-	if((objtyp&(PtrSize-1)) != objtyp)
-		runtime·throw("runtime: invalid objtyp");
 	if(n < 0 || (typ->size > 0 && n > MaxMem/typ->size))
 		runtime·panicstring("runtime: allocation size out of range");
-	return runtime·mallocgc(typ->size*n, (uintptr)typ | objtyp, typ->kind&KindNoPointers ? FlagNoScan : 0);
+	return runtime·mallocgc(typ->size*n, typ, typ->kind&KindNoPointers ? FlagNoScan : 0);
 }
 
 // same as runtime·new, but callable from C
 void*
 runtime·cnew(Type *typ)
 {
-	return cnew(typ, 1, TypeInfo_SingleObject);
+	return cnew(typ, 1);
 }
 
 void*
 runtime·cnewarray(Type *typ, intgo n)
 {
-	return cnew(typ, n, TypeInfo_Array);
+	return cnew(typ, n);
 }
 
 func GC() {
@@ -868,7 +753,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 		runtime·printf("runtime.SetFinalizer: first argument is nil interface\n");
 		goto throw;
 	}
-	if(obj.type->kind != KindPtr) {
+	if((obj.type->kind&KindMask) != KindPtr) {
 		runtime·printf("runtime.SetFinalizer: first argument is %S, not pointer\n", *obj.type->string);
 		goto throw;
 	}
@@ -936,4 +821,10 @@ badfunc:
 	runtime·printf("runtime.SetFinalizer: cannot pass %S to finalizer %S\n", *obj.type->string, *finalizer.type->string);
 throw:
 	runtime·throw("runtime.SetFinalizer");
+}
+
+// For testing.
+func GCMask(x Eface) (mask Slice) {
+	runtime·getgcmask(x.data, x.type, &mask.array, &mask.len);
+	mask.cap = mask.len;
 }
