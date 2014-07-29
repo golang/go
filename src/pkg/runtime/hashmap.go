@@ -153,8 +153,8 @@ func evacuated(b *bmap) bool {
 }
 
 func makemap(t *maptype, hint int64) *hmap {
-	if unsafe.Sizeof(hmap{}) > 48 {
-		gothrow("hmap too large")
+	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != uintptr(t.hmap.size) {
+		gothrow("bad hmap size")
 	}
 
 	if hint < 0 || int64(int32(hint)) != hint {
