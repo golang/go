@@ -195,7 +195,6 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
 		s->ref = 0;
 		s->sizeclass = sizeclass;
 		s->elemsize = (sizeclass==0 ? s->npages<<PageShift : runtime·class_to_size[sizeclass]);
-		s->types.compression = MTypes_Empty;
 
 		// update stats, sweep lists
 		if(large) {
@@ -468,7 +467,6 @@ mheap_free(MHeap *h, MSpan *s, int32 acct)
 		mstats.heap_alloc -= s->npages<<PageShift;
 		mstats.heap_objects--;
 	}
-	s->types.compression = MTypes_Empty;
 	MHeap_FreeSpanLocked(h, s);
 	runtime·unlock(h);
 }
@@ -713,7 +711,6 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
 	span->state = MSpanDead;
 	span->unusedsince = 0;
 	span->npreleased = 0;
-	span->types.compression = MTypes_Empty;
 	span->specialLock.key = 0;
 	span->specials = nil;
 	span->needzero = 0;

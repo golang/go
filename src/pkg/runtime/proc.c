@@ -9,6 +9,7 @@
 #include "stack.h"
 #include "race.h"
 #include "type.h"
+#include "mgc0.h"
 #include "../../cmd/ld/textflag.h"
 
 // Goroutine scheduler

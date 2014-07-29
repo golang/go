@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func TestGcSys(t *testing.T) {
@@ -162,6 +163,29 @@ func TestGcLastTime(t *testing.T) {
 	last := int64(ms.LastGC)
 	if t0 > last || last > t1 {
 		t.Fatalf("bad last GC time: got %v, want [%v, %v]", last, t0, t1)
+	}
+}
+
+var hugeSink interface{}
+
+func TestHugeGCInfo(t *testing.T) {
+	// The test ensures that compiler can chew these huge types even on weakest machines.
+	// The types are not allocated at runtime.
+	if hugeSink != nil {
+		// 400MB on 32 bots, 4TB on 64-bits.
+		const n = (400 << 20) + (unsafe.Sizeof(uintptr(0))-4)<<40
+		hugeSink = new([n]*byte)
+		hugeSink = new([n]uintptr)
+		hugeSink = new(struct {
+			x float64
+			y [n]*byte
+			z []string
+		})
+		hugeSink = new(struct {
+			x float64
+			y [n]uintptr
+			z []string
+		})
 	}
 }
 

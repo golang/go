@@ -22,7 +22,7 @@ type rtype struct {
 	fieldAlign uint8
 	kind       uint8
 	alg        unsafe.Pointer
-	gc         unsafe.Pointer
+	gc         [2]unsafe.Pointer
 	string     *string
 	*uncommonType
 	ptrToThis *rtype

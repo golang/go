@@ -68,6 +68,19 @@ func BenchmarkMallocTypeInfo16(b *testing.B) {
 	mallocSink = x
 }
 
+type LargeStruct struct {
+	x [16][]byte
+}
+
+func BenchmarkMallocLargeStruct(b *testing.B) {
+	var x uintptr
+	for i := 0; i < b.N; i++ {
+		p := make([]LargeStruct, 2)
+		x ^= uintptr(unsafe.Pointer(&p[0]))
+	}
+	mallocSink = x
+}
+
 var n = flag.Int("n", 1000, "number of goroutines")
 
 func BenchmarkGoroutineSelect(b *testing.B) {

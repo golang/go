@@ -85,7 +85,6 @@ typedef struct MHeap	MHeap;
 typedef struct MSpan	MSpan;
 typedef struct MStats	MStats;
 typedef struct MLink	MLink;
-typedef struct MTypes	MTypes;
 typedef struct GCStats	GCStats;
 
 enum
@@ -348,43 +347,6 @@ void	runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size);
 void	runtime·MCache_ReleaseAll(MCache *c);
 void	runtime·stackcache_clear(MCache *c);
 
-// MTypes describes the types of blocks allocated within a span.
-// The compression field describes the layout of the data.
-//
-// MTypes_Empty:
-//     All blocks are free, or no type information is available for
-//     allocated blocks.
-//     The data field has no meaning.
-// MTypes_Single:
-//     The span contains just one block.
-//     The data field holds the type information.
-//     The sysalloc field has no meaning.
-// MTypes_Words:
-//     The span contains multiple blocks.
-//     The data field points to an array of type [NumBlocks]uintptr,
-//     and each element of the array holds the type of the corresponding
-//     block.
-// MTypes_Bytes:
-//     The span contains at most seven different types of blocks.
-//     The data field points to the following structure:
-//         struct {
-//             type  [8]uintptr       // type[0] is always 0
-//             index [NumBlocks]byte
-//         }
-//     The type of the i-th block is: data.type[data.index[i]]
-enum
-{
-	MTypes_Empty = 0,
-	MTypes_Single = 1,
-	MTypes_Words = 2,
-	MTypes_Bytes = 3,
-};
-struct MTypes
-{
-	byte	compression;	// one of MTypes_*
-	uintptr	data;
-};
-
 enum
 {
 	KindSpecialFinalizer = 1,
@@ -454,7 +416,6 @@ struct MSpan
 	int64   unusedsince;	// First time spotted by GC in MSpanFree state
 	uintptr npreleased;	// number of pages released to the OS
 	byte	*limit;		// end of data in span
-	MTypes	types;		// types of allocated objects in this span
 	Lock	specialLock;	// guards specials list
 	Special	*specials;	// linked list of special records sorted by offset.
 	MLink	*freebuf;	// objects freed explicitly, not incorporated into freelist yet
@@ -554,27 +515,21 @@ void	runtime·MHeap_MapBits(MHeap *h);
 void	runtime·MHeap_MapSpans(MHeap *h);
 void	runtime·MHeap_Scavenger(void);
 
-void*	runtime·mallocgc(uintptr size, uintptr typ, uint32 flag);
+void*	runtime·mallocgc(uintptr size, Type* typ, uint32 flag);
 void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
 void	runtime·gc(int32 force);
 uintptr	runtime·sweepone(void);
-void	runtime·markscan(void *v);
-void	runtime·marknogc(void *v);
-void	runtime·checkallocated(void *v, uintptr n);
+void	runtime·markallocated(void *v, uintptr size, uintptr size0, Type* typ, bool scan);
 void	runtime·markfreed(void *v);
-void	runtime·checkfreed(void *v, uintptr n);
-extern	int32	runtime·checking;
 void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);
 void	runtime·purgecachedstats(MCache*);
 void*	runtime·cnew(Type*);
 void*	runtime·cnewarray(Type*, intgo);
-void	runtime·tracealloc(void*, uintptr, uintptr);
+void	runtime·tracealloc(void*, uintptr, Type*);
 void	runtime·tracefree(void*, uintptr);
 void	runtime·tracegc(void);
-
-uintptr	runtime·gettype(void*);
 
 enum
 {
@@ -595,6 +550,7 @@ void	runtime·helpgc(int32 nproc);
 void	runtime·gchelper(void);
 void	runtime·createfing(void);
 G*	runtime·wakefing(void);
+void	runtime·getgcmask(byte*, Type*, byte**, uintptr*);
 extern bool	runtime·fingwait;
 extern bool	runtime·fingwake;
 
@@ -606,16 +562,6 @@ void	runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, Ptr
 
 void	runtime·freeallspecials(MSpan *span, void *p, uintptr size);
 bool	runtime·freespecial(Special *s, void *p, uintptr size, bool freed);
-
-enum
-{
-	TypeInfo_SingleObject = 0,
-	TypeInfo_Array = 1,
-	TypeInfo_Chan = 2,
-
-	// Enables type information at the end of blocks allocated from heap	
-	DebugTypeAtBlockEnd = 0,
-};
 
 // Information from the compiler about the layout of stack frames.
 typedef struct BitVector BitVector;
@@ -631,20 +577,6 @@ struct StackMap
 	int32 nbit; // number of bits in each bitmap
 	uint32 data[];
 };
-enum {
-	// Pointer map
-	BitsPerPointer = 2,
-	BitsDead = 0,
-	BitsScalar = 1,
-	BitsPointer = 2,
-	BitsMultiWord = 3,
-	// BitsMultiWord will be set for the first word of a multi-word item.
-	// When it is set, one of the following will be set for the second word.
-	BitsString = 0,
-	BitsSlice = 1,
-	BitsIface = 2,
-	BitsEface = 3,
-};
 // Returns pointer map data for the given stackmap index
 // (the index is encoded in PCDATA_StackMapIndex).
 BitVector	runtime·stackmapdata(StackMap *stackmap, int32 n);
@@ -654,7 +586,6 @@ void	runtime·gc_m_ptr(Eface*);
 void	runtime·gc_g_ptr(Eface*);
 void	runtime·gc_itab_ptr(Eface*);
 
-void	runtime·memorydump(void);
 int32	runtime·setgcpercent(int32);
 
 // Value we use to mark dead pointers when GODEBUG=gcdead=1.

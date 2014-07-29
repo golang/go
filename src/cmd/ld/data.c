@@ -706,31 +706,165 @@ maxalign(LSym *s, int type)
 	return max;
 }
 
-static void
-gcaddsym(LSym *gc, LSym *s, vlong off)
+// Helper object for building GC type programs.
+typedef struct ProgGen ProgGen;
+struct ProgGen
 {
-	vlong a;
-	LSym *gotype;
+	LSym*	s;
+	int32	datasize;
+	uint8	data[256/PointersPerByte];
+	vlong	pos;
+};
 
-	if(s->size < PtrSize)
+static void
+proggeninit(ProgGen *g, LSym *s)
+{
+	g->s = s;
+	g->datasize = 0;
+	g->pos = 0;
+	memset(g->data, 0, sizeof(g->data));
+}
+
+static void
+proggenemit(ProgGen *g, uint8 v)
+{
+	adduint8(ctxt, g->s, v);
+}
+
+// Writes insData block from g->data.
+static void
+proggendataflush(ProgGen *g)
+{
+	int32 i, s;
+
+	if(g->datasize == 0)
 		return;
-	if(strcmp(s->name, ".string") == 0)
+	proggenemit(g, insData);
+	proggenemit(g, g->datasize);
+	s = (g->datasize + PointersPerByte - 1)/PointersPerByte;
+	for(i = 0; i < s; i++)
+		proggenemit(g, g->data[i]);
+	g->datasize = 0;
+	memset(g->data, 0, sizeof(g->data));
+}
+
+static void
+proggendata(ProgGen *g, uint8 d)
+{
+	g->data[g->datasize/PointersPerByte] |= d << ((g->datasize%PointersPerByte)*BitsPerPointer);
+	g->datasize++;
+	if(g->datasize == 255)
+		proggendataflush(g);
+}
+
+// Skip v bytes due to alignment, etc.
+static void
+proggenskip(ProgGen *g, vlong off, vlong v)
+{
+	vlong i;
+
+	for(i = off; i < off+v; i++) {
+		if((i%PtrSize) == 0)
+			proggendata(g, BitsScalar);
+	}
+}
+
+// Emit insArray instruction.
+static void
+proggenarray(ProgGen *g, vlong len)
+{
+	int32 i;
+
+	proggendataflush(g);
+	proggenemit(g, insArray);
+	for(i = 0; i < PtrSize; i++, len >>= 8)
+		proggenemit(g, len);
+}
+
+static void
+proggenarrayend(ProgGen *g)
+{
+	proggendataflush(g);
+	proggenemit(g, insArrayEnd);
+}
+
+static void
+proggenfini(ProgGen *g, vlong size)
+{
+	proggenskip(g, g->pos, size - g->pos);
+	proggendataflush(g);
+	proggenemit(g, insEnd);
+}
+
+
+// This function generates GC pointer info for global variables.
+static void
+proggenaddsym(ProgGen *g, LSym *s)
+{
+	LSym *gcprog;
+	uint8 *mask;
+	vlong i, size;
+
+	if(s->size == 0)
 		return;
 
-	gotype = s->gotype;
-	if(gotype != nil) {
-		//print("gcaddsym:    %s    %d    %s\n", s->name, s->size, gotype->name);
-		adduintxx(ctxt, gc, GC_CALL, PtrSize);
-		adduintxx(ctxt, gc, off, PtrSize);
-		addpcrelplus(ctxt, gc, decodetype_gc(gotype), 3*PtrSize+4);
-		if(PtrSize == 8)
-			adduintxx(ctxt, gc, 0, 4);
-	} else {
-		//print("gcaddsym:    %s    %d    <unknown type>\n", s->name, s->size);
-		for(a = -off&(PtrSize-1); a+PtrSize<=s->size; a+=PtrSize) {
-			adduintxx(ctxt, gc, GC_APTR, PtrSize);
-			adduintxx(ctxt, gc, off+a, PtrSize);
+	// Skip alignment hole from the previous symbol.
+	proggenskip(g, g->pos, s->value - g->pos);
+	g->pos += s->value - g->pos;
+
+	if(s->gotype == nil && s->size >= PtrSize) {
+		// conservative scan
+		if((s->size%PtrSize) || (g->pos%PtrSize))
+			diag("proggenaddsym: unaligned symbol");
+		size = (s->size+PtrSize-1)/PtrSize*PtrSize;
+		if(size < 32*PtrSize) {
+			// Emit small symbols as data.
+			for(i = 0; i < size/PtrSize; i++)
+				proggendata(g, BitsPointer);
+		} else {
+			// Emit large symbols as array.
+			proggenarray(g, size/PtrSize);
+			proggendata(g, BitsPointer);
+			proggenarrayend(g);
 		}
+		g->pos = s->value + size;
+	} else if(s->gotype == nil || decodetype_noptr(s->gotype) || s->size < PtrSize) {
+		// no scan
+		if(s->size < 32*PtrSize) {
+			// Emit small symbols as data.
+			// This case also handles unaligned and tiny symbols, so tread carefully.
+			for(i = s->value; i < s->value+s->size; i++) {
+				if((i%PtrSize) == 0)
+					proggendata(g, BitsScalar);
+			}
+		} else {
+			// Emit large symbols as array.
+			if((s->size%PtrSize) || (g->pos%PtrSize))
+				diag("proggenaddsym: unaligned symbol");
+			proggenarray(g, s->size/PtrSize);
+			proggendata(g, BitsScalar);
+			proggenarrayend(g);
+		}
+		g->pos = s->value + s->size;
+	} else if(decodetype_usegcprog(s->gotype)) {
+		// gc program, copy directly
+		proggendataflush(g);
+		gcprog = decodetype_gcprog(s->gotype);
+		size = decodetype_size(s->gotype);
+		if((size%PtrSize) || (g->pos%PtrSize))
+			diag("proggenaddsym: unaligned symbol");
+		for(i = 0; i < gcprog->np-1; i++)
+			proggenemit(g, gcprog->p[i]);
+		g->pos = s->value + size;
+	} else {
+		// gc mask, it's small so emit as data
+		mask = decodetype_gcmask(s->gotype);
+		size = decodetype_size(s->gotype);
+		if((size%PtrSize) || (g->pos%PtrSize))
+			diag("proggenaddsym: unaligned symbol");
+		for(i = 0; i < size; i += PtrSize)
+			proggendata(g, (mask[i/PtrSize/2]>>((i/PtrSize%2)*4+2))&BitsMask);
+		g->pos = s->value + size;
 	}
 }
 
@@ -755,18 +889,12 @@ dodata(void)
 	Section *sect;
 	Segment *segro;
 	LSym *s, *last, **l;
-	LSym *gcdata1, *gcbss1;
+	LSym *gcdata, *gcbss;
+	ProgGen gen;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f dodata\n", cputime());
 	Bflush(&bso);
-
-	gcdata1 = linklookup(ctxt, "gcdata", 0);
-	gcbss1 = linklookup(ctxt, "gcbss", 0);
-
-	// size of .data and .bss section. the zero value is later replaced by the actual size of the section.
-	adduintxx(ctxt, gcdata1, 0, PtrSize);
-	adduintxx(ctxt, gcbss1, 0, PtrSize);
 
 	last = nil;
 	datap = nil;
@@ -884,6 +1012,8 @@ dodata(void)
 	sect->vaddr = datsize;
 	linklookup(ctxt, "data", 0)->sect = sect;
 	linklookup(ctxt, "edata", 0)->sect = sect;
+	gcdata = linklookup(ctxt, "gcdata", 0);
+	proggeninit(&gen, gcdata);
 	for(; s != nil && s->type < SBSS; s = s->next) {
 		if(s->type == SINITARR) {
 			ctxt->cursym = s;
@@ -893,13 +1023,11 @@ dodata(void)
 		s->type = SDATA;
 		datsize = aligndatsize(datsize, s);
 		s->value = datsize - sect->vaddr;
-		gcaddsym(gcdata1, s, datsize - sect->vaddr);  // gc
+		proggenaddsym(&gen, s);  // gc
 		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
-
-	adduintxx(ctxt, gcdata1, GC_END, PtrSize);
-	setuintxx(ctxt, gcdata1, 0, sect->len, PtrSize);
+	proggenfini(&gen, sect->len);  // gc
 
 	/* bss */
 	sect = addsection(&segdata, ".bss", 06);
@@ -908,17 +1036,17 @@ dodata(void)
 	sect->vaddr = datsize;
 	linklookup(ctxt, "bss", 0)->sect = sect;
 	linklookup(ctxt, "ebss", 0)->sect = sect;
+	gcbss = linklookup(ctxt, "gcbss", 0);
+	proggeninit(&gen, gcbss);
 	for(; s != nil && s->type < SNOPTRBSS; s = s->next) {
 		s->sect = sect;
 		datsize = aligndatsize(datsize, s);
 		s->value = datsize - sect->vaddr;
-		gcaddsym(gcbss1, s, datsize - sect->vaddr);  // gc
+		proggenaddsym(&gen, s);  // gc
 		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
-
-	adduintxx(ctxt, gcbss1, GC_END, PtrSize);
-	setuintxx(ctxt, gcbss1, 0, sect->len, PtrSize);
+	proggenfini(&gen, sect->len);  // gc
 
 	/* pointer-free bss */
 	sect = addsection(&segdata, ".noptrbss", 06);
