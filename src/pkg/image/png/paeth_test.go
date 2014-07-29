@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func abs(x int) int {
+func slowAbs(x int) int {
 	if x < 0 {
 		return -x
 	}
@@ -21,9 +21,9 @@ func abs(x int) int {
 // It is a straight port of the sample code in the PNG spec, section 9.4.
 func slowPaeth(a, b, c uint8) uint8 {
 	p := int(a) + int(b) - int(c)
-	pa := abs(p - int(a))
-	pb := abs(p - int(b))
-	pc := abs(p - int(c))
+	pa := slowAbs(p - int(a))
+	pb := slowAbs(p - int(b))
+	pc := slowAbs(p - int(c))
 	if pa <= pb && pa <= pc {
 		return a
 	} else if pb <= pc {
