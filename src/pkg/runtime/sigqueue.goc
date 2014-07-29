@@ -31,10 +31,12 @@ package runtime
 #include "cgocall.h"
 #include "../../cmd/ld/textflag.h"
 
+#pragma textflag NOPTR
 static struct {
 	Note;
 	uint32 mask[(NSIG+31)/32];
 	uint32 wanted[(NSIG+31)/32];
+	uint32 recv[(NSIG+31)/32];
 	uint32 state;
 	bool inuse;
 } sig;
@@ -83,14 +85,13 @@ runtime·sigsend(int32 s)
 // Called to receive the next queued signal.
 // Must only be called from a single goroutine at a time.
 func signal_recv() (m uint32) {
-	static uint32 recv[nelem(sig.mask)];
 	uint32 i, old, new;
 	
 	for(;;) {
 		// Serve from local copy if there are bits left.
 		for(i=0; i<NSIG; i++) {
-			if(recv[i/32]&(1U<<(i&31))) {
-				recv[i/32] ^= 1U<<(i&31);
+			if(sig.recv[i/32]&(1U<<(i&31))) {
+				sig.recv[i/32] ^= 1U<<(i&31);
 				m = i;
 				goto done;
 			}
@@ -121,7 +122,7 @@ func signal_recv() (m uint32) {
 				if(runtime·cas(&sig.mask[i], m, 0))
 					break;
 			}
-			recv[i] = m;
+			sig.recv[i] = m;
 		}
 	}
 
