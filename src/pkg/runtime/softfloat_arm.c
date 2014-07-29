@@ -90,6 +90,7 @@ fstatus(bool nan, int32 cmp)
 // conditions array record the required CPSR cond field for the
 // first 5 pairs of conditional execution opcodes
 // higher 4 bits are must set, lower 4 bits are must clear
+#pragma dataflag NOPTR
 static const uint8 conditions[10/2] = {
 	[0/2] = (FLAGS_Z >> 24) | 0, // 0: EQ (Z set), 1: NE (Z clear)
 	[2/2] = (FLAGS_C >> 24) | 0, // 2: CS/HS (C set), 3: CC/LO (C clear)
