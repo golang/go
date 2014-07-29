@@ -158,6 +158,7 @@ runtime·schedinit(void)
 	runtime·symtabinit();
 	runtime·stackinit();
 	runtime·mallocinit();
+	runtime·chaninit();
 	mcommoninit(g->m);
 	
 	// Initialize the itable value for newErrorCString,

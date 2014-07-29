@@ -26,14 +26,12 @@ struct	WaitQ
 	SudoG*	last;
 };
 
-// The garbage collector is assuming that Hchan can only contain pointers into the stack
-// and cannot contain pointers into the heap.
 struct	Hchan
 {
 	uintgo	qcount;			// total data in the q
 	uintgo	dataqsiz;		// size of the circular q
+	byte*	buf;
 	uint16	elemsize;
-	uint16	pad;			// ensures proper alignment of the buffer that follows Hchan in memory
 	bool	closed;
 	Type*	elemtype;		// element type
 	uintgo	sendx;			// send index
@@ -45,7 +43,7 @@ struct	Hchan
 
 // Buffer follows Hchan immediately in memory.
 // chanbuf(c, i) is pointer to the i'th slot in the buffer.
-#define chanbuf(c, i) ((byte*)((c)+1)+(uintptr)(c)->elemsize*(i))
+#define chanbuf(c, i) ((byte*)((c)->buf)+(uintptr)(c)->elemsize*(i))
 
 enum
 {

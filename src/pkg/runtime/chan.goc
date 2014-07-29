@@ -9,15 +9,39 @@ package runtime
 #include "race.h"
 #include "malloc.h"
 #include "chan.h"
+#include "mgc0.h"
+#include "typekind.h"
 #include "../../cmd/ld/textflag.h"
-
-uint32 runtime·Hchansize = sizeof(Hchan);
 
 static	void	dequeueg(WaitQ*);
 static	SudoG*	dequeue(WaitQ*);
 static	void	enqueue(WaitQ*, SudoG*);
-static	void	destroychan(Hchan*);
 static	void	racesync(Hchan*, SudoG*);
+
+static	Type	hchanType;
+static	String	hchanStr;
+
+void
+runtime·chaninit(void)
+{
+	int32 i, off;
+	byte *mask;
+
+	// Generate (bare minimum) type descriptor for Hchan.
+	hchanType.size = sizeof(Hchan);
+	hchanStr = runtime·gostringnocopy((byte*)"chan");
+	hchanType.string = &hchanStr;
+	// Hchan has only one interesting pointer -- buf.
+	off = offsetof(Hchan, buf)/PtrSize*gcBits;
+	if(off%8)
+		runtime·throw("makechan: unaligned buffer");
+	if(off+8 >= sizeof(hchanType.gc)*8)
+		runtime·throw("makechan: gc mask does not fit");
+	mask = (byte*)hchanType.gc;
+	for(i = 0; i < off/8; i++)
+		mask[i] = (BitsScalar<<2) | (BitsScalar<<6);
+	mask[off/8] = (BitsPointer<<2) | (BitsDead<<6);
+}
 
 static Hchan*
 makechan(ChanType *t, int64 hint)
@@ -36,8 +60,17 @@ makechan(ChanType *t, int64 hint)
 	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > (MaxMem - sizeof(*c)) / elem->size))
 		runtime·panicstring("makechan: size out of range");
 
-	// allocate memory in one call
-	c = (Hchan*)runtime·mallocgc(sizeof(*c) + hint*elem->size, nil, 0);
+	if((elem->kind&KindNoPointers) || hint == 0) {
+		// allocate memory in one call
+		c = (Hchan*)runtime·mallocgc(sizeof(*c) + hint*elem->size, nil, FlagNoScan);
+		if(hint > 0 && elem->size != 0)
+			c->buf = (byte*)(c+1);
+		else
+			c->buf = (byte*)c;  // race detector uses this location for synchronization
+	} else {
+		c = (Hchan*)runtime·cnew(&hchanType);
+		c->buf = runtime·cnewarray(elem, hint);
+	}
 	c->elemsize = elem->size;
 	c->elemtype = elem;
 	c->dataqsiz = hint;
