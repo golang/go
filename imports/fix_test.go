@@ -618,6 +618,33 @@ func main() {
 }
 `,
 	},
+
+	// Non-idempotent comment formatting
+	// golang.org/issue/8035
+	{
+		name: "issue 8035",
+		in: `package main
+
+import (
+	"fmt"                     // A
+	"go/ast"                  // B
+	_ "launchpad.net/gocheck" // C
+)
+
+func main() { _, _ = fmt.Print, ast.Walk }
+`,
+		out: `package main
+
+import (
+	"fmt"    // A
+	"go/ast" // B
+
+	_ "launchpad.net/gocheck" // C
+)
+
+func main() { _, _ = fmt.Print, ast.Walk }
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {

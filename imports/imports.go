@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/printer"
 	"go/token"
@@ -88,6 +89,11 @@ func Process(filename string, src []byte, opt *Options) ([]byte, error) {
 	}
 	if len(spacesBefore) > 0 {
 		out = addImportSpaces(bytes.NewReader(out), spacesBefore)
+	}
+
+	out, err = format.Source(out)
+	if err != nil {
+		return nil, err
 	}
 	return out, nil
 }
