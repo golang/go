@@ -114,7 +114,7 @@ func (f *fmt) pad(b []byte) {
 		f.buf.Write(b)
 		return
 	}
-	padding, left, right := f.computePadding(len(b))
+	padding, left, right := f.computePadding(utf8.RuneCount(b))
 	if left > 0 {
 		f.writePadding(left, padding)
 	}
