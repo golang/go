@@ -188,14 +188,6 @@ type RawSockaddrAny struct {
 	Pad  [92]int8
 }
 
-type RawSockaddrStorage struct {
-	Len         uint8
-	Family      uint8
-	X__ss_pad1  [6]int8
-	X__ss_align int64
-	X__ss_pad2  [112]int8
-}
-
 type _Socklen uint32
 
 type Linger struct {
@@ -216,17 +208,6 @@ type IPMreq struct {
 type IPv6Mreq struct {
 	Multiaddr [16]byte /* in6_addr */
 	Interface uint32
-}
-
-type GroupReq struct {
-	Interface uint32
-	Group     RawSockaddrStorage
-}
-
-type GroupSourceReq struct {
-	Interface uint32
-	Group     RawSockaddrStorage
-	Source    RawSockaddrStorage
 }
 
 type Msghdr struct {
@@ -269,14 +250,11 @@ const (
 	SizeofSockaddrInet4    = 0x10
 	SizeofSockaddrInet6    = 0x1c
 	SizeofSockaddrAny      = 0x6c
-	SizeofSockaddrStorage  = 0x80
 	SizeofSockaddrUnix     = 0x6a
 	SizeofSockaddrDatalink = 0x14
 	SizeofLinger           = 0x8
 	SizeofIPMreq           = 0x8
 	SizeofIPv6Mreq         = 0x14
-	SizeofGroupReq         = 0x84
-	SizeofGroupSourceReq   = 0x104
 	SizeofMsghdr           = 0x1c
 	SizeofCmsghdr          = 0xc
 	SizeofInet4Pktinfo     = 0xc
