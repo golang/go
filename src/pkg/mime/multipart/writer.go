@@ -25,13 +25,15 @@ type Writer struct {
 // writing to w.
 func NewWriter(w io.Writer) *Writer {
 	return &Writer{
-		w:        w,
-		boundary: randomBoundary(),
+		w: w,
 	}
 }
 
 // Boundary returns the Writer's boundary.
 func (w *Writer) Boundary() string {
+	if w.boundary == "" {
+		w.boundary = randomBoundary()
+	}
 	return w.boundary
 }
 
@@ -65,7 +67,7 @@ func (w *Writer) SetBoundary(boundary string) error {
 // FormDataContentType returns the Content-Type for an HTTP
 // multipart/form-data with this Writer's Boundary.
 func (w *Writer) FormDataContentType() string {
-	return "multipart/form-data; boundary=" + w.boundary
+	return "multipart/form-data; boundary=" + w.Boundary()
 }
 
 func randomBoundary() string {
@@ -89,9 +91,9 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	}
 	var b bytes.Buffer
 	if w.lastpart != nil {
-		fmt.Fprintf(&b, "\r\n--%s\r\n", w.boundary)
+		fmt.Fprintf(&b, "\r\n--%s\r\n", w.Boundary())
 	} else {
-		fmt.Fprintf(&b, "--%s\r\n", w.boundary)
+		fmt.Fprintf(&b, "--%s\r\n", w.Boundary())
 	}
 	// TODO(bradfitz): move this to textproto.MimeHeader.Write(w), have it sort
 	// and clean, like http.Header.Write(w) does.
@@ -157,7 +159,7 @@ func (w *Writer) Close() error {
 		}
 		w.lastpart = nil
 	}
-	_, err := fmt.Fprintf(w.w, "\r\n--%s--\r\n", w.boundary)
+	_, err := fmt.Fprintf(w.w, "\r\n--%s--\r\n", w.Boundary())
 	return err
 }
 
