@@ -327,27 +327,3 @@ pkg syscall (netbsd-arm), const SizeofIfData = 132
 pkg syscall (netbsd-arm), type IfMsghdr struct, Pad_cgo_1 [4]uint8
 pkg syscall (netbsd-arm-cgo), const SizeofIfData = 132
 pkg syscall (netbsd-arm-cgo), type IfMsghdr struct, Pad_cgo_1 [4]uint8
-pkg syscall (darwin-386), const AF_MAX = 38
-pkg syscall (darwin-386), const ELAST = 105
-pkg syscall (darwin-386), const EVFILT_SYSCOUNT = 12
-pkg syscall (darwin-386), const EVFILT_THREADMARKER = 12
-pkg syscall (darwin-386), const IPV6_FRAGTTL = 120
-pkg syscall (darwin-386), const SYS_MAXSYSCALL = 439
-pkg syscall (darwin-386-cgo), const AF_MAX = 38
-pkg syscall (darwin-386-cgo), const ELAST = 105
-pkg syscall (darwin-386-cgo), const EVFILT_SYSCOUNT = 12
-pkg syscall (darwin-386-cgo), const EVFILT_THREADMARKER = 12
-pkg syscall (darwin-386-cgo), const IPV6_FRAGTTL = 120
-pkg syscall (darwin-386-cgo), const SYS_MAXSYSCALL = 439
-pkg syscall (darwin-amd64), const AF_MAX = 38
-pkg syscall (darwin-amd64), const ELAST = 105
-pkg syscall (darwin-amd64), const EVFILT_SYSCOUNT = 12
-pkg syscall (darwin-amd64), const EVFILT_THREADMARKER = 12
-pkg syscall (darwin-amd64), const IPV6_FRAGTTL = 120
-pkg syscall (darwin-amd64), const SYS_MAXSYSCALL = 439
-pkg syscall (darwin-amd64-cgo), const AF_MAX = 38
-pkg syscall (darwin-amd64-cgo), const ELAST = 105
-pkg syscall (darwin-amd64-cgo), const EVFILT_SYSCOUNT = 12
-pkg syscall (darwin-amd64-cgo), const EVFILT_THREADMARKER = 12
-pkg syscall (darwin-amd64-cgo), const IPV6_FRAGTTL = 120
-pkg syscall (darwin-amd64-cgo), const SYS_MAXSYSCALL = 439

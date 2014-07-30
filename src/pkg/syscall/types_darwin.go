@@ -64,6 +64,7 @@ struct sockaddr_any {
 	struct sockaddr addr;
 	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
 };
+
 */
 import "C"
 
@@ -116,13 +117,7 @@ type Radvisory_t C.struct_radvisory
 
 type Fbootstraptransfer_t C.struct_fbootstraptransfer
 
-// See golang.org/issue/8267.
-//type Log2phys_t C.struct_packed_log2phys
-type Log2phys_t struct {
-	Flags       uint32
-	Contigbytes int64
-	Devoffset   int64
-}
+type Log2phys_t C.struct_log2phys
 
 type Fsid C.struct_fsid
 

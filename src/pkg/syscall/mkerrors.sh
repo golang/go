@@ -35,36 +35,6 @@ includes_Darwin='
 #include <netinet/ip.h>
 #include <netinet/ip_mroute.h>
 #include <termios.h>
-
-// We keep some constants not supported in OS X Mavericks and beyond
-// for the promise of compatibility.
-#ifndef F_MARKDEPENDENCY
-#define F_MARKDEPENDENCY	0x3c
-#endif
-#ifndef F_READBOOTSTRAP
-#define F_READBOOTSTRAP		0x2e
-#endif
-#ifndef F_WRITEBOOTSTRAP
-#define F_WRITEBOOTSTRAP	0x2f
-#endif
-#ifndef NOTE_RESOURCEEND
-#define NOTE_RESOURCEEND	0x2000000
-#endif
-#ifndef SO_RESTRICTIONS
-#define SO_RESTRICTIONS		0x1081
-#endif
-#ifndef SO_RESTRICT_DENYIN
-#define SO_RESTRICT_DENYIN	0x1
-#endif
-#ifndef SO_RESTRICT_DENYOUT
-#define SO_RESTRICT_DENYOUT	0x2
-#endif
-#ifndef SO_RESTRICT_DENYSET
-#define SO_RESTRICT_DENYSET	0x80000000
-#endif
-#ifndef TCP_MINMSSOVERLOAD
-#define TCP_MINMSSOVERLOAD	0x3e8
-#endif
 '
 
 includes_DragonFly='
