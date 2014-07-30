@@ -106,9 +106,9 @@ func TestStackMem(t *testing.T) {
 	}
 	s1 := new(MemStats)
 	ReadMemStats(s1)
-	consumed := s1.StackSys - s0.StackSys
+	consumed := int64(s1.StackSys - s0.StackSys)
 	t.Logf("Consumed %vMB for stack mem", consumed>>20)
-	estimate := uint64(8 * BatchSize * ArraySize * RecursionDepth) // 8 is to reduce flakiness.
+	estimate := int64(8 * BatchSize * ArraySize * RecursionDepth) // 8 is to reduce flakiness.
 	if consumed > estimate {
 		t.Fatalf("Stack mem: want %v, got %v", estimate, consumed)
 	}
