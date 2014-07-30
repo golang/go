@@ -221,14 +221,14 @@ func makemap(t *maptype, hint int64) *hmap {
 		if checkgc {
 			memstats.next_gc = memstats.heap_alloc
 		}
-		buckets = unsafe_NewArray(t.bucket, uintptr(1)<<B)
+		buckets = newarray(t.bucket, uintptr(1)<<B)
 	}
 
 	// initialize Hmap
 	if checkgc {
 		memstats.next_gc = memstats.heap_alloc
 	}
-	h := (*hmap)(unsafe_New(t.hmap))
+	h := (*hmap)(newobject(t.hmap))
 	h.count = 0
 	h.B = B
 	h.flags = flags
@@ -405,7 +405,7 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 		if checkgc {
 			memstats.next_gc = memstats.heap_alloc
 		}
-		h.buckets = unsafe_NewArray(t.bucket, 1)
+		h.buckets = newarray(t.bucket, 1)
 	}
 
 again:
@@ -467,7 +467,7 @@ again:
 		if checkgc {
 			memstats.next_gc = memstats.heap_alloc
 		}
-		newb := (*bmap)(unsafe_New(t.bucket))
+		newb := (*bmap)(newobject(t.bucket))
 		b.overflow = newb
 		inserti = &newb.tophash[0]
 		insertk = add(unsafe.Pointer(newb), dataOffset)
@@ -479,7 +479,7 @@ again:
 		if checkgc {
 			memstats.next_gc = memstats.heap_alloc
 		}
-		kmem := unsafe_New(t.key)
+		kmem := newobject(t.key)
 		*(*unsafe.Pointer)(insertk) = kmem
 		insertk = kmem
 	}
@@ -487,7 +487,7 @@ again:
 		if checkgc {
 			memstats.next_gc = memstats.heap_alloc
 		}
-		vmem := unsafe_New(t.elem)
+		vmem := newobject(t.elem)
 		*(*unsafe.Pointer)(insertv) = vmem
 		insertv = vmem
 	}
@@ -742,7 +742,7 @@ func hashGrow(t *maptype, h *hmap) {
 	if checkgc {
 		memstats.next_gc = memstats.heap_alloc
 	}
-	newbuckets := unsafe_NewArray(t.bucket, uintptr(1)<<(h.B+1))
+	newbuckets := newarray(t.bucket, uintptr(1)<<(h.B+1))
 	flags := h.flags &^ (iterator | oldIterator)
 	if h.flags&iterator != 0 {
 		flags |= oldIterator
@@ -835,7 +835,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 						if checkgc {
 							memstats.next_gc = memstats.heap_alloc
 						}
-						newx := (*bmap)(unsafe_New(t.bucket))
+						newx := (*bmap)(newobject(t.bucket))
 						x.overflow = newx
 						x = newx
 						xi = 0
@@ -862,7 +862,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 						if checkgc {
 							memstats.next_gc = memstats.heap_alloc
 						}
-						newy := (*bmap)(unsafe_New(t.bucket))
+						newy := (*bmap)(newobject(t.bucket))
 						y.overflow = newy
 						y = newy
 						yi = 0

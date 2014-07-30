@@ -12,7 +12,7 @@ package PACKAGE
 
 // emitted by compiler, not referred to by go programs
 
-func new(typ *byte) *any
+func newobject(typ *byte) *any
 func panicindex()
 func panicslice()
 func panicdivide()

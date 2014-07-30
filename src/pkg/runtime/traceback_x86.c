@@ -428,3 +428,9 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
 
 	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m, nil, nil, false);
 }
+
+int32
+runtime·gcallers(G *gp, int32 skip, uintptr *pcbuf, int32 m)
+{
+	return runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, skip, pcbuf, m, nil, nil, false);
+}

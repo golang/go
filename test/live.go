@@ -397,9 +397,9 @@ func f27defer(b bool) {
 func f27go(b bool) {
 	x := 0
 	if b {
-		go call27(func() {x++}) // ERROR "live at call to new: &x" "live at call to newproc: &x$"
+		go call27(func() {x++}) // ERROR "live at call to newobject: &x" "live at call to newproc: &x$"
 	}
-	go call27(func() {x++}) // ERROR "live at call to new: &x"
+	go call27(func() {x++}) // ERROR "live at call to newobject: &x"
 	println()
 }
 
@@ -461,7 +461,7 @@ func f31(b1, b2, b3 bool) {
 		g31("a") // ERROR "live at call to convT2E: autotmp_[0-9]+$" "live at call to g31: autotmp_[0-9]+$"
 	}
 	if b2 {
-		h31("b") // ERROR "live at call to new: autotmp_[0-9]+$" "live at call to convT2E: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to h31: autotmp_[0-9]+$"
+		h31("b") // ERROR "live at call to newobject: autotmp_[0-9]+$" "live at call to convT2E: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to h31: autotmp_[0-9]+$"
 	}
 	if b3 {
 		panic("asdf") // ERROR "live at call to convT2E: autotmp_[0-9]+$" "live at call to panic: autotmp_[0-9]+$"
@@ -583,13 +583,13 @@ func f39a() (x []int) {
 }
 
 func f39b() (x [10]*int) {
-	x = [10]*int{new(int)} // ERROR "live at call to new: x"
+	x = [10]*int{new(int)} // ERROR "live at call to newobject: x"
 	println() // ERROR "live at call to printnl: x"
 	return x
 }
 
 func f39c() (x [10]*int) {
-	x = [10]*int{new(int)} // ERROR "live at call to new: x"
+	x = [10]*int{new(int)} // ERROR "live at call to newobject: x"
 	println() // ERROR "live at call to printnl: x"
 	return
 }

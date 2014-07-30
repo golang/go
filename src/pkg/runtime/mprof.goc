@@ -140,6 +140,37 @@ runtime·MProf_Malloc(void *p, uintptr size)
 	runtime·setprofilebucket(p, b);
 }
 
+// Called by malloc to record a profiled block.
+void
+runtime·mprofMalloc(void)
+{
+	uintptr stk[32];
+	Bucket *b;
+	int32 nstk;
+	uintptr size;
+	void *p;
+
+	size = g->m->scalararg[0];
+	p = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	
+	if(g->m->curg == nil)
+		nstk = runtime·callers(1, stk, nelem(stk));
+	else
+		nstk = runtime·gcallers(g->m->curg, 1, stk, nelem(stk));
+	runtime·lock(&proflock);
+	b = stkbucket(MProf, size, stk, nstk, true);
+	b->recent_allocs++;
+	b->recent_alloc_bytes += size;
+	runtime·unlock(&proflock);
+
+	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of proflock.
+	// This reduces potential contention and chances of deadlocks.
+	// Since the object must be alive during call to MProf_Malloc,
+	// it's fine to do this non-atomically.
+	runtime·setprofilebucket(p, b);
+}
+
 // Called when freeing a profiled block.
 void
 runtime·MProf_Free(Bucket *b, uintptr size, bool freed)

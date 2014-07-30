@@ -280,7 +280,7 @@ struct MStats
 	} by_size[NumSizeClasses];
 };
 
-#define mstats runtime·memStats
+#define mstats runtime·memstats
 extern MStats mstats;
 void	runtime·updatememstats(GCStats *stats);
 
@@ -500,6 +500,7 @@ struct MHeap
 	uint64 nlargefree;	// number of frees for large objects (>MaxSmallSize)
 	uint64 nsmallfree[NumSizeClasses];	// number of frees for small objects (<=MaxSmallSize)
 };
+#define runtime·mheap runtime·mheap_
 extern MHeap runtime·mheap;
 
 void	runtime·MHeap_Init(MHeap *h);
@@ -531,6 +532,10 @@ void	runtime·tracealloc(void*, uintptr, Type*);
 void	runtime·tracefree(void*, uintptr);
 void	runtime·tracegc(void);
 
+int32	runtime·gcpercent;
+int32	runtime·readgogc(void);
+void	runtime·clearpools(void);
+
 enum
 {
 	// flags to malloc
@@ -551,6 +556,7 @@ void	runtime·gchelper(void);
 void	runtime·createfing(void);
 G*	runtime·wakefing(void);
 void	runtime·getgcmask(byte*, Type*, byte**, uintptr*);
+extern G*	runtime·fing;
 extern bool	runtime·fingwait;
 extern bool	runtime·fingwake;
 
