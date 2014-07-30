@@ -165,6 +165,57 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	JMP	AX
 	RET
 
+// switchtoM is a dummy routine that onM leaves at the bottom
+// of the G stack.  We need to distinguish the routine that
+// lives at the bottom of the G stack from the one that lives
+// at the top of the M stack because the one at the top of
+// the M stack terminates the stack walk (see topofstack()).
+TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+	RET
+
+// void onM(void (*fn)())
+// calls fn() on the M stack.
+// switches to the M stack if not already on it, and
+// switches back when fn() returns.
+TEXT runtime·onM(SB), NOSPLIT, $0-4
+	MOVL	fn+0(FP), DI	// DI = fn
+	get_tls(CX)
+	MOVL	g(CX), AX	// AX = g
+	MOVL	g_m(AX), BX	// BX = m
+	MOVL	m_g0(BX), DX	// DX = g0
+	CMPL	AX, DX
+	JEQ	onm
+
+	// save our state in g->sched.  Pretend to
+	// be switchtoM if the G stack is scanned.
+	MOVL	$runtime·switchtoM(SB), SI
+	MOVL	SI, (g_sched+gobuf_pc)(AX)
+	MOVL	SP, (g_sched+gobuf_sp)(AX)
+	MOVL	AX, (g_sched+gobuf_g)(AX)
+
+	// switch to g0
+	MOVL	DX, g(CX)
+	MOVL	(g_sched+gobuf_sp)(DX), SP
+
+	// call target function
+	ARGSIZE(0)
+	CALL	DI
+
+	// switch back to g
+	get_tls(CX)
+	MOVL	g(CX), AX
+	MOVL	g_m(AX), BX
+	MOVL	m_curg(BX), AX
+	MOVL	AX, g(CX)
+	MOVL	(g_sched+gobuf_sp)(AX), SP
+	MOVL	$0, (g_sched+gobuf_sp)(AX)
+	RET
+
+onm:
+	// already on m stack, just call directly
+	CALL	DI
+	RET
+
 /*
  * support for morestack
  */

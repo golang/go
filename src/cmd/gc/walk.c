@@ -1915,7 +1915,7 @@ callnew(Type *t)
 	Node *fn;
 
 	dowidth(t);
-	fn = syslook("new", 1);
+	fn = syslook("newobject", 1);
 	argtype(fn, t);
 	return mkcall1(fn, ptrto(t), nil, typename(t));
 }

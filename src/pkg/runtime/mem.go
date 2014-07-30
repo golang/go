@@ -70,6 +70,3 @@ func init() {
 
 // ReadMemStats populates m with memory allocator statistics.
 func ReadMemStats(m *MemStats)
-
-// GC runs a garbage collection.
-func GC()

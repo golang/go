@@ -6,6 +6,7 @@ package runtime
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
+#include "stack.h"
 #include "../../cmd/ld/textflag.h"
 
 // This file contains functions called by Go but written
@@ -23,51 +24,17 @@ package runtime
 // finished converting runtime support code from C to Go.
 
 #pragma textflag NOSPLIT
-func rawstring(size intgo) (s String, b Slice) {
-	uintptr ms;
-	byte *p;
-
-	p = runtime·mallocgc(size, 0, FlagNoScan|FlagNoZero);
-	s.str = p;
-	s.len = size;
-	b.array = p;
-	b.len = size;
-	b.cap = size;
-	for(;;) {
-		ms = runtime·maxstring;
-		if((uintptr)size <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)size))
-			break;
-	}
+func golock(p *Lock) {
+	runtime·lock(p);
+}
+#pragma textflag NOSPLIT
+func gounlock(p *Lock) {
+	runtime·unlock(p);
 }
 
 #pragma textflag NOSPLIT
-func rawbyteslice(size intgo) (b Slice) {
-	uintptr cap;
-	byte *p;
-
-	cap = runtime·roundupsize(size);
-	p = runtime·mallocgc(cap, 0, FlagNoScan|FlagNoZero);
-	if(cap != size)
-		runtime·memclr(p + size, cap - size);
-	b.array = p;
-	b.len = size;
-	b.cap = cap;
-}
-
-#pragma textflag NOSPLIT
-func rawruneslice(size intgo) (b Slice) {
-	uintptr mem;
-	byte *p;
-
-	if(size > MaxMem/sizeof(int32))
-		runtime·throw("out of memory");
-	mem = runtime·roundupsize(size*sizeof(int32));
-	p = runtime·mallocgc(mem, 0, FlagNoScan|FlagNoZero);
-	if(mem != size*sizeof(int32))
-		runtime·memclr(p + size*sizeof(int32), mem - size*sizeof(int32));
-	b.array = p;
-	b.len = size;
-	b.cap = mem/sizeof(int32);
+func goreadgogc() (r int32) {
+	r = runtime·readgogc();
 }
 
 // entry point for testing
@@ -77,16 +44,38 @@ func gostringW(str Slice) (s String) {
 }
 
 #pragma textflag NOSPLIT
-func runtime·unsafe_New(t *Type) (ret *byte) {
-	ret = runtime·cnew(t);
-}
-
-#pragma textflag NOSPLIT
-func runtime·unsafe_NewArray(t *Type, n int) (ret *byte) {
-	ret = runtime·cnewarray(t, n);
+func gonanotime() (r int64) {
+	r = runtime·nanotime();
 }
 
 #pragma textflag NOSPLIT
 func runtime·gocas(p *uint32, x uint32, y uint32) (ret bool) {
 	ret = runtime·cas(p, x, y);
+}
+
+#pragma textflag NOSPLIT
+func runtime·gocasx(p *uintptr, x uintptr, y uintptr) (ret bool) {
+	ret = runtime·casp((void**)p, (void*)x, (void*)y);
+}
+
+#pragma textflag NOSPLIT
+func runtime·acquirem() (ret *M) {
+	ret = g->m;
+	ret->locks++;
+}
+
+#pragma textflag NOSPLIT
+func runtime·releasem(mp *M) {
+	mp->locks--;
+	if(mp->locks == 0 && g->preempt) {
+		// restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
+	}
+}
+
+// For testing.
+// TODO: find a better place for this.
+func GCMask(x Eface) (mask Slice) {
+	runtime·getgcmask(x.data, x.type, &mask.array, &mask.len);
+	mask.cap = mask.len;
 }

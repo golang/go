@@ -2,7 +2,7 @@
 char *runtimeimport =
 	"package runtime\n"
 	"import runtime \"runtime\"\n"
-	"func @\"\".new (@\"\".typ·2 *byte) (? *any)\n"
+	"func @\"\".newobject (@\"\".typ·2 *byte) (? *any)\n"
 	"func @\"\".panicindex ()\n"
 	"func @\"\".panicslice ()\n"
 	"func @\"\".panicdivide ()\n"

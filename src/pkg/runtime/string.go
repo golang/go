@@ -202,3 +202,56 @@ func stringiter2(s string, k int) (int, rune) {
 	r, n := charntorune(s[k:])
 	return k + n, r
 }
+
+// rawstring allocates storage for a new string. The returned
+// string and byte slice both refer to the same storage.
+// The storage is not zeroed. Callers should use
+// b to set the string contents and then drop b.
+func rawstring(size int) (s string, b []byte) {
+	p := gomallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
+
+	(*stringStruct)(unsafe.Pointer(&s)).str = p
+	(*stringStruct)(unsafe.Pointer(&s)).len = size
+
+	(*slice)(unsafe.Pointer(&b)).array = (*uint8)(p)
+	(*slice)(unsafe.Pointer(&b)).len = uint(size)
+	(*slice)(unsafe.Pointer(&b)).cap = uint(size)
+
+	for {
+		ms := maxstring
+		if uintptr(size) <= uintptr(ms) || gocasx((*uintptr)(unsafe.Pointer(&maxstring)), uintptr(ms), uintptr(size)) {
+			return
+		}
+	}
+}
+
+// rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
+func rawbyteslice(size int) (b []byte) {
+	cap := goroundupsize(uintptr(size))
+	p := gomallocgc(cap, nil, flagNoScan|flagNoZero)
+	if cap != uintptr(size) {
+		memclr(add(p, uintptr(size)), cap-uintptr(size))
+	}
+
+	(*slice)(unsafe.Pointer(&b)).array = (*uint8)(p)
+	(*slice)(unsafe.Pointer(&b)).len = uint(size)
+	(*slice)(unsafe.Pointer(&b)).cap = uint(cap)
+	return
+}
+
+// rawruneslice allocates a new rune slice. The rune slice is not zeroed.
+func rawruneslice(size int) (b []rune) {
+	if uintptr(size) > maxMem/4 {
+		gothrow("out of memory")
+	}
+	mem := goroundupsize(uintptr(size) * 4)
+	p := gomallocgc(mem, nil, flagNoScan|flagNoZero)
+	if mem != uintptr(size)*4 {
+		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
+	}
+
+	(*slice)(unsafe.Pointer(&b)).array = (*uint8)(p)
+	(*slice)(unsafe.Pointer(&b)).len = uint(size)
+	(*slice)(unsafe.Pointer(&b)).cap = uint(mem / 4)
+	return
+}

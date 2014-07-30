@@ -81,7 +81,7 @@ enum {
 #define GcpercentUnknown (-2)
 
 // Initialized from $GOGC.  GOGC=off means no gc.
-static int32 gcpercent = GcpercentUnknown;
+extern int32 runtime·gcpercent = GcpercentUnknown;
 
 static FuncVal* poolcleanup;
 
@@ -91,8 +91,8 @@ sync·runtime_registerPoolCleanup(FuncVal *f)
 	poolcleanup = f;
 }
 
-static void
-clearpools(void)
+void
+runtime·clearpools(void)
 {
 	P *p, **pp;
 	MCache *c;
@@ -174,7 +174,6 @@ bool	runtime·fingwait;
 bool	runtime·fingwake;
 
 static Lock	gclock;
-static G*	fing;
 
 static void	runfinq(void);
 static void	bgsweep(void);
@@ -670,6 +669,8 @@ scanframe(Stkframe *frame, void *unused)
 		// Frame is dead.
 		return true;
 	}
+	if(Debug > 1)
+		runtime·printf("scanframe %s\n", runtime·funcname(f));
 	if(targetpc != f->entry)
 		targetpc--;
 	pcdata = runtime·pcdatavalue(f, PCDATA_StackMapIndex, targetpc);
@@ -971,7 +972,7 @@ runtime·MSpan_Sweep(MSpan *s)
 				runtime·MHeap_Free(&runtime·mheap, s, 1);
 			c->local_nlargefree++;
 			c->local_largefree += size;
-			runtime·xadd64(&mstats.next_gc, -(uint64)(size * (gcpercent + 100)/100));
+			runtime·xadd64(&mstats.next_gc, -(uint64)(size * (runtime·gcpercent + 100)/100));
 			res = true;
 		} else {
 			// Free small object.
@@ -1005,7 +1006,7 @@ runtime·MSpan_Sweep(MSpan *s)
 	if(nfree > 0) {
 		c->local_nsmallfree[cl] += nfree;
 		c->local_cachealloc -= nfree * size;
-		runtime·xadd64(&mstats.next_gc, -(uint64)(nfree * size * (gcpercent + 100)/100));
+		runtime·xadd64(&mstats.next_gc, -(uint64)(nfree * size * (runtime·gcpercent + 100)/100));
 		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
 		// MCentral_FreeSpan updates sweepgen
 	}
@@ -1238,8 +1239,8 @@ struct gc_args
 static void gc(struct gc_args *args);
 static void mgc(G *gp);
 
-static int32
-readgogc(void)
+int32
+runtime·readgogc(void)
 {
 	byte *p;
 
@@ -1259,16 +1260,8 @@ runtime·gc(int32 force)
 	struct gc_args a;
 	int32 i;
 
-	// The atomic operations are not atomic if the uint64s
-	// are not aligned on uint64 boundaries. This has been
-	// a problem in the past.
-	if((((uintptr)&work.empty) & 7) != 0)
-		runtime·throw("runtime: gc work buffer is misaligned");
-	if((((uintptr)&work.full) & 7) != 0)
-		runtime·throw("runtime: gc work buffer is misaligned");
 	if(sizeof(Workbuf) != WorkbufSize)
 		runtime·throw("runtime: size of Workbuf is suboptimal");
-
 	// The gc is turned off (via enablegc) until
 	// the bootstrap has completed.
 	// Also, malloc gets called in the guts
@@ -1280,13 +1273,13 @@ runtime·gc(int32 force)
 	if(!mstats.enablegc || g == g->m->g0 || g->m->locks > 0 || runtime·panicking)
 		return;
 
-	if(gcpercent == GcpercentUnknown) {	// first time through
+	if(runtime·gcpercent == GcpercentUnknown) {	// first time through
 		runtime·lock(&runtime·mheap);
-		if(gcpercent == GcpercentUnknown)
-			gcpercent = readgogc();
+		if(runtime·gcpercent == GcpercentUnknown)
+			runtime·gcpercent = runtime·readgogc();
 		runtime·unlock(&runtime·mheap);
 	}
-	if(gcpercent < 0)
+	if(runtime·gcpercent < 0)
 		return;
 
 	runtime·semacquire(&runtime·worldsema, false);
@@ -1303,7 +1296,7 @@ runtime·gc(int32 force)
 	g->m->gcing = 1;
 	runtime·stoptheworld();
 	
-	clearpools();
+	runtime·clearpools();
 
 	// Run gc on the g0 stack.  We do this so that the g stack
 	// we're currently running on will no longer change.  Cuts
@@ -1341,6 +1334,23 @@ mgc(G *gp)
 	gp->param = nil;
 	gp->status = Grunning;
 	runtime·gogo(&gp->sched);
+}
+
+void
+runtime·mgc2(void)
+{
+	struct gc_args a;
+	G *gp;
+
+	gp = g->m->curg;
+	gp->status = Gwaiting;
+	gp->waitreason = "garbage collection";
+
+	a.start_time = g->m->scalararg[0];
+	a.eagersweep = g->m->scalararg[1];
+	gc(&a);
+
+	gp->status = Grunning;
 }
 
 static void
@@ -1409,10 +1419,10 @@ gc(struct gc_args *args)
 	cachestats();
 	// next_gc calculation is tricky with concurrent sweep since we don't know size of live heap
 	// estimate what was live heap size after previous GC (for tracing only)
-	heap0 = mstats.next_gc*100/(gcpercent+100);
+	heap0 = mstats.next_gc*100/(runtime·gcpercent+100);
 	// conservatively set next_gc to high value assuming that everything is live
 	// concurrent/lazy sweep will reduce this number while discovering new garbage
-	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
+	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*runtime·gcpercent/100;
 
 	t4 = runtime·nanotime();
 	mstats.last_gc = runtime·unixnanotime();  // must be Unix time to make sense to user
@@ -1554,12 +1564,12 @@ runtime·setgcpercent(int32 in) {
 	int32 out;
 
 	runtime·lock(&runtime·mheap);
-	if(gcpercent == GcpercentUnknown)
-		gcpercent = readgogc();
-	out = gcpercent;
+	if(runtime·gcpercent == GcpercentUnknown)
+		runtime·gcpercent = runtime·readgogc();
+	out = runtime·gcpercent;
 	if(in < 0)
 		in = -1;
-	gcpercent = in;
+	runtime·gcpercent = in;
 	runtime·unlock(&runtime·mheap);
 	return out;
 }
@@ -1678,15 +1688,22 @@ runfinq(void)
 void
 runtime·createfing(void)
 {
-	if(fing != nil)
+	if(runtime·fing != nil)
 		return;
 	// Here we use gclock instead of finlock,
 	// because newproc1 can allocate, which can cause on-demand span sweep,
 	// which can queue finalizers, which would deadlock.
 	runtime·lock(&gclock);
-	if(fing == nil)
-		fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
+	if(runtime·fing == nil)
+		runtime·fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
 	runtime·unlock(&gclock);
+}
+
+void
+runtime·createfingM(G *gp)
+{
+	runtime·createfing();
+	runtime·gogo(&gp->sched);
 }
 
 G*
@@ -1699,7 +1716,7 @@ runtime·wakefing(void)
 	if(runtime·fingwait && runtime·fingwake) {
 		runtime·fingwait = false;
 		runtime·fingwake = false;
-		res = fing;
+		res = runtime·fing;
 	}
 	runtime·unlock(&finlock);
 	return res;
@@ -1942,6 +1959,17 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
 		shift = (off % wordsPerBitmapWord) * gcBits;
 		((byte*)b)[shift/8] = 0;
 	}
+}
+
+void
+runtime·markallocated_m(void)
+{
+	M *mp;
+
+	mp = g->m;
+	runtime·markallocated(mp->ptrarg[0], mp->scalararg[0], mp->scalararg[1], mp->ptrarg[1], mp->scalararg[2] == 0);
+	mp->ptrarg[0] = nil;
+	mp->ptrarg[1] = nil;
 }
 
 // mark the block at v as freed.
