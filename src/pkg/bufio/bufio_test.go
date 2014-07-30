@@ -31,9 +31,6 @@ func newRot13Reader(r io.Reader) *rot13Reader {
 
 func (r13 *rot13Reader) Read(p []byte) (int, error) {
 	n, err := r13.r.Read(p)
-	if err != nil {
-		return n, err
-	}
 	for i := 0; i < n; i++ {
 		c := p[i] | 0x20 // lowercase byte
 		if 'a' <= c && c <= 'm' {
@@ -42,7 +39,7 @@ func (r13 *rot13Reader) Read(p []byte) (int, error) {
 			p[i] -= 13
 		}
 	}
-	return n, nil
+	return n, err
 }
 
 // Call ReadByte to accumulate the text of a file
