@@ -110,7 +110,7 @@ runtime·newosproc(M *mp, void *stk)
 	param.stack_base = (void*)mp->g0->stackbase;
 	param.stack_size = (byte*)stk - (byte*)mp->g0->stackbase;
 
-	param.child_tid = (intptr*)&mp->procid;
+	param.child_tid = (void*)&mp->procid;
 	param.parent_tid = nil;
 	param.tls_base = (void*)&mp->tls[0];
 	param.tls_size = sizeof mp->tls;
