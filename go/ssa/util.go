@@ -50,12 +50,23 @@ func isPointer(typ types.Type) bool {
 	return ok
 }
 
+// isInterface reports whether T's underlying type is an interface.
+func isInterface(T types.Type) bool {
+	_, ok := T.Underlying().(*types.Interface)
+	return ok
+}
+
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {
 	if p, ok := typ.Underlying().(*types.Pointer); ok {
 		return p.Elem()
 	}
 	return typ
+}
+
+// recvType returns the receiver type of method obj.
+func recvType(obj *types.Func) types.Type {
+	return obj.Type().(*types.Signature).Recv().Type()
 }
 
 // DefaultType returns the default "typed" type for an "untyped" type;
