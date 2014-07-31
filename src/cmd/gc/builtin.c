@@ -39,7 +39,7 @@ char *runtimeimport =
 	"func @\"\".stringtoslicerune (? string) (? []rune)\n"
 	"func @\"\".stringiter (? string, ? int) (? int)\n"
 	"func @\"\".stringiter2 (? string, ? int) (@\"\".retk·1 int, @\"\".retv·2 rune)\n"
-	"func @\"\".copy (@\"\".to·2 any, @\"\".fr·3 any, @\"\".wid·4 uintptr) (? int)\n"
+	"func @\"\".slicecopy (@\"\".to·2 any, @\"\".fr·3 any, @\"\".wid·4 uintptr) (? int)\n"
 	"func @\"\".slicestringcopy (@\"\".to·2 any, @\"\".fr·3 any) (? int)\n"
 	"func @\"\".typ2Itab (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte) (@\"\".ret·1 *byte)\n"
 	"func @\"\".convI2E (@\"\".elem·2 any) (@\"\".ret·1 any)\n"

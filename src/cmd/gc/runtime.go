@@ -53,7 +53,7 @@ func stringtoslicebyte(string) []byte
 func stringtoslicerune(string) []rune
 func stringiter(string, int) int
 func stringiter2(string, int) (retk int, retv rune)
-func copy(to any, fr any, wid uintptr) int
+func slicecopy(to any, fr any, wid uintptr) int
 func slicestringcopy(to any, fr any) int
 
 // interface conversions

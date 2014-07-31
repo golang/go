@@ -286,7 +286,7 @@ runtime·c128hash(uintptr *h, uintptr s, void *a)
 }
 
 void
-runtime·slicecopy(uintptr s, void *a, void *b)
+runtime·algslicecopy(uintptr s, void *a, void *b)
 {
 	USED(s);
 	if(b == nil) {
@@ -445,7 +445,7 @@ runtime·algarray[] =
 [ASTRING]	{ runtime·strhash, runtime·strequal, runtime·strprint, runtime·strcopy },
 [AINTER]	{ runtime·interhash, runtime·interequal, runtime·interprint, runtime·intercopy },
 [ANILINTER]	{ runtime·nilinterhash, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
-[ASLICE]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·slicecopy },
+[ASLICE]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·algslicecopy },
 [AFLOAT32]	{ runtime·f32hash, runtime·f32equal, runtime·memprint, runtime·memcopy },
 [AFLOAT64]	{ runtime·f64hash, runtime·f64equal, runtime·memprint, runtime·memcopy },
 [ACPLX64]	{ runtime·c64hash, runtime·c64equal, runtime·memprint, runtime·memcopy },

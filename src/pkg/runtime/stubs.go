@@ -27,6 +27,9 @@ func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
 //go:noescape
 func racereadrangepc(addr unsafe.Pointer, len int, callpc, pc uintptr)
 
+//go:noescape
+func racewriterangepc(addr unsafe.Pointer, len int, callpc, pc uintptr)
+
 // Should be a built-in for unsafe.Pointer?
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
