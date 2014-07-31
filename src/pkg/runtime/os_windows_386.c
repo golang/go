@@ -97,7 +97,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 	runtime·panicking = 1;
 
 	runtime·printf("Exception %x %p %p %p\n", info->ExceptionCode,
-		info->ExceptionInformation[0], info->ExceptionInformation[1], r->Eip);
+		(uintptr)info->ExceptionInformation[0], (uintptr)info->ExceptionInformation[1], (uintptr)r->Eip);
 
 	runtime·printf("PC=%x\n", r->Eip);
 	if(g->m->lockedg != nil && g->m->ncgo > 0 && gp == g->m->g0) {
