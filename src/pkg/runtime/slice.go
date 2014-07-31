@@ -22,11 +22,11 @@ func makeslice(t *slicetype, len64 int64, cap64 int64) sliceStruct {
 	// but since the cap is only being supplied implicitly, saying len is clearer.
 	// See issue 4085.
 	len := int(len64)
-	if len64 < 0 || int64(len) != len64 || t.elem.size > 0 && len > int(maxMem/uintptr(t.elem.size)) {
+	if len64 < 0 || int64(len) != len64 || t.elem.size > 0 && uintptr(len) > maxMem/uintptr(t.elem.size) {
 		panic(errorString("makeslice: len out of range"))
 	}
 	cap := int(cap64)
-	if cap < len || int64(cap) != cap64 || t.elem.size > 0 && cap > int(maxMem/uintptr(t.elem.size)) {
+	if cap < len || int64(cap) != cap64 || t.elem.size > 0 && uintptr(cap) > maxMem/uintptr(t.elem.size) {
 		panic(errorString("makeslice: cap out of range"))
 	}
 	p := newarray(t.elem, uintptr(cap))
@@ -42,7 +42,7 @@ func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
 	cap64 := int64(old.cap) + n
 	cap := int(cap64)
 
-	if int64(cap) != cap64 || cap < old.cap || t.elem.size > 0 && cap > int(maxMem/uintptr(t.elem.size)) {
+	if int64(cap) != cap64 || cap < old.cap || t.elem.size > 0 && uintptr(cap) > maxMem/uintptr(t.elem.size) {
 		panic(errorString("growslice: cap out of range"))
 	}
 
@@ -74,7 +74,7 @@ func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
 		}
 	}
 
-	if newcap >= int(maxMem/uintptr(et.size)) {
+	if uintptr(newcap) >= maxMem/uintptr(et.size) {
 		panic(errorString("growslice: cap out of range"))
 	}
 	lenmem := uintptr(old.len) * uintptr(et.size)
