@@ -21,7 +21,7 @@ MHeap runtime·mheap;
 #pragma dataflag NOPTR
 MStats runtime·memstats;
 
-void* runtime·cmallocgc(uintptr size, Type *typ, uint32 flag, void **ret);
+void runtime·cmallocgc(uintptr size, Type *typ, uint32 flag, void **ret);
 
 void*
 runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
