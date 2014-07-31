@@ -68,8 +68,7 @@ freedefer(Defer *d)
 		p->deferpool[sc] = d;
 		// No need to wipe out pointers in argp/pc/fn/args,
 		// because we empty the pool before GC.
-	} else
-		runtime·free(d);
+	}
 }
 
 // Create a new deferred function fn with siz bytes of arguments.

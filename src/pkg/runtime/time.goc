@@ -127,7 +127,6 @@ addtimer(Timer *t)
 			n = timers.cap*3 / 2;
 		nt = runtime·malloc(n*sizeof nt[0]);
 		runtime·memmove(nt, timers.t, timers.len*sizeof nt[0]);
-		runtime·free(timers.t);
 		timers.t = nt;
 		timers.cap = n;
 	}

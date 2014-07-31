@@ -19,7 +19,6 @@
 #include "malloc.h"
 
 static bool MCentral_Grow(MCentral *c);
-static void MCentral_Free(MCentral *c, MLink *v);
 static void MCentral_ReturnToHeap(MCentral *c, MSpan *s);
 
 // Initialize a single central free list.
@@ -94,7 +93,6 @@ havespan:
 		runtime·throw("empty span");
 	if(s->freelist == nil)
 		runtime·throw("freelist empty");
-	c->nfree -= n;
 	runtime·MSpanList_Remove(s);
 	runtime·MSpanList_InsertBack(&c->empty, s);
 	s->incache = true;
@@ -106,21 +104,11 @@ havespan:
 void
 runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s)
 {
-	MLink *v;
 	int32 cap, n;
 
 	runtime·lock(c);
 
 	s->incache = false;
-
-	// Move any explicitly freed items from the freebuf to the freelist.
-	while((v = s->freebuf) != nil) {
-		s->freebuf = v->next;
-		runtime·markfreed(v);
-		v->next = s->freelist;
-		s->freelist = v;
-		s->ref--;
-	}
 
 	if(s->ref == 0) {
 		// Free back to heap.  Unlikely, but possible.
@@ -131,72 +119,10 @@ runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s)
 	cap = (s->npages << PageShift) / s->elemsize;
 	n = cap - s->ref;
 	if(n > 0) {
-		c->nfree += n;
 		runtime·MSpanList_Remove(s);
 		runtime·MSpanList_Insert(&c->nonempty, s);
 	}
 	runtime·unlock(c);
-}
-
-// Free the list of objects back into the central free list c.
-// Called from runtime·free.
-void
-runtime·MCentral_FreeList(MCentral *c, MLink *start)
-{
-	MLink *next;
-
-	runtime·lock(c);
-	for(; start != nil; start = next) {
-		next = start->next;
-		MCentral_Free(c, start);
-	}
-	runtime·unlock(c);
-}
-
-// Helper: free one object back into the central free list.
-// Caller must hold lock on c on entry.  Holds lock on exit.
-static void
-MCentral_Free(MCentral *c, MLink *v)
-{
-	MSpan *s;
-
-	// Find span for v.
-	s = runtime·MHeap_Lookup(&runtime·mheap, v);
-	if(s == nil || s->ref == 0)
-		runtime·throw("invalid free");
-	if(s->state != MSpanInUse)
-		runtime·throw("free into stack span");
-	if(s->sweepgen != runtime·mheap.sweepgen)
-		runtime·throw("free into unswept span");
-	
-	// If the span is currently being used unsynchronized by an MCache,
-	// we can't modify the freelist.  Add to the freebuf instead.  The
-	// items will get moved to the freelist when the span is returned
-	// by the MCache.
-	if(s->incache) {
-		v->next = s->freebuf;
-		s->freebuf = v;
-		return;
-	}
-
-	// Move span to nonempty if necessary.
-	if(s->freelist == nil) {
-		runtime·MSpanList_Remove(s);
-		runtime·MSpanList_Insert(&c->nonempty, s);
-	}
-
-	// Add the object to span's free list.
-	runtime·markfreed(v);
-	v->next = s->freelist;
-	s->freelist = v;
-	s->ref--;
-	c->nfree++;
-
-	// If s is completely freed, return it to the heap.
-	if(s->ref == 0) {
-		MCentral_ReturnToHeap(c, s); // unlocks c
-		runtime·lock(c);
-	}
 }
 
 // Free n objects from a span s back into the central free list c.
@@ -220,7 +146,6 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
 	end->next = s->freelist;
 	s->freelist = start;
 	s->ref -= n;
-	c->nfree += n;
 	
 	// delay updating sweepgen until here.  This is the signal that
 	// the span may be used in an MCache, so it must come after the
@@ -285,7 +210,6 @@ MCentral_Grow(MCentral *c)
 	runtime·markspan((byte*)(s->start<<PageShift), size, n, size*n < (s->npages<<PageShift));
 
 	runtime·lock(c);
-	c->nfree += n;
 	runtime·MSpanList_Insert(&c->nonempty, s);
 	return true;
 }
@@ -294,15 +218,11 @@ MCentral_Grow(MCentral *c)
 static void
 MCentral_ReturnToHeap(MCentral *c, MSpan *s)
 {
-	int32 size;
-
-	size = runtime·class_to_size[c->sizeclass];
 	runtime·MSpanList_Remove(s);
 	s->needzero = 1;
 	s->freelist = nil;
 	if(s->ref != 0)
 		runtime·throw("ref wrong");
-	c->nfree -= (s->npages << PageShift) / size;
 	runtime·unlock(c);
 	runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
 	runtime·MHeap_Free(&runtime·mheap, s, 0);

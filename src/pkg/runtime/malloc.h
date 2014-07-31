@@ -331,7 +331,6 @@ struct MCache
 	uintptr	tinysize;
 	// The rest is not accessed on every malloc.
 	MSpan*	alloc[NumSizeClasses];	// spans to allocate from
-	MCacheList free[NumSizeClasses];// lists of explicitly freed objects
 
 	StackFreeList stackcache[NumStackOrders];
 
@@ -343,7 +342,6 @@ struct MCache
 };
 
 MSpan*	runtime·MCache_Refill(MCache *c, int32 sizeclass);
-void	runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size);
 void	runtime·MCache_ReleaseAll(MCache *c);
 void	runtime·stackcache_clear(MCache *c);
 
@@ -418,7 +416,6 @@ struct MSpan
 	byte	*limit;		// end of data in span
 	Lock	specialLock;	// guards specials list
 	Special	*specials;	// linked list of special records sorted by offset.
-	MLink	*freebuf;	// objects freed explicitly, not incorporated into freelist yet
 };
 
 void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
@@ -442,14 +439,12 @@ struct MCentral
 	int32 sizeclass;
 	MSpan nonempty;	// list of spans with a free object
 	MSpan empty;	// list of spans with no free objects (or cached in an MCache)
-	int32 nfree;	// # of objects available in nonempty spans
 };
 
 void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
 MSpan*	runtime·MCentral_CacheSpan(MCentral *c);
 void	runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s);
 bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
-void	runtime·MCentral_FreeList(MCentral *c, MLink *start); // TODO: need this?
 
 // Main malloc heap.
 // The heap itself is the "free[]" and "large" arrays,
@@ -522,7 +517,6 @@ int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
 void	runtime·gc(int32 force);
 uintptr	runtime·sweepone(void);
 void	runtime·markallocated(void *v, uintptr size, uintptr size0, Type* typ, bool scan);
-void	runtime·markfreed(void *v);
 void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);
 void	runtime·purgecachedstats(MCache*);
@@ -565,8 +559,6 @@ void	runtime·setprofilebucket(void *p, Bucket *b);
 bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, Type*, PtrType*);
 void	runtime·removefinalizer(void*);
 void	runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot);
-
-void	runtime·freeallspecials(MSpan *span, void *p, uintptr size);
 bool	runtime·freespecial(Special *s, void *p, uintptr size, bool freed);
 
 // Information from the compiler about the layout of stack frames.

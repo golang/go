@@ -41,100 +41,6 @@ runtime·malloc(uintptr size)
 	return runtime·mallocgc(size, nil, FlagNoInvokeGC);
 }
 
-// Free the object whose base pointer is v.
-void
-runtime·free(void *v)
-{
-	int32 sizeclass;
-	MSpan *s;
-	MCache *c;
-	uintptr size;
-
-	if(v == nil)
-		return;
-	
-	// If you change this also change mgc0.c:/^sweep,
-	// which has a copy of the guts of free.
-
-	if(g->m->mallocing)
-		runtime·throw("malloc/free - deadlock");
-	g->m->mallocing = 1;
-
-	if(!runtime·mlookup(v, nil, nil, &s)) {
-		runtime·printf("free %p: not an allocated block\n", v);
-		runtime·throw("free runtime·mlookup");
-	}
-	size = s->elemsize;
-	sizeclass = s->sizeclass;
-	// Objects that are smaller than TinySize can be allocated using tiny alloc,
-	// if then such object is combined with an object with finalizer, we will crash.
-	if(size < TinySize)
-		runtime·throw("freeing too small block");
-
-	if(runtime·debug.allocfreetrace)
-		runtime·tracefree(v, size);
-
-	// Ensure that the span is swept.
-	// If we free into an unswept span, we will corrupt GC bitmaps.
-	runtime·MSpan_EnsureSwept(s);
-
-	if(s->specials != nil)
-		runtime·freeallspecials(s, v, size);
-
-	c = g->m->mcache;
-	if(sizeclass == 0) {
-		// Large object.
-		s->needzero = 1;
-		// Must mark v freed before calling unmarkspan and MHeap_Free:
-		// they might coalesce v into other spans and change the bitmap further.
-		runtime·markfreed(v);
-		runtime·unmarkspan(v, s->npages<<PageShift);
-		// NOTE(rsc,dvyukov): The original implementation of efence
-		// in CL 22060046 used SysFree instead of SysFault, so that
-		// the operating system would eventually give the memory
-		// back to us again, so that an efence program could run
-		// longer without running out of memory. Unfortunately,
-		// calling SysFree here without any kind of adjustment of the
-		// heap data structures means that when the memory does
-		// come back to us, we have the wrong metadata for it, either in
-		// the MSpan structures or in the garbage collection bitmap.
-		// Using SysFault here means that the program will run out of
-		// memory fairly quickly in efence mode, but at least it won't
-		// have mysterious crashes due to confused memory reuse.
-		// It should be possible to switch back to SysFree if we also 
-		// implement and then call some kind of MHeap_DeleteSpan.
-		if(runtime·debug.efence) {
-			s->limit = nil;	// prevent mlookup from finding this span
-			runtime·SysFault((void*)(s->start<<PageShift), size);
-		} else
-			runtime·MHeap_Free(&runtime·mheap, s, 1);
-		c->local_nlargefree++;
-		c->local_largefree += size;
-	} else {
-		// Small object.
-		if(size > 2*sizeof(uintptr))
-			((uintptr*)v)[1] = (uintptr)0xfeedfeedfeedfeedll;	// mark as "needs to be zeroed"
-		else if(size > sizeof(uintptr))
-			((uintptr*)v)[1] = 0;
-		// Must mark v freed before calling MCache_Free:
-		// it might coalesce v and other blocks into a bigger span
-		// and change the bitmap further.
-		c->local_nsmallfree[sizeclass]++;
-		c->local_cachealloc -= size;
-		if(c->alloc[sizeclass] == s) {
-			// We own the span, so we can just add v to the freelist
-			runtime·markfreed(v);
-			((MLink*)v)->next = s->freelist;
-			s->freelist = v;
-			s->ref--;
-		} else {
-			// Someone else owns this span.  Add to free queue.
-			runtime·MCache_Free(c, v, sizeclass, size);
-		}
-	}
-	g->m->mallocing = 0;
-}
-
 int32
 runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 {
@@ -351,9 +257,6 @@ runtime·mallocinit(void)
 	// Initialize the rest of the allocator.	
 	runtime·MHeap_Init(&runtime·mheap);
 	g->m->mcache = runtime·allocmcache();
-
-	// See if it works.
-	runtime·free(runtime·malloc(TinySize));
 }
 
 void*
