@@ -45,7 +45,7 @@ static struct {
 };
 
 // Debug arguments.
-// These can be specified with the -d flag, as in "-d checknil"
+// These can be specified with the -d flag, as in "-d nil"
 // to set the debug_checknil variable. In general the list passed
 // to -d can be comma-separated.
 static struct {
