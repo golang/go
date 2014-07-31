@@ -258,3 +258,27 @@ func BenchmarkAllocation(b *testing.B) {
 		<-result
 	}
 }
+
+func TestPrintGC(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	done := make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				runtime.GC()
+			}
+		}
+	}()
+	for i := 0; i < 1e4; i++ {
+		func() {
+			defer print("")
+		}()
+	}
+	close(done)
+}

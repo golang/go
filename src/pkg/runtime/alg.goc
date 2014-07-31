@@ -66,7 +66,7 @@ runtime·memprint(uintptr s, void *a)
 		v = *(uint64*)a;
 		break;
 	}
-	runtime·printint(v);
+	runtime·printint_c(v);
 }
 
 void
@@ -332,7 +332,7 @@ void
 runtime·strprint(uintptr s, void *a)
 {
 	USED(s);
-	runtime·printstring(*(String*)a);
+	runtime·printstring_c(*(String*)a);
 }
 
 void
@@ -359,7 +359,7 @@ void
 runtime·interprint(uintptr s, void *a)
 {
 	USED(s);
-	runtime·printiface(*(Iface*)a);
+	runtime·printiface_c(*(Iface*)a);
 }
 
 void
@@ -393,7 +393,7 @@ void
 runtime·nilinterprint(uintptr s, void *a)
 {
 	USED(s);
-	runtime·printeface(*(Eface*)a);
+	runtime·printeface_c(*(Eface*)a);
 }
 
 void

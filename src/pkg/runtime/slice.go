@@ -141,14 +141,3 @@ func slicestringcopy(to []byte, fm string) int {
 	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer((*stringStruct)(unsafe.Pointer(&fm)).str), uintptr(n))
 	return n
 }
-
-var printslice_m byte
-
-func printslice(a sliceStruct) {
-	mp := acquirem()
-	mp.ptrarg[0] = a.array
-	mp.scalararg[0] = uint(a.len)
-	mp.scalararg[1] = uint(a.cap)
-	mcall(&printslice_m)
-	releasem(mp)
-}
