@@ -34,7 +34,7 @@ func RaceSemrelease(s *uint32)
 const raceenabled = true
 
 func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.kind &^ kindNoPointers
+	kind := t.kind & kindMask
 	if kind == kindArray || kind == kindStruct {
 		// for composite objects we have to read every address
 		// because a write might happen to any subobject.
