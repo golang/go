@@ -714,7 +714,6 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
 	span->specialLock.key = 0;
 	span->specials = nil;
 	span->needzero = 0;
-	span->freebuf = nil;
 }
 
 // Initialize an empty doubly-linked list.
@@ -937,40 +936,5 @@ runtime·freespecial(Special *s, void *p, uintptr size, bool freed)
 	default:
 		runtime·throw("bad special kind");
 		return true;
-	}
-}
-
-// Free all special records for p.
-void
-runtime·freeallspecials(MSpan *span, void *p, uintptr size)
-{
-	Special *s, **t, *list;
-	uintptr offset;
-
-	if(span->sweepgen != runtime·mheap.sweepgen)
-		runtime·throw("runtime: freeallspecials: unswept span");
-	// first, collect all specials into the list; then, free them
-	// this is required to not cause deadlock between span->specialLock and proflock
-	list = nil;
-	offset = (uintptr)p - (span->start << PageShift);
-	runtime·lock(&span->specialLock);
-	t = &span->specials;
-	while((s = *t) != nil) {
-		if(offset + size <= s->offset)
-			break;
-		if(offset <= s->offset) {
-			*t = s->next;
-			s->next = list;
-			list = s;
-		} else
-			t = &s->next;
-	}
-	runtime·unlock(&span->specialLock);
-
-	while(list != nil) {
-		s = list;
-		list = s->next;
-		if(!runtime·freespecial(s, p, size, true))
-			runtime·throw("can't explicitly free an object with a finalizer");
 	}
 }

@@ -1929,10 +1929,8 @@ allgadd(G *gp)
 		new = runtime·malloc(cap*sizeof(new[0]));
 		if(new == nil)
 			runtime·throw("runtime: cannot allocate memory");
-		if(runtime·allg != nil) {
+		if(runtime·allg != nil)
 			runtime·memmove(new, runtime·allg, runtime·allglen*sizeof(new[0]));
-			runtime·free(runtime·allg);
-		}
 		runtime·allg = new;
 		allgcap = cap;
 	}
