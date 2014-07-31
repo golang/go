@@ -120,3 +120,27 @@ func golock(x *lock)
 func gounlock(x *lock)
 func semacquire(*uint32, bool)
 func semrelease(*uint32)
+
+// Return the Go equivalent of the C Alg structure.
+// TODO: at some point Go will hold the truth for the layout
+// of runtime structures and C will be derived from it (if
+// needed at all).  At that point this function can go away.
+type goalgtype struct {
+	// function for hashing objects of this type
+	// (ptr to object, size, seed) -> hash
+	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
+}
+
+func goalg(a *alg) *goalgtype {
+	return (*goalgtype)(unsafe.Pointer(a))
+}
+
+// noescape hides a pointer from escape analysis.  noescape is
+// the identity function but escape analysis doesn't think the
+// output depends on the input.  noescape is inlined and currently
+// compiles down to a single xor instruction.
+// USE CAREFULLY!
+func noescape(p unsafe.Pointer) unsafe.Pointer {
+	x := uintptr(p)
+	return unsafe.Pointer(x ^ 0)
+}

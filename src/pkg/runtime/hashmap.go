@@ -259,7 +259,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero)
 	}
-	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
+	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -307,7 +307,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero), false
 	}
-	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
+	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(h.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -349,7 +349,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 	if h == nil || h.count == 0 {
 		return nil, nil
 	}
-	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
+	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(h.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -399,7 +399,7 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 		raceReadObjectPC(t.elem, val, callerpc, pc)
 	}
 
-	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
+	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
 
 	if h.buckets == nil {
 		if checkgc {
@@ -508,7 +508,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if h == nil || h.count == 0 {
 		return
 	}
-	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
+	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	bucket := hash & (uintptr(1)<<h.B - 1)
 	if h.oldbuckets != nil {
 		growWork(t, h, bucket)
@@ -664,7 +664,7 @@ next:
 				if goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
 					// If the item in the oldbucket is not destined for
 					// the current new bucket in the iteration, skip it.
-					hash := gohash(t.key.alg, k2, uintptr(t.key.size), uintptr(h.hash0))
+					hash := goalg(t.key.alg).hash(k2, uintptr(t.key.size), uintptr(h.hash0))
 					if hash&(uintptr(1)<<it.B-1) != checkBucket {
 						continue
 					}
@@ -804,7 +804,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 				}
 				// Compute hash to make our evacuation decision (whether we need
 				// to send this key/value to bucket x or bucket y).
-				hash := gohash(t.key.alg, k2, uintptr(t.key.size), uintptr(h.hash0))
+				hash := goalg(t.key.alg).hash(k2, uintptr(t.key.size), uintptr(h.hash0))
 				if h.flags&iterator != 0 {
 					if !goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
 						// If key != key (NaNs), then the hash could be (and probably
@@ -905,7 +905,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 }
 
 func ismapkey(t *_type) bool {
-	return *(*uintptr)(unsafe.Pointer(&t.alg.hash)) != nohashcode
+	return **(**uintptr)(unsafe.Pointer(&t.alg.hash)) != nohashcode
 }
 
 // Reflect stubs.  Called from ../reflect/asm_*.s

@@ -1181,40 +1181,10 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
 	MOVL	DX, ret+0(FP)
 	RET
 
-// The gohash and goeq trampolines are necessary while we have
+// The goeq trampoline is necessary while we have
 // both Go and C calls to alg functions.  Once we move all call
-// sites to Go, we can redo the hash/eq functions to use the
-// Go calling convention and remove these.
-
-// convert call to:
-//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
-// to:
-//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
-TEXT runtime·gohash(SB), NOSPLIT, $16-20
-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
-	MOVL	a+0(FP), AX
-	MOVL	alg_hash(AX), AX
-	MOVL	p+4(FP), CX
-	MOVL	size+8(FP), DX
-	MOVL	seed+12(FP), DI
-	MOVL	DI, ret+16(FP)
-	LEAL	ret+16(FP), SI
-	MOVL	SI, 0(SP)
-	MOVL	DX, 4(SP)
-	MOVL	CX, 8(SP)
-	PCDATA  $PCDATA_StackMapIndex, $0
-	CALL	*AX
-	RET
-
-DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
-DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
-GLOBL gcargs_gohash<>(SB),RODATA,$12
-
-DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
-GLOBL gclocals_gohash<>(SB),RODATA,$8
+// sites to Go, we can redo the eq functions to use the
+// Go calling convention and remove this.
 
 // convert call to:
 //   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool

@@ -23,7 +23,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 		// One-bucket table.  No need to hash.
 		b = (*bmap)(h.buckets)
 	} else {
-		hash := gohash(t.key.alg, unsafe.Pointer(&key), 4, uintptr(h.hash0))
+		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 4, uintptr(h.hash0))
 		m := uintptr(1)<<h.B - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
 		if c := h.oldbuckets; c != nil {
@@ -67,7 +67,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 		// One-bucket table.  No need to hash.
 		b = (*bmap)(h.buckets)
 	} else {
-		hash := gohash(t.key.alg, unsafe.Pointer(&key), 4, uintptr(h.hash0))
+		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 4, uintptr(h.hash0))
 		m := uintptr(1)<<h.B - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
 		if c := h.oldbuckets; c != nil {
@@ -111,7 +111,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		// One-bucket table.  No need to hash.
 		b = (*bmap)(h.buckets)
 	} else {
-		hash := gohash(t.key.alg, unsafe.Pointer(&key), 8, uintptr(h.hash0))
+		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 8, uintptr(h.hash0))
 		m := uintptr(1)<<h.B - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
 		if c := h.oldbuckets; c != nil {
@@ -155,7 +155,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 		// One-bucket table.  No need to hash.
 		b = (*bmap)(h.buckets)
 	} else {
-		hash := gohash(t.key.alg, unsafe.Pointer(&key), 8, uintptr(h.hash0))
+		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 8, uintptr(h.hash0))
 		m := uintptr(1)<<h.B - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
 		if c := h.oldbuckets; c != nil {
@@ -254,7 +254,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		return unsafe.Pointer(t.elem.zero)
 	}
 dohash:
-	hash := gohash(t.key.alg, unsafe.Pointer(&ky), 2*ptrSize, uintptr(h.hash0))
+	hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&ky)), 2*ptrSize, uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -356,7 +356,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		return unsafe.Pointer(t.elem.zero), false
 	}
 dohash:
-	hash := gohash(t.key.alg, unsafe.Pointer(&ky), 2*ptrSize, uintptr(h.hash0))
+	hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&ky)), 2*ptrSize, uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
 	if c := h.oldbuckets; c != nil {

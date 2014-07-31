@@ -633,7 +633,7 @@ enum
 typedef	struct	Alg		Alg;
 struct	Alg
 {
-	void	(*hash)(uintptr*, uintptr, void*);
+	FuncVal* hash;
 	void	(*equal)(bool*, uintptr, void*, void*);
 	void	(*print)(uintptr, void*);
 	void	(*copy)(uintptr, void*, void*);
@@ -651,15 +651,19 @@ enum {
 };
 void	runtime·hashinit(void);
 
-void	runtime·memhash(uintptr*, uintptr, void*);
-void	runtime·nohash(uintptr*, uintptr, void*);
-void	runtime·strhash(uintptr*, uintptr, void*);
-void	runtime·interhash(uintptr*, uintptr, void*);
-void	runtime·nilinterhash(uintptr*, uintptr, void*);
-void	runtime·aeshash(uintptr*, uintptr, void*);
-void	runtime·aeshash32(uintptr*, uintptr, void*);
-void	runtime·aeshash64(uintptr*, uintptr, void*);
-void	runtime·aeshashstr(uintptr*, uintptr, void*);
+uintptr	runtime·memhash(void*, uintptr, uintptr);
+uintptr	runtime·nohash(void*, uintptr, uintptr);
+uintptr	runtime·strhash(void*, uintptr, uintptr);
+uintptr	runtime·interhash(void*, uintptr, uintptr);
+uintptr	runtime·nilinterhash(void*, uintptr, uintptr);
+uintptr	runtime·f32hash(void*, uintptr, uintptr);
+uintptr	runtime·f64hash(void*, uintptr, uintptr);
+uintptr	runtime·c64hash(void*, uintptr, uintptr);
+uintptr	runtime·c128hash(void*, uintptr, uintptr);
+uintptr	runtime·aeshash(void*, uintptr, uintptr);
+uintptr	runtime·aeshash32(void*, uintptr, uintptr);
+uintptr	runtime·aeshash64(void*, uintptr, uintptr);
+uintptr	runtime·aeshashstr(void*, uintptr, uintptr);
 
 void	runtime·memequal(bool*, uintptr, void*, void*);
 void	runtime·noequal(bool*, uintptr, void*, void*);

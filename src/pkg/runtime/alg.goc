@@ -7,34 +7,7 @@ package runtime
 #include "type.h"
 #include "../../cmd/ld/textflag.h"
 
-#define M0 (sizeof(uintptr)==4 ? 2860486313UL : 33054211828000289ULL)
-#define M1 (sizeof(uintptr)==4 ? 3267000013UL : 23344194077549503ULL)
-
-static bool use_aeshash;
-
-/*
- * map and chan helpers for
- * dealing with unknown types
- */
-void
-runtime·memhash(uintptr *h, uintptr s, void *a)
-{
-	byte *b;
-	uintptr hash;
-	if(!NaCl && use_aeshash) {
-		runtime·aeshash(h, s, a);
-		return;
-	}
-
-	b = a;
-	hash = M0 ^ *h;
-	while(s > 0) {
-		hash = (hash ^ *b) * M1;
-		b++;
-		s--;
-	}
-	*h = hash;
-}
+bool runtime·use_aeshash;
 
 void
 runtime·memequal(bool *eq, uintptr s, void *a, void *b)
@@ -224,67 +197,6 @@ runtime·c128equal(bool *eq, uintptr s, void *a, void *b)
 	*eq = ca->real == cb->real && ca->imag == cb->imag;
 }
 
-// NOTE: Because NaN != NaN, a map can contain any
-// number of (mostly useless) entries keyed with NaNs.
-// To avoid long hash chains, we assign a random number
-// as the hash value for a NaN.
-
-void
-runtime·f32hash(uintptr *h, uintptr s, void *a)
-{
-	uintptr hash;
-	float32 f;
-
-	USED(s);
-	f = *(float32*)a;
-	if(f == 0)
-		hash = 0;  // +0, -0
-	else if(f != f)
-		hash = runtime·fastrand1();  // any kind of NaN
-	else
-		hash = *(uint32*)a;
-	*h = (*h ^ hash ^ M0) * M1;
-}
-
-void
-runtime·f64hash(uintptr *h, uintptr s, void *a)
-{
-	uintptr hash;
-	float64 f;
-	uint64 u;
-
-	USED(s);
-	f = *(float64*)a;
-	if(f == 0)
-		hash = 0;	// +0, -0
-	else if(f != f)
-		hash = runtime·fastrand1();  // any kind of NaN
-	else {
-		u = *(uint64*)a;
-		if(sizeof(uintptr) == 4)
-			hash = ((uint32)(u>>32) * M1) ^ (uint32)u;
-		else
-			hash = u;
-	}
-	*h = (*h ^ hash ^ M0) * M1;
-}
-
-void
-runtime·c64hash(uintptr *h, uintptr s, void *a)
-{
-	USED(s);
-	runtime·f32hash(h, 0, a);
-	runtime·f32hash(h, 0, (float32*)a+1);
-}
-
-void
-runtime·c128hash(uintptr *h, uintptr s, void *a)
-{
-	USED(s);
-	runtime·f64hash(h, 0, a);
-	runtime·f64hash(h, 0, (float64*)a+1);
-}
-
 void
 runtime·algslicecopy(uintptr s, void *a, void *b)
 {
@@ -298,13 +210,6 @@ runtime·algslicecopy(uintptr s, void *a, void *b)
 	((Slice*)a)->array = ((Slice*)b)->array;
 	((Slice*)a)->len = ((Slice*)b)->len;
 	((Slice*)a)->cap = ((Slice*)b)->cap;
-}
-
-void
-runtime·strhash(uintptr *h, uintptr s, void *a)
-{
-	USED(s);
-	runtime·memhash(h, ((String*)a)->len, ((String*)a)->str);
 }
 
 void
@@ -349,13 +254,6 @@ runtime·strcopy(uintptr s, void *a, void *b)
 }
 
 void
-runtime·interhash(uintptr *h, uintptr s, void *a)
-{
-	USED(s);
-	*h = runtime·ifacehash(*(Iface*)a, *h ^ M0) * M1;
-}
-
-void
 runtime·interprint(uintptr s, void *a)
 {
 	USED(s);
@@ -380,13 +278,6 @@ runtime·intercopy(uintptr s, void *a, void *b)
 	}
 	((Iface*)a)->tab = ((Iface*)b)->tab;
 	((Iface*)a)->data = ((Iface*)b)->data;
-}
-
-void
-runtime·nilinterhash(uintptr *h, uintptr s, void *a)
-{
-	USED(s);
-	*h = runtime·efacehash(*(Eface*)a, *h ^ M0) * M1;
 }
 
 void
@@ -416,15 +307,6 @@ runtime·nilintercopy(uintptr s, void *a, void *b)
 	((Eface*)a)->data = ((Eface*)b)->data;
 }
 
-void
-runtime·nohash(uintptr *h, uintptr s, void *a)
-{
-	USED(s);
-	USED(a);
-	USED(h);
-	runtime·panicstring("hash of unhashable type");
-}
-
 extern uintptr runtime·nohashcode;
 
 void
@@ -437,31 +319,46 @@ runtime·noequal(bool *eq, uintptr s, void *a, void *b)
 	runtime·panicstring("comparing uncomparable types");
 }
 
+static FuncVal memhashfunc = {(void*)runtime·memhash};
+static FuncVal nohashfunc = {(void*)runtime·nohash};
+static FuncVal strhashfunc = {(void*)runtime·strhash};
+static FuncVal interhashfunc = {(void*)runtime·interhash};
+static FuncVal nilinterhashfunc = {(void*)runtime·nilinterhash};
+static FuncVal f32hashfunc = {(void*)runtime·f32hash};
+static FuncVal f64hashfunc = {(void*)runtime·f64hash};
+static FuncVal c64hashfunc = {(void*)runtime·c64hash};
+static FuncVal c128hashfunc = {(void*)runtime·c128hash};
+
+static FuncVal aeshashfunc = {(void*)runtime·aeshash};
+static FuncVal aeshash32func = {(void*)runtime·aeshash32};
+static FuncVal aeshash64func = {(void*)runtime·aeshash64};
+static FuncVal aeshashstrfunc = {(void*)runtime·aeshashstr};
+
 Alg
 runtime·algarray[] =
 {
-[AMEM]		{ runtime·memhash, runtime·memequal, runtime·memprint, runtime·memcopy },
-[ANOEQ]		{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy },
-[ASTRING]	{ runtime·strhash, runtime·strequal, runtime·strprint, runtime·strcopy },
-[AINTER]	{ runtime·interhash, runtime·interequal, runtime·interprint, runtime·intercopy },
-[ANILINTER]	{ runtime·nilinterhash, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
-[ASLICE]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·algslicecopy },
-[AFLOAT32]	{ runtime·f32hash, runtime·f32equal, runtime·memprint, runtime·memcopy },
-[AFLOAT64]	{ runtime·f64hash, runtime·f64equal, runtime·memprint, runtime·memcopy },
-[ACPLX64]	{ runtime·c64hash, runtime·c64equal, runtime·memprint, runtime·memcopy },
-[ACPLX128]	{ runtime·c128hash, runtime·c128equal, runtime·memprint, runtime·memcopy },
-[AMEM0]		{ runtime·memhash, runtime·memequal0, runtime·memprint, runtime·memcopy0 },
-[AMEM8]		{ runtime·memhash, runtime·memequal8, runtime·memprint, runtime·memcopy8 },
-[AMEM16]	{ runtime·memhash, runtime·memequal16, runtime·memprint, runtime·memcopy16 },
-[AMEM32]	{ runtime·memhash, runtime·memequal32, runtime·memprint, runtime·memcopy32 },
-[AMEM64]	{ runtime·memhash, runtime·memequal64, runtime·memprint, runtime·memcopy64 },
-[AMEM128]	{ runtime·memhash, runtime·memequal128, runtime·memprint, runtime·memcopy128 },
-[ANOEQ0]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy0 },
-[ANOEQ8]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy8 },
-[ANOEQ16]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy16 },
-[ANOEQ32]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy32 },
-[ANOEQ64]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy64 },
-[ANOEQ128]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy128 },
+[AMEM]		{ &memhashfunc, runtime·memequal, runtime·memprint, runtime·memcopy },
+[ANOEQ]		{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy },
+[ASTRING]	{ &strhashfunc, runtime·strequal, runtime·strprint, runtime·strcopy },
+[AINTER]	{ &interhashfunc, runtime·interequal, runtime·interprint, runtime·intercopy },
+[ANILINTER]	{ &nilinterhashfunc, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
+[ASLICE]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·algslicecopy },
+[AFLOAT32]	{ &f32hashfunc, runtime·f32equal, runtime·memprint, runtime·memcopy },
+[AFLOAT64]	{ &f64hashfunc, runtime·f64equal, runtime·memprint, runtime·memcopy },
+[ACPLX64]	{ &c64hashfunc, runtime·c64equal, runtime·memprint, runtime·memcopy },
+[ACPLX128]	{ &c128hashfunc, runtime·c128equal, runtime·memprint, runtime·memcopy },
+[AMEM0]		{ &memhashfunc, runtime·memequal0, runtime·memprint, runtime·memcopy0 },
+[AMEM8]		{ &memhashfunc, runtime·memequal8, runtime·memprint, runtime·memcopy8 },
+[AMEM16]	{ &memhashfunc, runtime·memequal16, runtime·memprint, runtime·memcopy16 },
+[AMEM32]	{ &memhashfunc, runtime·memequal32, runtime·memprint, runtime·memcopy32 },
+[AMEM64]	{ &memhashfunc, runtime·memequal64, runtime·memprint, runtime·memcopy64 },
+[AMEM128]	{ &memhashfunc, runtime·memequal128, runtime·memprint, runtime·memcopy128 },
+[ANOEQ0]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy0 },
+[ANOEQ8]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy8 },
+[ANOEQ16]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy16 },
+[ANOEQ32]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy32 },
+[ANOEQ64]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy64 },
+[ANOEQ128]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy128 },
 };
 
 // Runtime helpers.
@@ -483,15 +380,14 @@ runtime·hashinit(void)
 	   (runtime·cpuid_ecx & (1 << 19)) != 0) {  // sse4.1 (pinsr{d,q})
 		byte *rnd;
 		int32 n;
-		use_aeshash = true;
-		runtime·algarray[AMEM].hash = runtime·aeshash;
-		runtime·algarray[AMEM8].hash = runtime·aeshash;
-		runtime·algarray[AMEM16].hash = runtime·aeshash;
-		runtime·algarray[AMEM32].hash = runtime·aeshash32;
-		runtime·algarray[AMEM64].hash = runtime·aeshash64;
-		runtime·algarray[AMEM128].hash = runtime·aeshash;
-		runtime·algarray[ASTRING].hash = runtime·aeshashstr;
-
+		runtime·use_aeshash = true;
+		runtime·algarray[AMEM].hash = &aeshashfunc;
+		runtime·algarray[AMEM8].hash = &aeshashfunc;
+		runtime·algarray[AMEM16].hash = &aeshashfunc;
+		runtime·algarray[AMEM32].hash = &aeshash32func;
+		runtime·algarray[AMEM64].hash = &aeshash64func;
+		runtime·algarray[AMEM128].hash = &aeshashfunc;
+		runtime·algarray[ASTRING].hash = &aeshashstrfunc;
 		// Initialize with random data so hash collisions will be hard to engineer.
 		runtime·get_random_data(&rnd, &n);
 		if(n > HashRandomBytes)
@@ -524,29 +420,4 @@ runtime·equal(Type *t, ...)
 // Testing adapter for memclr
 func memclrBytes(s Slice) {
 	runtime·memclr(s.array, s.len);
-}
-
-// Testing adapters for hash quality tests (see hash_test.go)
-func haveGoodHash() (res bool) {
-	res = use_aeshash;
-}
-
-func stringHash(s String, seed uintptr) (res uintptr) {
-	runtime·algarray[ASTRING].hash(&seed, sizeof(String), &s);
-	res = seed;
-}
-
-func bytesHash(s Slice, seed uintptr) (res uintptr) {
-	runtime·algarray[AMEM].hash(&seed, s.len, s.array);
-	res = seed;
-}
-
-func int32Hash(i uint32, seed uintptr) (res uintptr) {
-	runtime·algarray[AMEM32].hash(&seed, sizeof(uint32), &i);
-	res = seed;
-}
-
-func int64Hash(i uint64, seed uintptr) (res uintptr) {
-	runtime·algarray[AMEM64].hash(&seed, sizeof(uint64), &i);
-	res = seed;
 }
