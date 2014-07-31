@@ -487,17 +487,16 @@ ifacehash1(void *data, Type *t, uintptr h)
 
 	alg = t->alg;
 	size = t->size;
-	if(alg->hash == runtime·nohash) {
+	if(alg->hash->fn == (void(*)())runtime·nohash) {
 		// calling nohash will panic too,
 		// but we can print a better error.
 		runtime·newErrorString(runtime·catstring(runtime·gostringnocopy((byte*)"hash of unhashable type "), *t->string), &err);
 		runtime·panic(err);
 	}
 	if(size <= sizeof(data))
-		alg->hash(&h, size, &data);
+		return ((uintptr(*)(void**,uintptr,uintptr))alg->hash)(&data, size, h);
 	else
-		alg->hash(&h, size, data);
-	return h;
+		return ((uintptr(*)(void*,uintptr,uintptr))alg->hash)(data, size, h);
 }
 
 uintptr

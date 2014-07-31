@@ -2625,9 +2625,10 @@ hashmem(Type *t)
 	n = newname(sym);
 	n->class = PFUNC;
 	tfn = nod(OTFUNC, N, N);
-	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(types[TUINTPTR]))));
-	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
 	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
+	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+	tfn->rlist = list(tfn->rlist, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
 	typecheck(&tfn, Etype);
 	n->type = tfn->type;
 	return n;
@@ -2673,9 +2674,10 @@ hashfor(Type *t)
 	n = newname(sym);
 	n->class = PFUNC;
 	tfn = nod(OTFUNC, N, N);
-	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(types[TUINTPTR]))));
-	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
 	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
+	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+	tfn->rlist = list(tfn->rlist, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
 	typecheck(&tfn, Etype);
 	n->type = tfn->type;
 	return n;
@@ -2687,7 +2689,7 @@ hashfor(Type *t)
 void
 genhash(Sym *sym, Type *t)
 {
-	Node *n, *fn, *np, *nh, *ni, *call, *nx, *na, *tfn;
+	Node *n, *fn, *np, *nh, *ni, *call, *nx, *na, *tfn, *r;
 	Node *hashel;
 	Type *first, *t1;
 	int old_safemode;
@@ -2700,21 +2702,23 @@ genhash(Sym *sym, Type *t)
 	dclcontext = PEXTERN;
 	markdcl();
 
-	// func sym(h *uintptr, s uintptr, p *T)
+	// func sym(p *T, s uintptr, h uintptr) uintptr
 	fn = nod(ODCLFUNC, N, N);
 	fn->nname = newname(sym);
 	fn->nname->class = PFUNC;
 	tfn = nod(OTFUNC, N, N);
 	fn->nname->ntype = tfn;
 
-	n = nod(ODCLFIELD, newname(lookup("h")), typenod(ptrto(types[TUINTPTR])));
-	tfn->list = list(tfn->list, n);
-	nh = n->left;
-	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
-	tfn->list = list(tfn->list, n);
 	n = nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)));
 	tfn->list = list(tfn->list, n);
 	np = n->left;
+	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
+	tfn->list = list(tfn->list, n);
+	n = nod(ODCLFIELD, newname(lookup("h")), typenod(types[TUINTPTR]));
+	tfn->list = list(tfn->list, n);
+	nh = n->left;
+	n = nod(ODCLFIELD, N, typenod(types[TUINTPTR])); // return value
+	tfn->rlist = list(tfn->rlist, n);
 
 	funchdr(fn);
 	typecheck(&fn->nname->ntype, Etype);
@@ -2740,15 +2744,17 @@ genhash(Sym *sym, Type *t)
 		colasdefn(n->list, n);
 		ni = n->list->n;
 
-		// *h = *h<<3 | *h>>61
+		// TODO: with aeshash we don't need these shift/mul parts
+
+		// h = h<<3 | h>>61
 		n->nbody = list(n->nbody,
 			nod(OAS,
-				nod(OIND, nh, N),
+			    nh,
 				nod(OOR,
-					nod(OLSH, nod(OIND, nh, N), nodintconst(3)),
-					nod(ORSH, nod(OIND, nh, N), nodintconst(widthptr*8-3)))));
+					nod(OLSH, nh, nodintconst(3)),
+					nod(ORSH, nh, nodintconst(widthptr*8-3)))));
 
-		// *h *= mul
+		// h *= mul
 		// Same multipliers as in runtime.memhash.
 		if(widthptr == 4)
 			mul = 3267000013LL;
@@ -2756,19 +2762,19 @@ genhash(Sym *sym, Type *t)
 			mul = 23344194077549503LL;
 		n->nbody = list(n->nbody,
 			nod(OAS,
-				nod(OIND, nh, N),
-				nod(OMUL, nod(OIND, nh, N), nodintconst(mul))));
+				nh,
+				nod(OMUL, nh, nodintconst(mul))));
 
-		// hashel(h, sizeof(p[i]), &p[i])
+		// h = hashel(&p[i], sizeof(p[i]), h)
 		call = nod(OCALL, hashel, N);
-		call->list = list(call->list, nh);
-		call->list = list(call->list, nodintconst(t->type->width));
 		nx = nod(OINDEX, np, ni);
 		nx->bounded = 1;
 		na = nod(OADDR, nx, N);
 		na->etype = 1;  // no escape to heap
 		call->list = list(call->list, na);
-		n->nbody = list(n->nbody, call);
+		call->list = list(call->list, nodintconst(t->type->width));
+		call->list = list(call->list, nh);
+		n->nbody = list(n->nbody, nod(OAS, nh, call));
 
 		fn->nbody = list(fn->nbody, n);
 		break;
@@ -2793,15 +2799,15 @@ genhash(Sym *sym, Type *t)
 			if(first != T) {
 				size = offend - first->width; // first->width is offset
 				hashel = hashmem(first->type);
-				// hashel(h, size, &p.first)
+				// h = hashel(&p.first, size, h)
 				call = nod(OCALL, hashel, N);
-				call->list = list(call->list, nh);
-				call->list = list(call->list, nodintconst(size));
 				nx = nod(OXDOT, np, newname(first->sym));  // TODO: fields from other packages?
 				na = nod(OADDR, nx, N);
 				na->etype = 1;  // no escape to heap
 				call->list = list(call->list, na);
-				fn->nbody = list(fn->nbody, call);
+				call->list = list(call->list, nodintconst(size));
+				call->list = list(call->list, nh);
+				fn->nbody = list(fn->nbody, nod(OAS, nh, call));
 
 				first = T;
 			}
@@ -2812,20 +2818,21 @@ genhash(Sym *sym, Type *t)
 
 			// Run hash for this field.
 			hashel = hashfor(t1->type);
-			// hashel(h, size, &p.t1)
+			// h = hashel(&p.t1, size, h)
 			call = nod(OCALL, hashel, N);
-			call->list = list(call->list, nh);
-			call->list = list(call->list, nodintconst(t1->type->width));
 			nx = nod(OXDOT, np, newname(t1->sym));  // TODO: fields from other packages?
 			na = nod(OADDR, nx, N);
 			na->etype = 1;  // no escape to heap
 			call->list = list(call->list, na);
-			fn->nbody = list(fn->nbody, call);
+			call->list = list(call->list, nodintconst(t1->type->width));
+			call->list = list(call->list, nh);
+			fn->nbody = list(fn->nbody, nod(OAS, nh, call));
 		}
-		// make sure body is not empty.
-		fn->nbody = list(fn->nbody, nod(ORETURN, N, N));
 		break;
 	}
+	r = nod(ORETURN, N, N);
+	r->list = list(r->list, nh);
+	fn->nbody = list(fn->nbody, r);
 
 	if(debug['r'])
 		dumplist("genhash body", fn->nbody);

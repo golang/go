@@ -954,24 +954,22 @@ TEXT runtime·stackguard(SB),NOSPLIT,$0-16
 GLOBL runtime·tls0(SB), $64
 
 // hash function using AES hardware instructions
-TEXT runtime·aeshash(SB),NOSPLIT,$0-24
-	MOVQ	8(SP), DX	// ptr to hash value
-	MOVQ	16(SP), CX	// size
-	MOVQ	24(SP), AX	// ptr to data
+TEXT runtime·aeshash(SB),NOSPLIT,$0-32
+	MOVQ	p+0(FP), AX	// ptr to data
+	MOVQ	s+8(FP), CX	// size
 	JMP	runtime·aeshashbody(SB)
 
-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
-	MOVQ	8(SP), DX	// ptr to hash value
-	MOVQ	24(SP), AX	// ptr to string struct
+TEXT runtime·aeshashstr(SB),NOSPLIT,$0-32
+	MOVQ	p+0(FP), AX	// ptr to string struct
+	// s+8(FP) is ignored, it is always sizeof(String)
 	MOVQ	8(AX), CX	// length of string
 	MOVQ	(AX), AX	// string data
 	JMP	runtime·aeshashbody(SB)
 
 // AX: data
 // CX: length
-// DX: ptr to seed input / hash output
-TEXT runtime·aeshashbody(SB),NOSPLIT,$0-24
-	MOVQ	(DX), X0	// seed to low 64 bits of xmm0
+TEXT runtime·aeshashbody(SB),NOSPLIT,$0-32
+	MOVQ	h+16(FP), X0	// seed to low 64 bits of xmm0
 	PINSRQ	$1, CX, X0	// size to high 64 bits of xmm0
 	MOVO	runtime·aeskeysched+0(SB), X2
 	MOVO	runtime·aeskeysched+16(SB), X3
@@ -1022,29 +1020,29 @@ finalize:
 	AESENC	X2, X0
 	AESENC	X3, X0
 	AESENC	X2, X0
-	MOVQ	X0, (DX)
+	MOVQ	X0, res+24(FP)
 	RET
 
-TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
-	MOVQ	8(SP), DX	// ptr to hash value
-	MOVQ	24(SP), AX	// ptr to data
-	MOVQ	(DX), X0	// seed
+TEXT runtime·aeshash32(SB),NOSPLIT,$0-32
+	MOVQ	p+0(FP), AX	// ptr to data
+	// s+8(FP) is ignored, it is always sizeof(int32)
+	MOVQ	h+16(FP), X0	// seed
 	PINSRD	$2, (AX), X0	// data
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
 	AESENC	runtime·aeskeysched+0(SB), X0
-	MOVQ	X0, (DX)
+	MOVQ	X0, res+24(FP)
 	RET
 
-TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
-	MOVQ	8(SP), DX	// ptr to hash value
-	MOVQ	24(SP), AX	// ptr to data
-	MOVQ	(DX), X0	// seed
+TEXT runtime·aeshash64(SB),NOSPLIT,$0-32
+	MOVQ	p+0(FP), AX	// ptr to data
+	// s+8(FP) is ignored, it is always sizeof(int64)
+	MOVQ	h+16(FP), X0	// seed
 	PINSRQ	$1, (AX), X0	// data
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
 	AESENC	runtime·aeskeysched+0(SB), X0
-	MOVQ	X0, (DX)
+	MOVQ	X0, res+24(FP)
 	RET
 
 // simple mask to get rid of data in the high part of the register.
@@ -2308,40 +2306,10 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
 	MOVL	DX, ret+0(FP)
 	RET
 
-// The gohash and goeq trampolines are necessary while we have
+// goeq trampoline is necessary while we have
 // both Go and C calls to alg functions.  Once we move all call
-// sites to Go, we can redo the hash/eq functions to use the
-// Go calling convention and remove these.
-
-// convert call to:
-//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
-// to:
-//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
-TEXT runtime·gohash(SB), NOSPLIT, $24-40
-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
-	MOVQ	a+0(FP), AX
-	MOVQ	alg_hash(AX), AX
-	MOVQ	p+8(FP), CX
-	MOVQ	size+16(FP), DX
-	MOVQ	seed+24(FP), DI
-	MOVQ	DI, ret+32(FP)
-	LEAQ	ret+32(FP), SI
-	MOVQ	SI, 0(SP)
-	MOVQ	DX, 8(SP)
-	MOVQ	CX, 16(SP)
-	PCDATA  $PCDATA_StackMapIndex, $0
-	CALL	*AX
-	RET
-
-DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
-DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
-GLOBL gcargs_gohash<>(SB),RODATA,$12
-
-DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
-GLOBL gclocals_gohash<>(SB),RODATA,$8
+// sites to Go, we can redo the eq function to use the
+// Go calling convention and remove this.
 
 // convert call to:
 //   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
