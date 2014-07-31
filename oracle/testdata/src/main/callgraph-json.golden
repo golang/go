@@ -44,7 +44,7 @@
 			"pos": "testdata/src/main/callgraph-json.go:9:6"
 		},
 		{
-			"name": "main$1",
+			"name": "main.main$1",
 			"pos": "testdata/src/main/callgraph-json.go:31:8"
 		}
 	]

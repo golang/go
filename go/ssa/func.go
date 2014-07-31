@@ -452,22 +452,33 @@ func (f *Function) emit(instr Instruction) Value {
 // The specific formatting rules are not guaranteed and may change.
 //
 // Examples:
-//      "math.IsNaN"                // a package-level function
-//      "IsNaN"                     // intra-package reference to same
-//      "(*bytes.Buffer).Bytes"     // a declared method or a wrapper
-//      "(*Buffer).Bytes"           // intra-package reference to same
-//      "(*Buffer).Bytes$thunk"     // thunk (func wrapping method; receiver is param 0)
-//      "(*Buffer).Bytes$bound"     // bound (func wrapping method; receiver supplied by closure)
-//      "main$1"                    // an anonymous function
-//      "init$1"                    // a declared init function
-//      "init"                      // the synthesized package initializer
+//      "math.IsNaN"                  // a package-level function
+//      "(*bytes.Buffer).Bytes"       // a declared method or a wrapper
+//      "(*bytes.Buffer).Bytes$thunk" // thunk (func wrapping method; receiver is param 0)
+//      "(*bytes.Buffer).Bytes$bound" // bound (func wrapping method; receiver supplied by closure)
+//      "main.main$1"                 // an anonymous function in main
+//      "main.init#1"                 // a declared init function
+//      "main.init"                   // the synthesized package initializer
 //
-// If from==f.Pkg, suppress package qualification.
+// When these functions are referred to from within the same package
+// (i.e. from == f.Pkg.Object), they are rendered without the package path.
+// For example: "IsNaN", "(*Buffer).Bytes", etc.
+//
+// Invariant: all non-synthetic functions have distinct package-qualified names.
 //
 func (f *Function) RelString(from *types.Package) string {
 	// Anonymous?
 	if f.parent != nil {
-		return f.name
+		// An anonymous function's Name() looks like "parentName$1",
+		// but its String() should include the type/package/etc.
+		parent := f.parent.RelString(from)
+		for i, anon := range f.parent.AnonFuncs {
+			if anon == f {
+				return fmt.Sprintf("%s$%d", parent, 1+i)
+			}
+		}
+
+		return f.name // should never happen
 	}
 
 	// Method (declared or wrapper)?

@@ -60,26 +60,26 @@ func TestEnclosingFunction(t *testing.T) {
 		// Function literal:
 		{`package main
 		  func f() { println(func() { print(300) }) }`,
-			"300", "f$1"},
+			"300", "main.f$1"},
 		// Doubly nested
 		{`package main
 		  func f() { println(func() { print(func() { print(350) })})}`,
-			"350", "f$1$1"},
+			"350", "main.f$1$1"},
 		// Implicit init for package-level var initializer.
 		{"package main; var a = 400", "400", "main.init"},
 		// No code for constants:
 		{"package main; const a = 500", "500", "(none)"},
 		// Explicit init()
-		{"package main; func init() { println(600) }", "600", "main.init$1"},
+		{"package main; func init() { println(600) }", "600", "main.init#1"},
 		// Multiple explicit init functions:
 		{`package main
 		  func init() { println("foo") }
 		  func init() { println(800) }`,
-			"800", "main.init$2"},
+			"800", "main.init#2"},
 		// init() containing FuncLit.
 		{`package main
 		  func init() { println(func(){print(900)}) }`,
-			"900", "init$1$1"},
+			"900", "main.init#1$1"},
 	}
 	for _, test := range tests {
 		conf := loader.Config{Fset: token.NewFileSet()}

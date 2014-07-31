@@ -93,8 +93,25 @@ func TestStdlib(t *testing.T) {
 		t.Errorf("Loaded only %d packages, want at least %d", numPkgs, want)
 	}
 
-	// Dump some statistics.
 	allFuncs := ssautil.AllFunctions(prog)
+
+	// Check that all non-synthetic functions have distinct names.
+	byName := make(map[string]*ssa.Function)
+	for fn := range allFuncs {
+		if fn.Synthetic == "" {
+			str := fn.String()
+			prev := byName[str]
+			byName[str] = fn
+			if prev != nil {
+				t.Errorf("%s: duplicate function named %s",
+					prog.Fset.Position(fn.Pos()), str)
+				t.Errorf("%s:   (previously defined here)",
+					prog.Fset.Position(prev.Pos()))
+			}
+		}
+	}
+
+	// Dump some statistics.
 	var numInstrs int
 	for fn := range allFuncs {
 		for _, b := range fn.Blocks {

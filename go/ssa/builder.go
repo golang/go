@@ -2110,7 +2110,7 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 	if decl.Recv == nil && id.Name == "init" {
 		pkg.ninit++
 		fn = &Function{
-			name:      fmt.Sprintf("init$%d", pkg.ninit),
+			name:      fmt.Sprintf("init#%d", pkg.ninit),
 			Signature: new(types.Signature),
 			pos:       decl.Name.NamePos,
 			Pkg:       pkg,

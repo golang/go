@@ -29,7 +29,7 @@ this func() may point to these objects:
 
 -------- @pointsto ref-anon --------
 this func() may point to these objects:
-	main$1
+	pointsto.main$1
 
 -------- @pointsto ref-global --------
 this *string may point to these objects:

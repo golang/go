@@ -35,11 +35,11 @@ main.store is called from these 2 sites:
 
 -------- @pointsto pointsto-result-f --------
 this func() *int may point to these objects:
-	main$1
+	main.main$1
 
 -------- @callees callees-main.call-f --------
 this dynamic function call dispatches to:
-	main$1
+	main.main$1
 
 -------- @callers callers-main.call --------
 main.call is called from these 2 sites:
@@ -103,7 +103,7 @@ main.init is called from these 1 sites:
 the root of the call graph
 
 -------- @callstack callstack-init --------
-Found a call path from root to main.init$1
-main.init$1
+Found a call path from root to main.init#1
+main.init#1
 static function call from main.init
 
