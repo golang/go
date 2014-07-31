@@ -1061,23 +1061,23 @@ void	runtime·madvise(byte*, uintptr, int32);
 void	runtime·memclr(byte*, uintptr);
 void	runtime·setcallerpc(void*, void*);
 void*	runtime·getcallerpc(void*);
+void	runtime·printbool_c(bool);
+void	runtime·printbyte_c(int8);
+void	runtime·printfloat_c(float64);
+void	runtime·printint_c(int64);
+void	runtime·printiface_c(Iface);
+void	runtime·printeface_c(Eface);
+void	runtime·printstring_c(String);
+void	runtime·printpc_c(void*);
+void	runtime·printpointer_c(void*);
+void	runtime·printuint_c(uint64);
+void	runtime·printhex_c(uint64);
+void	runtime·printslice_c(Slice);
+void	runtime·printcomplex_c(Complex128);
 
 /*
  * runtime go-called
  */
-void	runtime·printbool(bool);
-void	runtime·printbyte(int8);
-void	runtime·printfloat(float64);
-void	runtime·printint(int64);
-void	runtime·printiface(Iface);
-void	runtime·printeface(Eface);
-void	runtime·printstring(String);
-void	runtime·printpc(void*);
-void	runtime·printpointer(void*);
-void	runtime·printuint(uint64);
-void	runtime·printhex(uint64);
-void	runtime·printslice(Slice);
-void	runtime·printcomplex(Complex128);
 void	runtime·newstackcall(FuncVal*, byte*, uint32);
 void	reflect·call(FuncVal*, byte*, uint32, uint32);
 void	runtime·panic(Eface);

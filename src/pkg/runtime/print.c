@@ -36,8 +36,8 @@ runtime·dump(byte *p, int32 n)
 	int32 i;
 
 	for(i=0; i<n; i++) {
-		runtime·printpointer((byte*)(p[i]>>4));
-		runtime·printpointer((byte*)(p[i]&0xf));
+		runtime·printpointer_c((byte*)(p[i]>>4));
+		runtime·printpointer_c((byte*)(p[i]&0xf));
 		if((i&15) == 15)
 			runtime·prints("\n");
 		else
@@ -144,49 +144,49 @@ vprintf(int8 *s, byte *base)
 		v = (byte*)arg;
 		switch(*p) {
 		case 'a':
-			runtime·printslice(*(Slice*)v);
+			runtime·printslice_c(*(Slice*)v);
 			break;
 		case 'c':
-			runtime·printbyte(*(int8*)v);
+			runtime·printbyte_c(*(int8*)v);
 			break;
 		case 'd':
-			runtime·printint(*(int32*)v);
+			runtime·printint_c(*(int32*)v);
 			break;
 		case 'D':
-			runtime·printint(*(int64*)v);
+			runtime·printint_c(*(int64*)v);
 			break;
 		case 'e':
-			runtime·printeface(*(Eface*)v);
+			runtime·printeface_c(*(Eface*)v);
 			break;
 		case 'f':
-			runtime·printfloat(*(float64*)v);
+			runtime·printfloat_c(*(float64*)v);
 			break;
 		case 'C':
-			runtime·printcomplex(*(Complex128*)v);
+			runtime·printcomplex_c(*(Complex128*)v);
 			break;
 		case 'i':
-			runtime·printiface(*(Iface*)v);
+			runtime·printiface_c(*(Iface*)v);
 			break;
 		case 'p':
-			runtime·printpointer(*(void**)v);
+			runtime·printpointer_c(*(void**)v);
 			break;
 		case 's':
 			runtime·prints(*(int8**)v);
 			break;
 		case 'S':
-			runtime·printstring(*(String*)v);
+			runtime·printstring_c(*(String*)v);
 			break;
 		case 't':
-			runtime·printbool(*(bool*)v);
+			runtime·printbool_c(*(bool*)v);
 			break;
 		case 'U':
-			runtime·printuint(*(uint64*)v);
+			runtime·printuint_c(*(uint64*)v);
 			break;
 		case 'x':
-			runtime·printhex(*(uint32*)v);
+			runtime·printhex_c(*(uint32*)v);
 			break;
 		case 'X':
-			runtime·printhex(*(uint64*)v);
+			runtime·printhex_c(*(uint64*)v);
 			break;
 		}
 		arg += siz;
@@ -198,25 +198,35 @@ vprintf(int8 *s, byte *base)
 	//runtime·unlock(&debuglock);
 }
 
-#pragma textflag NOSPLIT
-void
-runtime·goprintf(String s, ...)
+static void
+goprintf_m(void)
 {
 	// Can assume s has terminating NUL because only
 	// the Go compiler generates calls to runtime·goprintf, using
 	// string constants, and all the string constants have NULs.
-	vprintf((int8*)s.str, (byte*)(&s+1));
+	vprintf(g->m->ptrarg[0], g->m->ptrarg[1]);
+	g->m->ptrarg[0] = nil;
+	g->m->ptrarg[1] = nil;
+}
+
+#pragma textflag NOSPLIT
+void
+runtime·goprintf(String s, ...)
+{
+	g->m->ptrarg[0] = s.str;
+	g->m->ptrarg[1] = (byte*)(&s+1);
+	runtime·onM(goprintf_m);
 }
 
 void
-runtime·printpc(void *p)
+runtime·printpc_c(void *p)
 {
 	runtime·prints("PC=");
-	runtime·printhex((uint64)runtime·getcallerpc(p));
+	runtime·printhex_c((uint64)runtime·getcallerpc(p));
 }
 
 void
-runtime·printbool(bool v)
+runtime·printbool_c(bool v)
 {
 	if(v) {
 		gwrite((byte*)"true", 4);
@@ -226,13 +236,13 @@ runtime·printbool(bool v)
 }
 
 void
-runtime·printbyte(int8 c)
+runtime·printbyte_c(int8 c)
 {
 	gwrite(&c, 1);
 }
 
 void
-runtime·printfloat(float64 v)
+runtime·printfloat_c(float64 v)
 {
 	byte buf[20];
 	int32 e, s, i, n;
@@ -313,16 +323,16 @@ runtime·printfloat(float64 v)
 }
 
 void
-runtime·printcomplex(Complex128 v)
+runtime·printcomplex_c(Complex128 v)
 {
 	gwrite("(", 1);
-	runtime·printfloat(v.real);
-	runtime·printfloat(v.imag);
+	runtime·printfloat_c(v.real);
+	runtime·printfloat_c(v.imag);
 	gwrite("i)", 2);
 }
 
 void
-runtime·printuint(uint64 v)
+runtime·printuint_c(uint64 v)
 {
 	byte buf[100];
 	int32 i;
@@ -337,17 +347,17 @@ runtime·printuint(uint64 v)
 }
 
 void
-runtime·printint(int64 v)
+runtime·printint_c(int64 v)
 {
 	if(v < 0) {
 		gwrite("-", 1);
 		v = -v;
 	}
-	runtime·printuint(v);
+	runtime·printuint_c(v);
 }
 
 void
-runtime·printhex(uint64 v)
+runtime·printhex_c(uint64 v)
 {
 	static int8 *dig = "0123456789abcdef";
 	byte buf[100];
@@ -364,13 +374,13 @@ runtime·printhex(uint64 v)
 }
 
 void
-runtime·printpointer(void *p)
+runtime·printpointer_c(void *p)
 {
-	runtime·printhex((uintptr)p);
+	runtime·printhex_c((uintptr)p);
 }
 
 void
-runtime·printstring(String v)
+runtime·printstring_c(String v)
 {
 	if(v.len > runtime·maxstring) {
 		gwrite("[string too long]", 17);
@@ -381,13 +391,53 @@ runtime·printstring(String v)
 }
 
 void
-runtime·printsp(void)
+runtime·printslice_c(Slice s)
 {
-	gwrite(" ", 1);
+	runtime·prints("[");
+	runtime·printint_c(s.len);
+	runtime·prints("/");
+	runtime·printint_c(s.cap);
+	runtime·prints("]");
+	runtime·printpointer_c(s.array);
 }
 
 void
-runtime·printnl(void)
+runtime·printeface_c(Eface e)
 {
-	gwrite("\n", 1);
+	runtime·printf("(%p,%p)", e.type, e.data);
+}
+
+void
+runtime·printiface_c(Iface i)
+{
+	runtime·printf("(%p,%p)", i.tab, i.data);
+}
+
+void
+runtime·printstring_m(void)
+{
+	String s;
+
+	s.str = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	s.len = g->m->scalararg[0];
+	runtime·printstring_c(s);
+}
+
+void
+runtime·printuint_m(void)
+{
+	runtime·printuint_c(*(uint64*)(&g->m->scalararg[0]));
+}
+
+void
+runtime·printhex_m(void)
+{
+	runtime·printhex_c(g->m->scalararg[0]);
+}
+
+void
+runtime·printfloat_m(void)
+{
+	runtime·printfloat_c(*(float64*)(&g->m->scalararg[0]));
 }

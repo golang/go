@@ -10,14 +10,6 @@ package runtime
 #include "malloc.h"
 #include "../../cmd/ld/textflag.h"
 
-func printiface(i Iface) {
-	runtime·printf("(%p,%p)", i.tab, i.data);
-}
-
-func printeface(e Eface) {
-	runtime·printf("(%p,%p)", e.type, e.data);
-}
-
 static	Itab*	hash[1009];
 static	Lock	ifacelock;
 

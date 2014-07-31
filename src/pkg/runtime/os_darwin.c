@@ -150,7 +150,7 @@ macherror(int32 r, int8 *fn)
 	runtime·prints("mach error ");
 	runtime·prints(fn);
 	runtime·prints(": ");
-	runtime·printint(r);
+	runtime·printint_c(r);
 	runtime·prints("\n");
 	runtime·throw("mach error");
 }
@@ -218,7 +218,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 		runtime·prints("send:\t");
 		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
 			runtime·prints(" ");
-			runtime·printpointer((void*)p[i]);
+			runtime·printpointer_c((void*)p[i]);
 			if(i%8 == 7)
 				runtime·prints("\n\t");
 		}
@@ -231,7 +231,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	if(ret != 0){
 		if(DebugMach){
 			runtime·prints("mach_msg error ");
-			runtime·printint(ret);
+			runtime·printint_c(ret);
 			runtime·prints("\n");
 		}
 		return ret;
@@ -242,7 +242,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 		runtime·prints("recv:\t");
 		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
 			runtime·prints(" ");
-			runtime·printpointer((void*)p[i]);
+			runtime·printpointer_c((void*)p[i]);
 			if(i%8 == 7)
 				runtime·prints("\n\t");
 		}
@@ -253,9 +253,9 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	if(h->msgh_id != id+Reply){
 		if(DebugMach){
 			runtime·prints("mach_msg reply id mismatch ");
-			runtime·printint(h->msgh_id);
+			runtime·printint_c(h->msgh_id);
 			runtime·prints(" != ");
-			runtime·printint(id+Reply);
+			runtime·printint_c(id+Reply);
 			runtime·prints("\n");
 		}
 		return -303;	// MIG_REPLY_MISMATCH
@@ -272,7 +272,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	&& !(h->msgh_bits & MACH_MSGH_BITS_COMPLEX)){
 		if(DebugMach){
 			runtime·prints("mig result ");
-			runtime·printint(c->code);
+			runtime·printint_c(c->code);
 			runtime·prints("\n");
 		}
 		return c->code;
@@ -281,9 +281,9 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 	if(h->msgh_size != rxsize){
 		if(DebugMach){
 			runtime·prints("mach_msg reply size mismatch ");
-			runtime·printint(h->msgh_size);
+			runtime·printint_c(h->msgh_size);
 			runtime·prints(" != ");
-			runtime·printint(rxsize);
+			runtime·printint_c(rxsize);
 			runtime·prints("\n");
 		}
 		return -307;	// MIG_ARRAY_TOO_LARGE
