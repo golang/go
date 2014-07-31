@@ -123,12 +123,11 @@ func (d *decoder) processSOS(n int) error {
 		// b is the decoded coefficients, in natural (not zig-zag) order.
 		b  block
 		dc [nColorComponent]int32
-		// mx0 and my0 are the location of the current (in terms of 8x8 blocks).
+		// bx and by are the location of the current (in terms of 8x8 blocks).
 		// For example, with 4:2:0 chroma subsampling, the block whose top left
 		// pixel co-ordinates are (16, 8) is the third block in the first row:
-		// mx0 is 2 and my0 is 0, even though the pixel is in the second MCU.
-		// TODO(nigeltao): rename mx0 and my0 to bx and by?
-		mx0, my0   int
+		// bx is 2 and by is 0, even though the pixel is in the second MCU.
+		bx, by     int
 		blockCount int
 	)
 	for my := 0; my < myy; my++ {
@@ -163,26 +162,26 @@ func (d *decoder) processSOS(n int) error {
 					//	0 1 2
 					//	3 4 5
 					if nComp != 1 {
-						mx0, my0 = d.comp[compIndex].h*mx, d.comp[compIndex].v*my
+						bx, by = d.comp[compIndex].h*mx, d.comp[compIndex].v*my
 						if h0 == 1 {
-							my0 += j
+							by += j
 						} else {
-							mx0 += j % 2
-							my0 += j / 2
+							bx += j % 2
+							by += j / 2
 						}
 					} else {
 						q := mxx * d.comp[compIndex].h
-						mx0 = blockCount % q
-						my0 = blockCount / q
+						bx = blockCount % q
+						by = blockCount / q
 						blockCount++
-						if mx0*8 >= d.width || my0*8 >= d.height {
+						if bx*8 >= d.width || by*8 >= d.height {
 							continue
 						}
 					}
 
 					// Load the previous partially decoded coefficients, if applicable.
 					if d.progressive {
-						b = d.progCoeffs[compIndex][my0*mxx*d.comp[compIndex].h+mx0]
+						b = d.progCoeffs[compIndex][by*mxx*d.comp[compIndex].h+bx]
 					} else {
 						b = block{}
 					}
@@ -255,7 +254,7 @@ func (d *decoder) processSOS(n int) error {
 					if d.progressive {
 						if zigEnd != blockSize-1 || al != 0 {
 							// We haven't completely decoded this 8x8 block. Save the coefficients.
-							d.progCoeffs[compIndex][my0*mxx*d.comp[compIndex].h+mx0] = b
+							d.progCoeffs[compIndex][by*mxx*d.comp[compIndex].h+bx] = b
 							// At this point, we could execute the rest of the loop body to dequantize and
 							// perform the inverse DCT, to save early stages of a progressive image to the
 							// *image.YCbCr buffers (the whole point of progressive encoding), but in Go,
@@ -272,15 +271,15 @@ func (d *decoder) processSOS(n int) error {
 					idct(&b)
 					dst, stride := []byte(nil), 0
 					if d.nComp == nGrayComponent {
-						dst, stride = d.img1.Pix[8*(my0*d.img1.Stride+mx0):], d.img1.Stride
+						dst, stride = d.img1.Pix[8*(by*d.img1.Stride+bx):], d.img1.Stride
 					} else {
 						switch compIndex {
 						case 0:
-							dst, stride = d.img3.Y[8*(my0*d.img3.YStride+mx0):], d.img3.YStride
+							dst, stride = d.img3.Y[8*(by*d.img3.YStride+bx):], d.img3.YStride
 						case 1:
-							dst, stride = d.img3.Cb[8*(my0*d.img3.CStride+mx0):], d.img3.CStride
+							dst, stride = d.img3.Cb[8*(by*d.img3.CStride+bx):], d.img3.CStride
 						case 2:
-							dst, stride = d.img3.Cr[8*(my0*d.img3.CStride+mx0):], d.img3.CStride
+							dst, stride = d.img3.Cr[8*(by*d.img3.CStride+bx):], d.img3.CStride
 						default:
 							return UnsupportedError("too many components")
 						}
