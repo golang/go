@@ -31,7 +31,7 @@ func rangeError(fn, str string) *NumError {
 	return &NumError{fn, str, ErrRange}
 }
 
-const intSize = 32 << uint(^uint(0)>>63)
+const intSize = 32 << (^uint(0) >> 63)
 
 // IntSize is the size in bits of an int or uint value.
 const IntSize = intSize
