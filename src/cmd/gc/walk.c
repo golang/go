@@ -2623,7 +2623,7 @@ appendslice(Node *n, NodeList **init)
 		if(l2->type->etype == TSTRING)
 			fn = syslook("slicestringcopy", 1);
 		else
-			fn = syslook("copy", 1);
+			fn = syslook("slicecopy", 1);
 		argtype(fn, l1->type);
 		argtype(fn, l2->type);
 		nt = mkcall1(fn, types[TINT], &l,
@@ -2761,7 +2761,7 @@ copyany(Node *n, NodeList **init, int runtimecall)
 		if(n->right->type->etype == TSTRING)
 			fn = syslook("slicestringcopy", 1);
 		else
-			fn = syslook("copy", 1);
+			fn = syslook("slicecopy", 1);
 		argtype(fn, n->left->type);
 		argtype(fn, n->right->type);
 		return mkcall1(fn, n->type, init,

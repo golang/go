@@ -232,6 +232,12 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
 	return gomallocgc(uintptr(typ.size)*n, typ, flags)
 }
 
+// rawmem returns a chunk of pointerless memory.  It is
+// not zeroed.
+func rawmem(size uintptr) unsafe.Pointer {
+	return gomallocgc(size, nil, flagNoScan|flagNoZero)
+}
+
 // round size up to next size class
 func goroundupsize(size uintptr) uintptr {
 	if size < maxSmallSize {
