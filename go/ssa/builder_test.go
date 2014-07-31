@@ -313,7 +313,7 @@ func init():
 		}
 
 		if initbuf.String() != test.want {
-			t.Errorf("test 'package %s': got %q, want %q", f.Name.Name, initbuf.String(), test.want)
+			t.Errorf("test 'package %s': got %s, want %s", f.Name.Name, initbuf.String(), test.want)
 		}
 	}
 }

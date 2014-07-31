@@ -500,7 +500,7 @@ func (f *Function) relMethod(from *types.Package, recv types.Type) string {
 }
 
 // writeSignature writes to buf the signature sig in declaration syntax.
-func writeSignature(buf *bytes.Buffer, pkg *types.Package, name string, sig *types.Signature, params []*Parameter) {
+func writeSignature(buf *bytes.Buffer, from *types.Package, name string, sig *types.Signature, params []*Parameter) {
 	buf.WriteString("func ")
 	if recv := sig.Recv(); recv != nil {
 		buf.WriteString("(")
@@ -508,11 +508,11 @@ func writeSignature(buf *bytes.Buffer, pkg *types.Package, name string, sig *typ
 			buf.WriteString(n)
 			buf.WriteString(" ")
 		}
-		buf.WriteString(relType(params[0].Type(), pkg))
+		types.WriteType(buf, from, params[0].Type())
 		buf.WriteString(") ")
 	}
 	buf.WriteString(name)
-	types.WriteSignature(buf, pkg, sig)
+	types.WriteSignature(buf, from, sig)
 }
 
 func (f *Function) pkgobj() *types.Package {
@@ -552,22 +552,22 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 		fmt.Fprintf(buf, "# Recover: %s\n", f.Recover)
 	}
 
-	pkgobj := f.pkgobj()
+	from := f.pkgobj()
 
 	if f.FreeVars != nil {
 		buf.WriteString("# Free variables:\n")
 		for i, fv := range f.FreeVars {
-			fmt.Fprintf(buf, "# % 3d:\t%s %s\n", i, fv.Name(), relType(fv.Type(), pkgobj))
+			fmt.Fprintf(buf, "# % 3d:\t%s %s\n", i, fv.Name(), relType(fv.Type(), from))
 		}
 	}
 
 	if len(f.Locals) > 0 {
 		buf.WriteString("# Locals:\n")
 		for i, l := range f.Locals {
-			fmt.Fprintf(buf, "# % 3d:\t%s %s\n", i, l.Name(), relType(deref(l.Type()), pkgobj))
+			fmt.Fprintf(buf, "# % 3d:\t%s %s\n", i, l.Name(), relType(deref(l.Type()), from))
 		}
 	}
-	writeSignature(buf, pkgobj, f.Name(), f.Signature, f.Params)
+	writeSignature(buf, from, f.Name(), f.Signature, f.Params)
 	buf.WriteString(":\n")
 
 	if f.Blocks == nil {
@@ -606,7 +606,7 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 				// Right-align the type if there's space.
 				if t := v.Type(); t != nil {
 					buf.WriteByte(' ')
-					ts := relType(t, pkgobj)
+					ts := relType(t, from)
 					l -= len(ts) + len("  ") // (spaces before and after type)
 					if l > 0 {
 						fmt.Fprintf(buf, "%*s", l, "")

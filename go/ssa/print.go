@@ -7,9 +7,6 @@ package ssa
 // This file implements the String() methods for all Value and
 // Instruction types.
 
-// TODO(adonovan): define WriteValue(*bytes.Buffer) and avoid creation
-// of garbage.
-
 import (
 	"bytes"
 	"fmt"
@@ -60,11 +57,13 @@ func relString(m Member, from *types.Package) string {
 // It never appears in disassembly, which uses Value.Name().
 
 func (v *Parameter) String() string {
-	return fmt.Sprintf("parameter %s : %s", v.Name(), v.Type())
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("parameter %s : %s", v.Name(), relType(v.Type(), from))
 }
 
 func (v *FreeVar) String() string {
-	return fmt.Sprintf("freevar %s : %s", v.Name(), v.Type())
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("freevar %s : %s", v.Name(), relType(v.Type(), from))
 }
 
 func (v *Builtin) String() string {
@@ -78,7 +77,8 @@ func (v *Alloc) String() string {
 	if v.Heap {
 		op = "new"
 	}
-	return fmt.Sprintf("%s %s (%s)", op, relType(deref(v.Type()), v.Parent().pkgobj()), v.Comment)
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("%s %s (%s)", op, relType(deref(v.Type()), from), v.Comment)
 }
 
 func (v *Phi) String() string {
@@ -138,10 +138,6 @@ func (v *Call) String() string {
 	return printCall(&v.Call, "", v)
 }
 
-func (v *ChangeType) String() string {
-	return fmt.Sprintf("changetype %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), v.X.Type(), relName(v.X, v))
-}
-
 func (v *BinOp) String() string {
 	return fmt.Sprintf("%s %s %s", relName(v.X, v), v.Op.String(), relName(v.Y, v))
 }
@@ -150,17 +146,19 @@ func (v *UnOp) String() string {
 	return fmt.Sprintf("%s%s%s", v.Op, relName(v.X, v), commaOk(v.CommaOk))
 }
 
-func (v *Convert) String() string {
-	return fmt.Sprintf("convert %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), v.X.Type(), relName(v.X, v))
+func printConv(prefix string, v, x Value) string {
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("%s %s <- %s (%s)",
+		prefix,
+		relType(v.Type(), from),
+		relType(x.Type(), from),
+		relName(x, v.(Instruction)))
 }
 
-func (v *ChangeInterface) String() string {
-	return fmt.Sprintf("change interface %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
-}
-
-func (v *MakeInterface) String() string {
-	return fmt.Sprintf("make %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), relType(v.X.Type(), v.Parent().pkgobj()), relName(v.X, v))
-}
+func (v *ChangeType) String() string      { return printConv("changetype", v, v.X) }
+func (v *Convert) String() string         { return printConv("convert", v, v.X) }
+func (v *ChangeInterface) String() string { return printConv("change interface", v, v.X) }
+func (v *MakeInterface) String() string   { return printConv("make", v, v.X) }
 
 func (v *MakeClosure) String() string {
 	var b bytes.Buffer
@@ -179,14 +177,11 @@ func (v *MakeClosure) String() string {
 }
 
 func (v *MakeSlice) String() string {
-	var b bytes.Buffer
-	b.WriteString("make ")
-	b.WriteString(v.Type().String())
-	b.WriteString(" ")
-	b.WriteString(relName(v.Len, v))
-	b.WriteString(" ")
-	b.WriteString(relName(v.Cap, v))
-	return b.String()
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("make %s %s %s",
+		relType(v.Type(), from),
+		relName(v.Len, v),
+		relName(v.Cap, v))
 }
 
 func (v *Slice) String() string {
@@ -214,11 +209,13 @@ func (v *MakeMap) String() string {
 	if v.Reserve != nil {
 		res = relName(v.Reserve, v)
 	}
-	return fmt.Sprintf("make %s %s", v.Type(), res)
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("make %s %s", relType(v.Type(), from), res)
 }
 
 func (v *MakeChan) String() string {
-	return fmt.Sprintf("make %s %s", v.Type(), relName(v.Size, v))
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("make %s %s", relType(v.Type(), from), relName(v.Size, v))
 }
 
 func (v *FieldAddr) String() string {
@@ -262,7 +259,8 @@ func (v *Next) String() string {
 }
 
 func (v *TypeAssert) String() string {
-	return fmt.Sprintf("typeassert%s %s.(%s)", commaOk(v.CommaOk), relName(v.X, v), relType(v.AssertedType, v.Parent().pkgobj()))
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("typeassert%s %s.(%s)", commaOk(v.CommaOk), relName(v.X, v), relType(v.AssertedType, from))
 }
 
 func (v *Extract) String() string {
@@ -393,27 +391,28 @@ func WritePackage(buf *bytes.Buffer, p *Package) {
 		names = append(names, name)
 	}
 
+	from := p.Object
 	sort.Strings(names)
 	for _, name := range names {
 		switch mem := p.Members[name].(type) {
 		case *NamedConst:
 			fmt.Fprintf(buf, "  const %-*s %s = %s\n",
-				maxname, name, mem.Name(), mem.Value.RelString(p.Object))
+				maxname, name, mem.Name(), mem.Value.RelString(from))
 
 		case *Function:
 			fmt.Fprintf(buf, "  func  %-*s %s\n",
-				maxname, name, types.TypeString(p.Object, mem.Type()))
+				maxname, name, relType(mem.Type(), from))
 
 		case *Type:
 			fmt.Fprintf(buf, "  type  %-*s %s\n",
-				maxname, name, types.TypeString(p.Object, mem.Type().Underlying()))
+				maxname, name, relType(mem.Type().Underlying(), from))
 			for _, meth := range typeutil.IntuitiveMethodSet(mem.Type(), &p.Prog.MethodSets) {
-				fmt.Fprintf(buf, "    %s\n", types.SelectionString(p.Object, meth))
+				fmt.Fprintf(buf, "    %s\n", types.SelectionString(from, meth))
 			}
 
 		case *Global:
 			fmt.Fprintf(buf, "  var   %-*s %s\n",
-				maxname, name, types.TypeString(p.Object, mem.Type().(*types.Pointer).Elem()))
+				maxname, name, relType(mem.Type().(*types.Pointer).Elem(), from))
 		}
 	}
 
