@@ -323,11 +323,16 @@ type interfaceType struct {
 
 // mapType represents a map type.
 type mapType struct {
-	rtype  `reflect:"map"`
-	key    *rtype // map key type
-	elem   *rtype // map element (value) type
-	bucket *rtype // internal bucket structure
-	hmap   *rtype // internal map header
+	rtype         `reflect:"map"`
+	key           *rtype // map key type
+	elem          *rtype // map element (value) type
+	bucket        *rtype // internal bucket structure
+	hmap          *rtype // internal map header
+	keysize       uint8  // size of key slot
+	indirectkey   uint8  // store ptr to key instead of key itself
+	valuesize     uint8  // size of value slot
+	indirectvalue uint8  // store ptr to value instead of value itself
+	bucketsize    uint16 // size of bucket
 }
 
 // ptrType represents a pointer type.
@@ -1454,6 +1459,21 @@ func MapOf(key, elem Type) Type {
 	mt.key = ktyp
 	mt.elem = etyp
 	mt.bucket = bucketOf(ktyp, etyp)
+	if ktyp.size > maxKeySize {
+		mt.keysize = uint8(ptrSize)
+		mt.indirectkey = 1
+	} else {
+		mt.keysize = uint8(ktyp.size)
+		mt.indirectkey = 0
+	}
+	if etyp.size > maxValSize {
+		mt.valuesize = uint8(ptrSize)
+		mt.indirectvalue = 1
+	} else {
+		mt.valuesize = uint8(etyp.size)
+		mt.indirectvalue = 0
+	}
+	mt.bucketsize = uint16(mt.bucket.size)
 	mt.uncommonType = nil
 	mt.ptrToThis = nil
 	mt.zero = unsafe.Pointer(&make([]byte, mt.size)[0])
@@ -1543,7 +1563,7 @@ const (
 	bitsPointer = 2
 )
 
-// Make sure these routines stay in sync with ../../pkg/runtime/hashmap.c!
+// Make sure these routines stay in sync with ../../pkg/runtime/hashmap.go!
 // These types exist only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program.  We also fill in string
 // for possible debugging use.
