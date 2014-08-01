@@ -176,8 +176,12 @@ func startProcess(id, body string, out chan<- *Message, opt *Options) *process {
 		done: make(chan struct{}),
 	}
 	var err error
-	if path, args := shebang(body); RunScripts && path != "" {
-		err = p.startProcess(path, args, body)
+	if path, args := shebang(body); path != "" {
+		if RunScripts {
+			err = p.startProcess(path, args, body)
+		} else {
+			err = errors.New("script execution is not allowed")
+		}
 	} else {
 		err = p.start(body, opt)
 	}
