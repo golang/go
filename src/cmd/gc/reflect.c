@@ -192,7 +192,7 @@ mapbucket(Type *t)
 // the given map type.  This type is not visible to users -
 // we include only enough information to generate a correct GC
 // program for it.
-// Make sure this stays in sync with ../../pkg/runtime/hashmap.c!
+// Make sure this stays in sync with ../../pkg/runtime/hashmap.go!
 static Type*
 hmap(Type *t)
 {
@@ -211,10 +211,6 @@ hmap(Type *t)
 	offset += 4;       // flags
 	offset += 4;       // hash0
 	offset += 1;       // B
-	offset += 1;       // keysize
-	offset += 1;       // valuesize
-	offset = (offset + 1) / 2 * 2;
-	offset += 2;       // bucketsize
 	offset = (offset + widthptr - 1) / widthptr * widthptr;
 	
 	bucketsfield = typ(TFIELD);
@@ -568,6 +564,7 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 		return off;
 
 	// fill in *extraType pointer in header
+	off = rnd(off, widthptr);
 	dsymptr(sym, ptroff, sym, off);
 
 	n = 0;
@@ -1090,6 +1087,21 @@ ok:
 		ot = dsymptr(s, ot, s2, 0);
 		ot = dsymptr(s, ot, s3, 0);
 		ot = dsymptr(s, ot, s4, 0);
+		if(t->down->width > MAXKEYSIZE) {
+			ot = duint8(s, ot, widthptr);
+			ot = duint8(s, ot, 1); // indirect
+		} else {
+			ot = duint8(s, ot, t->down->width);
+			ot = duint8(s, ot, 0); // not indirect
+		}
+		if(t->type->width > MAXVALSIZE) {
+			ot = duint8(s, ot, widthptr);
+			ot = duint8(s, ot, 1); // indirect
+		} else {
+			ot = duint8(s, ot, t->type->width);
+			ot = duint8(s, ot, 0); // not indirect
+		}
+		ot = duint16(s, ot, mapbucket(t)->width);
 		break;
 
 	case TPTR32:

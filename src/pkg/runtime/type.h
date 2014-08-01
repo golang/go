@@ -81,8 +81,13 @@ struct MapType
 	Type;
 	Type *key;
 	Type *elem;
-	Type *bucket; // internal type representing a hash bucket
-	Type *hmap;   // internal type representing a Hmap
+	Type *bucket;		// internal type representing a hash bucket
+	Type *hmap;		// internal type representing a Hmap
+	uint8 keysize;		// size of key slot
+	bool indirectkey;	// store ptr to key instead of key itself
+	uint8 valuesize;	// size of value slot
+	bool indirectvalue;	// store ptr to value instead of value itself
+	uint16 bucketsize;	// size of bucket
 };
 
 struct ChanType

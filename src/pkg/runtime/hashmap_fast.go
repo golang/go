@@ -25,9 +25,9 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 	} else {
 		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 4, uintptr(h.hash0))
 		m := uintptr(1)<<h.B - 1
-		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
-			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
+			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
 			if !evacuated(oldb) {
 				b = oldb
 			}
@@ -39,11 +39,11 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 			if k != key {
 				continue
 			}
-			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
-			if t == empty {
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			if x == empty {
 				continue
 			}
-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(h.valuesize))
+			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
 		}
 		b = b.overflow
 		if b == nil {
@@ -69,9 +69,9 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 	} else {
 		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 4, uintptr(h.hash0))
 		m := uintptr(1)<<h.B - 1
-		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
-			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
+			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
 			if !evacuated(oldb) {
 				b = oldb
 			}
@@ -83,11 +83,11 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 			if k != key {
 				continue
 			}
-			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
-			if t == empty {
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			if x == empty {
 				continue
 			}
-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(h.valuesize)), true
+			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize)), true
 		}
 		b = b.overflow
 		if b == nil {
@@ -113,9 +113,9 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 	} else {
 		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 8, uintptr(h.hash0))
 		m := uintptr(1)<<h.B - 1
-		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
-			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
+			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
 			if !evacuated(oldb) {
 				b = oldb
 			}
@@ -127,11 +127,11 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 			if k != key {
 				continue
 			}
-			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
-			if t == empty {
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			if x == empty {
 				continue
 			}
-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(h.valuesize))
+			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 		}
 		b = b.overflow
 		if b == nil {
@@ -157,9 +157,9 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 	} else {
 		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 8, uintptr(h.hash0))
 		m := uintptr(1)<<h.B - 1
-		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
-			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
+			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
 			if !evacuated(oldb) {
 				b = oldb
 			}
@@ -171,11 +171,11 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 			if k != key {
 				continue
 			}
-			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
-			if t == empty {
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			if x == empty {
 				continue
 			}
-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(h.valuesize)), true
+			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
 		}
 		b = b.overflow
 		if b == nil {
@@ -201,8 +201,8 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
 			for i := uintptr(0); i < bucketCnt; i++ {
-				t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
-				if t == empty {
+				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+				if x == empty {
 					continue
 				}
 				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
@@ -210,7 +210,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 					continue
 				}
 				if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
-					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize))
+					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
 				}
 			}
 			return unsafe.Pointer(t.elem.zero)
@@ -218,8 +218,8 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
 		for i := uintptr(0); i < bucketCnt; i++ {
-			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
-			if t == empty {
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			if x == empty {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
@@ -227,7 +227,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 				continue
 			}
 			if k.str == key.str {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize))
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
 			}
 			// check first 4 bytes
 			// TODO: on amd64/386 at least, make this compile to one 4-byte comparison instead of
@@ -248,7 +248,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		if keymaybe != bucketCnt {
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*ptrSize))
 			if gomemeq(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(h.valuesize))
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(t.valuesize))
 			}
 		}
 		return unsafe.Pointer(t.elem.zero)
@@ -256,9 +256,9 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 dohash:
 	hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&ky)), 2*ptrSize, uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
-	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
-		oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
+		oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
 		if !evacuated(oldb) {
 			b = oldb
 		}
@@ -269,8 +269,8 @@ dohash:
 	}
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
-			if t != top {
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			if x != top {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
@@ -278,7 +278,7 @@ dohash:
 				continue
 			}
 			if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize))
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
 			}
 		}
 		b = b.overflow
@@ -305,8 +305,8 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
 			for i := uintptr(0); i < bucketCnt; i++ {
-				t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
-				if t == empty {
+				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+				if x == empty {
 					continue
 				}
 				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
@@ -314,7 +314,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 					continue
 				}
 				if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
-					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize)), true
+					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
 				}
 			}
 			return unsafe.Pointer(t.elem.zero), false
@@ -322,8 +322,8 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
 		for i := uintptr(0); i < bucketCnt; i++ {
-			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
-			if t == empty {
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			if x == empty {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
@@ -331,7 +331,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 				continue
 			}
 			if k.str == key.str {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize)), true
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
 			}
 			// check first 4 bytes
 			if *((*[4]byte)(key.str)) != *((*[4]byte)(k.str)) {
@@ -350,7 +350,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		if keymaybe != bucketCnt {
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*ptrSize))
 			if gomemeq(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(h.valuesize)), true
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(t.valuesize)), true
 			}
 		}
 		return unsafe.Pointer(t.elem.zero), false
@@ -358,9 +358,9 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 dohash:
 	hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&ky)), 2*ptrSize, uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
-	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
-		oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
+		oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
 		if !evacuated(oldb) {
 			b = oldb
 		}
@@ -371,8 +371,8 @@ dohash:
 	}
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
-			if t != top {
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			if x != top {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
@@ -380,7 +380,7 @@ dohash:
 				continue
 			}
 			if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize)), true
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
 			}
 		}
 		b = b.overflow
