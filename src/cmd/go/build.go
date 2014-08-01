@@ -1708,7 +1708,7 @@ func packInternal(b *builder, afile string, ofiles []string) error {
 
 func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	importArgs := b.includeArgs("-L", allactions)
-	cxx := false
+	cxx := len(p.CXXFiles) > 0
 	for _, a := range allactions {
 		if a.p != nil && len(a.p.CXXFiles) > 0 {
 			cxx = true
@@ -1846,8 +1846,8 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 	ldflags := b.gccArchArgs()
 	cgoldflags := []string{}
 	usesCgo := false
-	cxx := false
-	objc := false
+	cxx := len(p.CXXFiles) > 0
+	objc := len(p.MFiles) > 0
 
 	// Prefer the output of an install action to the output of a build action,
 	// because the install action will delete the output of the build action.
