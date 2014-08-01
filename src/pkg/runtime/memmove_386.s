@@ -115,6 +115,7 @@ move_1or2:
 	MOVB	-1(SI)(BX*1), CX
 	MOVB	AX, (DI)
 	MOVB	CX, -1(DI)(BX*1)
+	RET
 move_0:
 	RET
 move_3or4:

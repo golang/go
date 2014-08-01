@@ -63,6 +63,7 @@ clr_loop:
 clr_1or2:
 	MOVB	AX, (DI)
 	MOVB	AX, -1(DI)(BX*1)
+	RET
 clr_0:
 	RET
 clr_3or4:
