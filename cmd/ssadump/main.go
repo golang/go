@@ -23,8 +23,8 @@ var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
 The value is a sequence of zero or more of these letters:
 C	perform sanity [C]hecking of the SSA form.
 D	include [D]ebug info for every function.
-P	log [P]ackage inventory.
-F	log [F]unction SSA code.
+P	print [P]ackage inventory.
+F	print [F]unction SSA code.
 S	log [S]ource locations as SSA builder progresses.
 G	use binary object files from gc to provide imports (no code).
 L	build distinct packages seria[L]ly instead of in parallel.
@@ -105,9 +105,9 @@ func doMain() error {
 		case 'D':
 			mode |= ssa.GlobalDebug
 		case 'P':
-			mode |= ssa.LogPackages | ssa.BuildSerially
+			mode |= ssa.PrintPackages
 		case 'F':
-			mode |= ssa.LogFunctions | ssa.BuildSerially
+			mode |= ssa.PrintFunctions
 		case 'S':
 			mode |= ssa.LogSource | ssa.BuildSerially
 		case 'C':

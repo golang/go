@@ -149,8 +149,10 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 
 	testmain.Members["main"] = main
 
-	if prog.mode&LogPackages != 0 {
-		testmain.WriteTo(os.Stderr)
+	if prog.mode&PrintPackages != 0 {
+		printMu.Lock()
+		testmain.WriteTo(os.Stdout)
+		printMu.Unlock()
 	}
 
 	if prog.mode&SanityCheckFunctions != 0 {

@@ -288,6 +288,7 @@ type Node interface {
 // of the ast.FuncDecl.Name, if the function was explicit in the
 // source.  Synthetic wrappers, for which Synthetic != "", may share
 // the same position as the function they wrap.
+// Syntax.Pos() always returns the position of the declaring "func" token.
 //
 // Type() returns the function's Signature.
 //
@@ -1371,7 +1372,7 @@ func (c *CallCommon) Description() string {
 }
 
 // The CallInstruction interface, implemented by *Go, *Defer and *Call,
-// exposes the common parts of function calling instructions,
+// exposes the common parts of function-calling instructions,
 // yet provides a way back to the Value defined by *Call alone.
 //
 type CallInstruction interface {

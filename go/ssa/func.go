@@ -338,8 +338,10 @@ func (f *Function) finishBody() {
 
 	numberRegisters(f)
 
-	if f.Prog.mode&LogFunctions != 0 {
-		f.WriteTo(os.Stderr)
+	if f.Prog.mode&PrintFunctions != 0 {
+		printMu.Lock()
+		f.WriteTo(os.Stdout)
+		printMu.Unlock()
 	}
 
 	if f.Prog.mode&SanityCheckFunctions != 0 {
@@ -439,9 +441,7 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 	return v
 }
 
-// emit emits the specified instruction to function f, updating the
-// control-flow graph if required.
-//
+// emit emits the specified instruction to function f.
 func (f *Function) emit(instr Instruction) Value {
 	return f.currentBlock.emit(instr)
 }

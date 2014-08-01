@@ -54,7 +54,7 @@ func TestObjValueLookup(t *testing.T) {
 		return
 	}
 
-	prog := ssa.Create(iprog, 0 /*|ssa.LogFunctions*/)
+	prog := ssa.Create(iprog, 0 /*|ssa.PrintFunctions*/)
 	mainInfo := iprog.Created[0]
 	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.SetDebugMode(true)

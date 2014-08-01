@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
+	"sync"
 
 	"code.google.com/p/go.tools/go/loader"
 	"code.google.com/p/go.tools/go/types"
@@ -20,9 +21,9 @@ import (
 type BuilderMode uint
 
 const (
-	LogPackages          BuilderMode = 1 << iota // Dump package inventory to stderr
-	LogFunctions                                 // Dump function SSA code to stderr
-	LogSource                                    // Show source locations as SSA builder progresses
+	PrintPackages        BuilderMode = 1 << iota // Print package inventory to stdout
+	PrintFunctions                               // Print function SSA code to stdout
+	LogSource                                    // Log source locations as SSA builder progresses
 	SanityCheckFunctions                         // Perform sanity checking of function bodies
 	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
 	BuildSerially                                // Build packages serially, not in parallel.
@@ -237,8 +238,10 @@ func (prog *Program) CreatePackage(info *loader.PackageInfo) *Package {
 		p.SetDebugMode(true)
 	}
 
-	if prog.mode&LogPackages != 0 {
-		p.WriteTo(os.Stderr)
+	if prog.mode&PrintPackages != 0 {
+		printMu.Lock()
+		p.WriteTo(os.Stdout)
+		printMu.Unlock()
 	}
 
 	if info.Importable {
@@ -248,6 +251,9 @@ func (prog *Program) CreatePackage(info *loader.PackageInfo) *Package {
 
 	return p
 }
+
+// printMu serializes printing of Packages/Functions to stdout
+var printMu sync.Mutex
 
 // AllPackages returns a new slice containing all packages in the
 // program prog in unspecified order.
