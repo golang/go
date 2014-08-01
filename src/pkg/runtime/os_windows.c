@@ -23,7 +23,6 @@
 #pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
 #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
 #pragma dynimport runtime·GetSystemInfo GetSystemInfo "kernel32.dll"
-#pragma dynimport runtime·GetSystemTimeAsFileTime GetSystemTimeAsFileTime "kernel32.dll"
 #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
 #pragma dynimport runtime·LoadLibrary LoadLibraryW "kernel32.dll"
 #pragma dynimport runtime·LoadLibraryA LoadLibraryA "kernel32.dll"
@@ -55,7 +54,6 @@ extern void *runtime·GetEnvironmentStringsW;
 extern void *runtime·GetProcAddress;
 extern void *runtime·GetStdHandle;
 extern void *runtime·GetSystemInfo;
-extern void *runtime·GetSystemTimeAsFileTime;
 extern void *runtime·GetThreadContext;
 extern void *runtime·LoadLibrary;
 extern void *runtime·LoadLibraryA;
@@ -265,17 +263,42 @@ runtime·unminit(void)
 {
 }
 
+// Described in http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+typedef struct KSYSTEM_TIME {
+	uint32	LowPart;
+	int32	High1Time;
+	int32	High2Time;
+} KSYSTEM_TIME;
+
+const KSYSTEM_TIME* INTERRUPT_TIME	= (KSYSTEM_TIME*)0x7ffe0008;
+const KSYSTEM_TIME* SYSTEM_TIME		= (KSYSTEM_TIME*)0x7ffe0014;
+
+#pragma textflag NOSPLIT
+int64
+runtime·systime(KSYSTEM_TIME *timeaddr)
+{
+	KSYSTEM_TIME t;
+	int32 i;
+
+	for(i = 0; i < 10000; i++) {
+		// these fields must be read in that order (see URL above)
+		t.High1Time = timeaddr->High1Time;
+		t.LowPart = timeaddr->LowPart;
+		t.High2Time = timeaddr->High2Time;
+		if(t.High1Time == t.High2Time)
+			return (int64)t.High1Time<<32 | t.LowPart;
+		if((i%100) == 0)
+			runtime·osyield();
+	}
+	runtime·throw("interrupt/system time is changing too fast");
+	return 0;
+}
+
 #pragma textflag NOSPLIT
 int64
 runtime·nanotime(void)
 {
-	int64 filetime;
-
-	runtime·stdcall(runtime·GetSystemTimeAsFileTime, 1, &filetime);
-
-	// Filetime is 100s of nanoseconds since January 1, 1601.
-	// Convert to nanoseconds since January 1, 1970.
-	return (filetime - 116444736000000000LL) * 100LL;
+	return runtime·systime(INTERRUPT_TIME) * 100LL;
 }
 
 void
@@ -283,7 +306,10 @@ time·now(int64 sec, int32 usec)
 {
 	int64 ns;
 
-	ns = runtime·nanotime();
+	// SystemTime is 100s of nanoseconds since January 1, 1601.
+	// Convert to nanoseconds since January 1, 1970.
+	ns = (runtime·systime(SYSTEM_TIME) - 116444736000000000LL) * 100LL;
+
 	sec = ns / 1000000000LL;
 	usec = ns - sec * 1000000000LL;
 	FLUSH(&sec);

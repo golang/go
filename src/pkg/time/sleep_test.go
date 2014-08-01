@@ -15,6 +15,14 @@ import (
 	. "time"
 )
 
+// Go runtime uses different Windows timers for time.Now and sleeping.
+// These can tick at different frequencies and can arrive out of sync.
+// The effect can be seen, for example, as time.Sleep(100ms) is actually
+// shorter then 100ms when measured as difference between time.Now before and
+// after time.Sleep call. This was observed on Windows XP SP3 (windows/386).
+// windowsInaccuracy is to ignore such errors.
+const windowsInaccuracy = 17 * Millisecond
+
 func TestSleep(t *testing.T) {
 	const delay = 100 * Millisecond
 	go func() {
@@ -23,8 +31,12 @@ func TestSleep(t *testing.T) {
 	}()
 	start := Now()
 	Sleep(delay)
+	delayadj := delay
+	if runtime.GOOS == "windows" {
+		delayadj -= windowsInaccuracy
+	}
 	duration := Now().Sub(start)
-	if duration < delay {
+	if duration < delayadj {
 		t.Fatalf("Sleep(%s) slept for only %s", delay, duration)
 	}
 }
@@ -150,10 +162,14 @@ func TestAfter(t *testing.T) {
 	const delay = 100 * Millisecond
 	start := Now()
 	end := <-After(delay)
-	if duration := Now().Sub(start); duration < delay {
+	delayadj := delay
+	if runtime.GOOS == "windows" {
+		delayadj -= windowsInaccuracy
+	}
+	if duration := Now().Sub(start); duration < delayadj {
 		t.Fatalf("After(%s) slept for only %d ns", delay, duration)
 	}
-	if min := start.Add(delay); end.Before(min) {
+	if min := start.Add(delayadj); end.Before(min) {
 		t.Fatalf("After(%s) expect >= %s, got %s", delay, min, end)
 	}
 }
