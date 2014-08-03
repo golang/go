@@ -747,13 +747,14 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 
 		case reflect.Struct:
 			// Generate a closure that calls out to the engine for the nested type.
-			enginePtr, err := dec.getDecEnginePtr(wireId, userType(typ))
+			ut := userType(typ)
+			enginePtr, err := dec.getDecEnginePtr(wireId, ut)
 			if err != nil {
 				error_(err)
 			}
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
 				// indirect through enginePtr to delay evaluation for recursive structs.
-				dec.decodeStruct(*enginePtr, userType(typ), value)
+				dec.decodeStruct(*enginePtr, ut, value)
 			}
 		case reflect.Interface:
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
