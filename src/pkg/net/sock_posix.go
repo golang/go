@@ -36,7 +36,7 @@ type sockaddr interface {
 
 // socket returns a network file descriptor that is ready for
 // asynchronous I/O using the network poller.
-func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time) (fd *netFD, err error) {
 	s, err := sysSocket(family, sotype, proto)
 	if err != nil {
 		return nil, err
@@ -75,27 +75,51 @@ func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr s
 	if laddr != nil && raddr == nil {
 		switch sotype {
 		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
-			if err := fd.listenStream(laddr, listenerBacklog, toAddr); err != nil {
+			if err := fd.listenStream(laddr, listenerBacklog); err != nil {
 				fd.Close()
 				return nil, err
 			}
 			return fd, nil
 		case syscall.SOCK_DGRAM:
-			if err := fd.listenDatagram(laddr, toAddr); err != nil {
+			if err := fd.listenDatagram(laddr); err != nil {
 				fd.Close()
 				return nil, err
 			}
 			return fd, nil
 		}
 	}
-	if err := fd.dial(laddr, raddr, deadline, toAddr); err != nil {
+	if err := fd.dial(laddr, raddr, deadline); err != nil {
 		fd.Close()
 		return nil, err
 	}
 	return fd, nil
 }
 
-func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) error {
+func (fd *netFD) addrFunc() func(syscall.Sockaddr) Addr {
+	switch fd.family {
+	case syscall.AF_INET, syscall.AF_INET6:
+		switch fd.sotype {
+		case syscall.SOCK_STREAM:
+			return sockaddrToTCP
+		case syscall.SOCK_DGRAM:
+			return sockaddrToUDP
+		case syscall.SOCK_RAW:
+			return sockaddrToIP
+		}
+	case syscall.AF_UNIX:
+		switch fd.sotype {
+		case syscall.SOCK_STREAM:
+			return sockaddrToUnix
+		case syscall.SOCK_DGRAM:
+			return sockaddrToUnixgram
+		case syscall.SOCK_SEQPACKET:
+			return sockaddrToUnixpacket
+		}
+	}
+	return func(syscall.Sockaddr) Addr { return nil }
+}
+
+func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time) error {
 	var err error
 	var lsa syscall.Sockaddr
 	if laddr != nil {
@@ -123,14 +147,14 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(sys
 	}
 	lsa, _ = syscall.Getsockname(fd.sysfd)
 	if rsa, _ = syscall.Getpeername(fd.sysfd); rsa != nil {
-		fd.setAddr(toAddr(lsa), toAddr(rsa))
+		fd.setAddr(fd.addrFunc()(lsa), fd.addrFunc()(rsa))
 	} else {
-		fd.setAddr(toAddr(lsa), raddr)
+		fd.setAddr(fd.addrFunc()(lsa), raddr)
 	}
 	return nil
 }
 
-func (fd *netFD) listenStream(laddr sockaddr, backlog int, toAddr func(syscall.Sockaddr) Addr) error {
+func (fd *netFD) listenStream(laddr sockaddr, backlog int) error {
 	if err := setDefaultListenerSockopts(fd.sysfd); err != nil {
 		return err
 	}
@@ -148,11 +172,11 @@ func (fd *netFD) listenStream(laddr sockaddr, backlog int, toAddr func(syscall.S
 		return err
 	}
 	lsa, _ := syscall.Getsockname(fd.sysfd)
-	fd.setAddr(toAddr(lsa), nil)
+	fd.setAddr(fd.addrFunc()(lsa), nil)
 	return nil
 }
 
-func (fd *netFD) listenDatagram(laddr sockaddr, toAddr func(syscall.Sockaddr) Addr) error {
+func (fd *netFD) listenDatagram(laddr sockaddr) error {
 	switch addr := laddr.(type) {
 	case *UDPAddr:
 		// We provide a socket that listens to a wildcard
@@ -187,6 +211,6 @@ func (fd *netFD) listenDatagram(laddr sockaddr, toAddr func(syscall.Sockaddr) Ad
 		return err
 	}
 	lsa, _ := syscall.Getsockname(fd.sysfd)
-	fd.setAddr(toAddr(lsa), nil)
+	fd.setAddr(fd.addrFunc()(lsa), nil)
 	return nil
 }
