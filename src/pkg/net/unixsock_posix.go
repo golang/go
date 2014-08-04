@@ -42,14 +42,7 @@ func unixSocket(net string, laddr, raddr sockaddr, mode string, deadline time.Ti
 		return nil, errors.New("unknown mode: " + mode)
 	}
 
-	f := sockaddrToUnix
-	if sotype == syscall.SOCK_DGRAM {
-		f = sockaddrToUnixgram
-	} else if sotype == syscall.SOCK_SEQPACKET {
-		f = sockaddrToUnixpacket
-	}
-
-	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline, f)
+	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -286,11 +279,7 @@ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
 	if l == nil || l.fd == nil {
 		return nil, syscall.EINVAL
 	}
-	toAddr := sockaddrToUnix
-	if l.fd.sotype == syscall.SOCK_SEQPACKET {
-		toAddr = sockaddrToUnixpacket
-	}
-	fd, err := l.fd.accept(toAddr)
+	fd, err := l.fd.accept()
 	if err != nil {
 		return nil, err
 	}

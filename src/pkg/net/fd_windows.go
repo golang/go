@@ -520,7 +520,7 @@ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	})
 }
 
-func (fd *netFD) acceptOne(toAddr func(syscall.Sockaddr) Addr, rawsa []syscall.RawSockaddrAny, o *operation) (*netFD, error) {
+func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD, error) {
 	// Get new socket.
 	s, err := sysSocket(fd.family, fd.sotype, 0)
 	if err != nil {
@@ -559,7 +559,7 @@ func (fd *netFD) acceptOne(toAddr func(syscall.Sockaddr) Addr, rawsa []syscall.R
 	return netfd, nil
 }
 
-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+func (fd *netFD) accept() (*netFD, error) {
 	if err := fd.readLock(); err != nil {
 		return nil, err
 	}
@@ -570,7 +570,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	var err error
 	var rawsa [2]syscall.RawSockaddrAny
 	for {
-		netfd, err = fd.acceptOne(toAddr, rawsa[:], o)
+		netfd, err = fd.acceptOne(rawsa[:], o)
 		if err == nil {
 			break
 		}
@@ -603,7 +603,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	lsa, _ := lrsa.Sockaddr()
 	rsa, _ := rrsa.Sockaddr()
 
-	netfd.setAddr(toAddr(lsa), toAddr(rsa))
+	netfd.setAddr(netfd.addrFunc()(lsa), netfd.addrFunc()(rsa))
 	return netfd, nil
 }
 

@@ -153,7 +153,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 }
 
 func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, error) {
-	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial")
 
 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
@@ -183,7 +183,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
 		if err == nil {
 			fd.Close()
 		}
-		fd, err = internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+		fd, err = internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial")
 	}
 
 	if err != nil {
@@ -231,7 +231,7 @@ func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
 	if l == nil || l.fd == nil {
 		return nil, syscall.EINVAL
 	}
-	fd, err := l.fd.accept(sockaddrToTCP)
+	fd, err := l.fd.accept()
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	if laddr == nil {
 		laddr = &TCPAddr{}
 	}
-	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
+	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_STREAM, 0, "listen")
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
 	}

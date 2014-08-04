@@ -401,7 +401,7 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 	return
 }
 
-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err error) {
+func (fd *netFD) accept() (netfd *netFD, err error) {
 	if err := fd.readLock(); err != nil {
 		return nil, err
 	}
@@ -438,7 +438,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 		return nil, err
 	}
 	lsa, _ := syscall.Getsockname(netfd.sysfd)
-	netfd.setAddr(toAddr(lsa), toAddr(rsa))
+	netfd.setAddr(netfd.addrFunc()(lsa), netfd.addrFunc()(rsa))
 	return netfd, nil
 }
 
