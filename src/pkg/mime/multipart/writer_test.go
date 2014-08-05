@@ -118,8 +118,11 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
 	// https://codereview.appspot.com/95760043/ and reverted in
 	// https://codereview.appspot.com/117600043/
 	w := NewWriter(ioutil.Discard)
+	done := make(chan int)
 	go func() {
 		w.CreateFormField("foo")
+		done <- 1
 	}()
 	w.Boundary()
+	<-done
 }
