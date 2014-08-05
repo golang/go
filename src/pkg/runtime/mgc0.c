@@ -1515,7 +1515,7 @@ runtime·ReadMemStats(MStats *stats)
 	runtime·updatememstats(nil);
 	// Size of the trailing by_size array differs between Go and C,
 	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
-	runtime·memcopy(runtime·sizeof_C_MStats, stats, &mstats);
+	runtime·memmove(stats, &mstats, runtime·sizeof_C_MStats);
 
 	// Stack numbers are part of the heap numbers, separate those out for user consumption
 	stats->stacks_sys = stats->stacks_inuse;
