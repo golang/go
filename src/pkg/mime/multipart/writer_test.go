@@ -111,3 +111,15 @@ func TestWriterSetBoundary(t *testing.T) {
 		t.Errorf("expected my-separator in output. got: %q", got)
 	}
 }
+
+func TestWriterBoundaryGoroutines(t *testing.T) {
+	// Verify there's no data race accessing any lazy boundary if it's used by
+	// different goroutines. This was previously broken by
+	// https://codereview.appspot.com/95760043/ and reverted in
+	// https://codereview.appspot.com/117600043/
+	w := NewWriter(ioutil.Discard)
+	go func() {
+		w.CreateFormField("foo")
+	}()
+	w.Boundary()
+}
