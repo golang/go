@@ -38,10 +38,9 @@ var zeroObject byte
 // Maximum possible heap size.
 var maxMem uintptr
 
-// Allocate an object of at least size bytes.
-// Small objects are allocated from the per-thread cache's free lists.
+// Allocate an object of size bytes.
+// Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
-// If the block will be freed with runtime·free(), typ must be nil.
 func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 	if size == 0 {
 		return unsafe.Pointer(&zeroObject)
