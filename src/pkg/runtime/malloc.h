@@ -334,6 +334,8 @@ struct MCache
 
 	StackFreeList stackcache[NumStackOrders];
 
+	void*	gcworkbuf;
+
 	// Local allocator stats, flushed during GC.
 	uintptr local_nlookup;		// number of pointer lookups
 	uintptr local_largefree;	// bytes freed for large objects (>MaxSmallSize)
@@ -344,6 +346,7 @@ struct MCache
 MSpan*	runtime·MCache_Refill(MCache *c, int32 sizeclass);
 void	runtime·MCache_ReleaseAll(MCache *c);
 void	runtime·stackcache_clear(MCache *c);
+void	runtime·gcworkbuffree(void *b);
 
 enum
 {

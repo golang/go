@@ -570,9 +570,18 @@ markroot(ParFor *desc, uint32 i)
 static Workbuf*
 getempty(Workbuf *b)
 {
+	MCache *c;
+
 	if(b != nil)
 		runtime·lfstackpush(&work.full, &b->node);
-	b = (Workbuf*)runtime·lfstackpop(&work.empty);
+	b = nil;
+	c = g->m->mcache;
+	if(c->gcworkbuf != nil) {
+		b = c->gcworkbuf;
+		c->gcworkbuf = nil;
+	}
+	if(b == nil)
+		b = (Workbuf*)runtime·lfstackpop(&work.empty);
 	if(b == nil)
 		b = runtime·persistentalloc(sizeof(*b), CacheLineSize, &mstats.gc_sys);
 	b->nobj = 0;
@@ -582,7 +591,21 @@ getempty(Workbuf *b)
 static void
 putempty(Workbuf *b)
 {
+	MCache *c;
+
+	c = g->m->mcache;
+	if(c->gcworkbuf == nil) {
+		c->gcworkbuf = b;
+		return;
+	}
 	runtime·lfstackpush(&work.empty, &b->node);
+}
+
+void
+runtime·gcworkbuffree(void *b)
+{
+	if(b != nil)
+		putempty(b);
 }
 
 // Get a full work buffer off the work.full list, or return nil.
