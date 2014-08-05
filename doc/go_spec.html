@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of July 14, 2014",
+	"Subtitle": "Version of August 5, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -2626,7 +2626,7 @@ Otherwise <code>a[x]</code> is illegal.
 
 <p>
 An index expression on a map <code>a</code> of type <code>map[K]V</code>
-may be used in an assignment or initialization of the special form
+used in an <a href="#Assignments">assignment</a> or initialization of the special form
 </p>
 
 <pre>
@@ -2636,11 +2636,9 @@ var v, ok = a[x]
 </pre>
 
 <p>
-where the result of the index expression is a pair of values with types
-<code>(V, bool)</code>. In this form, the value of <code>ok</code> is
+yields an additional untyped boolean value. The value of <code>ok</code> is
 <code>true</code> if the key <code>x</code> is present in the map, and
-<code>false</code> otherwise. The value of <code>v</code> is the value
-<code>a[x]</code> as in the single-result form.
+<code>false</code> otherwise.
 </p>
 
 <p>
@@ -2825,7 +2823,7 @@ r := y.(io.Reader)     // r has type io.Reader and y must implement both I and i
 </pre>
 
 <p>
-If a type assertion is used in an <a href="#Assignments">assignment</a> or initialization of the form
+A type assertion used in an <a href="#Assignments">assignment</a> or initialization of the special form
 </p>
 
 <pre>
@@ -2835,13 +2833,10 @@ var v, ok = x.(T)
 </pre>
 
 <p>
-the result of the assertion is a pair of values with types <code>(T, bool)</code>.
-If the assertion holds, the expression returns the pair <code>(x.(T), true)</code>;
-otherwise, the expression returns <code>(Z, false)</code> where <code>Z</code>
-is the <a href="#The_zero_value">zero value</a> for type <code>T</code>.
+yields an additional untyped boolean value. The value of <code>ok</code> is <code>true</code>
+if the assertion holds. Otherwise it is <code>false</code> and the value of <code>v</code> is
+the <a href="#The_zero_value">zero value</a> for type <code>T</code>.
 No run-time panic occurs in this case.
-The type assertion in this construct thus acts like a function call
-returning a value and a boolean indicating success.
 </p>
 
 
@@ -3423,7 +3418,7 @@ f(&lt;-ch)
 </pre>
 
 <p>
-A receive expression used in an assignment or initialization of the form
+A receive expression used in an <a href="#Assignments">assignment</a> or initialization of the special form
 </p>
 
 <pre>
@@ -3433,7 +3428,7 @@ var x, ok = &lt;-ch
 </pre>
 
 <p>
-yields an additional result of type <code>bool</code> reporting whether the
+yields an additional untyped boolean result reporting whether the
 communication succeeded. The value of <code>ok</code> is <code>true</code>
 if the value received was delivered by a successful send operation to the
 channel, or <code>false</code> if it is a zero value generated because the
