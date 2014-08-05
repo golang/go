@@ -7,10 +7,6 @@
 #include "arch_GOARCH.h"
 #include "../../cmd/ld/textflag.h"
 
-enum {
-	maxround = sizeof(uintptr),
-};
-
 // Keep a cached value to make gotraceback fast,
 // since we call it on every call to gentraceback.
 // The cached value is a uint32 in which the low bit
