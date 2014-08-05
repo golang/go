@@ -9,7 +9,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rsa"
-	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
@@ -258,6 +257,10 @@ type serverTest struct {
 	expectedPeerCerts []string
 	// config, if not nil, contains a custom Config to use for this test.
 	config *Config
+	// validate, if not nil, is a function that will be called with the
+	// ConnectionState of the resulting connection. It returns false if the
+	// ConnectionState is unacceptable.
+	validate func(ConnectionState) error
 }
 
 var defaultClientCommand = []string{"openssl", "s_client", "-no_ticket"}
@@ -354,14 +357,14 @@ func (test *serverTest) run(t *testing.T, write bool) {
 		config = testConfig
 	}
 	server := Server(serverConn, config)
-	peerCertsChan := make(chan []*x509.Certificate, 1)
+	connStateChan := make(chan ConnectionState, 1)
 	go func() {
 		if _, err := server.Write([]byte("hello, world\n")); err != nil {
 			t.Logf("Error from Server.Write: %s", err)
 		}
 		server.Close()
 		serverConn.Close()
-		peerCertsChan <- server.ConnectionState().PeerCertificates
+		connStateChan <- server.ConnectionState()
 	}()
 
 	if !write {
@@ -386,7 +389,8 @@ func (test *serverTest) run(t *testing.T, write bool) {
 		clientConn.Close()
 	}
 
-	peerCerts := <-peerCertsChan
+	connState := <-connStateChan
+	peerCerts := connState.PeerCertificates
 	if len(peerCerts) == len(test.expectedPeerCerts) {
 		for i, peerCert := range peerCerts {
 			block, _ := pem.Decode([]byte(test.expectedPeerCerts[i]))
@@ -396,6 +400,12 @@ func (test *serverTest) run(t *testing.T, write bool) {
 		}
 	} else {
 		t.Fatalf("%s: mismatch on peer list length: %d (wanted) != %d (got)", test.name, len(test.expectedPeerCerts), len(peerCerts))
+	}
+
+	if test.validate != nil {
+		if err := test.validate(connState); err != nil {
+			t.Fatalf("validate callback returned error: %s", err)
+		}
 	}
 
 	if write {
@@ -495,6 +505,49 @@ func TestHandshakeServerECDHEECDSAAES(t *testing.T) {
 		config:  &config,
 	}
 	runServerTestTLS10(t, test)
+	runServerTestTLS12(t, test)
+}
+
+func TestHandshakeServerALPN(t *testing.T) {
+	config := *testConfig
+	config.NextProtos = []string{"proto1", "proto2"}
+
+	test := &serverTest{
+		name: "ALPN",
+		// Note that this needs OpenSSL 1.0.2 because that is the first
+		// version that supports the -alpn flag.
+		command: []string{"openssl", "s_client", "-alpn", "proto2,proto1"},
+		config:  &config,
+		validate: func(state ConnectionState) error {
+			// The server's preferences should override the client.
+			if state.NegotiatedProtocol != "proto1" {
+				return fmt.Errorf("Got protocol %q, wanted proto1", state.NegotiatedProtocol)
+			}
+			return nil
+		},
+	}
+	runServerTestTLS12(t, test)
+}
+
+func TestHandshakeServerALPNNoMatch(t *testing.T) {
+	config := *testConfig
+	config.NextProtos = []string{"proto3"}
+
+	test := &serverTest{
+		name: "ALPN-NoMatch",
+		// Note that this needs OpenSSL 1.0.2 because that is the first
+		// version that supports the -alpn flag.
+		command: []string{"openssl", "s_client", "-alpn", "proto2,proto1"},
+		config:  &config,
+		validate: func(state ConnectionState) error {
+			// Rather than reject the connection, Go doesn't select
+			// a protocol when there is no overlap.
+			if state.NegotiatedProtocol != "" {
+				return fmt.Errorf("Got protocol %q, wanted ''", state.NegotiatedProtocol)
+			}
+			return nil
+		},
+	}
 	runServerTestTLS12(t, test)
 }
 
