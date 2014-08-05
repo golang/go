@@ -161,6 +161,8 @@ function updateSlideClass(slideNo, className) {
 };
 
 function updateSlides() {
+  if (window.trackPageview) window.trackPageview();
+
   for (var i = 0; i < slideEls.length; i++) {
     switch (i) {
       case curSlide - 2:
