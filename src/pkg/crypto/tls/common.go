@@ -72,6 +72,7 @@ const (
 	extensionSupportedCurves     uint16 = 10
 	extensionSupportedPoints     uint16 = 11
 	extensionSignatureAlgorithms uint16 = 13
+	extensionALPN                uint16 = 16
 	extensionSessionTicket       uint16 = 35
 	extensionNextProtoNeg        uint16 = 13172 // not IANA assigned
 	extensionRenegotiationInfo   uint16 = 0xff01

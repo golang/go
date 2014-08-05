@@ -49,6 +49,10 @@ type clientTest struct {
 	// key, if not nil, contains either a *rsa.PrivateKey or
 	// *ecdsa.PrivateKey which is the private key for the reference server.
 	key interface{}
+	// validate, if not nil, is a function that will be called with the
+	// ConnectionState of the resulting connection. It returns a non-nil
+	// error if the ConnectionState is unacceptable.
+	validate func(ConnectionState) error
 }
 
 var defaultServerCommand = []string{"openssl", "s_server"}
@@ -187,6 +191,11 @@ func (test *clientTest) run(t *testing.T, write bool) {
 	go func() {
 		if _, err := client.Write([]byte("hello\n")); err != nil {
 			t.Logf("Client.Write failed: %s", err)
+		}
+		if test.validate != nil {
+			if err := test.validate(client.ConnectionState()); err != nil {
+				t.Logf("validate callback returned error: %s", err)
+			}
 		}
 		client.Close()
 		clientConn.Close()
@@ -436,4 +445,46 @@ func TestLRUClientSessionCache(t *testing.T) {
 	if s, ok := cache.Get(keys[0]); !ok || s != nil {
 		t.Fatalf("failed to add nil entry to cache")
 	}
+}
+
+func TestHandshakeClientALPNMatch(t *testing.T) {
+	config := *testConfig
+	config.NextProtos = []string{"proto2", "proto1"}
+
+	test := &clientTest{
+		name: "ALPN",
+		// Note that this needs OpenSSL 1.0.2 because that is the first
+		// version that supports the -alpn flag.
+		command: []string{"openssl", "s_server", "-alpn", "proto1,proto2"},
+		config:  &config,
+		validate: func(state ConnectionState) error {
+			// The server's preferences should override the client.
+			if state.NegotiatedProtocol != "proto1" {
+				return fmt.Errorf("Got protocol %q, wanted proto1", state.NegotiatedProtocol)
+			}
+			return nil
+		},
+	}
+	runClientTestTLS12(t, test)
+}
+
+func TestHandshakeClientALPNNoMatch(t *testing.T) {
+	config := *testConfig
+	config.NextProtos = []string{"proto3"}
+
+	test := &clientTest{
+		name: "ALPN-NoMatch",
+		// Note that this needs OpenSSL 1.0.2 because that is the first
+		// version that supports the -alpn flag.
+		command: []string{"openssl", "s_server", "-alpn", "proto1,proto2"},
+		config:  &config,
+		validate: func(state ConnectionState) error {
+			// There's no overlap so OpenSSL will not select a protocol.
+			if state.NegotiatedProtocol != "" {
+				return fmt.Errorf("Got protocol %q, wanted ''", state.NegotiatedProtocol)
+			}
+			return nil
+		},
+	}
+	runClientTestTLS12(t, test)
 }
