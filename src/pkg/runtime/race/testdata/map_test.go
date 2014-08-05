@@ -238,3 +238,96 @@ func TestRaceMapAssignMultipleReturn(t *testing.T) {
 	_ = x
 	<-ch
 }
+
+// BigKey and BigVal must be larger than 256 bytes,
+// so that compiler sets KindGCProg for them.
+type BigKey [1000]*int
+
+type BigVal struct {
+	x int
+	y [1000]*int
+}
+
+func TestRaceMapBigKeyAccess1(t *testing.T) {
+	m := make(map[BigKey]int)
+	var k BigKey
+	ch := make(chan bool, 1)
+	go func() {
+		_ = m[k]
+		ch <- true
+	}()
+	k[30] = new(int)
+	<-ch
+}
+
+func TestRaceMapBigKeyAccess2(t *testing.T) {
+	m := make(map[BigKey]int)
+	var k BigKey
+	ch := make(chan bool, 1)
+	go func() {
+		_, _ = m[k]
+		ch <- true
+	}()
+	k[30] = new(int)
+	<-ch
+}
+
+func TestRaceMapBigKeyInsert(t *testing.T) {
+	m := make(map[BigKey]int)
+	var k BigKey
+	ch := make(chan bool, 1)
+	go func() {
+		m[k] = 1
+		ch <- true
+	}()
+	k[30] = new(int)
+	<-ch
+}
+
+func TestRaceMapBigKeyDelete(t *testing.T) {
+	m := make(map[BigKey]int)
+	var k BigKey
+	ch := make(chan bool, 1)
+	go func() {
+		delete(m, k)
+		ch <- true
+	}()
+	k[30] = new(int)
+	<-ch
+}
+
+func TestRaceMapBigValInsert(t *testing.T) {
+	m := make(map[int]BigVal)
+	var v BigVal
+	ch := make(chan bool, 1)
+	go func() {
+		m[1] = v
+		ch <- true
+	}()
+	v.y[30] = new(int)
+	<-ch
+}
+
+func TestRaceMapBigValAccess1(t *testing.T) {
+	m := make(map[int]BigVal)
+	var v BigVal
+	ch := make(chan bool, 1)
+	go func() {
+		v = m[1]
+		ch <- true
+	}()
+	v.y[30] = new(int)
+	<-ch
+}
+
+func TestRaceMapBigValAccess2(t *testing.T) {
+	m := make(map[int]BigVal)
+	var v BigVal
+	ch := make(chan bool, 1)
+	go func() {
+		v, _ = m[1]
+		ch <- true
+	}()
+	v.y[30] = new(int)
+	<-ch
+}
