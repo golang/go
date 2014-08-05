@@ -98,7 +98,7 @@ func indexes() {
 	// ok is of type bool
 	type mybool bool
 	var ok mybool
-	_, ok = m /* ERROR "cannot assign" */ ["bar"]
+	_, ok = m["bar"]
 	_ = ok
 
 
@@ -372,7 +372,7 @@ func type_asserts() {
 
 	// ok value is of type bool
 	var myok mybool
-	_, myok = e /* ERROR "cannot assign" */ .(int)
+	_, myok = e.(int)
 	_ = myok
 
 	var t I

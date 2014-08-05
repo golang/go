@@ -95,14 +95,18 @@ func assignments1() {
 }
 
 func assignments2() {
+	type mybool bool
 	var m map[string][]bool
 	var s []bool
 	var b bool
+	var d mybool
 	_ = s
 	_ = b
+	_ = d
 
 	// assignments to map index expressions are ok
 	s, b = m["foo"]
+	_, d = m["bar"]
 	m["foo"] = nil
 	m["foo"] = nil /* ERROR assignment count mismatch */ , false
 	_ = append(m["foo"])
@@ -110,6 +114,7 @@ func assignments2() {
 
 	var c chan int
 	_, b = <-c
+	_, d = <-c
 	<- /* ERROR cannot assign */ c = 0
 	<-c = 0 /* ERROR assignment count mismatch */ , false
 

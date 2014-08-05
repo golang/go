@@ -140,7 +140,7 @@ func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
 		if x0.mode == mapindex || x0.mode == commaok {
 			// comma-ok value
 			if allowCommaOk {
-				a := [2]Type{x0.typ, Typ[Bool]}
+				a := [2]Type{x0.typ, Typ[UntypedBool]}
 				return func(x *operand, i int) {
 					x.mode = value
 					x.expr = x0.expr
