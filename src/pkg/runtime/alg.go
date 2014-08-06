@@ -37,13 +37,15 @@ const (
 	alg_max
 )
 
+const nacl = GOOS == "nacl"
+
 var use_aeshash bool
 
 // in asm_*.s
 func aeshash(p unsafe.Pointer, s uintptr, h uintptr) uintptr
 
 func memhash(p unsafe.Pointer, s uintptr, h uintptr) uintptr {
-	if use_aeshash {
+	if !nacl && use_aeshash {
 		return aeshash(p, s, h)
 	}
 
