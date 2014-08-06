@@ -288,7 +288,7 @@ runtime·memlimit(void)
  * and calls sighandler().
  */
 extern void runtime·sigtramp(void);
-extern void runtime·sigreturn(void);	// calls runtime·sigreturn
+extern void runtime·sigreturn(void);	// calls rt_sigreturn, only used with SA_RESTORER
 
 void
 runtime·setsig(int32 i, GoSighandler *fn, bool restart)
@@ -300,9 +300,15 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 	if(restart)
 		sa.sa_flags |= SA_RESTART;
 	sa.sa_mask = ~0ULL;
-	// TODO(adonovan): Linux manpage says "sa_restorer element is
-	// obsolete and should not be used".  Avoid it here, and test.
+	// Although Linux manpage says "sa_restorer element is obsolete and
+	// should not be used". x86_64 kernel requires it. Only use it on
+	// x86.
+#ifdef GOARCH_386
 	sa.sa_restorer = (void*)runtime·sigreturn;
+#endif
+#ifdef GOARCH_amd64
+	sa.sa_restorer = (void*)runtime·sigreturn;
+#endif
 	if(fn == runtime·sighandler)
 		fn = (void*)runtime·sigtramp;
 	sa.sa_handler = fn;
