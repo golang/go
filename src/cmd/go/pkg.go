@@ -330,16 +330,18 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 	}
 
 	// Check for "internal" element: four cases depending on begin of string and/or end of string.
-	if p.ImportPath != "internal" &&
-		!strings.HasPrefix(p.ImportPath, "internal/") &&
-		!strings.HasSuffix(p.ImportPath, "/internal") &&
-		!strings.Contains(p.ImportPath, "/internal/") {
+	i, ok := findInternal(p.ImportPath)
+	if !ok {
 		return p
 	}
 
-	// Internal is present. Check directory.
-	parent := filepath.Dir(p.Dir)
-	if hasPathPrefix(srcDir, parent) {
+	// Internal is present.
+	// Map import path back to directory corresponding to parent of internal.
+	if i > 0 {
+		i-- // rewind over slash in ".../internal"
+	}
+	parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
+	if hasPathPrefix(filepath.ToSlash(srcDir), filepath.ToSlash(parent)) {
 		return p
 	}
 
@@ -351,6 +353,25 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 	}
 	perr.Incomplete = true
 	return &perr
+}
+
+// findInternal looks for the final "internal" path element in the given import path.
+// If there isn't one, findInternal returns ok=false.
+// Otherwise, findInternal returns ok=true and the index of the "internal".
+func findInternal(path string) (index int, ok bool) {
+	// Four cases, depending on internal at start/end of string or not.
+	// The order matters: we must return the index of the final element,
+	// because the final one produces the most restrictive requirement
+	// on the importer.
+	switch {
+	case strings.HasSuffix(path, "/internal"):
+		return len(path) - len("internal"), true
+	case strings.Contains(path, "/internal/"):
+		return strings.LastIndex(path, "/internal/") + 1, true
+	case path == "internal", strings.HasPrefix(path, "internal/"):
+		return 0, true
+	}
+	return 0, false
 }
 
 type targetDir int
