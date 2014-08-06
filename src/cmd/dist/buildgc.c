@@ -69,7 +69,7 @@ gcopnames(char *dir, char *file)
 void
 mkanames(char *dir, char *file)
 {
-	int i, ch;
+	int i, j, ch;
 	Buf in, b, out, out2;
 	Vec lines;
 	char *p;
@@ -108,6 +108,7 @@ mkanames(char *dir, char *file)
 	}
 	bwritestr(&out, "};\n");
 
+	j=0;
 	bprintf(&out2, "char*	cnames%c[] = {\n", ch);
 	for(i=0; i<lines.len; i++) {
 		if(hasprefix(lines.p[i], "\tC_")) {
@@ -119,10 +120,12 @@ mkanames(char *dir, char *file)
 				*p = '\0';
 			p = lines.p[i] + 3;
 			bwritestr(&out2, bprintf(&b, "\t\"%s\",\n", p));
+			j++;
 		}
 	}
 	bwritestr(&out2, "};\n");
-	bwriteb(&out, &out2);
+	if(j>0)
+		bwriteb(&out, &out2);
 
 	writefile(&out, file, 0);
 
