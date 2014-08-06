@@ -323,6 +323,11 @@ class CL(object):
 			CheckFormat(ui, repo, self.files, just_warn=gofmt_just_warn)
 		set_status("uploading CL metadata + diffs")
 		os.chdir(repo.root)
+
+		branchPrefix = ""
+		branch = repo[None].branch()
+		if branch.startswith("dev."):
+			branchPrefix = "[" + branch + "] "
 		form_fields = [
 			("content_upload", "1"),
 			("reviewers", JoinComma(self.reviewer)),
@@ -358,7 +363,7 @@ class CL(object):
 			form_fields.append(("subject", "diff -r " + vcs.base_rev + " " + ui.expandpath("default")))
 		else:
 			# First upload sets the subject for the CL itself.
-			form_fields.append(("subject", self.Subject()))
+			form_fields.append(("subject", branchPrefix+self.Subject()))
 		ctype, body = EncodeMultipartFormData(form_fields, uploaded_diff_file)
 		response_body = MySend("/upload", body, content_type=ctype)
 		patchset = None
@@ -403,7 +408,11 @@ class CL(object):
 		pmsg += "\n"
 		repourl = ui.expandpath("default")
 		if not self.mailed:
-			pmsg += "I'd like you to review this change to\n" + repourl + "\n"
+			pmsg += "I'd like you to review this change to"
+			branch = repo[None].branch()
+			if branch.startswith("dev."):
+				pmsg += " the " + branch + " branch of"
+			pmsg += "\n" + repourl + "\n"
 		else:
 			pmsg += "Please take another look.\n"
 		typecheck(pmsg, str)
@@ -1333,7 +1342,7 @@ def change(ui, repo, *pats, **opts):
 	else:
 		name = "new"
 		cl = CL("new")
-		if repo[None].branch() != "default":
+		if not workbranch(repo[None].branch()):
 			raise hg_util.Abort("cannot create CL outside default branch; switch with 'hg update default'")
 		dirty[cl] = True
 		files = ChangedFiles(ui, repo, pats, taken=Taken(ui, repo))
@@ -1434,7 +1443,7 @@ def clpatch(ui, repo, clname, **opts):
 	Submitting an imported patch will keep the original author's
 	name as the Author: line but add your own name to a Committer: line.
 	"""
-	if repo[None].branch() != "default":
+	if not workbranch(repo[None].branch()):
 		raise hg_util.Abort("cannot run hg clpatch outside default branch")
 	err = clpatch_or_undo(ui, repo, clname, opts, mode="clpatch")
 	if err:
@@ -1448,7 +1457,7 @@ def undo(ui, repo, clname, **opts):
 	After creating the CL, opens the CL text for editing so that
 	you can add the reason for the undo to the description.
 	"""
-	if repo[None].branch() != "default":
+	if not workbranch(repo[None].branch()):
 		raise hg_util.Abort("cannot run hg undo outside default branch")
 	err = clpatch_or_undo(ui, repo, clname, opts, mode="undo")
 	if err:
@@ -2699,6 +2708,9 @@ def RietveldSetup(ui, repo):
 	for t in tags:
 		if t.startswith('release-branch.go'):
 			releaseBranch = t			
+
+def workbranch(name):
+	return name == "default" or name.startswith('dev.')
 
 #######################################################################
 # http://codereview.appspot.com/static/upload.py, heavily edited.
