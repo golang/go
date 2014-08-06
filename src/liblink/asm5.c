@@ -65,52 +65,6 @@ enum
 	LTO		= 1<<1,
 	LPOOL		= 1<<2,
 	LPCREL		= 1<<3,
-
-	C_NONE		= 0,
-	C_REG,
-	C_REGREG,
-	C_REGREG2,
-	C_SHIFT,
-	C_FREG,
-	C_PSR,
-	C_FCR,
-
-	C_RCON,		/* 0xff rotated */
-	C_NCON,		/* ~RCON */
-	C_SCON,		/* 0xffff */
-	C_LCON,
-	C_LCONADDR,
-	C_ZFCON,
-	C_SFCON,
-	C_LFCON,
-
-	C_RACON,
-	C_LACON,
-
-	C_SBRA,
-	C_LBRA,
-
-	C_HAUTO,	/* halfword insn offset (-0xff to 0xff) */
-	C_FAUTO,	/* float insn offset (0 to 0x3fc, word aligned) */
-	C_HFAUTO,	/* both H and F */
-	C_SAUTO,	/* -0xfff to 0xfff */
-	C_LAUTO,
-
-	C_HOREG,
-	C_FOREG,
-	C_HFOREG,
-	C_SOREG,
-	C_ROREG,
-	C_SROREG,	/* both nil and R */
-	C_LOREG,
-
-	C_PC,
-	C_SP,
-	C_HREG,
-
-	C_ADDR,		/* reference to relocatable address */
-
-	C_GOK,
 };
 
 static Optab	optab[] =
@@ -1264,7 +1218,7 @@ oplook(Link *ctxt, Prog *p)
 		o = oprange[r].stop; /* just generate an error */
 	}
 	if(0 /*debug['O']*/) {
-		print("oplook %A %d %d %d\n",
+		print("oplook %A %^ %^ %^\n",
 			(int)p->as, a1, a2, a3);
 		print("		%d %d\n", p->from.type, p->to.type);
 	}
@@ -1278,7 +1232,7 @@ oplook(Link *ctxt, Prog *p)
 			p->optab = (o-optab)+1;
 			return o;
 		}
-	ctxt->diag("illegal combination %P; %d %d %d, %d %d",
+	ctxt->diag("illegal combination %P; %^ %^ %^, %d %d",
 		p, a1, a2, a3, p->from.type, p->to.type);
 	ctxt->diag("from %d %d to %d %d\n", p->from.type, p->from.name, p->to.type, p->to.name);
 	prasm(p);

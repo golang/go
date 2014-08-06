@@ -66,6 +66,57 @@ enum
 
 enum
 {
+	C_NONE,
+	C_REG,
+	C_REGREG,
+	C_REGREG2,
+	C_SHIFT,
+	C_FREG,
+	C_PSR,
+	C_FCR,
+
+	C_RCON,		/* 0xff rotated */
+	C_NCON,		/* ~RCON */
+	C_SCON,		/* 0xffff */
+	C_LCON,
+	C_LCONADDR,
+	C_ZFCON,
+	C_SFCON,
+	C_LFCON,
+
+	C_RACON,
+	C_LACON,
+
+	C_SBRA,
+	C_LBRA,
+
+	C_HAUTO,	/* halfword insn offset (-0xff to 0xff) */
+	C_FAUTO,	/* float insn offset (0 to 0x3fc, word aligned) */
+	C_HFAUTO,	/* both H and F */
+	C_SAUTO,	/* -0xfff to 0xfff */
+	C_LAUTO,
+
+	C_HOREG,
+	C_FOREG,
+	C_HFOREG,
+	C_SOREG,
+	C_ROREG,
+	C_SROREG,	/* both nil and R */
+	C_LOREG,
+
+	C_PC,
+	C_SP,
+	C_HREG,
+
+	C_ADDR,		/* reference to relocatable address */
+
+	C_GOK,
+
+	C_NCLASS,	/* must be the last */
+};
+
+enum
+{
 	AXXX,
 
 	AAND,

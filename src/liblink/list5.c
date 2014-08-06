@@ -46,6 +46,7 @@ static int	Pconv(Fmt *fp);
 static int	Rconv(Fmt *fp);
 static int	RAconv(Fmt *fp);
 static int	DSconv(Fmt *fp);
+static int	DRconv(Fmt*);
 
 #pragma	varargck	type	"$"	char*
 #pragma	varargck	type	"M"	Addr*
@@ -58,6 +59,9 @@ listinit5(void)
 	fmtinstall('D', Dconv);
 	fmtinstall('P', Pconv);
 	fmtinstall('R', Rconv);
+
+	// for liblink internal use
+	fmtinstall('^', DRconv);
 
 	// for internal use
 	fmtinstall('$', DSconv);
@@ -311,6 +315,19 @@ Rconv(Fmt *fp)
 	r = va_arg(fp->args, int);
 	sprint(str, "R%d", r);
 	return fmtstrcpy(fp, str);
+}
+
+static int
+DRconv(Fmt *fp)
+{
+	char *s;
+	int a;
+
+	a = va_arg(fp->args, int);
+	s = "C_??";
+	if(a >= C_NONE && a <= C_NCLASS)
+		s = cnames5[a];
+	return fmtstrcpy(fp, s);
 }
 
 static int

@@ -65,17 +65,19 @@ gcopnames(char *dir, char *file)
 
 // mkanames reads [568].out.h and writes anames[568].c
 // The format is much the same as the Go opcodes above.
+// it also writes out cnames array for C_* constants.
 void
 mkanames(char *dir, char *file)
 {
 	int i, ch;
-	Buf in, b, out;
+	Buf in, b, out, out2;
 	Vec lines;
 	char *p;
 
 	binit(&b);
 	binit(&in);
 	binit(&out);
+	binit(&out2);
 	vinit(&lines);
 
 	ch = file[xstrlen(file)-3];
@@ -105,10 +107,28 @@ mkanames(char *dir, char *file)
 		}
 	}
 	bwritestr(&out, "};\n");
+
+	bprintf(&out2, "char*	cnames%c[] = {\n", ch);
+	for(i=0; i<lines.len; i++) {
+		if(hasprefix(lines.p[i], "\tC_")) {
+			p = xstrstr(lines.p[i], ",");
+			if(p)
+				*p = '\0';
+			p = xstrstr(lines.p[i], "\n");
+			if(p)
+				*p = '\0';
+			p = lines.p[i] + 3;
+			bwritestr(&out2, bprintf(&b, "\t\"%s\",\n", p));
+		}
+	}
+	bwritestr(&out2, "};\n");
+	bwriteb(&out, &out2);
+
 	writefile(&out, file, 0);
 
 	bfree(&b);
 	bfree(&in);
 	bfree(&out);
+	bfree(&out2);
 	vfree(&lines);
 }
