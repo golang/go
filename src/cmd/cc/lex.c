@@ -203,6 +203,7 @@ main(int argc, char *argv[])
 	
 	flagparse(&argc, &argv, usage);
 	ctxt->debugasm = debug['S'];
+	ctxt->debugvlog = debug['v'];
 
 	if(argc < 1 && outfile == 0)
 		usage();
