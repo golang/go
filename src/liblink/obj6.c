@@ -1087,6 +1087,7 @@ prg(void)
 LinkArch linkamd64 = {
 	.name = "amd64",
 	.thechar = '6',
+	.endian = LittleEndian,
 
 	.addstacksplit = addstacksplit,
 	.assemble = span6,
@@ -1132,6 +1133,7 @@ LinkArch linkamd64 = {
 LinkArch linkamd64p32 = {
 	.name = "amd64p32",
 	.thechar = '6',
+	.endian = LittleEndian,
 
 	.addstacksplit = addstacksplit,
 	.assemble = span6,

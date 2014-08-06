@@ -1033,6 +1033,7 @@ loop:
 LinkArch linkarm = {
 	.name = "arm",
 	.thechar = '5',
+	.endian = LittleEndian,
 
 	.addstacksplit = addstacksplit,
 	.assemble = span5,
