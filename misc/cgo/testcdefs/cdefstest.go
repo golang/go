@@ -35,7 +35,25 @@ struct cdefsTest {
 	// Correct: -> Array [20][20]**int8 -> int8 **array[20][20]
 	char **array5[20][20];
 };
+
+// Test that packed structures can be translated to C correctly too.
+// See issue 8477.
+
+struct packedTest {
+	char first;
+	int second;
+	long long third;
+} __attribute__((packed));
+
+// Test that conflicting type definitions don't cause problems with cgo.
+// See issue 8477.
+
+typedef struct timespec {
+	double bogus;
+} pid_t;
+
 */
 import "C"
 
 type CdefsTest C.struct_cdefsTest
+type PackedTest C.struct_packedTest

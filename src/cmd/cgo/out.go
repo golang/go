@@ -1148,16 +1148,10 @@ __cgo_size_assert(double, 8)
 `
 
 const builtinProlog = `
-#include <sys/types.h> /* for size_t below */
+#include <stddef.h> /* for ptrdiff_t and size_t below */
 
 /* Define intgo when compiling with GCC.  */
-#ifdef __PTRDIFF_TYPE__
-typedef __PTRDIFF_TYPE__ intgo;
-#elif defined(_LP64)
-typedef long long intgo;
-#else
-typedef int intgo;
-#endif
+typedef ptrdiff_t intgo;
 
 typedef struct { char *p; intgo n; } _GoString_;
 typedef struct { char *p; intgo n; intgo c; } _GoBytes_;

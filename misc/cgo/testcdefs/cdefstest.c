@@ -6,3 +6,4 @@
 #include "cdefstest.h"
 
 struct CdefsTest test;
+struct PackedTest packed;
