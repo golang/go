@@ -244,6 +244,9 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
 		importPath = dirToImportPath(filepath.Join(srcDir, path))
 	}
 	if p := packageCache[importPath]; p != nil {
+		if perr := disallowInternal(srcDir, p, stk); perr != p {
+			return perr
+		}
 		return reusePackage(p, stk)
 	}
 
@@ -268,6 +271,10 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
 		pos := importPos[0]
 		pos.Filename = shortPath(pos.Filename)
 		p.Error.Pos = pos.String()
+	}
+
+	if perr := disallowInternal(srcDir, p, stk); perr != p {
+		return perr
 	}
 
 	return p
@@ -296,6 +303,54 @@ func reusePackage(p *Package, stk *importStack) *Package {
 		p.Error.ImportStack = stk.copy()
 	}
 	return p
+}
+
+// disallowInternal checks that srcDir is allowed to import p.
+// If the import is allowed, disallowInternal returns the original package p.
+// If not, it returns a new package containing just an appropriate error.
+func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
+	// golang.org/s/go14internal:
+	// An import of a path containing the element “internal”
+	// is disallowed if the importing code is outside the tree
+	// rooted at the parent of the “internal” directory.
+	//
+	// ... For Go 1.4, we will implement the rule first for $GOROOT, but not $GOPATH.
+
+	// Only applies to $GOROOT.
+	if !p.Standard {
+		return p
+	}
+
+	// The stack includes p.ImportPath.
+	// If that's the only thing on the stack, we started
+	// with a name given on the command line, not an
+	// import. Anything listed on the command line is fine.
+	if len(*stk) == 1 {
+		return p
+	}
+
+	// Check for "internal" element: four cases depending on begin of string and/or end of string.
+	if p.ImportPath != "internal" &&
+		!strings.HasPrefix(p.ImportPath, "internal/") &&
+		!strings.HasSuffix(p.ImportPath, "/internal") &&
+		!strings.Contains(p.ImportPath, "/internal/") {
+		return p
+	}
+
+	// Internal is present. Check directory.
+	parent := filepath.Dir(p.Dir)
+	if hasPathPrefix(srcDir, parent) {
+		return p
+	}
+
+	// Internal is present, and srcDir is outside parent's tree. Not allowed.
+	perr := *p
+	perr.Error = &PackageError{
+		ImportStack: stk.copy(),
+		Err:         "use of internal package not allowed",
+	}
+	perr.Incomplete = true
+	return &perr
 }
 
 type targetDir int
@@ -482,7 +537,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 
 	// Build list of imported packages and full dependency list.
 	imports := make([]*Package, 0, len(p.Imports))
-	deps := make(map[string]bool)
+	deps := make(map[string]*Package)
 	for i, path := range importPaths {
 		if path == "C" {
 			continue
@@ -502,10 +557,10 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			path = p1.ImportPath
 			importPaths[i] = path
 		}
-		deps[path] = true
+		deps[path] = p1
 		imports = append(imports, p1)
-		for _, dep := range p1.Deps {
-			deps[dep] = true
+		for _, dep := range p1.deps {
+			deps[dep.ImportPath] = dep
 		}
 		if p1.Incomplete {
 			p.Incomplete = true
@@ -519,7 +574,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	}
 	sort.Strings(p.Deps)
 	for _, dep := range p.Deps {
-		p1 := packageCache[dep]
+		p1 := deps[dep]
 		if p1 == nil {
 			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
 		}
