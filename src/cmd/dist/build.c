@@ -524,6 +524,7 @@ static struct {
 		"anames5.c",
 		"anames6.c",
 		"anames8.c",
+		"anames9.c",
 	}},
 	{"cmd/cc", {
 		"-pgen.c",
@@ -622,6 +623,7 @@ static struct {
 	{"anames5.c", mkanames},
 	{"anames6.c", mkanames},
 	{"anames8.c", mkanames},
+	{"anames9.c", mkanames},
 	{"zasm_", mkzasm},
 	{"zdefaultcc.go", mkzdefaultcc},
 	{"zsys_", mkzsys},
