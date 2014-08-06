@@ -308,18 +308,13 @@ class CL(object):
 		os.unlink(dir + "/cl." + self.name)
 
 	def Subject(self, ui, repo):
-		branchPrefix = ""
-		branch = repo[None].branch()
-		if branch.startswith("dev."):
-			branchPrefix = "[" + branch + "] "
-
 		s = line1(self.desc)
 		if len(s) > 60:
 			s = s[0:55] + "..."
 		if self.name != "new":
 			s = "code review %s: %s" % (self.name, s)
 		typecheck(s, str)
-		return branchPrefix + s
+		return branch_prefix(ui, repo) + s
 
 	def Upload(self, ui, repo, send_mail=False, gofmt=True, gofmt_just_warn=False, creating=False, quiet=False):
 		if not self.files and not creating:
@@ -394,6 +389,7 @@ class CL(object):
 		if vcs:
 			set_status("uploading base files")
 			vcs.UploadBaseFiles(issue, rpc, patches, patchset, upload_options, files)
+		MySend("/" + issue + "/upload_complete/" + patchset, payload="")
 		if send_mail:
 			set_status("sending mail")
 			MySend("/" + issue + "/mail", payload="")
@@ -1921,6 +1917,13 @@ def pending(ui, repo, *pats, **opts):
 def need_sync():
 	raise hg_util.Abort("local repository out of date; must sync before submit")
 
+def branch_prefix(ui, repo):
+	prefix = ""
+	branch = repo[None].branch()
+	if branch.startswith("dev."):
+		prefix = "[" + branch + "] "
+	return prefix
+
 @hgcommand
 def submit(ui, repo, *pats, **opts):
 	"""submit change to remote repository
@@ -1990,7 +1993,7 @@ def submit(ui, repo, *pats, **opts):
 		cl.Mail(ui, repo)
 
 	# submit changes locally
-	message = cl.desc.rstrip() + "\n\n" + about
+	message = branch_prefix(ui, repo) + cl.desc.rstrip() + "\n\n" + about
 	typecheck(message, str)
 
 	set_status("pushing " + cl.name + " to remote server")
@@ -2000,12 +2003,22 @@ def submit(ui, repo, *pats, **opts):
 	
 	old_heads = len(hg_heads(ui, repo).split())
 
+	# Normally we commit listing the specific files in the CL.
+	# If there are no changed files other than those in the CL, however,
+	# let hg build the list, because then committing a merge works.
+	# (You cannot name files for a merge commit, even if you name
+	# all the files that would be committed by not naming any.)
+	files = ['path:'+f for f in cl.files]
+	if ChangedFiles(ui, repo, []) == cl.files:
+		files = []
+
 	global commit_okay
 	commit_okay = True
-	ret = hg_commit(ui, repo, *['path:'+f for f in cl.files], message=message, user=userline)
+	ret = hg_commit(ui, repo, *files, message=message, user=userline)
 	commit_okay = False
 	if ret:
 		raise hg_util.Abort("nothing changed")
+
 	node = repo["-1"].node()
 	# push to remote; if it fails for any reason, roll back
 	try:
