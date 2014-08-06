@@ -114,7 +114,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			v := s.freelist
 			if v == nil {
 				mp.scalararg[0] = tinySizeClass
-				onM(&mcacheRefill)
+				onM(&mcacheRefill_m)
 				s = c.alloc[tinySizeClass]
 				v = s.freelist
 			}
@@ -143,7 +143,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			v := s.freelist
 			if v == nil {
 				mp.scalararg[0] = uint(sizeclass)
-				onM(&mcacheRefill)
+				onM(&mcacheRefill_m)
 				s = c.alloc[sizeclass]
 				v = s.freelist
 			}
@@ -162,7 +162,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 	} else {
 		mp.scalararg[0] = uint(size)
 		mp.scalararg[1] = uint(flags)
-		onM(&largeAlloc)
+		onM(&largeAlloc_m)
 		s = (*mspan)(mp.ptrarg[0])
 		mp.ptrarg[0] = nil
 		x = unsafe.Pointer(uintptr(s.start << pageShift))
@@ -272,7 +272,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 	}
 	mp.scalararg[0] = uint(size)
 	mp.ptrarg[0] = x
-	onM(&mprofMalloc)
+	onM(&mprofMalloc_m)
 }
 
 // force = 1 - do GC regardless of current heap usage
@@ -341,7 +341,7 @@ func gogc(force int32) {
 		} else {
 			mp.scalararg[1] = 0
 		}
-		onM(&mgc2)
+		onM(&gc_m)
 	}
 
 	// all done
@@ -426,6 +426,6 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	mp.ptrarg[1] = e.data
 	mp.ptrarg[2] = unsafe.Pointer(ftyp)
 	mp.ptrarg[3] = f.data
-	onM(&setFinalizer)
+	onM(&setFinalizer_m)
 	releasem(mp)
 }

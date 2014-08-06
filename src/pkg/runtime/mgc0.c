@@ -1369,7 +1369,7 @@ mgc(G *gp)
 }
 
 void
-runtime·mgc2(void)
+runtime·gc_m(void)
 {
 	struct gc_args a;
 	G *gp;
