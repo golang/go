@@ -108,20 +108,6 @@ arrayadd(Array *array, void *element)
 	arrayset(array, array->length - 1, element);
 }
 
-int32
-arrayindexof(Array *array, void *element)
-{
-	void *p;
-	int32 i;
-
-	for(i = 0; i < array->length; i++) {
-		p = arrayget(array, i);
-		if(memcmp(p, &element, array->size) == 0)
-			return i;
-	}
-	return -1;
-}
-
 void
 arraysort(Array *array, int (*cmp)(const void*, const void*))
 {
