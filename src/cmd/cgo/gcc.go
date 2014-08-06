@@ -1548,7 +1548,27 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 			fld = c.pad(fld, f.ByteOffset-off)
 			off = f.ByteOffset
 		}
-		t := c.Type(f.Type, pos)
+
+		name := f.Name
+		ft := f.Type
+
+		// In godefs or cdefs mode, if this field is a C11
+		// anonymous union then treat the first field in the
+		// union as the field in the struct.  This handles
+		// cases like the glibc <sys/resource.h> file; see
+		// issue 6677.
+		if *godefs || *cdefs {
+			if st, ok := f.Type.(*dwarf.StructType); ok && name == "" && st.Kind == "union" && len(st.Field) > 0 && !used[st.Field[0].Name] {
+				name = st.Field[0].Name
+				ident[name] = name
+				ft = st.Field[0].Type
+			}
+		}
+
+		// TODO: Handle fields that are anonymous structs by
+		// promoting the fields of the inner struct.
+
+		t := c.Type(ft, pos)
 		tgo := t.Go
 		size := t.Size
 		talign := t.Align
@@ -1577,7 +1597,6 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 		}
 		n := len(fld)
 		fld = fld[0 : n+1]
-		name := f.Name
 		if name == "" {
 			name = fmt.Sprintf("anon%d", anon)
 			anon++
