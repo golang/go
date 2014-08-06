@@ -5,7 +5,7 @@
 # We are testing cgo -godefs, which translates Go files that use
 # import "C" into Go files with Go definitions of types defined in the
 # import "C" block.  Add more tests here.
-FILE_PREFIXES="anonunion"
+FILE_PREFIXES="anonunion issue8478"
 
 RM=
 for FP in $FILE_PREFIXES

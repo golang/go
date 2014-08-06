@@ -8,5 +8,8 @@ package main
 var v1 T
 var v2 = v1.L
 
+// Test that P, Q, and R all point to byte.
+var v3 = Issue8478{P: (*byte)(nil), Q: (**byte)(nil), R: (***byte)(nil)}
+
 func main() {
 }

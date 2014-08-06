@@ -929,9 +929,6 @@ type typeConv struct {
 	// Map from types to incomplete pointers to those types.
 	ptrs map[dwarf.Type][]*Type
 
-	// Fields to be processed by godefsField after completing pointers.
-	todoFlds [][]*ast.Field
-
 	// Predeclared types.
 	bool                                   ast.Expr
 	byte                                   ast.Expr // denotes padding
@@ -940,9 +937,9 @@ type typeConv struct {
 	float32, float64                       ast.Expr
 	complex64, complex128                  ast.Expr
 	void                                   ast.Expr
-	unsafePointer                          ast.Expr
 	string                                 ast.Expr
 	goVoid                                 ast.Expr // _Ctype_void, denotes C's void
+	goVoidPtr                              ast.Expr // unsafe.Pointer or *byte
 
 	ptrSize int64
 	intSize int64
@@ -972,10 +969,17 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.float64 = c.Ident("float64")
 	c.complex64 = c.Ident("complex64")
 	c.complex128 = c.Ident("complex128")
-	c.unsafePointer = c.Ident("unsafe.Pointer")
 	c.void = c.Ident("void")
 	c.string = c.Ident("string")
 	c.goVoid = c.Ident("_Ctype_void")
+
+	// Normally cgo translates void* to unsafe.Pointer,
+	// but for historical reasons -cdefs and -godefs use *byte instead.
+	if *cdefs || *godefs {
+		c.goVoidPtr = &ast.StarExpr{X: c.byte}
+	} else {
+		c.goVoidPtr = c.Ident("unsafe.Pointer")
+	}
 }
 
 // base strips away qualifiers and typedefs to get the underlying type
@@ -1037,8 +1041,7 @@ func (tr *TypeRepr) Set(repr string, fargs ...interface{}) {
 }
 
 // FinishType completes any outstanding type mapping work.
-// In particular, it resolves incomplete pointer types and also runs
-// godefsFields on any new struct types.
+// In particular, it resolves incomplete pointer types.
 func (c *typeConv) FinishType(pos token.Pos) {
 	// Completing one pointer type might produce more to complete.
 	// Keep looping until they're all done.
@@ -1053,13 +1056,6 @@ func (c *typeConv) FinishType(pos token.Pos) {
 			delete(c.ptrs, dtype)
 		}
 	}
-
-	// Now that pointer types are completed, we can invoke godefsFields
-	// to rewrite struct definitions.
-	for _, fld := range c.todoFlds {
-		godefsFields(fld)
-	}
-	c.todoFlds = nil
 }
 
 // Type returns a *Type with the same memory layout as
@@ -1209,9 +1205,8 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 	case *dwarf.PtrType:
 		t.Align = c.ptrSize
 
-		// Translate void* as unsafe.Pointer
 		if _, ok := base(dt.Type).(*dwarf.VoidType); ok {
-			t.Go = c.unsafePointer
+			t.Go = c.goVoidPtr
 			t.C.Set("void*")
 			break
 		}
@@ -1656,7 +1651,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	csyntax = buf.String()
 
 	if *godefs || *cdefs {
-		c.todoFlds = append(c.todoFlds, fld)
+		godefsFields(fld)
 	}
 	expr = &ast.StructType{Fields: &ast.FieldList{List: fld}}
 	return
@@ -1692,19 +1687,6 @@ func godefsFields(fld []*ast.Field) {
 			}
 			if !*cdefs {
 				n.Name = upper(n.Name)
-			}
-		}
-		p := &f.Type
-		t := *p
-		if star, ok := t.(*ast.StarExpr); ok {
-			star = &ast.StarExpr{X: star.X}
-			*p = star
-			p = &star.X
-			t = *p
-		}
-		if id, ok := t.(*ast.Ident); ok {
-			if id.Name == "unsafe.Pointer" {
-				*p = ast.NewIdent("*byte")
 			}
 		}
 	}
