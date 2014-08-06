@@ -257,6 +257,9 @@ type serverTest struct {
 	expectedPeerCerts []string
 	// config, if not nil, contains a custom Config to use for this test.
 	config *Config
+	// expectAlert, if true, indicates that a fatal alert should be returned
+	// when handshaking with the server.
+	expectAlert bool
 	// validate, if not nil, is a function that will be called with the
 	// ConnectionState of the resulting connection. It returns false if the
 	// ConnectionState is unacceptable.
@@ -370,7 +373,9 @@ func (test *serverTest) run(t *testing.T, write bool) {
 	if !write {
 		flows, err := test.loadData()
 		if err != nil {
-			t.Fatalf("%s: failed to load data from %s", test.name, test.dataPath())
+			if !test.expectAlert {
+				t.Fatalf("%s: failed to load data from %s", test.name, test.dataPath())
+			}
 		}
 		for i, b := range flows {
 			if i%2 == 0 {
@@ -379,11 +384,17 @@ func (test *serverTest) run(t *testing.T, write bool) {
 			}
 			bb := make([]byte, len(b))
 			n, err := io.ReadFull(clientConn, bb)
-			if err != nil {
-				t.Fatalf("%s #%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", test.name, i+1, err, n, len(bb), bb[:n], b)
-			}
-			if !bytes.Equal(b, bb) {
-				t.Fatalf("%s #%d: mismatch on read: got:%x want:%x", test.name, i+1, bb, b)
+			if test.expectAlert {
+				if err == nil {
+					t.Fatal("Expected read failure but read succeeded")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("%s #%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", test.name, i+1, err, n, len(bb), bb[:n], b)
+				}
+				if !bytes.Equal(b, bb) {
+					t.Fatalf("%s #%d: mismatch on read: got:%x want:%x", test.name, i+1, bb, b)
+				}
 			}
 		}
 		clientConn.Close()
@@ -558,6 +569,61 @@ func TestHandshakeServerSNI(t *testing.T) {
 	test := &serverTest{
 		name:    "SNI",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA", "-servername", "snitest.com"},
+	}
+	runServerTestTLS12(t, test)
+}
+
+// TestHandshakeServerSNICertForName is similar to TestHandshakeServerSNI, but
+// tests the dynamic GetCertificate method
+func TestHandshakeServerSNIGetCertificate(t *testing.T) {
+	config := *testConfig
+
+	// Replace the NameToCertificate map with a GetCertificate function
+	nameToCert := config.NameToCertificate
+	config.NameToCertificate = nil
+	config.GetCertificate = func(clientHello *ClientHelloInfo) (*Certificate, error) {
+		cert, _ := nameToCert[clientHello.ServerName]
+		return cert, nil
+	}
+	test := &serverTest{
+		name:    "SNI",
+		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA", "-servername", "snitest.com"},
+		config:  &config,
+	}
+	runServerTestTLS12(t, test)
+}
+
+// TestHandshakeServerSNICertForNameNotFound is similar to
+// TestHandshakeServerSNICertForName, but tests to make sure that when the
+// GetCertificate method doesn't return a cert, we fall back to what's in
+// the NameToCertificate map.
+func TestHandshakeServerSNIGetCertificateNotFound(t *testing.T) {
+	config := *testConfig
+
+	config.GetCertificate = func(clientHello *ClientHelloInfo) (*Certificate, error) {
+		return nil, nil
+	}
+	test := &serverTest{
+		name:    "SNI",
+		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA", "-servername", "snitest.com"},
+		config:  &config,
+	}
+	runServerTestTLS12(t, test)
+}
+
+// TestHandshakeServerSNICertForNameError tests to make sure that errors in
+// GetCertificate result in a tls alert.
+func TestHandshakeServerSNIGetCertificateError(t *testing.T) {
+	config := *testConfig
+
+	config.GetCertificate = func(clientHello *ClientHelloInfo) (*Certificate, error) {
+		return nil, fmt.Errorf("Test error in GetCertificate")
+	}
+	test := &serverTest{
+		name:        "SNI",
+		command:     []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA", "-servername", "snitest.com"},
+		config:      &config,
+		expectAlert: true,
 	}
 	runServerTestTLS12(t, test)
 }

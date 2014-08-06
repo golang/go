@@ -88,19 +88,31 @@ func TestCertificateSelection(t *testing.T) {
 		return -1
 	}
 
-	if n := pointerToIndex(config.getCertificateForName("example.com")); n != 0 {
+	certificateForName := func(name string) *Certificate {
+		clientHello := &ClientHelloInfo{
+			ServerName: name,
+		}
+		if cert, err := config.getCertificate(clientHello); err != nil {
+			t.Errorf("unable to get certificate for name '%s': %s", name, err)
+			return nil
+		} else {
+			return cert
+		}
+	}
+
+	if n := pointerToIndex(certificateForName("example.com")); n != 0 {
 		t.Errorf("example.com returned certificate %d, not 0", n)
 	}
-	if n := pointerToIndex(config.getCertificateForName("bar.example.com")); n != 1 {
+	if n := pointerToIndex(certificateForName("bar.example.com")); n != 1 {
 		t.Errorf("bar.example.com returned certificate %d, not 1", n)
 	}
-	if n := pointerToIndex(config.getCertificateForName("foo.example.com")); n != 2 {
+	if n := pointerToIndex(certificateForName("foo.example.com")); n != 2 {
 		t.Errorf("foo.example.com returned certificate %d, not 2", n)
 	}
-	if n := pointerToIndex(config.getCertificateForName("foo.bar.example.com")); n != 3 {
+	if n := pointerToIndex(certificateForName("foo.bar.example.com")); n != 3 {
 		t.Errorf("foo.bar.example.com returned certificate %d, not 3", n)
 	}
-	if n := pointerToIndex(config.getCertificateForName("foo.bar.baz.example.com")); n != 0 {
+	if n := pointerToIndex(certificateForName("foo.bar.baz.example.com")); n != 0 {
 		t.Errorf("foo.bar.baz.example.com returned certificate %d, not 0", n)
 	}
 }
