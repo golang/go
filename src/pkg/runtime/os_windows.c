@@ -280,7 +280,7 @@ runtime·systime(KSYSTEM_TIME *timeaddr)
 	KSYSTEM_TIME t;
 	int32 i;
 
-	for(i = 0; i < 10000; i++) {
+	for(i = 1; i < 10000; i++) {
 		// these fields must be read in that order (see URL above)
 		t.High1Time = timeaddr->High1Time;
 		t.LowPart = timeaddr->LowPart;
