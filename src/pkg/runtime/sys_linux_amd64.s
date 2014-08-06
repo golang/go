@@ -221,7 +221,6 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	8(SP), DI
-	MOVQ	$0, SI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
 	MOVL	28(SP), R10
