@@ -3066,6 +3066,7 @@ found:
 		break;
 
 	case Zclr:
+		ctxt->rexflag &= ~Pw;
 		*ctxt->andptr++ = op;
 		asmand(ctxt, &p->to, &p->to);
 		break;
