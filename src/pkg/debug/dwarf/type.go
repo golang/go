@@ -88,7 +88,7 @@ type AddrType struct {
 	BasicType
 }
 
-// A UnspecifiedType represents implicit, unknown, ambiguous or nonexistent type.
+// An UnspecifiedType represents an implicit, unknown, ambiguous or nonexistent type.
 type UnspecifiedType struct {
 	BasicType
 }
