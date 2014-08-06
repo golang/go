@@ -307,14 +307,19 @@ class CL(object):
 		dir = CodeReviewDir(ui, repo)
 		os.unlink(dir + "/cl." + self.name)
 
-	def Subject(self):
+	def Subject(self, ui, repo):
+		branchPrefix = ""
+		branch = repo[None].branch()
+		if branch.startswith("dev."):
+			branchPrefix = "[" + branch + "] "
+
 		s = line1(self.desc)
 		if len(s) > 60:
 			s = s[0:55] + "..."
 		if self.name != "new":
 			s = "code review %s: %s" % (self.name, s)
 		typecheck(s, str)
-		return s
+		return branchPrefix + s
 
 	def Upload(self, ui, repo, send_mail=False, gofmt=True, gofmt_just_warn=False, creating=False, quiet=False):
 		if not self.files and not creating:
@@ -324,10 +329,6 @@ class CL(object):
 		set_status("uploading CL metadata + diffs")
 		os.chdir(repo.root)
 
-		branchPrefix = ""
-		branch = repo[None].branch()
-		if branch.startswith("dev."):
-			branchPrefix = "[" + branch + "] "
 		form_fields = [
 			("content_upload", "1"),
 			("reviewers", JoinComma(self.reviewer)),
@@ -363,7 +364,8 @@ class CL(object):
 			form_fields.append(("subject", "diff -r " + vcs.base_rev + " " + ui.expandpath("default")))
 		else:
 			# First upload sets the subject for the CL itself.
-			form_fields.append(("subject", branchPrefix+self.Subject()))
+			form_fields.append(("subject", self.Subject(ui, repo)))
+		
 		ctype, body = EncodeMultipartFormData(form_fields, uploaded_diff_file)
 		response_body = MySend("/upload", body, content_type=ctype)
 		patchset = None
@@ -416,7 +418,7 @@ class CL(object):
 		else:
 			pmsg += "Please take another look.\n"
 		typecheck(pmsg, str)
-		PostMessage(ui, self.name, pmsg, subject=self.Subject())
+		PostMessage(ui, self.name, pmsg, subject=self.Subject(ui, repo))
 		self.mailed = True
 		self.Flush(ui, repo)
 
