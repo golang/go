@@ -88,6 +88,11 @@ type AddrType struct {
 	BasicType
 }
 
+// A UnspecifiedType represents implicit, unknown, ambiguous or nonexistent type.
+type UnspecifiedType struct {
+	BasicType
+}
+
 // qualifiers
 
 // A QualType represents a type that has the C/C++ "const", "restrict", or "volatile" qualifier.
@@ -630,6 +635,15 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		typeCache[off] = t
 		t.Name, _ = e.Val(AttrName).(string)
 		t.Type = typeOf(e)
+
+	case TagUnspecifiedType:
+		// Unspecified type (DWARF v3 §5.2)
+		// Attributes:
+		//	AttrName: name
+		t := new(UnspecifiedType)
+		typ = t
+		typeCache[off] = t
+		t.Name, _ = e.Val(AttrName).(string)
 	}
 
 	if err != nil {
