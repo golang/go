@@ -648,14 +648,14 @@ asmb(void)
 	switch(HEADTYPE) {
 	default:
 	case Hplan9:	/* plan 9 */
-		lput(0x647);			/* magic */
-		lput(segtext.filelen);			/* sizes */
-		lput(segdata.filelen);
-		lput(segdata.len - segdata.filelen);
-		lput(symsize);			/* nsyms */
-		lput(entryvalue());		/* va of entry */
-		lput(0L);
-		lput(lcsize);
+		LPUT(0x647);			/* magic */
+		LPUT(segtext.filelen);			/* sizes */
+		LPUT(segdata.filelen);
+		LPUT(segdata.len - segdata.filelen);
+		LPUT(symsize);			/* nsyms */
+		LPUT(entryvalue());		/* va of entry */
+		LPUT(0L);
+		LPUT(lcsize);
 		break;
 	case Hlinux:
 	case Hfreebsd:
@@ -674,64 +674,6 @@ asmb(void)
 		print("lcsize=%d\n", lcsize);
 		print("total=%lld\n", segtext.filelen+segdata.len+symsize+lcsize);
 	}
-}
-
-/*
-void
-cput(int32 c)
-{
-	*cbp++ = c;
-	if(--cbc <= 0)
-		cflush();
-}
-*/
-
-void
-wput(int32 l)
-{
-
-	cbp[0] = l>>8;
-	cbp[1] = l;
-	cbp += 2;
-	cbc -= 2;
-	if(cbc <= 0)
-		cflush();
-}
-
-
-void
-hput(int32 l)
-{
-
-	cbp[0] = l>>8;
-	cbp[1] = l;
-	cbp += 2;
-	cbc -= 2;
-	if(cbc <= 0)
-		cflush();
-}
-
-void
-lput(int32 l)
-{
-
-	cbp[0] = l>>24;
-	cbp[1] = l>>16;
-	cbp[2] = l>>8;
-	cbp[3] = l;
-	cbp += 4;
-	cbc -= 4;
-	if(cbc <= 0)
-		cflush();
-}
-
-void
-nopstat(char *f, Count *c)
-{
-	if(c->outof)
-	Bprint(&bso, "%s delay %d/%d (%.2f)\n", f,
-		c->outof - c->count, c->outof,
-		(double)(c->outof - c->count)/c->outof);
 }
 
 int32
