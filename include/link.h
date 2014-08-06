@@ -431,11 +431,17 @@ struct	Link
 	LSym*	filesyms;
 };
 
+enum {
+	LittleEndian = 0x04030201,
+	BigEndian = 0x01020304,
+};
+
 // LinkArch is the definition of a single architecture.
 struct LinkArch
 {
 	char*	name; // "arm", "amd64", and so on
 	int	thechar;	// '5', '6', and so on
+	int32	endian; // LittleEndian or BigEndian
 
 	void	(*addstacksplit)(Link*, LSym*);
 	void	(*assemble)(Link*, LSym*);
@@ -560,7 +566,7 @@ int	find1(int32 l, int c);
 void	linkgetline(Link *ctxt, int32 line, LSym **f, int32 *l);
 void	histtoauto(Link *ctxt);
 void	mkfwd(LSym*);
-void	nuxiinit(void);
+void	nuxiinit(LinkArch*);
 void	savehist(Link *ctxt, int32 line, int32 off);
 Prog*	copyp(Link*, Prog*);
 Prog*	appendp(Link*, Prog*);

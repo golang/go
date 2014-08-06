@@ -130,16 +130,26 @@ find1(int32 l, int c)
 }
 
 void
-nuxiinit(void)
+nuxiinit(LinkArch *arch)
 {
 	int i, c;
 
+	if(arch->endian != BigEndian && arch->endian != LittleEndian)
+		sysfatal("unknown endian (%#x) for arch %s", arch->endian, arch->name);
+
 	for(i=0; i<4; i++) {
-		c = find1(0x04030201L, i+1);
-		if(i < 2)
-			inuxi2[i] = c;
-		if(i < 1)
-			inuxi1[i] = c;
+		c = find1(arch->endian, i+1);
+		if(arch->endian == LittleEndian) {
+			if(i < 2)
+				inuxi2[i] = c;
+			if(i < 1)
+				inuxi1[i] = c;
+		} else {
+			if(i >= 2)
+				inuxi2[i-2] = c;
+			if(i >= 3)
+				inuxi1[i-3] = c;
+		}
 		inuxi4[i] = c;
 		if(c == i) {
 			inuxi8[i] = c;
@@ -149,8 +159,13 @@ nuxiinit(void)
 			inuxi8[i+4] = c;
 		}
 		fnuxi4[i] = c;
-		fnuxi8[i] = c;
-		fnuxi8[i+4] = c+4;
+		if(c == i) {
+			fnuxi8[i] = c;
+			fnuxi8[i+4] = c+4;
+		} else {
+			fnuxi8[i] = c+4;
+			fnuxi8[i+4] = c;
+		}
 	}
 }
 

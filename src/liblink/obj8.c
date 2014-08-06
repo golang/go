@@ -816,6 +816,7 @@ loop:
 LinkArch link386 = {
 	.name = "386",
 	.thechar = '8',
+	.endian = LittleEndian,
 
 	.addstacksplit = addstacksplit,
 	.assemble = span8,
