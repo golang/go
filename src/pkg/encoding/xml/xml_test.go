@@ -170,7 +170,7 @@ var xmlInput = []string{
 func TestRawToken(t *testing.T) {
 	d := NewDecoder(strings.NewReader(testInput))
 	d.Entity = testEntity
-	testRawToken(t, d, rawTokens)
+	testRawToken(t, d, testInput, rawTokens)
 }
 
 const nonStrictInput = `
@@ -225,7 +225,7 @@ var nonStrictTokens = []Token{
 func TestNonStrictRawToken(t *testing.T) {
 	d := NewDecoder(strings.NewReader(nonStrictInput))
 	d.Strict = false
-	testRawToken(t, d, nonStrictTokens)
+	testRawToken(t, d, nonStrictInput, nonStrictTokens)
 }
 
 type downCaser struct {
@@ -254,7 +254,7 @@ func TestRawTokenAltEncoding(t *testing.T) {
 		}
 		return &downCaser{t, input.(io.ByteReader)}, nil
 	}
-	testRawToken(t, d, rawTokensAltEncoding)
+	testRawToken(t, d, testInputAltEncoding, rawTokensAltEncoding)
 }
 
 func TestRawTokenAltEncodingNoConverter(t *testing.T) {
@@ -280,9 +280,12 @@ func TestRawTokenAltEncodingNoConverter(t *testing.T) {
 	}
 }
 
-func testRawToken(t *testing.T, d *Decoder, rawTokens []Token) {
+func testRawToken(t *testing.T, d *Decoder, raw string, rawTokens []Token) {
+	lastEnd := int64(0)
 	for i, want := range rawTokens {
+		start := d.InputOffset()
 		have, err := d.RawToken()
+		end := d.InputOffset()
 		if err != nil {
 			t.Fatalf("token %d: unexpected error: %s", i, err)
 		}
@@ -300,6 +303,26 @@ func testRawToken(t *testing.T, d *Decoder, rawTokens []Token) {
 			}
 			t.Errorf("token %d = %s, want %s", i, shave, swant)
 		}
+
+		// Check that InputOffset returned actual token.
+		switch {
+		case start < lastEnd:
+			t.Errorf("token %d: position [%d,%d) for %T is before previous token", i, start, end, have)
+		case start >= end:
+			// Special case: EndElement can be synthesized.
+			if start == end && end == lastEnd {
+				break
+			}
+			t.Errorf("token %d: position [%d,%d) for %T is empty", i, start, end, have)
+		case end > int64(len(raw)):
+			t.Errorf("token %d: position [%d,%d) for %T extends beyond input", i, start, end, have)
+		default:
+			text := raw[start:end]
+			if strings.ContainsAny(text, "<>") && (!strings.HasPrefix(text, "<") || !strings.HasSuffix(text, ">")) {
+				t.Errorf("token %d: misaligned raw token %#q for %T", i, text, have)
+			}
+		}
+		lastEnd = end
 	}
 }
 
