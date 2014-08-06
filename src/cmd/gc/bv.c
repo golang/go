@@ -9,6 +9,8 @@
 enum {
 	WORDSIZE = sizeof(uint32),
 	WORDBITS = 32,
+	WORDMASK = WORDBITS - 1,
+	WORDSHIFT = 5,
 };
 
 static uintptr
@@ -94,13 +96,35 @@ bvconcat(Bvec *src1, Bvec *src2)
 int
 bvget(Bvec *bv, int32 i)
 {
-	uint32 mask, word;
-
 	if(i < 0 || i >= bv->n)
 		fatal("bvget: index %d is out of bounds with length %d\n", i, bv->n);
-	mask = 1U << (i % WORDBITS);
-	word = bv->b[i / WORDBITS] & mask;
-	return word ? 1 : 0;
+	return (bv->b[i>>WORDSHIFT] >> (i&WORDMASK)) & 1;
+}
+
+// bvnext returns the smallest index >= i for which bvget(bv, i) == 1.
+// If there is no such index, bvnext returns -1.
+int
+bvnext(Bvec *bv, int32 i)
+{
+	uint32 w;
+
+	// Jump i ahead to next word with bits.
+	if((bv->b[i>>WORDSHIFT]>>(i&WORDMASK)) == 0) {
+		i &= ~WORDMASK;
+		i += WORDBITS;
+		while(i < bv->n && bv->b[i>>WORDSHIFT] == 0)
+			i += WORDBITS;
+	}
+	if(i >= bv->n)
+		return -1;
+	
+	// Find 1 bit.
+	w = bv->b[i>>WORDSHIFT]>>(i&WORDMASK);
+	while((w&1) == 0) {
+		w>>=1;
+		i++;
+	}
+	return i;
 }
 
 int
@@ -109,7 +133,7 @@ bvisempty(Bvec *bv)
 	int32 i;
 
 	for(i = 0; i < bv->n; i += WORDBITS)
-		if(bv->b[i / WORDBITS] != 0)
+		if(bv->b[i>>WORDSHIFT] != 0)
 			return 0;
 	return 1;
 }
