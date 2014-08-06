@@ -107,7 +107,7 @@ struct	Prog
 	uchar	back;	// 6l, 8l
 	uchar	ft;	/* 6l, 8l oclass cache */
 	uchar	tt;	// 6l, 8l
-	uchar	optab;	// 5l
+	uint16	optab;	// 5l
 	uchar	isize;	// 6l, 8l
 
 	char	width;	/* fake for DATA */
@@ -405,7 +405,7 @@ struct	Link
 	int	asmode;
 	uchar*	andptr;
 	uchar	and[100];
-	int32	instoffset;
+	int64	instoffset;
 	int32	autosize;
 	int32	armsize;
 
@@ -608,6 +608,8 @@ extern	char*	anames5[];
 extern	char*	anames6[];
 extern	char*	anames8[];
 
+extern	char*	cnames5[];
+
 extern	LinkArch	link386;
 extern	LinkArch	linkamd64;
 extern	LinkArch	linkamd64p32;
@@ -618,6 +620,7 @@ extern	LinkArch	linkarm;
 #pragma	varargck	type	"lD"	Addr*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
+#pragma varargck	type	"^"	int
 
 // TODO(ality): remove this workaround.
 //   It's here because Pconv in liblink/list?.c references %L.
