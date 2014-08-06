@@ -169,7 +169,7 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
 static bool
 MCentral_Grow(MCentral *c)
 {
-	uintptr size, npages, cap, i, n;
+	uintptr size, npages, i, n;
 	MLink **tailp, *v;
 	byte *p;
 	MSpan *s;
