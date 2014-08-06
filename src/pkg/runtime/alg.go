@@ -42,9 +42,9 @@ const nacl = GOOS == "nacl"
 var use_aeshash bool
 
 // in asm_*.s
-func aeshash(p unsafe.Pointer, s uintptr, h uintptr) uintptr
+func aeshash(p unsafe.Pointer, s, h uintptr) uintptr
 
-func memhash(p unsafe.Pointer, s uintptr, h uintptr) uintptr {
+func memhash(p unsafe.Pointer, s, h uintptr) uintptr {
 	if !nacl && use_aeshash {
 		return aeshash(p, s, h)
 	}
@@ -58,7 +58,7 @@ func memhash(p unsafe.Pointer, s uintptr, h uintptr) uintptr {
 	return h
 }
 
-func strhash(a *string, s uintptr, h uintptr) uintptr {
+func strhash(a *string, s, h uintptr) uintptr {
 	return memhash((*stringStruct)(unsafe.Pointer(a)).str, uintptr(len(*a)), h)
 }
 
@@ -67,7 +67,7 @@ func strhash(a *string, s uintptr, h uintptr) uintptr {
 // To avoid long hash chains, we assign a random number
 // as the hash value for a NaN.
 
-func f32hash(a *float32, s uintptr, h uintptr) uintptr {
+func f32hash(a *float32, s, h uintptr) uintptr {
 	f := *a
 	switch {
 	case f == 0:
@@ -79,7 +79,7 @@ func f32hash(a *float32, s uintptr, h uintptr) uintptr {
 	}
 }
 
-func f64hash(a *float64, s uintptr, h uintptr) uintptr {
+func f64hash(a *float64, s, h uintptr) uintptr {
 	f := *a
 	switch {
 	case f == 0:
@@ -94,24 +94,22 @@ func f64hash(a *float64, s uintptr, h uintptr) uintptr {
 	}
 }
 
-func c64hash(a *complex64, s uintptr, h uintptr) uintptr {
+func c64hash(a *complex64, s, h uintptr) uintptr {
 	x := (*[2]float32)(unsafe.Pointer(a))
 	return f32hash(&x[1], 4, f32hash(&x[0], 4, h))
 }
 
-func c128hash(a *complex128, s uintptr, h uintptr) uintptr {
+func c128hash(a *complex128, s, h uintptr) uintptr {
 	x := (*[2]float64)(unsafe.Pointer(a))
 	return f64hash(&x[1], 4, f64hash(&x[0], 4, h))
 }
 
-func nohash(a unsafe.Pointer, s uintptr, h uintptr) uintptr {
+func nohash(a unsafe.Pointer, s, h uintptr) uintptr {
 	panic(errorString("hash of unhashable type"))
 }
 
-func interhash(a *interface {
-	f()
-}, s uintptr, h uintptr) uintptr {
-	tab := (*iface)(unsafe.Pointer(a)).tab
+func interhash(a *iface, s, h uintptr) uintptr {
+	tab := a.tab
 	if tab == nil {
 		return h
 	}
@@ -123,14 +121,14 @@ func interhash(a *interface {
 		panic(errorString("hash of unhashable type " + *t._string))
 	}
 	if uintptr(t.size) <= ptrSize {
-		return c1 * fn(unsafe.Pointer(&(*eface)(unsafe.Pointer(a)).data), uintptr(t.size), h^c0)
+		return c1 * fn(unsafe.Pointer(&a.data), uintptr(t.size), h^c0)
 	} else {
-		return c1 * fn((*eface)(unsafe.Pointer(a)).data, uintptr(t.size), h^c0)
+		return c1 * fn(a.data, uintptr(t.size), h^c0)
 	}
 }
 
-func nilinterhash(a *interface{}, s uintptr, h uintptr) uintptr {
-	t := (*eface)(unsafe.Pointer(a))._type
+func nilinterhash(a *eface, s, h uintptr) uintptr {
+	t := a._type
 	if t == nil {
 		return h
 	}
@@ -141,9 +139,9 @@ func nilinterhash(a *interface{}, s uintptr, h uintptr) uintptr {
 		panic(errorString("hash of unhashable type " + *t._string))
 	}
 	if uintptr(t.size) <= ptrSize {
-		return c1 * fn(unsafe.Pointer(&(*eface)(unsafe.Pointer(a)).data), uintptr(t.size), h^c0)
+		return c1 * fn(unsafe.Pointer(&a.data), uintptr(t.size), h^c0)
 	} else {
-		return c1 * fn((*eface)(unsafe.Pointer(a)).data, uintptr(t.size), h^c0)
+		return c1 * fn(a.data, uintptr(t.size), h^c0)
 	}
 }
 
