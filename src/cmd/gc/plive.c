@@ -283,13 +283,30 @@ getvariables(Node *fn)
 			// For arguments and results, the bitmap covers all variables,
 			// so we must include all the variables, even the ones without
 			// pointers.
+			//
+			// The Node.opt field is available for use by optimization passes.
+			// We use it to hold the index of the node in the variables array, plus 1
+			// (so that 0 means the Node is not in the variables array).
+			// Each pass should clear opt when done, but you never know,
+			// so clear them all ourselves too.
+			// The Node.curfn field is supposed to be set to the current function
+			// already, but for some compiler-introduced names it seems not to be,
+			// so fix that here.
+			// Later, when we want to find the index of a node in the variables list,
+			// we will check that n->curfn == curfn and n->opt > 0. Then n->opt - 1
+			// is the index in the variables list.
+			ll->n->opt = nil;
+			ll->n->curfn = curfn;
 			switch(ll->n->class) {
 			case PAUTO:
-				if(haspointers(ll->n->type))
+				if(haspointers(ll->n->type)) {
+					ll->n->opt = (void*)(uintptr)(arraylength(result)+1);
 					arrayadd(result, &ll->n);
+				}
 				break;
 			case PPARAM:
 			case PPARAMOUT:
+				ll->n->opt = (void*)(uintptr)(arraylength(result)+1);
 				arrayadd(result, &ll->n);
 				break;
 			}
@@ -718,14 +735,16 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 	}
 	if(info.flags & (LeftRead | LeftWrite | LeftAddr)) {
 		from = &prog->from;
-		if (from->node != nil && from->sym != nil) {
+		if (from->node != nil && from->sym != nil && from->node->curfn == curfn) {
 			switch(from->node->class & ~PHEAP) {
 			case PAUTO:
 			case PPARAM:
 			case PPARAMOUT:
-				pos = arrayindexof(vars, from->node);
+				pos = (int)(uintptr)from->node->opt - 1; // index in vars
 				if(pos == -1)
 					goto Next;
+				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != from->node)
+					fatal("bad bookkeeping in liveness %N %d", from->node, pos);
 				if(from->node->addrtaken) {
 					bvset(avarinit, pos);
 				} else {
@@ -741,14 +760,16 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 Next:
 	if(info.flags & (RightRead | RightWrite | RightAddr)) {
 		to = &prog->to;
-		if (to->node != nil && to->sym != nil) {
+		if (to->node != nil && to->sym != nil && to->node->curfn == curfn) {
 			switch(to->node->class & ~PHEAP) {
 			case PAUTO:
 			case PPARAM:
 			case PPARAMOUT:
-				pos = arrayindexof(vars, to->node);
+				pos = (int)(uintptr)to->node->opt - 1; // index in vars
 				if(pos == -1)
 					goto Next1;
+				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != to->node)
+					fatal("bad bookkeeping in liveness %N %d", to->node, pos);
 				if(to->node->addrtaken) {
 					if(prog->as != AVARKILL)
 						bvset(avarinit, pos);
@@ -1020,6 +1041,9 @@ checkptxt(Node *fn, Prog *firstp)
 {
 	Prog *p;
 
+	if(debuglive == 0)
+		return;
+
 	for(p = firstp; p != P; p = p->link) {
 		if(0)
 			print("analyzing '%P'\n", p);
@@ -1172,21 +1196,17 @@ twobitlivepointermap(Liveness *lv, Bvec *liveout, Array *vars, Bvec *args, Bvec 
 	vlong xoffset;
 	int32 i;
 
-	for(i = 0; i < arraylength(vars); i++) {
+	for(i = 0; (i = bvnext(liveout, i)) >= 0; i++) {
 		node = *(Node**)arrayget(vars, i);
 		switch(node->class) {
 		case PAUTO:
-			if(bvget(liveout, i)) {
-				xoffset = node->xoffset + stkptrsize;
-				twobitwalktype1(node->type, &xoffset, locals);
-			}
+			xoffset = node->xoffset + stkptrsize;
+			twobitwalktype1(node->type, &xoffset, locals);
 			break;
 		case PPARAM:
 		case PPARAMOUT:
-			if(bvget(liveout, i)) {
-				xoffset = node->xoffset;
-				twobitwalktype1(node->type, &xoffset, args);
-			}
+			xoffset = node->xoffset;
+			twobitwalktype1(node->type, &xoffset, args);
 			break;
 		}
 	}
@@ -1944,6 +1964,7 @@ liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym)
 	Array *cfg, *vars;
 	Liveness *lv;
 	int debugdelta;
+	NodeList *l;
 
 	// Change name to dump debugging information only for a specific function.
 	debugdelta = 0;
@@ -1984,6 +2005,9 @@ liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym)
 	twobitwritesymbol(lv->argslivepointers, argssym);
 
 	// Free everything.
+	for(l=fn->dcl; l != nil; l = l->next)
+		if(l->n != N)
+			l->n->opt = nil;
 	freeliveness(lv);
 	arrayfree(vars);
 	freecfg(cfg);
