@@ -17,11 +17,22 @@ struct CdefsOrig {
 	int8 **array5[20][20];
 };
 
+typedef struct PackedOrig PackedOrig;
+#pragma pack on
+struct PackedOrig {
+	int8 first;
+	int32 second;
+	int64 third;
+};
+#pragma pack off
+
 void
 main·test(int32 ret)
 {
 	CdefsOrig o;
 	CdefsTest t;
+	PackedOrig po;
+	PackedTest pt;
 	
 	ret = 0;
 	if(sizeof(t.array1) != sizeof(o.array1) || offsetof(CdefsTest, array1[0]) != offsetof(CdefsOrig, array1[0])) {
@@ -42,6 +53,18 @@ main·test(int32 ret)
 	}
 	if(sizeof(t.array5) != sizeof(o.array5) || offsetof(CdefsTest, array5[0][0]) != offsetof(CdefsOrig, array5[0][0])) {
 		runtime·printf("array5: size, offset = %d, %d, want %d, %d\n", sizeof(t.array5), offsetof(CdefsTest, array5[0][0]), sizeof(o.array5), offsetof(CdefsOrig, array5[0][0]));
+		ret = 1;
+	}
+	if(sizeof(pt.first) != sizeof(po.first) || offsetof(PackedTest, first) != offsetof(PackedOrig, first)) {
+		runtime·printf("first: size, offset = %d, %d, want %d, %d\n", sizeof(pt.first), offsetof(PackedTest, first), sizeof(po.first), offsetof(PackedOrig, first));
+		ret = 1;
+	}
+	if(sizeof(pt.second) != sizeof(po.second) || offsetof(PackedTest, second) != offsetof(PackedOrig, second)) {
+		runtime·printf("second: size, offset = %d, %d, want %d, %d\n", sizeof(pt.second), offsetof(PackedTest, second), sizeof(po.second), offsetof(PackedOrig, second));
+		ret = 1;
+	}
+	if(sizeof(pt.third) != sizeof(po.third) || offsetof(PackedTest, third) != offsetof(PackedOrig, third)) {
+		runtime·printf("third: size, offset = %d, %d, want %d, %d\n", sizeof(pt.third), offsetof(PackedTest, third), sizeof(po.third), offsetof(PackedOrig, third));
 		ret = 1;
 	}
 	FLUSH(&ret); // flush return value

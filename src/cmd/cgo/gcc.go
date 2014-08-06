@@ -1587,12 +1587,14 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 			talign = size
 		}
 
-		if talign > 0 && f.ByteOffset%talign != 0 {
+		if talign > 0 && f.ByteOffset%talign != 0 && !*cdefs {
 			// Drop misaligned fields, the same way we drop integer bit fields.
 			// The goal is to make available what can be made available.
 			// Otherwise one bad and unneeded field in an otherwise okay struct
 			// makes the whole program not compile. Much of the time these
 			// structs are in system headers that cannot be corrected.
+			// Exception: In -cdefs mode, we use #pragma pack, so misaligned
+			// fields should still work.
 			continue
 		}
 		n := len(fld)
