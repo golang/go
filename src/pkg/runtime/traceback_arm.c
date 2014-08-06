@@ -128,9 +128,14 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 				frame.lr = *(uintptr*)frame.sp;
 			flr = runtime·findfunc(frame.lr);
 			if(flr == nil) {
-				runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
-				if(callback != nil)
+				// This happens if you get a profiling interrupt at just the wrong time.
+				// In that context it is okay to stop early.
+				// But if callback is set, we're doing a garbage collection and must
+				// get everything, so crash loudly.
+				if(callback != nil) {
+					runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
 					runtime·throw("unknown caller pc");
+				}
 			}
 		}
 
