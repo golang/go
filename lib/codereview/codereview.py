@@ -389,7 +389,8 @@ class CL(object):
 		if vcs:
 			set_status("uploading base files")
 			vcs.UploadBaseFiles(issue, rpc, patches, patchset, upload_options, files)
-		MySend("/" + issue + "/upload_complete/" + patchset, payload="")
+		if patchset != "1":
+			MySend("/" + issue + "/upload_complete/" + patchset, payload="")
 		if send_mail:
 			set_status("sending mail")
 			MySend("/" + issue + "/mail", payload="")
