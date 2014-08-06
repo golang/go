@@ -16,19 +16,79 @@ import (
 	"time"
 )
 
-func TestTCPLookup(t *testing.T) {
+var dnsTransportFallbackTests = []struct {
+	server  string
+	name    string
+	qtype   uint16
+	timeout int
+	rcode   int
+}{
+	// Querying "com." with qtype=255 usually makes an answer
+	// which requires more than 512 bytes.
+	{"8.8.8.8:53", "com.", dnsTypeALL, 2, dnsRcodeSuccess},
+	{"8.8.4.4:53", "com.", dnsTypeALL, 4, dnsRcodeSuccess},
+}
+
+func TestDNSTransportFallback(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skip("skipping test to avoid external network")
 	}
-	c, err := Dial("tcp", "8.8.8.8:53")
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
+
+	for _, tt := range dnsTransportFallbackTests {
+		timeout := time.Duration(tt.timeout) * time.Second
+		msg, err := exchange(tt.server, tt.name, tt.qtype, timeout)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		switch msg.rcode {
+		case tt.rcode, dnsRcodeServerFailure:
+		default:
+			t.Errorf("got %v from %v; want %v", msg.rcode, tt.server, tt.rcode)
+			continue
+		}
 	}
-	defer c.Close()
-	cfg := &dnsConfig{timeout: 10, attempts: 3}
-	_, err = exchange(cfg, c, "com.", dnsTypeALL)
-	if err != nil {
-		t.Fatalf("exchange failed: %v", err)
+}
+
+// See RFC 6761 for further information about the reserved, pseudo
+// domain names.
+var specialDomainNameTests = []struct {
+	name  string
+	qtype uint16
+	rcode int
+}{
+	// Name resoltion APIs and libraries should not recongnize the
+	// followings as special.
+	{"1.0.168.192.in-addr.arpa.", dnsTypePTR, dnsRcodeNameError},
+	{"test.", dnsTypeALL, dnsRcodeNameError},
+	{"example.com.", dnsTypeALL, dnsRcodeSuccess},
+
+	// Name resoltion APIs and libraries should recongnize the
+	// followings as special and should not send any queries.
+	// Though, we test those names here for verifying nagative
+	// answers at DNS query-response interaction level.
+	{"localhost.", dnsTypeALL, dnsRcodeNameError},
+	{"invalid.", dnsTypeALL, dnsRcodeNameError},
+}
+
+func TestSpecialDomainName(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("skipping test to avoid external network")
+	}
+
+	server := "8.8.8.8:53"
+	for _, tt := range specialDomainNameTests {
+		msg, err := exchange(server, tt.name, tt.qtype, 0)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		switch msg.rcode {
+		case tt.rcode, dnsRcodeServerFailure:
+		default:
+			t.Errorf("got %v from %v; want %v", msg.rcode, server, tt.rcode)
+			continue
+		}
 	}
 }
 
