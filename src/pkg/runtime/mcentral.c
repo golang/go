@@ -19,7 +19,6 @@
 #include "malloc.h"
 
 static bool MCentral_Grow(MCentral *c);
-static void MCentral_ReturnToHeap(MCentral *c, MSpan *s);
 
 // Initialize a single central free list.
 void
@@ -110,12 +109,9 @@ runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s)
 
 	s->incache = false;
 
-	if(s->ref == 0) {
-		// Free back to heap.  Unlikely, but possible.
-		MCentral_ReturnToHeap(c, s); // unlocks c
-		return;
-	}
-	
+	if(s->ref == 0)
+		runtime·throw("uncaching full span");
+
 	cap = (s->npages << PageShift) / s->elemsize;
 	n = cap - s->ref;
 	if(n > 0) {
@@ -159,21 +155,13 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
 	}
 
 	// s is completely freed, return it to the heap.
-	MCentral_ReturnToHeap(c, s); // unlocks c
+	runtime·MSpanList_Remove(s);
+	s->needzero = 1;
+	s->freelist = nil;
+	runtime·unlock(c);
+	runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
+	runtime·MHeap_Free(&runtime·mheap, s, 0);
 	return true;
-}
-
-void
-runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *sizep, int32 *npagesp, int32 *nobj)
-{
-	int32 size;
-	int32 npages;
-
-	npages = runtime·class_to_allocnpages[sizeclass];
-	size = runtime·class_to_size[sizeclass];
-	*npagesp = npages;
-	*sizep = size;
-	*nobj = (npages << PageShift) / size;
 }
 
 // Fetch a new span from the heap and
@@ -181,14 +169,15 @@ runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *sizep, int32 *npagesp, int3
 static bool
 MCentral_Grow(MCentral *c)
 {
-	int32 i, n, npages;
-	uintptr size;
+	uintptr size, npages, cap, i, n;
 	MLink **tailp, *v;
 	byte *p;
 	MSpan *s;
 
 	runtime·unlock(c);
-	runtime·MGetSizeClassInfo(c->sizeclass, &size, &npages, &n);
+	npages = runtime·class_to_allocnpages[c->sizeclass];
+	size = runtime·class_to_size[c->sizeclass];
+	n = (npages << PageShift) / size;
 	s = runtime·MHeap_Alloc(&runtime·mheap, npages, c->sizeclass, 0, 1);
 	if(s == nil) {
 		// TODO(rsc): Log out of memory
@@ -212,18 +201,4 @@ MCentral_Grow(MCentral *c)
 	runtime·lock(c);
 	runtime·MSpanList_Insert(&c->nonempty, s);
 	return true;
-}
-
-// Return s to the heap.  s must be unused (s->ref == 0).  Unlocks c.
-static void
-MCentral_ReturnToHeap(MCentral *c, MSpan *s)
-{
-	runtime·MSpanList_Remove(s);
-	s->needzero = 1;
-	s->freelist = nil;
-	if(s->ref != 0)
-		runtime·throw("ref wrong");
-	runtime·unlock(c);
-	runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
-	runtime·MHeap_Free(&runtime·mheap, s, 0);
 }

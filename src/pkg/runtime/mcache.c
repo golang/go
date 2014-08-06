@@ -82,7 +82,7 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
 	if(s->freelist != nil)
 		runtime·throw("refill on a nonempty span");
 	if(s != &emptymspan)
-		runtime·MCentral_UncacheSpan(&runtime·mheap.central[sizeclass], s);
+		s->incache = false;
 
 	// Get a new cached span from the central lists.
 	s = runtime·MCentral_CacheSpan(&runtime·mheap.central[sizeclass]);
