@@ -40,7 +40,7 @@ static void dopack(char*, char*, char**, int);
 static char *findgoversion(void);
 
 // The known architecture letters.
-static char *gochars = "5668";
+static char *gochars = "566899";
 
 // The known architectures.
 static char *okgoarch[] = {
@@ -49,6 +49,8 @@ static char *okgoarch[] = {
 	"amd64",
 	"amd64p32",
 	"386",
+	"power64",
+	"power64le",
 };
 
 // The known operating systems.

@@ -1230,6 +1230,8 @@ func ArchChar(goarch string) (string, error) {
 		return "6", nil
 	case "arm":
 		return "5", nil
+	case "power64", "power64le":
+		return "9", nil
 	}
 	return "", errors.New("unsupported GOARCH " + goarch)
 }
