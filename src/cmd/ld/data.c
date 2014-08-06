@@ -145,7 +145,7 @@ relocsym(LSym *s)
 			diag("%s: invalid relocation %d+%d not in [%d,%d)", s->name, off, siz, 0, s->np);
 			continue;
 		}
-		if(r->sym != S && ((r->sym->type & SMASK) == 0 || (r->sym->type & SMASK) == SXREF)) {
+		if(r->sym != S && (r->sym->type & SMASK == 0 || r->sym->type & SMASK == SXREF)) {
 			diag("%s: not defined", r->sym->name);
 			continue;
 		}
