@@ -1072,7 +1072,7 @@ static Optab optab[] =
 	{ AMOVBLSX,	ymb_rl,	Pm, {0xbe} },
 	{ AMOVBLZX,	ymb_rl,	Pm, {0xb6} },
 	{ AMOVBQSX,	ymb_rl,	Pw, {0x0f,0xbe} },
-	{ AMOVBQZX,	ymb_rl,	Pw, {0x0f,0xb6} },
+	{ AMOVBQZX,	ymb_rl,	Pm, {0xb6} },
 	{ AMOVBWSX,	ymb_rl,	Pq, {0xbe} },
 	{ AMOVBWZX,	ymb_rl,	Pq, {0xb6} },
 	{ AMOVO,	yxmov,	Pe, {0x6f,0x7f} },
