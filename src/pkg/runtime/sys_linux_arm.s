@@ -340,11 +340,6 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 	SWI	$0
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0
-	MOVW	$SYS_rt_sigreturn, R7
-	SWI	$0
-	RET
-
 TEXT runtime·usleep(SB),NOSPLIT,$12
 	MOVW	usec+0(FP), R0
 	MOVW	R0, R1
