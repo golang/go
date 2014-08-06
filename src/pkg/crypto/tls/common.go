@@ -202,6 +202,32 @@ type ClientSessionCache interface {
 	Put(sessionKey string, cs *ClientSessionState)
 }
 
+// ClientHelloInfo contains information from a ClientHello message in order to
+// guide certificate selection in the GetCertificate callback.
+type ClientHelloInfo struct {
+	// CipherSuites lists the CipherSuites supported by the client (e.g.
+	// TLS_RSA_WITH_RC4_128_SHA).
+	CipherSuites []uint16
+
+	// ServerName indicates the name of the server requested by the client
+	// in order to support virtual hosting. ServerName is only set if the
+	// client is using SNI (see
+	// http://tools.ietf.org/html/rfc4366#section-3.1).
+	ServerName string
+
+	// SupportedCurves lists the elliptic curves supported by the client.
+	// SupportedCurves is set only if the Supported Elliptic Curves
+	// Extension is being used (see
+	// http://tools.ietf.org/html/rfc4492#section-5.1.1).
+	SupportedCurves []CurveID
+
+	// SupportedPoints lists the point formats supported by the client.
+	// SupportedPoints is set only if the Supported Point Formats Extension
+	// is being used (see
+	// http://tools.ietf.org/html/rfc4492#section-5.1.2).
+	SupportedPoints []uint8
+}
+
 // A Config structure is used to configure a TLS client or server.
 // After one has been passed to a TLS function it must not be
 // modified. A Config may be reused; the tls package will also not
@@ -229,6 +255,13 @@ type Config struct {
 	// The nil value causes the first element of Certificates to be used
 	// for all connections.
 	NameToCertificate map[string]*Certificate
+
+	// GetCertificate returns a Certificate based on the given
+	// ClientHelloInfo. If GetCertificate is nil or returns nil, then the
+	// certificate is retrieved from NameToCertificate. If
+	// NameToCertificate is nil, the first element of Certificates will be
+	// used.
+	GetCertificate func(clientHello *ClientHelloInfo) (*Certificate, error)
 
 	// RootCAs defines the set of root certificate authorities
 	// that clients use when verifying server certificates.
@@ -384,22 +417,28 @@ func (c *Config) mutualVersion(vers uint16) (uint16, bool) {
 	return vers, true
 }
 
-// getCertificateForName returns the best certificate for the given name,
-// defaulting to the first element of c.Certificates if there are no good
-// options.
-func (c *Config) getCertificateForName(name string) *Certificate {
-	if len(c.Certificates) == 1 || c.NameToCertificate == nil {
-		// There's only one choice, so no point doing any work.
-		return &c.Certificates[0]
+// getCertificate returns the best certificate for the given ClientHelloInfo,
+// defaulting to the first element of c.Certificates.
+func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, error) {
+	if c.GetCertificate != nil {
+		cert, err := c.GetCertificate(clientHello)
+		if cert != nil || err != nil {
+			return cert, err
+		}
 	}
 
-	name = strings.ToLower(name)
+	if len(c.Certificates) == 1 || c.NameToCertificate == nil {
+		// There's only one choice, so no point doing any work.
+		return &c.Certificates[0], nil
+	}
+
+	name := strings.ToLower(clientHello.ServerName)
 	for len(name) > 0 && name[len(name)-1] == '.' {
 		name = name[:len(name)-1]
 	}
 
 	if cert, ok := c.NameToCertificate[name]; ok {
-		return cert
+		return cert, nil
 	}
 
 	// try replacing labels in the name with wildcards until we get a
@@ -409,12 +448,12 @@ func (c *Config) getCertificateForName(name string) *Certificate {
 		labels[i] = "*"
 		candidate := strings.Join(labels, ".")
 		if cert, ok := c.NameToCertificate[candidate]; ok {
-			return cert
+			return cert, nil
 		}
 	}
 
 	// If nothing matches, return the first certificate.
-	return &c.Certificates[0]
+	return &c.Certificates[0], nil
 }
 
 // BuildNameToCertificate parses c.Certificates and builds c.NameToCertificate

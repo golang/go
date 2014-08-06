@@ -186,7 +186,16 @@ Curves:
 	}
 	hs.cert = &config.Certificates[0]
 	if len(hs.clientHello.serverName) > 0 {
-		hs.cert = config.getCertificateForName(hs.clientHello.serverName)
+		chi := &ClientHelloInfo{
+			CipherSuites:    hs.clientHello.cipherSuites,
+			ServerName:      hs.clientHello.serverName,
+			SupportedCurves: hs.clientHello.supportedCurves,
+			SupportedPoints: hs.clientHello.supportedPoints,
+		}
+		if hs.cert, err = config.getCertificate(chi); err != nil {
+			c.sendAlert(alertInternalError)
+			return false, err
+		}
 	}
 
 	_, hs.ecdsaOk = hs.cert.PrivateKey.(*ecdsa.PrivateKey)
