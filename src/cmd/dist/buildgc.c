@@ -63,7 +63,7 @@ gcopnames(char *dir, char *file)
 	vfree(&fields);
 }
 
-// mkanames reads [568].out.h and writes anames[568].c
+// mkanames reads [5689].out.h and writes anames[5689].c
 // The format is much the same as the Go opcodes above.
 // it also writes out cnames array for C_* constants.
 void
