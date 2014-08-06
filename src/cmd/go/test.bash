@@ -105,6 +105,22 @@ cp -R testdata/local "testdata/$bad"
 testlocal "$bad" 'with bad characters in path'
 rm -rf "testdata/$bad"
 
+TEST 'internal packages in $GOROOT are respected'
+if ./testgo build -v ./testdata/testinternal >testdata/std.out 2>&1; then
+	echo "go build ./testdata/testinternal succeeded incorrectly"
+	ok=false
+elif ! grep 'use of internal package not allowed' testdata/std.out >/dev/null; then
+	echo "wrong error message for testdata/testinternal"
+	cat std.out
+	ok=false
+fi
+
+TEST 'internal packages outside $GOROOT are not respected'
+if ! ./testgo build -v ./testdata/testinternal2; then
+	echo "go build ./testdata/testinternal2 failed"
+	ok=false
+fi
+
 TEST error message for syntax error in test go file says FAIL
 export GOPATH=$(pwd)/testdata
 if ./testgo test syntaxerror 2>testdata/err; then
