@@ -183,12 +183,7 @@ writeobj(Link *ctxt, Biobuf *b)
 				s->size = p->to.offset;
 				if(s->type == 0 || s->type == SXREF)
 					s->type = SBSS;
-				
-				if(ctxt->arch->thechar == '5')
-					flag = p->reg;
-				else
-					flag = p->from.scale;
-					
+				flag = ctxt->arch->textflag(p);
 				if(flag & DUPOK)
 					s->dupok = 1;
 				if(flag & RODATA)
@@ -221,10 +216,7 @@ writeobj(Link *ctxt, Biobuf *b)
 				else
 					etext->next = s;
 				etext = s;
-				if(ctxt->arch->thechar == '5')
-					flag = p->reg;
-				else
-					flag = p->from.scale;
+				flag = ctxt->arch->textflag(p);
 				if(flag & DUPOK)
 					s->dupok = 1;
 				if(flag & NOSPLIT)
