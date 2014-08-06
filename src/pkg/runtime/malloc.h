@@ -508,7 +508,6 @@ void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
 void	runtime·MHeap_FreeStack(MHeap *h, MSpan *s);
 MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
 MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
-void	runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *size, int32 *npages, int32 *nobj);
 void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
 void	runtime·MHeap_MapBits(MHeap *h);
 void	runtime·MHeap_MapSpans(MHeap *h);
