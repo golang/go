@@ -3478,11 +3478,23 @@ class MercurialVCS(VersionControlSystem):
 		if not err and mqparent != "":
 			self.base_rev = mqparent
 		else:
-			out = RunShell(["hg", "parents", "-q"], silent_ok=True).strip()
+			out = RunShell(["hg", "parents", "-q", "--template={node} {branch}"], silent_ok=True).strip()
 			if not out:
 				# No revisions; use 0 to mean a repository with nothing.
-				out = "0:0"
-			self.base_rev = out.split(':')[1].strip()
+				out = "0:0 default"
+			
+			# Find parent along current branch.
+			branch = repo[None].branch()
+			base = ""
+			for line in out.splitlines():
+				fields = line.strip().split(' ')
+				if fields[1] == branch:
+					base = fields[0]
+					break
+			if base == "":
+				# Use the first parent
+				base = out.strip().split(' ')[0]
+			self.base_rev = base
 
 	def _GetRelPath(self, filename):
 		"""Get relative path of a file according to the current directory,
