@@ -111,7 +111,22 @@ func nohash(a unsafe.Pointer, s uintptr, h uintptr) uintptr {
 func interhash(a *interface {
 	f()
 }, s uintptr, h uintptr) uintptr {
-	return 0
+	tab := (*iface)(unsafe.Pointer(a)).tab
+	if tab == nil {
+		return h
+	}
+	t := tab._type
+	fn := goalg(t.alg).hash
+	if **(**uintptr)(unsafe.Pointer(&fn)) == nohashcode {
+		// calling nohash will panic too,
+		// but we can print a better error.
+		panic(errorString("hash of unhashable type " + *t._string))
+	}
+	if uintptr(t.size) <= ptrSize {
+		return c1 * fn(unsafe.Pointer(&(*eface)(unsafe.Pointer(a)).data), uintptr(t.size), h^c0)
+	} else {
+		return c1 * fn((*eface)(unsafe.Pointer(a)).data, uintptr(t.size), h^c0)
+	}
 }
 
 func nilinterhash(a *interface{}, s uintptr, h uintptr) uintptr {

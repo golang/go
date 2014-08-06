@@ -475,44 +475,6 @@ func assertE2E2(inter *InterfaceType, e Eface) (ret Eface, ok bool) {
 	ok = e.type != nil;
 }
 
-static uintptr
-ifacehash1(void *data, Type *t, uintptr h)
-{
-	Alg *alg;
-	uintptr size;
-	Eface err;
-
-	if(t == nil)
-		return 0;
-
-	alg = t->alg;
-	size = t->size;
-	if(alg->hash->fn == (void(*)())runtime·nohash) {
-		// calling nohash will panic too,
-		// but we can print a better error.
-		runtime·newErrorString(runtime·catstring(runtime·gostringnocopy((byte*)"hash of unhashable type "), *t->string), &err);
-		runtime·panic(err);
-	}
-	if(size <= sizeof(data))
-		return ((uintptr(*)(void**,uintptr,uintptr))alg->hash)(&data, size, h);
-	else
-		return ((uintptr(*)(void*,uintptr,uintptr))alg->hash)(data, size, h);
-}
-
-uintptr
-runtime·ifacehash(Iface a, uintptr h)
-{
-	if(a.tab == nil)
-		return h;
-	return ifacehash1(a.data, a.tab->type, h);
-}
-
-uintptr
-runtime·efacehash(Eface a, uintptr h)
-{
-	return ifacehash1(a.data, a.type, h);
-}
-
 static bool
 ifaceeq1(void *data1, void *data2, Type *t)
 {
