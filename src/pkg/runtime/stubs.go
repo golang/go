@@ -44,21 +44,29 @@ func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
 func acquirem() *m
 func releasem(mp *m)
 
-// in asm_*.s
-func mcall(fn *byte)
-func onM(fn *byte)
+// An mFunction represents a C function that runs on the M stack.  It
+// can be called from Go using mcall or onM.  Through the magic of
+// linking, an mFunction variable and the corresponding C code entry
+// point live at the same address.
+type mFunction byte
 
-// C routines that run on the M stack.  Call these like
-//   mcall(&mcacheRefill)
+// in asm_*.s
+func mcall(fn *mFunction)
+func onM(fn *mFunction)
+
+// C functions that run on the M stack.  Call these like
+//   mcall(&mcacheRefill_m)
 // Arguments should be passed in m->scalararg[x] and
 // m->ptrarg[x].  Return values can be passed in those
 // same slots.
-var mcacheRefill byte
-var largeAlloc byte
-var mprofMalloc byte
-var mgc2 byte
-var setFinalizer byte
-var markallocated_m byte
+var (
+	mcacheRefill_m,
+	largeAlloc_m,
+	mprofMalloc_m,
+	gc_m,
+	setFinalizer_m,
+	markallocated_m mFunction
+)
 
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s

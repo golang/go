@@ -514,7 +514,7 @@ throw:
 }
 
 void
-runtime·setFinalizer(void)
+runtime·setFinalizer_m(void)
 {
 	Eface obj, finalizer;
 
@@ -531,13 +531,13 @@ runtime·setFinalizer(void)
 
 // mcallable cache refill
 void 
-runtime·mcacheRefill(void)
+runtime·mcacheRefill_m(void)
 {
 	runtime·MCache_Refill(g->m->mcache, (int32)g->m->scalararg[0]);
 }
 
 void
-runtime·largeAlloc(void)
+runtime·largeAlloc_m(void)
 {
 	uintptr npages, size;
 	MSpan *s;

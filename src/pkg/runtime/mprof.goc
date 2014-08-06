@@ -142,7 +142,7 @@ runtime·MProf_Malloc(void *p, uintptr size)
 
 // Called by malloc to record a profiled block.
 void
-runtime·mprofMalloc(void)
+runtime·mprofMalloc_m(void)
 {
 	uintptr stk[32];
 	Bucket *b;

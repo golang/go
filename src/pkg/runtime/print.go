@@ -10,10 +10,12 @@ import (
 
 // these 4 functions are complicated enough that we will share
 // the print logic with the C printf.
-var printstring_m byte
-var printuint_m byte
-var printhex_m byte
-var printfloat_m byte
+var (
+	printstring_m,
+	printuint_m,
+	printhex_m,
+	printfloat_m mFunction
+)
 
 func printstring(s string) {
 	mp := acquirem()
