@@ -48,23 +48,8 @@ enum
 #define	EXTERN	extern
 #endif
 
-/* do not undefine this - code will be removed eventually */
-#define	CALLEEBX
-
-#define	dynptrsize	0
-
 #define	P		((Prog*)0)
 #define	S		((LSym*)0)
-#define	TNAME		(ctxt->cursym?ctxt->cursym->name:noname)
-
-#define SIGNINTERN	(1729*325*1729)
-
-typedef	struct	Count	Count;
-struct	Count
-{
-	int32	count;
-	int32	outof;
-};
 
 enum
 {
@@ -73,11 +58,6 @@ enum
 	LABEL		= 1<<1,
 	LEAF		= 1<<2,
 
-	STRINGSZ	= 200,
-	MINSIZ		= 64,
-	NENT		= 100,
-	MAXIO		= 8192,
-	MAXHIST		= 40,	/* limit of path elements for history symbols */
 	MINLC	= 4,
 
 	C_NONE		= 0,
@@ -127,8 +107,6 @@ enum
 	C_GOK,
 };
 
-#ifndef COFFCVT
-
 EXTERN	int32	autosize;
 EXTERN	LSym*	datap;
 EXTERN	int	debug[128];
@@ -152,24 +130,17 @@ void	adddynrela(LSym *rel, LSym *s, Reloc *r);
 void	adddynsym(Link *ctxt, LSym *s);
 int	archreloc(Reloc *r, LSym *s, vlong *val);
 void	asmb(void);
-void	cput(int32 c);
 int	elfreloc1(Reloc *r, vlong sectoff);
 void	elfsetupplt(void);
-void	hput(int32 l);
 void	listinit(void);
-void	lput(int32 l);
 int	machoreloc1(Reloc *r, vlong sectoff);
 void	main(int argc, char *argv[]);
-void	nopstat(char *f, Count *c);
 int32	rnd(int32 v, int32 r);
-void	wput(int32 l);
 
 /* Native is little-endian */
 #define	LPUT(a)	lputl(a)
 #define	WPUT(a)	wputl(a)
 #define	VPUT(a)	abort()
-
-#endif
 
 /* Used by ../ld/dwarf.c */
 enum

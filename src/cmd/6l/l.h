@@ -68,14 +68,9 @@ EXTERN	int	RegSize;
 
 #define	P		((Prog*)0)
 #define	S		((LSym*)0)
-#define	TNAME		(ctxt->cursym?ctxt->cursym->name:noname)
 enum
 {
-	MINSIZ		= 8,
-	STRINGSZ	= 200,
 	MINLC		= 1,
-	MAXIO		= 8192,
-	MAXHIST		= 40,				/* limit of path elements for history symbols */
 };
 
 #pragma	varargck	type	"I"	uchar*
@@ -89,9 +84,6 @@ EXTERN	int32	spsize;
 EXTERN	LSym*	symlist;
 EXTERN	int32	symsize;
 
-EXTERN	vlong	textstksiz;
-EXTERN	vlong	textarg;
-
 int	Iconv(Fmt *fp);
 void	adddynlib(char *lib);
 void	adddynrel(LSym *s, Reloc *r);
@@ -103,8 +95,6 @@ int	elfreloc1(Reloc *r, vlong sectoff);
 void	elfsetupplt(void);
 void	listinit(void);
 int	machoreloc1(Reloc *r, vlong sectoff);
-void	main(int argc, char *argv[]);
-void	parsetextconst(vlong arg);
 vlong	rnd(vlong v, vlong r);
 
 /* Native is little-endian */

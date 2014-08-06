@@ -50,15 +50,10 @@ enum
 
 #define	P		((Prog*)0)
 #define	S		((LSym*)0)
-#define	TNAME		(ctxt->cursym?ctxt->cursym->name:noname)
 
 enum
 {
-	MINSIZ		= 4,
-	STRINGSZ	= 200,
 	MINLC		= 1,
-	MAXIO		= 8192,
-	MAXHIST		= 40,				/* limit of path elements for history symbols */
 };
 
 #pragma	varargck	type	"I"	uchar*
@@ -72,7 +67,6 @@ EXTERN	char*	rpath;
 EXTERN	int32	spsize;
 EXTERN	LSym*	symlist;
 EXTERN	int32	symsize;
-EXTERN	int32	textsize;
 
 int	Iconv(Fmt *fp);
 void	adddynlib(char *lib);
@@ -85,7 +79,6 @@ int	elfreloc1(Reloc *r, vlong sectoff);
 void	elfsetupplt(void);
 void	listinit(void);
 int	machoreloc1(Reloc *r, vlong sectoff);
-void	main(int argc, char *argv[]);
 int32	rnd(int32 v, int32 r);
 void	s8put(char *n);
 char*	xsymname(LSym *s);
