@@ -60,7 +60,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 	}
 	if(n >= cb_max)
 		runtime·throw("too many callback functions");
-	c = runtime·mal(sizeof *c);
+	c = runtime·mallocgc(sizeof *c, nil, 0);
 	c->gobody = fn.data;
 	c->argsize = argsize;
 	c->cleanstack = cleanstack;

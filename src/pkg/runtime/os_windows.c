@@ -143,7 +143,7 @@ runtime·goenvs(void)
 	for(p=env; *p; n++)
 		p += runtime·findnullw(p)+1;
 
-	s = runtime·malloc(n*sizeof s[0]);
+	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
 
 	p = env;
 	for(i=0; i<n; i++) {
