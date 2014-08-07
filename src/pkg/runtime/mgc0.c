@@ -539,7 +539,7 @@ markroot(ParFor *desc, uint32 i)
 				// retain everything it points to.
 				spf = (SpecialFinalizer*)sp;
 				// A finalizer can be set for an inner byte of an object, find object beginning.
-				p = (void*)((s->start << PageShift) + spf->offset/s->elemsize*s->elemsize);
+				p = (void*)((s->start << PageShift) + spf->special.offset/s->elemsize*s->elemsize);
 				scanblock(p, s->elemsize, nil);
 				scanblock((void*)&spf->fn, PtrSize, ScanConservatively);
 			}
@@ -1043,7 +1043,7 @@ runtime·MSpan_Sweep(MSpan *s)
 		c->local_nsmallfree[cl] += nfree;
 		c->local_cachealloc -= nfree * size;
 		runtime·xadd64(&mstats.next_gc, -(uint64)(nfree * size * (runtime·gcpercent + 100)/100));
-		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
+		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl].mcentral, s, nfree, head.next, end);
 		// MCentral_FreeSpan updates sweepgen
 	}
 	return res;
@@ -1308,10 +1308,10 @@ runtime·gc(int32 force)
 		return;
 
 	if(runtime·gcpercent == GcpercentUnknown) {	// first time through
-		runtime·lock(&runtime·mheap);
+		runtime·lock(&runtime·mheap.lock);
 		if(runtime·gcpercent == GcpercentUnknown)
 			runtime·gcpercent = runtime·readgogc();
-		runtime·unlock(&runtime·mheap);
+		runtime·unlock(&runtime·mheap.lock);
 	}
 	if(runtime·gcpercent < 0)
 		return;
@@ -1560,7 +1560,7 @@ runtime∕debug·readGCStats(Slice *pauses)
 
 	// Pass back: pauses, last gc (absolute time), number of gc, total pause ns.
 	p = (uint64*)pauses->array;
-	runtime·lock(&runtime·mheap);
+	runtime·lock(&runtime·mheap.lock);
 	n = mstats.numgc;
 	if(n > nelem(mstats.pause_ns))
 		n = nelem(mstats.pause_ns);
@@ -1575,7 +1575,7 @@ runtime∕debug·readGCStats(Slice *pauses)
 	p[n] = mstats.last_gc;
 	p[n+1] = mstats.numgc;
 	p[n+2] = mstats.pause_total_ns;	
-	runtime·unlock(&runtime·mheap);
+	runtime·unlock(&runtime·mheap.lock);
 	pauses->len = n+3;
 }
 
@@ -1583,14 +1583,14 @@ int32
 runtime·setgcpercent(int32 in) {
 	int32 out;
 
-	runtime·lock(&runtime·mheap);
+	runtime·lock(&runtime·mheap.lock);
 	if(runtime·gcpercent == GcpercentUnknown)
 		runtime·gcpercent = runtime·readgogc();
 	out = runtime·gcpercent;
 	if(in < 0)
 		in = -1;
 	runtime·gcpercent = in;
-	runtime·unlock(&runtime·mheap);
+	runtime·unlock(&runtime·mheap.lock);
 	return out;
 }
 
@@ -1670,11 +1670,11 @@ runfinq(void)
 				} else if(((InterfaceType*)f->fint)->mhdr.len == 0) {
 					// convert to empty interface
 					ef = (Eface*)frame;
-					ef->type = f->ot;
+					ef->type = &f->ot->typ;
 					ef->data = f->arg;
 				} else {
 					// convert to interface with methods, via empty interface.
-					ef1.type = f->ot;
+					ef1.type = &f->ot->typ;
 					ef1.data = f->arg;
 					if(!runtime·ifaceE2I2((InterfaceType*)f->fint, ef1, (Iface*)frame))
 						runtime·throw("invalid type conversion in runfinq");

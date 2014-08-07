@@ -33,7 +33,7 @@ package runtime
 
 #pragma textflag NOPTR
 static struct {
-	Note;
+	Note note;
 	uint32 mask[(NSIG+31)/32];
 	uint32 wanted[(NSIG+31)/32];
 	uint32 recv[(NSIG+31)/32];
@@ -72,7 +72,7 @@ runtime·sigsend(int32 s)
 					new = HASSIGNAL;
 				if(runtime·cas(&sig.state, old, new)) {
 					if (old == HASWAITER)
-						runtime·notewakeup(&sig);
+						runtime·notewakeup(&sig.note);
 					break;
 				}
 			}
@@ -108,8 +108,8 @@ func signal_recv() (m uint32) {
 				new = HASWAITER;
 			if(runtime·cas(&sig.state, old, new)) {
 				if (new == HASWAITER) {
-					runtime·notetsleepg(&sig, -1);
-					runtime·noteclear(&sig);
+					runtime·notetsleepg(&sig.note, -1);
+					runtime·noteclear(&sig.note);
 				}
 				break;
 			}
@@ -139,7 +139,7 @@ func signal_enable(s uint32) {
 		// to use for initialization.  It does not pass
 		// signal information in m.
 		sig.inuse = true;	// enable reception of signals; cannot disable
-		runtime·noteclear(&sig);
+		runtime·noteclear(&sig.note);
 		return;
 	}
 	

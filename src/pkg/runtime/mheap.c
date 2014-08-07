@@ -70,7 +70,7 @@ runtime·MHeap_Init(MHeap *h)
 	runtime·MSpanList_Init(&h->freelarge);
 	runtime·MSpanList_Init(&h->busylarge);
 	for(i=0; i<nelem(h->central); i++)
-		runtime·MCentral_Init(&h->central[i], i);
+		runtime·MCentral_Init(&h->central[i].mcentral, i);
 }
 
 void
@@ -106,9 +106,9 @@ retry:
 			runtime·MSpanList_Remove(s);
 			// swept spans are at the end of the list
 			runtime·MSpanList_InsertBack(list, s);
-			runtime·unlock(h);
+			runtime·unlock(&h->lock);
 			n += runtime·MSpan_Sweep(s);
-			runtime·lock(h);
+			runtime·lock(&h->lock);
 			if(n >= npages)
 				return n;
 			// the span could have been moved elsewhere
@@ -153,7 +153,7 @@ MHeap_Reclaim(MHeap *h, uintptr npage)
 	}
 
 	// Now sweep everything that is not yet swept.
-	runtime·unlock(h);
+	runtime·unlock(&h->lock);
 	for(;;) {
 		n = runtime·sweepone();
 		if(n == -1)  // all spans are swept
@@ -162,7 +162,7 @@ MHeap_Reclaim(MHeap *h, uintptr npage)
 		if(reclaimed >= npage)
 			break;
 	}
-	runtime·lock(h);
+	runtime·lock(&h->lock);
 }
 
 // Allocate a new span of npage pages from the heap for GC'd memory
@@ -174,7 +174,7 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
 
 	if(g != g->m->g0)
 		runtime·throw("mheap_alloc not on M stack");
-	runtime·lock(h);
+	runtime·lock(&h->lock);
 
 	// To prevent excessive heap growth, before allocating n pages
 	// we need to sweep and reclaim at least n pages.
@@ -207,7 +207,7 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
 				runtime·MSpanList_InsertBack(&h->busylarge, s);
 		}
 	}
-	runtime·unlock(h);
+	runtime·unlock(&h->lock);
 	return s;
 }
 
@@ -259,7 +259,7 @@ runtime·MHeap_AllocStack(MHeap *h, uintptr npage)
 
 	if(g != g->m->g0)
 		runtime·throw("mheap_allocstack not on M stack");
-	runtime·lock(h);
+	runtime·lock(&h->lock);
 	s = MHeap_AllocSpanLocked(h, npage);
 	if(s != nil) {
 		s->state = MSpanStack;
@@ -267,7 +267,7 @@ runtime·MHeap_AllocStack(MHeap *h, uintptr npage)
 		s->ref = 0;
 		mstats.stacks_inuse += s->npages<<PageShift;
 	}
-	runtime·unlock(h);
+	runtime·unlock(&h->lock);
 	return s;
 }
 
@@ -460,7 +460,7 @@ mheap_free(MHeap *h, MSpan *s, int32 acct)
 {
 	if(g != g->m->g0)
 		runtime·throw("mheap_free not on M stack");
-	runtime·lock(h);
+	runtime·lock(&h->lock);
 	mstats.heap_alloc += g->m->mcache->local_cachealloc;
 	g->m->mcache->local_cachealloc = 0;
 	if(acct) {
@@ -468,7 +468,7 @@ mheap_free(MHeap *h, MSpan *s, int32 acct)
 		mstats.heap_objects--;
 	}
 	MHeap_FreeSpanLocked(h, s);
-	runtime·unlock(h);
+	runtime·unlock(&h->lock);
 }
 
 static void
@@ -504,10 +504,10 @@ runtime·MHeap_FreeStack(MHeap *h, MSpan *s)
 	if(g != g->m->g0)
 		runtime·throw("mheap_freestack not on M stack");
 	s->needzero = 1;
-	runtime·lock(h);
+	runtime·lock(&h->lock);
 	mstats.stacks_inuse -= s->npages<<PageShift;
 	MHeap_FreeSpanLocked(h, s);
-	runtime·unlock(h);
+	runtime·unlock(&h->lock);
 }
 
 static void
@@ -626,9 +626,9 @@ scavenge(int32 k, uint64 now, uint64 limit)
 static void
 scavenge_m(G *gp)
 {
-	runtime·lock(&runtime·mheap);
+	runtime·lock(&runtime·mheap.lock);
 	scavenge(g->m->scalararg[0], g->m->scalararg[1], g->m->scalararg[2]);
-	runtime·unlock(&runtime·mheap);
+	runtime·unlock(&runtime·mheap.lock);
 	runtime·gogo(&gp->sched);
 }
 
@@ -865,12 +865,12 @@ runtime·addfinalizer(void *p, FuncVal *f, uintptr nret, Type *fint, PtrType *ot
 	runtime·lock(&runtime·mheap.speciallock);
 	s = runtime·FixAlloc_Alloc(&runtime·mheap.specialfinalizeralloc);
 	runtime·unlock(&runtime·mheap.speciallock);
-	s->kind = KindSpecialFinalizer;
+	s->special.kind = KindSpecialFinalizer;
 	s->fn = f;
 	s->nret = nret;
 	s->fint = fint;
 	s->ot = ot;
-	if(addspecial(p, s))
+	if(addspecial(p, &s->special))
 		return true;
 
 	// There was an old finalizer
@@ -903,9 +903,9 @@ runtime·setprofilebucket(void *p, Bucket *b)
 	runtime·lock(&runtime·mheap.speciallock);
 	s = runtime·FixAlloc_Alloc(&runtime·mheap.specialprofilealloc);
 	runtime·unlock(&runtime·mheap.speciallock);
-	s->kind = KindSpecialProfile;
+	s->special.kind = KindSpecialProfile;
 	s->b = b;
-	if(!addspecial(p, s))
+	if(!addspecial(p, &s->special))
 		runtime·throw("setprofilebucket: profile already set");
 }
 

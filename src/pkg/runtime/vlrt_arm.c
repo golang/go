@@ -40,21 +40,8 @@ typedef signed char     schar;
 typedef struct  Vlong   Vlong;
 struct  Vlong
 {
-	union
-	{
-		struct
-		{
-			ulong   lo;
-			ulong   hi;
-		};
-		struct
-		{
-			ushort lols;
-			ushort loms;
-			ushort hils;
-			ushort hims;
-		};
-	};
+	ulong   lo;
+	ulong   hi;
 };
 
 void    runtime·abort(void);
@@ -82,15 +69,15 @@ _subv(Vlong *r, Vlong a, Vlong b)
 void
 _d2v(Vlong *y, double d)
 {
-	union { double d; struct Vlong; } x;
+	union { double d; Vlong vl; } x;
 	ulong xhi, xlo, ylo, yhi;
 	int sh;
 
 	x.d = d;
 
-	xhi = (x.hi & 0xfffff) | 0x100000;
-	xlo = x.lo;
-	sh = 1075 - ((x.hi >> 20) & 0x7ff);
+	xhi = (x.vl.hi & 0xfffff) | 0x100000;
+	xlo = x.vl.lo;
+	sh = 1075 - ((x.vl.hi >> 20) & 0x7ff);
 
 	ylo = 0;
 	yhi = 0;
@@ -123,7 +110,7 @@ _d2v(Vlong *y, double d)
 			yhi = d;        /* causes something awful */
 		}
 	}
-	if(x.hi & SIGN(32)) {
+	if(x.vl.hi & SIGN(32)) {
 		if(ylo != 0) {
 			ylo = -ylo;
 			yhi = ~yhi;

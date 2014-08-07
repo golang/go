@@ -36,7 +36,7 @@ struct SemaWaiter
 typedef struct SemaRoot SemaRoot;
 struct SemaRoot
 {
-	Lock;
+	Lock		lock;
 	SemaWaiter*	head;
 	SemaWaiter*	tail;
 	// Number of waiters. Read w/o the lock.
@@ -48,7 +48,7 @@ struct SemaRoot
 
 struct semtable
 {
-	SemaRoot;
+	SemaRoot root;
 	uint8 pad[CacheLineSize-sizeof(SemaRoot)];
 };
 #pragma dataflag NOPTR /* mark semtable as 'no pointers', hiding from garbage collector */
@@ -57,7 +57,7 @@ static struct semtable semtable[SEMTABLESZ];
 static SemaRoot*
 semroot(uint32 *addr)
 {
-	return &semtable[((uintptr)addr >> 3) % SEMTABLESZ];
+	return &semtable[((uintptr)addr >> 3) % SEMTABLESZ].root;
 }
 
 static void
@@ -125,19 +125,19 @@ runtime·semacquire(uint32 volatile *addr, bool profile)
 		s.releasetime = -1;
 	}
 	for(;;) {
-		runtime·lock(root);
+		runtime·lock(&root->lock);
 		// Add ourselves to nwait to disable "easy case" in semrelease.
 		runtime·xadd(&root->nwait, 1);
 		// Check cansemacquire to avoid missed wakeup.
 		if(cansemacquire(addr)) {
 			runtime·xadd(&root->nwait, -1);
-			runtime·unlock(root);
+			runtime·unlock(&root->lock);
 			return;
 		}
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
 		semqueue(root, addr, &s);
-		runtime·parkunlock(root, "semacquire");
+		runtime·parkunlock(&root->lock, "semacquire");
 		if(cansemacquire(addr)) {
 			if(t0)
 				runtime·blockevent(s.releasetime - t0, 3);
@@ -162,11 +162,11 @@ runtime·semrelease(uint32 volatile *addr)
 		return;
 
 	// Harder case: search for a waiter and wake it.
-	runtime·lock(root);
+	runtime·lock(&root->lock);
 	if(runtime·atomicload(&root->nwait) == 0) {
 		// The count is already consumed by another goroutine,
 		// so no need to wake up another goroutine.
-		runtime·unlock(root);
+		runtime·unlock(&root->lock);
 		return;
 	}
 	for(s = root->head; s; s = s->next) {
@@ -176,7 +176,7 @@ runtime·semrelease(uint32 volatile *addr)
 			break;
 		}
 	}
-	runtime·unlock(root);
+	runtime·unlock(&root->lock);
 	if(s) {
 		if(s->releasetime)
 			s->releasetime = runtime·cputicks();
@@ -206,7 +206,7 @@ func runtime_Semrelease(addr *uint32) {
 typedef struct SyncSema SyncSema;
 struct SyncSema
 {
-	Lock;
+	Lock		lock;
 	SemaWaiter*	head;
 	SemaWaiter*	tail;
 };
@@ -233,7 +233,7 @@ func runtime_Syncsemacquire(s *SyncSema) {
 		w.releasetime = -1;
 	}
 
-	runtime·lock(s);
+	runtime·lock(&s->lock);
 	if(s->head && s->head->nrelease > 0) {
 		// have pending release, consume it
 		wake = nil;
@@ -244,7 +244,7 @@ func runtime_Syncsemacquire(s *SyncSema) {
 			if(s->head == nil)
 				s->tail = nil;
 		}
-		runtime·unlock(s);
+		runtime·unlock(&s->lock);
 		if(wake)
 			runtime·ready(wake->g);
 	} else {
@@ -254,7 +254,7 @@ func runtime_Syncsemacquire(s *SyncSema) {
 		else
 			s->tail->next = &w;
 		s->tail = &w;
-		runtime·parkunlock(s, "semacquire");
+		runtime·parkunlock(&s->lock, "semacquire");
 		if(t0)
 			runtime·blockevent(w.releasetime - t0, 2);
 	}
@@ -269,7 +269,7 @@ func runtime_Syncsemrelease(s *SyncSema, n uint32) {
 	w.next = nil;
 	w.releasetime = 0;
 
-	runtime·lock(s);
+	runtime·lock(&s->lock);
 	while(w.nrelease > 0 && s->head && s->head->nrelease < 0) {
 		// have pending acquire, satisfy it
 		wake = s->head;
@@ -288,7 +288,7 @@ func runtime_Syncsemrelease(s *SyncSema, n uint32) {
 		else
 			s->tail->next = &w;
 		s->tail = &w;
-		runtime·parkunlock(s, "semarelease");
+		runtime·parkunlock(&s->lock, "semarelease");
 	} else
-		runtime·unlock(s);
+		runtime·unlock(&s->lock);
 }

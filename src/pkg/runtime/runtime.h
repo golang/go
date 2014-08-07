@@ -375,7 +375,7 @@ struct	M
 
 struct P
 {
-	Lock;
+	Lock	lock;
 
 	int32	id;
 	uint32	status;		// one of Pidle/Prunning/...
@@ -506,7 +506,7 @@ enum {
 
 struct	Timers
 {
-	Lock;
+	Lock	lock;
 	G	*timerproc;
 	bool		sleeping;
 	bool		rescheduling;

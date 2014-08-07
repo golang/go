@@ -1481,12 +1481,9 @@ edecl(int c, Type *t, Sym *s)
 {
 	Type *t1;
 
-	if(s == S) {
-		if(!typesu[t->etype])
-			diag(Z, "unnamed structure element must be struct/union");
-		if(c != CXXX)
-			diag(Z, "unnamed structure element cannot have class");
-	} else
+	if(s == S)
+		diag(Z, "unnamed structure elements not supported");
+	else
 		if(c != CXXX)
 			diag(Z, "structure element cannot have class: %s", s->name);
 	t1 = t;

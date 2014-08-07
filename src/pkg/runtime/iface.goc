@@ -42,7 +42,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 	}
 
 	// compiler has provided some good hash codes for us.
-	h = inter->hash;
+	h = inter->typ.hash;
 	h += 17 * type->hash;
 	// TODO(rsc): h += 23 * x->mhash ?
 	h %= nelem(hash);
@@ -98,7 +98,7 @@ search:
 				throw:
 					// didn't find method
 					runtime·newTypeAssertionError(
-						nil, type->string, inter->string,
+						nil, type->string, inter->typ.string,
 						iname, &err);
 					if(locked)
 						runtime·unlock(&ifacelock);
@@ -231,7 +231,7 @@ assertI2Tret(Type *t, Iface i, byte *ret)
 	}
 	if(tab->type != t) {
 		runtime·newTypeAssertionError(
-			tab->inter->string, tab->type->string, t->string,
+			tab->inter->typ.string, tab->type->string, t->string,
 			nil, &err);
 		runtime·panic(err);
 	}
@@ -332,7 +332,7 @@ func assertI2E(inter *InterfaceType, i Iface) (ret Eface) {
 	if(tab == nil) {
 		// explicit conversions require non-nil interface value.
 		runtime·newTypeAssertionError(
-			nil, nil, inter->string,
+			nil, nil, inter->typ.string,
 			nil, &err);
 		runtime·panic(err);
 	}
@@ -377,7 +377,7 @@ runtime·ifaceI2I(InterfaceType *inter, Iface i, Iface *ret)
 	if(tab == nil) {
 		// explicit conversions require non-nil interface value.
 		runtime·newTypeAssertionError(
-			nil, nil, inter->string,
+			nil, nil, inter->typ.string,
 			nil, &err);
 		runtime·panic(err);
 	}
@@ -414,7 +414,7 @@ runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
 	if(t == nil) {
 		// explicit conversions require non-nil interface value.
 		runtime·newTypeAssertionError(
-			nil, nil, inter->string,
+			nil, nil, inter->typ.string,
 			nil, &err);
 		runtime·panic(err);
 	}
@@ -462,7 +462,7 @@ func assertE2E(inter *InterfaceType, e Eface) (ret Eface) {
 	if(t == nil) {
 		// explicit conversions require non-nil interface value.
 		runtime·newTypeAssertionError(
-			nil, nil, inter->string,
+			nil, nil, inter->typ.string,
 			nil, &err);
 		runtime·panic(err);
 	}
