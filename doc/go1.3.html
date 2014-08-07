@@ -521,6 +521,15 @@ field to specify an end-to-end timeout on requests made using the
 client.
 </li>
 
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package's
+<a href="/pkg/net/http/#Request.ParseMultipartForm"><code>Request.ParseMultipartForm</code></a>
+method will now return an error if the body's <code>Content-Type</code>
+is not <code>mutipart/form-data</code>.
+Prior to Go 1.3 it would silently fail and return <code>nil</code>.
+Code that relies on the previous behavior should be updated.
+</li>
+
 <li> In the <a href="/pkg/net/"><code>net</code></a> package,
 the <a href="/pkg/net/#Dialer"><code>Dialer</code></a> struct now
 has a <code>KeepAlive</code> option to specify a keep-alive period for the connection.
