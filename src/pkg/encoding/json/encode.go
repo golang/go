@@ -40,8 +40,8 @@ import (
 //
 // Floating point, integer, and Number values encode as JSON numbers.
 //
-// String values encode as JSON strings. InvalidUTF8Error will be returned
-// if an invalid UTF-8 sequence is encountered.
+// String values encode as JSON strings coerced to valid UTF-8,
+// replacing invalid bytes with the Unicode replacement rune.
 // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
 // to keep some browsers from misinterpreting JSON output as HTML.
 // Ampersand "&" is also escaped to "\u0026" for the same reason.
