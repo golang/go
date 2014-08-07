@@ -27,58 +27,222 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build ignore
+#include <u.h>
+#include <libc.h>
+#include <bio.h>
+#include <link.h>
+#include "../cmd/9l/9.out.h"
+#include "../pkg/runtime/stack.h"
 
-#include	"l.h"
+static Prog zprg = {
+	.as = AGOK,
+	.reg = NREG,
+	.from = {
+		.name = D_NONE,
+		.type = D_NONE,
+		.reg = NREG,
+	},
+	.from3 = {
+		.name = D_NONE,
+		.type = D_NONE,
+		.reg = NREG,
+	},
+	.to = {
+		.name = D_NONE,
+		.type = D_NONE,
+		.reg = NREG,
+	},
+};
 
-void
-noops(void)
+static int
+symtype(Addr *a)
 {
-	Prog *p, *p1, *q, *q1;
-	int o, mov, aoffset, curframe, curbecome, maxbecome;
+	return a->name;
+}
+
+static int
+isdata(Prog *p)
+{
+	return p->as == ADATA || p->as == AGLOBL;
+}
+
+static int
+iscall(Prog *p)
+{
+	return p->as == ABL;
+}
+
+static int
+datasize(Prog *p)
+{
+	return p->reg;
+}
+
+static int
+textflag(Prog *p)
+{
+	return p->reg;
+}
+
+static void
+settextflag(Prog *p, int f)
+{
+	p->reg = f;
+}
+
+static void
+progedit(Link *ctxt, Prog *p)
+{
+	char literal[64];
+	LSym *s;
+
+	USED(ctxt);
+
+	p->from.class = 0;
+	p->to.class = 0;
+
+	// Rewrite BR/BL to symbol as D_BRANCH.
+	switch(p->as) {
+	case ABR:
+	case ABL:
+	case ARETURN:
+	case ADUFFZERO:
+	case ADUFFCOPY:
+		if(p->to.sym != nil)
+			p->to.type = D_BRANCH;
+		break;
+	}
+
+	// Rewrite float constants to values stored in memory.
+	switch(p->as) {
+	case AFMOVS:
+		if(p->from.type == D_FCONST) {
+			int32 i32;
+			float32 f32;
+			f32 = p->from.u.dval;
+			memmove(&i32, &f32, 4);
+			sprint(literal, "$f32.%08ux", (uint32)i32);
+			s = linklookup(ctxt, literal, 0);
+			s->size = 4;
+			p->from.type = D_OREG;
+			p->from.sym = s;
+			p->from.name = D_EXTERN;
+			p->from.offset = 0;
+		}
+		break;
+	case AFMOVD:
+		if(p->from.type == D_FCONST) {
+			int64 i64;
+			memmove(&i64, &p->from.u.dval, 8);
+			sprint(literal, "$f64.%016llux", (uvlong)i64);
+			s = linklookup(ctxt, literal, 0);
+			s->size = 8;
+			p->from.type = D_OREG;
+			p->from.sym = s;
+			p->from.name = D_EXTERN;
+			p->from.offset = 0;
+		}
+		break;
+	case AMOVD:
+		if(p->from.type == D_CONST && p->from.name == D_NONE && (int64)(uint32)p->from.offset != p->from.offset) {
+			sprint(literal, "$i64.%016llux", (uvlong)p->from.offset);
+			s = linklookup(ctxt, literal, 0);
+			s->size = 8;
+			p->from.type = D_OREG;
+			p->from.sym = s;
+			p->from.name = D_EXTERN;
+			p->from.offset = 0;
+		}
+	}
+
+	// Rewrite SUB constants into ADD.
+	switch(p->as) {
+	case ASUBC:
+		if(p->from.type == D_CONST) {
+			p->from.offset = -p->from.offset;
+			p->as = AADDC;
+		}
+		break;
+
+	case ASUBCCC:
+		if(p->from.type == D_CONST) {
+			p->from.offset = -p->from.offset;
+			p->as = AADDCCC;
+		}
+		break;
+
+	case ASUB:
+		if(p->from.type == D_CONST) {
+			p->from.offset = -p->from.offset;
+			p->as = AADD;
+		}
+		break;
+	}
+}
+
+static Prog*	stacksplit(Link*, Prog*, int32, int);
+
+static void
+parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
+{
+	*textstksiz = arg & 0xffffffffLL;
+	if(*textstksiz & 0x80000000LL)
+		*textstksiz = -(-*textstksiz & 0xffffffffLL);
+
+	*textarg = (arg >> 32) & 0xffffffffLL;
+	if(*textarg & 0x80000000LL)
+		*textarg = 0;
+	*textarg = (*textarg+7) & ~7LL;
+}
+
+static void
+addstacksplit(Link *ctxt, LSym *cursym)
+{
+	Prog *p, *q, *q1;
+	int o, mov, aoffset;
+	vlong textstksiz, textarg;
+	int32 autoffset, autosize;
+
+	if(ctxt->symmorestack[0] == nil) {
+		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
+		ctxt->symmorestack[1] = linklookup(ctxt, "runtime.morestack_noctxt", 0);
+		// TODO(minux): add morestack short-cuts with small fixed frame-size.
+	}
+
+	ctxt->cursym = cursym;
+
+	if(cursym->text == nil || cursym->text->link == nil)
+		return;				
+
+	p = cursym->text;
+	parsetextconst(p->to.offset, &textstksiz, &textarg);
+	autoffset = textstksiz;
+	if(autoffset < 0)
+		autoffset = 0;
+	
+	cursym->args = p->to.offset>>32;
+	cursym->locals = textstksiz;
 
 	/*
 	 * find leaf subroutines
-	 * become sizes
-	 * frame sizes
 	 * strip NOPs
 	 * expand RET
 	 * expand BECOME pseudo
 	 */
 
-	if(debug['v'])
-		Bprint(&bso, "%5.2f noops\n", cputime());
-	Bflush(&bso);
+	if(ctxt->debugvlog)
+		Bprint(ctxt->bso, "%5.2f noops\n", cputime());
+	Bflush(ctxt->bso);
 
-	curframe = 0;
-	curbecome = 0;
-	maxbecome = 0;
-	curtext = 0;
-	q = P;
-	for(p = firstp; p != P; p = p->link) {
-
-		/* find out how much arg space is used in this TEXT */
-		if(p->to.type == D_OREG && p->to.reg == REGSP)
-			if(p->to.offset > curframe)
-				curframe = p->to.offset;
-
+	q = nil;
+	for(p = cursym->text; p != nil; p = p->link) {
 		switch(p->as) {
 		/* too hard, just leave alone */
 		case ATEXT:
-			if(curtext && curtext->from.sym) {
-				curtext->from.sym->frame = curframe;
-				curtext->from.sym->become = curbecome;
-				if(curbecome > maxbecome)
-					maxbecome = curbecome;
-			}
-			curframe = 0;
-			curbecome = 0;
-
 			q = p;
 			p->mark |= LABEL|LEAF|SYNC;
 			if(p->link)
 				p->link->mark |= LABEL;
-			curtext = p;
 			break;
 
 		case ANOR:
@@ -183,8 +347,9 @@ noops(void)
 
 		case ABL:
 		case ABCL:
-			if(curtext != P)
-				curtext->mark &= ~LEAF;
+		case ADUFFZERO:
+		case ADUFFCOPY:
+			cursym->text->mark &= ~LEAF;
 
 		case ABC:
 		case ABEQ:
@@ -196,21 +361,20 @@ noops(void)
 		case ABR:
 		case ABVC:
 		case ABVS:
-
 			p->mark |= BRANCH;
 			q = p;
-			q1 = p->cond;
-			if(q1 != P) {
+			q1 = p->pcond;
+			if(q1 != nil) {
 				while(q1->as == ANOP) {
 					q1 = q1->link;
-					p->cond = q1;
+					p->pcond = q1;
 				}
 				if(!(q1->mark & LEAF))
 					q1->mark |= LABEL;
 			} else
 				p->mark |= LABEL;
 			q1 = p->link;
-			if(q1 != P)
+			if(q1 != nil)
 				q1->mark |= LABEL;
 			continue;
 
@@ -221,13 +385,8 @@ noops(void)
 			continue;
 
 		case ARETURN:
-			/* special form of RETURN is BECOME */
-			if(p->from.type == D_CONST)
-				if(p->from.offset > curbecome)
-					curbecome = p->from.offset;
-
 			q = p;
-			if(p->link != P)
+			if(p->link != nil)
 				p->link->mark |= LABEL;
 			continue;
 
@@ -242,106 +401,76 @@ noops(void)
 			continue;
 		}
 	}
-	if(curtext && curtext->from.sym) {
-		curtext->from.sym->frame = curframe;
-		curtext->from.sym->become = curbecome;
-		if(curbecome > maxbecome)
-			maxbecome = curbecome;
-	}
 
-	if(debug['b'])
-		print("max become = %d\n", maxbecome);
-	xdefine("ALEFbecome", STEXT, maxbecome);
-
-	curtext = 0;
-	for(p = firstp; p != P; p = p->link) {
-		switch(p->as) {
-		case ATEXT:
-			curtext = p;
-			break;
-
-		case ABL:	/* ABCL? */
-			if(curtext != P && curtext->from.sym != S && curtext->to.offset >= 0) {
-				o = maxbecome - curtext->from.sym->frame;
-				if(o <= 0)
-					break;
-				/* calling a become or calling a variable */
-				if(p->to.sym == S || p->to.sym->become) {
-					curtext->to.offset += o;
-					if(debug['b']) {
-						curp = p;
-						print("%D calling %D increase %d\n",
-							&curtext->from, &p->to, o);
-					}
-				}
-			}
-			break;
-		}
-	}
-
-	curtext = P;
-	for(p = firstp; p != P; p = p->link) {
+	autosize = 0;
+	for(p = cursym->text; p != nil; p = p->link) {
 		o = p->as;
 		switch(o) {
 		case ATEXT:
 			mov = AMOVD;
 			aoffset = 0;
-			curtext = p;
-			autosize = p->to.offset + 8;
+			autosize = textstksiz + 8;
 			if((p->mark & LEAF) && autosize <= 8)
 				autosize = 0;
 			else
 				if(autosize & 4)
 					autosize += 4;
-			p->to.offset = autosize - 8;
+			p->to.offset = (p->to.offset & (0xffffffffull<<32)) | (uint32)(autosize-8);
 
 			q = p;
 			if(autosize) {
 				/* use MOVDU to adjust R1 when saving R31, if autosize is small */
-				if(!(curtext->mark & LEAF) && autosize >= -BIG && autosize <= BIG) {
+				if(!(cursym->text->mark & LEAF) && autosize >= -BIG && autosize <= BIG) {
 					mov = AMOVDU;
 					aoffset = -autosize;
 				} else {
-					q = prg();
+					q = ctxt->arch->prg();
 					q->as = AADD;
-					q->line = p->line;
+					q->lineno = p->lineno;
 					q->from.type = D_CONST;
 					q->from.offset = -autosize;
 					q->to.type = D_REG;
 					q->to.reg = REGSP;
+					q->spadj = +autosize;
 
 					q->link = p->link;
 					p->link = q;
 				}
 			} else
-			if(!(curtext->mark & LEAF)) {
-				if(debug['v'])
-					Bprint(&bso, "save suppressed in: %s\n",
-						curtext->from.sym->name);
-				curtext->mark |= LEAF;
+			if(!(cursym->text->mark & LEAF)) {
+				if(ctxt->debugvlog) {
+					Bprint(ctxt->bso, "save suppressed in: %s\n",
+						cursym->name);
+					Bflush(ctxt->bso);
+				}
+				cursym->text->mark |= LEAF;
 			}
 
-			if(curtext->mark & LEAF) {
-				if(curtext->from.sym)
-					curtext->from.sym->type = SLEAF;
+			if(cursym->text->mark & LEAF) {
+				cursym->leaf = 1;
 				break;
 			}
 
-			q1 = prg();
+			if(!(p->reg & NOSPLIT))
+				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
+
+			q1 = ctxt->arch->prg();
 			q1->as = mov;
-			q1->line = p->line;
+			q1->lineno = p->lineno;
 			q1->from.type = D_REG;
 			q1->from.reg = REGTMP;
 			q1->to.type = D_OREG;
 			q1->to.offset = aoffset;
 			q1->to.reg = REGSP;
+			if(q1->as == AMOVDU)
+				q1->spadj = -aoffset;
 
 			q1->link = q->link;
 			q->link = q1;
 
-			q1 = prg();
+			q1 = ctxt->arch->prg();
 			q1->as = AMOVD;
-			q1->line = p->line;
+			q1->lineno = p->lineno;
 			q1->from.type = D_SPR;
 			q1->from.offset = D_LR;
 			q1->to.type = D_REG;
@@ -352,9 +481,11 @@ noops(void)
 			break;
 
 		case ARETURN:
-			if(p->from.type == D_CONST)
-				goto become;
-			if(curtext->mark & LEAF) {
+			if(p->from.type == D_CONST) {
+				ctxt->diag("using BECOME (%P) is not supported!", p);
+				break;
+			}
+			if(cursym->text->mark & LEAF) {
 				if(!autosize) {
 					p->as = ABR;
 					p->from = zprg.from;
@@ -369,13 +500,15 @@ noops(void)
 				p->from.offset = autosize;
 				p->to.type = D_REG;
 				p->to.reg = REGSP;
+				p->spadj = -autosize;
 
-				q = prg();
+				q = ctxt->arch->prg();
 				q->as = ABR;
-				q->line = p->line;
+				q->lineno = p->lineno;
 				q->to.type = D_SPR;
 				q->to.offset = D_LR;
 				q->mark |= BRANCH;
+				q->spadj = +autosize;
 
 				q->link = p->link;
 				p->link = q;
@@ -389,9 +522,9 @@ noops(void)
 			p->to.type = D_REG;
 			p->to.reg = REGTMP;
 
-			q = prg();
+			q = ctxt->arch->prg();
 			q->as = AMOVD;
-			q->line = p->line;
+			q->lineno = p->lineno;
 			q->from.type = D_REG;
 			q->from.reg = REGTMP;
 			q->to.type = D_SPR;
@@ -402,111 +535,50 @@ noops(void)
 			p = q;
 
 			if(autosize) {
-				q = prg();
+				q = ctxt->arch->prg();
 				q->as = AADD;
-				q->line = p->line;
+				q->lineno = p->lineno;
 				q->from.type = D_CONST;
 				q->from.offset = autosize;
 				q->to.type = D_REG;
 				q->to.reg = REGSP;
+				q->spadj = -autosize;
 
 				q->link = p->link;
 				p->link = q;
 			}
 
-			q1 = prg();
+			q1 = ctxt->arch->prg();
 			q1->as = ABR;
-			q1->line = p->line;
+			q1->lineno = p->lineno;
 			q1->to.type = D_SPR;
 			q1->to.offset = D_LR;
 			q1->mark |= BRANCH;
+			q1->spadj = +autosize;
 
 			q1->link = q->link;
 			q->link = q1;
 			break;
 
-		become:
-			if(curtext->mark & LEAF) {
-
-				q = prg();
-				q->line = p->line;
-				q->as = ABR;
-				q->from = zprg.from;
-				q->to = p->to;
-				q->cond = p->cond;
-				q->link = p->link;
-				q->mark |= BRANCH;
-				p->link = q;
-
-				p->as = AADD;
-				p->from = zprg.from;
-				p->from.type = D_CONST;
-				p->from.offset = autosize;
-				p->to = zprg.to;
-				p->to.type = D_REG;
-				p->to.reg = REGSP;
-
-				break;
-			}
-			q = prg();
-			q->line = p->line;
-			q->as = ABR;
-			q->from = zprg.from;
-			q->to = p->to;
-			q->cond = p->cond;
-			q->mark |= BRANCH;
-			q->link = p->link;
-			p->link = q;
-
-			q = prg();
-			q->line = p->line;
-			q->as = AADD;
-			q->from.type = D_CONST;
-			q->from.offset = autosize;
-			q->to.type = D_REG;
-			q->to.reg = REGSP;
-			q->link = p->link;
-			p->link = q;
-
-			q = prg();
-			q->line = p->line;
-			q->as = AMOVD;
-			q->line = p->line;
-			q->from.type = D_REG;
-			q->from.reg = REGTMP;
-			q->to.type = D_SPR;
-			q->to.offset = D_LR;
-			q->link = p->link;
-			p->link = q;
-
-			p->as = AMOVD;
-			p->from = zprg.from;
-			p->from.type = D_OREG;
-			p->from.offset = 0;
-			p->from.reg = REGSP;
-			p->to = zprg.to;
-			p->to.type = D_REG;
-			p->to.reg = REGTMP;
-
-			break;
 		}
 	}
 
+#if 0 // instruction scheduling
 	if(debug['Q'] == 0)
 		return;
 
-	curtext = P;
-	q = P;		/* p - 1 */
+	curtext = nil;
+	q = nil;	/* p - 1 */
 	q1 = firstp;	/* top of block */
 	o = 0;		/* count of instructions */
-	for(p = firstp; p != P; p = p1) {
+	for(p = firstp; p != nil; p = p1) {
 		p1 = p->link;
 		o++;
 		if(p->mark & NOSCHED){
 			if(q1 != p){
 				sched(q1, q);
 			}
-			for(; p != P; p = p->link){
+			for(; p != nil; p = p->link){
 				if(!(p->mark & NOSCHED))
 					break;
 				q = p;
@@ -534,236 +606,34 @@ noops(void)
 		}
 		q = p;
 	}
+#endif
 }
 
-void
-addnop(Prog *p)
+static Prog*
+stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 {
-	Prog *q;
-
-	q = prg();
-	q->as = AOR;
-	q->line = p->line;
-	q->from.type = D_REG;
-	q->from.reg = REGZERO;
-	q->to.type = D_REG;
-	q->to.reg = REGZERO;
-
-	q->link = p->link;
-	p->link = q;
+	// TODO(minux): add stack split prologue
+	USED(ctxt); USED(p); USED(framesize); USED(noctxt);
+	return p;
 }
 
-#include	"l.h"
+static void xfol(Link*, Prog*, Prog**);
 
-void
-dodata(void)
+static void
+follow(Link *ctxt, LSym *s)
 {
-	int i, t;
-	Sym *s;
-	Prog *p, *p1;
-	vlong orig, orig1, v;
+	Prog *firstp, *lastp;
 
-	if(debug['v'])
-		Bprint(&bso, "%5.2f dodata\n", cputime());
-	Bflush(&bso);
-	for(p = datap; p != P; p = p->link) {
-		s = p->from.sym;
-		if(p->as == ADYNT || p->as == AINIT)
-			s->value = dtype;
-		if(s->type == SBSS)
-			s->type = SDATA;
-		if(s->type != SDATA)
-			diag("initialize non-data (%d): %s\n%P",
-				s->type, s->name, p);
-		v = p->from.offset + p->reg;
-		if(v > s->value)
-			diag("initialize bounds (%lld): %s\n%P",
-				s->value, s->name, p);
-	}
+	ctxt->cursym = s;
 
-	/*
-	 * pass 1
-	 *	assign 'small' variables to data segment
-	 *	(rational is that data segment is more easily
-	 *	 addressed through offset on REGSB)
-	 */
-	orig = 0;
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->link) {
-		t = s->type;
-		if(t != SDATA && t != SBSS)
-			continue;
-		v = s->value;
-		if(v == 0) {
-			diag("%s: no size", s->name);
-			v = 1;
-		}
-		v = rnd(v, 4);
-		s->value = v;
-		if(v > MINSIZ)
-			continue;
-		if(v >= 8)
-			orig = rnd(orig, 8);
-		s->value = orig;
-		orig += v;
-		s->type = SDATA1;
-	}
-	orig1 = orig;
-
-	/*
-	 * pass 2
-	 *	assign 'data' variables to data segment
-	 */
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->link) {
-		t = s->type;
-		if(t != SDATA) {
-			if(t == SDATA1)
-				s->type = SDATA;
-			continue;
-		}
-		v = s->value;
-		if(v >= 8)
-			orig = rnd(orig, 8);
-		s->value = orig;
-		orig += v;
-		s->type = SDATA1;
-	}
-
-	if(orig)
-		orig = rnd(orig, 8);
-	datsize = orig;
-
-	/*
-	 * pass 3
-	 *	everything else to bss segment
-	 */
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->link) {
-		if(s->type != SBSS)
-			continue;
-		v = s->value;
-		if(v >= 8)
-			orig = rnd(orig, 8);
-		s->value = orig;
-		orig += v;
-	}
-	if(orig)
-		orig = rnd(orig, 8);
-	bsssize = orig-datsize;
-
-	/*
-	 * pass 4
-	 *	add literals to all large values.
-	 *	at this time:
-	 *		small data is allocated DATA
-	 *		large data is allocated DATA1
-	 *		large bss is allocated BSS
-	 *	the new literals are loaded between
-	 *	small data and large data.
-	 */
-	orig = 0;
-	for(p = firstp; p != P; p = p->link) {
-		if(p->as != AMOVW)
-			continue;
-		if(p->from.type != D_CONST)
-			continue;
-		if(s = p->from.sym) {
-			t = s->type;
-			if(t != SDATA && t != SDATA1 && t != SBSS)
-				continue;
-			t = p->from.name;
-			if(t != D_EXTERN && t != D_STATIC)
-				continue;
-			v = s->value + p->from.offset;
-			if(v >= 0 && v <= 0xffff)
-				continue;
-			if(!strcmp(s->name, "setSB"))
-				continue;
-			/* size should be 19 max */
-			if(strlen(s->name) >= 10)	/* has loader address */ 
-				sprint(literal, "$%p.%llux", s, p->from.offset);
-			else
-				sprint(literal, "$%s.%d.%llux", s->name, s->version, p->from.offset);
-		} else {
-			if(p->from.name != D_NONE)
-				continue;
-			if(p->from.reg != NREG)
-				continue;
-			v = p->from.offset;
-			if(v >= -0x7fff-1 && v <= 0x7fff)
-				continue;
-			if(!(v & 0xffff))
-				continue;
-			if(v)
-				continue;	/* quicker to build it than load it */
-			/* size should be 9 max */
-			sprint(literal, "$%llux", v);
-		}
-		s = lookup(literal, 0);
-		if(s->type == 0) {
-			s->type = SDATA;
-			s->value = orig1+orig;
-			orig += 4;
-			p1 = prg();
-			p1->as = ADATA;
-			p1->line = p->line;
-			p1->from.type = D_OREG;
-			p1->from.sym = s;
-			p1->from.name = D_EXTERN;
-			p1->reg = 4;
-			p1->to = p->from;
-			p1->link = datap;
-			datap = p1;
-		}
-		if(s->type != SDATA)
-			diag("literal not data: %s", s->name);
-		p->from.type = D_OREG;
-		p->from.sym = s;
-		p->from.name = D_EXTERN;
-		p->from.offset = 0;
-		continue;
-	}
-	while(orig & 7)
-		orig++;
-	/*
-	 * pass 5
-	 *	re-adjust offsets
-	 */
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->link) {
-		t = s->type;
-		if(t == SBSS) {
-			s->value += orig;
-			continue;
-		}
-		if(t == SDATA1) {
-			s->type = SDATA;
-			s->value += orig;
-			continue;
-		}
-	}
-	datsize += orig;
-	xdefine("setSB", SDATA, 0+BIG);
-	xdefine("bdata", SDATA, 0);
-	xdefine("edata", SDATA, datsize);
-	xdefine("end", SBSS, datsize+bsssize);
-	xdefine("etext", STEXT, 0);
+	firstp = ctxt->arch->prg();
+	lastp = firstp;
+	xfol(ctxt, s->text, &lastp);
+	lastp->link = nil;
+	s->text = firstp->link;
 }
 
-void
-undef(void)
-{
-	int i;
-	Sym *s;
-
-	for(i=0; i<NHASH; i++)
-	for(s = hash[i]; s != S; s = s->link)
-		if(s->type == SXREF)
-			diag("%s: not defined", s->name);
-}
-
-int
+static int
 relinv(int a)
 {
 
@@ -783,49 +653,30 @@ relinv(int a)
 	return 0;
 }
 
-void
-follow(void)
-{
-
-	if(debug['v'])
-		Bprint(&bso, "%5.2f follow\n", cputime());
-	Bflush(&bso);
-
-	firstp = prg();
-	lastp = firstp;
-
-	xfol(textp);
-
-	firstp = firstp->link;
-	lastp->link = P;
-}
-
-void
-xfol(Prog *p)
+static void
+xfol(Link *ctxt, Prog *p, Prog **last)
 {
 	Prog *q, *r;
 	int a, b, i;
 
 loop:
-	if(p == P)
+	if(p == nil)
 		return;
 	a = p->as;
-	if(a == ATEXT)
-		curtext = p;
 	if(a == ABR) {
-		q = p->cond;
+		q = p->pcond;
 		if((p->mark&NOSCHED) || q && (q->mark&NOSCHED)){
 			p->mark |= FOLL;
-			lastp->link = p;
-			lastp = p;
+			(*last)->link = p;
+			*last = p;
 			p = p->link;
-			xfol(p);
+			xfol(ctxt, p, last);
 			p = q;
 			if(p && !(p->mark & FOLL))
 				goto loop;
 			return;
 		}
-		if(q != P) {
+		if(q != nil) {
 			p->mark |= FOLL;
 			p = q;
 			if(!(p->mark & FOLL))
@@ -834,7 +685,7 @@ loop:
 	}
 	if(p->mark & FOLL) {
 		for(i=0,q=p; i<4; i++,q=q->link) {
-			if(q == lastp || (q->mark&NOSCHED))
+			if(q == *last || (q->mark&NOSCHED))
 				break;
 			b = 0;		/* set */
 			a = q->as;
@@ -844,51 +695,51 @@ loop:
 			}
 			if(a == ABR || a == ARETURN || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID)
 				goto copy;
-			if(!q->cond || (q->cond->mark&FOLL))
+			if(!q->pcond || (q->pcond->mark&FOLL))
 				continue;
 			b = relinv(a);
 			if(!b)
 				continue;
 		copy:
 			for(;;) {
-				r = prg();
+				r = ctxt->arch->prg();
 				*r = *p;
 				if(!(r->mark&FOLL))
 					print("cant happen 1\n");
 				r->mark |= FOLL;
 				if(p != q) {
 					p = p->link;
-					lastp->link = r;
-					lastp = r;
+					(*last)->link = r;
+					*last = r;
 					continue;
 				}
-				lastp->link = r;
-				lastp = r;
+				(*last)->link = r;
+				*last = r;
 				if(a == ABR || a == ARETURN || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID)
 					return;
 				r->as = b;
-				r->cond = p->link;
-				r->link = p->cond;
+				r->pcond = p->link;
+				r->link = p->pcond;
 				if(!(r->link->mark&FOLL))
-					xfol(r->link);
-				if(!(r->cond->mark&FOLL))
+					xfol(ctxt, r->link, last);
+				if(!(r->pcond->mark&FOLL))
 					print("cant happen 2\n");
 				return;
 			}
 		}
 
 		a = ABR;
-		q = prg();
+		q = ctxt->arch->prg();
 		q->as = a;
-		q->line = p->line;
+		q->lineno = p->lineno;
 		q->to.type = D_BRANCH;
 		q->to.offset = p->pc;
-		q->cond = p;
+		q->pcond = p;
 		p = q;
 	}
 	p->mark |= FOLL;
-	lastp->link = p;
-	lastp = p;
+	(*last)->link = p;
+	*last = p;
 	if(a == ABR || a == ARETURN || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID){
 		if(p->mark & NOSCHED){
 			p = p->link;
@@ -896,11 +747,11 @@ loop:
 		}
 		return;
 	}
-	if(p->cond != P)
-	if(a != ABL && p->link != P) {
-		xfol(p->link);
-		p = p->cond;
-		if(p == P || (p->mark&FOLL))
+	if(p->pcond != nil)
+	if(a != ABL && p->link != nil) {
+		xfol(ctxt, p->link, last);
+		p = p->pcond;
+		if(p == nil || (p->mark&FOLL))
 			return;
 		goto loop;
 	}
@@ -908,474 +759,104 @@ loop:
 	goto loop;
 }
 
-void
-patch(void)
-{
-	long c;
-	Prog *p, *q;
-	Sym *s;
-	int a;
-	vlong vexit;
-
-	if(debug['v'])
-		Bprint(&bso, "%5.2f patch\n", cputime());
-	Bflush(&bso);
-	mkfwd();
-	s = lookup("exit", 0);
-	vexit = s->value;
-	for(p = firstp; p != P; p = p->link) {
-		a = p->as;
-		if(a == ATEXT)
-			curtext = p;
-		if((a == ABL || a == ARETURN) && p->to.sym != S) {
-			s = p->to.sym;
-			if(s->type != STEXT && s->type != SUNDEF) {
-				diag("undefined: %s\n%P", s->name, p);
-				s->type = STEXT;
-				s->value = vexit;
-			}
-			if(s->type == SUNDEF){
-				p->to.offset = 0;
-				p->cond = UP;
-			}
-			else
-				p->to.offset = s->value;
-			p->to.type = D_BRANCH;
-		}
-		if(p->to.type != D_BRANCH || p->cond == UP)
-			continue;
-		c = p->to.offset;
-		for(q = firstp; q != P;) {
-			if(q->forwd != P)
-			if(c >= q->forwd->pc) {
-				q = q->forwd;
-				continue;
-			}
-			if(c == q->pc)
-				break;
-			q = q->link;
-		}
-		if(q == P) {
-			diag("branch out of range %ld\n%P", c, p);
-			p->to.type = D_NONE;
-		}
-		p->cond = q;
-	}
-
-	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT)
-			curtext = p;
-		p->mark = 0;	/* initialization for follow */
-		if(p->cond != P && p->cond != UP) {
-			p->cond = brloop(p->cond);
-			if(p->cond != P)
-			if(p->to.type == D_BRANCH)
-				p->to.offset = p->cond->pc;
-		}
-	}
-}
-
-#define	LOG	5
-void
-mkfwd(void)
-{
-	Prog *p;
-	long dwn[LOG], cnt[LOG], i;
-	Prog *lst[LOG];
-
-	for(i=0; i<LOG; i++) {
-		if(i == 0)
-			cnt[i] = 1; else
-			cnt[i] = LOG * cnt[i-1];
-		dwn[i] = 1;
-		lst[i] = P;
-	}
-	i = 0;
-	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT)
-			curtext = p;
-		i--;
-		if(i < 0)
-			i = LOG-1;
-		p->forwd = P;
-		dwn[i]--;
-		if(dwn[i] <= 0) {
-			dwn[i] = cnt[i];
-			if(lst[i] != P)
-				lst[i]->forwd = p;
-			lst[i] = p;
-		}
-	}
-}
-
-Prog*
-brloop(Prog *p)
-{
-	Prog *q;
-	int c;
-
-	for(c=0; p!=P;) {
-		if(p->as != ABR || (p->mark&NOSCHED))
-			return p;
-		q = p->cond;
-		if(q <= p) {
-			c++;
-			if(q == p || c > 5000)
-				break;
-		}
-		p = q;
-	}
-	return P;
-}
-
-vlong
-atolwhex(char *s)
-{
-	vlong n;
-	int f;
-
-	n = 0;
-	f = 0;
-	while(*s == ' ' || *s == '\t')
-		s++;
-	if(*s == '-' || *s == '+') {
-		if(*s++ == '-')
-			f = 1;
-		while(*s == ' ' || *s == '\t')
-			s++;
-	}
-	if(s[0]=='0' && s[1]){
-		if(s[1]=='x' || s[1]=='X'){
-			s += 2;
-			for(;;){
-				if(*s >= '0' && *s <= '9')
-					n = n*16 + *s++ - '0';
-				else if(*s >= 'a' && *s <= 'f')
-					n = n*16 + *s++ - 'a' + 10;
-				else if(*s >= 'A' && *s <= 'F')
-					n = n*16 + *s++ - 'A' + 10;
-				else
-					break;
-			}
-		} else
-			while(*s >= '0' && *s <= '7')
-				n = n*8 + *s++ - '0';
-	} else
-		while(*s >= '0' && *s <= '9')
-			n = n*10 + *s++ - '0';
-	if(f)
-		n = -n;
-	return n;
-}
-
-vlong
-rnd(vlong v, long r)
-{
-	vlong c;
-
-	if(r <= 0)
-		return v;
-	v += r - 1;
-	c = v % r;
-	if(c < 0)
-		c += r;
-	v -= c;
-	return v;
-}
-
-void
-import(void)
-{
-	int i;
-	Sym *s;
-
-	for(i = 0; i < NHASH; i++)
-		for(s = hash[i]; s != S; s = s->link)
-			if(s->sig != 0 && s->type == SXREF && (nimports == 0 || s->subtype == SIMPORT)){
-				undefsym(s);
-				Bprint(&bso, "IMPORT: %s sig=%lux v=%lld\n", s->name, s->sig, s->value);
-				if(debug['S'])
-					s->sig = 0;
-			}
-}
-
-void
-ckoff(Sym *s, vlong v)
-{
-	if(v < 0 || v >= 1<<Roffset)
-		diag("relocation offset %lld for %s out of range", v, s->name);
-}
-
 static Prog*
-newdata(Sym *s, int o, int w, int t)
+prg(void)
 {
 	Prog *p;
 
-	p = prg();
-	p->link = datap;
-	datap = p;
-	p->as = ADATA;
-	p->reg = w;
-	p->from.type = D_OREG;
-	p->from.name = t;
-	p->from.sym = s;
-	p->from.offset = o;
-	p->to.type = D_CONST;
-	p->to.name = D_NONE;
+	p = emallocz(sizeof(*p));
+	*p = zprg;
 	return p;
 }
 
-void
-export(void)
-{
-	int i, j, n, off, nb, sv, ne;
-	Sym *s, *et, *str, **esyms;
-	Prog *p;
-	char buf[NSNAME], *t;
+LinkArch linkpower64 = {
+	.name = "power64",
+	.thechar = '9',
+	.endian = BigEndian,
 
-	n = 0;
-	for(i = 0; i < NHASH; i++)
-		for(s = hash[i]; s != S; s = s->link)
-			if(s->type != SXREF && s->type != SUNDEF && (nexports == 0 && s->sig != 0 || s->subtype == SEXPORT || allexport))
-				n++;
-	esyms = malloc(n*sizeof(Sym*));
-	ne = n;
-	n = 0;
-	for(i = 0; i < NHASH; i++)
-		for(s = hash[i]; s != S; s = s->link)
-			if(s->type != SXREF && s->type != SUNDEF && (nexports == 0 && s->sig != 0 || s->subtype == SEXPORT || allexport))
-				esyms[n++] = s;
-	for(i = 0; i < ne-1; i++)
-		for(j = i+1; j < ne; j++)
-			if(strcmp(esyms[i]->name, esyms[j]->name) > 0){
-				s = esyms[i];
-				esyms[i] = esyms[j];
-				esyms[j] = s;
-			}
+	.addstacksplit = addstacksplit,
+	.assemble = span9,
+	.datasize = datasize,
+	.follow = follow,
+	.iscall = iscall,
+	.isdata = isdata,
+	.prg = prg,
+	.progedit = progedit,
+	.settextflag = settextflag,
+	.symtype = symtype,
+	.textflag = textflag,
 
-	nb = 0;
-	off = 0;
-	et = lookup(EXPTAB, 0);
-	if(et->type != 0 && et->type != SXREF)
-		diag("%s already defined", EXPTAB);
-	et->type = SDATA;
-	str = lookup(".string", 0);
-	if(str->type == 0)
-		str->type = SDATA;
-	sv = str->value;
-	for(i = 0; i < ne; i++){
-		s = esyms[i];
-		Bprint(&bso, "EXPORT: %s sig=%lux t=%d\n", s->name, s->sig, s->type);
+	.minlc = 4,
+	.ptrsize = 8,
+	.regsize = 8,
 
-		/* signature */
-		p = newdata(et, off, sizeof(long), D_EXTERN);
-		off += sizeof(long);
-		p->to.offset = s->sig;
+	.D_ADDR = D_ADDR,
+	.D_AUTO = D_AUTO,
+	.D_BRANCH = D_BRANCH,
+	.D_CONST = D_CONST,
+	.D_EXTERN = D_EXTERN,
+	.D_FCONST = D_FCONST,
+	.D_NONE = D_NONE,
+	.D_PARAM = D_PARAM,
+	.D_SCONST = D_SCONST,
+	.D_STATIC = D_STATIC,
 
-		/* address */
-		p = newdata(et, off, sizeof(long), D_EXTERN);
-		off += sizeof(long);		/* TO DO: bug */
-		p->to.name = D_EXTERN;
-		p->to.sym = s;
-
-		/* string */
-		t = s->name;
-		n = strlen(t)+1;
-		for(;;){
-			buf[nb++] = *t;
-			sv++;
-			if(nb >= NSNAME){
-				p = newdata(str, sv-NSNAME, NSNAME, D_STATIC);
-				p->to.type = D_SCONST;
-				memmove(p->to.sval, buf, NSNAME);
-				nb = 0;
-			}
-			if(*t++ == 0)
-				break;
-		}
-
-		/* name */
-		p = newdata(et, off, sizeof(long), D_EXTERN);
-		off += sizeof(long);
-		p->to.name = D_STATIC;
-		p->to.sym = str;
-		p->to.offset = sv-n;
-	}
-
-	if(nb > 0){
-		p = newdata(str, sv-nb, nb, D_STATIC);
-		p->to.type = D_SCONST;
-		memmove(p->to.sval, buf, nb);
-	}
-
-	for(i = 0; i < 3; i++){
-		newdata(et, off, sizeof(long), D_EXTERN);
-		off += sizeof(long);
-	}
-	et->value = off;
-	if(sv == 0)
-		sv = 1;
-	str->value = sv;
-	exports = ne;
-	free(esyms);
-}
-
-enum{
-	ABSD = 0,
-	ABSU = 1,
-	RELD = 2,
-	RELU = 3,
+	.ACALL = ABL,
+	.ADATA = ADATA,
+	.AEND = AEND,
+	.AFUNCDATA = AFUNCDATA,
+	.AGLOBL = AGLOBL,
+	.AJMP = ABR,
+	.ANOP = ANOP,
+	.APCDATA = APCDATA,
+	.ARET = ARETURN,
+	.ATEXT = ATEXT,
+	.ATYPE = ATYPE,
+	.AUSEFIELD = AUSEFIELD,
 };
 
-int modemap[8] = { 0, 1, -1, 2, 3, 4, 5, 6};
+LinkArch linkpower64le = {
+	.name = "power64le",
+	.thechar = '9',
+	.endian = LittleEndian,
 
-typedef struct Reloc Reloc;
+	.addstacksplit = addstacksplit,
+	.assemble = span9,
+	.datasize = datasize,
+	.follow = follow,
+	.iscall = iscall,
+	.isdata = isdata,
+	.prg = prg,
+	.progedit = progedit,
+	.settextflag = settextflag,
+	.symtype = symtype,
+	.textflag = textflag,
 
-struct Reloc
-{
-	int n;
-	int t;
-	uchar *m;
-	ulong *a;
+	.minlc = 4,
+	.ptrsize = 8,
+	.regsize = 8,
+
+	.D_ADDR = D_ADDR,
+	.D_AUTO = D_AUTO,
+	.D_BRANCH = D_BRANCH,
+	.D_CONST = D_CONST,
+	.D_EXTERN = D_EXTERN,
+	.D_FCONST = D_FCONST,
+	.D_NONE = D_NONE,
+	.D_PARAM = D_PARAM,
+	.D_SCONST = D_SCONST,
+	.D_STATIC = D_STATIC,
+
+	.ACALL = ABL,
+	.ADATA = ADATA,
+	.AEND = AEND,
+	.AFUNCDATA = AFUNCDATA,
+	.AGLOBL = AGLOBL,
+	.AJMP = ABR,
+	.ANOP = ANOP,
+	.APCDATA = APCDATA,
+	.ARET = ARETURN,
+	.ATEXT = ATEXT,
+	.ATYPE = ATYPE,
+	.AUSEFIELD = AUSEFIELD,
 };
-
-Reloc rels;
-
-static void
-grow(Reloc *r)
-{
-	int t;
-	uchar *m, *nm;
-	ulong *a, *na;
-
-	t = r->t;
-	r->t += 64;
-	m = r->m;
-	a = r->a;
-	r->m = nm = malloc(r->t*sizeof(uchar));
-	r->a = na = malloc(r->t*sizeof(ulong));
-	memmove(nm, m, t*sizeof(uchar));
-	memmove(na, a, t*sizeof(ulong));
-	free(m);
-	free(a);
-}
-
-void
-dynreloc(Sym *s, long v, int abs, int split, int sext)
-{
-	int i, k, n;
-	uchar *m;
-	ulong *a;
-	Reloc *r;
-
-	if(v&3)
-		diag("bad relocation address");
-	v >>= 2;
-	if(s->type == SUNDEF)
-		k = abs ? ABSU : RELU;
-	else
-		k = abs ? ABSD : RELD;
-	if(split)
-		k += 4;
-	if(sext)
-		k += 2;
-	/* Bprint(&bso, "R %s a=%ld(%lx) %d\n", s->name, a, a, k); */
-	k = modemap[k];
-	r = &rels;
-	n = r->n;
-	if(n >= r->t)
-		grow(r);
-	m = r->m;
-	a = r->a;
-	for(i = n; i > 0; i--){
-		if(v < a[i-1]){	/* happens occasionally for data */
-			m[i] = m[i-1];
-			a[i] = a[i-1];
-		}
-		else
-			break;
-	}
-	m[i] = k;
-	a[i] = v;
-	r->n++;
-}
-
-static int
-sput(char *s)
-{
-	char *p;
-
-	p = s;
-	while(*s)
-		cput(*s++);
-	cput(0);
-	return s-p+1;
-}
-
-void
-asmdyn()
-{
-	int i, n, t, c;
-	Sym *s;
-	ulong la, ra, *a;
-	vlong off;
-	uchar *m;
-	Reloc *r;
-
-	cflush();
-	off = seek(cout, 0, 1);
-	lput(0);
-	t = 0;
-	lput(imports);
-	t += 4;
-	for(i = 0; i < NHASH; i++)
-		for(s = hash[i]; s != S; s = s->link)
-			if(s->type == SUNDEF){
-				lput(s->sig);
-				t += 4;
-				t += sput(s->name);
-			}
-	
-	la = 0;
-	r = &rels;
-	n = r->n;
-	m = r->m;
-	a = r->a;
-	lput(n);
-	t += 4;
-	for(i = 0; i < n; i++){
-		ra = *a-la;
-		if(*a < la)
-			diag("bad relocation order");
-		if(ra < 256)
-			c = 0;
-		else if(ra < 65536)
-			c = 1;
-		else
-			c = 2;
-		cput((c<<6)|*m++);
-		t++;
-		if(c == 0){
-			cput(ra);
-			t++;
-		}
-		else if(c == 1){
-			wput(ra);
-			t += 2;
-		}
-		else{
-			lput(ra);
-			t += 4;
-		}
-		la = *a++;
-	}
-
-	cflush();
-	seek(cout, off, 0);
-	lput(t);
-
-	if(debug['v']){
-		Bprint(&bso, "import table entries = %d\n", imports);
-		Bprint(&bso, "export table entries = %d\n", exports);
-	}
-}
