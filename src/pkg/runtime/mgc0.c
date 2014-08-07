@@ -1741,7 +1741,7 @@ runtime·wakefing(void)
 	return res;
 }
 
-// Recursively GC program in prog.
+// Recursively unrolls GC program in prog.
 // mask is where to store the result.
 // ppos is a pointer to position in mask, in bits.
 // sparse says to generate 4-bits per word mask for heap (2-bits for data/bss otherwise).
@@ -1833,11 +1833,20 @@ unrollglobgcprog(byte *prog, uintptr size)
 	return mask;
 }
 
-static void
-unrollgcproginplace(void *v, uintptr size, uintptr size0, Type *typ)
+void
+runtime·unrollgcproginplace_m(void)
 {
-	uintptr *b, off, shift, pos;
+	uintptr size, size0, *b, off, shift, pos;
 	byte *arena_start, *prog;
+	Type *typ;
+	void *v;
+
+	v = g->m->ptrarg[0];
+	typ = g->m->ptrarg[1];
+	size = g->m->scalararg[0];
+	size0 = g->m->scalararg[1];
+	g->m->ptrarg[0] = nil;
+	g->m->ptrarg[1] = nil;
 
 	pos = 0;
 	prog = (byte*)typ->gc[1];
@@ -1859,13 +1868,17 @@ unrollgcproginplace(void *v, uintptr size, uintptr size0, Type *typ)
 }
 
 // Unrolls GC program in typ->gc[1] into typ->gc[0]
-static void
-unrollgcprog(Type *typ)
+void
+runtime·unrollgcprog_m(void)
 {
 	static Lock lock;
+	Type *typ;
 	byte *mask, *prog;
 	uintptr pos;
 	uint32 x;
+
+	typ = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
 
 	runtime·lock(&lock);
 	mask = (byte*)typ->gc[0];
@@ -1885,110 +1898,6 @@ unrollgcprog(Type *typ)
 		runtime·atomicstore((uint32*)mask, x|1);
 	}
 	runtime·unlock(&lock);
-}
-
-void
-runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool scan)
-{
-	uintptr *b, off, shift, i, ti, te, nptr, masksize;
-	byte *arena_start, x;
-	bool *ptrmask;
-
-	arena_start = runtime·mheap.arena_start;
-	off = (uintptr*)v - (uintptr*)arena_start;
-	b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-	shift = (off % wordsPerBitmapWord) * gcBits;
-	if(Debug && (((*b)>>shift)&bitMask) != bitBoundary) {
-		runtime·printf("runtime: bad bits in markallocated (%p) b=%p[%p]\n", v, b, *b);
-		runtime·throw("bad bits in markallocated");
-	}
-
-	if(!scan) {
-		// BitsDead in the first quadruple means don't scan.
-		if(size == PtrSize)
-			*b = (*b & ~((bitBoundary|bitPtrMask)<<shift)) | ((bitAllocated+(BitsDead<<2))<<shift);
-		else
-			((byte*)b)[shift/8] = bitAllocated+(BitsDead<<2);
-		return;
-	}
-	if(size == PtrSize) {
-		// It's one word and it has pointers, it must be a pointer.
-		*b = (*b & ~((bitBoundary|bitPtrMask)<<shift)) | ((bitAllocated | (BitsPointer<<2))<<shift);
-		return;
-	}
-	ti = te = 0;
-	ptrmask = nil;
-	if(typ != nil && (typ->gc[0]|typ->gc[1]) != 0 && typ->size > PtrSize) {
-		if(typ->kind&KindGCProg) {
-			nptr = ROUND(typ->size, PtrSize)/PtrSize;
-			masksize = nptr;
-			if(masksize%2)
-				masksize *= 2;	// repeated twice
-			masksize = masksize*PointersPerByte/8;	// 4 bits per word
-			masksize++;	// unroll flag in the beginning
-			if(masksize > MaxGCMask && typ->gc[1] != 0) {
-				// If the mask is too large, unroll the program directly
-				// into the GC bitmap. It's 7 times slower than copying
-				// from the pre-unrolled mask, but saves 1/16 of type size
-				// memory for the mask.
-				unrollgcproginplace(v, size, size0, typ);
-				return;
-			}
-			ptrmask = (byte*)typ->gc[0];
-			// check whether the program is already unrolled
-			if((runtime·atomicload((uint32*)ptrmask)&0xff) == 0)
-				unrollgcprog(typ);
-			ptrmask++;  // skip the unroll flag byte
-		} else
-			ptrmask = (byte*)&typ->gc[0];  // embed mask
-		if(size == 2*PtrSize) {
-			((byte*)b)[shift/8] = ptrmask[0] | bitAllocated;
-			return;
-		}
-		te = typ->size/PtrSize;
-		// if the type occupies odd number of words, its mask is repeated twice
-		if((te%2) == 0)
-			te /= 2;
-	}
-	if(size == 2*PtrSize) {
-		((byte*)b)[shift/8] = (BitsPointer<<2) | (BitsPointer<<6) | bitAllocated;
-		return;
-	}
-	// Copy pointer bitmask into the bitmap.
-	for(i=0; i<size0; i+=2*PtrSize) {
-		x = (BitsPointer<<2) | (BitsPointer<<6);
-		if(ptrmask != nil) {
-			x = ptrmask[ti++];
-			if(ti == te)
-				ti = 0;
-		}
-		off = (uintptr*)((byte*)v + i) - (uintptr*)arena_start;
-		b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = (off % wordsPerBitmapWord) * gcBits;
-		if(i == 0)
-			x |= bitAllocated;
-		if(i+PtrSize == size0)
-			x &= ~(bitPtrMask<<4);
-		((byte*)b)[shift/8] = x;
-	}
-	if(size0 == i && size0 < size) {
-		// mark the word after last object's word as BitsDead
-		off = (uintptr*)((byte*)v + size0) - (uintptr*)arena_start;
-		b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = (off % wordsPerBitmapWord) * gcBits;
-		((byte*)b)[shift/8] = 0;
-	}
-}
-
-void
-runtime·markallocated_m(void)
-{
-	M *mp;
-
-	mp = g->m;
-	runtime·markallocated(mp->ptrarg[0], mp->scalararg[0], mp->scalararg[1], mp->ptrarg[1], mp->scalararg[2] == 0);
-	mp->ptrarg[0] = nil;
-	mp->ptrarg[1] = nil;
 }
 
 // mark the span of memory at v as having n blocks of the given size.

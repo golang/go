@@ -9,6 +9,8 @@ import (
 )
 
 const (
+	debugMalloc = false
+
 	flagNoScan      = 1 << 0 // GC doesn't have to scan object
 	flagNoProfiling = 1 << 1 // must not profile
 	flagNoZero      = 1 << 2 // don't zero memory
@@ -29,6 +31,22 @@ const (
 	pageShift = 13
 	pageSize  = 1 << pageShift
 	pageMask  = pageSize - 1
+
+	wordsPerBitmapWord = ptrSize * 8 / 4
+	gcBits             = 4
+	bitsPerPointer     = 2
+	bitsMask           = 1<<bitsPerPointer - 1
+	pointersPerByte    = 8 / bitsPerPointer
+	bitPtrMask         = bitsMask << 2
+	maxGCMask          = 0 // disabled because wastes several bytes of memory
+	bitsDead           = 0
+	bitsPointer        = 2
+
+	bitMiddle    = 0
+	bitBoundary  = 1
+	bitAllocated = 2
+	bitMarked    = 3
+	bitMask      = bitMiddle | bitBoundary | bitAllocated | bitMarked
 )
 
 // All zero-sized allocations return a pointer to this byte.
@@ -168,14 +186,112 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 		size = uintptr(s.elemsize)
 	}
 
-	// TODO: write markallocated in Go
-	mp.ptrarg[0] = x
-	mp.scalararg[0] = uint(size)
-	mp.scalararg[1] = uint(size0)
-	mp.ptrarg[1] = unsafe.Pointer(typ)
-	mp.scalararg[2] = uint(flags & flagNoScan)
-	onM(&markallocated_m)
+	// From here till marked label marking the object as allocated
+	// and storing type info in the GC bitmap.
+	arena_start := uintptr(unsafe.Pointer(mheap_.arena_start))
+	off := (uintptr(x) - arena_start) / ptrSize
+	xbits := (*uintptr)(unsafe.Pointer(arena_start - off/wordsPerBitmapWord*ptrSize - ptrSize))
+	shift := (off % wordsPerBitmapWord) * gcBits
+	if debugMalloc && (((*xbits)>>shift)&bitMask) != bitBoundary {
+		gothrow("bad bits in markallocated")
+	}
 
+	var ti, te uintptr
+	var ptrmask *uint8
+	if flags&flagNoScan != 0 {
+		// bitsDead in the first quadruple means don't scan.
+		if size == ptrSize {
+			*xbits = (*xbits & ^((bitBoundary | bitPtrMask) << shift)) | ((bitAllocated + (bitsDead << 2)) << shift)
+		} else {
+			xbitsb := (*uint8)(add(unsafe.Pointer(xbits), shift/8))
+			*xbitsb = bitAllocated + (bitsDead << 2)
+		}
+		goto marked
+	}
+	if size == ptrSize {
+		// It's one word and it has pointers, it must be a pointer.
+		*xbits = (*xbits & ^((bitBoundary | bitPtrMask) << shift)) | ((bitAllocated | (bitsPointer << 2)) << shift)
+		goto marked
+	}
+	if typ != nil && (uintptr(typ.gc[0])|uintptr(typ.gc[1])) != 0 && uintptr(typ.size) > ptrSize {
+		if typ.kind&kindGCProg != 0 {
+			nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
+			masksize := nptr
+			if masksize%2 != 0 {
+				masksize *= 2 // repeated
+			}
+			masksize = masksize * pointersPerByte / 8 // 4 bits per word
+			masksize++                                // unroll flag in the beginning
+			if masksize > maxGCMask && typ.gc[1] != 0 {
+				// If the mask is too large, unroll the program directly
+				// into the GC bitmap. It's 7 times slower than copying
+				// from the pre-unrolled mask, but saves 1/16 of type size
+				// memory for the mask.
+				mp.ptrarg[0] = x
+				mp.ptrarg[1] = unsafe.Pointer(typ)
+				mp.scalararg[0] = uint(size)
+				mp.scalararg[1] = uint(size0)
+				onM(&unrollgcproginplace_m)
+				goto marked
+			}
+			ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
+			// Check whether the program is already unrolled.
+			if uintptr(goatomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
+				mp.ptrarg[0] = unsafe.Pointer(typ)
+				onM(&unrollgcprog_m)
+			}
+			ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
+		} else {
+			ptrmask = (*uint8)(unsafe.Pointer(&typ.gc[0])) // embed mask
+		}
+		if size == 2*ptrSize {
+			xbitsb := (*uint8)(add(unsafe.Pointer(xbits), shift/8))
+			*xbitsb = *ptrmask | bitAllocated
+			goto marked
+		}
+		te = uintptr(typ.size) / ptrSize
+		// If the type occupies odd number of words, its mask is repeated.
+		if te%2 == 0 {
+			te /= 2
+		}
+	}
+	if size == 2*ptrSize {
+		xbitsb := (*uint8)(add(unsafe.Pointer(xbits), shift/8))
+		*xbitsb = (bitsPointer << 2) | (bitsPointer << 6) | bitAllocated
+		goto marked
+	}
+	// Copy pointer bitmask into the bitmap.
+	for i := uintptr(0); i < size0; i += 2 * ptrSize {
+		v := uint8((bitsPointer << 2) | (bitsPointer << 6))
+		if ptrmask != nil {
+			v = *(*uint8)(add(unsafe.Pointer(ptrmask), ti))
+			ti++
+			if ti == te {
+				ti = 0
+			}
+		}
+		if i == 0 {
+			v |= bitAllocated
+		}
+		if i+ptrSize == size0 {
+			v &= ^uint8(bitPtrMask << 4)
+		}
+
+		off := (uintptr(x) + i - arena_start) / ptrSize
+		xbits := (*uintptr)(unsafe.Pointer(arena_start - off/wordsPerBitmapWord*ptrSize - ptrSize))
+		shift := (off % wordsPerBitmapWord) * gcBits
+		xbitsb := (*uint8)(add(unsafe.Pointer(xbits), shift/8))
+		*xbitsb = v
+	}
+	if size0%(2*ptrSize) == 0 && size0 < size {
+		// Mark the word after last object's word as bitsDead.
+		off := (uintptr(x) + size0 - arena_start) / ptrSize
+		xbits := (*uintptr)(unsafe.Pointer(arena_start - off/wordsPerBitmapWord*ptrSize - ptrSize))
+		shift := (off % wordsPerBitmapWord) * gcBits
+		xbitsb := (*uint8)(add(unsafe.Pointer(xbits), shift/8))
+		*xbitsb = bitsDead << 2
+	}
+marked:
 	mp.mallocing = 0
 
 	if raceenabled {

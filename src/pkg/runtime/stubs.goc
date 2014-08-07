@@ -49,6 +49,16 @@ func gonanotime() (r int64) {
 }
 
 #pragma textflag NOSPLIT
+func goatomicloadp(p **byte) (v *byte) {
+	v = runtime·atomicloadp(p);
+}
+
+#pragma textflag NOSPLIT
+func goatomicstorep(p **byte, v *byte) {
+	runtime·atomicstorep(p, v);
+}
+
+#pragma textflag NOSPLIT
 func runtime·gocas(p *uint32, x uint32, y uint32) (ret bool) {
 	ret = runtime·cas(p, x, y);
 }
