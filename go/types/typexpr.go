@@ -139,21 +139,30 @@ func (check *Checker) typ(e ast.Expr) Type {
 }
 
 // funcType type-checks a function or method type and returns its signature.
-func (check *Checker) funcType(sig *Signature, recv *ast.FieldList, ftyp *ast.FuncType) *Signature {
+func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) *Signature {
 	scope := NewScope(check.scope, "function")
 	check.recordScope(ftyp, scope)
 
-	recv_, _ := check.collectParams(scope, recv, false)
+	recvList, _ := check.collectParams(scope, recvPar, false)
 	params, variadic := check.collectParams(scope, ftyp.Params, true)
 	results, _ := check.collectParams(scope, ftyp.Results, false)
 
-	if len(recv_) > 0 {
-		// There must be exactly one receiver.
-		if len(recv_) > 1 {
-			check.invalidAST(recv_[1].Pos(), "method must have exactly one receiver")
-			// ok to continue
+	if recvPar != nil {
+		// recv parameter list present (may be empty)
+		// spec: "The receiver is specified via an extra parameter section preceeding the
+		// method name. That parameter section must declare a single parameter, the receiver."
+		var recv *Var
+		switch len(recvList) {
+		case 0:
+			check.error(recvPar.Pos(), "method is missing receiver")
+			recv = NewParam(0, nil, "", Typ[Invalid]) // ignore recv below
+		default:
+			// more than one receiver
+			check.error(recvList[len(recvList)-1].Pos(), "method must have exactly one receiver")
+			fallthrough // continue with first receiver
+		case 1:
+			recv = recvList[0]
 		}
-		recv := recv_[0]
 		// spec: "The receiver type must be of the form T or *T where T is a type name."
 		// (ignore invalid types - error was reported before)
 		if t, _ := deref(recv.typ); t != Typ[Invalid] {
