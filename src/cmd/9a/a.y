@@ -28,7 +28,11 @@
 // THE SOFTWARE.
 
 %{
+#include <u.h>
+#include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
+#include <libc.h>
 #include "a.h"
+#include "../../pkg/runtime/funcdata.h"
 %}
 %union
 {
@@ -36,7 +40,7 @@
 	vlong	lval;
 	double	dval;
 	char	sval[8];
-	Gen	gen;
+	Addr	addr;
 }
 %left	'|'
 %left	'^'
@@ -50,14 +54,14 @@
 %token	<lval>	LCONST LSP LSB LFP LPC LCREG LFLUSH
 %token	<lval>	LREG LFREG LR LCR LF LFPSCR
 %token	<lval>	LLR LCTR LSPR LSPREG LSEG LMSR
-%token	<lval>	LSCHED LXLD LXST LXOP LXMV
+%token	<lval>	LPCDAT LFUNCDAT LSCHED LXLD LXST LXOP LXMV
 %token	<lval>	LRLWM LMOVMW LMOVEM LMOVFL LMTFSB LMA
 %token	<dval>	LFCONST
 %token	<sval>	LSCONST
 %token	<sym>	LNAME LLAB LVAR
 %type	<lval>	con expr pointer offset sreg
-%type	<gen>	addr rreg regaddr name creg freg xlreg lr ctr
-%type	<gen>	imm ximm fimm rel psr lcr cbit fpscr fpscrf msr mask
+%type	<addr>	addr rreg regaddr name creg freg xlreg lr ctr
+%type	<addr>	imm ximm fimm rel psr lcr cbit fpscr fpscrf msr mask
 %%
 prog:
 |	prog line
@@ -400,7 +404,7 @@ inst:
 	}
 |	LBRA con ',' con ',' rel
 	{
-		Gen g;
+		Addr g;
 		g = nullgen;
 		g.type = D_CONST;
 		g.offset = $2;
@@ -408,7 +412,7 @@ inst:
 	}
 |	LBRA con ',' con ',' addr
 	{
-		Gen g;
+		Addr g;
 		g = nullgen;
 		g.type = D_CONST;
 		g.offset = $2;
@@ -416,7 +420,7 @@ inst:
 	}
 |	LBRA con ',' con ',' '(' xlreg ')'
 	{
-		Gen g;
+		Addr g;
 		g = nullgen;
 		g.type = D_CONST;
 		g.offset = $2;
@@ -572,20 +576,40 @@ inst:
 	{
 		outcode($1, &nullgen, NREG, &$3);
 	}
+|	LNOP imm /* SYSCALL $num: load $num to R0 before syscall and restore R0 to 0 afterwards. */
+	{
+		outcode($1, &$2, NREG, &nullgen);
+	}
 /*
  * word
  */
 |	LWORD imm comma
 	{
-		if($1 == ADWORD && $2.type == D_CONST)
-			$2.type = D_DCONST;
 		outcode($1, &$2, NREG, &nullgen);
 	}
 |	LWORD ximm comma
 	{
-		if($1 == ADWORD && $2.type == D_CONST)
-			$2.type = D_DCONST;
 		outcode($1, &$2, NREG, &nullgen);
+	}
+/*
+ * PCDATA
+ */
+|	LPCDAT imm ',' imm
+	{
+		if($2.type != D_CONST || $4.type != D_CONST)
+			yyerror("arguments to PCDATA must be integer constants");
+		outcode($1, &$2, NREG, &$4);
+	}
+/*
+ * FUNCDATA
+ */
+|	LFUNCDAT imm ',' addr
+	{
+		if($2.type != D_CONST)
+			yyerror("index for FUNCDATA must be integer constant");
+		if($4.type != D_EXTERN && $4.type != D_STATIC && $4.type != D_OREG)
+			yyerror("value for FUNCDATA must be symbol reference");
+ 		outcode($1, &$2, NREG, &$4);
 	}
 /*
  * END
@@ -603,15 +627,15 @@ inst:
 	}
 |	LTEXT name ',' con ',' imm
 	{
+		$6.offset &= 0xffffffffull;
+		$6.offset |= (vlong)ArgsSizeUnknown << 32;
 		outcode($1, &$2, $4, &$6);
 	}
-|	LTEXT name ',' imm ':' imm
+|	LTEXT name ',' con ',' imm '-' con
 	{
-		outgcode($1, &$2, NREG, &$6, &$4);
-	}
-|	LTEXT name ',' con ',' imm ':' imm
-	{
-		outgcode($1, &$2, $4, &$8, &$6);
+		$6.offset &= 0xffffffffull;
+		$6.offset |= ($8 & 0xffffffffull) << 32;
+		outcode($1, &$2, $4, &$6);
 	}
 /*
  * DATA
@@ -649,14 +673,12 @@ rel:
 		if(pass == 2)
 			yyerror("undefined label: %s", $1->name);
 		$$.type = D_BRANCH;
-		$$.sym = $1;
 		$$.offset = $2;
 	}
 |	LLAB offset
 	{
 		$$ = nullgen;
 		$$.type = D_BRANCH;
-		$$.sym = $1;
 		$$.offset = $1->value + $2;
 	}
 
@@ -774,7 +796,7 @@ mask:
 	con ',' con
 	{
 		int mb, me;
-		ulong v;
+		uint32 v;
 
 		$$ = nullgen;
 		$$.type = D_CONST;
@@ -785,9 +807,9 @@ mask:
 			mb = me = 0;
 		}
 		if(mb <= me)
-			v = ((ulong)~0L>>mb) & (~0L<<(31-me));
+			v = ((uint32)~0L>>mb) & (~0L<<(31-me));
 		else
-			v = ~(((ulong)~0L>>(me+1)) & (~0L<<(31-(mb-1))));
+			v = ~(((uint32)~0L>>(me+1)) & (~0L<<(31-(mb-1))));
 		$$.offset = v;
 	}
 
@@ -801,7 +823,7 @@ ximm:
 	{
 		$$ = nullgen;
 		$$.type = D_SCONST;
-		memcpy($$.sval, $2, sizeof($$.sval));
+		memcpy($$.u.sval, $2, sizeof($$.u.sval));
 	}
 
 fimm:
@@ -809,13 +831,13 @@ fimm:
 	{
 		$$ = nullgen;
 		$$.type = D_FCONST;
-		$$.dval = $2;
+		$$.u.dval = $2;
 	}
 |	'$' '-' LFCONST
 	{
 		$$ = nullgen;
 		$$.type = D_FCONST;
-		$$.dval = -$3;
+		$$.u.dval = -$3;
 	}
 
 imm:	'$' con
@@ -847,7 +869,7 @@ regaddr:
 		$$ = nullgen;
 		$$.type = D_OREG;
 		$$.reg = $2;
-		$$.xreg = $4;
+		$$.scale = $4;
 		$$.offset = 0;
 	}
 
@@ -867,7 +889,7 @@ name:
 		$$ = nullgen;
 		$$.type = D_OREG;
 		$$.name = $3;
-		$$.sym = S;
+		$$.sym = nil;
 		$$.offset = $1;
 	}
 |	LNAME offset '(' pointer ')'
@@ -875,7 +897,7 @@ name:
 		$$ = nullgen;
 		$$.type = D_OREG;
 		$$.name = $4;
-		$$.sym = $1;
+		$$.sym = linklookup(ctxt, $1->name, 0);
 		$$.offset = $2;
 	}
 |	LNAME '<' '>' offset '(' LSB ')'
@@ -883,7 +905,7 @@ name:
 		$$ = nullgen;
 		$$.type = D_OREG;
 		$$.name = D_STATIC;
-		$$.sym = $1;
+		$$.sym = linklookup(ctxt, $1->name, 0);
 		$$.offset = $4;
 	}
 

@@ -27,29 +27,68 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build ignore
-
 #define	EXTERN
+#include <u.h>
+#include <libc.h>
 #include "a.h"
 #include "y.tab.h"
-#include <ctype.h>
+
+enum
+{
+	Plan9	= 1<<0,
+	Unix	= 1<<1,
+	Windows	= 1<<2,
+};
+
+int
+systemtype(int sys)
+{
+#ifdef _WIN32
+	return sys&Windows;
+#else
+	return sys&Plan9;
+#endif
+}
+
+int
+Lconv(Fmt *fp)
+{
+	return linklinefmt(ctxt, fp);
+}
+
+int
+pathchar(void)
+{
+	return '/';
+}
 
 void
 main(int argc, char *argv[])
 {
 	char *p;
-	int nout, nproc, status, i, c;
+	int c;
 
 	thechar = '9';
-	thestring = "power64";
+	thestring = getgoarch();
+	if(strcmp(thestring, "power64le") == 0)
+		ctxt = linknew(&linkpower64le);
+	else
+		ctxt = linknew(&linkpower64);
+	ctxt->diag = yyerror;
+	ctxt->bso = &bstdout;
+	Binit(&bstdout, 1, OWRITE);
+	listinit9();
+	fmtinstall('L', Lconv);
+
+	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
 	cinit();
 	outfile = 0;
-	include[ninclude++] = ".";
+	setinclude(".");
 	ARGBEGIN {
 	default:
 		c = ARGC();
-		if(c >= 0 || c < sizeof(debug))
+		if(c >= 0 && c < sizeof(debug))
 			debug[c] = 1;
 		break;
 
@@ -59,61 +98,30 @@ main(int argc, char *argv[])
 
 	case 'D':
 		p = ARGF();
-		if(p)
+		if(p) {
+			if (nDlist%8 == 0)
+				Dlist = allocn(Dlist, nDlist*sizeof(char *), 
+					8*sizeof(char *));
 			Dlist[nDlist++] = p;
+		}
 		break;
 
 	case 'I':
 		p = ARGF();
 		setinclude(p);
 		break;
+
+	case 'S':
+		ctxt->debugasm++;
+		break;
 	} ARGEND
 	if(*argv == 0) {
 		print("usage: %ca [-options] file.s\n", thechar);
 		errorexit();
 	}
-	if(argc > 1 && systemtype(Windows)){
-		print("can't assemble multiple files on windows\n");
+	if(argc > 1){
+		print("can't assemble multiple files\n");
 		errorexit();
-	}
-	if(argc > 1) {
-		nproc = 1;
-		if(p = getenv("NPROC"))
-			nproc = atol(p);
-		c = 0;
-		nout = 0;
-		for(;;) {
-			while(nout < nproc && argc > 0) {
-				i = myfork();
-				if(i < 0) {
-					i = mywait(&status);
-					if(i < 0)
-						errorexit();
-					if(status)
-						c++;
-					nout--;
-					continue;
-				}
-				if(i == 0) {
-					print("%s:\n", *argv);
-					if(assemble(*argv))
-						errorexit();
-					exits(0);
-				}
-				nout++;
-				argc--;
-				argv++;
-			}
-			i = mywait(&status);
-			if(i < 0) {
-				if(c)
-					errorexit();
-				exits(0);
-			}
-			if(status)
-				c++;
-			nout--;
-		}
 	}
 	if(assemble(argv[0]))
 		errorexit();
@@ -152,33 +160,30 @@ assemble(char *file)
 		}
 	}
 
-	of = mycreat(outfile, 0664);
+	of = create(outfile, OWRITE, 0664);
 	if(of < 0) {
 		yyerror("%ca: cannot create %s", thechar, outfile);
 		errorexit();
 	}
 	Binit(&obuf, of, OWRITE);
+	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+	Bprint(&obuf, "\n!\n");
 
 	pass = 1;
-	nosched = 0;
-	pinit(file);
-	for(i=0; i<nDlist; i++)
-		dodefine(Dlist[i]);
-	yyparse();
-	if(nerrors) {
+	for(pass = 1; pass <= 2; pass++) {
+		nosched = 0;
+		pinit(file);
+		for(i=0; i<nDlist; i++)
+			dodefine(Dlist[i]);
+		yyparse();
 		cclean();
-		return nerrors;
+		if(nerrors)
+			return nerrors;
 	}
 
-	pass = 2;
-	nosched = 0;
-	outhist();
-	pinit(file);
-	for(i=0; i<nDlist; i++)
-		dodefine(Dlist[i]);
-	yyparse();
-	cclean();
-	return nerrors;
+	writeobj(ctxt, &obuf);
+	Bflush(&obuf);
+	return 0;
 }
 
 struct
@@ -385,6 +390,8 @@ struct
 
 	"CMP",		LCMP, ACMP,
 	"CMPU",		LCMP, ACMPU,
+	"CMPW",		LCMP, ACMPW,
+	"CMPWU",	LCMP, ACMPWU,
 
 	"DIVW",		LLOGW, ADIVW,
 	"DIVWV",	LLOGW, ADIVWV,
@@ -477,6 +484,7 @@ struct
 
 	"NOP",		LNOP, ANOP,	/* ori 0,0,0 */
 	"SYSCALL",	LNOP, ASYSCALL,
+	"UNDEF",	LNOP, AUNDEF,
 
 	"RETURN",	LRETRN, ARETURN,
 	"RFI",		LRETRN,	ARFI,
@@ -591,6 +599,9 @@ struct
 	"SCHED",	LSCHED, 0,
 	"NOSCHED",	LSCHED,	0x80,
 
+	"PCDATA",	LPCDAT,	APCDATA,
+	"FUNCDATA",	LFUNCDAT,	AFUNCDATA,
+
 	0
 };
 
@@ -600,16 +611,10 @@ cinit(void)
 	Sym *s;
 	int i;
 
-	nullgen.sym = S;
-	nullgen.offset = 0;
 	nullgen.type = D_NONE;
 	nullgen.name = D_NONE;
 	nullgen.reg = NREG;
-	nullgen.xreg = NREG;
-	if(FPCHIP)
-		nullgen.dval = 0;
-	for(i=0; i<sizeof(nullgen.sval); i++)
-		nullgen.sval[i] = 0;
+	nullgen.scale = NREG; // replaced Gen.xreg with Prog.scale
 
 	nerrors = 0;
 	iostack = I;
@@ -622,12 +627,6 @@ cinit(void)
 		s = slookup(itab[i].name);
 		s->type = itab[i].type;
 		s->value = itab[i].value;
-	}
-	ALLOCN(pathname, 0, 100);
-	if(mygetwd(pathname, 99) == 0) {
-		ALLOCN(pathname, 100, 900);
-		if(mygetwd(pathname, 999) == 0)
-			strcpy(pathname, "/???");
 	}
 }
 
@@ -644,263 +643,82 @@ cclean(void)
 {
 
 	outcode(AEND, &nullgen, NREG, &nullgen);
-	Bflush(&obuf);
 }
+
+static Prog *lastpc;
 
 void
-zname(char *n, int t, int s)
+outcode(int a, Addr *g1, int reg, Addr *g2)
 {
+	Prog *p;
+	Plist *pl;
 
-	Bputc(&obuf, ANAME);
-	Bputc(&obuf, ANAME>>8);
-	Bputc(&obuf, t);	/* type */
-	Bputc(&obuf, s);	/* sym */
-	while(*n) {
-		Bputc(&obuf, *n);
-		n++;
-	}
-	Bputc(&obuf, 0);
-}
-
-void
-zaddr(Gen *a, int s)
-{
-	long l;
-	int i;
-	char *n;
-	Ieee e;
-
-	if(a->type == D_CONST){
-		l = a->offset;
-		if((vlong)l != a->offset)
-			a->type = D_DCONST;
-	}
-	Bputc(&obuf, a->type);
-	Bputc(&obuf, a->reg);
-	Bputc(&obuf, s);
-	Bputc(&obuf, a->name);
-	switch(a->type) {
-	default:
-		print("unknown type %d\n", a->type);
-		exits("arg");
-
-	case D_NONE:
-	case D_REG:
-	case D_FREG:
-	case D_CREG:
-	case D_FPSCR:
-	case D_MSR:
-	case D_OPT:
-		break;
-
-	case D_DCR:
-	case D_SPR:
-	case D_OREG:
-	case D_CONST:
-	case D_BRANCH:
-		l = a->offset;
-		Bputc(&obuf, l);
-		Bputc(&obuf, l>>8);
-		Bputc(&obuf, l>>16);
-		Bputc(&obuf, l>>24);
-		break;
-
-	case D_DCONST:
-		l = a->offset;
-		Bputc(&obuf, l);
-		Bputc(&obuf, l>>8);
-		Bputc(&obuf, l>>16);
-		Bputc(&obuf, l>>24);
-		l = a->offset>>32;
-		Bputc(&obuf, l);
-		Bputc(&obuf, l>>8);
-		Bputc(&obuf, l>>16);
-		Bputc(&obuf, l>>24);
-		break;
-
-	case D_SCONST:
-		n = a->sval;
-		for(i=0; i<NSNAME; i++) {
-			Bputc(&obuf, *n);
-			n++;
-		}
-		break;
-
-	case D_FCONST:
-		ieeedtod(&e, a->dval);
-		Bputc(&obuf, e.l);
-		Bputc(&obuf, e.l>>8);
-		Bputc(&obuf, e.l>>16);
-		Bputc(&obuf, e.l>>24);
-		Bputc(&obuf, e.h);
-		Bputc(&obuf, e.h>>8);
-		Bputc(&obuf, e.h>>16);
-		Bputc(&obuf, e.h>>24);
-		break;
-	}
-}
-
-int
-outsim(Gen *g)
-{
-	Sym *s;
-	int sno, t;
-
-	s = g->sym;
-	if(s == S)
-		return 0;
-	sno = s->sym;
-	if(sno < 0 || sno >= NSYM)
-		sno = 0;
-	t = g->name;
-	if(h[sno].type == t && h[sno].sym == s)
-		return sno;
-	zname(s->name, t, sym);
-	s->sym = sym;
-	h[sym].sym = s;
-	h[sym].type = t;
-	sno = sym;
-	sym++;
-	if(sym >= NSYM)
-		sym = 1;
-	return sno;
-}
-
-void
-outcode(int a, Gen *g1, int reg, Gen *g2)
-{
-	int sf, st;
-
-	if(a != AGLOBL && a != ADATA)
-		pc++;
 	if(pass == 1)
-		return;
-	if(g1->xreg != NREG) {
-		if(reg != NREG || g2->xreg != NREG)
+		goto out;
+
+	if(g1->scale != NREG) {
+		if(reg != NREG || g2->scale != NREG)
 			yyerror("bad addressing modes");
-		reg = g1->xreg;
+		reg = g1->scale;
 	} else
-	if(g2->xreg != NREG) {
+	if(g2->scale != NREG) {
 		if(reg != NREG)
 			yyerror("bad addressing modes");
-		reg = g2->xreg;
+		reg = g2->scale;
 	}
-	do {
-		sf = outsim(g1);
-		st = outsim(g2);
-	} while(sf != 0 && st == sf);
-	Bputc(&obuf, a);
-	Bputc(&obuf, a>>8);
-	Bputc(&obuf, reg|nosched);
-	Bputc(&obuf, lineno);
-	Bputc(&obuf, lineno>>8);
-	Bputc(&obuf, lineno>>16);
-	Bputc(&obuf, lineno>>24);
-	zaddr(g1, sf);
-	zaddr(g2, st);
-}
 
-void
-outgcode(int a, Gen *g1, int reg, Gen *g2, Gen *g3)
-{
-	int s1, s2, s3, flag; 
+	p = ctxt->arch->prg();
+	p->as = a;
+	p->lineno = lineno;
+	if(nosched)
+		p->mark |= NOSCHED;
+	p->from = *g1;
+	p->reg = reg;
+	p->to = *g2;
+	p->pc = pc;
 
+	if(lastpc == nil) {
+		pl = linknewplist(ctxt);
+		pl->firstpc = p;
+	} else
+		lastpc->link = p;
+	lastpc = p;
+out:
 	if(a != AGLOBL && a != ADATA)
 		pc++;
-	if(pass == 1)
-		return;
-	do {
-		s1 = outsim(g1);
-		s2 = outsim(g2);
-		s3 = outsim(g3);
-	} while(s1 && (s2 && s1 == s2 || s3 && s1 == s3) || s2 && (s3 && s2 == s3));
-	flag = 0;
-	if(g2->type != D_NONE)
-		flag = 0x40;	/* flags extra operand */
-	Bputc(&obuf, a);
-	Bputc(&obuf, a>>8);
-	Bputc(&obuf, reg | nosched | flag);
-	Bputc(&obuf, lineno);
-	Bputc(&obuf, lineno>>8);
-	Bputc(&obuf, lineno>>16);
-	Bputc(&obuf, lineno>>24);
-	zaddr(g1, s1);
-	if(flag)
-		zaddr(g2, s2);
-	zaddr(g3, s3);
 }
 
 void
-outhist(void)
+outgcode(int a, Addr *g1, int reg, Addr *g2, Addr *g3)
 {
-	Gen g;
-	Hist *h;
-	char *p, *q, *op, c;
-	int n;
+	Prog *p;
+	Plist *pl;
 
-	g = nullgen;
-	c = pathchar();
-	for(h = hist; h != H; h = h->link) {
-		p = h->name;
-		op = 0;
-		/* on windows skip drive specifier in pathname */
-		if(systemtype(Windows) && p && p[1] == ':'){
-			p += 2;
-			c = *p;
-		}
-		if(p && p[0] != c && h->offset == 0 && pathname){
-			/* on windows skip drive specifier in pathname */
-			if(systemtype(Windows) && pathname[1] == ':') {
-				op = p;
-				p = pathname+2;
-				c = *p;
-			} else if(pathname[0] == c){
-				op = p;
-				p = pathname;
-			}
-		}
-		while(p) {
-			q = strchr(p, c);
-			if(q) {
-				n = q-p;
-				if(n == 0){
-					n = 1;	/* leading "/" */
-					*p = '/';	/* don't emit "\" on windows */
-				}
-				q++;
-			} else {
-				n = strlen(p);
-				q = 0;
-			}
-			if(n) {
-				Bputc(&obuf, ANAME);
-				Bputc(&obuf, ANAME>>8);
-				Bputc(&obuf, D_FILE);	/* type */
-				Bputc(&obuf, 1);	/* sym */
-				Bputc(&obuf, '<');
-				Bwrite(&obuf, p, n);
-				Bputc(&obuf, 0);
-			}
-			p = q;
-			if(p == 0 && op) {
-				p = op;
-				op = 0;
-			}
-		}
-		g.offset = h->offset;
+	if(pass == 1)
+		goto out;
 
-		Bputc(&obuf, AHISTORY);
-		Bputc(&obuf, AHISTORY>>8);
-		Bputc(&obuf, 0);
-		Bputc(&obuf, h->line);
-		Bputc(&obuf, h->line>>8);
-		Bputc(&obuf, h->line>>16);
-		Bputc(&obuf, h->line>>24);
-		zaddr(&nullgen, 0);
-		zaddr(&g, 0);
-	}
+	p = ctxt->arch->prg();
+	p->as = a;
+	p->lineno = lineno;
+	if(nosched)
+		p->mark |= NOSCHED;
+	p->from = *g1;
+	p->reg = reg;
+	p->to = *g2;
+	p->from3 = *g3;
+	p->pc = pc;
+	print("oc: %P\n", p);
+
+	if(lastpc == nil) {
+		pl = linknewplist(ctxt);
+		pl->firstpc = p;
+	} else
+		lastpc->link = p;
+	lastpc = p;
+out:
+	if(a != AGLOBL && a != ADATA)
+		pc++;
 }
 
 #include "../cc/lexbody"
 #include "../cc/macbody"
-#include "../cc/compat"
