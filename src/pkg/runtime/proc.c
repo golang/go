@@ -183,7 +183,7 @@ runtime·schedinit(void)
 			n = MaxGomaxprocs;
 		procs = n;
 	}
-	runtime·allp = runtime·malloc((MaxGomaxprocs+1)*sizeof(runtime·allp[0]));
+	runtime·allp = runtime·mallocgc((MaxGomaxprocs+1)*sizeof(runtime·allp[0]), nil, 0);
 	procresize(procs);
 
 	runtime·copystack = runtime·precisestack;
@@ -1926,7 +1926,7 @@ allgadd(G *gp)
 		cap = 4096/sizeof(new[0]);
 		if(cap < 2*allgcap)
 			cap = 2*allgcap;
-		new = runtime·malloc(cap*sizeof(new[0]));
+		new = runtime·mallocgc(cap*sizeof(new[0]), nil, 0);
 		if(new == nil)
 			runtime·throw("runtime: cannot allocate memory");
 		if(runtime·allg != nil)
@@ -2396,7 +2396,7 @@ procresize(int32 new)
 	for(i = 0; i < new; i++) {
 		p = runtime·allp[i];
 		if(p == nil) {
-			p = (P*)runtime·mallocgc(sizeof(*p), 0, FlagNoInvokeGC);
+			p = (P*)runtime·mallocgc(sizeof(*p), 0, 0);
 			p->id = i;
 			p->status = Pgcstop;
 			runtime·atomicstorep(&runtime·allp[i], p);

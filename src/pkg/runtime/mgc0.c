@@ -966,7 +966,7 @@ runtime·MSpan_Sweep(MSpan *s)
 		xbits = *bitp;
 		bits = (xbits>>shift) & bitMask;
 
-		// Non-allocated or FlagNoGC object, ignore.
+		// Non-allocated object, ignore.
 		if(bits == bitBoundary)
 			continue;
 		// Allocated and marked object, reset bits to allocated.
@@ -1659,7 +1659,7 @@ runfinq(void)
 					// all not yet finalized objects are stored in finq.
 					// If we do not mark it as FlagNoScan,
 					// the last finalized object is not collected.
-					frame = runtime·mallocgc(framesz, 0, FlagNoScan|FlagNoInvokeGC);
+					frame = runtime·mallocgc(framesz, 0, FlagNoScan);
 					framecap = framesz;
 				}
 				if(f->fint == nil)

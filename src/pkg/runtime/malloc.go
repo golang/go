@@ -11,8 +11,7 @@ import (
 const (
 	flagNoScan      = 1 << 0 // GC doesn't have to scan object
 	flagNoProfiling = 1 << 1 // must not profile
-	flagNoZero      = 1 << 3 // don't zero memory
-	flagNoInvokeGC  = 1 << 4 // don't invoke GC
+	flagNoZero      = 1 << 2 // don't zero memory
 
 	kindArray      = 17
 	kindFunc       = 19
@@ -198,7 +197,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 
 	releasem(mp)
 
-	if flags&flagNoInvokeGC == 0 && memstats.heap_alloc >= memstats.next_gc {
+	if memstats.heap_alloc >= memstats.next_gc {
 		gogc(0)
 	}
 

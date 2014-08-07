@@ -125,7 +125,7 @@ addtimer(Timer *t)
 		n = 16;
 		if(n <= timers.cap)
 			n = timers.cap*3 / 2;
-		nt = runtime·malloc(n*sizeof nt[0]);
+		nt = runtime·mallocgc(n*sizeof nt[0], nil, 0);
 		runtime·memmove(nt, timers.t, timers.len*sizeof nt[0]);
 		timers.t = nt;
 		timers.cap = n;

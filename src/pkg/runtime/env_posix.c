@@ -50,11 +50,11 @@ syscall·setenv_c(String k, String v)
 	if(_cgo_setenv == nil)
 		return;
 
-	arg[0] = runtime·malloc(k.len + 1);
+	arg[0] = runtime·mallocgc(k.len + 1, nil, 0);
 	runtime·memmove(arg[0], k.str, k.len);
 	arg[0][k.len] = 0;
 
-	arg[1] = runtime·malloc(v.len + 1);
+	arg[1] = runtime·mallocgc(v.len + 1, nil, 0);
 	runtime·memmove(arg[1], v.str, v.len);
 	arg[1][v.len] = 0;
 

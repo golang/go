@@ -42,7 +42,7 @@ newdefer(int32 siz)
 	if(d == nil) {
 		// deferpool is empty or just a big defer
 		total = runtime·roundupsize(TOTALSIZE(siz));
-		d = runtime·malloc(total);
+		d = runtime·mallocgc(total, nil, 0);
 	}
 	d->siz = siz;
 	d->special = 0;

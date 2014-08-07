@@ -544,8 +544,6 @@ dumpobjs(void)
 			bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
 			shift = (off % wordsPerBitmapWord) * gcBits;
 			bits = (*bitp >> shift) & bitMask;
-
-			// Skip FlagNoGC allocations (stacks)
 			if(bits != bitAllocated)
 				continue;
 			dumpobj(p, size, makeheapobjbv(p, size));
