@@ -135,14 +135,18 @@ var gorootTestTests = []string{
 // These are files in go.tools/go/ssa/interp/testdata/.
 var testdataTests = []string{
 	"boundmeth.go",
+	"complit.go",
 	"coverage.go",
+	"defer.go",
 	"fieldprom.go",
 	"ifaceconv.go",
 	"ifaceprom.go",
 	"initorder.go",
 	"methprom.go",
 	"mrvchain.go",
+	"range.go",
 	"recover.go",
+	"static.go",
 	"callstack.go",
 }
 
