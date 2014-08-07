@@ -33,7 +33,7 @@ runtime·getenv(int8 *s)
 		runtime·memclr(b, sizeof b);
 		p = b;
 	}else
-		p = runtime·malloc(n+1);
+		p = runtime·mallocgc(n+1, nil, 0);
 	r = runtime·pread(fd, p, n, 0);
 	runtime·close(fd);
 	if(r < 0)

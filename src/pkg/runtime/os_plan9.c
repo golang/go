@@ -20,11 +20,11 @@ runtime·mpreinit(M *mp)
 	// Initialize stack and goroutine for note handling.
 	mp->gsignal = runtime·malg(32*1024);
 	mp->gsignal->m = mp;
-	mp->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
+	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, 0);
 
 	// Initialize stack for handling strings from the
 	// errstr system call, as used in package syscall.
-	mp->errstr = (byte*)runtime·malloc(ERRMAX*sizeof(byte));
+	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, 0);
 }
 
 // Called to initialize a new m (including the bootstrap m).
