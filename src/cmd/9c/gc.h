@@ -281,7 +281,6 @@ void	nullwarn(Node*, Node*);
 void	sextern(Sym*, Node*, int32, int32);
 void	gextern(Sym*, Node*, int32, int32);
 void	outcode(void);
-void	ieeedtod(Ieee*, double);
 
 /*
  * list

@@ -34,8 +34,7 @@
 #define	NSYM	50
 #define	NREG	32
 
-#define NOPROF	(1<<0)
-#define DUPOK	(1<<1)
+#include "../ld/textflag.h"
 
 enum
 {
@@ -43,14 +42,16 @@ enum
 	REGSP		= 1,
 	REGSB		= 2,
 	REGRET		= 3,
-	REGARG		= 3,
+	REGARG		= -1,	/* -1 disables passing the first argument in register */
 	REGMIN		= 7,	/* register variables allocated from here to REGMAX */
+	REGENV		= 11,	/* environment variable for closures */
 	REGMAX		= 27,
 	REGEXT		= 30,	/* external registers allocated from here down */
 	REGTMP		= 31,	/* used by the linker */
 
 	FREGRET		= 0,
 	FREGMIN		= 17,	/* first register variable */
+	FREGMAX		= 26,	/* last register variable for 9g only */
 	FREGEXT		= 26,	/* first external register */
 	FREGCVI		= 27, /* floating conversion constant */
 	FREGZERO	= 28,	/* both float and double */
@@ -69,9 +70,66 @@ enum
  */
 };
 
+enum {
+	BIG = 32768-8,
+};
+
+enum {
+/* mark flags */
+	LABEL		= 1<<0,
+	LEAF		= 1<<1,
+	FLOAT		= 1<<2,
+	BRANCH		= 1<<3,
+	LOAD		= 1<<4,
+	FCMP		= 1<<5,
+	SYNC		= 1<<6,
+	LIST		= 1<<7,
+	FOLL		= 1<<8,
+	NOSCHED		= 1<<9,
+};
+
+enum
+{
+	C_NONE,
+	C_REG,
+	C_FREG,
+	C_CREG,
+	C_SPR,		/* special processor register */
+	C_ZCON,
+	C_SCON,		/* 16 bit signed */
+	C_UCON,		/* low 16 bits 0 */
+	C_ADDCON,	/* -0x8000 <= v < 0 */
+	C_ANDCON,	/* 0 < v <= 0xFFFF */
+	C_LCON,		/* other 32 */
+	C_DCON,		/* other 64 (could subdivide further) */
+	C_SACON,
+	C_SECON,
+	C_LACON,
+	C_LECON,
+	C_SBRA,
+	C_LBRA,
+	C_SAUTO,
+	C_LAUTO,
+	C_SEXT,
+	C_LEXT,
+	C_ZOREG,
+	C_SOREG,
+	C_LOREG,
+	C_FPSCR,
+	C_MSR,
+	C_XER,
+	C_LR,
+	C_CTR,
+	C_ANY,
+	C_GOK,
+	C_ADDR,
+
+	C_NCLASS,	/* must be the last */
+};
+
 enum	as
 {
-	AXXX	= 0,
+	AXXX,
 	AADD,
 	AADDCC,
 	AADDV,
@@ -390,6 +448,17 @@ enum	as
 	/* more 64-bit operations */
 	AHRFID,
 
+	AUNDEF,
+	AUSEFIELD,
+	ATYPE,
+	AFUNCDATA,
+	APCDATA,
+	ACHECKNIL,
+	AVARDEF,
+	AVARKILL,
+	ADUFFCOPY,
+	ADUFFZERO,
+
 	ALAST
 };
 
@@ -422,6 +491,11 @@ enum
 	D_FILE1,
 	D_DCR,	/* device control register */
 	D_DCONST,
+	D_ADDR, // not used, use D_CONST with non-empty sym.
+
+/* reg names for 9g OREGISTER */
+	D_R0 = 0, // type is D_REG
+	D_F0 = D_R0+NREG, // type is D_FREG
 
 /* reg names iff type is D_SPR */
 	D_XER	= 1,
@@ -433,16 +507,4 @@ enum
 /*
  * this is the ranlib header
  */
-#define	SYMDEF	"__.SYMDEF"
-
-/*
- * this is the simulated IEEE floating point
- */
-typedef	struct	ieee	Ieee;
-struct	ieee
-{
-	long	l;	/* contains ls-man	0xffffffff */
-	long	h;	/* contains sign	0x80000000
-				    exp		0x7ff00000
-				    ms-man	0x000fffff */
-};
+#define	SYMDEF	"__.GOSYMDEF"
