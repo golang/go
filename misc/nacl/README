@@ -1,12 +1,14 @@
 Native Client
 =============
 
-This document outlines the basics of building and developing the Go runtime and programs in the Native Client (NaCl) environment.
+This document outlines the basics of building and developing the Go runtime and
+programs in the Native Client (NaCl) environment.
 
 Go 1.3 supports three architectures
 
  * nacl/386 which is standard 386.
- * nacl/amd64p32 which is a 64 bit architecture, where the address space is limited to a 4gb window. 
+ * nacl/amd64p32 which is a 64 bit architecture, where the address space is
+   limited to a 4gb window. 
  * nacl/arm which is 32-bit ARMv7A architecture with 1GB address space.
 
 For background it is recommended that you read http://golang.org/s/go13nacl.
@@ -14,34 +16,48 @@ For background it is recommended that you read http://golang.org/s/go13nacl.
 Prerequisites
 -------------
 
-Native Client programs are executed inside a sandbox, the NaCl runtime. This runtime must be installed before you can use NaCl programs.
+Native Client programs are executed inside a sandbox, the NaCl runtime. This
+runtime must be installed before you can use NaCl programs.
 
-The NaCl distribution comes with an installer which ensures you have access to the latest version of the runtime. The version tracks the Chrome numbering scheme.
+The NaCl distribution comes with an installer which ensures you have access to
+the latest version of the runtime. The version tracks the Chrome numbering
+scheme.
 
 # Download NaCl
 
-Download nacl_sdk.zip file from https://developers.google.com/native-client/dev/sdk/download, and unpack it. I chose /opt/nacl_sdk
+Download nacl_sdk.zip file from
+	https://developers.google.com/native-client/dev/sdk/download
+and unpack it. I chose /opt/nacl_sdk.
 
 # Update
 
-The zip file contains a small skeleton that can be used to download the correct sdk. These are released every 6-8 weeks, in line with Chrome releases.
+The zip file contains a small skeleton that can be used to download the correct
+sdk. These are released every 6-8 weeks, in line with Chrome releases.
 	
 	% cd /opt/nacl_sdk
 	% ./naclsdk update
 
-At this time pepper_33 is the stable version. If naclsdk downloads a later version, please adjust accordingly. As of June 2014, only the canary sdk provides support for nacl/arm.
+At this time pepper_33 is the stable version. If naclsdk downloads a later
+version, please adjust accordingly. As of June 2014, only the canary sdk
+provides support for nacl/arm.
 
-The cmd/go helper scripts expect that the runtime loaders, sel_ldr_{x86_{32,64},arm} and nacl_helper_bootstrap_arm are in your path. I find it easiest to make a symlink from the NaCl distribution to my $GOPATH/bin directory.
+The cmd/go helper scripts expect that the loaders sel_ldr_{x86_{32,64},arm} and
+nacl_helper_bootstrap_arm are in your path. I find it easiest to make a symlink
+from the NaCl distribution to my $GOPATH/bin directory.
 
 	% ln -nfs /opt/nacl_sdk/pepper_33/tools/sel_ldr_x86_32 $GOPATH/bin/sel_ldr_x86_32
 	% ln -nfs /opt/nacl_sdk/pepper_33/tools/sel_ldr_x86_64 $GOPATH/bin/sel_ldr_x86_64
 	% ln -nfs /opt/nacl_sdk/pepper_canary/tools/sel_ldr_arm $GOPATH/bin/sel_ldr_arm
-	% ln -nfs /opt/nacl_sdk/pepper_canary/tools/nacl_helper_bootstrap_arm $GOPATH/bin/nacl_helper_bootstrap_arm # only required for NaCl/ARM.
+
+Additionally, for NaCl/ARM only:
+
+	% ln -nfs /opt/nacl_sdk/pepper_canary/tools/nacl_helper_bootstrap_arm $GOPATH/bin/nacl_helper_bootstrap_arm 
 
 Support scripts
 ---------------
 
-Symlink the two scripts in this directory into your $PATH, just as you did with NaCl sdk above.
+Symlink the two scripts in this directory into your $PATH, just as you did with
+NaCl sdk above.
 
 	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_amd64p32_exec $GOPATH/bin/go_nacl_amd64p32_exec
 	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_386_exec $GOPATH/bin/go_nacl_386_exec
@@ -50,17 +66,28 @@ Symlink the two scripts in this directory into your $PATH, just as you did with 
 Building and testing
 --------------------
 
-Building for NaCl is similar to cross compiling for other platforms. However, as it is not possible to ever build in a `native` NaCl environment, the cmd/go tool has been enhanced to allow the full build, all.bash, to be executed, rather than just the compile stage, make.bash.
+Building for NaCl is similar to cross compiling for other platforms. However,
+as it is not possible to ever build in a `native` NaCl environment, the cmd/go
+tool has been enhanced to allow the full build, all.bash, to be executed,
+rather than just the compile stage, make.bash.
 
-The cmd/go tool knows that if GOOS is set to `nacl` it should not try to execute any binaries itself. Instead it passes their execution to a support script which sets up a Native Client environment and invokes the NaCl sandbox.
+The cmd/go tool knows that if GOOS is set to `nacl` it should not try to
+execute any binaries itself. Instead it passes their execution to a support
+script which sets up a Native Client environment and invokes the NaCl sandbox.
 
-The script's name has a special format, go_$GOOS_$GOARCH_exec, so cmd/go can find it.
+The script's name has a special format, go_$GOOS_$GOARCH_exec, so cmd/go can
+find it.
 
-In short, if the support scripts are in place, the cmd/go tool can be used as per normal.
+In short, if the support scripts are in place, the cmd/go tool can be used as
+per normal.
 
 # Build and test Go for NaCl
 
-NaCl does not permit direct file system access. Instead, package syscall provides a simulated file system served by in-memory data. The script nacltest.bash is the NaCl equivalent of all.bash. It builds NaCl with an in-memory file system containing files needed for tests, and then it runs the tests.
+NaCl does not permit direct file system access. Instead, package syscall
+provides a simulated file system served by in-memory data. The script
+nacltest.bash is the NaCl equivalent of all.bash. It builds NaCl with an
+in-memory file system containing files needed for tests, and then it runs the
+tests.
 
 	% cd go/src
 	% env GOARCH=amd64p32 ./nacltest.bash
