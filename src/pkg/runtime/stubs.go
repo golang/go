@@ -72,6 +72,7 @@ var (
 
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s
+//go:noescape
 func memclr(ptr unsafe.Pointer, n uintptr)
 
 func racemalloc(p unsafe.Pointer, size uintptr)
@@ -79,6 +80,7 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type)
 
 // memmove copies n bytes from "from" to "to".
 // in memmove_*.s
+//go:noescape
 func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
 
 // in asm_*.s
@@ -124,8 +126,9 @@ var hashLoad = loadFactor
 //go:noescape
 func gomemeq(a, b unsafe.Pointer, size uintptr) bool
 
-// Code pointer for the nohash algorithm. Used for producing better error messages.
+// Code pointers for the nohash/noequal algorithms. Used for producing better error messages.
 var nohashcode uintptr
+var noequalcode uintptr
 
 // Go version of runtime.throw.
 // in panic.c
@@ -159,3 +162,7 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
 	return unsafe.Pointer(x ^ 0)
 }
+
+// gopersistentalloc allocates a permanent (not garbage collected)
+// memory region of size n.  Use wisely!
+func gopersistentalloc(n uintptr) unsafe.Pointer
