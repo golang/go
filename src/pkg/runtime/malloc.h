@@ -517,7 +517,6 @@ void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
 void	runtime·gc(int32 force);
 uintptr	runtime·sweepone(void);
-void	runtime·markallocated(void *v, uintptr size, uintptr size0, Type* typ, bool scan);
 void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);
 void	runtime·purgecachedstats(MCache*);

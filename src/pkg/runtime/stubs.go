@@ -65,7 +65,9 @@ var (
 	mprofMalloc_m,
 	gc_m,
 	setFinalizer_m,
-	markallocated_m mFunction
+	markallocated_m,
+	unrollgcprog_m,
+	unrollgcproginplace_m mFunction
 )
 
 // memclr clears n bytes starting at ptr.
@@ -87,7 +89,12 @@ const (
 	concurrentSweep  = true
 )
 
-// in asm_*.s
+// Atomic operations to read/write a pointer.
+// in stubs.goc
+func goatomicloadp(p unsafe.Pointer) unsafe.Pointer     // return *p
+func goatomicstorep(p unsafe.Pointer, v unsafe.Pointer) // *p = v
+
+// in stubs.goc
 // if *p == x { *p = y; return true } else { return false }, atomically
 //go:noescape
 func gocas(p *uint32, x uint32, y uint32) bool
