@@ -2307,36 +2307,6 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 	}
 }
 
-func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
-	if p.trace {
-		defer un(trace(p, "Receiver"))
-	}
-
-	par := p.parseParameters(scope, false)
-
-	// must have exactly one receiver
-	if par.NumFields() != 1 {
-		p.errorExpected(par.Opening, "exactly one receiver")
-		par.List = []*ast.Field{{Type: &ast.BadExpr{From: par.Opening, To: par.Closing + 1}}}
-		return par
-	}
-
-	// recv type must be of the form ["*"] identifier, possibly using parentheses
-	recv := par.List[0]
-	base := unparen(deref(unparen(recv.Type)))
-	if _, isIdent := base.(*ast.Ident); !isIdent {
-		if _, isBad := base.(*ast.BadExpr); !isBad {
-			// only report error if it's a new one
-			p.errorExpected(base.Pos(), "(unqualified) identifier")
-		}
-		par.List = []*ast.Field{
-			{Type: &ast.BadExpr{From: recv.Pos(), To: p.safePos(recv.End())}},
-		}
-	}
-
-	return par
-}
-
 func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	if p.trace {
 		defer un(trace(p, "FunctionDecl"))
@@ -2348,7 +2318,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 
 	var recv *ast.FieldList
 	if p.tok == token.LPAREN {
-		recv = p.parseReceiver(scope)
+		recv = p.parseParameters(scope, false)
 	}
 
 	ident := p.parseIdent()
