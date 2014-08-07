@@ -634,7 +634,7 @@ typedef	struct	Alg		Alg;
 struct	Alg
 {
 	FuncVal* hash;
-	void	(*equal)(bool*, uintptr, void*, void*);
+	FuncVal* equal;
 	void	(*print)(uintptr, void*);
 	void	(*copy)(uintptr, void*, void*);
 };
@@ -665,13 +665,21 @@ void	runtime·aeshash32(void*, uintptr, uintptr, uintptr);
 void	runtime·aeshash64(void*, uintptr, uintptr, uintptr);
 void	runtime·aeshashstr(void*, uintptr, uintptr, uintptr);
 
-void	runtime·memequal(bool*, uintptr, void*, void*);
-void	runtime·noequal(bool*, uintptr, void*, void*);
-void	runtime·strequal(bool*, uintptr, void*, void*);
-void	runtime·interequal(bool*, uintptr, void*, void*);
-void	runtime·nilinterequal(bool*, uintptr, void*, void*);
-
-bool	runtime·memeq(void*, void*, uintptr);
+void	runtime·memequal(void*, void*, uintptr, bool);
+void	runtime·noequal(void*, void*, uintptr, bool);
+void	runtime·strequal(void*, void*, uintptr, bool);
+void	runtime·interequal(void*, void*, uintptr, bool);
+void	runtime·nilinterequal(void*, void*, uintptr, bool);
+void	runtime·f32equal(void*, void*, uintptr, bool);
+void	runtime·f64equal(void*, void*, uintptr, bool);
+void	runtime·c64equal(void*, void*, uintptr, bool);
+void	runtime·c128equal(void*, void*, uintptr, bool);
+void	runtime·memequal0(void*, void*, uintptr, bool);
+void	runtime·memequal8(void*, void*, uintptr, bool);
+void	runtime·memequal16(void*, void*, uintptr, bool);
+void	runtime·memequal32(void*, void*, uintptr, bool);
+void	runtime·memequal64(void*, void*, uintptr, bool);
+void	runtime·memequal128(void*, void*, uintptr, bool);
 
 void	runtime·memprint(uintptr, void*);
 void	runtime·strprint(uintptr, void*);
@@ -873,8 +881,6 @@ MCache*	runtime·allocmcache(void);
 void	runtime·freemcache(MCache*);
 void	runtime·mallocinit(void);
 void	runtime·chaninit(void);
-bool	runtime·ifaceeq_c(Iface, Iface);
-bool	runtime·efaceeq_c(Eface, Eface);
 void*	runtime·mallocgc(uintptr size, Type* typ, uint32 flag);
 void	runtime·runpanic(Panic*);
 uintptr	runtime·getcallersp(void*);

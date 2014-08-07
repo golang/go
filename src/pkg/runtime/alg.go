@@ -142,6 +142,106 @@ func nilinterhash(a *eface, s, h uintptr) uintptr {
 	}
 }
 
+func memequal(p, q unsafe.Pointer, size uintptr) bool {
+	if p == q {
+		return true
+	}
+	return memeq(p, q, size)
+}
+
+func memequal0(p, q unsafe.Pointer, size uintptr) bool {
+	return true
+}
+func memequal8(p, q unsafe.Pointer, size uintptr) bool {
+	return *(*int8)(p) == *(*int8)(q)
+}
+func memequal16(p, q unsafe.Pointer, size uintptr) bool {
+	return *(*int16)(p) == *(*int16)(q)
+}
+func memequal32(p, q unsafe.Pointer, size uintptr) bool {
+	return *(*int32)(p) == *(*int32)(q)
+}
+func memequal64(p, q unsafe.Pointer, size uintptr) bool {
+	return *(*int64)(p) == *(*int64)(q)
+}
+func memequal128(p, q unsafe.Pointer, size uintptr) bool {
+	return *(*[2]int64)(p) == *(*[2]int64)(q)
+}
+func f32equal(p, q unsafe.Pointer, size uintptr) bool {
+	return *(*float32)(p) == *(*float32)(q)
+}
+func f64equal(p, q unsafe.Pointer, size uintptr) bool {
+	return *(*float64)(p) == *(*float64)(q)
+}
+func c64equal(p, q unsafe.Pointer, size uintptr) bool {
+	return *(*complex64)(p) == *(*complex64)(q)
+}
+func c128equal(p, q unsafe.Pointer, size uintptr) bool {
+	return *(*complex128)(p) == *(*complex128)(q)
+}
+func strequal(p, q unsafe.Pointer, size uintptr) bool {
+	return *(*string)(p) == *(*string)(q)
+}
+func interequal(p, q unsafe.Pointer, size uintptr) bool {
+	return ifaceeq(*(*interface {
+		f()
+	})(p), *(*interface {
+		f()
+	})(q))
+}
+func nilinterequal(p, q unsafe.Pointer, size uintptr) bool {
+	return efaceeq(*(*interface{})(p), *(*interface{})(q))
+}
+func efaceeq(p, q interface{}) bool {
+	x := (*eface)(unsafe.Pointer(&p))
+	y := (*eface)(unsafe.Pointer(&q))
+	t := x._type
+	if t != y._type {
+		return false
+	}
+	if t == nil {
+		return true
+	}
+	eq := goalg(t.alg).equal
+	if **(**uintptr)(unsafe.Pointer(&eq)) == noequalcode {
+		// calling noequal will panic too,
+		// but we can print a better error.
+		panic(errorString("comparing uncomparable type " + *t._string))
+	}
+	if uintptr(t.size) <= ptrSize {
+		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)), uintptr(t.size))
+	}
+	return eq(x.data, y.data, uintptr(t.size))
+}
+func ifaceeq(p, q interface {
+	f()
+}) bool {
+	x := (*iface)(unsafe.Pointer(&p))
+	y := (*iface)(unsafe.Pointer(&q))
+	xtab := x.tab
+	if xtab != y.tab {
+		return false
+	}
+	if xtab == nil {
+		return true
+	}
+	t := xtab._type
+	eq := goalg(t.alg).equal
+	if **(**uintptr)(unsafe.Pointer(&eq)) == noequalcode {
+		// calling noequal will panic too,
+		// but we can print a better error.
+		panic(errorString("comparing uncomparable type " + *t._string))
+	}
+	if uintptr(t.size) <= ptrSize {
+		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)), uintptr(t.size))
+	}
+	return eq(x.data, y.data, uintptr(t.size))
+}
+
+func noequal(p, q unsafe.Pointer, size uintptr) bool {
+	panic(errorString("comparing uncomparable types"))
+}
+
 // Testing adapters for hash quality tests (see hash_test.go)
 func haveGoodHash() bool {
 	return use_aeshash

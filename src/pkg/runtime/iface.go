@@ -408,48 +408,6 @@ func assertE2E2(inter *interfacetype, e interface{}) (interface{}, bool) {
 	return e, true
 }
 
-func efaceeq(e1 interface{}, e2 interface{}) bool {
-	p1 := (*eface)(unsafe.Pointer(&e1))
-	p2 := (*eface)(unsafe.Pointer(&e2))
-	t := p1._type
-	if t != p2._type {
-		return false
-	}
-	if t == nil {
-		return true
-	}
-
-	if *(*uintptr)(unsafe.Pointer(&t.alg.equal)) == noequalcode {
-		panic(errorString("comparing uncomparable type " + *t._string))
-	}
-	size := uintptr(t.size)
-	if size <= ptrSize {
-		return goeq(t.alg, unsafe.Pointer(&p1.data), unsafe.Pointer(&p2.data), size)
-	}
-	return goeq(t.alg, p1.data, p2.data, size)
-}
-
-func ifaceeq(i1 fInterface, i2 fInterface) bool {
-	p1 := (*iface)(unsafe.Pointer(&i1))
-	p2 := (*iface)(unsafe.Pointer(&i2))
-	tab := p1.tab
-	if tab != p2.tab {
-		return false
-	}
-	if tab == nil {
-		return true
-	}
-	t := tab._type
-	if *(*uintptr)(unsafe.Pointer(&t.alg.equal)) == noequalcode {
-		panic(errorString("comparing uncomparable type " + *t._string))
-	}
-	size := uintptr(t.size)
-	if size <= ptrSize {
-		return goeq(t.alg, unsafe.Pointer(&p1.data), unsafe.Pointer(&p2.data), size)
-	}
-	return goeq(t.alg, p1.data, p2.data, size)
-}
-
 func ifacethash(i fInterface) uint32 {
 	ip := (*iface)(unsafe.Pointer(&i))
 	tab := ip.tab

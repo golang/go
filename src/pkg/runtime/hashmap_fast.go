@@ -209,7 +209,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 				if k.len != key.len {
 					continue
 				}
-				if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
+				if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
 					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
 				}
 			}
@@ -247,7 +247,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		}
 		if keymaybe != bucketCnt {
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*ptrSize))
-			if gomemeq(k.str, key.str, uintptr(key.len)) {
+			if memeq(k.str, key.str, uintptr(key.len)) {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(t.valuesize))
 			}
 		}
@@ -277,7 +277,7 @@ dohash:
 			if k.len != key.len {
 				continue
 			}
-			if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
+			if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
 			}
 		}
@@ -313,7 +313,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 				if k.len != key.len {
 					continue
 				}
-				if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
+				if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
 					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
 				}
 			}
@@ -349,7 +349,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		}
 		if keymaybe != bucketCnt {
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*ptrSize))
-			if gomemeq(k.str, key.str, uintptr(key.len)) {
+			if memeq(k.str, key.str, uintptr(key.len)) {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(t.valuesize)), true
 			}
 		}
@@ -379,7 +379,7 @@ dohash:
 			if k.len != key.len {
 				continue
 			}
-			if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
+			if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
 			}
 		}
