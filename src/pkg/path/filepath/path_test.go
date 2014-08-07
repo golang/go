@@ -784,12 +784,6 @@ var absTests = []string{
 }
 
 func TestAbs(t *testing.T) {
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("Getwd failed: ", err)
-	}
-	defer os.Chdir(oldwd)
-
 	root, err := ioutil.TempDir("", "TestAbs")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
