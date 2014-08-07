@@ -32,11 +32,19 @@
 void
 swit1(C1 *q, int nc, int32 def, Node *n)
 {
-	Node tn;
-	
+	Node tn, nod;
+
+	regalloc(&nod, n, Z);
+	/* always signed */
+	if(typev[n->type->etype])
+		nod.type = types[TVLONG];
+	else
+		nod.type = types[TLONG];
+	cgen(n, &nod);
 	regalloc(&tn, &regnode, Z);
-	swit2(q, nc, def, n, &tn);
+	swit2(q, nc, def, &nod, &tn);
 	regfree(&tn);
+	regfree(&nod);
 }
 
 void
