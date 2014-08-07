@@ -4,24 +4,29 @@
 
 // Parsing of ELF executables (Linux, FreeBSD, and so on).
 
-package main
+package objfile
 
 import (
 	"debug/elf"
 	"os"
 )
 
-func elfSymbols(f *os.File) []Sym {
-	p, err := elf.NewFile(f)
-	if err != nil {
-		errorf("parsing %s: %v", f.Name(), err)
-		return nil
-	}
+type elfFile struct {
+	elf *elf.File
+}
 
-	elfSyms, err := p.Symbols()
+func openElf(r *os.File) (rawFile, error) {
+	f, err := elf.NewFile(r)
 	if err != nil {
-		errorf("parsing %s: %v", f.Name(), err)
-		return nil
+		return nil, err
+	}
+	return &elfFile{f}, nil
+}
+
+func (f *elfFile) symbols() ([]Sym, error) {
+	elfSyms, err := f.elf.Symbols()
+	if err != nil {
+		return nil, err
 	}
 
 	var syms []Sym
@@ -34,10 +39,10 @@ func elfSymbols(f *os.File) []Sym {
 			sym.Code = 'B'
 		default:
 			i := int(s.Section)
-			if i < 0 || i >= len(p.Sections) {
+			if i < 0 || i >= len(f.elf.Sections) {
 				break
 			}
-			sect := p.Sections[i]
+			sect := f.elf.Sections[i]
 			switch sect.Flags & (elf.SHF_WRITE | elf.SHF_ALLOC | elf.SHF_EXECINSTR) {
 			case elf.SHF_ALLOC | elf.SHF_EXECINSTR:
 				sym.Code = 'T'
@@ -53,5 +58,22 @@ func elfSymbols(f *os.File) []Sym {
 		syms = append(syms, sym)
 	}
 
-	return syms
+	return syms, nil
+}
+
+func (f *elfFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+	if sect := f.elf.Section(".text"); sect != nil {
+		textStart = sect.Addr
+	}
+	if sect := f.elf.Section(".gosymtab"); sect != nil {
+		if symtab, err = sect.Data(); err != nil {
+			return 0, nil, nil, err
+		}
+	}
+	if sect := f.elf.Section(".gopclntab"); sect != nil {
+		if pclntab, err = sect.Data(); err != nil {
+			return 0, nil, nil, err
+		}
+	}
+	return textStart, symtab, pclntab, nil
 }

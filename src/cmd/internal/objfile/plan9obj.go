@@ -1,0 +1,100 @@
+// Copyright 2014 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Parsing of Plan 9 a.out executables.
+
+package objfile
+
+import (
+	"debug/plan9obj"
+	"fmt"
+	"os"
+	"sort"
+)
+
+type plan9File struct {
+	plan9 *plan9obj.File
+}
+
+func openPlan9(r *os.File) (rawFile, error) {
+	f, err := plan9obj.NewFile(r)
+	if err != nil {
+		return nil, err
+	}
+	return &plan9File{f}, nil
+}
+
+func (f *plan9File) symbols() ([]Sym, error) {
+	plan9Syms, err := f.plan9.Symbols()
+	if err != nil {
+		return nil, err
+	}
+
+	// Build sorted list of addresses of all symbols.
+	// We infer the size of a symbol by looking at where the next symbol begins.
+	var addrs []uint64
+	for _, s := range plan9Syms {
+		addrs = append(addrs, s.Value)
+	}
+	sort.Sort(uint64s(addrs))
+
+	var syms []Sym
+
+	for _, s := range plan9Syms {
+		sym := Sym{Addr: s.Value, Name: s.Name, Code: rune(s.Type)}
+		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
+		if i < len(addrs) {
+			sym.Size = int64(addrs[i] - s.Value)
+		}
+		syms = append(syms, sym)
+	}
+
+	return syms, nil
+}
+
+func (f *plan9File) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+	textStart = f.plan9.LoadAddress + f.plan9.HdrSize
+	if pclntab, err = loadPlan9Table(f.plan9, "pclntab", "epclntab"); err != nil {
+		return 0, nil, nil, err
+	}
+	if symtab, err = loadPlan9Table(f.plan9, "symtab", "esymtab"); err != nil {
+		return 0, nil, nil, err
+	}
+	return textStart, symtab, pclntab, nil
+}
+
+func findPlan9Symbol(f *plan9obj.File, name string) (*plan9obj.Sym, error) {
+	syms, err := f.Symbols()
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range syms {
+		if s.Name != name {
+			continue
+		}
+		return &s, nil
+	}
+	return nil, fmt.Errorf("no %s symbol found", name)
+}
+
+func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
+	ssym, err := findPlan9Symbol(f, sname)
+	if err != nil {
+		return nil, err
+	}
+	esym, err := findPlan9Symbol(f, ename)
+	if err != nil {
+		return nil, err
+	}
+	sect := f.Section("text")
+	if sect == nil {
+		return nil, err
+	}
+	data, err := sect.Data()
+	if err != nil {
+		return nil, err
+	}
+	textStart := f.LoadAddress + f.HdrSize
+	return data[ssym.Value-textStart : esym.Value-textStart], nil
+}

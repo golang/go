@@ -4,36 +4,42 @@
 
 // Parsing of Mach-O executables (OS X).
 
-package main
+package objfile
 
 import (
 	"debug/macho"
+	"fmt"
 	"os"
 	"sort"
 )
 
-func machoSymbols(f *os.File) []Sym {
-	p, err := macho.NewFile(f)
-	if err != nil {
-		errorf("parsing %s: %v", f.Name(), err)
-		return nil
-	}
+type machoFile struct {
+	macho *macho.File
+}
 
-	if p.Symtab == nil {
-		errorf("%s: no symbol table", f.Name())
-		return nil
+func openMacho(r *os.File) (rawFile, error) {
+	f, err := macho.NewFile(r)
+	if err != nil {
+		return nil, err
+	}
+	return &machoFile{f}, nil
+}
+
+func (f *machoFile) symbols() ([]Sym, error) {
+	if f.macho.Symtab == nil {
+		return nil, fmt.Errorf("missing symbol table")
 	}
 
 	// Build sorted list of addresses of all symbols.
 	// We infer the size of a symbol by looking at where the next symbol begins.
 	var addrs []uint64
-	for _, s := range p.Symtab.Syms {
+	for _, s := range f.macho.Symtab.Syms {
 		addrs = append(addrs, s.Value)
 	}
 	sort.Sort(uint64s(addrs))
 
 	var syms []Sym
-	for _, s := range p.Symtab.Syms {
+	for _, s := range f.macho.Symtab.Syms {
 		sym := Sym{Name: s.Name, Addr: s.Value, Code: '?'}
 		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
 		if i < len(addrs) {
@@ -41,8 +47,8 @@ func machoSymbols(f *os.File) []Sym {
 		}
 		if s.Sect == 0 {
 			sym.Code = 'U'
-		} else if int(s.Sect) <= len(p.Sections) {
-			sect := p.Sections[s.Sect-1]
+		} else if int(s.Sect) <= len(f.macho.Sections) {
+			sect := f.macho.Sections[s.Sect-1]
 			switch sect.Seg {
 			case "__TEXT":
 				sym.Code = 'R'
@@ -59,7 +65,24 @@ func machoSymbols(f *os.File) []Sym {
 		syms = append(syms, sym)
 	}
 
-	return syms
+	return syms, nil
+}
+
+func (f *machoFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+	if sect := f.macho.Section("__text"); sect != nil {
+		textStart = sect.Addr
+	}
+	if sect := f.macho.Section("__gosymtab"); sect != nil {
+		if symtab, err = sect.Data(); err != nil {
+			return 0, nil, nil, err
+		}
+	}
+	if sect := f.macho.Section("__gopclntab"); sect != nil {
+		if pclntab, err = sect.Data(); err != nil {
+			return 0, nil, nil, err
+		}
+	}
+	return textStart, symtab, pclntab, nil
 }
 
 type uint64s []uint64
