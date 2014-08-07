@@ -42,13 +42,13 @@ struct Bucket
 			uintptr	recent_alloc_bytes;
 			uintptr	recent_free_bytes;
 
-		};
+		} mp;
 		struct  // typ == BProf
 		{
 			int64	count;
 			int64	cycles;
-		};
-	};
+		} bp;
+	} data;
 	uintptr	hash;	// hash of size + stk
 	uintptr	size;
 	uintptr	nstk;

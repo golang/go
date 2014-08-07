@@ -136,7 +136,7 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 		mysg.releasetime = -1;
 	}
 
-	runtime·lock(c);
+	runtime·lock(&c->lock);
 	if(raceenabled)
 		runtime·racereadpc(c, pc, chansend);
 	if(c->closed)
@@ -149,7 +149,7 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 	if(sg != nil) {
 		if(raceenabled)
 			racesync(c, sg);
-		runtime·unlock(c);
+		runtime·unlock(&c->lock);
 
 		gp = sg->g;
 		gp->param = sg;
@@ -162,7 +162,7 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 	}
 
 	if(!block) {
-		runtime·unlock(c);
+		runtime·unlock(&c->lock);
 		return false;
 	}
 
@@ -171,10 +171,10 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 	mysg.selectdone = nil;
 	g->param = nil;
 	enqueue(&c->sendq, &mysg);
-	runtime·parkunlock(c, "chan send");
+	runtime·parkunlock(&c->lock, "chan send");
 
 	if(g->param == nil) {
-		runtime·lock(c);
+		runtime·lock(&c->lock);
 		if(!c->closed)
 			runtime·throw("chansend: spurious wakeup");
 		goto closed;
@@ -191,16 +191,16 @@ asynch:
 
 	if(c->qcount >= c->dataqsiz) {
 		if(!block) {
-			runtime·unlock(c);
+			runtime·unlock(&c->lock);
 			return false;
 		}
 		mysg.g = g;
 		mysg.elem = nil;
 		mysg.selectdone = nil;
 		enqueue(&c->sendq, &mysg);
-		runtime·parkunlock(c, "chan send");
+		runtime·parkunlock(&c->lock, "chan send");
 
-		runtime·lock(c);
+		runtime·lock(&c->lock);
 		goto asynch;
 	}
 
@@ -217,18 +217,18 @@ asynch:
 	sg = dequeue(&c->recvq);
 	if(sg != nil) {
 		gp = sg->g;
-		runtime·unlock(c);
+		runtime·unlock(&c->lock);
 		if(sg->releasetime)
 			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 	} else
-		runtime·unlock(c);
+		runtime·unlock(&c->lock);
 	if(mysg.releasetime > 0)
 		runtime·blockevent(mysg.releasetime - t0, 2);
 	return true;
 
 closed:
-	runtime·unlock(c);
+	runtime·unlock(&c->lock);
 	runtime·panicstring("send on closed channel");
 	return false;  // not reached
 }
@@ -262,7 +262,7 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
 		mysg.releasetime = -1;
 	}
 
-	runtime·lock(c);
+	runtime·lock(&c->lock);
 	if(c->dataqsiz > 0)
 		goto asynch;
 
@@ -273,7 +273,7 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
 	if(sg != nil) {
 		if(raceenabled)
 			racesync(c, sg);
-		runtime·unlock(c);
+		runtime·unlock(&c->lock);
 
 		if(ep != nil)
 			c->elemtype->alg->copy(c->elemsize, ep, sg->elem);
@@ -289,7 +289,7 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
 	}
 
 	if(!block) {
-		runtime·unlock(c);
+		runtime·unlock(&c->lock);
 		return false;
 	}
 
@@ -298,10 +298,10 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
 	mysg.selectdone = nil;
 	g->param = nil;
 	enqueue(&c->recvq, &mysg);
-	runtime·parkunlock(c, "chan receive");
+	runtime·parkunlock(&c->lock, "chan receive");
 
 	if(g->param == nil) {
-		runtime·lock(c);
+		runtime·lock(&c->lock);
 		if(!c->closed)
 			runtime·throw("chanrecv: spurious wakeup");
 		goto closed;
@@ -319,7 +319,7 @@ asynch:
 			goto closed;
 
 		if(!block) {
-			runtime·unlock(c);
+			runtime·unlock(&c->lock);
 			if(received != nil)
 				*received = false;
 			return false;
@@ -328,9 +328,9 @@ asynch:
 		mysg.elem = nil;
 		mysg.selectdone = nil;
 		enqueue(&c->recvq, &mysg);
-		runtime·parkunlock(c, "chan receive");
+		runtime·parkunlock(&c->lock, "chan receive");
 
-		runtime·lock(c);
+		runtime·lock(&c->lock);
 		goto asynch;
 	}
 
@@ -349,12 +349,12 @@ asynch:
 	sg = dequeue(&c->sendq);
 	if(sg != nil) {
 		gp = sg->g;
-		runtime·unlock(c);
+		runtime·unlock(&c->lock);
 		if(sg->releasetime)
 			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 	} else
-		runtime·unlock(c);
+		runtime·unlock(&c->lock);
 
 	if(received != nil)
 		*received = true;
@@ -369,7 +369,7 @@ closed:
 		*received = false;
 	if(raceenabled)
 		runtime·raceacquire(c);
-	runtime·unlock(c);
+	runtime·unlock(&c->lock);
 	if(mysg.releasetime > 0)
 		runtime·blockevent(mysg.releasetime - t0, 2);
 	return true;
@@ -617,7 +617,7 @@ sellock(Select *sel)
 		c0 = sel->lockorder[i];
 		if(c0 && c0 != c) {
 			c = sel->lockorder[i];
-			runtime·lock(c);
+			runtime·lock(&c->lock);
 		}
 	}
 }
@@ -645,7 +645,7 @@ selunlock(Select *sel)
 		c = sel->lockorder[i];
 		if(i>0 && sel->lockorder[i-1] == c)
 			continue;  // will unlock it on the next iteration
-		runtime·unlock(c);
+		runtime·unlock(&c->lock);
 	}
 }
 
@@ -1067,9 +1067,9 @@ closechan(Hchan *c, void *pc)
 	if(c == nil)
 		runtime·panicstring("close of nil channel");
 
-	runtime·lock(c);
+	runtime·lock(&c->lock);
 	if(c->closed) {
-		runtime·unlock(c);
+		runtime·unlock(&c->lock);
 		runtime·panicstring("close of closed channel");
 	}
 
@@ -1104,7 +1104,7 @@ closechan(Hchan *c, void *pc)
 		runtime·ready(gp);
 	}
 
-	runtime·unlock(c);
+	runtime·unlock(&c->lock);
 }
 
 func reflect·chanlen(c *Hchan) (len int) {

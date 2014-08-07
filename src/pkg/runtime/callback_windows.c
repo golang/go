@@ -11,7 +11,7 @@
 
 typedef	struct	Callbacks	Callbacks;
 struct	Callbacks {
-	Lock;
+	Lock			lock;
 	WinCallbackContext*	ctxt[cb_max];
 	int32			n;
 };
@@ -44,13 +44,13 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 		argsize += sizeof(uintptr);
 	}
 
-	runtime·lock(&cbs);
+	runtime·lock(&cbs.lock);
 	if(runtime·cbctxts == nil)
 		runtime·cbctxts = &(cbs.ctxt[0]);
 	n = cbs.n;
 	for(i=0; i<n; i++) {
 		if(cbs.ctxt[i]->gobody == fn.data && cbs.ctxt[i]->cleanstack == cleanstack) {
-			runtime·unlock(&cbs);
+			runtime·unlock(&cbs.lock);
 			// runtime·callbackasm is just a series of CALL instructions
 			// (each is 5 bytes long), and we want callback to arrive at
 			// correspondent call instruction instead of start of
@@ -70,7 +70,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 		c->restorestack = 0;
 	cbs.ctxt[n] = c;
 	cbs.n++;
-	runtime·unlock(&cbs);
+	runtime·unlock(&cbs.lock);
 
 	// as before
 	return (byte*)runtime·callbackasm + n * 5;

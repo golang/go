@@ -48,7 +48,7 @@ struct PollDesc
 	// pollReset, pollWait, pollWaitCanceled and runtime·netpollready (IO rediness notification)
 	// proceed w/o taking the lock. So closing, rg, rd, wg and wd are manipulated
 	// in a lock-free way by all operations.
-	Lock;		// protectes the following fields
+	Lock	lock;		// protectes the following fields
 	uintptr	fd;
 	bool	closing;
 	uintptr	seq;	// protects from stale timers and ready notifications
@@ -63,7 +63,7 @@ struct PollDesc
 
 static struct
 {
-	Lock;
+	Lock		lock;
 	PollDesc*	first;
 	// PollDesc objects must be type-stable,
 	// because we can get ready notification from epoll/kqueue
@@ -95,7 +95,7 @@ func runtime_pollServerInit() {
 
 func runtime_pollOpen(fd uintptr) (pd *PollDesc, errno int) {
 	pd = allocPollDesc();
-	runtime·lock(pd);
+	runtime·lock(&pd->lock);
 	if(pd->wg != nil && pd->wg != READY)
 		runtime·throw("runtime_pollOpen: blocked write on free descriptor");
 	if(pd->rg != nil && pd->rg != READY)
@@ -107,7 +107,7 @@ func runtime_pollOpen(fd uintptr) (pd *PollDesc, errno int) {
 	pd->rd = 0;
 	pd->wg = nil;
 	pd->wd = 0;
-	runtime·unlock(pd);
+	runtime·unlock(&pd->lock);
 
 	errno = runtime·netpollopen(fd, pd);
 }
@@ -120,10 +120,10 @@ func runtime_pollClose(pd *PollDesc) {
 	if(pd->rg != nil && pd->rg != READY)
 		runtime·throw("runtime_pollClose: blocked read on closing descriptor");
 	runtime·netpollclose(pd->fd);
-	runtime·lock(&pollcache);
+	runtime·lock(&pollcache.lock);
 	pd->link = pollcache.first;
 	pollcache.first = pd;
-	runtime·unlock(&pollcache);
+	runtime·unlock(&pollcache.lock);
 }
 
 func runtime_pollReset(pd *PollDesc, mode int) (err int) {
@@ -164,9 +164,9 @@ func runtime_pollWaitCanceled(pd *PollDesc, mode int) {
 func runtime_pollSetDeadline(pd *PollDesc, d int64, mode int) {
 	G *rg, *wg;
 
-	runtime·lock(pd);
+	runtime·lock(&pd->lock);
 	if(pd->closing) {
-		runtime·unlock(pd);
+		runtime·unlock(&pd->lock);
 		return;
 	}
 	pd->seq++;  // invalidate current timers
@@ -218,7 +218,7 @@ func runtime_pollSetDeadline(pd *PollDesc, d int64, mode int) {
 		rg = netpollunblock(pd, 'r', false);
 	if(pd->wd < 0)
 		wg = netpollunblock(pd, 'w', false);
-	runtime·unlock(pd);
+	runtime·unlock(&pd->lock);
 	if(rg)
 		runtime·ready(rg);
 	if(wg)
@@ -228,7 +228,7 @@ func runtime_pollSetDeadline(pd *PollDesc, d int64, mode int) {
 func runtime_pollUnblock(pd *PollDesc) {
 	G *rg, *wg;
 
-	runtime·lock(pd);
+	runtime·lock(&pd->lock);
 	if(pd->closing)
 		runtime·throw("runtime_pollUnblock: already closing");
 	pd->closing = true;
@@ -244,7 +244,7 @@ func runtime_pollUnblock(pd *PollDesc) {
 		runtime·deltimer(&pd->wt);
 		pd->wt.fv = nil;
 	}
-	runtime·unlock(pd);
+	runtime·unlock(&pd->lock);
 	if(rg)
 		runtime·ready(rg);
 	if(wg)
@@ -272,13 +272,13 @@ runtime·netpollclosing(PollDesc *pd)
 void
 runtime·netpolllock(PollDesc *pd)
 {
-	runtime·lock(pd);
+	runtime·lock(&pd->lock);
 }
 
 void
 runtime·netpollunlock(PollDesc *pd)
 {
-	runtime·unlock(pd);
+	runtime·unlock(&pd->lock);
 }
 
 // make pd ready, newly runnable goroutines (if any) are enqueued info gpp list
@@ -396,10 +396,10 @@ deadlineimpl(int64 now, Eface arg, bool read, bool write)
 	// If it's stale, ignore the timer event.
 	seq = (uintptr)arg.type;
 	rg = wg = nil;
-	runtime·lock(pd);
+	runtime·lock(&pd->lock);
 	if(seq != pd->seq) {
 		// The descriptor was reused or timers were reset.
-		runtime·unlock(pd);
+		runtime·unlock(&pd->lock);
 		return;
 	}
 	if(read) {
@@ -416,7 +416,7 @@ deadlineimpl(int64 now, Eface arg, bool read, bool write)
 		runtime·atomicstorep(&pd->wt.fv, nil);  // full memory barrier between store to wd and load of wg in netpollunblock
 		wg = netpollunblock(pd, 'w', false);
 	}
-	runtime·unlock(pd);
+	runtime·unlock(&pd->lock);
 	if(rg)
 		runtime·ready(rg);
 	if(wg)
@@ -447,7 +447,7 @@ allocPollDesc(void)
 	PollDesc *pd;
 	uint32 i, n;
 
-	runtime·lock(&pollcache);
+	runtime·lock(&pollcache.lock);
 	if(pollcache.first == nil) {
 		n = PollBlockSize/sizeof(*pd);
 		if(n == 0)
@@ -462,6 +462,6 @@ allocPollDesc(void)
 	}
 	pd = pollcache.first;
 	pollcache.first = pd->link;
-	runtime·unlock(&pollcache);
+	runtime·unlock(&pollcache.lock);
 	return pd;
 }

@@ -515,7 +515,7 @@ dumproots(void)
 				if(sp->kind != KindSpecialFinalizer)
 					continue;
 				spf = (SpecialFinalizer*)sp;
-				p = (byte*)((s->start << PageShift) + spf->offset);
+				p = (byte*)((s->start << PageShift) + spf->special.offset);
 				dumpfinalizer(p, spf->fn, spf->fint, spf->ot);
 			}
 		}
@@ -695,7 +695,7 @@ dumpmemprof(void)
 			if(sp->kind != KindSpecialProfile)
 				continue;
 			spp = (SpecialProfile*)sp;
-			p = (byte*)((s->start << PageShift) + spp->offset);
+			p = (byte*)((s->start << PageShift) + spp->special.offset);
 			dumpint(TagAllocSample);
 			dumpint((uintptr)p);
 			dumpint((uintptr)spp->b);

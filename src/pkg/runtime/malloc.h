@@ -370,7 +370,7 @@ struct Special
 typedef struct SpecialFinalizer SpecialFinalizer;
 struct SpecialFinalizer
 {
-	Special;
+	Special		special;
 	FuncVal*	fn;
 	uintptr		nret;
 	Type*		fint;
@@ -382,7 +382,7 @@ typedef struct Bucket Bucket; // from mprof.h
 typedef struct SpecialProfile SpecialProfile;
 struct SpecialProfile
 {
-	Special;
+	Special	special;
 	Bucket*	b;
 };
 
@@ -438,7 +438,7 @@ void	runtime·MSpanList_Remove(MSpan *span);	// from whatever list it is in
 // Central list of free objects of a given size.
 struct MCentral
 {
-	Lock;
+	Lock  lock;
 	int32 sizeclass;
 	MSpan nonempty;	// list of spans with a free object
 	MSpan empty;	// list of spans with no free objects (or cached in an MCache)
@@ -454,7 +454,7 @@ bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, ML
 // but all the other global data is here too.
 struct MHeap
 {
-	Lock;
+	Lock  lock;
 	MSpan free[MaxMHeapList];	// free lists of given length
 	MSpan freelarge;		// free lists length >= MaxMHeapList
 	MSpan busy[MaxMHeapList];	// busy lists of large objects of given length
@@ -483,7 +483,7 @@ struct MHeap
 	// spaced CacheLineSize bytes apart, so that each MCentral.Lock
 	// gets its own cache line.
 	struct {
-		MCentral;
+		MCentral mcentral;
 		byte pad[CacheLineSize];
 	} central[NumSizeClasses];
 

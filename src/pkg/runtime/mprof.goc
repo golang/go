@@ -92,20 +92,20 @@ MProf_GC(void)
 	Bucket *b;
 
 	for(b=mbuckets; b; b=b->allnext) {
-		b->allocs += b->prev_allocs;
-		b->frees += b->prev_frees;
-		b->alloc_bytes += b->prev_alloc_bytes;
-		b->free_bytes += b->prev_free_bytes;
+		b->data.mp.allocs += b->data.mp.prev_allocs;
+		b->data.mp.frees += b->data.mp.prev_frees;
+		b->data.mp.alloc_bytes += b->data.mp.prev_alloc_bytes;
+		b->data.mp.free_bytes += b->data.mp.prev_free_bytes;
 
-		b->prev_allocs = b->recent_allocs;
-		b->prev_frees = b->recent_frees;
-		b->prev_alloc_bytes = b->recent_alloc_bytes;
-		b->prev_free_bytes = b->recent_free_bytes;
+		b->data.mp.prev_allocs = b->data.mp.recent_allocs;
+		b->data.mp.prev_frees = b->data.mp.recent_frees;
+		b->data.mp.prev_alloc_bytes = b->data.mp.recent_alloc_bytes;
+		b->data.mp.prev_free_bytes = b->data.mp.recent_free_bytes;
 
-		b->recent_allocs = 0;
-		b->recent_frees = 0;
-		b->recent_alloc_bytes = 0;
-		b->recent_free_bytes = 0;
+		b->data.mp.recent_allocs = 0;
+		b->data.mp.recent_frees = 0;
+		b->data.mp.recent_alloc_bytes = 0;
+		b->data.mp.recent_free_bytes = 0;
 	}
 }
 
@@ -129,8 +129,8 @@ runtime·MProf_Malloc(void *p, uintptr size)
 	nstk = runtime·callers(1, stk, nelem(stk));
 	runtime·lock(&proflock);
 	b = stkbucket(MProf, size, stk, nstk, true);
-	b->recent_allocs++;
-	b->recent_alloc_bytes += size;
+	b->data.mp.recent_allocs++;
+	b->data.mp.recent_alloc_bytes += size;
 	runtime·unlock(&proflock);
 
 	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of proflock.
@@ -160,8 +160,8 @@ runtime·mprofMalloc_m(void)
 		nstk = runtime·gcallers(g->m->curg, 1, stk, nelem(stk));
 	runtime·lock(&proflock);
 	b = stkbucket(MProf, size, stk, nstk, true);
-	b->recent_allocs++;
-	b->recent_alloc_bytes += size;
+	b->data.mp.recent_allocs++;
+	b->data.mp.recent_alloc_bytes += size;
 	runtime·unlock(&proflock);
 
 	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of proflock.
@@ -177,11 +177,11 @@ runtime·MProf_Free(Bucket *b, uintptr size, bool freed)
 {
 	runtime·lock(&proflock);
 	if(freed) {
-		b->recent_frees++;
-		b->recent_free_bytes += size;
+		b->data.mp.recent_frees++;
+		b->data.mp.recent_free_bytes += size;
 	} else {
-		b->prev_frees++;
-		b->prev_free_bytes += size;
+		b->data.mp.prev_frees++;
+		b->data.mp.prev_free_bytes += size;
 	}
 	runtime·unlock(&proflock);
 }
@@ -221,8 +221,8 @@ runtime·blockevent(int64 cycles, int32 skip)
 	nstk = runtime·callers(skip, stk, nelem(stk));
 	runtime·lock(&proflock);
 	b = stkbucket(BProf, 0, stk, nstk, true);
-	b->count++;
-	b->cycles += cycles;
+	b->data.bp.count++;
+	b->data.bp.cycles += cycles;
 	runtime·unlock(&proflock);
 }
 
@@ -242,10 +242,10 @@ record(Record *r, Bucket *b)
 {
 	int32 i;
 
-	r->alloc_bytes = b->alloc_bytes;
-	r->free_bytes = b->free_bytes;
-	r->alloc_objects = b->allocs;
-	r->free_objects = b->frees;
+	r->alloc_bytes = b->data.mp.alloc_bytes;
+	r->free_bytes = b->data.mp.free_bytes;
+	r->alloc_objects = b->data.mp.allocs;
+	r->free_objects = b->data.mp.frees;
 	for(i=0; i<b->nstk && i<nelem(r->stk); i++)
 		r->stk[i] = b->stk[i];
 	for(; i<nelem(r->stk); i++)
@@ -261,9 +261,9 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
 	n = 0;
 	clear = true;
 	for(b=mbuckets; b; b=b->allnext) {
-		if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
+		if(include_inuse_zero || b->data.mp.alloc_bytes != b->data.mp.free_bytes)
 			n++;
-		if(b->allocs != 0 || b->frees != 0)
+		if(b->data.mp.allocs != 0 || b->data.mp.frees != 0)
 			clear = false;
 	}
 	if(clear) {
@@ -275,7 +275,7 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
 		MProf_GC();
 		n = 0;
 		for(b=mbuckets; b; b=b->allnext)
-			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
+			if(include_inuse_zero || b->data.mp.alloc_bytes != b->data.mp.free_bytes)
 				n++;
 	}
 	ok = false;
@@ -283,7 +283,7 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
 		ok = true;
 		r = (Record*)p.array;
 		for(b=mbuckets; b; b=b->allnext)
-			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
+			if(include_inuse_zero || b->data.mp.alloc_bytes != b->data.mp.free_bytes)
 				record(r++, b);
 	}
 	runtime·unlock(&proflock);
@@ -296,7 +296,7 @@ runtime·iterate_memprof(void (*callback)(Bucket*, uintptr, uintptr*, uintptr, u
 
 	runtime·lock(&proflock);
 	for(b=mbuckets; b; b=b->allnext) {
-		callback(b, b->nstk, b->stk, b->size, b->allocs, b->frees);
+		callback(b, b->nstk, b->stk, b->size, b->data.mp.allocs, b->data.mp.frees);
 	}
 	runtime·unlock(&proflock);
 }
@@ -323,8 +323,8 @@ func BlockProfile(p Slice) (n int, ok bool) {
 		ok = true;
 		r = (BRecord*)p.array;
 		for(b=bbuckets; b; b=b->allnext, r++) {
-			r->count = b->count;
-			r->cycles = b->cycles;
+			r->count = b->data.bp.count;
+			r->cycles = b->data.bp.cycles;
 			for(i=0; i<b->nstk && i<nelem(r->stk); i++)
 				r->stk[i] = b->stk[i];
 			for(; i<nelem(r->stk); i++)
