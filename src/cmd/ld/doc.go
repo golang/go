@@ -10,8 +10,8 @@ Ld is the portable code for a modified version of the Plan 9 linker.  The origin
 
 	http://plan9.bell-labs.com/magic/man2html/1/8l
 
-It reads object files (.5, .6, or .8 files) and writes a binary named for the
-architecture (5.out, 6.out, 8.out) by default (if $GOOS is windows, a .exe suffix
+It reads object files (.5, .6, .8, .9 files) and writes a binary named for the
+architecture (5.out, 6.out, 8.out, 9.out) by default (if $GOOS is windows, a .exe suffix
 will be appended).
 
 Major changes include:
@@ -22,7 +22,7 @@ Original options are listed on the manual page linked above.
 
 Usage:
 	go tool 6l [flags] mainObj
-Substitute 6l with 8l or 5l as appropriate.
+Substitute 6l with 5l, 8l or 9l as appropriate.
 
 Options new in this version:
 

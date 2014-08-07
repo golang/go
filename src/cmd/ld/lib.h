@@ -33,10 +33,6 @@
 // A section further describes the pieces of that block for
 // use in debuggers and such.
 
-enum {
-	MAXIO		= 8192,
-};
-
 typedef struct Segment Segment;
 typedef struct Section Section;
 

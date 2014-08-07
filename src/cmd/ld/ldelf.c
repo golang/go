@@ -436,6 +436,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			return;
 		}
 		break;
+	case '9':
+		if(obj->machine != ElfMachPower64 || hdr->ident[4] != ElfClass64) {
+			diag("%s: elf object but not power64", pn);
+			return;
+		}
+		break;
 	}
 
 	// load section list into memory.

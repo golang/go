@@ -586,6 +586,7 @@ hostlink(void)
 		argv[argc++] = "-m32";
 		break;
 	case '6':
+	case '9':
 		argv[argc++] = "-m64";
 		break;
 	case '5':
@@ -1146,6 +1147,7 @@ stkcheck(Chain *up, int depth)
 			switch(r->type) {
 			case R_CALL:
 			case R_CALLARM:
+			case R_CALLPOWER:
 				// Direct call.
 				ch.limit = limit - pcsp.value - callsize();
 				ch.sym = r->sym;
@@ -1525,7 +1527,7 @@ callgraph(void)
 			r = &s->r[i];
 			if(r->sym == nil)
 				continue;
-			if((r->type == R_CALL || r->type == R_CALLARM) && r->sym->type == STEXT)
+			if((r->type == R_CALL || r->type == R_CALLARM || r->type == R_CALLPOWER) && r->sym->type == STEXT)
 				Bprint(&bso, "%s calls %s\n", s->name, r->sym->name);
 		}
 	}
