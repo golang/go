@@ -79,7 +79,7 @@ struct ExcContext
 	union {
 		ExcRegs386	regs;
 		ExcRegsAmd64	regs64;
-	};
+	} regs;
 };
 
 struct ExcPortableContext
