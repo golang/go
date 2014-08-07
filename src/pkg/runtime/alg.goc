@@ -308,6 +308,7 @@ runtime·nilintercopy(uintptr s, void *a, void *b)
 }
 
 extern uintptr runtime·nohashcode;
+extern uintptr runtime·noequalcode;
 
 void
 runtime·noequal(bool *eq, uintptr s, void *a, void *b)
@@ -371,6 +372,8 @@ void
 runtime·hashinit(void)
 {
 	runtime·nohashcode = (uintptr)runtime·nohash;
+	runtime·noequalcode = (uintptr)runtime·noequal;
+
         if(NaCl)
                 return;
 

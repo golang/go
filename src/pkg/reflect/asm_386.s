@@ -46,3 +46,9 @@ TEXT ·maplen(SB),NOSPLIT,$0-0
 	JMP	runtime·reflect_maplen(SB)
 TEXT ·ismapkey(SB),NOSPLIT,$0-0
 	JMP	runtime·reflect_ismapkey(SB)
+TEXT ·ifaceE2I(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_ifaceE2I(SB)
+TEXT ·unsafe_New(SB),NOSPLIT,$0-0
+	JMP	runtime·newobject(SB)
+TEXT ·unsafe_NewArray(SB),NOSPLIT,$0-0
+	JMP	runtime·newarray(SB)

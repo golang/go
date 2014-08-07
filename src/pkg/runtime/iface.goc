@@ -10,9 +10,10 @@ package runtime
 #include "malloc.h"
 #include "../../cmd/ld/textflag.h"
 
-static	Itab*	hash[1009];
-static	Lock	ifacelock;
+extern	Itab*	runtime·hash[1009];
+extern	Lock	runtime·ifaceLock;
 
+// TODO: delete this when no longer used (ifaceE2I2 is all that's left)
 static Itab*
 itab(InterfaceType *inter, Type *type, int32 canfail)
 {
@@ -45,14 +46,14 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 	h = inter->typ.hash;
 	h += 17 * type->hash;
 	// TODO(rsc): h += 23 * x->mhash ?
-	h %= nelem(hash);
+	h %= nelem(runtime·hash);
 
 	// look twice - once without lock, once with.
 	// common case will be no lock contention.
 	for(locked=0; locked<2; locked++) {
 		if(locked)
-			runtime·lock(&ifacelock);
-		for(m=runtime·atomicloadp(&hash[h]); m!=nil; m=m->link) {
+			runtime·lock(&runtime·ifaceLock);
+		for(m=runtime·atomicloadp(&runtime·hash[h]); m!=nil; m=m->link) {
 			if(m->inter == inter && m->type == type) {
 				if(m->bad) {
 					m = nil;
@@ -68,7 +69,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 					}
 				}
 				if(locked)
-					runtime·unlock(&ifacelock);
+					runtime·unlock(&runtime·ifaceLock);
 				return m;
 			}
 		}
@@ -101,7 +102,7 @@ search:
 						nil, type->string, inter->typ.string,
 						iname, &err);
 					if(locked)
-						runtime·unlock(&ifacelock);
+						runtime·unlock(&runtime·ifaceLock);
 					runtime·panic(err);
 					return nil;	// not reached
 				}
@@ -118,9 +119,9 @@ search:
 out:
 	if(!locked)
 		runtime·panicstring("invalid itab locking");
-	m->link = hash[h];
-	runtime·atomicstorep(&hash[h], m);
-	runtime·unlock(&ifacelock);
+	m->link = runtime·hash[h];
+	runtime·atomicstorep(&runtime·hash[h], m);
+	runtime·unlock(&runtime·ifaceLock);
 	if(m->bad)
 		return nil;
 	return m;
@@ -133,295 +134,16 @@ runtime·iterate_itabs(void (*callback)(Itab*))
 	int32 i;
 	Itab *tab;
 
-	for(i = 0; i < nelem(hash); i++) {
-		for(tab = hash[i]; tab != nil; tab = tab->link) {
+	for(i = 0; i < nelem(runtime·hash); i++) {
+		for(tab = runtime·hash[i]; tab != nil; tab = tab->link) {
 			callback(tab);
 		}
 	}
 }
 
-static void
-copyin(Type *t, void *src, void **dst)
-{
-	uintptr size;
-	void *p;
-	Alg *alg;
-
-	size = t->size;
-	alg = t->alg;
-
-	if(size <= sizeof(*dst))
-		alg->copy(size, dst, src);
-	else {
-		p = runtime·cnew(t);
-		alg->copy(size, p, src);
-		*dst = p;
-	}
-}
-
-static void
-copyout(Type *t, void **src, void *dst)
-{
-	uintptr size;
-	Alg *alg;
-
-	size = t->size;
-	alg = t->alg;
-
-	if(size <= sizeof(*src))
-		alg->copy(size, dst, src);
-	else
-		alg->copy(size, dst, *src);
-}
-
-#pragma textflag NOSPLIT
-func typ2Itab(t *Type, inter *InterfaceType, cache **Itab) (tab *Itab) {
-	tab = itab(inter, t, 0);
-	runtime·atomicstorep(cache, tab);
-}
-
-#pragma textflag NOSPLIT
-func convT2I(t *Type, inter *InterfaceType, cache **Itab, elem *byte) (ret Iface) {
-	Itab *tab;
-
-	tab = runtime·atomicloadp(cache);
-	if(!tab) {
-		tab = itab(inter, t, 0);
-		runtime·atomicstorep(cache, tab);
-	}
-	ret.tab = tab;
-	copyin(t, elem, &ret.data);
-}
-
-#pragma textflag NOSPLIT
-func convT2E(t *Type, elem *byte) (ret Eface) {
-	ret.type = t;
-	copyin(t, elem, &ret.data);
-}
-
-static void assertI2Tret(Type *t, Iface i, byte *ret);
-
-/*
- * NOTE: Cannot use 'func' here, because we have to declare
- * a return value, the only types we have are at least 1 byte large,
- * goc2c will zero the return value, and the actual return value
- * might have size 0 bytes, in which case the zeroing of the
- * 1 or more bytes would be wrong.
- * Using C lets us control (avoid) the initial zeroing.
- */
-#pragma textflag NOSPLIT
-void
-runtime·assertI2T(Type *t, Iface i, GoOutput retbase)
-{
-	assertI2Tret(t, i, (byte*)&retbase);
-}
-
-static void
-assertI2Tret(Type *t, Iface i, byte *ret)
-{
-	Itab *tab;
-	Eface err;
-
-	tab = i.tab;
-	if(tab == nil) {
-		runtime·newTypeAssertionError(
-			nil, nil, t->string,
-			nil, &err);
-		runtime·panic(err);
-	}
-	if(tab->type != t) {
-		runtime·newTypeAssertionError(
-			tab->inter->typ.string, tab->type->string, t->string,
-			nil, &err);
-		runtime·panic(err);
-	}
-	copyout(t, &i.data, ret);
-}
-
-#pragma textflag NOSPLIT
-func assertI2T2(t *Type, i Iface) (ret byte, ...) {
-	bool *ok;
-	int32 wid;
-
-	wid = t->size;
-	ok = (bool*)(&ret + wid);
-
-	if(i.tab == nil || i.tab->type != t) {
-		*ok = false;
-		runtime·memclr(&ret, wid);
-		return;
-	}
-
-	*ok = true;
-	copyout(t, &i.data, &ret);
-}
-
-func assertI2TOK(t *Type, i Iface) (ok bool) {
-	ok = i.tab!=nil && i.tab->type==t;
-}
-
-static void assertE2Tret(Type *t, Eface e, byte *ret);
-
-/*
- * NOTE: Cannot use 'func' here. See assertI2T above.
- */
-#pragma textflag NOSPLIT
-void
-runtime·assertE2T(Type *t, Eface e, GoOutput retbase)
-{
-	assertE2Tret(t, e, (byte*)&retbase);
-}
-
-static void
-assertE2Tret(Type *t, Eface e, byte *ret)
-{
-	Eface err;
-
-	if(e.type == nil) {
-		runtime·newTypeAssertionError(
-			nil, nil, t->string,
-			nil, &err);
-		runtime·panic(err);
-	}
-	if(e.type != t) {
-		runtime·newTypeAssertionError(
-			nil, e.type->string, t->string,
-			nil, &err);
-		runtime·panic(err);
-	}
-	copyout(t, &e.data, ret);
-}
-
-#pragma textflag NOSPLIT
-func assertE2T2(t *Type, e Eface) (ret byte, ...) {
-	bool *ok;
-	int32 wid;
-
-	wid = t->size;
-	ok = (bool*)(&ret + wid);
-
-	if(t != e.type) {
-		*ok = false;
-		runtime·memclr(&ret, wid);
-		return;
-	}
-
-	*ok = true;
-	copyout(t, &e.data, &ret);
-}
-
-func assertE2TOK(t *Type, e Eface) (ok bool) {
-	ok = t==e.type;
-}
-
-func convI2E(i Iface) (ret Eface) {
-	Itab *tab;
-
-	ret.data = i.data;
-	if((tab = i.tab) == nil)
-		ret.type = nil;
-	else
-		ret.type = tab->type;
-}
-
-func assertI2E(inter *InterfaceType, i Iface) (ret Eface) {
-	Itab *tab;
-	Eface err;
-
-	tab = i.tab;
-	if(tab == nil) {
-		// explicit conversions require non-nil interface value.
-		runtime·newTypeAssertionError(
-			nil, nil, inter->typ.string,
-			nil, &err);
-		runtime·panic(err);
-	}
-	ret.data = i.data;
-	ret.type = tab->type;
-}
-
-func assertI2E2(inter *InterfaceType, i Iface) (ret Eface, ok bool) {
-	Itab *tab;
-
-	USED(inter);
-	tab = i.tab;
-	if(tab == nil) {
-		ret.type = nil;
-		ok = 0;
-	} else {
-		ret.type = tab->type;
-		ok = 1;
-	}
-	ret.data = i.data;
-}
-
-func convI2I(inter *InterfaceType, i Iface) (ret Iface) {
-	Itab *tab;
-
-	ret.data = i.data;
-	if((tab = i.tab) == nil)
-		ret.tab = nil;
-	else if(tab->inter == inter)
-		ret.tab = tab;
-	else
-		ret.tab = itab(inter, tab->type, 0);
-}
-
-void
-runtime·ifaceI2I(InterfaceType *inter, Iface i, Iface *ret)
-{
-	Itab *tab;
-	Eface err;
-
-	tab = i.tab;
-	if(tab == nil) {
-		// explicit conversions require non-nil interface value.
-		runtime·newTypeAssertionError(
-			nil, nil, inter->typ.string,
-			nil, &err);
-		runtime·panic(err);
-	}
-	ret->data = i.data;
-	ret->tab = itab(inter, tab->type, 0);
-}
-
-func assertI2I(inter *InterfaceType, i Iface) (ret Iface) {
-	runtime·ifaceI2I(inter, i, &ret);
-}
-
-func assertI2I2(inter *InterfaceType, i Iface) (ret Iface, ok bool) {
-	Itab *tab;
-
-	tab = i.tab;
-	if(tab != nil && (tab->inter == inter || (tab = itab(inter, tab->type, 1)) != nil)) {
-		ret.data = i.data;
-		ret.tab = tab;
-		ok = 1;
-	} else {
-		ret.data = 0;
-		ret.tab = 0;
-		ok = 0;
-	}
-}
-
-void
-runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
-{
-	Type *t;
-	Eface err;
-
-	t = e.type;
-	if(t == nil) {
-		// explicit conversions require non-nil interface value.
-		runtime·newTypeAssertionError(
-			nil, nil, inter->typ.string,
-			nil, &err);
-		runtime·panic(err);
-	}
-	ret->data = e.data;
-	ret->tab = itab(inter, t, 0);
-}
-
+// Still in C because it is called from C for finalizers.  This will
+// get converted to Go in a separate CL.  This is the last user of
+// the C version of itab().
 bool
 runtime·ifaceE2I2(InterfaceType *inter, Eface e, Iface *ret)
 {
@@ -430,49 +152,6 @@ runtime·ifaceE2I2(InterfaceType *inter, Eface e, Iface *ret)
 		return false;
 	ret->data = e.data;
 	return true;
-}
-
-func reflect·ifaceE2I(inter *InterfaceType, e Eface, dst *Iface) {
-	runtime·ifaceE2I(inter, e, dst);
-}
-
-func assertE2I(inter *InterfaceType, e Eface) (ret Iface) {
-	runtime·ifaceE2I(inter, e, &ret);
-}
-
-func assertE2I2(inter *InterfaceType, e Eface) (ret Iface, ok bool) {
-	if(e.type == nil) {
-		ok = 0;
-		ret.data = nil;
-		ret.tab = nil;
-	} else if((ret.tab = itab(inter, e.type, 1)) == nil) {
-		ok = 0;
-		ret.data = nil;
-	} else {
-		ok = 1;
-		ret.data = e.data;
-	}
-}
-
-func assertE2E(inter *InterfaceType, e Eface) (ret Eface) {
-	Type *t;
-	Eface err;
-
-	t = e.type;
-	if(t == nil) {
-		// explicit conversions require non-nil interface value.
-		runtime·newTypeAssertionError(
-			nil, nil, inter->typ.string,
-			nil, &err);
-		runtime·panic(err);
-	}
-	ret = e;
-}
-
-func assertE2E2(inter *InterfaceType, e Eface) (ret Eface, ok bool) {
-	USED(inter);
-	ret = e;
-	ok = e.type != nil;
 }
 
 static bool
@@ -519,55 +198,4 @@ runtime·efaceeq_c(Eface e1, Eface e2)
 	if(e1.type == nil)
 		return true;
 	return ifaceeq1(e1.data, e2.data, e1.type);
-}
-
-func ifaceeq(i1 Iface, i2 Iface) (ret bool) {
-	ret = runtime·ifaceeq_c(i1, i2);
-}
-
-func efaceeq(e1 Eface, e2 Eface) (ret bool) {
-	ret = runtime·efaceeq_c(e1, e2);
-}
-
-func ifacethash(i1 Iface) (ret uint32) {
-	Itab *tab;
-
-	ret = 0;
-	tab = i1.tab;
-	if(tab != nil)
-		ret = tab->type->hash;
-}
-
-func efacethash(e1 Eface) (ret uint32) {
-	Type *t;
-
-	ret = 0;
-	t = e1.type;
-	if(t != nil)
-		ret = t->hash;
-}
-
-func reflect·unsafe_Typeof(e Eface) (ret Eface) {
-	if(e.type == nil) {
-		ret.type = nil;
-		ret.data = nil;
-	} else {
-		ret = *(Eface*)(e.type);
-	}
-}
-
-func reflect·unsafe_New(t *Type) (ret *byte) {
-	ret = runtime·cnew(t);
-}
-
-func reflect·unsafe_NewArray(t *Type, n int) (ret *byte) {
-	ret = runtime·cnewarray(t, n);
-}
-
-func reflect·typelinks() (ret Slice) {
-	extern Type *typelink[], *etypelink[];
-	static int32 first = 1;
-	ret.array = (byte*)typelink;
-	ret.len = etypelink - typelink;
-	ret.cap = ret.len;
 }
