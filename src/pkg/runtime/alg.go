@@ -163,3 +163,13 @@ func int32Hash(i uint32, seed uintptr) uintptr {
 func int64Hash(i uint64, seed uintptr) uintptr {
 	return goalg(&algarray[alg_MEM64]).hash(noescape(unsafe.Pointer(&i)), 8, seed)
 }
+
+func efaceHash(i interface{}, seed uintptr) uintptr {
+	return goalg(&algarray[alg_NILINTER]).hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
+}
+
+func ifaceHash(i interface {
+	F()
+}, seed uintptr) uintptr {
+	return goalg(&algarray[alg_INTER]).hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
+}

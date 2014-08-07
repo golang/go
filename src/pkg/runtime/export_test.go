@@ -76,6 +76,8 @@ var StringHash = stringHash
 var BytesHash = bytesHash
 var Int32Hash = int32Hash
 var Int64Hash = int64Hash
+var EfaceHash = efaceHash
+var IfaceHash = ifaceHash
 
 var HashLoad = &hashLoad
 
