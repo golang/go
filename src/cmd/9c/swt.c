@@ -27,12 +27,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build ignore
-
 #include "gc.h"
 
 void
-swit1(C1 *q, int nc, long def, Node *n)
+swit1(C1 *q, int nc, int32 def, Node *n)
 {
 	Node tn;
 	
@@ -42,7 +40,7 @@ swit1(C1 *q, int nc, long def, Node *n)
 }
 
 void
-swit2(C1 *q, int nc, long def, Node *n, Node *tn)
+swit2(C1 *q, int nc, int32 def, Node *n, Node *tn)
 {
 	C1 *r;
 	int i;
@@ -86,7 +84,7 @@ void
 bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 {
 	int sh;
-	long v;
+	int32 v;
 	Node *l;
 
 	/*
@@ -124,7 +122,7 @@ bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 void
 bitstore(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 {
-	long v;
+	int32 v;
 	Node nod, *l;
 	int sh;
 
@@ -154,10 +152,10 @@ bitstore(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 	regfree(n3);
 }
 
-long
-outstring(char *s, long n)
+int32
+outstring(char *s, int32 n)
 {
-	long r;
+	int32 r;
 
 	if(suppress)
 		return nstring;
@@ -171,7 +169,7 @@ outstring(char *s, long n)
 			p->from.offset += nstring - NSNAME;
 			p->reg = NSNAME;
 			p->to.type = D_SCONST;
-			memmove(p->to.sval, string, NSNAME);
+			memmove(p->to.u.sval, string, NSNAME);
 			mnstring = 0;
 		}
 		n--;
@@ -184,7 +182,7 @@ mulcon(Node *n, Node *nn)
 {
 	Node *l, *r, nod1, nod2;
 	Multab *m;
-	long v;
+	int32 v;
 	int o;
 	char code[sizeof(m->code)+2], *p;
 
@@ -269,9 +267,9 @@ loop:
 }
 
 void
-sextern(Sym *s, Node *a, long o, long w)
+sextern(Sym *s, Node *a, int32 o, int32 w)
 {
-	long e, lw;
+	int32 e, lw;
 
 	for(e=0; e<w; e+=NSNAME) {
 		lw = NSNAME;
@@ -281,28 +279,13 @@ sextern(Sym *s, Node *a, long o, long w)
 		p->from.offset += o+e;
 		p->reg = lw;
 		p->to.type = D_SCONST;
-		memmove(p->to.sval, a->cstring+e, lw);
+		memmove(p->to.u.sval, a->cstring+e, lw);
 	}
 }
 
 void
-gextern(Sym *s, Node *a, long o, long w)
+gextern(Sym *s, Node *a, int32 o, int32 w)
 {
-	if(a->op == OCONST && typev[a->type->etype]) {
-		if(align(0, types[TCHAR], Aarg1))	/* isbigendian */
-			gpseudo(ADATA, s, nod32const(a->vconst>>32));
-		else
-			gpseudo(ADATA, s, nod32const(a->vconst));
-		p->from.offset += o;
-		p->reg = 4;
-		if(align(0, types[TCHAR], Aarg1))	/* isbigendian */
-			gpseudo(ADATA, s, nod32const(a->vconst));
-		else
-			gpseudo(ADATA, s, nod32const(a->vconst>>32));
-		p->from.offset += o + 4;
-		p->reg = 4;
-		return;
-	}
 	gpseudo(ADATA, s, a);
 	p->from.offset += o;
 	p->reg = w;
@@ -310,282 +293,28 @@ gextern(Sym *s, Node *a, long o, long w)
 		p->to.type = D_CONST;
 }
 
-void	zname(Biobuf*, Sym*, int);
-char*	zaddr(char*, Adr*, int);
-void	zwrite(Biobuf*, Prog*, int, int);
-void	outhist(Biobuf*);
-
 void
 outcode(void)
 {
-	struct { Sym *sym; short type; } h[NSYM];
-	Prog *p;
-	Sym *s;
-	int sf, st, t, sym;
+	Bprint(&outbuf, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
+	if(pragcgobuf.to > pragcgobuf.start) {
+		Bprint(&outbuf, "\n");
+		Bprint(&outbuf, "$$  // exports\n\n");
+		Bprint(&outbuf, "$$  // local types\n\n");
+		Bprint(&outbuf, "$$  // cgo\n");
+		Bprint(&outbuf, "%s", fmtstrflush(&pragcgobuf));
+		Bprint(&outbuf, "\n$$\n\n");
+	}
+	Bprint(&outbuf, "!\n");
 
-	if(debug['S']) {
-		for(p = firstp; p != P; p = p->link)
-			if(p->as != ADATA && p->as != AGLOBL)
-				pc--;
-		for(p = firstp; p != P; p = p->link) {
-			print("%P\n", p);
-			if(p->as != ADATA && p->as != AGLOBL)
-				pc++;
-		}
-	}
-	outhist(&outbuf);
-	for(sym=0; sym<NSYM; sym++) {
-		h[sym].sym = S;
-		h[sym].type = 0;
-	}
-	sym = 1;
-	for(p = firstp; p != P; p = p->link) {
-	jackpot:
-		sf = 0;
-		s = p->from.sym;
-		while(s != S) {
-			sf = s->sym;
-			if(sf < 0 || sf >= NSYM)
-				sf = 0;
-			t = p->from.name;
-			if(h[sf].type == t)
-			if(h[sf].sym == s)
-				break;
-			s->sym = sym;
-			zname(&outbuf, s, t);
-			h[sym].sym = s;
-			h[sym].type = t;
-			sf = sym;
-			sym++;
-			if(sym >= NSYM)
-				sym = 1;
-			break;
-		}
-		st = 0;
-		s = p->to.sym;
-		while(s != S) {
-			st = s->sym;
-			if(st < 0 || st >= NSYM)
-				st = 0;
-			t = p->to.name;
-			if(h[st].type == t)
-			if(h[st].sym == s)
-				break;
-			s->sym = sym;
-			zname(&outbuf, s, t);
-			h[sym].sym = s;
-			h[sym].type = t;
-			st = sym;
-			sym++;
-			if(sym >= NSYM)
-				sym = 1;
-			if(st == sf)
-				goto jackpot;
-			break;
-		}
-		zwrite(&outbuf, p, sf, st);
-	}
-	firstp = P;
-	lastp = P;
+	writeobj(ctxt, &outbuf);
+	lastp = nil;
 }
 
-void
-zwrite(Biobuf *b, Prog *p, int sf, int st)
+int32
+align(int32 i, Type *t, int op, int32 *maxalign)
 {
-	char bf[100], *bp;
-	long l;
-
-	bf[0] = p->as;
-	bf[1] = p->as>>8;
-	bf[2] = p->reg;
-	l = p->lineno;
-	bf[3] = l;
-	bf[4] = l>>8;
-	bf[5] = l>>16;
-	bf[6] = l>>24;
-	bp = zaddr(bf+7, &p->from, sf);
-	bp = zaddr(bp, &p->to, st);
-	Bwrite(b, bf, bp-bf);
-}
-
-void
-outhist(Biobuf *b)
-{
-	Hist *h;
-	char *p, *q, *op, c;
-	Prog pg;
-	int n;
-
-	pg = zprog;
-	pg.as = AHISTORY;
-	c = pathchar();
-	for(h = hist; h != H; h = h->link) {
-		p = h->name;
-		op = 0;
-		/* on windows skip drive specifier in pathname */
-		if(systemtype(Windows) && p && p[1] == ':'){
-			p += 2;
-			c = *p;
-		}
-		if(p && p[0] != c && h->offset == 0 && pathname){
-			/* on windows skip drive specifier in pathname */
-			if(systemtype(Windows) && pathname[1] == ':') {
-				op = p;
-				p = pathname+2;
-				c = *p;
-			} else if(pathname[0] == c){
-				op = p;
-				p = pathname;
-			}
-		}
-		while(p) {
-			q = utfrune(p, c);
-			if(q) {
-				n = q-p;
-				if(n == 0){
-					n = 1;	/* leading "/" */
-					*p = '/';	/* don't emit "\" on windows */
-				}
-				q++;
-			} else {
-				n = strlen(p);
-				q = 0;
-			}
-			if(n) {
-				Bputc(b, ANAME);
-				Bputc(b, ANAME>>8);
-				Bputc(b, D_FILE);
-				Bputc(b, 1);
-				Bputc(b, '<');
-				Bwrite(b, p, n);
-				Bputc(b, 0);
-			}
-			p = q;
-			if(p == 0 && op) {
-				p = op;
-				op = 0;
-			}
-		}
-		pg.lineno = h->line;
-		pg.to.type = zprog.to.type;
-		pg.to.offset = h->offset;
-		if(h->offset)
-			pg.to.type = D_CONST;
-
-		zwrite(b, &pg, 0, 0);
-	}
-}
-
-void
-zname(Biobuf *b, Sym *s, int t)
-{
-	char *n, bf[8];
-	ulong sig;
-
-	n = s->name;
-	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
-		sig = sign(s);
-		bf[0] = ASIGNAME;
-		bf[1] = ASIGNAME>>8;
-		bf[2] = sig;
-		bf[3] = sig>>8;
-		bf[4] = sig>>16;
-		bf[5] = sig>>24;
-		bf[6] = t;
-		bf[7] = s->sym;
-		Bwrite(b, bf, 8);
-		s->sig = SIGDONE;
-	}
-	else{
-		bf[0] = ANAME;
-		bf[1] = ANAME>>8;
-		bf[2] = t;	/* type */
-		bf[3] = s->sym;	/* sym */
-		Bwrite(b, bf, 4);
-	}
-	Bwrite(b, n, strlen(n)+1);
-}
-
-char*
-zaddr(char *bp, Adr *a, int s)
-{
-	long l;
-	Ieee e;
-
-	if(a->type == D_CONST){
-		l = a->offset;
-		if((vlong)l != a->offset)
-			a->type = D_DCONST;
-	}
-	bp[0] = a->type;
-	bp[1] = a->reg;
-	bp[2] = s;
-	bp[3] = a->name;
-	bp += 4;
-	switch(a->type) {
-	default:
-		diag(Z, "unknown type %d in zaddr", a->type);
-
-	case D_NONE:
-	case D_REG:
-	case D_FREG:
-	case D_CREG:
-		break;
-
-	case D_OREG:
-	case D_CONST:
-	case D_BRANCH:
-		l = a->offset;
-		bp[0] = l;
-		bp[1] = l>>8;
-		bp[2] = l>>16;
-		bp[3] = l>>24;
-		bp += 4;
-		break;
-
-	case D_DCONST:
-		l = a->offset;
-		bp[0] = l;
-		bp[1] = l>>8;
-		bp[2] = l>>16;
-		bp[3] = l>>24;
-		bp += 4;
-		l = a->offset>>32;
-		bp[0] = l;
-		bp[1] = l>>8;
-		bp[2] = l>>16;
-		bp[3] = l>>24;
-		bp += 4;
-		break;
-
-	case D_SCONST:
-		memmove(bp, a->sval, NSNAME);
-		bp += NSNAME;
-		break;
-
-	case D_FCONST:
-		ieeedtod(&e, a->dval);
-		l = e.l;
-		bp[0] = l;
-		bp[1] = l>>8;
-		bp[2] = l>>16;
-		bp[3] = l>>24;
-		bp += 4;
-		l = e.h;
-		bp[0] = l;
-		bp[1] = l>>8;
-		bp[2] = l>>16;
-		bp[3] = l>>24;
-		bp += 4;
-		break;
-	}
-	return bp;
-}
-
-long
-align(long i, Type *t, int op)
-{
-	long o;
+	int32 o;
 	Type *v;
 	int w;
 
@@ -597,7 +326,9 @@ align(long i, Type *t, int op)
 		break;
 
 	case Asu2:	/* padding at end of a struct */
-		w = SZ_VLONG;
+		w = *maxalign;
+		if(w < 1)
+			w = 1;
 		if(packflg)
 			w = packflg;
 		break;
@@ -605,9 +336,12 @@ align(long i, Type *t, int op)
 	case Ael1:	/* initial allign of struct element */
 		for(v=t; v->etype==TARRAY; v=v->link)
 			;
-		w = ewidth[v->etype];
-		if(w <= 0 || w >= SZ_VLONG)
-			w = SZ_VLONG;
+		if(v->etype == TSTRUCT || v->etype == TUNION)
+			w = v->align;
+		else
+			w = ewidth[v->etype];
+		if(w < 1 || w > SZ_VLONG)
+			fatal(Z, "align");
 		if(packflg)
 			w = packflg;
 		break;
@@ -618,8 +352,8 @@ align(long i, Type *t, int op)
 
 	case Aarg0:	/* initial passbyptr argument in arg list */
 		if(typesu[t->etype]) {
-			o = align(o, types[TIND], Aarg1);
-			o = align(o, types[TIND], Aarg2);
+			o = align(o, types[TIND], Aarg1, nil);
+			o = align(o, types[TIND], Aarg2, nil);
 		}
 		break;
 
@@ -629,30 +363,33 @@ align(long i, Type *t, int op)
 			w = SZ_VLONG;
 			break;
 		}
-		o += SZ_VLONG - w;	/* big endian adjustment */
 		w = 1;
 		break;
 
 	case Aarg2:	/* width of a parameter */
 		o += t->width;
-		w = SZ_VLONG;
+		w = t->width;
+		if(w > SZ_VLONG)
+			w = SZ_VLONG;
 		break;
 
 	case Aaut3:	/* total align of automatic */
-		o = align(o, t, Ael1);
-		o = align(o, t, Ael2);
+		o = align(o, t, Ael1, nil);
+		o = align(o, t, Ael2, nil);
 		break;
 	}
-	o = round(o, w);
+	o = xround(o, w);
+	if(maxalign && *maxalign < w)
+		*maxalign = w;
 	if(debug['A'])
 		print("align %s %ld %T = %ld\n", bnames[op], i, t, o);
 	return o;
 }
 
-long
-maxround(long max, long v)
+int32
+maxround(int32 max, int32 v)
 {
-	v = round(v, SZ_VLONG);
+	v = xround(v, SZ_VLONG);
 	if(v > max)
 		return v;
 	return max;

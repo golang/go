@@ -27,21 +27,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build ignore
-
 #include "gc.h"
 
 static	int	resvreg[nelem(reg)];
 
 #define	isv(et)	((et) == TVLONG || (et) == TUVLONG || (et) == TIND)
 
+int thechar = '9';
+char *thestring = "power64";
+
+LinkArch	*thelinkarch;
+
+void
+linkarchinit(void)
+{
+	thestring = getgoarch();
+	if(strcmp(thestring, "power64le") == 0)
+		thelinkarch = &linkpower64le;
+	else
+		thelinkarch = &linkpower64;
+}
+
+
 void
 ginit(void)
 {
 	Type *t;
 
-	thechar = '9';
-	thestring = "power64";
+	dodefine("_64BITREG");
+	dodefine("_64BIT");
 	exregoffset = REGEXT;
 	exfregoffset = FREGEXT;
 	listinit();
@@ -52,12 +66,10 @@ ginit(void)
 	breakpc = -1;
 	continpc = -1;
 	cases = C;
-	firstp = P;
 	lastp = P;
 	tfield = types[TLONG];
 
 	typeword = typechlvp;
-	typeswitch = typechlv;
 	typecmplx = typesu;
 	/* TO DO */
 	memmove(typechlpv, typechlp, sizeof(typechlpv));
@@ -70,6 +82,7 @@ ginit(void)
 	zprog.from.type = D_NONE;
 	zprog.from.name = D_NONE;
 	zprog.from.reg = NREG;
+	zprog.from3 = zprog.from;
 	zprog.to = zprog.from;
 
 	regnode.op = OREGISTER;
@@ -174,24 +187,25 @@ gclean(void)
 void
 nextpc(void)
 {
+	Plist *pl;
 
 	p = alloc(sizeof(*p));
 	*p = zprog;
 	p->lineno = nearln;
+	p->pc = pc;
 	pc++;
-	if(firstp == P) {
-		firstp = p;
-		lastp = p;
-		return;
-	}
-	lastp->link = p;
+	if(lastp == P) {
+		pl = linknewplist(ctxt);
+		pl->firstpc = p;
+	} else
+		lastp->link = p;
 	lastp = p;
 }
 
 void
 gargs(Node *n, Node *tn1, Node *tn2)
 {
-	long regs;
+	int32 regs;
 	Node fnxargs[20], *fnxp;
 
 	regs = cursafe;
@@ -276,13 +290,13 @@ Node*
 nodgconst(vlong v, Type *t)
 {
 	if(!typev[t->etype])
-		return nodconst((long)v);
+		return nodconst((int32)v);
 	vconstnode.vconst = v;
 	return &vconstnode;
 }
 
 Node*
-nodconst(long v)
+nodconst(int32 v)
 {
 	constnode.vconst = v;
 	return &constnode;
@@ -416,7 +430,7 @@ err:
 void
 regsalloc(Node *n, Node *nn)
 {
-	cursafe = align(cursafe, nn->type, Aaut3);
+	cursafe = align(cursafe, nn->type, Aaut3, nil);
 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
 	*n = *nodsafe;
 	n->xoffset = -(stkoff + cursafe);
@@ -428,24 +442,26 @@ regsalloc(Node *n, Node *nn)
 void
 regaalloc1(Node *n, Node *nn)
 {
+	if(REGARG < 0)
+		return;
 	nodreg(n, nn, REGARG);
 	reg[REGARG]++;
-	curarg = align(curarg, nn->type, Aarg1);
-	curarg = align(curarg, nn->type, Aarg2);
+	curarg = align(curarg, nn->type, Aarg1, nil);
+	curarg = align(curarg, nn->type, Aarg2, nil);
 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
 }
 
 void
 regaalloc(Node *n, Node *nn)
 {
-	curarg = align(curarg, nn->type, Aarg1);
+	curarg = align(curarg, nn->type, Aarg1, nil);
 	*n = *nn;
 	n->op = OINDREG;
 	n->reg = REGSP;
 	n->xoffset = curarg + SZ_VLONG;
 	n->complex = 0;
 	n->addable = 20;
-	curarg = align(curarg, nn->type, Aarg2);
+	curarg = align(curarg, nn->type, Aarg2, nil);
 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
 }
 
@@ -464,7 +480,7 @@ regind(Node *n, Node *nn)
 void
 raddr(Node *n, Prog *p)
 {
-	Adr a;
+	Addr a;
 
 	naddr(n, &a);
 	if(R0ISZERO && a.type == D_CONST && a.offset == 0) {
@@ -482,9 +498,9 @@ raddr(Node *n, Prog *p)
 }
 
 void
-naddr(Node *n, Adr *a)
+naddr(Node *n, Addr *a)
 {
-	long v;
+	int32 v;
 
 	a->type = D_NONE;
 	if(n == Z)
@@ -492,12 +508,13 @@ naddr(Node *n, Adr *a)
 	switch(n->op) {
 	default:
 	bad:
-		diag(n, "bad in naddr: %O", n->op);
+		prtree(n, "naddr");
+		diag(n, "%L: !bad in naddr: %O", n->lineno, n->op);
 		break;
 
 	case OREGISTER:
 		a->type = D_REG;
-		a->sym = S;
+		a->sym = nil;
 		a->reg = n->reg;
 		if(a->reg >= NREG) {
 			a->type = D_FREG;
@@ -519,7 +536,7 @@ naddr(Node *n, Adr *a)
 
 	case OINDREG:
 		a->type = D_OREG;
-		a->sym = S;
+		a->sym = nil;
 		a->offset = n->xoffset;
 		a->reg = n->reg;
 		break;
@@ -528,7 +545,7 @@ naddr(Node *n, Adr *a)
 		a->etype = n->etype;
 		a->type = D_OREG;
 		a->name = D_STATIC;
-		a->sym = n->sym;
+		a->sym = linksym(n->sym);
 		a->offset = n->xoffset;
 		if(n->class == CSTATIC)
 			break;
@@ -547,11 +564,11 @@ naddr(Node *n, Adr *a)
 		goto bad;
 
 	case OCONST:
-		a->sym = S;
+		a->sym = nil;
 		a->reg = NREG;
 		if(typefd[n->type->etype]) {
 			a->type = D_FCONST;
-			a->dval = n->fconst;
+			a->u.dval = n->fconst;
 		} else {
 			a->type = D_CONST;
 			a->offset = n->vconst;
@@ -786,7 +803,7 @@ gmove(Node *f, Node *t)
 		case TUSHORT:
 		case TCHAR:
 		case TUCHAR:
-			/* BUG: not right for unsigned long */
+			/* BUG: not right for unsigned int32 */
 			regalloc(&nod, f, Z);	/* should be type float */
 			regsalloc(&fxrat, f);
 			gins(AFCTIWZ, f, &nod);
@@ -800,7 +817,7 @@ gmove(Node *f, Node *t)
 			return;
 		case TVLONG:
 		case TUVLONG:
-			/* BUG: not right for unsigned long */
+			/* BUG: not right for unsigned int32 */
 			regalloc(&nod, f, Z);	/* should be type float */
 			regsalloc(&fxrat, f);
 			gins(AFCTIDZ, f, &nod);
@@ -1030,7 +1047,7 @@ void
 gopcode(int o, Node *f1, Node *f2, Node *t)
 {
 	int a, et;
-	Adr ta;
+	Addr ta;
 	int uns;
 
 	uns = 0;
@@ -1297,7 +1314,7 @@ gbranch(int o)
 }
 
 void
-patch(Prog *op, long pc)
+patch(Prog *op, int32 pc)
 {
 
 	op->to.offset = pc;
@@ -1311,9 +1328,18 @@ gpseudo(int a, Sym *s, Node *n)
 	nextpc();
 	p->as = a;
 	p->from.type = D_OREG;
-	p->from.sym = s;
-	if(a == ATEXT)
-		p->reg = (profileflg ? 0 : NOPROF);
+	p->from.sym = linksym(s);
+
+	switch(a) {
+	case ATEXT:
+		p->reg = textflag;
+		textflag = 0;
+		break;
+	case AGLOBL:
+		p->reg = s->dataflag;
+		break;
+	}
+
 	p->from.name = D_EXTERN;
 	if(s->class == CSTATIC)
 		p->from.name = D_STATIC;
@@ -1323,13 +1349,39 @@ gpseudo(int a, Sym *s, Node *n)
 }
 
 int
-sval(long v)
+sval(int32 v)
 {
 
 	if(v >= -(1<<15) && v < (1<<15))
 		return 1;
 	return 0;
 }
+
+void
+gpcdata(int index, int value)
+{
+	Node n1;
+
+	n1 = *nodconst(index);
+	gins(APCDATA, &n1, nodconst(value));
+}
+
+void
+gprefetch(Node *n)
+{
+	// TODO(minux)
+	USED(n);
+	/*
+	Node n1;
+
+	regalloc(&n1, n, Z);
+	gmove(n, &n1);
+	n1.op = OINDREG;
+	gins(ADCBT, &n1, Z);
+	regfree(&n1);
+	*/
+}
+
 
 int
 sconst(Node *n)
@@ -1378,10 +1430,10 @@ immconst(Node *n)
 	return 0;
 }
 
-long
+int32
 exreg(Type *t)
 {
-	long o;
+	int32 o;
 
 	if(typechlpv[t->etype]) {
 		if(exregoffset <= 3)
@@ -1423,7 +1475,7 @@ schar	ewidth[NTYPE] =
 	-1,		/* [TUNION] */
 	SZ_INT,		/* [TENUM] */
 };
-long	ncast[NTYPE] =
+int32	ncast[NTYPE] =
 {
 	0,				/* [TXXX] */
 	BCHAR|BUCHAR,			/* [TCHAR] */
