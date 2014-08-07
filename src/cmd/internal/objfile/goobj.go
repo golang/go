@@ -4,13 +4,25 @@
 
 // Parsing of Go intermediate object files and archives.
 
-package main
+package objfile
 
 import (
 	"debug/goobj"
 	"fmt"
 	"os"
 )
+
+type goobjFile struct {
+	goobj *goobj.Package
+}
+
+func openGoobj(r *os.File) (rawFile, error) {
+	f, err := goobj.Parse(r, `""`)
+	if err != nil {
+		return nil, err
+	}
+	return &goobjFile{f}, nil
+}
 
 func goobjName(id goobj.SymID) string {
 	if id.Version == 0 {
@@ -19,17 +31,11 @@ func goobjName(id goobj.SymID) string {
 	return fmt.Sprintf("%s<%d>", id.Name, id.Version)
 }
 
-func goobjSymbols(f *os.File) []Sym {
-	pkg, err := goobj.Parse(f, `""`)
-	if err != nil {
-		errorf("parsing %s: %v", f.Name(), err)
-		return nil
-	}
-
+func (f *goobjFile) symbols() ([]Sym, error) {
 	seen := make(map[goobj.SymID]bool)
 
 	var syms []Sym
-	for _, s := range pkg.Syms {
+	for _, s := range f.goobj.Syms {
 		seen[s.SymID] = true
 		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: int64(s.Size), Type: s.Type.Name, Code: '?'}
 		switch s.Kind {
@@ -50,7 +56,7 @@ func goobjSymbols(f *os.File) []Sym {
 		syms = append(syms, sym)
 	}
 
-	for _, s := range pkg.Syms {
+	for _, s := range f.goobj.Syms {
 		for _, r := range s.Reloc {
 			if !seen[r.Sym] {
 				seen[r.Sym] = true
@@ -64,5 +70,12 @@ func goobjSymbols(f *os.File) []Sym {
 		}
 	}
 
-	return syms
+	return syms, nil
+}
+
+// pcln does not make sense for Go object files, because each
+// symbol has its own individual pcln table, so there is no global
+// space of addresses to map.
+func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+	return 0, nil, nil, fmt.Errorf("pcln not available in go object file")
 }
