@@ -23,27 +23,26 @@ var useSyscallwd = func(error) bool { return true }
 // reached via multiple paths (due to symbolic links),
 // Getwd may return any one of them.
 func Getwd() (dir string, err error) {
-	// If the operating system provides a Getwd call, use it.
-	if syscall.ImplementsGetwd {
-		s, e := syscall.Getwd()
-		if useSyscallwd(e) {
-			return s, NewSyscallError("getwd", e)
-		}
-	}
-
-	// Otherwise, we're trying to find our way back to ".".
+	// Clumsy but widespread kludge:
+	// if $PWD is set and matches ".", use it.
 	dot, err := Stat(".")
 	if err != nil {
 		return "", err
 	}
-
-	// Clumsy but widespread kludge:
-	// if $PWD is set and matches ".", use it.
 	dir = Getenv("PWD")
 	if len(dir) > 0 && dir[0] == '/' {
 		d, err := Stat(dir)
 		if err == nil && SameFile(dot, d) {
 			return dir, nil
+		}
+	}
+
+	// If the operating system provides a Getwd call, use it.
+	// Otherwise, we're trying to find our way back to ".".
+	if syscall.ImplementsGetwd {
+		s, e := syscall.Getwd()
+		if useSyscallwd(e) {
+			return s, NewSyscallError("getwd", e)
 		}
 	}
 
