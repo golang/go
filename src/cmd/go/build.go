@@ -2312,7 +2312,23 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles, gxxfiles, mfiles
 			nonGccObjs = append(nonGccObjs, f)
 		}
 	}
-	if err := b.gccld(p, ofile, stringList(bareLDFLAGS, "-Wl,-r", "-nostdlib", staticLibs), gccObjs); err != nil {
+	ldflags := stringList(bareLDFLAGS, "-Wl,-r", "-nostdlib", staticLibs)
+
+	// Some systems, such as Ubuntu, always add --build-id to
+	// every link, but we don't want a build ID since we are
+	// producing an object file.  On some of those system a plain
+	// -r (not -Wl,-r) will turn off --build-id, but clang 3.0
+	// doesn't support a plain -r.  I don't know how to turn off
+	// --build-id when using clang other than passing a trailing
+	// --build-id=none.  So that is what we do, but only on
+	// systems likely to support it, which is to say, systems that
+	// normally use gold or the GNU linker.
+	switch goos {
+	case "android", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
+		ldflags = append(ldflags, "-Wl,--build-id=none")
+	}
+
+	if err := b.gccld(p, ofile, ldflags, gccObjs); err != nil {
 		return nil, nil, err
 	}
 
