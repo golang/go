@@ -559,6 +559,8 @@ markroot(ParFor *desc, uint32 i)
 		// needed only to output in traceback
 		if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince == 0)
 			gp->waitsince = work.tstart;
+		// Shrink a stack if not much of it is being used.
+		runtime·shrinkstack(gp);
 		scanstack(gp);
 		break;
 		
@@ -1391,7 +1393,6 @@ gc(struct gc_args *args)
 	int64 t0, t1, t2, t3, t4;
 	uint64 heap0, heap1, obj;
 	GCStats stats;
-	uint32 i;
 
 	if(runtime·debug.allocfreetrace)
 		runtime·tracegc();
@@ -1513,11 +1514,6 @@ gc(struct gc_args *args)
 		while(runtime·sweepone() != -1)
 			sweep.npausesweep++;
 	}
-
-	// Shrink a stack if not much of it is being used.
-	// TODO: do in a parfor
-	for(i = 0; i < runtime·allglen; i++)
-		runtime·shrinkstack(runtime·allg[i]);
 
 	runtime·MProf_GC();
 	g->m->traceback = 0;
