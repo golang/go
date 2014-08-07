@@ -2179,7 +2179,7 @@ dwarfaddshstrings(LSym *shstrtab)
 	elfstrdbg[ElfStrDebugStr]      = addstring(shstrtab, ".debug_str");
 	elfstrdbg[ElfStrGDBScripts]    = addstring(shstrtab, ".debug_gdb_scripts");
 	if(linkmode == LinkExternal) {
-		if(thechar == '6') {
+		if(thechar == '6' || thechar == '9') {
 			elfstrdbg[ElfStrRelDebugInfo] = addstring(shstrtab, ".rela.debug_info");
 			elfstrdbg[ElfStrRelDebugAranges] = addstring(shstrtab, ".rela.debug_aranges");
 			elfstrdbg[ElfStrRelDebugLine] = addstring(shstrtab, ".rela.debug_line");
@@ -2234,7 +2234,7 @@ dwarfaddelfrelocheader(int elfstr, ElfShdr *shdata, vlong off, vlong size)
 	ElfShdr *sh;
 
 	sh = newElfShdr(elfstrdbg[elfstr]);
-	if(thechar == '6') {
+	if(thechar == '6' || thechar == '9') {
 		sh->type = SHT_RELA;
 	} else {
 		sh->type = SHT_REL;

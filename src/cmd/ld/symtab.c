@@ -78,6 +78,7 @@ putelfsyment(int off, vlong addr, vlong size, int info, int shndx, int other)
 {
 	switch(thechar) {
 	case '6':
+	case '9':
 		LPUT(off);
 		cput(info);
 		cput(other);
