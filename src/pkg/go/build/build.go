@@ -521,7 +521,12 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 
 		// Determine directory from import path.
 		if ctxt.GOROOT != "" {
-			dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", path)
+			var dir string
+			if strings.HasPrefix(path, "cmd/") {
+				dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
+			} else {
+				dir = ctxt.joinPath(ctxt.GOROOT, "src", "pkg", path)
+			}
 			isDir := ctxt.isDir(dir)
 			binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
 			if isDir || binaryOnly {
