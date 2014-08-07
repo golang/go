@@ -1055,6 +1055,19 @@ orderexpr(Node **np, Order *order)
 		orderexpr(&n->left, order);
 		n = ordercopyexpr(n, n->type, order, 1);
 		break;
+
+	case OEQ:
+	case ONE:
+		orderexpr(&n->left, order);
+		orderexpr(&n->right, order);
+		t = n->left->type;
+		if(t->etype == TSTRUCT || isfixedarray(t)) {
+			// for complex comparisons, we need both args to be
+			// addressable so we can pass them to the runtime.
+			orderaddrtemp(&n->left, order);
+			orderaddrtemp(&n->right, order);
+		}
+		break;
 	}
 	
 	lineno = lno;

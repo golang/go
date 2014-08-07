@@ -2856,18 +2856,19 @@ genhash(Sym *sym, Type *t)
 }
 
 // Return node for
-//	if p.field != q.field { *eq = false; return }
+//	if p.field != q.field { return false }
 static Node*
-eqfield(Node *p, Node *q, Node *field, Node *eq)
+eqfield(Node *p, Node *q, Node *field)
 {
-	Node *nif, *nx, *ny;
+	Node *nif, *nx, *ny, *r;
 
 	nx = nod(OXDOT, p, field);
 	ny = nod(OXDOT, q, field);
 	nif = nod(OIF, N, N);
 	nif->ntest = nod(ONE, nx, ny);
-	nif->nbody = list(nif->nbody, nod(OAS, nod(OIND, eq, N), nodbool(0)));
-	nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
+	r = nod(ORETURN, N, N);
+	r->list = list(r->list, nodbool(0));
+	nif->nbody = list(nif->nbody, r);
 	return nif;
 }
 
@@ -2896,11 +2897,11 @@ eqmemfunc(vlong size, Type *type)
 }
 
 // Return node for
-//	if memequal(size, &p.field, &q.field, eq); !*eq { return }
+//	if !memequal(&p.field, &q.field, size) { return false }
 static Node*
-eqmem(Node *p, Node *q, Node *field, vlong size, Node *eq)
+eqmem(Node *p, Node *q, Node *field, vlong size)
 {
-	Node *nif, *nx, *ny, *call;
+	Node *nif, *nx, *ny, *call, *r;
 
 	nx = nod(OADDR, nod(OXDOT, p, field), N);
 	nx->etype = 1;  // does not escape
@@ -2910,15 +2911,16 @@ eqmem(Node *p, Node *q, Node *field, vlong size, Node *eq)
 	typecheck(&ny, Erv);
 
 	call = nod(OCALL, eqmemfunc(size, nx->type->type), N);
-	call->list = list(call->list, eq);
-	call->list = list(call->list, nodintconst(size));
 	call->list = list(call->list, nx);
 	call->list = list(call->list, ny);
+	call->list = list(call->list, nodintconst(size));
 
 	nif = nod(OIF, N, N);
 	nif->ninit = list(nif->ninit, call);
-	nif->ntest = nod(ONOT, nod(OIND, eq, N), N);
-	nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
+	nif->ntest = nod(ONOT, call, N);
+	r = nod(ORETURN, N, N);
+	r->list = list(r->list, nodbool(0));
+	nif->nbody = list(nif->nbody, r);
 	return nif;
 }
 
@@ -2928,7 +2930,7 @@ eqmem(Node *p, Node *q, Node *field, vlong size, Node *eq)
 void
 geneq(Sym *sym, Type *t)
 {
-	Node *n, *fn, *np, *neq, *nq, *tfn, *nif, *ni, *nx, *ny, *nrange;
+	Node *n, *fn, *np, *nq, *tfn, *nif, *ni, *nx, *ny, *nrange, *r;
 	Type *t1, *first;
 	int old_safemode;
 	int64 size;
@@ -2941,24 +2943,23 @@ geneq(Sym *sym, Type *t)
 	dclcontext = PEXTERN;
 	markdcl();
 
-	// func sym(eq *bool, s uintptr, p, q *T)
+	// func sym(p, q *T, s uintptr) bool
 	fn = nod(ODCLFUNC, N, N);
 	fn->nname = newname(sym);
 	fn->nname->class = PFUNC;
 	tfn = nod(OTFUNC, N, N);
 	fn->nname->ntype = tfn;
 
-	n = nod(ODCLFIELD, newname(lookup("eq")), typenod(ptrto(types[TBOOL])));
-	tfn->list = list(tfn->list, n);
-	neq = n->left;
-	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
-	tfn->list = list(tfn->list, n);
 	n = nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)));
 	tfn->list = list(tfn->list, n);
 	np = n->left;
 	n = nod(ODCLFIELD, newname(lookup("q")), typenod(ptrto(t)));
 	tfn->list = list(tfn->list, n);
 	nq = n->left;
+	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
+	tfn->list = list(tfn->list, n);
+	n = nod(ODCLFIELD, N, typenod(types[TBOOL]));
+	tfn->rlist = list(tfn->rlist, n);
 
 	funchdr(fn);
 
@@ -2984,7 +2985,7 @@ geneq(Sym *sym, Type *t)
 		colasdefn(nrange->list, nrange);
 		ni = nrange->list->n;
 		
-		// if p[i] != q[i] { *eq = false; return }
+		// if p[i] != q[i] { return false }
 		nx = nod(OINDEX, np, ni);
 		nx->bounded = 1;
 		ny = nod(OINDEX, nq, ni);
@@ -2992,13 +2993,11 @@ geneq(Sym *sym, Type *t)
 
 		nif = nod(OIF, N, N);
 		nif->ntest = nod(ONE, nx, ny);
-		nif->nbody = list(nif->nbody, nod(OAS, nod(OIND, neq, N), nodbool(0)));
-		nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
+		r = nod(ORETURN, N, N);
+		r->list = list(r->list, nodbool(0));
+		nif->nbody = list(nif->nbody, r);
 		nrange->nbody = list(nrange->nbody, nif);
 		fn->nbody = list(fn->nbody, nrange);
-
-		// *eq = true;
-		fn->nbody = list(fn->nbody, nod(OAS, nod(OIND, neq, N), nodbool(1)));
 		break;
 
 	case TSTRUCT:
@@ -3023,16 +3022,16 @@ geneq(Sym *sym, Type *t)
 			// cross-package unexported fields.
 			if(first != T) {
 				if(first->down == t1) {
-					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
+					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym)));
 				} else if(first->down->down == t1) {
-					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
+					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym)));
 					first = first->down;
 					if(!isblanksym(first->sym))
-						fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
+						fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym)));
 				} else {
 					// More than two fields: use memequal.
 					size = offend - first->width; // first->width is offset
-					fn->nbody = list(fn->nbody, eqmem(np, nq, newname(first->sym), size, neq));
+					fn->nbody = list(fn->nbody, eqmem(np, nq, newname(first->sym), size));
 				}
 				first = T;
 			}
@@ -3042,13 +3041,16 @@ geneq(Sym *sym, Type *t)
 				continue;
 
 			// Check this field, which is not just memory.
-			fn->nbody = list(fn->nbody, eqfield(np, nq, newname(t1->sym), neq));
+			fn->nbody = list(fn->nbody, eqfield(np, nq, newname(t1->sym)));
 		}
 
-		// *eq = true;
-		fn->nbody = list(fn->nbody, nod(OAS, nod(OIND, neq, N), nodbool(1)));
 		break;
 	}
+
+	// return true
+	r = nod(ORETURN, N, N);
+	r->list = list(r->list, nodbool(1));
+	fn->nbody = list(fn->nbody, r);
 
 	if(debug['r'])
 		dumplist("geneq body", fn->nbody);

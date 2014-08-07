@@ -111,20 +111,12 @@ func starttheworld()
 func stoptheworld()
 func clearpools()
 
-// in asm_*.s
-//go:noescape
-func gohash(a *alg, p unsafe.Pointer, size uintptr, seed uintptr) uintptr
-
-// in asm_*.s
-//go:noescape
-func goeq(alg *alg, p, q unsafe.Pointer, size uintptr) bool
-
 // exported value for testing
 var hashLoad = loadFactor
 
 // in asm_*.s
 //go:noescape
-func gomemeq(a, b unsafe.Pointer, size uintptr) bool
+func memeq(a, b unsafe.Pointer, size uintptr) bool
 
 // Code pointers for the nohash/noequal algorithms. Used for producing better error messages.
 var nohashcode uintptr
@@ -147,6 +139,9 @@ type goalgtype struct {
 	// function for hashing objects of this type
 	// (ptr to object, size, seed) -> hash
 	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
+	// function for comparing objects of this type
+	// (ptr to object A, ptr to object B, size) -> ==?
+	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
 }
 
 func goalg(a *alg) *goalgtype {

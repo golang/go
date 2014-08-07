@@ -10,16 +10,6 @@ package runtime
 bool runtime·use_aeshash;
 
 void
-runtime·memequal(bool *eq, uintptr s, void *a, void *b)
-{
-	if(a == b) {
-		*eq = 1;
-		return;
-	}
-	*eq = runtime·memeq(a, b, s);
-}
-
-void
 runtime·memprint(uintptr s, void *a)
 {
 	uint64 v;
@@ -53,27 +43,11 @@ runtime·memcopy(uintptr s, void *a, void *b)
 }
 
 void
-runtime·memequal0(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	USED(a);
-	USED(b);
-	*eq = true;
-}
-
-void
 runtime·memcopy0(uintptr s, void *a, void *b)
 {
 	USED(s);
 	USED(a);
 	USED(b);
-}
-
-void
-runtime·memequal8(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	*eq = *(uint8*)a == *(uint8*)b;
 }
 
 void
@@ -88,13 +62,6 @@ runtime·memcopy8(uintptr s, void *a, void *b)
 }
 
 void
-runtime·memequal16(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	*eq = *(uint16*)a == *(uint16*)b;
-}
-
-void
 runtime·memcopy16(uintptr s, void *a, void *b)
 {
 	USED(s);
@@ -103,13 +70,6 @@ runtime·memcopy16(uintptr s, void *a, void *b)
 		return;
 	}
 	*(uint16*)a = *(uint16*)b;
-}
-
-void
-runtime·memequal32(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	*eq = *(uint32*)a == *(uint32*)b;
 }
 
 void
@@ -124,13 +84,6 @@ runtime·memcopy32(uintptr s, void *a, void *b)
 }
 
 void
-runtime·memequal64(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	*eq = *(uint64*)a == *(uint64*)b;
-}
-
-void
 runtime·memcopy64(uintptr s, void *a, void *b)
 {
 	USED(s);
@@ -139,13 +92,6 @@ runtime·memcopy64(uintptr s, void *a, void *b)
 		return;
 	}
 	*(uint64*)a = *(uint64*)b;
-}
-
-void
-runtime·memequal128(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	*eq = ((uint64*)a)[0] == ((uint64*)b)[0] && ((uint64*)a)[1] == ((uint64*)b)[1];
 }
 
 void
@@ -162,42 +108,6 @@ runtime·memcopy128(uintptr s, void *a, void *b)
 }
 
 void
-runtime·f32equal(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	*eq = *(float32*)a == *(float32*)b;
-}
-
-void
-runtime·f64equal(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	*eq = *(float64*)a == *(float64*)b;
-}
-
-void
-runtime·c64equal(bool *eq, uintptr s, void *a, void *b)
-{	
-	Complex64 *ca, *cb;
-	
-	USED(s);
-	ca = a;
-	cb = b;
-	*eq = ca->real == cb->real && ca->imag == cb->imag;
-}
-
-void
-runtime·c128equal(bool *eq, uintptr s, void *a, void *b)
-{	
-	Complex128 *ca, *cb;
-	
-	USED(s);
-	ca = a;
-	cb = b;
-	*eq = ca->real == cb->real && ca->imag == cb->imag;
-}
-
-void
 runtime·algslicecopy(uintptr s, void *a, void *b)
 {
 	USED(s);
@@ -210,27 +120,6 @@ runtime·algslicecopy(uintptr s, void *a, void *b)
 	((Slice*)a)->array = ((Slice*)b)->array;
 	((Slice*)a)->len = ((Slice*)b)->len;
 	((Slice*)a)->cap = ((Slice*)b)->cap;
-}
-
-void
-runtime·strequal(bool *eq, uintptr s, void *a, void *b)
-{
-	intgo alen;
-	byte *s1, *s2;
-
-	USED(s);
-	alen = ((String*)a)->len;
-	if(alen != ((String*)b)->len) {
-		*eq = false;
-		return;
-	}
-	s1 = ((String*)a)->str;
-	s2 = ((String*)b)->str;
-	if(s1 == s2) {
-		*eq = true;
-		return;
-	}
-	*eq = runtime·memeq(s1, s2, alen);
 }
 
 void
@@ -261,13 +150,6 @@ runtime·interprint(uintptr s, void *a)
 }
 
 void
-runtime·interequal(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	*eq = runtime·ifaceeq_c(*(Iface*)a, *(Iface*)b);
-}
-
-void
 runtime·intercopy(uintptr s, void *a, void *b)
 {
 	USED(s);
@@ -288,13 +170,6 @@ runtime·nilinterprint(uintptr s, void *a)
 }
 
 void
-runtime·nilinterequal(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	*eq = runtime·efaceeq_c(*(Eface*)a, *(Eface*)b);
-}
-
-void
 runtime·nilintercopy(uintptr s, void *a, void *b)
 {
 	USED(s);
@@ -309,16 +184,6 @@ runtime·nilintercopy(uintptr s, void *a, void *b)
 
 extern uintptr runtime·nohashcode;
 extern uintptr runtime·noequalcode;
-
-void
-runtime·noequal(bool *eq, uintptr s, void *a, void *b)
-{
-	USED(s);
-	USED(a);
-	USED(b);
-	USED(eq);
-	runtime·panicstring("comparing uncomparable types");
-}
 
 static FuncVal memhashfunc = {(void*)runtime·memhash};
 static FuncVal nohashfunc = {(void*)runtime·nohash};
@@ -335,31 +200,48 @@ static FuncVal aeshash32func = {(void*)runtime·aeshash32};
 static FuncVal aeshash64func = {(void*)runtime·aeshash64};
 static FuncVal aeshashstrfunc = {(void*)runtime·aeshashstr};
 
+static FuncVal memequalfunc = {(void*)runtime·memequal};
+static FuncVal noequalfunc = {(void*)runtime·noequal};
+static FuncVal strequalfunc = {(void*)runtime·strequal};
+static FuncVal interequalfunc = {(void*)runtime·interequal};
+static FuncVal nilinterequalfunc = {(void*)runtime·nilinterequal};
+static FuncVal f32equalfunc = {(void*)runtime·f32equal};
+static FuncVal f64equalfunc = {(void*)runtime·f64equal};
+static FuncVal c64equalfunc = {(void*)runtime·c64equal};
+static FuncVal c128equalfunc = {(void*)runtime·c128equal};
+static FuncVal memequal0func = {(void*)runtime·memequal0};
+static FuncVal memequal8func = {(void*)runtime·memequal8};
+static FuncVal memequal16func = {(void*)runtime·memequal16};
+static FuncVal memequal32func = {(void*)runtime·memequal32};
+static FuncVal memequal64func = {(void*)runtime·memequal64};
+static FuncVal memequal128func = {(void*)runtime·memequal128};
+
+
 Alg
 runtime·algarray[] =
 {
-[AMEM]		{ &memhashfunc, runtime·memequal, runtime·memprint, runtime·memcopy },
-[ANOEQ]		{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy },
-[ASTRING]	{ &strhashfunc, runtime·strequal, runtime·strprint, runtime·strcopy },
-[AINTER]	{ &interhashfunc, runtime·interequal, runtime·interprint, runtime·intercopy },
-[ANILINTER]	{ &nilinterhashfunc, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
-[ASLICE]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·algslicecopy },
-[AFLOAT32]	{ &f32hashfunc, runtime·f32equal, runtime·memprint, runtime·memcopy },
-[AFLOAT64]	{ &f64hashfunc, runtime·f64equal, runtime·memprint, runtime·memcopy },
-[ACPLX64]	{ &c64hashfunc, runtime·c64equal, runtime·memprint, runtime·memcopy },
-[ACPLX128]	{ &c128hashfunc, runtime·c128equal, runtime·memprint, runtime·memcopy },
-[AMEM0]		{ &memhashfunc, runtime·memequal0, runtime·memprint, runtime·memcopy0 },
-[AMEM8]		{ &memhashfunc, runtime·memequal8, runtime·memprint, runtime·memcopy8 },
-[AMEM16]	{ &memhashfunc, runtime·memequal16, runtime·memprint, runtime·memcopy16 },
-[AMEM32]	{ &memhashfunc, runtime·memequal32, runtime·memprint, runtime·memcopy32 },
-[AMEM64]	{ &memhashfunc, runtime·memequal64, runtime·memprint, runtime·memcopy64 },
-[AMEM128]	{ &memhashfunc, runtime·memequal128, runtime·memprint, runtime·memcopy128 },
-[ANOEQ0]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy0 },
-[ANOEQ8]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy8 },
-[ANOEQ16]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy16 },
-[ANOEQ32]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy32 },
-[ANOEQ64]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy64 },
-[ANOEQ128]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy128 },
+[AMEM]		{ &memhashfunc, &memequalfunc, runtime·memprint, runtime·memcopy },
+[ANOEQ]		{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy },
+[ASTRING]	{ &strhashfunc, &strequalfunc, runtime·strprint, runtime·strcopy },
+[AINTER]	{ &interhashfunc, &interequalfunc, runtime·interprint, runtime·intercopy },
+[ANILINTER]	{ &nilinterhashfunc, &nilinterequalfunc, runtime·nilinterprint, runtime·nilintercopy },
+[ASLICE]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·algslicecopy },
+[AFLOAT32]	{ &f32hashfunc, &f32equalfunc, runtime·memprint, runtime·memcopy },
+[AFLOAT64]	{ &f64hashfunc, &f64equalfunc, runtime·memprint, runtime·memcopy },
+[ACPLX64]	{ &c64hashfunc, &c64equalfunc, runtime·memprint, runtime·memcopy },
+[ACPLX128]	{ &c128hashfunc, &c128equalfunc, runtime·memprint, runtime·memcopy },
+[AMEM0]		{ &memhashfunc, &memequal0func, runtime·memprint, runtime·memcopy0 },
+[AMEM8]		{ &memhashfunc, &memequal8func, runtime·memprint, runtime·memcopy8 },
+[AMEM16]	{ &memhashfunc, &memequal16func, runtime·memprint, runtime·memcopy16 },
+[AMEM32]	{ &memhashfunc, &memequal32func, runtime·memprint, runtime·memcopy32 },
+[AMEM64]	{ &memhashfunc, &memequal64func, runtime·memprint, runtime·memcopy64 },
+[AMEM128]	{ &memhashfunc, &memequal128func, runtime·memprint, runtime·memcopy128 },
+[ANOEQ0]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy0 },
+[ANOEQ8]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy8 },
+[ANOEQ16]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy16 },
+[ANOEQ32]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy32 },
+[ANOEQ64]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy64 },
+[ANOEQ128]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy128 },
 };
 
 // Runtime helpers.
@@ -404,20 +286,6 @@ runtime·hashinit(void)
 			}
 		}
 	}
-}
-
-// func equal(t *Type, x T, y T) (ret bool)
-#pragma textflag NOSPLIT
-void
-runtime·equal(Type *t, ...)
-{
-	byte *x, *y;
-	bool *ret;
-	
-	x = (byte*)ROUND((uintptr)(&t+1), t->align);
-	y = x + t->size;
-	ret = (bool*)ROUND((uintptr)(y+t->size), Structrnd);
-	t->alg->equal(ret, t->size, x, y);
 }
 
 // Testing adapter for memclr

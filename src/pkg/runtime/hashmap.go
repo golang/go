@@ -243,7 +243,8 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero)
 	}
-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+	alg := goalg(t.key.alg)
+	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -265,7 +266,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 			if t.indirectkey != 0 {
 				k = *((*unsafe.Pointer)(k))
 			}
-			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
+			if alg.equal(key, k, uintptr(t.key.size)) {
 				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
 				if t.indirectvalue != 0 {
 					v = *((*unsafe.Pointer)(v))
@@ -291,7 +292,8 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero), false
 	}
-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+	alg := goalg(t.key.alg)
+	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -313,7 +315,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 			if t.indirectkey != 0 {
 				k = *((*unsafe.Pointer)(k))
 			}
-			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
+			if alg.equal(key, k, uintptr(t.key.size)) {
 				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
 				if t.indirectvalue != 0 {
 					v = *((*unsafe.Pointer)(v))
@@ -333,7 +335,8 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 	if h == nil || h.count == 0 {
 		return nil, nil
 	}
-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+	alg := goalg(t.key.alg)
+	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -355,7 +358,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 			if t.indirectkey != 0 {
 				k = *((*unsafe.Pointer)(k))
 			}
-			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
+			if alg.equal(key, k, uintptr(t.key.size)) {
 				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
 				if t.indirectvalue != 0 {
 					v = *((*unsafe.Pointer)(v))
@@ -383,7 +386,8 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 		raceReadObjectPC(t.elem, val, callerpc, pc)
 	}
 
-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+	alg := goalg(t.key.alg)
+	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 
 	if h.buckets == nil {
 		if checkgc {
@@ -421,7 +425,7 @@ again:
 			if t.indirectkey != 0 {
 				k2 = *((*unsafe.Pointer)(k2))
 			}
-			if !goeq(t.key.alg, key, k2, uintptr(t.key.size)) {
+			if !alg.equal(key, k2, uintptr(t.key.size)) {
 				continue
 			}
 			// already have a mapping for key.  Update it.
@@ -492,7 +496,8 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if h == nil || h.count == 0 {
 		return
 	}
-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+	alg := goalg(t.key.alg)
+	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	bucket := hash & (uintptr(1)<<h.B - 1)
 	if h.oldbuckets != nil {
 		growWork(t, h, bucket)
@@ -512,7 +517,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 			if t.indirectkey != 0 {
 				k2 = *((*unsafe.Pointer)(k2))
 			}
-			if !goeq(t.key.alg, key, k2, uintptr(t.key.size)) {
+			if !alg.equal(key, k2, uintptr(t.key.size)) {
 				continue
 			}
 			memclr(k, uintptr(t.keysize))
@@ -595,6 +600,7 @@ func mapiternext(it *hiter) {
 	b := it.bptr
 	i := it.i
 	checkBucket := it.checkBucket
+	alg := goalg(t.key.alg)
 
 next:
 	if b == nil {
@@ -645,10 +651,10 @@ next:
 				if t.indirectkey != 0 {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
-				if goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
+				if alg.equal(k2, k2, uintptr(t.key.size)) {
 					// If the item in the oldbucket is not destined for
 					// the current new bucket in the iteration, skip it.
-					hash := goalg(t.key.alg).hash(k2, uintptr(t.key.size), uintptr(h.hash0))
+					hash := alg.hash(k2, uintptr(t.key.size), uintptr(h.hash0))
 					if hash&(uintptr(1)<<it.B-1) != checkBucket {
 						continue
 					}
@@ -682,7 +688,7 @@ next:
 				if t.indirectkey != 0 {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
-				if goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
+				if alg.equal(k2, k2, uintptr(t.key.size)) {
 					// Check the current hash table for the data.
 					// This code handles the case where the key
 					// has been deleted, updated, or deleted and reinserted.
@@ -758,6 +764,7 @@ func growWork(t *maptype, h *hmap, bucket uintptr) {
 func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
 	newbit := uintptr(1) << (h.B - 1)
+	alg := goalg(t.key.alg)
 	if !evacuated(b) {
 		// TODO: reuse overflow buckets instead of using new ones, if there
 		// is no iterator using the old buckets.  (If !oldIterator.)
@@ -788,9 +795,9 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 				}
 				// Compute hash to make our evacuation decision (whether we need
 				// to send this key/value to bucket x or bucket y).
-				hash := goalg(t.key.alg).hash(k2, uintptr(t.key.size), uintptr(h.hash0))
+				hash := alg.hash(k2, uintptr(t.key.size), uintptr(h.hash0))
 				if h.flags&iterator != 0 {
-					if !goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
+					if !alg.equal(k2, k2, uintptr(t.key.size)) {
 						// If key != key (NaNs), then the hash could be (and probably
 						// will be) entirely different from the old hash.  Moreover,
 						// it isn't reproducible.  Reproducibility is required in the

@@ -1239,7 +1239,7 @@ static Sym*
 dalgsym(Type *t)
 {
 	int ot;
-	Sym *s, *hash, *hashfunc, *eq;
+	Sym *s, *hash, *hashfunc, *eq, *eqfunc;
 	char buf[100];
 
 	// dalgsym is only called for a type that needs an algorithm table,
@@ -1251,15 +1251,18 @@ dalgsym(Type *t)
 	eq = typesymprefix(".eq", t);
 	geneq(eq, t);
 
-	// make Go func (a closure) for calling the hash function from Go
+	// make Go funcs (closures) for calling hash and equal from Go
 	hashfunc = typesymprefix(".hashfunc", t);
 	dsymptr(hashfunc, 0, hash, 0);
 	ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
+	eqfunc = typesymprefix(".eqfunc", t);
+	dsymptr(eqfunc, 0, eq, 0);
+	ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
 
 	// ../../pkg/runtime/runtime.h:/Alg
 	ot = 0;
 	ot = dsymptr(s, ot, hashfunc, 0);
-	ot = dsymptr(s, ot, eq, 0);
+	ot = dsymptr(s, ot, eqfunc, 0);
 	ot = dsymptr(s, ot, pkglookup("memprint", runtimepkg), 0);
 	switch(t->width) {
 	default:

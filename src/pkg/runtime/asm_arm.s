@@ -703,24 +703,7 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
-TEXT runtime·memeq(SB),NOSPLIT,$-4-12
-	MOVW	a+0(FP), R1
-	MOVW	b+4(FP), R2
-	MOVW	n+8(FP), R3
-	ADD	R1, R3, R6
-	MOVW	$1, R0
-_next:
-	CMP	R1, R6
-	RET.EQ
-	MOVBU.P	1(R1), R4
-	MOVBU.P	1(R2), R5
-	CMP	R4, R5
-	BEQ	_next
-
-	MOVW	$0, R0
-	RET
-
-TEXT runtime·gomemeq(SB),NOSPLIT,$-4-13
+TEXT runtime·memeq(SB),NOSPLIT,$-4-13
 	MOVW	a+0(FP), R1
 	MOVW	b+4(FP), R2
 	MOVW	size+8(FP), R3
@@ -1268,38 +1251,3 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
 	MOVW	R0, m_fastrand(R1)
 	MOVW	R0, ret+0(FP)
 	RET
-
-// The goeq trampoline is necessary while we have
-// both Go and C calls to alg functions.  Once we move all call
-// sites to Go, we can redo the eq functions to use the
-// Go calling convention and remove this.
-
-// convert call to:
-//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
-// to:
-//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
-TEXT runtime·goeq(SB), NOSPLIT, $16-17
-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
-	MOVW	alg+0(FP), R0
-	MOVW	alg_equal(R0), R0
-	MOVW	p+4(FP), R1
-	MOVW	q+8(FP), R2
-	MOVW	size+12(FP), R3
-	ADD	$40, R13, R4
-	MOVW	R4, 4(R13)
-	MOVW	R3, 8(R13)
-	MOVW	R2, 12(R13)
-	MOVW	R1, 16(R13)
-	PCDATA  $PCDATA_StackMapIndex, $0
-	BL	(R0)
-	RET
-
-DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
-DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
-GLOBL gcargs_goeq<>(SB),RODATA,$12
-
-DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
-GLOBL gclocals_goeq<>(SB),RODATA,$8

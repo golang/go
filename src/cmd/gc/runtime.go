@@ -84,8 +84,6 @@ func efaceeq(i1 any, i2 any) (ret bool)
 func ifacethash(i1 any) (ret uint32)
 func efacethash(i1 any) (ret uint32)
 
-func equal(typ *byte, x1, x2 any) (ret bool)
-
 // *byte is really *runtime.Type
 func makemap(mapType *byte, hint int64) (hmap map[any]any)
 func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
@@ -124,12 +122,12 @@ func makeslice(typ *byte, nel int64, cap int64) (ary []any)
 func growslice(typ *byte, old []any, n int64) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
 
-func memequal(eq *bool, size uintptr, x, y *any)
-func memequal8(eq *bool, size uintptr, x, y *any)
-func memequal16(eq *bool, size uintptr, x, y *any)
-func memequal32(eq *bool, size uintptr, x, y *any)
-func memequal64(eq *bool, size uintptr, x, y *any)
-func memequal128(eq *bool, size uintptr, x, y *any)
+func memequal(x, y *any, size uintptr) bool
+func memequal8(x, y *any, size uintptr) bool
+func memequal16(x, y *any, size uintptr) bool
+func memequal32(x, y *any, size uintptr) bool
+func memequal64(x, y *any, size uintptr) bool
+func memequal128(x, y *any, size uintptr) bool
 
 // only used on 32-bit
 func int64div(int64, int64) int64
