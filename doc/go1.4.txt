@@ -8,6 +8,7 @@ Please keep the list sorted (as in sort.Strings of the lines).
 spec: permit for range x (CL 104680043)
 
 crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
+crypto/tls: support programmatic selection of server certificates (CL 107400043)
 encoding/gob: remove unsafe (CL 102680045)
 misc: deleted editor support; refer to https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins instead (CL 105470043)
 os: implement symlink support for windows (CL 86160044)
