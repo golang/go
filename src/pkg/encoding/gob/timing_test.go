@@ -19,33 +19,52 @@ type Bench struct {
 	D []byte
 }
 
-func benchmarkEndToEnd(r io.Reader, w io.Writer, b *testing.B) {
-	b.StopTimer()
-	enc := NewEncoder(w)
-	dec := NewDecoder(r)
-	bench := &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		if enc.Encode(bench) != nil {
-			panic("encode error")
+func benchmarkEndToEnd(b *testing.B, v interface{}, pipe func() (r io.Reader, w io.Writer, err error)) {
+	b.RunParallel(func(pb *testing.PB) {
+		r, w, err := pipe()
+		if err != nil {
+			b.Fatal("can't get pipe:", err)
 		}
-		if dec.Decode(bench) != nil {
-			panic("decode error")
+		enc := NewEncoder(w)
+		dec := NewDecoder(r)
+		for pb.Next() {
+			if err := enc.Encode(v); err != nil {
+				b.Fatal("encode error:", err)
+			}
+			if err := dec.Decode(v); err != nil {
+				b.Fatal("decode error:", err)
+			}
 		}
-	}
+	})
 }
 
 func BenchmarkEndToEndPipe(b *testing.B) {
-	r, w, err := os.Pipe()
-	if err != nil {
-		b.Fatal("can't get pipe:", err)
-	}
-	benchmarkEndToEnd(r, w, b)
+	v := &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
+	benchmarkEndToEnd(b, v, func() (r io.Reader, w io.Writer, err error) {
+		r, w, err = os.Pipe()
+		return
+	})
 }
 
 func BenchmarkEndToEndByteBuffer(b *testing.B) {
-	var buf bytes.Buffer
-	benchmarkEndToEnd(&buf, &buf, b)
+	v := &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
+	benchmarkEndToEnd(b, v, func() (r io.Reader, w io.Writer, err error) {
+		var buf bytes.Buffer
+		return &buf, &buf, nil
+	})
+}
+
+func BenchmarkEndToEndSliceByteBuffer(b *testing.B) {
+	v := &Bench{7, 3.2, "now is the time", nil}
+	Register(v)
+	arr := make([]interface{}, 100)
+	for i := range arr {
+		arr[i] = v
+	}
+	benchmarkEndToEnd(b, &arr, func() (r io.Reader, w io.Writer, err error) {
+		var buf bytes.Buffer
+		return &buf, &buf, nil
+	})
 }
 
 func TestCountEncodeMallocs(t *testing.T) {
