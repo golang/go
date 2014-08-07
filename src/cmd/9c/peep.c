@@ -27,10 +27,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build ignore
-
 #include "gc.h"
 
+/*
 static Reg*
 rnops(Reg *r)
 {
@@ -49,6 +48,7 @@ rnops(Reg *r)
 	}
 	return r;
 }
+*/
 
 void
 peep(void)
@@ -389,11 +389,12 @@ uniqs(Reg *r)
  * if the system forces R0 to be zero,
  * convert references to $0 to references to R0.
  */
-regzer(Adr *a)
+int
+regzer(Addr *a)
 {
 	if(R0ISZERO) {
 		if(a->type == D_CONST)
-			if(a->sym == S)
+			if(a->sym == nil)
 				if(a->offset == 0)
 					return 1;
 		if(a->type == D_REG)
@@ -403,7 +404,8 @@ regzer(Adr *a)
 	return 0;
 }
 
-regtyp(Adr *a)
+int
+regtyp(Addr *a)
 {
 
 	if(a->type == D_REG) {
@@ -434,7 +436,7 @@ int
 subprop(Reg *r0)
 {
 	Prog *p;
-	Adr *v1, *v2;
+	Addr *v1, *v2;
 	Reg *r;
 	int t;
 
@@ -589,7 +591,7 @@ int
 copyprop(Reg *r0)
 {
 	Prog *p;
-	Adr *v1, *v2;
+	Addr *v1, *v2;
 	Reg *r;
 
 	p = r0->prog;
@@ -602,7 +604,8 @@ copyprop(Reg *r0)
 	return copy1(v1, v2, r0->s1, 0);
 }
 
-copy1(Adr *v1, Adr *v2, Reg *r, int f)
+int
+copy1(Addr *v1, Addr *v2, Reg *r, int f)
 {
 	int t;
 	Prog *p;
@@ -624,7 +627,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
 			if(debug['P'])
 				print("; merge; f=%d", f);
 		}
-		t = copyu(p, v2, A);
+		t = copyu(p, v2, nil);
 		switch(t) {
 		case 2:	/* rar, cant split */
 			if(debug['P'])
@@ -662,7 +665,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
 			break;
 		}
 		if(!f) {
-			t = copyu(p, v1, A);
+			t = copyu(p, v1, nil);
 			if(!f && (t == 2 || t == 3 || t == 4)) {
 				f = 1;
 				if(debug['P'])
@@ -687,14 +690,14 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
  * 0 otherwise (not touched)
  */
 int
-copyu(Prog *p, Adr *v, Adr *s)
+copyu(Prog *p, Addr *v, Addr *s)
 {
 
 	switch(p->as) {
 
 	default:
 		if(debug['P'])
-			print(" (???)");
+			print(" (\?\?\?)");
 		return 2;
 
 
@@ -725,7 +728,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AFRSP:
 	case AFNEG:
 	case AFNEGCC:
-		if(s != A) {
+		if(s != nil) {
 			if(copysub(&p->from, v, s, 1))
 				return 1;
 			if(!copyas(&p->to, v))
@@ -796,7 +799,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AFMUL:
 	case AFDIVS:
 	case AFDIV:
-		if(s != A) {
+		if(s != nil) {
 			if(copysub(&p->from, v, s, 1))
 				return 1;
 			if(copysub1(p, v, s, 1))
@@ -839,7 +842,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ACMPWU:
 	case AFCMPO:
 	case AFCMPU:
-		if(s != A) {
+		if(s != nil) {
 			if(copysub(&p->from, v, s, 1))
 				return 1;
 			return copysub(&p->to, v, s, 1);
@@ -851,7 +854,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		break;
 
 	case ABR:	/* funny */
-		if(s != A) {
+		if(s != nil) {
 			if(copysub(&p->to, v, s, 1))
 				return 1;
 			return 0;
@@ -880,7 +883,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 				return 2;
 		}
 
-		if(s != A) {
+		if(s != nil) {
 			if(copysub(&p->to, v, s, 1))
 				return 1;
 			return 0;
@@ -1008,7 +1011,7 @@ a2type(Prog *p)
  * semantics
  */
 int
-copyas(Adr *a, Adr *v)
+copyas(Addr *a, Addr *v)
 {
 
 	if(regtyp(v))
@@ -1022,7 +1025,7 @@ copyas(Adr *a, Adr *v)
  * either direct or indirect
  */
 int
-copyau(Adr *a, Adr *v)
+copyau(Addr *a, Addr *v)
 {
 
 	if(copyas(a, v))
@@ -1035,7 +1038,7 @@ copyau(Adr *a, Adr *v)
 }
 
 int
-copyau1(Prog *p, Adr *v)
+copyau1(Prog *p, Addr *v)
 {
 
 	if(regtyp(v))
@@ -1053,7 +1056,7 @@ copyau1(Prog *p, Adr *v)
  * return failure to substitute
  */
 int
-copysub(Adr *a, Adr *v, Adr *s, int f)
+copysub(Addr *a, Addr *v, Addr *s, int f)
 {
 
 	if(f)
@@ -1063,7 +1066,7 @@ copysub(Adr *a, Adr *v, Adr *s, int f)
 }
 
 int
-copysub1(Prog *p1, Adr *v, Adr *s, int f)
+copysub1(Prog *p1, Addr *v, Addr *s, int f)
 {
 
 	if(f)
