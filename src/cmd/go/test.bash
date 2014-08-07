@@ -543,6 +543,17 @@ TEST go get cover
 unset GOPATH
 rm -rf $d
 
+TEST go get -t "code.google.com/p/go-get-issue-8181/{a,b}"
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d
+if ./testgo get -t code.google.com/p/go-get-issue-8181/{a,b}; then
+	./testgo list ... | grep go.tools/godoc > /dev/null || ok=false
+else
+	ok=false
+fi
+unset GOPATH
+rm -rf $d
+
 TEST shadowing logic
 export GOPATH=$(pwd)/testdata/shadow/root1:$(pwd)/testdata/shadow/root2
 
