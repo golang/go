@@ -111,7 +111,7 @@ runtime·goargs(void)
 	if(Windows)
 		return;
 
-	s = runtime·malloc(argc*sizeof s[0]);
+	s = runtime·mallocgc(argc*sizeof s[0], nil, 0);
 	for(i=0; i<argc; i++)
 		s[i] = runtime·gostringnocopy(argv[i]);
 	os·Args.array = (byte*)s;
@@ -128,7 +128,7 @@ runtime·goenvs_unix(void)
 	for(n=0; argv[argc+1+n] != 0; n++)
 		;
 
-	s = runtime·malloc(n*sizeof s[0]);
+	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
 	for(i=0; i<n; i++)
 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
 	syscall·envs.array = (byte*)s;

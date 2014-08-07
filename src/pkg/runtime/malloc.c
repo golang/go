@@ -35,12 +35,6 @@ runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
 	return ret;
 }
 
-void*
-runtime·malloc(uintptr size)
-{
-	return runtime·mallocgc(size, nil, FlagNoInvokeGC);
-}
-
 int32
 runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 {
@@ -398,12 +392,6 @@ runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
 }
 
 // Runtime stubs.
-
-void*
-runtime·mal(uintptr n)
-{
-	return runtime·mallocgc(n, nil, 0);
-}
 
 static void*
 cnew(Type *typ, intgo n)

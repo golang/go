@@ -513,7 +513,6 @@ void	runtime·MHeap_MapBits(MHeap *h);
 void	runtime·MHeap_MapSpans(MHeap *h);
 void	runtime·MHeap_Scavenger(void);
 
-void*	runtime·mallocgc(uintptr size, Type* typ, uint32 flag);
 void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
 void	runtime·gc(int32 force);
@@ -537,9 +536,7 @@ enum
 	// flags to malloc
 	FlagNoScan	= 1<<0,	// GC doesn't have to scan object
 	FlagNoProfiling	= 1<<1,	// must not profile
-	FlagNoGC	= 1<<2,	// must not free or scan for pointers
-	FlagNoZero	= 1<<3, // don't zero memory
-	FlagNoInvokeGC	= 1<<4, // don't invoke GC
+	FlagNoZero	= 1<<2, // don't zero memory
 };
 
 void	runtime·MProf_Malloc(void*, uintptr);
