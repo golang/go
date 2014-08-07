@@ -181,7 +181,7 @@ type Config struct {
 	// instead.  Since that typically supplies only the types of
 	// package-level declarations and values of constants, but no
 	// code, it will not yield a whole program.  It is intended
-	// for analyses that perform intraprocedural analysis of a
+	// for analyses that perform modular analysis of a
 	// single package, e.g. traditional compilation.
 	//
 	// The initial packages (CreatePkgs and ImportPkgs) are always
@@ -271,10 +271,20 @@ type PackageInfo struct {
 	Errors                []error     // non-nil if the package had errors
 	types.Info                        // type-checker deductions.
 
-	checker *types.Checker // transient type-checker state
+	checker   *types.Checker // transient type-checker state
+	errorFunc func(error)
 }
 
 func (info *PackageInfo) String() string { return info.Pkg.Path() }
+
+func (info *PackageInfo) appendError(err error) {
+	if info.errorFunc != nil {
+		info.errorFunc(err)
+	} else {
+		fmt.Fprintln(os.Stderr, err)
+	}
+	info.Errors = append(info.Errors, err)
+}
 
 func (conf *Config) fset() *token.FileSet {
 	if conf.Fset == nil {
@@ -513,6 +523,11 @@ func (conf *Config) Load() (*Program, error) {
 		conf.TypeChecker.Packages = make(map[string]*types.Package)
 	}
 
+	// Create a simple default error handler for parse/type errors.
+	if conf.TypeChecker.Error == nil {
+		conf.TypeChecker.Error = func(e error) { fmt.Fprintln(os.Stderr, e) }
+	}
+
 	prog := &Program{
 		Fset:        conf.fset(),
 		Imported:    make(map[string]*PackageInfo),
@@ -546,7 +561,9 @@ func (conf *Config) Load() (*Program, error) {
 
 			info := imp.imported[path].info // must be non-nil, see above
 			files, errs := imp.conf.parsePackageFiles(bp, 't')
-			info.Errors = append(info.Errors, errs...)
+			for _, err := range errs {
+				info.appendError(err)
+			}
 			typeCheckFiles(info, files...)
 		}
 	}
@@ -572,7 +589,9 @@ func (conf *Config) Load() (*Program, error) {
 		if info == nil {
 			prog.AllPackages[obj] = &PackageInfo{Pkg: obj, Importable: true}
 		} else {
-			info.checker = nil // finished
+			// finished
+			info.checker = nil
+			info.errorFunc = nil
 		}
 	}
 
@@ -782,7 +801,9 @@ func (imp *importer) importFromSource(path string) (*PackageInfo, error) {
 	// Type-check the package.
 	info := imp.newPackageInfo(path)
 	files, errs := imp.conf.parsePackageFiles(bp, 'g')
-	info.Errors = append(info.Errors, errs...)
+	for _, err := range errs {
+		info.appendError(err)
+	}
 	typeCheckFiles(info, files...)
 	return info, nil
 }
@@ -791,7 +812,7 @@ func (imp *importer) importFromSource(path string) (*PackageInfo, error) {
 // The order of files determines the package initialization order.
 // It may be called multiple times.
 //
-// Any error is stored in the info.Error field.
+// Errors are stored in the info.Errors field.
 func typeCheckFiles(info *PackageInfo, files ...*ast.File) {
 	info.Files = append(info.Files, files...)
 
@@ -811,26 +832,17 @@ func (imp *importer) newPackageInfo(path string) *PackageInfo {
 			Scopes:     make(map[ast.Node]*types.Scope),
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		},
+		errorFunc: imp.conf.TypeChecker.Error,
 	}
 
-	// Use a copy of the types.Config so we can vary IgnoreFuncBodies.
+	// Copy the types.Config so we can vary it across PackageInfos.
 	tc := imp.conf.TypeChecker
 	tc.IgnoreFuncBodies = false
 	if f := imp.conf.TypeCheckFuncBodies; f != nil {
 		tc.IgnoreFuncBodies = !f(path)
 	}
-	tc.Import = imp.doImport // doImport wraps the user's importfn, effectively
-
-	// The default error reporter just prints the errors.
-	dfltError := tc.Error
-	if dfltError == nil {
-		dfltError = func(e error) { fmt.Fprintln(os.Stderr, e) }
-	}
-	// Wrap the error reporter to also collect them.
-	tc.Error = func(e error) {
-		info.Errors = append(info.Errors, e)
-		dfltError(e)
-	}
+	tc.Import = imp.doImport    // doImport wraps the user's importfn, effectively
+	tc.Error = info.appendError // appendError wraps the user's Error function
 
 	info.checker = types.NewChecker(&tc, imp.conf.fset(), pkg, &info.Info)
 	imp.prog.AllPackages[pkg] = info
