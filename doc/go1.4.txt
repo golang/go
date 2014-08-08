@@ -19,3 +19,5 @@ testing: add Coverage (CL 98150043)
 text/scanner: add IsIdentRune field of Scanner. (CL 108030044)
 time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)
 encoding/asn1: optional elements with a default value will now only be omitted if they have that value (CL 86960045).
+
+go.sys subrepo created: http://golang.org/s/go1.4-syscall
