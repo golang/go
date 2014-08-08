@@ -1384,7 +1384,7 @@ top:
 // appropriate time. After calling dropg and arranging for gp to be
 // readied later, the caller can do other work but eventually should
 // call schedule to restart the scheduling of goroutines on this m.
-void
+static void
 dropg(void)
 {
 	if(g->m->lockedg == nil) {

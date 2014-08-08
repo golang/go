@@ -314,7 +314,7 @@ flushlog(Profile *p)
 
 // getprofile blocks until the next block of profiling data is available
 // and returns it as a []byte.  It is called from the writing goroutine.
-Slice
+static Slice
 getprofile(Profile *p)
 {
 	uint32 i, j, n;
