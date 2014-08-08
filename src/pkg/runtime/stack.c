@@ -223,9 +223,11 @@ runtime·stackalloc(G *gp, uint32 n)
 			n2 >>= 1;
 		}
 		c = g->m->mcache;
-		if(c == nil) {
-			// This can happen in the guts of exitsyscall or
+		if(c == nil || g->m->gcing || g->m->helpgc) {
+			// c == nil can happen in the guts of exitsyscall or
 			// procresize. Just get a stack from the global pool.
+			// Also don't touch stackcache during gc
+			// as it's flushed concurrently.
 			runtime·lock(&stackpoolmu);
 			x = poolalloc(order);
 			runtime·unlock(&stackpoolmu);
@@ -285,7 +287,7 @@ runtime·stackfree(G *gp, void *v, Stktop *top)
 		}
 		x = (MLink*)v;
 		c = g->m->mcache;
-		if(c == nil) {
+		if(c == nil || g->m->gcing || g->m->helpgc) {
 			runtime·lock(&stackpoolmu);
 			poolfree(x, order);
 			runtime·unlock(&stackpoolmu);
