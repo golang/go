@@ -10,6 +10,8 @@ usr	src=../misc/nacl/testdata
 go	src=..
 	src
 		cmd
+			internal
+				+
 			gofmt
 				testdata
 					+
