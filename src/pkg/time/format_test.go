@@ -502,10 +502,11 @@ func TestParseSecondsInTimeZone(t *testing.T) {
 }
 
 func TestFormatSecondsInTimeZone(t *testing.T) {
-	d := Date(1871, 9, 17, 20, 4, 26, 0, FixedZone("LMT", -(34*60+8)))
-	timestr := d.Format("2006-01-02T15:04:05Z070000")
-	expected := "1871-09-17T20:04:26-003408"
-	if timestr != expected {
-		t.Errorf("Got %s, want %s", timestr, expected)
+	for _, test := range secondsTimeZoneOffsetTests {
+		d := Date(1871, 1, 1, 5, 33, 2, 0, FixedZone("LMT", test.expectedoffset))
+		timestr := d.Format(test.format)
+		if timestr != test.value {
+			t.Errorf("Format = %s, want %s", timestr, test.value)
+		}
 	}
 }
