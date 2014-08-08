@@ -5,6 +5,7 @@
 package os
 
 import (
+	"runtime"
 	"sync"
 	"syscall"
 )
@@ -23,6 +24,10 @@ var useSyscallwd = func(error) bool { return true }
 // reached via multiple paths (due to symbolic links),
 // Getwd may return any one of them.
 func Getwd() (dir string, err error) {
+	if runtime.GOOS == "windows" {
+		return syscall.Getwd()
+	}
+
 	// Clumsy but widespread kludge:
 	// if $PWD is set and matches ".", use it.
 	dot, err := Stat(".")
