@@ -211,7 +211,7 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
 	return s;
 }
 
-void
+static void
 mheap_alloc_m(G *gp)
 {
 	MHeap *h;
