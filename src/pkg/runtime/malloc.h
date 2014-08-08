@@ -141,8 +141,8 @@ enum
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
 	// on the hardware details of the machine.  The garbage
-	// collector scales well to 8 cpus.
-	MaxGcproc = 8,
+	// collector scales well to 32 cpus.
+	MaxGcproc = 32,
 };
 
 // Maximum memory allocation size, a hint for callers.
