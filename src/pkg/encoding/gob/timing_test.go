@@ -19,12 +19,13 @@ type Bench struct {
 	D []byte
 }
 
-func benchmarkEndToEnd(b *testing.B, v interface{}, pipe func() (r io.Reader, w io.Writer, err error)) {
+func benchmarkEndToEnd(b *testing.B, ctor func() interface{}, pipe func() (r io.Reader, w io.Writer, err error)) {
 	b.RunParallel(func(pb *testing.PB) {
 		r, w, err := pipe()
 		if err != nil {
 			b.Fatal("can't get pipe:", err)
 		}
+		v := ctor()
 		enc := NewEncoder(w)
 		dec := NewDecoder(r)
 		for pb.Next() {
@@ -39,29 +40,33 @@ func benchmarkEndToEnd(b *testing.B, v interface{}, pipe func() (r io.Reader, w 
 }
 
 func BenchmarkEndToEndPipe(b *testing.B) {
-	v := &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
-	benchmarkEndToEnd(b, v, func() (r io.Reader, w io.Writer, err error) {
+	benchmarkEndToEnd(b, func() interface{} {
+		return &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
+	}, func() (r io.Reader, w io.Writer, err error) {
 		r, w, err = os.Pipe()
 		return
 	})
 }
 
 func BenchmarkEndToEndByteBuffer(b *testing.B) {
-	v := &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
-	benchmarkEndToEnd(b, v, func() (r io.Reader, w io.Writer, err error) {
+	benchmarkEndToEnd(b, func() interface{} {
+		return &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
+	}, func() (r io.Reader, w io.Writer, err error) {
 		var buf bytes.Buffer
 		return &buf, &buf, nil
 	})
 }
 
 func BenchmarkEndToEndSliceByteBuffer(b *testing.B) {
-	v := &Bench{7, 3.2, "now is the time", nil}
-	Register(v)
-	arr := make([]interface{}, 100)
-	for i := range arr {
-		arr[i] = v
-	}
-	benchmarkEndToEnd(b, &arr, func() (r io.Reader, w io.Writer, err error) {
+	benchmarkEndToEnd(b, func() interface{} {
+		v := &Bench{7, 3.2, "now is the time", nil}
+		Register(v)
+		arr := make([]interface{}, 100)
+		for i := range arr {
+			arr[i] = v
+		}
+		return &arr
+	}, func() (r io.Reader, w io.Writer, err error) {
 		var buf bytes.Buffer
 		return &buf, &buf, nil
 	})
