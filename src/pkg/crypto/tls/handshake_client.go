@@ -187,10 +187,10 @@ NextCipherSuite:
 		if err := hs.readSessionTicket(); err != nil {
 			return err
 		}
-		if err := hs.readFinished(); err != nil {
+		if err := hs.readFinished(c.firstFinished[:]); err != nil {
 			return err
 		}
-		if err := hs.sendFinished(); err != nil {
+		if err := hs.sendFinished(nil); err != nil {
 			return err
 		}
 	} else {
@@ -200,13 +200,13 @@ NextCipherSuite:
 		if err := hs.establishKeys(); err != nil {
 			return err
 		}
-		if err := hs.sendFinished(); err != nil {
+		if err := hs.sendFinished(c.firstFinished[:]); err != nil {
 			return err
 		}
 		if err := hs.readSessionTicket(); err != nil {
 			return err
 		}
-		if err := hs.readFinished(); err != nil {
+		if err := hs.readFinished(nil); err != nil {
 			return err
 		}
 	}
@@ -530,7 +530,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 	return false, nil
 }
 
-func (hs *clientHandshakeState) readFinished() error {
+func (hs *clientHandshakeState) readFinished(out []byte) error {
 	c := hs.c
 
 	c.readRecord(recordTypeChangeCipherSpec)
@@ -555,6 +555,7 @@ func (hs *clientHandshakeState) readFinished() error {
 		return errors.New("tls: server's Finished message was incorrect")
 	}
 	hs.finishedHash.Write(serverFinished.marshal())
+	copy(out, verify)
 	return nil
 }
 
@@ -586,7 +587,7 @@ func (hs *clientHandshakeState) readSessionTicket() error {
 	return nil
 }
 
-func (hs *clientHandshakeState) sendFinished() error {
+func (hs *clientHandshakeState) sendFinished(out []byte) error {
 	c := hs.c
 
 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
@@ -605,6 +606,7 @@ func (hs *clientHandshakeState) sendFinished() error {
 	finished.verifyData = hs.finishedHash.clientSum(hs.masterSecret)
 	hs.finishedHash.Write(finished.marshal())
 	c.writeRecord(recordTypeHandshake, finished.marshal())
+	copy(out, finished.verifyData)
 	return nil
 }
 

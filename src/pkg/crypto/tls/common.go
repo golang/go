@@ -165,6 +165,14 @@ type ConnectionState struct {
 	ServerName                 string                // server name requested by client, if any (server side only)
 	PeerCertificates           []*x509.Certificate   // certificate chain presented by remote peer
 	VerifiedChains             [][]*x509.Certificate // verified chains built from PeerCertificates
+
+	// TLSUnique contains the "tls-unique" channel binding value (see RFC
+	// 5929, section 3). For resumed sessions this value will be nil
+	// because resumption does not include enough context (see
+	// https://secure-resumption.com/#channelbindings). This will change in
+	// future versions of Go once the TLS master-secret fix has been
+	// standardized and implemented.
+	TLSUnique []byte
 }
 
 // ClientAuthType declares the policy the server will follow for
