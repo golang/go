@@ -214,7 +214,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		// the SP is two words lower than normal.
 		sparg = frame.sp;
 		if(wasnewproc)
-			sparg += 2*sizeof(uintreg);
+			sparg += 2*sizeof(uintptr);
 
 		// Determine frame's 'continuation PC', where it can continue.
 		// Normally this is the return address on the stack, but if sigpanic
