@@ -437,7 +437,7 @@ func (it *PCIter) Next() {
 		return
 	}
 	it.start = false
-	sv := int32(uv)>>1 ^ int32(uv)<<31>>31
+	sv := int32(uv>>1) ^ int32(uv<<31)>>31
 	it.Value += sv
 
 	// pc delta
