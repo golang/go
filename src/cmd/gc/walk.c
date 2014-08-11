@@ -673,7 +673,7 @@ walkexpr(Node **np, NodeList **init)
 			n1 = nod(OADDR, n->list->n, N);
 		n1->etype = 1; // addr does not escape
 		fn = chanfn("chanrecv2", 2, r->left->type);
-		r = mkcall1(fn, types[TBOOL], init, typename(r->left->type), r->left, n1);
+		r = mkcall1(fn, n->list->next->n->type, init, typename(r->left->type), r->left, n1);
 		n = nod(OAS, n->list->next->n, r);
 		typecheck(&n, Etop);
 		goto ret;
@@ -723,6 +723,12 @@ walkexpr(Node **np, NodeList **init)
 		var->typecheck = 1;
 		fn = mapfn(p, t);
 		r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, key);
+
+		// mapaccess2* returns a typed bool, but due to spec changes,
+		// the boolean result of i.(T) is now untyped so we make it the
+		// same type as the variable on the lhs.
+		if(!isblank(n->list->next->n))
+			r->type->type->down->type = n->list->next->n->type;
 		n->rlist = list1(r);
 		n->op = OAS2FUNC;
 		n->list->n = var;
@@ -770,6 +776,12 @@ walkexpr(Node **np, NodeList **init)
 			*p = '\0';
 			
 			fn = syslook(buf, 1);
+
+			// runtime.assert(E|I)2TOK returns a typed bool, but due
+			// to spec changes, the boolean result of i.(T) is now untyped
+			// so we make it the same type as the variable on the lhs.
+			if(!isblank(n->list->next->n))
+				fn->type->type->down->type->type = n->list->next->n->type;
 			ll = list1(typename(r->type));
 			ll = list(ll, r->left);
 			argtype(fn, r->left->type);

@@ -593,7 +593,10 @@ orderstmt(Node *n, Order *order)
 		orderexpr(&n->rlist->n->left, order);  // arg to recv
 		ch = n->rlist->n->left->type;
 		tmp1 = ordertemp(ch->type, order, haspointers(ch->type));
-		tmp2 = ordertemp(types[TBOOL], order, 0);
+		if(!isblank(n->list->next->n))
+			tmp2 = ordertemp(n->list->next->n->type, order, 0);
+		else
+			tmp2 = ordertemp(types[TBOOL], order, 0);
 		order->out = list(order->out, n);
 		r = nod(OAS, n->list->n, tmp1);
 		typecheck(&r, Etop);

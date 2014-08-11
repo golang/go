@@ -2965,7 +2965,7 @@ typecheckas2(Node *n)
 			if(l->defn == n)
 				l->type = r->type;
 			l = n->list->next->n;
-			if(l->type != T)
+			if(l->type != T && l->type->etype != TBOOL)
 				checkassignto(types[TBOOL], l);
 			if(l->defn == n && l->ntype == N)
 				l->type = types[TBOOL];
