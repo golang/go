@@ -53,11 +53,14 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return nil, err
 	}
-	valid, out, err := decryptPKCS1v15(rand, priv, ciphertext)
-	if err == nil && valid == 0 {
-		err = ErrDecryption
+	valid, out, index, err := decryptPKCS1v15(rand, priv, ciphertext)
+	if err != nil {
+		return
 	}
-
+	if valid == 0 {
+		return nil, ErrDecryption
+	}
+	out = out[index:]
 	return
 }
 
@@ -80,21 +83,32 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
 	}
 	k := (priv.N.BitLen() + 7) / 8
 	if k-(len(key)+3+8) < 0 {
-		err = ErrDecryption
-		return
+		return ErrDecryption
 	}
 
-	valid, msg, err := decryptPKCS1v15(rand, priv, ciphertext)
+	valid, em, index, err := decryptPKCS1v15(rand, priv, ciphertext)
 	if err != nil {
 		return
 	}
 
-	valid &= subtle.ConstantTimeEq(int32(len(msg)), int32(len(key)))
-	subtle.ConstantTimeCopy(valid, key, msg)
+	if len(em) != k {
+		// This should be impossible because decryptPKCS1v15 always
+		// returns the full slice.
+		return ErrDecryption
+	}
+
+	valid &= subtle.ConstantTimeEq(int32(len(em)-index), int32(len(key)))
+	subtle.ConstantTimeCopy(valid, key, em[len(em)-len(key):])
 	return
 }
 
-func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, msg []byte, err error) {
+// decryptPKCS1v15 decrypts ciphertext using priv and blinds the operation if
+// rand is not nil. It returns one or zero in valid that indicates whether the
+// plaintext was correctly structured. In either case, the plaintext is
+// returned in em so that it may be read independently of whether it was valid
+// in order to maintain constant memory access patterns. If the plaintext was
+// valid then index contains the index of the original message in em.
+func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, em []byte, index int, err error) {
 	k := (priv.N.BitLen() + 7) / 8
 	if k < 11 {
 		err = ErrDecryption
@@ -107,7 +121,7 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 		return
 	}
 
-	em := leftPad(m.Bytes(), k)
+	em = leftPad(m.Bytes(), k)
 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
 	secondByteIsTwo := subtle.ConstantTimeByteEq(em[1], 2)
 
@@ -115,8 +129,7 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 	// octets, followed by a 0, followed by the message.
 	//   lookingForIndex: 1 iff we are still looking for the zero.
 	//   index: the offset of the first zero byte.
-	var lookingForIndex, index int
-	lookingForIndex = 1
+	lookingForIndex := 1
 
 	for i := 2; i < len(em); i++ {
 		equals0 := subtle.ConstantTimeByteEq(em[i], 0)
@@ -129,8 +142,8 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 	validPS := subtle.ConstantTimeLessOrEq(2+8, index)
 
 	valid = firstByteIsZero & secondByteIsTwo & (^lookingForIndex & 1) & validPS
-	msg = em[index+1:]
-	return
+	index = subtle.ConstantTimeSelect(valid, index+1, 0)
+	return valid, em, index, nil
 }
 
 // nonZeroRandomBytes fills the given slice with non-zero random octets.
