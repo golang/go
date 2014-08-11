@@ -838,6 +838,11 @@ copyu(Prog *p, Adr *v, Adr *s)
 static int
 copyas(Adr *a, Adr *v)
 {
+	if(D_AL <= a->type && a->type <= D_R15B)
+		fatal("use of byte register");
+	if(D_AL <= v->type && v->type <= D_R15B)
+		fatal("use of byte register");
+
 	if(a->type != v->type)
 		return 0;
 	if(regtyp(v))
