@@ -11,7 +11,8 @@ go	src=..
 	src
 		cmd
 			internal
-				+
+				objfile
+					objfile.go
 			gofmt
 				testdata
 					+
