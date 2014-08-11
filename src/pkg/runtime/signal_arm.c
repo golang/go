@@ -76,7 +76,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 			SIG_LR(info, ctxt) = gp->sigpc;
 		// In case we are panicking from external C code
 		SIG_R10(info, ctxt) = (uintptr)gp;
-		SIG_R9(info, ctxt) = (uintptr)g->m;
 		SIG_PC(info, ctxt) = (uintptr)runtime·sigpanic;
 		return;
 	}
