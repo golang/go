@@ -574,12 +574,6 @@ func StartCPUProfile(w io.Writer) error {
 	// each client to specify the frequency, we hard code it.
 	const hz = 100
 
-	// Avoid queueing behind StopCPUProfile.
-	// Could use TryLock instead if we had it.
-	if cpu.profiling {
-		return fmt.Errorf("cpu profiling already in use")
-	}
-
 	cpu.Lock()
 	defer cpu.Unlock()
 	if cpu.done == nil {
