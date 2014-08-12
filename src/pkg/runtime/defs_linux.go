@@ -20,6 +20,7 @@ package runtime
 // headers for things like ucontext_t, so that happens in
 // a separate file, defs1.go.
 
+#define	_SYS_TYPES_H	// avoid inclusion of sys/types.h
 #include <asm/posix_types.h>
 #define size_t __kernel_size_t
 #include <asm/signal.h>
@@ -28,7 +29,7 @@ package runtime
 #include <asm-generic/errno.h>
 #include <asm-generic/poll.h>
 #include <linux/eventpoll.h>
-#undef size_t
+#include <linux/time.h>
 */
 import "C"
 
@@ -48,10 +49,9 @@ const (
 
 	MADV_DONTNEED = C.MADV_DONTNEED
 
-	SA_RESTART  = C.SA_RESTART
-	SA_ONSTACK  = C.SA_ONSTACK
-	SA_RESTORER = C.SA_RESTORER
-	SA_SIGINFO  = C.SA_SIGINFO
+	SA_RESTART = C.SA_RESTART
+	SA_ONSTACK = C.SA_ONSTACK
+	SA_SIGINFO = C.SA_SIGINFO
 
 	SIGHUP    = C.SIGHUP
 	SIGINT    = C.SIGINT
@@ -116,6 +116,7 @@ const (
 	EPOLL_CTL_MOD = C.EPOLL_CTL_MOD
 )
 
+type Sigset C.sigset_t
 type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Sigaction C.struct_sigaction
