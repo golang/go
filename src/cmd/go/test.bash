@@ -121,6 +121,42 @@ if ! ./testgo build -v ./testdata/testinternal2; then
 	ok=false
 fi
 
+export GOPATH=$(pwd)/testdata/importcom
+TEST 'import comment - match'
+if ! ./testgo build ./testdata/importcom/works.go; then
+	echo 'go build ./testdata/importcom/works.go failed'
+	ok=false
+fi
+TEST 'import comment - mismatch'
+if ./testgo build ./testdata/importcom/wrongplace.go 2>testdata/err; then
+	echo 'go build ./testdata/importcom/wrongplace.go suceeded'
+	ok=false
+elif ! grep 'wrongplace contains package "my/x"' testdata/err >/dev/null; then
+	echo 'go build did not mention incorrect import:'
+	cat testdata/err
+	ok=false
+fi
+TEST 'import comment - syntax error'
+if ./testgo build ./testdata/importcom/bad.go 2>testdata/err; then
+	echo 'go build ./testdata/importcom/bad.go suceeded'
+	ok=false
+elif ! grep 'cannot parse import comment' testdata/err >/dev/null; then
+	echo 'go build did not mention syntax error:'
+	cat testdata/err
+	ok=false
+fi
+TEST 'import comment - conflict'
+if ./testgo build ./testdata/importcom/conflict.go 2>testdata/err; then
+	echo 'go build ./testdata/importcom/conflict.go suceeded'
+	ok=false
+elif ! grep 'found import comments' testdata/err >/dev/null; then
+	echo 'go build did not mention comment conflict:'
+	cat testdata/err
+	ok=false
+fi
+rm -f ./testdata/err
+unset GOPATH
+
 TEST error message for syntax error in test go file says FAIL
 export GOPATH=$(pwd)/testdata
 if ./testgo test syntaxerror 2>testdata/err; then
