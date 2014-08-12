@@ -991,7 +991,7 @@ cgen_hmul(Node *nl, Node *nr, Node *res)
 	if(t->width == 1) {
 		// byte multiply behaves differently.
 		nodreg(&ax, t, D_AH);
-		nodreg(&dx, t, D_DL);
+		nodreg(&dx, t, D_DX);
 		gmove(&ax, &dx);
 	}
 	nodreg(&dx, t, D_DX);
