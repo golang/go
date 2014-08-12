@@ -1534,6 +1534,9 @@ func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
 
 // Struct conversion: return Go and (6g) C syntax for type.
 func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.StructType, csyntax string, align int64) {
+	// Minimum alignment for a struct is 1 byte.
+	align = 1
+
 	var buf bytes.Buffer
 	buf.WriteString("struct {")
 	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1) // enough for padding around every field
