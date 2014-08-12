@@ -1,0 +1,14 @@
+#include "../../cmd/ld/textflag.h"
+
+TEXT _rt0_power64le_linux(SB),7,$0
+	BR _main<>(SB)
+
+TEXT _main<>(SB),NOSPLIT,$-8
+	MOVD 0(R1), R3 // argc
+	ADD $8, R1, R4 // argv
+	BR main(SB)
+
+TEXT main(SB),NOSPLIT,$-8
+	MOVD	$_rt0_go(SB), R31
+	MOVD	R31, CTR
+	BR	(CTR)
