@@ -86,7 +86,7 @@ runtime·deferproc(int32 siz, FuncVal *fn, ...)
 	d = newdefer(siz);
 	d->fn = fn;
 	d->pc = runtime·getcallerpc(&siz);
-	if(thechar == '5')
+	if(thechar == '5' || thechar == '9')
 		d->argp = (byte*)(&fn+2);  // skip caller's saved link register
 	else
 		d->argp = (byte*)(&fn+1);
@@ -309,7 +309,7 @@ recovery(G *gp)
 	// (The pc we're returning to does pop pop
 	// before it tests the return value.)
 	// On the arm there are 2 saved LRs mixed in too.
-	if(thechar == '5')
+	if(thechar == '5' || thechar == '9')
 		gp->sched.sp = (uintptr)argp - 4*sizeof(uintptr);
 	else
 		gp->sched.sp = (uintptr)argp - 2*sizeof(uintptr);
@@ -514,10 +514,10 @@ runtime·canpanic(G *gp)
 void
 runtime·throw(int8 *s)
 {
+	runtime·printf("fatal error: %s\n", s);
 	if(g->m->throwing == 0)
 		g->m->throwing = 1;
 	runtime·startpanic();
-	runtime·printf("fatal error: %s\n", s);
 	runtime·dopanic(0);
 	*(int32*)0 = 0;	// not reached
 	runtime·exit(1);	// even more not reached

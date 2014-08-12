@@ -969,7 +969,7 @@ runtime·newstack(void)
 		while(dst < dstend)
 			*dst++ = *src++;
 	}
-	if(thechar == '5') {
+	if(thechar == '5' || thechar == '9') {
 		// caller would have saved its LR below args.
 		sp -= sizeof(void*);
 		*(void**)sp = nil;
