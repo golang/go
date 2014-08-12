@@ -32,7 +32,8 @@
  */
 #define	NSNAME	8
 #define	NSYM	50
-#define	NREG	32
+#define	NREG	32	/* number of general registers */
+#define	NFREG	32	/* number of floating point registers */
 
 #include "../ld/textflag.h"
 
@@ -43,17 +44,20 @@ enum
 	REGSB		= 2,
 	REGRET		= 3,
 	REGARG		= -1,	/* -1 disables passing the first argument in register */
+	REGRT1		= 3,	/* reserved for runtime, duffzero and duffcopy */
+	REGRT2		= 4,	/* reserved for runtime, duffcopy */
 	REGMIN		= 7,	/* register variables allocated from here to REGMAX */
-	REGENV		= 11,	/* environment variable for closures */
+	REGENV		= 11,	/* environment for closures */
 	REGMAX		= 27,
 	REGEXT		= 30,	/* external registers allocated from here down */
+	REGG		= 30,	/* G */
 	REGTMP		= 31,	/* used by the linker */
 
 	FREGRET		= 0,
 	FREGMIN		= 17,	/* first register variable */
 	FREGMAX		= 26,	/* last register variable for 9g only */
 	FREGEXT		= 26,	/* first external register */
-	FREGCVI		= 27, /* floating conversion constant */
+	FREGCVI		= 27,	/* floating conversion constant */
 	FREGZERO	= 28,	/* both float and double */
 	FREGHALF	= 29,	/* double */
 	FREGONE		= 30,	/* double */
