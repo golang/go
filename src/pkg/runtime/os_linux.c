@@ -312,7 +312,8 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 	if(fn == runtime·sighandler)
 		fn = (void*)runtime·sigtramp;
 	sa.sa_handler = fn;
-	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
+	// Qemu rejects rt_sigaction of SIGRTMAX (64).
+	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0 && i != 64)
 		runtime·throw("rt_sigaction failure");
 }
 
