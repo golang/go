@@ -261,10 +261,13 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
 	//
 	// TODO: After Go 1, decide when to pass build.AllowBinary here.
 	// See issue 3268 for mistakes to avoid.
-	bp, err := buildContext.Import(path, srcDir, 0)
+	bp, err := buildContext.Import(path, srcDir, build.ImportComment)
 	bp.ImportPath = importPath
 	if gobin != "" {
 		bp.BinDir = gobin
+	}
+	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path {
+		err = fmt.Errorf("directory %s contains package %q", bp.Dir, bp.ImportComment)
 	}
 	p.load(stk, bp, err)
 	if p.Error != nil && len(importPos) > 0 {

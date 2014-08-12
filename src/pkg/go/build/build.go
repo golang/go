@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // A Context specifies the supporting context for a build.
@@ -337,22 +338,29 @@ const (
 	// If AllowBinary is set, Import can be satisfied by a compiled
 	// package object without corresponding sources.
 	AllowBinary
+
+	// If ImportComment is set, parse import comments on package statements.
+	// Import returns an error if it finds a comment it cannot understand
+	// or finds conflicting comments in multiple source files.
+	// See golang.org/s/go14customimport for more information.
+	ImportComment
 )
 
 // A Package describes the Go package found in a directory.
 type Package struct {
-	Dir         string   // directory containing package sources
-	Name        string   // package name
-	Doc         string   // documentation synopsis
-	ImportPath  string   // import path of package ("" if unknown)
-	Root        string   // root of Go tree where this package lives
-	SrcRoot     string   // package source root directory ("" if unknown)
-	PkgRoot     string   // package install root directory ("" if unknown)
-	BinDir      string   // command install directory ("" if unknown)
-	Goroot      bool     // package found in Go root
-	PkgObj      string   // installed .a file
-	AllTags     []string // tags that can influence file selection in this directory
-	ConflictDir string   // this directory shadows Dir in $GOPATH
+	Dir           string   // directory containing package sources
+	Name          string   // package name
+	ImportComment string   // path in import comment on package statement
+	Doc           string   // documentation synopsis
+	ImportPath    string   // import path of package ("" if unknown)
+	Root          string   // root of Go tree where this package lives
+	SrcRoot       string   // package source root directory ("" if unknown)
+	PkgRoot       string   // package install root directory ("" if unknown)
+	BinDir        string   // command install directory ("" if unknown)
+	Goroot        bool     // package found in Go root
+	PkgObj        string   // installed .a file
+	AllTags       []string // tags that can influence file selection in this directory
+	ConflictDir   string   // this directory shadows Dir in $GOPATH
 
 	// Source files
 	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -597,7 +605,7 @@ Found:
 	}
 
 	var Sfiles []string // files with ".S" (capital S)
-	var firstFile string
+	var firstFile, firstCommentFile string
 	imported := make(map[string][]token.Position)
 	testImported := make(map[string][]token.Position)
 	xTestImported := make(map[string][]token.Position)
@@ -684,6 +692,22 @@ Found:
 			p.Doc = doc.Synopsis(pf.Doc.Text())
 		}
 
+		if mode&ImportComment != 0 {
+			qcom, line := findImportComment(data)
+			if line != 0 {
+				com, err := strconv.Unquote(qcom)
+				if err != nil {
+					return p, fmt.Errorf("%s:%d: cannot parse import comment", filename, line)
+				}
+				if p.ImportComment == "" {
+					p.ImportComment = com
+					firstCommentFile = name
+				} else if p.ImportComment != com {
+					return p, fmt.Errorf("found import comments %q (%s) and %q (%s) in %s", p.ImportComment, firstCommentFile, com, name, p.Dir)
+				}
+			}
+		}
+
 		// Record imports and information about cgo.
 		isCgo := false
 		for _, decl := range pf.Decls {
@@ -762,6 +786,117 @@ Found:
 	}
 
 	return p, pkgerr
+}
+
+func findImportComment(data []byte) (s string, line int) {
+	// expect keyword package
+	word, data := parseWord(data)
+	if string(word) != "package" {
+		return "", 0
+	}
+
+	// expect package name
+	_, data = parseWord(data)
+
+	// now ready for import comment, a // or /* */ comment
+	// beginning and ending on the current line.
+	for len(data) > 0 && (data[0] == ' ' || data[0] == '\t' || data[0] == '\r') {
+		data = data[1:]
+	}
+
+	var comment []byte
+	switch {
+	case bytes.HasPrefix(data, slashSlash):
+		i := bytes.Index(data, newline)
+		if i < 0 {
+			i = len(data)
+		}
+		comment = data[2:i]
+	case bytes.HasPrefix(data, slashStar):
+		data = data[2:]
+		i := bytes.Index(data, starSlash)
+		if i < 0 {
+			// malformed comment
+			return "", 0
+		}
+		comment = data[:i]
+		if bytes.Contains(comment, newline) {
+			return "", 0
+		}
+	}
+	comment = bytes.TrimSpace(comment)
+
+	// split comment into `import`, `"pkg"`
+	word, arg := parseWord(comment)
+	if string(word) != "import" {
+		return "", 0
+	}
+
+	line = 1 + bytes.Count(data[:cap(data)-cap(arg)], newline)
+	return strings.TrimSpace(string(arg)), line
+}
+
+var (
+	slashSlash = []byte("//")
+	slashStar  = []byte("/*")
+	starSlash  = []byte("*/")
+	newline    = []byte("\n")
+)
+
+// skipSpaceOrComment returns data with any leading spaces or comments removed.
+func skipSpaceOrComment(data []byte) []byte {
+	for len(data) > 0 {
+		switch data[0] {
+		case ' ', '\t', '\r', '\n':
+			data = data[1:]
+			continue
+		case '/':
+			if bytes.HasPrefix(data, slashSlash) {
+				i := bytes.Index(data, newline)
+				if i < 0 {
+					return nil
+				}
+				data = data[i+1:]
+				continue
+			}
+			if bytes.HasPrefix(data, slashStar) {
+				data = data[2:]
+				i := bytes.Index(data, starSlash)
+				if i < 0 {
+					return nil
+				}
+				data = data[i+2:]
+				continue
+			}
+		}
+		break
+	}
+	return data
+}
+
+// parseWord skips any leading spaces or comments in data
+// and then parses the beginning of data as an identifier or keyword,
+// returning that word and what remains after the word.
+func parseWord(data []byte) (word, rest []byte) {
+	data = skipSpaceOrComment(data)
+
+	// Parse past leading word characters.
+	rest = data
+	for {
+		r, size := utf8.DecodeRune(rest)
+		if unicode.IsLetter(r) || '0' <= r && r <= '9' || r == '_' {
+			rest = rest[size:]
+			continue
+		}
+		break
+	}
+
+	word = data[:len(data)-len(rest)]
+	if len(word) == 0 {
+		return nil, nil
+	}
+
+	return word, rest
 }
 
 // MatchFile reports whether the file with the given name in the given directory
