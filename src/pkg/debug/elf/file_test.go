@@ -261,6 +261,12 @@ var relocationTests = []relocationTest{
 		},
 	},
 	{
+		"testdata/go-relocation-test-gcc482-ppc64le.obj",
+		[]relocationTestEntry{
+			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{dwarf.Field{Attr: dwarf.AttrProducer, Val: "GNU C 4.8.2 -Asystem=linux -Asystem=unix -Asystem=posix -msecure-plt -mtune=power8 -mcpu=power7 -gdwarf-2 -fstack-protector"}, dwarf.Field{Attr: dwarf.AttrLanguage, Val: int64(1)}, dwarf.Field{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc482-ppc64le.c"}, dwarf.Field{Attr: dwarf.AttrCompDir, Val: "/tmp"}, dwarf.Field{Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, dwarf.Field{Attr: dwarf.AttrHighpc, Val: uint64(0x24)}, dwarf.Field{Attr: dwarf.AttrStmtList, Val: int64(0)}}}},
+		},
+	},
+	{
 		"testdata/go-relocation-test-clang-x86.obj",
 		[]relocationTestEntry{
 			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "clang version google3-trunk (trunk r209387)"}, {Attr: dwarf.AttrLanguage, Val: int64(12)}, {Attr: dwarf.AttrName, Val: "go-relocation-test-clang.c"}, {Attr: dwarf.AttrStmtList, Val: int64(0)}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}}}},
