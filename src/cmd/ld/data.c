@@ -425,10 +425,10 @@ dynreloc(void)
 }
 
 static void
-blk(LSym *start, int32 addr, int32 size)
+blk(LSym *start, int64 addr, int64 size)
 {
 	LSym *sym;
-	int32 eaddr;
+	int64 eaddr;
 	uchar *p, *ep;
 
 	for(sym = start; sym != nil; sym = sym->next)
@@ -467,10 +467,10 @@ blk(LSym *start, int32 addr, int32 size)
 }
 
 void
-codeblk(int32 addr, int32 size)
+codeblk(int64 addr, int64 size)
 {
 	LSym *sym;
-	int32 eaddr, n;
+	int64 eaddr, n;
 	uchar *q;
 
 	if(debug['a'])
@@ -527,10 +527,10 @@ codeblk(int32 addr, int32 size)
 }
 
 void
-datblk(int32 addr, int32 size)
+datblk(int64 addr, int64 size)
 {
 	LSym *sym;
-	int32 i, eaddr;
+	int64 i, eaddr;
 	uchar *p, *ep;
 	char *typ, *rsname;
 	Reloc *r;
