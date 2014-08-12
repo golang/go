@@ -17,6 +17,13 @@
 // These calls return err == nil to indicate success; otherwise
 // err is an operating system error describing the failure.
 // On most systems, that error has type syscall.Errno.
+//
+// NOTE: This package is locked down. Code outside the standard
+// Go repository should be migrated to use the corresponding
+// package in the go.sys subrepository. That is also where updates
+// required by new systems or versions should be applied.
+// See https://golang.org/s/go1.4-syscall for more information.
+//
 package syscall
 
 // StringByteSlice is deprecated. Use ByteSliceFromString instead.

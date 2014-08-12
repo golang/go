@@ -152,6 +152,20 @@ will be tagged as appropriate to identify versions that are compatible
 with the Go 1 point releases.
 </p>
 
+<h2 id="operating_systems">Operating systems</h2>
+
+<p>
+It is impossible to guarantee long-term compatibility with operating
+system interfaces, which are changed by outside parties.
+The <a href="/pkg/syscall/"><code>syscall</code></a> package
+is therefore outside the purview of the guarantees made here.
+As of Go version 1.4, the <code>syscall</code> package is frozen.
+Any evolution of the system call interface must be supported elsewhere,
+such as in the <code>go.sys</code> subrepository.
+For details and background, see
+<a href="https://golang.org/s/go1.4-syscall">this document</a>.
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <p>
