@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build arm power64 power64le
+
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
@@ -267,7 +269,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		// sighandler saves the lr on stack before faking a call to sigpanic
 		if(waspanic) {
 			x = *(uintptr*)frame.sp;
-			frame.sp += 4;
+			frame.sp += sizeof(uintptr);
 			frame.fn = f = runtime·findfunc(frame.pc);
 			if(f == nil)
 				frame.pc = x;
