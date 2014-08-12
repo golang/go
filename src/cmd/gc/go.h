@@ -1017,7 +1017,6 @@ int32	arraylength(Array *array);
 void*	arrayget(Array *array, int32 index);
 void	arrayset(Array *array, int32 index, void *element);
 void	arrayadd(Array *array, void *element);
-int32	arrayindexof(Array* array, void *element);
 void	arraysort(Array* array, int (*cmp)(const void*, const void*));
 
 /*
@@ -1043,6 +1042,7 @@ int	bvcmp(Bvec *bv1, Bvec *bv2);
 void	bvcopy(Bvec *dst, Bvec *src);
 Bvec*	bvconcat(Bvec *src1, Bvec *src2);
 int	bvget(Bvec *bv, int32 i);
+int32	bvnext(Bvec *bv, int32 i);
 int	bvisempty(Bvec *bv);
 void	bvnot(Bvec *bv);
 void	bvor(Bvec *dst, Bvec *src1, Bvec *src2);
