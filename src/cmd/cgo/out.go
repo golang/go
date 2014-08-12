@@ -64,7 +64,7 @@ func (p *Package) writeDefs() {
 	if !*gccgo && *importRuntimeCgo {
 		fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
 	}
-	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
+	fmt.Fprintf(fgo2, "func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }\n\n")
 	if *importSyscall {
 		fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int32) { *dst = syscall.Errno(x) }\n")
 	}

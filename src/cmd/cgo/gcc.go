@@ -650,7 +650,13 @@ func (p *Package) rewriteRef(f *File) {
 					f.Name[fpName] = name
 				}
 				r.Name = name
-				expr = ast.NewIdent(name.Mangle)
+				// Rewrite into call to _Cgo_ptr to prevent assignments.  The _Cgo_ptr
+				// function is defined in out.go and simply returns its argument. See
+				// issue 7757.
+				expr = &ast.CallExpr{
+					Fun:  &ast.Ident{NamePos: (*r.Expr).Pos(), Name: "_Cgo_ptr"},
+					Args: []ast.Expr{ast.NewIdent(name.Mangle)},
+				}
 			} else if r.Name.Kind == "type" {
 				// Okay - might be new(T)
 				expr = r.Name.Type.Go
