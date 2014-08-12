@@ -9,13 +9,13 @@
 #include "gg.h"
 #include "opt.h"
 
-//static Prog *appendpp(Prog*, int, int, vlong, int, vlong);
-static Prog *zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *ax);
+static Prog *appendpp(Prog *p, int as, int ftype, int freg, vlong foffset, int ttype, int treg, vlong toffset);
+static Prog *zerorange(Prog *p, vlong frame, vlong lo, vlong hi);
 
 void
 defframe(Prog *ptxt)
 {
-	uint32 frame, r0;
+	uint32 frame;
 	Prog *p;
 	vlong hi, lo;
 	NodeList *l;
@@ -34,7 +34,6 @@ defframe(Prog *ptxt)
 	// when it looks for pointers.
 	p = ptxt;
 	lo = hi = 0;
-	r0 = 0;
 	// iterate through declarations - they are sorted in decreasing xoffset order.
 	for(l=curfn->dcl; l != nil; l = l->next) {
 		n = l->n;
@@ -51,43 +50,69 @@ defframe(Prog *ptxt)
 			continue;
 		}
 		// zero old range
-		p = zerorange(p, frame, lo, hi, &r0);
+		p = zerorange(p, frame, lo, hi);
 
 		// set new range
 		hi = n->xoffset + n->type->width;
 		lo = n->xoffset;
 	}
 	// zero final range
-	zerorange(p, frame, lo, hi, &r0);
+	zerorange(p, frame, lo, hi);
 }
 
 static Prog*
-zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *r0)
+zerorange(Prog *p, vlong frame, vlong lo, vlong hi)
 {
-	vlong cnt/*, i*/;
+	vlong cnt, i;
+	Prog *p1;
+	Node *f;
 
 	cnt = hi - lo;
 	if(cnt == 0)
 		return p;
-	fprint(2, "zerorange TODO: %P, frame:%lld, lo:%lld, hi:%lld, r0: %p (%d)\n", p, frame, lo, hi, r0, *r0);
+	if(cnt < 4*widthptr) {
+		for(i = 0; i < cnt; i += widthptr)
+			p = appendpp(p, AMOVD, D_REG, REGZERO, 0, D_OREG, REGSP, 8+frame+lo+i);
+	} else if(cnt <= 128*widthptr) {
+		p = appendpp(p, AADD, D_CONST, NREG, 8+frame+lo-8, D_REG, REGRT1, 0);
+		p->reg = REGSP;
+		p = appendpp(p, ADUFFZERO, D_NONE, NREG, 0, D_OREG, NREG, 0);
+		f = sysfunc("duffzero");
+		naddr(f, &p->to, 1);
+		afunclit(&p->to, f);
+		p->to.offset = 4*(128-cnt/widthptr);
+	} else {
+		p = appendpp(p, AMOVD, D_CONST, NREG, 8+frame+lo-8, D_REG, REGTMP, 0);
+		p = appendpp(p, AADD, D_REG, REGTMP, 0, D_REG, REGRT1, 0);
+		p->reg = REGSP;
+		p = appendpp(p, AMOVD, D_CONST, NREG, cnt, D_REG, REGTMP, 0);
+		p = appendpp(p, AADD, D_REG, REGTMP, 0, D_REG, REGRT2, 0);
+		p->reg = REGRT1;
+		p1 = p = appendpp(p, AMOVDU, D_REG, REGZERO, 0, D_OREG, REGRT1, widthptr);
+		p = appendpp(p, ACMP, D_REG, REGRT1, 0, D_REG, REGRT2, 0);
+		p = appendpp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);
+		patch(p, p1);
+	}
 	return p;
 }
 
-/*static*/ Prog*
-appendpp(Prog *p, int as, int ftype, vlong foffset, int ttype, vlong toffset)
+static Prog*
+appendpp(Prog *p, int as, int ftype, int freg, vlong foffset, int ttype, int treg, vlong toffset)
 {
 	Prog *q;
-	q = mal(sizeof(*q));	
-	clearp(q);	
-	q->as = as;	
-	q->lineno = p->lineno;	
-	q->from.type = ftype;	
-	q->from.offset = foffset;	
-	q->to.type = ttype;	
-	q->to.offset = toffset;	
-	q->link = p->link;	
-	p->link = q;	
-	return q;	
+	q = mal(sizeof(*q));
+	clearp(q);
+	q->as = as;
+	q->lineno = p->lineno;
+	q->from.type = ftype;
+	q->from.reg = freg;
+	q->from.offset = foffset;
+	q->to.type = ttype;
+	q->to.reg = treg;
+	q->to.offset = toffset;
+	q->link = p->link;
+	p->link = q;
+	return q;
 }
 
 // Sweep the prog list to mark any used nodes.
