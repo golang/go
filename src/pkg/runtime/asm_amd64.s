@@ -92,7 +92,8 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	PUSHQ	$runtime·main·f(SB)		// entry
+	MOVQ	$runtime·main·f(SB), BP		// entry
+	PUSHQ	BP
 	PUSHQ	$0			// arg size
 	ARGSIZE(16)
 	CALL	runtime·newproc(SB)
@@ -209,7 +210,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-8
 
 	// save our state in g->sched.  Pretend to
 	// be switchtoM if the G stack is scanned.
-	MOVQ	$runtime·switchtoM(SB), (g_sched+gobuf_pc)(AX)
+	MOVQ	$runtime·switchtoM(SB), BP
+	MOVQ	BP, (g_sched+gobuf_pc)(AX)
 	MOVQ	SP, (g_sched+gobuf_sp)(AX)
 	MOVQ	AX, (g_sched+gobuf_g)(AX)
 
@@ -302,7 +304,8 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
 	
 	// Save our own state as the PC and SP to restore
 	// if this goroutine needs to be restarted.
-	MOVQ	$runtime·newstackcall(SB), (g_sched+gobuf_pc)(AX)
+	MOVQ	$runtime·newstackcall(SB), BP
+	MOVQ	BP, (g_sched+gobuf_pc)(AX)
 	MOVQ	SP, (g_sched+gobuf_sp)(AX)
 
 	// Set up morestack arguments to call f on a new stack.
@@ -1002,7 +1005,8 @@ aessmall:
 	// a page boundary, so we can load it directly.
 	MOVOU	(AX), X1
 	ADDQ	CX, CX
-	PAND	masks<>(SB)(CX*8), X1
+	MOVQ	$masks<>(SB), BP
+	PAND	(BP)(CX*8), X1
 	JMP	partial
 highpartial:
 	// address ends in 1111xxxx.  Might be up against
@@ -1010,7 +1014,8 @@ highpartial:
 	// Then shift bytes down using pshufb.
 	MOVOU	-16(AX)(CX*1), X1
 	ADDQ	CX, CX
-	PSHUFB	shifts<>(SB)(CX*8), X1
+	MOVQ	$shifts<>(SB), BP
+	PSHUFB	(BP)(CX*8), X1
 partial:
 	// incorporate partial block into hash
 	AESENC	X3, X0
