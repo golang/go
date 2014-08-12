@@ -534,8 +534,7 @@ enum
 {
 	// flags to malloc
 	FlagNoScan	= 1<<0,	// GC doesn't have to scan object
-	FlagNoProfiling	= 1<<1,	// must not profile
-	FlagNoZero	= 1<<2, // don't zero memory
+	FlagNoZero	= 1<<1, // don't zero memory
 };
 
 void	runtime·MProf_Malloc(void*, uintptr);

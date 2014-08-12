@@ -11,9 +11,8 @@ import (
 const (
 	debugMalloc = false
 
-	flagNoScan      = 1 << 0 // GC doesn't have to scan object
-	flagNoProfiling = 1 << 1 // must not profile
-	flagNoZero      = 1 << 2 // don't zero memory
+	flagNoScan = 1 << 0 // GC doesn't have to scan object
+	flagNoZero = 1 << 1 // don't zero memory
 
 	kindArray      = 17
 	kindFunc       = 19
@@ -300,14 +299,12 @@ marked:
 	if debug.allocfreetrace != 0 {
 		tracealloc(x, size, typ)
 	}
-	if flags&flagNoProfiling == 0 {
-		rate := MemProfileRate
-		if rate > 0 {
-			if size < uintptr(rate) && int32(size) < c.next_sample {
-				c.next_sample -= int32(size)
-			} else {
-				profilealloc(mp, x, size)
-			}
+
+	if rate := MemProfileRate; rate > 0 {
+		if size < uintptr(rate) && int32(size) < c.next_sample {
+			c.next_sample -= int32(size)
+		} else {
+			profilealloc(mp, x, size)
 		}
 	}
 
