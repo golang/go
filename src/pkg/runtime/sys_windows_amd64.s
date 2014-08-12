@@ -120,6 +120,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 
 	// fetch g
 	get_tls(DX)
+ 	CMPQ	DX, $0
+ 	JNE	3(PC)
+ 	MOVQ	$0, AX // continue
+ 	JMP	done
 	MOVQ	m(DX), AX
 	CMPQ	AX, $0
 	JNE	2(PC)
@@ -132,6 +136,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	CALL	runtime·sighandler(SB)
 	// AX is set to report result back to Windows
 
+done:
 	// restore registers as required for windows callback
 	MOVQ	24(SP), R15
 	MOVQ	32(SP), R14
