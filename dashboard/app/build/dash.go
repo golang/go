@@ -90,6 +90,11 @@ var goPackages = []*Package{
 	},
 	{
 		Kind: "subrepo",
+		Name: "go.sys",
+		Path: "code.google.com/p/go.sys",
+	},
+	{
+		Kind: "subrepo",
 		Name: "go.talks",
 		Path: "code.google.com/p/go.talks",
 	},
