@@ -228,6 +228,14 @@ struct CallbackArgs
 #define CBARGS (CallbackArgs*)((byte*)g->m->g0->sched.sp+4*sizeof(void*))
 #endif
 
+// Unimplemented on power64 or power64le
+#ifdef GOARCH_power64
+#define CBARGS (CallbackArgs*)(nil)
+#endif
+#ifdef GOARCH_power64le
+#define CBARGS (CallbackArgs*)(nil)
+#endif
+
 void runtime·cgocallbackg1(void);
 
 #pragma textflag NOSPLIT
