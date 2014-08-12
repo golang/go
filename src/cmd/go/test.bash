@@ -131,7 +131,7 @@ TEST 'import comment - mismatch'
 if ./testgo build ./testdata/importcom/wrongplace.go 2>testdata/err; then
 	echo 'go build ./testdata/importcom/wrongplace.go suceeded'
 	ok=false
-elif ! grep 'wrongplace contains package "my/x"' testdata/err >/dev/null; then
+elif ! grep 'wrongplace expects import "my/x"' testdata/err >/dev/null; then
 	echo 'go build did not mention incorrect import:'
 	cat testdata/err
 	ok=false

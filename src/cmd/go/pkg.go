@@ -267,7 +267,7 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
 		bp.BinDir = gobin
 	}
 	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path {
-		err = fmt.Errorf("directory %s contains package %q", bp.Dir, bp.ImportComment)
+		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
 	}
 	p.load(stk, bp, err)
 	if p.Error != nil && len(importPos) > 0 {
