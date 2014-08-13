@@ -145,6 +145,57 @@ TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 	BL	(CTR)
 	BR	runtime·badmcall2(SB)
 
+// switchtoM is a dummy routine that onM leaves at the bottom
+// of the G stack.  We need to distinguish the routine that
+// lives at the bottom of the G stack from the one that lives
+// at the top of the M stack because the one at the top of
+// the M stack terminates the stack walk (see topofstack()).
+TEXT runtime·switchtoM(SB), NOSPLIT, $0-8
+	UNDEF
+	BL	(LR)	// make sure this function is not leaf
+	RETURN
+
+// void onM(void (*fn)())
+// calls fn() on the M stack.
+// switches to the M stack if not already on it, and
+// switches back when fn() returns.
+TEXT runtime·onM(SB), NOSPLIT, $0-8
+	MOVD	fn+0(FP), R3	// R3 = fn
+	MOVD	R3, CTR
+	MOVD	g_m(g), R4	// R4 = m
+	MOVD	m_g0(R4), R5	// R5 = g0
+	CMP	g, R5
+	BEQ	onm
+
+	// save our state in g->sched.  Pretend to
+	// be switchtoM if the G stack is scanned.
+	MOVD	$runtime·switchtoM(SB), R6
+	ADD	$8, R6	// get past prologue
+	MOVD	R6, (g_sched+gobuf_pc)(g)
+	MOVD	R1, (g_sched+gobuf_sp)(g)
+	MOVD	R0, (g_sched+gobuf_lr)(g)
+	MOVD	g, (g_sched+gobuf_g)(g)
+
+	// switch to g0
+	MOVD	R5, g
+	MOVD	(g_sched+gobuf_sp)(g), R1
+
+	// call target function
+	ARGSIZE(0)
+	BL	(CTR)
+
+	// switch back to g
+	MOVD	g_m(g), R3
+	MOVD	m_curg(R3), g
+	MOVD	(g_sched+gobuf_sp)(g), R1
+	MOVD	R0, (g_sched+gobuf_sp)(g)
+	RETURN
+
+onm:
+	// already on m stack, just call directly
+	BL	(CTR)
+	RETURN
+
 /*
  * support for morestack
  */
