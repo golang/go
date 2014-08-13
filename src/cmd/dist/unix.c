@@ -431,7 +431,7 @@ xremoveall(char *p)
 	}
 	
 	bfree(&b);
-	vfree(&dir);	
+	vfree(&dir);
 }
 
 // xreaddir replaces dst with a list of the names of the files in dir.
@@ -441,13 +441,13 @@ xreaddir(Vec *dst, char *dir)
 {
 	DIR *d;
 	struct dirent *dp;
-	
+
 	vreset(dst);
 	d = opendir(dir);
 	if(d == nil)
 		fatal("opendir %s: %s", dir, strerror(errno));
 	while((dp = readdir(d)) != nil) {
-		if(strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+		if(streq(dp->d_name, ".") || streq(dp->d_name, ".."))
 			continue;
 		vadd(dst, dp->d_name);
 	}
@@ -461,7 +461,7 @@ xworkdir(void)
 {
 	Buf b;
 	char *p;
-	
+
 	binit(&b);
 
 	xgetenv(&b, "TMPDIR");
@@ -546,10 +546,10 @@ bool
 hassuffix(char *p, char *suffix)
 {
 	int np, ns;
-	
+
 	np = strlen(p);
 	ns = strlen(suffix);
-	return np >= ns && strcmp(p+np-ns, suffix) == 0;
+	return np >= ns && streq(p+np-ns, suffix);
 }
 
 // hasprefix reports whether p begins with prefix.
@@ -712,7 +712,7 @@ main(int argc, char **argv)
 			fatal("unknown architecture: %s", u.machine);
 	}
 
-	if(strcmp(gohostarch, "arm") == 0)
+	if(streq(gohostarch, "arm"))
 		maxnbg = 1;
 
 	// The OS X 10.6 linker does not support external linking mode.
@@ -724,7 +724,7 @@ main(int argc, char **argv)
 	//
 	// Roughly, OS X 10.N shows up as uname release (N+4),
 	// so OS X 10.6 is uname version 10 and OS X 10.8 is uname version 12.
-	if(strcmp(gohostos, "darwin") == 0) {
+	if(streq(gohostos, "darwin")) {
 		if(uname(&u) < 0)
 			fatal("uname: %s", strerror(errno));
 		osx = atoi(u.release) - 4;

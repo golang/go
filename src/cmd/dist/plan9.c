@@ -23,7 +23,7 @@ bprintf(Buf *b, char *fmt, ...)
 {
 	va_list arg;
 	char buf[4096];
-	
+
 	breset(b);
 	va_start(arg, fmt);
 	vsnprintf(buf, sizeof buf, fmt, arg);
@@ -572,10 +572,10 @@ bool
 hassuffix(char *p, char *suffix)
 {
 	int np, ns;
-	
+
 	np = strlen(p);
 	ns = strlen(suffix);
-	return np >= ns && strcmp(p+np-ns, suffix) == 0;
+	return np >= ns && streq(p+np-ns, suffix);
 }
 
 // hasprefix reports whether p begins with prefix.
