@@ -488,11 +488,11 @@ span9(Link *ctxt, LSym *cursym)
 	p = cursym->text;
 	if(p == nil || p->link == nil) // handle external functions and ELF section symbols
 		return;
- 
+	ctxt->cursym = cursym;
+	ctxt->autosize = (int32)(p->to.offset & 0xffffffffll) + 8;
+
 	if(oprange[AANDN].start == nil)
  		buildop(ctxt);
-
- 	ctxt->cursym = cursym;
 
 	bflag = 0;
 	c = 0;	
@@ -571,12 +571,10 @@ span9(Link *ctxt, LSym *cursym)
 	if(ctxt->tlsg == nil)
 		ctxt->tlsg = linklookup(ctxt, "runtime.tlsg", 0);
 
-	p = cursym->text;
-	ctxt->autosize = (int32)(p->to.offset & 0xffffffffll) + 8;
 	symgrow(ctxt, cursym, cursym->size);
 
 	bp = cursym->p;
-	for(p = p->link; p != nil; p = p->link) {
+	for(p = cursym->text->link; p != nil; p = p->link) {
 		ctxt->pc = p->pc;
 		ctxt->curp = p;
 		o = oplook(ctxt, p);
@@ -1464,12 +1462,17 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 			ctxt->diag("literal operation on R0\n%P", p);
 		a = OP_ADDI;
 		if(o->a1 == C_UCON) {
+			if((d&0xffff) != 0)
+				sysfatal("invalid handling of %P", p);
 			v >>= 16;
 			if(r == REGZERO && isuint32(d)){
 				o1 = LOP_IRR(OP_ORIS, p->to.reg, REGZERO, v);
 				break;
 			}
 			a = OP_ADDIS;
+		} else {
+			if((int16)d != d)
+				sysfatal("invalid handling of %P", p);
 		}
 		o1 = AOP_IRR(a, p->to.reg, r, v);
 		break;
