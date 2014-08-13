@@ -10,7 +10,7 @@
 
 enum
 {
-	_PAGE_SIZE = 4096,
+	_PAGE_SIZE = PhysPageSize,
 	EACCES = 13,
 };
 
@@ -35,8 +35,9 @@ addrspace_free(void *v, uintptr n)
 		errval = runtime·mincore((int8*)v + off, chunk, vec);
 		// ENOMEM means unmapped, which is what we want.
 		// Anything else we assume means the pages are mapped.
-		if (errval != -ENOMEM)
+		if (errval != -ENOMEM && errval != ENOMEM) {
 			return 0;
+		}
 	}
 	return 1;
 }
@@ -47,12 +48,15 @@ mmap_fixed(byte *v, uintptr n, int32 prot, int32 flags, int32 fd, uint32 offset)
 	void *p;
 
 	p = runtime·mmap(v, n, prot, flags, fd, offset);
-	if(p != v && addrspace_free(v, n)) {
+	if(p != v) {
+		if(p > (void*)4096) {
+			runtime·munmap(p, n);
+			p = nil;
+		}
 		// On some systems, mmap ignores v without
 		// MAP_FIXED, so retry if the address space is free.
-		if(p > (void*)4096)
-			runtime·munmap(p, n);
-		p = runtime·mmap(v, n, prot, flags|MAP_FIXED, fd, offset);
+		if(addrspace_free(v, n))
+			p = runtime·mmap(v, n, prot, flags|MAP_FIXED, fd, offset);
 	}
 	return p;
 }

@@ -782,8 +782,8 @@ TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
 	MOVD	s+0(FP), R3
 	MOVD	s_len+8(FP), R4
 	MOVBZ	c+24(FP), R5	// byte to find
+	MOVD	R3, R6		// store base for later
 	SUB	$1, R3
-	MOVD	R3, R6		// store base-1 for later
 	ADD	R3, R4		// end-1
 
 _index_loop:
@@ -798,16 +798,16 @@ _index_loop:
 	RETURN
 
 _index_notfound:
-	MOVW	$-1, R3
-	MOVW	R3, ret+32(FP)
+	MOVD	$-1, R3
+	MOVD	R3, ret+32(FP)
 	RETURN
 
 TEXT strings·IndexByte(SB),NOSPLIT,$0
 	MOVD	p+0(FP), R3
 	MOVD	b_len+8(FP), R4
 	MOVBZ	c+16(FP), R5	// byte to find
+	MOVD	R3, R6		// store base for later
 	SUB	$1, R3
-	MOVD	R3, R6		// store base-1 for later
 	ADD	R3, R4		// end-1
 
 _index2_loop:
@@ -822,8 +822,8 @@ _index2_loop:
 	RETURN
 
 _index2_notfound:
-	MOVW	$-1, R3
-	MOVW	R3, ret+24(FP)
+	MOVD	$-1, R3
+	MOVD	R3, ret+24(FP)
 	RETURN
 
 

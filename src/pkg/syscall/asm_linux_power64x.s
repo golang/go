@@ -24,7 +24,6 @@ TEXT	·Syscall(SB),NOSPLIT,$0-56
 	MOVD	trap+0(FP), R9	// syscall entry
 	SYSCALL R9
 	BVC	ok
-	NEG	R3, R3
 	MOVD	$-1, R4
 	MOVD	R4, r1+32(FP)	// r1
 	MOVD	R0, r2+40(FP)	// r2
@@ -49,7 +48,6 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	MOVD	trap+0(FP), R9	// syscall entry
 	SYSCALL R9
 	BVC	ok6
-	NEG	R3, R3
 	MOVD	$-1, R4
 	MOVD	R4, r1+56(FP)	// r1
 	MOVD	R0, r2+64(FP)	// r2
@@ -73,7 +71,6 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
 	MOVD	trap+0(FP), R9	// syscall entry
 	SYSCALL R9
 	BVC	ok1
-	NEG	R3, R3
 	MOVD	$-1, R4
 	MOVD	R4, r1+32(FP)	// r1
 	MOVD	R0, r2+40(FP)	// r2
@@ -95,7 +92,6 @@ TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
 	MOVD	trap+0(FP), R9	// syscall entry
 	SYSCALL R9
 	BVC	ok2
-	NEG	R3, R3
 	MOVD	$-1, R4
 	MOVD	R4, r1+56(FP)	// r1
 	MOVD	R0, r2+64(FP)	// r2

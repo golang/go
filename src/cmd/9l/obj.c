@@ -88,7 +88,7 @@ archinit(void)
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
-			INITRND = 4096;
+			INITRND = 0x10000;
 		break;
 	case Hnacl:
 		elfinit();
