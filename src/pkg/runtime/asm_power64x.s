@@ -208,7 +208,7 @@ onm:
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
-TEXT runtime·morestack(SB),NOSPLIT,$0-0
+TEXT runtime·morestack(SB),NOSPLIT,$-8-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVD	g_m(g), R7
 	MOVD	m_g0(R7), R8
@@ -244,7 +244,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	// is still in this function, and not the beginning of the next.
 	UNDEF
 
-TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
 	MOVD	R0, R11
 	BR	runtime·morestack(SB)
 
@@ -306,7 +306,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $-8-20
 	BR	(CTR)
 
 // Note: can't just "BR runtime·NAME(SB)" - bad inlining results.
-TEXT reflect·call(SB), NOSPLIT, $0-24
+TEXT reflect·call(SB), NOSPLIT, $-8-24
 	MOVW argsize+16(FP), R3
 	DISPATCH(call16, 16)
 	DISPATCH(call32, 32)
