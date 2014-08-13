@@ -1613,8 +1613,10 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []
 }
 
 func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	sfile = mkAbs(p.Dir, sfile)
-	return b.run(p.Dir, p.ImportPath, nil, tool(archChar+"a"), "-trimpath", b.work, "-I", obj, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
+	return b.run(p.Dir, p.ImportPath, nil, tool(archChar+"a"), "-trimpath", b.work, "-I", obj, "-I", inc, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
 }
 
 func (gcToolchain) pkgpath(basedir string, p *Package) string {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #define HSqrt2 7.07106781186547524401e-01 // sqrt(2)/2
 #define Ln2Hi  6.93147180369123816490e-01 // 0x3fe62e42fee00000

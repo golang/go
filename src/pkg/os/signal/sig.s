@@ -6,7 +6,7 @@
 
 // +build amd64 amd64p32 arm 386
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #ifdef GOARCH_arm
 #define JMP B

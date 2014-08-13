@@ -4,7 +4,7 @@
 
 // Test of section-named symbols.
 
-#include "../../ld/textflag.h"
+#include "textflag.h"
 
 TEXT start(SB),7,$0
 	MOVQ $autotab(SB),AX

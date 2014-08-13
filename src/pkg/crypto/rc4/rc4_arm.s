@@ -4,7 +4,7 @@
 
 // +build !nacl
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Registers
 dst = 0
