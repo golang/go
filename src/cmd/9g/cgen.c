@@ -690,8 +690,7 @@ agenr(Node *n, Node *a, Node *res)
 					n1.xoffset = Array_nel;
 					regalloc(&n4, n1.type, N);
 					gmove(&n1, &n4);
-					nodconst(&n2, types[TUINT64], v);
-					gins(optoas(OCMP, types[TUINT64]), &n4, &n2);
+					ginscon2(optoas(OCMP, types[TUINT64]), &n4, v);
 					regfree(&n4);
 					p1 = gbranch(optoas(OGT, types[TUINT64]), T, +1);
 					ginscall(panicindex, 0);
@@ -706,8 +705,7 @@ agenr(Node *n, Node *a, Node *res)
 			}
 
 			if (v*w != 0) {
-				nodconst(&n2, types[tptr], v*w);
-				gins(optoas(OADD, types[tptr]), &n2, &n3);
+				ginscon(optoas(OADD, types[tptr]), v*w, &n3);
 			}
 			*a = n3;
 			break;
