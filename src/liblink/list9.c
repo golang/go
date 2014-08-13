@@ -345,7 +345,10 @@ Rconv(Fmt *fp)
 	int r;
 
 	r = va_arg(fp->args, int);
-	sprint(str, "r%d", r);
+	if(r < NREG)
+		sprint(str, "r%d", r);
+	else
+		sprint(str, "f%d", r-NREG);
 	return fmtstrcpy(fp, str);
 }
 
