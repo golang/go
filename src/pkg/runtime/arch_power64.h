@@ -7,7 +7,7 @@ enum {
 	BigEndian = 1,
 	CacheLineSize = 64,
 	RuntimeGogoBytes = 84,
-	PhysPageSize = 4096,
+	PhysPageSize = 65536,
 	PCQuantum = 4,
 	Int64Align = 8
 };

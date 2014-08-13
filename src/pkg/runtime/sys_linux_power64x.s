@@ -223,7 +223,6 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
 
 	SYSCALL	$SYS_mmap
 	BVC	2(PC)
-	NEG	R3, R3
 	RETURN
 
 TEXT runtime·munmap(SB),NOSPLIT,$-8
