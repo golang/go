@@ -87,6 +87,7 @@ Node*	nodarg(Type*, int);
 void	nodreg(Node*, Type*, int);
 void	nodindreg(Node*, Type*, int);
 void	ginscon(int, vlong, Node*);
+void	ginscon2(int, Node*, vlong);
 void	buildtxt(void);
 Plist*	newplist(void);
 int	isfat(Type*);

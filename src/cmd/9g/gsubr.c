@@ -562,6 +562,40 @@ ginscon(int as, vlong c, Node *n2)
 	gins(as, &n1, n2);
 }
 
+/*
+ * generate
+ *	as n, $c (CMP/CMPU)
+ */
+void
+ginscon2(int as, Node *n2, vlong c)
+{
+	Node n1, ntmp;
+
+	nodconst(&n1, types[TINT64], c);
+
+	switch(as) {
+	default:
+		fatal("ginscon2");
+	case ACMP:
+		if(-BIG <= c && c <= BIG) {
+			gins(as, n2, &n1);
+			return;
+		}
+		break;
+	case ACMPU:
+		if(0 <= c && c <= 2*BIG) {
+			gins(as, n2, &n1);
+			return;
+		}
+		break;
+	}
+	// MOV n1 into register first
+	regalloc(&ntmp, types[TINT64], N);
+	gins(AMOVD, &n1, &ntmp);
+	gins(as, n2, &ntmp);
+	regfree(&ntmp);
+}
+
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
 /*c2go int CASE(int, int); */
 
