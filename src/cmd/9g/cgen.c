@@ -1267,12 +1267,21 @@ bgen(Node *n, int true, int likely, Prog *to)
 		l = &n1;
 		r = &n2;
 		gins(optoas(OCMP, nr->type), l, r);
-
-		// TODO(minux): determine the reason for failed test/floatcmp.go.
-		// we might need to specially handle floating point comparisons.
-		/*if(isfloat[nr->type->etype] && (n->op == OEQ || n->op == ONE)) {
-		} else*/
+		if(isfloat[nr->type->etype] && (n->op == OLE || n->op == OGE)) {
+			// To get NaN right, must rewrite x <= y into separate x < y or x = y.
+			switch(n->op) {
+			case OLE:
+				a = OLT;
+				break;
+			case OGE:
+				a = OGT;
+				break;
+			}
 			patch(gbranch(optoas(a, nr->type), nr->type, likely), to);
+			patch(gbranch(optoas(OEQ, nr->type), nr->type, likely), to);			
+		} else {
+			patch(gbranch(optoas(a, nr->type), nr->type, likely), to);
+		}
 		regfree(&n1);
 		regfree(&n2);
 		break;
