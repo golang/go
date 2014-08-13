@@ -179,15 +179,6 @@ progedit(Link *ctxt, Prog *p)
 		}
 		break;
 	}
-
-	if(p->from.type == D_CONST && p->from.reg != NREG) {
-		if(p->as == AMOVD && p->to.type == D_REG) {
-			p->as = AADD;
-			p->reg = p->from.reg;
-			p->from.reg = NREG;
-		} else
-			ctxt->diag("invalid instruction: %P", p);
-	}
 }
 
 static Prog*	stacksplit(Link*, Prog*, int32, int);
