@@ -1006,21 +1006,6 @@ hard:
 	return;
 }
 
-int
-samaddr(Node *f, Node *t)
-{
-	if(f->op != t->op)
-		return 0;
-
-	switch(f->op) {
-	case OREGISTER:
-		if(f->val.u.reg != t->val.u.reg)
-			break;
-		return 1;
-	}
-	return 0;
-}
-
 /*
  * generate one instruction:
  *	as f, t
@@ -1031,16 +1016,6 @@ gins(int as, Node *f, Node *t)
 	//int32 w;
 	Prog *p;
 	Addr af, at;
-
-	switch(as) {
-	case AMOVW:
-	case AMOVD:
-	case AFMOVS:
-	case AFMOVD:
-		if(f != N && t != N && samaddr(f, t))
-			return nil;
-		break;
-	}
 
 	memset(&af, 0, sizeof af);
 	memset(&at, 0, sizeof at);
