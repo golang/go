@@ -3217,6 +3217,9 @@ walkrotate(Node **np)
 	int w, sl, sr, s;
 	Node *l, *r;
 	Node *n;
+
+	if(thechar == '9')
+		return;
 	
 	n = *np;
 
