@@ -1045,6 +1045,9 @@ dostkcheck(void)
 {
 	Chain ch;
 	LSym *s;
+
+	if(thechar == '9')
+		return;
 	
 	morestack = linklookup(ctxt, "runtime.morestack", 0);
 	newstack = linklookup(ctxt, "runtime.newstack", 0);

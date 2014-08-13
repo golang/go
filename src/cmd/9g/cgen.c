@@ -788,6 +788,18 @@ agenr(Node *n, Node *a, Node *res)
 	}
 }
 
+static void
+ginsadd(int as, vlong off, Node *dst)
+{
+	Node n1;
+
+	regalloc(&n1, types[tptr], dst);
+	gmove(dst, &n1);
+	ginscon(as, off, &n1);
+	gmove(&n1, dst);
+	regfree(&n1);
+}
+
 /*
  * generate:
  *	res = &n;
@@ -901,7 +913,7 @@ agen(Node *n, Node *res)
 		}
 		cgen(n->heapaddr, res);
 		if(n->xoffset != 0) {
-			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
+			ginsadd(optoas(OADD, types[tptr]), n->xoffset, res);
 		}
 		break;
 
@@ -913,7 +925,7 @@ agen(Node *n, Node *res)
 	case ODOT:
 		agen(nl, res);
 		if(n->xoffset != 0) {
-			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
+			ginsadd(optoas(OADD, types[tptr]), n->xoffset, res);
 		}
 		break;
 
@@ -921,7 +933,7 @@ agen(Node *n, Node *res)
 		cgen(nl, res);
 		cgen_checknil(res);
 		if(n->xoffset != 0) {
-			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
+			ginsadd(optoas(OADD, types[tptr]), n->xoffset, res);
 		}
 		break;
 	}
