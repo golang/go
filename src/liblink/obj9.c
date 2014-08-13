@@ -33,6 +33,7 @@
 #include <link.h>
 #include "../cmd/9l/9.out.h"
 #include "../pkg/runtime/stack.h"
+#include "../pkg/runtime/funcdata.h"
 
 static Prog zprg = {
 	.as = AGOK,
@@ -417,6 +418,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
 					autosize += 4;
 			p->to.offset = (p->to.offset & (0xffffffffull<<32)) | (uint32)(autosize-8);
 
+			if(!(p->reg & NOSPLIT))
+				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
+
 			q = p;
 			if(autosize) {
 				/* use MOVDU to adjust R1 when saving R31, if autosize is small */
@@ -424,7 +428,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 					mov = AMOVDU;
 					aoffset = -autosize;
 				} else {
-					q = ctxt->arch->prg();
+					q = appendp(ctxt, p);
 					q->as = AADD;
 					q->lineno = p->lineno;
 					q->from.type = D_CONST;
@@ -432,9 +436,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 					q->to.type = D_REG;
 					q->to.reg = REGSP;
 					q->spadj = +autosize;
-
-					q->link = p->link;
-					p->link = q;
 				}
 			} else
 			if(!(cursym->text->mark & LEAF)) {
@@ -451,38 +452,64 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				break;
 			}
 
-			if(!(p->reg & NOSPLIT))
-				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
+			q = appendp(ctxt, q);
+			q->as = AMOVD;
+			q->lineno = p->lineno;
+			q->from.type = D_SPR;
+			q->from.offset = D_LR;
+			q->to.type = D_REG;
+			q->to.reg = REGTMP;
 
-			q1 = ctxt->arch->prg();
-			q1->as = mov;
-			q1->lineno = p->lineno;
-			q1->from.type = D_REG;
-			q1->from.reg = REGTMP;
-			q1->to.type = D_OREG;
-			q1->to.offset = aoffset;
-			q1->to.reg = REGSP;
-			if(q1->as == AMOVDU)
-				q1->spadj = -aoffset;
+			q = appendp(ctxt, q);
+			q->as = mov;
+			q->lineno = p->lineno;
+			q->from.type = D_REG;
+			q->from.reg = REGTMP;
+			q->to.type = D_OREG;
+			q->to.offset = aoffset;
+			q->to.reg = REGSP;
+			if(q->as == AMOVDU)
+				q->spadj = -aoffset;
 
-			q1->link = q->link;
-			q->link = q1;
+			if(cursym->text->reg & WRAPPER) {
+				// g->panicwrap += autosize;
+				// MOVWZ panicwrap_offset(g), R3
+				// ADD $autosize, R3
+				// MOVWZ R3, panicwrap_offset(g)
+				p = appendp(ctxt, q);
+				p->as = AMOVWZ;
+				p->from.type = D_OREG;
+				p->from.reg = REGG;
+				p->from.offset = 2*ctxt->arch->ptrsize;
+				p->to.type = D_REG;
+				p->to.reg = 3;
 
-			q1 = ctxt->arch->prg();
-			q1->as = AMOVD;
-			q1->lineno = p->lineno;
-			q1->from.type = D_SPR;
-			q1->from.offset = D_LR;
-			q1->to.type = D_REG;
-			q1->to.reg = REGTMP;
+				p = appendp(ctxt, p);
+				p->as = AADD;
+				p->from.type = D_CONST;
+				p->from.offset = autosize;
+				p->to.type = D_REG;
+				p->to.reg = 3;
 
-			q1->link = q->link;
-			q->link = q1;
+				p = appendp(ctxt, p);
+				p->as = AMOVWZ;
+				p->from.type = D_REG;
+				p->from.reg = 3;
+				p->to.type = D_OREG;
+				p->to.reg = REGG;
+				p->to.offset = 2*ctxt->arch->ptrsize;
+			}
+
 			break;
 
 		case ARETURN:
 			if(p->from.type == D_CONST) {
 				ctxt->diag("using BECOME (%P) is not supported!", p);
+				break;
+			}
+			if(p->to.sym) { // retjmp
+				p->as = ABR;
+				p->to.type = D_BRANCH;
 				break;
 			}
 			if(cursym->text->mark & LEAF) {
@@ -612,8 +639,157 @@ addstacksplit(Link *ctxt, LSym *cursym)
 static Prog*
 stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 {
-	// TODO(minux): add stack split prologue
-	USED(ctxt); USED(p); USED(framesize); USED(noctxt);
+	int32 arg;
+	Prog *q, *q1;
+
+	// MOVD	g_stackguard(g), R3
+	p = appendp(ctxt, p);
+	p->as = AMOVD;
+	p->from.type = D_OREG;
+	p->from.reg = REGG;
+	p->to.type = D_REG;
+	p->to.reg = 3;
+
+	q = nil;
+	if(framesize <= StackSmall) {
+		// small stack: SP < stackguard
+		//	CMP	stackguard, SP
+		p = appendp(ctxt, p);
+		p->as = ACMPU;
+		p->from.type = D_REG;
+		p->from.reg = 3;
+		p->to.type = D_REG;
+		p->to.reg = REGSP;
+	} else if(framesize <= StackBig) {
+		// large stack: SP-framesize < stackguard-StackSmall
+		//	ADD $-framesize, SP, R4
+		//	CMP stackguard, R4
+		p = appendp(ctxt, p);
+		p->as = AADD;
+		p->from.type = D_CONST;
+		p->from.offset = -framesize;
+		p->reg = REGSP;
+		p->to.type = D_REG;
+		p->to.reg = 4;
+
+		p = appendp(ctxt, p);
+		p->as = ACMPU;
+		p->from.type = D_REG;
+		p->from.reg = 3;
+		p->to.type = D_REG;
+		p->to.reg = 4;
+	} else {
+		// Such a large stack we need to protect against wraparound.
+		// If SP is close to zero:
+		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
+		// The +StackGuard on both sides is required to keep the left side positive:
+		// SP is allowed to be slightly below stackguard. See stack.h.
+		//
+		// Preemption sets stackguard to StackPreempt, a very large value.
+		// That breaks the math above, so we have to check for that explicitly.
+		//	// stackguard is R3
+		//	CMP	R3, $StackPreempt
+		//	BEQ	label-of-call-to-morestack
+		//	ADD	$StackGuard, SP, R4
+		//	SUB	R3, R4
+		//	MOVD	$(framesize+(StackGuard-StackSmall)), R31
+		//	CMP	R4, R31
+		p = appendp(ctxt, p);
+		p->as = ACMP;
+		p->from.type = D_REG;
+		p->from.reg = 3;
+		p->to.type = D_CONST;
+		p->to.offset = StackPreempt;
+
+		q = p = appendp(ctxt, p);
+		p->as = ABEQ;
+		p->to.type = D_BRANCH;
+
+		p = appendp(ctxt, p);
+		p->as = AADD;
+		p->from.type = D_CONST;
+		p->from.offset = StackGuard;
+		p->reg = REGSP;
+		p->to.type = D_REG;
+		p->to.reg = 4;
+
+		p = appendp(ctxt, p);
+		p->as = ASUB;
+		p->from.type = D_REG;
+		p->from.reg = 3;
+		p->to.type = D_REG;
+		p->to.reg = 4;
+
+		p = appendp(ctxt, p);
+		p->as = AMOVD;
+		p->from.type = D_CONST;
+		p->from.offset = framesize + StackGuard - StackSmall;
+		p->to.type = D_REG;
+		p->to.reg = REGTMP;
+
+		p = appendp(ctxt, p);
+		p->as = ACMPU;
+		p->from.type = D_REG;
+		p->from.reg = 4;
+		p->to.type = D_REG;
+		p->to.reg = REGTMP;
+	}
+
+	// q1: BLT	done
+	q1 = p = appendp(ctxt, p);
+	p->as = ABLT;
+	p->to.type = D_BRANCH;
+
+	// MOVD	$framesize, R3
+	p = appendp(ctxt, p);
+	p->as = AMOVD;
+	p->from.type = D_CONST;
+	p->from.offset = framesize;
+	p->to.type = D_REG;
+	p->to.reg = 3;
+	if(q)
+		q->pcond = p;
+
+	// MOVD	$args, R4
+	p = appendp(ctxt, p);
+	p->as = AMOVD;
+	p->from.type = D_CONST;
+	arg = (ctxt->cursym->text->to.offset >> 32) & 0xffffffffull;
+	if(arg == 1) // special marker for known 0
+		arg = 0;
+	else if(arg == ArgsSizeUnknown)
+		ctxt->diag("%s: arg size unknown, but split stack", ctxt->cursym->name);
+	if(arg&3) // ????
+		ctxt->diag("misaligned argument size in stack split: %d", arg);
+	p->from.offset = arg;
+	p->to.type = D_REG;
+	p->to.reg = 4;
+
+	// MOVD	LR, R5
+	p = appendp(ctxt, p);
+	p->as = AMOVD;
+	p->from.type = D_SPR;
+	p->from.offset = D_LR;
+	p->to.type = D_REG;
+	p->to.reg = 5;
+
+	// BL	runtime.morestack(SB)
+	p = appendp(ctxt, p);
+	p->as = ABL;
+	p->to.type = D_BRANCH;
+	p->to.sym = ctxt->symmorestack[noctxt];
+
+	// BR	start
+	p = appendp(ctxt, p);
+	p->as = ABR;
+	p->to.type = D_BRANCH;
+	p->pcond = ctxt->cursym->text->link;
+
+	// placeholder for q1's jump target
+	p = appendp(ctxt, p);
+	p->as = ANOP; // zero-width place holder
+	q1->pcond = p;
+
 	return p;
 }
 

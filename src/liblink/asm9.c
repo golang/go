@@ -307,6 +307,7 @@ static Optab	optab[] = {
 
 	{ ABR,		C_NONE,	C_NONE, C_NONE, 	C_LR,		18, 4, 0 },
 	{ ABR,		C_NONE,	C_NONE, C_NONE, 	C_CTR,		18, 4, 0 },
+	{ ABR,		C_REG,	C_NONE, C_NONE, 	C_CTR,		18, 4, 0 },
 	{ ABR,		C_NONE,	C_NONE, C_NONE, 	C_ZOREG,		15, 8, 0 },
 
 	{ ABC,		C_NONE,	C_REG, C_NONE, 	C_LR,		18, 4, 0 },
@@ -436,6 +437,8 @@ static Optab	optab[] = {
 	{ ADUFFZERO,	C_NONE,	C_NONE, C_NONE,	C_LBRA,	11, 4, 0 },  // same as ABR/ABL
 	{ ADUFFCOPY,	C_NONE,	C_NONE, C_NONE,	C_LBRA,	11, 4, 0 },  // same as ABR/ABL
 
+	{ ANOP,		C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0 },
+
 	{ AXXX,		C_NONE,	C_NONE, C_NONE, 	C_NONE,		 0, 4, 0 },
 };
 
@@ -475,10 +478,10 @@ static char	xcmp[C_NCLASS][C_NCLASS];
 void
 span9(Link *ctxt, LSym *cursym)
 {
-	Prog *p;
+	Prog *p, *q;
 	Optab *o;
 	int m, bflag;
-	vlong c;
+	vlong c, otxt;
 	int32 out[6], i, j;
 	uchar *bp, *cast;
 
@@ -515,38 +518,39 @@ span9(Link *ctxt, LSym *cursym)
 	 * generate extra passes putting branches
 	 * around jmps to fix. this is rare.
 	 */
+	bflag = 1;
 	while(bflag) {
 		if(ctxt->debugvlog)
 			Bprint(ctxt->bso, "%5.2f span1\n", cputime());
 		bflag = 0;
 		c = 0;
-		for(p = cursym->text; p != nil; p = p->link) {
+		for(p = cursym->text->link; p != nil; p = p->link) {
 			p->pc = c;
 			o = oplook(ctxt, p);
 
-/* very large branches
+			// very large conditional branches
 			if((o->type == 16 || o->type == 17) && p->pcond) {
 				otxt = p->pcond->pc - c;
-				if(otxt < -(1L<<16)+10 || otxt >= (1L<<15)-10) {
-					q = prg();
+				if(otxt < -(1L<<15)+10 || otxt >= (1L<<15)-10) {
+					q = ctxt->arch->prg();
 					q->link = p->link;
 					p->link = q;
 					q->as = ABR;
 					q->to.type = D_BRANCH;
 					q->pcond = p->pcond;
 					p->pcond = q;
-					q = prg();
+					q = ctxt->arch->prg();
 					q->link = p->link;
 					p->link = q;
 					q->as = ABR;
 					q->to.type = D_BRANCH;
 					q->pcond = q->link->link;
-					addnop(p->link);
-					addnop(p);
+					//addnop(p->link);
+					//addnop(p);
 					bflag = 1;
 				}
 			}
-*/
+
 			m = o->size;
 			if(m == 0) {
 				if(p->as != ANOP && p->as != AFUNCDATA && p->as != APCDATA)
@@ -1398,6 +1402,14 @@ loadu32(int r, vlong d)
 	return AOP_IRR(OP_ADDIS, r, REGZERO, v);
 }
 
+static uint16
+high16adjusted(int32 d)
+{
+	if(d & 0x8000)
+		return (d>>16) + 1;
+	return d>>16;
+}
+
 static void
 asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 {
@@ -1548,7 +1560,11 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 			rel->siz = 4;
 			rel->sym = p->to.sym;
 			v += p->to.offset;
-			rel->add = o1 | ((v & 0x03FFFFFC) >> 2);
+			if(v & 03) {
+				ctxt->diag("odd branch target address\n%P", p);
+				v &= ~03;
+			}
+			rel->add = o1 | (v & 0x03FFFFFC);
 			rel->type = R_CALLPOWER;
 		}
 		break;
@@ -1673,7 +1689,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 			o1 = loadu32(p->to.reg, d);
 			o2 = LOP_IRR(OP_ORI, p->to.reg, p->to.reg, (int32)d);
 		} else {
-			o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (d>>16)+(d&0x8000)?1:0);
+			o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, high16adjusted(d));
 			o2 = AOP_IRR(OP_ADDI, p->to.reg, REGTMP, d);
 			addaddrreloc(ctxt, p->from.sym, &o1, &o2);
 		}
@@ -2199,7 +2215,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 
 	case 74:
 		v = regoff(ctxt, &p->to);
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (v>>16)+(v&0x8000)?1:0);
+		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, high16adjusted(v));
 		o2 = AOP_IRR(opstore(ctxt, p->as), p->from.reg, REGTMP, v);
 		addaddrreloc(ctxt, p->to.sym, &o1, &o2);
 		//if(dlm) reloc(&p->to, p->pc, 1);
@@ -2207,7 +2223,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 
 	case 75:
 		v = regoff(ctxt, &p->from);
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (v>>16)+(v&0x8000)?1:0);
+		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, high16adjusted(v));
 		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
 		addaddrreloc(ctxt, p->from.sym, &o1, &o2);
 		//if(dlm) reloc(&p->from, p->pc, 1);
@@ -2215,7 +2231,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 
 	case 76:
 		v = regoff(ctxt, &p->from);
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (v>>16)+(v&0x8000)?1:0);
+		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, high16adjusted(v));
 		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
 		addaddrreloc(ctxt, p->from.sym, &o1, &o2);
 		o3 = LOP_RRR(OP_EXTSB, p->to.reg, p->to.reg, 0);
@@ -2589,6 +2605,8 @@ opirr(Link *ctxt, int a)
 
 	case ABR:	return OPVCC(18,0,0,0);
 	case ABL:	return OPVCC(18,0,0,0) | 1;
+	case ADUFFZERO:	return OPVCC(18,0,0,0) | 1;
+	case ADUFFCOPY:	return OPVCC(18,0,0,0) | 1;
 	case ABC:	return OPVCC(16,0,0,0);
 	case ABCL:	return OPVCC(16,0,0,0) | 1;
 
