@@ -66,6 +66,12 @@ func (pos Position) String() string {
 //
 //	ScanIdents | ScanInts | SkipComments
 //
+// With the exceptions of comments, which are skipped if SkipComments is
+// set, unrecognized tokens are not ignored. Instead, the scanner simply
+// returns the respective individual characters (or possibly sub-tokens).
+// For instance, if the mode is ScanIdents (not ScanStrings), the string
+// "foo" is scanned as the token sequence '"' Ident '"'.
+//
 const (
 	ScanIdents     = 1 << -Ident
 	ScanInts       = 1 << -Int
