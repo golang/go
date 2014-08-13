@@ -677,6 +677,11 @@ aclass(Link *ctxt, Addr *a)
 		switch(a->name) {
 		case D_NONE:
 			ctxt->instoffset = a->offset;
+			if(a->reg != NREG) {
+				if(-BIG <= ctxt->instoffset && ctxt->instoffset <= BIG)
+					return C_SACON;
+				return C_LACON;
+			}
 		consize:
 			if(ctxt->instoffset >= 0) {
 				if(ctxt->instoffset == 0)
@@ -769,6 +774,7 @@ oplook(Link *ctxt, Prog *p)
 	a2 = C_NONE;
 	if(p->reg != NREG)
 		a2 = C_REG;
+//print("oplook %P %d %d %d %d\n", p, a1, a2, a3, a4);
 	r = p->as;
 	o = oprange[r].start;
 	if(o == 0)
@@ -1423,6 +1429,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 	o4 = 0;
 	o5 = 0;
 
+//print("%P => case %d\n", p, o->type);
 	switch(o->type) {
 	default:
 		ctxt->diag("unknown type %d", o->type);
