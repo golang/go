@@ -284,7 +284,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $-8-20
 	MOVD	R8, m_moreargp(R5)
 	MOVW	R9, m_moreargsize(R5)
 	MOVD	$1, R10
-	MOVD	R10, m_moreframesize(R5)
+	MOVW	R10, m_moreframesize(R5)
 
 	// call newstack on m->g0's stack
 	MOVD	m_g0(R5), g
