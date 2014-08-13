@@ -318,7 +318,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				bits = cached;
 				cached >>= gcBits;
 				ncached--;
-				if(i != 0 && (bits&bitMask) != bitMiddle)
+				if(i != 0 && (bits&bitBoundary) != 0)
 					break; // reached beginning of the next object
 				bits = (bits>>2)&BitsMask;
 				if(bits == BitsDead)
@@ -403,13 +403,13 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			shift = (off % wordsPerBitmapWord) * gcBits;
 			xbits = *bitp;
 			bits = (xbits >> shift) & bitMask;
-			if(bits == bitMiddle) {
+			if((bits&bitBoundary) == 0) {
 				// Not a beginning of a block, check if we have block boundary in xbits.
 				while(shift > 0) {
 					obj -= PtrSize;
 					shift -= gcBits;
 					bits = (xbits >> shift) & bitMask;
-					if(bits != bitMiddle)
+					if((bits&bitBoundary) != 0)
 						goto havebits;
 				}
 				// Otherwise consult span table to find the block beginning.
@@ -426,7 +426,8 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 					p = p+idx*size;
 				}
 				if(p == obj) {
-					runtime·printf("runtime: failed to find block beginning for %p s->limit=%p\n", p, s->limit);
+					runtime·printf("runtime: failed to find block beginning for %p s=%p s->limit=%p\n",
+						p, s->start*PageSize, s->limit);
 					runtime·throw("failed to find block beginning");
 				}
 				obj = p;
@@ -436,8 +437,8 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 		havebits:
 			// Now we have bits, bitp, and shift correct for
 			// obj pointing at the base of the object.
-			// Only care about allocated and not marked.
-			if(bits != bitAllocated)
+			// Only care about not marked objects.
+			if((bits&bitMarked) != 0)
 				continue;
 			if(work.nproc == 1)
 				*bitp |= bitMarked<<shift;
@@ -445,12 +446,12 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				for(;;) {
 					xbits = *bitp;
 					bits = (xbits>>shift) & bitMask;
-					if(bits != bitAllocated)
+					if((bits&bitMarked) != 0)
 						break;
 					if(runtime·casp((void**)bitp, (void*)xbits, (void*)(xbits|(bitMarked<<shift))))
 						break;
 				}
-				if(bits != bitAllocated)
+				if((bits&bitMarked) != 0)
 					continue;
 			}
 			if(((xbits>>(shift+2))&BitsMask) == BitsDead)
@@ -892,7 +893,7 @@ runtime·MSpan_Sweep(MSpan *s)
 	byte *p;
 	MCache *c;
 	byte *arena_start;
-	MLink head, *end;
+	MLink head, *end, *link;
 	Special *special, **specialp, *y;
 	bool res, sweepgenset;
 
@@ -922,6 +923,14 @@ runtime·MSpan_Sweep(MSpan *s)
 	c = g->m->mcache;
 	sweepgenset = false;
 
+	// Mark any free objects in this span so we don't collect them.
+	for(link = s->freelist; link != nil; link = link->next) {
+		off = (uintptr*)link - (uintptr*)arena_start;
+		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+		shift = (off % wordsPerBitmapWord) * gcBits;
+		*bitp |= bitMarked<<shift;
+	}
+
 	// Unlink & free special records for any objects we're about to free.
 	specialp = &s->specials;
 	special = *specialp;
@@ -932,7 +941,7 @@ runtime·MSpan_Sweep(MSpan *s)
 		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
 		shift = (off % wordsPerBitmapWord) * gcBits;
 		bits = (*bitp>>shift) & bitMask;
-		if(bits == bitAllocated) {
+		if((bits&bitMarked) == 0) {
 			// Find the exact byte for which the special was setup
 			// (as opposed to object beginning).
 			p = (byte*)(s->start << PageShift) + special->offset;
@@ -946,10 +955,6 @@ runtime·MSpan_Sweep(MSpan *s)
 			}
 		} else {
 			// object is still live: keep special record
-			if(bits != bitMarked) {
-				runtime·printf("runtime: bad bits for special object %p: %d\n", p, (int32)bits);
-				runtime·throw("runtime: bad bits for special object");
-			}
 			specialp = &special->next;
 			special = *specialp;
 		}
@@ -966,20 +971,17 @@ runtime·MSpan_Sweep(MSpan *s)
 		xbits = *bitp;
 		bits = (xbits>>shift) & bitMask;
 
-		// Non-allocated object, ignore.
-		if(bits == bitBoundary)
-			continue;
 		// Allocated and marked object, reset bits to allocated.
-		if(bits == bitMarked) {
-			*bitp = (xbits & ~(bitMarked<<shift)) | (bitAllocated<<shift);
+		if((bits&bitMarked) != 0) {
+			*bitp &= ~(bitMarked<<shift);
 			continue;
 		}
 		// At this point we know that we are looking at garbage object
 		// that needs to be collected.
 		if(runtime·debug.allocfreetrace)
 			runtime·tracefree(p, size);
-		// Reset to boundary.
-		*bitp = (xbits & ~(bitAllocated<<shift)) | (bitBoundary<<shift);
+		// Reset to allocated+noscan.
+		*bitp = (xbits & ~((bitMarked|(BitsMask<<2))<<shift)) | ((uintptr)BitsDead<<(shift+2));
 		if(cl == 0) {
 			// Free large span.
 			runtime·unmarkspan(p, s->npages<<PageShift);
@@ -1857,13 +1859,13 @@ runtime·unrollgcproginplace_m(void)
 	off = (uintptr*)v - (uintptr*)arena_start;
 	b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
 	shift = (off % wordsPerBitmapWord) * gcBits;
-	*b |= bitAllocated<<shift;
+	*b |= bitBoundary<<shift;
 	// Mark word after last as BitsDead.
 	if(size0 < size) {
 		off = (uintptr*)((byte*)v + size0) - (uintptr*)arena_start;
 		b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
 		shift = (off % wordsPerBitmapWord) * gcBits;
-		*b &= ~(bitPtrMask<<shift) | (BitsDead<<(shift+2));
+		*b &= ~(bitPtrMask<<shift) | ((uintptr)BitsDead<<(shift+2));
 	}
 }
 
@@ -1931,7 +1933,7 @@ runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 			b0 = b;
 			x = 0;
 		}
-		x |= bitBoundary<<shift;
+		x |= (bitBoundary<<shift) | ((uintptr)BitsDead<<(shift+2));
 	}
 	*b0 = x;
 }
@@ -1958,8 +1960,7 @@ runtime·unmarkspan(void *v, uintptr n)
 	// one span, so no other goroutines are changing these
 	// bitmap words.
 	n /= wordsPerBitmapWord;
-	while(n-- > 0)
-		*b-- = 0;
+	runtime·memclr((byte*)(b - n + 1), n*PtrSize);
 }
 
 void

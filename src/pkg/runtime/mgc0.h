@@ -70,10 +70,8 @@ enum {
 // the off/16+1'th word before mheap.arena_start.  (On a 32-bit system,
 // the only difference is that the divisor is 8.)
 
-#define bitMiddle	((uintptr)0) // middle of an object
-#define bitBoundary	((uintptr)1) // boundary on a non-allocated object
-#define bitAllocated	((uintptr)2) // boundary on an allocated object
-#define bitMarked	((uintptr)3) // boundary on an allocated and marked object
+#define bitBoundary	((uintptr)1) // boundary of an object
+#define bitMarked	((uintptr)2) // marked object
 
-#define bitMask		((uintptr)bitMiddle|bitBoundary|bitAllocated|bitMarked)
+#define bitMask		((uintptr)bitBoundary|bitMarked)
 #define bitPtrMask	((uintptr)BitsMask<<2)

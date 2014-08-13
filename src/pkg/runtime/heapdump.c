@@ -525,11 +525,17 @@ dumproots(void)
 	runtime·iterate_finq(finq_callback);
 }
 
+// Bit vector of free marks.	
+// Needs to be as big as the largest number of objects per span.	
+#pragma dataflag NOPTR
+static byte free[PageSize/8];	
+
 static void
 dumpobjs(void)
 {
-	uintptr i, j, size, n, off, shift, *bitp, bits;
+	uintptr i, j, size, n;
 	MSpan *s;
+	MLink *l;
 	byte *p;
 
 	for(i = 0; i < runtime·mheap.nspan; i++) {
@@ -539,13 +545,15 @@ dumpobjs(void)
 		p = (byte*)(s->start << PageShift);
 		size = s->elemsize;
 		n = (s->npages << PageShift) / size;
+		if(n > nelem(free))	
+			runtime·throw("free array doesn't have enough entries");	
+		for(l = s->freelist; l != nil; l = l->next)
+			free[((byte*)l - p) / size] = true;	
 		for(j = 0; j < n; j++, p += size) {
-			off = (uintptr*)p - (uintptr*)runtime·mheap.arena_start;
-			bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-			shift = (off % wordsPerBitmapWord) * gcBits;
-			bits = (*bitp >> shift) & bitMask;
-			if(bits != bitAllocated)
-				continue;
+			if(free[j]) {	
+				free[j] = false;	
+				continue;	
+			}
 			dumpobj(p, size, makeheapobjbv(p, size));
 		}
 	}
