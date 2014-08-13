@@ -1344,10 +1344,10 @@ stkof(Node *n)
 void
 sgen(Node *n, Node *ns, int64 w)
 {
-	Node dst, src, tmp;
+	Node dst, src, tmp, nend;
 	int32 c, odst, osrc;
 	int dir, align, op;
-	Prog *p;
+	Prog *p, *ploop;
 	NodeList *l;
 	Node *res = ns;
 
@@ -1447,19 +1447,15 @@ sgen(Node *n, Node *ns, int64 w)
 	regalloc(&tmp, types[tptr], N);
 
 	// set up end marker
-	//memset(&nend, 0, sizeof nend);
-	//if(c >= 4) {
-	//	regalloc(&nend, types[tptr], N);
-	//	p = gins(AMOVD, &src, &nend);
-	//	p->from.type = D_CONST;
-	//	if(dir < 0)
-	//		p->from.offset = dir;
-	//	else
-	//		p->from.offset = w;
-	//}
+	memset(&nend, 0, sizeof nend);
 
 	// move src and dest to the end of block if necessary
 	if(dir < 0) {
+		if(c >= 4) {
+			regalloc(&nend, types[tptr], N);
+			p = gins(AMOVD, &src, &nend);
+		}
+
 		p = gins(AADD, N, &src);
 		p->from.type = D_CONST;
 		p->from.offset = w;
@@ -1475,11 +1471,19 @@ sgen(Node *n, Node *ns, int64 w)
 		p = gins(AADD, N, &dst);
 		p->from.type = D_CONST;
 		p->from.offset = -dir;
+
+		if(c >= 4) {
+			regalloc(&nend, types[tptr], N);
+			p = gins(AMOVD, &src, &nend);
+			p->from.type = D_CONST;
+			p->from.offset = w;
+		}
 	}
-	
+
+
 	// move
-	// TODO: enable loops and duffcopy for larger copies.
-	/*if(c >= 4) {
+	// TODO: enable duffcopy for larger copies.
+	if(c >= 4) {
 		p = gins(op, &src, &tmp);
 		p->from.type = D_OREG;
 		p->from.offset = dir;
@@ -1489,12 +1493,11 @@ sgen(Node *n, Node *ns, int64 w)
 		p->to.type = D_OREG;
 		p->to.offset = dir;
 
-		p = gins(ACMP, &src, N);
-		raddr(&nend, p);
+		p = gins(ACMP, &src, &nend);
 
 		patch(gbranch(ABNE, T, 0), ploop);
  		regfree(&nend);
-	} else*/ {
+	} else {
 		while(c-- > 0) {
 			p = gins(op, &src, &tmp);
 			p->from.type = D_OREG;
