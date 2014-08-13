@@ -51,29 +51,53 @@ systemtype(int sys)
 }
 
 int
+pathchar(void)
+{
+	return '/';
+}
+
+int
 Lconv(Fmt *fp)
 {
 	return linklinefmt(ctxt, fp);
 }
 
-int
-pathchar(void)
+void
+dodef(char *p)
 {
-	return '/';
+	if(nDlist%8 == 0)
+		Dlist = allocn(Dlist, nDlist*sizeof(char *),
+			8*sizeof(char *));
+	Dlist[nDlist++] = p;
+}
+
+LinkArch*       thelinkarch = &linkpower64;
+
+void
+usage(void)
+{
+	print("usage: %ca [options] file.c...\n", thechar);
+	flagprint(1);
+	errorexit();
 }
 
 void
 main(int argc, char *argv[])
 {
 	char *p;
-	int c;
 
 	thechar = '9';
-	thestring = getgoarch();
-	if(strcmp(thestring, "power64le") == 0)
-		ctxt = linknew(&linkpower64le);
-	else
-		ctxt = linknew(&linkpower64);
+	thestring = "power64";
+
+	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+	// but not other values.	
+	p = getgoarch();
+	if(strncmp(p, thestring, strlen(thestring)) != 0)
+		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
+	if(strcmp(p, "power64le") == 0)
+		thelinkarch = &linkpower64le;
+
+	ctxt = linknew(thelinkarch);
 	ctxt->diag = yyerror;
 	ctxt->bso = &bstdout;
 	Binit(&bstdout, 1, OWRITE);
@@ -85,79 +109,57 @@ main(int argc, char *argv[])
 	cinit();
 	outfile = 0;
 	setinclude(".");
-	ARGBEGIN {
-	default:
-		c = ARGC();
-		if(c >= 0 && c < sizeof(debug))
-			debug[c] = 1;
-		break;
 
-	case 'o':
-		outfile = ARGF();
-		break;
+	flagfn1("D", "name[=value]: add #define", dodef);
+	flagfn1("I", "dir: add dir to include path", setinclude);
+	flagcount("S", "print assembly and machine code", &debug['S']);
+	flagcount("m", "debug preprocessor macros", &debug['m']);
+	flagstr("o", "file: set output file", &outfile);
+	flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt->trimpath);
 
-	case 'D':
-		p = ARGF();
-		if(p) {
-			if (nDlist%8 == 0)
-				Dlist = allocn(Dlist, nDlist*sizeof(char *), 
-					8*sizeof(char *));
-			Dlist[nDlist++] = p;
-		}
-		break;
+	flagparse(&argc, &argv, usage);
+	ctxt->debugasm = debug['S'];
 
-	case 'I':
-		p = ARGF();
-		setinclude(p);
-		break;
-
-	case 'S':
-		ctxt->debugasm++;
-		break;
-	} ARGEND
-	if(*argv == 0) {
-		print("usage: %ca [-options] file.s\n", thechar);
-		errorexit();
-	}
+	if(argc < 1)
+		usage();
 	if(argc > 1){
 		print("can't assemble multiple files\n");
 		errorexit();
 	}
+
 	if(assemble(argv[0]))
 		errorexit();
+	Bflush(&bstdout);
 	exits(0);
 }
 
 int
 assemble(char *file)
 {
-	char ofile[100], incfile[20], *p;
+	char *ofile, *p;
 	int i, of;
 
+	ofile = alloc(strlen(file)+3); // +3 for .x\0 (x=thechar)
 	strcpy(ofile, file);
-	if(p = strrchr(ofile, pathchar())) {
+	p = utfrrune(ofile, pathchar());
+	if(p) {
 		include[0] = ofile;
 		*p++ = 0;
 	} else
 		p = ofile;
 	if(outfile == 0) {
 		outfile = p;
-		if(p = strrchr(outfile, '.'))
-			if(p[1] == 's' && p[2] == 0)
-				p[0] = 0;
-		p = strrchr(outfile, 0);
-		p[0] = '.';
-		p[1] = thechar;
-		p[2] = 0;
-	}
-	p = getenv("INCLUDE");
-	if(p) {
-		setinclude(p);
-	} else {
-		if(systemtype(Plan9)) {
-			sprint(incfile,"/%s/include", thestring);
-			setinclude(strdup(incfile));
-		}
+		if(outfile){
+			p = utfrrune(outfile, '.');
+			if(p)
+				if(p[1] == 's' && p[2] == 0)
+					p[0] = 0;
+			p = utfrune(outfile, 0);
+			p[0] = '.';
+			p[1] = thechar;
+			p[2] = 0;
+		} else
+			outfile = "/dev/null";
 	}
 
 	of = create(outfile, OWRITE, 0664);
@@ -166,10 +168,9 @@ assemble(char *file)
 		errorexit();
 	}
 	Binit(&obuf, of, OWRITE);
-	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
-	Bprint(&obuf, "\n!\n");
+	Bprint(&obuf, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
+	Bprint(&obuf, "!\n");
 
-	pass = 1;
 	for(pass = 1; pass <= 2; pass++) {
 		nosched = 0;
 		pinit(file);
