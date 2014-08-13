@@ -962,13 +962,22 @@ gmove(Node *f, Node *t)
 			regsalloc(&fxrat, t);	/* should be type float */
 			gins(AMOVW, nodconst(0x43300000L), &fxc0);
 			gins(AMOVW, f, &fxc2);
-			gins(AMOVW, &fxc0, &fxrat);
 			gins(AXOR, nodconst(0x80000000L), &fxc2);
-			fxc1 = fxrat;
-			fxc1.type = nodrat->type;
-			fxc1.etype = nodrat->etype;
-			fxc1.xoffset += SZ_LONG;
-			gins(AMOVW, &fxc2, &fxc1);
+			if(ctxt->arch->endian == BigEndian) {
+				gins(AMOVW, &fxc0, &fxrat);
+				fxc1 = fxrat;
+				fxc1.type = nodrat->type;
+				fxc1.etype = nodrat->etype;
+				fxc1.xoffset += SZ_LONG;
+				gins(AMOVW, &fxc2, &fxc1);
+			} else {
+				gins(AMOVW, &fxc2, &fxrat);
+				fxc1 = fxrat;
+				fxc1.type = nodrat->type;
+				fxc1.etype = nodrat->etype;
+				fxc1.xoffset += SZ_LONG;
+				gins(AMOVW, &fxc0, &fxc1);
+			}
 			regfree(&fxc2);
 			regfree(&fxc0);
 			regalloc(&nod, t, t);	/* should be type float */
