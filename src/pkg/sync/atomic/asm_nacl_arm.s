@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // NaCl/ARM atomic operations.
 // NaCl/ARM explicitly targets ARMv7A.

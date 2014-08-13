@@ -1115,12 +1115,15 @@ install(char *dir)
 
 nobuild:
 	// In package runtime, we install runtime.h and cgocall.h too,
-	// for use by cgo compilation.
+	// for use by cgo compilation. For assembler source, we also
+	// copy cmd/ld/textflag.h.
 	if(streq(dir, "pkg/runtime")) {
 		copy(bpathf(&b, "%s/pkg/%s_%s/cgocall.h", goroot, goos, goarch),
 			bpathf(&b1, "%s/src/pkg/runtime/cgocall.h", goroot), 0);
 		copy(bpathf(&b, "%s/pkg/%s_%s/runtime.h", goroot, goos, goarch),
 			bpathf(&b1, "%s/src/pkg/runtime/runtime.h", goroot), 0);
+		copy(bpathf(&b, "%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
+			bpathf(&b1, "%s/src/cmd/ld/textflag.h", goroot), 0);
 	}
 
 

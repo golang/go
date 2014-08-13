@@ -4,7 +4,7 @@
 //
 // ARM version of md5block.go
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // SHA1 block routine. See sha1block.go for Go equivalent.
 //

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // makeFuncStub is the code half of the function returned by MakeFunc.
 // See the comment on the declaration of makeFuncStub in makefunc.go

@@ -4,7 +4,7 @@
 
 // +build !race
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // ARM atomic operations, for use by asm_$(GOOS)_arm.s.
 

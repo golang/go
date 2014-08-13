@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // func castagnoliSSE42(crc uint32, p []byte) uint32
 TEXT ·castagnoliSSE42(SB),NOSPLIT,$0

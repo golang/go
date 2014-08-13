@@ -4,7 +4,7 @@
 
 // +build !race
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Linux/ARM atomic operations.
 

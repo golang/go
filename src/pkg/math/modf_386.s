@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // func Modf(f float64) (int float64, frac float64)
 TEXT ·Modf(SB),NOSPLIT,$0

@@ -9,7 +9,7 @@
 // replace BP with R11, reloaded before use at return.
 // replace R15 with R11.
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // MD5 optimized for AMD64.
 //
