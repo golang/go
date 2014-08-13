@@ -222,7 +222,6 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
 	MOVW	36(R1), R8
 
 	SYSCALL	$SYS_mmap
-	BVC	2(PC)
 	RETURN
 
 TEXT runtime·munmap(SB),NOSPLIT,$-8
