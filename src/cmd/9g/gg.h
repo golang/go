@@ -62,7 +62,6 @@ vlong	fieldoffset(Type*, Node*);
 void	sgen(Node*, Node*, int64);
 void	gmove(Node*, Node*);
 Prog*	gins(int, Node*, Node*);
-int	samaddr(Node*, Node*);
 void	naddr(Node*, Addr*, int);
 void	cgen_aret(Node*, Node*);
 int	componentgen(Node*, Node*);
