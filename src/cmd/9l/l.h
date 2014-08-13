@@ -54,7 +54,6 @@ enum
 {
 	FPCHIP		= 1,
 	STRINGSZ	= 200,
-	MAXIO		= 8192,
 	MAXHIST		= 20,				/* limit of path elements for history symbols */
 	DATBLK		= 1024,
 	NHASH		= 10007,
