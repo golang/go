@@ -772,6 +772,7 @@ gmove(Node *f, Node *t)
 	case CASE(TINT64, TINT16):
 	case CASE(TUINT64, TINT16):
 		a = AMOVH;
+		break;
 
 	case CASE(TINT16, TUINT16):	// same size
 	case CASE(TUINT16, TUINT16):
