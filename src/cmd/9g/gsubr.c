@@ -1019,6 +1019,8 @@ gins(int as, Node *f, Node *t)
 		p->from = af;
 	if(t != N)
 		p->to = at;
+	if(as == ATEXT)
+		p->reg = 0;
 	if(debug['g'])
 		print("%P\n", p);
 
