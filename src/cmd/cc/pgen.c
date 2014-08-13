@@ -89,7 +89,7 @@ argsize(void)
 		}
 //print("	%d %T\n", s, t);
 	}
-	if(thechar == '6')
+	if(thechar == '6' || thechar == '9')
 		s = (s+7) & ~7;
 	else
 		s = (s+3) & ~3;
