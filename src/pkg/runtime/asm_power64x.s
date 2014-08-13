@@ -368,29 +368,26 @@ TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-24;	\
 	MOVBZU	R6, 1(R5);			\
 	BR	-4(PC);				\
 	/* call function */			\
-	MOVD	f+0(FP), R31;			\
-	MOVD	(R31), R31;			\
+	MOVD	f+0(FP), R11;			\
+	MOVD	(R11), R31;			\
 	MOVD	R31, CTR;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(CTR);				\
 	/* copy return values back */		\
 	MOVD	argptr+8(FP), R3;		\
 	MOVW	argsize+16(FP), R4;		\
-	MOVW	retoffset+20(FP), R5;		\
-	MOVD	R1, R6;				\
-	ADD	$(8-1), R6;			\
-	ADD	R5, R6;				\
-	ADD	R5, R3;				\
-	SUB	R5, R4;				\
-	CMP	R4, $0;				\
-	BEQ	9(PC);				\
+	MOVW	retoffset+20(FP), R6;		\
+	MOVD	R1, R5;				\
+	ADD	R6, R5; 			\
+	ADD	R6, R3;				\
+	SUB	R6, R4;				\
+	ADD	$(8-1), R5;			\
 	SUB	$1, R3;				\
-	SUB	$1, R6;				\
-	ADD	R3, R4;				\
-	CMP	R3, R4;				\
+	ADD	R5, R4;				\
+	CMP	R5, R4;				\
 	BEQ	4(PC);				\
-	MOVBZU	1(R3), R5;			\
-	MOVBZU	R5, 1(R6);			\
+	MOVBZU	1(R5), R6;			\
+	MOVBZU	R6, 1(R3);			\
 	BR	-4(PC);				\
 	RETURN
 
