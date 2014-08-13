@@ -28,7 +28,7 @@ runtime·rewindmorestack(Gobuf *gobuf)
 
 	inst = *(uint32*)gobuf->pc;
 	if((gobuf->pc&3) == 0 && (inst>>24) == 0x4b && (inst&3) == 0) {
-		runtime·printf("runtime: rewind pc=%p to pc=%p\n", gobuf->pc, gobuf->pc + ((int32)(inst<<8)>>8));
+		//runtime·printf("runtime: rewind pc=%p to pc=%p\n", gobuf->pc, gobuf->pc + ((int32)(inst<<8)>>8));
 		gobuf->pc += (int32)(inst<<8)>>8;
 		return;
 	}
