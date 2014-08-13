@@ -1305,6 +1305,10 @@ runtime·gc(int32 force)
 	if(!mstats.enablegc || g == g->m->g0 || g->m->locks > 0 || runtime·panicking)
 		return;
 
+	if(thechar == '9') {
+		runtime·gcpercent = -1;
+		return;
+	}
 	if(runtime·gcpercent == GcpercentUnknown) {	// first time through
 		runtime·lock(&runtime·mheap);
 		if(runtime·gcpercent == GcpercentUnknown)

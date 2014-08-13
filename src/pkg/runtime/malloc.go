@@ -278,7 +278,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 // force = 1 - do GC regardless of current heap usage
 // force = 2 - go GC and eager sweep
 func gogc(force int32) {
-	if memstats.enablegc == 0 {
+	if GOARCH == "power64" || GOARCH == "power64le" || memstats.enablegc == 0 {
 		return
 	}
 
