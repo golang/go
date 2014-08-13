@@ -639,6 +639,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
 static Prog*
 stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 {
+	// TODO(minux)
+	return p;
+
 	int32 arg;
 	Prog *q, *q1;
 
