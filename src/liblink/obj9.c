@@ -179,6 +179,15 @@ progedit(Link *ctxt, Prog *p)
 		}
 		break;
 	}
+
+	if(p->from.type == D_CONST && p->from.reg != NREG) {
+		if(p->as == AMOVD && p->to.type == D_REG) {
+			p->as = AADD;
+			p->reg = p->from.reg;
+			p->from.reg = NREG;
+		} else
+			ctxt->diag("invalid instruction: %P", p);
+	}
 }
 
 static Prog*	stacksplit(Link*, Prog*, int32, int);
@@ -639,9 +648,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 static Prog*
 stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 {
-	// TODO(minux)
-	return p;
-
 	int32 arg;
 	Prog *q, *q1;
 
@@ -696,7 +702,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		//	ADD	$StackGuard, SP, R4
 		//	SUB	R3, R4
 		//	MOVD	$(framesize+(StackGuard-StackSmall)), R31
-		//	CMP	R4, R31
+		//	CMPU	R31, R4
 		p = appendp(ctxt, p);
 		p->as = ACMP;
 		p->from.type = D_REG;
@@ -733,9 +739,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		p = appendp(ctxt, p);
 		p->as = ACMPU;
 		p->from.type = D_REG;
-		p->from.reg = 4;
+		p->from.reg = REGTMP;
 		p->to.type = D_REG;
-		p->to.reg = REGTMP;
+		p->to.reg = 4;
 	}
 
 	// q1: BLT	done
@@ -762,7 +768,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		arg = 0;
 	else if(arg == ArgsSizeUnknown)
 		ctxt->diag("%s: arg size unknown, but split stack", ctxt->cursym->name);
-	if(arg&3) // ????
+	if(arg&7)
 		ctxt->diag("misaligned argument size in stack split: %d", arg);
 	p->from.offset = arg;
 	p->to.type = D_REG;
