@@ -45,7 +45,7 @@ var (
 	doBuild        = flag.Bool("build", true, "Build and test packages")
 	doBench        = flag.Bool("bench", false, "Run benchmarks")
 	buildroot      = flag.String("buildroot", defaultBuildRoot(), "Directory under which to build")
-	dashboard      = flag.String("dashboard", "build.golang.org", "Go Dashboard Host")
+	dashboard      = flag.String("dashboard", "https://build.golang.org", "Dashboard app base path")
 	buildRelease   = flag.Bool("release", false, "Build and upload binary release archives")
 	buildRevision  = flag.String("rev", "", "Build specified revision and exit")
 	buildCmd       = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")

@@ -29,7 +29,7 @@ func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
 	if *verbose {
 		log.Println("dash <-", meth, cmd, args, req)
 	}
-	cmd = "http://" + *dashboard + "/" + cmd
+	cmd = *dashboard + "/" + cmd
 	if len(args) > 0 {
 		cmd += "?" + args.Encode()
 	}
