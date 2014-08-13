@@ -3345,6 +3345,10 @@ walkdiv(Node **np, NodeList **init)
 	Type *twide;
 	Magic m;
 
+	// TODO(minux)
+	if(thechar == '9')
+		return;
+
 	n = *np;
 	if(n->right->op != OLITERAL)
 		return;
