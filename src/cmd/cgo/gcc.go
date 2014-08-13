@@ -1075,12 +1075,6 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		return t
 	}
 
-	// clang won't generate DW_AT_byte_size for pointer types,
-	// so we have to fix it here.
-	if dt, ok := base(dtype).(*dwarf.PtrType); ok && dt.ByteSize == -1 {
-		dt.ByteSize = c.ptrSize
-	}
-
 	t := new(Type)
 	t.Size = dtype.Size() // note: wrong for array of pointers, corrected below
 	t.Align = -1
@@ -1104,12 +1098,20 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			t.Go = c.Opaque(t.Size)
 			break
 		}
+		count := dt.Count
+		if count == -1 {
+			// Indicates flexible array member, which Go doesn't support.
+			// Translate to zero-length array instead.
+			count = 0
+		}
 		sub := c.Type(dt.Type, pos)
 		t.Align = sub.Align
 		t.Go = &ast.ArrayType{
-			Len: c.intExpr(dt.Count),
+			Len: c.intExpr(count),
 			Elt: sub.Go,
 		}
+		// Recalculate t.Size now that we know sub.Size.
+		t.Size = count * sub.Size
 		t.C.Set("__typeof__(%s[%d])", sub.C, dt.Count)
 
 	case *dwarf.BoolType:
@@ -1210,6 +1212,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		}
 
 	case *dwarf.PtrType:
+		// Clang doesn't emit DW_AT_byte_size for pointer types.
+		if t.Size != c.ptrSize && t.Size != -1 {
+			fatalf("%s: unexpected: %d-byte pointer type - %s", lineno(pos), t.Size, dtype)
+		}
+		t.Size = c.ptrSize
 		t.Align = c.ptrSize
 
 		if _, ok := base(dt.Type).(*dwarf.VoidType); ok {
@@ -1381,34 +1388,24 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		}
 	}
 
-	if t.Size <= 0 {
-		// Clang does not record the size of a pointer in its DWARF entry,
-		// so if dtype is an array, the call to dtype.Size at the top of the function
-		// computed the size as the array length * 0 = 0.
-		// The type switch called Type (this function) recursively on the pointer
-		// entry, and the code near the top of the function updated the size to
-		// be correct, so calling dtype.Size again will produce the correct value.
-		t.Size = dtype.Size()
-		if t.Size < 0 {
-			// Unsized types are [0]byte, unless they're typedefs of other types
-			// or structs with tags.
-			// if so, use the name we've already defined.
-			t.Size = 0
-			switch dt := dtype.(type) {
-			case *dwarf.TypedefType:
-				// ok
-			case *dwarf.StructType:
-				if dt.StructName != "" {
-					break
-				}
-				t.Go = c.Opaque(0)
-			default:
-				t.Go = c.Opaque(0)
+	if t.Size < 0 {
+		// Unsized types are [0]byte, unless they're typedefs of other types
+		// or structs with tags.
+		// if so, use the name we've already defined.
+		t.Size = 0
+		switch dt := dtype.(type) {
+		case *dwarf.TypedefType:
+			// ok
+		case *dwarf.StructType:
+			if dt.StructName != "" {
+				break
 			}
-			if t.C.Empty() {
-				t.C.Set("void")
-			}
-			return t
+			t.Go = c.Opaque(0)
+		default:
+			t.Go = c.Opaque(0)
+		}
+		if t.C.Empty() {
+			t.C.Set("void")
 		}
 	}
 
