@@ -213,7 +213,7 @@ static struct {
 static void
 scanblock(byte *b, uintptr n, byte *ptrmask)
 {
-	byte *obj, *p, *arena_start, *arena_used, **wp, *scanbuf[8];
+	byte *obj, *p, *arena_start, *arena_used, **wp, *scanbuf[8], bits8;
 	uintptr i, nobj, size, idx, *bitp, bits, xbits, shift, x, off, cached, scanbufpos;
 	intptr ncached;
 	Workbuf *wbuf;
@@ -440,15 +440,26 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			// Only care about not marked objects.
 			if((bits&bitMarked) != 0)
 				continue;
-			if(work.nproc == 1)
-				*bitp |= bitMarked<<shift;
+			// If obj size is greater than 8, then each byte of GC bitmap
+			// contains info for at most one object. In such case we use
+			// non-atomic byte store to mark the object. This can lead
+			// to double enqueue of the object for scanning, but scanning
+			// is an idempotent operation, so it is OK. This cannot lead
+			// to bitmap corruption because the single marked bit is the
+			// only thing that can change in the byte.
+			// For 8-byte objects we use non-atomic store, if the other
+			// quadruple is already marked. Otherwise we resort to CAS
+			// loop for marking.
+			bits8 = xbits>>(shift&~7);
+			if((bits8&(bitMask|(bitMask<<gcBits))) != (bitBoundary|(bitBoundary<<gcBits)))
+				((uint8*)bitp)[shift/8] = bits8 | (bitMarked<<(shift&7));
 			else {
 				for(;;) {
+					if(runtime·casp((void**)bitp, (void*)xbits, (void*)(xbits|(bitMarked<<shift))))
+						break;
 					xbits = *bitp;
 					bits = (xbits>>shift) & bitMask;
 					if((bits&bitMarked) != 0)
-						break;
-					if(runtime·casp((void**)bitp, (void*)xbits, (void*)(xbits|(bitMarked<<shift))))
 						break;
 				}
 				if((bits&bitMarked) != 0)
