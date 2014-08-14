@@ -126,8 +126,9 @@ main 136 nosplit; REJECT
 # Calling a nosplit function from a nosplit function requires
 # having room for the saved caller PC and the called frame.
 # Because ARM doesn't save LR in the leaf, it gets an extra 4 bytes.
+# Because Power64 doesn't save LR in the leaf, it gets an extra 8 bytes.
 main 112 nosplit call f; f 0 nosplit
-main 116 nosplit call f; f 0 nosplit; REJECT amd64
+main 116 nosplit call f; f 0 nosplit
 main 120 nosplit call f; f 0 nosplit; REJECT amd64
 main 124 nosplit call f; f 0 nosplit; REJECT amd64 386
 main 128 nosplit call f; f 0 nosplit; REJECT
@@ -136,8 +137,8 @@ main 136 nosplit call f; f 0 nosplit; REJECT
 
 # Calling a splitting function from a nosplit function requires
 # having room for the saved caller PC of the call but also the
-# saved caller PC for the call to morestack. Again the ARM works
-# in less space.
+# saved caller PC for the call to morestack.
+# Again the ARM and Power64 work in less space.
 main 104 nosplit call f; f 0 call f
 main 108 nosplit call f; f 0 call f
 main 112 nosplit call f; f 0 call f; REJECT amd64
@@ -235,7 +236,7 @@ TestCases:
 		switch goarch {
 		case "power64", "power64le":
 			ptrSize = 8
-			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (R0)\n#define RET RETURN\n")
+			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (CTR)\n#define RET RETURN\n")
 		case "arm":
 			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (R0)\n")
 		case "amd64":

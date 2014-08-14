@@ -49,9 +49,22 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 		runtime·futex(addr, FUTEX_WAIT, val, nil, nil, 0);
 		return;
 	}
-	// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+
+	// It's difficult to live within the no-split stack limits here.
+	// On ARM and 386, a 64-bit divide invokes a general software routine
+	// that needs more stack than we can afford. So we use timediv instead.
+	// But on real 64-bit systems, where words are larger but the stack limit
+	// is not, even timediv is too heavy, and we really need to use just an
+	// ordinary machine instruction.
+	// Sorry for the #ifdef.
+	// For what it's worth, the #ifdef eliminated an implicit little-endian assumption.
+#ifdef _64BIT
+	ts.tv_sec = ns / 1000000000LL;
+	ts.tv_nsec = ns % 1000000000LL;
+#else
 	ts.tv_nsec = 0;
 	ts.tv_sec = runtime·timediv(ns, 1000000000LL, (int32*)&ts.tv_nsec);
+#endif
 	runtime·futex(addr, FUTEX_WAIT, val, &ts, nil, 0);
 }
 
