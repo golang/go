@@ -320,18 +320,18 @@ static Optab	optab[] = {
 	{ AFMOVD,	C_SAUTO,C_NONE, C_NONE, 	C_FREG,		8, 4, REGSP },
 	{ AFMOVD,	C_SOREG,C_NONE, C_NONE, 	C_FREG,		8, 4, REGZERO },
 
-	{ AFMOVD,	C_LEXT,	C_NONE, C_NONE, 	C_FREG,		8, 4, REGSB },
-	{ AFMOVD,	C_LAUTO,C_NONE, C_NONE, 	C_FREG,		8, 4, REGSP },
-	{ AFMOVD,	C_LOREG,C_NONE, C_NONE, 	C_FREG,		8, 4, REGZERO },
+	{ AFMOVD,	C_LEXT,	C_NONE, C_NONE, 	C_FREG,		36, 8, REGSB },
+	{ AFMOVD,	C_LAUTO,C_NONE, C_NONE, 	C_FREG,		36, 8, REGSP },
+	{ AFMOVD,	C_LOREG,C_NONE, C_NONE, 	C_FREG,		36, 8, REGZERO },
 	{ AFMOVD,	C_ADDR,	C_NONE, C_NONE, 	C_FREG,		75, 8, 0 },
 
 	{ AFMOVD,	C_FREG,	C_NONE, C_NONE, 	C_SEXT,		7, 4, REGSB },
 	{ AFMOVD,	C_FREG,	C_NONE, C_NONE, 	C_SAUTO,	7, 4, REGSP },
 	{ AFMOVD,	C_FREG,	C_NONE, C_NONE, 	C_SOREG,	7, 4, REGZERO },
 
-	{ AFMOVD,	C_FREG,	C_NONE, C_NONE, 	C_LEXT,		7, 4, REGSB },
-	{ AFMOVD,	C_FREG,	C_NONE, C_NONE, 	C_LAUTO,	7, 4, REGSP },
-	{ AFMOVD,	C_FREG,	C_NONE, C_NONE, 	C_LOREG,	7, 4, REGZERO },
+	{ AFMOVD,	C_FREG,	C_NONE, C_NONE, 	C_LEXT,		35, 8, REGSB },
+	{ AFMOVD,	C_FREG,	C_NONE, C_NONE, 	C_LAUTO,	35, 8, REGSP },
+	{ AFMOVD,	C_FREG,	C_NONE, C_NONE, 	C_LOREG,	35, 8, REGZERO },
 	{ AFMOVD,	C_FREG,	C_NONE, C_NONE, 	C_ADDR,		74, 8, 0 },
 
 	{ ASYNC,		C_NONE,	C_NONE, C_NONE, 	C_NONE,		46, 4, 0 },
@@ -1491,6 +1491,8 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 			r = p->to.reg;
 		if(r0iszero && p->to.reg == 0)
 			ctxt->diag("literal operation on R0\n%P", p);
+		if((int16)v != v)
+			sysfatal("mishandled instruction %P", p);
 		o1 = AOP_IRR(opirr(ctxt, p->as), p->to.reg, r, v);
 		break;
 
@@ -1514,8 +1516,11 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 			if(v)
 				ctxt->diag("illegal indexed instruction\n%P", p);
 			o1 = AOP_RRR(opstorex(ctxt, p->as), p->from.reg, p->reg, r);
-		} else
+		} else {
+			if((int16)v != v)
+				sysfatal("mishandled instruction %P", p);	
 			o1 = AOP_IRR(opstore(ctxt, p->as), p->from.reg, r, v);
+		}
 		break;
 
 	case 8:		/* mov soreg, r ==> lbz/lhz/lwz o(r) */
@@ -1527,8 +1532,11 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 			if(v)
 				ctxt->diag("illegal indexed instruction\n%P", p);
 			o1 = AOP_RRR(oploadx(ctxt, p->as), p->to.reg, p->reg, r);
-		} else
+		} else {
+			if((int16)v != v)
+				sysfatal("mishandled instruction %P", p);
 			o1 = AOP_IRR(opload(ctxt, p->as), p->to.reg, r, v);
+		}
 		break;
 
 	case 9:		/* movb soreg, r ==> lbz o(r),r2; extsb r2,r2 */
