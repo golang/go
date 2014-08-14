@@ -604,8 +604,13 @@ func (conf *Config) Load() (*Program, error) {
 			}
 		}
 		if errpkgs != nil {
-			return nil, fmt.Errorf("couldn't load packages due to errors: %s",
-				strings.Join(errpkgs, ", "))
+			var more string
+			if len(errpkgs) > 3 {
+				more = fmt.Sprintf(" and %d more", len(errpkgs)-3)
+				errpkgs = errpkgs[:3]
+			}
+			return nil, fmt.Errorf("couldn't load packages due to errors: %s%s",
+				strings.Join(errpkgs, ", "), more)
 		}
 	}
 
