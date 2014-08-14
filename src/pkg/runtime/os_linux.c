@@ -78,19 +78,22 @@ static int32
 getproccount(void)
 {
 	uintptr buf[16], t;
-	int32 r, cnt, i;
+	int32 r, n, i;
 
-	cnt = 0;
 	r = runtime·sched_getaffinity(0, sizeof(buf), buf);
-	if(r > 0)
+	if(r <= 0)
+		return 1;
+	n = 0;
 	for(i = 0; i < r/sizeof(buf[0]); i++) {
 		t = buf[i];
-		t = t - ((t >> 1) & 0x5555555555555555ULL);
-		t = (t & 0x3333333333333333ULL) + ((t >> 2) & 0x3333333333333333ULL);
-		cnt += (int32)((((t + (t >> 4)) & 0xF0F0F0F0F0F0F0FULL) * 0x101010101010101ULL) >> 56);
+		while(t != 0) {
+			n += t&1;
+			t >>= 1;
+		}
 	}
-
-	return cnt ? cnt : 1;
+	if(n < 1)
+		n = 1;
+	return n;
 }
 
 // Clone, the Linux rfork.
