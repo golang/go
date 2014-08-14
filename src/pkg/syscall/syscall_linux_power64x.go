@@ -15,7 +15,7 @@ package syscall
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (euid int)
 //sysnb	Getgid() (gid int)
-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
+//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error) = SYS_UGETRLIMIT
 //sysnb	Getuid() (uid int)
 //sys	Ioperm(from int, num int, on int) (err error)
 //sys	Iopl(level int) (err error)

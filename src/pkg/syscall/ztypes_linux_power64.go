@@ -71,22 +71,22 @@ type Utimbuf struct {
 }
 
 type Rusage struct {
-	Utime  Timeval
-	Stime  Timeval
-	Anon0  [8]byte
-	Anon1  [8]byte
-	Anon2  [8]byte
-	Anon3  [8]byte
-	Anon4  [8]byte
-	Anon5  [8]byte
-	Anon6  [8]byte
-	Anon7  [8]byte
-	Anon8  [8]byte
-	Anon9  [8]byte
-	Anon10 [8]byte
-	Anon11 [8]byte
-	Anon12 [8]byte
-	Anon13 [8]byte
+	Utime    Timeval
+	Stime    Timeval
+	Maxrss   int64
+	Ixrss    int64
+	Idrss    int64
+	Isrss    int64
+	Minflt   int64
+	Majflt   int64
+	Nswap    int64
+	Inblock  int64
+	Oublock  int64
+	Msgsnd   int64
+	Msgrcv   int64
+	Nsignals int64
+	Nvcsw    int64
+	Nivcsw   int64
 }
 
 type Rlimit struct {
