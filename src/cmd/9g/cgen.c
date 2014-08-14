@@ -1267,9 +1267,9 @@ bgen(Node *n, int true, int likely, Prog *to)
 		l = &n1;
 		r = &n2;
 		gins(optoas(OCMP, nr->type), l, r);
-		if(isfloat[nr->type->etype] && (n->op == OLE || n->op == OGE)) {
+		if(isfloat[nr->type->etype] && (a == OLE || a == OGE)) {
 			// To get NaN right, must rewrite x <= y into separate x < y or x = y.
-			switch(n->op) {
+			switch(a) {
 			case OLE:
 				a = OLT;
 				break;
