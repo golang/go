@@ -122,6 +122,12 @@ func infoComplex() []byte {
 			BitsScalar, BitsScalar, BitsScalar, BitsScalar,
 			BitsScalar, BitsScalar, BitsMultiWord, BitsString,
 		}
+	case "power64", "power64le":
+		return []byte{
+			BitsPointer, BitsScalar, BitsScalar, BitsScalar,
+			BitsMultiWord, BitsSlice, BitsScalar, BitsScalar,
+			BitsScalar, BitsScalar, BitsMultiWord, BitsString,
+		}
 	default:
 		panic("unknown arch")
 	}
