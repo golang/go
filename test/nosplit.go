@@ -231,9 +231,17 @@ TestCases:
 		}
 
 		var buf bytes.Buffer
-		if goarch == "arm" {
+		ptrSize := 4
+		switch goarch {
+		case "power64", "power64le":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (R0)\n#define RET RETURN\n")
+		case "arm":
 			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (R0)\n")
-		} else {
+		case "amd64":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define REGISTER AX\n")
+		default:
 			fmt.Fprintf(&buf, "#define REGISTER AX\n")
 		}
 
@@ -255,7 +263,7 @@ TestCases:
 				}
 				name := m[1]
 				size, _ := strconv.Atoi(m[2])
-				if goarch == "amd64" && size%8 == 4 {
+				if size%ptrSize == 4 {
 					continue TestCases
 				}
 				nosplit := m[3]
