@@ -332,6 +332,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 	const (
 		notType = 1 << iota
 		notConst
+		notDeclared
 	)
 	for _, line := range strings.Split(stderr, "\n") {
 		if !strings.Contains(line, ": error:") {
@@ -366,7 +367,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 			completed = true
 
 		case "not-declared":
-			error_(token.NoPos, "%s", strings.TrimSpace(line[c2+1:]))
+			sniff[i] |= notDeclared
 		case "not-type":
 			sniff[i] |= notType
 		case "not-const":
@@ -375,12 +376,12 @@ func (p *Package) guessKinds(f *File) []*Name {
 	}
 
 	if !completed {
-		fatalf("%s did not produce error at completed:1\non input:\n%s", p.gccBaseCmd()[0], b.Bytes())
+		fatalf("%s did not produce error at completed:1\non input:\n%s\nfull error output:\n%s", p.gccBaseCmd()[0], b.Bytes(), stderr)
 	}
 
 	for i, n := range names {
 		switch sniff[i] {
-		case 0:
+		default:
 			error_(token.NoPos, "could not determine kind of name for C.%s", fixGo(n.Go))
 		case notType:
 			n.Kind = "const"
@@ -391,6 +392,14 @@ func (p *Package) guessKinds(f *File) []*Name {
 		}
 	}
 	if nerrors > 0 {
+		// Check if compiling the preamble by itself causes any errors,
+		// because the messages we've printed out so far aren't helpful
+		// to users debugging preamble mistakes.  See issue 8442.
+		preambleErrors := p.gccErrors([]byte(f.Preamble))
+		if len(preambleErrors) > 0 {
+			error_(token.NoPos, "\n%s errors for preamble:\n%s", p.gccBaseCmd()[0], preambleErrors)
+		}
+
 		fatalf("unresolved names")
 	}
 
