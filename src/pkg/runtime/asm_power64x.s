@@ -547,7 +547,7 @@ TEXT runtime·xchgp(SB), NOSPLIT, $0-16
 	BR	runtime·xchg64(SB)
 
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
-	MOVD	R0, 17(R0)
+	RETURN
 
 TEXT runtime·atomicstorep(SB), NOSPLIT, $0-16
 	BR	runtime·atomicstore64(SB)
