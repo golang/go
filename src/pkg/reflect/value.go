@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-const bigEndian = false // can be smarter if we find a big-endian machine
+const bigEndian = runtime.GOARCH == "power64" // can be smarter if we find more big-endian machines
 const ptrSize = unsafe.Sizeof((*byte)(nil))
 const cannotSet = "cannot set value obtained from unexported struct field"
 
