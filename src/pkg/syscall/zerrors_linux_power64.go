@@ -353,7 +353,7 @@ const (
 	F_GETFD                          = 0x1
 	F_GETFL                          = 0x3
 	F_GETLEASE                       = 0x401
-	F_GETLK                          = 0xc
+	F_GETLK                          = 0x5
 	F_GETLK64                        = 0xc
 	F_GETOWN                         = 0x9
 	F_GETOWN_EX                      = 0x10
@@ -671,15 +671,6 @@ const (
 	MAP_SHARED                       = 0x1
 	MAP_STACK                        = 0x20000
 	MAP_TYPE                         = 0xf
-	MCAST_BLOCK_SOURCE               = 0x2b
-	MCAST_EXCLUDE                    = 0x0
-	MCAST_INCLUDE                    = 0x1
-	MCAST_JOIN_GROUP                 = 0x2a
-	MCAST_JOIN_SOURCE_GROUP          = 0x2e
-	MCAST_LEAVE_GROUP                = 0x2d
-	MCAST_LEAVE_SOURCE_GROUP         = 0x2f
-	MCAST_MSFILTER                   = 0x30
-	MCAST_UNBLOCK_SOURCE             = 0x2c
 	MCL_CURRENT                      = 0x2000
 	MCL_FUTURE                       = 0x4000
 	MNT_DETACH                       = 0x2
