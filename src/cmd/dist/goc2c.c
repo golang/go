@@ -786,17 +786,17 @@ goc2c(char *goc, char *c)
 	// TODO: set gcc=1 when using gcc
 
 	if(!gcc) {
-		if(streq(goarch, "amd64")) {
+		if(contains(goarch, "64p32")) {
+			type_table[Uintptr].size = 4;
+			type_table[Int].size = 4;
+			structround = 8;
+		} else if(contains(goarch, "64")) {
 			type_table[Uintptr].size = 8;
 			if(use64bitint) {
 				type_table[Int].size = 8;
 			} else {
 				type_table[Int].size = 4;
 			}
-			structround = 8;
-		} else if(streq(goarch, "amd64p32")) {
-			type_table[Uintptr].size = 4;
-			type_table[Int].size = 4;
 			structround = 8;
 		} else {
 			// NOTE: These are set in the initializer,
