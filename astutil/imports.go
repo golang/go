@@ -131,22 +131,25 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 
 // DeleteImport deletes the import path from the file f, if present.
 func DeleteImport(fset *token.FileSet, f *ast.File, path string) (deleted bool) {
-	oldImport := importSpec(f, path)
+	var delspecs []*ast.ImportSpec
 
-	// Find the import node that imports path, if any.
-	for i, decl := range f.Decls {
+	// Find the import nodes that import path, if any.
+	for i := 0; i < len(f.Decls); i++ {
+		decl := f.Decls[i]
 		gen, ok := decl.(*ast.GenDecl)
 		if !ok || gen.Tok != token.IMPORT {
 			continue
 		}
-		for j, spec := range gen.Specs {
+		for j := 0; j < len(gen.Specs); j++ {
+			spec := gen.Specs[j]
 			impspec := spec.(*ast.ImportSpec)
-			if oldImport != impspec {
+			if importPath(impspec) != path {
 				continue
 			}
 
 			// We found an import spec that imports path.
 			// Delete it.
+			delspecs = append(delspecs, impspec)
 			deleted = true
 			copy(gen.Specs[j:], gen.Specs[j+1:])
 			gen.Specs = gen.Specs[:len(gen.Specs)-1]
@@ -156,6 +159,8 @@ func DeleteImport(fset *token.FileSet, f *ast.File, path string) (deleted bool) 
 			if len(gen.Specs) == 0 {
 				copy(f.Decls[i:], f.Decls[i+1:])
 				f.Decls = f.Decls[:len(f.Decls)-1]
+				i--
+				break
 			} else if len(gen.Specs) == 1 {
 				gen.Lparen = token.NoPos // drop parens
 			}
@@ -167,27 +172,35 @@ func DeleteImport(fset *token.FileSet, f *ast.File, path string) (deleted bool) 
 				// We deleted an entry but now there may be
 				// a blank line-sized hole where the import was.
 				if line-lastLine > 1 {
-					// There was a blank line immediately preceeing the deleted import,
+					// There was a blank line immediately preceding the deleted import,
 					// so there's no need to close the hole.
 					// Do nothing.
 				} else {
-					// There was no blank line.
-					// Close the hole by making the previous
-					// import appear to "end" where this one did.
-					lastImpspec.EndPos = impspec.End()
+					// There was no blank line. Close the hole.
+					fset.File(gen.Rparen).MergeLine(line)
 				}
 			}
-			break
+			j--
 		}
 	}
 
-	// Delete it from f.Imports.
-	for i, imp := range f.Imports {
-		if imp == oldImport {
-			copy(f.Imports[i:], f.Imports[i+1:])
-			f.Imports = f.Imports[:len(f.Imports)-1]
-			break
+	// Delete them from f.Imports.
+	for i := 0; i < len(f.Imports); i++ {
+		imp := f.Imports[i]
+		for j, del := range delspecs {
+			if imp == del {
+				copy(f.Imports[i:], f.Imports[i+1:])
+				f.Imports = f.Imports[:len(f.Imports)-1]
+				copy(delspecs[j:], delspecs[j+1:])
+				delspecs = delspecs[:len(delspecs)-1]
+				i--
+				break
+			}
 		}
+	}
+
+	if len(delspecs) > 0 {
+		panic(fmt.Sprintf("deleted specs from Decls but not Imports: %v", delspecs))
 	}
 
 	return

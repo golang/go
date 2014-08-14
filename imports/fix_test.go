@@ -645,6 +645,32 @@ import (
 func main() { _, _ = fmt.Print, ast.Walk }
 `,
 	},
+
+	// Failure to delete all duplicate imports
+	// golang.org/issue/8459
+	{
+		name: "issue 8459",
+		in: `package main
+
+import (
+	"fmt"
+	"log"
+	"log"
+	"math"
+)
+
+func main() { fmt.Println("pi:", math.Pi) }
+`,
+		out: `package main
+
+import (
+	"fmt"
+	"math"
+)
+
+func main() { fmt.Println("pi:", math.Pi) }
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
