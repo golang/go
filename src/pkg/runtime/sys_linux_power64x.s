@@ -83,7 +83,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8-24
 TEXT runtime·getrlimit(SB),NOSPLIT,$-8-24
 	MOVW	8(R1), R3
 	MOVD	16(R1), R4
-	SYSCALL	$SYS_ugetrlimit // ??? why not use SYS_getrlimit
+	SYSCALL	$SYS_ugetrlimit
 	RETURN
 
 TEXT runtime·usleep(SB),NOSPLIT,$-8-16
@@ -132,7 +132,7 @@ TEXT time·now(SB),NOSPLIT,$16
 	MOVD	$0, R4
 	SYSCALL	$SYS_gettimeofday
 	MOVD	0(R1), R3	// sec
-	MOVW	8(R1), R5	// usec
+	MOVD	8(R1), R5	// usec
 	MOVD	$1000, R4
 	MULLD	R4, R5
 	MOVD	R3, sec+0(FP)
