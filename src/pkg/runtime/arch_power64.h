@@ -6,7 +6,7 @@ enum {
 	thechar = '9',
 	BigEndian = 1,
 	CacheLineSize = 64,
-	RuntimeGogoBytes = 84,
+	RuntimeGogoBytes = 64,
 	PhysPageSize = 65536,
 	PCQuantum = 4,
 	Int64Align = 8
