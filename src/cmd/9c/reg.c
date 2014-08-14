@@ -558,7 +558,7 @@ mkvar(Addr *a, int docon)
 {
 	Var *v;
 	int i, t, n, et, z;
-	int32 o;
+	int64 o;
 	Bits bit;
 	LSym *s;
 
@@ -617,6 +617,8 @@ out:
 		for(z=0; z<BITS; z++)
 			addrs.b[z] |= bit.b[z];
 	if(t == D_CONST) {
+		if((int32)o != o)
+			v->etype = TVLONG;
 		if(s == nil) {
 			for(z=0; z<BITS; z++)
 				consts.b[z] |= bit.b[z];
