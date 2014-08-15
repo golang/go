@@ -2087,7 +2087,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*mask = runtime·mallocgc(*len, nil, 0);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-frame.varp+size)/PtrSize;
-			bits = (bv.data[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			bits = (bv.data[off*BitsPerPointer/32] >> ((off*BitsPerPointer)%32))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
 	}
