@@ -12,24 +12,30 @@ import (
 
 // TestGCInfo tests that various objects in heap, data and bss receive correct GC pointer type info.
 func TestGCInfo(t *testing.T) {
-	verifyGCInfo(t, "bss ScalarPtr", &bssScalarPtr, infoScalarPtr)
-	verifyGCInfo(t, "bss PtrScalar", &bssPtrScalar, infoPtrScalar)
-	verifyGCInfo(t, "bss Complex", &bssComplex, infoComplex())
-	verifyGCInfo(t, "bss string", &bssString, infoString)
-	verifyGCInfo(t, "bss eface", &bssEface, infoEface)
+	verifyGCInfo(t, "bss ScalarPtr", &bssScalarPtr, nonStackInfo(infoScalarPtr))
+	verifyGCInfo(t, "bss PtrScalar", &bssPtrScalar, nonStackInfo(infoPtrScalar))
+	verifyGCInfo(t, "bss Complex", &bssComplex, nonStackInfo(infoComplex()))
+	verifyGCInfo(t, "bss string", &bssString, nonStackInfo(infoString))
+	verifyGCInfo(t, "bss eface", &bssEface, nonStackInfo(infoEface))
 
-	verifyGCInfo(t, "data ScalarPtr", &dataScalarPtr, infoScalarPtr)
-	verifyGCInfo(t, "data PtrScalar", &dataPtrScalar, infoPtrScalar)
-	verifyGCInfo(t, "data Complex", &dataComplex, infoComplex())
-	verifyGCInfo(t, "data string", &dataString, infoString)
-	verifyGCInfo(t, "data eface", &dataEface, infoEface)
+	verifyGCInfo(t, "data ScalarPtr", &dataScalarPtr, nonStackInfo(infoScalarPtr))
+	verifyGCInfo(t, "data PtrScalar", &dataPtrScalar, nonStackInfo(infoPtrScalar))
+	verifyGCInfo(t, "data Complex", &dataComplex, nonStackInfo(infoComplex()))
+	verifyGCInfo(t, "data string", &dataString, nonStackInfo(infoString))
+	verifyGCInfo(t, "data eface", &dataEface, nonStackInfo(infoEface))
+
+	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), infoScalarPtr)
+	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), infoPtrScalar)
+	verifyGCInfo(t, "stack Complex", new(Complex), infoComplex())
+	verifyGCInfo(t, "stack string", new(string), infoString)
+	verifyGCInfo(t, "stack eface", new(interface{}), infoEface)
 
 	for i := 0; i < 3; i++ {
-		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), infoScalarPtr)
-		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), infoPtrScalar)
-		verifyGCInfo(t, "heap Complex", escape(new(Complex)), infoComplex())
-		verifyGCInfo(t, "heap string", escape(new(string)), infoString)
-		verifyGCInfo(t, "heap eface", escape(new(interface{})), infoEface)
+		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), nonStackInfo(infoScalarPtr))
+		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), nonStackInfo(infoPtrScalar))
+		verifyGCInfo(t, "heap Complex", escape(new(Complex)), nonStackInfo(infoComplex()))
+		verifyGCInfo(t, "heap string", escape(new(string)), nonStackInfo(infoString))
+		verifyGCInfo(t, "heap eface", escape(new(interface{})), nonStackInfo(infoEface))
 	}
 
 }
@@ -44,6 +50,20 @@ func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
 		t.Errorf("bad GC program for %v:\nwant %+v\ngot  %+v", name, mask0, mask)
 		return
 	}
+}
+
+func nonStackInfo(mask []byte) []byte {
+	// BitsDead is replaced with BitsScalar everywhere except stacks.
+	mask1 := make([]byte, len(mask))
+	mw := false
+	for i, v := range mask {
+		if !mw && v == BitsDead {
+			v = BitsScalar
+		}
+		mw = !mw && v == BitsMultiWord
+		mask1[i] = v
+	}
+	return mask1
 }
 
 var gcinfoSink interface{}
@@ -106,20 +126,20 @@ func infoComplex() []byte {
 		return []byte{
 			BitsPointer, BitsScalar, BitsScalar, BitsScalar,
 			BitsScalar, BitsScalar, BitsMultiWord, BitsSlice,
-			BitsScalar, BitsScalar, BitsScalar, BitsScalar,
+			BitsDead, BitsScalar, BitsScalar, BitsScalar,
 			BitsScalar, BitsMultiWord, BitsString,
 		}
 	case "amd64":
 		return []byte{
 			BitsPointer, BitsScalar, BitsScalar, BitsScalar,
-			BitsMultiWord, BitsSlice, BitsScalar, BitsScalar,
+			BitsMultiWord, BitsSlice, BitsDead, BitsScalar,
 			BitsScalar, BitsScalar, BitsMultiWord, BitsString,
 		}
 	case "amd64p32":
 		return []byte{
 			BitsPointer, BitsScalar, BitsScalar, BitsScalar,
 			BitsScalar, BitsScalar, BitsMultiWord, BitsSlice,
-			BitsScalar, BitsScalar, BitsScalar, BitsScalar,
+			BitsDead, BitsScalar, BitsScalar, BitsDead,
 			BitsScalar, BitsScalar, BitsMultiWord, BitsString,
 		}
 	default:
