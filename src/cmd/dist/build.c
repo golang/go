@@ -640,7 +640,7 @@ install(char *dir)
 {
 	char *name, *p, *elem, *prefix, *exe;
 	bool islib, ispkg, isgo, stale, ispackcmd;
-	Buf b, b1, path;
+	Buf b, b1, path, final_path, final_name;
 	Vec compile, files, link, go, missing, clean, lib, extra;
 	Time ttarg, t;
 	int i, j, k, n, doclean, targ;
@@ -655,6 +655,8 @@ install(char *dir)
 	binit(&b);
 	binit(&b1);
 	binit(&path);
+	binit(&final_path);
+	binit(&final_name);
 	vinit(&compile);
 	vinit(&files);
 	vinit(&link);
@@ -667,6 +669,7 @@ install(char *dir)
 
 	// path = full path to dir.
 	bpathf(&path, "%s/src/%s", goroot, dir);
+	bpathf(&final_path, "%s/src/%s", goroot_final, dir);
 	name = lastelem(dir);
 
 	// For misc/prof, copy into the tool directory and we're done.
@@ -939,9 +942,10 @@ install(char *dir)
 				continue;
 			// b = path/zp but with _goos_goarch.c instead of .goc
 			bprintf(&b, "%s%sz%s", bstr(&path), slash, lastelem(p));
+			bprintf(&final_name, "%s%s%s", bstr(&final_path), slash, lastelem(p));
 			b.len -= 4;
 			bwritef(&b, "_%s_%s.c", goos, goarch);
-			goc2c(p, bstr(&b));
+			goc2c(p, bstr(&final_name), bstr(&b));
 			vadd(&files, bstr(&b));
 		}
 		vuniq(&files);

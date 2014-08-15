@@ -66,6 +66,7 @@ static int gcc;
 
 /* File and line number */
 static const char *file;
+static const char *final_file;
 static unsigned int lineno;
 
 /* List of names and types.  */
@@ -474,7 +475,7 @@ read_func_header(char **name, struct params **params, int *paramwid, struct para
 			if (lastline == lineno-1)
 				bwritef(output, "\n");
 			else
-				bwritef(output, "\n#line %d \"%s\"\n", lineno, file);
+				bwritef(output, "\n#line %d \"%s\"\n", lineno, final_file);
 			lastline = lineno;
 		}
 		bwritef(output, "%s ", token);
@@ -658,7 +659,7 @@ write_func_header(char *package, char *name,
 		write_gcc_func_header(package, name, params, rets);
 	else
 		write_6g_func_header(package, name, params, paramwid, rets);
-	bwritef(output, "#line %d \"%s\"\n", lineno, file);
+	bwritef(output, "#line %d \"%s\"\n", lineno, final_file);
 }
 
 /* Write out a function trailer.  */
@@ -772,7 +773,7 @@ process_file(void)
 }
 
 void
-goc2c(char *goc, char *c)
+goc2c(char *goc, char *goc_final, char *c)
 {
 	int i;
 	Buf in, out;
@@ -781,6 +782,7 @@ goc2c(char *goc, char *c)
 	binit(&out);
 	
 	file = goc;
+	final_file = goc_final;
 	readfile(&in, goc);
 
 	// TODO: set gcc=1 when using gcc

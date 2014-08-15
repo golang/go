@@ -109,7 +109,7 @@ void	mkzexperiment(char*, char*);
 void	mkzdefaultcc(char*, char*);
 
 // goc2c.c
-void	goc2c(char*, char*);
+void	goc2c(char*, char*, char*);
 
 // main.c
 extern int vflag;
