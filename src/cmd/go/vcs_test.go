@@ -109,7 +109,7 @@ func TestRepoRootForImportPath(t *testing.T) {
 
 		if want == nil {
 			if err == nil {
-				t.Errorf("RepoRootForImport(%q): Error expected but not received")
+				t.Errorf("RepoRootForImport(%q): Error expected but not received", test.path)
 			}
 			continue
 		}

@@ -885,7 +885,7 @@ func (b *builder) build(a *action) (err error) {
 	}
 
 	if len(gofiles) == 0 {
-		return &build.NoGoError{a.p.Dir}
+		return &build.NoGoError{Dir: a.p.Dir}
 	}
 
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
