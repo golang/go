@@ -360,6 +360,7 @@ func (r *readRune) ReadRune() (rr rune, size int, err error) {
 	}
 	if r.buf[0] < utf8.RuneSelf { // fast check for common ASCII case
 		rr = rune(r.buf[0])
+		size = 1 // Known to be 1.
 		return
 	}
 	var n int
