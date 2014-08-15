@@ -64,7 +64,7 @@
 
 enum {
 	Debug		= 0,
-	ConcurrentSweep	= 1,
+	ConcurrentSweep	= 0,
 	PreciseScan	= 1,
 
 	WorkbufSize	= 4*1024,
@@ -75,6 +75,12 @@ enum {
 	RootSpans	= 3,
 	RootFlushCaches = 4,
 	RootCount	= 5,
+
+#ifdef _64BIT
+	byteEndian = BigEndian*7,
+#else
+	byteEndian = BigEndian*3,
+#endif
 };
 
 #define ScanConservatively ((byte*)1)
@@ -669,7 +675,7 @@ runtime·stackmapdata(StackMap *stackmap, int32 n)
 {
 	if(n < 0 || n >= stackmap->n)
 		runtime·throw("stackmapdata: index out of range");
-	return (BitVector){stackmap->nbit, stackmap->data + n*((stackmap->nbit+31)/32)};
+	return (BitVector){stackmap->nbit, stackmap->bytedata + 4*n*((stackmap->nbit+31)/32)};
 }
 
 // Scan a stack frame: local variables and function arguments/results.
@@ -727,7 +733,7 @@ scanframe(Stkframe *frame, void *unused)
 		}
 		bv = runtime·stackmapdata(stackmap, pcdata);
 		size = (bv.n * PtrSize) / BitsPerPointer;
-		scanblock(frame->varp - size, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
+		scanblock(frame->varp - size, bv.n/BitsPerPointer*PtrSize, (byte*)bv.bytedata);
 	}
 
 	// Scan arguments.
@@ -735,7 +741,7 @@ scanframe(Stkframe *frame, void *unused)
 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 	if(stackmap != nil) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
-		scanblock(frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
+		scanblock(frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.bytedata);
 	} else {
 		if(Debug > 2)
 			runtime·printf("frame %s conservative args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
@@ -1292,6 +1298,8 @@ runtime·gc(int32 force)
 	struct gc_args a;
 	int32 i;
 
+//if(thechar == '9') return;
+
 	if(sizeof(Workbuf) != WorkbufSize)
 		runtime·throw("runtime: size of Workbuf is suboptimal");
 	// The gc is turned off (via enablegc) until
@@ -1305,10 +1313,6 @@ runtime·gc(int32 force)
 	if(!mstats.enablegc || g == g->m->g0 || g->m->locks > 0 || runtime·panicking)
 		return;
 
-	if(thechar == '9') {
-		runtime·gcpercent = -1;
-		return;
-	}
 	if(runtime·gcpercent == GcpercentUnknown) {	// first time through
 		runtime·lock(&runtime·mheap);
 		if(runtime·gcpercent == GcpercentUnknown)
@@ -1777,8 +1781,8 @@ unrollgcprog1(byte *mask, byte *prog, uintptr *ppos, bool inplace, bool sparse)
 					b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
 					shift = (off % wordsPerBitmapWord) * gcBits;
 					if((shift%8)==0)
-						((byte*)b)[shift/8] = 0;
-					((byte*)b)[shift/8] |= v<<((shift%8)+2);
+						((byte*)b)[(shift/8)^byteEndian] = 0;
+					((byte*)b)[(shift/8)^byteEndian] |= v<<((shift%8)+2);
 					pos += PtrSize;
 				} else if(sparse) {
 					// 4-bits per word
@@ -1873,7 +1877,7 @@ unrollgcprog(Type *typ)
 	static Lock lock;
 	byte *mask, *prog;
 	uintptr pos;
-	uint32 x;
+	uintptr x;
 
 	runtime·lock(&lock);
 	mask = (byte*)typ->gc[0];
@@ -1888,9 +1892,11 @@ unrollgcprog(Type *typ)
 			prog = (byte*)typ->gc[1];
 			unrollgcprog1(mask, prog, &pos, false, true);
 		}
+		
 		// atomic way to say mask[0] = 1
-		x = ((uint32*)mask)[0];
-		runtime·atomicstore((uint32*)mask, x|1);
+		x = typ->gc[0];
+		((byte*)&x)[0] = 1;
+		runtime·atomicstorep((void**)mask, (void*)x);
 	}
 	runtime·unlock(&lock);
 }
@@ -1898,7 +1904,7 @@ unrollgcprog(Type *typ)
 void
 runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool scan)
 {
-	uintptr *b, off, shift, i, ti, te, nptr, masksize;
+	uintptr *b, off, shift, i, ti, te, nptr, masksize, maskword;
 	byte *arena_start, x;
 	bool *ptrmask;
 
@@ -1907,7 +1913,7 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
 	b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
 	shift = (off % wordsPerBitmapWord) * gcBits;
 	if(Debug && (((*b)>>shift)&bitMask) != bitBoundary) {
-		runtime·printf("runtime: bad bits in markallocated (%p) b=%p[%p]\n", v, b, *b);
+		runtime·printf("runtime: bad bits in markallocated (%p) b=%p[%p] off=%p shift=%d\n", v, b, *b, off, (int32)shift);
 		runtime·throw("bad bits in markallocated");
 	}
 
@@ -1916,7 +1922,7 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
 		if(size == PtrSize)
 			*b = (*b & ~((bitBoundary|bitPtrMask)<<shift)) | ((bitAllocated+(BitsDead<<2))<<shift);
 		else
-			((byte*)b)[shift/8] = bitAllocated+(BitsDead<<2);
+			((byte*)b)[(shift/8)^byteEndian] = bitAllocated+(BitsDead<<2);
 		return;
 	}
 	if(size == PtrSize) {
@@ -1944,13 +1950,14 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
 			}
 			ptrmask = (byte*)typ->gc[0];
 			// check whether the program is already unrolled
-			if((runtime·atomicload((uint32*)ptrmask)&0xff) == 0)
+			maskword = (uintptr)runtime·atomicloadp((void*)&typ->gc[0]);
+			if(((byte*)&maskword)[0] == 0)
 				unrollgcprog(typ);
 			ptrmask++;  // skip the unroll flag byte
 		} else
 			ptrmask = (byte*)&typ->gc[0];  // embed mask
 		if(size == 2*PtrSize) {
-			((byte*)b)[shift/8] = ptrmask[0] | bitAllocated;
+			((byte*)b)[(shift/8)^byteEndian] = ptrmask[0] | bitAllocated;
 			return;
 		}
 		te = typ->size/PtrSize;
@@ -1959,7 +1966,7 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
 			te /= 2;
 	}
 	if(size == 2*PtrSize) {
-		((byte*)b)[shift/8] = (BitsPointer<<2) | (BitsPointer<<6) | bitAllocated;
+		((byte*)b)[(shift/8)^byteEndian] = (BitsPointer<<2) | (BitsPointer<<6) | bitAllocated;
 		return;
 	}
 	// Copy pointer bitmask into the bitmap.
@@ -1977,14 +1984,14 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
 			x |= bitAllocated;
 		if(i+PtrSize == size0)
 			x &= ~(bitPtrMask<<4);
-		((byte*)b)[shift/8] = x;
+		((byte*)b)[(shift/8)^byteEndian] = x;
 	}
 	if(size0 == i && size0 < size) {
 		// mark the word after last object's word as BitsDead
 		off = (uintptr*)((byte*)v + size0) - (uintptr*)arena_start;
 		b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
 		shift = (off % wordsPerBitmapWord) * gcBits;
-		((byte*)b)[shift/8] = 0;
+		((byte*)b)[(shift/8)^byteEndian] = 0;
 	}
 }
 
@@ -2174,7 +2181,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*mask = runtime·mallocgc(*len, nil, 0);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-frame.varp+size)/PtrSize;
-			bits = (bv.data[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			bits = (bv.bytedata[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
 	}

@@ -4,9 +4,7 @@
 
 package runtime
 
-import (
-	"unsafe"
-)
+import "unsafe"
 
 const (
 	flagNoScan      = 1 << 0 // GC doesn't have to scan object
@@ -278,7 +276,10 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 // force = 1 - do GC regardless of current heap usage
 // force = 2 - go GC and eager sweep
 func gogc(force int32) {
-	if GOARCH == "power64" || GOARCH == "power64le" || memstats.enablegc == 0 {
+	if false && (GOARCH == "power64" || GOARCH == "power64le") {
+		return
+	}
+	if memstats.enablegc == 0 {
 		return
 	}
 
