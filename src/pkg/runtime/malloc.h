@@ -568,14 +568,14 @@ typedef struct BitVector BitVector;
 struct BitVector
 {
 	int32 n; // # of bits
-	uint32 *data;
+	uint8 *bytedata;
 };
 typedef struct StackMap StackMap;
 struct StackMap
 {
 	int32 n; // number of bitmaps
 	int32 nbit; // number of bits in each bitmap
-	uint32 data[];
+	uint8 bytedata[];
 };
 // Returns pointer map data for the given stackmap index
 // (the index is encoded in PCDATA_StackMapIndex).

@@ -7,6 +7,13 @@
 enum {
 	ScanStackByFrames = 1,
 
+	// TODO(rsc): Half the code in the garbage collector
+	// now accesses the bitmap as an array of bytes
+	// instead of as an array of uintptrs. 
+	// This is tricky to do correctly in a portable fashion.
+	// (It breaks on big-endian systems.)
+	// Should we just make the bitmap a byte array?
+
 	// Four bits per word (see #defines below).
 	wordsPerBitmapWord = sizeof(void*)*8/4,
 	gcBits = 4,
