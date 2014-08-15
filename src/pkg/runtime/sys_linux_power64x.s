@@ -91,17 +91,17 @@ TEXT runtime·usleep(SB),NOSPLIT,$-8-16
 	MOVD	R3, R5
 	MOVW	$1000000, R4
 	DIVD	R4, R3
-	MOVD	R3, 0(R1)
+	MOVD	R3, 8(R1)
 	MULLD	R3, R4
 	SUB	R4, R5
-	MOVD	R5, 8(R1)
+	MOVD	R5, 16(R1)
 
 	// select(0, 0, 0, 0, &tv)
 	MOVW	$0, R3
 	MOVW	$0, R4
 	MOVW	$0, R5
 	MOVW	$0, R6
-	MOVD	R1, R7
+	ADD	$8, R1, R7
 	SYSCALL	$SYS_newselect
 	RETURN
 
