@@ -37,7 +37,7 @@ sdk. These are released every 6-8 weeks, in line with Chrome releases.
 	% cd /opt/nacl_sdk
 	% ./naclsdk update
 
-At this time pepper_33 is the stable version. If naclsdk downloads a later
+At this time pepper_34 is the stable version. If naclsdk downloads a later
 version, please adjust accordingly. As of June 2014, only the canary sdk
 provides support for nacl/arm.
 
@@ -45,8 +45,8 @@ The cmd/go helper scripts expect that the loaders sel_ldr_{x86_{32,64},arm} and
 nacl_helper_bootstrap_arm are in your path. I find it easiest to make a symlink
 from the NaCl distribution to my $GOPATH/bin directory.
 
-	% ln -nfs /opt/nacl_sdk/pepper_33/tools/sel_ldr_x86_32 $GOPATH/bin/sel_ldr_x86_32
-	% ln -nfs /opt/nacl_sdk/pepper_33/tools/sel_ldr_x86_64 $GOPATH/bin/sel_ldr_x86_64
+	% ln -nfs /opt/nacl_sdk/pepper_34/tools/sel_ldr_x86_32 $GOPATH/bin/sel_ldr_x86_32
+	% ln -nfs /opt/nacl_sdk/pepper_34/tools/sel_ldr_x86_64 $GOPATH/bin/sel_ldr_x86_64
 	% ln -nfs /opt/nacl_sdk/pepper_canary/tools/sel_ldr_arm $GOPATH/bin/sel_ldr_arm
 
 Additionally, for NaCl/ARM only:
@@ -92,3 +92,31 @@ tests.
 	% cd go/src
 	% env GOARCH=amd64p32 ./nacltest.bash
 
+Debugging
+---------
+
+Assuming that you have built nacl/amd64p32 binary ./mybin and can run as:
+
+	% sel_ldr_x86_64 -l /dev/null -S -e ./mybin
+
+Create the nacl manifest file mybin.manifest with the following contents:
+
+	{ "program": { "x86-64": { "url": "mybin" } } }
+
+url is the path to the binary relative to the manifest file.
+Then, run the program as:
+
+	% sel_ldr_x86_64 -g -l /dev/null -S -e ./mybin
+
+The -g flag instructs the loader to stop at startup. Then, in another console:
+
+	% /opt/nacl_sdk/pepper_34/toolchain/linux_x86_glibc/bin/x86_64-nacl-gdb
+	% nacl-manifest mybin.manifest
+	% target remote :4014
+
+If you see that the program is stopped in _rt0_amd64p32_nacl, then symbols are
+loaded successfully and you can type 'c' to start the program.
+Next time you can automate it as:
+
+	% /opt/nacl_sdk/pepper_34/toolchain/linux_x86_glibc/bin/x86_64-nacl-gdb \
+		-ex 'nacl-manifest mybin.manifest' -ex 'target remote :4014'
