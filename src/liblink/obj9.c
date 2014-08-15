@@ -512,6 +512,36 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				p->to.type = D_BRANCH;
 				break;
 			}
+			if(cursym->text->reg & WRAPPER) {
+				// g->panicwrap -= autosize;
+				// MOVWZ panicwrap_offset(g), R3
+				// ADD $-autosize, R3
+				// MOVWZ R3, panicwrap_offset(g)
+				p->as = AMOVWZ;
+				p->from.type = D_OREG;
+				p->from.reg = REGG;
+				p->from.offset = 2*ctxt->arch->ptrsize;
+				p->to.type = D_REG;
+				p->to.reg = 3;
+				p = appendp(ctxt, p);
+
+				p->as = AADD;
+				p->from.type = D_CONST;
+				p->from.offset = -autosize;
+				p->to.type = D_REG;
+				p->to.reg = 3;
+				p = appendp(ctxt, p);
+
+				p->as = AMOVWZ;
+				p->from.type = D_REG;
+				p->from.reg = 3;
+				p->to.type = D_OREG;
+				p->to.reg = REGG;
+				p->to.offset = 2*ctxt->arch->ptrsize;
+				p = appendp(ctxt, p);
+
+				p->as = ARETURN;
+			}
 			if(cursym->text->mark & LEAF) {
 				if(!autosize) {
 					p->as = ABR;
