@@ -451,7 +451,8 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			// quadruple is already marked. Otherwise we resort to CAS
 			// loop for marking.
 			bits8 = xbits>>(shift&~7);
-			if((bits8&(bitMask|(bitMask<<gcBits))) != (bitBoundary|(bitBoundary<<gcBits)))
+			if((bits8&(bitMask|(bitMask<<gcBits))) != (bitBoundary|(bitBoundary<<gcBits)) ||
+				work.nproc == 1)
 				((uint8*)bitp)[shift/8] = bits8 | (bitMarked<<(shift&7));
 			else {
 				for(;;) {
