@@ -115,3 +115,27 @@ pkg debug/goobj, type Var struct, Kind int
 pkg debug/goobj, type Var struct, Name string
 pkg debug/goobj, type Var struct, Offset int
 pkg debug/goobj, type Var struct, Type SymID
+pkg unicode, const Version = "7.0.0"
+pkg unicode, var Bassa_Vah *RangeTable
+pkg unicode, var Caucasian_Albanian *RangeTable
+pkg unicode, var Duployan *RangeTable
+pkg unicode, var Elbasan *RangeTable
+pkg unicode, var Grantha *RangeTable
+pkg unicode, var Khojki *RangeTable
+pkg unicode, var Khudawadi *RangeTable
+pkg unicode, var Linear_A *RangeTable
+pkg unicode, var Mahajani *RangeTable
+pkg unicode, var Manichaean *RangeTable
+pkg unicode, var Mende_Kikakui *RangeTable
+pkg unicode, var Modi *RangeTable
+pkg unicode, var Mro *RangeTable
+pkg unicode, var Nabataean *RangeTable
+pkg unicode, var Old_North_Arabian *RangeTable
+pkg unicode, var Old_Permic *RangeTable
+pkg unicode, var Pahawh_Hmong *RangeTable
+pkg unicode, var Palmyrene *RangeTable
+pkg unicode, var Pau_Cin_Hau *RangeTable
+pkg unicode, var Psalter_Pahlavi *RangeTable
+pkg unicode, var Siddham *RangeTable
+pkg unicode, var Tirhuta *RangeTable
+pkg unicode, var Warang_Citi *RangeTable
