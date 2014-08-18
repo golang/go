@@ -11,6 +11,7 @@
 #include "race.h"
 #include "type.h"
 #include "typekind.h"
+#include "../../cmd/ld/textflag.h"
 
 // Race runtime functions called via runtime·racecall.
 void __tsan_init(void);
@@ -106,6 +107,7 @@ runtime·racemapshadow(void *addr, uintptr size)
 	runtime·racecall(__tsan_map_shadow, addr, size);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racemalloc(void *p, uintptr sz)
 {

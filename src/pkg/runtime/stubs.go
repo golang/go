@@ -43,6 +43,7 @@ func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
 // in stubs.goc
 func acquirem() *m
 func releasem(mp *m)
+func gomcache() *mcache
 
 // An mFunction represents a C function that runs on the M stack.  It
 // can be called from Go using mcall or onM.  Through the magic of
