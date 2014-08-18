@@ -460,18 +460,6 @@ runtime·dopanic(int32 unused)
 }
 
 void
-runtime·panicindex(void)
-{
-	runtime·panicstring("index out of range");
-}
-
-void
-runtime·panicslice(void)
-{
-	runtime·panicstring("slice bounds out of range");
-}
-
-void
 runtime·throwreturn(void)
 {
 	// can only happen if compiler is broken
