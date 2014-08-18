@@ -108,6 +108,20 @@ func (p *P) String() string {
 var barray = [5]renamedUint8{1, 2, 3, 4, 5}
 var bslice = barray[:]
 
+type byteStringer byte
+
+func (byteStringer) String() string { return "X" }
+
+var byteStringerSlice = []byteStringer{97, 98, 99, 100}
+
+type byteFormatter byte
+
+func (byteFormatter) Format(f State, _ rune) {
+	Fprint(f, "X")
+}
+
+var byteFormatterSlice = []byteFormatter{97, 98, 99, 100}
+
 var b byte
 
 var fmtTests = []struct {
@@ -629,6 +643,21 @@ var fmtTests = []struct {
 	{"%+010.2f", -104.66 + 440.51i, "(-000104.66+000440.51i)"},
 	{"%+010.2f", +104.66 - 440.51i, "(+000104.66-000440.51i)"},
 	{"%+010.2f", -104.66 - 440.51i, "(-000104.66-000440.51i)"},
+
+	// []T where type T is a byte with a Stringer method.
+	{"%v", byteStringerSlice, "[X X X X]"},
+	{"%s", byteStringerSlice, "abcd"},
+	{"%q", byteStringerSlice, "\"abcd\""},
+	{"%x", byteStringerSlice, "61626364"},
+	{"%#v", byteStringerSlice, "[]fmt_test.byteStringer{0x61, 0x62, 0x63, 0x64}"},
+
+	// And the same for Formatter.
+	{"%v", byteFormatterSlice, "[X X X X]"},
+	{"%s", byteFormatterSlice, "abcd"},
+	{"%q", byteFormatterSlice, "\"abcd\""},
+	{"%x", byteFormatterSlice, "61626364"},
+	// This next case seems wrong, but the docs say the Formatter wins here.
+	{"%#v", byteFormatterSlice, "[]fmt_test.byteFormatter{X, X, X, X}"},
 }
 
 // zeroFill generates zero-filled strings of the specified width. The length
