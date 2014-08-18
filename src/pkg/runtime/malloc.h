@@ -423,7 +423,7 @@ struct MSpan
 
 void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
 void	runtime·MSpan_EnsureSwept(MSpan *span);
-bool	runtime·MSpan_Sweep(MSpan *span);
+bool	runtime·MSpan_Sweep(MSpan *span, bool preserve);
 
 // Every MSpan is in one doubly-linked list,
 // either one of the MHeap's free lists or one of the
@@ -447,7 +447,7 @@ struct MCentral
 void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
 MSpan*	runtime·MCentral_CacheSpan(MCentral *c);
 void	runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s);
-bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
+bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end, bool preserve);
 
 // Main malloc heap.
 // The heap itself is the "free[]" and "large" arrays,

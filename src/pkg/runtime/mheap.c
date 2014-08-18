@@ -107,7 +107,7 @@ retry:
 			// swept spans are at the end of the list
 			runtime·MSpanList_InsertBack(list, s);
 			runtime·unlock(&h->lock);
-			n += runtime·MSpan_Sweep(s);
+			n += runtime·MSpan_Sweep(s, false);
 			runtime·lock(&h->lock);
 			if(n >= npages)
 				return n;

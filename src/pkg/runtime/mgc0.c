@@ -884,7 +884,7 @@ runtime·MSpan_EnsureSwept(MSpan *s)
 	if(runtime·atomicload(&s->sweepgen) == sg)
 		return;
 	if(runtime·cas(&s->sweepgen, sg-2, sg-1)) {
-		runtime·MSpan_Sweep(s);
+		runtime·MSpan_Sweep(s, false);
 		return;
 	}
 	// unfortunate condition, and we don't have efficient means to wait
@@ -895,8 +895,10 @@ runtime·MSpan_EnsureSwept(MSpan *s)
 // Sweep frees or collects finalizers for blocks not marked in the mark phase.
 // It clears the mark bits in preparation for the next GC round.
 // Returns true if the span was returned to heap.
+// If preserve=true, don't return it to heap nor relink in MCentral lists;
+// caller takes care of it.
 bool
-runtime·MSpan_Sweep(MSpan *s)
+runtime·MSpan_Sweep(MSpan *s, bool preserve)
 {
 	int32 cl, n, npages, nfree;
 	uintptr size, off, *bitp, shift, xbits, bits;
@@ -995,6 +997,8 @@ runtime·MSpan_Sweep(MSpan *s)
 		*bitp = (xbits & ~((bitMarked|(BitsMask<<2))<<shift)) | ((uintptr)BitsDead<<(shift+2));
 		if(cl == 0) {
 			// Free large span.
+			if(preserve)
+				runtime·throw("can't preserve large span");
 			runtime·unmarkspan(p, s->npages<<PageShift);
 			s->needzero = 1;
 			// important to set sweepgen before returning it to heap
@@ -1056,7 +1060,7 @@ runtime·MSpan_Sweep(MSpan *s)
 		c->local_nsmallfree[cl] += nfree;
 		c->local_cachealloc -= nfree * size;
 		runtime·xadd64(&mstats.next_gc, -(uint64)(nfree * size * (runtime·gcpercent + 100)/100));
-		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl].mcentral, s, nfree, head.next, end);
+		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl].mcentral, s, nfree, head.next, end, preserve);
 		// MCentral_FreeSpan updates sweepgen
 	}
 	return res;
@@ -1129,7 +1133,7 @@ runtime·sweepone(void)
 		if(s->sweepgen != sg-2 || !runtime·cas(&s->sweepgen, sg-2, sg-1))
 			continue;
 		npages = s->npages;
-		if(!runtime·MSpan_Sweep(s))
+		if(!runtime·MSpan_Sweep(s, false))
 			npages = 0;
 		g->m->locks--;
 		return npages;

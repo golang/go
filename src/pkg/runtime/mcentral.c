@@ -9,16 +9,12 @@
 // The MCentral doesn't actually contain the list of free objects; the MSpan does.
 // Each MCentral is two lists of MSpans: those with free objects (c->nonempty)
 // and those that are completely allocated (c->empty).
-//
-// TODO(rsc): tcmalloc uses a "transfer cache" to split the list
-// into sections of class_to_transfercount[sizeclass] objects
-// so that it is faster to move those lists between MCaches and MCentrals.
 
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
 
-static bool MCentral_Grow(MCentral *c);
+static MSpan* MCentral_Grow(MCentral *c);
 
 // Initialize a single central free list.
 void
@@ -42,17 +38,20 @@ runtime·MCentral_CacheSpan(MCentral *c)
 retry:
 	for(s = c->nonempty.next; s != &c->nonempty; s = s->next) {
 		if(s->sweepgen == sg-2 && runtime·cas(&s->sweepgen, sg-2, sg-1)) {
+			runtime·MSpanList_Remove(s);
+			runtime·MSpanList_InsertBack(&c->empty, s);
 			runtime·unlock(&c->lock);
-			runtime·MSpan_Sweep(s);
-			runtime·lock(&c->lock);
-			// the span could have been moved to heap, retry
-			goto retry;
+			runtime·MSpan_Sweep(s, true);
+			goto havespan;
 		}
 		if(s->sweepgen == sg-1) {
 			// the span is being swept by background sweeper, skip
 			continue;
 		}
 		// we have a nonempty span that does not require sweeping, allocate from it
+		runtime·MSpanList_Remove(s);
+		runtime·MSpanList_InsertBack(&c->empty, s);
+		runtime·unlock(&c->lock);
 		goto havespan;
 	}
 
@@ -64,9 +63,12 @@ retry:
 			// swept spans are at the end of the list
 			runtime·MSpanList_InsertBack(&c->empty, s);
 			runtime·unlock(&c->lock);
-			runtime·MSpan_Sweep(s);
+			runtime·MSpan_Sweep(s, true);
+			if(s->freelist != nil)
+				goto havespan;
 			runtime·lock(&c->lock);
-			// the span could be moved to nonempty or heap, retry
+			// the span is still empty after sweep
+			// it is already in the empty list, so just retry
 			goto retry;
 		}
 		if(s->sweepgen == sg-1) {
@@ -77,25 +79,26 @@ retry:
 		// all subsequent ones must also be either swept or in process of sweeping
 		break;
 	}
+	runtime·unlock(&c->lock);
 
 	// Replenish central list if empty.
-	if(!MCentral_Grow(c)) {
-		runtime·unlock(&c->lock);
+	s = MCentral_Grow(c);
+	if(s == nil)
 		return nil;
-	}
-	goto retry;
+	runtime·lock(&c->lock);
+	runtime·MSpanList_InsertBack(&c->empty, s);
+	runtime·unlock(&c->lock);
 
 havespan:
+	// At this point s is a non-empty span, queued at the end of the empty list,
+	// c is unlocked.
 	cap = (s->npages << PageShift) / s->elemsize;
 	n = cap - s->ref;
 	if(n == 0)
 		runtime·throw("empty span");
 	if(s->freelist == nil)
 		runtime·throw("freelist empty");
-	runtime·MSpanList_Remove(s);
-	runtime·MSpanList_InsertBack(&c->empty, s);
 	s->incache = true;
-	runtime·unlock(&c->lock);
 	return s;
 }
 
@@ -125,24 +128,39 @@ runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s)
 // Called during sweep.
 // Returns true if the span was returned to heap.  Sets sweepgen to
 // the latest generation.
+// If preserve=true, don't return the span to heap nor relink in MCentral lists;
+// caller takes care of it.
 bool
-runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end)
+runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end, bool preserve)
 {
+	bool wasempty;
+
 	if(s->incache)
 		runtime·throw("freespan into cached span");
+
+	// Add the objects back to s's free list.
+	wasempty = s->freelist == nil;
+	end->next = s->freelist;
+	s->freelist = start;
+	s->ref -= n;
+
+	if(preserve) {
+		// preserve is set only when called from MCentral_CacheSpan above,
+		// the span must be in the empty list.
+		if(s->next == nil)
+			runtime·throw("can't preserve unlinked span");
+		runtime·atomicstore(&s->sweepgen, runtime·mheap.sweepgen);
+		return false;
+	}
+
 	runtime·lock(&c->lock);
 
 	// Move to nonempty if necessary.
-	if(s->freelist == nil) {
+	if(wasempty) {
 		runtime·MSpanList_Remove(s);
 		runtime·MSpanList_Insert(&c->nonempty, s);
 	}
 
-	// Add the objects back to s's free list.
-	end->next = s->freelist;
-	s->freelist = start;
-	s->ref -= n;
-	
 	// delay updating sweepgen until here.  This is the signal that
 	// the span may be used in an MCache, so it must come after the
 	// linked list operations above (actually, just after the
@@ -164,9 +182,8 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
 	return true;
 }
 
-// Fetch a new span from the heap and
-// carve into objects for the free list.
-static bool
+// Fetch a new span from the heap and carve into objects for the free list.
+static MSpan*
 MCentral_Grow(MCentral *c)
 {
 	uintptr size, npages, i, n;
@@ -174,16 +191,12 @@ MCentral_Grow(MCentral *c)
 	byte *p;
 	MSpan *s;
 
-	runtime·unlock(&c->lock);
 	npages = runtime·class_to_allocnpages[c->sizeclass];
 	size = runtime·class_to_size[c->sizeclass];
 	n = (npages << PageShift) / size;
 	s = runtime·MHeap_Alloc(&runtime·mheap, npages, c->sizeclass, 0, 1);
-	if(s == nil) {
-		// TODO(rsc): Log out of memory
-		runtime·lock(&c->lock);
-		return false;
-	}
+	if(s == nil)
+		return nil;
 
 	// Carve span into sequence of blocks.
 	tailp = &s->freelist;
@@ -197,8 +210,5 @@ MCentral_Grow(MCentral *c)
 	}
 	*tailp = nil;
 	runtime·markspan((byte*)(s->start<<PageShift), size, n, size*n < (s->npages<<PageShift));
-
-	runtime·lock(&c->lock);
-	runtime·MSpanList_Insert(&c->nonempty, s);
-	return true;
+	return s;
 }
