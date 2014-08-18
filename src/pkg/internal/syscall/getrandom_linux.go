@@ -12,8 +12,9 @@ import (
 )
 
 var randomTrap = map[string]uintptr{
-	"amd64": 318,
 	"386":   355,
+	"amd64": 318,
+	"arm":   384,
 }[runtime.GOARCH]
 
 var randomUnsupported int32 // atomic
