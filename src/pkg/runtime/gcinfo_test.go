@@ -16,26 +16,33 @@ func TestGCInfo(t *testing.T) {
 	verifyGCInfo(t, "bss PtrScalar", &bssPtrScalar, nonStackInfo(infoPtrScalar))
 	verifyGCInfo(t, "bss Complex", &bssComplex, nonStackInfo(infoComplex()))
 	verifyGCInfo(t, "bss string", &bssString, nonStackInfo(infoString))
+	verifyGCInfo(t, "bss slice", &bssSlice, nonStackInfo(infoSlice))
 	verifyGCInfo(t, "bss eface", &bssEface, nonStackInfo(infoEface))
+	verifyGCInfo(t, "bss iface", &bssIface, nonStackInfo(infoIface))
 
 	verifyGCInfo(t, "data ScalarPtr", &dataScalarPtr, nonStackInfo(infoScalarPtr))
 	verifyGCInfo(t, "data PtrScalar", &dataPtrScalar, nonStackInfo(infoPtrScalar))
 	verifyGCInfo(t, "data Complex", &dataComplex, nonStackInfo(infoComplex()))
 	verifyGCInfo(t, "data string", &dataString, nonStackInfo(infoString))
+	verifyGCInfo(t, "data slice", &dataSlice, nonStackInfo(infoSlice))
 	verifyGCInfo(t, "data eface", &dataEface, nonStackInfo(infoEface))
+	verifyGCInfo(t, "data iface", &dataIface, nonStackInfo(infoIface))
 
 	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), infoScalarPtr)
 	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), infoPtrScalar)
 	verifyGCInfo(t, "stack Complex", new(Complex), infoComplex())
 	verifyGCInfo(t, "stack string", new(string), infoString)
+	verifyGCInfo(t, "stack slice", new([]string), infoSlice)
 	verifyGCInfo(t, "stack eface", new(interface{}), infoEface)
+	verifyGCInfo(t, "stack iface", new(Iface), infoIface)
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 10; i++ {
 		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), nonStackInfo(infoScalarPtr))
 		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), nonStackInfo(infoPtrScalar))
 		verifyGCInfo(t, "heap Complex", escape(new(Complex)), nonStackInfo(infoComplex()))
 		verifyGCInfo(t, "heap string", escape(new(string)), nonStackInfo(infoString))
 		verifyGCInfo(t, "heap eface", escape(new(interface{})), nonStackInfo(infoEface))
+		verifyGCInfo(t, "heap iface", escape(new(Iface)), nonStackInfo(infoIface))
 	}
 
 }
@@ -147,21 +154,36 @@ func infoComplex() []byte {
 	}
 }
 
+type Iface interface {
+	f()
+}
+
+type IfaceImpl int
+
+func (IfaceImpl) f() {
+}
+
 var (
 	// BSS
 	bssScalarPtr ScalarPtr
 	bssPtrScalar PtrScalar
 	bssComplex   Complex
 	bssString    string
+	bssSlice     []string
 	bssEface     interface{}
+	bssIface     Iface
 
 	// DATA
 	dataScalarPtr             = ScalarPtr{q: 1}
 	dataPtrScalar             = PtrScalar{w: 1}
 	dataComplex               = Complex{w: 1}
 	dataString                = "foo"
+	dataSlice                 = []string{"foo"}
 	dataEface     interface{} = 42
+	dataIface     Iface       = IfaceImpl(42)
 
 	infoString = []byte{BitsMultiWord, BitsString}
+	infoSlice  = []byte{BitsMultiWord, BitsSlice, BitsDead}
 	infoEface  = []byte{BitsMultiWord, BitsEface}
+	infoIface  = []byte{BitsMultiWord, BitsIface}
 )
