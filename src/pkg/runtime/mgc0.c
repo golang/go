@@ -78,10 +78,9 @@ enum {
 };
 
 #define ScanConservatively ((byte*)1)
-#define GcpercentUnknown (-2)
 
 // Initialized from $GOGC.  GOGC=off means no gc.
-extern int32 runtime·gcpercent = GcpercentUnknown;
+extern int32 runtime·gcpercent;
 
 static FuncVal* poolcleanup;
 
@@ -172,6 +171,8 @@ static FinBlock	*finc;		// cache of free blocks
 static FinBlock	*allfin;	// list of all blocks
 bool	runtime·fingwait;
 bool	runtime·fingwake;
+byte*	runtime·gcdatamask;
+byte*	runtime·gcbssmask;
 
 static Lock	gclock;
 
@@ -200,8 +201,6 @@ static struct {
 	volatile uint32	ndone;
 	Note	alldone;
 	ParFor*	markfor;
-	byte*	gcdata;
-	byte*	gcbss;
 } work;
 
 // scanblock scans a block of n bytes starting at pointer b for references
@@ -517,11 +516,11 @@ markroot(ParFor *desc, uint32 i)
 	// Note: if you add a case here, please also update heapdump.c:dumproots.
 	switch(i) {
 	case RootData:
-		scanblock(data, edata - data, work.gcdata);
+		scanblock(data, edata - data, runtime·gcdatamask);
 		break;
 
 	case RootBss:
-		scanblock(bss, ebss - bss, work.gcbss);
+		scanblock(bss, ebss - bss, runtime·gcbssmask);
 		break;
 
 	case RootFinalizers:
@@ -1300,6 +1299,18 @@ runtime·readgogc(void)
 	return runtime·atoi(p);
 }
 
+void
+runtime·gcinit(void)
+{
+	if(sizeof(Workbuf) != WorkbufSize)
+		runtime·throw("runtime: size of Workbuf is suboptimal");
+
+	work.markfor = runtime·parforalloc(MaxGcproc);
+	runtime·gcpercent = runtime·readgogc();
+	runtime·gcdatamask = unrollglobgcprog(gcdata, edata - data);
+	runtime·gcbssmask = unrollglobgcprog(gcbss, ebss - bss);
+}
+
 // force = 1 - do GC regardless of current heap usage
 // force = 2 - go GC and eager sweep
 void
@@ -1308,8 +1319,6 @@ runtime·gc(int32 force)
 	struct gc_args a;
 	int32 i;
 
-	if(sizeof(Workbuf) != WorkbufSize)
-		runtime·throw("runtime: size of Workbuf is suboptimal");
 	// The gc is turned off (via enablegc) until
 	// the bootstrap has completed.
 	// Also, malloc gets called in the guts
@@ -1321,12 +1330,6 @@ runtime·gc(int32 force)
 	if(!mstats.enablegc || g == g->m->g0 || g->m->locks > 0 || runtime·panicking)
 		return;
 
-	if(runtime·gcpercent == GcpercentUnknown) {	// first time through
-		runtime·lock(&runtime·mheap.lock);
-		if(runtime·gcpercent == GcpercentUnknown)
-			runtime·gcpercent = runtime·readgogc();
-		runtime·unlock(&runtime·mheap.lock);
-	}
 	if(runtime·gcpercent < 0)
 		return;
 
@@ -1414,14 +1417,6 @@ gc(struct gc_args *args)
 	g->m->traceback = 2;
 	t0 = args->start_time;
 	work.tstart = args->start_time; 
-
-	if(work.gcdata == nil) {
-		work.gcdata = unrollglobgcprog(gcdata, edata - data);
-		work.gcbss = unrollglobgcprog(gcbss, ebss - bss);
-	}
-
-	if(work.markfor == nil)
-		work.markfor = runtime·parforalloc(MaxGcproc);
 
 	t1 = 0;
 	if(runtime·debug.gctrace)
@@ -1598,8 +1593,6 @@ runtime·setgcpercent(int32 in) {
 	int32 out;
 
 	runtime·lock(&runtime·mheap.lock);
-	if(runtime·gcpercent == GcpercentUnknown)
-		runtime·gcpercent = runtime·readgogc();
 	out = runtime·gcpercent;
 	if(in < 0)
 		in = -1;
@@ -2027,7 +2020,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*mask = runtime·mallocgc(*len, nil, 0);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-data)/PtrSize;
-			bits = (work.gcdata[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			bits = (runtime·gcdatamask[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
 		return;
@@ -2039,7 +2032,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*mask = runtime·mallocgc(*len, nil, 0);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-bss)/PtrSize;
-			bits = (work.gcbss[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			bits = (runtime·gcbssmask[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
 		return;

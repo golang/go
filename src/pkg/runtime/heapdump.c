@@ -23,8 +23,6 @@ extern byte data[];
 extern byte edata[];
 extern byte bss[];
 extern byte ebss[];
-extern byte gcdata[];
-extern byte gcbss[];
 
 enum {
 	FieldKindEol = 0,
@@ -497,13 +495,13 @@ dumproots(void)
 	dumpint(TagData);
 	dumpint((uintptr)data);
 	dumpmemrange(data, edata - data);
-	dumpfields((BitVector){(edata - data)*8, (uint32*)gcdata});
+	dumpfields((BitVector){(edata - data)*8, (uint32*)runtime·gcdatamask});
 
 	// bss segment
 	dumpint(TagBss);
 	dumpint((uintptr)bss);
 	dumpmemrange(bss, ebss - bss);
-	dumpfields((BitVector){(ebss - bss)*8, (uint32*)gcbss});
+	dumpfields((BitVector){(ebss - bss)*8, (uint32*)runtime·gcbssmask});
 
 	// MSpan.types
 	allspans = runtime·mheap.allspans;

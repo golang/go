@@ -779,6 +779,8 @@ extern	uint32	runtime·cpuid_ecx;
 extern	uint32	runtime·cpuid_edx;
 extern	DebugVars	runtime·debug;
 extern	uintptr	runtime·maxstacksize;
+extern	byte*	runtime·gcdatamask;
+extern	byte*	runtime·gcbssmask;
 
 /*
  * common functions and data
@@ -880,6 +882,7 @@ void	runtime·shrinkstack(G*);
 MCache*	runtime·allocmcache(void);
 void	runtime·freemcache(MCache*);
 void	runtime·mallocinit(void);
+void	runtime·gcinit(void);
 void	runtime·chaninit(void);
 void*	runtime·mallocgc(uintptr size, Type* typ, uint32 flag);
 void	runtime·runpanic(Panic*);
