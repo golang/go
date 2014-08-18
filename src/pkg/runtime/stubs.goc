@@ -83,6 +83,11 @@ func runtime·releasem(mp *M) {
 	}
 }
 
+#pragma textflag NOSPLIT
+func runtime·gomcache() (ret *MCache) {
+	ret = g->m->mcache;
+}
+
 // For testing.
 // TODO: find a better place for this.
 func GCMask(x Eface) (mask Slice) {

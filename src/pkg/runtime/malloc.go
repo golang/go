@@ -59,14 +59,25 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 	if size == 0 {
 		return unsafe.Pointer(&zeroObject)
 	}
-	mp := acquirem()
-	if mp.mallocing != 0 {
-		gothrow("malloc/free - deadlock")
-	}
-	mp.mallocing = 1
 	size0 := size
 
-	c := mp.mcache
+	// This function must be atomic wrt GC, but for performance reasons
+	// we don't acquirem/releasem on fast path. The code below does not have
+	// split stack checks, so it can't be preempted by GC.
+	// Functions like roundup/add are inlined. And onM/racemalloc are nosplit.
+	// If debugMalloc = true, these assumptions are checked below.
+	if debugMalloc {
+		mp := acquirem()
+		if mp.mallocing != 0 {
+			gothrow("malloc deadlock")
+		}
+		mp.mallocing = 1
+		if mp.curg != nil {
+			mp.curg.stackguard0 = ^uint(0xfff) | 0xbad
+		}
+	}
+
+	c := gomcache()
 	var s *mspan
 	var x unsafe.Pointer
 	if size <= maxSmallSize {
@@ -118,8 +129,18 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 					x = tiny
 					c.tiny = (*byte)(add(x, size))
 					c.tinysize -= uint(size1)
-					mp.mallocing = 0
-					releasem(mp)
+					if debugMalloc {
+						mp := acquirem()
+						if mp.mallocing == 0 {
+							gothrow("bad malloc")
+						}
+						mp.mallocing = 0
+						if mp.curg != nil {
+							mp.curg.stackguard0 = mp.curg.stackguard
+						}
+						releasem(mp)
+						releasem(mp)
+					}
 					return x
 				}
 			}
@@ -127,8 +148,10 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			s = c.alloc[tinySizeClass]
 			v := s.freelist
 			if v == nil {
+				mp := acquirem()
 				mp.scalararg[0] = tinySizeClass
 				onM(&mcacheRefill_m)
+				releasem(mp)
 				s = c.alloc[tinySizeClass]
 				v = s.freelist
 			}
@@ -156,8 +179,10 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			s = c.alloc[sizeclass]
 			v := s.freelist
 			if v == nil {
+				mp := acquirem()
 				mp.scalararg[0] = uint(sizeclass)
 				onM(&mcacheRefill_m)
+				releasem(mp)
 				s = c.alloc[sizeclass]
 				v = s.freelist
 			}
@@ -174,11 +199,13 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 		}
 		c.local_cachealloc += int(size)
 	} else {
+		mp := acquirem()
 		mp.scalararg[0] = uint(size)
 		mp.scalararg[1] = uint(flags)
 		onM(&largeAlloc_m)
 		s = (*mspan)(mp.ptrarg[0])
 		mp.ptrarg[0] = nil
+		releasem(mp)
 		x = unsafe.Pointer(uintptr(s.start << pageShift))
 		size = uintptr(s.elemsize)
 	}
@@ -221,18 +248,22 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 					// into the GC bitmap. It's 7 times slower than copying
 					// from the pre-unrolled mask, but saves 1/16 of type size
 					// memory for the mask.
+					mp := acquirem()
 					mp.ptrarg[0] = x
 					mp.ptrarg[1] = unsafe.Pointer(typ)
 					mp.scalararg[0] = uint(size)
 					mp.scalararg[1] = uint(size0)
 					onM(&unrollgcproginplace_m)
+					releasem(mp)
 					goto marked
 				}
 				ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
 				// Check whether the program is already unrolled.
 				if uintptr(goatomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
+					mp := acquirem()
 					mp.ptrarg[0] = unsafe.Pointer(typ)
 					onM(&unrollgcprog_m)
+					releasem(mp)
 				}
 				ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
 			} else {
@@ -287,11 +318,23 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 		}
 	}
 marked:
-	mp.mallocing = 0
-
 	if raceenabled {
 		racemalloc(x, size)
 	}
+
+	if debugMalloc {
+		mp := acquirem()
+		if mp.mallocing == 0 {
+			gothrow("bad malloc")
+		}
+		mp.mallocing = 0
+		if mp.curg != nil {
+			mp.curg.stackguard0 = mp.curg.stackguard
+		}
+		releasem(mp)
+		releasem(mp)
+	}
+
 	if debug.allocfreetrace != 0 {
 		tracealloc(x, size, typ)
 	}
@@ -300,11 +343,11 @@ marked:
 		if size < uintptr(rate) && int32(size) < c.next_sample {
 			c.next_sample -= int32(size)
 		} else {
+			mp := acquirem()
 			profilealloc(mp, x, size)
+			releasem(mp)
 		}
 	}
-
-	releasem(mp)
 
 	if memstats.heap_alloc >= memstats.next_gc {
 		gogc(0)
