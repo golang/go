@@ -34,6 +34,7 @@ func escapeTemplates(tmpl *Template, names ...string) error {
 			// Prevent execution of unsafe templates.
 			for _, name := range names {
 				if t := tmpl.set[name]; t != nil {
+					t.escapeErr = err
 					t.text.Tree = nil
 					t.Tree = nil
 				}
@@ -44,7 +45,7 @@ func escapeTemplates(tmpl *Template, names ...string) error {
 	e.commit()
 	for _, name := range names {
 		if t := tmpl.set[name]; t != nil {
-			t.escaped = true
+			t.escapeErr = escapeOK
 			t.Tree = t.text.Tree
 		}
 	}

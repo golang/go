@@ -994,6 +994,11 @@ func TestErrors(t *testing.T) {
 			t.Errorf("input=%q: error\n\t%q\ndoes not contain expected string\n\t%q", test.input, got, test.err)
 			continue
 		}
+		// Check that we get the same error if we call Execute again.
+		if err := tmpl.Execute(buf, nil); err == nil || err.Error() != got {
+			t.Errorf("input=%q: unexpected error on second call %q", test.input, err)
+
+		}
 	}
 }
 
