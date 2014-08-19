@@ -435,49 +435,49 @@ struct
 	"IRETQ",	LTYPE0,	AIRETQ,
 	"IRETW",	LTYPE0,	AIRETW,
 
-	"JOS",		LTYPER,	AJOS,
+	"JOS",		LTYPER,	AJOS,	/* overflow set (OF = 1) */
 	"JO",		LTYPER,	AJOS,	/* alternate */
-	"JOC",		LTYPER,	AJOC,
+	"JOC",		LTYPER,	AJOC,	/* overflow clear (OF = 0) */
 	"JNO",		LTYPER,	AJOC,	/* alternate */
-	"JCS",		LTYPER,	AJCS,
+	"JCS",		LTYPER,	AJCS,	/* carry set (CF = 1) */
 	"JB",		LTYPER,	AJCS,	/* alternate */
 	"JC",		LTYPER,	AJCS,	/* alternate */
 	"JNAE",		LTYPER,	AJCS,	/* alternate */
 	"JLO",		LTYPER,	AJCS,	/* alternate */
-	"JCC",		LTYPER,	AJCC,
+	"JCC",		LTYPER,	AJCC,	/* carry clear (CF = 0) */
 	"JAE",		LTYPER,	AJCC,	/* alternate */
 	"JNB",		LTYPER,	AJCC,	/* alternate */
 	"JNC",		LTYPER,	AJCC,	/* alternate */
 	"JHS",		LTYPER,	AJCC,	/* alternate */
-	"JEQ",		LTYPER,	AJEQ,
+	"JEQ",		LTYPER,	AJEQ,	/* equal (ZF = 1) */
 	"JE",		LTYPER,	AJEQ,	/* alternate */
 	"JZ",		LTYPER,	AJEQ,	/* alternate */
-	"JNE",		LTYPER,	AJNE,
+	"JNE",		LTYPER,	AJNE,	/* not equal (ZF = 0) */
 	"JNZ",		LTYPER,	AJNE,	/* alternate */
-	"JLS",		LTYPER,	AJLS,
+	"JLS",		LTYPER,	AJLS,	/* lower or same (unsigned) (CF = 1 || ZF = 1) */
 	"JBE",		LTYPER,	AJLS,	/* alternate */
 	"JNA",		LTYPER,	AJLS,	/* alternate */
-	"JHI",		LTYPER,	AJHI,
+	"JHI",		LTYPER,	AJHI,	/* higher (unsigned) (CF = 0 && ZF = 0) */
 	"JA",		LTYPER,	AJHI,	/* alternate */
 	"JNBE",		LTYPER,	AJHI,	/* alternate */
-	"JMI",		LTYPER,	AJMI,
+	"JMI",		LTYPER,	AJMI,	/* negative (minus) (SF = 1) */
 	"JS",		LTYPER,	AJMI,	/* alternate */
-	"JPL",		LTYPER,	AJPL,
+	"JPL",		LTYPER,	AJPL,	/* non-negative (plus) (SF = 0) */
 	"JNS",		LTYPER,	AJPL,	/* alternate */
-	"JPS",		LTYPER,	AJPS,
+	"JPS",		LTYPER,	AJPS,	/* parity set (PF = 1) */
 	"JP",		LTYPER,	AJPS,	/* alternate */
 	"JPE",		LTYPER,	AJPS,	/* alternate */
-	"JPC",		LTYPER,	AJPC,
+	"JPC",		LTYPER,	AJPC,	/* parity clear (PF = 0) */
 	"JNP",		LTYPER,	AJPC,	/* alternate */
 	"JPO",		LTYPER,	AJPC,	/* alternate */
-	"JLT",		LTYPER,	AJLT,
+	"JLT",		LTYPER,	AJLT,	/* less than (signed) (SF != OF) */
 	"JL",		LTYPER,	AJLT,	/* alternate */
 	"JNGE",		LTYPER,	AJLT,	/* alternate */
-	"JGE",		LTYPER,	AJGE,
+	"JGE",		LTYPER,	AJGE,	/* greater than or equal (signed) (SF = OF) */
 	"JNL",		LTYPER,	AJGE,	/* alternate */
-	"JLE",		LTYPER,	AJLE,
+	"JLE",		LTYPER,	AJLE,	/* less than or equal (signed) (ZF = 1 || SF != OF) */
 	"JNG",		LTYPER,	AJLE,	/* alternate */
-	"JGT",		LTYPER,	AJGT,
+	"JGT",		LTYPER,	AJGT,	/* greater than (signed) (ZF = 0 && SF = OF) */
 	"JG",		LTYPER,	AJGT,	/* alternate */
 	"JNLE",		LTYPER,	AJGT,	/* alternate */
 	"JCXZL",	LTYPER,	AJCXZL,
@@ -612,7 +612,7 @@ struct
 	"SCASL",	LTYPE0,	ASCASL,
 	"SCASQ",	LTYPE0,	ASCASQ,
 	"SCASW",	LTYPE0,	ASCASW,
-	"SETCC",	LTYPE1,	ASETCC,
+	"SETCC",	LTYPE1,	ASETCC,	/* see JCC etc above for condition codes */
 	"SETCS",	LTYPE1,	ASETCS,
 	"SETEQ",	LTYPE1,	ASETEQ,
 	"SETGE",	LTYPE1,	ASETGE,
