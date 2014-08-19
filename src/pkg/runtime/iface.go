@@ -135,7 +135,7 @@ func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
 func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
 	size := uintptr(t.size)
 	ep := (*eface)(unsafe.Pointer(&e))
-	if size <= ptrSize {
+	if isDirectIface(t) {
 		ep._type = t
 		memmove(unsafe.Pointer(&ep.data), elem, size)
 	} else {
@@ -157,7 +157,7 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) 
 	}
 	size := uintptr(t.size)
 	pi := (*iface)(unsafe.Pointer(&i))
-	if size <= ptrSize {
+	if isDirectIface(t) {
 		pi.tab = tab
 		memmove(unsafe.Pointer(&pi.data), elem, size)
 	} else {
@@ -182,7 +182,7 @@ func assertI2T(t *_type, i fInterface) (r struct{}) {
 		panic(&TypeAssertionError{*tab.inter.typ._string, *tab._type._string, *t._string, ""})
 	}
 	size := uintptr(t.size)
-	if size <= ptrSize {
+	if isDirectIface(t) {
 		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), size)
 	} else {
 		memmove(unsafe.Pointer(&r), ip.data, size)
@@ -202,7 +202,7 @@ func assertI2T2(t *_type, i fInterface) (r byte) {
 		return
 	}
 	*ok = true
-	if size <= ptrSize {
+	if isDirectIface(t) {
 		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), size)
 	} else {
 		memmove(unsafe.Pointer(&r), ip.data, size)
@@ -226,7 +226,7 @@ func assertE2T(t *_type, e interface{}) (r struct{}) {
 		panic(&TypeAssertionError{"", *ep._type._string, *t._string, ""})
 	}
 	size := uintptr(t.size)
-	if size <= ptrSize {
+	if isDirectIface(t) {
 		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), size)
 	} else {
 		memmove(unsafe.Pointer(&r), ep.data, size)
@@ -245,7 +245,7 @@ func assertE2T2(t *_type, e interface{}) (r byte) {
 		return
 	}
 	*ok = true
-	if size <= ptrSize {
+	if isDirectIface(t) {
 		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), size)
 	} else {
 		memmove(unsafe.Pointer(&r), ep.data, size)

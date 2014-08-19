@@ -1363,6 +1363,7 @@ int	is64(Type *t);
 int	isbadimport(Strlit *s);
 int	isblank(Node *n);
 int	isblanksym(Sym *s);
+int	isdirectiface(Type*);
 int	isfixedarray(Type *t);
 int	isideal(Type *t);
 int	isinter(Type *t);

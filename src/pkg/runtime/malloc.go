@@ -14,15 +14,6 @@ const (
 	flagNoScan = 1 << 0 // GC doesn't have to scan object
 	flagNoZero = 1 << 1 // don't zero memory
 
-	kindArray      = 17
-	kindFunc       = 19
-	kindInterface  = 20
-	kindPtr        = 22
-	kindStruct     = 25
-	kindMask       = 1<<6 - 1
-	kindGCProg     = 1 << 6
-	kindNoPointers = 1 << 7
-
 	maxTinySize   = 16
 	tinySizeClass = 2
 	maxSmallSize  = 32 << 10

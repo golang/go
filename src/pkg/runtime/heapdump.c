@@ -196,7 +196,7 @@ dumptype(Type *t)
 		write((byte*)".", 1);
 		write(t->x->name->str, t->x->name->len);
 	}
-	dumpbool(t->size > PtrSize || (t->kind & KindNoPointers) == 0);
+	dumpbool((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0);
 	dumpfields((BitVector){0, nil});
 }
 
@@ -584,7 +584,7 @@ itab_callback(Itab *tab)
 	dumpint(TagItab);
 	dumpint((uintptr)tab);
 	t = tab->type;
-	dumpbool(t->size > PtrSize || (t->kind & KindNoPointers) == 0);
+	dumpbool((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0);
 }
 
 static void

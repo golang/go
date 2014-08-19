@@ -118,7 +118,10 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	return x != 99
+	// using complex number in comparison so that
+	// there is always a convT2E, no matter what the
+	// interface rules are.
+	return x != 99.0i // ERROR "live at call to convT2E: x"
 }
 
 // liveness formerly confused by UNDEF followed by RET,
@@ -184,7 +187,7 @@ func f11c() *int {
 
 func f12() *int {
 	if b {
-		select{}
+		select {}
 	} else {
 		return nil
 	}
@@ -215,7 +218,7 @@ func f15() {
 	var x string
 	_ = &x
 	x = g15() // ERROR "live at call to g15: x"
-	print(x) // ERROR "live at call to printstring: x"
+	print(x)  // ERROR "live at call to printstring: x"
 }
 
 func g15() string
@@ -287,7 +290,7 @@ var ch chan *byte
 func f19() {
 	// dest temporary for channel receive.
 	var z *byte
-	
+
 	if b {
 		z = <-ch // ERROR "live at call to chanrecv1: autotmp_[0-9]+$"
 	}
@@ -348,21 +351,21 @@ func f25(b bool) {
 	var x string
 	_ = &x
 	x = g15() // ERROR "live at call to g15: x"
-	print(x) // ERROR "live at call to printstring: x"
+	print(x)  // ERROR "live at call to printstring: x"
 } // ERROR "live at call to deferreturn: x"
 
 func g25()
-	
+
 // non-escaping ... slices passed to function call should die on return,
 // so that the temporaries do not stack and do not cause ambiguously
 // live variables.
 
 func f26(b bool) {
 	if b {
-		print26(1,2,3) // ERROR "live at call to print26: autotmp_[0-9]+$"
+		print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "live at call to print26: autotmp_[0-9]+$"
 	}
-	print26(4,5,6) // ERROR "live at call to print26: autotmp_[0-9]+$"
-	print26(7,8,9) // ERROR "live at call to print26: autotmp_[0-9]+$"
+	print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "live at call to print26: autotmp_[0-9]+$"
+	print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "live at call to print26: autotmp_[0-9]+$"
 	println()
 }
 
@@ -374,10 +377,10 @@ func print26(...interface{})
 func f27(b bool) {
 	x := 0
 	if b {
-		call27(func() {x++}) // ERROR "live at call to call27: autotmp_[0-9]+$"
+		call27(func() { x++ }) // ERROR "live at call to call27: autotmp_[0-9]+$"
 	}
-	call27(func() {x++}) // ERROR "live at call to call27: autotmp_[0-9]+$"
-	call27(func() {x++}) // ERROR "live at call to call27: autotmp_[0-9]+$"
+	call27(func() { x++ }) // ERROR "live at call to call27: autotmp_[0-9]+$"
+	call27(func() { x++ }) // ERROR "live at call to call27: autotmp_[0-9]+$"
 	println()
 }
 
@@ -386,10 +389,10 @@ func f27(b bool) {
 func f27defer(b bool) {
 	x := 0
 	if b {
-		defer call27(func() {x++}) // ERROR "live at call to deferproc: autotmp_[0-9]+$" "live at call to deferreturn: autotmp_[0-9]+$"
+		defer call27(func() { x++ }) // ERROR "live at call to deferproc: autotmp_[0-9]+$" "live at call to deferreturn: autotmp_[0-9]+$"
 	}
-	defer call27(func() {x++}) // ERROR "live at call to deferproc: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to deferreturn: autotmp_[0-9]+ autotmp_[0-9]+$" "ambiguously live"
-	println() // ERROR "live at call to printnl: autotmp_[0-9]+ autotmp_[0-9]+$"
+	defer call27(func() { x++ }) // ERROR "live at call to deferproc: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to deferreturn: autotmp_[0-9]+ autotmp_[0-9]+$" "ambiguously live"
+	println()                    // ERROR "live at call to printnl: autotmp_[0-9]+ autotmp_[0-9]+$"
 } // ERROR "live at call to deferreturn: autotmp_[0-9]+ autotmp_[0-9]+$"
 
 // and newproc (go) escapes to the heap
@@ -397,9 +400,9 @@ func f27defer(b bool) {
 func f27go(b bool) {
 	x := 0
 	if b {
-		go call27(func() {x++}) // ERROR "live at call to newobject: &x" "live at call to newproc: &x$"
+		go call27(func() { x++ }) // ERROR "live at call to newobject: &x" "live at call to newproc: &x$"
 	}
-	go call27(func() {x++}) // ERROR "live at call to newobject: &x"
+	go call27(func() { x++ }) // ERROR "live at call to newobject: &x"
 	println()
 }
 
@@ -412,11 +415,11 @@ var s1, s2, s3, s4, s5, s6, s7, s8, s9, s10 string
 
 func f28(b bool) {
 	if b {
-		print(s1+s2+s3+s4+s5+s6+s7+s8+s9+s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
+		print(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
 	}
-	print(s1+s2+s3+s4+s5+s6+s7+s8+s9+s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
-	print(s1+s2+s3+s4+s5+s6+s7+s8+s9+s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
-}	
+	print(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
+	print(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "live at call to concatstrings: autotmp_[0-9]+$" "live at call to printstring: autotmp_[0-9]+$"
+}
 
 // map iterator should die on end of range loop
 
@@ -584,13 +587,13 @@ func f39a() (x []int) {
 
 func f39b() (x [10]*int) {
 	x = [10]*int{new(int)} // ERROR "live at call to newobject: x"
-	println() // ERROR "live at call to printnl: x"
+	println()              // ERROR "live at call to printnl: x"
 	return x
 }
 
 func f39c() (x [10]*int) {
 	x = [10]*int{new(int)} // ERROR "live at call to newobject: x"
-	println() // ERROR "live at call to printnl: x"
+	println()              // ERROR "live at call to printnl: x"
 	return
 }
 
@@ -603,7 +606,7 @@ type T40 struct {
 
 func newT40() *T40 {
 	ret := T40{ // ERROR "live at call to makemap: &ret"
-		make(map[int]int), 
+		make(map[int]int),
 	}
 	return &ret
 }

@@ -367,7 +367,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				iface = (Iface*)(b+i);
 				if(iface->tab != nil) {
 					typ = iface->tab->type;
-					if(typ->size > PtrSize || !(typ->kind&KindNoPointers))
+					if(!(typ->kind&KindDirectIface) || !(typ->kind&KindNoPointers))
 						obj = iface->data;
 				}
 				break;
@@ -375,7 +375,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				eface = (Eface*)(b+i);
 				typ = eface->type;
 				if(typ != nil) {
-					if(typ->size > PtrSize || !(typ->kind&KindNoPointers))
+					if(!(typ->kind&KindDirectIface) || !(typ->kind&KindNoPointers))
 						obj = eface->data;
 				}
 				break;
@@ -1675,7 +1675,7 @@ runfinq(void)
 				}
 				if(f->fint == nil)
 					runtime·throw("missing type in runfinq");
-				if(f->fint->kind == KindPtr) {
+				if((f->fint->kind&KindMask) == KindPtr) {
 					// direct use of pointer
 					*(void**)frame = f->arg;
 				} else if(((InterfaceType*)f->fint)->mhdr.len == 0) {

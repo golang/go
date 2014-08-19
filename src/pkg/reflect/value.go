@@ -82,7 +82,7 @@ type Value struct {
 	// This repeats typ.Kind() except for method values.
 	// The remaining 23+ bits give a method number for method values.
 	// If flag.kind() != Func, code can assume that flagMethod is unset.
-	// If typ.size > ptrSize, code can assume that flagIndir is set.
+	// If !isDirectIface(typ), code can assume that flagIndir is set.
 	flag
 
 	// A method value represents a curried method invocation
@@ -128,7 +128,10 @@ func packEface(v Value) interface{} {
 	e := (*emptyInterface)(unsafe.Pointer(&i))
 	// First, fill in the data portion of the interface.
 	switch {
-	case t.size > ptrSize:
+	case !isDirectIface(t):
+		if v.flag&flagIndir == 0 {
+			panic("bad indir")
+		}
 		// Value is indirect, and so is the interface we're making.
 		ptr := v.ptr
 		if v.flag&flagAddr != 0 {
@@ -172,7 +175,7 @@ func unpackEface(i interface{}) Value {
 		return Value{}
 	}
 	f := flag(t.Kind()) << flagKindShift
-	if t.size > ptrSize {
+	if !isDirectIface(t) {
 		return Value{t, unsafe.Pointer(e.word), 0, f | flagIndir}
 	}
 	if t.pointers() {
@@ -607,8 +610,8 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 		off += -off & uintptr(typ.align-1)
 		addr := unsafe.Pointer(uintptr(ptr) + off)
 		v := Value{typ, nil, 0, flag(typ.Kind()) << flagKindShift}
-		if typ.size > ptrSize {
-			// value does not fit in word.
+		if !isDirectIface(typ) {
+			// value cannot be inlined in interface data.
 			// Must make a copy, because f might keep a reference to it,
 			// and we cannot let f keep a reference to the stack frame
 			// after this function returns, not even a read-only reference.
@@ -714,7 +717,7 @@ func storeRcvr(v Value, p unsafe.Pointer) {
 		iface := (*nonEmptyInterface)(v.ptr)
 		*(*unsafe.Pointer)(p) = unsafe.Pointer(iface.word)
 	} else if v.flag&flagIndir != 0 {
-		if t.size > ptrSize {
+		if !isDirectIface(t) {
 			*(*unsafe.Pointer)(p) = v.ptr
 		} else if t.pointers() {
 			*(*unsafe.Pointer)(p) = *(*unsafe.Pointer)(v.ptr)
@@ -987,7 +990,13 @@ func (v Value) Index(i int) Value {
 			val = unsafe.Pointer(uintptr(v.ptr) + offset)
 		case typ.pointers():
 			if offset != 0 {
-				panic("can't Index(i) with i!=0 on ptrLike value")
+				// This is an array stored inline in an interface value.
+				// And the array element type has pointers.
+				// Since the inline storage space is only a single word,
+				// this implies we must be holding an array of length 1
+				// with an element type that is a single pointer.
+				// If the offset is not 0, something has gone wrong.
+				panic("reflect: internal error: unexpected array index")
 			}
 			val = v.ptr
 		case bigEndian:
@@ -1014,14 +1023,13 @@ func (v Value) Index(i int) Value {
 		return Value{typ, val, 0, fl}
 
 	case String:
-		fl := v.flag&flagRO | flag(Uint8<<flagKindShift)
+		fl := v.flag&flagRO | flag(Uint8<<flagKindShift) | flagIndir
 		s := (*stringHeader)(v.ptr)
 		if i < 0 || i >= s.Len {
 			panic("reflect: string index out of range")
 		}
-		b := uintptr(0)
-		*(*byte)(unsafe.Pointer(&b)) = *(*byte)(unsafe.Pointer(uintptr(s.Data) + uintptr(i)))
-		return Value{uint8Type, nil, b, fl}
+		p := unsafe.Pointer(uintptr(s.Data) + uintptr(i))
+		return Value{uint8Type, p, 0, fl}
 	}
 	panic(&ValueError{"reflect.Value.Index", k})
 }
@@ -1209,7 +1217,7 @@ func (v Value) MapIndex(key Value) Value {
 	typ := tt.elem
 	fl := (v.flag | key.flag) & flagRO
 	fl |= flag(typ.Kind()) << flagKindShift
-	if typ.size > ptrSize {
+	if !isDirectIface(typ) {
 		// Copy result so future changes to the map
 		// won't change the underlying value.
 		c := unsafe_New(typ)
@@ -1249,7 +1257,7 @@ func (v Value) MapKeys() []Value {
 			// we can do about it.
 			break
 		}
-		if keyType.size > ptrSize {
+		if !isDirectIface(keyType) {
 			// Copy result so future changes to the map
 			// won't change the underlying value.
 			c := unsafe_New(keyType)
@@ -1448,7 +1456,7 @@ func (v Value) recv(nb bool) (val Value, ok bool) {
 	t := tt.elem
 	val = Value{t, nil, 0, flag(t.Kind()) << flagKindShift}
 	var p unsafe.Pointer
-	if t.size > ptrSize {
+	if !isDirectIface(t) {
 		p = unsafe_New(t)
 		val.ptr = p
 		val.flag |= flagIndir
@@ -2190,7 +2198,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 		t := tt.elem
 		p := runcases[chosen].val
 		fl := flag(t.Kind()) << flagKindShift
-		if t.size > ptrSize {
+		if !isDirectIface(t) {
 			recv = Value{t, p, 0, fl | flagIndir}
 		} else if t.pointers() {
 			recv = Value{t, *(*unsafe.Pointer)(p), 0, fl}
@@ -2291,7 +2299,7 @@ func Zero(typ Type) Value {
 	}
 	t := typ.common()
 	fl := flag(t.Kind()) << flagKindShift
-	if t.size <= ptrSize {
+	if isDirectIface(t) {
 		return Value{t, nil, 0, fl}
 	}
 	return Value{t, unsafe_New(typ.(*rtype)), 0, fl | flagIndir}
@@ -2450,10 +2458,18 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 // where t is a signed or unsigned int type.
 func makeInt(f flag, bits uint64, t Type) Value {
 	typ := t.common()
-	if typ.size > ptrSize {
-		// Assume ptrSize >= 4, so this must be uint64.
+	if !isDirectIface(typ) {
 		ptr := unsafe_New(typ)
-		*(*uint64)(unsafe.Pointer(ptr)) = bits
+		switch typ.size {
+		case 1:
+			*(*uint8)(unsafe.Pointer(ptr)) = uint8(bits)
+		case 2:
+			*(*uint16)(unsafe.Pointer(ptr)) = uint16(bits)
+		case 4:
+			*(*uint32)(unsafe.Pointer(ptr)) = uint32(bits)
+		case 8:
+			*(*uint64)(unsafe.Pointer(ptr)) = bits
+		}
 		return Value{typ, ptr, 0, f | flagIndir | flag(typ.Kind())<<flagKindShift}
 	}
 	var s uintptr
@@ -2474,10 +2490,14 @@ func makeInt(f flag, bits uint64, t Type) Value {
 // where t is a float32 or float64 type.
 func makeFloat(f flag, v float64, t Type) Value {
 	typ := t.common()
-	if typ.size > ptrSize {
-		// Assume ptrSize >= 4, so this must be float64.
+	if !isDirectIface(typ) {
 		ptr := unsafe_New(typ)
-		*(*float64)(unsafe.Pointer(ptr)) = v
+		switch typ.size {
+		case 4:
+			*(*float32)(unsafe.Pointer(ptr)) = float32(v)
+		case 8:
+			*(*float64)(unsafe.Pointer(ptr)) = v
+		}
 		return Value{typ, ptr, 0, f | flagIndir | flag(typ.Kind())<<flagKindShift}
 	}
 
@@ -2495,7 +2515,7 @@ func makeFloat(f flag, v float64, t Type) Value {
 // where t is a complex64 or complex128 type.
 func makeComplex(f flag, v complex128, t Type) Value {
 	typ := t.common()
-	if typ.size > ptrSize {
+	if !isDirectIface(typ) {
 		ptr := unsafe_New(typ)
 		switch typ.size {
 		case 8:
@@ -2506,9 +2526,13 @@ func makeComplex(f flag, v complex128, t Type) Value {
 		return Value{typ, ptr, 0, f | flagIndir | flag(typ.Kind())<<flagKindShift}
 	}
 
-	// Assume ptrSize <= 8 so this must be complex64.
 	var s uintptr
-	*(*complex64)(unsafe.Pointer(&s)) = complex64(v)
+	switch typ.size {
+	case 8:
+		*(*complex64)(unsafe.Pointer(&s)) = complex64(v)
+	case 16:
+		*(*complex128)(unsafe.Pointer(&s)) = v
+	}
 	return Value{typ, nil, s, f | flag(typ.Kind())<<flagKindShift}
 }
 

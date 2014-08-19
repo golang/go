@@ -378,7 +378,7 @@ methods(Type *t)
 
 	// type stored in interface word
 	it = t;
-	if(it->width > widthptr)
+	if(!isdirectiface(it))
 		it = ptrto(t);
 
 	// make list of methods for t,
@@ -785,6 +785,8 @@ dcommontype(Sym *s, int ot, Type *t)
 		i = KindSlice;
 	if(!haspointers(t))
 		i |= KindNoPointers;
+	if(isdirectiface(t))
+		i |= KindDirectIface;
 	if(gcprog)
 		i |= KindGCProg;
 	ot = duint8(s, ot, i);  // kind
