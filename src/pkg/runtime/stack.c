@@ -399,6 +399,7 @@ struct CopyableInfo {
 };
 
 void runtime·main(void);
+void runtime·switchtoM(void(*)(void));
 
 static bool
 checkframecopy(Stkframe *frame, void *arg)
@@ -423,6 +424,13 @@ checkframecopy(Stkframe *frame, void *arg)
 		// have full GC info for it (because it is written in C).
 		cinfo->frames++;
 		return false; // stop traceback
+	}
+	if(f->entry == (uintptr)runtime·switchtoM) {
+		// A special routine at the bottom of stack of a goroutine that does onM call.
+		// We will allow it to be copied even though we don't
+		// have full GC info for it (because it is written in asm).
+		cinfo->frames++;
+		return true;
 	}
 	if(frame->varp != (byte*)frame->sp) { // not in prologue (and has at least one local or outarg)
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
@@ -648,7 +656,8 @@ adjustframe(Stkframe *frame, void *arg)
 	f = frame->fn;
 	if(StackDebug >= 2)
 		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p continpc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc, frame->continpc);
-	if(f->entry == (uintptr)runtime·main)
+	if(f->entry == (uintptr)runtime·main ||
+		f->entry == (uintptr)runtime·switchtoM)
 		return true;
 	targetpc = frame->continpc;
 	if(targetpc == 0) {
