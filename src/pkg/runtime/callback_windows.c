@@ -29,7 +29,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 	int32 argsize, i, n;
 	WinCallbackContext *c;
 
-	if(fn.type == nil || fn.type->kind != KindFunc)
+	if(fn.type == nil || (fn.type->kind&KindMask) != KindFunc)
 		runtime·panicstring("compilecallback: not a function");
 	ft = (FuncType*)fn.type;
 	if(ft->out.len != 1)
