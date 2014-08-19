@@ -477,11 +477,12 @@ func gogc(force int32) {
 			startTime = gonanotime()
 		}
 		// switch to g0, call gc, then switch back
-		mp.scalararg[0] = uint(startTime)
+		mp.scalararg[0] = uint(uint32(startTime)) // low 32 bits
+		mp.scalararg[1] = uint(startTime >> 32)   // high 32 bits
 		if force >= 2 {
-			mp.scalararg[1] = 1 // eagersweep
+			mp.scalararg[2] = 1 // eagersweep
 		} else {
-			mp.scalararg[1] = 0
+			mp.scalararg[2] = 0
 		}
 		onM(&gc_m)
 	}
