@@ -724,7 +724,7 @@ _next2:
 
 // eqstring tests whether two strings are equal.
 // See runtime_test.go:eqstring_generic for
-// equivlaent Go code.
+// equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
 	MOVW	s1len+4(FP), R0
 	MOVW	s2len+12(FP), R1

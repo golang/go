@@ -1140,7 +1140,7 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-25
 
 // eqstring tests whether two strings are equal.
 // See runtime_test.go:eqstring_generic for
-// equivlaent Go code.
+// equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$0-33
 	MOVQ	s1len+8(FP), AX
 	MOVQ	s2len+24(FP), BX
