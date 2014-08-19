@@ -125,6 +125,8 @@ Pconv(Fmt *fp)
 				s += sprint(s, ",%D", &p->from3);
 			sprint(s, ",%D", &p->to);
 		}
+		if(p->spadj != 0)
+			return fmtprint(fp, "%s # spadj=%d", str, p->spadj);
 	}
 	return fmtstrcpy(fp, str);
 }
