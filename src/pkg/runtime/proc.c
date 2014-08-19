@@ -1449,15 +1449,15 @@ park0(G *gp)
 void
 runtime·gosched(void)
 {
-	if(g->status != Grunning)
-		runtime·throw("bad g status");
-	runtime·mcall(runtime·gosched0);
+	runtime·mcall(runtime·gosched_m);
 }
 
 // runtime·gosched continuation on g0.
 void
-runtime·gosched0(G *gp)
+runtime·gosched_m(G *gp)
 {
+	if(gp->status != Grunning)
+		runtime·throw("bad g status");
 	gp->status = Grunnable;
 	dropg();
 	runtime·lock(&runtime·sched.lock);
@@ -2053,12 +2053,6 @@ void
 runtime·Breakpoint(void)
 {
 	runtime·breakpoint();
-}
-
-void
-runtime·Gosched(void)
-{
-	runtime·gosched();
 }
 
 // Implementation of runtime.GOMAXPROCS.
