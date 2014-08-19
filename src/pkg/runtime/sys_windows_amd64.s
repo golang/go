@@ -228,7 +228,8 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	ADDQ	$8, SP
 
 	// determine index into runtime·cbctxts table
-	SUBQ	$runtime·callbackasm(SB), AX
+	MOVQ	$runtime·callbackasm(SB), DX
+	SUBQ	DX, AX
 	MOVQ	$0, DX
 	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
 	DIVL	CX,
