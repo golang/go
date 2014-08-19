@@ -280,7 +280,7 @@ var reqWriteTests = []reqWriteTest{
 			ContentLength: 10, // but we're going to send only 5 bytes
 		},
 		Body:      []byte("12345"),
-		WantError: errors.New("http: Request.ContentLength=10 with Body length 5"),
+		WantError: errors.New("http: ContentLength=10 with Body length 5"),
 	},
 
 	// Request with a ContentLength of 4 but an 8 byte body.
@@ -294,7 +294,7 @@ var reqWriteTests = []reqWriteTest{
 			ContentLength: 4, // but we're going to try to send 8 bytes
 		},
 		Body:      []byte("12345678"),
-		WantError: errors.New("http: Request.ContentLength=4 with Body length 8"),
+		WantError: errors.New("http: ContentLength=4 with Body length 8"),
 	},
 
 	// Request with a 5 ContentLength and nil body.

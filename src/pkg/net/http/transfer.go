@@ -228,7 +228,7 @@ func (t *transferWriter) WriteBody(w io.Writer) error {
 	}
 
 	if !t.ResponseToHEAD && t.ContentLength != -1 && t.ContentLength != ncopy {
-		return fmt.Errorf("http: Request.ContentLength=%d with Body length %d",
+		return fmt.Errorf("http: ContentLength=%d with Body length %d",
 			t.ContentLength, ncopy)
 	}
 
