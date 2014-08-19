@@ -1401,8 +1401,8 @@ runtime·gc_m(void)
 	gp->status = Gwaiting;
 	gp->waitreason = "garbage collection";
 
-	a.start_time = g->m->scalararg[0];
-	a.eagersweep = g->m->scalararg[1];
+	a.start_time = (uint64)(g->m->scalararg[0]) | ((uint64)(g->m->scalararg[1]) << 32);
+	a.eagersweep = g->m->scalararg[2];
 	gc(&a);
 
 	gp->status = Grunning;
