@@ -16,10 +16,26 @@ func TestMemStats(t *testing.T) {
 	// Test that MemStats has sane values.
 	st := new(MemStats)
 	ReadMemStats(st)
-	if st.HeapSys == 0 || st.StackSys == 0 || st.MSpanSys == 0 || st.MCacheSys == 0 ||
-		st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 {
-		t.Fatalf("Zero sys value: %+v", *st)
+
+	// Everything except HeapReleased, because it indeed can be 0.
+	if st.Alloc == 0 || st.TotalAlloc == 0 || st.Sys == 0 || st.Lookups == 0 ||
+		st.Mallocs == 0 || st.Frees == 0 || st.HeapAlloc == 0 || st.HeapSys == 0 ||
+		st.HeapIdle == 0 || st.HeapInuse == 0 || st.HeapObjects == 0 || st.StackInuse == 0 ||
+		st.StackSys == 0 || st.MSpanInuse == 0 || st.MSpanSys == 0 || st.MCacheInuse == 0 ||
+		st.MCacheSys == 0 || st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 ||
+		st.NextGC == 0 || st.NumGC == 0 {
+		t.Fatalf("Zero value: %+v", *st)
 	}
+
+	if st.Alloc > 1e10 || st.TotalAlloc > 1e11 || st.Sys > 1e10 || st.Lookups > 1e10 ||
+		st.Mallocs > 1e10 || st.Frees > 1e10 || st.HeapAlloc > 1e10 || st.HeapSys > 1e10 ||
+		st.HeapIdle > 1e10 || st.HeapInuse > 1e10 || st.HeapObjects > 1e10 || st.StackInuse > 1e10 ||
+		st.StackSys > 1e10 || st.MSpanInuse > 1e10 || st.MSpanSys > 1e10 || st.MCacheInuse > 1e10 ||
+		st.MCacheSys > 1e10 || st.BuckHashSys > 1e10 || st.GCSys > 1e10 || st.OtherSys > 1e10 ||
+		st.NextGC > 1e10 || st.NumGC > 1e9 {
+		t.Fatalf("Insanely high value (overflow?): %+v", *st)
+	}
+
 	if st.Sys != st.HeapSys+st.StackSys+st.MSpanSys+st.MCacheSys+
 		st.BuckHashSys+st.GCSys+st.OtherSys {
 		t.Fatalf("Bad sys value: %+v", *st)
