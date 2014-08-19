@@ -87,8 +87,10 @@ func Lstat(name string) (fi FileInfo, err error) {
 	}
 	fs.path = name
 	if !isAbs(fs.path) {
-		cwd, _ := Getwd()
-		fs.path = cwd + `\` + fs.path
+		fs.path, e = syscall.FullPath(fs.path)
+		if e != nil {
+			return nil, e
+		}
 	}
 	return fs, nil
 }

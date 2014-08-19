@@ -129,9 +129,8 @@ func SetNonblock(fd Handle, nonblocking bool) (err error) {
 	return nil
 }
 
-// getFullPath retrieves the full path of the specified file.
-// Just a wrapper for Windows GetFullPathName api.
-func getFullPath(name string) (path string, err error) {
+// FullPath retrieves the full path of the specified file.
+func FullPath(name string) (path string, err error) {
 	p, err := UTF16PtrFromString(name)
 	if err != nil {
 		return "", err
@@ -160,7 +159,7 @@ func isSlash(c uint8) bool {
 }
 
 func normalizeDir(dir string) (name string, err error) {
-	ndir, err := getFullPath(dir)
+	ndir, err := FullPath(dir)
 	if err != nil {
 		return "", err
 	}
@@ -199,9 +198,9 @@ func joinExeDirAndFName(dir, p string) (name string, err error) {
 				return "", err
 			}
 			if volToUpper(int(p[0])) == volToUpper(int(d[0])) {
-				return getFullPath(d + "\\" + p[2:])
+				return FullPath(d + "\\" + p[2:])
 			} else {
-				return getFullPath(p)
+				return FullPath(p)
 			}
 		}
 	} else {
@@ -211,9 +210,9 @@ func joinExeDirAndFName(dir, p string) (name string, err error) {
 			return "", err
 		}
 		if isSlash(p[0]) {
-			return getFullPath(d[:2] + p)
+			return FullPath(d[:2] + p)
 		} else {
-			return getFullPath(d + "\\" + p)
+			return FullPath(d + "\\" + p)
 		}
 	}
 	// we shouldn't be here
