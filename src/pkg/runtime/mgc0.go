@@ -19,6 +19,15 @@ func gc_itab_ptr(ret *interface{}) {
 	*ret = (*itab)(nil)
 }
 
+// Type used for "conservative" allocations in C code.
+type notype [8]*byte
+
+// Called from C. Returns the Go type used for C allocations w/o type.
+func gc_notype_ptr(ret *interface{}) {
+	var x notype
+	*ret = x
+}
+
 func timenow() (sec int64, nsec int32)
 
 func gc_unixnanotime(now *int64) {
