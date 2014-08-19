@@ -117,8 +117,10 @@ func openDir(name string) (file *File, err error) {
 	}
 	d.path = name
 	if !isAbs(d.path) {
-		cwd, _ := Getwd()
-		d.path = cwd + `\` + d.path
+		d.path, e = syscall.FullPath(d.path)
+		if e != nil {
+			return nil, e
+		}
 	}
 	f := newFile(r, name)
 	f.dirinfo = d
