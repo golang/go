@@ -17,7 +17,8 @@ import (
 // Template is a specialized Template from "text/template" that produces a safe
 // HTML document fragment.
 type Template struct {
-	escaped bool
+	// Sticky error if escaping fails.
+	escapeErr error
 	// We could embed the text/template field, but it's safer not to because
 	// we need to keep our version of the name space and the underlying
 	// template's in sync.
@@ -26,6 +27,9 @@ type Template struct {
 	Tree       *parse.Tree
 	*nameSpace // common to all associated templates
 }
+
+// escapeOK is a sentinel value used to indicate valid escaping.
+var escapeOK = fmt.Errorf("template escaped correctly")
 
 // nameSpace is the data structure shared by all templates in an association.
 type nameSpace struct {
@@ -51,11 +55,12 @@ func (t *Template) Templates() []*Template {
 func (t *Template) escape() error {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
-	if !t.escaped {
+	if t.escapeErr == nil {
 		if err := escapeTemplates(t, t.Name()); err != nil {
 			return err
 		}
-		t.escaped = true
+	} else if t.escapeErr != escapeOK {
+		return t.escapeErr
 	}
 	return nil
 }
@@ -97,13 +102,16 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
 	if tmpl == nil {
 		return nil, fmt.Errorf("html/template: %q is undefined", name)
 	}
+	if tmpl.escapeErr != nil && tmpl.escapeErr != escapeOK {
+		return nil, tmpl.escapeErr
+	}
 	if tmpl.text.Tree == nil || tmpl.text.Root == nil {
 		return nil, fmt.Errorf("html/template: %q is an incomplete template", name)
 	}
 	if t.text.Lookup(name) == nil {
 		panic("html/template internal error: template escaping out of sync")
 	}
-	if tmpl != nil && !tmpl.escaped {
+	if tmpl.escapeErr == nil {
 		err = escapeTemplates(tmpl, name)
 	}
 	return tmpl, err
@@ -119,7 +127,7 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
 // other than space, comments, and template definitions.)
 func (t *Template) Parse(src string) (*Template, error) {
 	t.nameSpace.mu.Lock()
-	t.escaped = false
+	t.escapeErr = nil
 	t.nameSpace.mu.Unlock()
 	ret, err := t.text.Parse(src)
 	if err != nil {
@@ -137,7 +145,7 @@ func (t *Template) Parse(src string) (*Template, error) {
 			tmpl = t.new(name)
 		}
 		// Restore our record of this text/template to its unescaped original state.
-		tmpl.escaped = false
+		tmpl.escapeErr = nil
 		tmpl.text = v
 		tmpl.Tree = v.Tree
 	}
@@ -151,7 +159,7 @@ func (t *Template) Parse(src string) (*Template, error) {
 func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
-	if t.escaped {
+	if t.escapeErr != nil {
 		return nil, fmt.Errorf("html/template: cannot AddParseTree to %q after it has executed", t.Name())
 	}
 	text, err := t.text.AddParseTree(name, tree)
@@ -159,7 +167,7 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 		return nil, err
 	}
 	ret := &Template{
-		false,
+		nil,
 		text,
 		text.Tree,
 		t.nameSpace,
@@ -179,7 +187,7 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 func (t *Template) Clone() (*Template, error) {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
-	if t.escaped {
+	if t.escapeErr != nil {
 		return nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", t.Name())
 	}
 	textClone, err := t.text.Clone()
@@ -187,7 +195,7 @@ func (t *Template) Clone() (*Template, error) {
 		return nil, err
 	}
 	ret := &Template{
-		false,
+		nil,
 		textClone,
 		textClone.Tree,
 		&nameSpace{
@@ -197,12 +205,12 @@ func (t *Template) Clone() (*Template, error) {
 	for _, x := range textClone.Templates() {
 		name := x.Name()
 		src := t.set[name]
-		if src == nil || src.escaped {
+		if src == nil || src.escapeErr != nil {
 			return nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", t.Name())
 		}
 		x.Tree = x.Tree.Copy()
 		ret.set[name] = &Template{
-			false,
+			nil,
 			x,
 			x.Tree,
 			ret.nameSpace,
@@ -214,7 +222,7 @@ func (t *Template) Clone() (*Template, error) {
 // New allocates a new HTML template with the given name.
 func New(name string) *Template {
 	tmpl := &Template{
-		false,
+		nil,
 		template.New(name),
 		nil,
 		&nameSpace{
@@ -237,7 +245,7 @@ func (t *Template) New(name string) *Template {
 // new is the implementation of New, without the lock.
 func (t *Template) new(name string) *Template {
 	tmpl := &Template{
-		false,
+		nil,
 		t.text.New(name),
 		nil,
 		t.nameSpace,
