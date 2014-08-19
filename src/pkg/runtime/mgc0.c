@@ -212,8 +212,8 @@ static struct {
 static void
 scanblock(byte *b, uintptr n, byte *ptrmask)
 {
-	byte *obj, *p, *arena_start, *arena_used, **wp, *scanbuf[8], bits8;
-	uintptr i, nobj, size, idx, *bitp, bits, xbits, shift, x, off, cached, scanbufpos;
+	byte *obj, *p, *arena_start, *arena_used, **wp, *scanbuf[8], *ptrbitp, *bitp, bits, xbits, shift, cached;
+	uintptr i, nobj, size, idx, x, off, scanbufpos;
 	intptr ncached;
 	Workbuf *wbuf;
 	String *str;
@@ -236,6 +236,10 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 	scanbufpos = 0;
 	for(i = 0; i < nelem(scanbuf); i++)
 		scanbuf[i] = nil;
+
+	ptrbitp = nil;
+	cached = 0;
+	ncached = 0;
 
 	// ptrmask can have 3 possible values:
 	// 1. nil - obtain pointer mask from GC bitmap.
@@ -295,8 +299,15 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			}
 			ptrmask = ScanConservatively;
 		}
-		cached = 0;
-		ncached = 0;
+		// Find bits of the beginning of the object.
+		if(ptrmask == nil) {
+			off = (uintptr*)b - (uintptr*)arena_start;
+			ptrbitp = arena_start - off/wordsPerBitmapByte - 1;
+			shift = (off % wordsPerBitmapByte) * gcBits;
+			cached = *ptrbitp >> shift;
+			cached &= ~bitBoundary;
+			ncached = (8 - shift)/gcBits;
+		}
 		for(i = 0; i < n; i += PtrSize) {
 			obj = nil;
 			// Find bits for this word.
@@ -308,16 +319,13 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				// Consult GC bitmap.
 				if(ncached <= 0) {
 					// Refill cache.
-					off = (uintptr*)(b+i) - (uintptr*)arena_start;
-					bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-					shift = (off % wordsPerBitmapWord) * gcBits;
-					cached = *bitp >> shift;
-					ncached = (PtrSize*8 - shift)/gcBits;
+					cached = *--ptrbitp;
+					ncached = 2;
 				}
 				bits = cached;
 				cached >>= gcBits;
 				ncached--;
-				if(i != 0 && (bits&bitBoundary) != 0)
+				if((bits&bitBoundary) != 0)
 					break; // reached beginning of the next object
 				bits = (bits>>2)&BitsMask;
 				if(bits == BitsDead)
@@ -336,11 +344,9 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			// Find the next pair of bits.
 			if(ptrmask == nil) {
 				if(ncached <= 0) {
-					off = (uintptr*)(b+i+PtrSize) - (uintptr*)arena_start;
-					bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-					shift = (off % wordsPerBitmapWord) * gcBits;
-					cached = *bitp >> shift;
-					ncached = (PtrSize*8 - shift)/gcBits;
+					// Refill cache.
+					cached = *--ptrbitp;
+					ncached = 2;
 				}
 				bits = (cached>>2)&BitsMask;
 			} else
@@ -383,8 +389,14 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 
 			if(bits == BitsSlice) {
 				i += 2*PtrSize;
-				cached >>= 2*gcBits;
-				ncached -= 2;
+				if(ncached == 2)
+					ncached = 0;
+				else if(ptrmask == nil) {
+					// Refill cache and consume one quadruple.
+					cached = *--ptrbitp;
+					cached >>= gcBits;
+					ncached = 1;
+				}
 			} else {
 				i += PtrSize;
 				cached >>= gcBits;
@@ -398,20 +410,12 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				continue;
 			// Mark the object.
 			off = (uintptr*)obj - (uintptr*)arena_start;
-			bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-			shift = (off % wordsPerBitmapWord) * gcBits;
+			bitp = arena_start - off/wordsPerBitmapByte - 1;
+			shift = (off % wordsPerBitmapByte) * gcBits;
 			xbits = *bitp;
 			bits = (xbits >> shift) & bitMask;
 			if((bits&bitBoundary) == 0) {
-				// Not a beginning of a block, check if we have block boundary in xbits.
-				while(shift > 0) {
-					obj -= PtrSize;
-					shift -= gcBits;
-					bits = (xbits >> shift) & bitMask;
-					if((bits&bitBoundary) != 0)
-						goto havebits;
-				}
-				// Otherwise consult span table to find the block beginning.
+				// Not a beginning of a block, consult span table to find the block beginning.
 				k = (uintptr)obj>>PageShift;
 				x = k;
 				x -= (uintptr)arena_start>>PageShift;
@@ -433,7 +437,6 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				goto markobj;
 			}
 
-		havebits:
 			// Now we have bits, bitp, and shift correct for
 			// obj pointing at the base of the object.
 			// Only care about not marked objects.
@@ -449,22 +452,12 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			// For 8-byte objects we use non-atomic store, if the other
 			// quadruple is already marked. Otherwise we resort to CAS
 			// loop for marking.
-			bits8 = xbits>>(shift&~7);
-			if((bits8&(bitMask|(bitMask<<gcBits))) != (bitBoundary|(bitBoundary<<gcBits)) ||
+			if((xbits&(bitMask|(bitMask<<gcBits))) != (bitBoundary|(bitBoundary<<gcBits)) ||
 				work.nproc == 1)
-				((uint8*)bitp)[shift/8] = bits8 | (bitMarked<<(shift&7));
-			else {
-				for(;;) {
-					if(runtime·casp((void**)bitp, (void*)xbits, (void*)(xbits|(bitMarked<<shift))))
-						break;
-					xbits = *bitp;
-					bits = (xbits>>shift) & bitMask;
-					if((bits&bitMarked) != 0)
-						break;
-				}
-				if((bits&bitMarked) != 0)
-					continue;
-			}
+				*bitp = xbits | (bitMarked<<shift);
+			else
+				runtime·atomicor8(bitp, bitMarked<<shift);
+
 			if(((xbits>>(shift+2))&BitsMask) == BitsDead)
 				continue;  // noscan object
 
@@ -901,9 +894,9 @@ bool
 runtime·MSpan_Sweep(MSpan *s, bool preserve)
 {
 	int32 cl, n, npages, nfree;
-	uintptr size, off, *bitp, shift, xbits, bits;
+	uintptr size, off, step;
 	uint32 sweepgen;
-	byte *p;
+	byte *p, *bitp, shift, xbits, bits;
 	MCache *c;
 	byte *arena_start;
 	MLink head, *end, *link;
@@ -939,8 +932,8 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
 	// Mark any free objects in this span so we don't collect them.
 	for(link = s->freelist; link != nil; link = link->next) {
 		off = (uintptr*)link - (uintptr*)arena_start;
-		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = (off % wordsPerBitmapWord) * gcBits;
+		bitp = arena_start - off/wordsPerBitmapByte - 1;
+		shift = (off % wordsPerBitmapByte) * gcBits;
 		*bitp |= bitMarked<<shift;
 	}
 
@@ -951,8 +944,8 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
 		// A finalizer can be set for an inner byte of an object, find object beginning.
 		p = (byte*)(s->start << PageShift) + special->offset/size*size;
 		off = (uintptr*)p - (uintptr*)arena_start;
-		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = (off % wordsPerBitmapWord) * gcBits;
+		bitp = arena_start - off/wordsPerBitmapByte - 1;
+		shift = (off % wordsPerBitmapByte) * gcBits;
 		bits = (*bitp>>shift) & bitMask;
 		if((bits&bitMarked) == 0) {
 			// Find the exact byte for which the special was setup
@@ -977,10 +970,27 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
 	// This thread owns the span now, so it can manipulate
 	// the block bitmap without atomic operations.
 	p = (byte*)(s->start << PageShift);
+	// Find bits for the beginning of the span.
+	off = (uintptr*)p - (uintptr*)arena_start;
+	bitp = arena_start - off/wordsPerBitmapByte - 1;
+	shift = 0;
+	step = size/(PtrSize*wordsPerBitmapByte);
+	// Rewind to the previous quadruple as we move to the next
+	// in the beginning of the loop.
+	bitp += step;
+	if(step == 0) {
+		// 8-byte objects.
+		bitp++;
+		shift = gcBits;
+	}
 	for(; n > 0; n--, p += size) {
-		off = (uintptr*)p - (uintptr*)arena_start;
-		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = (off % wordsPerBitmapWord) * gcBits;
+		bitp -= step;
+		if(step == 0) {
+			if(shift != 0)
+				bitp--;
+			shift = gcBits - shift;
+		}
+
 		xbits = *bitp;
 		bits = (xbits>>shift) & bitMask;
 
@@ -1759,8 +1769,8 @@ runtime·wakefing(void)
 static byte*
 unrollgcprog1(byte *mask, byte *prog, uintptr *ppos, bool inplace, bool sparse)
 {
-	uintptr *b, off, shift, pos, siz, i;
-	byte *arena_start, *prog1, v;
+	uintptr pos, siz, i, off;
+	byte *arena_start, *prog1, v, *bitp, shift;
 
 	arena_start = runtime·mheap.arena_start;
 	pos = *ppos;
@@ -1777,11 +1787,11 @@ unrollgcprog1(byte *mask, byte *prog, uintptr *ppos, bool inplace, bool sparse)
 				if(inplace) {
 					// Store directly into GC bitmap.
 					off = (uintptr*)(mask+pos) - (uintptr*)arena_start;
-					b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-					shift = (off % wordsPerBitmapWord) * gcBits;
-					if((shift%8)==0)
-						((byte*)b)[shift/8] = 0;
-					((byte*)b)[shift/8] |= v<<((shift%8)+2);
+					bitp = arena_start - off/wordsPerBitmapByte - 1;
+					shift = (off % wordsPerBitmapByte) * gcBits;
+					if(shift==0)
+						*bitp = 0;
+					*bitp |= v<<(shift+2);
 					pos += PtrSize;
 				} else if(sparse) {
 					// 4-bits per word
@@ -1847,8 +1857,8 @@ unrollglobgcprog(byte *prog, uintptr size)
 void
 runtime·unrollgcproginplace_m(void)
 {
-	uintptr size, size0, *b, off, shift, pos;
-	byte *arena_start, *prog;
+	uintptr size, size0, pos, off;
+	byte *arena_start, *prog, *bitp, shift;
 	Type *typ;
 	void *v;
 
@@ -1866,15 +1876,15 @@ runtime·unrollgcproginplace_m(void)
 	// Mark first word as bitAllocated.
 	arena_start = runtime·mheap.arena_start;
 	off = (uintptr*)v - (uintptr*)arena_start;
-	b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-	shift = (off % wordsPerBitmapWord) * gcBits;
-	*b |= bitBoundary<<shift;
+	bitp = arena_start - off/wordsPerBitmapByte - 1;
+	shift = (off % wordsPerBitmapByte) * gcBits;
+	*bitp |= bitBoundary<<shift;
 	// Mark word after last as BitsDead.
 	if(size0 < size) {
 		off = (uintptr*)((byte*)v + size0) - (uintptr*)arena_start;
-		b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-		shift = (off % wordsPerBitmapWord) * gcBits;
-		*b &= ~(bitPtrMask<<shift) | ((uintptr)BitsDead<<(shift+2));
+		bitp = arena_start - off/wordsPerBitmapByte - 1;
+		shift = (off % wordsPerBitmapByte) * gcBits;
+		*bitp &= ~(bitPtrMask<<shift) | ((uintptr)BitsDead<<(shift+2));
 	}
 }
 
@@ -1916,60 +1926,67 @@ runtime·unrollgcprog_m(void)
 void
 runtime·markspan(void *v, uintptr size, uintptr n, bool leftover)
 {
-	uintptr *b, *b0, off, shift, x;
-	byte *p;
+	uintptr i, off, step;
+	byte *b;
 
 	if((byte*)v+size*n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		runtime·throw("markspan: bad pointer");
 
-	p = v;
-	if(leftover)	// mark a boundary just past end of last block too
-		n++;
+	// Find bits of the beginning of the span.
+	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
+	b = runtime·mheap.arena_start - off/wordsPerBitmapByte - 1;
+	if((off%wordsPerBitmapByte) != 0)
+		runtime·throw("markspan: unaligned length");
 
-	b0 = nil;
-	x = 0;
-	for(; n-- > 0; p += size) {
-		// Okay to use non-atomic ops here, because we control
-		// the entire span, and each bitmap word has bits for only
-		// one span, so no other goroutines are changing these
-		// bitmap words.
-		off = (uintptr*)p - (uintptr*)runtime·mheap.arena_start;  // word offset
-		b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-		shift = (off % wordsPerBitmapWord) * gcBits;
-		if(b0 != b) {
-			if(b0 != nil)
-				*b0 = x;
-			b0 = b;
-			x = 0;
-		}
-		x |= (bitBoundary<<shift) | ((uintptr)BitsDead<<(shift+2));
+	// Okay to use non-atomic ops here, because we control
+	// the entire span, and each bitmap byte has bits for only
+	// one span, so no other goroutines are changing these bitmap words.
+
+	if(size == PtrSize) {
+		// Possible only on 64-bits (minimal size class is 8 bytes).
+		// Poor man's memset(0x11).
+		if(0x11 != ((bitBoundary+BitsDead)<<gcBits) + (bitBoundary+BitsDead))
+			runtime·throw("markspan: bad bits");
+		if((n%(wordsPerBitmapByte*PtrSize)) != 0)
+			runtime·throw("markspan: unaligned length");
+		b = b - n/wordsPerBitmapByte + 1;	// find first byte
+		if(((uintptr)b%PtrSize) != 0)
+			runtime·throw("markspan: unaligned pointer");
+		for(i = 0; i != n; i += wordsPerBitmapByte*PtrSize, b += PtrSize)
+			*(uintptr*)b = (uintptr)0x1111111111111111ULL;  // bitBoundary+BitsDead
+		return;
 	}
-	*b0 = x;
+
+	if(leftover)
+		n++;	// mark a boundary just past end of last block too
+	step = size/(PtrSize*wordsPerBitmapByte);
+	for(i = 0; i != n; i++, b -= step)
+		*b = bitBoundary|(BitsDead<<2);
 }
 
 // unmark the span of memory at v of length n bytes.
 void
 runtime·unmarkspan(void *v, uintptr n)
 {
-	uintptr *p, *b, off;
+	uintptr off;
+	byte *b;
 
 	if((byte*)v+n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
 		runtime·throw("markspan: bad pointer");
 
-	p = v;
-	off = p - (uintptr*)runtime·mheap.arena_start;  // word offset
-	if((off % wordsPerBitmapWord) != 0)
+	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
+	if((off % (PtrSize*wordsPerBitmapByte)) != 0)
 		runtime·throw("markspan: unaligned pointer");
-	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+	b = runtime·mheap.arena_start - off/wordsPerBitmapByte - 1;
 	n /= PtrSize;
-	if(n%wordsPerBitmapWord != 0)
+	if(n%(PtrSize*wordsPerBitmapByte) != 0)
 		runtime·throw("unmarkspan: unaligned length");
 	// Okay to use non-atomic ops here, because we control
 	// the entire span, and each bitmap word has bits for only
 	// one span, so no other goroutines are changing these
 	// bitmap words.
-	n /= wordsPerBitmapWord;
-	runtime·memclr((byte*)(b - n + 1), n*PtrSize);
+	n /= wordsPerBitmapByte;
+	runtime·memclr(b - n + 1, n);
 }
 
 void
@@ -1983,7 +2000,7 @@ runtime·MHeap_MapBits(MHeap *h)
 	};
 	uintptr n;
 
-	n = (h->arena_used - h->arena_start) / wordsPerBitmapWord;
+	n = (h->arena_used - h->arena_start) / (PtrSize*wordsPerBitmapByte);
 	n = ROUND(n, bitmapChunk);
 	n = ROUND(n, PhysPageSize);
 	if(h->bitmap_mapped >= n)
@@ -2011,8 +2028,8 @@ void
 runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 {
 	Stkframe frame;
-	uintptr i, n, off, bits, shift, *b;
-	byte *base;
+	uintptr i, n, off;
+	byte *base, bits, shift, *b;
 
 	*mask = nil;
 	*len = 0;
@@ -2047,8 +2064,8 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*mask = runtime·mallocgc(*len, nil, 0);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (uintptr*)(base+i) - (uintptr*)runtime·mheap.arena_start;
-			b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-			shift = (off % wordsPerBitmapWord) * gcBits;
+			b = runtime·mheap.arena_start - off/wordsPerBitmapByte - 1;
+			shift = (off % wordsPerBitmapByte) * gcBits;
 			bits = (*b >> (shift+2))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}

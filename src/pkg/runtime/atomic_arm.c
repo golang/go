@@ -167,3 +167,19 @@ runtime·atomicstore64(uint64 volatile *addr, uint64 v)
 	*addr = v;
 	runtime·unlock(LOCK(addr));
 }
+
+#pragma textflag NOSPLIT
+void
+runtime·atomicor8(byte volatile *addr, byte v)
+{
+	uint32 *addr32, old, word, shift;
+
+	// Align down to 4 bytes and use 32-bit CAS.
+	addr32 = (uint32*)((uintptr)addr & ~3);
+	word = ((uint32)v) << (((uintptr)addr & 3) * 8);
+	for(;;) {
+		old = *addr32;
+		if(runtime·cas(addr32, old, old|word))
+			break;
+	}
+}
