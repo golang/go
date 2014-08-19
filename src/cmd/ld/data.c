@@ -281,9 +281,13 @@ relocsym(LSym *s)
 					if(thechar == '6')
 						o = 0;
 				} else if(HEADTYPE == Hdarwin) {
-					if(rs->type != SHOSTOBJ)
-						o += symaddr(rs) - rs->sect->vaddr;
-					o -= r->off; // WTF?
+					if(r->type == R_CALL) {
+						if(rs->type != SHOSTOBJ)
+							o += symaddr(rs) - rs->sect->vaddr;
+						o -= r->off; // relative to section offset, not symbol
+					} else {
+						o += r->siz;
+					}
 				} else {
 					diag("unhandled pcrel relocation for %s", headstring);
 				}
