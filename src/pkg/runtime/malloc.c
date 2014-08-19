@@ -21,7 +21,10 @@ MHeap runtime·mheap;
 #pragma dataflag NOPTR
 MStats runtime·memstats;
 
+static Type* notype;
+
 void runtime·cmallocgc(uintptr size, Type *typ, uint32 flag, void **ret);
+void runtime·gc_notype_ptr(Eface*);
 
 void*
 runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
@@ -31,6 +34,8 @@ runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
 	// Call into the Go version of mallocgc.
 	// TODO: maybe someday we can get rid of this.  It is
 	// probably the only location where we run Go code on the M stack.
+	if((flag&FlagNoScan) == 0 && typ == nil)
+		typ = notype;
 	runtime·cmallocgc(size, typ, flag, &ret);
 	return ret;
 }
@@ -124,6 +129,7 @@ runtime·mallocinit(void)
 	uintptr limit;
 	uint64 i;
 	bool reserved;
+	Eface notype_eface;
 
 	p = nil;
 	p_size = 0;
@@ -251,6 +257,9 @@ runtime·mallocinit(void)
 	// Initialize the rest of the allocator.	
 	runtime·MHeap_Init(&runtime·mheap);
 	g->m->mcache = runtime·allocmcache();
+
+	runtime·gc_notype_ptr(&notype_eface);
+	notype = notype_eface.type;
 }
 
 void*

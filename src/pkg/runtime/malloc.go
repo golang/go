@@ -225,66 +225,56 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			*xbits |= (bitsPointer << 2) << shift
 			goto marked
 		}
-		if typ != nil && (uintptr(typ.gc[0])|uintptr(typ.gc[1])) != 0 && uintptr(typ.size) > ptrSize {
-			if typ.kind&kindGCProg != 0 {
-				nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
-				masksize := nptr
-				if masksize%2 != 0 {
-					masksize *= 2 // repeated
-				}
-				masksize = masksize * pointersPerByte / 8 // 4 bits per word
-				masksize++                                // unroll flag in the beginning
-				if masksize > maxGCMask && typ.gc[1] != 0 {
-					// If the mask is too large, unroll the program directly
-					// into the GC bitmap. It's 7 times slower than copying
-					// from the pre-unrolled mask, but saves 1/16 of type size
-					// memory for the mask.
-					mp := acquirem()
-					mp.ptrarg[0] = x
-					mp.ptrarg[1] = unsafe.Pointer(typ)
-					mp.scalararg[0] = uint(size)
-					mp.scalararg[1] = uint(size0)
-					onM(&unrollgcproginplace_m)
-					releasem(mp)
-					goto marked
-				}
-				ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
-				// Check whether the program is already unrolled.
-				if uintptr(goatomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
-					mp := acquirem()
-					mp.ptrarg[0] = unsafe.Pointer(typ)
-					onM(&unrollgcprog_m)
-					releasem(mp)
-				}
-				ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
-			} else {
-				ptrmask = (*uint8)(unsafe.Pointer(&typ.gc[0])) // embed mask
+		if typ.kind&kindGCProg != 0 {
+			nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
+			masksize := nptr
+			if masksize%2 != 0 {
+				masksize *= 2 // repeated
 			}
-			if size == 2*ptrSize {
-				xbitsb := (*uint8)(add(unsafe.Pointer(xbits), shift/8))
-				*xbitsb = *ptrmask | bitBoundary
+			masksize = masksize * pointersPerByte / 8 // 4 bits per word
+			masksize++                                // unroll flag in the beginning
+			if masksize > maxGCMask && typ.gc[1] != 0 {
+				// If the mask is too large, unroll the program directly
+				// into the GC bitmap. It's 7 times slower than copying
+				// from the pre-unrolled mask, but saves 1/16 of type size
+				// memory for the mask.
+				mp := acquirem()
+				mp.ptrarg[0] = x
+				mp.ptrarg[1] = unsafe.Pointer(typ)
+				mp.scalararg[0] = uint(size)
+				mp.scalararg[1] = uint(size0)
+				onM(&unrollgcproginplace_m)
+				releasem(mp)
 				goto marked
 			}
-			te = uintptr(typ.size) / ptrSize
-			// If the type occupies odd number of words, its mask is repeated.
-			if te%2 == 0 {
-				te /= 2
+			ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
+			// Check whether the program is already unrolled.
+			if uintptr(goatomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
+				mp := acquirem()
+				mp.ptrarg[0] = unsafe.Pointer(typ)
+				onM(&unrollgcprog_m)
+				releasem(mp)
 			}
+			ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
+		} else {
+			ptrmask = (*uint8)(unsafe.Pointer(&typ.gc[0])) // embed mask
 		}
 		if size == 2*ptrSize {
 			xbitsb := (*uint8)(add(unsafe.Pointer(xbits), shift/8))
-			*xbitsb = (bitsPointer << 2) | (bitsPointer << 6) | bitBoundary
+			*xbitsb = *ptrmask | bitBoundary
 			goto marked
+		}
+		te = uintptr(typ.size) / ptrSize
+		// If the type occupies odd number of words, its mask is repeated.
+		if te%2 == 0 {
+			te /= 2
 		}
 		// Copy pointer bitmask into the bitmap.
 		for i := uintptr(0); i < size0; i += 2 * ptrSize {
-			v := uint8((bitsPointer << 2) | (bitsPointer << 6))
-			if ptrmask != nil {
-				v = *(*uint8)(add(unsafe.Pointer(ptrmask), ti))
-				ti++
-				if ti == te {
-					ti = 0
-				}
+			v := *(*uint8)(add(unsafe.Pointer(ptrmask), ti))
+			ti++
+			if ti == te {
+				ti = 0
 			}
 			if i == 0 {
 				v |= bitBoundary
