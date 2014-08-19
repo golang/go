@@ -23,7 +23,7 @@ func init() {
 
 const (
 	learnPercentile       = 0.95
-	learnSignalMultiplier = 1.2
+	learnSignalMultiplier = 1.1
 	learnMinSignal        = 0.5
 )
 
