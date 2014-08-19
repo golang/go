@@ -68,7 +68,8 @@ var (
 	setFinalizer_m,
 	markallocated_m,
 	unrollgcprog_m,
-	unrollgcproginplace_m mFunction
+	unrollgcproginplace_m,
+	gosched_m mFunction
 )
 
 // memclr clears n bytes starting at ptr.

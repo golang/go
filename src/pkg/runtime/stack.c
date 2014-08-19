@@ -903,7 +903,7 @@ runtime·newstack(void)
 		}
 		// Act like goroutine called runtime.Gosched.
 		gp->status = oldstatus;
-		runtime·gosched0(gp);	// never return
+		runtime·gosched_m(gp);	// never return
 	}
 
 	// If every frame on the top segment is copyable, allocate a bigger segment
