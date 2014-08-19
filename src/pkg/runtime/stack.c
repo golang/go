@@ -585,7 +585,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 				break;
 			case BitsEface:
 				t = (Type*)scanp[i];
-				if(t != nil && (t->size > PtrSize || (t->kind & KindNoPointers) == 0)) {
+				if(t != nil && ((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0)) {
 					p = scanp[i+1];
 					if(minp <= p && p < maxp) {
 						if(StackDebug >= 3)
@@ -602,7 +602,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 				if(tab != nil) {
 					t = tab->type;
 					//runtime·printf("          type=%p\n", t);
-					if(t->size > PtrSize || (t->kind & KindNoPointers) == 0) {
+					if((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0) {
 						p = scanp[i+1];
 						if(minp <= p && p < maxp) {
 							if(StackDebug >= 3)

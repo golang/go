@@ -117,7 +117,7 @@ func interhash(a *iface, s, h uintptr) uintptr {
 		// but we can print a better error.
 		panic(errorString("hash of unhashable type " + *t._string))
 	}
-	if uintptr(t.size) <= ptrSize {
+	if isDirectIface(t) {
 		return c1 * fn(unsafe.Pointer(&a.data), uintptr(t.size), h^c0)
 	} else {
 		return c1 * fn(a.data, uintptr(t.size), h^c0)
@@ -135,7 +135,7 @@ func nilinterhash(a *eface, s, h uintptr) uintptr {
 		// but we can print a better error.
 		panic(errorString("hash of unhashable type " + *t._string))
 	}
-	if uintptr(t.size) <= ptrSize {
+	if isDirectIface(t) {
 		return c1 * fn(unsafe.Pointer(&a.data), uintptr(t.size), h^c0)
 	} else {
 		return c1 * fn(a.data, uintptr(t.size), h^c0)
@@ -208,7 +208,7 @@ func efaceeq(p, q interface{}) bool {
 		// but we can print a better error.
 		panic(errorString("comparing uncomparable type " + *t._string))
 	}
-	if uintptr(t.size) <= ptrSize {
+	if isDirectIface(t) {
 		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)), uintptr(t.size))
 	}
 	return eq(x.data, y.data, uintptr(t.size))
@@ -232,7 +232,7 @@ func ifaceeq(p, q interface {
 		// but we can print a better error.
 		panic(errorString("comparing uncomparable type " + *t._string))
 	}
-	if uintptr(t.size) <= ptrSize {
+	if isDirectIface(t) {
 		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)), uintptr(t.size))
 	}
 	return eq(x.data, y.data, uintptr(t.size))

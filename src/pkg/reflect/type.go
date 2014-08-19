@@ -383,12 +383,11 @@ type Method struct {
 	Index int   // index for Type.Method
 }
 
-// High bit says whether type has
-// embedded pointers,to help garbage collector.
 const (
-	kindMask       = 0x3f
-	kindGCProg     = 0x40
-	kindNoPointers = 0x80
+	kindDirectIface = 1 << 5
+	kindGCProg      = 1 << 6 // Type.gc points to GC program
+	kindNoPointers  = 1 << 7
+	kindMask        = (1 << 5) - 1
 )
 
 func (k Kind) String() string {
@@ -1503,6 +1502,7 @@ func (gc *gcProg) appendProg(t *rtype) {
 	var prog []byte
 	if t.kind&kindGCProg != 0 {
 		// Ensure that the runtime has unrolled GC program.
+		// TODO(rsc): Do not allocate.
 		unsafe_New(t)
 		// The program is stored in t.gc[0], skip unroll flag.
 		prog = (*[1 << 30]byte)(unsafe.Pointer(t.gc[0]))[1:]
@@ -1652,6 +1652,8 @@ func SliceOf(t Type) Type {
 //
 // TODO(rsc): Unexported for now. Export once the alg field is set correctly
 // for the type. This may require significant work.
+//
+// TODO(rsc): TestArrayOf is also disabled. Re-enable.
 func arrayOf(count int, elem Type) Type {
 	typ := elem.(*rtype)
 	slice := SliceOf(elem)
@@ -1676,6 +1678,7 @@ func arrayOf(count int, elem Type) Type {
 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
 	array := new(arrayType)
 	*array = *prototype
+	// TODO: Set extra kind bits correctly.
 	array.string = &s
 	array.hash = fnv1(typ.hash, '[')
 	for n := uint32(count); n > 0; n >>= 8 {
@@ -1692,6 +1695,7 @@ func arrayOf(count int, elem Type) Type {
 	array.fieldAlign = typ.fieldAlign
 	// TODO: array.alg
 	// TODO: array.gc
+	// TODO:
 	array.uncommonType = nil
 	array.ptrToThis = nil
 	array.zero = unsafe.Pointer(&make([]byte, array.size)[0])
@@ -1763,7 +1767,7 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 		// Reflect uses the "interface" calling convention for
 		// methods, where receivers take one word of argument
 		// space no matter how big they actually are.
-		if rcvr.size > ptrSize {
+		if !isDirectIface(rcvr) {
 			// we pass a pointer to the receiver.
 			gc.append(bitsPointer)
 		} else if rcvr.pointers() {
@@ -1812,4 +1816,9 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	}
 	layoutCache.Unlock()
 	return x, argSize, retOffset
+}
+
+// isDirectIface reports whether t is stored directly in an interface value.
+func isDirectIface(t *rtype) bool {
+	return t.kind&kindDirectIface != 0
 }

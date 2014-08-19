@@ -3213,6 +3213,9 @@ func checkSameType(t *testing.T, x, y interface{}) {
 }
 
 func TestArrayOf(t *testing.T) {
+	// TODO(rsc): Finish ArrayOf and enable-test.
+	t.Skip("ArrayOf is not finished (and not exported)")
+
 	// check construction and use of type not in binary
 	type T int
 	at := ArrayOf(10, TypeOf(T(1)))
