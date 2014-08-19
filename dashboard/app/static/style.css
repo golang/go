@@ -186,7 +186,7 @@ table thead tr {
   font-size: 83%;
 }
 
-.build .desc, .build .date, .build .user {
+.build .desc, .build .time, .build .user {
   white-space: nowrap;
 }
  
@@ -205,7 +205,6 @@ table thead tr {
 /* pagination */
  
 .paginate nav {
-  text-align: center;
   padding: 0.5em;
   margin: 10px 0;
 }
