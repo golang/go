@@ -476,6 +476,9 @@ copyabletopsegment(G *gp)
 	if(StackDebug >= 1 && cinfo.frames != -1)
 		runtime·printf("copystack: %d copyable frames\n", cinfo.frames);
 
+	if(cinfo.frames == -1)
+		return -1;
+
 	// Check to make sure all Defers are copyable
 	for(d = gp->defer; d != nil; d = d->link) {
 		if(cinfo.stk <= (byte*)d && (byte*)d < cinfo.base) {
@@ -490,8 +493,11 @@ copyabletopsegment(G *gp)
 		if(fn == nil) // See issue 8047
 			continue;
 		f = runtime·findfunc((uintptr)fn->fn);
-		if(f == nil)
+		if(f == nil) {
+			if(StackDebug >= 1)
+				runtime·printf("copystack: no func for deferred pc %p\n", fn->fn);
 			return -1;
+		}
 
 		// Check to make sure we have an args pointer map for the defer's args.
 		// We only need the args map, but we check
@@ -499,11 +505,17 @@ copyabletopsegment(G *gp)
 		// isn't provided it means the ptr map came from C and
 		// C (particularly, cgo) lies to us.  See issue 7695.
 		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
-		if(stackmap == nil || stackmap->n <= 0)
+		if(stackmap == nil || stackmap->n <= 0) {
+			if(StackDebug >= 1)
+				runtime·printf("copystack: no arg info for deferred %s\n", runtime·funcname(f));
 			return -1;
+		}
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
-		if(stackmap == nil || stackmap->n <= 0)
+		if(stackmap == nil || stackmap->n <= 0) {
+			if(StackDebug >= 1)
+				runtime·printf("copystack: no local info for deferred %s\n", runtime·funcname(f));
 			return -1;
+		}
 
 		if(cinfo.stk <= (byte*)fn && (byte*)fn < cinfo.base) {
 			// FuncVal is on the stack.  Again, its copyableness
