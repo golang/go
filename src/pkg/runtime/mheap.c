@@ -17,7 +17,7 @@
 #include "malloc.h"
 
 static MSpan *MHeap_AllocSpanLocked(MHeap*, uintptr);
-static void MHeap_FreeSpanLocked(MHeap*, MSpan*);
+static void MHeap_FreeSpanLocked(MHeap*, MSpan*, bool, bool);
 static bool MHeap_Grow(MHeap*, uintptr);
 static MSpan *MHeap_AllocLarge(MHeap*, uintptr);
 static MSpan *BestFit(MSpan*, uintptr, MSpan*);
@@ -326,7 +326,7 @@ HaveSpan:
 		t->needzero = s->needzero;
 		s->state = MSpanStack; // prevent coalescing with s
 		t->state = MSpanStack;
-		MHeap_FreeSpanLocked(h, t);
+		MHeap_FreeSpanLocked(h, t, false, false);
 		t->unusedsince = s->unusedsince; // preserve age (TODO: wrong: t is possibly merged and/or deallocated at this point)
 		s->state = MSpanFree;
 	}
@@ -413,7 +413,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	h->spans[p + s->npages - 1] = s;
 	runtime·atomicstore(&s->sweepgen, h->sweepgen);
 	s->state = MSpanInUse;
-	MHeap_FreeSpanLocked(h, s);
+	MHeap_FreeSpanLocked(h, s, false, true);
 	return true;
 }
 
@@ -467,7 +467,7 @@ mheap_free(MHeap *h, MSpan *s, int32 acct)
 		mstats.heap_alloc -= s->npages<<PageShift;
 		mstats.heap_objects--;
 	}
-	MHeap_FreeSpanLocked(h, s);
+	MHeap_FreeSpanLocked(h, s, true, true);
 	runtime·unlock(&h->lock);
 }
 
@@ -506,12 +506,12 @@ runtime·MHeap_FreeStack(MHeap *h, MSpan *s)
 	s->needzero = 1;
 	runtime·lock(&h->lock);
 	mstats.stacks_inuse -= s->npages<<PageShift;
-	MHeap_FreeSpanLocked(h, s);
+	MHeap_FreeSpanLocked(h, s, true, true);
 	runtime·unlock(&h->lock);
 }
 
 static void
-MHeap_FreeSpanLocked(MHeap *h, MSpan *s)
+MHeap_FreeSpanLocked(MHeap *h, MSpan *s, bool acctinuse, bool acctidle)
 {
 	MSpan *t;
 	PageID p;
@@ -532,8 +532,10 @@ MHeap_FreeSpanLocked(MHeap *h, MSpan *s)
 		runtime·throw("MHeap_FreeSpanLocked - invalid span state");
 		break;
 	}
-	mstats.heap_inuse -= s->npages<<PageShift;
-	mstats.heap_idle += s->npages<<PageShift;
+	if(acctinuse)
+		mstats.heap_inuse -= s->npages<<PageShift;
+	if(acctidle)
+		mstats.heap_idle += s->npages<<PageShift;
 	s->state = MSpanFree;
 	runtime·MSpanList_Remove(s);
 	// Stamp newly unused spans. The scavenger will use that
@@ -606,6 +608,7 @@ scavenge(int32 k, uint64 now, uint64 limit)
 {
 	uint32 i;
 	uintptr sumreleased;
+	MStats stats;
 	MHeap *h;
 	
 	h = &runtime·mheap;
@@ -615,11 +618,12 @@ scavenge(int32 k, uint64 now, uint64 limit)
 	sumreleased += scavengelist(&h->freelarge, now, limit);
 
 	if(runtime·debug.gctrace > 0) {
+		runtime·ReadMemStats(&stats);
 		if(sumreleased > 0)
 			runtime·printf("scvg%d: %D MB released\n", k, (uint64)sumreleased>>20);
 		runtime·printf("scvg%d: inuse: %D, idle: %D, sys: %D, released: %D, consumed: %D (MB)\n",
-			k, mstats.heap_inuse>>20, mstats.heap_idle>>20, mstats.heap_sys>>20,
-			mstats.heap_released>>20, (mstats.heap_sys - mstats.heap_released)>>20);
+			k, stats.heap_inuse>>20, stats.heap_idle>>20, stats.heap_sys>>20,
+			stats.heap_released>>20, (stats.heap_sys - stats.heap_released)>>20);
 	}
 }
 

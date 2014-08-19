@@ -283,6 +283,7 @@ struct MStats
 #define mstats runtime·memstats
 extern MStats mstats;
 void	runtime·updatememstats(GCStats *stats);
+void	runtime·ReadMemStats(MStats *stats);
 
 // Size classes.  Computed and initialized by InitSizes.
 //
