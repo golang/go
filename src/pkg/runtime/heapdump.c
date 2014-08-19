@@ -820,7 +820,8 @@ dumpbvtypes(BitVector *bv, byte *base)
 static BitVector
 makeheapobjbv(byte *p, uintptr size)
 {
-	uintptr off, shift, *bitp, bits, nptr, i;
+	uintptr off, nptr, i;
+	byte shift, *bitp, bits;
 	bool mw;
 
 	// Extend the temp buffer if necessary.
@@ -838,13 +839,13 @@ makeheapobjbv(byte *p, uintptr size)
 	mw = false;
 	for(i = 0; i < nptr; i++) {
 		off = (uintptr*)(p + i*PtrSize) - (uintptr*)runtime·mheap.arena_start;
-		bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-		shift = (off % wordsPerBitmapWord) * gcBits;
-		bits = (*bitp >> (shift + 2)) & 3;
+		bitp = runtime·mheap.arena_start - off/wordsPerBitmapByte - 1;
+		shift = (off % wordsPerBitmapByte) * gcBits;
+		bits = (*bitp >> (shift + 2)) & BitsMask;
 		if(!mw && bits == BitsDead)
 			break;  // end of heap object
 		mw = !mw && bits == BitsMultiWord;
-		tmpbuf[i*BitsPerPointer/8] &= ~(3<<((i*BitsPerPointer)%8));
+		tmpbuf[i*BitsPerPointer/8] &= ~(BitsMask<<((i*BitsPerPointer)%8));
 		tmpbuf[i*BitsPerPointer/8] |= bits<<((i*BitsPerPointer)%8);
 	}
 	return (BitVector){i*BitsPerPointer, (uint32*)tmpbuf};

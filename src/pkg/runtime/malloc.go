@@ -22,8 +22,8 @@ const (
 	pageSize  = 1 << pageShift
 	pageMask  = pageSize - 1
 
-	wordsPerBitmapWord = ptrSize * 8 / 4
 	gcBits             = 4
+	wordsPerBitmapByte = 8 / gcBits
 	bitsPerPointer     = 2
 	bitsMask           = 1<<bitsPerPointer - 1
 	pointersPerByte    = 8 / bitsPerPointer
@@ -211,8 +211,8 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 	{
 		arena_start := uintptr(unsafe.Pointer(mheap_.arena_start))
 		off := (uintptr(x) - arena_start) / ptrSize
-		xbits := (*uintptr)(unsafe.Pointer(arena_start - off/wordsPerBitmapWord*ptrSize - ptrSize))
-		shift := (off % wordsPerBitmapWord) * gcBits
+		xbits := (*uint8)(unsafe.Pointer(arena_start - off/wordsPerBitmapByte - 1))
+		shift := (off % wordsPerBitmapByte) * gcBits
 		if debugMalloc && ((*xbits>>shift)&(bitMask|bitPtrMask)) != bitBoundary {
 			println("runtime: bits =", (*xbits>>shift)&(bitMask|bitPtrMask))
 			gothrow("bad bits in markallocated")
@@ -260,8 +260,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			ptrmask = (*uint8)(unsafe.Pointer(&typ.gc[0])) // embed mask
 		}
 		if size == 2*ptrSize {
-			xbitsb := (*uint8)(add(unsafe.Pointer(xbits), shift/8))
-			*xbitsb = *ptrmask | bitBoundary
+			*xbits = *ptrmask | bitBoundary
 			goto marked
 		}
 		te = uintptr(typ.size) / ptrSize
@@ -283,19 +282,12 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 				v &^= uint8(bitPtrMask << 4)
 			}
 
-			off := (uintptr(x) + i - arena_start) / ptrSize
-			xbits := (*uintptr)(unsafe.Pointer(arena_start - off/wordsPerBitmapWord*ptrSize - ptrSize))
-			shift := (off % wordsPerBitmapWord) * gcBits
-			xbitsb := (*uint8)(add(unsafe.Pointer(xbits), shift/8))
-			*xbitsb = v
+			*xbits = v
+			xbits = (*byte)(add(unsafe.Pointer(xbits), ^uintptr(0)))
 		}
 		if size0%(2*ptrSize) == 0 && size0 < size {
 			// Mark the word after last object's word as bitsDead.
-			off := (uintptr(x) + size0 - arena_start) / ptrSize
-			xbits := (*uintptr)(unsafe.Pointer(arena_start - off/wordsPerBitmapWord*ptrSize - ptrSize))
-			shift := (off % wordsPerBitmapWord) * gcBits
-			xbitsb := (*uint8)(add(unsafe.Pointer(xbits), shift/8))
-			*xbitsb = bitsDead << 2
+			*xbits = bitsDead << 2
 		}
 	}
 marked:

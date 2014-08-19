@@ -913,6 +913,7 @@ void	runtime·atomicstore64(uint64 volatile*, uint64);
 uint64	runtime·atomicload64(uint64 volatile*);
 void*	runtime·atomicloadp(void* volatile*);
 void	runtime·atomicstorep(void* volatile*, void*);
+void	runtime·atomicor8(byte volatile*, byte);
 
 void	runtime·setg(G*);
 void	runtime·newextram(void);

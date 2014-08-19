@@ -8,8 +8,8 @@ enum {
 	ScanStackByFrames = 1,
 
 	// Four bits per word (see #defines below).
-	wordsPerBitmapWord = sizeof(void*)*8/4,
 	gcBits = 4,
+	wordsPerBitmapByte = 8/gcBits,
 
 	// GC type info programs.
 	// The programs allow to store type info required for GC in a compact form.
