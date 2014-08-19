@@ -844,7 +844,7 @@ prop(Reg *r, Bits ref, Bits cal)
 					if(v == v1 || ((cal.b[j/32]>>(j&31))&1) == 0) {
 						for(; v1 != nil; v1 = v1->nextinnode) {
 							j = v1 - var;
-							cal.b[j/32] |= 1<<(j&31);
+							cal.b[j/32] |= 1UL<<(j&31);
 						}
 					}
 				}
