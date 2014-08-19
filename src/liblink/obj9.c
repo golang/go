@@ -617,6 +617,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			q->link = q1;
 			break;
 
+		case AADD:
+			if(p->to.type == D_REG && p->to.reg == REGSP && p->from.type == D_CONST)
+				p->spadj = -p->from.offset;
+			break;
 		}
 	}
 
