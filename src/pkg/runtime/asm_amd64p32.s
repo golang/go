@@ -660,6 +660,14 @@ TEXT runtime·atomicstore64(SB), NOSPLIT, $0-16
 	XCHGQ	AX, 0(BX)
 	RET
 
+// void	runtime·atomicor8(byte volatile*, byte);
+TEXT runtime·atomicor8(SB), NOSPLIT, $0-8
+	MOVL	ptr+0(FP), BX
+	MOVB	val+4(FP), AX
+	LOCK
+	ORB	AX, 0(BX)
+	RET
+
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller
