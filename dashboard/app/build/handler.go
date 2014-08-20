@@ -7,11 +7,13 @@
 package build
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"unicode/utf8"
@@ -58,9 +60,17 @@ func commitHandler(r *http.Request) (interface{}, error) {
 	}
 
 	// POST request
-	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(com); err != nil {
-		return nil, fmt.Errorf("decoding Body: %v", err)
+	body, err := ioutil.ReadAll(r.Body)
+	r.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("reading Body: %v", err)
+	}
+	if !bytes.Contains(body, needsBenchmarkingBytes) {
+		c.Warningf("old builder detected at %v", r.RemoteAddr)
+		return nil, fmt.Errorf("rejecting old builder request, body does not contain %s: %q", needsBenchmarkingBytes, body)
+	}
+	if err := json.Unmarshal(body, com); err != nil {
+		return nil, fmt.Errorf("unmarshaling body %q: %v", body, err)
 	}
 	com.Desc = limitStringLength(com.Desc, maxDatastoreStringLen)
 	if err := com.Valid(); err != nil {
@@ -72,6 +82,8 @@ func commitHandler(r *http.Request) (interface{}, error) {
 	}
 	return nil, datastore.RunInTransaction(c, tx, nil)
 }
+
+var needsBenchmarkingBytes = []byte(`"NeedsBenchmarking"`)
 
 // addCommit adds the Commit entity to the datastore and updates the tip Tag.
 // It must be run inside a datastore transaction.
