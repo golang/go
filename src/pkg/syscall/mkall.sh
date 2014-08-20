@@ -244,7 +244,7 @@ esac
 	case "$GOOS" in
 	windows)
 		echo "GOOS= GOARCH= go build mksyscall_windows.go"
-		echo "./mksyscall_windows syscall_windows.go security_windows.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"
+		echo "./mksyscall_windows syscall_windows.go security_windows.go |gofmt >zsyscall_windows.go"
 		echo "rm -f ./mksyscall_windows"
 		;;
 	*)
