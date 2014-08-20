@@ -172,7 +172,7 @@ runtime·atomicstore64(uint64 volatile *addr, uint64 v)
 void
 runtime·atomicor8(byte volatile *addr, byte v)
 {
-	uint32 *addr32, old, word, shift;
+	uint32 *addr32, old, word;
 
 	// Align down to 4 bytes and use 32-bit CAS.
 	addr32 = (uint32*)((uintptr)addr & ~3);
