@@ -237,10 +237,18 @@
 	{{/* DirList entries are numbers and strings - no need for FSet */}}
 	{{if $.PDoc}}
 		<h2 id="pkg-subdirectories">Subdirectories</h2>
-	{{else}}
-		<div class="pkgGopher">
-			<img class="gopher" src="/doc/gopher/pkg.png"/>
+	{{end}}
+	{{if eq $.Dirname "/src/pkg"}}
+		<div id="manual-nav">
+			<dl>
+				<dt><a href="#stdlib">Standard library</a></dt>
+				<dt><a href="#other">Other packages</a></dt>
+				<dd><a href="#subrepo">Sub-repositories</a></dd>
+				<dd><a href="#community">Community</a></dd>
+			</dl>
 		</div>
+		<h2 id="stdlib">Standard library</h2>
+		<img class="gopher" src="/doc/gopher/pkg.png"/>
 	{{end}}
 	<table class="dir">
 	<tr>
@@ -248,7 +256,7 @@
 	<th>&nbsp;&nbsp;&nbsp;&nbsp;</th>
 	<th style="text-align: left; width: auto">Synopsis</th>
 	</tr>
-	{{if not $.DirFlat}}
+	{{if not (or (eq $.Dirname "/src/pkg") (eq $.Dirname "/src/cmd") $.DirFlat)}}
 		<tr>
 		<td><a href="..">..</a></td>
 		</tr>
@@ -271,7 +279,34 @@
 		{{end}}
 	{{end}}
 	</table>
-	{{if $.PDoc}}{{else}}
-	<p>Need more packages? Check out the <a href="/wiki/SubRepositories">sub-repositories</a> and <a href="/wiki/Projects">other Go projects</a>.</p>
+
+	{{if eq $.Dirname "/src/pkg"}}
+	<h2 id="other">Other packages</h2>
+
+	<h3 id="subrepo">Sub-repositories</h3>
+	<p>
+	These packages are part of the Go Project but outside the main Go tree.
+	They are developed under looser <a href="/doc/go1compat">compatibility requirements</a> than the Go core.
+	Install them with "<a href="/cmd/go/#hdr-Download_and_install_packages_and_dependencies">go get</a>".
+	</p>
+	<ul>
+		<li><a href="//godoc.org/code.google.com/p/go.crypto">crypto</a> — additional cryptography packages.</li>
+		<li><a href="//godoc.org/code.google.com/p/go.image">image</a> — additional imaging packages.</li>
+		<li><a href="//godoc.org/code.google.com/p/go.net">net</a> — additional networking packages.</li>
+		<li><a href="//godoc.org/code.google.com/p/go.sys">sys</a> — packages for making system calls.</li>
+		<li><a href="//godoc.org/code.google.com/p/go.text">text</a> — packages for working with text.</li>
+		<li><a href="//godoc.org/code.google.com/p/go.tools">tools</a> — godoc, vet, cover, and other tools.</li>
+		<li><a href="//godoc.org/code.google.com/p/go.exp">exp</a> — experimental code (handle with care; may change without warning).</li>
+	</ul>
+
+	<h3 id="community">Community</h3>
+	<p>
+	These services can help you find Open Source packages provided by the community.
+	</p>
+	<ul>
+		<li><a href="//godoc.org">GoDoc</a> - a package index and search engine.</li>
+		<li><a href="http://go-search.org">Go Search</a> - a code search engine.</li>
+		<li><a href="/wiki/Projects">Projects at the Go Wiki</a> - a curated list of Go projects.</li>
+	</ul>
 	{{end}}
 {{end}}

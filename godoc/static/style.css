@@ -411,15 +411,6 @@ img.gopher {
 	margin-bottom: 10px;
 	z-index: -1;
 }
-.pkgGopher {
-	text-align: right;
-}
-.pkgGopher .gopher {
-	float: none;
-	position: relative;
-	top: -40px;
-	margin-bottom: -120px;
-}
 h2 { clear: right; }
 
 /* example and drop-down playground */

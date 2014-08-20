@@ -254,8 +254,10 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// special cases for top-level package/command directories
 	switch tabtitle {
 	case "/src/pkg":
+		title = "Packages"
 		tabtitle = "Packages"
 	case "/src/cmd":
+		title = "Commands"
 		tabtitle = "Commands"
 	}
 
