@@ -306,16 +306,16 @@ func sendPerfMailFunc(c appengine.Context, com *Commit, prevCommitHash, builder 
 		// Find the benchmark.
 		var b *PerfChangeBenchmark
 		for _, b1 := range benchmarks {
-			if b1.Name == ch.bench {
+			if b1.Name == ch.Bench {
 				b = b1
 				break
 			}
 		}
 		if b == nil {
-			b = &PerfChangeBenchmark{Name: ch.bench}
+			b = &PerfChangeBenchmark{Name: ch.Bench}
 			benchmarks = append(benchmarks, b)
 		}
-		b.Metrics = append(b.Metrics, &PerfChangeMetric{Name: ch.metric, Old: ch.old, New: ch.new, Delta: ch.diff})
+		b.Metrics = append(b.Metrics, &PerfChangeMetric{Name: ch.Metric, Old: ch.Old, New: ch.New, Delta: ch.Diff})
 	}
 	for _, b := range benchmarks {
 		sort.Sort(PerfChangeMetricSlice(b.Metrics))

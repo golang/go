@@ -176,12 +176,12 @@ func (rc *PerfResultCache) NextForComparison(commitNum int, builder string) (*Pe
 }
 
 type PerfChange struct {
-	builder string
-	bench   string
-	metric  string
-	old     uint64
-	new     uint64
-	diff    float64
+	Builder string
+	Bench   string
+	Metric  string
+	Old     uint64
+	New     uint64
+	Diff    float64
 }
 
 func significantPerfChanges(pc *PerfConfig, builder string, prevRes, res *PerfResult) (changes []*PerfChange) {
@@ -210,7 +210,7 @@ func significantPerfChanges(pc *PerfConfig, builder string, prevRes, res *PerfRe
 				if isNoise(diff, noise) {
 					continue
 				}
-				ch := &PerfChange{builder: builder, bench: benchmark, metric: metric, old: val0, new: val, diff: diff}
+				ch := &PerfChange{Builder: builder, Bench: benchmark, Metric: metric, Old: val0, New: val, Diff: diff}
 				changes = append(changes, ch)
 			}
 		}
@@ -220,17 +220,17 @@ func significantPerfChanges(pc *PerfConfig, builder string, prevRes, res *PerfRe
 	majority := len(pc.ProcList(builder))/2 + 1
 	cnt := make(map[string]int)
 	for _, ch := range changes {
-		b, _ := splitBench(ch.bench)
-		name := b + "|" + ch.metric
-		if ch.diff < 0 {
+		b, _ := splitBench(ch.Bench)
+		name := b + "|" + ch.Metric
+		if ch.Diff < 0 {
 			name += "--"
 		}
 		cnt[name] = cnt[name] + 1
 	}
 	for i := 0; i < len(changes); i++ {
 		ch := changes[i]
-		b, _ := splitBench(ch.bench)
-		name := b + "|" + ch.metric
+		b, _ := splitBench(ch.Bench)
+		name := b + "|" + ch.Metric
 		if cnt[name] >= majority {
 			continue
 		}

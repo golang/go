@@ -135,12 +135,12 @@ func handleOneCommit(pc *PerfConfig, com *Commit, rc *PerfResultCache, baseRes *
 		for _, ch := range changes {
 			v := new(perfChangesChange)
 			v.Builder = builder
-			v.Benchmark, v.Procs = splitBench(ch.bench)
-			v.diff = ch.diff
-			v.Val = fmt.Sprintf("%+.2f%%", ch.diff)
-			v.Hint = fmt.Sprintf("%v/%v", builder, ch.bench)
+			v.Benchmark, v.Procs = splitBench(ch.Bench)
+			v.diff = ch.Diff
+			v.Val = fmt.Sprintf("%+.2f%%", ch.Diff)
+			v.Hint = fmt.Sprintf("%v/%v", builder, ch.Bench)
 			v.Link = fmt.Sprintf("perfdetail?commit=%v&commit0=%v&builder=%v&benchmark=%v", com.Hash, res0.CommitHash, builder, v.Benchmark)
-			m := findMetric(uiCom, ch.metric)
+			m := findMetric(uiCom, ch.Metric)
 			if v.diff > 0 {
 				v.Style = "bad"
 				m.BadChanges = append(m.BadChanges, v)
