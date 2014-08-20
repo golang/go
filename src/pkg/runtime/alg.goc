@@ -287,8 +287,3 @@ runtime·hashinit(void)
 		}
 	}
 }
-
-// Testing adapter for memclr
-func memclrBytes(s Slice) {
-	runtime·memclr(s.array, s.len);
-}
