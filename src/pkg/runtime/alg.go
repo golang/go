@@ -273,3 +273,9 @@ func ifaceHash(i interface {
 }, seed uintptr) uintptr {
 	return goalg(&algarray[alg_INTER]).hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
 }
+
+// Testing adapter for memclr
+func memclrBytes(b []byte) {
+	s := (*sliceStruct)(unsafe.Pointer(&b))
+	memclr(s.array, uintptr(s.len))
+}
