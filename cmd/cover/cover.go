@@ -195,17 +195,16 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		//		if y {
 		//		}
 		//	}
-		const backupToElse = token.Pos(len("else ")) // The AST doesn't remember the else location. We can make an accurate guess.
 		switch stmt := n.Else.(type) {
 		case *ast.IfStmt:
 			block := &ast.BlockStmt{
-				Lbrace: stmt.If - backupToElse, // So the covered part looks like it starts at the "else".
+				Lbrace: n.Body.End(), // Start at end of the "if" block so the covered part looks like it starts at the "else".
 				List:   []ast.Stmt{stmt},
 				Rbrace: stmt.End(),
 			}
 			n.Else = block
 		case *ast.BlockStmt:
-			stmt.Lbrace -= backupToElse // So the block looks like it starts at the "else".
+			stmt.Lbrace = n.Body.End() // Start at end of the "if" block so the covered part looks like it starts at the "else".
 		default:
 			panic("unexpected node type in if")
 		}
@@ -584,6 +583,11 @@ func (b blockSlice) Len() int           { return len(b) }
 func (b blockSlice) Less(i, j int) bool { return b[i].startByte < b[j].startByte }
 func (b blockSlice) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
+// offset translates a token position into a 0-indexed byte offset.
+func (f *File) offset(pos token.Pos) int {
+	return f.fset.Position(pos).Offset
+}
+
 // addVariables adds to the end of the file the declarations to set up the counter and position variables.
 func (f *File) addVariables(w io.Writer) {
 	// Self-check: Verify that the instrumented basic blocks are disjoint.
@@ -596,7 +600,10 @@ func (f *File) addVariables(w io.Writer) {
 	for i := 1; i < len(t); i++ {
 		if t[i-1].endByte > t[i].startByte {
 			fmt.Fprintf(os.Stderr, "cover: internal error: block %d overlaps block %d\n", t[i-1].index, t[i].index)
-			fmt.Fprintf(os.Stderr, "\t%s:#%d,#%d %s:#%d,#%d\n", f.name, t[i-1].startByte, t[i-1].endByte, f.name, t[i].startByte, t[i].endByte)
+			// Note: error message is in byte positions, not token positions.
+			fmt.Fprintf(os.Stderr, "\t%s:#%d,#%d %s:#%d,#%d\n",
+				f.name, f.offset(t[i-1].startByte), f.offset(t[i-1].endByte),
+				f.name, f.offset(t[i].startByte), f.offset(t[i].endByte))
 		}
 	}
 
