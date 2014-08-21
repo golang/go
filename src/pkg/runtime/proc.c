@@ -158,7 +158,6 @@ runtime·schedinit(void)
 	runtime·symtabinit();
 	runtime·stackinit();
 	runtime·mallocinit();
-	runtime·gcinit();
 	runtime·chaninit();
 	mcommoninit(g->m);
 	
@@ -168,13 +167,10 @@ runtime·schedinit(void)
 	// need to allocated memory.
 	runtime·newErrorCString(0, &i);
 	
-	// Initialize the cached gotraceback value, since
-	// gotraceback calls getenv, which mallocs on Plan 9.
-	runtime·gotraceback(nil);
-
 	runtime·goargs();
 	runtime·goenvs();
 	runtime·parsedebugvars();
+	runtime·gcinit();
 
 	runtime·sched.lastpoll = runtime·nanotime();
 	procs = 1;
