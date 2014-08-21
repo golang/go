@@ -267,7 +267,7 @@ struct	G
 	int16	status;
 	int64	goid;
 	int64	waitsince;	// approx time when the G become blocked
-	int8*	waitreason;	// if status==Gwaiting
+	String	waitreason;	// if status==Gwaiting
 	G*	schedlink;
 	bool	ispanic;
 	bool	issystem;	// do not output in stack dump
@@ -922,9 +922,9 @@ void	runtime·breakpoint(void);
 void	runtime·gosched(void);
 void	runtime·gosched_m(G*);
 void	runtime·schedtrace(bool);
-void	runtime·park(bool(*)(G*, void*), void*, int8*);
-void	runtime·parkunlock(Lock*, int8*);
-void	runtime·tsleep(int64, int8*);
+void	runtime·park(bool(*)(G*, void*), void*, String);
+void	runtime·parkunlock(Lock*, String);
+void	runtime·tsleep(int64, String);
 M*	runtime·newm(void);
 void	runtime·goexit(void);
 void	runtime·asmcgocall(void (*fn)(void*), void*);

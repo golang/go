@@ -754,6 +754,13 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	ADDQ	DX, AX
 	RET
 
+TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+	RDTSC
+	SHLQ    $32, DX
+	ADDQ    DX, AX
+	MOVQ    AX, ret+0(FP)
+	RET
+
 TEXT runtime·stackguard(SB),NOSPLIT,$0-8
 	MOVL	SP, DX
 	MOVL	DX, sp+0(FP)

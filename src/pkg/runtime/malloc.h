@@ -318,6 +318,8 @@ struct StackFreeList
 	uintptr size; // total size of stacks in list
 };
 
+typedef struct SudoG SudoG;
+
 // Per-thread (in Go, per-P) cache for small objects.
 // No locking needed because it is per-thread (per-P).
 struct MCache
@@ -334,6 +336,8 @@ struct MCache
 	MSpan*	alloc[NumSizeClasses];	// spans to allocate from
 
 	StackFreeList stackcache[NumStackOrders];
+
+	SudoG*	sudogcache;
 
 	void*	gcworkbuf;
 

@@ -41,6 +41,7 @@ func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
 }
 
 // in stubs.goc
+func getg() *g
 func acquirem() *m
 func releasem(mp *m)
 func gomcache() *mcache
@@ -69,7 +70,10 @@ var (
 	markallocated_m,
 	unrollgcprog_m,
 	unrollgcproginplace_m,
-	gosched_m mFunction
+	gosched_m,
+	ready_m,
+	park_m,
+	blockevent_m mFunction
 )
 
 // memclr clears n bytes starting at ptr.
@@ -163,3 +167,5 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 // gopersistentalloc allocates a permanent (not garbage collected)
 // memory region of size n.  Use wisely!
 func gopersistentalloc(n uintptr) unsafe.Pointer
+
+func gocputicks() int64

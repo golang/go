@@ -36,7 +36,7 @@ func runtimeNano() (ns int64) {
 
 // Sleep puts the current goroutine to sleep for at least ns nanoseconds.
 func Sleep(ns int64) {
-	runtime·tsleep(ns, "sleep");
+	runtime·tsleep(ns, runtime·gostringnocopy((byte*)"sleep"));
 }
 
 // startTimer adds t to the timer heap.
@@ -81,7 +81,7 @@ static FuncVal readyv = {(void(*)(void))ready};
 
 // Put the current goroutine to sleep for ns nanoseconds.
 void
-runtime·tsleep(int64 ns, int8 *reason)
+runtime·tsleep(int64 ns, String reason)
 {
 	Timer t;
 
@@ -248,7 +248,7 @@ timerproc(void)
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true;
 			g->isbackground = true;
-			runtime·parkunlock(&timers.lock, "timer goroutine (idle)");
+			runtime·parkunlock(&timers.lock, runtime·gostringnocopy((byte*)"timer goroutine (idle)"));
 			g->isbackground = false;
 			continue;
 		}

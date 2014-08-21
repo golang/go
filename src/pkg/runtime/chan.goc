@@ -119,7 +119,7 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 		USED(t);
 		if(!block)
 			return false;
-		runtime·park(nil, nil, "chan send (nil chan)");
+		runtime·park(nil, nil, runtime·gostringnocopy((byte*)"chan send (nil chan)"));
 		return false;  // not reached
 	}
 
@@ -171,7 +171,7 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 	mysg.selectdone = nil;
 	g->param = nil;
 	enqueue(&c->sendq, &mysg);
-	runtime·parkunlock(&c->lock, "chan send");
+	runtime·parkunlock(&c->lock, runtime·gostringnocopy((byte*)"chan send"));
 
 	if(g->param == nil) {
 		runtime·lock(&c->lock);
@@ -198,7 +198,7 @@ asynch:
 		mysg.elem = nil;
 		mysg.selectdone = nil;
 		enqueue(&c->sendq, &mysg);
-		runtime·parkunlock(&c->lock, "chan send");
+		runtime·parkunlock(&c->lock, runtime·gostringnocopy((byte*)"chan send"));
 
 		runtime·lock(&c->lock);
 		goto asynch;
@@ -251,7 +251,7 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
 		USED(t);
 		if(!block)
 			return false;
-		runtime·park(nil, nil, "chan receive (nil chan)");
+		runtime·park(nil, nil, runtime·gostringnocopy((byte*)"chan receive (nil chan)"));
 		return false;  // not reached
 	}
 
@@ -298,7 +298,7 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
 	mysg.selectdone = nil;
 	g->param = nil;
 	enqueue(&c->recvq, &mysg);
-	runtime·parkunlock(&c->lock, "chan receive");
+	runtime·parkunlock(&c->lock, runtime·gostringnocopy((byte*)"chan receive"));
 
 	if(g->param == nil) {
 		runtime·lock(&c->lock);
@@ -328,7 +328,7 @@ asynch:
 		mysg.elem = nil;
 		mysg.selectdone = nil;
 		enqueue(&c->recvq, &mysg);
-		runtime·parkunlock(&c->lock, "chan receive");
+		runtime·parkunlock(&c->lock, runtime·gostringnocopy((byte*)"chan receive"));
 
 		runtime·lock(&c->lock);
 		goto asynch;
@@ -658,7 +658,7 @@ selparkcommit(G *gp, void *sel)
 }
 
 func block() {
-	runtime·park(nil, nil, "select (no cases)");	// forever
+	runtime·park(nil, nil, runtime·gostringnocopy((byte*)"select (no cases)"));	// forever
 }
 
 static void* selectgo(Select**);
@@ -826,7 +826,7 @@ loop:
 	}
 
 	g->param = nil;
-	runtime·park(selparkcommit, sel, "select");
+	runtime·park(selparkcommit, sel, runtime·gostringnocopy((byte*)"select"));
 
 	sellock(sel);
 	sg = g->param;

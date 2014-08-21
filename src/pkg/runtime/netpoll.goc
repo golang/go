@@ -346,7 +346,7 @@ netpollblock(PollDesc *pd, int32 mode, bool waitio)
 	// this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
 	// do the opposite: store to closing/rd/wd, membarrier, load of rg/wg
 	if(waitio || checkerr(pd, mode) == 0)
-		runtime·park((bool(*)(G*, void*))blockcommit, gpp, "IO wait");
+		runtime·park((bool(*)(G*, void*))blockcommit, gpp, runtime·gostringnocopy((byte*)"IO wait"));
 	// be careful to not lose concurrent READY notification
 	old = runtime·xchgp(gpp, nil);
 	if(old > WAIT)

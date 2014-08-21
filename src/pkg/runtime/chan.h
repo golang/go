@@ -18,6 +18,7 @@ struct	SudoG
 	SudoG*	link;
 	byte*	elem;		// data element
 	int64	releasetime;
+	int32	nrelease;	// -1 for acquire
 };
 
 struct	WaitQ
