@@ -413,6 +413,7 @@ func gogc(force int32) {
 		return
 	}
 	releasem(mp)
+	mp = nil
 
 	if panicking != 0 {
 		return
@@ -441,7 +442,11 @@ func gogc(force int32) {
 	startTime := gonanotime()
 	mp = acquirem()
 	mp.gcing = 1
+	releasem(mp)
 	stoptheworld()
+	if mp != acquirem() {
+		gothrow("gogc: rescheduled")
+	}
 
 	clearpools()
 
@@ -474,6 +479,7 @@ func gogc(force int32) {
 	semrelease(&worldsema)
 	starttheworld()
 	releasem(mp)
+	mp = nil
 
 	// now that gc is done, kick off finalizer thread if needed
 	if !concurrentSweep {
