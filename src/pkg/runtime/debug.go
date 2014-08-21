@@ -75,20 +75,6 @@ func (r *MemProfileRecord) Stack() []uintptr {
 	return r.Stack0[0:]
 }
 
-// MemProfile returns n, the number of records in the current memory profile.
-// If len(p) >= n, MemProfile copies the profile into p and returns n, true.
-// If len(p) < n, MemProfile does not change p and returns n, false.
-//
-// If inuseZero is true, the profile includes allocation records
-// where r.AllocBytes > 0 but r.AllocBytes == r.FreeBytes.
-// These are sites where memory was allocated, but it has all
-// been released back to the runtime.
-//
-// Most clients should use the runtime/pprof package or
-// the testing package's -test.memprofile flag instead
-// of calling MemProfile directly.
-func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)
-
 // A StackRecord describes a single execution stack.
 type StackRecord struct {
 	Stack0 [32]uintptr // stack trace for this record; ends at first 0 entry
@@ -104,14 +90,6 @@ func (r *StackRecord) Stack() []uintptr {
 	}
 	return r.Stack0[0:]
 }
-
-// ThreadCreateProfile returns n, the number of records in the thread creation profile.
-// If len(p) >= n, ThreadCreateProfile copies the profile into p and returns n, true.
-// If len(p) < n, ThreadCreateProfile does not change p and returns n, false.
-//
-// Most clients should use the runtime/pprof package instead
-// of calling ThreadCreateProfile directly.
-func ThreadCreateProfile(p []StackRecord) (n int, ok bool)
 
 // GoroutineProfile returns n, the number of records in the active goroutine stack profile.
 // If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
@@ -155,15 +133,6 @@ type BlockProfileRecord struct {
 	Cycles int64
 	StackRecord
 }
-
-// BlockProfile returns n, the number of records in the current blocking profile.
-// If len(p) >= n, BlockProfile copies the profile into p and returns n, true.
-// If len(p) < n, BlockProfile does not change p and returns n, false.
-//
-// Most clients should use the runtime/pprof package or
-// the testing package's -test.blockprofile flag instead
-// of calling BlockProfile directly.
-func BlockProfile(p []BlockProfileRecord) (n int, ok bool)
 
 // Stack formats a stack trace of the calling goroutine into buf
 // and returns the number of bytes written to buf.
