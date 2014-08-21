@@ -748,7 +748,6 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 	// Stop the world.
 	runtime·semacquire(&runtime·worldsema, false);
 	g->m->gcing = 1;
-	g->m->locks++;
 	runtime·stoptheworld();
 
 	// Update stats so we can dump them.
@@ -774,6 +773,7 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 
 	// Start up the world again.
 	g->m->gcing = 0;
+	g->m->locks++;
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
 	g->m->locks--;

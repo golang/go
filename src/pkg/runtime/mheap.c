@@ -608,7 +608,6 @@ scavenge(int32 k, uint64 now, uint64 limit)
 {
 	uint32 i;
 	uintptr sumreleased;
-	MStats stats;
 	MHeap *h;
 	
 	h = &runtime·mheap;
@@ -618,12 +617,13 @@ scavenge(int32 k, uint64 now, uint64 limit)
 	sumreleased += scavengelist(&h->freelarge, now, limit);
 
 	if(runtime·debug.gctrace > 0) {
-		runtime·ReadMemStats(&stats);
 		if(sumreleased > 0)
 			runtime·printf("scvg%d: %D MB released\n", k, (uint64)sumreleased>>20);
+		// TODO(dvyukov): these stats are incorrect as we don't subtract stack usage from heap.
+		// But we can't call ReadMemStats on g0 holding locks.
 		runtime·printf("scvg%d: inuse: %D, idle: %D, sys: %D, released: %D, consumed: %D (MB)\n",
-			k, stats.heap_inuse>>20, stats.heap_idle>>20, stats.heap_sys>>20,
-			stats.heap_released>>20, (stats.heap_sys - stats.heap_released)>>20);
+			k, mstats.heap_inuse>>20, mstats.heap_idle>>20, mstats.heap_sys>>20,
+			mstats.heap_released>>20, (mstats.heap_sys - mstats.heap_released)>>20);
 	}
 }
 

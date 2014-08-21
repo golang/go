@@ -498,6 +498,14 @@ runtime·stoptheworld(void)
 	P *p;
 	bool wait;
 
+	// If we hold a lock, then we won't be able to stop another M
+	// that is blocked trying to acquire the lock.
+	if(g->m->locks > 0)
+		runtime·throw("stoptheworld: holding locks");
+	// There is no evidence that stoptheworld on g0 does not work,
+	// we just don't do it today.
+	if(g == g->m->g0)
+		runtime·throw("stoptheworld: on g0");
 	runtime·lock(&runtime·sched.lock);
 	runtime·sched.stopwait = runtime·gomaxprocs;
 	runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);
