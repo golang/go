@@ -869,6 +869,12 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-4
 	MOVL	DX, 4(DI)
 	RET
 
+TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+	RDTSC
+	MOVL    AX, ret+0(FP)
+	MOVL    DX, ret+4(FP)
+	RET
+
 TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
 	// set up ldt 7 to point at tls0
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.

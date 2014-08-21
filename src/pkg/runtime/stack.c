@@ -343,7 +343,7 @@ runtime·oldstack(void)
 	gp->sched.ret = g->m->cret;
 	g->m->cret = 0; // drop reference
 	gp->status = Gwaiting;
-	gp->waitreason = "stack unsplit";
+	gp->waitreason = runtime·gostringnocopy((byte*)"stack unsplit");
 
 	if(argsize > 0) {
 		sp -= argsize;
@@ -860,7 +860,7 @@ runtime·newstack(void)
 	g->m->morebuf.lr = (uintptr)nil;
 	g->m->morebuf.sp = (uintptr)nil;
 	gp->status = Gwaiting;
-	gp->waitreason = "stack growth";
+	gp->waitreason = runtime·gostringnocopy((byte*)"stack growth");
 	newstackcall = framesize==1;
 	if(newstackcall)
 		framesize = 0;

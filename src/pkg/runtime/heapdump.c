@@ -408,7 +408,7 @@ dumpgoroutine(G *gp)
 	dumpbool(gp->issystem);
 	dumpbool(gp->isbackground);
 	dumpint(gp->waitsince);
-	dumpcstr(gp->waitreason);
+	dumpstr(gp->waitreason);
 	dumpint((uintptr)gp->sched.ctxt);
 	dumpint((uintptr)gp->m);
 	dumpint((uintptr)gp->defer);
@@ -760,7 +760,7 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 
 	// Call dump routine on M stack.
 	g->status = Gwaiting;
-	g->waitreason = "dumping heap";
+	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
 	runtime·mcall(mdump);
 
 	// Reset dump file.

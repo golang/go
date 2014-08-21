@@ -953,6 +953,12 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	ADDQ	DX, AX
 	RET
 
+TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+	RDTSC
+	MOVL    AX, ret+0(FP)
+	MOVL    DX, ret+4(FP)
+	RET
+
 TEXT runtime·stackguard(SB),NOSPLIT,$0-16
 	MOVQ	SP, DX
 	MOVQ	DX, sp+0(FP)

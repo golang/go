@@ -651,6 +651,12 @@ TEXT runtime·abort(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
+TEXT runtime·gocputicks(SB),NOSPLIT,$4-8
+	ADD     $8, SP, R0
+	MOVW    R0, 0(SP)
+	BL      runtime·cputicks(SB)
+	RET
+
 // bool armcas(int32 *val, int32 old, int32 new)
 // Atomically:
 //	if(*val == old){

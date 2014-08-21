@@ -107,6 +107,7 @@ runtime·clearpools(void)
 		if(c != nil) {
 			c->tiny = nil;
 			c->tinysize = 0;
+			c->sudogcache = nil;
 		}
 		// clear defer pools
 		for(i=0; i<nelem(p->deferpool); i++)
@@ -1110,7 +1111,7 @@ bgsweep(void)
 		}
 		sweep.parked = true;
 		g->isbackground = true;
-		runtime·parkunlock(&gclock, "GC sweep wait");
+		runtime·parkunlock(&gclock, runtime·gostringnocopy((byte*)"GC sweep wait"));
 		g->isbackground = false;
 	}
 }
@@ -1374,7 +1375,7 @@ runtime·gc(int32 force)
 		// switch to g0, call gc(&a), then switch back
 		g->param = &a;
 		g->status = Gwaiting;
-		g->waitreason = "garbage collection";
+		g->waitreason = runtime·gostringnocopy((byte*)"garbage collection");
 		runtime·mcall(mgc);
 	}
 
@@ -1409,7 +1410,7 @@ runtime·gc_m(void)
 
 	gp = g->m->curg;
 	gp->status = Gwaiting;
-	gp->waitreason = "garbage collection";
+	gp->waitreason = runtime·gostringnocopy((byte*)"garbage collection");
 
 	a.start_time = (uint64)(g->m->scalararg[0]) | ((uint64)(g->m->scalararg[1]) << 32);
 	a.eagersweep = g->m->scalararg[2];
@@ -1663,7 +1664,7 @@ runfinq(void)
 		if(fb == nil) {
 			runtime·fingwait = true;
 			g->isbackground = true;
-			runtime·parkunlock(&finlock, "finalizer wait");
+			runtime·parkunlock(&finlock, runtime·gostringnocopy((byte*)"finalizer wait"));
 			g->isbackground = false;
 			continue;
 		}

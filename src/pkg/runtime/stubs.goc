@@ -69,6 +69,11 @@ func runtime·gocasx(p *uintptr, x uintptr, y uintptr) (ret bool) {
 }
 
 #pragma textflag NOSPLIT
+func runtime·getg() (ret *G) {
+	ret = g;
+}
+
+#pragma textflag NOSPLIT
 func runtime·acquirem() (ret *M) {
 	ret = g->m;
 	ret->locks++;
