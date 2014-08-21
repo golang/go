@@ -12,7 +12,7 @@ func init() {
 var Interrupt = interrupt
 var DaysIn = daysIn
 
-func empty(now int64, arg interface{}) {}
+func empty(arg interface{}) {}
 
 // Test that a runtimeTimer with a duration so large it overflows
 // does not cause other timers to hang.

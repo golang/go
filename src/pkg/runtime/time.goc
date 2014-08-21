@@ -70,10 +70,8 @@ static void siftdown(int32);
 
 // Ready the goroutine e.data.
 static void
-ready(int64 now, Eface e)
+ready(Eface e)
 {
-	USED(now);
-
 	runtime·ready(e.data);
 }
 
@@ -201,7 +199,7 @@ timerproc(void)
 {
 	int64 delta, now;
 	Timer *t;
-	void (*f)(int64, Eface);
+	void (*f)(Eface);
 	Eface arg;
 
 	for(;;) {
@@ -233,7 +231,7 @@ timerproc(void)
 			runtime·unlock(&timers.lock);
 			if(raceenabled)
 				runtime·raceacquire(t);
-			f(now, arg);
+			f(arg);
 
 			// clear f and arg to avoid leak while sleeping for next timer
 			f = nil;

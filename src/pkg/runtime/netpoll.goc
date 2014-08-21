@@ -74,9 +74,9 @@ static struct
 
 static bool	netpollblock(PollDesc*, int32, bool);
 static G*	netpollunblock(PollDesc*, int32, bool);
-static void	deadline(int64, Eface);
-static void	readDeadline(int64, Eface);
-static void	writeDeadline(int64, Eface);
+static void	deadline(Eface);
+static void	readDeadline(Eface);
+static void	writeDeadline(Eface);
 static PollDesc*	allocPollDesc(void);
 static intgo	checkerr(PollDesc *pd, int32 mode);
 
@@ -384,13 +384,12 @@ netpollunblock(PollDesc *pd, int32 mode, bool ioready)
 }
 
 static void
-deadlineimpl(int64 now, Eface arg, bool read, bool write)
+deadlineimpl(Eface arg, bool read, bool write)
 {
 	PollDesc *pd;
 	uint32 seq;
 	G *rg, *wg;
 
-	USED(now);
 	pd = (PollDesc*)arg.data;
 	// This is the seq when the timer was set.
 	// If it's stale, ignore the timer event.
@@ -424,21 +423,21 @@ deadlineimpl(int64 now, Eface arg, bool read, bool write)
 }
 
 static void
-deadline(int64 now, Eface arg)
+deadline(Eface arg)
 {
-	deadlineimpl(now, arg, true, true);
+	deadlineimpl(arg, true, true);
 }
 
 static void
-readDeadline(int64 now, Eface arg)
+readDeadline(Eface arg)
 {
-	deadlineimpl(now, arg, true, false);
+	deadlineimpl(arg, true, false);
 }
 
 static void
-writeDeadline(int64 now, Eface arg)
+writeDeadline(Eface arg)
 {
-	deadlineimpl(now, arg, false, true);
+	deadlineimpl(arg, false, true);
 }
 
 static PollDesc*
