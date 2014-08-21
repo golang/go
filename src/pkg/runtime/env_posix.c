@@ -22,6 +22,8 @@ runtime·getenv(int8 *s)
 	bs = (byte*)s;
 	len = runtime·findnull(bs);
 	envv = (String*)syscall·envs.array;
+	if(envv == nil)
+		runtime·throw("getenv before env init");
 	envc = syscall·envs.len;
 	for(i=0; i<envc; i++){
 		if(envv[i].len <= len)

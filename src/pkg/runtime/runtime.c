@@ -12,7 +12,7 @@
 // The cached value is a uint32 in which the low bit
 // is the "crash" setting and the top 31 bits are the
 // gotraceback value.
-static uint32 traceback_cache = ~(uint32)0;
+static uint32 traceback_cache = 2<<1;
 
 // The GOTRACEBACK environment variable controls the
 // behavior of a Go program that is crashing and exiting.
@@ -23,29 +23,13 @@ static uint32 traceback_cache = ~(uint32)0;
 int32
 runtime·gotraceback(bool *crash)
 {
-	byte *p;
-	uint32 x;
-
 	if(crash != nil)
 		*crash = false;
 	if(g->m->traceback != 0)
 		return g->m->traceback;
-	x = runtime·atomicload(&traceback_cache);
-	if(x == ~(uint32)0) {
-		p = runtime·getenv("GOTRACEBACK");
-		if(p == nil)
-			p = (byte*)"";
-		if(p[0] == '\0')
-			x = 1<<1;
-		else if(runtime·strcmp(p, (byte*)"crash") == 0)
-			x = (2<<1) | 1;
-		else
-			x = runtime·atoi(p)<<1;	
-		runtime·atomicstore(&traceback_cache, x);
-	}
 	if(crash != nil)
-		*crash = x&1;
-	return x>>1;
+		*crash = traceback_cache&1;
+	return traceback_cache>>1;
 }
 
 int32
@@ -134,8 +118,6 @@ runtime·goenvs_unix(void)
 	syscall·envs.array = (byte*)s;
 	syscall·envs.len = n;
 	syscall·envs.cap = n;
-
-	traceback_cache = ~(uint32)0;
 }
 
 int32
@@ -354,6 +336,16 @@ runtime·parsedebugvars(void)
 			break;
 		p++;
 	}
+
+	p = runtime·getenv("GOTRACEBACK");
+	if(p == nil)
+		p = (byte*)"";
+	if(p[0] == '\0')
+		traceback_cache = 1<<1;
+	else if(runtime·strcmp(p, (byte*)"crash") == 0)
+		traceback_cache = (2<<1) | 1;
+	else
+		traceback_cache = runtime·atoi(p)<<1;	
 }
 
 // Poor mans 64-bit division.
