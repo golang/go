@@ -17,7 +17,7 @@ func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
 		// On DragonFly BSD, we adjust the ephemeral port
 		// range because unlike other BSD systems its default
 		// port range doesn't conform to IANA recommendation
-		// as described in RFC 6355 and is pretty narrow.
+		// as described in RFC 6056 and is pretty narrow.
 		switch family {
 		case syscall.AF_INET:
 			syscall.SetsockoptInt(s, syscall.IPPROTO_IP, syscall.IP_PORTRANGE, syscall.IP_PORTRANGE_HIGH)
