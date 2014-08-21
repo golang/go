@@ -90,7 +90,7 @@ renumberfiles(Link *ctxt, LSym **files, int nfiles, Pcdata *d)
 		}
 		dv = val - newval;
 		newval = val;
-		v = (uint32)(dv<<1) ^ (uint32)(int32)(dv>>31);
+		v = ((uint32)dv<<1) ^ (uint32)(int32)(dv>>31);
 		addvarint(&out, v);
 
 		// pc delta
