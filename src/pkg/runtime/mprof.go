@@ -122,7 +122,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 		ok = true
 		idx := 0
 		for b := bbuckets; b != nil; b = b.allnext {
-			bp := (*_4_)(unsafe.Pointer(&b.data))
+			bp := (*bprofrecord)(unsafe.Pointer(&b.data))
 			p[idx].Count = int64(bp.count)
 			p[idx].Cycles = int64(bp.cycles)
 			i := 0
