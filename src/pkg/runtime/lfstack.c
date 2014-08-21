@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Lock-free stack.
+// The following code runs only on g0 stack.
 
-package runtime
 #include "runtime.h"
 #include "arch_GOARCH.h"
 
@@ -72,10 +72,16 @@ runtime·lfstackpop(uint64 *head)
 	}
 }
 
-func lfstackpush_go(head *uint64, node *LFNode) {
-	runtime·lfstackpush(head, node);
+void
+runtime·lfstackpush_m(void)
+{
+	runtime·lfstackpush(g->m->ptrarg[0], g->m->ptrarg[1]);
+	g->m->ptrarg[0] = nil;
+	g->m->ptrarg[1] = nil;
 }
 
-func lfstackpop_go(head *uint64) (node *LFNode) {
-	node = runtime·lfstackpop(head);
+void
+runtime·lfstackpop_m(void)
+{
+	g->m->ptrarg[0] = runtime·lfstackpop(g->m->ptrarg[0]);
 }
