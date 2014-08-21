@@ -24,13 +24,13 @@ import (
 // file to write ("" means to write to standard output). The function reads the profile and produces
 // as output the coverage data broken down by function, like this:
 //
-//	fmt/format.go:	init			100.0%
-//	fmt/format.go:	computePadding		84.6%
+//	fmt/format.go:30:	init			100.0%
+//	fmt/format.go:57:	clearflags		100.0%
 //	...
-//	fmt/scan.go:	doScan			100.0%
-//	fmt/scan.go:	advance			96.2%
-//	fmt/scan.go:	doScanf			96.8%
-//	total:		(statements)		91.4%
+//	fmt/scan.go:1046:	doScan			100.0%
+//	fmt/scan.go:1075:	advance			96.2%
+//	fmt/scan.go:1119:	doScanf			96.8%
+//	total:		(statements)			91.9%
 
 func funcOutput(profile, outputFile string) error {
 	profiles, err := cover.ParseProfiles(profile)
@@ -68,7 +68,7 @@ func funcOutput(profile, outputFile string) error {
 		// Now match up functions and profile blocks.
 		for _, f := range funcs {
 			c, t := f.coverage(profile)
-			fmt.Fprintf(tabber, "%s:\t%s\t%.1f%%\n", fn, f.name, 100.0*float64(c)/float64(t))
+			fmt.Fprintf(tabber, "%s:%d:\t%s\t%.1f%%\n", fn, f.startLine, f.name, 100.0*float64(c)/float64(t))
 			total += t
 			covered += c
 		}
