@@ -13,7 +13,7 @@ struct Bucket
 	// this one is fine because it does not contain pointers.
 	union
 	{
-		struct  // typ == MProf
+		struct MProfRecord // typ == MProf
 		{
 			// The following complex 3-stage scheme of stats accumulation
 			// is required to obtain a consistent picture of mallocs and frees
@@ -43,7 +43,7 @@ struct Bucket
 			uintptr	recent_free_bytes;
 
 		} mp;
-		struct  // typ == BProf
+		struct BProfRecord // typ == BProf
 		{
 			int64	count;
 			int64	cycles;
