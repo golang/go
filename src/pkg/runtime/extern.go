@@ -97,37 +97,6 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool)
 // It returns the number of entries written to pc.
 func Callers(skip int, pc []uintptr) int
 
-type Func struct {
-	opaque struct{} // unexported field to disallow conversions
-}
-
-// FuncForPC returns a *Func describing the function that contains the
-// given program counter address, or else nil.
-func FuncForPC(pc uintptr) *Func
-
-// Name returns the name of the function.
-func (f *Func) Name() string {
-	return funcname_go(f)
-}
-
-// Entry returns the entry address of the function.
-func (f *Func) Entry() uintptr {
-	return funcentry_go(f)
-}
-
-// FileLine returns the file name and line number of the
-// source code corresponding to the program counter pc.
-// The result will not be accurate if pc is not a program
-// counter within f.
-func (f *Func) FileLine(pc uintptr) (file string, line int) {
-	return funcline_go(f, pc)
-}
-
-// implemented in symtab.c
-func funcline_go(*Func, uintptr) (string, int)
-func funcname_go(*Func) string
-func funcentry_go(*Func) uintptr
-
 func getgoroot() string
 
 // GOROOT returns the root of the Go tree.
