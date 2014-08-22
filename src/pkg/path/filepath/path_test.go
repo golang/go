@@ -628,6 +628,8 @@ var winisabstests = []IsAbsTest{
 	{`\`, false},
 	{`\Windows`, false},
 	{`c:a\b`, false},
+	{`c:\a\b`, true},
+	{`c:/a/b`, true},
 	{`\\host\share\foo`, true},
 	{`//host/share/foo/bar`, true},
 }
@@ -805,6 +807,19 @@ func TestAbs(t *testing.T) {
 		if err != nil {
 			t.Fatal("Mkdir failed: ", err)
 		}
+	}
+
+	if runtime.GOOS == "windows" {
+		vol := filepath.VolumeName(root)
+		var extra []string
+		for _, path := range absTests {
+			if strings.Index(path, "$") != -1 {
+				continue
+			}
+			path = vol + path
+			extra = append(extra, path)
+		}
+		absTests = append(absTests, extra...)
 	}
 
 	err = os.Chdir(absTestDirs[0])
