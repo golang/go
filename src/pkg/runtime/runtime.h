@@ -447,7 +447,7 @@ enum
 // Layout of in-memory per-function information prepared by linker
 // See http://golang.org/s/go12symtab.
 // Keep in sync with linker and with ../../libmach/sym.c
-// and with package debug/gosym.
+// and with package debug/gosym and with symtab.go in package runtime.
 struct	Func
 {
 	uintptr	entry;	// start pc

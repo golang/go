@@ -5,7 +5,6 @@
 // Runtime symbol table parsing.
 // See http://golang.org/s/go12symtab for an overview.
 
-package runtime
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
@@ -23,9 +22,14 @@ struct Ftab
 extern byte pclntab[];
 
 static Ftab *ftab;
-static uintptr nftab;
+extern uintptr runtime·nftab;
 static uint32 *filetab;
-static uint32 nfiletab;
+extern uint32 runtime·nfiletab;
+
+extern uintptr runtime·pclntab;
+extern uintptr runtime·ftab0;
+extern uintptr runtime·filetab0;
+extern uint32 runtime·pcquantum;
 
 static String end = { (uint8*)"end", 3 };
 
@@ -43,22 +47,27 @@ runtime·symtabinit(void)
 		runtime·throw("invalid function symbol table\n");
 	}
 
-	nftab = *(uintptr*)(pclntab+8);
+	runtime·nftab = *(uintptr*)(pclntab+8);
 	ftab = (Ftab*)(pclntab+8+sizeof(void*));
-	for(i=0; i<nftab; i++) {
-		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
+	for(i=0; i<runtime·nftab; i++) {
+		// NOTE: ftab[runtime·nftab].entry is legal; it is the address beyond the final function.
 		if(ftab[i].entry > ftab[i+1].entry) {
 			f1 = (Func*)(pclntab + ftab[i].funcoff);
 			f2 = (Func*)(pclntab + ftab[i+1].funcoff);
-			runtime·printf("function symbol table not sorted by program counter: %p %s > %p %s", ftab[i].entry, runtime·funcname(f1), ftab[i+1].entry, i+1 == nftab ? "end" : runtime·funcname(f2));
+			runtime·printf("function symbol table not sorted by program counter: %p %s > %p %s", ftab[i].entry, runtime·funcname(f1), ftab[i+1].entry, i+1 == runtime·nftab ? "end" : runtime·funcname(f2));
 			for(j=0; j<=i; j++)
 				runtime·printf("\t%p %s\n", ftab[j].entry, runtime·funcname((Func*)(pclntab + ftab[j].funcoff)));
 			runtime·throw("invalid runtime symbol table");
 		}
 	}
 	
-	filetab = (uint32*)(pclntab + *(uint32*)&ftab[nftab].funcoff);
-	nfiletab = filetab[0];
+	filetab = (uint32*)(pclntab + *(uint32*)&ftab[runtime·nftab].funcoff);
+	runtime·nfiletab = filetab[0];
+
+	runtime·pcquantum = PCQuantum;
+	runtime·pclntab = (uintptr)pclntab;
+	runtime·ftab0 = (uintptr)ftab;
+	runtime·filetab0 = (uintptr)filetab;
 }
 
 static uint32
@@ -187,7 +196,7 @@ funcline(Func *f, uintptr targetpc, String *file, bool strict)
 	*file = unknown;
 	fileno = pcvalue(f, f->pcfile, targetpc, strict);
 	line = pcvalue(f, f->pcln, targetpc, strict);
-	if(fileno == -1 || line == -1 || fileno >= nfiletab) {
+	if(fileno == -1 || line == -1 || fileno >= runtime·nfiletab) {
 		// runtime·printf("looking for %p in %S got file=%d line=%d\n", targetpc, *f->name, fileno, line);
 		return 0;
 	}
@@ -228,34 +237,20 @@ runtime·funcarglen(Func *f, uintptr targetpc)
 	return runtime·pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
 }
 
-func funcline_go(f *Func, targetpc uintptr) (retfile String, retline int) {
-	// Pass strict=false here, because anyone can call this function,
-	// and they might just be wrong about targetpc belonging to f.
-	retline = funcline(f, targetpc, &retfile, false);
-}
-
-func funcname_go(f *Func) (ret String) {
-	ret = runtime·gostringnocopy((uint8*)runtime·funcname(f));
-}
-
-func funcentry_go(f *Func) (ret uintptr) {
-	ret = f->entry;
-}
-
 Func*
 runtime·findfunc(uintptr addr)
 {
 	Ftab *f;
 	int32 nf, n;
 
-	if(nftab == 0)
+	if(runtime·nftab == 0)
 		return nil;
-	if(addr < ftab[0].entry || addr >= ftab[nftab].entry)
+	if(addr < ftab[0].entry || addr >= ftab[runtime·nftab].entry)
 		return nil;
 
 	// binary search to find func with entry <= addr.
 	f = ftab;
-	nf = nftab;
+	nf = runtime·nftab;
 	while(nf > 0) {
 		n = nf/2;
 		if(f[n].entry <= addr && addr < f[n+1].entry)
@@ -274,10 +269,6 @@ runtime·findfunc(uintptr addr)
 	// by address or if the binary search above is buggy.
 	runtime·prints("findfunc unreachable\n");
 	return nil;
-}
-
-func FuncForPC(pc uintptr) (ret *Func) {
-	ret = runtime·findfunc(pc);
 }
 
 static bool
