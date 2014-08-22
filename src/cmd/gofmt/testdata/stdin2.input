@@ -1,4 +1,4 @@
-
+//gofmt -stdin
 
 var x int
 

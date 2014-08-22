@@ -1,3 +1,5 @@
+//gofmt -s
+
 package P
 
 type T struct {
