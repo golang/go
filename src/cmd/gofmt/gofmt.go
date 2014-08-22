@@ -277,14 +277,14 @@ func parse(fset *token.FileSet, filename string, src []byte, stdin bool) (*ast.F
 	// into a function body.  This handles expressions too.
 	// Insert using a ;, not a newline, so that the line numbers
 	// in fsrc match the ones in src.
-	fsrc := append(append([]byte("package p; func _() {"), src...), '}')
+	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '}')
 	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
 	if err == nil {
 		adjust := func(orig, src []byte) []byte {
 			// Remove the wrapping.
 			// Gofmt has turned the ; into a \n\n.
 			src = src[len("package p\n\nfunc _() {"):]
-			src = src[:len(src)-len("}\n")]
+			src = src[:len(src)-len("\n}\n")]
 			// Gofmt has also indented the function body one level.
 			// Remove that indent.
 			src = bytes.Replace(src, []byte("\n\t"), []byte("\n"), -1)
