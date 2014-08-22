@@ -231,6 +231,10 @@ func EvalSymlinks(path string) (string, error) {
 // working directory to turn it into an absolute path.  The absolute
 // path name for a given file is not guaranteed to be unique.
 func Abs(path string) (string, error) {
+	return abs(path)
+}
+
+func unixAbs(path string) (string, error) {
 	if IsAbs(path) {
 		return Clean(path), nil
 	}

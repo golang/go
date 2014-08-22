@@ -6,6 +6,7 @@ package filepath
 
 import (
 	"strings"
+	"syscall"
 )
 
 func isSlash(c uint8) bool {
@@ -102,4 +103,8 @@ func splitList(path string) []string {
 	}
 
 	return list
+}
+
+func abs(path string) (string, error) {
+	return syscall.FullPath(path)
 }
