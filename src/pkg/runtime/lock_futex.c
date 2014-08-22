@@ -220,7 +220,7 @@ runtime·notetsleepg_m(void)
 	g->m->ptrarg[0] = nil;
 	ns = g->m->scalararg[0] + ((int64)g->m->scalararg[1] << 32);
 
-	runtime·entersyscallblock_m(pc, sp);
+	runtime·entersyscallblock_m();
 	notetsleep(n, ns, 0, 0);
 	// caller will call exitsyscall on g stack
 	runtime·gogo(&g->m->curg->sched);
