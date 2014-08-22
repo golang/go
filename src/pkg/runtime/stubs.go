@@ -73,7 +73,9 @@ var (
 	gosched_m,
 	ready_m,
 	park_m,
-	blockevent_m mFunction
+	blockevent_m,
+	notewakeup_m,
+	notetsleepg_m mFunction
 )
 
 // memclr clears n bytes starting at ptr.
@@ -169,3 +171,26 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 func gopersistentalloc(n uintptr) unsafe.Pointer
 
 func gocputicks() int64
+
+func gonoteclear(n *note) {
+	n.key = 0
+}
+
+func gonotewakeup(n *note) {
+	mp := acquirem()
+	mp.ptrarg[0] = unsafe.Pointer(n)
+	onM(&notewakeup_m)
+	releasem(mp)
+}
+
+func gonotetsleepg(n *note, t int64) {
+	mp := acquirem()
+	mp.ptrarg[0] = unsafe.Pointer(n)
+	mp.scalararg[0] = uint(uint32(t)) // low 32 bits
+	mp.scalararg[1] = uint(t >> 32)   // high 32 bits
+	releasem(mp)
+	mcall(&notetsleepg_m)
+	exitsyscall()
+}
+
+func exitsyscall()

@@ -148,6 +148,16 @@ runtime·notewakeup(Note *n)
 }
 
 void
+runtime·notewakeup_m(void)
+{
+	Note *n;
+
+	n = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	runtime·notewakeup(n);
+}
+
+void
 runtime·notesleep(Note *n)
 {
 	if(g != g->m->g0)
@@ -263,4 +273,23 @@ runtime·notetsleepg(Note *n, int64 ns)
 	res = notetsleep(n, ns, 0, nil);
 	runtime·exitsyscall();
 	return res;
+}
+
+void
+runtime·notetsleepg_m(void)
+{
+	Note *n;
+	int64 ns;
+
+	n = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	ns = g->m->scalararg[0] + ((int64)g->m->scalararg[1] << 32);
+
+	if(g->m->waitsema == 0)
+		g->m->waitsema = runtime·semacreate();
+
+	runtime·entersyscallblock_m();
+	notetsleep(n, ns, 0, nil);
+	// caller will call exitsyscall on g stack
+	runtime·gogo(&g->m->curg->sched);
 }
