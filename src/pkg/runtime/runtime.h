@@ -931,6 +931,7 @@ void	runtime·asmcgocall(void (*fn)(void*), void*);
 void	runtime·entersyscall(void);
 void	runtime·entersyscallblock(void);
 void	runtime·exitsyscall(void);
+void	runtime·entersyscallblock_m(void);
 G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
 bool	runtime·sigsend(int32 sig);
 int32	runtime·callers(int32, uintptr*, int32);

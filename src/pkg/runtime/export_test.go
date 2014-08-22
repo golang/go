@@ -19,7 +19,6 @@ var Fintto64 = fintto64
 var F64toint = f64toint
 
 func entersyscall()
-func exitsyscall()
 func golockedOSThread() bool
 func stackguard() (sp, limit uintptr)
 

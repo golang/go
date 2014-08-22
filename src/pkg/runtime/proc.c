@@ -1630,6 +1630,31 @@ void
 	g->m->locks--;
 }
 
+// The same as runtime·entersyscallblock(), but called on g0 stack.
+void
+runtime·entersyscallblock_m(void)
+{
+	G *gp;
+
+	gp = g->m->curg;
+	// sched.{g,pc,sp,lr} are already set by mcall.
+	gp->stackguard0 = StackPreempt;  // we are on g0, the goroutine must not touch its stack until exitsyscall
+	gp->sched.ret = 0;
+	gp->sched.ctxt = 0;
+	gp->syscallsp = gp->sched.sp;
+	gp->syscallpc = gp->sched.pc;
+	gp->syscallstack = gp->stackbase;
+	gp->syscallguard = gp->stackguard;
+	gp->status = Gsyscall;
+	if(gp->syscallsp < gp->syscallguard-StackGuard || gp->syscallstack < gp->syscallsp) {
+		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
+		//	gp->syscallsp, gp->syscallguard-StackGuard, gp->syscallstack);
+		runtime·throw("entersyscall_m");
+	}
+
+	handoffp(releasep());
+}
+
 // The goroutine g exited its system call.
 // Arrange for it to run on a cpu again.
 // This is called only from the go syscall library, not
