@@ -452,13 +452,6 @@ func Dir(path string) string {
 		i--
 	}
 	dir := Clean(path[len(vol) : i+1])
-	last := len(dir) - 1
-	if last > 0 && os.IsPathSeparator(dir[last]) {
-		dir = dir[:last]
-	}
-	if dir == "" {
-		dir = "."
-	}
 	return vol + dir
 }
 
