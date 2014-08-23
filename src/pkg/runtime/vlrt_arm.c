@@ -128,18 +128,6 @@ _f2v(Vlong *y, float f)
 	_d2v(y, f);
 }
 
-void
-runtime·float64toint64(double d, Vlong y)
-{
-	_d2v(&y, d);
-}
-
-void
-runtime·float64touint64(double d, Vlong y)
-{
-	_d2v(&y, d);
-}
-
 double
 _ul2d(ulong u)
 {
