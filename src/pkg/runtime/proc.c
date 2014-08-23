@@ -1868,7 +1868,6 @@ newproc_m(void)
 	void *callerpc;
 	FuncVal *fn;
 	int32 siz;
-	G *spawng;
 
 	siz = g->m->scalararg[0];
 	callerpc = (void*)g->m->scalararg[1];	
