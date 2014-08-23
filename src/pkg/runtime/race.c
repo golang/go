@@ -118,8 +118,14 @@ uintptr
 runtime·racegostart(void *pc)
 {
 	uintptr racectx;
+	G *spawng;
 
-	runtime·racecall(__tsan_go_start, g->racectx, &racectx, pc);
+	if(g->m->curg != nil)
+		spawng = g->m->curg;
+	else
+		spawng = g;
+
+	runtime·racecall(__tsan_go_start, spawng->racectx, &racectx, pc);
 	return racectx;
 }
 
