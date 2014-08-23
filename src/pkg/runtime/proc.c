@@ -1861,13 +1861,31 @@ runtime·malg(int32 stacksize)
 	return newg;
 }
 
+static void
+newproc_m(void)
+{
+	byte *argp;
+	void *callerpc;
+	FuncVal *fn;
+	int32 siz;
+	G *spawng;
+
+	siz = g->m->scalararg[0];
+	callerpc = (void*)g->m->scalararg[1];	
+	argp = g->m->ptrarg[0];
+	fn = (FuncVal*)g->m->ptrarg[1];
+
+	runtime·newproc1(fn, argp, siz, 0, callerpc);
+	g->m->ptrarg[0] = nil;
+	g->m->ptrarg[1] = nil;
+}
+
 // Create a new g running fn with siz bytes of arguments.
 // Put it on the queue of g's waiting to run.
 // The compiler turns a go statement into a call to this.
 // Cannot split the stack because it assumes that the arguments
 // are available sequentially after &fn; they would not be
-// copied if a stack split occurred.  It's OK for this to call
-// functions that split the stack.
+// copied if a stack split occurred.
 #pragma textflag NOSPLIT
 void
 runtime·newproc(int32 siz, FuncVal* fn, ...)
@@ -1878,7 +1896,14 @@ runtime·newproc(int32 siz, FuncVal* fn, ...)
 		argp = (byte*)(&fn+2);  // skip caller's saved LR
 	else
 		argp = (byte*)(&fn+1);
-	runtime·newproc1(fn, argp, siz, 0, runtime·getcallerpc(&siz));
+
+	g->m->locks++;
+	g->m->scalararg[0] = siz;
+	g->m->scalararg[1] = (uintptr)runtime·getcallerpc(&siz);
+	g->m->ptrarg[0] = argp;
+	g->m->ptrarg[1] = fn;
+	runtime·onM(newproc_m);
+	g->m->locks--;
 }
 
 // Create a new g running fn with narg bytes of arguments starting
