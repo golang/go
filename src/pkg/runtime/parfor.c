@@ -192,8 +192,47 @@ exit:
 
 // For testing from Go.
 void
-runtime·parforiters(ParFor *desc, uintptr tid, uintptr *start, uintptr *end)
+runtime·newparfor_m(void)
 {
-	*start = (uint32)desc->thr[tid].pos;
-	*end = (uint32)(desc->thr[tid].pos>>32);
+	g->m->ptrarg[0] = runtime·parforalloc(g->m->scalararg[0]);
+}
+
+void
+runtime·parforsetup_m(void)
+{
+	ParFor *desc;
+	void *ctx;
+	void (*body)(ParFor*, uint32);
+
+	desc = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	ctx = g->m->ptrarg[1];
+	g->m->ptrarg[1] = nil;
+	body = g->m->ptrarg[2];
+	g->m->ptrarg[2] = nil;
+
+	runtime·parforsetup(desc, g->m->scalararg[0], g->m->scalararg[1], ctx, g->m->scalararg[2], body);
+}
+
+void
+runtime·parfordo_m(void)
+{
+	ParFor *desc;
+
+	desc = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	runtime·parfordo(desc);
+}
+
+void
+runtime·parforiters_m(void)
+{
+	ParFor *desc;
+	uintptr tid;
+
+	desc = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	tid = g->m->scalararg[0];
+	g->m->scalararg[0] = desc->thr[tid].pos;
+	g->m->scalararg[1] = desc->thr[tid].pos>>32;
 }
