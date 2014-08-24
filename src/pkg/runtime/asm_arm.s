@@ -652,8 +652,8 @@ TEXT runtime·abort(SB),NOSPLIT,$-4-0
 	MOVW	(R0), R1
 
 TEXT runtime·gocputicks(SB),NOSPLIT,$4-8
-	ADD     $8, SP, R0
-	MOVW    R0, 0(SP)
+	MOVW	$ret_lo+0(FP), R0
+	MOVW	R0, 4(R13)
 	BL      runtime·cputicks(SB)
 	RET
 
