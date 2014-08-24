@@ -3808,7 +3808,7 @@ isdirectiface(Type *t)
 	// where the data word can hold a pointer or any
 	// non-pointer value no bigger than a pointer.
 	enum {
-		IfacePointerOnly = 1,
+		IfacePointerOnly = 0,
 	};
 
 	if(IfacePointerOnly) {
