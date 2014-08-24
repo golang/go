@@ -18,78 +18,6 @@ static	SudoG*	dequeue(WaitQ*);
 static	void	enqueue(WaitQ*, SudoG*);
 static	void	racesync(Hchan*, SudoG*);
 
-static	Type	hchanType;
-static	String	hchanStr;
-
-void
-runtime·chaninit(void)
-{
-	int32 i, off;
-	byte *mask;
-
-	// Generate (bare minimum) type descriptor for Hchan.
-	hchanType.size = sizeof(Hchan);
-	hchanStr = runtime·gostringnocopy((byte*)"chan");
-	hchanType.string = &hchanStr;
-	// Hchan has only one interesting pointer -- buf.
-	off = offsetof(Hchan, buf)/PtrSize*gcBits;
-	if(off%8)
-		runtime·throw("makechan: unaligned buffer");
-	if(off+8 >= sizeof(hchanType.gc)*8)
-		runtime·throw("makechan: gc mask does not fit");
-	mask = (byte*)hchanType.gc;
-	for(i = 0; i < off/8; i++)
-		mask[i] = (BitsScalar<<2) | (BitsScalar<<6);
-	mask[off/8] = (BitsPointer<<2) | (BitsDead<<6);
-}
-
-static Hchan*
-makechan(ChanType *t, int64 hint)
-{
-	Hchan *c;
-	Type *elem;
-
-	elem = t->elem;
-
-	// compiler checks this but be safe.
-	if(elem->size >= (1<<16))
-		runtime·throw("makechan: invalid channel element type");
-	if((sizeof(*c)%MAXALIGN) != 0 || elem->align > MAXALIGN)
-		runtime·throw("makechan: bad alignment");
-
-	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > (MaxMem - sizeof(*c)) / elem->size))
-		runtime·panicstring("makechan: size out of range");
-
-	if((elem->kind&KindNoPointers) || hint == 0) {
-		// allocate memory in one call
-		c = (Hchan*)runtime·mallocgc(sizeof(*c) + hint*elem->size, nil, FlagNoScan);
-		if(hint > 0 && elem->size != 0)
-			c->buf = (byte*)(c+1);
-		else
-			c->buf = (byte*)c;  // race detector uses this location for synchronization
-	} else {
-		c = (Hchan*)runtime·cnew(&hchanType);
-		c->buf = runtime·cnewarray(elem, hint);
-	}
-	c->elemsize = elem->size;
-	c->elemtype = elem;
-	c->dataqsiz = hint;
-
-	if(debug)
-		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; dataqsiz=%D\n",
-			c, (int64)elem->size, elem->alg, (int64)c->dataqsiz);
-
-	return c;
-}
-
-func reflect·makechan(t *ChanType, size uint64) (c *Hchan) {
-	c = makechan(t, size);
-}
-
-func makechan(t *ChanType, size int64) (c *Hchan) {
-	c = makechan(t, size);
-}
-
 /*
  * generic single channel send/recv
  * if the bool pointer is nil,
@@ -373,11 +301,6 @@ closed:
 	if(mysg.releasetime > 0)
 		runtime·blockevent(mysg.releasetime - t0, 2);
 	return true;
-}
-
-#pragma textflag NOSPLIT
-func chansend1(t *ChanType, c *Hchan, elem *byte) {
-	chansend(t, c, elem, true, runtime·getcallerpc(&t));
 }
 
 #pragma textflag NOSPLIT

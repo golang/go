@@ -52,3 +52,5 @@ TEXT ·unsafe_New(SB),NOSPLIT,$0-0
 	JMP	runtime·newobject(SB)
 TEXT ·unsafe_NewArray(SB),NOSPLIT,$0-0
 	JMP	runtime·newarray(SB)
+TEXT ·makechan(SB),NOSPLIT,$0-0
+	JMP	runtime·makechan(SB)

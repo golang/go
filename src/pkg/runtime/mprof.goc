@@ -218,12 +218,21 @@ runtime·blockevent(int64 cycles, int32 skip)
 	if(rate <= 0 || (rate > cycles && runtime·fastrand1()%rate > cycles))
 		return;
 
-	nstk = runtime·callers(skip, stk, nelem(stk));
+	if(g->m->curg == nil || g->m->curg == g)
+		nstk = runtime·callers(skip, stk, nelem(stk));
+	else
+		nstk = runtime·gcallers(g->m->curg, skip, stk, nelem(stk));
 	runtime·lock(&runtime·proflock);
 	b = stkbucket(BProf, 0, stk, nstk, true);
 	b->data.bp.count++;
 	b->data.bp.cycles += cycles;
 	runtime·unlock(&runtime·proflock);
+}
+
+void
+runtime·blockevent_m(void)
+{
+	runtime·blockevent(g->m->scalararg[0] + ((int64)g->m->scalararg[1]<<32), g->m->scalararg[2]);
 }
 
 void

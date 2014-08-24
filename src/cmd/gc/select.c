@@ -340,6 +340,7 @@ selecttype(int32 size)
 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("elem")), typenod(ptrto(types[TUINT8]))));
 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("releasetime")), typenod(types[TUINT64])));
 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("nrelease")), typenod(types[TINT32])));
+	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("waitlink")), typenod(ptrto(types[TUINT8]))));
 	typecheck(&sudog, Etype);
 	sudog->type->noalg = 1;
 	sudog->type->local = 1;

@@ -430,6 +430,38 @@ func TestMultiConsumer(t *testing.T) {
 	}
 }
 
+func TestShrinkStackDuringBlockedSend(t *testing.T) {
+	// make sure that channel operations still work when we are
+	// blocked on a channel send and we shrink the stack.
+	// NOTE: this test probably won't fail unless stack.c:StackDebug
+	// is set to >= 1.
+	const n = 10
+	c := make(chan int)
+	done := make(chan struct{})
+
+	go func() {
+		for i := 0; i < n; i++ {
+			c <- i
+			// use lots of stack, briefly.
+			stackGrowthRecursive(20)
+		}
+		done <- struct{}{}
+	}()
+
+	for i := 0; i < n; i++ {
+		x := <-c
+		if x != i {
+			t.Errorf("bad channel read: want %d, got %d", i, x)
+		}
+		// Waste some time so sender can finish using lots of stack
+		// and block in channel send.
+		time.Sleep(1 * time.Millisecond)
+		// trigger GC which will shrink the stack of the sender.
+		runtime.GC()
+	}
+	<-done
+}
+
 func BenchmarkChanNonblocking(b *testing.B) {
 	myc := make(chan int)
 	b.RunParallel(func(pb *testing.PB) {

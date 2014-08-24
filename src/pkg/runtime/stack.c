@@ -268,8 +268,10 @@ runtime·stackfree(G *gp, void *v, Stktop *top)
 	n = (uintptr)(top+1) - (uintptr)v;
 	if(n & (n-1))
 		runtime·throw("stack not a power of 2");
-	if(StackDebug >= 1)
+	if(StackDebug >= 1) {
 		runtime·printf("stackfree %p %d\n", v, (int32)n);
+		runtime·memclr(v, n); // for testing, clobber stack data
+	}
 	gp->stacksize -= n;
 	if(runtime·debug.efence || StackFromSystem) {
 		if(runtime·debug.efence || StackFaultOnFree)
@@ -753,6 +755,21 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 	}
 }
 
+static void
+adjustsudogs(G *gp, AdjustInfo *adjinfo)
+{
+	SudoG *s;
+	byte *e;
+
+	// the data elements pointed to by a SudoG structure
+	// might be in the stack.
+	for(s = gp->waiting; s != nil; s = s->waitlink) {
+		e = s->elem;
+		if(adjinfo->oldstk <= e && e < adjinfo->oldbase)
+			s->elem = e + adjinfo->delta;
+	}
+}
+
 // Copies the top stack segment of gp to a new stack segment of a
 // different size.  The top segment must contain nframes frames.
 static void
@@ -791,6 +808,7 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	// adjust other miscellaneous things that have pointers into stacks.
 	adjustctxt(gp, &adjinfo);
 	adjustdefers(gp, &adjinfo);
+	adjustsudogs(gp, &adjinfo);
 	
 	// copy the stack (including Stktop) to the new location
 	runtime·memmove(newbase - used, oldbase - used, used);
@@ -1069,6 +1087,8 @@ runtime·shrinkstack(G *gp)
 	if(gp->m != nil && gp->m->libcallsp != 0)
 		return;
 #endif
+	if(StackDebug > 0)
+		runtime·printf("shrinking stack %D->%D\n", (uint64)oldsize, (uint64)newsize);
 	nframes = copyabletopsegment(gp);
 	if(nframes == -1)
 		return;

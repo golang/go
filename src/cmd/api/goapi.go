@@ -383,6 +383,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" mspan struct{}; m struct{}; lock struct{}; slicetype struct{};" +
 			" iface struct{}; eface struct{}; interfacetype struct{}; itab struct{};" +
 			" mcache struct{}; bucket struct{}; sudog struct{}; g struct{};" +
+			" hchan struct{}; chantype struct{}; waitq struct{};" +
 			" note struct{};" +
 			")"
 		f, err = parser.ParseFile(fset, filename, src, 0)
