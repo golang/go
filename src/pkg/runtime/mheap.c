@@ -43,7 +43,7 @@ RecordSpan(void *vh, byte *p)
 			runtime·memmove(all, h->allspans, h->nspancap*sizeof(all[0]));
 			// Don't free the old array if it's referenced by sweep.
 			// See the comment in mgc0.c.
-			if(h->allspans != runtime·mheap.sweepspans)
+			if(h->allspans != runtime·mheap.gcspans)
 				runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]), &mstats.other_sys);
 		}
 		h->allspans = all;
