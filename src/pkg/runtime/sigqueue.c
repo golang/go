@@ -24,22 +24,26 @@
 // unnecessary rechecks of sig.mask, but must not lead to missed signals
 // nor deadlocks.
 
-package runtime
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "cgocall.h"
 #include "../../cmd/ld/textflag.h"
 
-#pragma textflag NOPTR
-static struct {
-	Note note;
+typedef struct Sig Sig;
+struct Sig {
 	uint32 mask[(NSIG+31)/32];
 	uint32 wanted[(NSIG+31)/32];
 	uint32 recv[(NSIG+31)/32];
 	uint32 state;
 	bool inuse;
-} sig;
+	bool afterwait;
+};
+
+#pragma dataflag NOPTR
+static Sig sig;
+
+Note runtime·signote;
 
 enum {
 	HASWAITER = 1,
@@ -72,7 +76,7 @@ runtime·sigsend(int32 s)
 					new = HASSIGNAL;
 				if(runtime·cas(&sig.state, old, new)) {
 					if (old == HASWAITER)
-						runtime·notewakeup(&sig.note);
+						runtime·notewakeup(&runtime·signote);
 					break;
 				}
 			}
@@ -84,16 +88,23 @@ runtime·sigsend(int32 s)
 
 // Called to receive the next queued signal.
 // Must only be called from a single goroutine at a time.
-func signal_recv() (m uint32) {
+void
+runtime·signal_recv_m(void)
+{
 	uint32 i, old, new;
-	
+
+	if(sig.afterwait) {
+		sig.afterwait = false;
+		goto update;
+	}
 	for(;;) {
 		// Serve from local copy if there are bits left.
 		for(i=0; i<NSIG; i++) {
 			if(sig.recv[i/32]&(1U<<(i&31))) {
 				sig.recv[i/32] ^= 1U<<(i&31);
-				m = i;
-				goto done;
+				g->m->scalararg[0] = true;
+				g->m->scalararg[1] = i;
+				return;
 			}
 		}
 
@@ -108,41 +119,43 @@ func signal_recv() (m uint32) {
 				new = HASWAITER;
 			if(runtime·cas(&sig.state, old, new)) {
 				if (new == HASWAITER) {
-					runtime·notetsleepg(&sig.note, -1);
-					runtime·noteclear(&sig.note);
+					sig.afterwait = true;
+					g->m->scalararg[0] = false;
+					g->m->scalararg[1] = 0;
+					return;
 				}
 				break;
 			}
 		}
 
 		// Get a new local copy.
+	update:
 		for(i=0; i<nelem(sig.mask); i++) {
 			for(;;) {
-				m = sig.mask[i];
-				if(runtime·cas(&sig.mask[i], m, 0))
+				old = sig.mask[i];
+				if(runtime·cas(&sig.mask[i], old, 0))
 					break;
 			}
-			sig.recv[i] = m;
+			sig.recv[i] = old;
 		}
 	}
-
-done:;
-	// goc requires that we fall off the end of functions
-	// that return values instead of using our own return
-	// statements.
 }
 
 // Must only be called from a single goroutine at a time.
-func signal_enable(s uint32) {
+void
+runtime·signal_enable_m(void)
+{
+	uint32 s;
+
 	if(!sig.inuse) {
 		// The first call to signal_enable is for us
 		// to use for initialization.  It does not pass
 		// signal information in m.
 		sig.inuse = true;	// enable reception of signals; cannot disable
-		runtime·noteclear(&sig.note);
+		runtime·noteclear(&runtime·signote);
 		return;
 	}
-	
+	s = g->m->scalararg[0];
 	if(s >= nelem(sig.wanted)*32)
 		return;
 	sig.wanted[s/32] |= 1U<<(s&31);
@@ -150,7 +163,12 @@ func signal_enable(s uint32) {
 }
 
 // Must only be called from a single goroutine at a time.
-func signal_disable(s uint32) {
+void
+runtime·signal_disable_m(void)
+{
+	uint32 s;
+
+	s = g->m->scalararg[0];
 	if(s >= nelem(sig.wanted)*32)
 		return;
 	sig.wanted[s/32] &= ~(1U<<(s&31));

@@ -781,6 +781,7 @@ extern	DebugVars	runtime·debug;
 extern	uintptr	runtime·maxstacksize;
 extern	byte*	runtime·gcdatamask;
 extern	byte*	runtime·gcbssmask;
+extern	Note	runtime·signote;
 
 /*
  * common functions and data
