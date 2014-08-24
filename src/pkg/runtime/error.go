@@ -4,6 +4,8 @@
 
 package runtime
 
+import "unsafe"
+
 // The Error interface identifies a run time error.
 type Error interface {
 	error
@@ -75,17 +77,19 @@ func newErrorString(s string, ret *interface{}) {
 }
 
 // An errorCString represents a runtime error described by a single C string.
-// Not "type errorCString uintptr" because of http://golang.org/issue/7084.
-type errorCString struct{ cstr uintptr }
+// Not "type errorCString unsafe.Pointer" because of http://golang.org/issue/7084.
+// Not uintptr because we want to avoid an allocation if interfaces can't hold
+// uintptrs directly (and cstr _is_ a pointer).
+type errorCString struct{ cstr unsafe.Pointer }
 
 func (e errorCString) RuntimeError() {}
 
 func (e errorCString) Error() string {
-	return "runtime error: " + cstringToGo(e.cstr)
+	return "runtime error: " + cstringToGo(uintptr(e.cstr))
 }
 
 // For calling from C.
-func newErrorCString(s uintptr, ret *interface{}) {
+func newErrorCString(s unsafe.Pointer, ret *interface{}) {
 	*ret = errorCString{s}
 }
 
