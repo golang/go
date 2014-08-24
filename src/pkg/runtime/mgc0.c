@@ -202,6 +202,10 @@ static struct {
 	volatile uint32	ndone;
 	Note	alldone;
 	ParFor*	markfor;
+
+	// Copy of mheap.allspans for marker or sweeper.
+	MSpan**	spans;
+	uint32	nspan;
 } work;
 
 // scanblock scans a block of n bytes starting at pointer b for references
@@ -500,8 +504,7 @@ static void
 markroot(ParFor *desc, uint32 i)
 {
 	FinBlock *fb;
-	MHeap *h;
-	MSpan **allspans, *s;
+	MSpan *s;
 	uint32 spanidx, sg;
 	G *gp;
 	void *p;
@@ -524,14 +527,12 @@ markroot(ParFor *desc, uint32 i)
 
 	case RootSpans:
 		// mark MSpan.specials
-		h = &runtime·mheap;
-		sg = h->sweepgen;
-		allspans = h->allspans;
-		for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
+		sg = runtime·mheap.sweepgen;
+		for(spanidx=0; spanidx<work.nspan; spanidx++) {
 			Special *sp;
 			SpecialFinalizer *spf;
 
-			s = allspans[spanidx];
+			s = work.spans[spanidx];
 			if(s->state != MSpanInUse)
 				continue;
 			if(s->sweepgen != sg) {
@@ -1084,9 +1085,7 @@ static struct
 	G*	g;
 	bool	parked;
 
-	MSpan**	spans;
-	uint32	nspan;
-	uint32	spanidx;
+	uint32	spanidx;	// background sweeper position
 
 	uint32	nbgsweep;
 	uint32	npausesweep;
@@ -1131,12 +1130,12 @@ runtime·sweepone(void)
 	sg = runtime·mheap.sweepgen;
 	for(;;) {
 		idx = runtime·xadd(&sweep.spanidx, 1) - 1;
-		if(idx >= sweep.nspan) {
+		if(idx >= work.nspan) {
 			runtime·mheap.sweepdone = true;
 			g->m->locks--;
 			return -1;
 		}
-		s = sweep.spans[idx];
+		s = work.spans[idx];
 		if(s->state != MSpanInUse) {
 			s->sweepgen = sg;
 			continue;
@@ -1259,6 +1258,7 @@ runtime·updatememstats(GCStats *stats)
 	cachestats();
 
 	// Scan all spans and count number of alive objects.
+	runtime·lock(&runtime·mheap.lock);
 	for(i = 0; i < runtime·mheap.nspan; i++) {
 		s = runtime·mheap.allspans[i];
 		if(s->state != MSpanInUse)
@@ -1272,6 +1272,7 @@ runtime·updatememstats(GCStats *stats)
 			mstats.alloc += s->ref*s->elemsize;
 		}
 	}
+	runtime·unlock(&runtime·mheap.lock);
 
 	// Aggregate by size class.
 	smallfree = 0;
@@ -1441,6 +1442,24 @@ gc(struct gc_args *args)
 	while(runtime·sweepone() != -1)
 		sweep.npausesweep++;
 
+	// Cache runtime.mheap.allspans in work.spans to avoid conflicts with
+	// resizing/freeing allspans.
+	// New spans can be created while GC progresses, but they are not garbage for
+	// this round:
+	//  - new stack spans can be created even while the world is stopped.
+	//  - new malloc spans can be created during the concurrent sweep
+
+	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+	runtime·lock(&runtime·mheap.lock);
+	// Free the old cached sweep array if necessary.
+	if(work.spans != nil && work.spans != runtime·mheap.allspans)
+		runtime·SysFree(work.spans, work.nspan*sizeof(work.spans[0]), &mstats.other_sys);
+	// Cache the current array for marking.
+	runtime·mheap.gcspans = runtime·mheap.allspans;
+	work.spans = runtime·mheap.allspans;
+	work.nspan = runtime·mheap.nspan;
+	runtime·unlock(&runtime·mheap.lock);
+
 	work.nwait = 0;
 	work.ndone = 0;
 	work.nproc = runtime·gcprocs();
@@ -1500,28 +1519,27 @@ gc(struct gc_args *args)
 			mstats.numgc, work.nproc, (t1-t0)/1000, (t2-t1)/1000, (t3-t2)/1000, (t4-t3)/1000,
 			heap0>>20, heap1>>20, obj,
 			mstats.nmalloc, mstats.nfree,
-			sweep.nspan, sweep.nbgsweep, sweep.npausesweep,
+			work.nspan, sweep.nbgsweep, sweep.npausesweep,
 			stats.nhandoff, stats.nhandoffcnt,
 			work.markfor->nsteal, work.markfor->nstealcnt,
 			stats.nprocyield, stats.nosyield, stats.nsleep);
 		sweep.nbgsweep = sweep.npausesweep = 0;
 	}
 
-	// We cache current runtime·mheap.allspans array in sweep.spans,
-	// because the former can be resized and freed.
-	// Otherwise we would need to take heap lock every time
-	// we want to convert span index to span pointer.
-
-	// Free the old cached array if necessary.
-	if(sweep.spans && sweep.spans != runtime·mheap.allspans)
-		runtime·SysFree(sweep.spans, sweep.nspan*sizeof(sweep.spans[0]), &mstats.other_sys);
-	// Cache the current array.
-	runtime·mheap.sweepspans = runtime·mheap.allspans;
+	// See the comment in the beginning of this function as to why we need the following.
+	// Even if this is still stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+	runtime·lock(&runtime·mheap.lock);
+	// Free the old cached mark array if necessary.
+	if(work.spans != nil && work.spans != runtime·mheap.allspans)
+		runtime·SysFree(work.spans, work.nspan*sizeof(work.spans[0]), &mstats.other_sys);
+	// Cache the current array for sweeping.
+	runtime·mheap.gcspans = runtime·mheap.allspans;
 	runtime·mheap.sweepgen += 2;
 	runtime·mheap.sweepdone = false;
-	sweep.spans = runtime·mheap.allspans;
-	sweep.nspan = runtime·mheap.nspan;
+	work.spans = runtime·mheap.allspans;
+	work.nspan = runtime·mheap.nspan;
 	sweep.spanidx = 0;
+	runtime·unlock(&runtime·mheap.lock);
 
 	// Temporary disable concurrent sweep, because we see failures on builders.
 	if(ConcurrentSweep && !args->eagersweep) {

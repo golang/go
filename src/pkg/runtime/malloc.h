@@ -465,7 +465,7 @@ struct MHeap
 	MSpan busy[MaxMHeapList];	// busy lists of large objects of given length
 	MSpan busylarge;		// busy lists of large objects length >= MaxMHeapList
 	MSpan **allspans;		// all spans out there
-	MSpan **sweepspans;		// copy of allspans referenced by sweeper
+	MSpan **gcspans;		// copy of allspans referenced by GC marker or sweeper
 	uint32	nspan;
 	uint32	nspancap;
 	uint32	sweepgen;		// sweep generation, see comment in MSpan
