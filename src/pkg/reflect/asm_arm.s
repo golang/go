@@ -52,3 +52,5 @@ TEXT ·unsafe_New(SB),NOSPLIT,$0-0
 	B	runtime·newobject(SB)
 TEXT ·unsafe_NewArray(SB),NOSPLIT,$0-0
 	B	runtime·newarray(SB)
+TEXT ·makechan(SB),NOSPLIT,$0-0
+	B	runtime·makechan(SB)

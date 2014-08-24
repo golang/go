@@ -63,6 +63,7 @@ typedef	uint8			byte;
 typedef	struct	Func		Func;
 typedef	struct	G		G;
 typedef	struct	Gobuf		Gobuf;
+typedef	struct	SudoG		SudoG;
 typedef	struct	Lock		Lock;
 typedef	struct	M		M;
 typedef	struct	P		P;
@@ -217,6 +218,18 @@ struct	Gobuf
 	uintreg	ret;
 	uintptr	lr;
 };
+// Known to compiler.
+// Changes here must also be made in src/cmd/gc/select.c's selecttype.
+struct	SudoG
+{
+	G*	g;
+	uint32*	selectdone;
+	SudoG*	link;
+	byte*	elem;		// data element
+	int64	releasetime;
+	int32	nrelease;	// -1 for acquire
+	SudoG*	waitlink;	// G.waiting list
+};
 struct	GCStats
 {
 	// the struct must consist of only uint64's,
@@ -285,6 +298,7 @@ struct	G
 	uintptr	sigpc;
 	uintptr	gopc;		// pc of go statement that created this goroutine
 	uintptr	racectx;
+	SudoG   *waiting;	// sudog structures this G is waiting on (that have a valid elem ptr)
 	uintptr	end[];
 };
 
@@ -884,7 +898,6 @@ MCache*	runtime·allocmcache(void);
 void	runtime·freemcache(MCache*);
 void	runtime·mallocinit(void);
 void	runtime·gcinit(void);
-void	runtime·chaninit(void);
 void*	runtime·mallocgc(uintptr size, Type* typ, uint32 flag);
 void	runtime·runpanic(Panic*);
 uintptr	runtime·getcallersp(void*);

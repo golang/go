@@ -5,21 +5,8 @@
 #define	MAXALIGN	8
 
 typedef	struct	WaitQ	WaitQ;
-typedef	struct	SudoG	SudoG;
 typedef	struct	Select	Select;
 typedef	struct	Scase	Scase;
-
-// Known to compiler.
-// Changes here must also be made in src/cmd/gc/select.c's selecttype.
-struct	SudoG
-{
-	G*	g;
-	uint32*	selectdone;
-	SudoG*	link;
-	byte*	elem;		// data element
-	int64	releasetime;
-	int32	nrelease;	// -1 for acquire
-};
 
 struct	WaitQ
 {
