@@ -11,11 +11,6 @@
 
 %{
 
-// This tag will be copied to the generated file to prevent that file
-// confusing a future build.
-
-// +build ignore
-
 package main
 
 import (
