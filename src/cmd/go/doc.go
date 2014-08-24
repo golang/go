@@ -19,6 +19,7 @@ The commands are:
     env         print Go environment information
     fix         run go tool fix on packages
     fmt         run gofmt on package sources
+    generate    generate Go files by processing source
     get         download and install packages and dependencies
     install     compile and install packages and dependencies
     list        list packages
@@ -217,6 +218,94 @@ The -x flag prints commands as they are executed.
 To run gofmt with specific options, run gofmt itself.
 
 See also: go fix, go vet.
+
+
+Generate Go files by processing source
+
+Usage:
+
+	go generate [-run regexp] [file.go... | packages]
+
+Generate runs commands described by directives within existing
+files. Those commands can run any process but the intent is to
+create or update Go source files, for instance by running yacc.
+
+Go generate is never run automatically by go build, go get, go test,
+and so on. It must be run explicitly.
+
+Directives are written as a whole-line comment of the form
+
+	//go:generate command argument...
+
+(note: no space in "//go") where command is the generator to be
+run, corresponding to an executable file that can be run locally.
+It must either be in the shell path (gofmt), a fully qualified path
+(/usr/you/bin/mytool), or a command alias, described below.
+
+The arguments are space-separated tokens or double-quoted strings
+passed to the generator as individual arguments when it is run.
+
+Quoted strings use Go syntax and are evaluated before execution; a
+quoted string appears a single argument to the generator.
+
+Go generate sets several variables when it runs the generator:
+
+	$GOFILE
+		The base name of the file.
+	$GOPACKAGE
+		The name of the package of the file containing the directive.
+
+Other than variable substition and quoted-string evaluation, no
+special processing such as "globbing" is performed on the command
+line.
+
+As a last step before running the command, any invocations of any
+environment variables with alphanumeric names, such as $GOFILE or
+$HOME, are expanded throughout the command line. The syntax for
+variable expansion is $NAME on all operating systems.  Due to the
+order of evaluation, variables are expanded even inside quoted
+strings. If the variable NAME is not set, $NAME expands to the
+empty string.
+
+A directive of the form,
+
+	//go:generate -command xxx args...
+
+specifies, for the remainder of this source file only, that the
+string xxx represents the command identified by the arguments. This
+can be used to create aliases or to handle multiword generators.
+For example,
+
+	//go:generate -command yacc go tool yacc
+
+specifies that the command "yacc" represents the generator
+"go tool yacc".
+
+Generate processes packages in the order given on the command line,
+one at a time. If the command line lists .go files, they are treated
+as a single package. Within a package, generate processes the
+source files in a package in file name order, one at a time. Within
+a source file, generate runs generators in the order they appear
+in the file, one at a time.
+
+If any generator returns an error exit status, "go generate" skips
+all further processing for that package.
+
+The generator is run in the package's source directory.
+
+Go generate accepts one specific flag:
+
+	-run=""
+		if non-empty, specifies a regular expression to
+		select directives whose command matches the expression.
+
+It also accepts the standard build flags -v, -n, and -x.
+The -v flag prints the names of packages and files as they are
+processed.
+The -n flag prints commands that would be executed.
+The -x flag prints commands as they are executed.
+
+For more about specifying packages, see 'go help packages'.
 
 
 Download and install packages and dependencies
@@ -750,10 +839,10 @@ will result in the following request(s):
 
 If that page contains the meta tag
 
-	<meta name="go-import" content="example.org git https://code.example/r/p/exproj">
+	<meta name="go-import" content="example.org git https://code.org/r/p/exproj">
 
 the go tool will verify that https://example.org/?go-get=1 contains the
-same meta tag and then git clone https://code.example/r/p/exproj into
+same meta tag and then git clone https://code.org/r/p/exproj into
 GOPATH/src/example.org.
 
 New downloaded packages are written to the first directory
