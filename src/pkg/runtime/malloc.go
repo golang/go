@@ -28,7 +28,7 @@ const (
 	bitsMask           = 1<<bitsPerPointer - 1
 	pointersPerByte    = 8 / bitsPerPointer
 	bitPtrMask         = bitsMask << 2
-	maxGCMask          = 0 // disabled because wastes several bytes of memory
+	maxGCMask          = 64
 	bitsDead           = 0
 	bitsPointer        = 2
 

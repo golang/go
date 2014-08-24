@@ -55,7 +55,8 @@ enum {
 	BitsIface	= 2,
 	BitsEface	= 3,
 
-	MaxGCMask	= 0,	// disabled because wastes several bytes of memory
+	// 64 bytes cover objects of size 1024/512 on 64/32 bits, respectively.
+	MaxGCMask	= 64,
 };
 
 // Bits in per-word bitmap.
