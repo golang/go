@@ -1367,7 +1367,10 @@ int
 componentgen(Node *nr, Node *nl)
 {
 	Node nodl, nodr;
+	Type *t;
 	int freel, freer;
+	vlong fldcount;
+	vlong loffset, roffset;
 
 	freel = 0;
 	freer = 0;
@@ -1377,8 +1380,33 @@ componentgen(Node *nr, Node *nl)
 		goto no;
 
 	case TARRAY:
-		if(!isslice(nl->type))
+		t = nl->type;
+
+		// Slices are ok.
+		if(isslice(t))
+			break;
+		// Small arrays are ok.
+		if(t->bound > 0 && t->bound <= 3 && !isfat(t->type))
+			break;
+
+		goto no;
+
+	case TSTRUCT:
+		// Small structs with non-fat types are ok.
+		// Zero-sized structs are treated separately elsewhere.
+		fldcount = 0;
+		for(t=nl->type->type; t; t=t->down) {
+			if(isfat(t->type))
+				goto no;
+			if(t->etype != TFIELD)
+				fatal("componentgen: not a TFIELD: %lT", t);
+			fldcount++;
+		}
+		if(fldcount == 0 || fldcount > 4)
 			goto no;
+
+		break;
+
 	case TSTRING:
 	case TINTER:
 		break;
@@ -1399,7 +1427,7 @@ componentgen(Node *nr, Node *nl)
 			freer = 1;
 		}
 	}
-
+	
 	// nl and nr are 'cadable' which basically means they are names (variables) now.
 	// If they are the same variable, don't generate any code, because the
 	// VARDEF we generate will mark the old value as dead incorrectly.
@@ -1409,8 +1437,25 @@ componentgen(Node *nr, Node *nl)
 
 	switch(nl->type->etype) {
 	case TARRAY:
+		// componentgen for arrays.
 		if(nl->op == ONAME)
 			gvardef(nl);
+		t = nl->type;
+		if(!isslice(t)) {
+			nodl.type = t->type;
+			nodr.type = nodl.type;
+			for(fldcount=0; fldcount < t->bound; fldcount++) {
+				if(nr == N)
+					clearslim(&nodl);
+				else
+					gmove(&nodr, &nodl);
+				nodl.xoffset += t->type->width;
+				nodr.xoffset += t->type->width;
+			}
+			goto yes;
+		}
+
+		// componentgen for slices.
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(nl->type->type);
 
@@ -1422,7 +1467,7 @@ componentgen(Node *nr, Node *nl)
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
-		nodl.type = types[TUINT32];
+		nodl.type = types[simtype[TUINT]];
 
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
@@ -1432,7 +1477,7 @@ componentgen(Node *nr, Node *nl)
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_cap-Array_nel;
-		nodl.type = types[TUINT32];
+		nodl.type = types[simtype[TUINT]];
 
 		if(nr != N) {
 			nodr.xoffset += Array_cap-Array_nel;
@@ -1457,7 +1502,7 @@ componentgen(Node *nr, Node *nl)
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
-		nodl.type = types[TUINT32];
+		nodl.type = types[simtype[TUINT]];
 
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
@@ -1491,6 +1536,31 @@ componentgen(Node *nr, Node *nl)
 			nodconst(&nodr, nodl.type, 0);
 		gmove(&nodr, &nodl);
 
+		goto yes;
+
+	case TSTRUCT:
+		if(nl->op == ONAME)
+			gvardef(nl);
+		loffset = nodl.xoffset;
+		roffset = nodr.xoffset;
+		// funarg structs may not begin at offset zero.
+		if(nl->type->etype == TSTRUCT && nl->type->funarg && nl->type->type)
+			loffset -= nl->type->type->width;
+		if(nr != N && nr->type->etype == TSTRUCT && nr->type->funarg && nr->type->type)
+			roffset -= nr->type->type->width;
+
+		for(t=nl->type->type; t; t=t->down) {
+			nodl.xoffset = loffset + t->width;
+			nodl.type = t->type;
+
+			if(nr == N)
+				clearslim(&nodl);
+			else {
+				nodr.xoffset = roffset + t->width;
+				nodr.type = nodl.type;
+				gmove(&nodr, &nodl);
+			}
+		}
 		goto yes;
 	}
 
