@@ -6,8 +6,7 @@ maketables: maketables.go
 	go build maketables.go
 
 tables:	maketables
-	./maketables --tables=all > tables.go
-	gofmt -w tables.go
+	./maketables --tables=all -output tables.go
 
 # Downloads from www.unicode.org, so not part
 # of standard test scripts.
