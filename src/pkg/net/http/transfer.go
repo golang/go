@@ -303,7 +303,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 		t.StatusCode = rr.StatusCode
 		t.ProtoMajor = rr.ProtoMajor
 		t.ProtoMinor = rr.ProtoMinor
-		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header)
+		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header, true)
 		isResponse = true
 		if rr.Request != nil {
 			t.RequestMethod = rr.Request.Method
@@ -502,7 +502,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 // Determine whether to hang up after sending a request and body, or
 // receiving a response and body
 // 'header' is the request headers
-func shouldClose(major, minor int, header Header) bool {
+func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 	if major < 1 {
 		return true
 	} else if major == 1 && minor == 0 {
@@ -514,7 +514,9 @@ func shouldClose(major, minor int, header Header) bool {
 		// TODO: Should split on commas, toss surrounding white space,
 		// and check each field.
 		if strings.ToLower(header.get("Connection")) == "close" {
-			header.Del("Connection")
+			if removeCloseHeader {
+				header.Del("Connection")
+			}
 			return true
 		}
 	}

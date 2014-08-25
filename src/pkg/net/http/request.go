@@ -635,6 +635,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 		return nil, err
 	}
 
+	req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header, false)
 	return req, nil
 }
 
