@@ -771,6 +771,12 @@ orderstmt(Node *n, Order *order)
 		// Special: clean case temporaries in each block entry.
 		// Select must enter one of its blocks, so there is no
 		// need for a cleaning at the end.
+		// Doubly special: evaluation order for select is stricter
+		// than ordinary expressions. Even something like p.c
+		// has to be hoisted into a temporary, so that it cannot be
+		// reordered after the channel evaluation for a different
+		// case (if p were nil, then the timing of the fault would
+		// give this away).
 		t = marktemp(order);
 		for(l=n->list; l; l=l->next) {
 			if(l->n->op != OXCASE)
@@ -813,6 +819,8 @@ orderstmt(Node *n, Order *order)
 					// r->left == N means 'case <-c'.
 					// c is always evaluated; x and ok are only evaluated when assigned.
 					orderexpr(&r->right->left, order);
+					if(r->right->left->op != ONAME)
+						r->right->left = ordercopyexpr(r->right->left, r->right->left->type, order, 0);
 
 					// Introduce temporary for receive and move actual copy into case body.
 					// avoids problems with target being addressed, as usual.
