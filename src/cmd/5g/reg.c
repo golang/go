@@ -1315,6 +1315,7 @@ void
 addreg(Adr *a, int rn)
 {
 	a->sym = nil;
+	a->node = nil;
 	a->name = D_NONE;
 	a->type = D_REG;
 	a->reg = rn;
