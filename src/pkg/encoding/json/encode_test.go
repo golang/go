@@ -452,3 +452,29 @@ func TestHTMLEscape(t *testing.T) {
 		t.Errorf("HTMLEscape(&b, []byte(m)) = %s; want %s", b.Bytes(), want.Bytes())
 	}
 }
+
+// golang.org/issue/8582
+func TestEncodePointerString(t *testing.T) {
+	type stringPointer struct {
+		N *int64 `json:"n,string"`
+	}
+	var n int64 = 42
+	b, err := Marshal(stringPointer{N: &n})
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if got, want := string(b), `{"n":"42"}`; got != want {
+		t.Errorf("Marshal = %s, want %s", got, want)
+	}
+	var back stringPointer
+	err = Unmarshal(b, &back)
+	if err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if back.N == nil {
+		t.Fatalf("Unmarshalled nil N field")
+	}
+	if *back.N != 42 {
+		t.Fatalf("*N = %d; want 42", *back.N)
+	}
+}
