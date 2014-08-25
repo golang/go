@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"unicode"
@@ -48,6 +49,10 @@ quoted string appears a single argument to the generator.
 
 Go generate sets several variables when it runs the generator:
 
+	$GOARCH
+		The execution architecture (arm, amd64, etc.)
+	$GOOS
+		The execution operating system (linux, windows, etc.)
 	$GOFILE
 		The base name of the file.
 	$GOPACKAGE
@@ -287,6 +292,10 @@ func (g *Generator) expandEnv(word string) string {
 		envVar := word[i+1 : i+w]
 		var sub string
 		switch envVar {
+		case "GOARCH":
+			sub = runtime.GOARCH
+		case "GOOS":
+			sub = runtime.GOOS
 		case "GOFILE":
 			sub = g.file
 		case "GOPACKAGE":
@@ -332,7 +341,13 @@ func (g *Generator) exec(words []string) {
 	cmd.Stderr = os.Stderr
 	// Run the command in the package directory.
 	cmd.Dir = g.dir
-	cmd.Env = mergeEnvLists([]string{"GOFILE=" + g.file, "GOPACKAGE=" + g.pkg}, os.Environ())
+	env := []string{
+		"GOARCH=" + runtime.GOARCH,
+		"GOOS=" + runtime.GOOS,
+		"GOFILE=" + g.file,
+		"GOPACKAGE=" + g.pkg,
+	}
+	cmd.Env = mergeEnvLists(env, os.Environ())
 	err := cmd.Run()
 	if err != nil {
 		g.errorf("running %q: %s", words[0], err)
