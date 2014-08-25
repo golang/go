@@ -1621,9 +1621,12 @@ runtime∕debug·readGCStats(Slice *pauses)
 	pauses->len = n+3;
 }
 
-int32
-runtime·setgcpercent(int32 in) {
+void
+runtime·setgcpercent_m(void) {
+	int32 in;
 	int32 out;
+
+	in = (int32)(intptr)g->m->scalararg[0];
 
 	runtime·lock(&runtime·mheap.lock);
 	out = runtime·gcpercent;
@@ -1631,7 +1634,8 @@ runtime·setgcpercent(int32 in) {
 		in = -1;
 	runtime·gcpercent = in;
 	runtime·unlock(&runtime·mheap.lock);
-	return out;
+
+	g->m->scalararg[0] = (uintptr)(intptr)out;
 }
 
 static void

@@ -3199,17 +3199,21 @@ runtime·topofstack(Func *f)
 		(runtime·externalthreadhandlerp != 0 && f->entry == runtime·externalthreadhandlerp);
 }
 
-int32
-runtime·setmaxthreads(int32 in)
+void
+runtime·setmaxthreads_m(void)
 {
+	int32 in;
 	int32 out;
+
+	in = g->m->scalararg[0];
 
 	runtime·lock(&runtime·sched.lock);
 	out = runtime·sched.maxmcount;
 	runtime·sched.maxmcount = in;
 	checkmcount();
 	runtime·unlock(&runtime·sched.lock);
-	return out;
+
+	g->m->scalararg[0] = out;
 }
 
 static int8 experiment[] = GOEXPERIMENT; // defined in zaexperiment.h
