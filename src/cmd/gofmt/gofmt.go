@@ -122,7 +122,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 			fmt.Fprintln(out, filename)
 		}
 		if *write {
-			err = ioutil.WriteFile(filename, res, 0)
+			err = ioutil.WriteFile(filename, res, 0644)
 			if err != nil {
 				return err
 			}
@@ -186,6 +186,11 @@ func gofmtMain() {
 	initRewrite()
 
 	if flag.NArg() == 0 {
+		if *write {
+			fmt.Fprintln(os.Stderr, "error: cannot use -w with standard input")
+			exitCode = 2
+			return
+		}
 		if err := processFile("<standard input>", os.Stdin, os.Stdout, true); err != nil {
 			report(err)
 		}
