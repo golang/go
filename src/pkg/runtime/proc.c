@@ -130,6 +130,15 @@ static bool exitsyscallfast(void);
 static bool haveexperiment(int8*);
 static void allgadd(G*);
 
+static void forcegchelper(void);
+static struct
+{
+	Lock	lock;
+	G*	g;
+	FuncVal	fv;
+	uint32	idle;
+} forcegc;
+
 extern String runtime·buildVersion;
 
 // The bootstrap sequence is:
@@ -200,8 +209,6 @@ runtime·schedinit(void)
 extern void main·init(void);
 extern void main·main(void);
 
-static FuncVal scavenger = {runtime·MHeap_Scavenger};
-
 static FuncVal initDone = { runtime·unlockOSThread };
 
 // The main goroutine.
@@ -247,7 +254,8 @@ runtime·main(void)
 
 	if(g->m != &runtime·m0)
 		runtime·throw("runtime·main not on m0");
-	runtime·newproc1(&scavenger, nil, 0, 0, runtime·main);
+	forcegc.fv.fn = forcegchelper;
+	forcegc.g = runtime·newproc1(&forcegc.fv, nil, 0, 0, runtime·main);
 	main·init();
 
 	if(g->defer != &d || d.fn != &initDone)
@@ -1619,8 +1627,6 @@ void
 
 	p = releasep();
 	handoffp(p);
-	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
-		incidlelocked(1);
 
 	// Resave for traceback during blocked call.
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
@@ -1663,9 +1669,6 @@ void
 runtime·exitsyscall(void)
 {
 	g->m->locks++;  // see comment in entersyscall
-
-	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
-		incidlelocked(-1);
 
 	g->waitsince = 0;
 	if(exitsyscallfast()) {
@@ -2602,7 +2605,7 @@ checkdead(void)
 	runtime·lock(&allglock);
 	for(i = 0; i < runtime·allglen; i++) {
 		gp = runtime·allg[i];
-		if(gp->isbackground)
+		if(gp->issystem)
 			continue;
 		s = gp->status;
 		if(s == Gwaiting)
@@ -2623,9 +2626,22 @@ checkdead(void)
 static void
 sysmon(void)
 {
-	uint32 idle, delay;
-	int64 now, lastpoll, lasttrace;
+	uint32 idle, delay, nscavenge;
+	int64 now, unixnow, lastpoll, lasttrace;
+	int64 forcegcperiod, scavengelimit, lastscavenge, maxsleep;
 	G *gp;
+
+	// If we go two minutes without a garbage collection, force one to run.
+	forcegcperiod = 2*60*1e6;
+	// If a heap span goes unused for 5 minutes after a garbage collection,
+	// we hand it back to the operating system.
+	scavengelimit = 5*60*1e6;
+	lastscavenge = runtime·nanotime();
+	nscavenge = 0;
+	// Make wake-up period small enough for the sampling to be correct.
+	maxsleep = forcegcperiod/2;
+	if(scavengelimit < forcegcperiod)
+		maxsleep = scavengelimit/2;
 
 	lasttrace = 0;
 	idle = 0;  // how many cycles in succession we had not wokeup somebody
@@ -2644,16 +2660,19 @@ sysmon(void)
 			if(runtime·atomicload(&runtime·sched.gcwaiting) || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {
 				runtime·atomicstore(&runtime·sched.sysmonwait, 1);
 				runtime·unlock(&runtime·sched.lock);
-				runtime·notesleep(&runtime·sched.sysmonnote);
+				runtime·notetsleep(&runtime·sched.sysmonnote, maxsleep);
+				runtime·lock(&runtime·sched.lock);
+				runtime·atomicstore(&runtime·sched.sysmonwait, 0);
 				runtime·noteclear(&runtime·sched.sysmonnote);
 				idle = 0;
 				delay = 20;
-			} else
-				runtime·unlock(&runtime·sched.lock);
+			}
+			runtime·unlock(&runtime·sched.lock);
 		}
 		// poll network if not polled for more than 10ms
 		lastpoll = runtime·atomicload64(&runtime·sched.lastpoll);
 		now = runtime·nanotime();
+		unixnow = runtime·unixnanotime();
 		if(lastpoll != 0 && lastpoll + 10*1000*1000 < now) {
 			runtime·cas64(&runtime·sched.lastpoll, lastpoll, now);
 			gp = runtime·netpoll(false);  // non-blocking
@@ -2676,6 +2695,22 @@ sysmon(void)
 			idle = 0;
 		else
 			idle++;
+
+		// check if we need to force a GC
+		if(unixnow - mstats.last_gc > forcegcperiod && runtime·atomicload(&forcegc.idle)) {
+			runtime·lock(&forcegc.lock);
+			forcegc.idle = 0;
+			forcegc.g->schedlink = nil;
+			injectglist(forcegc.g);
+			runtime·unlock(&forcegc.lock);
+		}
+
+		// scavenge heap once in a while
+		if(lastscavenge + scavengelimit/2 < now) {
+			runtime·MHeap_Scavenge(nscavenge, now, scavengelimit);
+			lastscavenge = now;
+			nscavenge++;
+		}
 
 		if(runtime·debug.schedtrace > 0 && lasttrace + runtime·debug.schedtrace*1000000ll <= now) {
 			lasttrace = now;
@@ -2749,6 +2784,23 @@ retake(int64 now)
 		}
 	}
 	return n;
+}
+
+static void
+forcegchelper(void)
+{
+	g->issystem = true;
+	for(;;) {
+		runtime·lock(&forcegc.lock);
+		if(forcegc.idle)
+			runtime·throw("forcegc: phase error");
+		runtime·atomicstore(&forcegc.idle, 1);
+		runtime·parkunlock(&forcegc.lock, runtime·gostringnocopy((byte*)"force gc (idle)"));
+		// this goroutine is explicitly resumed by sysmon
+		if(runtime·debug.gctrace > 0)
+			runtime·printf("GC forced\n");
+		runtime·gc(1);
+	}
 }
 
 // Tell all goroutines that they have been preempted and they should stop.

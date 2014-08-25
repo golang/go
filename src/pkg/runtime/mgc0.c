@@ -1095,7 +1095,7 @@ static struct
 static void
 bgsweep(void)
 {
-	g->issystem = 1;
+	g->issystem = true;
 	for(;;) {
 		while(runtime·sweepone() != -1) {
 			sweep.nbgsweep++;
@@ -1109,9 +1109,7 @@ bgsweep(void)
 			continue;
 		}
 		sweep.parked = true;
-		g->isbackground = true;
 		runtime·parkunlock(&gclock, runtime·gostringnocopy((byte*)"GC sweep wait"));
-		g->isbackground = false;
 	}
 }
 
@@ -1685,9 +1683,9 @@ runfinq(void)
 		finq = nil;
 		if(fb == nil) {
 			runtime·fingwait = true;
-			g->isbackground = true;
+			g->issystem = true;
 			runtime·parkunlock(&finlock, runtime·gostringnocopy((byte*)"finalizer wait"));
-			g->isbackground = false;
+			g->issystem = false;
 			continue;
 		}
 		runtime·unlock(&finlock);

@@ -406,7 +406,7 @@ dumpgoroutine(G *gp)
 	dumpint(gp->gopc);
 	dumpint(gp->status);
 	dumpbool(gp->issystem);
-	dumpbool(gp->isbackground);
+	dumpbool(false);  // isbackground
 	dumpint(gp->waitsince);
 	dumpstr(gp->waitreason);
 	dumpint((uintptr)gp->sched.ctxt);
