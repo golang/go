@@ -1169,6 +1169,7 @@ void	cgen_callmeth(Node *n, int proc);
 void	cgen_eface(Node* n, Node* res);
 void	cgen_slice(Node* n, Node* res);
 void	clearlabels(void);
+void	clearslim(Node*);
 void	checklabels(void);
 int	dotoffset(Node *n, int64 *oary, Node **nn);
 void	gen(Node *n);
