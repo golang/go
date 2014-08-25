@@ -315,6 +315,12 @@ func TestBlockProfile(t *testing.T) {
 #	0x[0-9,a-f]+	runtime/pprof_test\.blockMutex\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
 #	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
 `},
+		{"cond", blockCond, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	sync\.\(\*Cond\)\.Wait\+0x[0-9,a-f]+	.*/src/pkg/sync/cond\.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockCond\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+`},
 	}
 
 	runtime.SetBlockProfileRate(1)
@@ -400,4 +406,18 @@ func blockMutex() {
 		mu.Unlock()
 	}()
 	mu.Lock()
+}
+
+func blockCond() {
+	var mu sync.Mutex
+	c := sync.NewCond(&mu)
+	mu.Lock()
+	go func() {
+		time.Sleep(blockDelay)
+		mu.Lock()
+		c.Signal()
+		mu.Unlock()
+	}()
+	c.Wait()
+	mu.Unlock()
 }
