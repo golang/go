@@ -9,7 +9,7 @@ ALL=\
 all: $(ALL)
 
 %.6: %.s
-	go tool 6a $*.s
+	GOARCH=amd64 GOOS=darwin go tool 6a -trimpath=$(shell pwd) $*.s
 
 pclntab.s: genpcln.go
 	go run genpcln.go >pclntab.s

@@ -276,6 +276,12 @@ func checkPCData(t *testing.T, r *SymReader, name string, off, pc, pnum, val int
 // readPCData reads the PCData table offset off
 // to obtain and return the value associated with pc.
 func readPCData(t *testing.T, r *SymReader, name, pcdataname string, pcoff uint32, pc int) (int, bool) {
+	// "If pcsp, pcfile, pcln, or any of the pcdata offsets is zero,
+	// that table is considered missing, and all PCs take value -1."
+	if pcoff == 0 {
+		return -1, true
+	}
+
 	var it PCIter
 	for it.Init(r.p, r.data[pcoff:]); !it.Done; it.Next() {
 		if it.PC <= uint32(pc) && uint32(pc) < it.NextPC {
