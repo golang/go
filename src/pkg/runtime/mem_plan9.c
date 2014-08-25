@@ -17,8 +17,8 @@ enum
 	Round = PAGESIZE-1
 };
 
-void*
-runtime·SysAlloc(uintptr nbytes, uint64 *stat)
+static void*
+brk(uintptr nbytes)
 {
 	uintptr bl;
 
@@ -31,8 +31,19 @@ runtime·SysAlloc(uintptr nbytes, uint64 *stat)
 	}
 	bloc = (byte*)bl + nbytes;
 	runtime·unlock(&memlock);
-	runtime·xadd64(stat, nbytes);
 	return (void*)bl;
+	
+}
+
+void*
+runtime·SysAlloc(uintptr nbytes, uint64 *stat)
+{
+	void *p;
+
+	p = brk(nbytes);
+	if(p != nil)
+		runtime·xadd64(stat, nbytes);
+	return p;
 }
 
 void
@@ -64,7 +75,10 @@ runtime·SysUsed(void *v, uintptr nbytes)
 void
 runtime·SysMap(void *v, uintptr nbytes, bool reserved, uint64 *stat)
 {
-	USED(v, nbytes, reserved, stat);
+	// SysReserve has already allocated all heap memory,
+	// but has not adjusted stats.
+	USED(v, reserved);
+	runtime·xadd64(stat, nbytes);
 }
 
 void
@@ -78,5 +92,5 @@ runtime·SysReserve(void *v, uintptr nbytes, bool *reserved)
 {
 	USED(v);
 	*reserved = true;
-	return runtime·SysAlloc(nbytes, &mstats.heap_sys);
+	return brk(nbytes);
 }
