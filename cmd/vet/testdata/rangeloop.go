@@ -10,24 +10,24 @@ func RangeLoopTests() {
 	var s []int
 	for i, v := range s {
 		go func() {
-			println(i) // ERROR "range variable i enclosed by function"
-			println(v) // ERROR "range variable v enclosed by function"
+			println(i) // ERROR "range variable i captured by func literal"
+			println(v) // ERROR "range variable v captured by func literal"
 		}()
 	}
 	for i, v := range s {
 		defer func() {
-			println(i) // ERROR "range variable i enclosed by function"
-			println(v) // ERROR "range variable v enclosed by function"
+			println(i) // ERROR "range variable i captured by func literal"
+			println(v) // ERROR "range variable v captured by func literal"
 		}()
 	}
 	for i := range s {
 		go func() {
-			println(i) // ERROR "range variable i enclosed by function"
+			println(i) // ERROR "range variable i captured by func literal"
 		}()
 	}
 	for _, v := range s {
 		go func() {
-			println(v) // ERROR "range variable v enclosed by function"
+			println(v) // ERROR "range variable v captured by func literal"
 		}()
 	}
 	for i, v := range s {
@@ -53,7 +53,7 @@ func RangeLoopTests() {
 	var f int
 	for x[0], f = range s {
 		go func() {
-			_ = f // ERROR "range variable f enclosed by function"
+			_ = f // ERROR "range variable f captured by func literal"
 		}()
 	}
 }
