@@ -1089,7 +1089,7 @@ loop:
 	sgp = q->first;
 	if(sgp == nil)
 		return nil;
-	q->first = sgp->link;
+	q->first = sgp->next;
 	if(q->last == sgp)
 		q->last = nil;
 
@@ -1109,9 +1109,9 @@ dequeueg(WaitQ *q)
 	SudoG **l, *sgp, *prevsgp;
 
 	prevsgp = nil;
-	for(l=&q->first; (sgp=*l) != nil; l=&sgp->link, prevsgp=sgp) {
+	for(l=&q->first; (sgp=*l) != nil; l=&sgp->next, prevsgp=sgp) {
 		if(sgp->g == g) {
-			*l = sgp->link;
+			*l = sgp->next;
 			if(q->last == sgp)
 				q->last = prevsgp;
 			break;
@@ -1122,13 +1122,13 @@ dequeueg(WaitQ *q)
 static void
 enqueue(WaitQ *q, SudoG *sgp)
 {
-	sgp->link = nil;
+	sgp->next = nil;
 	if(q->first == nil) {
 		q->first = sgp;
 		q->last = sgp;
 		return;
 	}
-	q->last->link = sgp;
+	q->last->next = sgp;
 	q->last = sgp;
 }
 

@@ -116,13 +116,18 @@ const (
 
 // Atomic operations to read/write a pointer.
 // in stubs.goc
+func goatomicload(p *uint32) uint32                     // return *p
 func goatomicloadp(p unsafe.Pointer) unsafe.Pointer     // return *p
+func goatomicstore(p *uint32, v uint32)                 // *p = v
 func goatomicstorep(p unsafe.Pointer, v unsafe.Pointer) // *p = v
 
 // in stubs.goc
 // if *p == x { *p = y; return true } else { return false }, atomically
 //go:noescape
 func gocas(p *uint32, x uint32, y uint32) bool
+
+//go:noescape
+func goxadd(p *uint32, x uint32) uint32
 
 //go:noescape
 func gocasx(p *uintptr, x uintptr, y uintptr) bool
@@ -151,8 +156,6 @@ func gothrow(s string)
 
 func golock(x *lock)
 func gounlock(x *lock)
-func semacquire(*uint32, bool)
-func semrelease(*uint32)
 
 // Return the Go equivalent of the C Alg structure.
 // TODO: at some point Go will hold the truth for the layout

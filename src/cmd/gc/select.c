@@ -337,6 +337,7 @@ selecttype(int32 size)
 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("g")), typenod(ptrto(types[TUINT8]))));
 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("selectdone")), typenod(ptrto(types[TUINT8]))));
 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("link")), typenod(ptrto(types[TUINT8]))));
+	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("prev")), typenod(ptrto(types[TUINT8]))));
 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("elem")), typenod(ptrto(types[TUINT8]))));
 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("releasetime")), typenod(types[TUINT64])));
 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("nrelease")), typenod(types[TINT32])));

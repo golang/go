@@ -224,8 +224,9 @@ struct	SudoG
 {
 	G*	g;
 	uint32*	selectdone;
-	SudoG*	link;
-	byte*	elem;		// data element
+	SudoG*	next;
+	SudoG*	prev;
+	void*	elem;		// data element
 	int64	releasetime;
 	int32	nrelease;	// -1 for acquire
 	SudoG*	waitlink;	// G.waiting list
