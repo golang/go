@@ -39,6 +39,21 @@ enum
 	PollBlockSize	= 4*1024,
 };
 
+// time.go defines the layout of this structure.
+// Keep in sync with time.go.
+typedef struct Timer Timer;
+struct Timer
+{
+	intgo	i;
+	int64	when;
+	int64	period;
+	FuncVal	*fv;
+	Eface	arg;
+};
+
+void	runtime·addtimer(Timer*);
+void	runtime·deltimer(Timer*);
+
 struct PollDesc
 {
 	PollDesc* link;	// in pollcache, protected by pollcache.Lock

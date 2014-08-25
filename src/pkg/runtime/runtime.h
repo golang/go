@@ -92,8 +92,6 @@ typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;
 typedef	struct	LibCall		LibCall;
 typedef	struct	WinCallbackContext	WinCallbackContext;
-typedef	struct	Timers		Timers;
-typedef	struct	Timer		Timer;
 typedef	struct	GCStats		GCStats;
 typedef	struct	LFNode		LFNode;
 typedef	struct	ParFor		ParFor;
@@ -519,35 +517,6 @@ enum {
 };
 #endif
 
-struct	Timers
-{
-	Lock	lock;
-	G	*timerproc;
-	bool		sleeping;
-	bool		rescheduling;
-	Note	waitnote;
-	Timer	**t;
-	int32	len;
-	int32	cap;
-};
-
-// Package time knows the layout of this structure.
-// If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
-// For GOOS=nacl, package syscall knows the layout of this structure.
-// If this struct changes, adjust ../syscall/net_nacl.go:/runtimeTimer.
-struct	Timer
-{
-	int32	i;	// heap index
-
-	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
-	// each time calling f(now, arg) in the timer goroutine, so f must be
-	// a well-behaved function and not block.
-	int64	when;
-	int64	period;
-	FuncVal	*fv;
-	Eface	arg;
-};
-
 // Lock-free stack node.
 struct LFNode
 {
@@ -965,8 +934,6 @@ int64	runtime·cputicks(void);
 int64	runtime·tickspersecond(void);
 void	runtime·blockevent(int64, int32);
 extern int64 runtime·blockprofilerate;
-void	runtime·addtimer(Timer*);
-bool	runtime·deltimer(Timer*);
 G*	runtime·netpoll(bool);
 void	runtime·netpollinit(void);
 int32	runtime·netpollopen(uintptr, PollDesc*);

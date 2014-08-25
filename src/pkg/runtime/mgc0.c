@@ -2130,3 +2130,13 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		}
 	}
 }
+
+void runtime·gc_unixnanotime(int64 *now);
+
+int64 runtime·unixnanotime(void)
+{
+	int64 now;
+
+	runtime·gc_unixnanotime(&now);
+	return now;
+}
