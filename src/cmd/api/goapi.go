@@ -384,8 +384,9 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" iface struct{}; eface struct{}; interfacetype struct{}; itab struct{};" +
 			" mcache struct{}; bucket struct{}; sudog struct{}; g struct{};" +
 			" hchan struct{}; chantype struct{}; waitq struct{};" +
-			" note struct{};" +
-			")"
+			" note struct{}; wincallbackcontext struct{};" +
+			"); " +
+			"const ( cb_max = 2000 )"
 		f, err = parser.ParseFile(fset, filename, src, 0)
 		if err != nil {
 			log.Fatalf("incorrect generated file: %s", err)

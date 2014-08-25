@@ -402,6 +402,11 @@ mkzruntimedefs(char *dir, char *file)
 		
 		bwritestr(&out, p);
 	}
+
+	// Some windows specific const.
+	if(streq(goos, "windows")) {
+		bwritestr(&out, bprintf(&b, "const cb_max = %d\n", MAXWINCB));
+	}
 	
 	writefile(&out, file, 0);
 
