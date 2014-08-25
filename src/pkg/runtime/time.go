@@ -192,9 +192,7 @@ func timerproc() {
 		if delta < 0 {
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true
-			timers.gp.isbackground = 1
 			goparkunlock(&timers.lock, "timer goroutine (idle)")
-			timers.gp.isbackground = 0
 			continue
 		}
 		// At least one timer pending.  Sleep until then.

@@ -516,7 +516,7 @@ MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
 void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
 void	runtime·MHeap_MapBits(MHeap *h);
 void	runtime·MHeap_MapSpans(MHeap *h);
-void	runtime·MHeap_Scavenger(void);
+void	runtime·MHeap_Scavenge(int32 k, uint64 now, uint64 limit);
 
 void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);

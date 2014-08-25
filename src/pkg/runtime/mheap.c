@@ -574,13 +574,6 @@ MHeap_FreeSpanLocked(MHeap *h, MSpan *s, bool acctinuse, bool acctidle)
 		runtime·MSpanList_Insert(&h->freelarge, s);
 }
 
-static void
-forcegchelper(Note *note)
-{
-	runtime·gc(1);
-	runtime·notewakeup(note);
-}
-
 static uintptr
 scavengelist(MSpan *list, uint64 now, uint64 limit)
 {
@@ -603,18 +596,20 @@ scavengelist(MSpan *list, uint64 now, uint64 limit)
 	return sumreleased;
 }
 
-static void
-scavenge(int32 k, uint64 now, uint64 limit)
+void
+runtime·MHeap_Scavenge(int32 k, uint64 now, uint64 limit)
 {
 	uint32 i;
 	uintptr sumreleased;
 	MHeap *h;
 	
 	h = &runtime·mheap;
+	runtime·lock(&h->lock);
 	sumreleased = 0;
 	for(i=0; i < nelem(h->free); i++)
 		sumreleased += scavengelist(&h->free[i], now, limit);
 	sumreleased += scavengelist(&h->freelarge, now, limit);
+	runtime·unlock(&h->lock);
 
 	if(runtime·debug.gctrace > 0) {
 		if(sumreleased > 0)
@@ -630,62 +625,8 @@ scavenge(int32 k, uint64 now, uint64 limit)
 static void
 scavenge_m(G *gp)
 {
-	runtime·lock(&runtime·mheap.lock);
-	scavenge(g->m->scalararg[0], g->m->scalararg[1], g->m->scalararg[2]);
-	runtime·unlock(&runtime·mheap.lock);
+	runtime·MHeap_Scavenge(-1, ~(uintptr)0, 0);
 	runtime·gogo(&gp->sched);
-}
-
-static FuncVal forcegchelperv = {(void(*)(void))forcegchelper};
-
-// Release (part of) unused memory to OS.
-// Goroutine created at startup.
-// Loop forever.
-void
-runtime·MHeap_Scavenger(void)
-{
-	uint64 tick, forcegc, limit;
-	int64 unixnow;
-	int32 k;
-	Note note, *notep;
-
-	g->issystem = true;
-	g->isbackground = true;
-
-	// If we go two minutes without a garbage collection, force one to run.
-	forcegc = 2*60*1e9;
-	// If a span goes unused for 5 minutes after a garbage collection,
-	// we hand it back to the operating system.
-	limit = 5*60*1e9;
-	// Make wake-up period small enough for the sampling to be correct.
-	if(forcegc < limit)
-		tick = forcegc/2;
-	else
-		tick = limit/2;
-
-	for(k=0;; k++) {
-		runtime·noteclear(&note);
-		runtime·notetsleepg(&note, tick);
-
-		unixnow = runtime·unixnanotime();
-		if(unixnow - mstats.last_gc > forcegc) {
-			// The scavenger can not block other goroutines,
-			// otherwise deadlock detector can fire spuriously.
-			// GC blocks other goroutines via the runtime·worldsema.
-			runtime·noteclear(&note);
-			notep = &note;
-			runtime·newproc1(&forcegchelperv, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
-			runtime·notetsleepg(&note, -1);
-			if(runtime·debug.gctrace > 0)
-				runtime·printf("scvg%d: GC forced\n", k);
-		}
-		g->m->locks++;	// ensure that we are on the same m while filling arguments
-		g->m->scalararg[0] = k;
-		g->m->scalararg[1] = runtime·nanotime();
-		g->m->scalararg[2] = limit;
-		runtime·mcall(scavenge_m);
-		g->m->locks--;
-	}
 }
 
 void
@@ -693,9 +634,6 @@ runtime∕debug·freeOSMemory(void)
 {
 	runtime·gc(2);  // force GC and do eager sweep
 
-	g->m->scalararg[0] = -1;
-	g->m->scalararg[1] = ~(uintptr)0;
-	g->m->scalararg[2] = 0;
 	runtime·mcall(scavenge_m);
 }
 
