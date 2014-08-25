@@ -13,9 +13,11 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -26,6 +28,7 @@ import (
 
 func main() {
 	flag.Parse()
+	setupOutput()
 	loadChars() // always needed
 	loadCasefold()
 	printCategories()
@@ -35,6 +38,7 @@ func main() {
 	printLatinProperties()
 	printCasefold()
 	printSizes()
+	flushOutput()
 }
 
 var dataURL = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
@@ -60,9 +64,61 @@ var test = flag.Bool("test",
 var localFiles = flag.Bool("local",
 	false,
 	"data files have been copied to current directory; for debugging only")
+var outputFile = flag.String("output",
+	"",
+	"output file for generated tables; default stdout")
 
 var scriptRe = regexp.MustCompile(`^([0-9A-F]+)(\.\.[0-9A-F]+)? *; ([A-Za-z_]+)$`)
 var logger = log.New(os.Stderr, "", log.Lshortfile)
+
+var output *bufio.Writer // points to os.Stdout or to "gofmt > outputFile"
+
+func setupOutput() {
+	output = bufio.NewWriter(startGofmt())
+}
+
+// startGofmt connects output to a gofmt process if -output is set.
+func startGofmt() io.Writer {
+	if *outputFile == "" {
+		return os.Stdout
+	}
+	stdout, err := os.Create(*outputFile)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	// Pipe output to gofmt.
+	gofmt := exec.Command("gofmt")
+	fd, err := gofmt.StdinPipe()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	gofmt.Stdout = stdout
+	gofmt.Stderr = os.Stderr
+	err = gofmt.Start()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	return fd
+}
+
+func flushOutput() {
+	err := output.Flush()
+	if err != nil {
+		logger.Fatal(err)
+	}
+}
+
+func printf(format string, args ...interface{}) {
+	fmt.Fprintf(output, format, args...)
+}
+
+func print(args ...interface{}) {
+	fmt.Fprint(output, args...)
+}
+
+func println(args ...interface{}) {
+	fmt.Fprintln(output, args...)
+}
 
 type reader struct {
 	*bufio.Reader
@@ -245,11 +301,11 @@ func parseCategory(line string) (state State) {
 }
 
 func (char *Char) dump(s string) {
-	fmt.Print(s, " ")
+	print(s, " ")
 	for i := 0; i < len(char.field); i++ {
-		fmt.Printf("%s:%q ", fieldName[i], char.field[i])
+		printf("%s:%q ", fieldName[i], char.field[i])
 	}
-	fmt.Print("\n")
+	print("\n")
 }
 
 func (char *Char) letter(u, l, t string) {
@@ -411,18 +467,18 @@ func printCategories() {
 		fullCategoryTest(list)
 		return
 	}
-	fmt.Printf(progHeader, *tablelist, *dataURL, *casefoldingURL)
+	printf(progHeader, *tablelist, *dataURL, *casefoldingURL)
 
-	fmt.Println("// Version is the Unicode edition from which the tables are derived.")
-	fmt.Printf("const Version = %q\n\n", version())
+	println("// Version is the Unicode edition from which the tables are derived.")
+	printf("const Version = %q\n\n", version())
 
 	if *tablelist == "all" {
-		fmt.Println("// Categories is the set of Unicode category tables.")
-		fmt.Println("var Categories = map[string] *RangeTable {")
+		println("// Categories is the set of Unicode category tables.")
+		println("var Categories = map[string] *RangeTable {")
 		for _, k := range allCategories() {
-			fmt.Printf("\t%q: %s,\n", k, k)
+			printf("\t%q: %s,\n", k, k)
 		}
-		fmt.Print("}\n\n")
+		print("}\n\n")
 	}
 
 	decl := make(sort.StringSlice, len(list))
@@ -486,12 +542,12 @@ func printCategories() {
 			func(code rune) bool { return chars[code].category == name })
 	}
 	decl.Sort()
-	fmt.Println("// These variables have type *RangeTable.")
-	fmt.Println("var (")
+	println("// These variables have type *RangeTable.")
+	println("var (")
 	for _, d := range decl {
-		fmt.Print(d)
+		print(d)
 	}
-	fmt.Print(")\n\n")
+	print(")\n\n")
 }
 
 type Op func(code rune) bool
@@ -499,10 +555,10 @@ type Op func(code rune) bool
 const format = "\t\t{0x%04x, 0x%04x, %d},\n"
 
 func dumpRange(header string, inCategory Op) {
-	fmt.Print(header)
+	print(header)
 	next := rune(0)
 	latinOffset := 0
-	fmt.Print("\tR16: []Range16{\n")
+	print("\tR16: []Range16{\n")
 	// one Range for each iteration
 	count := &range16Count
 	size := 16
@@ -528,7 +584,7 @@ func dumpRange(header string, inCategory Op) {
 		}
 		if next >= rune(len(chars)) {
 			// no more characters
-			fmt.Printf(format, lo, hi, stride)
+			printf(format, lo, hi, stride)
 			break
 		}
 		// set stride
@@ -552,11 +608,11 @@ func dumpRange(header string, inCategory Op) {
 		// next range: start looking where this range ends
 		next = hi + 1
 	}
-	fmt.Print("\t},\n")
+	print("\t},\n")
 	if latinOffset > 0 {
-		fmt.Printf("\tLatinOffset: %d,\n", latinOffset)
+		printf("\tLatinOffset: %d,\n", latinOffset)
 	}
-	fmt.Print("}\n\n")
+	print("}\n\n")
 }
 
 func printRange(lo, hi, stride uint32, size int, count *int) (int, *int) {
@@ -568,17 +624,17 @@ func printRange(lo, hi, stride uint32, size int, count *int) (int, *int) {
 			// No range contains U+FFFF as an instance, so split
 			// the range into two entries. That way we can maintain
 			// the invariant that R32 contains only >= 1<<16.
-			fmt.Printf(format, lo, lo, 1)
+			printf(format, lo, lo, 1)
 			lo = hi
 			stride = 1
 			*count++
 		}
-		fmt.Print("\t},\n")
-		fmt.Print("\tR32: []Range32{\n")
+		print("\t},\n")
+		print("\tR32: []Range32{\n")
 		size = 32
 		count = &range32Count
 	}
-	fmt.Printf(format, lo, hi, stride)
+	printf(format, lo, hi, stride)
 	*count++
 	return size, count
 }
@@ -727,7 +783,7 @@ func printScriptOrProperty(doProps bool) {
 		return
 	}
 
-	fmt.Printf(
+	printf(
 		"// Generated by running\n"+
 			"//	maketables --%s=%s --url=%s\n"+
 			"// DO NOT EDIT\n\n",
@@ -736,16 +792,16 @@ func printScriptOrProperty(doProps bool) {
 		*url)
 	if flaglist == "all" {
 		if doProps {
-			fmt.Println("// Properties is the set of Unicode property tables.")
-			fmt.Println("var Properties = map[string] *RangeTable{")
+			println("// Properties is the set of Unicode property tables.")
+			println("var Properties = map[string] *RangeTable{")
 		} else {
-			fmt.Println("// Scripts is the set of Unicode script tables.")
-			fmt.Println("var Scripts = map[string] *RangeTable{")
+			println("// Scripts is the set of Unicode script tables.")
+			println("var Scripts = map[string] *RangeTable{")
 		}
 		for _, k := range all(table) {
-			fmt.Printf("\t%q: %s,\n", k, k)
+			printf("\t%q: %s,\n", k, k)
 		}
-		fmt.Print("}\n\n")
+		print("}\n\n")
 	}
 
 	decl := make(sort.StringSlice, len(list))
@@ -761,27 +817,27 @@ func printScriptOrProperty(doProps bool) {
 				name, name, name, name)
 		}
 		ndecl++
-		fmt.Printf("var _%s = &RangeTable {\n", name)
+		printf("var _%s = &RangeTable {\n", name)
 		ranges := foldAdjacent(table[name])
-		fmt.Print("\tR16: []Range16{\n")
+		print("\tR16: []Range16{\n")
 		size := 16
 		count := &range16Count
 		for _, s := range ranges {
 			size, count = printRange(s.Lo, s.Hi, s.Stride, size, count)
 		}
-		fmt.Print("\t},\n")
+		print("\t},\n")
 		if off := findLatinOffset(ranges); off > 0 {
-			fmt.Printf("\tLatinOffset: %d,\n", off)
+			printf("\tLatinOffset: %d,\n", off)
 		}
-		fmt.Print("}\n\n")
+		print("}\n\n")
 	}
 	decl.Sort()
-	fmt.Println("// These variables have type *RangeTable.")
-	fmt.Println("var (")
+	println("// These variables have type *RangeTable.")
+	println("var (")
 	for _, d := range decl {
-		fmt.Print(d)
+		print(d)
 	}
-	fmt.Print(")\n\n")
+	print(")\n\n")
 }
 
 func findLatinOffset(ranges []unicode.Range32) int {
@@ -940,7 +996,7 @@ func printCases() {
 		fullCaseTest()
 		return
 	}
-	fmt.Printf(
+	printf(
 		"// Generated by running\n"+
 			"//	maketables --data=%s --casefolding=%s\n"+
 			"// DO NOT EDIT\n\n"+
@@ -966,7 +1022,7 @@ func printCases() {
 		}
 		prevState = state
 	}
-	fmt.Print("}\n")
+	print("}\n")
 }
 
 func printCaseRange(lo, hi *caseState) {
@@ -979,14 +1035,14 @@ func printCaseRange(lo, hi *caseState) {
 	}
 	switch {
 	case hi.point > lo.point && lo.isUpperLower():
-		fmt.Printf("\t{0x%04X, 0x%04X, d{UpperLower, UpperLower, UpperLower}},\n",
+		printf("\t{0x%04X, 0x%04X, d{UpperLower, UpperLower, UpperLower}},\n",
 			lo.point, hi.point)
 	case hi.point > lo.point && lo.isLowerUpper():
 		logger.Fatalf("LowerUpper sequence: should not happen: %U.  If it's real, need to fix To()", lo.point)
-		fmt.Printf("\t{0x%04X, 0x%04X, d{LowerUpper, LowerUpper, LowerUpper}},\n",
+		printf("\t{0x%04X, 0x%04X, d{LowerUpper, LowerUpper, LowerUpper}},\n",
 			lo.point, hi.point)
 	default:
-		fmt.Printf("\t{0x%04X, 0x%04X, d{%d, %d, %d}},\n",
+		printf("\t{0x%04X, 0x%04X, d{%d, %d, %d}},\n",
 			lo.point, hi.point,
 			lo.deltaToUpper, lo.deltaToLower, lo.deltaToTitle)
 	}
@@ -1025,7 +1081,7 @@ func printLatinProperties() {
 	if *test {
 		return
 	}
-	fmt.Println("var properties = [MaxLatin1+1]uint8{")
+	println("var properties = [MaxLatin1+1]uint8{")
 	for code := 0; code <= unicode.MaxLatin1; code++ {
 		var property string
 		switch chars[code].category {
@@ -1054,9 +1110,9 @@ func printLatinProperties() {
 		if code == ' ' {
 			property = "pZ | pp"
 		}
-		fmt.Printf("\t0x%02X: %s, // %q\n", code, property, code)
+		printf("\t0x%02X: %s, // %q\n", code, property, code)
 	}
-	fmt.Printf("}\n\n")
+	printf("}\n\n")
 }
 
 type runeSlice []rune
@@ -1235,15 +1291,15 @@ func printCaseOrbit() {
 		return
 	}
 
-	fmt.Printf("var caseOrbit = []foldPair{\n")
+	printf("var caseOrbit = []foldPair{\n")
 	for i := range chars {
 		c := &chars[i]
 		if c.caseOrbit != 0 {
-			fmt.Printf("\t{0x%04X, 0x%04X},\n", i, c.caseOrbit)
+			printf("\t{0x%04X, 0x%04X},\n", i, c.caseOrbit)
 			foldPairCount++
 		}
 	}
-	fmt.Printf("}\n\n")
+	printf("}\n\n")
 }
 
 func printCatFold(name string, m map[string]map[rune]bool) {
@@ -1288,12 +1344,12 @@ func printCatFold(name string, m map[string]map[rune]bool) {
 		return
 	}
 
-	fmt.Print(comment[name])
-	fmt.Printf("var %s = map[string]*RangeTable{\n", name)
+	print(comment[name])
+	printf("var %s = map[string]*RangeTable{\n", name)
 	for _, name := range allCatFold(m) {
-		fmt.Printf("\t%q: fold%s,\n", name, name)
+		printf("\t%q: fold%s,\n", name, name)
 	}
-	fmt.Printf("}\n\n")
+	printf("}\n\n")
 	for _, name := range allCatFold(m) {
 		class := m[name]
 		dumpRange(
@@ -1310,11 +1366,11 @@ func printSizes() {
 	if *test {
 		return
 	}
-	fmt.Println()
-	fmt.Printf("// Range entries: %d 16-bit, %d 32-bit, %d total.\n", range16Count, range32Count, range16Count+range32Count)
+	println()
+	printf("// Range entries: %d 16-bit, %d 32-bit, %d total.\n", range16Count, range32Count, range16Count+range32Count)
 	range16Bytes := range16Count * 3 * 2
 	range32Bytes := range32Count * 3 * 4
-	fmt.Printf("// Range bytes: %d 16-bit, %d 32-bit, %d total.\n", range16Bytes, range32Bytes, range16Bytes+range32Bytes)
-	fmt.Println()
-	fmt.Printf("// Fold orbit bytes: %d pairs, %d bytes\n", foldPairCount, foldPairCount*2*2)
+	printf("// Range bytes: %d 16-bit, %d 32-bit, %d total.\n", range16Bytes, range32Bytes, range16Bytes+range32Bytes)
+	println()
+	printf("// Fold orbit bytes: %d pairs, %d bytes\n", foldPairCount, foldPairCount*2*2)
 }
