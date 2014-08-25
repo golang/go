@@ -68,7 +68,7 @@ func acquireSudog() *sudog {
 	c := gomcache()
 	s := c.sudogcache
 	if s != nil {
-		c.sudogcache = s.link
+		c.sudogcache = s.next
 		return s
 	}
 	return new(sudog)
@@ -77,6 +77,6 @@ func acquireSudog() *sudog {
 //go:nosplit
 func releaseSudog(s *sudog) {
 	c := gomcache()
-	s.link = c.sudogcache
+	s.next = c.sudogcache
 	c.sudogcache = s
 }

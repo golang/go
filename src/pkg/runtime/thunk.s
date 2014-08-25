@@ -19,3 +19,15 @@ TEXT sync·runtime_Syncsemrelease(SB),NOSPLIT,$0-0
 
 TEXT sync·runtime_Syncsemcheck(SB),NOSPLIT,$0-0
 	JMP	runtime·syncsemcheck(SB)
+
+TEXT sync·runtime_Semacquire(SB),NOSPLIT,$0-0
+	JMP	runtime·asyncsemacquire(SB)
+
+TEXT sync·runtime_Semrelease(SB),NOSPLIT,$0-0
+	JMP	runtime·asyncsemrelease(SB)
+
+TEXT net·runtime_Semacquire(SB),NOSPLIT,$0-0
+	JMP	runtime·asyncsemacquire(SB)
+
+TEXT net·runtime_Semrelease(SB),NOSPLIT,$0-0
+	JMP	runtime·asyncsemrelease(SB)

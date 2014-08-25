@@ -168,7 +168,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		if t0 != 0 {
 			mysg.releasetime = -1
 		}
-		mysg.elem = (*uint8)(ep)
+		mysg.elem = ep
 		mysg.waitlink = nil
 		gp.waiting = mysg
 		mysg.g = gp
@@ -257,13 +257,13 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 }
 
 func (q *waitq) enqueue(sgp *sudog) {
-	sgp.link = nil
+	sgp.next = nil
 	if q.first == nil {
 		q.first = sgp
 		q.last = sgp
 		return
 	}
-	q.last.link = sgp
+	q.last.next = sgp
 	q.last = sgp
 }
 
@@ -273,7 +273,7 @@ func (q *waitq) dequeue() *sudog {
 		if sgp == nil {
 			return nil
 		}
-		q.first = sgp.link
+		q.first = sgp.next
 		if q.last == sgp {
 			q.last = nil
 		}
