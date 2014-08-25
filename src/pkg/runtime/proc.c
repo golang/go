@@ -2632,10 +2632,15 @@ sysmon(void)
 	G *gp;
 
 	// If we go two minutes without a garbage collection, force one to run.
-	forcegcperiod = 2*60*1e6;
+	forcegcperiod = 2*60*1e9;
 	// If a heap span goes unused for 5 minutes after a garbage collection,
 	// we hand it back to the operating system.
-	scavengelimit = 5*60*1e6;
+	scavengelimit = 5*60*1e9;
+	if(runtime·debug.scavenge > 0) {
+		// Scavenge-a-lot for testing.
+		forcegcperiod = 10*1e6;
+		scavengelimit = 20*1e6;
+	}
 	lastscavenge = runtime·nanotime();
 	nscavenge = 0;
 	// Make wake-up period small enough for the sampling to be correct.

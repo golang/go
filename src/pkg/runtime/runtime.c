@@ -302,6 +302,7 @@ runtime·tickspersecond(void)
 	return res;
 }
 
+#pragma dataflag NOPTR
 DebugVars	runtime·debug;
 
 static struct {
@@ -314,6 +315,7 @@ static struct {
 	{"gcdead", &runtime·debug.gcdead},
 	{"scheddetail", &runtime·debug.scheddetail},
 	{"schedtrace", &runtime·debug.schedtrace},
+	{"scavenge", &runtime·debug.scavenge},
 };
 
 void
