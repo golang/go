@@ -34,6 +34,9 @@ var timers struct {
 	t            []*timer
 }
 
+// nacl fake time support.
+var timens int64
+
 // Package time APIs.
 // Godoc uses the comments in package time, not these.
 
