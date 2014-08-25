@@ -1113,8 +1113,7 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 		// struct { byte *str; intgo len; }
 		if((*xoffset & (widthptr-1)) != 0)
 			fatal("twobitwalktype1: invalid alignment, %T", t);
-		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 0);
-		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 3:0 = multiword:string
+		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr in first slot
 		*xoffset += t->width;
 		break;
 
@@ -1145,9 +1144,7 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 			// struct { byte *array; uintgo len; uintgo cap; }
 			if((*xoffset & (widthptr-1)) != 0)
 				fatal("twobitwalktype1: invalid TARRAY alignment, %T", t);
-			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 0);
-			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);
-			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2); // 3:1 = multiword/slice
+			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr in first slot
 			*xoffset += t->width;
 		} else
 			for(i = 0; i < t->bound; i++)

@@ -172,8 +172,8 @@ static FinBlock	*finc;		// cache of free blocks
 static FinBlock	*allfin;	// list of all blocks
 bool	runtime·fingwait;
 bool	runtime·fingwake;
-byte*	runtime·gcdatamask;
-byte*	runtime·gcbssmask;
+BitVector	runtime·gcdatamask;
+BitVector	runtime·gcbssmask;
 
 static Lock	gclock;
 
@@ -187,7 +187,7 @@ static void	gchelperstart(void);
 static void	flushallmcaches(void);
 static bool	scanframe(Stkframe *frame, void *unused);
 static void	scanstack(G *gp);
-static byte*	unrollglobgcprog(byte *prog, uintptr size);
+static BitVector	unrollglobgcprog(byte *prog, uintptr size);
 
 static FuncVal runfinqv = {runfinq};
 static FuncVal bgsweepv = {bgsweep};
@@ -221,8 +221,6 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 	uintptr i, nobj, size, idx, x, off, scanbufpos;
 	intptr ncached;
 	Workbuf *wbuf;
-	String *str;
-	Slice *slice;
 	Iface *iface;
 	Eface *eface;
 	Type *typ;
@@ -346,6 +344,10 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				obj = *(byte**)(b+i);
 				goto markobj;
 			}
+
+			// With those three out of the way, must be multi-word.
+			if(bits != BitsMultiWord)
+				runtime·throw("unexpected garbage collection bits");
 			// Find the next pair of bits.
 			if(ptrmask == nil) {
 				if(ncached <= 0) {
@@ -358,22 +360,8 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				bits = (ptrmask[((i+PtrSize)/PtrSize)/4]>>((((i+PtrSize)/PtrSize)%4)*BitsPerPointer))&BitsMask;
 
 			switch(bits) {
-			case BitsString:
-				str = (String*)(b+i);
-				if(str->len > 0)
-					obj = str->str;
-				break;
-			case BitsSlice:
-				slice = (Slice*)(b+i);
-				if(Debug && slice->cap < slice->len) {
-					g->m->traceback = 2;
-					runtime·printf("bad slice in object %p: %p/%p/%p\n",
-						b, slice->array, slice->len, slice->cap);
-					runtime·throw("bad slice in heap object");
-				}
-				if(slice->cap > 0)
-					obj = slice->array;
-				break;
+			default:
+				runtime·throw("unexpected garbage collection bits");
 			case BitsIface:
 				iface = (Iface*)(b+i);
 				if(iface->tab != nil) {
@@ -392,21 +380,9 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				break;
 			}
 
-			if(bits == BitsSlice) {
-				i += 2*PtrSize;
-				if(ncached == 2)
-					ncached = 0;
-				else if(ptrmask == nil) {
-					// Refill cache and consume one quadruple.
-					cached = *--ptrbitp;
-					cached >>= gcBits;
-					ncached = 1;
-				}
-			} else {
-				i += PtrSize;
-				cached >>= gcBits;
-				ncached--;
-			}
+			i += PtrSize;
+			cached >>= gcBits;
+			ncached--;
 
 		markobj:
 			// At this point we have extracted the next potential pointer.
@@ -513,11 +489,11 @@ markroot(ParFor *desc, uint32 i)
 	// Note: if you add a case here, please also update heapdump.c:dumproots.
 	switch(i) {
 	case RootData:
-		scanblock(data, edata - data, runtime·gcdatamask);
+		scanblock(data, edata - data, (byte*)runtime·gcdatamask.data);
 		break;
 
 	case RootBss:
-		scanblock(bss, ebss - bss, runtime·gcbssmask);
+		scanblock(bss, ebss - bss, (byte*)runtime·gcbssmask.data);
 		break;
 
 	case RootFinalizers:
@@ -1852,7 +1828,7 @@ unrollgcprog1(byte *mask, byte *prog, uintptr *ppos, bool inplace, bool sparse)
 }
 
 // Unrolls GC program prog for data/bss, returns dense GC mask.
-static byte*
+static BitVector
 unrollglobgcprog(byte *prog, uintptr size)
 {
 	byte *mask;
@@ -1872,7 +1848,7 @@ unrollglobgcprog(byte *prog, uintptr size)
 		runtime·throw("unrollglobgcprog: program does not end with insEnd");
 	if(mask[masksize] != 0xa1)
 		runtime·throw("unrollglobgcprog: overflow");
-	return mask;
+	return (BitVector){masksize*8, (uint32*)mask};
 }
 
 void
@@ -2062,7 +2038,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*mask = runtime·mallocgc(*len, nil, 0);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-data)/PtrSize;
-			bits = (runtime·gcdatamask[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			bits = (((byte*)runtime·gcdatamask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
 		return;
@@ -2074,7 +2050,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*mask = runtime·mallocgc(*len, nil, 0);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-bss)/PtrSize;
-			bits = (runtime·gcbssmask[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			bits = (((byte*)runtime·gcbssmask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
 		return;

@@ -656,11 +656,15 @@ maptype(Type *key, Type *val)
 {
 	Type *t;
 	Type *bad;
-	int atype;
+	int atype, mtype;
 
 	if(key != nil) {
 		atype = algtype1(key, &bad);
-		switch(bad == T ? key->etype : bad->etype) {
+		if(bad == T)
+			mtype = key->etype;
+		else
+			mtype = bad->etype;
+		switch(mtype) {
 		default:
 			if(atype == ANOEQ)
 				yyerror("invalid map key type %T", key);

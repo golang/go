@@ -260,16 +260,8 @@ dumpbv(BitVector *bv, uintptr offset)
 			break;
 		case BitsMultiWord:
 			switch(bv->data[(i+BitsPerPointer)/32] >> (i+BitsPerPointer)%32 & 3) {
-			case BitsString:
-				dumpint(FieldKindString);
-				dumpint(offset + i / BitsPerPointer * PtrSize);
-				i += BitsPerPointer;
-				break;
-			case BitsSlice:
-				dumpint(FieldKindSlice);
-				dumpint(offset + i / BitsPerPointer * PtrSize);
-				i += 2 * BitsPerPointer;
-				break;
+			default:
+				runtime·throw("unexpected garbage collection bits");
 			case BitsIface:
 				dumpint(FieldKindIface);
 				dumpint(offset + i / BitsPerPointer * PtrSize);
@@ -495,13 +487,13 @@ dumproots(void)
 	dumpint(TagData);
 	dumpint((uintptr)data);
 	dumpmemrange(data, edata - data);
-	dumpfields((BitVector){(edata - data)*8, (uint32*)runtime·gcdatamask});
+	dumpfields(runtime·gcdatamask);
 
 	// bss segment
 	dumpint(TagBss);
 	dumpint((uintptr)bss);
 	dumpmemrange(bss, ebss - bss);
-	dumpfields((BitVector){(ebss - bss)*8, (uint32*)runtime·gcbssmask});
+	dumpfields(runtime·gcdatamask);
 
 	// MSpan.types
 	allspans = runtime·mheap.allspans;
@@ -802,12 +794,10 @@ dumpbvtypes(BitVector *bv, byte *base)
 		if((bv->data[i/32] >> i%32 & 3) != BitsMultiWord)
 			continue;
 		switch(bv->data[(i+BitsPerPointer)/32] >> (i+BitsPerPointer)%32 & 3) {
-		case BitsString:
+		default:
+			runtime·throw("unexpected garbage collection bits");
 		case BitsIface:
 			i += BitsPerPointer;
-			break;
-		case BitsSlice:
-			i += 2 * BitsPerPointer;
 			break;
 		case BitsEface:
 			dumptype(*(Type**)(base + i / BitsPerPointer * PtrSize));

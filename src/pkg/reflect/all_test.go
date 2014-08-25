@@ -2494,6 +2494,15 @@ func TestSlice(t *testing.T) {
 	if vs != s[3:5] {
 		t.Errorf("s.Slice(3, 5) = %q; expected %q", vs, s[3:5])
 	}
+
+	rv := ValueOf(&xs).Elem()
+	rv = rv.Slice(3, 4)
+	ptr2 := rv.Pointer()
+	rv = rv.Slice(5, 5)
+	ptr3 := rv.Pointer()
+	if ptr3 != ptr2 {
+		t.Errorf("xs.Slice(3,4).Slice3(5,5).Pointer() = %#x, want %#x", ptr3, ptr2)
+	}
 }
 
 func TestSlice3(t *testing.T) {
@@ -2532,6 +2541,15 @@ func TestSlice3(t *testing.T) {
 	s := "hello world"
 	rv = ValueOf(&s).Elem()
 	shouldPanic(func() { rv.Slice3(1, 2, 3) })
+
+	rv = ValueOf(&xs).Elem()
+	rv = rv.Slice3(3, 5, 7)
+	ptr2 := rv.Pointer()
+	rv = rv.Slice3(4, 4, 4)
+	ptr3 := rv.Pointer()
+	if ptr3 != ptr2 {
+		t.Errorf("xs.Slice3(3,5,7).Slice3(4,4,4).Pointer() = %#x, want %#x", ptr3, ptr2)
+	}
 }
 
 func TestSetLenCap(t *testing.T) {
