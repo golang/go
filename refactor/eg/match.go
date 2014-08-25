@@ -35,10 +35,8 @@ func (tr *Transformer) matchExpr(x, y ast.Expr) bool {
 	y = unparen(y)
 
 	// Is x a wildcard?  (a reference to a 'before' parameter)
-	if x, ok := x.(*ast.Ident); ok && x != nil && tr.allowWildcards {
-		if xobj, ok := tr.info.Uses[x].(*types.Var); ok && tr.wildcards[xobj] {
-			return tr.matchWildcard(xobj, y)
-		}
+	if xobj, ok := tr.wildcardObj(x); ok {
+		return tr.matchWildcard(xobj, y)
 	}
 
 	// Object identifiers (including pkg-qualified ones)
@@ -81,7 +79,7 @@ func (tr *Transformer) matchExpr(x, y ast.Expr) bool {
 
 	case *ast.SelectorExpr:
 		y := y.(*ast.SelectorExpr)
-		return tr.matchExpr(x.X, y.X) &&
+		return tr.matchSelectorExpr(x, y) &&
 			tr.info.Selections[x].Obj() == tr.info.Selections[y].Obj()
 
 	case *ast.IndexExpr:
@@ -153,6 +151,28 @@ func (tr *Transformer) matchType(x, y ast.Expr) bool {
 	tx := tr.info.Types[x].Type
 	ty := tr.info.Types[y].Type
 	return types.Identical(tx, ty)
+}
+
+func (tr *Transformer) wildcardObj(x ast.Expr) (*types.Var, bool) {
+	if x, ok := x.(*ast.Ident); ok && x != nil && tr.allowWildcards {
+		if xobj, ok := tr.info.Uses[x].(*types.Var); ok && tr.wildcards[xobj] {
+			return xobj, true
+		}
+	}
+	return nil, false
+}
+
+func (tr *Transformer) matchSelectorExpr(x, y *ast.SelectorExpr) bool {
+	if xobj, ok := tr.wildcardObj(x.X); ok {
+		field := x.Sel.Name
+		yt := tr.info.TypeOf(y.X)
+		o, _, _ := types.LookupFieldOrMethod(yt, tr.currentPkg, field)
+		if o != nil {
+			tr.env[xobj.Name()] = y.X // record binding
+			return true
+		}
+	}
+	return tr.matchExpr(x.X, y.X)
 }
 
 func (tr *Transformer) matchWildcard(xobj *types.Var, y ast.Expr) bool {
