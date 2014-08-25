@@ -20,15 +20,16 @@ struct Ftab
 };
 
 extern byte pclntab[];
+extern byte epclntab[];
 
 static Ftab *ftab;
-extern uintptr runtime·nftab;
+static uintptr runtime·nftab;
 static uint32 *filetab;
-extern uint32 runtime·nfiletab;
+static uint32 runtime·nfiletab;
 
-extern uintptr runtime·pclntab;
-extern uintptr runtime·ftab0;
-extern uintptr runtime·filetab0;
+extern Slice runtime·pclntab;
+extern Slice runtime·ftabs;
+extern Slice runtime·filetab;
 extern uint32 runtime·pcquantum;
 
 static String end = { (uint8*)"end", 3 };
@@ -65,9 +66,18 @@ runtime·symtabinit(void)
 	runtime·nfiletab = filetab[0];
 
 	runtime·pcquantum = PCQuantum;
-	runtime·pclntab = (uintptr)pclntab;
-	runtime·ftab0 = (uintptr)ftab;
-	runtime·filetab0 = (uintptr)filetab;
+
+	runtime·pclntab.array = (byte*)pclntab;
+	runtime·pclntab.len = (byte*)epclntab - (byte*)pclntab;
+	runtime·pclntab.cap = runtime·pclntab.len;
+
+	runtime·ftabs.array = (byte*)ftab;
+	runtime·ftabs.len = runtime·nftab+1;
+	runtime·ftabs.cap = runtime·ftabs.len;
+
+	runtime·filetab.array = (byte*)filetab;
+	runtime·filetab.len = filetab[0];
+	runtime·filetab.cap = runtime·filetab.len;
 }
 
 static uint32

@@ -49,7 +49,8 @@ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 
 // n must be a power of 2
 func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
-	return unsafe.Pointer((uintptr(p) + n - 1) &^ (n - 1))
+	delta := -uintptr(p) & (n - 1)
+	return unsafe.Pointer(uintptr(p) + delta)
 }
 
 // in stubs.goc

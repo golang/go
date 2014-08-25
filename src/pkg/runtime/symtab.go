@@ -9,22 +9,22 @@ import "unsafe"
 // FuncForPC returns a *Func describing the function that contains the
 // given program counter address, or else nil.
 func FuncForPC(pc uintptr) *Func {
-	if nftab == 0 {
+	if len(ftabs) == 0 {
 		return nil
 	}
 
-	if pc < ftabi(0).entry || pc >= ftabi(nftab).entry {
+	if pc < ftabs[0].entry || pc >= ftabs[len(ftabs)-1].entry {
 		return nil
 	}
 
 	// binary search to find func with entry <= pc.
-	lo := uintptr(0)
-	nf := nftab
+	lo := 0
+	nf := len(ftabs) - 1 // last entry is sentinel
 	for nf > 0 {
 		n := nf / 2
-		f := ftabi(lo + n)
-		if f.entry <= pc && pc < ftabi(lo+n+1).entry {
-			return (*Func)(unsafe.Pointer(pclntab + f.funcoff))
+		f := &ftabs[lo+n]
+		if f.entry <= pc && pc < ftabs[lo+n+1].entry {
+			return (*Func)(unsafe.Pointer(&pclntab[f.funcoff]))
 		} else if pc < f.entry {
 			nf = n
 		} else {
@@ -39,7 +39,7 @@ func FuncForPC(pc uintptr) *Func {
 
 // Name returns the name of the function.
 func (f *Func) Name() string {
-	return cstringToGo(pclntab + uintptr(f.nameoff))
+	return cstringToGo(unsafe.Pointer(&pclntab[f.nameoff]))
 }
 
 // Entry returns the entry address of the function.
@@ -52,15 +52,15 @@ func (f *Func) Entry() uintptr {
 // The result will not be accurate if pc is not a program
 // counter within f.
 func (f *Func) FileLine(pc uintptr) (file string, line int) {
-	fileno := f.pcvalue(f.pcfile, pc)
-	if fileno == -1 || fileno >= int32(nfiletab) {
+	fileno := int(f.pcvalue(f.pcfile, pc))
+	if fileno == -1 || fileno >= len(filetab) {
 		return "?", 0
 	}
 	line = int(f.pcvalue(f.pcln, pc))
 	if line == -1 {
 		return "?", 0
 	}
-	file = cstringToGo(pclntab + uintptr(filetabi(uintptr(fileno))))
+	file = cstringToGo(unsafe.Pointer(&pclntab[filetab[fileno]]))
 	return file, line
 }
 
@@ -69,10 +69,15 @@ func (f *Func) pcvalue(off int32, targetpc uintptr) int32 {
 	if off == 0 {
 		return -1
 	}
-	p := pclntab + uintptr(off)
+	p := pclntab[off:]
 	pc := f.entry
 	val := int32(-1)
-	for step(&p, &pc, &val, pc == f.entry) {
+	for {
+		var ok bool
+		p, ok = step(p, &pc, &val, pc == f.entry)
+		if !ok {
+			break
+		}
 		if targetpc < pc {
 			return val
 		}
@@ -81,10 +86,10 @@ func (f *Func) pcvalue(off int32, targetpc uintptr) int32 {
 }
 
 // step advances to the next pc, value pair in the encoded table.
-func step(p *uintptr, pc *uintptr, val *int32, first bool) bool {
-	uvdelta := readvarint(p)
+func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) {
+	p, uvdelta := readvarint(p)
 	if uvdelta == 0 && !first {
-		return false
+		return nil, false
 	}
 	if uvdelta&1 != 0 {
 		uvdelta = ^(uvdelta >> 1)
@@ -92,36 +97,32 @@ func step(p *uintptr, pc *uintptr, val *int32, first bool) bool {
 		uvdelta >>= 1
 	}
 	vdelta := int32(uvdelta)
-	pcdelta := readvarint(p) * pcquantum
-	*pc += uintptr(pcdelta)
+	p, pcdelta := readvarint(p)
+	*pc += uintptr(pcdelta * pcquantum)
 	*val += vdelta
-	return true
+	return p, true
 }
 
-// readvarint reads a varint from *p and advances *p.
-func readvarint(pp *uintptr) uint32 {
+// readvarint reads a varint from p.
+func readvarint(p []byte) (newp []byte, val uint32) {
 	var v, shift uint32
-	p := *pp
 	for {
-		b := *(*byte)(unsafe.Pointer(p))
-		p++
+		b := p[0]
+		p = p[1:]
 		v |= (uint32(b) & 0x7F) << shift
 		if b&0x80 == 0 {
 			break
 		}
 		shift += 7
 	}
-	*pp = p
-	return v
+	return p, v
 }
 
 // Populated by runtime·symtabinit during bootstrapping. Treat as immutable.
 var (
-	pclntab   uintptr // address of pclntab
-	ftab0     uintptr // address of first ftab entry
-	nftab     uintptr
-	filetab0  uintptr // address of first filetab entry
-	nfiletab  uint32
+	pclntab   []byte
+	ftabs     []ftab
+	filetab   []uint32
 	pcquantum uint32
 )
 
@@ -142,12 +143,4 @@ type Func struct {
 type ftab struct {
 	entry   uintptr
 	funcoff uintptr
-}
-
-func ftabi(i uintptr) (f ftab) {
-	return *(*ftab)(unsafe.Pointer(ftab0 + i*unsafe.Sizeof(f)))
-}
-
-func filetabi(i uintptr) (f uint32) {
-	return *(*uint32)(unsafe.Pointer(filetab0 + i*unsafe.Sizeof(f)))
 }

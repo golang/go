@@ -148,10 +148,10 @@ type stringStruct struct {
 	len int
 }
 
-func cstringToGo(str uintptr) (s string) {
+func cstringToGo(str unsafe.Pointer) (s string) {
 	i := 0
 	for ; ; i++ {
-		if *(*byte)(unsafe.Pointer(str + uintptr(i))) == 0 {
+		if *(*byte)(unsafe.Pointer(uintptr(str) + uintptr(i))) == 0 {
 			break
 		}
 	}
