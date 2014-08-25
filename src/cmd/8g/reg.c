@@ -1168,6 +1168,7 @@ void
 addreg(Adr *a, int rn)
 {
 	a->sym = nil;
+	a->node = nil;
 	a->offset = 0;
 	a->type = rn;
 
