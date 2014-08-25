@@ -20,7 +20,7 @@ struct	Hchan
 	uintgo	dataqsiz;		// size of the circular q
 	byte*	buf;
 	uint16	elemsize;
-	bool	closed;
+	uint32	closed;
 	Type*	elemtype;		// element type
 	uintgo	sendx;			// send index
 	uintgo	recvx;			// receive index

@@ -57,6 +57,27 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 		runtime·prints("\n");
 	}
 
+	if(raceenabled)
+		runtime·racereadpc(c, pc, chansend);
+
+	// Fast path: check for failed non-blocking operation without acquiring the lock.
+	//
+	// After observing that the channel is not closed, we observe that the channel is
+	// not ready for sending. Each of these observations is a single word-sized read
+	// (first c.closed and second c.recvq.first or c.qcount depending on kind of channel).
+	// Because a closed channel cannot transition from 'ready for sending' to
+	// 'not ready for sending', even if the channel is closed between the two observations,
+	// they imply a moment between the two when the channel was both not yet closed
+	// and not ready for sending. We behave as if we observed the channel at that moment,
+	// and report that the send cannot proceed.
+	//
+	// It is okay if the reads are reordered here: if we observe that the channel is not
+	// ready for sending and then observe that it is not closed, that implies that the
+	// channel wasn't closed during the first observation.
+	if(!block && !c->closed && ((c->dataqsiz == 0 && c->recvq.first == nil) ||
+		(c->dataqsiz > 0 && c->qcount == c->dataqsiz)))
+		return false;
+
 	t0 = 0;
 	mysg.releasetime = 0;
 	if(runtime·blockprofilerate > 0) {
@@ -65,8 +86,6 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 	}
 
 	runtime·lock(&c->lock);
-	if(raceenabled)
-		runtime·racereadpc(c, pc, chansend);
 	if(c->closed)
 		goto closed;
 
@@ -182,6 +201,23 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
 		runtime·park(nil, nil, runtime·gostringnocopy((byte*)"chan receive (nil chan)"));
 		return false;  // not reached
 	}
+
+	// Fast path: check for failed non-blocking operation without acquiring the lock.
+	//
+	// After observing that the channel is not ready for receiving, we observe that the
+	// channel is not closed. Each of these observations is a single word-sized read
+	// (first c.sendq.first or c.qcount, and second c.closed).
+	// Because a channel cannot be reopened, the later observation of the channel
+	// being not closed implies that it was also not closed at the moment of the
+	// first observation. We behave as if we observed the channel at that moment
+	// and report that the receive cannot proceed.
+	//
+	// The order of operations is important here: reversing the operations can lead to
+	// incorrect behavior when racing with a close.
+	if(!block && ((c->dataqsiz == 0 && c->sendq.first == nil) ||
+		(c->dataqsiz > 0 && runtime·atomicloadp((void**)&c->qcount) == 0)) &&
+		!runtime·atomicload(&c->closed))
+		return false;
 
 	t0 = 0;
 	mysg.releasetime = 0;

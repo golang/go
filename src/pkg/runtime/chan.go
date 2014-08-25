@@ -96,17 +96,37 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		println("chansend: chan=", c)
 	}
 
+	if raceenabled {
+		fn := chansend
+		pc := **(**uintptr)(unsafe.Pointer(&fn))
+		racereadpc(unsafe.Pointer(c), pc, callerpc)
+	}
+
+	// Fast path: check for failed non-blocking operation without acquiring the lock.
+	//
+	// After observing that the channel is not closed, we observe that the channel is
+	// not ready for sending. Each of these observations is a single word-sized read
+	// (first c.closed and second c.recvq.first or c.qcount depending on kind of channel).
+	// Because a closed channel cannot transition from 'ready for sending' to
+	// 'not ready for sending', even if the channel is closed between the two observations,
+	// they imply a moment between the two when the channel was both not yet closed
+	// and not ready for sending. We behave as if we observed the channel at that moment,
+	// and report that the send cannot proceed.
+	//
+	// It is okay if the reads are reordered here: if we observe that the channel is not
+	// ready for sending and then observe that it is not closed, that implies that the
+	// channel wasn't closed during the first observation.
+	if !block && c.closed == 0 && ((c.dataqsiz == 0 && c.recvq.first == nil) ||
+		(c.dataqsiz > 0 && c.qcount == c.dataqsiz)) {
+		return false
+	}
+
 	var t0 int64
 	if blockprofilerate > 0 {
 		t0 = gocputicks()
 	}
 
 	golock(&c.lock)
-	if raceenabled {
-		fn := chansend
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(c), pc, callerpc)
-	}
 	if c.closed != 0 {
 		gounlock(&c.lock)
 		panic("send on closed channel")
