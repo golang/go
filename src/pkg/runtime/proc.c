@@ -2253,7 +2253,6 @@ static struct {
 	Lock lock;
 	void (*fn)(uintptr*, int32);
 	int32 hz;
-	uintptr pcbuf[100];
 } prof;
 
 static void System(void) {}
@@ -2270,6 +2269,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 	// Do not use global m in this function, use mp instead.
 	// On windows one m is sending reports about all the g's, so m means a wrong thing.
 	byte m;
+	uintptr stk[100];
 
 	m = 0;
 	USED(m);
@@ -2358,15 +2358,9 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 	   ((uint8*)runtime·gogo <= pc && pc < (uint8*)runtime·gogo + RuntimeGogoBytes))
 		traceback = false;
 
-	runtime·lock(&prof.lock);
-	if(prof.fn == nil) {
-		runtime·unlock(&prof.lock);
-		mp->mallocing--;
-		return;
-	}
 	n = 0;
 	if(traceback)
-		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, stk, nelem(stk), nil, nil, false);
 	if(!traceback || n <= 0) {
 		// Normal traceback is impossible or has failed.
 		// See if it falls into several common cases.
@@ -2376,13 +2370,13 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 			// Cgo, we can't unwind and symbolize arbitrary C code,
 			// so instead collect Go stack that leads to the cgo call.
 			// This is especially important on windows, since all syscalls are cgo calls.
-			n = runtime·gentraceback(mp->curg->syscallpc, mp->curg->syscallsp, 0, mp->curg, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+			n = runtime·gentraceback(mp->curg->syscallpc, mp->curg->syscallsp, 0, mp->curg, 0, stk, nelem(stk), nil, nil, false);
 		}
 #ifdef GOOS_windows
 		if(n == 0 && mp->libcallg != nil && mp->libcallpc != 0 && mp->libcallsp != 0) {
 			// Libcall, i.e. runtime syscall on windows.
 			// Collect Go stack that leads to the call.
-			n = runtime·gentraceback(mp->libcallpc, mp->libcallsp, 0, mp->libcallg, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+			n = runtime·gentraceback(mp->libcallpc, mp->libcallsp, 0, mp->libcallg, 0, stk, nelem(stk), nil, nil, false);
 		}
 #endif
 		if(n == 0) {
@@ -2391,15 +2385,20 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 			// "ExternalCode" is better than "etext".
 			if((uintptr)pc > (uintptr)etext)
 				pc = (byte*)ExternalCode + PCQuantum;
-			prof.pcbuf[0] = (uintptr)pc;
+			stk[0] = (uintptr)pc;
 			if(mp->gcing || mp->helpgc)
-				prof.pcbuf[1] = (uintptr)GC + PCQuantum;
+				stk[1] = (uintptr)GC + PCQuantum;
 			else
-				prof.pcbuf[1] = (uintptr)System + PCQuantum;
+				stk[1] = (uintptr)System + PCQuantum;
 		}
 	}
-	prof.fn(prof.pcbuf, n);
-	runtime·unlock(&prof.lock);
+
+	if(prof.fn != nil) {
+		runtime·lock(&prof.lock);
+		if(prof.fn != nil)
+			prof.fn(stk, n);
+		runtime·unlock(&prof.lock);
+	}
 	mp->mallocing--;
 }
 
