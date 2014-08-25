@@ -21,9 +21,6 @@ struct	Hchan
 	byte*	buf;
 	uint16	elemsize;
 	uint32	closed;
-#ifndef GOARCH_amd64
-	uint32	pad;			// ensures proper alignment of the buffer that follows Hchan in memory
-#endif
 	Type*	elemtype;		// element type
 	uintgo	sendx;			// send index
 	uintgo	recvx;			// receive index

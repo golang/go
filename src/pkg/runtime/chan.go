@@ -11,11 +11,11 @@ import "unsafe"
 
 const (
 	maxAlign  = 8
-	hchanSize = unsafe.Sizeof(hchan{})
+	hchanSize = unsafe.Sizeof(hchan{}) + uintptr(-int(unsafe.Sizeof(hchan{}))&(maxAlign-1))
 	debugChan = false
 )
 
-// TODO: make hchan.buf an unsafe.Pointer, not a *uint8
+// TODO(khr): make hchan.buf an unsafe.Pointer, not a *uint8
 
 func makechan(t *chantype, size int64) *hchan {
 	elem := t.elem
