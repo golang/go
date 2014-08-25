@@ -696,12 +696,12 @@ type ptrEncoder struct {
 	elemEnc encoderFunc
 }
 
-func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, _ bool) {
+func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, quoted bool) {
 	if v.IsNil() {
 		e.WriteString("null")
 		return
 	}
-	pe.elemEnc(e, v.Elem(), false)
+	pe.elemEnc(e, v.Elem(), quoted)
 }
 
 func newPtrEncoder(t reflect.Type) encoderFunc {
