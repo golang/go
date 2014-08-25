@@ -1,4 +1,6 @@
 // Copyright 2014 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 package regexp
 
@@ -8,9 +10,6 @@ import (
 	"sort"
 	"unicode"
 )
-
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 // "One-pass" regexp execution.
 // Some regexps can be analyzed to determine that they never need
