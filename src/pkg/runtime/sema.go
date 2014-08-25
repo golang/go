@@ -66,7 +66,7 @@ func syncsemacquire(s *syncSema) {
 		s.tail = w
 		goparkunlock(&s.lock, "semacquire")
 		if t0 != 0 {
-			goblockevent(int64(w.releasetime)-t0, 2)
+			goblockevent(int64(w.releasetime)-t0, 3)
 		}
 		releaseSudog(w)
 	}
