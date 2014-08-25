@@ -198,6 +198,26 @@ func TestChan(t *testing.T) {
 	}
 }
 
+func TestNonblockRecvRace(t *testing.T) {
+	n := 10000
+	if testing.Short() {
+		n = 100
+	}
+	for i := 0; i < n; i++ {
+		c := make(chan int, 1)
+		c <- 1
+		go func() {
+			select {
+			case <-c:
+			default:
+				t.Fatal("chan is not ready")
+			}
+		}()
+		close(c)
+		<-c
+	}
+}
+
 func TestSelfSelect(t *testing.T) {
 	// Ensure that send/recv on the same chan in select
 	// does not crash nor deadlock.
