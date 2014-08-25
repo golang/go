@@ -35,6 +35,7 @@ var printfList = map[string]int{
 	"errorf":  0,
 	"fatalf":  0,
 	"fprintf": 1,
+	"logf":    0,
 	"panicf":  0,
 	"printf":  0,
 	"sprintf": 0,
@@ -47,6 +48,7 @@ var printList = map[string]int{
 	"error":  0,
 	"fatal":  0,
 	"fprint": 1, "fprintln": 1,
+	"log":   0,
 	"panic": 0, "panicln": 0,
 	"print": 0, "println": 0,
 	"sprint": 0, "sprintln": 0,
@@ -494,6 +496,18 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
 	isLn := strings.HasSuffix(name, "ln")
 	isF := strings.HasPrefix(name, "F")
 	args := call.Args
+	if name == "Log" {
+		// Special case: Don't complain about math.Log or cmplx.Log.
+		// Not strictly necessary because the only complaint likely is for Log("%d")
+		// but it feels wrong to check that math.Log is a good print function.
+		if sel, ok := args[0].(*ast.SelectorExpr); ok {
+			if x, ok := sel.X.(*ast.Ident); ok {
+				if x.Name == "math" || x.Name == "cmplx" {
+					return
+				}
+			}
+		}
+	}
 	// check for Println(os.Stderr, ...)
 	if firstArg == 0 && !isF && len(args) > 0 {
 		if sel, ok := args[0].(*ast.SelectorExpr); ok {

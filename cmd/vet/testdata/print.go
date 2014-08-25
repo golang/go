@@ -8,6 +8,7 @@ package testdata
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"unsafe" // just for test case printing unsafe.Pointer
 )
@@ -197,6 +198,13 @@ func PrintfTests() {
 	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next)
 	Printf("%p %x", recursiveSliceV, recursiveSliceV)
 	Printf("%p %x", recursiveMapV, recursiveMapV)
+	// Special handling for Log.
+	math.Log(3)  // OK
+	Log(3)       // OK
+	Log("%d", 3) // ERROR "possible formatting directive in Log call"
+	Logf("%d", 3)
+	Logf("%d", "hi") // ERROR "arg .hi. for printf verb %d of wrong type: untyped string"
+
 }
 
 // Printf is used by the test so we must declare it.

@@ -49,6 +49,7 @@ with these names, disregarding case:
 	Sprint Sprintf Sprintln
 	Error Errorf
 	Fatal Fatalf
+	Log Logf
 	Panic Panicf Panicln
 If the function name ends with an 'f', the function is assumed to take
 a format descriptor string in the manner of fmt.Printf. If not, vet
