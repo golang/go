@@ -46,6 +46,8 @@ a comma-separated list of name=val pairs. Supported names are:
 	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
 	error every X milliseconds, summarizing the scheduler state.
 
+	scavenge: scavenge=1 enables debugging mode of heap scavenger.
+
 The GOMAXPROCS variable limits the number of operating system threads that
 can execute user-level Go code simultaneously. There is no limit to the number of threads
 that can be blocked in system calls on behalf of Go code; those do not count against

@@ -562,6 +562,7 @@ struct DebugVars
 	int32	gcdead;
 	int32	scheddetail;
 	int32	schedtrace;
+	int32	scavenge;
 };
 
 extern bool runtime·precisestack;
