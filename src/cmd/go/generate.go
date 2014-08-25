@@ -161,7 +161,7 @@ type Generator struct {
 // run runs the generators in the current file.
 func (g *Generator) run() (ok bool) {
 	// Processing below here calls g.errorf on failure, which does panic(stop).
-	// If we encouter an error, we abort the package.
+	// If we encounter an error, we abort the package.
 	defer func() {
 		e := recover()
 		if e != nil {
