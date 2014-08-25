@@ -11,6 +11,18 @@
 #define JMP B
 #endif
 
+TEXT time·runtimeNano(SB),NOSPLIT,$0-0
+	JMP     runtime·gonanotime(SB)
+
+TEXT time·Sleep(SB),NOSPLIT,$0-0
+	JMP     runtime·timeSleep(SB)
+
+TEXT time·startTimer(SB),NOSPLIT,$0-0
+	JMP     runtime·startTimer(SB)
+
+TEXT time·stopTimer(SB),NOSPLIT,$0-0
+	JMP     runtime·stopTimer(SB)
+
 TEXT sync·runtime_Syncsemacquire(SB),NOSPLIT,$0-0
 	JMP	runtime·syncsemacquire(SB)
 
