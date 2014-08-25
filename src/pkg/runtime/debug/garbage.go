@@ -19,14 +19,6 @@ type GCStats struct {
 	PauseQuantiles []time.Duration
 }
 
-// Implemented in package runtime.
-func readGCStats(*[]time.Duration)
-func enableGC(bool) bool
-func setGCPercent(int) int
-func freeOSMemory()
-func setMaxStack(int) int
-func setMaxThreads(int) int
-
 // ReadGCStats reads statistics about garbage collection into stats.
 // The number of entries in the pause history is system-dependent;
 // stats.Pause slice will be reused if large enough, reallocated otherwise.
@@ -91,9 +83,9 @@ func (x byDuration) Less(i, j int) bool { return x[i] < x[j] }
 // at startup, or 100 if the variable is not set.
 // A negative percentage disables garbage collection.
 func SetGCPercent(percent int) int {
-	old := setGCPercent(percent)
+	old := setGCPercent(int32(percent))
 	runtime.GC()
-	return old
+	return int(old)
 }
 
 // FreeOSMemory forces a garbage collection followed by an
@@ -145,7 +137,9 @@ func SetMaxThreads(threads int) int {
 // that the runtime trigger only a panic, not a crash.
 // SetPanicOnFault applies only to the current goroutine.
 // It returns the previous setting.
-func SetPanicOnFault(enabled bool) bool
+func SetPanicOnFault(enabled bool) bool {
+	return setPanicOnFault(enabled)
+}
 
 // WriteHeapDump writes a description of the heap and the objects in
 // it to the given file descriptor.

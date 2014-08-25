@@ -84,6 +84,8 @@ var (
 	unrollgcprog_m,
 	unrollgcproginplace_m,
 	gosched_m,
+	setgcpercent_m,
+	setmaxthreads_m,
 	ready_m,
 	park_m,
 	blockevent_m,

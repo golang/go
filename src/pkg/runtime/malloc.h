@@ -586,7 +586,7 @@ void	runtime·gc_m_ptr(Eface*);
 void	runtime·gc_g_ptr(Eface*);
 void	runtime·gc_itab_ptr(Eface*);
 
-int32	runtime·setgcpercent(int32);
+void  runtime·setgcpercent_m(void);
 
 // Value we use to mark dead pointers when GODEBUG=gcdead=1.
 #define PoisonGC ((uintptr)0xf969696969696969ULL)
