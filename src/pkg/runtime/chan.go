@@ -33,7 +33,11 @@ func makechan(t *chantype, size int64) *hchan {
 
 	var c *hchan
 	if elem.kind&kindNoPointers != 0 || size == 0 {
-		// allocate memory in one call
+		// Allocate memory in one call.
+		// Hchan does not contain pointers interesting for GC in this case:
+		// buf points into the same allocation, elemtype is persistent
+		// and SudoG's are referenced from G so can't be collected.
+		// TODO(dvyukov,rlh): Rethink when collector can move allocated objects.
 		c = (*hchan)(gomallocgc(hchanSize+uintptr(size)*uintptr(elem.size), nil, flagNoScan))
 		if size > 0 && elem.size != 0 {
 			c.buf = (*uint8)(add(unsafe.Pointer(c), hchanSize))
