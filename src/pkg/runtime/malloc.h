@@ -303,7 +303,6 @@ extern	int8	runtime·size_to_class8[1024/8 + 1];
 extern	int8	runtime·size_to_class128[(MaxSmallSize-1024)/128 + 1];
 extern	void	runtime·InitSizes(void);
 
-
 typedef struct MCacheList MCacheList;
 struct MCacheList
 {
@@ -580,6 +579,9 @@ struct StackMap
 // Returns pointer map data for the given stackmap index
 // (the index is encoded in PCDATA_StackMapIndex).
 BitVector	runtime·stackmapdata(StackMap *stackmap, int32 n);
+
+extern	BitVector	runtime·gcdatamask;
+extern	BitVector	runtime·gcbssmask;
 
 // defined in mgc0.go
 void	runtime·gc_m_ptr(Eface*);

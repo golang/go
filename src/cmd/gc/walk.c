@@ -2875,14 +2875,14 @@ sliceany(Node* n, NodeList **init)
 			lb = N;
 	}
 
-	// dynamic checks convert all bounds to unsigned to save us the bound < 0 comparison
-	// generate
-	//     if hb > bound || lb > hb { panicslice() }
+	// Checking src[lb:hb:cb] or src[lb:hb].
+	// if chk0 || chk1 || chk2 { panicslice() }
 	chk = N;
-	chk0 = N;
-	chk1 = N;
-	chk2 = N;
+	chk0 = N; // cap(src) < cb
+	chk1 = N; // cb < hb for src[lb:hb:cb]; cap(src) < hb for src[lb:hb]
+	chk2 = N; // hb < lb
 
+	// All comparisons are unsigned to avoid testing < 0.
 	bt = types[simtype[TUINT]];
 	if(cb != N && cb->type->width > 4)
 		bt = types[TUINT64];

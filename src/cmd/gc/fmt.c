@@ -1153,7 +1153,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 		case Csend:
 			return fmtprint(f, "chan<- %N", n->left);
 		default:
-			if(n->left != N && n->left->op == TCHAN && n->left->sym == S && n->left->etype == Crecv)
+			if(n->left != N && n->left->op == OTCHAN && n->left->sym == S && n->left->etype == Crecv)
 				return fmtprint(f, "chan (%N)", n->left);
 			else
 				return fmtprint(f, "chan %N", n->left);

@@ -762,8 +762,6 @@ extern	uint32	runtime·cpuid_ecx;
 extern	uint32	runtime·cpuid_edx;
 extern	DebugVars	runtime·debug;
 extern	uintptr	runtime·maxstacksize;
-extern	byte*	runtime·gcdatamask;
-extern	byte*	runtime·gcbssmask;
 extern	Note	runtime·signote;
 
 /*

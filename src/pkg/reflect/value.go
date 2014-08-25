@@ -1746,9 +1746,14 @@ func (v Value) Slice(i, j int) Value {
 
 	// Reinterpret as *sliceHeader to edit.
 	s := (*sliceHeader)(unsafe.Pointer(&x))
-	s.Data = unsafe.Pointer(uintptr(base) + uintptr(i)*typ.elem.Size())
 	s.Len = j - i
 	s.Cap = cap - i
+	if cap-i > 0 {
+		s.Data = unsafe.Pointer(uintptr(base) + uintptr(i)*typ.elem.Size())
+	} else {
+		// do not advance pointer, to avoid pointing beyond end of slice
+		s.Data = base
+	}
 
 	fl := v.flag&flagRO | flagIndir | flag(Slice)<<flagKindShift
 	return Value{typ.common(), unsafe.Pointer(&x), 0, fl}
@@ -1793,9 +1798,14 @@ func (v Value) Slice3(i, j, k int) Value {
 
 	// Reinterpret as *sliceHeader to edit.
 	s := (*sliceHeader)(unsafe.Pointer(&x))
-	s.Data = unsafe.Pointer(uintptr(base) + uintptr(i)*typ.elem.Size())
 	s.Len = j - i
 	s.Cap = k - i
+	if k-i > 0 {
+		s.Data = unsafe.Pointer(uintptr(base) + uintptr(i)*typ.elem.Size())
+	} else {
+		// do not advance pointer, to avoid pointing beyond end of slice
+		s.Data = base
+	}
 
 	fl := v.flag&flagRO | flagIndir | flag(Slice)<<flagKindShift
 	return Value{typ.common(), unsafe.Pointer(&x), 0, fl}

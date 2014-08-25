@@ -1516,8 +1516,8 @@ gengcprog1(ProgGen *g, Type *t, vlong *xoffset)
 		*xoffset += t->width;
 		break;
 	case TSTRING:
-		proggendata(g, BitsMultiWord);
-		proggendata(g, BitsString);
+		proggendata(g, BitsPointer);
+		proggendata(g, BitsScalar);
 		*xoffset += t->width;
 		break;
 	case TINTER:
@@ -1530,8 +1530,8 @@ gengcprog1(ProgGen *g, Type *t, vlong *xoffset)
 		break;
 	case TARRAY:
 		if(isslice(t)) {
-			proggendata(g, BitsMultiWord);
-			proggendata(g, BitsSlice);
+			proggendata(g, BitsPointer);
+			proggendata(g, BitsScalar);
 			proggendata(g, BitsScalar);
 		} else {
 			t1 = t->type;

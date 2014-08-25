@@ -592,19 +592,8 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 			break;
 		case BitsMultiWord:
 			switch(bv->data[(i+1) / (32 / BitsPerPointer)] >> ((i+1) * BitsPerPointer & 31) & 3) {
-			case BitsString:
-				// string referents are never on the stack, never need to be adjusted
-				i++; // skip len
-				break;
-			case BitsSlice:
-				p = scanp[i];
-				if(minp <= p && p < maxp) {
-					if(StackDebug >= 3)
-						runtime·printf("adjust slice %p\n", p);
-					scanp[i] = p + delta;
-				}
-				i += 2; // skip len, cap
-				break;
+			default:
+				runtime·throw("unexpected garbage collection bits");
 			case BitsEface:
 				t = (Type*)scanp[i];
 				if(t != nil && ((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0)) {

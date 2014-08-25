@@ -19,10 +19,10 @@ var bout *bufio.Writer
 
 func main() {
 	bout = bufio.NewWriter(os.Stdout)
-	
+
 	fmt.Fprintf(bout, "%s", programTop)
 	fmt.Fprintf(bout, "func main() {\n")
-	
+
 	index := []string{
 		"0",
 		"1",
@@ -38,7 +38,7 @@ func main() {
 		"v10",
 		"v20",
 	}
-	
+
 	parse := func(s string) (n int, isconst bool) {
 		if s == "vminus1" {
 			return -1, false
@@ -69,7 +69,7 @@ func main() {
 						iconst && kconst && iv > kv,
 						iconst && base == "array" && iv > Cap,
 						jconst && base == "array" && jv > Cap,
-						kconst && base == "array" && kv > Cap:				
+						kconst && base == "array" && kv > Cap:
 						continue
 					}
 
@@ -82,7 +82,7 @@ func main() {
 						xlen = jv - iv
 						xcap = kv - iv
 					}
-					fmt.Fprintf(bout, "\tcheckSlice(%q, func() []byte { return %s }, %d, %d, %d)\n", expr, expr, xbase, xlen, xcap)									
+					fmt.Fprintf(bout, "\tcheckSlice(%q, func() []byte { return %s }, %d, %d, %d)\n", expr, expr, xbase, xlen, xcap)
 				}
 			}
 		}
@@ -147,9 +147,13 @@ func checkSlice(desc string, f func() []byte, xbase, xlen, xcap int) {
 		println(desc, "=", base, len, cap, "want panic")
 		return
 	}
-	if base != uintptr(xbase) || len != uintptr(xlen) || cap != uintptr(xcap) {
+	if cap != 0 && base != uintptr(xbase) || base >= 10 || len != uintptr(xlen) || cap != uintptr(xcap) {
 		notOK()
-		println(desc, "=", base, len, cap, "want", xbase, xlen, xcap)
+		if cap == 0 {
+			println(desc, "=", base, len, cap, "want", "0-9", xlen, xcap)
+		} else {
+			println(desc, "=", base, len, cap, "want", xbase, xlen, xcap)
+		}
 	}
 }
 

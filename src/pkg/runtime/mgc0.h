@@ -50,8 +50,8 @@ enum {
 	BitsMultiWord	= 3,
 	// BitsMultiWord will be set for the first word of a multi-word item.
 	// When it is set, one of the following will be set for the second word.
-	BitsString	= 0,
-	BitsSlice	= 1,
+	// NOT USED ANYMORE: BitsString	= 0,
+	// NOT USED ANYMORE: BitsSlice	= 1,
 	BitsIface	= 2,
 	BitsEface	= 3,
 

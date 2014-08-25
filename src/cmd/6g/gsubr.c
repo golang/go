@@ -1537,14 +1537,12 @@ optoas(int op, Type *t)
 	case CASE(OADD, TINT32):
 	case CASE(OADD, TUINT32):
 	case CASE(OADD, TPTR32):
-	case CASE(OADDPTR, TPTR32):
 		a = AADDL;
 		break;
 
 	case CASE(OADD, TINT64):
 	case CASE(OADD, TUINT64):
 	case CASE(OADD, TPTR64):
-	case CASE(OADDPTR, TPTR64):
 		a = AADDQ;
 		break;
 
