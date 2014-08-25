@@ -17,10 +17,10 @@ func TestMemStats(t *testing.T) {
 	st := new(MemStats)
 	ReadMemStats(st)
 
-	// Everything except HeapReleased, because it indeed can be 0.
+	// Everything except HeapReleased and HeapIdle, because they indeed can be 0.
 	if st.Alloc == 0 || st.TotalAlloc == 0 || st.Sys == 0 || st.Lookups == 0 ||
 		st.Mallocs == 0 || st.Frees == 0 || st.HeapAlloc == 0 || st.HeapSys == 0 ||
-		st.HeapIdle == 0 || st.HeapInuse == 0 || st.HeapObjects == 0 || st.StackInuse == 0 ||
+		st.HeapInuse == 0 || st.HeapObjects == 0 || st.StackInuse == 0 ||
 		st.StackSys == 0 || st.MSpanInuse == 0 || st.MSpanSys == 0 || st.MCacheInuse == 0 ||
 		st.MCacheSys == 0 || st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 ||
 		st.NextGC == 0 || st.NumGC == 0 {
@@ -39,6 +39,10 @@ func TestMemStats(t *testing.T) {
 	if st.Sys != st.HeapSys+st.StackSys+st.MSpanSys+st.MCacheSys+
 		st.BuckHashSys+st.GCSys+st.OtherSys {
 		t.Fatalf("Bad sys value: %+v", *st)
+	}
+
+	if st.HeapIdle+st.HeapInuse != st.HeapSys {
+		t.Fatalf("HeapIdle(%d) + HeapInuse(%d) should be equal to HeapSys(%d), but isn't.", st.HeapIdle, st.HeapInuse, st.HeapSys)
 	}
 }
 
