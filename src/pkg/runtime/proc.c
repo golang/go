@@ -3292,3 +3292,23 @@ haveexperiment(int8 *name)
 	}
 	return 0;
 }
+
+#pragma textflag NOSPLIT
+void
+sync·runtime_procPin(intptr p)
+{
+	M *mp;
+
+	mp = g->m;
+	// Disable preemption.
+	mp->locks++;
+	p = mp->p->id;
+	FLUSH(&p);
+}
+
+#pragma textflag NOSPLIT
+void
+sync·runtime_procUnpin()
+{
+	g->m->locks--;
+}
