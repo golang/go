@@ -159,6 +159,10 @@ func (s builderOrder) Less(i, j int) bool {
 }
 
 func builderPriority(builder string) int {
+	// Put -temp builders at the end, always.
+	if strings.HasSuffix(builder, "-temp") {
+		return 20
+	}
 	// Group race builders together.
 	if isRace(builder) {
 		return 1
@@ -173,6 +177,13 @@ func builderPriority(builder string) int {
 
 func isRace(s string) bool {
 	return strings.Contains(s, "-race-") || strings.HasSuffix(s, "-race")
+}
+
+func unsupported(builder string) bool {
+	if strings.HasSuffix(builder, "-temp") {
+		return true
+	}
+	return unsupportedOS(builderOS(builder))
 }
 
 func unsupportedOS(os string) bool {
@@ -257,7 +268,7 @@ var tmplFuncs = template.FuncMap{
 	"shortHash":         shortHash,
 	"shortUser":         shortUser,
 	"tail":              tail,
-	"unsupportedOS":     unsupportedOS,
+	"unsupported":       unsupported,
 }
 
 func splitDash(s string) (string, string) {
@@ -318,8 +329,9 @@ func builderArchChar(s string) string {
 }
 
 type builderSpan struct {
-	N  int
-	OS string
+	N           int
+	OS          string
+	Unsupported bool
 }
 
 // builderSpans creates a list of tags showing
@@ -330,10 +342,11 @@ func builderSpans(s []string) []builderSpan {
 	for len(s) > 0 {
 		i := 1
 		os := builderOSOrRace(s[0])
+		u := unsupportedOS(os) || strings.HasSuffix(s[0], "-temp")
 		for i < len(s) && builderOSOrRace(s[i]) == os {
 			i++
 		}
-		sp = append(sp, builderSpan{i, os})
+		sp = append(sp, builderSpan{i, os, u})
 		s = s[i:]
 	}
 	return sp

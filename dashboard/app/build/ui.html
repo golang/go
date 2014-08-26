@@ -47,7 +47,7 @@
     <table class="build">
       <colgroup class="col-hash" {{if $.Package.Path}}span="2"{{end}}></colgroup>
     {{range $.Builders | builderSpans}}
-      <colgroup class="col-result{{if (unsupportedOS .OS)}} unsupported{{end}}" span="{{.N}}"></colgroup>
+      <colgroup class="col-result{{if .Unsupported}} unsupported{{end}}" span="{{.N}}"></colgroup>
     {{end}}
       <colgroup class="col-user"></colgroup>
       <colgroup class="col-time"></colgroup>
@@ -62,7 +62,7 @@
         <th>&nbsp;</th>
     {{end}}
     {{range $.Builders | builderSpans}}
-        <th {{if (unsupportedOS .OS)}}class="unsupported"{{end}} colspan="{{.N}}">{{.OS}}</th>
+        <th {{if .Unsupported}}class="unsupported"{{end}} colspan="{{.N}}">{{.OS}}</th>
     {{end}}
         <th></th>
         <th></th>
@@ -76,7 +76,7 @@
         <th>&nbsp;</th>
     {{end}}
     {{range $.Builders}}
-        <th class="result arch{{if (unsupportedOS (builderOS .))}} unsupported{{end}}" title="{{.}}">{{builderSubheading .}}</th>
+        <th class="result arch{{if (unsupported .)}} unsupported{{end}}" title="{{.}}">{{builderSubheading .}}</th>
     {{end}}
         <th></th>
         <th></th>
@@ -94,7 +94,7 @@
           <td class="hash"><a href="{{repoURL $.Dashboard.Name $h ""}}">{{shortHash $h}}</a></td>
         {{end}}
           {{range $.Builders}}
-            <td class="result{{if (unsupportedOS (builderOS .))}} unsupported{{end}}">
+            <td class="result{{if (unsupported .)}} unsupported{{end}}">
               {{with $c.Result . $h}}
                 {{if .OK}}
                   <span class="ok">ok</span>
@@ -146,7 +146,7 @@
       <colgroup class="col-package"></colgroup>
       <colgroup class="col-hash"></colgroup>
       {{range $.Builders | builderSpans}}
-        <colgroup class="col-result{{if (unsupportedOS .OS)}} unsupported{{end}}" span="{{.N}}"></colgroup>
+        <colgroup class="col-result{{if .Unsupported}} unsupported{{end}}" span="{{.N}}"></colgroup>
       {{end}}
       <colgroup class="col-user"></colgroup>
       <colgroup class="col-time"></colgroup>
@@ -158,7 +158,7 @@
         <th></th>
         <th></th>
         {{range $.Builders | builderSpans}}
-          <th {{if (unsupportedOS .OS)}}class="unsupported"{{end}} colspan="{{.N}}">{{.OS}}</th>
+          <th {{if .Unsupported}}class="unsupported"{{end}} colspan="{{.N}}">{{.OS}}</th>
         {{end}}
         <th></th>
         <th></th>
@@ -168,7 +168,7 @@
         <th></th>
         <th></th>
         {{range $.Builders}}
-          <th class="result arch{{if (unsupportedOS (builderOS .))}} unsupported{{end}}" title="{{.}}">{{builderSubheading .}}</th>
+          <th class="result arch{{if (unsupported .)}} unsupported{{end}}" title="{{.}}">{{builderSubheading .}}</th>
         {{end}}
         <th></th>
         <th></th>
@@ -182,7 +182,7 @@
           <a href="{{repoURL $.Dashboard.Name $h $pkg.Commit.PackagePath}}">{{shortHash $h}}</a>
         </td>
         {{range $.Builders}}
-          <td class="result{{if (unsupportedOS (builderOS .))}} unsupported{{end}}">
+          <td class="result{{if (unsupported .)}} unsupported{{end}}">
             {{with $pkg.Commit.Result . $goHash}}
               {{if .OK}}
                 <span class="ok">ok</span>
