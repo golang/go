@@ -877,8 +877,8 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-4
 
 TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
 	RDTSC
-	MOVL    AX, ret+0(FP)
-	MOVL    DX, ret+4(FP)
+	MOVL    AX, ret_lo+0(FP)
+	MOVL    DX, ret_hi+4(FP)
 	RET
 
 TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
