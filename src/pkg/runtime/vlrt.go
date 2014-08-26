@@ -29,17 +29,33 @@ package runtime
 
 import "unsafe"
 
-func float64toint64(d float64, y uint64) {
-	_d2v(&y, d)
-}
-
-func float64touint64(d float64, y uint64) {
-	_d2v(&y, d)
-}
-
 const (
 	sign64 = 1 << (64 - 1)
 )
+
+func float64toint64(d float64) (y uint64) {
+	_d2v(&y, d)
+	return
+}
+
+func float64touint64(d float64) (y uint64) {
+	_d2v(&y, d)
+	return
+}
+
+func int64tofloat64(y int64) float64 {
+	if y < 0 {
+		return -uint64tofloat64(-uint64(y))
+	}
+	return uint64tofloat64(uint64(y))
+}
+
+func uint64tofloat64(y uint64) float64 {
+	hi := float64(uint32(y >> 32))
+	lo := float64(uint32(y))
+	d := hi*(1<<32) + lo
+	return d
+}
 
 func _d2v(y *uint64, d float64) {
 	x := *(*uint64)(unsafe.Pointer(&d))
