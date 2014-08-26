@@ -141,6 +141,47 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 	return
 }
 
+// Stack formats a stack trace of the calling goroutine into buf
+// and returns the number of bytes written to buf.
+// If all is true, Stack formats stack traces of all other goroutines
+// into buf after the trace for the current goroutine.
+func Stack(buf []byte, all bool) int {
+	sp := gogetcallersp(unsafe.Pointer(&buf))
+	pc := gogetcallerpc(unsafe.Pointer(&buf))
+	mp := acquirem()
+	gp := mp.curg
+	if all {
+		semacquire(&worldsema, false)
+		mp.gcing = 1
+		releasem(mp)
+		stoptheworld()
+		if mp != acquirem() {
+			gothrow("Stack: rescheduled")
+		}
+	}
+
+	n := 0
+	if len(buf) > 0 {
+		gp.writebuf = &buf[0]
+		gp.writenbuf = int32(len(buf))
+		traceback(pc, sp, 0, gp)
+		if all {
+			tracebackothers(gp)
+		}
+		n = len(buf) - int(gp.writenbuf)
+		gp.writebuf = nil
+		gp.writenbuf = 0
+	}
+
+	if all {
+		mp.gcing = 0
+		semrelease(&worldsema)
+		starttheworld()
+	}
+	releasem(mp)
+	return n
+}
+
 // ThreadCreateProfile returns n, the number of records in the thread creation profile.
 // If len(p) >= n, ThreadCreateProfile copies the profile into p and returns n, true.
 // If len(p) < n, ThreadCreateProfile does not change p and returns n, false.

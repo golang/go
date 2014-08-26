@@ -19,6 +19,9 @@ const (
 func gogetcallerpc(p unsafe.Pointer) uintptr
 
 //go:noescape
+func gogetcallersp(p unsafe.Pointer) uintptr
+
+//go:noescape
 func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
 
 //go:noescape
@@ -212,3 +215,6 @@ func gonotetsleepg(n *note, t int64) {
 }
 
 func exitsyscall()
+
+func traceback(pc, sp, lr uintptr, gp *g)
+func tracebackothers(gp *g)

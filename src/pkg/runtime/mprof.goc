@@ -256,39 +256,6 @@ struct TRecord {
 	uintptr stk[32];
 };
 
-func Stack(b Slice, all bool) (n int) {
-	uintptr pc, sp;
-	
-	sp = runtime·getcallersp(&b);
-	pc = (uintptr)runtime·getcallerpc(&b);
-
-	if(all) {
-		runtime·semacquire(&runtime·worldsema, false);
-		g->m->gcing = 1;
-		runtime·stoptheworld();
-	}
-
-	if(b.len == 0)
-		n = 0;
-	else{
-		g->writebuf = (byte*)b.array;
-		g->writenbuf = b.len;
-		runtime·goroutineheader(g);
-		runtime·traceback(pc, sp, 0, g);
-		if(all)
-			runtime·tracebackothers(g);
-		n = b.len - g->writenbuf;
-		g->writebuf = nil;
-		g->writenbuf = 0;
-	}
-	
-	if(all) {
-		g->m->gcing = 0;
-		runtime·semrelease(&runtime·worldsema);
-		runtime·starttheworld();
-	}
-}
-
 static void
 saveg(uintptr pc, uintptr sp, G *gp, TRecord *r)
 {

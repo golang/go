@@ -133,9 +133,3 @@ type BlockProfileRecord struct {
 	Cycles int64
 	StackRecord
 }
-
-// Stack formats a stack trace of the calling goroutine into buf
-// and returns the number of bytes written to buf.
-// If all is true, Stack formats stack traces of all other goroutines
-// into buf after the trace for the current goroutine.
-func Stack(buf []byte, all bool) int
