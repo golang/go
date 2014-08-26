@@ -1,0 +1,11 @@
+For now, you can at least do a single build of a single revision:
+
+$ export BUILD=linux-amd64-temp
+$ docker run \
+     -v $HOME/keys/$BUILD.buildkey:/.gobuildkey \
+     gobuilders/linux-x86-base \
+     /usr/local/bin/builder -rev=50ac9eded6ad -buildroot=/ -v $BUILD
+
+TODO(bradfitz): automate with CoreOS + GCE, ala:
+    https://github.com/bradfitz/camlistore/blob/master/misc/gce/create.go
+
