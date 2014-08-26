@@ -20,7 +20,8 @@ RUN apt-get install -y --no-install-recommends strace
 RUN apt-get install -y --no-install-recommends gcc libc6-dev
 
 # For 32-bit builds:
-RUN apt-get install -y --no-install-recommends libc6-dev-i386
+# TODO(bradfitz): move these into a 386 image that derives from this one.
+RUN apt-get install -y --no-install-recommends libc6-dev-i386 gcc-multilib
 
 # For interacting with the Go source & subrepos:
 RUN apt-get install -y --no-install-recommends mercurial git-core subversion
