@@ -1063,20 +1063,18 @@ func TestTransportConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numReqs)
 
-	tr := &Transport{
-		Dial: func(netw, addr string) (c net.Conn, err error) {
-			// Due to the Transport's "socket late
-			// binding" (see idleConnCh in transport.go),
-			// the numReqs HTTP requests below can finish
-			// with a dial still outstanding.  So count
-			// our dials as work too so the leak checker
-			// doesn't complain at us.
-			wg.Add(1)
-			defer wg.Done()
-			return net.Dial(netw, addr)
-		},
-	}
+	// Due to the Transport's "socket late binding" (see
+	// idleConnCh in transport.go), the numReqs HTTP requests
+	// below can finish with a dial still outstanding.  To keep
+	// the leak checker happy, keep track of pending dials and
+	// wait for them to finish (and be closed or returned to the
+	// idle pool) before we close idle connections.
+	SetPendingDialHooks(func() { wg.Add(1) }, wg.Done)
+	defer SetPendingDialHooks(nil, nil)
+
+	tr := &Transport{}
 	defer tr.CloseIdleConnections()
+
 	c := &Client{Transport: tr}
 	reqs := make(chan string)
 	defer close(reqs)
