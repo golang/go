@@ -860,6 +860,12 @@ TEXT runtime·getcallersp(SB), NOSPLIT, $0-4
 	MOVL	sp+0(FP), AX
 	RET
 
+// func gogetcallersp(p unsafe.Pointer) uintptr
+TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-8
+	MOVL	p+0(FP),AX		// addr of first arg
+	MOVL	AX, ret+4(FP)
+	RET
+
 // int64 runtime·cputicks(void), so really
 // void runtime·cputicks(int64 *ticks)
 TEXT runtime·cputicks(SB),NOSPLIT,$0-4

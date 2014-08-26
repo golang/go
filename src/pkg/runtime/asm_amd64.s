@@ -946,6 +946,12 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-8
 	MOVQ	sp+0(FP), AX
 	RET
 
+// func gogetcallersp(p unsafe.Pointer) uintptr
+TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-16
+	MOVQ	p+0(FP),AX		// addr of first arg
+	MOVQ	AX, ret+8(FP)
+	RET
+
 // int64 runtime·cputicks(void)
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	RDTSC
