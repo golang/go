@@ -4,21 +4,21 @@
 	license that can be found in the LICENSE file.
 -->
 {{range $key, $val := .Idents}}
-        {{if $val}}
+	{{if $val}}
 		<h2 id="{{$key.Name}}">{{$key.Name}}</h2>
-                {{range $val}}
-	                {{$pkg_html := pkgLink .Path | html}}
+		{{range $val}}
+			{{$pkg_html := pkgLink .Path | html}}
 			{{if eq "Packages" $key.Name}}
-  	                	<a href="/{{$pkg_html}}">{{html .Path}}</a>
+				<a href="/{{$pkg_html}}">{{html .Path}}</a>
 			{{else}}
-		        	{{$doc_html := docLink .Path .Name| html}}
-  	                	<a href="/{{$pkg_html}}">{{html .Package}}</a>.<a href="{{$doc_html}}">{{.Name}}</a>
-                        {{end}}
-                        {{if .Doc}}
-                        	<p>{{comment_html .Doc}}</p>
-                        {{else}}
-                        	<p><em>No documentation available</em></p>
-                        {{end}}
-                {{end}}
-        {{end}}
+				{{$doc_html := docLink .Path .Name| html}}
+				<a href="/{{$pkg_html}}">{{html .Package}}</a>.<a href="{{$doc_html}}">{{.Name}}</a>
+			{{end}}
+			{{if .Doc}}
+				<p>{{comment_html .Doc}}</p>
+			{{else}}
+				<p><em>No documentation available</em></p>
+			{{end}}
+		{{end}}
+	{{end}}
 {{end}}
