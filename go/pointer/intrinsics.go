@@ -343,7 +343,7 @@ func (c *timeStartTimerConstraint) solve(a *analysis, delta *nodeset) {
 		t := nodeid(tObj)
 
 		// We model startTimer as if it was defined thus:
-		// 	func startTimer(t *runtimeTimer) { t.f(0, t.arg) }
+		// 	func startTimer(t *runtimeTimer) { t.f(t.arg) }
 
 		// We hard-code the field offsets of time.runtimeTimer:
 		// type runtimeTimer struct {
@@ -357,9 +357,9 @@ func (c *timeStartTimerConstraint) solve(a *analysis, delta *nodeset) {
 		f := t + 4
 		arg := t + 5
 
-		// store t.arg to t.f.params[1]
-		// (offset 2 => skip identity and int64 param)
-		a.store(f, arg, 2, 1)
+		// store t.arg to t.f.params[0]
+		// (offset 1 => skip identity)
+		a.store(f, arg, 1, 1)
 
 		// Add dynamic call target.
 		if a.onlineCopy(c.targets, f) {
