@@ -70,3 +70,9 @@ func ResetCachedEnvironment() {
 }
 
 var DefaultUserAgent = defaultUserAgent
+
+// SetPendingDialHooks sets the hooks that run before and after handling
+// pending dials.
+func SetPendingDialHooks(before, after func()) {
+	prePendingDial, postPendingDial = before, after
+}

@@ -444,6 +444,9 @@ func (t *Transport) dial(network, addr string) (c net.Conn, err error) {
 	return net.Dial(network, addr)
 }
 
+// Testing hooks:
+var prePendingDial, postPendingDial func()
+
 // getConn dials and creates a new persistConn to the target as
 // specified in the connectMethod.  This includes doing a proxy CONNECT
 // and/or setting up TLS.  If this doesn't return an error, the persistConn
@@ -460,9 +463,17 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 	dialc := make(chan dialRes)
 
 	handlePendingDial := func() {
-		if v := <-dialc; v.err == nil {
-			t.putIdleConn(v.pc)
+		if prePendingDial != nil {
+			prePendingDial()
 		}
+		go func() {
+			if v := <-dialc; v.err == nil {
+				t.putIdleConn(v.pc)
+			}
+			if postPendingDial != nil {
+				postPendingDial()
+			}
+		}()
 	}
 
 	cancelc := make(chan struct{})
@@ -484,10 +495,10 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 		// else's dial that they didn't use.
 		// But our dial is still going, so give it away
 		// when it finishes:
-		go handlePendingDial()
+		handlePendingDial()
 		return pc, nil
 	case <-cancelc:
-		go handlePendingDial()
+		handlePendingDial()
 		return nil, errors.New("net/http: request canceled while waiting for connection")
 	}
 }
