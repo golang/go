@@ -250,6 +250,10 @@ quoted string appears a single argument to the generator.
 
 Go generate sets several variables when it runs the generator:
 
+	$GOARCH
+		The execution architecture (arm, amd64, etc.)
+	$GOOS
+		The execution operating system (linux, windows, etc.)
 	$GOFILE
 		The base name of the file.
 	$GOPACKAGE
