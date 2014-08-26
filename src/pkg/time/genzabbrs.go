@@ -7,21 +7,25 @@
 //
 // usage:
 //
-// go run genzabbrs.go | gofmt > $GOROOT/src/pkg/time/zoneinfo_abbrs_windows.go
+// go run genzabbrs.go -output zoneinfo_abbrs_windows.go
 //
 
 package main
 
 import (
+	"bytes"
 	"encoding/xml"
+	"flag"
+	"go/format"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"sort"
 	"text/template"
 	"time"
 )
+
+var filename = flag.String("output", "zoneinfo_abbrs_windows.go", "output file name")
 
 // getAbbrs finds timezone abbreviations (standard and daylight saving time)
 // for location l.
@@ -105,6 +109,7 @@ func readWindowsZones() (zones, error) {
 }
 
 func main() {
+	flag.Parse()
 	zs, err := readWindowsZones()
 	if err != nil {
 		log.Fatal(err)
@@ -117,7 +122,16 @@ func main() {
 		wzURL,
 		zs,
 	}
-	err = template.Must(template.New("prog").Parse(prog)).Execute(os.Stdout, v)
+	var buf bytes.Buffer
+	err = template.Must(template.New("prog").Parse(prog)).Execute(&buf, v)
+	if err != nil {
+		log.Fatal(err)
+	}
+	data, err := format.Source(buf.Bytes())
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(*filename, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

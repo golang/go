@@ -13,15 +13,16 @@ type abbr struct {
 }
 
 var abbrs = map[string]abbr{
-	"Egypt Standard Time":             {"EET", "EET"},    // Africa/Cairo
+	"Egypt Standard Time":             {"EET", "EEST"},   // Africa/Cairo
 	"Morocco Standard Time":           {"WET", "WEST"},   // Africa/Casablanca
 	"South Africa Standard Time":      {"SAST", "SAST"},  // Africa/Johannesburg
 	"W. Central Africa Standard Time": {"WAT", "WAT"},    // Africa/Lagos
 	"E. Africa Standard Time":         {"EAT", "EAT"},    // Africa/Nairobi
+	"Libya Standard Time":             {"EET", "EET"},    // Africa/Tripoli
 	"Namibia Standard Time":           {"WAT", "WAST"},   // Africa/Windhoek
 	"Alaskan Standard Time":           {"AKST", "AKDT"},  // America/Anchorage
 	"Paraguay Standard Time":          {"PYT", "PYST"},   // America/Asuncion
-	"Bahia Standard Time":             {"BRT", "BRST"},   // America/Bahia
+	"Bahia Standard Time":             {"BRT", "BRT"},    // America/Bahia
 	"SA Pacific Standard Time":        {"COT", "COT"},    // America/Bogota
 	"Argentina Standard Time":         {"ART", "ART"},    // America/Buenos_Aires
 	"Venezuela Standard Time":         {"VET", "VET"},    // America/Caracas
@@ -63,7 +64,6 @@ var abbrs = map[string]abbr{
 	"Nepal Standard Time":             {"NPT", "NPT"},    // Asia/Katmandu
 	"North Asia Standard Time":        {"KRAT", "KRAT"},  // Asia/Krasnoyarsk
 	"Magadan Standard Time":           {"MAGT", "MAGT"},  // Asia/Magadan
-	"E. Europe Standard Time":         {"EET", "EEST"},   // Asia/Nicosia
 	"N. Central Asia Standard Time":   {"NOVT", "NOVT"},  // Asia/Novosibirsk
 	"Myanmar Standard Time":           {"MMT", "MMT"},    // Asia/Rangoon
 	"Arab Standard Time":              {"AST", "AST"},    // Asia/Riyadh
@@ -105,11 +105,12 @@ var abbrs = map[string]abbr{
 	"Romance Standard Time":          {"CET", "CEST"},      // Europe/Paris
 	"Central European Standard Time": {"CET", "CEST"},      // Europe/Warsaw
 	"Mauritius Standard Time":        {"MUT", "MUT"},       // Indian/Mauritius
-	"Samoa Standard Time":            {"WST", "WST"},       // Pacific/Apia
+	"Samoa Standard Time":            {"WST", "WSDT"},      // Pacific/Apia
 	"New Zealand Standard Time":      {"NZST", "NZDT"},     // Pacific/Auckland
-	"Fiji Standard Time":             {"FJT", "FJT"},       // Pacific/Fiji
+	"Fiji Standard Time":             {"FJT", "FJST"},      // Pacific/Fiji
 	"Central Pacific Standard Time":  {"SBT", "SBT"},       // Pacific/Guadalcanal
 	"Hawaiian Standard Time":         {"HST", "HST"},       // Pacific/Honolulu
+	"Line Islands Standard Time":     {"LINT", "LINT"},     // Pacific/Kiritimati
 	"West Pacific Standard Time":     {"PGT", "PGT"},       // Pacific/Port_Moresby
 	"Tonga Standard Time":            {"TOT", "TOT"},       // Pacific/Tongatapu
 }

@@ -11,6 +11,8 @@ import (
 	"unsafe"
 )
 
+//go:generate go run genzabbrs.go -output zoneinfo_abbrs_windows.go
+
 // TODO(rsc): Fall back to copy of zoneinfo files.
 
 // BUG(brainman,rsc): On Windows, the operating system does not provide complete
