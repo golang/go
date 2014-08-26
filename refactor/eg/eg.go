@@ -105,6 +105,26 @@ Imports are added as needed, but they are not removed as needed.
 Run 'goimports' on the modified file for now.
 
 Dot imports are forbidden in the template.
+
+
+TIPS
+====
+
+Sometimes a little creativity is required to implement the desired
+migration.  This section lists a few tips and tricks.
+
+To remove the final parameter from a function, temporarily change the
+function signature so that the final parameter is variadic, as this
+allows legal calls both with and without the argument.  Then use eg to
+remove the final argument from all callers, and remove the variadic
+parameter by hand.  The reverse process can be used to add a final
+parameter.
+
+To add or remove parameters other than the final one, you must do it in
+stages: (1) declare a variant function f' with a different name and the
+desired parameters; (2) use eg to transform calls to f into calls to f',
+changing the arguments as needed; (3) change the declaration of f to
+match f'; (4) use eg to rename f' to f in all calls; (5) delete f'.
 `
 
 // TODO(adonovan): allow the tool to be invoked using relative package

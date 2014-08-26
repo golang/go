@@ -8,13 +8,16 @@ import (
 	"go/printer"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"code.google.com/p/go.tools/go/loader"
 	"code.google.com/p/go.tools/refactor/eg"
 )
 
 var (
+	beforeeditFlag = flag.String("beforeedit", "", "A command to exec before each file is edited (e.g. chmod, checkout).  Whitespace delimits argument words.  The string '{}' is replaced by the file name.")
 	helpFlag       = flag.Bool("help", false, "show detailed help message")
 	templateFlag   = flag.String("t", "", "template.go file specifying the refactoring")
 	transitiveFlag = flag.Bool("transitive", false, "apply refactoring to all dependencies too")
@@ -103,8 +106,25 @@ func doMain() error {
 				continue
 			}
 			filename := iprog.Fset.File(file.Pos()).Name()
-			fmt.Fprintf(os.Stderr, "=== %s (%d matches):\n", filename, n)
+			fmt.Fprintf(os.Stderr, "=== %s (%d matches)\n", filename, n)
 			if *writeFlag {
+				// Run the before-edit command (e.g. "chmod +w",  "checkout") if any.
+				if *beforeeditFlag != "" {
+					args := strings.Fields(*beforeeditFlag)
+					// Replace "{}" with the filename, like find(1).
+					for i := range args {
+						if i > 0 {
+							args[i] = strings.Replace(args[i], "{}", filename, -1)
+						}
+					}
+					cmd := exec.Command(args[0], args[1:]...)
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+					if err := cmd.Run(); err != nil {
+						fmt.Fprintf(os.Stderr, "Warning: edit hook %q failed (%s)\n",
+							args, err)
+					}
+				}
 				if err := eg.WriteAST(iprog.Fset, filename, file); err != nil {
 					fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 					hadErrors = true
