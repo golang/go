@@ -93,6 +93,7 @@ var testRequests = []struct {
 	{"/result", nil, &Result{Builder: "windows-386", Hash: "0001", OK: true}, nil},
 	{"/result", nil, &Result{Builder: "windows-amd64", Hash: "0001", OK: true}, nil},
 	{"/result", nil, &Result{Builder: "windows-amd64-race", Hash: "0001", OK: true}, nil},
+	{"/result", nil, &Result{Builder: "linux-amd64-temp", Hash: "0001", OK: true}, nil},
 
 	// multiple builders
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
@@ -144,8 +145,7 @@ var testRequests = []struct {
 	{"/result", nil, &Result{Builder: "linux-amd64", Hash: "0004", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0002"}}},
 	{"/result", nil, &Result{Builder: "linux-amd64", Hash: "0002", OK: true}, nil},
-	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0001"}}},
-	{"/result", nil, &Result{Builder: "linux-amd64", Hash: "0001", OK: true}, nil},
+	// drain sub-repo todos
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-amd64", Hash: "1001", GoHash: "0005", OK: false}, nil},
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-amd64", Hash: "1002", GoHash: "0005", OK: false}, nil},
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-amd64", Hash: "1003", GoHash: "0005", OK: false}, nil},
@@ -189,10 +189,10 @@ var testRequests = []struct {
 	{"/perf-result", nil, &PerfRequest{Builder: "linux-amd64", Benchmark: "meta-done", Hash: "0007", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "benchmark-go-commit", Data: &Commit{Hash: "0006", PerfResults: []string{"http"}}}},
 	{"/perf-result", nil, &PerfRequest{Builder: "linux-amd64", Benchmark: "meta-done", Hash: "0006", OK: true}, nil},
-	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "benchmark-go-commit", Data: &Commit{Hash: "0003", PerfResults: []string{"http", "json"}}}},
-	{"/perf-result", nil, &PerfRequest{Builder: "linux-amd64", Benchmark: "meta-done", Hash: "0003", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "benchmark-go-commit", Data: &Commit{Hash: "0001", PerfResults: []string{"http"}}}},
 	{"/perf-result", nil, &PerfRequest{Builder: "linux-amd64", Benchmark: "meta-done", Hash: "0001", OK: true}, nil},
+	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "benchmark-go-commit", Data: &Commit{Hash: "0003", PerfResults: []string{"http", "json"}}}},
+	{"/perf-result", nil, &PerfRequest{Builder: "linux-amd64", Benchmark: "meta-done", Hash: "0003", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-amd64"}}, nil, nil},
 	// attach second builder
 	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0007"}}},
@@ -207,10 +207,10 @@ var testRequests = []struct {
 	{"/perf-result", nil, &PerfRequest{Builder: "linux-386", Benchmark: "meta-done", Hash: "0007", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "benchmark-go-commit", Data: &Commit{Hash: "0006"}}},
 	{"/perf-result", nil, &PerfRequest{Builder: "linux-386", Benchmark: "meta-done", Hash: "0006", OK: true}, nil},
-	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "benchmark-go-commit", Data: &Commit{Hash: "0003"}}},
-	{"/perf-result", nil, &PerfRequest{Builder: "linux-386", Benchmark: "meta-done", Hash: "0003", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "benchmark-go-commit", Data: &Commit{Hash: "0001"}}},
 	{"/perf-result", nil, &PerfRequest{Builder: "linux-386", Benchmark: "meta-done", Hash: "0001", OK: true}, nil},
+	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "benchmark-go-commit", Data: &Commit{Hash: "0003"}}},
+	{"/perf-result", nil, &PerfRequest{Builder: "linux-386", Benchmark: "meta-done", Hash: "0003", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-go-commit", "benchmark-go-commit"}, "builder": {"linux-386"}}, nil, nil},
 }
 
