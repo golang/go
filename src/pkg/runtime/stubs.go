@@ -216,6 +216,7 @@ func gonotetsleepg(n *note, t int64) {
 
 func exitsyscall()
 
+func goroutineheader(gp *g)
 func traceback(pc, sp, lr uintptr, gp *g)
 func tracebackothers(gp *g)
 

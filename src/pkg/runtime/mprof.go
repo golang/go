@@ -164,6 +164,7 @@ func Stack(buf []byte, all bool) int {
 	if len(buf) > 0 {
 		gp.writebuf = &buf[0]
 		gp.writenbuf = int32(len(buf))
+		goroutineheader(gp)
 		traceback(pc, sp, 0, gp)
 		if all {
 			tracebackothers(gp)
