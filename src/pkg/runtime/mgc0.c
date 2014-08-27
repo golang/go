@@ -484,6 +484,7 @@ markroot(ParFor *desc, uint32 i)
 	uint32 spanidx, sg;
 	G *gp;
 	void *p;
+	uint32 status;
 
 	USED(&desc);
 	// Note: if you add a case here, please also update heapdump.c:dumproots.
@@ -540,7 +541,8 @@ markroot(ParFor *desc, uint32 i)
 		gp = runtime·allg[i - RootCount];
 		// remember when we've first observed the G blocked
 		// needed only to output in traceback
-		if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince == 0)
+		status = runtime·readgstatus(gp);
+		if((status == Gwaiting || status == Gsyscall) && gp->waitsince == 0)
 			gp->waitsince = work.tstart;
 		// Shrink a stack if not much of it is being used.
 		runtime·shrinkstack(gp);
@@ -737,13 +739,14 @@ scanstack(G *gp)
 	Stktop *stk;
 	uintptr sp, guard;
 
-	switch(gp->status){
+	switch(runtime·readgstatus(gp)) {
 	default:
-		runtime·printf("unexpected G.status %d (goroutine %p %D)\n", gp->status, gp, gp->goid);
+		runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
 		runtime·throw("mark - bad status");
 	case Gdead:
 		return;
 	case Grunning:
+		runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
 		runtime·throw("mark - world not stopped");
 	case Grunnable:
 	case Gsyscall:
@@ -860,7 +863,7 @@ runtime·MSpan_EnsureSwept(MSpan *s)
 	}
 	// unfortunate condition, and we don't have efficient means to wait
 	while(runtime·atomicload(&s->sweepgen) != sg)
-		runtime·osyield();  
+		runtime·osyield();
 }
 
 // Sweep frees or collects finalizers for blocks not marked in the mark phase.
@@ -1349,7 +1352,7 @@ runtime·gc(int32 force)
 			a.start_time = runtime·nanotime();
 		// switch to g0, call gc(&a), then switch back
 		g->param = &a;
-		g->status = Gwaiting;
+		runtime·casgstatus(g, Grunning, Gwaiting);
 		g->waitreason = runtime·gostringnocopy((byte*)"garbage collection");
 		runtime·mcall(mgc);
 	}
@@ -1373,7 +1376,7 @@ mgc(G *gp)
 {
 	gc(gp->param);
 	gp->param = nil;
-	gp->status = Grunning;
+	runtime·casgstatus(gp, Gwaiting, Grunning);
 	runtime·gogo(&gp->sched);
 }
 
@@ -1384,14 +1387,14 @@ runtime·gc_m(void)
 	G *gp;
 
 	gp = g->m->curg;
-	gp->status = Gwaiting;
+	runtime·casgstatus(gp, Grunning, Gwaiting);
 	gp->waitreason = runtime·gostringnocopy((byte*)"garbage collection");
 
 	a.start_time = (uint64)(g->m->scalararg[0]) | ((uint64)(g->m->scalararg[1]) << 32);
 	a.eagersweep = g->m->scalararg[2];
 	gc(&a);
 
-	gp->status = Grunning;
+	runtime·casgstatus(gp, Gwaiting, Grunning);
 }
 
 static void

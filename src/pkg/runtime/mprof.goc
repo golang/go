@@ -288,7 +288,7 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 			saveg(pc, sp, g, r++);
 			for(i = 0; i < runtime·allglen; i++) {
 				gp = runtime·allg[i];
-				if(gp == g || gp->status == Gdead)
+				if(gp == g || runtime·readgstatus(gp) == Gdead)
 					continue;
 				saveg(~(uintptr)0, ~(uintptr)0, gp, r++);
 			}

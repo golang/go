@@ -477,6 +477,7 @@ bool
 runtime·canpanic(G *gp)
 {
 	M *m;
+	uint32 status;
 
 	// Note that g is m->gsignal, different from gp.
 	// Note also that g->m can change at preemption, so m can go stale
@@ -490,7 +491,8 @@ runtime·canpanic(G *gp)
 		return false;
 	if(m->locks-m->softfloat != 0 || m->mallocing != 0 || m->throwing != 0 || m->gcing != 0 || m->dying != 0)
 		return false;
-	if(gp->status != Grunning || gp->syscallsp != 0)
+	status = runtime·readgstatus(gp);
+	if((status&~Gscan) != Grunning || gp->syscallsp != 0)
 		return false;
 #ifdef GOOS_windows
 	if(m->libcallsp != 0)
