@@ -6,8 +6,8 @@
 
 // void runtime·memclr(void*, uintptr)
 TEXT runtime·memclr(SB),NOSPLIT,$0-16
-	MOVQ	addr+0(FP), DI
-	MOVQ	count+8(FP), CX
+	MOVQ	ptr+0(FP), DI
+	MOVQ	n+8(FP), CX
 	MOVQ	CX, BX
 	ANDQ	$7, BX
 	SHRQ	$3, CX

@@ -6,7 +6,7 @@
 
 TEXT runtime·memmove(SB), NOSPLIT, $0-12
 	MOVL	to+0(FP), DI
-	MOVL	fr+4(FP), SI
+	MOVL	from+4(FP), SI
 	MOVL	n+8(FP), BX
 
 	CMPL	SI, DI

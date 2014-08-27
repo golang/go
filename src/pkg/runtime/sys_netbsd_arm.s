@@ -28,11 +28,13 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW 4(FP), R1
 	MOVW 8(FP), R2
 	SWI $0xa00005
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$-8
 	MOVW 0(FP), R0
 	SWI $0xa00006
+	MOVW	R0, ret+4(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-8
@@ -40,6 +42,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVW 4(FP), R1
 	MOVW 8(FP), R2
 	SWI $0xa00003
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-4
@@ -47,14 +50,16 @@ TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVW	4(FP), R1	// arg 2 - buf
 	MOVW	8(FP), R2	// arg 3 - nbyte
 	SWI $0xa00004	// sys_write
+	MOVW	R0, ret+12(FP)
 	RET
 
 // int32 lwp_create(void *context, uintptr flags, void *lwpid)
 TEXT runtime·lwp_create(SB),NOSPLIT,$0
-	MOVW context+0(FP), R0
+	MOVW ctxt+0(FP), R0
 	MOVW flags+4(FP), R1
 	MOVW lwpid+8(FP), R2
 	SWI $0xa00135	// sys__lwp_create
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
@@ -67,16 +72,19 @@ TEXT runtime·lwp_park(SB),NOSPLIT,$0
 	MOVW 8(FP), R2	// arg 3 - hint
 	MOVW 12(FP), R3	// arg 4 - unparkhint
 	SWI $0xa001b2	// sys__lwp_park
+	MOVW	R0, ret+16(FP)
 	RET
 
 TEXT runtime·lwp_unpark(SB),NOSPLIT,$0
 	MOVW	0(FP), R0	// arg 1 - lwp
 	MOVW	4(FP), R1	// arg 2 - hint
 	SWI $0xa00141 // sys__lwp_unpark
+	MOVW	R0, ret+8(FP)
 	RET
 
 TEXT runtime·lwp_self(SB),NOSPLIT,$0
 	SWI $0xa00137	// sys__lwp_self
+	MOVW	R0, ret+0(FP)
 	RET
 
 TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
@@ -153,9 +161,8 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	ADD.S R2, R0
 	ADC R4, R1
 
-	MOVW 0(FP), R3
-	MOVW R0, 0(R3)
-	MOVW R1, 4(R3)
+	MOVW R0, ret_lo+0(FP)
+	MOVW R1, ret_hi+4(FP)
 	RET
 
 TEXT runtime·getcontext(SB),NOSPLIT,$-4
@@ -249,6 +256,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$12
 	ADD $4, R13 // pass arg 5 and arg 6 on stack
 	SWI $0xa000c5	// sys_mmap
 	SUB $4, R13
+	MOVW	R0, ret+24(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
@@ -287,12 +295,14 @@ TEXT runtime·sysctl(SB),NOSPLIT,$8
 	ADD $4, R13	// pass arg 5 and 6 on stack
 	SWI $0xa000ca	// sys___sysctl
 	SUB $4, R13
+	MOVW	R0, ret+24(FP)
 	RET
 
 // int32 runtime·kqueue(void)
 TEXT runtime·kqueue(SB),NOSPLIT,$0
 	SWI $0xa00158	// sys_kqueue
 	RSB.CS $0, R0
+	MOVW	R0, ret+0(FP)
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
@@ -309,6 +319,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$8
 	SWI $0xa001b3	// sys___kevent50
 	RSB.CS $0, R0
 	SUB $4, R13
+	MOVW	R0, ret+24(FP)
 	RET
 
 // void runtime·closeonexec(int32 fd)

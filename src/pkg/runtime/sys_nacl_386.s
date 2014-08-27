@@ -96,22 +96,23 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
 	NACL_SYSJMP(SYS_sched_yield)
 
 TEXT runtime·mmap(SB),NOSPLIT,$32
-	MOVL	arg1+0(FP), AX
+	MOVL	addr+0(FP), AX
 	MOVL	AX, 0(SP)
-	MOVL	arg2+4(FP), AX
+	MOVL	n+4(FP), AX
 	MOVL	AX, 4(SP)
-	MOVL	arg3+8(FP), AX
+	MOVL	prot+8(FP), AX
 	MOVL	AX, 8(SP)
-	MOVL	arg4+12(FP), AX
+	MOVL	flags+12(FP), AX
 	MOVL	AX, 12(SP)
-	MOVL	arg5+16(FP), AX
+	MOVL	fd+16(FP), AX
 	MOVL	AX, 16(SP)
-	MOVL	arg6+20(FP), AX
+	MOVL	off+20(FP), AX
 	MOVL	AX, 24(SP)
 	MOVL	$0, 28(SP)
 	LEAL	24(SP), AX
 	MOVL	AX, 20(SP)
 	NACL_SYSCALL(SYS_mmap)
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT time·now(SB),NOSPLIT,$20
@@ -150,9 +151,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$20
 	ADDL	BX, AX
 	ADCL	$0, DX
 
-	MOVL	ret+0(FP), DI
-	MOVL	AX, 0(DI)
-	MOVL	DX, 4(DI)
+	MOVL	AX, ret_lo+0(FP)
+	MOVL	DX, ret_hi+4(FP)
 	RET
 
 TEXT runtime·setldt(SB),NOSPLIT,$8

@@ -12,31 +12,49 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL    $14, AX
 	INT     $64
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·pread(SB),NOSPLIT,$0
 	MOVL    $50, AX
 	INT     $64
+	MOVL	AX, ret+20(FP)
 	RET
 
 TEXT runtime·pwrite(SB),NOSPLIT,$0
 	MOVL    $51, AX
 	INT     $64
+	MOVL	AX, ret+20(FP)
 	RET
 
-TEXT runtime·seek(SB),NOSPLIT,$0
+// int32 _seek(int64*, int32, int64, int32)
+TEXT _seek<>(SB),NOSPLIT,$0
 	MOVL	$39, AX
 	INT	$64
-	CMPL	AX, $-1
-	JNE	4(PC)
-	MOVL	a+0(FP), CX
-	MOVL	AX, 0(CX)
-	MOVL	AX, 4(CX)
+	RET
+
+TEXT runtime·seek(SB),NOSPLIT,$24
+	LEAL	ret+16(FP), AX
+	MOVL	fd+0(FP), BX
+	MOVL	offset_lo+4(FP), CX
+	MOVL	offset_hi+8(FP), DX
+	MOVL	whence+12(FP), SI
+	MOVL	AX, 0(SP)
+	MOVL	BX, 4(SP)
+	MOVL	CX, 8(SP)
+	MOVL	DX, 12(SP)
+	MOVL	SI, 16(SP)
+	CALL	_seek<>(SB)
+	CMPL	AX, $0
+	JGE	3(PC)
+	MOVL	$-1, ret_lo+16(FP)
+	MOVL	$-1, ret_hi+20(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$0
 	MOVL	$4, AX
 	INT	$64
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·exits(SB),NOSPLIT,$0
@@ -47,50 +65,62 @@ TEXT runtime·exits(SB),NOSPLIT,$0
 TEXT runtime·brk_(SB),NOSPLIT,$0
 	MOVL    $24, AX
 	INT     $64
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·sleep(SB),NOSPLIT,$0
 	MOVL    $17, AX
 	INT     $64
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0
 	MOVL	$37, AX
 	INT	$64
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
 	MOVL	$52, AX
 	INT	$64
+	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·nsec(SB),NOSPLIT,$0
+TEXT nsec<>(SB),NOSPLIT,$0
 	MOVL	$53, AX
 	INT	$64
-	CMPL	AX, $-1
-	JNE	4(PC)
-	MOVL	a+0(FP), CX
-	MOVL	AX, 0(CX)
-	MOVL	AX, 4(CX)
+	RET
+
+TEXT runtime·nsec(SB),NOSPLIT,$8
+	LEAL	ret+4(FP), AX
+	MOVL	AX, 0(SP)
+	CALL	nsec<>(SB)
+	CMPL	AX, $0
+	JGE	3(PC)
+	MOVL	$-1, ret_lo+4(FP)
+	MOVL	$-1, ret_hi+8(FP)
 	RET
 
 TEXT runtime·notify(SB),NOSPLIT,$0
 	MOVL	$28, AX
 	INT	$64
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·noted(SB),NOSPLIT,$0
 	MOVL	$29, AX
 	INT	$64
+	MOVL	AX, ret+4(FP)
 	RET
 	
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVL	$38, AX
 	INT	$64
+	MOVL	AX, ret+8(FP)
 	RET
 	
 TEXT runtime·rfork(SB),NOSPLIT,$0
-	MOVL    $19, AX // rfork
+	MOVL	$19, AX // rfork
 	MOVL	stack+8(SP), CX
 	MOVL	mm+12(SP), BX	// m
 	MOVL	gg+16(SP), DX	// g
@@ -99,7 +129,8 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 
 	// In parent, return.
 	CMPL	AX, $0
-	JEQ	2(PC)
+	JEQ	3(PC)
+	MOVL	AX, ret+20(FP)
 	RET
 
 	// set SP to be on the new child stack
@@ -127,6 +158,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	
 	CALL	SI	// fn()
 	CALL	runtime·exit(SB)
+	MOVL	AX, ret+20(FP)
 	RET
 
 // void sigtramp(void *ureg, int8 *note)
@@ -195,17 +227,17 @@ TEXT runtime·errstr(SB),NOSPLIT,$0
 	MOVL	g(AX), BX
 	MOVL	g_m(BX), BX
 	MOVL	m_errstr(BX), CX
-	MOVL	CX, 4(SP)
-	MOVL	$ERRMAX, 8(SP)
+	MOVL	CX, ret_base+0(FP)
+	MOVL	$ERRMAX, ret_len+4(FP)
 	MOVL	$41, AX
 	INT	$64
 
 	// syscall requires caller-save
-	MOVL	4(SP), CX
+	MOVL	ret_base+0(FP), CX
 
 	// push the argument
 	PUSHL	CX
 	CALL	runtime·findnull(SB)
 	POPL	CX
-	MOVL	AX, 8(SP)
+	MOVL	AX, ret_len+4(FP)
 	RET

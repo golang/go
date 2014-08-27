@@ -35,18 +35,19 @@
 #define SYSCALL MOVQ R10, CX; INT $0x80
 	
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
-	MOVQ 8(SP), DI
-	MOVL 16(SP), SI
-	MOVL 20(SP), DX
-	MOVQ 24(SP), R10
-	MOVQ 32(SP), R8
+	MOVQ addr+0(FP), DI
+	MOVL mode+8(FP), SI
+	MOVL val+12(FP), DX
+	MOVQ ptr2+16(FP), R10
+	MOVQ ts+24(FP), R8
 	MOVL $454, AX
 	SYSCALL
+	MOVL	AX, ret+32(FP)
 	RET
 
 TEXT runtime·thr_new(SB),NOSPLIT,$0
-	MOVQ 8(SP), DI
-	MOVQ 16(SP), SI
+	MOVQ param+0(FP), DI
+	MOVL size+8(FP), SI
 	MOVL $455, AX
 	SYSCALL
 	RET
@@ -71,54 +72,59 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-8
-	MOVL	8(SP), DI		// arg 1 exit status
+	MOVL	code+0(FP), DI		// arg 1 exit status
 	MOVL	$1, AX
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·exit1(SB),NOSPLIT,$-8
-	MOVQ	8(SP), DI		// arg 1 exit status
+	MOVL	code+0(FP), DI		// arg 1 exit status
 	MOVL	$431, AX
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·open(SB),NOSPLIT,$-8
-	MOVQ	8(SP), DI		// arg 1 pathname
-	MOVL	16(SP), SI		// arg 2 flags
-	MOVL	20(SP), DX		// arg 3 mode
+	MOVQ	name+0(FP), DI		// arg 1 pathname
+	MOVL	mode+8(FP), SI		// arg 2 flags
+	MOVL	perm+12(FP), DX		// arg 3 mode
 	MOVL	$5, AX
 	SYSCALL
+	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$-8
-	MOVL	8(SP), DI		// arg 1 fd
+	MOVL	fd+0(FP), DI		// arg 1 fd
 	MOVL	$6, AX
 	SYSCALL
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-8
-	MOVL	8(SP), DI		// arg 1 fd
-	MOVQ	16(SP), SI		// arg 2 buf
-	MOVL	24(SP), DX		// arg 3 count
+	MOVL	fd+0(FP), DI		// arg 1 fd
+	MOVQ	p+8(FP), SI		// arg 2 buf
+	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$3, AX
 	SYSCALL
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-8
-	MOVL	8(SP), DI		// arg 1 fd
-	MOVQ	16(SP), SI		// arg 2 buf
-	MOVL	24(SP), DX		// arg 3 count
+	MOVQ	fd+0(FP), DI		// arg 1 fd
+	MOVQ	p+8(FP), SI		// arg 2 buf
+	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$4, AX
 	SYSCALL
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·getrlimit(SB),NOSPLIT,$-8
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
+	MOVL	kind+0(FP), DI
+	MOVQ	limit+8(FP), SI
 	MOVL	$194, AX
 	SYSCALL
+	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$16
@@ -134,9 +140,9 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	RET
 
 TEXT runtime·setitimer(SB), NOSPLIT, $-8
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVQ	24(SP), DX
+	MOVL	mode+0(FP), DI
+	MOVQ	new+8(FP), SI
+	MOVQ	old+16(FP), DX
 	MOVL	$83, AX
 	SYSCALL
 	RET
@@ -169,12 +175,13 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	// return nsec in AX
 	IMULQ	$1000000000, AX
 	ADDQ	DX, AX
+	MOVQ	AX, ret+0(FP)
 	RET
 
 TEXT runtime·sigaction(SB),NOSPLIT,$-8
-	MOVL	8(SP), DI		// arg 1 sig
-	MOVQ	16(SP), SI		// arg 2 act
-	MOVQ	24(SP), DX		// arg 3 oact
+	MOVL	sig+0(FP), DI		// arg 1 sig
+	MOVQ	new+8(FP), SI		// arg 2 act
+	MOVQ	old+16(FP), DX		// arg 3 oact
 	MOVL	$416, AX
 	SYSCALL
 	JCC	2(PC)
@@ -215,19 +222,20 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
-	MOVQ	8(SP), DI		// arg 1 addr
-	MOVQ	16(SP), SI		// arg 2 len
-	MOVL	24(SP), DX		// arg 3 prot
-	MOVL	28(SP), R10		// arg 4 flags
-	MOVL	32(SP), R8		// arg 5 fid
-	MOVL	36(SP), R9		// arg 6 offset
+	MOVQ	addr+0(FP), DI		// arg 1 addr
+	MOVQ	n+8(FP), SI		// arg 2 len
+	MOVL	prot+16(FP), DX		// arg 3 prot
+	MOVL	flags+20(FP), R10		// arg 4 flags
+	MOVL	fd+24(FP), R8		// arg 5 fid
+	MOVL	off+28(FP), R9		// arg 6 offset
 	MOVL	$477, AX
 	SYSCALL
+	MOVQ	AX, ret+32(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
-	MOVQ	8(SP), DI		// arg 1 addr
-	MOVQ	16(SP), SI		// arg 2 len
+	MOVQ	addr+0(FP), DI		// arg 1 addr
+	MOVQ	n+8(FP), SI		// arg 2 len
 	MOVL	$73, AX
 	SYSCALL
 	JCC	2(PC)
@@ -235,9 +243,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
-	MOVQ	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVQ	24(SP), DX
+	MOVQ	addr+0(FP), DI
+	MOVQ	n+8(FP), SI
+	MOVL	flags+16(FP), DX
 	MOVQ	$75, AX	// madvise
 	SYSCALL
 	// ignore failure - maybe pages are locked
@@ -281,18 +289,20 @@ TEXT runtime·settls(SB),NOSPLIT,$8
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
-	MOVQ	8(SP), DI		// arg 1 - name
-	MOVL	16(SP), SI		// arg 2 - namelen
-	MOVQ	24(SP), DX		// arg 3 - oldp
-	MOVQ	32(SP), R10		// arg 4 - oldlenp
-	MOVQ	40(SP), R8		// arg 5 - newp
-	MOVQ	48(SP), R9		// arg 6 - newlen
+	MOVQ	mib+0(FP), DI		// arg 1 - name
+	MOVL	miblen+8(FP), SI		// arg 2 - namelen
+	MOVQ	out+16(FP), DX		// arg 3 - oldp
+	MOVQ	size+24(FP), R10		// arg 4 - oldlenp
+	MOVQ	dst+32(FP), R8		// arg 5 - newp
+	MOVQ	ndst+40(FP), R9		// arg 6 - newlen
 	MOVQ	$202, AX		// sys___sysctl
 	SYSCALL
-	JCC 3(PC)
+	JCC 4(PC)
 	NEGQ	AX
+	MOVL	AX, ret+48(FP)
 	RET
 	MOVL	$0, AX
+	MOVL	AX, ret+48(FP)
 	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$-4
@@ -302,8 +312,8 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
-	MOVQ	8(SP), SI		// arg 2 - set
-	MOVQ	16(SP), DX		// arg 3 - oset
+	MOVQ	new+0(FP), SI		// arg 2 - set
+	MOVQ	old+8(FP), DX		// arg 3 - oset
 	MOVL	$340, AX		// sys_sigprocmask
 	SYSCALL
 	JAE	2(PC)
@@ -319,25 +329,27 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX
+	MOVL	AX, ret+0(FP)
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
 TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVL	24(SP), DX
-	MOVQ	32(SP), R10
-	MOVL	40(SP), R8
-	MOVQ	48(SP), R9
+	MOVL	fd+0(FP), DI
+	MOVQ	ev1+8(FP), SI
+	MOVL	nev1+16(FP), DX
+	MOVQ	ev2+24(FP), R10
+	MOVL	nev2+32(FP), R8
+	MOVQ	ts+40(FP), R9
 	MOVL	$363, AX
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX
+	MOVL	AX, ret+48(FP)
 	RET
 
 // void runtime·closeonexec(int32 fd);
 TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVL	8(SP), DI	// fd
+	MOVL	fd+0(FP), DI	// fd
 	MOVQ	$2, SI		// F_SETFD
 	MOVQ	$1, DX		// FD_CLOEXEC
 	MOVL	$92, AX		// fcntl

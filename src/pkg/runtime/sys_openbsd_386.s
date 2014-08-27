@@ -30,21 +30,25 @@ TEXT runtime·exit1(SB),NOSPLIT,$8
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
 	INT	$0x80
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$-4
 	MOVL	$6, AX
 	INT	$0x80
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$3, AX
 	INT	$0x80
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVL	$4, AX			// sys_write
 	INT	$0x80
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$24
@@ -78,7 +82,7 @@ TEXT runtime·raise(SB),NOSPLIT,$12
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$36
-	LEAL	arg0+0(FP), SI
+	LEAL	addr+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
 	MOVSL				// arg 1 - addr
@@ -93,6 +97,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$36
 	STOSL
 	MOVL	$197, AX		// sys_mmap
 	INT	$0x80
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$-4
@@ -151,9 +156,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 	ADDL	BX, AX
 	ADCL	CX, DX			// add high bits with carry
 
-	MOVL	ret+0(FP), DI
-	MOVL	AX, 0(DI)
-	MOVL	DX, 4(DI)
+	MOVL	AX, ret_lo+0(FP)
+	MOVL	DX, ret_hi+4(FP)
 	RET
 
 TEXT runtime·sigaction(SB),NOSPLIT,$-4
@@ -168,7 +172,7 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
-	MOVL	AX, oset+0(FP)
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$44
@@ -222,22 +226,22 @@ sigtramp_ret:
 TEXT runtime·tfork(SB),NOSPLIT,$12
 
 	// Copy mp, gp and fn from the parent stack onto the child stack.
-	MOVL	params+4(FP), AX
+	MOVL	psize+4(FP), AX
 	MOVL	8(AX), CX		// tf_stack
 	SUBL	$16, CX
 	MOVL	CX, 8(AX)
-	MOVL	mm+12(FP), SI
+	MOVL	mm+8(FP), SI
 	MOVL	SI, 0(CX)
-	MOVL	gg+16(FP), SI
+	MOVL	gg+12(FP), SI
 	MOVL	SI, 4(CX)
-	MOVL	fn+20(FP), SI
+	MOVL	fn+16(FP), SI
 	MOVL	SI, 8(CX)
 	MOVL	$1234, 12(CX)
 
 	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	params+4(FP), AX
+	MOVL	param+0(FP), AX
 	MOVL	AX, 4(SP)		// arg 1 - param
-	MOVL	psize+8(FP), AX
+	MOVL	psize+4(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - psize
 	MOVL	$8, AX			// sys___tfork
 	INT	$0x80
@@ -245,15 +249,15 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
 	// Return if tfork syscall failed.
 	JCC	5(PC)
 	NEGL	AX
-	MOVL	ret+0(FP), DX
-	MOVL	AX, 0(DX)
+	MOVL	AX, ret_lo+20(FP)
+	MOVL	$-1, ret_hi+24(FP)
 	RET
 
 	// In parent, return.
 	CMPL	AX, $0
 	JEQ	4(PC)
-	MOVL	ret+0(FP), DX
-	MOVL	AX, 0(DX)
+	MOVL	AX, ret_lo+20(FP)
+	MOVL	$0, ret_hi+24(FP)
 	RET
 
 	// Paranoia: check that SP is as we expect.
@@ -333,15 +337,17 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 TEXT runtime·thrsleep(SB),NOSPLIT,$-4
 	MOVL	$94, AX			// sys___thrsleep
 	INT	$0x80
+	MOVL	AX, ret+20(FP)
 	RET
 
 TEXT runtime·thrwakeup(SB),NOSPLIT,$-4
 	MOVL	$301, AX		// sys___thrwakeup
 	INT	$0x80
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$28
-	LEAL	arg0+0(FP), SI
+	LEAL	mib+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
 	MOVSL				// arg 1 - name
@@ -352,10 +358,12 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
 	MOVSL				// arg 6 - newlen
 	MOVL	$202, AX		// sys___sysctl
 	INT	$0x80
-	JCC	3(PC)
+	JCC	4(PC)
 	NEGL	AX
+	MOVL	AX, ret+24(FP)
 	RET
 	MOVL	$0, AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 // int32 runtime·kqueue(void);
@@ -364,6 +372,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	MOVL	AX, ret+0(FP)
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
@@ -372,6 +381,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 // int32 runtime·closeonexec(int32 fd);

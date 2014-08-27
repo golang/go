@@ -13,27 +13,27 @@
 	MOVW	$(0x10000 + ((code)<<5)), R8; B (R8)
 
 TEXT runtime·exit(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	code+0(FP), R0
 	NACL_SYSJMP(SYS_exit)
 
 TEXT runtime·exit1(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	code+0(FP), R0
 	NACL_SYSJMP(SYS_thread_exit)
 
 TEXT runtime·open(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+0(FP), R1
-	MOVW	arg3+0(FP), R2
+	MOVW	name+0(FP), R0
+	MOVW	name+0(FP), R1
+	MOVW	name+0(FP), R2
 	NACL_SYSJMP(SYS_open)
 
 TEXT runtime·close(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	fd+0(FP), R0
 	NACL_SYSJMP(SYS_close)
 
 TEXT runtime·read(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+4(FP), R1
-	MOVW	arg3+8(FP), R2
+	MOVW	fd+0(FP), R0
+	MOVW	p+4(FP), R1
+	MOVW	n+8(FP), R2
 	NACL_SYSJMP(SYS_read)
 
 // func naclWrite(fd int, b []byte) int
@@ -46,77 +46,77 @@ TEXT syscall·naclWrite(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+4(FP), R1
-	MOVW	arg3+8(FP), R2
+	MOVW	fd+0(FP), R0
+	MOVW	p+4(FP), R1
+	MOVW	n+8(FP), R2
 	NACL_SYSJMP(SYS_write)
 
 TEXT runtime·nacl_exception_stack(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+4(FP), R1
+	MOVW	p+0(FP), R0
+	MOVW	size+4(FP), R1
 	NACL_SYSJMP(SYS_exception_stack)
 
 TEXT runtime·nacl_exception_handler(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+4(FP), R1
+	MOVW	fn+0(FP), R0
+	MOVW	arg+4(FP), R1
 	NACL_SYSJMP(SYS_exception_handler)
 
 TEXT runtime·nacl_sem_create(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	flag+0(FP), R0
 	NACL_SYSJMP(SYS_sem_create)
 
 TEXT runtime·nacl_sem_wait(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	sem+0(FP), R0
 	NACL_SYSJMP(SYS_sem_wait)
 
 TEXT runtime·nacl_sem_post(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	sem+0(FP), R0
 	NACL_SYSJMP(SYS_sem_post)
 
 TEXT runtime·nacl_mutex_create(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	flag+0(FP), R0
 	NACL_SYSJMP(SYS_mutex_create)
 
 TEXT runtime·nacl_mutex_lock(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	mutex+0(FP), R0
 	NACL_SYSJMP(SYS_mutex_lock)
 
 TEXT runtime·nacl_mutex_trylock(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	mutex+0(FP), R0
 	NACL_SYSJMP(SYS_mutex_trylock)
 
 TEXT runtime·nacl_mutex_unlock(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	mutex+0(FP), R0
 	NACL_SYSJMP(SYS_mutex_unlock)
 
 TEXT runtime·nacl_cond_create(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	flag+0(FP), R0
 	NACL_SYSJMP(SYS_cond_create)
 
 TEXT runtime·nacl_cond_wait(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+4(FP), R1
+	MOVW	cond+0(FP), R0
+	MOVW	n+4(FP), R1
 	NACL_SYSJMP(SYS_cond_wait)
 
 TEXT runtime·nacl_cond_signal(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	cond+0(FP), R0
 	NACL_SYSJMP(SYS_cond_signal)
 
 TEXT runtime·nacl_cond_broadcast(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
+	MOVW	cond+0(FP), R0
 	NACL_SYSJMP(SYS_cond_broadcast)
 
 TEXT runtime·nacl_cond_timed_wait_abs(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+4(FP), R1
-	MOVW	arg3+8(FP), R2
+	MOVW	cond+0(FP), R0
+	MOVW	lock+4(FP), R1
+	MOVW	ts+8(FP), R2
 	NACL_SYSJMP(SYS_cond_timed_wait_abs)
 
 TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+4(FP), R1
-	MOVW	arg3+8(FP), R2
-	MOVW	arg4+12(FP), R3
+	MOVW	fn+0(FP), R0
+	MOVW	stk+4(FP), R1
+	MOVW	tls+8(FP), R2
+	MOVW	xx+12(FP), R3
 	NACL_SYSJMP(SYS_thread_create)
 
 TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
@@ -128,21 +128,21 @@ TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
 	B runtime·mstart(SB)
 
 TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$0
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+4(FP), R1
+	MOVW	ts+0(FP), R0
+	MOVW	extra+4(FP), R1
 	NACL_SYSJMP(SYS_nanosleep)
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	NACL_SYSJMP(SYS_sched_yield)
 
 TEXT runtime·mmap(SB),NOSPLIT,$8
-	MOVW	arg1+0(FP), R0
-	MOVW	arg2+4(FP), R1
-	MOVW	arg3+8(FP), R2
-	MOVW	arg4+12(FP), R3
-	MOVW	arg5+16(FP), R4
+	MOVW	addr+0(FP), R0
+	MOVW	n+4(FP), R1
+	MOVW	prot+8(FP), R2
+	MOVW	flags+12(FP), R3
+	MOVW	fd+16(FP), R4
 	// arg6:offset should be passed as a pointer (to int64)
-	MOVW	arg6+20(FP), R5
+	MOVW	off+20(FP), R5
 	MOVW	R5, 4(R13)
 	MOVW	$0, R6
 	MOVW	R6, 8(R13)
@@ -152,6 +152,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
 	MOVM.IA.W (R13), [R4, R5]
 	CMP	$-4095, R0
 	RSB.HI	$0, R0
+	MOVW	R0, ret+24(FP)
 	RET
 
 TEXT time·now(SB),NOSPLIT,$16
@@ -188,9 +189,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	MOVW	$0, R4
 	ADD.S	R2, R0
 	ADC	R4, R1
-	MOVW	0(FP), R2
-	MOVW	R0, 0(R2)
-	MOVW	R1, 4(R2)
+	MOVW	R0, ret_lo+0(FP)
+	MOVW	R1, ret_hi+4(FP)
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$80

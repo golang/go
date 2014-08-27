@@ -31,18 +31,17 @@ arg=0
 /* replaced use of R10 by R11 because the former can be the data segment base register */
 
 TEXT _mulv(SB), NOSPLIT, $0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R2	/* l0 */
-	MOVW	8(FP), R11	/* h0 */
-	MOVW	12(FP), R4	/* l1 */
-	MOVW	16(FP), R5	/* h1 */
+	MOVW	l0+0(FP), R2	/* l0 */
+	MOVW	h0+4(FP), R11	/* h0 */
+	MOVW	l1+8(FP), R4	/* l1 */
+	MOVW	h1+12(FP), R5	/* h1 */
 	MULLU	R4, R2, (R7,R6)
 	MUL	R11, R4, R8
 	ADD	R8, R7
 	MUL	R2, R5, R8
 	ADD	R8, R7
-	MOVW	R6, 0(R(arg))
-	MOVW	R7, 4(R(arg))
+	MOVW	R6, ret_lo+16(FP)
+	MOVW	R7, ret_hi+20(FP)
 	RET
 
 // trampoline for _sfloat2. passes LR as arg0 and

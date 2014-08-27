@@ -36,7 +36,7 @@ gtext(Sym *s, int32 stkoff)
 {
 	int32 a;
 
-	a = argsize();
+	a = argsize(1);
 	if((textflag & NOSPLIT) != 0 && stkoff >= 128)
 		yyerror("stack frame too large for NOSPLIT function");
 

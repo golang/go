@@ -121,28 +121,8 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
 	MOVW	R0, 20(FP)
 	RET
 
-TEXT ·generalCAS64(SB),NOSPLIT,$20-21
-	// bool runtime·cas64(uint64 volatile *addr, uint64 old, uint64 new)
-	MOVW	addr+0(FP), R0
-	// trigger potential paging fault here,
-	// because a fault in runtime.cas64 will hang.
-	MOVW	(R0), R2
-	// make unaligned atomic access panic
-	AND.S	$7, R0, R1
-	BEQ 	2(PC)
-	MOVW	R1, (R1)
-	MOVW	R0, 4(R13)
-	MOVW	old_lo+4(FP), R1
-	MOVW	R1, 8(R13)
-	MOVW	old_hi+8(FP), R1
-	MOVW	R1, 12(R13)
-	MOVW	new_lo+12(FP), R2
-	MOVW	R2, 16(R13)
-	MOVW	new_hi+16(FP), R3
-	MOVW	R3, 20(R13)
-	BL  	runtime·cas64(SB)
-	MOVB	R0, ret+20(FP)
-	RET
+TEXT ·generalCAS64(SB),NOSPLIT,$0-21
+	B  	runtime·cas64(SB)
 
 GLOBL armCAS64(SB), $4
 

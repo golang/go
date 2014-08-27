@@ -87,6 +87,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$48
 TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVQ	0x30(GS), AX
 	MOVL	0x68(AX), AX
+	MOVL	AX, ret+0(FP)
 	RET
 
 TEXT runtime·setlasterror(SB),NOSPLIT,$0
@@ -323,7 +324,7 @@ TEXT runtime·settls(SB),NOSPLIT,$0
 
 // Sleep duration is in 100ns units.
 TEXT runtime·usleep1(SB),NOSPLIT,$0
-	MOVL	duration+0(FP), BX
+	MOVL	usec+0(FP), BX
 	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
 
 	// Execute call on m->g0 stack, in case we are not actually
@@ -345,7 +346,7 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	MOVQ	R12, m_libcallg(R13)
 	// sp must be the last, because once async cpu profiler finds
 	// all three values to be non-zero, it will use them
-	LEAQ	8(SP), R12
+	LEAQ	usec+0(FP), R12
 	MOVQ	R12, m_libcallsp(R13)
 
 	MOVQ	m_g0(R13), R14

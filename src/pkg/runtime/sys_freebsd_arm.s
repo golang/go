@@ -48,6 +48,7 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	SWI $0
 	SUB $20, R13
 	// BCS error
+	MOVW	R0, ret+20(FP)
 	RET
 
 TEXT runtime·thr_new(SB),NOSPLIT,$0
@@ -91,6 +92,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW 8(FP), R2	// arg 3 perm
 	MOVW $SYS_open, R7
 	SWI $0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-8
@@ -99,6 +101,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVW 8(FP), R2	// arg 3 count
 	MOVW $SYS_read, R7
 	SWI $0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-8
@@ -107,12 +110,14 @@ TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVW 8(FP), R2	// arg 3 count
 	MOVW $SYS_write, R7
 	SWI $0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$-8
 	MOVW 0(FP), R0	// arg 1 fd
 	MOVW $SYS_close, R7
 	SWI $0
+	MOVW	R0, ret+4(FP)
 	RET
 
 TEXT runtime·getrlimit(SB),NOSPLIT,$-8
@@ -120,6 +125,7 @@ TEXT runtime·getrlimit(SB),NOSPLIT,$-8
 	MOVW 4(FP), R1
 	MOVW $SYS_getrlimit, R7
 	SWI $0
+	MOVW	R0, ret+8(FP)
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$8
@@ -178,9 +184,8 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	ADD.S R2, R0
 	ADC R4, R1
 
-	MOVW 0(FP), R3
-	MOVW R0, 0(R3)
-	MOVW R1, 4(R3)
+	MOVW R0, ret_lo+0(FP)
+	MOVW R1, ret_hi+4(FP)
 	RET
 
 TEXT runtime·sigaction(SB),NOSPLIT,$-8
@@ -247,6 +252,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$16
 	SWI $0
 	SUB $4, R13
 	// TODO(dfc) error checking ?
+	MOVW	R0, ret+24(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
@@ -307,6 +313,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 	SWI $0
 	SUB.CS $0, R0, R0
 	SUB $20, R13
+	MOVW	R0, ret+24(FP)
 	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$-4
@@ -329,6 +336,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVW $SYS_kqueue, R7
 	SWI $0
 	RSB.CS $0, R0
+	MOVW	R0, ret+0(FP)
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
@@ -342,6 +350,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	SWI $0
 	RSB.CS $0, R0
 	SUB $20, R13
+	MOVW	R0, ret+24(FP)
 	RET
 
 // void runtime·closeonexec(int32 fd)

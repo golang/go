@@ -56,24 +56,24 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 }
 
 int
-hasdotdotdot(void)
+hasdotdotdot(Type *t)
 {
-	Type *t;
-
-	for(t=thisfn->down; t!=T; t=t->down)
+	for(t=t->down; t!=T; t=t->down)
 		if(t->etype == TDOT)
 			return 1;
 	return 0;
 }
 
 vlong
-argsize(void)
+argsize(int doret)
 {
 	Type *t;
 	int32 s;
 
 //print("t=%T\n", thisfn);
-	s = align(0, thisfn->link, Aarg0, nil);
+	s = 0;
+	if(hasdotdotdot(thisfn))
+		s = align(s, thisfn->link, Aarg0, nil);
 	for(t=thisfn->down; t!=T; t=t->down) {
 		switch(t->etype) {
 		case TVOID:
@@ -93,6 +93,14 @@ argsize(void)
 		s = (s+7) & ~7;
 	else
 		s = (s+3) & ~3;
+	if(doret && thisfn->link->etype != TVOID) {
+		s = align(s, thisfn->link, Aarg1, nil);
+		s = align(s, thisfn->link, Aarg2, nil);
+		if(thechar == '6')
+			s = (s+7) & ~7;
+		else
+			s = (s+3) & ~3;
+	}
 	return s;
 }
 
@@ -129,7 +137,7 @@ codgen(Node *n, Node *nn)
 	 * generate funcdata symbol for this function.
 	 * data is filled in at the end of codgen().
 	 */
-	isvarargs = hasdotdotdot();
+	isvarargs = hasdotdotdot(thisfn);
 	gcargs = nil;
 	if(!isvarargs)
 		gcargs = makefuncdatasym("gcargs·%d", FUNCDATA_ArgsPointerMaps);
@@ -212,7 +220,7 @@ supgen(Node *n)
 void
 gen(Node *n)
 {
-	Node *l, nod;
+	Node *l, nod, nod1;
 	Prog *sp, *spc, *spb;
 	Case *cn;
 	long sbc, scc;
@@ -273,14 +281,26 @@ loop:
 			gbranch(ORETURN);
 			break;
 		}
+		if(typecmplx[n->type->etype] && !hasdotdotdot(thisfn)) {
+			regret(&nod, n, thisfn, 2);
+			sugen(l, &nod, n->type->width);
+			noretval(3);
+			gbranch(ORETURN);
+			break;
+		}
 		if(typecmplx[n->type->etype]) {
 			sugen(l, nodret, n->type->width);
 			noretval(3);
 			gbranch(ORETURN);
 			break;
 		}
-		regret(&nod, n);
+		regret(&nod1, n, thisfn, 2);
+		nod = nod1;
+		if(nod.op != OREGISTER)
+			regalloc(&nod, n, Z);
 		cgen(l, &nod);
+		if(nod1.op != OREGISTER)
+			gmove(&nod, &nod1);
 		regfree(&nod);
 		if(typefd[n->type->etype])
 			noretval(1);
@@ -729,9 +749,11 @@ dumpgcargs(Type *fn, Sym *sym)
 	symoffset = 0;
 	gextern(sym, nodconst(1), symoffset, 4);
 	symoffset += 4;
-	argbytes = (argsize() + ewidth[TIND] - 1);
+	argbytes = (argsize(1) + ewidth[TIND] - 1);
 	bv = bvalloc((argbytes  / ewidth[TIND]) * BitsPerPointer);
-	argoffset = align(0, fn->link, Aarg0, nil);
+	argoffset = 0;
+	if(hasdotdotdot(thisfn))
+		argoffset = align(0, fn->link, Aarg0, nil);
 	if(argoffset > 0) {
 		// The C calling convention returns structs by copying them to a
 		// location pointed to by a hidden first argument.  This first

@@ -468,7 +468,7 @@ TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
 TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 	MOVW	0(SP), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
-	MOVW	fn+0(FP), R7
+	MOVW	fv+0(FP), R7
 	MOVW	argp+4(FP), SP
 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
 	MOVW	0(R7), R1
@@ -579,9 +579,6 @@ havem:
 	// the earlier calls.
 	//
 	// In the new goroutine, -8(SP) and -4(SP) are unused.
-	MOVW	fn+4(FP), R0
-	MOVW	frame+8(FP), R1
-	MOVW	framesize+12(FP), R2
 	MOVW	m_curg(R8), g
 	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVW	(g_sched+gobuf_pc)(g), R5
@@ -616,7 +613,7 @@ havem:
 	RET
 
 // void setg(G*); set g. for use by needm.
-TEXT runtime·setg(SB), NOSPLIT, $0-8
+TEXT runtime·setg(SB), NOSPLIT, $0-4
 	MOVW	gg+0(FP), g
 
 	// Save g to thread-local storage.
@@ -628,6 +625,7 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
 	MOVW	0(SP), R0
+	MOVW	R0, ret+4(FP)
 	RET
 
 TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
@@ -635,13 +633,14 @@ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
 	RET
 
 TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
-	MOVW	x+4(FP), R0
+	MOVW	pc+4(FP), R0
 	MOVW	R0, 0(SP)
 	RET
 
 TEXT runtime·getcallersp(SB),NOSPLIT,$-4-4
 	MOVW	0(FP), R0
 	MOVW	$-4(R0), R0
+	MOVW	R0, ret+4(FP)
 	RET
 
 // func gogetcallersp(p unsafe.Pointer) uintptr
@@ -657,12 +656,6 @@ TEXT runtime·emptyfunc(SB),0,$0-0
 TEXT runtime·abort(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-
-TEXT runtime·gocputicks(SB),NOSPLIT,$4-8
-	MOVW	$ret_lo+0(FP), R0
-	MOVW	R0, 4(R13)
-	BL      runtime·cputicks(SB)
-	RET
 
 // bool armcas(int32 *val, int32 old, int32 new)
 // Atomically:
@@ -1264,3 +1257,7 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
 	MOVW	R0, m_fastrand(R1)
 	MOVW	R0, ret+0(FP)
 	RET
+
+TEXT runtime·gocputicks(SB), NOSPLIT, $0
+	B runtime·cputicks(SB)
+

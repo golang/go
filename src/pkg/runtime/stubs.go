@@ -218,3 +218,48 @@ func exitsyscall()
 
 func traceback(pc, sp, lr uintptr, gp *g)
 func tracebackothers(gp *g)
+
+func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
+func gogo(buf *gobuf)
+func gosave(buf *gobuf)
+func open(name *byte, mode, perm int32) int32
+func read(fd int32, p unsafe.Pointer, n int32) int32
+func write(fd uintptr, p unsafe.Pointer, n int32) int32
+func close(fd int32) int32
+func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+func jmpdefer(fv *funcval, argp unsafe.Pointer)
+func exit1(code int32)
+func asminit()
+func getcallersp(argp unsafe.Pointer) uintptr
+func cas(ptr *uint32, old, new uint32) bool
+func cas64(ptr *uint64, old, new uint64) bool
+func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+func xadd(ptr *uint32, delta int32) uint32
+func xadd64(ptr *uint64, delta int64) uint64
+func xchg(ptr *uint32, new uint32) uint32
+func xchg64(ptr *uint64, new uint64) uint64
+func xchgp(ptr *unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+func atomicstore(ptr *uint32, val uint32)
+func atomicstore64(ptr *uint64, val uint64)
+func atomicstorep(ptr *unsafe.Pointer, val unsafe.Pointer)
+func atomicload(ptr *uint32) uint32
+func atomicload64(ptr *uint64) uint64
+func atomicloadp(ptr *unsafe.Pointer) unsafe.Pointer
+func atomicor8(ptr *uint8, val uint8)
+func setg(gg *g)
+func exit(code int32)
+func breakpoint()
+func asmcgocall(fn, arg unsafe.Pointer)
+func nanotime() int64
+func usleep(usec uint32)
+func cputicks() int64
+func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+func munmap(addr unsafe.Pointer, n uintptr)
+func madvise(addr unsafe.Pointer, n uintptr, flags int32)
+func setcallerpc(argp unsafe.Pointer, pc uintptr)
+func getcallerpc(argp unsafe.Pointer) uintptr
+func newstackcall(fv *funcval, addr unsafe.Pointer, size uint32)
+func procyield(cycles uint32)
+func osyield()
+func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
+func cmpstring(s1, s2 string) int
