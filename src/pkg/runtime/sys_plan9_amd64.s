@@ -174,11 +174,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVQ	BP, SP
 
 	// make room for args and g
-	SUBQ	$32, SP
+	SUBQ	$40, SP
 
 	// save g
 	MOVQ	g(AX), BP
-	MOVQ	BP, 24(SP)
+	MOVQ	BP, 32(SP)
 
 	// g = m->gsignal
 	MOVQ	R10, g(AX)
@@ -189,10 +189,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVQ	BP, 16(SP)
 
 	CALL	runtime·sighandler(SB)
+	MOVL	24(SP), AX
 
 	// restore g
 	get_tls(BX)
-	MOVQ	24(SP), R10
+	MOVQ	32(SP), R10
 	MOVQ	R10, g(BX)
 
 	// call noted(AX)
