@@ -15,7 +15,8 @@ import (
 // See stack.h.
 const (
 	StackGuard = 256
-	StackLimit = 128
+	StackSmall = 96
+	StackLimit = StackGuard - StackSmall
 )
 
 // Test stack split logic by calling functions of every frame size
