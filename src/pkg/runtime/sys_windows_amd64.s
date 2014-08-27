@@ -106,7 +106,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
 	// as required by windows callback convention.
 	PUSHFQ
-	SUBQ	$88, SP
+	SUBQ	$96, SP
 	MOVQ	DI, 80(SP)
 	MOVQ	SI, 72(SP)
 	MOVQ	BP, 64(SP)
@@ -114,7 +114,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVQ	R12, 48(SP)
 	MOVQ	R13, 40(SP)
 	MOVQ	R14, 32(SP)
-	MOVQ	R15, 24(SP)
+	MOVQ	R15, 88(SP)
 
 	MOVQ	0(CX), BX // ExceptionRecord*
 	MOVQ	8(CX), CX // Context*
@@ -135,10 +135,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVQ	DX, 16(SP)
 	CALL	runtime·sighandler(SB)
 	// AX is set to report result back to Windows
+	MOVL	24(SP), AX
 
 done:
 	// restore registers as required for windows callback
-	MOVQ	24(SP), R15
+	MOVQ	88(SP), R15
 	MOVQ	32(SP), R14
 	MOVQ	40(SP), R13
 	MOVQ	48(SP), R12
@@ -146,7 +147,7 @@ done:
 	MOVQ	64(SP), BP
 	MOVQ	72(SP), SI
 	MOVQ	80(SP), DI
-	ADDQ	$88, SP
+	ADDQ	$96, SP
 	POPFQ
 
 	RET

@@ -76,10 +76,10 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // Return 0 for 'not handled', -1 for handled.
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	ptrs+0(FP), CX
-	SUBL	$28, SP
+	SUBL	$32, SP
 
 	// save callee-saved registers
-	MOVL	BX, 12(SP)
+	MOVL	BX, 28(SP)
 	MOVL	BP, 16(SP)
 	MOVL	SI, 20(SP)
 	MOVL	DI, 24(SP)
@@ -103,15 +103,16 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	DX, 8(SP)
 	CALL	runtime·sighandler(SB)
 	// AX is set to report result back to Windows
+	MOVL	12(SP), AX
 
 done:
 	// restore callee-saved registers
 	MOVL	24(SP), DI
 	MOVL	20(SP), SI
 	MOVL	16(SP), BP
-	MOVL	12(SP), BX
+	MOVL	28(SP), BX
 
-	ADDL	$28, SP
+	ADDL	$32, SP
 	// RET 4 (return and pop 4 bytes parameters)
 	BYTE $0xC2; WORD $4
 	RET // unreached; make assembler happy
