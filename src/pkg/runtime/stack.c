@@ -337,15 +337,20 @@ runtime·oldstack(void)
 			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, (uintptr)g->m->cret, (uintptr)argsize);
 	}
 
-	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
-	// happens during a function call inside entersyscall.
-	oldstatus = gp->status;
-	
 	gp->sched = top->gobuf;
 	gp->sched.ret = g->m->cret;
 	g->m->cret = 0; // drop reference
-	gp->status = Gwaiting;
-	gp->waitreason = runtime·gostringnocopy((byte*)"stack unsplit");
+	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
+	// happens during a function call inside entersyscall.
+
+	oldstatus = runtime·readgstatus(gp);
+	oldstatus &= ~Gscan;
+	if(oldstatus != Grunning && oldstatus != Gsyscall) {
+		runtime·printf("runtime: oldstack status=%d\n", oldstatus);
+		runtime·throw("oldstack");
+	}
+	runtime·casgstatus(gp, oldstatus, Gcopystack);
+	gp->waitreason = runtime·gostringnocopy((byte*)"stack unsplit");	
 
 	if(argsize > 0) {
 		sp -= argsize;
@@ -363,8 +368,7 @@ runtime·oldstack(void)
 	gp->stackguard0 = gp->stackguard;
 	gp->panicwrap = top->panicwrap;
 	runtime·stackfree(gp, old, top);
-
-	gp->status = oldstatus;
+	runtime·casgstatus(gp, Gcopystack, oldstatus); // oldstatus is Grunning or Gsyscall
 	runtime·gogo(&gp->sched);
 }
 
@@ -768,6 +772,7 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	uintptr oldsize, used;
 	AdjustInfo adjinfo;
 	Stktop *oldtop, *newtop;
+	uint32 oldstatus;
 
 	if(gp->syscallstack != 0)
 		runtime·throw("can't handle stack copy in syscall yet");
@@ -801,7 +806,12 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	
 	// copy the stack (including Stktop) to the new location
 	runtime·memmove(newbase - used, oldbase - used, used);
-	
+	oldstatus = runtime·readgstatus(gp);
+	oldstatus &= ~Gscan;
+	if (oldstatus == Gwaiting || oldstatus == Grunnable)
+		runtime·casgstatus(gp, oldstatus, Gcopystack); // oldstatus is Gwaiting or Grunnable
+	else
+		runtime·throw("copystack: bad status, not Gwaiting or Grunnable");
 	// Swap out old stack for new one
 	gp->stackbase = (uintptr)newtop;
 	gp->stackguard = (uintptr)newstk + StackGuard;
@@ -809,6 +819,8 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	if(gp->stack0 == (uintptr)oldstk)
 		gp->stack0 = (uintptr)newstk;
 	gp->sched.sp = (uintptr)(newbase - used);
+
+	runtime·casgstatus(gp, Gcopystack, oldstatus); // oldstatus is Gwaiting or Grunnable
 
 	// free old stack
 	runtime·stackfree(gp, oldstk, oldtop);
@@ -831,6 +843,9 @@ runtime·round2(int32 x)
 // m->moreframesize bytes, copy m->moreargsize bytes to the new frame,
 // and then act as though runtime·lessstack called the function at
 // m->morepc.
+//
+// g->atomicstatus will be Grunning, Gsyscall or Gscanrunning, Gscansyscall upon entry. 
+// If the GC is trying to stop this g then it will set preemptscan to true.
 void
 runtime·newstack(void)
 {
@@ -853,11 +868,13 @@ runtime·newstack(void)
 		runtime·throw("runtime: wrong goroutine in newstack");
 	}
 
+	// The goroutine must be executing in order to call newstack, so the possible states are
+	// Grunning and Gsyscall (and, due to GC, also Gscanrunning and Gscansyscall).	
+
 	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
 	// happens during a function call inside entersyscall.
 	gp = g->m->curg;
-	oldstatus = gp->status;
-
+	oldstatus = runtime·readgstatus(gp) & ~Gscan;
 	framesize = g->m->moreframesize;
 	argsize = g->m->moreargsize;
 	moreargp = g->m->moreargp;
@@ -866,7 +883,8 @@ runtime·newstack(void)
 	g->m->morebuf.pc = (uintptr)nil;
 	g->m->morebuf.lr = (uintptr)nil;
 	g->m->morebuf.sp = (uintptr)nil;
-	gp->status = Gwaiting;
+
+	runtime·casgstatus(gp, oldstatus, Gwaiting); // oldstatus is not in a Gscan status
 	gp->waitreason = runtime·gostringnocopy((byte*)"stack growth");
 	newstackcall = framesize==1;
 	if(newstackcall)
@@ -892,6 +910,7 @@ runtime·newstack(void)
 			gp->sched.pc, gp->sched.sp, gp->sched.lr, gp->sched.ctxt);
 	}
 	if(sp < gp->stackguard - StackGuard) {
+		runtime·printf("runtime: gp=%p, gp->status=%d, oldstatus=%d\n ", (void*)gp, runtime·readgstatus(gp), oldstatus);
 		runtime·printf("runtime: split stack overflow: %p < %p\n", sp, gp->stackguard - StackGuard);
 		runtime·throw("runtime: split stack overflow");
 	}
@@ -908,17 +927,18 @@ runtime·newstack(void)
 			runtime·throw("runtime: g is running but p is not");
 		if(oldstatus == Gsyscall && g->m->locks == 0)
 			runtime·throw("runtime: stack growth during syscall");
+
 		// Be conservative about where we preempt.
 		// We are interested in preempting user Go code, not runtime code.
 		if(oldstatus != Grunning || g->m->locks || g->m->mallocing || g->m->gcing || g->m->p->status != Prunning) {
 			// Let the goroutine keep running for now.
 			// gp->preempt is set, so it will be preempted next time.
 			gp->stackguard0 = gp->stackguard;
-			gp->status = oldstatus;
+			runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Gsyscall or Grunning
 			runtime·gogo(&gp->sched);	// never return
 		}
 		// Act like goroutine called runtime.Gosched.
-		gp->status = oldstatus;
+		runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Gsyscall or Grunning
 		runtime·gosched_m(gp);	// never return
 	}
 
@@ -933,6 +953,8 @@ runtime·newstack(void)
 			oldbase = (byte*)gp->stackbase + sizeof(Stktop);
 			oldsize = oldbase - oldstk;
 			newsize = oldsize * 2;
+			// Note that the concurrent GC might be scanning the stack as we try to replace it.
+			// copystack takes care of the appropriate coordination with the stack scanner.
 			copystack(gp, nframes, newsize);
 			if(StackDebug >= 1)
 				runtime·printf("stack grow done\n");
@@ -940,7 +962,7 @@ runtime·newstack(void)
 				runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
 				runtime·throw("stack overflow");
 			}
-			gp->status = oldstatus;
+			runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Gsyscall or Grunning
 			runtime·gogo(&gp->sched);
 		}
 		// TODO: if stack is uncopyable because we're in C code, patch return value at
@@ -1017,7 +1039,7 @@ runtime·newstack(void)
 		runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
 		gp->sched.ctxt = nil;
 	}
-	gp->status = oldstatus;
+	runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Grunning or Gsyscall
 	runtime·gogo(&label);
 
 	*(int32*)345 = 123;	// never return
@@ -1055,7 +1077,7 @@ runtime·shrinkstack(G *gp)
 
 	if(!runtime·copystack)
 		return;
-	if(gp->status == Gdead)
+	if(runtime·readgstatus(gp) == Gdead)
 		return;
 	if(gp->stackbase == 0)
 		runtime·throw("stackbase == 0");

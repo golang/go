@@ -126,13 +126,25 @@ enum
 	// If you add to this list, add to the list
 	// of "okay during garbage collection" status
 	// in mgc0.c too.
-	Gidle,
-	Grunnable,
-	Grunning,
-	Gsyscall,
-	Gwaiting,
-	Gmoribund_unused,  // currently unused, but hardcoded in gdb scripts
-	Gdead,
+	Gidle,                                 // 0
+	Grunnable,                             // 1 runnable and on a run queue
+	Grunning,                              // 2
+	Gsyscall,                              // 3
+	Gwaiting,                              // 4
+	Gmoribund_unused,                      // 5 currently unused, but hardcoded in gdb scripts
+	Gdead,                                 // 6
+	Genqueue,                              // 7 Only the Gscanenqueue is used.
+	Gcopystack,                            // 8 in this state when newstack is moving the stack
+	// the following encode that the GC is scanning the stack and what to do when it is done 
+	Gscan = 0x1000,                        // atomicstatus&~Gscan = the non-scan state,
+	// Gscanidle =     Gscan + Gidle,      // Not used. Gidle only used with newly malloced gs
+	Gscanrunnable = Gscan + Grunnable,     //  0x1001 When scanning complets make Grunnable (it is already on run queue)
+	Gscanrunning =  Gscan + Grunning,      //  0x1002 Used to tell preemption newstack routine to scan preempted stack.
+	Gscansyscall =  Gscan + Gsyscall,      //  0x1003 When scanning completes make is Gsyscall
+	Gscanwaiting =  Gscan + Gwaiting,      //  0x1004 When scanning completes make it Gwaiting
+	// Gscanmoribund_unused,               //  not possible
+	// Gscandead,                          //  not possible
+	Gscanenqueue = Gscan + Genqueue,       //  When scanning completes make it Grunnable and put on runqueue
 };
 enum
 {
@@ -276,7 +288,7 @@ struct	G
 	uintptr	stack0;
 	uintptr	stacksize;
 	void*	param;		// passed parameter on wakeup
-	int16	status;
+	uint32	atomicstatus;
 	int64	goid;
 	int64	waitsince;	// approx time when the G become blocked
 	String	waitreason;	// if status==Gwaiting
@@ -285,6 +297,8 @@ struct	G
 	bool	issystem;	// do not output in stack dump, ignore in deadlock detector
 	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
 	bool	paniconfault;	// panic (instead of crash) on unexpected fault address
+	bool    preemptscan;    // preempted g does scan for GC
+	bool    scancheck;      // debug: cleared at begining of scan cycle, set by scan, tested at end of cycle
 	int8	raceignore;	// ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
@@ -680,6 +694,9 @@ void	runtime·strcopy(uintptr, void*, void*);
 void	runtime·algslicecopy(uintptr, void*, void*);
 void	runtime·intercopy(uintptr, void*, void*);
 void	runtime·nilintercopy(uintptr, void*, void*);
+
+uint32  runtime·readgstatus(G *gp);
+void    runtime·casgstatus(G*, uint32, uint32);
 
 /*
  * deferred subroutine calls

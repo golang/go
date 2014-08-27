@@ -402,7 +402,7 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
 
 	USED(lr);
 
-	if(gp->status == Gsyscall) {
+	if((runtime·readgstatus(gp)&~Gscan) == Gsyscall){
 		// Override signal registers if blocked in system call.
 		pc = gp->syscallpc;
 		sp = gp->syscallsp;

@@ -396,7 +396,7 @@ dumpgoroutine(G *gp)
 	dumpint((uintptr)sp);
 	dumpint(gp->goid);
 	dumpint(gp->gopc);
-	dumpint(gp->status);
+	dumpint(runtime·readgstatus(gp));
 	dumpbool(gp->issystem);
 	dumpbool(false);  // isbackground
 	dumpint(gp->waitsince);
@@ -442,14 +442,16 @@ dumpgs(void)
 {
 	G *gp;
 	uint32 i;
+	uint32 status;
 
 	// goroutines & stacks
 	for(i = 0; i < runtime·allglen; i++) {
 		gp = runtime·allg[i];
-		switch(gp->status){
+		status = runtime·readgstatus(gp); // The world is stopped so gp will not be in a scan state.
+		switch(status){
 		default:
-			runtime·printf("unexpected G.status %d\n", gp->status);
-			runtime·throw("mark - bad status");
+			runtime·printf("runtime: unexpected G.status %d\n", status);
+			runtime·throw("dumpgs in STW - bad status");
 		case Gdead:
 			break;
 		case Grunnable:
@@ -730,7 +732,7 @@ mdump(G *gp)
 	flush();
 
 	gp->param = nil;
-	gp->status = Grunning;
+	runtime·casgstatus(gp, Gwaiting, Grunning);
 	runtime·gogo(&gp->sched);
 }
 
@@ -751,7 +753,7 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 	dumpfd = fd;
 
 	// Call dump routine on M stack.
-	g->status = Gwaiting;
+	runtime·casgstatus(g, Grunning, Gwaiting);
 	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
 	runtime·mcall(mdump);
 

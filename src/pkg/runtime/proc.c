@@ -284,8 +284,10 @@ runtime·goroutineheader(G *gp)
 {
 	String status;
 	int64 waitfor;
+	uint32 gpstatus;
 
-	switch(gp->status) {
+	gpstatus = runtime·readgstatus(gp);
+	switch(gpstatus) {
 	case Gidle:
 		status = runtime·gostringnocopy((byte*)"idle");
 		break;
@@ -304,6 +306,30 @@ runtime·goroutineheader(G *gp)
 		else
 			status = runtime·gostringnocopy((byte*)"waiting");
 		break;
+	case Gscan:
+		status = runtime·gostringnocopy((byte*)"scan");
+		break;
+	case Gscanrunnable:
+		status =  runtime·gostringnocopy((byte*)"scanrunnable");
+		break;
+	case Gscanrunning:
+		status = runtime·gostringnocopy((byte*)"scanrunning");
+		break;
+	case Gscansyscall:
+		status = runtime·gostringnocopy((byte*)"scansyscall");
+		break;
+	case Gscanenqueue:
+		status = runtime·gostringnocopy((byte*)"scanenqueue");
+		break;
+	case Gscanwaiting:
+		if(gp->waitreason.str != nil)
+			status = gp->waitreason;
+		else
+			status = runtime·gostringnocopy((byte*)"scanwaiting");
+		break;
+	case Gcopystack:
+		status = runtime·gostringnocopy((byte*)"copystack");
+		break;
 	default:
 		status = runtime·gostringnocopy((byte*)"???");
 		break;
@@ -311,7 +337,8 @@ runtime·goroutineheader(G *gp)
 
 	// approx time the G is blocked, in minutes
 	waitfor = 0;
-	if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince != 0)
+	gpstatus = gpstatus&~Gscan; // drop the scan bit
+	if((gpstatus == Gwaiting || gpstatus == Gsyscall) && gp->waitsince != 0)
 		waitfor = (runtime·nanotime() - gp->waitsince) / (60LL*1000*1000*1000);
 
 	runtime·printf("goroutine %D [%S", gp->goid, status);
@@ -322,12 +349,19 @@ runtime·goroutineheader(G *gp)
 	runtime·printf("]:\n");
 }
 
+static void
+dumpgstatus(G* gp)
+{
+	runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
+}
+
 void
 runtime·tracebackothers(G *me)
 {
 	G *gp;
 	int32 traceback;
 	uintptr i;
+	uint32 status;
 
 	traceback = runtime·gotraceback(nil);
 	
@@ -341,13 +375,14 @@ runtime·tracebackothers(G *me)
 	runtime·lock(&allglock);
 	for(i = 0; i < runtime·allglen; i++) {
 		gp = runtime·allg[i];
-		if(gp == me || gp == g->m->curg || gp->status == Gdead)
+		if(gp == me || gp == g->m->curg || runtime·readgstatus(gp) == Gdead)
 			continue;
 		if(gp->issystem && traceback < 2)
 			continue;
 		runtime·printf("\n");
 		runtime·goroutineheader(gp);
-		if(gp->status == Grunning) {
+		status = runtime·readgstatus(gp);
+		if((status&~Gscan) == Grunning){
 			runtime·printf("\tgoroutine running on other thread; stack unavailable\n");
 			runtime·printcreatedby(gp);
 		} else
@@ -360,7 +395,7 @@ static void
 checkmcount(void)
 {
 	// sched lock is held
-	if(runtime·sched.mcount > runtime·sched.maxmcount) {
+	if(runtime·sched.mcount > runtime·sched.maxmcount){
 		runtime·printf("runtime: program exceeds %d-thread limit\n", runtime·sched.maxmcount);
 		runtime·throw("thread exhaustion");
 	}
@@ -393,13 +428,17 @@ mcommoninit(M *mp)
 void
 runtime·ready(G *gp)
 {
+	uint32 status;
+
+	status = runtime·readgstatus(gp);
 	// Mark runnable.
 	g->m->locks++;  // disable preemption because it can be holding p in a local var
-	if(gp->status != Gwaiting) {
-		runtime·printf("goroutine %D has status %d\n", gp->goid, gp->status);
+	if((status&~Gscan) != Gwaiting){
+		dumpgstatus(gp);
 		runtime·throw("bad g->status in ready");
 	}
-	gp->status = Grunnable;
+	// status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
+	runtime·casgstatus(gp, Gwaiting, Grunnable);
 	runqput(g->m->p, gp);
 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0)  // TODO: fast atomic
 		wakep();
@@ -503,6 +542,97 @@ runtime·freezetheworld(void)
 	runtime·usleep(1000);
 }
 
+static bool
+isscanstatus(uint32 status)
+{
+	if(status == Gscan)
+		runtime·throw("isscanstatus: Bad status Gscan");
+	return (status&Gscan) == Gscan;
+}
+
+// All reads and writes of g's status go through readgstatus, casgstatus
+// castogscanstatus, casfromgscanstatus.
+uint32
+runtime·readgstatus(G *gp)
+{
+	return runtime·atomicload(&gp->atomicstatus);
+}
+
+// The Gscanstatuses are acting like locks and this releases them.
+// If it proves to be a performance hit we should be able to make these
+// simple atomic stores but for now we are going to throw if
+// we see an inconsistent state.
+void
+runtime·casfromgscanstatus(G *gp, uint32 oldval, uint32 newval)
+{
+	bool success = false;
+
+	// Check that transition is valid.
+	switch(oldval) {
+	case Gscanrunnable:
+	case Gscanwaiting:
+	case Gscanrunning:
+	case Gscansyscall:
+		if(newval == (oldval&~Gscan))
+			success = runtime·cas(&gp->atomicstatus, oldval, newval);
+		break;
+	case Gscanenqueue:
+		if(newval == Gwaiting)
+			success = runtime·cas(&gp->atomicstatus, oldval, newval);
+		break;
+	}	
+	if(!success){
+		runtime·printf("runtime: casfromgscanstatus failed gp=%p, oldval=%d, newval=%d\n",  
+			gp, oldval, newval);
+		dumpgstatus(gp);
+		runtime·throw("casfromgscanstatus: gp->status is not in scan state");
+	}
+}
+
+// This will return false if the gp is not in the expected status and the cas fails. 
+// This acts like a lock acquire while the casfromgstatus acts like a lock release.
+bool
+runtime·castogscanstatus(G *gp, uint32 oldval, uint32 newval)
+{
+	switch(oldval) {
+	case Grunnable:
+	case Gwaiting:
+	case Gsyscall:
+		if(newval == (oldval|Gscan))
+			return runtime·cas(&gp->atomicstatus, oldval, newval);
+		break;
+	case Grunning:
+		if(newval == Gscanrunning || newval == Gscanenqueue)
+			return runtime·cas(&gp->atomicstatus, oldval, newval);
+		break;   
+	}
+
+	runtime·printf("runtime: castogscanstatus oldval=%d newval=%d\n", oldval, newval);
+	runtime·throw("castogscanstatus");
+	return false; // not reached
+}
+
+// If asked to move to or from a Gscanstatus this will throw. Use the castogscanstatus
+// and casfromgscanstatus instead.
+// casgstatus will loop if the g->atomicstatus is in a Gscan status until the routine that 
+// put it in the Gscan state is finished.
+void
+runtime·casgstatus(G *gp, uint32 oldval, uint32 newval)
+{
+	if(isscanstatus(oldval) || isscanstatus(newval) || oldval == newval) {
+		runtime·printf("casgstatus: oldval=%d, newval=%d\n", oldval, newval);
+		runtime·throw("casgstatus: bad incoming values");
+	}
+
+	while(!runtime·cas(&gp->atomicstatus, oldval, newval)) {
+		// loop if gp->atomicstatus is in a  scan state giving
+		// GC time to finish and change the state to oldval.
+	}
+}
+
+// This is used by the GC as well as the routines that do stack dumps. In the case
+// of GC all the routines can be reliably stopped. This is not always the case
+// when the system is in panic or being exited.
 void
 runtime·stoptheworld(void)
 {
@@ -524,7 +654,7 @@ runtime·stoptheworld(void)
 	runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);
 	preemptall();
 	// stop current P
-	g->m->p->status = Pgcstop;
+	g->m->p->status = Pgcstop; // Pgcstop is only diagnostic.
 	runtime·sched.stopwait--;
 	// try to retake all P's in Psyscall status
 	for(i = 0; i < runtime·gomaxprocs; i++) {
@@ -845,7 +975,9 @@ runtime·newextram(void)
 	gp->syscallsp = gp->sched.sp;
 	gp->syscallstack = gp->stackbase;
 	gp->syscallguard = gp->stackguard;
-	gp->status = Gsyscall;
+	// malg returns status as Gidle, change to Gsyscall before adding to allg
+	// where GC will see it.
+	runtime·casgstatus(gp, Gidle, Gsyscall);
 	gp->m = mp;
 	mp->curg = gp;
 	mp->locked = LockInternal;
@@ -1055,7 +1187,7 @@ handoffp(P *p)
 	// no local work, check that there are no spinning/idle M's,
 	// otherwise our help is not required
 	if(runtime·atomicload(&runtime·sched.nmspinning) + runtime·atomicload(&runtime·sched.npidle) == 0 &&  // TODO: fast atomic
-		runtime·cas(&runtime·sched.nmspinning, 0, 1)) {
+		runtime·cas(&runtime·sched.nmspinning, 0, 1)){
 		startm(p, true);
 		return;
 	}
@@ -1100,6 +1232,7 @@ static void
 stoplockedm(void)
 {
 	P *p;
+	uint32 status;
 
 	if(g->m->lockedg == nil || g->m->lockedg->lockedm != g->m)
 		runtime·throw("stoplockedm: inconsistent locking");
@@ -1112,8 +1245,12 @@ stoplockedm(void)
 	// Wait until another thread schedules lockedg again.
 	runtime·notesleep(&g->m->park);
 	runtime·noteclear(&g->m->park);
-	if(g->m->lockedg->status != Grunnable)
+	status = runtime·readgstatus(g->m->lockedg);
+	if((status&~Gscan) != Grunnable){
+		runtime·printf("runtime:stoplockedm: g is not Grunnable or Gscanrunnable");
+		dumpgstatus(g);
 		runtime·throw("stoplockedm: not runnable");
+	}
 	acquirep(g->m->nextp);
 	g->m->nextp = nil;
 }
@@ -1166,12 +1303,8 @@ static void
 execute(G *gp)
 {
 	int32 hz;
-
-	if(gp->status != Grunnable) {
-		runtime·printf("execute: bad g status %d\n", gp->status);
-		runtime·throw("execute: bad g status");
-	}
-	gp->status = Grunning;
+	
+	runtime·casgstatus(gp, Grunnable, Grunning);
 	gp->waitsince = 0;
 	gp->preempt = false;
 	gp->stackguard0 = gp->stackguard;
@@ -1219,7 +1352,7 @@ top:
 	gp = runtime·netpoll(false);  // non-blocking
 	if(gp) {
 		injectglist(gp->schedlink);
-		gp->status = Grunnable;
+		runtime·casgstatus(gp, Gwaiting, Grunnable);
 		return gp;
 	}
 	// If number of spinning M's >= number of busy P's, block.
@@ -1291,7 +1424,7 @@ stop:
 			if(p) {
 				acquirep(p);
 				injectglist(gp->schedlink);
-				gp->status = Grunnable;
+				runtime·casgstatus(gp, Gwaiting, Grunnable);
 				return gp;
 			}
 			injectglist(gp);
@@ -1334,7 +1467,7 @@ injectglist(G *glist)
 	for(n = 0; glist; n++) {
 		gp = glist;
 		glist = gp->schedlink;
-		gp->status = Grunnable;
+		runtime·casgstatus(gp, Gwaiting, Grunnable); 
 		globrunqput(gp);
 	}
 	runtime·unlock(&runtime·sched.lock);
@@ -1420,8 +1553,6 @@ dropg(void)
 void
 runtime·park(bool(*unlockf)(G*, void*), void *lock, String reason)
 {
-	if(g->status != Grunning)
-		runtime·throw("bad g status");
 	g->m->waitlock = lock;
 	g->m->waitunlockf = unlockf;
 	g->waitreason = reason;
@@ -1450,7 +1581,7 @@ runtime·park_m(G *gp)
 {
 	bool ok;
 
-	gp->status = Gwaiting;
+	runtime·casgstatus(gp, Grunning, Gwaiting);
 	dropg();
 
 	if(g->m->waitunlockf) {
@@ -1458,7 +1589,7 @@ runtime·park_m(G *gp)
 		g->m->waitunlockf = nil;
 		g->m->waitlock = nil;
 		if(!ok) {
-			gp->status = Grunnable;
+			runtime·casgstatus(gp, Gwaiting, Grunnable); 
 			execute(gp);  // Schedule it back, never returns.
 		}
 	}
@@ -1477,9 +1608,14 @@ runtime·gosched(void)
 void
 runtime·gosched_m(G *gp)
 {
-	if(gp->status != Grunning)
+	uint32 status;
+
+	status = runtime·readgstatus(gp);
+	if ((status&~Gscan) != Grunning){
+		dumpgstatus(gp);
 		runtime·throw("bad g status");
-	gp->status = Grunnable;
+	}
+	runtime·casgstatus(gp, Grunning, Grunnable);
 	dropg();
 	runtime·lock(&runtime·sched.lock);
 	globrunqput(gp);
@@ -1496,8 +1632,6 @@ runtime·gosched_m(G *gp)
 void
 runtime·goexit(void)
 {
-	if(g->status != Grunning)
-		runtime·throw("bad g status");
 	if(raceenabled)
 		runtime·racegoend();
 	runtime·mcall(goexit0);
@@ -1507,7 +1641,7 @@ runtime·goexit(void)
 static void
 goexit0(G *gp)
 {
-	gp->status = Gdead;
+	runtime·casgstatus(gp, Grunning, Gdead);
 	gp->m = nil;
 	gp->lockedm = nil;
 	g->m->lockedg = nil;
@@ -1519,7 +1653,7 @@ goexit0(G *gp)
 	gp->waitreason.str = nil;
 	gp->waitreason.len = 0;
 	gp->param = nil;
-	
+
 	dropg();
 
 	if(g->m->locked & ~LockExternal) {
@@ -1566,7 +1700,7 @@ void
 	g->syscallpc = g->sched.pc;
 	g->syscallstack = g->stackbase;
 	g->syscallguard = g->stackguard;
-	g->status = Gsyscall;
+	runtime·casgstatus(g, Grunning, Gsyscall);
 	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
 		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
 		//	g->syscallsp, g->syscallguard-StackGuard, g->syscallstack);
@@ -1618,7 +1752,7 @@ void
 	g->syscallpc = g->sched.pc;
 	g->syscallstack = g->stackbase;
 	g->syscallguard = g->stackguard;
-	g->status = Gsyscall;
+	runtime·casgstatus(g, Grunning, Gsyscall);
 	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
 		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
 		//	g->syscallsp, g->syscallguard-StackGuard, g->syscallstack);
@@ -1650,7 +1784,7 @@ runtime·entersyscallblock_m(void)
 	gp->syscallpc = gp->sched.pc;
 	gp->syscallstack = gp->stackbase;
 	gp->syscallguard = gp->stackguard;
-	gp->status = Gsyscall;
+	runtime·casgstatus(gp, Grunning, Gsyscall);
 	if(gp->syscallsp < gp->syscallguard-StackGuard || gp->syscallstack < gp->syscallsp) {
 		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
 		//	gp->syscallsp, gp->syscallguard-StackGuard, gp->syscallstack);
@@ -1674,7 +1808,9 @@ runtime·exitsyscall(void)
 	if(exitsyscallfast()) {
 		// There's a cpu for us, so we can run.
 		g->m->p->syscalltick++;
-		g->status = Grunning;
+		// We need to cas the status and scan before resuming...
+		runtime·casgstatus(g, Gsyscall, Grunning);
+
 		// Garbage collector isn't running (since we are),
 		// so okay to clear gcstack and gcsp.
 		g->syscallstack = (uintptr)nil;
@@ -1750,7 +1886,7 @@ exitsyscall0(G *gp)
 {
 	P *p;
 
-	gp->status = Grunnable;
+	runtime·casgstatus(gp, Gsyscall, Grunnable);
 	dropg();
 	runtime·lock(&runtime·sched.lock);
 	p = pidleget();
@@ -1919,7 +2055,6 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	P *p;
 	int32 siz;
 
-//runtime·printf("newproc1 %p %p narg=%d nret=%d\n", fn->fn, argp, narg, nret);
 	if(fn == nil) {
 		g->m->throwing = -1;  // do not dump full stacks
 		runtime·throw("go of nil func value");
@@ -1941,8 +2076,12 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 			runtime·throw("invalid stack in newg");
 	} else {
 		newg = runtime·malg(StackMin);
-		allgadd(newg);
+		runtime·casgstatus(newg, Gidle, Gdead);
+		allgadd(newg); // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
 	}
+
+	if(runtime·readgstatus(newg) != Gdead) 
+		runtime·throw("newproc1: new g is not Gdead");
 
 	sp = (byte*)newg->stackbase;
 	sp -= siz;
@@ -1959,7 +2098,8 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	newg->sched.g = newg;
 	runtime·gostartcallfn(&newg->sched, fn);
 	newg->gopc = (uintptr)callerpc;
-	newg->status = Grunnable;
+	runtime·casgstatus(newg, Gdead, Grunnable);
+
 	if(p->goidcache == p->goidcacheend) {
 		// Sched.goidgen is the last allocated id,
 		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
@@ -1988,6 +2128,9 @@ allgadd(G *gp)
 	G **new;
 	uintptr cap;
 
+	if (runtime·readgstatus(gp) == Gidle) 
+		runtime·throw("allgadd: bad status Gidle");
+
 	runtime·lock(&allglock);
 	if(runtime·allglen >= allgcap) {
 		cap = 4096/sizeof(new[0]);
@@ -2012,6 +2155,9 @@ gfput(P *p, G *gp)
 {
 	uintptr stksize;
 	Stktop *top;
+
+	if (runtime·readgstatus(gp) != Gdead) 
+		runtime·throw("gfput: bad status (not Gdead)");
 
 	if(gp->stackguard - StackGuard != gp->stack0)
 		runtime·throw("invalid stack in gfput");
@@ -2607,13 +2753,18 @@ checkdead(void)
 		gp = runtime·allg[i];
 		if(gp->issystem)
 			continue;
-		s = gp->status;
-		if(s == Gwaiting)
+		s = runtime·readgstatus(gp);
+		switch(s&~Gscan) {
+		case Gwaiting:
 			grunning++;
-		else if(s == Grunnable || s == Grunning || s == Gsyscall) {
+			break;
+		case Grunnable:
+		case Grunning:
+		case Gsyscall:
 			runtime·unlock(&allglock);
 			runtime·printf("runtime: checkdead: find g %D in status %d\n", gp->goid, s);
 			runtime·throw("checkdead: runnable g");
+			break;
 		}
 	}
 	runtime·unlock(&allglock);
@@ -2837,6 +2988,9 @@ preemptall(void)
 // simultaneously executing runtime·newstack.
 // No lock needs to be held.
 // Returns true if preemption request was issued.
+// The actual preemption will happen at some point in the future
+// and will be indicated by the gp->status no longer being
+// Grunning
 static bool
 preemptone(P *p)
 {
@@ -2850,6 +3004,10 @@ preemptone(P *p)
 	if(gp == nil || gp == mp->g0)
 		return false;
 	gp->preempt = true;
+	// Every call in a go routine checks for stack overflow by
+	// comparing the current stack pointer to gp->stackguard0.
+	// Setting gp->stackguard0 to StackPreempt folds
+	// preemption into the normal stack overflow check.
 	gp->stackguard0 = StackPreempt;
 	return true;
 }
@@ -2935,7 +3093,7 @@ runtime·schedtrace(bool detailed)
 		mp = gp->m;
 		lockedm = gp->lockedm;
 		runtime·printf("  G%D: status=%d(%S) m=%d lockedm=%d\n",
-			gp->goid, gp->status, gp->waitreason, mp ? mp->id : -1,
+			gp->goid, runtime·readgstatus(gp), gp->waitreason, mp ? mp->id : -1,
 			lockedm ? lockedm->id : -1);
 	}
 	runtime·unlock(&allglock);
