@@ -1,0 +1,6 @@
+$ export BUILD=nacl-amd64p32-temp
+$ export BUILDREV=59b1bb4bf045 
+$ docker run \
+     -v $HOME/keys/$BUILD.buildkey:/.gobuildkey \
+     gobuilders/linux-x86-nacl \
+     /usr/local/bin/builder -rev=$BUILDREV -buildroot=/ -v -cmd=/usr/local/bin/build-command.pl $BUILD
