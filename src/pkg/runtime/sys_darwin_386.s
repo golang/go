@@ -28,21 +28,25 @@ TEXT runtime·exit1(SB),NOSPLIT,$0
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	$5, AX
 	INT	$0x80
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$0
 	MOVL	$6, AX
 	INT	$0x80
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	$3, AX
 	INT	$0x80
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	$4, AX
 	INT	$0x80
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$16
@@ -59,6 +63,7 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	$197, AX
 	INT	$0x80
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
@@ -206,9 +211,8 @@ TEXT time·now(SB),NOSPLIT,$0
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),NOSPLIT,$0
 	CALL	runtime·now(SB)
-	MOVL	ret+0(FP), DI
-	MOVL	AX, 0(DI)
-	MOVL	DX, 4(DI)
+	MOVL	AX, ret_lo+0(FP)
+	MOVL	DX, ret_hi+4(FP)
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
@@ -315,7 +319,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$32
 TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
 	MOVL	$360, AX
 	// 0(SP) is where the caller PC would be; kernel skips it
-	MOVL	func+12(FP), BX
+	MOVL	fn+12(FP), BX
 	MOVL	BX, 4(SP)	// func
 	MOVL	mm+4(FP), BX
 	MOVL	BX, 8(SP)	// arg
@@ -325,10 +329,12 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
 	MOVL	BX, 16(SP)	// pthread
 	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
 	INT	$0x80
-	JAE	3(PC)
+	JAE	4(PC)
 	NEGL	AX
+	MOVL	AX, ret+16(FP)
 	RET
 	MOVL	$0, AX
+	MOVL	AX, ret+16(FP)
 	RET
 
 // The thread that bsdthread_create creates starts executing here,
@@ -382,10 +388,12 @@ TEXT runtime·bsdthread_register(SB),NOSPLIT,$40
 	MOVL	$0, 20(SP)	// targetconc_ptr
 	MOVL	$0, 24(SP)	// dispatchqueue_offset
 	INT	$0x80
-	JAE	3(PC)
+	JAE	4(PC)
 	NEGL	AX
+	MOVL	AX, ret+0(FP)
 	RET
 	MOVL	$0, AX
+	MOVL	AX, ret+0(FP)
 	RET
 
 // Invoke Mach system call.
@@ -408,16 +416,19 @@ TEXT runtime·sysenter(SB),NOSPLIT,$0
 TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
 	MOVL	$-31, AX
 	CALL	runtime·sysenter(SB)
+	MOVL	AX, ret+28(FP)
 	RET
 
 TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
 	MOVL	$-26, AX
 	CALL	runtime·sysenter(SB)
+	MOVL	AX, ret+0(FP)
 	RET
 
 TEXT runtime·mach_task_self(SB),NOSPLIT,$0
 	MOVL	$-28, AX
 	CALL	runtime·sysenter(SB)
+	MOVL	AX, ret+0(FP)
 	RET
 
 // Mach provides trap versions of the semaphore ops,
@@ -427,24 +438,28 @@ TEXT runtime·mach_task_self(SB),NOSPLIT,$0
 TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	$-36, AX
 	CALL	runtime·sysenter(SB)
+	MOVL	AX, ret+4(FP)
 	RET
 
 // uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
 TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	$-38, AX
 	CALL	runtime·sysenter(SB)
+	MOVL	AX, ret+12(FP)
 	RET
 
 // uint32 mach_semaphore_signal(uint32)
 TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	$-33, AX
 	CALL	runtime·sysenter(SB)
+	MOVL	AX, ret+4(FP)
 	RET
 
 // uint32 mach_semaphore_signal_all(uint32)
 TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	$-34, AX
 	CALL	runtime·sysenter(SB)
+	MOVL	AX, ret+4(FP)
 	RET
 
 // setldt(int entry, int address, int limit)
@@ -486,10 +501,12 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVL	$202, AX
 	INT	$0x80
-	JAE	3(PC)
+	JAE	4(PC)
 	NEGL	AX
+	MOVL	AX, ret+24(FP)
 	RET
 	MOVL	$0, AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 // int32 runtime·kqueue(void);
@@ -498,6 +515,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	MOVL	AX, ret+0(FP)
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
@@ -506,6 +524,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 // int32 runtime·closeonexec(int32 fd);

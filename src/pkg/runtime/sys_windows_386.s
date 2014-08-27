@@ -7,7 +7,7 @@
 
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT,$0
-	MOVL	c+0(FP), BX
+	MOVL	fn+0(FP), BX
 
 	// SetLastError(0).
 	MOVL	$0, 0x34(FS)
@@ -29,7 +29,7 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	MOVL	BP, SP
 
 	// Return result.
-	MOVL	c+0(FP), BX
+	MOVL	fn+0(FP), BX
 	MOVL	AX, libcall_r1(BX)
 	MOVL	DX, libcall_r2(BX)
 
@@ -62,6 +62,7 @@ TEXT	runtime·badsignal2(SB),NOSPLIT,$24
 // faster get/set last error
 TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVL	0x34(FS), AX
+	MOVL	AX, ret+0(FP)
 	RET
 
 TEXT runtime·setlasterror(SB),NOSPLIT,$0
@@ -301,7 +302,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 
 // Sleep duration is in 100ns units.
 TEXT runtime·usleep1(SB),NOSPLIT,$0
-	MOVL	duration+0(FP), BX
+	MOVL	usec+0(FP), BX
 	MOVL	$runtime·usleep2(SB), AX // to hide from 8l
 
 	// Execute call on m->g0 stack, in case we are not actually
@@ -323,7 +324,7 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	MOVL	SI, m_libcallg(BP)
 	// sp must be the last, because once async cpu profiler finds
 	// all three values to be non-zero, it will use them
-	LEAL	4(SP), SI
+	LEAL	usec+0(FP), SI
 	MOVL	SI, m_libcallsp(BP)
 
 	MOVL	m_g0(BP), SI

@@ -44,6 +44,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0
 	IMULQ	$1000000000, AX	// multiply into nanoseconds
 	ADDQ	8(SP), AX	// tv_nsec, offset should be stable.
 	ADDQ	$64, SP
+	MOVQ	AX, ret+0(FP)
 	RET
 
 // pipe(3c) wrapper that returns fds in AX, DX.
@@ -137,6 +138,7 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
 	CALL	runtime·mstart(SB)
 
 	XORL	AX, AX			// return 0 == success
+	MOVL	AX, ret+8(FP)
 	RET
 
 // Careful, this is called by __sighndlr, a libc function. We must preserve
@@ -274,7 +276,7 @@ exit:
 // Called from runtime·usleep (Go). Can be called on Go stack, on OS stack,
 // can also be called in cgo callback path without a g->m.
 TEXT runtime·usleep1(SB),NOSPLIT,$0
-	MOVL	us+0(FP), DI
+	MOVL	usec+0(FP), DI
 	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
 
 	// Execute call on m->g0.

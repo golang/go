@@ -43,6 +43,9 @@ var use_aeshash bool
 
 // in asm_*.s
 func aeshash(p unsafe.Pointer, s, h uintptr) uintptr
+func aeshash32(p unsafe.Pointer, s, h uintptr) uintptr
+func aeshash64(p unsafe.Pointer, s, h uintptr) uintptr
+func aeshashstr(p unsafe.Pointer, s, h uintptr) uintptr
 
 func memhash(p unsafe.Pointer, s, h uintptr) uintptr {
 	if !nacl && use_aeshash {

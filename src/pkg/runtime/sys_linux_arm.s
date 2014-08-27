@@ -51,12 +51,14 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVW	8(FP), R2
 	MOVW	$SYS_open, R7
 	SWI	$0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$0
 	MOVW	0(FP), R0
 	MOVW	$SYS_close, R7
 	SWI	$0
+	MOVW	R0, ret+4(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$0
@@ -65,6 +67,7 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVW	8(FP), R2
 	MOVW	$SYS_write, R7
 	SWI	$0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$0
@@ -73,6 +76,7 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	8(FP), R2
 	MOVW	$SYS_read, R7
 	SWI	$0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT runtime·getrlimit(SB),NOSPLIT,$0
@@ -80,6 +84,7 @@ TEXT runtime·getrlimit(SB),NOSPLIT,$0
 	MOVW	4(FP), R1
 	MOVW	$SYS_ugetrlimit, R7
 	SWI	$0
+	MOVW	R0, ret+8(FP)
 	RET
 
 TEXT runtime·exit(SB),NOSPLIT,$-4
@@ -119,6 +124,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVW	$0xfffff001, R6
 	CMP		R6, R0
 	RSB.HI	$0, R0
+	MOVW	R0, ret+24(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
@@ -155,6 +161,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
 	MOVW	8(FP), R2
 	MOVW	$SYS_mincore, R7
 	SWI	$0
+	MOVW	R0, ret+12(FP)
 	RET
 
 TEXT time·now(SB), NOSPLIT, $32
@@ -172,8 +179,7 @@ TEXT time·now(SB), NOSPLIT, $32
 	MOVW	R2, 8(FP)
 	RET	
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
+// int64 nanotime(void)
 TEXT runtime·nanotime(SB),NOSPLIT,$32
 	MOVW	$1, R0  // CLOCK_MONOTONIC
 	MOVW	$8(R13), R1  // timespec
@@ -189,9 +195,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 	ADD.S	R2, R0
 	ADC	R4, R1
 
-	MOVW	0(FP), R3
-	MOVW	R0, 0(R3)
-	MOVW	R1, 4(R3)
+	MOVW	R0, ret_lo+0(FP)
+	MOVW	R1, ret_hi+4(FP)
 	RET
 
 // int32 futex(int32 *uaddr, int32 op, int32 val,
@@ -205,13 +210,14 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 	MOVW	24(SP), R5
 	MOVW	$SYS_futex, R7
 	SWI	$0
+	MOVW	R0, ret+24(FP)
 	RET
 
 
 // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVW	flags+0(FP), R0
-	MOVW	stack+4(FP), R1
+	MOVW	stk+4(FP), R1
 	MOVW	$0, R2	// parent tid ptr
 	MOVW	$0, R3	// tls_val
 	MOVW	$0, R4	// child tid ptr
@@ -234,7 +240,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 
 	// In parent, return.
 	CMP	$0, R0
-	BEQ	2(PC)
+	BEQ	3(PC)
+	MOVW	R0, ret+20(FP)
 	RET
 
 	// Paranoia: check that SP is as we expect. Use R13 to avoid linker 'fixup'
@@ -338,6 +345,7 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 	MOVW	12(FP), R3
 	MOVW	$SYS_rt_sigaction, R7
 	SWI	$0
+	MOVW	R0, ret+16(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$12
@@ -363,22 +371,24 @@ TEXT cas<>(SB),NOSPLIT,$0
 	MOVW	$0xffff0fc0, PC
 
 TEXT runtime·cas(SB),NOSPLIT,$0
-	MOVW	valptr+0(FP), R2
+	MOVW	ptr+0(FP), R2
 	MOVW	old+4(FP), R0
 casagain:
 	MOVW	new+8(FP), R1
 	BL	cas<>(SB)
 	BCC	cascheck
 	MOVW	$1, R0
+	MOVB	R0, ret+12(FP)
 	RET
 cascheck:
 	// Kernel lies; double-check.
-	MOVW	valptr+0(FP), R2
+	MOVW	ptr+0(FP), R2
 	MOVW	old+4(FP), R0
 	MOVW	0(R2), R3
 	CMP	R0, R3
 	BEQ	casagain
 	MOVW	$0, R0
+	MOVB	R0, ret+12(FP)
 	RET
 
 TEXT runtime·casp(SB),NOSPLIT,$0
@@ -395,6 +405,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVW	8(FP), R2
 	MOVW	$SYS_sched_getaffinity, R7
 	SWI	$0
+	MOVW	R0, ret+12(FP)
 	RET
 
 // int32 runtime·epollcreate(int32 size)
@@ -402,6 +413,7 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$0
 	MOVW	0(FP), R0
 	MOVW	$SYS_epoll_create, R7
 	SWI	$0
+	MOVW	R0, ret+4(FP)
 	RET
 
 // int32 runtime·epollcreate1(int32 flags)
@@ -409,6 +421,7 @@ TEXT runtime·epollcreate1(SB),NOSPLIT,$0
 	MOVW	0(FP), R0
 	MOVW	$SYS_epoll_create1, R7
 	SWI	$0
+	MOVW	R0, ret+4(FP)
 	RET
 
 // int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev)
@@ -419,6 +432,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0
 	MOVW	12(FP), R3
 	MOVW	$SYS_epoll_ctl, R7
 	SWI	$0
+	MOVW	R0, ret+16(FP)
 	RET
 
 // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout)
@@ -429,6 +443,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$0
 	MOVW	12(FP), R3
 	MOVW	$SYS_epoll_wait, R7
 	SWI	$0
+	MOVW	R0, ret+16(FP)
 	RET
 
 // void runtime·closeonexec(int32 fd)

@@ -26,21 +26,25 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
 	INT	$0x80
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$-4
 	MOVL	$6, AX
 	INT	$0x80
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$3, AX
 	INT	$0x80
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVL	$4, AX			// sys_write
 	INT	$0x80
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$24
@@ -74,7 +78,7 @@ TEXT runtime·raise(SB),NOSPLIT,$12
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$36
-	LEAL	arg0+0(FP), SI
+	LEAL	addr+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
 	MOVSL				// arg 1 - addr
@@ -89,6 +93,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$36
 	STOSL
 	MOVL	$197, AX		// sys_mmap
 	INT	$0x80
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$-4
@@ -146,9 +151,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 	ADDL	BX, AX
 	ADCL	CX, DX			// add high bits with carry
 
-	MOVL	ret+0(FP), DI
-	MOVL	AX, 0(DI)
-	MOVL	DX, 4(DI)
+	MOVL	AX, ret_lo+0(FP)
+	MOVL	DX, ret_hi+4(FP)
 	RET
 
 TEXT runtime·getcontext(SB),NOSPLIT,$-4
@@ -175,7 +179,7 @@ TEXT runtime·sigreturn_tramp(SB),NOSPLIT,$0
 	INT	$0x80
 
 TEXT runtime·sigaction(SB),NOSPLIT,$24
-	LEAL	arg0+0(FP), SI
+	LEAL	sig+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
 	MOVSL				// arg 1 - sig
@@ -232,7 +236,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$44
 // int32 lwp_create(void *context, uintptr flags, void *lwpid);
 TEXT runtime·lwp_create(SB),NOSPLIT,$16
 	MOVL	$0, 0(SP)
-	MOVL	context+0(FP), AX
+	MOVL	ctxt+0(FP), AX
 	MOVL	AX, 4(SP)		// arg 1 - context
 	MOVL	flags+4(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - flags
@@ -242,6 +246,7 @@ TEXT runtime·lwp_create(SB),NOSPLIT,$16
 	INT	$0x80
 	JCC	2(PC)
 	NEGL	AX
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
@@ -312,20 +317,23 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 TEXT runtime·lwp_park(SB),NOSPLIT,$-4
 	MOVL	$434, AX		// sys__lwp_park
 	INT	$0x80
+	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·lwp_unpark(SB),NOSPLIT,$-4
 	MOVL	$321, AX		// sys__lwp_unpark
 	INT	$0x80
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·lwp_self(SB),NOSPLIT,$-4
 	MOVL	$311, AX		// sys__lwp_self
 	INT	$0x80
+	MOVL	AX, ret+0(FP)
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$28
-	LEAL	arg0+0(FP), SI
+	LEAL	mib+0(FP), SI
 	LEAL	4(SP), DI
 	CLD
 	MOVSL				// arg 1 - name
@@ -350,6 +358,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	MOVL	AX, ret+0(FP)
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
@@ -358,6 +367,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 // int32 runtime·closeonexec(int32 fd)

@@ -125,8 +125,8 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
 TEXT runtime·gosave(SB), NOSPLIT, $0-8
-	MOVQ	8(SP), AX		// gobuf
-	LEAQ	8(SP), BX		// caller's SP
+	MOVQ	buf+0(FP), AX		// gobuf
+	LEAQ	buf+0(FP), BX		// caller's SP
 	MOVQ	BX, gobuf_sp(AX)
 	MOVQ	0(SP), BX		// caller's PC
 	MOVQ	BX, gobuf_pc(AX)
@@ -140,7 +140,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $0-8
-	MOVQ	8(SP), BX		// gobuf
+	MOVQ	buf+0(FP), BX		// gobuf
 	MOVQ	gobuf_g(BX), DX
 	MOVQ	0(DX), CX		// make sure g != nil
 	get_tls(CX)
@@ -165,7 +165,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	g(CX), AX	// save state in g->sched
 	MOVQ	0(SP), BX	// caller's PC
 	MOVQ	BX, (g_sched+gobuf_pc)(AX)
-	LEAQ	8(SP), BX	// caller's SP
+	LEAQ	fn+0(FP), BX	// caller's SP
 	MOVQ	BX, (g_sched+gobuf_sp)(AX)
 	MOVQ	AX, (g_sched+gobuf_g)(AX)
 
@@ -297,7 +297,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
 	// restore when returning from f.
 	MOVQ	0(SP), AX	// our caller's PC
 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
-	LEAQ	8(SP), AX	// our caller's SP
+	LEAQ	fv+0(FP), AX	// our caller's SP
 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
 	MOVQ	g(CX), AX
 	MOVQ	AX, (m_morebuf+gobuf_g)(BX)
@@ -314,9 +314,9 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
 	// If it turns out that f needs a larger frame than
 	// the default stack, f's usual stack growth prolog will
 	// allocate a new segment (and recopy the arguments).
-	MOVQ	8(SP), AX	// fn
-	MOVQ	16(SP), DX	// arg frame
-	MOVL	24(SP), CX	// arg size
+	MOVQ	fv+0(FP), AX	// fn
+	MOVQ	addr+8(FP), DX	// arg frame
+	MOVL	size+16(FP), CX	// arg size
 
 	MOVQ	AX, m_cret(BX)	// f's PC
 	MOVQ	DX, m_moreargp(BX)	// argument frame pointer
@@ -584,16 +584,18 @@ TEXT runtime·morestack48_noctxt(SB),NOSPLIT,$0
 //		return 1;
 //	} else
 //		return 0;
-TEXT runtime·cas(SB), NOSPLIT, $0-16
-	MOVQ	8(SP), BX
-	MOVL	16(SP), AX
-	MOVL	20(SP), CX
+TEXT runtime·cas(SB), NOSPLIT, $0-17
+	MOVQ	ptr+0(FP), BX
+	MOVL	old+8(FP), AX
+	MOVL	new+12(FP), CX
 	LOCK
 	CMPXCHGL	CX, 0(BX)
-	JZ 3(PC)
+	JZ 4(PC)
 	MOVL	$0, AX
+	MOVB	AX, ret+16(FP)
 	RET
 	MOVL	$1, AX
+	MOVB	AX, ret+16(FP)
 	RET
 
 // bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
@@ -604,17 +606,19 @@ TEXT runtime·cas(SB), NOSPLIT, $0-16
 //	} else {
 //		return 0;
 //	}
-TEXT runtime·cas64(SB), NOSPLIT, $0-24
-	MOVQ	8(SP), BX
-	MOVQ	16(SP), AX
-	MOVQ	24(SP), CX
+TEXT runtime·cas64(SB), NOSPLIT, $0-25
+	MOVQ	ptr+0(FP), BX
+	MOVQ	old+8(FP), AX
+	MOVQ	new+16(FP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BX)
 	JNZ	cas64_fail
 	MOVL	$1, AX
+	MOVB	AX, ret+24(FP)
 	RET
 cas64_fail:
 	MOVL	$0, AX
+	MOVB	AX, ret+24(FP)
 	RET
 
 // bool casp(void **val, void *old, void *new)
@@ -624,60 +628,67 @@ cas64_fail:
 //		return 1;
 //	} else
 //		return 0;
-TEXT runtime·casp(SB), NOSPLIT, $0-24
-	MOVQ	8(SP), BX
-	MOVQ	16(SP), AX
-	MOVQ	24(SP), CX
+TEXT runtime·casp(SB), NOSPLIT, $0-25
+	MOVQ	ptr+0(FP), BX
+	MOVQ	old+8(FP), AX
+	MOVQ	new+16(FP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BX)
-	JZ 3(PC)
+	JZ 4(PC)
 	MOVL	$0, AX
+	MOVB	AX, ret+24(FP)
 	RET
 	MOVL	$1, AX
+	MOVB	AX, ret+24(FP)
 	RET
 
 // uint32 xadd(uint32 volatile *val, int32 delta)
 // Atomically:
 //	*val += delta;
 //	return *val;
-TEXT runtime·xadd(SB), NOSPLIT, $0-12
-	MOVQ	8(SP), BX
-	MOVL	16(SP), AX
+TEXT runtime·xadd(SB), NOSPLIT, $0-20
+	MOVQ	ptr+0(FP), BX
+	MOVL	delta+8(FP), AX
 	MOVL	AX, CX
 	LOCK
 	XADDL	AX, 0(BX)
 	ADDL	CX, AX
+	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·xadd64(SB), NOSPLIT, $0-16
-	MOVQ	8(SP), BX
-	MOVQ	16(SP), AX
+TEXT runtime·xadd64(SB), NOSPLIT, $0-24
+	MOVQ	ptr+0(FP), BX
+	MOVQ	delta+8(FP), AX
 	MOVQ	AX, CX
 	LOCK
 	XADDQ	AX, 0(BX)
 	ADDQ	CX, AX
+	MOVQ	AX, ret+16(FP)
 	RET
 
-TEXT runtime·xchg(SB), NOSPLIT, $0-12
-	MOVQ	8(SP), BX
-	MOVL	16(SP), AX
+TEXT runtime·xchg(SB), NOSPLIT, $0-20
+	MOVQ	ptr+0(FP), BX
+	MOVL	new+8(FP), AX
 	XCHGL	AX, 0(BX)
+	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·xchg64(SB), NOSPLIT, $0-16
-	MOVQ	8(SP), BX
-	MOVQ	16(SP), AX
+TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+	MOVQ	ptr+0(FP), BX
+	MOVQ	new+8(FP), AX
 	XCHGQ	AX, 0(BX)
+	MOVQ	AX, ret+16(FP)
 	RET
 
-TEXT runtime·xchgp(SB), NOSPLIT, $0-16
-	MOVQ	8(SP), BX
-	MOVQ	16(SP), AX
+TEXT runtime·xchgp(SB), NOSPLIT, $0-24
+	MOVQ	ptr+0(FP), BX
+	MOVQ	new+8(FP), AX
 	XCHGQ	AX, 0(BX)
+	MOVQ	AX, ret+16(FP)
 	RET
 
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
-	MOVL	8(SP), AX
+	MOVL	cycles+0(FP), AX
 again:
 	PAUSE
 	SUBL	$1, AX
@@ -685,25 +696,25 @@ again:
 	RET
 
 TEXT runtime·atomicstorep(SB), NOSPLIT, $0-16
-	MOVQ	8(SP), BX
-	MOVQ	16(SP), AX
+	MOVQ	ptr+0(FP), BX
+	MOVQ	val+8(FP), AX
 	XCHGQ	AX, 0(BX)
 	RET
 
 TEXT runtime·atomicstore(SB), NOSPLIT, $0-12
-	MOVQ	8(SP), BX
-	MOVL	16(SP), AX
+	MOVQ	ptr+0(FP), BX
+	MOVL	val+8(FP), AX
 	XCHGL	AX, 0(BX)
 	RET
 
 TEXT runtime·atomicstore64(SB), NOSPLIT, $0-16
-	MOVQ	8(SP), BX
-	MOVQ	16(SP), AX
+	MOVQ	ptr+0(FP), BX
+	MOVQ	val+8(FP), AX
 	XCHGQ	AX, 0(BX)
 	RET
 
 // void	runtime·atomicor8(byte volatile*, byte);
-TEXT runtime·atomicor8(SB), NOSPLIT, $0-16
+TEXT runtime·atomicor8(SB), NOSPLIT, $0-9
 	MOVQ	ptr+0(FP), AX
 	MOVB	val+8(FP), BX
 	LOCK
@@ -716,8 +727,8 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-16
 // 2. sub 5 bytes from the callers return
 // 3. jmp to the argument
 TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
-	MOVQ	8(SP), DX	// fn
-	MOVQ	16(SP), BX	// caller sp
+	MOVQ	fv+0(FP), DX	// fn
+	MOVQ	argp+8(FP), BX	// caller sp
 	LEAQ	-8(BX), SP	// caller sp after CALL
 	SUBQ	$5, (SP)	// return to CALL again
 	MOVQ	0(DX), BX
@@ -891,7 +902,7 @@ havem:
 	RET
 
 // void setg(G*); set g. for use by needm.
-TEXT runtime·setg(SB), NOSPLIT, $0-16
+TEXT runtime·setg(SB), NOSPLIT, $0-8
 	MOVQ	gg+0(FP), BX
 #ifdef GOOS_windows
 	CMPQ	BX, $0
@@ -925,9 +936,10 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	INT	$3
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
-	MOVQ	x+0(FP),AX		// addr of first arg
+TEXT runtime·getcallerpc(SB),NOSPLIT,$0-16
+	MOVQ	argp+0(FP),AX		// addr of first arg
 	MOVQ	-8(AX),AX		// get calling pc
+	MOVQ	AX, ret+8(FP)
 	RET
 
 TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-16
@@ -937,13 +949,14 @@ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-16
 	RET
 
 TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16
-	MOVQ	x+0(FP),AX		// addr of first arg
-	MOVQ	x+8(FP), BX
+	MOVQ	argp+0(FP),AX		// addr of first arg
+	MOVQ	pc+8(FP), BX
 	MOVQ	BX, -8(AX)		// set calling pc
 	RET
 
-TEXT runtime·getcallersp(SB),NOSPLIT,$0-8
-	MOVQ	sp+0(FP), AX
+TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+	MOVQ	argp+0(FP), AX
+	MOVQ	AX, ret+8(FP)
 	RET
 
 // func gogetcallersp(p unsafe.Pointer) uintptr
@@ -957,6 +970,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	RDTSC
 	SHLQ	$32, DX
 	ADDQ	DX, AX
+	MOVQ	AX, ret+0(FP)
 	RET
 
 TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
@@ -1057,7 +1071,7 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-32
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
 	AESENC	runtime·aeskeysched+0(SB), X0
-	MOVQ	X0, res+24(FP)
+	MOVQ	X0, ret+24(FP)
 	RET
 
 TEXT runtime·aeshash64(SB),NOSPLIT,$0-32
@@ -1068,7 +1082,7 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-32
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
 	AESENC	runtime·aeskeysched+0(SB), X0
-	MOVQ	X0, res+24(FP)
+	MOVQ	X0, ret+24(FP)
 	RET
 
 // simple mask to get rid of data in the high part of the register.
@@ -1266,12 +1280,12 @@ equal:
 	RET
 
 TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
-	MOVQ	s1+0(FP), SI
-	MOVQ	s1+8(FP), BX
-	MOVQ	s2+16(FP), DI
-	MOVQ	s2+24(FP), DX
+	MOVQ	s1_base+0(FP), SI
+	MOVQ	s1_len+8(FP), BX
+	MOVQ	s2_base+16(FP), DI
+	MOVQ	s2_len+24(FP), DX
 	CALL	runtime·cmpbody(SB)
-	MOVQ	AX, res+32(FP)
+	MOVQ	AX, ret+32(FP)
 	RET
 
 TEXT bytes·Compare(SB),NOSPLIT,$0-56

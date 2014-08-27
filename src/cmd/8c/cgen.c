@@ -49,7 +49,7 @@ cgen(Node *n, Node *nn)
 	}
 	if(n == Z || n->type == T)
 		return;
-	if(typesuv[n->type->etype]) {
+	if(typesuv[n->type->etype] && (n->op != OFUNC || nn != Z)) {
 		sugen(n, nn, n->type->width);
 		return;
 	}
@@ -86,7 +86,7 @@ cgen(Node *n, Node *nn)
 		if(cond(o) && typesuv[l->type->etype])
 			break;
 
-		regret(&nod, r);
+		regret(&nod, r, 0, 0);
 		cgen(r, &nod);
 
 		regsalloc(&nod1, r);
@@ -147,7 +147,7 @@ cgen(Node *n, Node *nn)
 		if(!hardleft) {
 			if(nn != Z || r->addable < INDEXED) {
 				if(r->complex >= FNX && nn == Z)
-					regret(&nod, r);
+					regret(&nod, r, 0, 0);
 				else
 					regalloc(&nod, r, nn);
 				cgen(r, &nod);
@@ -922,7 +922,7 @@ cgen(Node *n, Node *nn)
 			if(l->op != OIND)
 				diag(n, "bad function call");
 
-			regret(&nod, l->left);
+			regret(&nod, l->left, 0, 0);
 			cgen(l->left, &nod);
 			regsalloc(&nod1, l->left);
 			gmove(&nod, &nod1);
@@ -949,12 +949,12 @@ cgen(Node *n, Node *nn)
 		gpcdata(PCDATA_ArgSize, -1);
 		if(REGARG >= 0 && reg[REGARG])
 			reg[REGARG]--;
-		if(nn != Z) {
-			regret(&nod, n);
+		regret(&nod, n, l->type, 1); // update maxarg if nothing else
+		if(nn != Z)
 			gmove(&nod, nn);
+		if(nod.op == OREGISTER)
 			regfree(&nod);
-		} else
-		if(typefd[n->type->etype])
+		if(nn == Z && hasdotdotdot(l->type) && typefd[n->type->etype])
 			gins(AFMOVDP, &fregnode0, &fregnode0);
 		break;
 
@@ -1374,7 +1374,7 @@ boolgen(Node *n, int true, Node *nn)
 		if(true)
 			o = comrel[relindex(o)];
 		if(l->complex >= FNX && r->complex >= FNX) {
-			regret(&nod, r);
+			regret(&nod, r, 0, 0);
 			cgen(r, &nod);
 			regsalloc(&nod1, r);
 			gmove(&nod, &nod1);
@@ -1567,7 +1567,7 @@ sugen(Node *n, Node *nn, int32 w)
 		if(nn != Z && side(nn)) {
 			nod1 = *n;
 			nod1.type = typ(TIND, n->type);
-			regret(&nod2, &nod1);
+			regret(&nod2, &nod1, 0, 0);
 			lcgen(nn, &nod2);
 			regsalloc(&nod0, &nod1);
 			cgen(&nod2, &nod0);
@@ -1649,6 +1649,20 @@ sugen(Node *n, Node *nn, int32 w)
 		break;
 
 	case OFUNC:
+		if(!hasdotdotdot(n->left->type)) {
+			cgen(n, Z);
+			if(nn != Z) {
+				curarg -= n->type->width;
+				regret(&nod1, n, n->left->type, 1);
+				if(nn->complex >= FNX) {
+					regsalloc(&nod2, n);
+					cgen(&nod1, &nod2);
+					nod1 = nod2;
+				}
+				cgen(&nod1, nn);
+			}
+			break;
+		}
 		if(nn == Z) {
 			sugen(n, nodrat, w);
 			break;

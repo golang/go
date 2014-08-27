@@ -12,16 +12,19 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVQ	$14, BP
 	SYSCALL
+	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·pread(SB),NOSPLIT,$0
 	MOVQ	$50, BP
 	SYSCALL
+	MOVL	AX, ret+32(FP)
 	RET
 
 TEXT runtime·pwrite(SB),NOSPLIT,$0
 	MOVQ	$51, BP
 	SYSCALL
+	MOVL	AX, ret+32(FP)
 	RET
 
 // int32 _seek(int64*, int32, int64, int32)
@@ -31,25 +34,26 @@ TEXT _seek<>(SB),NOSPLIT,$0
 	RET
 
 // int64 seek(int32, int64, int32)
-TEXT runtime·seek(SB),NOSPLIT,$56
-	LEAQ	new+48(SP), CX
-	MOVQ	CX, 0(SP)
-	MOVQ	fd+0(FP), CX
-	MOVQ	CX, 8(SP)
-	MOVQ	off+8(FP), CX
+// Convenience wrapper around _seek, the actual system call.
+TEXT runtime·seek(SB),NOSPLIT,$32
+	LEAQ	$ret+24(FP), AX
+	MOVL	fd+0(FP), BX
+	MOVQ	offset+8(FP), CX
+	MOVL	whence+16(FP), DX
+	MOVQ	AX, 0(SP)
+	MOVL	BX, 8(SP)
 	MOVQ	CX, 16(SP)
-	MOVQ	whence+16(FP), CX
-	MOVQ	CX, 24(SP)
+	MOVL	DX, 24(SP)
 	CALL	_seek<>(SB)
 	CMPL	AX, $0
 	JGE	2(PC)
-	MOVQ	$-1, new+48(SP)
-	MOVQ	new+48(SP), AX
+	MOVQ	$-1, ret+24(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$0
 	MOVQ	$4, BP
 	SYSCALL
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·exits(SB),NOSPLIT,$0
@@ -60,41 +64,49 @@ TEXT runtime·exits(SB),NOSPLIT,$0
 TEXT runtime·brk_(SB),NOSPLIT,$0
 	MOVQ	$24, BP
 	SYSCALL
+	MOVQ	AX, ret+8(FP)
 	RET
 
 TEXT runtime·sleep(SB),NOSPLIT,$0
 	MOVQ	$17, BP
 	SYSCALL
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0
 	MOVQ	$37, BP
 	SYSCALL
+	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
 	MOVQ	$52, BP
 	SYSCALL
+	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·nsec(SB),NOSPLIT,$0
 	MOVQ	$53, BP
 	SYSCALL
+	MOVQ	AX, ret+8(FP)
 	RET
 
 TEXT runtime·notify(SB),NOSPLIT,$0
 	MOVQ	$28, BP
 	SYSCALL
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·noted(SB),NOSPLIT,$0
 	MOVQ	$29, BP
 	SYSCALL
+	MOVL	AX, ret+8(FP)
 	RET
 	
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVQ	$38, BP
 	SYSCALL
+	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·rfork(SB),NOSPLIT,$0
@@ -103,7 +115,8 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 
 	// In parent, return.
 	CMPQ	AX, $0
-	JEQ	2(PC)
+	JEQ	3(PC)
+	MOVL	AX, ret+40(FP)
 	RET
 
 	// In child on forked stack.
@@ -132,6 +145,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	
 	CALL	SI	// fn()
 	CALL	runtime·exit(SB)
+	MOVL	AX, ret+40(FP)
 	RET
 
 // This is needed by asm_amd64.s
@@ -208,17 +222,17 @@ TEXT runtime·errstr(SB),NOSPLIT,$0
 	MOVQ	g(AX), BX
 	MOVQ	g_m(BX), BX
 	MOVQ	m_errstr(BX), CX
-	MOVQ	CX, 8(SP)
-	MOVQ	$ERRMAX, 16(SP)
+	MOVQ	CX, ret_base+0(FP)
+	MOVQ	$ERRMAX, ret_len+8(FP)
 	MOVQ	$41, BP
 	SYSCALL
 
 	// syscall requires caller-save
-	MOVQ	8(SP), CX
+	MOVQ	ret_base+0(FP), CX
 
 	// push the argument
 	PUSHQ	CX
 	CALL	runtime·findnull(SB)
 	POPQ	CX
-	MOVQ	AX, 16(SP)
+	MOVQ	AX, ret_len+8(FP)
 	RET

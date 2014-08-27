@@ -11,53 +11,58 @@
 
 TEXT runtime·exit(SB),NOSPLIT,$0
 	MOVL	$252, AX	// syscall number
-	MOVL	4(SP), BX
+	MOVL	code+0(FP), BX
 	CALL	*runtime·_vdso(SB)
 	INT $3	// not reached
 	RET
 
 TEXT runtime·exit1(SB),NOSPLIT,$0
 	MOVL	$1, AX	// exit - exit the current os thread
-	MOVL	4(SP), BX
+	MOVL	code+0(FP), BX
 	CALL	*runtime·_vdso(SB)
 	INT $3	// not reached
 	RET
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	$5, AX		// syscall - open
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
+	MOVL	name+0(FP), BX
+	MOVL	mode+4(FP), CX
+	MOVL	perm+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·close(SB),NOSPLIT,$0
 	MOVL	$6, AX		// syscall - close
-	MOVL	4(SP), BX
+	MOVL	fd+0(FP), BX
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	$4, AX		// syscall - write
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
+	MOVL	fd+0(FP), BX
+	MOVL	p+4(FP), CX
+	MOVL	n+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	$3, AX		// syscall - read
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
+	MOVL	fd+0(FP), BX
+	MOVL	p+4(FP), CX
+	MOVL	n+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·getrlimit(SB),NOSPLIT,$0
 	MOVL	$191, AX		// syscall - ugetrlimit
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
+	MOVL	kind+0(FP), BX
+	MOVL	limit+4(FP), CX
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$8
@@ -87,20 +92,21 @@ TEXT runtime·raise(SB),NOSPLIT,$12
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·setitimer(SB),NOSPLIT,$0-24
+TEXT runtime·setitimer(SB),NOSPLIT,$0-12
 	MOVL	$104, AX			// syscall - setitimer
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
+	MOVL	mode+0(FP), BX
+	MOVL	new+4(FP), CX
+	MOVL	old+8(FP), DX
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·mincore(SB),NOSPLIT,$0-24
+TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	MOVL	$218, AX			// syscall - mincore
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
+	MOVL	addr+0(FP), BX
+	MOVL	n+4(FP), CX
+	MOVL	dst+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+12(FP)
 	RET
 
 // func now() (sec int64, nsec int32)
@@ -137,17 +143,16 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	ADDL	BX, AX
 	ADCL	$0, DX
 
-	MOVL	ret+0(FP), DI
-	MOVL	AX, 0(DI)
-	MOVL	DX, 4(DI)
+	MOVL	AX, ret_lo+0(FP)
+	MOVL	DX, ret_hi+4(FP)
 	RET
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
 	MOVL	$175, AX		// syscall entry
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
-	MOVL	16(SP), SI
+	MOVL	sig+0(FP), BX
+	MOVL	new+4(FP), CX
+	MOVL	old+8(FP), DX
+	MOVL	size+12(FP), SI
 	CALL	*runtime·_vdso(SB)
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
@@ -156,11 +161,12 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
 
 TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 	MOVL	$174, AX		// syscall - rt_sigaction
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
-	MOVL	16(SP), SI
+	MOVL	sig+0(FP), BX
+	MOVL	new+4(FP), CX
+	MOVL	old+8(FP), DX
+	MOVL	size+12(FP), SI
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$44
@@ -212,24 +218,25 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	$192, AX	// mmap2
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
-	MOVL	16(SP), SI
-	MOVL	20(SP), DI
-	MOVL	24(SP), BP
+	MOVL	addr+0(FP), BX
+	MOVL	n+4(FP), CX
+	MOVL	prot+8(FP), DX
+	MOVL	flags+12(FP), SI
+	MOVL	fd+16(FP), DI
+	MOVL	off+20(FP), BP
 	SHRL	$12, BP
 	CALL	*runtime·_vdso(SB)
 	CMPL	AX, $0xfffff001
 	JLS	3(PC)
 	NOTL	AX
 	INCL	AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVL	$91, AX	// munmap
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
+	MOVL	addr+0(FP), BX
+	MOVL	n+4(FP), CX
 	CALL	*runtime·_vdso(SB)
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
@@ -238,9 +245,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	$219, AX	// madvise
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
+	MOVL	addr+0(FP), BX
+	MOVL	n+4(FP), CX
+	MOVL	flags+8(FP), DX
 	CALL	*runtime·_vdso(SB)
 	// ignore failure - maybe pages are locked
 	RET
@@ -249,13 +256,14 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
 TEXT runtime·futex(SB),NOSPLIT,$0
 	MOVL	$240, AX	// futex
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
-	MOVL	16(SP), SI
-	MOVL	20(SP), DI
-	MOVL	24(SP), BP
+	MOVL	addr+0(FP), BX
+	MOVL	op+4(FP), CX
+	MOVL	val+8(FP), DX
+	MOVL	ts+12(FP), SI
+	MOVL	addr2+16(FP), DI
+	MOVL	val3+20(FP), BP
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+24(FP)
 	RET
 
 // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
@@ -284,11 +292,12 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 
 	// In parent, return.
 	CMPL	AX, $0
-	JEQ	2(PC)
+	JEQ	3(PC)
+	MOVL	AX, ret+20(FP)
 	RET
 
 	// Paranoia: check that SP is as we expect.
-	MOVL	12(SP), BP
+	MOVL	mm+8(FP), BP
 	CMPL	BP, $1234
 	JEQ	2(PC)
 	INT	$3
@@ -299,8 +308,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 
 	// In child on new stack.  Reload registers (paranoia).
 	MOVL	0(SP), BX	// m
-	MOVL	4(SP), DX	// g
-	MOVL	8(SP), SI	// fn
+	MOVL	flags+0(FP), DX	// g
+	MOVL	stk+4(FP), SI	// fn
 
 	MOVL	AX, m_procid(BX)	// save tid as m->procid
 
@@ -337,7 +346,6 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	CALL	SI	// fn()
 	CALL	runtime·exit1(SB)
 	MOVL	$0x1234, 0x1005
-	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$186, AX	// sigaltstack
@@ -426,50 +434,55 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
 
 TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVL	$242, AX		// syscall - sched_getaffinity
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
+	MOVL	pid+0(FP), BX
+	MOVL	len+4(FP), CX
+	MOVL	buf+8(FP), DX
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+12(FP)
 	RET
 
 // int32 runtime·epollcreate(int32 size);
 TEXT runtime·epollcreate(SB),NOSPLIT,$0
 	MOVL    $254, AX
-	MOVL	4(SP), BX
+	MOVL	size+0(FP), BX
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+4(FP)
 	RET
 
 // int32 runtime·epollcreate1(int32 flags);
 TEXT runtime·epollcreate1(SB),NOSPLIT,$0
 	MOVL    $329, AX
-	MOVL	4(SP), BX
+	MOVL	flags+0(FP), BX
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+4(FP)
 	RET
 
 // int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
 TEXT runtime·epollctl(SB),NOSPLIT,$0
 	MOVL	$255, AX
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
-	MOVL	16(SP), SI
+	MOVL	epfd+0(FP), BX
+	MOVL	op+4(FP), CX
+	MOVL	fd+8(FP), DX
+	MOVL	ev+12(FP), SI
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+16(FP)
 	RET
 
 // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
 TEXT runtime·epollwait(SB),NOSPLIT,$0
 	MOVL	$256, AX
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
-	MOVL	16(SP), SI
+	MOVL	epfd+0(FP), BX
+	MOVL	ev+4(FP), CX
+	MOVL	nev+8(FP), DX
+	MOVL	timeout+12(FP), SI
 	CALL	*runtime·_vdso(SB)
+	MOVL	AX, ret+16(FP)
 	RET
 
 // void runtime·closeonexec(int32 fd);
 TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL	$55, AX  // fcntl
-	MOVL	4(SP), BX  // fd
+	MOVL	fd+0(FP), BX  // fd
 	MOVL	$2, CX  // F_SETFD
 	MOVL	$1, DX  // FD_CLOEXEC
 	CALL	*runtime·_vdso(SB)

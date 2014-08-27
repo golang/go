@@ -29,7 +29,7 @@
 TEXT runtime·memmove(SB), NOSPLIT, $0-24
 
 	MOVQ	to+0(FP), DI
-	MOVQ	fr+8(FP), SI
+	MOVQ	from+8(FP), SI
 	MOVQ	n+16(FP), BX
 
 	// REP instructions have a high startup cost, so we handle small sizes

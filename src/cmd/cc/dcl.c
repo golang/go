@@ -697,7 +697,8 @@ argmark(Node *n, int pass)
 {
 	Type *t;
 
-	autoffset = align(0, thisfn->link, Aarg0, nil);
+	if(hasdotdotdot(thisfn->link))
+		autoffset = align(0, thisfn->link, Aarg0, nil);
 	stkoff = 0;
 	for(; n->left != Z; n = n->left) {
 		if(n->op != OFUNC || n->left->op != ONAME)

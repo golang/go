@@ -1,5 +1,5 @@
-// Inferno's libkern/vlrt-arm.c
-// http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-arm.c
+// Inferno's libkern/vlrt-386.c
+// http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-386.c
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -23,55 +23,77 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// +build arm 386
+
 #include "../../cmd/ld/textflag.h"
 
-// declared here to avoid include of runtime.h
+/*
+ * C runtime for 64-bit divide, others.
+ *
+ * TODO(rsc): The simple functions are dregs--8c knows how
+ * to generate the code directly now.  Find and remove.
+ */
+
 void	runtime·panicstring(char*);
 void	runtime·panicdivide(void);
 
-typedef unsigned long   ulong;
-typedef unsigned int    uint;
-typedef unsigned short  ushort;
-typedef unsigned char   uchar;
-typedef signed char     schar;
+typedef	unsigned long	ulong;
+typedef	unsigned int	uint;
+typedef	unsigned short	ushort;
+typedef	unsigned char	uchar;
+typedef	signed char	schar;
 
-#define SIGN(n) (1UL<<(n-1))
+#define	SIGN(n)	(1UL<<(n-1))
 
-typedef struct  Vlong   Vlong;
-struct  Vlong
+typedef	struct	Vlong	Vlong;
+struct	Vlong
 {
-	ulong   lo;
-	ulong   hi;
+	ulong	lo;
+	ulong	hi;
 };
 
-void    runtime·abort(void);
+typedef	union	Vlong64	Vlong64;
+union	Vlong64
+{
+	long long	v;
+	Vlong	v2;
+};
+
+void	runtime·abort(void);
 
 #pragma textflag NOSPLIT
-void
-_addv(Vlong *r, Vlong a, Vlong b)
+Vlong
+_addv(Vlong a, Vlong b)
 {
-	r->lo = a.lo + b.lo;
-	r->hi = a.hi + b.hi;
-	if(r->lo < a.lo)
-		r->hi++;
+	Vlong r;
+
+	r.lo = a.lo + b.lo;
+	r.hi = a.hi + b.hi;
+	if(r.lo < a.lo)
+		r.hi++;
+	return r;
 }
 
 #pragma textflag NOSPLIT
-void
-_subv(Vlong *r, Vlong a, Vlong b)
+Vlong
+_subv(Vlong a, Vlong b)
 {
-	r->lo = a.lo - b.lo;
-	r->hi = a.hi - b.hi;
-	if(r->lo > a.lo)
-		r->hi--;
+	Vlong r;
+
+	r.lo = a.lo - b.lo;
+	r.hi = a.hi - b.hi;
+	if(r.lo > a.lo)
+		r.hi--;
+	return r;
 }
 
-void
-_d2v(Vlong *y, double d)
+Vlong
+_d2v(double d)
 {
 	union { double d; Vlong vl; } x;
 	ulong xhi, xlo, ylo, yhi;
 	int sh;
+	Vlong y;
 
 	x.d = d;
 
@@ -102,12 +124,12 @@ _d2v(Vlong *y, double d)
 	} else {
 		/* v = (hi||lo) << -sh */
 		sh = -sh;
-		if(sh <= 11) {
+		if(sh <= 10) { /* NOTE: sh <= 11 on ARM??? */
 			ylo = xlo << sh;
 			yhi = (xhi << sh) | (xlo >> (32-sh));
 		} else {
 			/* overflow */
-			yhi = d;        /* causes something awful */
+			yhi = d;	/* causes something awful */
 		}
 	}
 	if(x.vl.hi & SIGN(32)) {
@@ -118,14 +140,15 @@ _d2v(Vlong *y, double d)
 			yhi = -yhi;
 	}
 
-	y->hi = yhi;
-	y->lo = ylo;
+	y.hi = yhi;
+	y.lo = ylo;
+	return y;
 }
 
-void
-_f2v(Vlong *y, float f)
+Vlong
+_f2v(float f)
 {
-	_d2v(y, f);
+	return _d2v(f);
 }
 
 double
@@ -150,7 +173,7 @@ _v2d(Vlong x)
 			x.hi = -x.hi;
 		return -(_ul2d(x.hi)*4294967296. + _ul2d(x.lo));
 	}
-	return x.hi*4294967296. + _ul2d(x.lo);
+	return (long)x.hi*4294967296. + x.lo;
 }
 
 float
@@ -159,8 +182,11 @@ _v2f(Vlong x)
 	return _v2d(x);
 }
 
+ulong	_div64by32(Vlong, ulong, ulong*);
+int	_mul64by32(Vlong*, Vlong, ulong);
+
 static void
-dodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
+slowdodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
 {
 	ulong numlo, numhi, denhi, denlo, quohi, quolo, t;
 	int i;
@@ -221,40 +247,107 @@ dodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
 	}
 }
 
-void
-_divvu(Vlong *q, Vlong n, Vlong d)
+#ifdef GOARCH_arm
+static void
+dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
 {
+	slowdodiv(num, den, qp, rp);
+}
+#endif
 
-	if(n.hi == 0 && d.hi == 0) {
-		q->hi = 0;
-		q->lo = n.lo / d.lo;
+#ifdef GOARCH_386
+static void
+dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
+{
+	ulong n;
+	Vlong x, q, r;
+	
+	if(den.hi > num.hi || (den.hi == num.hi && den.lo > num.lo)){
+		if(qp) {
+			qp->hi = 0;
+			qp->lo = 0;
+		}
+		if(rp) {
+			rp->hi = num.hi;
+			rp->lo = num.lo;
+		}
 		return;
 	}
-	dodiv(n, d, q, 0);
-}
 
-void
-runtime·uint64div(Vlong n, Vlong d, Vlong q)
-{
-	_divvu(&q, n, d);
+	if(den.hi != 0){
+		q.hi = 0;
+		n = num.hi/den.hi;
+		if(_mul64by32(&x, den, n) || x.hi > num.hi || (x.hi == num.hi && x.lo > num.lo))
+			slowdodiv(num, den, &q, &r);
+		else {
+			q.lo = n;
+			*(long long*)&r = *(long long*)&num - *(long long*)&x;
+		}
+	} else {
+		if(num.hi >= den.lo){
+			if(den.lo == 0)
+				runtime·panicdivide();
+			q.hi = n = num.hi/den.lo;
+			num.hi -= den.lo*n;
+		} else {
+			q.hi = 0;
+		}
+		q.lo = _div64by32(num, den.lo, &r.lo);
+		r.hi = 0;
+	}
+	if(qp) {
+		qp->lo = q.lo;
+		qp->hi = q.hi;
+	}
+	if(rp) {
+		rp->lo = r.lo;
+		rp->hi = r.hi;
+	}
 }
+#endif
 
-void
-_modvu(Vlong *r, Vlong n, Vlong d)
+Vlong
+_divvu(Vlong n, Vlong d)
 {
+	Vlong q;
 
 	if(n.hi == 0 && d.hi == 0) {
-		r->hi = 0;
-		r->lo = n.lo % d.lo;
-		return;
+		if(d.lo == 0)
+			runtime·panicdivide();
+		q.hi = 0;
+		q.lo = n.lo / d.lo;
+		return q;
 	}
-	dodiv(n, d, 0, r);
+	dodiv(n, d, &q, 0);
+	return q;
 }
 
-void
-runtime·uint64mod(Vlong n, Vlong d, Vlong q)
+Vlong
+runtime·uint64div(Vlong n, Vlong d)
 {
-	_modvu(&q, n, d);
+	return _divvu(n, d);
+}
+
+Vlong
+_modvu(Vlong n, Vlong d)
+{
+	Vlong r;
+
+	if(n.hi == 0 && d.hi == 0) {
+		if(d.lo == 0)
+			runtime·panicdivide();
+		r.hi = 0;
+		r.lo = n.lo % d.lo;
+		return r;
+	}
+	dodiv(n, d, 0, &r);
+	return r;
+}
+
+Vlong
+runtime·uint64mod(Vlong n, Vlong d)
+{
+	return _modvu(n, d);
 }
 
 static void
@@ -269,21 +362,25 @@ vneg(Vlong *v)
 	v->hi = ~v->hi;
 }
 
-void
-_divv(Vlong *q, Vlong n, Vlong d)
+Vlong
+_divv(Vlong n, Vlong d)
 {
 	long nneg, dneg;
+	Vlong q;
 
 	if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
 		if((long)n.lo == -0x80000000 && (long)d.lo == -1) {
-			// special case: 32-bit -0x80000000 / -1 causes wrong sign
-			q->lo = 0x80000000;
-			q->hi = 0;
-			return;
+			// special case: 32-bit -0x80000000 / -1 causes divide error,
+			// but it's okay in this 64-bit context.
+			q.lo = 0x80000000;
+			q.hi = 0;
+			return q;
 		}
-		q->lo = (long)n.lo / (long)d.lo;
-		q->hi = ((long)q->lo) >> 31;
-		return;
+		if(d.lo == 0)
+			runtime·panicdivide();
+		q.lo = (long)n.lo / (long)d.lo;
+		q.hi = ((long)q.lo) >> 31;
+		return q;
 	}
 	nneg = n.hi >> 31;
 	if(nneg)
@@ -291,26 +388,37 @@ _divv(Vlong *q, Vlong n, Vlong d)
 	dneg = d.hi >> 31;
 	if(dneg)
 		vneg(&d);
-	dodiv(n, d, q, 0);
+	dodiv(n, d, &q, 0);
 	if(nneg != dneg)
-		vneg(q);
+		vneg(&q);
+	return q;
 }
 
-void
-runtime·int64div(Vlong n, Vlong d, Vlong q)
+Vlong
+runtime·int64div(Vlong n, Vlong d)
 {
-	_divv(&q, n, d);
+	return _divv(n, d);
 }
 
-void
-_modv(Vlong *r, Vlong n, Vlong d)
+Vlong
+_modv(Vlong n, Vlong d)
 {
 	long nneg, dneg;
+	Vlong r;
 
 	if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
-		r->lo = (long)n.lo % (long)d.lo;
-		r->hi = ((long)r->lo) >> 31;
-		return;
+		if((long)n.lo == -0x80000000 && (long)d.lo == -1) {
+			// special case: 32-bit -0x80000000 % -1 causes divide error,
+			// but it's okay in this 64-bit context.
+			r.lo = 0;
+			r.hi = 0;
+			return r;
+		}
+		if(d.lo == 0)
+			runtime·panicdivide();
+		r.lo = (long)n.lo % (long)d.lo;
+		r.hi = ((long)r.lo) >> 31;
+		return r;
 	}
 	nneg = n.hi >> 31;
 	if(nneg)
@@ -318,318 +426,348 @@ _modv(Vlong *r, Vlong n, Vlong d)
 	dneg = d.hi >> 31;
 	if(dneg)
 		vneg(&d);
-	dodiv(n, d, 0, r);
+	dodiv(n, d, 0, &r);
 	if(nneg)
-		vneg(r);
+		vneg(&r);
+	return r;
 }
 
-void
-runtime·int64mod(Vlong n, Vlong d, Vlong q)
+Vlong
+runtime·int64mod(Vlong n, Vlong d)
 {
-	_modv(&q, n, d);
+	return _modv(n, d);
 }
 
-void
-_rshav(Vlong *r, Vlong a, int b)
+Vlong
+_rshav(Vlong a, int b)
 {
 	long t;
+	Vlong r;
 
 	t = a.hi;
 	if(b >= 32) {
-		r->hi = t>>31;
+		r.hi = t>>31;
 		if(b >= 64) {
 			/* this is illegal re C standard */
-			r->lo = t>>31;
-			return;
+			r.lo = t>>31;
+			return r;
 		}
-		r->lo = t >> (b-32);
-		return;
+		r.lo = t >> (b-32);
+		return r;
 	}
 	if(b <= 0) {
-		r->hi = t;
-		r->lo = a.lo;
-		return;
+		r.hi = t;
+		r.lo = a.lo;
+		return r;
 	}
-	r->hi = t >> b;
-	r->lo = (t << (32-b)) | (a.lo >> b);
+	r.hi = t >> b;
+	r.lo = (t << (32-b)) | (a.lo >> b);
+	return r;
 }
 
-void
-_rshlv(Vlong *r, Vlong a, int b)
+Vlong
+_rshlv(Vlong a, int b)
+{
+	ulong t;
+	Vlong r;
+
+	t = a.hi;
+	if(b >= 32) {
+		r.hi = 0;
+		if(b >= 64) {
+			/* this is illegal re C standard */
+			r.lo = 0;
+			return r;
+		}
+		r.lo = t >> (b-32);
+		return r;
+	}
+	if(b <= 0) {
+		r.hi = t;
+		r.lo = a.lo;
+		return r;
+	}
+	r.hi = t >> b;
+	r.lo = (t << (32-b)) | (a.lo >> b);
+	return r;
+}
+
+#pragma textflag NOSPLIT
+Vlong
+_lshv(Vlong a, int b)
 {
 	ulong t;
 
-	t = a.hi;
+	t = a.lo;
 	if(b >= 32) {
-		r->hi = 0;
 		if(b >= 64) {
 			/* this is illegal re C standard */
-			r->lo = 0;
-			return;
+			return (Vlong){0, 0};
 		}
-		r->lo = t >> (b-32);
-		return;
+		return (Vlong){0, t<<(b-32)};
 	}
 	if(b <= 0) {
-		r->hi = t;
-		r->lo = a.lo;
-		return;
+		return (Vlong){t, a.hi};
 	}
-	r->hi = t >> b;
-	r->lo = (t << (32-b)) | (a.lo >> b);
+	return (Vlong){t<<b, (t >> (32-b)) | (a.hi << b)};
 }
 
-#pragma textflag NOSPLIT
-void
-_lshv(Vlong *r, Vlong a, int b)
+Vlong
+_andv(Vlong a, Vlong b)
 {
-	if(b >= 32) {
-		r->lo = 0;
-		if(b >= 64) {
-			/* this is illegal re C standard */
-			r->hi = 0;
-			return;
-		}
-		r->hi = a.lo << (b-32);
-		return;
-	}
-	if(b <= 0) {
-		r->lo = a.lo;
-		r->hi = a.hi;
-		return;
-	}
-	r->lo = a.lo << b;
-	r->hi = (a.lo >> (32-b)) | (a.hi << b);
+	Vlong r;
+
+	r.hi = a.hi & b.hi;
+	r.lo = a.lo & b.lo;
+	return r;
 }
 
-void
-_andv(Vlong *r, Vlong a, Vlong b)
+Vlong
+_orv(Vlong a, Vlong b)
 {
-	r->hi = a.hi & b.hi;
-	r->lo = a.lo & b.lo;
+	Vlong r;
+
+	r.hi = a.hi | b.hi;
+	r.lo = a.lo | b.lo;
+	return r;
 }
 
-void
-_orv(Vlong *r, Vlong a, Vlong b)
+Vlong
+_xorv(Vlong a, Vlong b)
 {
-	r->hi = a.hi | b.hi;
-	r->lo = a.lo | b.lo;
+	Vlong r;
+
+	r.hi = a.hi ^ b.hi;
+	r.lo = a.lo ^ b.lo;
+	return r;
 }
 
-void
-_xorv(Vlong *r, Vlong a, Vlong b)
+Vlong
+_vpp(Vlong *r)
 {
-	r->hi = a.hi ^ b.hi;
-	r->lo = a.lo ^ b.lo;
-}
+	Vlong l;
 
-void
-_vpp(Vlong *l, Vlong *r)
-{
-
-	l->hi = r->hi;
-	l->lo = r->lo;
+	l = *r;
 	r->lo++;
 	if(r->lo == 0)
 		r->hi++;
+	return l;
 }
 
-void
-_vmm(Vlong *l, Vlong *r)
+Vlong
+_vmm(Vlong *r)
 {
+	Vlong l;
 
-	l->hi = r->hi;
-	l->lo = r->lo;
+	l = *r;
 	if(r->lo == 0)
 		r->hi--;
 	r->lo--;
+	return l;
 }
 
-void
-_ppv(Vlong *l, Vlong *r)
+Vlong
+_ppv(Vlong *r)
 {
 
 	r->lo++;
 	if(r->lo == 0)
 		r->hi++;
-	l->hi = r->hi;
-	l->lo = r->lo;
+	return *r;
 }
 
-void
-_mmv(Vlong *l, Vlong *r)
+Vlong
+_mmv(Vlong *r)
 {
 
 	if(r->lo == 0)
 		r->hi--;
 	r->lo--;
-	l->hi = r->hi;
-	l->lo = r->lo;
+	return *r;
 }
 
 #pragma textflag NOSPLIT
-void
-_vasop(Vlong *ret, void *lv, void fn(Vlong*, Vlong, Vlong), int type, Vlong rv)
+Vlong
+_vasop(void *lv, Vlong fn(Vlong, Vlong), int type, Vlong rv)
 {
 	Vlong t, u;
 
-	u = *ret;
+	u.lo = 0;
+	u.hi = 0;
 	switch(type) {
 	default:
 		runtime·abort();
 		break;
 
-	case 1: /* schar */
+	case 1:	/* schar */
 		t.lo = *(schar*)lv;
 		t.hi = t.lo >> 31;
-		fn(&u, t, rv);
+		u = fn(t, rv);
 		*(schar*)lv = u.lo;
 		break;
 
-	case 2: /* uchar */
+	case 2:	/* uchar */
 		t.lo = *(uchar*)lv;
 		t.hi = 0;
-		fn(&u, t, rv);
+		u = fn(t, rv);
 		*(uchar*)lv = u.lo;
 		break;
 
-	case 3: /* short */
+	case 3:	/* short */
 		t.lo = *(short*)lv;
 		t.hi = t.lo >> 31;
-		fn(&u, t, rv);
+		u = fn(t, rv);
 		*(short*)lv = u.lo;
 		break;
 
-	case 4: /* ushort */
+	case 4:	/* ushort */
 		t.lo = *(ushort*)lv;
 		t.hi = 0;
-		fn(&u, t, rv);
+		u = fn(t, rv);
 		*(ushort*)lv = u.lo;
 		break;
 
-	case 9: /* int */
+	case 9:	/* int */
 		t.lo = *(int*)lv;
 		t.hi = t.lo >> 31;
-		fn(&u, t, rv);
+		u = fn(t, rv);
 		*(int*)lv = u.lo;
 		break;
 
-	case 10:        /* uint */
+	case 10:	/* uint */
 		t.lo = *(uint*)lv;
 		t.hi = 0;
-		fn(&u, t, rv);
+		u = fn(t, rv);
 		*(uint*)lv = u.lo;
 		break;
 
-	case 5: /* long */
+	case 5:	/* long */
 		t.lo = *(long*)lv;
 		t.hi = t.lo >> 31;
-		fn(&u, t, rv);
+		u = fn(t, rv);
 		*(long*)lv = u.lo;
 		break;
 
-	case 6: /* ulong */
+	case 6:	/* ulong */
 		t.lo = *(ulong*)lv;
 		t.hi = 0;
-		fn(&u, t, rv);
+		u = fn(t, rv);
 		*(ulong*)lv = u.lo;
 		break;
 
-	case 7: /* vlong */
-	case 8: /* uvlong */
-		fn(&u, *(Vlong*)lv, rv);
+	case 7:	/* vlong */
+	case 8:	/* uvlong */
+		if((void*)fn == _lshv || (void*)fn == _rshav || (void*)fn == _rshlv)
+			u = ((Vlong(*)(Vlong,int))fn)(*(Vlong*)lv, *(int*)&rv);
+		else
+			u = fn(*(Vlong*)lv, rv);
 		*(Vlong*)lv = u;
 		break;
 	}
-	*ret = u;
+	return u;
 }
 
-void
-_p2v(Vlong *ret, void *p)
+Vlong
+_p2v(void *p)
 {
 	long t;
+	Vlong ret;
 
 	t = (ulong)p;
-	ret->lo = t;
-	ret->hi = 0;
+	ret.lo = t;
+	ret.hi = 0;
+	return ret;
 }
 
-void
-_sl2v(Vlong *ret, long sl)
+Vlong
+_sl2v(long sl)
 {
 	long t;
+	Vlong ret;
 
 	t = sl;
-	ret->lo = t;
-	ret->hi = t >> 31;
+	ret.lo = t;
+	ret.hi = t >> 31;
+	return ret;
 }
 
-void
-_ul2v(Vlong *ret, ulong ul)
+Vlong
+_ul2v(ulong ul)
 {
 	long t;
+	Vlong ret;
 
 	t = ul;
-	ret->lo = t;
-	ret->hi = 0;
+	ret.lo = t;
+	ret.hi = 0;
+	return ret;
 }
 
 #pragma textflag NOSPLIT
-void
-_si2v(Vlong *ret, int si)
+Vlong
+_si2v(int si)
 {
-	ret->lo = (long)si;
-	ret->hi = (long)si >> 31;
+	return (Vlong){si, si>>31};
 }
 
-void
-_ui2v(Vlong *ret, uint ui)
+Vlong
+_ui2v(uint ui)
 {
 	long t;
+	Vlong ret;
 
 	t = ui;
-	ret->lo = t;
-	ret->hi = 0;
+	ret.lo = t;
+	ret.hi = 0;
+	return ret;
 }
 
-void
-_sh2v(Vlong *ret, long sh)
+Vlong
+_sh2v(long sh)
 {
 	long t;
+	Vlong ret;
 
 	t = (sh << 16) >> 16;
-	ret->lo = t;
-	ret->hi = t >> 31;
+	ret.lo = t;
+	ret.hi = t >> 31;
+	return ret;
 }
 
-void
-_uh2v(Vlong *ret, ulong ul)
+Vlong
+_uh2v(ulong ul)
 {
 	long t;
+	Vlong ret;
 
 	t = ul & 0xffff;
-	ret->lo = t;
-	ret->hi = 0;
+	ret.lo = t;
+	ret.hi = 0;
+	return ret;
 }
 
-void
-_sc2v(Vlong *ret, long uc)
+Vlong
+_sc2v(long uc)
 {
 	long t;
+	Vlong ret;
 
 	t = (uc << 24) >> 24;
-	ret->lo = t;
-	ret->hi = t >> 31;
+	ret.lo = t;
+	ret.hi = t >> 31;
+	return ret;
 }
 
-void
-_uc2v(Vlong *ret, ulong ul)
+Vlong
+_uc2v(ulong ul)
 {
 	long t;
+	Vlong ret;
 
 	t = ul & 0xff;
-	ret->lo = t;
-	ret->hi = 0;
+	ret.lo = t;
+	ret.hi = 0;
+	return ret;
 }
 
 long
@@ -682,7 +820,6 @@ _v2ul(Vlong rv)
 long
 _v2si(Vlong rv)
 {
-
 	return rv.lo;
 }
 
