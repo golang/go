@@ -18,6 +18,7 @@ TEXT runtime·settls(SB),NOSPLIT,$8
 // Set the TLS errno pointer in M.
 //
 // Called using runtime·asmcgocall from os_solaris.c:/minit.
+// NOT USING GO CALLING CONVENTION.
 TEXT runtime·miniterrno(SB),NOSPLIT,$0
 	// asmcgocall will put first argument into DI.
 	CALL	DI	// SysV ABI so returns in AX
@@ -33,6 +34,7 @@ TEXT runtime·miniterrno(SB),NOSPLIT,$0
 // runtime·nanotime stack.
 //
 // Called using runtime·sysvicall6 from os_solaris.c:/nanotime.
+// NOT USING GO CALLING CONVENTION.
 TEXT runtime·nanotime1(SB),NOSPLIT,$0
 	// need space for the timespec argument.
 	SUBQ	$64, SP	// 16 bytes will do, but who knows in the future?
@@ -44,10 +46,10 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0
 	IMULQ	$1000000000, AX	// multiply into nanoseconds
 	ADDQ	8(SP), AX	// tv_nsec, offset should be stable.
 	ADDQ	$64, SP
-	MOVQ	AX, ret+0(FP)
 	RET
 
 // pipe(3c) wrapper that returns fds in AX, DX.
+// NOT USING GO CALLING CONVENTION.
 TEXT runtime·pipe1(SB),NOSPLIT,$0
 	SUBQ	$16, SP // 8 bytes will do, but stack has to be 16-byte alligned
 	MOVQ	SP, DI
@@ -67,6 +69,7 @@ TEXT runtime·pipe1(SB),NOSPLIT,$0
 // section 3.2.3.
 //
 // Called by runtime·asmcgocall or runtime·cgocall.
+// NOT USING GO CALLING CONVENTION.
 TEXT runtime·asmsysvicall6(SB),NOSPLIT,$0
 	// asmcgocall will put first argument into DI.
 	PUSHQ	DI			// save for later
