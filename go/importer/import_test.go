@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -127,6 +128,12 @@ func TestImportStdLib(t *testing.T) {
 		}
 
 		size, gcsize := testExportImport(t, pkg, lib)
+		if gcsize == 0 {
+			// if gc import didn't happen, assume same size
+			// (and avoid division by zero below)
+			gcsize = size
+		}
+
 		if testing.Verbose() {
 			fmt.Printf("%s\t%d\t%d\t%d%%\n", lib, size, gcsize, int(float64(size)*100/float64(gcsize)))
 		}
@@ -194,7 +201,15 @@ func pkgForSource(src string) (*types.Package, error) {
 	}
 
 	// typecheck file
-	return types.Check("import-test", fset, []*ast.File{f})
+	conf := types.Config{
+		// strconv exports IntSize as a constant. The type-checker must
+		// use the same word size otherwise the result of the type-checker
+		// and gc imports is different. We don't care about alignment
+		// since none of the tests have exported constants depending
+		// on alignment (see also issue 8366).
+		Sizes: &types.StdSizes{WordSize: strconv.IntSize / 8, MaxAlign: 8},
+	}
+	return conf.Check("import-test", fset, []*ast.File{f}, nil)
 }
 
 func pkgForPath(path string) (*types.Package, error) {
