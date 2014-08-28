@@ -198,7 +198,7 @@ type DB struct {
 
 	mu           sync.Mutex // protects following fields
 	freeConn     []*driverConn
-	connRequests []chan *connRequest
+	connRequests []chan connRequest
 	numOpen      int
 	pendingOpens int
 	// Used to signal the need for new connections
@@ -626,14 +626,11 @@ func (db *DB) conn() (*driverConn, error) {
 	if db.maxOpen > 0 && db.numOpen >= db.maxOpen && len(db.freeConn) == 0 {
 		// Make the connRequest channel. It's buffered so that the
 		// connectionOpener doesn't block while waiting for the req to be read.
-		req := make(chan *connRequest, 1)
+		req := make(chan connRequest, 1)
 		db.connRequests = append(db.connRequests, req)
 		db.maybeOpenNewConnections()
 		db.mu.Unlock()
 		ret := <-req
-		if ret == nil {
-			return nil, errDBClosed
-		}
 		return ret.conn, ret.err
 	}
 
@@ -786,12 +783,15 @@ func (db *DB) putConn(dc *driverConn, err error) {
 func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 	if c := len(db.connRequests); c > 0 {
 		req := db.connRequests[0]
+		// This copy is O(n) but in practice faster than a linked list.
+		// TODO: consider compacting it down less often and
+		// moving the base instead?
 		copy(db.connRequests, db.connRequests[1:])
 		db.connRequests = db.connRequests[:c-1]
 		if err == nil {
 			dc.inUse = true
 		}
-		req <- &connRequest{
+		req <- connRequest{
 			conn: dc,
 			err:  err,
 		}
