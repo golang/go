@@ -9,25 +9,43 @@
 #define NACL_SYSCALL(code) \
 	MOVL $(0x10000 + ((code)<<5)), AX; CALL AX
 
-TEXT runtime·exit(SB),NOSPLIT,$0
+TEXT runtime·exit(SB),NOSPLIT,$4
+	MOVL code+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_exit)
 	JMP 0(PC)
 
-TEXT runtime·exit1(SB),NOSPLIT,$0
+TEXT runtime·exit1(SB),NOSPLIT,$4
+	MOVL code+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_thread_exit)
 	RET
 
-TEXT runtime·open(SB),NOSPLIT,$0
+TEXT runtime·open(SB),NOSPLIT,$12
+	MOVL name+0(FP), AX
+	MOVL AX, 0(SP)
+	MOVL mode+4(FP), AX
+	MOVL AX, 4(SP)
+	MOVL perm+8(FP), AX
+	MOVL AX, 8(SP)
 	NACL_SYSCALL(SYS_open)
 	MOVL AX, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·close(SB),NOSPLIT,$4
+	MOVL fd+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_close)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$0
+TEXT runtime·read(SB),NOSPLIT,$12
+	MOVL fd+0(FP), AX
+	MOVL AX, 0(SP)
+	MOVL p+4(FP), AX
+	MOVL AX, 4(SP)
+	MOVL n+8(FP), AX
+	MOVL AX, 8(SP)
 	NACL_SYSCALL(SYS_read)
 	MOVL AX, ret+12(FP)
 	RET
@@ -43,82 +61,134 @@ TEXT syscall·naclWrite(SB), NOSPLIT, $16-16
 	MOVL AX, ret+16(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$0
+TEXT runtime·write(SB),NOSPLIT,$12
+	MOVL fd+0(FP), AX
+	MOVL AX, 0(SP)
+	MOVL p+4(FP), AX
+	MOVL AX, 4(SP)
+	MOVL n+8(FP), AX
+	MOVL AX, 8(SP)
 	NACL_SYSCALL(SYS_write)
 	MOVL AX, ret+12(FP)
 	RET
 
-TEXT runtime·nacl_exception_stack(SB),NOSPLIT,$0
+TEXT runtime·nacl_exception_stack(SB),NOSPLIT,$8
+	MOVL p+0(FP), AX
+	MOVL AX, 0(SP)
+	MOVL size+4(FP), AX
+	MOVL AX, 4(SP)
 	NACL_SYSCALL(SYS_exception_stack)
 	MOVL AX, ret+8(FP)
 	RET
 
-TEXT runtime·nacl_exception_handler(SB),NOSPLIT,$0
+TEXT runtime·nacl_exception_handler(SB),NOSPLIT,$8
+	MOVL fn+0(FP), AX
+	MOVL AX, 0(SP)
+	MOVL arg+4(FP), AX
+	MOVL AX, 4(SP)
 	NACL_SYSCALL(SYS_exception_handler)
 	MOVL AX, ret+8(FP)
 	RET
 
-TEXT runtime·nacl_sem_create(SB),NOSPLIT,$0
+TEXT runtime·nacl_sem_create(SB),NOSPLIT,$4
+	MOVL flag+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_sem_create)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·nacl_sem_wait(SB),NOSPLIT,$0
+TEXT runtime·nacl_sem_wait(SB),NOSPLIT,$4
+	MOVL sem+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_sem_wait)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·nacl_sem_post(SB),NOSPLIT,$0
+TEXT runtime·nacl_sem_post(SB),NOSPLIT,$4
+	MOVL sem+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_sem_post)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·nacl_mutex_create(SB),NOSPLIT,$0
+TEXT runtime·nacl_mutex_create(SB),NOSPLIT,$4
+	MOVL flag+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_mutex_create)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·nacl_mutex_lock(SB),NOSPLIT,$0
+TEXT runtime·nacl_mutex_lock(SB),NOSPLIT,$4
+	MOVL mutex+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_mutex_lock)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·nacl_mutex_trylock(SB),NOSPLIT,$0
+TEXT runtime·nacl_mutex_trylock(SB),NOSPLIT,$4
+	MOVL mutex+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_mutex_trylock)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·nacl_mutex_unlock(SB),NOSPLIT,$0
+TEXT runtime·nacl_mutex_unlock(SB),NOSPLIT,$4
+	MOVL mutex+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_mutex_unlock)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·nacl_cond_create(SB),NOSPLIT,$0
+TEXT runtime·nacl_cond_create(SB),NOSPLIT,$4
+	MOVL flag+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_cond_create)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·nacl_cond_wait(SB),NOSPLIT,$0
+TEXT runtime·nacl_cond_wait(SB),NOSPLIT,$8
+	MOVL cond+0(FP), AX
+	MOVL AX, 0(SP)
+	MOVL n+4(FP), AX
+	MOVL AX, 4(SP)
 	NACL_SYSCALL(SYS_cond_wait)
 	MOVL AX, ret+8(FP)
 	RET
 
-TEXT runtime·nacl_cond_signal(SB),NOSPLIT,$0
+TEXT runtime·nacl_cond_signal(SB),NOSPLIT,$4
+	MOVL cond+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_cond_signal)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·nacl_cond_broadcast(SB),NOSPLIT,$0
+TEXT runtime·nacl_cond_broadcast(SB),NOSPLIT,$4
+	MOVL cond+0(FP), AX
+	MOVL AX, 0(SP)
 	NACL_SYSCALL(SYS_cond_broadcast)
 	MOVL AX, ret+4(FP)
 	RET
 
-TEXT runtime·nacl_cond_timed_wait_abs(SB),NOSPLIT,$0
+TEXT runtime·nacl_cond_timed_wait_abs(SB),NOSPLIT,$12
+	MOVL cond+0(FP), AX
+	MOVL AX, 0(SP)
+	MOVL lock+4(FP), AX
+	MOVL AX, 4(SP)
+	MOVL ts+8(FP), AX
+	MOVL AX, 8(SP)
 	NACL_SYSCALL(SYS_cond_timed_wait_abs)
 	MOVL AX, ret+12(FP)
 	RET
 
-TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
+TEXT runtime·nacl_thread_create(SB),NOSPLIT,$16
+	MOVL fn+0(FP), AX
+	MOVL AX, 0(SP)
+	MOVL stk+4(FP), AX
+	MOVL AX, 4(SP)
+	MOVL tls+8(FP), AX
+	MOVL AX, 8(SP)
+	MOVL xx+12(FP), AX
+	MOVL AX, 12(SP)
 	NACL_SYSCALL(SYS_thread_create)
 	MOVL AX, ret+16(FP)
 	RET
@@ -126,7 +196,11 @@ TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
 TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
 	JMP runtime·mstart(SB)
 
-TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$0
+TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$8
+	MOVL ts+0(FP), AX
+	MOVL AX, 0(SP)
+	MOVL extra+4(FP), AX
+	MOVL AX, 4(SP)
 	NACL_SYSCALL(SYS_nanosleep)
 	MOVL AX, ret+8(FP)
 	RET
@@ -173,7 +247,11 @@ TEXT time·now(SB),NOSPLIT,$20
 TEXT syscall·now(SB),NOSPLIT,$0
 	JMP time·now(SB)
 
-TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
+TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$8
+	MOVL arg1+0(FP), AX
+	MOVL AX, 0(SP)
+	MOVL arg2+4(FP), AX
+	MOVL AX, 4(SP)
 	NACL_SYSCALL(SYS_clock_gettime)
 	MOVL AX, ret+8(FP)
 	RET
