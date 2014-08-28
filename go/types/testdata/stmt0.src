@@ -558,7 +558,7 @@ func typeswitches() {
 	case T:
 	case T1 /* ERROR "missing method m" */ :
 	case T2 /* ERROR "wrong type for method m" */ :
-	case I2 /* ERROR "wrong type for method m" */ :
+	case I2 /* STRICT "wrong type for method m" */ : // only an error in strict mode (issue 8561)
 	}
 }
 
@@ -596,7 +596,7 @@ func typeswitch2() {
 	switch A(nil).(type) {
 	case A:
 	case B:
-	case C /* ERROR "cannot have dynamic type" */:
+	case C /* STRICT "cannot have dynamic type" */: // only an error in strict mode (issue 8561)
 	}
 }
 
