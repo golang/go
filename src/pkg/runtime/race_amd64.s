@@ -144,10 +144,10 @@ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
 	CMPQ	RARG1, runtime·racearenaend(SB)
 	JB	racecalladdr_call
 racecalladdr_data:
-	MOVQ	$noptrdata(SB), R13
+	MOVQ	$runtime·noptrdata(SB), R13
 	CMPQ	RARG1, R13
 	JB	racecalladdr_ret
-	MOVQ	$enoptrbss(SB), R13
+	MOVQ	$runtime·enoptrbss(SB), R13
 	CMPQ	RARG1, R13
 	JAE	racecalladdr_ret
 racecalladdr_call:

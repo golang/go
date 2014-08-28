@@ -101,7 +101,7 @@ func main() {
 	keep := syms[:0]
 	for _, sym := range syms {
 		switch sym.Name {
-		case "text", "_text", "etext", "_etext":
+		case "runtime.text", "text", "_text", "runtime.etext", "etext", "_etext":
 			// drop
 		default:
 			keep = append(keep, sym)
@@ -118,7 +118,7 @@ func main() {
 		i := sort.Search(len(syms), func(i int) bool { return syms[i].Addr > addr })
 		if i > 0 {
 			s := syms[i-1]
-			if s.Addr <= addr && addr < s.Addr+uint64(s.Size) && s.Name != "etext" && s.Name != "_etext" {
+			if s.Addr <= addr && addr < s.Addr+uint64(s.Size) && s.Name != "runtime.etext" && s.Name != "etext" && s.Name != "_etext" {
 				return s.Name, s.Addr
 			}
 		}

@@ -215,7 +215,7 @@ uintptr
 runtime·memlimit(void)
 {
 	Rlimit rl;
-	extern byte text[], end[];
+	extern byte runtime·text[], runtime·end[];
 	uintptr used;
 	
 	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
@@ -226,7 +226,7 @@ runtime·memlimit(void)
 	// Estimate our VM footprint excluding the heap.
 	// Not an exact science: use size of binary plus
 	// some room for thread stacks.
-	used = end - text + (64<<20);
+	used = runtime·end - runtime·text + (64<<20);
 	if(used >= rl.rlim_cur)
 		return 0;
 

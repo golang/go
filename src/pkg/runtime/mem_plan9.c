@@ -8,8 +8,8 @@
 #include "malloc.h"
 #include "os_GOOS.h"
 
-extern byte end[];
-static byte *bloc = { end };
+extern byte runtime·end[];
+static byte *bloc = { runtime·end };
 static Lock memlock;
 
 enum

@@ -2407,7 +2407,7 @@ static struct {
 static void System(void) {}
 static void ExternalCode(void) {}
 static void GC(void) {}
-extern byte etext[];
+extern byte runtime·etext[];
 
 // Called if we receive a SIGPROF signal.
 void
@@ -2532,7 +2532,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 			// If all of the above has failed, account it against abstract "System" or "GC".
 			n = 2;
 			// "ExternalCode" is better than "etext".
-			if((uintptr)pc > (uintptr)etext)
+			if((uintptr)pc > (uintptr)runtime·etext)
 				pc = (byte*)ExternalCode + PCQuantum;
 			stk[0] = (uintptr)pc;
 			if(mp->gcing || mp->helpgc)

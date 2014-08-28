@@ -346,36 +346,36 @@ symtab(void)
 
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
-	xdefine("text", STEXT, 0);
-	xdefine("etext", STEXT, 0);
-	xdefine("typelink", SRODATA, 0);
-	xdefine("etypelink", SRODATA, 0);
-	xdefine("rodata", SRODATA, 0);
-	xdefine("erodata", SRODATA, 0);
-	xdefine("noptrdata", SNOPTRDATA, 0);
-	xdefine("enoptrdata", SNOPTRDATA, 0);
-	xdefine("data", SDATA, 0);
-	xdefine("edata", SDATA, 0);
-	xdefine("bss", SBSS, 0);
-	xdefine("ebss", SBSS, 0);
-	xdefine("noptrbss", SNOPTRBSS, 0);
-	xdefine("enoptrbss", SNOPTRBSS, 0);
-	xdefine("end", SBSS, 0);
-	xdefine("epclntab", SRODATA, 0);
-	xdefine("esymtab", SRODATA, 0);
+	xdefine("runtime.text", STEXT, 0);
+	xdefine("runtime.etext", STEXT, 0);
+	xdefine("runtime.typelink", SRODATA, 0);
+	xdefine("runtime.etypelink", SRODATA, 0);
+	xdefine("runtime.rodata", SRODATA, 0);
+	xdefine("runtime.erodata", SRODATA, 0);
+	xdefine("runtime.noptrdata", SNOPTRDATA, 0);
+	xdefine("runtime.enoptrdata", SNOPTRDATA, 0);
+	xdefine("runtime.data", SDATA, 0);
+	xdefine("runtime.edata", SDATA, 0);
+	xdefine("runtime.bss", SBSS, 0);
+	xdefine("runtime.ebss", SBSS, 0);
+	xdefine("runtime.noptrbss", SNOPTRBSS, 0);
+	xdefine("runtime.enoptrbss", SNOPTRBSS, 0);
+	xdefine("runtime.end", SBSS, 0);
+	xdefine("runtime.epclntab", SRODATA, 0);
+	xdefine("runtime.esymtab", SRODATA, 0);
 
 	// garbage collection symbols
-	s = linklookup(ctxt, "gcdata", 0);
+	s = linklookup(ctxt, "runtime.gcdata", 0);
 	s->type = SRODATA;
 	s->size = 0;
 	s->reachable = 1;
-	xdefine("egcdata", SRODATA, 0);
+	xdefine("runtime.egcdata", SRODATA, 0);
 
-	s = linklookup(ctxt, "gcbss", 0);
+	s = linklookup(ctxt, "runtime.gcbss", 0);
 	s->type = SRODATA;
 	s->size = 0;
 	s->reachable = 1;
-	xdefine("egcbss", SRODATA, 0);
+	xdefine("runtime.egcbss", SRODATA, 0);
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	s = linklookup(ctxt, "type.*", 0);
@@ -396,9 +396,9 @@ symtab(void)
 	s->reachable = 1;
 	symgofunc = s;
 	
-	symtypelink = linklookup(ctxt, "typelink", 0);
+	symtypelink = linklookup(ctxt, "runtime.typelink", 0);
 
-	symt = linklookup(ctxt, "symtab", 0);
+	symt = linklookup(ctxt, "runtime.symtab", 0);
 	symt->type = SSYMTAB;
 	symt->size = 0;
 	symt->reachable = 1;

@@ -24,7 +24,7 @@ func FuncForPC(pc uintptr) *Func {
 		n := nf / 2
 		f := &ftabs[lo+n]
 		if f.entry <= pc && pc < ftabs[lo+n+1].entry {
-			return (*Func)(unsafe.Pointer(&pclntab[f.funcoff]))
+			return (*Func)(unsafe.Pointer(&pclntable[f.funcoff]))
 		} else if pc < f.entry {
 			nf = n
 		} else {
@@ -39,7 +39,7 @@ func FuncForPC(pc uintptr) *Func {
 
 // Name returns the name of the function.
 func (f *Func) Name() string {
-	return cstringToGo(unsafe.Pointer(&pclntab[f.nameoff]))
+	return cstringToGo(unsafe.Pointer(&pclntable[f.nameoff]))
 }
 
 // Entry returns the entry address of the function.
@@ -60,7 +60,7 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	if line == -1 {
 		return "?", 0
 	}
-	file = cstringToGo(unsafe.Pointer(&pclntab[filetab[fileno]]))
+	file = cstringToGo(unsafe.Pointer(&pclntable[filetab[fileno]]))
 	return file, line
 }
 
@@ -69,7 +69,7 @@ func (f *Func) pcvalue(off int32, targetpc uintptr) int32 {
 	if off == 0 {
 		return -1
 	}
-	p := pclntab[off:]
+	p := pclntable[off:]
 	pc := f.entry
 	val := int32(-1)
 	for {
@@ -120,7 +120,7 @@ func readvarint(p []byte) (newp []byte, val uint32) {
 
 // Populated by runtime·symtabinit during bootstrapping. Treat as immutable.
 var (
-	pclntab   []byte
+	pclntable []byte
 	ftabs     []ftab
 	filetab   []uint32
 	pcquantum uint32

@@ -183,7 +183,7 @@ func (p *Prog) pclntab() {
 
 	pclntab := &Sym{
 		Sym: &goobj.Sym{
-			SymID: goobj.SymID{Name: "pclntab"},
+			SymID: goobj.SymID{Name: "runtime.pclntab"},
 			Kind:  goobj.SPCLNTAB,
 			Size:  buf.Size(),
 			Reloc: buf.Reloc(),

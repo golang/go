@@ -16,37 +16,37 @@ GLOBL zero(SB), $8
 GLOBL zeronoptr(SB), NOPTR, $16
 
 // text
-DATA autotab+0x00(SB)/8, $text(SB)
+DATA autotab+0x00(SB)/8, $runtime·text(SB)
 DATA autotab+0x08(SB)/8, $start(SB)
-DATA autotab+0x10(SB)/8, $etext(SB)
+DATA autotab+0x10(SB)/8, $runtime·etext(SB)
 DATA autotab+0x18(SB)/8, $start+16(SB)
 
 // data
-DATA autotab+0x20(SB)/8, $data(SB)
+DATA autotab+0x20(SB)/8, $runtime·data(SB)
 DATA autotab+0x28(SB)/8, $autotab(SB)
-DATA autotab+0x30(SB)/8, $edata(SB)
+DATA autotab+0x30(SB)/8, $runtime·edata(SB)
 DATA autotab+0x38(SB)/8, $nonzero+4(SB)
 
 // bss
-DATA autotab+0x40(SB)/8, $bss(SB)
+DATA autotab+0x40(SB)/8, $runtime·bss(SB)
 DATA autotab+0x48(SB)/8, $zero(SB)
-DATA autotab+0x50(SB)/8, $ebss(SB)
+DATA autotab+0x50(SB)/8, $runtime·ebss(SB)
 DATA autotab+0x58(SB)/8, $zero+8(SB)
 
 // noptrdata
-DATA autotab+0x60(SB)/8, $noptrdata(SB)
+DATA autotab+0x60(SB)/8, $runtime·noptrdata(SB)
 DATA autotab+0x68(SB)/8, $nonzeronoptr(SB)
-DATA autotab+0x70(SB)/8, $enoptrdata(SB)
+DATA autotab+0x70(SB)/8, $runtime·enoptrdata(SB)
 DATA autotab+0x78(SB)/8, $nonzeronoptr+8(SB)
 
 // noptrbss
-DATA autotab+0x80(SB)/8, $noptrbss(SB)
+DATA autotab+0x80(SB)/8, $runtime·noptrbss(SB)
 DATA autotab+0x88(SB)/8, $zeronoptr(SB)
-DATA autotab+0x90(SB)/8, $enoptrbss(SB)
+DATA autotab+0x90(SB)/8, $runtime·enoptrbss(SB)
 DATA autotab+0x98(SB)/8, $zeronoptr+16(SB)
 
 // end
-DATA autotab+0xa0(SB)/8, $end(SB)
+DATA autotab+0xa0(SB)/8, $runtime·end(SB)
 DATA autotab+0xa8(SB)/8, $zeronoptr+16(SB)
 
 GLOBL autotab(SB), $0xb0

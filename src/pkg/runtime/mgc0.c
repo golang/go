@@ -158,13 +158,13 @@ struct FinBlock
 	Finalizer fin[1];
 };
 
-extern byte data[];
-extern byte edata[];
-extern byte bss[];
-extern byte ebss[];
+extern byte runtime·data[];
+extern byte runtime·edata[];
+extern byte runtime·bss[];
+extern byte runtime·ebss[];
 
-extern byte gcdata[];
-extern byte gcbss[];
+extern byte runtime·gcdata[];
+extern byte runtime·gcbss[];
 
 static Lock	finlock;	// protects the following variables
 static FinBlock	*finq;		// list of finalizers that are to be executed
@@ -490,11 +490,11 @@ markroot(ParFor *desc, uint32 i)
 	// Note: if you add a case here, please also update heapdump.c:dumproots.
 	switch(i) {
 	case RootData:
-		scanblock(data, edata - data, (byte*)runtime·gcdatamask.data);
+		scanblock(runtime·data, runtime·edata - runtime·data, (byte*)runtime·gcdatamask.data);
 		break;
 
 	case RootBss:
-		scanblock(bss, ebss - bss, (byte*)runtime·gcbssmask.data);
+		scanblock(runtime·bss, runtime·ebss - runtime·bss, (byte*)runtime·gcbssmask.data);
 		break;
 
 	case RootFinalizers:
@@ -1300,8 +1300,8 @@ runtime·gcinit(void)
 
 	work.markfor = runtime·parforalloc(MaxGcproc);
 	runtime·gcpercent = runtime·readgogc();
-	runtime·gcdatamask = unrollglobgcprog(gcdata, edata - data);
-	runtime·gcbssmask = unrollglobgcprog(gcbss, ebss - bss);
+	runtime·gcdatamask = unrollglobgcprog(runtime·gcdata, runtime·edata - runtime·data);
+	runtime·gcbssmask = unrollglobgcprog(runtime·gcbss, runtime·ebss - runtime·bss);
 }
 
 // force = 1 - do GC regardless of current heap usage
@@ -2035,24 +2035,24 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 	*len = 0;
 
 	// data
-	if(p >= data && p < edata) {
+	if(p >= runtime·data && p < runtime·edata) {
 		n = ((PtrType*)t)->elem->size;
 		*len = n/PtrSize;
 		*mask = runtime·mallocgc(*len, nil, 0);
 		for(i = 0; i < n; i += PtrSize) {
-			off = (p+i-data)/PtrSize;
+			off = (p+i-runtime·data)/PtrSize;
 			bits = (((byte*)runtime·gcdatamask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
 		return;
 	}
 	// bss
-	if(p >= bss && p < ebss) {
+	if(p >= runtime·bss && p < runtime·ebss) {
 		n = ((PtrType*)t)->elem->size;
 		*len = n/PtrSize;
 		*mask = runtime·mallocgc(*len, nil, 0);
 		for(i = 0; i < n; i += PtrSize) {
-			off = (p+i-bss)/PtrSize;
+			off = (p+i-runtime·bss)/PtrSize;
 			bits = (((byte*)runtime·gcbssmask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}

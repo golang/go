@@ -19,10 +19,10 @@
 #include "zaexperiment.h"
 #include "../../cmd/ld/textflag.h"
 
-extern byte data[];
-extern byte edata[];
-extern byte bss[];
-extern byte ebss[];
+extern byte runtime·data[];
+extern byte runtime·edata[];
+extern byte runtime·bss[];
+extern byte runtime·ebss[];
 
 enum {
 	FieldKindEol = 0,
@@ -487,14 +487,14 @@ dumproots(void)
 
 	// data segment
 	dumpint(TagData);
-	dumpint((uintptr)data);
-	dumpmemrange(data, edata - data);
+	dumpint((uintptr)runtime·data);
+	dumpmemrange(runtime·data, runtime·edata - runtime·data);
 	dumpfields(runtime·gcdatamask);
 
 	// bss segment
 	dumpint(TagBss);
-	dumpint((uintptr)bss);
-	dumpmemrange(bss, ebss - bss);
+	dumpint((uintptr)runtime·bss);
+	dumpmemrange(runtime·bss, runtime·ebss - runtime·bss);
 	dumpfields(runtime·gcdatamask);
 
 	// MSpan.types
