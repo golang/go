@@ -13,6 +13,15 @@ import (
 	"sort"
 )
 
+var validSymType = map[rune]bool{
+	'T': true,
+	't': true,
+	'D': true,
+	'd': true,
+	'B': true,
+	'b': true,
+}
+
 type plan9File struct {
 	plan9 *plan9obj.File
 }
@@ -35,6 +44,9 @@ func (f *plan9File) symbols() ([]Sym, error) {
 	// We infer the size of a symbol by looking at where the next symbol begins.
 	var addrs []uint64
 	for _, s := range plan9Syms {
+		if !validSymType[s.Type] {
+			continue
+		}
 		addrs = append(addrs, s.Value)
 	}
 	sort.Sort(uint64s(addrs))
@@ -42,6 +54,9 @@ func (f *plan9File) symbols() ([]Sym, error) {
 	var syms []Sym
 
 	for _, s := range plan9Syms {
+		if !validSymType[s.Type] {
+			continue
+		}
 		sym := Sym{Addr: s.Value, Name: s.Name, Code: rune(s.Type)}
 		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
 		if i < len(addrs) {
