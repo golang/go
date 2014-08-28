@@ -242,6 +242,10 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 		key := f.Id()
 		// if f is not in the set, add it
 		if !multiples {
+			// TODO(gri) A found method may not be added because it's not in the method set
+			// (!indirect && ptrRecv(f)). A 2nd method on the same level may be in the method
+			// set and may not collide with the first one, thus leading to a false positive.
+			// Is that possible? Investigate.
 			if _, found := s[key]; !found && (indirect || !ptrRecv(f)) {
 				s[key] = &Selection{MethodVal, nil, f, concat(index, i), indirect}
 				continue

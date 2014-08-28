@@ -489,7 +489,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 		base := derefStructPtr(x.typ)
 		sel := selx.Sel.Name
-		obj, index, indirect := LookupFieldOrMethod(base, check.pkg, sel)
+		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
 		switch obj.(type) {
 		case nil:
 			check.invalidArg(x.pos(), "%s has no single field %s", base, sel)

@@ -302,12 +302,15 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
-	obj, index, indirect = LookupFieldOrMethod(x.typ, check.pkg, sel)
+	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
-		if index != nil {
+		switch {
+		case index != nil:
 			// TODO(gri) should provide actual type where the conflict happens
 			check.invalidOp(e.Pos(), "ambiguous selector %s", sel)
-		} else {
+		case indirect:
+			check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
+		default:
 			check.invalidOp(e.Pos(), "%s has no field or method %s", x, sel)
 		}
 		goto Error
@@ -318,12 +321,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		m, _ := obj.(*Func)
 		if m == nil {
 			check.invalidOp(e.Pos(), "%s has no method %s", x, sel)
-			goto Error
-		}
-
-		// verify that m is in the method set of x.typ
-		if !indirect && ptrRecv(m) {
-			check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
 			goto Error
 		}
 
@@ -358,18 +355,8 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			x.typ = obj.typ
 
 		case *Func:
-			// TODO(gri) This code appears elsewhere, too. Factor!
-			// verify that obj is in the method set of x.typ (or &(x.typ) if x is addressable)
-			//
-			// spec: "A method call x.m() is valid if the method set of (the type of) x
-			//        contains m and the argument list can be assigned to the parameter
-			//        list of m. If x is addressable and &x's method set contains m, x.m()
-			//        is shorthand for (&x).m()".
-			if !indirect && x.mode != variable && ptrRecv(obj) {
-				check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x)
-				goto Error
-			}
-
+			// TODO(gri) If we needed to take into account the receiver's
+			// addressability, should we report the type &(x.typ) instead?
 			check.recordSelection(e, MethodVal, x.typ, obj, index, indirect)
 
 			if debug {

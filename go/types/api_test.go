@@ -740,12 +740,12 @@ func main() {
 		"new(A).f": {"method (*main.A) f(int)", "->[0 0]"},
 		"A{}.g":    {"method (main.A) g()", ".[1 0]"},
 		"new(A).g": {"method (*main.A) g()", "->[1 0]"},
-		"new(A).h": {"method (*main.A) h()", "->[1 1]"},
+		"new(A).h": {"method (*main.A) h()", "->[1 1]"}, // TODO(gri) should this report .[1 1] ?
 		"B{}.f":    {"method (main.B) f(int)", ".[0]"},
 		"new(B).f": {"method (*main.B) f(int)", "->[0]"},
 		"C{}.g":    {"method (main.C) g()", ".[0]"},
 		"new(C).g": {"method (*main.C) g()", "->[0]"},
-		"new(C).h": {"method (*main.C) h()", "->[1]"},
+		"new(C).h": {"method (*main.C) h()", "->[1]"}, // TODO(gri) should this report .[1] ?
 
 		"A.f":    {"method expr (main.A) f(main.A, int)", "->[0 0]"},
 		"(*A).f": {"method expr (*main.A) f(*main.A, int)", "->[0 0]"},
@@ -826,4 +826,78 @@ var _ = a.C2
 
 	makePkg("a", libSrc)
 	makePkg("main", mainSrc) // don't crash when type-checking this package
+}
+
+func TestLookupFieldOrMethod(t *testing.T) {
+	// Test cases assume a lookup of the form a.f or x.f, where a stands for an
+	// addressable value, and x for a non-addressable value (even though a variable
+	// for ease of test case writing).
+	var tests = []struct {
+		src      string
+		found    bool
+		index    []int
+		indirect bool
+	}{
+		// field lookups
+		{"var x T; type T struct{}", false, nil, false},
+		{"var x T; type T struct{ f int }", true, []int{0}, false},
+		{"var x T; type T struct{ a, b, f, c int }", true, []int{2}, false},
+
+		// method lookups
+		{"var a T; type T struct{}; func (T) f() {}", true, []int{0}, false},
+		{"var a *T; type T struct{}; func (T) f() {}", true, []int{0}, true},
+		{"var a T; type T struct{}; func (*T) f() {}", true, []int{0}, false},
+		{"var a *T; type T struct{}; func (*T) f() {}", true, []int{0}, true}, // TODO(gri) should this report indirect = false?
+
+		// collisions
+		{"type ( E1 struct{ f int }; E2 struct{ f int }; x struct{ E1; *E2 })", false, []int{1, 0}, false},
+		{"type ( E1 struct{ f int }; E2 struct{}; x struct{ E1; *E2 }); func (E2) f() {}", false, []int{1, 0}, false},
+
+		// outside methodset
+		// (*T).f method exists, but value of type T is not addressable
+		{"var x T; type T struct{}; func (*T) f() {}", false, nil, true},
+	}
+
+	for _, test := range tests {
+		pkg, err := pkgFor("test", "package p;"+test.src, nil)
+		if err != nil {
+			t.Errorf("%s: incorrect test case: %s", test.src, err)
+			continue
+		}
+
+		obj := pkg.Scope().Lookup("a")
+		if obj == nil {
+			if obj = pkg.Scope().Lookup("x"); obj == nil {
+				t.Errorf("%s: incorrect test case - no object a or x", test.src)
+				continue
+			}
+		}
+
+		f, index, indirect := LookupFieldOrMethod(obj.Type(), obj.Name() == "a", pkg, "f")
+		if (f != nil) != test.found {
+			if f == nil {
+				t.Errorf("%s: got no object; want one", test.src)
+			} else {
+				t.Errorf("%s: got object = %v; want none", test.src, f)
+			}
+		}
+		if !sameSlice(index, test.index) {
+			t.Errorf("%s: got index = %v; want %v", test.src, index, test.index)
+		}
+		if indirect != test.indirect {
+			t.Errorf("%s: got indirect = %v; want %v", test.src, indirect, test.indirect)
+		}
+	}
+}
+
+func sameSlice(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, x := range a {
+		if x != b[i] {
+			return false
+		}
+	}
+	return true
 }

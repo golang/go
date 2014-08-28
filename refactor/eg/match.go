@@ -166,7 +166,7 @@ func (tr *Transformer) matchSelectorExpr(x, y *ast.SelectorExpr) bool {
 	if xobj, ok := tr.wildcardObj(x.X); ok {
 		field := x.Sel.Name
 		yt := tr.info.TypeOf(y.X)
-		o, _, _ := types.LookupFieldOrMethod(yt, tr.currentPkg, field)
+		o, _, _ := types.LookupFieldOrMethod(yt, true, tr.currentPkg, field)
 		if o != nil {
 			tr.env[xobj.Name()] = y.X // record binding
 			return true
