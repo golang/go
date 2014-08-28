@@ -5,70 +5,62 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"os/exec"
 	"time"
 )
 
-// run is a simple wrapper for exec.Run/Close
-func run(d time.Duration, envv []string, dir string, argv ...string) error {
-	if *verbose {
-		log.Println("run", argv)
+// run runs a command with optional arguments.
+func run(cmd *exec.Cmd, opts ...runOpt) error {
+	a := runArgs{cmd, *cmdTimeout}
+	for _, opt := range opts {
+		opt.modArgs(&a)
 	}
-	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Dir = dir
-	cmd.Env = envv
-	cmd.Stderr = os.Stderr
+	if *verbose {
+		log.Printf("running %v", a.cmd.Args)
+	}
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	err := timeout(d, cmd.Wait)
+	err := timeout(a.timeout, cmd.Wait)
 	if _, ok := err.(timeoutError); ok {
 		cmd.Process.Kill()
 	}
 	return err
 }
 
-// runLog runs a process and returns the combined stdout/stderr. It returns
-// process combined stdout and stderr output, exit status and error. The
-// error returned is nil, if process is started successfully, even if exit
-// status is not successful.
-func runLog(timeout time.Duration, envv []string, dir string, argv ...string) (string, bool, error) {
-	var b bytes.Buffer
-	ok, err := runOutput(timeout, envv, &b, dir, argv...)
-	return b.String(), ok, err
+// Zero or more runOpts can be passed to run to modify the command
+// before it's run.
+type runOpt interface {
+	modArgs(*runArgs)
 }
 
-// runOutput runs a process and directs any output to the supplied writer.
-// It returns exit status and error. The error returned is nil, if process
-// is started successfully, even if exit status is not successful.
-func runOutput(d time.Duration, envv []string, out io.Writer, dir string, argv ...string) (bool, error) {
-	if *verbose {
-		log.Println("runOutput", argv)
+// allOutput sends both stdout and stderr to w.
+func allOutput(w io.Writer) optFunc {
+	return func(a *runArgs) {
+		a.cmd.Stdout = w
+		a.cmd.Stderr = w
 	}
+}
 
-	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Dir = dir
-	cmd.Env = envv
-	cmd.Stdout = out
-	cmd.Stderr = out
-
-	startErr := cmd.Start()
-	if startErr != nil {
-		return false, startErr
+func runTimeout(timeout time.Duration) optFunc {
+	return func(a *runArgs) {
+		a.timeout = timeout
 	}
+}
 
-	if err := timeout(d, cmd.Wait); err != nil {
-		if _, ok := err.(timeoutError); ok {
-			cmd.Process.Kill()
-		}
-		return false, err
+func runDir(dir string) optFunc {
+	return func(a *runArgs) {
+		a.cmd.Dir = dir
 	}
-	return true, nil
+}
+
+func runEnv(env []string) optFunc {
+	return func(a *runArgs) {
+		a.cmd.Env = env
+	}
 }
 
 // timeout runs f and returns its error value, or if the function does not
@@ -92,4 +84,15 @@ type timeoutError time.Duration
 
 func (e timeoutError) Error() string {
 	return fmt.Sprintf("timed out after %v", time.Duration(e))
+}
+
+// optFunc implements runOpt with a function, like http.HandlerFunc.
+type optFunc func(*runArgs)
+
+func (f optFunc) modArgs(a *runArgs) { f(a) }
+
+// internal detail to exec.go:
+type runArgs struct {
+	cmd     *exec.Cmd
+	timeout time.Duration
 }

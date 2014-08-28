@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -409,15 +410,14 @@ func (b *Builder) buildRepoOnHash(workpath, hash, cmd string) (buildLog string, 
 	}
 
 	// build
-	var buildlog bytes.Buffer
+	var buildbuf bytes.Buffer
 	logfile := filepath.Join(workpath, "build.log")
 	f, err := os.Create(logfile)
 	if err != nil {
-		buildLog = err.Error()
-		return
+		return err.Error(), 0, err
 	}
 	defer f.Close()
-	w := io.MultiWriter(f, &buildlog)
+	w := io.MultiWriter(f, &buildbuf)
 
 	// go's build command is a script relative to the srcDir, whereas
 	// gccgo's build command is usually "make check-go" in the srcDir.
@@ -427,23 +427,28 @@ func (b *Builder) buildRepoOnHash(workpath, hash, cmd string) (buildLog string, 
 		}
 	}
 
-	// make sure commands with extra arguments are handled properly
-	splitCmd := strings.Split(cmd, " ")
+	// naive splitting of command from its arguments:
+	args := strings.Split(cmd, " ")
+	c := exec.Command(args[0], args[1:]...)
+	c.Dir = srcDir
+	c.Env = b.envv()
+	if *verbose {
+		c.Stdout = io.MultiWriter(os.Stdout, w)
+		c.Stderr = io.MultiWriter(os.Stderr, w)
+	} else {
+		c.Stdout = w
+		c.Stderr = w
+	}
+
 	startTime := time.Now()
-	ok, err := runOutput(*buildTimeout, b.envv(), w, srcDir, splitCmd...)
-	runTime = time.Now().Sub(startTime)
-	if !ok && err == nil {
-		err = fmt.Errorf("build failed")
+	err = run(c, runTimeout(*buildTimeout))
+	runTime = time.Since(startTime)
+	if err != nil {
+		fmt.Fprintf(w, "Build complete, duration %v. Result: error: %v\n", runTime, err)
+	} else {
+		fmt.Fprintf(w, "Build complete, duration %v. Result: success\n", runTime)
 	}
-	errf := func() string {
-		if err != nil {
-			return fmt.Sprintf("error: %v", err)
-		}
-		return "success"
-	}
-	fmt.Fprintf(w, "Build complete, duration %v. Result: %v\n", runTime, errf())
-	buildLog = buildlog.String()
-	return
+	return buildbuf.String(), runTime, err
 }
 
 // failBuild checks for a new commit for this builder
@@ -516,13 +521,12 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
 	}
 
 	// fetch package and dependencies
-	log, ok, err := runLog(*cmdTimeout, env, goPath, goTool, "get", "-d", pkg+"/...")
-	if err == nil && !ok {
-		err = fmt.Errorf("go exited with status 1")
-	}
+	var outbuf bytes.Buffer
+	err := run(exec.Command(goTool, "get", "-d", pkg+"/..."), runEnv(env), allOutput(&outbuf), runDir(goPath))
 	if err != nil {
-		return log, err
+		return outbuf.String(), err
 	}
+	outbuf.Reset()
 
 	// hg update to the specified hash
 	pkgmaster, err := vcs.RepoRootForImportPath(pkg, *verbose)
@@ -538,11 +542,9 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
 	}
 
 	// test the package
-	log, ok, err = runLog(*buildTimeout, env, goPath, goTool, "test", "-short", pkg+"/...")
-	if err == nil && !ok {
-		err = fmt.Errorf("go exited with status 1")
-	}
-	return log, err
+	err = run(exec.Command(goTool, "test", "-short", pkg+"/..."),
+		runTimeout(*buildTimeout), runEnv(env), allOutput(&outbuf), runDir(goPath))
+	return outbuf.String(), err
 }
 
 // repoForTool returns the correct RepoRoot for the buildTool, or an error if

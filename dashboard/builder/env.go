@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -151,16 +152,10 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 	}
 
 	// get the modified files for this commit.
-	statusCmd := []string{
-		"hg",
-		"status",
-		"--no-status",
-		"--change",
-		hash,
-	}
 
 	var buf bytes.Buffer
-	if _, err := runOutput(*cmdTimeout, envv, &buf, repo.Path, statusCmd...); err != nil {
+	if err := run(exec.Command("hg", "status", "--no-status", "--change", hash),
+		allOutput(&buf), runDir(repo.Path), runEnv(envv)); err != nil {
 		return "", fmt.Errorf("Failed to find the modified files for %s: %s", hash, err)
 	}
 	modifiedFiles := strings.Split(buf.String(), "\n")
@@ -204,7 +199,7 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 	}
 
 	buf.Reset()
-	if _, err := runOutput(*cmdTimeout, envv, &buf, gccpath, logCmd...); err != nil {
+	if err := run(exec.Command(gccpath, logCmd...), runEnv(envv), allOutput(&buf), runDir(gccpath)); err != nil {
 		return "", fmt.Errorf("%s: %s", errMsg, err)
 	}
 	gccRev := buf.String()
@@ -214,13 +209,7 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 
 	// checkout gccRev
 	// TODO(cmang): Fix this to work in parallel mode.
-	checkoutCmd := []string{
-		"git",
-		"reset",
-		"--hard",
-		strings.TrimSpace(gccRev),
-	}
-	if _, err := runOutput(*cmdTimeout, envv, ioutil.Discard, gccpath, checkoutCmd...); err != nil {
+	if err := run(exec.Command("git", "reset", "--hard", strings.TrimSpace(gccRev)), runEnv(envv), runDir(gccpath)); err != nil {
 		return "", fmt.Errorf("Failed to checkout commit at revision %s: %s", gccRev, err)
 	}
 
@@ -231,18 +220,16 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 	}
 
 	// configure GCC with substituted gofrontend and libgo
-	gccConfigCmd := []string{
-		filepath.Join(gccpath, "configure"),
+	if err := run(exec.Command(filepath.Join(gccpath, "configure"),
 		"--enable-languages=c,c++,go",
 		"--disable-bootstrap",
 		"--disable-multilib",
-	}
-	if _, err := runOutput(*cmdTimeout, envv, ioutil.Discard, gccobjdir, gccConfigCmd...); err != nil {
-		return "", fmt.Errorf("Failed to configure GCC: %s", err)
+	), runEnv(envv), runDir(gccobjdir)); err != nil {
+		return "", fmt.Errorf("Failed to configure GCC: %v", err)
 	}
 
 	// build gcc
-	if _, err := runOutput(*buildTimeout, envv, ioutil.Discard, gccobjdir, "make"); err != nil {
+	if err := run(exec.Command("make"), runTimeout(*buildTimeout), runEnv(envv), runDir(gccobjdir)); err != nil {
 		return "", fmt.Errorf("Failed to build GCC: %s", err)
 	}
 
