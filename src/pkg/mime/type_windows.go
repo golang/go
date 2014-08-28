@@ -58,6 +58,6 @@ func initMime() {
 
 func initMimeForTests() map[string]string {
 	return map[string]string{
-		".png": "image/png",
+		".PnG": "image/png",
 	}
 }

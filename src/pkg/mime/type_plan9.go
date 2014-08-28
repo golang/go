@@ -48,6 +48,6 @@ func initMimeForTests() map[string]string {
 	return map[string]string{
 		".t1":  "application/test",
 		".t2":  "text/test; charset=utf-8",
-		".png": "image/png",
+		".pNg": "image/png",
 	}
 }
