@@ -120,6 +120,12 @@ runtime·goenvs_unix(void)
 	syscall·envs.cap = n;
 }
 
+Slice
+runtime·environ()
+{
+	return syscall·envs;
+}
+
 int32
 runtime·atoi(byte *p)
 {
@@ -275,6 +281,7 @@ runtime·fastrand1(void)
 static Mutex ticksLock;
 static int64 ticks;
 
+// Note: Called by runtime/pprof in addition to runtime code.
 int64
 runtime·tickspersecond(void)
 {

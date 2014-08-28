@@ -43,3 +43,9 @@ TEXT net·runtime_Semacquire(SB),NOSPLIT,$0-0
 
 TEXT net·runtime_Semrelease(SB),NOSPLIT,$0-0
 	JMP	runtime·asyncsemrelease(SB)
+
+TEXT runtime∕pprof·runtime_cyclesPerSecond(SB),NOSPLIT,$0-0
+	JMP	runtime·tickspersecond(SB)
+
+TEXT bytes·Compare(SB),NOSPLIT,$0-0
+	JMP	runtime·cmpbytes(SB)

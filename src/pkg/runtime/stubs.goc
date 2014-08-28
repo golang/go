@@ -68,3 +68,8 @@ func reflect·typelinks() (ret Slice) {
         ret.len = runtime·etypelink - runtime·typelink;
         ret.cap = ret.len;
 }
+
+// For testing.
+func gogoBytes() (x int32) {
+	x = RuntimeGogoBytes;
+}

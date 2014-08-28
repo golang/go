@@ -97,7 +97,10 @@ type stringer interface {
 	String() string
 }
 
-func typestring(interface{}) string
+func typestring(x interface{}) string {
+	e := (*eface)(unsafe.Pointer(&x))
+	return *e._type._string
+}
 
 // For calling from C.
 // Prints an argument passed to panic.
