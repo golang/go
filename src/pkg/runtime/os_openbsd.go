@@ -15,6 +15,6 @@ func raise(sig int32)
 func kqueue() int32
 func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
 func closeonexec(fd int32)
-func tfork(param unsafe.Pointer, psize uintptr, mm, gg, fn unsafe.Pointer) int64
+func tfork(param unsafe.Pointer, psize uintptr, mm, gg, fn unsafe.Pointer) int32
 func thrsleep(ident unsafe.Pointer, clock_id int32, tsp, lock, abort unsafe.Pointer) int32
 func thrwakeup(ident unsafe.Pointer, n int32) int32

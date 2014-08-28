@@ -11,7 +11,7 @@
 
 #define CLOCK_MONOTONIC	$3
 
-// int64 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+// int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·tfork(SB),NOSPLIT,$32
 
 	// Copy mp, gp and fn off parent stack for use by child.
@@ -27,13 +27,13 @@ TEXT runtime·tfork(SB),NOSPLIT,$32
 	// Return if tfork syscall failed.
 	JCC	4(PC)
 	NEGQ	AX
-	MOVQ	AX, ret+40(FP)
+	MOVL	AX, ret+40(FP)
 	RET
 
 	// In parent, return.
 	CMPL	AX, $0
 	JEQ	3(PC)
-	MOVQ	AX, ret+40(FP)
+	MOVL	AX, ret+40(FP)
 	RET
 
 	// Set FS to point at m->tls.

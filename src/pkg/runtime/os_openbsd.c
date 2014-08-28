@@ -26,7 +26,7 @@ extern SigTab runtime·sigtab[];
 static Sigset sigset_none;
 static Sigset sigset_all = ~(Sigset)0;
 
-extern int64 runtime·tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+extern int32 runtime·tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
 extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
 extern int32 runtime·thrwakeup(void *ident, int32 n);
 
