@@ -59,7 +59,7 @@ func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
 
 // Puts the current goroutine into a waiting state and unlocks the lock.
 // The goroutine can be made runnable again by calling goready(gp).
-func goparkunlock(lock *lock, reason string) {
+func goparkunlock(lock *mutex, reason string) {
 	gopark(unsafe.Pointer(&parkunlock_c), unsafe.Pointer(lock), reason)
 }
 

@@ -34,7 +34,7 @@ enum
 };
 
 void
-runtime·lock(Lock *l)
+runtime·lock(Mutex *l)
 {
 	uintptr v;
 	uint32 i, spin;
@@ -90,7 +90,7 @@ unlocked:
 }
 
 void
-runtime·unlock(Lock *l)
+runtime·unlock(Mutex *l)
 {
 	uintptr v;
 	M *mp;

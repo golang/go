@@ -272,7 +272,7 @@ runtime·fastrand1(void)
 	return x;
 }
 
-static Lock ticksLock;
+static Mutex ticksLock;
 static int64 ticks;
 
 int64

@@ -13,7 +13,7 @@ const (
 )
 
 var (
-	ifaceLock lock // lock for accessing hash
+	ifaceLock mutex // lock for accessing hash
 	hash      [hashSize]*itab
 )
 
@@ -51,7 +51,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	var locked int
 	for locked = 0; locked < 2; locked++ {
 		if locked != 0 {
-			golock(&ifaceLock)
+			lock(&ifaceLock)
 		}
 		for m = (*itab)(atomicloadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
 			if m.inter == inter && m._type == typ {
@@ -69,7 +69,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 					}
 				}
 				if locked != 0 {
-					gounlock(&ifaceLock)
+					unlock(&ifaceLock)
 				}
 				return m
 			}
@@ -106,7 +106,7 @@ search:
 		// didn't find method
 		if !canfail {
 			if locked != 0 {
-				gounlock(&ifaceLock)
+				unlock(&ifaceLock)
 			}
 			panic(&TypeAssertionError{"", *typ._string, *inter.typ._string, *iname})
 		}
@@ -119,7 +119,7 @@ search:
 	}
 	m.link = hash[h]
 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
-	gounlock(&ifaceLock)
+	unlock(&ifaceLock)
 	if m.bad != 0 {
 		return nil
 	}

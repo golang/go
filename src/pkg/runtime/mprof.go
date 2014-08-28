@@ -12,7 +12,7 @@ import (
 // Patterned after tcmalloc's algorithms; shorter code.
 
 // NOTE(rsc): Everything here could use cas if contention became an issue.
-var proflock lock
+var proflock mutex
 
 // All memory allocations are local and do not escape outside of the profiler.
 // The profiler is forbidden from referring to garbage-collected memory.
@@ -35,7 +35,7 @@ var (
 // the testing package's -test.memprofile flag instead
 // of calling MemProfile directly.
 func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
-	golock(&proflock)
+	lock(&proflock)
 	clear := true
 	for b := mbuckets; b != nil; b = b.allnext {
 		if inuseZero || b.data.mp.alloc_bytes != b.data.mp.free_bytes {
@@ -69,7 +69,7 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 			}
 		}
 	}
-	gounlock(&proflock)
+	unlock(&proflock)
 	return
 }
 
@@ -114,7 +114,7 @@ func record(r *MemProfileRecord, b *bucket) {
 // the testing package's -test.blockprofile flag instead
 // of calling BlockProfile directly.
 func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
-	golock(&proflock)
+	lock(&proflock)
 	for b := bbuckets; b != nil; b = b.allnext {
 		n++
 	}
@@ -137,7 +137,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 			idx++
 		}
 	}
-	gounlock(&proflock)
+	unlock(&proflock)
 	return
 }
 

@@ -166,7 +166,7 @@ extern byte runtime·ebss[];
 extern byte runtime·gcdata[];
 extern byte runtime·gcbss[];
 
-static Lock	finlock;	// protects the following variables
+static Mutex	finlock;	// protects the following variables
 static FinBlock	*finq;		// list of finalizers that are to be executed
 static FinBlock	*finc;		// cache of free blocks
 static FinBlock	*allfin;	// list of all blocks
@@ -175,7 +175,7 @@ bool	runtime·fingwake;
 BitVector	runtime·gcdatamask;
 BitVector	runtime·gcbssmask;
 
-static Lock	gclock;
+static Mutex	gclock;
 
 static void	runfinq(void);
 static void	bgsweep(void);
@@ -1892,7 +1892,7 @@ runtime·unrollgcproginplace_m(void)
 void
 runtime·unrollgcprog_m(void)
 {
-	static Lock lock;
+	static Mutex lock;
 	Type *typ;
 	byte *mask, *prog;
 	uintptr pos;

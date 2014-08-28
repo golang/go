@@ -6,7 +6,7 @@
 #include "type.h"
 #include "../../cmd/ld/textflag.h"
 
-//static Lock debuglock;
+//static Mutex debuglock;
 
 static void vprintf(int8*, byte*);
 

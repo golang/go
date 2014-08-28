@@ -32,7 +32,7 @@ enum
 //     order = log_2(size/FixedStack)
 // There is a free list for each order.
 static MSpan stackpool[NumStackOrders];
-static Lock stackpoolmu;
+static Mutex stackpoolmu;
 // TODO: one lock per order?
 
 void

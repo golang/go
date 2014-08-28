@@ -350,7 +350,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 
 static struct
 {
-	Lock	lock;
+	Mutex	lock;
 	byte*	pos;
 	byte*	end;
 } persistent;

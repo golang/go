@@ -19,12 +19,12 @@ var Fintto64 = fintto64
 var F64toint = f64toint
 
 func entersyscall()
-func golockedOSThread() bool
+func lockedOSThread() bool
 func stackguard() (sp, limit uintptr)
 
 var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
-var LockedOSThread = golockedOSThread
+var LockedOSThread = lockedOSThread
 var Stackguard = stackguard
 
 type LFNode struct {

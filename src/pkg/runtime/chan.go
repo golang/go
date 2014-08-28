@@ -130,9 +130,9 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		t0 = cputicks()
 	}
 
-	golock(&c.lock)
+	lock(&c.lock)
 	if c.closed != 0 {
-		gounlock(&c.lock)
+		unlock(&c.lock)
 		panic("send on closed channel")
 	}
 
@@ -142,7 +142,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 			if raceenabled {
 				racesync(c, sg)
 			}
-			gounlock(&c.lock)
+			unlock(&c.lock)
 
 			recvg := sg.g
 			recvg.param = unsafe.Pointer(sg)
@@ -162,7 +162,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		}
 
 		if !block {
-			gounlock(&c.lock)
+			unlock(&c.lock)
 			return false
 		}
 
@@ -204,7 +204,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	var t1 int64
 	for c.qcount >= c.dataqsiz {
 		if !block {
-			gounlock(&c.lock)
+			unlock(&c.lock)
 			return false
 		}
 		gp := getg()
@@ -223,9 +223,9 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 			t1 = int64(mysg.releasetime)
 		}
 		releaseSudog(mysg)
-		golock(&c.lock)
+		lock(&c.lock)
 		if c.closed != 0 {
-			gounlock(&c.lock)
+			unlock(&c.lock)
 			panic("send on closed channel")
 		}
 	}
@@ -246,13 +246,13 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	sg := c.recvq.dequeue()
 	if sg != nil {
 		recvg := sg.g
-		gounlock(&c.lock)
+		unlock(&c.lock)
 		if sg.releasetime != 0 {
 			*(*int64)(unsafe.Pointer(&sg.releasetime)) = cputicks()
 		}
 		goready(recvg)
 	} else {
-		gounlock(&c.lock)
+		unlock(&c.lock)
 	}
 	if t1 > 0 {
 		blockevent(t1-t0, 2)

@@ -26,7 +26,7 @@ struct	Hchan
 	uintgo	recvx;			// receive index
 	WaitQ	recvq;			// list of recv waiters
 	WaitQ	sendq;			// list of send waiters
-	Lock	lock;
+	Mutex	lock;
 };
 
 // Buffer follows Hchan immediately in memory.

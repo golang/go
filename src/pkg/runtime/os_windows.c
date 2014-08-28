@@ -485,7 +485,7 @@ runtime·profileloop1(void)
 void
 runtime·resetcpuprofiler(int32 hz)
 {
-	static Lock lock;
+	static Mutex lock;
 	void *timer, *thread;
 	int32 ms;
 	int64 due;

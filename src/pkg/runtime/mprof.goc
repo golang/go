@@ -14,7 +14,7 @@ package runtime
 #include "type.h"
 
 // NOTE(rsc): Everything here could use cas if contention became an issue.
-extern Lock runtime·proflock;
+extern Mutex runtime·proflock;
 
 // All memory allocations are local and do not escape outside of the profiler.
 // The profiler is forbidden from referring to garbage-collected memory.
@@ -296,7 +296,7 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 
 // Tracing of alloc/free/gc.
 
-static Lock tracelock;
+static Mutex tracelock;
 
 void
 runtime·tracealloc(void *p, uintptr size, Type *type)

@@ -23,15 +23,6 @@ package runtime
 // These invariants do not hold yet but will be established once we have
 // finished converting runtime support code from C to Go.
 
-#pragma textflag NOSPLIT
-func golock(p *Lock) {
-	runtime·lock(p);
-}
-#pragma textflag NOSPLIT
-func gounlock(p *Lock) {
-	runtime·unlock(p);
-}
-
 // entry point for testing
 // TODO: mcall and run on M stack
 func gostringW(str Slice) (s String) {
