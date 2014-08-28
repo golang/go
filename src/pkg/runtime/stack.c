@@ -899,7 +899,7 @@ runtime·newstack(void)
 	sp = gp->sched.sp;
 	if(thechar == '6' || thechar == '8') {
 		// The call to morestack cost a word.
-		sp -= sizeof(uintptr);
+		sp -= sizeof(uintreg);
 	}
 	if(StackDebug >= 1 || sp < gp->stackguard - StackGuard) {
 		runtime·printf("runtime: newstack framesize=%p argsize=%p sp=%p stack=[%p, %p]\n"

@@ -9,32 +9,37 @@
 #define NACL_SYSCALL(code) \
 	MOVW	$(0x10000 + ((code)<<5)), R8; BL (R8)
 
-#define NACL_SYSJMP(code) \
-	MOVW	$(0x10000 + ((code)<<5)), R8; B (R8)
-
 TEXT runtime·exit(SB),NOSPLIT,$0
 	MOVW	code+0(FP), R0
-	NACL_SYSJMP(SYS_exit)
+	NACL_SYSCALL(SYS_exit)
+	RET
 
 TEXT runtime·exit1(SB),NOSPLIT,$0
 	MOVW	code+0(FP), R0
-	NACL_SYSJMP(SYS_thread_exit)
+	NACL_SYSCALL(SYS_thread_exit)
+	RET
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVW	name+0(FP), R0
 	MOVW	name+0(FP), R1
 	MOVW	name+0(FP), R2
-	NACL_SYSJMP(SYS_open)
+	NACL_SYSCALL(SYS_open)
+	MOVW	R0, ret+12(FP)
+	RET
 
 TEXT runtime·close(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0
-	NACL_SYSJMP(SYS_close)
+	NACL_SYSCALL(SYS_close)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0
 	MOVW	p+4(FP), R1
 	MOVW	n+8(FP), R2
-	NACL_SYSJMP(SYS_read)
+	NACL_SYSCALL(SYS_read)
+	MOVW	R0, ret+12(FP)
+	RET
 
 // func naclWrite(fd int, b []byte) int
 TEXT syscall·naclWrite(SB),NOSPLIT,$0
@@ -49,75 +54,107 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0
 	MOVW	p+4(FP), R1
 	MOVW	n+8(FP), R2
-	NACL_SYSJMP(SYS_write)
+	NACL_SYSCALL(SYS_write)
+	MOVW	R0, ret+12(FP)
+	RET
 
 TEXT runtime·nacl_exception_stack(SB),NOSPLIT,$0
 	MOVW	p+0(FP), R0
 	MOVW	size+4(FP), R1
-	NACL_SYSJMP(SYS_exception_stack)
+	NACL_SYSCALL(SYS_exception_stack)
+	MOVW	R0, ret+8(FP)
+	RET
 
 TEXT runtime·nacl_exception_handler(SB),NOSPLIT,$0
 	MOVW	fn+0(FP), R0
 	MOVW	arg+4(FP), R1
-	NACL_SYSJMP(SYS_exception_handler)
+	NACL_SYSCALL(SYS_exception_handler)
+	MOVW	R0, ret+8(FP)
+	RET
 
 TEXT runtime·nacl_sem_create(SB),NOSPLIT,$0
 	MOVW	flag+0(FP), R0
-	NACL_SYSJMP(SYS_sem_create)
+	NACL_SYSCALL(SYS_sem_create)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·nacl_sem_wait(SB),NOSPLIT,$0
 	MOVW	sem+0(FP), R0
-	NACL_SYSJMP(SYS_sem_wait)
+	NACL_SYSCALL(SYS_sem_wait)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·nacl_sem_post(SB),NOSPLIT,$0
 	MOVW	sem+0(FP), R0
-	NACL_SYSJMP(SYS_sem_post)
+	NACL_SYSCALL(SYS_sem_post)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·nacl_mutex_create(SB),NOSPLIT,$0
 	MOVW	flag+0(FP), R0
-	NACL_SYSJMP(SYS_mutex_create)
+	NACL_SYSCALL(SYS_mutex_create)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·nacl_mutex_lock(SB),NOSPLIT,$0
 	MOVW	mutex+0(FP), R0
-	NACL_SYSJMP(SYS_mutex_lock)
+	NACL_SYSCALL(SYS_mutex_lock)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·nacl_mutex_trylock(SB),NOSPLIT,$0
 	MOVW	mutex+0(FP), R0
-	NACL_SYSJMP(SYS_mutex_trylock)
+	NACL_SYSCALL(SYS_mutex_trylock)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·nacl_mutex_unlock(SB),NOSPLIT,$0
 	MOVW	mutex+0(FP), R0
-	NACL_SYSJMP(SYS_mutex_unlock)
+	NACL_SYSCALL(SYS_mutex_unlock)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·nacl_cond_create(SB),NOSPLIT,$0
 	MOVW	flag+0(FP), R0
-	NACL_SYSJMP(SYS_cond_create)
+	NACL_SYSCALL(SYS_cond_create)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·nacl_cond_wait(SB),NOSPLIT,$0
 	MOVW	cond+0(FP), R0
 	MOVW	n+4(FP), R1
-	NACL_SYSJMP(SYS_cond_wait)
+	NACL_SYSCALL(SYS_cond_wait)
+	MOVW	R0, ret+8(FP)
+	RET
 
 TEXT runtime·nacl_cond_signal(SB),NOSPLIT,$0
 	MOVW	cond+0(FP), R0
-	NACL_SYSJMP(SYS_cond_signal)
+	NACL_SYSCALL(SYS_cond_signal)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·nacl_cond_broadcast(SB),NOSPLIT,$0
 	MOVW	cond+0(FP), R0
-	NACL_SYSJMP(SYS_cond_broadcast)
+	NACL_SYSCALL(SYS_cond_broadcast)
+	MOVW	R0, ret+4(FP)
+	RET
 
 TEXT runtime·nacl_cond_timed_wait_abs(SB),NOSPLIT,$0
 	MOVW	cond+0(FP), R0
 	MOVW	lock+4(FP), R1
 	MOVW	ts+8(FP), R2
-	NACL_SYSJMP(SYS_cond_timed_wait_abs)
+	NACL_SYSCALL(SYS_cond_timed_wait_abs)
+	MOVW	R0, ret+12(FP)
+	RET
 
 TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
 	MOVW	fn+0(FP), R0
 	MOVW	stk+4(FP), R1
 	MOVW	tls+8(FP), R2
 	MOVW	xx+12(FP), R3
-	NACL_SYSJMP(SYS_thread_create)
+	NACL_SYSCALL(SYS_thread_create)
+	MOVW	R0, ret+16(FP)
+	RET
 
 TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
 	MOVW	0(R9), R0 // TLS
@@ -130,10 +167,13 @@ TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
 TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$0
 	MOVW	ts+0(FP), R0
 	MOVW	extra+4(FP), R1
-	NACL_SYSJMP(SYS_nanosleep)
+	NACL_SYSCALL(SYS_nanosleep)
+	MOVW	R0, ret+8(FP)
+	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
-	NACL_SYSJMP(SYS_sched_yield)
+	NACL_SYSCALL(SYS_sched_yield)
+	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$8
 	MOVW	addr+0(FP), R0
@@ -173,7 +213,9 @@ TEXT syscall·now(SB),NOSPLIT,$0
 TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
 	MOVW	arg1+0(FP), R0
 	MOVW	arg2+4(FP), R1
-	NACL_SYSJMP(SYS_clock_gettime)
+	NACL_SYSCALL(SYS_clock_gettime)
+	MOVW	R0, ret+8(FP)
+	RET
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
