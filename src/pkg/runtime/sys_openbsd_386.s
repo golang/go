@@ -226,7 +226,7 @@ sigtramp_ret:
 TEXT runtime·tfork(SB),NOSPLIT,$12
 
 	// Copy mp, gp and fn from the parent stack onto the child stack.
-	MOVL	psize+4(FP), AX
+	MOVL	param+0(FP), AX
 	MOVL	8(AX), CX		// tf_stack
 	SUBL	$16, CX
 	MOVL	CX, 8(AX)
@@ -247,17 +247,15 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
 	INT	$0x80
 
 	// Return if tfork syscall failed.
-	JCC	5(PC)
+	JCC	4(PC)
 	NEGL	AX
-	MOVL	AX, ret_lo+20(FP)
-	MOVL	$-1, ret_hi+24(FP)
+	MOVL	AX, ret+20(FP)
 	RET
 
 	// In parent, return.
 	CMPL	AX, $0
-	JEQ	4(PC)
-	MOVL	AX, ret_lo+20(FP)
-	MOVL	$0, ret_hi+24(FP)
+	JEQ	3(PC)
+	MOVL	AX, ret+20(FP)
 	RET
 
 	// Paranoia: check that SP is as we expect.
