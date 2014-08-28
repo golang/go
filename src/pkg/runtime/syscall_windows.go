@@ -59,8 +59,8 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 		argsize += uintptrSize
 	}
 
-	golock(&cbs.lock)
-	defer gounlock(&cbs.lock)
+	lock(&cbs.lock)
+	defer unlock(&cbs.lock)
 
 	n := cbs.n
 	for i := 0; i < n; i++ {

@@ -132,9 +132,6 @@ var noequalcode uintptr
 // in panic.c
 func gothrow(s string)
 
-func golock(x *lock)
-func gounlock(x *lock)
-
 // Return the Go equivalent of the C Alg structure.
 // TODO: at some point Go will hold the truth for the layout
 // of runtime structures and C will be derived from it (if
@@ -201,6 +198,8 @@ func notetsleep(n *note, ns int64)
 func notewakeup(n *note)
 func notesleep(n *note)
 func noteclear(n *note)
+func lock(lk *mutex)
+func unlock(lk *mutex)
 
 //go:noescape
 func cas(ptr *uint32, old, new uint32) bool

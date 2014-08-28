@@ -7,8 +7,8 @@
 #include "../../cmd/ld/textflag.h"
 
 static struct {
-	Lock l;
-	byte pad[CacheLineSize-sizeof(Lock)];
+	Mutex l;
+	byte pad[CacheLineSize-sizeof(Mutex)];
 } locktab[57];
 
 #define LOCK(addr) (&locktab[((uintptr)(addr)>>3)%nelem(locktab)].l)

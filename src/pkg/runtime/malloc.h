@@ -242,7 +242,7 @@ struct MStats
 	uint64	nfree;  // number of frees
 
 	// Statistics about malloc heap.
-	// protected by mheap.Lock
+	// protected by mheap.lock
 	uint64	heap_alloc;	// bytes allocated and still in use
 	uint64	heap_sys;	// bytes obtained from system
 	uint64	heap_idle;	// bytes in idle spans
@@ -421,7 +421,7 @@ struct MSpan
 	int64   unusedsince;	// First time spotted by GC in MSpanFree state
 	uintptr npreleased;	// number of pages released to the OS
 	byte	*limit;		// end of data in span
-	Lock	specialLock;	// guards specials list
+	Mutex	specialLock;	// guards specials list
 	Special	*specials;	// linked list of special records sorted by offset.
 };
 
@@ -442,7 +442,7 @@ void	runtime·MSpanList_Remove(MSpan *span);	// from whatever list it is in
 // Central list of free objects of a given size.
 struct MCentral
 {
-	Lock  lock;
+	Mutex  lock;
 	int32 sizeclass;
 	MSpan nonempty;	// list of spans with a free object
 	MSpan empty;	// list of spans with no free objects (or cached in an MCache)
@@ -458,7 +458,7 @@ bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, ML
 // but all the other global data is here too.
 struct MHeap
 {
-	Lock  lock;
+	Mutex  lock;
 	MSpan free[MaxMHeapList];	// free lists of given length
 	MSpan freelarge;		// free lists length >= MaxMHeapList
 	MSpan busy[MaxMHeapList];	// busy lists of large objects of given length
@@ -484,7 +484,7 @@ struct MHeap
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are
-	// spaced CacheLineSize bytes apart, so that each MCentral.Lock
+	// spaced CacheLineSize bytes apart, so that each MCentral.lock
 	// gets its own cache line.
 	struct {
 		MCentral mcentral;
@@ -495,7 +495,7 @@ struct MHeap
 	FixAlloc cachealloc;	// allocator for MCache*
 	FixAlloc specialfinalizeralloc;	// allocator for SpecialFinalizer*
 	FixAlloc specialprofilealloc;	// allocator for SpecialProfile*
-	Lock speciallock; // lock for sepcial record allocators.
+	Mutex speciallock; // lock for sepcial record allocators.
 
 	// Malloc stats.
 	uint64 largefree;	// bytes freed for large objects (>MaxSmallSize)

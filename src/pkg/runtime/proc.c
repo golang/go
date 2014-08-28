@@ -26,7 +26,7 @@
 
 typedef struct Sched Sched;
 struct Sched {
-	Lock	lock;
+	Mutex	lock;
 
 	uint64	goidgen;
 
@@ -46,7 +46,7 @@ struct Sched {
 	int32	runqsize;
 
 	// Global cache of dead G's.
-	Lock	gflock;
+	Mutex	gflock;
 	G*	gfree;
 	int32	ngfree;
 
@@ -84,7 +84,7 @@ int8*	runtime·goos;
 int32	runtime·ncpu;
 static int32	newprocs;
 
-static	Lock allglock;	// the following vars are protected by this lock or by stoptheworld
+static	Mutex allglock;	// the following vars are protected by this lock or by stoptheworld
 G**	runtime·allg;
 uintptr runtime·allglen;
 static	uintptr allgcap;
@@ -133,7 +133,7 @@ static void allgadd(G*);
 static void forcegchelper(void);
 static struct
 {
-	Lock	lock;
+	Mutex	lock;
 	G*	g;
 	FuncVal	fv;
 	uint32	idle;
@@ -1570,7 +1570,7 @@ runtime·parkunlock_c(G *gp, void *lock)
 // Puts the current goroutine into a waiting state and unlocks the lock.
 // The goroutine can be made runnable again by calling runtime·ready(gp).
 void
-runtime·parkunlock(Lock *lock, String reason)
+runtime·parkunlock(Mutex *lock, String reason)
 {
 	runtime·park(runtime·parkunlock_c, lock, reason);
 }
@@ -2399,7 +2399,7 @@ runtime·badreflectcall(void) // called from assembly
 }
 
 static struct {
-	Lock lock;
+	Mutex lock;
 	void (*fn)(uintptr*, int32);
 	int32 hz;
 } prof;

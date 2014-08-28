@@ -24,7 +24,7 @@ import "unsafe"
 // Asynchronous semaphore for sync.Mutex.
 
 type semaRoot struct {
-	lock
+	lock  mutex
 	head  *sudog
 	tail  *sudog
 	nwait uint32 // Number of waiters. Read w/o the lock.
@@ -69,13 +69,13 @@ func semacquire(addr *uint32, profile bool) {
 		s.releasetime = -1
 	}
 	for {
-		golock(&root.lock)
+		lock(&root.lock)
 		// Add ourselves to nwait to disable "easy case" in semrelease.
 		xadd(&root.nwait, 1)
 		// Check cansemacquire to avoid missed wakeup.
 		if cansemacquire(addr) {
 			xadd(&root.nwait, -1)
-			gounlock(&root.lock)
+			unlock(&root.lock)
 			break
 		}
 		// Any semrelease after the cansemacquire knows we're waiting
@@ -104,11 +104,11 @@ func semrelease(addr *uint32) {
 	}
 
 	// Harder case: search for a waiter and wake it.
-	golock(&root.lock)
+	lock(&root.lock)
 	if atomicload(&root.nwait) == 0 {
 		// The count is already consumed by another goroutine,
 		// so no need to wake up another goroutine.
-		gounlock(&root.lock)
+		unlock(&root.lock)
 		return
 	}
 	s := root.head
@@ -119,7 +119,7 @@ func semrelease(addr *uint32) {
 			break
 		}
 	}
-	gounlock(&root.lock)
+	unlock(&root.lock)
 	if s != nil {
 		if s.releasetime != 0 {
 			s.releasetime = cputicks()
@@ -174,14 +174,14 @@ func (root *semaRoot) dequeue(s *sudog) {
 
 // Synchronous semaphore for sync.Cond.
 type syncSema struct {
-	lock lock
+	lock mutex
 	head *sudog
 	tail *sudog
 }
 
 // Syncsemacquire waits for a pairing syncsemrelease on the same semaphore s.
 func syncsemacquire(s *syncSema) {
-	golock(&s.lock)
+	lock(&s.lock)
 	if s.head != nil && s.head.nrelease > 0 {
 		// Have pending release, consume it.
 		var wake *sudog
@@ -193,7 +193,7 @@ func syncsemacquire(s *syncSema) {
 				s.tail = nil
 			}
 		}
-		gounlock(&s.lock)
+		unlock(&s.lock)
 		if wake != nil {
 			goready(wake.g)
 		}
@@ -225,7 +225,7 @@ func syncsemacquire(s *syncSema) {
 
 // Syncsemrelease waits for n pairing syncsemacquire on the same semaphore s.
 func syncsemrelease(s *syncSema, n uint32) {
-	golock(&s.lock)
+	lock(&s.lock)
 	for n > 0 && s.head != nil && s.head.nrelease < 0 {
 		// Have pending acquire, satisfy it.
 		wake := s.head
@@ -254,7 +254,7 @@ func syncsemrelease(s *syncSema, n uint32) {
 		s.tail = w
 		goparkunlock(&s.lock, "semarelease")
 	} else {
-		gounlock(&s.lock)
+		unlock(&s.lock)
 	}
 }
 

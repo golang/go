@@ -35,7 +35,7 @@ enum
 // Note that there can be spinning threads during all states - they do not
 // affect mutex's state.
 void
-runtime·lock(Lock *l)
+runtime·lock(Mutex *l)
 {
 	uint32 i, v, wait, spin;
 
@@ -89,7 +89,7 @@ runtime·lock(Lock *l)
 }
 
 void
-runtime·unlock(Lock *l)
+runtime·unlock(Mutex *l)
 {
 	uint32 v;
 

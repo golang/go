@@ -56,14 +56,14 @@ void	runtime·deltimer(Timer*);
 
 struct PollDesc
 {
-	PollDesc* link;	// in pollcache, protected by pollcache.Lock
+	PollDesc* link;	// in pollcache, protected by pollcache.lock
 
 	// The lock protects pollOpen, pollSetDeadline, pollUnblock and deadlineimpl operations.
 	// This fully covers seq, rt and wt variables. fd is constant throughout the PollDesc lifetime.
 	// pollReset, pollWait, pollWaitCanceled and runtime·netpollready (IO rediness notification)
 	// proceed w/o taking the lock. So closing, rg, rd, wg and wd are manipulated
 	// in a lock-free way by all operations.
-	Lock	lock;		// protectes the following fields
+	Mutex	lock;		// protects the following fields
 	uintptr	fd;
 	bool	closing;
 	uintptr	seq;	// protects from stale timers and ready notifications
@@ -78,7 +78,7 @@ struct PollDesc
 
 static struct
 {
-	Lock		lock;
+	Mutex		lock;
 	PollDesc*	first;
 	// PollDesc objects must be type-stable,
 	// because we can get ready notification from epoll/kqueue

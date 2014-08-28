@@ -11,7 +11,7 @@
 // Code related to defer, panic and recover.
 
 uint32 runtime·panicking;
-static Lock paniclk;
+static Mutex paniclk;
 
 // Each P holds pool for defers with arg sizes 8, 24, 40, 56 and 72 bytes.
 // Memory block is 40 (24 for 32 bits) bytes larger due to Defer header.
@@ -448,7 +448,7 @@ runtime·dopanic(int32 unused)
 		// Let it print what it needs to print.
 		// Wait forever without chewing up cpu.
 		// It will exit when it's done.
-		static Lock deadlock;
+		static Mutex deadlock;
 		runtime·lock(&deadlock);
 		runtime·lock(&deadlock);
 	}

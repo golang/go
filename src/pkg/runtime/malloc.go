@@ -422,11 +422,11 @@ func gogc(force int32) {
 		return
 	}
 	if gcpercent == gcpercentUnknown {
-		golock(&mheap_.lock)
+		lock(&mheap_.lock)
 		if gcpercent == gcpercentUnknown {
 			gcpercent = readgogc()
 		}
-		gounlock(&mheap_.lock)
+		unlock(&mheap_.lock)
 	}
 	if gcpercent < 0 {
 		return

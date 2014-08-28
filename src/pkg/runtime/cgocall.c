@@ -115,7 +115,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	g->m->ncgocall++;
 
 	/*
-	 * Lock g to m to ensure we stay on the same stack if we do a
+	 * Mutex g to m to ensure we stay on the same stack if we do a
 	 * cgo callback. Add entry to defer stack in case of panic.
 	 */
 	runtime·lockOSThread();

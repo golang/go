@@ -102,7 +102,7 @@ struct Profile {
 	bool eod_sent;  // special end-of-data record sent; => flushing
 };
 
-static Lock lk;
+static Mutex lk;
 static Profile *prof;
 
 static void tick(uintptr*, int32);

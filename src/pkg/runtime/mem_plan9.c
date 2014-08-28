@@ -10,7 +10,7 @@
 
 extern byte runtime·end[];
 static byte *bloc = { runtime·end };
-static Lock memlock;
+static Mutex memlock;
 
 enum
 {

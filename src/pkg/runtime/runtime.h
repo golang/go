@@ -57,7 +57,7 @@ typedef	struct	Func		Func;
 typedef	struct	G		G;
 typedef	struct	Gobuf		Gobuf;
 typedef	struct	SudoG		SudoG;
-typedef	struct	Lock		Lock;
+typedef	struct	Mutex		Mutex;
 typedef	struct	M		M;
 typedef	struct	P		P;
 typedef	struct	Note		Note;
@@ -160,7 +160,7 @@ enum
 /*
  * structures
  */
-struct	Lock
+struct	Mutex
 {
 	// Futex-based impl treats it as uint32 key,
 	// while sema-based impl as M* waitm.
@@ -394,7 +394,7 @@ struct	M
 
 struct P
 {
-	Lock	lock;
+	Mutex	lock;
 
 	int32	id;
 	uint32	status;		// one of Pidle/Prunning/...
@@ -915,7 +915,7 @@ void	runtime·gosched(void);
 void	runtime·gosched_m(G*);
 void	runtime·schedtrace(bool);
 void	runtime·park(bool(*)(G*, void*), void*, String);
-void	runtime·parkunlock(Lock*, String);
+void	runtime·parkunlock(Mutex*, String);
 void	runtime·tsleep(int64, String);
 M*	runtime·newm(void);
 void	runtime·goexit(void);
@@ -986,10 +986,10 @@ extern uint32 runtime·worldsema;
  * mutual exclusion locks.  in the uncontended case,
  * as fast as spin locks (just a few user-level instructions),
  * but on the contention path they sleep in the kernel.
- * a zeroed Lock is unlocked (no need to initialize each lock).
+ * a zeroed Mutex is unlocked (no need to initialize each lock).
  */
-void	runtime·lock(Lock*);
-void	runtime·unlock(Lock*);
+void	runtime·lock(Mutex*);
+void	runtime·unlock(Mutex*);
 
 /*
  * sleep and wakeup on one-time events.
@@ -1030,7 +1030,7 @@ void	runtime·futexsleep(uint32*, uint32, int64);
 void	runtime·futexwakeup(uint32*, uint32);
 
 /*
- * Lock-free stack.
+ * Mutex-free stack.
  * Initialize uint64 head to 0, compare with 0 to test for emptiness.
  * The stack does not keep pointers to nodes,
  * so they can be garbage collected if there are no other pointers to nodes.

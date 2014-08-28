@@ -11,7 +11,7 @@ package runtime
 #include "../../cmd/ld/textflag.h"
 
 extern	Itab*	runtime·hash[1009];
-extern	Lock	runtime·ifaceLock;
+extern	Mutex	runtime·ifaceLock;
 
 // TODO: delete this when no longer used (ifaceE2I2 is all that's left)
 static Itab*
