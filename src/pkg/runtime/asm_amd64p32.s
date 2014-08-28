@@ -275,7 +275,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-12
 	// restore when returning from f.
 	MOVL	0(SP), AX	// our caller's PC
 	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
-	LEAL	fn+0(FP), AX	// our caller's SP
+	LEAL	fv+0(FP), AX	// our caller's SP
 	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
 	MOVL	g(CX), AX
 	MOVL	AX, (m_morebuf+gobuf_g)(BX)
