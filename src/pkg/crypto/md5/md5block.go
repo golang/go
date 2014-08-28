@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // DO NOT EDIT.
-// Generate with: go run gen.go -full | gofmt >md5block.go
+// Generate with: go run gen.go -full -output md5block.go
 
 package md5
 
