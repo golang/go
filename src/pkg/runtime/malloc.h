@@ -551,9 +551,32 @@ void	runtime·gchelper(void);
 void	runtime·createfing(void);
 G*	runtime·wakefing(void);
 void	runtime·getgcmask(byte*, Type*, byte**, uintptr*);
+
+typedef struct Finalizer Finalizer;
+struct Finalizer
+{
+	FuncVal *fn;	// function to call
+	void *arg;	// ptr to object
+	uintptr nret;	// bytes of return values from fn
+	Type *fint;	// type of first argument of fn
+	PtrType *ot;	// type of ptr to object
+};
+
+typedef struct FinBlock FinBlock;
+struct FinBlock
+{
+	FinBlock *alllink;
+	FinBlock *next;
+	int32 cnt;
+	int32 cap;
+	Finalizer fin[1];
+};
+extern Mutex	runtime·finlock;	// protects the following variables
 extern G*	runtime·fing;
 extern bool	runtime·fingwait;
 extern bool	runtime·fingwake;
+extern FinBlock	*runtime·finq;		// list of finalizers that are to be executed
+extern FinBlock	*runtime·finc;		// cache of free blocks
 
 void	runtime·setprofilebucket(void *p, Bucket *b);
 

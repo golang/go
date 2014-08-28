@@ -97,8 +97,7 @@ search:
 			t := (*method)(add(unsafe.Pointer(x), unsafe.Sizeof(uncommontype{})+uintptr(j)*unsafe.Sizeof(method{})))
 			if t.mtyp == itype && t.name == iname && t.pkgpath == ipkgpath {
 				if m != nil {
-					f := (*func())(add(unsafe.Pointer(m), unsafe.Sizeof(itab{})+uintptr(k)*ptrSize))
-					*f = t.ifn
+					*(*unsafe.Pointer)(add(unsafe.Pointer(m), unsafe.Sizeof(itab{})+uintptr(k)*ptrSize)) = t.ifn
 				}
 				goto nextimethod
 			}

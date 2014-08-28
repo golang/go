@@ -423,107 +423,36 @@ runtime·cnewarray(Type *typ, intgo n)
 	return cnew(typ, n);
 }
 
-static void
-setFinalizer(Eface obj, Eface finalizer)
-{
-	byte *base;
-	uintptr size;
-	FuncType *ft;
-	int32 i;
-	uintptr nret;
-	Type *t;
-	Type *fint;
-	PtrType *ot;
-	Iface iface;
-
-	if(obj.type == nil) {
-		runtime·printf("runtime.SetFinalizer: first argument is nil interface\n");
-		goto throw;
-	}
-	if((obj.type->kind&KindMask) != KindPtr) {
-		runtime·printf("runtime.SetFinalizer: first argument is %S, not pointer\n", *obj.type->string);
-		goto throw;
-	}
-	ot = (PtrType*)obj.type;
-	// As an implementation detail we do not run finalizers for zero-sized objects,
-	// because we use &runtime·zerobase for all such allocations.
-	if(ot->elem != nil && ot->elem->size == 0)
-		return;
-	// The following check is required for cases when a user passes a pointer to composite literal,
-	// but compiler makes it a pointer to global. For example:
-	//	var Foo = &Object{}
-	//	func main() {
-	//		runtime.SetFinalizer(Foo, nil)
-	//	}
-	// See issue 7656.
-	if((byte*)obj.data < runtime·mheap.arena_start || runtime·mheap.arena_used <= (byte*)obj.data)
-		return;
-	if(!runtime·mlookup(obj.data, &base, &size, nil) || obj.data != base) {
-		// As an implementation detail we allow to set finalizers for an inner byte
-		// of an object if it could come from tiny alloc (see mallocgc for details).
-		if(ot->elem == nil || (ot->elem->kind&KindNoPointers) == 0 || ot->elem->size >= TinySize) {
-			runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block (%p)\n", obj.data);
-			goto throw;
-		}
-	}
-	if(finalizer.type != nil) {
-		runtime·createfing();
-		if((finalizer.type->kind&KindMask) != KindFunc)
-			goto badfunc;
-		ft = (FuncType*)finalizer.type;
-		if(ft->dotdotdot || ft->in.len != 1)
-			goto badfunc;
-		fint = *(Type**)ft->in.array;
-		if(fint == obj.type) {
-			// ok - same type
-		} else if((fint->kind&KindMask) == KindPtr && (fint->x == nil || fint->x->name == nil || obj.type->x == nil || obj.type->x->name == nil) && ((PtrType*)fint)->elem == ((PtrType*)obj.type)->elem) {
-			// ok - not same type, but both pointers,
-			// one or the other is unnamed, and same element type, so assignable.
-		} else if((fint->kind&KindMask) == KindInterface && ((InterfaceType*)fint)->mhdr.len == 0) {
-			// ok - satisfies empty interface
-		} else if((fint->kind&KindMask) == KindInterface && runtime·ifaceE2I2((InterfaceType*)fint, obj, &iface)) {
-			// ok - satisfies non-empty interface
-		} else
-			goto badfunc;
-
-		// compute size needed for return parameters
-		nret = 0;
-		for(i=0; i<ft->out.len; i++) {
-			t = ((Type**)ft->out.array)[i];
-			nret = ROUND(nret, t->align) + t->size;
-		}
-		nret = ROUND(nret, sizeof(void*));
-		ot = (PtrType*)obj.type;
-		if(!runtime·addfinalizer(obj.data, finalizer.data, nret, fint, ot)) {
-			runtime·printf("runtime.SetFinalizer: finalizer already set\n");
-			goto throw;
-		}
-	} else {
-		// NOTE: asking to remove a finalizer when there currently isn't one set is OK.
-		runtime·removefinalizer(obj.data);
-	}
-	return;
-
-badfunc:
-	runtime·printf("runtime.SetFinalizer: cannot pass %S to finalizer %S\n", *obj.type->string, *finalizer.type->string);
-throw:
-	runtime·throw("runtime.SetFinalizer");
-}
-
 void
 runtime·setFinalizer_m(void)
 {
-	Eface obj, finalizer;
+	FuncVal *fn;
+	void *arg;
+	uintptr nret;
+	Type *fint;
+	PtrType *ot;
 
-	obj.type = g->m->ptrarg[0];
-	obj.data = g->m->ptrarg[1];
-	finalizer.type = g->m->ptrarg[2];
-	finalizer.data = g->m->ptrarg[3];
+	fn = g->m->ptrarg[0];
+	arg = g->m->ptrarg[1];
+	nret = g->m->scalararg[0];
+	fint = g->m->ptrarg[2];
+	ot = g->m->ptrarg[3];
 	g->m->ptrarg[0] = nil;
 	g->m->ptrarg[1] = nil;
 	g->m->ptrarg[2] = nil;
 	g->m->ptrarg[3] = nil;
-	setFinalizer(obj, finalizer);
+
+	g->m->scalararg[0] = runtime·addfinalizer(arg, fn, nret, fint, ot);
+}
+
+void
+runtime·removeFinalizer_m(void)
+{
+	void *p;
+
+	p = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	runtime·removefinalizer(p);
 }
 
 // mcallable cache refill

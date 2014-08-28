@@ -154,7 +154,6 @@ static void
 printtypename(Type *t)
 {
 	Sym *s;
-	Type *t1;
 	int w;
 	char *n;
 
@@ -228,19 +227,8 @@ printtypename(Type *t)
 			Bprint(&outbuf, "%U", n);
 		break;
 	case TFUNC:
-		Bprint(&outbuf, "func(");
-		for(t1 = t->down; t1 != T; t1 = t1->down) {
-			if(t1->etype == TVOID)
-				break;
-			if(t1 != t->down)
-				Bprint(&outbuf, ", ");
-			printtypename(t1);
-		}
-		Bprint(&outbuf, ")");
-		if(t->link && t->link->etype != TVOID) {
-			Bprint(&outbuf, " ");
-			printtypename(t->link);
-		}
+		// There's no equivalent to a C function in the Go world.
+		Bprint(&outbuf, "unsafe.Pointer");
 		break;
 	case TDOT:
 		Bprint(&outbuf, "...interface{}");

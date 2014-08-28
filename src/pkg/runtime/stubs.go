@@ -39,6 +39,8 @@ func raceacquireg(gp *g, addr unsafe.Pointer)
 //go:noescape
 func racereleaseg(gp *g, addr unsafe.Pointer)
 
+func racefingo()
+
 // Should be a built-in for unsafe.Pointer?
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
@@ -77,6 +79,7 @@ var (
 	mprofMalloc_m,
 	gc_m,
 	setFinalizer_m,
+	removeFinalizer_m,
 	markallocated_m,
 	unrollgcprog_m,
 	unrollgcproginplace_m,
@@ -187,6 +190,7 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uns
 func munmap(addr unsafe.Pointer, n uintptr)
 func madvise(addr unsafe.Pointer, n uintptr, flags int32)
 func newstackcall(fv *funcval, addr unsafe.Pointer, size uint32)
+func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
 func procyield(cycles uint32)
 func osyield()
 func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
@@ -199,6 +203,7 @@ func notesleep(n *note)
 func noteclear(n *note)
 func lock(lk *mutex)
 func unlock(lk *mutex)
+func purgecachedstats(c *mcache)
 
 //go:noescape
 func cas(ptr *uint32, old, new uint32) bool

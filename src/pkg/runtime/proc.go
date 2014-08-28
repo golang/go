@@ -50,7 +50,7 @@ func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
 		gothrow("gopark: bad g status")
 	}
 	mp.waitlock = lock
-	mp.waitunlockf = *(*func(*g, unsafe.Pointer) bool)(unsafe.Pointer(&unlockf))
+	mp.waitunlockf = unlockf
 	gp.waitreason = reason
 	releasem(mp)
 	// can't do anything that might move the G between Ms here.
