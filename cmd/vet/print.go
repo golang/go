@@ -496,7 +496,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
 	isLn := strings.HasSuffix(name, "ln")
 	isF := strings.HasPrefix(name, "F")
 	args := call.Args
-	if name == "Log" {
+	if name == "Log" && len(args) > 0 {
 		// Special case: Don't complain about math.Log or cmplx.Log.
 		// Not strictly necessary because the only complaint likely is for Log("%d")
 		// but it feels wrong to check that math.Log is a good print function.
