@@ -425,3 +425,16 @@ func efacethash(e interface{}) uint32 {
 	}
 	return t.hash
 }
+
+func iterate_itabs(fn func(*itab)) {
+	for _, h := range hash {
+		for ; h != nil; h = h.link {
+			fn(h)
+		}
+	}
+}
+
+func ifaceE2I2(inter *interfacetype, e interface{}, r *fInterface) (ok bool) {
+	*r, ok = assertE2I2(inter, e)
+	return
+}
