@@ -138,26 +138,6 @@ struct Workbuf
 	byte*	obj[(WorkbufSize-sizeof(LFNode)-sizeof(uintptr))/PtrSize];
 };
 
-typedef struct Finalizer Finalizer;
-struct Finalizer
-{
-	FuncVal *fn;
-	void *arg;
-	uintptr nret;
-	Type *fint;
-	PtrType *ot;
-};
-
-typedef struct FinBlock FinBlock;
-struct FinBlock
-{
-	FinBlock *alllink;
-	FinBlock *next;
-	int32 cnt;
-	int32 cap;
-	Finalizer fin[1];
-};
-
 extern byte runtime·data[];
 extern byte runtime·edata[];
 extern byte runtime·bss[];
@@ -166,18 +146,19 @@ extern byte runtime·ebss[];
 extern byte runtime·gcdata[];
 extern byte runtime·gcbss[];
 
-static Mutex	finlock;	// protects the following variables
-static FinBlock	*finq;		// list of finalizers that are to be executed
-static FinBlock	*finc;		// cache of free blocks
-static FinBlock	*allfin;	// list of all blocks
+Mutex	runtime·finlock;	// protects the following variables
+G*	runtime·fing;		// goroutine that runs finalizers
+FinBlock*	runtime·finq;	// list of finalizers that are to be executed
+FinBlock*	runtime·finc;	// cache of free blocks
 bool	runtime·fingwait;
 bool	runtime·fingwake;
+static FinBlock	*allfin;	// list of all blocks
+
 BitVector	runtime·gcdatamask;
 BitVector	runtime·gcbssmask;
 
 static Mutex	gclock;
 
-static void	runfinq(void);
 static void	bgsweep(void);
 static Workbuf* getempty(Workbuf*);
 static Workbuf* getfull(Workbuf*);
@@ -189,7 +170,6 @@ static bool	scanframe(Stkframe *frame, void *unused);
 static void	scanstack(G *gp);
 static BitVector	unrollglobgcprog(byte *prog, uintptr size);
 
-static FuncVal runfinqv = {runfinq};
 static FuncVal bgsweepv = {bgsweep};
 
 static struct {
@@ -804,28 +784,28 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType 
 	FinBlock *block;
 	Finalizer *f;
 
-	runtime·lock(&finlock);
-	if(finq == nil || finq->cnt == finq->cap) {
-		if(finc == nil) {
-			finc = runtime·persistentalloc(FinBlockSize, 0, &mstats.gc_sys);
-			finc->cap = (FinBlockSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
-			finc->alllink = allfin;
-			allfin = finc;
+	runtime·lock(&runtime·finlock);
+	if(runtime·finq == nil || runtime·finq->cnt == runtime·finq->cap) {
+		if(runtime·finc == nil) {
+			runtime·finc = runtime·persistentalloc(FinBlockSize, 0, &mstats.gc_sys);
+			runtime·finc->cap = (FinBlockSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
+			runtime·finc->alllink = allfin;
+			allfin = runtime·finc;
 		}
-		block = finc;
-		finc = block->next;
-		block->next = finq;
-		finq = block;
+		block = runtime·finc;
+		runtime·finc = block->next;
+		block->next = runtime·finq;
+		runtime·finq = block;
 	}
-	f = &finq->fin[finq->cnt];
-	finq->cnt++;
+	f = &runtime·finq->fin[runtime·finq->cnt];
+	runtime·finq->cnt++;
 	f->fn = fn;
 	f->nret = nret;
 	f->fint = fint;
 	f->ot = ot;
 	f->arg = p;
 	runtime·fingwake = true;
-	runtime·unlock(&finlock);
+	runtime·unlock(&runtime·finlock);
 }
 
 void
@@ -1624,141 +1604,19 @@ gchelperstart(void)
 		runtime·throw("gchelper not running on g0 stack");
 }
 
-static void
-runfinq(void)
-{
-	Finalizer *f;
-	FinBlock *fb, *next;
-	byte *frame;
-	uint32 framesz, framecap, i;
-	Eface *ef, ef1;
-
-	// This function blocks for long periods of time, and because it is written in C
-	// we have no liveness information. Zero everything so that uninitialized pointers
-	// do not cause memory leaks.
-	f = nil;
-	fb = nil;
-	next = nil;
-	frame = nil;
-	framecap = 0;
-	framesz = 0;
-	i = 0;
-	ef = nil;
-	ef1.type = nil;
-	ef1.data = nil;
-	
-	// force flush to memory
-	USED(&f);
-	USED(&fb);
-	USED(&next);
-	USED(&framesz);
-	USED(&i);
-	USED(&ef);
-	USED(&ef1);
-
-	for(;;) {
-		runtime·lock(&finlock);
-		fb = finq;
-		finq = nil;
-		if(fb == nil) {
-			runtime·fingwait = true;
-			g->issystem = true;
-			runtime·parkunlock(&finlock, runtime·gostringnocopy((byte*)"finalizer wait"));
-			g->issystem = false;
-			continue;
-		}
-		runtime·unlock(&finlock);
-		if(raceenabled)
-			runtime·racefingo();
-		for(; fb; fb=next) {
-			next = fb->next;
-			for(i=0; i<fb->cnt; i++) {
-				f = &fb->fin[i];
-				framesz = sizeof(Eface) + f->nret;
-				if(framecap < framesz) {
-					// The frame does not contain pointers interesting for GC,
-					// all not yet finalized objects are stored in finq.
-					// If we do not mark it as FlagNoScan,
-					// the last finalized object is not collected.
-					frame = runtime·mallocgc(framesz, 0, FlagNoScan);
-					framecap = framesz;
-				}
-				if(f->fint == nil)
-					runtime·throw("missing type in runfinq");
-				if((f->fint->kind&KindMask) == KindPtr) {
-					// direct use of pointer
-					*(void**)frame = f->arg;
-				} else if(((InterfaceType*)f->fint)->mhdr.len == 0) {
-					// convert to empty interface
-					ef = (Eface*)frame;
-					ef->type = &f->ot->typ;
-					ef->data = f->arg;
-				} else {
-					// convert to interface with methods, via empty interface.
-					ef1.type = &f->ot->typ;
-					ef1.data = f->arg;
-					if(!runtime·ifaceE2I2((InterfaceType*)f->fint, ef1, (Iface*)frame))
-						runtime·throw("invalid type conversion in runfinq");
-				}
-				reflect·call(f->fn, frame, framesz, framesz);
-				f->fn = nil;
-				f->arg = nil;
-				f->ot = nil;
-			}
-			fb->cnt = 0;
-			runtime·lock(&finlock);
-			fb->next = finc;
-			finc = fb;
-			runtime·unlock(&finlock);
-		}
-
-		// Zero everything that's dead, to avoid memory leaks.
-		// See comment at top of function.
-		f = nil;
-		fb = nil;
-		next = nil;
-		i = 0;
-		ef = nil;
-		ef1.type = nil;
-		ef1.data = nil;
-		runtime·gc(1);	// trigger another gc to clean up the finalized objects, if possible
-	}
-}
-
-void
-runtime·createfing(void)
-{
-	if(runtime·fing != nil)
-		return;
-	// Here we use gclock instead of finlock,
-	// because newproc1 can allocate, which can cause on-demand span sweep,
-	// which can queue finalizers, which would deadlock.
-	runtime·lock(&gclock);
-	if(runtime·fing == nil)
-		runtime·fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
-	runtime·unlock(&gclock);
-}
-
-void
-runtime·createfingM(G *gp)
-{
-	runtime·createfing();
-	runtime·gogo(&gp->sched);
-}
-
 G*
 runtime·wakefing(void)
 {
 	G *res;
 
 	res = nil;
-	runtime·lock(&finlock);
+	runtime·lock(&runtime·finlock);
 	if(runtime·fingwait && runtime·fingwake) {
 		runtime·fingwait = false;
 		runtime·fingwake = false;
 		res = runtime·fing;
 	}
-	runtime·unlock(&finlock);
+	runtime·unlock(&runtime·finlock);
 	return res;
 }
 
