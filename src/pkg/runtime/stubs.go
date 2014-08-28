@@ -190,7 +190,6 @@ func newstackcall(fv *funcval, addr unsafe.Pointer, size uint32)
 func procyield(cycles uint32)
 func osyield()
 func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
-func cmpstring(s1, s2 string) int
 func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer
 func readgogc() int32
 func notetsleepg(n *note, ns int64)
