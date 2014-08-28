@@ -427,7 +427,7 @@ func efacethash(e interface{}) uint32 {
 }
 
 func iterate_itabs(fn func(*itab)) {
-	for _, h := range hash {
+	for _, h := range &hash {
 		for ; h != nil; h = h.link {
 			fn(h)
 		}
