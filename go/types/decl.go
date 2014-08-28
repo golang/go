@@ -45,7 +45,12 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	}
 
 	if trace {
-		check.trace(obj.Pos(), "-- resolving %s", obj.Name())
+		check.trace(obj.Pos(), "-- declaring %s", obj.Name())
+		check.indent++
+		defer func() {
+			check.indent--
+			check.trace(obj.Pos(), "=> %s", obj)
+		}()
 	}
 
 	d := check.objMap[obj]

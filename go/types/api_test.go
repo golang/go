@@ -647,7 +647,7 @@ func TestSelection(t *testing.T) {
 		conf.Packages[path] = pkg
 	}
 
-	libSrc := `
+	const libSrc = `
 package lib
 type T float64
 const C T = 3
@@ -655,7 +655,7 @@ var V T
 func F() {}
 func (T) M() {}
 `
-	mainSrc := `
+	const mainSrc = `
 package main
 import "lib"
 
@@ -790,4 +790,40 @@ func main() {
 			t.Error("%s: signature has receiver %s", sig, sig.Recv().Type())
 		}
 	}
+}
+
+func TestIssue8518(t *testing.T) {
+	fset := token.NewFileSet()
+	conf := Config{
+		Packages: make(map[string]*Package),
+		Error:    func(err error) { t.Log(err) }, // don't exit after first error
+		Import: func(imports map[string]*Package, path string) (*Package, error) {
+			return imports[path], nil
+		},
+	}
+	makePkg := func(path, src string) {
+		f, err := parser.ParseFile(fset, path, src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pkg, _ := conf.Check(path, fset, []*ast.File{f}, nil) // errors logged via conf.Error
+		conf.Packages[path] = pkg
+	}
+
+	const libSrc = `
+package a 
+import "missing"
+const C1 = foo
+const C2 = missing.C
+`
+
+	const mainSrc = `
+package main
+import "a"
+var _ = a.C1
+var _ = a.C2
+`
+
+	makePkg("a", libSrc)
+	makePkg("main", mainSrc) // don't crash when type-checking this package
 }
