@@ -275,7 +275,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-12
 	// restore when returning from f.
 	MOVL	0(SP), AX	// our caller's PC
 	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
-	LEAL	addr+4(FP), AX	// our caller's SP
+	LEAL	fn+0(FP), AX	// our caller's SP
 	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
 	MOVL	g(CX), AX
 	MOVL	AX, (m_morebuf+gobuf_g)(BX)
@@ -561,6 +561,9 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
 	MOVL	$1, AX
 	MOVB	AX, ret+16(FP)
 	RET
+
+TEXT runtime·casuintptr(SB), NOSPLIT, $0-17
+	JMP	runtime·cas(SB)
 
 // bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
 // Atomically:

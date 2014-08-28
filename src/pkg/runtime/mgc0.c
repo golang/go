@@ -225,7 +225,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 	Eface *eface;
 	Type *typ;
 	MSpan *s;
-	PageID k;
+	pageID k;
 	bool keepworking;
 
 	// Cache memory arena parameters in local vars.

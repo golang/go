@@ -1402,6 +1402,10 @@ xdecl(int c, Type *t, Sym *s)
 		}
 	tmerge(t, s);
 	s->type = t;
+	if(c == CTYPEDEF && (typechlv[t->etype] || typefd[t->etype])) {
+		s->type = copytyp(t);
+		s->type->tag = s;
+	}
 	s->class = c;
 	s->block = 0;
 	s->offset = o;

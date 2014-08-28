@@ -7,3 +7,6 @@ package runtime
 const (
 	cacheLineSize = 64
 )
+
+type uintreg uint64
+type intptr int64 // TODO(rsc): remove

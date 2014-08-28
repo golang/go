@@ -279,7 +279,7 @@ MHeap_AllocSpanLocked(MHeap *h, uintptr npage)
 {
 	uintptr n;
 	MSpan *s, *t;
-	PageID p;
+	pageID p;
 
 	// Try in fixed-size lists up to max.
 	for(n=npage; n < nelem(h->free); n++) {
@@ -380,7 +380,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	uintptr ask;
 	void *v;
 	MSpan *s;
-	PageID p;
+	pageID p;
 
 	// Ask for a big chunk, to reduce the number of mappings
 	// the operating system needs to track; also amortizes
@@ -441,7 +441,7 @@ MSpan*
 runtime·MHeap_LookupMaybe(MHeap *h, void *v)
 {
 	MSpan *s;
-	PageID p, q;
+	pageID p, q;
 
 	if((byte*)v < h->arena_start || (byte*)v >= h->arena_used)
 		return nil;
@@ -514,7 +514,7 @@ static void
 MHeap_FreeSpanLocked(MHeap *h, MSpan *s, bool acctinuse, bool acctidle)
 {
 	MSpan *t;
-	PageID p;
+	pageID p;
 
 	switch(s->state) {
 	case MSpanStack:
@@ -639,7 +639,7 @@ runtime∕debug·freeOSMemory(void)
 
 // Initialize a new span with the given start and npages.
 void
-runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
+runtime·MSpan_Init(MSpan *span, pageID start, uintptr npages)
 {
 	span->next = nil;
 	span->prev = nil;

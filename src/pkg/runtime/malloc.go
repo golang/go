@@ -37,6 +37,9 @@ const (
 	bitMask     = bitBoundary | bitMarked
 )
 
+// Page number (address>>pageShift)
+type pageID uintptr
+
 // All zero-sized allocations return a pointer to this byte.
 var zeroObject byte
 
@@ -64,7 +67,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 		}
 		mp.mallocing = 1
 		if mp.curg != nil {
-			mp.curg.stackguard0 = ^uint(0xfff) | 0xbad
+			mp.curg.stackguard0 = ^uintptr(0xfff) | 0xbad
 		}
 	}
 
@@ -119,7 +122,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 					// The object fits into existing tiny block.
 					x = tiny
 					c.tiny = (*byte)(add(x, size))
-					c.tinysize -= uint(size1)
+					c.tinysize -= uintptr(size1)
 					if debugMalloc {
 						mp := acquirem()
 						if mp.mallocing == 0 {
@@ -156,7 +159,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			// based on amount of remaining free space.
 			if maxTinySize-size > tinysize {
 				c.tiny = (*byte)(add(x, size))
-				c.tinysize = uint(maxTinySize - size)
+				c.tinysize = uintptr(maxTinySize - size)
 			}
 			size = maxTinySize
 		} else {
@@ -171,7 +174,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			v := s.freelist
 			if v == nil {
 				mp := acquirem()
-				mp.scalararg[0] = uint(sizeclass)
+				mp.scalararg[0] = uintptr(sizeclass)
 				onM(&mcacheRefill_m)
 				releasem(mp)
 				s = c.alloc[sizeclass]
@@ -188,11 +191,11 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 				}
 			}
 		}
-		c.local_cachealloc += int(size)
+		c.local_cachealloc += intptr(size)
 	} else {
 		mp := acquirem()
-		mp.scalararg[0] = uint(size)
-		mp.scalararg[1] = uint(flags)
+		mp.scalararg[0] = uintptr(size)
+		mp.scalararg[1] = uintptr(flags)
 		onM(&largeAlloc_m)
 		s = (*mspan)(mp.ptrarg[0])
 		mp.ptrarg[0] = nil
@@ -241,15 +244,15 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 				mp := acquirem()
 				mp.ptrarg[0] = x
 				mp.ptrarg[1] = unsafe.Pointer(typ)
-				mp.scalararg[0] = uint(size)
-				mp.scalararg[1] = uint(size0)
+				mp.scalararg[0] = uintptr(size)
+				mp.scalararg[1] = uintptr(size0)
 				onM(&unrollgcproginplace_m)
 				releasem(mp)
 				goto marked
 			}
 			ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
 			// Check whether the program is already unrolled.
-			if uintptr(goatomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
+			if uintptr(atomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
 				mp := acquirem()
 				mp.ptrarg[0] = unsafe.Pointer(typ)
 				onM(&unrollgcprog_m)
@@ -394,7 +397,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 		}
 		c.next_sample = next
 	}
-	mp.scalararg[0] = uint(size)
+	mp.scalararg[0] = uintptr(size)
 	mp.ptrarg[0] = x
 	onM(&mprofMalloc_m)
 }
@@ -402,7 +405,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 // force = 1 - do GC regardless of current heap usage
 // force = 2 - go GC and eager sweep
 func gogc(force int32) {
-	if memstats.enablegc == 0 {
+	if !memstats.enablegc {
 		return
 	}
 
@@ -421,7 +424,7 @@ func gogc(force int32) {
 	if gcpercent == gcpercentUnknown {
 		golock(&mheap_.lock)
 		if gcpercent == gcpercentUnknown {
-			gcpercent = goreadgogc()
+			gcpercent = readgogc()
 		}
 		gounlock(&mheap_.lock)
 	}
@@ -439,7 +442,7 @@ func gogc(force int32) {
 	}
 
 	// Ok, we're doing it!  Stop everybody else
-	startTime := gonanotime()
+	startTime := nanotime()
 	mp = acquirem()
 	mp.gcing = 1
 	releasem(mp)
@@ -461,11 +464,11 @@ func gogc(force int32) {
 	}
 	for i := 0; i < n; i++ {
 		if i > 0 {
-			startTime = gonanotime()
+			startTime = nanotime()
 		}
 		// switch to g0, call gc, then switch back
-		mp.scalararg[0] = uint(uint32(startTime)) // low 32 bits
-		mp.scalararg[1] = uint(startTime >> 32)   // high 32 bits
+		mp.scalararg[0] = uintptr(uint32(startTime)) // low 32 bits
+		mp.scalararg[1] = uintptr(startTime >> 32)   // high 32 bits
 		if force >= 2 {
 			mp.scalararg[2] = 1 // eagersweep
 		} else {

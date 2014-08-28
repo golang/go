@@ -620,6 +620,9 @@ cas64_fail:
 	MOVL	$0, AX
 	MOVB	AX, ret+24(FP)
 	RET
+	
+TEXT runtime·casuintptr(SB), NOSPLIT, $0-25
+	JMP	runtime·cas64(SB)
 
 // bool casp(void **val, void *old, void *new)
 // Atomically:

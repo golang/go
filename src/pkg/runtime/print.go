@@ -19,7 +19,7 @@ var (
 
 func printstring(s string) {
 	mp := acquirem()
-	mp.scalararg[0] = uint(len(s))
+	mp.scalararg[0] = uintptr(len(s))
 	mp.ptrarg[0] = (*stringStruct)(unsafe.Pointer(&s)).str
 	onM(&printstring_m)
 	releasem(mp)
@@ -34,7 +34,7 @@ func printuint(x uint64) {
 
 func printhex(x uintptr) {
 	mp := acquirem()
-	mp.scalararg[0] = uint(x)
+	mp.scalararg[0] = uintptr(x)
 	onM(&printhex_m)
 	releasem(mp)
 }

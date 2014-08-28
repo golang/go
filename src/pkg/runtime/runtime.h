@@ -22,17 +22,10 @@ typedef	int64		intptr;
 typedef	int64		intgo; // Go's int
 typedef	uint64		uintgo; // Go's uint
 #else
-// Normally, "int" == "long int" == 32 bits.
-// However, the C compiler uses this distinction
-// to disambiguate true 32 bit ints (e.g. int32)
-// from 32/64 bit ints (e.g. uintptr) so that it
-// can generate the corresponding go type correctly.
-typedef	signed long int		int32_x;
-typedef	unsigned long int	uint32_x;
-typedef	uint32_x	uintptr;
-typedef	int32_x		intptr;
-typedef	int32_x		intgo; // Go's int
-typedef	uint32_x	uintgo; // Go's uint
+typedef	uint32		uintptr;
+typedef	int32		intptr;
+typedef	int32		intgo; // Go's int
+typedef	uint32		uintgo; // Go's uint
 #endif
 
 #ifdef _64BITREG

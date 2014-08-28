@@ -6,27 +6,22 @@ package runtime
 
 func setMaxStack(in int) (out int) {
 	out = int(maxstacksize)
-	maxstacksize = uint(in)
+	maxstacksize = uintptr(in)
 	return out
 }
 
 func setGCPercent(in int32) (out int32) {
 	mp := acquirem()
-	mp.scalararg[0] = uint(int(in))
+	mp.scalararg[0] = uintptr(int(in))
 	onM(&setgcpercent_m)
 	out = int32(int(mp.scalararg[0]))
 	releasem(mp)
 	return out
 }
 
-func setPanicOnFault(newb bool) (old bool) {
-	new := uint8(0)
-	if newb {
-		new = 1
-	}
-
+func setPanicOnFault(new bool) (old bool) {
 	mp := acquirem()
-	old = mp.curg.paniconfault == 1
+	old = mp.curg.paniconfault
 	mp.curg.paniconfault = new
 	releasem(mp)
 	return old
@@ -34,7 +29,7 @@ func setPanicOnFault(newb bool) (old bool) {
 
 func setMaxThreads(in int) (out int) {
 	mp := acquirem()
-	mp.scalararg[0] = uint(in)
+	mp.scalararg[0] = uintptr(in)
 	onM(&setmaxthreads_m)
 	out = int(mp.scalararg[0])
 	releasem(mp)

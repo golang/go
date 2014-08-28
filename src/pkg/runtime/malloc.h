@@ -93,7 +93,7 @@ enum
 	PageSize	= 1<<PageShift,
 	PageMask	= PageSize - 1,
 };
-typedef	uintptr	PageID;		// address >> PageShift
+typedef	uintptr	pageID;		// address >> PageShift
 
 enum
 {
@@ -403,7 +403,7 @@ struct MSpan
 {
 	MSpan	*next;		// in a span linked list
 	MSpan	*prev;		// in a span linked list
-	PageID	start;		// starting page number
+	pageID	start;		// starting page number
 	uintptr	npages;		// number of pages in span
 	MLink	*freelist;	// list of free objects
 	// sweep generation:
@@ -425,7 +425,7 @@ struct MSpan
 	Special	*specials;	// linked list of special records sorted by offset.
 };
 
-void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
+void	runtime·MSpan_Init(MSpan *span, pageID start, uintptr npages);
 void	runtime·MSpan_EnsureSwept(MSpan *span);
 bool	runtime·MSpan_Sweep(MSpan *span, bool preserve);
 

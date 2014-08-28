@@ -98,10 +98,10 @@ func record(r *MemProfileRecord, b *bucket) {
 	r.FreeBytes = int64(b.data.mp.free_bytes)
 	r.AllocObjects = int64(b.data.mp.allocs)
 	r.FreeObjects = int64(b.data.mp.frees)
-	for i := 0; uint(i) < b.nstk && i < len(r.Stack0); i++ {
+	for i := 0; uintptr(i) < b.nstk && i < len(r.Stack0); i++ {
 		r.Stack0[i] = *(*uintptr)(add(unsafe.Pointer(&b.stk), uintptr(i)*ptrSize))
 	}
-	for i := b.nstk; i < uint(len(r.Stack0)); i++ {
+	for i := b.nstk; i < uintptr(len(r.Stack0)); i++ {
 		r.Stack0[i] = 0
 	}
 }
@@ -126,7 +126,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 			p[idx].Count = int64(bp.count)
 			p[idx].Cycles = int64(bp.cycles)
 			i := 0
-			for uint(i) < b.nstk && i < len(p[idx].Stack0) {
+			for uintptr(i) < b.nstk && i < len(p[idx].Stack0) {
 				p[idx].Stack0[i] = *(*uintptr)(add(unsafe.Pointer(&b.stk), uintptr(i)*ptrSize))
 				i++
 			}
@@ -146,8 +146,8 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 // If all is true, Stack formats stack traces of all other goroutines
 // into buf after the trace for the current goroutine.
 func Stack(buf []byte, all bool) int {
-	sp := gogetcallersp(unsafe.Pointer(&buf))
-	pc := gogetcallerpc(unsafe.Pointer(&buf))
+	sp := getcallersp(unsafe.Pointer(&buf))
+	pc := getcallerpc(unsafe.Pointer(&buf))
 	mp := acquirem()
 	gp := mp.curg
 	if all {
@@ -190,7 +190,7 @@ func Stack(buf []byte, all bool) int {
 // Most clients should use the runtime/pprof package instead
 // of calling ThreadCreateProfile directly.
 func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
-	first := (*m)(goatomicloadp(unsafe.Pointer(&allm)))
+	first := (*m)(atomicloadp(unsafe.Pointer(&allm)))
 	for mp := first; mp != nil; mp = mp.alllink {
 		n++
 	}

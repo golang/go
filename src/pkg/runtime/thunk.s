@@ -12,7 +12,7 @@
 #endif
 
 TEXT time·runtimeNano(SB),NOSPLIT,$0-0
-	JMP     runtime·gonanotime(SB)
+	JMP     runtime·nanotime(SB)
 
 TEXT time·Sleep(SB),NOSPLIT,$0-0
 	JMP     runtime·timeSleep(SB)

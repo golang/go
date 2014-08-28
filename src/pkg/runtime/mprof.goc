@@ -230,12 +230,6 @@ runtime·blockevent(int64 cycles, int32 skip)
 }
 
 void
-runtime·blockevent_m(void)
-{
-	runtime·blockevent(g->m->scalararg[0] + ((int64)g->m->scalararg[1]<<32), g->m->scalararg[2]);
-}
-
-void
 runtime·iterate_memprof(void (*callback)(Bucket*, uintptr, uintptr*, uintptr, uintptr, uintptr))
 {
 	Bucket *b;

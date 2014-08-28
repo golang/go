@@ -66,7 +66,7 @@ func chanbuf(c *hchan, i uint) unsafe.Pointer {
 // entry point for c <- x from compiled code
 //go:nosplit
 func chansend1(t *chantype, c *hchan, elem unsafe.Pointer) {
-	chansend(t, c, elem, true, gogetcallerpc(unsafe.Pointer(&t)))
+	chansend(t, c, elem, true, getcallerpc(unsafe.Pointer(&t)))
 }
 
 /*
@@ -127,7 +127,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 
 	var t0 int64
 	if blockprofilerate > 0 {
-		t0 = gocputicks()
+		t0 = cputicks()
 	}
 
 	golock(&c.lock)
@@ -155,7 +155,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 				// to assign to both types in Go.  At some point we'll
 				// write the Go types directly instead of generating them
 				// via the C types.  At that point, this nastiness goes away.
-				*(*int64)(unsafe.Pointer(&sg.releasetime)) = gocputicks()
+				*(*int64)(unsafe.Pointer(&sg.releasetime)) = cputicks()
 			}
 			goready(recvg)
 			return true
@@ -189,7 +189,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 			panic("send on closed channel")
 		}
 		if mysg.releasetime > 0 {
-			goblockevent(int64(mysg.releasetime)-t0, 3)
+			blockevent(int64(mysg.releasetime)-t0, 2)
 		}
 		if mysg != gp.waiting {
 			gothrow("G waiting list is corrupted!")
@@ -248,14 +248,14 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		recvg := sg.g
 		gounlock(&c.lock)
 		if sg.releasetime != 0 {
-			*(*int64)(unsafe.Pointer(&sg.releasetime)) = gocputicks()
+			*(*int64)(unsafe.Pointer(&sg.releasetime)) = cputicks()
 		}
 		goready(recvg)
 	} else {
 		gounlock(&c.lock)
 	}
 	if t1 > 0 {
-		goblockevent(t1-t0, 3)
+		blockevent(t1-t0, 2)
 	}
 	return true
 }
@@ -285,7 +285,7 @@ func (q *waitq) dequeue() *sudog {
 		// if sgp participates in a select and is already signaled, ignore it
 		if sgp.selectdone != nil {
 			// claim the right to signal
-			if *sgp.selectdone != 0 || !gocas(sgp.selectdone, 0, 1) {
+			if *sgp.selectdone != 0 || !cas(sgp.selectdone, 0, 1) {
 				continue
 			}
 		}

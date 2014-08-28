@@ -50,7 +50,7 @@ func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
 		gothrow("gopark: bad g status")
 	}
 	mp.waitlock = lock
-	mp.waitunlockf = *(*func(*g, unsafe.Pointer) uint8)(unsafe.Pointer(&unlockf))
+	mp.waitunlockf = *(*func(*g, unsafe.Pointer) bool)(unsafe.Pointer(&unlockf))
 	gp.waitreason = reason
 	releasem(mp)
 	// can't do anything that might move the G between Ms here.
@@ -67,16 +67,6 @@ func goready(gp *g) {
 	mp := acquirem()
 	mp.ptrarg[0] = unsafe.Pointer(gp)
 	onM(&ready_m)
-	releasem(mp)
-}
-
-func goblockevent(cycles int64, skip int32) {
-	// TODO: convert to Go when we do mprof.goc
-	mp := acquirem()
-	mp.scalararg[0] = uint(uint32(cycles))
-	mp.scalararg[1] = uint(cycles >> 32)
-	mp.scalararg[2] = uint(skip)
-	onM(&blockevent_m)
 	releasem(mp)
 }
 

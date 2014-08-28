@@ -16,21 +16,21 @@ func signal_recv() (m uint32) {
 		if ok {
 			return
 		}
-		gonotetsleepg(&signote, -1)
-		gonoteclear(&signote)
+		notetsleepg(&signote, -1)
+		noteclear(&signote)
 	}
 }
 
 func signal_enable(s uint32) {
 	mp := acquirem()
-	mp.scalararg[0] = uint(s)
+	mp.scalararg[0] = uintptr(s)
 	onM(&signal_enable_m)
 	releasem(mp)
 }
 
 func signal_disable(s uint32) {
 	mp := acquirem()
-	mp.scalararg[0] = uint(s)
+	mp.scalararg[0] = uintptr(s)
 	onM(&signal_disable_m)
 	releasem(mp)
 }
