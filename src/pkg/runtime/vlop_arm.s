@@ -47,12 +47,12 @@ TEXT _mulv(SB), NOSPLIT, $0
 // trampoline for _sfloat2. passes LR as arg0 and
 // saves registers R0-R13 and CPSR on the stack. R0-R12 and CPSR flags can
 // be changed by _sfloat2.
-TEXT _sfloat(SB), NOSPLIT, $64-0 // 4 arg + 14*4 saved regs + cpsr
+TEXT _sfloat(SB), NOSPLIT, $68-0 // 4 arg + 14*4 saved regs + cpsr + return value
 	MOVW	R14, 4(R13)
 	MOVW	R0, 8(R13)
 	MOVW	$12(R13), R0
 	MOVM.IA.W	[R1-R12], (R0)
-	MOVW	$68(R13), R1 // correct for frame size
+	MOVW	$72(R13), R1 // correct for frame size
 	MOVW	R1, 60(R13)
 	WORD	$0xe10f1000 // mrs r1, cpsr
 	MOVW	R1, 64(R13)
@@ -78,6 +78,7 @@ TEXT _sfloat(SB), NOSPLIT, $64-0 // 4 arg + 14*4 saved regs + cpsr
 	MOVW	$1, R1
 	MOVW	R1, m_softfloat(R8)
 	BL	runtime·_sfloat2(SB)
+	MOVW	68(R13), R0
 	MOVW	g_m(g), R8
 	MOVW	m_locks(R8), R1
 	SUB	$1, R1
