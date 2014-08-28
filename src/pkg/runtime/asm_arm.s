@@ -671,7 +671,7 @@ TEXT runtime·abort(SB),NOSPLIT,$-4-0
 //	TEXT runtime·cas(SB),NOSPLIT,$0
 //		B	runtime·armcas(SB)
 //
-TEXT runtime·armcas(SB),NOSPLIT,$0-12
+TEXT runtime·armcas(SB),NOSPLIT,$0-13
 	MOVW	valptr+0(FP), R1
 	MOVW	old+4(FP), R2
 	MOVW	new+8(FP), R3
@@ -683,10 +683,15 @@ casl:
 	CMP	$0, R0
 	BNE	casl
 	MOVW	$1, R0
+	MOVB	R0, ret+12(FP)
 	RET
 casfail:
 	MOVW	$0, R0
+	MOVB	R0, ret+12(FP)
 	RET
+
+TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
+	JMP	runtime·cas(SB)
 
 TEXT runtime·stackguard(SB),NOSPLIT,$0-8
 	MOVW	R13, R1

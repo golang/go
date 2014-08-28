@@ -49,7 +49,7 @@ func timeSleep(ns int64) {
 	}
 
 	t := new(timer)
-	t.when = gonanotime() + ns
+	t.when = nanotime() + ns
 	t.f = goroutineReady
 	t.arg = getg()
 	golock(&timers.lock)
@@ -100,7 +100,7 @@ func addtimerLocked(t *timer) {
 		// siftup moved to top: new earliest deadline.
 		if timers.sleeping {
 			timers.sleeping = false
-			gonotewakeup(&timers.waitnote)
+			notewakeup(&timers.waitnote)
 		}
 		if timers.rescheduling {
 			timers.rescheduling = false
@@ -149,11 +149,11 @@ func deltimer(t *timer) bool {
 // If addtimer inserts a new earlier event, addtimer1 wakes timerproc early.
 func timerproc() {
 	timers.gp = getg()
-	timers.gp.issystem = 1
+	timers.gp.issystem = true
 	for {
 		golock(&timers.lock)
 		timers.sleeping = false
-		now := gonanotime()
+		now := nanotime()
 		delta := int64(-1)
 		for {
 			if len(timers.t) == 0 {
@@ -200,9 +200,9 @@ func timerproc() {
 		}
 		// At least one timer pending.  Sleep until then.
 		timers.sleeping = true
-		gonoteclear(&timers.waitnote)
+		noteclear(&timers.waitnote)
 		gounlock(&timers.lock)
-		gonotetsleepg(&timers.waitnote, delta)
+		notetsleepg(&timers.waitnote, delta)
 	}
 }
 

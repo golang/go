@@ -502,6 +502,9 @@ TEXT runtime·cas(SB), NOSPLIT, $0-13
 	MOVB	AX, ret+12(FP)
 	RET
 
+TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
+	JMP	runtime·cas(SB)
+
 // bool runtime·cas64(uint64 *val, uint64 old, uint64 new)
 // Atomically:
 //	if(*val == *old){

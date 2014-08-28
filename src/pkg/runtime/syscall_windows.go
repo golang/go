@@ -15,15 +15,11 @@ type callbacks struct {
 }
 
 func (c *wincallbackcontext) isCleanstack() bool {
-	return c.cleanstack == 1
+	return c.cleanstack
 }
 
 func (c *wincallbackcontext) setCleanstack(cleanstack bool) {
-	if cleanstack {
-		c.cleanstack = 1
-	} else {
-		c.cleanstack = 0
-	}
+	c.cleanstack = cleanstack
 }
 
 var (
@@ -51,11 +47,11 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	if len(ft.out) != 1 {
 		panic("compilecallback: function must have one output parameter")
 	}
-	uintptrSize := uint(unsafe.Sizeof(uintptr(0)))
+	uintptrSize := unsafe.Sizeof(uintptr(0))
 	if t := (**_type)(unsafe.Pointer(&ft.out[0])); (*t).size != uintptrSize {
 		panic("compilecallback: output parameter size is wrong")
 	}
-	argsize := uint(0)
+	argsize := uintptr(0)
 	for _, t := range (*[1024](*_type))(unsafe.Pointer(&ft.in[0]))[:len(ft.in)] {
 		if (*t).size != uintptrSize {
 			panic("compilecallback: input parameter size is wrong")

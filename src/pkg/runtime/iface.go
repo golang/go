@@ -53,7 +53,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		if locked != 0 {
 			golock(&ifaceLock)
 		}
-		for m = (*itab)(goatomicloadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
+		for m = (*itab)(atomicloadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
 			if m.inter == inter && m._type == typ {
 				if m.bad != 0 {
 					m = nil
@@ -76,7 +76,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		}
 	}
 
-	m = (*itab)(gopersistentalloc(unsafe.Sizeof(itab{}) + uintptr(len(inter.mhdr))*ptrSize))
+	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr))*ptrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
 
@@ -118,7 +118,7 @@ search:
 		gothrow("invalid itab locking")
 	}
 	m.link = hash[h]
-	goatomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
+	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
 	gounlock(&ifaceLock)
 	if m.bad != 0 {
 		return nil
@@ -128,7 +128,7 @@ search:
 
 func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
 	tab := getitab(inter, t, false)
-	goatomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
+	atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
 	return tab
 }
 
@@ -150,10 +150,10 @@ func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
 }
 
 func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) (i fInterface) {
-	tab := (*itab)(goatomicloadp(unsafe.Pointer(cache)))
+	tab := (*itab)(atomicloadp(unsafe.Pointer(cache)))
 	if tab == nil {
 		tab = getitab(inter, t, false)
-		goatomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
+		atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
 	}
 	size := uintptr(t.size)
 	pi := (*iface)(unsafe.Pointer(&i))

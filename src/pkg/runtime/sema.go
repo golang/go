@@ -65,16 +65,16 @@ func semacquire(addr *uint32, profile bool) {
 	t0 := int64(0)
 	s.releasetime = 0
 	if profile && blockprofilerate > 0 {
-		t0 = gocputicks()
+		t0 = cputicks()
 		s.releasetime = -1
 	}
 	for {
 		golock(&root.lock)
 		// Add ourselves to nwait to disable "easy case" in semrelease.
-		goxadd(&root.nwait, 1)
+		xadd(&root.nwait, 1)
 		// Check cansemacquire to avoid missed wakeup.
 		if cansemacquire(addr) {
-			goxadd(&root.nwait, ^uint32(0))
+			xadd(&root.nwait, -1)
 			gounlock(&root.lock)
 			break
 		}
@@ -87,25 +87,25 @@ func semacquire(addr *uint32, profile bool) {
 		}
 	}
 	if s.releasetime > 0 {
-		goblockevent(int64(s.releasetime)-t0, 4)
+		blockevent(int64(s.releasetime)-t0, 3)
 	}
 	releaseSudog(s)
 }
 
 func semrelease(addr *uint32) {
 	root := semroot(addr)
-	goxadd(addr, 1)
+	xadd(addr, 1)
 
 	// Easy case: no waiters?
 	// This check must happen after the xadd, to avoid a missed wakeup
 	// (see loop in semacquire).
-	if goatomicload(&root.nwait) == 0 {
+	if atomicload(&root.nwait) == 0 {
 		return
 	}
 
 	// Harder case: search for a waiter and wake it.
 	golock(&root.lock)
-	if goatomicload(&root.nwait) == 0 {
+	if atomicload(&root.nwait) == 0 {
 		// The count is already consumed by another goroutine,
 		// so no need to wake up another goroutine.
 		gounlock(&root.lock)
@@ -114,7 +114,7 @@ func semrelease(addr *uint32) {
 	s := root.head
 	for ; s != nil; s = s.next {
 		if s.elem == unsafe.Pointer(addr) {
-			goxadd(&root.nwait, ^uint32(0))
+			xadd(&root.nwait, -1)
 			root.dequeue(s)
 			break
 		}
@@ -122,9 +122,7 @@ func semrelease(addr *uint32) {
 	gounlock(&root.lock)
 	if s != nil {
 		if s.releasetime != 0 {
-			// TODO: Remove use of unsafe here.
-			releasetimep := (*int64)(unsafe.Pointer(&s.releasetime))
-			*releasetimep = gocputicks()
+			s.releasetime = cputicks()
 		}
 		goready(s.g)
 	}
@@ -136,11 +134,11 @@ func semroot(addr *uint32) *semaRoot {
 
 func cansemacquire(addr *uint32) bool {
 	for {
-		v := goatomicload(addr)
+		v := atomicload(addr)
 		if v == 0 {
 			return false
 		}
-		if gocas(addr, v, v-1) {
+		if cas(addr, v, v-1) {
 			return true
 		}
 	}
@@ -208,7 +206,7 @@ func syncsemacquire(s *syncSema) {
 		w.releasetime = 0
 		t0 := int64(0)
 		if blockprofilerate > 0 {
-			t0 = gocputicks()
+			t0 = cputicks()
 			w.releasetime = -1
 		}
 		if s.tail == nil {
@@ -219,7 +217,7 @@ func syncsemacquire(s *syncSema) {
 		s.tail = w
 		goparkunlock(&s.lock, "semacquire")
 		if t0 != 0 {
-			goblockevent(int64(w.releasetime)-t0, 3)
+			blockevent(int64(w.releasetime)-t0, 2)
 		}
 		releaseSudog(w)
 	}
@@ -236,9 +234,7 @@ func syncsemrelease(s *syncSema, n uint32) {
 			s.tail = nil
 		}
 		if wake.releasetime != 0 {
-			// TODO: Remove use of unsafe here.
-			releasetimep := (*int64)(unsafe.Pointer(&wake.releasetime))
-			*releasetimep = gocputicks()
+			wake.releasetime = cputicks()
 		}
 		goready(wake.g)
 		n--

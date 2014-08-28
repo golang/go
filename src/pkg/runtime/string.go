@@ -64,7 +64,7 @@ func slicebytetostring(b []byte) string {
 		fn := slicebytetostring
 		racereadrangepc(unsafe.Pointer(&b[0]),
 			len(b),
-			gogetcallerpc(unsafe.Pointer(&b)),
+			getcallerpc(unsafe.Pointer(&b)),
 			**(**uintptr)(unsafe.Pointer(&fn)))
 	}
 	s, c := rawstring(len(b))
@@ -85,7 +85,7 @@ func slicebytetostringtmp(b []byte) string {
 		fn := slicebytetostringtmp
 		racereadrangepc(unsafe.Pointer(&b[0]),
 			len(b),
-			gogetcallerpc(unsafe.Pointer(&b)),
+			getcallerpc(unsafe.Pointer(&b)),
 			**(**uintptr)(unsafe.Pointer(&fn)))
 	}
 	return *(*string)(unsafe.Pointer(&b))
@@ -123,7 +123,7 @@ func slicerunetostring(a []rune) string {
 		fn := slicerunetostring
 		racereadrangepc(unsafe.Pointer(&a[0]),
 			len(a)*int(unsafe.Sizeof(a[0])),
-			gogetcallerpc(unsafe.Pointer(&a)),
+			getcallerpc(unsafe.Pointer(&a)),
 			**(**uintptr)(unsafe.Pointer(&fn)))
 	}
 	var dum [4]byte
@@ -219,7 +219,7 @@ func rawstring(size int) (s string, b []byte) {
 
 	for {
 		ms := maxstring
-		if uintptr(size) <= uintptr(ms) || gocasx((*uintptr)(unsafe.Pointer(&maxstring)), uintptr(ms), uintptr(size)) {
+		if uintptr(size) <= uintptr(ms) || casuintptr((*uintptr)(unsafe.Pointer(&maxstring)), uintptr(ms), uintptr(size)) {
 			return
 		}
 	}

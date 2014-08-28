@@ -16,12 +16,6 @@ const (
 )
 
 //go:noescape
-func gogetcallerpc(p unsafe.Pointer) uintptr
-
-//go:noescape
-func gogetcallersp(p unsafe.Pointer) uintptr
-
-//go:noescape
 func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
 
 //go:noescape
@@ -91,10 +85,11 @@ var (
 	setmaxthreads_m,
 	ready_m,
 	park_m,
-	blockevent_m,
 	notewakeup_m,
 	notetsleepg_m mFunction
 )
+
+func blockevent(int64, int32)
 
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s
@@ -117,26 +112,6 @@ const (
 	concurrentSweep  = true
 )
 
-// Atomic operations to read/write a pointer.
-// in stubs.goc
-func goatomicload(p *uint32) uint32                     // return *p
-func goatomicloadp(p unsafe.Pointer) unsafe.Pointer     // return *p
-func goatomicstore(p *uint32, v uint32)                 // *p = v
-func goatomicstorep(p unsafe.Pointer, v unsafe.Pointer) // *p = v
-
-// in stubs.goc
-// if *p == x { *p = y; return true } else { return false }, atomically
-//go:noescape
-func gocas(p *uint32, x uint32, y uint32) bool
-
-//go:noescape
-func goxadd(p *uint32, x uint32) uint32
-
-//go:noescape
-func gocasx(p *uintptr, x uintptr, y uintptr) bool
-
-func goreadgogc() int32
-func gonanotime() int64
 func gosched()
 func starttheworld()
 func stoptheworld()
@@ -187,33 +162,6 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(x ^ 0)
 }
 
-// gopersistentalloc allocates a permanent (not garbage collected)
-// memory region of size n.  Use wisely!
-func gopersistentalloc(n uintptr) unsafe.Pointer
-
-func gocputicks() int64
-
-func gonoteclear(n *note) {
-	n.key = 0
-}
-
-func gonotewakeup(n *note) {
-	mp := acquirem()
-	mp.ptrarg[0] = unsafe.Pointer(n)
-	onM(&notewakeup_m)
-	releasem(mp)
-}
-
-func gonotetsleepg(n *note, t int64) {
-	mp := acquirem()
-	mp.ptrarg[0] = unsafe.Pointer(n)
-	mp.scalararg[0] = uint(uint32(t)) // low 32 bits
-	mp.scalararg[1] = uint(t >> 32)   // high 32 bits
-	releasem(mp)
-	mcall(&notetsleepg_m)
-	exitsyscall()
-}
-
 func exitsyscall()
 
 func goroutineheader(gp *g)
@@ -231,22 +179,6 @@ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 func jmpdefer(fv *funcval, argp unsafe.Pointer)
 func exit1(code int32)
 func asminit()
-func getcallersp(argp unsafe.Pointer) uintptr
-func cas(ptr *uint32, old, new uint32) bool
-func cas64(ptr *uint64, old, new uint64) bool
-func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
-func xadd(ptr *uint32, delta int32) uint32
-func xadd64(ptr *uint64, delta int64) uint64
-func xchg(ptr *uint32, new uint32) uint32
-func xchg64(ptr *uint64, new uint64) uint64
-func xchgp(ptr *unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
-func atomicstore(ptr *uint32, val uint32)
-func atomicstore64(ptr *uint64, val uint64)
-func atomicstorep(ptr *unsafe.Pointer, val unsafe.Pointer)
-func atomicload(ptr *uint32) uint32
-func atomicload64(ptr *uint64) uint64
-func atomicloadp(ptr *unsafe.Pointer) unsafe.Pointer
-func atomicor8(ptr *uint8, val uint8)
 func setg(gg *g)
 func exit(code int32)
 func breakpoint()
@@ -257,10 +189,72 @@ func cputicks() int64
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
 func munmap(addr unsafe.Pointer, n uintptr)
 func madvise(addr unsafe.Pointer, n uintptr, flags int32)
-func setcallerpc(argp unsafe.Pointer, pc uintptr)
-func getcallerpc(argp unsafe.Pointer) uintptr
 func newstackcall(fv *funcval, addr unsafe.Pointer, size uint32)
 func procyield(cycles uint32)
 func osyield()
 func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
 func cmpstring(s1, s2 string) int
+func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer
+func readgogc() int32
+func notetsleepg(n *note, ns int64)
+func notetsleep(n *note, ns int64)
+func notewakeup(n *note)
+func notesleep(n *note)
+func noteclear(n *note)
+
+//go:noescape
+func cas(ptr *uint32, old, new uint32) bool
+
+//go:noescape
+func cas64(ptr *uint64, old, new uint64) bool
+
+//go:noescape
+func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+
+//go:noescape
+func casuintptr(ptr *uintptr, old, new uintptr) bool
+
+//go:noescape
+func xadd(ptr *uint32, delta int32) uint32
+
+//go:noescape
+func xadd64(ptr *uint64, delta int64) uint64
+
+//go:noescape
+func xchg(ptr *uint32, new uint32) uint32
+
+//go:noescape
+func xchg64(ptr *uint64, new uint64) uint64
+
+//go:noescape
+func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+
+//go:noescape
+func atomicstore(ptr *uint32, val uint32)
+
+//go:noescape
+func atomicstore64(ptr *uint64, val uint64)
+
+//go:noescape
+func atomicstorep(ptr unsafe.Pointer, val unsafe.Pointer)
+
+//go:noescape
+func atomicload(ptr *uint32) uint32
+
+//go:noescape
+func atomicload64(ptr *uint64) uint64
+
+//go:noescape
+func atomicloadp(ptr unsafe.Pointer) unsafe.Pointer
+
+//go:noescape
+func atomicor8(ptr *uint8, val uint8)
+
+//go:noescape
+func setcallerpc(argp unsafe.Pointer, pc uintptr)
+
+//go:noescape
+func getcallerpc(argp unsafe.Pointer) uintptr
+
+//go:noescape
+func getcallersp(argp unsafe.Pointer) uintptr

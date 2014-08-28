@@ -75,7 +75,7 @@ var (
 
 func NewParFor(nthrmax uint32) *ParFor {
 	mp := acquirem()
-	mp.scalararg[0] = uint(nthrmax)
+	mp.scalararg[0] = uintptr(nthrmax)
 	onM(&newparfor_m)
 	desc := (*ParFor)(mp.ptrarg[0])
 	mp.ptrarg[0] = nil
@@ -88,8 +88,8 @@ func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*
 	mp.ptrarg[0] = unsafe.Pointer(desc)
 	mp.ptrarg[1] = unsafe.Pointer(ctx)
 	mp.ptrarg[2] = **(**unsafe.Pointer)(unsafe.Pointer(&body))
-	mp.scalararg[0] = uint(nthr)
-	mp.scalararg[1] = uint(n)
+	mp.scalararg[0] = uintptr(nthr)
+	mp.scalararg[1] = uintptr(n)
 	mp.scalararg[2] = 0
 	if wait {
 		mp.scalararg[2] = 1
@@ -108,7 +108,7 @@ func ParForDo(desc *ParFor) {
 func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
 	mp := acquirem()
 	mp.ptrarg[0] = unsafe.Pointer(desc)
-	mp.scalararg[0] = uint(tid)
+	mp.scalararg[0] = uintptr(tid)
 	onM(&parforiters_m)
 	begin := uint32(mp.scalararg[0])
 	end := uint32(mp.scalararg[1])

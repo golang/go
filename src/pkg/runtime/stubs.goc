@@ -32,55 +32,10 @@ func gounlock(p *Lock) {
 	runtime·unlock(p);
 }
 
-#pragma textflag NOSPLIT
-func goreadgogc() (r int32) {
-	r = runtime·readgogc();
-}
-
 // entry point for testing
 // TODO: mcall and run on M stack
 func gostringW(str Slice) (s String) {
 	s = runtime·gostringw((uint16*)str.array);
-}
-
-#pragma textflag NOSPLIT
-func gonanotime() (r int64) {
-	r = runtime·nanotime();
-}
-
-#pragma textflag NOSPLIT
-func goatomicload(p *uint32) (v uint32) {
-	v = runtime·atomicload(p);
-}
-
-#pragma textflag NOSPLIT
-func goatomicloadp(p **byte) (v *byte) {
-	v = runtime·atomicloadp(p);
-}
-
-#pragma textflag NOSPLIT
-func goatomicstore(p *uint32, v uint32) {
-	runtime·atomicstore(p, v);
-}
-
-#pragma textflag NOSPLIT
-func goatomicstorep(p **byte, v *byte) {
-	runtime·atomicstorep(p, v);
-}
-
-#pragma textflag NOSPLIT
-func runtime·goxadd(p *uint32, x uint32) (ret uint32) {
-	ret = runtime·xadd(p, x);
-}
-
-#pragma textflag NOSPLIT
-func runtime·gocas(p *uint32, x uint32, y uint32) (ret bool) {
-	ret = runtime·cas(p, x, y);
-}
-
-#pragma textflag NOSPLIT
-func runtime·gocasx(p *uintptr, x uintptr, y uintptr) (ret bool) {
-	ret = runtime·casp((void**)p, (void*)x, (void*)y);
 }
 
 #pragma textflag NOSPLIT
@@ -113,12 +68,6 @@ func runtime·gomcache() (ret *MCache) {
 func GCMask(x Eface) (mask Slice) {
 	runtime·getgcmask(x.data, x.type, &mask.array, &mask.len);
 	mask.cap = mask.len;
-}
-
-#pragma textflag NOSPLIT
-func gopersistentalloc(size uintptr) (x *void) {
-	// TODO: used only for itabs for now.  Need to make &mstats.other_sys arg parameterized.
-	x = runtime·persistentalloc(size, 0, &mstats.other_sys);
 }
 
 #pragma textflag NOSPLIT
