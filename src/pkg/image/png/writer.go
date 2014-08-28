@@ -14,7 +14,13 @@ import (
 	"strconv"
 )
 
+// Encoder configures encoding PNG images.
+type Encoder struct {
+	CompressionLevel CompressionLevel
+}
+
 type encoder struct {
+	enc    *Encoder
 	w      io.Writer
 	m      image.Image
 	cb     int
@@ -23,6 +29,15 @@ type encoder struct {
 	footer [4]byte
 	tmp    [4 * 256]byte
 }
+
+type CompressionLevel int
+
+const (
+	DefaultCompression CompressionLevel = iota
+	NoCompression
+	BestSpeed
+	BestCompression
+)
 
 // Big-endian.
 func writeUint32(b []uint8, u uint32) {
@@ -255,8 +270,11 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
 	return filter
 }
 
-func writeImage(w io.Writer, m image.Image, cb int) error {
-	zw := zlib.NewWriter(w)
+func writeImage(w io.Writer, m image.Image, cb int, level int) error {
+	zw, err := zlib.NewWriterLevel(w, level)
+	if err != nil {
+		return err
+	}
 	defer zw.Close()
 
 	bpp := 0 // Bytes per pixel.
@@ -419,18 +437,41 @@ func (e *encoder) writeIDATs() {
 	}
 	var bw *bufio.Writer
 	bw = bufio.NewWriterSize(e, 1<<15)
-	e.err = writeImage(bw, e.m, e.cb)
+	e.err = writeImage(bw, e.m, e.cb, levelToZlib(e.enc.CompressionLevel))
 	if e.err != nil {
 		return
 	}
 	e.err = bw.Flush()
 }
 
+// This function is required because we want the zero value of
+// Encoder.CompressionLevel to map to zlib.DefaultCompression.
+func levelToZlib(l CompressionLevel) int {
+	switch l {
+	case DefaultCompression:
+		return zlib.DefaultCompression
+	case NoCompression:
+		return zlib.NoCompression
+	case BestSpeed:
+		return zlib.BestSpeed
+	case BestCompression:
+		return zlib.BestCompression
+	default:
+		return zlib.DefaultCompression
+	}
+}
+
 func (e *encoder) writeIEND() { e.writeChunk(nil, "IEND") }
 
-// Encode writes the Image m to w in PNG format. Any Image may be encoded, but
-// images that are not image.NRGBA might be encoded lossily.
+// Encode writes the Image m to w in PNG format. Any Image may be
+// encoded, but images that are not image.NRGBA might be encoded lossily.
 func Encode(w io.Writer, m image.Image) error {
+	var e Encoder
+	return e.Encode(w, m)
+}
+
+// Encode writes the Image m to w in PNG format.
+func (enc *Encoder) Encode(w io.Writer, m image.Image) error {
 	// Obviously, negative widths and heights are invalid. Furthermore, the PNG
 	// spec section 11.2.2 says that zero is invalid. Excessively large images are
 	// also rejected.
@@ -440,6 +481,7 @@ func Encode(w io.Writer, m image.Image) error {
 	}
 
 	var e encoder
+	e.enc = enc
 	e.w = w
 	e.m = m
 
