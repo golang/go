@@ -529,6 +529,9 @@ func (f *File) applyRelocations(dst []byte, rels []byte) error {
 	if f.Class == ELFCLASS32 && f.Machine == EM_386 {
 		return f.applyRelocations386(dst, rels)
 	}
+	if f.Class == ELFCLASS64 && f.Machine == EM_AARCH64 {
+		return f.applyRelocationsARM64(dst, rels)
+	}
 
 	return errors.New("not implemented")
 }
@@ -615,6 +618,51 @@ func (f *File) applyRelocations386(dst []byte, rels []byte) error {
 	return nil
 }
 
+func (f *File) applyRelocationsARM64(dst []byte, rels []byte) error {
+	// 24 is the size of Rela64.
+	if len(rels)%24 != 0 {
+		return errors.New("length of relocation section is not a multiple of 24")
+	}
+
+	symbols, _, err := f.getSymbols(SHT_SYMTAB)
+	if err != nil {
+		return err
+	}
+
+	b := bytes.NewReader(rels)
+	var rela Rela64
+
+	for b.Len() > 0 {
+		binary.Read(b, f.ByteOrder, &rela)
+		symNo := rela.Info >> 32
+		t := R_AARCH64(rela.Info & 0xffff)
+
+		if symNo == 0 || symNo > uint64(len(symbols)) {
+			continue
+		}
+		sym := &symbols[symNo-1]
+		if SymType(sym.Info&0xf) != STT_SECTION {
+			// We don't handle non-section relocations for now.
+			continue
+		}
+
+		switch t {
+		case R_AARCH64_ABS64:
+			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+				continue
+			}
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], uint64(rela.Addend))
+		case R_AARCH64_ABS32:
+			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+				continue
+			}
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
+		}
+	}
+
+	return nil
+}
+
 func (f *File) DWARF() (*dwarf.Data, error) {
 	// There are many other DWARF sections, but these
 	// are the required ones, and the debug/dwarf package
@@ -637,7 +685,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	// If there's a relocation table for .debug_info, we have to process it
 	// now otherwise the data in .debug_info is invalid for x86-64 objects.
 	rela := f.Section(".rela.debug_info")
-	if rela != nil && rela.Type == SHT_RELA && f.Machine == EM_X86_64 {
+	if rela != nil && rela.Type == SHT_RELA && (f.Machine == EM_X86_64 || f.Machine == EM_AARCH64) {
 		data, err := rela.Data()
 		if err != nil {
 			return nil, err
