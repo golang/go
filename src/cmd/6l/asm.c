@@ -698,10 +698,10 @@ asmb(void)
 		case Hplan9:
 		case Helf:
 			debug['s'] = 1;
-			symo = HEADR+segtext.len+segdata.filelen;
+			symo = segdata.fileoff+segdata.filelen;
 			break;
 		case Hdarwin:
-			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
+			symo = segdata.fileoff+rnd(segdata.filelen, INITRND)+machlink;
 			break;
 		case Hlinux:
 		case Hfreebsd:
@@ -710,11 +710,11 @@ asmb(void)
 		case Hdragonfly:
 		case Hsolaris:
 		case Hnacl:
-			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segrodata.len, INITRND)+segdata.filelen;
+			symo = segdata.fileoff+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
 		case Hwindows:
-			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
+			symo = segdata.fileoff+segdata.filelen;
 			symo = rnd(symo, PEFILEALIGN);
 			break;
 		}
