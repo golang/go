@@ -9,7 +9,7 @@ import (
 )
 
 type callbacks struct {
-	lock
+	lock mutex
 	ctxt [cb_max]*wincallbackcontext
 	n    int
 }
