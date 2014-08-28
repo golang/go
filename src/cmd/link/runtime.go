@@ -15,13 +15,13 @@ func (p *Prog) runtime() {
 	// TODO: Implement garbage collection data.
 	p.addSym(&Sym{
 		Sym: &goobj.Sym{
-			SymID: goobj.SymID{Name: "gcdata"},
+			SymID: goobj.SymID{Name: "runtime.gcdata"},
 			Kind:  goobj.SRODATA,
 		},
 	})
 	p.addSym(&Sym{
 		Sym: &goobj.Sym{
-			SymID: goobj.SymID{Name: "gcbss"},
+			SymID: goobj.SymID{Name: "runtime.gcbss"},
 			Kind:  goobj.SRODATA,
 		},
 	})

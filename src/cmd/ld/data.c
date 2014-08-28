@@ -987,8 +987,8 @@ dodata(void)
 	sect->align = maxalign(s, SINITARR-1);
 	datsize = rnd(datsize, sect->align);
 	sect->vaddr = datsize;
-	linklookup(ctxt, "noptrdata", 0)->sect = sect;
-	linklookup(ctxt, "enoptrdata", 0)->sect = sect;
+	linklookup(ctxt, "runtime.noptrdata", 0)->sect = sect;
+	linklookup(ctxt, "runtime.enoptrdata", 0)->sect = sect;
 	for(; s != nil && s->type < SINITARR; s = s->next) {
 		datsize = aligndatsize(datsize, s);
 		s->sect = sect;
@@ -1018,9 +1018,9 @@ dodata(void)
 	sect->align = maxalign(s, SBSS-1);
 	datsize = rnd(datsize, sect->align);
 	sect->vaddr = datsize;
-	linklookup(ctxt, "data", 0)->sect = sect;
-	linklookup(ctxt, "edata", 0)->sect = sect;
-	gcdata = linklookup(ctxt, "gcdata", 0);
+	linklookup(ctxt, "runtime.data", 0)->sect = sect;
+	linklookup(ctxt, "runtime.edata", 0)->sect = sect;
+	gcdata = linklookup(ctxt, "runtime.gcdata", 0);
 	proggeninit(&gen, gcdata);
 	for(; s != nil && s->type < SBSS; s = s->next) {
 		if(s->type == SINITARR) {
@@ -1042,9 +1042,9 @@ dodata(void)
 	sect->align = maxalign(s, SNOPTRBSS-1);
 	datsize = rnd(datsize, sect->align);
 	sect->vaddr = datsize;
-	linklookup(ctxt, "bss", 0)->sect = sect;
-	linklookup(ctxt, "ebss", 0)->sect = sect;
-	gcbss = linklookup(ctxt, "gcbss", 0);
+	linklookup(ctxt, "runtime.bss", 0)->sect = sect;
+	linklookup(ctxt, "runtime.ebss", 0)->sect = sect;
+	gcbss = linklookup(ctxt, "runtime.gcbss", 0);
 	proggeninit(&gen, gcbss);
 	for(; s != nil && s->type < SNOPTRBSS; s = s->next) {
 		s->sect = sect;
@@ -1061,8 +1061,8 @@ dodata(void)
 	sect->align = maxalign(s, SNOPTRBSS);
 	datsize = rnd(datsize, sect->align);
 	sect->vaddr = datsize;
-	linklookup(ctxt, "noptrbss", 0)->sect = sect;
-	linklookup(ctxt, "enoptrbss", 0)->sect = sect;
+	linklookup(ctxt, "runtime.noptrbss", 0)->sect = sect;
+	linklookup(ctxt, "runtime.enoptrbss", 0)->sect = sect;
 	for(; s != nil && s->type == SNOPTRBSS; s = s->next) {
 		datsize = aligndatsize(datsize, s);
 		s->sect = sect;
@@ -1070,7 +1070,7 @@ dodata(void)
 		growdatsize(&datsize, s);
 	}
 	sect->len = datsize - sect->vaddr;
-	linklookup(ctxt, "end", 0)->sect = sect;
+	linklookup(ctxt, "runtime.end", 0)->sect = sect;
 
 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
 	if(datsize != (uint32)datsize) {
@@ -1141,8 +1141,8 @@ dodata(void)
 	sect->align = maxalign(s, STYPELINK-1);
 	datsize = rnd(datsize, sect->align);
 	sect->vaddr = 0;
-	linklookup(ctxt, "rodata", 0)->sect = sect;
-	linklookup(ctxt, "erodata", 0)->sect = sect;
+	linklookup(ctxt, "runtime.rodata", 0)->sect = sect;
+	linklookup(ctxt, "runtime.erodata", 0)->sect = sect;
 	for(; s != nil && s->type < STYPELINK; s = s->next) {
 		datsize = aligndatsize(datsize, s);
 		s->sect = sect;
@@ -1157,8 +1157,8 @@ dodata(void)
 	sect->align = maxalign(s, STYPELINK);
 	datsize = rnd(datsize, sect->align);
 	sect->vaddr = datsize;
-	linklookup(ctxt, "typelink", 0)->sect = sect;
-	linklookup(ctxt, "etypelink", 0)->sect = sect;
+	linklookup(ctxt, "runtime.typelink", 0)->sect = sect;
+	linklookup(ctxt, "runtime.etypelink", 0)->sect = sect;
 	for(; s != nil && s->type == STYPELINK; s = s->next) {
 		datsize = aligndatsize(datsize, s);
 		s->sect = sect;
@@ -1173,8 +1173,8 @@ dodata(void)
 	sect->align = maxalign(s, SPCLNTAB-1);
 	datsize = rnd(datsize, sect->align);
 	sect->vaddr = datsize;
-	linklookup(ctxt, "symtab", 0)->sect = sect;
-	linklookup(ctxt, "esymtab", 0)->sect = sect;
+	linklookup(ctxt, "runtime.symtab", 0)->sect = sect;
+	linklookup(ctxt, "runtime.esymtab", 0)->sect = sect;
 	for(; s != nil && s->type < SPCLNTAB; s = s->next) {
 		datsize = aligndatsize(datsize, s);
 		s->sect = sect;
@@ -1189,8 +1189,8 @@ dodata(void)
 	sect->align = maxalign(s, SELFROSECT-1);
 	datsize = rnd(datsize, sect->align);
 	sect->vaddr = datsize;
-	linklookup(ctxt, "pclntab", 0)->sect = sect;
-	linklookup(ctxt, "epclntab", 0)->sect = sect;
+	linklookup(ctxt, "runtime.pclntab", 0)->sect = sect;
+	linklookup(ctxt, "runtime.epclntab", 0)->sect = sect;
 	for(; s != nil && s->type < SELFROSECT; s = s->next) {
 		datsize = aligndatsize(datsize, s);
 		s->sect = sect;
@@ -1243,8 +1243,8 @@ textaddress(void)
 	// and then letting threads copy down, but probably not worth it.
 	sect = segtext.sect;
 	sect->align = funcalign;
-	linklookup(ctxt, "text", 0)->sect = sect;
-	linklookup(ctxt, "etext", 0)->sect = sect;
+	linklookup(ctxt, "runtime.text", 0)->sect = sect;
+	linklookup(ctxt, "runtime.etext", 0)->sect = sect;
 	va = INITTEXT;
 	sect->vaddr = va;
 	for(sym = ctxt->textp; sym != nil; sym = sym->next) {
@@ -1355,32 +1355,32 @@ address(void)
 			sub->value += sym->value;
 	}
 
-	xdefine("text", STEXT, text->vaddr);
-	xdefine("etext", STEXT, text->vaddr + text->len);
-	xdefine("rodata", SRODATA, rodata->vaddr);
-	xdefine("erodata", SRODATA, rodata->vaddr + rodata->len);
-	xdefine("typelink", SRODATA, typelink->vaddr);
-	xdefine("etypelink", SRODATA, typelink->vaddr + typelink->len);
+	xdefine("runtime.text", STEXT, text->vaddr);
+	xdefine("runtime.etext", STEXT, text->vaddr + text->len);
+	xdefine("runtime.rodata", SRODATA, rodata->vaddr);
+	xdefine("runtime.erodata", SRODATA, rodata->vaddr + rodata->len);
+	xdefine("runtime.typelink", SRODATA, typelink->vaddr);
+	xdefine("runtime.etypelink", SRODATA, typelink->vaddr + typelink->len);
 
-	sym = linklookup(ctxt, "gcdata", 0);
-	xdefine("egcdata", SRODATA, symaddr(sym) + sym->size);
-	linklookup(ctxt, "egcdata", 0)->sect = sym->sect;
+	sym = linklookup(ctxt, "runtime.gcdata", 0);
+	xdefine("runtime.egcdata", SRODATA, symaddr(sym) + sym->size);
+	linklookup(ctxt, "runtime.egcdata", 0)->sect = sym->sect;
 
-	sym = linklookup(ctxt, "gcbss", 0);
-	xdefine("egcbss", SRODATA, symaddr(sym) + sym->size);
-	linklookup(ctxt, "egcbss", 0)->sect = sym->sect;
+	sym = linklookup(ctxt, "runtime.gcbss", 0);
+	xdefine("runtime.egcbss", SRODATA, symaddr(sym) + sym->size);
+	linklookup(ctxt, "runtime.egcbss", 0)->sect = sym->sect;
 
-	xdefine("symtab", SRODATA, symtab->vaddr);
-	xdefine("esymtab", SRODATA, symtab->vaddr + symtab->len);
-	xdefine("pclntab", SRODATA, pclntab->vaddr);
-	xdefine("epclntab", SRODATA, pclntab->vaddr + pclntab->len);
-	xdefine("noptrdata", SNOPTRDATA, noptr->vaddr);
-	xdefine("enoptrdata", SNOPTRDATA, noptr->vaddr + noptr->len);
-	xdefine("bss", SBSS, bss->vaddr);
-	xdefine("ebss", SBSS, bss->vaddr + bss->len);
-	xdefine("data", SDATA, data->vaddr);
-	xdefine("edata", SDATA, data->vaddr + data->len);
-	xdefine("noptrbss", SNOPTRBSS, noptrbss->vaddr);
-	xdefine("enoptrbss", SNOPTRBSS, noptrbss->vaddr + noptrbss->len);
-	xdefine("end", SBSS, segdata.vaddr + segdata.len);
+	xdefine("runtime.symtab", SRODATA, symtab->vaddr);
+	xdefine("runtime.esymtab", SRODATA, symtab->vaddr + symtab->len);
+	xdefine("runtime.pclntab", SRODATA, pclntab->vaddr);
+	xdefine("runtime.epclntab", SRODATA, pclntab->vaddr + pclntab->len);
+	xdefine("runtime.noptrdata", SNOPTRDATA, noptr->vaddr);
+	xdefine("runtime.enoptrdata", SNOPTRDATA, noptr->vaddr + noptr->len);
+	xdefine("runtime.bss", SBSS, bss->vaddr);
+	xdefine("runtime.ebss", SBSS, bss->vaddr + bss->len);
+	xdefine("runtime.data", SDATA, data->vaddr);
+	xdefine("runtime.edata", SDATA, data->vaddr + data->len);
+	xdefine("runtime.noptrbss", SNOPTRBSS, noptrbss->vaddr);
+	xdefine("runtime.enoptrbss", SNOPTRBSS, noptrbss->vaddr + noptrbss->len);
+	xdefine("runtime.end", SBSS, segdata.vaddr + segdata.len);
 }

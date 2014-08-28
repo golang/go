@@ -125,7 +125,7 @@ runtime·mallocinit(void)
 {
 	byte *p, *p1;
 	uintptr arena_size, bitmap_size, spans_size, p_size;
-	extern byte end[];
+	extern byte runtime·end[];
 	uintptr limit;
 	uint64 i;
 	bool reserved;
@@ -232,7 +232,7 @@ runtime·mallocinit(void)
 		// So adjust it upward a little bit ourselves: 1/4 MB to get
 		// away from the running binary image and then round up
 		// to a MB boundary.
-		p = (byte*)ROUND((uintptr)end + (1<<18), 1<<20);
+		p = (byte*)ROUND((uintptr)runtime·end + (1<<18), 1<<20);
 		p_size = bitmap_size + spans_size + arena_size + PageSize;
 		p = runtime·SysReserve(p, p_size, &reserved);
 		if(p == nil)

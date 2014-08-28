@@ -1349,10 +1349,10 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
 
 	// These symbols won't show up in the first loop below because we
 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
-	s = linklookup(ctxt, "text", 0);
+	s = linklookup(ctxt, "runtime.text", 0);
 	if(s->type == STEXT)
 		put(s, s->name, 'T', s->value, s->size, s->version, 0);
-	s = linklookup(ctxt, "etext", 0);
+	s = linklookup(ctxt, "runtime.etext", 0);
 	if(s->type == STEXT)
 		put(s, s->name, 'T', s->value, s->size, s->version, 0);
 

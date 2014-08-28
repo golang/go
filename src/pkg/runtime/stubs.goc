@@ -123,8 +123,8 @@ func gopersistentalloc(size uintptr) (x *void) {
 
 #pragma textflag NOSPLIT
 func reflect·typelinks() (ret Slice) {
-        extern Type *typelink[], *etypelink[];
-        ret.array = (byte*)typelink;
-        ret.len = etypelink - typelink;
+        extern Type *runtime·typelink[], *runtime·etypelink[];
+        ret.array = (byte*)runtime·typelink;
+        ret.len = runtime·etypelink - runtime·typelink;
         ret.cap = ret.len;
 }

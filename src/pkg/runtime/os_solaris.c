@@ -9,9 +9,9 @@
 #include "stack.h"
 #include "../../cmd/ld/textflag.h"
 
-#pragma dynexport end _end
-#pragma dynexport etext _etext
-#pragma dynexport edata _edata
+#pragma dynexport runtime·end _end
+#pragma dynexport runtime·etext _etext
+#pragma dynexport runtime·edata _edata
 
 #pragma dynimport libc·___errno ___errno "libc.so"
 #pragma dynimport libc·clock_gettime clock_gettime "libc.so"
@@ -247,7 +247,7 @@ uintptr
 runtime·memlimit(void)
 {
 	Rlimit rl;
-	extern byte text[], end[];
+	extern byte runtime·text[], runtime·end[];
 	uintptr used;
 	
 	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
@@ -258,7 +258,7 @@ runtime·memlimit(void)
 	// Estimate our VM footprint excluding the heap.
 	// Not an exact science: use size of binary plus
 	// some room for thread stacks.
-	used = end - text + (64<<20);
+	used = runtime·end - runtime·text + (64<<20);
 	if(used >= rl.rlim_cur)
 		return 0;
 

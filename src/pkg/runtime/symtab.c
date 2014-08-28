@@ -19,15 +19,15 @@ struct Ftab
 	uintptr	funcoff;
 };
 
-extern byte pclntab[];
-extern byte epclntab[];
+extern byte runtime·pclntab[];
+extern byte runtime·epclntab[];
 
 static Ftab *ftab;
 static uintptr runtime·nftab;
 static uint32 *filetab;
 static uint32 runtime·nfiletab;
 
-extern Slice runtime·pclntab;
+extern Slice runtime·pclntable;
 extern Slice runtime·ftabs;
 extern Slice runtime·filetab;
 extern uint32 runtime·pcquantum;
@@ -43,33 +43,33 @@ runtime·symtabinit(void)
 	// See golang.org/s/go12symtab for header: 0xfffffffb,
 	// two zero bytes, a byte giving the PC quantum,
 	// and a byte giving the pointer width in bytes.
-	if(*(uint32*)pclntab != 0xfffffffb || pclntab[4] != 0 || pclntab[5] != 0 || pclntab[6] != PCQuantum || pclntab[7] != sizeof(void*)) {
-		runtime·printf("runtime: function symbol table header: %x %x\n", *(uint32*)pclntab, *(uint32*)(pclntab+4));
+	if(*(uint32*)runtime·pclntab != 0xfffffffb || runtime·pclntab[4] != 0 || runtime·pclntab[5] != 0 || runtime·pclntab[6] != PCQuantum || runtime·pclntab[7] != sizeof(void*)) {
+		runtime·printf("runtime: function symbol table header: %x %x\n", *(uint32*)runtime·pclntab, *(uint32*)(runtime·pclntab+4));
 		runtime·throw("invalid function symbol table\n");
 	}
 
-	runtime·nftab = *(uintptr*)(pclntab+8);
-	ftab = (Ftab*)(pclntab+8+sizeof(void*));
+	runtime·nftab = *(uintptr*)(runtime·pclntab+8);
+	ftab = (Ftab*)(runtime·pclntab+8+sizeof(void*));
 	for(i=0; i<runtime·nftab; i++) {
 		// NOTE: ftab[runtime·nftab].entry is legal; it is the address beyond the final function.
 		if(ftab[i].entry > ftab[i+1].entry) {
-			f1 = (Func*)(pclntab + ftab[i].funcoff);
-			f2 = (Func*)(pclntab + ftab[i+1].funcoff);
+			f1 = (Func*)(runtime·pclntab + ftab[i].funcoff);
+			f2 = (Func*)(runtime·pclntab + ftab[i+1].funcoff);
 			runtime·printf("function symbol table not sorted by program counter: %p %s > %p %s", ftab[i].entry, runtime·funcname(f1), ftab[i+1].entry, i+1 == runtime·nftab ? "end" : runtime·funcname(f2));
 			for(j=0; j<=i; j++)
-				runtime·printf("\t%p %s\n", ftab[j].entry, runtime·funcname((Func*)(pclntab + ftab[j].funcoff)));
+				runtime·printf("\t%p %s\n", ftab[j].entry, runtime·funcname((Func*)(runtime·pclntab + ftab[j].funcoff)));
 			runtime·throw("invalid runtime symbol table");
 		}
 	}
 	
-	filetab = (uint32*)(pclntab + *(uint32*)&ftab[runtime·nftab].funcoff);
+	filetab = (uint32*)(runtime·pclntab + *(uint32*)&ftab[runtime·nftab].funcoff);
 	runtime·nfiletab = filetab[0];
 
 	runtime·pcquantum = PCQuantum;
 
-	runtime·pclntab.array = (byte*)pclntab;
-	runtime·pclntab.len = (byte*)epclntab - (byte*)pclntab;
-	runtime·pclntab.cap = runtime·pclntab.len;
+	runtime·pclntable.array = (byte*)runtime·pclntab;
+	runtime·pclntable.len = (byte*)runtime·epclntab - (byte*)runtime·pclntab;
+	runtime·pclntable.cap = runtime·pclntable.len;
 
 	runtime·ftabs.array = (byte*)ftab;
 	runtime·ftabs.len = runtime·nftab+1;
@@ -155,7 +155,7 @@ pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
 	// The table ends at a value delta of 0 except in the first pair.
 	if(off == 0)
 		return -1;
-	p = pclntab + off;
+	p = runtime·pclntab + off;
 	pc = f->entry;
 	value = -1;
 
@@ -194,7 +194,7 @@ runtime·funcname(Func *f)
 {
 	if(f == nil || f->nameoff == 0)
 		return nil;
-	return (int8*)(pclntab + f->nameoff);
+	return (int8*)(runtime·pclntab + f->nameoff);
 }
 
 static int32
@@ -210,7 +210,7 @@ funcline(Func *f, uintptr targetpc, String *file, bool strict)
 		// runtime·printf("looking for %p in %S got file=%d line=%d\n", targetpc, *f->name, fileno, line);
 		return 0;
 	}
-	*file = runtime·gostringnocopy(pclntab + filetab[fileno]);
+	*file = runtime·gostringnocopy(runtime·pclntab + filetab[fileno]);
 	return line;
 }
 
@@ -264,7 +264,7 @@ runtime·findfunc(uintptr addr)
 	while(nf > 0) {
 		n = nf/2;
 		if(f[n].entry <= addr && addr < f[n+1].entry)
-			return (Func*)(pclntab + f[n].funcoff);
+			return (Func*)(runtime·pclntab + f[n].funcoff);
 		else if(addr < f[n].entry)
 			nf = n;
 		else {

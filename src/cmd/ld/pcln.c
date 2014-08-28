@@ -119,7 +119,7 @@ pclntab(void)
 	static Pcln zpcln;
 	
 	funcdata_bytes = 0;
-	ftab = linklookup(ctxt, "pclntab", 0);
+	ftab = linklookup(ctxt, "runtime.pclntab", 0);
 	ftab->type = SPCLNTAB;
 	ftab->reachable = 1;
 

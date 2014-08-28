@@ -47,8 +47,8 @@ void __tsan_release_merge(void);
 #pragma cgo_import_static __tsan_func_enter
 #pragma cgo_import_static __tsan_func_exit
 
-extern byte noptrdata[];
-extern byte enoptrbss[];
+extern byte runtime·noptrdata[];
+extern byte runtime·enoptrbss[];
   
 // start/end of heap for race_amd64.s
 uintptr runtime·racearenastart;
@@ -70,7 +70,7 @@ isvalidaddr(uintptr addr)
 {
 	if(addr >= runtime·racearenastart && addr < runtime·racearenaend)
 		return true;
-	if(addr >= (uintptr)noptrdata && addr < (uintptr)enoptrbss)
+	if(addr >= (uintptr)runtime·noptrdata && addr < (uintptr)runtime·enoptrbss)
 		return true;
 	return false;
 }
@@ -85,8 +85,8 @@ runtime·raceinit(void)
 		runtime·throw("raceinit: race build must use cgo");
 	runtime·racecall(__tsan_init, &racectx, runtime·racesymbolizethunk);
 	// Round data segment to page boundaries, because it's used in mmap().
-	start = (uintptr)noptrdata & ~(PageSize-1);
-	size = ROUND((uintptr)enoptrbss - start, PageSize);
+	start = (uintptr)runtime·noptrdata & ~(PageSize-1);
+	size = ROUND((uintptr)runtime·enoptrbss - start, PageSize);
 	runtime·racecall(__tsan_map_shadow, start, size);
 	return racectx;
 }

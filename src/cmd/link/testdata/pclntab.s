@@ -1746,6 +1746,6 @@ TEXT start(SB),7,$0
 	CALL func0(SB)
 	CALL func1(SB)
 	CALL func2(SB)
-	MOVQ $pclntab(SB), AX
+	MOVQ $runtime·pclntab(SB), AX
 
 	RET
