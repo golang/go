@@ -97,6 +97,7 @@ func init() {
 		"(*runtime.Func).Entry":            ext۰runtime۰Func۰Entry,
 		"(*runtime.Func).FileLine":         ext۰runtime۰Func۰FileLine,
 		"(*runtime.Func).Name":             ext۰runtime۰Func۰Name,
+		"runtime.environ":                  ext۰runtime۰environ,
 		"runtime.getgoroot":                ext۰runtime۰getgoroot,
 		"strings.IndexByte":                ext۰strings۰IndexByte,
 		"sync.runtime_Semacquire":          ext۰sync۰runtime_Semacquire,
@@ -276,6 +277,16 @@ func ext۰runtime۰FuncForPC(fr *frame, args []value) value {
 	var Func value
 	Func = structure{fn} // a runtime.Func
 	return &Func
+}
+
+func ext۰runtime۰environ(fr *frame, args []value) value {
+	// We don't return syscall.envs (see Interpret()) because it's
+	// not a dependency of runtime so the package might not exist.
+	var env []value
+	for _, s := range os.Environ() {
+		env = append(env, s)
+	}
+	return env
 }
 
 func ext۰runtime۰getgoroot(fr *frame, args []value) value {
