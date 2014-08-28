@@ -13,12 +13,7 @@ import (
 
 var (
 	mimeLock       sync.RWMutex
-	mimeTypes      = map[string]string{}
-	mimeTypesLower = map[string]string{}
-)
-
-func init() {
-	mimeTypes := map[string]string{
+	mimeTypesLower = map[string]string{
 		".css":  "text/css; charset=utf-8",
 		".gif":  "image/gif",
 		".htm":  "text/html; charset=utf-8",
@@ -29,12 +24,21 @@ func init() {
 		".png":  "image/png",
 		".xml":  "text/xml; charset=utf-8",
 	}
-	for ext, typ := range mimeTypes {
-		AddExtensionType(ext, typ)
+	mimeTypes = clone(mimeTypesLower)
+)
+
+func clone(m map[string]string) map[string]string {
+	m2 := make(map[string]string, len(m))
+	for k, v := range m {
+		m2[k] = v
+		if strings.ToLower(k) != k {
+			panic("keys in mimeTypesLower must be lowercase")
+		}
 	}
+	return m2
 }
 
-var once sync.Once
+var once sync.Once // guards initMime
 
 // TypeByExtension returns the MIME type associated with the file extension ext.
 // The extension ext should begin with a leading dot, as in ".html".
@@ -50,21 +54,41 @@ var once sync.Once
 //   /etc/apache2/mime.types
 //   /etc/apache/mime.types
 //
-// Windows system MIME types are extracted from registry.
+// On Windows, MIME types are extracted from the registry.
 //
 // Text types have the charset parameter set to "utf-8" by default.
 func TypeByExtension(ext string) string {
 	once.Do(initMime)
 	mimeLock.RLock()
-	typename := mimeTypes[ext]
-	mimeLock.RUnlock()
-	if typename == "" {
-		lower := strings.ToLower(ext)
-		mimeLock.RLock()
-		typename = mimeTypesLower[lower]
-		mimeLock.RUnlock()
+	defer mimeLock.RUnlock()
+
+	// Case-sensitive lookup.
+	v := mimeTypes[ext]
+	if v != "" {
+		return v
 	}
-	return typename
+
+	// Case-insensitive lookup.
+	// Optimistically assume a short ASCII extension and be
+	// allocation-free in that case.
+	var buf [10]byte
+	lower := buf[:0]
+	const utf8RuneSelf = 0x80 // from utf8 package, but not importing it.
+	for i := 0; i < len(ext); i++ {
+		c := ext[i]
+		if c >= utf8RuneSelf {
+			// Slow path.
+			return mimeTypesLower[strings.ToLower(ext)]
+		}
+		if 'A' <= c && c <= 'Z' {
+			lower = append(lower, c+('a'-'A'))
+		} else {
+			lower = append(lower, c)
+		}
+	}
+	// The conversion from []byte to string doesn't allocate in
+	// a map lookup.
+	return mimeTypesLower[string(lower)]
 }
 
 // AddExtensionType sets the MIME type associated with
