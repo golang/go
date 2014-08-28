@@ -4,7 +4,9 @@
 
 package mime
 
-import "testing"
+import (
+	"testing"
+)
 
 var typeTests = initMimeForTests()
 
@@ -14,16 +16,20 @@ func TestTypeByExtension(t *testing.T) {
 		if val != want {
 			t.Errorf("TypeByExtension(%q) = %q, want %q", ext, val, want)
 		}
-
 	}
 }
 
 func TestCustomExtension(t *testing.T) {
-	custom := "text/xml; charset=iso-8859-1"
-	if error := AddExtensionType(".xml", custom); error != nil {
+	custom := "test/test; charset=iso-8859-1"
+	if error := AddExtensionType(".tesT", custom); error != nil {
 		t.Fatalf("error %s for AddExtension(%s)", error, custom)
 	}
-	if registered := TypeByExtension(".xml"); registered != custom {
+	// test with same capitalization
+	if registered := TypeByExtension(".tesT"); registered != custom {
+		t.Fatalf("registered %s instead of %s", registered, custom)
+	}
+	// test with different capitalization
+	if registered := TypeByExtension(".Test"); registered != custom {
 		t.Fatalf("registered %s instead of %s", registered, custom)
 	}
 }
