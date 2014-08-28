@@ -4,6 +4,8 @@
 
 package runtime
 
+import "unsafe"
+
 // Breakpoint executes a breakpoint trap.
 func Breakpoint()
 
@@ -21,16 +23,32 @@ func UnlockOSThread()
 // change the current setting.
 // The number of logical CPUs on the local machine can be queried with NumCPU.
 // This call will go away when the scheduler improves.
-func GOMAXPROCS(n int) int
+func GOMAXPROCS(n int) int {
+	return int(gomaxprocsfunc(int32(n)))
+}
+
+func gomaxprocsfunc(int32) int32 // proc.c
 
 // NumCPU returns the number of logical CPUs on the local machine.
-func NumCPU() int
+func NumCPU() int {
+	return int(ncpu)
+}
 
 // NumCgoCall returns the number of cgo calls made by the current process.
-func NumCgoCall() int64
+func NumCgoCall() int64 {
+	var n int64
+	for mp := (*m)(atomicloadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
+		n += int64(mp.ncgocall)
+	}
+	return n
+}
 
 // NumGoroutine returns the number of goroutines that currently exist.
-func NumGoroutine() int
+func NumGoroutine() int {
+	return int(gcount())
+}
+
+func gcount() int32
 
 // MemProfileRate controls the fraction of memory allocations
 // that are recorded and reported in the memory profile.
