@@ -218,11 +218,13 @@ printtypename(Type *t)
 			n = s->name;
 		else if(t->tag)
 			n = t->tag->name;
-		if(strcmp(n, "String") == 0){
+		if(strcmp(n, "String") == 0)
 			Bprint(&outbuf, "string");
-		} else if(strcmp(n, "Slice") == 0){
+		else if(strcmp(n, "Slice") == 0)
 			Bprint(&outbuf, "[]byte");
-		} else
+		else if(strcmp(n, "Eface") == 0)
+			Bprint(&outbuf, "interface{}");
+		else
 			Bprint(&outbuf, "%U", n);
 		break;
 	case TFUNC:
