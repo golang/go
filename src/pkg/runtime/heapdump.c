@@ -584,7 +584,10 @@ itab_callback(Itab *tab)
 static void
 dumpitabs(void)
 {
-	runtime·iterate_itabs(itab_callback);
+	void (*fn)(Itab*);
+	
+	fn = itab_callback;
+	runtime·iterate_itabs(&fn);
 }
 
 static void
