@@ -13,7 +13,6 @@
 package sql
 
 import (
-	"container/list"
 	"database/sql/driver"
 	"errors"
 	"fmt"
@@ -198,8 +197,8 @@ type DB struct {
 	dsn    string
 
 	mu           sync.Mutex // protects following fields
-	freeConn     *list.List // of *driverConn
-	connRequests *list.List // of connRequest
+	freeConn     []*driverConn
+	connRequests []chan *connRequest
 	numOpen      int
 	pendingOpens int
 	// Used to signal the need for new connections
@@ -232,9 +231,6 @@ type driverConn struct {
 	inUse      bool
 	onPut      []func() // code (with db.mu held) run when conn is next returned
 	dbmuClosed bool     // same as closed, but guarded by db.mu, for connIfFree
-	// This is the Element returned by db.freeConn.PushFront(conn).
-	// It's used by connIfFree to remove the conn from the freeConn list.
-	listElem *list.Element
 }
 
 func (dc *driverConn) releaseConn(err error) {
@@ -437,8 +433,6 @@ func Open(driverName, dataSourceName string) (*DB, error) {
 		openerCh: make(chan struct{}, connectionRequestQueueSize),
 		lastPut:  make(map[*driverConn]string),
 	}
-	db.freeConn = list.New()
-	db.connRequests = list.New()
 	go db.connectionOpener()
 	return db, nil
 }
@@ -469,17 +463,13 @@ func (db *DB) Close() error {
 	}
 	close(db.openerCh)
 	var err error
-	fns := make([]func() error, 0, db.freeConn.Len())
-	for db.freeConn.Front() != nil {
-		dc := db.freeConn.Front().Value.(*driverConn)
-		dc.listElem = nil
+	fns := make([]func() error, 0, len(db.freeConn))
+	for _, dc := range db.freeConn {
 		fns = append(fns, dc.closeDBLocked())
-		db.freeConn.Remove(db.freeConn.Front())
 	}
+	db.freeConn = nil
 	db.closed = true
-	for db.connRequests.Front() != nil {
-		req := db.connRequests.Front().Value.(connRequest)
-		db.connRequests.Remove(db.connRequests.Front())
+	for _, req := range db.connRequests {
 		close(req)
 	}
 	db.mu.Unlock()
@@ -527,11 +517,11 @@ func (db *DB) SetMaxIdleConns(n int) {
 		db.maxIdle = db.maxOpen
 	}
 	var closing []*driverConn
-	for db.freeConn.Len() > db.maxIdleConnsLocked() {
-		dc := db.freeConn.Back().Value.(*driverConn)
-		dc.listElem = nil
-		db.freeConn.Remove(db.freeConn.Back())
-		closing = append(closing, dc)
+	idleCount := len(db.freeConn)
+	maxIdle := db.maxIdleConnsLocked()
+	if idleCount > maxIdle {
+		closing = db.freeConn[maxIdle:]
+		db.freeConn = db.freeConn[:maxIdle]
 	}
 	db.mu.Unlock()
 	for _, c := range closing {
@@ -564,7 +554,7 @@ func (db *DB) SetMaxOpenConns(n int) {
 // If there are connRequests and the connection limit hasn't been reached,
 // then tell the connectionOpener to open new connections.
 func (db *DB) maybeOpenNewConnections() {
-	numRequests := db.connRequests.Len() - db.pendingOpens
+	numRequests := len(db.connRequests) - db.pendingOpens
 	if db.maxOpen > 0 {
 		numCanOpen := db.maxOpen - (db.numOpen + db.pendingOpens)
 		if numRequests > numCanOpen {
@@ -616,7 +606,10 @@ func (db *DB) openNewConnection() {
 // connRequest represents one request for a new connection
 // When there are no idle connections available, DB.conn will create
 // a new connRequest and put it on the db.connRequests list.
-type connRequest chan<- interface{} // takes either a *driverConn or an error
+type connRequest struct {
+	conn *driverConn
+	err  error
+}
 
 var errDBClosed = errors.New("sql: database is closed")
 
@@ -630,32 +623,24 @@ func (db *DB) conn() (*driverConn, error) {
 
 	// If db.maxOpen > 0 and the number of open connections is over the limit
 	// and there are no free connection, make a request and wait.
-	if db.maxOpen > 0 && db.numOpen >= db.maxOpen && db.freeConn.Len() == 0 {
+	if db.maxOpen > 0 && db.numOpen >= db.maxOpen && len(db.freeConn) == 0 {
 		// Make the connRequest channel. It's buffered so that the
 		// connectionOpener doesn't block while waiting for the req to be read.
-		ch := make(chan interface{}, 1)
-		req := connRequest(ch)
-		db.connRequests.PushBack(req)
+		req := make(chan *connRequest, 1)
+		db.connRequests = append(db.connRequests, req)
 		db.maybeOpenNewConnections()
 		db.mu.Unlock()
-		ret, ok := <-ch
-		if !ok {
+		ret := <-req
+		if ret == nil {
 			return nil, errDBClosed
 		}
-		switch ret.(type) {
-		case *driverConn:
-			return ret.(*driverConn), nil
-		case error:
-			return nil, ret.(error)
-		default:
-			panic("sql: Unexpected type passed through connRequest.ch")
-		}
+		return ret.conn, ret.err
 	}
 
-	if f := db.freeConn.Front(); f != nil {
-		conn := f.Value.(*driverConn)
-		conn.listElem = nil
-		db.freeConn.Remove(f)
+	if c := len(db.freeConn); c > 0 {
+		conn := db.freeConn[0]
+		copy(db.freeConn, db.freeConn[1:])
+		db.freeConn = db.freeConn[:c-1]
 		conn.inUse = true
 		db.mu.Unlock()
 		return conn, nil
@@ -702,9 +687,15 @@ func (db *DB) connIfFree(wanted *driverConn) (*driverConn, error) {
 	if wanted.inUse {
 		return nil, errConnBusy
 	}
-	if wanted.listElem != nil {
-		db.freeConn.Remove(wanted.listElem)
-		wanted.listElem = nil
+	idx := -1
+	for ii, v := range db.freeConn {
+		if v == wanted {
+			idx = ii
+			break
+		}
+	}
+	if idx >= 0 {
+		db.freeConn = append(db.freeConn[:idx], db.freeConn[idx+1:]...)
 		wanted.inUse = true
 		return wanted, nil
 	}
@@ -793,18 +784,20 @@ func (db *DB) putConn(dc *driverConn, err error) {
 // If a connRequest was fulfilled or the *driverConn was placed in the
 // freeConn list, then true is returned, otherwise false is returned.
 func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
-	if db.connRequests.Len() > 0 {
-		req := db.connRequests.Front().Value.(connRequest)
-		db.connRequests.Remove(db.connRequests.Front())
-		if err != nil {
-			req <- err
-		} else {
+	if c := len(db.connRequests); c > 0 {
+		req := db.connRequests[0]
+		copy(db.connRequests, db.connRequests[1:])
+		db.connRequests = db.connRequests[:c-1]
+		if err == nil {
 			dc.inUse = true
-			req <- dc
+		}
+		req <- &connRequest{
+			conn: dc,
+			err:  err,
 		}
 		return true
-	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > db.freeConn.Len() {
-		dc.listElem = db.freeConn.PushFront(dc)
+	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > len(db.freeConn) {
+		db.freeConn = append(db.freeConn, dc)
 		return true
 	}
 	return false
