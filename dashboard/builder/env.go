@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -184,12 +185,13 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 	}
 	var errMsg string
 	if isMirrored {
-		commitDesc, err := repo.Master.VCS.LogAtRev(repo.Path, hash, "{desc|escape}")
+		commitDesc, err := repo.Master.VCS.LogAtRev(repo.Path, hash, "{desc|firstline|escape}")
 		if err != nil {
 			return "", err
 		}
 
-		logCmd = append(logCmd, "--grep", "'"+string(commitDesc)+"'", "--regexp-ignore-case")
+		quotedDesc := regexp.QuoteMeta(string(commitDesc))
+		logCmd = append(logCmd, "--grep", quotedDesc, "--regexp-ignore-case", "--extended-regexp")
 		errMsg = fmt.Sprintf("Failed to find a commit with a similar description to '%s'", string(commitDesc))
 	} else {
 		commitDate, err := repo.Master.VCS.LogAtRev(repo.Path, hash, "{date|rfc3339date}")
