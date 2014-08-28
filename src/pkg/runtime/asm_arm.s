@@ -691,7 +691,7 @@ casfail:
 	RET
 
 TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
-	JMP	runtime·cas(SB)
+	B	runtime·cas(SB)
 
 TEXT runtime·stackguard(SB),NOSPLIT,$0-8
 	MOVW	R13, R1
