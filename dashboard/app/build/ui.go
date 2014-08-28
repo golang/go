@@ -158,10 +158,10 @@ func (s builderOrder) Less(i, j int) bool {
 	return pi < pj
 }
 
-func builderPriority(builder string) int {
+func builderPriority(builder string) (p int) {
 	// Put -temp builders at the end, always.
 	if strings.HasSuffix(builder, "-temp") {
-		return 20
+		defer func() { p += 20 }()
 	}
 	// Group race builders together.
 	if isRace(builder) {
