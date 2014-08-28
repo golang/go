@@ -355,11 +355,20 @@ func loadTables(f *os.File) (textStart uint64, textData, symtab, pclntab []byte,
 			textStart = imageBase + uint64(sect.VirtualAddress)
 			textData, _ = sect.Data()
 		}
-		if pclntab, err = loadPETable(obj, "pclntab", "epclntab"); err != nil {
-			return 0, nil, nil, nil, err
+		if pclntab, err = loadPETable(obj, "runtime.pclntab", "runtime.epclntab"); err != nil {
+			// We didn't find the symbols, so look for the names used in 1.3 and earlier.
+			// TODO: Remove code looking for the old symbols when we no longer care about 1.3.
+			var err2 error
+			if pclntab, err2 = loadPETable(obj, "pclntab", "epclntab"); err2 != nil {
+				return 0, nil, nil, nil, err
+			}
 		}
-		if symtab, err = loadPETable(obj, "symtab", "esymtab"); err != nil {
-			return 0, nil, nil, nil, err
+		if symtab, err = loadPETable(obj, "runtime.symtab", "runtime.esymtab"); err != nil {
+			// Same as above.
+			var err2 error
+			if symtab, err2 = loadPETable(obj, "symtab", "esymtab"); err2 != nil {
+				return 0, nil, nil, nil, err
+			}
 		}
 		return textStart, textData, symtab, pclntab, nil
 	}
@@ -369,11 +378,20 @@ func loadTables(f *os.File) (textStart uint64, textData, symtab, pclntab []byte,
 		if sect := obj.Section("text"); sect != nil {
 			textData, _ = sect.Data()
 		}
-		if pclntab, err = loadPlan9Table(obj, "pclntab", "epclntab"); err != nil {
-			return 0, nil, nil, nil, err
+		if pclntab, err = loadPlan9Table(obj, "runtime.pclntab", "runtime.epclntab"); err != nil {
+			// We didn't find the symbols, so look for the names used in 1.3 and earlier.
+			// TODO: Remove code looking for the old symbols when we no longer care about 1.3.
+			var err2 error
+			if pclntab, err2 = loadPlan9Table(obj, "pclntab", "epclntab"); err2 != nil {
+				return 0, nil, nil, nil, err
+			}
 		}
-		if symtab, err = loadPlan9Table(obj, "symtab", "esymtab"); err != nil {
-			return 0, nil, nil, nil, err
+		if symtab, err = loadPlan9Table(obj, "runtime.symtab", "runtime.esymtab"); err != nil {
+			// Same as above.
+			var err2 error
+			if symtab, err2 = loadPlan9Table(obj, "symtab", "esymtab"); err2 != nil {
+				return 0, nil, nil, nil, err
+			}
 		}
 		return textStart, textData, symtab, pclntab, nil
 	}
