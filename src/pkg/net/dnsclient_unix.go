@@ -310,12 +310,9 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) 
 		}
 		// Can try as ordinary name.
 		cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
-		if err == nil {
+		if rooted || err == nil {
 			return
 		}
-	}
-	if rooted {
-		return
 	}
 
 	// Otherwise, try suffixes.
@@ -330,15 +327,15 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) 
 		}
 	}
 
-	// Last ditch effort: try unsuffixed.
-	rname := name
-	if !rooted {
-		rname += "."
+	// Last ditch effort: try unsuffixed only if we haven't already,
+	// that is, name is not rooted and has less than ndots dots.
+	if count(name, '.') < cfg.dnsConfig.ndots {
+		cname, addrs, err = tryOneName(cfg.dnsConfig, name+".", qtype)
+		if err == nil {
+			return
+		}
 	}
-	cname, addrs, err = tryOneName(cfg.dnsConfig, rname, qtype)
-	if err == nil {
-		return
-	}
+
 	if e, ok := err.(*DNSError); ok {
 		// Show original name passed to lookup, not suffixed one.
 		// In general we might have tried many suffixes; showing

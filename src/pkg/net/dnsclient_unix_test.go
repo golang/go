@@ -217,3 +217,9 @@ func TestReloadResolvConfChange(t *testing.T) {
 	r.SetConf("nameserver 8.8.4.4")
 	r.WantServers([]string{"[8.8.4.4]"})
 }
+
+func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		goLookupIP("some.nonexistent")
+	}
+}
