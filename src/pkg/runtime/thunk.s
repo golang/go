@@ -52,3 +52,12 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-0
 
 TEXT runtime·reflectcall(SB), NOSPLIT, $0-0
 	JMP	reflect·call(SB)
+
+TEXT reflect·chanclose(SB), NOSPLIT, $0-0
+	JMP	runtime·closechan(SB)
+
+TEXT reflect·chanlen(SB), NOSPLIT, $0-0
+	JMP	runtime·reflect_chanlen(SB)
+
+TEXT reflect·chancap(SB), NOSPLIT, $0-0
+	JMP	runtime·reflect_chancap(SB)

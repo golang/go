@@ -150,12 +150,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 				memmove(unsafe.Pointer(sg.elem), ep, uintptr(c.elemsize))
 			}
 			if sg.releasetime != 0 {
-				// Yes, this is ugly.  On 64-bit sg.releasetime has type
-				// int.  On 32-bit it has type int64.  There's no easy way
-				// to assign to both types in Go.  At some point we'll
-				// write the Go types directly instead of generating them
-				// via the C types.  At that point, this nastiness goes away.
-				*(*int64)(unsafe.Pointer(&sg.releasetime)) = cputicks()
+				sg.releasetime = cputicks()
 			}
 			goready(recvg)
 			return true
@@ -248,7 +243,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		recvg := sg.g
 		unlock(&c.lock)
 		if sg.releasetime != 0 {
-			*(*int64)(unsafe.Pointer(&sg.releasetime)) = cputicks()
+			sg.releasetime = cputicks()
 		}
 		goready(recvg)
 	} else {
@@ -258,6 +253,72 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		blockevent(t1-t0, 2)
 	}
 	return true
+}
+
+func closechan(c *hchan) {
+	if c == nil {
+		panic("close of nil channel")
+	}
+
+	lock(&c.lock)
+	if c.closed != 0 {
+		unlock(&c.lock)
+		panic("close of closed channel")
+	}
+
+	if raceenabled {
+		callerpc := getcallerpc(unsafe.Pointer(&c))
+		fn := closechan
+		pc := **(**uintptr)(unsafe.Pointer(&fn))
+		racewritepc(unsafe.Pointer(c), callerpc, pc)
+		racerelease(unsafe.Pointer(c))
+	}
+
+	c.closed = 1
+
+	// release all readers
+	for {
+		sg := c.recvq.dequeue()
+		if sg == nil {
+			break
+		}
+		gp := sg.g
+		gp.param = nil
+		if sg.releasetime != 0 {
+			sg.releasetime = cputicks()
+		}
+		goready(gp)
+	}
+
+	// release all writers
+	for {
+		sg := c.sendq.dequeue()
+		if sg == nil {
+			break
+		}
+		gp := sg.g
+		gp.param = nil
+		if sg.releasetime != 0 {
+			sg.releasetime = cputicks()
+		}
+		goready(gp)
+	}
+
+	unlock(&c.lock)
+}
+
+func reflect_chanlen(c *hchan) int {
+	if c == nil {
+		return 0
+	}
+	return int(c.qcount)
+}
+
+func reflect_chancap(c *hchan) int {
+	if c == nil {
+		return 0
+	}
+	return int(c.dataqsiz)
 }
 
 func (q *waitq) enqueue(sgp *sudog) {
