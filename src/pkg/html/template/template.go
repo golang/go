@@ -56,7 +56,7 @@ func (t *Template) escape() error {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	if t.escapeErr == nil {
-		if err := escapeTemplates(t, t.Name()); err != nil {
+		if err := escapeTemplate(t, t.text.Root, t.Name()); err != nil {
 			return err
 		}
 	} else if t.escapeErr != escapeOK {
@@ -112,7 +112,7 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
 		panic("html/template internal error: template escaping out of sync")
 	}
 	if tmpl.escapeErr == nil {
-		err = escapeTemplates(tmpl, name)
+		err = escapeTemplate(tmpl, tmpl.text.Root, name)
 	}
 	return tmpl, err
 }
