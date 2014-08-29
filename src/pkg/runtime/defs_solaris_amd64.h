@@ -101,7 +101,7 @@ enum {
 };
 
 typedef struct SemT SemT;
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigset Sigset;
 typedef struct StackT StackT;
 typedef struct Siginfo Siginfo;
@@ -126,7 +126,7 @@ struct SemT {
 	uint64	sem_pad2[2];
 };
 
-struct Sigaltstack {
+struct SigaltstackT {
 	byte	*ss_sp;
 	uint64	ss_size;
 	int32	ss_flags;

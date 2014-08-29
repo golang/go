@@ -536,7 +536,7 @@ runtime·sigaction(int32 sig, struct SigactionT* act, struct SigactionT* oact)
 }
 
 /* int32 */ void
-runtime·sigaltstack(Sigaltstack* ss, Sigaltstack* oss)
+runtime·sigaltstack(SigaltstackT* ss, SigaltstackT* oss)
 {
 	runtime·sysvicall2(libc·sigaltstack, (uintptr)ss, (uintptr)oss);
 }

@@ -8,7 +8,7 @@ typedef byte* kevent_udata;
 
 int32	runtime·thr_new(ThrParam*, int32);
 void	runtime·sigpanic(void);
-void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
 struct	sigaction;
 void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
 void	runtime·sigprocmask(Sigset *, Sigset *);

@@ -82,7 +82,7 @@ enum {
 	EVFILT_WRITE	= 0x1,
 };
 
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigset Sigset;
 typedef struct Siginfo Siginfo;
 typedef struct StackT StackT;
@@ -95,7 +95,7 @@ typedef struct KeventT KeventT;
 
 #pragma pack on
 
-struct Sigaltstack {
+struct SigaltstackT {
 	byte	*ss_sp;
 	uint64	ss_size;
 	int32	ss_flags;

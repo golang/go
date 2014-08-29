@@ -332,7 +332,7 @@ runtime·getsig(int32 i)
 void
 runtime·signalstack(byte *p, int32 n)
 {
-	Sigaltstack st;
+	SigaltstackT st;
 
 	st.ss_sp = p;
 	st.ss_size = n;

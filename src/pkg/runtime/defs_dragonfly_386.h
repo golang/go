@@ -85,7 +85,7 @@ enum {
 
 typedef struct Rtprio Rtprio;
 typedef struct Lwpparams Lwpparams;
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigset Sigset;
 typedef struct StackT StackT;
 typedef struct Siginfo Siginfo;
@@ -109,7 +109,7 @@ struct Lwpparams {
 	int32	*tid1;
 	int32	*tid2;
 };
-struct Sigaltstack {
+struct SigaltstackT {
 	int8	*ss_sp;
 	uint32	ss_size;
 	int32	ss_flags;

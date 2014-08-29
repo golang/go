@@ -144,7 +144,7 @@ typedef struct Fpxreg1 Fpxreg1;
 typedef struct Xmmreg1 Xmmreg1;
 typedef struct Fpstate1 Fpstate1;
 typedef struct Fpreg1 Fpreg1;
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Mcontext Mcontext;
 typedef struct Ucontext Ucontext;
 typedef struct Sigcontext Sigcontext;
@@ -200,7 +200,7 @@ struct Fpreg1 {
 	uint16	significand[4];
 	uint16	exponent;
 };
-struct Sigaltstack {
+struct SigaltstackT {
 	byte	*ss_sp;
 	int32	ss_flags;
 	byte	Pad_cgo_0[4];
@@ -214,7 +214,7 @@ struct Mcontext {
 struct Ucontext {
 	uint64	uc_flags;
 	Ucontext	*uc_link;
-	Sigaltstack	uc_stack;
+	SigaltstackT	uc_stack;
 	Mcontext	uc_mcontext;
 	Usigset	uc_sigmask;
 	Fpstate	__fpregs_mem;
