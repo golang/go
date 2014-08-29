@@ -88,6 +88,7 @@ static	Mutex allglock;	// the following vars are protected by this lock or by st
 G**	runtime·allg;
 uintptr runtime·allglen;
 static	uintptr allgcap;
+ForceGCState	runtime·forcegc;
 
 void runtime·mstart(void);
 static void runqput(P*, G*);
@@ -129,15 +130,6 @@ static bool preemptone(P*);
 static bool exitsyscallfast(void);
 static bool haveexperiment(int8*);
 static void allgadd(G*);
-
-static void forcegchelper(void);
-static struct
-{
-	Mutex	lock;
-	G*	g;
-	FuncVal	fv;
-	uint32	idle;
-} forcegc;
 
 extern String runtime·buildVersion;
 
@@ -254,8 +246,6 @@ runtime·main(void)
 
 	if(g->m != &runtime·m0)
 		runtime·throw("runtime·main not on m0");
-	forcegc.fv.fn = forcegchelper;
-	forcegc.g = runtime·newproc1(&forcegc.fv, nil, 0, 0, runtime·main);
 	main·init();
 
 	if(g->defer != &d || d.fn != &initDone)
@@ -2779,7 +2769,7 @@ static void
 sysmon(void)
 {
 	uint32 idle, delay, nscavenge;
-	int64 now, unixnow, lastpoll, lasttrace;
+	int64 now, unixnow, lastpoll, lasttrace, lastgc;
 	int64 forcegcperiod, scavengelimit, lastscavenge, maxsleep;
 	G *gp;
 
@@ -2854,12 +2844,13 @@ sysmon(void)
 			idle++;
 
 		// check if we need to force a GC
-		if(unixnow - mstats.last_gc > forcegcperiod && runtime·atomicload(&forcegc.idle)) {
-			runtime·lock(&forcegc.lock);
-			forcegc.idle = 0;
-			forcegc.g->schedlink = nil;
-			injectglist(forcegc.g);
-			runtime·unlock(&forcegc.lock);
+		lastgc = runtime·atomicload64(&mstats.last_gc);
+		if(lastgc != 0 && unixnow - lastgc > forcegcperiod && runtime·atomicload(&runtime·forcegc.idle)) {
+			runtime·lock(&runtime·forcegc.lock);
+			runtime·forcegc.idle = 0;
+			runtime·forcegc.g->schedlink = nil;
+			injectglist(runtime·forcegc.g);
+			runtime·unlock(&runtime·forcegc.lock);
 		}
 
 		// scavenge heap once in a while
@@ -2941,23 +2932,6 @@ retake(int64 now)
 		}
 	}
 	return n;
-}
-
-static void
-forcegchelper(void)
-{
-	g->issystem = true;
-	for(;;) {
-		runtime·lock(&forcegc.lock);
-		if(forcegc.idle)
-			runtime·throw("forcegc: phase error");
-		runtime·atomicstore(&forcegc.idle, 1);
-		runtime·parkunlock(&forcegc.lock, runtime·gostringnocopy((byte*)"force gc (idle)"));
-		// this goroutine is explicitly resumed by sysmon
-		if(runtime·debug.gctrace > 0)
-			runtime·printf("GC forced\n");
-		runtime·gc(1);
-	}
 }
 
 // Tell all goroutines that they have been preempted and they should stop.
