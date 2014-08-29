@@ -7,8 +7,8 @@ package runtime
 import "unsafe"
 
 const (
-	c0 = uintptr((8-uint64(ptrSize))/4*2860486313 + (uint64(ptrSize)-4)/4*33054211828000289)
-	c1 = uintptr((8-uint64(ptrSize))/4*3267000013 + (uint64(ptrSize)-4)/4*23344194077549503)
+	c0 = uintptr((8-ptrSize)/4*2860486313 + (ptrSize-4)/4*33054211828000289)
+	c1 = uintptr((8-ptrSize)/4*3267000013 + (ptrSize-4)/4*23344194077549503)
 )
 
 const (
