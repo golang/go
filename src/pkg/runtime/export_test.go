@@ -18,7 +18,6 @@ var Fcmp64 = fcmp64
 var Fintto64 = fintto64
 var F64toint = f64toint
 
-func entersyscall()
 func lockedOSThread() bool
 func stackguard() (sp, limit uintptr)
 

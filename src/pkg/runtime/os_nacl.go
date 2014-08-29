@@ -22,3 +22,5 @@ func nacl_cond_broadcast(cond int32) int32
 func nacl_cond_timed_wait_abs(cond, lock int32, ts unsafe.Pointer) int32
 func nacl_thread_create(fn, stk, tls, xx unsafe.Pointer) int32
 func nacl_nanosleep(ts, extra unsafe.Pointer) int32
+
+const stackSystem = 0

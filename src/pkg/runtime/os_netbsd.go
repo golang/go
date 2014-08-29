@@ -21,3 +21,5 @@ func lwp_create(ctxt unsafe.Pointer, flags uintptr, lwpid unsafe.Pointer) int32
 func lwp_park(abstime unsafe.Pointer, unpark int32, hint, unparkhint unsafe.Pointer) int32
 func lwp_unpark(lwp int32, hint unsafe.Pointer) int32
 func lwp_self() int32
+
+const stackSystem = 0

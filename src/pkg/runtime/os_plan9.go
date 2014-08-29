@@ -22,3 +22,7 @@ func nsec(*int64) int64
 func sigtramp(ureg, msg unsafe.Pointer)
 func setfpmasks()
 func errstr() string
+
+// The size of the note handler frame varies among architectures,
+// but 512 bytes should be enough for every implementation.
+const stackSystem = 512

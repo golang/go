@@ -18,3 +18,5 @@ func kqueue() int32
 func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
 func closeonexec(fd int32)
 func sys_umtx_op(addr unsafe.Pointer, mode int32, val uint32, ptr2, ts unsafe.Pointer) int32
+
+const stackSystem = 0

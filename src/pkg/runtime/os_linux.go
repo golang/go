@@ -20,3 +20,5 @@ func epollctl(epfd, op, fd int32, ev unsafe.Pointer) int32
 func epollwait(epfd int32, ev unsafe.Pointer, nev, timeout int32) int32
 func closeonexec(fd int32)
 func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
+
+const stackSystem = 0

@@ -19,3 +19,5 @@ func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 i
 func closeonexec(fd int32)
 func sys_umtx_sleep(addr unsafe.Pointer, val, timeout int32) int32
 func sys_umtx_wakeup(addr unsafe.Pointer, val int32) int32
+
+const stackSystem = 0

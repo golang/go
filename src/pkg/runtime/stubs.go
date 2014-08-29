@@ -11,9 +11,7 @@ import "unsafe"
 // Assembly implementations are in various files, see comments with
 // each function.
 
-const (
-	ptrSize = unsafe.Sizeof((*byte)(nil))
-)
+const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
 
 //go:noescape
 func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
@@ -88,9 +86,7 @@ var (
 	setgcpercent_m,
 	setmaxthreads_m,
 	ready_m,
-	park_m,
-	notewakeup_m,
-	notetsleepg_m mFunction
+	park_m mFunction
 )
 
 func blockevent(int64, int32)
@@ -162,6 +158,8 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(x ^ 0)
 }
 
+func entersyscall()
+func entersyscallblock()
 func exitsyscall()
 
 func goroutineheader(gp *g)
@@ -195,13 +193,6 @@ func osyield()
 func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
 func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer
 func readgogc() int32
-func notetsleepg(n *note, ns int64)
-func notetsleep(n *note, ns int64)
-func notewakeup(n *note)
-func notesleep(n *note)
-func noteclear(n *note)
-func lock(lk *mutex)
-func unlock(lk *mutex)
 func purgecachedstats(c *mcache)
 func gostringnocopy(b *byte) string
 
@@ -245,6 +236,9 @@ func atomicstore64(ptr *uint64, val uint64)
 func atomicstorep(ptr unsafe.Pointer, val unsafe.Pointer)
 
 //go:noescape
+func atomicstoreuintptr(ptr *uintptr, new uintptr)
+
+//go:noescape
 func atomicload(ptr *uint32) uint32
 
 //go:noescape
@@ -252,6 +246,9 @@ func atomicload64(ptr *uint64) uint64
 
 //go:noescape
 func atomicloadp(ptr unsafe.Pointer) unsafe.Pointer
+
+//go:noescape
+func atomicloaduintptr(ptr *uintptr) uintptr
 
 //go:noescape
 func atomicor8(ptr *uint8, val uint8)

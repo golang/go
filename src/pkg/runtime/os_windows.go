@@ -21,3 +21,5 @@ func asmstdcall(fn unsafe.Pointer)
 func getlasterror() uint32
 func setlasterror(err uint32)
 func usleep1(usec uint32)
+
+const stackSystem = 512 * ptrSize
