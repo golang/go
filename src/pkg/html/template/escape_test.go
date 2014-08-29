@@ -861,29 +861,29 @@ func TestErrors(t *testing.T) {
 		// Error cases.
 		{
 			"{{if .Cond}}<a{{end}}",
-			"z:1: {{if}} branches",
+			"z:1:5: {{if}} branches",
 		},
 		{
 			"{{if .Cond}}\n{{else}}\n<a{{end}}",
-			"z:1: {{if}} branches",
+			"z:1:5: {{if}} branches",
 		},
 		{
 			// Missing quote in the else branch.
 			`{{if .Cond}}<a href="foo">{{else}}<a href="bar>{{end}}`,
-			"z:1: {{if}} branches",
+			"z:1:5: {{if}} branches",
 		},
 		{
 			// Different kind of attribute: href implies a URL.
 			"<a {{if .Cond}}href='{{else}}title='{{end}}{{.X}}'>",
-			"z:1: {{if}} branches",
+			"z:1:8: {{if}} branches",
 		},
 		{
 			"\n{{with .X}}<a{{end}}",
-			"z:2: {{with}} branches",
+			"z:2:7: {{with}} branches",
 		},
 		{
 			"\n{{with .X}}<a>{{else}}<a{{end}}",
-			"z:2: {{with}} branches",
+			"z:2:7: {{with}} branches",
 		},
 		{
 			"{{range .Items}}<a{{end}}",
@@ -891,7 +891,7 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			"\n{{range .Items}} x='<a{{end}}",
-			"z:2: on range loop re-entry: {{range}} branches",
+			"z:2:8: on range loop re-entry: {{range}} branches",
 		},
 		{
 			"<a b=1 c={{.H}}",
@@ -903,7 +903,7 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
-			"z:1: {{.H}} appears in an ambiguous URL context",
+			"z:1:47: {{.H}} appears in an ambiguous URL context",
 		},
 		{
 			`<a onclick="alert('Hello \`,
@@ -932,7 +932,7 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			`{{template "foo"}}`,
-			"z:1: no such template \"foo\"",
+			"z:1:11: no such template \"foo\"",
 		},
 		{
 			`<div{{template "y"}}>` +
