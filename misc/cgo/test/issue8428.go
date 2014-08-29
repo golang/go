@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This test fails on older versions of OS X because they use older buggy
+// versions of Clang that emit ambiguous DWARF info.  See issue 8611.
+// +build !darwin
+
 package cgotest
 
 // Issue 8428.  Cgo inconsistently translated zero size arrays.
