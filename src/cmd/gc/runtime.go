@@ -26,6 +26,7 @@ func recover(*int32) interface{}
 func printbool(bool)
 func printfloat(float64)
 func printint(int64)
+func printhex(uint64)
 func printuint(uint64)
 func printcomplex(complex128)
 func printstring(string)
