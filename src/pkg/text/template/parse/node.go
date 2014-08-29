@@ -360,6 +360,13 @@ func (t *Tree) newDot(pos Pos) *DotNode {
 	return &DotNode{tr: t, NodeType: NodeDot, Pos: pos}
 }
 
+func (d *DotNode) Type() NodeType {
+	// Override method on embedded NodeType for API compatibility.
+	// TODO: Not really a problem; could change API without effect but
+	// api tool complains.
+	return NodeDot
+}
+
 func (d *DotNode) String() string {
 	return "."
 }
@@ -381,6 +388,13 @@ type NilNode struct {
 
 func (t *Tree) newNil(pos Pos) *NilNode {
 	return &NilNode{tr: t, NodeType: NodeNil, Pos: pos}
+}
+
+func (n *NilNode) Type() NodeType {
+	// Override method on embedded NodeType for API compatibility.
+	// TODO: Not really a problem; could change API without effect but
+	// api tool complains.
+	return NodeNil
 }
 
 func (n *NilNode) String() string {
