@@ -390,8 +390,11 @@ runtime·startpanic(void)
 	switch(g->m->dying) {
 	case 0:
 		g->m->dying = 1;
-		if(g != nil)
-			g->writebuf = nil;
+		if(g != nil) {
+			g->writebuf.array = nil;
+			g->writebuf.len = 0;
+			g->writebuf.cap = 0;
+		}
 		runtime·xadd(&runtime·panicking, 1);
 		runtime·lock(&paniclk);
 		if(runtime·debug.schedtrace > 0 || runtime·debug.scheddetail > 0)

@@ -234,7 +234,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 					}
 					if(i != 0)
 						runtime·prints(", ");
-					runtime·printhex_c(((uintptr*)frame.argp)[i]);
+					runtime·printhex(((uintptr*)frame.argp)[i]);
 				}
 				runtime·prints(")\n");
 				line = runtime·funcline(f, tracepc, &file);
