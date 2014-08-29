@@ -62,10 +62,6 @@ struct Sched {
 
 enum
 {
-	// The max value of GOMAXPROCS.
-	// There are no fundamental restrictions on the value.
-	MaxGomaxprocs = 1<<8,
-
 	// Number of goroutine ids to grab from runtime·sched.goidgen to local per-P cache at once.
 	// 16 seems to provide enough amortization, but other than that it's mostly arbitrary number.
 	GoidCacheBatch = 16,
@@ -80,6 +76,7 @@ G	runtime·g0;	// idle goroutine for m0
 G*	runtime·lastg;
 M*	runtime·allm;
 M*	runtime·extram;
+P*	runtime·allp[MaxGomaxprocs+1];
 int8*	runtime·goos;
 int32	runtime·ncpu;
 static int32	newprocs;
@@ -180,7 +177,6 @@ runtime·schedinit(void)
 			n = MaxGomaxprocs;
 		procs = n;
 	}
-	runtime·allp = runtime·mallocgc((MaxGomaxprocs+1)*sizeof(runtime·allp[0]), nil, 0);
 	procresize(procs);
 
 	runtime·copystack = runtime·precisestack;
