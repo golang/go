@@ -284,7 +284,7 @@ var pkgDeps = map[string][]string{
 	// Mathematical crypto: dependencies on fmt (L4) and math/big.
 	// We could avoid some of the fmt, but math/big imports fmt anyway.
 	"crypto/dsa":      {"L4", "CRYPTO", "math/big"},
-	"crypto/ecdsa":    {"L4", "CRYPTO", "crypto/elliptic", "math/big"},
+	"crypto/ecdsa":    {"L4", "CRYPTO", "crypto/elliptic", "math/big", "encoding/asn1"},
 	"crypto/elliptic": {"L4", "CRYPTO", "math/big"},
 	"crypto/rsa":      {"L4", "CRYPTO", "crypto/rand", "math/big"},
 

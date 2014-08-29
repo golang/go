@@ -6,11 +6,11 @@ package tls
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
-	"encoding/asn1"
 	"errors"
 	"fmt"
 	"io"
@@ -345,8 +345,8 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		}
 
 		// We need to search our list of client certs for one
-		// where SignatureAlgorithm is RSA and the Issuer is in
-		// certReq.certificateAuthorities
+		// where SignatureAlgorithm is acceptable to the server and the
+		// Issuer is in certReq.certificateAuthorities
 	findCert:
 		for i, chain := range c.config.Certificates {
 			if !rsaAvail && !ecdsaAvail {
@@ -373,7 +373,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 
 				if len(certReq.certificateAuthorities) == 0 {
 					// they gave us an empty list, so just take the
-					// first RSA cert from c.config.Certificates
+					// first cert from c.config.Certificates
 					chainToSend = &chain
 					break findCert
 				}
@@ -428,22 +428,24 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			hasSignatureAndHash: c.vers >= VersionTLS12,
 		}
 
-		switch key := c.config.Certificates[0].PrivateKey.(type) {
-		case *ecdsa.PrivateKey:
-			digest, _, hashId := hs.finishedHash.hashForClientCertificate(signatureECDSA)
-			r, s, err := ecdsa.Sign(c.config.rand(), key, digest)
-			if err == nil {
-				signed, err = asn1.Marshal(ecdsaSignature{r, s})
-			}
+		key, ok := chainToSend.PrivateKey.(crypto.Signer)
+		if !ok {
+			c.sendAlert(alertInternalError)
+			return fmt.Errorf("tls: client certificate private key of type %T does not implement crypto.Signer", chainToSend.PrivateKey)
+		}
+		switch key.Public().(type) {
+		case *ecdsa.PublicKey:
+			digest, hashFunc, hashId := hs.finishedHash.hashForClientCertificate(signatureECDSA)
+			signed, err = key.Sign(c.config.rand(), digest, hashFunc)
 			certVerify.signatureAndHash.signature = signatureECDSA
 			certVerify.signatureAndHash.hash = hashId
-		case *rsa.PrivateKey:
+		case *rsa.PublicKey:
 			digest, hashFunc, hashId := hs.finishedHash.hashForClientCertificate(signatureRSA)
-			signed, err = rsa.SignPKCS1v15(c.config.rand(), key, hashFunc, digest)
+			signed, err = key.Sign(c.config.rand(), digest, hashFunc)
 			certVerify.signatureAndHash.signature = signatureRSA
 			certVerify.signatureAndHash.hash = hashId
 		default:
-			err = errors.New("unknown private key type")
+			err = fmt.Errorf("tls: unknown client certificate key type: %T", key)
 		}
 		if err != nil {
 			c.sendAlert(alertInternalError)
