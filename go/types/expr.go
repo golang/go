@@ -1406,14 +1406,7 @@ Error:
 
 // typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
 func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, T Type) {
-	// no static check is required if T is an interface
-	// spec: "If T is an interface type, x.(T) asserts that the
-	//        dynamic type of x implements the interface T."
-	if _, ok := T.Underlying().(*Interface); ok && !check.conf.Strict {
-		return
-	}
-
-	method, wrongType := MissingMethod(T, xtyp, false)
+	method, wrongType := assertableTo(xtyp, T)
 	if method == nil {
 		return
 	}

@@ -79,18 +79,6 @@ type Importer func(map[string]*Package, string) (*Package, error)
 // A Config specifies the configuration for type checking.
 // The zero value for Config is a ready-to-use default configuration.
 type Config struct {
-	// If Strict is set, the type-checker enforces additional
-	// rules not specified by the Go 1 spec, but which will
-	// catch guaranteed run-time errors if the respective
-	// code is executed. In other words, programs passing in
-	// Strict mode are Go 1 compliant, but not all Go 1 programs
-	// will pass in Strict mode. The additional rules are:
-	//
-	// - A type assertion x.(T) where T is an interface type
-	//   is invalid if any (statically known) method that exists
-	//   for both x and T have different signatures.
-	Strict bool
-
 	// If IgnoreFuncBodies is set, function bodies are not
 	// type-checked.
 	IgnoreFuncBodies bool
@@ -345,8 +333,8 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 func AssertableTo(V *Interface, T Type) bool {
-	f, _ := MissingMethod(T, V, false)
-	return f == nil
+	m, _ := assertableTo(V, T)
+	return m == nil
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable of type T.

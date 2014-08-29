@@ -293,6 +293,19 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 	return
 }
 
+// assertableTo reports whether a value of type V can be asserted to have type T.
+// It returns (nil, false) as affirmative answer. Otherwise it returns a missing
+// method required by V and whether it is missing or just has the wrong type.
+func assertableTo(V *Interface, T Type) (method *Func, wrongType bool) {
+	// no static check is required if T is an interface
+	// spec: "If T is an interface type, x.(T) asserts that the
+	//        dynamic type of x implements the interface T."
+	if _, ok := T.Underlying().(*Interface); ok && !strict {
+		return
+	}
+	return MissingMethod(T, V, false)
+}
+
 // deref dereferences typ if it is a *Pointer and returns its base and true.
 // Otherwise it returns (typ, false).
 func deref(typ Type) (Type, bool) {

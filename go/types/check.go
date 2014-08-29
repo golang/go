@@ -20,6 +20,19 @@ const (
 	trace = false // turn on for detailed type resolution traces
 )
 
+// If Strict is set, the type-checker enforces additional
+// rules not specified by the Go 1 spec, but which will
+// catch guaranteed run-time errors if the respective
+// code is executed. In other words, programs passing in
+// Strict mode are Go 1 compliant, but not all Go 1 programs
+// will pass in Strict mode. The additional rules are:
+//
+// - A type assertion x.(T) where T is an interface type
+//   is invalid if any (statically known) method that exists
+//   for both x and T have different signatures.
+//
+const strict = false
+
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
 	isLhs bool // expression is lhs operand of a shift with delayed type-check
