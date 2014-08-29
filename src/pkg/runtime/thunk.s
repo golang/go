@@ -61,3 +61,6 @@ TEXT reflect·chanlen(SB), NOSPLIT, $0-0
 
 TEXT reflect·chancap(SB), NOSPLIT, $0-0
 	JMP	runtime·reflect_chancap(SB)
+
+TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
+	JMP	runtime·freeOSMemory(SB)

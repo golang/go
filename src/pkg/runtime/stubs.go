@@ -78,6 +78,7 @@ var (
 	largeAlloc_m,
 	mprofMalloc_m,
 	gc_m,
+	scavenge_m,
 	setFinalizer_m,
 	removeFinalizer_m,
 	markallocated_m,
@@ -111,8 +112,7 @@ func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
 func fastrand2() uint32
 
 const (
-	gcpercentUnknown = -2
-	concurrentSweep  = true
+	concurrentSweep = true
 )
 
 func gosched()

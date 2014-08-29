@@ -1284,82 +1284,6 @@ runtime·gcinit(void)
 	runtime·gcbssmask = unrollglobgcprog(runtime·gcbss, runtime·ebss - runtime·bss);
 }
 
-// force = 1 - do GC regardless of current heap usage
-// force = 2 - go GC and eager sweep
-void
-runtime·gc(int32 force)
-{
-	struct gc_args a;
-	int32 i;
-
-	// The gc is turned off (via enablegc) until
-	// the bootstrap has completed.
-	// Also, malloc gets called in the guts
-	// of a number of libraries that might be
-	// holding locks.  To avoid priority inversion
-	// problems, don't bother trying to run gc
-	// while holding a lock.  The next mallocgc
-	// without a lock will do the gc instead.
-	if(!mstats.enablegc || g == g->m->g0 || g->m->locks > 0 || runtime·panicking)
-		return;
-
-	if(runtime·gcpercent < 0)
-		return;
-
-	runtime·semacquire(&runtime·worldsema, false);
-	if(force==0 && mstats.heap_alloc < mstats.next_gc) {
-		// typically threads which lost the race to grab
-		// worldsema exit here when gc is done.
-		runtime·semrelease(&runtime·worldsema);
-		return;
-	}
-
-	// Ok, we're doing it!  Stop everybody else
-	a.start_time = runtime·nanotime();
-	a.eagersweep = force >= 2;
-	g->m->gcing = 1;
-	runtime·stoptheworld();
-	
-	runtime·clearpools();
-
-	// Run gc on the g0 stack.  We do this so that the g stack
-	// we're currently running on will no longer change.  Cuts
-	// the root set down a bit (g0 stacks are not scanned, and
-	// we don't need to scan gc's internal state).  Also an
-	// enabler for copyable stacks.
-	for(i = 0; i < (runtime·debug.gctrace > 1 ? 2 : 1); i++) {
-		if(i > 0)
-			a.start_time = runtime·nanotime();
-		// switch to g0, call gc(&a), then switch back
-		g->param = &a;
-		runtime·casgstatus(g, Grunning, Gwaiting);
-		g->waitreason = runtime·gostringnocopy((byte*)"garbage collection");
-		runtime·mcall(mgc);
-	}
-
-	// all done
-	g->m->gcing = 0;
-	g->m->locks++;
-	runtime·semrelease(&runtime·worldsema);
-	runtime·starttheworld();
-	g->m->locks--;
-
-	// now that gc is done, kick off finalizer thread if needed
-	if(!ConcurrentSweep) {
-		// give the queued finalizers, if any, a chance to run
-		runtime·gosched();
-	}
-}
-
-static void
-mgc(G *gp)
-{
-	gc(gp->param);
-	gp->param = nil;
-	runtime·casgstatus(gp, Gwaiting, Grunning);
-	runtime·gogo(&gp->sched);
-}
-
 void
 runtime·gc_m(void)
 {
@@ -1502,7 +1426,7 @@ gc(struct gc_args *args)
 	if(ConcurrentSweep && !args->eagersweep) {
 		runtime·lock(&gclock);
 		if(sweep.g == nil)
-			sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, runtime·gc);
+			sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, gc);
 		else if(sweep.parked) {
 			sweep.parked = false;
 			runtime·ready(sweep.g);

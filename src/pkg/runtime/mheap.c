@@ -622,19 +622,10 @@ runtime·MHeap_Scavenge(int32 k, uint64 now, uint64 limit)
 	}
 }
 
-static void
-scavenge_m(G *gp)
+void
+runtime·scavenge_m(void)
 {
 	runtime·MHeap_Scavenge(-1, ~(uintptr)0, 0);
-	runtime·gogo(&gp->sched);
-}
-
-void
-runtime∕debug·freeOSMemory(void)
-{
-	runtime·gc(2);  // force GC and do eager sweep
-
-	runtime·mcall(scavenge_m);
 }
 
 // Initialize a new span with the given start and npages.
