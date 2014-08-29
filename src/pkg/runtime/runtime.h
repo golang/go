@@ -92,6 +92,7 @@ typedef	struct	ParForThread	ParForThread;
 typedef	struct	CgoMal		CgoMal;
 typedef	struct	PollDesc	PollDesc;
 typedef	struct	DebugVars	DebugVars;
+typedef struct	ForceGCState	ForceGCState;
 
 /*
  * Per-CPU declaration.
@@ -572,6 +573,13 @@ struct DebugVars
 	int32	scavenge;
 };
 
+struct ForceGCState
+{
+	Mutex	lock;
+	G*	g;
+	uint32	idle;
+};
+
 extern bool runtime·precisestack;
 extern bool runtime·copystack;
 
@@ -774,6 +782,7 @@ extern	uint32	runtime·cpuid_edx;
 extern	DebugVars	runtime·debug;
 extern	uintptr	runtime·maxstacksize;
 extern	Note	runtime·signote;
+extern	ForceGCState	runtime·forcegc;
 
 /*
  * common functions and data
