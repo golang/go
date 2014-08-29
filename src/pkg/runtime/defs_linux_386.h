@@ -95,7 +95,7 @@ typedef struct Xmmreg Xmmreg;
 typedef struct Fpstate Fpstate;
 typedef struct Timespec Timespec;
 typedef struct Timeval Timeval;
-typedef struct Sigaction Sigaction;
+typedef struct SigactionT SigactionT;
 typedef struct Siginfo Siginfo;
 typedef struct Sigaltstack Sigaltstack;
 typedef struct Sigcontext Sigcontext;
@@ -144,7 +144,7 @@ struct Timeval {
 	int32	tv_sec;
 	int32	tv_usec;
 };
-struct Sigaction {
+struct SigactionT {
 	void	*k_sa_handler;
 	uint32	sa_flags;
 	void	*sa_restorer;

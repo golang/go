@@ -11,7 +11,7 @@
 // Integrated network poller (kqueue-based implementation).
 
 int32	runtime·kqueue(void);
-int32	runtime·kevent(int32, Kevent*, int32, Kevent*, int32, Timespec*);
+int32	runtime·kevent(int32, KeventT*, int32, KeventT*, int32, Timespec*);
 void	runtime·closeonexec(int32);
 
 static int32 kq = -1;
@@ -30,7 +30,7 @@ runtime·netpollinit(void)
 int32
 runtime·netpollopen(uintptr fd, PollDesc *pd)
 {
-	Kevent ev[2];
+	KeventT ev[2];
 	int32 n;
 
 	// Arm both EVFILT_READ and EVFILT_WRITE in edge-triggered mode (EV_CLEAR)
@@ -72,7 +72,7 @@ G*
 runtime·netpoll(bool block)
 {
 	static int32 lasterr;
-	Kevent events[64], *ev;
+	KeventT events[64], *ev;
 	Timespec ts, *tp;
 	int32 n, i, mode;
 	G *gp;

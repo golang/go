@@ -25,8 +25,8 @@ typedef uint32 Sigset;
 void	runtime·sigprocmask(int32, Sigset*, Sigset*);
 void	runtime·unblocksignals(void);
 
-struct Sigaction;
-void	runtime·sigaction(uintptr, struct Sigaction*, struct Sigaction*);
+struct SigactionT;
+void	runtime·sigaction(uintptr, struct SigactionT*, struct SigactionT*);
 
 struct StackT;
 void	runtime·sigaltstack(struct StackT*, struct StackT*);

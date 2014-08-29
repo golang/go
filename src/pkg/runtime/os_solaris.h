@@ -15,7 +15,7 @@ struct sigaction;
 void	runtime·sigpanic(void);
 
 void	runtime·setitimer(int32, Itimerval*, Itimerval*);
-void	runtime·sigaction(int32, struct Sigaction*, struct Sigaction*);
+void	runtime·sigaction(int32, struct SigactionT*, struct SigactionT*);
 void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
 void	runtime·sigprocmask(int32, Sigset*, Sigset*);
 void	runtime·unblocksignals(void);

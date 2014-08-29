@@ -151,8 +151,8 @@ struct Siginfo {
 	uint8 _sifields[4];
 };
 
-typedef struct Sigaction Sigaction;
-struct Sigaction {
+typedef struct SigactionT SigactionT;
+struct SigactionT {
 	void *sa_handler;
 	uint32 sa_flags;
 	void *sa_restorer;

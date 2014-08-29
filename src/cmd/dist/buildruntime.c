@@ -346,6 +346,10 @@ mkzruntimedefs(char *dir, char *file)
 		"\n"
 	);
 
+	// Do not emit constant definitions for these.
+	vadd(&seen, "true");
+	vadd(&seen, "false");
+	vadd(&seen, "raceenabled");
 	
 	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -q -n -o workdir/runtimedefs
 	// on each of the runtimedefs C files.
@@ -375,15 +379,15 @@ mkzruntimedefs(char *dir, char *file)
 	splitlines(&lines, bstr(&in));
 	for(i=0; i<lines.len; i++) {
 		p = lines.p[i];
-		// Drop comment, func, and const lines.
-		if(hasprefix(p, "//") || hasprefix(p, "const") || hasprefix(p, "func"))
+		// Drop comment and func lines.
+		if(hasprefix(p, "//") || hasprefix(p, "func"))
 			continue;
 		
 		// Note beginning of type or var decl, which can be multiline.
 		// Remove duplicates.  The linear check of seen here makes the
 		// whole processing quadratic in aggregate, but there are only
 		// about 100 declarations, so this is okay (and simple).
-		if(hasprefix(p, "type ") || hasprefix(p, "var ")) {
+		if(hasprefix(p, "type ") || hasprefix(p, "var ") || hasprefix(p, "const ")) {
 			splitfields(&fields, p);
 			if(fields.len < 2)
 				continue;
@@ -394,6 +398,17 @@ mkzruntimedefs(char *dir, char *file)
 			}
 			vadd(&seen, fields.p[1]);
 		}
+
+		// Const lines are printed in original case (usually upper). Add a leading _ as needed.
+		if(hasprefix(p, "const ")) {
+			if('A' <= p[6] && p[6] <= 'Z')
+				bwritestr(&out, "const _");
+			else
+				bwritestr(&out, "const ");
+			bwritestr(&out, p+6);
+			continue;
+		}
+
 		if(skip) {
 			if(hasprefix(p, "}"))
 				skip = 0;
