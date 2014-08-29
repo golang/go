@@ -40,12 +40,15 @@ struct Rlimit {
 };
 int32   runtime·getrlimit(int32, Rlimit*);
 
-// Call a library function with SysV conventions,
-// and switch to os stack during the call.
-#pragma	varargck	countpos	runtime·sysvicall6	2
-#pragma	varargck	type		runtime·sysvicall6	uintptr
-#pragma	varargck	type		runtime·sysvicall6	int32
+// Call an external library function described by {fn, a0, ..., an}, with
+// SysV conventions, switching to os stack during the call, if necessary.
+uintptr	runtime·sysvicall0(uintptr fn);
+uintptr	runtime·sysvicall1(uintptr fn, uintptr a1);
+uintptr	runtime·sysvicall2(uintptr fn, uintptr a1, uintptr a2);
+uintptr	runtime·sysvicall3(uintptr fn, uintptr a1, uintptr a2, uintptr a3);
+uintptr	runtime·sysvicall4(uintptr fn, uintptr a1, uintptr a2, uintptr a3, uintptr a4);
+uintptr	runtime·sysvicall5(uintptr fn, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5);
+uintptr	runtime·sysvicall6(uintptr fn, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6);
 void	runtime·asmsysvicall6(void *c);
-uintptr	runtime·sysvicall6(uintptr fn, int32 count, ...);
 
 void	runtime·miniterrno(void *fn);

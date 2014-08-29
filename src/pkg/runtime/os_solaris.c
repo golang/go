@@ -97,21 +97,6 @@ extern SigTab runtime·sigtab[];
 static Sigset sigset_none;
 static Sigset sigset_all = { ~(uint32)0, ~(uint32)0, ~(uint32)0, ~(uint32)0, };
 
-// Calling sysvcall on os stack.
-#pragma textflag NOSPLIT
-uintptr
-runtime·sysvicall6(uintptr fn, int32 count, ...)
-{
-	runtime·memclr((byte*)&g->m->scratch, sizeof(g->m->scratch));
-	g->m->libcall.fn = (void*)fn;
-	g->m->libcall.n = (uintptr)count;
-	for(;count; count--)
-		g->m->scratch.v[count - 1] = *((uintptr*)&count + count);
-	g->m->libcall.args = (uintptr*)&g->m->scratch.v[0];
-	runtime·asmcgocall(runtime·asmsysvicall6, &g->m->libcall);
-	return g->m->libcall.r1;
-}
-
 static int32
 getncpu(void) 
 {
@@ -403,37 +388,37 @@ runtime·semawakeup(M *mp)
 int32
 runtime·close(int32 fd)
 {
-	return runtime·sysvicall6(libc·close, 1, (uintptr)fd);
+	return runtime·sysvicall1(libc·close, (uintptr)fd);
 }
 
 void
 runtime·exit(int32 r)
 {
-	runtime·sysvicall6(libc·exit, 1, (uintptr)r);
+	runtime·sysvicall1(libc·exit, (uintptr)r);
 }
 
 /* int32 */ void
 runtime·getcontext(Ucontext* context)
 {
-	runtime·sysvicall6(libc·getcontext, 1, (uintptr)context);
+	runtime·sysvicall1(libc·getcontext, (uintptr)context);
 }
 
 int32
 runtime·getrlimit(int32 res, Rlimit* rlp)
 {
-	return runtime·sysvicall6(libc·getrlimit, 2, (uintptr)res, (uintptr)rlp);
+	return runtime·sysvicall2(libc·getrlimit, (uintptr)res, (uintptr)rlp);
 }
 
 uint8*
 runtime·mmap(byte* addr, uintptr len, int32 prot, int32 flags, int32 fildes, uint32 off)
 {
-	return (uint8*)runtime·sysvicall6(libc·mmap, 6, (uintptr)addr, (uintptr)len, (uintptr)prot, (uintptr)flags, (uintptr)fildes, (uintptr)off);
+	return (uint8*)runtime·sysvicall6(libc·mmap, (uintptr)addr, (uintptr)len, (uintptr)prot, (uintptr)flags, (uintptr)fildes, (uintptr)off);
 }
 
 void
 runtime·munmap(byte* addr, uintptr len)
 {
-	runtime·sysvicall6(libc·munmap, 2, (uintptr)addr, (uintptr)len);
+	runtime·sysvicall2(libc·munmap, (uintptr)addr, (uintptr)len);
 }
 
 extern int64 runtime·nanotime1(void);
@@ -441,7 +426,7 @@ extern int64 runtime·nanotime1(void);
 int64
 runtime·nanotime(void)
 {
-	return runtime·sysvicall6((uintptr)runtime·nanotime1, 0);
+	return runtime·sysvicall0((uintptr)runtime·nanotime1);
 }
 
 void
@@ -459,113 +444,113 @@ time·now(int64 sec, int32 usec)
 int32
 runtime·open(int8* path, int32 oflag, int32 mode)
 {
-	return runtime·sysvicall6(libc·open, 3, (uintptr)path, (uintptr)oflag, (uintptr)mode);
+	return runtime·sysvicall3(libc·open, (uintptr)path, (uintptr)oflag, (uintptr)mode);
 }
 
 int32
 runtime·pthread_attr_destroy(PthreadAttr* attr)
 {
-	return runtime·sysvicall6(libc·pthread_attr_destroy, 1, (uintptr)attr);
+	return runtime·sysvicall1(libc·pthread_attr_destroy, (uintptr)attr);
 }
 
 int32
 runtime·pthread_attr_getstack(PthreadAttr* attr, void** addr, uint64* size)
 {
-	return runtime·sysvicall6(libc·pthread_attr_getstack, 3, (uintptr)attr, (uintptr)addr, (uintptr)size);
+	return runtime·sysvicall3(libc·pthread_attr_getstack, (uintptr)attr, (uintptr)addr, (uintptr)size);
 }
 
 int32
 runtime·pthread_attr_init(PthreadAttr* attr)
 {
-	return runtime·sysvicall6(libc·pthread_attr_init, 1, (uintptr)attr);
+	return runtime·sysvicall1(libc·pthread_attr_init, (uintptr)attr);
 }
 
 int32
 runtime·pthread_attr_setdetachstate(PthreadAttr* attr, int32 state)
 {
-	return runtime·sysvicall6(libc·pthread_attr_setdetachstate, 2, (uintptr)attr, (uintptr)state);
+	return runtime·sysvicall2(libc·pthread_attr_setdetachstate, (uintptr)attr, (uintptr)state);
 }
 
 int32
 runtime·pthread_attr_setstack(PthreadAttr* attr, void* addr, uint64 size)
 {
-	return runtime·sysvicall6(libc·pthread_attr_setstack, 3, (uintptr)attr, (uintptr)addr, (uintptr)size);
+	return runtime·sysvicall3(libc·pthread_attr_setstack, (uintptr)attr, (uintptr)addr, (uintptr)size);
 }
 
 int32
 runtime·pthread_create(Pthread* thread, PthreadAttr* attr, void(*fn)(void), void *arg)
 {
-	return runtime·sysvicall6(libc·pthread_create, 4, (uintptr)thread, (uintptr)attr, (uintptr)fn, (uintptr)arg);
+	return runtime·sysvicall4(libc·pthread_create, (uintptr)thread, (uintptr)attr, (uintptr)fn, (uintptr)arg);
 }
 
 /* int32 */ void
 runtime·raise(int32 sig)
 {
-	runtime·sysvicall6(libc·raise, 1, (uintptr)sig);
+	runtime·sysvicall1(libc·raise, (uintptr)sig);
 }
 
 int32
 runtime·read(int32 fd, void* buf, int32 nbyte)
 {
-	return runtime·sysvicall6(libc·read, 3, (uintptr)fd, (uintptr)buf, (uintptr)nbyte);
+	return runtime·sysvicall3(libc·read, (uintptr)fd, (uintptr)buf, (uintptr)nbyte);
 }
 
 #pragma textflag NOSPLIT
 int32
 runtime·sem_init(SemT* sem, int32 pshared, uint32 value)
 {
-	return runtime·sysvicall6(libc·sem_init, 3, (uintptr)sem, (uintptr)pshared, (uintptr)value);
+	return runtime·sysvicall3(libc·sem_init, (uintptr)sem, (uintptr)pshared, (uintptr)value);
 }
 
 #pragma textflag NOSPLIT
 int32
 runtime·sem_post(SemT* sem)
 {
-	return runtime·sysvicall6(libc·sem_post, 1, (uintptr)sem);
+	return runtime·sysvicall1(libc·sem_post, (uintptr)sem);
 }
 
 #pragma textflag NOSPLIT
 int32
 runtime·sem_reltimedwait_np(SemT* sem, Timespec* timeout)
 {
-	return runtime·sysvicall6(libc·sem_reltimedwait_np, 2, (uintptr)sem, (uintptr)timeout);
+	return runtime·sysvicall2(libc·sem_reltimedwait_np, (uintptr)sem, (uintptr)timeout);
 }
 
 #pragma textflag NOSPLIT
 int32
 runtime·sem_wait(SemT* sem)
 {
-	return runtime·sysvicall6(libc·sem_wait, 1, (uintptr)sem);
+	return runtime·sysvicall1(libc·sem_wait, (uintptr)sem);
 }
 
 /* int32 */ void
 runtime·setitimer(int32 which, Itimerval* value, Itimerval* ovalue)
 {
-	runtime·sysvicall6(libc·setitimer, 3, (uintptr)which, (uintptr)value, (uintptr)ovalue);
+	runtime·sysvicall3(libc·setitimer, (uintptr)which, (uintptr)value, (uintptr)ovalue);
 }
 
 /* int32 */ void
 runtime·sigaction(int32 sig, struct Sigaction* act, struct Sigaction* oact)
 {
-	runtime·sysvicall6(libc·sigaction, 3, (uintptr)sig, (uintptr)act, (uintptr)oact);
+	runtime·sysvicall3(libc·sigaction, (uintptr)sig, (uintptr)act, (uintptr)oact);
 }
 
 /* int32 */ void
 runtime·sigaltstack(Sigaltstack* ss, Sigaltstack* oss)
 {
-	runtime·sysvicall6(libc·sigaltstack, 2, (uintptr)ss, (uintptr)oss);
+	runtime·sysvicall2(libc·sigaltstack, (uintptr)ss, (uintptr)oss);
 }
 
 /* int32 */ void
 runtime·sigprocmask(int32 how, Sigset* set, Sigset* oset)
 {
-	runtime·sysvicall6(libc·sigprocmask, 3, (uintptr)how, (uintptr)set, (uintptr)oset);
+	runtime·sysvicall3(libc·sigprocmask, (uintptr)how, (uintptr)set, (uintptr)oset);
 }
 
 int64
 runtime·sysconf(int32 name)
 {
-	return runtime·sysvicall6(libc·sysconf, 1, (uintptr)name);
+	return runtime·sysvicall1(libc·sysconf, (uintptr)name);
 }
 
 extern void runtime·usleep1(uint32);
@@ -580,7 +565,7 @@ runtime·usleep(uint32 µs)
 int32
 runtime·write(uintptr fd, void* buf, int32 nbyte)
 {
-	return runtime·sysvicall6(libc·write, 3, (uintptr)fd, (uintptr)buf, (uintptr)nbyte);
+	return runtime·sysvicall3(libc·write, (uintptr)fd, (uintptr)buf, (uintptr)nbyte);
 }
 
 extern void runtime·osyield1(void);
@@ -592,7 +577,7 @@ runtime·osyield(void)
 	// Check the validity of m because we might be called in cgo callback
 	// path early enough where there isn't a m available yet.
 	if(g && g->m != nil) {
-		runtime·sysvicall6(libc·sched_yield, 0);
+		runtime·sysvicall0(libc·sched_yield);
 		return;
 	}
 	runtime·osyield1();
