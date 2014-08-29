@@ -31,7 +31,7 @@ type Fpxreg1 C.struct__fpxreg
 type Xmmreg1 C.struct__xmmreg
 type Fpstate1 C.struct__fpstate
 type Fpreg1 C.struct__fpreg
-type Sigaltstack C.struct_sigaltstack
+type SigaltstackT C.struct_sigaltstack
 type Mcontext C.mcontext_t
 type Ucontext C.ucontext_t
 type Sigcontext C.struct_sigcontext

@@ -97,7 +97,7 @@ typedef struct Timespec Timespec;
 typedef struct Timeval Timeval;
 typedef struct SigactionT SigactionT;
 typedef struct Siginfo Siginfo;
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigcontext Sigcontext;
 typedef struct Ucontext Ucontext;
 typedef struct Itimerval Itimerval;
@@ -156,7 +156,7 @@ struct Siginfo {
 	int32	si_code;
 	byte	_sifields[116];
 };
-struct Sigaltstack {
+struct SigaltstackT {
 	byte	*ss_sp;
 	int32	ss_flags;
 	uint32	ss_size;
@@ -194,7 +194,7 @@ struct Sigcontext {
 struct Ucontext {
 	uint32	uc_flags;
 	Ucontext	*uc_link;
-	Sigaltstack	uc_stack;
+	SigaltstackT	uc_stack;
 	Sigcontext	uc_mcontext;
 	uint32	uc_sigmask;
 };

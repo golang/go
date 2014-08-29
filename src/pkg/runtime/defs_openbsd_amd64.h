@@ -82,7 +82,7 @@ enum {
 };
 
 typedef struct Tfork Tfork;
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigcontext Sigcontext;
 typedef struct Siginfo Siginfo;
 typedef struct StackT StackT;
@@ -99,7 +99,7 @@ struct Tfork {
 	byte	*tf_stack;
 };
 
-struct Sigaltstack {
+struct SigaltstackT {
 	byte	*ss_sp;
 	uint64	ss_size;
 	int32	ss_flags;

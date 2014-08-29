@@ -11,7 +11,7 @@ int32	runtime·clone(int32, void*, M*, G*, void(*)(void));
 struct SigactionT;
 int32	runtime·rt_sigaction(uintptr, struct SigactionT*, void*, uintptr);
 
-void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
 void	runtime·sigpanic(void);
 void runtime·setitimer(int32, Itimerval*, Itimerval*);
 

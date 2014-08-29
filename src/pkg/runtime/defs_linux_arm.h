@@ -88,8 +88,8 @@ struct Timespec {
 	int32 tv_nsec;
 };
 
-typedef struct Sigaltstack Sigaltstack;
-struct Sigaltstack {
+typedef struct SigaltstackT SigaltstackT;
+struct SigaltstackT {
 	void *ss_sp;
 	int32 ss_flags;
 	uint32 ss_size;
@@ -124,7 +124,7 @@ typedef struct Ucontext Ucontext;
 struct Ucontext {
 	uint32 uc_flags;
 	Ucontext *uc_link;
-	Sigaltstack uc_stack;
+	SigaltstackT uc_stack;
 	Sigcontext uc_mcontext;
 	uint32 uc_sigmask;
 	int32 __unused[31];
