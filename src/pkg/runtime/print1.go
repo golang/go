@@ -46,7 +46,7 @@ func printf(s *byte) {
 // It has the same problem as goprintf.
 //go:nosplit
 func snprintf(dst *byte, n int32, s *byte) {
-	buf := (*[1 << 30]byte)(unsafe.Pointer(dst))[0:0:n]
+	buf := (*[1 << 30]byte)(unsafe.Pointer(dst))[0:n:n]
 
 	gp := getg()
 	gp.writebuf = buf[0:0 : n-1] // leave room for NUL, this is called from C
