@@ -8,11 +8,15 @@ extern void *runtime·GetQueuedCompletionStatusEx;
 
 // Call a Windows function with stdcall conventions,
 // and switch to os stack during the call.
-#pragma	varargck	countpos	runtime·stdcall	2
-#pragma	varargck	type		runtime·stdcall	void*
-#pragma	varargck	type		runtime·stdcall	uintptr
 void runtime·asmstdcall(void *c);
-void *runtime·stdcall(void *fn, int32 count, ...);
+void *runtime·stdcall0(void *fn);
+void *runtime·stdcall1(void *fn, uintptr a0);
+void *runtime·stdcall2(void *fn, uintptr a0, uintptr a1);
+void *runtime·stdcall3(void *fn, uintptr a0, uintptr a1, uintptr a2);
+void *runtime·stdcall4(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3);
+void *runtime·stdcall5(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uintptr a4);
+void *runtime·stdcall6(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5);
+void *runtime·stdcall7(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6);
 
 uint32 runtime·getlasterror(void);
 void runtime·setlasterror(uint32 err);

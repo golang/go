@@ -29,7 +29,7 @@ void*
 runtime·SysAlloc(uintptr n, uint64 *stat)
 {
 	runtime·xadd64(stat, n);
-	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, (uintptr)(MEM_COMMIT|MEM_RESERVE), (uintptr)PAGE_READWRITE);
+	return runtime·stdcall4(runtime·VirtualAlloc, 0, n, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
 }
 
 void
@@ -38,7 +38,7 @@ runtime·SysUnused(void *v, uintptr n)
 	void *r;
 	uintptr small;
 
-	r = runtime·stdcall(runtime·VirtualFree, 3, v, n, (uintptr)MEM_DECOMMIT);
+	r = runtime·stdcall3(runtime·VirtualFree, (uintptr)v, n, MEM_DECOMMIT);
 	if(r != nil)
 		return;
 
@@ -53,7 +53,7 @@ runtime·SysUnused(void *v, uintptr n)
 	// in the worst case, but that's fast enough.
 	while(n > 0) {
 		small = n;
-		while(small >= 4096 && runtime·stdcall(runtime·VirtualFree, 3, v, small, (uintptr)MEM_DECOMMIT) == nil)
+		while(small >= 4096 && runtime·stdcall3(runtime·VirtualFree, (uintptr)v, small, MEM_DECOMMIT) == nil)
 			small = (small / 2) & ~(4096-1);
 		if(small < 4096)
 			runtime·throw("runtime: failed to decommit pages");
@@ -67,7 +67,7 @@ runtime·SysUsed(void *v, uintptr n)
 {
 	void *r;
 
-	r = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_READWRITE);
+	r = runtime·stdcall4(runtime·VirtualAlloc, (uintptr)v, n, MEM_COMMIT, PAGE_READWRITE);
 	if(r != v)
 		runtime·throw("runtime: failed to commit pages");
 }
@@ -78,7 +78,7 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
 	uintptr r;
 
 	runtime·xadd64(stat, -(uint64)n);
-	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, (uintptr)0, (uintptr)MEM_RELEASE);
+	r = (uintptr)runtime·stdcall3(runtime·VirtualFree, (uintptr)v, 0, MEM_RELEASE);
 	if(r == 0)
 		runtime·throw("runtime: failed to release pages");
 }
@@ -96,12 +96,12 @@ runtime·SysReserve(void *v, uintptr n, bool *reserved)
 	*reserved = true;
 	// v is just a hint.
 	// First try at v.
-	v = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_RESERVE, (uintptr)PAGE_READWRITE);
+	v = runtime·stdcall4(runtime·VirtualAlloc, (uintptr)v, n, MEM_RESERVE, PAGE_READWRITE);
 	if(v != nil)
 		return v;
 	
 	// Next let the kernel choose the address.
-	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, (uintptr)MEM_RESERVE, (uintptr)PAGE_READWRITE);
+	return runtime·stdcall4(runtime·VirtualAlloc, 0, n, MEM_RESERVE, PAGE_READWRITE);
 }
 
 void
@@ -112,7 +112,7 @@ runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
 	USED(reserved);
 
 	runtime·xadd64(stat, n);
-	p = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_READWRITE);
+	p = runtime·stdcall4(runtime·VirtualAlloc, (uintptr)v, n, MEM_COMMIT, PAGE_READWRITE);
 	if(p != v)
 		runtime·throw("runtime: cannot map pages in arena address space");
 }
