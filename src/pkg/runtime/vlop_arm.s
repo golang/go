@@ -294,3 +294,12 @@ out:
 	MOVW	12(R13), R(s)
 	MOVW	16(R13), R(M)
 	RET
+
+// _mul64by32 and _div64by32 not implemented on arm
+TEXT runtime·_mul64by32(SB), NOSPLIT, $0
+	MOVW	$0, R0
+	MOVW	(R0), R1 // crash
+
+TEXT runtime·_div64by32(SB), NOSPLIT, $0
+	MOVW	$0, R0
+	MOVW	(R0), R1 // crash

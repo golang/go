@@ -34,7 +34,6 @@
  * to generate the code directly now.  Find and remove.
  */
 
-void	runtime·panicstring(char*);
 void	runtime·panicdivide(void);
 
 typedef	unsigned long	ulong;
@@ -182,8 +181,8 @@ _v2f(Vlong x)
 	return _v2d(x);
 }
 
-ulong	_div64by32(Vlong, ulong, ulong*);
-int	_mul64by32(Vlong*, Vlong, ulong);
+ulong	runtime·_div64by32(Vlong, ulong, ulong*);
+int	runtime·_mul64by32(Vlong*, Vlong, ulong);
 
 static void
 slowdodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
@@ -277,7 +276,7 @@ dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
 	if(den.hi != 0){
 		q.hi = 0;
 		n = num.hi/den.hi;
-		if(_mul64by32(&x, den, n) || x.hi > num.hi || (x.hi == num.hi && x.lo > num.lo))
+		if(runtime·_mul64by32(&x, den, n) || x.hi > num.hi || (x.hi == num.hi && x.lo > num.lo))
 			slowdodiv(num, den, &q, &r);
 		else {
 			q.lo = n;
@@ -292,7 +291,7 @@ dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
 		} else {
 			q.hi = 0;
 		}
-		q.lo = _div64by32(num, den.lo, &r.lo);
+		q.lo = runtime·_div64by32(num, den.lo, &r.lo);
 		r.hi = 0;
 	}
 	if(qp) {
@@ -323,12 +322,6 @@ _divvu(Vlong n, Vlong d)
 }
 
 Vlong
-runtime·uint64div(Vlong n, Vlong d)
-{
-	return _divvu(n, d);
-}
-
-Vlong
 _modvu(Vlong n, Vlong d)
 {
 	Vlong r;
@@ -342,12 +335,6 @@ _modvu(Vlong n, Vlong d)
 	}
 	dodiv(n, d, 0, &r);
 	return r;
-}
-
-Vlong
-runtime·uint64mod(Vlong n, Vlong d)
-{
-	return _modvu(n, d);
 }
 
 static void
@@ -395,12 +382,6 @@ _divv(Vlong n, Vlong d)
 }
 
 Vlong
-runtime·int64div(Vlong n, Vlong d)
-{
-	return _divv(n, d);
-}
-
-Vlong
 _modv(Vlong n, Vlong d)
 {
 	long nneg, dneg;
@@ -430,12 +411,6 @@ _modv(Vlong n, Vlong d)
 	if(nneg)
 		vneg(&r);
 	return r;
-}
-
-Vlong
-runtime·int64mod(Vlong n, Vlong d)
-{
-	return _modv(n, d);
 }
 
 Vlong
