@@ -203,6 +203,7 @@ func noteclear(n *note)
 func lock(lk *mutex)
 func unlock(lk *mutex)
 func purgecachedstats(c *mcache)
+func gostringnocopy(b *byte) string
 
 //go:noescape
 func write(fd uintptr, p unsafe.Pointer, n int32) int32

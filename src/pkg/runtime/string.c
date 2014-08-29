@@ -90,6 +90,7 @@ runtime·gobytes(byte *p, intgo n)
 	return sl;
 }
 
+#pragma textflag NOSPLIT
 String
 runtime·gostringnocopy(byte *str)
 {

@@ -39,7 +39,7 @@ func goprintf(s string) {
 // and type tables.
 //go:nosplit
 func printf(s *byte) {
-	vprintf(gostring(s), add(unsafe.Pointer(&s), unsafe.Sizeof(s)))
+	vprintf(gostringnocopy(s), add(unsafe.Pointer(&s), unsafe.Sizeof(s)))
 }
 
 // sprintf is only called from C code.
