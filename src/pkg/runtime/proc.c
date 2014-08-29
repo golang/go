@@ -199,6 +199,7 @@ runtime·schedinit(void)
 }
 
 extern void main·init(void);
+extern void runtime·init(void);
 extern void main·main(void);
 
 static FuncVal initDone = { runtime·unlockOSThread };
@@ -246,6 +247,7 @@ runtime·main(void)
 
 	if(g->m != &runtime·m0)
 		runtime·throw("runtime·main not on m0");
+	runtime·init();
 	main·init();
 
 	if(g->defer != &d || d.fn != &initDone)
