@@ -1837,9 +1837,12 @@ walkprint(Node *nn, NodeList **init, int defer)
 					t = types[TINT64];
 				}
 			} else {
-				if(et == TUINT64)
-					on = syslook("printuint", 0);
-				else
+				if(et == TUINT64) {
+					if(t->sym->pkg == runtimepkg && strcmp(t->sym->name, "hex") == 0)
+						on = syslook("printhex", 0);
+					else
+						on = syslook("printuint", 0);
+				} else
 					on = syslook("printint", 0);
 			}
 		} else if(isfloat[et]) {

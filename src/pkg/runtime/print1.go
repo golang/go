@@ -6,6 +6,10 @@ package runtime
 
 import "unsafe"
 
+// The compiler knows that a print of a value of this type
+// should use printhex instead of printuint (decimal).
+type hex uint64
+
 //go:noescape
 func gostring(*byte) string
 
@@ -178,8 +182,7 @@ func vprintf(str string, arg unsafe.Pointer) {
 }
 
 func printpc(p unsafe.Pointer) {
-	print("PC=")
-	printhex(uint64(getcallerpc(p)))
+	print("PC=", hex(uintptr(p)))
 }
 
 func printbool(v bool) {
