@@ -124,7 +124,7 @@ typedef struct MachHeader MachHeader;
 typedef struct MachNDR MachNDR;
 typedef struct MachPort MachPort;
 typedef struct StackT StackT;
-typedef struct Sigaction Sigaction;
+typedef struct SigactionT SigactionT;
 typedef struct Siginfo Siginfo;
 typedef struct Timeval Timeval;
 typedef struct Itimerval Itimerval;
@@ -142,7 +142,7 @@ typedef struct FloatState32 FloatState32;
 typedef struct ExceptionState32 ExceptionState32;
 typedef struct Mcontext32 Mcontext32;
 typedef struct Ucontext Ucontext;
-typedef struct Kevent Kevent;
+typedef struct KeventT KeventT;
 
 #pragma pack on
 
@@ -182,7 +182,7 @@ struct StackT {
 };
 typedef	byte	Sighandler[4];
 
-struct Sigaction {
+struct SigactionT {
 	byte	__sigaction_u[4];
 	void	*sa_tramp;
 	uint32	sa_mask;
@@ -379,7 +379,7 @@ struct Ucontext {
 	Mcontext32	*uc_mcontext;
 };
 
-struct Kevent {
+struct KeventT {
 	uint32	ident;
 	int16	filter;
 	uint16	flags;

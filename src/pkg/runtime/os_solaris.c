@@ -267,7 +267,7 @@ extern void runtime·sigtramp(void);
 void
 runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
@@ -286,7 +286,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 GoSighandler*
 runtime·getsig(int32 i)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	runtime·sigaction(i, nil, &sa);
@@ -530,7 +530,7 @@ runtime·setitimer(int32 which, Itimerval* value, Itimerval* ovalue)
 }
 
 /* int32 */ void
-runtime·sigaction(int32 sig, struct Sigaction* act, struct Sigaction* oact)
+runtime·sigaction(int32 sig, struct SigactionT* act, struct SigactionT* oact)
 {
 	runtime·sysvicall3(libc·sigaction, (uintptr)sig, (uintptr)act, (uintptr)oact);
 }

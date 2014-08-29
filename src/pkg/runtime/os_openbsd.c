@@ -263,12 +263,12 @@ typedef struct sigaction {
 	} __sigaction_u;		/* signal handler */
 	uint32	sa_mask;		/* signal mask to apply */
 	int32	sa_flags;		/* see signal options below */
-} Sigaction;
+} SigactionT;
 
 void
 runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
@@ -284,7 +284,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 GoSighandler*
 runtime·getsig(int32 i)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	runtime·sigaction(i, nil, &sa);

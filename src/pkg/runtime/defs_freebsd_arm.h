@@ -98,7 +98,7 @@ typedef struct Ucontext Ucontext;
 typedef struct Timespec Timespec;
 typedef struct Timeval Timeval;
 typedef struct Itimerval Itimerval;
-typedef struct Kevent Kevent;
+typedef struct KeventT KeventT;
 
 #pragma pack on
 
@@ -173,7 +173,7 @@ struct Itimerval {
 	Timeval	it_value;
 };
 
-struct Kevent {
+struct KeventT {
 	uint32	ident;
 	int16	filter;
 	uint16	flags;

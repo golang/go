@@ -105,7 +105,7 @@ typedef struct Sigaltstack Sigaltstack;
 typedef struct Sigset Sigset;
 typedef struct StackT StackT;
 typedef struct Siginfo Siginfo;
-typedef struct Sigaction Sigaction;
+typedef struct SigactionT SigactionT;
 typedef struct Fpregset Fpregset;
 typedef struct Mcontext Mcontext;
 typedef struct Ucontext Ucontext;
@@ -149,7 +149,7 @@ struct Siginfo {
 	int32	si_pad;
 	byte	__data[240];
 };
-struct Sigaction {
+struct SigactionT {
 	int32	sa_flags;
 	byte	Pad_cgo_0[4];
 	byte	_funcptr[8];

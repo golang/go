@@ -293,7 +293,7 @@ extern void runtime·sigreturn(void);	// calls rt_sigreturn, only used with SA_R
 void
 runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
@@ -319,7 +319,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 GoSighandler*
 runtime·getsig(int32 i)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)

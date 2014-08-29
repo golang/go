@@ -22,15 +22,13 @@ const (
 	pageSize  = 1 << pageShift
 	pageMask  = pageSize - 1
 
-	gcBits             = 4
-	wordsPerBitmapByte = 8 / gcBits
-	bitsPerPointer     = 2
-	bitsMask           = 1<<bitsPerPointer - 1
-	pointersPerByte    = 8 / bitsPerPointer
-	bitPtrMask         = bitsMask << 2
-	maxGCMask          = 64
-	bitsDead           = 0
-	bitsPointer        = 2
+	bitsPerPointer  = 2
+	bitsMask        = 1<<bitsPerPointer - 1
+	pointersPerByte = 8 / bitsPerPointer
+	bitPtrMask      = bitsMask << 2
+	maxGCMask       = 64
+	bitsDead        = 0
+	bitsPointer     = 2
 
 	bitBoundary = 1
 	bitMarked   = 2

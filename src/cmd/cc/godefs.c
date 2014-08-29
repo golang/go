@@ -317,9 +317,9 @@ godefvar(Sym *s)
 	switch(t->etype) {
 	case TENUM:
 		if(!typefd[t->etype])
-			Bprint(&outbuf, "const %U = %lld\n", s->name, s->vconst);
+			Bprint(&outbuf, "const %s = %lld\n", s->name, s->vconst);
 		else
-			Bprint(&outbuf, "const %U = %f\n;", s->name, s->fconst);
+			Bprint(&outbuf, "const %s = %f\n;", s->name, s->fconst);
 		break;
 
 	case TFUNC:

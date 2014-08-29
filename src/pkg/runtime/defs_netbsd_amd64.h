@@ -91,7 +91,7 @@ typedef struct Timeval Timeval;
 typedef struct Itimerval Itimerval;
 typedef struct McontextT McontextT;
 typedef struct UcontextT UcontextT;
-typedef struct Kevent Kevent;
+typedef struct KeventT KeventT;
 
 #pragma pack on
 
@@ -147,7 +147,7 @@ struct UcontextT {
 	McontextT	uc_mcontext;
 };
 
-struct Kevent {
+struct KeventT {
 	uint64	ident;
 	uint32	filter;
 	uint32	flags;

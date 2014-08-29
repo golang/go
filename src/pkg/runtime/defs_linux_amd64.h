@@ -88,7 +88,7 @@ enum {
 
 typedef struct Timespec Timespec;
 typedef struct Timeval Timeval;
-typedef struct Sigaction Sigaction;
+typedef struct SigactionT SigactionT;
 typedef struct Siginfo Siginfo;
 typedef struct Itimerval Itimerval;
 typedef struct EpollEvent EpollEvent;
@@ -103,7 +103,7 @@ struct Timeval {
 	int64	tv_sec;
 	int64	tv_usec;
 };
-struct Sigaction {
+struct SigactionT {
 	void	*sa_handler;
 	uint64	sa_flags;
 	void	*sa_restorer;

@@ -8,8 +8,8 @@
 int32	runtime·futex(uint32*, int32, uint32, Timespec*, uint32*, uint32);
 int32	runtime·clone(int32, void*, M*, G*, void(*)(void));
 
-struct Sigaction;
-int32	runtime·rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
+struct SigactionT;
+int32	runtime·rt_sigaction(uintptr, struct SigactionT*, void*, uintptr);
 
 void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
 void	runtime·sigpanic(void);
