@@ -519,7 +519,6 @@ void	runtime·MHeap_Scavenge(int32 k, uint64 now, uint64 limit);
 
 void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
-void	runtime·gc(int32 force);
 uintptr	runtime·sweepone(void);
 void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);

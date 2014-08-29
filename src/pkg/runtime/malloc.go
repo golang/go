@@ -407,32 +407,18 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 // force = 1 - do GC regardless of current heap usage
 // force = 2 - go GC and eager sweep
 func gogc(force int32) {
-	if !memstats.enablegc {
-		return
-	}
-
-	// TODO: should never happen?  Only C calls malloc while holding a lock?
+	// The gc is turned off (via enablegc) until the bootstrap has completed.
+	// Also, malloc gets called in the guts of a number of libraries that might be
+	// holding locks. To avoid deadlocks during stoptheworld, don't bother
+	// trying to run gc while holding a lock. The next mallocgc without a lock
+	// will do the gc instead.
 	mp := acquirem()
-	if mp.locks > 1 {
+	if gp := getg(); gp == mp.g0 || mp.locks > 1 || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
 		releasem(mp)
 		return
 	}
 	releasem(mp)
 	mp = nil
-
-	if panicking != 0 {
-		return
-	}
-	if gcpercent == gcpercentUnknown {
-		lock(&mheap_.lock)
-		if gcpercent == gcpercentUnknown {
-			gcpercent = readgogc()
-		}
-		unlock(&mheap_.lock)
-	}
-	if gcpercent < 0 {
-		return
-	}
 
 	semacquire(&worldsema, false)
 

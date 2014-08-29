@@ -34,3 +34,8 @@ func gc_unixnanotime(now *int64) {
 	sec, nsec := timenow()
 	*now = sec*1e9 + int64(nsec)
 }
+
+func freeOSMemory() {
+	gogc(2) // force GC and do eager sweep
+	onM(&scavenge_m)
+}
