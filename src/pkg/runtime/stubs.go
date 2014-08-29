@@ -173,7 +173,6 @@ func gogo(buf *gobuf)
 func gosave(buf *gobuf)
 func open(name *byte, mode, perm int32) int32
 func read(fd int32, p unsafe.Pointer, n int32) int32
-func write(fd uintptr, p unsafe.Pointer, n int32) int32
 func close(fd int32) int32
 func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 func jmpdefer(fv *funcval, argp unsafe.Pointer)
@@ -204,6 +203,9 @@ func noteclear(n *note)
 func lock(lk *mutex)
 func unlock(lk *mutex)
 func purgecachedstats(c *mcache)
+
+//go:noescape
+func write(fd uintptr, p unsafe.Pointer, n int32) int32
 
 //go:noescape
 func cas(ptr *uint32, old, new uint32) bool
