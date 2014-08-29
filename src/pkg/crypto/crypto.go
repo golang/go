@@ -7,12 +7,18 @@ package crypto
 
 import (
 	"hash"
+	"io"
 	"strconv"
 )
 
 // Hash identifies a cryptographic hash function that is implemented in another
 // package.
 type Hash uint
+
+// HashFunc simply returns the value of h so that Hash implements SignerOpts.
+func (h Hash) HashFunc() Hash {
+	return h
+}
 
 const (
 	MD4       Hash = 1 + iota // import code.google.com/p/go.crypto/md4
@@ -83,3 +89,30 @@ type PublicKey interface{}
 
 // PrivateKey represents a private key using an unspecified algorithm.
 type PrivateKey interface{}
+
+// Signer is an interface for an opaque private key that can be used for
+// signing operations. For example, an RSA key kept in a hardware module.
+type Signer interface {
+	// Public returns the public key corresponding to the opaque,
+	// private key.
+	Public() PublicKey
+
+	// Sign signs msg with the private key, possibly using entropy from
+	// rand. For an RSA key, the resulting signature should be either a
+	// PKCS#1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
+	// key, it should be a DER-serialised, ASN.1 signature structure.
+	//
+	// Hash implements the SignerOpts interface and, in most cases, one can
+	// simply pass in the hash function used as opts. Sign may also attempt
+	// to type assert opts to other types in order to obtain algorithm
+	// specific values. See the documentation in each package for details.
+	Sign(rand io.Reader, msg []byte, opts SignerOpts) (signature []byte, err error)
+}
+
+// SignerOpts contains options for signing with a Signer.
+type SignerOpts interface {
+	// HashFunc returns an identifier for the hash function used to produce
+	// the message passed to Signer.Sign, or else zero to indicate that no
+	// hashing was done.
+	HashFunc() Hash
+}

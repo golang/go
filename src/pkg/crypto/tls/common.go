@@ -487,7 +487,12 @@ func (c *Config) BuildNameToCertificate() {
 // A Certificate is a chain of one or more certificates, leaf first.
 type Certificate struct {
 	Certificate [][]byte
-	PrivateKey  crypto.PrivateKey // supported types: *rsa.PrivateKey, *ecdsa.PrivateKey
+	// PrivateKey contains the private key corresponding to the public key
+	// in Leaf. For a server, this must be a *rsa.PrivateKey or
+	// *ecdsa.PrivateKey. For a client doing client authentication, this
+	// can be any type that implements crypto.Signer (which includes RSA
+	// and ECDSA private keys).
+	PrivateKey crypto.PrivateKey
 	// OCSPStaple contains an optional OCSP response which will be served
 	// to clients that request it.
 	OCSPStaple []byte
