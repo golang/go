@@ -151,6 +151,12 @@ there is a uintptr-typed word in memory that holds a pointer value,
 because that word will be invisible to stack copying and to the garbage
 collector.
 
+Shifts
+
+Flag: -shift
+
+Shifts equal to or longer than the variable's length.
+
 Other flags
 
 These flags configure the behavior of vet:
