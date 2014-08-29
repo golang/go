@@ -417,7 +417,10 @@ func writeImage(w io.Writer, m image.Image, cb int, level int) error {
 		}
 
 		// Apply the filter.
-		f := filter(&cr, pr, bpp)
+		f := ftNone
+		if level != zlib.NoCompression {
+			f = filter(&cr, pr, bpp)
+		}
 
 		// Write the compressed bytes.
 		if _, err := zw.Write(cr[f]); err != nil {
