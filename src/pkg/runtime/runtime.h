@@ -422,6 +422,12 @@ struct P
 	byte	pad[64];
 };
 
+enum {
+	// The max value of GOMAXPROCS.
+	// There are no fundamental restrictions on the value.
+	MaxGomaxprocs = 1<<8,
+};
+
 // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
 // The low bit (LockExternal) is a boolean reporting whether any LockOSThread call is active.
 // External locks are not recursive; a second lock is silently ignored.
@@ -768,7 +774,7 @@ extern	G**	runtime·allg;
 extern	uintptr runtime·allglen;
 extern	G*	runtime·lastg;
 extern	M*	runtime·allm;
-extern	P**	runtime·allp;
+extern	P*	runtime·allp[MaxGomaxprocs+1];
 extern	int32	runtime·gomaxprocs;
 extern	uint32	runtime·needextram;
 extern	uint32	runtime·panicking;
