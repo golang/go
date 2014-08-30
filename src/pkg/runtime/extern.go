@@ -149,20 +149,6 @@ func Callers(skip int, pc []uintptr) int {
 func callers(int32, *uintptr, int32) int32
 
 func getgoroot() string
-func environ() []string
-
-func gogetenv(key string) string {
-	env := environ()
-	if env == nil {
-		gothrow("getenv before env init")
-	}
-	for _, s := range env {
-		if len(s) > len(key) && s[len(key)] == '=' && s[:len(key)] == key {
-			return s[len(key)+1:]
-		}
-	}
-	return ""
-}
 
 // GOROOT returns the root of the Go tree.
 // It uses the GOROOT environment variable, if set,

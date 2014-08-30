@@ -36,7 +36,7 @@ TEXT _seek<>(SB),NOSPLIT,$0
 // int64 seek(int32, int64, int32)
 // Convenience wrapper around _seek, the actual system call.
 TEXT runtime·seek(SB),NOSPLIT,$32
-	LEAQ	$ret+24(FP), AX
+	LEAQ	ret+24(FP), AX
 	MOVL	fd+0(FP), BX
 	MOVQ	offset+8(FP), CX
 	MOVL	whence+16(FP), DX
