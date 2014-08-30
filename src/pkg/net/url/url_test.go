@@ -279,6 +279,16 @@ var urltests = []URLTest{
 		},
 		"a/b/c",
 	},
+	// escaped '?' in username and password
+	{
+		"http://%3Fam:pa%3Fsword@google.com",
+		&URL{
+			Scheme: "http",
+			User:   UserPassword("?am", "pa?sword"),
+			Host:   "google.com",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -901,5 +911,51 @@ func TestParseFailure(t *testing.T) {
 	errStr := fmt.Sprint(err)
 	if !strings.Contains(errStr, "%gh") {
 		t.Errorf(`ParseQuery(%q) returned error %q, want something containing %q"`, url, errStr, "%gh")
+	}
+}
+
+type shouldEscapeTest struct {
+	in     byte
+	mode   encoding
+	escape bool
+}
+
+var shouldEscapeTests = []shouldEscapeTest{
+	// Unreserved characters (§2.3)
+	{'a', encodePath, false},
+	{'a', encodeUserPassword, false},
+	{'a', encodeQueryComponent, false},
+	{'a', encodeFragment, false},
+	{'z', encodePath, false},
+	{'A', encodePath, false},
+	{'Z', encodePath, false},
+	{'0', encodePath, false},
+	{'9', encodePath, false},
+	{'-', encodePath, false},
+	{'-', encodeUserPassword, false},
+	{'-', encodeQueryComponent, false},
+	{'-', encodeFragment, false},
+	{'.', encodePath, false},
+	{'_', encodePath, false},
+	{'~', encodePath, false},
+
+	// User information (§3.2.1)
+	{':', encodeUserPassword, true},
+	{'/', encodeUserPassword, true},
+	{'?', encodeUserPassword, true},
+	{'@', encodeUserPassword, true},
+	{'$', encodeUserPassword, false},
+	{'&', encodeUserPassword, false},
+	{'+', encodeUserPassword, false},
+	{',', encodeUserPassword, false},
+	{';', encodeUserPassword, false},
+	{'=', encodeUserPassword, false},
+}
+
+func TestShouldEscape(t *testing.T) {
+	for _, tt := range shouldEscapeTests {
+		if shouldEscape(tt.in, tt.mode) != tt.escape {
+			t.Errorf("shouldEscape(%q, %v) returned %v; expected %v", tt.in, tt.mode, !tt.escape, tt.escape)
+		}
 	}
 }
