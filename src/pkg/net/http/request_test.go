@@ -7,6 +7,7 @@ package http_test
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -392,6 +393,75 @@ func TestParseHTTPVersion(t *testing.T) {
 				ok           bool
 			}
 			t.Errorf("failed to parse %q, expected: %#v, got %#v", tt.vers, version{tt.major, tt.minor, tt.ok}, version{major, minor, ok})
+		}
+	}
+}
+
+type getBasicAuthTest struct {
+	username, password string
+	ok                 bool
+}
+
+type parseBasicAuthTest getBasicAuthTest
+
+type basicAuthCredentialsTest struct {
+	username, password string
+}
+
+var getBasicAuthTests = []struct {
+	username, password string
+	ok                 bool
+}{
+	{"Aladdin", "open sesame", true},
+	{"Aladdin", "open:sesame", true},
+	{"", "", true},
+}
+
+func TestGetBasicAuth(t *testing.T) {
+	for _, tt := range getBasicAuthTests {
+		r, _ := NewRequest("GET", "http://example.com/", nil)
+		r.SetBasicAuth(tt.username, tt.password)
+		username, password, ok := r.BasicAuth()
+		if ok != tt.ok || username != tt.username || password != tt.password {
+			t.Errorf("BasicAuth() = %#v, want %#v", getBasicAuthTest{username, password, ok},
+				getBasicAuthTest{tt.username, tt.password, tt.ok})
+		}
+	}
+	// Unauthenticated request.
+	r, _ := NewRequest("GET", "http://example.com/", nil)
+	username, password, ok := r.BasicAuth()
+	if ok {
+		t.Errorf("expected false from BasicAuth when the request is unauthenticated")
+	}
+	want := basicAuthCredentialsTest{"", ""}
+	if username != want.username || password != want.password {
+		t.Errorf("expected credentials: %#v when the request is unauthenticated, got %#v",
+			want, basicAuthCredentialsTest{username, password})
+	}
+}
+
+var parseBasicAuthTests = []struct {
+	header, username, password string
+	ok                         bool
+}{
+	{"Basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "Aladdin", "open sesame", true},
+	{"Basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open:sesame")), "Aladdin", "open:sesame", true},
+	{"Basic " + base64.StdEncoding.EncodeToString([]byte(":")), "", "", true},
+	{"Basic" + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "", "", false},
+	{base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "", "", false},
+	{"Basic ", "", "", false},
+	{"Basic Aladdin:open sesame", "", "", false},
+	{`Digest username="Aladdin"`, "", "", false},
+}
+
+func TestParseBasicAuth(t *testing.T) {
+	for _, tt := range parseBasicAuthTests {
+		r, _ := NewRequest("GET", "http://example.com/", nil)
+		r.Header.Set("Authorization", tt.header)
+		username, password, ok := r.BasicAuth()
+		if ok != tt.ok || username != tt.username || password != tt.password {
+			t.Errorf("BasicAuth() = %#v, want %#v", getBasicAuthTest{username, password, ok},
+				getBasicAuthTest{tt.username, tt.password, tt.ok})
 		}
 	}
 }
