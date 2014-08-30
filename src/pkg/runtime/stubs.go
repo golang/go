@@ -152,7 +152,6 @@ func tracebackothers(gp *g)
 func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
 func gogo(buf *gobuf)
 func gosave(buf *gobuf)
-func open(name *byte, mode, perm int32) int32
 func read(fd int32, p unsafe.Pointer, n int32) int32
 func close(fd int32) int32
 func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
@@ -162,7 +161,6 @@ func asminit()
 func setg(gg *g)
 func exit(code int32)
 func breakpoint()
-func asmcgocall(fn, arg unsafe.Pointer)
 func nanotime() int64
 func usleep(usec uint32)
 func cputicks() int64
@@ -247,3 +245,9 @@ func getcallerpc(argp unsafe.Pointer) uintptr
 
 //go:noescape
 func getcallersp(argp unsafe.Pointer) uintptr
+
+//go:noescape
+func asmcgocall(fn, arg unsafe.Pointer)
+
+//go:noescape
+func open(name *byte, mode, perm int32) int32

@@ -70,3 +70,6 @@ TEXT reflect·chanrecv(SB), NOSPLIT, $0-0
 
 TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
 	JMP	runtime·freeOSMemory(SB)
+
+TEXT syscall·setenv_c(SB), NOSPLIT, $0-0
+	JMP	runtime·syscall_setenv_c(SB)

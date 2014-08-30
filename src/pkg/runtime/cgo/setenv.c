@@ -7,4 +7,4 @@
 #pragma cgo_import_static x_cgo_setenv
 
 void x_cgo_setenv(char**);
-void (*_cgo_setenv)(char**) = x_cgo_setenv;
+void (*runtime·_cgo_setenv)(char**) = x_cgo_setenv;
