@@ -206,7 +206,7 @@ runtime·stackalloc(G *gp, uint32 n)
 
 	gp->stacksize += n;
 	if(runtime·debug.efence || StackFromSystem) {
-		v = runtime·SysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
+		v = runtime·sysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
 		if(v == nil)
 			runtime·throw("out of memory (stackalloc)");
 		return v;

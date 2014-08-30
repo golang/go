@@ -26,7 +26,7 @@ extern void *runtime·VirtualFree;
 extern void *runtime·VirtualProtect;
 
 void*
-runtime·SysAlloc(uintptr n, uint64 *stat)
+runtime·sysAlloc(uintptr n, uint64 *stat)
 {
 	runtime·xadd64(stat, n);
 	return runtime·stdcall4(runtime·VirtualAlloc, 0, n, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);

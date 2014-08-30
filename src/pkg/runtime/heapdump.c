@@ -825,7 +825,7 @@ makeheapobjbv(byte *p, uintptr size)
 		if(tmpbuf != nil)
 			runtime·SysFree(tmpbuf, tmpbufsize, &mstats.other_sys);
 		tmpbufsize = nptr*BitsPerPointer/8+1;
-		tmpbuf = runtime·SysAlloc(tmpbufsize, &mstats.other_sys);
+		tmpbuf = runtime·sysAlloc(tmpbufsize, &mstats.other_sys);
 		if(tmpbuf == nil)
 			runtime·throw("heapdump: out of memory");
 	}

@@ -9,7 +9,7 @@
 #include "malloc.h"
 
 void*
-runtime·SysAlloc(uintptr n, uint64 *stat)
+runtime·sysAlloc(uintptr n, uint64 *stat)
 {
 	void *v;
 
