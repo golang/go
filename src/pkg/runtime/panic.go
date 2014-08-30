@@ -4,10 +4,14 @@
 
 package runtime
 
+var indexError = error(errorString("index out of range"))
+
 func panicindex() {
-	panic(errorString("index out of range"))
+	panic(indexError)
 }
 
+var sliceError = error(errorString("slice bounds out of range"))
+
 func panicslice() {
-	panic(errorString("slice bounds out of range"))
+	panic(sliceError)
 }
