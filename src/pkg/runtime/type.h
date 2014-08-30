@@ -21,7 +21,7 @@ struct Type
 	uint8 align;
 	uint8 fieldAlign;
 	uint8 kind;
-	Alg *alg;
+	void* alg;
 	// gc stores type info required for garbage collector.
 	// If (kind&KindGCProg)==0, then gc directly contains sparse GC bitmap
 	// (no indirection), 4 bits per word.

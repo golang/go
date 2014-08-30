@@ -51,12 +51,6 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 		return false;  // not reached
 	}
 
-	if(debug) {
-		runtime·printf("chansend: chan=%p; elem=", c);
-		c->elemtype->alg->print(c->elemsize, ep);
-		runtime·prints("\n");
-	}
-
 	if(raceenabled)
 		runtime·racereadpc(c, pc, chansend);
 
@@ -101,7 +95,7 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
 		gp = sg->g;
 		gp->param = sg;
 		if(sg->elem != nil)
-			c->elemtype->alg->copy(c->elemsize, sg->elem, ep);
+			runtime·memmove(sg->elem, ep, c->elemsize);
 		if(sg->releasetime)
 			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
@@ -156,7 +150,7 @@ asynch:
 		runtime·racerelease(chanbuf(c, c->sendx));
 	}
 
-	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
+	runtime·memmove(chanbuf(c, c->sendx), ep, c->elemsize);
 	if(++c->sendx == c->dataqsiz)
 		c->sendx = 0;
 	c->qcount++;
@@ -240,7 +234,7 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
 		runtime·unlock(&c->lock);
 
 		if(ep != nil)
-			c->elemtype->alg->copy(c->elemsize, ep, sg->elem);
+			runtime·memmove(ep, sg->elem, c->elemsize);
 		gp = sg->g;
 		gp->param = sg;
 		if(sg->releasetime)
@@ -304,8 +298,8 @@ asynch:
 	}
 
 	if(ep != nil)
-		c->elemtype->alg->copy(c->elemsize, ep, chanbuf(c, c->recvx));
-	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
+		runtime·memmove(ep, chanbuf(c, c->recvx), c->elemsize);
+	runtime·memclr(chanbuf(c, c->recvx), c->elemsize);
 	if(++c->recvx == c->dataqsiz)
 		c->recvx = 0;
 	c->qcount--;
@@ -328,7 +322,7 @@ asynch:
 
 closed:
 	if(ep != nil)
-		c->elemtype->alg->copy(c->elemsize, ep, nil);
+		runtime·memclr(ep, c->elemsize);
 	if(received != nil)
 		*received = false;
 	if(raceenabled)
@@ -842,8 +836,8 @@ asyncrecv:
 	if(cas->receivedp != nil)
 		*cas->receivedp = true;
 	if(cas->sg.elem != nil)
-		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, chanbuf(c, c->recvx));
-	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
+		runtime·memmove(cas->sg.elem, chanbuf(c, c->recvx), c->elemsize);
+	runtime·memclr(chanbuf(c, c->recvx), c->elemsize);
 	if(++c->recvx == c->dataqsiz)
 		c->recvx = 0;
 	c->qcount--;
@@ -866,7 +860,7 @@ asyncsend:
 		runtime·racerelease(chanbuf(c, c->sendx));
 		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, chansend);
 	}
-	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->sendx), cas->sg.elem);
+	runtime·memmove(chanbuf(c, c->sendx), cas->sg.elem, c->elemsize);
 	if(++c->sendx == c->dataqsiz)
 		c->sendx = 0;
 	c->qcount++;
@@ -895,7 +889,7 @@ syncrecv:
 	if(cas->receivedp != nil)
 		*cas->receivedp = true;
 	if(cas->sg.elem != nil)
-		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, sg->elem);
+		runtime·memmove(cas->sg.elem, sg->elem, c->elemsize);
 	gp = sg->g;
 	gp->param = sg;
 	if(sg->releasetime)
@@ -909,7 +903,7 @@ rclose:
 	if(cas->receivedp != nil)
 		*cas->receivedp = false;
 	if(cas->sg.elem != nil)
-		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, nil);
+		runtime·memclr(cas->sg.elem, c->elemsize);
 	if(raceenabled)
 		runtime·raceacquire(c);
 	goto retc;
@@ -924,7 +918,7 @@ syncsend:
 	if(debug)
 		runtime·printf("syncsend: sel=%p c=%p o=%d\n", sel, c, o);
 	if(sg->elem != nil)
-		c->elemtype->alg->copy(c->elemsize, sg->elem, cas->sg.elem);
+		runtime·memmove(sg->elem, cas->sg.elem, c->elemsize);
 	gp = sg->g;
 	gp->param = sg;
 	if(sg->releasetime)

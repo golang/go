@@ -606,101 +606,13 @@ enum {
 	Structrnd = sizeof(uintreg),
 };
 
-/*
- * type algorithms - known to compiler
- */
-enum
-{
-	AMEM,
-	AMEM0,
-	AMEM8,
-	AMEM16,
-	AMEM32,
-	AMEM64,
-	AMEM128,
-	ANOEQ,
-	ANOEQ0,
-	ANOEQ8,
-	ANOEQ16,
-	ANOEQ32,
-	ANOEQ64,
-	ANOEQ128,
-	ASTRING,
-	AINTER,
-	ANILINTER,
-	ASLICE,
-	AFLOAT32,
-	AFLOAT64,
-	ACPLX64,
-	ACPLX128,
-	Amax
-};
-typedef	struct	Alg		Alg;
-struct	Alg
-{
-	FuncVal* hash;
-	FuncVal* equal;
-	void	(*print)(uintptr, void*);
-	void	(*copy)(uintptr, void*, void*);
-};
-
-extern	Alg	runtime·algarray[Amax];
-
 byte*	runtime·startup_random_data;
 uint32	runtime·startup_random_data_len;
-void	runtime·get_random_data(byte**, int32*);
 
 enum {
 	// hashinit wants this many random bytes
 	HashRandomBytes = 32
 };
-void	runtime·hashinit(void);
-
-void	runtime·memhash(void*, uintptr, uintptr, uintptr);
-void	runtime·nohash(void*, uintptr, uintptr, uintptr);
-void	runtime·strhash(void*, uintptr, uintptr, uintptr);
-void	runtime·interhash(void*, uintptr, uintptr, uintptr);
-void	runtime·nilinterhash(void*, uintptr, uintptr, uintptr);
-void	runtime·f32hash(void*, uintptr, uintptr, uintptr);
-void	runtime·f64hash(void*, uintptr, uintptr, uintptr);
-void	runtime·c64hash(void*, uintptr, uintptr, uintptr);
-void	runtime·c128hash(void*, uintptr, uintptr, uintptr);
-void	runtime·aeshash(void*, uintptr, uintptr, uintptr);
-void	runtime·aeshash32(void*, uintptr, uintptr, uintptr);
-void	runtime·aeshash64(void*, uintptr, uintptr, uintptr);
-void	runtime·aeshashstr(void*, uintptr, uintptr, uintptr);
-
-void	runtime·memequal(void*, void*, uintptr, bool);
-void	runtime·noequal(void*, void*, uintptr, bool);
-void	runtime·strequal(void*, void*, uintptr, bool);
-void	runtime·interequal(void*, void*, uintptr, bool);
-void	runtime·nilinterequal(void*, void*, uintptr, bool);
-void	runtime·f32equal(void*, void*, uintptr, bool);
-void	runtime·f64equal(void*, void*, uintptr, bool);
-void	runtime·c64equal(void*, void*, uintptr, bool);
-void	runtime·c128equal(void*, void*, uintptr, bool);
-void	runtime·memequal0(void*, void*, uintptr, bool);
-void	runtime·memequal8(void*, void*, uintptr, bool);
-void	runtime·memequal16(void*, void*, uintptr, bool);
-void	runtime·memequal32(void*, void*, uintptr, bool);
-void	runtime·memequal64(void*, void*, uintptr, bool);
-void	runtime·memequal128(void*, void*, uintptr, bool);
-
-void	runtime·memprint(uintptr, void*);
-void	runtime·strprint(uintptr, void*);
-void	runtime·interprint(uintptr, void*);
-void	runtime·nilinterprint(uintptr, void*);
-
-void	runtime·memcopy(uintptr, void*, void*);
-void	runtime·memcopy8(uintptr, void*, void*);
-void	runtime·memcopy16(uintptr, void*, void*);
-void	runtime·memcopy32(uintptr, void*, void*);
-void	runtime·memcopy64(uintptr, void*, void*);
-void	runtime·memcopy128(uintptr, void*, void*);
-void	runtime·strcopy(uintptr, void*, void*);
-void	runtime·algslicecopy(uintptr, void*, void*);
-void	runtime·intercopy(uintptr, void*, void*);
-void	runtime·nilintercopy(uintptr, void*, void*);
 
 uint32  runtime·readgstatus(G *gp);
 void    runtime·casgstatus(G*, uint32, uint32);

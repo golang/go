@@ -88,7 +88,6 @@ ok:
 	MOVQ	AX, 8(SP)
 	CALL	runtime·args(SB)
 	CALL	runtime·osinit(SB)
-	CALL	runtime·hashinit(SB)
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program

@@ -896,7 +896,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 }
 
 func ismapkey(t *_type) bool {
-	return **(**uintptr)(unsafe.Pointer(&t.alg.hash)) != nohashcode
+	return goalg(t.alg).hash != nil
 }
 
 // Reflect stubs.  Called from ../reflect/asm_*.s
