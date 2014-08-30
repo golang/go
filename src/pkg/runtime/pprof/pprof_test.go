@@ -9,7 +9,6 @@ package pprof_test
 import (
 	"bytes"
 	"fmt"
-	"hash/crc32"
 	"math/big"
 	"os/exec"
 	"regexp"
@@ -22,35 +21,65 @@ import (
 	"unsafe"
 )
 
-func TestCPUProfile(t *testing.T) {
-	buf := make([]byte, 100000)
-	testCPUProfile(t, []string{"crc32.ChecksumIEEE"}, func() {
-		// This loop takes about a quarter second on a 2 GHz laptop.
-		// We only need to get one 100 Hz clock tick, so we've got
-		// a 25x safety buffer.
-		for i := 0; i < 1000; i++ {
-			crc32.ChecksumIEEE(buf)
+func cpuHogger(f func()) {
+	// We only need to get one 100 Hz clock tick, so we've got
+	// a 25x safety buffer.
+	// But do at least 500 iterations (which should take about 100ms),
+	// otherwise TestCPUProfileMultithreaded can fail if only one
+	// thread is scheduled during the 250ms period.
+	t0 := time.Now()
+	for i := 0; i < 500 || time.Since(t0) < 250*time.Millisecond; i++ {
+		f()
+	}
+}
+
+var (
+	salt1 = 0
+	salt2 = 0
+)
+
+// The actual CPU hogging function.
+// Must not call other functions nor access heap/globals in the loop,
+// otherwise under race detector the samples will be in the race runtime.
+func cpuHog1() {
+	foo := salt1
+	for i := 0; i < 1e5; i++ {
+		if foo > 0 {
+			foo *= foo
+		} else {
+			foo *= foo + 1
 		}
+	}
+	salt1 = foo
+}
+
+func cpuHog2() {
+	foo := salt2
+	for i := 0; i < 1e5; i++ {
+		if foo > 0 {
+			foo *= foo
+		} else {
+			foo *= foo + 2
+		}
+	}
+	salt2 = foo
+}
+
+func TestCPUProfile(t *testing.T) {
+	testCPUProfile(t, []string{"runtime/pprof_test.cpuHog1"}, func() {
+		cpuHogger(cpuHog1)
 	})
 }
 
 func TestCPUProfileMultithreaded(t *testing.T) {
-	buf := make([]byte, 100000)
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
-	testCPUProfile(t, []string{"crc32.ChecksumIEEE", "crc32.Update"}, func() {
+	testCPUProfile(t, []string{"runtime/pprof_test.cpuHog1", "runtime/pprof_test.cpuHog2"}, func() {
 		c := make(chan int)
 		go func() {
-			for i := 0; i < 2000; i++ {
-				crc32.Update(0, crc32.IEEETable, buf)
-			}
+			cpuHogger(cpuHog1)
 			c <- 1
 		}()
-		// This loop takes about a quarter second on a 2 GHz laptop.
-		// We only need to get one 100 Hz clock tick, so we've got
-		// a 25x safety buffer.
-		for i := 0; i < 2000; i++ {
-			crc32.ChecksumIEEE(buf)
-		}
+		cpuHogger(cpuHog2)
 		<-c
 	})
 }
@@ -110,7 +139,7 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 	f()
 	StopCPUProfile()
 
-	// Check that profile is well formed and contains ChecksumIEEE.
+	// Check that profile is well formed and contains need.
 	have := make([]uintptr, len(need))
 	parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
 		for _, pc := range stk {
