@@ -169,33 +169,20 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (string, []dnsRR, err
 	}
 	timeout := time.Duration(cfg.timeout) * time.Second
 	var lastErr error
-	for _, server := range cfg.servers {
-		server += ":53"
-		lastErr = &DNSError{
-			Err:       "no answer from DNS server",
-			Name:      name,
-			Server:    server,
-			IsTimeout: true,
-		}
-		for i := 0; i < cfg.attempts; i++ {
+	for i := 0; i < cfg.attempts; i++ {
+		for _, server := range cfg.servers {
+			server = JoinHostPort(server, "53")
 			msg, err := exchange(server, name, qtype, timeout)
 			if err != nil {
-				if nerr, ok := err.(Error); ok && nerr.Timeout() {
-					lastErr = &DNSError{
-						Err:       nerr.Error(),
-						Name:      name,
-						Server:    server,
-						IsTimeout: true,
-					}
-					continue
-
-				}
 				lastErr = &DNSError{
 					Err:    err.Error(),
 					Name:   name,
 					Server: server,
 				}
-				break
+				if nerr, ok := err.(Error); ok && nerr.Timeout() {
+					lastErr.(*DNSError).IsTimeout = true
+				}
+				continue
 			}
 			cname, addrs, err := answer(name, server, msg, qtype)
 			if err == nil || err.(*DNSError).Err == noSuchHost {
@@ -387,31 +374,36 @@ func goLookupIP(name string) (addrs []IP, err error) {
 			return
 		}
 	}
-	var records []dnsRR
-	var cname string
-	var err4, err6 error
-	cname, records, err4 = lookup(name, dnsTypeA)
-	addrs = convertRR_A(records)
-	if cname != "" {
-		name = cname
+	type racer struct {
+		qtype uint16
+		rrs   []dnsRR
+		error
 	}
-	_, records, err6 = lookup(name, dnsTypeAAAA)
-	if err4 != nil && err6 == nil {
-		// Ignore A error because AAAA lookup succeeded.
-		err4 = nil
+	lane := make(chan racer, 1)
+	qtypes := [...]uint16{dnsTypeA, dnsTypeAAAA}
+	for _, qtype := range qtypes {
+		go func(qtype uint16) {
+			_, rrs, err := lookup(name, qtype)
+			lane <- racer{qtype, rrs, err}
+		}(qtype)
 	}
-	if err6 != nil && len(addrs) > 0 {
-		// Ignore AAAA error because A lookup succeeded.
-		err6 = nil
+	var lastErr error
+	for range qtypes {
+		racer := <-lane
+		if racer.error != nil {
+			lastErr = racer.error
+			continue
+		}
+		switch racer.qtype {
+		case dnsTypeA:
+			addrs = append(addrs, convertRR_A(racer.rrs)...)
+		case dnsTypeAAAA:
+			addrs = append(addrs, convertRR_AAAA(racer.rrs)...)
+		}
 	}
-	if err4 != nil {
-		return nil, err4
+	if len(addrs) == 0 && lastErr != nil {
+		return nil, lastErr
 	}
-	if err6 != nil {
-		return nil, err6
-	}
-
-	addrs = append(addrs, convertRR_AAAA(records)...)
 	return addrs, nil
 }
 
