@@ -15,7 +15,7 @@ import (
 // See stack.h.
 const (
 	StackGuard = 256
-	StackSmall = 96
+	StackSmall = 64
 	StackLimit = StackGuard - StackSmall
 )
 

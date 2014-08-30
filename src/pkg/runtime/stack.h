@@ -47,7 +47,7 @@ above checks (without allocating a full frame), which might trigger
 a call to morestack.  This sequence needs to fit in the bottom
 section of the stack.  On amd64, morestack's frame is 40 bytes, and
 deferproc's frame is 56 bytes.  That fits well within the
-StackGuard - StackSmall = 128 bytes at the bottom.  
+StackGuard - StackSmall bytes at the bottom.  
 The linkers explore all possible call traces involving non-splitting
 functions to make sure that this limit cannot be violated.
  */
@@ -94,7 +94,7 @@ enum {
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard.  This saves an instruction
 	// in the checking sequence for tiny frames.
-	StackSmall = 96,
+	StackSmall = 64,
 
 	// The maximum number of bytes that a chain of NOSPLIT
 	// functions can use.
