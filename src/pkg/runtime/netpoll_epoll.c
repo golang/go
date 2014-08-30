@@ -37,7 +37,7 @@ runtime·netpollopen(uintptr fd, PollDesc *pd)
 	int32 res;
 
 	ev.events = EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET;
-	ev.data = (uint64)pd;
+	*(uintptr*)ev.data = (uintptr)pd;
 	res = runtime·epollctl(epfd, EPOLL_CTL_ADD, (int32)fd, &ev);
 	return -res;
 }

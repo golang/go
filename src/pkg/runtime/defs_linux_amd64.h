@@ -122,7 +122,7 @@ struct Itimerval {
 };
 struct EpollEvent {
 	uint32	events;
-	uint64	data;
+	byte	data[8]; // unaligned uintptr
 };
 
 
