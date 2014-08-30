@@ -320,7 +320,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	// try to get memory at a location chosen by the OS
 	// and hope that it is in the range we allocated bitmap for.
 	p_size = ROUND(n, PageSize) + PageSize;
-	p = runtime·SysAlloc(p_size, &mstats.heap_sys);
+	p = runtime·sysAlloc(p_size, &mstats.heap_sys);
 	if(p == nil)
 		return nil;
 
@@ -361,7 +361,7 @@ enum
 	PersistentAllocMaxBlock	= 64<<10,  // VM reservation granularity is 64K on windows
 };
 
-// Wrapper around SysAlloc that can allocate small chunks.
+// Wrapper around sysAlloc that can allocate small chunks.
 // There is no associated free operation.
 // Intended for things like function/type/debug-related persistent data.
 // If align is 0, uses default align (currently 8).
@@ -378,11 +378,11 @@ runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
 	} else
 		align = 8;
 	if(size >= PersistentAllocMaxBlock)
-		return runtime·SysAlloc(size, stat);
+		return runtime·sysAlloc(size, stat);
 	runtime·lock(&persistent.lock);
 	persistent.pos = (byte*)ROUND((uintptr)persistent.pos, align);
 	if(persistent.pos + size > persistent.end) {
-		persistent.pos = runtime·SysAlloc(PersistentAllocChunk, &mstats.other_sys);
+		persistent.pos = runtime·sysAlloc(PersistentAllocChunk, &mstats.other_sys);
 		if(persistent.pos == nil) {
 			runtime·unlock(&persistent.lock);
 			runtime·throw("runtime: cannot allocate memory");

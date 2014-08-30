@@ -137,7 +137,7 @@ runtime·SetCPUProfileRate(intgo hz)
 	runtime·lock(&lk);
 	if(hz > 0) {
 		if(prof == nil) {
-			prof = runtime·SysAlloc(sizeof *prof, &mstats.other_sys);
+			prof = runtime·sysAlloc(sizeof *prof, &mstats.other_sys);
 			if(prof == nil) {
 				runtime·printf("runtime: cpu profiling cannot allocate memory\n");
 				runtime·unlock(&lk);

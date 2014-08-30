@@ -160,12 +160,12 @@ struct MLink
 	MLink *next;
 };
 
-// SysAlloc obtains a large chunk of zeroed memory from the
+// sysAlloc obtains a large chunk of zeroed memory from the
 // operating system, typically on the order of a hundred kilobytes
 // or a megabyte.
-// NOTE: SysAlloc returns OS-aligned memory, but the heap allocator
+// NOTE: sysAlloc returns OS-aligned memory, but the heap allocator
 // may use larger alignment, so the caller must be careful to realign the
-// memory obtained by SysAlloc.
+// memory obtained by sysAlloc.
 //
 // SysUnused notifies the operating system that the contents
 // of the memory region are no longer needed and can be reused
@@ -187,16 +187,16 @@ struct MLink
 // reserved, false if it has merely been checked.
 // NOTE: SysReserve returns OS-aligned memory, but the heap allocator
 // may use larger alignment, so the caller must be careful to realign the
-// memory obtained by SysAlloc.
+// memory obtained by sysAlloc.
 //
 // SysMap maps previously reserved address space for use.
 // The reserved argument is true if the address space was really
 // reserved, not merely checked.
 //
-// SysFault marks a (already SysAlloc'd) region to fault
+// SysFault marks a (already sysAlloc'd) region to fault
 // if accessed.  Used only for debugging the runtime.
 
-void*	runtime·SysAlloc(uintptr nbytes, uint64 *stat);
+void*	runtime·sysAlloc(uintptr nbytes, uint64 *stat);
 void	runtime·SysFree(void *v, uintptr nbytes, uint64 *stat);
 void	runtime·SysUnused(void *v, uintptr nbytes);
 void	runtime·SysUsed(void *v, uintptr nbytes);
@@ -205,7 +205,7 @@ void*	runtime·SysReserve(void *v, uintptr nbytes, bool *reserved);
 void	runtime·SysFault(void *v, uintptr nbytes);
 
 // FixAlloc is a simple free-list allocator for fixed size objects.
-// Malloc uses a FixAlloc wrapped around SysAlloc to manages its
+// Malloc uses a FixAlloc wrapped around sysAlloc to manages its
 // MCache and MSpan objects.
 //
 // Memory returned by FixAlloc_Alloc is not zeroed.

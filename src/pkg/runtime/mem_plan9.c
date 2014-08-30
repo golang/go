@@ -36,7 +36,7 @@ brk(uintptr nbytes)
 }
 
 void*
-runtime·SysAlloc(uintptr nbytes, uint64 *stat)
+runtime·sysAlloc(uintptr nbytes, uint64 *stat)
 {
 	void *p;
 
@@ -53,7 +53,7 @@ runtime·SysFree(void *v, uintptr nbytes, uint64 *stat)
 	runtime·lock(&memlock);
 	// from tiny/mem.c
 	// Push pointer back if this is a free
-	// of the most recent SysAlloc.
+	// of the most recent sysAlloc.
 	nbytes += (nbytes + Round) & ~Round;
 	if(bloc == (byte*)v+nbytes)
 		bloc -= nbytes;

@@ -14,19 +14,19 @@ enum
 };
 
 void*
-runtime·SysAlloc(uintptr n, uint64 *stat)
+runtime·sysAlloc(uintptr n, uint64 *stat)
 {
 	void *v;
 
 	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
 	if(v < (void*)4096) {
 		if(Debug)
-			runtime·printf("SysAlloc(%p): %p\n", n, v);
+			runtime·printf("sysAlloc(%p): %p\n", n, v);
 		return nil;
 	}
 	runtime·xadd64(stat, n);
 	if(Debug)
-		runtime·printf("SysAlloc(%p) = %p\n", n, v);
+		runtime·printf("sysAlloc(%p) = %p\n", n, v);
 	return v;
 }
 

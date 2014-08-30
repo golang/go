@@ -38,7 +38,7 @@ stkbucket(int32 typ, uintptr size, uintptr *stk, int32 nstk, bool alloc)
 	Bucket *b;
 
 	if(buckhash == nil) {
-		buckhash = runtime·SysAlloc(BuckHashSize*sizeof buckhash[0], &mstats.buckhash_sys);
+		buckhash = runtime·sysAlloc(BuckHashSize*sizeof buckhash[0], &mstats.buckhash_sys);
 		if(buckhash == nil)
 			runtime·throw("runtime: cannot allocate memory");
 	}
