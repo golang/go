@@ -1034,7 +1034,7 @@ The value of an uninitialized pointer is <code>nil</code>.
 
 <pre class="ebnf">
 PointerType = "*" BaseType .
-BaseType = Type .
+BaseType    = Type .
 </pre>
 
 <pre>
@@ -2118,9 +2118,9 @@ operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
 </p>
 
 <pre class="ebnf">
-Operand    = Literal | OperandName | MethodExpr | "(" Expression ")" .
-Literal    = BasicLit | CompositeLit | FunctionLit .
-BasicLit   = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
+Operand     = Literal | OperandName | MethodExpr | "(" Expression ")" .
+Literal     = BasicLit | CompositeLit | FunctionLit .
+BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
 OperandName = identifier | QualifiedIdent.
 </pre>
 
@@ -3598,7 +3598,7 @@ or an array indexing operation of an addressable array.
 As an exception to the addressability requirement, <code>x</code> may also be a
 (possibly parenthesized)
 <a href="#Composite_literals">composite literal</a>.
-If the evaluation of <code>x</code> would cause a <a href="#Run_time_panics">run-time panic</a>, 
+If the evaluation of <code>x</code> would cause a <a href="#Run_time_panics">run-time panic</a>,
 then the evaluation of <code>&amp;x</code> does too.
 </p>
 
@@ -4052,7 +4052,7 @@ n := map[int]int{a: f()}      // n may be {2: 3} or {3: 3}: evaluation order bet
 <p>
 At package level, initialization dependencies override the left-to-right rule
 for individual initialization expressions, but not for operands within each
-expression: 
+expression:
 </p>
 
 <pre>
@@ -5942,7 +5942,7 @@ variable or function.
 <li>
 A reference to a method <code>m</code> is a
 <a href="#Method_values">method value</a> or
-<a href="#Method_expressions">method expression</a> of the form 
+<a href="#Method_expressions">method expression</a> of the form
 <code>t.m</code>, where the (static) type of <code>t</code> is
 not an interface type, and the method <code>m</code> is in the
 <a href="#Method_sets">method set</a> of <code>t</code>.
@@ -5951,7 +5951,7 @@ It is immaterial whether the resulting function value
 </li>
 
 <li>
-A variable, function, or method <code>x</code> depends on a variable 
+A variable, function, or method <code>x</code> depends on a variable
 <code>y</code> if <code>x</code>'s initialization expression or body
 (for functions and methods) contains a reference to <code>y</code>
 or to a function or method that depends on <code>y</code>.
@@ -6003,7 +6003,7 @@ func init() { … }
 </pre>
 
 <p>
-Multiple such functions may be defined, even within a single 
+Multiple such functions may be defined, even within a single
 source file. The <code>init</code> identifier is not
 <a href="#Declarations_and_scope">declared</a> and thus
 <code>init</code> functions cannot be referred to from anywhere
