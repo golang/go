@@ -24,6 +24,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -33,10 +34,10 @@ var (
 	verbose = flag.Bool("v", false, "verbose mode")
 )
 
-const (
-	html_h    = "<h3>"
-	html_endh = "</h3>\n"
-)
+// ToHTML in comment.go assigns a (possibly blank) ID to each heading
+var html_h = regexp.MustCompile(`<h3 id="[^"]*">`)
+
+const html_endh = "</h3>\n"
 
 func isGoFile(fi os.FileInfo) bool {
 	return strings.HasSuffix(fi.Name(), ".go") &&
@@ -47,11 +48,11 @@ func appendHeadings(list []string, comment string) []string {
 	var buf bytes.Buffer
 	doc.ToHTML(&buf, comment, nil)
 	for s := buf.String(); ; {
-		i := strings.Index(s, html_h)
-		if i < 0 {
+		loc := html_h.FindStringIndex(s)
+		if len(loc) == 0 {
 			break
 		}
-		i += len(html_h)
+		i := loc[1]
 		j := strings.Index(s, html_endh)
 		if j < 0 {
 			list = append(list, s[i:]) // incorrect HTML
