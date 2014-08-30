@@ -104,7 +104,7 @@ const (
 	EVFILT_WRITE = C.EVFILT_WRITE
 )
 
-type TforkT C.struct___tfork
+type Tfork C.struct___tfork
 
 type SigaltstackT C.struct_sigaltstack
 type Sigcontext C.struct_sigcontext
@@ -118,4 +118,4 @@ type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Itimerval C.struct_itimerval
 
-type KeventT C.struct_kevent
+type Kevent C.struct_kevent

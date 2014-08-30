@@ -81,7 +81,7 @@ enum {
 	EVFILT_WRITE	= -0x2,
 };
 
-typedef struct TforkT TforkT;
+typedef struct Tfork Tfork;
 typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigcontext Sigcontext;
 typedef struct Siginfo Siginfo;
@@ -93,7 +93,7 @@ typedef struct KeventT KeventT;
 
 #pragma pack on
 
-struct TforkT {
+struct Tfork {
 	byte	*tf_tcb;
 	int32	*tf_tid;
 	byte	*tf_stack;
