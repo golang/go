@@ -86,7 +86,7 @@ const (
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard.  This saves an instruction
 	// in the checking sequence for tiny frames.
-	stackSmall = 96
+	stackSmall = 64
 
 	// The maximum number of bytes that a chain of NOSPLIT
 	// functions can use.
