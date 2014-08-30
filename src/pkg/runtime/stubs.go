@@ -234,6 +234,9 @@ func atomicloadp(ptr unsafe.Pointer) unsafe.Pointer
 func atomicloaduintptr(ptr *uintptr) uintptr
 
 //go:noescape
+func atomicloaduint(ptr *uint) uint
+
+//go:noescape
 func atomicor8(ptr *uint8, val uint8)
 
 //go:noescape

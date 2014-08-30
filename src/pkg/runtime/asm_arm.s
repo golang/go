@@ -695,6 +695,9 @@ TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
 TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-8
 	B	runtime·atomicload(SB)
 
+TEXT runtime·atomicloaduint(SB), NOSPLIT, $0-8
+	B	runtime·atomicload(SB)
+
 TEXT runtime·stackguard(SB),NOSPLIT,$0-8
 	MOVW	R13, R1
 	MOVW	g_stackguard(g), R2
