@@ -64,7 +64,6 @@ nocgo:
 	MOVW	R1, 8(R13)
 	BL	runtime·args(SB)
 	BL	runtime·osinit(SB)
-	BL	runtime·hashinit(SB)
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program

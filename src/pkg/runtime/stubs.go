@@ -131,23 +131,6 @@ var noequalcode uintptr
 // in panic.c
 func gothrow(s string)
 
-// Return the Go equivalent of the C Alg structure.
-// TODO: at some point Go will hold the truth for the layout
-// of runtime structures and C will be derived from it (if
-// needed at all).  At that point this function can go away.
-type goalgtype struct {
-	// function for hashing objects of this type
-	// (ptr to object, size, seed) -> hash
-	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
-	// function for comparing objects of this type
-	// (ptr to object A, ptr to object B, size) -> ==?
-	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
-}
-
-func goalg(a *alg) *goalgtype {
-	return (*goalgtype)(unsafe.Pointer(a))
-}
-
 // noescape hides a pointer from escape analysis.  noescape is
 // the identity function but escape analysis doesn't think the
 // output depends on the input.  noescape is inlined and currently

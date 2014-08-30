@@ -724,7 +724,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	if(ot != 0)
 		fatal("dcommontype %d", ot);
 
-	sizeofAlg = 4*widthptr;
+	sizeofAlg = 2*widthptr;
 	if(algarray == nil)
 		algarray = pkglookup("algarray", runtimepkg);
 	alg = algtype(t);
@@ -1242,7 +1242,6 @@ dalgsym(Type *t)
 {
 	int ot;
 	Sym *s, *hash, *hashfunc, *eq, *eqfunc;
-	char buf[100];
 
 	// dalgsym is only called for a type that needs an algorithm table,
 	// which implies that the type is comparable (or else it would use ANOEQ).
@@ -1261,24 +1260,10 @@ dalgsym(Type *t)
 	dsymptr(eqfunc, 0, eq, 0);
 	ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
 
-	// ../../pkg/runtime/runtime.h:/Alg
+	// ../../pkg/runtime/alg.go:/typeAlg
 	ot = 0;
 	ot = dsymptr(s, ot, hashfunc, 0);
 	ot = dsymptr(s, ot, eqfunc, 0);
-	ot = dsymptr(s, ot, pkglookup("memprint", runtimepkg), 0);
-	switch(t->width) {
-	default:
-		ot = dsymptr(s, ot, pkglookup("memcopy", runtimepkg), 0);
-		break;
-	case 1:
-	case 2:
-	case 4:
-	case 8:
-	case 16:
-		snprint(buf, sizeof buf, "memcopy%d", (int)t->width*8);
-		ot = dsymptr(s, ot, pkglookup(buf, runtimepkg), 0);
-		break;
-	}
 
 	ggloblsym(s, ot, DUPOK|RODATA);
 	return s;
