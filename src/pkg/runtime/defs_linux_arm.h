@@ -163,6 +163,6 @@ typedef struct EpollEvent EpollEvent;
 struct EpollEvent {
 	uint32	events;
 	uint32	_pad;
-	uint64	data;
+	byte	data[8]; // to match amd64
 };
 #pragma pack off

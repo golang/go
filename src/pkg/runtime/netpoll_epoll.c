@@ -37,7 +37,7 @@ runtime·netpollopen(uintptr fd, PollDesc *pd)
 	int32 res;
 
 	ev.events = EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET;
-	*(uintptr*)ev.data = (uintptr)pd;
+	*(uint64*)ev.data = (uint64)(uintptr)pd;
 	res = runtime·epollctl(epfd, EPOLL_CTL_ADD, (int32)fd, &ev);
 	return -res;
 }
@@ -95,7 +95,7 @@ retry:
 		if(ev->events & (EPOLLOUT|EPOLLHUP|EPOLLERR))
 			mode += 'w';
 		if(mode)
-			runtime·netpollready(&gp, (void*)ev->data, mode);
+			runtime·netpollready(&gp, (void*)(uintptr)*(uint64*)ev->data, mode);
 	}
 	if(block && gp == nil)
 		goto retry;
