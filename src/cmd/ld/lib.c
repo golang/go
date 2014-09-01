@@ -1554,3 +1554,56 @@ diag(char *fmt, ...)
 		errorexit();
 	}
 }
+
+void
+checkgo(void)
+{
+	LSym *s;
+	Reloc *r;
+	int i;
+	int changed;
+	
+	if(!debug['C'])
+		return;
+	
+	// TODO(rsc,khr): Eventually we want to get to no Go-called C functions at all,
+	// which would simplify this logic quite a bit.
+
+	// Mark every Go-called C function with cfunc=2, recursively.
+	do {
+		changed = 0;
+		for(s = ctxt->textp; s != nil; s = s->next) {
+			if(s->cfunc == 0 || (s->cfunc == 2 && s->nosplit)) {
+				for(i=0; i<s->nr; i++) {
+					r = &s->r[i];
+					if(r->sym == nil)
+						continue;
+					if((r->type == R_CALL || r->type == R_CALLARM) && r->sym->type == STEXT) {
+						if(r->sym->cfunc == 1) {
+							changed = 1;
+							r->sym->cfunc = 2;
+						}
+					}
+				}
+			}
+		}
+	}while(changed);
+
+	// Complain about Go-called C functions that can split the stack
+	// (that can be preempted for garbage collection or trigger a stack copy).
+	for(s = ctxt->textp; s != nil; s = s->next) {
+		if(s->cfunc == 0 || (s->cfunc == 2 && s->nosplit)) {
+			for(i=0; i<s->nr; i++) {
+				r = &s->r[i];
+				if(r->sym == nil)
+					continue;
+				if((r->type == R_CALL || r->type == R_CALLARM) && r->sym->type == STEXT) {
+					if(s->cfunc == 0 && r->sym->cfunc == 2 && !r->sym->nosplit)
+						print("Go %s calls C %s\n", s->name, r->sym->name);
+					else if(s->cfunc == 2 && s->nosplit && !r->sym->nosplit)
+						print("Go calls C %s calls %s\n", s->name, r->sym->name);
+				}
+			}
+		}
+	}
+}

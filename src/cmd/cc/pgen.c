@@ -131,6 +131,7 @@ codgen(Node *n, Node *nn)
 	nearln = nn->lineno;
 
 	p = gtext(n1->sym, stkoff);
+	p->from.sym->cfunc = 1;
 	sp = p;
 
 	/*
