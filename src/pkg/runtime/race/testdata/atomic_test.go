@@ -225,8 +225,7 @@ func TestNoRaceAtomicStoreCASUint64(t *testing.T) {
 	x = 1
 }
 
-// Races with non-atomic loads are not detected.
-func TestRaceFailingAtomicStoreLoad(t *testing.T) {
+func TestRaceAtomicStoreLoad(t *testing.T) {
 	c := make(chan bool)
 	var a uint64
 	go func() {
@@ -248,8 +247,7 @@ func TestRaceAtomicLoadStore(t *testing.T) {
 	<-c
 }
 
-// Races with non-atomic loads are not detected.
-func TestRaceFailingAtomicAddLoad(t *testing.T) {
+func TestRaceAtomicAddLoad(t *testing.T) {
 	c := make(chan bool)
 	var a uint64
 	go func() {

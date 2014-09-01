@@ -24,6 +24,8 @@ void __tsan_malloc(void);
 void __tsan_acquire(void);
 void __tsan_release(void);
 void __tsan_release_merge(void);
+void __tsan_go_ignore_sync_begin(void);
+void __tsan_go_ignore_sync_end(void);
 
 // Mimic what cmd/cgo would do.
 #pragma cgo_import_static __tsan_init
@@ -36,6 +38,8 @@ void __tsan_release_merge(void);
 #pragma cgo_import_static __tsan_acquire
 #pragma cgo_import_static __tsan_release
 #pragma cgo_import_static __tsan_release_merge
+#pragma cgo_import_static __tsan_go_ignore_sync_begin
+#pragma cgo_import_static __tsan_go_ignore_sync_end
 
 // These are called from race_amd64.s.
 #pragma cgo_import_static __tsan_read
@@ -46,6 +50,17 @@ void __tsan_release_merge(void);
 #pragma cgo_import_static __tsan_write_range
 #pragma cgo_import_static __tsan_func_enter
 #pragma cgo_import_static __tsan_func_exit
+
+#pragma cgo_import_static __tsan_go_atomic32_load
+#pragma cgo_import_static __tsan_go_atomic64_load
+#pragma cgo_import_static __tsan_go_atomic32_store
+#pragma cgo_import_static __tsan_go_atomic64_store
+#pragma cgo_import_static __tsan_go_atomic32_exchange
+#pragma cgo_import_static __tsan_go_atomic64_exchange
+#pragma cgo_import_static __tsan_go_atomic32_fetch_add
+#pragma cgo_import_static __tsan_go_atomic64_fetch_add
+#pragma cgo_import_static __tsan_go_atomic32_compare_exchange
+#pragma cgo_import_static __tsan_go_atomic64_compare_exchange
 
 extern byte runtime·noptrdata[];
 extern byte runtime·enoptrbss[];
@@ -250,32 +265,20 @@ runtime·RaceReleaseMerge(void *addr)
 	runtime·racereleasemerge(addr);
 }
 
-// func RaceSemacquire(s *uint32)
-void
-runtime·RaceSemacquire(uint32 *s)
-{
-	runtime·semacquire(s, false);
-}
-
-// func RaceSemrelease(s *uint32)
-void
-runtime·RaceSemrelease(uint32 *s)
-{
-	runtime·semrelease(s);
-}
-
 // func RaceDisable()
 void
 runtime·RaceDisable(void)
 {
-	g->raceignore++;
+	if(g->raceignore++ == 0)
+		runtime·racecall(__tsan_go_ignore_sync_begin, g->racectx);
 }
 
 // func RaceEnable()
 void
 runtime·RaceEnable(void)
 {
-	g->raceignore--;
+	if(--g->raceignore == 0)
+		runtime·racecall(__tsan_go_ignore_sync_end, g->racectx);
 }
 
 typedef struct SymbolizeContext SymbolizeContext;
