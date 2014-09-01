@@ -18,7 +18,7 @@ func concatstrings(a []string) string {
 			continue
 		}
 		if l+n < l {
-			panic("string concatenation too long")
+			gothrow("string concatenation too long")
 		}
 		l += n
 		count++
