@@ -419,7 +419,7 @@ checkframecopy(Stkframe *frame, void *arg)
 	if(StackDebug >= 2)
 		runtime·printf("    checking %s frame=[%p,%p] stk=[%p,%p]\n", runtime·funcname(f), frame->sp, frame->fp, cinfo->stk, cinfo->base);
 	// if we're not in the segment any more, return immediately.
-	if(frame->varp < cinfo->stk || frame->varp >= cinfo->base) {
+	if((byte*)frame->varp < cinfo->stk || (byte*)frame->varp >= cinfo->base) {
 		if(StackDebug >= 2)
 			runtime·printf("    <next segment>\n");
 		return false; // stop traceback
@@ -438,7 +438,7 @@ checkframecopy(Stkframe *frame, void *arg)
 		cinfo->frames++;
 		return true;
 	}
-	if(frame->varp != (byte*)frame->sp) { // not in prologue (and has at least one local or outarg)
+	if((byte*)frame->varp != (byte*)frame->sp) { // not in prologue (and has at least one local or outarg)
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 		if(stackmap == nil) {
 			cinfo->frames = -1;
@@ -501,7 +501,7 @@ copyabletopsegment(G *gp)
 			// For now, this only happens with the Defer in runtime.main.
 			continue;
 		}
-		if(d->argp < cinfo.stk || cinfo.base <= d->argp)
+		if((byte*)d->argp < cinfo.stk || cinfo.base <= (byte*)d->argp)
 			break; // a defer for the next segment
 		fn = d->fn;
 		if(fn == nil) // See issue 8047
@@ -666,7 +666,7 @@ adjustframe(Stkframe *frame, void *arg)
 		pcdata = 0; // in prologue
 
 	// adjust local pointers
-	if(frame->varp != (byte*)frame->sp) {
+	if((byte*)frame->varp != (byte*)frame->sp) {
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 		if(stackmap == nil)
 			runtime·throw("no locals info");
@@ -715,7 +715,7 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 			*dp = (Defer*)((byte*)d + adjinfo->delta);
 			continue;
 		}
-		if(d->argp < adjinfo->oldstk || adjinfo->oldbase <= d->argp)
+		if((byte*)d->argp < adjinfo->oldstk || adjinfo->oldbase <= (byte*)d->argp)
 			break; // a defer for the next segment
 		fn = d->fn;
 		if(fn == nil) {

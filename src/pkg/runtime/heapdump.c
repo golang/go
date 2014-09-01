@@ -309,7 +309,7 @@ dumpframe(Stkframe *s, void *arg)
 		dumpbvtypes(&child->args, (byte*)s->sp + child->argoff);
 	if(stackmap != nil && stackmap->n > 0) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
-		dumpbvtypes(&bv, s->varp - bv.n / BitsPerPointer * PtrSize);
+		dumpbvtypes(&bv, (byte*)(s->varp - bv.n / BitsPerPointer * PtrSize));
 	} else {
 		bv.n = -1;
 	}
@@ -342,26 +342,26 @@ dumpframe(Stkframe *s, void *arg)
 	// Dump fields in the local vars section
 	if(stackmap == nil) {
 		// No locals information, dump everything.
-		for(off = child->arglen; off < s->varp - (byte*)s->sp; off += PtrSize) {
+		for(off = child->arglen; off < s->varp - s->sp; off += PtrSize) {
 			dumpint(FieldKindPtr);
 			dumpint(off);
 		}
 	} else if(stackmap->n < 0) {
 		// Locals size information, dump just the locals.
 		size = -stackmap->n;
-		for(off = s->varp - size - (byte*)s->sp; off < s->varp - (byte*)s->sp; off += PtrSize) {
+		for(off = s->varp - size - s->sp; off <  s->varp - s->sp; off += PtrSize) {
 			dumpint(FieldKindPtr);
 			dumpint(off);
 		}
 	} else if(stackmap->n > 0) {
 		// Locals bitmap information, scan just the pointers in
 		// locals.
-		dumpbv(&bv, s->varp - bv.n / BitsPerPointer * PtrSize - (byte*)s->sp);
+		dumpbv(&bv, s->varp - bv.n / BitsPerPointer * PtrSize - s->sp);
 	}
 	dumpint(FieldKindEol);
 
 	// Record arg info for parent.
-	child->argoff = s->argp - (byte*)s->fp;
+	child->argoff = s->argp - s->fp;
 	child->arglen = s->arglen;
 	child->sp = (byte*)s->sp;
 	child->depth++;

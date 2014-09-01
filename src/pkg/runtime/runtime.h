@@ -624,17 +624,15 @@ struct Defer
 {
 	int32	siz;
 	bool	special;	// not part of defer frame
-	byte*	argp;		// where args were copied from
-	byte*	pc;
+	uintptr	argp;		// where args were copied from
+	uintptr	pc;
 	FuncVal*	fn;
 	Defer*	link;
 	void*	args[1];	// padded to actual size
 };
 
 // argp used in Defer structs when there is no argp.
-// TODO(rsc): Maybe we could use nil instead, but we've always used -1
-// and I don't want to change this days before the Go 1.3 release.
-#define NoArgs ((byte*)-1)
+#define NoArgs ((uintptr)-1)
 
 /*
  * panics
@@ -649,6 +647,8 @@ struct Panic
 	bool	aborted;	// the panic was aborted
 };
 
+typedef struct XXX XXX;
+
 /*
  * stack traces
  */
@@ -661,8 +661,8 @@ struct Stkframe
 	uintptr	lr;	// program counter at caller aka link register
 	uintptr	sp;	// stack pointer at pc
 	uintptr	fp;	// stack pointer at caller aka frame pointer
-	byte*	varp;	// top of local variables
-	byte*	argp;	// pointer to function arguments
+	uintptr	varp;	// top of local variables
+	uintptr	argp;	// pointer to function arguments
 	uintptr	arglen;	// number of bytes at argp
 };
 
@@ -775,7 +775,7 @@ int32	runtime·read(int32, void*, int32);
 int32	runtime·write(uintptr, void*, int32); // use uintptr to accommodate windows.
 int32	runtime·close(int32);
 int32	runtime·mincore(void*, uintptr, byte*);
-void	runtime·jmpdefer(FuncVal*, void*);
+void	runtime·jmpdefer(FuncVal*, uintptr);
 void	runtime·exit1(int32);
 void	runtime·ready(G*);
 byte*	runtime·getenv(int8*);
