@@ -38,7 +38,8 @@
 //	- type [int]
 //	- name [string]
 //	- version [int]
-//	- dupok [int]
+//	- flags [int]
+//		1 dupok
 //	- size [int]
 //	- gotype [symbol reference]
 //	- p [data block]
@@ -50,7 +51,9 @@
 //	- args [int]
 //	- locals [int]
 //	- nosplit [int]
-//	- leaf [int]
+//	- flags [int]
+//		1 leaf
+//		2 C function
 //	- nlocal [int]
 //	- local [nlocal automatics]
 //	- pcln [pcln table]
@@ -289,6 +292,8 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 			Bprint(ctxt->bso, "t=%d ", s->type);
 		if(s->dupok)
 			Bprint(ctxt->bso, "dupok ");
+		if(s->cfunc)
+			Bprint(ctxt->bso, "cfunc ");
 		if(s->nosplit)
 			Bprint(ctxt->bso, "nosplit ");
 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
@@ -351,7 +356,7 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 		wrint(b, s->args);
 		wrint(b, s->locals);
 		wrint(b, s->nosplit);
-		wrint(b, s->leaf);
+		wrint(b, s->leaf | s->cfunc<<1);
 		n = 0;
 		for(a = s->autom; a != nil; a = a->link)
 			n++;
@@ -519,6 +524,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	if(v != 0 && v != 1)
 		sysfatal("invalid symbol version %d", v);
 	dupok = rdint(f);
+	dupok &= 1;
 	size = rdint(f);
 	
 	if(v != 0)
@@ -573,7 +579,9 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 		s->args = rdint(f);
 		s->locals = rdint(f);
 		s->nosplit = rdint(f);
-		s->leaf = rdint(f);
+		v = rdint(f);
+		s->leaf = v&1;
+		s->cfunc = v&2;
 		n = rdint(f);
 		for(i=0; i<n; i++) {
 			a = emallocz(sizeof *a);
@@ -629,6 +637,8 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 			Bprint(ctxt->bso, "t=%d ", s->type);
 		if(s->dupok)
 			Bprint(ctxt->bso, "dupok ");
+		if(s->cfunc)
+			Bprint(ctxt->bso, "cfunc ");
 		if(s->nosplit)
 			Bprint(ctxt->bso, "nosplit ");
 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
