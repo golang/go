@@ -33,10 +33,13 @@ type encoder struct {
 type CompressionLevel int
 
 const (
-	DefaultCompression CompressionLevel = iota
-	NoCompression
-	BestSpeed
-	BestCompression
+	DefaultCompression CompressionLevel = 0
+	NoCompression      CompressionLevel = -1
+	BestSpeed          CompressionLevel = -2
+	BestCompression    CompressionLevel = -3
+
+	// Positive CompressionLevel values are reserved to mean a numeric zlib
+	// compression level, although that is not implemented yet.
 )
 
 // Big-endian.
