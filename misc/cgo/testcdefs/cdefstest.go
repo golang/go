@@ -56,4 +56,5 @@ typedef struct timespec {
 import "C"
 
 type CdefsTest C.struct_cdefsTest
-type PackedTest C.struct_packedTest
+
+//type PackedTest C.struct_packedTest
