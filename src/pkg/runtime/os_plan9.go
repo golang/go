@@ -26,3 +26,5 @@ func errstr() string
 // The size of the note handler frame varies among architectures,
 // but 512 bytes should be enough for every implementation.
 const stackSystem = 512
+
+type _Plink uintptr

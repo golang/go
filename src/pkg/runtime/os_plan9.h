@@ -59,15 +59,15 @@ enum
 };
 
 typedef struct Tos Tos;
-typedef intptr Plink;
+typedef intptr _Plink;
 
 struct Tos {
 	struct			/* Per process profiling */
 	{
-		Plink	*pp;	/* known to be 0(ptr) */
-		Plink	*next;	/* known to be 4(ptr) */
-		Plink	*last;
-		Plink	*first;
+		_Plink	*pp;	/* known to be 0(ptr) */
+		_Plink	*next;	/* known to be 4(ptr) */
+		_Plink	*last;
+		_Plink	*first;
 		uint32	pid;
 		uint32	what;
 	} prof;
