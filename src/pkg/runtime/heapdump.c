@@ -686,8 +686,10 @@ dumpmemprof(void)
 	Special *sp;
 	SpecialProfile *spp;
 	byte *p;
-
-	runtime·iterate_memprof(dumpmemprof_callback);
+	void (*fn)(Bucket*, uintptr, uintptr*, uintptr, uintptr, uintptr);
+	
+	fn = dumpmemprof_callback;
+	runtime·iterate_memprof(&fn);
 
 	allspans = runtime·mheap.allspans;
 	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {

@@ -346,10 +346,11 @@ mkzruntimedefs(char *dir, char *file)
 		"\n"
 	);
 
-	// Do not emit constant definitions for these.
+	// Do not emit definitions for these.
 	vadd(&seen, "true");
 	vadd(&seen, "false");
 	vadd(&seen, "raceenabled");
+	vadd(&seen, "allgs");
 	
 	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -q -n -o workdir/runtimedefs
 	// on each of the runtimedefs C files.

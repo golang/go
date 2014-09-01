@@ -239,6 +239,7 @@ selectgo(Select **selp)
 	G *gp;
 	byte *as;
 	void *pc;
+	extern uint64 runtime·blockprofilerate;
 
 	sel = *selp;
 

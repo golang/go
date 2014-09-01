@@ -83,6 +83,7 @@ static int32	newprocs;
 
 static	Mutex allglock;	// the following vars are protected by this lock or by stoptheworld
 G**	runtime·allg;
+Slice	runtime·allgs;
 uintptr runtime·allglen;
 static	uintptr allgcap;
 ForceGCState	runtime·forcegc;
@@ -2131,9 +2132,12 @@ allgadd(G *gp)
 		if(runtime·allg != nil)
 			runtime·memmove(new, runtime·allg, runtime·allglen*sizeof(new[0]));
 		runtime·allg = new;
+		runtime·allgs.array = (void*)runtime·allg;
 		allgcap = cap;
+		runtime·allgs.cap = allgcap;
 	}
 	runtime·allg[runtime·allglen++] = gp;
+	runtime·allgs.len = runtime·allglen;
 	runtime·unlock(&allglock);
 }
 

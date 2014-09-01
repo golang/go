@@ -540,10 +540,10 @@ enum
 	FlagNoZero	= 1<<1, // don't zero memory
 };
 
-void	runtime·MProf_Malloc(void*, uintptr);
-void	runtime·MProf_Free(Bucket*, uintptr, bool);
-void	runtime·MProf_GC(void);
-void	runtime·iterate_memprof(void (*callback)(Bucket*, uintptr, uintptr*, uintptr, uintptr, uintptr));
+void	runtime·mProf_Malloc(void*, uintptr);
+void	runtime·mProf_Free(Bucket*, uintptr, bool);
+void	runtime·mProf_GC(void);
+void	runtime·iterate_memprof(void (**callback)(Bucket*, uintptr, uintptr*, uintptr, uintptr, uintptr));
 int32	runtime·gcprocs(void);
 void	runtime·helpgc(int32 nproc);
 void	runtime·gchelper(void);

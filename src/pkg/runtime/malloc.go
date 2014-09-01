@@ -397,9 +397,8 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 		}
 		c.next_sample = next
 	}
-	mp.scalararg[0] = uintptr(size)
-	mp.ptrarg[0] = x
-	onM(&mprofMalloc_m)
+
+	mProf_Malloc(x, size)
 }
 
 // force = 1 - do GC regardless of current heap usage
