@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	. "runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -329,5 +330,14 @@ func TestStackCache(t *testing.T) {
 		for j := 0; j < G; j++ {
 			<-done
 		}
+	}
+}
+
+func TestStackOutput(t *testing.T) {
+	b := make([]byte, 1024)
+	stk := string(b[:Stack(b, false)])
+	if !strings.HasPrefix(stk, "goroutine ") {
+		t.Errorf("Stack (len %d):\n%s", len(stk), stk)
+		t.Errorf("Stack output should begin with \"goroutine \"")
 	}
 }
