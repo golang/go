@@ -13,3 +13,4 @@
 #include "chan.h"
 #include "mprof.h"
 #include "defs_GOOS_GOARCH.h"
+#include "os_GOOS.h"
