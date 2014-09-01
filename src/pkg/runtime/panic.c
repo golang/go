@@ -85,12 +85,12 @@ runtime·deferproc(int32 siz, FuncVal *fn, ...)
 
 	d = newdefer(siz);
 	d->fn = fn;
-	d->pc = runtime·getcallerpc(&siz);
+	d->pc = (uintptr)runtime·getcallerpc(&siz);
 	if(thechar == '5')
-		d->argp = (byte*)(&fn+2);  // skip caller's saved link register
+		d->argp = (uintptr)(&fn+2);  // skip caller's saved link register
 	else
-		d->argp = (byte*)(&fn+1);
-	runtime·memmove(d->args, d->argp, d->siz);
+		d->argp = (uintptr)(&fn+1);
+	runtime·memmove(d->args, (byte*)d->argp, d->siz);
 
 	// deferproc returns 0 normally.
 	// a deferred func that stops a panic
@@ -119,13 +119,13 @@ void
 runtime·deferreturn(uintptr arg0)
 {
 	Defer *d;
-	byte *argp;
+	uintptr argp;
 	FuncVal *fn;
 
 	d = g->defer;
 	if(d == nil)
 		return;
-	argp = (byte*)&arg0;
+	argp = (uintptr)&arg0;
 	if(d->argp != argp)
 		return;
 
@@ -134,7 +134,7 @@ runtime·deferreturn(uintptr arg0)
 	// won't know the form of the arguments until the jmpdefer can
 	// flip the PC over to fn.
 	g->m->locks++;
-	runtime·memmove(argp, d->args, d->siz);
+	runtime·memmove((byte*)argp, d->args, d->siz);
 	fn = d->fn;
 	g->defer = d->link;
 	freedefer(d);
@@ -213,7 +213,7 @@ runtime·panic(Eface e)
 {
 	Defer *d, dabort;
 	Panic p;
-	void *pc, *argp;
+	uintptr pc, argp;
 
 	runtime·memclr((byte*)&p, sizeof p);
 	p.arg = e;

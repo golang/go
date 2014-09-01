@@ -139,7 +139,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			}
 		}
 
-		frame.varp = (byte*)frame.fp;
+		frame.varp = frame.fp;
 
 		// Derive size of arguments.
 		// Most functions have a fixed-size argument block,
@@ -148,7 +148,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		// in package runtime and reflect, and for those we use call-specific
 		// metadata recorded by f's caller.
 		if(callback != nil || printing) {
-			frame.argp = (byte*)frame.fp + sizeof(uintptr);
+			frame.argp = frame.fp + sizeof(uintptr);
 			if(f->args != ArgsSizeUnknown)
 				frame.arglen = f->args;
 			else if(flr == nil)
@@ -193,18 +193,18 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 		// returns; everything live at earlier deferprocs is still live at that one.
 		frame.continpc = frame.pc;
 		if(waspanic) {
-			if(panic != nil && panic->defer->argp == (byte*)sparg)
+			if(panic != nil && panic->defer->argp == sparg)
 				frame.continpc = (uintptr)panic->defer->pc;
-			else if(defer != nil && defer->argp == (byte*)sparg)
+			else if(defer != nil && defer->argp == sparg)
 				frame.continpc = (uintptr)defer->pc;
 			else
 				frame.continpc = 0;
 		}
 
 		// Unwind our local panic & defer stacks past this frame.
-		while(panic != nil && (panic->defer == nil || panic->defer->argp == (byte*)sparg || panic->defer->argp == NoArgs))
+		while(panic != nil && (panic->defer == nil || panic->defer->argp == sparg || panic->defer->argp == NoArgs))
 			panic = panic->link;
-		while(defer != nil && (defer->argp == (byte*)sparg || defer->argp == NoArgs))
+		while(defer != nil && (defer->argp == sparg || defer->argp == NoArgs))
 			defer = defer->link;	
 
 		if(skip > 0) {

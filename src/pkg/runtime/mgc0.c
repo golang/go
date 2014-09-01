@@ -674,16 +674,16 @@ scanframe(Stkframe *frame, void *unused)
 	stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 	if(stackmap == nil) {
 		// No locals information, scan everything.
-		size = frame->varp - (byte*)frame->sp;
+		size = frame->varp - frame->sp;
 		if(Debug > 2)
-			runtime·printf("frame %s unsized locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
-		scanblock(frame->varp - size, size, ScanConservatively);
+			runtime·printf("frame %s unsized locals %p+%p\n", runtime·funcname(f), (byte*)(frame->varp-size), size);
+		scanblock((byte*)(frame->varp - size), size, ScanConservatively);
 	} else if(stackmap->n < 0) {
 		// Locals size information, scan just the locals.
 		size = -stackmap->n;
 		if(Debug > 2)
-			runtime·printf("frame %s conservative locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
-		scanblock(frame->varp - size, size, ScanConservatively);
+			runtime·printf("frame %s conservative locals %p+%p\n", runtime·funcname(f), (byte*)(frame->varp-size), size);
+		scanblock((byte*)(frame->varp - size), size, ScanConservatively);
 	} else if(stackmap->n > 0) {
 		// Locals bitmap information, scan just the pointers in locals.
 		if(pcdata < 0 || pcdata >= stackmap->n) {
@@ -694,7 +694,7 @@ scanframe(Stkframe *frame, void *unused)
 		}
 		bv = runtime·stackmapdata(stackmap, pcdata);
 		size = (bv.n * PtrSize) / BitsPerPointer;
-		scanblock(frame->varp - size, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
+		scanblock((byte*)(frame->varp - size), bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
 	}
 
 	// Scan arguments.
@@ -702,11 +702,11 @@ scanframe(Stkframe *frame, void *unused)
 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 	if(stackmap != nil) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
-		scanblock(frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
+		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
 	} else {
 		if(Debug > 2)
 			runtime·printf("frame %s conservative args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
-		scanblock(frame->argp, frame->arglen, ScanConservatively);
+		scanblock((byte*)frame->argp, frame->arglen, ScanConservatively);
 	}
 	return true;
 }
@@ -1798,7 +1798,7 @@ getgcmaskcb(Stkframe *frame, void *ctxt)
 	Stkframe *frame0;
 
 	frame0 = ctxt;
-	if(frame0->sp >= (uintptr)frame->varp - frame->sp && frame0->sp < (uintptr)frame->varp) {
+	if(frame0->sp >= frame->varp - frame->sp && frame0->sp < frame->varp) {
 		*frame0 = *frame;
 		return false;
 	}
@@ -1883,7 +1883,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*len = n/PtrSize;
 		*mask = runtime·mallocgc(*len, nil, 0);
 		for(i = 0; i < n; i += PtrSize) {
-			off = (p+i-frame.varp+size)/PtrSize;
+			off = (p+i-(byte*)frame.varp+size)/PtrSize;
 			bits = (bv.data[off*BitsPerPointer/32] >> ((off*BitsPerPointer)%32))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
