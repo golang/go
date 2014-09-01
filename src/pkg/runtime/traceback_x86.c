@@ -132,7 +132,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, 
 			// Invoke callback so that stack copier sees an uncopyable frame.
 			if(callback != nil) {
 				frame.continpc = frame.pc;
-				frame.argp = nil;
+				frame.argp = 0;
 				frame.arglen = 0;
 				if(!callback(&frame, v))
 					return n;
