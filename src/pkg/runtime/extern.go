@@ -148,6 +148,12 @@ func Callers(skip int, pc []uintptr) int {
 //go:noescape
 func callers(int32, *uintptr, int32) int32
 
+//go:noescape
+func gcallers(*g, int32, *uintptr, int32) int32
+
+//go:noescape
+func gentraceback(uintptr, uintptr, uintptr, *g, int32, *uintptr, int32, unsafe.Pointer, unsafe.Pointer, bool) int32
+
 func getgoroot() string
 
 // GOROOT returns the root of the Go tree.

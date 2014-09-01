@@ -74,7 +74,6 @@ func onM(fn *mFunction)
 var (
 	mcacheRefill_m,
 	largeAlloc_m,
-	mprofMalloc_m,
 	gc_m,
 	scavenge_m,
 	setFinalizer_m,
@@ -89,15 +88,12 @@ var (
 	park_m mFunction
 )
 
-func blockevent(int64, int32)
-
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s
 //go:noescape
 func memclr(ptr unsafe.Pointer, n uintptr)
 
 func racemalloc(p unsafe.Pointer, size uintptr)
-func tracealloc(p unsafe.Pointer, size uintptr, typ *_type)
 
 // memmove copies n bytes from "from" to "to".
 // in memmove_*.s

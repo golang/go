@@ -861,7 +861,7 @@ runtime·freespecial(Special *s, void *p, uintptr size, bool freed)
 		return false; // don't free p until finalizer is done
 	case KindSpecialProfile:
 		sp = (SpecialProfile*)s;
-		runtime·MProf_Free(sp->b, size, freed);
+		runtime·mProf_Free(sp->b, size, freed);
 		runtime·lock(&runtime·mheap.speciallock);
 		runtime·FixAlloc_Free(&runtime·mheap.specialprofilealloc, sp);
 		runtime·unlock(&runtime·mheap.speciallock);

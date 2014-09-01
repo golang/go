@@ -50,73 +50,6 @@ func NumGoroutine() int {
 
 func gcount() int32
 
-// MemProfileRate controls the fraction of memory allocations
-// that are recorded and reported in the memory profile.
-// The profiler aims to sample an average of
-// one allocation per MemProfileRate bytes allocated.
-//
-// To include every allocated block in the profile, set MemProfileRate to 1.
-// To turn off profiling entirely, set MemProfileRate to 0.
-//
-// The tools that process the memory profiles assume that the
-// profile rate is constant across the lifetime of the program
-// and equal to the current value.  Programs that change the
-// memory profiling rate should do so just once, as early as
-// possible in the execution of the program (for example,
-// at the beginning of main).
-var MemProfileRate int = 512 * 1024
-
-// A MemProfileRecord describes the live objects allocated
-// by a particular call sequence (stack trace).
-type MemProfileRecord struct {
-	AllocBytes, FreeBytes     int64       // number of bytes allocated, freed
-	AllocObjects, FreeObjects int64       // number of objects allocated, freed
-	Stack0                    [32]uintptr // stack trace for this record; ends at first 0 entry
-}
-
-// InUseBytes returns the number of bytes in use (AllocBytes - FreeBytes).
-func (r *MemProfileRecord) InUseBytes() int64 { return r.AllocBytes - r.FreeBytes }
-
-// InUseObjects returns the number of objects in use (AllocObjects - FreeObjects).
-func (r *MemProfileRecord) InUseObjects() int64 {
-	return r.AllocObjects - r.FreeObjects
-}
-
-// Stack returns the stack trace associated with the record,
-// a prefix of r.Stack0.
-func (r *MemProfileRecord) Stack() []uintptr {
-	for i, v := range r.Stack0 {
-		if v == 0 {
-			return r.Stack0[0:i]
-		}
-	}
-	return r.Stack0[0:]
-}
-
-// A StackRecord describes a single execution stack.
-type StackRecord struct {
-	Stack0 [32]uintptr // stack trace for this record; ends at first 0 entry
-}
-
-// Stack returns the stack trace associated with the record,
-// a prefix of r.Stack0.
-func (r *StackRecord) Stack() []uintptr {
-	for i, v := range r.Stack0 {
-		if v == 0 {
-			return r.Stack0[0:i]
-		}
-	}
-	return r.Stack0[0:]
-}
-
-// GoroutineProfile returns n, the number of records in the active goroutine stack profile.
-// If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
-// If len(p) < n, GoroutineProfile does not change p and returns n, false.
-//
-// Most clients should use the runtime/pprof package instead
-// of calling GoroutineProfile directly.
-func GoroutineProfile(p []StackRecord) (n int, ok bool)
-
 // CPUProfile returns the next chunk of binary CPU profiling stack trace data,
 // blocking until data is available.  If profiling is turned off and all the profile
 // data accumulated while it was on has been returned, CPUProfile returns nil.
@@ -135,19 +68,3 @@ func CPUProfile() []byte
 // the testing package's -test.cpuprofile flag instead of calling
 // SetCPUProfileRate directly.
 func SetCPUProfileRate(hz int)
-
-// SetBlockProfileRate controls the fraction of goroutine blocking events
-// that are reported in the blocking profile.  The profiler aims to sample
-// an average of one blocking event per rate nanoseconds spent blocked.
-//
-// To include every blocking event in the profile, pass rate = 1.
-// To turn off profiling entirely, pass rate <= 0.
-func SetBlockProfileRate(rate int)
-
-// BlockProfileRecord describes blocking events originated
-// at a particular call sequence (stack trace).
-type BlockProfileRecord struct {
-	Count  int64
-	Cycles int64
-	StackRecord
-}

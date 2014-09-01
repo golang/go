@@ -683,6 +683,7 @@ enum
 extern	String	runtime·emptystring;
 extern	uintptr runtime·zerobase;
 extern	G**	runtime·allg;
+extern	Slice	runtime·allgs; // []*G
 extern	uintptr runtime·allglen;
 extern	G*	runtime·lastg;
 extern	M*	runtime·allm;
@@ -868,7 +869,6 @@ void	runtime·usleep(uint32);
 int64	runtime·cputicks(void);
 int64	runtime·tickspersecond(void);
 void	runtime·blockevent(int64, int32);
-extern int64 runtime·blockprofilerate;
 G*	runtime·netpoll(bool);
 void	runtime·netpollinit(void);
 int32	runtime·netpollopen(uintptr, PollDesc*);

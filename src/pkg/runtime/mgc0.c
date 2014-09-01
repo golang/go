@@ -1438,7 +1438,7 @@ gc(struct gc_args *args)
 			sweep.npausesweep++;
 	}
 
-	runtime·MProf_GC();
+	runtime·mProf_GC();
 	g->m->traceback = 0;
 }
 
