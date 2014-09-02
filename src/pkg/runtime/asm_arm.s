@@ -1259,7 +1259,7 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
 	MOVW.P	R0, 4(R2)
 	RET
 
-TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
+TEXT runtime·fastrand1(SB), NOSPLIT, $-4-4
 	MOVW	g_m(g), R1
 	MOVW	m_fastrand(R1), R0
 	ADD.S	R0, R0

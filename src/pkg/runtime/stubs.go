@@ -101,9 +101,6 @@ func racemalloc(p unsafe.Pointer, size uintptr)
 //go:noescape
 func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
 
-// in asm_*.s
-func fastrand2() uint32
-
 const (
 	concurrentSweep = true
 )

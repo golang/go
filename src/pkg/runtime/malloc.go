@@ -387,7 +387,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 		if rate > 0x3fffffff { // make 2*rate not overflow
 			rate = 0x3fffffff
 		}
-		next := int32(fastrand2()) % (2 * int32(rate))
+		next := int32(fastrand1()) % (2 * int32(rate))
 		// Subtract the "remainder" of the current allocation.
 		// Otherwise objects that are close in size to sampling rate
 		// will be under-sampled, because we consistently discard this remainder.

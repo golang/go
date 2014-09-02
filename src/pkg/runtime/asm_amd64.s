@@ -2335,7 +2335,7 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
 TEXT runtime·timenow(SB), NOSPLIT, $0-0
 	JMP	time·now(SB)
 
-TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
+TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 	get_tls(CX)
 	MOVQ	g(CX), AX
 	MOVQ	g_m(AX), AX
