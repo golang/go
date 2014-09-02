@@ -1077,6 +1077,8 @@ newm(void(*fn)(void), P *p)
 	mp = runtime·allocm(p);
 	mp->nextp = p;
 	mp->mstartfn = fn;
+	if(raceenabled)
+		mp->g0->racectx = runtime·racegostart(newm);
 
 	if(runtime·iscgo) {
 		CgoThreadStart ts;
