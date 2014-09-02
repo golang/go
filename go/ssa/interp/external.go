@@ -91,6 +91,7 @@ func init() {
 		"runtime.GOMAXPROCS":               ext۰runtime۰GOMAXPROCS,
 		"runtime.Goexit":                   ext۰runtime۰Goexit,
 		"runtime.Gosched":                  ext۰runtime۰Gosched,
+		"runtime.init":                     ext۰runtime۰init,
 		"runtime.NumCPU":                   ext۰runtime۰NumCPU,
 		"runtime.ReadMemStats":             ext۰runtime۰ReadMemStats,
 		"runtime.SetFinalizer":             ext۰runtime۰SetFinalizer,
@@ -341,6 +342,10 @@ func ext۰runtime۰GC(fr *frame, args []value) value {
 
 func ext۰runtime۰Gosched(fr *frame, args []value) value {
 	runtime.Gosched()
+	return nil
+}
+
+func ext۰runtime۰init(fr *frame, args []value) value {
 	return nil
 }
 

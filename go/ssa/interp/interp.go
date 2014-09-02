@@ -670,6 +670,19 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 			sz := sizes.Sizeof(pkg.Object.Scope().Lookup("MemStats").Type())
 			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(sz))
 
+			// Delete the bodies of almost all "runtime" functions since they're magic.
+			// A missing intrinsic leads to a very clear error.
+			for _, mem := range pkg.Members {
+				if fn, ok := mem.(*ssa.Function); ok {
+					switch fn.Name() {
+					case "GOROOT", "gogetenv":
+						// keep
+					default:
+						fn.Blocks = nil
+					}
+				}
+			}
+
 		case "os":
 			Args := []value{filename}
 			for _, s := range args {
