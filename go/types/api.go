@@ -102,6 +102,8 @@ type Config struct {
 	// Secondary errors (for instance, to enumerate all types
 	// involved in an invalid recursive type declaration) have
 	// error strings that start with a '\t' character.
+	// If Error == nil, type-checking stops with the first
+	// error found.
 	Error func(err error)
 
 	// If Import != nil, it is called for each imported package.
@@ -321,7 +323,8 @@ func (init *Initializer) String() string {
 // Check type-checks a package and returns the resulting package object,
 // the first error if any, and if info != nil, additional type information.
 // The package is marked as complete if no errors occurred, otherwise it is
-// incomplete.
+// incomplete. See Config.Error for controlling behavior in the presense of
+// errors.
 //
 // The package is specified by a list of *ast.Files and corresponding
 // file set, and the package path the package is identified with.
