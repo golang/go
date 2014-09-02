@@ -1838,7 +1838,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 				}
 			} else {
 				if(et == TUINT64) {
-					if(t->sym->pkg == runtimepkg && strcmp(t->sym->name, "hex") == 0)
+					if((t->sym->pkg == runtimepkg || compiling_runtime) && strcmp(t->sym->name, "hex") == 0)
 						on = syslook("printhex", 0);
 					else
 						on = syslook("printuint", 0);
