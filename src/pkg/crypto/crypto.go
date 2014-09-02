@@ -30,6 +30,10 @@ const (
 	SHA512                    // import crypto/sha512
 	MD5SHA1                   // no implementation; MD5+SHA1 used for TLS RSA
 	RIPEMD160                 // import code.google.com/p/go.crypto/ripemd160
+	SHA3_224                  // import code.google.com/p/go.crypto/sha3
+	SHA3_256                  // import code.google.com/p/go.crypto/sha3
+	SHA3_384                  // import code.google.com/p/go.crypto/sha3
+	SHA3_512                  // import code.google.com/p/go.crypto/sha3
 	maxHash
 )
 
@@ -41,6 +45,10 @@ var digestSizes = []uint8{
 	SHA256:    32,
 	SHA384:    48,
 	SHA512:    64,
+	SHA3_224:  28,
+	SHA3_256:  32,
+	SHA3_384:  48,
+	SHA3_512:  64,
 	MD5SHA1:   36,
 	RIPEMD160: 20,
 }
