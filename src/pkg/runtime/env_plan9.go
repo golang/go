@@ -31,6 +31,10 @@ func gogetenv(key string) string {
 		return ""
 	}
 	n := seek(fd, 0, 2) - 1
+	if n <= 0 {
+		close(fd)
+		return ""
+	}
 
 	p := make([]byte, n)
 
