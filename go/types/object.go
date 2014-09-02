@@ -114,11 +114,16 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 // A PkgName represents an imported Go package.
 type PkgName struct {
 	object
+	imported *Package
 }
 
-func NewPkgName(pos token.Pos, pkg *Package, name string) *PkgName {
-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], false}}
+func NewPkgName(pos token.Pos, pkg *Package, name string, imported *Package) *PkgName {
+	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], false}, imported}
 }
+
+// Imported returns the package that was imported.
+// It is distinct from Pkg(), which is the package containing the import statement.
+func (obj *PkgName) Imported() *Package { return obj.imported }
 
 // A Const represents a declared constant.
 type Const struct {
@@ -227,7 +232,7 @@ func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
 	switch obj := obj.(type) {
 	case *PkgName:
 		fmt.Fprintf(buf, "package %s", obj.Name())
-		if path := obj.Pkg().path; path != "" && path != obj.Name() {
+		if path := obj.imported.path; path != "" && path != obj.name {
 			fmt.Fprintf(buf, " (%q)", path)
 		}
 		return

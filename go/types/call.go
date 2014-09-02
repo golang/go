@@ -256,9 +256,9 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		if pkg, _ := check.scope.LookupParent(ident.Name).(*PkgName); pkg != nil {
 			check.recordUse(ident, pkg)
 			pkg.used = true
-			exp := pkg.pkg.scope.Lookup(sel)
+			exp := pkg.imported.scope.Lookup(sel)
 			if exp == nil {
-				if !pkg.pkg.fake {
+				if !pkg.imported.fake {
 					check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
 				}
 				goto Error

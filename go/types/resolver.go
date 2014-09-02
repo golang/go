@@ -192,7 +192,7 @@ func (check *Checker) collectObjects() {
 							}
 						}
 
-						obj := NewPkgName(s.Pos(), imp, name)
+						obj := NewPkgName(s.Pos(), pkg, name, imp)
 						if s.Name != nil {
 							// in a dot-import, the dot represents the package
 							check.recordDef(s.Name, obj)
@@ -397,7 +397,7 @@ func (check *Checker) unusedImports() {
 				// Unused "blank imports" are automatically ignored
 				// since _ identifiers are not entered into scopes.
 				if !obj.used {
-					check.softErrorf(obj.pos, "%q imported but not used", obj.pkg.path)
+					check.softErrorf(obj.pos, "%q imported but not used", obj.imported.path)
 				}
 			default:
 				// All other objects in the file scope must be dot-

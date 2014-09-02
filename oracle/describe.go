@@ -505,8 +505,8 @@ func describePackage(o *Oracle, qpos *QueryPos, path []ast.Node) (*describePacka
 		} else if p := qpos.info.Implicits[n]; p != nil {
 			pkgname = p.(*types.PkgName)
 		}
-		description = fmt.Sprintf("import of package %q", pkgname.Pkg().Path())
-		pkg = pkgname.Pkg()
+		pkg = pkgname.Imported()
+		description = fmt.Sprintf("import of package %q", pkg.Path())
 
 	case *ast.Ident:
 		if _, isDef := path[1].(*ast.File); isDef {
@@ -516,7 +516,7 @@ func describePackage(o *Oracle, qpos *QueryPos, path []ast.Node) (*describePacka
 		} else {
 			// e.g. import id "..."
 			//  or  id.F()
-			pkg = qpos.info.ObjectOf(n).Pkg()
+			pkg = qpos.info.ObjectOf(n).(*types.PkgName).Imported()
 			description = fmt.Sprintf("reference to package %q", pkg.Path())
 		}
 

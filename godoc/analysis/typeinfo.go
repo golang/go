@@ -77,11 +77,11 @@ func (a *analysis) doTypeInfo(info *loader.PackageInfo, implements map[*types.Na
 		// Correct the position for non-renaming import specs.
 		//  import "sync/atomic"
 		//          ^^^^^^^^^^^
-		if obj, ok := obj.(*types.PkgName); ok && id.Name == obj.Pkg().Name() {
+		if obj, ok := obj.(*types.PkgName); ok && id.Name == obj.Imported().Name() {
 			// Assume this is a non-renaming import.
 			// NB: not true for degenerate renamings: `import foo "foo"`.
 			pos++
-			Len = len(obj.Pkg().Path())
+			Len = len(obj.Imported().Path())
 		}
 
 		if obj.Pkg() == nil {
