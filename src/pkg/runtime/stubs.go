@@ -110,7 +110,6 @@ const (
 func gosched()
 func starttheworld()
 func stoptheworld()
-func clearpools()
 
 // exported value for testing
 var hashLoad = loadFactor

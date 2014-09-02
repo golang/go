@@ -39,3 +39,32 @@ func freeOSMemory() {
 	gogc(2) // force GC and do eager sweep
 	onM(&scavenge_m)
 }
+
+var poolcleanup func()
+
+func registerPoolCleanup(f func()) {
+	poolcleanup = f
+}
+
+func clearpools() {
+	// clear sync.Pools
+	if poolcleanup != nil {
+		poolcleanup()
+	}
+
+	for _, p := range &allp {
+		if p == nil {
+			break
+		}
+		// clear tinyalloc pool
+		if c := p.mcache; c != nil {
+			c.tiny = nil
+			c.tinysize = 0
+			c.sudogcache = nil
+		}
+		// clear defer pools
+		for i := range p.deferpool {
+			p.deferpool[i] = nil
+		}
+	}
+}

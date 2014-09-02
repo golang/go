@@ -82,39 +82,6 @@ enum {
 // Initialized from $GOGC.  GOGC=off means no gc.
 extern int32 runtime·gcpercent;
 
-static FuncVal* poolcleanup;
-
-void
-sync·runtime_registerPoolCleanup(FuncVal *f)
-{
-	poolcleanup = f;
-}
-
-void
-runtime·clearpools(void)
-{
-	P *p, **pp;
-	MCache *c;
-	int32 i;
-
-	// clear sync.Pool's
-	if(poolcleanup != nil)
-		reflect·call(poolcleanup, nil, 0, 0);
-
-	for(pp=runtime·allp; p=*pp; pp++) {
-		// clear tinyalloc pool
-		c = p->mcache;
-		if(c != nil) {
-			c->tiny = nil;
-			c->tinysize = 0;
-			c->sudogcache = nil;
-		}
-		// clear defer pools
-		for(i=0; i<nelem(p->deferpool); i++)
-			p->deferpool[i] = nil;
-	}
-}
-
 // Holding worldsema grants an M the right to try to stop the world.
 // The procedure is:
 //
