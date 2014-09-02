@@ -76,3 +76,42 @@ TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
 
 TEXT syscall·setenv_c(SB), NOSPLIT, $0-0
 	JMP	runtime·syscall_setenv_c(SB)
+
+TEXT reflect·makemap(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_makemap(SB)
+
+TEXT reflect·mapaccess(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapaccess(SB)
+
+TEXT reflect·mapassign(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapassign(SB)
+
+TEXT reflect·mapdelete(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapdelete(SB)
+
+TEXT reflect·mapiterinit(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapiterinit(SB)
+
+TEXT reflect·mapiterkey(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapiterkey(SB)
+
+TEXT reflect·mapiternext(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_mapiternext(SB)
+
+TEXT reflect·maplen(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_maplen(SB)
+
+TEXT reflect·ismapkey(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_ismapkey(SB)
+
+TEXT reflect·ifaceE2I(SB),NOSPLIT,$0-0
+	JMP	runtime·reflect_ifaceE2I(SB)
+
+TEXT reflect·unsafe_New(SB),NOSPLIT,$0-0
+	JMP	runtime·newobject(SB)
+
+TEXT reflect·unsafe_NewArray(SB),NOSPLIT,$0-0
+	JMP	runtime·newarray(SB)
+
+TEXT reflect·makechan(SB),NOSPLIT,$0-0
+	JMP	runtime·makechan(SB)
