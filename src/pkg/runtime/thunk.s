@@ -38,6 +38,9 @@ TEXT sync·runtime_Semacquire(SB),NOSPLIT,$0-0
 TEXT sync·runtime_Semrelease(SB),NOSPLIT,$0-0
 	JMP	runtime·asyncsemrelease(SB)
 
+TEXT sync·runtime_registerPoolCleanup(SB),NOSPLIT,$0-0
+	JMP	runtime·registerPoolCleanup(SB)
+
 TEXT net·runtime_Semacquire(SB),NOSPLIT,$0-0
 	JMP	runtime·asyncsemacquire(SB)
 
