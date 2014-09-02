@@ -2073,7 +2073,7 @@ func Copy(dst, src Value) int {
 }
 
 // A runtimeSelect is a single case passed to rselect.
-// This must match ../runtime/chan.c:/runtimeSelect
+// This must match ../runtime/select.go:/runtimeSelect
 type runtimeSelect struct {
 	dir uintptr        // 0, SendDir, or RecvDir
 	typ *rtype         // channel type
@@ -2091,7 +2091,7 @@ func rselect([]runtimeSelect) (chosen int, recvOK bool)
 // A SelectDir describes the communication direction of a select case.
 type SelectDir int
 
-// NOTE: These values must match ../runtime/chan.c:/SelectDir.
+// NOTE: These values must match ../runtime/select.go:/selectDir.
 
 const (
 	_             SelectDir = iota

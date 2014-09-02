@@ -47,12 +47,13 @@ enum
 // Changes here must also be made in src/cmd/gc/select.c's selecttype.
 struct	Scase
 {
-	SudoG	sg;			// must be first member (cast to Scase)
+	void*	elem;			// data element
 	Hchan*	chan;			// chan
-	byte*	pc;			// return pc
+	uintptr	pc;			// return pc
 	uint16	kind;
 	uint16	so;			// vararg of selected bool
 	bool*	receivedp;		// pointer to received bool (recv2)
+	int64	releasetime;
 };
 
 // Known to compiler.

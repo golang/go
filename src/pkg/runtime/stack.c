@@ -764,6 +764,9 @@ adjustsudogs(G *gp, AdjustInfo *adjinfo)
 		e = s->elem;
 		if(adjinfo->oldstk <= e && e < adjinfo->oldbase)
 			s->elem = e + adjinfo->delta;
+		e = (byte*)s->selectdone;
+		if(adjinfo->oldstk <= e && e < adjinfo->oldbase)
+			s->selectdone = (uint32*)(e + adjinfo->delta);
 	}
 }
 
