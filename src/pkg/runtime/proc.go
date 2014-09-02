@@ -31,23 +31,25 @@ var parkunlock_c byte
 
 // start forcegc helper goroutine
 func init() {
-	go func() {
-		forcegc.g = getg()
-		forcegc.g.issystem = true
-		for {
-			lock(&forcegc.lock)
-			if forcegc.idle != 0 {
-				gothrow("forcegc: phase error")
-			}
-			atomicstore(&forcegc.idle, 1)
-			goparkunlock(&forcegc.lock, "force gc (idle)")
-			// this goroutine is explicitly resumed by sysmon
-			if debug.gctrace > 0 {
-				println("GC forced")
-			}
-			gogc(1)
+	go forcegchelper()
+}
+
+func forcegchelper() {
+	forcegc.g = getg()
+	forcegc.g.issystem = true
+	for {
+		lock(&forcegc.lock)
+		if forcegc.idle != 0 {
+			gothrow("forcegc: phase error")
 		}
-	}()
+		atomicstore(&forcegc.idle, 1)
+		goparkunlock(&forcegc.lock, "force gc (idle)")
+		// this goroutine is explicitly resumed by sysmon
+		if debug.gctrace > 0 {
+			println("GC forced")
+		}
+		gogc(1)
+	}
 }
 
 // Gosched yields the processor, allowing other goroutines to run.  It does not

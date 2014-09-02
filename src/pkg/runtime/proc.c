@@ -2846,9 +2846,12 @@ sysmon(void)
 		lastgc = runtime·atomicload64(&mstats.last_gc);
 		if(lastgc != 0 && unixnow - lastgc > forcegcperiod && runtime·atomicload(&runtime·forcegc.idle)) {
 			runtime·lock(&runtime·forcegc.lock);
-			runtime·forcegc.idle = 0;
-			runtime·forcegc.g->schedlink = nil;
-			injectglist(runtime·forcegc.g);
+			if(runtime·forcegc.g != nil) {
+				// Goroutine may be started but has not initialized g yet.
+				runtime·forcegc.idle = 0;
+				runtime·forcegc.g->schedlink = nil;
+				injectglist(runtime·forcegc.g);
+			}
 			runtime·unlock(&runtime·forcegc.lock);
 		}
 
