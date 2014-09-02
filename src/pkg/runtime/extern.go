@@ -86,11 +86,9 @@ import "unsafe"
 // If all other goroutines exit, the program crashes.
 func Goexit()
 
-// We assume that all architectures turn faults and the like
-// into apparent calls to runtime.sigpanic.  If we see a "call"
-// to runtime.sigpanic, we do not back up the PC to find the
-// line number of the CALL instruction, because there is no CALL.
-var sigpanic byte
+// sigpanic is the C function sigpanic.
+// That is, unsafe.Pointer(&sigpanic) is the C function pointer for sigpanic.
+var sigpanic struct{}
 
 // Caller reports file and line number information about function invocations on
 // the calling goroutine's stack.  The argument skip is the number of stack frames
@@ -103,7 +101,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	// and what it called, so that we can see if it
 	// "called" sigpanic.
 	var rpc [2]uintptr
-	if callers(int32(1+skip-1), &rpc[0], 2) < 2 {
+	if callers(1+skip-1, &rpc[0], 2) < 2 {
 		return
 	}
 	f := findfunc(rpc[1])
@@ -117,6 +115,9 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	pc = rpc[1]
 	xpc := pc
 	g := findfunc(rpc[0])
+	// All architectures turn faults into apparent calls to sigpanic.
+	// If we see a call to sigpanic, we do not back up the PC to find
+	// the line number of the call instruction, because there is no call.
 	if xpc > f.entry && (g == nil || g.entry != uintptr(unsafe.Pointer(&sigpanic))) {
 		xpc--
 	}
@@ -142,17 +143,8 @@ func Callers(skip int, pc []uintptr) int {
 	if len(pc) == 0 {
 		return 0
 	}
-	return int(callers(int32(skip), &pc[0], int32(len(pc))))
+	return callers(skip, &pc[0], len(pc))
 }
-
-//go:noescape
-func callers(int32, *uintptr, int32) int32
-
-//go:noescape
-func gcallers(*g, int32, *uintptr, int32) int32
-
-//go:noescape
-func gentraceback(uintptr, uintptr, uintptr, *g, int32, *uintptr, int32, unsafe.Pointer, unsafe.Pointer, bool) int32
 
 func getgoroot() string
 

@@ -379,13 +379,30 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
 		// Just enough to keep the api checker happy.
 		src := "package runtime; type (" +
-			" maptype struct{}; _type struct{}; alg struct{};" +
-			" mspan struct{}; m struct{}; mutex struct{}; slicetype struct{};" +
-			" iface struct{}; eface struct{}; interfacetype struct{}; itab struct{};" +
-			" mcache struct{}; sudog struct{}; g struct{};" +
-			" hchan struct{}; chantype struct{}; waitq struct{};" +
-			" note struct{}; wincallbackcontext struct{};" +
-			" gobuf struct{}; funcval struct{}; _func struct{};" +
+			" _func struct{};" +
+			" _type struct{};" +
+			" alg struct{};" +
+			" chantype struct{};" +
+			" context struct{};" + // windows
+			" eface struct{};" +
+			" funcval struct{};" +
+			" g struct{};" +
+			" gobuf struct{};" +
+			" hchan struct{};" +
+			" iface struct{};" +
+			" interfacetype struct{};" +
+			" itab struct{};" +
+			" m struct{};" +
+			" maptype struct{};" +
+			" mcache struct{};" +
+			" mspan struct{};" +
+			" mutex struct{};" +
+			" note struct{};" +
+			" slicetype struct{};" +
+			" stkframe struct{};" +
+			" sudog struct{};" +
+			" waitq struct{};" +
+			" wincallbackcontext struct{};" +
 			"); " +
 			"const ( cb_max = 2000 )"
 		f, err = parser.ParseFile(fset, filename, src, 0)
