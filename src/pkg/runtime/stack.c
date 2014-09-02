@@ -477,6 +477,7 @@ copyabletopsegment(G *gp)
 	Func *f;
 	FuncVal *fn;
 	StackMap *stackmap;
+	bool (*cb)(Stkframe*, void*);
 
 	if(gp->stackbase == 0)
 		runtime·throw("stackbase == 0");
@@ -486,7 +487,8 @@ copyabletopsegment(G *gp)
 
 	// Check that each frame is copyable.  As a side effect,
 	// count the frames.
-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, checkframecopy, &cinfo, false);
+	cb = checkframecopy;
+	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &cb, &cinfo, false);
 	if(StackDebug >= 1 && cinfo.frames != -1)
 		runtime·printf("copystack: %d copyable frames\n", cinfo.frames);
 
@@ -680,8 +682,10 @@ adjustframe(Stkframe *frame, void *arg)
 	// adjust inargs and outargs
 	if(frame->arglen != 0) {
 		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
-		if(stackmap == nil)
+		if(stackmap == nil) {
+			runtime·printf("size %d\n", (int32)frame->arglen);
 			runtime·throw("no arg info");
+		}
 		bv = runtime·stackmapdata(stackmap, pcdata);
 		if(StackDebug >= 3)
 			runtime·printf("      args\n");
@@ -773,6 +777,7 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	AdjustInfo adjinfo;
 	Stktop *oldtop, *newtop;
 	uint32 oldstatus;
+	bool (*cb)(Stkframe*, void*);
 
 	if(gp->syscallstack != 0)
 		runtime·throw("can't handle stack copy in syscall yet");
@@ -797,7 +802,8 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	adjinfo.oldstk = oldstk;
 	adjinfo.oldbase = oldbase;
 	adjinfo.delta = newbase - oldbase;
-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, nframes, adjustframe, &adjinfo, false);
+	cb = adjustframe;
+	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, nframes, &cb, &adjinfo, false);
 	
 	// adjust other miscellaneous things that have pointers into stacks.
 	adjustctxt(gp, &adjinfo);

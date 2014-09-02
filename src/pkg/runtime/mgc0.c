@@ -685,6 +685,7 @@ scanstack(G *gp)
 	int32 n;
 	Stktop *stk;
 	uintptr sp, guard;
+	bool (*fn)(Stkframe*, void*);
 
 	switch(runtime·readgstatus(gp)) {
 	default:
@@ -726,7 +727,8 @@ scanstack(G *gp)
 		USED(sp);
 		USED(stk);
 		USED(guard);
-		runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, scanframe, nil, false);
+		fn = scanframe;
+		runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, false);
 	} else {
 		n = 0;
 		while(stk) {
@@ -1779,6 +1781,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 	Stkframe frame;
 	uintptr i, n, off;
 	byte *base, bits, shift, *b;
+	bool (*cb)(Stkframe*, void*);
 
 	*mask = nil;
 	*len = 0;
@@ -1823,7 +1826,8 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 	// stack
 	frame.fn = nil;
 	frame.sp = (uintptr)p;
-	runtime·gentraceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g, 0, nil, 1000, getgcmaskcb, &frame, false);
+	cb = getgcmaskcb;
+	runtime·gentraceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g, 0, nil, 1000, &cb, &frame, false);
 	if(frame.fn != nil) {
 		Func *f;
 		StackMap *stackmap;

@@ -666,7 +666,7 @@ struct Stkframe
 	uintptr	arglen;	// number of bytes at argp
 };
 
-int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, bool(*)(Stkframe*, void*), void*, bool);
+intgo	runtime·gentraceback(uintptr, uintptr, uintptr, G*, intgo, uintptr*, intgo, bool(**)(Stkframe*, void*), void*, bool);
 void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
 void	runtime·tracebackothers(G*);
 bool	runtime·haszeroargs(uintptr pc);
@@ -854,8 +854,8 @@ void	runtime·exitsyscall(void);
 void	runtime·entersyscallblock_m(void);
 G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
 bool	runtime·sigsend(int32 sig);
-int32	runtime·callers(int32, uintptr*, int32);
-int32	runtime·gcallers(G*, int32, uintptr*, int32);
+intgo	runtime·callers(intgo, uintptr*, intgo);
+intgo	runtime·gcallers(G*, intgo, uintptr*, intgo);
 int64	runtime·nanotime(void);	// monotonic time
 int64	runtime·unixnanotime(void); // real time, can skip
 void	runtime·dopanic(int32);
@@ -868,7 +868,7 @@ void	runtime·setcpuprofilerate(int32);
 void	runtime·usleep(uint32);
 int64	runtime·cputicks(void);
 int64	runtime·tickspersecond(void);
-void	runtime·blockevent(int64, int32);
+void	runtime·blockevent(int64, intgo);
 G*	runtime·netpoll(bool);
 void	runtime·netpollinit(void);
 int32	runtime·netpollopen(uintptr, PollDesc*);

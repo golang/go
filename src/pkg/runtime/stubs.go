@@ -12,6 +12,7 @@ import "unsafe"
 // each function.
 
 const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
+const regSize = 4 << (^uintreg(0) >> 63) // unsafe.Sizeof(uintreg(0)) but an ideal const
 
 //go:noescape
 func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
@@ -141,7 +142,6 @@ func entersyscallblock()
 func exitsyscall()
 
 func goroutineheader(gp *g)
-func traceback(pc, sp, lr uintptr, gp *g)
 func tracebackothers(gp *g)
 
 func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
@@ -246,3 +246,21 @@ func asmcgocall(fn, arg unsafe.Pointer)
 
 //go:noescape
 func open(name *byte, mode, perm int32) int32
+
+//go:noescape
+func gotraceback(*bool) int32
+
+func funcname(*_func) *byte
+
+func gofuncname(f *_func) string {
+	return gostringnocopy(funcname(f))
+}
+
+const _NoArgs = ^uintptr(0)
+
+var newproc, deferproc, lessstack struct{} // C/assembly functions
+
+func funcspdelta(*_func, uintptr) int32 // symtab.c
+func funcarglen(*_func, uintptr) int32  // symtab.c
+const _ArgsSizeUnknown = -0x80000000    // funcdata.h
+func topofstack(*_func) bool            // proc.c

@@ -234,7 +234,7 @@ func mProf_GC() {
 // Called by malloc to record a profiled block.
 func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 	var stk [maxStack]uintptr
-	nstk := callers(1, &stk[0], int32(len(stk)))
+	nstk := callers(1, &stk[0], len(stk))
 	lock(&proflock)
 	b := stkbucket(memProfile, size, stk[:nstk], true)
 	mp := b.mp()
@@ -304,9 +304,9 @@ func blockevent(cycles int64, skip int) {
 	var nstk int
 	var stk [maxStack]uintptr
 	if gp.m.curg == nil || gp.m.curg == gp {
-		nstk = int(callers(int32(skip), &stk[0], int32(len(stk))))
+		nstk = callers(skip, &stk[0], len(stk))
 	} else {
-		nstk = int(gcallers(gp.m.curg, int32(skip), &stk[0], int32(len(stk))))
+		nstk = gcallers(gp.m.curg, skip, &stk[0], len(stk))
 	}
 	lock(&proflock)
 	b := stkbucket(blockProfile, 0, stk[:nstk], true)
@@ -557,8 +557,8 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 }
 
 func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
-	n := gentraceback(pc, sp, 0, gp, 0, &r.Stack0[0], int32(len(r.Stack0)), nil, nil, false)
-	if int(n) < len(r.Stack0) {
+	n := gentraceback(pc, sp, 0, gp, 0, &r.Stack0[0], len(r.Stack0), nil, nil, false)
+	if n < len(r.Stack0) {
 		r.Stack0[n] = 0
 	}
 }
