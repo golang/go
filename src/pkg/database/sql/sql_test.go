@@ -1348,6 +1348,11 @@ func TestErrBadConnReconnect(t *testing.T) {
 		return nil
 	})
 
+	// Provide a way to force a re-prepare of a statement on next execution
+	forcePrepare := func(stmt *Stmt) {
+		stmt.css = nil
+	}
+
 	// stmt.Exec
 	stmt1, err := db.Prepare("INSERT|t1|name=?,age=?,dead=?")
 	if err != nil {
@@ -1355,9 +1360,7 @@ func TestErrBadConnReconnect(t *testing.T) {
 	}
 	defer stmt1.Close()
 	// make sure we must prepare the stmt first
-	for _, cs := range stmt1.css {
-		cs.dc.inUse = true
-	}
+	forcePrepare(stmt1)
 
 	stmtExec := func() error {
 		_, err := stmt1.Exec("Gopher", 3, false)
@@ -1373,9 +1376,7 @@ func TestErrBadConnReconnect(t *testing.T) {
 	}
 	defer stmt2.Close()
 	// make sure we must prepare the stmt first
-	for _, cs := range stmt2.css {
-		cs.dc.inUse = true
-	}
+	forcePrepare(stmt2)
 
 	stmtQuery := func() error {
 		rows, err := stmt2.Query()

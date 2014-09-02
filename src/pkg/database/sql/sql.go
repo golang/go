@@ -1326,15 +1326,12 @@ func (s *Stmt) connStmt() (ci *driverConn, releaseConn func(error), si driver.St
 		return ci, releaseConn, s.txsi.si, nil
 	}
 
-	var cs connStmt
-	match := false
 	for i := 0; i < len(s.css); i++ {
 		v := s.css[i]
 		_, err := s.db.connIfFree(v.dc)
 		if err == nil {
-			match = true
-			cs = v
-			break
+			s.mu.Unlock()
+			return v.dc, v.dc.releaseConn, v.si, nil
 		}
 		if err == errConnClosed {
 			// Lazily remove dead conn from our freelist.
@@ -1346,28 +1343,41 @@ func (s *Stmt) connStmt() (ci *driverConn, releaseConn func(error), si driver.St
 	}
 	s.mu.Unlock()
 
-	// Make a new conn if all are busy.
-	// TODO(bradfitz): or wait for one? make configurable later?
-	if !match {
-		dc, err := s.db.conn()
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		dc.Lock()
-		si, err := dc.prepareLocked(s.query)
-		dc.Unlock()
-		if err != nil {
-			s.db.putConn(dc, err)
-			return nil, nil, nil, err
-		}
-		s.mu.Lock()
-		cs = connStmt{dc, si}
-		s.css = append(s.css, cs)
-		s.mu.Unlock()
+	// If all connections are busy, either wait for one to become available (if
+	// we've already hit the maximum number of open connections) or create a
+	// new one.
+	//
+	// TODO(bradfitz): or always wait for one? make configurable later?
+	dc, err := s.db.conn()
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
-	conn := cs.dc
-	return conn, conn.releaseConn, cs.si, nil
+	// Do another pass over the list to see whether this statement has
+	// already been prepared on the connection assigned to us.
+	s.mu.Lock()
+	for _, v := range s.css {
+		if v.dc == dc {
+			s.mu.Unlock()
+			return dc, dc.releaseConn, v.si, nil
+		}
+	}
+	s.mu.Unlock()
+
+	// No luck; we need to prepare the statement on this connection
+	dc.Lock()
+	si, err = dc.prepareLocked(s.query)
+	dc.Unlock()
+	if err != nil {
+		s.db.putConn(dc, err)
+		return nil, nil, nil, err
+	}
+	s.mu.Lock()
+	cs := connStmt{dc, si}
+	s.css = append(s.css, cs)
+	s.mu.Unlock()
+
+	return dc, dc.releaseConn, si, nil
 }
 
 // Query executes a prepared query statement with the given arguments
