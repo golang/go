@@ -16,3 +16,5 @@ const raceenabled = false
 
 func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 }
+func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+}

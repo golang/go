@@ -45,3 +45,16 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 		racereadpc(addr, callerpc, pc)
 	}
 }
+
+func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+	kind := t.kind & kindMask
+	if kind == kindArray || kind == kindStruct {
+		// for composite objects we have to write every address
+		// because a write might happen to any subobject.
+		racewriterangepc(addr, int(t.size), callerpc, pc)
+	} else {
+		// for non-composite objects we can write just the start
+		// address, as any write must write the first byte.
+		racewritepc(addr, callerpc, pc)
+	}
+}

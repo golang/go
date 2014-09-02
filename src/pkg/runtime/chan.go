@@ -4,8 +4,7 @@
 
 package runtime
 
-// This file contains the implementation of Go channels
-// and select statements.
+// This file contains the implementation of Go channels.
 
 import "unsafe"
 

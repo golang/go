@@ -347,12 +347,13 @@ selecttype(int32 size)
 	sudog->type->local = 1;
 
 	scase = nod(OTSTRUCT, N, N);
-	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("sg")), sudog));
+	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("elem")), typenod(ptrto(types[TUINT8]))));
 	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("chan")), typenod(ptrto(types[TUINT8]))));
 	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("pc")), typenod(types[TUINTPTR])));
 	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("kind")), typenod(types[TUINT16])));
 	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("so")), typenod(types[TUINT16])));
 	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("receivedp")), typenod(ptrto(types[TUINT8]))));
+	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("releasetime")), typenod(types[TUINT64])));
 	typecheck(&scase, Etype);
 	scase->type->noalg = 1;
 	scase->type->local = 1;

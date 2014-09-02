@@ -403,6 +403,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" sudog struct{};" +
 			" waitq struct{};" +
 			" wincallbackcontext struct{};" +
+			" _select struct{}; " +
 			"); " +
 			"const ( cb_max = 2000 )"
 		f, err = parser.ParseFile(fset, filename, src, 0)
