@@ -864,7 +864,7 @@ void	runtime·freezetheworld(void);
 void	runtime·unwindstack(G*, byte*);
 void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp);
 void	runtime·resetcpuprofiler(int32);
-void	runtime·setcpuprofilerate(void(*)(uintptr*, int32), int32);
+void	runtime·setcpuprofilerate(int32);
 void	runtime·usleep(uint32);
 int64	runtime·cputicks(void);
 int64	runtime·tickspersecond(void);

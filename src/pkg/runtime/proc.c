@@ -2395,13 +2395,13 @@ runtime·badreflectcall(void) // called from assembly
 
 static struct {
 	Mutex lock;
-	void (*fn)(uintptr*, int32);
 	int32 hz;
 } prof;
 
 static void System(void) {}
 static void ExternalCode(void) {}
 static void GC(void) {}
+extern void runtime·cpuproftick(uintptr*, int32);
 extern byte runtime·etext[];
 
 // Called if we receive a SIGPROF signal.
@@ -2418,7 +2418,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 	m = 0;
 	USED(m);
 
-	if(prof.fn == nil || prof.hz == 0)
+	if(prof.hz == 0)
 		return;
 
 	// Profiling runs concurrently with GC, so it must not allocate.
@@ -2537,10 +2537,10 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 		}
 	}
 
-	if(prof.fn != nil) {
+	if(prof.hz != 0) {
 		runtime·lock(&prof.lock);
-		if(prof.fn != nil)
-			prof.fn(stk, n);
+		if(prof.hz != 0)
+			runtime·cpuproftick(stk, n);
 		runtime·unlock(&prof.lock);
 	}
 	mp->mallocing--;
@@ -2548,14 +2548,10 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 
 // Arrange to call fn with a traceback hz times a second.
 void
-runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
+runtime·setcpuprofilerate(int32 hz)
 {
 	// Force sane arguments.
 	if(hz < 0)
-		hz = 0;
-	if(hz == 0)
-		fn = nil;
-	if(fn == nil)
 		hz = 0;
 
 	// Disable preemption, otherwise we can be rescheduled to another thread
@@ -2568,7 +2564,6 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
 	runtime·resetcpuprofiler(0);
 
 	runtime·lock(&prof.lock);
-	prof.fn = fn;
 	prof.hz = hz;
 	runtime·unlock(&prof.lock);
 	runtime·lock(&runtime·sched.lock);
