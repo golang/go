@@ -54,7 +54,7 @@ func snprintf(dst *byte, n int32, s *byte) {
 
 	gp := getg()
 	gp.writebuf = buf[0:0 : n-1] // leave room for NUL, this is called from C
-	vprintf(gostring(s), add(unsafe.Pointer(&s), unsafe.Sizeof(s)))
+	vprintf(gostringnocopy(s), add(unsafe.Pointer(&s), unsafe.Sizeof(s)))
 	buf[len(gp.writebuf)] = '\x00'
 	gp.writebuf = nil
 }
