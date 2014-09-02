@@ -111,7 +111,7 @@ func f32hash(p unsafe.Pointer, s, h uintptr) uintptr {
 	case f == 0:
 		return c1 * (c0 ^ h) // +0, -0
 	case f != f:
-		return c1 * (c0 ^ h ^ uintptr(fastrand2())) // any kind of NaN
+		return c1 * (c0 ^ h ^ uintptr(fastrand1())) // any kind of NaN
 	default:
 		return memhash(p, 4, h)
 	}
@@ -123,7 +123,7 @@ func f64hash(p unsafe.Pointer, s, h uintptr) uintptr {
 	case f == 0:
 		return c1 * (c0 ^ h) // +0, -0
 	case f != f:
-		return c1 * (c0 ^ h ^ uintptr(fastrand2())) // any kind of NaN
+		return c1 * (c0 ^ h ^ uintptr(fastrand1())) // any kind of NaN
 	default:
 		return memhash(p, 8, h)
 	}

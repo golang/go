@@ -226,7 +226,7 @@ func selectgoImpl(sel *_select) (uintptr, uint16) {
 	}
 	for i := 1; i < int(sel.ncase); i++ {
 		o := pollorder[i]
-		j := int(fastrand2()) % (i + 1)
+		j := int(fastrand1()) % (i + 1)
 		pollorder[i] = pollorder[j]
 		pollorder[j] = o
 	}

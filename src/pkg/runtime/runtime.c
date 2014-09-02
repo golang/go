@@ -265,19 +265,6 @@ runtime·check(void)
 		runtime·throw("FixedStack is not power-of-2");
 }
 
-uint32
-runtime·fastrand1(void)
-{
-	uint32 x;
-
-	x = g->m->fastrand;
-	x += x;
-	if(x & 0x80000000L)
-		x ^= 0x88888eefUL;
-	g->m->fastrand = x;
-	return x;
-}
-
 static Mutex ticksLock;
 static int64 ticks;
 

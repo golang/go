@@ -219,7 +219,7 @@ func makemap(t *maptype, hint int64) *hmap {
 	h.count = 0
 	h.B = B
 	h.flags = 0
-	h.hash0 = fastrand2()
+	h.hash0 = fastrand1()
 	h.buckets = buckets
 	h.oldbuckets = nil
 	h.nevacuate = 0
@@ -568,7 +568,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 
 	// iterator state
 	it.bucket = 0
-	it.offset = uint8(fastrand2() & (bucketCnt - 1))
+	it.offset = uint8(fastrand1() & (bucketCnt - 1))
 	it.done = false
 	it.bptr = nil
 
