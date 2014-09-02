@@ -13,7 +13,7 @@ type abbr struct {
 }
 
 var abbrs = map[string]abbr{
-	"Egypt Standard Time":             {"EET", "EEST"},   // Africa/Cairo
+	"Egypt Standard Time":             {"EET", "EET"},    // Africa/Cairo
 	"Morocco Standard Time":           {"WET", "WEST"},   // Africa/Casablanca
 	"South Africa Standard Time":      {"SAST", "SAST"},  // Africa/Johannesburg
 	"W. Central Africa Standard Time": {"WAT", "WAT"},    // Africa/Lagos
@@ -22,7 +22,7 @@ var abbrs = map[string]abbr{
 	"Namibia Standard Time":           {"WAT", "WAST"},   // Africa/Windhoek
 	"Alaskan Standard Time":           {"AKST", "AKDT"},  // America/Anchorage
 	"Paraguay Standard Time":          {"PYT", "PYST"},   // America/Asuncion
-	"Bahia Standard Time":             {"BRT", "BRT"},    // America/Bahia
+	"Bahia Standard Time":             {"BRT", "BRST"},   // America/Bahia
 	"SA Pacific Standard Time":        {"COT", "COT"},    // America/Bogota
 	"Argentina Standard Time":         {"ART", "ART"},    // America/Buenos_Aires
 	"Venezuela Standard Time":         {"VET", "VET"},    // America/Caracas
@@ -105,9 +105,9 @@ var abbrs = map[string]abbr{
 	"Romance Standard Time":          {"CET", "CEST"},      // Europe/Paris
 	"Central European Standard Time": {"CET", "CEST"},      // Europe/Warsaw
 	"Mauritius Standard Time":        {"MUT", "MUT"},       // Indian/Mauritius
-	"Samoa Standard Time":            {"WST", "WSDT"},      // Pacific/Apia
+	"Samoa Standard Time":            {"WST", "WST"},       // Pacific/Apia
 	"New Zealand Standard Time":      {"NZST", "NZDT"},     // Pacific/Auckland
-	"Fiji Standard Time":             {"FJT", "FJST"},      // Pacific/Fiji
+	"Fiji Standard Time":             {"FJT", "FJT"},       // Pacific/Fiji
 	"Central Pacific Standard Time":  {"SBT", "SBT"},       // Pacific/Guadalcanal
 	"Hawaiian Standard Time":         {"HST", "HST"},       // Pacific/Honolulu
 	"Line Islands Standard Time":     {"LINT", "LINT"},     // Pacific/Kiritimati
