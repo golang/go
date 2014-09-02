@@ -30,21 +30,11 @@ func gogetenv(key string) string {
 	if fd < 0 {
 		return ""
 	}
-	n := seek(fd, 0, 2)
+	n := seek(fd, 0, 2) - 1
 
-	var p unsafe.Pointer
+	p := make([]byte, n)
 
-	// Be sure not to allocate for $GOTRACEBACK.
-	if key == "GOTRACEBACK" {
-		if n >= 128 {
-			return ""
-		}
-		p = unsafe.Pointer(&tracebackbuf[0])
-	} else {
-		p = gomallocgc(uintptr(n+1), nil, 0)
-	}
-
-	r := pread(fd, p, int32(n), 0)
+	r := pread(fd, unsafe.Pointer(&p[0]), int32(n), 0)
 	close(fd)
 	if r < 0 {
 		return ""
@@ -52,7 +42,7 @@ func gogetenv(key string) string {
 
 	var s string
 	sp := (*_string)(unsafe.Pointer(&s))
-	sp.str = (*byte)(p)
+	sp.str = &p[0]
 	sp.len = int(r)
 	return s
 }
