@@ -85,7 +85,7 @@ type errorCString struct{ cstr unsafe.Pointer }
 func (e errorCString) RuntimeError() {}
 
 func (e errorCString) Error() string {
-	return "runtime error: " + cstringToGo(e.cstr)
+	return "runtime error: " + gostringnocopy((*byte)(e.cstr))
 }
 
 // For calling from C.

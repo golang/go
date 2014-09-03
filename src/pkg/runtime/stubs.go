@@ -248,19 +248,15 @@ func open(name *byte, mode, perm int32) int32
 //go:noescape
 func gotraceback(*bool) int32
 
-func funcname(*_func) *byte
-
-func gofuncname(f *_func) string {
-	return gostringnocopy(funcname(f))
-}
-
 const _NoArgs = ^uintptr(0)
 
-var newproc, lessstack struct{} // C/assembly functions
-
-func funcspdelta(*_func, uintptr) int32 // symtab.c
-func funcarglen(*_func, uintptr) int32  // symtab.c
-const _ArgsSizeUnknown = -0x80000000    // funcdata.h
+func newstack()
+func newproc()
+func lessstack()
+func morestack()
+func mstart()
+func rt0_go()
+func sigpanic()
 
 // return0 is a stub used to return 0 from deferproc.
 // It is called at the very end of deferproc to signal

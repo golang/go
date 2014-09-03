@@ -120,6 +120,7 @@ runtime·goenvs_unix(void)
 	syscall·envs.cap = n;
 }
 
+#pragma textflag NOSPLIT
 Slice
 runtime·environ()
 {

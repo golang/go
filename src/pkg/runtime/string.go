@@ -145,19 +145,6 @@ type stringStruct struct {
 	len int
 }
 
-func cstringToGo(str unsafe.Pointer) (s string) {
-	i := 0
-	for ; ; i++ {
-		if *(*byte)(unsafe.Pointer(uintptr(str) + uintptr(i))) == 0 {
-			break
-		}
-	}
-	t := (*stringStruct)(unsafe.Pointer(&s))
-	t.str = unsafe.Pointer(str)
-	t.len = i
-	return
-}
-
 func intstring(v int64) string {
 	s, b := rawstring(4)
 	n := runetochar(b, rune(v))
