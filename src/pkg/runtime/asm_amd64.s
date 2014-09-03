@@ -2362,3 +2362,7 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 	MOVL	DX, m_fastrand(AX)
 	MOVL	DX, ret+0(FP)
 	RET
+
+TEXT runtime·return0(SB), NOSPLIT, $0
+	MOVL	$0, AX
+	RET

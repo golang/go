@@ -33,6 +33,7 @@ const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
 // jmpdeferPC is the PC at the beginning of the jmpdefer assembly function.
 // The traceback needs to recognize it on link register architectures.
 var jmpdeferPC = funcPC(jmpdefer)
+var deferprocPC = funcPC(deferproc)
 
 // System-specific hook. See traceback_windows.go
 var systraceback func(*_func, *stkframe, *g, bool, func(*stkframe, unsafe.Pointer) bool, unsafe.Pointer) (changed, aborted bool)
@@ -342,7 +343,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 
 	skipped:
 		waspanic = f.entry == uintptr(unsafe.Pointer(&sigpanic))
-		wasnewproc = f.entry == uintptr(unsafe.Pointer(&newproc)) || f.entry == uintptr(unsafe.Pointer(&deferproc))
+		wasnewproc = f.entry == uintptr(unsafe.Pointer(&newproc)) || f.entry == deferprocPC
 
 		// Do not unwind past the bottom of the stack.
 		if flr == nil {
@@ -582,7 +583,6 @@ func tracebackothers(me *g) {
 	unlock(&allglock)
 }
 
-func goexit()
 func mstart()
 func morestack()
 func rt0_go()

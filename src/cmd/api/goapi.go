@@ -379,7 +379,9 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
 		// Just enough to keep the api checker happy.
 		src := "package runtime; type (" +
+			" _defer struct{};" +
 			" _func struct{};" +
+			" _select struct{}; " +
 			" _type struct{};" +
 			" alg struct{};" +
 			" chantype struct{};" +
@@ -403,7 +405,6 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" sudog struct{};" +
 			" waitq struct{};" +
 			" wincallbackcontext struct{};" +
-			" _select struct{}; " +
 			"); " +
 			"const (" +
 			" cb_max = 2000;" +

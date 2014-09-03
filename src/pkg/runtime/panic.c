@@ -10,182 +10,32 @@
 
 // Code related to defer, panic and recover.
 
+// TODO: remove once code is moved to Go
+extern Defer* runtime·newdefer(int32 siz);
+extern runtime·freedefer(Defer *d);
+
 uint32 runtime·panicking;
 static Mutex paniclk;
 
-// Each P holds pool for defers with arg sizes 8, 24, 40, 56 and 72 bytes.
-// Memory block is 40 (24 for 32 bits) bytes larger due to Defer header.
-// This maps exactly to malloc size classes.
-
-// defer size class for arg size sz
-#define DEFERCLASS(sz) (((sz)+7)>>4)
-// total size of memory block for defer with arg size sz
-#define TOTALSIZE(sz) (sizeof(Defer) - sizeof(((Defer*)nil)->args) + ROUND(sz, sizeof(uintptr)))
-
-// Allocate a Defer, usually using per-P pool.
-// Each defer must be released with freedefer.
-static Defer*
-newdefer(int32 siz)
-{
-	int32 total, sc;
-	Defer *d;
-	P *p;
-
-	d = nil;
-	sc = DEFERCLASS(siz);
-	if(sc < nelem(p->deferpool)) {
-		p = g->m->p;
-		d = p->deferpool[sc];
-		if(d)
-			p->deferpool[sc] = d->link;
-	}
-	if(d == nil) {
-		// deferpool is empty or just a big defer
-		total = runtime·roundupsize(TOTALSIZE(siz));
-		d = runtime·mallocgc(total, nil, 0);
-	}
-	d->siz = siz;
-	d->special = 0;
-	d->link = g->defer;
-	g->defer = d;
-	return d;
-}
-
-// Free the given defer.
-// The defer cannot be used after this call.
-static void
-freedefer(Defer *d)
-{
-	int32 sc;
-	P *p;
-
-	if(d->special)
-		return;
-	sc = DEFERCLASS(d->siz);
-	if(sc < nelem(p->deferpool)) {
-		p = g->m->p;
-		d->link = p->deferpool[sc];
-		p->deferpool[sc] = d;
-		// No need to wipe out pointers in argp/pc/fn/args,
-		// because we empty the pool before GC.
-	}
-}
-
-// Create a new deferred function fn with siz bytes of arguments.
-// The compiler turns a defer statement into a call to this.
-// Cannot split the stack because it assumes that the arguments
-// are available sequentially after &fn; they would not be
-// copied if a stack split occurred.  It's OK for this to call
-// functions that split the stack.
-#pragma textflag NOSPLIT
-uintptr
-runtime·deferproc(int32 siz, FuncVal *fn, ...)
-{
-	Defer *d;
-
-	d = newdefer(siz);
-	d->fn = fn;
-	d->pc = (uintptr)runtime·getcallerpc(&siz);
-	if(thechar == '5')
-		d->argp = (uintptr)(&fn+2);  // skip caller's saved link register
-	else
-		d->argp = (uintptr)(&fn+1);
-	runtime·memmove(d->args, (byte*)d->argp, d->siz);
-
-	// deferproc returns 0 normally.
-	// a deferred func that stops a panic
-	// makes the deferproc return 1.
-	// the code the compiler generates always
-	// checks the return value and jumps to the
-	// end of the function if deferproc returns != 0.
-	return 0;
-}
-
-// Run a deferred function if there is one.
-// The compiler inserts a call to this at the end of any
-// function which calls defer.
-// If there is a deferred function, this will call runtime·jmpdefer,
-// which will jump to the deferred function such that it appears
-// to have been called by the caller of deferreturn at the point
-// just before deferreturn was called.  The effect is that deferreturn
-// is called again and again until there are no more deferred functions.
-// Cannot split the stack because we reuse the caller's frame to
-// call the deferred function.
-
-// The single argument isn't actually used - it just has its address
-// taken so it can be matched against pending defers.
-#pragma textflag NOSPLIT
 void
-runtime·deferreturn(uintptr arg0)
-{
-	Defer *d;
-	uintptr argp;
+runtime·deferproc_m(void) {
+	int32 siz;
 	FuncVal *fn;
-
-	d = g->defer;
-	if(d == nil)
-		return;
-	argp = (uintptr)&arg0;
-	if(d->argp != argp)
-		return;
-
-	// Moving arguments around.
-	// Do not allow preemption here, because the garbage collector
-	// won't know the form of the arguments until the jmpdefer can
-	// flip the PC over to fn.
-	g->m->locks++;
-	runtime·memmove((byte*)argp, d->args, d->siz);
-	fn = d->fn;
-	g->defer = d->link;
-	freedefer(d);
-	g->m->locks--;
-	if(g->m->locks == 0 && g->preempt)
-		g->stackguard0 = StackPreempt;
-	runtime·jmpdefer(fn, argp);
-}
-
-// Ensure that defer arg sizes that map to the same defer size class
-// also map to the same malloc size class.
-void
-runtime·testdefersizes(void)
-{
-	P *p;
-	int32 i, siz, defersc, mallocsc;
-	int32 map[nelem(p->deferpool)];
-
-	for(i=0; i<nelem(p->deferpool); i++)
-		map[i] = -1;
-	for(i=0;; i++) {
-		defersc = DEFERCLASS(i);
-		if(defersc >= nelem(p->deferpool))
-			break;
-		siz = TOTALSIZE(i);
-		mallocsc = runtime·SizeToClass(siz);
-		siz = runtime·class_to_size[mallocsc];
-		// runtime·printf("defer class %d: arg size %d, block size %d(%d)\n", defersc, i, siz, mallocsc);
-		if(map[defersc] < 0) {
-			map[defersc] = mallocsc;
-			continue;
-		}
-		if(map[defersc] != mallocsc) {
-			runtime·printf("bad defer size class: i=%d siz=%d mallocsc=%d/%d\n",
-				i, siz, map[defersc], mallocsc);
-			runtime·throw("bad defer size class");
-		}
-	}
-}
-
-// Run all deferred functions for the current goroutine.
-static void
-rundefer(void)
-{
+	uintptr argp;
+	uintptr callerpc;
 	Defer *d;
 
-	while((d = g->defer) != nil) {
-		g->defer = d->link;
-		reflect·call(d->fn, (byte*)d->args, d->siz, d->siz);
-		freedefer(d);
-	}
+	siz = g->m->scalararg[0];
+	fn = g->m->ptrarg[0];
+	argp = g->m->scalararg[1];
+	callerpc = g->m->scalararg[2];
+	g->m->ptrarg[0] = nil;
+
+	d = runtime·newdefer(siz);
+	d->fn = fn;
+	d->pc = callerpc;
+	d->argp = argp;
+	runtime·memmove(d->args, (void*)argp, siz);
 }
 
 // Print all currently active panics.  Used when crashing.
@@ -252,14 +102,14 @@ runtime·panic(Eface e)
 			runtime·throw("bad defer entry in panic");
 		g->defer = dabort.link;
 
-		freedefer(d);
+		runtime·freedefer(d);
 		if(p.recovered) {
 			g->panic = p.link;
 			// Aborted panics are marked but remain on the g->panic list.
 			// Recovery will unwind the stack frames containing their Panic structs.
 			// Remove them from the list and free the associated defers.
 			while(g->panic && g->panic->aborted) {
-				freedefer(g->panic->defer);
+				runtime·freedefer(g->panic->defer);
 				g->panic = g->panic->link;
 			}
 			if(g->panic == nil)	// must be done with signal
@@ -464,20 +314,6 @@ runtime·dopanic(int32 unused)
 	runtime·exit(2);
 }
 
-void
-runtime·throwreturn(void)
-{
-	// can only happen if compiler is broken
-	runtime·throw("no return at end of a typed function - compiler is broken");
-}
-
-void
-runtime·throwinit(void)
-{
-	// can only happen with linker skew
-	runtime·throw("recursive call during initialization - linker skew");
-}
-
 bool
 runtime·canpanic(G *gp)
 {
@@ -559,17 +395,4 @@ runtime·panicstring(int8 *s)
 	}
 	runtime·newErrorCString(s, &err);
 	runtime·panic(err);
-}
-
-void
-runtime·Goexit(void)
-{
-	rundefer();
-	runtime·goexit();
-}
-
-void
-runtime·panicdivide(void)
-{
-	runtime·panicstring("integer divide by zero");
 }

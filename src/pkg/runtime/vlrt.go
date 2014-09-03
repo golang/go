@@ -256,5 +256,3 @@ func slowdodiv(n, d uint64) (q, r uint64) {
 	}
 	return q, n
 }
-
-func panicdivide()

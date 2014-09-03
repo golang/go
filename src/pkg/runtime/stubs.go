@@ -41,6 +41,7 @@ func racereleaseg(gp *g, addr unsafe.Pointer)
 func racefingo()
 
 // Should be a built-in for unsafe.Pointer?
+//go:nosplit
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
 }
@@ -85,6 +86,8 @@ func unrollgcproginplace_m()
 func setgcpercent_m()
 func setmaxthreads_m()
 func ready_m()
+func deferproc_m()
+func goexit_m()
 
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s
@@ -126,6 +129,7 @@ func gothrow(s string)
 // output depends on the input.  noescape is inlined and currently
 // compiles down to a single xor instruction.
 // USE CAREFULLY!
+//go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
 	return unsafe.Pointer(x ^ 0)
@@ -141,7 +145,9 @@ func gosave(buf *gobuf)
 func read(fd int32, p unsafe.Pointer, n int32) int32
 func close(fd int32) int32
 func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
-func jmpdefer(fv *funcval, argp unsafe.Pointer)
+
+//go:noescape
+func jmpdefer(fv *funcval, argp uintptr)
 func exit1(code int32)
 func asminit()
 func setg(gg *g)
@@ -162,6 +168,7 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer
 func readgogc() int32
 func purgecachedstats(c *mcache)
 func gostringnocopy(b *byte) string
+func goexit()
 
 //go:noescape
 func write(fd uintptr, p unsafe.Pointer, n int32) int32
@@ -249,8 +256,15 @@ func gofuncname(f *_func) string {
 
 const _NoArgs = ^uintptr(0)
 
-var newproc, deferproc, lessstack struct{} // C/assembly functions
+var newproc, lessstack struct{} // C/assembly functions
 
 func funcspdelta(*_func, uintptr) int32 // symtab.c
 func funcarglen(*_func, uintptr) int32  // symtab.c
 const _ArgsSizeUnknown = -0x80000000    // funcdata.h
+
+// return0 is a stub used to return 0 from deferproc.
+// It is called at the very end of deferproc to signal
+// the calling Go function that it should not jump
+// to deferreturn.
+// in asm_*.s
+func return0()
