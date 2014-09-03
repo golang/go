@@ -11,9 +11,7 @@ import (
 func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapaccess1_fast32
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast32))
 	}
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero)
@@ -55,9 +53,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapaccess2_fast32
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast32))
 	}
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero), false
@@ -99,9 +95,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapaccess1_fast64
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast64))
 	}
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero)
@@ -143,9 +137,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapaccess2_fast64
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast64))
 	}
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero), false
@@ -187,9 +179,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapaccess1_faststr
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_faststr))
 	}
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero)
@@ -291,9 +281,7 @@ dohash:
 func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapaccess2_faststr
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_faststr))
 	}
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero), false

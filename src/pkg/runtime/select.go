@@ -13,16 +13,9 @@ const (
 )
 
 var (
-	chansendpc uintptr
-	chanrecvpc uintptr
+	chansendpc = funcPC(chansend)
+	chanrecvpc = funcPC(chanrecv)
 )
-
-func init() {
-	f := chansend
-	chansendpc = **(**uintptr)(unsafe.Pointer(&f))
-	g := chanrecv
-	chanrecvpc = **(**uintptr)(unsafe.Pointer(&g))
-}
 
 func selectsize(size uintptr) uintptr {
 	selsize := unsafe.Sizeof(_select{}) +
@@ -286,7 +279,6 @@ func selectgoImpl(sel *_select) (uintptr, uint16) {
 		k      *scase
 		sglist *sudog
 		sgnext *sudog
-		fn     func(*g, *_select) bool
 	)
 
 loop:
@@ -371,8 +363,7 @@ loop:
 
 	// wait for someone to wake us up
 	gp.param = nil
-	fn = selparkcommit
-	gopark(**(**unsafe.Pointer)(unsafe.Pointer(&fn)), unsafe.Pointer(sel), "select")
+	gopark(unsafe.Pointer(funcPC(selparkcommit)), unsafe.Pointer(sel), "select")
 
 	// someone woke us up
 	sellock(sel)
