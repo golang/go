@@ -239,9 +239,7 @@ Assoc:
 	// Reuse the newly evicted entry.
 	e.depth = uintptr(len(pc))
 	e.count = 1
-	for i := range pc {
-		e.stack[i] = pc[i]
-	}
+	copy(e.stack[:], pc)
 }
 
 // evict copies the given entry's data into the log, so that
@@ -266,10 +264,8 @@ func (p *cpuProfile) evict(e *cpuprofEntry) bool {
 	q++
 	log[q] = d
 	q++
-	for i := uintptr(0); i < d; i++ {
-		log[q] = e.stack[i]
-		q++
-	}
+	copy(log[q:], e.stack[:d])
+	q += d
 	p.nlog = q
 	e.count = 0
 	return true
