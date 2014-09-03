@@ -128,6 +128,7 @@ static bool preemptone(P*);
 static bool exitsyscallfast(void);
 static bool haveexperiment(int8*);
 static void allgadd(G*);
+static void dropg(void);
 
 extern String runtime·buildVersion;
 
@@ -272,7 +273,8 @@ runtime·main(void)
 static void
 dumpgstatus(G* gp)
 {
-	runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
+	runtime·printf("runtime: gp: gp=%p, goid=%D, gp->atomicstatus=%x\n", gp, gp->goid, runtime·readgstatus(gp));
+	runtime·printf("runtime:  g:  g=%p, goid=%D,  g->atomicstatus=%x\n", g, g->goid, runtime·readgstatus(g));
 }
 
 static void
@@ -508,10 +510,202 @@ runtime·casgstatus(G *gp, uint32 oldval, uint32 newval)
 		runtime·throw("casgstatus: bad incoming values");
 	}
 
+	// loop if gp->atomicstatus is in a scan state giving
+	// GC time to finish and change the state to oldval.
 	while(!runtime·cas(&gp->atomicstatus, oldval, newval)) {
-		// loop if gp->atomicstatus is in a  scan state giving
-		// GC time to finish and change the state to oldval.
+		// Help GC if needed. 
+		if(gp->preemptscan && !gp->gcworkdone && (oldval == Grunning || oldval == Gsyscall)) {
+			gp->preemptscan = false;
+			runtime·gcphasework(gp);
+		}
+	}	
+}
+
+// stopg ensures that gp is stopped at a GC safe point where its stack can be scanned
+// or in the context of a moving collector the pointers can be flipped from pointing 
+// to old object to pointing to new objects. 
+// If stopg returns true, the caller knows gp is at a GC safe point and will remain there until
+// the caller calls restartg.
+// If stopg returns false, the caller is not responsible for calling restartg. This can happen
+// if another thread, either the gp itself or another GC thread is taking the responsibility 
+// to do the GC work related to this thread.
+bool
+runtime·stopg(G *gp)
+{
+	uint32 s;
+
+	for(;;) {
+		if(gp->gcworkdone)
+			return false;
+
+		s = runtime·readgstatus(gp);
+		switch(s) {
+		default:
+			dumpgstatus(gp);
+			runtime·throw("stopg: gp->atomicstatus is not valid");
+
+		case Gdead:
+			return false;
+
+		case Gcopystack:
+			// Loop until a new stack is in place.
+			break;
+
+		case Grunnable:
+		case Gsyscall:
+		case Gwaiting:
+			// Claim goroutine by setting scan bit.
+			if(!runtime·castogscanstatus(gp, s, s|Gscan))
+				break;
+			// In scan state, do work.
+			runtime·gcphasework(gp);
+			return true;
+
+		case Gscanrunnable:
+		case Gscanwaiting:
+		case Gscansyscall:
+			// Goroutine already claimed by another GC helper.
+			return false;
+
+		case Grunning:
+			// Claim goroutine, so we aren't racing with a status
+			// transition away from Grunning.
+			if(!runtime·castogscanstatus(gp, Grunning, Gscanrunning))
+				break;
+
+			// Mark gp for preemption.
+			if(!gp->gcworkdone) {
+				gp->preemptscan = true;
+				gp->preempt = true;
+				gp->stackguard0 = StackPreempt;
+			}
+
+			// Unclaim.
+			runtime·casfromgscanstatus(gp, Gscanrunning, Grunning);
+			return false;
+		}
 	}
+	// Should not be here....
+}
+
+// The GC requests that this routine be moved from a scanmumble state to a mumble state.
+void 
+runtime·restartg (G *gp)
+{
+	uint32 s;
+
+	s = runtime·readgstatus(gp);
+	switch(s) {
+	default:
+		dumpgstatus(gp); 
+		runtime·throw("restartg: unexpected status");
+
+	case Gdead:
+		break;
+
+	case Gscanrunnable:
+	case Gscanwaiting:
+	case Gscansyscall:
+		runtime·casfromgscanstatus(gp, s, s&~Gscan);
+		break;
+
+	case Gscanenqueue:
+		// Scan is now completed.
+		// Goroutine now needs to be made runnable.
+		// We put it on the global run queue; ready blocks on the global scheduler lock.
+		runtime·casfromgscanstatus(gp, Gscanenqueue, Gwaiting);
+		if(gp != g->m->curg)
+			runtime·throw("processing Gscanenqueue on wrong m");
+		dropg();
+		runtime·ready(gp);
+		break;
+	}
+}
+
+static void
+stopscanstart(G* gp)
+{
+	if(g == gp)
+		runtime·throw("GC not moved to G0");
+	if(runtime·stopg(gp)) {
+		if(!isscanstatus(runtime·readgstatus(gp))) {
+			dumpgstatus(gp);
+			runtime·throw("GC not in scan state");
+		}
+		runtime·restartg(gp);
+	}
+}
+
+// Runs on g0 and does the actual work after putting the g back on the run queue.
+static void
+mquiesce(G *gpmaster)
+{
+	G* gp;
+	uint32 i;
+	uint32 status;
+	uint32 activeglen;
+
+	activeglen = runtime·allglen;
+	// enqueue the calling goroutine.
+	runtime·restartg(gpmaster);
+	for(i = 0; i < activeglen; i++) {
+		gp = runtime·allg[i];
+		if(runtime·readgstatus(gp) == Gdead) 
+			gp->gcworkdone = true; // noop scan.
+		else 
+			gp->gcworkdone = false; 
+		stopscanstart(gp); 
+	}
+
+	// Check that the G's gcwork (such as scanning) has been done. If not do it now. 
+	// You can end up doing work here if the page trap on a Grunning Goroutine has
+	// not been sprung or in some race situations. For example a runnable goes dead
+	// and is started up again with a gp->gcworkdone set to false.
+	for(i = 0; i < activeglen; i++) {
+		gp = runtime·allg[i];
+		while (!gp->gcworkdone) {
+			status = runtime·readgstatus(gp);
+			if(status == Gdead) {
+				gp->gcworkdone = true; // scan is a noop
+				break;
+				//do nothing, scan not needed. 
+			}
+			if(status == Grunning && gp->stackguard0 == (uintptr)StackPreempt && runtime·notetsleep(&runtime·sched.stopnote, 100*1000)) // nanosecond arg 
+				runtime·noteclear(&runtime·sched.stopnote);
+			else 
+				stopscanstart(gp);
+		}
+	}
+
+	for(i = 0; i < activeglen; i++) {
+		gp = runtime·allg[i];
+		status = runtime·readgstatus(gp);
+		if(isscanstatus(status)) {
+			runtime·printf("mstopandscang:bottom: post scan bad status gp=%p has status %x\n", gp, status);
+			dumpgstatus(gp);
+		}
+		if(!gp->gcworkdone && status != Gdead) {
+			runtime·printf("mstopandscang:bottom: post scan gp=%p->gcworkdone still false\n", gp);
+			dumpgstatus(gp);
+		}
+	}
+
+	schedule(); // Never returns.
+}
+
+// quiesce moves all the goroutines to a GC safepoint which for now is a at preemption point.
+// If the global runtime·gcphase is GCmark quiesce will ensure that all of the goroutine's stacks
+// have been scanned before it returns.
+void
+runtime·quiesce(G* mastergp)
+{
+	void (*fn)(G*);
+
+	runtime·castogscanstatus(mastergp, Grunning, Gscanenqueue);
+	// Now move this to the g0 (aka m) stack.
+	// g0 will potentially scan this thread and put mastergp on the runqueue 
+	fn = mquiesce;
+	runtime·mcall(&fn);
 }
 
 // This is used by the GC as well as the routines that do stack dumps. In the case
@@ -1503,7 +1697,7 @@ runtime·gosched_m(G *gp)
 	uint32 status;
 
 	status = runtime·readgstatus(gp);
-	if ((status&~Gscan) != Grunning){
+	if((status&~Gscan) != Grunning){
 		dumpgstatus(gp);
 		runtime·throw("bad g status");
 	}
@@ -2031,7 +2225,7 @@ allgadd(G *gp)
 	G **new;
 	uintptr cap;
 
-	if (runtime·readgstatus(gp) == Gidle) 
+	if(runtime·readgstatus(gp) == Gidle) 
 		runtime·throw("allgadd: bad status Gidle");
 
 	runtime·lock(&allglock);
@@ -2062,7 +2256,7 @@ gfput(P *p, G *gp)
 	uintptr stksize;
 	Stktop *top;
 
-	if (runtime·readgstatus(gp) != Gdead) 
+	if(runtime·readgstatus(gp) != Gdead) 
 		runtime·throw("gfput: bad status (not Gdead)");
 
 	if(gp->stackguard - StackGuard != gp->stack0)

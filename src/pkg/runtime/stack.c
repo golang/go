@@ -936,6 +936,14 @@ runtime·newstack(void)
 			runtime·throw("runtime: g is running but p is not");
 		if(oldstatus == Gsyscall && g->m->locks == 0)
 			runtime·throw("runtime: stack growth during syscall");
+		if(oldstatus == Grunning && gp->preemptscan) {
+			runtime·gcphasework(gp);
+			runtime·casgstatus(gp, Gwaiting, Grunning);
+			gp->stackguard0 = gp->stackguard;
+			gp->preempt = false; 
+			gp->preemptscan = false;        // Tells the GC premption was successful.
+			runtime·gogo(&gp->sched);	// never return 
+		}
 
 		// Be conservative about where we preempt.
 		// We are interested in preempting user Go code, not runtime code.

@@ -432,6 +432,7 @@ markroot(ParFor *desc, uint32 i)
 	G *gp;
 	void *p;
 	uint32 status;
+	bool restart;
 
 	USED(&desc);
 	// Note: if you add a case here, please also update heapdump.c:dumproots.
@@ -493,9 +494,15 @@ markroot(ParFor *desc, uint32 i)
 			gp->waitsince = work.tstart;
 		// Shrink a stack if not much of it is being used.
 		runtime·shrinkstack(gp);
+		if(runtime·readgstatus(gp) == Gdead) 
+			gp->gcworkdone = true;
+		else 
+			gp->gcworkdone = false; 
+		restart = runtime·stopg(gp);
 		scanstack(gp);
+		if(restart)
+			runtime·restartg(gp);
 		break;
-		
 	}
 }
 
@@ -687,7 +694,12 @@ scanstack(G *gp)
 	uintptr sp, guard;
 	bool (*fn)(Stkframe*, void*);
 
-	switch(runtime·readgstatus(gp)) {
+	if(runtime·readgstatus(gp)&Gscan == 0) {
+		runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
+		runtime·throw("mark - bad status");
+	}
+
+	switch(runtime·readgstatus(gp)&~Gscan) {
 	default:
 		runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
 		runtime·throw("mark - bad status");
@@ -745,6 +757,29 @@ scanstack(G *gp)
 			n++;
 		}
 	}
+}
+
+// The gp has been moved to a gc safepoint. If there is gcphase specific
+// work it is done here. 
+void
+runtime·gcphasework(G *gp)
+{
+	switch(runtime·gcphase) {
+	default:
+		runtime·throw("gcphasework in bad gcphase");
+	case GCoff:
+	case GCquiesce:
+	case GCstw:
+	case GCsweep:
+		// No work for now.
+		break;
+	case GCmark:
+		// Disabled until concurrent GC is implemented
+		// but indicate the scan has been done. 
+		// scanstack(gp);
+		break;
+	}
+	gp->gcworkdone = true;
 }
 
 void
