@@ -147,7 +147,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
 	MOVW	gobuf_pc(R1), R11
 	B	(R11)
 
-// void mcall(void (*fn)(G*))
+// func mcall(fn func(*g))
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return.  It should gogo(&g->sched)
 // to keep running g.
@@ -173,6 +173,8 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	SUB	$8, SP
 	MOVW	R1, 4(SP)
+	MOVW	R0, R7
+	MOVW	0(R0), R0
 	BL	(R0)
 	B	runtime·badmcall2(SB)
 	RET
@@ -187,7 +189,7 @@ TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
 	BL	(R0) // clobber lr to ensure push {lr} is kept
 	RET
 
-// void onM(void (*fn)())
+// func onM(fn func())
 // calls fn() on the M stack.
 // switches to the M stack if not already on it, and
 // switches back when fn() returns.
@@ -213,6 +215,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
 
 	// call target function
 	ARGSIZE(0)
+	MOVW	R0, R7
+	MOVW	0(R0), R0
 	BL	(R0)
 
 	// switch back to g
@@ -224,6 +228,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
 	RET
 
 onm:
+	MOVW	R0, R7
+	MOVW	0(R0), R0
 	BL	(R0)
 	RET
 

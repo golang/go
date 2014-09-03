@@ -57,37 +57,34 @@ func acquirem() *m
 func releasem(mp *m)
 func gomcache() *mcache
 
-// An mFunction represents a C function that runs on the M stack.  It
-// can be called from Go using mcall or onM.  Through the magic of
-// linking, an mFunction variable and the corresponding C code entry
-// point live at the same address.
-type mFunction byte
-
 // in asm_*.s
-func mcall(fn *mFunction)
-func onM(fn *mFunction)
+func mcall(func(*g))
+func onM(fn func())
 
-// C functions that run on the M stack.  Call these like
-//   mcall(&mcacheRefill_m)
-// Arguments should be passed in m->scalararg[x] and
-// m->ptrarg[x].  Return values can be passed in those
-// same slots.
-var (
-	mcacheRefill_m,
-	largeAlloc_m,
-	gc_m,
-	scavenge_m,
-	setFinalizer_m,
-	removeFinalizer_m,
-	markallocated_m,
-	unrollgcprog_m,
-	unrollgcproginplace_m,
-	gosched_m,
-	setgcpercent_m,
-	setmaxthreads_m,
-	ready_m,
-	park_m mFunction
-)
+// C functions that run on the M stack.
+// Call using mcall.
+// These functions need to be written to arrange explicitly
+// for the goroutine to continue execution.
+func gosched_m(*g)
+func park_m(*g)
+
+// More C functions that run on the M stack.
+// Call using onM.
+// Arguments should be passed in m->scalararg[x] and m->ptrarg[x].
+// Return values can be passed in those same slots.
+// These functions return to the goroutine when they return.
+func mcacheRefill_m()
+func largeAlloc_m()
+func gc_m()
+func scavenge_m()
+func setFinalizer_m()
+func removeFinalizer_m()
+func markallocated_m()
+func unrollgcprog_m()
+func unrollgcproginplace_m()
+func setgcpercent_m()
+func setmaxthreads_m()
+func ready_m()
 
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s

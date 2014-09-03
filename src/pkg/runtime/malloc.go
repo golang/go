@@ -144,7 +144,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			if v == nil {
 				mp := acquirem()
 				mp.scalararg[0] = tinySizeClass
-				onM(&mcacheRefill_m)
+				onM(mcacheRefill_m)
 				releasem(mp)
 				s = c.alloc[tinySizeClass]
 				v = s.freelist
@@ -175,7 +175,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			if v == nil {
 				mp := acquirem()
 				mp.scalararg[0] = uintptr(sizeclass)
-				onM(&mcacheRefill_m)
+				onM(mcacheRefill_m)
 				releasem(mp)
 				s = c.alloc[sizeclass]
 				v = s.freelist
@@ -196,7 +196,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 		mp := acquirem()
 		mp.scalararg[0] = uintptr(size)
 		mp.scalararg[1] = uintptr(flags)
-		onM(&largeAlloc_m)
+		onM(largeAlloc_m)
 		s = (*mspan)(mp.ptrarg[0])
 		mp.ptrarg[0] = nil
 		releasem(mp)
@@ -246,7 +246,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 				mp.ptrarg[1] = unsafe.Pointer(typ)
 				mp.scalararg[0] = uintptr(size)
 				mp.scalararg[1] = uintptr(size0)
-				onM(&unrollgcproginplace_m)
+				onM(unrollgcproginplace_m)
 				releasem(mp)
 				goto marked
 			}
@@ -255,7 +255,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			if uintptr(atomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
 				mp := acquirem()
 				mp.ptrarg[0] = unsafe.Pointer(typ)
-				onM(&unrollgcprog_m)
+				onM(unrollgcprog_m)
 				releasem(mp)
 			}
 			ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
@@ -459,7 +459,7 @@ func gogc(force int32) {
 		} else {
 			mp.scalararg[2] = 0
 		}
-		onM(&gc_m)
+		onM(gc_m)
 	}
 
 	// all done
@@ -571,7 +571,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		// switch to M stack and remove finalizer
 		mp := acquirem()
 		mp.ptrarg[0] = e.data
-		onM(&removeFinalizer_m)
+		onM(removeFinalizer_m)
 		releasem(mp)
 		return
 	}
@@ -624,7 +624,7 @@ okarg:
 	mp.scalararg[0] = nret
 	mp.ptrarg[2] = unsafe.Pointer(fint)
 	mp.ptrarg[3] = unsafe.Pointer(ot)
-	onM(&setFinalizer_m)
+	onM(setFinalizer_m)
 	if mp.scalararg[0] != 1 {
 		gothrow("runtime.SetFinalizer: finalizer already set")
 	}

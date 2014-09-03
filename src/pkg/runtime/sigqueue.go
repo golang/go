@@ -9,7 +9,7 @@ package runtime
 func signal_recv() (m uint32) {
 	for {
 		mp := acquirem()
-		onM(&signal_recv_m)
+		onM(signal_recv_m)
 		ok := mp.scalararg[0] != 0
 		m = uint32(mp.scalararg[1])
 		releasem(mp)
@@ -24,19 +24,17 @@ func signal_recv() (m uint32) {
 func signal_enable(s uint32) {
 	mp := acquirem()
 	mp.scalararg[0] = uintptr(s)
-	onM(&signal_enable_m)
+	onM(signal_enable_m)
 	releasem(mp)
 }
 
 func signal_disable(s uint32) {
 	mp := acquirem()
 	mp.scalararg[0] = uintptr(s)
-	onM(&signal_disable_m)
+	onM(signal_disable_m)
 	releasem(mp)
 }
 
-var (
-	signal_recv_m,
-	signal_enable_m,
-	signal_disable_m mFunction
-)
+func signal_recv_m()
+func signal_enable_m()
+func signal_disable_m()

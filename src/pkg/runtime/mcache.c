@@ -65,8 +65,11 @@ freemcache_m(G *gp)
 void
 runtime·freemcache(MCache *c)
 {
+	void (*fn)(G*);
+
 	g->m->ptrarg[0] = c;
-	runtime·mcall(freemcache_m);
+	fn = freemcache_m;
+	runtime·mcall(&fn);
 }
 
 // Gets a span that has a free object in it and assigns it

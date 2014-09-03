@@ -1141,6 +1141,7 @@ runtime·updatememstats(GCStats *stats)
 	int32 i;
 	uint64 smallfree;
 	uint64 *src, *dst;
+	void (*fn)(G*);
 
 	if(stats)
 		runtime·memclr((byte*)stats, sizeof(*stats));
@@ -1177,8 +1178,10 @@ runtime·updatememstats(GCStats *stats)
 	// Flush MCache's to MCentral.
 	if(g == g->m->g0)
 		flushallmcaches();
-	else
-		runtime·mcall(flushallmcaches_m);
+	else {
+		fn = flushallmcaches_m;
+		runtime·mcall(&fn);
+	}
 
 	// Aggregate local stats.
 	cachestats();

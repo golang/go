@@ -55,7 +55,7 @@ func forcegchelper() {
 // Gosched yields the processor, allowing other goroutines to run.  It does not
 // suspend the current goroutine, so execution resumes automatically.
 func Gosched() {
-	mcall(&gosched_m)
+	mcall(gosched_m)
 }
 
 func readgStatus(gp *g) uint32 {
@@ -77,7 +77,7 @@ func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
 	gp.waitreason = reason
 	releasem(mp)
 	// can't do anything that might move the G between Ms here.
-	mcall(&park_m)
+	mcall(park_m)
 }
 
 // Puts the current goroutine into a waiting state and unlocks the lock.
@@ -89,7 +89,7 @@ func goparkunlock(lock *mutex, reason string) {
 func goready(gp *g) {
 	mp := acquirem()
 	mp.ptrarg[0] = unsafe.Pointer(gp)
-	onM(&ready_m)
+	onM(ready_m)
 	releasem(mp)
 }
 

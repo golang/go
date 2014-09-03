@@ -746,6 +746,8 @@ mdump(G *gp)
 void
 runtime∕debug·WriteHeapDump(uintptr fd)
 {
+	void (*fn)(G*);
+
 	// Stop the world.
 	runtime·semacquire(&runtime·worldsema, false);
 	g->m->gcing = 1;
@@ -762,7 +764,8 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 	// Call dump routine on M stack.
 	runtime·casgstatus(g, Grunning, Gwaiting);
 	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
-	runtime·mcall(mdump);
+	fn = mdump;
+	runtime·mcall(&fn);
 
 	// Reset dump file.
 	dumpfd = 0;
