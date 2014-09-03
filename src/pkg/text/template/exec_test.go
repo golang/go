@@ -514,6 +514,11 @@ var execTests = []execTest{
 	{"bug10", "{{mapOfThree.three}}-{{(mapOfThree).three}}", "3-3", 0, true},
 	// Dereferencing nil pointer while evaluating function arguments should not panic. Issue 7333.
 	{"bug11", "{{valueString .PS}}", "", T{}, false},
+	// 0xef gave constant type float64. Issue 8622.
+	{"bug12xe", "{{printf `%T` 0xef}}", "int", T{}, true},
+	{"bug12xE", "{{printf `%T` 0xEE}}", "int", T{}, true},
+	{"bug12Xe", "{{printf `%T` 0Xef}}", "int", T{}, true},
+	{"bug12XE", "{{printf `%T` 0XEE}}", "int", T{}, true},
 }
 
 func zeroArgs() string {
