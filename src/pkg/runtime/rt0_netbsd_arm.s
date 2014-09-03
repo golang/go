@@ -10,4 +10,4 @@ TEXT _rt0_arm_netbsd(SB),NOSPLIT,$-4
 	MOVW	(R13), R0	// argc
 	MOVW	$4(R13), R1		// argv
 	MOVM.DB.W [R0-R1], (R13)
-	B _rt0_go(SB)
+	B runtime·rt0_go(SB)

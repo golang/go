@@ -7,7 +7,7 @@
 #include "../../cmd/ld/textflag.h"
 
 // using frame size $-4 means do not save LR on stack.
-TEXT _rt0_go(SB),NOSPLIT,$-4
+TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 	MOVW	$0xcafebabe, R12
 
 	// copy arguments forward on an even stack

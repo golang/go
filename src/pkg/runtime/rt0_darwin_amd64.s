@@ -11,5 +11,5 @@ TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
 	JMP	AX
 
 TEXT main(SB),NOSPLIT,$-8
-	MOVQ	$_rt0_go(SB), AX
+	MOVQ	$runtime·rt0_go(SB), AX
 	JMP	AX
