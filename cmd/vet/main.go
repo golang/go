@@ -307,22 +307,16 @@ func doPackage(directory string, names []string) bool {
 	var astFiles []*ast.File
 	fs := token.NewFileSet()
 	for _, name := range names {
-		f, err := os.Open(name)
+		data, err := ioutil.ReadFile(name)
 		if err != nil {
 			// Warn but continue to next package.
-			warnf("%s: %s", name, err)
-			return false
-		}
-		defer f.Close()
-		data, err := ioutil.ReadAll(f)
-		if err != nil {
 			warnf("%s: %s", name, err)
 			return false
 		}
 		checkBuildTag(name, data)
 		var parsedFile *ast.File
 		if strings.HasSuffix(name, ".go") {
-			parsedFile, err = parser.ParseFile(fs, name, bytes.NewReader(data), 0)
+			parsedFile, err = parser.ParseFile(fs, name, data, 0)
 			if err != nil {
 				warnf("%s: %s", name, err)
 				return false
