@@ -185,8 +185,6 @@ runtime·schedinit(void)
 	if(p != nil && !runtime·strcmp(p, (byte*)"0"))
 		runtime·copystack = false;
 
-	mstats.enablegc = 1;
-
 	if(runtime·buildVersion.str == nil) {
 		// Condition should never trigger.  This code just serves
 		// to ensure runtime·buildVersion is kept in the resulting binary.
@@ -244,7 +242,10 @@ runtime·main(void)
 
 	if(g->m != &runtime·m0)
 		runtime·throw("runtime·main not on m0");
+
 	runtime·init();
+	mstats.enablegc = 1; // now that runtime is initialized, GC is okay
+
 	main·init();
 
 	if(g->defer != &d || d.fn != &initDone)
@@ -268,116 +269,10 @@ runtime·main(void)
 		*(int32*)runtime·main = 0;
 }
 
-void
-runtime·goroutineheader(G *gp)
-{
-	String status;
-	int64 waitfor;
-	uint32 gpstatus;
-
-	gpstatus = runtime·readgstatus(gp);
-	switch(gpstatus) {
-	case Gidle:
-		status = runtime·gostringnocopy((byte*)"idle");
-		break;
-	case Grunnable:
-		status = runtime·gostringnocopy((byte*)"runnable");
-		break;
-	case Grunning:
-		status = runtime·gostringnocopy((byte*)"running");
-		break;
-	case Gsyscall:
-		status = runtime·gostringnocopy((byte*)"syscall");
-		break;
-	case Gwaiting:
-		if(gp->waitreason.str != nil)
-			status = gp->waitreason;
-		else
-			status = runtime·gostringnocopy((byte*)"waiting");
-		break;
-	case Gscan:
-		status = runtime·gostringnocopy((byte*)"scan");
-		break;
-	case Gscanrunnable:
-		status =  runtime·gostringnocopy((byte*)"scanrunnable");
-		break;
-	case Gscanrunning:
-		status = runtime·gostringnocopy((byte*)"scanrunning");
-		break;
-	case Gscansyscall:
-		status = runtime·gostringnocopy((byte*)"scansyscall");
-		break;
-	case Gscanenqueue:
-		status = runtime·gostringnocopy((byte*)"scanenqueue");
-		break;
-	case Gscanwaiting:
-		if(gp->waitreason.str != nil)
-			status = gp->waitreason;
-		else
-			status = runtime·gostringnocopy((byte*)"scanwaiting");
-		break;
-	case Gcopystack:
-		status = runtime·gostringnocopy((byte*)"copystack");
-		break;
-	default:
-		status = runtime·gostringnocopy((byte*)"???");
-		break;
-	}
-
-	// approx time the G is blocked, in minutes
-	waitfor = 0;
-	gpstatus = gpstatus&~Gscan; // drop the scan bit
-	if((gpstatus == Gwaiting || gpstatus == Gsyscall) && gp->waitsince != 0)
-		waitfor = (runtime·nanotime() - gp->waitsince) / (60LL*1000*1000*1000);
-
-	runtime·printf("goroutine %D [%S", gp->goid, status);
-	if(waitfor >= 1)
-		runtime·printf(", %D minutes", waitfor);
-	if(gp->lockedm != nil)
-		runtime·printf(", locked to thread");
-	runtime·printf("]:\n");
-}
-
 static void
 dumpgstatus(G* gp)
 {
 	runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
-}
-
-void
-runtime·tracebackothers(G *me)
-{
-	G *gp;
-	int32 traceback;
-	uintptr i;
-	uint32 status;
-
-	traceback = runtime·gotraceback(nil);
-	
-	// Show the current goroutine first, if we haven't already.
-	if((gp = g->m->curg) != nil && gp != me) {
-		runtime·printf("\n");
-		runtime·goroutineheader(gp);
-		runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, gp);
-	}
-
-	runtime·lock(&allglock);
-	for(i = 0; i < runtime·allglen; i++) {
-		gp = runtime·allg[i];
-		if(gp == me || gp == g->m->curg || runtime·readgstatus(gp) == Gdead)
-			continue;
-		if(gp->issystem && traceback < 2)
-			continue;
-		runtime·printf("\n");
-		runtime·goroutineheader(gp);
-		status = runtime·readgstatus(gp);
-		if((status&~Gscan) == Grunning){
-			runtime·printf("\tgoroutine running on other thread; stack unavailable\n");
-			runtime·printcreatedby(gp);
-		} else
-			runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, gp);
-	}
-	runtime·unlock(&allglock);
 }
 
 static void
@@ -3371,23 +3266,6 @@ runtime·testSchedLocalQueueSteal(void)
 			runtime·throw("bad steal");
 		}
 	}
-}
-
-extern void runtime·morestack(void);
-uintptr runtime·externalthreadhandlerp;
-
-// Does f mark the top of a goroutine stack?
-bool
-runtime·topofstack(Func *f)
-{
-	return f->entry == (uintptr)runtime·goexit ||
-		f->entry == (uintptr)runtime·mstart ||
-		f->entry == (uintptr)runtime·mcall ||
-		f->entry == (uintptr)runtime·onM ||
-		f->entry == (uintptr)runtime·morestack ||
-		f->entry == (uintptr)runtime·lessstack ||
-		f->entry == (uintptr)_rt0_go ||
-		(runtime·externalthreadhandlerp != 0 && f->entry == runtime·externalthreadhandlerp);
 }
 
 void

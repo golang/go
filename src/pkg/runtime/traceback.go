@@ -32,12 +32,7 @@ const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
 
 // jmpdeferPC is the PC at the beginning of the jmpdefer assembly function.
 // The traceback needs to recognize it on link register architectures.
-var jmpdeferPC uintptr
-
-func init() {
-	f := jmpdefer
-	jmpdeferPC = **(**uintptr)(unsafe.Pointer(&f))
-}
+var jmpdeferPC = funcPC(jmpdefer)
 
 // System-specific hook. See traceback_windows.go
 var systraceback func(*_func, *stkframe, *g, bool, func(*stkframe, unsafe.Pointer) bool, unsafe.Pointer) (changed, aborted bool)
@@ -501,4 +496,118 @@ func callers(skip int, pcbuf *uintptr, m int) int {
 
 func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {
 	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, false)
+}
+
+var gStatusStrings = [...]string{
+	_Gidle:      "idle",
+	_Grunnable:  "runnable",
+	_Grunning:   "running",
+	_Gsyscall:   "syscall",
+	_Gwaiting:   "waiting",
+	_Gdead:      "dead",
+	_Genqueue:   "enqueue",
+	_Gcopystack: "copystack",
+}
+
+var gScanStatusStrings = [...]string{
+	0:          "scan",
+	_Grunnable: "scanrunnable",
+	_Grunning:  "scanrunning",
+	_Gsyscall:  "scansyscall",
+	_Gwaiting:  "scanwaiting",
+	_Gdead:     "scandead",
+	_Genqueue:  "scanenqueue",
+}
+
+func goroutineheader(gp *g) {
+	gpstatus := readgstatus(gp)
+
+	// Basic string status
+	var status string
+	if 0 <= gpstatus && gpstatus < uint32(len(gStatusStrings)) {
+		status = gStatusStrings[gpstatus]
+	} else if gpstatus&_Gscan != 0 && 0 <= gpstatus&^_Gscan && gpstatus&^_Gscan < uint32(len(gStatusStrings)) {
+		status = gStatusStrings[gpstatus&^_Gscan]
+	} else {
+		status = "???"
+	}
+
+	// Override.
+	if (gpstatus == _Gwaiting || gpstatus == _Gscanwaiting) && gp.waitreason != "" {
+		status = gp.waitreason
+	}
+
+	// approx time the G is blocked, in minutes
+	var waitfor int64
+	gpstatus &^= _Gscan // drop the scan bit
+	if (gpstatus == _Gwaiting || gpstatus == _Gsyscall) && gp.waitsince != 0 {
+		waitfor = (nanotime() - gp.waitsince) / 60e9
+	}
+	print("goroutine ", gp.goid, " [", status)
+	if waitfor >= 1 {
+		print(", ", waitfor, " minutes")
+	}
+	if gp.lockedm != nil {
+		print(", locked to thread")
+	}
+	print("]:\n")
+}
+
+func tracebackothers(me *g) {
+	level := gotraceback(nil)
+
+	// Show the current goroutine first, if we haven't already.
+	g := getg()
+	gp := g.m.curg
+	if gp != nil && gp != me {
+		print("\n")
+		goroutineheader(gp)
+		traceback(^uintptr(0), ^uintptr(0), 0, gp)
+	}
+
+	lock(&allglock)
+	for _, gp := range allgs {
+		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || gp.issystem && level < 2 {
+			continue
+		}
+		print("\n")
+		goroutineheader(gp)
+		if readgstatus(gp)&^_Gscan == _Grunning {
+			print("\tgoroutine running on other thread; stack unavailable\n")
+			printcreatedby(gp)
+		} else {
+			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+		}
+	}
+	unlock(&allglock)
+}
+
+func goexit()
+func mstart()
+func morestack()
+func rt0_go()
+
+var (
+	goexitPC    = funcPC(goexit)
+	mstartPC    = funcPC(mstart)
+	mcallPC     = funcPC(mcall)
+	onMPC       = funcPC(onM)
+	morestackPC = funcPC(morestack)
+	lessstackPC = funcPC(lessstack)
+	rt0_goPC    = funcPC(rt0_go)
+
+	externalthreadhandlerp uintptr // initialized elsewhere
+)
+
+// Does f mark the top of a goroutine stack?
+func topofstack(f *_func) bool {
+	pc := f.entry
+	return pc == goexitPC ||
+		pc == mstartPC ||
+		pc == mcallPC ||
+		pc == onMPC ||
+		pc == morestackPC ||
+		pc == lessstackPC ||
+		pc == rt0_goPC ||
+		externalthreadhandlerp != 0 && pc == externalthreadhandlerp
 }

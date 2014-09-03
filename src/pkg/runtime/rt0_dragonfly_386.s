@@ -13,4 +13,4 @@ TEXT _rt0_386_dragonfly(SB),NOSPLIT,$8
 	INT	$3
 
 TEXT main(SB),NOSPLIT,$0
-	JMP	_rt0_go(SB)
+	JMP	runtime·rt0_go(SB)

@@ -882,7 +882,6 @@ void	runtime·netpolllock(PollDesc*);
 void	runtime·netpollunlock(PollDesc*);
 void	runtime·crash(void);
 void	runtime·parsedebugvars(void);
-void	_rt0_go(void);
 void*	runtime·funcdata(Func*, int32);
 void	runtime·setmaxthreads_m(void);
 G*	runtime·timejump(void);

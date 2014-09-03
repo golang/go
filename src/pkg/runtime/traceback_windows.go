@@ -13,8 +13,7 @@ var sigtrampPC uintptr
 var sigtramp struct{} // assembly function
 
 func init() {
-	f := sigtramp
-	sigtrampPC = **(**uintptr)(unsafe.Pointer(&f))
+	sigtrampPC = funcPC(sigtramp)
 	systraceback = traceback_windows
 }
 

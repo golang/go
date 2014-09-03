@@ -27,4 +27,4 @@ TEXT main(SB),NOSPLIT,$0
 	// Uncomment for fake time like on Go Playground.
 	//MOVQ	$1257894000000000000, AX
 	//MOVQ	AX, runtime·timens(SB)
-	JMP	_rt0_go(SB)
+	JMP	runtime·rt0_go(SB)

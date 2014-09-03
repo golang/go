@@ -405,7 +405,17 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" wincallbackcontext struct{};" +
 			" _select struct{}; " +
 			"); " +
-			"const ( cb_max = 2000 )"
+			"const (" +
+			" cb_max = 2000;" +
+			" _Gidle = 1;" +
+			" _Grunnable = 2;" +
+			" _Grunning = 3;" +
+			" _Gsyscall = 4;" +
+			" _Gwaiting = 5;" +
+			" _Gdead = 6;" +
+			" _Genqueue = 7;" +
+			" _Gcopystack = 8;" +
+			")"
 		f, err = parser.ParseFile(fset, filename, src, 0)
 		if err != nil {
 			log.Fatalf("incorrect generated file: %s", err)

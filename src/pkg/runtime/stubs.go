@@ -138,9 +138,6 @@ func entersyscall()
 func entersyscallblock()
 func exitsyscall()
 
-func goroutineheader(gp *g)
-func tracebackothers(gp *g)
-
 func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
 func gogo(buf *gobuf)
 func gosave(buf *gobuf)
@@ -260,4 +257,3 @@ var newproc, deferproc, lessstack struct{} // C/assembly functions
 func funcspdelta(*_func, uintptr) int32 // symtab.c
 func funcarglen(*_func, uintptr) int32  // symtab.c
 const _ArgsSizeUnknown = -0x80000000    // funcdata.h
-func topofstack(*_func) bool            // proc.c

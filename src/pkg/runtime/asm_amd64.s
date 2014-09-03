@@ -6,7 +6,7 @@
 #include "funcdata.h"
 #include "../../cmd/ld/textflag.h"
 
-TEXT _rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
 	MOVQ	SI, BX		// argv

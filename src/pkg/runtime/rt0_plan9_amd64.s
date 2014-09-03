@@ -11,7 +11,7 @@ TEXT _rt0_amd64_plan9(SB),NOSPLIT,$24
 	MOVL	$1, _nprivates(SB)
 	MOVL	inargc-8(FP), DI
 	LEAQ	inargv+0(FP), SI
-	MOVQ	$_rt0_go(SB), AX
+	MOVQ	$runtime·rt0_go(SB), AX
 	JMP	AX
 
 DATA runtime·isplan9(SB)/4, $1

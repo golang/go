@@ -17,4 +17,4 @@ TEXT _rt0_arm_nacl(SB),NOSPLIT,$-4
 	B	main(SB)
 
 TEXT main(SB),NOSPLIT,$0
-	B	_rt0_go(SB)
+	B	runtime·rt0_go(SB)
