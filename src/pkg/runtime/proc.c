@@ -214,7 +214,11 @@ void
 runtime·main(void)
 {
 	Defer d;
-	
+
+	// Racectx of m0->g0 is used only as the parent of the main goroutine.
+	// It must not be used for anything else.
+	g->m->g0->racectx = 0;
+
 	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
 	// Using decimal instead of binary GB and MB because
 	// they look nicer in the stack overflow failure message.
@@ -1166,8 +1170,6 @@ newm(void(*fn)(void), P *p)
 	mp = runtime·allocm(p);
 	mp->nextp = p;
 	mp->mstartfn = fn;
-	if(raceenabled)
-		mp->g0->racectx = runtime·racegostart(newm);
 
 	if(runtime·iscgo) {
 		CgoThreadStart ts;

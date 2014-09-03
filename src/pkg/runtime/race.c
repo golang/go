@@ -153,6 +153,11 @@ runtime·racegoend(void)
 void
 runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
+	if(g != g->m->curg) {
+		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
+		// Not interesting.
+		return;
+	}
 	if(callpc != nil)
 		runtime·racefuncenter(callpc);
 	runtime·racewriterangepc1(addr, sz, pc);
@@ -163,6 +168,11 @@ runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
 void
 runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
+	if(g != g->m->curg) {
+		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
+		// Not interesting.
+		return;
+	}
 	if(callpc != nil)
 		runtime·racefuncenter(callpc);
 	runtime·racereadrangepc1(addr, sz, pc);
