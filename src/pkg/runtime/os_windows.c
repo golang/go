@@ -570,6 +570,7 @@ runtime·resetcpuprofiler(int32 hz)
 		runtime·atomicstorep(&profiletimer, timer);
 		thread = runtime·stdcall6(runtime·CreateThread,
 			(uintptr)nil, (uintptr)nil, (uintptr)runtime·profileloop, (uintptr)nil, (uintptr)nil, (uintptr)nil);
+		runtime·stdcall2(runtime·SetThreadPriority, (uintptr)thread, THREAD_PRIORITY_HIGHEST);
 		runtime·stdcall1(runtime·CloseHandle, (uintptr)thread);
 	}
 	runtime·unlock(&lock);
