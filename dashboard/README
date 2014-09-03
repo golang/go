@@ -4,8 +4,12 @@
 
 The files in this directory constitute the continuous builder:
 
-app/:     an AppEngine server
+app/:     an AppEngine server. The code that runs http://build.golang.org/
 builder/: gobuilder, a Go continuous build client
+coordinator/: daemon that runs on CoreOS on Google Compute Engine and manages
+          builds (using the builder in single-shot mode) in Docker containers.
+env/:     configuration files describing the environment of builders.
+          Many builders are still configured ad-hoc.
 
 If you wish to run a Go builder, please email golang-dev@googlegroups.com
 

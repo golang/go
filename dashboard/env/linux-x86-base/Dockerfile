@@ -40,6 +40,6 @@ RUN cd $GOROOT && hg update -C b8ff0ec2a724
 RUN cd $GOROOT/src && ./make.bash
 RUN mkdir -p /usr/local/bin
 
-RUN cd $GO_TOOLS && hg update -C 881a2f3130de
+RUN cd $GO_TOOLS && hg update -C 918b8a7e7b1e
 ENV GOBIN /usr/local/bin
 RUN /goroot/bin/go install code.google.com/p/go.tools/dashboard/builder
