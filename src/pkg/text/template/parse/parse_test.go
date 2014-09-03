@@ -69,6 +69,8 @@ var numberTests = []numberTest{
 	{text: "1+2."},
 	{text: "'x"},
 	{text: "'xx'"},
+	// Issue 8622 - 0xe parsed as floating point. Very embarrassing.
+	{"0xef", true, true, true, false, 0xef, 0xef, 0xef, 0},
 }
 
 func TestNumberParse(t *testing.T) {
