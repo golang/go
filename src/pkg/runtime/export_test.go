@@ -31,23 +31,21 @@ type LFNode struct {
 	Pushcnt uintptr
 }
 
-var (
-	lfstackpush_m,
-	lfstackpop_m mFunction
-)
+func lfstackpush_m()
+func lfstackpop_m()
 
 func LFStackPush(head *uint64, node *LFNode) {
 	mp := acquirem()
 	mp.ptrarg[0] = unsafe.Pointer(head)
 	mp.ptrarg[1] = unsafe.Pointer(node)
-	onM(&lfstackpush_m)
+	onM(lfstackpush_m)
 	releasem(mp)
 }
 
 func LFStackPop(head *uint64) *LFNode {
 	mp := acquirem()
 	mp.ptrarg[0] = unsafe.Pointer(head)
-	onM(&lfstackpop_m)
+	onM(lfstackpop_m)
 	node := (*LFNode)(unsafe.Pointer(mp.ptrarg[0]))
 	mp.ptrarg[0] = nil
 	releasem(mp)
@@ -65,17 +63,15 @@ type ParFor struct {
 	wait    bool
 }
 
-var (
-	newparfor_m,
-	parforsetup_m,
-	parfordo_m,
-	parforiters_m mFunction
-)
+func newparfor_m()
+func parforsetup_m()
+func parfordo_m()
+func parforiters_m()
 
 func NewParFor(nthrmax uint32) *ParFor {
 	mp := acquirem()
 	mp.scalararg[0] = uintptr(nthrmax)
-	onM(&newparfor_m)
+	onM(newparfor_m)
 	desc := (*ParFor)(mp.ptrarg[0])
 	mp.ptrarg[0] = nil
 	releasem(mp)
@@ -93,14 +89,14 @@ func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*
 	if wait {
 		mp.scalararg[2] = 1
 	}
-	onM(&parforsetup_m)
+	onM(parforsetup_m)
 	releasem(mp)
 }
 
 func ParForDo(desc *ParFor) {
 	mp := acquirem()
 	mp.ptrarg[0] = unsafe.Pointer(desc)
-	onM(&parfordo_m)
+	onM(parfordo_m)
 	releasem(mp)
 }
 
@@ -108,7 +104,7 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
 	mp := acquirem()
 	mp.ptrarg[0] = unsafe.Pointer(desc)
 	mp.scalararg[0] = uintptr(tid)
-	onM(&parforiters_m)
+	onM(parforiters_m)
 	begin := uint32(mp.scalararg[0])
 	end := uint32(mp.scalararg[1])
 	releasem(mp)

@@ -1439,10 +1439,13 @@ dropg(void)
 void
 runtime·park(bool(*unlockf)(G*, void*), void *lock, String reason)
 {
+	void (*fn)(G*);
+
 	g->m->waitlock = lock;
 	g->m->waitunlockf = unlockf;
 	g->waitreason = reason;
-	runtime·mcall(runtime·park_m);
+	fn = runtime·park_m;
+	runtime·mcall(&fn);
 }
 
 bool
@@ -1487,7 +1490,10 @@ runtime·park_m(G *gp)
 void
 runtime·gosched(void)
 {
-	runtime·mcall(runtime·gosched_m);
+	void (*fn)(G*);
+	
+	fn = runtime·gosched_m;
+	runtime·mcall(&fn);
 }
 
 // runtime·gosched continuation on g0.
@@ -1518,9 +1524,12 @@ runtime·gosched_m(G *gp)
 void
 runtime·goexit(void)
 {
+	void (*fn)(G*);
+
 	if(raceenabled)
 		runtime·racegoend();
-	runtime·mcall(goexit0);
+	fn = goexit0;
+	runtime·mcall(&fn);
 }
 
 // runtime·goexit continuation on g0.
@@ -1689,6 +1698,8 @@ runtime·entersyscallblock_m(void)
 void
 runtime·exitsyscall(void)
 {
+	void (*fn)(G*);
+
 	g->m->locks++;  // see comment in entersyscall
 
 	g->waitsince = 0;
@@ -1716,7 +1727,8 @@ runtime·exitsyscall(void)
 	g->m->locks--;
 
 	// Call the scheduler.
-	runtime·mcall(exitsyscall0);
+	fn = exitsyscall0;
+	runtime·mcall(&fn);
 
 	// Scheduler returned, so we're allowed to run now.
 	// Delete the gcstack information that we left for
@@ -1858,6 +1870,7 @@ runtime·malg(int32 stacksize)
 {
 	G *newg;
 	byte *stk;
+	void (*fn)(G*);
 
 	if(StackTop < sizeof(Stktop)) {
 		runtime·printf("runtime: SizeofStktop=%d, should be >=%d\n", (int32)StackTop, (int32)sizeof(Stktop));
@@ -1874,7 +1887,8 @@ runtime·malg(int32 stacksize)
 			// have to call stackalloc on scheduler stack.
 			newg->stacksize = stacksize;
 			g->param = newg;
-			runtime·mcall(mstackalloc);
+			fn = mstackalloc;
+			runtime·mcall(&fn);
 			stk = g->param;
 			g->param = nil;
 		}
@@ -1915,6 +1929,7 @@ void
 runtime·newproc(int32 siz, FuncVal* fn, ...)
 {
 	byte *argp;
+	void (*mfn)(void);
 
 	if(thechar == '5')
 		argp = (byte*)(&fn+2);  // skip caller's saved LR
@@ -1926,7 +1941,8 @@ runtime·newproc(int32 siz, FuncVal* fn, ...)
 	g->m->scalararg[1] = (uintptr)runtime·getcallerpc(&siz);
 	g->m->ptrarg[0] = argp;
 	g->m->ptrarg[1] = fn;
-	runtime·onM(newproc_m);
+	mfn = newproc_m;
+	runtime·onM(&mfn);
 	g->m->locks--;
 }
 
@@ -2090,6 +2106,7 @@ gfget(P *p)
 {
 	G *gp;
 	byte *stk;
+	void (*fn)(G*);
 
 retry:
 	gp = p->gfree;
@@ -2117,7 +2134,8 @@ retry:
 			} else {
 				gp->stacksize = FixedStack;
 				g->param = gp;
-				runtime·mcall(mstackalloc);
+				fn = mstackalloc;
+				runtime·mcall(&fn);
 				stk = g->param;
 				g->param = nil;
 			}

@@ -229,6 +229,7 @@ MSpan*
 runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool needzero)
 {
 	MSpan *s;
+	void (*fn)(G*);
 
 	// Don't do any operations that lock the heap on the G stack.
 	// It might trigger stack growth, and the stack growth code needs
@@ -240,7 +241,8 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool 
 		g->m->scalararg[0] = npage;
 		g->m->scalararg[1] = sizeclass;
 		g->m->scalararg[2] = large;
-		runtime·mcall(mheap_alloc_m);
+		fn = mheap_alloc_m;
+		runtime·mcall(&fn);
 		s = g->m->ptrarg[0];
 		g->m->ptrarg[0] = nil;
 	}
@@ -488,13 +490,16 @@ mheap_free_m(G *gp)
 void
 runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
 {
+	void (*fn)(G*);
+
 	if(g == g->m->g0) {
 		mheap_free(h, s, acct);
 	} else {
 		g->m->ptrarg[0] = h;
 		g->m->ptrarg[1] = s;
 		g->m->scalararg[0] = acct;
-		runtime·mcall(mheap_free_m);
+		fn = mheap_free_m;
+		runtime·mcall(&fn);
 	}
 }
 

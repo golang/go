@@ -13,7 +13,7 @@ func setMaxStack(in int) (out int) {
 func setGCPercent(in int32) (out int32) {
 	mp := acquirem()
 	mp.scalararg[0] = uintptr(int(in))
-	onM(&setgcpercent_m)
+	onM(setgcpercent_m)
 	out = int32(int(mp.scalararg[0]))
 	releasem(mp)
 	return out
@@ -30,7 +30,7 @@ func setPanicOnFault(new bool) (old bool) {
 func setMaxThreads(in int) (out int) {
 	mp := acquirem()
 	mp.scalararg[0] = uintptr(in)
-	onM(&setmaxthreads_m)
+	onM(setmaxthreads_m)
 	out = int(mp.scalararg[0])
 	releasem(mp)
 	return out

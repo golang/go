@@ -214,6 +214,7 @@ runtime·panic(Eface e)
 	Defer *d, dabort;
 	Panic p;
 	uintptr pc, argp;
+	void (*fn)(G*);
 
 	runtime·memclr((byte*)&p, sizeof p);
 	p.arg = e;
@@ -266,7 +267,8 @@ runtime·panic(Eface e)
 			// Pass information about recovering frame to recovery.
 			g->sigcode0 = (uintptr)argp;
 			g->sigcode1 = (uintptr)pc;
-			runtime·mcall(recovery);
+			fn = recovery;
+			runtime·mcall(&fn);
 			runtime·throw("recovery failed"); // mcall should not return
 		}
 	}
