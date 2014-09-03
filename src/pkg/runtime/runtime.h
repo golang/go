@@ -848,6 +848,7 @@ void	runtime·tsleep(int64, String);
 M*	runtime·newm(void);
 void	runtime·goexit(void);
 void	runtime·asmcgocall(void (*fn)(void*), void*);
+int32	runtime·asmcgocall_errno(void (*fn)(void*), void*);
 void	runtime·entersyscall(void);
 void	runtime·entersyscallblock(void);
 void	runtime·exitsyscall(void);

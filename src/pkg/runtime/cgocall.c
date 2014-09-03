@@ -97,7 +97,14 @@ static FuncVal endcgoV = { endcgo };
 void
 runtime·cgocall(void (*fn)(void*), void *arg)
 {
+	runtime·cgocall_errno(fn, arg);
+}
+
+int32
+runtime·cgocall_errno(void (*fn)(void*), void *arg)
+{
 	Defer d;
+	int32 errno;
 
 	if(!runtime·iscgo && !Solaris && !Windows)
 		runtime·throw("cgocall unavailable");
@@ -140,13 +147,15 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	 * the $GOMAXPROCS accounting.
 	 */
 	runtime·entersyscall();
-	runtime·asmcgocall(fn, arg);
+	errno = runtime·asmcgocall_errno(fn, arg);
 	runtime·exitsyscall();
 
 	if(g->defer != &d || d.fn != &endcgoV)
 		runtime·throw("runtime: bad defer entry in cgocallback");
 	g->defer = d.link;
 	endcgo();
+	
+	return errno;
 }
 
 static void
