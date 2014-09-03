@@ -293,6 +293,7 @@ struct	G
 	bool	paniconfault;	// panic (instead of crash) on unexpected fault address
 	bool    preemptscan;    // preempted g does scan for GC
 	bool    gcworkdone;     // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
+	bool	throwsplit; // must not split stack
 	int8	raceignore;	// ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
@@ -867,7 +868,6 @@ int32	runtime·asmcgocall_errno(void (*fn)(void*), void*);
 void	runtime·entersyscall(void);
 void	runtime·entersyscallblock(void);
 void	runtime·exitsyscall(void);
-void	runtime·entersyscallblock_m(void);
 G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
 bool	runtime·sigsend(int32 sig);
 intgo	runtime·callers(intgo, uintptr*, intgo);

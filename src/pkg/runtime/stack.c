@@ -876,6 +876,8 @@ runtime·newstack(void)
 			g->m->morebuf.g, g->m, g->m->curg, g->m->g0, g->m->gsignal);
 		runtime·throw("runtime: wrong goroutine in newstack");
 	}
+	if(g->throwsplit)
+		runtime·throw("runtime: stack split at bad time");
 
 	// The goroutine must be executing in order to call newstack, so the possible states are
 	// Grunning and Gsyscall (and, due to GC, also Gscanrunning and Gscansyscall).	

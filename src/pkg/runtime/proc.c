@@ -502,16 +502,24 @@ runtime·castogscanstatus(G *gp, uint32 oldval, uint32 newval)
 	return false; // not reached
 }
 
+static void badcasgstatus(void);
+static void helpcasgstatus(void);
+
 // If asked to move to or from a Gscanstatus this will throw. Use the castogscanstatus
 // and casfromgscanstatus instead.
 // casgstatus will loop if the g->atomicstatus is in a Gscan status until the routine that 
 // put it in the Gscan state is finished.
+#pragma textflag NOSPLIT
 void
 runtime·casgstatus(G *gp, uint32 oldval, uint32 newval)
 {
-	if(isscanstatus(oldval) || isscanstatus(newval) || oldval == newval) {
-		runtime·printf("casgstatus: oldval=%d, newval=%d\n", oldval, newval);
-		runtime·throw("casgstatus: bad incoming values");
+	void (*fn)(void);
+
+	if((oldval&Gscan) || (newval&Gscan) || oldval == newval) {
+		g->m->scalararg[0] = oldval;
+		g->m->scalararg[1] = newval;
+		fn = badcasgstatus;
+		runtime·onM(&fn);
 	}
 
 	// loop if gp->atomicstatus is in a scan state giving
@@ -520,9 +528,35 @@ runtime·casgstatus(G *gp, uint32 oldval, uint32 newval)
 		// Help GC if needed. 
 		if(gp->preemptscan && !gp->gcworkdone && (oldval == Grunning || oldval == Gsyscall)) {
 			gp->preemptscan = false;
-			runtime·gcphasework(gp);
+			g->m->ptrarg[0] = gp;
+			fn = helpcasgstatus;
+			runtime·onM(&fn);
 		}
 	}	
+}
+
+static void
+badcasgstatus(void)
+{
+	uint32 oldval, newval;
+	
+	oldval = g->m->scalararg[0];
+	newval = g->m->scalararg[1];
+	g->m->scalararg[0] = 0;
+	g->m->scalararg[1] = 0;
+
+	runtime·printf("casgstatus: oldval=%d, newval=%d\n", oldval, newval);
+	runtime·throw("casgstatus: bad incoming values");
+}
+
+static void
+helpcasgstatus(void)
+{
+	G *gp;
+	
+	gp = g->m->ptrarg[0];
+	g->m->ptrarg[0] = 0;
+	runtime·gcphasework(gp);
 }
 
 // stopg ensures that gp is stopped at a GC safe point where its stack can be scanned
@@ -1770,6 +1804,10 @@ save(void *pc, uintptr sp)
 	g->sched.g = g;
 }
 
+static void entersyscall_bad(void);
+static void entersyscall_sysmon(void);
+static void entersyscall_gcwait(void);
+
 // The goroutine g is about to enter a system call.
 // Record that it's not using the cpu anymore.
 // This is called only from the go syscall library and cgocall,
@@ -1778,13 +1816,30 @@ save(void *pc, uintptr sp)
 // Entersyscall cannot split the stack: the runtime·gosave must
 // make g->sched refer to the caller's stack segment, because
 // entersyscall is going to return immediately after.
+//
+// Nothing entersyscall calls can split the stack either.
+// We cannot safely move the stack during an active call to syscall,
+// because we do not know which of the uintptr arguments are
+// really pointers (back into the stack).
+// In practice, this means that we make the fast path run through
+// entersyscall doing no-split things, and the slow path has to use onM
+// to run bigger things on the m stack.
 #pragma textflag NOSPLIT
 void
 ·entersyscall(int32 dummy)
 {
+	void (*fn)(void);
+
 	// Disable preemption because during this function g is in Gsyscall status,
 	// but can have inconsistent g->sched, do not let GC observe it.
 	g->m->locks++;
+	
+	// Entersyscall must not call any function that might split/grow the stack.
+	// (See details in comment above.)
+	// Catch calls that might, by replacing the stack guard with something that
+	// will trip any stack check and leaving a flag to tell newstack to die.
+	g->stackguard0 = StackPreempt;
+	g->throwsplit = 1;
 
 	// Leave SP around for GC and traceback.
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
@@ -1794,18 +1849,13 @@ void
 	g->syscallguard = g->stackguard;
 	runtime·casgstatus(g, Grunning, Gsyscall);
 	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
-		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
-		//	g->syscallsp, g->syscallguard-StackGuard, g->syscallstack);
-		runtime·throw("entersyscall");
+		fn = entersyscall_bad;
+		runtime·onM(&fn);
 	}
 
 	if(runtime·atomicload(&runtime·sched.sysmonwait)) {  // TODO: fast atomic
-		runtime·lock(&runtime·sched.lock);
-		if(runtime·atomicload(&runtime·sched.sysmonwait)) {
-			runtime·atomicstore(&runtime·sched.sysmonwait, 0);
-			runtime·notewakeup(&runtime·sched.sysmonnote);
-		}
-		runtime·unlock(&runtime·sched.lock);
+		fn = entersyscall_sysmon;
+		runtime·onM(&fn);
 		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 	}
 
@@ -1813,12 +1863,8 @@ void
 	g->m->p->m = nil;
 	runtime·atomicstore(&g->m->p->status, Psyscall);
 	if(runtime·sched.gcwaiting) {
-		runtime·lock(&runtime·sched.lock);
-		if (runtime·sched.stopwait > 0 && runtime·cas(&g->m->p->status, Psyscall, Pgcstop)) {
-			if(--runtime·sched.stopwait == 0)
-				runtime·notewakeup(&runtime·sched.stopnote);
-		}
-		runtime·unlock(&runtime·sched.lock);
+		fn = entersyscall_gcwait;
+		runtime·onM(&fn);
 		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 	}
 
@@ -1829,14 +1875,51 @@ void
 	g->m->locks--;
 }
 
+static void
+entersyscall_bad(void)
+{
+	G *gp;
+	
+	gp = g->m->curg;
+	runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
+		gp->syscallsp, gp->syscallguard-StackGuard, gp->syscallstack);
+	runtime·throw("entersyscall");
+}
+
+static void
+entersyscall_sysmon(void)
+{
+	runtime·lock(&runtime·sched.lock);
+	if(runtime·atomicload(&runtime·sched.sysmonwait)) {
+		runtime·atomicstore(&runtime·sched.sysmonwait, 0);
+		runtime·notewakeup(&runtime·sched.sysmonnote);
+	}
+	runtime·unlock(&runtime·sched.lock);
+}
+
+static void
+entersyscall_gcwait(void)
+{
+	runtime·lock(&runtime·sched.lock);
+	if (runtime·sched.stopwait > 0 && runtime·cas(&g->m->p->status, Psyscall, Pgcstop)) {
+		if(--runtime·sched.stopwait == 0)
+			runtime·notewakeup(&runtime·sched.stopnote);
+	}
+	runtime·unlock(&runtime·sched.lock);
+}
+
+static void entersyscallblock_handoff(void);
+
 // The same as runtime·entersyscall(), but with a hint that the syscall is blocking.
 #pragma textflag NOSPLIT
 void
 ·entersyscallblock(int32 dummy)
 {
-	P *p;
+	void (*fn)(void);
 
 	g->m->locks++;  // see comment in entersyscall
+	g->throwsplit = 1;
+	g->stackguard0 = StackPreempt;  // see comment in entersyscall
 
 	// Leave SP around for GC and traceback.
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
@@ -1846,43 +1929,22 @@ void
 	g->syscallguard = g->stackguard;
 	runtime·casgstatus(g, Grunning, Gsyscall);
 	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
-		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
-		//	g->syscallsp, g->syscallguard-StackGuard, g->syscallstack);
-		runtime·throw("entersyscallblock");
+		fn = entersyscall_bad;
+		runtime·onM(&fn);
 	}
-
-	p = releasep();
-	handoffp(p);
+	
+	fn = entersyscallblock_handoff;
+	runtime·onM(&fn);
 
 	// Resave for traceback during blocked call.
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 
-	g->stackguard0 = StackPreempt;  // see comment in entersyscall
 	g->m->locks--;
 }
 
-// The same as runtime·entersyscallblock(), but called on g0 stack.
-void
-runtime·entersyscallblock_m(void)
+static void
+entersyscallblock_handoff(void)
 {
-	G *gp;
-
-	gp = g->m->curg;
-	// sched.{g,pc,sp,lr} are already set by mcall.
-	gp->stackguard0 = StackPreempt;  // we are on g0, the goroutine must not touch its stack until exitsyscall
-	gp->sched.ret = 0;
-	gp->sched.ctxt = 0;
-	gp->syscallsp = gp->sched.sp;
-	gp->syscallpc = gp->sched.pc;
-	gp->syscallstack = gp->stackbase;
-	gp->syscallguard = gp->stackguard;
-	runtime·casgstatus(gp, Grunning, Gsyscall);
-	if(gp->syscallsp < gp->syscallguard-StackGuard || gp->syscallstack < gp->syscallsp) {
-		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
-		//	gp->syscallsp, gp->syscallguard-StackGuard, gp->syscallstack);
-		runtime·throw("entersyscall_m");
-	}
-
 	handoffp(releasep());
 }
 
@@ -1917,6 +1979,7 @@ runtime·exitsyscall(void)
 			// otherwise restore the real stackguard, we've spoiled it in entersyscall/entersyscallblock
 			g->stackguard0 = g->stackguard;
 		}
+		g->throwsplit = 0;
 		return;
 	}
 
@@ -1935,13 +1998,16 @@ runtime·exitsyscall(void)
 	g->syscallstack = (uintptr)nil;
 	g->syscallsp = (uintptr)nil;
 	g->m->p->syscalltick++;
+	g->throwsplit = 0;
 }
+
+static void exitsyscallfast_pidle(void);
 
 #pragma textflag NOSPLIT
 static bool
 exitsyscallfast(void)
 {
-	P *p;
+	void (*fn)(void);
 
 	// Freezetheworld sets stopwait but does not retake P's.
 	if(runtime·sched.stopwait) {
@@ -1959,19 +2025,33 @@ exitsyscallfast(void)
 	// Try to get any other idle P.
 	g->m->p = nil;
 	if(runtime·sched.pidle) {
-		runtime·lock(&runtime·sched.lock);
-		p = pidleget();
-		if(p && runtime·atomicload(&runtime·sched.sysmonwait)) {
-			runtime·atomicstore(&runtime·sched.sysmonwait, 0);
-			runtime·notewakeup(&runtime·sched.sysmonnote);
-		}
-		runtime·unlock(&runtime·sched.lock);
-		if(p) {
-			acquirep(p);
+		fn = exitsyscallfast_pidle;
+		runtime·onM(&fn);
+		if(g->m->scalararg[0]) {
+			g->m->scalararg[0] = 0;
 			return true;
 		}
 	}
 	return false;
+}
+
+static void
+exitsyscallfast_pidle(void)
+{
+	P *p;
+
+	runtime·lock(&runtime·sched.lock);
+	p = pidleget();
+	if(p && runtime·atomicload(&runtime·sched.sysmonwait)) {
+		runtime·atomicstore(&runtime·sched.sysmonwait, 0);
+		runtime·notewakeup(&runtime·sched.sysmonnote);
+	}
+	runtime·unlock(&runtime·sched.lock);
+	if(p) {
+		acquirep(p);
+		g->m->scalararg[0] = 1;
+	} else
+		g->m->scalararg[0] = 0;
 }
 
 // runtime·exitsyscall slow path on g0.
