@@ -21,7 +21,7 @@ MHeap runtime·mheap;
 #pragma dataflag NOPTR
 MStats runtime·memstats;
 
-static Type* notype;
+Type* runtime·conservative;
 
 void runtime·cmallocgc(uintptr size, Type *typ, uint32 flag, void **ret);
 void runtime·gc_notype_ptr(Eface*);
@@ -35,7 +35,7 @@ runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
 	// TODO: maybe someday we can get rid of this.  It is
 	// probably the only location where we run Go code on the M stack.
 	if((flag&FlagNoScan) == 0 && typ == nil)
-		typ = notype;
+		typ = runtime·conservative;
 	runtime·cmallocgc(size, typ, flag, &ret);
 	return ret;
 }
@@ -259,7 +259,7 @@ runtime·mallocinit(void)
 	g->m->mcache = runtime·allocmcache();
 
 	runtime·gc_notype_ptr(&notype_eface);
-	notype = notype_eface.type;
+	runtime·conservative = notype_eface.type;
 }
 
 void*
