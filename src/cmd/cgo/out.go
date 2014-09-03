@@ -58,16 +58,14 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n\n")
 	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
-	if *importSyscall {
-		fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
-	}
 	if !*gccgo && *importRuntimeCgo {
 		fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
 	}
-	fmt.Fprintf(fgo2, "func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }\n\n")
 	if *importSyscall {
-		fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int32) { *dst = syscall.Errno(x) }\n")
+		fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
+		fmt.Fprintf(fgo2, "var _ syscall.Errno\n")
 	}
+	fmt.Fprintf(fgo2, "func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }\n\n")
 
 	typedefNames := make([]string, 0, len(typedef))
 	for name := range typedef {
@@ -87,9 +85,10 @@ func (p *Package) writeDefs() {
 	}
 
 	if *gccgo {
-		fmt.Fprintf(fc, p.cPrologGccgo())
+		fmt.Fprint(fc, p.cPrologGccgo())
 	} else {
-		fmt.Fprintf(fc, cProlog)
+		fmt.Fprint(fc, cProlog)
+		fmt.Fprint(fgo2, goProlog)
 	}
 
 	gccgoSymbolPrefix := p.gccgoSymbolPrefix()
@@ -296,10 +295,6 @@ func (p *Package) structType(n *Name) (string, int64) {
 		fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
 		off += pad
 	}
-	if n.AddError {
-		fmt.Fprint(&buf, "\t\tint e[2*sizeof(void *)/sizeof(int)]; /* error */\n")
-		off += 2 * p.PtrSize
-	}
 	if off == 0 {
 		fmt.Fprintf(&buf, "\t\tchar unused;\n") // avoid empty struct
 	}
@@ -334,19 +329,18 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	}
 
 	// Builtins defined in the C prolog.
-	inProlog := name == "CString" || name == "GoString" || name == "GoStringN" || name == "GoBytes" || name == "_CMalloc"
+	inProlog := builtinDefs[name] != ""
+	cname := fmt.Sprintf("_cgo%s%s", cPrefix, n.Mangle)
+	paramnames := []string(nil)
+	for i, param := range d.Type.Params.List {
+		paramName := fmt.Sprintf("p%d", i)
+		param.Names = []*ast.Ident{ast.NewIdent(paramName)}
+		paramnames = append(paramnames, paramName)
+	}
 
 	if *gccgo {
 		// Gccgo style hooks.
 		fmt.Fprint(fgo2, "\n")
-		cname := fmt.Sprintf("_cgo%s%s", cPrefix, n.Mangle)
-		paramnames := []string(nil)
-		for i, param := range d.Type.Params.List {
-			paramName := fmt.Sprintf("p%d", i)
-			param.Names = []*ast.Ident{ast.NewIdent(paramName)}
-			paramnames = append(paramnames, paramName)
-		}
-
 		conf.Fprint(fgo2, fset, d)
 		fmt.Fprint(fgo2, " {\n")
 		if !inProlog {
@@ -383,7 +377,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 		fmt.Fprint(fgo2, "}\n")
 
 		// declare the C function.
-		fmt.Fprintf(fgo2, "//extern _cgo%s%s\n", cPrefix, n.Mangle)
+		fmt.Fprintf(fgo2, "//extern %s\n", cname)
 		d.Name = ast.NewIdent(cname)
 		if n.AddError {
 			l := d.Type.Results.List
@@ -394,61 +388,49 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 
 		return
 	}
-	conf.Fprint(fgo2, fset, d)
-	fmt.Fprint(fgo2, "\n")
 
 	if inProlog {
+		fmt.Fprint(fgo2, builtinDefs[name])
 		return
 	}
 
-	var argSize int64
-	_, argSize = p.structType(n)
-
 	// C wrapper calls into gcc, passing a pointer to the argument frame.
-	fmt.Fprintf(fc, "#pragma cgo_import_static _cgo%s%s\n", cPrefix, n.Mangle)
-	fmt.Fprintf(fc, "void _cgo%s%s(void*);\n", cPrefix, n.Mangle)
-	fmt.Fprintf(fc, "\n")
-	fmt.Fprintf(fc, "void\n")
-	if argSize == 0 {
-		argSize++
+	fmt.Fprintf(fc, "#pragma cgo_import_static %s\n", cname)
+	fmt.Fprintf(fc, "void %s(void*);\n", cname)
+	fmt.Fprintf(fc, "void *·%s = %s;\n", cname, cname)
+
+	nret := 0
+	if !void {
+		d.Type.Results.List[0].Names = []*ast.Ident{ast.NewIdent("r1")}
+		nret = 1
 	}
-	// TODO(rsc): The struct here should declare pointers only where
-	// there are pointers in the actual argument frame.
-	// This is a workaround for golang.org/issue/6397.
-	fmt.Fprintf(fc, "·%s(struct{", n.Mangle)
-	if n := argSize / p.PtrSize; n > 0 {
-		fmt.Fprintf(fc, "void *y[%d];", n)
-	}
-	if n := argSize % p.PtrSize; n > 0 {
-		fmt.Fprintf(fc, "uint8 x[%d];", n)
-	}
-	fmt.Fprintf(fc, "}p)\n")
-	fmt.Fprintf(fc, "{\n")
-	fmt.Fprintf(fc, "\truntime·cgocall(_cgo%s%s, &p);\n", cPrefix, n.Mangle)
 	if n.AddError {
-		// gcc leaves errno in first word of interface at end of p.
-		// check whether it is zero; if so, turn interface into nil.
-		// if not, turn interface into errno.
-		// Go init function initializes ·_Cerrno with an os.Errno
-		// for us to copy.
-		fmt.Fprintln(fc, `	{
-			int32 e;
-			void **v;
-			v = (void**)(&p+1) - 2;	/* v = final two void* of p */
-			e = *(int32*)v;
-			v[0] = (void*)0xdeadbeef;
-			v[1] = (void*)0xdeadbeef;
-			if(e == 0) {
-				/* nil interface */
-				v[0] = 0;
-				v[1] = 0;
-			} else {
-				·_Cerrno(v, e);	/* fill in v as error for errno e */
-			}
-		}`)
+		d.Type.Results.List[nret].Names = []*ast.Ident{ast.NewIdent("r2")}
 	}
-	fmt.Fprintf(fc, "}\n")
-	fmt.Fprintf(fc, "\n")
+
+	fmt.Fprint(fgo2, "\n")
+	fmt.Fprintf(fgo2, "var %s unsafe.Pointer\n", cname)
+	conf.Fprint(fgo2, fset, d)
+	fmt.Fprint(fgo2, " {\n")
+
+	// NOTE: Using uintptr to hide from escape analysis.
+	arg := "0"
+	if len(paramnames) > 0 {
+		arg = "uintptr(unsafe.Pointer(&p0))"
+	} else if !void {
+		arg = "uintptr(unsafe.Pointer(&r1))"
+	}
+
+	prefix := ""
+	if n.AddError {
+		prefix = "errno := "
+	}
+	fmt.Fprintf(fgo2, "\t%s_cgo_runtime_cgocall_errno(%s, %s)\n", prefix, cname, arg)
+	if n.AddError {
+		fmt.Fprintf(fgo2, "\tif errno != 0 { r2 = syscall.Errno(errno) }\n")
+	}
+	fmt.Fprintf(fgo2, "\treturn\n")
+	fmt.Fprintf(fgo2, "}\n")
 }
 
 // writeOutput creates stubs for a specific source file to be compiled by 6g
@@ -521,7 +503,11 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 
 	// Gcc wrapper unpacks the C argument struct
 	// and calls the actual C function.
-	fmt.Fprintf(fgcc, "void\n")
+	if n.AddError {
+		fmt.Fprintf(fgcc, "int\n")
+	} else {
+		fmt.Fprintf(fgcc, "void\n")
+	}
 	fmt.Fprintf(fgcc, "_cgo%s%s(void *v)\n", cPrefix, n.Mangle)
 	fmt.Fprintf(fgcc, "{\n")
 	if n.AddError {
@@ -557,7 +543,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	}
 	fmt.Fprintf(fgcc, ");\n")
 	if n.AddError {
-		fmt.Fprintf(fgcc, "\t*(int*)(a->e) = errno;\n")
+		fmt.Fprintf(fgcc, "\treturn errno;\n")
 	}
 	fmt.Fprintf(fgcc, "}\n")
 	fmt.Fprintf(fgcc, "\n")
@@ -1166,45 +1152,73 @@ const cProlog = `
 #include "runtime.h"
 #include "cgocall.h"
 
+static void *cgocall_errno = runtime·cgocall_errno;
+void *·_cgo_runtime_cgocall_errno = &cgocall_errno;
+
+static void *runtime_gostring = runtime·gostring;
+void *·_cgo_runtime_gostring = &runtime_gostring;
+
+static void *runtime_gostringn = runtime·gostringn;
+void *·_cgo_runtime_gostringn = &runtime_gostringn;
+
+static void *runtime_gobytes = runtime·gobytes;
+void *·_cgo_runtime_gobytes = &runtime_gobytes;
+
+static void *runtime_cmalloc = runtime·cmalloc;
+void *·_cgo_runtime_cmalloc = &runtime_cmalloc;
+
 void ·_Cerrno(void*, int32);
+`
 
-void
-·_Cfunc_GoString(int8 *p, String s)
-{
-	s = runtime·gostring((byte*)p);
-	FLUSH(&s);
-}
+const goProlog = `
+var _cgo_runtime_cgocall_errno func(unsafe.Pointer, uintptr) int32
+var _cgo_runtime_cmalloc func(uintptr) unsafe.Pointer
+`
 
-void
-·_Cfunc_GoStringN(int8 *p, int32 l, String s)
-{
-	s = runtime·gostringn((byte*)p, l);
-	FLUSH(&s);
-}
-
-void
-·_Cfunc_GoBytes(int8 *p, int32 l, Slice s)
-{
-	s = runtime·gobytes((byte*)p, l);
-	FLUSH(&s);
-}
-
-void
-·_Cfunc_CString(String s, int8 *p)
-{
-	p = runtime·cmalloc(s.len+1);
-	runtime·memmove((byte*)p, s.str, s.len);
-	p[s.len] = 0;
-	FLUSH(&p);
-}
-
-void
-·_Cfunc__CMalloc(uintptr n, int8 *p)
-{
-	p = runtime·cmalloc(n);
-	FLUSH(&p);
+const goStringDef = `
+var _cgo_runtime_gostring func(*_Ctype_char) string
+func _Cfunc_GoString(p *_Ctype_char) string {
+	return _cgo_runtime_gostring(p)
 }
 `
+
+const goStringNDef = `
+var _cgo_runtime_gostringn func(*_Ctype_char, int) string
+func _Cfunc_GoStringN(p *_Ctype_char, l _Ctype_int) string {
+	return _cgo_runtime_gostringn(p, int(l))
+}
+`
+
+const goBytesDef = `
+var _cgo_runtime_gobytes func(unsafe.Pointer, int) []byte
+func _Cfunc_GoBytes(p unsafe.Pointer, l _Ctype_int) []byte {
+	return _cgo_runtime_gobytes(p, int(l))
+}
+`
+
+const cStringDef = `
+func _Cfunc_CString(s string) *_Ctype_char {
+	p := _cgo_runtime_cmalloc(uintptr(len(s)+1))
+	pp := (*[1<<30]byte)(p)
+	copy(pp[:], s)
+	pp[len(s)] = 0
+	return (*_Ctype_char)(p)
+}
+`
+
+const cMallocDef = `
+func _Cfunc__CMalloc(n _Ctype_size_t) unsafe.Pointer {
+	return _cgo_runtime_cmalloc(uintptr(n))
+}
+`
+
+var builtinDefs = map[string]string{
+	"GoString":  goStringDef,
+	"GoStringN": goStringNDef,
+	"GoBytes":   goBytesDef,
+	"CString":   cStringDef,
+	"_CMalloc":  cMallocDef,
+}
 
 func (p *Package) cPrologGccgo() string {
 	return strings.Replace(cPrologGccgo, "PREFIX", cPrefix, -1)

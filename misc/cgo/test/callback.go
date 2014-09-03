@@ -13,12 +13,13 @@ void callPanic(void);
 import "C"
 
 import (
-	"./backdoor"
 	"path"
 	"runtime"
 	"strings"
 	"testing"
 	"unsafe"
+
+	"./backdoor"
 )
 
 // nestedCall calls into C, back into Go, and finally to f.
@@ -155,8 +156,8 @@ func testCallbackCallers(t *testing.T) {
 		"runtime.cgocallbackg1",
 		"runtime.cgocallbackg",
 		"runtime.cgocallback_gofunc",
-		"runtime.asmcgocall",
-		"runtime.cgocall",
+		"runtime.asmcgocall_errno",
+		"runtime.cgocall_errno",
 		"test._Cfunc_callback",
 		"test.nestedCall",
 		"test.testCallbackCallers",
