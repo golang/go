@@ -30,10 +30,22 @@ import "unsafe"
 
 const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
 
-// jmpdeferPC is the PC at the beginning of the jmpdefer assembly function.
-// The traceback needs to recognize it on link register architectures.
-var jmpdeferPC = funcPC(jmpdefer)
-var deferprocPC = funcPC(deferproc)
+var (
+	deferprocPC = funcPC(deferproc)
+	goexitPC    = funcPC(goexit)
+	jmpdeferPC  = funcPC(jmpdefer)
+	lessstackPC = funcPC(lessstack)
+	mcallPC     = funcPC(mcall)
+	morestackPC = funcPC(morestack)
+	mstartPC    = funcPC(mstart)
+	newprocPC   = funcPC(newproc)
+	newstackPC  = funcPC(newstack)
+	onMPC       = funcPC(onM)
+	rt0_goPC    = funcPC(rt0_go)
+	sigpanicPC  = funcPC(sigpanic)
+
+	externalthreadhandlerp uintptr // initialized elsewhere
+)
 
 // System-specific hook. See traceback_windows.go
 var systraceback func(*_func, *stkframe, *g, bool, func(*stkframe, unsafe.Pointer) bool, unsafe.Pointer) (changed, aborted bool)
@@ -112,7 +124,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		//	fp is the frame pointer (caller's stack pointer) at that program counter, or nil if unknown.
 		//	stk is the stack containing sp.
 		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
-		if frame.pc == uintptr(unsafe.Pointer(&lessstack)) {
+		if frame.pc == lessstackPC {
 			// Hit top of stack segment.  Unwind to next segment.
 			frame.pc = stk.gobuf.pc
 			frame.sp = stk.gobuf.sp
@@ -213,7 +225,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 				frame.arglen = uintptr(f.args)
 			} else if flr == nil {
 				frame.arglen = 0
-			} else if frame.lr == uintptr(unsafe.Pointer(&lessstack)) {
+			} else if frame.lr == lessstackPC {
 				frame.arglen = uintptr(stk.argsize)
 			} else {
 				i := funcarglen(flr, frame.lr)
@@ -342,8 +354,8 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		n++
 
 	skipped:
-		waspanic = f.entry == uintptr(unsafe.Pointer(&sigpanic))
-		wasnewproc = f.entry == uintptr(unsafe.Pointer(&newproc)) || f.entry == deferprocPC
+		waspanic = f.entry == sigpanicPC
+		wasnewproc = f.entry == newprocPC || f.entry == deferprocPC
 
 		// Do not unwind past the bottom of the stack.
 		if flr == nil {
@@ -448,8 +460,6 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 	return n
 }
 
-func showframe(*_func, *g) bool
-
 func printcreatedby(gp *g) {
 	// Show what created goroutine, except main goroutine (goid 1).
 	pc := gp.gopc
@@ -497,6 +507,40 @@ func callers(skip int, pcbuf *uintptr, m int) int {
 
 func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {
 	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, false)
+}
+
+func showframe(f *_func, gp *g) bool {
+	g := getg()
+	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig) {
+		return true
+	}
+	traceback := gotraceback(nil)
+	name := gostringnocopy(funcname(f))
+
+	// Special case: always show runtime.panic frame, so that we can
+	// see where a panic started in the middle of a stack trace.
+	// See golang.org/issue/5832.
+	if name == "runtime.panic" {
+		return true
+	}
+
+	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.")
+}
+
+func contains(s, t string) bool {
+	if len(t) == 0 {
+		return true
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] == t[0] && hasprefix(s[i:], t) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasprefix(s, t string) bool {
+	return len(s) >= len(t) && s[:len(t)] == t
 }
 
 var gStatusStrings = [...]string{
@@ -582,22 +626,6 @@ func tracebackothers(me *g) {
 	}
 	unlock(&allglock)
 }
-
-func mstart()
-func morestack()
-func rt0_go()
-
-var (
-	goexitPC    = funcPC(goexit)
-	mstartPC    = funcPC(mstart)
-	mcallPC     = funcPC(mcall)
-	onMPC       = funcPC(onM)
-	morestackPC = funcPC(morestack)
-	lessstackPC = funcPC(lessstack)
-	rt0_goPC    = funcPC(rt0_go)
-
-	externalthreadhandlerp uintptr // initialized elsewhere
-)
 
 // Does f mark the top of a goroutine stack?
 func topofstack(f *_func) bool {

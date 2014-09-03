@@ -6,6 +6,8 @@
 // in Go binaries. It is included by both C and assembly, so it must
 // be written using #defines. It is included by the runtime package
 // as well as the compilers.
+//
+// symtab.go also contains a copy of these constants.
 
 #define PCDATA_ArgSize 0 /* argument size at CALL instruction */
 #define PCDATA_StackMapIndex 1

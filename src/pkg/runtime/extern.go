@@ -75,12 +75,6 @@ of the run-time system.
 */
 package runtime
 
-import "unsafe"
-
-// sigpanic is the C function sigpanic.
-// That is, unsafe.Pointer(&sigpanic) is the C function pointer for sigpanic.
-var sigpanic struct{}
-
 // Caller reports file and line number information about function invocations on
 // the calling goroutine's stack.  The argument skip is the number of stack frames
 // to ascend, with 0 identifying the caller of Caller.  (For historical reasons the
@@ -109,18 +103,13 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	// All architectures turn faults into apparent calls to sigpanic.
 	// If we see a call to sigpanic, we do not back up the PC to find
 	// the line number of the call instruction, because there is no call.
-	if xpc > f.entry && (g == nil || g.entry != uintptr(unsafe.Pointer(&sigpanic))) {
+	if xpc > f.entry && (g == nil || g.entry != funcPC(sigpanic)) {
 		xpc--
 	}
 	line = int(funcline(f, xpc, &file))
 	ok = true
 	return
 }
-
-func findfunc(uintptr) *_func
-
-//go:noescape
-func funcline(*_func, uintptr, *string) int32
 
 // Callers fills the slice pc with the program counters of function invocations
 // on the calling goroutine's stack.  The argument skip is the number of stack frames
