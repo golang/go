@@ -235,8 +235,7 @@ func makemap(t *maptype, hint int64) *hmap {
 func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapaccess1
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+		pc := funcPC(mapaccess1)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
@@ -284,8 +283,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapaccess2
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+		pc := funcPC(mapaccess2)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
@@ -379,8 +377,7 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 	}
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapassign1
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+		pc := funcPC(mapassign1)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
 		raceReadObjectPC(t.elem, val, callerpc, pc)
@@ -488,8 +485,7 @@ again:
 func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapdelete
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+		pc := funcPC(mapdelete)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
@@ -545,9 +541,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		fn := mapiterinit
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiterinit))
 	}
 
 	if h == nil || h.count == 0 {
@@ -591,9 +585,7 @@ func mapiternext(it *hiter) {
 	h := it.h
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&it))
-		fn := mapiternext
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiternext))
 	}
 	t := it.t
 	bucket := it.bucket
@@ -942,9 +934,7 @@ func reflect_maplen(h *hmap) int {
 	}
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&h))
-		fn := reflect_maplen
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(reflect_maplen))
 	}
 	return h.count
 }

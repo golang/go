@@ -61,11 +61,10 @@ func concatstring5(a [5]string) string {
 
 func slicebytetostring(b []byte) string {
 	if raceenabled && len(b) > 0 {
-		fn := slicebytetostring
 		racereadrangepc(unsafe.Pointer(&b[0]),
 			len(b),
 			getcallerpc(unsafe.Pointer(&b)),
-			**(**uintptr)(unsafe.Pointer(&fn)))
+			funcPC(slicebytetostring))
 	}
 	s, c := rawstring(len(b))
 	copy(c, b)
@@ -82,11 +81,10 @@ func slicebytetostringtmp(b []byte) string {
 	// m is a string-keyed map and k is a []byte.
 
 	if raceenabled && len(b) > 0 {
-		fn := slicebytetostringtmp
 		racereadrangepc(unsafe.Pointer(&b[0]),
 			len(b),
 			getcallerpc(unsafe.Pointer(&b)),
-			**(**uintptr)(unsafe.Pointer(&fn)))
+			funcPC(slicebytetostringtmp))
 	}
 	return *(*string)(unsafe.Pointer(&b))
 }
@@ -120,11 +118,10 @@ func stringtoslicerune(s string) []rune {
 
 func slicerunetostring(a []rune) string {
 	if raceenabled && len(a) > 0 {
-		fn := slicerunetostring
 		racereadrangepc(unsafe.Pointer(&a[0]),
 			len(a)*int(unsafe.Sizeof(a[0])),
 			getcallerpc(unsafe.Pointer(&a)),
-			**(**uintptr)(unsafe.Pointer(&fn)))
+			funcPC(slicerunetostring))
 	}
 	var dum [4]byte
 	size1 := 0

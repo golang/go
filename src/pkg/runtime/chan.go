@@ -82,9 +82,7 @@ func chansend1(t *chantype, c *hchan, elem unsafe.Pointer) {
  */
 func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	if raceenabled {
-		fn := chansend
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		raceReadObjectPC(t.elem, ep, callerpc, pc)
+		raceReadObjectPC(t.elem, ep, callerpc, funcPC(chansend))
 	}
 
 	if c == nil {
@@ -100,9 +98,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	}
 
 	if raceenabled {
-		fn := chansend
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(c), pc, callerpc)
+		racereadpc(unsafe.Pointer(c), callerpc, funcPC(chansend))
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
@@ -269,9 +265,7 @@ func closechan(c *hchan) {
 
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&c))
-		fn := closechan
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racewritepc(unsafe.Pointer(c), callerpc, pc)
+		racewritepc(unsafe.Pointer(c), callerpc, funcPC(closechan))
 		racerelease(unsafe.Pointer(c))
 	}
 

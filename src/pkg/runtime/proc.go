@@ -110,3 +110,9 @@ func releaseSudog(s *sudog) {
 	s.next = c.sudogcache
 	c.sudogcache = s
 }
+
+// funcPC returns the entry PC of the function f.
+// It assumes that f is a func value. Otherwise the behavior is undefined.
+func funcPC(f interface{}) uintptr {
+	return **(**uintptr)(add(unsafe.Pointer(&f), ptrSize))
+}

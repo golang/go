@@ -289,8 +289,7 @@ func (p *cpuProfile) flushlog() bool {
 	log := &p.log[p.toggle]
 	q := uintptr(0)
 	if p.lost > 0 {
-		f := lostProfileData
-		lostPC := **(**uintptr)(unsafe.Pointer(&f))
+		lostPC := funcPC(lostProfileData)
 		log[0] = p.lost
 		log[1] = 1
 		log[2] = lostPC

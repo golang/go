@@ -86,7 +86,7 @@ func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*
 	mp := acquirem()
 	mp.ptrarg[0] = unsafe.Pointer(desc)
 	mp.ptrarg[1] = unsafe.Pointer(ctx)
-	mp.ptrarg[2] = **(**unsafe.Pointer)(unsafe.Pointer(&body))
+	mp.ptrarg[2] = unsafe.Pointer(funcPC(body)) // TODO(rsc): Should be a scalar.
 	mp.scalararg[0] = uintptr(nthr)
 	mp.scalararg[1] = uintptr(n)
 	mp.scalararg[2] = 0
