@@ -18,7 +18,7 @@ var dnsReadConfigTests = []struct {
 	{
 		name: "testdata/resolv.conf",
 		conf: dnsConfig{
-			servers:  []string{"8.8.8.8", "2001:4860:4860::8888"},
+			servers:  []string{"8.8.8.8", "2001:4860:4860::8888", "fe80::1%lo0"},
 			search:   []string{"localdomain"},
 			ndots:    5,
 			timeout:  10,
