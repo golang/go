@@ -24,7 +24,7 @@ RUN apt-get install -y --no-install-recommends gcc libc6-dev
 RUN apt-get install -y --no-install-recommends libc6-dev-i386 gcc-multilib
 
 # For interacting with the Go source & subrepos:
-RUN apt-get install -y --no-install-recommends mercurial git-core subversion
+RUN apt-get install -y --no-install-recommends mercurial git-core
 
 ENV GOPATH /gopath
 ENV GOROOT /goroot
@@ -36,10 +36,10 @@ ENV GO_TOOLS $GOPATH/src/code.google.com/p/go.tools
 RUN mkdir -p $GO_TOOLS
 RUN cd $GO_TOOLS $ && curl -s https://storage.googleapis.com/gobuilder/go.tools-snap.tar.gz | tar x --no-same-owner -zv
 
-RUN cd $GOROOT && hg update -C b8ff0ec2a724
+RUN cd $GOROOT && hg pull && hg update -C b8ff0ec2a724
 RUN cd $GOROOT/src && ./make.bash
 RUN mkdir -p /usr/local/bin
 
-RUN cd $GO_TOOLS && hg update -C 918b8a7e7b1e
+RUN cd $GO_TOOLS && hg pull && hg update -C f9e37a924785
 ENV GOBIN /usr/local/bin
 RUN /goroot/bin/go install code.google.com/p/go.tools/dashboard/builder

@@ -25,8 +25,9 @@ var (
 	proj     = flag.String("project", "symbolic-datum-552", "name of Project")
 	zone     = flag.String("zone", "us-central1-a", "GCE zone")
 	mach     = flag.String("machinetype", "n1-standard-16", "Machine type")
-	instName = flag.String("instance_name", "go-builder", "Name of VM instance.")
+	instName = flag.String("instance_name", "go-builder-1", "Name of VM instance.")
 	sshPub   = flag.String("ssh_public_key", "", "ssh public key file to authorize. Can modify later in Google's web UI anyway.")
+	staticIP = flag.String("static_ip", "", "Static IP to use. If empty, automatic.")
 )
 
 func readFile(v string) string {
@@ -110,6 +111,25 @@ func main() {
 	storageService, _ := storage.New(oauthClient)
 	_ = storageService // TODO?
 
+	natIP := *staticIP
+	if natIP == "" {
+		// Try to find it by name.
+		aggAddrList, err := computeService.Addresses.AggregatedList(*proj).Do()
+		if err != nil {
+			log.Fatal(err)
+		}
+		// http://godoc.org/code.google.com/p/google-api-go-client/compute/v1#AddressAggregatedList
+	IPLoop:
+		for _, asl := range aggAddrList.Items {
+			for _, addr := range asl.Addresses {
+				if addr.Name == *instName+"-ip" && addr.Status == "RESERVED" {
+					natIP = addr.Address
+					break IPLoop
+				}
+			}
+		}
+	}
+
 	cloudConfig := baseConfig
 	if *sshPub != "" {
 		key := strings.TrimSpace(readFile(*sshPub))
@@ -135,7 +155,7 @@ func main() {
 				InitializeParams: &compute.AttachedDiskInitializeParams{
 					DiskName:    *instName + "-coreos-stateless-pd",
 					SourceImage: imageURL,
-					DiskSizeGb:  100,
+					DiskSizeGb:  50,
 				},
 			},
 		},
@@ -154,8 +174,9 @@ func main() {
 			&compute.NetworkInterface{
 				AccessConfigs: []*compute.AccessConfig{
 					&compute.AccessConfig{
-						Type: "ONE_TO_ONE_NAT",
-						Name: "External NAT",
+						Type:  "ONE_TO_ONE_NAT",
+						Name:  "External NAT",
+						NatIP: natIP,
 					},
 				},
 				Network: prefix + "/global/networks/default",

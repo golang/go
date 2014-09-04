@@ -4,4 +4,6 @@ last-change
 dashboard/coordinator/buildongce/client-*.dat
 dashboard/coordinator/buildongce/token.dat
 dashboard/coordinator/coordinator
+dashboard/env/linux-x86-base/*.tar.gz
+dashboard/env/linux-x86-nacl/*.tar.gz
 
