@@ -232,19 +232,19 @@ const map_out = `
 const _Prime_name = "p2p3p5p7p11p13p17p19p23p29p37p41p43"
 
 var _Prime_map = map[Prime]string{
-	2:  _Prime_map[0:2],
-	3:  _Prime_map[2:4],
-	5:  _Prime_map[4:6],
-	7:  _Prime_map[6:8],
-	11: _Prime_map[8:11],
-	13: _Prime_map[11:14],
-	17: _Prime_map[14:17],
-	19: _Prime_map[17:20],
-	23: _Prime_map[20:23],
-	29: _Prime_map[23:26],
-	31: _Prime_map[26:29],
-	41: _Prime_map[29:32],
-	43: _Prime_map[32:35],
+	2:  _Prime_name[0:2],
+	3:  _Prime_name[2:4],
+	5:  _Prime_name[4:6],
+	7:  _Prime_name[6:8],
+	11: _Prime_name[8:11],
+	13: _Prime_name[11:14],
+	17: _Prime_name[14:17],
+	19: _Prime_name[17:20],
+	23: _Prime_name[20:23],
+	29: _Prime_name[23:26],
+	31: _Prime_name[26:29],
+	41: _Prime_name[29:32],
+	43: _Prime_name[32:35],
 }
 
 func (i Prime) String() string {

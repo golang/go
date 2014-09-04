@@ -634,7 +634,7 @@ func (g *Generator) buildMap(runs [][]Value, typeName string) {
 	n := 0
 	for _, values := range runs {
 		for _, value := range values {
-			g.Printf("\t%s: _%s_map[%d:%d],\n", &value, typeName, n, n+len(value.name))
+			g.Printf("\t%s: _%s_name[%d:%d],\n", &value, typeName, n, n+len(value.name))
 			n += len(value.name)
 		}
 	}
