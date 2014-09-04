@@ -317,12 +317,6 @@ runtime·semawakeup(M *mp)
 	runtime·plan9_semrelease(&mp->waitsemacount, 1);
 }
 
-void
-os·sigpipe(void)
-{
-	runtime·throw("too many writes on closed pipe");
-}
-
 static int64
 atolwhex(byte *p)
 {

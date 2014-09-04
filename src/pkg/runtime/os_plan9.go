@@ -28,3 +28,7 @@ func errstr() string
 const stackSystem = 512
 
 type _Plink uintptr
+
+func os_sigpipe() {
+	gothrow("too many writes on closed pipe")
+}
