@@ -14,7 +14,7 @@ import "unsafe"
 // func netpollopen(fd uintptr, pd *pollDesc) int32	// to arm edge-triggered notifications
 // and associate fd with pd.
 // An implementation must call the following function to denote that the pd is ready.
-// func netpollready(rg, wg **gp, pd *pollDesc, mode int32)
+// func netpollready(gpp **g, pd *pollDesc, mode int32)
 
 // pollDesc contains 2 binary semaphores, rg and wg, to park reader and writer
 // goroutines respectively. The semaphore can be in the following states:
@@ -99,7 +99,7 @@ func netpollOpen(fd uintptr) (*pollDesc, int) {
 
 func netpollClose(pd *pollDesc) {
 	if !pd.closing {
-		gothrow("runtime_pollClose: close w/o unblock")
+		gothrow("netpollClose: close w/o unblock")
 	}
 	if pd.wg != 0 && pd.wg != pdReady {
 		gothrow("netpollClose: blocked write on closing descriptor")
@@ -388,7 +388,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	var rg *g
 	if read {
 		if pd.rd <= 0 || pd.rt.f == nil {
-			gothrow("netpollDeadlineImpl: inconsistent read deadline")
+			gothrow("netpolldeadlineimpl: inconsistent read deadline")
 		}
 		pd.rd = -1
 		atomicstorep(unsafe.Pointer(&pd.rt.f), nil) // full memory barrier between store to rd and load of rg in netpollunblock
