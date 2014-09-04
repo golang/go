@@ -6,41 +6,64 @@
 
 package net
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
+
+var dnsReadConfigTests = []struct {
+	name string
+	conf dnsConfig
+}{
+	{
+		name: "testdata/resolv.conf",
+		conf: dnsConfig{
+			servers:  []string{"8.8.8.8", "2001:4860:4860::8888"},
+			search:   []string{"localdomain"},
+			ndots:    5,
+			timeout:  10,
+			attempts: 3,
+			rotate:   true,
+		},
+	},
+	{
+		name: "testdata/domain-resolv.conf",
+		conf: dnsConfig{
+			servers:  []string{"8.8.8.8"},
+			search:   []string{"localdomain"},
+			ndots:    1,
+			timeout:  5,
+			attempts: 2,
+		},
+	},
+	{
+		name: "testdata/search-resolv.conf",
+		conf: dnsConfig{
+			servers:  []string{"8.8.8.8"},
+			search:   []string{"test", "invalid"},
+			ndots:    1,
+			timeout:  5,
+			attempts: 2,
+		},
+	},
+	{
+		name: "testdata/empty-resolv.conf",
+		conf: dnsConfig{
+			ndots:    1,
+			timeout:  5,
+			attempts: 2,
+		},
+	},
+}
 
 func TestDNSReadConfig(t *testing.T) {
-	dnsConfig, err := dnsReadConfig("testdata/resolv.conf")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(dnsConfig.servers) != 1 {
-		t.Errorf("len(dnsConfig.servers) = %d; want %d", len(dnsConfig.servers), 1)
-	}
-	if dnsConfig.servers[0] != "[192.168.1.1]" {
-		t.Errorf("dnsConfig.servers[0] = %s; want %s", dnsConfig.servers[0], "[192.168.1.1]")
-	}
-
-	if len(dnsConfig.search) != 1 {
-		t.Errorf("len(dnsConfig.search) = %d; want %d", len(dnsConfig.search), 1)
-	}
-	if dnsConfig.search[0] != "Home" {
-		t.Errorf("dnsConfig.search[0] = %s; want %s", dnsConfig.search[0], "Home")
-	}
-
-	if dnsConfig.ndots != 5 {
-		t.Errorf("dnsConfig.ndots = %d; want %d", dnsConfig.ndots, 5)
-	}
-
-	if dnsConfig.timeout != 10 {
-		t.Errorf("dnsConfig.timeout = %d; want %d", dnsConfig.timeout, 10)
-	}
-
-	if dnsConfig.attempts != 3 {
-		t.Errorf("dnsConfig.attempts = %d; want %d", dnsConfig.attempts, 3)
-	}
-
-	if dnsConfig.rotate != true {
-		t.Errorf("dnsConfig.rotate = %t; want %t", dnsConfig.rotate, true)
+	for _, tt := range dnsReadConfigTests {
+		conf, err := dnsReadConfig(tt.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(conf, &tt.conf) {
+			t.Errorf("got %v; want %v", conf, &tt.conf)
+		}
 	}
 }

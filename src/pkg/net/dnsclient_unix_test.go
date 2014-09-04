@@ -204,7 +204,7 @@ func TestReloadResolvConfChange(t *testing.T) {
 	if _, err := goLookupIP("golang.org"); err != nil {
 		t.Fatalf("goLookupIP(good) failed: %v", err)
 	}
-	r.WantServers([]string{"[8.8.8.8]"})
+	r.WantServers([]string{"8.8.8.8"})
 
 	// Using a bad resolv.conf when we had a good one
 	// before should not update the config
@@ -215,7 +215,7 @@ func TestReloadResolvConfChange(t *testing.T) {
 
 	// A new good config should get picked up
 	r.SetConf("nameserver 8.8.4.4")
-	r.WantServers([]string{"[8.8.4.4]"})
+	r.WantServers([]string{"8.8.4.4"})
 }
 
 func BenchmarkGoLookupIP(b *testing.B) {
