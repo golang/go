@@ -173,8 +173,13 @@ func notesleep(n *note) {
 }
 
 //go:nosplit
-func notetsleep_internal(n *note, ns int64) bool {
-	gp := getg()
+func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+	// gp and deadline are logically local variables, but they are written
+	// as parameters so that the stack space they require is charged
+	// to the caller.
+	// This reduces the nosplit footprint of notetsleep_internal.
+	gp = getg()
+
 	// Register for wakeup on n->waitm.
 	if !casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
 		// Must be locked (got wakeup).
@@ -190,7 +195,8 @@ func notetsleep_internal(n *note, ns int64) bool {
 		gp.m.blocked = false
 		return true
 	}
-	deadline := nanotime() + ns
+
+	deadline = nanotime() + ns
 	for {
 		// Registered.  Sleep.
 		gp.m.blocked = true
@@ -244,7 +250,7 @@ func notetsleep(n *note, ns int64) bool {
 	if gp.m.waitsema == 0 {
 		gp.m.waitsema = semacreate()
 	}
-	return notetsleep_internal(n, ns)
+	return notetsleep_internal(n, ns, nil, 0)
 }
 
 // same as runtime·notetsleep, but called on user g (not g0)
@@ -258,7 +264,7 @@ func notetsleepg(n *note, ns int64) bool {
 		gp.m.waitsema = semacreate()
 	}
 	entersyscallblock()
-	ok := notetsleep_internal(n, ns)
+	ok := notetsleep_internal(n, ns, nil, 0)
 	exitsyscall()
 	return ok
 }
