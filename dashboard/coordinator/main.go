@@ -67,6 +67,7 @@ func main() {
 	addBuilder(buildConfig{name: "linux-386"})
 	addBuilder(buildConfig{name: "linux-386-387", env: []string{"GO386=387"}})
 	addBuilder(buildConfig{name: "linux-amd64"})
+	addBuilder(buildConfig{name: "linux-amd64-nocgo", env: []string{"CGO_ENABLED=0"}})
 	addBuilder(buildConfig{name: "linux-amd64-race"})
 	addBuilder(buildConfig{name: "nacl-386"})
 	addBuilder(buildConfig{name: "nacl-amd64p32"})
