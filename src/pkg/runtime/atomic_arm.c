@@ -58,7 +58,7 @@ runtime·xchgp(void* volatile* addr, void* v)
 void*
 runtime·xchguintptr(void* volatile* addr, void* v)
 {
-	return runtime·xchg((uint32*)addr, (uint32)v);
+	return (void*)runtime·xchg((uint32*)addr, (uint32)v);
 }
 
 #pragma textflag NOSPLIT
