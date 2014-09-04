@@ -185,8 +185,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
 	CMPL	AX, DX
 	JEQ	onm
 
-	MOVL	m_curg(BX), BP
-	CMPL	AX, BP
+	MOVL	m_curg(BX), R8
+	CMPL	AX, R8
 	JEQ	oncurg
 	
 	// Not g0, not curg. Must be gsignal, but that's not allowed.
