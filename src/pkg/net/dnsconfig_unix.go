@@ -25,13 +25,12 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
 	if err != nil {
 		return nil, &DNSConfigError{err}
 	}
-	conf := new(dnsConfig)
-	conf.servers = make([]string, 0, 3) // small, but the standard limit
-	conf.search = make([]string, 0)
-	conf.ndots = 1
-	conf.timeout = 5
-	conf.attempts = 2
-	conf.rotate = false
+	defer file.close()
+	conf := &dnsConfig{
+		ndots:    1,
+		timeout:  5,
+		attempts: 2,
+	}
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		f := getFields(line)
 		if len(f) < 1 {
@@ -39,30 +38,18 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
 		}
 		switch f[0] {
 		case "nameserver": // add one name server
-			a := conf.servers
-			n := len(a)
-			if len(f) > 1 && n < cap(a) {
+			if len(f) > 1 && len(conf.servers) < 3 { // small, but the standard limit
 				// One more check: make sure server name is
 				// just an IP address.  Otherwise we need DNS
 				// to look it up.
-				name := f[1]
-				switch len(ParseIP(name)) {
-				case 16:
-					name = "[" + name + "]"
-					fallthrough
-				case 4:
-					a = a[0 : n+1]
-					a[n] = name
-					conf.servers = a
+				if ParseIP(f[1]) != nil {
+					conf.servers = append(conf.servers, f[1])
 				}
 			}
 
 		case "domain": // set search path to just this domain
 			if len(f) > 1 {
-				conf.search = make([]string, 1)
-				conf.search[0] = f[1]
-			} else {
-				conf.search = make([]string, 0)
+				conf.search = []string{f[1]}
 			}
 
 		case "search": // set search path to given servers
@@ -99,8 +86,6 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
 			}
 		}
 	}
-	file.close()
-
 	return conf, nil
 }
 
