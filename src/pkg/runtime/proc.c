@@ -132,6 +132,21 @@ static void dropg(void);
 
 extern String runtime·buildVersion;
 
+// For cgo-using programs with external linking,
+// export "main" (defined in assembly) so that libc can handle basic
+// C runtime startup and call the Go program as if it were
+// the C main function.
+#pragma cgo_export_static main
+
+// Filled in by dynamic linker when Cgo is available.
+void* _cgo_init;
+void* _cgo_malloc;
+void* _cgo_free;
+
+// Copy for Go code.
+void* runtime·cgoMalloc;
+void* runtime·cgoFree;
+
 // The bootstrap sequence is:
 //
 //	call osinit
@@ -192,6 +207,9 @@ runtime·schedinit(void)
 		runtime·buildVersion.str = (uint8*)"unknown";
 		runtime·buildVersion.len = 7;
 	}
+
+	runtime·cgoMalloc = _cgo_malloc;
+	runtime·cgoFree = _cgo_free;
 }
 
 extern void main·init(void);

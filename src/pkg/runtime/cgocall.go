@@ -2,13 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "runtime.h"
-#include "arch_GOARCH.h"
-#include "stack.h"
-#include "cgocall.h"
-#include "race.h"
-#include "../../cmd/ld/textflag.h"
-
 // Cgo call and callback support.
 //
 // To call into the C function f from Go, the cgo-generated code calls
@@ -17,7 +10,7 @@
 //
 // runtime.cgocall (below) locks g to m, calls entersyscall
 // so as not to block other goroutines or the garbage collector,
-// and then calls runtime.asmcgocall(_cgo_Cfunc_f, frame). 
+// and then calls runtime.asmcgocall(_cgo_Cfunc_f, frame).
 //
 // runtime.asmcgocall (in asm_$GOARCH.s) switches to the m->g0 stack
 // (assumed to be an operating system-allocated stack, so safe to run
@@ -84,56 +77,42 @@
 // _cgoexp_GoF immediately returns to crosscall2, which restores the
 // callee-save registers for gcc and returns to GoF, which returns to f.
 
-void *_cgo_init;	/* filled in by dynamic linker when Cgo is available */
-static int64 cgosync;  /* represents possible synchronization in C code */
+package runtime
 
-static void unwindm(void);
+import "unsafe"
 
 // Call from Go to C.
-
-static void endcgo(void);
-static FuncVal endcgoV = { endcgo };
-
-void
-runtime·cgocall(void (*fn)(void*), void *arg)
-{
-	runtime·cgocall_errno(fn, arg);
+func cgocall(fn, arg unsafe.Pointer) {
+	cgocall_errno(fn, arg)
 }
 
-int32
-runtime·cgocall_errno(void (*fn)(void*), void *arg)
-{
-	Defer d;
-	int32 errno;
+func cgocall_errno(fn, arg unsafe.Pointer) int32 {
+	if !iscgo && GOOS != "solaris" && GOOS != "windows" {
+		gothrow("cgocall unavailable")
+	}
 
-	if(!runtime·iscgo && !Solaris && !Windows)
-		runtime·throw("cgocall unavailable");
+	if fn == nil {
+		gothrow("cgocall nil")
+	}
 
-	if(fn == 0)
-		runtime·throw("cgocall nil");
-
-	if(raceenabled)
-		runtime·racereleasemerge(&cgosync);
+	if raceenabled {
+		racereleasemerge(unsafe.Pointer(&racecgosync))
+	}
 
 	// Create an extra M for callbacks on threads not created by Go on first cgo call.
-	if(runtime·needextram && runtime·cas(&runtime·needextram, 1, 0))
-		runtime·newextram();
-
-	g->m->ncgocall++;
+	if needextram == 1 && cas(&needextram, 1, 0) {
+		newextram()
+	}
 
 	/*
-	 * Mutex g to m to ensure we stay on the same stack if we do a
+	 * Lock g to m to ensure we stay on the same stack if we do a
 	 * cgo callback. Add entry to defer stack in case of panic.
 	 */
-	runtime·lockOSThread();
-	d.fn = &endcgoV;
-	d.siz = 0;
-	d.link = g->defer;
-	d.argp = NoArgs;
-	d.special = true;
-	g->defer = &d;
-	
-	g->m->ncgo++;
+	lockOSThread()
+	mp := getg().m
+	mp.ncgocall++
+	mp.ncgo++
+	defer endcgo(mp)
 
 	/*
 	 * Announce we are entering a system call
@@ -146,182 +125,144 @@ runtime·cgocall_errno(void (*fn)(void*), void *arg)
 	 * so it is safe to call while "in a system call", outside
 	 * the $GOMAXPROCS accounting.
 	 */
-	runtime·entersyscall();
-	errno = runtime·asmcgocall_errno(fn, arg);
-	runtime·exitsyscall();
+	entersyscall()
+	errno := asmcgocall_errno(fn, arg)
+	exitsyscall()
 
-	if(g->defer != &d || d.fn != &endcgoV)
-		runtime·throw("runtime: bad defer entry in cgocallback");
-	g->defer = d.link;
-	endcgo();
-	
-	return errno;
+	return errno
 }
 
-static void
-endcgo(void)
-{
-	runtime·unlockOSThread();
-	g->m->ncgo--;
-	if(g->m->ncgo == 0) {
+func endcgo(mp *m) {
+	mp.ncgo--
+	if mp.ncgo == 0 {
 		// We are going back to Go and are not in a recursive
 		// call.  Let the GC collect any memory allocated via
 		// _cgo_allocate that is no longer referenced.
-		g->m->cgomal = nil;
+		mp.cgomal = nil
 	}
 
-	if(raceenabled)
-		runtime·raceacquire(&cgosync);
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&racecgosync))
+	}
+
+	unlockOSThread() // invalidates mp
 }
 
 // Helper functions for cgo code.
 
-void (*_cgo_malloc)(void*);
-void (*_cgo_free)(void*);
+// Filled by schedinit from corresponding C variables,
+// which are in turn filled in by dynamic linker when Cgo is available.
+var cgoMalloc, cgoFree unsafe.Pointer
 
-void*
-runtime·cmalloc(uintptr n)
-{
-	struct {
-		uint64 n;
-		void *ret;
-	} a;
-
-	a.n = n;
-	a.ret = nil;
-	runtime·cgocall(_cgo_malloc, &a);
-	if(a.ret == nil)
-		runtime·throw("runtime: C malloc failed");
-	return a.ret;
+func cmalloc(n uintptr) unsafe.Pointer {
+	var args struct {
+		n   uint64
+		ret unsafe.Pointer
+	}
+	args.n = uint64(n)
+	cgocall(cgoMalloc, unsafe.Pointer(&args))
+	if args.ret == nil {
+		gothrow("C malloc failed")
+	}
+	return args.ret
 }
 
-void
-runtime·cfree(void *p)
-{
-	runtime·cgocall(_cgo_free, p);
+func cfree(p unsafe.Pointer) {
+	cgocall(cgoFree, p)
 }
 
 // Call from C back to Go.
-
-static FuncVal unwindmf = {unwindm};
-
-typedef struct CallbackArgs CallbackArgs;
-struct CallbackArgs
-{
-	FuncVal *fn;
-	void *arg;
-	uintptr argsize;
-};
-
-// Location of callback arguments depends on stack frame layout
-// and size of stack frame of cgocallback_gofunc.
-
-// On arm, stack frame is two words and there's a saved LR between
-// SP and the stack frame and between the stack frame and the arguments.
-#ifdef GOARCH_arm
-#define CBARGS (CallbackArgs*)((byte*)g->m->g0->sched.sp+4*sizeof(void*))
-#endif
-
-// On amd64, stack frame is one word, plus caller PC.
-#ifdef GOARCH_amd64
-#define CBARGS (CallbackArgs*)((byte*)g->m->g0->sched.sp+2*sizeof(void*))
-#endif
-
-// Unimplemented on amd64p32
-#ifdef GOARCH_amd64p32
-#define CBARGS (CallbackArgs*)(nil)
-#endif
-
-// On 386, stack frame is three words, plus caller PC.
-#ifdef GOARCH_386
-#define CBARGS (CallbackArgs*)((byte*)g->m->g0->sched.sp+4*sizeof(void*))
-#endif
-
-void runtime·cgocallbackg1(void);
-
-#pragma textflag NOSPLIT
-void
-runtime·cgocallbackg(void)
-{
-	if(g != g->m->curg) {
-		runtime·prints("runtime: bad g in cgocallback");
-		runtime·exit(2);
+//go:nosplit
+func cgocallbackg() {
+	if gp := getg(); gp != gp.m.curg {
+		println("runtime: bad g in cgocallback")
+		exit(2)
 	}
 
-	runtime·exitsyscall();	// coming out of cgo call
-	runtime·cgocallbackg1();
-	runtime·entersyscall();	// going back to cgo call
+	exitsyscall() // coming out of cgo call
+	cgocallbackg1()
+	entersyscall() // going back to cgo call
 }
 
-void
-runtime·cgocallbackg1(void)
-{
-	CallbackArgs *cb;
-	Defer d;
-
-	if(g->m->needextram) {
-		g->m->needextram = 0;
-		runtime·newextram();
+func cgocallbackg1() {
+	gp := getg()
+	if gp.m.needextram {
+		gp.m.needextram = false
+		newextram()
 	}
 
 	// Add entry to defer stack in case of panic.
-	d.fn = &unwindmf;
-	d.siz = 0;
-	d.link = g->defer;
-	d.argp = NoArgs;
-	d.special = true;
-	g->defer = &d;
+	restore := true
+	defer unwindm(&restore)
 
-	if(raceenabled)
-		runtime·raceacquire(&cgosync);
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&racecgosync))
+	}
+
+	type args struct {
+		fn      *funcval
+		arg     unsafe.Pointer
+		argsize uintptr
+	}
+	var cb *args
+
+	// Location of callback arguments depends on stack frame layout
+	// and size of stack frame of cgocallback_gofunc.
+	sp := gp.m.g0.sched.sp
+	switch GOARCH {
+	default:
+		gothrow("cgocallbackg is unimplemented on arch")
+	case "arm":
+		// On arm, stack frame is two words and there's a saved LR between
+		// SP and the stack frame and between the stack frame and the arguments.
+		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+	case "amd64":
+		// On amd64, stack frame is one word, plus caller PC.
+		cb = (*args)(unsafe.Pointer(sp + 2*ptrSize))
+	case "386":
+		// On 386, stack frame is three words, plus caller PC.
+		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+	}
 
 	// Invoke callback.
-	cb = CBARGS;
-	runtime·newstackcall(cb->fn, cb->arg, cb->argsize);
+	newstackcall(cb.fn, cb.arg, uint32(cb.argsize))
 
-	if(raceenabled)
-		runtime·racereleasemerge(&cgosync);
+	if raceenabled {
+		racereleasemerge(unsafe.Pointer(&racecgosync))
+	}
 
-	// Pop defer.
 	// Do not unwind m->g0->sched.sp.
 	// Our caller, cgocallback, will do that.
-	if(g->defer != &d || d.fn != &unwindmf)
-		runtime·throw("runtime: bad defer entry in cgocallback");
-	g->defer = d.link;
+	restore = false
 }
 
-static void
-unwindm(void)
-{
+func unwindm(restore *bool) {
+	if !*restore {
+		return
+	}
 	// Restore sp saved by cgocallback during
 	// unwind of g's stack (see comment at top of file).
-	switch(thechar){
+	mp := acquirem()
+	sched := &mp.g0.sched
+	switch GOARCH {
 	default:
-		runtime·throw("runtime: unwindm not implemented");
-	case '8':
-	case '6':
-		g->m->g0->sched.sp = *(uintptr*)g->m->g0->sched.sp;
-		break;
-	case '5':
-		g->m->g0->sched.sp = *(uintptr*)((byte*)g->m->g0->sched.sp + 4);
-		break;
+		gothrow("unwindm not implemented")
+	case "386", "amd64":
+		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp))
+	case "arm":
+		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 4))
 	}
+	releasem(mp)
 }
 
-void
-runtime·badcgocallback(void)	// called from assembly
-{
-	runtime·throw("runtime: misaligned stack in cgocallback");
+// called from assembly
+func badcgocallback() {
+	gothrow("misaligned stack in cgocallback")
 }
 
-void
-runtime·cgounimpl(void)	// called from (incomplete) assembly
-{
-	runtime·throw("runtime: cgo not implemented");
+// called from (incomplete) assembly
+func cgounimpl() {
+	gothrow("cgo not implemented")
 }
 
-// For cgo-using programs with external linking,
-// export "main" (defined in assembly) so that libc can handle basic
-// C runtime startup and call the Go program as if it were
-// the C main function.
-#pragma cgo_export_static main
+var racecgosync uint64 // represents possible synchronization in C code

@@ -33,6 +33,9 @@ func raceacquire(addr unsafe.Pointer)
 func racerelease(addr unsafe.Pointer)
 
 //go:noescape
+func racereleasemerge(addr unsafe.Pointer)
+
+//go:noescape
 func raceacquireg(gp *g, addr unsafe.Pointer)
 
 //go:noescape
@@ -146,6 +149,9 @@ const (
 func gosched()
 func starttheworld()
 func stoptheworld()
+func newextram()
+func lockOSThread()
+func unlockOSThread()
 
 // exported value for testing
 var hashLoad = loadFactor
@@ -281,6 +287,9 @@ func getcallersp(argp unsafe.Pointer) uintptr
 
 //go:noescape
 func asmcgocall(fn, arg unsafe.Pointer)
+
+//go:noescape
+func asmcgocall_errno(fn, arg unsafe.Pointer) int32
 
 //go:noescape
 func open(name *byte, mode, perm int32) int32
