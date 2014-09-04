@@ -20,11 +20,11 @@
 //	type Pill int
 //
 //	const (
-//		Undefined Pill = iota
+//		Placebo Pill = iota
 //		Aspirin
 //		Ibuprofen
-//		Acetaminophen
-//		Paracetamol = Acetaminophen
+//		Paracetamol
+//		Acetaminophen = Paracetamol
 //	)
 //
 // running this command
@@ -45,8 +45,8 @@
 //	//go:generate go tool stringer -type=Pill
 //	TODO: do we install this as a tool or as a binary?
 //
-// If multiple contants have the same value, the lexically first matching name will
-// be used (in the example, Paracetamol will print as "Acetaminophen").
+// If multiple constants have the same value, the lexically first matching name will
+// be used (in the example, Acetaminophen will print as "Paracetamol").
 //
 // With no arguments, it processes the package in the current directory.
 // Otherwise, the arguments must name a single directory holding a Go package
@@ -142,14 +142,7 @@ func main() {
 	}
 
 	// Format the output.
-	src, err := format.Source(g.buf.Bytes())
-	if err != nil {
-		// Should never happen, but can arise when developing this code.
-		// The user can compile the output to see the error.
-		log.Printf("warning: internal error: invalid Go generated: %s", err)
-		log.Printf("warning: compile the package to analyze the error")
-		src = g.buf.Bytes()
-	}
+	src := g.format()
 
 	// Write to file.
 	outputName := *output
@@ -157,7 +150,7 @@ func main() {
 		baseName := fmt.Sprintf("%s_string.go", types[0])
 		outputName = filepath.Join(dir, strings.ToLower(baseName))
 	}
-	err = ioutil.WriteFile(outputName, src, 0644)
+	err := ioutil.WriteFile(outputName, src, 0644)
 	if err != nil {
 		log.Fatalf("writing output: %s", err)
 	}
@@ -214,12 +207,12 @@ func (g *Generator) parsePackageDir(directory string) {
 	// names = append(names, pkg.TestGoFiles...) // These are also in the "foo" package.
 	names = append(names, pkg.SFiles...)
 	names = prefixDirectory(directory, names)
-	g.parsePackage(directory, names)
+	g.parsePackage(directory, names, "")
 }
 
 // parsePackageFiles parses the package occupying the named files.
 func (g *Generator) parsePackageFiles(names []string) {
-	g.parsePackage(".", names)
+	g.parsePackage(".", names, "")
 }
 
 // prefixDirectory places the directory name on the beginning of each name in the list.
@@ -235,7 +228,9 @@ func prefixDirectory(directory string, names []string) []string {
 }
 
 // doPackage analyzes the single package constructed from the named files.
-func (g *Generator) parsePackage(directory string, names []string) {
+// If text is non-nil, it is a string to be used instead of the content of the file,
+// to be used for testing. doPackage exits if there is an error.
+func (g *Generator) parsePackage(directory string, names []string, text interface{}) {
 	var files []*File
 	var astFiles []*ast.File
 	g.pkg = new(Package)
@@ -244,7 +239,7 @@ func (g *Generator) parsePackage(directory string, names []string) {
 		if !strings.HasSuffix(name, ".go") {
 			continue
 		}
-		parsedFile, err := parser.ParseFile(fs, name, nil, 0)
+		parsedFile, err := parser.ParseFile(fs, name, text, 0)
 		if err != nil {
 			log.Fatalf("parsing package: %s: %s", name, err)
 		}
@@ -323,6 +318,19 @@ func (g *Generator) generate(typeName string) {
 func splitIntoRuns(values []Value) [][]Value {
 	// We use stable sort so the lexically first name is chosen for equal elements.
 	sort.Stable(byValue(values))
+	// Remove duplicates. Stable sort has put the one we want to print first,
+	// so use that one. The String method won't care about which named constant
+	// was the argument, so the first name for the given value is the only one to keep.
+	// We need to do this because identical values would cause the switch or map
+	// to fail to compile.
+	j := 1
+	for i := 1; i < len(values); i++ {
+		if values[i].value != values[i-1].value {
+			values[j] = values[i]
+			j++
+		}
+	}
+	values = values[:j]
 	runs := make([][]Value, 0, 10)
 	for len(values) > 0 {
 		// One contiguous sequence per outer loop.
@@ -334,6 +342,19 @@ func splitIntoRuns(values []Value) [][]Value {
 		values = values[i:]
 	}
 	return runs
+}
+
+// format returns the gofmt-ed contents of the Generator's buffer.
+func (g *Generator) format() []byte {
+	src, err := format.Source(g.buf.Bytes())
+	if err != nil {
+		// Should never happen, but can arise when developing this code.
+		// The user can compile the output to see the error.
+		log.Printf("warning: internal error: invalid Go generated: %s", err)
+		log.Printf("warning: compile the package to analyze the error")
+		return g.buf.Bytes()
+	}
+	return src
 }
 
 // Value represents a declared constant.
@@ -470,7 +491,7 @@ func (g *Generator) declareIndexAndNameVars(run []Value, typeName string, suffix
 		indexes[i] = b.Len()
 	}
 	names := b.String()
-	g.Printf("\t_%s_indexes%s = []uint%d{", typeName, suffix, usize(len(names)))
+	g.Printf("\t_%s_indexes%s = [...]uint%d{", typeName, suffix, usize(len(names)))
 	for i, v := range indexes {
 		if i > 0 {
 			g.Printf(", ")
@@ -553,7 +574,7 @@ func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string) {
 			g.Printf("\t\treturn _%s_names_%d\n", typeName, i)
 			continue
 		}
-		g.Printf("\tcase %s < i && i < %s:\n", &values[0], &values[len(values)-1])
+		g.Printf("\tcase %s <= i && i < %s:\n", &values[0], &values[len(values)-1])
 		g.Printf("\t\tlo := uint%d(0)\n", usize(len(values)))
 		g.Printf("\t\tif i > %s {\n", &values[0])
 		g.Printf("\t\t\ti -= %s\n", &values[0])
@@ -583,10 +604,9 @@ func (g *Generator) buildMap(runs [][]Value, typeName string) {
 
 // Argument to format is the type name.
 const stringMap = `func (i %[1]s) String() string {
-	str, ok := _%[1]s_map[i]
-	if !ok {
-		return fmt.Sprintf("%[1]s(%%d)", i)
+	if str, ok := _%[1]s_map[i]; ok {
+		return str
 	}
-	return str
+	return fmt.Sprintf("%[1]s(%%d)", i)
 }
 `
