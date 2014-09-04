@@ -48,7 +48,7 @@ func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
 
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		racereadrangepc(old.array, old.len*int(t.elem.size), callerpc, funcPC(growslice))
+		racereadrangepc(old.array, uintptr(old.len*int(t.elem.size)), callerpc, funcPC(growslice))
 	}
 
 	et := t.elem
@@ -104,8 +104,8 @@ func slicecopy(to sliceStruct, fm sliceStruct, width uintptr) int {
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&to))
 		pc := funcPC(slicecopy)
-		racewriterangepc(to.array, n*int(width), callerpc, pc)
-		racereadrangepc(fm.array, n*int(width), callerpc, pc)
+		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
+		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
 	}
 
 	size := uintptr(n) * width
@@ -131,7 +131,7 @@ func slicestringcopy(to []byte, fm string) int {
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&to))
 		pc := funcPC(slicestringcopy)
-		racewriterangepc(unsafe.Pointer(&to[0]), n, callerpc, pc)
+		racewriterangepc(unsafe.Pointer(&to[0]), uintptr(n), callerpc, pc)
 	}
 
 	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer((*stringStruct)(unsafe.Pointer(&fm)).str), uintptr(n))

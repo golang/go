@@ -55,22 +55,42 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 	runtime·futex(addr, FUTEX_WAIT, val, &ts, nil, 0);
 }
 
+static void badfutexwakeup(void);
+
 // If any procs are sleeping on addr, wake up at most cnt.
+#pragma textflag NOSPLIT
 void
 runtime·futexwakeup(uint32 *addr, uint32 cnt)
 {
 	int64 ret;
+	void (*fn)(void);
 
 	ret = runtime·futex(addr, FUTEX_WAKE, cnt, nil, nil, 0);
-
 	if(ret >= 0)
 		return;
 
 	// I don't know that futex wakeup can return
 	// EAGAIN or EINTR, but if it does, it would be
 	// safe to loop and call futex again.
-	runtime·printf("futexwakeup addr=%p returned %D\n", addr, ret);
+	g->m->ptrarg[0] = addr;
+	g->m->scalararg[0] = (int32)ret; // truncated but fine
+	fn = badfutexwakeup;
+	if(g == g->m->gsignal)
+		fn();
+	else
+		runtime·onM(&fn);
 	*(int32*)0x1006 = 0x1006;
+}
+
+static void
+badfutexwakeup(void)
+{
+	void *addr;
+	int64 ret;
+	
+	addr = g->m->ptrarg[0];
+	ret = (int32)g->m->scalararg[0];
+	runtime·printf("futexwakeup addr=%p returned %D\n", addr, ret);
 }
 
 extern runtime·sched_getaffinity(uintptr pid, uintptr len, uintptr *buf);
@@ -162,6 +182,7 @@ runtime·osinit(void)
 byte*	runtime·startup_random_data;
 uint32	runtime·startup_random_data_len;
 
+#pragma textflag NOSPLIT
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {

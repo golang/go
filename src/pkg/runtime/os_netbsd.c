@@ -185,6 +185,7 @@ runtime·osinit(void)
 	runtime·ncpu = getncpu();
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {

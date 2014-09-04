@@ -2534,6 +2534,7 @@ lockOSThread(void)
 	g->lockedm = g->m;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·LockOSThread(void)
 {
@@ -2541,6 +2542,7 @@ runtime·LockOSThread(void)
 	lockOSThread();
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·lockOSThread(void)
 {
@@ -2562,6 +2564,7 @@ unlockOSThread(void)
 	g->lockedm = nil;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·UnlockOSThread(void)
 {
@@ -2569,13 +2572,26 @@ runtime·UnlockOSThread(void)
 	unlockOSThread();
 }
 
+static void badunlockOSThread(void);
+
+#pragma textflag NOSPLIT
 void
 runtime·unlockOSThread(void)
 {
-	if(g->m->locked < LockInternal)
-		runtime·throw("runtime: internal error: misuse of lockOSThread/unlockOSThread");
+	void (*fn)(void);
+
+	if(g->m->locked < LockInternal) {
+		fn = badunlockOSThread;
+		runtime·onM(&fn);
+	}
 	g->m->locked -= LockInternal;
 	unlockOSThread();
+}
+
+static void
+badunlockOSThread(void)
+{
+	runtime·throw("runtime: internal error: misuse of lockOSThread/unlockOSThread");
 }
 
 bool

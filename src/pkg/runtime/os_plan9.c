@@ -100,6 +100,7 @@ runtime·crash(void)
 	*(int32*)0 = 0;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {

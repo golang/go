@@ -14,35 +14,6 @@ import "unsafe"
 const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
 const regSize = 4 << (^uintreg(0) >> 63) // unsafe.Sizeof(uintreg(0)) but an ideal const
 
-//go:noescape
-func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
-
-//go:noescape
-func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
-
-//go:noescape
-func racereadrangepc(addr unsafe.Pointer, len int, callpc, pc uintptr)
-
-//go:noescape
-func racewriterangepc(addr unsafe.Pointer, len int, callpc, pc uintptr)
-
-//go:noescape
-func raceacquire(addr unsafe.Pointer)
-
-//go:noescape
-func racerelease(addr unsafe.Pointer)
-
-//go:noescape
-func racereleasemerge(addr unsafe.Pointer)
-
-//go:noescape
-func raceacquireg(gp *g, addr unsafe.Pointer)
-
-//go:noescape
-func racereleaseg(gp *g, addr unsafe.Pointer)
-
-func racefingo()
-
 // Should be a built-in for unsafe.Pointer?
 //go:nosplit
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
@@ -134,8 +105,6 @@ func goexit_m()
 // in memclr_*.s
 //go:noescape
 func memclr(ptr unsafe.Pointer, n uintptr)
-
-func racemalloc(p unsafe.Pointer, size uintptr)
 
 // memmove copies n bytes from "from" to "to".
 // in memmove_*.s

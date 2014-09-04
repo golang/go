@@ -101,7 +101,7 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
 
 	// Create an extra M for callbacks on threads not created by Go on first cgo call.
 	if needextram == 1 && cas(&needextram, 1, 0) {
-		newextram()
+		onM(newextram)
 	}
 
 	/*
@@ -188,7 +188,7 @@ func cgocallbackg1() {
 	gp := getg()
 	if gp.m.needextram {
 		gp.m.needextram = false
-		newextram()
+		onM(newextram)
 	}
 
 	// Add entry to defer stack in case of panic.

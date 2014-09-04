@@ -109,6 +109,7 @@ runtime·osinit(void)
 	}
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {

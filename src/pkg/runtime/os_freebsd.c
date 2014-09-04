@@ -73,17 +73,38 @@ fail:
 	*(int32*)0x1005 = 0x1005;
 }
 
+static void badfutexwakeup(void);
+
+#pragma textflag NOSPLIT
 void
 runtime·futexwakeup(uint32 *addr, uint32 cnt)
 {
 	int32 ret;
+	void (*fn)(void);
 
 	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE_PRIVATE, cnt, nil, nil);
 	if(ret >= 0)
 		return;
 
-	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
+	g->m->ptrarg[0] = addr;
+	g->m->scalararg[0] = ret;
+	fn = badfutexwakeup;
+	if(g == g->m->gsignal)
+		fn();
+	else
+		runtime·onM(&fn);
 	*(int32*)0x1006 = 0x1006;
+}
+
+static void
+badfutexwakeup(void)
+{
+	void *addr;
+	int32 ret;
+	
+	addr = g->m->ptrarg[0];
+	ret = g->m->scalararg[0];
+	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
 }
 
 void runtime·thr_start(void*);
@@ -127,6 +148,7 @@ runtime·osinit(void)
 	runtime·ncpu = getncpu();
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {

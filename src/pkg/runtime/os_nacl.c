@@ -65,6 +65,7 @@ runtime·crash(void)
 	*(int32*)0 = 0;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {
@@ -112,8 +113,8 @@ runtime·newosproc(M *mp, void *stk)
 	}
 }
 
-uintptr
-runtime·semacreate(void)
+static void
+semacreate(void)
 {
 	int32 mu, cond;
 	
@@ -128,14 +129,32 @@ runtime·semacreate(void)
 		runtime·throw("semacreate");
 	}
 	g->m->waitsemalock = mu;
-	return cond; // assigned to m->waitsema
+	g->m->scalararg[0] = cond; // assigned to m->waitsema
 }
 
 #pragma textflag NOSPLIT
-int32
-runtime·semasleep(int64 ns)
+uint32
+runtime·semacreate(void)
+{
+	void (*fn)(void);
+	uint32 x;
+	
+	fn = semacreate;
+	runtime·onM(&fn);
+	x = g->m->scalararg[0];
+	g->m->scalararg[0] = 0;
+	return x;
+}
+
+static void
+semasleep(void)
 {
 	int32 ret;
+	int64 ns;
+	
+	ns = (int64)(uint32)g->m->scalararg[0] | (int64)(uint32)g->m->scalararg[1]<<32;
+	g->m->scalararg[0] = 0;
+	g->m->scalararg[1] = 0;
 	
 	ret = runtime·nacl_mutex_lock(g->m->waitsemalock);
 	if(ret < 0) {
@@ -145,7 +164,8 @@ runtime·semasleep(int64 ns)
 	if(g->m->waitsemacount > 0) {
 		g->m->waitsemacount = 0;
 		runtime·nacl_mutex_unlock(g->m->waitsemalock);
-		return 0;
+		g->m->scalararg[0] = 0;
+		return;
 	}
 
 	while(g->m->waitsemacount == 0) {
@@ -163,7 +183,8 @@ runtime·semasleep(int64 ns)
 			ret = runtime·nacl_cond_timed_wait_abs(g->m->waitsema, g->m->waitsemalock, &ts);
 			if(ret == -ETIMEDOUT) {
 				runtime·nacl_mutex_unlock(g->m->waitsemalock);
-				return -1;
+				g->m->scalararg[0] = -1;
+				return;
 			}
 			if(ret < 0) {
 				//runtime·printf("nacl_cond_timed_wait_abs: error %d\n", -ret);
@@ -174,14 +195,34 @@ runtime·semasleep(int64 ns)
 			
 	g->m->waitsemacount = 0;
 	runtime·nacl_mutex_unlock(g->m->waitsemalock);
-	return 0;
+	g->m->scalararg[0] = 0;
 }
 
-void
-runtime·semawakeup(M *mp)
+#pragma textflag NOSPLIT
+int32
+runtime·semasleep(int64 ns)
+{
+	int32 r;
+	void (*fn)(void);
+
+	g->m->scalararg[0] = (uint32)ns;
+	g->m->scalararg[1] = (uint32)(ns>>32);
+	fn = semasleep;
+	runtime·onM(&fn);
+	r = g->m->scalararg[0];
+	g->m->scalararg[0] = 0;
+	return r;
+}
+
+static void
+semawakeup(void)
 {
 	int32 ret;
+	M *mp;
 	
+	mp = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+
 	ret = runtime·nacl_mutex_lock(mp->waitsemalock);
 	if(ret < 0) {
 		//runtime·printf("nacl_mutex_lock: error %d\n", -ret);
@@ -194,6 +235,17 @@ runtime·semawakeup(M *mp)
 	mp->waitsemacount = 1;
 	runtime·nacl_cond_signal(mp->waitsema);
 	runtime·nacl_mutex_unlock(mp->waitsemalock);
+}
+
+#pragma textflag NOSPLIT
+void
+runtime·semawakeup(M *mp)
+{
+	void (*fn)(void);
+
+	g->m->ptrarg[0] = mp;
+	fn = semawakeup;
+	runtime·onM(&fn);
 }
 
 uintptr
