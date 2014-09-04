@@ -273,7 +273,7 @@ func netpolllock(pd *pollDesc) {
 }
 
 func netpollunlock(pd *pollDesc) {
-	lock(&pd.lock)
+	unlock(&pd.lock)
 }
 
 // make pd ready, newly runnable goroutines (if any) are returned in rg/wg
