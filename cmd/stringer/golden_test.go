@@ -46,21 +46,20 @@ const (
 `
 
 const day_out = `
-var (
-	_Day_indexes = [...]uint8{6, 13, 22, 30, 36, 44, 50}
-	_Day_names   = "MondayTuesdayWednesdayThursdayFridaySaturdaySunday"
-)
+const _Day_name = "MondayTuesdayWednesdayThursdayFridaySaturdaySunday"
+
+var _Day_index = [...]uint8{6, 13, 22, 30, 36, 44, 50}
 
 func (i Day) String() string {
-	if i < 0 || i >= Day(len(_Day_indexes)) {
+	if i < 0 || i >= Day(len(_Day_index)) {
 		return fmt.Sprintf("Day(%d)", i)
 	}
-	hi := _Day_indexes[i]
+	hi := _Day_index[i]
 	lo := uint8(0)
 	if i > 0 {
-		lo = _Day_indexes[i-1]
+		lo = _Day_index[i-1]
 	}
-	return _Day_names[lo:hi]
+	return _Day_name[lo:hi]
 }
 `
 
@@ -77,22 +76,21 @@ const (
 `
 
 const offset_out = `
-var (
-	_Number_indexes = [...]uint8{3, 6, 11}
-	_Number_names   = "OneTwoThree"
-)
+const _Number_name = "OneTwoThree"
+
+var _Number_index = [...]uint8{3, 6, 11}
 
 func (i Number) String() string {
 	i -= 1
-	if i < 0 || i >= Number(len(_Number_indexes)) {
+	if i < 0 || i >= Number(len(_Number_index)) {
 		return fmt.Sprintf("Number(%d)", i+1)
 	}
-	hi := _Number_indexes[i]
+	hi := _Number_index[i]
 	lo := uint8(0)
 	if i > 0 {
-		lo = _Number_indexes[i-1]
+		lo = _Number_index[i-1]
 	}
-	return _Number_names[lo:hi]
+	return _Number_name[lo:hi]
 }
 `
 
@@ -111,13 +109,16 @@ const (
 `
 
 const gap_out = `
+const (
+	_Num_name_0 = "TwoThree"
+	_Num_name_1 = "FiveSixSevenEightNine"
+	_Num_name_2 = "Eleven"
+)
+
 var (
-	_Num_indexes_0 = [...]uint8{3, 8}
-	_Num_names_0   = "TwoThree"
-	_Num_indexes_1 = [...]uint8{4, 7, 12, 17, 21}
-	_Num_names_1   = "FiveSixSevenEightNine"
-	_Num_indexes_2 = [...]uint8{6}
-	_Num_names_2   = "Eleven"
+	_Num_index_0 = [...]uint8{3, 8}
+	_Num_index_1 = [...]uint8{4, 7, 12, 17, 21}
+	_Num_index_2 = [...]uint8{6}
 )
 
 func (i Num) String() string {
@@ -127,19 +128,19 @@ func (i Num) String() string {
 		if i > 2 {
 			i -= 2
 		} else {
-			lo = _Num_indexes_0[i-1]
+			lo = _Num_index_0[i-1]
 		}
-		return _Num_names_0[lo:_Num_indexes_0[i]]
+		return _Num_name_0[lo:_Num_index_0[i]]
 	case 5 <= i && i < 9:
 		lo := uint8(0)
 		if i > 5 {
 			i -= 5
 		} else {
-			lo = _Num_indexes_1[i-1]
+			lo = _Num_index_1[i-1]
 		}
-		return _Num_names_1[lo:_Num_indexes_1[i]]
+		return _Num_name_1[lo:_Num_index_1[i]]
 	case i == 11:
-		return _Num_names_2
+		return _Num_name_2
 	default:
 		return fmt.Sprintf("Num(%d)", i)
 	}
@@ -158,22 +159,21 @@ const (
 `
 
 const neg_out = `
-var (
-	_Num_indexes = [...]uint8{3, 6, 8, 10, 12}
-	_Num_names   = "m_2m_1m0m1m2"
-)
+const _Num_name = "m_2m_1m0m1m2"
+
+var _Num_index = [...]uint8{3, 6, 8, 10, 12}
 
 func (i Num) String() string {
 	i -= -2
-	if i < 0 || i >= Num(len(_Num_indexes)) {
+	if i < 0 || i >= Num(len(_Num_index)) {
 		return fmt.Sprintf("Num(%d)", i+-2)
 	}
-	hi := _Num_indexes[i]
+	hi := _Num_index[i]
 	lo := uint8(0)
 	if i > 0 {
-		lo = _Num_indexes[i-1]
+		lo = _Num_index[i-1]
 	}
-	return _Num_names[lo:hi]
+	return _Num_name[lo:hi]
 }
 `
 
@@ -189,22 +189,21 @@ const (
 `
 
 const uneg_out = `
-var (
-	_UNum_indexes = [...]uint8{3}
-	_UNum_names   = "m_2"
-)
+const _UNum_name = "m_2"
+
+var _UNum_index = [...]uint8{3}
 
 func (i UNum) String() string {
 	i -= 18446744073709551613
-	if i >= UNum(len(_UNum_indexes)) {
+	if i >= UNum(len(_UNum_index)) {
 		return fmt.Sprintf("UNum(%d)", i+18446744073709551613)
 	}
-	hi := _UNum_indexes[i]
+	hi := _UNum_index[i]
 	lo := uint8(0)
 	if i > 0 {
-		lo = _UNum_indexes[i-1]
+		lo = _UNum_index[i-1]
 	}
-	return _UNum_names[lo:hi]
+	return _UNum_name[lo:hi]
 }
 `
 
@@ -230,20 +229,22 @@ const (
 `
 
 const map_out = `
+const _Prime_name = "p2p3p5p7p11p13p17p19p23p29p37p41p43"
+
 var _Prime_map = map[Prime]string{
-	2:  "p2",
-	3:  "p3",
-	5:  "p5",
-	7:  "p7",
-	11: "p11",
-	13: "p13",
-	17: "p17",
-	19: "p19",
-	23: "p23",
-	29: "p29",
-	31: "p37",
-	41: "p41",
-	43: "p43",
+	2:  _Prime_map[0:2],
+	3:  _Prime_map[2:4],
+	5:  _Prime_map[4:6],
+	7:  _Prime_map[6:8],
+	11: _Prime_map[8:11],
+	13: _Prime_map[11:14],
+	17: _Prime_map[14:17],
+	19: _Prime_map[17:20],
+	23: _Prime_map[20:23],
+	29: _Prime_map[23:26],
+	31: _Prime_map[26:29],
+	41: _Prime_map[29:32],
+	43: _Prime_map[32:35],
 }
 
 func (i Prime) String() string {

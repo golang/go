@@ -207,12 +207,12 @@ func (g *Generator) parsePackageDir(directory string) {
 	// names = append(names, pkg.TestGoFiles...) // These are also in the "foo" package.
 	names = append(names, pkg.SFiles...)
 	names = prefixDirectory(directory, names)
-	g.parsePackage(directory, names, "")
+	g.parsePackage(directory, names, nil)
 }
 
 // parsePackageFiles parses the package occupying the named files.
 func (g *Generator) parsePackageFiles(names []string) {
-	g.parsePackage(".", names, "")
+	g.parsePackage(".", names, nil)
 }
 
 // prefixDirectory places the directory name on the beginning of each name in the list.
@@ -227,9 +227,9 @@ func prefixDirectory(directory string, names []string) []string {
 	return ret
 }
 
-// doPackage analyzes the single package constructed from the named files.
+// parsePackage analyzes the single package constructed from the named files.
 // If text is non-nil, it is a string to be used instead of the content of the file,
-// to be used for testing. doPackage exits if there is an error.
+// to be used for testing. parsePackage exits if there is an error.
 func (g *Generator) parsePackage(directory string, names []string, text interface{}) {
 	var files []*File
 	var astFiles []*ast.File
@@ -481,33 +481,72 @@ func usize(n int) int {
 	}
 }
 
-// declareIndexAndNameVars declares the index slice and concatenated names
-// string representing the contiguous run of values.
-func (g *Generator) declareIndexAndNameVars(run []Value, typeName string, suffix string) {
+// declareIndexAndNameVars declares the index slices and concatenated names
+// strings representing the runs of values.
+func (g *Generator) declareIndexAndNameVars(runs [][]Value, typeName string) {
+	var indexes, names []string
+	for i, run := range runs {
+		index, name := g.createIndexAndNameDecl(run, typeName, fmt.Sprintf("_%d", i))
+		indexes = append(indexes, index)
+		names = append(names, name)
+	}
+	g.Printf("const (\n")
+	for _, name := range names {
+		g.Printf("\t%s\n", name)
+	}
+	g.Printf(")\n\n")
+	g.Printf("var (")
+	for _, index := range indexes {
+		g.Printf("\t%s\n", index)
+	}
+	g.Printf(")\n\n")
+}
+
+// declareIndexAndNameVar is the single-run version of declareIndexAndNameVars
+func (g *Generator) declareIndexAndNameVar(run []Value, typeName string) {
+	index, name := g.createIndexAndNameDecl(run, typeName, "")
+	g.Printf("const %s\n", name)
+	g.Printf("var %s\n", index)
+}
+
+// createIndexAndNameDecl returns the pair of declarations for the run. The caller will add "const" and "var".
+func (g *Generator) createIndexAndNameDecl(run []Value, typeName string, suffix string) (string, string) {
 	b := new(bytes.Buffer)
 	indexes := make([]int, len(run))
 	for i := range run {
 		b.WriteString(run[i].name)
 		indexes[i] = b.Len()
 	}
-	names := b.String()
-	g.Printf("\t_%s_indexes%s = [...]uint%d{", typeName, suffix, usize(len(names)))
+	nameConst := fmt.Sprintf("_%s_name%s = %q", typeName, suffix, b.String())
+	nameLen := b.Len()
+	b.Reset()
+	fmt.Fprintf(b, "_%s_index%s = [...]uint%d{", typeName, suffix, usize(nameLen))
 	for i, v := range indexes {
 		if i > 0 {
-			g.Printf(", ")
+			fmt.Fprintf(b, ", ")
 		}
-		g.Printf("%d", v)
+		fmt.Fprintf(b, "%d", v)
 	}
-	g.Printf("}\n")
-	g.Printf("\t_%s_names%s   = %q\n", typeName, suffix, names)
+	fmt.Fprintf(b, "}")
+	return b.String(), nameConst
+}
+
+// declareNameVars declares the concatenated names string representing all the values in the runs.
+func (g *Generator) declareNameVars(runs [][]Value, typeName string, suffix string) {
+	g.Printf("const _%s_name%s = \"", typeName, suffix)
+	for _, run := range runs {
+		for i := range run {
+			g.Printf("%s", run[i].name)
+		}
+	}
+	g.Printf("\"\n")
 }
 
 // buildOneRun generates the variables and String method for a single run of contiguous values.
 func (g *Generator) buildOneRun(runs [][]Value, typeName string) {
 	values := runs[0]
-	g.Printf("\nvar (\n")
-	g.declareIndexAndNameVars(values, typeName, "")
-	g.Printf(")\n\n")
+	g.Printf("\n")
+	g.declareIndexAndNameVar(values, typeName)
 	// The generated code is simple enough to write as a Printf format.
 	lessThanZero := ""
 	if values[0].signed {
@@ -525,15 +564,15 @@ func (g *Generator) buildOneRun(runs [][]Value, typeName string) {
 //	[2]: size of index element (8 for uint8 etc.)
 //	[3]: less than zero check (for signed types)
 const stringOneRun = `func (i %[1]s) String() string {
-	if %[3]si >= %[1]s(len(_%[1]s_indexes)) {
+	if %[3]si >= %[1]s(len(_%[1]s_index)) {
 		return fmt.Sprintf("%[1]s(%%d)", i)
 	}
-	hi := _%[1]s_indexes[i]
+	hi := _%[1]s_index[i]
 	lo := uint%[2]d(0)
 	if i > 0 {
-		lo = _%[1]s_indexes[i-1]
+		lo = _%[1]s_index[i-1]
 	}
-	return _%[1]s_names[lo:hi]
+	return _%[1]s_name[lo:hi]
 }
 `
 
@@ -546,32 +585,29 @@ const stringOneRun = `func (i %[1]s) String() string {
  */
 const stringOneRunWithOffset = `func (i %[1]s) String() string {
 	i -= %[2]s
-	if %[4]si >= %[1]s(len(_%[1]s_indexes)) {
+	if %[4]si >= %[1]s(len(_%[1]s_index)) {
 		return fmt.Sprintf("%[1]s(%%d)", i + %[2]s)
 	}
-	hi := _%[1]s_indexes[i]
+	hi := _%[1]s_index[i]
 	lo := uint%[3]d(0)
 	if i > 0 {
-		lo = _%[1]s_indexes[i-1]
+		lo = _%[1]s_index[i-1]
 	}
-	return _%[1]s_names[lo : hi]
+	return _%[1]s_name[lo : hi]
 }
 `
 
 // buildMultipleRuns generates the variables and String method for multiple runs of contiguous values.
 // For this pattern, a single Printf format won't do.
 func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string) {
-	g.Printf("\nvar (\n")
-	for i, values := range runs {
-		g.declareIndexAndNameVars(values, typeName, fmt.Sprintf("_%d", i))
-	}
-	g.Printf(")\n\n")
+	g.Printf("\n")
+	g.declareIndexAndNameVars(runs, typeName)
 	g.Printf("func (i %s) String() string {\n", typeName)
 	g.Printf("\tswitch {\n")
 	for i, values := range runs {
 		if len(values) == 1 {
 			g.Printf("\tcase i == %s:\n", &values[0])
-			g.Printf("\t\treturn _%s_names_%d\n", typeName, i)
+			g.Printf("\t\treturn _%s_name_%d\n", typeName, i)
 			continue
 		}
 		g.Printf("\tcase %s <= i && i < %s:\n", &values[0], &values[len(values)-1])
@@ -579,9 +615,9 @@ func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string) {
 		g.Printf("\t\tif i > %s {\n", &values[0])
 		g.Printf("\t\t\ti -= %s\n", &values[0])
 		g.Printf("\t\t} else {\n")
-		g.Printf("\t\t\tlo = _%s_indexes_%d[i-1]\n", typeName, i)
+		g.Printf("\t\t\tlo = _%s_index_%d[i-1]\n", typeName, i)
 		g.Printf("\t\t}\n")
-		g.Printf("\t\treturn _%s_names_%d[lo:_%s_indexes_%d[i]]\n", typeName, i, typeName, i)
+		g.Printf("\t\treturn _%s_name_%d[lo:_%s_index_%d[i]]\n", typeName, i, typeName, i)
 	}
 	g.Printf("\tdefault:\n")
 	g.Printf("\t\treturn fmt.Sprintf(\"%s(%%d)\", i)\n", typeName)
@@ -592,10 +628,14 @@ func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string) {
 // buildMap handles the case where the space is so sparse a map is a reasonable fallback.
 // It's a rare situation but has simple code.
 func (g *Generator) buildMap(runs [][]Value, typeName string) {
+	g.Printf("\n")
+	g.declareNameVars(runs, typeName, "")
 	g.Printf("\nvar _%s_map = map[%s]string{\n", typeName, typeName)
+	n := 0
 	for _, values := range runs {
 		for _, value := range values {
-			g.Printf("\t%s: %q,\n", &value, value.name)
+			g.Printf("\t%s: _%s_map[%d:%d],\n", &value, typeName, n, n+len(value.name))
+			n += len(value.name)
 		}
 	}
 	g.Printf("}\n\n")
