@@ -249,7 +249,14 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 	setprofilebucket(p, b)
 }
 
-func setprofilebucket(p unsafe.Pointer, b *bucket) // mheap.c
+func setprofilebucket_m() // mheap.c
+
+func setprofilebucket(p unsafe.Pointer, b *bucket) {
+	g := getg()
+	g.m.ptrarg[0] = p
+	g.m.ptrarg[1] = unsafe.Pointer(b)
+	onM(setprofilebucket_m)
+}
 
 // Called when freeing a profiled block.
 func mProf_Free(b *bucket, size uintptr, freed bool) {
@@ -288,8 +295,7 @@ func SetBlockProfileRate(rate int) {
 	atomicstore64(&blockprofilerate, uint64(r))
 }
 
-func tickspersecond() int64 // runtime.c
-func fastrand1() uint32     // runtime.c
+func fastrand1() uint32     // assembly
 func readgstatus(*g) uint32 // proc.c
 
 func blockevent(cycles int64, skip int) {
@@ -531,7 +537,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 		gp := getg()
 		semacquire(&worldsema, false)
 		gp.m.gcing = 1
-		stoptheworld()
+		onM(stoptheworld)
 
 		n = NumGoroutine()
 		if n <= len(p) {
@@ -550,7 +556,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 
 		gp.m.gcing = 0
 		semrelease(&worldsema)
-		starttheworld()
+		onM(starttheworld)
 	}
 
 	return n, ok
@@ -576,7 +582,7 @@ func Stack(buf []byte, all bool) int {
 		semacquire(&worldsema, false)
 		mp.gcing = 1
 		releasem(mp)
-		stoptheworld()
+		onM(stoptheworld)
 		if mp != acquirem() {
 			gothrow("Stack: rescheduled")
 		}
@@ -597,7 +603,7 @@ func Stack(buf []byte, all bool) int {
 	if all {
 		mp.gcing = 0
 		semrelease(&worldsema)
-		starttheworld()
+		onM(starttheworld)
 	}
 	releasem(mp)
 	return n

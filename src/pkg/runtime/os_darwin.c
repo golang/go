@@ -22,16 +22,31 @@ unimplemented(int8 *name)
 	*(int32*)1231 = 1231;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·semawakeup(M *mp)
 {
 	runtime·mach_semrelease(mp->waitsema);
 }
 
+static void
+semacreate(void)
+{
+	g->m->scalararg[0] = runtime·mach_semcreate();
+}
+
+#pragma textflag NOSPLIT
 uintptr
 runtime·semacreate(void)
 {
-	return runtime·mach_semcreate();
+	uintptr x;
+	void (*fn)(void);
+	
+	fn = semacreate;
+	runtime·onM(&fn);
+	x = g->m->scalararg[0];
+	g->m->scalararg[0] = 0;
+	return x;
 }
 
 // BSD interface for threading.
@@ -143,7 +158,6 @@ runtime·unminit(void)
 // Mach IPC, to get at semaphores
 // Definitions are in /usr/include/mach on a Mac.
 
-#pragma textflag NOSPLIT
 static void
 macherror(int32 r, int8 *fn)
 {
@@ -398,38 +412,88 @@ int32 runtime·mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
 int32 runtime·mach_semaphore_signal(uint32 sema);
 int32 runtime·mach_semaphore_signal_all(uint32 sema);
 
-#pragma textflag NOSPLIT
-int32
-runtime·semasleep(int64 ns)
+static void
+semasleep(void)
 {
 	int32 r, secs, nsecs;
+	int64 ns;
+	
+	ns = g->m->scalararg[0] | g->m->scalararg[1]<<32;
+	g->m->scalararg[0] = 0;
+	g->m->scalararg[1] = 0;
 
 	if(ns >= 0) {
 		secs = runtime·timediv(ns, 1000000000, &nsecs);
 		r = runtime·mach_semaphore_timedwait(g->m->waitsema, secs, nsecs);
-		if(r == KERN_ABORTED || r == KERN_OPERATION_TIMED_OUT)
-			return -1;
+		if(r == KERN_ABORTED || r == KERN_OPERATION_TIMED_OUT) {
+			g->m->scalararg[0] = -1;
+			return;
+		}
 		if(r != 0)
 			macherror(r, "semaphore_wait");
-		return 0;
+		g->m->scalararg[0] = 0;
+		return;
 	}
 	while((r = runtime·mach_semaphore_wait(g->m->waitsema)) != 0) {
 		if(r == KERN_ABORTED)	// interrupted
 			continue;
 		macherror(r, "semaphore_wait");
 	}
-	return 0;
+	g->m->scalararg[0] = 0;
+	return;
 }
 
+#pragma textflag NOSPLIT
+int32
+runtime·semasleep(int64 ns)
+{
+	int32 r;
+	void (*fn)(void);
+
+	g->m->scalararg[0] = (uint32)ns;
+	g->m->scalararg[1] = (uint32)(ns>>32);
+	fn = semasleep;
+	runtime·onM(&fn);
+	r = g->m->scalararg[0];
+	g->m->scalararg[0] = 0;
+	return r;
+}
+
+static int32 mach_semrelease_errno;
+
+static void
+mach_semrelease_fail(void)
+{
+	macherror(mach_semrelease_errno, "semaphore_signal");
+}
+
+#pragma textflag NOSPLIT
 void
 runtime·mach_semrelease(uint32 sem)
 {
 	int32 r;
+	void (*fn)(void);
 
 	while((r = runtime·mach_semaphore_signal(sem)) != 0) {
 		if(r == KERN_ABORTED)	// interrupted
 			continue;
-		macherror(r, "semaphore_signal");
+		
+		// mach_semrelease must be completely nosplit,
+		// because it is called from Go code.
+		// If we're going to die, start that process on the m stack
+		// to avoid a Go stack split.
+		// Only do that if we're actually running on the g stack.
+		// We might be on the gsignal stack, and if so, onM will abort.
+		// We use the global variable instead of scalararg because
+		// we might be on the gsignal stack, having interrupted a
+		// normal call to onM. It doesn't quite matter, since the
+		// program is about to die, but better to be clean.
+		mach_semrelease_errno = r;
+		fn = mach_semrelease_fail;
+		if(g == g->m->curg)
+			runtime·onM(&fn);
+		else
+			fn();
 	}
 }
 

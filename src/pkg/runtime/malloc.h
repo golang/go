@@ -578,7 +578,7 @@ extern bool	runtime·fingwake;
 extern FinBlock	*runtime·finq;		// list of finalizers that are to be executed
 extern FinBlock	*runtime·finc;		// cache of free blocks
 
-void	runtime·setprofilebucket(void *p, Bucket *b);
+void	runtime·setprofilebucket_m(void);
 
 bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, Type*, PtrType*);
 void	runtime·removefinalizer(void*);

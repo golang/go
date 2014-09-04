@@ -196,12 +196,6 @@ runtime·semawakeup(M *mp)
 	runtime·nacl_mutex_unlock(mp->waitsemalock);
 }
 
-void
-os·sigpipe(void)
-{
-	runtime·throw("too many writes on closed pipe");
-}
-
 uintptr
 runtime·memlimit(void)
 {

@@ -20,6 +20,7 @@ static uint32 traceback_cache = 2<<1;
 //	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
 //	GOTRACEBACK=2   show tracebacks including runtime frames
 //	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
+#pragma textflag NOSPLIT
 int32
 runtime·gotraceback(bool *crash)
 {
@@ -264,37 +265,6 @@ runtime·check(void)
 
 	if(FixedStack != runtime·round2(FixedStack))
 		runtime·throw("FixedStack is not power-of-2");
-}
-
-static Mutex ticksLock;
-static int64 ticks;
-
-// Note: Called by runtime/pprof in addition to runtime code.
-int64
-runtime·tickspersecond(void)
-{
-	int64 res, t0, t1, c0, c1;
-
-	res = (int64)runtime·atomicload64((uint64*)&ticks);
-	if(res != 0)
-		return ticks;
-	runtime·lock(&ticksLock);
-	res = ticks;
-	if(res == 0) {
-		t0 = runtime·nanotime();
-		c0 = runtime·cputicks();
-		runtime·usleep(100*1000);
-		t1 = runtime·nanotime();
-		c1 = runtime·cputicks();
-		if(t1 == t0)
-			t1++;
-		res = (c1-c0)*1000*1000*1000/(t1-t0);
-		if(res == 0)
-			res++;
-		runtime·atomicstore64((uint64*)&ticks, res);
-	}
-	runtime·unlock(&ticksLock);
-	return res;
 }
 
 #pragma dataflag NOPTR

@@ -118,3 +118,6 @@ TEXT reflect·makechan(SB),NOSPLIT,$0-0
 
 TEXT reflect·rselect(SB), NOSPLIT, $0-0
 	JMP	runtime·reflect_rselect(SB)
+
+TEXT os·sigpipe(SB), NOSPLIT, $0-0
+	JMP	runtime·os_sigpipe(SB)

@@ -23,3 +23,7 @@ func setlasterror(err uint32)
 func usleep1(usec uint32)
 
 const stackSystem = 512 * ptrSize
+
+func os_sigpipe() {
+	gothrow("too many writes on closed pipe")
+}

@@ -588,12 +588,6 @@ runtime·resetcpuprofiler(int32 hz)
 	runtime·atomicstore((uint32*)&g->m->profilehz, hz);
 }
 
-void
-os·sigpipe(void)
-{
-	runtime·throw("too many writes on closed pipe");
-}
-
 uintptr
 runtime·memlimit(void)
 {
