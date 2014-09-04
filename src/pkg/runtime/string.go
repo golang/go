@@ -62,7 +62,7 @@ func concatstring5(a [5]string) string {
 func slicebytetostring(b []byte) string {
 	if raceenabled && len(b) > 0 {
 		racereadrangepc(unsafe.Pointer(&b[0]),
-			len(b),
+			uintptr(len(b)),
 			getcallerpc(unsafe.Pointer(&b)),
 			funcPC(slicebytetostring))
 	}
@@ -82,7 +82,7 @@ func slicebytetostringtmp(b []byte) string {
 
 	if raceenabled && len(b) > 0 {
 		racereadrangepc(unsafe.Pointer(&b[0]),
-			len(b),
+			uintptr(len(b)),
 			getcallerpc(unsafe.Pointer(&b)),
 			funcPC(slicebytetostringtmp))
 	}
@@ -119,7 +119,7 @@ func stringtoslicerune(s string) []rune {
 func slicerunetostring(a []rune) string {
 	if raceenabled && len(a) > 0 {
 		racereadrangepc(unsafe.Pointer(&a[0]),
-			len(a)*int(unsafe.Sizeof(a[0])),
+			uintptr(len(a))*unsafe.Sizeof(a[0]),
 			getcallerpc(unsafe.Pointer(&a)),
 			funcPC(slicerunetostring))
 	}

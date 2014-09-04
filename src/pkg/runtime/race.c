@@ -80,6 +80,7 @@ void runtime·racesymbolizethunk(void*);
 void runtime·racecall(void(*f)(void), ...);
 
 // checks if the address has shadow (i.e. heap or data/bss)
+#pragma textflag NOSPLIT
 static bool
 isvalidaddr(uintptr addr)
 {
@@ -90,6 +91,7 @@ isvalidaddr(uintptr addr)
 	return false;
 }
 
+#pragma textflag NOSPLIT
 uintptr
 runtime·raceinit(void)
 {
@@ -106,12 +108,14 @@ runtime·raceinit(void)
 	return racectx;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racefini(void)
 {
 	runtime·racecall(__tsan_fini);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racemapshadow(void *addr, uintptr size)
 {
@@ -129,6 +133,7 @@ runtime·racemalloc(void *p, uintptr sz)
 	runtime·racecall(__tsan_malloc, p, sz);
 }
 
+#pragma textflag NOSPLIT
 uintptr
 runtime·racegostart(void *pc)
 {
@@ -144,12 +149,14 @@ runtime·racegostart(void *pc)
 	return racectx;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racegoend(void)
 {
 	runtime·racecall(__tsan_go_end, g->racectx);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
@@ -165,6 +172,7 @@ runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
 		runtime·racefuncexit();
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
@@ -180,6 +188,7 @@ runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
 		runtime·racefuncexit();
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
 {
@@ -192,6 +201,7 @@ runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
 		runtime·racewritepc(addr, callpc, pc);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
 {
@@ -204,12 +214,14 @@ runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
 		runtime·racereadpc(addr, callpc, pc);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·raceacquire(void *addr)
 {
 	runtime·raceacquireg(g, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·raceacquireg(G *gp, void *addr)
 {
@@ -218,6 +230,7 @@ runtime·raceacquireg(G *gp, void *addr)
 	runtime·racecall(__tsan_acquire, gp->racectx, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racerelease(void *addr)
 {
@@ -226,6 +239,7 @@ runtime·racerelease(void *addr)
 	runtime·racereleaseg(g, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racereleaseg(G *gp, void *addr)
 {
@@ -234,12 +248,14 @@ runtime·racereleaseg(G *gp, void *addr)
 	runtime·racecall(__tsan_release, gp->racectx, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racereleasemerge(void *addr)
 {
 	runtime·racereleasemergeg(g, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racereleasemergeg(G *gp, void *addr)
 {
@@ -248,6 +264,7 @@ runtime·racereleasemergeg(G *gp, void *addr)
 	runtime·racecall(__tsan_release_merge, gp->racectx, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racefingo(void)
 {
@@ -255,6 +272,7 @@ runtime·racefingo(void)
 }
 
 // func RaceAcquire(addr unsafe.Pointer)
+#pragma textflag NOSPLIT
 void
 runtime·RaceAcquire(void *addr)
 {
@@ -262,6 +280,7 @@ runtime·RaceAcquire(void *addr)
 }
 
 // func RaceRelease(addr unsafe.Pointer)
+#pragma textflag NOSPLIT
 void
 runtime·RaceRelease(void *addr)
 {
@@ -269,6 +288,7 @@ runtime·RaceRelease(void *addr)
 }
 
 // func RaceReleaseMerge(addr unsafe.Pointer)
+#pragma textflag NOSPLIT
 void
 runtime·RaceReleaseMerge(void *addr)
 {
@@ -276,6 +296,7 @@ runtime·RaceReleaseMerge(void *addr)
 }
 
 // func RaceDisable()
+#pragma textflag NOSPLIT
 void
 runtime·RaceDisable(void)
 {
@@ -284,43 +305,10 @@ runtime·RaceDisable(void)
 }
 
 // func RaceEnable()
+#pragma textflag NOSPLIT
 void
 runtime·RaceEnable(void)
 {
 	if(--g->raceignore == 0)
 		runtime·racecall(__tsan_go_ignore_sync_end, g->racectx);
-}
-
-typedef struct SymbolizeContext SymbolizeContext;
-struct SymbolizeContext
-{
-	uintptr	pc;
-	int8*	func;
-	int8*	file;
-	uintptr	line;
-	uintptr	off;
-	uintptr	res;
-};
-
-// Callback from C into Go, runs on g0.
-void
-runtime·racesymbolize(SymbolizeContext *ctx)
-{
-	Func *f;
-	String file;
-
-	f = runtime·findfunc(ctx->pc);
-	if(f == nil) {
-		ctx->func = "??";
-		ctx->file = "-";
-		ctx->line = 0;
-		ctx->off = ctx->pc;
-		ctx->res = 1;
-		return;
-	}
-	ctx->func = runtime·funcname(f);
-	ctx->line = runtime·funcline(f, ctx->pc, &file);
-	ctx->file = (int8*)file.str;  // assume zero-terminated
-	ctx->off = ctx->pc - f->entry;
-	ctx->res = 1;
 }
