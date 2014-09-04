@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define SS_DISABLE 2
-
-#define SIG_BLOCK 1
-#define SIG_UNBLOCK 2
-#define SIG_SETMASK 3
 
 typedef uintptr kevent_udata;
 
@@ -21,18 +16,24 @@ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
 void	runtime·unblocksignals(void);
 int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 
-#define	NSIG 73 /* number of signals in runtime·SigTab array */
-#define	SI_USER	0
 
 void	runtime·raisesigpipe(void);
 void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
 void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
 void	runtime·sigpanic(void);
 
-#define _UC_SIGMASK	0x01
-#define _UC_CPU		0x04
+enum {
+	SS_DISABLE = 2,
+	SIG_BLOCK = 1,
+	SIG_UNBLOCK = 2,
+	SIG_SETMASK = 3,
+	NSIG = 73, /* number of signals in runtime·SigTab array */
+	SI_USER = 0,
+	_UC_SIGMASK = 0x01,
+	_UC_CPU = 0x04,
+	RLIMIT_AS = 10,
+};
 
-#define RLIMIT_AS 10
 typedef struct Rlimit Rlimit;
 struct Rlimit {
 	int64   rlim_cur;

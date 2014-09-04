@@ -419,6 +419,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" _Gdead = 6;" +
 			" _Genqueue = 7;" +
 			" _Gcopystack = 8;" +
+			" _NSIG = 32;" +
 			")"
 		f, err = parser.ParseFile(fset, filename, src, 0)
 		if err != nil {
