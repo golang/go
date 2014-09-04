@@ -418,7 +418,7 @@ semasleep(void)
 	int32 r, secs, nsecs;
 	int64 ns;
 	
-	ns = g->m->scalararg[0] | g->m->scalararg[1]<<32;
+	ns = (int64)(uint32)g->m->scalararg[0] | (int64)(uint32)g->m->scalararg[1]<<32;
 	g->m->scalararg[0] = 0;
 	g->m->scalararg[1] = 0;
 
