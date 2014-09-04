@@ -197,18 +197,26 @@ TEXT runtime·switchtoM(SB), NOSPLIT, $0-8
 	RET
 
 // func onM(fn func())
-// calls fn() on the M stack.
-// switches to the M stack if not already on it, and
-// switches back when fn() returns.
 TEXT runtime·onM(SB), NOSPLIT, $0-8
 	MOVQ	fn+0(FP), DI	// DI = fn
 	get_tls(CX)
 	MOVQ	g(CX), AX	// AX = g
 	MOVQ	g_m(AX), BX	// BX = m
+
 	MOVQ	m_g0(BX), DX	// DX = g0
 	CMPQ	AX, DX
 	JEQ	onm
 
+	MOVQ	m_curg(BX), BP
+	CMPQ	AX, BP
+	JEQ	oncurg
+	
+	// Not g0, not curg. Must be gsignal, but that's not allowed.
+	// Hide call from linker nosplit analysis.
+	MOVQ	$runtime·badonm(SB), AX
+	CALL	AX
+
+oncurg:
 	// save our state in g->sched.  Pretend to
 	// be switchtoM if the G stack is scanned.
 	MOVQ	$runtime·switchtoM(SB), BP

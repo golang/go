@@ -58,22 +58,60 @@ func acquirem() *m
 func releasem(mp *m)
 func gomcache() *mcache
 
-// in asm_*.s
-func mcall(func(*g))
+// mcall switches from the g to the g0 stack and invokes fn(g),
+// where g is the goroutine that made the call.
+// mcall saves g's current PC/SP in g->sched so that it can be restored later.
+// It is up to fn to arrange for that later execution, typically by recording
+// g in a data structure, causing something to call ready(g) later.
+// mcall returns to the original goroutine g later, when g has been rescheduled.
+// fn must not return at all; typically it ends by calling schedule, to let the m
+// run other goroutines.
+//
+// mcall can only be called from g stacks (not g0, not gsignal).
+//go:noescape
+func mcall(fn func(*g))
+
+// onM switches from the g to the g0 stack and invokes fn().
+// When fn returns, onM switches back to the g and returns,
+// continuing execution on the g stack.
+// If arguments must be passed to fn, they can be written to
+// g->m->ptrarg (pointers) and g->m->scalararg (non-pointers)
+// before the call and then consulted during fn.
+// Similarly, fn can pass return values back in those locations.
+// If fn is written in Go, it can be a closure, which avoids the need for
+// ptrarg and scalararg entirely.
+// After reading values out of ptrarg and scalararg it is conventional
+// to zero them to avoid (memory or information) leaks.
+//
+// If onM is called from a g0 stack, it invokes fn and returns,
+// without any stack switches.
+//
+// If onM is called from a gsignal stack, it crashes the program.
+// The implication is that functions used in signal handlers must
+// not use onM.
+//
+// NOTE(rsc): We could introduce a separate onMsignal that is
+// like onM but if called from a gsignal stack would just run fn on
+// that stack. The caller of onMsignal would be required to save the
+// old values of ptrarg/scalararg and restore them when the call
+// was finished, in case the signal interrupted an onM sequence
+// in progress on the g or g0 stacks. Until there is a clear need for this,
+// we just reject onM in signal handling contexts entirely.
+//
+//go:noescape
 func onM(fn func())
+
+func badonm() {
+	gothrow("onM called from signal goroutine")
+}
 
 // C functions that run on the M stack.
 // Call using mcall.
-// These functions need to be written to arrange explicitly
-// for the goroutine to continue execution.
 func gosched_m(*g)
 func park_m(*g)
 
 // More C functions that run on the M stack.
 // Call using onM.
-// Arguments should be passed in m->scalararg[x] and m->ptrarg[x].
-// Return values can be passed in those same slots.
-// These functions return to the goroutine when they return.
 func mcacheRefill_m()
 func largeAlloc_m()
 func gc_m()
