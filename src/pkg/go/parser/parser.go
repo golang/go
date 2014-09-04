@@ -823,9 +823,10 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 		// parameter or result variable is the function body.
 		p.declare(field, nil, scope, ast.Var, idents...)
 		p.resolve(typ)
-		if p.tok == token.COMMA {
-			p.next()
+		if !p.atComma("parameter list") {
+			return
 		}
+		p.next()
 		for p.tok != token.RPAREN && p.tok != token.EOF {
 			idents := p.parseIdentList()
 			typ := p.parseVarType(ellipsisOk)
@@ -840,15 +841,15 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 			}
 			p.next()
 		}
-	} else {
-		// Type { "," Type } (anonymous parameters)
-		params = make([]*ast.Field, len(list))
-		for i, typ := range list {
-			p.resolve(typ)
-			params[i] = &ast.Field{Type: typ}
-		}
+		return
 	}
 
+	// Type { "," Type } (anonymous parameters)
+	params = make([]*ast.Field, len(list))
+	for i, typ := range list {
+		p.resolve(typ)
+		params[i] = &ast.Field{Type: typ}
+	}
 	return
 }
 
