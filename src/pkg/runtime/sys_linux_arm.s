@@ -424,12 +424,12 @@ TEXT runtime·epollcreate1(SB),NOSPLIT,$0
 	MOVW	R0, ret+4(FP)
 	RET
 
-// int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev)
+// func epollctl(epfd, op, fd int32, ev *epollEvent) int
 TEXT runtime·epollctl(SB),NOSPLIT,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	8(FP), R2
-	MOVW	12(FP), R3
+	MOVW	epfd+0(FP), R0
+	MOVW	op+4(FP), R1
+	MOVW	fd+8(FP), R2
+	MOVW	ev+12(FP), R3
 	MOVW	$SYS_epoll_ctl, R7
 	SWI	$0
 	MOVW	R0, ret+16(FP)

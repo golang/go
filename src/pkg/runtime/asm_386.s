@@ -598,6 +598,9 @@ TEXT runtime·xchgp(SB), NOSPLIT, $0-12
 	MOVL	AX, ret+8(FP)
 	RET
 
+TEXT runtime·xchguintptr(SB), NOSPLIT, $0-12
+	JMP	runtime·xchg(SB)
+
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	MOVL	cycles+0(FP), AX
 again:

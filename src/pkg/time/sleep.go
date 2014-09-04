@@ -17,8 +17,9 @@ type runtimeTimer struct {
 	i      int
 	when   int64
 	period int64
-	f      func(interface{}) // NOTE: must not be closure
+	f      func(interface{}, uintptr) // NOTE: must not be closure
 	arg    interface{}
+	seq    uintptr
 }
 
 // when is a helper function for setting the 'when' field of a runtimeTimer.
@@ -83,7 +84,7 @@ func (t *Timer) Reset(d Duration) bool {
 	return active
 }
 
-func sendTime(c interface{}) {
+func sendTime(c interface{}, seq uintptr) {
 	// Non-blocking send of time on c.
 	// Used in NewTimer, it cannot block anyway (buffer).
 	// Used in NewTicker, dropping sends on the floor is
@@ -117,6 +118,6 @@ func AfterFunc(d Duration, f func()) *Timer {
 	return t
 }
 
-func goFunc(arg interface{}) {
+func goFunc(arg interface{}, seq uintptr) {
 	go arg.(func())()
 }

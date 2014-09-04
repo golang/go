@@ -18,9 +18,6 @@ func sigaction(mode uint32, new, old unsafe.Pointer)
 func sigaltstack(new, old unsafe.Pointer)
 func sigtramp()
 func setitimer(mode int32, new, old unsafe.Pointer)
-func kqueue() int32
-func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
-func closeonexec(fd int32)
 func mach_semaphore_wait(sema uint32) int32
 func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
 func mach_semaphore_signal(sema uint32) int32

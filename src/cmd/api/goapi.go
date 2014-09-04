@@ -405,6 +405,9 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" sudog struct{};" +
 			" waitq struct{};" +
 			" wincallbackcontext struct{};" +
+			" keventt struct{};" +
+			" timespec struct{};" +
+			" epollevent struct{};" +
 			"); " +
 			"const (" +
 			" cb_max = 2000;" +
