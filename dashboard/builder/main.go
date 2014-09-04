@@ -11,6 +11,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -280,10 +282,43 @@ func NewBuilder(goroot *Repo, name string) (*Builder, error) {
 	}
 	c, err := ioutil.ReadFile(fn)
 	if err != nil {
+		// If the on-disk file doesn't exist, also try the
+		// Google Compute Engine metadata.
+		if v := gceProjectMetadata("buildkey-" + name); v != "" {
+			b.key = v
+			return b, nil
+		}
 		return nil, fmt.Errorf("readKeys %s (%s): %s", b.name, fn, err)
 	}
 	b.key = string(bytes.TrimSpace(bytes.SplitN(c, []byte("\n"), 2)[0]))
 	return b, nil
+}
+
+func gceProjectMetadata(attr string) string {
+	client := &http.Client{
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   750 * time.Millisecond,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			ResponseHeaderTimeout: 750 * time.Millisecond,
+		},
+	}
+	req, _ := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/project/attributes/"+attr, nil)
+	req.Header.Set("Metadata-Flavor", "Google")
+	res, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return ""
+	}
+	slurp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return ""
+	}
+	return string(bytes.TrimSpace(slurp))
 }
 
 // builderEnv returns the builderEnv for this buildTool.
