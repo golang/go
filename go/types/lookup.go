@@ -33,42 +33,24 @@ package types
 //	the method's formal receiver base type, nor was the receiver addressable.
 //
 func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
-	obj, index, indirect = lookupFieldOrMethod(T, addressable, pkg, name)
-	if obj != nil {
-		return
-	}
-
-	// TODO(gri) The code below is not needed if we are looking for methods only,
-	//           and it can be done always if we look for fields only. Consider
-	//           providing LookupField and LookupMethod as well.
-
-	// If we didn't find anything, we still might have a field p.x as in:
-	//
-	//	type S struct{ x int }
-	//      func (*S) m() {}
-	//	type P *S
-	//	var p P
-	//
-	// which requires that we start the search with the underlying type
-	// of P (i.e., *S). We cannot do this always because we might find
-	// methods that don't exist for P but for S (e.g., m). Thus, if the
-	// result is a method we need to discard it.
-	// (See also issue 8590).
+	// Methods cannot be associated to a named pointer type
+	// (spec: "The type denoted by T is called the receiver base type;
+	// it must not be a pointer or interface type and it must be declared
+	// in the same package as the method.").
+	// Thus, if we have a named pointer type, proceed with the underlying
+	// pointer type but discard the result if it is a method since we would
+	// not have found it for T (see also issue 8590).
 	if t, _ := T.(*Named); t != nil {
-		u := t.underlying
-		if _, ok := u.(*Pointer); ok {
-			// typ is a named type with an underlying type of the form *T,
-			// start the search with the underlying type *T
-			if obj2, index2, indirect2 := lookupFieldOrMethod(u, false, pkg, name); obj2 != nil {
-				// only if the result is a field can we keep it
-				if _, ok := obj2.(*Var); ok {
-					return obj2, index2, indirect2
-				}
+		if p, _ := t.underlying.(*Pointer); p != nil {
+			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name)
+			if _, ok := obj.(*Func); ok {
+				return nil, nil, false
 			}
+			return
 		}
 	}
 
-	return
+	return lookupFieldOrMethod(T, addressable, pkg, name)
 }
 
 // TODO(gri) The named type consolidation and seen maps below must be

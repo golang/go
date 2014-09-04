@@ -323,7 +323,7 @@ func (init *Initializer) String() string {
 // Check type-checks a package and returns the resulting package object,
 // the first error if any, and if info != nil, additional type information.
 // The package is marked as complete if no errors occurred, otherwise it is
-// incomplete. See Config.Error for controlling behavior in the presense of
+// incomplete. See Config.Error for controlling behavior in the presence of
 // errors.
 //
 // The package is specified by a list of *ast.Files and corresponding
