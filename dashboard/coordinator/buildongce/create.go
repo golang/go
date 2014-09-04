@@ -23,12 +23,13 @@ import (
 )
 
 var (
-	proj     = flag.String("project", "symbolic-datum-552", "name of Project")
-	zone     = flag.String("zone", "us-central1-a", "GCE zone")
-	mach     = flag.String("machinetype", "n1-standard-16", "Machine type")
-	instName = flag.String("instance_name", "go-builder-1", "Name of VM instance.")
-	sshPub   = flag.String("ssh_public_key", "", "ssh public key file to authorize. Can modify later in Google's web UI anyway.")
-	staticIP = flag.String("static_ip", "", "Static IP to use. If empty, automatic.")
+	proj      = flag.String("project", "symbolic-datum-552", "name of Project")
+	zone      = flag.String("zone", "us-central1-a", "GCE zone")
+	mach      = flag.String("machinetype", "n1-standard-16", "Machine type")
+	instName  = flag.String("instance_name", "go-builder-1", "Name of VM instance.")
+	sshPub    = flag.String("ssh_public_key", "", "ssh public key file to authorize. Can modify later in Google's web UI anyway.")
+	staticIP  = flag.String("static_ip", "", "Static IP to use. If empty, automatic.")
+	reuseDisk = flag.Bool("reuse_disk", true, "Whether disk images should be reused between shutdowns/restarts.")
 
 	writeObject = flag.String("write_object", "", "If non-empty, a VM isn't created and the flag value is Google Cloud Storage bucket/object to write. The contents from stdin.")
 )
@@ -85,7 +86,6 @@ func main() {
 		log.Fatalf("Missing --project flag")
 	}
 	prefix := "https://www.googleapis.com/compute/v1/projects/" + *proj
-	imageURL := "https://www.googleapis.com/compute/v1/projects/coreos-cloud/global/images/coreos-alpha-402-2-0-v20140807"
 	machType := prefix + "/zones/" + *zone + "/machineTypes/" + *mach
 
 	tr := &oauth.Transport{
@@ -156,18 +156,7 @@ func main() {
 		Name:        *instName,
 		Description: "Go Builder",
 		MachineType: machType,
-		Disks: []*compute.AttachedDisk{
-			{
-				AutoDelete: true,
-				Boot:       true,
-				Type:       "PERSISTENT",
-				InitializeParams: &compute.AttachedDiskInitializeParams{
-					DiskName:    *instName + "-coreos-stateless-pd",
-					SourceImage: imageURL,
-					DiskSizeGb:  50,
-				},
-			},
-		},
+		Disks:       []*compute.AttachedDisk{instanceDisk(computeService)},
 		Tags: &compute.Tags{
 			Items: []string{"http-server", "https-server"},
 		},
@@ -240,6 +229,51 @@ OpLoop:
 	}
 	ij, _ := json.MarshalIndent(inst, "", "    ")
 	log.Printf("Instance: %s", ij)
+}
+
+func instanceDisk(svc *compute.Service) *compute.AttachedDisk {
+	const imageURL = "https://www.googleapis.com/compute/v1/projects/coreos-cloud/global/images/coreos-alpha-402-2-0-v20140807"
+	diskName := *instName + "-coreos-stateless-pd"
+
+	if *reuseDisk {
+		dl, err := svc.Disks.List(*proj, *zone).Do()
+		if err != nil {
+			log.Fatalf("Error listing disks: %v", err)
+		}
+		for _, disk := range dl.Items {
+			if disk.Name != diskName {
+				continue
+			}
+			return &compute.AttachedDisk{
+				AutoDelete: false,
+				Boot:       true,
+				DeviceName: diskName,
+				Type:       "PERSISTENT",
+				Source:     disk.SelfLink,
+				Mode:       "READ_WRITE",
+
+				// The GCP web UI's "Show REST API" link includes a
+				// "zone" parameter, but it's not in the API
+				// description. But it wants this form (disk.Zone, a
+				// full zone URL, not *zone):
+				// Zone: disk.Zone,
+				// ... but it seems to work without it.  Keep this
+				// comment here until I file a bug with the GCP
+				// people.
+			}
+		}
+	}
+
+	return &compute.AttachedDisk{
+		AutoDelete: !*reuseDisk,
+		Boot:       true,
+		Type:       "PERSISTENT",
+		InitializeParams: &compute.AttachedDiskInitializeParams{
+			DiskName:    diskName,
+			SourceImage: imageURL,
+			DiskSizeGb:  50,
+		},
+	}
 }
 
 func writeCloudStorageObject(httpClient *http.Client) {
