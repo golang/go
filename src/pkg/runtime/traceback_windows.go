@@ -10,7 +10,7 @@ import "unsafe"
 // The traceback needs to recognize it on link register architectures.
 var sigtrampPC uintptr
 
-var sigtramp struct{} // assembly function
+func sigtramp()
 
 func init() {
 	sigtrampPC = funcPC(sigtramp)
