@@ -198,7 +198,7 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
 	CMP	g, R2
 	B.EQ	onm
 
-	MOVW	m_g0(R1), R3
+	MOVW	m_curg(R1), R3
 	CMP	g, R3
 	B.EQ	oncurg
 
