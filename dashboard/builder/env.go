@@ -83,6 +83,14 @@ func (b *Builder) envvWindows() []string {
 			start[name] = s
 		}
 	}
+	if b.goos == "windows" {
+		switch b.goarch {
+		case "amd64":
+			start["PATH"] = `c:\TDM-GCC-64\bin;` + start["PATH"]
+		case "386":
+			start["PATH"] = `c:\TDM-GCC-32\bin;` + start["PATH"]
+		}
+	}
 	skip := map[string]bool{
 		"GOBIN":   true,
 		"GOPATH":  true,
