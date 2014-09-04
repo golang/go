@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define SS_DISABLE 4
-
 typedef byte* kevent_udata;
 
 int32	runtime·bsdthread_create(void*, M*, G*, void(*)(void));
@@ -35,8 +33,11 @@ void	runtime·sigpanic(void);
 void	runtime·setitimer(int32, Itimerval*, Itimerval*);
 
 
-#define	NSIG 32
-#define	SI_USER	0  /* empirically true, but not what headers say */
-#define	SIG_BLOCK 1
-#define	SIG_UNBLOCK 2
-#define	SIG_SETMASK 3
+enum {
+	NSIG = 32,
+	SI_USER = 0, /* empirically true, but not what headers say */
+	SIG_BLOCK = 1,
+	SIG_UNBLOCK = 2,
+	SIG_SETMASK = 3,
+	SS_DISABLE = 4,
+};

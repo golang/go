@@ -37,4 +37,6 @@ void runtime·install_exception_handler(void);
 void runtime·remove_exception_handler(void);
 
 // TODO(brainman): should not need those
-#define	NSIG	65
+enum {
+	NSIG = 65,
+};

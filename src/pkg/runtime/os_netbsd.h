@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define SS_DISABLE 4
-
-#define SIG_BLOCK 1
-#define SIG_UNBLOCK 2
-#define SIG_SETMASK 3
 
 typedef uintptr kevent_udata;
 
@@ -22,9 +17,15 @@ void	runtime·unblocksignals(void);
 int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 extern void runtime·lwp_tramp(void);
 
-#define	NSIG 33
-#define	SI_USER	0
+enum {
+	SS_DISABLE = 4,
+	SIG_BLOCK = 1,
+	SIG_UNBLOCK = 2,
+	SIG_SETMASK = 3,
+	NSIG = 33,
+	SI_USER = 0,
 
-// From NetBSD's <sys/ucontext.h>
-#define _UC_SIGMASK	0x01
-#define _UC_CPU		0x04
+	// From NetBSD's <sys/ucontext.h>
+	_UC_SIGMASK = 0x01,
+	_UC_CPU = 0x04,
+};

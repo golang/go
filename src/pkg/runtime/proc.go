@@ -113,6 +113,7 @@ func releaseSudog(s *sudog) {
 
 // funcPC returns the entry PC of the function f.
 // It assumes that f is a func value. Otherwise the behavior is undefined.
+//go:nosplit
 func funcPC(f interface{}) uintptr {
 	return **(**uintptr)(add(unsafe.Pointer(&f), ptrSize))
 }

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define SS_DISABLE 2
 
 // Linux-specific system calls
 int32	runtime·futex(uint32*, int32, uint32, Timespec*, uint32*, uint32);
@@ -15,9 +14,13 @@ void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
 void	runtime·sigpanic(void);
 void runtime·setitimer(int32, Itimerval*, Itimerval*);
 
-
-#define	NSIG	65
-#define	SI_USER 0
+enum {
+	SS_DISABLE = 2,
+	NSIG = 65,
+	SI_USER = 0,
+	SIG_SETMASK = 2,
+	RLIMIT_AS = 9,
+};
 
 // It's hard to tease out exactly how big a Sigset is, but
 // rt_sigprocmask crashes if we get it wrong, so if binaries
@@ -29,9 +32,7 @@ struct Sigset
 };
 void	runtime·rtsigprocmask(int32, Sigset*, Sigset*, int32);
 void	runtime·unblocksignals(void);
-#define SIG_SETMASK 2
 
-#define RLIMIT_AS 9
 typedef struct Rlimit Rlimit;
 struct Rlimit {
 	uintptr	rlim_cur;
