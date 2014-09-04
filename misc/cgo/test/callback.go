@@ -156,6 +156,7 @@ func testCallbackCallers(t *testing.T) {
 		"runtime.cgocallbackg1",
 		"runtime.cgocallbackg",
 		"runtime.cgocallback_gofunc",
+		"asmcgocall",
 		"runtime.asmcgocall_errno",
 		"runtime.cgocall_errno",
 		"test._Cfunc_callback",
@@ -182,8 +183,12 @@ func testCallbackCallers(t *testing.T) {
 		if strings.HasPrefix(fname, "_") {
 			fname = path.Base(f.Name()[1:])
 		}
-		if fname != name[i] {
-			t.Errorf("expected function name %s, got %s", name[i], fname)
+		namei := ""
+		if i < len(name) {
+			namei = name[i]
+		}
+		if fname != namei {
+			t.Errorf("stk[%d] = %q, want %q", i, fname, namei)
 		}
 	}
 }
