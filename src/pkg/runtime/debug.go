@@ -24,10 +24,15 @@ func UnlockOSThread()
 // The number of logical CPUs on the local machine can be queried with NumCPU.
 // This call will go away when the scheduler improves.
 func GOMAXPROCS(n int) int {
-	return int(gomaxprocsfunc(int32(n)))
+	g := getg()
+	g.m.scalararg[0] = uintptr(n)
+	onM(gomaxprocs_m)
+	n = int(g.m.scalararg[0])
+	g.m.scalararg[0] = 0
+	return n
 }
 
-func gomaxprocsfunc(int32) int32 // proc.c
+func gomaxprocs_m() // proc.c
 
 // NumCPU returns the number of logical CPUs on the local machine.
 func NumCPU() int {

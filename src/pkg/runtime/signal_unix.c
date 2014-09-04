@@ -93,7 +93,7 @@ runtime·resetcpuprofiler(int32 hz)
 }
 
 void
-os·sigpipe(void)
+runtime·sigpipe(void)
 {
 	runtime·setsig(SIGPIPE, SIG_DFL, false);
 	runtime·raise(SIGPIPE);

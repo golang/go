@@ -341,3 +341,12 @@ func TestStackOutput(t *testing.T) {
 		t.Errorf("Stack output should begin with \"goroutine \"")
 	}
 }
+
+func TestStackAllOutput(t *testing.T) {
+	b := make([]byte, 1024)
+	stk := string(b[:Stack(b, true)])
+	if !strings.HasPrefix(stk, "goroutine ") {
+		t.Errorf("Stack (len %d):\n%s", len(stk), stk)
+		t.Errorf("Stack output should begin with \"goroutine \"")
+	}
+}

@@ -761,10 +761,7 @@ runtime·stoptheworld(void)
 	// that is blocked trying to acquire the lock.
 	if(g->m->locks > 0)
 		runtime·throw("stoptheworld: holding locks");
-	// There is no evidence that stoptheworld on g0 does not work,
-	// we just don't do it today.
-	if(g == g->m->g0)
-		runtime·throw("stoptheworld: on g0");
+
 	runtime·lock(&runtime·sched.lock);
 	runtime·sched.stopwait = runtime·gomaxprocs;
 	runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);
@@ -2085,24 +2082,54 @@ exitsyscall0(G *gp)
 	schedule();  // Never returns.
 }
 
-// Called from syscall package before fork.
-#pragma textflag NOSPLIT
-void
-syscall·runtime_BeforeFork(void)
+static void
+beforefork(void)
 {
+	G *gp;
+	
+	gp = g->m->curg;
 	// Fork can hang if preempted with signals frequently enough (see issue 5517).
 	// Ensure that we stay on the same M where we disable profiling.
-	g->m->locks++;
-	if(g->m->profilehz != 0)
+	gp->m->locks++;
+	if(gp->m->profilehz != 0)
 		runtime·resetcpuprofiler(0);
 
 	// This function is called before fork in syscall package.
 	// Code between fork and exec must not allocate memory nor even try to grow stack.
 	// Here we spoil g->stackguard to reliably detect any attempts to grow stack.
 	// runtime_AfterFork will undo this in parent process, but not in child.
-	g->m->forkstackguard = g->stackguard;
-	g->stackguard0 = StackPreempt-1;
-	g->stackguard = StackPreempt-1;
+	gp->m->forkstackguard = gp->stackguard;
+	gp->stackguard0 = StackPreempt-1;
+	gp->stackguard = StackPreempt-1;
+}
+
+// Called from syscall package before fork.
+#pragma textflag NOSPLIT
+void
+syscall·runtime_BeforeFork(void)
+{
+	void (*fn)(void);
+	
+	fn = beforefork;
+	runtime·onM(&fn);
+}
+
+static void
+afterfork(void)
+{
+	int32 hz;
+	G *gp;
+	
+	gp = g->m->curg;
+	// See the comment in runtime_BeforeFork.
+	gp->stackguard0 = gp->m->forkstackguard;
+	gp->stackguard = gp->m->forkstackguard;
+	gp->m->forkstackguard = 0;
+
+	hz = runtime·sched.profilehz;
+	if(hz != 0)
+		runtime·resetcpuprofiler(hz);
+	gp->m->locks--;
 }
 
 // Called from syscall package after fork in parent.
@@ -2110,17 +2137,10 @@ syscall·runtime_BeforeFork(void)
 void
 syscall·runtime_AfterFork(void)
 {
-	int32 hz;
-
-	// See the comment in runtime_BeforeFork.
-	g->stackguard0 = g->m->forkstackguard;
-	g->stackguard = g->m->forkstackguard;
-	g->m->forkstackguard = 0;
-
-	hz = runtime·sched.profilehz;
-	if(hz != 0)
-		runtime·resetcpuprofiler(hz);
-	g->m->locks--;
+	void (*fn)(void);
+	
+	fn = afterfork;
+	runtime·onM(&fn);
 }
 
 // Hook used by runtime·malg to call runtime·stackalloc on the
@@ -2453,10 +2473,13 @@ runtime·Breakpoint(void)
 
 // Implementation of runtime.GOMAXPROCS.
 // delete when scheduler is even stronger
-int32
-runtime·gomaxprocsfunc(int32 n)
+void
+runtime·gomaxprocs_m(void)
 {
-	int32 ret;
+	int32 n, ret;
+	
+	n = g->m->scalararg[0];
+	g->m->scalararg[0] = 0;
 
 	if(n > MaxGomaxprocs)
 		n = MaxGomaxprocs;
@@ -2464,7 +2487,8 @@ runtime·gomaxprocsfunc(int32 n)
 	ret = runtime·gomaxprocs;
 	if(n <= 0 || n == ret) {
 		runtime·unlock(&runtime·sched.lock);
-		return ret;
+		g->m->scalararg[0] = ret;
+		return;
 	}
 	runtime·unlock(&runtime·sched.lock);
 
@@ -2476,7 +2500,8 @@ runtime·gomaxprocsfunc(int32 n)
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
 
-	return ret;
+	g->m->scalararg[0] = ret;
+	return;
 }
 
 // lockOSThread is called by runtime.LockOSThread and runtime.lockOSThread below
@@ -2540,6 +2565,7 @@ runtime·lockedOSThread(void)
 	return g->lockedm != nil && g->m->lockedg != nil;
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·gcount(void)
 {
@@ -2737,8 +2763,13 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 
 // Arrange to call fn with a traceback hz times a second.
 void
-runtime·setcpuprofilerate(int32 hz)
+runtime·setcpuprofilerate_m(void)
 {
+	int32 hz;
+	
+	hz = g->m->scalararg[0];
+	g->m->scalararg[0] = 0;
+
 	// Force sane arguments.
 	if(hz < 0)
 		hz = 0;

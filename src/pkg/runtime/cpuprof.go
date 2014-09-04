@@ -101,7 +101,13 @@ var (
 	eod = [3]uintptr{0, 1, 0}
 )
 
-func setcpuprofilerate(int32) // proc.c
+func setcpuprofilerate_m() // proc.c
+
+func setcpuprofilerate(hz int32) {
+	g := getg()
+	g.m.scalararg[0] = uintptr(hz)
+	onM(setcpuprofilerate_m)
+}
 
 // lostProfileData is a no-op function used in profiles
 // to mark the number of profiling stack traces that were

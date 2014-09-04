@@ -202,7 +202,6 @@ func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
 func procyield(cycles uint32)
 func osyield()
 func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
-func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer
 func readgogc() int32
 func purgecachedstats(c *mcache)
 func gostringnocopy(b *byte) string

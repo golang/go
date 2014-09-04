@@ -431,7 +431,7 @@ func gogc(force int32) {
 	mp = acquirem()
 	mp.gcing = 1
 	releasem(mp)
-	stoptheworld()
+	onM(stoptheworld)
 	if mp != acquirem() {
 		gothrow("gogc: rescheduled")
 	}
@@ -465,7 +465,7 @@ func gogc(force int32) {
 	// all done
 	mp.gcing = 0
 	semrelease(&worldsema)
-	starttheworld()
+	onM(starttheworld)
 	releasem(mp)
 	mp = nil
 
@@ -759,4 +759,56 @@ func runfinq() {
 			fb = next
 		}
 	}
+}
+
+var persistent struct {
+	lock mutex
+	pos  unsafe.Pointer
+	end  unsafe.Pointer
+}
+
+// Wrapper around sysAlloc that can allocate small chunks.
+// There is no associated free operation.
+// Intended for things like function/type/debug-related persistent data.
+// If align is 0, uses default align (currently 8).
+func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
+	const (
+		chunk    = 256 << 10
+		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows
+	)
+
+	if align != 0 {
+		if align&(align-1) != 0 {
+			gothrow("persistentalloc: align is not a power of 2")
+		}
+		if align > _PageSize {
+			gothrow("persistentalloc: align is too large")
+		}
+	} else {
+		align = 8
+	}
+
+	if size >= maxBlock {
+		return sysAlloc(size, stat)
+	}
+
+	lock(&persistent.lock)
+	persistent.pos = roundup(persistent.pos, align)
+	if uintptr(persistent.pos)+size > uintptr(persistent.end) {
+		persistent.pos = sysAlloc(chunk, &memstats.other_sys)
+		if persistent.pos == nil {
+			unlock(&persistent.lock)
+			gothrow("runtime: cannot allocate memory")
+		}
+		persistent.end = add(persistent.pos, chunk)
+	}
+	p := persistent.pos
+	persistent.pos = add(persistent.pos, size)
+	unlock(&persistent.lock)
+
+	if stat != &memstats.other_sys {
+		xadd64(stat, int64(size))
+		xadd64(&memstats.other_sys, -int64(size))
+	}
+	return p
 }

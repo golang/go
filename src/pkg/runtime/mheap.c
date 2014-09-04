@@ -834,9 +834,16 @@ runtime·removefinalizer(void *p)
 
 // Set the heap profile bucket associated with addr to b.
 void
-runtime·setprofilebucket(void *p, Bucket *b)
-{
+runtime·setprofilebucket_m(void)
+{	
+	void *p;
+	Bucket *b;
 	SpecialProfile *s;
+	
+	p = g->m->ptrarg[0];
+	b = g->m->ptrarg[1];
+	g->m->ptrarg[0] = nil;
+	g->m->ptrarg[1] = nil;
 
 	runtime·lock(&runtime·mheap.speciallock);
 	s = runtime·FixAlloc_Alloc(&runtime·mheap.specialprofilealloc);
