@@ -34,7 +34,7 @@ import (
 
 const testdata = "testdata"
 
-var fsetErrs *token.FileSet
+var fsetErrs = token.NewFileSet()
 
 // getFile assumes that each filename occurs at most once
 func getFile(filename string) (file *token.File) {
@@ -169,7 +169,6 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 }
 
 func TestErrors(t *testing.T) {
-	fsetErrs = token.NewFileSet()
 	list, err := ioutil.ReadDir(testdata)
 	if err != nil {
 		t.Fatal(err)
