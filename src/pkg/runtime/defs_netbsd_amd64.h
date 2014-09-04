@@ -154,7 +154,7 @@ struct KeventT {
 	uint32	fflags;
 	byte	Pad_cgo_0[4];
 	int64	data;
-	int64	udata;
+	byte	*udata;
 };
 
 

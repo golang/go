@@ -153,7 +153,7 @@ struct KeventT {
 	uint32	flags;
 	uint32	fflags;
 	int64	data;
-	int32	udata;
+	byte	*udata;
 };
 
 
