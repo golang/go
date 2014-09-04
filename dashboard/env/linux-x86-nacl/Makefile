@@ -3,7 +3,7 @@
 # license that can be found in the LICENSE file.
 
 docker: Dockerfile
-	docker build -t gobuilders/linux-x86-nacl
+	docker build -t gobuilders/linux-x86-nacl .
 
 upload: docker
 	docker save gobuilders/linux-x86-nacl | gzip | (cd ../../coordinator/buildongce && go run create.go --write_object=go-builder-data/docker-linux.nacl.tar.gz)
