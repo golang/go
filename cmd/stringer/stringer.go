@@ -454,10 +454,9 @@ func usize(n int) int {
 		return 8
 	case n < 1<<16:
 		return 16
-	case n < 1<<32:
-		return 32
 	default:
-		return 64
+		// 2^32 is enough constants for anyone.
+		return 32
 	}
 }
 
