@@ -14,9 +14,6 @@ func setitimer(mode int32, new, old unsafe.Pointer)
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 func getrlimit(kind int32, limit unsafe.Pointer) int32
 func raise(sig int32)
-func kqueue() int32
-func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
-func closeonexec(fd int32)
 func sys_umtx_op(addr unsafe.Pointer, mode int32, val uint32, ptr2, ts unsafe.Pointer) int32
 
 const stackSystem = 0

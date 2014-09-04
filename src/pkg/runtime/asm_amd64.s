@@ -709,6 +709,9 @@ TEXT runtime·xchgp(SB), NOSPLIT, $0-24
 	MOVQ	AX, ret+16(FP)
 	RET
 
+TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
+	JMP	runtime·xchg64(SB)
+
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	MOVL	cycles+0(FP), AX
 again:

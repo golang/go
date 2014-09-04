@@ -457,7 +457,7 @@ TEXT runtime·epollcreate1(SB),NOSPLIT,$0
 	MOVL	AX, ret+4(FP)
 	RET
 
-// int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
+// func epollctl(epfd, op, fd int32, ev *epollEvent) int
 TEXT runtime·epollctl(SB),NOSPLIT,$0
 	MOVL	$255, AX
 	MOVL	epfd+0(FP), BX

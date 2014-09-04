@@ -238,6 +238,9 @@ func xchg64(ptr *uint64, new uint64) uint64
 func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
 
 //go:noescape
+func xchguintptr(ptr *uintptr, new uintptr) uintptr
+
+//go:noescape
 func atomicstore(ptr *uint32, val uint32)
 
 //go:noescape

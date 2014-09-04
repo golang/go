@@ -19,6 +19,10 @@ func tstart_sysvicall(mm unsafe.Pointer) uint32
 func nanotime1() int64
 func usleep1(usec uint32)
 func osyield1()
+func netpollinit()
+func netpollopen(fd uintptr, pd *pollDesc) int32
+func netpollclose(fd uintptr) int32
+func netpollarm(pd *pollDesc, mode int)
 
 type libcFunc byte
 

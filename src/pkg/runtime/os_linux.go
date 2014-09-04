@@ -14,11 +14,6 @@ func setitimer(mode int32, new, old unsafe.Pointer)
 func rtsigprocmask(sig int32, new, old unsafe.Pointer, size int32)
 func getrlimit(kind int32, limit unsafe.Pointer) int32
 func raise(sig int32)
-func epollcreate(size int32) int32
-func epollcreate1(flags int32) int32
-func epollctl(epfd, op, fd int32, ev unsafe.Pointer) int32
-func epollwait(epfd int32, ev unsafe.Pointer, nev, timeout int32) int32
-func closeonexec(fd int32)
 func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
 
 const stackSystem = 0

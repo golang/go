@@ -9,7 +9,7 @@ package runtime
 import "unsafe"
 
 // Package time knows the layout of this structure.
-// If this struct changes, adjust ../time/sleep.go:/runtimeTimer and netpoll.goc:/timer.
+// If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
 // For GOOS=nacl, package syscall knows the layout of this structure.
 // If this struct changes, adjust ../syscall/net_nacl.go:/runtimeTimer.
 type timer struct {
@@ -20,8 +20,9 @@ type timer struct {
 	// a well-behaved function and not block.
 	when   int64
 	period int64
-	f      func(interface{})
+	f      func(interface{}, uintptr)
 	arg    interface{}
+	seq    uintptr
 }
 
 var timers struct {
@@ -74,7 +75,7 @@ func stopTimer(t *timer) bool {
 // Go runtime.
 
 // Ready the goroutine arg.
-func goroutineReady(arg interface{}) {
+func goroutineReady(arg interface{}, seq uintptr) {
 	goready(arg.(*g))
 }
 
@@ -185,11 +186,12 @@ func timerproc() {
 			}
 			f := t.f
 			arg := t.arg
+			seq := t.seq
 			unlock(&timers.lock)
 			if raceenabled {
 				raceacquire(unsafe.Pointer(t))
 			}
-			f(arg)
+			f(arg, seq)
 			lock(&timers.lock)
 		}
 		if delta < 0 {

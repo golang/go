@@ -11,6 +11,9 @@
 #define JMP B
 #endif
 
+TEXT net·runtimeNano(SB),NOSPLIT,$0-0
+	JMP	runtime·nanotime(SB)
+
 TEXT time·runtimeNano(SB),NOSPLIT,$0-0
 	JMP     runtime·nanotime(SB)
 
@@ -73,6 +76,30 @@ TEXT reflect·chanrecv(SB), NOSPLIT, $0-0
 
 TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
 	JMP	runtime·freeOSMemory(SB)
+
+TEXT net·runtime_pollServerInit(SB),NOSPLIT,$0-0
+	JMP	runtime·netpollServerInit(SB)
+
+TEXT net·runtime_pollOpen(SB),NOSPLIT,$0-0
+	JMP	runtime·netpollOpen(SB)
+
+TEXT net·runtime_pollClose(SB),NOSPLIT,$0-0
+	JMP	runtime·netpollClose(SB)
+
+TEXT net·runtime_pollReset(SB),NOSPLIT,$0-0
+	JMP	runtime·netpollReset(SB)
+
+TEXT net·runtime_pollWait(SB),NOSPLIT,$0-0
+	JMP	runtime·netpollWait(SB)
+
+TEXT net·runtime_pollWaitCanceled(SB),NOSPLIT,$0-0
+	JMP	runtime·netpollWaitCanceled(SB)
+
+TEXT net·runtime_pollSetDeadline(SB),NOSPLIT,$0-0
+	JMP	runtime·netpollSetDeadline(SB)
+
+TEXT net·runtime_pollUnblock(SB),NOSPLIT,$0-0
+	JMP	runtime·netpollUnblock(SB)
 
 TEXT syscall·setenv_c(SB), NOSPLIT, $0-0
 	JMP	runtime·syscall_setenv_c(SB)

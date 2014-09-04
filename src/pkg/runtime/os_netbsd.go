@@ -13,9 +13,6 @@ func sigprocmask(mode int32, new, old unsafe.Pointer)
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 func lwp_tramp()
 func raise(sig int32)
-func kqueue() int32
-func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
-func closeonexec(fd int32)
 func getcontext(ctxt unsafe.Pointer)
 func lwp_create(ctxt unsafe.Pointer, flags uintptr, lwpid unsafe.Pointer) int32
 func lwp_park(abstime unsafe.Pointer, unpark int32, hint, unparkhint unsafe.Pointer) int32
