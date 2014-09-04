@@ -42,7 +42,9 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
 				// One more check: make sure server name is
 				// just an IP address.  Otherwise we need DNS
 				// to look it up.
-				if ParseIP(f[1]) != nil {
+				if parseIPv4(f[1]) != nil {
+					conf.servers = append(conf.servers, f[1])
+				} else if ip, _ := parseIPv6(f[1], true); ip != nil {
 					conf.servers = append(conf.servers, f[1])
 				}
 			}
