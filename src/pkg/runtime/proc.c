@@ -442,6 +442,7 @@ isscanstatus(uint32 status)
 
 // All reads and writes of g's status go through readgstatus, casgstatus
 // castogscanstatus, casfromgscanstatus.
+#pragma textflag NOSPLIT
 uint32
 runtime·readgstatus(G *gp)
 {

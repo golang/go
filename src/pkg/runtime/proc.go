@@ -6,27 +6,6 @@ package runtime
 
 import "unsafe"
 
-// This is not mechanically generated
-// so be very careful and refer to runtime.h
-// for the definitive enum.
-const (
-	gStatusidle = iota
-	gStatusRunnable
-	gStatusRunning
-	gStatusSyscall
-	gStatusWaiting
-	gStatusMoribundUnused
-	gStatusDead
-	gStatusEnqueue
-	gStatusCopystack
-	gStatusScan         = 0x1000
-	gStatusScanRunnable = gStatusScan + gStatusRunnable
-	gStatusScanRunning  = gStatusScan + gStatusRunning
-	gStatusScanSyscall  = gStatusScan + gStatusSyscall
-	gStatusScanWaiting  = gStatusScan + gStatusWaiting
-	gStatusScanEnqueue  = gStatusScan + gStatusEnqueue
-)
-
 var parkunlock_c byte
 
 // start forcegc helper goroutine
@@ -58,18 +37,13 @@ func Gosched() {
 	mcall(gosched_m)
 }
 
-func readgStatus(gp *g) uint32 {
-	//return atomic.LoadUint32(&gp.atomicstatus) // TODO: add bootstrap code to provide.
-	return gp.atomicstatus
-}
-
 // Puts the current goroutine into a waiting state and calls unlockf.
 // If unlockf returns false, the goroutine is resumed.
 func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
 	mp := acquirem()
 	gp := mp.curg
-	status := readgStatus(gp)
-	if status != gStatusRunning && status != gStatusScanRunning {
+	status := readgstatus(gp)
+	if status != _Grunning && status != _Gscanrunning {
 		gothrow("gopark: bad g status")
 	}
 	mp.waitlock = lock
