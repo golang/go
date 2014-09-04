@@ -6,9 +6,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -18,7 +20,6 @@ import (
 
 	"code.google.com/p/goauth2/oauth"
 	compute "code.google.com/p/google-api-go-client/compute/v1"
-	storage "code.google.com/p/google-api-go-client/storage/v1"
 )
 
 var (
@@ -28,6 +29,8 @@ var (
 	instName = flag.String("instance_name", "go-builder-1", "Name of VM instance.")
 	sshPub   = flag.String("ssh_public_key", "", "ssh public key file to authorize. Can modify later in Google's web UI anyway.")
 	staticIP = flag.String("static_ip", "", "Static IP to use. If empty, automatic.")
+
+	writeObject = flag.String("write_object", "", "If non-empty, a VM isn't created and the flag value is Google Cloud Storage bucket/object to write. The contents from stdin.")
 )
 
 func readFile(v string) string {
@@ -92,6 +95,9 @@ func main() {
 	tokenCache := oauth.CacheFile("token.dat")
 	token, err := tokenCache.Token()
 	if err != nil {
+		if *writeObject != "" {
+			log.Fatalf("Can't use --write_object without a valid token.dat file already cached.")
+		}
 		log.Printf("Error getting token from %s: %v", string(tokenCache), err)
 		log.Printf("Get auth code from %v", config.AuthCodeURL("my-state"))
 		fmt.Print("\nEnter auth code: ")
@@ -107,9 +113,12 @@ func main() {
 
 	tr.Token = token
 	oauthClient := &http.Client{Transport: tr}
+	if *writeObject != "" {
+		writeCloudStorageObject(oauthClient)
+		return
+	}
+
 	computeService, _ := compute.New(oauthClient)
-	storageService, _ := storage.New(oauthClient)
-	_ = storageService // TODO?
 
 	natIP := *staticIP
 	if natIP == "" {
@@ -231,4 +240,33 @@ OpLoop:
 	}
 	ij, _ := json.MarshalIndent(inst, "", "    ")
 	log.Printf("Instance: %s", ij)
+}
+
+func writeCloudStorageObject(httpClient *http.Client) {
+	content := os.Stdin
+	const maxSlurp = 1 << 20
+	var buf bytes.Buffer
+	n, err := io.CopyN(&buf, content, maxSlurp)
+	if err != nil && err != io.EOF {
+		log.Fatalf("Error reading from stdin: %v, %v", n, err)
+	}
+	contentType := http.DetectContentType(buf.Bytes())
+
+	req, err := http.NewRequest("PUT", "https://storage.googleapis.com/"+*writeObject, io.MultiReader(&buf, content))
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Set("x-goog-api-version", "2")
+	req.Header.Set("x-goog-acl", "public-read")
+	req.Header.Set("Content-Type", contentType)
+	res, err := httpClient.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if res.StatusCode != 200 {
+		res.Write(os.Stderr)
+		log.Fatalf("Failed.")
+	}
+	log.Printf("Success.")
+	os.Exit(0)
 }
