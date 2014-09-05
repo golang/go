@@ -219,7 +219,12 @@ oncurg:
 
 	// switch to g0
 	MOVW	R2, g
-	MOVW	(g_sched+gobuf_sp)(R2), SP
+	MOVW	(g_sched+gobuf_sp)(R2), R3
+	// make it look like mstart called onM on g0, to stop traceback
+	SUB	$4, R3, R3
+	MOVW	$runtime·mstart(SB), R4
+	MOVW	R4, 0(R3)
+	MOVW	R3, SP
 
 	// call target function
 	ARGSIZE(0)
