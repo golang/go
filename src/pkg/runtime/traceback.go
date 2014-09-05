@@ -40,7 +40,6 @@ var (
 	mstartPC    = funcPC(mstart)
 	newprocPC   = funcPC(newproc)
 	newstackPC  = funcPC(newstack)
-	onMPC       = funcPC(onM)
 	rt0_goPC    = funcPC(rt0_go)
 	sigpanicPC  = funcPC(sigpanic)
 
@@ -633,7 +632,6 @@ func topofstack(f *_func) bool {
 	return pc == goexitPC ||
 		pc == mstartPC ||
 		pc == mcallPC ||
-		pc == onMPC ||
 		pc == morestackPC ||
 		pc == lessstackPC ||
 		pc == rt0_goPC ||
