@@ -7,6 +7,7 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "os_GOOS.h"
+#include "../../cmd/ld/textflag.h"
 
 extern byte runtime·end[];
 static byte *bloc = { runtime·end };
@@ -31,18 +32,41 @@ brk(uintptr nbytes)
 	}
 	bloc = (byte*)bl + nbytes;
 	runtime·unlock(&memlock);
-	return (void*)bl;
-	
+	return (void*)bl;	
 }
 
-void*
-runtime·sysAlloc(uintptr nbytes, uint64 *stat)
+static void
+sysalloc(void)
 {
+	uintptr nbytes;
+	uint64 *stat;
 	void *p;
+
+	nbytes = g->m->scalararg[0];
+	stat = g->m->ptrarg[0];
+	g->m->scalararg[0] = 0;
+	g->m->ptrarg[0] = nil;
 
 	p = brk(nbytes);
 	if(p != nil)
 		runtime·xadd64(stat, nbytes);
+
+	g->m->ptrarg[0] = p;
+}
+
+#pragma textflag NOSPLIT
+void*
+runtime·sysAlloc(uintptr nbytes, uint64 *stat)
+{
+	void (*fn)(void);
+	void *p;
+
+	g->m->scalararg[0] = nbytes;
+	g->m->ptrarg[0] = stat;
+	fn = sysalloc;
+	runtime·onM(&fn);
+	p = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
 	return p;
 }
 

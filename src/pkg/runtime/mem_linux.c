@@ -7,6 +7,7 @@
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "malloc.h"
+#include "../../cmd/ld/textflag.h"
 
 enum
 {
@@ -57,6 +58,7 @@ mmap_fixed(byte *v, uintptr n, int32 prot, int32 flags, int32 fd, uint32 offset)
 	return p;
 }
 
+#pragma textflag NOSPLIT
 void*
 runtime·sysAlloc(uintptr n, uint64 *stat)
 {
