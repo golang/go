@@ -625,7 +625,11 @@ func isFile(name string) bool {
 // commitWatcher polls hg for new commits and tells the dashboard about them.
 func commitWatcher(goroot *Repo) {
 	if *commitInterval == 0 {
-		log.Printf("commitInterval is %s, disabling commitWatcher", *commitInterval)
+		log.Printf("commitInterval is 0; disabling commitWatcher")
+		return
+	}
+	if !*report {
+		log.Printf("-report is false; disabling commitWatcher")
 		return
 	}
 	// Create builder just to get master key.
