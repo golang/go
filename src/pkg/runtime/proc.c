@@ -2624,20 +2624,6 @@ runtime·mcount(void)
 }
 
 void
-runtime·badmcall(void (*fn)(G*))  // called from assembly
-{
-	USED(fn); // TODO: print fn?
-	runtime·throw("runtime: mcall called on m->g0 stack");
-}
-
-void
-runtime·badmcall2(void (*fn)(G*))  // called from assembly
-{
-	USED(fn);
-	runtime·throw("runtime: mcall function returned");
-}
-
-void
 runtime·badreflectcall(void) // called from assembly
 {
 	runtime·panicstring("runtime: arg size to reflect.call more than 1GB");

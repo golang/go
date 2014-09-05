@@ -160,6 +160,7 @@ runtime·nanotime(void)
 	return ns;
 }
 
+#pragma textflag NOSPLIT
 void
 time·now(int64 sec, int32 nsec)
 {
@@ -172,6 +173,7 @@ time·now(int64 sec, int32 nsec)
 	FLUSH(&nsec);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·itoa(int32 n, byte *p, uint32 len)
 {
@@ -252,12 +254,29 @@ runtime·postnote(int32 pid, int8* msg)
 	return 0;
 }
 
+static void exit(void);
+
+#pragma textflag NOSPLIT
 void
 runtime·exit(int32 e)
 {
+	void (*fn)(void);
+
+	g->m->scalararg[0] = e;
+	fn = exit;
+	runtime·onM(&fn);
+}
+
+static void
+exit(void)
+{
+	int32 e;
 	byte tmp[16];
 	int8 *status;
  
+ 	e = g->m->scalararg[0];
+ 	g->m->scalararg[0] = 0;
+
 	if(e == 0)
 		status = "";
 	else {
@@ -283,6 +302,7 @@ runtime·newosproc(M *mp, void *stk)
 		runtime·throw("newosproc: rfork failed");
 }
 
+#pragma textflag NOSPLIT
 uintptr
 runtime·semacreate(void)
 {
@@ -312,6 +332,7 @@ runtime·semasleep(int64 ns)
 	return 0;  // success
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·semawakeup(M *mp)
 {
@@ -396,12 +417,14 @@ runtime·sigpanic(void)
 	}
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·read(int32 fd, void *buf, int32 nbytes)
 {
 	return runtime·pread(fd, buf, nbytes, -1LL);
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·write(uintptr fd, void *buf, int32 nbytes)
 {

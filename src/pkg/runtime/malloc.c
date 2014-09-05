@@ -87,6 +87,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 	return 1;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·purgecachedstats(MCache *c)
 {

@@ -40,12 +40,37 @@ getncpu(void)
 		return 1;
 }
 
+static void futexsleep(void);
+
 #pragma textflag NOSPLIT
 void
 runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 {
+	void (*fn)(void);
+
+	g->m->ptrarg[0] = addr;
+	g->m->scalararg[0] = val;
+	g->m->ptrarg[1] = &ns;
+
+	fn = futexsleep;
+	runtime·onM(&fn);
+}
+
+static void
+futexsleep(void)
+{
+	uint32 *addr;
+	uint32 val;
+	int64 ns;
 	int32 timeout = 0;
 	int32 ret;
+
+	addr = g->m->ptrarg[0];
+	val = g->m->scalararg[0];
+	ns = *(int64*)g->m->ptrarg[1];
+	g->m->ptrarg[0] = nil;
+	g->m->scalararg[0] = 0;
+	g->m->ptrarg[1] = nil;
 
 	if(ns >= 0) {
 		// The timeout is specified in microseconds - ensure that we

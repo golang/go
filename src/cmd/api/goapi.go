@@ -411,6 +411,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			"); " +
 			"const (" +
 			" cb_max = 2000;" +
+			" _CacheLineSize = 64;" +
 			" _Gidle = 1;" +
 			" _Grunnable = 2;" +
 			" _Grunning = 3;" +

@@ -91,3 +91,12 @@ func releaseSudog(s *sudog) {
 func funcPC(f interface{}) uintptr {
 	return **(**uintptr)(add(unsafe.Pointer(&f), ptrSize))
 }
+
+// called from assembly
+func badmcall(fn func(*g)) {
+	gothrow("runtime: mcall called on m->g0 stack")
+}
+
+func badmcall2(fn func(*g)) {
+	gothrow("runtime: mcall function returned")
+}

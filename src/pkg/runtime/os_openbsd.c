@@ -54,6 +54,7 @@ getncpu(void)
 		return 1;
 }
 
+#pragma textflag NOSPLIT
 uintptr
 runtime·semacreate(void)
 {
@@ -111,20 +112,53 @@ runtime·semasleep(int64 ns)
 	return -1;
 }
 
+static void badsemawakeup(void);
+
+#pragma textflag NOSPLIT
 void
 runtime·semawakeup(M *mp)
 {
 	uint32 ret;
+	void *oldptr;
+	uint32 oldscalar;
+	void (*fn)(void);
 
 	// spin-mutex lock
 	while(runtime·xchg(&mp->waitsemalock, 1))
 		runtime·osyield();
 	mp->waitsemacount++;
 	ret = runtime·thrwakeup(&mp->waitsemacount, 1);
-	if(ret != 0 && ret != ESRCH)
-		runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
+	if(ret != 0 && ret != ESRCH) {
+		// semawakeup can be called on signal stack.
+		// Save old ptrarg/scalararg so we can restore them.
+		oldptr = g->m->ptrarg[0];
+		oldscalar = g->m->scalararg[0];
+		g->m->ptrarg[0] = mp;
+		g->m->scalararg[0] = ret;
+		fn = badsemawakeup;
+		if(g == g->m->gsignal)
+			fn();
+		else
+			runtime·onM(&fn);
+		g->m->ptrarg[0] = oldptr;
+		g->m->scalararg[0] = oldscalar;
+	}
 	// spin-mutex unlock
 	runtime·atomicstore(&mp->waitsemalock, 0);
+}
+
+static void
+badsemawakeup(void)
+{
+	M *mp;
+	int32 ret;
+
+	mp = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	ret = g->m->scalararg[0];
+	g->m->scalararg[0] = 0;
+
+	runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
 }
 
 void
