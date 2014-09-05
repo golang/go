@@ -25,9 +25,9 @@ var golden = []Golden{
 	{"day", day_in, day_out},
 	{"offset", offset_in, offset_out},
 	{"gap", gap_in, gap_out},
-	{"neg", neg_in, neg_out},
-	{"uneg", uneg_in, uneg_out},
-	{"map", map_in, map_out},
+	{"num", num_in, num_out},
+	{"unum", unum_in, unum_out},
+	{"prime", prime_in, prime_out},
 }
 
 // Each example starts with "type XXX [u]int", with a single space separating them.
@@ -95,60 +95,58 @@ func (i Number) String() string {
 `
 
 // Gaps and an offset.
-const gap_in = `type Num int
+const gap_in = `type Gap int
 const (
-	Two Num = 2
-	Three Num = 3
-	Five Num = 5
-	Six Num = 6
-	Seven Num = 7
-	Eight Num = 8
-	Nine Num = 9
-	Eleven Num = 11
+	Two Gap = 2
+	Three Gap = 3
+	Five Gap = 5
+	Six Gap = 6
+	Seven Gap = 7
+	Eight Gap = 8
+	Nine Gap = 9
+	Eleven Gap = 11
 )
 `
 
 const gap_out = `
 const (
-	_Num_name_0 = "TwoThree"
-	_Num_name_1 = "FiveSixSevenEightNine"
-	_Num_name_2 = "Eleven"
+	_Gap_name_0 = "TwoThree"
+	_Gap_name_1 = "FiveSixSevenEightNine"
+	_Gap_name_2 = "Eleven"
 )
 
 var (
-	_Num_index_0 = [...]uint8{3, 8}
-	_Num_index_1 = [...]uint8{4, 7, 12, 17, 21}
-	_Num_index_2 = [...]uint8{6}
+	_Gap_index_0 = [...]uint8{3, 8}
+	_Gap_index_1 = [...]uint8{4, 7, 12, 17, 21}
+	_Gap_index_2 = [...]uint8{6}
 )
 
-func (i Num) String() string {
+func (i Gap) String() string {
 	switch {
-	case 2 <= i && i < 3:
+	case 2 <= i && i <= 3:
+		i -= 2
 		lo := uint8(0)
-		if i > 2 {
-			i -= 2
-		} else {
-			lo = _Num_index_0[i-1]
+		if i > 0 {
+			lo = _Gap_index_0[i-1]
 		}
-		return _Num_name_0[lo:_Num_index_0[i]]
-	case 5 <= i && i < 9:
+		return _Gap_name_0[lo:_Gap_index_0[i]]
+	case 5 <= i && i <= 9:
+		i -= 5
 		lo := uint8(0)
-		if i > 5 {
-			i -= 5
-		} else {
-			lo = _Num_index_1[i-1]
+		if i > 0 {
+			lo = _Gap_index_1[i-1]
 		}
-		return _Num_name_1[lo:_Num_index_1[i]]
+		return _Gap_name_1[lo:_Gap_index_1[i]]
 	case i == 11:
-		return _Num_name_2
+		return _Gap_name_2
 	default:
-		return fmt.Sprintf("Num(%d)", i)
+		return fmt.Sprintf("Gap(%d)", i)
 	}
 }
 `
 
 // Signed integers spanning zero.
-const neg_in = `type Num int
+const num_in = `type Num int
 const (
 	m_2 Num = -2 + iota
 	m_1
@@ -158,7 +156,7 @@ const (
 )
 `
 
-const neg_out = `
+const num_out = `
 const _Num_name = "m_2m_1m0m1m2"
 
 var _Num_index = [...]uint8{3, 6, 8, 10, 12}
@@ -178,38 +176,55 @@ func (i Num) String() string {
 `
 
 // Unsigned integers spanning zero.
-const uneg_in = `type UNum uint
+const unum_in = `type Unum uint
 const (
-	m_2 UNum = ^UNum(0)-2
+	m_2 Unum = iota + 253
 	m_1
-	m0
+)
+
+const (
+	m0 Unum = iota
 	m1
 	m2
 )
 `
 
-const uneg_out = `
-const _UNum_name = "m_2"
+const unum_out = `
+const (
+	_Unum_name_0 = "m0m1m2"
+	_Unum_name_1 = "m_2m_1"
+)
 
-var _UNum_index = [...]uint8{3}
+var (
+	_Unum_index_0 = [...]uint8{2, 4, 6}
+	_Unum_index_1 = [...]uint8{3, 6}
+)
 
-func (i UNum) String() string {
-	i -= 18446744073709551613
-	if i >= UNum(len(_UNum_index)) {
-		return fmt.Sprintf("UNum(%d)", i+18446744073709551613)
+func (i Unum) String() string {
+	switch {
+	case 0 <= i && i <= 2:
+		i -= 0
+		lo := uint8(0)
+		if i > 0 {
+			lo = _Unum_index_0[i-1]
+		}
+		return _Unum_name_0[lo:_Unum_index_0[i]]
+	case 253 <= i && i <= 254:
+		i -= 253
+		lo := uint8(0)
+		if i > 0 {
+			lo = _Unum_index_1[i-1]
+		}
+		return _Unum_name_1[lo:_Unum_index_1[i]]
+	default:
+		return fmt.Sprintf("Unum(%d)", i)
 	}
-	hi := _UNum_index[i]
-	lo := uint8(0)
-	if i > 0 {
-		lo = _UNum_index[i-1]
-	}
-	return _UNum_name[lo:hi]
 }
 `
 
 // Enough gaps to trigger a map implementation of the method.
 // Also includes a duplicate to test that it doesn't cause problems
-const map_in = `type Prime int
+const prime_in = `type Prime int
 const (
 	p2 Prime = 2
 	p3 Prime = 3
@@ -228,7 +243,7 @@ const (
 )
 `
 
-const map_out = `
+const prime_out = `
 const _Prime_name = "p2p3p5p7p11p13p17p19p23p29p37p41p43"
 
 var _Prime_map = map[Prime]string{
