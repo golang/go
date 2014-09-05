@@ -14,13 +14,14 @@ import "C"
 //export issue5548FromC
 func issue5548FromC(s string, i int) int {
 	if len(s) == 4 && s == "test" && i == 42 {
-		return 1
+		return 12345
 	}
-	return 0
+	println("got", len(s), i)
+	return 9876
 }
 
 func test5548(t *testing.T) {
-	if C.issue5548_in_c() == 0 {
-		t.Fail()
+	if x := C.issue5548_in_c(); x != 12345 {
+		t.Errorf("issue5548_in_c = %d, want %d", x, 12345)
 	}
 }
