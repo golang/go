@@ -94,6 +94,18 @@ TEXT _sfloat(SB), NOSPLIT, $68-0 // 4 arg + 14*4 saved regs + cpsr + return valu
 	MOVW	8(R13), R0
 	RET
 
+// trampoline for _sfloat2 panic.
+// _sfloat2 instructs _sfloat to return here.
+// We need to push a fake saved LR onto the stack,
+// load the signal fault address into LR, and jump
+// to the real sigpanic.
+// This simulates what sighandler does for a memory fault.
+TEXT _sfloatpanic(SB),NOSPLIT,$-4
+	MOVW	$0, R0
+	MOVW.W	R0, -4(R13)
+	MOVW	g_sigpc(g), LR
+	B	runtime·sigpanic(SB)
+
 // func udiv(n, d uint32) (q, r uint32)
 // Reference: 
 // Sloss, Andrew et. al; ARM System Developer's Guide: Designing and Optimizing System Software
