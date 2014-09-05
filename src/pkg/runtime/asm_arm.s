@@ -114,7 +114,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT, $-4-4
+TEXT runtime·gosave(SB),NOSPLIT,$-4-4
 	MOVW	0(FP), R0		// gobuf
 	MOVW	SP, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
@@ -127,7 +127,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $-4-4
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $-4-4
+TEXT runtime·gogo(SB),NOSPLIT,$-4-4
 	MOVW	0(FP), R1		// gobuf
 	MOVW	gobuf_g(R1), g
 	MOVW	0(g), R2		// make sure g != nil
@@ -151,7 +151,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return.  It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB), NOSPLIT, $-4-4
+TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 	// Save caller state in g->sched.
 	MOVW	SP, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_pc)(g)
@@ -184,13 +184,13 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
 // lives at the bottom of the G stack from the one that lives
 // at the top of the M stack because the one at the top of
 // the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+TEXT runtime·switchtoM(SB),NOSPLIT,$0-4
 	MOVW	$0, R0
 	BL	(R0) // clobber lr to ensure push {lr} is kept
 	RET
 
 // func onM(fn func())
-TEXT runtime·onM(SB), NOSPLIT, $0-4
+TEXT runtime·onM(SB),NOSPLIT,$0-4
 	MOVW	fn+0(FP), R0	// R0 = fn
 	MOVW	g_m(g), R1	// R1 = m
 
@@ -300,7 +300,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 // with the desired args running the desired function.
 //
 // func call(fn *byte, arg *byte, argsize uint32).
-TEXT runtime·newstackcall(SB), NOSPLIT, $-4-12
+TEXT runtime·newstackcall(SB),NOSPLIT,$-4-12
 	// Save our caller's state as the PC and SP to
 	// restore when returning from f.
 	MOVW	g_m(g), R8
@@ -348,7 +348,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $-4-12
 	MOVW	$NAME(SB), R1;	\
 	B	(R1)
 
-TEXT reflect·call(SB), NOSPLIT, $-4-16
+TEXT reflect·call(SB),NOSPLIT,$-4-16
 	MOVW	argsize+8(FP), R0
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -459,7 +459,7 @@ CALLFN(runtime·call1073741824, 1073741824)
 //
 // Lessstack can appear in stack traces for the same reason
 // as morestack; in that context, it has 0 arguments.
-TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
+TEXT runtime·lessstack(SB),NOSPLIT,$-4-0
 	// Save return value in m->cret
 	MOVW	g_m(g), R8
 	MOVW	R0, m_cret(R8)
@@ -478,7 +478,7 @@ TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
 // to load all registers simultaneously, so that a profiling
 // interrupt can never see mismatched SP/LR/PC.
 // (And double-check that pop is atomic in that way.)
-TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
+TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	MOVW	0(SP), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
 	MOVW	fv+0(FP), R7
@@ -638,7 +638,7 @@ havem:
 	RET
 
 // void setg(G*); set g. for use by needm.
-TEXT runtime·setg(SB), NOSPLIT, $0-4
+TEXT runtime·setg(SB),NOSPLIT,$0-4
 	MOVW	gg+0(FP), g
 
 	// Save g to thread-local storage.
@@ -715,13 +715,13 @@ casfail:
 	MOVB	R0, ret+12(FP)
 	RET
 
-TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
+TEXT runtime·casuintptr(SB),NOSPLIT,$0-13
 	B	runtime·cas(SB)
 
-TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-8
+TEXT runtime·atomicloaduintptr(SB),NOSPLIT,$0-8
 	B	runtime·atomicload(SB)
 
-TEXT runtime·atomicloaduint(SB), NOSPLIT, $0-8
+TEXT runtime·atomicloaduint(SB),NOSPLIT,$0-8
 	B	runtime·atomicload(SB)
 
 TEXT runtime·stackguard(SB),NOSPLIT,$0-8
@@ -874,7 +874,7 @@ _sib_notfound:
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·timenow(SB), NOSPLIT, $0-0
+TEXT runtime·timenow(SB),NOSPLIT,$0-0
 	B	time·now(SB)
 
 // A Duff's device for zeroing memory.
@@ -885,7 +885,7 @@ TEXT runtime·timenow(SB), NOSPLIT, $0-0
 // R0: zero
 // R1: ptr to memory to be zeroed
 // R1 is updated as a side effect.
-TEXT runtime·duffzero(SB), NOSPLIT, $0-0
+TEXT runtime·duffzero(SB),NOSPLIT,$0-0
 	MOVW.P	R0, 4(R1)
 	MOVW.P	R0, 4(R1)
 	MOVW.P	R0, 4(R1)
@@ -1026,7 +1026,7 @@ TEXT runtime·duffzero(SB), NOSPLIT, $0-0
 // R1: ptr to source memory
 // R2: ptr to destination memory
 // R1 and R2 are updated as a side effect
-TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+TEXT runtime·duffcopy(SB),NOSPLIT,$0-0
 	MOVW.P	4(R1), R0
 	MOVW.P	R0, 4(R2)
 	MOVW.P	4(R1), R0
@@ -1285,7 +1285,7 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
 	MOVW.P	R0, 4(R2)
 	RET
 
-TEXT runtime·fastrand1(SB), NOSPLIT, $-4-4
+TEXT runtime·fastrand1(SB),NOSPLIT,$-4-4
 	MOVW	g_m(g), R1
 	MOVW	m_fastrand(R1), R0
 	ADD.S	R0, R0
@@ -1294,9 +1294,19 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $-4-4
 	MOVW	R0, ret+0(FP)
 	RET
 
-TEXT runtime·gocputicks(SB), NOSPLIT, $0
+TEXT runtime·gocputicks(SB),NOSPLIT,$0
 	B runtime·cputicks(SB)
 
-TEXT runtime·return0(SB), NOSPLIT, $0
+TEXT runtime·return0(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	RET
+
+TEXT runtime·procyield(SB),NOSPLIT,$-4
+	MOVW	cycles+0(FP), R1
+	MOVW	$0, R0
+yieldloop:
+	CMP	R0, R1
+	B.NE	2(PC)
+	RET
+	SUB	$1, R1
+	B yieldloop

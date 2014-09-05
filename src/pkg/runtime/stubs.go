@@ -174,8 +174,8 @@ func munmap(addr unsafe.Pointer, n uintptr)
 func madvise(addr unsafe.Pointer, n uintptr, flags int32)
 func newstackcall(fv *funcval, addr unsafe.Pointer, size uint32)
 func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
-func procyield(cycles uint32)
 func osyield()
+func procyield(cycles uint32)
 func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
 func readgogc() int32
 func purgecachedstats(c *mcache)
@@ -189,61 +189,19 @@ func write(fd uintptr, p unsafe.Pointer, n int32) int32
 func cas(ptr *uint32, old, new uint32) bool
 
 //go:noescape
-func cas64(ptr *uint64, old, new uint64) bool
-
-//go:noescape
 func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
 
 //go:noescape
 func casuintptr(ptr *uintptr, old, new uintptr) bool
 
 //go:noescape
-func xadd(ptr *uint32, delta int32) uint32
-
-//go:noescape
-func xadd64(ptr *uint64, delta int64) uint64
-
-//go:noescape
-func xchg(ptr *uint32, new uint32) uint32
-
-//go:noescape
-func xchg64(ptr *uint64, new uint64) uint64
-
-//go:noescape
-func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
-
-//go:noescape
-func xchguintptr(ptr *uintptr, new uintptr) uintptr
-
-//go:noescape
-func atomicstore(ptr *uint32, val uint32)
-
-//go:noescape
-func atomicstore64(ptr *uint64, val uint64)
-
-//go:noescape
-func atomicstorep(ptr unsafe.Pointer, val unsafe.Pointer)
-
-//go:noescape
 func atomicstoreuintptr(ptr *uintptr, new uintptr)
-
-//go:noescape
-func atomicload(ptr *uint32) uint32
-
-//go:noescape
-func atomicload64(ptr *uint64) uint64
-
-//go:noescape
-func atomicloadp(ptr unsafe.Pointer) unsafe.Pointer
 
 //go:noescape
 func atomicloaduintptr(ptr *uintptr) uintptr
 
 //go:noescape
 func atomicloaduint(ptr *uint) uint
-
-//go:noescape
-func atomicor8(ptr *uint8, val uint8)
 
 //go:noescape
 func setcallerpc(argp unsafe.Pointer, pc uintptr)

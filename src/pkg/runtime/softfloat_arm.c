@@ -606,20 +606,43 @@ struct Sfregs
 	uint32 cspr;
 };
 
+static void sfloat2(void);
+
 #pragma textflag NOSPLIT
 uint32*
 runtime·_sfloat2(uint32 *lr, Sfregs regs)
 {
-	uint32 skip;
+	void (*fn)(void);
+	
+	g->m->ptrarg[0] = lr;
+	g->m->ptrarg[1] = &regs;
+	fn = sfloat2;
+	runtime·onM(&fn);
+	lr = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	return lr;
+}
 
-	skip = stepflt(lr, (uint32*)&regs.r0);
+static void
+sfloat2(void)
+{
+	uint32 *lr;
+	Sfregs *regs;
+	uint32 skip;
+	
+	lr = g->m->ptrarg[0];
+	regs = g->m->ptrarg[1];
+	g->m->ptrarg[0] = nil;
+	g->m->ptrarg[1] = nil;
+
+	skip = stepflt(lr, (uint32*)&regs->r0);
 	if(skip == 0) {
 		runtime·printf("sfloat2 %p %x\n", lr, *lr);
 		fabort(); // not ok to fail first instruction
 	}
 
 	lr += skip;
-	while(skip = stepflt(lr, (uint32*)&regs.r0))
+	while(skip = stepflt(lr, (uint32*)&regs->r0))
 		lr += skip;
-	return lr;
+	g->m->ptrarg[0] = lr;
 }

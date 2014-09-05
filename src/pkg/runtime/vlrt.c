@@ -413,6 +413,7 @@ _modv(Vlong n, Vlong d)
 	return r;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _rshav(Vlong a, int b)
 {
@@ -440,6 +441,7 @@ _rshav(Vlong a, int b)
 	return r;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _rshlv(Vlong a, int b)
 {
@@ -487,6 +489,7 @@ _lshv(Vlong a, int b)
 	return (Vlong){t<<b, (t >> (32-b)) | (a.hi << b)};
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _andv(Vlong a, Vlong b)
 {
@@ -497,6 +500,7 @@ _andv(Vlong a, Vlong b)
 	return r;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _orv(Vlong a, Vlong b)
 {
@@ -507,6 +511,7 @@ _orv(Vlong a, Vlong b)
 	return r;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _xorv(Vlong a, Vlong b)
 {
@@ -529,6 +534,7 @@ _vpp(Vlong *r)
 	return l;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _vmm(Vlong *r)
 {
@@ -541,6 +547,7 @@ _vmm(Vlong *r)
 	return l;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _ppv(Vlong *r)
 {
@@ -551,6 +558,7 @@ _ppv(Vlong *r)
 	return *r;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _mmv(Vlong *r)
 {
@@ -642,6 +650,7 @@ _vasop(void *lv, Vlong fn(Vlong, Vlong), int type, Vlong rv)
 	return u;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _p2v(void *p)
 {
@@ -654,6 +663,7 @@ _p2v(void *p)
 	return ret;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _sl2v(long sl)
 {
@@ -666,6 +676,7 @@ _sl2v(long sl)
 	return ret;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _ul2v(ulong ul)
 {
@@ -685,6 +696,7 @@ _si2v(int si)
 	return (Vlong){si, si>>31};
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _ui2v(uint ui)
 {
@@ -697,6 +709,7 @@ _ui2v(uint ui)
 	return ret;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _sh2v(long sh)
 {
@@ -709,6 +722,7 @@ _sh2v(long sh)
 	return ret;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _uh2v(ulong ul)
 {
@@ -721,6 +735,7 @@ _uh2v(ulong ul)
 	return ret;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _sc2v(long uc)
 {
@@ -733,6 +748,7 @@ _sc2v(long uc)
 	return ret;
 }
 
+#pragma textflag NOSPLIT
 Vlong
 _uc2v(ulong ul)
 {
@@ -745,6 +761,7 @@ _uc2v(ulong ul)
 	return ret;
 }
 
+#pragma textflag NOSPLIT
 long
 _v2sc(Vlong rv)
 {
@@ -754,6 +771,7 @@ _v2sc(Vlong rv)
 	return (t << 24) >> 24;
 }
 
+#pragma textflag NOSPLIT
 long
 _v2uc(Vlong rv)
 {
@@ -761,6 +779,7 @@ _v2uc(Vlong rv)
 	return rv.lo & 0xff;
 }
 
+#pragma textflag NOSPLIT
 long
 _v2sh(Vlong rv)
 {
@@ -770,6 +789,7 @@ _v2sh(Vlong rv)
 	return (t << 16) >> 16;
 }
 
+#pragma textflag NOSPLIT
 long
 _v2uh(Vlong rv)
 {
@@ -777,6 +797,7 @@ _v2uh(Vlong rv)
 	return rv.lo & 0xffff;
 }
 
+#pragma textflag NOSPLIT
 long
 _v2sl(Vlong rv)
 {
@@ -784,6 +805,7 @@ _v2sl(Vlong rv)
 	return rv.lo;
 }
 
+#pragma textflag NOSPLIT
 long
 _v2ul(Vlong rv)
 {
@@ -798,6 +820,7 @@ _v2si(Vlong rv)
 	return rv.lo;
 }
 
+#pragma textflag NOSPLIT
 long
 _v2ui(Vlong rv)
 {
@@ -805,24 +828,28 @@ _v2ui(Vlong rv)
 	return rv.lo;
 }
 
+#pragma textflag NOSPLIT
 int
 _testv(Vlong rv)
 {
 	return rv.lo || rv.hi;
 }
 
+#pragma textflag NOSPLIT
 int
 _eqv(Vlong lv, Vlong rv)
 {
 	return lv.lo == rv.lo && lv.hi == rv.hi;
 }
 
+#pragma textflag NOSPLIT
 int
 _nev(Vlong lv, Vlong rv)
 {
 	return lv.lo != rv.lo || lv.hi != rv.hi;
 }
 
+#pragma textflag NOSPLIT
 int
 _ltv(Vlong lv, Vlong rv)
 {
@@ -830,6 +857,7 @@ _ltv(Vlong lv, Vlong rv)
 		(lv.hi == rv.hi && lv.lo < rv.lo);
 }
 
+#pragma textflag NOSPLIT
 int
 _lev(Vlong lv, Vlong rv)
 {
@@ -837,6 +865,7 @@ _lev(Vlong lv, Vlong rv)
 		(lv.hi == rv.hi && lv.lo <= rv.lo);
 }
 
+#pragma textflag NOSPLIT
 int
 _gtv(Vlong lv, Vlong rv)
 {
@@ -852,6 +881,7 @@ _gev(Vlong lv, Vlong rv)
 		(lv.hi == rv.hi && lv.lo >= rv.lo);
 }
 
+#pragma textflag NOSPLIT
 int
 _lov(Vlong lv, Vlong rv)
 {
@@ -859,6 +889,7 @@ _lov(Vlong lv, Vlong rv)
 		(lv.hi == rv.hi && lv.lo < rv.lo);
 }
 
+#pragma textflag NOSPLIT
 int
 _lsv(Vlong lv, Vlong rv)
 {
@@ -866,6 +897,7 @@ _lsv(Vlong lv, Vlong rv)
 		(lv.hi == rv.hi && lv.lo <= rv.lo);
 }
 
+#pragma textflag NOSPLIT
 int
 _hiv(Vlong lv, Vlong rv)
 {
@@ -873,6 +905,7 @@ _hiv(Vlong lv, Vlong rv)
 		(lv.hi == rv.hi && lv.lo > rv.lo);
 }
 
+#pragma textflag NOSPLIT
 int
 _hsv(Vlong lv, Vlong rv)
 {
