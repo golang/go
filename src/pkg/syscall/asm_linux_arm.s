@@ -18,6 +18,9 @@ TEXT	·Syscall(SB),NOSPLIT,$0-28
 	MOVW	8(SP), R0
 	MOVW	12(SP), R1
 	MOVW	16(SP), R2
+	MOVW	$0, R3
+	MOVW	$0, R4
+	MOVW	$0, R5
 	SWI		$0
 	MOVW	$0xfffff001, R1
 	CMP		R1, R0
