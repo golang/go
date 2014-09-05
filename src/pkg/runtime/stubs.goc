@@ -23,12 +23,6 @@ package runtime
 // These invariants do not hold yet but will be established once we have
 // finished converting runtime support code from C to Go.
 
-// entry point for testing
-// TODO: mcall and run on M stack
-func gostringW(str Slice) (s String) {
-	s = runtime·gostringw((uint16*)str.array);
-}
-
 #pragma textflag NOSPLIT
 func runtime·getg() (ret *G) {
 	ret = g;
@@ -60,9 +54,4 @@ func reflect·typelinks() (ret Slice) {
         ret.array = (byte*)runtime·typelink;
         ret.len = runtime·etypelink - runtime·typelink;
         ret.cap = ret.len;
-}
-
-// For testing.
-func gogoBytes() (x int32) {
-	x = RuntimeGogoBytes;
 }

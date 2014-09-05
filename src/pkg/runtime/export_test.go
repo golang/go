@@ -142,10 +142,19 @@ var MemclrBytes = memclrBytes
 
 var HashLoad = &hashLoad
 
-func gogoBytes() int32
+// For testing.
+func GogoBytes() int32 {
+	return _RuntimeGogoBytes
+}
 
-var GogoBytes = gogoBytes
+// in string.c
+//go:noescape
+func gostringw(w *uint16) string
 
-func gostringW([]uint16) string
-
-var GostringW = gostringW
+// entry point for testing
+func GostringW(w []uint16) (s string) {
+	onM(func() {
+		s = gostringw(&w[0])
+	})
+	return
+}
