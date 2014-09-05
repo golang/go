@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT _rt0_amd64_plan9(SB),NOSPLIT,$24
 	MOVQ	AX, _tos(SB)

@@ -7,7 +7,7 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // This is needed by asm_amd64.s
 TEXT runtime·settls(SB),NOSPLIT,$8

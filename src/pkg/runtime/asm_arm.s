@@ -4,7 +4,7 @@
 
 #include "zasm_GOOS_GOARCH.h"
 #include "funcdata.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // using frame size $-4 means do not save LR on stack.
 TEXT runtime·rt0_go(SB),NOSPLIT,$-4

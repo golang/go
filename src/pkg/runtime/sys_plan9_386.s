@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // setldt(int entry, int address, int limit)
 TEXT runtime·setldt(SB),NOSPLIT,$0

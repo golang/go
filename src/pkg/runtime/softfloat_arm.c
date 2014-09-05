@@ -7,7 +7,7 @@
 // It uses true little-endian doubles, while the 7500 used mixed-endian.
 
 #include "runtime.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #define CPSR 14
 #define FLAGS_N (1U << 31)

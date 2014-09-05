@@ -4,7 +4,7 @@
 
 #include "zasm_GOOS_GOARCH.h"
 #include "funcdata.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // We have to resort to TLS variable to save g(R10).
 // One reason is that external code might trigger

@@ -6,7 +6,7 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "race.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 String	runtime·emptystring;
 

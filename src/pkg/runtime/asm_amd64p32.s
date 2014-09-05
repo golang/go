@@ -4,7 +4,7 @@
 
 #include "zasm_GOOS_GOARCH.h"
 #include "funcdata.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// copy arguments forward on an even stack

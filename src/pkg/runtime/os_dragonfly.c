@@ -7,7 +7,7 @@
 #include "os_GOOS.h"
 #include "signal_unix.h"
 #include "stack.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 extern SigTab runtime·sigtab[];
 extern int32 runtime·sys_umtx_sleep(uint32*, int32, int32);

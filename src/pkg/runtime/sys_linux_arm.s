@@ -7,7 +7,7 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // for EABI, as we don't support OABI
 #define SYS_BASE 0x0

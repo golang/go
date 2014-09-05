@@ -25,7 +25,7 @@
 
 // +build arm 386
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 /*
  * C runtime for 64-bit divide, others.

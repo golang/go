@@ -7,7 +7,7 @@
 #include "os_GOOS.h"
 #include "defs_GOOS_GOARCH.h"
 #include "malloc.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 enum {
 	MEM_COMMIT = 0x1000,

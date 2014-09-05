@@ -60,7 +60,7 @@
 #include "type.h"
 #include "typekind.h"
 #include "funcdata.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 enum {
 	Debug		= 0,

@@ -6,7 +6,7 @@
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "arch_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 #include "stack.h"
 
 int8 *goos = "nacl";

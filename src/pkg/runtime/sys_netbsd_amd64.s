@@ -7,7 +7,7 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // int32 lwp_create(void *context, uintptr flags, void *lwpid)
 TEXT runtime·lwp_create(SB),NOSPLIT,$0

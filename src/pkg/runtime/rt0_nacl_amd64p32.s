@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // NaCl entry on 32-bit x86 has DI pointing at the arg block, which contains:
 //
