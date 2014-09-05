@@ -656,14 +656,11 @@ struct Defer
 struct Panic
 {
 	Eface	arg;		// argument to panic
-	uintptr	stackbase;	// g->stackbase in panic
 	Panic*	link;		// link to earlier panic
 	Defer*	defer;		// current executing defer
 	bool	recovered;	// whether this panic is over
 	bool	aborted;	// the panic was aborted
 };
-
-typedef struct XXX XXX;
 
 /*
  * stack traces
@@ -1020,7 +1017,7 @@ void	runtime·printcomplex(Complex128);
  */
 void	runtime·newstackcall(FuncVal*, byte*, uint32);
 void	reflect·call(FuncVal*, byte*, uint32, uint32);
-void	runtime·panic(Eface);
+void	runtime·gopanic(Eface);
 void	runtime·panicindex(void);
 void	runtime·panicslice(void);
 void	runtime·panicdivide(void);

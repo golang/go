@@ -543,11 +543,11 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OPANIC:
-		n = mkcall("panic", T, init, n->left);
+		n = mkcall("gopanic", T, init, n->left);
 		goto ret;
 
 	case ORECOVER:
-		n = mkcall("recover", n->type, init, nod(OADDR, nodfp, N));
+		n = mkcall("gorecover", n->type, init, nod(OADDR, nodfp, N));
 		goto ret;
 
 	case OLITERAL:

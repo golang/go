@@ -38,109 +38,11 @@ runtime·deferproc_m(void) {
 	runtime·memmove(d->args, (void*)argp, siz);
 }
 
-// Print all currently active panics.  Used when crashing.
-static void
-printpanics(Panic *p)
-{
-	if(p->link) {
-		printpanics(p->link);
-		runtime·printf("\t");
-	}
-	runtime·printf("panic: ");
-	runtime·printany(p->arg);
-	if(p->recovered)
-		runtime·printf(" [recovered]");
-	runtime·printf("\n");
-}
-
-static void recovery(G*);
-static void abortpanic(Panic*);
-static FuncVal abortpanicV = { (void(*)(void))abortpanic };
-
-// The implementation of the predeclared function panic.
-void
-runtime·panic(Eface e)
-{
-	Defer *d, dabort;
-	Panic p;
-	uintptr pc, argp;
-	void (*fn)(G*);
-
-	runtime·memclr((byte*)&p, sizeof p);
-	p.arg = e;
-	p.link = g->panic;
-	p.stackbase = g->stackbase;
-	g->panic = &p;
-
-	dabort.fn = &abortpanicV;
-	dabort.siz = sizeof(&p);
-	dabort.args[0] = &p;
-	dabort.argp = NoArgs;
-	dabort.special = true;
-
-	for(;;) {
-		d = g->defer;
-		if(d == nil)
-			break;
-		// take defer off list in case of recursive panic
-		g->defer = d->link;
-		g->ispanic = true;	// rock for runtime·newstack, where runtime·newstackcall ends up
-		argp = d->argp;
-		pc = d->pc;
-
-		// The deferred function may cause another panic,
-		// so newstackcall may not return. Set up a defer
-		// to mark this panic aborted if that happens.
-		dabort.link = g->defer;
-		g->defer = &dabort;
-		p.defer = d;
-
-		runtime·newstackcall(d->fn, (byte*)d->args, d->siz);
-
-		// Newstackcall did not panic. Remove dabort.
-		if(g->defer != &dabort)
-			runtime·throw("bad defer entry in panic");
-		g->defer = dabort.link;
-
-		runtime·freedefer(d);
-		if(p.recovered) {
-			g->panic = p.link;
-			// Aborted panics are marked but remain on the g->panic list.
-			// Recovery will unwind the stack frames containing their Panic structs.
-			// Remove them from the list and free the associated defers.
-			while(g->panic && g->panic->aborted) {
-				runtime·freedefer(g->panic->defer);
-				g->panic = g->panic->link;
-			}
-			if(g->panic == nil)	// must be done with signal
-				g->sig = 0;
-			// Pass information about recovering frame to recovery.
-			g->sigcode0 = (uintptr)argp;
-			g->sigcode1 = (uintptr)pc;
-			fn = recovery;
-			runtime·mcall(&fn);
-			runtime·throw("recovery failed"); // mcall should not return
-		}
-	}
-
-	// ran out of deferred calls - old-school panic now
-	runtime·startpanic();
-	printpanics(g->panic);
-	runtime·dopanic(0);	// should not return
-	runtime·exit(1);	// not reached
-}
-
-static void
-abortpanic(Panic *p)
-{
-	p->aborted = true;
-}
-
 // Unwind the stack after a deferred function calls recover
 // after a panic.  Then arrange to continue running as though
 // the caller of the deferred function returned normally.
-static void
-recovery(G *gp)
+void
+runtime·recovery_m(G *gp)
 {
 	void *argp;
 	uintptr pc;
@@ -199,40 +101,8 @@ runtime·unwindstack(G *gp, byte *sp)
 	}
 }
 
-// The implementation of the predeclared function recover.
-// Cannot split the stack because it needs to reliably
-// find the stack segment of its caller.
-#pragma textflag NOSPLIT
 void
-runtime·recover(byte *argp, GoOutput retbase, ...)
-{
-	Panic *p;
-	Stktop *top;
-	Eface *ret;
-
-	// Must be an unrecovered panic in progress.
-	// Must be on a stack segment created for a deferred call during a panic.
-	// Must be at the top of that segment, meaning the deferred call itself
-	// and not something it called. The top frame in the segment will have
-	// argument pointer argp == top - top->argsize.
-	// The subtraction of g->panicwrap allows wrapper functions that
-	// do not count as official calls to adjust what we consider the top frame
-	// while they are active on the stack. The linker emits adjustments of
-	// g->panicwrap in the prologue and epilogue of functions marked as wrappers.
-	ret = (Eface*)&retbase;
-	top = (Stktop*)g->stackbase;
-	p = g->panic;
-	if(p != nil && !p->recovered && top->panic && argp == (byte*)top - top->argsize - g->panicwrap) {
-		p->recovered = 1;
-		*ret = p->arg;
-	} else {
-		ret->type = nil;
-		ret->data = nil;
-	}
-}
-
-void
-runtime·startpanic(void)
+runtime·startpanic_m(void)
 {
 	if(runtime·mheap.cachealloc.size == 0) { // very early
 		runtime·printf("runtime: panic before malloc heap initialized\n");
@@ -273,28 +143,34 @@ runtime·startpanic(void)
 }
 
 void
-runtime·dopanic(int32 unused)
+runtime·dopanic_m(void)
 {
+	G *gp;
+	uintptr sp, pc;
 	static bool didothers;
 	bool crash;
 	int32 t;
 
-	if(g->sig != 0)
+	gp = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	pc = g->m->scalararg[0];
+	sp = g->m->scalararg[1];
+	if(gp->sig != 0)
 		runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
-			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
+			gp->sig, gp->sigcode0, gp->sigcode1, gp->sigpc);
 
 	if((t = runtime·gotraceback(&crash)) > 0){
-		if(g != g->m->g0) {
+		if(gp != gp->m->g0) {
 			runtime·printf("\n");
-			runtime·goroutineheader(g);
-			runtime·traceback((uintptr)runtime·getcallerpc(&unused), (uintptr)runtime·getcallersp(&unused), 0, g);
+			runtime·goroutineheader(gp);
+			runtime·traceback(pc, sp, 0, gp);
 		} else if(t >= 2 || g->m->throwing > 0) {
 			runtime·printf("\nruntime stack:\n");
-			runtime·traceback((uintptr)runtime·getcallerpc(&unused), (uintptr)runtime·getcallersp(&unused), 0, g);
+			runtime·traceback(pc, sp, 0, gp);
 		}
 		if(!didothers) {
 			didothers = true;
-			runtime·tracebackothers(g);
+			runtime·tracebackothers(gp);
 		}
 	}
 	runtime·unlock(&paniclk);
@@ -340,59 +216,4 @@ runtime·canpanic(G *gp)
 		return false;
 #endif
 	return true;
-}
-
-void
-runtime·throw(int8 *s)
-{
-	if(g->m->throwing == 0)
-		g->m->throwing = 1;
-	runtime·startpanic();
-	runtime·printf("fatal error: %s\n", s);
-	runtime·dopanic(0);
-	*(int32*)0 = 0;	// not reached
-	runtime·exit(1);	// even more not reached
-}
-
-void
-runtime·gothrow(String s)
-{
-	if(g->m->throwing == 0)
-		g->m->throwing = 1;
-	runtime·startpanic();
-	runtime·printf("fatal error: %S\n", s);
-	runtime·dopanic(0);
-	*(int32*)0 = 0;	// not reached
-	runtime·exit(1);	// even more not reached
-}
-
-void
-runtime·panicstring(int8 *s)
-{
-	Eface err;
-
-	// m->softfloat is set during software floating point,
-	// which might cause a fault during a memory load.
-	// It increments m->locks to avoid preemption.
-	// If we're panicking, the software floating point frames
-	// will be unwound, so decrement m->locks as they would.
-	if(g->m->softfloat) {
-		g->m->locks--;
-		g->m->softfloat = 0;
-	}
-
-	if(g->m->mallocing) {
-		runtime·printf("panic: %s\n", s);
-		runtime·throw("panic during malloc");
-	}
-	if(g->m->gcing) {
-		runtime·printf("panic: %s\n", s);
-		runtime·throw("panic during gc");
-	}
-	if(g->m->locks) {
-		runtime·printf("panic: %s\n", s);
-		runtime·throw("panic holding locks");
-	}
-	runtime·newErrorCString(s, &err);
-	runtime·panic(err);
 }
