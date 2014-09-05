@@ -162,11 +162,12 @@ mkzasm(char *dir, char *file)
 {
 	int i, n;
 	char *aggr, *p;
-	Buf in, b, out, exp;
+	Buf in, b, b1, out, exp;
 	Vec argv, lines, fields;
 
 	binit(&in);
 	binit(&b);
+	binit(&b1);
 	binit(&out);
 	binit(&exp);
 	vinit(&argv);
@@ -187,6 +188,9 @@ mkzasm(char *dir, char *file)
 	fatal("unknown $GOOS/$GOARCH in mkzasm");
 ok:
 
+	copyfile(bpathf(&b, "%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
+		bpathf(&b1, "%s/src/cmd/ld/textflag.h", goroot), 0);
+
 	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -a -n -o workdir/proc.acid proc.c
 	// to get acid [sic] output. Run once without the -a -o workdir/proc.acid in order to
 	// report compilation failures (the -o redirects all messages, unfortunately).
@@ -198,6 +202,8 @@ ok:
 	vadd(&argv, bprintf(&b, "GOARCH_%s", goarch));
 	vadd(&argv, "-I");
 	vadd(&argv, bprintf(&b, "%s", workdir));
+	vadd(&argv, "-I");
+	vadd(&argv, bprintf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
 	vadd(&argv, "-n");
 	vadd(&argv, "-a");
 	vadd(&argv, "-o");
@@ -270,6 +276,7 @@ ok:
 
 	bfree(&in);
 	bfree(&b);
+	bfree(&b1);
 	bfree(&out);
 	bfree(&exp);
 	vfree(&argv);
@@ -375,6 +382,8 @@ mkzruntimedefs(char *dir, char *file)
 	vadd(&argv, bprintf(&b, "GOARCH_%s", goarch));
 	vadd(&argv, "-I");
 	vadd(&argv, bprintf(&b, "%s", workdir));
+	vadd(&argv, "-I");
+	vadd(&argv, bprintf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
 	vadd(&argv, "-q");
 	vadd(&argv, "-n");
 	vadd(&argv, "-o");

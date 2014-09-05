@@ -129,6 +129,7 @@ bool	isfile(char *p);
 char*	lastelem(char*);
 Time	mtime(char*);
 void	readfile(Buf*, char*);
+void	copyfile(char*, char*, int);
 void	run(Buf *b, char *dir, int mode, char *cmd, ...);
 void	runv(Buf *b, char *dir, int mode, Vec *argv);
 void	bgrunv(char *dir, int mode, Vec *argv);
