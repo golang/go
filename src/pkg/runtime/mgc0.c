@@ -1805,7 +1805,7 @@ getgcmaskcb(Stkframe *frame, void *ctxt)
 	Stkframe *frame0;
 
 	frame0 = ctxt;
-	if(frame0->sp >= frame->varp - frame->sp && frame0->sp < frame->varp) {
+	if(frame->sp <= frame0->sp && frame0->sp < frame->varp) {
 		*frame0 = *frame;
 		return false;
 	}
@@ -1865,7 +1865,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 	frame.fn = nil;
 	frame.sp = (uintptr)p;
 	cb = getgcmaskcb;
-	runtime·gentraceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g, 0, nil, 1000, &cb, &frame, false);
+	runtime·gentraceback(g->m->curg->sched.pc, g->m->curg->sched.sp, 0, g->m->curg, 0, nil, 1000, &cb, &frame, false);
 	if(frame.fn != nil) {
 		Func *f;
 		StackMap *stackmap;

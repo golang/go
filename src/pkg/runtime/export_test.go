@@ -111,8 +111,19 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
 	return begin, end
 }
 
+// in mgc0.c
 //go:noescape
-func GCMask(x interface{}) []byte
+func getgcmask(data unsafe.Pointer, typ *_type, array **byte, len *uint)
+
+func GCMask(x interface{}) (ret []byte) {
+	e := (*eface)(unsafe.Pointer(&x))
+	s := (*slice)(unsafe.Pointer(&ret))
+	onM(func() {
+		getgcmask(e.data, e._type, &s.array, &s.len)
+		s.cap = s.len
+	})
+	return
+}
 
 func testSchedLocalQueue()
 func testSchedLocalQueueSteal()
