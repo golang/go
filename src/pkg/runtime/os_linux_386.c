@@ -5,7 +5,7 @@
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #define AT_NULL		0
 #define AT_RANDOM	25

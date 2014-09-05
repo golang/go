@@ -13,7 +13,7 @@
 #include "typekind.h"
 #include "race.h"
 #include "stack.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Mark mheap as 'no pointers', it does not contain interesting pointers but occupies ~45K.
 #pragma dataflag NOPTR

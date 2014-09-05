@@ -6,7 +6,7 @@
 #include "type.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #pragma dynimport runtime·AddVectoredExceptionHandler AddVectoredExceptionHandler "kernel32.dll"
 #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"

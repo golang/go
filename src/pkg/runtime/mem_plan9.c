@@ -7,7 +7,7 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "os_GOOS.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 extern byte runtime·end[];
 static byte *bloc = { runtime·end };

@@ -23,7 +23,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // void runtime·memmove(void*, void*, uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $0-24

@@ -6,7 +6,7 @@
 
 #include "zasm_GOOS_GOARCH.h"
 #include "funcdata.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // The following thunks allow calling the gcc-compiled race runtime directly
 // from Go code without going all the way through cgo.

@@ -5,7 +5,7 @@
 // This file exposes various internal runtime functions to other packages in std lib.
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #ifdef GOARCH_arm
 #define JMP B

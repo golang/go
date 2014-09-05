@@ -5,7 +5,7 @@
 #include "runtime.h"
 #include "stack.h"
 #include "arch_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Keep a cached value to make gotraceback fast,
 // since we call it on every call to gentraceback.

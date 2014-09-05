@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #pragma textflag NOSPLIT
 uint32

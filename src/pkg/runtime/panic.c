@@ -6,7 +6,7 @@
 #include "arch_GOARCH.h"
 #include "stack.h"
 #include "malloc.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Code related to defer, panic and recover.
 

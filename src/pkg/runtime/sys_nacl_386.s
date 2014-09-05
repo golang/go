@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 #include "syscall_nacl.h"
 
 #define NACL_SYSCALL(code) \

@@ -23,7 +23,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 /*
  * C runtime for 64-bit divide.

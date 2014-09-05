@@ -5,7 +5,7 @@
 #include "runtime.h"
 #include "os_GOOS.h"
 #include "arch_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 int8 *goos = "plan9";
 extern SigTab runtime·sigtab[];

@@ -17,7 +17,7 @@
 #include "typekind.h"
 #include "funcdata.h"
 #include "zaexperiment.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 extern byte runtime·data[];
 extern byte runtime·edata[];

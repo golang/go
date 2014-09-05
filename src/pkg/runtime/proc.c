@@ -10,7 +10,7 @@
 #include "race.h"
 #include "type.h"
 #include "mgc0.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Goroutine scheduler
 // The scheduler's job is to distribute ready-to-run goroutines over worker threads.

@@ -7,7 +7,7 @@
 #include "os_GOOS.h"
 #include "signal_unix.h"
 #include "stack.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 enum
 {

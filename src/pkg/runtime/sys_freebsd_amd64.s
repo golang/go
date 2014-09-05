@@ -7,7 +7,7 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // FreeBSD 8, FreeBSD 9, and older versions that I have checked
 // do not restore R10 on exit from a "restarted" system call

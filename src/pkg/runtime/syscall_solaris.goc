@@ -7,7 +7,7 @@ package syscall
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "cgocall.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #pragma dynimport libc·chdir chdir "libc.so"
 #pragma dynimport libc·chroot chroot "libc.so"

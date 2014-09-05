@@ -7,7 +7,7 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-4

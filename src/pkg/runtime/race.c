@@ -11,7 +11,7 @@
 #include "race.h"
 #include "type.h"
 #include "typekind.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Race runtime functions called via runtime·racecall.
 void __tsan_init(void);

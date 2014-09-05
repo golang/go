@@ -7,7 +7,7 @@
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "malloc.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 enum
 {

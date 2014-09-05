@@ -5,7 +5,7 @@
 // +build amd64 amd64p32
 
 #include "runtime.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #pragma textflag NOSPLIT
 uint32
