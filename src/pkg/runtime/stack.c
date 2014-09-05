@@ -714,8 +714,8 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 		if(adjinfo->oldstk <= (byte*)d && (byte*)d < adjinfo->oldbase) {
 			// The Defer record is on the stack.  Its fields will
 			// get adjusted appropriately.
-			// This only happens for runtime.main now, but a compiler
-			// optimization could do more of this.
+			// This only happens for runtime.main and runtime.gopanic now,
+			// but a compiler optimization could do more of this.
 			*dp = (Defer*)((byte*)d + adjinfo->delta);
 			continue;
 		}
@@ -750,6 +750,25 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 		}
 		d->argp += adjinfo->delta;
 	}
+}
+
+static void
+adjustpanics(G *gp, AdjustInfo *adjinfo)
+{
+	Panic *p;
+
+	// only the topmost panic is on the current stack
+	p = gp->panic;
+	if(p == nil)
+		return;
+	if(p->link != nil) {
+		// only the topmost panic can be on the current stack
+		// (because panic runs defers on a new stack)
+		if(adjinfo->oldstk <= (byte*)p->link && (byte*)p->link < adjinfo->oldbase)
+			runtime·throw("two panics on one stack");
+	}
+	if(adjinfo->oldstk <= (byte*)p && (byte*)p < adjinfo->oldbase)
+		gp->panic = (Panic*)((byte*)p + adjinfo->delta);
 }
 
 static void
@@ -811,6 +830,7 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	// adjust other miscellaneous things that have pointers into stacks.
 	adjustctxt(gp, &adjinfo);
 	adjustdefers(gp, &adjinfo);
+	adjustpanics(gp, &adjinfo);
 	adjustsudogs(gp, &adjinfo);
 	
 	// copy the stack (including Stktop) to the new location

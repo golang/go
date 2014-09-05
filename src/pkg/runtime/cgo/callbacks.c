@@ -73,7 +73,7 @@ _cgo_panic_internal(byte *p)
 
 	s = runtime·gostring(p);
 	·cgoStringToEface(s, &err);
-	runtime·panic(err);
+	runtime·gopanic(err);
 }
 
 #pragma cgo_export_static _cgo_panic

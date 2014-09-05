@@ -467,7 +467,7 @@ func f31(b1, b2, b3 bool) {
 		h31("b") // ERROR "live at call to newobject: autotmp_[0-9]+$" "live at call to convT2E: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to h31: autotmp_[0-9]+$"
 	}
 	if b3 {
-		panic("asdf") // ERROR "live at call to convT2E: autotmp_[0-9]+$" "live at call to panic: autotmp_[0-9]+$"
+		panic("asdf") // ERROR "live at call to convT2E: autotmp_[0-9]+$" "live at call to gopanic: autotmp_[0-9]+$"
 	}
 	print(b3)
 }

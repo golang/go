@@ -350,3 +350,18 @@ func TestStackAllOutput(t *testing.T) {
 		t.Errorf("Stack output should begin with \"goroutine \"")
 	}
 }
+
+func TestStackPanic(t *testing.T) {
+	// Test that stack copying copies panics correctly.  This is difficult
+	// to test because it is very unlikely that the stack will be copied
+	// in the middle of gopanic.  But it can happen.
+	// To make this test effective, edit panic.go:gopanic and uncomment
+	// the GC() call just before freedefer(d).
+	defer func() {
+		if x := recover(); x == nil {
+			t.Errorf("recover failed")
+		}
+	}()
+	useStack(32)
+	panic("test panic")
+}

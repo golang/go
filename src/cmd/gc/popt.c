@@ -49,7 +49,7 @@ noreturn(Prog *p)
 		symlist[0] = pkglookup("panicindex", runtimepkg);
 		symlist[1] = pkglookup("panicslice", runtimepkg);
 		symlist[2] = pkglookup("throwinit", runtimepkg);
-		symlist[3] = pkglookup("panic", runtimepkg);
+		symlist[3] = pkglookup("gopanic", runtimepkg);
 		symlist[4] = pkglookup("panicwrap", runtimepkg);
 		symlist[5] = pkglookup("throwreturn", runtimepkg);
 		symlist[6] = pkglookup("selectgo", runtimepkg);

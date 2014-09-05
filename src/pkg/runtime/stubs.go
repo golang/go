@@ -83,6 +83,7 @@ func badonm() {
 // Call using mcall.
 func gosched_m(*g)
 func park_m(*g)
+func recovery_m(*g)
 
 // More C functions that run on the M stack.
 // Call using onM.
@@ -100,6 +101,8 @@ func setmaxthreads_m()
 func ready_m()
 func deferproc_m()
 func goexit_m()
+func startpanic_m()
+func dopanic_m()
 
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s
@@ -132,10 +135,6 @@ func memeq(a, b unsafe.Pointer, size uintptr) bool
 // Code pointers for the nohash/noequal algorithms. Used for producing better error messages.
 var nohashcode uintptr
 var noequalcode uintptr
-
-// Go version of runtime.throw.
-// in panic.c
-func gothrow(s string)
 
 // noescape hides a pointer from escape analysis.  noescape is
 // the identity function but escape analysis doesn't think the

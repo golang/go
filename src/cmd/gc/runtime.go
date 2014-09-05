@@ -20,8 +20,8 @@ func throwreturn()
 func throwinit()
 func panicwrap(string, string, string)
 
-func panic(interface{})
-func recover(*int32) interface{}
+func gopanic(interface{})
+func gorecover(*int32) interface{}
 
 func printbool(bool)
 func printfloat(float64)

@@ -381,6 +381,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 		src := "package runtime; type (" +
 			" _defer struct{};" +
 			" _func struct{};" +
+			" _panic struct{};" +
 			" _select struct{}; " +
 			" _type struct{};" +
 			" alg struct{};" +
