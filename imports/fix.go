@@ -279,14 +279,14 @@ func loadExportsGoPath(dir string) map[string]bool {
 		if strings.Contains(err.Error(), "no buildable Go source files in") {
 			return nil
 		}
-		fmt.Fprintf(os.Stderr, "could not import %q: %v", dir, err)
+		fmt.Fprintf(os.Stderr, "could not import %q: %v\n", dir, err)
 		return nil
 	}
 	fset := token.NewFileSet()
 	for _, file := range buildPkg.GoFiles {
 		f, err := parser.ParseFile(fset, filepath.Join(dir, file), nil, 0)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "could not parse %q: %v", file, err)
+			fmt.Fprintf(os.Stderr, "could not parse %q: %v\n", file, err)
 			continue
 		}
 		for name := range f.Scope.Objects {
