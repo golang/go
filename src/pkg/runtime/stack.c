@@ -25,6 +25,8 @@ enum
 	StackFaultOnFree = 0,	// old stacks are mapped noaccess to detect use after free
 
 	StackCache = 1,
+	
+	StackCopyAlways = 1,	// expect to be able to copy stacks 100% of the time
 };
 
 // Global pool of spans that have free stacks.
@@ -324,6 +326,9 @@ runtime·oldstack(void)
 	int64 goid;
 	int32 oldstatus;
 
+	if(StackCopyAlways)
+		runtime·throw("unexpected call to oldstack");
+
 	gp = g->m->curg;
 	top = (Stktop*)gp->stackbase;
 	if(top == nil)
@@ -442,14 +447,14 @@ checkframecopy(Stkframe *frame, void *arg)
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 		if(stackmap == nil) {
 			cinfo->frames = -1;
-			if(StackDebug >= 1)
-				runtime·printf("copystack: no locals info for %s\n", runtime·funcname(f));
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: no locals info for %s\n", runtime·funcname(f));
 			return false;
 		}
 		if(stackmap->n <= 0) {
 			cinfo->frames = -1;
-			if(StackDebug >= 1)
-				runtime·printf("copystack: locals size info only for %s\n", runtime·funcname(f));
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: locals size info only for %s\n", runtime·funcname(f));
 			return false;
 		}
 	}
@@ -457,8 +462,8 @@ checkframecopy(Stkframe *frame, void *arg)
 		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 		if(stackmap == nil) {
 			cinfo->frames = -1;
-			if(StackDebug >= 1)
-				runtime·printf("copystack: no arg info for %s\n", runtime·funcname(f));
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: no arg info for %s\n", runtime·funcname(f));
 			return false;
 		}
 	}
@@ -510,8 +515,8 @@ copyabletopsegment(G *gp)
 			continue;
 		f = runtime·findfunc((uintptr)fn->fn);
 		if(f == nil) {
-			if(StackDebug >= 1)
-				runtime·printf("copystack: no func for deferred pc %p\n", fn->fn);
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: no func for deferred pc %p\n", fn->fn);
 			return -1;
 		}
 
@@ -522,14 +527,14 @@ copyabletopsegment(G *gp)
 		// C (particularly, cgo) lies to us.  See issue 7695.
 		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 		if(stackmap == nil || stackmap->n <= 0) {
-			if(StackDebug >= 1)
-				runtime·printf("copystack: no arg info for deferred %s\n", runtime·funcname(f));
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: no arg info for deferred %s\n", runtime·funcname(f));
 			return -1;
 		}
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 		if(stackmap == nil || stackmap->n <= 0) {
-			if(StackDebug >= 1)
-				runtime·printf("copystack: no local info for deferred %s\n", runtime·funcname(f));
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: no local info for deferred %s\n", runtime·funcname(f));
 			return -1;
 		}
 
@@ -755,20 +760,17 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 static void
 adjustpanics(G *gp, AdjustInfo *adjinfo)
 {
-	Panic *p;
+	Panic *p, **l;
 
 	// only the topmost panic is on the current stack
-	p = gp->panic;
-	if(p == nil)
-		return;
-	if(p->link != nil) {
-		// only the topmost panic can be on the current stack
-		// (because panic runs defers on a new stack)
-		if(adjinfo->oldstk <= (byte*)p->link && (byte*)p->link < adjinfo->oldbase)
-			runtime·throw("two panics on one stack");
+	for(l = &gp->panic; (p = *l) != nil; ) {
+		if(adjinfo->oldstk <= (byte*)p && (byte*)p < adjinfo->oldbase)
+			*l = (Panic*)((byte*)p + adjinfo->delta);
+		l = &p->link;
+		
+		if(adjinfo->oldstk <= (byte*)p->argp && (byte*)p->argp < adjinfo->oldbase)
+			p->argp += adjinfo->delta;
 	}
-	if(adjinfo->oldstk <= (byte*)p && (byte*)p < adjinfo->oldbase)
-		gp->panic = (Panic*)((byte*)p + adjinfo->delta);
 }
 
 static void
@@ -867,11 +869,10 @@ runtime·round2(int32 x)
 	return 1 << s;
 }
 
-// Called from runtime·newstackcall or from runtime·morestack when a new
-// stack segment is needed.  Allocate a new stack big enough for
-// m->moreframesize bytes, copy m->moreargsize bytes to the new frame,
-// and then act as though runtime·lessstack called the function at
-// m->morepc.
+// Called from runtime·morestack when a new stack segment is needed.
+// Allocate a new stack big enough for m->moreframesize bytes,
+// copy m->moreargsize bytes to the new frame,
+// and then act as though runtime·lessstack called the function at m->morepc.
 //
 // g->atomicstatus will be Grunning, Gsyscall or Gscanrunning, Gscansyscall upon entry. 
 // If the GC is trying to stop this g then it will set preemptscan to true.
@@ -879,14 +880,13 @@ void
 runtime·newstack(void)
 {
 	int32 framesize, argsize, oldstatus, oldsize, newsize, nframes;
-	Stktop *top, *oldtop;
+	Stktop *top;
 	byte *stk, *oldstk, *oldbase;
 	uintptr sp;
 	uintptr *src, *dst, *dstend;
 	G *gp;
 	Gobuf label, morebuf;
 	void *moreargp;
-	bool newstackcall;
 
 	if(g->m->forkstackguard)
 		runtime·throw("split stack after fork");
@@ -894,6 +894,8 @@ runtime·newstack(void)
 		runtime·printf("runtime: newstack called from g=%p\n"
 			"\tm=%p m->curg=%p m->g0=%p m->gsignal=%p\n",
 			g->m->morebuf.g, g->m, g->m->curg, g->m->g0, g->m->gsignal);
+		morebuf = g->m->morebuf;
+		runtime·traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g);
 		runtime·throw("runtime: wrong goroutine in newstack");
 	}
 	if(g->throwsplit)
@@ -917,13 +919,8 @@ runtime·newstack(void)
 
 	runtime·casgstatus(gp, oldstatus, Gwaiting); // oldstatus is not in a Gscan status
 	gp->waitreason = runtime·gostringnocopy((byte*)"stack growth");
-	newstackcall = framesize==1;
-	if(newstackcall)
-		framesize = 0;
 
-	// For newstackcall the context already points to beginning of runtime·newstackcall.
-	if(!newstackcall)
-		runtime·rewindmorestack(&gp->sched);
+	runtime·rewindmorestack(&gp->sched);
 
 	if(gp->stackbase == 0)
 		runtime·throw("nil stackbase");
@@ -1008,6 +1005,9 @@ runtime·newstack(void)
 		// end of C code to trigger a copy as soon as C code exits.  That way, we'll
 		// have stack available if we get this deep again.
 	}
+	
+	if(StackCopyAlways)
+		runtime·throw("split stack not allowed");
 
 	// allocate new segment.
 	framesize += argsize;
@@ -1033,17 +1033,6 @@ runtime·newstack(void)
 	top->argp = moreargp;
 	top->argsize = argsize;
 
-	// copy flag from panic
-	top->panic = gp->ispanic;
-	gp->ispanic = false;
-	
-	// if this isn't a panic, maybe we're splitting the stack for a panic.
-	// if we're splitting in the top frame, propagate the panic flag
-	// forward so that recover will know we're in a panic.
-	oldtop = (Stktop*)top->stackbase;
-	if(oldtop != nil && oldtop->panic && top->argp == (byte*)oldtop - oldtop->argsize - gp->panicwrap)
-		top->panic = true;
-
 	top->panicwrap = gp->panicwrap;
 	gp->panicwrap = 0;
 
@@ -1060,6 +1049,7 @@ runtime·newstack(void)
 		while(dst < dstend)
 			*dst++ = *src++;
 	}
+	
 	if(thechar == '5') {
 		// caller would have saved its LR below args.
 		sp -= sizeof(void*);
@@ -1072,12 +1062,8 @@ runtime·newstack(void)
 	label.sp = sp;
 	label.pc = (uintptr)runtime·lessstack;
 	label.g = g->m->curg;
-	if(newstackcall)
-		runtime·gostartcallfn(&label, (FuncVal*)g->m->cret);
-	else {
-		runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
-		gp->sched.ctxt = nil;
-	}
+	runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
+	gp->sched.ctxt = nil;
 	runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Grunning or Gsyscall
 	runtime·gogo(&label);
 

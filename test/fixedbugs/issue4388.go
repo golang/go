@@ -17,18 +17,18 @@ type T struct {
 }
 
 func f1() {
-	// The 4 here and below depends on the number of internal runtime frames
+	// The 5 here and below depends on the number of internal runtime frames
 	// that sit between a deferred function called during panic and
 	// the original frame. If that changes, this test will start failing and
 	// the number here will need to be updated.
-	defer checkLine(4)
+	defer checkLine(5)
 	var t *T
 	var c io.Closer = t
 	c.Close()
 }
 
 func f2() {
-	defer checkLine(4)
+	defer checkLine(5)
 	var t T
 	var c io.Closer = t
 	c.Close()
