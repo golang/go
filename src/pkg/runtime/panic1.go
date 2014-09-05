@@ -56,10 +56,17 @@ func gopanic(e interface{}) {
 		dabort.link = gp._defer
 		gp._defer = (*_defer)(noescape(unsafe.Pointer(&dabort)))
 		p._defer = d
+		p.outerwrap = gp.panicwrap
 
-		newstackcall(d.fn, unsafe.Pointer(&d.args), uint32(d.siz))
+		// TODO(rsc): I am pretty sure the panicwrap manipulation here is not correct.
+		// It is close enough to pass all the tests we have, but I think it needs to be
+		// restored during recovery too. I will write better tests and fix it in a separate CL.
 
-		// Newstackcall did not panic. Remove dabort.
+		gp.panicwrap = 0
+		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz), (*_panic)(noescape(unsafe.Pointer(&p))))
+		gp.panicwrap = p.outerwrap
+
+		// reflectcall did not panic. Remove dabort.
 		if gp._defer != &dabort {
 			gothrow("bad defer entry in panic")
 		}
@@ -114,9 +121,11 @@ func gorecover(argp uintptr) interface{} {
 	// while they are active on the stack. The linker emits adjustments of
 	// g.panicwrap in the prologue and epilogue of functions marked as wrappers.
 	gp := getg()
-	top := (*stktop)(unsafe.Pointer(gp.stackbase))
 	p := gp._panic
-	if p != nil && !p.recovered && top._panic && argp == gp.stackbase-uintptr(top.argsize+gp.panicwrap) {
+	//	if p != nil {
+	//		println("recover?", p, p.recovered, hex(argp), hex(p.argp), uintptr(gp.panicwrap), p != nil && !p.recovered && argp == p.argp-uintptr(gp.panicwrap))
+	//	}
+	if p != nil && !p.recovered && argp == p.argp-uintptr(gp.panicwrap) {
 		p.recovered = true
 		return p.arg
 	}

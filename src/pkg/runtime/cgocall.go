@@ -225,7 +225,7 @@ func cgocallbackg1() {
 	}
 
 	// Invoke callback.
-	newstackcall(cb.fn, cb.arg, uint32(cb.argsize))
+	reflectcall(unsafe.Pointer(cb.fn), unsafe.Pointer(cb.arg), uint32(cb.argsize), 0, nil)
 
 	if raceenabled {
 		racereleasemerge(unsafe.Pointer(&racecgosync))

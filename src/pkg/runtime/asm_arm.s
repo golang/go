@@ -269,6 +269,11 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	CMP	g, R4
 	BL.EQ	runtime·abort(SB)
 
+	// Cannot grow signal stack (m->gsignal).
+	MOVW	m_gsignal(R8), R4
+	CMP	g, R4
+	BL.EQ	runtime·abort(SB)
+
 	MOVW	R1, m_moreframesize(R8)
 	MOVW	R2, m_moreargsize(R8)
 
@@ -300,49 +305,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 	MOVW	$0, R7
 	B runtime·morestack(SB)
 
-// Called from panic.  Mimics morestack,
-// reuses stack growth code to create a frame
-// with the desired args running the desired function.
-//
-// func call(fn *byte, arg *byte, argsize uint32).
-TEXT runtime·newstackcall(SB),NOSPLIT,$-4-12
-	// Save our caller's state as the PC and SP to
-	// restore when returning from f.
-	MOVW	g_m(g), R8
-	MOVW	LR, (m_morebuf+gobuf_pc)(R8)	// our caller's PC
-	MOVW	SP, (m_morebuf+gobuf_sp)(R8)	// our caller's SP
-	MOVW	g,  (m_morebuf+gobuf_g)(R8)
-
-	// Save our own state as the PC and SP to restore
-	// if this goroutine needs to be restarted.
-	MOVW	$runtime·newstackcall(SB), R11
-	MOVW	R11, (g_sched+gobuf_pc)(g)
-	MOVW	LR, (g_sched+gobuf_lr)(g)
-	MOVW	SP, (g_sched+gobuf_sp)(g)
-
-	// Set up morestack arguments to call f on a new stack.
-	// We set f's frame size to 1, as a hint to newstack
-	// that this is a call from runtime·newstackcall.
-	// If it turns out that f needs a larger frame than
-	// the default stack, f's usual stack growth prolog will
-	// allocate a new segment (and recopy the arguments).
-	MOVW	4(SP), R0			// fn
-	MOVW	8(SP), R1			// arg frame
-	MOVW	12(SP), R2			// arg size
-
-	MOVW	R0, m_cret(R8)			// f's PC
-	MOVW	R1, m_moreargp(R8)		// f's argument pointer
-	MOVW	R2, m_moreargsize(R8)		// f's argument size
-	MOVW	$1, R3
-	MOVW	R3, m_moreframesize(R8)		// f's frame size
-
-	// Call newstack on m->g0's stack.
-	MOVW	m_g0(R8), g
-	MOVW	(g_sched+gobuf_sp)(g), SP
-	B	runtime·newstack(SB)
-
 // reflect·call: call a function with the given argument list
-// func call(f *FuncVal, arg *byte, argsize uint32).
+// func call(f *FuncVal, arg *byte, argsize, retoffset uint32, p *Panic).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -350,10 +314,10 @@ TEXT runtime·newstackcall(SB),NOSPLIT,$-4-12
 #define DISPATCH(NAME,MAXSIZE)		\
 	CMP	$MAXSIZE, R0;		\
 	B.HI	3(PC);			\
-	MOVW	$NAME(SB), R1;	\
+	MOVW	$NAME(SB), R1;		\
 	B	(R1)
 
-TEXT reflect·call(SB),NOSPLIT,$-4-16
+TEXT reflect·call(SB),NOSPLIT,$-4-20
 	MOVW	argsize+8(FP), R0
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -385,11 +349,11 @@ TEXT reflect·call(SB),NOSPLIT,$-4-16
 	MOVW	$runtime·badreflectcall(SB), R1
 	B	(R1)
 
-// Argument map for the callXX frames.  Each has one
-// stack map (for the single call) with 3 arguments.
+// Argument map for the callXX frames.  Each has one stack map.
 DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gcargs_reflectcall<>+0x04(SB)/4, $6  // 3 args
-DATA gcargs_reflectcall<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4))
+DATA gcargs_reflectcall<>+0x04(SB)/4, $10  // 5 words
+DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
+DATA gcargs_reflectcall<>+0x09(SB)/1, $(const_BitsPointer)
 GLOBL gcargs_reflectcall<>(SB),RODATA,$12
 
 // callXX frames have no locals
@@ -398,7 +362,7 @@ DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
 GLOBL gclocals_reflectcall<>(SB),RODATA,$8
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
 	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
 	/* copy arguments to stack */		\
@@ -411,11 +375,23 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
 	MOVBU.P R5, 1(R1);			\
 	SUB	$1, R2, R2;			\
 	B	-5(PC);				\
+	/* initialize panic argp */		\
+	MOVW	panic+16(FP), R4;		\
+	CMP	$0, R4;				\
+	B.EQ	3(PC);				\
+	ADD	$(4+MAXSIZE+4), R13, R5;	\
+	MOVW	R5, panic_argp(R4);		\
 	/* call function */			\
 	MOVW	f+0(FP), R7;			\
 	MOVW	(R7), R0;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(R0);				\
+	/* clear panic argp */			\
+	MOVW	panic+16(FP), R4;		\
+	CMP	$0, R4;				\
+	B.EQ	3(PC);				\
+	MOVW	$0, R5;				\
+	MOVW	R5, panic_argp(R4);		\
 	/* copy return values back */		\
 	MOVW	argptr+4(FP), R0;		\
 	MOVW	argsize+8(FP), R2;		\

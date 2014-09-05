@@ -452,7 +452,6 @@ struct	Stktop
 	uint32	panicwrap;
 
 	uint8*	argp;	// pointer to arguments in old frame
-	bool	panic;	// is this frame the top of a panic?
 };
 struct	SigTab
 {
@@ -658,6 +657,8 @@ struct Panic
 	Eface	arg;		// argument to panic
 	Panic*	link;		// link to earlier panic
 	Defer*	defer;		// current executing defer
+	uintptr	argp;		// pointer to arguments of deferred call, for recover
+	uint32	outerwrap;	// outer gp->panicwrap
 	bool	recovered;	// whether this panic is over
 	bool	aborted;	// the panic was aborted
 };
@@ -1015,8 +1016,6 @@ void	runtime·printcomplex(Complex128);
 /*
  * runtime go-called
  */
-void	runtime·newstackcall(FuncVal*, byte*, uint32);
-void	reflect·call(FuncVal*, byte*, uint32, uint32);
 void	runtime·gopanic(Eface);
 void	runtime·panicindex(void);
 void	runtime·panicslice(void);

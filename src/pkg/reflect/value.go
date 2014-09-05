@@ -563,7 +563,7 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 
 	// Call.
-	call(fn, args, uint32(frametype.size), uint32(retOffset))
+	call(fn, args, uint32(frametype.size), uint32(retOffset), nil)
 
 	// For testing; see TestCallMethodJump.
 	if callGC {
@@ -761,7 +761,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	memmove(unsafe.Pointer(uintptr(args)+ptrSize), frame, argSize-ptrSize)
 
 	// Call.
-	call(fn, args, uint32(frametype.size), uint32(retOffset))
+	call(fn, args, uint32(frametype.size), uint32(retOffset), nil)
 
 	// Copy return values. On amd64p32, the beginning of return values
 	// is 64-bit aligned, so the caller's frame layout (which doesn't have
@@ -2700,7 +2700,9 @@ func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
 func mapiternext(it unsafe.Pointer)
 func maplen(m unsafe.Pointer) int
 
-func call(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
+// panicpos is for use by runtime and should be nil in all calls in this package
+func call(fn, arg unsafe.Pointer, n uint32, retoffset uint32, panicpos unsafe.Pointer)
+
 func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
 
 // Dummy annotation marking that the value x escapes,
