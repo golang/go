@@ -2630,7 +2630,7 @@ runtime·badreflectcall(void) // called from assembly
 }
 
 static struct {
-	Mutex lock;
+	uint32 lock;
 	int32 hz;
 } prof;
 
@@ -2774,10 +2774,12 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 	}
 
 	if(prof.hz != 0) {
-		runtime·lock(&prof.lock);
+		// Simple cas-lock to coordinate with setcpuprofilerate.
+		while(!runtime·cas(&prof.lock, 0, 1))
+			runtime·osyield();
 		if(prof.hz != 0)
 			runtime·cpuproftick(stk, n);
-		runtime·unlock(&prof.lock);
+		runtime·atomicstore(&prof.lock, 0);
 	}
 	mp->mallocing--;
 }
@@ -2804,9 +2806,11 @@ runtime·setcpuprofilerate_m(void)
 	// it would deadlock.
 	runtime·resetcpuprofiler(0);
 
-	runtime·lock(&prof.lock);
+	while(!runtime·cas(&prof.lock, 0, 1))
+		runtime·osyield();
 	prof.hz = hz;
-	runtime·unlock(&prof.lock);
+	runtime·atomicstore(&prof.lock, 0);
+
 	runtime·lock(&runtime·sched.lock);
 	runtime·sched.profilehz = hz;
 	runtime·unlock(&runtime·sched.lock);
