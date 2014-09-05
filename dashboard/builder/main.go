@@ -66,6 +66,7 @@ var (
 	benchMem       = flag.Int("benchmem", 64, "Approx RSS value to aim at in benchmarks, in MB")
 	fileLock       = flag.String("filelock", "", "File to lock around benchmaring (synchronizes several builders)")
 	verbose        = flag.Bool("v", false, "verbose")
+	report         = flag.Bool("report", true, "whether to report results to the dashboard")
 )
 
 var (
@@ -188,10 +189,20 @@ func main() {
 		if err != nil {
 			log.Fatal("Error finding revision: ", err)
 		}
+		var exitErr error
 		for _, b := range builders {
 			if err := b.buildHash(hash); err != nil {
 				log.Println(err)
+				exitErr = err
 			}
+		}
+		if exitErr != nil && !*report {
+			// This mode (-report=false) is used for
+			// testing Docker images, making sure the
+			// environment is correctly configured. For
+			// testing, we want a non-zero exit status, as
+			// returned by log.Fatal:
+			log.Fatal("Build error.")
 		}
 		return
 	}
@@ -265,7 +276,13 @@ func NewBuilder(goroot *Repo, name string) (*Builder, error) {
 	if b.env, err = b.builderEnv(name); err != nil {
 		return nil, err
 	}
+	if *report {
+		err = b.setKey()
+	}
+	return b, err
+}
 
+func (b *Builder) setKey() error {
 	// read keys from keyfile
 	fn := ""
 	switch runtime.GOOS {
@@ -284,14 +301,14 @@ func NewBuilder(goroot *Repo, name string) (*Builder, error) {
 	if err != nil {
 		// If the on-disk file doesn't exist, also try the
 		// Google Compute Engine metadata.
-		if v := gceProjectMetadata("buildkey-" + name); v != "" {
+		if v := gceProjectMetadata("buildkey-" + b.name); v != "" {
 			b.key = v
-			return b, nil
+			return nil
 		}
-		return nil, fmt.Errorf("readKeys %s (%s): %s", b.name, fn, err)
+		return fmt.Errorf("readKeys %s (%s): %s", b.name, fn, err)
 	}
 	b.key = string(bytes.TrimSpace(bytes.SplitN(c, []byte("\n"), 2)[0]))
-	return b, nil
+	return nil
 }
 
 func gceProjectMetadata(attr string) string {
