@@ -9,19 +9,19 @@
 // so the handler communicates with a processing goroutine
 // via struct sig, below.
 //
-// sigsend() is called by the signal handler to queue a new signal.
-// signal_recv() is called by the Go program to receive a newly queued signal.
-// Synchronization between sigsend() and signal_recv() is based on the sig.state
-// variable.  It can be in 3 states: 0, HASWAITER and HASSIGNAL.
-// HASWAITER means that signal_recv() is blocked on sig.Note and there are no
+// sigsend is called by the signal handler to queue a new signal.
+// signal_recv is called by the Go program to receive a newly queued signal.
+// Synchronization between sigsend and signal_recv is based on the sig.state
+// variable.  It can be in 3 states: sigIdle, sigReceiving and sigSending.
+// sigReceiving means that signal_recv is blocked on sig.Note and there are no
 // new pending signals.
-// HASSIGNAL means that sig.mask *may* contain new pending signals,
-// signal_recv() can't be blocked in this state.
-// 0 means that there are no new pending signals and signal_recv() is not blocked.
+// sigSending means that sig.mask *may* contain new pending signals,
+// signal_recv can't be blocked in this state.
+// sigIdle means that there are no new pending signals and signal_recv is not blocked.
 // Transitions between states are done atomically with CAS.
-// When signal_recv() is unblocked, it resets sig.Note and rechecks sig.mask.
-// If several sigsend()'s and signal_recv() execute concurrently, it can lead to
-// unnecessary rechecks of sig.mask, but must not lead to missed signals
+// When signal_recv is unblocked, it resets sig.Note and rechecks sig.mask.
+// If several sigsends and signal_recv execute concurrently, it can lead to
+// unnecessary rechecks of sig.mask, but it cannot lead to missed signals
 // nor deadlocks.
 
 package runtime
@@ -38,47 +38,51 @@ var sig struct {
 }
 
 const (
-	_HASWAITER = 1
-	_HASSIGNAL = 2
+	sigIdle = iota
+	sigReceiving
+	sigSending
 )
 
 // Called from sighandler to send a signal back out of the signal handling thread.
+// Reports whether the signal was sent. If not, the caller typically crashes the program.
 func sigsend(s int32) bool {
 	bit := uint32(1) << uint(s&31)
 	if !sig.inuse || s < 0 || int(s) >= 32*len(sig.wanted) || sig.wanted[s/32]&bit == 0 {
 		return false
 	}
 
+	// Add signal to outgoing queue.
 	for {
 		mask := sig.mask[s/32]
 		if mask&bit != 0 {
-			break // signal already in queue
+			return true // signal already in queue
 		}
 		if cas(&sig.mask[s/32], mask, mask|bit) {
-			// Added to queue.
-			// Only send a wakeup if the receiver needs a kick.
-			for {
-				old := atomicload(&sig.state)
-				if old == _HASSIGNAL {
-					break
-				}
-
-				var new uint32
-				if old == _HASWAITER {
-					new = 0
-				} else { // old == 0
-					new = _HASSIGNAL
-				}
-				if cas(&sig.state, old, new) {
-					if old == _HASWAITER {
-						notewakeup(&sig.note)
-					}
-					break
-				}
-			}
 			break
 		}
 	}
+
+	// Notify receiver that queue has new bit.
+Send:
+	for {
+		switch atomicload(&sig.state) {
+		default:
+			gothrow("sigsend: inconsistent state")
+		case sigIdle:
+			if cas(&sig.state, sigIdle, sigSending) {
+				break Send
+			}
+		case sigSending:
+			// notification already pending
+			break Send
+		case sigReceiving:
+			if cas(&sig.state, sigReceiving, sigIdle) {
+				notewakeup(&sig.note)
+				break Send
+			}
+		}
+	}
+
 	return true
 }
 
@@ -86,7 +90,7 @@ func sigsend(s int32) bool {
 // Must only be called from a single goroutine at a time.
 func signal_recv() uint32 {
 	for {
-		// Serve from local copy if there are bits left.
+		// Serve any signals from local copy.
 		for i := uint32(0); i < _NSIG; i++ {
 			if sig.recv[i/32]&(1<<(i&31)) != 0 {
 				sig.recv[i/32] &^= 1 << (i & 31)
@@ -94,38 +98,28 @@ func signal_recv() uint32 {
 			}
 		}
 
-		// Check and update sig.state.
+		// Wait for updates to be available from signal sender.
+	Receive:
 		for {
-			old := atomicload(&sig.state)
-			if old == _HASWAITER {
-				gothrow("inconsistent state in signal_recv")
-			}
-
-			var new uint32
-			if old == _HASSIGNAL {
-				new = 0
-			} else { // old == 0
-				new = _HASWAITER
-			}
-			if cas(&sig.state, old, new) {
-				if new == _HASWAITER {
+			switch atomicload(&sig.state) {
+			default:
+				gothrow("signal_recv: inconsistent state")
+			case sigIdle:
+				if cas(&sig.state, sigIdle, sigReceiving) {
 					notetsleepg(&sig.note, -1)
 					noteclear(&sig.note)
+					break Receive
 				}
-				break
+			case sigSending:
+				if cas(&sig.state, sigSending, sigIdle) {
+					break Receive
+				}
 			}
 		}
 
-		// Get a new local copy.
+		// Incorporate updates from sender into local copy.
 		for i := range sig.mask {
-			var m uint32
-			for {
-				m = sig.mask[i]
-				if cas(&sig.mask[i], m, 0) {
-					break
-				}
-			}
-			sig.recv[i] = m
+			sig.recv[i] = xchg(&sig.mask[i], 0)
 		}
 	}
 }
