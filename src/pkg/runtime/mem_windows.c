@@ -7,6 +7,7 @@
 #include "os_GOOS.h"
 #include "defs_GOOS_GOARCH.h"
 #include "malloc.h"
+#include "../../cmd/ld/textflag.h"
 
 enum {
 	MEM_COMMIT = 0x1000,
@@ -25,6 +26,7 @@ extern void *runtime·VirtualAlloc;
 extern void *runtime·VirtualFree;
 extern void *runtime·VirtualProtect;
 
+#pragma textflag NOSPLIT
 void*
 runtime·sysAlloc(uintptr n, uint64 *stat)
 {

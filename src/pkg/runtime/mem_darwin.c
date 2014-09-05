@@ -7,7 +7,9 @@
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "malloc.h"
+#include "../../cmd/ld/textflag.h"
 
+#pragma textflag NOSPLIT
 void*
 runtime·sysAlloc(uintptr n, uint64 *stat)
 {
