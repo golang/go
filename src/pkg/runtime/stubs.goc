@@ -54,13 +54,6 @@ func runtime·gomcache() (ret *MCache) {
 	ret = g->m->mcache;
 }
 
-// For testing.
-// TODO: find a better place for this.
-func GCMask(x Eface) (mask Slice) {
-	runtime·getgcmask(x.data, x.type, &mask.array, &mask.len);
-	mask.cap = mask.len;
-}
-
 #pragma textflag NOSPLIT
 func reflect·typelinks() (ret Slice) {
         extern Type *runtime·typelink[], *runtime·etypelink[];
