@@ -100,6 +100,8 @@ static const uint8 conditions[10/2] = {
 	        (FLAGS_Z >> 28),     // 8: HI (C set and Z clear), 9: LS (C clear and Z set)
 };
 
+#define FAULT (0x80000000U) // impossible PC offset
+
 // returns number of words that the fp instruction
 // is occupying, 0 if next instruction isn't float.
 static uint32
@@ -221,6 +223,11 @@ stage1:	// load/store regn is cpureg, regm is 8bit offset
 
 	case 0xed900a00:	// single load
 		addr = (uint32*)(regs[regn] + regm);
+		if((uintptr)addr < 4096) {
+			if(trace)
+				runtime·printf("*** load @%p => fault\n", addr);
+			return FAULT;
+		}
 		m->freglo[regd] = addr[0];
 
 		if(trace)
@@ -230,6 +237,11 @@ stage1:	// load/store regn is cpureg, regm is 8bit offset
 
 	case 0xed900b00:	// double load
 		addr = (uint32*)(regs[regn] + regm);
+		if((uintptr)addr < 4096) {
+			if(trace)
+				runtime·printf("*** double load @%p => fault\n", addr);
+			return FAULT;
+		}
 		m->freglo[regd] = addr[0];
 		m->freghi[regd] = addr[1];
 
@@ -240,6 +252,11 @@ stage1:	// load/store regn is cpureg, regm is 8bit offset
 
 	case 0xed800a00:	// single store
 		addr = (uint32*)(regs[regn] + regm);
+		if((uintptr)addr < 4096) {
+			if(trace)
+				runtime·printf("*** store @%p => fault\n", addr);
+			return FAULT;
+		}
 		addr[0] = m->freglo[regd];
 
 		if(trace)
@@ -249,6 +266,11 @@ stage1:	// load/store regn is cpureg, regm is 8bit offset
 
 	case 0xed800b00:	// double store
 		addr = (uint32*)(regs[regn] + regm);
+		if((uintptr)addr < 4096) {
+			if(trace)
+				runtime·printf("*** double store @%p => fault\n", addr);
+			return FAULT;
+		}
 		addr[0] = m->freglo[regd];
 		addr[1] = m->freghi[regd];
 
@@ -607,42 +629,59 @@ struct Sfregs
 };
 
 static void sfloat2(void);
+void _sfloatpanic(void);
 
 #pragma textflag NOSPLIT
 uint32*
-runtime·_sfloat2(uint32 *lr, Sfregs regs)
+runtime·_sfloat2(uint32 *pc, Sfregs regs)
 {
 	void (*fn)(void);
 	
-	g->m->ptrarg[0] = lr;
+	g->m->ptrarg[0] = pc;
 	g->m->ptrarg[1] = &regs;
 	fn = sfloat2;
 	runtime·onM(&fn);
-	lr = g->m->ptrarg[0];
+	pc = g->m->ptrarg[0];
 	g->m->ptrarg[0] = nil;
-	return lr;
+	return pc;
 }
 
 static void
 sfloat2(void)
 {
-	uint32 *lr;
+	uint32 *pc;
+	G *curg;
 	Sfregs *regs;
-	uint32 skip;
+	int32 skip;
+	bool first;
 	
-	lr = g->m->ptrarg[0];
+	pc = g->m->ptrarg[0];
 	regs = g->m->ptrarg[1];
 	g->m->ptrarg[0] = nil;
 	g->m->ptrarg[1] = nil;
 
-	skip = stepflt(lr, (uint32*)&regs->r0);
-	if(skip == 0) {
-		runtime·printf("sfloat2 %p %x\n", lr, *lr);
+	first = true;
+	while(skip = stepflt(pc, (uint32*)&regs->r0)) {
+		first = false;
+		if(skip == FAULT) {
+			// Encountered bad address in store/load.
+			// Record signal information and return to assembly
+			// trampoline that fakes the call.
+			enum { SIGSEGV = 11 };
+			curg = g->m->curg;
+			curg->sig = SIGSEGV;
+			curg->sigcode0 = 0;
+			curg->sigcode1 = 0;
+			curg->sigpc = (uint32)pc;
+			pc = (uint32*)_sfloatpanic;
+			break;
+		}
+		pc += skip;
+	}
+	if(first) {
+		runtime·printf("sfloat2 %p %x\n", pc, *pc);
 		fabort(); // not ok to fail first instruction
 	}
-
-	lr += skip;
-	while(skip = stepflt(lr, (uint32*)&regs->r0))
-		lr += skip;
-	g->m->ptrarg[0] = lr;
+		
+	g->m->ptrarg[0] = pc;
 }
