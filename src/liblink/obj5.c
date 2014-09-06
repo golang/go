@@ -466,12 +466,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				p->as = ACMP;
 				p->from.type = D_CONST;
 				p->from.offset = 0;
-				p->to.type = D_REG;
-				p->to.reg = 1;
+				p->reg = 1;
 			
 				p = appendp(ctxt, p);
-				p->as = AB;
-				p->scond = C_SCOND_EQ;
+				p->as = ABEQ;
 				p->to.type = D_BRANCH;
 				p1 = p;
 				
@@ -495,12 +493,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				p->as = ACMP;
 				p->from.type = D_REG;
 				p->from.offset = 2;
-				p->to.type = D_REG;
-				p->to.reg = 3;
+				p->reg = 3;
 
 				p = appendp(ctxt, p);
-				p->as = AB;
-				p->scond = C_SCOND_NE;
+				p->as = ABNE;
 				p->to.type = D_BRANCH;
 				p2 = p;
 			
