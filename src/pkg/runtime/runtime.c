@@ -341,3 +341,51 @@ runtime·timediv(int64 v, int32 div, int32 *rem)
 		*rem = v;
 	return res;
 }
+
+// Helpers for Go. Must be NOSPLIT, must only call NOSPLIT functions, and must not block.
+
+#pragma textflag NOSPLIT
+G*
+runtime·getg(void)
+{
+	return g;
+}
+
+#pragma textflag NOSPLIT
+M*
+runtime·acquirem(void)
+{
+	g->m->locks++;
+	return g->m;
+}
+
+#pragma textflag NOSPLIT
+void
+runtime·releasem(M *mp)
+{
+	mp->locks--;
+	if(mp->locks == 0 && g->preempt) {
+		// restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
+	}
+}
+
+#pragma textflag NOSPLIT
+MCache*
+runtime·gomcache(void)
+{
+	return g->m->mcache;
+}
+
+#pragma textflag NOSPLIT
+Slice
+reflect·typelinks(void)
+{
+	extern Type *runtime·typelink[], *runtime·etypelink[];
+	Slice ret;
+
+	ret.array = (byte*)runtime·typelink;
+	ret.len = runtime·etypelink - runtime·typelink;
+	ret.cap = ret.len;
+	return ret;
+}
