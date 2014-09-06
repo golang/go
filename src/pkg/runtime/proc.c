@@ -2617,12 +2617,6 @@ runtime·mcount(void)
 	return runtime·sched.mcount;
 }
 
-void
-runtime·badreflectcall(void) // called from assembly
-{
-	runtime·panicstring("runtime: arg size to reflect.call more than 1GB");
-}
-
 static struct {
 	uint32 lock;
 	int32 hz;
