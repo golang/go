@@ -4,7 +4,7 @@
 
 #include "../runtime.h"
 #include "../cgocall.h"
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // These utility functions are available to be called from code
 // compiled with gcc via crosscall2.
