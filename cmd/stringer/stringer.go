@@ -611,7 +611,9 @@ func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string) {
 			continue
 		}
 		g.Printf("\tcase %s <= i && i <= %s:\n", &values[0], &values[len(values)-1])
-		g.Printf("\t\ti -= %s\n", &values[0])
+		if values[0].value != 0 {
+			g.Printf("\t\ti -= %s\n", &values[0])
+		}
 		g.Printf("\t\tlo := uint%d(0)\n", usize(len(values)))
 		g.Printf("\t\tif i > 0 {\n")
 		g.Printf("\t\t\tlo = _%s_index_%d[i-1]\n", typeName, i)

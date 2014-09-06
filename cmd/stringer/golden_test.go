@@ -203,7 +203,6 @@ var (
 func (i Unum) String() string {
 	switch {
 	case 0 <= i && i <= 2:
-		i -= 0
 		lo := uint8(0)
 		if i > 0 {
 			lo = _Unum_index_0[i-1]
