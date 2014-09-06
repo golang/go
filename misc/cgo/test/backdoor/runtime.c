@@ -10,20 +10,6 @@
 
 typedef char bool;
 
-bool runtime·lockedOSThread(void);
-
-static void
-FLUSH(void*)
-{
-}
-
-void
-·LockedOSThread(bool b)
-{
-	b = runtime·lockedOSThread();
-	FLUSH(&b);
-}
-
 // This is what a cgo-compiled stub declaration looks like.
 void
 ·Issue7695(struct{void *y[8*sizeof(void*)];}p)
