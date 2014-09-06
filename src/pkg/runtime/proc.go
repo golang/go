@@ -101,6 +101,10 @@ func badmcall2(fn func(*g)) {
 	gothrow("runtime: mcall function returned")
 }
 
+func badreflectcall() {
+	panic("runtime: arg size to reflect.call more than 1GB")
+}
+
 func lockedOSThread() bool {
 	gp := getg()
 	return gp.lockedm != nil && gp.m.lockedg != nil
