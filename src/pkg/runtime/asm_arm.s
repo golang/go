@@ -306,7 +306,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 	B runtime·morestack(SB)
 
 // reflect·call: call a function with the given argument list
-// func call(f *FuncVal, arg *byte, argsize, retoffset uint32, p *Panic).
+// func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -317,7 +317,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 	MOVW	$NAME(SB), R1;		\
 	B	(R1)
 
-TEXT reflect·call(SB),NOSPLIT,$-4-20
+TEXT reflect·call(SB),NOSPLIT,$-4-16
 	MOVW	argsize+8(FP), R0
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -351,9 +351,8 @@ TEXT reflect·call(SB),NOSPLIT,$-4-20
 
 // Argument map for the callXX frames.  Each has one stack map.
 DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gcargs_reflectcall<>+0x04(SB)/4, $10  // 5 words
+DATA gcargs_reflectcall<>+0x04(SB)/4, $8  // 4 words
 DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
-DATA gcargs_reflectcall<>+0x09(SB)/1, $(const_BitsPointer)
 GLOBL gcargs_reflectcall<>(SB),RODATA,$12
 
 // callXX frames have no locals
@@ -362,7 +361,7 @@ DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
 GLOBL gclocals_reflectcall<>(SB),RODATA,$8
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
 	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
 	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
 	/* copy arguments to stack */		\
@@ -375,23 +374,11 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	MOVBU.P R5, 1(R1);			\
 	SUB	$1, R2, R2;			\
 	B	-5(PC);				\
-	/* initialize panic argp */		\
-	MOVW	panic+16(FP), R4;		\
-	CMP	$0, R4;				\
-	B.EQ	3(PC);				\
-	ADD	$(4+MAXSIZE+4), R13, R5;	\
-	MOVW	R5, panic_argp(R4);		\
 	/* call function */			\
 	MOVW	f+0(FP), R7;			\
 	MOVW	(R7), R0;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(R0);				\
-	/* clear panic argp */			\
-	MOVW	panic+16(FP), R4;		\
-	CMP	$0, R4;				\
-	B.EQ	3(PC);				\
-	MOVW	$0, R5;				\
-	MOVW	R5, panic_argp(R4);		\
 	/* copy return values back */		\
 	MOVW	argptr+4(FP), R0;		\
 	MOVW	argsize+8(FP), R2;		\

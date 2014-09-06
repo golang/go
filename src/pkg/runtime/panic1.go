@@ -46,25 +46,19 @@ func gopanic(e interface{}) {
 		}
 		// take defer off list in case of recursive panic
 		gp._defer = d.link
-		gp.ispanic = true              // rock for runtime·newstack, where runtime·newstackcall ends up
 		argp := unsafe.Pointer(d.argp) // must be pointer so it gets adjusted during stack copy
 		pc := d.pc
 
 		// The deferred function may cause another panic,
-		// so newstackcall may not return. Set up a defer
+		// so reflectcall may not return. Set up a defer
 		// to mark this panic aborted if that happens.
 		dabort.link = gp._defer
 		gp._defer = (*_defer)(noescape(unsafe.Pointer(&dabort)))
 		p._defer = d
-		p.outerwrap = gp.panicwrap
 
-		// TODO(rsc): I am pretty sure the panicwrap manipulation here is not correct.
-		// It is close enough to pass all the tests we have, but I think it needs to be
-		// restored during recovery too. I will write better tests and fix it in a separate CL.
-
-		gp.panicwrap = 0
-		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz), (*_panic)(noescape(unsafe.Pointer(&p))))
-		gp.panicwrap = p.outerwrap
+		p.argp = getargp(0)
+		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz))
+		p.argp = 0
 
 		// reflectcall did not panic. Remove dabort.
 		if gp._defer != &dabort {
@@ -102,6 +96,21 @@ func gopanic(e interface{}) {
 	*(*int)(nil) = 0 // not reached
 }
 
+// getargp returns the location where the caller
+// writes outgoing function call arguments.
+//go:nosplit
+func getargp(x int) uintptr {
+	// x is an argument mainly so that we can return its address.
+	// However, we need to make the function complex enough
+	// that it won't be inlined. We always pass x = 0, so this code
+	// does nothing other than keep the compiler from thinking
+	// the function is simple enough to inline.
+	if x > 0 {
+		return getcallersp(unsafe.Pointer(&x)) * 0
+	}
+	return uintptr(noescape(unsafe.Pointer(&x)))
+}
+
 func abortpanic(p *_panic) {
 	p.aborted = true
 }
@@ -109,23 +118,20 @@ func abortpanic(p *_panic) {
 // The implementation of the predeclared function recover.
 // Cannot split the stack because it needs to reliably
 // find the stack segment of its caller.
+//
+// TODO(rsc): Once we commit to CopyStackAlways,
+// this doesn't need to be nosplit.
 //go:nosplit
 func gorecover(argp uintptr) interface{} {
-	// Must be an unrecovered panic in progress.
-	// Must be on a stack segment created for a deferred call during a panic.
-	// Must be at the top of that segment, meaning the deferred call itself
-	// and not something it called. The top frame in the segment will have
-	// argument pointer argp == top - top.argsize.
-	// The subtraction of g.panicwrap allows wrapper functions that
-	// do not count as official calls to adjust what we consider the top frame
-	// while they are active on the stack. The linker emits adjustments of
-	// g.panicwrap in the prologue and epilogue of functions marked as wrappers.
+	// Must be in a function running as part of a deferred call during the panic.
+	// Must be called from the topmost function of the call
+	// (the function used in the defer statement).
+	// p.argp is the argument pointer of that topmost deferred function call.
+	// Compare against argp reported by caller.
+	// If they match, the caller is the one who can recover.
 	gp := getg()
 	p := gp._panic
-	//	if p != nil {
-	//		println("recover?", p, p.recovered, hex(argp), hex(p.argp), uintptr(gp.panicwrap), p != nil && !p.recovered && argp == p.argp-uintptr(gp.panicwrap))
-	//	}
-	if p != nil && !p.recovered && argp == p.argp-uintptr(gp.panicwrap) {
+	if p != nil && !p.recovered && argp == p.argp {
 		p.recovered = true
 		return p.arg
 	}

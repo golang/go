@@ -371,7 +371,6 @@ runtime·oldstack(void)
 	gp->stackbase = top->stackbase;
 	gp->stackguard = top->stackguard;
 	gp->stackguard0 = gp->stackguard;
-	gp->panicwrap = top->panicwrap;
 	runtime·stackfree(gp, old, top);
 	runtime·casgstatus(gp, Gcopystack, oldstatus); // oldstatus is Grunning or Gsyscall
 	runtime·gogo(&gp->sched);
@@ -1032,9 +1031,6 @@ runtime·newstack(void)
 	top->gobuf = morebuf;
 	top->argp = moreargp;
 	top->argsize = argsize;
-
-	top->panicwrap = gp->panicwrap;
-	gp->panicwrap = 0;
 
 	gp->stackbase = (uintptr)top;
 	gp->stackguard = (uintptr)stk + StackGuard;

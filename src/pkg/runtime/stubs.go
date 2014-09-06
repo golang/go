@@ -171,7 +171,7 @@ func cputicks() int64
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
 func munmap(addr unsafe.Pointer, n uintptr)
 func madvise(addr unsafe.Pointer, n uintptr, flags int32)
-func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32, p *_panic)
+func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
 func osyield()
 func procyield(cycles uint32)
 func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
