@@ -2594,12 +2594,6 @@ badunlockOSThread(void)
 	runtime·throw("runtime: internal error: misuse of lockOSThread/unlockOSThread");
 }
 
-bool
-runtime·lockedOSThread(void)
-{
-	return g->lockedm != nil && g->m->lockedg != nil;
-}
-
 #pragma textflag NOSPLIT
 int32
 runtime·gcount(void)
@@ -3552,24 +3546,25 @@ runqsteal(P *p, P *p2)
 void
 runtime·testSchedLocalQueue(void)
 {
-	P p;
-	G gs[nelem(p.runq)];
+	P *p;
+	G *gs;
 	int32 i, j;
 
-	runtime·memclr((byte*)&p, sizeof(p));
+	p = (P*)runtime·mallocgc(sizeof(*p), nil, FlagNoScan);
+	gs = (G*)runtime·mallocgc(nelem(p->runq)*sizeof(*gs), nil, FlagNoScan);
 
-	for(i = 0; i < nelem(gs); i++) {
-		if(runqget(&p) != nil)
+	for(i = 0; i < nelem(p->runq); i++) {
+		if(runqget(p) != nil)
 			runtime·throw("runq is not empty initially");
 		for(j = 0; j < i; j++)
-			runqput(&p, &gs[i]);
+			runqput(p, &gs[i]);
 		for(j = 0; j < i; j++) {
-			if(runqget(&p) != &gs[i]) {
+			if(runqget(p) != &gs[i]) {
 				runtime·printf("bad element at iter %d/%d\n", i, j);
 				runtime·throw("bad element");
 			}
 		}
-		if(runqget(&p) != nil)
+		if(runqget(p) != nil)
 			runtime·throw("runq is not empty afterwards");
 	}
 }
@@ -3577,29 +3572,30 @@ runtime·testSchedLocalQueue(void)
 void
 runtime·testSchedLocalQueueSteal(void)
 {
-	P p1, p2;
-	G gs[nelem(p1.runq)], *gp;
+	P *p1, *p2;
+	G *gs, *gp;
 	int32 i, j, s;
 
-	runtime·memclr((byte*)&p1, sizeof(p1));
-	runtime·memclr((byte*)&p2, sizeof(p2));
+	p1 = (P*)runtime·mallocgc(sizeof(*p1), nil, FlagNoScan);
+	p2 = (P*)runtime·mallocgc(sizeof(*p2), nil, FlagNoScan);
+	gs = (G*)runtime·mallocgc(nelem(p1->runq)*sizeof(*gs), nil, FlagNoScan);
 
-	for(i = 0; i < nelem(gs); i++) {
+	for(i = 0; i < nelem(p1->runq); i++) {
 		for(j = 0; j < i; j++) {
 			gs[j].sig = 0;
-			runqput(&p1, &gs[j]);
+			runqput(p1, &gs[j]);
 		}
-		gp = runqsteal(&p2, &p1);
+		gp = runqsteal(p2, p1);
 		s = 0;
 		if(gp) {
 			s++;
 			gp->sig++;
 		}
-		while(gp = runqget(&p2)) {
+		while(gp = runqget(p2)) {
 			s++;
 			gp->sig++;
 		}
-		while(gp = runqget(&p1))
+		while(gp = runqget(p1))
 			gp->sig++;
 		for(j = 0; j < i; j++) {
 			if(gs[j].sig != 1) {

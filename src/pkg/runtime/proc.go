@@ -100,3 +100,8 @@ func badmcall(fn func(*g)) {
 func badmcall2(fn func(*g)) {
 	gothrow("runtime: mcall function returned")
 }
+
+func lockedOSThread() bool {
+	gp := getg()
+	return gp.lockedm != nil && gp.m.lockedg != nil
+}

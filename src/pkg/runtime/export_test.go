@@ -18,7 +18,7 @@ var Fcmp64 = fcmp64
 var Fintto64 = fintto64
 var F64toint = f64toint
 
-func lockedOSThread() bool
+// in asm_*.s
 func stackguard() (sp, limit uintptr)
 
 var Entersyscall = entersyscall
@@ -127,9 +127,12 @@ func GCMask(x interface{}) (ret []byte) {
 
 func testSchedLocalQueue()
 func testSchedLocalQueueSteal()
-
-var TestSchedLocalQueue1 = testSchedLocalQueue
-var TestSchedLocalQueueSteal1 = testSchedLocalQueueSteal
+func RunSchedLocalQueueTest() {
+	onM(testSchedLocalQueue)
+}
+func RunSchedLocalQueueStealTest() {
+	onM(testSchedLocalQueueSteal)
+}
 
 var HaveGoodHash = haveGoodHash
 var StringHash = stringHash
