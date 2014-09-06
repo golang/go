@@ -208,7 +208,7 @@ func Goexit() {
 	for gp._defer != nil {
 		d := gp._defer
 		gp._defer = d.link
-		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz), nil)
+		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz))
 		freedefer(d)
 		// Note: we ignore recovers here because Goexit isn't a panic
 	}

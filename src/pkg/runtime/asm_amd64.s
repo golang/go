@@ -308,7 +308,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	RET
 
 // reflect·call: call a function with the given argument list
-// func call(f *FuncVal, arg *byte, argsize, retoffset uint32, p *Panic).
+// func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -320,7 +320,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
 
-TEXT reflect·call(SB), NOSPLIT, $0-32
+TEXT reflect·call(SB), NOSPLIT, $0-24
 	MOVLQZX argsize+16(FP), CX
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -354,8 +354,8 @@ TEXT reflect·call(SB), NOSPLIT, $0-32
 
 // Argument map for the callXX frames.  Each has one stack map.
 DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gcargs_reflectcall<>+0x04(SB)/4, $8  // 4 words
-DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsPointer<<6))
+DATA gcargs_reflectcall<>+0x04(SB)/4, $6  // 3 words
+DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4))
 GLOBL gcargs_reflectcall<>(SB),RODATA,$12
 
 // callXX frames have no locals
@@ -363,16 +363,8 @@ DATA gclocals_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
 DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
 GLOBL gclocals_reflectcall<>(SB),RODATA,$8
 
-// CALLFN is marked as a WRAPPER so that a deferred reflect.call func will
-// see the right answer for recover. However, CALLFN is also how we start
-// the panic in the first place. We record the panic argp if this is the start of
-// a panic. Since the wrapper adjustment has already happened, though
-// (in the implicit prologue), we have to write not SP but MAXSIZE+8+SP into
-// p.argp. The MAXSIZE+8 will counter the MAXSIZE+8 the wrapper prologue
-// added to g->panicwrap.
-
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-32;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
 	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
 	/* copy arguments to stack */		\
@@ -380,21 +372,10 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-32;		\
 	MOVLQZX argsize+16(FP), CX;		\
 	MOVQ	SP, DI;				\
 	REP;MOVSB;				\
-	/* initialize panic argp */		\
-	MOVQ	panic+24(FP), CX;		\
-	CMPQ	CX, $0;				\
-	JEQ	3(PC);				\
-	LEAQ	(MAXSIZE+8)(SP), BX;		\
-	MOVQ	BX, panic_argp(CX);		\
 	/* call function */			\
 	MOVQ	f+0(FP), DX;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	CALL	(DX);				\
-	/* clear panic argp */			\
-	MOVQ	panic+24(FP), CX;		\
-	CMPQ	CX, $0;				\
-	JEQ	2(PC);				\
-	MOVQ	$0, panic_argp(CX);		\
 	/* copy return values back */		\
 	MOVQ	argptr+8(FP), DI;		\
 	MOVLQZX	argsize+16(FP), CX;		\

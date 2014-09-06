@@ -225,7 +225,7 @@ func cgocallbackg1() {
 	}
 
 	// Invoke callback.
-	reflectcall(unsafe.Pointer(cb.fn), unsafe.Pointer(cb.arg), uint32(cb.argsize), 0, nil)
+	reflectcall(unsafe.Pointer(cb.fn), unsafe.Pointer(cb.arg), uint32(cb.argsize), 0)
 
 	if raceenabled {
 		racereleasemerge(unsafe.Pointer(&racecgosync))

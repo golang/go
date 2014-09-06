@@ -268,11 +268,10 @@ struct	WinCallbackContext
 struct	G
 {
 	// stackguard0 can be set to StackPreempt as opposed to stackguard
-	uintptr	stackguard0;	// cannot move - also known to linker, libmach, runtime/cgo
+	uintptr	stackguard0;	// cannot move - also known to liblink, libmach, runtime/cgo
 	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
-	uint32	panicwrap;	// cannot move - also known to linker
+	Panic*	panic;	// cannot move - also known to liblink
 	Defer*	defer;
-	Panic*	panic;
 	Gobuf	sched;
 	uintptr	syscallstack;	// if status==Gsyscall, syscallstack = stackbase to use during gc
 	uintptr	syscallsp;	// if status==Gsyscall, syscallsp = sched.sp to use during gc
@@ -287,7 +286,6 @@ struct	G
 	int64	waitsince;	// approx time when the G become blocked
 	String	waitreason;	// if status==Gwaiting
 	G*	schedlink;
-	bool	ispanic;
 	bool	issystem;	// do not output in stack dump, ignore in deadlock detector
 	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
 	bool	paniconfault;	// panic (instead of crash) on unexpected fault address
@@ -449,7 +447,6 @@ struct	Stktop
 	uintptr	stackbase;
 	Gobuf	gobuf;
 	uint32	argsize;
-	uint32	panicwrap;
 
 	uint8*	argp;	// pointer to arguments in old frame
 };
@@ -654,11 +651,10 @@ struct Defer
  */
 struct Panic
 {
+	uintptr	argp;	// pointer to arguments of deferred call run during panic; cannot move - known to liblink
 	Eface	arg;		// argument to panic
 	Panic*	link;		// link to earlier panic
 	Defer*	defer;		// current executing defer
-	uintptr	argp;		// pointer to arguments of deferred call, for recover
-	uint32	outerwrap;	// outer gp->panicwrap
 	bool	recovered;	// whether this panic is over
 	bool	aborted;	// the panic was aborted
 };

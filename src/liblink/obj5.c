@@ -241,7 +241,7 @@ nocache(Prog *p)
 static void
 addstacksplit(Link *ctxt, LSym *cursym)
 {
-	Prog *p, *pl, *q, *q1, *q2;
+	Prog *p, *pl, *p1, *p2, *q, *q1, *q2;
 	int o;
 	int32 autosize, autoffset;
 	
@@ -437,32 +437,93 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			p->spadj = autosize;
 			
 			if(cursym->text->reg & WRAPPER) {
-				// g->panicwrap += autosize;
-				// MOVW panicwrap_offset(g), R3
-				// ADD $autosize, R3
-				// MOVW R3 panicwrap_offset(g)
+				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+				//
+				//	MOVW g_panic(g), R1
+				//	CMP $0, R1
+				//	B.EQ end
+				//	MOVW panic_argp(R1), R2
+				//	ADD $(autosize+4), R13, R3
+				//	CMP R2, R3
+				//	B.NE end
+				//	ADD $4, R13, R4
+				//	MOVW R4, panic_argp(R1)
+				// end:
+				//	NOP
+				//
+				// The NOP is needed to give the jumps somewhere to land.
+				// It is a liblink NOP, not an ARM NOP: it encodes to 0 instruction bytes.
+
 				p = appendp(ctxt, p);
 				p->as = AMOVW;
 				p->from.type = D_OREG;
 				p->from.reg = REGG;
-				p->from.offset = 2*ctxt->arch->ptrsize;
+				p->from.offset = 2*ctxt->arch->ptrsize; // G.panic
 				p->to.type = D_REG;
-				p->to.reg = 3;
+				p->to.reg = 1;
+			
+				p = appendp(ctxt, p);
+				p->as = ACMP;
+				p->from.type = D_CONST;
+				p->from.offset = 0;
+				p->to.type = D_REG;
+				p->to.reg = 1;
+			
+				p = appendp(ctxt, p);
+				p->as = AB;
+				p->scond = C_SCOND_EQ;
+				p->to.type = D_BRANCH;
+				p1 = p;
+				
+				p = appendp(ctxt, p);
+				p->as = AMOVW;
+				p->from.type = D_OREG;
+				p->from.reg = 1;
+				p->from.offset = 0; // Panic.argp
+				p->to.type = D_REG;
+				p->to.reg = 2;
 			
 				p = appendp(ctxt, p);
 				p->as = AADD;
 				p->from.type = D_CONST;
-				p->from.offset = autosize;
+				p->from.offset = autosize+4;
+				p->reg = 13;
 				p->to.type = D_REG;
 				p->to.reg = 3;
-				
+
+				p = appendp(ctxt, p);
+				p->as = ACMP;
+				p->from.type = D_REG;
+				p->from.offset = 2;
+				p->to.type = D_REG;
+				p->to.reg = 3;
+
+				p = appendp(ctxt, p);
+				p->as = AB;
+				p->scond = C_SCOND_NE;
+				p->to.type = D_BRANCH;
+				p2 = p;
+			
+				p = appendp(ctxt, p);
+				p->as = AADD;
+				p->from.type = D_CONST;
+				p->from.offset = 4;
+				p->reg = 13;
+				p->to.type = D_REG;
+				p->to.reg = 4;
+
 				p = appendp(ctxt, p);
 				p->as = AMOVW;
 				p->from.type = D_REG;
-				p->from.reg = 3;
+				p->from.reg = 4;
 				p->to.type = D_OREG;
-				p->to.reg = REGG;
-				p->to.offset = 2*ctxt->arch->ptrsize;
+				p->to.reg = 1;
+				p->to.offset = 0; // Panic.argp
+
+				p = appendp(ctxt, p);
+				p->as = ANOP;
+				p1->pcond = p;
+				p2->pcond = p;
 			}
 			break;
 
@@ -481,44 +542,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 					}
 					break;
 				}
-			}
-
-			if(cursym->text->reg & WRAPPER) {
-				int scond;
-				
-				// Preserve original RET's cond, to allow RET.EQ
-				// in the implementation of reflect.call.
-				scond = p->scond;
-				p->scond = C_SCOND_NONE;
-
-				// g->panicwrap -= autosize;
-				// MOVW panicwrap_offset(g), R3
-				// SUB $autosize, R3
-				// MOVW R3 panicwrap_offset(g)
-				p->as = AMOVW;
-				p->from.type = D_OREG;
-				p->from.reg = REGG;
-				p->from.offset = 2*ctxt->arch->ptrsize;
-				p->to.type = D_REG;
-				p->to.reg = 3;
-				p = appendp(ctxt, p);
-			
-				p->as = ASUB;
-				p->from.type = D_CONST;
-				p->from.offset = autosize;
-				p->to.type = D_REG;
-				p->to.reg = 3;
-				p = appendp(ctxt, p);
-
-				p->as = AMOVW;
-				p->from.type = D_REG;
-				p->from.reg = 3;
-				p->to.type = D_OREG;
-				p->to.reg = REGG;
-				p->to.offset = 2*ctxt->arch->ptrsize;
-				p = appendp(ctxt, p);
-
-				p->scond = scond;
 			}
 
 			p->as = AMOVW;

@@ -2327,7 +2327,6 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 		p->goidcacheend = p->goidcache + GoidCacheBatch;
 	}
 	newg->goid = p->goidcache++;
-	newg->panicwrap = 0;
 	if(raceenabled)
 		newg->racectx = runtime·racegostart((void*)callerpc);
 	runqput(p, newg);

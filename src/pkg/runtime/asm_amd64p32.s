@@ -349,9 +349,8 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	/* initialize panic argp */		\
 	MOVL	panic+16(FP), CX;		\
 	CMPL	CX, $0;				\
-	JEQ	3(PC);				\
-	LEAL	(MAXSIZE+8)(SP), BX;		\
-	MOVL	BX, panic_argp(CX);		\
+	JEQ	2(PC);				\
+	MOVL	SP, panic_argp(CX);		\
 	/* call function */			\
 	MOVL	f+0(FP), DX;			\
 	MOVL	(DX), AX;				\
