@@ -309,6 +309,7 @@ static Optab	optab[] =
 	{ AUSEFIELD,	C_ADDR,	C_NONE,	C_NONE, 	 0, 0, 0 },
 	{ APCDATA,	C_LCON,	C_NONE,	C_LCON,		0, 0, 0 },
 	{ AFUNCDATA,	C_LCON,	C_NONE,	C_ADDR,	0, 0, 0 },
+	{ ANOP,		C_NONE,	C_NONE,	C_NONE,		0, 0, 0 },
 
 	{ ADUFFZERO,	C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },  // same as ABL
 	{ ADUFFCOPY,	C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },  // same as ABL
@@ -686,7 +687,7 @@ span5(Link *ctxt, LSym *cursym)
 				continue;
 			}
 		}
-		if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND)) {
+		if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND && p->as != ANOP)) {
 			ctxt->diag("zero-width instruction\n%P", p);
 			continue;
 		}
@@ -765,7 +766,7 @@ span5(Link *ctxt, LSym *cursym)
 			}
 			if(m/4 > nelem(out))
 				ctxt->diag("instruction size too large: %d > %d", m/4, nelem(out));
-			if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND)) {
+			if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND && p->as != ANOP)) {
 				if(p->as == ATEXT) {
 					ctxt->autosize = p->to.offset + 4;
 					continue;
@@ -1479,6 +1480,7 @@ buildop(Link *ctxt)
 		case ACLZ:
 		case AFUNCDATA:
 		case APCDATA:
+		case ANOP:
 		case ADATABUNDLE:
 		case ADATABUNDLEEND:
 			break;
