@@ -492,7 +492,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				p = appendp(ctxt, p);
 				p->as = ACMP;
 				p->from.type = D_REG;
-				p->from.offset = 2;
+				p->from.reg = 2;
 				p->reg = 3;
 
 				p = appendp(ctxt, p);
