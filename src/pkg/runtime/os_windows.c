@@ -158,12 +158,14 @@ runtime·goenvs(void)
 	runtime·stdcall1(runtime·FreeEnvironmentStringsW, (uintptr)env);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·exit(int32 code)
 {
 	runtime·stdcall1(runtime·ExitProcess, code);
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·write(uintptr fd, void *buf, int32 n)
 {
@@ -206,12 +208,14 @@ runtime·semasleep(int64 ns)
 	return 0;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·semawakeup(M *mp)
 {
 	runtime·stdcall1(runtime·SetEvent, mp->waitsema);
 }
 
+#pragma textflag NOSPLIT
 uintptr
 runtime·semacreate(void)
 {
@@ -272,12 +276,15 @@ typedef struct KSYSTEM_TIME {
 const KSYSTEM_TIME* INTERRUPT_TIME	= (KSYSTEM_TIME*)0x7ffe0008;
 const KSYSTEM_TIME* SYSTEM_TIME		= (KSYSTEM_TIME*)0x7ffe0014;
 
+static void badsystime(void);
+
 #pragma textflag NOSPLIT
 int64
 runtime·systime(KSYSTEM_TIME *timeaddr)
 {
 	KSYSTEM_TIME t;
 	int32 i;
+	void (*fn)(void);
 
 	for(i = 1; i < 10000; i++) {
 		// these fields must be read in that order (see URL above)
@@ -289,8 +296,15 @@ runtime·systime(KSYSTEM_TIME *timeaddr)
 		if((i%100) == 0)
 			runtime·osyield();
 	}
-	runtime·throw("interrupt/system time is changing too fast");
+	fn = badsystime;
+	runtime·onM(&fn);
 	return 0;
+}
+
+static void
+badsystime(void)
+{
+	runtime·throw("interrupt/system time is changing too fast");
 }
 
 #pragma textflag NOSPLIT
@@ -300,6 +314,7 @@ runtime·nanotime(void)
 	return runtime·systime(INTERRUPT_TIME) * 100LL;
 }
 
+#pragma textflag NOSPLIT
 void
 time·now(int64 sec, int32 usec)
 {
