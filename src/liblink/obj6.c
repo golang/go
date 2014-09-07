@@ -483,11 +483,19 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		p->from.type = D_INDIR+D_CX;
 		p->from.offset = 2*ctxt->arch->ptrsize; // G.panic
 		p->to.type = D_BX;
+		if(ctxt->headtype == Hnacl) {
+			p->as = AMOVL;
+			p->from.type = D_INDIR+D_R15;
+			p->from.scale = 1;
+			p->from.index = D_CX;
+		}
 
 		p = appendp(ctxt, p);
 		p->as = ATESTQ;
 		p->from.type = D_BX;
 		p->to.type = D_BX;
+		if(ctxt->headtype == Hnacl)
+			p->as = ATESTL;
 
 		p = appendp(ctxt, p);
 		p->as = AJEQ;
@@ -499,12 +507,20 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		p->from.type = D_INDIR+D_SP;
 		p->from.offset = autoffset+8;
 		p->to.type = D_DI;
+		if(ctxt->headtype == Hnacl)
+			p->as = ALEAL;
 
 		p = appendp(ctxt, p);
 		p->as = ACMPQ;
 		p->from.type = D_INDIR+D_BX;
 		p->from.offset = 0; // Panic.argp
 		p->to.type = D_DI;
+		if(ctxt->headtype == Hnacl) {
+			p->as = ACMPL;
+			p->from.type = D_INDIR+D_R15;
+			p->from.scale = 1;
+			p->from.index = D_BX;
+		}
 
 		p = appendp(ctxt, p);
 		p->as = AJNE;
@@ -516,6 +532,12 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		p->from.type = D_SP;
 		p->to.type = D_INDIR+D_BX;
 		p->to.offset = 0; // Panic.argp
+		if(ctxt->headtype == Hnacl) {
+			p->as = AMOVL;
+			p->to.type = D_INDIR+D_R15;
+			p->to.scale = 1;
+			p->to.index = D_BX;
+		}
 
 		p = appendp(ctxt, p);
 		p->as = ANOP;
