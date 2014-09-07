@@ -607,7 +607,6 @@ char *depsuffix[] = {
 	".h",
 	".s",
 	".go",
-	".goc",
 };
 
 // gentab records how to generate some trivial files.
@@ -933,23 +932,6 @@ install(char *dir)
 	if(streq(dir, "pkg/runtime")) {
 		copyfile(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
 			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch), 0);
-	}
-
-	// Generate .c files from .goc files.
-	if(streq(dir, "pkg/runtime")) {
-		for(i=0; i<files.len; i++) {
-			p = files.p[i];
-			if(!hassuffix(p, ".goc"))
-				continue;
-			// b = path/zp but with _goos_goarch.c instead of .goc
-			bprintf(&b, "%s%sz%s", bstr(&path), slash, lastelem(p));
-			bprintf(&final_name, "%s%s%s", bstr(&final_path), slash, lastelem(p));
-			b.len -= 4;
-			bwritef(&b, "_%s_%s.c", goos, goarch);
-			goc2c(p, bstr(&final_name), bstr(&b));
-			vadd(&files, bstr(&b));
-		}
-		vuniq(&files);
 	}
 
 	if((!streq(goos, gohostos) || !streq(goarch, gohostarch)) && isgo) {

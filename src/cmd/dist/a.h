@@ -108,9 +108,6 @@ void	mkzexperiment(char*, char*);
 // buildgo.c
 void	mkzdefaultcc(char*, char*);
 
-// goc2c.c
-void	goc2c(char*, char*, char*);
-
 // main.c
 extern int vflag;
 extern int sflag;
