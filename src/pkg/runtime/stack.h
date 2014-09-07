@@ -89,12 +89,12 @@ enum {
 
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
-	StackGuard = 256 + StackSystem,
+	StackGuard = 512 + StackSystem,
 
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard.  This saves an instruction
 	// in the checking sequence for tiny frames.
-	StackSmall = 64,
+	StackSmall = 128,
 
 	// The maximum number of bytes that a chain of NOSPLIT
 	// functions can use.

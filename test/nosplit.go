@@ -256,11 +256,11 @@ TestCases:
 				name := m[1]
 				size, _ := strconv.Atoi(m[2])
 
-				// The limit was originally 128 but is now 192.
+				// The limit was originally 128 but is now 384.
 				// Instead of rewriting the test cases above, adjust
 				// the first stack frame to use up the extra 32 bytes.
 				if i == 0 {
-					size += 192 - 128
+					size += 384 - 128
 				}
 
 				if goarch == "amd64" && size%8 == 4 {
