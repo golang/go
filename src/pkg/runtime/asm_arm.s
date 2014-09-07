@@ -129,11 +129,19 @@ TEXT runtime·gosave(SB),NOSPLIT,$-4-4
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB),NOSPLIT,$-4-4
 	MOVW	0(FP), R1		// gobuf
-	MOVW	gobuf_g(R1), g
-	MOVW	0(g), R2		// make sure g != nil
-	MOVB	runtime·iscgo(SB), R2
-	CMP 	$0, R2 // if in Cgo, we have to save g
-	BL.NE	runtime·save_g(SB) // this call will clobber R0
+	MOVW	gobuf_g(R1), R0
+	BL	setg<>(SB)
+
+	// NOTE: We updated g above, and we are about to update SP.
+	// Until LR and PC are also updated, the g/SP/LR/PC quadruple
+	// are out of sync and must not be used as the basis of a traceback.
+	// Sigprof skips the traceback when SP is not within g's bounds,
+	// and when the PC is inside this function, runtime.gogo.
+	// Since we are about to update SP, until we complete runtime.gogo
+	// we must not leave this function. In particular, no calls
+	// after this point: it must be straight-line code until the
+	// final B instruction.
+	// See large comment in sigprof for more details.
 	MOVW	gobuf_sp(R1), SP	// restore SP
 	MOVW	gobuf_lr(R1), LR
 	MOVW	gobuf_ret(R1), R0
@@ -143,8 +151,8 @@ TEXT runtime·gogo(SB),NOSPLIT,$-4-4
 	MOVW	R11, gobuf_ret(R1)
 	MOVW	R11, gobuf_lr(R1)
 	MOVW	R11, gobuf_ctxt(R1)
-	CMP	R11, R11 // set condition codes for == test, needed by stack split
 	MOVW	gobuf_pc(R1), R11
+	CMP	R11, R11 // set condition codes for == test, needed by stack split
 	B	(R11)
 
 // func mcall(fn func(*g))
@@ -162,7 +170,8 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 	// Switch to m->g0 & its stack, call fn.
 	MOVW	g, R1
 	MOVW	g_m(g), R8
-	MOVW	m_g0(R8), g
+	MOVW	m_g0(R8), R0
+	BL	setg<>(SB)
 	CMP	g, R1
 	B.NE	2(PC)
 	B	runtime·badmcall(SB)
@@ -218,7 +227,10 @@ oncurg:
 	MOVW	g, (g_sched+gobuf_g)(g)
 
 	// switch to g0
-	MOVW	R2, g
+	MOVW	R0, R5
+	MOVW	R2, R0
+	BL	setg<>(SB)
+	MOVW	R5, R0
 	MOVW	(g_sched+gobuf_sp)(R2), R3
 	// make it look like mstart called onM on g0, to stop traceback
 	SUB	$4, R3, R3
@@ -234,7 +246,8 @@ oncurg:
 
 	// switch back to g
 	MOVW	g_m(g), R1
-	MOVW	m_curg(R1), g
+	MOVW	m_curg(R1), R0
+	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	MOVW	$0, R3
 	MOVW	R3, (g_sched+gobuf_sp)(g)
@@ -293,7 +306,8 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	MOVW	g, (m_morebuf+gobuf_g)(R8)
 
 	// Call newstack on m->g0's stack.
-	MOVW	m_g0(R8), g
+	MOVW	m_g0(R8), R0
+	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	BL	runtime·newstack(SB)
 
@@ -433,7 +447,8 @@ TEXT runtime·lessstack(SB),NOSPLIT,$-4-0
 	MOVW	R0, m_cret(R8)
 
 	// Call oldstack on m->g0's stack.
-	MOVW	m_g0(R8), g
+	MOVW	m_g0(R8), R0
+	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	BL	runtime·oldstack(SB)
 
@@ -485,7 +500,7 @@ TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
 TEXT asmcgocall<>(SB),NOSPLIT,$0-0
 	// fn in R1, arg in R0.
 	MOVW	R13, R2
-	MOVW	g, R5
+	MOVW	g, R4
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
@@ -493,21 +508,27 @@ TEXT asmcgocall<>(SB),NOSPLIT,$0-0
 	MOVW	g_m(g), R8
 	MOVW	m_g0(R8), R3
 	CMP	R3, g
-	BEQ	4(PC)
+	BEQ	asmcgocall_g0
 	BL	gosave<>(SB)
-	MOVW	R3, g
+	MOVW	R0, R5
+	MOVW	R3, R0
+	BL	setg<>(SB)
+	MOVW	R5, R0
 	MOVW	(g_sched+gobuf_sp)(g), R13
 
 	// Now on a scheduling stack (a pthread-created stack).
+asmcgocall_g0:
 	SUB	$24, R13
 	BIC	$0x7, R13	// alignment for gcc ABI
-	MOVW	R5, 20(R13) // save old g
+	MOVW	R4, 20(R13) // save old g
 	MOVW	R2, 16(R13)	// save old SP
-	// R0 already contains the first argument
 	BL	(R1)
 
 	// Restore registers, g, stack pointer.
-	MOVW	20(R13), g
+	MOVW	R0, R5
+	MOVW	20(R13), R0
+	BL	setg<>(SB)
+	MOVW	R5, R0
 	MOVW	16(R13), R13
 	RET
 
@@ -572,7 +593,8 @@ havem:
 	// the earlier calls.
 	//
 	// In the new goroutine, -8(SP) and -4(SP) are unused.
-	MOVW	m_curg(R8), g
+	MOVW	m_curg(R8), R0
+	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVW	(g_sched+gobuf_pc)(g), R5
 	MOVW	R5, -12(R4)
@@ -589,7 +611,8 @@ havem:
 	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
 	// so we do not have to restore it.)
 	MOVW	g_m(g), R8
-	MOVW	m_g0(R8), g
+	MOVW	m_g0(R8), R0
+	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), R13
 	MOVW	savedsp-8(SP), R4
 	MOVW	R4, (g_sched+gobuf_sp)(g)
@@ -606,14 +629,20 @@ havem:
 	RET
 
 // void setg(G*); set g. for use by needm.
-TEXT runtime·setg(SB),NOSPLIT,$0-4
-	MOVW	gg+0(FP), g
+TEXT runtime·setg(SB),NOSPLIT,$-4-4
+	MOVW	gg+0(FP), R0
+	B	setg<>(SB)
+
+TEXT setg<>(SB),NOSPLIT,$-4-0
+	MOVW	R0, g
 
 	// Save g to thread-local storage.
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
-	BL.NE	runtime·save_g(SB)
+	B.EQ	2(PC)
+	B	runtime·save_g(SB)
 
+	MOVW	g, R0
 	RET
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
