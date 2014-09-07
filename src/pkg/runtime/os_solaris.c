@@ -386,36 +386,42 @@ runtime·semawakeup(M *mp)
 		runtime·throw("sem_post");
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·close(int32 fd)
 {
 	return runtime·sysvicall1(libc·close, (uintptr)fd);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·exit(int32 r)
 {
 	runtime·sysvicall1(libc·exit, (uintptr)r);
 }
 
+#pragma textflag NOSPLIT
 /* int32 */ void
 runtime·getcontext(Ucontext* context)
 {
 	runtime·sysvicall1(libc·getcontext, (uintptr)context);
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·getrlimit(int32 res, Rlimit* rlp)
 {
 	return runtime·sysvicall2(libc·getrlimit, (uintptr)res, (uintptr)rlp);
 }
 
+#pragma textflag NOSPLIT
 uint8*
 runtime·mmap(byte* addr, uintptr len, int32 prot, int32 flags, int32 fildes, uint32 off)
 {
 	return (uint8*)runtime·sysvicall6(libc·mmap, (uintptr)addr, (uintptr)len, (uintptr)prot, (uintptr)flags, (uintptr)fildes, (uintptr)off);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·munmap(byte* addr, uintptr len)
 {
@@ -430,6 +436,7 @@ runtime·nanotime(void)
 	return runtime·sysvicall0((uintptr)runtime·nanotime1);
 }
 
+#pragma textflag NOSPLIT
 void
 time·now(int64 sec, int32 usec)
 {
@@ -442,6 +449,7 @@ time·now(int64 sec, int32 usec)
 	FLUSH(&usec);
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·open(int8* path, int32 oflag, int32 mode)
 {
@@ -490,6 +498,7 @@ runtime·raise(int32 sig)
 	runtime·sysvicall1(libc·raise, (uintptr)sig);
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·read(int32 fd, void* buf, int32 nbyte)
 {
@@ -563,6 +572,7 @@ runtime·usleep(uint32 µs)
 	runtime·usleep1(µs);
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·write(uintptr fd, void* buf, int32 nbyte)
 {

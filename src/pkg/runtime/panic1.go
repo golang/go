@@ -138,10 +138,12 @@ func gorecover(argp uintptr) interface{} {
 	return nil
 }
 
+//go:nosplit
 func startpanic() {
 	onM(startpanic_m)
 }
 
+//go:nosplit
 func dopanic(unused int) {
 	gp := getg()
 	mp := acquirem()
@@ -152,10 +154,19 @@ func dopanic(unused int) {
 	*(*int)(nil) = 0
 }
 
+//go:nosplit
 func throw(s *byte) {
-	gothrow(gostringnocopy(s))
+	gp := getg()
+	if gp.m.throwing == 0 {
+		gp.m.throwing = 1
+	}
+	startpanic()
+	print("fatal error: ", gostringnocopy(s), "\n")
+	dopanic(0)
+	*(*int)(nil) = 0 // not reached
 }
 
+//go:nosplit
 func gothrow(s string) {
 	gp := getg()
 	if gp.m.throwing == 0 {
