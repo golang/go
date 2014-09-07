@@ -30,7 +30,7 @@ import (
 	"strings"
 
 	"code.google.com/p/goauth2/oauth"
-	"code.google.com/p/google-api-go-client/storage/v1beta2"
+	storage "code.google.com/p/google-api-go-client/storage/v1beta2"
 )
 
 var (
