@@ -3466,7 +3466,7 @@ smagic(Magic *m)
 	p = m->w-1;
 	ad = m->sd;
 	if(m->sd < 0)
-		ad = -m->sd;
+		ad = -(uvlong)m->sd;
 
 	// bad denominators
 	if(ad == 0 || ad == 1 || ad == two31) {
