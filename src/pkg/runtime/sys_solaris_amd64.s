@@ -327,3 +327,23 @@ TEXT runtime·osyield1(SB),NOSPLIT,$0
 	MOVQ	libc·sched_yield(SB), AX
 	CALL	AX
 	RET
+
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB),NOSPLIT,$8-12
+	CALL	runtime·nanotime(SB)
+	MOVQ	0(SP), AX
+
+	// generated code for
+	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+	// adapted to reduce duplication
+	MOVQ	AX, CX
+	MOVQ	$1360296554856532783, AX
+	MULQ	CX
+	ADDQ	CX, DX
+	RCRQ	$1, DX
+	SHRQ	$29, DX
+	MOVQ	DX, sec+0(FP)
+	IMULQ	$1000000000, DX
+	SUBQ	DX, CX
+	MOVL	CX, nsec+8(FP)
+	RET

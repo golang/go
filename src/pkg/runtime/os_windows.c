@@ -301,6 +301,13 @@ runtime·systime(KSYSTEM_TIME *timeaddr)
 	return 0;
 }
 
+#pragma textflag NOSPLIT
+int64
+runtime·unixnano(void)
+{
+	return (runtime·systime(SYSTEM_TIME) - 116444736000000000LL) * 100LL;
+}
+
 static void
 badsystime(void)
 {
@@ -312,22 +319,6 @@ int64
 runtime·nanotime(void)
 {
 	return runtime·systime(INTERRUPT_TIME) * 100LL;
-}
-
-#pragma textflag NOSPLIT
-void
-time·now(int64 sec, int32 usec)
-{
-	int64 ns;
-
-	// SystemTime is 100s of nanoseconds since January 1, 1601.
-	// Convert to nanoseconds since January 1, 1970.
-	ns = (runtime·systime(SYSTEM_TIME) - 116444736000000000LL) * 100LL;
-
-	sec = ns / 1000000000LL;
-	usec = ns - sec * 1000000000LL;
-	FLUSH(&sec);
-	FLUSH(&usec);
 }
 
 // Calling stdcall on os stack.
