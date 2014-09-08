@@ -26,7 +26,7 @@ enum
 
 	StackCache = 1,
 	
-	StackCopyAlways = 1,	// expect to be able to copy stacks 100% of the time
+	StackCopyAlways = 0,	// expect to be able to copy stacks 100% of the time
 };
 
 // Global pool of spans that have free stacks.
