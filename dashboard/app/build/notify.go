@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"text/template"
@@ -125,22 +126,23 @@ var notifyLater = delay.Func("notify", notify)
 // notify tries to update the CL for the given Commit with a failure message.
 // If it doesn't succeed, it sends a failure email to golang-dev.
 func notify(c appengine.Context, com *Commit, builder, logHash string) {
-	if !updateCL(c, com, builder, logHash) {
+	v := url.Values{"brokebuild": {builder}, "log": {logHash}}
+	if !updateCL(c, com, v) {
 		// Send a mail notification if the CL can't be found.
 		sendFailMail(c, com, builder, logHash)
 	}
 }
 
-// updateCL updates the CL for the given Commit with a failure message
-// for the given builder.
-func updateCL(c appengine.Context, com *Commit, builder, logHash string) bool {
+// updateCL tells gobot to update the CL for the given Commit with
+// the provided query values.
+func updateCL(c appengine.Context, com *Commit, v url.Values) bool {
 	cl, err := lookupCL(c, com)
 	if err != nil {
 		c.Errorf("could not find CL for %v: %v", com.Hash, err)
 		return false
 	}
-	url := fmt.Sprintf("%v?cl=%v&brokebuild=%v&log=%v", gobotBase, cl, builder, logHash)
-	r, err := urlfetch.Client(c).Post(url, "text/plain", nil)
+	u := fmt.Sprintf("%v?cl=%v&%s", gobotBase, cl, v.Encode())
+	r, err := urlfetch.Client(c).Post(u, "text/plain", nil)
 	if err != nil {
 		c.Errorf("could not update CL %v: %v", cl, err)
 		return false
@@ -199,9 +201,6 @@ var (
 
 func sendPerfFailMail(c appengine.Context, builder string, res *PerfResult) error {
 	com := &Commit{Hash: res.CommitHash}
-	if err := datastore.Get(c, com.Key(c), com); err != nil {
-		return fmt.Errorf("getting commit %v: %v", com.Hash, err)
-	}
 	logHash := ""
 	parsed := res.ParseData()
 	for _, data := range parsed[builder] {
@@ -322,17 +321,25 @@ func sendPerfMailFunc(c appengine.Context, com *Commit, prevCommitHash, builder 
 	}
 	sort.Sort(PerfChangeBenchmarkSlice(benchmarks))
 
-	url := fmt.Sprintf("http://%v/perfdetail?commit=%v&commit0=%v&kind=builder&builder=%v", domain, com.Hash, prevCommitHash, builder)
+	u := fmt.Sprintf("http://%v/perfdetail?commit=%v&commit0=%v&kind=builder&builder=%v", domain, com.Hash, prevCommitHash, builder)
 
 	// prepare mail message
 	var body bytes.Buffer
 	err := sendPerfMailTmpl.Execute(&body, map[string]interface{}{
-		"Builder": builder, "Commit": com, "Hostname": domain, "Url": url, "Benchmarks": benchmarks,
+		"Builder": builder, "Commit": com, "Hostname": domain, "Url": u, "Benchmarks": benchmarks,
 	})
 	if err != nil {
 		c.Errorf("rendering perf mail template: %v", err)
 		return
 	}
+
+	// First, try to update the CL.
+	v := url.Values{"textmsg": {body.String()}}
+	if updateCL(c, com, v) {
+		return
+	}
+
+	// Otherwise, send mail.
 	subject := fmt.Sprintf("Perf changes on %s by %s", builder, shortDesc(com.Desc))
 	msg := &mail.Message{
 		Sender:  mailFrom,
