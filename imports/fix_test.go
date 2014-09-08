@@ -727,7 +727,7 @@ func TestFindImportGoPath(t *testing.T) {
 	stdlib = nil
 
 	// Test against imaginary bits/bytes package in std lib
-	bytesDir := filepath.Join(goroot, "src", "pkg", "bits", "bytes")
+	bytesDir := filepath.Join(goroot, "src", "bits", "bytes")
 	if err := os.MkdirAll(bytesDir, 0755); err != nil {
 		t.Fatal(err)
 	}
