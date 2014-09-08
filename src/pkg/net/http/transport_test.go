@@ -2096,6 +2096,46 @@ func TestTransportClosesBodyOnError(t *testing.T) {
 	}
 }
 
+func TestTransportDialTLS(t *testing.T) {
+	var mu sync.Mutex // guards following
+	var gotReq, didDial bool
+
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		mu.Lock()
+		gotReq = true
+		mu.Unlock()
+	}))
+	defer ts.Close()
+	tr := &Transport{
+		DialTLS: func(netw, addr string) (net.Conn, error) {
+			mu.Lock()
+			didDial = true
+			mu.Unlock()
+			c, err := tls.Dial(netw, addr, &tls.Config{
+				InsecureSkipVerify: true,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return c, c.Handshake()
+		},
+	}
+	defer tr.CloseIdleConnections()
+	client := &Client{Transport: tr}
+	res, err := client.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	mu.Lock()
+	if !gotReq {
+		t.Error("didn't get request")
+	}
+	if !didDial {
+		t.Error("didn't use dial hook")
+	}
+}
+
 func wantBody(res *http.Response, err error, want string) error {
 	if err != nil {
 		return err
