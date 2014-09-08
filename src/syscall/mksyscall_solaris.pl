@@ -136,8 +136,8 @@ while(<>) {
 
 	# Prepare arguments to Syscall.
 	my @args = ();
+	my @uses = ();
 	my $n = 0;
-	my @pin= ();
 	foreach my $p (@in) {
 		my ($name, $type) = parseparam($p);
 		if($type =~ /^\*/) {
@@ -147,12 +147,14 @@ while(<>) {
 			$text .= "\t_p$n, $errvar = $strconvfunc($name)\n";
 			$text .= "\tif $errvar != nil {\n\t\treturn\n\t}\n";
 			push @args, "uintptr(unsafe.Pointer(_p$n))";
+			push @uses, "use(unsafe.Pointer(_p$n))";
 			$n++;
 		} elsif($type eq "string") {
 			print STDERR "$ARGV:$.: $func uses string arguments, but has no error return\n";
 			$text .= "\tvar _p$n $strconvtype\n";
 			$text .= "\t_p$n, _ = $strconvfunc($name)\n";
 			push @args, "uintptr(unsafe.Pointer(_p$n))";
+			push @uses, "use(unsafe.Pointer(_p$n))";
 			$n++;
 		} elsif($type =~ /^\[\](.*)/) {
 			# Convert slice into pointer, length.
@@ -176,7 +178,6 @@ while(<>) {
 		} else {
 			push @args, "uintptr($name)";
 		}
-		push @pin, sprintf "\"%s=\", %s, ", $name, $name;
 	}
 	my $nargs = @args;
 
@@ -239,6 +240,9 @@ while(<>) {
 		$text .= "\t$call\n";
 	} else {
 		$text .= "\t$ret[0], $ret[1], $ret[2] := $call\n";
+	}
+	foreach my $use (@uses) {
+		$text .= "\t$use\n";
 	}
 	$text .= $body;
 

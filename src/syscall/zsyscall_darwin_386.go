@@ -230,6 +230,7 @@ func utimes(path string, timeval *[2]Timeval) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_UTIMES, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(timeval)), 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -298,6 +299,7 @@ func Access(path string, mode uint32) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -323,6 +325,7 @@ func Chdir(path string) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_CHDIR, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -338,6 +341,7 @@ func Chflags(path string, flags int) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_CHFLAGS, uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -353,6 +357,7 @@ func Chmod(path string, mode uint32) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -368,6 +373,7 @@ func Chown(path string, uid int, gid int) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid))
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -383,6 +389,7 @@ func Chroot(path string) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_CHROOT, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -434,6 +441,8 @@ func Exchangedata(path1 string, path2 string, options int) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_EXCHANGEDATA, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), uintptr(options))
+	use(unsafe.Pointer(_p0))
+	use(unsafe.Pointer(_p1))
 	if e1 != 0 {
 		err = e1
 	}
@@ -710,6 +719,7 @@ func Lchown(path string, uid int, gid int) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_LCHOWN, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid))
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -730,6 +740,8 @@ func Link(path string, link string) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_LINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+	use(unsafe.Pointer(_p0))
+	use(unsafe.Pointer(_p1))
 	if e1 != 0 {
 		err = e1
 	}
@@ -755,6 +767,7 @@ func Lstat(path string, stat *Stat_t) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_LSTAT64, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -770,6 +783,7 @@ func Mkdir(path string, mode uint32) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -785,6 +799,7 @@ func Mkfifo(path string, mode uint32) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_MKFIFO, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -800,6 +815,7 @@ func Mknod(path string, mode uint32, dev int) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev))
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -883,6 +899,7 @@ func Open(path string, mode int, perm uint32) (fd int, err error) {
 		return
 	}
 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(perm))
+	use(unsafe.Pointer(_p0))
 	fd = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -899,6 +916,7 @@ func Pathconf(path string, name int) (val int, err error) {
 		return
 	}
 	r0, _, e1 := Syscall(SYS_PATHCONF, uintptr(unsafe.Pointer(_p0)), uintptr(name), 0)
+	use(unsafe.Pointer(_p0))
 	val = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -972,6 +990,7 @@ func Readlink(path string, buf []byte) (n int, err error) {
 		_p1 = unsafe.Pointer(&_zero)
 	}
 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)))
+	use(unsafe.Pointer(_p0))
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -993,6 +1012,8 @@ func Rename(from string, to string) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_RENAME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+	use(unsafe.Pointer(_p0))
+	use(unsafe.Pointer(_p1))
 	if e1 != 0 {
 		err = e1
 	}
@@ -1008,6 +1029,7 @@ func Revoke(path string) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_REVOKE, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -1023,6 +1045,7 @@ func Rmdir(path string) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_RMDIR, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -1089,6 +1112,7 @@ func Setlogin(name string) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_SETLOGIN, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -1195,6 +1219,7 @@ func Stat(path string, stat *Stat_t) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_STAT64, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -1210,6 +1235,7 @@ func Statfs(path string, stat *Statfs_t) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -1230,6 +1256,8 @@ func Symlink(path string, link string) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_SYMLINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+	use(unsafe.Pointer(_p0))
+	use(unsafe.Pointer(_p1))
 	if e1 != 0 {
 		err = e1
 	}
@@ -1255,6 +1283,7 @@ func Truncate(path string, length int64) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(_p0)), uintptr(length), uintptr(length>>32))
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -1278,6 +1307,7 @@ func Undelete(path string) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_UNDELETE, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -1293,6 +1323,7 @@ func Unlink(path string) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_UNLINK, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}
@@ -1308,6 +1339,7 @@ func Unmount(path string, flags int) (err error) {
 		return
 	}
 	_, _, e1 := Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		err = e1
 	}

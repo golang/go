@@ -72,6 +72,7 @@ func (d *DLL) FindProc(name string) (proc *Proc, err error) {
 		return nil, err
 	}
 	a, e := getprocaddress(uintptr(d.Handle), namep)
+	use(unsafe.Pointer(namep))
 	if e != 0 {
 		return nil, &DLLError{
 			Err:     e,

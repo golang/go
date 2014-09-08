@@ -143,6 +143,7 @@ func getAttrList(path string, attrList attrList, attrBuf []byte, options uint) (
 		uintptr(options),
 		0,
 	)
+	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		return nil, e1
 	}

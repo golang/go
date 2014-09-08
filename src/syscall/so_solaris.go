@@ -39,6 +39,7 @@ func loadSO(name string) (*so, error) {
 		return nil, err
 	}
 	h, e := dlopen(namep, 1) // RTLD_LAZY
+	use(unsafe.Pointer(namep))
 	if e != 0 {
 		return nil, &soError{
 			Err:     e,
@@ -70,6 +71,7 @@ func (d *so) FindProc(name string) (*proc, error) {
 		return nil, err
 	}
 	a, _ := dlsym(uintptr(d.Handle), namep)
+	use(unsafe.Pointer(namep))
 	if a == 0 {
 		return nil, &soError{
 			Err:     ENOSYS,
