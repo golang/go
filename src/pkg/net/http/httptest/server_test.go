@@ -32,10 +32,7 @@ func TestServer(t *testing.T) {
 func TestIssue7264(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		func() {
-			inHandler := make(chan bool, 1)
-			ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				inHandler <- true
-			}))
+			ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 			defer ts.Close()
 			tr := &http.Transport{
 				ResponseHeaderTimeout: time.Nanosecond,
@@ -43,7 +40,10 @@ func TestIssue7264(t *testing.T) {
 			defer tr.CloseIdleConnections()
 			c := &http.Client{Transport: tr}
 			res, err := c.Get(ts.URL)
-			<-inHandler
+			// err can be non-nil here.
+			// If the client writes the header and then immediately observes
+			// the timeout and closes the connection, the server might never
+			// have gotten a chance to send a response. That's okay.
 			if err == nil {
 				res.Body.Close()
 			}
