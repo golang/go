@@ -163,7 +163,7 @@ linknew(LinkArch *arch)
 	case Hdarwin:
 		/*
 		 * OS X system constants - offset from 0(GS) to our TLS.
-		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_*.c.
+		 * Explained in ../../runtime/cgo/gcc_darwin_*.c.
 		 */
 		switch(ctxt->arch->thechar) {
 		default:

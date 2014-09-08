@@ -430,7 +430,7 @@ fi
 # Test that without GOPATH set, go get should fail
 TEST without GOPATH, go get fails
 d=$(mktemp -d -t testgoXXX)
-mkdir -p $d/src/pkg
+mkdir -p $d/src
 if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then 
 	echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with $GOPATH unset'
 	ok=false
@@ -440,7 +440,7 @@ rm -rf $d
 # Test that with GOPATH=$GOROOT, go get should fail
 TEST with GOPATH=GOROOT, go get fails
 d=$(mktemp -d -t testgoXXX)
-mkdir -p $d/src/pkg
+mkdir -p $d/src
 if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then
         echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
         ok=false
@@ -595,7 +595,7 @@ export GOPATH=$(pwd)/testdata/shadow/root1:$(pwd)/testdata/shadow/root2
 
 # The math in root1 is not "math" because the standard math is.
 cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root1/src/math)
-if [ "$cdir" != "(_$(pwd)/testdata/shadow/root1/src/math) ($GOROOT/src/pkg/math)" ]; then
+if [ "$cdir" != "(_$(pwd)/testdata/shadow/root1/src/math) ($GOROOT/src/math)" ]; then
 	echo shadowed math is not shadowed: "$cdir"
 	ok=false
 fi

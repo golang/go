@@ -207,9 +207,7 @@ func (ctxt *Context) gopath() []string {
 		if p == "" || p == ctxt.GOROOT {
 			// Empty paths are uninteresting.
 			// If the path is the GOROOT, ignore it.
-			// People sometimes set GOPATH=$GOROOT, which is useless
-			// but would cause us to find packages with import paths
-			// like "pkg/math".
+			// People sometimes set GOPATH=$GOROOT.
 			// Do not get confused by this common mistake.
 			continue
 		}
@@ -239,7 +237,7 @@ func (ctxt *Context) gopath() []string {
 func (ctxt *Context) SrcDirs() []string {
 	var all []string
 	if ctxt.GOROOT != "" {
-		dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg")
+		dir := ctxt.joinPath(ctxt.GOROOT, "src")
 		if ctxt.isDir(dir) {
 			all = append(all, dir)
 		}
@@ -479,7 +477,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		}
 		// Determine canonical import path, if any.
 		if ctxt.GOROOT != "" {
-			root := ctxt.joinPath(ctxt.GOROOT, "src", "pkg")
+			root := ctxt.joinPath(ctxt.GOROOT, "src")
 			if sub, ok := ctxt.hasSubdir(root, p.Dir); ok {
 				p.Goroot = true
 				p.ImportPath = sub
@@ -495,7 +493,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				// but check that using it wouldn't find something
 				// else first.
 				if ctxt.GOROOT != "" {
-					if dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", sub); ctxt.isDir(dir) {
+					if dir := ctxt.joinPath(ctxt.GOROOT, "src", sub); ctxt.isDir(dir) {
 						p.ConflictDir = dir
 						goto Found
 					}
@@ -529,12 +527,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 
 		// Determine directory from import path.
 		if ctxt.GOROOT != "" {
-			var dir string
-			if strings.HasPrefix(path, "cmd/") {
-				dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
-			} else {
-				dir = ctxt.joinPath(ctxt.GOROOT, "src", "pkg", path)
-			}
+			dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
 			isDir := ctxt.isDir(dir)
 			binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
 			if isDir || binaryOnly {
@@ -580,11 +573,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 
 Found:
 	if p.Root != "" {
-		if p.Goroot {
-			p.SrcRoot = ctxt.joinPath(p.Root, "src", "pkg")
-		} else {
-			p.SrcRoot = ctxt.joinPath(p.Root, "src")
-		}
+		p.SrcRoot = ctxt.joinPath(p.Root, "src")
 		p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
 		p.BinDir = ctxt.joinPath(p.Root, "bin")
 		if pkga != "" {

@@ -33,7 +33,7 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/8l/8.out.h"
-#include "../pkg/runtime/stack.h"
+#include "../runtime/stack.h"
 
 static Prog zprg = {
 	.back = 2,

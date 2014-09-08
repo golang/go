@@ -33,8 +33,8 @@
 #include	"lib.h"
 #include	"../ld/elf.h"
 #include	"../ld/dwarf.h"
-#include	"../../pkg/runtime/stack.h"
-#include	"../../pkg/runtime/funcdata.h"
+#include	"../../runtime/stack.h"
+#include	"../../runtime/funcdata.h"
 
 #include	<ar.h>
 #if !(defined(_WIN32) || defined(PLAN9))
@@ -899,7 +899,7 @@ unmal(void *v, uint32 n)
  * escaping are %, ., and ", but we escape all control characters too.
  *
  * If you edit this, edit ../gc/subr.c:/^pathtoprefix too.
- * If you edit this, edit ../../pkg/debug/goobj/read.go:/importPathToPrefix too.
+ * If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
  */
 static char*
 pathtoprefix(char *s)

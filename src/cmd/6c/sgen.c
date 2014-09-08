@@ -29,7 +29,7 @@
 // THE SOFTWARE.
 
 #include "gc.h"
-#include "../../pkg/runtime/funcdata.h"
+#include "../../runtime/funcdata.h"
 
 Prog*
 gtext(Sym *s, int32 stkoff)

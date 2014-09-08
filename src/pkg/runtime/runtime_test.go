@@ -106,7 +106,7 @@ func TestRuntimeGogoBytes(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	out, err := exec.Command("go", "build", "-o", dir+"/hello", "../../../test/helloworld.go").CombinedOutput()
+	out, err := exec.Command("go", "build", "-o", dir+"/hello", "../../test/helloworld.go").CombinedOutput()
 	if err != nil {
 		t.Fatalf("building hello world: %v\n%s", err, out)
 	}

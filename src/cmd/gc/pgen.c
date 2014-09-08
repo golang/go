@@ -11,7 +11,7 @@
 #include	"md5.h"
 #include	"gg.h"
 #include	"opt.h"
-#include	"../../pkg/runtime/funcdata.h"
+#include	"../../runtime/funcdata.h"
 
 static void allocauto(Prog* p);
 
@@ -233,7 +233,7 @@ compile(Node *fn)
 		ptxt->TEXTFLAG |= NOSPLIT;
 
 	// Clumsy but important.
-	// See test/recover.go for test cases and src/pkg/reflect/value.go
+	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
 	if(myimportpath != nil && strcmp(myimportpath, "reflect") == 0) {
 		if(strcmp(curfn->nname->sym->name, "callReflect") == 0 || strcmp(curfn->nname->sym->name, "callMethod") == 0)

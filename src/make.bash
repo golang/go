@@ -106,7 +106,7 @@ if [ "$(uname -s)" == "GNU/kFreeBSD" ]; then
 fi
 
 # Clean old generated file that will cause problems in the build.
-rm -f ./pkg/runtime/runtime_defs.go
+rm -f ./runtime/runtime_defs.go
 
 # Finally!  Run the build.
 

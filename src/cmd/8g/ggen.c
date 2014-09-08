@@ -184,7 +184,7 @@ clearfat(Node *nl)
 		p = gins(ADUFFZERO, N, N);
 		p->to.type = D_ADDR;
 		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
-		// 1 and 128 = magic constants: see ../../pkg/runtime/asm_386.s
+		// 1 and 128 = magic constants: see ../../runtime/asm_386.s
 		p->to.offset = 1*(128-q);
 	} else
 	while(q > 0) {

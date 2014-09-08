@@ -6,8 +6,8 @@
 #include <libc.h>
 #include "go.h"
 #include "../ld/textflag.h"
-#include "../../pkg/runtime/mgc0.h"
-#include "../../pkg/runtime/typekind.h"
+#include "../../runtime/mgc0.h"
+#include "../../runtime/typekind.h"
 
 /*
  * runtime interface and reflection data structures
@@ -109,7 +109,7 @@ lsort(Sig *l, int(*f)(Sig*, Sig*))
 // the given map type.  This type is not visible to users -
 // we include only enough information to generate a correct GC
 // program for it.
-// Make sure this stays in sync with ../../pkg/runtime/hashmap.c!
+// Make sure this stays in sync with ../../runtime/hashmap.c!
 enum {
 	BUCKETSIZE = 8,
 	MAXKEYSIZE = 128,
@@ -192,7 +192,7 @@ mapbucket(Type *t)
 // the given map type.  This type is not visible to users -
 // we include only enough information to generate a correct GC
 // program for it.
-// Make sure this stays in sync with ../../pkg/runtime/hashmap.go!
+// Make sure this stays in sync with ../../runtime/hashmap.go!
 static Type*
 hmap(Type *t)
 {
@@ -261,7 +261,7 @@ hiter(Type *t)
 	//    bptr *Bucket
 	//    other [4]uintptr
 	// }
-	// must match ../../pkg/runtime/hashmap.c:hash_iter.
+	// must match ../../runtime/hashmap.c:hash_iter.
 	field[0] = typ(TFIELD);
 	field[0]->type = ptrto(t->down);
 	field[0]->sym = mal(sizeof(Sym));
@@ -550,7 +550,7 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
 
 /*
  * uncommonType
- * ../../pkg/runtime/type.go:/uncommonType
+ * ../../runtime/type.go:/uncommonType
  */
 static int
 dextratype(Sym *sym, int off, Type *t, int ptroff)
@@ -594,7 +594,7 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 	// methods
 	for(a=m; a; a=a->link) {
 		// method
-		// ../../pkg/runtime/type.go:/method
+		// ../../runtime/type.go:/method
 		ot = dgostringptr(s, ot, a->name);
 		ot = dgopkgpath(s, ot, a->pkg);
 		ot = dsymptr(s, ot, dtypesym(a->mtype), 0);
@@ -710,7 +710,7 @@ haspointers(Type *t)
 
 /*
  * commonType
- * ../../pkg/runtime/type.go:/commonType
+ * ../../runtime/type.go:/commonType
  */
 static int
 dcommontype(Sym *s, int ot, Type *t)
@@ -992,7 +992,7 @@ ok:
 
 	case TARRAY:
 		if(t->bound >= 0) {
-			// ../../pkg/runtime/type.go:/ArrayType
+			// ../../runtime/type.go:/ArrayType
 			s1 = dtypesym(t->type);
 			t2 = typ(TARRAY);
 			t2->type = t->type;
@@ -1004,7 +1004,7 @@ ok:
 			ot = dsymptr(s, ot, s2, 0);
 			ot = duintptr(s, ot, t->bound);
 		} else {
-			// ../../pkg/runtime/type.go:/SliceType
+			// ../../runtime/type.go:/SliceType
 			s1 = dtypesym(t->type);
 			ot = dcommontype(s, ot, t);
 			xt = ot - 3*widthptr;
@@ -1013,7 +1013,7 @@ ok:
 		break;
 
 	case TCHAN:
-		// ../../pkg/runtime/type.go:/ChanType
+		// ../../runtime/type.go:/ChanType
 		s1 = dtypesym(t->type);
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
@@ -1063,14 +1063,14 @@ ok:
 			n++;
 		}
 
-		// ../../pkg/runtime/type.go:/InterfaceType
+		// ../../runtime/type.go:/InterfaceType
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
 		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
 		ot = duintxx(s, ot, n, widthint);
 		ot = duintxx(s, ot, n, widthint);
 		for(a=m; a; a=a->link) {
-			// ../../pkg/runtime/type.go:/imethod
+			// ../../runtime/type.go:/imethod
 			ot = dgostringptr(s, ot, a->name);
 			ot = dgopkgpath(s, ot, a->pkg);
 			ot = dsymptr(s, ot, dtypesym(a->type), 0);
@@ -1078,7 +1078,7 @@ ok:
 		break;
 
 	case TMAP:
-		// ../../pkg/runtime/type.go:/MapType
+		// ../../runtime/type.go:/MapType
 		s1 = dtypesym(t->down);
 		s2 = dtypesym(t->type);
 		s3 = dtypesym(mapbucket(t));
@@ -1109,11 +1109,11 @@ ok:
 	case TPTR32:
 	case TPTR64:
 		if(t->type->etype == TANY) {
-			// ../../pkg/runtime/type.go:/UnsafePointerType
+			// ../../runtime/type.go:/UnsafePointerType
 			ot = dcommontype(s, ot, t);
 			break;
 		}
-		// ../../pkg/runtime/type.go:/PtrType
+		// ../../runtime/type.go:/PtrType
 		s1 = dtypesym(t->type);
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
@@ -1121,7 +1121,7 @@ ok:
 		break;
 
 	case TSTRUCT:
-		// ../../pkg/runtime/type.go:/StructType
+		// ../../runtime/type.go:/StructType
 		// for security, only the exported fields.
 		n = 0;
 		for(t1=t->type; t1!=T; t1=t1->down) {
@@ -1134,7 +1134,7 @@ ok:
 		ot = duintxx(s, ot, n, widthint);
 		ot = duintxx(s, ot, n, widthint);
 		for(t1=t->type; t1!=T; t1=t1->down) {
-			// ../../pkg/runtime/type.go:/structField
+			// ../../runtime/type.go:/structField
 			if(t1->sym && !t1->embedded) {
 				ot = dgostringptr(s, ot, t1->sym->name);
 				if(exportname(t1->sym->name))
@@ -1260,7 +1260,7 @@ dalgsym(Type *t)
 	dsymptr(eqfunc, 0, eq, 0);
 	ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
 
-	// ../../pkg/runtime/alg.go:/typeAlg
+	// ../../runtime/alg.go:/typeAlg
 	ot = 0;
 	ot = dsymptr(s, ot, hashfunc, 0);
 	ot = dsymptr(s, ot, eqfunc, 0);

@@ -688,7 +688,7 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&r->right, init);
 		t = r->left->type;
 		p = nil;
-		if(t->type->width <= 128) { // Check ../../pkg/runtime/hashmap.c:MAXVALUESIZE before changing.
+		if(t->type->width <= 128) { // Check ../../runtime/hashmap.c:MAXVALUESIZE before changing.
 			switch(simsimtype(t->down)) {
 			case TINT32:
 			case TUINT32:
@@ -1083,7 +1083,7 @@ walkexpr(Node **np, NodeList **init)
 
 		t = n->left->type;
 		p = nil;
-		if(t->type->width <= 128) {  // Check ../../pkg/runtime/hashmap.c:MAXVALUESIZE before changing.
+		if(t->type->width <= 128) {  // Check ../../runtime/hashmap.c:MAXVALUESIZE before changing.
 			switch(simsimtype(t->down)) {
 			case TINT32:
 			case TUINT32:

@@ -29,7 +29,7 @@
 // THE SOFTWARE.
 
 #include "gc.h"
-#include "../../pkg/runtime/funcdata.h"
+#include "../../runtime/funcdata.h"
 
 void
 _cgen(Node *n, Node *nn, int inrel)

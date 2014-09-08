@@ -4,10 +4,10 @@
 
 #include	"l.h"
 #include	"lib.h"
-#include	"../../pkg/runtime/typekind.h"
+#include	"../../runtime/typekind.h"
 
 // Decoding the type.* symbols.	 This has to be in sync with
-// ../../pkg/runtime/type.go, or more specificaly, with what
+// ../../runtime/type.go, or more specificaly, with what
 // ../gc/reflect.c stuffs in these.
 
 static Reloc*

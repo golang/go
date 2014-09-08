@@ -5,4 +5,4 @@
 // +build race
 
 // This file is here only to allow external functions.
-// The operations are implemented in src/pkg/runtime/race_amd64.s
+// The operations are implemented in src/runtime/race_amd64.s

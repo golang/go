@@ -29,7 +29,7 @@
 // THE SOFTWARE.
 
 #include "gc.h"
-#include "../../pkg/runtime/funcdata.h"
+#include "../../runtime/funcdata.h"
 
 /* ,x/^(print|prtree)\(/i/\/\/ */
 

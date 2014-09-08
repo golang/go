@@ -433,12 +433,11 @@ const (
 )
 
 var (
-	goroot       = filepath.Clean(runtime.GOROOT())
-	gobin        = os.Getenv("GOBIN")
-	gorootBin    = filepath.Join(goroot, "bin")
-	gorootSrcPkg = filepath.Join(goroot, "src/pkg")
-	gorootPkg    = filepath.Join(goroot, "pkg")
-	gorootSrc    = filepath.Join(goroot, "src")
+	goroot    = filepath.Clean(runtime.GOROOT())
+	gobin     = os.Getenv("GOBIN")
+	gorootBin = filepath.Join(goroot, "bin")
+	gorootPkg = filepath.Join(goroot, "pkg")
+	gorootSrc = filepath.Join(goroot, "src")
 )
 
 func (b *builder) init() {
@@ -1255,7 +1254,7 @@ func (b *builder) showcmd(dir string, format string, args ...interface{}) {
 // the source directory for the package that has failed to build.
 // showOutput rewrites mentions of dir with a relative path to dir
 // when the relative path is shorter.  This is usually more pleasant.
-// For example, if fmt doesn't compile and we are in src/pkg/html,
+// For example, if fmt doesn't compile and we are in src/html,
 // the output is
 //
 //	$ go build
@@ -1267,7 +1266,7 @@ func (b *builder) showcmd(dir string, format string, args ...interface{}) {
 //
 //	$ go build
 //	# fmt
-//	/usr/gopher/go/src/pkg/fmt/print.go:1090: undefined: asdf
+//	/usr/gopher/go/src/fmt/print.go:1090: undefined: asdf
 //	$
 //
 // showOutput also replaces references to the work directory with $WORK.

@@ -1326,7 +1326,7 @@ sgen(Node *n, Node *res, int64 w)
 			p = gins(ADUFFCOPY, N, N);
 			p->to.type = D_ADDR;
 			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
-			// 10 and 128 = magic constants: see ../../pkg/runtime/asm_386.s
+			// 10 and 128 = magic constants: see ../../runtime/asm_386.s
 			p->to.offset = 10*(128-q);
 		} else
 		while(q > 0) {
