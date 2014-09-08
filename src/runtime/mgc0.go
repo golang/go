@@ -68,3 +68,38 @@ func clearpools() {
 		}
 	}
 }
+
+// State of background sweep.
+// Protected by gclock.
+// Must match mgc0.c.
+var sweep struct {
+	g           *g
+	parked      bool
+	spanidx     uint32 // background sweeper position
+	nbgsweep    uint32
+	npausesweep uint32
+}
+
+var gclock mutex // also in mgc0.c
+func gosweepone() uintptr
+func gosweepdone() bool
+
+func bgsweep() {
+	getg().issystem = true
+	for {
+		for gosweepone() != ^uintptr(0) {
+			sweep.nbgsweep++
+			gosched()
+		}
+		lock(&gclock)
+		if !gosweepdone() {
+			// This can happen if a GC runs between
+			// gosweepone returning ^0 above
+			// and the lock being acquired.
+			unlock(&gclock)
+			continue
+		}
+		sweep.parked = true
+		goparkunlock(&gclock, "GC sweep wait")
+	}
+}

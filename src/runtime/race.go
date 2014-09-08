@@ -12,6 +12,8 @@ import (
 	"unsafe"
 )
 
+func racefini()
+
 // RaceDisable disables handling of race events in the current goroutine.
 func RaceDisable()
 

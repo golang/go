@@ -190,6 +190,7 @@ runtime·dopanic_m(void)
 	runtime·exit(2);
 }
 
+#pragma textflag NOSPLIT
 bool
 runtime·canpanic(G *gp)
 {

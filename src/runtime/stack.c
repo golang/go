@@ -428,13 +428,6 @@ checkframecopy(Stkframe *frame, void *arg)
 			runtime·printf("    <next segment>\n");
 		return false; // stop traceback
 	}
-	if(f->entry == (uintptr)runtime·main) {
-		// A special routine at the TOS of the main routine.
-		// We will allow it to be copied even though we don't
-		// have full GC info for it (because it is written in C).
-		cinfo->frames++;
-		return false; // stop traceback
-	}
 	if(f->entry == (uintptr)runtime·switchtoM) {
 		// A special routine at the bottom of stack of a goroutine that does onM call.
 		// We will allow it to be copied even though we don't
@@ -657,8 +650,7 @@ adjustframe(Stkframe *frame, void *arg)
 	f = frame->fn;
 	if(StackDebug >= 2)
 		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p continpc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc, frame->continpc);
-	if(f->entry == (uintptr)runtime·main ||
-		f->entry == (uintptr)runtime·switchtoM)
+	if(f->entry == (uintptr)runtime·switchtoM)
 		return true;
 	targetpc = frame->continpc;
 	if(targetpc == 0) {
@@ -1125,4 +1117,22 @@ runtime·shrinkstack(G *gp)
 	if(nframes == -1)
 		return;
 	copystack(gp, nframes, newsize);
+}
+
+static void badc(void);
+
+#pragma textflag NOSPLIT
+void
+runtime·morestackc(void)
+{
+	void (*fn)(void);
+	
+	fn = badc;
+	runtime·onM(&fn);
+}
+
+static void
+badc(void)
+{
+	runtime·throw("attempt to execute C code on Go stack");
 }

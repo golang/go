@@ -143,8 +143,17 @@ TEXT reflect·unsafe_NewArray(SB),NOSPLIT,$0-0
 TEXT reflect·makechan(SB),NOSPLIT,$0-0
 	JMP	runtime·makechan(SB)
 
-TEXT reflect·rselect(SB), NOSPLIT, $0-0
+TEXT reflect·rselect(SB),NOSPLIT,$0-0
 	JMP	runtime·reflect_rselect(SB)
 
-TEXT os·sigpipe(SB), NOSPLIT, $0-0
+TEXT os·sigpipe(SB),NOSPLIT,$0-0
 	JMP	runtime·os_sigpipe(SB)
+
+TEXT runtime·runtime_init(SB),NOSPLIT,$0-0
+	JMP	runtime·init(SB)
+
+TEXT runtime·main_init(SB),NOSPLIT,$0-0
+	JMP	main·init(SB)
+
+TEXT runtime·main_main(SB),NOSPLIT,$0-0
+	JMP	main·main(SB)

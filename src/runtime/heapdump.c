@@ -711,7 +711,7 @@ dumpmemprof(void)
 }
 
 static void
-mdump(G *gp)
+mdump(void)
 {
 	byte *hdr;
 	uintptr i;
@@ -737,18 +737,32 @@ mdump(G *gp)
 	dumpmemprof();
 	dumpint(TagEOF);
 	flush();
-
-	gp->param = nil;
-	runtime·casgstatus(gp, Gwaiting, Grunning);
-	runtime·gogo(&gp->sched);
 }
 
+static void writeheapdump_m(void);
+
+#pragma textflag NOSPLIT
 void
 runtime∕debug·WriteHeapDump(uintptr fd)
 {
-	void (*fn)(G*);
+	void (*fn)(void);
+	
+	g->m->scalararg[0] = fd;
+	fn = writeheapdump_m;
+	runtime·onM(&fn);
+}
+
+static void
+writeheapdump_m(void)
+{
+	uintptr fd;
+	
+	fd = g->m->scalararg[0];
+	g->m->scalararg[0] = 0;
 
 	// Stop the world.
+	runtime·casgstatus(g->m->curg, Grunning, Gwaiting);
+	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
 	runtime·semacquire(&runtime·worldsema, false);
 	g->m->gcing = 1;
 	runtime·stoptheworld();
@@ -761,11 +775,8 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 	// Set dump file.
 	dumpfd = fd;
 
-	// Call dump routine on M stack.
-	runtime·casgstatus(g, Grunning, Gwaiting);
-	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
-	fn = mdump;
-	runtime·mcall(&fn);
+	// Call dump routine.
+	mdump();
 
 	// Reset dump file.
 	dumpfd = 0;
@@ -780,6 +791,7 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 	g->m->locks++;
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
+	runtime·casgstatus(g->m->curg, Gwaiting, Grunning);
 	g->m->locks--;
 }
 

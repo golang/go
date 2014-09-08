@@ -10,9 +10,6 @@ import "unsafe"
 // should use printhex instead of printuint (decimal).
 type hex uint64
 
-//go:noescape
-func gostring(*byte) string
-
 func bytes(s string) (ret []byte) {
 	rp := (*slice)(unsafe.Pointer(&ret))
 	sp := (*_string)(noescape(unsafe.Pointer(&s)))

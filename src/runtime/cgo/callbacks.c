@@ -33,18 +33,7 @@
 //   crosscall2(_cgo_allocate, &a, sizeof a);
 //   /* Here a.ret is a pointer to the allocated memory.  */
 
-static void
-_cgo_allocate_internal(uintptr len, byte *ret)
-{
-	CgoMal *c;
-
-	ret = runtime·mallocgc(len, nil, 0);
-	c = runtime·mallocgc(sizeof(*c), nil, 0);
-	c->next = g->m->cgomal;
-	c->alloc = ret;
-	g->m->cgomal = c;
-	FLUSH(&ret);
-}
+void runtime·_cgo_allocate_internal(void);
 
 #pragma cgo_export_static _cgo_allocate
 #pragma cgo_export_dynamic _cgo_allocate
@@ -52,7 +41,7 @@ _cgo_allocate_internal(uintptr len, byte *ret)
 void
 _cgo_allocate(void *a, int32 n)
 {
-	runtime·cgocallback((void(*)(void))_cgo_allocate_internal, a, n);
+	runtime·cgocallback((void(*)(void))runtime·_cgo_allocate_internal, a, n);
 }
 
 // Panic.  The argument is converted into a Go string.
@@ -63,18 +52,7 @@ _cgo_allocate(void *a, int32 n)
 //   crosscall2(_cgo_panic, &a, sizeof a);
 //   /* The function call will not return.  */
 
-extern void ·cgoStringToEface(String, Eface*);
-
-static void
-_cgo_panic_internal(byte *p)
-{
-	String s;
-	Eface err;
-
-	s = runtime·gostring(p);
-	·cgoStringToEface(s, &err);
-	runtime·gopanic(err);
-}
+void runtime·_cgo_panic_internal(void);
 
 #pragma cgo_export_static _cgo_panic
 #pragma cgo_export_dynamic _cgo_panic
@@ -82,7 +60,7 @@ _cgo_panic_internal(byte *p)
 void
 _cgo_panic(void *a, int32 n)
 {
-	runtime·cgocallback((void(*)(void))_cgo_panic_internal, a, n);
+	runtime·cgocallback((void(*)(void))runtime·_cgo_panic_internal, a, n);
 }
 
 #pragma cgo_import_static x_cgo_init

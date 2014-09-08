@@ -526,22 +526,6 @@ func showframe(f *_func, gp *g) bool {
 	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.")
 }
 
-func contains(s, t string) bool {
-	if len(t) == 0 {
-		return true
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] == t[0] && hasprefix(s[i:], t) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasprefix(s, t string) bool {
-	return len(s) >= len(t) && s[:len(t)] == t
-}
-
 var gStatusStrings = [...]string{
 	_Gidle:      "idle",
 	_Grunnable:  "runnable",

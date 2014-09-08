@@ -291,19 +291,6 @@ runtime·closeonexec(int32)
 {
 }
 
-void
-runtime·sigpanic(void)
-{
-	if(!runtime·canpanic(g))
-		runtime·throw("unexpected signal during runtime execution");
-
-	// Native Client only invokes the exception handler for memory faults.
-	g->sig = SIGSEGV;
-	if(g->sigpc == 0)
-		runtime·panicstring("call of nil func value");
-	runtime·panicstring("invalid memory address or nil pointer dereference");
-}
-
 uint32 runtime·writelock; // test-and-set spin lock for runtime.write
 
 /*
