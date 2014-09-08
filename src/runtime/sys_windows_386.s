@@ -161,7 +161,7 @@ TEXT runtime·profileloop(SB),NOSPLIT,$0
 	PUSHL	$runtime·profileloop1(SB)
 	CALL	runtime·externalthreadhandler(SB)
 	MOVL	4(SP), CX
-	ADDL	$40, SP
+	ADDL	$12, SP
 	JMP	CX
 
 TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
