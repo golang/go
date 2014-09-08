@@ -106,7 +106,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
 	// as required by windows callback convention.
 	PUSHFQ
-	SUBQ	$96, SP
+	SUBQ	$112, SP
 	MOVQ	DI, 80(SP)
 	MOVQ	SI, 72(SP)
 	MOVQ	BP, 64(SP)
@@ -116,10 +116,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVQ	R14, 32(SP)
 	MOVQ	R15, 88(SP)
 
-	MOVQ	0(CX), BX // ExceptionRecord*
-	MOVQ	8(CX), CX // Context*
-
-	// fetch g
+	// find g
 	get_tls(DX)
 	CMPQ	DX, $0
 	JNE	3(PC)
@@ -129,6 +126,37 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	CMPQ	DX, $0
 	JNE	2(PC)
 	CALL	runtime·badsignal2(SB)
+
+	// save g and SP in case of stack switch
+	MOVQ	DX, 96(SP) // g
+	MOVQ	SP, 104(SP)
+
+	// do we need to switch to the g0 stack?
+	MOVQ	g_m(DX), BX
+	MOVQ	m_g0(BX), BX
+	CMPQ	DX, BX
+	JEQ	sigtramp_g0
+
+	// switch to g0 stack
+	get_tls(BP)
+	MOVQ	BX, g(BP)
+	MOVQ	(g_sched+gobuf_sp)(BX), DI
+	// make it look like mstart called us on g0, to stop traceback
+	SUBQ	$8, DI
+	MOVQ	$runtime·mstart(SB), SI
+	MOVQ	SI, 0(DI)
+	// traceback will think that we've done PUSHFQ and SUBQ
+	// on this stack, so subtract them here to match.
+	// (we need room for sighandler arguments anyway).
+	// and re-save old SP for restoring later.
+	SUBQ	$(112+8), DI
+	// save g, save old stack pointer.
+	MOVQ	SP, 104(DI)
+	MOVQ	DI, SP
+
+sigtramp_g0:
+	MOVQ	0(CX), BX // ExceptionRecord*
+	MOVQ	8(CX), CX // Context*
 	// call sighandler(ExceptionRecord*, Context*, G*)
 	MOVQ	BX, 0(SP)
 	MOVQ	CX, 8(SP)
@@ -136,6 +164,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	CALL	runtime·sighandler(SB)
 	// AX is set to report result back to Windows
 	MOVL	24(SP), AX
+
+	// switch back to original stack and g
+	// no-op if we never left.
+	MOVQ	104(SP), SP
+	MOVQ	96(SP), DX
+	get_tls(BP)
+	MOVQ	DX, g(BP)
 
 done:
 	// restore registers as required for windows callback
@@ -147,7 +182,7 @@ done:
 	MOVQ	64(SP), BP
 	MOVQ	72(SP), SI
 	MOVQ	80(SP), DI
-	ADDQ	$96, SP
+	ADDQ	$112, SP
 	POPFQ
 
 	RET
