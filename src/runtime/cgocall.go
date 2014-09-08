@@ -134,6 +134,7 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
 	return errno
 }
 
+//go:nosplit
 func endcgo(mp *m) {
 	mp.ncgo--
 	if mp.ncgo == 0 {
