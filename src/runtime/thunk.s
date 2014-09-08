@@ -56,8 +56,8 @@ TEXT runtime∕pprof·runtime_cyclesPerSecond(SB),NOSPLIT,$0-0
 TEXT bytes·Compare(SB),NOSPLIT,$0-0
 	JMP	runtime·cmpbytes(SB)
 
-TEXT runtime·reflectcall(SB), NOSPLIT, $0-0
-	JMP	reflect·call(SB)
+TEXT reflect·call(SB), NOSPLIT, $0-0
+	JMP	runtime·reflectcall(SB)
 
 TEXT reflect·chanclose(SB), NOSPLIT, $0-0
 	JMP	runtime·closechan(SB)

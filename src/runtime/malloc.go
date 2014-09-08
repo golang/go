@@ -35,6 +35,8 @@ const (
 	bitMask     = bitBoundary | bitMarked
 
 	mSpanInUse = 0
+
+	concurrentSweep = true
 )
 
 // Page number (address>>pageShift)

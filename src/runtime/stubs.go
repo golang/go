@@ -7,9 +7,6 @@ package runtime
 import "unsafe"
 
 // Declarations for runtime services implemented in C or assembly.
-// C implementations of these functions are in stubs.goc.
-// Assembly implementations are in various files, see comments with
-// each function.
 
 const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
 const regSize = 4 << (^uintreg(0) >> 63) // unsafe.Sizeof(uintreg(0)) but an ideal const
@@ -26,7 +23,7 @@ func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + delta)
 }
 
-// in stubs.goc
+// in runtime.c
 func getg() *g
 func acquirem() *m
 func releasem(mp *m)
@@ -113,10 +110,6 @@ func memclr(ptr unsafe.Pointer, n uintptr)
 // in memmove_*.s
 //go:noescape
 func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
-
-const (
-	concurrentSweep = true
-)
 
 func gosched()
 func starttheworld()
