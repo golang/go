@@ -306,14 +306,14 @@ var Files = map[string]string{
 	</div>
 	<div class="expanded">
 		<p class="exampleHeading toggleButton">▾ <span class="text">Internal call graph</span></p>
-                <p>
-                  This viewer shows the portion of the internal call
-                  graph of this package that is reachable from this function.  
-                  See the <a href='#pkg-callgraph'>package's call
-                  graph</a> for more information.
-                </p>
-                <ul style="margin-left: 0.5in" id="callgraph-{{.Index}}" class="treeview"></ul>
-        </div>
+		<p>
+		  This viewer shows the portion of the internal call
+		  graph of this package that is reachable from this function.
+		  See the <a href='#pkg-callgraph'>package's call
+		  graph</a> for more information.
+		</p>
+		<ul style="margin-left: 0.5in" id="callgraph-{{.Index}}" class="treeview"></ul>
+	</div>
 </div>
 `,
 
@@ -530,7 +530,6 @@ func main() {
 <div class="container">
 
 {{with .Title}}
-  <div id="plusone"><g:plusone size="small" annotation="none"></g:plusone></div>
   <h1>{{html .}}</h1>
 {{end}}
 {{with .Subtitle}}
@@ -806,15 +805,6 @@ function toggleHash() {
     }
 }
 
-function addPlusButtons() {
-  var po = document.createElement('script');
-  po.type = 'text/javascript';
-  po.async = true;
-  po.src = 'https://apis.google.com/js/platform.js';
-  var s = document.getElementsByTagName('script')[0];
-  s.parentNode.insertBefore(po, s);
-}
-
 $(document).ready(function() {
   bindSearchEvents();
   generateTOC();
@@ -830,7 +820,6 @@ $(document).ready(function() {
   setupTypeInfo();
   setupCallgraphs();
   toggleHash();
-  addPlusButtons();
 
   // godoc.html defines window.initFuncs in the <head> tag, and root.html and
   // codewalk.js push their on-page-ready functions to the list.
@@ -1111,7 +1100,7 @@ function cgAddChild(tree, ul, cgn) {
 	</div>
 	<div class="expanded">
 		<p class="exampleHeading toggleButton">▾ <span class="text">Implements</span></p>
-                <div style="margin-left: 1in" id='implements-{{.Index}}'>...</div>
+		<div style="margin-left: 1in" id='implements-{{.Index}}'>...</div>
 	</div>
 </div>
 `,
@@ -1502,7 +1491,7 @@ function cgAddChild(tree, ul, cgn) {
 	</div>
 	<div class="expanded">
 		<p class="exampleHeading toggleButton">▾ <span class="text">Method set</span></p>
-                <div style="margin-left: 1in" id='methodset-{{.Index}}'>...</div>
+		<div style="margin-left: 1in" id='methodset-{{.Index}}'>...</div>
 	</div>
 </div>
 `,
@@ -1533,9 +1522,9 @@ function cgAddChild(tree, ul, cgn) {
 -->
 {{with .PDoc}}
 	<script type='text/javascript'>
-        document.ANALYSIS_DATA = {{$.AnalysisData}};
-        document.CALLGRAPH = {{$.CallGraph}};
-        </script>
+	document.ANALYSIS_DATA = {{$.AnalysisData}};
+	document.CALLGRAPH = {{$.CallGraph}};
+	</script>
 
 	{{if $.IsMain}}
 		{{/* command documentation */}}
@@ -1639,35 +1628,34 @@ function cgAddChild(tree, ul, cgn) {
 		</div> <!-- .expanded -->
 		<div class="expanded">
 			<h2 class="toggleButton" title="Click to hide Internal Call Graph section">Internal call graph ▾</h2>
-                        <p>
-                          In the call graph viewer below, each node
-                          is a function belonging to this package
-                          and its children are the functions it
-                          calls&mdash;perhaps dynamically.
-                        </p>
-                        <p>
-                          The root nodes are the entry points of the
-                          package: functions that may be called from
-                          outside the package.  
-                          There may be non-exported or anonymous
-                          functions among them if they are called
-                          dynamically from another package.
-                        </p>
-                        <p>
-                          Click a node to visit that function's source code.
-                          From there you can visit its callers by
-                          clicking its declaring <code>func</code>
-                          token.
-                        </p>
-                        <p>
-                          Functions may be omitted if they were
-                          determined to be unreachable in the
-                          particular programs or tests that were
-                          analyzed.
-                        </p>
-                        <!-- Zero means show all package entry points. -->
-                        <ul style="margin-left: 0.5in" id="callgraph-0" class="treeview"></ul>
-                        </script>                        
+			<p>
+			  In the call graph viewer below, each node
+			  is a function belonging to this package
+			  and its children are the functions it
+			  calls&mdash;perhaps dynamically.
+			</p>
+			<p>
+			  The root nodes are the entry points of the
+			  package: functions that may be called from
+			  outside the package.
+			  There may be non-exported or anonymous
+			  functions among them if they are called
+			  dynamically from another package.
+			</p>
+			<p>
+			  Click a node to visit that function's source code.
+			  From there you can visit its callers by
+			  clicking its declaring <code>func</code>
+			  token.
+			</p>
+			<p>
+			  Functions may be omitted if they were
+			  determined to be unreachable in the
+			  particular programs or tests that were
+			  analyzed.
+			</p>
+			<!-- Zero means show all package entry points. -->
+			<ul style="margin-left: 0.5in" id="callgraph-0" class="treeview"></ul>
 		</div>
 		</div> <!-- #pkg-callgraph -->
 
@@ -1722,7 +1710,7 @@ function cgAddChild(tree, ul, cgn) {
 				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
 				{{example_html $ .Name}}
-			        {{callgraph_html $ "" .Name}}
+				{{callgraph_html $ "" .Name}}
 			{{end}}
 
 			{{range .Methods}}
@@ -1732,7 +1720,7 @@ function cgAddChild(tree, ul, cgn) {
 				{{comment_html .Doc}}
 				{{$name := printf "%s_%s" $tname .Name}}
 				{{example_html $ $name}}
-			        {{callgraph_html $ .Recv .Name}}
+				{{callgraph_html $ .Recv .Name}}
 			{{end}}
 		{{end}}
 	{{end}}
@@ -2638,23 +2626,23 @@ function PlaygroundOutput(el) {
 	license that can be found in the LICENSE file.
 -->
 {{range $key, $val := .Idents}}
-        {{if $val}}
+	{{if $val}}
 		<h2 id="{{$key.Name}}">{{$key.Name}}</h2>
-                {{range $val}}
-	                {{$pkg_html := pkgLink .Path | html}}
+		{{range $val}}
+			{{$pkg_html := pkgLink .Path | html}}
 			{{if eq "Packages" $key.Name}}
-  	                	<a href="/{{$pkg_html}}">{{html .Path}}</a>
+				<a href="/{{$pkg_html}}">{{html .Path}}</a>
 			{{else}}
-		        	{{$doc_html := docLink .Path .Name| html}}
-  	                	<a href="/{{$pkg_html}}">{{html .Package}}</a>.<a href="{{$doc_html}}">{{.Name}}</a>
-                        {{end}}
-                        {{if .Doc}}
-                        	<p>{{comment_html .Doc}}</p>
-                        {{else}}
-                        	<p><em>No documentation available</em></p>
-                        {{end}}
-                {{end}}
-        {{end}}
+				{{$doc_html := docLink .Path .Name| html}}
+				<a href="/{{$pkg_html}}">{{html .Package}}</a>.<a href="{{$doc_html}}">{{.Name}}</a>
+			{{end}}
+			{{if .Doc}}
+				<p>{{comment_html .Doc}}</p>
+			{{else}}
+				<p><em>No documentation available</em></p>
+			{{end}}
+		{{end}}
+	{{end}}
 {{end}}
 `,
 
