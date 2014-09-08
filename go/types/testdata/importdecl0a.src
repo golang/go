@@ -17,7 +17,7 @@ import (
 )
 
 import "math" /* ERROR "imported but not used" */
-import m /* ERROR "imported but not used" */ "math"
+import m /* ERROR "imported but not used as m" */ "math"
 import _ "math"
 
 import (
@@ -34,8 +34,11 @@ import f2 "fmt"
 type flag int
 type _ reflect /* ERROR "not exported" */ .flag
 
+// imported package name may conflict with local objects
+type reflect /* ERROR "reflect already declared" */ int
+
 // dot-imported exported objects may conflict with local objects
-type Value /* ERROR "already declared in this file" */ struct{}
+type Value /* ERROR "Value already declared through dot-import of package reflect" */ struct{}
 
 var _ = fmt.Println // use "fmt"
 

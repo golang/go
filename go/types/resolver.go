@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	pathLib "path"
 	"strconv"
 	"strings"
 	"unicode"
@@ -207,6 +208,14 @@ func (check *Checker) collectObjects() {
 								// A package scope may contain non-exported objects,
 								// do not import them!
 								if obj.Exported() {
+									// TODO(gri) When we import a package, we create
+									// a new local package object. We should do the
+									// same for each dot-imported object. That way
+									// they can have correct position information.
+									// (We must not modify their existing position
+									// information because the same package - found
+									// via Config.Packages - may be dot-imported in
+									// another package!)
 									check.declare(fileScope, nil, obj)
 									check.recordImplicit(s, obj)
 								}
@@ -343,7 +352,14 @@ func (check *Checker) collectObjects() {
 	for _, scope := range check.fileScopes {
 		for _, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
-				check.errorf(alt.Pos(), "%s already declared in this file through import of package %s", obj.Name(), obj.Pkg().Name())
+				if pkg, ok := obj.(*PkgName); ok {
+					check.errorf(alt.Pos(), "%s already declared through import of %s", alt.Name(), pkg.Imported())
+					check.reportAltDecl(pkg)
+				} else {
+					check.errorf(alt.Pos(), "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
+					// TODO(gri) dot-imported objects don't have a position; reportAltDecl won't print anything
+					check.reportAltDecl(obj)
+				}
 			}
 		}
 	}
@@ -397,7 +413,13 @@ func (check *Checker) unusedImports() {
 				// Unused "blank imports" are automatically ignored
 				// since _ identifiers are not entered into scopes.
 				if !obj.used {
-					check.softErrorf(obj.pos, "%q imported but not used", obj.imported.path)
+					path := obj.imported.path
+					base := pathLib.Base(path)
+					if obj.name == base {
+						check.softErrorf(obj.pos, "%q imported but not used", path)
+					} else {
+						check.softErrorf(obj.pos, "%q imported but not used as %s", path, obj.name)
+					}
 				}
 			default:
 				// All other objects in the file scope must be dot-
