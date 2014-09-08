@@ -162,19 +162,6 @@ runtime·nanotime(void)
 
 #pragma textflag NOSPLIT
 void
-time·now(int64 sec, int32 nsec)
-{
-	int64 ns;
-
-	ns = runtime·nanotime();
-	sec = ns / 1000000000LL;
-	nsec = ns - sec * 1000000000LL;
-	FLUSH(&sec);
-	FLUSH(&nsec);
-}
-
-#pragma textflag NOSPLIT
-void
 runtime·itoa(int32 n, byte *p, uint32 len)
 {
 	byte *q, c;

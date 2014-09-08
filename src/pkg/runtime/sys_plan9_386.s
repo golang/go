@@ -101,6 +101,19 @@ TEXT runtime·nsec(SB),NOSPLIT,$8
 	MOVL	$-1, ret_hi+8(FP)
 	RET
 
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB),NOSPLIT,$8-12
+	CALL	runtime·nanotime(SB)
+	MOVL	0(SP), AX
+	MOVL	4(SP), DX
+
+	MOVL	$1000000000, CX
+	DIVL	CX
+	MOVL	AX, sec+0(FP)
+	MOVL	$0, sec+4(FP)
+	MOVL	DX, nsec+8(FP)
+	RET
+
 TEXT runtime·notify(SB),NOSPLIT,$0
 	MOVL	$28, AX
 	INT	$64
