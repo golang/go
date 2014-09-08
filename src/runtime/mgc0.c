@@ -124,9 +124,8 @@ static FinBlock	*allfin;	// list of all blocks
 BitVector	runtime·gcdatamask;
 BitVector	runtime·gcbssmask;
 
-static Mutex	gclock;
+extern	Mutex	runtime·gclock;
 
-static void	bgsweep(void);
 static Workbuf* getempty(Workbuf*);
 static Workbuf* getfull(Workbuf*);
 static void	putempty(Workbuf*);
@@ -137,7 +136,8 @@ static bool	scanframe(Stkframe *frame, void *unused);
 static void	scanstack(G *gp);
 static BitVector	unrollglobgcprog(byte *prog, uintptr size);
 
-static FuncVal bgsweepv = {bgsweep};
+void runtime·bgsweep(void);
+static FuncVal bgsweepv = {runtime·bgsweep};
 
 static struct {
 	uint64	full;  // lock-free list of full blocks
@@ -1041,9 +1041,10 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
 	return res;
 }
 
-// State of background sweep.
-// Pretected by gclock.
-static struct
+// State of background runtime·sweep.
+// Pretected by runtime·gclock.
+// Must match mgc0.go.
+struct
 {
 	G*	g;
 	bool	parked;
@@ -1052,29 +1053,7 @@ static struct
 
 	uint32	nbgsweep;
 	uint32	npausesweep;
-} sweep;
-
-// background sweeping goroutine
-static void
-bgsweep(void)
-{
-	g->issystem = true;
-	for(;;) {
-		while(runtime·sweepone() != -1) {
-			sweep.nbgsweep++;
-			runtime·gosched();
-		}
-		runtime·lock(&gclock);
-		if(!runtime·mheap.sweepdone) {
-			// It's possible if GC has happened between sweepone has
-			// returned -1 and gclock lock.
-			runtime·unlock(&gclock);
-			continue;
-		}
-		sweep.parked = true;
-		runtime·parkunlock(&gclock, runtime·gostringnocopy((byte*)"GC sweep wait"));
-	}
-}
+} runtime·sweep;
 
 // sweeps one span
 // returns number of pages returned to heap, or -1 if there is nothing to sweep
@@ -1090,7 +1069,7 @@ runtime·sweepone(void)
 	g->m->locks++;
 	sg = runtime·mheap.sweepgen;
 	for(;;) {
-		idx = runtime·xadd(&sweep.spanidx, 1) - 1;
+		idx = runtime·xadd(&runtime·sweep.spanidx, 1) - 1;
 		if(idx >= work.nspan) {
 			runtime·mheap.sweepdone = true;
 			g->m->locks--;
@@ -1109,6 +1088,30 @@ runtime·sweepone(void)
 		g->m->locks--;
 		return npages;
 	}
+}
+
+static void
+sweepone_m(void)
+{
+	g->m->scalararg[0] = runtime·sweepone();
+}
+
+#pragma textflag NOSPLIT
+uintptr
+runtime·gosweepone(void)
+{
+	void (*fn)(void);
+	
+	fn = sweepone_m;
+	runtime·onM(&fn);
+	return g->m->scalararg[0];
+}
+
+#pragma textflag NOSPLIT
+bool
+runtime·gosweepdone(void)
+{
+	return runtime·mheap.sweepdone;
 }
 
 void
@@ -1328,7 +1331,7 @@ gc(struct gc_args *args)
 
 	// Sweep what is not sweeped by bgsweep.
 	while(runtime·sweepone() != -1)
-		sweep.npausesweep++;
+		runtime·sweep.npausesweep++;
 
 	// Cache runtime.mheap.allspans in work.spans to avoid conflicts with
 	// resizing/freeing allspans.
@@ -1407,11 +1410,11 @@ gc(struct gc_args *args)
 			mstats.numgc, work.nproc, (t1-t0)/1000, (t2-t1)/1000, (t3-t2)/1000, (t4-t3)/1000,
 			heap0>>20, heap1>>20, obj,
 			mstats.nmalloc, mstats.nfree,
-			work.nspan, sweep.nbgsweep, sweep.npausesweep,
+			work.nspan, runtime·sweep.nbgsweep, runtime·sweep.npausesweep,
 			stats.nhandoff, stats.nhandoffcnt,
 			work.markfor->nsteal, work.markfor->nstealcnt,
 			stats.nprocyield, stats.nosyield, stats.nsleep);
-		sweep.nbgsweep = sweep.npausesweep = 0;
+		runtime·sweep.nbgsweep = runtime·sweep.npausesweep = 0;
 	}
 
 	// See the comment in the beginning of this function as to why we need the following.
@@ -1426,23 +1429,23 @@ gc(struct gc_args *args)
 	runtime·mheap.sweepdone = false;
 	work.spans = runtime·mheap.allspans;
 	work.nspan = runtime·mheap.nspan;
-	sweep.spanidx = 0;
+	runtime·sweep.spanidx = 0;
 	runtime·unlock(&runtime·mheap.lock);
 
 	// Temporary disable concurrent sweep, because we see failures on builders.
 	if(ConcurrentSweep && !args->eagersweep) {
-		runtime·lock(&gclock);
-		if(sweep.g == nil)
-			sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, gc);
-		else if(sweep.parked) {
-			sweep.parked = false;
-			runtime·ready(sweep.g);
+		runtime·lock(&runtime·gclock);
+		if(runtime·sweep.g == nil)
+			runtime·sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, gc);
+		else if(runtime·sweep.parked) {
+			runtime·sweep.parked = false;
+			runtime·ready(runtime·sweep.g);
 		}
-		runtime·unlock(&gclock);
+		runtime·unlock(&runtime·gclock);
 	} else {
 		// Sweep all spans eagerly.
 		while(runtime·sweepone() != -1)
-			sweep.npausesweep++;
+			runtime·sweep.npausesweep++;
 	}
 
 	runtime·mProf_GC();
@@ -1451,9 +1454,27 @@ gc(struct gc_args *args)
 
 extern uintptr runtime·sizeof_C_MStats;
 
+static void readmemstats_m(void);
+
+#pragma textflag NOSPLIT
 void
 runtime·ReadMemStats(MStats *stats)
 {
+	void (*fn)(void);
+	
+	g->m->ptrarg[0] = stats;
+	fn = readmemstats_m;
+	runtime·onM(&fn);
+}
+
+static void
+readmemstats_m(void)
+{
+	MStats *stats;
+	
+	stats = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+
 	// Have to acquire worldsema to stop the world,
 	// because stoptheworld can only be used by
 	// one goroutine at a time, and there might be
@@ -1478,11 +1499,28 @@ runtime·ReadMemStats(MStats *stats)
 	g->m->locks--;
 }
 
+static void readgcstats_m(void);
+
+#pragma textflag NOSPLIT
 void
 runtime∕debug·readGCStats(Slice *pauses)
 {
+	void (*fn)(void);
+	
+	g->m->ptrarg[0] = pauses;
+	fn = readgcstats_m;
+	runtime·onM(&fn);
+}
+
+static void
+readgcstats_m(void)
+{
+	Slice *pauses;	
 	uint64 *p;
 	uint32 i, n;
+	
+	pauses = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
 
 	// Calling code in runtime/debug should make the slice large enough.
 	if(pauses->cap < nelem(mstats.pause_ns)+3)
@@ -1510,7 +1548,8 @@ runtime∕debug·readGCStats(Slice *pauses)
 }
 
 void
-runtime·setgcpercent_m(void) {
+runtime·setgcpercent_m(void)
+{
 	int32 in;
 	int32 out;
 
@@ -1901,7 +1940,8 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 
 void runtime·gc_unixnanotime(int64 *now);
 
-int64 runtime·unixnanotime(void)
+int64
+runtime·unixnanotime(void)
 {
 	int64 now;
 

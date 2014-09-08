@@ -239,3 +239,60 @@ func rawruneslice(size int) (b []rune) {
 	(*slice)(unsafe.Pointer(&b)).cap = uint(mem / 4)
 	return
 }
+
+// used by cmd/cgo
+func gobytes(p *byte, n int) []byte {
+	if n == 0 {
+		return make([]byte, 0)
+	}
+	x := make([]byte, n)
+	memmove(unsafe.Pointer(&x[0]), unsafe.Pointer(p), uintptr(n))
+	return x
+}
+
+func gostringsize(n int) string {
+	s, _ := rawstring(n)
+	return s
+}
+
+//go:noescape
+func findnull(*byte) int
+
+func gostring(p *byte) string {
+	l := findnull(p)
+	if l == 0 {
+		return ""
+	}
+	s, b := rawstring(l)
+	memmove(unsafe.Pointer(&b[0]), unsafe.Pointer(p), uintptr(l))
+	return s
+}
+
+func gostringn(p *byte, l int) string {
+	if l == 0 {
+		return ""
+	}
+	s, b := rawstring(l)
+	memmove(unsafe.Pointer(&b[0]), unsafe.Pointer(p), uintptr(l))
+	return s
+}
+
+func index(s, t string) int {
+	if len(t) == 0 {
+		return 0
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] == t[0] && hasprefix(s[i:], t) {
+			return i
+		}
+	}
+	return -1
+}
+
+func contains(s, t string) bool {
+	return index(s, t) >= 0
+}
+
+func hasprefix(s, t string) bool {
+	return len(s) >= len(t) && s[:len(t)] == t
+}

@@ -783,6 +783,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		p->as = cmp;
 		p->from.type = D_SP;
 		indir_cx(ctxt, &p->to);
+		if(ctxt->cursym->cfunc)
+			p->to.offset = 3*ctxt->arch->ptrsize;
 	} else if(framesize <= StackBig) {
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAQ -xxx(SP), AX
@@ -797,6 +799,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		p->as = cmp;
 		p->from.type = D_AX;
 		indir_cx(ctxt, &p->to);
+		if(ctxt->cursym->cfunc)
+			p->to.offset = 3*ctxt->arch->ptrsize;
 	} else {
 		// Such a large stack we need to protect against wraparound.
 		// If SP is close to zero:
@@ -817,6 +821,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		p->as = mov;
 		indir_cx(ctxt, &p->from);
 		p->from.offset = 0;
+		if(ctxt->cursym->cfunc)
+			p->from.offset = 3*ctxt->arch->ptrsize;
 		p->to.type = D_SI;
 
 		p = appendp(ctxt, p);
@@ -873,6 +879,11 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 	// 4 varieties varieties (const1==0 cross const2==0)
 	// and 6 subvarieties of (const1==0 and const2!=0)
 	p = appendp(ctxt, p);
+	if(ctxt->cursym->cfunc) {
+		p->as = ACALL;
+		p->to.type = D_BRANCH;
+		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
+	} else
 	if(moreconst1 == 0 && moreconst2 == 0) {
 		p->as = ACALL;
 		p->to.type = D_BRANCH;

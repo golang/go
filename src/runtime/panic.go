@@ -24,6 +24,24 @@ func panicdivide() {
 	panic(divideError)
 }
 
+var overflowError = error(errorString("integer overflow"))
+
+func panicoverflow() {
+	panic(overflowError)
+}
+
+var floatError = error(errorString("floating point error"))
+
+func panicfloat() {
+	panic(floatError)
+}
+
+var memoryError = error(errorString("invalid memory address or nil pointer dereference"))
+
+func panicmem() {
+	panic(memoryError)
+}
+
 func throwreturn() {
 	gothrow("no return at end of a typed function - compiler is broken")
 }
@@ -214,3 +232,5 @@ func Goexit() {
 	}
 	goexit()
 }
+
+func canpanic(*g) bool

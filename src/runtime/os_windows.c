@@ -454,35 +454,6 @@ runtime·issigpanic(uint32 code)
 }
 
 void
-runtime·sigpanic(void)
-{
-	if(!runtime·canpanic(g))
-		runtime·throw("unexpected signal during runtime execution");
-
-	switch(g->sig) {
-	case EXCEPTION_ACCESS_VIOLATION:
-		if(g->sigcode1 < 0x1000 || g->paniconfault) {
-			if(g->sigpc == 0)
-				runtime·panicstring("call of nil func value");
-			runtime·panicstring("invalid memory address or nil pointer dereference");
-		}
-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
-		runtime·throw("fault");
-	case EXCEPTION_INT_DIVIDE_BY_ZERO:
-		runtime·panicstring("integer divide by zero");
-	case EXCEPTION_INT_OVERFLOW:
-		runtime·panicstring("integer overflow");
-	case EXCEPTION_FLT_DENORMAL_OPERAND:
-	case EXCEPTION_FLT_DIVIDE_BY_ZERO:
-	case EXCEPTION_FLT_INEXACT_RESULT:
-	case EXCEPTION_FLT_OVERFLOW:
-	case EXCEPTION_FLT_UNDERFLOW:
-		runtime·panicstring("floating point error");
-	}
-	runtime·throw("fault");
-}
-
-void
 runtime·initsig(void)
 {
 	// following line keeps sigtramp alive at link stage

@@ -24,10 +24,3 @@ package cgo
 
 */
 import "C"
-
-// Supports _cgo_panic by converting a string constant to an empty
-// interface.
-
-func cgoStringToEface(s string, ret *interface{}) {
-	*ret = s
-}

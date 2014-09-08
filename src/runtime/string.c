@@ -37,59 +37,6 @@ runtime·findnullw(uint16 *s)
 
 uintptr runtime·maxstring = 256; // a hint for print
 
-static String
-gostringsize(intgo l)
-{
-	String s;
-	uintptr ms;
-
-	if(l == 0)
-		return runtime·emptystring;
-	s.str = runtime·mallocgc(l, 0, FlagNoScan|FlagNoZero);
-	s.len = l;
-	for(;;) {
-		ms = runtime·maxstring;
-		if((uintptr)l <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)l))
-			break;
-	}
-	return s;
-}
-
-String
-runtime·gostring(byte *str)
-{
-	intgo l;
-	String s;
-
-	l = runtime·findnull(str);
-	s = gostringsize(l);
-	runtime·memmove(s.str, str, l);
-	return s;
-}
-
-String
-runtime·gostringn(byte *str, intgo l)
-{
-	String s;
-
-	s = gostringsize(l);
-	runtime·memmove(s.str, str, l);
-	return s;
-}
-
-// used by cmd/cgo
-Slice
-runtime·gobytes(byte *p, intgo n)
-{
-	Slice sl;
-
-	sl.array = runtime·mallocgc(n, 0, FlagNoScan|FlagNoZero);
-	sl.len = n;
-	sl.cap = n;
-	runtime·memmove(sl.array, p, n);
-	return sl;
-}
-
 #pragma textflag NOSPLIT
 String
 runtime·gostringnocopy(byte *str)
@@ -189,6 +136,8 @@ runetochar(byte *str, int32 rune)  /* note: in original, arg2 was pointer */
 	return 4;
 }
 
+String runtime·gostringsize(intgo);
+
 String
 runtime·gostringw(uint16 *str)
 {
@@ -199,7 +148,7 @@ runtime·gostringw(uint16 *str)
 	n1 = 0;
 	for(i=0; str[i]; i++)
 		n1 += runetochar(buf, str[i]);
-	s = gostringsize(n1+4);
+	s = runtime·gostringsize(n1+4);
 	n2 = 0;
 	for(i=0; str[i]; i++) {
 		// check for race
@@ -210,22 +159,6 @@ runtime·gostringw(uint16 *str)
 	s.len = n2;
 	s.str[s.len] = 0;
 	return s;
-}
-
-String
-runtime·catstring(String s1, String s2)
-{
-	String s3;
-
-	if(s1.len == 0)
-		return s2;
-	if(s2.len == 0)
-		return s1;
-
-	s3 = gostringsize(s1.len + s2.len);
-	runtime·memmove(s3.str, s1.str, s1.len);
-	runtime·memmove(s3.str+s1.len, s2.str, s2.len);
-	return s3;
 }
 
 int32

@@ -271,6 +271,8 @@ struct	G
 	uintptr	stackguard0;	// cannot move - also known to liblink, libmach, runtime/cgo
 	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
 	Panic*	panic;	// cannot move - also known to liblink
+	// stackguard1 is checked by C code; it is set to ~0 in ordinary (non-g0, non-gsignal) goroutines
+	uintptr	stackguard1;	// cannot move - also known to liblink
 	Defer*	defer;
 	Gobuf	sched;
 	uintptr	syscallstack;	// if status==Gsyscall, syscallstack = stackbase to use during gc

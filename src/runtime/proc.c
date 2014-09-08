@@ -212,84 +212,10 @@ runtime·schedinit(void)
 	runtime·cgoFree = _cgo_free;
 }
 
-extern void main·init(void);
-extern void runtime·init(void);
-extern void main·main(void);
-
-static FuncVal initDone = { runtime·unlockOSThread };
-
-// The main goroutine.
-// Note: C frames in general are not copyable during stack growth, for two reasons:
-//   1) We don't know where in a frame to find pointers to other stack locations.
-//   2) There's no guarantee that globals or heap values do not point into the frame.
-//
-// The C frame for runtime.main is copyable, because:
-//   1) There are no pointers to other stack locations in the frame
-//      (d.fn points at a global, d.link is nil, d.argp is -1).
-//   2) The only pointer into this frame is from the defer chain,
-//      which is explicitly handled during stack copying.
 void
-runtime·main(void)
+runtime·newsysmon(void)
 {
-	Defer d;
-
-	// Racectx of m0->g0 is used only as the parent of the main goroutine.
-	// It must not be used for anything else.
-	g->m->g0->racectx = 0;
-
-	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
-	// Using decimal instead of binary GB and MB because
-	// they look nicer in the stack overflow failure message.
-	if(sizeof(void*) == 8)
-		runtime·maxstacksize = 1000000000;
-	else
-		runtime·maxstacksize = 250000000;
-
 	newm(sysmon, nil);
-
-	// Lock the main goroutine onto this, the main OS thread,
-	// during initialization.  Most programs won't care, but a few
-	// do require certain calls to be made by the main thread.
-	// Those can arrange for main.main to run in the main thread
-	// by calling runtime.LockOSThread during initialization
-	// to preserve the lock.
-	runtime·lockOSThread();
-	
-	// Defer unlock so that runtime.Goexit during init does the unlock too.
-	d.fn = &initDone;
-	d.siz = 0;
-	d.link = g->defer;
-	d.argp = NoArgs;
-	d.special = true;
-	g->defer = &d;
-
-	if(g->m != &runtime·m0)
-		runtime·throw("runtime·main not on m0");
-
-	runtime·init();
-	mstats.enablegc = 1; // now that runtime is initialized, GC is okay
-
-	main·init();
-
-	if(g->defer != &d || d.fn != &initDone)
-		runtime·throw("runtime: bad defer entry after init");
-	g->defer = d.link;
-	runtime·unlockOSThread();
-
-	main·main();
-	if(raceenabled)
-		runtime·racefini();
-
-	// Make racy client program work: if panicking on
-	// another goroutine at the same time as main returns,
-	// let the other goroutine finish printing the panic trace.
-	// Once it does, it will exit. See issue 3934.
-	if(runtime·panicking)
-		runtime·park(nil, nil, runtime·gostringnocopy((byte*)"panicwait"));
-
-	runtime·exit(0);
-	for(;;)
-		*(int32*)runtime·main = 0;
 }
 
 static void
@@ -322,6 +248,8 @@ mcommoninit(M *mp)
 	mp->id = runtime·sched.mcount++;
 	checkmcount();
 	runtime·mpreinit(mp);
+	if(mp->gsignal)
+		mp->gsignal->stackguard1 = mp->gsignal->stackguard;
 
 	// Add to runtime·allm so garbage collector doesn't free g->m
 	// when it is just in a register or thread-local storage.
@@ -977,6 +905,7 @@ runtime·allocm(P *p)
 	else
 		mp->g0 = runtime·malg(8192);
 	mp->g0->m = mp;
+	mp->g0->stackguard1 = mp->g0->stackguard;
 
 	if(p == g->m->p)
 		releasep();
@@ -1733,6 +1662,7 @@ runtime·park_m(G *gp)
 }
 
 // Scheduler yield.
+#pragma textflag NOSPLIT
 void
 runtime·gosched(void)
 {
@@ -2210,6 +2140,7 @@ runtime·malg(int32 stacksize)
 		newg->stack0 = (uintptr)stk;
 		newg->stackguard = (uintptr)stk + StackGuard;
 		newg->stackguard0 = newg->stackguard;
+		newg->stackguard1 = ~(uintptr)0;
 		newg->stackbase = (uintptr)stk + stacksize - sizeof(Stktop);
 	}
 	return newg;
@@ -2260,6 +2191,8 @@ runtime·newproc(int32 siz, FuncVal* fn, ...)
 	runtime·onM(&mfn);
 	g->m->locks--;
 }
+
+void runtime·main(void);
 
 // Create a new g running fn with narg bytes of arguments starting
 // at argp and returning nret bytes of results.  callerpc is the

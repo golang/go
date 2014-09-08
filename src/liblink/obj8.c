@@ -539,6 +539,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 		p->as = ACMPL;
 		p->from.type = D_SP;
 		p->to.type = D_INDIR+D_CX;
+		if(ctxt->cursym->cfunc)
+			p->to.offset = 3*ctxt->arch->ptrsize;
 	} else if(framesize <= StackBig) {
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAL -(framesize-StackSmall)(SP), AX
@@ -553,6 +555,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 		p->as = ACMPL;
 		p->from.type = D_AX;
 		p->to.type = D_INDIR+D_CX;
+		if(ctxt->cursym->cfunc)
+			p->to.offset = 3*ctxt->arch->ptrsize;
 	} else {
 		// Such a large stack we need to protect against wraparound
 		// if SP is close to zero.
@@ -572,6 +576,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 		p->as = AMOVL;
 		p->from.type = D_INDIR+D_CX;
 		p->from.offset = 0;
+		if(ctxt->cursym->cfunc)
+			p->from.offset = 3*ctxt->arch->ptrsize;
 		p->to.type = D_SI;
 
 		p = appendp(ctxt, p);
@@ -641,7 +647,10 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 	p = appendp(ctxt, p);
 	p->as = ACALL;
 	p->to.type = D_BRANCH;
-	p->to.sym = ctxt->symmorestack[noctxt];
+	if(ctxt->cursym->cfunc)
+		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
+	else
+		p->to.sym = ctxt->symmorestack[noctxt];
 
 	p = appendp(ctxt, p);
 	p->as = AJMP;
