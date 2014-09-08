@@ -134,6 +134,8 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 						if mp.curg != nil {
 							mp.curg.stackguard0 = mp.curg.stackguard
 						}
+						// Note: one releasem for the acquirem just above.
+						// The other for the acquirem at start of malloc.
 						releasem(mp)
 						releasem(mp)
 					}
@@ -309,6 +311,8 @@ marked:
 		if mp.curg != nil {
 			mp.curg.stackguard0 = mp.curg.stackguard
 		}
+		// Note: one releasem for the acquirem just above.
+		// The other for the acquirem at start of malloc.
 		releasem(mp)
 		releasem(mp)
 	}
