@@ -33,7 +33,7 @@ var runStdlibTest = flag.Bool("stdlib", false, "Run the (slow) stdlib test")
 // go/{loader,pointer,ssa}/stdlib_test.go and godoc/analysis/analysis.go.
 func allPackages() []string {
 	var pkgs []string
-	root := filepath.Join(runtime.GOROOT(), "src/pkg") + string(os.PathSeparator)
+	root := filepath.Join(runtime.GOROOT(), "src") + string(os.PathSeparator)
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		// Prune the search if we encounter any of these names:
 		switch filepath.Base(path) {

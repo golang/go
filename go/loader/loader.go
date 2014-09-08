@@ -49,7 +49,7 @@
 //
 // An AD-HOC package is one specified as a set of source files on the
 // command line.  In the simplest case, it may consist of a single file
-// such as src/pkg/net/http/triv.go.
+// such as $GOROOT/src/net/http/triv.go.
 //
 // EXTERNAL TEST packages are those comprised of a set of *_test.go
 // files all with the same 'package foo_test' declaration, all in the

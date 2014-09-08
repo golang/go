@@ -73,7 +73,7 @@ Describe the syntax at offset 530 in this file (an import spec):
    code.google.com/p/go.tools/cmd/oracle
 
 Print the callgraph of the trivial web-server in JSON format:
-% oracle -format=json src/pkg/net/http/triv.go callgraph
+% oracle -format=json $GOROOT/src/net/http/triv.go callgraph
 ` + loader.FromArgsUsage
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")

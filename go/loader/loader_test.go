@@ -134,7 +134,7 @@ func fakeContext(pkgs map[string]string) *build.Context {
 	ctxt.IsDir = func(path string) bool { return true }
 	ctxt.ReadDir = func(dir string) ([]os.FileInfo, error) { return justXgo[:], nil }
 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
-		path = path[len("/go/src/pkg/"):]
+		path = path[len("/go/src/"):]
 		return ioutil.NopCloser(bytes.NewBufferString(pkgs[path[0:1]])), nil
 	}
 	return &ctxt

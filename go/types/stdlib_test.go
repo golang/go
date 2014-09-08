@@ -32,7 +32,7 @@ var (
 )
 
 func TestStdlib(t *testing.T) {
-	walkDirs(t, filepath.Join(runtime.GOROOT(), "src/pkg"))
+	walkDirs(t, filepath.Join(runtime.GOROOT(), "src"))
 	if testing.Verbose() {
 		fmt.Println(pkgCount, "packages typechecked in", time.Since(start))
 	}

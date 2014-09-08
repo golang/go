@@ -6,7 +6,7 @@ package ssa
 
 // CreateTestMainPackage synthesizes a main package that runs all the
 // tests of the supplied packages.
-// It is closely coupled to src/cmd/go/test.go and src/pkg/testing.
+// It is closely coupled to $GOROOT/src/cmd/go/test.go and $GOROOT/src/testing.
 
 import (
 	"go/ast"

@@ -150,8 +150,8 @@ var testdataTests = []string{
 	"callstack.go",
 }
 
-// These are files and packages in $GOROOT/src/pkg/.
-var gorootSrcPkgTests = []string{
+// These are files and packages in $GOROOT/src/.
+var gorootSrcTests = []string{
 	"encoding/ascii85",
 	"encoding/csv",
 	"encoding/hex",
@@ -315,8 +315,8 @@ func TestGorootTest(t *testing.T) {
 			failures = append(failures, input)
 		}
 	}
-	for _, input := range gorootSrcPkgTests {
-		if !run(t, filepath.Join(build.Default.GOROOT, "src/pkg")+slash, input, success) {
+	for _, input := range gorootSrcTests {
+		if !run(t, filepath.Join(build.Default.GOROOT, "src")+slash, input, success) {
 			failures = append(failures, input)
 		}
 	}

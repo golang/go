@@ -11,8 +11,8 @@ package whitelist
 // library's exported slice types.
 var UnkeyedLiteral = map[string]bool{
 	/*
-		find $GOROOT/src/pkg -type f | grep -v _test.go | xargs grep '^type.*\[\]' | \
-			grep -v ' map\[' | sed 's,/[^/]*go.type,,' | sed 's,.*src/pkg/,,' | \
+		find $GOROOT/src -type f | grep -v _test.go | xargs grep '^type.*\[\]' | \
+			grep -v ' map\[' | sed 's,/[^/]*go.type,,' | sed 's,.*src/,,' | \
 			sed 's, ,.,' |  sed 's, .*,,' | grep -v '\.[a-z]' | \
 			sort | awk '{ print "\"" $0 "\": true," }'
 	*/

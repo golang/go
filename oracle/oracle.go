@@ -306,7 +306,7 @@ func reduceScope(pos string, conf *loader.Config) {
 
 	// Check that the queried file appears in the package:
 	// it might be a '// +build ignore' from an ad-hoc main
-	// package, e.g. $GOROOT/src/pkg/net/http/triv.go.
+	// package, e.g. $GOROOT/src/net/http/triv.go.
 	if !pkgContainsFile(bp, fqpos.fset.File(fqpos.start).Name()) {
 		return // not found
 	}

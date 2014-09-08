@@ -7,8 +7,8 @@ package loader
 // The approach taken is to run the cgo processor on the package's
 // CgoFiles and parse the output, faking the filenames of the
 // resulting ASTs so that the synthetic file containing the C types is
-// called "C" (e.g. "~/go/src/pkg/net/C") and the preprocessed files
-// have their original names (e.g. "~/go/src/pkg/net/cgo_unix.go"),
+// called "C" (e.g. "~/go/src/net/C") and the preprocessed files
+// have their original names (e.g. "~/go/src/net/cgo_unix.go"),
 // not the names of the actual temporary files.
 //
 // The advantage of this approach is its fidelity to 'go build'.  The
