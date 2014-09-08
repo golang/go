@@ -64,7 +64,7 @@ func parseDir(dirpath string) map[string]*ast.Package {
 }
 
 func stressParseGo() {
-	pkgroot := runtime.GOROOT() + "/src/pkg/"
+	pkgroot := runtime.GOROOT() + "/src/"
 	for {
 		m := make(map[string]map[string]*ast.Package)
 		for _, pkg := range packages {

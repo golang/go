@@ -35,7 +35,7 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/5l/5.out.h"
-#include "../pkg/runtime/stack.h"
+#include "../runtime/stack.h"
 
 typedef	struct	Optab	Optab;
 typedef	struct	Oprang	Oprang;

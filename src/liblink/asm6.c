@@ -35,7 +35,7 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/6l/6.out.h"
-#include "../pkg/runtime/stack.h"
+#include "../runtime/stack.h"
 
 enum
 {

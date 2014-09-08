@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // 64-bit MD5 (does full MD5 but returns 64 bits only).
-// Translation of ../../pkg/crypto/md5/md5*.go.
+// Translation of ../../crypto/md5/md5*.go.
 
 #include <u.h>
 #include <libc.h>

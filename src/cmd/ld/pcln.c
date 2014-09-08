@@ -4,7 +4,7 @@
 
 #include	"l.h"
 #include	"lib.h"
-#include	"../../pkg/runtime/funcdata.h"
+#include	"../../runtime/funcdata.h"
 
 static void
 addvarint(Pcdata *d, uint32 val)

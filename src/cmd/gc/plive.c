@@ -18,8 +18,8 @@
 #include "gg.h"
 #include "opt.h"
 #include "../ld/textflag.h"
-#include "../../pkg/runtime/funcdata.h"
-#include "../../pkg/runtime/mgc0.h"
+#include "../../runtime/funcdata.h"
+#include "../../runtime/mgc0.h"
 
 enum {
 	UNVISITED = 0,

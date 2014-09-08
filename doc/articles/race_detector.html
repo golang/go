@@ -57,35 +57,35 @@ Here is an example:
 WARNING: DATA RACE
 Read by goroutine 185:
   net.(*pollServer).AddFD()
-      src/pkg/net/fd_unix.go:89 +0x398
+      src/net/fd_unix.go:89 +0x398
   net.(*pollServer).WaitWrite()
-      src/pkg/net/fd_unix.go:247 +0x45
+      src/net/fd_unix.go:247 +0x45
   net.(*netFD).Write()
-      src/pkg/net/fd_unix.go:540 +0x4d4
+      src/net/fd_unix.go:540 +0x4d4
   net.(*conn).Write()
-      src/pkg/net/net.go:129 +0x101
+      src/net/net.go:129 +0x101
   net.func·060()
-      src/pkg/net/timeout_test.go:603 +0xaf
+      src/net/timeout_test.go:603 +0xaf
 
 Previous write by goroutine 184:
   net.setWriteDeadline()
-      src/pkg/net/sockopt_posix.go:135 +0xdf
+      src/net/sockopt_posix.go:135 +0xdf
   net.setDeadline()
-      src/pkg/net/sockopt_posix.go:144 +0x9c
+      src/net/sockopt_posix.go:144 +0x9c
   net.(*conn).SetDeadline()
-      src/pkg/net/net.go:161 +0xe3
+      src/net/net.go:161 +0xe3
   net.func·061()
-      src/pkg/net/timeout_test.go:616 +0x3ed
+      src/net/timeout_test.go:616 +0x3ed
 
 Goroutine 185 (running) created at:
   net.func·061()
-      src/pkg/net/timeout_test.go:609 +0x288
+      src/net/timeout_test.go:609 +0x288
 
 Goroutine 184 (running) created at:
   net.TestProlongTimeout()
-      src/pkg/net/timeout_test.go:618 +0x298
+      src/net/timeout_test.go:618 +0x298
   testing.tRunner()
-      src/pkg/testing/testing.go:301 +0xe8
+      src/testing/testing.go:301 +0xe8
 </pre>
 
 <h2 id="Options">Options</h2>
