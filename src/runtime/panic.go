@@ -95,6 +95,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 // This maps exactly to malloc size classes.
 
 // defer size class for arg size sz
+//go:nosplit
 func deferclass(siz uintptr) uintptr {
 	return (siz + 7) >> 4
 }
@@ -159,6 +160,7 @@ func newdefer(siz int32) *_defer {
 
 // Free the given defer.
 // The defer cannot be used after this call.
+//go:nosplit
 func freedefer(d *_defer) {
 	if d.special {
 		return
