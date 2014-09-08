@@ -76,7 +76,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // Return 0 for 'not handled', -1 for handled.
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	ptrs+0(FP), CX
-	SUBL	$32, SP
+	SUBL	$40, SP
 
 	// save callee-saved registers
 	MOVL	BX, 28(SP)
@@ -84,10 +84,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	SI, 20(SP)
 	MOVL	DI, 24(SP)
 
-	MOVL	0(CX), BX // ExceptionRecord*
-	MOVL	4(CX), CX // Context*
-
-	// fetch g
+	// find g
 	get_tls(DX)
 	CMPL	DX, $0
 	JNE	3(PC)
@@ -97,6 +94,35 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	CMPL	DX, $0
 	JNE	2(PC)
 	CALL	runtime·badsignal2(SB)
+
+	// save g and SP in case of stack switch
+	MOVL	DX, 32(SP)	// g
+	MOVL	SP, 36(SP)
+
+	// do we need to switch to the g0 stack?
+	MOVL	g_m(DX), BX
+	MOVL	m_g0(BX), BX
+	CMPL	DX, BX
+	JEQ	sigtramp_g0
+
+	// switch to the g0 stack
+	get_tls(BP)
+	MOVL	BX, g(BP)
+	MOVL	(g_sched+gobuf_sp)(BX), DI
+	// make it look like mstart called us on g0, to stop traceback
+	SUBL	$4, DI
+	MOVL	$runtime·mstart(SB), 0(DI)
+	// traceback will think that we've done SUBL
+	// on this stack, so subtract them here to match.
+	// (we need room for sighandler arguments anyway).
+	// and re-save old SP for restoring later.
+	SUBL	$40, DI
+	MOVL	SP, 36(DI)
+	MOVL	DI, SP
+
+sigtramp_g0:
+	MOVL	0(CX), BX // ExceptionRecord*
+	MOVL	4(CX), CX // Context*
 	// call sighandler(ExceptionRecord*, Context*, G*)
 	MOVL	BX, 0(SP)
 	MOVL	CX, 4(SP)
@@ -105,6 +131,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	// AX is set to report result back to Windows
 	MOVL	12(SP), AX
 
+	// switch back to original stack and g
+	// no-op if we never left.
+	MOVL	36(SP), SP
+	MOVL	32(SP), DX
+	get_tls(BP)
+	MOVL	DX, g(BP)
+
 done:
 	// restore callee-saved registers
 	MOVL	24(SP), DI
@@ -112,7 +145,7 @@ done:
 	MOVL	16(SP), BP
 	MOVL	28(SP), BX
 
-	ADDL	$32, SP
+	ADDL	$40, SP
 	// RET 4 (return and pop 4 bytes parameters)
 	BYTE $0xC2; WORD $4
 	RET // unreached; make assembler happy
@@ -128,7 +161,7 @@ TEXT runtime·profileloop(SB),NOSPLIT,$0
 	PUSHL	$runtime·profileloop1(SB)
 	CALL	runtime·externalthreadhandler(SB)
 	MOVL	4(SP), CX
-	ADDL	$12, SP
+	ADDL	$40, SP
 	JMP	CX
 
 TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
