@@ -24,7 +24,7 @@ func TestEndToEnd(t *testing.T) {
 	dir, err := ioutil.TempDir("", "stringer")
 	defer os.RemoveAll(dir)
 	// Create stringer in temporary directory.
-	stringer := filepath.Join(dir, "stringer")
+	stringer := filepath.Join(dir, "stringer.exe")
 	err = run("go", "build", "-o", stringer, "stringer.go")
 	if err != nil {
 		t.Fatalf("building stringer: %s", err)
