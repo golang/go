@@ -72,8 +72,8 @@ export GOROOT=$(pwd)/..
 
 # Build zip file embedded in package syscall.
 gobin=${GOBIN:-$(pwd)/../bin}
-rm -f pkg/syscall/fstest_nacl.go
-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto pkg/syscall/fstest_nacl.go
+rm -f syscall/fstest_nacl.go
+GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto syscall/fstest_nacl.go
 
 # Run standard build and tests.
 export PATH=$(pwd)/../misc/nacl:$PATH
