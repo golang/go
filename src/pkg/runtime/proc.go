@@ -75,7 +75,19 @@ func acquireSudog() *sudog {
 		c.sudogcache = s.next
 		return s
 	}
-	return new(sudog)
+
+	// Delicate dance: the semaphore implementation calls
+	// acquireSudog, acquireSudog calls new(sudog),
+	// new calls malloc, malloc can call the garbage collector,
+	// and the garbage collector calls the semaphore implementation
+	// in stoptheworld.
+	// Break the cycle by doing acquirem/releasem around new(sudog).
+	// The acquirem/releasem increments m.locks during new(sudog),
+	// which keeps the garbage collector from being invoked.
+	mp := acquirem()
+	p := new(sudog)
+	releasem(mp)
+	return p
 }
 
 //go:nosplit
