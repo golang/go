@@ -6,6 +6,7 @@
 #include "os_GOOS.h"
 #include "arch_GOARCH.h"
 #include "textflag.h"
+#include "malloc.h"
 
 int8 *goos = "plan9";
 extern SigTab runtime·sigtab[];
@@ -20,11 +21,11 @@ runtime·mpreinit(M *mp)
 	// Initialize stack and goroutine for note handling.
 	mp->gsignal = runtime·malg(32*1024);
 	mp->gsignal->m = mp;
-	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, 0);
+	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, FlagNoScan);
 
 	// Initialize stack for handling strings from the
 	// errstr system call, as used in package syscall.
-	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, 0);
+	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, FlagNoScan);
 }
 
 // Called to initialize a new m (including the bootstrap m).

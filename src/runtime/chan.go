@@ -37,7 +37,7 @@ func makechan(t *chantype, size int64) *hchan {
 		// buf points into the same allocation, elemtype is persistent.
 		// SudoG's are referenced from their owning thread so they can't be collected.
 		// TODO(dvyukov,rlh): Rethink when collector can move allocated objects.
-		c = (*hchan)(gomallocgc(hchanSize+uintptr(size)*uintptr(elem.size), nil, flagNoScan))
+		c = (*hchan)(mallocgc(hchanSize+uintptr(size)*uintptr(elem.size), nil, flagNoScan))
 		if size > 0 && elem.size != 0 {
 			c.buf = (*uint8)(add(unsafe.Pointer(c), hchanSize))
 		} else {

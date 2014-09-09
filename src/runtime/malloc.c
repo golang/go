@@ -23,22 +23,7 @@ MStats runtime·memstats;
 
 Type* runtime·conservative;
 
-void runtime·cmallocgc(uintptr size, Type *typ, uint32 flag, void **ret);
 void runtime·gc_notype_ptr(Eface*);
-
-void*
-runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
-{
-	void *ret;
-
-	// Call into the Go version of mallocgc.
-	// TODO: maybe someday we can get rid of this.  It is
-	// probably the only location where we run Go code on the M stack.
-	if((flag&FlagNoScan) == 0 && typ == nil)
-		typ = runtime·conservative;
-	runtime·cmallocgc(size, typ, flag, &ret);
-	return ret;
-}
 
 int32
 runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)

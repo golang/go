@@ -1867,7 +1867,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 	if(p >= runtime·data && p < runtime·edata) {
 		n = ((PtrType*)t)->elem->size;
 		*len = n/PtrSize;
-		*mask = runtime·mallocgc(*len, nil, 0);
+		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-runtime·data)/PtrSize;
 			bits = (((byte*)runtime·gcdatamask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
@@ -1879,7 +1879,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 	if(p >= runtime·bss && p < runtime·ebss) {
 		n = ((PtrType*)t)->elem->size;
 		*len = n/PtrSize;
-		*mask = runtime·mallocgc(*len, nil, 0);
+		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-runtime·bss)/PtrSize;
 			bits = (((byte*)runtime·gcbssmask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
@@ -1890,7 +1890,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 	// heap
 	if(runtime·mlookup(p, &base, &n, nil)) {
 		*len = n/PtrSize;
-		*mask = runtime·mallocgc(*len, nil, 0);
+		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (uintptr*)(base+i) - (uintptr*)runtime·mheap.arena_start;
 			b = runtime·mheap.arena_start - off/wordsPerBitmapByte - 1;
@@ -1929,7 +1929,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		size = bv.n/BitsPerPointer*PtrSize;
 		n = ((PtrType*)t)->elem->size;
 		*len = n/PtrSize;
-		*mask = runtime·mallocgc(*len, nil, 0);
+		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-(byte*)frame.varp+size)/PtrSize;
 			bits = (bv.data[off*BitsPerPointer/32] >> ((off*BitsPerPointer)%32))&BitsMask;

@@ -192,7 +192,7 @@ func stringiter2(s string, k int) (int, rune) {
 // The storage is not zeroed. Callers should use
 // b to set the string contents and then drop b.
 func rawstring(size int) (s string, b []byte) {
-	p := gomallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
+	p := mallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
 
 	(*stringStruct)(unsafe.Pointer(&s)).str = p
 	(*stringStruct)(unsafe.Pointer(&s)).len = size
@@ -212,7 +212,7 @@ func rawstring(size int) (s string, b []byte) {
 // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
 func rawbyteslice(size int) (b []byte) {
 	cap := goroundupsize(uintptr(size))
-	p := gomallocgc(cap, nil, flagNoScan|flagNoZero)
+	p := mallocgc(cap, nil, flagNoScan|flagNoZero)
 	if cap != uintptr(size) {
 		memclr(add(p, uintptr(size)), cap-uintptr(size))
 	}
@@ -229,7 +229,7 @@ func rawruneslice(size int) (b []rune) {
 		gothrow("out of memory")
 	}
 	mem := goroundupsize(uintptr(size) * 4)
-	p := gomallocgc(mem, nil, flagNoScan|flagNoZero)
+	p := mallocgc(mem, nil, flagNoScan|flagNoZero)
 	if mem != uintptr(size)*4 {
 		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
 	}

@@ -147,7 +147,7 @@ func newdefer(siz int32) *_defer {
 	if d == nil {
 		// deferpool is empty or just a big defer
 		total := goroundupsize(totaldefersize(uintptr(siz)))
-		d = (*_defer)(gomallocgc(total, conservative, 0))
+		d = (*_defer)(mallocgc(total, conservative, 0))
 	}
 	d.siz = siz
 	d.special = false
