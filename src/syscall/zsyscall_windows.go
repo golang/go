@@ -177,6 +177,7 @@ func LoadLibrary(libname string) (handle Handle, err error) {
 		return
 	}
 	r0, _, e1 := Syscall(procLoadLibraryW.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	use(unsafe.Pointer(_p0))
 	handle = Handle(r0)
 	if handle == 0 {
 		if e1 != 0 {
@@ -207,6 +208,7 @@ func GetProcAddress(module Handle, procname string) (proc uintptr, err error) {
 		return
 	}
 	r0, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(_p0)), 0)
+	use(unsafe.Pointer(_p0))
 	proc = uintptr(r0)
 	if proc == 0 {
 		if e1 != 0 {
@@ -1559,6 +1561,7 @@ func GetHostByName(name string) (h *Hostent, err error) {
 		return
 	}
 	r0, _, e1 := Syscall(procgethostbyname.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	use(unsafe.Pointer(_p0))
 	h = (*Hostent)(unsafe.Pointer(r0))
 	if h == nil {
 		if e1 != 0 {
@@ -1582,6 +1585,8 @@ func GetServByName(name string, proto string) (s *Servent, err error) {
 		return
 	}
 	r0, _, e1 := Syscall(procgetservbyname.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+	use(unsafe.Pointer(_p0))
+	use(unsafe.Pointer(_p1))
 	s = (*Servent)(unsafe.Pointer(r0))
 	if s == nil {
 		if e1 != 0 {
@@ -1606,6 +1611,7 @@ func GetProtoByName(name string) (p *Protoent, err error) {
 		return
 	}
 	r0, _, e1 := Syscall(procgetprotobyname.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	use(unsafe.Pointer(_p0))
 	p = (*Protoent)(unsafe.Pointer(r0))
 	if p == nil {
 		if e1 != 0 {
@@ -1624,6 +1630,7 @@ func DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSR
 		return
 	}
 	r0, _, _ := Syscall6(procDnsQuery_W.Addr(), 6, uintptr(unsafe.Pointer(_p0)), uintptr(qtype), uintptr(options), uintptr(unsafe.Pointer(extra)), uintptr(unsafe.Pointer(qrs)), uintptr(unsafe.Pointer(pr)))
+	use(unsafe.Pointer(_p0))
 	if r0 != 0 {
 		status = Errno(r0)
 	}
@@ -1743,8 +1750,8 @@ func NetApiBufferFree(buf *byte) (neterr error) {
 	return
 }
 
-func LookupAccountSid(systemName *uint16, sid *SID, name *uint16, nameLen *uint32, refdDomainName *uint16, refdDomainNameLen *uint32, use *uint32) (err error) {
-	r1, _, e1 := Syscall9(procLookupAccountSidW.Addr(), 7, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(refdDomainName)), uintptr(unsafe.Pointer(refdDomainNameLen)), uintptr(unsafe.Pointer(use)), 0, 0)
+func LookupAccountSid(systemName *uint16, sid *SID, name *uint16, nameLen *uint32, refdDomainName *uint16, refdDomainNameLen *uint32, use_ *uint32) (err error) {
+	r1, _, e1 := Syscall9(procLookupAccountSidW.Addr(), 7, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(refdDomainName)), uintptr(unsafe.Pointer(refdDomainNameLen)), uintptr(unsafe.Pointer(use_)), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -1755,8 +1762,8 @@ func LookupAccountSid(systemName *uint16, sid *SID, name *uint16, nameLen *uint3
 	return
 }
 
-func LookupAccountName(systemName *uint16, accountName *uint16, sid *SID, sidLen *uint32, refdDomainName *uint16, refdDomainNameLen *uint32, use *uint32) (err error) {
-	r1, _, e1 := Syscall9(procLookupAccountNameW.Addr(), 7, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(accountName)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(sidLen)), uintptr(unsafe.Pointer(refdDomainName)), uintptr(unsafe.Pointer(refdDomainNameLen)), uintptr(unsafe.Pointer(use)), 0, 0)
+func LookupAccountName(systemName *uint16, accountName *uint16, sid *SID, sidLen *uint32, refdDomainName *uint16, refdDomainNameLen *uint32, use_ *uint32) (err error) {
+	r1, _, e1 := Syscall9(procLookupAccountNameW.Addr(), 7, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(accountName)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(sidLen)), uintptr(unsafe.Pointer(refdDomainName)), uintptr(unsafe.Pointer(refdDomainNameLen)), uintptr(unsafe.Pointer(use_)), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
