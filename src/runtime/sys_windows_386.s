@@ -191,7 +191,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
 	LEAL	g_end(SP), BX
 	MOVL	BX, g_m(SP)
-	LEAL	-4096(SP), CX
+	LEAL	-8192(SP), CX
 	MOVL	CX, (g_stack+stack_lo)(SP)
 	ADDL	$const_StackGuard, CX
 	MOVL	CX, g_stackguard0(SP)
