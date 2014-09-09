@@ -158,6 +158,7 @@ func (p *Param) SyscallArgList() []string {
 	case p.Type[0] == '*':
 		s = fmt.Sprintf("unsafe.Pointer(%s)", p.Name)
 	case p.Type == "string":
+		p.fn.use(p.tmpVar())
 		s = fmt.Sprintf("unsafe.Pointer(%s)", p.tmpVar())
 	case p.Type == "bool":
 		s = p.tmpVar()
@@ -303,11 +304,21 @@ type Fn struct {
 	Params      []*Param
 	Rets        *Rets
 	PrintTrace  bool
+	Used        []string
 	dllname     string
 	dllfuncname string
 	src         string
 	// TODO: get rid of this field and just use parameter index instead
 	curTmpVarIdx int // insure tmp variables have uniq names
+}
+
+func (f *Fn) use(v string) {
+	for _, e := range f.Used {
+		if e == v {
+			return
+		}
+	}
+	f.Used = append(f.Used, v)
 }
 
 // extractParams parses s to extract function parameters.
@@ -328,13 +339,20 @@ func extractParams(s string, f *Fn) ([]*Param, error) {
 			}
 		}
 		ps[i] = &Param{
-			Name:      trim(b[0]),
+			Name:      sanitizeName(trim(b[0])),
 			Type:      trim(b[1]),
 			fn:        f,
 			tmpVarIdx: -1,
 		}
 	}
 	return ps, nil
+}
+
+func sanitizeName(n string) string {
+	if n == "use" {
+		return "use_"
+	}
+	return n
 }
 
 // extractSection extracts text out of string s starting after start
@@ -680,7 +698,7 @@ var (
 {{define "funcbody"}}
 func {{.Name}}({{.ParamList}}) {{if .Rets.List}}{{.Rets.List}} {{end}}{
 {{template "tmpvars" .}}	{{template "syscall" .}}
-{{template "seterror" .}}{{template "printtrace" .}}	return
+{{template "used" .}}{{template "seterror" .}}{{template "printtrace" .}}	return
 }
 {{end}}
 
@@ -688,6 +706,8 @@ func {{.Name}}({{.ParamList}}) {{if .Rets.List}}{{.Rets.List}} {{end}}{
 {{end}}{{end}}{{end}}
 
 {{define "syscall"}}{{.Rets.SetReturnValuesCode}}{{.Syscall}}(proc{{.DLLFuncName}}.Addr(), {{.ParamCount}}, {{.SyscallParamList}}){{end}}
+
+{{define "used"}}{{range .Used}}use(unsafe.Pointer({{.}}));{{end}}{{end}}
 
 {{define "seterror"}}{{if .Rets.SetErrorCode}}	{{.Rets.SetErrorCode}}
 {{end}}{{end}}
