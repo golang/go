@@ -23,12 +23,12 @@ import (
 
 func cpuHogger(f func()) {
 	// We only need to get one 100 Hz clock tick, so we've got
-	// a 100x safety buffer.
-	// But do at least 2000 iterations (which should take about 400ms),
+	// a 25x safety buffer.
+	// But do at least 500 iterations (which should take about 100ms),
 	// otherwise TestCPUProfileMultithreaded can fail if only one
-	// thread is scheduled during the 1 second period.
+	// thread is scheduled during the 250ms period.
 	t0 := time.Now()
-	for i := 0; i < 2000 || time.Since(t0) < time.Second; i++ {
+	for i := 0; i < 500 || time.Since(t0) < 250*time.Millisecond; i++ {
 		f()
 	}
 }
