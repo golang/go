@@ -190,7 +190,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	// change stack
 	MOVQ	g_m(BX), BX
 	MOVQ	m_gsignal(BX), R10
-	MOVQ	g_stackbase(R10), BP
+	MOVQ	(g_stack+stack_hi)(R10), BP
 	MOVQ	BP, SP
 
 	// make room for args and g

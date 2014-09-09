@@ -590,7 +590,7 @@ TEXT runtime·setg(SB), NOSPLIT, $0-4
 	MOVL	0, AX
 	RET
 
-// check that SP is in range [g->stackbase, g->stackguard)
+// check that SP is in range [g->stack.lo, g->stack.hi)
 TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	get_tls(CX)
 	MOVL	g(CX), AX

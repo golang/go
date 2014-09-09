@@ -153,8 +153,8 @@ runtime·newosproc(M *mp, void *stk)
 	
 	// NOTE(rsc): This code is confused. stackbase is the top of the stack
 	// and is equal to stk. However, it's working, so I'm not changing it.
-	param.stack_base = (void*)mp->g0->stackbase;
-	param.stack_size = (byte*)stk - (byte*)mp->g0->stackbase;
+	param.stack_base = (void*)mp->g0->stack.hi;
+	param.stack_size = (byte*)stk - (byte*)mp->g0->stack.hi;
 
 	param.child_tid = (void*)&mp->procid;
 	param.parent_tid = nil;

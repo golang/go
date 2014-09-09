@@ -121,14 +121,17 @@ runtime·newosproc(M *mp, void *stk)
 	Sigset oset;
 	Pthread tid;
 	int32 ret;
+	uint64 size;
 
 	USED(stk);
 	if(runtime·pthread_attr_init(&attr) != 0)
 		runtime·throw("pthread_attr_init");
 	if(runtime·pthread_attr_setstack(&attr, 0, 0x200000) != 0)
 		runtime·throw("pthread_attr_setstack");
-	if(runtime·pthread_attr_getstack(&attr, (void**)&mp->g0->stackbase, &mp->g0->stacksize) != 0)
+	size = 0;
+	if(runtime·pthread_attr_getstack(&attr, (void**)&mp->g0->stack.hi, &size) != 0)
 		runtime·throw("pthread_attr_getstack");	
+	mp->g0->stack.lo = mp->g0->stack.hi - size;
 	if(runtime·pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED) != 0)
 		runtime·throw("pthread_attr_setdetachstate");
 
