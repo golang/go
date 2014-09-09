@@ -712,6 +712,10 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 			// get adjusted appropriately.
 			// This only happens for runtime.main and runtime.gopanic now,
 			// but a compiler optimization could do more of this.
+			// If such an optimization were introduced, Defer.argp should
+			// change to have pointer type so that it will be updated by
+			// the stack copying. Today both of those on-stack defers
+			// set argp = NoArgs, so no adjustment is necessary.
 			*dp = (Defer*)((byte*)d + adjinfo->delta);
 			continue;
 		}
@@ -751,17 +755,11 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 static void
 adjustpanics(G *gp, AdjustInfo *adjinfo)
 {
-	Panic *p, **l;
-
-	// only the topmost panic is on the current stack
-	for(l = &gp->panic; (p = *l) != nil; ) {
-		if(adjinfo->oldstk <= (byte*)p && (byte*)p < adjinfo->oldbase)
-			*l = (Panic*)((byte*)p + adjinfo->delta);
-		l = &p->link;
-		
-		if(adjinfo->oldstk <= (byte*)p->argp && (byte*)p->argp < adjinfo->oldbase)
-			p->argp += adjinfo->delta;
-	}
+	// Panic structs are all on the stack
+	// and are adjusted by stack copying.
+	// The only pointer we need to update is gp->panic, the head of the list.
+	if(adjinfo->oldstk <= (byte*)gp->panic && (byte*)gp->panic < adjinfo->oldbase)
+		gp->panic = (Panic*)((byte*)gp->panic + adjinfo->delta);
 }
 
 static void

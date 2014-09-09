@@ -653,7 +653,7 @@ struct Defer
  */
 struct Panic
 {
-	uintptr	argp;	// pointer to arguments of deferred call run during panic; cannot move - known to liblink
+	void*	argp;	// pointer to arguments of deferred call run during panic; cannot move - known to liblink
 	Eface	arg;		// argument to panic
 	Panic*	link;		// link to earlier panic
 	Defer*	defer;		// current executing defer
