@@ -183,7 +183,7 @@ runtime·minit(void)
 {
 	runtime·asmcgocall(runtime·miniterrno, (void *)libc·___errno);
 	// Initialize signal handling
-	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stack.lo, 32*1024);
 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
 }
 

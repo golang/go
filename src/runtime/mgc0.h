@@ -5,8 +5,6 @@
 // Garbage collector (GC)
 
 enum {
-	ScanStackByFrames = 1,
-
 	// Four bits per word (see #defines below).
 	gcBits = 4,
 	wordsPerBitmapByte = 8/gcBits,

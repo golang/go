@@ -19,9 +19,10 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// _cgo_init may update stackguard.
 	MOVQ	$runtime·g0(SB), DI
 	LEAQ	(-64*1024+104)(SP), BX
-	MOVQ	BX, g_stackguard(DI)
 	MOVQ	BX, g_stackguard0(DI)
-	MOVQ	SP, g_stackbase(DI)
+	MOVQ	BX, g_stackguard1(DI)
+	MOVQ	BX, (g_stack+stack_lo)(DI)
+	MOVQ	SP, (g_stack+stack_hi)(DI)
 
 	// find out information about the processor we're on
 	MOVQ	$0, AX
@@ -42,13 +43,16 @@ nocpuinfo:
 	MOVQ	DI, CX	// Win64 uses CX for first parameter
 	MOVQ	$setg_gcc<>(SB), SI
 	CALL	AX
+
 	// update stackguard after _cgo_init
 	MOVQ	$runtime·g0(SB), CX
-	MOVQ	g_stackguard0(CX), AX
-	MOVQ	AX, g_stackguard(CX)
+	MOVQ	(g_stack+stack_lo)(CX), AX
+	ADDQ	$const_StackGuard, AX
+	MOVQ	AX, g_stackguard0(CX)
+	MOVQ	AX, g_stackguard1(CX)
+
 	CMPL	runtime·iswindows(SB), $0
 	JEQ ok
-
 needtls:
 	// skip TLS setup on Plan 9
 	CMPL	runtime·isplan9(SB), $1
@@ -261,7 +265,6 @@ onm:
  */
 
 // Called during function prolog when more stack is needed.
-// Caller has already done get_tls(CX); MOVQ m(CX), BX.
 //
 // The traceback routines see morestack on a g0 as being
 // the top of a stack (for example, morestack calling newstack
@@ -269,6 +272,8 @@ onm:
 // record an argument size. For that purpose, it has no arguments.
 TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	// Cannot grow scheduler stack (m->g0).
+	MOVQ	g(CX), BX
+	MOVQ	g_m(BX), BX
 	MOVQ	m_g0(BX), SI
 	CMPQ	g(CX), SI
 	JNE	2(PC)
@@ -286,7 +291,6 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
 	LEAQ	16(SP), AX	// f's caller's SP
 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
-	MOVQ	AX, m_moreargp(BX)
 	get_tls(CX)
 	MOVQ	g(CX), SI
 	MOVQ	SI, (m_morebuf+gobuf_g)(BX)
@@ -306,6 +310,11 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	CALL	runtime·newstack(SB)
 	MOVQ	$0, 0x1003	// crash if newstack returns
 	RET
+
+// morestack but not preserving ctxt.
+TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
 // func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
@@ -414,142 +423,6 @@ CALLFN(runtime·call134217728, 134217728)
 CALLFN(runtime·call268435456, 268435456)
 CALLFN(runtime·call536870912, 536870912)
 CALLFN(runtime·call1073741824, 1073741824)
-
-// Return point when leaving stack.
-//
-// Lessstack can appear in stack traces for the same reason
-// as morestack; in that context, it has 0 arguments.
-TEXT runtime·lessstack(SB), NOSPLIT, $0-0
-	// Save return value in m->cret
-	get_tls(CX)
-	MOVQ	g(CX), BX
-	MOVQ	g_m(BX), BX
-	MOVQ	AX, m_cret(BX)
-
-	// Call oldstack on m->g0's stack.
-	MOVQ	m_g0(BX), BP
-	MOVQ	BP, g(CX)
-	MOVQ	(g_sched+gobuf_sp)(BP), SP
-	CALL	runtime·oldstack(SB)
-	MOVQ	$0, 0x1004	// crash if oldstack returns
-	RET
-
-// morestack trampolines
-TEXT runtime·morestack00(SB),NOSPLIT,$0
-	get_tls(CX)
-	MOVQ	g(CX), BX
-	MOVQ	g_m(BX), BX
-	MOVQ	$0, AX
-	MOVQ	AX, m_moreframesize(BX)
-	MOVQ	$runtime·morestack(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack01(SB),NOSPLIT,$0
-	get_tls(CX)
-	MOVQ	g(CX), BX
-	MOVQ	g_m(BX), BX
-	SHLQ	$32, AX
-	MOVQ	AX, m_moreframesize(BX)
-	MOVQ	$runtime·morestack(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack10(SB),NOSPLIT,$0
-	get_tls(CX)
-	MOVQ	g(CX), BX
-	MOVQ	g_m(BX), BX
-	MOVLQZX	AX, AX
-	MOVQ	AX, m_moreframesize(BX)
-	MOVQ	$runtime·morestack(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack11(SB),NOSPLIT,$0
-	get_tls(CX)
-	MOVQ	g(CX), BX
-	MOVQ	g_m(BX), BX
-	MOVQ	AX, m_moreframesize(BX)
-	MOVQ	$runtime·morestack(SB), AX
-	JMP	AX
-
-// subcases of morestack01
-// with const of 8,16,...48
-TEXT runtime·morestack8(SB),NOSPLIT,$0
-	MOVQ	$1, R8
-	MOVQ	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack16(SB),NOSPLIT,$0
-	MOVQ	$2, R8
-	MOVQ	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack24(SB),NOSPLIT,$0
-	MOVQ	$3, R8
-	MOVQ	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack32(SB),NOSPLIT,$0
-	MOVQ	$4, R8
-	MOVQ	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack40(SB),NOSPLIT,$0
-	MOVQ	$5, R8
-	MOVQ	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack48(SB),NOSPLIT,$0
-	MOVQ	$6, R8
-	MOVQ	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT morestack<>(SB),NOSPLIT,$0
-	get_tls(CX)
-	MOVQ	g(CX), BX
-	MOVQ	g_m(BX), BX
-	SHLQ	$35, R8
-	MOVQ	R8, m_moreframesize(BX)
-	MOVQ	$runtime·morestack(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack00_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack00(SB)
-
-TEXT runtime·morestack01_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack01(SB)
-
-TEXT runtime·morestack10_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack10(SB)
-
-TEXT runtime·morestack11_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack11(SB)
-
-TEXT runtime·morestack8_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack8(SB)
-
-TEXT runtime·morestack16_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack16(SB)
-
-TEXT runtime·morestack24_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack24(SB)
-
-TEXT runtime·morestack32_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack32(SB)
-
-TEXT runtime·morestack40_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack40(SB)
-
-TEXT runtime·morestack48_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack48(SB)
 
 // bool cas(int32 *val, int32 old, int32 new)
 // Atomically:
@@ -922,14 +795,14 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
 	MOVQ	DI, g(AX)
 	RET
 
-// check that SP is in range [g->stackbase, g->stackguard)
+// check that SP is in range [g->stack.lo, g->stack.hi)
 TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	get_tls(CX)
 	MOVQ	g(CX), AX
-	CMPQ	g_stackbase(AX), SP
+	CMPQ	(g_stack+stack_hi)(AX), SP
 	JHI	2(PC)
 	INT	$3
-	CMPQ	SP, g_stackguard(AX)
+	CMPQ	SP, (g_stack+stack_lo)(AX)
 	JHI	2(PC)
 	INT	$3
 	RET
@@ -976,15 +849,6 @@ TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
 	SHLQ    $32, DX
 	ADDQ    DX, AX
 	MOVQ    AX, ret+0(FP)
-	RET
-
-TEXT runtime·stackguard(SB),NOSPLIT,$0-16
-	MOVQ	SP, DX
-	MOVQ	DX, sp+0(FP)
-	get_tls(CX)
-	MOVQ	g(CX), BX
-	MOVQ	g_stackguard(BX), DX
-	MOVQ	DX, limit+8(FP)
 	RET
 
 GLOBL runtime·tls0(SB), $64

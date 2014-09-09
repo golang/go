@@ -34,7 +34,6 @@ var (
 	deferprocPC = funcPC(deferproc)
 	goexitPC    = funcPC(goexit)
 	jmpdeferPC  = funcPC(jmpdefer)
-	lessstackPC = funcPC(lessstack)
 	mcallPC     = funcPC(mcall)
 	morestackPC = funcPC(morestack)
 	mstartPC    = funcPC(mstart)
@@ -57,7 +56,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 	g := getg()
 	gotraceback := gotraceback(nil)
 	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.
-		if gp.syscallstack != 0 {
+		if gp.syscallsp != 0 {
 			pc0 = gp.syscallpc
 			sp0 = gp.syscallsp
 			if usesLR {
@@ -115,7 +114,6 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 	frame.fn = f
 
 	n := 0
-	stk := (*stktop)(unsafe.Pointer(gp.stackbase))
 	for n < max {
 		// Typically:
 		//	pc is the PC of the running function.
@@ -123,38 +121,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		//	fp is the frame pointer (caller's stack pointer) at that program counter, or nil if unknown.
 		//	stk is the stack containing sp.
 		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
-		if frame.pc == lessstackPC {
-			// Hit top of stack segment.  Unwind to next segment.
-			frame.pc = stk.gobuf.pc
-			frame.sp = stk.gobuf.sp
-			frame.lr = 0
-			frame.fp = 0
-			if printing && showframe(nil, gp) {
-				print("----- stack segment boundary -----\n")
-			}
-			stk = (*stktop)(unsafe.Pointer(stk.stackbase))
-			f = findfunc(frame.pc)
-			if f == nil {
-				print("runtime: unknown pc ", hex(frame.pc), " after stack split\n")
-				if callback != nil {
-					gothrow("unknown pc")
-				}
-			}
-			frame.fn = f
-			continue
-		}
 		f = frame.fn
-
-		// Hook for handling Windows exception handlers. See traceback_windows.go.
-		if systraceback != nil {
-			changed, aborted := systraceback(f, (*stkframe)(noescape(unsafe.Pointer(&frame))), gp, printing, callback, v)
-			if aborted {
-				return n
-			}
-			if changed {
-				continue
-			}
-		}
 
 		// Found an actual function.
 		// Derive frame pointer and link register.
@@ -224,8 +191,6 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 				frame.arglen = uintptr(f.args)
 			} else if flr == nil {
 				frame.arglen = 0
-			} else if frame.lr == lessstackPC {
-				frame.arglen = uintptr(stk.argsize)
 			} else {
 				i := funcarglen(flr, frame.lr)
 				if i >= 0 {
@@ -617,7 +582,6 @@ func topofstack(f *_func) bool {
 		pc == mstartPC ||
 		pc == mcallPC ||
 		pc == morestackPC ||
-		pc == lessstackPC ||
 		pc == rt0_goPC ||
 		externalthreadhandlerp != 0 && pc == externalthreadhandlerp
 }

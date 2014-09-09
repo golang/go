@@ -31,7 +31,7 @@ runtime·minit(void)
 	int32 ret;
 
 	// Initialize signal handling
-	ret = runtime·nacl_exception_stack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
+	ret = runtime·nacl_exception_stack((byte*)g->m->gsignal->stack.lo, 32*1024);
 	if(ret < 0)
 		runtime·printf("runtime: nacl_exception_stack: error %d\n", -ret);
 

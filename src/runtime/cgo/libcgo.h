@@ -21,8 +21,8 @@ typedef uintptr_t uintptr;
 typedef struct G G;
 struct G
 {
-	uintptr stackguard;
-	uintptr stackbase;
+	uintptr stacklo;
+	uintptr stackhi;
 };
 
 /*

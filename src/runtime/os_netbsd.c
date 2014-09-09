@@ -282,7 +282,7 @@ runtime·minit(void)
 	g->m->procid = runtime·lwp_self();
 
 	// Initialize signal handling
-	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stack.lo, 32*1024);
 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
 }
 

@@ -689,9 +689,6 @@ static void
 scanstack(G *gp)
 {
 	M *mp;
-	int32 n;
-	Stktop *stk;
-	uintptr sp, guard;
 	bool (*fn)(Stkframe*, void*);
 
 	if(runtime·readgstatus(gp)&Gscan == 0) {
@@ -719,44 +716,8 @@ scanstack(G *gp)
 	if((mp = gp->m) != nil && mp->helpgc)
 		runtime·throw("can't scan gchelper stack");
 
-	if(gp->syscallstack != (uintptr)nil) {
-		// Scanning another goroutine that is about to enter or might
-		// have just exited a system call. It may be executing code such
-		// as schedlock and may have needed to start a new stack segment.
-		// Use the stack segment and stack pointer at the time of
-		// the system call instead, since that won't change underfoot.
-		sp = gp->syscallsp;
-		stk = (Stktop*)gp->syscallstack;
-		guard = gp->syscallguard;
-	} else {
-		// Scanning another goroutine's stack.
-		// The goroutine is usually asleep (the world is stopped).
-		sp = gp->sched.sp;
-		stk = (Stktop*)gp->stackbase;
-		guard = gp->stackguard;
-	}
-	if(ScanStackByFrames) {
-		USED(sp);
-		USED(stk);
-		USED(guard);
-		fn = scanframe;
-		runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, false);
-	} else {
-		n = 0;
-		while(stk) {
-			if(sp < guard-StackGuard || (uintptr)stk < sp) {
-				runtime·printf("scanstack inconsistent: g%D#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
-				runtime·throw("scanstack");
-			}
-			if(Debug > 2)
-				runtime·printf("conservative stack %p+%p\n", (byte*)sp, (uintptr)stk-sp);
-			scanblock((byte*)sp, (uintptr)stk - sp, ScanConservatively);
-			sp = stk->gobuf.sp;
-			guard = stk->stackguard;
-			stk = (Stktop*)stk->stackbase;
-			n++;
-		}
-	}
+	fn = scanframe;
+	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, false);
 }
 
 // The gp has been moved to a gc safepoint. If there is gcphase specific

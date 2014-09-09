@@ -31,9 +31,11 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 
 	// create istack out of the OS stack
 	MOVW	$(-8192+104)(R13), R0
-	MOVW	R0, g_stackguard(g)	// (w 104b guard)
 	MOVW	R0, g_stackguard0(g)
-	MOVW	R13, g_stackbase(g)
+	MOVW	R0, g_stackguard1(g)
+	MOVW	R0, (g_stack+stack_lo)(g)
+	MOVW	R13, (g_stack+stack_hi)(g)
+
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
 #ifndef GOOS_nacl
@@ -51,8 +53,10 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 
 nocgo:
 	// update stackguard after _cgo_init
-	MOVW	g_stackguard0(g), R0
-	MOVW	R0, g_stackguard(g)
+	MOVW	(g_stack+stack_lo)(g), R0
+	ADD	$const_StackGuard, R0
+	MOVW	R0, g_stackguard0(g)
+	MOVW	R0, g_stackguard1(g)
 
 	BL	runtime·checkgoarm(SB)
 	BL	runtime·check(SB)
@@ -287,9 +291,6 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	CMP	g, R4
 	BL.EQ	runtime·abort(SB)
 
-	MOVW	R1, m_moreframesize(R8)
-	MOVW	R2, m_moreargsize(R8)
-
 	// Called from f.
 	// Set g->sched to context in f.
 	MOVW	R7, (g_sched+gobuf_ctxt)(g)
@@ -302,7 +303,6 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	MOVW	R3, (m_morebuf+gobuf_pc)(R8)	// f's caller's PC
 	MOVW	SP, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
 	MOVW	$4(SP), R3			// f's argument pointer
-	MOVW	R3, m_moreargp(R8)	
 	MOVW	g, (m_morebuf+gobuf_g)(R8)
 
 	// Call newstack on m->g0's stack.
@@ -435,22 +435,6 @@ CALLFN(runtime·call134217728, 134217728)
 CALLFN(runtime·call268435456, 268435456)
 CALLFN(runtime·call536870912, 536870912)
 CALLFN(runtime·call1073741824, 1073741824)
-
-// Return point when leaving stack.
-// using frame size $-4 means do not save LR on stack.
-//
-// Lessstack can appear in stack traces for the same reason
-// as morestack; in that context, it has 0 arguments.
-TEXT runtime·lessstack(SB),NOSPLIT,$-4-0
-	// Save return value in m->cret
-	MOVW	g_m(g), R8
-	MOVW	R0, m_cret(R8)
-
-	// Call oldstack on m->g0's stack.
-	MOVW	m_g0(R8), R0
-	BL	setg<>(SB)
-	MOVW	(g_sched+gobuf_sp)(g), SP
-	BL	runtime·oldstack(SB)
 
 // void jmpdefer(fn, sp);
 // called from deferreturn.
@@ -720,13 +704,6 @@ TEXT runtime·atomicloaduintptr(SB),NOSPLIT,$0-8
 
 TEXT runtime·atomicloaduint(SB),NOSPLIT,$0-8
 	B	runtime·atomicload(SB)
-
-TEXT runtime·stackguard(SB),NOSPLIT,$0-8
-	MOVW	R13, R1
-	MOVW	g_stackguard(g), R2
-	MOVW	R1, sp+0(FP)
-	MOVW	R2, limit+4(FP)
-	RET
 
 // AES hashing not implemented for ARM
 TEXT runtime·aeshash(SB),NOSPLIT,$-4-0

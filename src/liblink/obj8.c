@@ -335,7 +335,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		p = appendp(ctxt, p);
 		p->as = AMOVL;
 		p->from.type = D_INDIR+D_CX;
-		p->from.offset = 2*ctxt->arch->ptrsize; // G.panic
+		p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
 		p->to.type = D_BX;
 
 		p = appendp(ctxt, p);
@@ -501,7 +501,6 @@ static Prog*
 stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 {
 	Prog *q, *q1;
-	int arg;
 
 	if(ctxt->debugstack) {
 		// 8l -K means check not only for stack
@@ -539,8 +538,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 		p->as = ACMPL;
 		p->from.type = D_SP;
 		p->to.type = D_INDIR+D_CX;
+		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 		if(ctxt->cursym->cfunc)
-			p->to.offset = 3*ctxt->arch->ptrsize;
+			p->to.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 	} else if(framesize <= StackBig) {
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAL -(framesize-StackSmall)(SP), AX
@@ -555,8 +555,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 		p->as = ACMPL;
 		p->from.type = D_AX;
 		p->to.type = D_INDIR+D_CX;
+		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 		if(ctxt->cursym->cfunc)
-			p->to.offset = 3*ctxt->arch->ptrsize;
+			p->to.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 	} else {
 		// Such a large stack we need to protect against wraparound
 		// if SP is close to zero.
@@ -576,8 +577,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 		p->as = AMOVL;
 		p->from.type = D_INDIR+D_CX;
 		p->from.offset = 0;
+		p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 		if(ctxt->cursym->cfunc)
-			p->from.offset = 3*ctxt->arch->ptrsize;
+			p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 		p->to.type = D_SI;
 
 		p = appendp(ctxt, p);
@@ -616,33 +618,6 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 	p->to.type = D_BRANCH;
 	p->to.offset = 4;
 	q = p;
-
-	p = appendp(ctxt, p);	// save frame size in DI
-	p->as = AMOVL;
-	p->to.type = D_DI;
-	p->from.type = D_CONST;
-
-	// If we ask for more stack, we'll get a minimum of StackMin bytes.
-	// We need a stack frame large enough to hold the top-of-stack data,
-	// the function arguments+results, our caller's PC, our frame,
-	// a word for the return PC of the next call, and then the StackLimit bytes
-	// that must be available on entry to any function called from a function
-	// that did a stack check.  If StackMin is enough, don't ask for a specific
-	// amount: then we can use the custom functions and save a few
-	// instructions.
-	if(StackTop + ctxt->cursym->text->to.offset2 + ctxt->arch->ptrsize + framesize + ctxt->arch->ptrsize + StackLimit >= StackMin)
-		p->from.offset = (framesize+7) & ~7LL;
-
-	arg = ctxt->cursym->text->to.offset2;
-	if(arg == 1) // special marker for known 0
-		arg = 0;
-	if(arg&3)
-		ctxt->diag("misaligned argument size in stack split");
-	p = appendp(ctxt, p);	// save arg size in AX
-	p->as = AMOVL;
-	p->to.type = D_AX;
-	p->from.type = D_CONST;
-	p->from.offset = arg;
 
 	p = appendp(ctxt, p);
 	p->as = ACALL;
