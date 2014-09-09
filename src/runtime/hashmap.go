@@ -59,7 +59,8 @@ import (
 
 const (
 	// Maximum number of key/value pairs a bucket can hold.
-	bucketCnt = 8
+	bucketCntBits = 3
+	bucketCnt     = 1 << bucketCntBits
 
 	// Maximum average load of a bucket that triggers growth.
 	loadFactor = 6.5
@@ -138,7 +139,7 @@ type hiter struct {
 	offset      uint8          // intra-bucket offset to start from during iteration (should be big enough to hold bucketCnt-1)
 	wrapped     bool           // already wrapped around from end of bucket array to beginning
 	B           uint8
-	i	    uint8
+	i           uint8
 	bucket      uintptr
 	checkBucket uintptr
 }
@@ -562,17 +563,12 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	it.buckets = h.buckets
 
 	// decide where to start
-	switch {
-	case h.B == 0:
-		it.startBucket = 0
-		it.offset = uint8(fastrand1()) & (bucketCnt - 1)
-	case h.B <= 31:
-		it.startBucket = uintptr(fastrand1()) & (uintptr(1)<<h.B-1)
-		it.offset = 0
-	default:
-		it.startBucket = (uintptr(fastrand1()) + uintptr(fastrand1())<<31) & (uintptr(1)<<h.B-1)
-		it.offset = 0
+	r := uintptr(fastrand1())
+	if h.B > 31-bucketCntBits {
+		r += uintptr(fastrand1()) << 31
 	}
+	it.startBucket = r & (uintptr(1)<<h.B - 1)
+	it.offset = uint8(r >> h.B & (bucketCnt - 1))
 
 	// iterator state
 	it.bucket = it.startBucket
