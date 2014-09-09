@@ -855,6 +855,7 @@ func BenchmarkManyArgs(b *testing.B) {
 }
 
 var mallocBuf bytes.Buffer
+var mallocPointer *int // A pointer so we know the interface value won't allocate.
 
 var mallocTest = []struct {
 	count int
@@ -866,11 +867,13 @@ var mallocTest = []struct {
 	{1, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
 	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
 	{1, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
-	// For %g we use a float32, not float64, to guarantee passing the argument
-	// does not need to allocate memory to store the result in a pointer-sized word.
-	{2, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }},
-	{0, `Fprintf(buf, "%x %x %x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x %x %x", 7, 8, 9) }},
+	{2, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }}, // TODO: Can this be 1?
 	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
+	{0, `Fprintf(buf, "%x %x %x")`, func() {
+		mallocBuf.Reset()
+		Fprintf(&mallocBuf, "%x %x %x", mallocPointer, mallocPointer, mallocPointer)
+	}},
 }
 
 var _ bytes.Buffer
