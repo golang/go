@@ -229,8 +229,11 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	MOVQ	BX, g_m(SP)
 
 	LEAQ	-8192(SP), CX
-	MOVQ	CX, g_stackguard(SP)
-	MOVQ	DX, g_stackbase(SP)
+	MOVQ	CX, (g_stack+stack_lo)(SP)
+	ADDQ	$const_StackGuard, CX
+	MOVQ	CX, g_stackguard0(SP)
+	MOVQ	CX, g_stackguard1(SP)
+	MOVQ	DX, (g_stack+stack_hi)(SP)
 
 	PUSHQ	32(BP)			// arg for handler
 	CALL	16(BP)
@@ -238,7 +241,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 	get_tls(CX)
 	MOVQ	g(CX), CX
-	MOVQ	g_stackbase(CX), SP
+	MOVQ	(g_stack+stack_hi)(CX), SP
 	POPQ	0x28(GS)
 	POPQ	DI
 	POPQ	SI
@@ -334,9 +337,12 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 
 	// Layout new m scheduler stack on os stack.
 	MOVQ	SP, AX
-	MOVQ	AX, g_stackbase(DX)
+	MOVQ	AX, (g_stack+stack_hi)(DX)
 	SUBQ	$(64*1024), AX		// stack size
-	MOVQ	AX, g_stackguard(DX)
+	MOVQ	AX, (g_stack+stack_lo)(DX)
+	ADDQ	$const_StackGuard, AX
+	MOVQ	AX, g_stackguard0(DX)
+	MOVQ	AX, g_stackguard1(DX)
 
 	// Set up tls.
 	LEAQ	m_tls(CX), SI

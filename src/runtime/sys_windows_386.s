@@ -192,8 +192,11 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	LEAL	g_end(SP), BX
 	MOVL	BX, g_m(SP)
 	LEAL	-4096(SP), CX
-	MOVL	CX, g_stackguard(SP)
-	MOVL	DX, g_stackbase(SP)
+	MOVL	CX, (g_stack+stack_lo)(SP)
+	ADDL	$const_StackGuard, CX
+	MOVL	CX, g_stackguard0(SP)
+	MOVL	CX, g_stackguard1(SP)
+	MOVL	DX, (g_stack+stack_hi)(SP)
 
 	PUSHL	16(BP)			// arg for handler
 	CALL	8(BP)
@@ -201,7 +204,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 	get_tls(CX)
 	MOVL	g(CX), CX
-	MOVL	g_stackbase(CX), SP
+	MOVL	(g_stack+stack_hi)(CX), SP
 	POPL	0x14(FS)
 	POPL	DI
 	POPL	SI
@@ -293,9 +296,12 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
 
 	// Layout new m scheduler stack on os stack.
 	MOVL	SP, AX
-	MOVL	AX, g_stackbase(DX)
+	MOVL	AX, (g_stack+stack_hi)(DX)
 	SUBL	$(64*1024), AX		// stack size
-	MOVL	AX, g_stackguard(DX)
+	MOVL	AX, (g_stack+stack_lo)(DX)
+	ADDL	$const_StackGuard, AX
+	MOVL	AX, g_stackguard0(DX)
+	MOVL	AX, g_stackguard1(DX)
 
 	// Set up tls.
 	LEAL	m_tls(CX), SI
