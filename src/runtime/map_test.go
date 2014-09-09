@@ -475,3 +475,24 @@ func TestMapStringBytesLookup(t *testing.T) {
 		t.Errorf("AllocsPerRun for x,ok = m[string(buf)] = %v, want 0", n)
 	}
 }
+
+func benchmarkMapPop(b *testing.B, n int) {
+	m := map[int]int{}
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < n; j++ {
+			m[j] = j
+		}
+		for j := 0; j < n; j++ {
+			// Use iterator to pop an element.
+			// We want this to be fast, see issue 8412.
+			for k := range m {
+				delete(m, k)
+				break
+			}
+		}
+	}
+}
+
+func BenchmarkMapPop100(b *testing.B)   { benchmarkMapPop(b, 100) }
+func BenchmarkMapPop1000(b *testing.B)  { benchmarkMapPop(b, 1000) }
+func BenchmarkMapPop10000(b *testing.B) { benchmarkMapPop(b, 10000) }
