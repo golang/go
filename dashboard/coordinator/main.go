@@ -51,15 +51,19 @@ type imageInfo struct {
 }
 
 var images = map[string]*imageInfo{
-	"gobuilders/linux-x86-base": {url: "https://storage.googleapis.com/go-builder-data/docker-linux.base.tar.gz"},
-	"gobuilders/linux-x86-nacl": {url: "https://storage.googleapis.com/go-builder-data/docker-linux.nacl.tar.gz"},
+	"gobuilders/linux-x86-base":  {url: "https://storage.googleapis.com/go-builder-data/docker-linux.base.tar.gz"},
+	"gobuilders/linux-x86-gccgo": {url: "https://storage.googleapis.com/go-builder-data/docker-linux.gccgo.tar.gz"},
+	"gobuilders/linux-x86-nacl":  {url: "https://storage.googleapis.com/go-builder-data/docker-linux.nacl.tar.gz"},
 }
 
 type buildConfig struct {
-	name  string   // "linux-amd64-race"
-	image string   // Docker image to use to build
-	cmd   string   // optional -cmd flag (relative to go/src/)
-	env   []string // extra environment ("key=value") pairs
+	name       string        // "linux-amd64-race"
+	image      string        // Docker image to use to build
+	cmd        string        // optional -cmd flag (relative to go/src/)
+	cmdTimeout time.Duration // time to wait for optional cmd to finish
+	env        []string      // extra environment ("key=value") pairs
+	dashURL    string        // url of the build dashboard
+	tool       string        // the tool this configuration is for
 }
 
 func main() {
@@ -71,6 +75,14 @@ func main() {
 	addBuilder(buildConfig{name: "linux-amd64-race"})
 	addBuilder(buildConfig{name: "nacl-386"})
 	addBuilder(buildConfig{name: "nacl-amd64p32"})
+	addBuilder(buildConfig{
+		name:       "linux-amd64-gccgo",
+		image:      "gobuilders/linux-x86-gccgo",
+		cmd:        "make check-go -kj",
+		cmdTimeout: 60 * time.Minute,
+		dashURL:    "https://build.golang.org/gccgo",
+		tool:       "gccgo",
+	})
 
 	if (*just != "") != (*rev != "") {
 		log.Fatalf("--just and --rev must be used together")
@@ -94,8 +106,8 @@ func main() {
 	go http.ListenAndServe(":80", nil)
 
 	workc := make(chan builderRev)
-	for name := range builders {
-		go findWorkLoop(name, workc)
+	for name, builder := range builders {
+		go findWorkLoop(name, builder.dashURL, workc)
 	}
 
 	ticker := time.NewTicker(1 * time.Minute)
@@ -200,10 +212,10 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, logs)
 }
 
-func findWorkLoop(builderName string, work chan<- builderRev) {
+func findWorkLoop(builderName, dashURL string, work chan<- builderRev) {
 	// TODO: make this better
 	for {
-		rev, err := findWork(builderName)
+		rev, err := findWork(builderName, dashURL)
 		if err != nil {
 			log.Printf("Finding work for %s: %v", builderName, err)
 		} else if rev != "" {
@@ -213,7 +225,7 @@ func findWorkLoop(builderName string, work chan<- builderRev) {
 	}
 }
 
-func findWork(builderName string) (rev string, err error) {
+func findWork(builderName, dashURL string) (rev string, err error) {
 	var jres struct {
 		Response struct {
 			Kind string
@@ -223,7 +235,7 @@ func findWork(builderName string) (rev string, err error) {
 			}
 		}
 	}
-	res, err := http.Get("https://build.golang.org/todo?builder=" + builderName + "&kind=build-go-commit")
+	res, err := http.Get(dashURL + "/todo?builder=" + builderName + "&kind=build-go-commit")
 	if err != nil {
 		return
 	}
@@ -260,11 +272,14 @@ func (conf buildConfig) dockerRunArgs(rev string) (args []string) {
 		conf.image,
 		"/usr/local/bin/builder",
 		"-rev="+rev,
-		"-buildroot=/",
+		"-dashboard="+conf.dashURL,
+		"-tool="+conf.tool,
+		"-buildroot=/"+conf.tool,
 		"-v",
 	)
 	if conf.cmd != "" {
 		args = append(args, "-cmd", conf.cmd)
+		args = append(args, "-cmdTimeout", conf.cmdTimeout.String())
 	}
 	args = append(args, conf.name)
 	return
@@ -280,6 +295,16 @@ func addBuilder(c buildConfig) {
 	if _, dup := builders[c.name]; dup {
 		panic("dup name")
 	}
+	if c.cmdTimeout == 0 {
+		c.cmdTimeout = 10 * time.Minute
+	}
+	if c.dashURL == "" {
+		c.dashURL = "https://build.golang.org"
+	}
+	if c.tool == "" {
+		c.tool = "go"
+	}
+
 	if strings.HasPrefix(c.name, "nacl-") {
 		if c.image == "" {
 			c.image = "gobuilders/linux-x86-nacl"
