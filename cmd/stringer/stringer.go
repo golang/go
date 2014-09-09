@@ -29,7 +29,7 @@
 //
 // running this command
 //
-//	go tool stringer -type=Pill
+//	stringer -type=Pill
 //
 // in the same directory will create the file pill_string.go, in package painkiller,
 // containing a definition of
@@ -42,8 +42,7 @@
 //
 // Typically this process would be run using go generate, like this:
 //
-//	//go:generate go tool stringer -type=Pill
-//	TODO: do we install this as a tool or as a binary?
+//	//go:generate stringer -type=Pill
 //
 // If multiple constants have the same value, the lexically first matching name will
 // be used (in the example, Acetaminophen will print as "Paracetamol").
