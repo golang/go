@@ -7,6 +7,8 @@
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "textflag.h"
+#include "arch_GOARCH.h"
+#include "malloc.h"
 
 #pragma dynimport runtime·AddVectoredExceptionHandler AddVectoredExceptionHandler "kernel32.dll"
 #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
@@ -144,7 +146,7 @@ runtime·goenvs(void)
 	for(p=env; *p; n++)
 		p += runtime·findnullw(p)+1;
 
-	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
+	s = runtime·mallocgc(n*sizeof s[0], runtime·conservative, 0);
 
 	p = env;
 	for(i=0; i<n; i++) {

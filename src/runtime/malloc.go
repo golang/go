@@ -51,11 +51,15 @@ var maxMem uintptr
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
-func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 	if size == 0 {
 		return unsafe.Pointer(&zeroObject)
 	}
 	size0 := size
+
+	if flags&flagNoScan == 0 && typ == nil {
+		gothrow("malloc missing type")
+	}
 
 	// This function must be atomic wrt GC, but for performance reasons
 	// we don't acquirem/releasem on fast path. The code below does not have
@@ -338,18 +342,13 @@ marked:
 	return x
 }
 
-// cmallocgc is a trampoline used to call the Go malloc from C.
-func cmallocgc(size uintptr, typ *_type, flags int, ret *unsafe.Pointer) {
-	*ret = gomallocgc(size, typ, flags)
-}
-
 // implementation of new builtin
 func newobject(typ *_type) unsafe.Pointer {
 	flags := 0
 	if typ.kind&kindNoPointers != 0 {
 		flags |= flagNoScan
 	}
-	return gomallocgc(uintptr(typ.size), typ, flags)
+	return mallocgc(uintptr(typ.size), typ, flags)
 }
 
 // implementation of make builtin for slices
@@ -361,13 +360,13 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
 	if int(n) < 0 || (typ.size > 0 && n > maxMem/uintptr(typ.size)) {
 		panic("runtime: allocation size out of range")
 	}
-	return gomallocgc(uintptr(typ.size)*n, typ, flags)
+	return mallocgc(uintptr(typ.size)*n, typ, flags)
 }
 
 // rawmem returns a chunk of pointerless memory.  It is
 // not zeroed.
 func rawmem(size uintptr) unsafe.Pointer {
-	return gomallocgc(size, nil, flagNoScan|flagNoZero)
+	return mallocgc(size, nil, flagNoScan|flagNoZero)
 }
 
 // round size up to next size class
@@ -725,7 +724,7 @@ func runfinq() {
 					// all not yet finalized objects are stored in finq.
 					// If we do not mark it as FlagNoScan,
 					// the last finalized object is not collected.
-					frame = gomallocgc(framesz, nil, flagNoScan)
+					frame = mallocgc(framesz, nil, flagNoScan)
 					framecap = framesz
 				}
 

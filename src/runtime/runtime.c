@@ -6,6 +6,7 @@
 #include "stack.h"
 #include "arch_GOARCH.h"
 #include "textflag.h"
+#include "malloc.h"
 
 // Keep a cached value to make gotraceback fast,
 // since we call it on every call to gentraceback.
@@ -96,7 +97,7 @@ runtime·goargs(void)
 	if(Windows)
 		return;
 
-	s = runtime·mallocgc(argc*sizeof s[0], nil, 0);
+	s = runtime·mallocgc(argc*sizeof s[0], runtime·conservative, 0);
 	for(i=0; i<argc; i++)
 		s[i] = runtime·gostringnocopy(argv[i]);
 	os·Args.array = (byte*)s;
@@ -113,7 +114,7 @@ runtime·goenvs_unix(void)
 	for(n=0; argv[argc+1+n] != 0; n++)
 		;
 
-	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
+	s = runtime·mallocgc(n*sizeof s[0], runtime·conservative, 0);
 	for(i=0; i<n; i++)
 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
 	syscall·envs.array = (byte*)s;

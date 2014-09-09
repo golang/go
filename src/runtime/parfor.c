@@ -6,6 +6,7 @@
 
 #include "runtime.h"
 #include "arch_GOARCH.h"
+#include "malloc.h"
 
 struct ParForThread
 {
@@ -27,7 +28,7 @@ runtime·parforalloc(uint32 nthrmax)
 
 	// The ParFor object is followed by CacheLineSize padding
 	// and then nthrmax ParForThread.
-	desc = (ParFor*)runtime·mallocgc(sizeof(ParFor) + CacheLineSize + nthrmax * sizeof(ParForThread), nil, 0);
+	desc = (ParFor*)runtime·mallocgc(sizeof(ParFor) + CacheLineSize + nthrmax * sizeof(ParForThread), runtime·conservative, 0);
 	desc->thr = (ParForThread*)((byte*)(desc+1) + CacheLineSize);
 	desc->nthrmax = nthrmax;
 	return desc;

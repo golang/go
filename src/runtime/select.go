@@ -588,7 +588,7 @@ const (
 func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
 	// flagNoScan is safe here, because all objects are also referenced from cases.
 	size := selectsize(uintptr(len(cases)))
-	sel := (*_select)(gomallocgc(size, nil, flagNoScan))
+	sel := (*_select)(mallocgc(size, nil, flagNoScan))
 	newselect(sel, int64(size), int32(len(cases)))
 	r := new(bool)
 	for i := range cases {
