@@ -295,9 +295,6 @@ func SetBlockProfileRate(rate int) {
 	atomicstore64(&blockprofilerate, uint64(r))
 }
 
-func fastrand1() uint32     // assembly
-func readgstatus(*g) uint32 // proc.c
-
 func blockevent(cycles int64, skip int) {
 	if cycles <= 0 {
 		return
