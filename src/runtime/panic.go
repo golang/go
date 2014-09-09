@@ -287,9 +287,9 @@ func gopanic(e interface{}) {
 		gp._defer = (*_defer)(noescape(unsafe.Pointer(&dabort)))
 		p._defer = d
 
-		p.argp = getargp(0)
+		p.argp = unsafe.Pointer(getargp(0))
 		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz))
-		p.argp = 0
+		p.argp = nil
 
 		// reflectcall did not panic. Remove dabort.
 		if gp._defer != &dabort {
@@ -362,7 +362,7 @@ func gorecover(argp uintptr) interface{} {
 	// If they match, the caller is the one who can recover.
 	gp := getg()
 	p := gp._panic
-	if p != nil && !p.recovered && argp == p.argp {
+	if p != nil && !p.recovered && argp == uintptr(p.argp) {
 		p.recovered = true
 		return p.arg
 	}
