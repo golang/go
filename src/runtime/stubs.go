@@ -219,7 +219,6 @@ const _NoArgs = ^uintptr(0)
 
 func newstack()
 func newproc()
-func lessstack()
 func morestack()
 func mstart()
 func rt0_go()

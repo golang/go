@@ -20,7 +20,7 @@ x_cgo_init(G *g, void (*setg)(void*))
 	setg_gcc = setg;
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
-	g->stackguard = (uintptr)&attr - size + 4096;
+	g->stacklo = (uintptr)&attr - size + 4096;
 	pthread_attr_destroy(&attr);
 }
 
@@ -40,7 +40,8 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
 
-	ts->g->stackguard = size;
+	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+	ts->g->stackhi = size;
 	err = pthread_create(&p, &attr, threadentry, ts);
 
 	pthread_sigmask(SIG_SETMASK, &oset, nil);
@@ -58,14 +59,6 @@ threadentry(void *v)
 
 	ts = *(ThreadStart*)v;
 	free(v);
-
-	ts.g->stackbase = (uintptr)&ts;
-
-	/*
-	 * _cgo_sys_thread_start set stackguard to stack size;
-	 * change to actual guard pointer.
-	 */
-	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
 
 	/*
 	 * Set specific keys.

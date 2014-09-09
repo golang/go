@@ -51,8 +51,11 @@ runtime·recovery_m(G *gp)
 	argp = (void*)gp->sigcode0;
 	pc = (uintptr)gp->sigcode1;
 
-	// Unwind to the stack frame with d's arguments in it.
-	runtime·unwindstack(gp, argp);
+	// d's arguments need to be in the stack.
+	if(argp != nil && ((uintptr)argp < gp->stack.lo || gp->stack.hi < (uintptr)argp)) {
+		runtime·printf("recover: %p not in [%p, %p]\n", argp, gp->stack.lo, gp->stack.hi);
+		runtime·throw("bad recovery");
+	}
 
 	// Make the deferproc for this d return again,
 	// this time returning 1.  The calling function will
@@ -71,34 +74,6 @@ runtime·recovery_m(G *gp)
 	gp->sched.lr = 0;
 	gp->sched.ret = 1;
 	runtime·gogo(&gp->sched);
-}
-
-// Free stack frames until we hit the last one
-// or until we find the one that contains the sp.
-void
-runtime·unwindstack(G *gp, byte *sp)
-{
-	Stktop *top;
-	byte *stk;
-
-	// Must be called from a different goroutine, usually m->g0.
-	if(g == gp)
-		runtime·throw("unwindstack on self");
-
-	while((top = (Stktop*)gp->stackbase) != 0 && top->stackbase != 0) {
-		stk = (byte*)gp->stackguard - StackGuard;
-		if(stk <= sp && sp < (byte*)gp->stackbase)
-			break;
-		gp->stackbase = top->stackbase;
-		gp->stackguard = top->stackguard;
-		gp->stackguard0 = gp->stackguard;
-		runtime·stackfree(gp, stk, top);
-	}
-
-	if(sp != nil && (sp < (byte*)gp->stackguard - StackGuard || (byte*)gp->stackbase < sp)) {
-		runtime·printf("recover: %p not in [%p, %p]\n", sp, gp->stackguard - StackGuard, gp->stackbase);
-		runtime·throw("bad unwindstack");
-	}
 }
 
 void

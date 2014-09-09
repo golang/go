@@ -342,32 +342,6 @@ nacladdr(Link *ctxt, Prog *p, Addr *a)
 	}
 }
 
-static char*
-morename[] =
-{
-	"runtime.morestack00",
-	"runtime.morestack00_noctxt",
-	"runtime.morestack10",
-	"runtime.morestack10_noctxt",
-	"runtime.morestack01",
-	"runtime.morestack01_noctxt",
-	"runtime.morestack11",
-	"runtime.morestack11_noctxt",
-
-	"runtime.morestack8",
-	"runtime.morestack8_noctxt",
-	"runtime.morestack16",
-	"runtime.morestack16_noctxt",
-	"runtime.morestack24",
-	"runtime.morestack24_noctxt",
-	"runtime.morestack32",
-	"runtime.morestack32_noctxt",
-	"runtime.morestack40",
-	"runtime.morestack40_noctxt",
-	"runtime.morestack48",
-	"runtime.morestack48_noctxt",
-};
-
 static Prog*	load_g_cx(Link*, Prog*);
 static Prog*	stacksplit(Link*, Prog*, int32, int32, int, Prog**);
 static void	indir_cx(Link*, Addr*);
@@ -388,19 +362,16 @@ parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
 static void
 addstacksplit(Link *ctxt, LSym *cursym)
 {
-	Prog *p, *q, *q1, *p1, *p2;
+	Prog *p, *q, *p1, *p2;
 	int32 autoffset, deltasp;
 	int a, pcsize;
-	uint32 i;
 	vlong textstksiz, textarg;
 
 	if(ctxt->tlsg == nil)
 		ctxt->tlsg = linklookup(ctxt, "runtime.tlsg", 0);
 	if(ctxt->symmorestack[0] == nil) {
-		if(nelem(morename) > nelem(ctxt->symmorestack))
-			sysfatal("Link.symmorestack needs at least %d elements", nelem(morename));
-		for(i=0; i<nelem(morename); i++)
-			ctxt->symmorestack[i] = linklookup(ctxt, morename[i], 0);
+		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
+		ctxt->symmorestack[1] = linklookup(ctxt, "runtime.morestack_noctxt", 0);
 	}
 
 	if(ctxt->headtype == Hplan9 && ctxt->plan9privates == nil)
@@ -481,7 +452,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		p = appendp(ctxt, p);
 		p->as = AMOVQ;
 		p->from.type = D_INDIR+D_CX;
-		p->from.offset = 2*ctxt->arch->ptrsize; // G.panic
+		p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
 		p->to.type = D_BX;
 		if(ctxt->headtype == Hnacl) {
 			p->as = AMOVL;
@@ -545,42 +516,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		p2->pcond = p;
 	}
 
-	if(ctxt->debugstack > 1 && autoffset) {
-		// 6l -K -K means double-check for stack overflow
-		// even after calling morestack and even if the
-		// function is marked as nosplit.
-		p = appendp(ctxt, p);
-		p->as = AMOVQ;
-		indir_cx(ctxt, &p->from);
-		p->from.offset = 0;
-		p->to.type = D_BX;
-
-		p = appendp(ctxt, p);
-		p->as = ASUBQ;
-		p->from.type = D_CONST;
-		p->from.offset = StackSmall+32;
-		p->to.type = D_BX;
-
-		p = appendp(ctxt, p);
-		p->as = ACMPQ;
-		p->from.type = D_SP;
-		p->to.type = D_BX;
-
-		p = appendp(ctxt, p);
-		p->as = AJHI;
-		p->to.type = D_BRANCH;
-		q1 = p;
-
-		p = appendp(ctxt, p);
-		p->as = AINT;
-		p->from.type = D_CONST;
-		p->from.offset = 3;
-
-		p = appendp(ctxt, p);
-		p->as = ANOP;
-		q1->pcond = p;
-	}
-	
 	if(ctxt->debugzerostack && autoffset && !(cursym->text->from.scale&NOSPLIT)) {
 		// 6l -Z means zero the stack frame on entry.
 		// This slows down function calls but can help avoid
@@ -731,9 +666,9 @@ static Prog*
 stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog **jmpok)
 {
 	Prog *q, *q1;
-	uint32 moreconst1, moreconst2, i;
 	int cmp, lea, mov, sub;
 
+	USED(textarg);
 	cmp = ACMPQ;
 	lea = ALEAQ;
 	mov = AMOVQ;
@@ -746,35 +681,6 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		sub = ASUBL;
 	}
 
-	if(ctxt->debugstack) {
-		// 6l -K means check not only for stack
-		// overflow but stack underflow.
-		// On underflow, INT 3 (breakpoint).
-		// Underflow itself is rare but this also
-		// catches out-of-sync stack guard info
-
-		p = appendp(ctxt, p);
-		p->as = cmp;
-		indir_cx(ctxt, &p->from);
-		p->from.offset = 8;
-		p->to.type = D_SP;
-
-		p = appendp(ctxt, p);
-		p->as = AJHI;
-		p->to.type = D_BRANCH;
-		p->to.offset = 4;
-		q1 = p;
-
-		p = appendp(ctxt, p);
-		p->as = AINT;
-		p->from.type = D_CONST;
-		p->from.offset = 3;
-
-		p = appendp(ctxt, p);
-		p->as = ANOP;
-		q1->pcond = p;
-	}
-
 	q1 = nil;
 	if(framesize <= StackSmall) {
 		// small stack: SP <= stackguard
@@ -783,8 +689,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		p->as = cmp;
 		p->from.type = D_SP;
 		indir_cx(ctxt, &p->to);
+		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 		if(ctxt->cursym->cfunc)
-			p->to.offset = 3*ctxt->arch->ptrsize;
+			p->to.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 	} else if(framesize <= StackBig) {
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAQ -xxx(SP), AX
@@ -799,8 +706,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		p->as = cmp;
 		p->from.type = D_AX;
 		indir_cx(ctxt, &p->to);
+		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 		if(ctxt->cursym->cfunc)
-			p->to.offset = 3*ctxt->arch->ptrsize;
+			p->to.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 	} else {
 		// Such a large stack we need to protect against wraparound.
 		// If SP is close to zero:
@@ -820,9 +728,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		p = appendp(ctxt, p);
 		p->as = mov;
 		indir_cx(ctxt, &p->from);
-		p->from.offset = 0;
+		p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 		if(ctxt->cursym->cfunc)
-			p->from.offset = 3*ctxt->arch->ptrsize;
+			p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 		p->to.type = D_SI;
 
 		p = appendp(ctxt, p);
@@ -860,75 +768,13 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 	p->to.type = D_BRANCH;
 	q = p;
 
-	// If we ask for more stack, we'll get a minimum of StackMin bytes.
-	// We need a stack frame large enough to hold the top-of-stack data,
-	// the function arguments+results, our caller's PC, our frame,
-	// a word for the return PC of the next call, and then the StackLimit bytes
-	// that must be available on entry to any function called from a function
-	// that did a stack check.  If StackMin is enough, don't ask for a specific
-	// amount: then we can use the custom functions and save a few
-	// instructions.
-	moreconst1 = 0;
-	if(StackTop + textarg + ctxt->arch->ptrsize + framesize + ctxt->arch->ptrsize + StackLimit >= StackMin)
-		moreconst1 = framesize;
-	moreconst2 = textarg;
-	if(moreconst2 == 1) // special marker
-		moreconst2 = 0;
-	if((moreconst2&7) != 0)
-		ctxt->diag("misaligned argument size in stack split");
-	// 4 varieties varieties (const1==0 cross const2==0)
-	// and 6 subvarieties of (const1==0 and const2!=0)
 	p = appendp(ctxt, p);
-	if(ctxt->cursym->cfunc) {
-		p->as = ACALL;
-		p->to.type = D_BRANCH;
+	p->as = ACALL;
+	p->to.type = D_BRANCH;
+	if(ctxt->cursym->cfunc)
 		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
-	} else
-	if(moreconst1 == 0 && moreconst2 == 0) {
-		p->as = ACALL;
-		p->to.type = D_BRANCH;
-		p->to.sym = ctxt->symmorestack[0*2+noctxt];
-	} else
-	if(moreconst1 != 0 && moreconst2 == 0) {
-		p->as = AMOVL;
-		p->from.type = D_CONST;
-		p->from.offset = moreconst1;
-		p->to.type = D_AX;
-
-		p = appendp(ctxt, p);
-		p->as = ACALL;
-		p->to.type = D_BRANCH;
-		p->to.sym = ctxt->symmorestack[1*2+noctxt];
-	} else
-	if(moreconst1 == 0 && moreconst2 <= 48 && moreconst2%8 == 0) {
-		i = moreconst2/8 + 3;
-		p->as = ACALL;
-		p->to.type = D_BRANCH;
-		p->to.sym = ctxt->symmorestack[i*2+noctxt];
-	} else
-	if(moreconst1 == 0 && moreconst2 != 0) {
-		p->as = AMOVL;
-		p->from.type = D_CONST;
-		p->from.offset = moreconst2;
-		p->to.type = D_AX;
-
-		p = appendp(ctxt, p);
-		p->as = ACALL;
-		p->to.type = D_BRANCH;
-		p->to.sym = ctxt->symmorestack[2*2+noctxt];
-	} else {
-		// Pass framesize and argsize.
-		p->as = AMOVQ;
-		p->from.type = D_CONST;
-		p->from.offset = (uint64)moreconst2 << 32;
-		p->from.offset |= moreconst1;
-		p->to.type = D_AX;
-
-		p = appendp(ctxt, p);
-		p->as = ACALL;
-		p->to.type = D_BRANCH;
-		p->to.sym = ctxt->symmorestack[3*2+noctxt];
-	}
+	else
+		p->to.sym = ctxt->symmorestack[noctxt];
 	
 	p = appendp(ctxt, p);
 	p->as = AJMP;

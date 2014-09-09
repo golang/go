@@ -62,7 +62,6 @@ typedef	struct	M		M;
 typedef	struct	P		P;
 typedef	struct	Note		Note;
 typedef	struct	Slice		Slice;
-typedef	struct	Stktop		Stktop;
 typedef	struct	String		String;
 typedef	struct	FuncVal		FuncVal;
 typedef	struct	SigTab		SigTab;
@@ -74,12 +73,12 @@ typedef	struct	InterfaceType	InterfaceType;
 typedef	struct	Eface		Eface;
 typedef	struct	Type		Type;
 typedef	struct	PtrType		PtrType;
-typedef	struct	ChanType		ChanType;
+typedef	struct	ChanType	ChanType;
 typedef	struct	MapType		MapType;
 typedef	struct	Defer		Defer;
 typedef	struct	Panic		Panic;
 typedef	struct	Hmap		Hmap;
-typedef	struct	Hiter			Hiter;
+typedef	struct	Hiter		Hiter;
 typedef	struct	Hchan		Hchan;
 typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;
@@ -92,7 +91,8 @@ typedef	struct	ParForThread	ParForThread;
 typedef	struct	CgoMal		CgoMal;
 typedef	struct	PollDesc	PollDesc;
 typedef	struct	DebugVars	DebugVars;
-typedef struct	ForceGCState	ForceGCState;
+typedef	struct	ForceGCState	ForceGCState;
+typedef	struct	Stack		Stack;
 
 /*
  * Per-CPU declaration.
@@ -265,23 +265,33 @@ struct	WinCallbackContext
 	bool	cleanstack;
 };
 
+// Stack describes a Go execution stack.
+// The bounds of the stack are exactly [lo, hi),
+// with no implicit data structures on either side.
+struct	Stack
+{
+	uintptr	lo;
+	uintptr	hi;
+};
+
 struct	G
 {
-	// stackguard0 can be set to StackPreempt as opposed to stackguard
-	uintptr	stackguard0;	// cannot move - also known to liblink, libmach, runtime/cgo
-	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
-	Panic*	panic;	// cannot move - also known to liblink
-	// stackguard1 is checked by C code; it is set to ~0 in ordinary (non-g0, non-gsignal) goroutines
-	uintptr	stackguard1;	// cannot move - also known to liblink
-	Defer*	defer;
+	// Stack parameters.
+	// stack describes the actual stack memory: [stack.lo, stack.hi).
+	// stackguard0 is the stack pointer compared in the Go stack growth prologue.
+	// It is stack.lo+StackGuard normally, but can be StackPreempt to trigger a preemption.
+	// stackguard1 is the stack pointer compared in the C stack growth prologue.
+	// It is stack.lo+StackGuard on g0 and gsignal stacks.
+	// It is ~0 on other goroutine stacks, to trigger a call to morestackc (and crash).
+	Stack	stack;	// offset known to runtime/cgo
+	uintptr	stackguard0;	// offset known to liblink
+	uintptr	stackguard1;	// offset known to liblink
+
+	Panic*	panic;	// innermost panic - offset known to liblink
+	Defer*	defer;	// innermost defer
 	Gobuf	sched;
-	uintptr	syscallstack;	// if status==Gsyscall, syscallstack = stackbase to use during gc
 	uintptr	syscallsp;	// if status==Gsyscall, syscallsp = sched.sp to use during gc
 	uintptr	syscallpc;	// if status==Gsyscall, syscallpc = sched.pc to use during gc
-	uintptr	syscallguard;	// if status==Gsyscall, syscallguard = stackguard to use during gc
-	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
-	uintptr	stack0;
-	uintptr	stacksize;
 	void*	param;		// passed parameter on wakeup
 	uint32	atomicstatus;
 	int64	goid;
@@ -291,34 +301,29 @@ struct	G
 	bool	issystem;	// do not output in stack dump, ignore in deadlock detector
 	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
 	bool	paniconfault;	// panic (instead of crash) on unexpected fault address
-	bool    preemptscan;    // preempted g does scan for GC
-	bool    gcworkdone;     // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
+	bool	preemptscan;    // preempted g does scan for GC
+	bool	gcworkdone;     // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
 	bool	throwsplit; // must not split stack
 	int8	raceignore;	// ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
 	int32	sig;
-	int32	writenbuf;
 	Slice	writebuf;
 	uintptr	sigcode0;
 	uintptr	sigcode1;
 	uintptr	sigpc;
 	uintptr	gopc;		// pc of go statement that created this goroutine
 	uintptr	racectx;
-	SudoG   *waiting;	// sudog structures this G is waiting on (that have a valid elem ptr)
+	SudoG*	waiting;	// sudog structures this G is waiting on (that have a valid elem ptr)
 	uintptr	end[];
 };
 
 struct	M
 {
 	G*	g0;		// goroutine with scheduling stack
-	void*	moreargp;	// argument pointer for more stack
 	Gobuf	morebuf;	// gobuf arg to morestack
 
 	// Fields not known to debuggers.
-	uint32	moreframesize;	// size arguments to morestack
-	uint32	moreargsize;	// known by amd64 asm to follow moreframesize
-	uintreg	cret;		// return value from C
 	uint64	procid;		// for debuggers, but offset not hard-coded
 	G*	gsignal;	// signal-handling G
 	uintptr	tls[4];		// thread-local storage (for x86 extern register)
@@ -362,7 +367,6 @@ struct	M
 	uint8	traceback;
 	bool	(*waitunlockf)(G*, void*);
 	void*	waitlock;
-	uintptr	forkstackguard;
 	uintptr scalararg[4];	// scalar argument/return for mcall
 	void*   ptrarg[4];	// pointer argument/return for mcall
 #ifdef GOOS_windows
@@ -442,16 +446,6 @@ enum
 	LockInternal = 2,
 };
 
-struct	Stktop
-{
-	// The offsets of these fields are known to (hard-coded in) libmach.
-	uintptr	stackguard;
-	uintptr	stackbase;
-	Gobuf	gobuf;
-	uint32	argsize;
-
-	uint8*	argp;	// pointer to arguments in old frame
-};
 struct	SigTab
 {
 	int32	flags;
@@ -596,8 +590,6 @@ struct ForceGCState
 };
 
 extern uint32 runtime·gcphase;
-extern bool runtime·precisestack;
-extern bool runtime·copystack;
 
 /*
  * defined macros
@@ -758,7 +750,6 @@ void	runtime·gogo(Gobuf*);
 void	runtime·gostartcall(Gobuf*, void(*)(void), void*);
 void	runtime·gostartcallfn(Gobuf*, FuncVal*);
 void	runtime·gosave(Gobuf*);
-void	runtime·lessstack(void);
 void	runtime·goargs(void);
 void	runtime·goenvs(void);
 void	runtime·goenvs_unix(void);
@@ -809,8 +800,8 @@ int32	runtime·funcspdelta(Func*, uintptr);
 int8*	runtime·funcname(Func*);
 int32	runtime·pcdatavalue(Func*, int32, uintptr);
 void	runtime·stackinit(void);
-void*	runtime·stackalloc(G*, uint32);
-void	runtime·stackfree(G*, void*, Stktop*);
+Stack	runtime·stackalloc(uint32);
+void	runtime·stackfree(Stack);
 void	runtime·shrinkstack(G*);
 MCache*	runtime·allocmcache(void);
 void	runtime·freemcache(MCache*);
@@ -873,7 +864,6 @@ int64	runtime·unixnanotime(void); // real time, can skip
 void	runtime·dopanic(int32);
 void	runtime·startpanic(void);
 void	runtime·freezetheworld(void);
-void	runtime·unwindstack(G*, byte*);
 void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp);
 void	runtime·resetcpuprofiler(int32);
 void	runtime·setcpuprofilerate(int32);

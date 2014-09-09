@@ -382,7 +382,7 @@ dumpgoroutine(G *gp)
 	Panic *p;
 	bool (*fn)(Stkframe*, void*);
 
-	if(gp->syscallstack != (uintptr)nil) {
+	if(gp->syscallsp != (uintptr)nil) {
 		sp = gp->syscallsp;
 		pc = gp->syscallpc;
 		lr = 0;
@@ -412,8 +412,6 @@ dumpgoroutine(G *gp)
 	child.arglen = 0;
 	child.sp = nil;
 	child.depth = 0;
-	if(!ScanStackByFrames)
-		runtime·throw("need frame info to dump stacks");
 	fn = dumpframe;
 	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, &fn, &child, false);
 

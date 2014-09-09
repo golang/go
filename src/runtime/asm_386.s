@@ -19,9 +19,10 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// _cgo_init may update stackguard.
 	MOVL	$runtime·g0(SB), BP
 	LEAL	(-64*1024+104)(SP), BX
-	MOVL	BX, g_stackguard(BP)
 	MOVL	BX, g_stackguard0(BP)
-	MOVL	SP, g_stackbase(BP)
+	MOVL	BX, g_stackguard1(BP)
+	MOVL	BX, (g_stack+stack_lo)(BP)
+	MOVL	SP, (g_stack+stack_hi)(BP)
 	
 	// find out information about the processor we're on
 	MOVL	$0, AX
@@ -44,10 +45,14 @@ nocpuinfo:
 	MOVL	BX, 4(SP)
 	MOVL	BP, 0(SP)
 	CALL	AX
+
 	// update stackguard after _cgo_init
 	MOVL	$runtime·g0(SB), CX
-	MOVL	g_stackguard0(CX), AX
-	MOVL	AX, g_stackguard(CX)
+	MOVL	(g_stack+stack_lo)(CX), AX
+	ADDL	$const_StackGuard, AX
+	MOVL	AX, g_stackguard0(CX)
+	MOVL	AX, g_stackguard1(CX)
+
 	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
 	CMPL runtime·iswindows(SB), $0
 	JEQ ok
@@ -289,19 +294,12 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	JNE	2(PC)
 	INT	$3
 
-	// frame size in DI
-	// arg size in AX
-	// Save in m.
-	MOVL	DI, m_moreframesize(BX)
-	MOVL	AX, m_moreargsize(BX)
-
 	// Called from f.
 	// Set m->morebuf to f's caller.
 	MOVL	4(SP), DI	// f's caller's PC
 	MOVL	DI, (m_morebuf+gobuf_pc)(BX)
 	LEAL	8(SP), CX	// f's caller's SP
 	MOVL	CX, (m_morebuf+gobuf_sp)(BX)
-	MOVL	CX, m_moreargp(BX)
 	get_tls(CX)
 	MOVL	g(CX), SI
 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
@@ -436,25 +434,6 @@ CALLFN(runtime·call134217728, 134217728)
 CALLFN(runtime·call268435456, 268435456)
 CALLFN(runtime·call536870912, 536870912)
 CALLFN(runtime·call1073741824, 1073741824)
-
-// Return point when leaving stack.
-//
-// Lessstack can appear in stack traces for the same reason
-// as morestack; in that context, it has 0 arguments.
-TEXT runtime·lessstack(SB), NOSPLIT, $0-0
-	// Save return value in m->cret
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_m(BX), BX
-	MOVL	AX, m_cret(BX)
-
-	// Call oldstack on m->g0's stack.
-	MOVL	m_g0(BX), BP
-	MOVL	BP, g(CX)
-	MOVL	(g_sched+gobuf_sp)(BP), SP
-	CALL	runtime·oldstack(SB)
-	MOVL	$0, 0x1004	// crash if oldstack returns
-	RET
 
 // bool cas(int32 *val, int32 old, int32 new)
 // Atomically:
@@ -836,10 +815,10 @@ TEXT setg_gcc<>(SB), NOSPLIT, $0
 TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	get_tls(CX)
 	MOVL	g(CX), AX
-	CMPL	g_stackbase(AX), SP
+	CMPL	(g_stack+stack_hi)(AX), SP
 	JHI	2(PC)
 	INT	$3
-	CMPL	SP, g_stackguard(AX)
+	CMPL	SP, (g_stack+stack_lo)(AX)
 	JHI	2(PC)
 	INT	$3
 	RET
@@ -903,15 +882,6 @@ TEXT runtime·emptyfunc(SB),0,$0-0
 
 TEXT runtime·abort(SB),NOSPLIT,$0-0
 	INT $0x3
-
-TEXT runtime·stackguard(SB),NOSPLIT,$0-8
-	MOVL	SP, DX
-	MOVL	DX, sp+0(FP)
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_stackguard(BX), DX
-	MOVL	DX, limit+4(FP)
-	RET
 
 GLOBL runtime·tls0(SB), $32
 

@@ -168,7 +168,6 @@ runtime·schedinit(void)
 		g->racectx = runtime·raceinit();
 
 	runtime·sched.maxmcount = 10000;
-	runtime·precisestack = true; // haveexperiment("precisestack");
 
 	runtime·symtabinit();
 	runtime·stackinit();
@@ -195,11 +194,6 @@ runtime·schedinit(void)
 		procs = n;
 	}
 	procresize(procs);
-
-	runtime·copystack = runtime·precisestack;
-	p = runtime·getenv("GOCOPYSTACK");
-	if(p != nil && !runtime·strcmp(p, (byte*)"0"))
-		runtime·copystack = false;
 
 	if(runtime·buildVersion.str == nil) {
 		// Condition should never trigger.  This code just serves
@@ -249,7 +243,7 @@ mcommoninit(M *mp)
 	checkmcount();
 	runtime·mpreinit(mp);
 	if(mp->gsignal)
-		mp->gsignal->stackguard1 = mp->gsignal->stackguard;
+		mp->gsignal->stackguard1 = mp->gsignal->stack.lo + StackGuard;
 
 	// Add to runtime·allm so garbage collector doesn't free g->m
 	// when it is just in a register or thread-local storage.
@@ -827,9 +821,34 @@ runtime·starttheworld(void)
 		g->stackguard0 = StackPreempt;
 }
 
+static void mstart(void);
+
 // Called to start an M.
+#pragma textflag NOSPLIT
 void
 runtime·mstart(void)
+{
+	uintptr x, size;
+	
+	if(g->stack.lo == 0) {
+		// Initialize stack bounds from system stack.
+		// Cgo may have left stack size in stack.hi.
+		size = g->stack.hi;
+		if(size == 0)
+			size = 8192;
+		g->stack.hi = (uintptr)&x;
+		g->stack.lo = g->stack.hi - size + 1024;
+	}
+	
+	// Initialize stack guards so that we can start calling
+	// both Go and C functions with stack growth prologues.
+	g->stackguard0 = g->stack.lo + StackGuard;
+	g->stackguard1 = g->stackguard0;
+	mstart();
+}
+
+static void
+mstart(void)
 {
 	if(g != g->m->g0)
 		runtime·throw("bad runtime·mstart");
@@ -839,7 +858,6 @@ runtime·mstart(void)
 	// so other calls can reuse this stack space.
 	runtime·gosave(&g->m->g0->sched);
 	g->m->g0->sched.pc = (uintptr)-1;  // make sure it is never used
-	g->m->g0->stackguard = g->m->g0->stackguard0;  // cgo sets only stackguard0, copy it to stackguard
 	runtime·asminit();
 	runtime·minit();
 
@@ -905,7 +923,6 @@ runtime·allocm(P *p)
 	else
 		mp->g0 = runtime·malg(8192);
 	mp->g0->m = mp;
-	mp->g0->stackguard1 = mp->g0->stackguard;
 
 	if(p == g->m->p)
 		releasep();
@@ -1003,9 +1020,9 @@ runtime·needm(byte x)
 	// scheduling stack is, but we assume there's at least 32 kB,
 	// which is more than enough for us.
 	runtime·setg(mp->g0);
-	g->stackbase = (uintptr)(&x + 1024);
-	g->stackguard = (uintptr)(&x - 32*1024);
-	g->stackguard0 = g->stackguard;
+	g->stack.hi = (uintptr)(&x + 1024);
+	g->stack.lo = (uintptr)(&x - 32*1024);
+	g->stackguard0 = g->stack.lo + StackGuard;
 
 	// Initialize this thread to use the m.
 	runtime·asminit();
@@ -1029,13 +1046,11 @@ runtime·newextram(void)
 	mp = runtime·allocm(nil);
 	gp = runtime·malg(4096);
 	gp->sched.pc = (uintptr)runtime·goexit;
-	gp->sched.sp = gp->stackbase;
+	gp->sched.sp = gp->stack.hi;
 	gp->sched.lr = 0;
 	gp->sched.g = gp;
 	gp->syscallpc = gp->sched.pc;
 	gp->syscallsp = gp->sched.sp;
-	gp->syscallstack = gp->stackbase;
-	gp->syscallguard = gp->stackguard;
 	// malg returns status as Gidle, change to Gsyscall before adding to allg
 	// where GC will see it.
 	runtime·casgstatus(gp, Gidle, Gsyscall);
@@ -1161,7 +1176,7 @@ newm(void(*fn)(void), P *p)
 		runtime·asmcgocall(_cgo_thread_start, &ts);
 		return;
 	}
-	runtime·newosproc(mp, (byte*)mp->g0->stackbase);
+	runtime·newosproc(mp, (byte*)mp->g0->stack.hi);
 }
 
 // Stops execution of the current m until new work is available.
@@ -1368,7 +1383,7 @@ execute(G *gp)
 	runtime·casgstatus(gp, Grunnable, Grunning);
 	gp->waitsince = 0;
 	gp->preempt = false;
-	gp->stackguard0 = gp->stackguard;
+	gp->stackguard0 = gp->stack.lo + StackGuard;
 	g->m->p->schedtick++;
 	g->m->curg = gp;
 	gp->m = g->m;
@@ -1693,7 +1708,7 @@ runtime·gosched_m(G *gp)
 }
 
 // Finishes execution of the current goroutine.
-// Need to mark it as nosplit, because it runs with sp > stackbase (as runtime·lessstack).
+// Need to mark it as nosplit, because it runs with sp > stackbase.
 // Since it does not return it does not matter.  But if it is preempted
 // at the split stack check, GC will complain about inconsistent sp.
 #pragma textflag NOSPLIT
@@ -1733,7 +1748,6 @@ goexit0(G *gp)
 		runtime·throw("internal lockOSThread error");
 	}	
 	g->m->locked = 0;
-	runtime·unwindstack(gp, nil);
 	gfput(g->m->p, gp);
 	schedule();
 }
@@ -1791,10 +1805,8 @@ void
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 	g->syscallsp = g->sched.sp;
 	g->syscallpc = g->sched.pc;
-	g->syscallstack = g->stackbase;
-	g->syscallguard = g->stackguard;
 	runtime·casgstatus(g, Grunning, Gsyscall);
-	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
+	if(g->syscallsp < g->stack.lo || g->stack.hi < g->syscallsp) {
 		fn = entersyscall_bad;
 		runtime·onM(&fn);
 	}
@@ -1828,7 +1840,7 @@ entersyscall_bad(void)
 	
 	gp = g->m->curg;
 	runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
-		gp->syscallsp, gp->syscallguard-StackGuard, gp->syscallstack);
+		gp->syscallsp, gp->stack.lo, gp->stack.hi);
 	runtime·throw("entersyscall");
 }
 
@@ -1871,10 +1883,8 @@ void
 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 	g->syscallsp = g->sched.sp;
 	g->syscallpc = g->sched.pc;
-	g->syscallstack = g->stackbase;
-	g->syscallguard = g->stackguard;
 	runtime·casgstatus(g, Grunning, Gsyscall);
-	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
+	if(g->syscallsp < g->stack.lo || g->stack.hi < g->syscallsp) {
 		fn = entersyscall_bad;
 		runtime·onM(&fn);
 	}
@@ -1914,8 +1924,7 @@ runtime·exitsyscall(void)
 		runtime·casgstatus(g, Gsyscall, Grunning);
 
 		// Garbage collector isn't running (since we are),
-		// so okay to clear gcstack and gcsp.
-		g->syscallstack = (uintptr)nil;
+		// so okay to clear syscallsp.
 		g->syscallsp = (uintptr)nil;
 		g->m->locks--;
 		if(g->preempt) {
@@ -1923,7 +1932,7 @@ runtime·exitsyscall(void)
 			g->stackguard0 = StackPreempt;
 		} else {
 			// otherwise restore the real stackguard, we've spoiled it in entersyscall/entersyscallblock
-			g->stackguard0 = g->stackguard;
+			g->stackguard0 = g->stack.lo + StackGuard;
 		}
 		g->throwsplit = 0;
 		return;
@@ -1936,12 +1945,11 @@ runtime·exitsyscall(void)
 	runtime·mcall(&fn);
 
 	// Scheduler returned, so we're allowed to run now.
-	// Delete the gcstack information that we left for
+	// Delete the syscallsp information that we left for
 	// the garbage collector during the system call.
 	// Must wait until now because until gosched returns
 	// we don't know for sure that the garbage collector
 	// is not running.
-	g->syscallstack = (uintptr)nil;
 	g->syscallsp = (uintptr)nil;
 	g->m->p->syscalltick++;
 	g->throwsplit = 0;
@@ -2047,9 +2055,7 @@ beforefork(void)
 	// Code between fork and exec must not allocate memory nor even try to grow stack.
 	// Here we spoil g->stackguard to reliably detect any attempts to grow stack.
 	// runtime_AfterFork will undo this in parent process, but not in child.
-	gp->m->forkstackguard = gp->stackguard;
-	gp->stackguard0 = StackPreempt-1;
-	gp->stackguard = StackPreempt-1;
+	gp->stackguard0 = StackFork;
 }
 
 // Called from syscall package before fork.
@@ -2071,9 +2077,7 @@ afterfork(void)
 	
 	gp = g->m->curg;
 	// See the comment in runtime_BeforeFork.
-	gp->stackguard0 = gp->m->forkstackguard;
-	gp->stackguard = gp->m->forkstackguard;
-	gp->m->forkstackguard = 0;
+	gp->stackguard0 = gp->stack.lo + StackGuard;
 
 	hz = runtime·sched.profilehz;
 	if(hz != 0)
@@ -2102,10 +2106,11 @@ mstackalloc(G *gp)
 	G *newg;
 	uintptr size;
 
-	newg = (G*)gp->param;
-	size = newg->stacksize;
-	newg->stacksize = 0;
-	gp->param = runtime·stackalloc(newg, size);
+	newg = g->m->ptrarg[0];
+	size = g->m->scalararg[0];
+
+	newg->stack = runtime·stackalloc(size);
+
 	runtime·gogo(&gp->sched);
 }
 
@@ -2114,34 +2119,24 @@ G*
 runtime·malg(int32 stacksize)
 {
 	G *newg;
-	byte *stk;
 	void (*fn)(G*);
-
-	if(StackTop < sizeof(Stktop)) {
-		runtime·printf("runtime: SizeofStktop=%d, should be >=%d\n", (int32)StackTop, (int32)sizeof(Stktop));
-		runtime·throw("runtime: bad stack.h");
-	}
 
 	newg = allocg();
 	if(stacksize >= 0) {
 		stacksize = runtime·round2(StackSystem + stacksize);
 		if(g == g->m->g0) {
 			// running on scheduler stack already.
-			stk = runtime·stackalloc(newg, stacksize);
+			newg->stack = runtime·stackalloc(stacksize);
 		} else {
 			// have to call stackalloc on scheduler stack.
-			newg->stacksize = stacksize;
-			g->param = newg;
+			g->m->scalararg[0] = stacksize;
+			g->m->ptrarg[0] = newg;
 			fn = mstackalloc;
 			runtime·mcall(&fn);
-			stk = g->param;
-			g->param = nil;
+			g->m->ptrarg[0] = nil;
 		}
-		newg->stack0 = (uintptr)stk;
-		newg->stackguard = (uintptr)stk + StackGuard;
-		newg->stackguard0 = newg->stackguard;
+		newg->stackguard0 = newg->stack.lo + StackGuard;
 		newg->stackguard1 = ~(uintptr)0;
-		newg->stackbase = (uintptr)stk + stacksize - sizeof(Stktop);
 	}
 	return newg;
 }
@@ -2222,19 +2217,18 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
 
 	p = g->m->p;
-	if((newg = gfget(p)) != nil) {
-		if(newg->stackguard - StackGuard != newg->stack0)
-			runtime·throw("invalid stack in newg");
-	} else {
+	if((newg = gfget(p)) == nil) {
 		newg = runtime·malg(StackMin);
 		runtime·casgstatus(newg, Gidle, Gdead);
 		allgadd(newg); // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
 	}
+	if(newg->stack.hi == 0)
+		runtime·throw("newproc1: newg missing stack");
 
 	if(runtime·readgstatus(newg) != Gdead) 
 		runtime·throw("newproc1: new g is not Gdead");
 
-	sp = (byte*)newg->stackbase;
+	sp = (byte*)newg->stack.hi;
 	sp -= siz;
 	runtime·memmove(sp, argp, narg);
 	if(thechar == '5') {
@@ -2307,27 +2301,18 @@ static void
 gfput(P *p, G *gp)
 {
 	uintptr stksize;
-	Stktop *top;
 
 	if(runtime·readgstatus(gp) != Gdead) 
 		runtime·throw("gfput: bad status (not Gdead)");
 
-	if(gp->stackguard - StackGuard != gp->stack0)
-		runtime·throw("invalid stack in gfput");
-	stksize = gp->stackbase + sizeof(Stktop) - gp->stack0;
-	if(stksize != gp->stacksize) {
-		runtime·printf("runtime: bad stacksize, goroutine %D, remain=%d, last=%d\n",
-			gp->goid, (int32)gp->stacksize, (int32)stksize);
-		runtime·throw("gfput: bad stacksize");
-	}
-	top = (Stktop*)gp->stackbase;
+	stksize = gp->stack.hi - gp->stack.lo;
+	
 	if(stksize != FixedStack) {
 		// non-standard stack size - free it.
-		runtime·stackfree(gp, (void*)gp->stack0, top);
-		gp->stack0 = 0;
-		gp->stackguard = 0;
+		runtime·stackfree(gp->stack);
+		gp->stack.lo = 0;
+		gp->stack.hi = 0;
 		gp->stackguard0 = 0;
-		gp->stackbase = 0;
 	}
 	gp->schedlink = p->gfree;
 	p->gfree = gp;
@@ -2352,7 +2337,6 @@ static G*
 gfget(P *p)
 {
 	G *gp;
-	byte *stk;
 	void (*fn)(G*);
 
 retry:
@@ -2374,25 +2358,21 @@ retry:
 		p->gfree = gp->schedlink;
 		p->gfreecnt--;
 
-		if(gp->stack0 == 0) {
+		if(gp->stack.lo == 0) {
 			// Stack was deallocated in gfput.  Allocate a new one.
 			if(g == g->m->g0) {
-				stk = runtime·stackalloc(gp, FixedStack);
+				gp->stack = runtime·stackalloc(FixedStack);
 			} else {
-				gp->stacksize = FixedStack;
-				g->param = gp;
+				g->m->scalararg[0] = FixedStack;
+				g->m->ptrarg[0] = gp;
 				fn = mstackalloc;
 				runtime·mcall(&fn);
-				stk = g->param;
-				g->param = nil;
+				g->m->ptrarg[0] = nil;
 			}
-			gp->stack0 = (uintptr)stk;
-			gp->stackbase = (uintptr)stk + FixedStack - sizeof(Stktop);
-			gp->stackguard = (uintptr)stk + StackGuard;
-			gp->stackguard0 = gp->stackguard;
+			gp->stackguard0 = gp->stack.lo + StackGuard;
 		} else {
 			if(raceenabled)
-				runtime·racemalloc((void*)gp->stack0, gp->stackbase + sizeof(Stktop) - gp->stack0);
+				runtime·racemalloc((void*)gp->stack.lo, gp->stack.hi - gp->stack.lo);
 		}
 	}
 	return gp;
@@ -2654,7 +2634,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 	// in runtime.gogo.
 	traceback = true;
 	if(gp == nil || gp != mp->curg ||
-	   (uintptr)sp < gp->stackguard - StackGuard || gp->stackbase < (uintptr)sp ||
+	   (uintptr)sp < gp->stack.lo || gp->stack.hi < (uintptr)sp ||
 	   ((uint8*)runtime·gogo <= pc && pc < (uint8*)runtime·gogo + RuntimeGogoBytes))
 		traceback = false;
 

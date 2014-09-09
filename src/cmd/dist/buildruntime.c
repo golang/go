@@ -246,6 +246,8 @@ ok:
 				aggr = "alg";
 			else if(streq(fields.p[1], "Panic"))
 				aggr = "panic";
+			else if(streq(fields.p[1], "Stack"))
+				aggr = "stack";
 		}
 		if(hasprefix(lines.p[i], "}"))
 			aggr = nil;

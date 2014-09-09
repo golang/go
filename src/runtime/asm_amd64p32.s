@@ -20,10 +20,11 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	
 	// create istack out of the given (operating system) stack.
 	MOVL	$runtime·g0(SB), DI
-	LEAL	(-64*1024+104)(SP), DI
-	MOVL	BX, g_stackguard(DI)
+	LEAL	(-64*1024+104)(SP), BX
 	MOVL	BX, g_stackguard0(DI)
-	MOVL	SP, g_stackbase(DI)
+	MOVL	BX, g_stackguard1(DI)
+	MOVL	BX, (g_stack+stack_lo)(DI)
+	MOVL	SP, (g_stack+stack_hi)(DI)
 
 	// find out information about the processor we're on
 	MOVQ	$0, AX
@@ -234,13 +235,16 @@ onm:
  */
 
 // Called during function prolog when more stack is needed.
-// Caller has already done get_tls(CX); MOVQ m(CX), BX.
 //
 // The traceback routines see morestack on a g0 as being
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
 TEXT runtime·morestack(SB),NOSPLIT,$0-0
+	get_tls(CX)
+	MOVL	g(CX), BX
+	MOVL	g_m(BX), BX
+
 	// Cannot grow scheduler stack (m->g0).
 	MOVL	m_g0(BX), SI
 	CMPL	g(CX), SI
@@ -259,7 +263,6 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
 	LEAL	16(SP), AX	// f's caller's SP
 	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
-	MOVL	AX, m_moreargp(BX)
 	get_tls(CX)
 	MOVL	g(CX), SI
 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
@@ -279,6 +282,11 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	CALL	runtime·newstack(SB)
 	MOVL	$0, 0x1003	// crash if newstack returns
 	RET
+
+// morestack trampolines
+TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+	MOVL	$0, DX
+	JMP	runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
 // func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
@@ -388,142 +396,6 @@ CALLFN(runtime·call134217728, 134217728)
 CALLFN(runtime·call268435456, 268435456)
 CALLFN(runtime·call536870912, 536870912)
 CALLFN(runtime·call1073741824, 1073741824)
-
-// Return point when leaving stack.
-//
-// Lessstack can appear in stack traces for the same reason
-// as morestack; in that context, it has 0 arguments.
-TEXT runtime·lessstack(SB), NOSPLIT, $0-0
-	// Save return value in m->cret
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_m(BX), BX
-	MOVQ	AX, m_cret(BX)	// MOVQ, to save all 64 bits
-
-	// Call oldstack on m->g0's stack.
-	MOVL	m_g0(BX), BX
-	MOVL	BX, g(CX)
-	MOVL	(g_sched+gobuf_sp)(BX), SP
-	CALL	runtime·oldstack(SB)
-	MOVL	$0, 0x1004	// crash if oldstack returns
-	RET
-
-// morestack trampolines
-TEXT runtime·morestack00(SB),NOSPLIT,$0
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_m(BX), BX
-	MOVQ	$0, AX
-	MOVQ	AX, m_moreframesize(BX)
-	MOVL	$runtime·morestack(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack01(SB),NOSPLIT,$0
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_m(BX), BX
-	SHLQ	$32, AX
-	MOVQ	AX, m_moreframesize(BX)
-	MOVL	$runtime·morestack(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack10(SB),NOSPLIT,$0
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_m(BX), BX
-	MOVLQZX	AX, AX
-	MOVQ	AX, m_moreframesize(BX)
-	MOVL	$runtime·morestack(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack11(SB),NOSPLIT,$0
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_m(BX), BX
-	MOVQ	AX, m_moreframesize(BX)
-	MOVL	$runtime·morestack(SB), AX
-	JMP	AX
-
-// subcases of morestack01
-// with const of 8,16,...48
-TEXT runtime·morestack8(SB),NOSPLIT,$0
-	MOVQ	$1, R8
-	MOVL	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack16(SB),NOSPLIT,$0
-	MOVQ	$2, R8
-	MOVL	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack24(SB),NOSPLIT,$0
-	MOVQ	$3, R8
-	MOVL	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack32(SB),NOSPLIT,$0
-	MOVQ	$4, R8
-	MOVL	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack40(SB),NOSPLIT,$0
-	MOVQ	$5, R8
-	MOVL	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack48(SB),NOSPLIT,$0
-	MOVQ	$6, R8
-	MOVL	$morestack<>(SB), AX
-	JMP	AX
-
-TEXT morestack<>(SB),NOSPLIT,$0
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_m(BX), BX
-	SHLQ	$35, R8
-	MOVQ	R8, m_moreframesize(BX)
-	MOVL	$runtime·morestack(SB), AX
-	JMP	AX
-
-TEXT runtime·morestack00_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack00(SB)
-
-TEXT runtime·morestack01_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack01(SB)
-
-TEXT runtime·morestack10_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack10(SB)
-
-TEXT runtime·morestack11_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack11(SB)
-
-TEXT runtime·morestack8_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack8(SB)
-
-TEXT runtime·morestack16_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack16(SB)
-
-TEXT runtime·morestack24_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack24(SB)
-
-TEXT runtime·morestack32_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack32(SB)
-
-TEXT runtime·morestack40_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack40(SB)
-
-TEXT runtime·morestack48_noctxt(SB),NOSPLIT,$0
-	MOVL	$0, DX
-	JMP	runtime·morestack48(SB)
 
 // bool cas(int32 *val, int32 old, int32 new)
 // Atomically:
@@ -722,10 +594,10 @@ TEXT runtime·setg(SB), NOSPLIT, $0-4
 TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	get_tls(CX)
 	MOVL	g(CX), AX
-	CMPL	g_stackbase(AX), SP
+	CMPL	(g_stack+stack_hi)(AX), SP
 	JHI	2(PC)
 	MOVL	0, AX
-	CMPL	SP, g_stackguard(AX)
+	CMPL	SP, (g_stack+stack_lo)(AX)
 	JHI	2(PC)
 	MOVL	0, AX
 	RET
@@ -787,15 +659,6 @@ TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
 	SHLQ    $32, DX
 	ADDQ    DX, AX
 	MOVQ    AX, ret+0(FP)
-	RET
-
-TEXT runtime·stackguard(SB),NOSPLIT,$0-8
-	MOVL	SP, DX
-	MOVL	DX, sp+0(FP)
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_stackguard(BX), DX
-	MOVL	DX, limit+4(FP)
 	RET
 
 GLOBL runtime·tls0(SB), $64

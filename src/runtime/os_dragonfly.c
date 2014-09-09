@@ -204,7 +204,7 @@ void
 runtime·minit(void)
 {
 	// Initialize signal handling
-	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stack.lo, 32*1024);
 	runtime·sigprocmask(&sigset_none, nil);
 }
 

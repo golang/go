@@ -458,7 +458,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				p->as = AMOVW;
 				p->from.type = D_OREG;
 				p->from.reg = REGG;
-				p->from.offset = 2*ctxt->arch->ptrsize; // G.panic
+				p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
 				p->to.type = D_REG;
 				p->to.reg = 1;
 			
@@ -762,15 +762,14 @@ softfloat(Link *ctxt, LSym *cursym)
 static Prog*
 stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 {
-	int32 arg;
-
 	// MOVW			g_stackguard(g), R1
 	p = appendp(ctxt, p);
 	p->as = AMOVW;
 	p->from.type = D_OREG;
 	p->from.reg = REGG;
+	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 	if(ctxt->cursym->cfunc)
-		p->from.offset = 3*ctxt->arch->ptrsize;
+		p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 	p->to.type = D_REG;
 	p->to.reg = 1;
 	
@@ -849,29 +848,6 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		p->scond = C_SCOND_NE;
 	}
 	
-	// MOVW.LS		$framesize, R1
-	p = appendp(ctxt, p);
-	p->as = AMOVW;
-	p->scond = C_SCOND_LS;
-	p->from.type = D_CONST;
-	p->from.offset = framesize;
-	p->to.type = D_REG;
-	p->to.reg = 1;
-
-	// MOVW.LS		$args, R2
-	p = appendp(ctxt, p);
-	p->as = AMOVW;
-	p->scond = C_SCOND_LS;
-	p->from.type = D_CONST;
-	arg = ctxt->cursym->text->to.offset2;
-	if(arg == 1) // special marker for known 0
-		arg = 0;
-	if(arg&3)
-		ctxt->diag("misaligned argument size in stack split");
-	p->from.offset = arg;
-	p->to.type = D_REG;
-	p->to.reg = 2;
-
 	// MOVW.LS	R14, R3
 	p = appendp(ctxt, p);
 	p->as = AMOVW;
