@@ -21,3 +21,6 @@ RUN curl -s http://ftp.gnu.org/gnu/binutils/$BINUTILS_VERSION.tar.gz | tar x --n
 RUN mkdir binutils-objdir
 RUN cd binutils-objdir && ../$BINUTILS_VERSION/configure --enable-gold --enable-plugins --prefix=/opt/gold
 RUN cd binutils-objdir && make -sj && make install -sj
+
+# For running the extended gccgo testsuite
+RUN apt-get install -y --no-install-recommends dejagnu
