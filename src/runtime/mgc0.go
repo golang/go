@@ -28,8 +28,6 @@ func gc_notype_ptr(ret *interface{}) {
 	*ret = x
 }
 
-func timenow() (sec int64, nsec int32)
-
 func gc_unixnanotime(now *int64) {
 	sec, nsec := timenow()
 	*now = sec*1e9 + int64(nsec)

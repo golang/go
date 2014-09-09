@@ -157,3 +157,6 @@ TEXT runtime·main_init(SB),NOSPLIT,$0-0
 
 TEXT runtime·main_main(SB),NOSPLIT,$0-0
 	JMP	main·main(SB)
+
+TEXT runtime·timenow(SB), NOSPLIT, $0-0
+	JMP	time·now(SB)

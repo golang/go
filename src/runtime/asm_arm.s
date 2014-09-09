@@ -848,9 +848,6 @@ _sib_notfound:
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·timenow(SB),NOSPLIT,$0-0
-	B	time·now(SB)
-
 // A Duff's device for zeroing memory.
 // The compiler jumps to computed addresses within
 // this routine to zero chunks of memory.  Do not

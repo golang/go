@@ -28,6 +28,7 @@ func getg() *g
 func acquirem() *m
 func releasem(mp *m)
 func gomcache() *mcache
+func readgstatus(*g) uint32 // proc.c
 
 // mcall switches from the g to the g0 stack and invokes fn(g),
 // where g is the goroutine that made the call.
@@ -120,6 +121,9 @@ func unlockOSThread()
 
 // exported value for testing
 var hashLoad = loadFactor
+
+// in asm_*.s
+func fastrand1() uint32
 
 // in asm_*.s
 //go:noescape
@@ -229,3 +233,6 @@ func rt0_go()
 // to deferreturn.
 // in asm_*.s
 func return0()
+
+// thunk to call time.now.
+func timenow() (sec int64, nsec int32)
