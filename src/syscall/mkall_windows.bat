@@ -4,7 +4,7 @@
 @echo off
 
 if exist mkall.sh goto dirok
-echo mkall_windows.bat must be run from src\pkg\syscall directory
+echo mkall_windows.bat must be run from src\syscall directory
 goto :end
 :dirok
 
