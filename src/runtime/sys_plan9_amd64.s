@@ -194,7 +194,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVQ	BP, SP
 
 	// make room for args and g
-	SUBQ	$40, SP
+	SUBQ	$128, SP
 
 	// save g
 	MOVQ	g(AX), BP
