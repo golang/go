@@ -155,8 +155,8 @@ func TestWeb(t *testing.T) {
 	tests := []struct{ path, substr string }{
 		{"/", "Go is an open source programming language"},
 		{"/pkg/fmt/", "Package fmt implements formatted I/O"},
-		{"/src/pkg/fmt/", "scan_test.go"},
-		{"/src/pkg/fmt/print.go", "// Println formats using"},
+		{"/src/fmt/", "scan_test.go"},
+		{"/src/fmt/print.go", "// Println formats using"},
 	}
 	for _, test := range tests {
 		url := fmt.Sprintf("http://%s%s", addr, test.path)
@@ -186,7 +186,7 @@ func TestTypeAnalysis(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 	for _, f := range []struct{ file, content string }{
-		{"goroot/src/pkg/lib/lib.go", `
+		{"goroot/src/lib/lib.go", `
 package lib
 type T struct{}
 const C = 3
@@ -237,14 +237,14 @@ func main() { print(lib.V) }
 	// has been annotated onto the source view.
 tryagain:
 	for _, test := range []struct{ url, pattern string }{
-		{"/src/pkg/lib/lib.go", "L2.*package .*Package docs for lib.*/pkg/lib"},
-		{"/src/pkg/lib/lib.go", "L3.*type .*type info for T.*struct"},
-		{"/src/pkg/lib/lib.go", "L5.*var V .*type T struct"},
-		{"/src/pkg/lib/lib.go", "L6.*func .*type T struct.*T.*return .*const C untyped int.*C"},
+		{"/src/lib/lib.go", "L2.*package .*Package docs for lib.*/lib"},
+		{"/src/lib/lib.go", "L3.*type .*type info for T.*struct"},
+		{"/src/lib/lib.go", "L5.*var V .*type T struct"},
+		{"/src/lib/lib.go", "L6.*func .*type T struct.*T.*return .*const C untyped int.*C"},
 
-		{"/src/pkg/app/main.go", "L2.*package .*Package docs for app"},
-		{"/src/pkg/app/main.go", "L3.*import .*Package docs for lib.*lib"},
-		{"/src/pkg/app/main.go", "L4.*func main.*package lib.*lib.*var lib.V lib.T.*V"},
+		{"/src/app/main.go", "L2.*package .*Package docs for app"},
+		{"/src/app/main.go", "L3.*import .*Package docs for lib.*lib"},
+		{"/src/app/main.go", "L4.*func main.*package lib.*lib.*var lib.V lib.T.*V"},
 	} {
 		url := fmt.Sprintf("http://%s%s", addr, test.url)
 		resp, err := http.Get(url)

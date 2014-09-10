@@ -5,7 +5,7 @@
 # license that can be found in the LICENSE file.
 
 # This script creates a complete godoc app in $APPDIR.
-# It copies the cmd/godoc and src/pkg/go/... sources from GOROOT,
+# It copies the cmd/godoc and src/go/... sources from GOROOT,
 # synthesizes an app.yaml file, and creates the .zip, index, and
 # configuration files.
 #

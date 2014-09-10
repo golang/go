@@ -173,7 +173,8 @@ func main() {
 	// Determine file system to use.
 	if *zipfile == "" {
 		// use file system of underlying OS
-		fs.Bind("/", gatefs.New(vfs.OS(*goroot), fsGate), "/", vfs.BindReplace)
+		rootfs := gatefs.New(vfs.OS(*goroot), fsGate)
+		fs.Bind("/", rootfs, "/", vfs.BindReplace)
 	} else {
 		// use file system specified via .zip file (path separator must be '/')
 		rc, err := zip.OpenReader(*zipfile)
@@ -191,7 +192,7 @@ func main() {
 
 	// Bind $GOPATH trees into Go root.
 	for _, p := range filepath.SplitList(build.Default.GOPATH) {
-		fs.Bind("/src/pkg", gatefs.New(vfs.OS(p), fsGate), "/src", vfs.BindAfter)
+		fs.Bind("/src", gatefs.New(vfs.OS(p), fsGate), "/src", vfs.BindAfter)
 	}
 
 	httpMode := *httpAddr != ""

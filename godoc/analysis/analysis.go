@@ -11,7 +11,7 @@
 // progressively populated as analysis facts are derived.
 //
 // The Result is a mapping from each godoc file URL
-// (e.g. /src/pkg/fmt/print.go) to information about that file.  The
+// (e.g. /src/fmt/print.go) to information about that file.  The
 // information is a list of HTML markup links and a JSON array of
 // structured data values.  Some of the links call client-side
 // JavaScript functions that index this array.
@@ -302,7 +302,7 @@ type analysis struct {
 	ops       []chanOp       // all channel ops in program
 	allNamed  []*types.Named // all named types in the program
 	ptaConfig pointer.Config
-	path2url  map[string]string // maps openable path to godoc file URL (/src/pkg/fmt/print.go)
+	path2url  map[string]string // maps openable path to godoc file URL (/src/fmt/print.go)
 	pcgs      map[*ssa.Package]*packageCallGraph
 }
 
@@ -345,7 +345,7 @@ func Run(pta bool, result *Result) {
 	var roots, args []string // roots[i] ends with os.PathSeparator
 
 	// Enumerate packages in $GOROOT.
-	root := filepath.Join(runtime.GOROOT(), "src", "pkg") + string(os.PathSeparator)
+	root := filepath.Join(runtime.GOROOT(), "src") + string(os.PathSeparator)
 	roots = append(roots, root)
 	args = allPackages(root)
 	log.Printf("GOROOT=%s: %s\n", root, args)
@@ -408,7 +408,7 @@ func Run(pta bool, result *Result) {
 	}
 
 	// Build a mapping from openable filenames to godoc file URLs,
-	// i.e. "/src/pkg/" plus path relative to GOROOT/src/pkg or GOPATH[i]/src.
+	// i.e. "/src/" plus path relative to GOROOT/src or GOPATH[i]/src.
 	a.path2url = make(map[string]string)
 	for _, info := range iprog.AllPackages {
 	nextfile:
@@ -421,7 +421,7 @@ func Run(pta bool, result *Result) {
 			for _, root := range roots {
 				rel := strings.TrimPrefix(abs, root)
 				if len(rel) < len(abs) {
-					a.path2url[abs] = "/src/pkg/" + filepath.ToSlash(rel)
+					a.path2url[abs] = "/src/" + filepath.ToSlash(rel)
 					continue nextfile
 				}
 			}
@@ -572,7 +572,7 @@ func (a linksByStart) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a linksByStart) Len() int           { return len(a) }
 
 // allPackages returns a new sorted slice of all packages beneath the
-// specified package root directory, e.g. $GOROOT/src/pkg or $GOPATH/src.
+// specified package root directory, e.g. $GOROOT/src or $GOPATH/src.
 // Derived from from go/ssa/stdlib_test.go
 // root must end with os.PathSeparator.
 func allPackages(root string) []string {

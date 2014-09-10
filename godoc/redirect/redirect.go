@@ -28,6 +28,8 @@ func Register(mux *http.ServeMux) {
 	for path, redirect := range redirects {
 		mux.Handle(path, Handler(redirect))
 	}
+	// NB: /src/pkg (sans trailing slash) is the index of packages.
+	http.HandleFunc("/src/pkg/", srcPkgHandler)
 }
 
 func handlePathRedirects(mux *http.ServeMux, redirects map[string]string, prefix string) {
@@ -154,4 +156,11 @@ func PrefixHandler(prefix, baseURL string) http.Handler {
 		target := baseURL + id
 		http.Redirect(w, r, target, http.StatusFound)
 	})
+}
+
+// Redirect requests from the old "/src/pkg/foo" to the new "/src/foo".
+// See http://golang.org/s/go14nopkg
+func srcPkgHandler(w http.ResponseWriter, r *http.Request) {
+	r.URL.Path = "/src/" + r.URL.Path[len("/src/pkg/"):]
+	http.Redirect(w, r, r.URL.String(), http.StatusMovedPermanently)
 }

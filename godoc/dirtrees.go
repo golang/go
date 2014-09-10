@@ -77,7 +77,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 	haveSummary := false
 
 	if hook := b.c.SummarizePackage; hook != nil {
-		if summary, show0, ok := hook(strings.TrimPrefix(path, "/src/pkg/")); ok {
+		if summary, show0, ok := hook(strings.TrimPrefix(path, "/src/")); ok {
 			hasPkgFiles = true
 			show = show0
 			synopses[0] = summary

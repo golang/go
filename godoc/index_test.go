@@ -16,7 +16,7 @@ import (
 
 func newCorpus(t *testing.T) *Corpus {
 	c := NewCorpus(mapfs.New(map[string]string{
-		"src/pkg/foo/foo.go": `// Package foo is an example.
+		"src/foo/foo.go": `// Package foo is an example.
 package foo
 
 import "bar"
@@ -32,20 +32,20 @@ func New() *Foo {
    return new(Foo)
 }
 `,
-		"src/pkg/bar/bar.go": `// Package bar is another example to test races.
+		"src/bar/bar.go": `// Package bar is another example to test races.
 package bar
 `,
-		"src/pkg/other/bar/bar.go": `// Package bar is another bar package.
+		"src/other/bar/bar.go": `// Package bar is another bar package.
 package bar
 func X() {}
 `,
-		"src/pkg/skip/skip.go": `// Package skip should be skipped.
+		"src/skip/skip.go": `// Package skip should be skipped.
 package skip
 func Skip() {}
 `,
-		"src/pkg/bar/readme.txt": `Whitelisted text file.
+		"src/bar/readme.txt": `Whitelisted text file.
 `,
-		"src/pkg/bar/baz.zzz": `Text file not whitelisted.
+		"src/bar/baz.zzz": `Text file not whitelisted.
 `,
 	}))
 	c.IndexEnabled = true

@@ -65,7 +65,7 @@ type Presentation struct {
 
 	// URLForSrc optionally specifies a function that takes a source file and
 	// returns a URL for it.
-	// The source file argument has the form /src/pkg/<path>/<filename>.
+	// The source file argument has the form /src/<path>/<filename>.
 	URLForSrc func(src string) string
 
 	// URLForSrcPos optionally specifies a function to create a URL given a
@@ -73,12 +73,12 @@ type Presentation struct {
 	// positions (0-based, bytes from beginning of file). Ideally, the returned
 	// URL will be for the specified line of the file, while the high & low
 	// positions will be used to highlight a section of the file.
-	// The source file argument has the form /src/pkg/<path>/<filename>.
+	// The source file argument has the form /src/<path>/<filename>.
 	URLForSrcPos func(src string, line, low, high int) string
 
 	// URLForSrcQuery optionally specifies a function to create a URL given a
 	// source file, a query string, and a line from the source file (1-based).
-	// The source file argument has the form /src/pkg/<path>/<filename>.
+	// The source file argument has the form /src/<path>/<filename>.
 	// The query argument will be escaped for the purposes of embedding in a URL
 	// query parameter.
 	// Ideally, the returned URL will be for the specified line of the file with
@@ -116,7 +116,7 @@ func NewPresentation(c *Corpus) *Presentation {
 		},
 	}
 	p.cmdHandler = handlerServer{p, c, "/cmd/", "/src/cmd"}
-	p.pkgHandler = handlerServer{p, c, "/pkg/", "/src/pkg"}
+	p.pkgHandler = handlerServer{p, c, "/pkg/", "/src"}
 	p.cmdHandler.registerWithMux(p.mux)
 	p.pkgHandler.registerWithMux(p.mux)
 	p.mux.HandleFunc("/", p.ServeFile)

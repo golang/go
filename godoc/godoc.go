@@ -369,9 +369,8 @@ func srcPosLinkFunc(s string, line, low, high int) string {
 
 func srcLinkFunc(s string) string {
 	s = pathpkg.Clean("/" + s)
-	// TODO(bgarcia): Once the /src/pkg -> /src transition occurs, update this function.
-	if !strings.HasPrefix(s, "/src/pkg/") {
-		s = "/src/pkg" + s
+	if !strings.HasPrefix(s, "/src/") {
+		s = "/src" + s
 	}
 	return s
 }

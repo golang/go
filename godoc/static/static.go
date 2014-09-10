@@ -1748,7 +1748,7 @@ function cgAddChild(tree, ul, cgn) {
 	{{if $.PDoc}}
 		<h2 id="pkg-subdirectories">Subdirectories</h2>
 	{{end}}
-	{{if eq $.Dirname "/src/pkg"}}
+	{{if eq $.Dirname "/src"}}
 		<div id="manual-nav">
 			<dl>
 				<dt><a href="#stdlib">Standard library</a></dt>
@@ -1766,7 +1766,7 @@ function cgAddChild(tree, ul, cgn) {
 	<th>&nbsp;&nbsp;&nbsp;&nbsp;</th>
 	<th style="text-align: left; width: auto">Synopsis</th>
 	</tr>
-	{{if not (or (eq $.Dirname "/src/pkg") (eq $.Dirname "/src/cmd") $.DirFlat)}}
+	{{if not (or (eq $.Dirname "/src") (eq $.Dirname "/src/cmd") $.DirFlat)}}
 		<tr>
 		<td><a href="..">..</a></td>
 		</tr>
@@ -1790,7 +1790,7 @@ function cgAddChild(tree, ul, cgn) {
 	{{end}}
 	</table>
 
-	{{if eq $.Dirname "/src/pkg"}}
+	{{if eq $.Dirname "/src"}}
 	<h2 id="other">Other packages</h2>
 
 	<h3 id="subrepo">Sub-repositories</h3>

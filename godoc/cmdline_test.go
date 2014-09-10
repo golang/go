@@ -23,7 +23,7 @@ import (
 // the temporary directory.
 func setupGoroot(t *testing.T) (cleanup func()) {
 	var stdLib = map[string]string{
-		"src/pkg/fmt/fmt.go": `// Package fmt implements formatted I/O.
+		"src/fmt/fmt.go": `// Package fmt implements formatted I/O.
 package fmt
 
 type Stringer interface {
@@ -155,10 +155,10 @@ func TestCommandLine(t *testing.T) {
 	cleanup := setupGoroot(t)
 	defer cleanup()
 	mfs := mapfs.New(map[string]string{
-		"src/pkg/bar/bar.go": `// Package bar is an example.
+		"src/bar/bar.go": `// Package bar is an example.
 package bar
 `,
-		"src/pkg/foo/foo.go": `// Package foo.
+		"src/foo/foo.go": `// Package foo.
 package foo
 
 // First function is first.
@@ -169,7 +169,7 @@ func First() {
 func Second() {
 }
 `,
-		"src/pkg/gen/gen.go": `// Package gen
+		"src/gen/gen.go": `// Package gen
 package gen
 
 //line notgen.go:3
@@ -177,7 +177,7 @@ package gen
 // line 2 should appear
 func F()
 //line foo.go:100`, // no newline on end to check corner cases!
-		"src/pkg/vet/vet.go": `// Package vet
+		"src/vet/vet.go": `// Package vet
 package vet
 `,
 		"src/cmd/go/doc.go": `// The go command
@@ -195,7 +195,7 @@ package main
 	c := NewCorpus(fs)
 	p := &Presentation{Corpus: c}
 	p.cmdHandler = handlerServer{p, c, "/cmd/", "/src/cmd"}
-	p.pkgHandler = handlerServer{p, c, "/pkg/", "/src/pkg"}
+	p.pkgHandler = handlerServer{p, c, "/pkg/", "/src"}
 	p.initFuncMap()
 	p.PackageText = template.Must(template.New("PackageText").Funcs(p.FuncMap()).Parse(`{{$info := .}}{{$filtered := .IsFiltered}}{{if $filtered}}{{range .PAst}}{{range .Decls}}{{node $info .}}{{end}}{{end}}{{else}}{{with .PAst}}{{range $filename, $ast := .}}{{$filename}}:
 {{node $ $ast}}{{end}}{{end}}{{end}}{{with .PDoc}}{{if $.IsMain}}COMMAND {{.Doc}}{{else}}PACKAGE {{.Doc}}{{end}}{{with .Funcs}}

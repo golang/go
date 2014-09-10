@@ -253,7 +253,7 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// special cases for top-level package/command directories
 	switch tabtitle {
-	case "/src/pkg":
+	case "/src":
 		title = "Packages"
 		tabtitle = "Packages"
 	case "/src/cmd":
@@ -262,7 +262,6 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Emit JSON array for type information.
-	// TODO(adonovan): display the h.c.Analysis.Status() message in the UI.
 	pi := h.c.Analysis.PackageInfo(relpath)
 	info.CallGraphIndex = pi.CallGraphIndex
 	info.CallGraph = htmltemplate.JS(marshalJSON(pi.CallGraph))
@@ -501,7 +500,7 @@ func (p *Presentation) serveTextFile(w http.ResponseWriter, r *http.Request, abs
 
 	var buf bytes.Buffer
 	if pathpkg.Ext(abspath) == ".go" {
-		// Find markup links for this file (e.g. "/src/pkg/fmt/print.go").
+		// Find markup links for this file (e.g. "/src/fmt/print.go").
 		fi := p.Corpus.Analysis.FileInfo(abspath)
 		buf.WriteString("<script type='text/javascript'>document.ANALYSIS_DATA = ")
 		buf.Write(marshalJSON(fi.Data))
