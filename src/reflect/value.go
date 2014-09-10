@@ -15,32 +15,6 @@ const bigEndian = false // can be smarter if we find a big-endian machine
 const ptrSize = unsafe.Sizeof((*byte)(nil))
 const cannotSet = "cannot set value obtained from unexported struct field"
 
-// TODO: This will have to go away when
-// the new gc goes in.
-func memmove(adst, asrc unsafe.Pointer, n uintptr) {
-	dst := uintptr(adst)
-	src := uintptr(asrc)
-	switch {
-	case src < dst && src+n > dst:
-		// byte copy backward
-		// careful: i is unsigned
-		for i := n; i > 0; {
-			i--
-			*(*byte)(unsafe.Pointer(dst + i)) = *(*byte)(unsafe.Pointer(src + i))
-		}
-	case (n|src|dst)&(ptrSize-1) != 0:
-		// byte copy forward
-		for i := uintptr(0); i < n; i++ {
-			*(*byte)(unsafe.Pointer(dst + i)) = *(*byte)(unsafe.Pointer(src + i))
-		}
-	default:
-		// word copy forward
-		for i := uintptr(0); i < n; i += ptrSize {
-			*(*uintptr)(unsafe.Pointer(dst + i)) = *(*uintptr)(unsafe.Pointer(src + i))
-		}
-	}
-}
-
 // Value is the reflection interface to a Go value.
 //
 // Not all methods apply to all kinds of values.  Restrictions,
@@ -2702,6 +2676,9 @@ func maplen(m unsafe.Pointer) int
 func call(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
 
 func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
+
+//go:noescape
+func memmove(adst, asrc unsafe.Pointer, n uintptr)
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that

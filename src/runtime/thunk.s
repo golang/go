@@ -74,6 +74,9 @@ TEXT reflect·chansend(SB), NOSPLIT, $0-0
 TEXT reflect·chanrecv(SB), NOSPLIT, $0-0
 	JMP	runtime·reflect_chanrecv(SB)
 
+TEXT reflect·memmove(SB), NOSPLIT, $0-0
+	JMP	runtime·memmove(SB)
+
 TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
 	JMP	runtime·freeOSMemory(SB)
 
