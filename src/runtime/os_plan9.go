@@ -12,7 +12,7 @@ func seek(fd int32, offset int64, whence int32) int64
 func exits(msg *byte)
 func brk_(addr unsafe.Pointer) uintptr
 func sleep(ms int32) int32
-func rfork(flags int32, stk, mm, gg, fn unsafe.Pointer) int32
+func rfork(flags int32) int32
 func plan9_semacquire(addr *uint32, block int32) int32
 func plan9_tsemacquire(addr *uint32, ms int32) int32
 func plan9_semrelease(addr *uint32, count int32) int32
@@ -21,6 +21,7 @@ func noted(mode int32) int32
 func nsec(*int64) int64
 func sigtramp(ureg, msg unsafe.Pointer)
 func setfpmasks()
+func tstart_plan9(newm *m)
 func errstr() string
 
 // The size of the note handler frame varies among architectures,

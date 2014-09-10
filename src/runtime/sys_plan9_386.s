@@ -131,47 +131,38 @@ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	INT	$64
 	MOVL	AX, ret+8(FP)
 	RET
-	
-TEXT runtime·rfork(SB),NOSPLIT,$0
-	MOVL	$19, AX // rfork
-	MOVL	stack+8(SP), CX
-	MOVL	mm+12(SP), BX	// m
-	MOVL	gg+16(SP), DX	// g
-	MOVL	fn+20(SP), SI	// fn
-	INT     $64
 
-	// In parent, return.
-	CMPL	AX, $0
-	JEQ	3(PC)
-	MOVL	AX, ret+20(FP)
+TEXT runtime·rfork(SB),NOSPLIT,$0
+	MOVL	$19, AX
+	INT	$64
+	MOVL	AX, ret+4(FP)
 	RET
 
-	// set SP to be on the new child stack
-	MOVL	CX, SP
+TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+	MOVL	newm+0(FP), CX
+	MOVL	m_g0(CX), DX
 
-	// Initialize m, g.
-	get_tls(AX)
-	MOVL	DX, g(AX)
-	MOVL	BX, g_m(DX)
+	// Layout new m scheduler stack on os stack.
+	MOVL	SP, AX
+	MOVL	AX, (g_stack+stack_hi)(DX)
+	SUBL	$(64*1024), AX		// stack size
+	MOVL	AX, (g_stack+stack_lo)(DX)
+	MOVL	AX, g_stackguard0(DX)
+	MOVL	AX, g_stackguard1(DX)
 
 	// Initialize procid from TOS struct.
 	MOVL	_tos(SB), AX
-	MOVL	48(AX), AX // procid
-	MOVL	AX, m_procid(BX)	// save pid as m->procid
-	
+	MOVL	48(AX), AX
+	MOVL	AX, m_procid(CX)	// save pid as m->procid
+
+	// Finally, initialize g.
+	get_tls(BX)
+	MOVL	DX, g(BX)
+
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
-	
-	MOVL	0(DX), DX	// paranoia; check they are not nil
-	MOVL	0(BX), BX
-	
-	// more paranoia; check that stack splitting code works
-	PUSHL	SI
-	CALL	runtime·emptyfunc(SB)
-	POPL	SI
-	
-	CALL	SI	// fn()
-	CALL	runtime·exit(SB)
-	MOVL	AX, ret+20(FP)
+	CALL	runtime·mstart(SB)
+
+	MOVL	$0x1234, 0x1234		// not reached
 	RET
 
 // void sigtramp(void *ureg, int8 *note)

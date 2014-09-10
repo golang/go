@@ -9,7 +9,7 @@ int64	runtime·seek(int32 fd, int64 offset, int32 whence);
 void	runtime·exits(int8* msg);
 intptr	runtime·brk_(void*);
 int32	runtime·sleep(int32 ms);
-int32	runtime·rfork(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
+int32	runtime·rfork(int32 flags);
 int32	runtime·plan9_semacquire(uint32 *addr, int32 block);
 int32	runtime·plan9_tsemacquire(uint32 *addr, int32 ms);
 int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
@@ -20,6 +20,7 @@ void	runtime·sigtramp(void*, int8*);
 void	runtime·sigpanic(void);
 void	runtime·goexitsall(int8*);
 void	runtime·setfpmasks(void);
+void	runtime·tstart_plan9(M *newm);
 
 /* open */
 enum

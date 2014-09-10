@@ -130,42 +130,36 @@ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·rfork(SB),NOSPLIT,$0
-	MOVQ	$19, BP // rfork
+	MOVQ	$19, BP
 	SYSCALL
-
-	// In parent, return.
-	CMPQ	AX, $0
-	JEQ	3(PC)
-	MOVL	AX, ret+40(FP)
+	MOVL	AX, ret+8(FP)
 	RET
 
-	// In child on forked stack.
-	MOVQ	mm+24(SP), BX	// m
-	MOVQ	gg+32(SP), DX	// g
-	MOVQ	fn+40(SP), SI	// fn
+TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+	MOVQ	newm+0(FP), CX
+	MOVQ	m_g0(CX), DX
 
-	// set SP to be on the new child stack
-	MOVQ	stack+16(SP), CX
-	MOVQ	CX, SP
-
-	// Initialize m, g.
-	get_tls(AX)
-	MOVQ	DX, g(AX)
-	MOVQ	BX, g_m(DX)
+	// Layout new m scheduler stack on os stack.
+	MOVQ	SP, AX
+	MOVQ	AX, (g_stack+stack_hi)(DX)
+	SUBQ	$(64*1024), AX		// stack size
+	MOVQ	AX, (g_stack+stack_lo)(DX)
+	MOVQ	AX, g_stackguard0(DX)
+	MOVQ	AX, g_stackguard1(DX)
 
 	// Initialize procid from TOS struct.
 	MOVQ	_tos(SB), AX
 	MOVQ	64(AX), AX
-	MOVQ	AX, m_procid(BX)	// save pid as m->procid
-	
+	MOVQ	AX, m_procid(CX)	// save pid as m->procid
+
+	// Finally, initialize g.
+	get_tls(BX)
+	MOVQ	DX, g(BX)
+
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
-	
-	MOVQ	0(DX), DX	// paranoia; check they are not nil
-	MOVQ	0(BX), BX
-	
-	CALL	SI	// fn()
-	CALL	runtime·exit(SB)
-	MOVL	AX, ret+40(FP)
+	CALL	runtime·mstart(SB)
+
+	MOVQ	$0x1234, 0x1234		// not reached
 	RET
 
 // This is needed by asm_amd64.s
