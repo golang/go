@@ -280,14 +280,16 @@ exit(void)
 void
 runtime·newosproc(M *mp, void *stk)
 {
-	mp->tls[0] = mp->id;	// so 386 asm can find it
-	if(0){
-		runtime·printf("newosproc stk=%p m=%p g=%p rfork=%p id=%d/%d ostk=%p\n",
-			stk, mp, mp->g0, runtime·rfork, mp->id, (int32)mp->tls[0], &mp);
-	}
+	int32 pid;
 
-	if(runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, mp, mp->g0, runtime·mstart) < 0)
-		runtime·throw("newosproc: rfork failed");
+	if(0)
+		runtime·printf("newosproc mp=%p ostk=%p\n", mp, &mp);
+
+	USED(stk);
+	if((pid = runtime·rfork(RFPROC|RFMEM|RFNOWAIT)) < 0)
+		runtime·throw("newosproc: rfork failed\n");
+	if(pid == 0)
+		runtime·tstart_plan9(mp);
 }
 
 #pragma textflag NOSPLIT

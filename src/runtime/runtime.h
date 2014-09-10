@@ -522,6 +522,15 @@ enum {
    Solaris = 0
 };
 #endif
+#ifdef GOOS_plan9
+enum {
+   Plan9 = 1
+};
+#else
+enum {
+   Plan9 = 0
+};
+#endif
 
 // Lock-free stack node.
 struct LFNode
