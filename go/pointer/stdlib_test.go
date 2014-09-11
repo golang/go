@@ -54,7 +54,7 @@ func TestStdlib(t *testing.T) {
 	prog.BuildAll()
 
 	numPkgs := len(prog.AllPackages())
-	if want := 140; numPkgs < want {
+	if want := 240; numPkgs < want {
 		t.Errorf("Loaded only %d packages, want at least %d", numPkgs, want)
 	}
 

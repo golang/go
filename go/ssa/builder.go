@@ -2307,9 +2307,13 @@ func (p *Package) needMethodsOf(T types.Type) {
 // Recursive case: skip => don't call makeMethods(T).
 func (p *Package) needMethods(T types.Type, skip bool) {
 	// Each package maintains its own set of types it has visited.
-	if p.needRTTI.Set(T, true) != nil {
-		return // already seen
+	if prevSkip, ok := p.needRTTI.At(T).(bool); ok {
+		// needMethods(T) was previously called
+		if !prevSkip || skip {
+			return // already seen, with same or false 'skip' value
+		}
 	}
+	p.needRTTI.Set(T, skip)
 
 	// Prune the recursion if we find a named or *named type
 	// belonging to another package.
