@@ -222,6 +222,9 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 	var mainPkg *ssa.Package
 	var initialPkgs []*ssa.Package
 	for _, info := range iprog.InitialPackages() {
+		if info.Pkg.Path() == "runtime" {
+			continue // not an initial package
+		}
 		p := prog.Package(info.Pkg)
 		initialPkgs = append(initialPkgs, p)
 		if mainPkg == nil && p.Func("main") != nil {
