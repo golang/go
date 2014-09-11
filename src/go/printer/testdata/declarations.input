@@ -715,6 +715,31 @@ var _ = T4{
 }
 
 
+// no alignment of map composite entries if they are not the first entry on a line
+var _ = T{0: 0} // not aligned
+var _ = T{0: 0, // not aligned
+	1: 1, // aligned
+	22: 22, // aligned
+	333: 333, 1234: 12, 12345: 0, // first on line aligned
+}
+
+
+// test cases form issue 8685
+// not aligned
+var _ = map[int]string{1: "spring", 2: "summer",
+					3:             "autumn", 4: "winter"}
+
+// not aligned
+var _ = map[string]string{"a": "spring", "b": "summer",
+	"c": "autumn", "d": "winter"}
+
+// aligned
+var _ = map[string]string{"a": "spring",
+"b": "summer",
+	"c": "autumn",
+"d": "winter"}
+
+
 func _() {
 	var _ = T{
 		a,	// must introduce trailing comma
