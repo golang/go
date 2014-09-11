@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build freebsd linux nacl netbsd
+// +build freebsd linux netbsd solaris
 
 package net
 
@@ -12,20 +12,16 @@ import (
 	"time"
 )
 
-// Set keep alive period.
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
 	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
-
 	// The kernel expects seconds so round to next highest second.
 	d += (time.Second - time.Nanosecond)
 	secs := int(d.Seconds())
-
-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs))
-	if err != nil {
-		return err
+	if err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs); err != nil {
+		return os.NewSyscallError("setsockopt", err)
 	}
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, secs))
 }
