@@ -160,3 +160,6 @@ func GostringW(w []uint16) (s string) {
 	})
 	return
 }
+
+var Gostringnocopy = gostringnocopy
+var Maxstring = &maxstring

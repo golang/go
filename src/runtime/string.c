@@ -42,10 +42,15 @@ String
 runtime·gostringnocopy(byte *str)
 {
 	String s;
+	uintptr ms;
 	
 	s.str = str;
 	s.len = runtime·findnull(str);
-	return s;
+	while(true) {
+		ms = runtime·maxstring;
+		if(s.len <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)s.len))
+			return s;
+	}
 }
 
 // TODO: move this elsewhere

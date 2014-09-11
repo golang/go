@@ -145,3 +145,16 @@ func main() {
 	panic(s)
 }
 `
+
+func TestGostringnocopy(t *testing.T) {
+	max := *runtime.Maxstring
+	b := make([]byte, max+10)
+	for i := uintptr(0); i < max+9; i++ {
+		b[i] = 'a'
+	}
+	_ = runtime.Gostringnocopy(&b[0])
+	newmax := *runtime.Maxstring
+	if newmax != max+9 {
+		t.Errorf("want %d, got %d", max+9, newmax)
+	}
+}
