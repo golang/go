@@ -331,144 +331,21 @@ mapnames[] = {
 // |  args to callee  |
 // +------------------+ <- frame->sp
 //
-// (arm: TODO)
-
-typedef struct CopyableInfo CopyableInfo;
-struct CopyableInfo {
-	Stack stk;
-	int32 frames;	// count of copyable frames (-1 = not copyable)
-};
+// (arm)
+// +------------------+
+// | args from caller |
+// +------------------+ <- frame->argp
+// | caller's retaddr |
+// +------------------+ <- frame->varp
+// |     locals       |
+// +------------------+
+// |  args to callee  |
+// +------------------+
+// |  return address  |
+// +------------------+ <- frame->sp
 
 void runtime·main(void);
 void runtime·switchtoM(void(*)(void));
-
-static bool
-checkframecopy(Stkframe *frame, void *arg)
-{
-	CopyableInfo *cinfo;
-	Func *f;
-	StackMap *stackmap;
-
-	cinfo = arg;
-	f = frame->fn;
-	if(StackDebug >= 2)
-		runtime·printf("    checking %s frame=[%p,%p] stk=[%p,%p]\n", runtime·funcname(f), frame->sp, frame->fp, cinfo->stk.lo, cinfo->stk.hi);
-	// if we're not in the segment any more, return immediately.
-	if(frame->varp < cinfo->stk.lo || frame->varp >= cinfo->stk.hi) {
-		if(StackDebug >= 2)
-			runtime·printf("    <next segment>\n");
-		return false; // stop traceback
-	}
-	if(f->entry == (uintptr)runtime·switchtoM) {
-		// A special routine at the bottom of stack of a goroutine that does onM call.
-		// We will allow it to be copied even though we don't
-		// have full GC info for it (because it is written in asm).
-		cinfo->frames++;
-		return true;
-	}
-	if((byte*)frame->varp != (byte*)frame->sp) { // not in prologue (and has at least one local or outarg)
-		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
-		if(stackmap == nil) {
-			cinfo->frames = -1;
-			runtime·printf("runtime: copystack: no locals info for %s\n", runtime·funcname(f));
-			return false;
-		}
-		if(stackmap->n <= 0) {
-			cinfo->frames = -1;
-			runtime·printf("runtime: copystack: locals size info only for %s\n", runtime·funcname(f));
-			return false;
-		}
-	}
-	if(frame->arglen != 0) {
-		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
-		if(stackmap == nil) {
-			cinfo->frames = -1;
-			runtime·printf("runtime: copystack: no arg info for %s\n", runtime·funcname(f));
-			return false;
-		}
-	}
-	cinfo->frames++;
-	return true; // this frame is ok; keep going
-}
-
-// If the top segment of the stack contains an uncopyable
-// frame, return -1.  Otherwise return the number of frames
-// in the top segment, all of which are copyable.
-static int32
-copyabletopsegment(G *gp)
-{
-	CopyableInfo cinfo;
-	Defer *d;
-	Func *f;
-	FuncVal *fn;
-	StackMap *stackmap;
-	bool (*cb)(Stkframe*, void*);
-
-	if(gp->stack.lo == 0)
-		runtime·throw("missing stack in copyabletopsegment");
-	cinfo.stk = gp->stack;
-	cinfo.frames = 0;
-
-	// Check that each frame is copyable.  As a side effect,
-	// count the frames.
-	cb = checkframecopy;
-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &cb, &cinfo, false);
-	if(StackDebug >= 1 && cinfo.frames != -1)
-		runtime·printf("copystack: %d copyable frames\n", cinfo.frames);
-
-	if(cinfo.frames == -1)
-		return -1;
-
-	// Check to make sure all Defers are copyable
-	for(d = gp->defer; d != nil; d = d->link) {
-		if(cinfo.stk.lo <= (uintptr)d && (uintptr)d < cinfo.stk.hi) {
-			// Defer is on the stack.  Its copyableness has
-			// been established during stack walking.
-			// For now, this only happens with the Defer in runtime.main.
-			continue;
-		}
-		if(d->argp < cinfo.stk.lo || cinfo.stk.hi <= d->argp)
-			break; // a defer for the next segment
-		fn = d->fn;
-		if(fn == nil) // See issue 8047
-			continue;
-		f = runtime·findfunc((uintptr)fn->fn);
-		if(f == nil) {
-			runtime·printf("runtime: copystack: no func for deferred pc %p\n", fn->fn);
-			return -1;
-		}
-
-		// Check to make sure we have an args pointer map for the defer's args.
-		// We only need the args map, but we check
-		// for the locals map also, because when the locals map
-		// isn't provided it means the ptr map came from C and
-		// C (particularly, cgo) lies to us.  See issue 7695.
-		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
-		if(stackmap == nil || stackmap->n <= 0) {
-			runtime·printf("runtime: copystack: no arg info for deferred %s\n", runtime·funcname(f));
-			return -1;
-		}
-		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
-		if(stackmap == nil || stackmap->n <= 0) {
-			runtime·printf("runtime: copystack: no local info for deferred %s\n", runtime·funcname(f));
-			return -1;
-		}
-
-		if(cinfo.stk.lo <= (uintptr)fn && (uintptr)fn < cinfo.stk.hi) {
-			// FuncVal is on the stack.  Again, its copyableness
-			// was established during stack walking.
-			continue;
-		}
-		// The FuncVal may have pointers in it, but fortunately for us
-		// the compiler won't put pointers into the stack in a
-		// heap-allocated FuncVal.
-		// One day if we do need to check this, we'll need maps of the
-		// pointerness of the closure args.  The only place we have that map
-		// right now is in the gc program for the FuncVal.  Ugh.
-	}
-
-	return cinfo.frames;
-}
 
 typedef struct AdjustInfo AdjustInfo;
 struct AdjustInfo {
@@ -573,8 +450,12 @@ adjustframe(Stkframe *frame, void *arg)
 	f = frame->fn;
 	if(StackDebug >= 2)
 		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p continpc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc, frame->continpc);
-	if(f->entry == (uintptr)runtime·switchtoM)
+	if(f->entry == (uintptr)runtime·switchtoM) {
+		// A special routine at the bottom of stack of a goroutine that does an onM call.
+		// We will allow it to be copied even though we don't
+		// have full GC info for it (because it is written in asm).
 		return true;
+	}
 	targetpc = frame->continpc;
 	if(targetpc == 0) {
 		// Frame is dead.
@@ -648,11 +529,10 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 			runtime·printf("runtime: adjustdefers argp=%p stk=%p %p\n", d->argp, adjinfo->old.lo, adjinfo->old.hi);
 			runtime·throw("adjustdefers: unexpected argp");
 		}
+		d->argp += adjinfo->delta;
 		fn = d->fn;
 		if(fn == nil) {
-			// Defer of nil function.  It will panic when run, and there
-			// aren't any args to adjust.  See issue 8047.
-			d->argp += adjinfo->delta;
+			// Defer of nil function.  It will panic when run.  See issue 8047.
 			continue;
 		}
 		f = runtime·findfunc((uintptr)fn->fn);
@@ -675,7 +555,11 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 			bv = runtime·stackmapdata(stackmap, 0);
 			adjustpointers(d->args, &bv, adjinfo, f);
 		}
-		d->argp += adjinfo->delta;
+		// The FuncVal may have pointers in it, but fortunately for us
+		// the compiler won't put pointers into the stack in a
+		// heap-allocated FuncVal.
+		// One day if we do need to check this, we can use the gc bits in the
+		// heap to do the right thing (although getting the size will be expensive).
 	}
 }
 
@@ -707,10 +591,9 @@ adjustsudogs(G *gp, AdjustInfo *adjinfo)
 	}
 }
 
-// Copies the top stack segment of gp to a new stack segment of a
-// different size.  The top segment must contain nframes frames.
+// Copies gp's stack to a new stack of a different size.
 static void
-copystack(G *gp, uintptr nframes, uintptr newsize)
+copystack(G *gp, uintptr newsize)
 {
 	Stack old, new;
 	uintptr used;
@@ -735,7 +618,7 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	adjinfo.old = old;
 	adjinfo.delta = new.hi - old.hi;
 	cb = adjustframe;
-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, nframes, &cb, &adjinfo, false);
+	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &cb, &adjinfo, false);
 	
 	// adjust other miscellaneous things that have pointers into stacks.
 	adjustctxt(gp, &adjinfo);
@@ -785,7 +668,7 @@ runtime·round2(int32 x)
 void
 runtime·newstack(void)
 {
-	int32 oldsize, newsize, nframes;
+	int32 oldsize, newsize;
 	uintptr sp;
 	G *gp;
 	Gobuf morebuf;
@@ -867,10 +750,6 @@ runtime·newstack(void)
 	}
 
 	// Allocate a bigger segment and move the stack.
-	nframes = copyabletopsegment(gp);
-	if(nframes == -1)
-		runtime·throw("unable to grow stack");
-	
 	oldsize = gp->stack.hi - gp->stack.lo;
 	newsize = oldsize * 2;
 	if(newsize > runtime·maxstacksize) {
@@ -880,7 +759,7 @@ runtime·newstack(void)
 
 	// Note that the concurrent GC might be scanning the stack as we try to replace it.
 	// copystack takes care of the appropriate coordination with the stack scanner.
-	copystack(gp, nframes, newsize);
+	copystack(gp, newsize);
 	if(StackDebug >= 1)
 		runtime·printf("stack grow done\n");
 	runtime·casgstatus(gp, Gwaiting, Grunning);
@@ -913,14 +792,13 @@ runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
 void
 runtime·shrinkstack(G *gp)
 {
-	int32 nframes;
 	uintptr used, oldsize, newsize;
 
 	if(runtime·readgstatus(gp) == Gdead)
 		return;
 	if(gp->stack.lo == 0)
 		runtime·throw("missing stack in shrinkstack");
-	//return; // TODO: why does this happen?
+
 	oldsize = gp->stack.hi - gp->stack.lo;
 	newsize = oldsize / 2;
 	if(newsize < FixedStack)
@@ -938,10 +816,7 @@ runtime·shrinkstack(G *gp)
 #endif
 	if(StackDebug > 0)
 		runtime·printf("shrinking stack %D->%D\n", (uint64)oldsize, (uint64)newsize);
-	nframes = copyabletopsegment(gp);
-	if(nframes == -1)
-		return;
-	copystack(gp, nframes, newsize);
+	copystack(gp, newsize);
 }
 
 static void badc(void);
