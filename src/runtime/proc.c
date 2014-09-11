@@ -1677,18 +1677,7 @@ runtime·park_m(G *gp)
 	schedule();
 }
 
-// Scheduler yield.
-#pragma textflag NOSPLIT
-void
-runtime·gosched(void)
-{
-	void (*fn)(G*);
-	
-	fn = runtime·gosched_m;
-	runtime·mcall(&fn);
-}
-
-// runtime·gosched continuation on g0.
+// Gosched continuation on g0.
 void
 runtime·gosched_m(G *gp)
 {

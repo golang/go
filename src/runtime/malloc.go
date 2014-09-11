@@ -477,7 +477,7 @@ func gogc(force int32) {
 	// now that gc is done, kick off finalizer thread if needed
 	if !concurrentSweep {
 		// give the queued finalizers, if any, a chance to run
-		gosched()
+		Gosched()
 	}
 }
 

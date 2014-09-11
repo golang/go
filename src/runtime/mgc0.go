@@ -89,7 +89,7 @@ func bgsweep() {
 	for {
 		for gosweepone() != ^uintptr(0) {
 			sweep.nbgsweep++
-			gosched()
+			Gosched()
 		}
 		lock(&gclock)
 		if !gosweepdone() {

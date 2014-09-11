@@ -852,7 +852,6 @@ void	runtime·setg(G*);
 void	runtime·newextram(void);
 void	runtime·exit(int32);
 void	runtime·breakpoint(void);
-void	runtime·gosched(void);
 void	runtime·gosched_m(G*);
 void	runtime·schedtrace(bool);
 void	runtime·park(bool(*)(G*, void*), void*, String);
