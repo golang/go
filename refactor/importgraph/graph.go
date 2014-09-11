@@ -88,7 +88,7 @@ func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error
 	}()
 
 	var wg sync.WaitGroup
-	buildutil.AllPackages(ctxt, func(path string, err error) {
+	buildutil.ForEachPackage(ctxt, func(path string, err error) {
 		if err != nil {
 			errorc <- pathError{path, err}
 			return

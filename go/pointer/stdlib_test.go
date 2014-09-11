@@ -39,7 +39,7 @@ func TestStdlib(t *testing.T) {
 		SourceImports: true,
 		Build:         &ctxt,
 	}
-	if _, err := conf.FromArgs(buildutil.AllPackagesList(conf.Build), true); err != nil {
+	if _, err := conf.FromArgs(buildutil.AllPackages(conf.Build), true); err != nil {
 		t.Errorf("FromArgs failed: %v", err)
 		return
 	}

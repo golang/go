@@ -12,7 +12,7 @@ import (
 )
 
 func TestAllPackages(t *testing.T) {
-	all := buildutil.AllPackagesList(&build.Default)
+	all := buildutil.AllPackages(&build.Default)
 
 	set := make(map[string]bool)
 	for _, pkg := range all {

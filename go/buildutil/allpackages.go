@@ -16,7 +16,7 @@ import (
 	"sync"
 )
 
-// AllPackagesList returns the import path of each Go package in any source
+// AllPackages returns the import path of each Go package in any source
 // directory of the specified build context (e.g. $GOROOT or an element
 // of $GOPATH).  Errors are ignored.  The results are sorted.
 //
@@ -26,10 +26,10 @@ import (
 // All I/O is via the build.Context virtual file system,
 // which must be concurrency-safe.
 //
-func AllPackagesList(ctxt *build.Context) []string {
+func AllPackages(ctxt *build.Context) []string {
 	var list []string
 	var mu sync.Mutex
-	AllPackages(ctxt, func(pkg string, _ error) {
+	ForEachPackage(ctxt, func(pkg string, _ error) {
 		mu.Lock()
 		list = append(list, pkg)
 		mu.Unlock()
@@ -38,7 +38,7 @@ func AllPackagesList(ctxt *build.Context) []string {
 	return list
 }
 
-// AllPackages calls the found function with the import path of
+// ForEachPackage calls the found function with the import path of
 // each Go package it finds in any source directory of the specified
 // build context (e.g. $GOROOT or an element of $GOPATH).
 //
@@ -48,7 +48,7 @@ func AllPackagesList(ctxt *build.Context) []string {
 // The found function and the build.Context virtual file system
 // accessors must be concurrency safe.
 //
-func AllPackages(ctxt *build.Context, found func(importPath string, err error)) {
+func ForEachPackage(ctxt *build.Context, found func(importPath string, err error)) {
 	var wg sync.WaitGroup
 	for _, root := range ctxt.SrcDirs() {
 		root := root

@@ -39,7 +39,7 @@ func TestStdlib(t *testing.T) {
 	ctxt := build.Default // copy
 	ctxt.GOPATH = ""      // disable GOPATH
 	conf := loader.Config{Build: &ctxt}
-	for _, path := range buildutil.AllPackagesList(conf.Build) {
+	for _, path := range buildutil.AllPackages(conf.Build) {
 		if err := conf.ImportWithTests(path); err != nil {
 			t.Error(err)
 		}
