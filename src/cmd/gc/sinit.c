@@ -633,11 +633,14 @@ structlit(int ctxt, int pass, Node *n, Node *var, NodeList **init)
 		a = nod(ODOT, var, newname(index->sym));
 		a = nod(OAS, a, value);
 		typecheck(&a, Etop);
-		walkexpr(&a, init);
 		if(pass == 1) {
+			walkexpr(&a, init);	// add any assignments in r to top
 			if(a->op != OAS)
 				fatal("structlit: not as");
 			a->dodata = 2;
+		} else {
+			orderstmtinplace(&a);
+			walkstmt(&a);
 		}
 		*init = list(*init, a);
 	}
@@ -693,11 +696,14 @@ arraylit(int ctxt, int pass, Node *n, Node *var, NodeList **init)
 		a = nod(OINDEX, var, index);
 		a = nod(OAS, a, value);
 		typecheck(&a, Etop);
-		walkexpr(&a, init);	// add any assignments in r to top
 		if(pass == 1) {
+			walkexpr(&a, init);
 			if(a->op != OAS)
-				fatal("structlit: not as");
+				fatal("arraylit: not as");
 			a->dodata = 2;
+		} else {
+			orderstmtinplace(&a);
+			walkstmt(&a);
 		}
 		*init = list(*init, a);
 	}
@@ -807,7 +813,8 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 	// make slice out of heap (5)
 	a = nod(OAS, var, nod(OSLICE, vauto, nod(OKEY, N, N)));
 	typecheck(&a, Etop);
-	walkexpr(&a, init);
+	orderstmtinplace(&a);
+	walkstmt(&a);
 	*init = list(*init, a);
 
 	// put dynamics into slice (6)
@@ -839,7 +846,8 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 		// build list of var[c] = expr
 		a = nod(OAS, a, value);
 		typecheck(&a, Etop);
-		walkexpr(&a, init);
+		orderstmtinplace(&a);
+		walkstmt(&a);
 		*init = list(*init, a);
 	}
 }
