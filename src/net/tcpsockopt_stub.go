@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build nacl openbsd
+
 package net
 
 import (
@@ -10,7 +12,7 @@ import (
 )
 
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
-	// OpenBSD has no user-settable per-socket TCP keepalive
-	// options.
-	return syscall.EPROTONOSUPPORT
+	// NaCl and OpenBSD have no user-settable per-socket TCP
+	// keepalive options.
+	return syscall.ENOPROTOOPT
 }
