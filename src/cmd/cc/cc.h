@@ -762,12 +762,6 @@ int	beq(Bits, Bits);
 int	bset(Bits, uint);
 
 /*
- *	bv.c
- */
-Bvec*	bvalloc(int32 n);
-void	bvset(Bvec *bv, int32 i);
-
-/*
  * dpchk.c
  */
 void	dpcheck(Node*);
