@@ -103,6 +103,9 @@ func TestImportStdLib(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not compute list of std libraries: %s", err)
 	}
+	if len(libs) < 100 {
+		t.Fatalf("only %d std libraries found - something's not right", len(libs))
+	}
 
 	// make sure printed go/types types and gc-imported types
 	// can be compared reasonably well
@@ -175,6 +178,12 @@ func testExportImport(t *testing.T, pkg0 *types.Package, path string) (size, gcs
 	}
 
 	gcdata, err := gcExportData(path)
+	if err != nil {
+		if pkg0.Name() == "main" {
+			return // no export data present for main package
+		}
+		t.Errorf("package %s: couldn't get export data: %s", pkg0.Name(), err)
+	}
 	gcsize = len(gcdata)
 
 	imports = make(map[string]*types.Package)
@@ -293,7 +302,7 @@ func pkgString(pkg *types.Package) string {
 	return buf.String()
 }
 
-var stdLibRoot = filepath.Join(runtime.GOROOT(), "src", "pkg") + string(filepath.Separator)
+var stdLibRoot = filepath.Join(runtime.GOROOT(), "src") + string(filepath.Separator)
 
 // The following std libraries are excluded from the stdLibs list.
 var excluded = map[string]bool{
@@ -301,10 +310,11 @@ var excluded = map[string]bool{
 	"unsafe":  true, // contains fake declarations
 }
 
-// stdLibs returns the list if standard library package paths.
+// stdLibs returns the list of standard library package paths.
 func stdLibs() (list []string, err error) {
 	err = filepath.Walk(stdLibRoot, func(path string, info os.FileInfo, err error) error {
 		if err == nil && info.IsDir() {
+			// testdata directories don't contain importable libraries
 			if info.Name() == "testdata" {
 				return filepath.SkipDir
 			}
