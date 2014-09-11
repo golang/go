@@ -4,6 +4,8 @@
 
 package runtime
 
+import "unsafe"
+
 // Called from C. Returns the Go type *m.
 func gc_m_ptr(ret *interface{}) {
 	*ret = (*m)(nil)
@@ -100,4 +102,35 @@ func bgsweep() {
 		sweep.parked = true
 		goparkunlock(&gclock, "GC sweep wait")
 	}
+}
+
+// NOTE: Really dst *unsafe.Pointer, src unsafe.Pointer,
+// but if we do that, Go inserts a write barrier on *dst = src.
+//go:nosplit
+func writebarrierptr(dst *uintptr, src uintptr) {
+	*dst = src
+}
+
+//go:nosplit
+func writebarrierstring(dst *[2]uintptr, src [2]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+}
+
+//go:nosplit
+func writebarrierslice(dst *[3]uintptr, src [3]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+	dst[2] = src[2]
+}
+
+//go:nosplit
+func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+}
+
+//go:nosplit
+func writebarrierfat(typ *_type, dst, src unsafe.Pointer) {
+	memmove(dst, src, typ.size)
 }

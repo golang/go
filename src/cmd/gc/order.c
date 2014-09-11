@@ -317,7 +317,7 @@ orderexprinplace(Node **np, Order *outer)
 
 // Orderstmtinplace orders the side effects of the single statement *np
 // and replaces it with the resulting statement list.
-static void
+void
 orderstmtinplace(Node **np)
 {
 	Node *n;
@@ -451,7 +451,7 @@ ordermapassign(Node *n, Order *order)
 
 	case OAS:
 		order->out = list(order->out, n);
-		if(n->left->op == OINDEXMAP && !isaddrokay(n->right)) {
+		if((n->left->op == OINDEXMAP || (needwritebarrier(n->left, n->right) && n->left->type->width > widthptr)) && !isaddrokay(n->right)) {
 			m = n->left;
 			n->left = ordertemp(m->type, order, 0);
 			a = nod(OAS, m, n->left);

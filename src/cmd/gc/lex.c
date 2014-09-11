@@ -312,6 +312,8 @@ main(int argc, char *argv[])
 	flagcount("u", "reject unsafe code", &safemode);
 	flagcount("v", "increase debug verbosity", &debug['v']);
 	flagcount("w", "debug type checking", &debug['w']);
+	use_writebarrier = 1;
+	flagcount("wb", "enable write barrier", &use_writebarrier);
 	flagcount("x", "debug lexer", &debug['x']);
 	flagcount("y", "debug declarations in canned imports (with -d)", &debug['y']);
 	if(thechar == '6')

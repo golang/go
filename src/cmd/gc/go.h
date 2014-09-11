@@ -973,6 +973,7 @@ EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
 EXTERN	int	compiling_runtime;
 EXTERN	int	compiling_wrappers;
+EXTERN	int	use_writebarrier;
 EXTERN	int	pure_go;
 EXTERN	char*	flag_installsuffix;
 EXTERN	int	flag_race;
@@ -1284,6 +1285,7 @@ LSym*	linksym(Sym*);
  *	order.c
  */
 void	order(Node *fn);
+void	orderstmtinplace(Node **stmt);
 
 /*
  *	range.c
@@ -1464,6 +1466,7 @@ void	walkstmt(Node **np);
 void	walkstmtlist(NodeList *l);
 Node*	conv(Node*, Type*);
 int	candiscard(Node*);
+int	needwritebarrier(Node*, Node*);
 Node*	outervalue(Node*);
 void	usefield(Node*);
 

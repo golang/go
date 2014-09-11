@@ -8,6 +8,8 @@
 #include	"../ld/textflag.h"
 
 static	Node*	walkprint(Node*, NodeList**, int);
+static	Node*	writebarrierfn(char*, Type*, Type*);
+static	Node*	applywritebarrier(Node*, NodeList**);
 static	Node*	mapfn(char*, Type*);
 static	Node*	mapfndel(char*, Type*);
 static	Node*	ascompatee1(int, Node*, Node*, NodeList**);
@@ -633,6 +635,7 @@ walkexpr(Node **np, NodeList **init)
 			r = convas(nod(OAS, n->left, n->right), init);
 			r->dodata = n->dodata;
 			n = r;
+			n = applywritebarrier(n, init);
 		}
 
 		goto ret;
@@ -644,6 +647,8 @@ walkexpr(Node **np, NodeList **init)
 		walkexprlistsafe(n->rlist, init);
 		ll = ascompatee(OAS, n->list, n->rlist, init);
 		ll = reorder3(ll);
+		for(lr = ll; lr != nil; lr = lr->next)
+			lr->n = applywritebarrier(lr->n, init);
 		n = liststmt(ll);
 		goto ret;
 
@@ -656,6 +661,8 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&r, init);
 
 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
+		for(lr = ll; lr != nil; lr = lr->next)
+			lr->n = applywritebarrier(lr->n, init);
 		n = liststmt(concat(list1(r), ll));
 		goto ret;
 
@@ -1481,7 +1488,12 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
 static int
 fncall(Node *l, Type *rt)
 {
+	Node r;
+
 	if(l->ullman >= UINF || l->op == OINDEXMAP)
+		return 1;
+	r.op = 0;
+	if(needwritebarrier(l, &r))
 		return 1;
 	if(eqtype(l->type, rt))
 		return 0;
@@ -1533,8 +1545,10 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 		a = nod(OAS, l, nodarg(r, fp));
 		a = convas(a, init);
 		ullmancalc(a);
-		if(a->ullman >= UINF)
+		if(a->ullman >= UINF) {
+			dump("ascompatet ucount", a);
 			ucount++;
+		}
 		nn = list(nn, a);
 		r = structnext(&saver);
 	}
@@ -1932,6 +1946,127 @@ callnew(Type *t)
 	return mkcall1(fn, ptrto(t), nil, typename(t));
 }
 
+static int
+isstack(Node *n)
+{
+	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
+		n = n->left;
+	
+	switch(n->op) {
+	case OINDREG:
+		// OINDREG only ends up in walk if it's indirect of SP.
+		return 1;
+
+	case ONAME:
+		switch(n->class) {
+		case PAUTO:
+		case PPARAM:
+		case PPARAMOUT:
+			return 1;
+		}
+		break;
+	}
+	
+	return 0;
+}
+
+static int
+isglobal(Node *n)
+{
+	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
+		n = n->left;
+	
+	switch(n->op) {
+	case ONAME:
+		switch(n->class) {
+		case PEXTERN:
+			return 1;
+		}
+		break;
+	}
+	
+	return 0;
+}
+
+// Do we need a write barrier for the assignment l = r?
+int
+needwritebarrier(Node *l, Node *r)
+{
+	if(!use_writebarrier)
+		return 0;
+
+	if(l == N || isblank(l))
+		return 0;
+
+	// No write barrier for write of non-pointers.
+	dowidth(l->type);
+	if(!haspointers(l->type))
+		return 0;
+
+	// No write barrier for write to stack.
+	if(isstack(l))
+		return 0;
+
+	// No write barrier for zeroing.
+	if(r == N)
+		return 0;
+
+	// No write barrier for initialization to constant.
+	if(r->op == OLITERAL)
+		return 0;
+
+	// No write barrier for storing static (read-only) data.
+	if(r->op == ONAME && strncmp(r->sym->name, "statictmp_", 10) == 0)
+		return 0;
+
+	// No write barrier for storing address of stack values,
+	// which are guaranteed only to be written to the stack.
+	if(r->op == OADDR && isstack(r->left))
+		return 0;
+
+	// No write barrier for storing address of global, which
+	// is live no matter what.
+	if(r->op == OADDR && isglobal(r->left))
+		return 0;
+
+	// Otherwise, be conservative and use write barrier.
+	return 1;
+}
+
+// TODO(rsc): Perhaps componentgen should run before this.
+static Node*
+applywritebarrier(Node *n, NodeList **init)
+{
+	Node *l, *r;
+
+	if(n->left && n->right && needwritebarrier(n->left, n->right)) {
+		l = nod(OADDR, n->left, N);
+		l->etype = 1; // addr does not escape
+		if(n->left->type->width == widthptr) {
+			n = mkcall1(writebarrierfn("writebarrierptr", n->left->type, n->right->type), T, init,
+				l, n->right);
+		} else if(n->left->type->etype == TSTRING) {
+			n = mkcall1(writebarrierfn("writebarrierstring", n->left->type, n->right->type), T, init,
+				l, n->right);
+		} else if(isslice(n->left->type)) {
+			n = mkcall1(writebarrierfn("writebarrierslice", n->left->type, n->right->type), T, init,
+				l, n->right);
+		} else if(isinter(n->left->type)) {
+			n = mkcall1(writebarrierfn("writebarrieriface", n->left->type, n->right->type), T, init,
+				l, n->right);
+		} else {
+			r = n->right;
+			while(r->op == OCONVNOP)
+				r = r->left;
+			r = nod(OADDR, r, N);
+			r->etype = 1; // addr does not escape
+			n = mkcall1(writebarrierfn("writebarrierfat", n->left->type, r->left->type), T, init,
+				typename(n->left->type), l, r);
+		}
+	}
+	return n;
+}
+
 static Node*
 convas(Node *n, NodeList **init)
 {
@@ -1971,11 +2106,10 @@ convas(Node *n, NodeList **init)
 		goto out;
 	}
 
-	if(eqtype(lt, rt))
-		goto out;
-
-	n->right = assignconv(n->right, lt, "assignment");
-	walkexpr(&n->right, init);
+	if(!eqtype(lt, rt)) {
+		n->right = assignconv(n->right, lt, "assignment");
+		walkexpr(&n->right, init);
+	}
 
 out:
 	ullmancalc(n);
@@ -2523,6 +2657,17 @@ mapfndel(char *name, Type *t)
 	argtype(fn, t->down);
 	argtype(fn, t->type);
 	argtype(fn, t->down);
+	return fn;
+}
+
+static Node*
+writebarrierfn(char *name, Type *l, Type *r)
+{
+	Node *fn;
+
+	fn = syslook(name, 1);
+	argtype(fn, l);
+	argtype(fn, r);
 	return fn;
 }
 
