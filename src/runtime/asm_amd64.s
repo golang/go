@@ -200,6 +200,23 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 TEXT runtime·switchtoM(SB), NOSPLIT, $0-8
 	RET
 
+// func onM_signalok(fn func())
+TEXT runtime·onM_signalok(SB), NOSPLIT, $0-8
+	get_tls(CX)
+	MOVQ	g(CX), AX	// AX = g
+	MOVQ	g_m(AX), BX	// BX = m
+	MOVQ	m_gsignal(BX), DX	// DX = gsignal
+	CMPQ	AX, DX
+	JEQ	ongsignal
+	JMP	runtime·onM(SB)
+
+ongsignal:
+	MOVQ	fn+0(FP), DI	// DI = fn
+	MOVQ	DI, DX
+	MOVQ	0(DI), DI
+	CALL	DI
+	RET
+
 // func onM(fn func())
 TEXT runtime·onM(SB), NOSPLIT, $0-8
 	MOVQ	fn+0(FP), DI	// DI = fn

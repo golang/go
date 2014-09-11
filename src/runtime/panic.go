@@ -371,7 +371,7 @@ func gorecover(argp uintptr) interface{} {
 
 //go:nosplit
 func startpanic() {
-	onM(startpanic_m)
+	onM_signalok(startpanic_m)
 }
 
 //go:nosplit
@@ -381,7 +381,7 @@ func dopanic(unused int) {
 	mp.ptrarg[0] = unsafe.Pointer(gp)
 	mp.scalararg[0] = getcallerpc((unsafe.Pointer)(&unused))
 	mp.scalararg[1] = getcallersp((unsafe.Pointer)(&unused))
-	onM(dopanic_m) // should never return
+	onM_signalok(dopanic_m) // should never return
 	*(*int)(nil) = 0
 }
 

@@ -202,6 +202,21 @@ TEXT runtime·switchtoM(SB),NOSPLIT,$0-4
 	BL	(R0) // clobber lr to ensure push {lr} is kept
 	RET
 
+// func onM_signalok(fn func())
+TEXT runtime·onM_signalok(SB), NOSPLIT, $-4-4
+	MOVW	g_m(g), R1
+	MOVW	m_gsignal(R1), R2
+	CMP	g, R2
+	B.EQ	ongsignal
+	B	runtime·onM(SB)
+
+ongsignal:
+	MOVW	fn+0(FP), R0
+	MOVW	R0, R7
+	MOVW	0(R0), R0
+	BL	(R0)
+	RET
+
 // func onM(fn func())
 TEXT runtime·onM(SB),NOSPLIT,$0-4
 	MOVW	fn+0(FP), R0	// R0 = fn
