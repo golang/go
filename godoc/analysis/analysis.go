@@ -575,6 +575,8 @@ func (a linksByStart) Len() int           { return len(a) }
 // specified package root directory, e.g. $GOROOT/src or $GOPATH/src.
 // Derived from from go/ssa/stdlib_test.go
 // root must end with os.PathSeparator.
+//
+// TODO(adonovan): use buildutil.AllPackages when the tree thaws.
 func allPackages(root string) []string {
 	var pkgs []string
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
