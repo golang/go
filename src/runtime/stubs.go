@@ -130,7 +130,6 @@ func memclr(ptr unsafe.Pointer, n uintptr)
 //go:noescape
 func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
 
-func gosched()
 func starttheworld()
 func stoptheworld()
 func newextram()
