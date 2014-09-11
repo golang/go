@@ -823,6 +823,7 @@ int32	runtime·mcount(void);
 int32	runtime·gcount(void);
 void	runtime·mcall(void(**)(G*));
 void	runtime·onM(void(**)(void));
+void	runtime·onMsignal(void(**)(void));
 uint32	runtime·fastrand1(void);
 void	runtime·rewindmorestack(Gobuf*);
 int32	runtime·timediv(int64, int32, int32*);

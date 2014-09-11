@@ -73,6 +73,24 @@ func mcall(fn func(*g))
 //go:noescape
 func onM(fn func())
 
+// onMsignal is like onM but is allowed to be used in code that
+// might run on the gsignal stack. Code running on a signal stack
+// may be interrupting an onM sequence on the main stack, so
+// if the onMsignal calling sequence writes to ptrarg/scalararg,
+// it must first save the old values and then restore them when
+// finished. As an exception to the rule, it is fine not to save and
+// restore the values if the program is trying to crash rather than
+// return from the signal handler.
+// Once all the runtime is written in Go, there will be no ptrarg/scalararg
+// and the distinction between onM and onMsignal (and perhaps mcall)
+// can go away.
+//
+// If onMsignal is called from a gsignal stack, it invokes fn directly,
+// without a stack switch. Otherwise onMsignal behaves like onM.
+//
+//go:noescape
+func onM_signalok(fn func())
+
 func badonm() {
 	gothrow("onM called from signal goroutine")
 }

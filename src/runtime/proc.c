@@ -2398,6 +2398,7 @@ gfpurge(P *p)
 	runtime·unlock(&runtime·sched.gflock);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·Breakpoint(void)
 {

@@ -175,6 +175,14 @@ func TestMainGoroutineId(t *testing.T) {
 	}
 }
 
+func TestBreakpoint(t *testing.T) {
+	output := executeTest(t, breakpointSource, nil)
+	want := "runtime.Breakpoint()"
+	if !strings.Contains(output, want) {
+		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
+	}
+}
+
 const crashSource = `
 package main
 
@@ -378,5 +386,13 @@ const mainGoroutineIdSource = `
 package main
 func main() {
 	panic("test")
+}
+`
+
+const breakpointSource = `
+package main
+import "runtime"
+func main() {
+	runtime.Breakpoint()
 }
 `
