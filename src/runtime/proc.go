@@ -196,3 +196,19 @@ func lockedOSThread() bool {
 	gp := getg()
 	return gp.lockedm != nil && gp.m.lockedg != nil
 }
+
+func newP() *p {
+	return new(p)
+}
+
+func allgadd(gp *g) {
+	if readgstatus(gp) == _Gidle {
+		gothrow("allgadd: bad status Gidle")
+	}
+
+	lock(&allglock)
+	allgs = append(allgs, gp)
+	allg = &allgs[0]
+	allglen = uintptr(len(allgs))
+	unlock(&allglock)
+}

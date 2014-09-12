@@ -97,12 +97,10 @@ runtime·goargs(void)
 	if(Windows)
 		return;
 
-	s = runtime·mallocgc(argc*sizeof s[0], runtime·conservative, 0);
+	os·Args = runtime·makeStringSlice(argc);
+	s = (String*)os·Args.array;
 	for(i=0; i<argc; i++)
 		s[i] = runtime·gostringnocopy(argv[i]);
-	os·Args.array = (byte*)s;
-	os·Args.len = argc;
-	os·Args.cap = argc;
 }
 
 void
@@ -114,12 +112,10 @@ runtime·goenvs_unix(void)
 	for(n=0; argv[argc+1+n] != 0; n++)
 		;
 
-	s = runtime·mallocgc(n*sizeof s[0], runtime·conservative, 0);
+	syscall·envs = runtime·makeStringSlice(n);
+	s = (String*)syscall·envs.array;
 	for(i=0; i<n; i++)
 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
-	syscall·envs.array = (byte*)s;
-	syscall·envs.len = n;
-	syscall·envs.cap = n;
 }
 
 #pragma textflag NOSPLIT

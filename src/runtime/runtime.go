@@ -35,3 +35,7 @@ func tickspersecond() int64 {
 	unlock(&ticks.lock)
 	return r
 }
+
+func makeStringSlice(n int) []string {
+	return make([]string, n)
+}
