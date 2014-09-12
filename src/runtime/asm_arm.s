@@ -520,15 +520,20 @@ asmcgocall_g0:
 	SUB	$24, R13
 	BIC	$0x7, R13	// alignment for gcc ABI
 	MOVW	R4, 20(R13) // save old g
-	MOVW	R2, 16(R13)	// save old SP
+	MOVW	(g_stack+stack_hi)(R4), R4
+	SUB	R2, R4
+	MOVW	R4, 16(R13)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
 	BL	(R1)
 
 	// Restore registers, g, stack pointer.
 	MOVW	R0, R5
 	MOVW	20(R13), R0
 	BL	setg<>(SB)
+	MOVW	(g_stack+stack_hi)(g), R1
+	MOVW	16(R13), R2
+	SUB	R2, R1
 	MOVW	R5, R0
-	MOVW	16(R13), R13
+	MOVW	R1, R13
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
