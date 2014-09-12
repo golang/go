@@ -442,6 +442,41 @@ func TestMapIterOrder(t *testing.T) {
 	}
 }
 
+// Issue 8410
+func TestMapSparseIterOrder(t *testing.T) {
+	// Run several rounds to increase the probability
+	// of failure. One is not enough.
+NextRound:
+	for round := 0; round < 10; round++ {
+		m := make(map[int]bool)
+		// Add 1000 items, remove 980.
+		for i := 0; i < 1000; i++ {
+			m[i] = true
+		}
+		for i := 20; i < 1000; i++ {
+			delete(m, i)
+		}
+
+		var first []int
+		for i := range m {
+			first = append(first, i)
+		}
+
+		// 80 chances to get a different iteration order.
+		for n := 0; n < 80; n++ {
+			idx := 0
+			for i := range m {
+				if i != first[idx] {
+					// iteration order changed.
+					continue NextRound
+				}
+				idx++
+			}
+		}
+		t.Fatalf("constant iteration order on round %d: %v", round, first)
+	}
+}
+
 func TestMapStringBytesLookup(t *testing.T) {
 	// Use large string keys to avoid small-allocation coalescing,
 	// which can cause AllocsPerRun to report lower counts than it should.
