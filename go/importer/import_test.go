@@ -24,6 +24,8 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+var fset = token.NewFileSet()
+
 var tests = []string{
 	`package p`,
 
@@ -202,23 +204,11 @@ func testExportImport(t *testing.T, pkg0 *types.Package, path string) (size, gcs
 }
 
 func pkgForSource(src string) (*types.Package, error) {
-	// parse file
-	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", src, 0)
 	if err != nil {
 		return nil, err
 	}
-
-	// typecheck file
-	conf := types.Config{
-		// strconv exports IntSize as a constant. The type-checker must
-		// use the same word size otherwise the result of the type-checker
-		// and gc imports is different. We don't care about alignment
-		// since none of the tests have exported constants depending
-		// on alignment (see also issue 8366).
-		Sizes: &types.StdSizes{WordSize: strconv.IntSize / 8, MaxAlign: 8},
-	}
-	return conf.Check("import-test", fset, []*ast.File{f}, nil)
+	return typecheck("import-test", f)
 }
 
 func pkgForPath(path string) (*types.Package, error) {
@@ -231,7 +221,6 @@ func pkgForPath(path string) (*types.Package, error) {
 	filenames := append(pkginfo.GoFiles, pkginfo.CgoFiles...)
 
 	// parse files
-	fset := token.NewFileSet()
 	files := make([]*ast.File, len(filenames))
 	for i, filename := range filenames {
 		var err error
@@ -241,10 +230,24 @@ func pkgForPath(path string) (*types.Package, error) {
 		}
 	}
 
-	// typecheck files
-	// (we only care about exports and thus can ignore function bodies)
-	conf := types.Config{IgnoreFuncBodies: true, FakeImportC: true}
-	return conf.Check(path, fset, files, nil)
+	return typecheck(path, files...)
+}
+
+var defaultConf = types.Config{
+	// we only care about exports and thus can ignore function bodies
+	IgnoreFuncBodies: true,
+	// work around C imports if possible
+	FakeImportC: true,
+	// strconv exports IntSize as a constant. The type-checker must
+	// use the same word size otherwise the result of the type-checker
+	// and gc imports is different. We don't care about alignment
+	// since none of the tests have exported constants depending
+	// on alignment (see also issue 8366).
+	Sizes: &types.StdSizes{WordSize: strconv.IntSize / 8, MaxAlign: 8},
+}
+
+func typecheck(path string, files ...*ast.File) (*types.Package, error) {
+	return defaultConf.Check(path, fset, files, nil)
 }
 
 // pkgString returns a string representation of a package's exported interface.
