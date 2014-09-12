@@ -98,9 +98,7 @@ ok:
 	MOVQ	$runtime·main·f(SB), BP		// entry
 	PUSHQ	BP
 	PUSHQ	$0			// arg size
-	ARGSIZE(16)
 	CALL	runtime·newproc(SB)
-	ARGSIZE(-1)
 	POPQ	AX
 	POPQ	AX
 
@@ -183,7 +181,6 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	SI, g(CX)	// g = m->g0
 	MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
 	PUSHQ	AX
-	ARGSIZE(8)
 	MOVQ	DI, DX
 	MOVQ	0(DI), DI
 	CALL	DI
@@ -197,7 +194,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 // lives at the bottom of the G stack from the one that lives
 // at the top of the M stack because the one at the top of
 // the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-8
+TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
 	RET
 
 // func onM_signalok(fn func())
@@ -255,7 +252,6 @@ oncurg:
 	MOVQ	BX, SP
 
 	// call target function
-	ARGSIZE(0)
 	MOVQ	DI, DX
 	MOVQ	0(DI), DI
 	CALL	DI
@@ -634,6 +630,7 @@ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-16
 	RET
 
 TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-20
+	GO_ARGS
 	MOVQ	fn+0(FP), AX
 	MOVQ	arg+8(FP), BX
 	CALL	asmcgocall<>(SB)
@@ -703,6 +700,9 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
 TEXT runtime·cgocallback_gofunc(SB),NOSPLIT,$8-24
+	GO_ARGS
+	NO_LOCAL_POINTERS
+
 	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one m for temporary use.
 	// In this case, we're running on the thread stack, so there's

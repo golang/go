@@ -65,7 +65,6 @@
 enum {
 	Debug		= 0,
 	ConcurrentSweep	= 1,
-	PreciseScan	= 1,
 
 	WorkbufSize	= 4*1024,
 	FinBlockSize	= 4*1024,
@@ -239,16 +238,6 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 		ptrmask = nil; // use GC bitmap for pointer info
 
 	scanobj:
-		if(!PreciseScan) {
-			if(ptrmask == nil) {
-				// Heap obj, obtain real size.
-				if(!runtime·mlookup(b, &p, &n, nil))
-					continue; // not an allocated obj
-				if(b != p)
-					runtime·throw("bad heap object");
-			}
-			ptrmask = ScanConservatively;
-		}
 		// Find bits of the beginning of the object.
 		if(ptrmask == nil) {
 			off = (uintptr*)b - (uintptr*)arena_start;
@@ -620,7 +609,7 @@ scanframe(Stkframe *frame, void *unused)
 	Func *f;
 	StackMap *stackmap;
 	BitVector bv;
-	uintptr size;
+	uintptr size, minsize;
 	uintptr targetpc;
 	int32 pcdata;
 
@@ -644,25 +633,21 @@ scanframe(Stkframe *frame, void *unused)
 	}
 
 	// Scan local variables if stack frame has been allocated.
-	// Use pointer information if known.
-	stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
-	if(stackmap == nil) {
-		// No locals information, scan everything.
-		size = frame->varp - frame->sp;
-		if(Debug > 2)
-			runtime·printf("frame %s unsized locals %p+%p\n", runtime·funcname(f), (byte*)(frame->varp-size), size);
-		scanblock((byte*)(frame->varp - size), size, ScanConservatively);
-	} else if(stackmap->n < 0) {
-		// Locals size information, scan just the locals.
-		size = -stackmap->n;
-		if(Debug > 2)
-			runtime·printf("frame %s conservative locals %p+%p\n", runtime·funcname(f), (byte*)(frame->varp-size), size);
-		scanblock((byte*)(frame->varp - size), size, ScanConservatively);
-	} else if(stackmap->n > 0) {
+	size = frame->varp - frame->sp;
+	minsize = 0;
+	if(thechar != '6' && thechar != '8')
+		minsize = sizeof(uintptr);
+	if(size > minsize) {
+		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+		if(stackmap == nil || stackmap->n <= 0) {
+			runtime·printf("runtime: frame %s untyped locals %p+%p\n", runtime·funcname(f), (byte*)(frame->varp-size), size);
+			runtime·throw("missing stackmap");
+		}
+
 		// Locals bitmap information, scan just the pointers in locals.
 		if(pcdata < 0 || pcdata >= stackmap->n) {
 			// don't know where we are
-			runtime·printf("pcdata is %d and %d stack map entries for %s (targetpc=%p)\n",
+			runtime·printf("runtime: pcdata is %d and %d locals stack map entries for %s (targetpc=%p)\n",
 				pcdata, stackmap->n, runtime·funcname(f), targetpc);
 			runtime·throw("scanframe: bad symbol table");
 		}
@@ -672,19 +657,26 @@ scanframe(Stkframe *frame, void *unused)
 	}
 
 	// Scan arguments.
-	// Use pointer information if known.
-	if(frame->argmap != nil) {
-		bv = *frame->argmap;
-		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, bv.bytedata);
-	} else if((stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps)) != nil) {
-		bv = runtime·stackmapdata(stackmap, pcdata);
-		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, bv.bytedata);
-	} else {
-		if(Debug > 2)
-			runtime·printf("frame %s conservative args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
-		scanblock((byte*)frame->argp, frame->arglen, ScanConservatively);
-	}
-	return true;
+	if(frame->arglen > 0) {
+		if(frame->argmap != nil)
+			bv = *frame->argmap;
+		else {
+			stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+			if(stackmap == nil || stackmap->n <= 0) {
+				runtime·printf("runtime: frame %s untyped args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
+				runtime·throw("missing stackmap");
+			}
+			if(pcdata < 0 || pcdata >= stackmap->n) {
+				// don't know where we are
+				runtime·printf("runtime: pcdata is %d and %d args stack map entries for %s (targetpc=%p)\n",
+					pcdata, stackmap->n, runtime·funcname(f), targetpc);
+				runtime·throw("scanframe: bad symbol table");
+			}
+ 			bv = runtime·stackmapdata(stackmap, pcdata);
+		}
+ 		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, bv.bytedata);
+ 	}
+ 	return true;
 }
 
 static void

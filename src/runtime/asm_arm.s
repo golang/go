@@ -77,9 +77,7 @@ nocgo:
 	MOVW.W	R0, -4(R13)
 	MOVW	$0, R0
 	MOVW.W	R0, -4(R13)	// push $0 as guard
-	ARGSIZE(12)
 	BL	runtime·newproc(SB)
-	ARGSIZE(-1)
 	MOVW	$12(R13), R13	// pop args and LR
 
 	// start this M
@@ -197,7 +195,7 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 // lives at the bottom of the G stack from the one that lives
 // at the top of the M stack because the one at the top of
 // the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB),NOSPLIT,$0-4
+TEXT runtime·switchtoM(SB),NOSPLIT,$0-0
 	MOVW	$0, R0
 	BL	(R0) // clobber lr to ensure push {lr} is kept
 	RET
@@ -258,7 +256,6 @@ oncurg:
 	MOVW	R3, SP
 
 	// call target function
-	ARGSIZE(0)
 	MOVW	R0, R7
 	MOVW	0(R0), R0
 	BL	(R0)
@@ -490,6 +487,7 @@ TEXT	runtime·asmcgocall(SB),NOSPLIT,$0-8
 	RET
 
 TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+	GO_ARGS
 	MOVW	fn+0(FP), R1
 	MOVW	arg+4(FP), R0
 	BL	asmcgocall<>(SB)
@@ -553,6 +551,9 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
 // cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize)
 // See cgocall.c for more details.
 TEXT	runtime·cgocallback_gofunc(SB),NOSPLIT,$8-12
+	GO_ARGS
+	NO_LOCAL_POINTERS
+	
 	// Load m and g from thread-local storage.
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
