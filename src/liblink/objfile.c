@@ -103,6 +103,7 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/ld/textflag.h"
+#include "../runtime/funcdata.h"
 
 static void writesym(Link*, Biobuf*, LSym*);
 static void wrint(Biobuf*, int64);
@@ -230,6 +231,17 @@ writeobj(Link *ctxt, Biobuf *b)
 				s->etext = p;
 				curtext = s;
 				continue;
+			}
+			
+			if(p->as == ctxt->arch->AFUNCDATA) {
+				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
+				if(curtext == nil) // func _() {}
+					continue;
+				if(strcmp(p->to.sym->name, "go_args_stackmap") == 0) {
+					if(p->from.type != ctxt->arch->D_CONST || p->from.offset != FUNCDATA_ArgsPointerMaps)
+						ctxt->diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps");
+					p->to.sym = linklookup(ctxt, smprint("%s.args_stackmap", curtext->name), curtext->version);
+				}
 			}
 			
 			if(curtext == nil)

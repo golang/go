@@ -897,6 +897,8 @@ install(char *dir)
 			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos), 0);
 		copyfile(bpathf(&b, "%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
 			bpathf(&b1, "%s/src/cmd/ld/textflag.h", goroot), 0);
+		copyfile(bpathf(&b, "%s/pkg/%s_%s/funcdata.h", goroot, goos, goarch),
+			bpathf(&b1, "%s/src/runtime/funcdata.h", goroot), 0);
 	}
 
 	// Generate any missing files; regenerate existing ones.
