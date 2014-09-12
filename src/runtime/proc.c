@@ -81,11 +81,10 @@ int8*	runtime·goos;
 int32	runtime·ncpu;
 static int32	newprocs;
 
-static	Mutex allglock;	// the following vars are protected by this lock or by stoptheworld
+Mutex runtime·allglock;	// the following vars are protected by this lock or by stoptheworld
 G**	runtime·allg;
 Slice	runtime·allgs;
 uintptr runtime·allglen;
-static	uintptr allgcap;
 ForceGCState	runtime·forcegc;
 
 void runtime·mstart(void);
@@ -127,7 +126,7 @@ static bool preemptall(void);
 static bool preemptone(P*);
 static bool exitsyscallfast(void);
 static bool haveexperiment(int8*);
-static void allgadd(G*);
+void runtime·allgadd(G*);
 static void dropg(void);
 
 extern String runtime·buildVersion;
@@ -1064,7 +1063,7 @@ runtime·newextram(void)
 	if(raceenabled)
 		gp->racectx = runtime·racegostart(runtime·newextram);
 	// put on allg for garbage collector
-	allgadd(gp);
+	runtime·allgadd(gp);
 
 	// Add m to the extra list.
 	mnext = lockextra(true);
@@ -2210,7 +2209,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	if((newg = gfget(p)) == nil) {
 		newg = runtime·malg(StackMin);
 		runtime·casgstatus(newg, Gidle, Gdead);
-		allgadd(newg); // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
+		runtime·allgadd(newg); // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
 	}
 	if(newg->stack.hi == 0)
 		runtime·throw("newproc1: newg missing stack");
@@ -2255,35 +2254,6 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	if(g->m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
 		g->stackguard0 = StackPreempt;
 	return newg;
-}
-
-static void
-allgadd(G *gp)
-{
-	G **new;
-	uintptr cap;
-
-	if(runtime·readgstatus(gp) == Gidle) 
-		runtime·throw("allgadd: bad status Gidle");
-
-	runtime·lock(&allglock);
-	if(runtime·allglen >= allgcap) {
-		cap = 4096/sizeof(new[0]);
-		if(cap < 2*allgcap)
-			cap = 2*allgcap;
-		new = runtime·mallocgc(cap*sizeof(new[0]), runtime·conservative, 0);
-		if(new == nil)
-			runtime·throw("runtime: cannot allocate memory");
-		if(runtime·allg != nil)
-			runtime·memmove(new, runtime·allg, runtime·allglen*sizeof(new[0]));
-		runtime·allg = new;
-		runtime·allgs.array = (void*)runtime·allg;
-		allgcap = cap;
-		runtime·allgs.cap = allgcap;
-	}
-	runtime·allg[runtime·allglen++] = gp;
-	runtime·allgs.len = runtime·allglen;
-	runtime·unlock(&allglock);
 }
 
 // Put on gfree list.
@@ -2713,6 +2683,8 @@ runtime·setcpuprofilerate_m(void)
 	g->m->locks--;
 }
 
+P *runtime·newP(void);
+
 // Change number of processors.  The world is stopped, sched is locked.
 static void
 procresize(int32 new)
@@ -2729,7 +2701,7 @@ procresize(int32 new)
 	for(i = 0; i < new; i++) {
 		p = runtime·allp[i];
 		if(p == nil) {
-			p = (P*)runtime·mallocgc(sizeof(*p), runtime·conservative, 0);
+			p = runtime·newP();
 			p->id = i;
 			p->status = Pgcstop;
 			runtime·atomicstorep(&runtime·allp[i], p);
@@ -2875,7 +2847,7 @@ checkdead(void)
 		runtime·throw("checkdead: inconsistent counts");
 	}
 	grunning = 0;
-	runtime·lock(&allglock);
+	runtime·lock(&runtime·allglock);
 	for(i = 0; i < runtime·allglen; i++) {
 		gp = runtime·allg[i];
 		if(gp->issystem)
@@ -2888,13 +2860,13 @@ checkdead(void)
 		case Grunnable:
 		case Grunning:
 		case Gsyscall:
-			runtime·unlock(&allglock);
+			runtime·unlock(&runtime·allglock);
 			runtime·printf("runtime: checkdead: find g %D in status %d\n", gp->goid, s);
 			runtime·throw("checkdead: runnable g");
 			break;
 		}
 	}
-	runtime·unlock(&allglock);
+	runtime·unlock(&runtime·allglock);
 	if(grunning == 0)  // possible if main goroutine calls runtime·Goexit()
 		runtime·throw("no goroutines (main called runtime.Goexit) - deadlock!");
 	g->m->throwing = -1;  // do not dump full stacks
@@ -3198,7 +3170,7 @@ runtime·schedtrace(bool detailed)
 			mp->mallocing, mp->throwing, mp->gcing, mp->locks, mp->dying, mp->helpgc,
 			mp->spinning, g->m->blocked, id3);
 	}
-	runtime·lock(&allglock);
+	runtime·lock(&runtime·allglock);
 	for(gi = 0; gi < runtime·allglen; gi++) {
 		gp = runtime·allg[gi];
 		mp = gp->m;
@@ -3207,7 +3179,7 @@ runtime·schedtrace(bool detailed)
 			gp->goid, runtime·readgstatus(gp), gp->waitreason, mp ? mp->id : -1,
 			lockedm ? lockedm->id : -1);
 	}
-	runtime·unlock(&allglock);
+	runtime·unlock(&runtime·allglock);
 	runtime·unlock(&runtime·sched.lock);
 }
 

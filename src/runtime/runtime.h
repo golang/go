@@ -682,6 +682,7 @@ struct Stkframe
 };
 
 intgo	runtime·gentraceback(uintptr, uintptr, uintptr, G*, intgo, uintptr*, intgo, bool(**)(Stkframe*, void*), void*, bool);
+void	runtime·tracebackdefers(G*, bool(**)(Stkframe*, void*), void*);
 void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
 void	runtime·tracebackothers(G*);
 bool	runtime·haszeroargs(uintptr pc);
@@ -776,6 +777,7 @@ int32	runtime·mcmp(byte*, byte*, uintptr);
 void	runtime·memmove(void*, void*, uintptr);
 String	runtime·catstring(String, String);
 String	runtime·gostring(byte*);
+Slice	runtime·makeStringSlice(intgo);
 String  runtime·gostringn(byte*, intgo);
 Slice	runtime·gobytes(byte*, intgo);
 String	runtime·gostringnocopy(byte*);

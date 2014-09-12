@@ -377,7 +377,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 		}
 	}
 	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
-		// Just enough to keep the api checker happy.
+		// Just enough to keep the api checker happy. Keep sorted.
 		src := "package runtime; type (" +
 			" _defer struct{};" +
 			" _func struct{};" +
@@ -388,6 +388,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" chantype struct{};" +
 			" context struct{};" + // windows
 			" eface struct{};" +
+			" epollevent struct{};" +
 			" funcval struct{};" +
 			" g struct{};" +
 			" gobuf struct{};" +
@@ -395,20 +396,20 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" iface struct{};" +
 			" interfacetype struct{};" +
 			" itab struct{};" +
+			" keventt struct{};" +
 			" m struct{};" +
 			" maptype struct{};" +
 			" mcache struct{};" +
 			" mspan struct{};" +
 			" mutex struct{};" +
 			" note struct{};" +
+			" p struct{};" +
 			" slicetype struct{};" +
 			" stkframe struct{};" +
 			" sudog struct{};" +
+			" timespec struct{};" +
 			" waitq struct{};" +
 			" wincallbackcontext struct{};" +
-			" keventt struct{};" +
-			" timespec struct{};" +
-			" epollevent struct{};" +
 			"); " +
 			"const (" +
 			" cb_max = 2000;" +

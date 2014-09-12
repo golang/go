@@ -146,16 +146,14 @@ runtime·goenvs(void)
 	for(p=env; *p; n++)
 		p += runtime·findnullw(p)+1;
 
-	s = runtime·mallocgc(n*sizeof s[0], runtime·conservative, 0);
+	syscall·envs = runtime·makeStringSlice(n);
+	s = (String*)syscall·envs.array;
 
 	p = env;
 	for(i=0; i<n; i++) {
 		s[i] = runtime·gostringw(p);
 		p += runtime·findnullw(p)+1;
 	}
-	syscall·envs.array = (byte*)s;
-	syscall·envs.len = n;
-	syscall·envs.cap = n;
 
 	runtime·stdcall1(runtime·FreeEnvironmentStringsW, (uintptr)env);
 }
