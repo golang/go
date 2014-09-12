@@ -242,7 +242,7 @@ const (
 // with a unique tag like `reflect:"array"` or `reflect:"ptr"`
 // so that code cannot convert from, say, *arrayType to *ptrType.
 type rtype struct {
-	size          uintptr           // size in bytes
+	size          uintptr
 	hash          uint32            // hash of type; avoids computation in hash tables
 	_             uint8             // unused/padding
 	align         uint8             // alignment of variable with this type
@@ -1726,6 +1726,7 @@ type layoutType struct {
 	t         *rtype
 	argSize   uintptr // size of arguments
 	retOffset uintptr // offset of return values.
+	stack     *bitVector
 }
 
 var layoutCache struct {
@@ -1739,7 +1740,7 @@ var layoutCache struct {
 // The returned type exists only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program.  We also fill in
 // the name for possible debugging use.
-func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr) {
+func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stack *bitVector) {
 	if t.Kind() != Func {
 		panic("reflect: funcLayout of non-func type")
 	}
@@ -1750,19 +1751,21 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	layoutCache.RLock()
 	if x := layoutCache.m[k]; x.t != nil {
 		layoutCache.RUnlock()
-		return x.t, x.argSize, x.retOffset
+		return x.t, x.argSize, x.retOffset, x.stack
 	}
 	layoutCache.RUnlock()
 	layoutCache.Lock()
 	if x := layoutCache.m[k]; x.t != nil {
 		layoutCache.Unlock()
-		return x.t, x.argSize, x.retOffset
+		return x.t, x.argSize, x.retOffset, x.stack
 	}
 
 	tt := (*funcType)(unsafe.Pointer(t))
 
-	// compute gc program for arguments
+	// compute gc program & stack bitmap for arguments
+	stack = new(bitVector)
 	var gc gcProg
+	var offset uintptr
 	if rcvr != nil {
 		// Reflect uses the "interface" calling convention for
 		// methods, where receivers take one word of argument
@@ -1770,16 +1773,21 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 		if !isDirectIface(rcvr) {
 			// we pass a pointer to the receiver.
 			gc.append(bitsPointer)
+			stack.append2(bitsPointer)
 		} else if rcvr.pointers() {
 			// rcvr is a one-word pointer object.  Its gc program
 			// is just what we need here.
 			gc.append(bitsPointer)
+			stack.append2(bitsPointer)
 		} else {
 			gc.append(bitsScalar)
+			stack.append2(bitsScalar)
 		}
+		offset += ptrSize
 	}
 	for _, arg := range tt.in {
 		gc.appendProg(arg)
+		addTypeBits(stack, &offset, arg)
 	}
 	argSize = gc.size
 	if runtime.GOARCH == "amd64p32" {
@@ -1789,6 +1797,7 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	retOffset = gc.size
 	for _, res := range tt.out {
 		gc.appendProg(res)
+		// stack map does not need result bits
 	}
 	gc.align(ptrSize)
 
@@ -1813,12 +1822,73 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 		t:         x,
 		argSize:   argSize,
 		retOffset: retOffset,
+		stack:     stack,
 	}
 	layoutCache.Unlock()
-	return x, argSize, retOffset
+	return x, argSize, retOffset, stack
 }
 
 // isDirectIface reports whether t is stored directly in an interface value.
 func isDirectIface(t *rtype) bool {
 	return t.kind&kindDirectIface != 0
+}
+
+// Layout matches runtime.BitVector (well enough).
+type bitVector struct {
+	n    uint32 // number of bits
+	data []byte
+}
+
+// append a bit pair to the bitmap.
+func (bv *bitVector) append2(bits uint8) {
+	// assume bv.n is a multiple of 2, since append2 is the only operation.
+	if bv.n%8 == 0 {
+		bv.data = append(bv.data, 0)
+	}
+	bv.data[bv.n/8] |= bits << (bv.n % 8)
+	bv.n += 2
+}
+
+func addTypeBits(bv *bitVector, offset *uintptr, t *rtype) {
+	*offset = align(*offset, uintptr(t.align))
+	if t.kind&kindNoPointers != 0 {
+		*offset += t.size
+		return
+	}
+
+	switch Kind(t.kind & kindMask) {
+	case Chan, Func, Map, Ptr, Slice, String, UnsafePointer:
+		// 1 pointer at start of representation
+		for bv.n < uint32(*offset/uintptr(ptrSize)) {
+			bv.append2(bitsScalar)
+		}
+		bv.append2(bitsPointer)
+
+	case Interface:
+		// 2 pointers
+		for bv.n < uint32(*offset/uintptr(ptrSize)) {
+			bv.append2(bitsScalar)
+		}
+		bv.append2(bitsPointer)
+		bv.append2(bitsPointer)
+
+	case Array:
+		// repeat inner type
+		tt := (*arrayType)(unsafe.Pointer(t))
+		for i := 0; i < int(tt.len); i++ {
+			addTypeBits(bv, offset, tt.elem)
+		}
+
+	case Struct:
+		// apply fields
+		tt := (*structType)(unsafe.Pointer(t))
+		start := *offset
+		for i := range tt.fields {
+			f := &tt.fields[i]
+			off := start + f.offset
+			addTypeBits(bv, &off, f.typ)
+		}
+	}
+
+	*offset += t.size
 }

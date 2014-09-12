@@ -13,9 +13,10 @@ import (
 // makeFuncImpl is the closure value implementing the function
 // returned by MakeFunc.
 type makeFuncImpl struct {
-	code uintptr
-	typ  *funcType
-	fn   func([]Value) []Value
+	code  uintptr
+	stack *bitVector // stack bitmap for args - offset known to runtime
+	typ   *funcType
+	fn    func([]Value) []Value
 }
 
 // MakeFunc returns a new function of the given Type
@@ -54,7 +55,10 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 	dummy := makeFuncStub
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 
-	impl := &makeFuncImpl{code: code, typ: ftyp, fn: fn}
+	// makeFuncImpl contains a stack map for use by the runtime
+	_, _, _, stack := funcLayout(t, nil)
+
+	impl := &makeFuncImpl{code: code, stack: stack, typ: ftyp, fn: fn}
 
 	return Value{t, unsafe.Pointer(impl), 0, flag(Func) << flagKindShift}
 }
@@ -68,6 +72,7 @@ func makeFuncStub()
 
 type methodValue struct {
 	fn     uintptr
+	stack  *bitVector // stack bitmap for args - offset known to runtime
 	method int
 	rcvr   Value
 }
@@ -98,8 +103,12 @@ func makeMethodValue(op string, v Value) Value {
 	dummy := methodValueCall
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 
+	// methodValue contains a stack map for use by the runtime
+	_, _, _, stack := funcLayout(funcType, nil)
+
 	fv := &methodValue{
 		fn:     code,
+		stack:  stack,
 		method: int(v.flag) >> flagMethodShift,
 		rcvr:   rcvr,
 	}

@@ -3860,3 +3860,28 @@ func TestCallMethodJump(t *testing.T) {
 	// Stop garbage collecting during reflect.call.
 	*CallGC = false
 }
+
+func TestMakeFuncStackCopy(t *testing.T) {
+	target := func(in []Value) []Value {
+		runtime.GC()
+		useStack(16)
+		return []Value{ValueOf(9)}
+	}
+
+	var concrete func(*int, int) int
+	fn := MakeFunc(ValueOf(concrete).Type(), target)
+	ValueOf(&concrete).Elem().Set(fn)
+	x := concrete(nil, 7)
+	if x != 9 {
+		t.Errorf("have %#q want 9", x)
+	}
+}
+
+// use about n KB of stack
+func useStack(n int) {
+	if n == 0 {
+		return
+	}
+	var b [1024]byte // makes frame about 1KB
+	useStack(n - 1 + int(b[99]))
+}

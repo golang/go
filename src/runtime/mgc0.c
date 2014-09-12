@@ -673,8 +673,10 @@ scanframe(Stkframe *frame, void *unused)
 
 	// Scan arguments.
 	// Use pointer information if known.
-	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
-	if(stackmap != nil) {
+	if(frame->argmap != nil) {
+		bv = *frame->argmap;
+		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
+	} else if((stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps)) != nil) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
 		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
 	} else {

@@ -189,6 +189,21 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 			}
 			if f.args != _ArgsSizeUnknown {
 				frame.arglen = uintptr(f.args)
+			} else if callback != nil && (gofuncname(f) == "reflect.makeFuncStub" || gofuncname(f) == "reflect.methodValueCall") {
+				// NOTE: Two calls to gofuncname on line above will be
+				// collapsed to one when we pull out all the imprecise fallback code.
+				arg0 := frame.sp
+				if usesLR {
+					arg0 += ptrSize
+				}
+				fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
+				if fn[0] != f.entry {
+					print("runtime: confused by ", gofuncname(f), "\n")
+					gothrow("reflect mismatch")
+				}
+				bv := (*bitvector)(unsafe.Pointer(fn[1]))
+				frame.arglen = uintptr(bv.n / 2 * ptrSize)
+				frame.argmap = bv
 			} else if flr == nil {
 				frame.arglen = 0
 			} else {
@@ -332,6 +347,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		frame.lr = 0
 		frame.sp = frame.fp
 		frame.fp = 0
+		frame.argmap = nil
 
 		// On link register architectures, sighandler saves the LR on stack
 		// before faking a call to sigpanic.
