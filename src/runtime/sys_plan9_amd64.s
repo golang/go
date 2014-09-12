@@ -149,7 +149,7 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
 
 	// Initialize procid from TOS struct.
 	MOVQ	_tos(SB), AX
-	MOVQ	64(AX), AX
+	MOVL	64(AX), AX
 	MOVQ	AX, m_procid(CX)	// save pid as m->procid
 
 	// Finally, initialize g.
