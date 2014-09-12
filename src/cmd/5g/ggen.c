@@ -179,27 +179,11 @@ fixautoused(Prog* p)
 void
 ginscall(Node *f, int proc)
 {
-	int32 arg;
 	Prog *p;
 	Node n1, r, r1, con;
 
 	if(f->type != T)
 		setmaxarg(f->type);
-
-	arg = -1;
-	// Most functions have a fixed-size argument block, so traceback uses that during unwind.
-	// Not all, though: there are some variadic functions in package runtime,
-	// and for those we emit call-specific metadata recorded by caller.
-	// Reflect generates functions with variable argsize (see reflect.methodValueCall/makeFuncStub),
-	// so we do this for all indirect calls as well.
-	if(f->type != T && (f->sym == S || (f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
-		arg = f->type->argwid;
-		if(proc == 1 || proc == 2)
-			arg += 3*widthptr;
-	}
-
-	if(arg != -1)
-		gargsize(arg);
 
 	switch(proc) {
 	default:
@@ -297,9 +281,6 @@ ginscall(Node *f, int proc)
 		}
 		break;
 	}
-	
-	if(arg != -1)
-		gargsize(-1);
 }
 
 /*
