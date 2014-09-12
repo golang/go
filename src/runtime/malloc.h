@@ -586,7 +586,6 @@ void	runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, Ptr
 bool	runtime·freespecial(Special *s, void *p, uintptr size, bool freed);
 
 // Information from the compiler about the layout of stack frames.
-typedef struct BitVector BitVector;
 struct BitVector
 {
 	int32 n; // # of bits

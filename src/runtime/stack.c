@@ -481,12 +481,16 @@ adjustframe(Stkframe *frame, void *arg)
 	}
 	// adjust inargs and outargs
 	if(frame->arglen != 0) {
-		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
-		if(stackmap == nil) {
-			runtime·printf("size %d\n", (int32)frame->arglen);
-			runtime·throw("no arg info");
+		if(frame->argmap != nil) {
+			bv = *frame->argmap;
+		} else {
+			stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+			if(stackmap == nil) {
+				runtime·printf("size %d\n", (int32)frame->arglen);
+				runtime·throw("no arg info");
+			}
+			bv = runtime·stackmapdata(stackmap, pcdata);
 		}
-		bv = runtime·stackmapdata(stackmap, pcdata);
 		if(StackDebug >= 3)
 			runtime·printf("      args\n");
 		adjustpointers((byte**)frame->argp, &bv, adjinfo, nil);

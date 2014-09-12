@@ -403,11 +403,6 @@ func (v Value) CallSlice(in []Value) []Value {
 
 var callGC bool // for testing; see TestCallMethodJump
 
-var makeFuncStubFn = makeFuncStub
-var makeFuncStubCode = **(**uintptr)(unsafe.Pointer(&makeFuncStubFn))
-var methodValueCallFn = methodValueCall
-var methodValueCallCode = **(**uintptr)(unsafe.Pointer(&methodValueCallFn))
-
 func (v Value) call(op string, in []Value) []Value {
 	// Get function pointer, type.
 	t := v.typ
@@ -486,30 +481,8 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 	nout := t.NumOut()
 
-	// If target is makeFuncStub, short circuit the unpack onto stack /
-	// pack back into []Value for the args and return values.  Just do the
-	// call directly.
-	// We need to do this here because otherwise we have a situation where
-	// reflect.callXX calls makeFuncStub, neither of which knows the
-	// layout of the args.  That's bad for precise gc & stack copying.
-	x := (*makeFuncImpl)(fn)
-	if x.code == makeFuncStubCode {
-		return x.fn(in)
-	}
-
-	// If the target is methodValueCall, do its work here: add the receiver
-	// argument and call the real target directly.
-	// We need to do this here because otherwise we have a situation where
-	// reflect.callXX calls methodValueCall, neither of which knows the
-	// layout of the args.  That's bad for precise gc & stack copying.
-	y := (*methodValue)(fn)
-	if y.fn == methodValueCallCode {
-		rcvr = y.rcvr
-		rcvrtype, t, fn = methodReceiver("call", rcvr, y.method)
-	}
-
 	// Compute frame type, allocate a chunk of memory for frame
-	frametype, _, retOffset := funcLayout(t, rcvrtype)
+	frametype, _, retOffset, _ := funcLayout(t, rcvrtype)
 	args := unsafe_New(frametype)
 	off := uintptr(0)
 
@@ -725,7 +698,7 @@ func align(x, n uintptr) uintptr {
 func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	rcvr := ctxt.rcvr
 	rcvrtype, t, fn := methodReceiver("call", rcvr, ctxt.method)
-	frametype, argSize, retOffset := funcLayout(t, rcvrtype)
+	frametype, argSize, retOffset, _ := funcLayout(t, rcvrtype)
 
 	// Make a new frame that is one word bigger so we can store the receiver.
 	args := unsafe_New(frametype)
