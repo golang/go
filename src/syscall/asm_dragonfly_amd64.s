@@ -14,6 +14,7 @@
 // Trap # in AX, args in DI SI DX, return in AX DX
 
 TEXT	·Syscall(SB),NOSPLIT,$0-64
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
@@ -37,6 +38,7 @@ ok:
 	RET
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-88
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
@@ -60,6 +62,7 @@ ok6:
 	RET
 
 TEXT	·Syscall9(SB),NOSPLIT,$0-112
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVQ	8(SP), AX
 	MOVQ	16(SP), DI
@@ -93,6 +96,7 @@ ok9:
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-64
+	GO_ARGS
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX
@@ -113,6 +117,7 @@ ok1:
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-88
+	GO_ARGS
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX

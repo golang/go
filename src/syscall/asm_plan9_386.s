@@ -18,6 +18,7 @@
 
 // Trap # in AX, args on stack above caller pc.
 TEXT	·Syscall(SB),NOSPLIT,$0-32
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -53,6 +54,7 @@ copyresult3:
 	RET
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-44
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -91,6 +93,7 @@ copyresult4:
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+	GO_ARGS
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
@@ -106,6 +109,7 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+	GO_ARGS
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI

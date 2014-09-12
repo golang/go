@@ -15,6 +15,7 @@
 // Trap # in AX, args in BX CX DX SI DI, return in AX
 
 TEXT	·Syscall(SB),NOSPLIT,$0-28
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
@@ -40,6 +41,7 @@ ok:
 
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 TEXT	·Syscall6(SB),NOSPLIT,$0-40
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
@@ -66,6 +68,7 @@ ok6:
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+	GO_ARGS
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
 	MOVL	12(SP), CX
@@ -88,6 +91,7 @@ ok1:
 
 // func RawSyscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+	GO_ARGS
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
 	MOVL	12(SP), CX

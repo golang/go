@@ -17,6 +17,7 @@
 //func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 
 TEXT	·Syscall(SB),NOSPLIT,$0-64
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVQ	8(SP), BP	// syscall entry
 	// slide args down on top of system call number
@@ -52,6 +53,7 @@ copyresult3:
 	RET
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-88
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVQ	8(SP), BP	// syscall entry
 	// slide args down on top of system call number
@@ -90,6 +92,7 @@ copyresult4:
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+	GO_ARGS
 	MOVQ	8(SP), BP	// syscall entry
 	// slide args down on top of system call number
 	LEAQ		16(SP), SI
@@ -105,6 +108,7 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+	GO_ARGS
 	MOVQ	8(SP), BP	// syscall entry
 	// slide args down on top of system call number
 	LEAQ		16(SP), SI
