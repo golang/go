@@ -6,6 +6,7 @@
 // so that go vet can check that they are correct.
 
 #include "textflag.h"
+#include "funcdata.h"
 
 //
 // System call support for AMD64, FreeBSD

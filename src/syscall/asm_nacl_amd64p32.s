@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
+#include "funcdata.h"
 #include "../runtime/syscall_nacl.h"
 
 //
