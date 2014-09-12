@@ -250,7 +250,7 @@ dumpbv(BitVector *bv, uintptr offset)
 	uintptr i;
 
 	for(i = 0; i < bv->n; i += BitsPerPointer) {
-		switch(bv->data[i/32] >> i%32 & 3) {
+		switch(bv->bytedata[i/8] >> i%8 & 3) {
 		case BitsDead:
 		case BitsScalar:
 			break;
@@ -259,7 +259,7 @@ dumpbv(BitVector *bv, uintptr offset)
 			dumpint(offset + i / BitsPerPointer * PtrSize);
 			break;
 		case BitsMultiWord:
-			switch(bv->data[(i+BitsPerPointer)/32] >> (i+BitsPerPointer)%32 & 3) {
+			switch(bv->bytedata[(i+BitsPerPointer)/8] >> (i+BitsPerPointer)%8 & 3) {
 			default:
 				runtime·throw("unexpected garbage collection bits");
 			case BitsIface:
@@ -813,9 +813,9 @@ dumpbvtypes(BitVector *bv, byte *base)
 	uintptr i;
 
 	for(i = 0; i < bv->n; i += BitsPerPointer) {
-		if((bv->data[i/32] >> i%32 & 3) != BitsMultiWord)
+		if((bv->bytedata[i/8] >> i%8 & 3) != BitsMultiWord)
 			continue;
-		switch(bv->data[(i+BitsPerPointer)/32] >> (i+BitsPerPointer)%32 & 3) {
+		switch(bv->bytedata[(i+BitsPerPointer)/8] >> (i+BitsPerPointer)%8 & 3) {
 		default:
 			runtime·throw("unexpected garbage collection bits");
 		case BitsIface:
@@ -860,5 +860,5 @@ makeheapobjbv(byte *p, uintptr size)
 		tmpbuf[i*BitsPerPointer/8] &= ~(BitsMask<<((i*BitsPerPointer)%8));
 		tmpbuf[i*BitsPerPointer/8] |= bits<<((i*BitsPerPointer)%8);
 	}
-	return (BitVector){i*BitsPerPointer, (uint32*)tmpbuf};
+	return (BitVector){i*BitsPerPointer, tmpbuf};
 }

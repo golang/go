@@ -1936,7 +1936,11 @@ twobitwritesymbol(Array *arr, Sym *sym)
 			break;
 		for(j = 0; j < bv->n; j += 32) {
 			word = bv->b[j/32];
-			off = duint32(sym, off, word);
+			// Runtime reads the bitmaps as byte arrays. Oblige.
+			off = duint8(sym, off, word);
+			off = duint8(sym, off, word>>8);
+			off = duint8(sym, off, word>>16);
+			off = duint8(sym, off, word>>24);
 		}
 	}
 	duint32(sym, 0, i); // number of bitmaps

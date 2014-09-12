@@ -438,11 +438,11 @@ markroot(ParFor *desc, uint32 i)
 	// Note: if you add a case here, please also update heapdump.c:dumproots.
 	switch(i) {
 	case RootData:
-		scanblock(runtime·data, runtime·edata - runtime·data, (byte*)runtime·gcdatamask.data);
+		scanblock(runtime·data, runtime·edata - runtime·data, runtime·gcdatamask.bytedata);
 		break;
 
 	case RootBss:
-		scanblock(runtime·bss, runtime·ebss - runtime·bss, (byte*)runtime·gcbssmask.data);
+		scanblock(runtime·bss, runtime·ebss - runtime·bss, runtime·gcbssmask.bytedata);
 		break;
 
 	case RootFinalizers:
@@ -610,7 +610,7 @@ runtime·stackmapdata(StackMap *stackmap, int32 n)
 {
 	if(n < 0 || n >= stackmap->n)
 		runtime·throw("stackmapdata: index out of range");
-	return (BitVector){stackmap->nbit, stackmap->data + n*((stackmap->nbit+31)/32)};
+	return (BitVector){stackmap->nbit, stackmap->bytedata + n*((stackmap->nbit+31)/32*4)};
 }
 
 // Scan a stack frame: local variables and function arguments/results.
@@ -668,17 +668,17 @@ scanframe(Stkframe *frame, void *unused)
 		}
 		bv = runtime·stackmapdata(stackmap, pcdata);
 		size = (bv.n * PtrSize) / BitsPerPointer;
-		scanblock((byte*)(frame->varp - size), bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
+		scanblock((byte*)(frame->varp - size), bv.n/BitsPerPointer*PtrSize, bv.bytedata);
 	}
 
 	// Scan arguments.
 	// Use pointer information if known.
 	if(frame->argmap != nil) {
 		bv = *frame->argmap;
-		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
+		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, bv.bytedata);
 	} else if((stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps)) != nil) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
-		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
+		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, bv.bytedata);
 	} else {
 		if(Debug > 2)
 			runtime·printf("frame %s conservative args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
@@ -1642,7 +1642,7 @@ unrollglobgcprog(byte *prog, uintptr size)
 		runtime·throw("unrollglobgcprog: program does not end with insEnd");
 	if(mask[masksize] != 0xa1)
 		runtime·throw("unrollglobgcprog: overflow");
-	return (BitVector){masksize*8, (uint32*)mask};
+	return (BitVector){masksize*8, mask};
 }
 
 void
@@ -1833,7 +1833,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-runtime·data)/PtrSize;
-			bits = (((byte*)runtime·gcdatamask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			bits = (runtime·gcdatamask.bytedata[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
 		return;
@@ -1845,7 +1845,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-runtime·bss)/PtrSize;
-			bits = (((byte*)runtime·gcbssmask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+			bits = (runtime·gcbssmask.bytedata[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
 		return;
@@ -1895,7 +1895,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
 		for(i = 0; i < n; i += PtrSize) {
 			off = (p+i-(byte*)frame.varp+size)/PtrSize;
-			bits = (bv.data[off*BitsPerPointer/32] >> ((off*BitsPerPointer)%32))&BitsMask;
+			bits = (bv.bytedata[off*BitsPerPointer/8] >> ((off*BitsPerPointer)%8))&BitsMask;
 			(*mask)[i/PtrSize] = bits;
 		}
 	}

@@ -370,8 +370,8 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 	num = bv->n / BitsPerPointer;
 	for(i = 0; i < num; i++) {
 		if(StackDebug >= 4)
-			runtime·printf("        %p:%s:%p\n", &scanp[i], mapnames[bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3], scanp[i]);
-		switch(bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3) {
+			runtime·printf("        %p:%s:%p\n", &scanp[i], mapnames[bv->bytedata[i / (8 / BitsPerPointer)] >> (i * BitsPerPointer & 7) & 3], scanp[i]);
+		switch(bv->bytedata[i / (8 / BitsPerPointer)] >> (i * BitsPerPointer & 7) & 3) {
 		case BitsDead:
 			if(runtime·debug.gcdead)
 				scanp[i] = (byte*)PoisonStack;
@@ -394,7 +394,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 			}
 			break;
 		case BitsMultiWord:
-			switch(bv->data[(i+1) / (32 / BitsPerPointer)] >> ((i+1) * BitsPerPointer & 31) & 3) {
+			switch(bv->bytedata[(i+1) / (8 / BitsPerPointer)] >> ((i+1) * BitsPerPointer & 7) & 3) {
 			default:
 				runtime·throw("unexpected garbage collection bits");
 			case BitsEface:
