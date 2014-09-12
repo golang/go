@@ -323,10 +323,10 @@ func sendPerfMailFunc(c appengine.Context, com *Commit, prevCommitHash, builder 
 
 	u := fmt.Sprintf("http://%v/perfdetail?commit=%v&commit0=%v&kind=builder&builder=%v", domain, com.Hash, prevCommitHash, builder)
 
-	// prepare mail message
+	// Prepare mail message (without Commit, for updateCL).
 	var body bytes.Buffer
 	err := sendPerfMailTmpl.Execute(&body, map[string]interface{}{
-		"Builder": builder, "Commit": com, "Hostname": domain, "Url": u, "Benchmarks": benchmarks,
+		"Builder": builder, "Hostname": domain, "Url": u, "Benchmarks": benchmarks,
 	})
 	if err != nil {
 		c.Errorf("rendering perf mail template: %v", err)
@@ -339,7 +339,15 @@ func sendPerfMailFunc(c appengine.Context, com *Commit, prevCommitHash, builder 
 		return
 	}
 
-	// Otherwise, send mail.
+	// Otherwise, send mail (with Commit, for independent mail message).
+	body.Reset()
+	err = sendPerfMailTmpl.Execute(&body, map[string]interface{}{
+		"Builder": builder, "Commit": com, "Hostname": domain, "Url": u, "Benchmarks": benchmarks,
+	})
+	if err != nil {
+		c.Errorf("rendering perf mail template: %v", err)
+		return
+	}
 	subject := fmt.Sprintf("Perf changes on %s by %s", builder, shortDesc(com.Desc))
 	msg := &mail.Message{
 		Sender:  mailFrom,
