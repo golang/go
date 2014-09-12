@@ -997,7 +997,7 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
 }
 
 // State of background runtime·sweep.
-// Pretected by runtime·gclock.
+// Protected by runtime·gclock.
 // Must match mgc0.go.
 struct
 {
