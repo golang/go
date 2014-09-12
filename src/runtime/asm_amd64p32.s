@@ -75,9 +75,7 @@ ok:
 	MOVL	$runtime·main·f(SB), AX	// entry
 	MOVL	$0, 0(SP)
 	MOVL	AX, 4(SP)
-	ARGSIZE(8)
 	CALL	runtime·newproc(SB)
-	ARGSIZE(-1)
 
 	// start this M
 	CALL	runtime·mstart(SB)
@@ -158,7 +156,6 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	MOVL	SI, g(CX)	// g = m->g0
 	MOVL	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
 	PUSHQ	AX
-	ARGSIZE(8)
 	MOVL	DI, DX
 	MOVL	0(DI), DI
 	CALL	DI
@@ -172,7 +169,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 // lives at the bottom of the G stack from the one that lives
 // at the top of the M stack because the one at the top of
 // the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
 	RET
 
 // func onM_signalok(fn func())
@@ -225,7 +222,6 @@ oncurg:
 	MOVL	(g_sched+gobuf_sp)(DX), SP
 
 	// call target function
-	ARGSIZE(0)
 	MOVL	DI, DX
 	MOVL	0(DI), DI
 	CALL	DI

@@ -187,41 +187,23 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 			if usesLR {
 				frame.argp += ptrSize
 			}
-			if f.args != _ArgsSizeUnknown {
-				frame.arglen = uintptr(f.args)
-			} else if callback != nil && (gofuncname(f) == "reflect.makeFuncStub" || gofuncname(f) == "reflect.methodValueCall") {
-				// NOTE: Two calls to gofuncname on line above will be
-				// collapsed to one when we pull out all the imprecise fallback code.
-				arg0 := frame.sp
-				if usesLR {
-					arg0 += ptrSize
-				}
-				fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
-				if fn[0] != f.entry {
-					print("runtime: confused by ", gofuncname(f), "\n")
-					gothrow("reflect mismatch")
-				}
-				bv := (*bitvector)(unsafe.Pointer(fn[1]))
-				frame.arglen = uintptr(bv.n / 2 * ptrSize)
-				frame.argmap = bv
-			} else if flr == nil {
-				frame.arglen = 0
-			} else {
-				i := funcarglen(flr, frame.lr)
-				if i >= 0 {
-					frame.arglen = uintptr(i)
-				} else {
-					var tmp string
-					if flr != nil {
-						tmp = gofuncname(flr)
-					} else {
-						tmp = "?"
+			frame.arglen = uintptr(f.args)
+			if callback != nil && f.args == _ArgsSizeUnknown {
+				// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
+				switch gofuncname(f) {
+				case "reflect.makeFuncStub", "reflect.methodValueCall":
+					arg0 := frame.sp
+					if usesLR {
+						arg0 += ptrSize
 					}
-					print("runtime: unknown argument frame size for ", gofuncname(f), " called from ", hex(frame.lr), " [", tmp, "]\n")
-					if callback != nil {
-						gothrow("invalid stack")
+					fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
+					if fn[0] != f.entry {
+						print("runtime: confused by ", gofuncname(f), "\n")
+						gothrow("reflect mismatch")
 					}
-					frame.arglen = 0
+					bv := (*bitvector)(unsafe.Pointer(fn[1]))
+					frame.arglen = uintptr(bv.n / 2 * ptrSize)
+					frame.argmap = bv
 				}
 			}
 		}

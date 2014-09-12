@@ -102,9 +102,7 @@ ok:
 	// create a new goroutine to start program
 	PUSHL	$runtime·main·f(SB)	// entry
 	PUSHL	$0	// arg size
-	ARGSIZE(8)
 	CALL	runtime·newproc(SB)
-	ARGSIZE(-1)
 	POPL	AX
 	POPL	AX
 
@@ -206,7 +204,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 // lives at the bottom of the G stack from the one that lives
 // at the top of the M stack because the one at the top of
 // the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
 	RET
 
 // func onM_signalok(fn func())
@@ -263,7 +261,6 @@ oncurg:
 	MOVL	BX, SP
 
 	// call target function
-	ARGSIZE(0)
 	MOVL	DI, DX
 	MOVL	0(DI), DI
 	CALL	DI
@@ -656,6 +653,7 @@ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
 	RET
 
 TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+	GO_ARGS
 	MOVL	fn+0(FP), AX
 	MOVL	arg+4(FP), BX
 	CALL	asmcgocall<>(SB)
@@ -716,6 +714,9 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
 TEXT runtime·cgocallback_gofunc(SB),NOSPLIT,$12-12
+	GO_ARGS
+	NO_LOCAL_POINTERS
+
 	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
