@@ -210,7 +210,6 @@ clearfat(Node *nl)
 void
 ginscall(Node *f, int proc)
 {
-	int32 arg;
 	Prog *p;
 	Node reg, r1, con;
 
