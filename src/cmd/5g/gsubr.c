@@ -206,16 +206,6 @@ ggloblnod(Node *nam)
 }
 
 void
-gargsize(int32 size)
-{
-	Node n1, n2;
-	
-	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
-	nodconst(&n2, types[TINT32], size);
-	gins(APCDATA, &n1, &n2);
-}
-
-void
 ggloblsym(Sym *s, int32 width, int8 flags)
 {
 	Prog *p;

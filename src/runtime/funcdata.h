@@ -9,17 +9,11 @@
 //
 // symtab.go also contains a copy of these constants.
 
-// TODO(rsc): Remove PCDATA_ArgSize, renumber StackMapIndex to 0.
-#define PCDATA_ArgSize 0 /* argument size at CALL instruction */
-#define PCDATA_StackMapIndex 1
+#define PCDATA_StackMapIndex 0
 
 #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
 #define FUNCDATA_LocalsPointerMaps 1
 #define FUNCDATA_DeadValueMaps 2
-
-// TODO(rsc): Remove ARGSIZE.
-// To be used in assembly.
-#define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n
 
 // Pseudo-assembly statements.
 

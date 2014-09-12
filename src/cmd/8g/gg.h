@@ -114,7 +114,6 @@ void	split64(Node*, Node*, Node*);
 void	splitclean(void);
 void	nswap(Node*, Node*);
 void	gtrack(Sym*);
-void	gargsize(int32);
 /*
  * cplx.c
  */
