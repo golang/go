@@ -670,7 +670,9 @@ nosave:
 	SUBQ	$64, SP
 	ANDQ	$~15, SP	// alignment for gcc ABI
 	MOVQ	DI, 48(SP)	// save g
-	MOVQ	DX, 40(SP)	// save SP
+	MOVQ	(g_stack+stack_hi)(DI), DI
+	SUBQ	DX, DI
+	MOVQ	DI, 40(SP)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
 	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
 	MOVQ	BX, CX		// CX = first argument in Win64
 	CALL	AX
@@ -678,8 +680,10 @@ nosave:
 	// Restore registers, g, stack pointer.
 	get_tls(CX)
 	MOVQ	48(SP), DI
+	MOVQ	(g_stack+stack_hi)(DI), SI
+	SUBQ	40(SP), SI
 	MOVQ	DI, g(CX)
-	MOVQ	40(SP), SP
+	MOVQ	SI, SP
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)

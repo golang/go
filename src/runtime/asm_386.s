@@ -684,15 +684,19 @@ TEXT asmcgocall<>(SB),NOSPLIT,$0-12
 	SUBL	$32, SP
 	ANDL	$~15, SP	// alignment, perhaps unnecessary
 	MOVL	DI, 8(SP)	// save g
-	MOVL	DX, 4(SP)	// save SP
+	MOVL	(g_stack+stack_hi)(DI), DI
+	SUBL	DX, DI
+	MOVL	DI, 4(SP)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
 	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
 	CALL	AX
 
 	// Restore registers, g, stack pointer.
 	get_tls(CX)
 	MOVL	8(SP), DI
+	MOVL	(g_stack+stack_hi)(DI), SI
+	SUBL	4(SP), SI
 	MOVL	DI, g(CX)
-	MOVL	4(SP), SP
+	MOVL	SI, SP
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
