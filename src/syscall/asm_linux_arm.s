@@ -13,6 +13,7 @@
 // func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 
 TEXT	·Syscall(SB),NOSPLIT,$0-28
+	GO_ARGS
 	BL		runtime·entersyscall(SB)
 	MOVW	4(SP), R7
 	MOVW	8(SP), R0
@@ -44,6 +45,7 @@ ok:
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
 TEXT	·Syscall6(SB),NOSPLIT,$0-40
+	GO_ARGS
 	BL		runtime·entersyscall(SB)
 	MOVW	4(SP), R7	// syscall entry
 	MOVW	8(SP), R0
@@ -75,6 +77,7 @@ ok6:
 // func RawSyscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 // Actually RawSyscall5 but the rest of the code expects it to be named RawSyscall6.
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+	GO_ARGS
 	MOVW	4(SP), R7	// syscall entry
 	MOVW	8(SP), R0
 	MOVW	12(SP), R1
@@ -134,6 +137,7 @@ okseek:
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+	GO_ARGS
 	MOVW	4(SP), R7	// syscall entry
 	MOVW	8(SP), R0
 	MOVW	12(SP), R1

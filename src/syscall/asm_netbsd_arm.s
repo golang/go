@@ -13,6 +13,7 @@
 // func Syscall9(trap int32, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int32)
 
 TEXT	·Syscall(SB),NOSPLIT,$0-28
+	GO_ARGS
 	BL runtime·entersyscall(SB)
 	MOVW 0(FP), R0 // sigcall num
 	MOVW 4(FP), R1 // a1
@@ -35,6 +36,7 @@ error:
 	RET
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-40
+	GO_ARGS
 	BL runtime·entersyscall(SB)
 	MOVW 0(FP), R0 // sigcall num
 	MOVW 4(FP), R1 // a1
@@ -60,6 +62,7 @@ error6:
 	RET
 
 TEXT	·Syscall9(SB),NOSPLIT,$0-52
+	GO_ARGS
 	BL runtime·entersyscall(SB)
 	MOVW 0(FP), R0 // sigcall num
 	MOVW 4(FP), R1 // a1
@@ -85,6 +88,7 @@ error9:
 	RET
 
 TEXT	·RawSyscall(SB),NOSPLIT,$0-28
+	GO_ARGS
 	MOVW 0(FP), R0 // sigcall num
 	MOVW 4(FP), R1 // a1
 	MOVW 8(FP), R2 // a2
@@ -104,6 +108,7 @@ errorr:
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+	GO_ARGS
 	MOVW 0(FP), R0 // sigcall num
 	MOVW 4(FP), R1 // a1
 	MOVW 8(FP), R2 // a2
