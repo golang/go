@@ -14,6 +14,7 @@
 #include	"../../runtime/funcdata.h"
 
 static void allocauto(Prog* p);
+static void emitptrargsmap(void);
 
 static Sym*
 makefuncdatasym(char *namefmt, int64 funcdatakind)
@@ -173,9 +174,15 @@ compile(Node *fn)
 
 	lno = setlineno(fn);
 
+	curfn = fn;
+	dowidth(curfn->type);
+
 	if(fn->nbody == nil) {
-		if(pure_go || strncmp(fn->nname->sym->name, "init·", 6) == 0)
+		if(pure_go || strncmp(fn->nname->sym->name, "init·", 6) == 0) {
 			yyerror("missing function body", fn);
+			goto ret;
+		}
+		emitptrargsmap();
 		goto ret;
 	}
 
@@ -183,9 +190,6 @@ compile(Node *fn)
 
 	// set up domain for labels
 	clearlabels();
-
-	curfn = fn;
-	dowidth(curfn->type);
 
 	if(curfn->type->outnamed) {
 		// add clearing of the output parameters
@@ -327,6 +331,43 @@ compile(Node *fn)
 	removevardef(ptxt);
 ret:
 	lineno = lno;
+}
+
+static void
+emitptrargsmap(void)
+{
+	int nptr, nbitmap, j, off;
+	vlong xoffset;
+	Bvec *bv;
+	Sym *sym;
+	
+	sym = lookup(smprint("%s.args_stackmap", curfn->nname->sym->name));
+
+	nptr = curfn->type->argwid / widthptr;
+	bv = bvalloc(nptr*2);
+	nbitmap = 1;
+	if(curfn->type->outtuple > 0)
+		nbitmap = 2;
+	off = duint32(sym, 0, nbitmap);
+	off = duint32(sym, off, bv->n);
+	if(curfn->type->thistuple > 0) {
+		xoffset = 0;
+		twobitwalktype1(getthisx(curfn->type), &xoffset, bv);
+	}
+	if(curfn->type->intuple > 0) {
+		xoffset = 0;
+		twobitwalktype1(getinargx(curfn->type), &xoffset, bv);
+	}
+	for(j = 0; j < bv->n; j += 32)
+		off = duint32(sym, off, bv->b[j/32]);
+	if(curfn->type->outtuple > 0) {
+		xoffset = 0;
+		twobitwalktype1(getoutargx(curfn->type), &xoffset, bv);
+		for(j = 0; j < bv->n; j += 32)
+			off = duint32(sym, off, bv->b[j/32]);
+	}
+	ggloblsym(sym, off, RODATA);
+	free(bv);
 }
 
 // Sort the list of stack variables. Autos after anything else,
