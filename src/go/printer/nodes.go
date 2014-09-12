@@ -736,7 +736,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
 			// don't print parentheses around an already parenthesized expression
 			// TODO(gri) consider making this more general and incorporate precedence levels
-			p.expr0(x.X, reduceDepth(depth)) // parentheses undo one level of depth
+			p.expr0(x.X, depth)
 		} else {
 			p.print(token.LPAREN)
 			p.expr0(x.X, reduceDepth(depth)) // parentheses undo one level of depth
