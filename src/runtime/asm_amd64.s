@@ -624,6 +624,7 @@ TEXT gosave<>(SB),NOSPLIT,$0
 // aligned appropriately for the gcc ABI.
 // See cgocall.c for more details.
 TEXT runtime·asmcgocall(SB),NOSPLIT,$0-16
+	GO_ARGS
 	MOVQ	fn+0(FP), AX
 	MOVQ	arg+8(FP), BX
 	CALL	asmcgocall<>(SB)
