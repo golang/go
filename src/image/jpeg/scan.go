@@ -65,7 +65,13 @@ func (d *decoder) processSOS(n int) error {
 		}
 		scan[i].compIndex = uint8(compIndex)
 		scan[i].td = d.tmp[2+2*i] >> 4
+		if scan[i].td > maxTh {
+			return FormatError("bad Td value")
+		}
 		scan[i].ta = d.tmp[2+2*i] & 0x0f
+		if scan[i].ta > maxTh {
+			return FormatError("bad Ta value")
+		}
 	}
 
 	// zigStart and zigEnd are the spectral selection bounds.
