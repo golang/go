@@ -634,9 +634,10 @@ scanframe(Stkframe *frame, void *unused)
 
 	// Scan local variables if stack frame has been allocated.
 	size = frame->varp - frame->sp;
-	minsize = 0;
 	if(thechar != '6' && thechar != '8')
 		minsize = sizeof(uintptr);
+	else
+		minsize = 0;
 	if(size > minsize) {
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 		if(stackmap == nil || stackmap->n <= 0) {
