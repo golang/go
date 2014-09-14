@@ -451,9 +451,9 @@ func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
 	}
 	// Print traceback. By default, omits runtime frames.
 	// If that means we print nothing at all, repeat forcing all frames printed.
-	n = gentraceback(pc, sp, 0, gp, 0, nil, _TracebackMaxFrames, nil, nil, false)
+	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, false)
 	if n == 0 {
-		n = gentraceback(pc, sp, 0, gp, 0, nil, _TracebackMaxFrames, nil, nil, true)
+		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, true)
 	}
 	if n == _TracebackMaxFrames {
 		print("...additional frames elided...\n")
