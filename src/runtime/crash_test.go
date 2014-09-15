@@ -159,6 +159,22 @@ func TestGoexitCrash(t *testing.T) {
 	}
 }
 
+func TestGoexitDefer(t *testing.T) {
+	c := make(chan struct{})
+	go func() {
+		defer func() {
+			r := recover()
+			if r != nil {
+				t.Errorf("non-nil recover during Goexit")
+			}
+			c <- struct{}{}
+		}()
+		runtime.Goexit()
+	}()
+	// Note: if the defer fails to run, we will get a deadlock here
+	<-c
+}
+
 func TestGoNil(t *testing.T) {
 	output := executeTest(t, goNilSource, nil)
 	want := "go of nil func value"
