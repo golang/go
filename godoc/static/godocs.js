@@ -441,7 +441,7 @@ function setupCallgraphs() {
   document.getElementById("pkg-callgraph").style.display = "block";
 
   var treeviews = document.getElementsByClassName("treeview");
-  for (var i in treeviews) {
+  for (var i = 0; i < treeviews.length; i++) {
     var tree = treeviews[i];
     if (tree.id == null || tree.id.indexOf("callgraph-") != 0) {
       continue;
