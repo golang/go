@@ -248,9 +248,9 @@ struct	GCStats
 
 struct	LibCall
 {
-	void*	fn;
+	uintptr	fn;
 	uintptr	n;	// number of parameters
-	void*	args;	// parameters
+	uintptr	args;	// parameters
 	uintptr	r1;	// return values
 	uintptr	r2;
 	uintptr	err;	// error number

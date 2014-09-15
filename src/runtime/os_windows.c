@@ -78,6 +78,20 @@ extern uintptr runtime·externalthreadhandlerp;
 void runtime·externalthreadhandler(void);
 void runtime·sigtramp(void);
 
+#pragma textflag NOSPLIT
+uintptr
+runtime·getLoadLibrary(void)
+{
+	return (uintptr)runtime·LoadLibrary;
+}
+
+#pragma textflag NOSPLIT
+uintptr
+runtime·getGetProcAddress(void)
+{
+	return (uintptr)runtime·GetProcAddress;
+}
+
 static int32
 getproccount(void)
 {
@@ -326,7 +340,7 @@ runtime·nanotime(void)
 static void*
 stdcall(void *fn)
 {
-	g->m->libcall.fn = fn;
+	g->m->libcall.fn = (uintptr)fn;
 	if(g->m->profilehz != 0) {
 		// leave pc/sp for cpu profiler
 		g->m->libcallg = g;
@@ -345,7 +359,7 @@ void*
 runtime·stdcall0(void *fn)
 {
 	g->m->libcall.n = 0;
-	g->m->libcall.args = &fn;  // it's unused but must be non-nil, otherwise crashes
+	g->m->libcall.args = (uintptr)&fn;  // it's unused but must be non-nil, otherwise crashes
 	return stdcall(fn);
 }
 
@@ -355,7 +369,7 @@ runtime·stdcall1(void *fn, uintptr a0)
 {
 	USED(a0);
 	g->m->libcall.n = 1;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -365,7 +379,7 @@ runtime·stdcall2(void *fn, uintptr a0, uintptr a1)
 {
 	USED(a0, a1);
 	g->m->libcall.n = 2;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -375,7 +389,7 @@ runtime·stdcall3(void *fn, uintptr a0, uintptr a1, uintptr a2)
 {
 	USED(a0, a1, a2);
 	g->m->libcall.n = 3;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -385,7 +399,7 @@ runtime·stdcall4(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3)
 {
 	USED(a0, a1, a2, a3);
 	g->m->libcall.n = 4;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -395,7 +409,7 @@ runtime·stdcall5(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uint
 {
 	USED(a0, a1, a2, a3, a4);
 	g->m->libcall.n = 5;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -405,7 +419,7 @@ runtime·stdcall6(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uint
 {
 	USED(a0, a1, a2, a3, a4, a5);
 	g->m->libcall.n = 6;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -415,7 +429,7 @@ runtime·stdcall7(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uint
 {
 	USED(a0, a1, a2, a3, a4, a5, a6);
 	g->m->libcall.n = 7;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
