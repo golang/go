@@ -86,3 +86,85 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 
 	return callbackasmAddr(n)
 }
+
+func getLoadLibrary() uintptr
+
+//go:nosplit
+func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
+	var c libcall
+	c.fn = getLoadLibrary()
+	c.n = 1
+	c.args = uintptr(unsafe.Pointer(&filename))
+	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
+	handle = c.r1
+	if handle == 0 {
+		err = c.err
+	}
+	return
+}
+
+func getGetProcAddress() uintptr
+
+//go:nosplit
+func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
+	var c libcall
+	c.fn = getGetProcAddress()
+	c.n = 2
+	c.args = uintptr(unsafe.Pointer(&handle))
+	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
+	outhandle = c.r1
+	if outhandle == 0 {
+		err = c.err
+	}
+	return
+}
+
+//go:nosplit
+func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+	var c libcall
+	c.fn = fn
+	c.n = nargs
+	c.args = uintptr(unsafe.Pointer(&a1))
+	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
+	return c.r1, c.r2, c.err
+}
+
+//go:nosplit
+func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	var c libcall
+	c.fn = fn
+	c.n = nargs
+	c.args = uintptr(unsafe.Pointer(&a1))
+	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
+	return c.r1, c.r2, c.err
+}
+
+//go:nosplit
+func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
+	var c libcall
+	c.fn = fn
+	c.n = nargs
+	c.args = uintptr(unsafe.Pointer(&a1))
+	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
+	return c.r1, c.r2, c.err
+}
+
+//go:nosplit
+func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
+	var c libcall
+	c.fn = fn
+	c.n = nargs
+	c.args = uintptr(unsafe.Pointer(&a1))
+	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
+	return c.r1, c.r2, c.err
+}
+
+//go:nosplit
+func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
+	var c libcall
+	c.fn = fn
+	c.n = nargs
+	c.args = uintptr(unsafe.Pointer(&a1))
+	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
+	return c.r1, c.r2, c.err
+}
