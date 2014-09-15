@@ -462,8 +462,9 @@ NextRound:
 			first = append(first, i)
 		}
 
-		// 80 chances to get a different iteration order.
-		for n := 0; n < 80; n++ {
+		// 800 chances to get a different iteration order.
+		// See bug 8736 for why we need so many tries.
+		for n := 0; n < 800; n++ {
 			idx := 0
 			for i := range m {
 				if i != first[idx] {
