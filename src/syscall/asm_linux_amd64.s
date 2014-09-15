@@ -116,6 +116,7 @@ ok2:
 	RET
 
 TEXT ·gettimeofday(SB),NOSPLIT,$0-16
+	GO_ARGS
 	MOVQ	8(SP), DI
 	MOVQ	$0, SI
 	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
