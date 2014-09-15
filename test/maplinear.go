@@ -146,15 +146,19 @@ func main() {
 	// O(n lg n) time.  Fortunately, the checkLinear test
 	// leaves enough wiggle room to include n lg n time
 	// (it actually tests for O(n^log_2(3)).
-	checkLinear("iterdelete", 10000, func(n int) {
-		m := map[int]int{}
-		for i := 0; i < n; i++ {
-			m[i] = i
-		}
-		for i := 0; i < n; i++ {
-			for k := range m {
-				delete(m, k)
-				break
+	// To prevent false positives, average away variation
+	// by doing multiple rounds within a single run.
+	checkLinear("iterdelete", 2500, func(n int) {
+		for round := 0; round < 4; round++ {
+			m := map[int]int{}
+			for i := 0; i < n; i++ {
+				m[i] = i
+			}
+			for i := 0; i < n; i++ {
+				for k := range m {
+					delete(m, k)
+					break
+				}
 			}
 		}
 	})
