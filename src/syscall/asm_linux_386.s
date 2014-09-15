@@ -119,6 +119,7 @@ ok2:
 // func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
 // Kernel interface gets call sub-number and pointer to a0.
 TEXT ·socketcall(SB),NOSPLIT,$0-36
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
 	MOVL	4(SP), BX	// socket call number
@@ -143,6 +144,7 @@ oksock:
 // func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
 // Kernel interface gets call sub-number and pointer to a0.
 TEXT ·rawsocketcall(SB),NOSPLIT,$0-36
+	GO_ARGS
 	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
 	MOVL	4(SP), BX	// socket call number
 	LEAL		8(SP), CX	// pointer to call arguments
@@ -168,6 +170,7 @@ oksock1:
 // Underlying system call is
 //	llseek(int fd, int offhi, int offlo, int64 *result, int whence)
 TEXT ·seek(SB),NOSPLIT,$0-28
+	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVL	$SYS__LLSEEK, AX	// syscall entry
 	MOVL	4(SP), BX	// fd

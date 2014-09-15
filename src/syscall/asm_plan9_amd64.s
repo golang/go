@@ -131,6 +131,7 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
 
 //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
 TEXT ·seek(SB),NOSPLIT,$0-56
+	GO_ARGS
 	LEAQ	newoffset+40(SP), AX
 	MOVQ	AX, placeholder+8(SP)
 	
@@ -161,6 +162,8 @@ copyresult6:
 //func exit(code int)
 // Import runtime·exit for cleanly exiting.
 TEXT ·exit(SB),NOSPLIT,$8-8
+	GO_ARGS
+	NO_LOCAL_POINTERS
 	MOVQ	code+0(FP), AX
 	MOVQ	AX, 0(SP)
 	CALL	runtime·exit(SB)

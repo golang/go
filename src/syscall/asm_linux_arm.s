@@ -111,6 +111,7 @@ ok2:
 // Underlying system call is
 //	llseek(int fd, int offhi, int offlo, int64 *result, int whence)
 TEXT ·seek(SB),NOSPLIT,$0-32
+	GO_ARGS
 	BL	runtime·entersyscall(SB)
 	MOVW	$SYS__LLSEEK, R7	// syscall entry
 	MOVW	4(SP), R0	// fd
