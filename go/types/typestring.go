@@ -221,6 +221,11 @@ func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool, vis
 					buf.WriteString("...")
 					typ = s.elem
 				} else {
+					// special case:
+					// append(s, "foo"...) leads to signature func([]byte, string...)
+					if t, ok := typ.Underlying().(*Basic); !ok || t.kind != String {
+						panic("internal error: string type expected")
+					}
 					writeType(buf, this, typ, visited)
 					buf.WriteString("...")
 					continue

@@ -200,7 +200,7 @@ type Signature struct {
 	recv     *Var   // nil if not a method
 	params   *Tuple // (incoming) parameters from left to right; or nil
 	results  *Tuple // (outgoing) results from left to right; or nil
-	variadic bool   // true if the last parameter's type is of the form ...T
+	variadic bool   // true if the last parameter's type is of the form ...T (or string, for append built-in only)
 }
 
 // NewSignature returns a new function type for the given receiver, parameters,
