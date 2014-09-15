@@ -727,12 +727,12 @@ dcommontype(Sym *s, int ot, Type *t)
 	sizeofAlg = 2*widthptr;
 	if(algarray == nil)
 		algarray = pkglookup("algarray", runtimepkg);
+	dowidth(t);
 	alg = algtype(t);
 	algsym = S;
 	if(alg < 0)
 		algsym = dalgsym(t);
 
-	dowidth(t);
 	if(t->sym != nil && !isptr[t->etype])
 		sptr = dtypesym(ptrto(t));
 	else
