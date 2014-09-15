@@ -877,4 +877,41 @@ func TestLinuxSendfileChild(*testing.T) {
 	}
 }
 
+func TestFileServerCleanPath(t *testing.T) {
+	tests := []struct {
+		path     string
+		wantCode int
+		wantOpen []string
+	}{
+		{"/", 200, []string{"/", "/index.html"}},
+		{"/dir", 301, []string{"/dir"}},
+		{"/dir/", 200, []string{"/dir", "/dir/index.html"}},
+	}
+	for _, tt := range tests {
+		var log []string
+		rr := httptest.NewRecorder()
+		req, _ := NewRequest("GET", "http://foo.localhost"+tt.path, nil)
+		FileServer(fileServerCleanPathDir{&log}).ServeHTTP(rr, req)
+		if !reflect.DeepEqual(log, tt.wantOpen) {
+			t.Logf("For %s: Opens = %q; want %q", tt.path, log, tt.wantOpen)
+		}
+		if rr.Code != tt.wantCode {
+			t.Logf("For %s: Response code = %d; want %d", tt.path, rr.Code, tt.wantCode)
+		}
+	}
+}
+
+type fileServerCleanPathDir struct {
+	log *[]string
+}
+
+func (d fileServerCleanPathDir) Open(path string) (File, error) {
+	*(d.log) = append(*(d.log), path)
+	if path == "/" || path == "/dir" || path == "/dir/" {
+		// Just return back something that's a directory.
+		return Dir(".").Open(".")
+	}
+	return nil, os.ErrNotExist
+}
+
 type panicOnSeek struct{ io.ReadSeeker }
