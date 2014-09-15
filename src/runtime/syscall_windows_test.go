@@ -449,3 +449,42 @@ func TestStdcallAndCDeclCallbacks(t *testing.T) {
 		}
 	}
 }
+
+func TestRegisterClass(t *testing.T) {
+	kernel32 := GetDLL(t, "kernel32.dll")
+	user32 := GetDLL(t, "user32.dll")
+	mh, _, _ := kernel32.Proc("GetModuleHandleW").Call(0)
+	cb := syscall.NewCallback(func(hwnd syscall.Handle, msg uint32, wparam, lparam uintptr) (rc uintptr) {
+		t.Fatal("callback should never get called")
+		return 0
+	})
+	type Wndclassex struct {
+		Size       uint32
+		Style      uint32
+		WndProc    uintptr
+		ClsExtra   int32
+		WndExtra   int32
+		Instance   syscall.Handle
+		Icon       syscall.Handle
+		Cursor     syscall.Handle
+		Background syscall.Handle
+		MenuName   *uint16
+		ClassName  *uint16
+		IconSm     syscall.Handle
+	}
+	name := syscall.StringToUTF16Ptr("test_window")
+	wc := Wndclassex{
+		WndProc:   cb,
+		Instance:  syscall.Handle(mh),
+		ClassName: name,
+	}
+	wc.Size = uint32(unsafe.Sizeof(wc))
+	a, _, err := user32.Proc("RegisterClassExW").Call(uintptr(unsafe.Pointer(&wc)))
+	if a == 0 {
+		t.Fatalf("RegisterClassEx failed: %v", err)
+	}
+	r, _, err := user32.Proc("UnregisterClassW").Call(uintptr(unsafe.Pointer(name)), 0)
+	if r == 0 {
+		t.Fatalf("UnregisterClass failed: %v", err)
+	}
+}
