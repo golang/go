@@ -120,8 +120,10 @@ func TestCgoOption(t *testing.T) {
 	case "plan9", "solaris", "windows":
 		return
 	}
-	// For linux-amd64-nocgo, cgo is not used.
-	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" && !build.Default.CgoEnabled {
+	// In nocgo builds (e.g. linux-amd64-nocgo),
+	// there is no "runtime/cgo" package,
+	// so cgo-generated Go files will have a failing import.
+	if !build.Default.CgoEnabled {
 		return
 	}
 	// Test that we can load cgo-using packages with
