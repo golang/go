@@ -450,6 +450,11 @@ func contains(list []string, s string) bool {
 	return false
 }
 
+// The package cache doesn't operate correctly in rare (so far artificial)
+// circumstances (issue 8425). Disable before debugging non-obvious errors
+// from the type-checker.
+const usePkgCache = true
+
 var (
 	pkgCache = map[string]*types.Package{} // map tagKey to package
 	pkgTags  = map[string][]string{}       // map import dir to list of relevant tags
@@ -511,11 +516,13 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	// If we've already done an import with the same set
 	// of relevant tags, reuse the result.
 	var key string
-	if tags, ok := pkgTags[dir]; ok {
-		key = tagKey(dir, context, tags)
-		if pkg := pkgCache[key]; pkg != nil {
-			w.imported[name] = pkg
-			return pkg
+	if usePkgCache {
+		if tags, ok := pkgTags[dir]; ok {
+			key = tagKey(dir, context, tags)
+			if pkg := pkgCache[key]; pkg != nil {
+				w.imported[name] = pkg
+				return pkg
+			}
 		}
 	}
 
@@ -528,9 +535,11 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	}
 
 	// Save tags list first time we see a directory.
-	if _, ok := pkgTags[dir]; !ok {
-		pkgTags[dir] = info.AllTags
-		key = tagKey(dir, context, info.AllTags)
+	if usePkgCache {
+		if _, ok := pkgTags[dir]; !ok {
+			pkgTags[dir] = info.AllTags
+			key = tagKey(dir, context, info.AllTags)
+		}
 	}
 
 	filenames := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
@@ -583,7 +592,9 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 		log.Fatalf("error typechecking package %s: %s (%s)", name, err, ctxt)
 	}
 
-	pkgCache[key] = pkg
+	if usePkgCache {
+		pkgCache[key] = pkg
+	}
 
 	w.imported[name] = pkg
 	return
