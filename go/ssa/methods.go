@@ -182,6 +182,7 @@ func (prog *Program) TypesWithMethodSets() []types.Type {
 // Callers must not mutate the result.
 //
 func (pkg *Package) TypesWithMethodSets() []types.Type {
+	// pkg.methodsMu not required; concurrent (build) phase is over.
 	return pkg.methodSets
 }
 

@@ -2293,17 +2293,20 @@ func (p *Package) typeOf(e ast.Expr) types.Type {
 //
 // Precondition: T is not a method signature (*Signature with Recv()!=nil).
 //
-// TODO(adonovan): fix: make this thread-safe.  I don't think it is
-// right now since it's called concurrently from emitConv.
+// Thread-safe.  (Called via emitConv from multiple builder goroutines.)
 //
 // TODO(adonovan): make this faster.  It accounts for 20% of SSA build
-// time, even with concurrency and no locking.
+// time.  Do we need to maintain a distinct needRTTI and methodSets per
+// package?  Using just one in the program might be much faster.
 //
 func (p *Package) needMethodsOf(T types.Type) {
+	p.methodsMu.Lock()
 	p.needMethods(T, false)
+	p.methodsMu.Unlock()
 }
 
 // Precondition: T is not a method signature (*Signature with Recv()!=nil).
+// Precondition: the p.methodsMu lock is held.
 // Recursive case: skip => don't call makeMethods(T).
 func (p *Package) needMethods(T types.Type, skip bool) {
 	// Each package maintains its own set of types it has visited.
@@ -2346,8 +2349,8 @@ func (p *Package) needMethods(T types.Type, skip bool) {
 	tmset := p.Prog.MethodSets.MethodSet(T)
 	for i := 0; i < tmset.Len(); i++ {
 		sig := tmset.At(i).Type().(*types.Signature)
-		p.needMethodsOf(sig.Params())
-		p.needMethodsOf(sig.Results())
+		p.needMethods(sig.Params(), false)
+		p.needMethods(sig.Results(), false)
 	}
 
 	switch t := T.(type) {
@@ -2358,29 +2361,29 @@ func (p *Package) needMethods(T types.Type, skip bool) {
 		// nop---handled by recursion over method set.
 
 	case *types.Pointer:
-		p.needMethodsOf(t.Elem())
+		p.needMethods(t.Elem(), false)
 
 	case *types.Slice:
-		p.needMethodsOf(t.Elem())
+		p.needMethods(t.Elem(), false)
 
 	case *types.Chan:
-		p.needMethodsOf(t.Elem())
+		p.needMethods(t.Elem(), false)
 
 	case *types.Map:
-		p.needMethodsOf(t.Key())
-		p.needMethodsOf(t.Elem())
+		p.needMethods(t.Key(), false)
+		p.needMethods(t.Elem(), false)
 
 	case *types.Signature:
 		if t.Recv() != nil {
 			panic(fmt.Sprintf("Signature %s has Recv %s", t, t.Recv()))
 		}
-		p.needMethodsOf(t.Params())
-		p.needMethodsOf(t.Results())
+		p.needMethods(t.Params(), false)
+		p.needMethods(t.Results(), false)
 
 	case *types.Named:
 		// A pointer-to-named type can be derived from a named
 		// type via reflection.  It may have methods too.
-		p.needMethodsOf(types.NewPointer(T))
+		p.needMethods(types.NewPointer(T), false)
 
 		// Consider 'type T struct{S}' where S has methods.
 		// Reflection provides no way to get from T to struct{S},
@@ -2389,16 +2392,16 @@ func (p *Package) needMethods(T types.Type, skip bool) {
 		p.needMethods(t.Underlying(), true)
 
 	case *types.Array:
-		p.needMethodsOf(t.Elem())
+		p.needMethods(t.Elem(), false)
 
 	case *types.Struct:
 		for i, n := 0, t.NumFields(); i < n; i++ {
-			p.needMethodsOf(t.Field(i).Type())
+			p.needMethods(t.Field(i).Type(), false)
 		}
 
 	case *types.Tuple:
 		for i, n := 0, t.Len(); i < n; i++ {
-			p.needMethodsOf(t.At(i).Type())
+			p.needMethods(t.At(i).Type(), false)
 		}
 
 	default:

@@ -43,6 +43,7 @@ type Package struct {
 	Prog       *Program               // the owning program
 	Object     *types.Package         // the type checker's package object for this package
 	Members    map[string]Member      // all package members keyed by name
+	methodsMu  sync.Mutex             // guards needRTTI and methodSets
 	methodSets []types.Type           // types whose method sets are included in this package
 	values     map[types.Object]Value // package members (incl. types and methods), keyed by object
 	init       *Function              // Func("init"); the package's init function
