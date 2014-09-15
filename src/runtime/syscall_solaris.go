@@ -34,9 +34,9 @@ var (
 //go:nosplit
 func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(fn),
+		fn:   fn,
 		n:    nargs,
-		args: unsafe.Pointer(&a1),
+		args: uintptr(unsafe.Pointer(&a1)),
 	}
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
@@ -47,9 +47,9 @@ func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err 
 //go:nosplit
 func syscall_rawsysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(fn),
+		fn:   fn,
 		n:    nargs,
-		args: unsafe.Pointer(&a1),
+		args: uintptr(unsafe.Pointer(&a1)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.r1, call.r2, call.err
@@ -62,9 +62,9 @@ func syscall_rawsysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, e
 //go:nosplit
 func syscall_chdir(path uintptr) (err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_chdir),
+		fn:   uintptr(unsafe.Pointer(&libc_chdir)),
 		n:    1,
-		args: unsafe.Pointer(&path),
+		args: uintptr(unsafe.Pointer(&path)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.err
@@ -73,9 +73,9 @@ func syscall_chdir(path uintptr) (err uintptr) {
 //go:nosplit
 func syscall_chroot(path uintptr) (err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_chroot),
+		fn:   uintptr(unsafe.Pointer(&libc_chroot)),
 		n:    1,
-		args: unsafe.Pointer(&path),
+		args: uintptr(unsafe.Pointer(&path)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.err
@@ -89,9 +89,9 @@ func syscall_close(fd int32) int32 {
 
 func syscall_dlopen(name *byte, mode uintptr) (handle uintptr, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_dlopen),
+		fn:   uintptr(unsafe.Pointer(&libc_dlopen)),
 		n:    2,
-		args: unsafe.Pointer(&name),
+		args: uintptr(unsafe.Pointer(&name)),
 	}
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
@@ -104,9 +104,9 @@ func syscall_dlopen(name *byte, mode uintptr) (handle uintptr, err uintptr) {
 
 func syscall_dlclose(handle uintptr) (err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_dlclose),
+		fn:   uintptr(unsafe.Pointer(&libc_dlclose)),
 		n:    1,
-		args: unsafe.Pointer(&handle),
+		args: uintptr(unsafe.Pointer(&handle)),
 	}
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
@@ -116,9 +116,9 @@ func syscall_dlclose(handle uintptr) (err uintptr) {
 
 func syscall_dlsym(handle uintptr, name *byte) (proc uintptr, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_dlsym),
+		fn:   uintptr(unsafe.Pointer(&libc_dlsym)),
 		n:    2,
-		args: unsafe.Pointer(&handle),
+		args: uintptr(unsafe.Pointer(&handle)),
 	}
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
@@ -132,9 +132,9 @@ func syscall_dlsym(handle uintptr, name *byte) (proc uintptr, err uintptr) {
 //go:nosplit
 func syscall_execve(path, argv, envp uintptr) (err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_execve),
+		fn:   uintptr(unsafe.Pointer(&libc_execve)),
 		n:    3,
-		args: unsafe.Pointer(&path),
+		args: uintptr(unsafe.Pointer(&path)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.err
@@ -149,9 +149,9 @@ func syscall_exit(code uintptr) {
 //go:nosplit
 func syscall_fcntl(fd, cmd, arg uintptr) (val, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_fcntl),
+		fn:   uintptr(unsafe.Pointer(&libc_fcntl)),
 		n:    3,
-		args: unsafe.Pointer(&fd),
+		args: uintptr(unsafe.Pointer(&fd)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.r1, call.err
@@ -160,9 +160,9 @@ func syscall_fcntl(fd, cmd, arg uintptr) (val, err uintptr) {
 //go:nosplit
 func syscall_forkx(flags uintptr) (pid uintptr, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_forkx),
+		fn:   uintptr(unsafe.Pointer(&libc_forkx)),
 		n:    1,
-		args: unsafe.Pointer(&flags),
+		args: uintptr(unsafe.Pointer(&flags)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.r1, call.err
@@ -172,9 +172,9 @@ func syscall_gethostname() (name string, err uintptr) {
 	cname := new([_MAXHOSTNAMELEN]byte)
 	var args = [2]uintptr{uintptr(unsafe.Pointer(&cname[0])), _MAXHOSTNAMELEN}
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_gethostname),
+		fn:   uintptr(unsafe.Pointer(&libc_gethostname)),
 		n:    2,
-		args: unsafe.Pointer(&args[0]),
+		args: uintptr(unsafe.Pointer(&args[0])),
 	}
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
@@ -189,9 +189,9 @@ func syscall_gethostname() (name string, err uintptr) {
 //go:nosplit
 func syscall_ioctl(fd, req, arg uintptr) (err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_ioctl),
+		fn:   uintptr(unsafe.Pointer(&libc_ioctl)),
 		n:    3,
-		args: unsafe.Pointer(&fd),
+		args: uintptr(unsafe.Pointer(&fd)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.err
@@ -199,9 +199,9 @@ func syscall_ioctl(fd, req, arg uintptr) (err uintptr) {
 
 func syscall_pipe() (r, w, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&pipe1),
+		fn:   uintptr(unsafe.Pointer(&pipe1)),
 		n:    0,
-		args: unsafe.Pointer(&pipe1), // it's unused but must be non-nil, otherwise crashes
+		args: uintptr(unsafe.Pointer(&pipe1)), // it's unused but must be non-nil, otherwise crashes
 	}
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
@@ -217,9 +217,9 @@ func syscall_pipe() (r, w, err uintptr) {
 // TODO(aram): make this panic once we stop calling fcntl(2) in net using it.
 func syscall_rawsyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_syscall),
+		fn:   uintptr(unsafe.Pointer(&libc_syscall)),
 		n:    4,
-		args: unsafe.Pointer(&trap),
+		args: uintptr(unsafe.Pointer(&trap)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.r1, call.r2, call.err
@@ -228,9 +228,9 @@ func syscall_rawsyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 //go:nosplit
 func syscall_setgid(gid uintptr) (err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_setgid),
+		fn:   uintptr(unsafe.Pointer(&libc_setgid)),
 		n:    1,
-		args: unsafe.Pointer(&gid),
+		args: uintptr(unsafe.Pointer(&gid)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.err
@@ -239,9 +239,9 @@ func syscall_setgid(gid uintptr) (err uintptr) {
 //go:nosplit
 func syscall_setgroups(ngid, gid uintptr) (err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_setgroups),
+		fn:   uintptr(unsafe.Pointer(&libc_setgroups)),
 		n:    2,
-		args: unsafe.Pointer(&ngid),
+		args: uintptr(unsafe.Pointer(&ngid)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.err
@@ -250,9 +250,9 @@ func syscall_setgroups(ngid, gid uintptr) (err uintptr) {
 //go:nosplit
 func syscall_setsid() (pid, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_setsid),
+		fn:   uintptr(unsafe.Pointer(&libc_setsid)),
 		n:    0,
-		args: unsafe.Pointer(&libc_setsid), // it's unused but must be non-nil, otherwise crashes
+		args: uintptr(unsafe.Pointer(&libc_setsid)), // it's unused but must be non-nil, otherwise crashes
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.r1, call.err
@@ -261,9 +261,9 @@ func syscall_setsid() (pid, err uintptr) {
 //go:nosplit
 func syscall_setuid(uid uintptr) (err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_setuid),
+		fn:   uintptr(unsafe.Pointer(&libc_setuid)),
 		n:    1,
-		args: unsafe.Pointer(&uid),
+		args: uintptr(unsafe.Pointer(&uid)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.err
@@ -272,9 +272,9 @@ func syscall_setuid(uid uintptr) (err uintptr) {
 //go:nosplit
 func syscall_setpgid(pid, pgid uintptr) (err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_setpgid),
+		fn:   uintptr(unsafe.Pointer(&libc_setpgid)),
 		n:    2,
-		args: unsafe.Pointer(&pid),
+		args: uintptr(unsafe.Pointer(&pid)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.err
@@ -288,9 +288,9 @@ func syscall_setpgid(pid, pgid uintptr) (err uintptr) {
 // TODO(aram): make this panic once we stop calling fcntl(2) in net using it.
 func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_syscall),
+		fn:   uintptr(unsafe.Pointer(&libc_syscall)),
 		n:    4,
-		args: unsafe.Pointer(&trap),
+		args: uintptr(unsafe.Pointer(&trap)),
 	}
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
@@ -300,9 +300,9 @@ func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 
 func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.Pointer) (wpid int, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_wait4),
+		fn:   uintptr(unsafe.Pointer(&libc_wait4)),
 		n:    4,
-		args: unsafe.Pointer(&pid),
+		args: uintptr(unsafe.Pointer(&pid)),
 	}
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
@@ -313,9 +313,9 @@ func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.
 //go:nosplit
 func syscall_write(fd, buf, nbyte uintptr) (n, err uintptr) {
 	call := libcall{
-		fn:   unsafe.Pointer(&libc_write),
+		fn:   uintptr(unsafe.Pointer(&libc_write)),
 		n:    3,
-		args: unsafe.Pointer(&fd),
+		args: uintptr(unsafe.Pointer(&fd)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
 	return call.r1, call.err

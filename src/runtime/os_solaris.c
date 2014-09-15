@@ -292,11 +292,11 @@ runtime·semacreate(void)
 	// Call libc's malloc rather than runtime·malloc.  This will
 	// allocate space on the C heap.  We can't call runtime·malloc
 	// here because it could cause a deadlock.
-	g->m->libcall.fn = (void*)libc·malloc;
+	g->m->libcall.fn = (uintptr)(void*)libc·malloc;
 	g->m->libcall.n = 1;
 	runtime·memclr((byte*)&g->m->scratch, sizeof(g->m->scratch));
 	g->m->scratch.v[0] = (uintptr)sizeof(*sem);
-	g->m->libcall.args = (uintptr*)&g->m->scratch;
+	g->m->libcall.args = (uintptr)(uintptr*)&g->m->scratch;
 	runtime·asmcgocall(runtime·asmsysvicall6, &g->m->libcall);
 	sem = (void*)g->m->libcall.r1;
 	if(runtime·sem_init(sem, 0, 0) != 0)
@@ -315,12 +315,12 @@ runtime·semasleep(int64 ns)
 		m->ts.tv_sec = ns / 1000000000LL;
 		m->ts.tv_nsec = ns % 1000000000LL;
 
-		m->libcall.fn = (void*)libc·sem_reltimedwait_np;
+		m->libcall.fn = (uintptr)(void*)libc·sem_reltimedwait_np;
 		m->libcall.n = 2;
 		runtime·memclr((byte*)&m->scratch, sizeof(m->scratch));
 		m->scratch.v[0] = m->waitsema;
 		m->scratch.v[1] = (uintptr)&m->ts;
-		m->libcall.args = (uintptr*)&m->scratch;
+		m->libcall.args = (uintptr)(uintptr*)&m->scratch;
 		runtime·asmcgocall(runtime·asmsysvicall6, &m->libcall);
 		if(*m->perrno != 0) {
 			if(*m->perrno == ETIMEDOUT || *m->perrno == EAGAIN || *m->perrno == EINTR)
@@ -330,11 +330,11 @@ runtime·semasleep(int64 ns)
 		return 0;
 	}
 	for(;;) {
-		m->libcall.fn = (void*)libc·sem_wait;
+		m->libcall.fn = (uintptr)(void*)libc·sem_wait;
 		m->libcall.n = 1;
 		runtime·memclr((byte*)&m->scratch, sizeof(m->scratch));
 		m->scratch.v[0] = m->waitsema;
-		m->libcall.args = (uintptr*)&m->scratch;
+		m->libcall.args = (uintptr)(uintptr*)&m->scratch;
 		runtime·asmcgocall(runtime·asmsysvicall6, &m->libcall);
 		if(m->libcall.r1 == 0)
 			break;
