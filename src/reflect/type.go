@@ -96,6 +96,9 @@ type Type interface {
 	// ConvertibleTo returns true if a value of the type is convertible to type u.
 	ConvertibleTo(u Type) bool
 
+	// Comparable returns true if values of this type are comparable.
+	Comparable() bool
+
 	// Methods applicable only to some types, depending on Kind.
 	// The methods allowed for each kind are:
 	//
@@ -248,12 +251,21 @@ type rtype struct {
 	align         uint8             // alignment of variable with this type
 	fieldAlign    uint8             // alignment of struct field with this type
 	kind          uint8             // enumeration for C
-	alg           *uintptr          // algorithm table (../runtime/runtime.h:/Alg)
+	alg           *typeAlg          // algorithm table (../runtime/runtime.h:/Alg)
 	gc            [2]unsafe.Pointer // garbage collection data
 	string        *string           // string form; unnecessary but undeniably useful
 	*uncommonType                   // (relatively) uncommon fields
 	ptrToThis     *rtype            // type for pointer to this type, if used in binary or has methods
 	zero          unsafe.Pointer    // pointer to zero value
+}
+
+type typeAlg struct {
+	// function for hashing objects of this type
+	// (ptr to object, size, seed) -> hash
+	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
+	// function for comparing objects of this type
+	// (ptr to object A, ptr to object B, size) -> ==?
+	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
 }
 
 // Method on non-interface type
@@ -1094,6 +1106,10 @@ func (t *rtype) ConvertibleTo(u Type) bool {
 	}
 	uu := u.(*rtype)
 	return convertOp(uu, t) != nil
+}
+
+func (t *rtype) Comparable() bool {
+	return t.alg != nil && t.alg.equal != nil
 }
 
 // implements returns true if the type V implements the interface type T.
