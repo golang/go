@@ -713,6 +713,7 @@ scanstack(G *gp)
 
 	fn = scanframe;
 	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, false);
+	runtime·tracebackdefers(gp, &fn, nil);
 }
 
 // The gp has been moved to a gc safepoint. If there is gcphase specific

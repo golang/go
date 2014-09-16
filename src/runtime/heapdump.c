@@ -432,7 +432,7 @@ dumpgoroutine(G *gp)
 		dumpint((uintptr)gp);
 		dumpint((uintptr)p->arg.type);
 		dumpint((uintptr)p->arg.data);
-		dumpint((uintptr)p->defer);
+		dumpint(0); // was p->defer, no longer recorded
 		dumpint((uintptr)p->link);
 	}
 }

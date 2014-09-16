@@ -141,7 +141,7 @@ func growStack() {
 	GC()
 }
 
-// This function is not an anonimous func, so that the compiler can do escape
+// This function is not an anonymous func, so that the compiler can do escape
 // analysis and place x on stack (and subsequently stack growth update the pointer).
 func growStackIter(p *int, n int) {
 	if n == 0 {
@@ -230,13 +230,101 @@ func TestDeferPtrs(t *testing.T) {
 	growStack()
 }
 
-// use about n KB of stack
-func useStack(n int) {
+type bigBuf [4 * 1024]byte
+
+// TestDeferPtrsGoexit is like TestDeferPtrs but exercises the possibility that the
+// stack grows as part of starting the deferred function. It calls Goexit at various
+// stack depths, forcing the deferred function (with >4kB of args) to be run at
+// the bottom of the stack. The goal is to find a stack depth less than 4kB from
+// the end of the stack. Each trial runs in a different goroutine so that an earlier
+// stack growth does not invalidate a later attempt.
+func TestDeferPtrsGoexit(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		c := make(chan int, 1)
+		go testDeferPtrsGoexit(c, i)
+		if n := <-c; n != 42 {
+			t.Fatalf("defer's stack references were not adjusted appropriately (i=%d n=%d)", i, n)
+		}
+	}
+}
+
+func testDeferPtrsGoexit(c chan int, i int) {
+	var y int
+	defer func() {
+		c <- y
+	}()
+	defer setBig(&y, 42, bigBuf{})
+	useStackAndCall(i, Goexit)
+}
+
+func setBig(p *int, x int, b bigBuf) {
+	*p = x
+}
+
+// TestDeferPtrsPanic is like TestDeferPtrsGoexit, but it's using panic instead
+// of Goexit to run the Defers. Those two are different execution paths
+// in the runtime.
+func TestDeferPtrsPanic(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		c := make(chan int, 1)
+		go testDeferPtrsGoexit(c, i)
+		if n := <-c; n != 42 {
+			t.Fatalf("defer's stack references were not adjusted appropriately (i=%d n=%d)", i, n)
+		}
+	}
+}
+
+func testDeferPtrsPanic(c chan int, i int) {
+	var y int
+	defer func() {
+		if recover() == nil {
+			c <- -1
+			return
+		}
+		c <- y
+	}()
+	defer setBig(&y, 42, bigBuf{})
+	useStackAndCall(i, func() { panic(1) })
+}
+
+// TestPanicUseStack checks that a chain of Panic structs on the stack are
+// updated correctly if the stack grows during the deferred execution that
+// happens as a result of the panic.
+func TestPanicUseStack(t *testing.T) {
+	pc := make([]uintptr, 10000)
+	defer func() {
+		recover()
+		Callers(0, pc) // force stack walk
+		useStackAndCall(100, func() {
+			defer func() {
+				recover()
+				Callers(0, pc) // force stack walk
+				useStackAndCall(200, func() {
+					defer func() {
+						recover()
+						Callers(0, pc) // force stack walk
+					}()
+					panic(3)
+				})
+			}()
+			panic(2)
+		})
+	}()
+	panic(1)
+}
+
+// use about n KB of stack and call f
+func useStackAndCall(n int, f func()) {
 	if n == 0 {
+		f()
 		return
 	}
 	var b [1024]byte // makes frame about 1KB
-	useStack(n - 1 + int(b[99]))
+	useStackAndCall(n-1+int(b[99]), f)
+}
+
+func useStack(n int) {
+	useStackAndCall(n, func() {})
 }
 
 func growing(c chan int, done chan struct{}) {
