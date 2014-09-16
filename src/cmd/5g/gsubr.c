@@ -361,7 +361,7 @@ regalloc(Node *n, Type *t, Node *o)
 		print("registers allocated at\n");
 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
 			print("%d %p\n", i, regpc[i]);
-		yyerror("out of fixed registers");
+		fatal("out of fixed registers");
 		goto err;
 
 	case TFLOAT32:
@@ -374,7 +374,7 @@ regalloc(Node *n, Type *t, Node *o)
 		for(i=REGALLOC_F0; i<=REGALLOC_FMAX; i++)
 			if(reg[i] == 0)
 				goto out;
-		yyerror("out of floating point registers");
+		fatal("out of floating point registers");
 		goto err;
 
 	case TCOMPLEX64:

@@ -938,7 +938,7 @@ regalloc(Node *n, Type *t, Node *o)
 		fprint(2, "registers allocated at\n");
 		for(i=D_AX; i<=D_DI; i++)
 			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
-		yyerror("out of fixed registers");
+		fatal("out of fixed registers");
 		goto err;
 
 	case TFLOAT32:
