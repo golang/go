@@ -2505,7 +2505,7 @@ paramstoheap(Type **argin, int out)
 
 		// generate allocation & copying code
 		if(compiling_runtime)
-			fatal("%N escapes to heap, not allowed in runtime.", v);
+			yyerror("%N escapes to heap, not allowed in runtime.", v);
 		if(v->alloc == nil)
 			v->alloc = callnew(v->type);
 		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));
