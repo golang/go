@@ -125,7 +125,7 @@ static LSym *rdsym(Link*, Biobuf*, char*);
 void
 writeobj(Link *ctxt, Biobuf *b)
 {
-	int flag;
+	int flag, found;
 	Hist *h;
 	LSym *s, *text, *etext, *curtext, *data, *edata;
 	Plist *pl;
@@ -249,6 +249,27 @@ writeobj(Link *ctxt, Biobuf *b)
 			s = curtext;
 			s->etext->link = p;
 			s->etext = p;
+		}
+	}
+	
+	// Add reference to Go arguments for C or assembly functions without them.
+	for(s = text; s != nil; s = s->next) {
+		if(strncmp(s->name, "\"\".", 3) != 0)
+			continue;
+		found = 0;
+		for(p = s->text; p != nil; p = p->link) {
+			if(p->as == ctxt->arch->AFUNCDATA && p->from.type == ctxt->arch->D_CONST && p->from.offset == FUNCDATA_ArgsPointerMaps) {
+				found = 1;
+				break;
+			}
+		}
+		if(!found) {
+			p = appendp(ctxt, s->text);
+			p->as = ctxt->arch->AFUNCDATA;
+			p->from.type = ctxt->arch->D_CONST;
+			p->from.offset = FUNCDATA_ArgsPointerMaps;
+			p->to.type = ctxt->arch->D_EXTERN;
+			p->to.sym = linklookup(ctxt, smprint("%s.args_stackmap", s->name), s->version);
 		}
 	}
 
