@@ -26,8 +26,6 @@ func netpollopen(fd uintptr, pd *pollDesc) int32
 func netpollclose(fd uintptr) int32
 func netpollarm(pd *pollDesc, mode int)
 
-const stackSystem = 512 * ptrSize
-
 func os_sigpipe() {
 	gothrow("too many writes on closed pipe")
 }

@@ -423,6 +423,52 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" _Genqueue = 7;" +
 			" _Gcopystack = 8;" +
 			" _NSIG = 32;" +
+			" _FlagNoScan = iota;" +
+			" _FlagNoZero;" +
+			" _TinySize;" +
+			" _TinySizeClass;" +
+			" _MaxSmallSize;" +
+			" _PageShift;" +
+			" _PageSize;" +
+			" _PageMask;" +
+			" _BitsPerPointer;" +
+			" _BitsMask;" +
+			" _PointersPerByte;" +
+			" _MaxGCMask;" +
+			" _BitsDead;" +
+			" _BitsPointer;" +
+			" _MSpanInUse;" +
+			" _ConcurrentSweep;" +
+			" _KindBool;" +
+			" _KindInt;" +
+			" _KindInt8;" +
+			" _KindInt16;" +
+			" _KindInt32;" +
+			" _KindInt64;" +
+			" _KindUint;" +
+			" _KindUint8;" +
+			" _KindUint16;" +
+			" _KindUint32;" +
+			" _KindUint64;" +
+			" _KindUintptr;" +
+			" _KindFloat32;" +
+			" _KindFloat64;" +
+			" _KindComplex64;" +
+			" _KindComplex128;" +
+			" _KindArray;" +
+			" _KindChan;" +
+			" _KindFunc;" +
+			" _KindInterface;" +
+			" _KindMap;" +
+			" _KindPtr;" +
+			" _KindSlice;" +
+			" _KindString;" +
+			" _KindStruct;" +
+			" _KindUnsafePointer;" +
+			" _KindDirectIface;" +
+			" _KindGCProg;" +
+			" _KindNoPointers;" +
+			" _KindMask;" +
 			")"
 		f, err = parser.ParseFile(fset, filename, src, 0)
 		if err != nil {

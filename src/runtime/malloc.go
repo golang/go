@@ -11,49 +11,41 @@ import (
 const (
 	debugMalloc = false
 
-	flagNoScan = 1 << 0 // GC doesn't have to scan object
-	flagNoZero = 1 << 1 // don't zero memory
+	flagNoScan = _FlagNoScan
+	flagNoZero = _FlagNoZero
 
-	maxTinySize   = 16
-	tinySizeClass = 2
-	maxSmallSize  = 32 << 10
+	maxTinySize   = _TinySize
+	tinySizeClass = _TinySizeClass
+	maxSmallSize  = _MaxSmallSize
 
-	pageShift = 13
-	pageSize  = 1 << pageShift
-	pageMask  = pageSize - 1
+	pageShift = _PageShift
+	pageSize  = _PageSize
+	pageMask  = _PageMask
 
-	bitsPerPointer  = 2
-	bitsMask        = 1<<bitsPerPointer - 1
-	pointersPerByte = 8 / bitsPerPointer
-	bitPtrMask      = bitsMask << 2
-	maxGCMask       = 64
-	bitsDead        = 0
-	bitsPointer     = 2
+	bitsPerPointer  = _BitsPerPointer
+	bitsMask        = _BitsMask
+	pointersPerByte = _PointersPerByte
+	maxGCMask       = _MaxGCMask
+	bitsDead        = _BitsDead
+	bitsPointer     = _BitsPointer
 
-	bitBoundary = 1
-	bitMarked   = 2
-	bitMask     = bitBoundary | bitMarked
+	mSpanInUse = _MSpanInUse
 
-	mSpanInUse = 0
-
-	concurrentSweep = true
+	concurrentSweep = _ConcurrentSweep != 0
 )
 
 // Page number (address>>pageShift)
 type pageID uintptr
 
-// All zero-sized allocations return a pointer to this byte.
-var zeroObject byte
-
-// Maximum possible heap size.
-var maxMem uintptr
+// base address for all 0-byte allocations
+var zerobase uintptr
 
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
 func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 	if size == 0 {
-		return unsafe.Pointer(&zeroObject)
+		return unsafe.Pointer(&zerobase)
 	}
 	size0 := size
 
@@ -357,7 +349,7 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
 	if typ.kind&kindNoPointers != 0 {
 		flags |= flagNoScan
 	}
-	if int(n) < 0 || (typ.size > 0 && n > maxMem/uintptr(typ.size)) {
+	if int(n) < 0 || (typ.size > 0 && n > maxmem/uintptr(typ.size)) {
 		panic("runtime: allocation size out of range")
 	}
 	return mallocgc(uintptr(typ.size)*n, typ, flags)

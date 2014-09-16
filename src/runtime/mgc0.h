@@ -68,9 +68,9 @@ enum {
 // there.  On a 64-bit system the off'th word in the arena is tracked by
 // the off/16+1'th word before mheap.arena_start.  (On a 32-bit system,
 // the only difference is that the divisor is 8.)
-
-#define bitBoundary	((uintptr)1) // boundary of an object
-#define bitMarked	((uintptr)2) // marked object
-
-#define bitMask		((uintptr)bitBoundary|bitMarked)
-#define bitPtrMask	((uintptr)BitsMask<<2)
+enum {
+	bitBoundary = 1, // boundary of an object
+	bitMarked = 2, // marked object
+	bitMask = bitBoundary | bitMarked,
+	bitPtrMask = BitsMask<<2,
+};

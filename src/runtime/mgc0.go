@@ -69,18 +69,6 @@ func clearpools() {
 	}
 }
 
-// State of background sweep.
-// Protected by gclock.
-// Must match mgc0.c.
-var sweep struct {
-	g           *g
-	parked      bool
-	spanidx     uint32 // background sweeper position
-	nbgsweep    uint32
-	npausesweep uint32
-}
-
-var gclock mutex // also in mgc0.c
 func gosweepone() uintptr
 func gosweepdone() bool
 

@@ -24,10 +24,6 @@ func setfpmasks()
 func tstart_plan9(newm *m)
 func errstr() string
 
-// The size of the note handler frame varies among architectures,
-// but 512 bytes should be enough for every implementation.
-const stackSystem = 512
-
 type _Plink uintptr
 
 func os_sigpipe() {

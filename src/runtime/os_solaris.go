@@ -98,5 +98,3 @@ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(libcall))
 	return libcall.r1
 }
-
-const stackSystem = 0

@@ -329,6 +329,8 @@ mkzsys(char *dir, char *file)
 
 static char *runtimedefs[] = {
 	"defs.c",
+	"malloc.c",
+	"mgc0.c",
 	"proc.c",
 	"parfor.c",
 };
@@ -337,8 +339,8 @@ static char *runtimedefs[] = {
 // which contains Go struct definitions equivalent to the C ones.
 // Mostly we just write the output of 6c -q to the file.
 // However, we run it on multiple files, so we have to delete
-// the duplicated definitions, and we don't care about the funcs
-// and consts, so we delete those too.
+// the duplicated definitions, and we don't care about the funcs,
+// so we delete those too.
 // 
 void
 mkzruntimedefs(char *dir, char *file)

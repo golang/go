@@ -15,5 +15,3 @@ func raise(sig int32)
 func tfork(param unsafe.Pointer, psize uintptr, mm, gg, fn unsafe.Pointer) int32
 func thrsleep(ident unsafe.Pointer, clock_id int32, tsp, lock, abort unsafe.Pointer) int32
 func thrwakeup(ident unsafe.Pointer, n int32) int32
-
-const stackSystem = 0
