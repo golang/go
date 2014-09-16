@@ -551,6 +551,7 @@ void	runtime·createfing(void);
 G*	runtime·wakefing(void);
 void	runtime·getgcmask(byte*, Type*, byte**, uintptr*);
 
+// NOTE: Layout known to queuefinalizer.
 typedef struct Finalizer Finalizer;
 struct Finalizer
 {
