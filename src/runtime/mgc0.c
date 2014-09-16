@@ -76,7 +76,8 @@ enum {
 	RootCount	= 5,
 };
 
-#define ScanConservatively ((byte*)1)
+// ptrmask for an allocation containing a single pointer.
+static byte oneptr[] = {BitsPointer};
 
 // Initialized from $GOGC.  GOGC=off means no gc.
 extern int32 runtime·gcpercent;
@@ -116,6 +117,7 @@ Mutex	runtime·finlock;	// protects the following variables
 G*	runtime·fing;		// goroutine that runs finalizers
 FinBlock*	runtime·finq;	// list of finalizers that are to be executed
 FinBlock*	runtime·finc;	// cache of free blocks
+static byte finptrmask[FinBlockSize/PtrSize/PointersPerByte];
 bool	runtime·fingwait;
 bool	runtime·fingwake;
 static FinBlock	*allfin;	// list of all blocks
@@ -190,10 +192,9 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 	cached = 0;
 	ncached = 0;
 
-	// ptrmask can have 3 possible values:
+	// ptrmask can have 2 possible values:
 	// 1. nil - obtain pointer mask from GC bitmap.
-	// 2. ScanConservatively - don't use any mask, scan conservatively.
-	// 3. pointer to a compact mask (for stacks and data).
+	// 2. pointer to a compact mask (for stacks and data).
 	if(b != nil)
 		goto scanobj;
 	for(;;) {
@@ -269,10 +270,8 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				bits = (bits>>2)&BitsMask;
 				if(bits == BitsDead)
 					break; // reached no-scan part of the object
-			} else if(ptrmask != ScanConservatively) // dense mask (stack or data)
+			} else // dense mask (stack or data)
 				bits = (ptrmask[(i/PtrSize)/4]>>(((i/PtrSize)%4)*BitsPerPointer))&BitsMask;
-			else
-				bits = BitsPointer;
 
 			if(bits == BitsScalar || bits == BitsDead)
 				continue;
@@ -436,7 +435,7 @@ markroot(ParFor *desc, uint32 i)
 
 	case RootFinalizers:
 		for(fb=allfin; fb; fb=fb->alllink)
-			scanblock((byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), ScanConservatively);
+			scanblock((byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), finptrmask);
 		break;
 
 	case RootSpans:
@@ -462,7 +461,7 @@ markroot(ParFor *desc, uint32 i)
 				// A finalizer can be set for an inner byte of an object, find object beginning.
 				p = (void*)((s->start << PageShift) + spf->special.offset/s->elemsize*s->elemsize);
 				scanblock(p, s->elemsize, nil);
-				scanblock((void*)&spf->fn, PtrSize, ScanConservatively);
+				scanblock((void*)&spf->fn, PtrSize, oneptr);
 			}
 		}
 		break;
@@ -739,11 +738,34 @@ runtime·gcphasework(G *gp)
 	gp->gcworkdone = true;
 }
 
+static byte finalizer1[] = {
+	// Each Finalizer is 5 words, ptr ptr uintptr ptr ptr.
+	// Each byte describes 4 words.
+	// Need 4 Finalizers described by 5 bytes before pattern repeats:
+	//	ptr ptr uintptr ptr ptr
+	//	ptr ptr uintptr ptr ptr
+	//	ptr ptr uintptr ptr ptr
+	//	ptr ptr uintptr ptr ptr
+	// aka
+	//	ptr ptr uintptr ptr
+	//	ptr ptr ptr uintptr
+	//	ptr ptr ptr ptr
+	//	uintptr ptr ptr ptr
+	//	ptr uintptr ptr ptr
+	// Assumptions about Finalizer layout checked below.
+	BitsPointer | BitsPointer<<2 | BitsScalar<<4 | BitsPointer<<6,
+	BitsPointer | BitsPointer<<2 | BitsPointer<<4 | BitsScalar<<6,
+	BitsPointer | BitsPointer<<2 | BitsPointer<<4 | BitsPointer<<6,
+	BitsScalar | BitsPointer<<2 | BitsPointer<<4 | BitsPointer<<6,
+	BitsPointer | BitsScalar<<2 | BitsPointer<<4 | BitsPointer<<6,
+};
+
 void
 runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot)
 {
 	FinBlock *block;
 	Finalizer *f;
+	int32 i;
 
 	runtime·lock(&runtime·finlock);
 	if(runtime·finq == nil || runtime·finq->cnt == runtime·finq->cap) {
@@ -752,6 +774,21 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType 
 			runtime·finc->cap = (FinBlockSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
 			runtime·finc->alllink = allfin;
 			allfin = runtime·finc;
+			if(finptrmask[0] == 0) {
+				// Build pointer mask for Finalizer array in block.
+				// Check assumptions made in finalizer1 array above.
+				if(sizeof(Finalizer) != 5*PtrSize ||
+					offsetof(Finalizer, fn) != 0 ||
+					offsetof(Finalizer, arg) != PtrSize ||
+					offsetof(Finalizer, nret) != 2*PtrSize ||
+					offsetof(Finalizer, fint) != 3*PtrSize ||
+					offsetof(Finalizer, ot) != 4*PtrSize ||
+					BitsPerPointer != 2) {
+					runtime·throw("finalizer out of sync");
+				}
+				for(i=0; i<nelem(finptrmask); i++)
+					finptrmask[i] = finalizer1[i%nelem(finalizer1)];
+			}
 		}
 		block = runtime·finc;
 		runtime·finc = block->next;
