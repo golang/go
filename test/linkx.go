@@ -1,4 +1,4 @@
-// $G $D/$F.go && $L -X main.tbd hello $F.$A && ./$A.out
+// $G $D/$F.go && $L -X main.tbd hello -X main.overwrite trumped $F.$A && ./$A.out
 
 // NOTE: This test is not run by 'run.go' and so not run by all.bash.
 // To run this test you must use the ./run shell script.
@@ -12,9 +12,13 @@
 package main
 
 var tbd string
+var overwrite string = "dibs"
 
 func main() {
 	if tbd != "hello" {
-		println("BUG: test/linkx", len(tbd), tbd)
+		println("BUG: test/linkx tbd", len(tbd), tbd)
+	}
+	if overwrite != "trumped" {
+		println("BUG: test/linkx overwrite", len(overwrite), overwrite)
 	}
 }
