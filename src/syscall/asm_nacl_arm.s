@@ -17,7 +17,6 @@
 	MOVW $(0x10000 + ((code)<<5)), R8; B (R8)
 
 TEXT syscall·Syscall(SB),NOSPLIT,$0-28
-	GO_ARGS
 	BL	runtime·entersyscall(SB)
 	MOVW	trap+0(FP), R8
 	MOVW	a1+4(FP), R0

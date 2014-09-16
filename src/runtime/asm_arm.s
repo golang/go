@@ -480,15 +480,13 @@ TEXT gosave<>(SB),NOSPLIT,$0
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.c for more details.
-TEXT	runtime·asmcgocall(SB),NOSPLIT,$0-8
-	GO_ARGS
+TEXT	·asmcgocall(SB),NOSPLIT,$0-8
 	MOVW	fn+0(FP), R1
 	MOVW	arg+4(FP), R0
 	BL	asmcgocall<>(SB)
 	RET
 
-TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
-	GO_ARGS
+TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-12
 	MOVW	fn+0(FP), R1
 	MOVW	arg+4(FP), R0
 	BL	asmcgocall<>(SB)
@@ -551,8 +549,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
 
 // cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT	runtime·cgocallback_gofunc(SB),NOSPLIT,$8-12
-	GO_ARGS
+TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
 	NO_LOCAL_POINTERS
 	
 	// Load m and g from thread-local storage.

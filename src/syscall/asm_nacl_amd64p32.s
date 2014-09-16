@@ -17,7 +17,6 @@
 	MOVL $(0x10000 + ((code)<<5)), AX; JMP AX
 
 TEXT syscall·Syscall(SB),NOSPLIT,$0-28
-	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVL	trap+0(FP), AX
 	MOVL	a1+4(FP), DI

@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -190,7 +191,6 @@ func main() {
 		return
 	}
 	defer os.RemoveAll(dir)
-	ioutil.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\nfunc main()\n"), 0666)
 
 	tests = strings.Replace(tests, "\t", " ", -1)
 	tests = commentRE.ReplaceAllString(tests, "")
@@ -229,6 +229,9 @@ TestCases:
 		if lines == "" && !reject {
 			continue
 		}
+
+		var gobuf bytes.Buffer
+		fmt.Fprintf(&gobuf, "package main\n")
 
 		var buf bytes.Buffer
 		if goarch == "arm" {
@@ -277,11 +280,17 @@ TestCases:
 				body = callRE.ReplaceAllString(body, "CALL ·$1(SB);")
 				body = callindRE.ReplaceAllString(body, "CALL REGISTER;")
 
+				fmt.Fprintf(&gobuf, "func %s()\n", name)
 				fmt.Fprintf(&buf, "TEXT ·%s(SB)%s,$%d-0\n\t%s\n\tRET\n\n", name, nosplit, size, body)
 			}
 		}
 
-		ioutil.WriteFile(filepath.Join(dir, "asm.s"), buf.Bytes(), 0666)
+		if err := ioutil.WriteFile(filepath.Join(dir, "asm.s"), buf.Bytes(), 0666); err != nil {
+			log.Fatal(err)
+		}
+		if err := ioutil.WriteFile(filepath.Join(dir, "main.go"), gobuf.Bytes(), 0666); err != nil {
+			log.Fatal(err)
+		}
 
 		cmd := exec.Command("go", "build")
 		cmd.Dir = dir

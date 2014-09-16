@@ -19,7 +19,6 @@
 
 // Trap # in AX, args on stack above caller pc.
 TEXT	·Syscall(SB),NOSPLIT,$0-32
-	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -55,7 +54,6 @@ copyresult3:
 	RET
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-44
-	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
@@ -94,7 +92,6 @@ copyresult4:
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-28
-	GO_ARGS
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
@@ -110,7 +107,6 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
-	GO_ARGS
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
@@ -132,7 +128,6 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 
 //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
 TEXT ·seek(SB),NOSPLIT,$0-36
-	GO_ARGS
 	LEAL	newoffset+24(SP), AX
 	MOVL	AX, placeholder+4(SP)
 	
@@ -164,7 +159,6 @@ copyresult6:
 //func exit(code int)
 // Import runtime·exit for cleanly exiting.
 TEXT ·exit(SB),NOSPLIT,$4-4
-	GO_ARGS
 	NO_LOCAL_POINTERS
 	MOVL	code+0(FP), AX
 	MOVL	AX, 0(SP)

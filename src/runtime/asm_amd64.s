@@ -623,15 +623,13 @@ TEXT gosave<>(SB),NOSPLIT,$0
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.c for more details.
-TEXT runtime·asmcgocall(SB),NOSPLIT,$0-16
-	GO_ARGS
+TEXT ·asmcgocall(SB),NOSPLIT,$0-16
 	MOVQ	fn+0(FP), AX
 	MOVQ	arg+8(FP), BX
 	CALL	asmcgocall<>(SB)
 	RET
 
-TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-20
-	GO_ARGS
+TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-20
 	MOVQ	fn+0(FP), AX
 	MOVQ	arg+8(FP), BX
 	CALL	asmcgocall<>(SB)
@@ -700,8 +698,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT runtime·cgocallback_gofunc(SB),NOSPLIT,$8-24
-	GO_ARGS
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$8-24
 	NO_LOCAL_POINTERS
 
 	// If g is nil, Go did not create the current thread.
