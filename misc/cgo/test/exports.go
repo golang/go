@@ -5,8 +5,14 @@
 package cgotest
 
 import "C"
+import "runtime"
 
 //export ReturnIntLong
 func ReturnIntLong() (int, C.long) {
 	return 1, 2
+}
+
+//export gc
+func gc() {
+	runtime.GC()
 }

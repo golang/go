@@ -528,7 +528,6 @@ void*	runtime·cnewarray(Type*, intgo);
 void	runtime·tracealloc(void*, uintptr, Type*);
 void	runtime·tracefree(void*, uintptr);
 void	runtime·tracegc(void);
-extern Type*	runtime·conservative;
 
 int32	runtime·gcpercent;
 int32	runtime·readgogc(void);

@@ -39,3 +39,11 @@ func tickspersecond() int64 {
 func makeStringSlice(n int) []string {
 	return make([]string, n)
 }
+
+// TODO: Move to parfor.go when parfor.c becomes parfor.go.
+func parforalloc(nthrmax uint32) *parfor {
+	return &parfor{
+		thr:     &make([]parforthread, nthrmax)[0],
+		nthrmax: nthrmax,
+	}
+}
