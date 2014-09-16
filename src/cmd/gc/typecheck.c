@@ -408,7 +408,10 @@ reswitch:
 				v = toint(l->val);
 				break;
 			default:
-				yyerror("invalid array bound %N", l);
+				if(l->type != T && isint[l->type->etype] && l->op != OLITERAL)
+					yyerror("non-constant array bound %N", l);
+				else
+					yyerror("invalid array bound %N", l);
 				goto error;
 			}
 			t->bound = mpgetfix(v.u.xval);
