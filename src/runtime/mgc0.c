@@ -738,6 +738,7 @@ runtime·gcphasework(G *gp)
 	gp->gcworkdone = true;
 }
 
+#pragma dataflag NOPTR
 static byte finalizer1[] = {
 	// Each Finalizer is 5 words, ptr ptr uintptr ptr ptr.
 	// Each byte describes 4 words.
