@@ -26,7 +26,7 @@ func makechan(t *chantype, size int64) *hchan {
 	if hchanSize%maxAlign != 0 || elem.align > maxAlign {
 		gothrow("makechan: bad alignment")
 	}
-	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (maxMem-hchanSize)/uintptr(elem.size)) {
+	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (maxmem-hchanSize)/uintptr(elem.size)) {
 		panic("makechan: size out of range")
 	}
 

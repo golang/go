@@ -123,7 +123,7 @@ static FinBlock	*allfin;	// list of all blocks
 BitVector	runtime·gcdatamask;
 BitVector	runtime·gcbssmask;
 
-extern	Mutex	runtime·gclock;
+Mutex	runtime·gclock;
 
 static Workbuf* getempty(Workbuf*);
 static Workbuf* getfull(Workbuf*);

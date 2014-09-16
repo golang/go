@@ -102,9 +102,9 @@ uintptr runtime·sizeof_C_MStats = sizeof(MStats) - (NumSizeClasses - 61) * size
 
 #define MaxArena32 (2U<<30)
 
-// For use by Go.  It can't be a constant in Go, unfortunately,
-// because it depends on the OS.
-uintptr runtime·maxMem = MaxMem;
+// For use by Go. If it were a C enum it would be made available automatically,
+// but the value of MaxMem is too large for enum.
+uintptr runtime·maxmem = MaxMem;
 
 void
 runtime·mallocinit(void)

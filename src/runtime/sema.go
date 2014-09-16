@@ -35,7 +35,7 @@ const semTabSize = 251
 
 var semtable [semTabSize]struct {
 	root semaRoot
-	pad  [cacheLineSize - unsafe.Sizeof(semaRoot{})]byte
+	pad  [_CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
 }
 
 // Called from sync/net packages.

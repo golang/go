@@ -225,7 +225,7 @@ func rawbyteslice(size int) (b []byte) {
 
 // rawruneslice allocates a new rune slice. The rune slice is not zeroed.
 func rawruneslice(size int) (b []rune) {
-	if uintptr(size) > maxMem/4 {
+	if uintptr(size) > maxmem/4 {
 		gothrow("out of memory")
 	}
 	mem := goroundupsize(uintptr(size) * 4)
