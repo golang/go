@@ -23,6 +23,7 @@ enum
 	StackDebug = 0,
 	StackFromSystem = 0,	// allocate stacks from system memory instead of the heap
 	StackFaultOnFree = 0,	// old stacks are mapped noaccess to detect use after free
+	StackPoisonCopy = 0,	// fill stack that should not be accessed with garbage, to detect bad dereferences during copy
 
 	StackCache = 1,
 };
@@ -353,6 +354,24 @@ struct AdjustInfo {
 	uintptr delta;  // ptr distance from old to new stack (newbase - oldbase)
 };
 
+// Adjustpointer checks whether *vpp is in the old stack described by adjinfo.
+// If so, it rewrites *vpp to point into the new stack.
+static void
+adjustpointer(AdjustInfo *adjinfo, void *vpp)
+{
+	byte **pp, *p;
+	
+	pp = vpp;
+	p = *pp;
+	if(StackDebug >= 4)
+		runtime·printf("        %p:%p\n", pp, p);
+	if(adjinfo->old.lo <= (uintptr)p && (uintptr)p < adjinfo->old.hi) {
+		*pp = p + adjinfo->delta;
+		if(StackDebug >= 3)
+			runtime·printf("        adjust ptr %p: %p -> %p\n", pp, p, *pp);
+	}
+}
+
 // bv describes the memory starting at address scanp.
 // Adjust any pointers contained therein.
 static void
@@ -447,6 +466,11 @@ adjustframe(Stkframe *frame, void *arg)
 	uintptr targetpc;
 
 	adjinfo = arg;
+	targetpc = frame->continpc;
+	if(targetpc == 0) {
+		// Frame is dead.
+		return true;
+	}
 	f = frame->fn;
 	if(StackDebug >= 2)
 		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p continpc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc, frame->continpc);
@@ -454,11 +478,6 @@ adjustframe(Stkframe *frame, void *arg)
 		// A special routine at the bottom of stack of a goroutine that does an onM call.
 		// We will allow it to be copied even though we don't
 		// have full GC info for it (because it is written in asm).
-		return true;
-	}
-	targetpc = frame->continpc;
-	if(targetpc == 0) {
-		// Frame is dead.
 		return true;
 	}
 	if(targetpc != f->entry)
@@ -495,103 +514,53 @@ adjustframe(Stkframe *frame, void *arg)
 			runtime·printf("      args\n");
 		adjustpointers((byte**)frame->argp, &bv, adjinfo, nil);
 	}
+	
 	return true;
 }
 
 static void
 adjustctxt(G *gp, AdjustInfo *adjinfo)
 {
-	if(adjinfo->old.lo <= (uintptr)gp->sched.ctxt && (uintptr)gp->sched.ctxt < adjinfo->old.hi)
-		gp->sched.ctxt = (byte*)gp->sched.ctxt + adjinfo->delta;
+	adjustpointer(adjinfo, &gp->sched.ctxt);
 }
 
 static void
 adjustdefers(G *gp, AdjustInfo *adjinfo)
 {
-	Defer *d, **dp;
-	Func *f;
-	FuncVal *fn;
-	StackMap *stackmap;
-	BitVector bv;
+	Defer *d;
+	bool (*cb)(Stkframe*, void*);
 
-	for(dp = &gp->defer, d = *dp; d != nil; dp = &d->link, d = *dp) {
-		if(adjinfo->old.lo <= (uintptr)d && (uintptr)d < adjinfo->old.hi) {
-			// The Defer record is on the stack.  Its fields will
-			// get adjusted appropriately.
-			// This only happens for runtime.main and runtime.gopanic now,
-			// but a compiler optimization could do more of this.
-			// If such an optimization were introduced, Defer.argp should
-			// change to have pointer type so that it will be updated by
-			// the stack copying. Today both of those on-stack defers
-			// set argp = NoArgs, so no adjustment is necessary.
-			*dp = (Defer*)((byte*)d + adjinfo->delta);
-			continue;
-		}
-		if(d->argp == NoArgs)
-			continue;
-		if(d->argp < adjinfo->old.lo || adjinfo->old.hi <= d->argp) {
-			runtime·printf("runtime: adjustdefers argp=%p stk=%p %p\n", d->argp, adjinfo->old.lo, adjinfo->old.hi);
-			runtime·throw("adjustdefers: unexpected argp");
-		}
-		d->argp += adjinfo->delta;
-		fn = d->fn;
-		if(fn == nil) {
-			// Defer of nil function.  It will panic when run.  See issue 8047.
-			continue;
-		}
-		f = runtime·findfunc((uintptr)fn->fn);
-		if(f == nil)
-			runtime·throw("can't adjust unknown defer");
-		if(StackDebug >= 4)
-			runtime·printf("  checking defer %s\n", runtime·funcname(f));
-		// Defer's FuncVal might be on the stack
-		if(adjinfo->old.lo <= (uintptr)fn && (uintptr)fn < adjinfo->old.hi) {
-			if(StackDebug >= 3)
-				runtime·printf("    adjust defer fn %s\n", runtime·funcname(f));
-			d->fn = (FuncVal*)((byte*)fn + adjinfo->delta);
-		} else {
-			// deferred function's args might point into the stack.
-			if(StackDebug >= 3)
-				runtime·printf("    adjust deferred args for %s\n", runtime·funcname(f));
-			stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
-			if(stackmap == nil)
-				runtime·throw("runtime: deferred function has no arg ptr map");
-			bv = runtime·stackmapdata(stackmap, 0);
-			adjustpointers(d->args, &bv, adjinfo, f);
-		}
-		// The FuncVal may have pointers in it, but fortunately for us
-		// the compiler won't put pointers into the stack in a
-		// heap-allocated FuncVal.
-		// One day if we do need to check this, we can use the gc bits in the
-		// heap to do the right thing (although getting the size will be expensive).
+	// Adjust defer argument blocks the same way we adjust active stack frames.
+	cb = adjustframe;
+	runtime·tracebackdefers(gp, &cb, adjinfo);
+
+	// Adjust pointers in the Defer structs.
+	// Defer structs themselves are never on the stack.
+	for(d = gp->defer; d != nil; d = d->link) {
+		adjustpointer(adjinfo, &d->fn);
+		adjustpointer(adjinfo, &d->argp);
+		adjustpointer(adjinfo, &d->panic);
 	}
 }
 
 static void
 adjustpanics(G *gp, AdjustInfo *adjinfo)
 {
-	// Panic structs are all on the stack
-	// and are adjusted by stack copying.
-	// The only pointer we need to update is gp->panic, the head of the list.
-	if(adjinfo->old.lo <= (uintptr)gp->panic && (uintptr)gp->panic < adjinfo->old.hi)
-		gp->panic = (Panic*)((byte*)gp->panic + adjinfo->delta);
+	// Panics are on stack and already adjusted.
+	// Update pointer to head of list in G.
+	adjustpointer(adjinfo, &gp->panic);
 }
 
 static void
 adjustsudogs(G *gp, AdjustInfo *adjinfo)
 {
 	SudoG *s;
-	byte *e;
 
 	// the data elements pointed to by a SudoG structure
 	// might be in the stack.
 	for(s = gp->waiting; s != nil; s = s->waitlink) {
-		e = s->elem;
-		if(adjinfo->old.lo <= (uintptr)e && (uintptr)e < adjinfo->old.hi)
-			s->elem = e + adjinfo->delta;
-		e = (byte*)s->selectdone;
-		if(adjinfo->old.lo <= (uintptr)e && (uintptr)e < adjinfo->old.hi)
-			s->selectdone = (uint32*)(e + adjinfo->delta);
+		adjustpointer(adjinfo, &s->elem);
+		adjustpointer(adjinfo, &s->selectdone);
 	}
 }
 
@@ -604,6 +573,7 @@ copystack(G *gp, uintptr newsize)
 	AdjustInfo adjinfo;
 	uint32 oldstatus;
 	bool (*cb)(Stkframe*, void*);
+	byte *p, *ep;
 
 	if(gp->syscallsp != 0)
 		runtime·throw("stack growth not allowed in system call");
@@ -614,6 +584,12 @@ copystack(G *gp, uintptr newsize)
 
 	// allocate new stack
 	new = runtime·stackalloc(newsize);
+	if(StackPoisonCopy) {
+		p = (byte*)new.lo;
+		ep = (byte*)new.hi;
+		while(p < ep)
+			*p++ = 0xfd;
+	}
 
 	if(StackDebug >= 1)
 		runtime·printf("copystack gp=%p [%p %p %p]/%d -> [%p %p %p]/%d\n", gp, old.lo, old.hi-used, old.hi, (int32)(old.hi-old.lo), new.lo, new.hi-used, new.hi, (int32)newsize);
@@ -631,6 +607,12 @@ copystack(G *gp, uintptr newsize)
 	adjustsudogs(gp, &adjinfo);
 	
 	// copy the stack to the new location
+	if(StackPoisonCopy) {
+		p = (byte*)new.lo;
+		ep = (byte*)new.hi;
+		while(p < ep)
+			*p++ = 0xfb;
+	}
 	runtime·memmove((byte*)new.hi - used, (byte*)old.hi - used, used);
 
 	oldstatus = runtime·readgstatus(gp);
@@ -648,6 +630,12 @@ copystack(G *gp, uintptr newsize)
 	runtime·casgstatus(gp, Gcopystack, oldstatus); // oldstatus is Gwaiting or Grunnable
 
 	// free old stack
+	if(StackPoisonCopy) {
+		p = (byte*)old.lo;
+		ep = (byte*)old.hi;
+		while(p < ep)
+			*p++ = 0xfc;
+	}
 	runtime·stackfree(old);
 }
 

@@ -638,12 +638,12 @@ void    runtime·gcphasework(G*);
 struct Defer
 {
 	int32	siz;
-	bool	special;	// not part of defer frame
+	bool	started;
 	uintptr	argp;		// where args were copied from
 	uintptr	pc;
 	FuncVal*	fn;
+	Panic*	panic;	// panic that is running defer
 	Defer*	link;
-	void*	args[1];	// padded to actual size
 };
 
 // argp used in Defer structs when there is no argp.
@@ -657,7 +657,6 @@ struct Panic
 	void*	argp;	// pointer to arguments of deferred call run during panic; cannot move - known to liblink
 	Eface	arg;		// argument to panic
 	Panic*	link;		// link to earlier panic
-	Defer*	defer;		// current executing defer
 	bool	recovered;	// whether this panic is over
 	bool	aborted;	// the panic was aborted
 };

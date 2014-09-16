@@ -18,7 +18,8 @@ uint32 runtime·panicking;
 static Mutex paniclk;
 
 void
-runtime·deferproc_m(void) {
+runtime·deferproc_m(void)
+{
 	int32 siz;
 	FuncVal *fn;
 	uintptr argp;
@@ -35,7 +36,7 @@ runtime·deferproc_m(void) {
 	d->fn = fn;
 	d->pc = callerpc;
 	d->argp = argp;
-	runtime·memmove(d->args, (void*)argp, siz);
+	runtime·memmove(d+1, (void*)argp, siz);
 }
 
 // Unwind the stack after a deferred function calls recover

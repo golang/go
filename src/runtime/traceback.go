@@ -45,8 +45,36 @@ var (
 	externalthreadhandlerp uintptr // initialized elsewhere
 )
 
-// System-specific hook. See traceback_windows.go
-var systraceback func(*_func, *stkframe, *g, bool, func(*stkframe, unsafe.Pointer) bool, unsafe.Pointer) (changed, aborted bool)
+// Traceback over the deferred function calls.
+// Report them like calls that have been invoked but not started executing yet.
+func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer) {
+	var frame stkframe
+	for d := gp._defer; d != nil; d = d.link {
+		fn := d.fn
+		if fn == nil {
+			// Defer of nil function. Args don't matter.
+			frame.pc = 0
+			frame.fn = nil
+			frame.argp = 0
+			frame.arglen = 0
+			frame.argmap = nil
+		} else {
+			frame.pc = uintptr(fn.fn)
+			f := findfunc(frame.pc)
+			if f == nil {
+				print("runtime: unknown pc in defer ", hex(frame.pc), "\n")
+				gothrow("unknown pc")
+			}
+			frame.fn = f
+			frame.argp = uintptr(deferArgs(d))
+			setArgInfo(&frame, f, true)
+		}
+		frame.continpc = frame.pc
+		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
+			return
+		}
+	}
+}
 
 // Generic traceback.  Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
@@ -81,14 +109,10 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 	waspanic := false
 	wasnewproc := false
 	printing := pcbuf == nil && callback == nil
-	panic := gp._panic
 	_defer := gp._defer
 
 	for _defer != nil && uintptr(_defer.argp) == _NoArgs {
 		_defer = _defer.link
-	}
-	for panic != nil && panic._defer == nil {
-		panic = panic.link
 	}
 
 	// If the PC is zero, it's likely a nil function call.
@@ -187,25 +211,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 			if usesLR {
 				frame.argp += ptrSize
 			}
-			frame.arglen = uintptr(f.args)
-			if callback != nil && f.args == _ArgsSizeUnknown {
-				// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
-				switch gofuncname(f) {
-				case "reflect.makeFuncStub", "reflect.methodValueCall":
-					arg0 := frame.sp
-					if usesLR {
-						arg0 += ptrSize
-					}
-					fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
-					if fn[0] != f.entry {
-						print("runtime: confused by ", gofuncname(f), "\n")
-						gothrow("reflect mismatch")
-					}
-					bv := (*bitvector)(unsafe.Pointer(fn[1]))
-					frame.arglen = uintptr(bv.n / 2 * ptrSize)
-					frame.argmap = bv
-				}
-			}
+			setArgInfo(&frame, f, callback != nil)
 		}
 
 		// Determine function SP where deferproc would find its arguments.
@@ -246,19 +252,14 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		// returns; everything live at earlier deferprocs is still live at that one.
 		frame.continpc = frame.pc
 		if waspanic {
-			if panic != nil && panic._defer.argp == sparg {
-				frame.continpc = panic._defer.pc
-			} else if _defer != nil && _defer.argp == sparg {
+			if _defer != nil && _defer.argp == sparg {
 				frame.continpc = _defer.pc
 			} else {
 				frame.continpc = 0
 			}
 		}
 
-		// Unwind our local panic & defer stacks past this frame.
-		for panic != nil && (panic._defer == nil || panic._defer.argp == sparg || panic._defer.argp == _NoArgs) {
-			panic = panic.link
-		}
+		// Unwind our local defer stack past this frame.
 		for _defer != nil && (_defer.argp == sparg || _defer.argp == _NoArgs) {
 			_defer = _defer.link
 		}
@@ -403,23 +404,35 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		if _defer != nil {
 			print("runtime: g", gp.goid, ": leftover defer argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
 		}
-		if panic != nil {
-			print("runtime: g", gp.goid, ": leftover panic argp=", hex(panic._defer.argp), " pc=", hex(panic._defer.pc), "\n")
-		}
 		for _defer = gp._defer; _defer != nil; _defer = _defer.link {
 			print("\tdefer ", _defer, " argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
 		}
-		for panic = gp._panic; panic != nil; panic = panic.link {
-			print("\tpanic ", panic, " defer ", panic._defer)
-			if panic._defer != nil {
-				print(" argp=", hex(panic._defer.argp), " pc=", hex(panic._defer.pc))
-			}
-			print("\n")
-		}
-		gothrow("traceback has leftover defers or panics")
+		gothrow("traceback has leftover defers")
 	}
 
 	return n
+}
+
+func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
+	frame.arglen = uintptr(f.args)
+	if needArgMap && f.args == _ArgsSizeUnknown {
+		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
+		switch gofuncname(f) {
+		case "reflect.makeFuncStub", "reflect.methodValueCall":
+			arg0 := frame.sp
+			if usesLR {
+				arg0 += ptrSize
+			}
+			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
+			if fn[0] != f.entry {
+				print("runtime: confused by ", gofuncname(f), "\n")
+				gothrow("reflect mismatch")
+			}
+			bv := (*bitvector)(unsafe.Pointer(fn[1]))
+			frame.arglen = uintptr(bv.n / 2 * ptrSize)
+			frame.argmap = bv
+		}
+	}
 }
 
 func printcreatedby(gp *g) {

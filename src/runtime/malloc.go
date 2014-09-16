@@ -209,6 +209,16 @@ func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 		goto marked
 	}
 
+	// If allocating a defer+arg block, now that we've picked a malloc size
+	// large enough to hold everything, cut the "asked for" size down to
+	// just the defer header, so that the GC bitmap will record the arg block
+	// as containing nothing at all (as if it were unused space at the end of
+	// a malloc block caused by size rounding).
+	// The defer arg areas are scanned as part of scanstack.
+	if typ == deferType {
+		size0 = unsafe.Sizeof(_defer{})
+	}
+
 	// From here till marked label marking the object as allocated
 	// and storing type info in the GC bitmap.
 	{

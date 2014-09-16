@@ -39,6 +39,12 @@ func main() {
 	// to preserve the lock.
 	lockOSThread()
 
+	if g.m != &m0 {
+		gothrow("runtime.main not on m0")
+	}
+
+	runtime_init() // must be before defer
+
 	// Defer unlock so that runtime.Goexit during init does the unlock too.
 	needUnlock := true
 	defer func() {
@@ -47,11 +53,6 @@ func main() {
 		}
 	}()
 
-	if g.m != &m0 {
-		gothrow("runtime.main not on m0")
-	}
-
-	runtime_init()
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
 
 	main_init()
