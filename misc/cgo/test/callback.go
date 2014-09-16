@@ -9,6 +9,7 @@ void callback(void *f);
 void callGoFoo(void);
 void callGoStackCheck(void);
 void callPanic(void);
+void callCgoAllocate(void);
 */
 import "C"
 
@@ -205,6 +206,10 @@ func testPanicFromC(t *testing.T) {
 		}
 	}()
 	C.callPanic()
+}
+
+func testAllocateFromC(t *testing.T) {
+	C.callCgoAllocate() // crashes or exits on failure
 }
 
 func testCallbackStack(t *testing.T) {

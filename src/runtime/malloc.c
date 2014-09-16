@@ -21,10 +21,6 @@ MHeap runtime·mheap;
 #pragma dataflag NOPTR
 MStats runtime·memstats;
 
-Type* runtime·conservative;
-
-void runtime·gc_notype_ptr(Eface*);
-
 int32
 runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 {
@@ -115,7 +111,6 @@ runtime·mallocinit(void)
 	uintptr limit;
 	uint64 i;
 	bool reserved;
-	Eface notype_eface;
 
 	p = nil;
 	p_size = 0;
@@ -243,9 +238,6 @@ runtime·mallocinit(void)
 	// Initialize the rest of the allocator.	
 	runtime·MHeap_Init(&runtime·mheap);
 	g->m->mcache = runtime·allocmcache();
-
-	runtime·gc_notype_ptr(&notype_eface);
-	runtime·conservative = notype_eface.type;
 }
 
 void*
