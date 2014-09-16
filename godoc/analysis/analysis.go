@@ -340,7 +340,11 @@ func Run(pta bool, result *Result) {
 		SourceImports: true,
 		AllowErrors:   true,
 	}
-	conf.TypeChecker.Error = func(e error) {} // silence the default error handler
+
+	// Silence the default error handler.
+	// Don't print all errors; we'll report just
+	// one per errant package later.
+	conf.TypeChecker.Error = func(e error) {}
 
 	var roots, args []string // roots[i] ends with os.PathSeparator
 
@@ -365,6 +369,7 @@ func Run(pta bool, result *Result) {
 
 	if _, err := conf.FromArgs(args, true); err != nil {
 		// TODO(adonovan): degrade gracefully, not fail totally.
+		// (The crippling case is a parse error in an external test file.)
 		result.setStatusf("Analysis failed: %s.", err) // import error
 		return
 	}
@@ -372,6 +377,13 @@ func Run(pta bool, result *Result) {
 	result.setStatusf("Loading and type-checking packages...")
 	iprog, err := conf.Load()
 	if iprog != nil {
+		// Report only the first error of each package.
+		for _, info := range iprog.AllPackages {
+			for _, err := range info.Errors {
+				fmt.Fprintln(os.Stderr, err)
+				break
+			}
+		}
 		log.Printf("Loaded %d packages.", len(iprog.AllPackages))
 	}
 	if err != nil {
@@ -394,7 +406,7 @@ func Run(pta bool, result *Result) {
 			mainPkgs = append(mainPkgs, pkg)
 		}
 	}
-	log.Print("Main packages: ", mainPkgs)
+	log.Print("Transitively error-free main packages: ", mainPkgs)
 
 	// Build SSA code for bodies of all functions in the whole program.
 	result.setStatusf("Constructing SSA form...")
