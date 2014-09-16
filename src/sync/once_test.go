@@ -40,26 +40,20 @@ func TestOnce(t *testing.T) {
 }
 
 func TestOncePanic(t *testing.T) {
-	once := new(Once)
-	for i := 0; i < 2; i++ {
-		func() {
-			defer func() {
-				r := recover()
-				if r == nil && i == 0 {
-					t.Fatalf("Once.Do() has not panic'ed on first iteration")
-				}
-				if r != nil && i == 1 {
-					t.Fatalf("Once.Do() has panic'ed on second iteration")
-				}
-			}()
-			once.Do(func() {
-				panic("failed")
-			})
+	var once Once
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatalf("Once.Do did not panic")
+			}
 		}()
-	}
-	once.Do(func() {})
+		once.Do(func() {
+			panic("failed")
+		})
+	}()
+
 	once.Do(func() {
-		t.Fatalf("Once called twice")
+		t.Fatalf("Once.Do called twice")
 	})
 }
 
