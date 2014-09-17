@@ -806,8 +806,16 @@ runtime·shrinkstack(G *gp)
 {
 	uintptr used, oldsize, newsize;
 
-	if(runtime·readgstatus(gp) == Gdead)
+	if(runtime·readgstatus(gp) == Gdead) {
+		if(gp->stack.lo != 0) {
+			// Free whole stack - it will get reallocated
+			// if G is used again.
+			runtime·stackfree(gp->stack);
+			gp->stack.lo = 0;
+			gp->stack.hi = 0;
+		}
 		return;
+	}
 	if(gp->stack.lo == 0)
 		runtime·throw("missing stack in shrinkstack");
 
