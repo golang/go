@@ -278,6 +278,8 @@ struct MStats
 		uint64 nmalloc;
 		uint64 nfree;
 	} by_size[NumSizeClasses];
+	
+	uint64	tinyallocs;	// number of tiny allocations that didn't cause actual allocation; not exported to Go directly
 };
 
 #define mstats runtime·memstats
@@ -331,6 +333,7 @@ struct MCache
 	// See "Tiny allocator" comment in malloc.goc.
 	byte*	tiny;
 	uintptr	tinysize;
+	uintptr	local_tinyallocs;	// number of tiny allocs not counted in other stats
 	// The rest is not accessed on every malloc.
 	MSpan*	alloc[NumSizeClasses];	// spans to allocate from
 
