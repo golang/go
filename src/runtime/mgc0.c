@@ -1245,6 +1245,7 @@ runtime·updatememstats(GCStats *stats)
 		mstats.by_size[i].nmalloc += runtime·mheap.nsmallfree[i];
 		smallfree += runtime·mheap.nsmallfree[i] * runtime·class_to_size[i];
 	}
+	mstats.nfree += mstats.tinyallocs;
 	mstats.nmalloc += mstats.nfree;
 
 	// Calculate derived stats.
