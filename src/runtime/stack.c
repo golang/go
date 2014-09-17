@@ -463,7 +463,7 @@ adjustframe(Stkframe *frame, void *arg)
 	StackMap *stackmap;
 	int32 pcdata;
 	BitVector bv;
-	uintptr targetpc;
+	uintptr targetpc, size, minsize;
 
 	adjinfo = arg;
 	targetpc = frame->continpc;
@@ -486,27 +486,47 @@ adjustframe(Stkframe *frame, void *arg)
 	if(pcdata == -1)
 		pcdata = 0; // in prologue
 
-	// adjust local pointers
-	if((byte*)frame->varp != (byte*)frame->sp) {
+	// Adjust local variables if stack frame has been allocated.
+	size = frame->varp - frame->sp;
+	if(thechar != '6' && thechar != '8')
+		minsize = sizeof(uintptr);
+	else
+		minsize = 0;
+	if(size > minsize) {
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
-		if(stackmap == nil)
-			runtime·throw("no locals info");
-		if(stackmap->n <= 0)
-			runtime·throw("locals size info only");
+		if(stackmap == nil || stackmap->n <= 0) {
+			runtime·printf("runtime: frame %s untyped locals %p+%p\n", runtime·funcname(f), (byte*)(frame->varp-size), size);
+			runtime·throw("missing stackmap");
+		}
+		// Locals bitmap information, scan just the pointers in locals.
+		if(pcdata < 0 || pcdata >= stackmap->n) {
+			// don't know where we are
+			runtime·printf("runtime: pcdata is %d and %d locals stack map entries for %s (targetpc=%p)\n",
+				pcdata, stackmap->n, runtime·funcname(f), targetpc);
+			runtime·throw("bad symbol table");
+		}
 		bv = runtime·stackmapdata(stackmap, pcdata);
+		size = (bv.n * PtrSize) / BitsPerPointer;
 		if(StackDebug >= 3)
 			runtime·printf("      locals\n");
-		adjustpointers((byte**)frame->varp - bv.n / BitsPerPointer, &bv, adjinfo, f);
+		adjustpointers((byte**)(frame->varp - size), &bv, adjinfo, f);
 	}
-	// adjust inargs and outargs
-	if(frame->arglen != 0) {
+	
+	// Adjust arguments.
+	if(frame->arglen > 0) {
 		if(frame->argmap != nil) {
 			bv = *frame->argmap;
 		} else {
 			stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
-			if(stackmap == nil) {
-				runtime·printf("size %d\n", (int32)frame->arglen);
-				runtime·throw("no arg info");
+			if(stackmap == nil || stackmap->n <= 0) {
+				runtime·printf("runtime: frame %s untyped args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
+				runtime·throw("missing stackmap");
+			}
+			if(pcdata < 0 || pcdata >= stackmap->n) {
+				// don't know where we are
+				runtime·printf("runtime: pcdata is %d and %d args stack map entries for %s (targetpc=%p)\n",
+					pcdata, stackmap->n, runtime·funcname(f), targetpc);
+				runtime·throw("bad symbol table");
 			}
 			bv = runtime·stackmapdata(stackmap, pcdata);
 		}
