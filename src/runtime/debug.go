@@ -24,15 +24,29 @@ func UnlockOSThread()
 // The number of logical CPUs on the local machine can be queried with NumCPU.
 // This call will go away when the scheduler improves.
 func GOMAXPROCS(n int) int {
-	g := getg()
-	g.m.scalararg[0] = uintptr(n)
-	onM(gomaxprocs_m)
-	n = int(g.m.scalararg[0])
-	g.m.scalararg[0] = 0
-	return n
-}
+	if n > _MaxGomaxprocs {
+		n = _MaxGomaxprocs
+	}
+	lock(&sched.lock)
+	ret := int(gomaxprocs)
+	unlock(&sched.lock)
+	if n <= 0 || n == ret {
+		return ret
+	}
 
-func gomaxprocs_m() // proc.c
+	semacquire(&worldsema, false)
+	gp := getg()
+	gp.m.gcing = 1
+	onM(stoptheworld)
+
+	// newprocs will be processed by starttheworld
+	newprocs = int32(n)
+
+	gp.m.gcing = 0
+	semrelease(&worldsema)
+	onM(starttheworld)
+	return ret
+}
 
 // NumCPU returns the number of logical CPUs on the local machine.
 func NumCPU() int {

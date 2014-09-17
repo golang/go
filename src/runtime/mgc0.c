@@ -1451,32 +1451,14 @@ extern uintptr runtime·sizeof_C_MStats;
 
 static void readmemstats_m(void);
 
-#pragma textflag NOSPLIT
 void
-runtime·ReadMemStats(MStats *stats)
-{
-	void (*fn)(void);
-	
-	g->m->ptrarg[0] = stats;
-	fn = readmemstats_m;
-	runtime·onM(&fn);
-}
-
-static void
-readmemstats_m(void)
+runtime·readmemstats_m(void)
 {
 	MStats *stats;
 	
 	stats = g->m->ptrarg[0];
 	g->m->ptrarg[0] = nil;
 
-	// Have to acquire worldsema to stop the world,
-	// because stoptheworld can only be used by
-	// one goroutine at a time, and there might be
-	// a pending garbage collection already calling it.
-	runtime·semacquire(&runtime·worldsema, false);
-	g->m->gcing = 1;
-	runtime·stoptheworld();
 	runtime·updatememstats(nil);
 	// Size of the trailing by_size array differs between Go and C,
 	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
@@ -1486,12 +1468,6 @@ readmemstats_m(void)
 	stats->stacks_sys = stats->stacks_inuse;
 	stats->heap_inuse -= stats->stacks_inuse;
 	stats->heap_sys -= stats->stacks_inuse;
-	
-	g->m->gcing = 0;
-	g->m->locks++;
-	runtime·semrelease(&runtime·worldsema);
-	runtime·starttheworld();
-	g->m->locks--;
 }
 
 static void readgcstats_m(void);
