@@ -166,3 +166,9 @@ TEXT runtime·main_main(SB),NOSPLIT,$0-0
 
 TEXT runtime·timenow(SB), NOSPLIT, $0-0
 	JMP	time·now(SB)
+
+TEXT sync∕atomic·runtime_procPin(SB),NOSPLIT,$0-0
+	JMP     sync·runtime_procPin(SB)
+
+TEXT sync∕atomic·runtime_procUnpin(SB),NOSPLIT,$0-0
+	JMP     sync·runtime_procUnpin(SB)
