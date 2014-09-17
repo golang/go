@@ -60,6 +60,7 @@ typedef	struct	SudoG		SudoG;
 typedef	struct	Mutex		Mutex;
 typedef	struct	M		M;
 typedef	struct	P		P;
+typedef struct	SchedType	SchedType;
 typedef	struct	Note		Note;
 typedef	struct	Slice		Slice;
 typedef	struct	String		String;
@@ -433,6 +434,42 @@ enum {
 	MaxGomaxprocs = 1<<8,
 };
 
+struct	SchedType
+{
+	Mutex	lock;
+
+	uint64	goidgen;
+
+	M*	midle;	 // idle m's waiting for work
+	int32	nmidle;	 // number of idle m's waiting for work
+	int32	nmidlelocked; // number of locked m's waiting for work
+	int32	mcount;	 // number of m's that have been created
+	int32	maxmcount;	// maximum number of m's allowed (or die)
+
+	P*	pidle;  // idle P's
+	uint32	npidle;
+	uint32	nmspinning;
+
+	// Global runnable queue.
+	G*	runqhead;
+	G*	runqtail;
+	int32	runqsize;
+
+	// Global cache of dead G's.
+	Mutex	gflock;
+	G*	gfree;
+	int32	ngfree;
+
+	uint32	gcwaiting;	// gc is waiting to run
+	int32	stopwait;
+	Note	stopnote;
+	uint32	sysmonwait;
+	Note	sysmonnote;
+	uint64	lastpoll;
+
+	int32	profilehz;	// cpu profiling rate
+};
+
 // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
 // The low bit (LockExternal) is a boolean reporting whether any LockOSThread call is active.
 // External locks are not recursive; a second lock is silently ignored.
@@ -716,6 +753,8 @@ extern	DebugVars	runtime·debug;
 extern	uintptr	runtime·maxstacksize;
 extern	Note	runtime·signote;
 extern	ForceGCState	runtime·forcegc;
+extern	SchedType	runtime·sched;
+extern	int32		runtime·newprocs;
 
 /*
  * common functions and data

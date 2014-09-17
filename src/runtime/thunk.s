@@ -80,6 +80,9 @@ TEXT reflect·memmove(SB), NOSPLIT, $0-0
 TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
 	JMP	runtime·freeOSMemory(SB)
 
+TEXT runtime∕debug·WriteHeapDump(SB), NOSPLIT, $0-0
+	JMP	runtime·writeHeapDump(SB)
+
 TEXT net·runtime_pollServerInit(SB),NOSPLIT,$0-0
 	JMP	runtime·netpollServerInit(SB)
 

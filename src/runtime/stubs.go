@@ -119,6 +119,8 @@ func deferproc_m()
 func goexit_m()
 func startpanic_m()
 func dopanic_m()
+func readmemstats_m()
+func writeheapdump_m()
 
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s

@@ -69,4 +69,39 @@ func init() {
 }
 
 // ReadMemStats populates m with memory allocator statistics.
-func ReadMemStats(m *MemStats)
+func ReadMemStats(m *MemStats) {
+	// Have to acquire worldsema to stop the world,
+	// because stoptheworld can only be used by
+	// one goroutine at a time, and there might be
+	// a pending garbage collection already calling it.
+	semacquire(&worldsema, false)
+	gp := getg()
+	gp.m.gcing = 1
+	onM(stoptheworld)
+
+	gp.m.ptrarg[0] = noescape(unsafe.Pointer(m))
+	onM(readmemstats_m)
+
+	gp.m.gcing = 0
+	gp.m.locks++
+	semrelease(&worldsema)
+	onM(starttheworld)
+	gp.m.locks--
+}
+
+// Implementation of runtime/debug.WriteHeapDump
+func writeHeapDump(fd uintptr) {
+	semacquire(&worldsema, false)
+	gp := getg()
+	gp.m.gcing = 1
+	onM(stoptheworld)
+
+	gp.m.scalararg[0] = fd
+	onM(writeheapdump_m)
+
+	gp.m.gcing = 0
+	gp.m.locks++
+	semrelease(&worldsema)
+	onM(starttheworld)
+	gp.m.locks--
+}

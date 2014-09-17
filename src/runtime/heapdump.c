@@ -737,33 +737,16 @@ mdump(void)
 	flush();
 }
 
-static void writeheapdump_m(void);
-
-#pragma textflag NOSPLIT
 void
-runtime∕debug·WriteHeapDump(uintptr fd)
-{
-	void (*fn)(void);
-	
-	g->m->scalararg[0] = fd;
-	fn = writeheapdump_m;
-	runtime·onM(&fn);
-}
-
-static void
-writeheapdump_m(void)
+runtime·writeheapdump_m(void)
 {
 	uintptr fd;
 	
 	fd = g->m->scalararg[0];
 	g->m->scalararg[0] = 0;
 
-	// Stop the world.
 	runtime·casgstatus(g->m->curg, Grunning, Gwaiting);
 	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
-	runtime·semacquire(&runtime·worldsema, false);
-	g->m->gcing = 1;
-	runtime·stoptheworld();
 
 	// Update stats so we can dump them.
 	// As a side effect, flushes all the MCaches so the MSpan.freelist
@@ -784,13 +767,7 @@ writeheapdump_m(void)
 		tmpbufsize = 0;
 	}
 
-	// Start up the world again.
-	g->m->gcing = 0;
-	g->m->locks++;
-	runtime·semrelease(&runtime·worldsema);
-	runtime·starttheworld();
 	runtime·casgstatus(g->m->curg, Gwaiting, Grunning);
-	g->m->locks--;
 }
 
 // dumpint() the kind & offset of each field in an object.

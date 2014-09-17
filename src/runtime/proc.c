@@ -24,42 +24,6 @@
 //
 // Design doc at http://golang.org/s/go11sched.
 
-typedef struct Sched Sched;
-struct Sched {
-	Mutex	lock;
-
-	uint64	goidgen;
-
-	M*	midle;	 // idle m's waiting for work
-	int32	nmidle;	 // number of idle m's waiting for work
-	int32	nmidlelocked; // number of locked m's waiting for work
-	int32	mcount;	 // number of m's that have been created
-	int32	maxmcount;	// maximum number of m's allowed (or die)
-
-	P*	pidle;  // idle P's
-	uint32	npidle;
-	uint32	nmspinning;
-
-	// Global runnable queue.
-	G*	runqhead;
-	G*	runqtail;
-	int32	runqsize;
-
-	// Global cache of dead G's.
-	Mutex	gflock;
-	G*	gfree;
-	int32	ngfree;
-
-	uint32	gcwaiting;	// gc is waiting to run
-	int32	stopwait;
-	Note	stopnote;
-	uint32	sysmonwait;
-	Note	sysmonnote;
-	uint64	lastpoll;
-
-	int32	profilehz;	// cpu profiling rate
-};
-
 enum
 {
 	// Number of goroutine ids to grab from runtime·sched.goidgen to local per-P cache at once.
@@ -67,7 +31,7 @@ enum
 	GoidCacheBatch = 16,
 };
 
-Sched	runtime·sched;
+SchedType	runtime·sched;
 int32	runtime·gomaxprocs;
 uint32	runtime·needextram;
 bool	runtime·iscgo;
@@ -79,7 +43,7 @@ M*	runtime·extram;
 P*	runtime·allp[MaxGomaxprocs+1];
 int8*	runtime·goos;
 int32	runtime·ncpu;
-static int32	newprocs;
+int32	runtime·newprocs;
 
 Mutex runtime·allglock;	// the following vars are protected by this lock or by stoptheworld
 G**	runtime·allg;
@@ -763,9 +727,9 @@ runtime·starttheworld(void)
 	injectglist(gp);
 	add = needaddgcproc();
 	runtime·lock(&runtime·sched.lock);
-	if(newprocs) {
-		procresize(newprocs);
-		newprocs = 0;
+	if(runtime·newprocs) {
+		procresize(runtime·newprocs);
+		runtime·newprocs = 0;
 	} else
 		procresize(runtime·gomaxprocs);
 	runtime·sched.gcwaiting = 0;
@@ -2362,39 +2326,6 @@ void
 runtime·Breakpoint(void)
 {
 	runtime·breakpoint();
-}
-
-// Implementation of runtime.GOMAXPROCS.
-// delete when scheduler is even stronger
-void
-runtime·gomaxprocs_m(void)
-{
-	int32 n, ret;
-	
-	n = g->m->scalararg[0];
-	g->m->scalararg[0] = 0;
-
-	if(n > MaxGomaxprocs)
-		n = MaxGomaxprocs;
-	runtime·lock(&runtime·sched.lock);
-	ret = runtime·gomaxprocs;
-	if(n <= 0 || n == ret) {
-		runtime·unlock(&runtime·sched.lock);
-		g->m->scalararg[0] = ret;
-		return;
-	}
-	runtime·unlock(&runtime·sched.lock);
-
-	runtime·semacquire(&runtime·worldsema, false);
-	g->m->gcing = 1;
-	runtime·stoptheworld();
-	newprocs = n;
-	g->m->gcing = 0;
-	runtime·semrelease(&runtime·worldsema);
-	runtime·starttheworld();
-
-	g->m->scalararg[0] = ret;
-	return;
 }
 
 // lockOSThread is called by runtime.LockOSThread and runtime.lockOSThread below
