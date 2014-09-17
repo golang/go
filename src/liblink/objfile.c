@@ -268,7 +268,12 @@ writeobj(Link *ctxt, Biobuf *b)
 			p->as = ctxt->arch->AFUNCDATA;
 			p->from.type = ctxt->arch->D_CONST;
 			p->from.offset = FUNCDATA_ArgsPointerMaps;
-			p->to.type = ctxt->arch->D_EXTERN;
+			if(ctxt->arch->thechar == '6' || ctxt->arch->thechar == '8')
+				p->to.type = ctxt->arch->D_EXTERN;
+			else {
+				p->to.type = ctxt->arch->D_OREG;
+				p->to.name = ctxt->arch->D_EXTERN;
+			}
 			p->to.sym = linklookup(ctxt, smprint("%s.args_stackmap", s->name), s->version);
 		}
 	}

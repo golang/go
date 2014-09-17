@@ -44,3 +44,9 @@ func swapUint64(addr *uint64, new uint64) (old uint64) {
 	}
 	return
 }
+
+// Additional ARM-specific assembly routines.
+// Declaration here to give assembly routines correct stack maps for arguments.
+func armCompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool)
+func armCompareAndSwapUint64(addr *uint64, old, new uint64) (swapped bool)
+func generalCAS64(addr *uint64, old, new uint64) (swapped bool)
