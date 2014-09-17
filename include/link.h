@@ -471,6 +471,7 @@ struct LinkArch
 	int	D_PARAM;
 	int	D_SCONST;
 	int	D_STATIC;
+	int	D_OREG;
 
 	int	ACALL;
 	int	ADATA;

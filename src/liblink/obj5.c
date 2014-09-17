@@ -1061,6 +1061,7 @@ LinkArch linkarm = {
 	.D_PARAM = D_PARAM,
 	.D_SCONST = D_SCONST,
 	.D_STATIC = D_STATIC,
+	.D_OREG = D_OREG,
 
 	.ACALL = ABL,
 	.ADATA = ADATA,
