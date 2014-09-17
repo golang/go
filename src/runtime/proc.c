@@ -2162,11 +2162,11 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	siz = narg + nret;
 	siz = (siz+7) & ~7;
 
-	// We could instead create a secondary stack frame
-	// and make it look like goexit was on the original but
-	// the call to the actual goroutine function was split.
+	// We could allocate a larger initial stack if necessary.
 	// Not worth it: this is almost always an error.
-	if(siz > StackMin - 1024)
+	// 4*sizeof(uintreg): extra space added below
+	// sizeof(uintreg): caller's LR (arm) or return address (x86, in gostartcall).
+	if(siz >= StackMin - 4*sizeof(uintreg) - sizeof(uintreg))
 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
 
 	p = g->m->p;
