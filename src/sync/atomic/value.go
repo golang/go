@@ -35,9 +35,6 @@ func (v *Value) Load() (x interface{}) {
 	xp := (*ifaceWords)(unsafe.Pointer(&x))
 	xp.typ = typ
 	xp.data = data
-	if raceenabled {
-		raceAcquire(unsafe.Pointer(v))
-	}
 	return
 }
 
@@ -47,9 +44,6 @@ func (v *Value) Load() (x interface{}) {
 func (v *Value) Store(x interface{}) {
 	if x == nil {
 		panic("sync/atomic: store of nil value into Value")
-	}
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(v))
 	}
 	vp := (*ifaceWords)(unsafe.Pointer(v))
 	xp := (*ifaceWords)(unsafe.Pointer(&x))
