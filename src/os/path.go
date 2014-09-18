@@ -66,7 +66,7 @@ func MkdirAll(path string, perm FileMode) error {
 func RemoveAll(path string) error {
 	// Simple case: if Remove works, we're done.
 	err := Remove(path)
-	if err == nil {
+	if err == nil || IsNotExist(err) {
 		return nil
 	}
 
@@ -116,6 +116,9 @@ func RemoveAll(path string) error {
 
 	// Remove directory.
 	err1 := Remove(path)
+	if err1 == nil || IsNotExist(err1) {
+		return nil
+	}
 	if err == nil {
 		err = err1
 	}
