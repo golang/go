@@ -1,0 +1,46 @@
+// Package blank is a go/doc test for the handling of _. See issue ...
+PACKAGE blank
+
+IMPORTPATH
+	testdata/blank
+
+FILENAMES
+	testdata/blank.go
+
+CONSTANTS
+	// Package constants. 
+	const (
+		_	int	= iota
+		I1
+		I2
+	)
+
+
+VARIABLES
+	// 
+	var _ = T(55)
+
+
+FUNCTIONS
+	// 
+	func _()
+
+
+TYPES
+	// S has a padding field. 
+	type S struct {
+		H	uint32
+		_	uint8
+		A	uint8
+	}
+
+	// 
+	type T int
+
+	// T constants. 
+	const (
+		_	T	= iota
+		T1
+		T2
+	)
+
