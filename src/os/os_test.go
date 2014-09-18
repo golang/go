@@ -18,6 +18,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"text/template"
@@ -1402,4 +1403,45 @@ func TestNilFileMethods(t *testing.T) {
 			t.Errorf("%v should fail when f is nil; got %v", tt.name, got)
 		}
 	}
+}
+
+func mkdirTree(t *testing.T, root string, level, max int) {
+	if level >= max {
+		return
+	}
+	level++
+	for i := 'a'; i < 'c'; i++ {
+		dir := filepath.Join(root, string(i))
+		if err := Mkdir(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+		mkdirTree(t, dir, level, max)
+	}
+}
+
+// Test that simultaneous RemoveAll do not report an error.
+// As long as it gets removed, we should be happy.
+func TestRemoveAllRace(t *testing.T) {
+	n := runtime.GOMAXPROCS(16)
+	defer runtime.GOMAXPROCS(n)
+	root, err := ioutil.TempDir("", "issue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mkdirTree(t, root, 1, 6)
+	hold := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-hold
+			err := RemoveAll(root)
+			if err != nil {
+				t.Errorf("unexpected error: %T, %q", err, err)
+			}
+		}()
+	}
+	close(hold) // let workers race to remove root
+	wg.Wait()
 }
