@@ -339,6 +339,8 @@ func numTCP() (ntcp, nopen, nclose int, err error) {
 }
 
 func TestDialMultiFDLeak(t *testing.T) {
+	t.Skip("flaky test - golang.org/issue/8764")
+
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("neither ipv4 nor ipv6 is supported")
 	}
