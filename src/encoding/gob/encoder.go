@@ -88,9 +88,7 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
 	if _, alreadySent := enc.sent[actual]; alreadySent {
 		return false
 	}
-	typeLock.Lock()
 	info, err := getTypeInfo(ut)
-	typeLock.Unlock()
 	if err != nil {
 		enc.setError(err)
 		return
@@ -191,9 +189,7 @@ func (enc *Encoder) sendTypeDescriptor(w io.Writer, state *encoderState, ut *use
 		// a singleton basic type (int, []byte etc.) at top level.  We don't
 		// need to send the type info but we do need to update enc.sent.
 		if !sent {
-			typeLock.Lock()
 			info, err := getTypeInfo(ut)
-			typeLock.Unlock()
 			if err != nil {
 				enc.setError(err)
 				return
