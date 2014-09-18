@@ -59,6 +59,20 @@ func TestBuild(t *testing.T) {
 		}
 	}
 
+	// Test strongly-connected components.  Because A's external
+	// test package can depend on B, and vice versa, most of the
+	// standard libraries are mutually dependent when their external
+	// tests are considered.
+	//
+	// For any nodes x, y in the same SCC, y appears in the results
+	// of both forward and reverse searches starting from x
+	if !forward.Search("fmt")["io"] ||
+		!forward.Search("io")["fmt"] ||
+		!reverse.Search("fmt")["io"] ||
+		!reverse.Search("io")["fmt"] {
+		t.Errorf("fmt and io are not mutually reachable despite being in the same SCC")
+	}
+
 	// debugging
 	if false {
 		for path, err := range errors {
@@ -76,6 +90,6 @@ func TestBuild(t *testing.T) {
 			}
 		}
 		printSorted("forward", forward, this)
-		printSorted("forward", reverse, this)
+		printSorted("reverse", reverse, this)
 	}
 }
