@@ -11,6 +11,7 @@ import (
 	"os"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 )
@@ -681,29 +682,51 @@ func (w *wireType) string() string {
 
 type typeInfo struct {
 	id      typeId
-	encoder *encEngine
+	encInit sync.Mutex   // protects creation of encoder
+	encoder atomic.Value // *encEngine
 	wire    *wireType
 }
 
-var typeInfoMap = make(map[reflect.Type]*typeInfo) // protected by typeLock
+// typeInfoMap is an atomic pointer to map[reflect.Type]*typeInfo.
+// It's updated copy-on-write. Readers just do an atomic load
+// to get the current version of the map. Writers make a full copy of
+// the map and atomically update the pointer to point to the new map.
+// Under heavy read contention, this is significantly faster than a map
+// protected by a mutex.
+var typeInfoMap atomic.Value
 
-// typeLock must be held.
+func lookupTypeInfo(rt reflect.Type) *typeInfo {
+	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
+	return m[rt]
+}
+
 func getTypeInfo(ut *userTypeInfo) (*typeInfo, error) {
 	rt := ut.base
 	if ut.externalEnc != 0 {
 		// We want the user type, not the base type.
 		rt = ut.user
 	}
-	info, ok := typeInfoMap[rt]
-	if ok {
+	if info := lookupTypeInfo(rt); info != nil {
 		return info, nil
 	}
-	info = new(typeInfo)
+	return buildTypeInfo(ut, rt)
+}
+
+// buildTypeInfo constructs the type information for the type
+// and stores it in the type info map.
+func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
+	typeLock.Lock()
+	defer typeLock.Unlock()
+
+	if info := lookupTypeInfo(rt); info != nil {
+		return info, nil
+	}
+
 	gt, err := getBaseType(rt.Name(), rt)
 	if err != nil {
 		return nil, err
 	}
-	info.id = gt.id()
+	info := &typeInfo{id: gt.id()}
 
 	if ut.externalEnc != 0 {
 		userType, err := getType(rt.Name(), ut, rt)
@@ -719,25 +742,32 @@ func getTypeInfo(ut *userTypeInfo) (*typeInfo, error) {
 		case xText:
 			info.wire = &wireType{TextMarshalerT: gt}
 		}
-		typeInfoMap[ut.user] = info
-		return info, nil
+		rt = ut.user
+	} else {
+		t := info.id.gobType()
+		switch typ := rt; typ.Kind() {
+		case reflect.Array:
+			info.wire = &wireType{ArrayT: t.(*arrayType)}
+		case reflect.Map:
+			info.wire = &wireType{MapT: t.(*mapType)}
+		case reflect.Slice:
+			// []byte == []uint8 is a special case handled separately
+			if typ.Elem().Kind() != reflect.Uint8 {
+				info.wire = &wireType{SliceT: t.(*sliceType)}
+			}
+		case reflect.Struct:
+			info.wire = &wireType{StructT: t.(*structType)}
+		}
 	}
 
-	t := info.id.gobType()
-	switch typ := rt; typ.Kind() {
-	case reflect.Array:
-		info.wire = &wireType{ArrayT: t.(*arrayType)}
-	case reflect.Map:
-		info.wire = &wireType{MapT: t.(*mapType)}
-	case reflect.Slice:
-		// []byte == []uint8 is a special case handled separately
-		if typ.Elem().Kind() != reflect.Uint8 {
-			info.wire = &wireType{SliceT: t.(*sliceType)}
-		}
-	case reflect.Struct:
-		info.wire = &wireType{StructT: t.(*structType)}
+	// Create new map with old contents plus new entry.
+	newm := make(map[reflect.Type]*typeInfo)
+	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
+	for k, v := range m {
+		newm[k] = v
 	}
-	typeInfoMap[rt] = info
+	newm[rt] = info
+	typeInfoMap.Store(newm)
 	return info, nil
 }
 
