@@ -864,9 +864,9 @@ var mallocTest = []struct {
 }{
 	{0, `Sprintf("")`, func() { Sprintf("") }},
 	{1, `Sprintf("xxx")`, func() { Sprintf("xxx") }},
-	{1, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
+	{2, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
 	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
-	{1, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
+	{3, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
 	{2, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }}, // TODO: Can this be 1?
 	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
