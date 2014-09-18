@@ -1401,11 +1401,13 @@ gc(struct gc_args *args)
 		stats.nsleep += work.markfor->nsleep;
 
 		runtime·printf("gc%d(%d): %D+%D+%D+%D us, %D -> %D MB, %D (%D-%D) objects,"
+				" %d goroutines,"
 				" %d/%d/%d sweeps,"
 				" %D(%D) handoff, %D(%D) steal, %D/%D/%D yields\n",
 			mstats.numgc, work.nproc, (t1-t0)/1000, (t2-t1)/1000, (t3-t2)/1000, (t4-t3)/1000,
 			heap0>>20, heap1>>20, obj,
 			mstats.nmalloc, mstats.nfree,
+			runtime·gcount(),
 			work.nspan, runtime·sweep.nbgsweep, runtime·sweep.npausesweep,
 			stats.nhandoff, stats.nhandoffcnt,
 			work.markfor->nsteal, work.markfor->nstealcnt,
