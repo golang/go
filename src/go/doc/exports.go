@@ -12,7 +12,8 @@ import (
 )
 
 // filterIdentList removes unexported names from list in place
-// and returns the resulting list.
+// and returns the resulting list. If blankOk is set, blank
+// identifiers are considered exported names.
 //
 func filterIdentList(list []*ast.Ident, blankOk bool) []*ast.Ident {
 	j := 0
@@ -145,6 +146,8 @@ func (r *reader) filterSpec(spec ast.Spec, tok token.Token) bool {
 		// always keep imports so we can collect them
 		return true
 	case *ast.ValueSpec:
+		// special case: consider blank constants as exported
+		// (work-around for issue 5397)
 		s.Names = filterIdentList(s.Names, tok == token.CONST)
 		if len(s.Names) > 0 {
 			r.filterType(nil, s.Type)
