@@ -465,6 +465,11 @@ func TestDialer(t *testing.T) {
 }
 
 func TestDialDualStackLocalhost(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
 	if ips, err := LookupIP("localhost"); err != nil {
 		t.Fatalf("LookupIP failed: %v", err)
 	} else if len(ips) < 2 || !supportsIPv4 || !supportsIPv6 {

@@ -383,8 +383,9 @@ func TestExtraFilesFDShuffle(t *testing.T) {
 }
 
 func TestExtraFiles(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("no operating system support; skipping")
+	switch runtime.GOOS {
+	case "nacl", "windows":
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	// Ensure that file descriptors have not already been leaked into

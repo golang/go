@@ -5,6 +5,7 @@
 package net
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -43,6 +44,11 @@ var porttests = []portTest{
 }
 
 func TestLookupPort(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
 	for i := 0; i < len(porttests); i++ {
 		tt := porttests[i]
 		if port, err := LookupPort(tt.netw, tt.name); port != tt.port || (err == nil) != tt.ok {
