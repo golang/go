@@ -287,18 +287,18 @@ runtime·parsedebugvars(void)
 	intgo i, n;
 
 	p = runtime·getenv("GODEBUG");
-	if(p == nil)
-		return;
-	for(;;) {
-		for(i=0; i<nelem(dbgvar); i++) {
-			n = runtime·findnull((byte*)dbgvar[i].name);
-			if(runtime·mcmp(p, (byte*)dbgvar[i].name, n) == 0 && p[n] == '=')
-				*dbgvar[i].value = runtime·atoi(p+n+1);
+	if(p != nil){
+		for(;;) {
+			for(i=0; i<nelem(dbgvar); i++) {
+				n = runtime·findnull((byte*)dbgvar[i].name);
+				if(runtime·mcmp(p, (byte*)dbgvar[i].name, n) == 0 && p[n] == '=')
+					*dbgvar[i].value = runtime·atoi(p+n+1);
+			}
+			p = runtime·strstr(p, (byte*)",");
+			if(p == nil)
+				break;
+			p++;
 		}
-		p = runtime·strstr(p, (byte*)",");
-		if(p == nil)
-			break;
-		p++;
 	}
 
 	p = runtime·getenv("GOTRACEBACK");
