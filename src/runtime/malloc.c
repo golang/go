@@ -335,7 +335,7 @@ static void*
 cnew(Type *typ, intgo n)
 {
 	if(n < 0 || (typ->size > 0 && n > MaxMem/typ->size))
-		runtime·panicstring("runtime: allocation size out of range");
+		runtime·throw("runtime: allocation size out of range");
 	return runtime·mallocgc(typ->size*n, typ, typ->kind&KindNoPointers ? FlagNoScan : 0);
 }
 

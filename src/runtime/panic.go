@@ -281,6 +281,35 @@ func gopanic(e interface{}) {
 	if gp.m.curg != gp {
 		gothrow("panic on m stack")
 	}
+
+	// m.softfloat is set during software floating point.
+	// It increments m.locks to avoid preemption.
+	// We moved the memory loads out, so there shouldn't be
+	// any reason for it to panic anymore.
+	if gp.m.softfloat != 0 {
+		gp.m.locks--
+		gp.m.softfloat = 0
+		gothrow("panic during softfloat")
+	}
+	if gp.m.mallocing != 0 {
+		print("panic: ")
+		printany(e)
+		print("\n")
+		gothrow("panic during malloc")
+	}
+	if gp.m.gcing != 0 {
+		print("panic: ")
+		printany(e)
+		print("\n")
+		gothrow("panic during gc")
+	}
+	if gp.m.locks != 0 {
+		print("panic: ")
+		printany(e)
+		print("\n")
+		gothrow("panic holding locks")
+	}
+
 	var p _panic
 	p.arg = e
 	p.link = gp._panic
@@ -430,34 +459,4 @@ func gothrow(s string) {
 	print("fatal error: ", s, "\n")
 	dopanic(0)
 	*(*int)(nil) = 0 // not reached
-}
-
-func panicstring(s *int8) {
-	// m.softfloat is set during software floating point,
-	// which might cause a fault during a memory load.
-	// It increments m.locks to avoid preemption.
-	// If we're panicking, the software floating point frames
-	// will be unwound, so decrement m.locks as they would.
-	gp := getg()
-	if gp.m.softfloat != 0 {
-		gp.m.locks--
-		gp.m.softfloat = 0
-	}
-
-	if gp.m.mallocing != 0 {
-		print("panic: ", s, "\n")
-		gothrow("panic during malloc")
-	}
-	if gp.m.gcing != 0 {
-		print("panic: ", s, "\n")
-		gothrow("panic during gc")
-	}
-	if gp.m.locks != 0 {
-		print("panic: ", s, "\n")
-		gothrow("panic holding locks")
-	}
-
-	var err interface{}
-	newErrorCString(unsafe.Pointer(s), &err)
-	gopanic(err)
 }
