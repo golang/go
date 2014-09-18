@@ -804,7 +804,6 @@ void	runtime·goenvs(void);
 void	runtime·goenvs_unix(void);
 void*	runtime·getu(void);
 void	runtime·throw(int8*);
-void	runtime·panicstring(int8*);
 bool	runtime·canpanic(G*);
 void	runtime·prints(int8*);
 void	runtime·printf(int8*, ...);
@@ -1063,8 +1062,6 @@ void	runtime·panicdivide(void);
  */
 void	runtime·printany(Eface);
 void	runtime·newTypeAssertionError(String*, String*, String*, String*, Eface*);
-void	runtime·newErrorString(String, Eface*);
-void	runtime·newErrorCString(int8*, Eface*);
 void	runtime·fadd64c(uint64, uint64, uint64*);
 void	runtime·fsub64c(uint64, uint64, uint64*);
 void	runtime·fmul64c(uint64, uint64, uint64*);

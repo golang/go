@@ -123,7 +123,6 @@ runtime·schedinit(void)
 {
 	int32 n, procs;
 	byte *p;
-	Eface i;
 
 	// raceinit must be the first call to race detector.
 	// In particular, it must be done before mallocinit below calls racemapshadow.
@@ -136,12 +135,6 @@ runtime·schedinit(void)
 	runtime·stackinit();
 	runtime·mallocinit();
 	mcommoninit(g->m);
-	
-	// Initialize the itable value for newErrorCString,
-	// so that the next time it gets called, possibly
-	// in a fault during a garbage collection, it will not
-	// need to allocated memory.
-	runtime·newErrorCString(0, &i);
 	
 	runtime·goargs();
 	runtime·goenvs();
