@@ -2136,6 +2136,24 @@ func TestTransportDialTLS(t *testing.T) {
 	}
 }
 
+// Test for issue 8755
+// Ensure that if a proxy returns an error, it is exposed by RoundTrip
+func TestRoundTripReturnsProxyError(t *testing.T) {
+	badProxy := func(*http.Request) (*url.URL, error) {
+		return nil, errors.New("errorMessage")
+	}
+
+	tr := &Transport{Proxy: badProxy}
+
+	req, _ := http.NewRequest("GET", "http://example.com", nil)
+
+	_, err := tr.RoundTrip(req)
+
+	if err == nil {
+		t.Error("Expected proxy error to be returned by RoundTrip")
+	}
+}
+
 func wantBody(res *http.Response, err error, want string) error {
 	if err != nil {
 		return err
