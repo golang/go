@@ -3923,3 +3923,19 @@ func useStack(n int) {
 	var b [1024]byte // makes frame about 1KB
 	useStack(n - 1 + int(b[99]))
 }
+
+type Impl struct{}
+
+func (Impl) f() {}
+
+func TestValueString(t *testing.T) {
+	rv := ValueOf(Impl{})
+	if rv.String() != "<reflect_test.Impl Value>" {
+		t.Errorf("ValueOf(Impl{}).String() = %q, want %q", rv.String(), "<reflect_test.Impl Value>")
+	}
+
+	method := rv.Method(0)
+	if method.String() != "<func() Value>" {
+		t.Errorf("ValueOf(Impl{}).Method(0).String() = %q, want %q", method.String(), "<func() Value>")
+	}
+}
