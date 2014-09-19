@@ -42,6 +42,12 @@ var (
 // and then return.  Returning signals that the request is finished
 // and that the HTTP server can move on to the next request on
 // the connection.
+//
+// If ServeHTTP panics, the server (the caller of ServeHTTP) assumes
+// that the effect of the panic was isolated to the active request.
+// It recovers the panic, logs a stack trace to the server error log,
+// and hangs up the connection.
+//
 type Handler interface {
 	ServeHTTP(ResponseWriter, *Request)
 }
