@@ -499,7 +499,14 @@ func showframe(f *_func, gp *g) bool {
 		return true
 	}
 
-	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.")
+	return traceback > 1 || f != nil && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
+}
+
+// isExportedRuntime reports whether name is an exported runtime function.
+// It is only for runtime functions, so ASCII A-Z is fine.
+func isExportedRuntime(name string) bool {
+	const n = len("runtime.")
+	return len(name) > n && name[:n] == "runtime." && 'A' <= name[n] && name[n] <= 'Z'
 }
 
 var gStatusStrings = [...]string{
