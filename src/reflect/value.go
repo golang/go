@@ -1771,7 +1771,7 @@ func (v Value) String() string {
 	}
 	// If you call String on a reflect.Value of other type, it's better to
 	// print something than to panic. Useful in debugging.
-	return "<" + v.typ.String() + " Value>"
+	return "<" + v.Type().String() + " Value>"
 }
 
 // TryRecv attempts to receive a value from the channel v but will not block.
