@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -291,6 +292,7 @@ var testMainDeps = map[string]bool{
 	// Dependencies for testmain.
 	"testing": true,
 	"regexp":  true,
+	"os":      true,
 }
 
 func runTest(cmd *Command, args []string) {
@@ -687,7 +689,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		omitDWARF:  !testC && !testNeedBinary,
 	}
 
-	// The generated main also imports testing and regexp.
+	// The generated main also imports testing, regexp, and os.
 	stk.push("testmain")
 	for dep := range testMainDeps {
 		if dep == ptest.ImportPath {
@@ -1057,6 +1059,31 @@ func (b *builder) notest(a *action) error {
 	return nil
 }
 
+// isTestMain tells whether fn is a TestMain(m *testing.Main) function.
+func isTestMain(fn *ast.FuncDecl) bool {
+	if fn.Name.String() != "TestMain" ||
+		fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
+		fn.Type.Params == nil ||
+		len(fn.Type.Params.List) != 1 ||
+		len(fn.Type.Params.List[0].Names) > 1 {
+		return false
+	}
+	ptr, ok := fn.Type.Params.List[0].Type.(*ast.StarExpr)
+	if !ok {
+		return false
+	}
+	// We can't easily check that the type is *testing.M
+	// because we don't know how testing has been imported,
+	// but at least check that it's *M or *something.M.
+	if name, ok := ptr.X.(*ast.Ident); ok && name.Name == "M" {
+		return true
+	}
+	if sel, ok := ptr.X.(*ast.SelectorExpr); ok && sel.Sel.Name == "M" {
+		return true
+	}
+	return false
+}
+
 // isTest tells whether name looks like a test (or benchmark, according to prefix).
 // It is a Test (say) if there is a character after Test that is not a lower-case letter.
 // We don't want TesticularCancer.
@@ -1113,6 +1140,7 @@ type testFuncs struct {
 	Tests       []testFunc
 	Benchmarks  []testFunc
 	Examples    []testFunc
+	TestMain    *testFunc
 	Package     *Package
 	ImportTest  bool
 	NeedTest    bool
@@ -1168,6 +1196,12 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 		}
 		name := n.Name.String()
 		switch {
+		case isTestMain(n):
+			if t.TestMain != nil {
+				return errors.New("multiple definitions of TestMain")
+			}
+			t.TestMain = &testFunc{pkg, name, ""}
+			*doImport, *seen = true, true
 		case isTest(name, "Test"):
 			t.Tests = append(t.Tests, testFunc{pkg, name, ""})
 			*doImport, *seen = true, true
@@ -1200,6 +1234,9 @@ var testmainTmpl = template.Must(template.New("main").Parse(`
 package main
 
 import (
+{{if not .TestMain}}
+	"os"
+{{end}}
 	"regexp"
 	"testing"
 
@@ -1294,7 +1331,12 @@ func main() {
 		CoveredPackages: {{printf "%q" .Covered}},
 	})
 {{end}}
-	testing.Main(matchString, tests, benchmarks, examples)
+	m := testing.MainStart(matchString, tests, benchmarks, examples)
+{{with .TestMain}}
+	{{.Package}}.{{.Name}}(m)
+{{else}}
+	os.Exit(m.Run())
+{{end}}
 }
 
 `))
