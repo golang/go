@@ -278,6 +278,8 @@ runtime·minit(void)
 void
 runtime·unminit(void)
 {
+	runtime·stdcall1(runtime·CloseHandle, (uintptr)g->m->thread);
+	g->m->thread = nil;
 }
 
 // Described in http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
