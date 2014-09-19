@@ -62,16 +62,6 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 	if(r->Rip < (uint64)runtime·text || (uint64)runtime·etext < r->Rip)
 		return 0;
 
-	switch(info->ExceptionCode) {
-	case EXCEPTION_BREAKPOINT:
-		// It is unclear whether this is needed, unclear whether it
-		// would work, and unclear how to test it. Leave out for now.
-		// This only handles breakpoint instructions written in the
-		// assembly sources, not breakpoints set by a debugger, and
-		// there are very few of the former.
-		break;
-	}
-
 	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
