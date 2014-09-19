@@ -1422,6 +1422,14 @@ func mkdirTree(t *testing.T, root string, level, max int) {
 // Test that simultaneous RemoveAll do not report an error.
 // As long as it gets removed, we should be happy.
 func TestRemoveAllRace(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// Windows has very strict rules about things like
+		// removing directories while someone else has
+		// them open. The racing doesn't work out nicely
+		// like it does on Unix.
+		t.Skip("skipping on windows")
+	}
+
 	n := runtime.GOMAXPROCS(16)
 	defer runtime.GOMAXPROCS(n)
 	root, err := ioutil.TempDir("", "issue")
