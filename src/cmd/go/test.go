@@ -49,7 +49,7 @@ It prints a summary of the test results in the format:
 followed by detailed output for each failed package.
 
 'Go test' recompiles each package along with any files with names matching
-the file pattern "*_test.go". 
+the file pattern "*_test.go".
 Files whose names begin with "_" (including "_test.go") or "." are ignored.
 These additional files can contain test functions, benchmark functions, and
 example functions.  See 'go help testfunc' for more.
@@ -1059,7 +1059,7 @@ func (b *builder) notest(a *action) error {
 	return nil
 }
 
-// isTestMain tells whether fn is a TestMain(m *testing.Main) function.
+// isTestMain tells whether fn is a TestMain(m *testing.M) function.
 func isTestMain(fn *ast.FuncDecl) bool {
 	if fn.Name.String() != "TestMain" ||
 		fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
