@@ -32,8 +32,8 @@ enum
 // Stacks are assigned an order according to size.
 //     order = log_2(size/FixedStack)
 // There is a free list for each order.
-static MSpan stackpool[NumStackOrders];
-static Mutex stackpoolmu;
+static MSpan runtime·stackpool[NumStackOrders];
+static Mutex runtime·stackpoolmu;
 // TODO: one lock per order?
 
 void
@@ -45,7 +45,7 @@ runtime·stackinit(void)
 		runtime·throw("cache size must be a multiple of page size");
 
 	for(i = 0; i < NumStackOrders; i++)
-		runtime·MSpanList_Init(&stackpool[i]);
+		runtime·MSpanList_Init(&runtime·stackpool[i]);
 }
 
 // Allocates a stack from the free pool.  Must be called with
@@ -58,7 +58,7 @@ poolalloc(uint8 order)
 	MLink *x;
 	uintptr i;
 
-	list = &stackpool[order];
+	list = &runtime·stackpool[order];
 	s = list->next;
 	if(s == list) {
 		// no free stacks.  Allocate another span worth.
@@ -99,7 +99,7 @@ poolfree(MLink *x, uint8 order)
 		runtime·throw("freeing stack not in a stack span");
 	if(s->freelist == nil) {
 		// s will now have a free stack
-		runtime·MSpanList_Insert(&stackpool[order], s);
+		runtime·MSpanList_Insert(&runtime·stackpool[order], s);
 	}
 	x->next = s->freelist;
 	s->freelist = x;
@@ -127,14 +127,14 @@ stackcacherefill(MCache *c, uint8 order)
 	// Grab half of the allowed capacity (to prevent thrashing).
 	list = nil;
 	size = 0;
-	runtime·lock(&stackpoolmu);
+	runtime·lock(&runtime·stackpoolmu);
 	while(size < StackCacheSize/2) {
 		x = poolalloc(order);
 		x->next = list;
 		list = x;
 		size += FixedStack << order;
 	}
-	runtime·unlock(&stackpoolmu);
+	runtime·unlock(&runtime·stackpoolmu);
 
 	c->stackcache[order].list = list;
 	c->stackcache[order].size = size;
@@ -150,14 +150,14 @@ stackcacherelease(MCache *c, uint8 order)
 		runtime·printf("stackcacherelease order=%d\n", order);
 	x = c->stackcache[order].list;
 	size = c->stackcache[order].size;
-	runtime·lock(&stackpoolmu);
+	runtime·lock(&runtime·stackpoolmu);
 	while(size > StackCacheSize/2) {
 		y = x->next;
 		poolfree(x, order);
 		x = y;
 		size -= FixedStack << order;
 	}
-	runtime·unlock(&stackpoolmu);
+	runtime·unlock(&runtime·stackpoolmu);
 	c->stackcache[order].list = x;
 	c->stackcache[order].size = size;
 }
@@ -170,7 +170,7 @@ runtime·stackcache_clear(MCache *c)
 
 	if(StackDebug >= 1)
 		runtime·printf("stackcache clear\n");
-	runtime·lock(&stackpoolmu);
+	runtime·lock(&runtime·stackpoolmu);
 	for(order = 0; order < NumStackOrders; order++) {
 		x = c->stackcache[order].list;
 		while(x != nil) {
@@ -181,7 +181,7 @@ runtime·stackcache_clear(MCache *c)
 		c->stackcache[order].list = nil;
 		c->stackcache[order].size = 0;
 	}
-	runtime·unlock(&stackpoolmu);
+	runtime·unlock(&runtime·stackpoolmu);
 }
 
 Stack
@@ -227,9 +227,9 @@ runtime·stackalloc(uint32 n)
 			// procresize. Just get a stack from the global pool.
 			// Also don't touch stackcache during gc
 			// as it's flushed concurrently.
-			runtime·lock(&stackpoolmu);
+			runtime·lock(&runtime·stackpoolmu);
 			x = poolalloc(order);
-			runtime·unlock(&stackpoolmu);
+			runtime·unlock(&runtime·stackpoolmu);
 		} else {
 			x = c->stackcache[order].list;
 			if(x == nil) {
@@ -289,9 +289,9 @@ runtime·stackfree(Stack stk)
 		x = (MLink*)v;
 		c = g->m->mcache;
 		if(c == nil || g->m->gcing || g->m->helpgc) {
-			runtime·lock(&stackpoolmu);
+			runtime·lock(&runtime·stackpoolmu);
 			poolfree(x, order);
-			runtime·unlock(&stackpoolmu);
+			runtime·unlock(&runtime·stackpoolmu);
 		} else {
 			if(c->stackcache[order].size >= StackCacheSize)
 				stackcacherelease(c, order);
