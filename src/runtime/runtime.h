@@ -60,7 +60,7 @@ typedef	struct	SudoG		SudoG;
 typedef	struct	Mutex		Mutex;
 typedef	struct	M		M;
 typedef	struct	P		P;
-typedef struct	SchedType	SchedType;
+typedef	struct	SchedT	SchedT;
 typedef	struct	Note		Note;
 typedef	struct	Slice		Slice;
 typedef	struct	String		String;
@@ -434,7 +434,7 @@ enum {
 	MaxGomaxprocs = 1<<8,
 };
 
-struct	SchedType
+struct	SchedT
 {
 	Mutex	lock;
 
@@ -753,7 +753,7 @@ extern	DebugVars	runtime·debug;
 extern	uintptr	runtime·maxstacksize;
 extern	Note	runtime·signote;
 extern	ForceGCState	runtime·forcegc;
-extern	SchedType	runtime·sched;
+extern	SchedT	runtime·sched;
 extern	int32		runtime·newprocs;
 
 /*
