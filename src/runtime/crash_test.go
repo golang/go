@@ -412,3 +412,91 @@ func main() {
 	runtime.Breakpoint()
 }
 `
+
+func TestGoexitInPanic(t *testing.T) {
+	// see issue 8774: this code used to trigger an infinite recursion
+	output := executeTest(t, goexitInPanicSource, nil)
+	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+const goexitInPanicSource = `
+package main
+import "runtime"
+func main() {
+	go func() {
+		defer func() {
+			runtime.Goexit()
+		}()
+		panic("hello")
+	}()
+	runtime.Goexit()
+}
+`
+
+func TestPanicAfterGoexit(t *testing.T) {
+	// an uncaught panic should still work after goexit
+	output := executeTest(t, panicAfterGoexitSource, nil)
+	want := "panic: hello"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+const panicAfterGoexitSource = `
+package main
+import "runtime"
+func main() {
+	defer func() {
+		panic("hello")
+	}()
+	runtime.Goexit()
+}
+`
+
+func TestRecoveredPanicAfterGoexit(t *testing.T) {
+	output := executeTest(t, recoveredPanicAfterGoexitSource, nil)
+	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+const recoveredPanicAfterGoexitSource = `
+package main
+import "runtime"
+func main() {
+	defer func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				panic("bad recover")
+			}
+		}()
+		panic("hello")
+	}()
+	runtime.Goexit()
+}
+`
+
+func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
+	// 1. defer a function that recovers
+	// 2. defer a function that panics
+	// 3. call goexit
+	// Goexit should run the #2 defer.  Its panic
+	// should be caught by the #1 defer, and execution
+	// should resume in the caller.  Like the Goexit
+	// never happened!
+	defer func() {
+		r := recover()
+		if r == nil {
+			panic("bad recover")
+		}
+	}()
+	defer func() {
+		panic("hello")
+	}()
+	runtime.Goexit()
+}

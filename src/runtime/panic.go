@@ -247,11 +247,27 @@ func deferreturn(arg0 uintptr) {
 // If all other goroutines exit, the program crashes.
 func Goexit() {
 	// Run all deferred functions for the current goroutine.
+	// This code is similar to gopanic, see that implementation
+	// for detailed comments.
 	gp := getg()
-	for gp._defer != nil {
+	for {
 		d := gp._defer
+		if d == nil {
+			break
+		}
+		if d.started {
+			if d._panic != nil {
+				d._panic.aborted = true
+			}
+			gp._defer = d.link
+			freedefer(d)
+			continue
+		}
 		d.started = true
 		reflectcall(unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+		if gp._defer != d {
+			gothrow("bad defer entry in Goexit")
+		}
 		gp._defer = d.link
 		freedefer(d)
 		// Note: we ignore recovers here because Goexit isn't a panic
