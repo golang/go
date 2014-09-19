@@ -316,7 +316,7 @@ func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectM
 	if t.Proxy != nil {
 		cm.proxyURL, err = t.Proxy(treq.Request)
 	}
-	return cm, nil
+	return cm, err
 }
 
 // proxyAuth returns the Proxy-Authorization header to set
