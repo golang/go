@@ -31,7 +31,7 @@ enum
 	GoidCacheBatch = 16,
 };
 
-SchedType	runtime·sched;
+SchedT	runtime·sched;
 int32	runtime·gomaxprocs;
 uint32	runtime·needextram;
 bool	runtime·iscgo;
