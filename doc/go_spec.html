@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of August 28, 2014",
+	"Subtitle": "Version of September 19, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -5243,13 +5243,16 @@ Calls of built-in functions are restricted as for
 </p>
 
 <p>
-Each time the "defer" statement
+Each time a "defer" statement
 executes, the function value and parameters to the call are
 <a href="#Calls">evaluated as usual</a>
-and saved anew but the actual function body is not executed.
-Instead, deferred functions are executed immediately before
+and saved anew but the actual function is not invoked.
+Instead, deferred functions are invoked immediately before
 the surrounding function returns, in the reverse order
 they were deferred.
+If a deferred function value evaluates
+to <code>nil</code>, execution <a href="#Handling_panics">panics</a>
+when the function is invoked not when the "defer" statement is executed.
 </p>
 
 <p>
