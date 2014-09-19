@@ -144,6 +144,10 @@ libinit(void)
 void
 errorexit(void)
 {
+	if(cout >= 0) {
+		// For rmtemp run at atexit time on Windows.
+		close(cout);
+	}
 	if(nerrors) {
 		if(cout >= 0)
 			mayberemoveoutfile();
