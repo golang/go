@@ -32,8 +32,6 @@ runtime·dumpregs(Context *r)
 	runtime·printf("gs      %X\n", (uint64)r->SegGs);
 }
 
-#define DBG_PRINTEXCEPTION_C 0x40010006
-
 // Called by sigtramp from Windows VEH handler.
 // Return value signals whether the exception has been handled (-1)
 // or should be made available to other handlers in the chain (0).
@@ -43,19 +41,6 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 	bool crash;
 	uintptr *sp;
 	extern byte runtime·text[], runtime·etext[];
-
-	if(info->ExceptionCode == DBG_PRINTEXCEPTION_C) {
-		// This exception is intended to be caught by debuggers.
-		// There is a not-very-informational message like
-		// "Invalid parameter passed to C runtime function"
-		// sitting at info->ExceptionInformation[0] (a wchar_t*),
-		// with length info->ExceptionInformation[1].
-		// The default behavior is to ignore this exception,
-		// but somehow returning 0 here (meaning keep going)
-		// makes the program crash instead. Maybe Windows has no
-		// other handler registered? In any event, ignore it.
-		return -1;
-	}
 
 	// Only handle exception if executing instructions in Go binary
 	// (not Windows library code). 
