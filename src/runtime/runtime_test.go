@@ -206,9 +206,8 @@ func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
 	// addresses that have had C or kernel pages mapped there
 	// readable by user code. So just log the content.
 	// If no addresses fault, we'll fail the test.
-	var p *int
-	p = (*int)(unsafe.Pointer(addr))
-	t.Logf("addr %#x: %#x\n", addr, *p)
+	v := *(*byte)(unsafe.Pointer(addr))
+	t.Logf("addr %#x: %#x\n", addr, v)
 }
 
 func eqstring_generic(s1, s2 string) bool {
