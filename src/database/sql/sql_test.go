@@ -441,6 +441,33 @@ func TestExec(t *testing.T) {
 	}
 }
 
+func TestTxPrepare(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("Begin = %v", err)
+	}
+	stmt, err := tx.Prepare("INSERT|t1|name=?,age=?")
+	if err != nil {
+		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec("Bobby", 7)
+	if err != nil {
+		t.Fatalf("Exec = %v", err)
+	}
+	err = tx.Commit()
+	if err != nil {
+		t.Fatalf("Commit = %v", err)
+	}
+	// Commit() should have closed the statement
+	if !stmt.closed {
+		t.Fatal("Stmt not closed after Commit")
+	}
+}
+
 func TestTxStmt(t *testing.T) {
 	db := newTestDB(t, "")
 	defer closeDB(t, db)
@@ -463,6 +490,10 @@ func TestTxStmt(t *testing.T) {
 	err = tx.Commit()
 	if err != nil {
 		t.Fatalf("Commit = %v", err)
+	}
+	// Commit() should have closed the statement
+	if !txs.closed {
+		t.Fatal("Stmt not closed after Commit")
 	}
 }
 
