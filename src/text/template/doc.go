@@ -338,10 +338,11 @@ arguments will be evaluated.)
 The comparison functions work on basic types only (or named basic
 types, such as "type Celsius float32"). They implement the Go rules
 for comparison of values, except that size and exact type are
-ignored, so any integer value may be compared with any other integer
-value, any unsigned integer value may be compared with any other
-unsigned integer value, and so on. However, as usual, one may not
-compare an int with a float32 and so on.
+ignored, so any integer value, signed or unsigned, may be compared
+with any other integer value. (The arithmetic value is compared,
+not the bit pattern, so all negative integers are less than all
+unsigned integers.) However, as usual, one may not compare an int
+with a float32 and so on.
 
 Associated templates
 
