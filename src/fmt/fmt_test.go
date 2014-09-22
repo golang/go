@@ -854,6 +854,23 @@ func BenchmarkManyArgs(b *testing.B) {
 	})
 }
 
+func BenchmarkFprintInt(b *testing.B) {
+	var buf bytes.Buffer
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Fprint(&buf, 123456)
+	}
+}
+
+func BenchmarkFprintIntNoAlloc(b *testing.B) {
+	var x interface{} = 123456
+	var buf bytes.Buffer
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Fprint(&buf, x)
+	}
+}
+
 var mallocBuf bytes.Buffer
 var mallocPointer *int // A pointer so we know the interface value won't allocate.
 

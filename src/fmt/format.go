@@ -199,10 +199,36 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 	// block but it's not worth the duplication, so ua has 64 bits.
 	i := len(buf)
 	ua := uint64(a)
-	for ua >= base {
-		i--
-		buf[i] = digits[ua%base]
-		ua /= base
+	// use constants for the division and modulo for more efficient code.
+	// switch cases ordered by popularity.
+	switch base {
+	case 10:
+		for ua >= 10 {
+			i--
+			next := ua / 10
+			buf[i] = byte('0' + ua - next*10)
+			ua = next
+		}
+	case 16:
+		for ua >= 16 {
+			i--
+			buf[i] = digits[ua&0xF]
+			ua >>= 4
+		}
+	case 8:
+		for ua >= 8 {
+			i--
+			buf[i] = byte('0' + ua&7)
+			ua >>= 3
+		}
+	case 2:
+		for ua >= 2 {
+			i--
+			buf[i] = byte('0' + ua&1)
+			ua >>= 1
+		}
+	default:
+		panic("fmt: unknown base; can't happen")
 	}
 	i--
 	buf[i] = digits[ua]
