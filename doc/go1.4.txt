@@ -34,6 +34,7 @@ syscall: now frozen (CL 129820043)
 testing: add Coverage (CL 98150043)
 testing: add TestMain support (CL 148770043)
 text/scanner: add IsIdentRune field of Scanner. (CL 108030044)
+text/template: allow comparison of signed and unsigned integers (CL 149780043)
 time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)
 encoding/asn1: optional elements with a default value will now only be omitted if they have that value (CL 86960045).
 
