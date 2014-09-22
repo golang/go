@@ -147,6 +147,10 @@
 		func (x X) String() string { return Sprintf("<%s>", x) }
 	convert the value before recurring:
 		func (x X) String() string { return Sprintf("<%s>", string(x)) }
+	Infinite recursion can also be triggered by self-referential data
+	structures, such as a slice that contains itself as an element, if
+	that type has a String method. Such pathologies are rare, however,
+	and the package does not protect against them.
 
 	Explicit argument indexes:
 
