@@ -87,6 +87,8 @@ func RemoveAll(path string) error {
 	fd, err := Open(path)
 	if err != nil {
 		if IsNotExist(err) {
+			// Race. It was deleted between the Lstat and Open.
+			// Return nil per RemoveAll's docs.
 			return nil
 		}
 		return err
