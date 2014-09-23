@@ -176,6 +176,12 @@ func (t *T) Method3(v interface{}) string {
 	return fmt.Sprintf("Method3: %v", v)
 }
 
+func (t *T) Copy() *T {
+	n := new(T)
+	*n = *t
+	return n
+}
+
 func (t *T) MAdd(a int, b []int) []int {
 	v := make([]int, len(b))
 	for i, x := range b {
@@ -519,6 +525,8 @@ var execTests = []execTest{
 	{"bug12xE", "{{printf `%T` 0xEE}}", "int", T{}, true},
 	{"bug12Xe", "{{printf `%T` 0Xef}}", "int", T{}, true},
 	{"bug12XE", "{{printf `%T` 0XEE}}", "int", T{}, true},
+	// Chained nodes did not work as arguments. Issue 8473.
+	{"bug13", "{{print (.Copy).I}}", "17", tVal, true},
 }
 
 func zeroArgs() string {
