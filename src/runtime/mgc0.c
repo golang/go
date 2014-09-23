@@ -1263,7 +1263,6 @@ struct gc_args
 };
 
 static void gc(struct gc_args *args);
-static void mgc(G *gp);
 
 int32
 runtime·readgogc(void)
