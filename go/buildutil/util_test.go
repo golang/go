@@ -1,0 +1,41 @@
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package buildutil_test
+
+import (
+	"go/build"
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
+
+	"code.google.com/p/go.tools/go/buildutil"
+)
+
+func TestContainingPackage(t *testing.T) {
+	// unvirtualized:
+	goroot := runtime.GOROOT()
+	gopath := filepath.SplitList(os.Getenv("GOPATH"))[0]
+
+	for _, test := range [][2]string{
+		{goroot + "/src/fmt/print.go", "fmt"},
+		{goroot + "/src/encoding/json/foo.go", "encoding/json"},
+		{goroot + "/src/encoding/missing/foo.go", "(not found)"},
+		{gopath + "/src/code.google.com/p/go.tools/go/buildutil/util_test.go",
+			"code.google.com/p/go.tools/go/buildutil"},
+	} {
+		file, want := test[0], test[1]
+		bp, err := buildutil.ContainingPackage(&build.Default, ".", file)
+		got := bp.ImportPath
+		if err != nil {
+			got = "(not found)"
+		}
+		if got != want {
+			t.Errorf("ContainingPackage(%q) = %s, want %s", file, got, want)
+		}
+	}
+
+	// TODO(adonovan): test on virtualized GOPATH too.
+}
