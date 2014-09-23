@@ -96,7 +96,7 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 #ifdef GOOS_nacl
 	WORD	$0xe125be7f	// BKPT 0x5bef, NACL_INSTR_ARM_BREAKPOINT
 #else
-	WORD	$0xe1200071	// BKPT 0x0001
+	WORD	$0xe7f001f0	// undefined instruction that gdb understands is a software breakpoint
 #endif
 	RET
 
