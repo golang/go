@@ -61,6 +61,7 @@ var (
 	buildTimeout   = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
 	cmdTimeout     = flag.Duration("cmdTimeout", 10*time.Minute, "Maximum time to wait for an external command")
 	commitInterval = flag.Duration("commitInterval", 1*time.Minute, "Time to wait between polling for new commits (0 disables commit poller)")
+	commitOnly     = flag.Bool("commitWatchOnly", false, "only run the commit watch loop and don't do any builds")
 	benchNum       = flag.Int("benchnum", 5, "Run each benchmark that many times")
 	benchTime      = flag.Duration("benchtime", 5*time.Second, "Benchmarking time for a single benchmark run")
 	benchMem       = flag.Int("benchmem", 64, "Approx RSS value to aim at in benchmarks, in MB")
@@ -127,7 +128,7 @@ func main() {
 		os.Exit(2)
 	}
 	flag.Parse()
-	if len(flag.Args()) == 0 {
+	if len(flag.Args()) == 0 && !*commitOnly {
 		flag.Usage()
 	}
 
@@ -214,6 +215,9 @@ func main() {
 
 	// Start commit watcher
 	go commitWatcher(goroot)
+	if *commitOnly {
+		select {}
+	}
 
 	// go continuous build mode
 	// check for new commits and build them
@@ -766,6 +770,7 @@ func addCommit(pkg, hash, key string) bool {
 		log.Printf("failed to add %s to dashboard: %v", hash, err)
 		return false
 	}
+	l.added = true
 	return true
 }
 
