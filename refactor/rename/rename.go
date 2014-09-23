@@ -32,10 +32,10 @@ var (
 	// It may even cause gorename to crash.  TODO(adonovan): fix that.
 	Force bool
 
-	// DryRun causes the patch to be displayed but not applied.
+	// DryRun causes the tool to report conflicts but not update any files.
 	DryRun bool
 
-	// ConfictError is returned by Main when it aborts the renaming due to conflicts.
+	// ConflictError is returned by Main when it aborts the renaming due to conflicts.
 	// (It is distinguished because the interesting errors are the conflicts themselves.)
 	ConflictError = errors.New("renaming aborted due to conflicts")
 
@@ -280,7 +280,7 @@ func (r *renamer) update() error {
 							info.Pkg.Path())
 					}
 				}
-				if err := rewriteFile(r.iprog.Fset, f, tokenFile.Name(), tokenFile.Name()+".prename"); err != nil {
+				if err := rewriteFile(r.iprog.Fset, f, tokenFile.Name()); err != nil {
 					fmt.Fprintf(os.Stderr, "Error: %s.\n", err)
 					nerrs++
 				}
@@ -304,7 +304,8 @@ func plural(n int) string {
 	return ""
 }
 
-var rewriteFile = func(fset *token.FileSet, f *ast.File, orig, backup string) (err error) {
+var rewriteFile = func(fset *token.FileSet, f *ast.File, orig string) (err error) {
+	backup := orig + ".prename"
 	// TODO(adonovan): print packages and filenames in a form useful
 	// to editors (so they can reload files).
 	if Verbose {

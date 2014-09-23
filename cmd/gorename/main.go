@@ -64,6 +64,8 @@ Flags:
            (In due course this bug will be fixed by moving certain
            analyses into the type-checker.)
 
+-dryrun    causes the tool to report conflicts but not update any files.
+
 -v         enables verbose logging.
 
 gorename automatically computes the set of packages that might be
@@ -82,7 +84,7 @@ Examples:
 
 % gorename -offset file.go:#123 -to foo
 
-  Rename the object whose identifer is at byte offset 123 within file file.go.
+  Rename the object whose identifier is at byte offset 123 within file file.go.
 
 % gorename -from '(bytes.Buffer).Len' -to Size
 
@@ -91,7 +93,6 @@ Examples:
 ---- TODO ----
 
 Correctness:
-- implement remaining safety checks.
 - handle dot imports correctly
 - document limitations (reflection, 'implements' guesswork).
 - sketch a proof of exhaustiveness.
@@ -113,7 +114,7 @@ Features:
   all local variables of a given type,
   all PkgNames for a given package.
 - emit JSON output for other editors and tools.
-- integration support for editors other than Emacs.
+- integration with editors other than Emacs.
 `
 
 func main() {

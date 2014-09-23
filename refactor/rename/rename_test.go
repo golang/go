@@ -372,7 +372,7 @@ var _ interface {f()} = C(0)
 }
 
 func TestRewrites(t *testing.T) {
-	defer func(savedRewriteFile func(*token.FileSet, *ast.File, string, string) error) {
+	defer func(savedRewriteFile func(*token.FileSet, *ast.File, string) error) {
 		rewriteFile = savedRewriteFile
 	}(rewriteFile)
 
@@ -654,7 +654,7 @@ func f(z interface{}) {
 		}
 
 		got := make(map[string]string)
-		rewriteFile = func(fset *token.FileSet, f *ast.File, orig, backup string) error {
+		rewriteFile = func(fset *token.FileSet, f *ast.File, orig string) error {
 			var out bytes.Buffer
 			if err := format.Node(&out, fset, f); err != nil {
 				return err
