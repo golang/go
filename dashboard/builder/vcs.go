@@ -202,7 +202,7 @@ type HgLog struct {
 const xmlLogTemplate = `
         <Log>
         <Hash>{node|escape}</Hash>
-        <Parent>{parents}</Parent>
+        <Parent>{p1node}</Parent>
         <Author>{author|escape}</Author>
         <Date>{date|rfc3339date}</Date>
         <Desc>{desc|escape}</Desc>
