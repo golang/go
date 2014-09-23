@@ -86,6 +86,9 @@ func RemoveAll(path string) error {
 	// Directory.
 	fd, err := Open(path)
 	if err != nil {
+		if IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 
