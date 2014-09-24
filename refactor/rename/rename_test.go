@@ -740,6 +740,11 @@ func fakeContext(pkgs map[string][]string) *build.Context {
 		index, _ := strconv.Atoi(strings.TrimSuffix(base, ".go"))
 		return ioutil.NopCloser(bytes.NewBufferString(pkgs[dir][index])), nil
 	}
+	ctxt.IsAbsPath = func(path string) bool {
+		// Don't rely on the default (filepath.Path) since on
+		// Windows, it reports our virtual paths as non-absolute.
+		return strings.HasPrefix(path, "/")
+	}
 	return &ctxt
 }
 
