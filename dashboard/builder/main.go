@@ -417,7 +417,12 @@ func (b *Builder) buildHash(hash string) error {
 	// create place in which to do work
 	workpath := filepath.Join(*buildroot, b.name+"-"+hash[:12])
 	if err := os.Mkdir(workpath, mkdirPerm); err != nil {
-		return err
+		if err2 := removePath(workpath); err2 != nil {
+			return err
+		}
+		if err := os.Mkdir(workpath, mkdirPerm); err != nil {
+			return err
+		}
 	}
 	defer removePath(workpath)
 
