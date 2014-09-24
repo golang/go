@@ -1,4 +1,4 @@
-// errorcheck -0 -m -l
+// errorcheck -0 -N -m -l
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,8 +6,8 @@
 
 // Test, using compiler diagnostic flags, that the escape analysis is working.
 // Compiles but does not run.  Inlining is disabled.
-
-// escape2n.go contains all the same tests but compiles with -N.
+// Registerization is disabled too (-N), which should
+// have no effect on escape analysis.
 
 package foo
 

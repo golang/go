@@ -481,8 +481,12 @@ main(int argc, char *argv[])
 	}
 
 	// Phase 5: Escape analysis.
-	if(!debug['N'])
-		escapes(xtop);
+	// Required for moving heap allocations onto stack,
+	// which in turn is required by the closure implementation,
+	// which stores the addresses of stack variables into the closure.
+	// If the closure does not escape, it needs to be on the stack
+	// or else the stack copier will not update it.
+	escapes(xtop);
 	
 	// Escape analysis moved escaped values off stack.
 	// Move large values off stack too.
