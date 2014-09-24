@@ -147,7 +147,7 @@ runtime·get_random_data(byte **rnd, int32 *rnd_len)
 void
 runtime·goenvs(void)
 {
-	extern Slice syscall·envs;
+	extern Slice runtime·envs;
 
 	uint16 *env;
 	String *s;
@@ -160,8 +160,8 @@ runtime·goenvs(void)
 	for(p=env; *p; n++)
 		p += runtime·findnullw(p)+1;
 
-	syscall·envs = runtime·makeStringSlice(n);
-	s = (String*)syscall·envs.array;
+	runtime·envs = runtime·makeStringSlice(n);
+	s = (String*)runtime·envs.array;
 
 	p = env;
 	for(i=0; i<n; i++) {

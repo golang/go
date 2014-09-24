@@ -526,8 +526,6 @@ uintptr	runtime·sweepone(void);
 void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);
 void	runtime·purgecachedstats(MCache*);
-void*	runtime·cnew(Type*);
-void*	runtime·cnewarray(Type*, intgo);
 void	runtime·tracealloc(void*, uintptr, Type*);
 void	runtime·tracefree(void*, uintptr);
 void	runtime·tracegc(void);

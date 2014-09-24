@@ -13,7 +13,7 @@
 extern volatile intgo runtime·MemProfileRate;
 
 // dummy MSpan that contains no free objects.
-static MSpan runtime·emptymspan;
+MSpan runtime·emptymspan;
 
 MCache*
 runtime·allocmcache(void)

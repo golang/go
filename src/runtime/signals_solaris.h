@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "textflag.h"
+
 #define N SigNotify
 #define K SigKill
 #define T SigThrow
 #define P SigPanic
 #define D SigDefault
 
+#pragma dataflag NOPTR
 SigTab runtime·sigtab[] = {
 	/* 0 */		0, "SIGNONE: no trap",
 	/* 1 */		N+K, "SIGHUP: hangup",

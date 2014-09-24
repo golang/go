@@ -903,8 +903,6 @@ TEXT runtime·emptyfunc(SB),0,$0-0
 TEXT runtime·abort(SB),NOSPLIT,$0-0
 	INT $0x3
 
-GLOBL runtime·tls0(SB), $32
-
 // hash function using AES hardware instructions
 TEXT runtime·aeshash(SB),NOSPLIT,$0-16
 	MOVL	p+0(FP), AX	// ptr to data

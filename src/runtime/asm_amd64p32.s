@@ -674,8 +674,6 @@ TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
 	MOVQ    AX, ret+0(FP)
 	RET
 
-GLOBL runtime·tls0(SB), $64
-
 // hash function using AES hardware instructions
 // For now, our one amd64p32 system (NaCl) does not
 // support using AES instructions, so have not bothered to

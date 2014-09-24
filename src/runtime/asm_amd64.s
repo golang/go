@@ -871,8 +871,6 @@ TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
 	MOVQ    AX, ret+0(FP)
 	RET
 
-GLOBL runtime·tls0(SB), $64
-
 // hash function using AES hardware instructions
 TEXT runtime·aeshash(SB),NOSPLIT,$0-32
 	MOVQ	p+0(FP), AX	// ptr to data

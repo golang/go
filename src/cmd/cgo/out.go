@@ -129,6 +129,7 @@ func (p *Package) writeDefs() {
 			fmt.Fprintf(fc, `extern void *%s __asm__("%s.%s");`, n.Mangle, gccgoSymbolPrefix, n.Mangle)
 			fmt.Fprintf(&gccgoInit, "\t%s = %s%s;\n", n.Mangle, amp, n.C)
 		} else {
+			fmt.Fprintf(fc, "#pragma dataflag NOPTR /* C pointer, not heap pointer */ \n")
 			fmt.Fprintf(fc, "void *·%s = %s%s;\n", n.Mangle, amp, n.C)
 		}
 		fmt.Fprintf(fc, "\n")
@@ -397,6 +398,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	// C wrapper calls into gcc, passing a pointer to the argument frame.
 	fmt.Fprintf(fc, "#pragma cgo_import_static %s\n", cname)
 	fmt.Fprintf(fc, "void %s(void*);\n", cname)
+	fmt.Fprintf(fc, "#pragma dataflag NOPTR\n")
 	fmt.Fprintf(fc, "void *·%s = %s;\n", cname, cname)
 
 	nret := 0
@@ -1151,20 +1153,31 @@ void *_CMalloc(size_t);
 const cProlog = `
 #include "runtime.h"
 #include "cgocall.h"
+#include "textflag.h"
 
+#pragma dataflag NOPTR
 static void *cgocall_errno = runtime·cgocall_errno;
+#pragma dataflag NOPTR
 void *·_cgo_runtime_cgocall_errno = &cgocall_errno;
 
+#pragma dataflag NOPTR
 static void *runtime_gostring = runtime·gostring;
+#pragma dataflag NOPTR
 void *·_cgo_runtime_gostring = &runtime_gostring;
 
+#pragma dataflag NOPTR
 static void *runtime_gostringn = runtime·gostringn;
+#pragma dataflag NOPTR
 void *·_cgo_runtime_gostringn = &runtime_gostringn;
 
+#pragma dataflag NOPTR
 static void *runtime_gobytes = runtime·gobytes;
+#pragma dataflag NOPTR
 void *·_cgo_runtime_gobytes = &runtime_gobytes;
 
+#pragma dataflag NOPTR
 static void *runtime_cmalloc = runtime·cmalloc;
+#pragma dataflag NOPTR
 void *·_cgo_runtime_cmalloc = &runtime_cmalloc;
 
 void ·_Cerrno(void*, int32);
