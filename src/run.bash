@@ -119,6 +119,8 @@ go run $GOROOT/test/run.go - . || exit 1
 
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
+# cgo tests inspect the traceback for runtime functions
+export GOTRACEBACK=2
 go test -ldflags '-linkmode=auto' || exit 1
 # linkmode=internal fails on dragonfly since errno is a TLS relocation.
 [ "$GOHOSTOS" == dragonfly ] || go test -ldflags '-linkmode=internal' || exit 1

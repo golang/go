@@ -1700,9 +1700,9 @@ goexit0(G *gp)
 
 #pragma textflag NOSPLIT
 static void
-save(void *pc, uintptr sp)
+save(uintptr pc, uintptr sp)
 {
-	g->sched.pc = (uintptr)pc;
+	g->sched.pc = pc;
 	g->sched.sp = sp;
 	g->sched.lr = 0;
 	g->sched.ret = 0;
@@ -1730,9 +1730,15 @@ static void entersyscall_gcwait(void);
 // In practice, this means that we make the fast path run through
 // entersyscall doing no-split things, and the slow path has to use onM
 // to run bigger things on the m stack.
+//
+// reentersyscall is the entry point used by cgo callbacks, where explicitly
+// saved SP and PC are restored. This is needed when exitsyscall will be called
+// from a function further up in the call stack than the parent, as g->syscallsp
+// must always point to a valid stack frame. entersyscall below is the normal
+// entry point for syscalls, which obtains the SP and PC from the caller.
 #pragma textflag NOSPLIT
 void
-·entersyscall(int32 dummy)
+runtime·reentersyscall(uintptr pc, uintptr sp)
 {
 	void (*fn)(void);
 
@@ -1748,9 +1754,9 @@ void
 	g->throwsplit = 1;
 
 	// Leave SP around for GC and traceback.
-	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
-	g->syscallsp = g->sched.sp;
-	g->syscallpc = g->sched.pc;
+	save(pc, sp);
+	g->syscallsp = sp;
+	g->syscallpc = pc;
 	runtime·casgstatus(g, Grunning, Gsyscall);
 	if(g->syscallsp < g->stack.lo || g->stack.hi < g->syscallsp) {
 		fn = entersyscall_bad;
@@ -1760,7 +1766,7 @@ void
 	if(runtime·atomicload(&runtime·sched.sysmonwait)) {  // TODO: fast atomic
 		fn = entersyscall_sysmon;
 		runtime·onM(&fn);
-		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+		save(pc, sp);
 	}
 
 	g->m->mcache = nil;
@@ -1769,7 +1775,7 @@ void
 	if(runtime·sched.gcwaiting) {
 		fn = entersyscall_gcwait;
 		runtime·onM(&fn);
-		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+		save(pc, sp);
 	}
 
 	// Goroutines must not split stacks in Gsyscall status (it would corrupt g->sched).
@@ -1777,6 +1783,14 @@ void
 	// Morestack detects this case and throws.
 	g->stackguard0 = StackPreempt;
 	g->m->locks--;
+}
+
+// Standard syscall entry used by the go syscall library and normal cgo calls.
+#pragma textflag NOSPLIT
+void
+·entersyscall(int32 dummy)
+{
+	runtime·reentersyscall((uintptr)runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 }
 
 static void
@@ -1826,7 +1840,7 @@ void
 	g->stackguard0 = StackPreempt;  // see comment in entersyscall
 
 	// Leave SP around for GC and traceback.
-	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+	save((uintptr)runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 	g->syscallsp = g->sched.sp;
 	g->syscallpc = g->sched.pc;
 	runtime·casgstatus(g, Grunning, Gsyscall);
@@ -1839,7 +1853,7 @@ void
 	runtime·onM(&fn);
 
 	// Resave for traceback during blocked call.
-	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+	save((uintptr)runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 
 	g->m->locks--;
 }
@@ -1856,11 +1870,14 @@ entersyscallblock_handoff(void)
 // from the low-level system calls used by the runtime.
 #pragma textflag NOSPLIT
 void
-runtime·exitsyscall(void)
+·exitsyscall(int32 dummy)
 {
 	void (*fn)(G*);
 
 	g->m->locks++;  // see comment in entersyscall
+
+	if(runtime·getcallersp(&dummy) > g->syscallsp)
+		runtime·throw("exitsyscall: syscall frame is no longer valid");
 
 	g->waitsince = 0;
 	if(exitsyscallfast()) {
