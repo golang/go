@@ -1701,26 +1701,40 @@ Content-Length: %d
 }
 
 type proxyFromEnvTest struct {
-	req     string // URL to fetch; blank means "http://example.com"
-	env     string
-	noenv   string
+	req string // URL to fetch; blank means "http://example.com"
+
+	env      string // HTTP_PROXY
+	httpsenv string // HTTPS_PROXY
+	noenv    string // NO_RPXY
+
 	want    string
 	wanterr error
 }
 
 func (t proxyFromEnvTest) String() string {
 	var buf bytes.Buffer
+	space := func() {
+		if buf.Len() > 0 {
+			buf.WriteByte(' ')
+		}
+	}
 	if t.env != "" {
 		fmt.Fprintf(&buf, "http_proxy=%q", t.env)
 	}
+	if t.httpsenv != "" {
+		space()
+		fmt.Fprintf(&buf, "https_proxy=%q", t.httpsenv)
+	}
 	if t.noenv != "" {
-		fmt.Fprintf(&buf, " no_proxy=%q", t.noenv)
+		space()
+		fmt.Fprintf(&buf, "no_proxy=%q", t.noenv)
 	}
 	req := "http://example.com"
 	if t.req != "" {
 		req = t.req
 	}
-	fmt.Fprintf(&buf, " req=%q", req)
+	space()
+	fmt.Fprintf(&buf, "req=%q", req)
 	return strings.TrimSpace(buf.String())
 }
 
@@ -1731,7 +1745,15 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 	{env: "https://cache.corp.example.com", want: "https://cache.corp.example.com"},
 	{env: "http://127.0.0.1:8080", want: "http://127.0.0.1:8080"},
 	{env: "https://127.0.0.1:8080", want: "https://127.0.0.1:8080"},
+
+	// Don't use secure for http
+	{req: "http://insecure.tld/", env: "http.proxy.tld", httpsenv: "secure.proxy.tld", want: "http://http.proxy.tld"},
+	// Use secure for https.
+	{req: "https://secure.tld/", env: "http.proxy.tld", httpsenv: "secure.proxy.tld", want: "http://secure.proxy.tld"},
+	{req: "https://secure.tld/", env: "http.proxy.tld", httpsenv: "https://secure.proxy.tld", want: "https://secure.proxy.tld"},
+
 	{want: "<nil>"},
+
 	{noenv: "example.com", req: "http://example.com/", env: "proxy", want: "<nil>"},
 	{noenv: ".example.com", req: "http://example.com/", env: "proxy", want: "<nil>"},
 	{noenv: "ample.com", req: "http://example.com/", env: "proxy", want: "http://proxy"},
@@ -1743,6 +1765,7 @@ func TestProxyFromEnvironment(t *testing.T) {
 	ResetProxyEnv()
 	for _, tt := range proxyFromEnvTests {
 		os.Setenv("HTTP_PROXY", tt.env)
+		os.Setenv("HTTPS_PROXY", tt.httpsenv)
 		os.Setenv("NO_PROXY", tt.noenv)
 		ResetCachedEnvironment()
 		reqURL := tt.req

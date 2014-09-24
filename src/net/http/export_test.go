@@ -66,6 +66,7 @@ func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
 
 func ResetCachedEnvironment() {
 	httpProxyEnv.reset()
+	httpsProxyEnv.reset()
 	noProxyEnv.reset()
 }
 

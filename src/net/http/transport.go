@@ -124,7 +124,13 @@ type Transport struct {
 // As a special case, if req.URL.Host is "localhost" (with or without
 // a port number), then a nil URL and nil error will be returned.
 func ProxyFromEnvironment(req *Request) (*url.URL, error) {
-	proxy := httpProxyEnv.Get()
+	var proxy string
+	if req.URL.Scheme == "https" {
+		proxy = httpsProxyEnv.Get()
+	}
+	if proxy == "" {
+		proxy = httpProxyEnv.Get()
+	}
 	if proxy == "" {
 		return nil, nil
 	}
@@ -275,6 +281,9 @@ func (t *Transport) CancelRequest(req *Request) {
 var (
 	httpProxyEnv = &envOnce{
 		names: []string{"HTTP_PROXY", "http_proxy"},
+	}
+	httpsProxyEnv = &envOnce{
+		names: []string{"HTTPS_PROXY", "https_proxy"},
 	}
 	noProxyEnv = &envOnce{
 		names: []string{"NO_PROXY", "no_proxy"},
