@@ -221,8 +221,10 @@ loadlib(void)
 		// Provided by the code that imports the package.
 		// Since we are simulating the import, we have to provide this string.
 		cgostrsym = "go.string.\"runtime/cgo\"";
-		if(linkrlookup(ctxt, cgostrsym, 0) == nil)
+		if(linkrlookup(ctxt, cgostrsym, 0) == nil) {
 			addstrdata(cgostrsym, "runtime/cgo");
+			linklookup(ctxt, cgostrsym, 0)->type = SRODATA;
+		}
 	}
 
 	if(linkmode == LinkAuto) {

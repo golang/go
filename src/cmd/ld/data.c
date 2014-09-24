@@ -625,6 +625,7 @@ addstrdata(char *name, char *value)
 	sp = linklookup(ctxt, p, 0);
 	free(p);
 	addstring(sp, value);
+	sp->type = SRODATA;
 
 	s = linklookup(ctxt, name, 0);
 	s->size = 0;
@@ -816,9 +817,15 @@ proggenaddsym(ProgGen *g, LSym *s)
 	proggenskip(g, g->pos, s->value - g->pos);
 	g->pos += s->value - g->pos;
 
-	if(s->gotype == nil && s->size >= PtrSize) {
+	// The test for names beginning with . here is meant
+	// to keep .dynamic and .dynsym from turning up as
+	// conservative symbols. They should be marked SELFSECT
+	// and not SDATA, but sometimes that doesn't happen.
+	// Leave debugging the SDATA issue for the Go rewrite.
+
+	if(s->gotype == nil && s->size >= PtrSize && s->name[0] != '.') {
 		// conservative scan
-		diag("missing Go type information for global symbol: %s", s->name);
+		diag("missing Go type information for global symbol: %s size %d", s->name, (int)s->size);
 		if((s->size%PtrSize) || (g->pos%PtrSize))
 			diag("proggenaddsym: unaligned conservative symbol %s: size=%lld pos=%lld",
 				s->name, s->size, g->pos);
@@ -834,7 +841,7 @@ proggenaddsym(ProgGen *g, LSym *s)
 			proggenarrayend(g);
 		}
 		g->pos = s->value + size;
-	} else if(s->gotype == nil || decodetype_noptr(s->gotype) || s->size < PtrSize) {
+	} else if(s->gotype == nil || decodetype_noptr(s->gotype) || s->size < PtrSize || s->name[0] == '.') {
 		// no scan
 		if(s->size < 32*PtrSize) {
 			// Emit small symbols as data.
