@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "textflag.h"
 
 // Look up symbols in the Linux vDSO.
 
@@ -171,14 +172,18 @@ struct vdso_info {
 	Elf64_Verdef *verdef;
 };
 
+#pragma dataflag NOPTR
 static version_key linux26 = { (byte*)"LINUX_2.6", 0x3ae75f6 };
 
 // initialize with vsyscall fallbacks
+#pragma dataflag NOPTR
 void* runtime·__vdso_time_sym = (void*)0xffffffffff600400ULL;
+#pragma dataflag NOPTR
 void* runtime·__vdso_gettimeofday_sym = (void*)0xffffffffff600000ULL;
+#pragma dataflag NOPTR
 void* runtime·__vdso_clock_gettime_sym = (void*)0;
 
-#define SYM_KEYS_COUNT 3
+#pragma dataflag NOPTR
 static symbol_key sym_keys[] = {
 	{ (byte*)"__vdso_time", 0xa33c485, &runtime·__vdso_time_sym },
 	{ (byte*)"__vdso_gettimeofday", 0x315ca59, &runtime·__vdso_gettimeofday_sym },
@@ -301,7 +306,7 @@ vdso_parse_symbols(struct vdso_info *vdso_info, int32 version)
 	if(vdso_info->valid == false)
 		return;
 
-	for(i=0; i<SYM_KEYS_COUNT; i++) {
+	for(i=0; i<nelem(sym_keys); i++) {
 		for(chain = vdso_info->bucket[sym_keys[i].sym_hash % vdso_info->nbucket];
 			chain != 0; chain = vdso_info->chain[chain]) {
 

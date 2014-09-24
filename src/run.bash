@@ -167,10 +167,13 @@ esac
 # This tests cgo -cdefs. That mode is not supported,
 # so it's okay if it doesn't work on some systems.
 # In particular, it works badly with clang on OS X.
-[ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
-(xcd ../misc/cgo/testcdefs
-./test.bash || exit 1
-) || exit $?
+# It doesn't work at all now that we disallow C code
+# outside runtime. Once runtime has no C code it won't
+# even be necessary.
+# [ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
+# (xcd ../misc/cgo/testcdefs
+# ./test.bash || exit 1
+# ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
 (xcd ../misc/cgo/testgodefs
