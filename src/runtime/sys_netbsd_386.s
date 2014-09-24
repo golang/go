@@ -350,7 +350,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
 	MOVL	$0, AX
 	RET
 
-GLOBL runtime·tlsoffset(SB),$4
+GLOBL runtime·tlsoffset(SB),NOPTR,$4
 
 // int32 runtime·kqueue(void)
 TEXT runtime·kqueue(SB),NOSPLIT,$0

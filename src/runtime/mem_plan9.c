@@ -10,6 +10,7 @@
 #include "textflag.h"
 
 extern byte runtime·end[];
+#pragma dataflag NOPTR
 static byte *bloc = { runtime·end };
 static Mutex memlock;
 

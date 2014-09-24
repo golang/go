@@ -77,7 +77,7 @@ DATA bad_abi_msg+0x18(SB)/8, $" run on "
 DATA bad_abi_msg+0x20(SB)/8, $"EABI ker"
 DATA bad_abi_msg+0x28(SB)/4, $"nels"
 DATA bad_abi_msg+0x2c(SB)/1, $0xa
-GLOBL bad_abi_msg(SB), $45
+GLOBL bad_abi_msg(SB), RODATA, $45
 
 TEXT oabi_syscall<>(SB),NOSPLIT,$-4
 	ADD $1, PC, R4
