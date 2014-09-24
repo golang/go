@@ -212,7 +212,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
-GLOBL runtime·cbctxts(SB), $4
+GLOBL runtime·cbctxts(SB), NOPTR, $4
 
 TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
   	MOVL	0(SP), AX	// will use to find our callback context
