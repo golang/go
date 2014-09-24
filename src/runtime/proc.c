@@ -102,9 +102,9 @@ extern String runtime·buildVersion;
 #pragma cgo_export_static main
 
 // Filled in by dynamic linker when Cgo is available.
-void* _cgo_init;
-void* _cgo_malloc;
-void* _cgo_free;
+void (*_cgo_init)(void);
+void (*_cgo_malloc)(void);
+void (*_cgo_free)(void);
 
 // Copy for Go code.
 void* runtime·cgoMalloc;
@@ -852,24 +852,19 @@ struct CgoThreadStart
 	void (*fn)(void);
 };
 
+M *runtime·newM(void); // in proc.go
+
 // Allocate a new m unassociated with any thread.
 // Can use p for allocation context if needed.
 M*
 runtime·allocm(P *p)
 {
 	M *mp;
-	static Type *mtype;  // The Go type M
 
 	g->m->locks++;  // disable GC because it can be called from sysmon
 	if(g->m->p == nil)
 		acquirep(p);  // temporarily borrow p for mallocs in this function
-	if(mtype == nil) {
-		Eface e;
-		runtime·gc_m_ptr(&e);
-		mtype = ((PtrType*)e.type)->elem;
-	}
-
-	mp = runtime·cnew(mtype);
+	mp = runtime·newM();
 	mcommoninit(mp);
 
 	// In case of cgo or Solaris, pthread_create will make us a stack.
@@ -889,19 +884,12 @@ runtime·allocm(P *p)
 	return mp;
 }
 
+G *runtime·newG(void); // in proc.go
+
 static G*
 allocg(void)
 {
-	G *gp;
-	static Type *gtype;
-	
-	if(gtype == nil) {
-		Eface e;
-		runtime·gc_g_ptr(&e);
-		gtype = ((PtrType*)e.type)->elem;
-	}
-	gp = runtime·cnew(gtype);
-	return gp;
+	return runtime·newG();
 }
 
 static M* lockextra(bool nilokay);

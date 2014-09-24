@@ -550,7 +550,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	static int ndup;
 	char *name;
 	Reloc *r;
-	LSym *s, *dup;
+	LSym *s, *dup, *typ;
 	Pcln *pc;
 	Auto *a;
 	
@@ -586,7 +586,9 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	s->type = t;
 	if(s->size < size)
 		s->size = size;
-	s->gotype = rdsym(ctxt, f, pkg);
+	typ = rdsym(ctxt, f, pkg);
+	if(typ != nil) // if bss sym defined multiple times, take type from any one def
+		s->gotype = typ;
 	rddata(f, &s->p, &s->np);
 	s->maxp = s->np;
 	n = rdint(f);

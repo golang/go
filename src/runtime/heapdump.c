@@ -59,6 +59,8 @@ static BitVector makeheapobjbv(byte *p, uintptr size);
 
 // fd to write the dump to.
 static uintptr	dumpfd;
+
+#pragma dataflag NOPTR /* tmpbuf not a heap pointer at least */
 static byte	*tmpbuf;
 static uintptr	tmpbufsize;
 
@@ -109,6 +111,7 @@ typedef struct TypeCacheBucket TypeCacheBucket;
 struct TypeCacheBucket {
 	Type *t[TypeCacheAssoc];
 };
+#pragma dataflag NOPTR /* only initialized and used while world is stopped */
 static TypeCacheBucket typecache[TypeCacheBuckets];
 
 // dump a uint64 in a varint format parseable by encoding/binary

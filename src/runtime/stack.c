@@ -32,8 +32,8 @@ enum
 // Stacks are assigned an order according to size.
 //     order = log_2(size/FixedStack)
 // There is a free list for each order.
-static MSpan runtime·stackpool[NumStackOrders];
-static Mutex runtime·stackpoolmu;
+MSpan runtime·stackpool[NumStackOrders];
+Mutex runtime·stackpoolmu;
 // TODO: one lock per order?
 
 void

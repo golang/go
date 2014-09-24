@@ -202,6 +202,14 @@ func newP() *p {
 	return new(p)
 }
 
+func newM() *m {
+	return new(m)
+}
+
+func newG() *g {
+	return new(g)
+}
+
 func allgadd(gp *g) {
 	if readgstatus(gp) == _Gidle {
 		gothrow("allgadd: bad status Gidle")

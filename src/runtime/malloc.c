@@ -329,29 +329,6 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	return p;
 }
 
-// Runtime stubs.
-
-static void*
-cnew(Type *typ, intgo n)
-{
-	if(n < 0 || (typ->size > 0 && n > MaxMem/typ->size))
-		runtime·throw("runtime: allocation size out of range");
-	return runtime·mallocgc(typ->size*n, typ, typ->kind&KindNoPointers ? FlagNoScan : 0);
-}
-
-// same as runtime·new, but callable from C
-void*
-runtime·cnew(Type *typ)
-{
-	return cnew(typ, 1);
-}
-
-void*
-runtime·cnewarray(Type *typ, intgo n)
-{
-	return cnew(typ, n);
-}
-
 void
 runtime·setFinalizer_m(void)
 {

@@ -818,6 +818,7 @@ proggenaddsym(ProgGen *g, LSym *s)
 
 	if(s->gotype == nil && s->size >= PtrSize) {
 		// conservative scan
+		diag("missing Go type information for global symbol: %s", s->name);
 		if((s->size%PtrSize) || (g->pos%PtrSize))
 			diag("proggenaddsym: unaligned conservative symbol %s: size=%lld pos=%lld",
 				s->name, s->size, g->pos);

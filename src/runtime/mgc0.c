@@ -120,7 +120,7 @@ FinBlock*	runtime·finc;	// cache of free blocks
 static byte finptrmask[FinBlockSize/PtrSize/PointersPerByte];
 bool	runtime·fingwait;
 bool	runtime·fingwake;
-static FinBlock	*runtime·allfin;	// list of all blocks
+FinBlock	*runtime·allfin;	// list of all blocks
 
 BitVector	runtime·gcdatamask;
 BitVector	runtime·gcbssmask;
@@ -140,7 +140,7 @@ static BitVector	unrollglobgcprog(byte *prog, uintptr size);
 void runtime·bgsweep(void);
 static FuncVal bgsweepv = {runtime·bgsweep};
 
-static struct {
+struct {
 	uint64	full;  // lock-free list of full blocks
 	uint64	empty; // lock-free list of empty blocks
 	byte	pad0[CacheLineSize]; // prevents false-sharing between full/empty and nproc/nwait
@@ -1038,7 +1038,6 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
 
 // State of background runtime·sweep.
 // Protected by runtime·gclock.
-// Must match mgc0.go.
 struct
 {
 	G*	g;

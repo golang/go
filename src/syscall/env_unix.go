@@ -22,8 +22,10 @@ var (
 
 	// envs is provided by the runtime. elements are expected to be
 	// of the form "key=value".
-	envs []string
+	envs []string = runtime_envs()
 )
+
+func runtime_envs() []string // in package runtime
 
 // setenv_c is provided by the runtime, but is a no-op if cgo isn't
 // loaded.

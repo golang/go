@@ -62,10 +62,12 @@ runtime·mchr(byte *p, byte c, byte *ep)
 }
 
 static int32	argc;
+
+#pragma dataflag NOPTR /* argv not a heap pointer */
 static uint8**	argv;
 
-Slice os·Args;
-Slice syscall·envs;
+extern Slice runtime·argslice;
+extern Slice runtime·envs;
 
 void (*runtime·sysargs)(int32, uint8**);
 
@@ -97,8 +99,8 @@ runtime·goargs(void)
 	if(Windows)
 		return;
 
-	os·Args = runtime·makeStringSlice(argc);
-	s = (String*)os·Args.array;
+	runtime·argslice = runtime·makeStringSlice(argc);
+	s = (String*)runtime·argslice.array;
 	for(i=0; i<argc; i++)
 		s[i] = runtime·gostringnocopy(argv[i]);
 }
@@ -112,8 +114,8 @@ runtime·goenvs_unix(void)
 	for(n=0; argv[argc+1+n] != 0; n++)
 		;
 
-	syscall·envs = runtime·makeStringSlice(n);
-	s = (String*)syscall·envs.array;
+	runtime·envs = runtime·makeStringSlice(n);
+	s = (String*)runtime·envs.array;
 	for(i=0; i<n; i++)
 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
 }
@@ -122,7 +124,7 @@ runtime·goenvs_unix(void)
 Slice
 runtime·environ()
 {
-	return syscall·envs;
+	return runtime·envs;
 }
 
 int32
@@ -267,10 +269,15 @@ runtime·check(void)
 #pragma dataflag NOPTR
 DebugVars	runtime·debug;
 
-static struct {
+typedef struct DbgVar DbgVar;
+struct DbgVar
+{
 	int8*	name;
 	int32*	value;
-} dbgvar[] = {
+};
+
+#pragma dataflag NOPTR /* dbgvar has no heap pointers */
+static DbgVar dbgvar[] = {
 	{"allocfreetrace", &runtime·debug.allocfreetrace},
 	{"efence", &runtime·debug.efence},
 	{"gctrace", &runtime·debug.gctrace},
