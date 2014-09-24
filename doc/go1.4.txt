@@ -13,6 +13,7 @@ cmd/6l, liblink: use pc-relative addressing for all memory references, so that l
 cmd/go: import comments (CL 124940043)
 cmd/go: implement "internal" (CL 120600043)
 cmd/go: implement "generate" (CL 125580044)
+cmd/go: disallow C sources except when using cgo (CL 149720043)
 
 asm: make textflag.h available outside of cmd/ld (CL 128050043)
 crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
