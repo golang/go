@@ -1630,7 +1630,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []
 	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
 	if p.Standard {
 		switch p.ImportPath {
-		case "os", "runtime/pprof", "sync", "time":
+		case "bytes", "net", "os", "runtime/pprof", "sync", "time":
 			extFiles++
 		}
 	}
