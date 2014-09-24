@@ -5,8 +5,6 @@
 package rename
 
 import (
-	"fmt"
-	"go/build"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -78,61 +76,6 @@ func isDigit(ch rune) bool {
 }
 
 // -- Plundered from code.google.com/p/go.tools/oracle -----------------
-
-// guessImportPath finds the package containing filename, and returns
-// its import path relative to it.
-func guessImportPath(filename string, ctxt *build.Context) (importPath string, err error) {
-	// TODO(adonovan): move this to package "buildutil"; factor in common with oracle.
-	// bp, err := buildutil.ContainingPackage(ctxt, wd, filename)
-	// if err != nil {
-	// 	return
-	// }
-	// return bp.ImportPath, nil
-
-	absFile, err := filepath.Abs(filename)
-	if err != nil {
-		err = fmt.Errorf("can't form absolute path of %s", filename)
-		return
-	}
-	absFileDir := segments(filepath.Dir(absFile))
-
-	// Find the innermost directory in $GOPATH that encloses filename.
-	minD := 1024
-	for _, gopathDir := range ctxt.SrcDirs() {
-		// We can assume $GOPATH and $GOROOT dirs are absolute,
-		// thus gopathDir too, and that it exists.
-		d := prefixLen(segments(gopathDir), absFileDir)
-		// If there are multiple matches,
-		// prefer the innermost enclosing directory
-		// (smallest d).
-		if d >= 0 && d < minD {
-			minD = d
-			importPath = strings.Join(absFileDir[len(absFileDir)-minD:], string(os.PathSeparator))
-		}
-	}
-	if importPath == "" {
-		err = fmt.Errorf("can't find package for file %s", filename)
-	}
-	return
-}
-
-func segments(path string) []string {
-	return strings.Split(path, string(os.PathSeparator))
-}
-
-// prefixLen returns the length of the remainder of y if x is a prefix
-// of y, a negative number otherwise.
-func prefixLen(x, y []string) int {
-	d := len(y) - len(x)
-	if d >= 0 {
-		for i := range x {
-			if y[i] != x[i] {
-				return -1 // not a prefix
-			}
-		}
-	}
-	return d
-}
 
 // sameFile returns true if x and y have the same basename and denote
 // the same file.

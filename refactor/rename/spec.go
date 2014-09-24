@@ -115,12 +115,12 @@ func parseFromFlag(ctxt *build.Context, fromFlag string) (*spec, error) {
 		if !buildutil.FileExists(ctxt, spec.filename) {
 			return nil, fmt.Errorf("no such file: %s", spec.filename)
 		}
-		// Guess the default package.
-		var err error
-		if spec.pkg, err = guessImportPath(spec.filename, ctxt); err != nil {
-			return nil, fmt.Errorf("-from: couldn't guess package from filename: %s: %s",
-				spec.filename, err)
+
+		bp, err := buildutil.ContainingPackage(ctxt, wd, spec.filename)
+		if err != nil {
+			return nil, err
 		}
+		spec.pkg = bp.ImportPath
 
 	} else if a, b := splitAtLastDot(main); b == "" {
 		// importpath e.g. "encoding/json"
@@ -194,12 +194,12 @@ func parseOffsetFlag(ctxt *build.Context, offsetFlag string) (*spec, error) {
 	if !buildutil.FileExists(ctxt, spec.filename) {
 		return nil, fmt.Errorf("no such file: %s", spec.filename)
 	}
-	// Guess the default package.
-	var err error
-	if spec.pkg, err = guessImportPath(spec.filename, ctxt); err != nil {
-		return nil, fmt.Errorf("couldn't guess package from filename: %s: %s",
-			spec.filename, err)
+
+	bp, err := buildutil.ContainingPackage(ctxt, wd, spec.filename)
+	if err != nil {
+		return nil, err
 	}
+	spec.pkg = bp.ImportPath
 
 	for _, r := range parts[1] {
 		if !isDigit(r) {
