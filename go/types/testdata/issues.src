@@ -22,3 +22,16 @@ func issue8066() {
 		_ = float32(340282356779733661637539395458142568448 /* ERROR cannot convert */ )
 	)
 }
+
+// Check that a missing identifier doesn't lead to a spurious error cascade.
+func issue8799a() {
+	x, ok := missing /* ERROR undeclared */ ()
+	_ = !ok
+	_ = x
+}
+
+func issue8799b(x int, ok bool) {
+	x, ok = missing /* ERROR undeclared */ ()
+	_ = !ok
+	_ = x
+}

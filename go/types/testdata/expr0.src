@@ -116,10 +116,10 @@ var (
 	s2 = -s0 /* ERROR "not defined" */
 	s3 = !s0 /* ERROR "not defined" */
 	s4 = ^s0 /* ERROR "not defined" */
-	s5 = *s4 /* ERROR "cannot indirect" */
+	s5 = *s4
 	s6 = &s4
 	s7 = *s6
-	s8 = <-s7  /* ERROR "cannot receive" */
+	s8 = <-s7
 
 	// channel
 	ch chan int

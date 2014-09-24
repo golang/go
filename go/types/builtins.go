@@ -46,6 +46,10 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	default:
 		// make argument getter
 		arg, nargs, _ = unpack(func(x *operand, i int) { check.expr(x, call.Args[i]) }, nargs, false)
+		if arg == nil {
+			x.mode = invalid
+			return
+		}
 		// evaluate first argument, if present
 		if nargs > 0 {
 			arg(x, 0)
@@ -372,6 +376,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if T == Typ[Invalid] {
 			return
 		}
+
 		var min int // minimum number of arguments
 		switch T.Underlying().(type) {
 		case *Slice:
@@ -483,10 +488,12 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.use(arg0)
 			return
 		}
+
 		check.expr(x, selx.X)
 		if x.mode == invalid {
 			return
 		}
+
 		base := derefStructPtr(x.typ)
 		sel := selx.Sel.Name
 		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)

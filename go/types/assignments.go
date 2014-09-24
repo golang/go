@@ -206,14 +206,17 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) {
 	l := len(lhs)
 	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
-	if l != r {
+	if get == nil || l != r {
 		// invalidate lhs and use rhs
 		for _, obj := range lhs {
 			if obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 		}
-		check.use(rhs...)
+		if get == nil {
+			return // error reported by unpack
+		}
+		check.useGetter(get, r)
 		if returnPos.IsValid() {
 			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", l, r)
 			return
@@ -242,9 +245,12 @@ func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
 	l := len(lhs)
 	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2)
+	if get == nil {
+		return // error reported by unpack
+	}
 	if l != r {
+		check.useGetter(get, r)
 		check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
-		check.use(rhs...)
 		return
 	}
 

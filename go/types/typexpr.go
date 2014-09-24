@@ -88,6 +88,9 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 	case *Var:
 		obj.used = true
 		check.addDeclDep(obj)
+		if typ == Typ[Invalid] {
+			return
+		}
 		x.mode = variable
 
 	case *Func:

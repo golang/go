@@ -62,6 +62,12 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		}
 
 		arg, n, _ := unpack(func(x *operand, i int) { check.expr(x, e.Args[i]) }, len(e.Args), false)
+		if arg == nil {
+			x.mode = invalid
+			x.expr = e
+			return statement
+		}
+
 		check.arguments(x, e, sig, arg, n)
 
 		// determine result
@@ -92,27 +98,39 @@ func (check *Checker) use(arg ...ast.Expr) {
 	}
 }
 
+// useGetter is like use, but takes a getter instead of a list of expressions.
+// It should be called instead of use if a getter is present to avoid repeated
+// evaluation of the first argument (since the getter was likely obtained via
+// unpack, which may have evaluated the first argument already).
+func (check *Checker) useGetter(get getter, n int) {
+	var x operand
+	for i := 0; i < n; i++ {
+		get(&x, i)
+	}
+}
+
 // A getter sets x as the i'th operand, where 0 <= i < n and n is the total
 // number of operands (context-specific, and maintained elsewhere). A getter
 // type-checks the i'th operand; the details of the actual check are getter-
 // specific.
 type getter func(x *operand, i int)
 
-// unpack takes a getter get and a number of operands n. If n == 1 and the
-// first operand is a function call, or a comma,ok expression and allowCommaOk
-// is set, the result is a new getter and operand count providing access to the
-// function results, or comma,ok values, respectively. The third result value
-// reports if it is indeed the comma,ok case. In all other cases, the incoming
-// getter and operand count are returned unchanged, and the third result value
-// is false.
+// unpack takes a getter get and a number of operands n. If n == 1, unpack
+// calls the incoming getter for the first operand. If that operand is
+// invalid, unpack returns (nil, 0, false). Otherwise, if that operand is a
+// function call, or a comma-ok expression and allowCommaOk is set, the result
+// is a new getter and operand count providing access to the function results,
+// or comma-ok values, respectively. The third result value reports if it
+// is indeed the comma-ok case. In all other cases, the incoming getter and
+// operand count are returned unchanged, and the third result value is false.
 //
-// In other words, if there's exactly one operand that - after type-checking by
-// calling get - stands for multiple operands, the resulting getter provides access
-// to those operands instead.
+// In other words, if there's exactly one operand that - after type-checking
+// by calling get - stands for multiple operands, the resulting getter provides
+// access to those operands instead.
 //
-// Note that unpack may call get(..., 0); but if the result getter is called
-// at most once for a given operand index i (including i == 0), that operand
-// is guaranteed to cause only one call of the incoming getter with that i.
+// If the returned getter is called at most once for a given operand index i
+// (including i == 0), that operand is guaranteed to cause only one call of
+// the incoming getter with that i.
 //
 func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
 	if n == 1 {
@@ -120,12 +138,7 @@ func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
 		var x0 operand
 		get(&x0, 0)
 		if x0.mode == invalid {
-			return func(x *operand, i int) {
-				if i != 0 {
-					unreachable()
-				}
-				x.mode = invalid
-			}, 1, false
+			return nil, 0, false
 		}
 
 		if t, ok := x0.typ.(*Tuple); ok {

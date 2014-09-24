@@ -424,7 +424,7 @@ func _calls() {
 	f2(3.14) /* ERROR "too few arguments" */
 	f2(3.14, "foo")
 	f2(x /* ERROR "cannot pass" */ , "foo")
-	f2(g0 /* ERROR "used as value" */ ()) /* ERROR "too few arguments" */
+	f2(g0 /* ERROR "used as value" */ ())
 	f2(g1 /* ERROR "cannot pass" */ ()) /* ERROR "too few arguments" */
 	f2(g2())
 
