@@ -2228,6 +2228,14 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, gccfi
 			strings.HasSuffix(f, ".so"),
 			strings.HasSuffix(f, ".dll"):
 			continue
+		// Remove any -fsanitize=foo flags.
+		// Otherwise the compiler driver thinks that we are doing final link
+		// and links sanitizer runtime into the object file. But we are not doing
+		// the final link, we will link the resulting object file again. And
+		// so the program ends up with two copies of sanitizer runtime.
+		// See issue 8788 for details.
+		case strings.HasPrefix(f, "-fsanitize="):
+			continue
 		default:
 			bareLDFLAGS = append(bareLDFLAGS, f)
 		}
