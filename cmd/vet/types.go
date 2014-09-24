@@ -13,14 +13,42 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+// imports is the canonical map of imported packages we need for typechecking.
+// It is created during initialization.
+var imports = make(map[string]*types.Package)
+
+var (
+	stringerMethodType = types.New("func() string")
+	errorType          = types.New("error").Underlying().(*types.Interface)
+	stringerType       = importType("fmt", "Stringer").Underlying().(*types.Interface)
+	formatterType      = importType("fmt", "Formatter").Underlying().(*types.Interface)
+)
+
+// importType returns the type denoted by the qualified identifier
+// path.name, and adds the respective package to the imports map
+// as a side effect.
+func importType(path, name string) types.Type {
+	pkg, err := types.DefaultImport(imports, path)
+	if err != nil {
+		panic("import failed: " + err.Error())
+	}
+	if obj, ok := pkg.Scope().Lookup(name).(*types.TypeName); ok {
+		return obj.Type()
+	}
+	panic("invalid type name: " + name)
+}
+
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	pkg.defs = make(map[*ast.Ident]types.Object)
 	pkg.uses = make(map[*ast.Ident]types.Object)
 	pkg.spans = make(map[types.Object]Span)
 	pkg.types = make(map[ast.Expr]types.TypeAndValue)
-	// By providing a Config with our own error function, it will continue
-	// past the first error. There is no need for that function to do anything.
 	config := types.Config{
+		// We provide the same packages map for all imports to ensure
+		// that everybody sees identical packages for the given paths.
+		Packages: imports,
+		// By providing a Config with our own error function, it will continue
+		// past the first error. There is no need for that function to do anything.
 		Error: func(error) {},
 	}
 	info := &types.Info{
@@ -62,14 +90,6 @@ func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
 		return false, ""
 	}
 }
-
-var (
-	stringerMethodType = types.New("func() string")
-	errorType          = types.New("interface{ Error() string }").(*types.Interface)
-	stringerType       = types.New("interface{ String() string }").(*types.Interface)
-	// One day this might work. See issue 6259.
-	// formatterType   = types.New("interface{Format(f fmt.State, c rune)}")
-)
 
 // matchArgType reports an error if printf verb t is not appropriate
 // for operand arg.
