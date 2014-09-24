@@ -6,12 +6,19 @@
 
 package os
 
-import "syscall"
+import (
+	"runtime"
+	"syscall"
+)
 
 // Args hold the command-line arguments, starting with the program name.
 var Args []string
 
 func init() {
+	if runtime.GOOS == "windows" {
+		// Initialized in exec_windows.go.
+		return
+	}
 	Args = runtime_args()
 }
 
