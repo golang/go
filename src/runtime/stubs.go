@@ -164,6 +164,7 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 }
 
 func entersyscall()
+func reentersyscall(pc uintptr, sp unsafe.Pointer)
 func entersyscallblock()
 func exitsyscall()
 
