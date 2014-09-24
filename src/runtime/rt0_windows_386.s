@@ -17,4 +17,4 @@ TEXT main(SB),NOSPLIT,$0
 
 
 DATA  runtime·iswindows(SB)/4, $1
-GLOBL runtime·iswindows(SB), $4
+GLOBL runtime·iswindows(SB), NOPTR, $4

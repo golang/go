@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "textflag.h"
+
 // Supply environ, __progname and __guard_local, because
 // we don't link against the standard OpenBSD crt0.o and
 // the libc dynamic library needs them.
 
+#pragma dataflag NOPTR
 char *environ[1];
+#pragma dataflag NOPTR
 char *__progname;
 long __guard_local;
 

@@ -72,6 +72,7 @@ extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
 extern void *runtime·timeBeginPeriod;
 
+#pragma dataflag NOPTR
 void *runtime·GetQueuedCompletionStatusEx;
 
 extern uintptr runtime·externalthreadhandlerp;
@@ -289,7 +290,9 @@ typedef struct KSYSTEM_TIME {
 	int32	High2Time;
 } KSYSTEM_TIME;
 
+#pragma dataflag NOPTR
 const KSYSTEM_TIME* INTERRUPT_TIME	= (KSYSTEM_TIME*)0x7ffe0008;
+#pragma dataflag NOPTR
 const KSYSTEM_TIME* SYSTEM_TIME		= (KSYSTEM_TIME*)0x7ffe0014;
 
 static void badsystime(void);
@@ -500,6 +503,7 @@ runtime·ctrlhandler1(uint32 type)
 
 extern void runtime·dosigprof(Context *r, G *gp, M *mp);
 extern void runtime·profileloop(void);
+#pragma dataflag NOPTR
 static void *profiletimer;
 
 static void
