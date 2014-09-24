@@ -614,6 +614,16 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	}
 	p.Target = p.target
 
+	// Check for C code compiled with Plan 9 C compiler.
+	// No longer allowed except in runtime and runtime/cgo, for now.
+	if len(p.CFiles) > 0 && !p.usesCgo() && (!p.Standard || p.ImportPath != "runtime") {
+		p.Error = &PackageError{
+			ImportStack: stk.copy(),
+			Err:         fmt.Sprintf("C source files not allowed when not using cgo: %s", strings.Join(p.CFiles, " ")),
+		}
+		return p
+	}
+
 	// In the absence of errors lower in the dependency tree,
 	// check for case-insensitive collisions of import paths.
 	if len(p.DepsErrors) == 0 {

@@ -157,6 +157,20 @@ fi
 rm -f ./testdata/err
 unset GOPATH
 
+export GOPATH=$(pwd)/testdata/src
+TEST disallowed C source files
+export GOPATH=$(pwd)/testdata
+if ./testgo build badc 2>testdata/err; then
+	echo 'go build badc succeeded'
+	ok=false
+elif ! grep 'C source files not allowed' testdata/err >/dev/null; then
+	echo 'go test did not say C source files not allowed:'
+	cat testdata/err
+	ok=false
+fi
+rm -f ./testdata/err
+unset GOPATH
+
 TEST error message for syntax error in test go file says FAIL
 export GOPATH=$(pwd)/testdata
 if ./testgo test syntaxerror 2>testdata/err; then
