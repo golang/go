@@ -340,11 +340,17 @@ func (f *fmt) fmt_sbx(s string, b []byte, digits string) {
 
 // fmt_sx formats a string as a hexadecimal encoding of its bytes.
 func (f *fmt) fmt_sx(s, digits string) {
+	if f.precPresent && f.prec < len(s) {
+		s = s[:f.prec]
+	}
 	f.fmt_sbx(s, nil, digits)
 }
 
 // fmt_bx formats a byte slice as a hexadecimal encoding of its bytes.
 func (f *fmt) fmt_bx(b []byte, digits string) {
+	if f.precPresent && f.prec < len(b) {
+		b = b[:f.prec]
+	}
 	f.fmt_sbx("", b, digits)
 }
 
