@@ -41,8 +41,8 @@ type MemStats struct {
 	OtherSys    uint64 // other system allocations
 
 	// Garbage collector statistics.
-	NextGC       uint64 // next run in HeapAlloc time (bytes)
-	LastGC       uint64 // last run in absolute time (ns)
+	NextGC       uint64 // next collection will happen when HeapAlloc ≥ this amount
+	LastGC       uint64 // end time of last collection (nanoseconds since 1970)
 	PauseTotalNs uint64
 	PauseNs      [256]uint64 // circular buffer of recent GC pause times, most recent at [(NumGC+255)%256]
 	NumGC        uint32
