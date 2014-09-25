@@ -30,6 +30,7 @@ func TestServer(t *testing.T) {
 }
 
 func TestIssue7264(t *testing.T) {
+	t.Skip("broken test - removed at tip")
 	for i := 0; i < 1000; i++ {
 		func() {
 			inHandler := make(chan bool, 1)
