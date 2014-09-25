@@ -116,10 +116,17 @@ type Transport struct {
 
 // ProxyFromEnvironment returns the URL of the proxy to use for a
 // given request, as indicated by the environment variables
-// $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy).
-// An error is returned if the proxy environment is invalid.
+// HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or the lowercase versions
+// thereof). HTTPS_PROXY takes precedence over HTTP_PROXY for https
+// requests.
+//
+// The environment values may be either a complete URL or a
+// "host[:port]", in which case the "http" scheme is assumed.
+// An error is returned if the value is a different form.
+//
 // A nil URL and nil error are returned if no proxy is defined in the
-// environment, or a proxy should not be used for the given request.
+// environment, or a proxy should not be used for the given request,
+// as defined by NO_PROXY.
 //
 // As a special case, if req.URL.Host is "localhost" (with or without
 // a port number), then a nil URL and nil error will be returned.
