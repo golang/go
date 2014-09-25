@@ -234,14 +234,18 @@ void runtime·cgocallbackg1(void);
 void
 runtime·cgocallbackg(void)
 {
+	uintptr pc, sp;
+
 	if(g != m->curg) {
 		runtime·prints("runtime: bad g in cgocallback");
 		runtime·exit(2);
 	}
 
+	pc = g->syscallpc;
+	sp = g->syscallsp;
 	runtime·exitsyscall();	// coming out of cgo call
 	runtime·cgocallbackg1();
-	runtime·entersyscall();	// going back to cgo call
+	runtime·reentersyscall((void*)pc, sp);	// going back to cgo call
 }
 
 void

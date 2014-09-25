@@ -1499,14 +1499,14 @@ save(void *pc, uintptr sp)
 // entersyscall is going to return immediately after.
 #pragma textflag NOSPLIT
 void
-·entersyscall(int32 dummy)
+runtime·reentersyscall(void *pc, uintptr sp)
 {
 	// Disable preemption because during this function g is in Gsyscall status,
 	// but can have inconsistent g->sched, do not let GC observe it.
 	m->locks++;
 
 	// Leave SP around for GC and traceback.
-	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+	save(pc, sp);
 	g->syscallsp = g->sched.sp;
 	g->syscallpc = g->sched.pc;
 	g->syscallstack = g->stackbase;
@@ -1525,7 +1525,7 @@ void
 			runtime·notewakeup(&runtime·sched.sysmonnote);
 		}
 		runtime·unlock(&runtime·sched);
-		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+		save(pc, sp);
 	}
 
 	m->mcache = nil;
@@ -1538,7 +1538,7 @@ void
 				runtime·notewakeup(&runtime·sched.stopnote);
 		}
 		runtime·unlock(&runtime·sched);
-		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+		save(pc, sp);
 	}
 
 	// Goroutines must not split stacks in Gsyscall status (it would corrupt g->sched).
@@ -1546,6 +1546,13 @@ void
 	// Morestack detects this case and throws.
 	g->stackguard0 = StackPreempt;
 	m->locks--;
+}
+
+#pragma textflag NOSPLIT
+void
+·entersyscall(int32 dummy)
+{
+	runtime·reentersyscall(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
 }
 
 // The same as runtime·entersyscall(), but with a hint that the syscall is blocking.
@@ -1588,9 +1595,12 @@ void
 // from the low-level system calls used by the runtime.
 #pragma textflag NOSPLIT
 void
-runtime·exitsyscall(void)
+·exitsyscall(int32 dummy)
 {
 	m->locks++;  // see comment in entersyscall
+
+	if(runtime·getcallersp(&dummy) > g->syscallsp)
+		runtime·throw("exitsyscall: syscall frame is no longer valid");
 
 	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
 		incidlelocked(-1);
