@@ -2607,6 +2607,29 @@ func TestServerConnStateNew(t *testing.T) {
 	}
 }
 
+type closeWriteTestConn struct {
+	rwTestConn
+	didCloseWrite bool
+}
+
+func (c *closeWriteTestConn) CloseWrite() error {
+	c.didCloseWrite = true
+	return nil
+}
+
+func TestCloseWrite(t *testing.T) {
+	var srv Server
+	var testConn closeWriteTestConn
+	c, err := ExportServerNewConn(&srv, &testConn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ExportCloseWriteAndWait(c)
+	if !testConn.didCloseWrite {
+		t.Error("didn't see CloseWrite call")
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()

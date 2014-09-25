@@ -77,3 +77,7 @@ var DefaultUserAgent = defaultUserAgent
 func SetPendingDialHooks(before, after func()) {
 	prePendingDial, postPendingDial = before, after
 }
+
+var ExportServerNewConn = (*Server).newConn
+
+var ExportCloseWriteAndWait = (*conn).closeWriteAndWait
