@@ -827,7 +827,9 @@ runtime·shrinkstack(G *gp)
 	if(used >= oldsize / 4)
 		return; // still using at least 1/4 of the segment.
 
-	if(gp->syscallsp != 0) // TODO: can we handle this case?
+	// We can't copy the stack if we're in a syscall.
+	// The syscall might have pointers into the stack.
+	if(gp->syscallsp != 0)
 		return;
 
 #ifdef GOOS_windows
