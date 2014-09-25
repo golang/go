@@ -75,6 +75,7 @@ type methodSet map[string]*ssa.Function
 
 // State shared between all interpreted goroutines.
 type interpreter struct {
+	osArgs             []value              // the value of os.Args
 	prog               *ssa.Program         // the SSA program
 	globals            map[ssa.Value]*value // addresses of global variables (immutable)
 	mode               Mode                 // interpreter options
@@ -620,6 +621,16 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 	panic("no global variable: " + pkg.Object.Path() + "." + name)
 }
 
+var environ []value
+
+func init() {
+	for _, s := range os.Environ() {
+		environ = append(environ, s)
+	}
+	environ = append(environ, "GOSSAINTERP=1")
+	environ = append(environ, "GOARCH="+runtime.GOARCH)
+}
+
 // Interpret interprets the Go program whose main package is mainpkg.
 // mode specifies various interpreter options.  filename and args are
 // the initial values of os.Args for the target program.  sizes is the
@@ -645,6 +656,11 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 
 	initReflect(i)
 
+	i.osArgs = append(i.osArgs, filename)
+	for _, arg := range args {
+		i.osArgs = append(i.osArgs, arg)
+	}
+
 	for _, pkg := range i.prog.AllPackages() {
 		// Initialize global storage.
 		for _, m := range pkg.Members {
@@ -658,13 +674,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 		// Ad-hoc initialization for magic system variables.
 		switch pkg.Object.Path() {
 		case "syscall":
-			var envs []value
-			for _, s := range os.Environ() {
-				envs = append(envs, s)
-			}
-			envs = append(envs, "GOSSAINTERP=1")
-			envs = append(envs, "GOARCH="+runtime.GOARCH)
-			setGlobal(i, pkg, "envs", envs)
+			setGlobal(i, pkg, "envs", environ)
 
 		case "runtime":
 			sz := sizes.Sizeof(pkg.Object.Scope().Lookup("MemStats").Type())
@@ -682,13 +692,6 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 					}
 				}
 			}
-
-		case "os":
-			Args := []value{filename}
-			for _, s := range args {
-				Args = append(Args, s)
-			}
-			setGlobal(i, pkg, "Args", Args)
 		}
 	}
 

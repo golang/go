@@ -78,6 +78,7 @@ func init() {
 		"math.Ldexp":                       ext۰math۰Ldexp,
 		"math.Log":                         ext۰math۰Log,
 		"math.Min":                         ext۰math۰Min,
+		"os.runtime_args":                  ext۰os۰runtime_args,
 		"reflect.New":                      ext۰reflect۰New,
 		"reflect.TypeOf":                   ext۰reflect۰TypeOf,
 		"reflect.ValueOf":                  ext۰reflect۰ValueOf,
@@ -127,6 +128,7 @@ func init() {
 		"syscall.ReadDirent":               ext۰syscall۰ReadDirent,
 		"syscall.Stat":                     ext۰syscall۰Stat,
 		"syscall.Write":                    ext۰syscall۰Write,
+		"syscall.runtime_envs":             ext۰runtime۰environ,
 		"time.Sleep":                       ext۰time۰Sleep,
 		"time.now":                         ext۰time۰now,
 	}
@@ -221,6 +223,10 @@ func ext۰math۰Log(fr *frame, args []value) value {
 	return math.Log(args[0].(float64))
 }
 
+func ext۰os۰runtime_args(fr *frame, args []value) value {
+	return fr.i.osArgs
+}
+
 func ext۰runtime۰Breakpoint(fr *frame, args []value) value {
 	runtime.Breakpoint()
 	return nil
@@ -281,13 +287,8 @@ func ext۰runtime۰FuncForPC(fr *frame, args []value) value {
 }
 
 func ext۰runtime۰environ(fr *frame, args []value) value {
-	// We don't return syscall.envs (see Interpret()) because it's
-	// not a dependency of runtime so the package might not exist.
-	var env []value
-	for _, s := range os.Environ() {
-		env = append(env, s)
-	}
-	return env
+	// This function also implements syscall.runtime_envs.
+	return environ
 }
 
 func ext۰runtime۰getgoroot(fr *frame, args []value) value {
