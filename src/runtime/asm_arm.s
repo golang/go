@@ -1303,7 +1303,8 @@ yieldloop:
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
-TEXT cgo_topofstack(SB),NOSPLIT,$0
+TEXT _cgo_topofstack(SB),NOSPLIT,$0
+	BL	runtime·load_g(SB)
 	MOVW	g_m(g), R0
 	MOVW	m_curg(R0), R0
 	MOVW	(g_stack+stack_hi)(R0), R0

@@ -44,7 +44,7 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fm, "int main() { return 0; }\n")
 	if *importRuntimeCgo {
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
-		fmt.Fprintf(fm, "char* cgo_topofstack(void) { return (char*)0; }\n")
+		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
 	} else {
 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
 		// which provides crosscall2.  We just need a prototype.
@@ -522,7 +522,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
 	if n.FuncType.Result != nil {
 		// Save the stack top for use below.
-		fmt.Fprintf(fgcc, "\tchar *stktop = cgo_topofstack();\n")
+		fmt.Fprintf(fgcc, "\tchar *stktop = _cgo_topofstack();\n")
 	}
 	fmt.Fprintf(fgcc, "\t")
 	if t := n.FuncType.Result; t != nil {
@@ -552,7 +552,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	if n.FuncType.Result != nil {
 		// The cgo call may have caused a stack copy (via a callback).
 		// Adjust the return value pointer appropriately.
-		fmt.Fprintf(fgcc, "\ta = (void*)((char*)a + (cgo_topofstack() - stktop));\n")
+		fmt.Fprintf(fgcc, "\ta = (void*)((char*)a + (_cgo_topofstack() - stktop));\n")
 		// Save the return value.
 		fmt.Fprintf(fgcc, "\ta->r = r;\n")
 	}
@@ -1143,7 +1143,7 @@ __cgo_size_assert(__cgo_long_long, 8)
 __cgo_size_assert(float, 4)
 __cgo_size_assert(double, 8)
 
-extern char* cgo_topofstack(void);
+extern char* _cgo_topofstack(void);
 
 #include <errno.h>
 #include <string.h>
