@@ -1300,3 +1300,11 @@ yieldloop:
 	RET
 	SUB	$1, R1
 	B yieldloop
+
+// Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+// Must obey the gcc calling convention.
+TEXT cgo_topofstack(SB),NOSPLIT,$0
+	MOVW	g_m(g), R0
+	MOVW	m_curg(R0), R0
+	MOVW	(g_stack+stack_hi)(R0), R0
+	RET

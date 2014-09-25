@@ -44,6 +44,7 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fm, "int main() { return 0; }\n")
 	if *importRuntimeCgo {
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
+		fmt.Fprintf(fm, "char* cgo_topofstack(void) { return (char*)0; }\n")
 	} else {
 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
 		// which provides crosscall2.  We just need a prototype.
@@ -519,9 +520,13 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	// Use packed attribute to force no padding in this struct in case
 	// gcc has different packing requirements.
 	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
+	if n.FuncType.Result != nil {
+		// Save the stack top for use below.
+		fmt.Fprintf(fgcc, "\tchar *stktop = cgo_topofstack();\n")
+	}
 	fmt.Fprintf(fgcc, "\t")
 	if t := n.FuncType.Result; t != nil {
-		fmt.Fprintf(fgcc, "a->r = ")
+		fmt.Fprintf(fgcc, "__typeof__(a->r) r = ")
 		if c := t.C.String(); c[len(c)-1] == '*' {
 			fmt.Fprint(fgcc, "(__typeof__(a->r)) ")
 		}
@@ -544,6 +549,13 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		fmt.Fprintf(fgcc, "a->p%d", i)
 	}
 	fmt.Fprintf(fgcc, ");\n")
+	if n.FuncType.Result != nil {
+		// The cgo call may have caused a stack copy (via a callback).
+		// Adjust the return value pointer appropriately.
+		fmt.Fprintf(fgcc, "\ta = (void*)((char*)a + (cgo_topofstack() - stktop));\n")
+		// Save the return value.
+		fmt.Fprintf(fgcc, "\ta->r = r;\n")
+	}
 	if n.AddError {
 		fmt.Fprintf(fgcc, "\treturn errno;\n")
 	}
@@ -1130,6 +1142,8 @@ typedef long long __cgo_long_long;
 __cgo_size_assert(__cgo_long_long, 8)
 __cgo_size_assert(float, 4)
 __cgo_size_assert(double, 8)
+
+extern char* cgo_topofstack(void);
 
 #include <errno.h>
 #include <string.h>
