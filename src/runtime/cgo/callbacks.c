@@ -79,5 +79,5 @@ void (*_cgo_free)(void*) = x_cgo_free;
 extern void x_cgo_thread_start(void*);
 void (*_cgo_thread_start)(void*) = x_cgo_thread_start;
 
-#pragma cgo_export_static cgo_topofstack
-#pragma cgo_export_dynamic cgo_topofstack
+#pragma cgo_export_static _cgo_topofstack
+#pragma cgo_export_dynamic _cgo_topofstack

@@ -2278,7 +2278,7 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
-TEXT cgo_topofstack(SB),NOSPLIT,$0
+TEXT _cgo_topofstack(SB),NOSPLIT,$0
 	get_tls(CX)
 	MOVL	g(CX), AX
 	MOVL	g_m(AX), AX
