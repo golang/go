@@ -284,6 +284,11 @@ func runBuild(cmd *Command, args []string) {
 		}
 	}
 
+	depMode := modeBuild
+	if buildI {
+		depMode = modeInstall
+	}
+
 	if *buildO != "" {
 		if len(pkgs) > 1 {
 			fatalf("go build: cannot use -o with multiple packages")
@@ -292,17 +297,13 @@ func runBuild(cmd *Command, args []string) {
 		}
 		p := pkgs[0]
 		p.target = "" // must build - not up to date
-		a := b.action(modeInstall, modeBuild, p)
+		a := b.action(modeInstall, depMode, p)
 		a.target = *buildO
 		b.do(a)
 		return
 	}
 
 	a := &action{}
-	depMode := modeBuild
-	if buildI {
-		depMode = modeInstall
-	}
 	for _, p := range packages(args) {
 		a.deps = append(a.deps, b.action(modeBuild, depMode, p))
 	}
