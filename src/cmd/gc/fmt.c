@@ -810,6 +810,13 @@ stmtfmt(Fmt *f, Node *n)
 		break;
 
 	case OASOP:
+		if(n->implicit) {
+			if(n->etype == OADD)
+				fmtprint(f, "%N++", n->left);
+			else
+				fmtprint(f, "%N--", n->left);
+			break;
+		}
 		fmtprint(f, "%N %#O= %N", n->left, n->etype, n->right);
 		break;
 
