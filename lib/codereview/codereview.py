@@ -2024,13 +2024,13 @@ def submit(ui, repo, *pats, **opts):
 	# push to remote; if it fails for any reason, roll back
 	try:
 		new_heads = len(hg_heads(ui, repo).split())
-		if old_heads != new_heads and not (old_heads == 0 and new_heads == 1):
+		if cl.desc.find("create new branch") < 0 and old_heads != new_heads and not (old_heads == 0 and new_heads == 1):
 			# Created new head, so we weren't up to date.
 			need_sync()
 
 		# Push changes to remote.  If it works, we're committed.  If not, roll back.
 		try:
-			if hg_push(ui, repo):
+			if hg_push(ui, repo, new_branch=cl.desc.find("create new branch")>=0):
 				raise hg_util.Abort("push error")
 		except hg_error.Abort, e:
 			if e.message.find("push creates new heads") >= 0:
