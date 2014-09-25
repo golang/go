@@ -214,6 +214,10 @@ Curves:
 func (hs *serverHandshakeState) checkForResumption() bool {
 	c := hs.c
 
+	if c.config.SessionTicketsDisabled {
+		return false
+	}
+
 	var ok bool
 	if hs.sessionState, ok = c.decryptTicket(hs.clientHello.sessionTicket); !ok {
 		return false
