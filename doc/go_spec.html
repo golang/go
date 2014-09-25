@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 19, 2014",
+	"Subtitle": "Version of September 25, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -1154,11 +1154,11 @@ interface{}
 <p>
 Similarly, consider this interface specification,
 which appears within a <a href="#Type_declarations">type declaration</a>
-to define an interface called <code>Lock</code>:
+to define an interface called <code>Locker</code>:
 </p>
 
 <pre>
-type Lock interface {
+type Locker interface {
 	Lock()
 	Unlock()
 }
@@ -1174,27 +1174,34 @@ func (p T) Unlock() { … }
 </pre>
 
 <p>
-they implement the <code>Lock</code> interface as well
+they implement the <code>Locker</code> interface as well
 as the <code>File</code> interface.
 </p>
+
 <p>
-An interface may use an interface type name <code>T</code>
-in place of a method specification.
-The effect, called embedding an interface,
-is equivalent to enumerating the methods of <code>T</code> explicitly
-in the interface.
+An interface <code>T</code> may use a (possibly qualified) interface type
+name <code>E</code> in place of a method specification. This is called
+<i>embedding</i> interface <code>E</code> in <code>T</code>; it adds
+all (exported and non-exported) methods of <code>E</code> to the interface
+<code>T</code>.
 </p>
 
 <pre>
-type ReadWrite interface {
+type ReadWriter interface {
 	Read(b Buffer) bool
 	Write(b Buffer) bool
 }
 
 type File interface {
-	ReadWrite  // same as enumerating the methods in ReadWrite
-	Lock       // same as enumerating the methods in Lock
+	ReadWriter  // same as adding the methods of ReadWriter
+	Locker      // same as adding the methods of Locker
 	Close()
+}
+
+type LockedFile interface {
+	Locker
+	File        // illegal: Lock, Unlock not unique
+	Lock()      // illegal: Lock not unique
 }
 </pre>
 
