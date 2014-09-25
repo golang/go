@@ -4682,6 +4682,7 @@ additionally it may specify an <i>init</i>
 and a <i>post</i> statement, such as an assignment,
 an increment or decrement statement. The init statement may be a
 <a href="#Short_variable_declarations">short variable declaration</a>, but the post statement must not.
+Variables declared by the init statement are re-used in each iteration.
 </p>
 
 <pre class="ebnf">
@@ -4808,7 +4809,7 @@ The iteration variables may be declared by the "range" clause using a form of
 <a href="#Short_variable_declarations">short variable declaration</a>
 (<code>:=</code>).
 In this case their types are set to the types of the respective iteration values
-and their <a href="#Declarations_and_scope">scope</a> ends at the end of the "for"
+and their <a href="#Declarations_and_scope">scope</a> is the block of the "for"
 statement; they are re-used in each iteration.
 If the iteration variables are declared outside the "for" statement,
 after execution their values will be those of the last iteration.
