@@ -600,6 +600,10 @@ reswitch:
 		}
 		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
 			defaultlit2(&l, &r, 1);
+			if(n->op == OASOP && n->implicit) {
+				yyerror("invalid operation: %N (non-numeric type %T)", n, l->type);
+				goto error;
+			}
 			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
 			goto error;
 		}
