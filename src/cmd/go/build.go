@@ -57,6 +57,7 @@ and test commands:
 
 	-a
 		force rebuilding of packages that are already up-to-date.
+		In Go releases, does not apply to the standard library.
 	-n
 		print the commands but do not run them.
 	-p n
