@@ -275,7 +275,7 @@ func (conf buildConfig) dockerRunArgs(rev string) (args []string) {
 		"-rev="+rev,
 		"-dashboard="+conf.dashURL,
 		"-tool="+conf.tool,
-		"-buildroot=/"+conf.tool,
+		"-buildroot=/",
 		"-v",
 	)
 	if conf.cmd != "" {
