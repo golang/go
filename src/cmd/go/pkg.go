@@ -690,7 +690,7 @@ func computeStale(pkgs ...*Package) {
 // "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
 // Determine whether we are in a released copy by
 // inspecting the version.
-var isGoRelease = !strings.HasPrefix(runtime.Version(), "go1")
+var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
 
 // isStale reports whether package p needs to be rebuilt.
 func isStale(p *Package, topRoot map[string]bool) bool {
