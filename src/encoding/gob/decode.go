@@ -536,18 +536,15 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 // Slices are encoded as an unsigned length followed by the elements.
 func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp decOp, ovfl error) {
 	u := state.decodeUint()
-	n := int(u)
-	if n < 0 || uint64(n) != u {
-		// We don't check n against buffer length here because if it's a slice
-		// of interfaces, there will be buffer reloads.
-		errorf("length of %s is negative (%d bytes)", value.Type(), u)
-	}
 	typ := value.Type()
 	size := uint64(typ.Elem().Size())
-	// Take care with overflow in this calculation.
 	nBytes := u * size
-	if nBytes > tooBig || (size > 0 && nBytes/size != u) {
-		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), n, size)
+	n := int(u)
+	// Take care with overflow in this calculation.
+	if n < 0 || uint64(n) != u || nBytes > tooBig || (size > 0 && nBytes/size != u) {
+		// We don't check n against buffer length here because if it's a slice
+		// of interfaces, there will be buffer reloads.
+		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 	}
 	if value.Cap() < n {
 		value.Set(reflect.MakeSlice(typ, n, n))
