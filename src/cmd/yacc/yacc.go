@@ -52,9 +52,9 @@ import (
 	"go/format"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 )
 
 // the following are adjustable
@@ -756,64 +756,16 @@ func defin(nt int, s string) int {
 
 	// establish value for token
 	// single character literal
-	if s[0] == ' ' {
-		s = s[1:]
-		r, size := utf8.DecodeRuneInString(s)
-		if r == utf8.RuneError && size == 1 {
-			errorf("invalid UTF-8 sequence %q", s)
+	if s[0] == '\'' || s[0] == '"' {
+		q, err := strconv.Unquote(s)
+		if err != nil {
+			errorf("invalid token: %s", err)
 		}
-		val = int(r)
-		if val == '\\' { // escape sequence
-			switch {
-			case len(s) == 2:
-				// single character escape sequence
-				switch s[1] {
-				case '\'':
-					val = '\''
-				case '"':
-					val = '"'
-				case '\\':
-					val = '\\'
-				case 'a':
-					val = '\a'
-				case 'b':
-					val = '\b'
-				case 'f':
-					val = '\f'
-				case 'n':
-					val = '\n'
-				case 'r':
-					val = '\r'
-				case 't':
-					val = '\t'
-				case 'v':
-					val = '\v'
-				default:
-					errorf("invalid escape %s", s)
-				}
-			case s[1] == 'u' && len(s) == 2+4, // \unnnn sequence
-				s[1] == 'U' && len(s) == 2+8: // \Unnnnnnnn sequence
-				val = 0
-				s = s[2:]
-				for s != "" {
-					c := int(s[0])
-					switch {
-					case c >= '0' && c <= '9':
-						c -= '0'
-					case c >= 'a' && c <= 'f':
-						c -= 'a' - 10
-					case c >= 'A' && c <= 'F':
-						c -= 'A' - 10
-					default:
-						errorf(`illegal \u or \U construction`)
-					}
-					val = val*16 + c
-					s = s[1:]
-				}
-			default:
-				errorf("invalid escape %s", s)
-			}
+		rq := []rune(q)
+		if len(rq) != 1 {
+			errorf("character token too long: %s", s)
 		}
+		val = int(rq[0])
 		if val == 0 {
 			errorf("token value 0 is illegal")
 		}
@@ -896,7 +848,7 @@ func gettok() int {
 
 	case '"', '\'':
 		match = c
-		tokname = " "
+		tokname = string(c)
 		for {
 			c = getrune(finput)
 			if c == '\n' || c == EOF {
@@ -909,6 +861,7 @@ func gettok() int {
 				if tokflag {
 					fmt.Printf(">>> IDENTIFIER \"%v\" %v\n", tokname, lineno)
 				}
+				tokname += string(c)
 				return IDENTIFIER
 			}
 			tokname += string(c)
@@ -1029,7 +982,7 @@ func fdtype(t int) int {
 }
 
 func chfind(t int, s string) int {
-	if s[0] == ' ' {
+	if s[0] == '"' || s[0] == '\'' {
 		t = 0
 	}
 	for i := 0; i <= ntokens; i++ {
@@ -1515,9 +1468,6 @@ func symnam(i int) string {
 		s = nontrst[i-NTBASE].name
 	} else {
 		s = tokset[i].name
-	}
-	if s[0] == ' ' {
-		s = s[1:]
 	}
 	return s
 }
