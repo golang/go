@@ -71,6 +71,20 @@ if ! grep -q "/tool/.*/$linker" $d/err.out; then
 fi
 rm -r $d
 
+TEST broken tests without Test functions all fail
+d=$(mktemp -d -t testgoXXX)
+./testgo test ./testdata/src/badtest/... >$d/err 2>&1 || true
+if grep -q '^ok' $d/err; then
+	echo test passed unexpectedly:
+	grep '^ok' $d/err
+	ok=false
+elif ! grep -q 'FAIL.*badtest/badexec' $d/err || ! grep -q 'FAIL.*badtest/badsyntax' $d/err || ! grep -q 'FAIL.*badtest/badvar' $d/err; then
+	echo test did not run everything
+	cat $d/err
+	ok=false
+fi
+rm -rf $d
+
 TEST 'go build -a in dev branch'
 ./testgo install math || ok=false # should be up to date already but just in case
 d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)

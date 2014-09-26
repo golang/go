@@ -736,11 +736,13 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if t.ImportTest || ptest.coverMode != "" {
+	if len(ptest.GoFiles) > 0 {
 		pmain.imports = append(pmain.imports, ptest)
+		t.ImportTest = true
 	}
-	if t.ImportXtest {
+	if pxtest != nil {
 		pmain.imports = append(pmain.imports, pxtest)
+		t.ImportXtest = true
 	}
 
 	if ptest != p && localCover {
