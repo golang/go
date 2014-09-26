@@ -406,6 +406,7 @@ func defaultUsage(f *FlagSet) {
 // for how to write your own usage function.
 
 // Usage prints to standard error a usage message documenting all defined command-line flags.
+// It is called when an error occurs while parsing flags.
 // The function is a variable that may be changed to point to a custom function.
 var Usage = func() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
@@ -702,13 +703,15 @@ func (f *FlagSet) failf(format string, a ...interface{}) error {
 	return err
 }
 
-// usage calls the Usage method for the flag set, or the usage function if
-// the flag set is CommandLine.
+// usage calls the Usage method for the flag set if one is specified,
+// or the appropriate default usage function otherwise.
 func (f *FlagSet) usage() {
-	if f == CommandLine {
-		Usage()
-	} else if f.Usage == nil {
-		defaultUsage(f)
+	if f.Usage == nil {
+		if f == CommandLine {
+			Usage()
+		} else {
+			defaultUsage(f)
+		}
 	} else {
 		f.Usage()
 	}
