@@ -539,11 +539,11 @@ func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
 func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
 	slash := strings.Index(importPath, "/")
 	if slash < 0 {
-		return nil, errors.New("import path doesn't contain a slash")
+		return nil, errors.New("import path does not contain a slash")
 	}
 	host := importPath[:slash]
 	if !strings.Contains(host, ".") {
-		return nil, errors.New("import path doesn't contain a hostname")
+		return nil, errors.New("import path does not begin with hostname")
 	}
 	urlStr, body, err := httpsOrHTTP(importPath)
 	if err != nil {
