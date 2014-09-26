@@ -54,6 +54,7 @@ var images = map[string]*imageInfo{
 	"gobuilders/linux-x86-base":  {url: "https://storage.googleapis.com/go-builder-data/docker-linux.base.tar.gz"},
 	"gobuilders/linux-x86-gccgo": {url: "https://storage.googleapis.com/go-builder-data/docker-linux.gccgo.tar.gz"},
 	"gobuilders/linux-x86-nacl":  {url: "https://storage.googleapis.com/go-builder-data/docker-linux.nacl.tar.gz"},
+	"gobuilders/linux-x86-sid":   {url: "https://storage.googleapis.com/go-builder-data/docker-linux.sid.tar.gz"},
 }
 
 type buildConfig struct {
@@ -84,6 +85,8 @@ func main() {
 		dashURL:    "https://build.golang.org/gccgo",
 		tool:       "gccgo",
 	})
+	addBuilder(buildConfig{name: "linux-386-sid", image: "gobuilders/linux-x86-sid"})
+	addBuilder(buildConfig{name: "linux-amd64-sid", image: "gobuilders/linux-x86-sid"})
 
 	if (*just != "") != (*rev != "") {
 		log.Fatalf("--just and --rev must be used together")
@@ -378,7 +381,7 @@ func startBuilding(conf buildConfig, rev string) (*buildStatus, error) {
 	container := strings.TrimSpace(string(all))
 	go func() {
 		all, err := exec.Command("docker", "wait", container).CombinedOutput()
-		log.Printf("docker wait %s: %v, %s", container, err, strings.TrimSpace(string(all)))
+		log.Printf("docker wait %s/%s: %v, %s", container, rev, err, strings.TrimSpace(string(all)))
 		donec <- builderRev{conf.name, rev}
 		exec.Command("docker", "rm", container).Run()
 	}()
