@@ -589,6 +589,8 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	typ = rdsym(ctxt, f, pkg);
 	if(typ != nil) // if bss sym defined multiple times, take type from any one def
 		s->gotype = typ;
+	if(dup != nil && typ != nil)
+		dup->gotype = typ;
 	rddata(f, &s->p, &s->np);
 	s->maxp = s->np;
 	n = rdint(f);
