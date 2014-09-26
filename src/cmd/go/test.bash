@@ -60,6 +60,17 @@ if ! grep -q "^$fn:" $d/err.out; then
 fi
 rm -r $d
 
+TEST 'program name in crash messages'
+linker=$(./testgo env GOCHAR)l
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+./testgo build -ldflags -crash_for_testing $(./testgo env GOROOT)/test/helloworld.go 2>$d/err.out || true
+if ! grep -q "/tool/.*/$linker" $d/err.out; then
+	echo "missing linker name in error message"
+	cat $d/err.out
+	ok=false
+fi
+rm -r $d
+
 # Test local (./) imports.
 testlocal() {
 	local="$1"

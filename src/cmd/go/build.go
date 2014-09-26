@@ -1469,6 +1469,14 @@ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...inter
 			continue
 		}
 
+		// err can be something like 'exit status 1'.
+		// Add information about what program was running.
+		// Note that if buf.Bytes() is non-empty, the caller usually
+		// shows buf.Bytes() and does not print err at all, so the
+		// prefix here does not make most output any more verbose.
+		if err != nil {
+			err = errors.New(cmdline[0] + ": " + err.Error())
+		}
 		return buf.Bytes(), err
 	}
 }
