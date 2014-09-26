@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file.
 
 set -e
-go build -o testgo
+go build -tags testgo -o testgo
 go() {
 	echo TEST ERROR: ran go, not testgo: go "$@" >&2
 	exit 2
@@ -66,6 +66,32 @@ d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
 ./testgo build -ldflags -crash_for_testing $(./testgo env GOROOT)/test/helloworld.go 2>$d/err.out || true
 if ! grep -q "/tool/.*/$linker" $d/err.out; then
 	echo "missing linker name in error message"
+	cat $d/err.out
+	ok=false
+fi
+rm -r $d
+
+TEST 'go build -a in dev branch'
+./testgo install math || ok=false # should be up to date already but just in case
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+if ! TESTGO_IS_GO_RELEASE=0 ./testgo build -v -a math 2>$d/err.out; then
+	cat $d/err.out
+	ok=false
+elif ! grep -q runtime $d/err.out; then
+	echo "testgo build -a math in dev branch DID NOT build runtime, but should have"
+	cat $d/err.out
+	ok=false
+fi
+rm -r $d
+
+TEST 'go build -a in release branch'
+./testgo install math || ok=false # should be up to date already but just in case
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+if ! TESTGO_IS_GO_RELEASE=1 ./testgo build -v -a math 2>$d/err.out; then
+	cat $d/err.out
+	ok=false
+elif grep -q runtime $d/err.out; then
+	echo "testgo build -a math in dev branch DID build runtime, but should NOT have"
 	cat $d/err.out
 	ok=false
 fi

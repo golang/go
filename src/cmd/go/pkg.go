@@ -14,6 +14,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -685,6 +686,12 @@ func computeStale(pkgs ...*Package) {
 	}
 }
 
+// The runtime version string takes one of two forms:
+// "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
+// Determine whether we are in a released copy by
+// inspecting the version.
+var isGoRelease = !strings.HasPrefix(runtime.Version(), "go1")
+
 // isStale reports whether package p needs to be rebuilt.
 func isStale(p *Package, topRoot map[string]bool) bool {
 	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
@@ -705,7 +712,16 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		return false
 	}
 
-	if buildA || p.target == "" || p.Stale {
+	// If we are running a release copy of Go, do not rebuild the standard packages.
+	// They may not be writable anyway, but they are certainly not changing.
+	// This makes 'go build -a' skip the standard packages when using an official release.
+	// See issue 4106 and issue 8290.
+	pkgBuildA := buildA
+	if p.Standard && isGoRelease {
+		pkgBuildA = false
+	}
+
+	if pkgBuildA || p.target == "" || p.Stale {
 		return true
 	}
 
