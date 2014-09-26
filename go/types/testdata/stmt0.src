@@ -622,6 +622,14 @@ func typeswitch3(x interface{}) {
 	}
 }
 
+func fors1() {
+	for {}
+	var i string
+	_ = i
+	for i := 0; i < 10; i++ {}
+	for i := 0; i < 10; j /* ERROR cannot declare */ := 0 {}
+}
+
 func rangeloops1() {
 	var (
 		x int

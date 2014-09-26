@@ -64,17 +64,17 @@ func (check *Checker) usage(scope *Scope) {
 	}
 }
 
-// stmtContext is a bitset describing the environment
-// (outer statements) containing a statement.
+// stmtContext is a bitset describing which
+// control-flow statements are permissible.
 type stmtContext uint
 
 const (
-	fallthroughOk stmtContext = 1 << iota
-	inBreakable
-	inContinuable
+	breakOk stmtContext = 1 << iota
+	continueOk
+	fallthroughOk
 )
 
-func (check *Checker) initStmt(s ast.Stmt) {
+func (check *Checker) simpleStmt(s ast.Stmt) {
 	if s != nil {
 		check.stmt(0, s)
 	}
@@ -351,11 +351,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 		switch s.Tok {
 		case token.BREAK:
-			if ctxt&inBreakable == 0 {
+			if ctxt&breakOk == 0 {
 				check.error(s.Pos(), "break not in for, switch, or select statement")
 			}
 		case token.CONTINUE:
-			if ctxt&inContinuable == 0 {
+			if ctxt&continueOk == 0 {
 				check.error(s.Pos(), "continue not in for statement")
 			}
 		case token.FALLTHROUGH:
@@ -376,7 +376,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.openScope(s, "if")
 		defer check.closeScope()
 
-		check.initStmt(s.Init)
+		check.simpleStmt(s.Init)
 		var x operand
 		check.expr(&x, s.Cond)
 		if x.mode != invalid && !isBoolean(x.typ) {
@@ -388,11 +388,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 	case *ast.SwitchStmt:
-		inner |= inBreakable
+		inner |= breakOk
 		check.openScope(s, "switch")
 		defer check.closeScope()
 
-		check.initStmt(s.Init)
+		check.simpleStmt(s.Init)
 		var x operand
 		if s.Tag != nil {
 			check.expr(&x, s.Tag)
@@ -426,11 +426,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 	case *ast.TypeSwitchStmt:
-		inner |= inBreakable
+		inner |= breakOk
 		check.openScope(s, "type switch")
 		defer check.closeScope()
 
-		check.initStmt(s.Init)
+		check.simpleStmt(s.Init)
 
 		// A type switch guard must be of the form:
 		//
@@ -532,7 +532,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 	case *ast.SelectStmt:
-		inner |= inBreakable
+		inner |= breakOk
 
 		check.multipleDefaults(s.Body.List)
 
@@ -577,11 +577,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 	case *ast.ForStmt:
-		inner |= inBreakable | inContinuable
+		inner |= breakOk | continueOk
 		check.openScope(s, "for")
 		defer check.closeScope()
 
-		check.initStmt(s.Init)
+		check.simpleStmt(s.Init)
 		if s.Cond != nil {
 			var x operand
 			check.expr(&x, s.Cond)
@@ -589,11 +589,17 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				check.error(s.Cond.Pos(), "non-boolean condition in for statement")
 			}
 		}
-		check.initStmt(s.Post)
+		check.simpleStmt(s.Post)
+		// spec: "The init statement may be a short variable
+		// declaration, but the post statement must not."
+		if s, _ := s.Post.(*ast.AssignStmt); s != nil && s.Tok == token.DEFINE {
+			check.softErrorf(s.Pos(), "cannot declare in post statement")
+			check.use(s.Lhs...) // avoid follow-up errors
+		}
 		check.stmt(inner, s.Body)
 
 	case *ast.RangeStmt:
-		inner |= inBreakable | inContinuable
+		inner |= breakOk | continueOk
 		check.openScope(s, "for")
 		defer check.closeScope()
 
