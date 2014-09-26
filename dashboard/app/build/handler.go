@@ -47,6 +47,18 @@ func commitHandler(r *http.Request) (interface{}, error) {
 		if err := datastore.Get(c, com.Key(c), com); err != nil {
 			return nil, fmt.Errorf("getting Commit: %v", err)
 		}
+		if com.Num == 0 {
+			// Corrupt state which shouldn't happen but does.
+			// Return an error so builders' commit loops will
+			// be willing to retry submitting this commit.
+			return nil, errors.New("in datastore with zero Num")
+		}
+		if com.Desc == "" || com.User == "" {
+			// Also shouldn't happen, but at least happened
+			// once on a single commit when trying to fix data
+			// in the datastore viewer UI?
+			return nil, errors.New("missing field")
+		}
 		// Strip potentially large and unnecessary fields.
 		com.ResultData = nil
 		com.PerfResults = nil
@@ -88,27 +100,55 @@ var needsBenchmarkingBytes = []byte(`"NeedsBenchmarking"`)
 // addCommit adds the Commit entity to the datastore and updates the tip Tag.
 // It must be run inside a datastore transaction.
 func addCommit(c appengine.Context, com *Commit) error {
-	var tc Commit // temp value so we don't clobber com
-	err := datastore.Get(c, com.Key(c), &tc)
-	if err != datastore.ErrNoSuchEntity {
-		// if this commit is already in the datastore, do nothing
-		if err == nil {
-			return nil
-		}
+	var ec Commit // existing commit
+	isUpdate := false
+	err := datastore.Get(c, com.Key(c), &ec)
+	if err != nil && err != datastore.ErrNoSuchEntity {
 		return fmt.Errorf("getting Commit: %v", err)
 	}
-	// get the next commit number
+	if err == nil {
+		// Commit already in the datastore. Any fields different?
+		// If not, don't do anything.
+		changes := (com.Num != 0 && com.Num != ec.Num) ||
+			com.ParentHash != ec.ParentHash ||
+			com.Desc != ec.Desc ||
+			com.User != ec.User ||
+			!com.Time.Equal(ec.Time)
+		if !changes {
+			return nil
+		}
+		ec.ParentHash = com.ParentHash
+		ec.Desc = com.Desc
+		ec.User = com.User
+		if !com.Time.IsZero() {
+			ec.Time = com.Time
+		}
+		if com.Num != 0 {
+			ec.Num = com.Num
+		}
+		isUpdate = true
+		com = &ec
+	}
 	p, err := GetPackage(c, com.PackagePath)
 	if err != nil {
 		return fmt.Errorf("GetPackage: %v", err)
 	}
-	com.Num = p.NextNum
-	p.NextNum++
-	if _, err := datastore.Put(c, p.Key(c), p); err != nil {
-		return fmt.Errorf("putting Package: %v", err)
+	if com.Num == 0 {
+		// get the next commit number
+		com.Num = p.NextNum
+		p.NextNum++
+		if _, err := datastore.Put(c, p.Key(c), p); err != nil {
+			return fmt.Errorf("putting Package: %v", err)
+		}
+	} else if com.Num >= p.NextNum {
+		p.NextNum = com.Num + 1
+		if _, err := datastore.Put(c, p.Key(c), p); err != nil {
+			return fmt.Errorf("putting Package: %v", err)
+		}
 	}
-	// if this isn't the first Commit test the parent commit exists
-	if com.Num > 0 {
+	// if this isn't the first Commit test the parent commit exists.
+	// The all zeros are returned by hg's p1node template for parentless commits.
+	if com.ParentHash != "" && com.ParentHash != "0000000000000000000000000000000000000000" {
 		n, err := datastore.NewQuery("Commit").
 			Filter("Hash =", com.ParentHash).
 			Ancestor(p.Key(c)).
@@ -121,7 +161,7 @@ func addCommit(c appengine.Context, com *Commit) error {
 		}
 	}
 	// update the tip Tag if this is the Go repo and this isn't on a release branch
-	if p.Path == "" && !strings.HasPrefix(com.Desc, "[release-branch") {
+	if p.Path == "" && !strings.HasPrefix(com.Desc, "[") && !isUpdate {
 		t := &Tag{Kind: "tip", Hash: com.Hash}
 		if _, err = datastore.Put(c, t.Key(c), t); err != nil {
 			return fmt.Errorf("putting Tag: %v", err)
