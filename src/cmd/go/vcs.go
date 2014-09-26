@@ -361,7 +361,14 @@ var httpPrefixRE = regexp.MustCompile(`^https?:`)
 func repoRootForImportPath(importPath string) (*repoRoot, error) {
 	rr, err := repoRootForImportPathStatic(importPath, "")
 	if err == errUnknownSite {
-		rr, err = repoRootForImportDynamic(importPath)
+		// If there are wildcards, look up the thing before the wildcard,
+		// hoping it applies to the wildcarded parts too.
+		// This makes 'go get rsc.io/pdf/...' work in a fresh GOPATH.
+		lookup := strings.TrimSuffix(importPath, "/...")
+		if i := strings.Index(lookup, "/.../"); i >= 0 {
+			lookup = lookup[:i]
+		}
+		rr, err = repoRootForImportDynamic(lookup)
 
 		// repoRootForImportDynamic returns error detail
 		// that is irrelevant if the user didn't intend to use a
