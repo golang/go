@@ -552,6 +552,30 @@ if [ ! -x strings.test ]; then
 fi
 rm -f strings.prof strings.test
 
+TEST go test -cpuprofile -o controls binary location
+./testgo test -cpuprofile strings.prof -o mystrings.test strings || ok=false
+if [ ! -x mystrings.test ]; then
+	echo "go test -cpuprofile -o mystrings.test did not create mystrings.test"
+	ok=false
+fi
+rm -f strings.prof mystrings.test
+
+TEST go test -c -o controls binary location
+./testgo test -c -o mystrings.test strings || ok=false
+if [ ! -x mystrings.test ]; then
+	echo "go test -c -o mystrings.test did not create mystrings.test"
+	ok=false
+fi
+rm -f mystrings.test
+
+TEST go test -o writes binary
+./testgo test -o mystrings.test strings || ok=false
+if [ ! -x mystrings.test ]; then
+	echo "go test -o mystrings.test did not create mystrings.test"
+	ok=false
+fi
+rm -f mystrings.test
+
 TEST symlinks do not confuse go list '(issue 4568)'
 old=$(pwd)
 tmp=$(cd /tmp && pwd -P)

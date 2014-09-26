@@ -66,16 +66,23 @@ non-test installation.
 
 In addition to the build flags, the flags handled by 'go test' itself are:
 
-	-c  Compile the test binary to pkg.test but do not run it.
-	    (Where pkg is the last element of the package's import path.)
+	-c
+		Compile the test binary to pkg.test but do not run it
+		(where pkg is the last element of the package's import path).
+		The file name can be changed with the -o flag.
+
+	-exec xprog
+	    Run the test binary using xprog. The behavior is the same as
+	    in 'go run'. See 'go help run' for details.
 
 	-i
 	    Install packages that are dependencies of the test.
 	    Do not run the test.
 
-	-exec xprog
-	    Run the test binary using xprog. The behavior is the same as
-	    in 'go run'. See 'go help run' for details.
+	-o file
+		Compile the test binary to the named file.
+		The test still runs (unless -c or -i is specified).
+
 
 The test binary also accepts flags that control execution of the test; these
 flags are also accessible by 'go test'.  See 'go help testflag' for details.
@@ -123,6 +130,7 @@ control the execution of any test:
 	-blockprofile block.out
 	    Write a goroutine blocking profile to the specified file
 	    when all tests are complete.
+	    Writes test binary as -c would.
 
 	-blockprofilerate n
 	    Control the detail provided in goroutine blocking profiles by
@@ -154,8 +162,7 @@ control the execution of any test:
 	    Sets -cover.
 
 	-coverprofile cover.out
-	    Write a coverage profile to the specified file after all tests
-	    have passed.
+	    Write a coverage profile to the file after all tests have passed.
 	    Sets -cover.
 
 	-cpu 1,2,4
@@ -165,10 +172,11 @@ control the execution of any test:
 
 	-cpuprofile cpu.out
 	    Write a CPU profile to the specified file before exiting.
+	    Writes test binary as -c would.
 
 	-memprofile mem.out
-	    Write a memory profile to the specified file after all tests
-	    have passed.
+	    Write a memory profile to the file after all tests have passed.
+	    Writes test binary as -c would.
 
 	-memprofilerate n
 	    Enable more precise (and expensive) memory profiles by setting
@@ -275,10 +283,10 @@ var (
 	testCoverMode    string     // -covermode flag
 	testCoverPaths   []string   // -coverpkg flag
 	testCoverPkgs    []*Package // -coverpkg flag
+	testO            string     // -o flag
 	testProfile      bool       // some profiling flag
 	testNeedBinary   bool       // profile needs to keep binary around
 	testV            bool       // -v flag
-	testFiles        []string   // -file flag(s)  TODO: not respected
 	testTimeout      string     // -timeout flag
 	testArgs         []string
 	testBench        bool
@@ -309,6 +317,9 @@ func runTest(cmd *Command, args []string) {
 
 	if testC && len(pkgs) != 1 {
 		fatalf("cannot use -c flag with multiple packages")
+	}
+	if testO != "" && len(pkgs) != 1 {
+		fatalf("cannot use -o flag with multiple packages")
 	}
 	if testProfile && len(pkgs) != 1 {
 		fatalf("cannot use test profile flag with multiple packages")
@@ -781,17 +792,24 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	a.objdir = testDir + string(filepath.Separator)
 	a.objpkg = filepath.Join(testDir, "main.a")
 	a.target = filepath.Join(testDir, testBinary) + exeSuffix
-	pmainAction := a
+	buildAction = a
 
 	if testC || testNeedBinary {
 		// -c or profiling flag: create action to copy binary to ./test.out.
-		runAction = &action{
-			f:      (*builder).install,
-			deps:   []*action{pmainAction},
-			p:      pmain,
-			target: filepath.Join(cwd, testBinary+exeSuffix),
+		target := filepath.Join(cwd, testBinary+exeSuffix)
+		if testO != "" {
+			target = testO
+			if !filepath.IsAbs(target) {
+				target = filepath.Join(cwd, target)
+			}
 		}
-		pmainAction = runAction // in case we are running the test
+		buildAction = &action{
+			f:      (*builder).install,
+			deps:   []*action{buildAction},
+			p:      pmain,
+			target: target,
+		}
+		runAction = buildAction // make sure runAction != nil even if not running test
 	}
 	if testC {
 		printAction = &action{p: p, deps: []*action{runAction}} // nop
@@ -799,7 +817,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		// run test
 		runAction = &action{
 			f:          (*builder).runTest,
-			deps:       []*action{pmainAction},
+			deps:       []*action{buildAction},
 			p:          p,
 			ignoreFail: true,
 		}
@@ -815,7 +833,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		}
 	}
 
-	return pmainAction, runAction, printAction, nil
+	return buildAction, runAction, printAction, nil
 }
 
 func testImportStack(top string, p *Package, target string) []string {
