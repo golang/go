@@ -505,8 +505,13 @@ func goFilesPackage(gofiles []string) *Package {
 	}
 	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
 
-	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(cwd, dir)
+	var err error
+	if dir == "" {
+		dir = cwd
+	}
+	dir, err = filepath.Abs(dir)
+	if err != nil {
+		fatalf("%s", err)
 	}
 
 	bp, err := ctxt.ImportDir(dir, 0)
