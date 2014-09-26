@@ -45,6 +45,8 @@ char*	paramspace	= "FP";
 void
 main(int argc, char *argv[])
 {
+	int i;
+
 	linkarchinit();
 	ctxt = linknew(thelinkarch);
 	ctxt->thechar = thechar;
@@ -63,6 +65,13 @@ main(int argc, char *argv[])
 	INITRND = -1;
 	INITENTRY = 0;
 	linkmode = LinkAuto;
+	
+	// For testing behavior of go command when tools crash.
+	// Undocumented, not in standard flag parser to avoid
+	// exposing in usage message.
+	for(i=1; i<argc; i++)
+		if(strcmp(argv[i], "-crash_for_testing") == 0)
+			*(volatile int*)0 = 0;
 	
 	if(thechar == '5' && ctxt->goarm == 5)
 		debug['F'] = 1;
