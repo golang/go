@@ -126,6 +126,56 @@ if ! ./testgo build -v ./testdata/testinternal2; then
 	ok=false
 fi
 
+# Test that 'go get -u' reports moved packages.
+testmove() {
+	vcs=$1
+	url=$2
+	base=$3
+	config=$4
+
+	TEST go get -u notices $vcs package that moved
+	d=$(mktemp -d -t testgoXXX)
+	mkdir -p $d/src
+	if ! GOPATH=$d ./testgo get -d $url; then
+		echo 'go get -d $url failed'
+		ok=false
+	elif ! GOPATH=$d ./testgo get -d -u $url; then
+		echo 'go get -d -u $url failed'
+		ok=false
+	else
+		set +e
+		case "$vcs" in
+		svn)
+			# SVN doesn't believe in text files so we can't just edit the config.
+			# Check out a different repo into the wrong place.
+			rm -rf $d/src/code.google.com/p/rsc-svn
+			GOPATH=$d ./testgo get -d -u code.google.com/p/rsc-svn2/trunk
+			mv $d/src/code.google.com/p/rsc-svn2 $d/src/code.google.com/p/rsc-svn
+			;;
+		*)
+			echo '1,$s;'"$base"';'"$base"'XXX;
+w
+q' | ed $d/src/$config >/dev/null 2>&1
+		esac
+		set -e
+
+		if GOPATH=$d ./testgo get -d -u $url 2>$d/err; then
+			echo "go get -d -u $url succeeded with wrong remote repo"
+			cat $d/err
+			ok=false
+		elif ! grep 'should be from' $d/err >/dev/null; then
+			echo "go get -d -u $url failed for wrong reason"
+			cat $d/err
+			ok=false
+		fi
+	fi
+	rm -rf $d
+}
+
+testmove hg rsc.io/x86/x86asm x86 rsc.io/x86/.hg/hgrc
+testmove git rsc.io/pdf pdf rsc.io/pdf/.git/config
+testmove svn code.google.com/p/rsc-svn/trunk - -
+
 export GOPATH=$(pwd)/testdata/importcom
 TEST 'import comment - match'
 if ! ./testgo build ./testdata/importcom/works.go; then
