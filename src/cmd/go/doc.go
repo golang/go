@@ -524,16 +524,23 @@ non-test installation.
 
 In addition to the build flags, the flags handled by 'go test' itself are:
 
-	-c  Compile the test binary to pkg.test but do not run it.
-	    (Where pkg is the last element of the package's import path.)
+	-c
+		Compile the test binary to pkg.test but do not run it
+		(where pkg is the last element of the package's import path).
+		The file name can be changed with the -o flag.
+
+	-exec xprog
+	    Run the test binary using xprog. The behavior is the same as
+	    in 'go run'. See 'go help run' for details.
 
 	-i
 	    Install packages that are dependencies of the test.
 	    Do not run the test.
 
-	-exec xprog
-	    Run the test binary using xprog. The behavior is the same as
-	    in 'go run'. See 'go help run' for details.
+	-o file
+		Compile the test binary to the named file.
+		The test still runs (unless -c or -i is specified).
+
 
 The test binary also accepts flags that control execution of the test; these
 flags are also accessible by 'go test'.  See 'go help testflag' for details.
@@ -910,7 +917,8 @@ single directory, the command is applied to a single synthesized
 package made up of exactly those files, ignoring any build constraints
 in those files and ignoring any other files in the directory.
 
-File names that begin with "." or "_" are ignored by the go tool.
+Directory and file names that begin with "." or "_" are ignored
+by the go tool, as are directories named "testdata".
 
 
 Description of testing flags
@@ -942,6 +950,7 @@ control the execution of any test:
 	-blockprofile block.out
 	    Write a goroutine blocking profile to the specified file
 	    when all tests are complete.
+	    Writes test binary as -c would.
 
 	-blockprofilerate n
 	    Control the detail provided in goroutine blocking profiles by
@@ -973,8 +982,7 @@ control the execution of any test:
 	    Sets -cover.
 
 	-coverprofile cover.out
-	    Write a coverage profile to the specified file after all tests
-	    have passed.
+	    Write a coverage profile to the file after all tests have passed.
 	    Sets -cover.
 
 	-cpu 1,2,4
@@ -984,10 +992,11 @@ control the execution of any test:
 
 	-cpuprofile cpu.out
 	    Write a CPU profile to the specified file before exiting.
+	    Writes test binary as -c would.
 
 	-memprofile mem.out
-	    Write a memory profile to the specified file after all tests
-	    have passed.
+	    Write a memory profile to the file after all tests have passed.
+	    Writes test binary as -c would.
 
 	-memprofilerate n
 	    Enable more precise (and expensive) memory profiles by setting
