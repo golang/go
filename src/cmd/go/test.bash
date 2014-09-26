@@ -948,6 +948,18 @@ elif ! grep "$GOARCH test3.go p xyzp/test3.go/123" testdata/std.out > /dev/null;
 	ok=false
 fi
 
+TEST go get works with vanity wildcards
+d=$(mktemp -d -t testgoXXX)
+export GOPATH=$d
+if ! ./testgo get -u rsc.io/pdf/...; then
+	ok=false
+elif [ ! -x $d/bin/pdfpasswd ]; then
+	echo did not build rsc.io/pdf/pdfpasswd
+	ok=false
+fi
+unset GOPATH
+rm -rf $d
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
