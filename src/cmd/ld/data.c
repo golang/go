@@ -620,6 +620,7 @@ addstrdata(char *name, char *value)
 {
 	LSym *s, *sp;
 	char *p;
+	uchar reachable;
 
 	p = smprint("%s.str", name);
 	sp = linklookup(ctxt, p, 0);
@@ -630,13 +631,17 @@ addstrdata(char *name, char *value)
 	s = linklookup(ctxt, name, 0);
 	s->size = 0;
 	s->dupok = 1;
+	reachable = s->reachable;
 	addaddr(ctxt, s, sp);
 	adduint32(ctxt, s, strlen(value));
 	if(PtrSize == 8)
 		adduint32(ctxt, s, 0);  // round struct to pointer width
 
-	// in case reachability has already been computed
-	sp->reachable = s->reachable;
+	// addstring, addaddr, etc., mark the symbols as reachable.
+	// In this case that is not necessarily true, so stick to what
+	// we know before entering this function.
+	s->reachable = reachable;
+	sp->reachable = reachable;
 }
 
 vlong

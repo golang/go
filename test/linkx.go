@@ -1,4 +1,4 @@
-// $G $D/$F.go && $L -X main.tbd hello -X main.overwrite trumped $F.$A && ./$A.out
+// $G $D/$F.go && $L -X main.tbd hello -X main.overwrite trumped -X main.nosuchsymbol neverseen $F.$A && ./$A.out
 
 // NOTE: This test is not run by 'run.go' and so not run by all.bash.
 // To run this test you must use the ./run shell script.

@@ -222,8 +222,10 @@ loadlib(void)
 		// Since we are simulating the import, we have to provide this string.
 		cgostrsym = "go.string.\"runtime/cgo\"";
 		if(linkrlookup(ctxt, cgostrsym, 0) == nil) {
+			s = linklookup(ctxt, cgostrsym, 0);
+			s->type = SRODATA;
+			s->reachable = 1;
 			addstrdata(cgostrsym, "runtime/cgo");
-			linklookup(ctxt, cgostrsym, 0)->type = SRODATA;
 		}
 	}
 
