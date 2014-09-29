@@ -1303,9 +1303,17 @@ yieldloop:
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
-TEXT _cgo_topofstack(SB),NOSPLIT,$0
+TEXT _cgo_topofstack(SB),NOSPLIT,$8
+	// R11 and g register are clobbered by load_g.  They are
+	// callee-save in the gcc calling convention, so save them here.
+	MOVW	R11, saveR11-4(SP)
+	MOVW	g, saveG-8(SP)
+	
 	BL	runtime·load_g(SB)
 	MOVW	g_m(g), R0
 	MOVW	m_curg(R0), R0
 	MOVW	(g_stack+stack_hi)(R0), R0
+	
+	MOVW	saveG-8(SP), g
+	MOVW	saveR11-4(SP), R11
 	RET
