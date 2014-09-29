@@ -1,5 +1,5 @@
 $ export BUILD=linux-amd64-gccgo
-$ export BUILDREV=6b61234c2552
+$ export BUILDREV=b9151e911a54
 $ docker run \
     -v $HOME/keys/$BUILD.buildkey:/.gobuildkey \
     gobuilders/linux-x86-gccgo \

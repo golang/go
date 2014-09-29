@@ -5,5 +5,8 @@
 docker: Dockerfile
 	docker build -t gobuilders/linux-x86-gccgo .
 
-docker-linux.gccgo.tar.gz: docker
+upload: docker
 	docker save gobuilders/linux-x86-gccgo | gzip | (cd ../../coordinator/buildongce && go run create.go --write_object=go-builder-data/docker-linux.gccgo.tar.gz)
+
+check: docker
+	docker run gobuilders/linux-x86-gccgo /usr/local/bin/builder -tool="gccgo" -rev=b9151e911a54 -buildroot=/gccgo -v -cmd='make check-go -kj' -report=false linux-amd64-gccgo-temp
