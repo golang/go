@@ -531,9 +531,8 @@ char* mktempdir(void);
 void removeall(char*);
 
 static void
-cleanup(void)
+rmtemp(void)
 {
-	close(cout);
 	removeall(tmpdir);
 }
 
@@ -548,7 +547,7 @@ hostlinksetup(void)
 	// create temporary directory and arrange cleanup
 	if(tmpdir == nil) {
 		tmpdir = mktempdir();
-		atexit(cleanup);
+		atexit(rmtemp);
 	}
 
 	// change our output to temporary object file
