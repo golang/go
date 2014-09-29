@@ -164,7 +164,7 @@ type TBSCertificateList struct {
 	Signature           AlgorithmIdentifier
 	Issuer              RDNSequence
 	ThisUpdate          time.Time
-	NextUpdate          time.Time
+	NextUpdate          time.Time            `asn1:"optional"`
 	RevokedCertificates []RevokedCertificate `asn1:"optional"`
 	Extensions          []Extension          `asn1:"tag:0,optional,explicit"`
 }
