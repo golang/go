@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 25, 2014",
+	"Subtitle": "Version of September 29, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -5927,20 +5927,42 @@ var t T
 </pre>
 
 <h3 id="Package_initialization">Package initialization</h3>
+
 <p>
-Within a package, package-level variables are initialized according
-to their <i>dependencies</i>: if a variable <code>x</code> depends on
-a variable <code>y</code>, <code>x</code> will be initialized after
-<code>y</code>.
+Within a package, package-level variables are initialized in
+<i>declaration order</i> but after any of the variables
+they <i>depend</i> on.
+</p>
+
+<p>
+More precisely, a package-level variable is considered <i>ready for
+initialization</i> if it is not yet initialized and either has
+no <a href="#Variable_declarations">initialization expression</a> or
+its initialization expression has no dependencies on uninitialized variables.
+Initialization proceeds by repeatedly initializing the next package-level
+variable that is earliest in declaration order and ready for initialization,
+until there are no variables ready for initialization.
+</p>
+
+<p>
+If any variables are still uninitialized when this
+process ends, those variables are part of one or more initialization cycles,
+and the program is not valid.
+</p>
+
+<p>
+The declaration order of variables declared in multiple files is determined
+by the order in which the files are presented to the compiler: Variables
+declared in the first file are declared before any of the variables declared
+in the second file, and so on.
 </p>
 
 <p>
 Dependency analysis does not rely on the actual values of the
 variables, only on lexical <i>references</i> to them in the source,
-analyzed transitively. For instance, a variable <code>x</code>'s
-<a href="#Variable_declarations">initialization expression</a>
-may refer to a function whose body refers to variable <code>y</code>;
-if so, <code>x</code> depends on <code>y</code>.
+analyzed transitively. For instance, if a variable <code>x</code>'s
+initialization expression refers to a function whose body refers to
+variable <code>y</code> then <code>x</code> depends on <code>y</code>.
 Specifically:
 </p>
 
@@ -5973,11 +5995,6 @@ or to a function or method that depends on <code>y</code>.
 Dependency analysis is performed per package; only references referring
 to variables, functions, and methods declared in the current package
 are considered.
-It is an error if variable dependencies form a cycle
-(but dependency cycles containing no variables are permitted).
-If two variables are independent of each other,
-they are initialized in the order they are declared
-in the source, possibly in multiple files, as presented to the compiler.
 </p>
 
 <p>
@@ -6000,8 +6017,6 @@ func f() int {
 
 <p>
 the initialization order is <code>d</code>, <code>b</code>, <code>c</code>, <code>a</code>.
-Since <code>b</code> and <code>c</code> are independent of each other, they are
-initialized in declaration order (<code>b</code> before <code>c</code>).
 </p>
 
 <p>
@@ -6042,6 +6057,12 @@ concurrently with the initialization code. However, initialization
 always sequences
 the <code>init</code> functions: it will not invoke the next one
 until the previous one has returned.
+</p>
+
+<p>
+To ensure reproducible initialization behavior, build systems are encouraged
+to present multiple files belonging to the same package in lexical file name
+order to a compiler.
 </p>
 
 
