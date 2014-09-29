@@ -852,7 +852,8 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 // POST and PUT body parameters take precedence over URL query string values.
 // FormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
-// To access multiple values of the same key use ParseForm.
+// To access multiple values of the same key, call ParseForm and
+// then inspect Request.Form directly.
 func (r *Request) FormValue(key string) string {
 	if r.Form == nil {
 		r.ParseMultipartForm(defaultMaxMemory)
