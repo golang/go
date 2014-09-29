@@ -32,6 +32,8 @@ import (
 
 %type	<num>	expr expr1 expr2 expr3
 
+%token '+' '-' '*' '/' '(' ')'
+
 %token	<num>	NUM
 
 %%
