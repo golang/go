@@ -778,6 +778,35 @@ func TestChunkedResponseHeaders(t *testing.T) {
 	}
 }
 
+func TestIdentityResponseHeaders(t *testing.T) {
+	defer afterTest(t)
+	log.SetOutput(ioutil.Discard) // is noisy otherwise
+	defer log.SetOutput(os.Stderr)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Transfer-Encoding", "identity")
+		w.(Flusher).Flush()
+		fmt.Fprintf(w, "I am an identity response.")
+	}))
+	defer ts.Close()
+
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatalf("Get error: %v", err)
+	}
+	defer res.Body.Close()
+
+	if g, e := res.TransferEncoding, []string(nil); !reflect.DeepEqual(g, e) {
+		t.Errorf("expected TransferEncoding of %v; got %v", e, g)
+	}
+	if _, haveCL := res.Header["Content-Length"]; haveCL {
+		t.Errorf("Unexpected Content-Length")
+	}
+	if !res.Close {
+		t.Errorf("expected Connection: close; got %v", res.Close)
+	}
+}
+
 // Test304Responses verifies that 304s don't declare that they're
 // chunking in their response headers and aren't allowed to produce
 // output.
