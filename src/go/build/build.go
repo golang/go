@@ -294,10 +294,10 @@ func defaultContext() Context {
 	// say "+build go1.x", and code that should only be built before Go 1.x
 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
 	//
-	// When we reach Go 1.4 the line will read
-	//	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4"}
+	// When we reach Go 1.5 the line will read
+	//	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4", "go1.5"}
 	// and so on.
-	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3"}
+	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4"}
 
 	switch os.Getenv("CGO_ENABLED") {
 	case "1":
