@@ -148,10 +148,6 @@ func fastrand1() uint32
 //go:noescape
 func memeq(a, b unsafe.Pointer, size uintptr) bool
 
-// Code pointers for the nohash/noequal algorithms. Used for producing better error messages.
-var nohashcode uintptr
-var noequalcode uintptr
-
 // noescape hides a pointer from escape analysis.  noescape is
 // the identity function but escape analysis doesn't think the
 // output depends on the input.  noescape is inlined and currently
