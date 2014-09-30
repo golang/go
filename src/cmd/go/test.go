@@ -535,6 +535,13 @@ func contains(x []string, s string) bool {
 	return false
 }
 
+var windowsBadWords = []string{
+	"install",
+	"patch",
+	"setup",
+	"update",
+}
+
 func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.action(modeBuild, modeBuild, p)
@@ -794,6 +801,36 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	a.objdir = testDir + string(filepath.Separator)
 	a.objpkg = filepath.Join(testDir, "main.a")
 	a.target = filepath.Join(testDir, testBinary) + exeSuffix
+	if goos == "windows" {
+		// There are many reserved words on Windows that,
+		// if used in the name of an executable, cause Windows
+		// to try to ask for extra permissions.
+		// The word list includes setup, install, update, and patch,
+		// but it does not appear to be defined anywhere.
+		// We have run into this trying to run the
+		// go.codereview/patch tests.
+		// For package names containing those words, use test.test.exe
+		// instead of pkgname.test.exe.
+		// Note that this file name is only used in the Go command's
+		// temporary directory. If the -c or other flags are
+		// given, the code below will still use pkgname.test.exe.
+		// There are two user-visible effects of this change.
+		// First, you can actually run 'go test' in directories that
+		// have names that Windows thinks are installer-like,
+		// without getting a dialog box asking for more permissions.
+		// Second, in the Windows process listing during go test,
+		// the test shows up as test.test.exe, not pkgname.test.exe.
+		// That second one is a drawback, but it seems a small
+		// price to pay for the test running at all.
+		// If maintaining the list of bad words is too onerous,
+		// we could just do this always on Windows.
+		for _, bad := range windowsBadWords {
+			if strings.Contains(testBinary, bad) {
+				a.target = filepath.Join(testDir, "test.test") + exeSuffix
+				break
+			}
+		}
+	}
 	buildAction = a
 
 	if testC || testNeedBinary {
