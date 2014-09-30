@@ -719,12 +719,7 @@ func main() {
         _ = (*B).f
 }`
 
-	// TODO(adonovan): assert all map entries are used at least once.
 	wantOut := map[string][2]string{
-		"lib.T":   {"qualified ident type lib.T float64", ".[]"},
-		"lib.C":   {"qualified ident const lib.C lib.T", ".[]"},
-		"lib.F":   {"qualified ident func lib.F()", ".[]"},
-		"lib.V":   {"qualified ident var lib.V lib.T", ".[]"},
 		"lib.T.M": {"method expr (lib.T) M(lib.T)", ".[0]"},
 
 		"A{}.B":    {"field (main.A) B *main.B", ".[0]"},
@@ -775,6 +770,7 @@ func main() {
 		if want != got {
 			t.Errorf("%s: got %q; want %q", syntax, got, want)
 		}
+		delete(wantOut, syntax)
 
 		// We must explicitly assert properties of the
 		// Signature's receiver since it doesn't participate
@@ -789,6 +785,10 @@ func main() {
 		} else if sig != nil && sig.Recv() != nil {
 			t.Error("%s: signature has receiver %s", sig, sig.Recv().Type())
 		}
+	}
+	// Assert that all wantOut entries were used exactly once.
+	for syntax := range wantOut {
+		t.Errorf("no ast.Selection found with syntax %q", syntax)
 	}
 }
 
