@@ -57,6 +57,26 @@ func (t *Transport) IdleConnChMapSizeForTesting() int {
 	return len(t.idleConnCh)
 }
 
+func (t *Transport) IsIdleForTesting() bool {
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	return t.wantIdle
+}
+
+func (t *Transport) RequestIdleConnChForTesting() {
+	t.getIdleConnCh(connectMethod{nil, "http", "example.com"})
+}
+
+func (t *Transport) PutIdleTestConn() bool {
+	c, _ := net.Pipe()
+	return t.putIdleConn(&persistConn{
+		t:        t,
+		conn:     c,                   // dummy
+		closech:  make(chan struct{}), // so it can be closed
+		cacheKey: connectMethodKey{"", "http", "example.com"},
+	})
+}
+
 func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
 	f := func() <-chan time.Time {
 		return ch
