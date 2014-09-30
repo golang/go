@@ -619,17 +619,17 @@ asmb(void)
 			if(iself)
 				goto Elfsym;
 		case Hplan9:
-			symo = HEADR+segtext.filelen+segdata.filelen;
+			symo = segdata.fileoff+segdata.filelen;
 			break;
 		case Hdarwin:
-			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
+			symo = segdata.fileoff+rnd(segdata.filelen, INITRND)+machlink;
 			break;
 		Elfsym:
-			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(HEADR+segrodata.filelen, INITRND)+segdata.filelen;
+			symo = segdata.fileoff+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
 		case Hwindows:
-			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
+			symo = segdata.fileoff+segdata.filelen;
 			symo = rnd(symo, PEFILEALIGN);
 			break;
 		}
