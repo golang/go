@@ -308,6 +308,9 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 		if n.High != nil {
 			f.walk(&n.High, "expr", visit)
 		}
+		if n.Max != nil {
+			f.walk(&n.Max, "expr", visit)
+		}
 	case *ast.TypeAssertExpr:
 		f.walk(&n.X, "expr", visit)
 		f.walk(&n.Type, "type", visit)
