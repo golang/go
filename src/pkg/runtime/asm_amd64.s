@@ -784,7 +784,8 @@ havem:
 	MOVQ	BP, -8(DI)
 	LEAQ	-(8+8)(DI), SP
 	MOVQ	R8, 0(SP)
-	CALL	runtime·cgocallbackg(SB)
+	MOVQ	$runtime·cgocallbackg(SB), AX // hide function call from linker
+	CALL	AX
 	MOVQ	0(SP), R8
 
 	// Restore g->sched (== m->curg->sched) from saved values.
