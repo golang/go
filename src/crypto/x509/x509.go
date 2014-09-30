@@ -1328,7 +1328,7 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 
 			dp := distributionPoint{
 				DistributionPoint: distributionPointName{
-					FullName: asn1.RawValue{Tag: 0, Class: 2, Bytes: rawFullName},
+					FullName: asn1.RawValue{Tag: 0, Class: 2, IsCompound: true, Bytes: rawFullName},
 				},
 			}
 			crlDp = append(crlDp, dp)
