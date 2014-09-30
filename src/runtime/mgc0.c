@@ -140,7 +140,8 @@ static BitVector	unrollglobgcprog(byte *prog, uintptr size);
 void runtime·bgsweep(void);
 static FuncVal bgsweepv = {runtime·bgsweep};
 
-struct {
+typedef struct WorkData WorkData;
+struct WorkData {
 	uint64	full;  // lock-free list of full blocks
 	uint64	empty; // lock-free list of empty blocks
 	byte	pad0[CacheLineSize]; // prevents false-sharing between full/empty and nproc/nwait
@@ -154,7 +155,8 @@ struct {
 	// Copy of mheap.allspans for marker or sweeper.
 	MSpan**	spans;
 	uint32	nspan;
-} runtime·work;
+};
+WorkData runtime·work;
 
 // scanblock scans a block of n bytes starting at pointer b for references
 // to other objects, scanning any it finds recursively until there are no
@@ -1038,7 +1040,8 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
 
 // State of background runtime·sweep.
 // Protected by runtime·gclock.
-struct
+typedef struct SweepData SweepData;
+struct SweepData
 {
 	G*	g;
 	bool	parked;
@@ -1047,7 +1050,8 @@ struct
 
 	uint32	nbgsweep;
 	uint32	npausesweep;
-} runtime·sweep;
+};
+SweepData runtime·sweep;
 
 // sweeps one span
 // returns number of pages returned to heap, or -1 if there is nothing to sweep
