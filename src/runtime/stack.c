@@ -695,7 +695,7 @@ runtime·newstack(void)
 		runtime·traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g);
 		runtime·throw("runtime: wrong goroutine in newstack");
 	}
-	if(g->throwsplit)
+	if(g->m->curg->throwsplit)
 		runtime·throw("runtime: stack split at bad time");
 
 	// The goroutine must be executing in order to call newstack,
