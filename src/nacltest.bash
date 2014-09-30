@@ -45,6 +45,7 @@ if [ ! -f make.bash ]; then
 	exit 1
 fi
 GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH ./make.bash
+unset GOROOT
 
 # Build zip file embedded in package syscall.
 gobin=${GOBIN:-$(pwd)/../bin}
