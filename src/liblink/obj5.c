@@ -119,14 +119,30 @@ progedit(Link *ctxt, Prog *p)
 				ctxt->diag("%L: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p->lineno);
 
 			if(ctxt->goarm < 7) {
-				// Replace it with BL runtime.read_tls_fallback(SB).
+				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
 				if(tlsfallback == nil)
 					tlsfallback = linklookup(ctxt, "runtime.read_tls_fallback", 0);
-				// BL runtime.read_tls_fallback(SB)
+				// MOVW	LR, R11
+				p->as = AMOVW;
+				p->from.type = D_REG;
+				p->from.reg = REGLINK;
+				p->to.type = D_REG;
+				p->to.reg = REGTMP;
+
+				// BL	runtime.read_tls_fallback(SB)
+				p = appendp(ctxt, p);
 				p->as = ABL;
 				p->to.type = D_BRANCH;
 				p->to.sym = tlsfallback;
 				p->to.offset = 0;
+
+				// MOVW	R11, LR
+				p = appendp(ctxt, p);
+				p->as = AMOVW;
+				p->from.type = D_REG;
+				p->from.reg = REGTMP;
+				p->to.type = D_REG;
+				p->to.reg = REGLINK;
 				break;
 			}
 		}
