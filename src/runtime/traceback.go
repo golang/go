@@ -31,19 +31,35 @@ import "unsafe"
 const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
 
 var (
-	deferprocPC = funcPC(deferproc)
-	goexitPC    = funcPC(goexit)
-	jmpdeferPC  = funcPC(jmpdefer)
-	mcallPC     = funcPC(mcall)
-	morestackPC = funcPC(morestack)
-	mstartPC    = funcPC(mstart)
-	newprocPC   = funcPC(newproc)
-	newstackPC  = funcPC(newstack)
-	rt0_goPC    = funcPC(rt0_go)
-	sigpanicPC  = funcPC(sigpanic)
+	// initialized in tracebackinit
+	deferprocPC uintptr
+	goexitPC    uintptr
+	jmpdeferPC  uintptr
+	mcallPC     uintptr
+	morestackPC uintptr
+	mstartPC    uintptr
+	newprocPC   uintptr
+	rt0_goPC    uintptr
+	sigpanicPC  uintptr
 
 	externalthreadhandlerp uintptr // initialized elsewhere
 )
+
+func tracebackinit() {
+	// Go variable initialization happens late during runtime startup.
+	// Instead of initializing the variables above in the declarations,
+	// schedinit calls this function so that the variables are
+	// initialized and available earlier in the startup sequence.
+	deferprocPC = funcPC(deferproc)
+	goexitPC = funcPC(goexit)
+	jmpdeferPC = funcPC(jmpdefer)
+	mcallPC = funcPC(mcall)
+	morestackPC = funcPC(morestack)
+	mstartPC = funcPC(mstart)
+	newprocPC = funcPC(newproc)
+	rt0_goPC = funcPC(rt0_go)
+	sigpanicPC = funcPC(sigpanic)
+}
 
 // Traceback over the deferred function calls.
 // Report them like calls that have been invoked but not started executing yet.
@@ -81,6 +97,9 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 // collector (callback != nil).  A little clunky to merge these, but avoids
 // duplicating the code and all its subtlety.
 func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, printall bool) int {
+	if goexitPC == 0 {
+		gothrow("gentraceback before goexitPC initialization")
+	}
 	g := getg()
 	gotraceback := gotraceback(nil)
 	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.

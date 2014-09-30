@@ -131,6 +131,7 @@ runtime·schedinit(void)
 
 	runtime·sched.maxmcount = 10000;
 
+	runtime·tracebackinit();
 	runtime·symtabinit();
 	runtime·stackinit();
 	runtime·mallocinit();
