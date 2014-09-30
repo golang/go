@@ -2177,6 +2177,45 @@ func TestRoundTripReturnsProxyError(t *testing.T) {
 	}
 }
 
+// tests that putting an idle conn after a call to CloseIdleConns does return it
+func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
+	tr := &Transport{}
+	wantIdle := func(when string, n int) bool {
+		got := tr.IdleConnCountForTesting("|http|example.com") // key used by PutIdleTestConn
+		if got == n {
+			return true
+		}
+		t.Errorf("%s: idle conns = %d; want %d", when, got, n)
+		return false
+	}
+	wantIdle("start", 0)
+	if !tr.PutIdleTestConn() {
+		t.Fatal("put failed")
+	}
+	if !tr.PutIdleTestConn() {
+		t.Fatal("second put failed")
+	}
+	wantIdle("after put", 2)
+	tr.CloseIdleConnections()
+	if !tr.IsIdleForTesting() {
+		t.Error("should be idle after CloseIdleConnections")
+	}
+	wantIdle("after close idle", 0)
+	if tr.PutIdleTestConn() {
+		t.Fatal("put didn't fail")
+	}
+	wantIdle("after second put", 0)
+
+	tr.RequestIdleConnChForTesting() // should toggle the transport out of idle mode
+	if tr.IsIdleForTesting() {
+		t.Error("shouldn't be idle after RequestIdleConnChForTesting")
+	}
+	if !tr.PutIdleTestConn() {
+		t.Fatal("after re-activation")
+	}
+	wantIdle("after final put", 1)
+}
+
 func wantBody(res *http.Response, err error, want string) error {
 	if err != nil {
 		return err
