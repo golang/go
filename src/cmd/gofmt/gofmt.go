@@ -106,7 +106,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 		simplify(file)
 	}
 
-	res, err := format(fileSet, file, sourceAdj, indentAdj, src)
+	res, err := format(fileSet, file, sourceAdj, indentAdj, src, printer.Config{Mode: printerMode, Tabwidth: tabWidth})
 	if err != nil {
 		return err
 	}
@@ -235,8 +235,16 @@ func diff(b1, b2 []byte) (data []byte, err error) {
 
 }
 
-// parse parses src, which was read from filename,
-// as a Go source file or statement list.
+// ----------------------------------------------------------------------------
+// Support functions
+//
+// The functions parse, format, and isSpace below are identical to the
+// respective functions in src/go/format/format.go - keep them in sync!
+//
+// TODO(gri) Factor out this functionality, eventually.
+
+// parse parses src, which was read from the named file,
+// as a Go source file, declaration, or statement list.
 func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 	file *ast.File,
 	sourceAdj func(src []byte, indent int) []byte,
@@ -303,11 +311,21 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 	return
 }
 
-func format(fset *token.FileSet, file *ast.File, sourceAdj func(src []byte, indent int) []byte, indentAdj int, src []byte) ([]byte, error) {
+// format formats the given package file originally obtained from src
+// and adjusts the result based on the original source via sourceAdj
+// and indentAdj.
+func format(
+	fset *token.FileSet,
+	file *ast.File,
+	sourceAdj func(src []byte, indent int) []byte,
+	indentAdj int,
+	src []byte,
+	cfg printer.Config,
+) ([]byte, error) {
 	if sourceAdj == nil {
 		// Complete source file.
 		var buf bytes.Buffer
-		err := (&printer.Config{Mode: printerMode, Tabwidth: tabWidth}).Fprint(&buf, fset, file)
+		err := cfg.Fprint(&buf, fset, file)
 		if err != nil {
 			return nil, err
 		}
@@ -348,7 +366,6 @@ func format(fset *token.FileSet, file *ast.File, sourceAdj func(src []byte, inde
 
 	// Format the source.
 	// Write it without any leading and trailing space.
-	cfg := &printer.Config{Mode: printerMode, Tabwidth: tabWidth}
 	cfg.Indent = indent + indentAdj
 	var buf bytes.Buffer
 	err := cfg.Fprint(&buf, fset, file)
