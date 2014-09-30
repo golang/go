@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 29, 2014",
+	"Subtitle": "Version of September 30, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -577,7 +577,7 @@ Numeric constants represent values of arbitrary precision and do not overflow.
 </p>
 
 <p>
-Constants may be <a href="#Types">typed</a> or untyped.
+Constants may be <a href="#Types">typed</a> or <i>untyped</i>.
 Literal constants, <code>true</code>, <code>false</code>, <code>iota</code>,
 and certain <a href="#Constant_expressions">constant expressions</a>
 containing only untyped constant operands are untyped.
@@ -595,6 +595,17 @@ For instance, <code>3.0</code> can be given any integer or any
 floating-point type, while <code>2147483648.0</code> (equal to <code>1&lt;&lt;31</code>)
 can be given the types <code>float32</code>, <code>float64</code>, or <code>uint32</code> but
 not <code>int32</code> or <code>string</code>.
+</p>
+
+<p>
+An untyped constant has a <i>default type</i> which is the type to which the
+constant is implicitly converted in contexts where a typed value is required,
+for instance, in a <a href="#Short_variable_declarations">short variable declaration</a>
+such as <code>i := 0</code> where there is no explicit type.
+The default type of an untyped constant is <code>bool</code>, <code>rune</code>,
+<code>int</code>, <code>float64</code>, <code>complex128</code> or <code>string</code>
+respectively, depending on whether it is a boolean, rune, integer, floating-point,
+complex, or string constant.
 </p>
 
 <p>
@@ -1882,9 +1893,10 @@ func (tz TimeZone) String() string {
 <h3 id="Variable_declarations">Variable declarations</h3>
 
 <p>
-A variable declaration creates a variable, binds an identifier to it and
-gives it a type and optionally an initial value.
+A variable declaration creates one or more variables, binds corresponding
+identifiers to them, and gives each a type and an initial value.
 </p>
+
 <pre class="ebnf">
 VarDecl     = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
 VarSpec     = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
@@ -1905,22 +1917,27 @@ var _, found = entries[name]  // map lookup; only interested in "found"
 
 <p>
 If a list of expressions is given, the variables are initialized
-by <a href="#Assignments">assigning</a> the expressions to the variables
-in order; all expressions must be consumed and all variables initialized from them.
+with the expressions following the rules for <a href="#Assignments">assignments</a>.
 Otherwise, each variable is initialized to its <a href="#The_zero_value">zero value</a>.
 </p>
 
 <p>
-If the type is present, each variable is given that type.
-Otherwise, the types are deduced from the assignment
-of the expression list.
+If a type is present, each variable is given that type.
+Otherwise, each variable is given the type of the corresponding
+initialization value in the assignment.
+If that value is an untyped constant, it is first
+<a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
+if it is an untyped boolean value, it is first converted to type <code>bool</code>.
+The predeclared value <code>nil</code> cannot be used to initialize a variable
+with no explicit type.
 </p>
 
-<p>
-If the type is absent and the corresponding expression evaluates to an
-untyped <a href="#Constants">constant</a>, the type of the declared variable
-is as described in §<a href="#Assignments">Assignments</a>.
-</p>
+<pre>
+var d = math.Sin(0.5)  // d is int64
+var i = 42             // i is int
+var t, ok = x.(T)      // t is T, ok is bool
+var n = nil            // illegal
+</pre>
 
 <p>
 Implementation restriction: A compiler may make it illegal to declare a variable
@@ -4318,7 +4335,7 @@ a[i] = 23
 
 <p>
 An <i>assignment operation</i> <code>x</code> <i>op</i><code>=</code>
-<code>y</code> where <i>op</i> is a binary arithmetic operation equivalent
+<code>y</code> where <i>op</i> is a binary arithmetic operation is equivalent
 to <code>x</code> <code>=</code> <code>x</code> <i>op</i>
 <code>y</code> but evaluates <code>x</code>
 only once.  The <i>op</i><code>=</code> construct is a single token.
@@ -4336,8 +4353,8 @@ i &amp;^= 1&lt;&lt;n
 A tuple assignment assigns the individual elements of a multi-valued
 operation to a list of variables.  There are two forms.  In the
 first, the right hand operand is a single multi-valued expression
-such as a function evaluation or <a href="#Channel_types">channel</a> or
-<a href="#Map_types">map</a> operation or a <a href="#Type_assertions">type assertion</a>.
+such as a function call, a <a href="#Channel_types">channel</a> or
+<a href="#Map_types">map</a> operation, or a <a href="#Type_assertions">type assertion</a>.
 The number of operands on the left
 hand side must match the number of values.  For instance, if
 <code>f</code> is a function returning two values,
@@ -4411,23 +4428,21 @@ to the type of the operand to which it is assigned, with the following special c
 </p>
 
 <ol>
-<li><p>
-	If an untyped <a href="#Constants">constant</a>
-	is assigned to a variable of interface type or the blank identifier,
-	the constant is first <a href="#Conversions">converted</a> to type
-	<code>bool</code>, <code>rune</code>, <code>int</code>, <code>float64</code>,
-	<code>complex128</code> or <code>string</code> respectively, depending on
-	whether the value is a boolean, rune, integer, floating-point, complex, or
-	string constant.
-</p></li>
+<li>
+	Any typed value may be assigned to the blank identifier.
+</li>
 
-<li><p>
-	<!-- Note that the result of a comparison is an untyped bool that may not be constant. -->
-	If a left-hand side is the blank identifier, any typed or non-constant
-	value except for the predeclared identifier
-	<a href="#Predeclared_identifiers"><code>nil</code></a>
-	may be assigned to it.
-</p></li>
+<li>
+	If an untyped constant
+	is assigned to a variable of interface type or the blank identifier,
+	the constant is first <a href="#Conversions">converted</a> to its
+	 <a href="#Constants">default type</a>.
+</li>
+
+<li>
+	If an untyped boolean value is assigned to a variable of interface type or
+	the blank identifier, it is first converted to type <code>bool</code>.
+</li>
 </ol>
 
 <h3 id="If_statements">If statements</h3>
