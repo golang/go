@@ -205,8 +205,8 @@ func (a nodeQueue) Swap(i, j int) {
 func (a nodeQueue) Less(i, j int) bool {
 	x, y := a[i], a[j]
 	// nodes are prioritized by number of incoming dependencies (1st key)
-	// and source positions (2nd key)
-	return x.in < y.in || x.in == y.in && x.obj.Pos() < y.obj.Pos()
+	// and source order (2nd key)
+	return x.in < y.in || x.in == y.in && x.obj.order() < y.obj.order()
 }
 
 func (a *nodeQueue) Push(x interface{}) {

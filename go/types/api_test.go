@@ -588,6 +588,39 @@ func TestInitOrderInfo(t *testing.T) {
 	}
 }
 
+func TestMultiFileInitOrder(t *testing.T) {
+	fset := token.NewFileSet()
+	mustParse := func(src string) *ast.File {
+		f, err := parser.ParseFile(fset, "main", src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+
+	fileA := mustParse(`package main; var a = 1`)
+	fileB := mustParse(`package main; var b = 2`)
+
+	// The initialization order must not depend on the parse
+	// order of the files, only on the presentation order to
+	// the type-checker.
+	for _, test := range []struct {
+		files []*ast.File
+		want  string
+	}{
+		{[]*ast.File{fileA, fileB}, "[a = 1 b = 2]"},
+		{[]*ast.File{fileB, fileA}, "[b = 2 a = 1]"},
+	} {
+		var info Info
+		if _, err := new(Config).Check("main", fset, test.files, &info); err != nil {
+			t.Fatal(err)
+		}
+		if got := fmt.Sprint(info.InitOrder); got != test.want {
+			t.Fatalf("got %s; want %s", got, test.want)
+		}
+	}
+}
+
 func TestFiles(t *testing.T) {
 	var sources = []string{
 		"package p; type T struct{}; func (T) m1() {}",

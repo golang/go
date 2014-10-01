@@ -110,6 +110,7 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
 
 	check.declare(check.pkg.scope, ident, obj)
 	check.objMap[obj] = d
+	obj.setOrder(uint32(len(check.objMap)))
 }
 
 // collectObjects collects all file and package objects and inserts them
@@ -341,6 +342,7 @@ func (check *Checker) collectObjects() {
 				}
 				info := &declInfo{file: fileScope, fdecl: d}
 				check.objMap[obj] = info
+				obj.setOrder(uint32(len(check.objMap)))
 
 			default:
 				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)

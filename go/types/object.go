@@ -31,8 +31,17 @@ type Object interface {
 	// String returns a human-readable string of the object.
 	String() string
 
+	// order reflects a package-level object's source order: if object
+	// a is before object b in the source, then a.order() < b.order().
+	// order returns a value > 0 for package-level objects; it returns
+	// 0 for all other objects (including objects in file scopes).
+	order() uint32
+
 	// isUsed reports whether the object was marked as 'used'.
 	isUsed() bool
+
+	// setOrder sets the order number of the object. It must be > 0.
+	setOrder(uint32)
 
 	// setParent sets the parent scope of the object.
 	setParent(*Scope)
@@ -73,6 +82,8 @@ type object struct {
 	pkg    *Package
 	name   string
 	typ    Type
+
+	order_ uint32
 	used   bool
 }
 
@@ -85,8 +96,10 @@ func (obj *object) Exported() bool { return ast.IsExported(obj.name) }
 func (obj *object) Id() string     { return Id(obj.pkg, obj.name) }
 func (obj *object) String() string { panic("abstract") }
 
-func (obj *object) isUsed() bool { return obj.used }
+func (obj *object) order() uint32 { return obj.order_ }
+func (obj *object) isUsed() bool  { return obj.used }
 
+func (obj *object) setOrder(order uint32)   { assert(order > 0); obj.order_ = order }
 func (obj *object) setParent(parent *Scope) { obj.parent = parent }
 
 func (obj *object) sameId(pkg *Package, name string) bool {
@@ -118,7 +131,7 @@ type PkgName struct {
 }
 
 func NewPkgName(pos token.Pos, pkg *Package, name string, imported *Package) *PkgName {
-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], false}, imported}
+	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, false}, imported}
 }
 
 // Imported returns the package that was imported.
@@ -134,7 +147,7 @@ type Const struct {
 }
 
 func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val exact.Value) *Const {
-	return &Const{object: object{nil, pos, pkg, name, typ, false}, val: val}
+	return &Const{object: object{nil, pos, pkg, name, typ, 0, false}, val: val}
 }
 
 func (obj *Const) Val() exact.Value { return obj.val }
@@ -145,7 +158,7 @@ type TypeName struct {
 }
 
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
-	return &TypeName{object{nil, pos, pkg, name, typ, false}}
+	return &TypeName{object{nil, pos, pkg, name, typ, 0, false}}
 }
 
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
@@ -158,15 +171,15 @@ type Var struct {
 }
 
 func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, false}}
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, false}}
 }
 
 func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, true}} // parameters are always 'used'
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, true}} // parameters are always 'used'
 }
 
 func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, false}, anonymous: anonymous, isField: true}
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, false}, anonymous: anonymous, isField: true}
 }
 
 func (obj *Var) Anonymous() bool { return obj.anonymous }
@@ -186,7 +199,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
 	if sig != nil {
 		typ = sig
 	}
-	return &Func{object{nil, pos, pkg, name, typ, false}}
+	return &Func{object{nil, pos, pkg, name, typ, 0, false}}
 }
 
 // FullName returns the package- or receiver-type-qualified name of

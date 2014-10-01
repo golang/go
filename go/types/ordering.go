@@ -123,5 +123,5 @@ func orderedSetObjects(set map[Object]bool) []Object {
 type inSourceOrder []Object
 
 func (a inSourceOrder) Len() int           { return len(a) }
-func (a inSourceOrder) Less(i, j int) bool { return a[i].Pos() < a[j].Pos() }
+func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
 func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
