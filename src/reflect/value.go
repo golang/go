@@ -791,7 +791,9 @@ func (v Value) Elem() Value {
 			})(v.ptr))
 		}
 		x := unpackEface(eface)
-		x.flag |= v.flag & flagRO
+		if x.flag != 0 {
+			x.flag |= v.flag & flagRO
+		}
 		return x
 	case Ptr:
 		ptr := v.ptr

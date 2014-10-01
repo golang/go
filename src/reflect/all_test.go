@@ -3939,3 +3939,17 @@ func TestValueString(t *testing.T) {
 		t.Errorf("ValueOf(Impl{}).Method(0).String() = %q, want %q", method.String(), "<func() Value>")
 	}
 }
+
+func TestInvalid(t *testing.T) {
+	// Used to have inconsistency between IsValid() and Kind() != Invalid.
+	type T struct{ v interface{} }
+
+	v := ValueOf(T{}).Field(0)
+	if v.IsValid() != true || v.Kind() != Interface {
+		t.Errorf("field: IsValid=%v, Kind=%v, want true, Interface", v.IsValid(), v.Kind())
+	}
+	v = v.Elem()
+	if v.IsValid() != false || v.Kind() != Invalid {
+		t.Errorf("field elem: IsValid=%v, Kind=%v, want false, Invalid", v.IsValid(), v.Kind())
+	}
+}
