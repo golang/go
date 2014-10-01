@@ -44,7 +44,7 @@
 //     }
 //
 // The benchmark function must run the target code b.N times.
-// The benchmark package will vary b.N until the benchmark function lasts
+// During benchark execution, b.N is adjusted until the benchmark function lasts
 // long enough to be timed reliably.  The output
 //     BenchmarkHello    10000000    282 ns/op
 // means that the loop ran 10000000 times at a speed of 282 ns per loop.
