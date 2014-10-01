@@ -110,6 +110,9 @@ TEXT net·runtime_pollUnblock(SB),NOSPLIT,$0-0
 TEXT syscall·setenv_c(SB), NOSPLIT, $0-0
 	JMP	runtime·syscall_setenv_c(SB)
 
+TEXT syscall·unsetenv_c(SB), NOSPLIT, $0-0
+	JMP	runtime·syscall_unsetenv_c(SB)
+
 TEXT reflect·makemap(SB),NOSPLIT,$0-0
 	JMP	runtime·reflect_makemap(SB)
 

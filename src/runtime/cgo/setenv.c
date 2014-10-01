@@ -5,6 +5,9 @@
 // +build darwin dragonfly freebsd linux netbsd openbsd
 
 #pragma cgo_import_static x_cgo_setenv
+#pragma cgo_import_static x_cgo_unsetenv
 
 void x_cgo_setenv(char**);
 void (*runtime·_cgo_setenv)(char**) = x_cgo_setenv;
+void x_cgo_unsetenv(char**);
+void (*runtime·_cgo_unsetenv)(char**) = x_cgo_unsetenv;

@@ -12,16 +12,22 @@ import (
 )
 
 var (
-	// envOnce guards copyenv, which populates env.
+	// envOnce guards copyenv, which populates env, envi and envs.
 	envOnce sync.Once
 
-	// envLock guards env and envs.
+	// envLock guards env, envi and envs.
 	envLock sync.RWMutex
 
 	// env maps from an environment variable to its value.
+	// TODO: remove this? golang.org/issue/8849
 	env = make(map[string]string)
 
+	// envi maps from an environment variable to its index in envs.
+	// TODO: remove this? golang.org/issue/8849
+	envi = make(map[string]int)
+
 	// envs contains elements of env in the form "key=value".
+	// empty strings mean deleted.
 	envs []string
 
 	errZeroLengthKey = errors.New("zero length key")
@@ -83,6 +89,7 @@ func copyenv() {
 		}
 		env[key] = v
 		envs[i] = key + "=" + v
+		envi[key] = i
 		i++
 	}
 }
@@ -129,8 +136,27 @@ func Clearenv() {
 	defer envLock.Unlock()
 
 	env = make(map[string]string)
+	envi = make(map[string]int)
 	envs = []string{}
 	RawSyscall(SYS_RFORK, RFCENVG, 0, 0)
+}
+
+func Unsetenv(key string) error {
+	if len(key) == 0 {
+		return errZeroLengthKey
+	}
+
+	envLock.Lock()
+	defer envLock.Unlock()
+
+	Remove("/env/" + key)
+
+	if i, ok := envi[key]; ok {
+		delete(env, key)
+		delete(envi, key)
+		envs[i] = ""
+	}
+	return nil
 }
 
 func Environ() []string {
@@ -138,5 +164,11 @@ func Environ() []string {
 	defer envLock.RUnlock()
 
 	envOnce.Do(copyenv)
-	return append([]string(nil), envs...)
+	ret := make([]string, 0, len(envs))
+	for _, pair := range envs {
+		if pair != "" {
+			ret = append(ret, pair)
+		}
+	}
+	return ret
 }
