@@ -11,7 +11,9 @@ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add -
 apt-get update
 apt-get install -y --no-install-recommends clang-3.5
 # TODO(cmang): move these into a 386 image that derives from this one.
-apt-get install -y --no-install-recommends libc6-dev-i386
+apt-get install -y --no-install-recommends libc6-dev-i386 gcc-multilib
+# Remove gcc binary so it doesn't interfere with clang
+rm -f /usr/bin/gcc
 # For interacting with the Go source & subrepos:
 apt-get install -y --no-install-recommends mercurial git-core
 
