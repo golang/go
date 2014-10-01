@@ -10,9 +10,10 @@
 // type (int8, uint8, int16, float32, complex64, ...)
 // or an array or struct containing only fixed-size values.
 //
-// Varints are a method of encoding integers using one or more bytes;
-// numbers with smaller absolute value take a smaller number of bytes.
-// For a specification, see http://code.google.com/apis/protocolbuffers/docs/encoding.html.
+// The varint functions encode and decode single integer values using
+// a variable-length encoding; smaller values require fewer bytes.
+// For a specification, see
+// http://code.google.com/apis/protocolbuffers/docs/encoding.html.
 //
 // This package favors simplicity over efficiency. Clients that require
 // high-performance serialization, especially for large data structures,
