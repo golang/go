@@ -1,0 +1,3 @@
+# The debian sources for stable clang builds, taken from http://llvm.org/apt/
+deb http://llvm.org/apt/wheezy/ llvm-toolchain-wheezy main
+deb-src http://llvm.org/apt/wheezy/ llvm-toolchain-wheezy main

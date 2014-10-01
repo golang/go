@@ -52,6 +52,7 @@ type imageInfo struct {
 
 var images = map[string]*imageInfo{
 	"gobuilders/linux-x86-base":  {url: "https://storage.googleapis.com/go-builder-data/docker-linux.base.tar.gz"},
+	"gobuilders/linux-x86-clang": {url: "http://storage.googleapis.com/go-builder-data/docker-linux.clang.tar.gz"},
 	"gobuilders/linux-x86-gccgo": {url: "https://storage.googleapis.com/go-builder-data/docker-linux.gccgo.tar.gz"},
 	"gobuilders/linux-x86-nacl":  {url: "https://storage.googleapis.com/go-builder-data/docker-linux.nacl.tar.gz"},
 	"gobuilders/linux-x86-sid":   {url: "https://storage.googleapis.com/go-builder-data/docker-linux.sid.tar.gz"},
@@ -87,6 +88,8 @@ func main() {
 	})
 	addBuilder(buildConfig{name: "linux-386-sid", image: "gobuilders/linux-x86-sid"})
 	addBuilder(buildConfig{name: "linux-amd64-sid", image: "gobuilders/linux-x86-sid"})
+	addBuilder(buildConfig{name: "linux-386-clang", image: "gobuilders/linux-x86-clang"})
+	addBuilder(buildConfig{name: "linux-amd64-clang", image: "gobuilders/linux-x86-clang"})
 
 	if (*just != "") != (*rev != "") {
 		log.Fatalf("--just and --rev must be used together")
