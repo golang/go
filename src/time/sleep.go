@@ -43,6 +43,7 @@ func stopTimer(*runtimeTimer) bool
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
 // unless the Timer was created by AfterFunc.
+// A Timer must be created with NewTimer or AfterFunc.
 type Timer struct {
 	C <-chan Time
 	r runtimeTimer
