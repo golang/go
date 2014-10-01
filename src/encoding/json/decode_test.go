@@ -406,6 +406,13 @@ var unmarshalTests = []unmarshalTest{
 		ptr: new(string),
 		out: "hello\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdworld",
 	},
+
+	// issue 8305
+	{
+		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
+		ptr: &map[time.Time]string{},
+		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[time.Time]string{})},
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -514,6 +521,7 @@ func TestUnmarshal(t *testing.T) {
 		if tt.ptr == nil {
 			continue
 		}
+
 		// v = new(right-type)
 		v := reflect.New(reflect.TypeOf(tt.ptr).Elem())
 		dec := NewDecoder(bytes.NewReader(in))
@@ -521,7 +529,9 @@ func TestUnmarshal(t *testing.T) {
 			dec.UseNumber()
 		}
 		if err := dec.Decode(v.Interface()); !reflect.DeepEqual(err, tt.err) {
-			t.Errorf("#%d: %v want %v", i, err, tt.err)
+			t.Errorf("#%d: %v, want %v", i, err, tt.err)
+			continue
+		} else if err != nil {
 			continue
 		}
 		if !reflect.DeepEqual(v.Elem().Interface(), tt.out) {
