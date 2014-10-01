@@ -1506,11 +1506,9 @@ gengcprog1(ProgGen *g, Type *t, vlong *xoffset)
 		*xoffset += t->width;
 		break;
 	case TINTER:
-		proggendata(g, BitsMultiWord);
-		if(isnilinter(t))
-			proggendata(g, BitsEface);
-		else
-			proggendata(g, BitsIface);
+		// Assuming IfacePointerOnly=1.
+		proggendata(g, BitsPointer);
+		proggendata(g, BitsPointer);
 		*xoffset += t->width;
 		break;
 	case TARRAY:
