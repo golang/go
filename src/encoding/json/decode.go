@@ -445,7 +445,7 @@ func (d *decodeState) array(v reflect.Value) {
 }
 
 // object consumes an object from d.data[d.off-1:], decoding into the value v.
-// the first byte of the object ('{') has been read already.
+// the first byte ('{') of the object has been read already.
 func (d *decodeState) object(v reflect.Value) {
 	// Check for unmarshaler.
 	u, ut, pv := d.indirect(v, false)
@@ -478,7 +478,9 @@ func (d *decodeState) object(v reflect.Value) {
 		t := v.Type()
 		if t.Key().Kind() != reflect.String {
 			d.saveError(&UnmarshalTypeError{"object", v.Type()})
-			break
+			d.off--
+			d.next() // skip over { } in input
+			return
 		}
 		if v.IsNil() {
 			v.Set(reflect.MakeMap(t))
