@@ -297,13 +297,13 @@ func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
 	return
 }
 
-func (p *pp) unknownType(v interface{}) {
-	if v == nil {
+func (p *pp) unknownType(v reflect.Value) {
+	if !v.IsValid() {
 		p.buf.Write(nilAngleBytes)
 		return
 	}
 	p.buf.WriteByte('?')
-	p.buf.WriteString(reflect.TypeOf(v).String())
+	p.buf.WriteString(v.Type().String())
 	p.buf.WriteByte('?')
 }
 
