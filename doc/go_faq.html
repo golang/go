@@ -1661,14 +1661,17 @@ Can I stop these complaints about my unused variable/import?</h3>
 
 <p>
 The presence of an unused variable may indicate a bug, while
-unused imports just slow down compilation.
-Accumulate enough unused imports in your code tree and
-things can get very slow.
-For these reasons, Go allows neither.
+unused imports just slow down compilation,
+an effect that can become substantial as a program accumulates
+code and programmers over time.
+For these reasons, Go refuses to compile programs with unused
+variables or imports,
+trading short-term convenience for long-term build speed and
+program clarity.
 </p>
 
 <p>
-When developing code, it's common to create these situations
+Still, when developing code, it's common to create these situations
 temporarily and it can be annoying to have to edit them out before the
 program will compile.
 </p>
