@@ -20,16 +20,18 @@ var (
 	// env maps from an environment variable to its first occurrence in envs.
 	env map[string]int
 
-	// envs is provided by the runtime. elements are expected to be
-	// of the form "key=value".
+	// envs is provided by the runtime. elements are expected to
+	// be of the form "key=value". An empty string means deleted
+	// (or a duplicate to be ignored).
 	envs []string = runtime_envs()
 )
 
 func runtime_envs() []string // in package runtime
 
-// setenv_c is provided by the runtime, but is a no-op if cgo isn't
-// loaded.
+// setenv_c and unsetenv_c are provided by the runtime but are no-ops
+// if cgo isn't loaded.
 func setenv_c(k, v string)
+func unsetenv_c(k string)
 
 func copyenv() {
 	env = make(map[string]int)
@@ -38,12 +40,32 @@ func copyenv() {
 			if s[j] == '=' {
 				key := s[:j]
 				if _, ok := env[key]; !ok {
-					env[key] = i
+					env[key] = i // first mention of key
+				} else {
+					// Clear duplicate keys. This permits Unsetenv to
+					// safely delete only the first item without
+					// worrying about unshadowing a later one,
+					// which might be a security problem.
+					envs[i] = ""
 				}
 				break
 			}
 		}
 	}
+}
+
+func Unsetenv(key string) error {
+	envOnce.Do(copyenv)
+
+	envLock.Lock()
+	defer envLock.Unlock()
+
+	if i, ok := env[key]; ok {
+		envs[i] = ""
+		delete(env, key)
+	}
+	unsetenv_c(key)
+	return nil
 }
 
 func Getenv(key string) (value string, found bool) {
@@ -106,16 +128,22 @@ func Clearenv() {
 	envLock.Lock()
 	defer envLock.Unlock()
 
+	for k := range env {
+		unsetenv_c(k)
+	}
 	env = make(map[string]int)
 	envs = []string{}
-	// TODO(bradfitz): pass through to C
 }
 
 func Environ() []string {
 	envOnce.Do(copyenv)
 	envLock.RLock()
 	defer envLock.RUnlock()
-	a := make([]string, len(envs))
-	copy(a, envs)
+	a := make([]string, 0, len(envs))
+	for _, env := range envs {
+		if env != "" {
+			a = append(a, env)
+		}
+	}
 	return a
 }
