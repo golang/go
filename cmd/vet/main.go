@@ -245,7 +245,7 @@ func main() {
 		for _, name := range flag.Args() {
 			walkDir(name)
 		}
-		return
+		os.Exit(exitCode)
 	}
 	if !doPackage(".", flag.Args()) {
 		warnf("no files checked")
