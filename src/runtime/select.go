@@ -368,6 +368,7 @@ loop:
 	// someone woke us up
 	sellock(sel)
 	sg = (*sudog)(gp.param)
+	gp.param = nil
 
 	// pass 3 - dequeue from unsuccessful chans
 	// otherwise they stack up on quiet channels
@@ -376,6 +377,10 @@ loop:
 	// iterating through the linked list they are in reverse order.
 	cas = nil
 	sglist = gp.waiting
+	// Clear all elem before unlinking from gp.waiting.
+	for sg1 := gp.waiting; sg1 != nil; sg1 = sg1.waitlink {
+		sg1.elem = nil
+	}
 	gp.waiting = nil
 	for i := int(sel.ncase) - 1; i >= 0; i-- {
 		k = &scases[pollorder[i]]
@@ -506,6 +511,7 @@ syncrecv:
 	if cas.elem != nil {
 		memmove(cas.elem, sg.elem, uintptr(c.elemsize))
 	}
+	sg.elem = nil
 	gp = sg.g
 	gp.param = unsafe.Pointer(sg)
 	if sg.releasetime != 0 {
@@ -541,6 +547,7 @@ syncsend:
 	if sg.elem != nil {
 		memmove(sg.elem, cas.elem, uintptr(c.elemsize))
 	}
+	sg.elem = nil
 	gp = sg.g
 	gp.param = unsafe.Pointer(sg)
 	if sg.releasetime != 0 {
