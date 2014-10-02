@@ -49,9 +49,14 @@ type fmt struct {
 	plus        bool
 	sharp       bool
 	space       bool
-	unicode     bool
-	uniQuote    bool // Use 'x'= prefix for %U if printable.
-	zero        bool
+	// For the format %#v, we set this flag and
+	// clear the plus flag, since it is in effect
+	// a different, flagless format set at the top level.
+	// TODO: plusV could use this too.
+	sharpV   bool
+	unicode  bool
+	uniQuote bool // Use 'x'= prefix for %U if printable.
+	zero     bool
 }
 
 func (f *fmt) clearflags() {
@@ -63,6 +68,7 @@ func (f *fmt) clearflags() {
 	f.plus = false
 	f.sharp = false
 	f.space = false
+	f.sharpV = false
 	f.unicode = false
 	f.uniQuote = false
 	f.zero = false
