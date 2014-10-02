@@ -1144,10 +1144,10 @@ var panictests = []struct {
 }
 
 func TestPanics(t *testing.T) {
-	for _, tt := range panictests {
+	for i, tt := range panictests {
 		s := Sprintf(tt.fmt, tt.in)
 		if s != tt.out {
-			t.Errorf("%q: got %q expected %q", tt.fmt, s, tt.out)
+			t.Errorf("%d: %q: got %q expected %q", i, tt.fmt, s, tt.out)
 		}
 	}
 }
@@ -1205,5 +1205,96 @@ func TestNilDoesNotBecomeTyped(t *testing.T) {
 	const expect = "%!s(<nil>) %!s(*fmt_test.A=<nil>) %!s(<nil>) {} %!s(<nil>)"
 	if got != expect {
 		t.Errorf("expected:\n\t%q\ngot:\n\t%q", expect, got)
+	}
+}
+
+// Formatters did not get delivered flags correctly in all cases. Issue 8835.
+type fp struct{}
+
+func (fp) Format(f State, c rune) {
+	s := "%"
+	for i := 0; i < 128; i++ {
+		if f.Flag(i) {
+			s += string(i)
+		}
+	}
+	if w, ok := f.Width(); ok {
+		s += Sprintf("%d", w)
+	}
+	if p, ok := f.Precision(); ok {
+		s += Sprintf(".%d", p)
+	}
+	s += string(c)
+	io.WriteString(f, "["+s+"]")
+}
+
+var formatterFlagTests = []struct {
+	in  string
+	val interface{}
+	out string
+}{
+	// scalar values with the (unused by fmt) 'a' verb.
+	{"%a", fp{}, "[%a]"},
+	{"%-a", fp{}, "[%-a]"},
+	{"%+a", fp{}, "[%+a]"},
+	{"%#a", fp{}, "[%#a]"},
+	{"% a", fp{}, "[% a]"},
+	{"%0a", fp{}, "[%0a]"},
+	{"%1.2a", fp{}, "[%1.2a]"},
+	{"%-1.2a", fp{}, "[%-1.2a]"},
+	{"%+1.2a", fp{}, "[%+1.2a]"},
+	{"%-+1.2a", fp{}, "[%+-1.2a]"},
+	{"%-+1.2abc", fp{}, "[%+-1.2a]bc"},
+	{"%-1.2abc", fp{}, "[%-1.2a]bc"},
+
+	// composite values with the 'a' verb
+	{"%a", [1]fp{}, "[[%a]]"},
+	{"%-a", [1]fp{}, "[[%-a]]"},
+	{"%+a", [1]fp{}, "[[%+a]]"},
+	{"%#a", [1]fp{}, "[[%#a]]"},
+	{"% a", [1]fp{}, "[[% a]]"},
+	{"%0a", [1]fp{}, "[[%0a]]"},
+	{"%1.2a", [1]fp{}, "[[%1.2a]]"},
+	{"%-1.2a", [1]fp{}, "[[%-1.2a]]"},
+	{"%+1.2a", [1]fp{}, "[[%+1.2a]]"},
+	{"%-+1.2a", [1]fp{}, "[[%+-1.2a]]"},
+	{"%-+1.2abc", [1]fp{}, "[[%+-1.2a]]bc"},
+	{"%-1.2abc", [1]fp{}, "[[%-1.2a]]bc"},
+
+	// simple values with the 'v' verb
+	{"%v", fp{}, "[%v]"},
+	{"%-v", fp{}, "[%-v]"},
+	{"%+v", fp{}, "[%+v]"},
+	{"%#v", fp{}, "[%#v]"},
+	{"% v", fp{}, "[% v]"},
+	{"%0v", fp{}, "[%0v]"},
+	{"%1.2v", fp{}, "[%1.2v]"},
+	{"%-1.2v", fp{}, "[%-1.2v]"},
+	{"%+1.2v", fp{}, "[%+1.2v]"},
+	{"%-+1.2v", fp{}, "[%+-1.2v]"},
+	{"%-+1.2vbc", fp{}, "[%+-1.2v]bc"},
+	{"%-1.2vbc", fp{}, "[%-1.2v]bc"},
+
+	// composite values with the 'v' verb. Some are still broken.
+	{"%v", [1]fp{}, "[[%v]]"},
+	{"%-v", [1]fp{}, "[[%-v]]"},
+	//{"%+v", [1]fp{}, "[[%+v]]"},
+	{"%#v", [1]fp{}, "[1]fmt_test.fp{[%#v]}"},
+	{"% v", [1]fp{}, "[[% v]]"},
+	{"%0v", [1]fp{}, "[[%0v]]"},
+	{"%1.2v", [1]fp{}, "[[%1.2v]]"},
+	{"%-1.2v", [1]fp{}, "[[%-1.2v]]"},
+	//{"%+1.2v", [1]fp{}, "[[%+1.2v]]"},
+	//{"%-+1.2v", [1]fp{}, "[[%+-1.2v]]"},
+	//{"%-+1.2vbc", [1]fp{}, "[[%+-1.2v]]bc"},
+	{"%-1.2vbc", [1]fp{}, "[[%-1.2v]]bc"},
+}
+
+func TestFormatterFlags(t *testing.T) {
+	for _, tt := range formatterFlagTests {
+		s := Sprintf(tt.in, tt.val)
+		if s != tt.out {
+			t.Errorf("Sprintf(%q, %T) = %q, want %q", tt.in, tt.val, s, tt.out)
+		}
 	}
 }
