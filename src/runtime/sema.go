@@ -168,6 +168,7 @@ func (root *semaRoot) dequeue(s *sudog) {
 	} else {
 		root.head = s.next
 	}
+	s.elem = nil
 	s.next = nil
 	s.prev = nil
 }
