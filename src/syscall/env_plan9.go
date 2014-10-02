@@ -128,6 +128,7 @@ func Setenv(key, value string) error {
 	}
 	env[key] = value
 	envs = append(envs, key+"="+value)
+	envi[key] = len(envs) - 1
 	return nil
 }
 
