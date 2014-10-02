@@ -188,6 +188,6 @@ var (
 
 	infoString = []byte{BitsPointer, BitsDead}
 	infoSlice  = []byte{BitsPointer, BitsDead, BitsDead}
-	infoEface  = []byte{BitsMultiWord, BitsEface}
-	infoIface  = []byte{BitsMultiWord, BitsIface}
+	infoEface  = []byte{BitsPointer, BitsPointer}
+	infoIface  = []byte{BitsPointer, BitsPointer}
 )
