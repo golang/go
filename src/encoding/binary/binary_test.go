@@ -289,6 +289,26 @@ func TestUnexportedRead(t *testing.T) {
 	Read(&buf, LittleEndian, &u2)
 }
 
+func TestReadErrorMsg(t *testing.T) {
+	var buf bytes.Buffer
+	read := func(data interface{}) {
+		err := Read(&buf, LittleEndian, data)
+		want := "binary.Read: invalid type " + reflect.TypeOf(data).String()
+		if err == nil {
+			t.Errorf("%T: got no error; want %q", data, want)
+			return
+		}
+		if got := err.Error(); got != want {
+			t.Errorf("%T: got %q; want %q", data, got, want)
+		}
+	}
+	read(0)
+	s := new(struct{})
+	read(&s)
+	p := &s
+	read(&p)
+}
+
 type byteSliceReader struct {
 	remain []byte
 }
@@ -315,8 +335,7 @@ func BenchmarkReadStruct(b *testing.B) {
 	bsr := &byteSliceReader{}
 	var buf bytes.Buffer
 	Write(&buf, BigEndian, &s)
-	n, _ := dataSize(reflect.ValueOf(s))
-	b.SetBytes(int64(n))
+	b.SetBytes(int64(dataSize(reflect.ValueOf(s))))
 	t := s
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
