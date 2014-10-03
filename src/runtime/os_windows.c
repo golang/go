@@ -72,6 +72,7 @@ extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
 extern void *runtime·timeBeginPeriod;
 
+#pragma dataflag NOPTR
 void *runtime·GetQueuedCompletionStatusEx;
 
 extern uintptr runtime·externalthreadhandlerp;
@@ -147,7 +148,7 @@ runtime·get_random_data(byte **rnd, int32 *rnd_len)
 void
 runtime·goenvs(void)
 {
-	extern Slice syscall·envs;
+	extern Slice runtime·envs;
 
 	uint16 *env;
 	String *s;
@@ -160,8 +161,8 @@ runtime·goenvs(void)
 	for(p=env; *p; n++)
 		p += runtime·findnullw(p)+1;
 
-	syscall·envs = runtime·makeStringSlice(n);
-	s = (String*)syscall·envs.array;
+	runtime·envs = runtime·makeStringSlice(n);
+	s = (String*)runtime·envs.array;
 
 	p = env;
 	for(i=0; i<n; i++) {
@@ -278,6 +279,8 @@ runtime·minit(void)
 void
 runtime·unminit(void)
 {
+	runtime·stdcall1(runtime·CloseHandle, (uintptr)g->m->thread);
+	g->m->thread = nil;
 }
 
 // Described in http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
@@ -287,7 +290,9 @@ typedef struct KSYSTEM_TIME {
 	int32	High2Time;
 } KSYSTEM_TIME;
 
+#pragma dataflag NOPTR
 const KSYSTEM_TIME* INTERRUPT_TIME	= (KSYSTEM_TIME*)0x7ffe0008;
+#pragma dataflag NOPTR
 const KSYSTEM_TIME* SYSTEM_TIME		= (KSYSTEM_TIME*)0x7ffe0014;
 
 static void badsystime(void);
@@ -498,6 +503,7 @@ runtime·ctrlhandler1(uint32 type)
 
 extern void runtime·dosigprof(Context *r, G *gp, M *mp);
 extern void runtime·profileloop(void);
+#pragma dataflag NOPTR
 static void *profiletimer;
 
 static void

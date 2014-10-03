@@ -56,7 +56,7 @@ func readSetCookies(h Header) []*Cookie {
 		if !isCookieNameValid(name) {
 			continue
 		}
-		value, success := parseCookieValue(value)
+		value, success := parseCookieValue(value, true)
 		if !success {
 			continue
 		}
@@ -76,7 +76,7 @@ func readSetCookies(h Header) []*Cookie {
 				attr, val = attr[:j], attr[j+1:]
 			}
 			lowerAttr := strings.ToLower(attr)
-			val, success = parseCookieValue(val)
+			val, success = parseCookieValue(val, false)
 			if !success {
 				c.Unparsed = append(c.Unparsed, parts[i])
 				continue
@@ -205,7 +205,7 @@ func readCookies(h Header, filter string) []*Cookie {
 			if filter != "" && filter != name {
 				continue
 			}
-			val, success := parseCookieValue(val)
+			val, success := parseCookieValue(val, true)
 			if !success {
 				continue
 			}
@@ -345,9 +345,9 @@ func sanitizeOrWarn(fieldName string, valid func(byte) bool, v string) string {
 	return string(buf)
 }
 
-func parseCookieValue(raw string) (string, bool) {
+func parseCookieValue(raw string, allowDoubleQuote bool) (string, bool) {
 	// Strip the quotes, if present.
-	if len(raw) > 1 && raw[0] == '"' && raw[len(raw)-1] == '"' {
+	if allowDoubleQuote && len(raw) > 1 && raw[0] == '"' && raw[len(raw)-1] == '"' {
 		raw = raw[1 : len(raw)-1]
 	}
 	for i := 0; i < len(raw); i++ {

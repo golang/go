@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of August 28, 2014",
+	"Subtitle": "Version of September 30, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -577,7 +577,7 @@ Numeric constants represent values of arbitrary precision and do not overflow.
 </p>
 
 <p>
-Constants may be <a href="#Types">typed</a> or untyped.
+Constants may be <a href="#Types">typed</a> or <i>untyped</i>.
 Literal constants, <code>true</code>, <code>false</code>, <code>iota</code>,
 and certain <a href="#Constant_expressions">constant expressions</a>
 containing only untyped constant operands are untyped.
@@ -595,6 +595,17 @@ For instance, <code>3.0</code> can be given any integer or any
 floating-point type, while <code>2147483648.0</code> (equal to <code>1&lt;&lt;31</code>)
 can be given the types <code>float32</code>, <code>float64</code>, or <code>uint32</code> but
 not <code>int32</code> or <code>string</code>.
+</p>
+
+<p>
+An untyped constant has a <i>default type</i> which is the type to which the
+constant is implicitly converted in contexts where a typed value is required,
+for instance, in a <a href="#Short_variable_declarations">short variable declaration</a>
+such as <code>i := 0</code> where there is no explicit type.
+The default type of an untyped constant is <code>bool</code>, <code>rune</code>,
+<code>int</code>, <code>float64</code>, <code>complex128</code> or <code>string</code>
+respectively, depending on whether it is a boolean, rune, integer, floating-point,
+complex, or string constant.
 </p>
 
 <p>
@@ -1154,11 +1165,11 @@ interface{}
 <p>
 Similarly, consider this interface specification,
 which appears within a <a href="#Type_declarations">type declaration</a>
-to define an interface called <code>Lock</code>:
+to define an interface called <code>Locker</code>:
 </p>
 
 <pre>
-type Lock interface {
+type Locker interface {
 	Lock()
 	Unlock()
 }
@@ -1174,27 +1185,34 @@ func (p T) Unlock() { … }
 </pre>
 
 <p>
-they implement the <code>Lock</code> interface as well
+they implement the <code>Locker</code> interface as well
 as the <code>File</code> interface.
 </p>
+
 <p>
-An interface may use an interface type name <code>T</code>
-in place of a method specification.
-The effect, called embedding an interface,
-is equivalent to enumerating the methods of <code>T</code> explicitly
-in the interface.
+An interface <code>T</code> may use a (possibly qualified) interface type
+name <code>E</code> in place of a method specification. This is called
+<i>embedding</i> interface <code>E</code> in <code>T</code>; it adds
+all (exported and non-exported) methods of <code>E</code> to the interface
+<code>T</code>.
 </p>
 
 <pre>
-type ReadWrite interface {
+type ReadWriter interface {
 	Read(b Buffer) bool
 	Write(b Buffer) bool
 }
 
 type File interface {
-	ReadWrite  // same as enumerating the methods in ReadWrite
-	Lock       // same as enumerating the methods in Lock
+	ReadWriter  // same as adding the methods of ReadWriter
+	Locker      // same as adding the methods of Locker
 	Close()
+}
+
+type LockedFile interface {
+	Locker
+	File        // illegal: Lock, Unlock not unique
+	Lock()      // illegal: Lock not unique
 }
 </pre>
 
@@ -1875,9 +1893,10 @@ func (tz TimeZone) String() string {
 <h3 id="Variable_declarations">Variable declarations</h3>
 
 <p>
-A variable declaration creates a variable, binds an identifier to it and
-gives it a type and optionally an initial value.
+A variable declaration creates one or more variables, binds corresponding
+identifiers to them, and gives each a type and an initial value.
 </p>
+
 <pre class="ebnf">
 VarDecl     = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
 VarSpec     = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
@@ -1898,22 +1917,27 @@ var _, found = entries[name]  // map lookup; only interested in "found"
 
 <p>
 If a list of expressions is given, the variables are initialized
-by <a href="#Assignments">assigning</a> the expressions to the variables
-in order; all expressions must be consumed and all variables initialized from them.
+with the expressions following the rules for <a href="#Assignments">assignments</a>.
 Otherwise, each variable is initialized to its <a href="#The_zero_value">zero value</a>.
 </p>
 
 <p>
-If the type is present, each variable is given that type.
-Otherwise, the types are deduced from the assignment
-of the expression list.
+If a type is present, each variable is given that type.
+Otherwise, each variable is given the type of the corresponding
+initialization value in the assignment.
+If that value is an untyped constant, it is first
+<a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
+if it is an untyped boolean value, it is first converted to type <code>bool</code>.
+The predeclared value <code>nil</code> cannot be used to initialize a variable
+with no explicit type.
 </p>
 
-<p>
-If the type is absent and the corresponding expression evaluates to an
-untyped <a href="#Constants">constant</a>, the type of the declared variable
-is as described in §<a href="#Assignments">Assignments</a>.
-</p>
+<pre>
+var d = math.Sin(0.5)  // d is int64
+var i = 42             // i is int
+var t, ok = x.(T)      // t is T, ok is bool
+var n = nil            // illegal
+</pre>
 
 <p>
 Implementation restriction: A compiler may make it illegal to declare a variable
@@ -4311,7 +4335,7 @@ a[i] = 23
 
 <p>
 An <i>assignment operation</i> <code>x</code> <i>op</i><code>=</code>
-<code>y</code> where <i>op</i> is a binary arithmetic operation equivalent
+<code>y</code> where <i>op</i> is a binary arithmetic operation is equivalent
 to <code>x</code> <code>=</code> <code>x</code> <i>op</i>
 <code>y</code> but evaluates <code>x</code>
 only once.  The <i>op</i><code>=</code> construct is a single token.
@@ -4329,8 +4353,8 @@ i &amp;^= 1&lt;&lt;n
 A tuple assignment assigns the individual elements of a multi-valued
 operation to a list of variables.  There are two forms.  In the
 first, the right hand operand is a single multi-valued expression
-such as a function evaluation or <a href="#Channel_types">channel</a> or
-<a href="#Map_types">map</a> operation or a <a href="#Type_assertions">type assertion</a>.
+such as a function call, a <a href="#Channel_types">channel</a> or
+<a href="#Map_types">map</a> operation, or a <a href="#Type_assertions">type assertion</a>.
 The number of operands on the left
 hand side must match the number of values.  For instance, if
 <code>f</code> is a function returning two values,
@@ -4404,23 +4428,21 @@ to the type of the operand to which it is assigned, with the following special c
 </p>
 
 <ol>
-<li><p>
-	If an untyped <a href="#Constants">constant</a>
-	is assigned to a variable of interface type or the blank identifier,
-	the constant is first <a href="#Conversions">converted</a> to type
-	<code>bool</code>, <code>rune</code>, <code>int</code>, <code>float64</code>,
-	<code>complex128</code> or <code>string</code> respectively, depending on
-	whether the value is a boolean, rune, integer, floating-point, complex, or
-	string constant.
-</p></li>
+<li>
+	Any typed value may be assigned to the blank identifier.
+</li>
 
-<li><p>
-	<!-- Note that the result of a comparison is an untyped bool that may not be constant. -->
-	If a left-hand side is the blank identifier, any typed or non-constant
-	value except for the predeclared identifier
-	<a href="#Predeclared_identifiers"><code>nil</code></a>
-	may be assigned to it.
-</p></li>
+<li>
+	If an untyped constant
+	is assigned to a variable of interface type or the blank identifier,
+	the constant is first <a href="#Conversions">converted</a> to its
+	 <a href="#Constants">default type</a>.
+</li>
+
+<li>
+	If an untyped boolean value is assigned to a variable of interface type or
+	the blank identifier, it is first converted to type <code>bool</code>.
+</li>
 </ol>
 
 <h3 id="If_statements">If statements</h3>
@@ -4675,6 +4697,7 @@ additionally it may specify an <i>init</i>
 and a <i>post</i> statement, such as an assignment,
 an increment or decrement statement. The init statement may be a
 <a href="#Short_variable_declarations">short variable declaration</a>, but the post statement must not.
+Variables declared by the init statement are re-used in each iteration.
 </p>
 
 <pre class="ebnf">
@@ -4801,7 +4824,7 @@ The iteration variables may be declared by the "range" clause using a form of
 <a href="#Short_variable_declarations">short variable declaration</a>
 (<code>:=</code>).
 In this case their types are set to the types of the respective iteration values
-and their <a href="#Declarations_and_scope">scope</a> ends at the end of the "for"
+and their <a href="#Declarations_and_scope">scope</a> is the block of the "for"
 statement; they are re-used in each iteration.
 If the iteration variables are declared outside the "for" statement,
 after execution their values will be those of the last iteration.
@@ -5243,13 +5266,16 @@ Calls of built-in functions are restricted as for
 </p>
 
 <p>
-Each time the "defer" statement
+Each time a "defer" statement
 executes, the function value and parameters to the call are
 <a href="#Calls">evaluated as usual</a>
-and saved anew but the actual function body is not executed.
-Instead, deferred functions are executed immediately before
+and saved anew but the actual function is not invoked.
+Instead, deferred functions are invoked immediately before
 the surrounding function returns, in the reverse order
 they were deferred.
+If a deferred function value evaluates
+to <code>nil</code>, execution <a href="#Handling_panics">panics</a>
+when the function is invoked, not when the "defer" statement is executed.
 </p>
 
 <p>
@@ -5916,20 +5942,42 @@ var t T
 </pre>
 
 <h3 id="Package_initialization">Package initialization</h3>
+
 <p>
-Within a package, package-level variables are initialized according
-to their <i>dependencies</i>: if a variable <code>x</code> depends on
-a variable <code>y</code>, <code>x</code> will be initialized after
-<code>y</code>.
+Within a package, package-level variables are initialized in
+<i>declaration order</i> but after any of the variables
+they <i>depend</i> on.
+</p>
+
+<p>
+More precisely, a package-level variable is considered <i>ready for
+initialization</i> if it is not yet initialized and either has
+no <a href="#Variable_declarations">initialization expression</a> or
+its initialization expression has no dependencies on uninitialized variables.
+Initialization proceeds by repeatedly initializing the next package-level
+variable that is earliest in declaration order and ready for initialization,
+until there are no variables ready for initialization.
+</p>
+
+<p>
+If any variables are still uninitialized when this
+process ends, those variables are part of one or more initialization cycles,
+and the program is not valid.
+</p>
+
+<p>
+The declaration order of variables declared in multiple files is determined
+by the order in which the files are presented to the compiler: Variables
+declared in the first file are declared before any of the variables declared
+in the second file, and so on.
 </p>
 
 <p>
 Dependency analysis does not rely on the actual values of the
 variables, only on lexical <i>references</i> to them in the source,
-analyzed transitively. For instance, a variable <code>x</code>'s
-<a href="#Variable_declarations">initialization expression</a>
-may refer to a function whose body refers to variable <code>y</code>;
-if so, <code>x</code> depends on <code>y</code>.
+analyzed transitively. For instance, if a variable <code>x</code>'s
+initialization expression refers to a function whose body refers to
+variable <code>y</code> then <code>x</code> depends on <code>y</code>.
 Specifically:
 </p>
 
@@ -5962,11 +6010,6 @@ or to a function or method that depends on <code>y</code>.
 Dependency analysis is performed per package; only references referring
 to variables, functions, and methods declared in the current package
 are considered.
-It is an error if variable dependencies form a cycle
-(but dependency cycles containing no variables are permitted).
-If two variables are independent of each other,
-they are initialized in the order they are declared
-in the source, possibly in multiple files, as presented to the compiler.
 </p>
 
 <p>
@@ -5989,8 +6032,6 @@ func f() int {
 
 <p>
 the initialization order is <code>d</code>, <code>b</code>, <code>c</code>, <code>a</code>.
-Since <code>b</code> and <code>c</code> are independent of each other, they are
-initialized in declaration order (<code>b</code> before <code>c</code>).
 </p>
 
 <p>
@@ -6031,6 +6072,12 @@ concurrently with the initialization code. However, initialization
 always sequences
 the <code>init</code> functions: it will not invoke the next one
 until the previous one has returned.
+</p>
+
+<p>
+To ensure reproducible initialization behavior, build systems are encouraged
+to present multiple files belonging to the same package in lexical file name
+order to a compiler.
 </p>
 
 

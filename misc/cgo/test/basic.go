@@ -157,3 +157,8 @@ func testUnsignedInt(t *testing.T) {
 		t.Errorf("Incorrect unsigned int - got %x, want %x", a, b)
 	}
 }
+
+// Static (build-time) test that syntax traversal visits all operands of s[i:j:k].
+func sliceOperands(array [2000]int) {
+	_ = array[C.KILO:C.KILO:C.KILO] // no type error
+}

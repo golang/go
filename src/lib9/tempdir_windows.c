@@ -70,7 +70,7 @@ removeall(char *p)
 {
 	WinRune *r, *r1;
 	DWORD attr;
-	char *q, *elem;
+	char *q, *qt, *elem;
 	HANDLE h;
 	WIN32_FIND_DATAW data;
 	
@@ -91,15 +91,18 @@ removeall(char *p)
 	do{
 		q = toutf(data.cFileName);
 		elem = strrchr(q, '\\');
-		if(elem != nil) {
+		if(elem != nil)
 			elem++;
-			if(strcmp(elem, ".") == 0 || strcmp(elem, "..") == 0) {
-				free(q);
-				continue;
-			}
+		else
+			elem = q;
+		if(strcmp(elem, ".") == 0 || strcmp(elem, "..") == 0) {
+			free(q);
+			continue;
 		}
-		removeall(q);
-		free(q);		
+		qt = smprint("%s\\%s", p, q);
+		free(q);
+		removeall(qt);
+		free(qt);
 	}while(FindNextFileW(h, &data));
 	FindClose(h);
 

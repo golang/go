@@ -17,7 +17,7 @@ TEXT _rt0_386_plan9(SB),NOSPLIT,$12
 	CALL	runtime·rt0_go(SB)
 
 DATA  runtime·isplan9(SB)/4, $1
-GLOBL runtime·isplan9(SB), $4
-GLOBL _tos(SB), $4
-GLOBL _privates(SB), $4
-GLOBL _nprivates(SB), $4
+GLOBL runtime·isplan9(SB), NOPTR, $4
+GLOBL _tos(SB), NOPTR, $4
+GLOBL _privates(SB), NOPTR, $4
+GLOBL _nprivates(SB), NOPTR, $4

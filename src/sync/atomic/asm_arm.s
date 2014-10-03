@@ -194,4 +194,4 @@ TEXT slowCheck64<>(SB),NOSPLIT,$0-0
 	MOVW	R0, ok64<>(SB)
 	RET
 
-GLOBL ok64<>(SB), $4
+GLOBL ok64<>(SB), NOPTR, $4

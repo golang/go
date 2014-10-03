@@ -177,14 +177,22 @@ func cfree(p unsafe.Pointer) {
 // Call from C back to Go.
 //go:nosplit
 func cgocallbackg() {
-	if gp := getg(); gp != gp.m.curg {
+	gp := getg()
+	if gp != gp.m.curg {
 		println("runtime: bad g in cgocallback")
 		exit(2)
 	}
 
+	// entersyscall saves the caller's SP to allow the GC to trace the Go
+	// stack. However, since we're returning to an earlier stack frame and
+	// need to pair with the entersyscall() call made by cgocall, we must
+	// save syscall* and let reentersyscall restore them.
+	savedsp := unsafe.Pointer(gp.syscallsp)
+	savedpc := gp.syscallpc
 	exitsyscall() // coming out of cgo call
 	cgocallbackg1()
-	entersyscall() // going back to cgo call
+	// going back to cgo call
+	reentersyscall(savedpc, savedsp)
 }
 
 func cgocallbackg1() {

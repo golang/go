@@ -50,6 +50,9 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
+
+	"cmd/internal/rsc.io/arm/armasm"
+	"cmd/internal/rsc.io/x86/x86asm"
 )
 
 var symregexp = flag.String("s", "", "only dump symbols matching this regexp")
@@ -199,14 +202,14 @@ func disasm_amd64(code []byte, pc uint64, lookup lookupFunc) (string, int) {
 }
 
 func disasm_x86(code []byte, pc uint64, lookup lookupFunc, arch int) (string, int) {
-	inst, err := x86_Decode(code, 64)
+	inst, err := x86asm.Decode(code, 64)
 	var text string
 	size := inst.Len
 	if err != nil || size == 0 || inst.Op == 0 {
 		size = 1
 		text = "?"
 	} else {
-		text = x86_plan9Syntax(inst, pc, lookup)
+		text = x86asm.Plan9Syntax(inst, pc, lookup)
 	}
 	return text, size
 }
@@ -232,14 +235,14 @@ func (r textReader) ReadAt(data []byte, off int64) (n int, err error) {
 }
 
 func disasm_arm(code []byte, pc uint64, lookup lookupFunc) (string, int) {
-	inst, err := arm_Decode(code, arm_ModeARM)
+	inst, err := armasm.Decode(code, armasm.ModeARM)
 	var text string
 	size := inst.Len
 	if err != nil || size == 0 || inst.Op == 0 {
 		size = 4
 		text = "?"
 	} else {
-		text = arm_plan9Syntax(inst, pc, lookup, textReader{code, pc})
+		text = armasm.Plan9Syntax(inst, pc, lookup, textReader{code, pc})
 	}
 	return text, size
 }

@@ -1,0 +1,32 @@
+// Copyright 2014 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package cgotest
+
+/*
+#include <complex.h>
+
+complex float complexFloatSquared(complex float a) { return a*a; }
+complex double complexDoubleSquared(complex double a) { return a*a; }
+*/
+import "C"
+
+import "testing"
+
+func test8694(t *testing.T) {
+	// Really just testing that this compiles, but check answer anyway.
+	x := complex64(2 + 3i)
+	x2 := x * x
+	cx2 := C.complexFloatSquared(x)
+	if cx2 != x2 {
+		t.Errorf("C.complexFloatSquared(%v) = %v, want %v", x, cx2, x2)
+	}
+
+	y := complex128(2 + 3i)
+	y2 := y * y
+	cy2 := C.complexDoubleSquared(y)
+	if cy2 != y2 {
+		t.Errorf("C.complexDoubleSquared(%v) = %v, want %v", y, cy2, y2)
+	}
+}

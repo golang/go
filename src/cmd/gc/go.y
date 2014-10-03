@@ -460,11 +460,13 @@ simple_stmt:
 |	expr LINC
 	{
 		$$ = nod(OASOP, $1, nodintconst(1));
+		$$->implicit = 1;
 		$$->etype = OADD;
 	}
 |	expr LDEC
 	{
 		$$ = nod(OASOP, $1, nodintconst(1));
+		$$->implicit = 1;
 		$$->etype = OSUB;
 	}
 

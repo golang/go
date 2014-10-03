@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build nacl openbsd
+// +build nacl
 
 package net
 
@@ -11,8 +11,10 @@ import (
 	"time"
 )
 
+func setNoDelay(fd *netFD, noDelay bool) error {
+	return syscall.ENOPROTOOPT
+}
+
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
-	// NaCl and OpenBSD have no user-settable per-socket TCP
-	// keepalive options.
 	return syscall.ENOPROTOOPT
 }

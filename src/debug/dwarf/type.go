@@ -431,6 +431,17 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 			typ = new(BoolType)
 		case encComplexFloat:
 			typ = new(ComplexType)
+			if name == "complex" {
+				// clang writes out 'complex' instead of 'complex float' or 'complex double'.
+				// clang also writes out a byte size that we can use to distinguish.
+				// See issue 8694.
+				switch byteSize, _ := e.Val(AttrByteSize).(int64); byteSize {
+				case 8:
+					name = "complex float"
+				case 16:
+					name = "complex double"
+				}
+			}
 		case encFloat:
 			typ = new(FloatType)
 		case encSigned:

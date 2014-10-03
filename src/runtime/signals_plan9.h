@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "textflag.h"
+
 #define N SigNotify
 #define K SigKill
 #define T SigThrow
@@ -16,6 +18,7 @@
 // If you add entries to this table, you must respect the prefix ordering
 // and also update the constant values is os_plan9.h.
 
+#pragma dataflag NOPTR
 SigTab runtime·sigtab[] = {
 	// Traps that we cannot be recovered.
 	T,	"sys: trap: debug exception",

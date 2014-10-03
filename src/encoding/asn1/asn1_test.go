@@ -392,6 +392,10 @@ type TestContextSpecificTags2 struct {
 	B int
 }
 
+type TestContextSpecificTags3 struct {
+	S string `asn1:"tag:1,utf8"`
+}
+
 type TestElementsAfterString struct {
 	S    string
 	A, B int
@@ -420,6 +424,7 @@ var unmarshalTestData = []struct {
 	{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}, []byte{4, 4, 1, 2, 3, 4}}},
 	{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
 	{[]byte{0x30, 0x08, 0xa1, 0x03, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02}, &TestContextSpecificTags2{1, 2}},
+	{[]byte{0x30, 0x03, 0x81, 0x01, '@'}, &TestContextSpecificTags3{"@"}},
 	{[]byte{0x01, 0x01, 0x00}, newBool(false)},
 	{[]byte{0x01, 0x01, 0xff}, newBool(true)},
 	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},

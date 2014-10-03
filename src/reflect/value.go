@@ -791,7 +791,9 @@ func (v Value) Elem() Value {
 			})(v.ptr))
 		}
 		x := unpackEface(eface)
-		x.flag |= v.flag & flagRO
+		if x.flag != 0 {
+			x.flag |= v.flag & flagRO
+		}
 		return x
 	case Ptr:
 		ptr := v.ptr
@@ -1771,7 +1773,7 @@ func (v Value) String() string {
 	}
 	// If you call String on a reflect.Value of other type, it's better to
 	// print something than to panic. Useful in debugging.
-	return "<" + v.typ.String() + " Value>"
+	return "<" + v.Type().String() + " Value>"
 }
 
 // TryRecv attempts to receive a value from the channel v but will not block.

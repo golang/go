@@ -109,7 +109,7 @@ func (e Errno) Error() string {
 }
 
 func (e Errno) Temporary() bool {
-	return e == EINTR || e == EMFILE || e.Timeout()
+	return e == EINTR || e == EMFILE || e == ECONNRESET || e == ECONNABORTED || e.Timeout()
 }
 
 func (e Errno) Timeout() bool {

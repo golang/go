@@ -30,6 +30,9 @@
 
 #include <u.h>
 #include "cc.h"
+#include "../ld/textflag.h"
+
+static int haspointers(Type*);
 
 Node*
 dodecl(void (*f)(int,Type*,Sym*), int c, Type *t, Node *n)
@@ -123,7 +126,8 @@ loop:
 		if(dataflag) {
 			s->dataflag = dataflag;
 			dataflag = 0;
-		}
+		} else if(s->type != T && !haspointers(s->type))
+			s->dataflag = NOPTR;
 		firstbit = 0;
 		n->sym = s;
 		n->type = s->type;
@@ -568,9 +572,8 @@ haspointers(Type *t)
 		return 0;
 	case TARRAY:
 		return haspointers(t->link);
-	case TFUNC:
 	case TIND:
-		return 1;
+		return t->link->etype != TFUNC;
 	default:
 		return 0;
 	}

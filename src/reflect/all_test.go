@@ -3185,6 +3185,44 @@ func TestConvert(t *testing.T) {
 	}
 }
 
+type ComparableStruct struct {
+	X int
+}
+
+type NonComparableStruct struct {
+	X int
+	Y map[string]int
+}
+
+var comparableTests = []struct {
+	typ Type
+	ok  bool
+}{
+	{TypeOf(1), true},
+	{TypeOf("hello"), true},
+	{TypeOf(new(byte)), true},
+	{TypeOf((func())(nil)), false},
+	{TypeOf([]byte{}), false},
+	{TypeOf(map[string]int{}), false},
+	{TypeOf(make(chan int)), true},
+	{TypeOf(1.5), true},
+	{TypeOf(false), true},
+	{TypeOf(1i), true},
+	{TypeOf(ComparableStruct{}), true},
+	{TypeOf(NonComparableStruct{}), false},
+	{TypeOf([10]map[string]int{}), false},
+	{TypeOf([10]string{}), true},
+	{TypeOf(new(interface{})).Elem(), true},
+}
+
+func TestComparable(t *testing.T) {
+	for _, tt := range comparableTests {
+		if ok := tt.typ.Comparable(); ok != tt.ok {
+			t.Errorf("TypeOf(%v).Comparable() = %v, want %v", tt.typ, ok, tt.ok)
+		}
+	}
+}
+
 func TestOverflow(t *testing.T) {
 	if ovf := V(float64(0)).OverflowFloat(1e300); ovf {
 		t.Errorf("%v wrongly overflows float64", 1e300)
@@ -3884,4 +3922,34 @@ func useStack(n int) {
 	}
 	var b [1024]byte // makes frame about 1KB
 	useStack(n - 1 + int(b[99]))
+}
+
+type Impl struct{}
+
+func (Impl) f() {}
+
+func TestValueString(t *testing.T) {
+	rv := ValueOf(Impl{})
+	if rv.String() != "<reflect_test.Impl Value>" {
+		t.Errorf("ValueOf(Impl{}).String() = %q, want %q", rv.String(), "<reflect_test.Impl Value>")
+	}
+
+	method := rv.Method(0)
+	if method.String() != "<func() Value>" {
+		t.Errorf("ValueOf(Impl{}).Method(0).String() = %q, want %q", method.String(), "<func() Value>")
+	}
+}
+
+func TestInvalid(t *testing.T) {
+	// Used to have inconsistency between IsValid() and Kind() != Invalid.
+	type T struct{ v interface{} }
+
+	v := ValueOf(T{}).Field(0)
+	if v.IsValid() != true || v.Kind() != Interface {
+		t.Errorf("field: IsValid=%v, Kind=%v, want true, Interface", v.IsValid(), v.Kind())
+	}
+	v = v.Elem()
+	if v.IsValid() != false || v.Kind() != Invalid {
+		t.Errorf("field elem: IsValid=%v, Kind=%v, want false, Invalid", v.IsValid(), v.Kind())
+	}
 }

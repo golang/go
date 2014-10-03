@@ -81,7 +81,8 @@ single directory, the command is applied to a single synthesized
 package made up of exactly those files, ignoring any build constraints
 in those files and ignoring any other files in the directory.
 
-File names that begin with "." or "_" are ignored by the go tool.
+Directory and file names that begin with "." or "_" are ignored
+by the go tool, as are directories named "testdata".
 	`,
 }
 

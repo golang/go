@@ -707,6 +707,17 @@ func TestParseDERCRL(t *testing.T) {
 	// Can't check the signature here without a package cycle.
 }
 
+func TestCRLWithoutExpiry(t *testing.T) {
+	derBytes := fromBase64("MIHYMIGZMAkGByqGSM44BAMwEjEQMA4GA1UEAxMHQ2FybERTUxcNOTkwODI3MDcwMDAwWjBpMBMCAgDIFw05OTA4MjIwNzAwMDBaMBMCAgDJFw05OTA4MjIwNzAwMDBaMBMCAgDTFw05OTA4MjIwNzAwMDBaMBMCAgDSFw05OTA4MjIwNzAwMDBaMBMCAgDUFw05OTA4MjQwNzAwMDBaMAkGByqGSM44BAMDLwAwLAIUfmVSdjP+NHMX0feW+aDU2G1cfT0CFAJ6W7fVWxjBz4fvftok8yqDnDWh")
+	certList, err := ParseDERCRL(derBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !certList.TBSCertList.NextUpdate.IsZero() {
+		t.Errorf("NextUpdate is not the zero value")
+	}
+}
+
 func TestParsePEMCRL(t *testing.T) {
 	pemBytes := fromBase64(pemCRLBase64)
 	certList, err := ParseCRL(pemBytes)

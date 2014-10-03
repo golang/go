@@ -44,6 +44,7 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fm, "int main() { return 0; }\n")
 	if *importRuntimeCgo {
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
+		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
 	} else {
 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
 		// which provides crosscall2.  We just need a prototype.
@@ -129,6 +130,7 @@ func (p *Package) writeDefs() {
 			fmt.Fprintf(fc, `extern void *%s __asm__("%s.%s");`, n.Mangle, gccgoSymbolPrefix, n.Mangle)
 			fmt.Fprintf(&gccgoInit, "\t%s = %s%s;\n", n.Mangle, amp, n.C)
 		} else {
+			fmt.Fprintf(fc, "#pragma dataflag NOPTR /* C pointer, not heap pointer */ \n")
 			fmt.Fprintf(fc, "void *·%s = %s%s;\n", n.Mangle, amp, n.C)
 		}
 		fmt.Fprintf(fc, "\n")
@@ -397,6 +399,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	// C wrapper calls into gcc, passing a pointer to the argument frame.
 	fmt.Fprintf(fc, "#pragma cgo_import_static %s\n", cname)
 	fmt.Fprintf(fc, "void %s(void*);\n", cname)
+	fmt.Fprintf(fc, "#pragma dataflag NOPTR\n")
 	fmt.Fprintf(fc, "void *·%s = %s;\n", cname, cname)
 
 	nret := 0
@@ -517,9 +520,13 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	// Use packed attribute to force no padding in this struct in case
 	// gcc has different packing requirements.
 	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
+	if n.FuncType.Result != nil {
+		// Save the stack top for use below.
+		fmt.Fprintf(fgcc, "\tchar *stktop = _cgo_topofstack();\n")
+	}
 	fmt.Fprintf(fgcc, "\t")
 	if t := n.FuncType.Result; t != nil {
-		fmt.Fprintf(fgcc, "a->r = ")
+		fmt.Fprintf(fgcc, "__typeof__(a->r) r = ")
 		if c := t.C.String(); c[len(c)-1] == '*' {
 			fmt.Fprint(fgcc, "(__typeof__(a->r)) ")
 		}
@@ -542,6 +549,13 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		fmt.Fprintf(fgcc, "a->p%d", i)
 	}
 	fmt.Fprintf(fgcc, ");\n")
+	if n.FuncType.Result != nil {
+		// The cgo call may have caused a stack copy (via a callback).
+		// Adjust the return value pointer appropriately.
+		fmt.Fprintf(fgcc, "\ta = (void*)((char*)a + (_cgo_topofstack() - stktop));\n")
+		// Save the return value.
+		fmt.Fprintf(fgcc, "\ta->r = r;\n")
+	}
 	if n.AddError {
 		fmt.Fprintf(fgcc, "\treturn errno;\n")
 	}
@@ -1129,6 +1143,8 @@ __cgo_size_assert(__cgo_long_long, 8)
 __cgo_size_assert(float, 4)
 __cgo_size_assert(double, 8)
 
+extern char* _cgo_topofstack(void);
+
 #include <errno.h>
 #include <string.h>
 `
@@ -1151,20 +1167,31 @@ void *_CMalloc(size_t);
 const cProlog = `
 #include "runtime.h"
 #include "cgocall.h"
+#include "textflag.h"
 
+#pragma dataflag NOPTR
 static void *cgocall_errno = runtime·cgocall_errno;
+#pragma dataflag NOPTR
 void *·_cgo_runtime_cgocall_errno = &cgocall_errno;
 
+#pragma dataflag NOPTR
 static void *runtime_gostring = runtime·gostring;
+#pragma dataflag NOPTR
 void *·_cgo_runtime_gostring = &runtime_gostring;
 
+#pragma dataflag NOPTR
 static void *runtime_gostringn = runtime·gostringn;
+#pragma dataflag NOPTR
 void *·_cgo_runtime_gostringn = &runtime_gostringn;
 
+#pragma dataflag NOPTR
 static void *runtime_gobytes = runtime·gobytes;
+#pragma dataflag NOPTR
 void *·_cgo_runtime_gobytes = &runtime_gobytes;
 
+#pragma dataflag NOPTR
 static void *runtime_cmalloc = runtime·cmalloc;
+#pragma dataflag NOPTR
 void *·_cgo_runtime_cmalloc = &runtime_cmalloc;
 
 void ·_Cerrno(void*, int32);

@@ -932,3 +932,25 @@ func Test29ElementSlice(t *testing.T) {
 		return
 	}
 }
+
+// Don't crash, just give error when allocating a huge slice.
+// Issue 8084.
+func TestErrorForHugeSlice(t *testing.T) {
+	// Encode an int slice.
+	buf := new(bytes.Buffer)
+	slice := []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	err := NewEncoder(buf).Encode(slice)
+	if err != nil {
+		t.Fatal("encode:", err)
+	}
+	// Reach into the buffer and smash the count to make the encoded slice very long.
+	buf.Bytes()[buf.Len()-len(slice)-1] = 0xfa
+	// Decode and see error.
+	err = NewDecoder(buf).Decode(&slice)
+	if err == nil {
+		t.Fatal("decode: no error")
+	}
+	if !strings.Contains(err.Error(), "slice too big") {
+		t.Fatal("decode: expected slice too big error, got %s", err.Error())
+	}
+}

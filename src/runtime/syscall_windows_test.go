@@ -488,3 +488,9 @@ func TestRegisterClass(t *testing.T) {
 		t.Fatalf("UnregisterClass failed: %v", err)
 	}
 }
+
+func TestOutputDebugString(t *testing.T) {
+	d := GetDLL(t, "kernel32.dll")
+	p := syscall.StringToUTF16Ptr("testing OutputDebugString")
+	d.Proc("OutputDebugStringW").Call(uintptr(unsafe.Pointer(p)))
+}

@@ -57,6 +57,7 @@ and test commands:
 
 	-a
 		force rebuilding of packages that are already up-to-date.
+		In Go releases, does not apply to the standard library.
 	-n
 		print the commands but do not run them.
 	-p n
@@ -284,6 +285,11 @@ func runBuild(cmd *Command, args []string) {
 		}
 	}
 
+	depMode := modeBuild
+	if buildI {
+		depMode = modeInstall
+	}
+
 	if *buildO != "" {
 		if len(pkgs) > 1 {
 			fatalf("go build: cannot use -o with multiple packages")
@@ -292,17 +298,13 @@ func runBuild(cmd *Command, args []string) {
 		}
 		p := pkgs[0]
 		p.target = "" // must build - not up to date
-		a := b.action(modeInstall, modeBuild, p)
+		a := b.action(modeInstall, depMode, p)
 		a.target = *buildO
 		b.do(a)
 		return
 	}
 
 	a := &action{}
-	depMode := modeBuild
-	if buildI {
-		depMode = modeInstall
-	}
 	for _, p := range packages(args) {
 		a.deps = append(a.deps, b.action(modeBuild, depMode, p))
 	}
@@ -504,8 +506,13 @@ func goFilesPackage(gofiles []string) *Package {
 	}
 	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
 
-	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(cwd, dir)
+	var err error
+	if dir == "" {
+		dir = cwd
+	}
+	dir, err = filepath.Abs(dir)
+	if err != nil {
+		fatalf("%s", err)
 	}
 
 	bp, err := ctxt.ImportDir(dir, 0)
@@ -824,12 +831,17 @@ func (b *builder) build(a *action) (err error) {
 		}
 	}
 
-	var gofiles, cfiles, sfiles, objects, cgoObjects []string
+	var gofiles, cfiles, sfiles, objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
 
 	gofiles = append(gofiles, a.p.GoFiles...)
 	cfiles = append(cfiles, a.p.CFiles...)
 	sfiles = append(sfiles, a.p.SFiles...)
 
+	if a.p.usesCgo() || a.p.usesSwig() {
+		if pcCFLAGS, pcLDFLAGS, err = b.getPkgConfigFlags(a.p); err != nil {
+			return
+		}
+	}
 	// Run cgo.
 	if a.p.usesCgo() {
 		// In a package using cgo, cgo compiles the C, C++ and assembly files with gcc.
@@ -860,7 +872,7 @@ func (b *builder) build(a *action) (err error) {
 		if a.cgo != nil && a.cgo.target != "" {
 			cgoExe = a.cgo.target
 		}
-		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, gccfiles, a.p.CXXFiles, a.p.MFiles)
+		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, pcCFLAGS, pcLDFLAGS, gccfiles, a.p.CXXFiles, a.p.MFiles)
 		if err != nil {
 			return err
 		}
@@ -873,9 +885,18 @@ func (b *builder) build(a *action) (err error) {
 		// In a package using SWIG, any .c or .s files are
 		// compiled with gcc.
 		gccfiles := append(cfiles, sfiles...)
+		cxxfiles, mfiles := a.p.CXXFiles, a.p.MFiles
 		cfiles = nil
 		sfiles = nil
-		outGo, outObj, err := b.swig(a.p, obj, gccfiles, a.p.CXXFiles, a.p.MFiles)
+
+		// Don't build c/c++ files twice if cgo is enabled (mainly for pkg-config).
+		if a.p.usesCgo() {
+			cxxfiles = nil
+			gccfiles = nil
+			mfiles = nil
+		}
+
+		outGo, outObj, err := b.swig(a.p, obj, pcCFLAGS, gccfiles, cxxfiles, mfiles)
 		if err != nil {
 			return err
 		}
@@ -1017,6 +1038,34 @@ func (b *builder) build(a *action) (err error) {
 	}
 
 	return nil
+}
+
+// Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
+func (b *builder) getPkgConfigFlags(p *Package) (cflags, ldflags []string, err error) {
+	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
+		var out []byte
+		out, err = b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--cflags", pkgs)
+		if err != nil {
+			b.showOutput(p.Dir, "pkg-config --cflags "+strings.Join(pkgs, " "), string(out))
+			b.print(err.Error() + "\n")
+			err = errPrintedOutput
+			return
+		}
+		if len(out) > 0 {
+			cflags = strings.Fields(string(out))
+		}
+		out, err = b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--libs", pkgs)
+		if err != nil {
+			b.showOutput(p.Dir, "pkg-config --libs "+strings.Join(pkgs, " "), string(out))
+			b.print(err.Error() + "\n")
+			err = errPrintedOutput
+			return
+		}
+		if len(out) > 0 {
+			ldflags = strings.Fields(string(out))
+		}
+	}
+	return
 }
 
 // install is the action for installing a single package or executable.
@@ -1426,6 +1475,14 @@ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...inter
 			continue
 		}
 
+		// err can be something like 'exit status 1'.
+		// Add information about what program was running.
+		// Note that if buf.Bytes() is non-empty, the caller usually
+		// shows buf.Bytes() and does not print err at all, so the
+		// prefix here does not make most output any more verbose.
+		if err != nil {
+			err = errors.New(cmdline[0] + ": " + err.Error())
+		}
 		return buf.Bytes(), err
 	}
 }
@@ -1588,7 +1645,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []
 	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
 	if p.Standard {
 		switch p.ImportPath {
-		case "os", "runtime/pprof", "sync", "time":
+		case "bytes", "net", "os", "runtime/pprof", "sync", "time":
 			extFiles++
 		}
 	}
@@ -2100,34 +2157,14 @@ var (
 	cgoLibGccFileOnce sync.Once
 )
 
-func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles, gxxfiles, mfiles []string) (outGo, outObj []string, err error) {
+func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, gccfiles, gxxfiles, mfiles []string) (outGo, outObj []string, err error) {
 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoLDFLAGS := b.cflags(p, true)
 	_, cgoexeCFLAGS, _, _ := b.cflags(p, false)
-
+	cgoCPPFLAGS = append(cgoCPPFLAGS, pcCFLAGS...)
+	cgoLDFLAGS = append(cgoLDFLAGS, pcLDFLAGS...)
 	// If we are compiling Objective-C code, then we need to link against libobjc
 	if len(mfiles) > 0 {
 		cgoLDFLAGS = append(cgoLDFLAGS, "-lobjc")
-	}
-
-	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
-		out, err := b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--cflags", pkgs)
-		if err != nil {
-			b.showOutput(p.Dir, "pkg-config --cflags "+strings.Join(pkgs, " "), string(out))
-			b.print(err.Error() + "\n")
-			return nil, nil, errPrintedOutput
-		}
-		if len(out) > 0 {
-			cgoCPPFLAGS = append(cgoCPPFLAGS, strings.Fields(string(out))...)
-		}
-		out, err = b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--libs", pkgs)
-		if err != nil {
-			b.showOutput(p.Dir, "pkg-config --libs "+strings.Join(pkgs, " "), string(out))
-			b.print(err.Error() + "\n")
-			return nil, nil, errPrintedOutput
-		}
-		if len(out) > 0 {
-			cgoLDFLAGS = append(cgoLDFLAGS, strings.Fields(string(out))...)
-		}
 	}
 
 	// Allows including _cgo_export.h from .[ch] files in the package.
@@ -2205,6 +2242,14 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles, gxxfiles, mfiles
 		case strings.HasSuffix(f, ".dylib"),
 			strings.HasSuffix(f, ".so"),
 			strings.HasSuffix(f, ".dll"):
+			continue
+		// Remove any -fsanitize=foo flags.
+		// Otherwise the compiler driver thinks that we are doing final link
+		// and links sanitizer runtime into the object file. But we are not doing
+		// the final link, we will link the resulting object file again. And
+		// so the program ends up with two copies of sanitizer runtime.
+		// See issue 8788 for details.
+		case strings.HasPrefix(f, "-fsanitize="):
 			continue
 		default:
 			bareLDFLAGS = append(bareLDFLAGS, f)
@@ -2344,7 +2389,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles, gxxfiles, mfiles
 // Run SWIG on all SWIG input files.
 // TODO: Don't build a shared library, once SWIG emits the necessary
 // pragmas for external linking.
-func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles, mfiles []string) (outGo, outObj []string, err error) {
+func (b *builder) swig(p *Package, obj string, pcCFLAGS, gccfiles, gxxfiles, mfiles []string) (outGo, outObj []string, err error) {
 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _ := b.cflags(p, true)
 	cflags := stringList(cgoCPPFLAGS, cgoCFLAGS)
 	cxxflags := stringList(cgoCPPFLAGS, cgoCXXFLAGS)
@@ -2385,7 +2430,7 @@ func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles, mfiles []stri
 	}
 
 	for _, f := range p.SwigFiles {
-		goFile, objFile, gccObjFile, err := b.swigOne(p, f, obj, false, intgosize)
+		goFile, objFile, gccObjFile, err := b.swigOne(p, f, obj, pcCFLAGS, false, intgosize)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2400,7 +2445,7 @@ func (b *builder) swig(p *Package, obj string, gccfiles, gxxfiles, mfiles []stri
 		}
 	}
 	for _, f := range p.SwigCXXFiles {
-		goFile, objFile, gccObjFile, err := b.swigOne(p, f, obj, true, intgosize)
+		goFile, objFile, gccObjFile, err := b.swigOne(p, f, obj, pcCFLAGS, true, intgosize)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2479,13 +2524,13 @@ func (b *builder) swigIntSize(obj string) (intsize string, err error) {
 }
 
 // Run SWIG on one SWIG input file.
-func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize string) (outGo, outObj, objGccObj string, err error) {
+func (b *builder) swigOne(p *Package, file, obj string, pcCFLAGS []string, cxx bool, intgosize string) (outGo, outObj, objGccObj string, err error) {
 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _ := b.cflags(p, true)
 	var cflags []string
 	if cxx {
-		cflags = stringList(cgoCPPFLAGS, cgoCXXFLAGS)
+		cflags = stringList(cgoCPPFLAGS, pcCFLAGS, cgoCXXFLAGS)
 	} else {
-		cflags = stringList(cgoCPPFLAGS, cgoCFLAGS)
+		cflags = stringList(cgoCPPFLAGS, pcCFLAGS, cgoCFLAGS)
 	}
 
 	n := 5 // length of ".swig"
@@ -2511,6 +2556,13 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
 		"-o", obj + gccBase + gccExt,
 		"-outdir", obj,
 	}
+
+	for _, f := range cflags {
+		if len(f) > 3 && f[:2] == "-I" {
+			args = append(args, f)
+		}
+	}
+
 	if gccgo {
 		args = append(args, "-gccgo")
 		if pkgpath := gccgoPkgpath(p); pkgpath != "" {

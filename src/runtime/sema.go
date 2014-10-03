@@ -49,6 +49,11 @@ func asyncsemrelease(addr *uint32) {
 
 // Called from runtime.
 func semacquire(addr *uint32, profile bool) {
+	gp := getg()
+	if gp != gp.m.curg {
+		gothrow("semacquire not on the G stack")
+	}
+
 	// Easy case.
 	if cansemacquire(addr) {
 		return

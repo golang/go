@@ -194,8 +194,15 @@ var fmtTests = []struct {
 	{"%.5s", "日本語日本語", "日本語日本"},
 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
+	{"%.5x", "abcdefghijklmnopqrstuvwxyz", `6162636465`},
+	{"%.5q", []byte("abcdefghijklmnopqrstuvwxyz"), `"abcde"`},
+	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), `6162636465`},
 	{"%.3q", "日本語日本語", `"日本語"`},
 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
+	{"%.1q", "日本語", `"日"`},
+	{"%.1q", []byte("日本語"), `"日"`},
+	{"%.1x", "日本語", `e6`},
+	{"%.1X", []byte("日本語"), `E6`},
 	{"%10.1q", "日本語日本語", `       "日"`},
 	{"%3c", '⌘', "  ⌘"},
 	{"%5q", '\u2026', `  '…'`},
@@ -854,6 +861,23 @@ func BenchmarkManyArgs(b *testing.B) {
 	})
 }
 
+func BenchmarkFprintInt(b *testing.B) {
+	var buf bytes.Buffer
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Fprint(&buf, 123456)
+	}
+}
+
+func BenchmarkFprintIntNoAlloc(b *testing.B) {
+	var x interface{} = 123456
+	var buf bytes.Buffer
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Fprint(&buf, x)
+	}
+}
+
 var mallocBuf bytes.Buffer
 var mallocPointer *int // A pointer so we know the interface value won't allocate.
 
@@ -864,9 +888,9 @@ var mallocTest = []struct {
 }{
 	{0, `Sprintf("")`, func() { Sprintf("") }},
 	{1, `Sprintf("xxx")`, func() { Sprintf("xxx") }},
-	{1, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
+	{2, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
 	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
-	{1, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
+	{3, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
 	{2, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }}, // TODO: Can this be 1?
 	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
@@ -1120,10 +1144,10 @@ var panictests = []struct {
 }
 
 func TestPanics(t *testing.T) {
-	for _, tt := range panictests {
+	for i, tt := range panictests {
 		s := Sprintf(tt.fmt, tt.in)
 		if s != tt.out {
-			t.Errorf("%q: got %q expected %q", tt.fmt, s, tt.out)
+			t.Errorf("%d: %q: got %q expected %q", i, tt.fmt, s, tt.out)
 		}
 	}
 }
@@ -1181,5 +1205,96 @@ func TestNilDoesNotBecomeTyped(t *testing.T) {
 	const expect = "%!s(<nil>) %!s(*fmt_test.A=<nil>) %!s(<nil>) {} %!s(<nil>)"
 	if got != expect {
 		t.Errorf("expected:\n\t%q\ngot:\n\t%q", expect, got)
+	}
+}
+
+// Formatters did not get delivered flags correctly in all cases. Issue 8835.
+type fp struct{}
+
+func (fp) Format(f State, c rune) {
+	s := "%"
+	for i := 0; i < 128; i++ {
+		if f.Flag(i) {
+			s += string(i)
+		}
+	}
+	if w, ok := f.Width(); ok {
+		s += Sprintf("%d", w)
+	}
+	if p, ok := f.Precision(); ok {
+		s += Sprintf(".%d", p)
+	}
+	s += string(c)
+	io.WriteString(f, "["+s+"]")
+}
+
+var formatterFlagTests = []struct {
+	in  string
+	val interface{}
+	out string
+}{
+	// scalar values with the (unused by fmt) 'a' verb.
+	{"%a", fp{}, "[%a]"},
+	{"%-a", fp{}, "[%-a]"},
+	{"%+a", fp{}, "[%+a]"},
+	{"%#a", fp{}, "[%#a]"},
+	{"% a", fp{}, "[% a]"},
+	{"%0a", fp{}, "[%0a]"},
+	{"%1.2a", fp{}, "[%1.2a]"},
+	{"%-1.2a", fp{}, "[%-1.2a]"},
+	{"%+1.2a", fp{}, "[%+1.2a]"},
+	{"%-+1.2a", fp{}, "[%+-1.2a]"},
+	{"%-+1.2abc", fp{}, "[%+-1.2a]bc"},
+	{"%-1.2abc", fp{}, "[%-1.2a]bc"},
+
+	// composite values with the 'a' verb
+	{"%a", [1]fp{}, "[[%a]]"},
+	{"%-a", [1]fp{}, "[[%-a]]"},
+	{"%+a", [1]fp{}, "[[%+a]]"},
+	{"%#a", [1]fp{}, "[[%#a]]"},
+	{"% a", [1]fp{}, "[[% a]]"},
+	{"%0a", [1]fp{}, "[[%0a]]"},
+	{"%1.2a", [1]fp{}, "[[%1.2a]]"},
+	{"%-1.2a", [1]fp{}, "[[%-1.2a]]"},
+	{"%+1.2a", [1]fp{}, "[[%+1.2a]]"},
+	{"%-+1.2a", [1]fp{}, "[[%+-1.2a]]"},
+	{"%-+1.2abc", [1]fp{}, "[[%+-1.2a]]bc"},
+	{"%-1.2abc", [1]fp{}, "[[%-1.2a]]bc"},
+
+	// simple values with the 'v' verb
+	{"%v", fp{}, "[%v]"},
+	{"%-v", fp{}, "[%-v]"},
+	{"%+v", fp{}, "[%+v]"},
+	{"%#v", fp{}, "[%#v]"},
+	{"% v", fp{}, "[% v]"},
+	{"%0v", fp{}, "[%0v]"},
+	{"%1.2v", fp{}, "[%1.2v]"},
+	{"%-1.2v", fp{}, "[%-1.2v]"},
+	{"%+1.2v", fp{}, "[%+1.2v]"},
+	{"%-+1.2v", fp{}, "[%+-1.2v]"},
+	{"%-+1.2vbc", fp{}, "[%+-1.2v]bc"},
+	{"%-1.2vbc", fp{}, "[%-1.2v]bc"},
+
+	// composite values with the 'v' verb. Some are still broken.
+	{"%v", [1]fp{}, "[[%v]]"},
+	{"%-v", [1]fp{}, "[[%-v]]"},
+	//{"%+v", [1]fp{}, "[[%+v]]"},
+	{"%#v", [1]fp{}, "[1]fmt_test.fp{[%#v]}"},
+	{"% v", [1]fp{}, "[[% v]]"},
+	{"%0v", [1]fp{}, "[[%0v]]"},
+	{"%1.2v", [1]fp{}, "[[%1.2v]]"},
+	{"%-1.2v", [1]fp{}, "[[%-1.2v]]"},
+	//{"%+1.2v", [1]fp{}, "[[%+1.2v]]"},
+	//{"%-+1.2v", [1]fp{}, "[[%+-1.2v]]"},
+	//{"%-+1.2vbc", [1]fp{}, "[[%+-1.2v]]bc"},
+	{"%-1.2vbc", [1]fp{}, "[[%-1.2v]]bc"},
+}
+
+func TestFormatterFlags(t *testing.T) {
+	for _, tt := range formatterFlagTests {
+		s := Sprintf(tt.in, tt.val)
+		if s != tt.out {
+			t.Errorf("Sprintf(%q, %T) = %q, want %q", tt.in, tt.val, s, tt.out)
+		}
 	}
 }

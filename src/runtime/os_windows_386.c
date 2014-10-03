@@ -24,8 +24,6 @@ runtime·dumpregs(Context *r)
 	runtime·printf("gs      %x\n", r->SegGs);
 }
 
-#define DBG_PRINTEXCEPTION_C 0x40010006
-
 // Called by sigtramp from Windows VEH handler.
 // Return value signals whether the exception has been handled (-1)
 // or should be made available to other handlers in the chain (0).
@@ -36,36 +34,10 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 	uintptr *sp;
 	extern byte runtime·text[], runtime·etext[];
 
-	if(info->ExceptionCode == DBG_PRINTEXCEPTION_C) {
-		// This exception is intended to be caught by debuggers.
-		// There is a not-very-informational message like
-		// "Invalid parameter passed to C runtime function"
-		// sitting at info->ExceptionInformation[0] (a wchar_t*),
-		// with length info->ExceptionInformation[1].
-		// The default behavior is to ignore this exception,
-		// but somehow returning 0 here (meaning keep going)
-		// makes the program crash instead. Maybe Windows has no
-		// other handler registered? In any event, ignore it.
-		return -1;
-	}
-
 	// Only handle exception if executing instructions in Go binary
 	// (not Windows library code). 
 	if(r->Eip < (uint32)runtime·text || (uint32)runtime·etext < r->Eip)
 		return 0;
-
-	switch(info->ExceptionCode) {
-	case EXCEPTION_BREAKPOINT:
-		// It is unclear whether this is needed, unclear whether it
-		// would work, and unclear how to test it. Leave out for now.
-		// This only handles breakpoint instructions written in the
-		// assembly sources, not breakpoints set by a debugger, and
-		// there are very few of the former.
-		//
-		// r->Eip--;	// because 8l generates 2 bytes for INT3
-		// return 0;
-		break;
-	}
 
 	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
 		// Make it look like a call to the signal func.

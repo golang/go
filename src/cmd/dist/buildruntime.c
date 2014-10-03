@@ -330,9 +330,11 @@ mkzsys(char *dir, char *file)
 static char *runtimedefs[] = {
 	"defs.c",
 	"malloc.c",
+	"mcache.c",
 	"mgc0.c",
 	"proc.c",
 	"parfor.c",
+	"stack.c",
 };
 
 // mkzruntimedefs writes zruntime_defs_$GOOS_$GOARCH.h,

@@ -1028,11 +1028,21 @@ orderexpr(Node **np, Order *order)
 		orderexprinplace(&n->right, order);
 		break;
 	
-	case OCALLFUNC:
-	case OCALLMETH:
-	case OCALLINTER:
 	case OAPPEND:
+	case OCALLFUNC:
+	case OCALLINTER:
+	case OCALLMETH:
+	case OCAP:
 	case OCOMPLEX:
+	case OCOPY:
+	case OIMAG:
+	case OLEN:
+	case OMAKECHAN:
+	case OMAKEMAP:
+	case OMAKESLICE:
+	case ONEW:
+	case OREAL:
+	case ORECOVER:
 		ordercall(n, order);
 		n = ordercopyexpr(n, n->type, order, 0);
 		break;

@@ -395,4 +395,4 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	NEGL	AX
 	RET
 
-GLOBL runtime·tlsoffset(SB),$4
+GLOBL runtime·tlsoffset(SB),NOPTR,$4

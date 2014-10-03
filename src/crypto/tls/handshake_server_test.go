@@ -676,6 +676,32 @@ func TestResumption(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
+func TestResumptionDisabled(t *testing.T) {
+	sessionFilePath := tempFile("")
+	defer os.Remove(sessionFilePath)
+
+	config := *testConfig
+
+	test := &serverTest{
+		name:    "IssueTicketPreDisable",
+		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_out", sessionFilePath},
+		config:  &config,
+	}
+	runServerTestTLS12(t, test)
+
+	config.SessionTicketsDisabled = true
+
+	test = &serverTest{
+		name:    "ResumeDisabled",
+		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_in", sessionFilePath},
+		config:  &config,
+	}
+	runServerTestTLS12(t, test)
+
+	// One needs to manually confirm that the handshake in the golden data
+	// file for ResumeDisabled does not include a resumption handshake.
+}
+
 // cert.pem and key.pem were generated with generate_cert.go
 // Thus, they have no ExtKeyUsage fields and trigger an error
 // when verification is turned on.

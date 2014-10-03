@@ -238,7 +238,8 @@ func deferreturn(arg0 uintptr) {
 }
 
 // Goexit terminates the goroutine that calls it.  No other goroutine is affected.
-// Goexit runs all deferred calls before terminating the goroutine.
+// Goexit runs all deferred calls before terminating the goroutine.  Because Goexit
+// is not panic, however, any recover calls in those deferred functions will return nil.
 //
 // Calling Goexit from the main goroutine terminates that goroutine
 // without func main returning. Since func main has not returned,
@@ -246,11 +247,27 @@ func deferreturn(arg0 uintptr) {
 // If all other goroutines exit, the program crashes.
 func Goexit() {
 	// Run all deferred functions for the current goroutine.
+	// This code is similar to gopanic, see that implementation
+	// for detailed comments.
 	gp := getg()
-	for gp._defer != nil {
+	for {
 		d := gp._defer
+		if d == nil {
+			break
+		}
+		if d.started {
+			if d._panic != nil {
+				d._panic.aborted = true
+			}
+			gp._defer = d.link
+			freedefer(d)
+			continue
+		}
 		d.started = true
 		reflectcall(unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+		if gp._defer != d {
+			gothrow("bad defer entry in Goexit")
+		}
 		gp._defer = d.link
 		freedefer(d)
 		// Note: we ignore recovers here because Goexit isn't a panic
@@ -280,6 +297,35 @@ func gopanic(e interface{}) {
 	if gp.m.curg != gp {
 		gothrow("panic on m stack")
 	}
+
+	// m.softfloat is set during software floating point.
+	// It increments m.locks to avoid preemption.
+	// We moved the memory loads out, so there shouldn't be
+	// any reason for it to panic anymore.
+	if gp.m.softfloat != 0 {
+		gp.m.locks--
+		gp.m.softfloat = 0
+		gothrow("panic during softfloat")
+	}
+	if gp.m.mallocing != 0 {
+		print("panic: ")
+		printany(e)
+		print("\n")
+		gothrow("panic during malloc")
+	}
+	if gp.m.gcing != 0 {
+		print("panic: ")
+		printany(e)
+		print("\n")
+		gothrow("panic during gc")
+	}
+	if gp.m.locks != 0 {
+		print("panic: ")
+		printany(e)
+		print("\n")
+		gothrow("panic holding locks")
+	}
+
 	var p _panic
 	p.arg = e
 	p.link = gp._panic
@@ -429,34 +475,4 @@ func gothrow(s string) {
 	print("fatal error: ", s, "\n")
 	dopanic(0)
 	*(*int)(nil) = 0 // not reached
-}
-
-func panicstring(s *int8) {
-	// m.softfloat is set during software floating point,
-	// which might cause a fault during a memory load.
-	// It increments m.locks to avoid preemption.
-	// If we're panicking, the software floating point frames
-	// will be unwound, so decrement m.locks as they would.
-	gp := getg()
-	if gp.m.softfloat != 0 {
-		gp.m.locks--
-		gp.m.softfloat = 0
-	}
-
-	if gp.m.mallocing != 0 {
-		print("panic: ", s, "\n")
-		gothrow("panic during malloc")
-	}
-	if gp.m.gcing != 0 {
-		print("panic: ", s, "\n")
-		gothrow("panic during gc")
-	}
-	if gp.m.locks != 0 {
-		print("panic: ", s, "\n")
-		gothrow("panic holding locks")
-	}
-
-	var err interface{}
-	newErrorCString(unsafe.Pointer(s), &err)
-	gopanic(err)
 }

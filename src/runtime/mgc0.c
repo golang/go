@@ -119,7 +119,7 @@ FinBlock*	runtime·finc;	// cache of free blocks
 static byte finptrmask[FinBlockSize/PtrSize/PointersPerByte];
 bool	runtime·fingwait;
 bool	runtime·fingwake;
-static FinBlock	*allfin;	// list of all blocks
+FinBlock	*runtime·allfin;	// list of all blocks
 
 BitVector	runtime·gcdatamask;
 BitVector	runtime·gcbssmask;
@@ -146,7 +146,8 @@ static void	slottombits(byte*, Markbits*);
 void runtime·bgsweep(void);
 static FuncVal bgsweepv = {runtime·bgsweep};
 
-static struct {
+typedef struct WorkData WorkData;
+struct WorkData {
 	uint64	full;  // lock-free list of full blocks
 	uint64	empty; // lock-free list of empty blocks
 	byte	pad0[CacheLineSize]; // prevents false-sharing between full/empty and nproc/nwait
@@ -160,7 +161,8 @@ static struct {
 	// Copy of mheap.allspans for marker or sweeper.
 	MSpan**	spans;
 	uint32	nspan;
-} work;
+};
+WorkData runtime·work;
 
 // Is address b in the known heap. If it doesn't have a valid gcmap
 // returns false. For example pointers into stacks will return false.
@@ -286,8 +288,7 @@ greyobject(byte *obj, Markbits *mbits, Workbuf *wbuf)
 	// but the object it shares the byte with is already marked,
 	// then all the possible concurrent updates are trying to set the same bit,
 	// so we can use a non-atomic update.
-	if((mbits->xbits&(bitMask|(bitMask<<gcBits))) != (bitBoundary|(bitBoundary<<gcBits)) ||
-				work.nproc == 1)
+	if((mbits->xbits&(bitMask|(bitMask<<gcBits))) != (bitBoundary|(bitBoundary<<gcBits)) || runtime·work.nproc == 1)
 		*mbits->bitp = mbits->xbits | (bitMarked<<mbits->shift);
 	else
 		runtime·atomicor8(mbits->bitp, bitMarked<<mbits->shift);
@@ -424,7 +425,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 		}
 
 		// If another proc wants a pointer, give it some.
-		if(work.nwait > 0 && wbuf->nobj > 4 && work.full == 0) {
+		if(runtime·work.nwait > 0 && wbuf->nobj > 4 && runtime·work.full == 0) {
 			wbuf = handoff(wbuf);
 		}
 
@@ -461,18 +462,18 @@ markroot(ParFor *desc, uint32 i)
 		break;
 
 	case RootFinalizers:
-		for(fb=allfin; fb; fb=fb->alllink)
+		for(fb=runtime·allfin; fb; fb=fb->alllink)
 			scanblock((byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), finptrmask);
 		break;
 
 	case RootSpans:
 		// mark MSpan.specials
 		sg = runtime·mheap.sweepgen;
-		for(spanidx=0; spanidx<work.nspan; spanidx++) {
+		for(spanidx=0; spanidx<runtime·work.nspan; spanidx++) {
 			Special *sp;
 			SpecialFinalizer *spf;
 
-			s = work.spans[spanidx];
+			s = runtime·work.spans[spanidx];
 			if(s->state != MSpanInUse)
 				continue;
 			if(s->sweepgen != sg) {
@@ -507,7 +508,7 @@ markroot(ParFor *desc, uint32 i)
 		// needed only to output in traceback
 		status = runtime·readgstatus(gp); // We are not in a scan state
 		if((status == Gwaiting || status == Gsyscall) && gp->waitsince == 0)
-			gp->waitsince = work.tstart;
+			gp->waitsince = runtime·work.tstart;
 		// Shrink a stack if not much of it is being used.
 		runtime·shrinkstack(gp);
 		if(runtime·readgstatus(gp) == Gdead) 
@@ -554,7 +555,7 @@ getempty(Workbuf *b)
 	MCache *c;
 
 	if(b != nil)
-		runtime·lfstackpush(&work.full, &b->node);
+		runtime·lfstackpush(&runtime·work.full, &b->node);
 	b = nil;
 	c = g->m->mcache;
 	if(c->gcworkbuf != nil) {
@@ -562,7 +563,7 @@ getempty(Workbuf *b)
 		c->gcworkbuf = nil;
 	}
 	if(b == nil)
-		b = (Workbuf*)runtime·lfstackpop(&work.empty);
+		b = (Workbuf*)runtime·lfstackpop(&runtime·work.empty);
 	if(b == nil) {
 		b = runtime·persistentalloc(sizeof(*b), CacheLineSize, &mstats.gc_sys);
 		b->nobj = 0;
@@ -585,7 +586,7 @@ putempty(Workbuf *b)
 		c->gcworkbuf = b;
 		return;
 	}
-	runtime·lfstackpush(&work.empty, &b->node);
+	runtime·lfstackpush(&runtime·work.empty, &b->node);
 }
 
 // Get an partially empty work buffer from the mcache structure
@@ -619,7 +620,7 @@ putpartial(Workbuf *b)
 
 	runtime·throw("putpartial: c->gcworkbuf is not nil\n");
 	
-	runtime·lfstackpush(&work.full, &b->node);
+	runtime·lfstackpush(&runtime·work.full, &b->node);
 }
 
 void
@@ -650,22 +651,22 @@ getfull(Workbuf *b)
 	if(b != nil) {
 		if(b->nobj != 0) 
 			runtime·printf("runtime:getfull: b->nobj=%D not 0.", b->nobj);
-		runtime·lfstackpush(&work.empty, &b->node);
+		runtime·lfstackpush(&runtime·work.empty, &b->node);
 	}
-	b = (Workbuf*)runtime·lfstackpop(&work.full);
-	if(b != nil || work.nproc == 1)
+	b = (Workbuf*)runtime·lfstackpop(&runtime·work.full);
+	if(b != nil || runtime·work.nproc == 1)
 		return b;
 
-	runtime·xadd(&work.nwait, +1);
+	runtime·xadd(&runtime·work.nwait, +1);
 	for(i=0;; i++) {
-		if(work.full != 0) {
-			runtime·xadd(&work.nwait, -1);
-			b = (Workbuf*)runtime·lfstackpop(&work.full);
+		if(runtime·work.full != 0) {
+			runtime·xadd(&runtime·work.nwait, -1);
+			b = (Workbuf*)runtime·lfstackpop(&runtime·work.full);
 			if(b != nil)
 				return b;
-			runtime·xadd(&work.nwait, +1);
+			runtime·xadd(&runtime·work.nwait, +1);
 		}
-		if(work.nwait == work.nproc)
+		if(runtime·work.nwait == runtime·work.nproc)
 			return nil;
 		if(i < 10) {
 			g->m->gcstats.nprocyield++;
@@ -696,7 +697,7 @@ handoff(Workbuf *b)
 	g->m->gcstats.nhandoffcnt += n;
 
 	// Put b on full list - let first half of b get stolen.
-	runtime·lfstackpush(&work.full, &b->node);
+	runtime·lfstackpush(&runtime·work.full, &b->node);
 	return b1;
 }
 
@@ -856,6 +857,7 @@ runtime·gcphasework(G *gp)
 	gp->gcworkdone = true;
 }
 
+#pragma dataflag NOPTR
 static byte finalizer1[] = {
 	// Each Finalizer is 5 words, ptr ptr uintptr ptr ptr.
 	// Each byte describes 4 words.
@@ -890,8 +892,8 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType 
 		if(runtime·finc == nil) {
 			runtime·finc = runtime·persistentalloc(FinBlockSize, 0, &mstats.gc_sys);
 			runtime·finc->cap = (FinBlockSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
-			runtime·finc->alllink = allfin;
-			allfin = runtime·finc;
+			runtime·finc->alllink = runtime·allfin;
+			runtime·allfin = runtime·finc;
 			if(finptrmask[0] == 0) {
 				// Build pointer mask for Finalizer array in block.
 				// Check assumptions made in finalizer1 array above.
@@ -931,7 +933,7 @@ runtime·iterate_finq(void (*callback)(FuncVal*, byte*, uintptr, Type*, PtrType*
 	Finalizer *f;
 	uintptr i;
 
-	for(fb = allfin; fb; fb = fb->alllink) {
+	for(fb = runtime·allfin; fb; fb = fb->alllink) {
 		for(i = 0; i < fb->cnt; i++) {
 			f = &fb->fin[i];
 			callback(f->fn, f->arg, f->nret, f->fint, f->ot);
@@ -1155,8 +1157,8 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
 
 // State of background runtime·sweep.
 // Protected by runtime·gclock.
-// Must match mgc0.go.
-struct
+typedef struct SweepData SweepData;
+struct SweepData
 {
 	G*	g;
 	bool	parked;
@@ -1165,7 +1167,8 @@ struct
 
 	uint32	nbgsweep;
 	uint32	npausesweep;
-} runtime·sweep;
+};
+SweepData runtime·sweep;
 
 // sweeps one span
 // returns number of pages returned to heap, or -1 if there is nothing to sweep
@@ -1182,12 +1185,12 @@ runtime·sweepone(void)
 	sg = runtime·mheap.sweepgen;
 	for(;;) {
 		idx = runtime·xadd(&runtime·sweep.spanidx, 1) - 1;
-		if(idx >= work.nspan) {
+		if(idx >= runtime·work.nspan) {
 			runtime·mheap.sweepdone = true;
 			g->m->locks--;
 			return -1;
 		}
-		s = work.spans[idx];
+		s = runtime·work.spans[idx];
 		if(s->state != MSpanInUse) {
 			s->sweepgen = sg;
 			continue;
@@ -1236,12 +1239,12 @@ runtime·gchelper(void)
 	gchelperstart();
 
 	// parallel mark for over gc roots
-	runtime·parfordo(work.markfor);
+	runtime·parfordo(runtime·work.markfor);
 	if(runtime·gcphase != GCscan) 
 		scanblock(nil, 0, nil); // blocks in getfull
-	nproc = work.nproc;  // work.nproc can change right after we increment work.ndone
-	if(runtime·xadd(&work.ndone, +1) == nproc-1)
-		runtime·notewakeup(&work.alldone);
+	nproc = runtime·work.nproc;  // work.nproc can change right after we increment work.ndone
+	if(runtime·xadd(&runtime·work.ndone, +1) == nproc-1)
+		runtime·notewakeup(&runtime·work.alldone);
 	g->m->traceback = 0;
 }
 
@@ -1361,6 +1364,7 @@ runtime·updatememstats(GCStats *stats)
 		mstats.by_size[i].nmalloc += runtime·mheap.nsmallfree[i];
 		smallfree += runtime·mheap.nsmallfree[i] * runtime·class_to_size[i];
 	}
+	mstats.nfree += mstats.tinyallocs;
 	mstats.nmalloc += mstats.nfree;
 
 	// Calculate derived stats.
@@ -1378,7 +1382,6 @@ struct gc_args
 };
 
 static void gc(struct gc_args *args);
-static void mgc(G *gp);
 
 int32
 runtime·readgogc(void)
@@ -1399,7 +1402,7 @@ runtime·gcinit(void)
 	if(sizeof(Workbuf) != WorkbufSize)
 		runtime·throw("runtime: size of Workbuf is suboptimal");
 
-	work.markfor = runtime·parforalloc(MaxGcproc);
+	runtime·work.markfor = runtime·parforalloc(MaxGcproc);
 	runtime·gcpercent = runtime·readgogc();
 	runtime·gcdatamask = unrollglobgcprog(runtime·gcdata, runtime·edata - runtime·data);
 	runtime·gcbssmask = unrollglobgcprog(runtime·gcbss, runtime·ebss - runtime·bss);
@@ -1436,7 +1439,7 @@ gc(struct gc_args *args)
 
 	g->m->traceback = 2;
 	t0 = args->start_time;
-	work.tstart = args->start_time; 
+	runtime·work.tstart = args->start_time; 
 
 	t1 = 0;
 	if(runtime·debug.gctrace)
@@ -1456,24 +1459,24 @@ gc(struct gc_args *args)
 	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
 	runtime·lock(&runtime·mheap.lock);
 	// Free the old cached sweep array if necessary.
-	if(work.spans != nil && work.spans != runtime·mheap.allspans)
-		runtime·SysFree(work.spans, work.nspan*sizeof(work.spans[0]), &mstats.other_sys);
+	if(runtime·work.spans != nil && runtime·work.spans != runtime·mheap.allspans)
+		runtime·SysFree(runtime·work.spans, runtime·work.nspan*sizeof(runtime·work.spans[0]), &mstats.other_sys);
 	// Cache the current array for marking.
 	runtime·mheap.gcspans = runtime·mheap.allspans;
-	work.spans = runtime·mheap.allspans;
-	work.nspan = runtime·mheap.nspan;
+	runtime·work.spans = runtime·mheap.allspans;
+	runtime·work.nspan = runtime·mheap.nspan;
 	runtime·unlock(&runtime·mheap.lock);
 	oldphase = runtime·gcphase;
 
-	work.nwait = 0;
-	work.ndone = 0;
-	work.nproc = runtime·gcprocs(); 
+	runtime·work.nwait = 0;
+	runtime·work.ndone = 0;
+	runtime·work.nproc = runtime·gcprocs(); 
 	runtime·gcphase = GCmark;              //^^  vv
 
-	runtime·parforsetup(work.markfor, work.nproc, RootCount + runtime·allglen, nil, false, markroot);
-	if(work.nproc > 1) {
-		runtime·noteclear(&work.alldone);
-		runtime·helpgc(work.nproc);
+	runtime·parforsetup(runtime·work.markfor, runtime·work.nproc, RootCount + runtime·allglen, nil, false, markroot);
+	if(runtime·work.nproc > 1) {
+		runtime·noteclear(&runtime·work.alldone);
+		runtime·helpgc(runtime·work.nproc);
 	}
 
 	t2 = 0;
@@ -1481,7 +1484,7 @@ gc(struct gc_args *args)
 		t2 = runtime·nanotime();
 
 	gchelperstart();
-	runtime·parfordo(work.markfor);
+	runtime·parfordo(runtime·work.markfor);
 
 	scanblock(nil, 0, nil);
 	runtime·gcphase = oldphase;            //^^  vv
@@ -1489,8 +1492,8 @@ gc(struct gc_args *args)
 	if(runtime·debug.gctrace)
 		t3 = runtime·nanotime();
 
-	if(work.nproc > 1)
-		runtime·notesleep(&work.alldone);
+	if(runtime·work.nproc > 1)
+		runtime·notesleep(&runtime·work.alldone);
 
 	cachestats();
 	// next_gc calculation is tricky with concurrent sweep since we don't know size of live heap
@@ -1517,19 +1520,21 @@ gc(struct gc_args *args)
 		}
 		obj = mstats.nmalloc - mstats.nfree;
 
-		stats.nprocyield += work.markfor->nprocyield;
-		stats.nosyield += work.markfor->nosyield;
-		stats.nsleep += work.markfor->nsleep;
+		stats.nprocyield += runtime·work.markfor->nprocyield;
+		stats.nosyield += runtime·work.markfor->nosyield;
+		stats.nsleep += runtime·work.markfor->nsleep;
 
 		runtime·printf("gc%d(%d): %D+%D+%D+%D us, %D -> %D MB, %D (%D-%D) objects,"
+				" %d goroutines,"
 				" %d/%d/%d sweeps,"
 				" %D(%D) handoff, %D(%D) steal, %D/%D/%D yields\n",
-			mstats.numgc, work.nproc, (t1-t0)/1000, (t2-t1)/1000, (t3-t2)/1000, (t4-t3)/1000,
+			mstats.numgc, runtime·work.nproc, (t1-t0)/1000, (t2-t1)/1000, (t3-t2)/1000, (t4-t3)/1000,
 			heap0>>20, heap1>>20, obj,
 			mstats.nmalloc, mstats.nfree,
-			work.nspan, runtime·sweep.nbgsweep, runtime·sweep.npausesweep,
+			runtime·gcount(),
+			runtime·work.nspan, runtime·sweep.nbgsweep, runtime·sweep.npausesweep,
 			stats.nhandoff, stats.nhandoffcnt,
-			work.markfor->nsteal, work.markfor->nstealcnt,
+			runtime·work.markfor->nsteal, runtime·work.markfor->nstealcnt,
 			stats.nprocyield, stats.nosyield, stats.nsleep);
 		runtime·sweep.nbgsweep = runtime·sweep.npausesweep = 0;
 	}
@@ -1538,14 +1543,14 @@ gc(struct gc_args *args)
 	// Even if this is still stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
 	runtime·lock(&runtime·mheap.lock);
 	// Free the old cached mark array if necessary.
-	if(work.spans != nil && work.spans != runtime·mheap.allspans)
-		runtime·SysFree(work.spans, work.nspan*sizeof(work.spans[0]), &mstats.other_sys);
+	if(runtime·work.spans != nil && runtime·work.spans != runtime·mheap.allspans)
+		runtime·SysFree(runtime·work.spans, runtime·work.nspan*sizeof(runtime·work.spans[0]), &mstats.other_sys);
 	// Cache the current array for sweeping.
 	runtime·mheap.gcspans = runtime·mheap.allspans;
 	runtime·mheap.sweepgen += 2;
 	runtime·mheap.sweepdone = false;
-	work.spans = runtime·mheap.allspans;
-	work.nspan = runtime·mheap.nspan;
+	runtime·work.spans = runtime·mheap.allspans;
+	runtime·work.nspan = runtime·mheap.nspan;
 	runtime·sweep.spanidx = 0;
 	runtime·unlock(&runtime·mheap.lock);
 
@@ -1573,32 +1578,14 @@ extern uintptr runtime·sizeof_C_MStats;
 
 static void readmemstats_m(void);
 
-#pragma textflag NOSPLIT
 void
-runtime·ReadMemStats(MStats *stats)
-{
-	void (*fn)(void);
-	
-	g->m->ptrarg[0] = stats;
-	fn = readmemstats_m;
-	runtime·onM(&fn);
-}
-
-static void
-readmemstats_m(void)
+runtime·readmemstats_m(void)
 {
 	MStats *stats;
 	
 	stats = g->m->ptrarg[0];
 	g->m->ptrarg[0] = nil;
 
-	// Have to acquire worldsema to stop the world,
-	// because stoptheworld can only be used by
-	// one goroutine at a time, and there might be
-	// a pending garbage collection already calling it.
-	runtime·semacquire(&runtime·worldsema, false);
-	g->m->gcing = 1;
-	runtime·stoptheworld();
 	runtime·updatememstats(nil);
 	// Size of the trailing by_size array differs between Go and C,
 	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
@@ -1608,12 +1595,6 @@ readmemstats_m(void)
 	stats->stacks_sys = stats->stacks_inuse;
 	stats->heap_inuse -= stats->stacks_inuse;
 	stats->heap_sys -= stats->stacks_inuse;
-	
-	g->m->gcing = 0;
-	g->m->locks++;
-	runtime·semrelease(&runtime·worldsema);
-	runtime·starttheworld();
-	g->m->locks--;
 }
 
 static void readgcstats_m(void);

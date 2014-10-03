@@ -125,7 +125,7 @@ func TestStop(t *testing.T) {
 		if sig != syscall.SIGHUP || *sendUncaughtSighup == 1 {
 			syscall.Kill(syscall.Getpid(), sig)
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 
 		// Ask for signal
 		c := make(chan os.Signal, 1)
@@ -140,7 +140,7 @@ func TestStop(t *testing.T) {
 		select {
 		case s := <-c:
 			t.Fatalf("unexpected signal %v", s)
-		case <-time.After(10 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond):
 			// nothing to read - good
 		}
 
@@ -154,7 +154,7 @@ func TestStop(t *testing.T) {
 		select {
 		case s := <-c:
 			t.Fatalf("unexpected signal %v", s)
-		case <-time.After(10 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond):
 			// nothing to read - good
 		}
 	}

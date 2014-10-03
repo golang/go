@@ -605,6 +605,12 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 
 	z.abs = z.abs.expNN(x.abs, yWords, mWords)
 	z.neg = len(z.abs) > 0 && x.neg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
+	if z.neg && len(mWords) > 0 {
+		// make modulus result positive
+		z.abs = z.abs.sub(mWords, z.abs) // z == x**y mod |m| && 0 <= z < |m|
+		z.neg = false
+	}
+
 	return z
 }
 

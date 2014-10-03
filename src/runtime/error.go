@@ -71,28 +71,6 @@ func (e errorString) Error() string {
 	return "runtime error: " + string(e)
 }
 
-// For calling from C.
-func newErrorString(s string, ret *interface{}) {
-	*ret = errorString(s)
-}
-
-// An errorCString represents a runtime error described by a single C string.
-// Not "type errorCString unsafe.Pointer" because of http://golang.org/issue/7084.
-// Not uintptr because we want to avoid an allocation if interfaces can't hold
-// uintptrs directly (and cstr _is_ a pointer).
-type errorCString struct{ cstr unsafe.Pointer }
-
-func (e errorCString) RuntimeError() {}
-
-func (e errorCString) Error() string {
-	return "runtime error: " + gostringnocopy((*byte)(e.cstr))
-}
-
-// For calling from C.
-func newErrorCString(s unsafe.Pointer, ret *interface{}) {
-	*ret = errorCString{s}
-}
-
 type stringer interface {
 	String() string
 }

@@ -153,7 +153,8 @@ func (c *Conn) encryptTicket(state *sessionState) ([]byte, error) {
 }
 
 func (c *Conn) decryptTicket(encrypted []byte) (*sessionState, bool) {
-	if len(encrypted) < aes.BlockSize+sha256.Size {
+	if c.config.SessionTicketsDisabled ||
+		len(encrypted) < aes.BlockSize+sha256.Size {
 		return nil, false
 	}
 

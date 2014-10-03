@@ -249,7 +249,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-GLOBL runtime·cbctxts(SB), $8
+GLOBL runtime·cbctxts(SB), NOPTR, $8
 
 TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	// Construct args vector for cgocallback().

@@ -266,6 +266,18 @@ func downloadPackage(p *Package) error {
 			return err
 		}
 		repo = "<local>" // should be unused; make distinctive
+
+		// Double-check where it came from.
+		if *getU && vcs.remoteRepo != nil {
+			dir := filepath.Join(p.build.SrcRoot, rootPath)
+			if remote, err := vcs.remoteRepo(vcs, dir); err == nil {
+				if rr, err := repoRootForImportPath(p.ImportPath); err == nil {
+					if remote != rr.repo {
+						return fmt.Errorf("%s is from %s, should be from %s", dir, remote, rr.repo)
+					}
+				}
+			}
+		}
 	} else {
 		// Analyze the import path to determine the version control system,
 		// repository, and the import path for the root of the repository.

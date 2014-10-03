@@ -470,7 +470,7 @@ var encOpTable = [...]encOp{
 
 // encOpFor returns (a pointer to) the encoding op for the base type under rt and
 // the indirection count to reach it.
-func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int) {
+func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[*typeInfo]bool) (*encOp, int) {
 	ut := userType(rt)
 	// If the type implements GobEncoder, we handle it without further processing.
 	if ut.externalEnc != 0 {
@@ -498,7 +498,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int)
 				break
 			}
 			// Slices have a header; we decode it to find the underlying array.
-			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
+			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
 			op = func(i *encInstr, state *encoderState, slice reflect.Value) {
 				if !state.sendZero && slice.Len() == 0 {
 					return
@@ -508,14 +508,14 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int)
 			}
 		case reflect.Array:
 			// True arrays have size in the type.
-			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
+			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
 			op = func(i *encInstr, state *encoderState, array reflect.Value) {
 				state.update(i)
 				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len())
 			}
 		case reflect.Map:
-			keyOp, keyIndir := encOpFor(t.Key(), inProgress)
-			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
+			keyOp, keyIndir := encOpFor(t.Key(), inProgress, building)
+			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
 			op = func(i *encInstr, state *encoderState, mv reflect.Value) {
 				// We send zero-length (but non-nil) maps because the
 				// receiver might want to use the map.  (Maps don't use append.)
@@ -527,12 +527,13 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int)
 			}
 		case reflect.Struct:
 			// Generate a closure that calls out to the engine for the nested type.
-			getEncEngine(userType(typ))
+			getEncEngine(userType(typ), building)
 			info := mustGetTypeInfo(typ)
 			op = func(i *encInstr, state *encoderState, sv reflect.Value) {
 				state.update(i)
 				// indirect through info to delay evaluation for recursive structs
-				state.enc.encodeStruct(state.b, info.encoder, sv)
+				enc := info.encoder.Load().(*encEngine)
+				state.enc.encodeStruct(state.b, enc, sv)
 			}
 		case reflect.Interface:
 			op = func(i *encInstr, state *encoderState, iv reflect.Value) {
@@ -579,7 +580,7 @@ func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 }
 
 // compileEnc returns the engine to compile the type.
-func compileEnc(ut *userTypeInfo) *encEngine {
+func compileEnc(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
 	srt := ut.base
 	engine := new(encEngine)
 	seen := make(map[reflect.Type]*encOp)
@@ -593,7 +594,7 @@ func compileEnc(ut *userTypeInfo) *encEngine {
 			if !isSent(&f) {
 				continue
 			}
-			op, indir := encOpFor(f.Type, seen)
+			op, indir := encOpFor(f.Type, seen, building)
 			engine.instr = append(engine.instr, encInstr{*op, wireFieldNum, f.Index, indir})
 			wireFieldNum++
 		}
@@ -603,49 +604,47 @@ func compileEnc(ut *userTypeInfo) *encEngine {
 		engine.instr = append(engine.instr, encInstr{encStructTerminator, 0, nil, 0})
 	} else {
 		engine.instr = make([]encInstr, 1)
-		op, indir := encOpFor(rt, seen)
+		op, indir := encOpFor(rt, seen, building)
 		engine.instr[0] = encInstr{*op, singletonField, nil, indir}
 	}
 	return engine
 }
 
 // getEncEngine returns the engine to compile the type.
-// typeLock must be held (or we're in initialization and guaranteed single-threaded).
-func getEncEngine(ut *userTypeInfo) *encEngine {
-	info, err1 := getTypeInfo(ut)
-	if err1 != nil {
-		error_(err1)
+func getEncEngine(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
+	info, err := getTypeInfo(ut)
+	if err != nil {
+		error_(err)
 	}
-	if info.encoder == nil {
-		// Assign the encEngine now, so recursive types work correctly. But...
-		info.encoder = new(encEngine)
-		// ... if we fail to complete building the engine, don't cache the half-built machine.
-		// Doing this here means we won't cache a type that is itself OK but
-		// that contains a nested type that won't compile. The result is consistent
-		// error behavior when Encode is called multiple times on the top-level type.
-		ok := false
-		defer func() {
-			if !ok {
-				info.encoder = nil
-			}
-		}()
-		info.encoder = compileEnc(ut)
-		ok = true
+	enc, ok := info.encoder.Load().(*encEngine)
+	if !ok {
+		enc = buildEncEngine(info, ut, building)
 	}
-	return info.encoder
+	return enc
 }
 
-// lockAndGetEncEngine is a function that locks and compiles.
-// This lets us hold the lock only while compiling, not when encoding.
-func lockAndGetEncEngine(ut *userTypeInfo) *encEngine {
-	typeLock.Lock()
-	defer typeLock.Unlock()
-	return getEncEngine(ut)
+func buildEncEngine(info *typeInfo, ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
+	// Check for recursive types.
+	if building != nil && building[info] {
+		return nil
+	}
+	info.encInit.Lock()
+	defer info.encInit.Unlock()
+	enc, ok := info.encoder.Load().(*encEngine)
+	if !ok {
+		if building == nil {
+			building = make(map[*typeInfo]bool)
+		}
+		building[info] = true
+		enc = compileEnc(ut, building)
+		info.encoder.Store(enc)
+	}
+	return enc
 }
 
 func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInfo) {
 	defer catchError(&enc.err)
-	engine := lockAndGetEncEngine(ut)
+	engine := getEncEngine(ut, nil)
 	indir := ut.indir
 	if ut.externalEnc != 0 {
 		indir = int(ut.encIndir)
