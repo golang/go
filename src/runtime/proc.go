@@ -148,6 +148,9 @@ func acquireSudog() *sudog {
 	c := gomcache()
 	s := c.sudogcache
 	if s != nil {
+		if s.elem != nil {
+			gothrow("acquireSudog: found s.elem != nil in cache")
+		}
 		c.sudogcache = s.next
 		return s
 	}
@@ -168,6 +171,13 @@ func acquireSudog() *sudog {
 
 //go:nosplit
 func releaseSudog(s *sudog) {
+	if s.elem != nil {
+		gothrow("runtime: sudog with non-nil elem")
+	}
+	gp := getg()
+	if gp.param != nil {
+		gothrow("runtime: releaseSudog with non-nil gp.param")
+	}
 	c := gomcache()
 	s.next = c.sudogcache
 	c.sudogcache = s
