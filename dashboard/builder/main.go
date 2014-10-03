@@ -128,7 +128,7 @@ func main() {
 		os.Exit(2)
 	}
 	flag.Parse()
-	if len(flag.Args()) == 0 && !*commitOnly {
+	if len(flag.Args()) == 0 && !*commitWatch {
 		flag.Usage()
 	}
 
