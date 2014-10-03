@@ -529,7 +529,8 @@ algtype1(Type *t, Type **bad)
 	
 	if(bad)
 		*bad = T;
-
+	if(t->broke)
+		return AMEM;
 	if(t->noalg)
 		return ANOEQ;
 

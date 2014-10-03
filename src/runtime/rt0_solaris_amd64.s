@@ -15,4 +15,4 @@ TEXT main(SB),NOSPLIT,$-8
 	JMP	AX
 
 DATA runtime·issolaris(SB)/4, $1
-GLOBL runtime·issolaris(SB), $4
+GLOBL runtime·issolaris(SB), NOPTR, $4

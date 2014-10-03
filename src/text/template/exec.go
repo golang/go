@@ -636,6 +636,8 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 		return s.validateType(s.evalPipeline(dot, arg), typ)
 	case *parse.IdentifierNode:
 		return s.evalFunction(dot, arg, arg, nil, zero)
+	case *parse.ChainNode:
+		return s.validateType(s.evalChainNode(dot, arg, nil, zero), typ)
 	}
 	switch typ.Kind() {
 	case reflect.Bool:

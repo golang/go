@@ -4,18 +4,22 @@
 # license that can be found in the LICENSE file.
 
 set -e
-go build -o testgo
+go build -tags testgo -o testgo
 go() {
 	echo TEST ERROR: ran go, not testgo: go "$@" >&2
 	exit 2
 }
 
 started=false
+testdesc=""
+nl="
+"
 TEST() {
 	if $started; then
 		stop
 	fi
 	echo TEST: "$@"
+	testdesc="$@"
 	started=true
 	ok=true
 }
@@ -29,6 +33,7 @@ stop() {
 		echo PASS
 	else
 		echo FAIL
+		testfail="$testfail	$testdesc$nl"
 		allok=false
 	fi
 }
@@ -55,12 +60,63 @@ if ! grep -q "^$fn:" $d/err.out; then
 fi
 rm -r $d
 
+TEST 'program name in crash messages'
+linker=$(./testgo env GOCHAR)l
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+./testgo build -ldflags -crash_for_testing $(./testgo env GOROOT)/test/helloworld.go 2>$d/err.out || true
+if ! grep -q "/tool/.*/$linker" $d/err.out; then
+	echo "missing linker name in error message"
+	cat $d/err.out
+	ok=false
+fi
+rm -r $d
+
+TEST broken tests without Test functions all fail
+d=$(mktemp -d -t testgoXXX)
+./testgo test ./testdata/src/badtest/... >$d/err 2>&1 || true
+if grep -q '^ok' $d/err; then
+	echo test passed unexpectedly:
+	grep '^ok' $d/err
+	ok=false
+elif ! grep -q 'FAIL.*badtest/badexec' $d/err || ! grep -q 'FAIL.*badtest/badsyntax' $d/err || ! grep -q 'FAIL.*badtest/badvar' $d/err; then
+	echo test did not run everything
+	cat $d/err
+	ok=false
+fi
+rm -rf $d
+
+TEST 'go build -a in dev branch'
+./testgo install math || ok=false # should be up to date already but just in case
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+if ! TESTGO_IS_GO_RELEASE=0 ./testgo build -v -a math 2>$d/err.out; then
+	cat $d/err.out
+	ok=false
+elif ! grep -q runtime $d/err.out; then
+	echo "testgo build -a math in dev branch DID NOT build runtime, but should have"
+	cat $d/err.out
+	ok=false
+fi
+rm -r $d
+
+TEST 'go build -a in release branch'
+./testgo install math || ok=false # should be up to date already but just in case
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+if ! TESTGO_IS_GO_RELEASE=1 ./testgo build -v -a math 2>$d/err.out; then
+	cat $d/err.out
+	ok=false
+elif grep -q runtime $d/err.out; then
+	echo "testgo build -a math in dev branch DID build runtime, but should NOT have"
+	cat $d/err.out
+	ok=false
+fi
+rm -r $d
+
 # Test local (./) imports.
 testlocal() {
 	local="$1"
 	TEST local imports $2 '(easy)'
-	./testgo build -o hello "testdata/$local/easy.go"
-	./hello >hello.out
+	./testgo build -o hello "testdata/$local/easy.go" || ok=false
+	./hello >hello.out || ok=false
 	if ! grep -q '^easysub\.Hello' hello.out; then
 		echo "testdata/$local/easy.go did not generate expected output"
 		cat hello.out
@@ -68,8 +124,8 @@ testlocal() {
 	fi
 	
 	TEST local imports $2 '(easysub)'
-	./testgo build -o hello "testdata/$local/easysub/main.go"
-	./hello >hello.out
+	./testgo build -o hello "testdata/$local/easysub/main.go" || ok=false
+	./hello >hello.out || ok=false
 	if ! grep -q '^easysub\.Hello' hello.out; then
 		echo "testdata/$local/easysub/main.go did not generate expected output"
 		cat hello.out
@@ -77,8 +133,8 @@ testlocal() {
 	fi
 	
 	TEST local imports $2 '(hard)'
-	./testgo build -o hello "testdata/$local/hard.go"
-	./hello >hello.out
+	./testgo build -o hello "testdata/$local/hard.go" || ok=false
+	./hello >hello.out || ok=false
 	if ! grep -q '^sub\.Hello' hello.out || ! grep -q '^subsub\.Hello' hello.out ; then
 		echo "testdata/$local/hard.go did not generate expected output"
 		cat hello.out
@@ -121,6 +177,56 @@ if ! ./testgo build -v ./testdata/testinternal2; then
 	ok=false
 fi
 
+# Test that 'go get -u' reports moved packages.
+testmove() {
+	vcs=$1
+	url=$2
+	base=$3
+	config=$4
+
+	TEST go get -u notices $vcs package that moved
+	d=$(mktemp -d -t testgoXXX)
+	mkdir -p $d/src
+	if ! GOPATH=$d ./testgo get -d $url; then
+		echo 'go get -d $url failed'
+		ok=false
+	elif ! GOPATH=$d ./testgo get -d -u $url; then
+		echo 'go get -d -u $url failed'
+		ok=false
+	else
+		set +e
+		case "$vcs" in
+		svn)
+			# SVN doesn't believe in text files so we can't just edit the config.
+			# Check out a different repo into the wrong place.
+			rm -rf $d/src/code.google.com/p/rsc-svn
+			GOPATH=$d ./testgo get -d -u code.google.com/p/rsc-svn2/trunk
+			mv $d/src/code.google.com/p/rsc-svn2 $d/src/code.google.com/p/rsc-svn
+			;;
+		*)
+			echo '1,$s;'"$base"';'"$base"'XXX;
+w
+q' | ed $d/src/$config >/dev/null 2>&1
+		esac
+		set -e
+
+		if GOPATH=$d ./testgo get -d -u $url 2>$d/err; then
+			echo "go get -d -u $url succeeded with wrong remote repo"
+			cat $d/err
+			ok=false
+		elif ! grep 'should be from' $d/err >/dev/null; then
+			echo "go get -d -u $url failed for wrong reason"
+			cat $d/err
+			ok=false
+		fi
+	fi
+	rm -rf $d
+}
+
+testmove hg rsc.io/x86/x86asm x86 rsc.io/x86/.hg/hgrc
+testmove git rsc.io/pdf pdf rsc.io/pdf/.git/config
+testmove svn code.google.com/p/rsc-svn/trunk - -
+
 export GOPATH=$(pwd)/testdata/importcom
 TEST 'import comment - match'
 if ! ./testgo build ./testdata/importcom/works.go; then
@@ -151,6 +257,20 @@ if ./testgo build ./testdata/importcom/conflict.go 2>testdata/err; then
 	ok=false
 elif ! grep 'found import comments' testdata/err >/dev/null; then
 	echo 'go build did not mention comment conflict:'
+	cat testdata/err
+	ok=false
+fi
+rm -f ./testdata/err
+unset GOPATH
+
+export GOPATH=$(pwd)/testdata/src
+TEST disallowed C source files
+export GOPATH=$(pwd)/testdata
+if ./testgo build badc 2>testdata/err; then
+	echo 'go build badc succeeded'
+	ok=false
+elif ! grep 'C source files not allowed' testdata/err >/dev/null; then
+	echo 'go test did not say C source files not allowed:'
 	cat testdata/err
 	ok=false
 fi
@@ -303,20 +423,20 @@ TEST godoc installs into GOBIN
 d=$(mktemp -d -t testgoXXX)
 export GOPATH=$d
 mkdir $d/gobin
-GOBIN=$d/gobin ./testgo get code.google.com/p/go.tools/cmd/godoc
+GOBIN=$d/gobin ./testgo get code.google.com/p/go.tools/cmd/godoc || ok=false
 if [ ! -x $d/gobin/godoc ]; then
 	echo did not install godoc to '$GOBIN'
-	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' code.google.com/p/go.tools/cmd/godoc
+	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' code.google.com/p/go.tools/cmd/godoc || true
 	ok=false
 fi
 
 TEST godoc installs into GOROOT
 GOROOT=$(./testgo env GOROOT)
 rm -f $GOROOT/bin/godoc
-./testgo install code.google.com/p/go.tools/cmd/godoc
+./testgo install code.google.com/p/go.tools/cmd/godoc || ok=false
 if [ ! -x $GOROOT/bin/godoc ]; then
 	echo did not install godoc to '$GOROOT/bin'
-	./testgo list -f 'Target: {{.Target}}' code.google.com/p/go.tools/cmd/godoc
+	./testgo list -f 'Target: {{.Target}}' code.google.com/p/go.tools/cmd/godoc || true
 	ok=false
 fi
 
@@ -324,36 +444,36 @@ TEST cmd/fix installs into tool
 GOOS=$(./testgo env GOOS)
 GOARCH=$(./testgo env GOARCH)
 rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix
-./testgo install cmd/fix
+./testgo install cmd/fix || ok=false
 if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix ]; then
 	echo 'did not install cmd/fix to $GOROOT/pkg/tool'
-	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/fix
+	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/fix || true
 	ok=false
 fi
 rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix
-GOBIN=$d/gobin ./testgo install cmd/fix
+GOBIN=$d/gobin ./testgo install cmd/fix || ok=false
 if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix ]; then
 	echo 'did not install cmd/fix to $GOROOT/pkg/tool with $GOBIN set'
-	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/fix
+	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/fix || true
 	ok=false
 fi
 
 TEST gopath program installs into GOBIN
 mkdir $d/src/progname
 echo 'package main; func main() {}' >$d/src/progname/p.go
-GOBIN=$d/gobin ./testgo install progname
+GOBIN=$d/gobin ./testgo install progname || ok=false
 if [ ! -x $d/gobin/progname ]; then
 	echo 'did not install progname to $GOBIN/progname'
-	./testgo list -f 'Target: {{.Target}}' cmd/api
+	./testgo list -f 'Target: {{.Target}}' cmd/api || true
 	ok=false
 fi
 rm -f $d/gobin/progname $d/bin/progname
 
 TEST gopath program installs into GOPATH/bin
-./testgo install progname
+./testgo install progname || ok=false
 if [ ! -x $d/bin/progname ]; then
 	echo 'did not install progname to $GOPATH/bin/progname'
-	./testgo list -f 'Target: {{.Target}}' progname
+	./testgo list -f 'Target: {{.Target}}' progname || true
 	ok=false
 fi
 
@@ -382,7 +502,7 @@ fi
 
 # ensure that output of 'go list' is consistent between runs
 TEST go list is consistent
-./testgo list std > test_std.list
+./testgo list std > test_std.list || ok=false
 if ! ./testgo list std | cmp -s test_std.list - ; then
 	echo "go list std ordering is inconsistent"
 	ok=false
@@ -456,7 +576,7 @@ func main() {
 	println(extern)
 }
 EOF
-./testgo run -ldflags '-X main.extern "hello world"' $d/main.go 2>hello.out
+./testgo run -ldflags '-X main.extern "hello world"' $d/main.go 2>hello.out || ok=false
 if ! grep -q '^hello world' hello.out; then
 	echo "ldflags -X main.extern 'hello world' failed. Output:"
 	cat hello.out
@@ -471,6 +591,30 @@ if [ ! -x strings.test ]; then
 	ok=false
 fi
 rm -f strings.prof strings.test
+
+TEST go test -cpuprofile -o controls binary location
+./testgo test -cpuprofile strings.prof -o mystrings.test strings || ok=false
+if [ ! -x mystrings.test ]; then
+	echo "go test -cpuprofile -o mystrings.test did not create mystrings.test"
+	ok=false
+fi
+rm -f strings.prof mystrings.test
+
+TEST go test -c -o controls binary location
+./testgo test -c -o mystrings.test strings || ok=false
+if [ ! -x mystrings.test ]; then
+	echo "go test -c -o mystrings.test did not create mystrings.test"
+	ok=false
+fi
+rm -f mystrings.test
+
+TEST go test -o writes binary
+./testgo test -o mystrings.test strings || ok=false
+if [ ! -x mystrings.test ]; then
+	echo "go test -o mystrings.test did not create mystrings.test"
+	ok=false
+fi
+rm -f mystrings.test
 
 TEST symlinks do not confuse go list '(issue 4568)'
 old=$(pwd)
@@ -594,28 +738,36 @@ TEST shadowing logic
 export GOPATH=$(pwd)/testdata/shadow/root1:$(pwd)/testdata/shadow/root2
 
 # The math in root1 is not "math" because the standard math is.
+set +e
 cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root1/src/math)
+set -e
 if [ "$cdir" != "(_$(pwd)/testdata/shadow/root1/src/math) ($GOROOT/src/math)" ]; then
 	echo shadowed math is not shadowed: "$cdir"
 	ok=false
 fi
 
 # The foo in root1 is "foo".
+set +e
 cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root1/src/foo)
+set -e
 if [ "$cdir" != "(foo) ()" ]; then
 	echo unshadowed foo is shadowed: "$cdir"
 	ok=false
 fi
 
 # The foo in root2 is not "foo" because the foo in root1 got there first.
+set +e
 cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root2/src/foo)
+set -e
 if [ "$cdir" != "(_$(pwd)/testdata/shadow/root2/src/foo) ($(pwd)/testdata/shadow/root1/src/foo)" ]; then
 	echo shadowed foo is not shadowed: "$cdir"
 	ok=false
 fi
 
 # The error for go install should mention the conflicting directory.
-err=$(! ./testgo install ./testdata/shadow/root2/src/foo 2>&1)
+set +e
+err=$(./testgo install ./testdata/shadow/root2/src/foo 2>&1)
+set -e
 if [ "$err" != "go install: no install location for $(pwd)/testdata/shadow/root2/src/foo: hidden by $(pwd)/testdata/shadow/root1/src/foo" ]; then
 	echo wrong shadowed install error: "$err"
 	ok=false
@@ -804,30 +956,46 @@ echo '
 package foo
 func F() {}
 ' >$d/src/x/y/foo/foo.go
+checkbar() {
+	desc="$1"
+	sleep 1
+	touch $d/src/x/y/foo/foo.go
+	if ! ./testgo build -v -i x/y/bar &> $d/err; then
+		echo build -i "$1" failed
+		cat $d/err
+		ok=false
+	elif ! grep x/y/foo $d/err >/dev/null; then
+		echo first build -i "$1" did not build x/y/foo
+		cat $d/err
+		ok=false
+	fi
+	if ! ./testgo build -v -i x/y/bar &> $d/err; then
+		echo second build -i "$1" failed
+		cat $d/err
+		ok=false
+	elif grep x/y/foo $d/err >/dev/null; then
+		echo second build -i "$1" built x/y/foo
+		cat $d/err
+		ok=false
+	fi
+}
+
 echo '
 package bar
 import "x/y/foo"
 func F() { foo.F() }
 ' >$d/src/x/y/bar/bar.go
-if ! ./testgo build -v -i x/y/bar &> $d/err; then
-	echo build -i failed
-	cat $d/err
-	ok=false
-elif ! grep x/y/foo $d/err >/dev/null; then
-	echo first build -i did not build x/y/foo
-	cat $d/err
-	ok=false
-fi
-if ! ./testgo build -v -i x/y/bar &> $d/err; then
-	echo second build -i failed
-	cat $d/err
-	ok=false
-elif grep x/y/foo $d/err >/dev/null; then
-	echo second build -i built x/y/foo
-	cat $d/err
-	ok=false
-fi
-rm -rf $d
+checkbar pkg
+
+TEST build -i installs dependencies for command
+echo '
+package main
+import "x/y/foo"
+func main() { foo.F() }
+' >$d/src/x/y/bar/bar.go
+checkbar cmd
+
+rm -rf $d bar
 unset GOPATH
 
 TEST 'go build in test-only directory fails with a good error'
@@ -862,7 +1030,7 @@ fi
 
 TEST 'go test xtestonly works'
 export GOPATH=$(pwd)/testdata
-./testgo clean -i xtestonly
+./testgo clean -i xtestonly || ok=false
 if ! ./testgo test xtestonly >/dev/null; then
 	echo "go test xtestonly failed"
 	ok=false
@@ -905,6 +1073,18 @@ elif ! grep "$GOARCH test3.go p xyzp/test3.go/123" testdata/std.out > /dev/null;
 	ok=false
 fi
 
+TEST go get works with vanity wildcards
+d=$(mktemp -d -t testgoXXX)
+export GOPATH=$d
+if ! ./testgo get -u rsc.io/pdf/...; then
+	ok=false
+elif [ ! -x $d/bin/pdfpasswd ]; then
+	echo did not build rsc.io/pdf/pdfpasswd
+	ok=false
+fi
+unset GOPATH
+rm -rf $d
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
@@ -913,6 +1093,7 @@ rm -f testgo
 if $allok; then
 	echo PASS
 else
-	echo FAIL
+	echo FAIL:
+	echo "$testfail"
 	exit 1
 fi

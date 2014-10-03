@@ -586,14 +586,16 @@ func f39a() (x []int) {
 }
 
 func f39b() (x [10]*int) {
-	x = [10]*int{new(int)} // ERROR "live at call to newobject: x"
-	println()              // ERROR "live at call to printnl: x"
+	x = [10]*int{}
+	x[0] = new(int) // ERROR "live at call to newobject: x"
+	println()       // ERROR "live at call to printnl: x"
 	return x
 }
 
 func f39c() (x [10]*int) {
-	x = [10]*int{new(int)} // ERROR "live at call to newobject: x"
-	println()              // ERROR "live at call to printnl: x"
+	x = [10]*int{}
+	x[0] = new(int) // ERROR "live at call to newobject: x"
+	println()       // ERROR "live at call to printnl: x"
 	return
 }
 
@@ -605,9 +607,8 @@ type T40 struct {
 }
 
 func newT40() *T40 {
-	ret := T40{ // ERROR "live at call to makemap: &ret"
-		make(map[int]int),
-	}
+	ret := T40{}
+	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret"
 	return &ret
 }
 
@@ -618,9 +619,8 @@ func bad40() {
 }
 
 func good40() {
-	ret := T40{ // ERROR "live at call to makemap: ret"
-		make(map[int]int),
-	}
+	ret := T40{}
+	ret.m = make(map[int]int) // ERROR "live at call to makemap: ret"
 	t := &ret
 	println() // ERROR "live at call to printnl: ret"
 	_ = t

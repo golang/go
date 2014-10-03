@@ -79,6 +79,8 @@ runtime·purgecachedstats(MCache *c)
 	h = &runtime·mheap;
 	mstats.heap_alloc += c->local_cachealloc;
 	c->local_cachealloc = 0;
+	mstats.tinyallocs += c->local_tinyallocs;
+	c->local_tinyallocs = 0;
 	mstats.nlookup += c->local_nlookup;
 	c->local_nlookup = 0;
 	h->largefree += c->local_largefree;
@@ -92,9 +94,10 @@ runtime·purgecachedstats(MCache *c)
 }
 
 // Size of the trailing by_size array differs between Go and C,
+// and all data after by_size is local to C, not exported to Go.
 // NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
 // sizeof_C_MStats is what C thinks about size of Go struct.
-uintptr runtime·sizeof_C_MStats = sizeof(MStats) - (NumSizeClasses - 61) * sizeof(mstats.by_size[0]);
+uintptr runtime·sizeof_C_MStats = offsetof(MStats, by_size[61]);
 
 #define MaxArena32 (2U<<30)
 
@@ -324,29 +327,6 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	if(((uintptr)p & (PageSize-1)) != 0)
 		runtime·throw("misrounded allocation in MHeap_SysAlloc");
 	return p;
-}
-
-// Runtime stubs.
-
-static void*
-cnew(Type *typ, intgo n)
-{
-	if(n < 0 || (typ->size > 0 && n > MaxMem/typ->size))
-		runtime·panicstring("runtime: allocation size out of range");
-	return runtime·mallocgc(typ->size*n, typ, typ->kind&KindNoPointers ? FlagNoScan : 0);
-}
-
-// same as runtime·new, but callable from C
-void*
-runtime·cnew(Type *typ)
-{
-	return cnew(typ, 1);
-}
-
-void*
-runtime·cnewarray(Type *typ, intgo n)
-{
-	return cnew(typ, n);
 }
 
 void

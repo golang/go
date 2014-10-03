@@ -68,10 +68,22 @@ void
 runtime·SysUsed(void *v, uintptr n)
 {
 	void *r;
+	uintptr small;
 
 	r = runtime·stdcall4(runtime·VirtualAlloc, (uintptr)v, n, MEM_COMMIT, PAGE_READWRITE);
 	if(r != v)
 		runtime·throw("runtime: failed to commit pages");
+
+	// Commit failed. See SysUnused.
+	while(n > 0) {
+		small = n;
+		while(small >= 4096 && runtime·stdcall4(runtime·VirtualAlloc, (uintptr)v, small, MEM_COMMIT, PAGE_READWRITE) == nil)
+			small = (small / 2) & ~(4096-1);
+		if(small < 4096)
+			runtime·throw("runtime: failed to decommit pages");
+		v = (byte*)v + small;
+		n -= small;
+	}
 }
 
 void

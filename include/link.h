@@ -204,10 +204,10 @@ enum
 	SELFSECT,
 	SMACHO,	/* Mach-O __nl_symbol_ptr */
 	SMACHOGOT,
+	SWINDOWS,
 	SNOPTRDATA,
 	SINITARR,
 	SDATA,
-	SWINDOWS,
 	SBSS,
 	SNOPTRBSS,
 	STLSBSS,
@@ -471,6 +471,7 @@ struct LinkArch
 	int	D_PARAM;
 	int	D_SCONST;
 	int	D_STATIC;
+	int	D_OREG;
 
 	int	ACALL;
 	int	ADATA;

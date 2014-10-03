@@ -119,6 +119,7 @@ func TestSelfConnect(t *testing.T) {
 		// TODO(brainman): do not know why it hangs.
 		t.Skip("skipping known-broken test on windows")
 	}
+
 	// Test that Dial does not honor self-connects.
 	// See the comment in DialTCP.
 
@@ -149,8 +150,12 @@ func TestSelfConnect(t *testing.T) {
 	for i := 0; i < n; i++ {
 		c, err := DialTimeout("tcp", addr, time.Millisecond)
 		if err == nil {
+			if c.LocalAddr().String() == addr {
+				t.Errorf("#%d: Dial %q self-connect", i, addr)
+			} else {
+				t.Logf("#%d: Dial %q succeeded - possibly racing with other listener", i, addr)
+			}
 			c.Close()
-			t.Errorf("#%d: Dial %q succeeded", i, addr)
 		}
 	}
 }
@@ -334,6 +339,8 @@ func numTCP() (ntcp, nopen, nclose int, err error) {
 }
 
 func TestDialMultiFDLeak(t *testing.T) {
+	t.Skip("flaky test - golang.org/issue/8764")
+
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("neither ipv4 nor ipv6 is supported")
 	}
@@ -460,6 +467,11 @@ func TestDialer(t *testing.T) {
 }
 
 func TestDialDualStackLocalhost(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
 	if ips, err := LookupIP("localhost"); err != nil {
 		t.Fatalf("LookupIP failed: %v", err)
 	} else if len(ips) < 2 || !supportsIPv4 || !supportsIPv6 {

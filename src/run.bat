@@ -90,10 +90,17 @@ go run "%GOROOT%\test\run.go" - ..\misc\cgo\stdio
 if errorlevel 1 goto fail
 echo.
 
+:: cgo tests inspect the traceback for runtime functions
+set OLDGOTRACEBACK=%GOTRACEBACK%
+set GOTRACEBACK=2
+
 echo # ..\misc\cgo\test
 go test ..\misc\cgo\test
 if errorlevel 1 goto fail
 echo.
+
+set GOTRACEBACK=%OLDGOTRACEBACK%
+set OLDGOTRACEBACK=
 
 echo # ..\misc\cgo\testso
 cd ..\misc\cgo\testso

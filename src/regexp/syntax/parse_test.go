@@ -200,6 +200,10 @@ var parseTests = []parseTest{
 		`cat{rep{2,2 lit{x}}alt{emp{}cc{0x30-0x39}}}`},
 	{`x{2}y|x{2}[0-9]y`,
 		`cat{rep{2,2 lit{x}}alt{lit{y}cat{cc{0x30-0x39}lit{y}}}}`},
+
+	// Valid repetitions.
+	{`((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}))`, ``},
+	{`((((((((((x{1}){2}){2}){2}){2}){2}){2}){2}){2}){2})`, ``},
 }
 
 const testFlags = MatchNL | PerlX | UnicodeGroups
@@ -260,6 +264,10 @@ func testParseDump(t *testing.T, tests []parseTest, flags Flags) {
 		re, err := Parse(tt.Regexp, flags)
 		if err != nil {
 			t.Errorf("Parse(%#q): %v", tt.Regexp, err)
+			continue
+		}
+		if tt.Dump == "" {
+			// It parsed. That's all we care about.
 			continue
 		}
 		d := dump(re)
@@ -470,6 +478,7 @@ var invalidRegexps = []string{
 	`(?i)[a-Z]`,
 	`a{100000}`,
 	`a{100000,}`,
+	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
 }
 
 var onlyPerl = []string{
@@ -525,6 +534,10 @@ func TestToStringEquivalentParse(t *testing.T) {
 		re, err := Parse(tt.Regexp, testFlags)
 		if err != nil {
 			t.Errorf("Parse(%#q): %v", tt.Regexp, err)
+			continue
+		}
+		if tt.Dump == "" {
+			// It parsed. That's all we care about.
 			continue
 		}
 		d := dump(re)

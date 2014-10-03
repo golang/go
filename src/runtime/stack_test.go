@@ -71,10 +71,6 @@ func TestStackMem(t *testing.T) {
 
 // Test stack growing in different contexts.
 func TestStackGrowth(t *testing.T) {
-	switch GOARCH {
-	case "386", "arm":
-		t.Skipf("skipping test on %q; see issue 8083", GOARCH)
-	}
 	t.Parallel()
 	var wg sync.WaitGroup
 

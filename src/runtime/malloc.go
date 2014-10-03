@@ -103,7 +103,6 @@ func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			// standalone escaping variables. On a json benchmark
 			// the allocator reduces number of allocations by ~12% and
 			// reduces heap size by ~20%.
-
 			tinysize := uintptr(c.tinysize)
 			if size <= tinysize {
 				tiny := unsafe.Pointer(c.tiny)
@@ -121,6 +120,7 @@ func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 					x = tiny
 					c.tiny = (*byte)(add(x, size))
 					c.tinysize -= uintptr(size1)
+					c.local_tinyallocs++
 					if debugMalloc {
 						mp := acquirem()
 						if mp.mallocing == 0 {

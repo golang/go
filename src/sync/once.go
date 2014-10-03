@@ -15,7 +15,7 @@ type Once struct {
 }
 
 // Do calls the function f if and only if Do is being called for the
-// first time for this instance of Once.  In other words, given
+// first time for this instance of Once. In other words, given
 // 	var once Once
 // if once.Do(f) is called multiple times, only the first call will invoke f,
 // even if f has a different value in each invocation.  A new instance of
@@ -29,6 +29,9 @@ type Once struct {
 // Because no call to Do returns until the one call to f returns, if f causes
 // Do to be called, it will deadlock.
 //
+// If f panics, Do considers it to have returned; future calls of Do return
+// without calling f.
+//
 func (o *Once) Do(f func()) {
 	if atomic.LoadUint32(&o.done) == 1 {
 		return
@@ -37,7 +40,7 @@ func (o *Once) Do(f func()) {
 	o.m.Lock()
 	defer o.m.Unlock()
 	if o.done == 0 {
+		defer atomic.StoreUint32(&o.done, 1)
 		f()
-		atomic.StoreUint32(&o.done, 1)
 	}
 }

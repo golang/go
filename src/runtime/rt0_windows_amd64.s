@@ -16,4 +16,4 @@ TEXT main(SB),NOSPLIT,$-8
 	JMP	AX
 
 DATA  runtime·iswindows(SB)/4, $1
-GLOBL runtime·iswindows(SB), $4
+GLOBL runtime·iswindows(SB), NOPTR, $4

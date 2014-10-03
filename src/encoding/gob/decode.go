@@ -312,6 +312,9 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 	if n > state.b.Len() {
 		errorf("%s data too long for buffer: %d", value.Type(), n)
 	}
+	if n > tooBig {
+		errorf("byte slice too big: %d", n)
+	}
 	if value.Cap() < n {
 		value.Set(reflect.MakeSlice(value.Type(), n, n))
 	} else {
@@ -533,14 +536,18 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 // Slices are encoded as an unsigned length followed by the elements.
 func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp decOp, ovfl error) {
 	u := state.decodeUint()
+	typ := value.Type()
+	size := uint64(typ.Elem().Size())
+	nBytes := u * size
 	n := int(u)
-	if n < 0 || uint64(n) != u {
+	// Take care with overflow in this calculation.
+	if n < 0 || uint64(n) != u || nBytes > tooBig || (size > 0 && nBytes/size != u) {
 		// We don't check n against buffer length here because if it's a slice
 		// of interfaces, there will be buffer reloads.
-		errorf("length of %s is negative (%d bytes)", value.Type(), u)
+		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 	}
 	if value.Cap() < n {
-		value.Set(reflect.MakeSlice(value.Type(), n, n))
+		value.Set(reflect.MakeSlice(typ, n, n))
 	} else {
 		value.Set(value.Slice(0, n))
 	}

@@ -61,6 +61,7 @@ func NewReader(r io.Reader) (io.ReadCloser, error) {
 
 // NewReaderDict is like NewReader but uses a preset dictionary.
 // NewReaderDict ignores the dictionary if the compressed data does not refer to it.
+// If the compressed data refers to a different dictionary, NewReaderDict returns ErrDictionary.
 func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
 	z := new(reader)
 	if fr, ok := r.(flate.Reader); ok {

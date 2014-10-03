@@ -233,10 +233,20 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int) {
 	e.writeByte(uint8(litWidth)) // LZW Minimum Code Size.
 
 	lzww := lzw.NewWriter(blockWriter{e: e}, lzw.LSB, litWidth)
-	_, e.err = lzww.Write(pm.Pix)
-	if e.err != nil {
-		lzww.Close()
-		return
+	if dx := b.Dx(); dx == pm.Stride {
+		_, e.err = lzww.Write(pm.Pix)
+		if e.err != nil {
+			lzww.Close()
+			return
+		}
+	} else {
+		for i, y := 0, b.Min.Y; y < b.Max.Y; i, y = i+pm.Stride, y+1 {
+			_, e.err = lzww.Write(pm.Pix[i : i+dx])
+			if e.err != nil {
+				lzww.Close()
+				return
+			}
+		}
 	}
 	lzww.Close()
 	e.writeByte(0x00) // Block Terminator.

@@ -18,7 +18,6 @@
 // would pass 4th arg in CX, not R10.
 
 TEXT	·Syscall(SB),NOSPLIT,$0-56
-	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
@@ -44,7 +43,6 @@ ok:
 	RET
 
 TEXT ·Syscall6(SB),NOSPLIT,$0-80
-	GO_ARGS
 	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
@@ -70,7 +68,6 @@ ok6:
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-56
-	GO_ARGS
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX
@@ -93,7 +90,6 @@ ok1:
 	RET
 
 TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
-	GO_ARGS
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX
@@ -116,7 +112,6 @@ ok2:
 	RET
 
 TEXT ·gettimeofday(SB),NOSPLIT,$0-16
-	GO_ARGS
 	MOVQ	8(SP), DI
 	MOVQ	$0, SI
 	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX

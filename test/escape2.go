@@ -7,6 +7,8 @@
 // Test, using compiler diagnostic flags, that the escape analysis is working.
 // Compiles but does not run.  Inlining is disabled.
 
+// escape2n.go contains all the same tests but compiles with -N.
+
 package foo
 
 import (

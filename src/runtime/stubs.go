@@ -119,6 +119,8 @@ func deferproc_m()
 func goexit_m()
 func startpanic_m()
 func dopanic_m()
+func readmemstats_m()
+func writeheapdump_m()
 
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s
@@ -146,10 +148,6 @@ func fastrand1() uint32
 //go:noescape
 func memeq(a, b unsafe.Pointer, size uintptr) bool
 
-// Code pointers for the nohash/noequal algorithms. Used for producing better error messages.
-var nohashcode uintptr
-var noequalcode uintptr
-
 // noescape hides a pointer from escape analysis.  noescape is
 // the identity function but escape analysis doesn't think the
 // output depends on the input.  noescape is inlined and currently
@@ -162,6 +160,7 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 }
 
 func entersyscall()
+func reentersyscall(pc uintptr, sp unsafe.Pointer)
 func entersyscallblock()
 func exitsyscall()
 

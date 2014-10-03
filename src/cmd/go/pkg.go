@@ -14,6 +14,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -614,6 +615,16 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	}
 	p.Target = p.target
 
+	// Check for C code compiled with Plan 9 C compiler.
+	// No longer allowed except in runtime and runtime/cgo, for now.
+	if len(p.CFiles) > 0 && !p.usesCgo() && (!p.Standard || p.ImportPath != "runtime") {
+		p.Error = &PackageError{
+			ImportStack: stk.copy(),
+			Err:         fmt.Sprintf("C source files not allowed when not using cgo: %s", strings.Join(p.CFiles, " ")),
+		}
+		return p
+	}
+
 	// In the absence of errors lower in the dependency tree,
 	// check for case-insensitive collisions of import paths.
 	if len(p.DepsErrors) == 0 {
@@ -675,6 +686,12 @@ func computeStale(pkgs ...*Package) {
 	}
 }
 
+// The runtime version string takes one of two forms:
+// "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
+// Determine whether we are in a released copy by
+// inspecting the version.
+var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
+
 // isStale reports whether package p needs to be rebuilt.
 func isStale(p *Package, topRoot map[string]bool) bool {
 	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
@@ -695,7 +712,16 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		return false
 	}
 
-	if buildA || p.target == "" || p.Stale {
+	// If we are running a release copy of Go, do not rebuild the standard packages.
+	// They may not be writable anyway, but they are certainly not changing.
+	// This makes 'go build -a' skip the standard packages when using an official release.
+	// See issue 4106 and issue 8290.
+	pkgBuildA := buildA
+	if p.Standard && isGoRelease {
+		pkgBuildA = false
+	}
+
+	if pkgBuildA || p.target == "" || p.Stale {
 		return true
 	}
 

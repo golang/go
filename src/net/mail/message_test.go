@@ -194,6 +194,16 @@ func TestAddressParsing(t *testing.T) {
 				},
 			},
 		},
+		// RFC 2047 "Q"-encoded US-ASCII address. Dumb but legal.
+		{
+			`=?us-ascii?q?J=6Frg_Doe?= <joerg@example.com>`,
+			[]*Address{
+				{
+					Name:    `Jorg Doe`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
 		// RFC 2047 "Q"-encoded UTF-8 address.
 		{
 			`=?utf-8?q?J=C3=B6rg_Doe?= <joerg@example.com>`,

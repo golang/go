@@ -47,6 +47,14 @@ func Setenv(key, value string) error {
 	return nil
 }
 
+func Unsetenv(key string) error {
+	keyp, err := UTF16PtrFromString(key)
+	if err != nil {
+		return err
+	}
+	return SetEnvironmentVariable(keyp, nil)
+}
+
 func Clearenv() {
 	for _, s := range Environ() {
 		// Environment variables can begin with =

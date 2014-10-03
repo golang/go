@@ -77,7 +77,8 @@ type Reader struct {
 }
 
 // NewReader creates a new Reader reading the given reader.
-// The implementation buffers input and may read more data than necessary from r.
+// If r does not also implement io.ByteReader,
+// the decompressor may read more data than necessary from r.
 // It is the caller's responsibility to call Close on the Reader when done.
 func NewReader(r io.Reader) (*Reader, error) {
 	z := new(Reader)

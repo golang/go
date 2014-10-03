@@ -171,7 +171,8 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 			if err != nil {
 				return err
 			}
-			if d.imageFields&fColorMapFollows != 0 {
+			useLocalColorMap := d.imageFields&fColorMapFollows != 0
+			if useLocalColorMap {
 				m.Palette, err = d.readColorMap()
 				if err != nil {
 					return err
@@ -180,6 +181,10 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 				m.Palette = d.globalColorMap
 			}
 			if d.hasTransparentIndex && int(d.transparentIndex) < len(m.Palette) {
+				if !useLocalColorMap {
+					// Clone the global color map.
+					m.Palette = append(color.Palette(nil), d.globalColorMap...)
+				}
 				m.Palette[d.transparentIndex] = color.RGBA{}
 			}
 			litWidth, err := d.r.ReadByte()

@@ -17,6 +17,13 @@ var certFiles = []string{
 	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD/DragonFly
 }
 
+// Possible directories with certificate files; stop after successfully
+// reading at least one file from a directory.
+var certDirectories = []string{
+	"/system/etc/security/cacerts", // Android
+
+}
+
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	return nil, nil
 }
@@ -27,6 +34,24 @@ func initSystemRoots() {
 		data, err := ioutil.ReadFile(file)
 		if err == nil {
 			roots.AppendCertsFromPEM(data)
+			systemRoots = roots
+			return
+		}
+	}
+
+	for _, directory := range certDirectories {
+		fis, err := ioutil.ReadDir(directory)
+		if err != nil {
+			continue
+		}
+		rootsAdded := false
+		for _, fi := range fis {
+			data, err := ioutil.ReadFile(directory + "/" + fi.Name())
+			if err == nil && roots.AppendCertsFromPEM(data) {
+				rootsAdded = true
+			}
+		}
+		if rootsAdded {
 			systemRoots = roots
 			return
 		}

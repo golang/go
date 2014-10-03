@@ -69,16 +69,19 @@ enum {
 #endif	// Plan 9
 #endif	// Windows
 
-	// The amount of extra stack to allocate beyond the size
-	// needed for the single frame that triggered the split.
-	StackExtra = 2048,
+	// The minimum size of stack used by Go code
+	StackMin = 2048,
 
-	// The minimum stack segment size to allocate.
-	// If the amount needed for the splitting frame + StackExtra
-	// is less than this number, the stack will have this size instead.
-	StackMin = 8192,
-	StackSystemRounded = StackSystem + (-StackSystem & (StackMin-1)),
-	FixedStack = StackMin + StackSystemRounded,
+	// The minimum stack size to allocate.
+	// The hackery here rounds FixedStack0 up to a power of 2.
+	FixedStack0 = StackMin + StackSystem,
+	FixedStack1 = FixedStack0 - 1,
+	FixedStack2 = FixedStack1 | (FixedStack1 >> 1),
+	FixedStack3 = FixedStack2 | (FixedStack2 >> 2),
+	FixedStack4 = FixedStack3 | (FixedStack3 >> 4),
+	FixedStack5 = FixedStack4 | (FixedStack4 >> 8),
+	FixedStack6 = FixedStack5 | (FixedStack5 >> 16),
+	FixedStack = FixedStack6 + 1,
 
 	// Functions that need frames bigger than this use an extra
 	// instruction to do the stack split check, to avoid overflow

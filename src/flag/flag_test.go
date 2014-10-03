@@ -251,6 +251,16 @@ func TestUserDefined(t *testing.T) {
 	}
 }
 
+func TestUserDefinedForCommandLine(t *testing.T) {
+	const help = "HELP"
+	var result string
+	ResetForTesting(func() { result = help })
+	Usage()
+	if result != help {
+		t.Fatalf("got %q; expected %q", result, help)
+	}
+}
+
 // Declare a user-defined boolean flag type.
 type boolFlagVar struct {
 	count int

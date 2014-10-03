@@ -42,6 +42,12 @@ var (
 // and then return.  Returning signals that the request is finished
 // and that the HTTP server can move on to the next request on
 // the connection.
+//
+// If ServeHTTP panics, the server (the caller of ServeHTTP) assumes
+// that the effect of the panic was isolated to the active request.
+// It recovers the panic, logs a stack trace to the server error log,
+// and hangs up the connection.
+//
 type Handler interface {
 	ServeHTTP(ResponseWriter, *Request)
 }
@@ -833,13 +839,20 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	} else if hasCL {
 		delHeader("Transfer-Encoding")
 	} else if w.req.ProtoAtLeast(1, 1) {
-		// HTTP/1.1 or greater: use chunked transfer encoding
-		// to avoid closing the connection at EOF.
-		// TODO: this blows away any custom or stacked Transfer-Encoding they
-		// might have set.  Deal with that as need arises once we have a valid
-		// use case.
-		cw.chunking = true
-		setHeader.transferEncoding = "chunked"
+		// HTTP/1.1 or greater: Transfer-Encoding has been set to identity,  and no
+		// content-length has been provided. The connection must be closed after the
+		// reply is written, and no chunking is to be done. This is the setup
+		// recommended in the Server-Sent Events candidate recommendation 11,
+		// section 8.
+		if hasTE && te == "identity" {
+			cw.chunking = false
+			w.closeAfterReply = true
+		} else {
+			// HTTP/1.1 or greater: use chunked transfer encoding
+			// to avoid closing the connection at EOF.
+			cw.chunking = true
+			setHeader.transferEncoding = "chunked"
+		}
 	} else {
 		// HTTP version < 1.1: cannot do chunked transfer
 		// encoding and we don't know the Content-Length so
@@ -1058,15 +1071,21 @@ func (c *conn) close() {
 // This timeout is somewhat arbitrary (~latency around the planet).
 const rstAvoidanceDelay = 500 * time.Millisecond
 
+type closeWriter interface {
+	CloseWrite() error
+}
+
+var _ closeWriter = (*net.TCPConn)(nil)
+
 // closeWrite flushes any outstanding data and sends a FIN packet (if
 // client is connected via TCP), signalling that we're done.  We then
-// pause for a bit, hoping the client processes it before `any
+// pause for a bit, hoping the client processes it before any
 // subsequent RST.
 //
 // See http://golang.org/issue/3595
 func (c *conn) closeWriteAndWait() {
 	c.finalFlush()
-	if tcp, ok := c.rwc.(*net.TCPConn); ok {
+	if tcp, ok := c.rwc.(closeWriter); ok {
 		tcp.CloseWrite()
 	}
 	time.Sleep(rstAvoidanceDelay)

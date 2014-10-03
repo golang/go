@@ -646,15 +646,13 @@ TEXT gosave<>(SB),NOSPLIT,$0
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.c for more details.
-TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
-	GO_ARGS
+TEXT ·asmcgocall(SB),NOSPLIT,$0-8
 	MOVL	fn+0(FP), AX
 	MOVL	arg+4(FP), BX
 	CALL	asmcgocall<>(SB)
 	RET
 
-TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
-	GO_ARGS
+TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-12
 	MOVL	fn+0(FP), AX
 	MOVL	arg+4(FP), BX
 	CALL	asmcgocall<>(SB)
@@ -714,8 +712,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT runtime·cgocallback_gofunc(SB),NOSPLIT,$12-12
-	GO_ARGS
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$12-12
 	NO_LOCAL_POINTERS
 
 	// If g is nil, Go did not create the current thread.
@@ -905,8 +902,6 @@ TEXT runtime·emptyfunc(SB),0,$0-0
 
 TEXT runtime·abort(SB),NOSPLIT,$0-0
 	INT $0x3
-
-GLOBL runtime·tls0(SB), $32
 
 // hash function using AES hardware instructions
 TEXT runtime·aeshash(SB),NOSPLIT,$0-16
@@ -2279,4 +2274,14 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVL	$0, AX
+	RET
+
+// Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+// Must obey the gcc calling convention.
+TEXT _cgo_topofstack(SB),NOSPLIT,$0
+	get_tls(CX)
+	MOVL	g(CX), AX
+	MOVL	g_m(AX), AX
+	MOVL	m_curg(AX), AX
+	MOVL	(g_stack+stack_hi)(AX), AX
 	RET

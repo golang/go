@@ -184,6 +184,8 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
 	// transfer stats from cache to global
 	mstats.heap_alloc += g->m->mcache->local_cachealloc;
 	g->m->mcache->local_cachealloc = 0;
+	mstats.tinyallocs += g->m->mcache->local_tinyallocs;
+	g->m->mcache->local_tinyallocs = 0;
 
 	s = MHeap_AllocSpanLocked(h, npage);
 	if(s != nil) {
@@ -465,6 +467,8 @@ mheap_free(MHeap *h, MSpan *s, int32 acct)
 	runtime·lock(&h->lock);
 	mstats.heap_alloc += g->m->mcache->local_cachealloc;
 	g->m->mcache->local_cachealloc = 0;
+	mstats.tinyallocs += g->m->mcache->local_tinyallocs;
+	g->m->mcache->local_tinyallocs = 0;
 	if(acct) {
 		mstats.heap_alloc -= s->npages<<PageShift;
 		mstats.heap_objects--;

@@ -60,6 +60,7 @@ typedef	struct	SudoG		SudoG;
 typedef	struct	Mutex		Mutex;
 typedef	struct	M		M;
 typedef	struct	P		P;
+typedef	struct	SchedT	SchedT;
 typedef	struct	Note		Note;
 typedef	struct	Slice		Slice;
 typedef	struct	String		String;
@@ -434,6 +435,42 @@ enum {
 	MaxGomaxprocs = 1<<8,
 };
 
+struct	SchedT
+{
+	Mutex	lock;
+
+	uint64	goidgen;
+
+	M*	midle;	 // idle m's waiting for work
+	int32	nmidle;	 // number of idle m's waiting for work
+	int32	nmidlelocked; // number of locked m's waiting for work
+	int32	mcount;	 // number of m's that have been created
+	int32	maxmcount;	// maximum number of m's allowed (or die)
+
+	P*	pidle;  // idle P's
+	uint32	npidle;
+	uint32	nmspinning;
+
+	// Global runnable queue.
+	G*	runqhead;
+	G*	runqtail;
+	int32	runqsize;
+
+	// Global cache of dead G's.
+	Mutex	gflock;
+	G*	gfree;
+	int32	ngfree;
+
+	uint32	gcwaiting;	// gc is waiting to run
+	int32	stopwait;
+	Note	stopnote;
+	uint32	sysmonwait;
+	Note	sysmonnote;
+	uint64	lastpoll;
+
+	int32	profilehz;	// cpu profiling rate
+};
+
 // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
 // The low bit (LockExternal) is a boolean reporting whether any LockOSThread call is active.
 // External locks are not recursive; a second lock is silently ignored.
@@ -729,6 +766,8 @@ extern	DebugVars	runtime·debug;
 extern	uintptr	runtime·maxstacksize;
 extern	Note	runtime·signote;
 extern	ForceGCState	runtime·forcegc;
+extern	SchedT	runtime·sched;
+extern	int32		runtime·newprocs;
 
 /*
  * common functions and data
@@ -778,7 +817,6 @@ void	runtime·goenvs(void);
 void	runtime·goenvs_unix(void);
 void*	runtime·getu(void);
 void	runtime·throw(int8*);
-void	runtime·panicstring(int8*);
 bool	runtime·canpanic(G*);
 void	runtime·prints(int8*);
 void	runtime·printf(int8*, ...);
@@ -816,6 +854,7 @@ void	runtime·mpreinit(M*);
 void	runtime·minit(void);
 void	runtime·unminit(void);
 void	runtime·signalstack(byte*, int32);
+void	runtime·tracebackinit(void);
 void	runtime·symtabinit(void);
 Func*	runtime·findfunc(uintptr);
 int32	runtime·funcline(Func*, uintptr, String*);
@@ -876,6 +915,7 @@ void	runtime·goexit(void);
 void	runtime·asmcgocall(void (*fn)(void*), void*);
 int32	runtime·asmcgocall_errno(void (*fn)(void*), void*);
 void	runtime·entersyscall(void);
+void	runtime·reentersyscall(uintptr, uintptr);
 void	runtime·entersyscallblock(void);
 void	runtime·exitsyscall(void);
 G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
@@ -1037,8 +1077,6 @@ void	runtime·panicdivide(void);
  */
 void	runtime·printany(Eface);
 void	runtime·newTypeAssertionError(String*, String*, String*, String*, Eface*);
-void	runtime·newErrorString(String, Eface*);
-void	runtime·newErrorCString(int8*, Eface*);
 void	runtime·fadd64c(uint64, uint64, uint64*);
 void	runtime·fsub64c(uint64, uint64, uint64*);
 void	runtime·fmul64c(uint64, uint64, uint64*);

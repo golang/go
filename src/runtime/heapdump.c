@@ -59,6 +59,8 @@ static BitVector makeheapobjbv(byte *p, uintptr size);
 
 // fd to write the dump to.
 static uintptr	dumpfd;
+
+#pragma dataflag NOPTR /* tmpbuf not a heap pointer at least */
 static byte	*tmpbuf;
 static uintptr	tmpbufsize;
 
@@ -109,6 +111,7 @@ typedef struct TypeCacheBucket TypeCacheBucket;
 struct TypeCacheBucket {
 	Type *t[TypeCacheAssoc];
 };
+#pragma dataflag NOPTR /* only initialized and used while world is stopped */
 static TypeCacheBucket typecache[TypeCacheBuckets];
 
 // dump a uint64 in a varint format parseable by encoding/binary
@@ -737,33 +740,16 @@ mdump(void)
 	flush();
 }
 
-static void writeheapdump_m(void);
-
-#pragma textflag NOSPLIT
 void
-runtime∕debug·WriteHeapDump(uintptr fd)
-{
-	void (*fn)(void);
-	
-	g->m->scalararg[0] = fd;
-	fn = writeheapdump_m;
-	runtime·onM(&fn);
-}
-
-static void
-writeheapdump_m(void)
+runtime·writeheapdump_m(void)
 {
 	uintptr fd;
 	
 	fd = g->m->scalararg[0];
 	g->m->scalararg[0] = 0;
 
-	// Stop the world.
 	runtime·casgstatus(g->m->curg, Grunning, Gwaiting);
 	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
-	runtime·semacquire(&runtime·worldsema, false);
-	g->m->gcing = 1;
-	runtime·stoptheworld();
 
 	// Update stats so we can dump them.
 	// As a side effect, flushes all the MCaches so the MSpan.freelist
@@ -784,13 +770,7 @@ writeheapdump_m(void)
 		tmpbufsize = 0;
 	}
 
-	// Start up the world again.
-	g->m->gcing = 0;
-	g->m->locks++;
-	runtime·semrelease(&runtime·worldsema);
-	runtime·starttheworld();
 	runtime·casgstatus(g->m->curg, Gwaiting, Grunning);
-	g->m->locks--;
 }
 
 // dumpint() the kind & offset of each field in an object.

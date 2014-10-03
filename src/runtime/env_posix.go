@@ -32,7 +32,8 @@ func gogetenv(key string) string {
 	return ""
 }
 
-var _cgo_setenv uintptr // pointer to C function
+var _cgo_setenv uintptr   // pointer to C function
+var _cgo_unsetenv uintptr // pointer to C function
 
 // Update the C environment if cgo is loaded.
 // Called from syscall.Setenv.
@@ -42,6 +43,16 @@ func syscall_setenv_c(k string, v string) {
 	}
 	arg := [2]unsafe.Pointer{cstring(k), cstring(v)}
 	asmcgocall(unsafe.Pointer(_cgo_setenv), unsafe.Pointer(&arg))
+}
+
+// Update the C environment if cgo is loaded.
+// Called from syscall.unsetenv.
+func syscall_unsetenv_c(k string) {
+	if _cgo_unsetenv == 0 {
+		return
+	}
+	arg := [1]unsafe.Pointer{cstring(k)}
+	asmcgocall(unsafe.Pointer(_cgo_unsetenv), unsafe.Pointer(&arg))
 }
 
 func cstring(s string) unsafe.Pointer {
