@@ -2421,7 +2421,7 @@ runtime·mcount(void)
 	return runtime·sched.mcount;
 }
 
-static struct {
+static struct ProfState {
 	uint32 lock;
 	int32 hz;
 } prof;
