@@ -93,6 +93,7 @@ typedef	struct	PollDesc	PollDesc;
 typedef	struct	DebugVars	DebugVars;
 typedef	struct	ForceGCState	ForceGCState;
 typedef	struct	Stack		Stack;
+typedef struct  Workbuf         Workbuf;
 
 /*
  * Per-CPU declaration.
@@ -303,7 +304,7 @@ struct	G
 	bool	paniconfault;	// panic (instead of crash) on unexpected fault address
 	bool	preemptscan;    // preempted g does scan for GC
 	bool	gcworkdone;     // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
-	bool	throwsplit; // must not split stack
+	bool	throwsplit;     // must not split stack
 	int8	raceignore;	// ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
@@ -561,6 +562,16 @@ struct ParFor
 	uint64 nsleep;
 };
 
+enum {
+	WorkbufSize	= 4*1024,
+};
+struct Workbuf
+{
+	LFNode	node; // must be first
+	uintptr	nobj;
+	byte*	obj[(WorkbufSize-sizeof(LFNode)-sizeof(uintptr))/PtrSize];
+};
+
 // Track memory allocated by code not written in Go during a cgo call,
 // so that the garbage collector can see them.
 struct CgoMal
@@ -583,12 +594,14 @@ struct DebugVars
 
 // Indicates to write barrier and sychronization task to preform.
 enum
-{                   // Synchronization            Write barrier
-	GCoff,      // stop and start             nop
-	GCquiesce,  // stop and start             nop
-	GCstw,      // stop the ps                nop
-	GCmark,     // scan the stacks and start  no white to black
-	GCsweep,    // stop and start             nop
+{                               // Action               WB installation
+	GCoff = 0,		// stop and start	no wb
+	GCquiesce, 		// stop and start	no wb
+	GCstw, 			// stop the ps		nop
+	GCscan,			// scan the stacks prior to marking
+	GCmark,			// mark use wbufs from GCscan and globals, scan the stacks, then go to GCtermination
+	GCmarktermination,	// mark termination detection. Allocate black, Ps help out GC
+	GCsweep,		// stop and start	nop
 };
 
 struct ForceGCState

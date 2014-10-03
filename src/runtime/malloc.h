@@ -86,6 +86,7 @@ typedef struct MSpan	MSpan;
 typedef struct MStats	MStats;
 typedef struct MLink	MLink;
 typedef struct GCStats	GCStats;
+typedef struct Workbuf  Workbuf;
 
 enum
 {
@@ -337,8 +338,11 @@ struct MCache
 	StackFreeList stackcache[NumStackOrders];
 
 	SudoG*	sudogcache;
-
-	void*	gcworkbuf;
+	// Cached P local buffer holding grey objects (marked by not yet scanned)
+	// Used by mutator for write barrier work.
+	// GC uses the mcache of the P it is running on for stack and global scanning 
+	// work as well marking.
+	Workbuf*	gcworkbuf;
 
 	// Local allocator stats, flushed during GC.
 	uintptr local_nlookup;		// number of pointer lookups
@@ -350,7 +354,7 @@ struct MCache
 MSpan*	runtime·MCache_Refill(MCache *c, int32 sizeclass);
 void	runtime·MCache_ReleaseAll(MCache *c);
 void	runtime·stackcache_clear(MCache *c);
-void	runtime·gcworkbuffree(void *b);
+void	runtime·gcworkbuffree(Workbuf *b);
 
 enum
 {
