@@ -61,7 +61,7 @@ var (
 	buildTimeout   = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
 	cmdTimeout     = flag.Duration("cmdTimeout", 10*time.Minute, "Maximum time to wait for an external command")
 	commitInterval = flag.Duration("commitInterval", 1*time.Minute, "Time to wait between polling for new commits (0 disables commit poller)")
-	commitOnly     = flag.Bool("commitWatchOnly", false, "only run the commit watch loop and don't do any builds")
+	commitWatch    = flag.Bool("commitWatch", false, "run the commit watch loop only (do no builds)")
 	benchNum       = flag.Int("benchnum", 5, "Run each benchmark that many times")
 	benchTime      = flag.Duration("benchtime", 5*time.Second, "Benchmarking time for a single benchmark run")
 	benchMem       = flag.Int("benchmem", 64, "Approx RSS value to aim at in benchmarks, in MB")
@@ -213,10 +213,10 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Start commit watcher
-	go commitWatcher(goroot)
-	if *commitOnly {
-		select {}
+	// Start commit watcher.
+	if *commitWatch {
+		commitWatcher(goroot)
+		return
 	}
 
 	// go continuous build mode
