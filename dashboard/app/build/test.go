@@ -72,10 +72,10 @@ var testRequests = []struct {
 	res  interface{}
 }{
 	// Packages
-	{"/packages?kind=subrepo", nil, nil, []*Package{testPackage}},
+	{"/packages", url.Values{"kind": {"subrepo"}}, nil, []*Package{testPackage}},
 
 	// Go repo
-	{"/commit", nil, tCommit("0001", "0000", "", true), nil},
+	{"/commit", nil, tCommit("0001", "", "", true), nil},
 	{"/commit", nil, tCommit("0002", "0001", "", false), nil},
 	{"/commit", nil, tCommit("0003", "0002", "", true), nil},
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
@@ -119,7 +119,7 @@ var testRequests = []struct {
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: "test"}, nil},
 
 	// non-Go repos
-	{"/commit", nil, tCommit("1001", "1000", testPkg, false), nil},
+	{"/commit", nil, tCommit("1001", "", testPkg, false), nil},
 	{"/commit", nil, tCommit("1002", "1001", testPkg, false), nil},
 	{"/commit", nil, tCommit("1003", "1002", testPkg, false), nil},
 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1003"}}},
@@ -256,7 +256,9 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		url := "http://" + domain + t.path
 		if t.vals != nil {
-			url += "?" + t.vals.Encode()
+			url += "?" + t.vals.Encode() + "&version=2"
+		} else {
+			url += "?version=2"
 		}
 		req, err := http.NewRequest("POST", url, body)
 		if err != nil {
