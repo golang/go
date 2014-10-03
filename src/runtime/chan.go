@@ -140,10 +140,11 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 			unlock(&c.lock)
 
 			recvg := sg.g
-			recvg.param = unsafe.Pointer(sg)
 			if sg.elem != nil {
 				memmove(unsafe.Pointer(sg.elem), ep, uintptr(c.elemsize))
+				sg.elem = nil
 			}
+			recvg.param = unsafe.Pointer(sg)
 			if sg.releasetime != 0 {
 				sg.releasetime = cputicks()
 			}
@@ -179,6 +180,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 			}
 			panic("send on closed channel")
 		}
+		gp.param = nil
 		if mysg.releasetime > 0 {
 			blockevent(int64(mysg.releasetime)-t0, 2)
 		}
@@ -278,6 +280,7 @@ func closechan(c *hchan) {
 			break
 		}
 		gp := sg.g
+		sg.elem = nil
 		gp.param = nil
 		if sg.releasetime != 0 {
 			sg.releasetime = cputicks()
@@ -292,6 +295,7 @@ func closechan(c *hchan) {
 			break
 		}
 		gp := sg.g
+		sg.elem = nil
 		gp.param = nil
 		if sg.releasetime != 0 {
 			sg.releasetime = cputicks()
@@ -372,6 +376,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 			if ep != nil {
 				memmove(ep, sg.elem, uintptr(c.elemsize))
 			}
+			sg.elem = nil
 			gp := sg.g
 			gp.param = unsafe.Pointer(sg)
 			if sg.releasetime != 0 {
@@ -409,9 +414,11 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 		if mysg.releasetime > 0 {
 			blockevent(mysg.releasetime-t0, 2)
 		}
+		haveData := gp.param != nil
+		gp.param = nil
 		releaseSudog(mysg)
 
-		if gp.param != nil {
+		if haveData {
 			// a sender sent us some data. It already wrote to ep.
 			selected = true
 			received = true
