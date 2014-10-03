@@ -29,6 +29,7 @@ static void issue7978c(uint32_t *sync) {
 import "C"
 
 import (
+	"os"
 	"runtime"
 	"strings"
 	"sync/atomic"
@@ -81,6 +82,9 @@ func issue7978go() {
 }
 
 func test7978(t *testing.T) {
+	if os.Getenv("GOTRACEBACK") != "2" {
+		t.Fatalf("GOTRACEBACK must be 2")
+	}
 	issue7978sync = 0
 	go issue7978go()
 	// test in c code, before callback
