@@ -63,7 +63,7 @@ typedef struct Tos Tos;
 typedef intptr _Plink;
 
 struct Tos {
-	struct			/* Per process profiling */
+	struct TosProf			/* Per process profiling */
 	{
 		_Plink	*pp;	/* known to be 0(ptr) */
 		_Plink	*next;	/* known to be 4(ptr) */

@@ -384,11 +384,11 @@ struct	M
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
 	LibCall	libcall;
-	struct {
+	struct MTs {
 		int64	tv_sec;
 		int64	tv_nsec;
 	} ts;
-	struct {
+	struct MScratch {
 		uintptr v[6];
 	} scratch;
 #endif
