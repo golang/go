@@ -623,9 +623,10 @@ mquiesce(G *gpmaster)
 	uint32 status;
 	uint32 activeglen;
 
-	activeglen = runtime·allglen;
 	// enqueue the calling goroutine.
 	runtime·restartg(gpmaster);
+
+	activeglen = runtime·allglen;
 	for(i = 0; i < activeglen; i++) {
 		gp = runtime·allg[i];
 		if(runtime·readgstatus(gp) == Gdead) 
