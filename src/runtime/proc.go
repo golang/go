@@ -174,6 +174,9 @@ func releaseSudog(s *sudog) {
 	if s.elem != nil {
 		gothrow("runtime: sudog with non-nil elem")
 	}
+	if s.selectdone != nil {
+		gothrow("runtime: sudog with non-nil selectdone")
+	}
 	gp := getg()
 	if gp.param != nil {
 		gothrow("runtime: releaseSudog with non-nil gp.param")
