@@ -34,6 +34,25 @@ func init() {
 	}
 }
 
+// flags placed in a separate struct for easy clearing.
+type fmtFlags struct {
+	widPresent  bool
+	precPresent bool
+	minus       bool
+	plus        bool
+	sharp       bool
+	space       bool
+	unicode     bool
+	uniQuote    bool // Use 'x'= prefix for %U if printable.
+	zero        bool
+
+	// For the formats %+v %#v, we set the plusV/sharpV flags
+	// and clear the plus/sharp flags since %+v and %#v are in effect
+	// different, flagless formats set at the top level.
+	plusV  bool
+	sharpV bool
+}
+
 // A fmt is the raw formatter used by Printf etc.
 // It prints into a buffer that must be set up separately.
 type fmt struct {
@@ -42,36 +61,11 @@ type fmt struct {
 	// width, precision
 	wid  int
 	prec int
-	// flags
-	widPresent  bool
-	precPresent bool
-	minus       bool
-	plus        bool
-	sharp       bool
-	space       bool
-	// For the format %#v, we set this flag and
-	// clear the plus flag, since it is in effect
-	// a different, flagless format set at the top level.
-	// TODO: plusV could use this too.
-	sharpV   bool
-	unicode  bool
-	uniQuote bool // Use 'x'= prefix for %U if printable.
-	zero     bool
+	fmtFlags
 }
 
 func (f *fmt) clearflags() {
-	f.wid = 0
-	f.widPresent = false
-	f.prec = 0
-	f.precPresent = false
-	f.minus = false
-	f.plus = false
-	f.sharp = false
-	f.space = false
-	f.sharpV = false
-	f.unicode = false
-	f.uniQuote = false
-	f.zero = false
+	f.fmtFlags = fmtFlags{}
 }
 
 func (f *fmt) init(buf *buffer) {
