@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -26,6 +27,7 @@ import (
 )
 
 const commitsPerPage = 30
+const watcherVersion = 2
 
 // commitHandler retrieves commit data or records a new commit.
 //
@@ -69,6 +71,16 @@ func commitHandler(r *http.Request) (interface{}, error) {
 	}
 	if !isMasterKey(c, r.FormValue("key")) {
 		return nil, errors.New("can only POST commits with master key")
+	}
+
+	// For now, the commit watcher doesn't support gccgo,
+	// so only do this check for Go commits.
+	// TODO(adg,cmang): remove this check when gccgo is supported.
+	if dashboardForRequest(r) == goDash {
+		v, _ := strconv.Atoi(r.FormValue("version"))
+		if v != watcherVersion {
+			return nil, fmt.Errorf("rejecting POST from commit watcher; need version %v", watcherVersion)
+		}
 	}
 
 	// POST request
