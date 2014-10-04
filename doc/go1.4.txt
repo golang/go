@@ -30,7 +30,7 @@ net/http/httputil: add ReverseProxy.ErrorLog (CL 132750043)
 os: implement symlink support for windows (CL 86160044)
 reflect: add type.Comparable (CL 144020043)
 runtime: implement monotonic clocks on windows (CL 108700045)
-runtime: stack size 2K (4K on plan 9 and windows) (CL 145790043)
+runtime: memory consumption is reduced by 10-30% (CL 106260045 removes type info from heap, CL 145790043 reduces stack size to 2K (4K on plan 9 and windows))
 runtime: MemStats.Mallocs now counts very small allocations missed in Go 1.3. This may break tests using runtime.ReadMemStats or testing.AllocsPerRun by giving a more accurate answer than Go 1.3 did (CL 143150043).
 runtime/race: freebsd is supported (CL 107270043)
 swig: Due to runtime changes Go 1.4 will require SWIG 3.0.3 (not yet released)
