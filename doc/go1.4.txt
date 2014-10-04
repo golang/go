@@ -32,6 +32,7 @@ runtime: implement monotonic clocks on windows (CL 108700045)
 runtime: stack size 2K (4K on plan 9 and windows) (CL 145790043)
 runtime: MemStats.Mallocs now counts very small allocations missed in Go 1.3. This may break tests using runtime.ReadMemStats or testing.AllocsPerRun by giving a more accurate answer than Go 1.3 did (CL 143150043).
 runtime/race: freebsd is supported (CL 107270043)
+swig: Due to runtime changes Go 1.4 will require SWIG 3.0.3 (not yet released)
 sync/atomic: add Value (CL 136710045)
 syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved (CL 106170043)
 syscall: now frozen (CL 129820043)
