@@ -994,6 +994,10 @@ BigSwitch:
 				p.buf.WriteByte('&')
 				p.printValue(a, verb, depth+1)
 				break BigSwitch
+			case reflect.Map:
+				p.buf.WriteByte('&')
+				p.printValue(a, verb, depth+1)
+				break BigSwitch
 			}
 		}
 		fallthrough
