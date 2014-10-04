@@ -215,6 +215,12 @@ func (c *Commit) Results() (results []*Result) {
 }
 
 func (c *Commit) ResultGoHashes() []string {
+	// For the main repo, just return the empty string
+	// (there's no corresponding main repo hash for a main repo Commit).
+	// This function is only really useful for sub-repos.
+	if c.PackagePath == "" {
+		return []string{""}
+	}
 	var hashes []string
 	for _, r := range c.ResultData {
 		p := strings.SplitN(r, "|", 4)
