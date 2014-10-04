@@ -965,11 +965,12 @@ func TestFlagParser(t *testing.T) {
 }
 
 func TestStructPrinter(t *testing.T) {
-	var s struct {
+	type T struct {
 		a string
 		b string
 		c int
 	}
+	var s T
 	s.a = "abc"
 	s.b = "def"
 	s.c = 123
@@ -979,12 +980,35 @@ func TestStructPrinter(t *testing.T) {
 	}{
 		{"%v", "{abc def 123}"},
 		{"%+v", "{a:abc b:def c:123}"},
+		{"%#v", `fmt_test.T{a:"abc", b:"def", c:123}`},
 	}
 	for _, tt := range tests {
 		out := Sprintf(tt.fmt, s)
 		if out != tt.out {
-			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out)
+			t.Errorf("Sprintf(%q, s) = %#q, want %#q", tt.fmt, out, tt.out)
 		}
+		// The same but with a pointer.
+		out = Sprintf(tt.fmt, &s)
+		if out != "&"+tt.out {
+			t.Errorf("Sprintf(%q, &s) = %#q, want %#q", tt.fmt, out, "&"+tt.out)
+		}
+	}
+}
+
+func TestSlicePrinter(t *testing.T) {
+	slice := []int{}
+	s := Sprint(slice)
+	if s != "[]" {
+		t.Errorf("empty slice printed as %q not %q", s, "[]")
+	}
+	slice = []int{1, 2, 3}
+	s = Sprint(slice)
+	if s != "[1 2 3]" {
+		t.Errorf("slice: got %q expected %q", s, "[1 2 3]")
+	}
+	s = Sprint(&slice)
+	if s != "&[1 2 3]" {
+		t.Errorf("&slice: got %q expected %q", s, "&[1 2 3]")
 	}
 }
 
@@ -1014,6 +1038,12 @@ func TestMapPrinter(t *testing.T) {
 	a := []string{"1:one", "2:two", "3:three"}
 	presentInMap(Sprintf("%v", m1), a, t)
 	presentInMap(Sprint(m1), a, t)
+	// Pointer to map prints the same but with initial &.
+	if !strings.HasPrefix(Sprint(&m1), "&") {
+		t.Errorf("no initial & for address of map")
+	}
+	presentInMap(Sprintf("%v", &m1), a, t)
+	presentInMap(Sprint(&m1), a, t)
 }
 
 func TestEmptyMap(t *testing.T) {
