@@ -173,6 +173,10 @@ var matchFileTests = []struct {
 	{ctxtAndroid, "foo_linux.go", "", true},
 	{ctxtAndroid, "foo_android.go", "", true},
 	{ctxtAndroid, "foo_plan9.go", "", false},
+	{ctxtAndroid, "android.go", "", true},
+	{ctxtAndroid, "plan9.go", "", true},
+	{ctxtAndroid, "arm.s", "", true},
+	{ctxtAndroid, "amd64.s", "", true},
 }
 
 func TestMatchFile(t *testing.T) {
