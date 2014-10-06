@@ -204,6 +204,9 @@ func TestDualStackTCPListener(t *testing.T) {
 // to a test listener with various address families, differnet
 // listening address and same port.
 func TestDualStackUDPListener(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode, see issue 5001")
+	}
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("skipping test on %q", runtime.GOOS)

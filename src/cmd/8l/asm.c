@@ -117,13 +117,21 @@ adddynrel(LSym *s, Reloc *r)
 	case 256 + R_386_GOT32:
 		if(targ->type != SDYNIMPORT) {
 			// have symbol
-			// turn MOVL of GOT entry into LEAL of symbol itself
-			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
-				diag("unexpected GOT reloc for non-dynamic symbol %s", targ->name);
+			if(r->off >= 2 && s->p[r->off-2] == 0x8b) {
+				// turn MOVL of GOT entry into LEAL of symbol address, relative to GOT.
+				s->p[r->off-2] = 0x8d;
+				r->type = R_GOTOFF;
 				return;
 			}
-			s->p[r->off-2] = 0x8d;
-			r->type = R_GOTOFF;
+			if(r->off >= 2 && s->p[r->off-2] == 0xff && s->p[r->off-1] == 0xb3) {
+				// turn PUSHL of GOT entry into PUSHL of symbol itself.
+				// use unnecessary SS prefix to keep instruction same length.
+				s->p[r->off-2] = 0x36;
+				s->p[r->off-1] = 0x68;
+				r->type = R_ADDR;
+				return;
+			}
+			diag("unexpected GOT reloc for non-dynamic symbol %s", targ->name);
 			return;
 		}
 		addgotsym(ctxt, targ);
