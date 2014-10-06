@@ -1291,6 +1291,18 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	if dot := strings.Index(name, "."); dot != -1 {
 		name = name[:dot]
 	}
+
+	// Before Go 1.4, a file called "linux.go" would be equivalent to having a
+	// build tag "linux" in that file. For Go 1.4 and beyond, we require this
+	// auto-tagging to apply only to files with a non-empty prefix, so
+	// "foo_linux.go" is tagged but "linux.go" is not. This allows new operating
+	// sytems, such as android, to arrive without breaking existing code with
+	// innocuous source code in "android.go". The easiest fix: files without
+	// underscores are always included.
+	if !strings.ContainsRune(name, '_') {
+		return true
+	}
+
 	l := strings.Split(name, "_")
 	if n := len(l); n > 0 && l[n-1] == "test" {
 		l = l[:n-1]
