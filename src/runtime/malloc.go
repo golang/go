@@ -488,6 +488,10 @@ func GC() {
 	gogc(2)
 }
 
+// linker-provided
+var noptrdata struct{}
+var enoptrbss struct{}
+
 // SetFinalizer sets the finalizer associated with x to f.
 // When the garbage collector finds an unreachable block
 // with an associated finalizer, it clears the association and runs
@@ -527,6 +531,10 @@ func GC() {
 // It is not guaranteed that a finalizer will run if the size of *x is
 // zero bytes.
 //
+// It is not guaranteed that a finalizer will run for objects allocated
+// in initializers for package-level variables. Such objects may be
+// linker-allocated, not heap-allocated.
+//
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.
@@ -544,24 +552,25 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		gothrow("nil elem type!")
 	}
 
-	// As an implementation detail we do not run finalizers for zero-sized objects,
-	// because we use &runtime·zerobase for all such allocations.
-	if ot.elem.size == 0 {
-		return
-	}
-
 	// find the containing object
 	_, base, _ := findObject(e.data)
 
-	// The following check is required for cases when a user passes a pointer to composite
-	// literal, but compiler makes it a pointer to global. For example:
-	//	var Foo = &Object{}
-	//	func main() {
-	//		runtime.SetFinalizer(Foo, nil)
-	//	}
-	// See issue 7656.
 	if base == nil {
-		return
+		// 0-length objects are okay.
+		if e.data == unsafe.Pointer(&zerobase) {
+			return
+		}
+
+		// Global initializers might be linker-allocated.
+		//	var Foo = &Object{}
+		//	func main() {
+		//		runtime.SetFinalizer(Foo, nil)
+		//	}
+		// The segments are, in order: text, rodata, noptrdata, data, bss, noptrbss.
+		if uintptr(unsafe.Pointer(&noptrdata)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&enoptrbss)) {
+			return
+		}
+		gothrow("runtime.SetFinalizer: pointer not in allocated block")
 	}
 
 	if e.data != base {
