@@ -225,13 +225,8 @@ func LastIndex(s, sep string) int {
 // r, or -1 if rune is not present in s.
 func IndexRune(s string, r rune) int {
 	switch {
-	case r < 0x80:
-		b := byte(r)
-		for i := 0; i < len(s); i++ {
-			if s[i] == b {
-				return i
-			}
-		}
+	case r < utf8.RuneSelf:
+		return IndexByte(s, byte(r))
 	default:
 		for i, c := range s {
 			if c == r {
