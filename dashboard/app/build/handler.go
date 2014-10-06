@@ -48,6 +48,9 @@ func commitHandler(r *http.Request) (interface{}, error) {
 		com.Hash = r.FormValue("hash")
 		if err := datastore.Get(c, com.Key(c), com); err != nil {
 			if err == datastore.ErrNoSuchEntity {
+				// This error string is special.
+				// The commit watcher expects it.
+				// Do not change it.
 				return nil, errors.New("Commit not found")
 			}
 			return nil, fmt.Errorf("getting Commit: %v", err)
