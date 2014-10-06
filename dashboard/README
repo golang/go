@@ -10,6 +10,8 @@ coordinator/: daemon that runs on CoreOS on Google Compute Engine and manages
           builds (using the builder in single-shot mode) in Docker containers.
 env/:     configuration files describing the environment of builders.
           Many builders are still configured ad-hoc.
+watcher/: a daemon that watches for new commits to the Go repository and
+          its sub-repositories, and notifies the dashboard of those commits.
 
 If you wish to run a Go builder, please email golang-dev@googlegroups.com
 
