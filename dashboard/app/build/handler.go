@@ -47,6 +47,9 @@ func commitHandler(r *http.Request) (interface{}, error) {
 		com.PackagePath = r.FormValue("packagePath")
 		com.Hash = r.FormValue("hash")
 		if err := datastore.Get(c, com.Key(c), com); err != nil {
+			if err == datastore.ErrNoSuchEntity {
+				return nil, errors.New("Commit not found")
+			}
 			return nil, fmt.Errorf("getting Commit: %v", err)
 		}
 		if com.Num == 0 {
