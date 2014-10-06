@@ -274,7 +274,8 @@ struct MStats
 	bool	debuggc;
 
 	// Statistics about allocation size classes.
-	struct {
+	
+	struct MStatsBySize {
 		uint32 size;
 		uint64 nmalloc;
 		uint64 nfree;
@@ -282,6 +283,7 @@ struct MStats
 	
 	uint64	tinyallocs;	// number of tiny allocations that didn't cause actual allocation; not exported to Go directly
 };
+
 
 #define mstats runtime·memstats
 extern MStats mstats;
@@ -493,7 +495,7 @@ struct MHeap
 	// the padding makes sure that the MCentrals are
 	// spaced CacheLineSize bytes apart, so that each MCentral.lock
 	// gets its own cache line.
-	struct {
+	struct MHeapCentral {
 		MCentral mcentral;
 		byte pad[CacheLineSize];
 	} central[NumSizeClasses];

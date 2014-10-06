@@ -52,7 +52,7 @@ typedef uint16 Elf64_Section;
 typedef Elf64_Half Elf64_Versym;
 
 
-typedef struct
+typedef struct Elf64_Sym
 {
 	Elf64_Word st_name;
 	byte st_info;
@@ -62,7 +62,7 @@ typedef struct
 	Elf64_Xword st_size;
 } Elf64_Sym;
 
-typedef struct
+typedef struct Elf64_Verdef
 {
 	Elf64_Half vd_version; /* Version revision */
 	Elf64_Half vd_flags;   /* Version information */
@@ -73,7 +73,7 @@ typedef struct
 	Elf64_Word vd_next;    /* Offset in bytes to next verdef entry */
 } Elf64_Verdef;
 
-typedef struct
+typedef struct Elf64_Ehdr
 {
 	byte e_ident[EI_NIDENT]; /* Magic number and other info */
 	Elf64_Half e_type;       /* Object file type */
@@ -91,7 +91,7 @@ typedef struct
 	Elf64_Half e_shstrndx;   /* Section header string table index */
 } Elf64_Ehdr;
 
-typedef struct
+typedef struct Elf64_Phdr
 {
 	Elf64_Word p_type;    /* Segment type */
 	Elf64_Word p_flags;   /* Segment flags */
@@ -103,7 +103,7 @@ typedef struct
 	Elf64_Xword p_align;  /* Segment alignment */
 } Elf64_Phdr;
 
-typedef struct
+typedef struct Elf64_Shdr
 {
 	Elf64_Word sh_name;       /* Section name (string tbl index) */
 	Elf64_Word sh_type;       /* Section type */
@@ -117,7 +117,7 @@ typedef struct
 	Elf64_Xword sh_entsize;   /* Entry size if section holds table */
 } Elf64_Shdr;
 
-typedef struct
+typedef struct Elf64_Dyn
 {
 	Elf64_Sxword d_tag; /* Dynamic entry type */
 	union
@@ -127,13 +127,13 @@ typedef struct
 	} d_un;
 } Elf64_Dyn;
 
-typedef struct
+typedef struct Elf64_Verdaux
 {
 	Elf64_Word vda_name; /* Version or dependency names */
 	Elf64_Word vda_next; /* Offset in bytes to next verdaux entry */
 } Elf64_Verdaux;
 
-typedef struct
+typedef struct Elf64_auxv_t
 {
 	uint64 a_type;        /* Entry type */
 	union
@@ -143,13 +143,13 @@ typedef struct
 } Elf64_auxv_t;
 
 
-typedef struct {
+typedef struct symbol_key {
 	byte* name;
 	int32 sym_hash;
 	void** var_ptr;
 } symbol_key;
 
-typedef struct {
+typedef struct version_key {
 	byte* version;
 	int32 ver_hash;
 } version_key;

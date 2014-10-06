@@ -919,7 +919,7 @@ func TestCountMallocs(t *testing.T) {
 
 type flagPrinter struct{}
 
-func (*flagPrinter) Format(f State, c rune) {
+func (flagPrinter) Format(f State, c rune) {
 	s := "%"
 	for i := 0; i < 128; i++ {
 		if f.Flag(i) {
@@ -965,11 +965,12 @@ func TestFlagParser(t *testing.T) {
 }
 
 func TestStructPrinter(t *testing.T) {
-	var s struct {
+	type T struct {
 		a string
 		b string
 		c int
 	}
+	var s T
 	s.a = "abc"
 	s.b = "def"
 	s.c = 123
@@ -979,12 +980,35 @@ func TestStructPrinter(t *testing.T) {
 	}{
 		{"%v", "{abc def 123}"},
 		{"%+v", "{a:abc b:def c:123}"},
+		{"%#v", `fmt_test.T{a:"abc", b:"def", c:123}`},
 	}
 	for _, tt := range tests {
 		out := Sprintf(tt.fmt, s)
 		if out != tt.out {
-			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out)
+			t.Errorf("Sprintf(%q, s) = %#q, want %#q", tt.fmt, out, tt.out)
 		}
+		// The same but with a pointer.
+		out = Sprintf(tt.fmt, &s)
+		if out != "&"+tt.out {
+			t.Errorf("Sprintf(%q, &s) = %#q, want %#q", tt.fmt, out, "&"+tt.out)
+		}
+	}
+}
+
+func TestSlicePrinter(t *testing.T) {
+	slice := []int{}
+	s := Sprint(slice)
+	if s != "[]" {
+		t.Errorf("empty slice printed as %q not %q", s, "[]")
+	}
+	slice = []int{1, 2, 3}
+	s = Sprint(slice)
+	if s != "[1 2 3]" {
+		t.Errorf("slice: got %q expected %q", s, "[1 2 3]")
+	}
+	s = Sprint(&slice)
+	if s != "&[1 2 3]" {
+		t.Errorf("&slice: got %q expected %q", s, "&[1 2 3]")
 	}
 }
 
@@ -1014,6 +1038,12 @@ func TestMapPrinter(t *testing.T) {
 	a := []string{"1:one", "2:two", "3:three"}
 	presentInMap(Sprintf("%v", m1), a, t)
 	presentInMap(Sprint(m1), a, t)
+	// Pointer to map prints the same but with initial &.
+	if !strings.HasPrefix(Sprint(&m1), "&") {
+		t.Errorf("no initial & for address of map")
+	}
+	presentInMap(Sprintf("%v", &m1), a, t)
+	presentInMap(Sprint(&m1), a, t)
 }
 
 func TestEmptyMap(t *testing.T) {
@@ -1208,86 +1238,66 @@ func TestNilDoesNotBecomeTyped(t *testing.T) {
 	}
 }
 
-// Formatters did not get delivered flags correctly in all cases. Issue 8835.
-type fp struct{}
-
-func (fp) Format(f State, c rune) {
-	s := "%"
-	for i := 0; i < 128; i++ {
-		if f.Flag(i) {
-			s += string(i)
-		}
-	}
-	if w, ok := f.Width(); ok {
-		s += Sprintf("%d", w)
-	}
-	if p, ok := f.Precision(); ok {
-		s += Sprintf(".%d", p)
-	}
-	s += string(c)
-	io.WriteString(f, "["+s+"]")
-}
-
 var formatterFlagTests = []struct {
 	in  string
 	val interface{}
 	out string
 }{
 	// scalar values with the (unused by fmt) 'a' verb.
-	{"%a", fp{}, "[%a]"},
-	{"%-a", fp{}, "[%-a]"},
-	{"%+a", fp{}, "[%+a]"},
-	{"%#a", fp{}, "[%#a]"},
-	{"% a", fp{}, "[% a]"},
-	{"%0a", fp{}, "[%0a]"},
-	{"%1.2a", fp{}, "[%1.2a]"},
-	{"%-1.2a", fp{}, "[%-1.2a]"},
-	{"%+1.2a", fp{}, "[%+1.2a]"},
-	{"%-+1.2a", fp{}, "[%+-1.2a]"},
-	{"%-+1.2abc", fp{}, "[%+-1.2a]bc"},
-	{"%-1.2abc", fp{}, "[%-1.2a]bc"},
+	{"%a", flagPrinter{}, "[%a]"},
+	{"%-a", flagPrinter{}, "[%-a]"},
+	{"%+a", flagPrinter{}, "[%+a]"},
+	{"%#a", flagPrinter{}, "[%#a]"},
+	{"% a", flagPrinter{}, "[% a]"},
+	{"%0a", flagPrinter{}, "[%0a]"},
+	{"%1.2a", flagPrinter{}, "[%1.2a]"},
+	{"%-1.2a", flagPrinter{}, "[%-1.2a]"},
+	{"%+1.2a", flagPrinter{}, "[%+1.2a]"},
+	{"%-+1.2a", flagPrinter{}, "[%+-1.2a]"},
+	{"%-+1.2abc", flagPrinter{}, "[%+-1.2a]bc"},
+	{"%-1.2abc", flagPrinter{}, "[%-1.2a]bc"},
 
 	// composite values with the 'a' verb
-	{"%a", [1]fp{}, "[[%a]]"},
-	{"%-a", [1]fp{}, "[[%-a]]"},
-	{"%+a", [1]fp{}, "[[%+a]]"},
-	{"%#a", [1]fp{}, "[[%#a]]"},
-	{"% a", [1]fp{}, "[[% a]]"},
-	{"%0a", [1]fp{}, "[[%0a]]"},
-	{"%1.2a", [1]fp{}, "[[%1.2a]]"},
-	{"%-1.2a", [1]fp{}, "[[%-1.2a]]"},
-	{"%+1.2a", [1]fp{}, "[[%+1.2a]]"},
-	{"%-+1.2a", [1]fp{}, "[[%+-1.2a]]"},
-	{"%-+1.2abc", [1]fp{}, "[[%+-1.2a]]bc"},
-	{"%-1.2abc", [1]fp{}, "[[%-1.2a]]bc"},
+	{"%a", [1]flagPrinter{}, "[[%a]]"},
+	{"%-a", [1]flagPrinter{}, "[[%-a]]"},
+	{"%+a", [1]flagPrinter{}, "[[%+a]]"},
+	{"%#a", [1]flagPrinter{}, "[[%#a]]"},
+	{"% a", [1]flagPrinter{}, "[[% a]]"},
+	{"%0a", [1]flagPrinter{}, "[[%0a]]"},
+	{"%1.2a", [1]flagPrinter{}, "[[%1.2a]]"},
+	{"%-1.2a", [1]flagPrinter{}, "[[%-1.2a]]"},
+	{"%+1.2a", [1]flagPrinter{}, "[[%+1.2a]]"},
+	{"%-+1.2a", [1]flagPrinter{}, "[[%+-1.2a]]"},
+	{"%-+1.2abc", [1]flagPrinter{}, "[[%+-1.2a]]bc"},
+	{"%-1.2abc", [1]flagPrinter{}, "[[%-1.2a]]bc"},
 
 	// simple values with the 'v' verb
-	{"%v", fp{}, "[%v]"},
-	{"%-v", fp{}, "[%-v]"},
-	{"%+v", fp{}, "[%+v]"},
-	{"%#v", fp{}, "[%#v]"},
-	{"% v", fp{}, "[% v]"},
-	{"%0v", fp{}, "[%0v]"},
-	{"%1.2v", fp{}, "[%1.2v]"},
-	{"%-1.2v", fp{}, "[%-1.2v]"},
-	{"%+1.2v", fp{}, "[%+1.2v]"},
-	{"%-+1.2v", fp{}, "[%+-1.2v]"},
-	{"%-+1.2vbc", fp{}, "[%+-1.2v]bc"},
-	{"%-1.2vbc", fp{}, "[%-1.2v]bc"},
+	{"%v", flagPrinter{}, "[%v]"},
+	{"%-v", flagPrinter{}, "[%-v]"},
+	{"%+v", flagPrinter{}, "[%+v]"},
+	{"%#v", flagPrinter{}, "[%#v]"},
+	{"% v", flagPrinter{}, "[% v]"},
+	{"%0v", flagPrinter{}, "[%0v]"},
+	{"%1.2v", flagPrinter{}, "[%1.2v]"},
+	{"%-1.2v", flagPrinter{}, "[%-1.2v]"},
+	{"%+1.2v", flagPrinter{}, "[%+1.2v]"},
+	{"%-+1.2v", flagPrinter{}, "[%+-1.2v]"},
+	{"%-+1.2vbc", flagPrinter{}, "[%+-1.2v]bc"},
+	{"%-1.2vbc", flagPrinter{}, "[%-1.2v]bc"},
 
-	// composite values with the 'v' verb. Some are still broken.
-	{"%v", [1]fp{}, "[[%v]]"},
-	{"%-v", [1]fp{}, "[[%-v]]"},
-	//{"%+v", [1]fp{}, "[[%+v]]"},
-	{"%#v", [1]fp{}, "[1]fmt_test.fp{[%#v]}"},
-	{"% v", [1]fp{}, "[[% v]]"},
-	{"%0v", [1]fp{}, "[[%0v]]"},
-	{"%1.2v", [1]fp{}, "[[%1.2v]]"},
-	{"%-1.2v", [1]fp{}, "[[%-1.2v]]"},
-	//{"%+1.2v", [1]fp{}, "[[%+1.2v]]"},
-	//{"%-+1.2v", [1]fp{}, "[[%+-1.2v]]"},
-	//{"%-+1.2vbc", [1]fp{}, "[[%+-1.2v]]bc"},
-	{"%-1.2vbc", [1]fp{}, "[[%-1.2v]]bc"},
+	// composite values with the 'v' verb.
+	{"%v", [1]flagPrinter{}, "[[%v]]"},
+	{"%-v", [1]flagPrinter{}, "[[%-v]]"},
+	{"%+v", [1]flagPrinter{}, "[[%+v]]"},
+	{"%#v", [1]flagPrinter{}, "[1]fmt_test.flagPrinter{[%#v]}"},
+	{"% v", [1]flagPrinter{}, "[[% v]]"},
+	{"%0v", [1]flagPrinter{}, "[[%0v]]"},
+	{"%1.2v", [1]flagPrinter{}, "[[%1.2v]]"},
+	{"%-1.2v", [1]flagPrinter{}, "[[%-1.2v]]"},
+	{"%+1.2v", [1]flagPrinter{}, "[[%+1.2v]]"},
+	{"%-+1.2v", [1]flagPrinter{}, "[[%+-1.2v]]"},
+	{"%-+1.2vbc", [1]flagPrinter{}, "[[%+-1.2v]]bc"},
+	{"%-1.2vbc", [1]flagPrinter{}, "[[%-1.2v]]bc"},
 }
 
 func TestFormatterFlags(t *testing.T) {

@@ -379,6 +379,7 @@ loop:
 	sglist = gp.waiting
 	// Clear all elem before unlinking from gp.waiting.
 	for sg1 := gp.waiting; sg1 != nil; sg1 = sg1.waitlink {
+		sg1.selectdone = nil
 		sg1.elem = nil
 	}
 	gp.waiting = nil

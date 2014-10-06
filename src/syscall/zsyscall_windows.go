@@ -176,7 +176,11 @@ func LoadLibrary(libname string) (handle Handle, err error) {
 	if err != nil {
 		return
 	}
-	r0, _, e1 := Syscall(procLoadLibraryW.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	return _LoadLibrary(_p0)
+}
+
+func _LoadLibrary(libname *uint16) (handle Handle, err error) {
+	r0, _, e1 := Syscall(procLoadLibraryW.Addr(), 1, uintptr(unsafe.Pointer(libname)), 0, 0)
 	handle = Handle(r0)
 	if handle == 0 {
 		if e1 != 0 {
@@ -206,7 +210,11 @@ func GetProcAddress(module Handle, procname string) (proc uintptr, err error) {
 	if err != nil {
 		return
 	}
-	r0, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(_p0)), 0)
+	return _GetProcAddress(module, _p0)
+}
+
+func _GetProcAddress(module Handle, procname *byte) (proc uintptr, err error) {
+	r0, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(procname)), 0)
 	proc = uintptr(r0)
 	if proc == 0 {
 		if e1 != 0 {
@@ -1558,7 +1566,11 @@ func GetHostByName(name string) (h *Hostent, err error) {
 	if err != nil {
 		return
 	}
-	r0, _, e1 := Syscall(procgethostbyname.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	return _GetHostByName(_p0)
+}
+
+func _GetHostByName(name *byte) (h *Hostent, err error) {
+	r0, _, e1 := Syscall(procgethostbyname.Addr(), 1, uintptr(unsafe.Pointer(name)), 0, 0)
 	h = (*Hostent)(unsafe.Pointer(r0))
 	if h == nil {
 		if e1 != 0 {
@@ -1581,7 +1593,11 @@ func GetServByName(name string, proto string) (s *Servent, err error) {
 	if err != nil {
 		return
 	}
-	r0, _, e1 := Syscall(procgetservbyname.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+	return _GetServByName(_p0, _p1)
+}
+
+func _GetServByName(name *byte, proto *byte) (s *Servent, err error) {
+	r0, _, e1 := Syscall(procgetservbyname.Addr(), 2, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(proto)), 0)
 	s = (*Servent)(unsafe.Pointer(r0))
 	if s == nil {
 		if e1 != 0 {
@@ -1605,7 +1621,11 @@ func GetProtoByName(name string) (p *Protoent, err error) {
 	if err != nil {
 		return
 	}
-	r0, _, e1 := Syscall(procgetprotobyname.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0)
+	return _GetProtoByName(_p0)
+}
+
+func _GetProtoByName(name *byte) (p *Protoent, err error) {
+	r0, _, e1 := Syscall(procgetprotobyname.Addr(), 1, uintptr(unsafe.Pointer(name)), 0, 0)
 	p = (*Protoent)(unsafe.Pointer(r0))
 	if p == nil {
 		if e1 != 0 {
@@ -1623,7 +1643,11 @@ func DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSR
 	if status != nil {
 		return
 	}
-	r0, _, _ := Syscall6(procDnsQuery_W.Addr(), 6, uintptr(unsafe.Pointer(_p0)), uintptr(qtype), uintptr(options), uintptr(unsafe.Pointer(extra)), uintptr(unsafe.Pointer(qrs)), uintptr(unsafe.Pointer(pr)))
+	return _DnsQuery(_p0, qtype, options, extra, qrs, pr)
+}
+
+func _DnsQuery(name *uint16, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status error) {
+	r0, _, _ := Syscall6(procDnsQuery_W.Addr(), 6, uintptr(unsafe.Pointer(name)), uintptr(qtype), uintptr(options), uintptr(unsafe.Pointer(extra)), uintptr(unsafe.Pointer(qrs)), uintptr(unsafe.Pointer(pr)))
 	if r0 != 0 {
 		status = Errno(r0)
 	}
