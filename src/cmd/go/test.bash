@@ -1085,6 +1085,20 @@ fi
 unset GOPATH
 rm -rf $d
 
+TEST go vet with external tests
+d=$(mktemp -d -t testgoXXX)
+export GOPATH=$(pwd)/testdata
+if ./testgo vet vetpkg >$d/err 2>&1; then
+	echo "go vet vetpkg passes incorrectly"
+	ok=false
+elif ! grep -q 'missing argument for Printf' $d/err; then
+	echo "go vet vetpkg did not find missing argument for Printf"
+	cat $d/err
+	ok=false
+fi
+unset GOPATH
+rm -rf $d
+
 # clean up
 if $started; then stop; fi
 rm -rf testdata/bin testdata/bin1
