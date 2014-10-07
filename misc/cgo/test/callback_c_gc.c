@@ -39,6 +39,16 @@ callCgoAllocate(void)
 	int i;
 	struct { size_t n; void *ret; } a;
 	List *l, *head, **tail;
+
+	// Make sure this doesn't crash.
+	// And make sure it returns non-nil.
+	a.n = 0;
+	a.ret = 0;
+	crosscall2(_cgo_allocate, &a, sizeof a);
+	if(a.ret == 0) {
+		fprintf(stderr, "callCgoAllocate: alloc 0 returned nil\n");
+		exit(2);
+	}
 	
 	head = 0;
 	tail = &head;
