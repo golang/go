@@ -7,7 +7,7 @@
 // finalizers, etc.) to a file.
 
 // The format of the dumped file is described at
-// http://code.google.com/p/go-wiki/wiki/heapdump13
+// http://code.google.com/p/go-wiki/wiki/heapdump14
 
 #include "runtime.h"
 #include "arch_GOARCH.h"
@@ -27,10 +27,8 @@ extern byte runtime·ebss[];
 enum {
 	FieldKindEol = 0,
 	FieldKindPtr = 1,
-	FieldKindString = 2,
-	FieldKindSlice = 3,
-	FieldKindIface = 4,
-	FieldKindEface = 5,
+	FieldKindIface = 2,
+	FieldKindEface = 3,
 
 	TagEOF = 0,
 	TagObject = 1,
@@ -200,7 +198,6 @@ dumptype(Type *t)
 		write(t->x->name->str, t->x->name->len);
 	}
 	dumpbool((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0);
-	dumpfields((BitVector){0, nil});
 }
 
 // dump an object
@@ -210,9 +207,8 @@ dumpobj(byte *obj, uintptr size, BitVector bv)
 	dumpbvtypes(&bv, obj);
 	dumpint(TagObject);
 	dumpint((uintptr)obj);
-	dumpint(0); // Type*
-	dumpint(0); // kind
 	dumpmemrange(obj, size);
+	dumpfields(bv);
 }
 
 static void
@@ -255,6 +251,7 @@ dumpbv(BitVector *bv, uintptr offset)
 	for(i = 0; i < bv->n; i += BitsPerPointer) {
 		switch(bv->bytedata[i/8] >> i%8 & 3) {
 		case BitsDead:
+			return;
 		case BitsScalar:
 			break;
 		case BitsPointer:
@@ -489,16 +486,18 @@ dumproots(void)
 	byte *p;
 
 	// data segment
+	dumpbvtypes(&runtime·gcdatamask, runtime·data);
 	dumpint(TagData);
 	dumpint((uintptr)runtime·data);
 	dumpmemrange(runtime·data, runtime·edata - runtime·data);
 	dumpfields(runtime·gcdatamask);
 
 	// bss segment
+	dumpbvtypes(&runtime·gcbssmask, runtime·bss);
 	dumpint(TagBss);
 	dumpint((uintptr)runtime·bss);
 	dumpmemrange(runtime·bss, runtime·ebss - runtime·bss);
-	dumpfields(runtime·gcdatamask);
+	dumpfields(runtime·gcbssmask);
 
 	// MSpan.types
 	allspans = runtime·mheap.allspans;
@@ -578,10 +577,29 @@ itab_callback(Itab *tab)
 {
 	Type *t;
 
-	dumpint(TagItab);
-	dumpint((uintptr)tab);
 	t = tab->type;
-	dumpbool((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0);
+	// Dump a map from itab* to the type of its data field.
+	// We want this map so we can deduce types of interface referents.
+	if((t->kind & KindDirectIface) == 0) {
+		// indirect - data slot is a pointer to t.
+		dumptype(t->ptrto);
+		dumpint(TagItab);
+		dumpint((uintptr)tab);
+		dumpint((uintptr)t->ptrto);
+	} else if((t->kind & KindNoPointers) == 0) {
+		// t is pointer-like - data slot is a t.
+		dumptype(t);
+		dumpint(TagItab);
+		dumpint((uintptr)tab);
+		dumpint((uintptr)t);
+	} else {
+		// Data slot is a scalar.  Dump type just for fun.
+		// With pointer-only interfaces, this shouldn't happen.
+		dumptype(t);
+		dumpint(TagItab);
+		dumpint((uintptr)tab);
+		dumpint((uintptr)t);
+	}
 }
 
 static void
@@ -726,7 +744,7 @@ mdump(void)
 	}
 
 	runtime·memclr((byte*)&typecache[0], sizeof(typecache));
-	hdr = (byte*)"go1.3 heap dump\n";
+	hdr = (byte*)"go1.4 heap dump\n";
 	write(hdr, runtime·findnull(hdr));
 	dumpparams();
 	dumpitabs();
