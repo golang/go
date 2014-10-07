@@ -6,6 +6,9 @@ package rpc
 
 import (
 	"errors"
+	"fmt"
+	"net"
+	"strings"
 	"testing"
 )
 
@@ -33,4 +36,52 @@ func TestCloseCodec(t *testing.T) {
 	if !codec.closed {
 		t.Error("client.Close did not close codec")
 	}
+}
+
+// Test that errors in gob shut down the connection. Issue 7689.
+
+type R struct {
+	msg []byte // Not exported, so R does not work with gob.
+}
+
+type S struct{}
+
+func (s *S) Recv(nul *struct{}, reply *R) error {
+	*reply = R{[]byte("foo")}
+	return nil
+}
+
+func TestGobError(t *testing.T) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatal("no error")
+		}
+		if !strings.Contains("reading body EOF", err.(error).Error()) {
+			t.Fatal("expected `reading body EOF', got", err)
+		}
+	}()
+	Register(new(S))
+
+	listen, err := net.Listen("tcp", ":5555")
+	if err != nil {
+		panic(err)
+	}
+	go Accept(listen)
+
+	client, err := Dial("tcp", ":5555")
+	if err != nil {
+		panic(err)
+	}
+
+	var reply Reply
+	err = client.Call("S.Recv", &struct{}{}, &reply)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%#v\n", reply)
+	client.Close()
+
+	listen.Close()
 }
