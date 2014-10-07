@@ -35,6 +35,13 @@ callCgoAllocate(void)
 	int i;
 	List *l, *head, **tail;
 	
+	// Make sure this doesn't crash.
+	// And make sure it returns non-nil.
+	if(_cgo_allocate(0) == 0) {
+		fprintf(stderr, "callCgoAllocate: alloc 0 returned nil\n");
+		exit(2);
+	}
+
 	head = 0;
 	tail = &head;
 	for(i=0; i<100; i++) {
