@@ -64,6 +64,7 @@
 
 enum {
 	Debug		= 0,
+	DebugPtrs	= 0, // if 1, print trace of every pointer load during GC
 	ConcurrentSweep	= 1,
 
 	WorkbufSize	= 4*1024,
@@ -127,6 +128,9 @@ BitVector	runtime·gcbssmask;
 
 Mutex	runtime·gclock;
 
+static	uintptr	badblock[1024];
+static	int32	nbadblock;
+
 static Workbuf* getempty(Workbuf*);
 static Workbuf* getfull(Workbuf*);
 static void	putempty(Workbuf*);
@@ -158,6 +162,14 @@ struct WorkData {
 };
 WorkData runtime·work;
 
+// Is _cgo_allocate linked into the binary?
+static bool
+have_cgo_allocate(void)
+{
+	extern	byte	go·weak·runtime·_cgo_allocate_internal[1];
+	return go·weak·runtime·_cgo_allocate_internal != nil;
+}
+
 // scanblock scans a block of n bytes starting at pointer b for references
 // to other objects, scanning any it finds recursively until there are no
 // unscanned objects left.  Instead of using an explicit recursion, it keeps
@@ -167,8 +179,8 @@ WorkData runtime·work;
 static void
 scanblock(byte *b, uintptr n, byte *ptrmask)
 {
-	byte *obj, *p, *arena_start, *arena_used, **wp, *scanbuf[8], *ptrbitp, *bitp, bits, xbits, shift, cached;
-	uintptr i, nobj, size, idx, x, off, scanbufpos;
+	byte *obj, *obj0, *p, *arena_start, *arena_used, **wp, *scanbuf[8], *ptrbitp, *bitp, bits, xbits, shift, cached;
+	uintptr i, j, nobj, size, idx, x, off, scanbufpos;
 	intptr ncached;
 	Workbuf *wbuf;
 	Iface *iface;
@@ -241,6 +253,8 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 		ptrmask = nil; // use GC bitmap for pointer info
 
 	scanobj:
+		if(DebugPtrs)
+			runtime·printf("scanblock %p +%p %p\n", b, n, ptrmask);
 		// Find bits of the beginning of the object.
 		if(ptrmask == nil) {
 			off = (uintptr*)b - (uintptr*)arena_start;
@@ -279,6 +293,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				continue;
 			if(bits == BitsPointer) {
 				obj = *(byte**)(b+i);
+				obj0 = obj;
 				goto markobj;
 			}
 
@@ -321,12 +336,20 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			cached >>= gcBits;
 			ncached--;
 
+			obj0 = obj;
 		markobj:
 			// At this point we have extracted the next potential pointer.
 			// Check if it points into heap.
-			if(obj == nil || obj < arena_start || obj >= arena_used)
+			if(obj == nil)
+				continue;
+			if((uintptr)obj < PhysPageSize) {
+				s = nil;
+				goto badobj;
+			}
+			if(obj < arena_start || obj >= arena_used)
 				continue;
 			// Mark the object.
+			obj = (byte*)((uintptr)obj & ~(PtrSize-1));
 			off = (uintptr*)obj - (uintptr*)arena_start;
 			bitp = arena_start - off/wordsPerBitmapByte - 1;
 			shift = (off % wordsPerBitmapByte) * gcBits;
@@ -338,8 +361,40 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				x = k;
 				x -= (uintptr)arena_start>>PageShift;
 				s = runtime·mheap.spans[x];
-				if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
+				if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse) {
+					// Stack pointers lie within the arena bounds but are not part of the GC heap.
+					// Ignore them.
+					if(s != nil && s->state == MSpanStack)
+						continue;
+				
+				badobj:
+					// If cgo_allocate is linked into the binary, it can allocate
+					// memory as []unsafe.Pointer that may not contain actual
+					// pointers and must be scanned conservatively.
+					// In this case alone, allow the bad pointer.
+					if(have_cgo_allocate() && ptrmask == nil)
+						continue;
+
+					// Anything else indicates a bug somewhere.
+					// If we're in the middle of chasing down a different bad pointer,
+					// don't confuse the trace by printing about this one.
+					if(nbadblock > 0)
+						continue;
+
+					runtime·printf("runtime: garbage collector found invalid heap pointer *(%p+%p)=%p", b, i, obj);
+					if(s == nil)
+						runtime·printf(" s=nil\n");
+					else
+						runtime·printf(" span=%p-%p-%p state=%d\n", (uintptr)s->start<<PageShift, s->limit, (uintptr)(s->start+s->npages)<<PageShift, s->state);
+					if(ptrmask != nil)
+						runtime·throw("bad pointer");
+					// Add to badblock list, which will cause the garbage collection
+					// to keep repeating until it has traced the chain of pointers
+					// leading to obj all the way back to a root.
+					if(nbadblock == 0)
+						badblock[nbadblock++] = (uintptr)b;
 					continue;
+				}
 				p = (byte*)((uintptr)s->start<<PageShift);
 				if(s->sizeclass != 0) {
 					size = s->elemsize;
@@ -353,6 +408,24 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 				}
 				obj = p;
 				goto markobj;
+			}
+			if(DebugPtrs)
+				runtime·printf("scan *%p = %p => base %p\n", b+i, obj0, obj);
+
+			if(nbadblock > 0 && (uintptr)obj == badblock[nbadblock-1]) {
+				// Running garbage collection again because
+				// we want to find the path from a root to a bad pointer.
+				// Found possible next step; extend or finish path.
+				for(j=0; j<nbadblock; j++)
+					if(badblock[j] == (uintptr)b)
+						goto AlreadyBad;
+				runtime·printf("runtime: found *(%p+%p) = %p+%p\n", b, i, obj0, (uintptr)(obj-obj0));
+				if(ptrmask != nil)
+					runtime·throw("bad pointer");
+				if(nbadblock >= nelem(badblock))
+					runtime·throw("badblock trace too long");
+				badblock[nbadblock++] = (uintptr)b;
+			AlreadyBad:;
 			}
 
 			// Now we have bits, bitp, and shift correct for
@@ -381,7 +454,6 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 
 			// Queue the obj for scanning.
 			PREFETCH(obj);
-			obj = (byte*)((uintptr)obj & ~(PtrSize-1));
 			p = scanbuf[scanbufpos];
 			scanbuf[scanbufpos++] = obj;
 			if(scanbufpos == nelem(scanbuf))
@@ -400,6 +472,8 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			wp++;
 			nobj++;
 		}
+		if(DebugPtrs)
+			runtime·printf("end scanblock %p +%p %p\n", b, n, ptrmask);
 
 		if(Debug && ptrmask == nil) {
 			// For heap objects ensure that we did not overscan.
@@ -1306,6 +1380,15 @@ runtime·gc_m(void)
 	a.eagersweep = g->m->scalararg[2];
 	gc(&a);
 
+	if(nbadblock > 0) {
+		// Work out path from root to bad block.
+		for(;;) {
+			gc(&a);
+			if(nbadblock >= nelem(badblock))
+				runtime·throw("cannot find path to bad pointer");
+		}
+	}
+
 	runtime·casgstatus(gp, Gwaiting, Grunning);
 }
 
@@ -1315,6 +1398,9 @@ gc(struct gc_args *args)
 	int64 t0, t1, t2, t3, t4;
 	uint64 heap0, heap1, obj;
 	GCStats stats;
+
+	if(DebugPtrs)
+		runtime·printf("GC start\n");
 
 	if(runtime·debug.allocfreetrace)
 		runtime·tracegc();
@@ -1450,6 +1536,9 @@ gc(struct gc_args *args)
 
 	runtime·mProf_GC();
 	g->m->traceback = 0;
+
+	if(DebugPtrs)
+		runtime·printf("GC end\n");
 }
 
 extern uintptr runtime·sizeof_C_MStats;
