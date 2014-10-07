@@ -46,7 +46,13 @@ func commitHandler(r *http.Request) (interface{}, error) {
 	if r.Method == "GET" {
 		com.PackagePath = r.FormValue("packagePath")
 		com.Hash = r.FormValue("hash")
-		if err := datastore.Get(c, com.Key(c), com); err != nil {
+		err := datastore.Get(c, com.Key(c), com)
+		if com.Num == 0 && com.Desc == "" {
+			// Perf builder might have written an incomplete Commit.
+			// Pretend it doesn't exist, so that we can get complete details.
+			err = datastore.ErrNoSuchEntity
+		}
+		if err != nil {
 			if err == datastore.ErrNoSuchEntity {
 				// This error string is special.
 				// The commit watcher expects it.

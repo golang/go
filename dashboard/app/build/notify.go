@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"runtime"
 	"sort"
 	"text/template"
 
@@ -216,6 +217,13 @@ func sendPerfFailMail(c appengine.Context, builder string, res *PerfResult) erro
 }
 
 func commonNotify(c appengine.Context, com *Commit, builder, logHash string) error {
+	if com.Num == 0 || com.Desc == "" {
+		stk := make([]byte, 10000)
+		n := runtime.Stack(stk, false)
+		stk = stk[:n]
+		c.Errorf("refusing to notify with com=%+v\n%s", *com, string(stk))
+		return fmt.Errorf("misuse of commonNotify")
+	}
 	if com.FailNotificationSent {
 		return nil
 	}
