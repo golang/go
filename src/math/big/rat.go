@@ -699,12 +699,12 @@ func (z *Rat) GobDecode(buf []byte) error {
 	return nil
 }
 
-// MarshalText implements the encoding.TextMarshaler interface
+// MarshalText implements the encoding.TextMarshaler interface.
 func (r *Rat) MarshalText() (text []byte, err error) {
 	return []byte(r.RatString()), nil
 }
 
-// UnmarshalText implements the encoding.TextUnmarshaler interface
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
 func (r *Rat) UnmarshalText(text []byte) error {
 	if _, ok := r.SetString(string(text)); !ok {
 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Rat", text)

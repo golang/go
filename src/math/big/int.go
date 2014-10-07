@@ -1016,12 +1016,12 @@ func (z *Int) UnmarshalJSON(text []byte) error {
 	return nil
 }
 
-// MarshalText implements the encoding.TextMarshaler interface
+// MarshalText implements the encoding.TextMarshaler interface.
 func (z *Int) MarshalText() (text []byte, err error) {
 	return []byte(z.String()), nil
 }
 
-// UnmarshalText implements the encoding.TextUnmarshaler interface
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
 func (z *Int) UnmarshalText(text []byte) error {
 	if _, ok := z.SetString(string(text), 0); !ok {
 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
