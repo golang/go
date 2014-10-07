@@ -585,14 +585,11 @@ loop2:
 			}
 			rgp->cost = change;
 			nregion++;
-			if(nregion >= NRGN) {
-				warn(Z, "too many regions");
-				goto brk;
-			}
+			if(nregion >= NRGN)
+				fatal(Z, "too many regions");
 			rgp++;
 		}
 	}
-brk:
 	qsort(region, nregion, sizeof(region[0]), rcmp);
 
 	/*
@@ -808,11 +805,8 @@ mkvar(Reg *r, Addr *a)
 			goto out;
 		v++;
 	}
-	if(nvar >= NVAR) {
-		if(debug['w'] > 1 && s)
-			warn(Z, "variable not optimized: %s", s->name);
-		goto none;
-	}
+	if(nvar >= NVAR)
+		fatal(Z, "variable not optimized: %s", s->name);
 	i = nvar;
 	nvar++;
 	v = &var[i];
