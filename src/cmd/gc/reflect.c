@@ -809,7 +809,7 @@ dcommontype(Sym *s, int ot, Type *t)
 		for(i=0; i<8; i++)
 			x1 = x1<<8 | gcmask[i];
 		if(widthptr == 4) {
-			p = smprint("gcbits.%#016x", x1);
+			p = smprint("gcbits.%#016llux", x1);
 		} else {
 			x2 = 0;
 			for(i=0; i<8; i++)
