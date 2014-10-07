@@ -1523,8 +1523,8 @@ func (gc *gcProg) appendProg(t *rtype) {
 		// The program is stored in t.gc[0], skip unroll flag.
 		prog = (*[1 << 30]byte)(unsafe.Pointer(t.gc[0]))[1:]
 	} else {
-		// The mask is embed directly in t.gc.
-		prog = (*[1 << 30]byte)(unsafe.Pointer(&t.gc[0]))[:]
+		// The mask is linked directly in t.gc.
+		prog = (*[2 * ptrSize]byte)(unsafe.Pointer(t.gc[0]))[:]
 	}
 	for i := uintptr(0); i < nptr; i++ {
 		gc.appendWord(extractGCWord(prog, i))
