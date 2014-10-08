@@ -30,28 +30,29 @@ syntax of package template.  The default output is equivalent to -f
 '{{.ImportPath}}'. The struct being passed to the template is:
 
     type Package struct {
-        Dir        string // directory containing package sources
-        ImportPath string // import path of package in dir
-        Name       string // package name
-        Doc        string // package documentation string
-        Target     string // install path
-        Goroot     bool   // is this package in the Go root?
-        Standard   bool   // is this package part of the standard Go library?
-        Stale      bool   // would 'go install' do anything for this package?
-        Root       string // Go root or Go path dir containing this package
+        Dir           string // directory containing package sources
+        ImportPath    string // import path of package in dir
+        ImportComment string // path in import comment on package statement
+        Name          string // package name
+        Doc           string // package documentation string
+        Target        string // install path
+        Goroot        bool   // is this package in the Go root?
+        Standard      bool   // is this package part of the standard Go library?
+        Stale         bool   // would 'go install' do anything for this package?
+        Root          string // Go root or Go path dir containing this package
 
         // Source files
-        GoFiles  []string       // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-        CgoFiles []string       // .go sources files that import "C"
+        GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+        CgoFiles       []string // .go sources files that import "C"
         IgnoredGoFiles []string // .go sources ignored due to build constraints
-        CFiles   []string       // .c source files
-        CXXFiles []string       // .cc, .cxx and .cpp source files
-        MFiles   []string       // .m source files
-        HFiles   []string       // .h, .hh, .hpp and .hxx source files
-        SFiles   []string       // .s source files
-        SwigFiles []string      // .swig files
-        SwigCXXFiles []string   // .swigcxx files
-        SysoFiles []string      // .syso object files to add to archive
+        CFiles         []string // .c source files
+        CXXFiles       []string // .cc, .cxx and .cpp source files
+        MFiles         []string // .m source files
+        HFiles         []string // .h, .hh, .hpp and .hxx source files
+        SFiles         []string // .s source files
+        SwigFiles      []string // .swig files
+        SwigCXXFiles   []string // .swigcxx files
+        SysoFiles      []string // .syso object files to add to archive
 
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
