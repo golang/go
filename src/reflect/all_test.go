@@ -1569,6 +1569,24 @@ func (p Point) Dist(scale int) int {
 	return p.x*p.x*scale + p.y*p.y*scale
 }
 
+// This will be index 2.
+func (p Point) GCMethod(k int) int {
+	runtime.GC()
+	return k + p.x
+}
+
+// This will be index 3.
+func (p Point) TotalDist(points ...Point) int {
+	tot := 0
+	for _, q := range points {
+		dx := q.x - p.x
+		dy := q.y - p.y
+		tot += dx*dx + dy*dy // Should call Sqrt, but it's just a test.
+
+	}
+	return tot
+}
+
 func TestMethod(t *testing.T) {
 	// Non-curried method of type.
 	p := Point{3, 4}
@@ -1748,6 +1766,37 @@ func TestMethodValue(t *testing.T) {
 	i = ValueOf(v.Interface()).Call([]Value{ValueOf(17)})[0].Int()
 	if i != 425 {
 		t.Errorf("Interface MethodByName returned %d; want 425", i)
+	}
+}
+
+func TestVariadicMethodValue(t *testing.T) {
+	p := Point{3, 4}
+	points := []Point{{20, 21}, {22, 23}, {24, 25}}
+	want := int64(p.TotalDist(points[0], points[1], points[2]))
+
+	// Curried method of value.
+	tfunc := TypeOf((func(...Point) int)(nil))
+	v := ValueOf(p).Method(3)
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Variadic Method Type is %s; want %s", tt, tfunc)
+	}
+	i := ValueOf(v.Interface()).Call([]Value{ValueOf(points[0]), ValueOf(points[1]), ValueOf(points[2])})[0].Int()
+	if i != want {
+		t.Errorf("Variadic Method returned %d; want %d", i, want)
+	}
+	i = ValueOf(v.Interface()).CallSlice([]Value{ValueOf(points)})[0].Int()
+	if i != want {
+		t.Errorf("Variadic Method CallSlice returned %d; want %d", i, want)
+	}
+
+	f := v.Interface().(func(...Point) int)
+	i = int64(f(points[0], points[1], points[2]))
+	if i != want {
+		t.Errorf("Variadic Method Interface returned %d; want %d", i, want)
+	}
+	i = int64(f(points...))
+	if i != want {
+		t.Errorf("Variadic Method Interface Slice returned %d; want %d", i, want)
 	}
 }
 
@@ -3768,11 +3817,6 @@ func GCFunc(args []Value) []Value {
 func TestReflectFuncTraceback(t *testing.T) {
 	f := MakeFunc(TypeOf(func() {}), GCFunc)
 	f.Call([]Value{})
-}
-
-func (p Point) GCMethod(k int) int {
-	runtime.GC()
-	return k + p.x
 }
 
 func TestReflectMethodTraceback(t *testing.T) {
