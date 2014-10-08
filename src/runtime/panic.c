@@ -34,6 +34,8 @@ runtime·deferproc_m(void)
 	g->m->scalararg[1] = 0;
 
 	d = runtime·newdefer(siz);
+	if(d->panic != nil)
+		runtime·throw("deferproc: d->panic != nil after newdefer");
 	d->fn = fn;
 	d->pc = callerpc;
 	d->argp = argp;
