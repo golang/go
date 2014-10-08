@@ -28,6 +28,11 @@ type Sizes interface {
 //	  specified size.
 //	- The size of strings and interfaces is 2*WordSize.
 //	- The size of slices is 3*WordSize.
+//	- The size of arrays is the aligned size (see below) of an element
+//        multiplied by the number of elements.
+//      - The size of a struct is the offset of the last field plus that
+//	  field's size. If the struct is used in an array its size must
+//        first be aligned to a multiple of the struct's alignment.
 //	- All other types have size WordSize.
 //	- Arrays and structs are aligned per spec definition; all other
 //	  types are naturally aligned with a maximum alignment MaxAlign.
