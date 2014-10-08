@@ -181,7 +181,6 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 	// not mirrored, e.g. in support/, we can sync to the most recent gcc commit that
 	// occurred before those files were modified to verify gccgo's status at that point.
 	logCmd := []string{
-		"git",
 		"log",
 		"-1",
 		"--format=%H",
@@ -207,7 +206,7 @@ func (env *gccgoEnv) setup(repo *Repo, workpath, hash string, envv []string) (st
 	}
 
 	buf.Reset()
-	if err := run(exec.Command(gccpath, logCmd...), runEnv(envv), allOutput(&buf), runDir(gccpath)); err != nil {
+	if err := run(exec.Command("git", logCmd...), runEnv(envv), allOutput(&buf), runDir(gccpath)); err != nil {
 		return "", fmt.Errorf("%s: %s", errMsg, err)
 	}
 	gccRev := buf.String()
