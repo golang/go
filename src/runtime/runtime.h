@@ -852,6 +852,7 @@ void	runtime·stackinit(void);
 Stack	runtime·stackalloc(uint32);
 void	runtime·stackfree(Stack);
 void	runtime·shrinkstack(G*);
+void	runtime·shrinkfinish(void);
 MCache*	runtime·allocmcache(void);
 void	runtime·freemcache(MCache*);
 void	runtime·mallocinit(void);

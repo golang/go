@@ -1445,6 +1445,8 @@ gc(struct gc_args *args)
 	if(runtime·work.nproc > 1)
 		runtime·notesleep(&runtime·work.alldone);
 
+	runtime·shrinkfinish();
+
 	cachestats();
 	// next_gc calculation is tricky with concurrent sweep since we don't know size of live heap
 	// estimate what was live heap size after previous GC (for tracing only)
