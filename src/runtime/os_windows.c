@@ -268,19 +268,19 @@ runtime·mpreinit(M *mp)
 void
 runtime·minit(void)
 {
-	void *thandle;
+	uintptr thandle;
 
 	// -1 = current process, -2 = current thread
 	runtime·stdcall7(runtime·DuplicateHandle, -1, -2, -1, (uintptr)&thandle, 0, 0, DUPLICATE_SAME_ACCESS);
-	runtime·atomicstorep(&g->m->thread, thandle);
+	runtime·atomicstoreuintptr(&g->m->thread, thandle);
 }
 
 // Called from dropm to undo the effect of an minit.
 void
 runtime·unminit(void)
 {
-	runtime·stdcall1(runtime·CloseHandle, (uintptr)g->m->thread);
-	g->m->thread = nil;
+	runtime·stdcall1(runtime·CloseHandle, g->m->thread);
+	g->m->thread = 0;
 }
 
 // Described in http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
@@ -532,7 +532,7 @@ void
 runtime·profileloop1(void)
 {
 	M *mp, *allm;
-	void *thread;
+	uintptr thread;
 
 	runtime·stdcall2(runtime·SetThreadPriority, -2, THREAD_PRIORITY_HIGHEST);
 
@@ -540,11 +540,11 @@ runtime·profileloop1(void)
 		runtime·stdcall2(runtime·WaitForSingleObject, (uintptr)profiletimer, -1);
 		allm = runtime·atomicloadp(&runtime·allm);
 		for(mp = allm; mp != nil; mp = mp->alllink) {
-			thread = runtime·atomicloadp(&mp->thread);
+			thread = runtime·atomicloaduintptr(&mp->thread);
 			// Do not profile threads blocked on Notes,
 			// this includes idle worker threads,
 			// idle timer thread, idle heap scavenger, etc.
-			if(thread == nil || mp->profilehz == 0 || mp->blocked)
+			if(thread == 0 || mp->profilehz == 0 || mp->blocked)
 				continue;
 			runtime·stdcall1(runtime·SuspendThread, (uintptr)thread);
 			if(mp->profilehz != 0 && !mp->blocked)
