@@ -36,6 +36,8 @@ MSpan runtime·stackpool[NumStackOrders];
 Mutex runtime·stackpoolmu;
 // TODO: one lock per order?
 
+static Stack stackfreequeue;
+
 void
 runtime·stackinit(void)
 {
@@ -656,7 +658,24 @@ copystack(G *gp, uintptr newsize)
 		while(p < ep)
 			*p++ = 0xfc;
 	}
-	runtime·stackfree(old);
+	if(newsize > old.hi-old.lo) {
+		// growing, free stack immediately
+		runtime·stackfree(old);
+	} else {
+		// shrinking, queue up free operation.  We can't actually free the stack
+		// just yet because we might run into the following situation:
+		// 1) GC starts, scans a SudoG but does not yet mark the SudoG.elem pointer
+		// 2) The stack that pointer points to is shrunk
+		// 3) The old stack is freed
+		// 4) The containing span is marked free
+		// 5) GC attempts to mark the SudoG.elem pointer.  The marking fails because
+		//    the pointer looks like a pointer into a free span.
+		// By not freeing, we prevent step #4 until GC is done.
+		runtime·lock(&runtime·stackpoolmu);
+		*(Stack*)old.lo = stackfreequeue;
+		stackfreequeue = old;
+		runtime·unlock(&runtime·stackpoolmu);
+	}
 }
 
 // round x up to a power of 2.
@@ -839,6 +858,23 @@ runtime·shrinkstack(G *gp)
 	if(StackDebug > 0)
 		runtime·printf("shrinking stack %D->%D\n", (uint64)oldsize, (uint64)newsize);
 	copystack(gp, newsize);
+}
+
+// Do any delayed stack freeing that was queued up during GC.
+void
+runtime·shrinkfinish(void)
+{
+	Stack s, t;
+
+	runtime·lock(&runtime·stackpoolmu);
+	s = stackfreequeue;
+	stackfreequeue = (Stack){0,0};
+	runtime·unlock(&runtime·stackpoolmu);
+	while(s.lo != 0) {
+		t = *(Stack*)s.lo;
+		runtime·stackfree(s);
+		s = t;
+	}
 }
 
 static void badc(void);
