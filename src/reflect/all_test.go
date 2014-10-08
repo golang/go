@@ -1543,12 +1543,33 @@ func TestMakeFuncVariadic(t *testing.T) {
 	fv := MakeFunc(TypeOf(fn), func(in []Value) []Value { return in[1:2] })
 	ValueOf(&fn).Elem().Set(fv)
 
-	r := fv.Call([]Value{ValueOf(1), ValueOf(2), ValueOf(3)})[0].Interface().([]int)
+	r := fn(1, 2, 3)
+	if r[0] != 2 || r[1] != 3 {
+		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
+	}
+
+	r = fn(1, []int{2, 3}...)
+	if r[0] != 2 || r[1] != 3 {
+		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
+	}
+
+	r = fv.Call([]Value{ValueOf(1), ValueOf(2), ValueOf(3)})[0].Interface().([]int)
 	if r[0] != 2 || r[1] != 3 {
 		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
 	}
 
 	r = fv.CallSlice([]Value{ValueOf(1), ValueOf([]int{2, 3})})[0].Interface().([]int)
+	if r[0] != 2 || r[1] != 3 {
+		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
+	}
+
+	f := fv.Interface().(func(int, ...int) []int)
+
+	r = f(1, 2, 3)
+	if r[0] != 2 || r[1] != 3 {
+		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
+	}
+	r = f(1, []int{2, 3}...)
 	if r[0] != 2 || r[1] != 3 {
 		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
 	}
