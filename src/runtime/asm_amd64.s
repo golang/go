@@ -491,6 +491,9 @@ TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-16
 TEXT runtime·atomicloaduint(SB), NOSPLIT, $0-16
 	JMP	runtime·atomicload64(SB)
 
+TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
+	JMP	runtime·atomicstore64(SB)
+
 // bool casp(void **val, void *old, void *new)
 // Atomically:
 //	if(*val == old){
