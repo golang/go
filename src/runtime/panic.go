@@ -189,8 +189,7 @@ func newdefer(siz int32) *_defer {
 //go:nosplit
 func freedefer(d *_defer) {
 	if d._panic != nil {
-		// _panic must be cleared before d is unlinked from gp.
-		gothrow("freedefer with d._panic != nil")
+		freedeferpanic()
 	}
 	sc := deferclass(uintptr(d.siz))
 	if sc < uintptr(len(p{}.deferpool)) {
@@ -201,6 +200,13 @@ func freedefer(d *_defer) {
 		pp.deferpool[sc] = d
 		releasem(mp)
 	}
+}
+
+// Separate function so that it can split stack.
+// Windows otherwise runs out of stack space.
+func freedeferpanic() {
+	// _panic must be cleared before d is unlinked from gp.
+	gothrow("freedefer with d._panic != nil")
 }
 
 // Run a deferred function if there is one.
