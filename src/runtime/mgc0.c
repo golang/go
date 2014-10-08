@@ -179,9 +179,8 @@ have_cgo_allocate(void)
 static void
 scanblock(byte *b, uintptr n, byte *ptrmask)
 {
-	byte *obj, *obj0, *p, *arena_start, *arena_used, **wp, *scanbuf[8], *ptrbitp, *bitp, bits, xbits, shift, cached;
-	uintptr i, j, nobj, size, idx, x, off, scanbufpos;
-	intptr ncached;
+	byte *obj, *obj0, *p, *arena_start, *arena_used, **wp, *scanbuf[8], *ptrbitp, *bitp;
+	uintptr i, j, nobj, size, idx, x, off, scanbufpos, bits, xbits, shift;
 	Workbuf *wbuf;
 	Iface *iface;
 	Eface *eface;
@@ -203,8 +202,6 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 		scanbuf[i] = nil;
 
 	ptrbitp = nil;
-	cached = 0;
-	ncached = 0;
 
 	// ptrmask can have 2 possible values:
 	// 1. nil - obtain pointer mask from GC bitmap.
@@ -259,10 +256,6 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 		if(ptrmask == nil) {
 			off = (uintptr*)b - (uintptr*)arena_start;
 			ptrbitp = arena_start - off/wordsPerBitmapByte - 1;
-			shift = (off % wordsPerBitmapByte) * gcBits;
-			cached = *ptrbitp >> shift;
-			cached &= ~bitBoundary;
-			ncached = (8 - shift)/gcBits;
 		}
 		for(i = 0; i < n; i += PtrSize) {
 			obj = nil;
@@ -273,15 +266,12 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 					runtime·mheap.spans[(b-arena_start)>>PageShift] != runtime·mheap.spans[(b+i-arena_start)>>PageShift])
 					break;
 				// Consult GC bitmap.
-				if(ncached <= 0) {
-					// Refill cache.
-					cached = *--ptrbitp;
-					ncached = 2;
+				bits = *ptrbitp;
+				if((((uintptr)b+i)%(PtrSize*wordsPerBitmapByte)) != 0) {
+					ptrbitp--;
+					bits >>= gcBits;
 				}
-				bits = cached;
-				cached >>= gcBits;
-				ncached--;
-				if((bits&bitBoundary) != 0)
+				if((bits&bitBoundary) != 0 && i != 0)
 					break; // reached beginning of the next object
 				bits = (bits>>2)&BitsMask;
 				if(bits == BitsDead)
@@ -289,7 +279,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			} else // dense mask (stack or data)
 				bits = (ptrmask[(i/PtrSize)/4]>>(((i/PtrSize)%4)*BitsPerPointer))&BitsMask;
 
-			if(bits == BitsScalar || bits == BitsDead)
+			if(bits <= BitsScalar) // BitsScalar || BitsDead
 				continue;
 			if(bits == BitsPointer) {
 				obj = *(byte**)(b+i);
@@ -298,43 +288,39 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			}
 
 			// With those three out of the way, must be multi-word.
-			if(bits != BitsMultiWord)
+			if(Debug && bits != BitsMultiWord)
 				runtime·throw("unexpected garbage collection bits");
 			// Find the next pair of bits.
 			if(ptrmask == nil) {
-				if(ncached <= 0) {
-					// Refill cache.
-					cached = *--ptrbitp;
-					ncached = 2;
+				bits = *ptrbitp;
+				if((((uintptr)b+i)%(PtrSize*wordsPerBitmapByte)) == 0) {
+					ptrbitp--;
+					bits >>= gcBits;
 				}
-				bits = (cached>>2)&BitsMask;
+				bits = (bits>>2)&BitsMask;
 			} else
 				bits = (ptrmask[((i+PtrSize)/PtrSize)/4]>>((((i+PtrSize)/PtrSize)%4)*BitsPerPointer))&BitsMask;
 
-			switch(bits) {
-			default:
+			if(Debug && bits != BitsIface && bits != BitsEface)
 				runtime·throw("unexpected garbage collection bits");
-			case BitsIface:
+
+			if(bits == BitsIface) {
 				iface = (Iface*)(b+i);
 				if(iface->tab != nil) {
 					typ = iface->tab->type;
 					if(!(typ->kind&KindDirectIface) || !(typ->kind&KindNoPointers))
 						obj = iface->data;
 				}
-				break;
-			case BitsEface:
+			} else {
 				eface = (Eface*)(b+i);
 				typ = eface->type;
 				if(typ != nil) {
 					if(!(typ->kind&KindDirectIface) || !(typ->kind&KindNoPointers))
 						obj = eface->data;
 				}
-				break;
 			}
 
 			i += PtrSize;
-			cached >>= gcBits;
-			ncached--;
 
 			obj0 = obj;
 		markobj:
