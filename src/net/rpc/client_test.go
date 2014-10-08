@@ -63,13 +63,13 @@ func TestGobError(t *testing.T) {
 	}()
 	Register(new(S))
 
-	listen, err := net.Listen("tcp", ":5555")
+	listen, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(err)
 	}
 	go Accept(listen)
 
-	client, err := Dial("tcp", ":5555")
+	client, err := Dial("tcp", listen.Addr().String())
 	if err != nil {
 		panic(err)
 	}
