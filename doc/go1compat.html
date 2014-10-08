@@ -83,16 +83,16 @@ break if the bug is fixed. We reserve the right to fix such bugs.
 <li>
 Struct literals. For the addition of features in later point
 releases, it may be necessary to add fields to exported structs in
-the API. Code that uses untagged struct literals (such as pkg.T{3,
+the API. Code that uses unkeyed struct literals (such as pkg.T{3,
 "x"}) to create values of these types would fail to compile after
-such a change. However, code that uses tagged literals (pkg.T{A:
+such a change. However, code that uses keyed literals (pkg.T{A:
 3, B: "x"}) will continue to compile after such a change. We will
-update such data structures in a way that allows tagged struct
-literals to remain compatible, although untagged literals may fail
+update such data structures in a way that allows keyed struct
+literals to remain compatible, although unkeyed literals may fail
 to compile. (There are also more intricate cases involving nested
 data structures or interfaces, but they have the same resolution.)
 We therefore recommend that composite literals whose type is defined
-in a separate package should use the tagged notation.
+in a separate package should use the keyed notation.
 </li>
 
 <li>
