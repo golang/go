@@ -725,6 +725,7 @@ runtime·newstack(void)
 	g->m->morebuf.pc = (uintptr)nil;
 	g->m->morebuf.lr = (uintptr)nil;
 	g->m->morebuf.sp = (uintptr)nil;
+	g->m->morebuf.g = (G*)nil;
 
 	runtime·casgstatus(gp, Grunning, Gwaiting);
 	gp->waitreason = runtime·gostringnocopy((byte*)"stack growth");
