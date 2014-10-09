@@ -32,6 +32,9 @@ enum {
 
 	INFINITE	= 0xffffffff,
 	WAIT_TIMEOUT	= 0x102,
+
+	EXCEPTION_CONTINUE_EXECUTION	= -0x1,
+	EXCEPTION_CONTINUE_SEARCH	= 0x0,
 };
 
 typedef struct SystemInfo SystemInfo;
