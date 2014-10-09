@@ -59,13 +59,12 @@ var images = map[string]*imageInfo{
 }
 
 type buildConfig struct {
-	name       string        // "linux-amd64-race"
-	image      string        // Docker image to use to build
-	cmd        string        // optional -cmd flag (relative to go/src/)
-	cmdTimeout time.Duration // time to wait for optional cmd to finish
-	env        []string      // extra environment ("key=value") pairs
-	dashURL    string        // url of the build dashboard
-	tool       string        // the tool this configuration is for
+	name    string   // "linux-amd64-race"
+	image   string   // Docker image to use to build
+	cmd     string   // optional -cmd flag (relative to go/src/)
+	env     []string // extra environment ("key=value") pairs
+	dashURL string   // url of the build dashboard
+	tool    string   // the tool this configuration is for
 }
 
 func main() {
@@ -79,12 +78,18 @@ func main() {
 	addBuilder(buildConfig{name: "nacl-386"})
 	addBuilder(buildConfig{name: "nacl-amd64p32"})
 	addBuilder(buildConfig{
-		name:       "linux-amd64-gccgo",
-		image:      "gobuilders/linux-x86-gccgo",
-		cmd:        "make check-go -kj",
-		cmdTimeout: 60 * time.Minute,
-		dashURL:    "https://build.golang.org/gccgo",
-		tool:       "gccgo",
+		name:    "linux-amd64-gccgo",
+		image:   "gobuilders/linux-x86-gccgo",
+		cmd:     "make RUNTESTFLAGS=\"--target_board=unix/-m64\" check-go -j16",
+		dashURL: "https://build.golang.org/gccgo",
+		tool:    "gccgo",
+	})
+	addBuilder(buildConfig{
+		name:    "linux-386-gccgo",
+		image:   "gobuilders/linux-x86-gccgo",
+		cmd:     "make RUNTESTFLAGS=\"--target_board=unix/-m32\" check-go -j16",
+		dashURL: "https://build.golang.org/gccgo",
+		tool:    "gccgo",
 	})
 	addBuilder(buildConfig{name: "linux-386-sid", image: "gobuilders/linux-x86-sid"})
 	addBuilder(buildConfig{name: "linux-amd64-sid", image: "gobuilders/linux-x86-sid"})
@@ -286,7 +291,6 @@ func (conf buildConfig) dockerRunArgs(rev string) (args []string) {
 	)
 	if conf.cmd != "" {
 		args = append(args, "-cmd", conf.cmd)
-		args = append(args, "-cmdTimeout", conf.cmdTimeout.String())
 	}
 	args = append(args, conf.name)
 	return
@@ -301,9 +305,6 @@ func addBuilder(c buildConfig) {
 	}
 	if _, dup := builders[c.name]; dup {
 		panic("dup name")
-	}
-	if c.cmdTimeout == 0 {
-		c.cmdTimeout = 10 * time.Minute
 	}
 	if c.dashURL == "" {
 		c.dashURL = "https://build.golang.org"
