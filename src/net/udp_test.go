@@ -36,6 +36,11 @@ func TestResolveUDPAddr(t *testing.T) {
 }
 
 func TestReadFromUDP(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
 	ra, err := ResolveUDPAddr("udp", "127.0.0.1:7")
 	if err != nil {
 		t.Fatal(err)
