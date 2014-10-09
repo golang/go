@@ -99,7 +99,6 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // Called by Windows as a Vectored Exception Handler (VEH).
 // First argument is pointer to struct containing
 // exception record and context pointers.
-// Handler function is stored in AX.
 // Return 0 for 'not handled', -1 for handled.
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	// CX: PEXCEPTION_POINTERS ExceptionInfo
@@ -116,8 +115,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVQ	R13, 40(SP)
 	MOVQ	R14, 32(SP)
 	MOVQ	R15, 88(SP)
-
-	MOVQ	AX, R15	// save handler address
 
 	// find g
 	get_tls(DX)
@@ -160,10 +157,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 sigtramp_g0:
 	MOVQ	0(CX), BX // ExceptionRecord*
 	MOVQ	8(CX), CX // Context*
+	// call sighandler(ExceptionRecord*, Context*, G*)
 	MOVQ	BX, 0(SP)
 	MOVQ	CX, 8(SP)
 	MOVQ	DX, 16(SP)
-	CALL	R15	// call handler
+	CALL	runtime·sighandler(SB)
 	// AX is set to report result back to Windows
 	MOVL	24(SP), AX
 
@@ -188,18 +186,6 @@ done:
 	POPFQ
 
 	RET
-
-TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
-	MOVQ	$runtime·exceptionhandler(SB), AX
-	JMP	runtime·sigtramp(SB)
-
-TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
-	MOVQ	$runtime·firstcontinuehandler(SB), AX
-	JMP	runtime·sigtramp(SB)
-
-TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
-	MOVQ	$runtime·lastcontinuehandler(SB), AX
-	JMP	runtime·sigtramp(SB)
 
 TEXT runtime·ctrlhandler(SB),NOSPLIT,$8
 	MOVQ	CX, 16(SP)		// spill
