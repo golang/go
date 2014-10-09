@@ -547,6 +547,7 @@ const (
 	IOC_WS2                            = 0x08000000
 	SIO_GET_EXTENSION_FUNCTION_POINTER = IOC_INOUT | IOC_WS2 | 6
 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
+	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
 
 	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
 
