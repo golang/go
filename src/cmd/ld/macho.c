@@ -590,8 +590,7 @@ machosymtab(void)
 		if(strstr(s->extname, "·") == nil) {
 			addstring(symstr, s->extname);
 		} else {
-			p = s->extname;
-			while (*p++ != '\0') {
+			for(p = s->extname; *p; p++) {
 				if((uchar)*p == 0xc2 && (uchar)*(p+1) == 0xb7) {
 					adduint8(ctxt, symstr, '.');
 					p++;
