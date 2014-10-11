@@ -59,6 +59,7 @@ func Test8092(t *testing.T)                  { test8092(t) }
 func Test7978(t *testing.T)                  { test7978(t) }
 func Test8694(t *testing.T)                  { test8694(t) }
 func Test8517(t *testing.T)                  { test8517(t) }
+func Test8811(t *testing.T)                  { test8811(t) }
 func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
 func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
 
