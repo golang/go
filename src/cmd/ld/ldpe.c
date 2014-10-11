@@ -179,6 +179,15 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
 	if(Bread(f, obj->snames, l) != l)
 		goto bad;
+	// rewrite section names if they start with /
+	for(i=0; i < obj->fh.NumberOfSections; i++) {
+		if(obj->sect[i].name == nil)
+			continue;
+		if(obj->sect[i].name[0] != '/')
+			continue;
+		l = atoi(obj->sect[i].name + 1);
+		obj->sect[i].name = (char*)&obj->snames[l];
+	}
 	// read symbols
 	obj->pesym = mal(obj->fh.NumberOfSymbols*sizeof obj->pesym[0]);
 	obj->npesym = obj->fh.NumberOfSymbols;
