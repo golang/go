@@ -70,7 +70,7 @@ describe
 
 peers
 
-  Permit querying from a makechan, close(), for...range, or reflective op.
+  Permit querying from a makechan, for...range, or reflective op.
 
   Report aliasing reflect.{Send,Recv,Close} and close() operations.
 

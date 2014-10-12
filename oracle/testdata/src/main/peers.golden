@@ -22,6 +22,7 @@ This channel of type chan *int may be:
 	received from, here
 	received from, here
 	received from, here
+	closed, here
 
 -------- @pointsto pointsto-rA --------
 this *int may point to these objects:
@@ -50,6 +51,7 @@ This channel of type chan *int may be:
 	received from, here
 	received from, here
 	received from, here
+	closed, here
 
 -------- @peers peer-send-chA' --------
 This channel of type chan *int may be:
@@ -60,4 +62,39 @@ This channel of type chan *int may be:
 	received from, here
 	received from, here
 	received from, here
+	closed, here
+
+-------- @peers peer-close-chA --------
+This channel of type chan *int may be:
+	allocated here
+	allocated here
+	sent to, here
+	sent to, here
+	received from, here
+	received from, here
+	received from, here
+	received from, here
+	received from, here
+	closed, here
+
+-------- @peers peer-close-chC --------
+This channel of type chan *int may be:
+	allocated here
+	sent to, here
+	received from, here
+	closed, here
+
+-------- @peers peer-send-chC --------
+This channel of type chan *int may be:
+	allocated here
+	sent to, here
+	received from, here
+	closed, here
+
+-------- @peers peer-recv-chC --------
+This channel of type chan *int may be:
+	allocated here
+	sent to, here
+	received from, here
+	closed, here
 

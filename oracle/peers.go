@@ -22,12 +22,10 @@ import (
 // TODO(adonovan): support reflect.{Select,Recv,Send,Close}.
 // TODO(adonovan): permit the user to query based on a MakeChan (not send/recv),
 // or the implicit receive in "for v := range ch".
-// TODO(adonovan): support "close" as a channel op.
-//
 func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
-	arrowPos := findArrow(qpos)
-	if arrowPos == token.NoPos {
-		return nil, fmt.Errorf("there is no send/receive here")
+	opPos := findOp(qpos)
+	if opPos == token.NoPos {
+		return nil, fmt.Errorf("there is no channel operation here")
 	}
 
 	buildSSA(o)
@@ -35,15 +33,15 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	var queryOp chanOp // the originating send or receive operation
 	var ops []chanOp   // all sends/receives of opposite direction
 
-	// Look at all send/receive instructions in the whole ssa.Program.
-	// Build a list of those of same type to query.
+	// Look at all channel operations in the whole ssa.Program.
+	// Build a list of those of same type as the query.
 	allFuncs := ssautil.AllFunctions(o.prog)
 	for fn := range allFuncs {
 		for _, b := range fn.Blocks {
 			for _, instr := range b.Instrs {
 				for _, op := range chanOps(instr) {
 					ops = append(ops, op)
-					if op.pos == arrowPos {
+					if op.pos == opPos {
 						queryOp = op // we found the query op
 					}
 				}
@@ -84,33 +82,40 @@ func peers(o *Oracle, qpos *QueryPos) (queryResult, error) {
 	}
 	sort.Sort(byPos(makes))
 
-	// Ascertain which send/receive operations can alias the same make(chan) labels.
-	var sends, receives []token.Pos
+	// Ascertain which channel operations can alias the same make(chan) labels.
+	var sends, receives, closes []token.Pos
 	for _, op := range ops {
 		if ptr, ok := ptares.Queries[op.ch]; ok && ptr.MayAlias(queryChanPtr) {
-			if op.dir == types.SendOnly {
+			switch op.dir {
+			case types.SendOnly:
 				sends = append(sends, op.pos)
-			} else {
+			case types.RecvOnly:
 				receives = append(receives, op.pos)
+			case types.SendRecv:
+				closes = append(closes, op.pos)
 			}
 		}
 	}
 	sort.Sort(byPos(sends))
 	sort.Sort(byPos(receives))
+	sort.Sort(byPos(closes))
 
 	return &peersResult{
-		queryPos:  arrowPos,
+		queryPos:  opPos,
 		queryType: queryType,
 		makes:     makes,
 		sends:     sends,
 		receives:  receives,
+		closes:    closes,
 	}, nil
 }
 
-// findArrow returns the position of the enclosing send/receive op
-// (<-) for the query position, or token.NoPos if not found.
+// findOp returns the position of the enclosing send/receive/close op.
+// For send and receive operations, this is the position of the <- token;
+// for close operations, it's the Lparen of the function call.
 //
-func findArrow(qpos *QueryPos) token.Pos {
+// TODO(adonovan): handle implicit receive operations from 'for...range chan' statements.
+func findOp(qpos *QueryPos) token.Pos {
 	for _, n := range qpos.path {
 		switch n := n.(type) {
 		case *ast.UnaryExpr:
@@ -119,6 +124,13 @@ func findArrow(qpos *QueryPos) token.Pos {
 			}
 		case *ast.SendStmt:
 			return n.Arrow
+		case *ast.CallExpr:
+			// close function call can only exist as a direct identifier
+			if close, ok := unparen(n.Fun).(*ast.Ident); ok {
+				if b, ok := qpos.info.Info.Uses[close].(*types.Builtin); ok && b.Name() == "close" {
+					return n.Lparen
+				}
+			}
 		}
 	}
 	return token.NoPos
@@ -127,7 +139,7 @@ func findArrow(qpos *QueryPos) token.Pos {
 // chanOp abstracts an ssa.Send, ssa.Unop(ARROW), or a SelectState.
 type chanOp struct {
 	ch  ssa.Value
-	dir types.ChanDir // SendOnly or RecvOnly
+	dir types.ChanDir // SendOnly=send, RecvOnly=recv, SendRecv=close
 	pos token.Pos
 }
 
@@ -146,14 +158,19 @@ func chanOps(instr ssa.Instruction) []chanOp {
 		for _, st := range instr.States {
 			ops = append(ops, chanOp{st.Chan, st.Dir, st.Pos})
 		}
+	case ssa.CallInstruction:
+		cc := instr.Common()
+		if b, ok := cc.Value.(*ssa.Builtin); ok && b.Name() == "close" {
+			ops = append(ops, chanOp{cc.Args[0], types.SendRecv, cc.Pos()})
+		}
 	}
 	return ops
 }
 
 type peersResult struct {
-	queryPos               token.Pos   // of queried '<-' token
-	queryType              types.Type  // type of queried channel
-	makes, sends, receives []token.Pos // positions of aliased makechan/send/receive instrs
+	queryPos                       token.Pos   // of queried channel op
+	queryType                      types.Type  // type of queried channel
+	makes, sends, receives, closes []token.Pos // positions of aliased makechan/send/receive/close instrs
 }
 
 func (r *peersResult) display(printf printfFunc) {
@@ -171,6 +188,9 @@ func (r *peersResult) display(printf printfFunc) {
 	for _, receive := range r.receives {
 		printf(receive, "\treceived from, here")
 	}
+	for _, clos := range r.closes {
+		printf(clos, "\tclosed, here")
+	}
 }
 
 func (r *peersResult) toSerial(res *serial.Result, fset *token.FileSet) {
@@ -186,6 +206,9 @@ func (r *peersResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	}
 	for _, receive := range r.receives {
 		peers.Receives = append(peers.Receives, fset.Position(receive).String())
+	}
+	for _, clos := range r.closes {
+		peers.Closes = append(peers.Closes, fset.Position(clos).String())
 	}
 	res.Peers = peers
 }

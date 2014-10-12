@@ -37,4 +37,16 @@ func main() {
 
 	for _ = range chA {
 	}
+
+	close(chA) // @peers peer-close-chA "chA"
+
+	chC := make(chan *int)
+	(close)(chC) // @peers peer-close-chC "chC"
+
+	close := func(ch chan *int) chan *int {
+		return ch
+	}
+
+	close(chC) <- &b // @peers peer-send-chC "chC"
+	<-close(chC)     // @peers peer-recv-chC "chC"
 }
