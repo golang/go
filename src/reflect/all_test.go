@@ -4018,3 +4018,9 @@ func TestInvalid(t *testing.T) {
 		t.Errorf("field elem: IsValid=%v, Kind=%v, want false, Invalid", v.IsValid(), v.Kind())
 	}
 }
+
+// Issue 8917.
+func TestLargeGCProg(t *testing.T) {
+	fv := ValueOf(func([256]*byte) {})
+	fv.Call([]Value{ValueOf([256]*byte{})})
+}
