@@ -152,11 +152,49 @@ func TestWeb(t *testing.T) {
 	}
 	defer cmd.Process.Kill()
 	waitForServer(t, addr)
-	tests := []struct{ path, substr string }{
-		{"/", "Go is an open source programming language"},
-		{"/pkg/fmt/", "Package fmt implements formatted I/O"},
-		{"/src/fmt/", "scan_test.go"},
-		{"/src/fmt/print.go", "// Println formats using"},
+	tests := []struct {
+		path      string
+		match     []string
+		dontmatch []string
+	}{
+		{
+			path:  "/",
+			match: []string{"Go is an open source programming language"},
+		},
+		{
+			path:  "/pkg/fmt/",
+			match: []string{"Package fmt implements formatted I/O"},
+		},
+		{
+			path:  "/src/fmt/",
+			match: []string{"scan_test.go"},
+		},
+		{
+			path:  "/src/fmt/print.go",
+			match: []string{"// Println formats using"},
+		},
+		{
+			path: "/pkg",
+			match: []string{
+				"Standard library",
+				"Package fmt implements formatted I/O",
+			},
+			dontmatch: []string{
+				"internal/syscall",
+				"cmd/gc",
+			},
+		},
+		{
+			path: "/pkg/?m=all",
+			match: []string{
+				"Standard library",
+				"Package fmt implements formatted I/O",
+				"internal/syscall",
+			},
+			dontmatch: []string{
+				"cmd/gc",
+			},
+		},
 	}
 	for _, test := range tests {
 		url := fmt.Sprintf("http://%s%s", addr, test.path)
@@ -170,9 +208,21 @@ func TestWeb(t *testing.T) {
 		if err != nil {
 			t.Errorf("GET %s: failed to read body: %s (response: %v)", url, err, resp)
 		}
-		if bytes.Index(body, []byte(test.substr)) < 0 {
-			t.Errorf("GET %s: want substring %q in body, got:\n%s",
-				url, test.substr, string(body))
+		isErr := false
+		for _, substr := range test.match {
+			if !bytes.Contains(body, []byte(substr)) {
+				t.Errorf("GET %s: wanted substring %q in body", url, substr)
+				isErr = true
+			}
+		}
+		for _, substr := range test.dontmatch {
+			if bytes.Contains(body, []byte(substr)) {
+				t.Errorf("GET %s: didn't want substring %q in body", url, substr)
+				isErr = true
+			}
+		}
+		if isErr {
+			t.Errorf("GET %s: got:\n%s", url, body)
 		}
 	}
 }

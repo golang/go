@@ -115,8 +115,19 @@ func NewPresentation(c *Corpus) *Presentation {
 			(*Presentation).SearchResultTxt,
 		},
 	}
-	p.cmdHandler = handlerServer{p, c, "/cmd/", "/src/cmd"}
-	p.pkgHandler = handlerServer{p, c, "/pkg/", "/src"}
+	p.cmdHandler = handlerServer{
+		p:       p,
+		c:       c,
+		pattern: "/cmd/",
+		fsRoot:  "/src/cmd",
+	}
+	p.pkgHandler = handlerServer{
+		p:       p,
+		c:       c,
+		pattern: "/pkg/",
+		fsRoot:  "/src",
+		exclude: []string{"/src/cmd"},
+	}
 	p.cmdHandler.registerWithMux(p.mux)
 	p.pkgHandler.registerWithMux(p.mux)
 	p.mux.HandleFunc("/", p.ServeFile)

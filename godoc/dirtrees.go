@@ -280,8 +280,10 @@ type DirList struct {
 
 // listing creates a (linear) directory listing from a directory tree.
 // If skipRoot is set, the root directory itself is excluded from the list.
+// If filter is set, only the directory entries whose paths match the filter
+// are included.
 //
-func (root *Directory) listing(skipRoot bool) *DirList {
+func (root *Directory) listing(skipRoot bool, filter func(string) bool) *DirList {
 	if root == nil {
 		return nil
 	}
@@ -306,10 +308,12 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 	}
 
 	// create list
-	list := make([]DirEntry, n)
-	i := 0
+	list := make([]DirEntry, 0, n)
 	for d := range root.iter(skipRoot) {
-		p := &list[i]
+		if filter != nil && !filter(d.Path) {
+			continue
+		}
+		var p DirEntry
 		p.Depth = d.Depth - minDepth
 		p.Height = maxHeight - p.Depth
 		// the path is relative to root.Path - remove the root.Path
@@ -322,7 +326,7 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 		p.Name = d.Name
 		p.HasPkg = d.HasPkg
 		p.Synopsis = d.Synopsis
-		i++
+		list = append(list, p)
 	}
 
 	return &DirList{maxHeight, list}
