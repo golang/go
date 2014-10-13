@@ -49,19 +49,23 @@ func AllPackages(ctxt *build.Context) []string {
 // accessors must be concurrency safe.
 //
 func ForEachPackage(ctxt *build.Context, found func(importPath string, err error)) {
+	// We use a counting semaphore to limit
+	// the number of parallel calls to ReadDir.
+	sema := make(chan bool, 20)
+
 	var wg sync.WaitGroup
 	for _, root := range ctxt.SrcDirs() {
 		root := root
 		wg.Add(1)
 		go func() {
-			allPackages(ctxt, root, found)
+			allPackages(ctxt, sema, root, found)
 			wg.Done()
 		}()
 	}
 	wg.Wait()
 }
 
-func allPackages(ctxt *build.Context, root string, found func(string, error)) {
+func allPackages(ctxt *build.Context, sema chan bool, root string, found func(string, error)) {
 	ReadDir := ctxt.ReadDir
 	if ReadDir == nil {
 		ReadDir = ioutil.ReadDir
@@ -87,7 +91,9 @@ func allPackages(ctxt *build.Context, root string, found func(string, error)) {
 			return
 		}
 
+		sema <- true
 		files, err := ReadDir(dir)
+		<-sema
 		if pkg != "" || err != nil {
 			found(pkg, err)
 		}
