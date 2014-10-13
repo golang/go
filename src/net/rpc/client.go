@@ -41,10 +41,10 @@ type Call struct {
 type Client struct {
 	codec ClientCodec
 
-	sending sync.Mutex
+	reqMutex sync.Mutex // protects following
+	request  Request
 
 	mutex    sync.Mutex // protects following
-	request  Request
 	seq      uint64
 	pending  map[uint64]*Call
 	closing  bool // user has called Close
@@ -69,8 +69,8 @@ type ClientCodec interface {
 }
 
 func (client *Client) send(call *Call) {
-	client.sending.Lock()
-	defer client.sending.Unlock()
+	client.reqMutex.Lock()
+	defer client.reqMutex.Unlock()
 
 	// Register this call.
 	client.mutex.Lock()
@@ -146,7 +146,7 @@ func (client *Client) input() {
 		}
 	}
 	// Terminate pending calls.
-	client.sending.Lock()
+	client.reqMutex.Lock()
 	client.mutex.Lock()
 	client.shutdown = true
 	closing := client.closing
@@ -162,7 +162,7 @@ func (client *Client) input() {
 		call.done()
 	}
 	client.mutex.Unlock()
-	client.sending.Unlock()
+	client.reqMutex.Unlock()
 	if debugLog && err != io.EOF && !closing {
 		log.Println("rpc: client protocol error:", err)
 	}
