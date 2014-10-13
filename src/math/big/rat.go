@@ -552,6 +552,9 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		if z.b.abs, _, err = z.b.abs.scan(strings.NewReader(s), 10); err != nil {
 			return nil, false
 		}
+		if len(z.b.abs) == 0 {
+			return nil, false
+		}
 		return z.norm(), true
 	}
 
