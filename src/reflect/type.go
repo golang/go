@@ -1514,20 +1514,36 @@ func (gc *gcProg) appendProg(t *rtype) {
 		gc.size += t.size
 		return
 	}
-	nptr := t.size / unsafe.Sizeof(uintptr(0))
-	var prog []byte
-	if t.kind&kindGCProg != 0 {
-		// Ensure that the runtime has unrolled GC program.
-		// TODO(rsc): Do not allocate.
-		unsafe_New(t)
-		// The program is stored in t.gc[0], skip unroll flag.
-		prog = (*[1 << 30]byte)(unsafe.Pointer(t.gc[0]))[1:]
-	} else {
-		// The mask is linked directly in t.gc.
-		prog = (*[2 * ptrSize]byte)(unsafe.Pointer(t.gc[0]))[:]
-	}
-	for i := uintptr(0); i < nptr; i++ {
-		gc.appendWord(extractGCWord(prog, i))
+	switch t.Kind() {
+	default:
+		panic("reflect: non-pointer type marked as having pointers")
+	case Ptr, UnsafePointer, Chan, Func, Map:
+		gc.appendWord(bitsPointer)
+	case Slice:
+		gc.appendWord(bitsPointer)
+		gc.appendWord(bitsScalar)
+		gc.appendWord(bitsScalar)
+	case String:
+		gc.appendWord(bitsPointer)
+		gc.appendWord(bitsScalar)
+	case Array:
+		c := t.Len()
+		e := t.Elem().common()
+		for i := 0; i < c; i++ {
+			gc.appendProg(e)
+		}
+	case Interface:
+		gc.appendWord(bitsMultiWord)
+		if t.NumMethod() == 0 {
+			gc.appendWord(bitsEface)
+		} else {
+			gc.appendWord(bitsIface)
+		}
+	case Struct:
+		c := t.NumField()
+		for i := 0; i < c; i++ {
+			gc.appendProg(t.Field(i).Type.common())
+		}
 	}
 }
 
@@ -1562,7 +1578,6 @@ func (gc *gcProg) finalize() unsafe.Pointer {
 			gc.appendWord(extractGCWord(gc.gc, i))
 		}
 	}
-	gc.gc = append([]byte{1}, gc.gc...) // prepend unroll flag
 	return unsafe.Pointer(&gc.gc[0])
 }
 
@@ -1574,9 +1589,14 @@ func (gc *gcProg) align(a uintptr) {
 	gc.size = align(gc.size, a)
 }
 
+// These constants must stay in sync with ../runtime/mgc0.h.
 const (
-	bitsScalar  = 1
-	bitsPointer = 2
+	bitsScalar    = 1
+	bitsPointer   = 2
+	bitsMultiWord = 3
+
+	bitsIface = 2
+	bitsEface = 3
 )
 
 // Make sure these routines stay in sync with ../../runtime/hashmap.go!
@@ -1619,7 +1639,6 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	b := new(rtype)
 	b.size = gc.size
 	b.gc[0] = gc.finalize()
-	b.kind |= kindGCProg
 	s := "bucket(" + *ktyp.string + "," + *etyp.string + ")"
 	b.string = &s
 	return b
@@ -1821,7 +1840,6 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	x := new(rtype)
 	x.size = gc.size
 	x.gc[0] = gc.finalize()
-	x.kind |= kindGCProg
 	var s string
 	if rcvr != nil {
 		s = "methodargs(" + *rcvr.string + ")(" + *t.string + ")"
