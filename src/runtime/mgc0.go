@@ -110,6 +110,27 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
 }
 
 //go:nosplit
+func writebarrierfat2(dst *[2]uintptr, src [2]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+}
+
+//go:nosplit
+func writebarrierfat3(dst *[3]uintptr, src [3]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+	dst[2] = src[2]
+}
+
+//go:nosplit
+func writebarrierfat4(dst *[4]uintptr, src [4]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+	dst[2] = src[2]
+	dst[3] = src[3]
+}
+
+//go:nosplit
 func writebarrierfat(typ *_type, dst, src unsafe.Pointer) {
 	memmove(dst, src, typ.size)
 }

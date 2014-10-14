@@ -112,6 +112,9 @@ func writebarrierptr(dst *any, src any)
 func writebarrierstring(dst *any, src any)
 func writebarrierslice(dst *any, src any)
 func writebarrieriface(dst *any, src any)
+func writebarrierfat2(dst *any, src any)
+func writebarrierfat3(dst *any, src any)
+func writebarrierfat4(dst *any, src any)
 func writebarrierfat(typ *byte, dst *any, src *any)
 
 func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
