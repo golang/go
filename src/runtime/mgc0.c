@@ -4,22 +4,73 @@
 
 // Garbage collector (GC).
 //
-// GC is:
-// - mark&sweep
-// - mostly precise (with the exception of some C-allocated objects, assembly frames/arguments, etc)
-// - parallel (up to MaxGcproc threads)
-// - partially concurrent (mark is stop-the-world, while sweep is concurrent)
-// - non-moving/non-compacting
-// - full (non-partial)
+// The GC runs concurrently with mutator threads, is type accurate (aka precise), allows multiple GC 
+// thread to run in parallel. It is a concurrent mark and sweep that uses a write barrier. It is 
+// non-generational and non-compacting. Allocation is done using size segregated per P allocation 
+// areas to minimize fragmentation while eliminating locks in the common case. 
 //
-// GC rate.
-// Next GC is after we've allocated an extra amount of memory proportional to
-// the amount already in use. The proportion is controlled by GOGC environment variable
-// (100 by default). If GOGC=100 and we're using 4M, we'll GC again when we get to 8M
-// (this mark is tracked in next_gc variable). This keeps the GC cost in linear
-// proportion to the allocation cost. Adjusting GOGC just changes the linear constant
-// (and also the amount of extra memory used).
+// The algorithm decomposes into several steps.
+// This is a high level description of the algorithm being used. For an overview of GC a good
+// place to start is Richard Jones' gchandbook.org.
+// 
+// The algorithm's intellectual heritage includes Dijkstra's on-the-fly algorithm, see
+// Edsger W. Dijkstra, Leslie Lamport, A. J. Martin, C. S. Scholten, and E. F. M. Steffens. 1978. 
+// On-the-fly garbage collection: an exercise in cooperation. Commun. ACM 21, 11 (November 1978), 966-975.
+// For journal quality proofs that these steps are complete, correct, and terminate see
+// Hudson, R., and Moss, J.E.B. Copying Garbage Collection without stopping the world. 
+// Concurrency and Computation: Practice and Experience 15(3-5), 2003. 
 //
+//  0. Set phase = GCscan from GCoff.
+//  1. Wait for all P's to acknowledge phase change.
+//         At this point all goroutines have passed through a GC safepoint and
+//         know we are in the GCscan phase.
+//  2. GC scans all goroutine stacks, mark and enqueues all encountered pointers
+//       (marking avoids most duplicate enqueuing but races may produce duplication which is benign).
+//       Preempted goroutines are scanned before P schedules next goroutine.
+//  3. Set phase = GCmark.
+//  4. Wait for all P's to acknowledge phase change.
+//  5. Now write barrier marks and enqueues black or grey to white pointers. If a pointer is
+//       stored into a white slot, such pointer is not marked.
+//       Malloc still allocates white (non-marked) objects.
+//  6. Meanwhile GC transitively walks the heap marking reachable objects.
+//  7. When GC finishes marking heap, it preempts P's one-by-one and
+//       retakes partial wbufs (filled by write barrier or during a stack scan of the goroutine
+//       currently scheduled on the P).
+//  8. Once the GC has exhausted all available marking work it sets phase = marktermination.
+//  9. Wait for all P's to acknowledge phase change.
+// 10. Malloc now allocates black objects, so number of unmarked reachable objects
+//        monotonically decreases.
+// 11. GC preempts P's one-by-one taking partial wbufs and marks all unmarked yet reachable objects.
+// 12. When GC completes a full cycle over P's and discovers no new grey
+//         objects, (which means all reachable objects are marked) set phase = GCsweep.
+// 13. Wait for all P's to acknowledge phase change.
+// 14. Now malloc allocates white (but sweeps spans before use).
+//         Write barrier becomes nop.
+// 15. GC does background sweeping, see description below.
+// 16. When sweeping is complete set phase to GCoff.
+// 17. When sufficient allocation has taken place replay the sequence starting at 0 above, 
+//         see discussion of GC rate below.
+
+// Changing phases.
+// Phases are changed by setting the gcphase to the next phase and call ackgcphase.
+// All phase action must be benign in the presence of a change.
+// Starting with GCoff
+// GCoff to GCscan
+//     GSscan scans stacks and globals greying them and never marks an object black.
+//     Once all the P's are aware of the new phase they will scan gs on preemption.
+//     This means that the scanning of preempted gs can't start until all the Ps
+//     have acknowledged.
+// GCscan to GCmark
+//     GCMark turns on the write barrier which also only greys objects. No scanning
+//     of objects (making them black) can happen until all the Ps have acknowledged 
+//     the phase change.
+// GCmark to GCmarktermination
+//     The only change here is that we start allocating black so the Ps must acknowledge
+//     the change before we begin the termination algorithm
+// GCmarktermination to GSsweep
+//     Object currently on the freelist must be marked black for this to work. 
+//     Are things on the free lists black or white? How does the sweep phase work?
+
 // Concurrent sweep.
 // The sweep phase proceeds concurrently with normal program execution.
 // The heap is swept span-by-span both lazily (when a goroutine needs another span)
@@ -49,6 +100,14 @@
 // the span is swept (either by sweeping it, or by waiting for the concurrent sweep to finish).
 // The finalizer goroutine is kicked off only when all spans are swept.
 // When the next GC starts, it sweeps all not-yet-swept spans (if any).
+
+// GC rate.
+// Next GC is after we've allocated an extra amount of memory proportional to
+// the amount already in use. The proportion is controlled by GOGC environment variable
+// (100 by default). If GOGC=100 and we're using 4M, we'll GC again when we get to 8M
+// (this mark is tracked in next_gc variable). This keeps the GC cost in linear 
+// proportion to the allocation cost. Adjusting GOGC just changes the linear constant	
+// (and also the amount of extra memory used).
 
 #include "runtime.h"
 #include "arch_GOARCH.h"
@@ -141,6 +200,8 @@ static void     scanblock(byte*, uintptr, byte*);
 static byte*    objectstart(byte*, Markbits*);
 static Workbuf*	greyobject(byte*, Markbits*, Workbuf*);
 static bool     inheap(byte*);
+static bool     shaded(byte*);
+static void     shade(byte*);
 static void	slottombits(byte*, Markbits*);
 
 void runtime·bgsweep(void);
@@ -633,13 +694,12 @@ runtime·gcworkbuffree(Workbuf *b)
 	}
 }
 
-
 // Get a full work buffer off the work.full list, or return nil.
 // getfull acts as a barrier for work.nproc helpers. As long as one
 // gchelper is actively marking objects it
 // may create a workbuffer that the other helpers can work on.
 // The for loop either exits when a work buffer is found
-// or when _all_ of the work.nproc gc helpers are in the loop 
+// or when _all_ of the work.nproc GC helpers are in the loop 
 // looking for work and thus not capable of creating new work.
 // This is in fact the termination condition for the STW mark 
 // phase.
@@ -821,6 +881,59 @@ scanstack(G *gp)
 	fn = scanframe;
 	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, false);
 	runtime·tracebackdefers(gp, &fn, nil);
+}
+
+// If the slot is grey or black return true, if white return false.
+// If the slot is not in the known heap and thus does not have a valid GC bitmap then
+// it is considered grey. Globals and stacks can hold such slots.
+// The slot is grey if its mark bit is set and it is enqueued to be scanned.
+// The slot is black if it has already been scanned.
+// It is white if it has a valid mark bit and the bit is not set. 
+static bool
+shaded(byte *slot)
+{
+	Markbits mbits;
+
+	if(!inheap(slot)) // non-heap slots considered grey
+		return true;
+
+	objectstart(slot, &mbits);
+	return (mbits.bits&bitMarked) != 0;
+}
+
+// Shade the object if it isn't already.
+// The object is not nil and known to be in the heap.
+static void
+shade(byte *b)
+{
+	byte *obj;
+	Workbuf *wbuf;
+	Markbits mbits;
+	
+	if(!inheap(b))
+		runtime·throw("shade: passed an address not in the heap");
+	
+	wbuf = getpartial();
+	// Mark the object, return some important bits.
+	// If we combine the following two rotines we don't have to pass mbits or obj around.
+	obj = objectstart(b, &mbits);
+	wbuf = greyobject(obj, &mbits, wbuf); // augments the wbuf
+	putpartial(wbuf);
+	return;
+}
+
+// This is the Dijkstra barrier coarsened to shade grey to white whereas
+// the original Dijkstra barrier only shaded black to white.
+//
+// Shade indicates that it has seen a white pointer by adding the referent
+// to wbuf.
+void
+runtime·markwb(void **slot, void *ptr)
+{
+	// initial nil check avoids some needlesss loads
+	if(ptr != nil && inheap(ptr) && shaded((void*)slot))
+		shade(ptr);
+	*slot = ptr;
 }
 
 // The gp has been moved to a gc safepoint. If there is gcphase specific
