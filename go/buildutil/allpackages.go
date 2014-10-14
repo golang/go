@@ -77,9 +77,9 @@ func allPackages(ctxt *build.Context, sema chan bool, root string, found func(st
 
 	var walkDir func(dir string)
 	walkDir = func(dir string) {
-		// Prune search if we encounter any directory with these base names:
-		switch filepath.Base(dir) {
-		case "testdata", ".hg":
+		// Avoid .foo, _foo, and testdata directory trees.
+		base := filepath.Base(dir)
+		if base == "" || base[0] == '.' || base[0] == '_' || base == "testdata" {
 			return
 		}
 
