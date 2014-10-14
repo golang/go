@@ -752,15 +752,16 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	return z
 }
 
-// ModInverse sets z to the multiplicative inverse of g in the group ℤ/pℤ (where
-// p is a prime) and returns z.
-func (z *Int) ModInverse(g, p *Int) *Int {
+// ModInverse sets z to the multiplicative inverse of g in the ring ℤ/nℤ
+// and returns z. If g and n are not relatively prime, the result is undefined.
+func (z *Int) ModInverse(g, n *Int) *Int {
 	var d Int
-	d.GCD(z, nil, g, p)
-	// x and y are such that g*x + p*y = d. Since p is prime, d = 1. Taking
-	// that modulo p results in g*x = 1, therefore x is the inverse element.
+	d.GCD(z, nil, g, n)
+	// x and y are such that g*x + n*y = d. Since g and n are
+	// relatively prime, d = 1. Taking that modulo n results in
+	// g*x = 1, therefore x is the inverse element.
 	if z.neg {
-		z.Add(z, p)
+		z.Add(z, n)
 	}
 	return z
 }

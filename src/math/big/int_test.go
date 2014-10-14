@@ -1448,24 +1448,40 @@ func TestNot(t *testing.T) {
 
 var modInverseTests = []struct {
 	element string
-	prime   string
+	modulus string
 }{
-	{"1", "7"},
-	{"1", "13"},
+	{"1234567", "458948883992"},
 	{"239487239847", "2410312426921032588552076022197566074856950548502459942654116941958108831682612228890093858261341614673227141477904012196503648957050582631942730706805009223062734745341073406696246014589361659774041027169249453200378729434170325843778659198143763193776859869524088940195577346119843545301547043747207749969763750084308926339295559968882457872412993810129130294592999947926365264059284647209730384947211681434464714438488520940127459844288859336526896320919633919"},
 }
 
 func TestModInverse(t *testing.T) {
-	var element, prime Int
+	var element, modulus, gcd, inverse Int
 	one := NewInt(1)
 	for i, test := range modInverseTests {
 		(&element).SetString(test.element, 10)
-		(&prime).SetString(test.prime, 10)
-		inverse := new(Int).ModInverse(&element, &prime)
-		inverse.Mul(inverse, &element)
-		inverse.Mod(inverse, &prime)
-		if inverse.Cmp(one) != 0 {
-			t.Errorf("#%d: failed (e·e^(-1)=%s)", i, inverse)
+		(&modulus).SetString(test.modulus, 10)
+		(&inverse).ModInverse(&element, &modulus)
+		(&inverse).Mul(&inverse, &element)
+		(&inverse).Mod(&inverse, &modulus)
+		if (&inverse).Cmp(one) != 0 {
+			t.Errorf("#%d: failed (e·e^(-1)=%s)", i, &inverse)
+		}
+	}
+	// exhaustive test for small values
+	for n := 2; n < 100; n++ {
+		(&modulus).SetInt64(int64(n))
+		for x := 1; x < n; x++ {
+			(&element).SetInt64(int64(x))
+			(&gcd).GCD(nil, nil, &element, &modulus)
+			if (&gcd).Cmp(one) != 0 {
+				continue
+			}
+			(&inverse).ModInverse(&element, &modulus)
+			(&inverse).Mul(&inverse, &element)
+			(&inverse).Mod(&inverse, &modulus)
+			if (&inverse).Cmp(one) != 0 {
+				t.Errorf("ModInverse(%d,%d)*%d%%%d=%d, not 1", &element, &modulus, &element, &modulus, &inverse)
+			}
 		}
 	}
 }
