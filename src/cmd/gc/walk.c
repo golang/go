@@ -2040,21 +2040,32 @@ static Node*
 applywritebarrier(Node *n, NodeList **init)
 {
 	Node *l, *r;
+	Type *t;
 
 	if(n->left && n->right && needwritebarrier(n->left, n->right)) {
+		t = n->left->type;
 		l = nod(OADDR, n->left, N);
 		l->etype = 1; // addr does not escape
-		if(n->left->type->width == widthptr) {
-			n = mkcall1(writebarrierfn("writebarrierptr", n->left->type, n->right->type), T, init,
+		if(t->width == widthptr) {
+			n = mkcall1(writebarrierfn("writebarrierptr", t, n->right->type), T, init,
 				l, n->right);
-		} else if(n->left->type->etype == TSTRING) {
-			n = mkcall1(writebarrierfn("writebarrierstring", n->left->type, n->right->type), T, init,
+		} else if(t->etype == TSTRING) {
+			n = mkcall1(writebarrierfn("writebarrierstring", t, n->right->type), T, init,
 				l, n->right);
-		} else if(isslice(n->left->type)) {
-			n = mkcall1(writebarrierfn("writebarrierslice", n->left->type, n->right->type), T, init,
+		} else if(isslice(t)) {
+			n = mkcall1(writebarrierfn("writebarrierslice", t, n->right->type), T, init,
 				l, n->right);
-		} else if(isinter(n->left->type)) {
-			n = mkcall1(writebarrierfn("writebarrieriface", n->left->type, n->right->type), T, init,
+		} else if(isinter(t)) {
+			n = mkcall1(writebarrierfn("writebarrieriface", t, n->right->type), T, init,
+				l, n->right);
+		} else if(t->width == 2*widthptr) {
+			n = mkcall1(writebarrierfn("writebarrierfat2", t, n->right->type), T, init,
+				l, n->right);
+		} else if(t->width == 3*widthptr) {
+			n = mkcall1(writebarrierfn("writebarrierfat3", t, n->right->type), T, init,
+				l, n->right);
+		} else if(t->width == 4*widthptr) {
+			n = mkcall1(writebarrierfn("writebarrierfat4", t, n->right->type), T, init,
 				l, n->right);
 		} else {
 			r = n->right;
@@ -2062,8 +2073,9 @@ applywritebarrier(Node *n, NodeList **init)
 				r = r->left;
 			r = nod(OADDR, r, N);
 			r->etype = 1; // addr does not escape
-			n = mkcall1(writebarrierfn("writebarrierfat", n->left->type, r->left->type), T, init,
-				typename(n->left->type), l, r);
+			//warnl(n->lineno, "writebarrierfat %T %N", t, r);
+			n = mkcall1(writebarrierfn("writebarrierfat", t, r->left->type), T, init,
+				typename(t), l, r);
 		}
 	}
 	return n;
