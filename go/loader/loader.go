@@ -428,7 +428,7 @@ func (conf *Config) ImportWithTests(path string) error {
 	xtestFiles, errs := conf.parsePackageFiles(bp, 'x')
 	if len(errs) > 0 {
 		// TODO(adonovan): fix: parse errors in x_test.go files
-		// are still catastrophic to Load().
+		// cause FromArgs() to fail completely.
 		return errs[0] // I/O or parse error
 	}
 	if len(xtestFiles) > 0 {
