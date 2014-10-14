@@ -215,8 +215,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			for(i = 0; i < nelem(scanbuf); i++) {
 				b = scanbuf[scanbufpos];
 				scanbuf[scanbufpos++] = nil;
-				if(scanbufpos == nelem(scanbuf))
-					scanbufpos = 0;
+				scanbufpos %= nelem(scanbuf);
 				if(b != nil) {
 					n = arena_used - b; // scan until bitBoundary or BitsDead
 					ptrmask = nil; // use GC bitmap for pointer info
@@ -267,10 +266,13 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 					break;
 				// Consult GC bitmap.
 				bits = *ptrbitp;
-				if((((uintptr)b+i)%(PtrSize*wordsPerBitmapByte)) != 0) {
-					ptrbitp--;
-					bits >>= gcBits;
-				}
+
+				if(wordsPerBitmapByte != 2)
+					runtime·throw("alg doesn't work for wordsPerBitmapByte != 2");
+				j = ((uintptr)b+i)/PtrSize & 1;
+				ptrbitp -= j;
+				bits >>= gcBits*j;
+
 				if((bits&bitBoundary) != 0 && i != 0)
 					break; // reached beginning of the next object
 				bits = (bits>>2)&BitsMask;
@@ -293,10 +295,9 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			// Find the next pair of bits.
 			if(ptrmask == nil) {
 				bits = *ptrbitp;
-				if((((uintptr)b+i)%(PtrSize*wordsPerBitmapByte)) == 0) {
-					ptrbitp--;
-					bits >>= gcBits;
-				}
+				j = ((uintptr)b+i+PtrSize)/PtrSize & 1;
+				ptrbitp -= j;
+				bits >>= gcBits*j;
 				bits = (bits>>2)&BitsMask;
 			} else
 				bits = (ptrmask[((i+PtrSize)/PtrSize)/4]>>((((i+PtrSize)/PtrSize)%4)*BitsPerPointer))&BitsMask;
@@ -328,12 +329,13 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			// Check if it points into heap.
 			if(obj == nil)
 				continue;
-			if((uintptr)obj < PhysPageSize) {
-				s = nil;
-				goto badobj;
-			}
-			if(obj < arena_start || obj >= arena_used)
+			if(obj < arena_start || obj >= arena_used) {
+				if((uintptr)obj < PhysPageSize) {
+					s = nil;
+					goto badobj;
+				}
 				continue;
+			}
 			// Mark the object.
 			obj = (byte*)((uintptr)obj & ~(PtrSize-1));
 			off = (uintptr*)obj - (uintptr*)arena_start;
@@ -442,8 +444,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			PREFETCH(obj);
 			p = scanbuf[scanbufpos];
 			scanbuf[scanbufpos++] = obj;
-			if(scanbufpos == nelem(scanbuf))
-				scanbufpos = 0;
+			scanbufpos %= nelem(scanbuf);
 			if(p == nil)
 				continue;
 
