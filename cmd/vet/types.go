@@ -20,9 +20,16 @@ var imports = make(map[string]*types.Package)
 var (
 	stringerMethodType = types.New("func() string")
 	errorType          = types.New("error").Underlying().(*types.Interface)
-	stringerType       = importType("fmt", "Stringer").Underlying().(*types.Interface)
-	formatterType      = importType("fmt", "Formatter").Underlying().(*types.Interface)
+	stringerType       = types.New("interface{ String() string }").(*types.Interface)
+	formatterType      *types.Interface
 )
+
+func init() {
+	typ := importType("fmt", "Formatter")
+	if typ != nil {
+		formatterType = typ.Underlying().(*types.Interface)
+	}
+}
 
 // importType returns the type denoted by the qualified identifier
 // path.name, and adds the respective package to the imports map
