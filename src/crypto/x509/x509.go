@@ -494,6 +494,11 @@ type Certificate struct {
 	BasicConstraintsValid bool // if true then the next two fields are valid.
 	IsCA                  bool
 	MaxPathLen            int
+	// MaxPathLenZero indicates that BasicConstraintsValid==true and
+	// MaxPathLen==0 should be interpreted as an actual maximum path length
+	// of zero. Otherwise, that combination is interpreted as MaxPathLen
+	// not being set.
+	MaxPathLenZero bool
 
 	SubjectKeyId   []byte
 	AuthorityKeyId []byte
@@ -913,6 +918,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 					out.BasicConstraintsValid = true
 					out.IsCA = constraints.IsCA
 					out.MaxPathLen = constraints.MaxPathLen
+					out.MaxPathLenZero = out.MaxPathLen == 0
 					continue
 				}
 			case 17:
@@ -1227,8 +1233,15 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 	}
 
 	if template.BasicConstraintsValid && !oidInExtensions(oidExtensionBasicConstraints, template.ExtraExtensions) {
+		// Leaving MaxPathLen as zero indicates that no maximum path
+		// length is desired, unless MaxPathLenZero is set. A value of
+		// -1 causes encoding/asn1 to omit the value as desired.
+		maxPathLen := template.MaxPathLen
+		if maxPathLen == 0 && !template.MaxPathLenZero {
+			maxPathLen = -1
+		}
 		ret[n].Id = oidExtensionBasicConstraints
-		ret[n].Value, err = asn1.Marshal(basicConstraints{template.IsCA, template.MaxPathLen})
+		ret[n].Value, err = asn1.Marshal(basicConstraints{template.IsCA, maxPathLen})
 		ret[n].Critical = true
 		if err != nil {
 			return
