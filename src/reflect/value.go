@@ -7,11 +7,9 @@ package reflect
 import (
 	"math"
 	"runtime"
-	"strconv"
 	"unsafe"
 )
 
-const bigEndian = false // can be smarter if we find a big-endian machine
 const ptrSize = unsafe.Sizeof((*byte)(nil))
 const cannotSet = "cannot set value obtained from unexported struct field"
 
@@ -40,12 +38,6 @@ type Value struct {
 	// Valid when either flagIndir is set or typ.pointers() is true.
 	ptr unsafe.Pointer
 
-	// Non-pointer-valued data.  When the data is smaller
-	// than a word, it begins at the first byte (in the memory
-	// address sense) of this field.
-	// Valid when flagIndir is not set and typ.pointers() is false.
-	scalar uintptr
-
 	// flag holds metadata about the value.
 	// The lowest bits are flag bits:
 	//	- flagRO: obtained via unexported field, so read-only
@@ -56,7 +48,7 @@ type Value struct {
 	// This repeats typ.Kind() except for method values.
 	// The remaining 23+ bits give a method number for method values.
 	// If flag.kind() != Func, code can assume that flagMethod is unset.
-	// If !isDirectIface(typ), code can assume that flagIndir is set.
+	// If ifaceIndir(typ), code can assume that flagIndir is set.
 	flag
 
 	// A method value represents a curried method invocation
@@ -102,7 +94,7 @@ func packEface(v Value) interface{} {
 	e := (*emptyInterface)(unsafe.Pointer(&i))
 	// First, fill in the data portion of the interface.
 	switch {
-	case !isDirectIface(t):
+	case ifaceIndir(t):
 		if v.flag&flagIndir == 0 {
 			panic("bad indir")
 		}
@@ -119,18 +111,10 @@ func packEface(v Value) interface{} {
 	case v.flag&flagIndir != 0:
 		// Value is indirect, but interface is direct.  We need
 		// to load the data at v.ptr into the interface data word.
-		if t.pointers() {
-			e.word = iword(*(*unsafe.Pointer)(v.ptr))
-		} else {
-			e.word = iword(loadScalar(v.ptr, t.size))
-		}
+		e.word = iword(*(*unsafe.Pointer)(v.ptr))
 	default:
 		// Value is direct, and so is the interface.
-		if t.pointers() {
-			e.word = iword(v.ptr)
-		} else {
-			e.word = iword(v.scalar)
-		}
+		e.word = iword(v.ptr)
 	}
 	// Now, fill in the type portion.  We're very careful here not
 	// to have any operation between the e.word and e.typ assignments
@@ -149,13 +133,10 @@ func unpackEface(i interface{}) Value {
 		return Value{}
 	}
 	f := flag(t.Kind()) << flagKindShift
-	if !isDirectIface(t) {
-		return Value{t, unsafe.Pointer(e.word), 0, f | flagIndir}
+	if ifaceIndir(t) {
+		f |= flagIndir
 	}
-	if t.pointers() {
-		return Value{t, unsafe.Pointer(e.word), 0, f}
-	}
-	return Value{t, nil, uintptr(e.word), f}
+	return Value{t, unsafe.Pointer(e.word), f}
 }
 
 // A ValueError occurs when a Value method is invoked on
@@ -193,64 +174,6 @@ func methodName() string {
 // it must be treated conservatively.  We try to never expose it
 // to the GC here so that GC remains precise.
 type iword unsafe.Pointer
-
-// loadScalar loads n bytes at p from memory into a uintptr
-// that forms the second word of an interface.  The data
-// must be non-pointer in nature.
-func loadScalar(p unsafe.Pointer, n uintptr) uintptr {
-	// Run the copy ourselves instead of calling memmove
-	// to avoid moving w to the heap.
-	var w uintptr
-	switch n {
-	default:
-		panic("reflect: internal error: loadScalar of " + strconv.Itoa(int(n)) + "-byte value")
-	case 0:
-	case 1:
-		*(*uint8)(unsafe.Pointer(&w)) = *(*uint8)(p)
-	case 2:
-		*(*uint16)(unsafe.Pointer(&w)) = *(*uint16)(p)
-	case 3:
-		*(*[3]byte)(unsafe.Pointer(&w)) = *(*[3]byte)(p)
-	case 4:
-		*(*uint32)(unsafe.Pointer(&w)) = *(*uint32)(p)
-	case 5:
-		*(*[5]byte)(unsafe.Pointer(&w)) = *(*[5]byte)(p)
-	case 6:
-		*(*[6]byte)(unsafe.Pointer(&w)) = *(*[6]byte)(p)
-	case 7:
-		*(*[7]byte)(unsafe.Pointer(&w)) = *(*[7]byte)(p)
-	case 8:
-		*(*uint64)(unsafe.Pointer(&w)) = *(*uint64)(p)
-	}
-	return w
-}
-
-// storeScalar stores n bytes from w into p.
-func storeScalar(p unsafe.Pointer, w uintptr, n uintptr) {
-	// Run the copy ourselves instead of calling memmove
-	// to avoid moving w to the heap.
-	switch n {
-	default:
-		panic("reflect: internal error: storeScalar of " + strconv.Itoa(int(n)) + "-byte value")
-	case 0:
-	case 1:
-		*(*uint8)(p) = *(*uint8)(unsafe.Pointer(&w))
-	case 2:
-		*(*uint16)(p) = *(*uint16)(unsafe.Pointer(&w))
-	case 3:
-		*(*[3]byte)(p) = *(*[3]byte)(unsafe.Pointer(&w))
-	case 4:
-		*(*uint32)(p) = *(*uint32)(unsafe.Pointer(&w))
-	case 5:
-		*(*[5]byte)(p) = *(*[5]byte)(unsafe.Pointer(&w))
-	case 6:
-		*(*[6]byte)(p) = *(*[6]byte)(unsafe.Pointer(&w))
-	case 7:
-		*(*[7]byte)(p) = *(*[7]byte)(unsafe.Pointer(&w))
-	case 8:
-		*(*uint64)(p) = *(*uint64)(unsafe.Pointer(&w))
-	}
-}
 
 // emptyInterface is the header for an interface{} value.
 type emptyInterface struct {
@@ -321,17 +244,14 @@ func (v Value) Addr() Value {
 	if v.flag&flagAddr == 0 {
 		panic("reflect.Value.Addr of unaddressable value")
 	}
-	return Value{v.typ.ptrTo(), v.ptr, 0, (v.flag & flagRO) | flag(Ptr)<<flagKindShift}
+	return Value{v.typ.ptrTo(), v.ptr, (v.flag & flagRO) | flag(Ptr)<<flagKindShift}
 }
 
 // Bool returns v's underlying value.
 // It panics if v's kind is not Bool.
 func (v Value) Bool() bool {
 	v.mustBe(Bool)
-	if v.flag&flagIndir != 0 {
-		return *(*bool)(v.ptr)
-	}
-	return *(*bool)(unsafe.Pointer(&v.scalar))
+	return *(*bool)(v.ptr)
 }
 
 // Bytes returns v's underlying value.
@@ -501,10 +421,8 @@ func (v Value) call(op string, in []Value) []Value {
 		v = v.assignTo("reflect.Value.Call", targ, (*interface{})(addr))
 		if v.flag&flagIndir != 0 {
 			memmove(addr, v.ptr, n)
-		} else if targ.pointers() {
-			*(*unsafe.Pointer)(addr) = v.ptr
 		} else {
-			storeScalar(addr, v.scalar, n)
+			*(*unsafe.Pointer)(addr) = v.ptr
 		}
 		off += n
 	}
@@ -525,7 +443,7 @@ func (v Value) call(op string, in []Value) []Value {
 		a := uintptr(tv.Align())
 		off = (off + a - 1) &^ (a - 1)
 		fl := flagIndir | flag(tv.Kind())<<flagKindShift
-		ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(args) + off), 0, fl}
+		ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(args) + off), fl}
 		off += tv.Size()
 	}
 
@@ -556,8 +474,8 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 		typ := arg
 		off += -off & uintptr(typ.align-1)
 		addr := unsafe.Pointer(uintptr(ptr) + off)
-		v := Value{typ, nil, 0, flag(typ.Kind()) << flagKindShift}
-		if !isDirectIface(typ) {
+		v := Value{typ, nil, flag(typ.Kind()) << flagKindShift}
+		if ifaceIndir(typ) {
 			// value cannot be inlined in interface data.
 			// Must make a copy, because f might keep a reference to it,
 			// and we cannot let f keep a reference to the stack frame
@@ -565,10 +483,8 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 			v.ptr = unsafe_New(typ)
 			memmove(v.ptr, addr, typ.size)
 			v.flag |= flagIndir
-		} else if typ.pointers() {
-			v.ptr = *(*unsafe.Pointer)(addr)
 		} else {
-			v.scalar = loadScalar(addr, typ.size)
+			v.ptr = *(*unsafe.Pointer)(addr)
 		}
 		in = append(in, v)
 		off += typ.size
@@ -602,10 +518,8 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 			addr := unsafe.Pointer(uintptr(ptr) + off)
 			if v.flag&flagIndir != 0 {
 				memmove(addr, v.ptr, typ.size)
-			} else if typ.pointers() {
-				*(*unsafe.Pointer)(addr) = v.ptr
 			} else {
-				storeScalar(addr, v.scalar, typ.size)
+				*(*unsafe.Pointer)(addr) = v.ptr
 			}
 			off += typ.size
 		}
@@ -663,18 +577,10 @@ func storeRcvr(v Value, p unsafe.Pointer) {
 		// the interface data word becomes the receiver word
 		iface := (*nonEmptyInterface)(v.ptr)
 		*(*unsafe.Pointer)(p) = unsafe.Pointer(iface.word)
-	} else if v.flag&flagIndir != 0 {
-		if !isDirectIface(t) {
-			*(*unsafe.Pointer)(p) = v.ptr
-		} else if t.pointers() {
-			*(*unsafe.Pointer)(p) = *(*unsafe.Pointer)(v.ptr)
-		} else {
-			*(*uintptr)(p) = loadScalar(v.ptr, t.size)
-		}
-	} else if t.pointers() {
-		*(*unsafe.Pointer)(p) = v.ptr
+	} else if v.flag&flagIndir != 0 && !ifaceIndir(t) {
+		*(*unsafe.Pointer)(p) = *(*unsafe.Pointer)(v.ptr)
 	} else {
-		*(*uintptr)(p) = v.scalar
+		*(*unsafe.Pointer)(p) = v.ptr
 	}
 }
 
@@ -763,12 +669,8 @@ func (v Value) Complex() complex128 {
 	k := v.kind()
 	switch k {
 	case Complex64:
-		if v.flag&flagIndir != 0 {
-			return complex128(*(*complex64)(v.ptr))
-		}
-		return complex128(*(*complex64)(unsafe.Pointer(&v.scalar)))
+		return complex128(*(*complex64)(v.ptr))
 	case Complex128:
-		// complex128 is always bigger than a word; assume flagIndir.
 		return *(*complex128)(v.ptr)
 	}
 	panic(&ValueError{"reflect.Value.Complex", k})
@@ -808,7 +710,7 @@ func (v Value) Elem() Value {
 		typ := tt.elem
 		fl := v.flag&flagRO | flagIndir | flagAddr
 		fl |= flag(typ.Kind() << flagKindShift)
-		return Value{typ, ptr, 0, fl}
+		return Value{typ, ptr, fl}
 	}
 	panic(&ValueError{"reflect.Value.Elem", k})
 }
@@ -833,25 +735,17 @@ func (v Value) Field(i int) Value {
 	fl |= flag(typ.Kind()) << flagKindShift
 
 	var ptr unsafe.Pointer
-	var scalar uintptr
-	switch {
-	case fl&flagIndir != 0:
+	if fl&flagIndir != 0 {
 		// Indirect.  Just bump pointer.
 		ptr = unsafe.Pointer(uintptr(v.ptr) + field.offset)
-	case typ.pointers():
+	} else {
 		if field.offset != 0 {
 			panic("field access of ptr value isn't at offset 0")
 		}
 		ptr = v.ptr
-	case bigEndian:
-		// Must be scalar.  Discard leading bytes.
-		scalar = v.scalar << (field.offset * 8)
-	default:
-		// Must be scalar.  Discard leading bytes.
-		scalar = v.scalar >> (field.offset * 8)
 	}
 
-	return Value{typ, ptr, scalar, fl}
+	return Value{typ, ptr, fl}
 }
 
 // FieldByIndex returns the nested field corresponding to index.
@@ -904,15 +798,9 @@ func (v Value) Float() float64 {
 	k := v.kind()
 	switch k {
 	case Float32:
-		if v.flag&flagIndir != 0 {
-			return float64(*(*float32)(v.ptr))
-		}
-		return float64(*(*float32)(unsafe.Pointer(&v.scalar)))
+		return float64(*(*float32)(v.ptr))
 	case Float64:
-		if v.flag&flagIndir != 0 {
-			return *(*float64)(v.ptr)
-		}
-		return *(*float64)(unsafe.Pointer(&v.scalar))
+		return *(*float64)(v.ptr)
 	}
 	panic(&ValueError{"reflect.Value.Float", k})
 }
@@ -935,12 +823,10 @@ func (v Value) Index(i int) Value {
 		offset := uintptr(i) * typ.size
 
 		var val unsafe.Pointer
-		var scalar uintptr
-		switch {
-		case fl&flagIndir != 0:
+		if fl&flagIndir != 0 {
 			// Indirect.  Just bump pointer.
 			val = unsafe.Pointer(uintptr(v.ptr) + offset)
-		case typ.pointers():
+		} else {
 			if offset != 0 {
 				// This is an array stored inline in an interface value.
 				// And the array element type has pointers.
@@ -951,14 +837,8 @@ func (v Value) Index(i int) Value {
 				panic("reflect: internal error: unexpected array index")
 			}
 			val = v.ptr
-		case bigEndian:
-			// Direct.  Discard leading bytes.
-			scalar = v.scalar << (offset * 8)
-		default:
-			// Direct.  Discard leading bytes.
-			scalar = v.scalar >> (offset * 8)
 		}
-		return Value{typ, val, scalar, fl}
+		return Value{typ, val, fl}
 
 	case Slice:
 		// Element flag same as Elem of Ptr.
@@ -972,7 +852,7 @@ func (v Value) Index(i int) Value {
 		typ := tt.elem
 		fl |= flag(typ.Kind()) << flagKindShift
 		val := unsafe.Pointer(uintptr(s.Data) + uintptr(i)*typ.size)
-		return Value{typ, val, 0, fl}
+		return Value{typ, val, fl}
 
 	case String:
 		fl := v.flag&flagRO | flag(Uint8<<flagKindShift) | flagIndir
@@ -981,7 +861,7 @@ func (v Value) Index(i int) Value {
 			panic("reflect: string index out of range")
 		}
 		p := unsafe.Pointer(uintptr(s.Data) + uintptr(i))
-		return Value{uint8Type, p, 0, fl}
+		return Value{uint8Type, p, fl}
 	}
 	panic(&ValueError{"reflect.Value.Index", k})
 }
@@ -990,14 +870,7 @@ func (v Value) Index(i int) Value {
 // It panics if v's Kind is not Int, Int8, Int16, Int32, or Int64.
 func (v Value) Int() int64 {
 	k := v.kind()
-	var p unsafe.Pointer
-	if v.flag&flagIndir != 0 {
-		p = v.ptr
-	} else {
-		// The escape analysis is good enough that &v.scalar
-		// does not trigger a heap allocation.
-		p = unsafe.Pointer(&v.scalar)
-	}
+	p := v.ptr
 	switch k {
 	case Int:
 		return int64(*(*int)(p))
@@ -1157,10 +1030,8 @@ func (v Value) MapIndex(key Value) Value {
 	var k unsafe.Pointer
 	if key.flag&flagIndir != 0 {
 		k = key.ptr
-	} else if key.typ.pointers() {
-		k = unsafe.Pointer(&key.ptr)
 	} else {
-		k = unsafe.Pointer(&key.scalar)
+		k = unsafe.Pointer(&key.ptr)
 	}
 	e := mapaccess(v.typ, v.pointer(), k)
 	if e == nil {
@@ -1169,16 +1040,14 @@ func (v Value) MapIndex(key Value) Value {
 	typ := tt.elem
 	fl := (v.flag | key.flag) & flagRO
 	fl |= flag(typ.Kind()) << flagKindShift
-	if !isDirectIface(typ) {
+	if ifaceIndir(typ) {
 		// Copy result so future changes to the map
 		// won't change the underlying value.
 		c := unsafe_New(typ)
 		memmove(c, e, typ.size)
-		return Value{typ, c, 0, fl | flagIndir}
-	} else if typ.pointers() {
-		return Value{typ, *(*unsafe.Pointer)(e), 0, fl}
+		return Value{typ, c, fl | flagIndir}
 	} else {
-		return Value{typ, nil, loadScalar(e, typ.size), fl}
+		return Value{typ, *(*unsafe.Pointer)(e), fl}
 	}
 }
 
@@ -1209,16 +1078,14 @@ func (v Value) MapKeys() []Value {
 			// we can do about it.
 			break
 		}
-		if !isDirectIface(keyType) {
+		if ifaceIndir(keyType) {
 			// Copy result so future changes to the map
 			// won't change the underlying value.
 			c := unsafe_New(keyType)
 			memmove(c, key, keyType.size)
-			a[i] = Value{keyType, c, 0, fl | flagIndir}
-		} else if keyType.pointers() {
-			a[i] = Value{keyType, *(*unsafe.Pointer)(key), 0, fl}
+			a[i] = Value{keyType, c, fl | flagIndir}
 		} else {
-			a[i] = Value{keyType, nil, loadScalar(key, keyType.size), fl}
+			a[i] = Value{keyType, *(*unsafe.Pointer)(key), fl}
 		}
 		mapiternext(it)
 	}
@@ -1242,7 +1109,7 @@ func (v Value) Method(i int) Value {
 	fl := v.flag & (flagRO | flagIndir)
 	fl |= flag(Func) << flagKindShift
 	fl |= flag(i)<<flagMethodShift | flagMethod
-	return Value{v.typ, v.ptr, v.scalar, fl}
+	return Value{v.typ, v.ptr, fl}
 }
 
 // NumMethod returns the number of methods in the value's method set.
@@ -1406,16 +1273,14 @@ func (v Value) recv(nb bool) (val Value, ok bool) {
 		panic("reflect: recv on send-only channel")
 	}
 	t := tt.elem
-	val = Value{t, nil, 0, flag(t.Kind()) << flagKindShift}
+	val = Value{t, nil, flag(t.Kind()) << flagKindShift}
 	var p unsafe.Pointer
-	if !isDirectIface(t) {
+	if ifaceIndir(t) {
 		p = unsafe_New(t)
 		val.ptr = p
 		val.flag |= flagIndir
-	} else if t.pointers() {
-		p = unsafe.Pointer(&val.ptr)
 	} else {
-		p = unsafe.Pointer(&val.scalar)
+		p = unsafe.Pointer(&val.ptr)
 	}
 	selected, ok := chanrecv(v.typ, v.pointer(), nb, p)
 	if !selected {
@@ -1445,10 +1310,8 @@ func (v Value) send(x Value, nb bool) (selected bool) {
 	var p unsafe.Pointer
 	if x.flag&flagIndir != 0 {
 		p = x.ptr
-	} else if x.typ.pointers() {
-		p = unsafe.Pointer(&x.ptr)
 	} else {
-		p = unsafe.Pointer(&x.scalar)
+		p = unsafe.Pointer(&x.ptr)
 	}
 	return chansend(v.typ, v.pointer(), p, nb)
 }
@@ -1466,10 +1329,8 @@ func (v Value) Set(x Value) {
 	x = x.assignTo("reflect.Set", v.typ, target)
 	if x.flag&flagIndir != 0 {
 		memmove(v.ptr, x.ptr, v.typ.size)
-	} else if x.typ.pointers() {
-		*(*unsafe.Pointer)(v.ptr) = x.ptr
 	} else {
-		memmove(v.ptr, unsafe.Pointer(&x.scalar), v.typ.size)
+		*(*unsafe.Pointer)(v.ptr) = x.ptr
 	}
 }
 
@@ -1592,10 +1453,8 @@ func (v Value) SetMapIndex(key, val Value) {
 	var k unsafe.Pointer
 	if key.flag&flagIndir != 0 {
 		k = key.ptr
-	} else if key.typ.pointers() {
-		k = unsafe.Pointer(&key.ptr)
 	} else {
-		k = unsafe.Pointer(&key.scalar)
+		k = unsafe.Pointer(&key.ptr)
 	}
 	if val.typ == nil {
 		mapdelete(v.typ, v.pointer(), k)
@@ -1606,10 +1465,8 @@ func (v Value) SetMapIndex(key, val Value) {
 	var e unsafe.Pointer
 	if val.flag&flagIndir != 0 {
 		e = val.ptr
-	} else if val.typ.pointers() {
-		e = unsafe.Pointer(&val.ptr)
 	} else {
-		e = unsafe.Pointer(&val.scalar)
+		e = unsafe.Pointer(&val.ptr)
 	}
 	mapassign(v.typ, v.pointer(), k, e)
 }
@@ -1686,7 +1543,7 @@ func (v Value) Slice(i, j int) Value {
 			panic("reflect.Value.Slice: string slice index out of bounds")
 		}
 		t := stringHeader{unsafe.Pointer(uintptr(s.Data) + uintptr(i)), j - i}
-		return Value{v.typ, unsafe.Pointer(&t), 0, v.flag}
+		return Value{v.typ, unsafe.Pointer(&t), v.flag}
 	}
 
 	if i < 0 || j < i || j > cap {
@@ -1708,7 +1565,7 @@ func (v Value) Slice(i, j int) Value {
 	}
 
 	fl := v.flag&flagRO | flagIndir | flag(Slice)<<flagKindShift
-	return Value{typ.common(), unsafe.Pointer(&x), 0, fl}
+	return Value{typ.common(), unsafe.Pointer(&x), fl}
 }
 
 // Slice3 is the 3-index form of the slice operation: it returns v[i:j:k].
@@ -1760,7 +1617,7 @@ func (v Value) Slice3(i, j, k int) Value {
 	}
 
 	fl := v.flag&flagRO | flagIndir | flag(Slice)<<flagKindShift
-	return Value{typ.common(), unsafe.Pointer(&x), 0, fl}
+	return Value{typ.common(), unsafe.Pointer(&x), fl}
 }
 
 // String returns the string v's underlying value, as a string.
@@ -1836,14 +1693,7 @@ func (v Value) Type() Type {
 // It panics if v's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 func (v Value) Uint() uint64 {
 	k := v.kind()
-	var p unsafe.Pointer
-	if v.flag&flagIndir != 0 {
-		p = v.ptr
-	} else {
-		// The escape analysis is good enough that &v.scalar
-		// does not trigger a heap allocation.
-		p = unsafe.Pointer(&v.scalar)
-	}
+	p := v.ptr
 	switch k {
 	case Uint:
 		return uint64(*(*uint)(p))
@@ -1997,17 +1847,6 @@ func Copy(dst, src Value) int {
 		n = sn
 	}
 
-	// If sk is an in-line array, cannot take its address.
-	// Instead, copy element by element.
-	// TODO: memmove would be ok for this (sa = unsafe.Pointer(&v.scalar))
-	// if we teach the compiler that ptrs don't escape from memmove.
-	if src.flag&flagIndir == 0 {
-		for i := 0; i < n; i++ {
-			dst.Index(i).Set(src.Index(i))
-		}
-		return n
-	}
-
 	// Copy via memmove.
 	var da, sa unsafe.Pointer
 	if dk == Array {
@@ -2015,7 +1854,9 @@ func Copy(dst, src Value) int {
 	} else {
 		da = (*sliceHeader)(dst.ptr).Data
 	}
-	if sk == Array {
+	if src.flag&flagIndir == 0 {
+		sa = unsafe.Pointer(&src.ptr)
+	} else if sk == Array {
 		sa = src.ptr
 	} else {
 		sa = (*sliceHeader)(src.ptr).Data
@@ -2128,10 +1969,8 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 			v = v.assignTo("reflect.Select", tt.elem, nil)
 			if v.flag&flagIndir != 0 {
 				rc.val = v.ptr
-			} else if v.typ.pointers() {
-				rc.val = unsafe.Pointer(&v.ptr)
 			} else {
-				rc.val = unsafe.Pointer(&v.scalar)
+				rc.val = unsafe.Pointer(&v.ptr)
 			}
 
 		case SelectRecv:
@@ -2160,12 +1999,10 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 		t := tt.elem
 		p := runcases[chosen].val
 		fl := flag(t.Kind()) << flagKindShift
-		if !isDirectIface(t) {
-			recv = Value{t, p, 0, fl | flagIndir}
-		} else if t.pointers() {
-			recv = Value{t, *(*unsafe.Pointer)(p), 0, fl}
+		if ifaceIndir(t) {
+			recv = Value{t, p, fl | flagIndir}
 		} else {
-			recv = Value{t, nil, loadScalar(p, t.size), fl}
+			recv = Value{t, *(*unsafe.Pointer)(p), fl}
 		}
 	}
 	return chosen, recv, recvOK
@@ -2196,7 +2033,7 @@ func MakeSlice(typ Type, len, cap int) Value {
 	}
 
 	s := sliceHeader{unsafe_NewArray(typ.Elem().(*rtype), cap), len, cap}
-	return Value{typ.common(), unsafe.Pointer(&s), 0, flagIndir | flag(Slice)<<flagKindShift}
+	return Value{typ.common(), unsafe.Pointer(&s), flagIndir | flag(Slice)<<flagKindShift}
 }
 
 // MakeChan creates a new channel with the specified type and buffer size.
@@ -2211,7 +2048,7 @@ func MakeChan(typ Type, buffer int) Value {
 		panic("reflect.MakeChan: unidirectional channel type")
 	}
 	ch := makechan(typ.(*rtype), uint64(buffer))
-	return Value{typ.common(), ch, 0, flag(Chan) << flagKindShift}
+	return Value{typ.common(), ch, flag(Chan) << flagKindShift}
 }
 
 // MakeMap creates a new map of the specified type.
@@ -2220,7 +2057,7 @@ func MakeMap(typ Type) Value {
 		panic("reflect.MakeMap of non-map type")
 	}
 	m := makemap(typ.(*rtype))
-	return Value{typ.common(), m, 0, flag(Map) << flagKindShift}
+	return Value{typ.common(), m, flag(Map) << flagKindShift}
 }
 
 // Indirect returns the value that v points to.
@@ -2261,10 +2098,10 @@ func Zero(typ Type) Value {
 	}
 	t := typ.common()
 	fl := flag(t.Kind()) << flagKindShift
-	if isDirectIface(t) {
-		return Value{t, nil, 0, fl}
+	if ifaceIndir(t) {
+		return Value{t, unsafe_New(typ.(*rtype)), fl | flagIndir}
 	}
-	return Value{t, unsafe_New(typ.(*rtype)), 0, fl | flagIndir}
+	return Value{t, nil, fl}
 }
 
 // New returns a Value representing a pointer to a new zero value
@@ -2275,14 +2112,14 @@ func New(typ Type) Value {
 	}
 	ptr := unsafe_New(typ.(*rtype))
 	fl := flag(Ptr) << flagKindShift
-	return Value{typ.common().ptrTo(), ptr, 0, fl}
+	return Value{typ.common().ptrTo(), ptr, fl}
 }
 
 // NewAt returns a Value representing a pointer to a value of the
 // specified type, using p as that pointer.
 func NewAt(typ Type, p unsafe.Pointer) Value {
 	fl := flag(Ptr) << flagKindShift
-	return Value{typ.common().ptrTo(), p, 0, fl}
+	return Value{typ.common().ptrTo(), p, fl}
 }
 
 // assignTo returns a value v that can be assigned directly to typ.
@@ -2300,7 +2137,7 @@ func (v Value) assignTo(context string, dst *rtype, target *interface{}) Value {
 		v.typ = dst
 		fl := v.flag & (flagRO | flagAddr | flagIndir)
 		fl |= flag(dst.Kind()) << flagKindShift
-		return Value{dst, v.ptr, v.scalar, fl}
+		return Value{dst, v.ptr, fl}
 
 	case implements(dst, v.typ):
 		if target == nil {
@@ -2312,7 +2149,7 @@ func (v Value) assignTo(context string, dst *rtype, target *interface{}) Value {
 		} else {
 			ifaceE2I(dst, x, unsafe.Pointer(target))
 		}
-		return Value{dst, unsafe.Pointer(target), 0, flagIndir | flag(Interface)<<flagKindShift}
+		return Value{dst, unsafe.Pointer(target), flagIndir | flag(Interface)<<flagKindShift}
 	}
 
 	// Failed.
@@ -2420,82 +2257,46 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 // where t is a signed or unsigned int type.
 func makeInt(f flag, bits uint64, t Type) Value {
 	typ := t.common()
-	if !isDirectIface(typ) {
-		ptr := unsafe_New(typ)
-		switch typ.size {
-		case 1:
-			*(*uint8)(unsafe.Pointer(ptr)) = uint8(bits)
-		case 2:
-			*(*uint16)(unsafe.Pointer(ptr)) = uint16(bits)
-		case 4:
-			*(*uint32)(unsafe.Pointer(ptr)) = uint32(bits)
-		case 8:
-			*(*uint64)(unsafe.Pointer(ptr)) = bits
-		}
-		return Value{typ, ptr, 0, f | flagIndir | flag(typ.Kind())<<flagKindShift}
-	}
-	var s uintptr
+	ptr := unsafe_New(typ)
 	switch typ.size {
 	case 1:
-		*(*uint8)(unsafe.Pointer(&s)) = uint8(bits)
+		*(*uint8)(unsafe.Pointer(ptr)) = uint8(bits)
 	case 2:
-		*(*uint16)(unsafe.Pointer(&s)) = uint16(bits)
+		*(*uint16)(unsafe.Pointer(ptr)) = uint16(bits)
 	case 4:
-		*(*uint32)(unsafe.Pointer(&s)) = uint32(bits)
+		*(*uint32)(unsafe.Pointer(ptr)) = uint32(bits)
 	case 8:
-		*(*uint64)(unsafe.Pointer(&s)) = uint64(bits)
+		*(*uint64)(unsafe.Pointer(ptr)) = bits
 	}
-	return Value{typ, nil, s, f | flag(typ.Kind())<<flagKindShift}
+	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())<<flagKindShift}
 }
 
 // makeFloat returns a Value of type t equal to v (possibly truncated to float32),
 // where t is a float32 or float64 type.
 func makeFloat(f flag, v float64, t Type) Value {
 	typ := t.common()
-	if !isDirectIface(typ) {
-		ptr := unsafe_New(typ)
-		switch typ.size {
-		case 4:
-			*(*float32)(unsafe.Pointer(ptr)) = float32(v)
-		case 8:
-			*(*float64)(unsafe.Pointer(ptr)) = v
-		}
-		return Value{typ, ptr, 0, f | flagIndir | flag(typ.Kind())<<flagKindShift}
-	}
-
-	var s uintptr
+	ptr := unsafe_New(typ)
 	switch typ.size {
 	case 4:
-		*(*float32)(unsafe.Pointer(&s)) = float32(v)
+		*(*float32)(unsafe.Pointer(ptr)) = float32(v)
 	case 8:
-		*(*float64)(unsafe.Pointer(&s)) = v
+		*(*float64)(unsafe.Pointer(ptr)) = v
 	}
-	return Value{typ, nil, s, f | flag(typ.Kind())<<flagKindShift}
+	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())<<flagKindShift}
 }
 
 // makeComplex returns a Value of type t equal to v (possibly truncated to complex64),
 // where t is a complex64 or complex128 type.
 func makeComplex(f flag, v complex128, t Type) Value {
 	typ := t.common()
-	if !isDirectIface(typ) {
-		ptr := unsafe_New(typ)
-		switch typ.size {
-		case 8:
-			*(*complex64)(unsafe.Pointer(ptr)) = complex64(v)
-		case 16:
-			*(*complex128)(unsafe.Pointer(ptr)) = v
-		}
-		return Value{typ, ptr, 0, f | flagIndir | flag(typ.Kind())<<flagKindShift}
-	}
-
-	var s uintptr
+	ptr := unsafe_New(typ)
 	switch typ.size {
 	case 8:
-		*(*complex64)(unsafe.Pointer(&s)) = complex64(v)
+		*(*complex64)(unsafe.Pointer(ptr)) = complex64(v)
 	case 16:
-		*(*complex128)(unsafe.Pointer(&s)) = v
+		*(*complex128)(unsafe.Pointer(ptr)) = v
 	}
-	return Value{typ, nil, s, f | flag(typ.Kind())<<flagKindShift}
+	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())<<flagKindShift}
 }
 
 func makeString(f flag, v string, t Type) Value {
@@ -2606,7 +2407,7 @@ func cvtDirect(v Value, typ Type) Value {
 		ptr = c
 		f &^= flagAddr
 	}
-	return Value{t, ptr, v.scalar, v.flag&flagRO | f} // v.flag&flagRO|f == f?
+	return Value{t, ptr, v.flag&flagRO | f} // v.flag&flagRO|f == f?
 }
 
 // convertOp: concrete -> interface
@@ -2618,7 +2419,7 @@ func cvtT2I(v Value, typ Type) Value {
 	} else {
 		ifaceE2I(typ.(*rtype), x, unsafe.Pointer(target))
 	}
-	return Value{typ.common(), unsafe.Pointer(target), 0, v.flag&flagRO | flagIndir | flag(Interface)<<flagKindShift}
+	return Value{typ.common(), unsafe.Pointer(target), v.flag&flagRO | flagIndir | flag(Interface)<<flagKindShift}
 }
 
 // convertOp: interface -> interface
