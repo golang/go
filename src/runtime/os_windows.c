@@ -34,6 +34,7 @@
 #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
 #pragma dynimport runtime·SetProcessPriorityBoost SetProcessPriorityBoost "kernel32.dll"
 #pragma dynimport runtime·SetThreadPriority SetThreadPriority "kernel32.dll"
+#pragma dynimport runtime·SetUnhandledExceptionFilter SetUnhandledExceptionFilter "kernel32.dll"
 #pragma dynimport runtime·SetWaitableTimer SetWaitableTimer "kernel32.dll"
 #pragma dynimport runtime·Sleep Sleep "kernel32.dll"
 #pragma dynimport runtime·SuspendThread SuspendThread "kernel32.dll"
@@ -65,6 +66,7 @@ extern void *runtime·SetConsoleCtrlHandler;
 extern void *runtime·SetEvent;
 extern void *runtime·SetProcessPriorityBoost;
 extern void *runtime·SetThreadPriority;
+extern void *runtime·SetUnhandledExceptionFilter;
 extern void *runtime·SetWaitableTimer;
 extern void *runtime·Sleep;
 extern void *runtime·SuspendThread;
@@ -77,7 +79,9 @@ void *runtime·GetQueuedCompletionStatusEx;
 
 extern uintptr runtime·externalthreadhandlerp;
 void runtime·externalthreadhandler(void);
-void runtime·sigtramp(void);
+void runtime·exceptiontramp(void);
+void runtime·firstcontinuetramp(void);
+void runtime·lastcontinuetramp(void);
 
 #pragma textflag NOSPLIT
 uintptr
@@ -106,12 +110,30 @@ void
 runtime·osinit(void)
 {
 	void *kernel32;
+	void *addVectoredContinueHandler;
+
+	kernel32 = runtime·stdcall1(runtime·LoadLibraryA, (uintptr)"kernel32.dll");
 
 	runtime·externalthreadhandlerp = (uintptr)runtime·externalthreadhandler;
 
-	runtime·stdcall2(runtime·AddVectoredExceptionHandler, 1, (uintptr)runtime·sigtramp);
+	runtime·stdcall2(runtime·AddVectoredExceptionHandler, 1, (uintptr)runtime·exceptiontramp);
+	addVectoredContinueHandler = nil;
+	if(kernel32 != nil)
+		addVectoredContinueHandler = runtime·stdcall2(runtime·GetProcAddress, (uintptr)kernel32, (uintptr)"AddVectoredContinueHandler");
+	if(addVectoredContinueHandler == nil || sizeof(void*) == 4) {
+		// use SetUnhandledExceptionFilter for windows-386 or
+		// if VectoredContinueHandler is unavailable.
+		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
+		runtime·stdcall1(runtime·SetUnhandledExceptionFilter, (uintptr)runtime·lastcontinuetramp);
+	} else {
+		runtime·stdcall2(addVectoredContinueHandler, 1, (uintptr)runtime·firstcontinuetramp);
+		runtime·stdcall2(addVectoredContinueHandler, 0, (uintptr)runtime·lastcontinuetramp);
+	}
+
 	runtime·stdcall2(runtime·SetConsoleCtrlHandler, (uintptr)runtime·ctrlhandler, 1);
+
 	runtime·stdcall1(runtime·timeBeginPeriod, 1);
+
 	runtime·ncpu = getproccount();
 	
 	// Windows dynamic priority boosting assumes that a process has different types
@@ -120,7 +142,6 @@ runtime·osinit(void)
 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
 	runtime·stdcall2(runtime·SetProcessPriorityBoost, -1, 1);
 
-	kernel32 = runtime·stdcall1(runtime·LoadLibraryA, (uintptr)"kernel32.dll");
 	if(kernel32 != nil) {
 		runtime·GetQueuedCompletionStatusEx = runtime·stdcall2(runtime·GetProcAddress, (uintptr)kernel32, (uintptr)"GetQueuedCompletionStatusEx");
 	}
@@ -467,6 +488,7 @@ runtime·issigpanic(uint32 code)
 	case EXCEPTION_FLT_INEXACT_RESULT:
 	case EXCEPTION_FLT_OVERFLOW:
 	case EXCEPTION_FLT_UNDERFLOW:
+	case EXCEPTION_BREAKPOINT:
 		return 1;
 	}
 	return 0;
@@ -475,10 +497,14 @@ runtime·issigpanic(uint32 code)
 void
 runtime·initsig(void)
 {
-	// following line keeps sigtramp alive at link stage
+	// following line keeps these functions alive at link stage
 	// if there's a better way please write it here
-	void *p = runtime·sigtramp;
-	USED(p);
+	void *e = runtime·exceptiontramp;
+	void *f = runtime·firstcontinuetramp;
+	void *l = runtime·lastcontinuetramp;
+	USED(e);
+	USED(f);
+	USED(l);
 }
 
 uint32

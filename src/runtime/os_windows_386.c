@@ -24,45 +24,63 @@ runtime·dumpregs(Context *r)
 	runtime·printf("gs      %x\n", r->SegGs);
 }
 
-// Called by sigtramp from Windows VEH handler.
-// Return value signals whether the exception has been handled (-1)
-// or should be made available to other handlers in the chain (0).
-uint32
-runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+bool
+runtime·isgoexception(ExceptionRecord *info, Context *r)
 {
-	bool crash;
-	uintptr *sp;
 	extern byte runtime·text[], runtime·etext[];
 
 	// Only handle exception if executing instructions in Go binary
 	// (not Windows library code). 
 	if(r->Eip < (uint32)runtime·text || (uint32)runtime·etext < r->Eip)
-		return 0;
+		return false;
 
-	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
-		// Make it look like a call to the signal func.
-		// Have to pass arguments out of band since
-		// augmenting the stack frame would break
-		// the unwinding code.
-		gp->sig = info->ExceptionCode;
-		gp->sigcode0 = info->ExceptionInformation[0];
-		gp->sigcode1 = info->ExceptionInformation[1];
-		gp->sigpc = r->Eip;
+	if(!runtime·issigpanic(info->ExceptionCode))
+		return false;
 
-		// Only push runtime·sigpanic if r->eip != 0.
-		// If r->eip == 0, probably panicked because of a
-		// call to a nil func.  Not pushing that onto sp will
-		// make the trace look like a call to runtime·sigpanic instead.
-		// (Otherwise the trace will end at runtime·sigpanic and we
-		// won't get to see who faulted.)
-		if(r->Eip != 0) {
-			sp = (uintptr*)r->Esp;
-			*--sp = r->Eip;
-			r->Esp = (uintptr)sp;
-		}
-		r->Eip = (uintptr)runtime·sigpanic;
-		return -1;
+	return true;
+}
+
+// Called by sigtramp from Windows VEH handler.
+// Return value signals whether the exception has been handled (EXCEPTION_CONTINUE_EXECUTION)
+// or should be made available to other handlers in the chain (EXCEPTION_CONTINUE_SEARCH).
+uint32
+runtime·exceptionhandler(ExceptionRecord *info, Context *r, G *gp)
+{
+	uintptr *sp;
+
+	if(!runtime·isgoexception(info, r))
+		return EXCEPTION_CONTINUE_SEARCH;
+
+	// Make it look like a call to the signal func.
+	// Have to pass arguments out of band since
+	// augmenting the stack frame would break
+	// the unwinding code.
+	gp->sig = info->ExceptionCode;
+	gp->sigcode0 = info->ExceptionInformation[0];
+	gp->sigcode1 = info->ExceptionInformation[1];
+	gp->sigpc = r->Eip;
+
+	// Only push runtime·sigpanic if r->eip != 0.
+	// If r->eip == 0, probably panicked because of a
+	// call to a nil func.  Not pushing that onto sp will
+	// make the trace look like a call to runtime·sigpanic instead.
+	// (Otherwise the trace will end at runtime·sigpanic and we
+	// won't get to see who faulted.)
+	if(r->Eip != 0) {
+		sp = (uintptr*)r->Esp;
+		*--sp = r->Eip;
+		r->Esp = (uintptr)sp;
 	}
+	r->Eip = (uintptr)runtime·sigpanic;
+	return EXCEPTION_CONTINUE_EXECUTION;
+}
+
+// lastcontinuehandler is reached, because runtime cannot handle
+// current exception. lastcontinuehandler will print crash info and exit.
+uint32
+runtime·lastcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
+{
+	bool crash;
 
 	if(runtime·panicking)	// traceback already printed
 		runtime·exit(2);
@@ -88,7 +106,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 		runtime·crash();
 
 	runtime·exit(2);
-	return -1; // not reached
+	return 0; // not reached
 }
 
 void
