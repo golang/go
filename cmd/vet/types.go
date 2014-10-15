@@ -37,12 +37,14 @@ func init() {
 func importType(path, name string) types.Type {
 	pkg, err := types.DefaultImport(imports, path)
 	if err != nil {
-		panic("import failed: " + err.Error())
+		warnf("import failed: %v", err)
+		return nil
 	}
 	if obj, ok := pkg.Scope().Lookup(name).(*types.TypeName); ok {
 		return obj.Type()
 	}
-	panic("invalid type name: " + name)
+	warnf("invalid type name %q", name)
+	return nil
 }
 
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
