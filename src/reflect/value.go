@@ -857,6 +857,9 @@ func (v Value) Field(i int) Value {
 // FieldByIndex returns the nested field corresponding to index.
 // It panics if v's Kind is not struct.
 func (v Value) FieldByIndex(index []int) Value {
+	if len(index) == 1 {
+		return v.Field(index[0])
+	}
 	v.mustBe(Struct)
 	for i, x := range index {
 		if i > 0 {
