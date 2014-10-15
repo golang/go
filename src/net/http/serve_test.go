@@ -2659,6 +2659,103 @@ func TestCloseWrite(t *testing.T) {
 	}
 }
 
+// This verifies that a handler can Flush and then Hijack.
+//
+// An similar test crashed once during development, but it was only
+// testing this tangentially and temporarily until another TODO was
+// fixed.
+//
+// So add an explicit test for this.
+func TestServerFlushAndHijack(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		io.WriteString(w, "Hello, ")
+		w.(Flusher).Flush()
+		conn, buf, _ := w.(Hijacker).Hijack()
+		buf.WriteString("6\r\nworld!\r\n0\r\n\r\n")
+		if err := buf.Flush(); err != nil {
+			t.Error(err)
+		}
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer ts.Close()
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	all, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "Hello, world!"; string(all) != want {
+		t.Errorf("Got %q; want %q", all, want)
+	}
+}
+
+// golang.org/issue/8534 -- the Server shouldn't reuse a connection
+// for keep-alive after it's seen any Write error (e.g. a timeout) on
+// that net.Conn.
+//
+// To test, verify we don't timeout or see fewer unique client
+// addresses (== unique connections) than requests.
+func TestServerKeepAliveAfterWriteError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+	defer afterTest(t)
+	const numReq = 3
+	addrc := make(chan string, numReq)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		addrc <- r.RemoteAddr
+		time.Sleep(500 * time.Millisecond)
+		w.(Flusher).Flush()
+	}))
+	ts.Config.WriteTimeout = 250 * time.Millisecond
+	ts.Start()
+	defer ts.Close()
+
+	errc := make(chan error, numReq)
+	go func() {
+		defer close(errc)
+		for i := 0; i < numReq; i++ {
+			res, err := Get(ts.URL)
+			if res != nil {
+				res.Body.Close()
+			}
+			errc <- err
+		}
+	}()
+
+	timeout := time.NewTimer(numReq * 2 * time.Second) // 4x overkill
+	defer timeout.Stop()
+	addrSeen := map[string]bool{}
+	numOkay := 0
+	for {
+		select {
+		case v := <-addrc:
+			addrSeen[v] = true
+		case err, ok := <-errc:
+			if !ok {
+				if len(addrSeen) != numReq {
+					t.Errorf("saw %d unique client addresses; want %d", len(addrSeen), numReq)
+				}
+				if numOkay != 0 {
+					t.Errorf("got %d successful client requests; want 0", numOkay)
+				}
+				return
+			}
+			if err == nil {
+				numOkay++
+			}
+		case <-timeout.C:
+			t.Fatal("timeout waiting for requests to complete")
+		}
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
