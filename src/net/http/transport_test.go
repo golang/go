@@ -2216,6 +2216,39 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 	wantIdle("after final put", 1)
 }
 
+// This tests that an client requesting a content range won't also
+// implicitly ask for gzip support. If they want that, they need to do it
+// on their own.
+// golang.org/issue/8923
+func TestTransportRangeAndGzip(t *testing.T) {
+	defer afterTest(t)
+	reqc := make(chan *Request, 1)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		reqc <- r
+	}))
+	defer ts.Close()
+
+	req, _ := NewRequest("GET", ts.URL, nil)
+	req.Header.Set("Range", "bytes=7-11")
+	res, err := DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case r := <-reqc:
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			t.Error("Transport advertised gzip support in the Accept header")
+		}
+		if r.Header.Get("Range") == "" {
+			t.Error("no Range in request")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout")
+	}
+	res.Body.Close()
+}
+
 func wantBody(res *http.Response, err error, want string) error {
 	if err != nil {
 		return err
