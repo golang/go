@@ -1852,7 +1852,7 @@ func (gccgoToolchain) linker() string {
 }
 
 func (gccgoToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
-	out := p.Name + ".o"
+	out := "_go_.o"
 	ofile = obj + out
 	gcargs := []string{"-g"}
 	gcargs = append(gcargs, b.gccArchArgs()...)
