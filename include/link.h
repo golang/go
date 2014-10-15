@@ -373,6 +373,7 @@ struct	Link
 	char*	trimpath;
 	char*	goroot;
 	char*	goroot_final;
+	int32	enforce_data_order;	// for use by assembler
 
 	// hash table of all symbols
 	LSym*	hash[LINKHASH];
@@ -542,6 +543,7 @@ vlong	adduint8(Link *ctxt, LSym *s, uint8 v);
 vlong	adduintxx(Link *ctxt, LSym *s, uint64 v, int wid);
 void	mangle(char *file);
 void	savedata(Link *ctxt, LSym *s, Prog *p, char *pn);
+void	savedata1(Link *ctxt, LSym *s, Prog *p, char *pn, int enforce_order);
 vlong	setaddr(Link *ctxt, LSym *s, vlong off, LSym *t);
 vlong	setaddrplus(Link *ctxt, LSym *s, vlong off, LSym *t, vlong add);
 vlong	setuint16(Link *ctxt, LSym *s, vlong r, uint16 v);
