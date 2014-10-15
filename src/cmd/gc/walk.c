@@ -1390,7 +1390,12 @@ walkexpr(Node **np, NodeList **init)
 	case OMAPLIT:
 	case OSTRUCTLIT:
 	case OPTRLIT:
-		// XXX TODO do we need to clear var?
+		// NOTE(rsc): Race detector cannot handle seeing
+		// a STRUCTLIT or ARRAYLIT representing a zero value,
+		// so make a temporary for those always in race mode.
+		// Otherwise, leave zero values in place.
+		if(iszero(n) && !flag_race)
+			goto ret;
 		var = temp(n->type);
 		anylit(0, n, var, init);
 		n = var;
@@ -2009,8 +2014,8 @@ needwritebarrier(Node *l, Node *r)
 	if(isstack(l))
 		return 0;
 
-	// No write barrier for zeroing.
-	if(r == N)
+	// No write barrier for implicit or explicit zeroing.
+	if(r == N || iszero(r))
 		return 0;
 
 	// No write barrier for initialization to constant.

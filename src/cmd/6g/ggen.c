@@ -1102,26 +1102,54 @@ clearfat(Node *nl)
 	c = w % 8;	// bytes
 	q = w / 8;	// quads
 
+	if(q < 4) {
+		// Write sequence of MOV 0, off(base) instead of using STOSQ.
+		// The hope is that although the code will be slightly longer,
+		// the MOVs will have no dependencies and pipeline better
+		// than the unrolled STOSQ loop.
+		// NOTE: Must use agen, not igen, so that optimizer sees address
+		// being taken. We are not writing on field boundaries.
+		agenr(nl, &n1, N);
+		n1.op = OINDREG;
+		nodconst(&z, types[TUINT64], 0);
+		while(q-- > 0) {
+			n1.type = z.type;
+			gins(AMOVQ, &z, &n1);
+			n1.xoffset += 8;
+		}
+		if(c >= 4) {
+			nodconst(&z, types[TUINT32], 0);
+			n1.type = z.type;
+			gins(AMOVL, &z, &n1);
+			n1.xoffset += 4;
+			c -= 4;
+		}
+		nodconst(&z, types[TUINT8], 0);
+		while(c-- > 0) {
+			n1.type = z.type;
+			gins(AMOVB, &z, &n1);
+			n1.xoffset++;
+		}
+		regfree(&n1);
+		return;
+	}
+
 	savex(D_DI, &n1, &oldn1, N, types[tptr]);
 	agen(nl, &n1);
 
 	savex(D_AX, &ax, &oldax, N, types[tptr]);
 	gconreg(AMOVL, 0, D_AX);
 
-	if(q > 128 || (q >= 4 && nacl)) {
+	if(q > 128 || nacl) {
 		gconreg(movptr, q, D_CX);
 		gins(AREP, N, N);	// repeat
 		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
-	} else if(q >= 4) {
+	} else {
 		p = gins(ADUFFZERO, N, N);
 		p->to.type = D_ADDR;
 		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
 		// 2 and 128 = magic constants: see ../../runtime/asm_amd64.s
 		p->to.offset = 2*(128-q);
-	} else
-	while(q > 0) {
-		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
-		q--;
 	}
 
 	z = ax;

@@ -157,7 +157,7 @@ void
 clearfat(Node *nl)
 {
 	uint32 w, c, q;
-	Node n1;
+	Node n1, z;
 	Prog *p;
 
 	/* clear a fat object */
@@ -171,6 +171,32 @@ clearfat(Node *nl)
 
 	c = w % 4;	// bytes
 	q = w / 4;	// quads
+
+	if(q < 4) {
+		// Write sequence of MOV 0, off(base) instead of using STOSL.
+		// The hope is that although the code will be slightly longer,
+		// the MOVs will have no dependencies and pipeline better
+		// than the unrolled STOSL loop.
+		// NOTE: Must use agen, not igen, so that optimizer sees address
+		// being taken. We are not writing on field boundaries.
+		regalloc(&n1, types[tptr], N);
+		agen(nl, &n1);
+		n1.op = OINDREG;
+		nodconst(&z, types[TUINT64], 0);
+		while(q-- > 0) {
+			n1.type = z.type;
+			gins(AMOVL, &z, &n1);
+			n1.xoffset += 4;
+		}
+		nodconst(&z, types[TUINT8], 0);
+		while(c-- > 0) {
+			n1.type = z.type;
+			gins(AMOVB, &z, &n1);
+			n1.xoffset++;
+		}
+		regfree(&n1);
+		return;
+	}
 
 	nodreg(&n1, types[tptr], D_DI);
 	agen(nl, &n1);

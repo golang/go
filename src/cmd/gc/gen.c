@@ -731,7 +731,7 @@ cgen_as(Node *nl, Node *nr)
 		return;
 	}
 
-	if(nr == N || isnil(nr)) {
+	if(nr == N || iszero(nr)) {
 		// externals and heaps should already be clear
 		if(nr == N) {
 			if(nl->class == PEXTERN)
