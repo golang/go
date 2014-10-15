@@ -2060,13 +2060,13 @@ applywritebarrier(Node *n, NodeList **init)
 				l, n->right);
 		} else if(t->width == 2*widthptr) {
 			n = mkcall1(writebarrierfn("writebarrierfat2", t, n->right->type), T, init,
-				l, n->right);
+				l, nodnil(), n->right);
 		} else if(t->width == 3*widthptr) {
 			n = mkcall1(writebarrierfn("writebarrierfat3", t, n->right->type), T, init,
-				l, n->right);
+				l, nodnil(), n->right);
 		} else if(t->width == 4*widthptr) {
 			n = mkcall1(writebarrierfn("writebarrierfat4", t, n->right->type), T, init,
-				l, n->right);
+				l, nodnil(), n->right);
 		} else {
 			r = n->right;
 			while(r->op == OCONVNOP)
