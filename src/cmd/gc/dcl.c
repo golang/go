@@ -558,6 +558,9 @@ ifacedcl(Node *n)
 	if(n->op != ODCLFIELD || n->right == N)
 		fatal("ifacedcl");
 
+	if(isblank(n->left))
+		yyerror("methods must have a unique non-blank name");
+
 	dclcontext = PPARAM;
 	markdcl();
 	funcdepth++;
