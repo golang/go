@@ -85,6 +85,20 @@ func TestEmptyImport(t *testing.T) {
 	}
 }
 
+func TestEmptyFolderImport(t *testing.T) {
+	_, err := Import(".", "testdata/empty", 0)
+	if _, ok := err.(*NoGoError); !ok {
+		t.Fatal(`Import("testdata/empty") did not return NoGoError.`)
+	}
+}
+
+func TestMultiplePackageImport(t *testing.T) {
+	_, err := Import(".", "testdata/multi", 0)
+	if _, ok := err.(*MultiplePackageError); !ok {
+		t.Fatal(`Import("testdata/multi") did not return MultiplePackageError.`)
+	}
+}
+
 func TestLocalDirectory(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {
