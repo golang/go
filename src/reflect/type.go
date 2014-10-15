@@ -498,7 +498,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	mt := p.typ
 	m.Type = mt
 	fn := unsafe.Pointer(&p.tfn)
-	m.Func = Value{mt, fn, 0, fl}
+	m.Func = Value{mt, fn, fl}
 	m.Index = i
 	return
 }
@@ -1805,7 +1805,7 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 		// Reflect uses the "interface" calling convention for
 		// methods, where receivers take one word of argument
 		// space no matter how big they actually are.
-		if !isDirectIface(rcvr) {
+		if ifaceIndir(rcvr) {
 			// we pass a pointer to the receiver.
 			gc.append(bitsPointer)
 			stack.append2(bitsPointer)
@@ -1862,9 +1862,9 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	return x, argSize, retOffset, stack
 }
 
-// isDirectIface reports whether t is stored directly in an interface value.
-func isDirectIface(t *rtype) bool {
-	return t.kind&kindDirectIface != 0
+// ifaceIndir reports whether t is stored indirectly in an interface value.
+func ifaceIndir(t *rtype) bool {
+	return t.kind&kindDirectIface == 0
 }
 
 // Layout matches runtime.BitVector (well enough).
