@@ -17,7 +17,6 @@ enum
 	InitPending = 2,
 };
 
-static int iszero(Node*);
 static void initplan(Node*);
 static NodeList *initlist;
 static void init2(Node*, NodeList**);
@@ -1356,7 +1355,6 @@ no:
 	return 0;
 }
 
-static int iszero(Node*);
 static int isvaluelit(Node*);
 static InitEntry* entry(InitPlan*);
 static void addvalue(InitPlan*, vlong, Node*, Node*);
@@ -1440,7 +1438,7 @@ addvalue(InitPlan *p, vlong xoffset, Node *key, Node *n)
 	e->expr = n;
 }
 
-static int
+int
 iszero(Node *n)
 {
 	NodeList *l;

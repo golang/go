@@ -1374,6 +1374,7 @@ int	isnilinter(Type *t);
 int	isptrto(Type *t, int et);
 int	isslice(Type *t);
 int	istype(Type *t, int et);
+int	iszero(Node *n);
 void	linehist(char *file, int32 off, int relative);
 NodeList*	list(NodeList *l, Node *n);
 NodeList*	list1(Node *n);
