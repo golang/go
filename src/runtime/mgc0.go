@@ -110,20 +110,20 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat2(dst *[2]uintptr, src [2]uintptr) {
+func writebarrierfat2(dst *[2]uintptr, _ *byte, src [2]uintptr) {
 	dst[0] = src[0]
 	dst[1] = src[1]
 }
 
 //go:nosplit
-func writebarrierfat3(dst *[3]uintptr, src [3]uintptr) {
+func writebarrierfat3(dst *[3]uintptr, _ *byte, src [3]uintptr) {
 	dst[0] = src[0]
 	dst[1] = src[1]
 	dst[2] = src[2]
 }
 
 //go:nosplit
-func writebarrierfat4(dst *[4]uintptr, src [4]uintptr) {
+func writebarrierfat4(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 	dst[0] = src[0]
 	dst[1] = src[1]
 	dst[2] = src[2]
