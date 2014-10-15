@@ -83,12 +83,12 @@ var m4 = M(jj) // ERROR "invalid|wrong type for M method"
 
 
 type B1 interface {
-	_()
+	_() // ERROR "methods must have a unique non-blank name"
 }
 
 type B2 interface {
 	M()
-	_()
+	_() // ERROR "methods must have a unique non-blank name"
 }
 
 type T2 struct{}
