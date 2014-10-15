@@ -438,6 +438,9 @@ ordercall(Node *n, Order *order)
 // cases they are also typically registerizable, so not much harm done.
 // And this only applies to the multiple-assignment form.
 // We could do a more precise analysis if needed, like in walk.c.
+//
+// Ordermapassign also inserts these temporaries if needed for
+// calling writebarrierfat with a pointer to n->right.
 static void
 ordermapassign(Node *n, Order *order)
 {
@@ -451,7 +454,8 @@ ordermapassign(Node *n, Order *order)
 
 	case OAS:
 		order->out = list(order->out, n);
-		if((n->left->op == OINDEXMAP || (needwritebarrier(n->left, n->right) && n->left->type->width > widthptr)) && !isaddrokay(n->right)) {
+		// We call writebarrierfat only for values > 4 pointers long. See walk.c.
+		if((n->left->op == OINDEXMAP || (needwritebarrier(n->left, n->right) && n->left->type->width > 4*widthptr)) && !isaddrokay(n->right)) {
 			m = n->left;
 			n->left = ordertemp(m->type, order, 0);
 			a = nod(OAS, m, n->left);
