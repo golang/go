@@ -207,7 +207,7 @@ init2(Node *n, NodeList **out)
 	
 	if(n->op == OCLOSURE)
 		init2list(n->closure->nbody, out);
-	if(n->op == ODOTMETH)
+	if(n->op == ODOTMETH || n->op == OCALLPART)
 		init2(n->type->nname, out);
 }
 
