@@ -90,6 +90,7 @@ main(int argc, char *argv[])
 	ctxt = linknew(&link386);
 	ctxt->diag = yyerror;
 	ctxt->bso = &bstdout;
+	ctxt->enforce_data_order = 1;
 	Binit(&bstdout, 1, OWRITE);
 	listinit8();
 	fmtinstall('L', Lconv);
