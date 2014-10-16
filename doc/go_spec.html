@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 30, 2014",
+	"Subtitle": "Version of October 16, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -647,6 +647,65 @@ of evaluating <a href="#Constant_expressions">constant
 expressions</a>.
 </p>
 
+<h2 id="Variables">Variables</h2>
+
+<p>
+A variable is a storage location for holding a <i>value</i>.
+The set of permissible values is determined by the
+variable's <i><a href="#Types">type</a></i>.
+</p>
+
+<p>
+A <a href="#Variable_declarations">variable declaration</a>
+or, for function parameters and results, the signature
+of a <a href="#Function_declarations">function declaration</a>
+or <a href="#Function_literals">function literal</a> reserves
+storage for a named variable.
+
+Calling the built-in function <a href="#Allocation"><code>new</code></a>
+or taking the address of a <a href="#Composite_literals">composite literal</a>
+allocates storage for a variable at run time.
+Such an anonymous variable is referred to via a (possibly implicit)
+<a href="#Address_operators">pointer indirection</a>.
+</p>
+
+<p>
+<i>Structured</i> variables of <a href="#Array_types">array</a>, <a href="#Slice_types">slice</a>,
+and <a href="#Struct_types">struct</a> types have elements and fields that may
+be <a href="#Address_operators">addressed</a> individually. Each such element
+acts like a variable.
+</p>
+
+<p>
+The <i>static type</i> (or just <i>type</i>) of a variable is the	
+type given in its declaration, the type provided in the
+<code>new</code> call or composite literal, or the type of
+an element of a structured variable.
+Variables of interface type also have a distinct <i>dynamic type</i>,
+which is the concrete type of the value assigned to the variable at run time
+(unless the value is the predeclared identifier <code>nil</code>,
+which has no type).
+The dynamic type may vary during execution but values stored in interface
+variables are always <a href="#Assignability">assignable</a>
+to the static type of the variable.	
+</p>	
+
+<pre>
+var x interface{}  // x is nil and has static type interface{}
+var v *T           // v has value nil, static type *T
+x = 42             // x has value 42 and dynamic type int
+x = v              // x has value (*T)(nil) and dynamic type *T
+</pre>
+
+<p>
+A variable's value is retrieved by referring to the variable in an
+<a href="#Expressions">expression</a>; it is the most recent value
+<a href="#Assignments">assigned</a> to the variable.
+If a variable has not yet been assigned a value, its value is the
+<a href="#The_zero_value">zero value</a> for its type.
+</p>
+
+
 <h2 id="Types">Types</h2>
 
 <p>
@@ -670,17 +729,6 @@ Named instances of the boolean, numeric, and string types are
 <i>Composite types</i>&mdash;array, struct, pointer, function,
 interface, slice, map, and channel types&mdash;may be constructed using
 type literals.
-</p>
-
-<p>
-The <i>static type</i> (or just <i>type</i>) of a variable is the
-type defined by its declaration.  Variables of interface type
-also have a distinct <i>dynamic type</i>, which
-is the actual type of the value stored in the variable at run time.
-The dynamic type may vary during execution but is always
-<a href="#Assignability">assignable</a>
-to the static type of the interface variable.  For non-interface
-types, the dynamic type is always the static type.
 </p>
 
 <p>
@@ -1038,7 +1086,7 @@ struct {
 <h3 id="Pointer_types">Pointer types</h3>
 
 <p>
-A pointer type denotes the set of all pointers to variables of a given
+A pointer type denotes the set of all pointers to <a href="#Variables">variables</a> of a given
 type, called the <i>base type</i> of the pointer.
 The value of an uninitialized pointer is <code>nil</code>.
 </p>
@@ -1461,7 +1509,7 @@ is different from <code>[]string</code>.
 <h3 id="Assignability">Assignability</h3>
 
 <p>
-A value <code>x</code> is <i>assignable</i> to a variable of type <code>T</code>
+A value <code>x</code> is <i>assignable</i> to a <a href="#Variables">variable</a> of type <code>T</code>
 ("<code>x</code> is assignable to <code>T</code>") in any of these cases:
 </p>
 
@@ -2266,7 +2314,8 @@ For array and slice literals the following rules apply:
 
 <p>
 <a href="#Address_operators">Taking the address</a> of a composite literal
-generates a pointer to a unique instance of the literal's value.
+generates a pointer to a unique <a href="#Variables">variable</a> initialized
+with the literal's value.
 </p>
 <pre>
 var pointer *Point3D = &amp;Point3D{y: 1000}
@@ -3628,7 +3677,7 @@ then the evaluation of <code>&amp;x</code> does too.
 
 <p>
 For an operand <code>x</code> of pointer type <code>*T</code>, the pointer
-indirection <code>*x</code> denotes the value of type <code>T</code> pointed
+indirection <code>*x</code> denotes the <a href="#Variables">variable</a> of type <code>T</code> pointed
 to by <code>x</code>.
 If <code>x</code> is <code>nil</code>, an attempt to evaluate <code>*x</code>
 will cause a <a href="#Run_time_panics">run-time panic</a>.
@@ -5405,9 +5454,11 @@ var z complex128
 <h3 id="Allocation">Allocation</h3>
 
 <p>
-The built-in function <code>new</code> takes a type <code>T</code> and
-returns a value of type <code>*T</code>.
-The memory is initialized as described in the section on
+The built-in function <code>new</code> takes a type <code>T</code>,
+allocates storage for a <a href="#Variables">variable</a> of that type
+at run time, and returns a value of type <code>*T</code>
+<a href="#Pointer_types">pointing</a> to it.
+The variable is initialized as described in the section on
 <a href="#The_zero_value">initial values</a>.
 </p>
 
@@ -5425,10 +5476,10 @@ new(S)
 </pre>
 
 <p>
-dynamically allocates memory for a variable of type <code>S</code>,
+allocates storage for a variable of type <code>S</code>,
 initializes it (<code>a=0</code>, <code>b=0.0</code>),
 and returns a value of type <code>*S</code> containing the address
-of the memory.
+of the location.
 </p>
 
 <h3 id="Making_slices_maps_and_channels">Making slices, maps and channels</h3>
@@ -5895,10 +5946,12 @@ func main() {
 
 <h3 id="The_zero_value">The zero value</h3>
 <p>
-When memory is allocated to store a value, either through a declaration
-or a call of <code>make</code> or <code>new</code>,
-and no explicit initialization is provided, the memory is
-given a default initialization.  Each element of such a value is
+When storage is allocated for a <a href="#Variables">variable</a>,
+either through a declaration or a call of <code>new</code>, or when
+a new value is created, either through a composite literal or a call
+of <code>make</code>,
+and no explicit initialization is provided, the variable or value is
+given a default value.  Each element of such a variable or value is
 set to the <i>zero value</i> for its type: <code>false</code> for booleans,
 <code>0</code> for integers, <code>0.0</code> for floats, <code>""</code>
 for strings, and <code>nil</code> for pointers, functions, interfaces, slices, channels, and maps.
