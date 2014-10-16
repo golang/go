@@ -52,6 +52,7 @@ func allocatePersistent1K() {
 var memoryProfilerRun = 0
 
 func TestMemoryProfiler(t *testing.T) {
+	t.Skip("broken test - see issue 8867")
 	// Create temp file for the profile.
 	f, err := ioutil.TempFile("", "memprof")
 	if err != nil {
