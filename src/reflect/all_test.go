@@ -2678,6 +2678,26 @@ func TestFuncArg(t *testing.T) {
 	}
 }
 
+func TestStructArg(t *testing.T) {
+	type padded struct {
+		B string
+		C int32
+	}
+	var (
+		gotA  padded
+		gotB  uint32
+		wantA = padded{"3", 4}
+		wantB = uint32(5)
+	)
+	f := func(a padded, b uint32) {
+		gotA, gotB = a, b
+	}
+	ValueOf(f).Call([]Value{ValueOf(wantA), ValueOf(wantB)})
+	if gotA != wantA || gotB != wantB {
+		t.Errorf("function called with (%v, %v), want (%v, %v)", gotA, gotB, wantA, wantB)
+	}
+}
+
 var tagGetTests = []struct {
 	Tag   StructTag
 	Key   string
