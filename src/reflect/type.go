@@ -1544,6 +1544,7 @@ func (gc *gcProg) appendProg(t *rtype) {
 		for i := 0; i < c; i++ {
 			gc.appendProg(t.Field(i).Type.common())
 		}
+		gc.align(uintptr(t.align))
 	}
 }
 
