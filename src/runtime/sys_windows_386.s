@@ -73,6 +73,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // Called by Windows as a Vectored Exception Handler (VEH).
 // First argument is pointer to struct containing
 // exception record and context pointers.
+// Handler function is stored in AX.
 // Return 0 for 'not handled', -1 for handled.
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	ptrs+0(FP), CX
@@ -83,6 +84,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	BP, 16(SP)
 	MOVL	SI, 20(SP)
 	MOVL	DI, 24(SP)
+
+	MOVL	AX, SI	// save handler address
 
 	// find g
 	get_tls(DX)
@@ -123,11 +126,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 sigtramp_g0:
 	MOVL	0(CX), BX // ExceptionRecord*
 	MOVL	4(CX), CX // Context*
-	// call sighandler(ExceptionRecord*, Context*, G*)
 	MOVL	BX, 0(SP)
 	MOVL	CX, 4(SP)
 	MOVL	DX, 8(SP)
-	CALL	runtime·sighandler(SB)
+	CALL	SI	// call handler
 	// AX is set to report result back to Windows
 	MOVL	12(SP), AX
 
@@ -149,6 +151,18 @@ done:
 	// RET 4 (return and pop 4 bytes parameters)
 	BYTE $0xC2; WORD $4
 	RET // unreached; make assembler happy
+ 
+TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
+	MOVL	$runtime·exceptionhandler(SB), AX
+	JMP	runtime·sigtramp(SB)
+
+TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
+	// is never called
+	INT	$3
+
+TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
+	MOVL	$runtime·lastcontinuehandler(SB), AX
+	JMP	runtime·sigtramp(SB)
 
 TEXT runtime·ctrlhandler(SB),NOSPLIT,$0
 	PUSHL	$runtime·ctrlhandler1(SB)

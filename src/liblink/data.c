@@ -83,6 +83,8 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
 	siz = ctxt->arch->datasize(p);
 	if(off < 0 || siz < 0 || off >= 1<<30 || siz >= 100)
 		mangle(pn);
+	if(ctxt->enforce_data_order && off < s->np)
+		ctxt->diag("data out of order (already have %d)\n%P", p);
 	symgrow(ctxt, s, off+siz);
 
 	if(p->to.type == ctxt->arch->D_FCONST) {

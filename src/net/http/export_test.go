@@ -9,6 +9,7 @@ package http
 
 import (
 	"net"
+	"net/url"
 	"time"
 )
 
@@ -91,6 +92,10 @@ func ResetCachedEnvironment() {
 }
 
 var DefaultUserAgent = defaultUserAgent
+
+func ExportRefererForURL(lastReq, newReq *url.URL) string {
+	return refererForURL(lastReq, newReq)
+}
 
 // SetPendingDialHooks sets the hooks that run before and after handling
 // pending dials.

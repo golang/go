@@ -372,7 +372,7 @@ struct	M
 	uintptr scalararg[4];	// scalar argument/return for mcall
 	void*   ptrarg[4];	// pointer argument/return for mcall
 #ifdef GOOS_windows
-	void*	thread;		// thread handle
+	uintptr	thread;		// thread handle
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
 	LibCall	libcall;
@@ -865,6 +865,7 @@ void	runtime·stackinit(void);
 Stack	runtime·stackalloc(uint32);
 void	runtime·stackfree(Stack);
 void	runtime·shrinkstack(G*);
+void	runtime·shrinkfinish(void);
 MCache*	runtime·allocmcache(void);
 void	runtime·freemcache(MCache*);
 void	runtime·mallocinit(void);
@@ -898,7 +899,9 @@ void	runtime·atomicstore(uint32 volatile*, uint32);
 void	runtime·atomicstore64(uint64 volatile*, uint64);
 uint64	runtime·atomicload64(uint64 volatile*);
 void*	runtime·atomicloadp(void* volatile*);
+uintptr	runtime·atomicloaduintptr(uintptr volatile*);
 void	runtime·atomicstorep(void* volatile*, void*);
+void	runtime·atomicstoreuintptr(uintptr volatile*, uintptr);
 void	runtime·atomicor8(byte volatile*, byte);
 
 void	runtime·setg(G*);

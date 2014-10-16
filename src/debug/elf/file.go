@@ -564,6 +564,10 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
 			continue
 		}
 
+		// There are relocations, so this must be a normal
+		// object file, and we only look at section symbols,
+		// so we assume that the symbol value is 0.
+
 		switch t {
 		case R_X86_64_64:
 			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
@@ -645,6 +649,10 @@ func (f *File) applyRelocationsARM64(dst []byte, rels []byte) error {
 			// We don't handle non-section relocations for now.
 			continue
 		}
+
+		// There are relocations, so this must be a normal
+		// object file, and we only look at section symbols,
+		// so we assume that the symbol value is 0.
 
 		switch t {
 		case R_AARCH64_ABS64:

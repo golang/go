@@ -383,25 +383,19 @@ greyobject(byte *obj, Markbits *mbits, Workbuf *wbuf)
 static Workbuf*
 scanobject(byte *b, uintptr n, byte *ptrmask, Workbuf *wbuf)
 {
-	byte *obj, *arena_start, *arena_used, *ptrbitp, bits, cshift, cached;
-	uintptr i;
-	intptr ncached;
+	byte *obj, *arena_start, *arena_used, *ptrbitp;
+	uintptr i, j;
+	int32 bits;
 	Markbits mbits;
 
 	arena_start = (byte*)runtime·mheap.arena_start;
 	arena_used = runtime·mheap.arena_used;
 	ptrbitp = nil;
-	cached = 0;
-	ncached = 0;
 
 	// Find bits of the beginning of the object.
 	if(ptrmask == nil) {
 		b = objectstart(b, &mbits);
 		ptrbitp = mbits.bitp; //arena_start - off/wordsPerBitmapByte - 1;
-		cshift = mbits.shift; //(off % wordsPerBitmapByte) * gcBits;
-		cached = *ptrbitp >> cshift;
-		cached &= ~bitBoundary;
-		ncached = (8 - cshift)/gcBits;
 	}
 	for(i = 0; i < n; i += PtrSize) {
 		// Find bits for this word.
@@ -414,26 +408,28 @@ scanobject(byte *b, uintptr n, byte *ptrmask, Workbuf *wbuf)
 				runtime·mheap.spans[(b-arena_start)>>PageShift] != runtime·mheap.spans[(b+i-arena_start)>>PageShift])
 				break;
 			// Consult GC bitmap.
-			if(ncached <= 0) {
-				// Refill cache.
-				cached = *--ptrbitp;
-				ncached = 2;
-			}
-			bits = cached;
-			cached >>= gcBits;
-			ncached--;
-			
-			if((bits&bitBoundary) != 0)
+			bits = *ptrbitp;
+			if(wordsPerBitmapByte != 2)
+				runtime·throw("alg doesn't work for wordsPerBitmapByte != 2");
+			j = ((uintptr)b+i)/PtrSize & 1;
+			bits >>= gcBits*j;
+			if(i == 0)
+				bits &= ~bitBoundary;
+			ptrbitp -= j;
+		
+			if((bits&bitBoundary) != 0 && i != 0)
 				break; // reached beginning of the next object
 			bits = (bits>>2)&BitsMask;
 			if(bits == BitsDead)
 				break; // reached no-scan part of the object
 		} 
 
-		if(bits == BitsScalar || bits == BitsDead)
+		if(bits <= BitsScalar) // Bits Scalar || BitsDead
 			continue;
-		if(bits != BitsPointer)
+		if(bits != BitsPointer) {
+			runtime·printf("gc bits=%x\n", bits);
 			runtime·throw("unexpected garbage collection bits");
+		}
 
 		obj = *(byte**)(b+i);
 		// At this point we have extracted the next potential pointer.
@@ -1607,6 +1603,8 @@ gc(struct gc_args *args)
 
 	if(runtime·work.nproc > 1)
 		runtime·notesleep(&runtime·work.alldone);
+
+	runtime·shrinkfinish();
 
 	cachestats();
 	// next_gc calculation is tricky with concurrent sweep since we don't know size of live heap

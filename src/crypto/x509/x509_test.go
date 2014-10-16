@@ -953,6 +953,69 @@ func TestParseCertificateRequest(t *testing.T) {
 	}
 }
 
+func TestMaxPathLen(t *testing.T) {
+	block, _ := pem.Decode([]byte(pemPrivateKey))
+	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse private key: %s", err)
+	}
+
+	template := &Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "Σ Acme Co",
+		},
+		NotBefore: time.Unix(1000, 0),
+		NotAfter:  time.Unix(100000, 0),
+
+		BasicConstraintsValid: true,
+		IsCA: true,
+	}
+
+	serialiseAndParse := func(template *Certificate) *Certificate {
+		derBytes, err := CreateCertificate(rand.Reader, template, template, &rsaPriv.PublicKey, rsaPriv)
+		if err != nil {
+			t.Fatalf("failed to create certificate: %s", err)
+			return nil
+		}
+
+		cert, err := ParseCertificate(derBytes)
+		if err != nil {
+			t.Fatalf("failed to parse certificate: %s", err)
+			return nil
+		}
+
+		return cert
+	}
+
+	cert1 := serialiseAndParse(template)
+	if m := cert1.MaxPathLen; m != -1 {
+		t.Errorf("Omitting MaxPathLen didn't turn into -1, got %d", m)
+	}
+	if cert1.MaxPathLenZero {
+		t.Errorf("Omitting MaxPathLen resulted in MaxPathLenZero")
+	}
+
+	template.MaxPathLen = 1
+	cert2 := serialiseAndParse(template)
+	if m := cert2.MaxPathLen; m != 1 {
+		t.Errorf("Setting MaxPathLen didn't work. Got %d but set 1", m)
+	}
+	if cert2.MaxPathLenZero {
+		t.Errorf("Setting MaxPathLen resulted in MaxPathLenZero")
+	}
+
+	template.MaxPathLen = 0
+	template.MaxPathLenZero = true
+	cert3 := serialiseAndParse(template)
+	if m := cert3.MaxPathLen; m != 0 {
+		t.Errorf("Setting MaxPathLenZero didn't work, got %d", m)
+	}
+	if !cert3.MaxPathLenZero {
+		t.Errorf("Setting MaxPathLen to zero didn't result in MaxPathLenZero")
+	}
+}
+
 // This CSR was generated with OpenSSL:
 //  openssl req -out CSR.csr -new -newkey rsa:2048 -nodes -keyout privateKey.key -config openssl.cnf
 //

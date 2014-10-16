@@ -124,7 +124,22 @@ func newFile(testName string, t *testing.T) (f *File) {
 	}
 	f, err := ioutil.TempFile(dir, "_Go_"+testName)
 	if err != nil {
-		t.Fatalf("open %s: %s", testName, err)
+		t.Fatalf("TempFile %s: %s", testName, err)
+	}
+	return
+}
+
+func newDir(testName string, t *testing.T) (name string) {
+	// Use a local file system, not NFS.
+	// On Unix, override $TMPDIR in case the user
+	// has it set to an NFS-mounted directory.
+	dir := ""
+	if runtime.GOOS != "android" && runtime.GOOS != "windows" {
+		dir = "/tmp"
+	}
+	name, err := ioutil.TempDir(dir, "_Go_"+testName)
+	if err != nil {
+		t.Fatalf("TempDir %s: %s", testName, err)
 	}
 	return
 }
@@ -755,35 +770,49 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-// Use TempDir() to make sure we're on a local file system,
+// Use TempDir (via newFile) to make sure we're on a local file system,
 // so that timings are not distorted by latency and caching.
 // On NFS, timings can be off due to caching of meta-data on
 // NFS servers (Issue 848).
 func TestChtimes(t *testing.T) {
 	f := newFile("TestChtimes", t)
 	defer Remove(f.Name())
-	defer f.Close()
 
 	f.Write([]byte("hello, world\n"))
 	f.Close()
 
-	st, err := Stat(f.Name())
+	testChtimes(t, f.Name())
+}
+
+// Use TempDir (via newDir) to make sure we're on a local file system,
+// so that timings are not distorted by latency and caching.
+// On NFS, timings can be off due to caching of meta-data on
+// NFS servers (Issue 848).
+func TestChtimesDir(t *testing.T) {
+	name := newDir("TestChtimes", t)
+	defer RemoveAll(name)
+
+	testChtimes(t, name)
+}
+
+func testChtimes(t *testing.T, name string) {
+	st, err := Stat(name)
 	if err != nil {
-		t.Fatalf("Stat %s: %s", f.Name(), err)
+		t.Fatalf("Stat %s: %s", name, err)
 	}
 	preStat := st
 
 	// Move access and modification time back a second
 	at := Atime(preStat)
 	mt := preStat.ModTime()
-	err = Chtimes(f.Name(), at.Add(-time.Second), mt.Add(-time.Second))
+	err = Chtimes(name, at.Add(-time.Second), mt.Add(-time.Second))
 	if err != nil {
-		t.Fatalf("Chtimes %s: %s", f.Name(), err)
+		t.Fatalf("Chtimes %s: %s", name, err)
 	}
 
-	st, err = Stat(f.Name())
+	st, err = Stat(name)
 	if err != nil {
-		t.Fatalf("second Stat %s: %s", f.Name(), err)
+		t.Fatalf("second Stat %s: %s", name, err)
 	}
 	postStat := st
 

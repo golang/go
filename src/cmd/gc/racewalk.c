@@ -210,12 +210,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OCALLFUNC:
 		// Instrument dst argument of runtime.writebarrier* calls
 		// as we do not instrument runtime code.
-		if(n->left->sym != S && n->left->sym->pkg == runtimepkg &&
-			(strcmp(n->left->sym->name, "writebarrierptr") == 0 ||
-			strcmp(n->left->sym->name, "writebarrierstring") == 0 ||
-			strcmp(n->left->sym->name, "writebarrierslice") == 0 ||
-			strcmp(n->left->sym->name, "writebarrieriface") == 0 ||
-			strcmp(n->left->sym->name, "writebarrierfat") == 0)) {
+		if(n->left->sym != S && n->left->sym->pkg == runtimepkg && strncmp(n->left->sym->name, "writebarrier", 12) == 0) {
 			// Find the dst argument.
 			// The list can be reordered, so it's not necessary just the first or the second element.
 			for(l = n->list; l; l = l->next) {

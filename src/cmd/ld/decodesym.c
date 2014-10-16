@@ -111,7 +111,10 @@ decodetype_gcprog(LSym *s)
 uint8*
 decodetype_gcmask(LSym *s)
 {
-	return (uint8*)(s->p + 1*PtrSize + 8 + 1*PtrSize);
+	LSym *mask;
+	
+	mask = decode_reloc_sym(s, 1*PtrSize + 8 + 1*PtrSize);
+	return mask->p;
 }
 
 // Type.ArrayType.elem and Type.SliceType.Elem

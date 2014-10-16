@@ -31,8 +31,11 @@ runtime·deferproc_m(void)
 	argp = g->m->scalararg[1];
 	callerpc = g->m->scalararg[2];
 	g->m->ptrarg[0] = nil;
+	g->m->scalararg[1] = 0;
 
 	d = runtime·newdefer(siz);
+	if(d->panic != nil)
+		runtime·throw("deferproc: d->panic != nil after newdefer");
 	d->fn = fn;
 	d->pc = callerpc;
 	d->argp = argp;
@@ -131,6 +134,7 @@ runtime·dopanic_m(void)
 	g->m->ptrarg[0] = nil;
 	pc = g->m->scalararg[0];
 	sp = g->m->scalararg[1];
+	g->m->scalararg[1] = 0;
 	if(gp->sig != 0)
 		runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
 			gp->sig, gp->sigcode0, gp->sigcode1, gp->sigpc);

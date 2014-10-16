@@ -188,6 +188,12 @@ func newdefer(siz int32) *_defer {
 // The defer cannot be used after this call.
 //go:nosplit
 func freedefer(d *_defer) {
+	if d._panic != nil {
+		freedeferpanic()
+	}
+	if d.fn != nil {
+		freedeferfn()
+	}
 	sc := deferclass(uintptr(d.siz))
 	if sc < uintptr(len(p{}.deferpool)) {
 		mp := acquirem()
@@ -197,6 +203,18 @@ func freedefer(d *_defer) {
 		pp.deferpool[sc] = d
 		releasem(mp)
 	}
+}
+
+// Separate function so that it can split stack.
+// Windows otherwise runs out of stack space.
+func freedeferpanic() {
+	// _panic must be cleared before d is unlinked from gp.
+	gothrow("freedefer with d._panic != nil")
+}
+
+func freedeferfn() {
+	// fn must be cleared before d is unlinked from gp.
+	gothrow("freedefer with d.fn != nil")
 }
 
 // Run a deferred function if there is one.
@@ -231,6 +249,7 @@ func deferreturn(arg0 uintptr) {
 	mp := acquirem()
 	memmove(unsafe.Pointer(argp), deferArgs(d), uintptr(d.siz))
 	fn := d.fn
+	d.fn = nil
 	gp._defer = d.link
 	freedefer(d)
 	releasem(mp)
@@ -258,7 +277,9 @@ func Goexit() {
 		if d.started {
 			if d._panic != nil {
 				d._panic.aborted = true
+				d._panic = nil
 			}
+			d.fn = nil
 			gp._defer = d.link
 			freedefer(d)
 			continue
@@ -268,6 +289,8 @@ func Goexit() {
 		if gp._defer != d {
 			gothrow("bad defer entry in Goexit")
 		}
+		d._panic = nil
+		d.fn = nil
 		gp._defer = d.link
 		freedefer(d)
 		// Note: we ignore recovers here because Goexit isn't a panic
@@ -343,6 +366,8 @@ func gopanic(e interface{}) {
 			if d._panic != nil {
 				d._panic.aborted = true
 			}
+			d._panic = nil
+			d.fn = nil
 			gp._defer = d.link
 			freedefer(d)
 			continue
@@ -366,6 +391,8 @@ func gopanic(e interface{}) {
 		if gp._defer != d {
 			gothrow("bad defer entry in panic")
 		}
+		d._panic = nil
+		d.fn = nil
 		gp._defer = d.link
 
 		// trigger shrinkage to test stack copy.  See stack_test.go:TestStackPanic

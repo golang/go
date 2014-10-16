@@ -174,6 +174,10 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		goparkunlock(&c.lock, "chan send")
 
 		// someone woke us up.
+		if mysg != gp.waiting {
+			gothrow("G waiting list is corrupted!")
+		}
+		gp.waiting = nil
 		if gp.param == nil {
 			if c.closed == 0 {
 				gothrow("chansend: spurious wakeup")
@@ -184,10 +188,6 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		if mysg.releasetime > 0 {
 			blockevent(int64(mysg.releasetime)-t0, 2)
 		}
-		if mysg != gp.waiting {
-			gothrow("G waiting list is corrupted!")
-		}
-		gp.waiting = nil
 		releaseSudog(mysg)
 		return true
 	}
@@ -410,6 +410,9 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 		goparkunlock(&c.lock, "chan receive")
 
 		// someone woke us up
+		if mysg != gp.waiting {
+			gothrow("G waiting list is corrupted!")
+		}
 		gp.waiting = nil
 		if mysg.releasetime > 0 {
 			blockevent(mysg.releasetime-t0, 2)

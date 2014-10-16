@@ -42,6 +42,8 @@ enum {
 	BitsMask	= (1<<BitsPerPointer)-1,
 	PointersPerByte	= 8/BitsPerPointer,
 
+	// If you change these, also change scanblock.
+	// scanblock does "if(bits == BitsScalar || bits == BitsDead)" as "if(bits <= BitsScalar)".
 	BitsDead	= 0,
 	BitsScalar	= 1,
 	BitsPointer	= 2,
