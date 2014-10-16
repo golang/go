@@ -488,6 +488,10 @@ colasdefn(NodeList *left, Node *defn)
 	NodeList *l;
 	Node *n;
 
+	for(l=left; l; l=l->next)
+		if(l->n->sym != S)
+			l->n->sym->flags |= SymUniq;
+
 	nnew = 0;
 	nerr = 0;
 	for(l=left; l; l=l->next) {
@@ -499,6 +503,13 @@ colasdefn(NodeList *left, Node *defn)
 			nerr++;
 			continue;
 		}
+		if((n->sym->flags & SymUniq) == 0) {
+			yyerrorl(defn->lineno, "%S repeated on left side of :=", n->sym);
+			n->diag++;
+			nerr++;
+			continue;
+		}
+		n->sym->flags &= ~SymUniq;
 		if(n->sym->block == block)
 			continue;
 
@@ -546,6 +557,9 @@ ifacedcl(Node *n)
 {
 	if(n->op != ODCLFIELD || n->right == N)
 		fatal("ifacedcl");
+
+	if(isblank(n->left))
+		yyerror("methods must have a unique non-blank name");
 
 	dclcontext = PPARAM;
 	markdcl();

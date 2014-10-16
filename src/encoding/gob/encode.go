@@ -281,15 +281,16 @@ func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, value refle
 		field := value.FieldByIndex(instr.index)
 		if instr.indir > 0 {
 			field = encIndirect(field, instr.indir)
-		}
-		if !valid(field) {
-			continue
+			// TODO: Is field guaranteed valid? If so we could avoid this check.
+			if !valid(field) {
+				continue
+			}
 		}
 		instr.op(instr, state, field)
 	}
 }
 
-// encodeArray encodes the array whose 0th element is at p.
+// encodeArray encodes an array.
 func (enc *Encoder) encodeArray(b *bytes.Buffer, value reflect.Value, op encOp, elemIndir int, length int) {
 	state := enc.newEncoderState(b)
 	defer enc.freeEncoderState(state)
@@ -300,6 +301,7 @@ func (enc *Encoder) encodeArray(b *bytes.Buffer, value reflect.Value, op encOp, 
 		elem := value.Index(i)
 		if elemIndir > 0 {
 			elem = encIndirect(elem, elemIndir)
+			// TODO: Is elem guaranteed valid? If so we could avoid this check.
 			if !valid(elem) {
 				errorf("encodeArray: nil element")
 			}

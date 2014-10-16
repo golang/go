@@ -173,7 +173,6 @@ type decodeState struct {
 	scan       scanner
 	nextscan   scanner // for calls to nextValue
 	savedError error
-	tempstr    string // scratch space to avoid some allocations
 	useNumber  bool
 }
 
@@ -291,6 +290,32 @@ func (d *decodeState) value(v reflect.Value) {
 	case scanBeginLiteral:
 		d.literal(v)
 	}
+}
+
+type unquotedValue struct{}
+
+// valueQuoted is like value but decodes a
+// quoted string literal or literal null into an interface value.
+// If it finds anything other than a quoted string literal or null,
+// valueQuoted returns unquotedValue{}.
+func (d *decodeState) valueQuoted() interface{} {
+	switch op := d.scanWhile(scanSkipSpace); op {
+	default:
+		d.error(errPhase)
+
+	case scanBeginArray:
+		d.array(reflect.Value{})
+
+	case scanBeginObject:
+		d.object(reflect.Value{})
+
+	case scanBeginLiteral:
+		switch v := d.literalInterface().(type) {
+		case nil, string:
+			return v
+		}
+	}
+	return unquotedValue{}
 }
 
 // indirect walks down v allocating pointers as needed,
@@ -444,6 +469,8 @@ func (d *decodeState) array(v reflect.Value) {
 	}
 }
 
+var nullLiteral = []byte("null")
+
 // object consumes an object from d.data[d.off-1:], decoding into the value v.
 // the first byte ('{') of the object has been read already.
 func (d *decodeState) object(v reflect.Value) {
@@ -566,9 +593,14 @@ func (d *decodeState) object(v reflect.Value) {
 
 		// Read value.
 		if destring {
-			d.value(reflect.ValueOf(&d.tempstr))
-			d.literalStore([]byte(d.tempstr), subv, true)
-			d.tempstr = "" // Zero scratch space for successive values.
+			switch qv := d.valueQuoted().(type) {
+			case nil:
+				d.literalStore(nullLiteral, subv, false)
+			case string:
+				d.literalStore([]byte(qv), subv, true)
+			default:
+				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal unquoted value into %v", item, v.Type()))
+			}
 		} else {
 			d.value(subv)
 		}

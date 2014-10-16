@@ -270,7 +270,7 @@ func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 			}
 			ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
 		} else {
-			ptrmask = (*uint8)(unsafe.Pointer(&typ.gc[0])) // embed mask
+			ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
 		}
 		if size == 2*ptrSize {
 			*xbits = *ptrmask | bitBoundary

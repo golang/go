@@ -182,6 +182,8 @@ compile(Node *fn)
 			yyerror("missing function body", fn);
 			goto ret;
 		}
+		if(debug['A'])
+			goto ret;
 		emitptrargsmap();
 		goto ret;
 	}

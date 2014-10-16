@@ -582,6 +582,8 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			continue;
 		sect = obj->sect+sym.shndx;
 		if(sect->sym == nil) {
+			if(strncmp(sym.name, ".Linfo_string", 13) == 0) // clang does this
+				continue;
 			diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type);
 			continue;
 		}

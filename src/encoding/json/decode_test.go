@@ -1070,18 +1070,25 @@ func TestEmptyString(t *testing.T) {
 	}
 }
 
-// Test that the returned error is non-nil when trying to unmarshal null string into int, for successive ,string option
-// Issue 7046
+// Test that a null for ,string is not replaced with the previous quoted string (issue 7046).
+// It should also not be an error (issue 2540, issue 8587).
 func TestNullString(t *testing.T) {
 	type T struct {
-		A int `json:",string"`
-		B int `json:",string"`
+		A int  `json:",string"`
+		B int  `json:",string"`
+		C *int `json:",string"`
 	}
-	data := []byte(`{"A": "1", "B": null}`)
+	data := []byte(`{"A": "1", "B": null, "C": null}`)
 	var s T
+	s.B = 1
+	s.C = new(int)
+	*s.C = 2
 	err := Unmarshal(data, &s)
-	if err == nil {
-		t.Fatalf("expected error; got %v", s)
+	if err != nil {
+		t.Fatalf("Unmarshal: %v")
+	}
+	if s.B != 1 || s.C != nil {
+		t.Fatalf("after Unmarshal, s.B=%d, s.C=%p, want 1, nil", s.B, s.C)
 	}
 }
 

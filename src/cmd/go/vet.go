@@ -4,6 +4,8 @@
 
 package main
 
+import "path/filepath"
+
 func init() {
 	addBuildFlagsNX(cmdVet)
 }
@@ -28,10 +30,21 @@ See also: go fmt, go fix.
 }
 
 func runVet(cmd *Command, args []string) {
-	for _, pkg := range packages(args) {
-		// Use pkg.gofiles instead of pkg.Dir so that
-		// the command only applies to this package,
-		// not to packages in subdirectories.
-		run(tool("vet"), relPaths(stringList(pkg.gofiles, pkg.sfiles)))
+	for _, p := range packages(args) {
+		// Vet expects to be given a set of files all from the same package.
+		// Run once for package p and once for package p_test.
+		if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles) > 0 {
+			runVetFiles(p, stringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
+		}
+		if len(p.XTestGoFiles) > 0 {
+			runVetFiles(p, stringList(p.XTestGoFiles))
+		}
 	}
+}
+
+func runVetFiles(p *Package, files []string) {
+	for i := range files {
+		files[i] = filepath.Join(p.Dir, files[i])
+	}
+	run(tool("vet"), relPaths(files))
 }

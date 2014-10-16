@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"sort"
 	"sync"
 )
 
@@ -34,6 +35,16 @@ func Register(name string, driver driver.Driver) {
 		panic("sql: Register called twice for driver " + name)
 	}
 	drivers[name] = driver
+}
+
+// Drivers returns a sorted list of the names of the registered drivers.
+func Drivers() []string {
+	var list []string
+	for name := range drivers {
+		list = append(list, name)
+	}
+	sort.Strings(list)
+	return list
 }
 
 // RawBytes is a byte slice that holds a reference to memory owned by

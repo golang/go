@@ -1040,11 +1040,14 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	}
 
 	// Ask for a compressed version if the caller didn't set their
-	// own value for Accept-Encoding. We only attempted to
+	// own value for Accept-Encoding. We only attempt to
 	// uncompress the gzip stream if we were the layer that
 	// requested it.
 	requestedGzip := false
-	if !pc.t.DisableCompression && req.Header.Get("Accept-Encoding") == "" && req.Method != "HEAD" {
+	if !pc.t.DisableCompression &&
+		req.Header.Get("Accept-Encoding") == "" &&
+		req.Header.Get("Range") == "" &&
+		req.Method != "HEAD" {
 		// Request gzip only, not deflate. Deflate is ambiguous and
 		// not as universally supported anyway.
 		// See: http://www.gzip.org/zlib/zlib_faq.html#faq38
@@ -1053,6 +1056,10 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		// due to a bug in nginx:
 		//   http://trac.nginx.org/nginx/ticket/358
 		//   http://golang.org/issue/5522
+		//
+		// We don't request gzip if the request is for a range, since
+		// auto-decoding a portion of a gzipped document will just fail
+		// anyway. See http://golang.org/issue/8923
 		requestedGzip = true
 		req.extraHeaders().Set("Accept-Encoding", "gzip")
 	}

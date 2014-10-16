@@ -1543,12 +1543,33 @@ func TestMakeFuncVariadic(t *testing.T) {
 	fv := MakeFunc(TypeOf(fn), func(in []Value) []Value { return in[1:2] })
 	ValueOf(&fn).Elem().Set(fv)
 
-	r := fv.Call([]Value{ValueOf(1), ValueOf(2), ValueOf(3)})[0].Interface().([]int)
+	r := fn(1, 2, 3)
+	if r[0] != 2 || r[1] != 3 {
+		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
+	}
+
+	r = fn(1, []int{2, 3}...)
+	if r[0] != 2 || r[1] != 3 {
+		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
+	}
+
+	r = fv.Call([]Value{ValueOf(1), ValueOf(2), ValueOf(3)})[0].Interface().([]int)
 	if r[0] != 2 || r[1] != 3 {
 		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
 	}
 
 	r = fv.CallSlice([]Value{ValueOf(1), ValueOf([]int{2, 3})})[0].Interface().([]int)
+	if r[0] != 2 || r[1] != 3 {
+		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
+	}
+
+	f := fv.Interface().(func(int, ...int) []int)
+
+	r = f(1, 2, 3)
+	if r[0] != 2 || r[1] != 3 {
+		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
+	}
+	r = f(1, []int{2, 3}...)
 	if r[0] != 2 || r[1] != 3 {
 		t.Errorf("Call returned [%v, %v]; want 2, 3", r[0], r[1])
 	}
@@ -1567,6 +1588,24 @@ func (p Point) AnotherMethod(scale int) int {
 func (p Point) Dist(scale int) int {
 	//println("Point.Dist", p.x, p.y, scale)
 	return p.x*p.x*scale + p.y*p.y*scale
+}
+
+// This will be index 2.
+func (p Point) GCMethod(k int) int {
+	runtime.GC()
+	return k + p.x
+}
+
+// This will be index 3.
+func (p Point) TotalDist(points ...Point) int {
+	tot := 0
+	for _, q := range points {
+		dx := q.x - p.x
+		dy := q.y - p.y
+		tot += dx*dx + dy*dy // Should call Sqrt, but it's just a test.
+
+	}
+	return tot
 }
 
 func TestMethod(t *testing.T) {
@@ -1748,6 +1787,37 @@ func TestMethodValue(t *testing.T) {
 	i = ValueOf(v.Interface()).Call([]Value{ValueOf(17)})[0].Int()
 	if i != 425 {
 		t.Errorf("Interface MethodByName returned %d; want 425", i)
+	}
+}
+
+func TestVariadicMethodValue(t *testing.T) {
+	p := Point{3, 4}
+	points := []Point{{20, 21}, {22, 23}, {24, 25}}
+	want := int64(p.TotalDist(points[0], points[1], points[2]))
+
+	// Curried method of value.
+	tfunc := TypeOf((func(...Point) int)(nil))
+	v := ValueOf(p).Method(3)
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Variadic Method Type is %s; want %s", tt, tfunc)
+	}
+	i := ValueOf(v.Interface()).Call([]Value{ValueOf(points[0]), ValueOf(points[1]), ValueOf(points[2])})[0].Int()
+	if i != want {
+		t.Errorf("Variadic Method returned %d; want %d", i, want)
+	}
+	i = ValueOf(v.Interface()).CallSlice([]Value{ValueOf(points)})[0].Int()
+	if i != want {
+		t.Errorf("Variadic Method CallSlice returned %d; want %d", i, want)
+	}
+
+	f := v.Interface().(func(...Point) int)
+	i = int64(f(points[0], points[1], points[2]))
+	if i != want {
+		t.Errorf("Variadic Method Interface returned %d; want %d", i, want)
+	}
+	i = int64(f(points...))
+	if i != want {
+		t.Errorf("Variadic Method Interface Slice returned %d; want %d", i, want)
 	}
 }
 
@@ -3770,11 +3840,6 @@ func TestReflectFuncTraceback(t *testing.T) {
 	f.Call([]Value{})
 }
 
-func (p Point) GCMethod(k int) int {
-	runtime.GC()
-	return k + p.x
-}
-
 func TestReflectMethodTraceback(t *testing.T) {
 	p := Point{3, 4}
 	m := ValueOf(p).MethodByName("GCMethod")
@@ -3952,4 +4017,10 @@ func TestInvalid(t *testing.T) {
 	if v.IsValid() != false || v.Kind() != Invalid {
 		t.Errorf("field elem: IsValid=%v, Kind=%v, want false, Invalid", v.IsValid(), v.Kind())
 	}
+}
+
+// Issue 8917.
+func TestLargeGCProg(t *testing.T) {
+	fv := ValueOf(func([256]*byte) {})
+	fv.Call([]Value{ValueOf([256]*byte{})})
 }

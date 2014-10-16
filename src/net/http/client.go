@@ -101,6 +101,30 @@ type RoundTripper interface {
 // return true if the string includes a port.
 func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
 
+// refererForURL returns a referer without any authentication info or
+// an empty string if lastReq scheme is https and newReq scheme is http.
+func refererForURL(lastReq, newReq *url.URL) string {
+	// https://tools.ietf.org/html/rfc7231#section-5.5.2
+	//   "Clients SHOULD NOT include a Referer header field in a
+	//    (non-secure) HTTP request if the referring page was
+	//    transferred with a secure protocol."
+	if lastReq.Scheme == "https" && newReq.Scheme == "http" {
+		return ""
+	}
+	referer := lastReq.String()
+	if lastReq.User != nil {
+		// This is not very efficient, but is the best we can
+		// do without:
+		// - introducing a new method on URL
+		// - creating a race condition
+		// - copying the URL struct manually, which would cause
+		//   maintenance problems down the line
+		auth := lastReq.User.String() + "@"
+		referer = strings.Replace(referer, auth, "", 1)
+	}
+	return referer
+}
+
 // Used in Send to implement io.ReadCloser by bundling together the
 // bufio.Reader through which we read the response, and the underlying
 // network connection.
@@ -324,8 +348,8 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
 			if len(via) > 0 {
 				// Add the Referer header.
 				lastReq := via[len(via)-1]
-				if lastReq.URL.Scheme != "https" {
-					nreq.Header.Set("Referer", lastReq.URL.String())
+				if ref := refererForURL(lastReq.URL, nreq.URL); ref != "" {
+					nreq.Header.Set("Referer", ref)
 				}
 
 				err = redirectChecker(nreq, via)

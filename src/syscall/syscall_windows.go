@@ -468,7 +468,7 @@ func Utimes(path string, tv []Timeval) (err error) {
 	}
 	h, e := CreateFile(pathp,
 		FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, nil,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
+		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0)
 	if e != nil {
 		return e
 	}
@@ -488,7 +488,7 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 	}
 	h, e := CreateFile(pathp,
 		FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, nil,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
+		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0)
 	if e != nil {
 		return e
 	}

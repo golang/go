@@ -55,8 +55,15 @@ type Cmd struct {
 	// calling process's current directory.
 	Dir string
 
-	// Stdin specifies the process's standard input. If Stdin is
-	// nil, the process reads from the null device (os.DevNull).
+	// Stdin specifies the process's standard input.
+	// If Stdin is nil, the process reads from the null device (os.DevNull).
+	// If Stdin is an *os.File, the process's standard input is connected
+	// directly to that file.
+	// Otherwise, during the execution of the command a separate
+	// goroutine reads from Stdin and delivers that data to the command
+	// over a pipe. In this case, Wait does not complete until the goroutine
+	// stops copying, either because it has reached the end of Stdin
+	// (EOF or a read error) or because writing to the pipe returned an error.
 	Stdin io.Reader
 
 	// Stdout and Stderr specify the process's standard output and error.

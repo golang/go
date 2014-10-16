@@ -294,6 +294,18 @@ func (fd *netFD) init() error {
 			fd.skipSyncNotif = true
 		}
 	}
+	// Disable SIO_UDP_CONNRESET behavior.
+	// http://support.microsoft.com/kb/263823
+	switch fd.net {
+	case "udp", "udp4", "udp6":
+		ret := uint32(0)
+		flag := uint32(0)
+		size := uint32(unsafe.Sizeof(flag))
+		err := syscall.WSAIoctl(fd.sysfd, syscall.SIO_UDP_CONNRESET, (*byte)(unsafe.Pointer(&flag)), size, nil, 0, &ret, nil, 0)
+		if err != nil {
+			return os.NewSyscallError("WSAIoctl", err)
+		}
+	}
 	fd.rop.mode = 'r'
 	fd.wop.mode = 'w'
 	fd.rop.fd = fd
