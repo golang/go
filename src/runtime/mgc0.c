@@ -1507,7 +1507,6 @@ gc(struct gc_args *args)
 	runtime·sweep.spanidx = 0;
 	runtime·unlock(&runtime·mheap.lock);
 
-	// Temporary disable concurrent sweep, because we see failures on builders.
 	if(ConcurrentSweep && !args->eagersweep) {
 		runtime·lock(&runtime·gclock);
 		if(runtime·sweep.g == nil)
@@ -1521,6 +1520,8 @@ gc(struct gc_args *args)
 		// Sweep all spans eagerly.
 		while(runtime·sweepone() != -1)
 			runtime·sweep.npausesweep++;
+		// Do an additional mProf_GC, because all 'free' events are now real as well.
+		runtime·mProf_GC();
 	}
 
 	runtime·mProf_GC();
