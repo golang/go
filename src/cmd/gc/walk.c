@@ -1499,7 +1499,7 @@ fncall(Node *l, Type *rt)
 
 	if(l->ullman >= UINF || l->op == OINDEXMAP)
 		return 1;
-	r.op = 0;
+	memset(&r, 0, sizeof r);
 	if(needwritebarrier(l, &r))
 		return 1;
 	if(eqtype(l->type, rt))
@@ -2035,6 +2035,28 @@ needwritebarrier(Node *l, Node *r)
 	// is live no matter what.
 	if(r->op == OADDR && isglobal(r->left))
 		return 0;
+
+	// No write barrier for reslice: x = x[0:y] or x = append(x, ...).
+	// Both are compiled to modify x directly.
+	// In the case of append, a write barrier may still be needed
+	// if the underlying array grows, but the append code can
+	// generate the write barrier directly in that case.
+	// (It does not yet, but the cost of the write barrier will be
+	// small compared to the cost of the allocation.)
+	if(r->reslice) {
+		switch(r->op) {
+		case OSLICE:
+		case OSLICE3:
+		case OSLICESTR:
+		case OAPPEND:
+			break;
+		default:
+			dump("bad reslice-l", l);
+			dump("bad reslice-r", r);
+			break;
+		}
+		return 0;
+	}
 
 	// Otherwise, be conservative and use write barrier.
 	return 1;

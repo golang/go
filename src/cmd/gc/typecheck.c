@@ -2814,6 +2814,33 @@ checkassignlist(NodeList *l)
 		checkassign(l->n);
 }
 
+// Check whether l and r are the same side effect-free expression,
+// so that it is safe to reuse one instead of computing both.
+static int
+samesafeexpr(Node *l, Node *r)
+{
+	if(l->op != r->op || !eqtype(l->type, r->type))
+		return 0;
+	
+	switch(l->op) {
+	case ONAME:
+	case OCLOSUREVAR:
+		return l == r;
+	
+	case ODOT:
+	case ODOTPTR:
+		return l->right != nil && r->right != nil && l->right->sym == r->right->sym && samesafeexpr(l->left, r->left);
+	
+	case OIND:
+		return samesafeexpr(l->left, r->left);
+	
+	case OINDEX:
+		return samesafeexpr(l->left, r->left) && samesafeexpr(l->right, r->right);
+	}
+	
+	return 0;
+}
+
 /*
  * type check assignment.
  * if this assignment is the definition of a var on the left side,
@@ -2851,6 +2878,29 @@ typecheckas(Node *n)
 	n->typecheck = 1;
 	if(n->left->typecheck == 0)
 		typecheck(&n->left, Erv | Easgn);
+	
+	// Recognize slices being updated in place, for better code generation later.
+	// Don't rewrite if using race detector, to avoid needing to teach race detector
+	// about this optimization.
+	if(n->left && n->left->op != OINDEXMAP && n->right && !flag_race) {
+		switch(n->right->op) {
+		case OSLICE:
+		case OSLICE3:
+		case OSLICESTR:
+			// For x = x[0:y], x can be updated in place, without touching pointer.
+			if(samesafeexpr(n->left, n->right->left) && (n->right->right->left == N || iszero(n->right->right->left)))
+				n->right->reslice = 1;
+			break;
+		
+		case OAPPEND:
+			// For x = append(x, ...), x can be updated in place when there is capacity,
+			// without touching the pointer; otherwise the emitted code to growslice
+			// can take care of updating the pointer, and only in that case.
+			if(n->right->list != nil && samesafeexpr(n->left, n->right->list->n))
+				n->right->reslice = 1;
+			break;
+		}
+	}
 }
 
 static void
