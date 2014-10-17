@@ -1067,7 +1067,7 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 		if(t->etype != TSTRUCT)
 			fatal("anylit: not struct");
 
-		if(simplename(var)) {
+		if(simplename(var) && count(n->list) > 4) {
 
 			if(ctxt == 0) {
 				// lay out static data
@@ -1090,7 +1090,7 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 		}
 
 		// initialize of not completely specified
-		if(count(n->list) < structcount(t)) {
+		if(simplename(var) || count(n->list) < structcount(t)) {
 			a = nod(OAS, var, N);
 			typecheck(&a, Etop);
 			walkexpr(&a, init);
@@ -1107,7 +1107,7 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 			break;
 		}
 
-		if(simplename(var)) {
+		if(simplename(var) && count(n->list) > 4) {
 
 			if(ctxt == 0) {
 				// lay out static data
@@ -1130,7 +1130,7 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 		}
 
 		// initialize of not completely specified
-		if(count(n->list) < t->bound) {
+		if(simplename(var) || count(n->list) < t->bound) {
 			a = nod(OAS, var, N);
 			typecheck(&a, Etop);
 			walkexpr(&a, init);
