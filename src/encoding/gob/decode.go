@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run decgen.go -output dec_helpers.go
+
 package gob
 
 import (
@@ -18,6 +20,8 @@ var (
 	errBadType = errors.New("gob: unknown type id or corrupted data")
 	errRange   = errors.New("gob: bad data: field numbers out of bounds")
 )
+
+type decHelper func(state *decoderState, v reflect.Value, length int, ovfl error) bool
 
 // decoderState is the execution state of an instance of the decoder. A new state
 // is created for nested objects.
@@ -257,7 +261,7 @@ func float64FromBits(u uint64) float64 {
 // number, and returns it. It's a helper function for float32 and complex64.
 // It returns a float64 because that's what reflection needs, but its return
 // value is known to be accurately representable in a float32.
-func float32FromBits(i *decInstr, u uint64) float64 {
+func float32FromBits(u uint64, ovfl error) float64 {
 	v := float64FromBits(u)
 	av := v
 	if av < 0 {
@@ -265,7 +269,7 @@ func float32FromBits(i *decInstr, u uint64) float64 {
 	}
 	// +Inf is OK in both 32- and 64-bit floats.  Underflow is always OK.
 	if math.MaxFloat32 < av && av <= math.MaxFloat64 {
-		error_(i.ovfl)
+		error_(ovfl)
 	}
 	return v
 }
@@ -273,7 +277,7 @@ func float32FromBits(i *decInstr, u uint64) float64 {
 // decFloat32 decodes an unsigned integer, treats it as a 32-bit floating-point
 // number, and stores it in value.
 func decFloat32(i *decInstr, state *decoderState, value reflect.Value) {
-	value.SetFloat(float32FromBits(i, state.decodeUint()))
+	value.SetFloat(float32FromBits(state.decodeUint(), i.ovfl))
 }
 
 // decFloat64 decodes an unsigned integer, treats it as a 64-bit floating-point
@@ -286,8 +290,8 @@ func decFloat64(i *decInstr, state *decoderState, value reflect.Value) {
 // pair of floating point numbers, and stores them as a complex64 in value.
 // The real part comes first.
 func decComplex64(i *decInstr, state *decoderState, value reflect.Value) {
-	real := float32FromBits(i, state.decodeUint())
-	imag := float32FromBits(i, state.decodeUint())
+	real := float32FromBits(state.decodeUint(), i.ovfl)
+	imag := float32FromBits(state.decodeUint(), i.ovfl)
 	value.SetComplex(complex(real, imag))
 }
 
@@ -450,7 +454,10 @@ func (dec *Decoder) ignoreSingle(engine *decEngine) {
 }
 
 // decodeArrayHelper does the work for decoding arrays and slices.
-func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error) {
+func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error, helper decHelper) {
+	if helper != nil && helper(state, value, length, ovfl) {
+		return
+	}
 	instr := &decInstr{elemOp, 0, nil, ovfl}
 	isPtr := value.Type().Elem().Kind() == reflect.Ptr
 	for i := 0; i < length; i++ {
@@ -468,11 +475,11 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, 
 // decodeArray decodes an array and stores it in value.
 // The length is an unsigned integer preceding the elements.  Even though the length is redundant
 // (it's part of the type), it's a useful check and is included in the encoding.
-func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error) {
+func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error, helper decHelper) {
 	if n := state.decodeUint(); n != uint64(length) {
 		errorf("length mismatch in decodeArray")
 	}
-	dec.decodeArrayHelper(state, value, elemOp, length, ovfl)
+	dec.decodeArrayHelper(state, value, elemOp, length, ovfl, helper)
 }
 
 // decodeIntoValue is a helper for map decoding.
@@ -534,7 +541,7 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 
 // decodeSlice decodes a slice and stores it in value.
 // Slices are encoded as an unsigned length followed by the elements.
-func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp decOp, ovfl error) {
+func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp decOp, ovfl error, helper decHelper) {
 	u := state.decodeUint()
 	typ := value.Type()
 	size := uint64(typ.Elem().Size())
@@ -551,7 +558,7 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
 	} else {
 		value.Set(value.Slice(0, n))
 	}
-	dec.decodeArrayHelper(state, value, elemOp, n, ovfl)
+	dec.decodeArrayHelper(state, value, elemOp, n, ovfl, helper)
 }
 
 // ignoreSlice skips over the data for a slice value with no destination.
@@ -720,8 +727,9 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			elemId := dec.wireType[wireId].ArrayT.Elem
 			elemOp := dec.decOpFor(elemId, t.Elem(), name, inProgress)
 			ovfl := overflow(name)
+			helper := decArrayHelper[t.Elem().Kind()]
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeArray(t, state, value, *elemOp, t.Len(), ovfl)
+				state.dec.decodeArray(t, state, value, *elemOp, t.Len(), ovfl, helper)
 			}
 
 		case reflect.Map:
@@ -748,8 +756,9 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			}
 			elemOp := dec.decOpFor(elemId, t.Elem(), name, inProgress)
 			ovfl := overflow(name)
+			helper := decSliceHelper[t.Elem().Kind()]
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeSlice(state, value, *elemOp, ovfl)
+				state.dec.decodeSlice(state, value, *elemOp, ovfl, helper)
 			}
 
 		case reflect.Struct:

@@ -10,7 +10,7 @@ import (
 	"reflect"
 )
 
-var arrayHelper = map[reflect.Kind]encHelper{
+var encArrayHelper = map[reflect.Kind]encHelper{
 	reflect.Bool:       encBoolArray,
 	reflect.Complex64:  encComplex64Array,
 	reflect.Complex128: encComplex128Array,
@@ -29,7 +29,7 @@ var arrayHelper = map[reflect.Kind]encHelper{
 	reflect.Uintptr:    encUintptrArray,
 }
 
-var sliceHelper = map[reflect.Kind]encHelper{
+var encSliceHelper = map[reflect.Kind]encHelper{
 	reflect.Bool:       encBoolSlice,
 	reflect.Complex64:  encComplex64Slice,
 	reflect.Complex128: encComplex128Slice,

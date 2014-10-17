@@ -508,7 +508,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 			}
 			// Slices have a header; we decode it to find the underlying array.
 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
-			helper := sliceHelper[t.Elem().Kind()]
+			helper := encSliceHelper[t.Elem().Kind()]
 			op = func(i *encInstr, state *encoderState, slice reflect.Value) {
 				if !state.sendZero && slice.Len() == 0 {
 					return
@@ -519,7 +519,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 		case reflect.Array:
 			// True arrays have size in the type.
 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
-			helper := arrayHelper[t.Elem().Kind()]
+			helper := encArrayHelper[t.Elem().Kind()]
 			op = func(i *encInstr, state *encoderState, array reflect.Value) {
 				state.update(i)
 				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len(), helper)
