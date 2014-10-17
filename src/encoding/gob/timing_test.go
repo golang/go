@@ -131,3 +131,67 @@ func TestCountDecodeMallocs(t *testing.T) {
 		t.Fatalf("mallocs per decode of type Bench: %v; wanted 4\n", allocs)
 	}
 }
+
+func BenchmarkComplex128Slice(b *testing.B) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	a := make([]complex128, 1000)
+	for i := range a {
+		a[i] = 1.2 + 3.4i
+	}
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		err := enc.Encode(a)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkInt32Slice(b *testing.B) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	a := make([]int32, 1000)
+	for i := range a {
+		a[i] = 1234
+	}
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		err := enc.Encode(a)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkFloat64Slice(b *testing.B) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	a := make([]float64, 1000)
+	for i := range a {
+		a[i] = 1.23e4
+	}
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		err := enc.Encode(a)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkStringSlice(b *testing.B) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	a := make([]string, 1000)
+	for i := range a {
+		a[i] = "now is the time"
+	}
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		err := enc.Encode(a)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

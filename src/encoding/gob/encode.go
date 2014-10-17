@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run encgen.go -output enc_helpers.go
+
 package gob
 
 import (
@@ -12,6 +14,8 @@ import (
 )
 
 const uint64Size = 8
+
+type encHelper func(state *encoderState, v reflect.Value) bool
 
 // encoderState is the global execution state of an instance of the encoder.
 // Field numbers are delta encoded and always increase. The field
@@ -291,12 +295,15 @@ func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, value refle
 }
 
 // encodeArray encodes an array.
-func (enc *Encoder) encodeArray(b *bytes.Buffer, value reflect.Value, op encOp, elemIndir int, length int) {
+func (enc *Encoder) encodeArray(b *bytes.Buffer, value reflect.Value, op encOp, elemIndir int, length int, helper encHelper) {
 	state := enc.newEncoderState(b)
 	defer enc.freeEncoderState(state)
 	state.fieldnum = -1
 	state.sendZero = true
 	state.encodeUint(uint64(length))
+	if helper != nil && helper(state, value) {
+		return
+	}
 	for i := 0; i < length; i++ {
 		elem := value.Index(i)
 		if elemIndir > 0 {
@@ -501,19 +508,21 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 			}
 			// Slices have a header; we decode it to find the underlying array.
 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
+			helper := sliceHelper[t.Elem().Kind()]
 			op = func(i *encInstr, state *encoderState, slice reflect.Value) {
 				if !state.sendZero && slice.Len() == 0 {
 					return
 				}
 				state.update(i)
-				state.enc.encodeArray(state.b, slice, *elemOp, elemIndir, slice.Len())
+				state.enc.encodeArray(state.b, slice, *elemOp, elemIndir, slice.Len(), helper)
 			}
 		case reflect.Array:
 			// True arrays have size in the type.
 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
+			helper := arrayHelper[t.Elem().Kind()]
 			op = func(i *encInstr, state *encoderState, array reflect.Value) {
 				state.update(i)
-				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len())
+				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len(), helper)
 			}
 		case reflect.Map:
 			keyOp, keyIndir := encOpFor(t.Key(), inProgress, building)
