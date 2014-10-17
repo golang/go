@@ -13,15 +13,17 @@
       google.setOnLoadCallback(drawCharts);
       function drawCharts() {
         var data = new google.visualization.DataTable();
-        data.addColumn('string', 'Commit');
+        data.addColumn({type: 'number', label: 'Commit'});
+        data.addColumn({type: 'number'});
+        data.addColumn({type: 'string', role: 'tooltip'});
         {{range $.Headers}}
-          data.addColumn('number', '{{.}}');
+          data.addColumn({type: 'number', label: '{{.}}'});
           data.addColumn({type: 'boolean', role: 'certainty'});
-          data.addColumn({type: 'string', role: 'tooltip', p: {html: true}});
+          data.addColumn({type: 'string', role: 'tooltip'});
         {{end}}
         data.addRows([
         {{range $.Commits}}
-          [ '{{.Name}}',
+          [ {{.Id}}, 1, "{{.Name}}",
             {{range .Vals}}
               {{if .Val}}
                 {{.Val}}, {{.Certainty}}, '{{.Hint}}',
@@ -35,13 +37,12 @@
       new google.visualization.LineChart(document.getElementById('graph_div')).
         draw(data, {
           width: "100%",
-          height: 600,
+          height: 700,
           legend: {position: "bottom"},
-          tooltip: {isHtml: true},
-          {{if not $.Absolute}}
-            vAxis: {textPosition: "none", ticks: [0,10,20,30,40,50,60,70,80,90,100]},
-          {{end}}
-          chartArea: {left: "10%", top: "5%", width: "85%", height:"85%"}
+          focusTarget: "category",
+          hAxis: {textPosition: "none"},
+          chartArea: {left: "10%", top: "5%", width: "85%", height:"80%"},
+          explorer: {axis: 'horizontal', maxZoomIn: 0, maxZoomOut: 1, zoomDelta: 1.2, keepInBounds: true}
         })
       }
     </script>
@@ -66,48 +67,49 @@
       <form>
         <div class="panel">
           <h1>Builders</h1>
-          <select required multiple name="builder" size="{{len $.Config.Builders}}">
             {{range $.Config.Builders}}
-              <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
+              <input type="checkbox" name="builder" value="{{.Name}}" {{if .Selected}}checked{{end}}>{{.Name}}</input><br>
             {{end}}
-          </select>
         </div>
 
         <div class="panel">
           <h1>Benchmarks</h1>
-          <select required multiple name="benchmark" size="{{len $.Config.Benchmarks}}">
             {{range $.Config.Benchmarks}}
-              <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
+              <input type="checkbox" name="benchmark" value="{{.Name}}" {{if .Selected}}checked{{end}}>{{.Name}}</input><br>
             {{end}}
-          </select>
         </div>
 
         <div class="panel">
           <h1>Procs</h1>
-          <select required multiple name="procs" size="{{len $.Config.Procs}}">
             {{range $.Config.Procs}}
-              <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
+              <input type="checkbox" name="procs" value="{{.Name}}" {{if .Selected}}checked{{end}}>{{.Name}}</input><br>
             {{end}}
-          </select>
         </div>
 
         <div class="panel">
           <h1>Metrics</h1>
-          <select required multiple name="metric" size="{{len $.Config.Metrics}}">
             {{range $.Config.Metrics}}
+              <input type="checkbox" name="metric" value="{{.Name}}" {{if .Selected}}checked{{end}}>{{.Name}}</input><br>
+            {{end}}
+        </div>
+
+        <div class="panel">
+          <h1>Commits</h1>
+          <b>From:</b>
+          <select required name="commit-from">
+            {{range $.Config.CommitsFrom}}
+              <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
+            {{end}}
+          </select>
+          <b>To:</b>
+          <select required name="commit-to">
+            {{range $.Config.CommitsTo}}
               <option {{if .Selected}}selected{{end}}>{{.Name}}</option>
             {{end}}
           </select>
         </div>
 
-        <input type="checkbox" name="absolute" value="1" {{if $.Absolute}} checked {{end}} >absolute scale</input>
-	<input type="hidden" name="startcommit" value="{{$.StartCommit}}" />
-	<input type="hidden" name="commitnum" value="{{$.CommitNum}}" />
 	<input class="button" type="submit" value="Refresh" name="refresh"/>
-        <input class="button" type="submit" value="Zoom in" name="zoomin"/>
-        <input class="button" type="submit" value="Zoom out" name="zoomout"/>
-        <input class="button" type="submit" value="Newer" name="newer"/>
-        <input class="button" type="submit" value="Older" name="older"/>
       </form>
     </aside>
     <div class="clear"></div>

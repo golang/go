@@ -207,10 +207,12 @@ func findMetric(c *perfChangesCommit, metric string) *perfChangesMetric {
 }
 
 type uiPerfConfig struct {
-	Builders   []uiPerfConfigElem
-	Benchmarks []uiPerfConfigElem
-	Metrics    []uiPerfConfigElem
-	Procs      []uiPerfConfigElem
+	Builders    []uiPerfConfigElem
+	Benchmarks  []uiPerfConfigElem
+	Metrics     []uiPerfConfigElem
+	Procs       []uiPerfConfigElem
+	CommitsFrom []uiPerfConfigElem
+	CommitsTo   []uiPerfConfigElem
 }
 
 type uiPerfConfigElem struct {

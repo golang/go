@@ -36,7 +36,6 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 	allMetrics := pc.MetricsForBenchmark("")
 	allProcs := pc.ProcList("")
 	r.ParseForm()
-	absolute := r.FormValue("absolute") != ""
 	selBuilders := r.Form["builder"]
 	selBenchmarks := r.Form["benchmark"]
 	selMetrics := r.Form["metric"]
@@ -53,7 +52,54 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 	if len(selProcs) == 0 {
 		selProcs = append(selProcs, "1")
 	}
+	commitFrom := r.FormValue("commit-from")
+	if commitFrom == "" {
+		commitFrom = lastRelease
+	}
+	commitTo := r.FormValue("commit-to")
+	if commitTo == "" {
+		commitTo = "tip"
+	}
 	// TODO(dvyukov): validate input
+
+	// Figure out start and end commit from commitFrom/commitTo.
+	startCommitNum := 0
+	endCommitNum := 0
+	{
+		comFrom := &Commit{Hash: knownTags[commitFrom]}
+		if err := datastore.Get(c, comFrom.Key(c), comFrom); err != nil {
+			logErr(w, r, err)
+			return
+		}
+		startCommitNum = comFrom.Num - 1
+
+	retry:
+		if commitTo == "tip" {
+			p, err := GetPackage(c, "")
+			if err != nil {
+				logErr(w, r, err)
+				return
+			}
+			endCommitNum = p.NextNum
+		} else {
+			comTo := &Commit{Hash: knownTags[commitTo]}
+			if err := datastore.Get(c, comTo.Key(c), comTo); err != nil {
+				logErr(w, r, err)
+				return
+			}
+			endCommitNum = comTo.Num
+		}
+		if endCommitNum <= startCommitNum {
+			// User probably selected from:go1.3 to:go1.2. Fix go1.2 to tip.
+			if commitTo == "tip" {
+				logErr(w, r, fmt.Errorf("no commits to display (%v-%v)", commitFrom, commitTo))
+				return
+			}
+			commitTo = "tip"
+			goto retry
+		}
+	}
+	commitsToDisplay := endCommitNum - startCommitNum
 
 	present := func(set []string, s string) bool {
 		for _, s1 := range set {
@@ -77,43 +123,14 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 	for _, v := range allProcs {
 		cfg.Procs = append(cfg.Procs, uiPerfConfigElem{strconv.Itoa(v), present(selProcs, strconv.Itoa(v))})
 	}
-
-	// Select last commit.
-	startCommit := 0
-	commitsToDisplay := 100
-	if r.FormValue("startcommit") != "" {
-		startCommit, _ = strconv.Atoi(r.FormValue("startcommit"))
-		commitsToDisplay, _ = strconv.Atoi(r.FormValue("commitnum"))
-	} else {
-		var commits1 []*Commit
-		_, err = datastore.NewQuery("Commit").
-			Ancestor((&Package{}).Key(c)).
-			Order("-Num").
-			Filter("NeedsBenchmarking =", true).
-			Limit(1).
-			GetAll(c, &commits1)
-		if err != nil || len(commits1) != 1 {
-			logErr(w, r, err)
-			return
-		}
-		startCommit = commits1[0].Num
+	for k := range knownTags {
+		cfg.CommitsFrom = append(cfg.CommitsFrom, uiPerfConfigElem{k, commitFrom == k})
 	}
-
-	if r.FormValue("zoomin") != "" {
-		commitsToDisplay /= 2
-	} else if r.FormValue("zoomout") != "" {
-		commitsToDisplay *= 2
-	} else if r.FormValue("older") != "" {
-		startCommit -= commitsToDisplay / 2
-	} else if r.FormValue("newer") != "" {
-		startCommit += commitsToDisplay / 2
+	for k := range knownTags {
+		cfg.CommitsTo = append(cfg.CommitsTo, uiPerfConfigElem{k, commitTo == k})
 	}
+	cfg.CommitsTo = append(cfg.CommitsTo, uiPerfConfigElem{"tip", commitTo == "tip"})
 
-	// TODO(dvyukov): limit number of lines on the graph?
-	startCommitNum := startCommit - commitsToDisplay + 1
-	if startCommitNum < 0 {
-		startCommitNum = 0
-	}
 	var vals [][]float64
 	var hints [][]string
 	var certainty [][]bool
@@ -133,39 +150,13 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 						logErr(w, r, err)
 						return
 					}
-					nonzero := false
-					min := ^uint64(0)
-					max := uint64(0)
+					hasdata := false
 					for _, v := range vv {
-						if v == 0 {
-							continue
+						if v != 0 {
+							hasdata = true
 						}
-						if max < v {
-							max = v
-						}
-						if min > v {
-							min = v
-						}
-						nonzero = true
 					}
-					if nonzero {
-						noise := pc.NoiseLevel(builder, benchProcs, metric)
-						diff := (float64(max) - float64(min)) / float64(max) * 100
-						// Scale graph passes through 2 points: (noise, minScale) and (growthFactor*noise, 100).
-						// Plus it's bottom capped at minScale and top capped at 100.
-						// Intention:
-						// Diffs below noise are scaled to minScale.
-						// Diffs above growthFactor*noise are scaled to 100.
-						// Between noise and growthFactor*noise scale growths linearly.
-						const minScale = 5
-						const growthFactor = 4
-						scale := diff*(100-minScale)/(noise*(growthFactor-1)) + (minScale*growthFactor-100)/(growthFactor-1)
-						if scale < minScale {
-							scale = minScale
-						}
-						if scale > 100 {
-							scale = 100
-						}
+					if hasdata {
 						descBuilder := "/" + builder
 						descBenchmark := "/" + benchProcs
 						descMetric := "/" + metric
@@ -182,6 +173,7 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 						hh := make([]string, commitsToDisplay)
 						valf := make([]float64, commitsToDisplay)
 						cert := make([]bool, commitsToDisplay)
+						firstval := uint64(0)
 						lastval := uint64(0)
 						lastval0 := uint64(0)
 						for i, v := range vv {
@@ -204,26 +196,20 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 								}
 								cert[i] = false
 								v = lastval + uint64(int64(nextval-lastval)/int64(nextidx-i+1))
-								_, _ = nextval, nextidx
 							}
-							f := float64(v)
-							if !absolute {
-								f = (float64(v) - float64(min)) * 100 / (float64(max) - float64(min))
-								f = f*scale/100 + (100-scale)/2
-								f += 0.000001
+							if firstval == 0 {
+								firstval = v
 							}
-							valf[i] = f
-							com := commits2[i]
-							comLink := "https://code.google.com/p/go/source/detail?r=" + com.Hash
+							valf[i] = float64(v) / float64(firstval)
 							if cert[i] {
 								d := ""
 								if lastval0 != 0 {
 									d = fmt.Sprintf(" (%.02f%%)", perfDiff(lastval0, v))
 								}
-								cmpLink := fmt.Sprintf("/perfdetail?commit=%v&builder=%v&benchmark=%v", com.Hash, builder, benchmark)
-								hh[i] = fmt.Sprintf("%v: <a href='%v'>%v%v</a><br><a href='%v'>%v</a><br>%v", desc, cmpLink, v, d, comLink, com.Desc, com.Time.Format("Jan 2, 2006 1:04"))
+								hh[i] = fmt.Sprintf("%v%v", v, d)
+
 							} else {
-								hh[i] = fmt.Sprintf("%v: NO DATA<br><a href='%v'>%v</a><br>%v", desc, comLink, com.Desc, com.Time.Format("Jan 2, 2006 1:04"))
+								hh[i] = "NO DATA"
 							}
 							lastval = v
 							if cert[i] {
@@ -233,7 +219,7 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 						vals = append(vals, valf)
 						hints = append(hints, hh)
 						certainty = append(certainty, cert)
-						headers = append(headers, fmt.Sprintf("%s (%.2f%% [%.2f%%])", desc, diff, noise))
+						headers = append(headers, desc)
 					}
 				}
 			}
@@ -242,11 +228,14 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 
 	var commits []perfGraphCommit
 	if len(vals) != 0 && len(vals[0]) != 0 {
+		idx := 0
 		for i := range vals[0] {
-			if !commits2[i].NeedsBenchmarking {
+			com := commits2[i]
+			if !com.NeedsBenchmarking {
 				continue
 			}
-			var c perfGraphCommit
+			c := perfGraphCommit{Id: idx, Name: fmt.Sprintf("%v (%v)", com.Desc, com.Time.Format("Jan 2, 2006 1:04"))}
+			idx++
 			for j := range vals {
 				c.Vals = append(c.Vals, perfGraphValue{float64(vals[j][i]), certainty[j][i], hints[j][i]})
 			}
@@ -254,7 +243,7 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	data := &perfGraphData{d, cfg, startCommit, commitsToDisplay, absolute, headers, commits}
+	data := &perfGraphData{d, cfg, headers, commits}
 
 	var buf bytes.Buffer
 	if err := perfGraphTemplate.Execute(&buf, data); err != nil {
@@ -270,16 +259,14 @@ var perfGraphTemplate = template.Must(
 )
 
 type perfGraphData struct {
-	Dashboard   *Dashboard
-	Config      *uiPerfConfig
-	StartCommit int
-	CommitNum   int
-	Absolute    bool
-	Headers     []string
-	Commits     []perfGraphCommit
+	Dashboard *Dashboard
+	Config    *uiPerfConfig
+	Headers   []string
+	Commits   []perfGraphCommit
 }
 
 type perfGraphCommit struct {
+	Id   int
 	Name string
 	Vals []perfGraphValue
 }
