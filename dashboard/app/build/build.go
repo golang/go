@@ -127,6 +127,19 @@ func (c *Commit) Valid() error {
 	return nil
 }
 
+func putCommit(c appengine.Context, com *Commit) error {
+	if err := com.Valid(); err != nil {
+		return fmt.Errorf("putting Commit: %v", err)
+	}
+	if com.Num == 0 {
+		return fmt.Errorf("putting Commit: com.Num == 0")
+	}
+	if _, err := datastore.Put(c, com.Key(c), com); err != nil {
+		return fmt.Errorf("putting Commit: %v", err)
+	}
+	return nil
+}
+
 // each result line is approx 105 bytes. This constant is a tradeoff between
 // build history and the AppEngine datastore limit of 1mb.
 const maxResults = 1000
@@ -150,10 +163,7 @@ func (com *Commit) AddResult(c appengine.Context, r *Result) error {
 		// otherwise, add the new result data for this builder.
 		com.ResultData = trim(append(com.ResultData, r.Data()), maxResults)
 	}
-	if _, err := datastore.Put(c, com.Key(c), com); err != nil {
-		return fmt.Errorf("putting Commit: %v", err)
-	}
-	return nil
+	return putCommit(c, com)
 }
 
 // AddPerfResult remembers that the builder has run the benchmark on the commit.
@@ -172,10 +182,7 @@ func (com *Commit) AddPerfResult(c appengine.Context, builder, benchmark string)
 		}
 	}
 	com.PerfResults = append(com.PerfResults, s)
-	if _, err := datastore.Put(c, com.Key(c), com); err != nil {
-		return fmt.Errorf("putting Commit: %v", err)
-	}
-	return nil
+	return putCommit(c, com)
 }
 
 func trim(s []string, n int) []string {

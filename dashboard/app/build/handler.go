@@ -192,8 +192,8 @@ func addCommit(c appengine.Context, com *Commit) error {
 		}
 	}
 	// put the Commit
-	if _, err = datastore.Put(c, com.Key(c), com); err != nil {
-		return fmt.Errorf("putting Commit: %v", err)
+	if err = putCommit(c, com); err != nil {
+		return err
 	}
 	if com.NeedsBenchmarking {
 		// add to CommitRun

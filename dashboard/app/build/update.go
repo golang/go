@@ -58,8 +58,8 @@ func updateBenchmark(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			com.NeedsBenchmarking = true
-			if _, err := datastore.Put(c, com.Key(c), com); err != nil {
-				return fmt.Errorf("putting Commit: %v", err)
+			if err := putCommit(c, com); err != nil {
+				return err
 			}
 			ncommit++
 

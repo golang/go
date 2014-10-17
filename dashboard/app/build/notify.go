@@ -230,8 +230,7 @@ func commonNotify(c appengine.Context, com *Commit, builder, logHash string) err
 	c.Infof("%s is broken commit; notifying", com.Hash)
 	notifyLater.Call(c, com, builder, logHash) // add task to queue
 	com.FailNotificationSent = true
-	_, err := datastore.Put(c, com.Key(c), com)
-	return err
+	return putCommit(c, com)
 }
 
 // sendFailMail sends a mail notification that the build failed on the
