@@ -205,6 +205,7 @@ func (b *Builder) executeBenchmark(workpath, hash, benchBin, bench string, procs
 	}
 	metrics = metrics1
 	artifacts = append(artifacts, artifacts1...)
+	ok = true
 	return
 }
 
