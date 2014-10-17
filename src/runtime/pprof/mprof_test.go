@@ -5,12 +5,8 @@
 package pprof_test
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"os/exec"
 	"regexp"
 	"runtime"
 	. "runtime/pprof"
@@ -52,23 +48,13 @@ func allocatePersistent1K() {
 var memoryProfilerRun = 0
 
 func TestMemoryProfiler(t *testing.T) {
-	t.Skip("broken test - see issue 8867")
-	// Create temp file for the profile.
-	f, err := ioutil.TempFile("", "memprof")
-	if err != nil {
-		t.Fatalf("failed to create temp file: %v", err)
-	}
-	defer func() {
-		f.Close()
-		os.Remove(f.Name())
-	}()
-
 	// Disable sampling, otherwise it's difficult to assert anything.
 	oldRate := runtime.MemProfileRate
 	runtime.MemProfileRate = 1
 	defer func() {
 		runtime.MemProfileRate = oldRate
 	}()
+
 	// Allocate a meg to ensure that mcache.next_sample is updated to 1.
 	for i := 0; i < 1024; i++ {
 		memSink = make([]byte, 1024)
@@ -81,67 +67,33 @@ func TestMemoryProfiler(t *testing.T) {
 	memSink = nil
 
 	runtime.GC() // materialize stats
-	if err := WriteHeapProfile(f); err != nil {
+	var buf bytes.Buffer
+	if err := Lookup("heap").WriteTo(&buf, 1); err != nil {
 		t.Fatalf("failed to write heap profile: %v", err)
 	}
-	f.Close()
 
 	memoryProfilerRun++
-	checkMemProfile(t, f.Name(), []string{"--alloc_space", "--show_bytes", "--lines"}, []string{
-		fmt.Sprintf(`%v .* runtime/pprof_test\.allocateTransient1M .*mprof_test.go:25`, 1<<20*memoryProfilerRun),
-		fmt.Sprintf(`%v .* runtime/pprof_test\.allocateTransient2M .*mprof_test.go:34`, 2<<20*memoryProfilerRun),
-		fmt.Sprintf(`%v .* runtime/pprof_test\.allocatePersistent1K .*mprof_test.go:47`, 1<<10*memoryProfilerRun),
-	}, []string{})
 
-	checkMemProfile(t, f.Name(), []string{"--inuse_space", "--show_bytes", "--lines"}, []string{
-		fmt.Sprintf(`%v .* runtime/pprof_test\.allocatePersistent1K .*mprof_test.go:47`, 1<<10*memoryProfilerRun),
-	}, []string{
-		"allocateTransient1M",
-		"allocateTransient2M",
-	})
-}
+	tests := []string{
+		fmt.Sprintf(`%v: %v \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:43
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:66
+`, 32*memoryProfilerRun, 1024*memoryProfilerRun, 32*memoryProfilerRun, 1024*memoryProfilerRun),
 
-func checkMemProfile(t *testing.T, file string, addArgs []string, what []string, whatnot []string) {
-	args := []string{"tool", "pprof", "--text"}
-	args = append(args, addArgs...)
-	args = append(args, os.Args[0], file)
-	out, err := exec.Command("go", args...).CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to execute pprof: %v\n%v\n", err, string(out))
+		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient1M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:21
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:64
+`, (1<<10)*memoryProfilerRun, (1<<20)*memoryProfilerRun),
+
+		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:30
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:65
+`, memoryProfilerRun, (2<<20)*memoryProfilerRun),
 	}
 
-	matched := make(map[*regexp.Regexp]bool)
-	for _, s := range what {
-		matched[regexp.MustCompile(s)] = false
-	}
-	var not []*regexp.Regexp
-	for _, s := range whatnot {
-		not = append(not, regexp.MustCompile(s))
-	}
-
-	s := bufio.NewScanner(bytes.NewReader(out))
-	for s.Scan() {
-		ln := s.Text()
-		for re := range matched {
-			if re.MatchString(ln) {
-				if matched[re] {
-					t.Errorf("entry '%s' is matched twice", re.String())
-				}
-				matched[re] = true
-			}
+	for _, test := range tests {
+		if !regexp.MustCompile(test).Match(buf.Bytes()) {
+			t.Fatalf("The entry did not match:\n%v\n\nProfile:\n%v\n", test, buf.String())
 		}
-		for _, re := range not {
-			if re.MatchString(ln) {
-				t.Errorf("entry '%s' is matched, but must not", re.String())
-			}
-		}
-	}
-	for re, ok := range matched {
-		if !ok {
-			t.Errorf("entry '%s' is not matched", re.String())
-		}
-	}
-	if t.Failed() {
-		t.Logf("profile:\n%v", string(out))
 	}
 }
