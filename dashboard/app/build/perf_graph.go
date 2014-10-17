@@ -133,6 +133,7 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 
 	var vals [][]float64
 	var hints [][]string
+	var annotations [][]string
 	var certainty [][]bool
 	var headers []string
 	commits2, err := GetCommits(c, startCommitNum, commitsToDisplay)
@@ -157,6 +158,7 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 					if hasdata {
+						noise := pc.NoiseLevel(builder, benchProcs, metric)
 						descBuilder := "/" + builder
 						descBenchmark := "/" + benchProcs
 						descMetric := "/" + metric
@@ -171,31 +173,19 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 						}
 						desc := fmt.Sprintf("%v%v%v", descBuilder, descBenchmark, descMetric)[1:]
 						hh := make([]string, commitsToDisplay)
+						ann := make([]string, commitsToDisplay)
 						valf := make([]float64, commitsToDisplay)
 						cert := make([]bool, commitsToDisplay)
 						firstval := uint64(0)
 						lastval := uint64(0)
-						lastval0 := uint64(0)
 						for i, v := range vv {
 							cert[i] = true
 							if v == 0 {
 								if lastval == 0 {
 									continue
 								}
-								nextval := uint64(0)
-								nextidx := 0
-								for i2, v2 := range vv[i+1:] {
-									if v2 != 0 {
-										nextval = v2
-										nextidx = i + i2 + 1
-										break
-									}
-								}
-								if nextval == 0 {
-									continue
-								}
 								cert[i] = false
-								v = lastval + uint64(int64(nextval-lastval)/int64(nextidx-i+1))
+								v = lastval
 							}
 							if firstval == 0 {
 								firstval = v
@@ -203,21 +193,22 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 							valf[i] = float64(v) / float64(firstval)
 							if cert[i] {
 								d := ""
-								if lastval0 != 0 {
-									d = fmt.Sprintf(" (%.02f%%)", perfDiff(lastval0, v))
+								if lastval != 0 {
+									diff := perfDiff(lastval, v)
+									d = fmt.Sprintf(" (%+.02f%%)", diff)
+									if !isNoise(diff, noise) {
+										ann[i] = fmt.Sprintf("%+.02f%%", diff)
+									}
 								}
 								hh[i] = fmt.Sprintf("%v%v", v, d)
-
 							} else {
 								hh[i] = "NO DATA"
 							}
 							lastval = v
-							if cert[i] {
-								lastval0 = v
-							}
 						}
 						vals = append(vals, valf)
 						hints = append(hints, hh)
+						annotations = append(annotations, ann)
 						certainty = append(certainty, cert)
 						headers = append(headers, desc)
 					}
@@ -237,7 +228,7 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 			c := perfGraphCommit{Id: idx, Name: fmt.Sprintf("%v (%v)", com.Desc, com.Time.Format("Jan 2, 2006 1:04"))}
 			idx++
 			for j := range vals {
-				c.Vals = append(c.Vals, perfGraphValue{float64(vals[j][i]), certainty[j][i], hints[j][i]})
+				c.Vals = append(c.Vals, perfGraphValue{float64(vals[j][i]), certainty[j][i], hints[j][i], annotations[j][i]})
 			}
 			commits = append(commits, c)
 		}
@@ -275,4 +266,5 @@ type perfGraphValue struct {
 	Val       float64
 	Certainty bool
 	Hint      string
+	Ann       string
 }

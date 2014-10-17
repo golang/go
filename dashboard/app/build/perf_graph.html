@@ -20,13 +20,14 @@
           data.addColumn({type: 'number', label: '{{.}}'});
           data.addColumn({type: 'boolean', role: 'certainty'});
           data.addColumn({type: 'string', role: 'tooltip'});
+          data.addColumn({type: 'string', role: 'annotation'});
         {{end}}
         data.addRows([
         {{range $.Commits}}
           [ {{.Id}}, 1, "{{.Name}}",
             {{range .Vals}}
               {{if .Val}}
-                {{.Val}}, {{.Certainty}}, '{{.Hint}}',
+                {{.Val}}, {{.Certainty}}, '{{.Hint}}', '{{.Ann}}',
               {{else}}
                 ,,,
               {{end}}
