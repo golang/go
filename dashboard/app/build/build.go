@@ -654,6 +654,25 @@ func UpdatePerfConfig(c appengine.Context, r *http.Request, req *PerfRequest) (n
 	return newBenchmark, nil
 }
 
+type MetricList []string
+
+func (l MetricList) Len() int {
+	return len(l)
+}
+
+func (l MetricList) Less(i, j int) bool {
+	bi := strings.HasPrefix(l[i], "build-") || strings.HasPrefix(l[i], "binary-")
+	bj := strings.HasPrefix(l[j], "build-") || strings.HasPrefix(l[j], "binary-")
+	if bi == bj {
+		return l[i] < l[j]
+	}
+	return !bi
+}
+
+func (l MetricList) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
+}
+
 func collectList(all []string, idx int, second string) (res []string) {
 	m := make(map[string]bool)
 	for _, str := range all {
@@ -665,7 +684,7 @@ func collectList(all []string, idx int, second string) (res []string) {
 			res = append(res, v)
 		}
 	}
-	sort.Strings(res)
+	sort.Sort(MetricList(res))
 	return res
 }
 
