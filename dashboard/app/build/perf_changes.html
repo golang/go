@@ -76,7 +76,7 @@
       <nav>
         <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>newer</a>
         <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>older</a>
-        <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>latest</a>
+        <a {{if .HasPrev}}href="?"{{else}}class="inactive"{{end}}>latest</a>
       </nav>
     </div>
     {{end}}
