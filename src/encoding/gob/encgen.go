@@ -144,7 +144,7 @@ var types = []Type{
 
 func main() {
 	log.SetFlags(0)
-	log.SetPrefix("helpergen: ")
+	log.SetPrefix("encgen: ")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		log.Fatal("usage: encgen [--output filename]")
@@ -152,9 +152,9 @@ func main() {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "// Created by encgen --output %s; DO NOT EDIT\n", *output)
 	fmt.Fprint(&b, header)
-	printMaps(&b, "array", "Array")
+	printMaps(&b, "Array")
 	fmt.Fprint(&b, "\n")
-	printMaps(&b, "slice", "Slice")
+	printMaps(&b, "Slice")
 	for _, t := range types {
 		fmt.Fprintf(&b, arrayHelper, t.lower, t.upper)
 		fmt.Fprintf(&b, sliceHelper, t.lower, t.upper, t.zero, t.encoder)
@@ -170,8 +170,8 @@ func main() {
 	}
 }
 
-func printMaps(b *bytes.Buffer, lowerClass, upperClass string) {
-	fmt.Fprintf(b, "var %sHelper = map[reflect.Kind]encHelper{\n", lowerClass)
+func printMaps(b *bytes.Buffer, upperClass string) {
+	fmt.Fprintf(b, "var enc%sHelper = map[reflect.Kind]encHelper{\n", upperClass)
 	for _, t := range types {
 		fmt.Fprintf(b, "reflect.%s: enc%s%s,\n", t.upper, t.upper, upperClass)
 	}
