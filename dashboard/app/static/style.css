@@ -197,7 +197,7 @@ table thead tr {
   text-overflow: ellipsis;
 }
  
-.good   { text-decoration: none; color: #000000; }
+.good   { text-decoration: none; color: #000000; border: 2px solid #00E700}
 .bad    { text-decoration: none; text-shadow: 1px 1px 0 #000000; color: #FFFFFF; background: #E70000;}
 .noise  { text-decoration: none; color: #888; }
 .fail   { color: #C00; }
