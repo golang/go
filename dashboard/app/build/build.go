@@ -315,28 +315,50 @@ func GetCommits(c appengine.Context, startCommitNum, n int) ([]*Commit, error) {
 	if startCommitNum < 0 || n <= 0 {
 		return nil, fmt.Errorf("GetCommits: invalid args (%v, %v)", startCommitNum, n)
 	}
-	var res []*Commit
-	for n > 0 {
-		cr, err := GetCommitRun(c, startCommitNum)
+
+	p := &Package{}
+	t := datastore.NewQuery("CommitRun").
+		Ancestor(p.Key(c)).
+		Filter("StartCommitNum >=", startCommitNum/PerfRunLength*PerfRunLength).
+		Order("StartCommitNum").
+		Limit(100).
+		Run(c)
+
+	res := make([]*Commit, n)
+	for {
+		cr := new(CommitRun)
+		_, err := t.Next(cr)
+		if err == datastore.Done {
+			break
+		}
 		if err != nil {
 			return nil, err
 		}
-		idx := startCommitNum - cr.StartCommitNum
-		cnt := PerfRunLength - idx
-		if cnt > n {
-			cnt = n
+		if cr.StartCommitNum >= startCommitNum+n {
+			break
 		}
-		for i := idx; i < idx+cnt; i++ {
+		// Calculate start index for copying.
+		i := 0
+		if cr.StartCommitNum < startCommitNum {
+			i = startCommitNum - cr.StartCommitNum
+		}
+		// Calculate end index for copying.
+		e := PerfRunLength
+		if cr.StartCommitNum+e > startCommitNum+n {
+			e = startCommitNum + n - cr.StartCommitNum
+		}
+		for ; i < e; i++ {
 			com := new(Commit)
 			com.Hash = cr.Hash[i]
 			com.User = cr.User[i]
 			com.Desc = cr.Desc[i]
 			com.Time = cr.Time[i]
 			com.NeedsBenchmarking = cr.NeedsBenchmarking[i]
-			res = append(res, com)
+			res[cr.StartCommitNum-startCommitNum+i] = com
 		}
-		startCommitNum += cnt
-		n -= cnt
+		if e != PerfRunLength {
+			break
+		}
 	}
 	return res, nil
 }
@@ -535,22 +557,47 @@ func GetPerfMetricsForCommits(c appengine.Context, builder, benchmark, metric st
 	if startCommitNum < 0 || n <= 0 {
 		return nil, fmt.Errorf("GetPerfMetricsForCommits: invalid args (%v, %v)", startCommitNum, n)
 	}
-	var res []uint64
-	for n > 0 {
-		metrics, err := GetPerfMetricRun(c, builder, benchmark, metric, startCommitNum)
+
+	p := &Package{}
+	t := datastore.NewQuery("PerfMetricRun").
+		Ancestor(p.Key(c)).
+		Filter("Builder =", builder).
+		Filter("Benchmark =", benchmark).
+		Filter("Metric =", metric).
+		Filter("StartCommitNum >=", startCommitNum/PerfRunLength*PerfRunLength).
+		Order("StartCommitNum").
+		Limit(100).
+		Run(c)
+
+	res := make([]uint64, n)
+	for {
+		metrics := new(PerfMetricRun)
+		_, err := t.Next(metrics)
+		if err == datastore.Done {
+			break
+		}
 		if err != nil {
 			return nil, err
 		}
-		idx := startCommitNum - metrics.StartCommitNum
-		cnt := PerfRunLength - idx
-		if cnt > n {
-			cnt = n
+		if metrics.StartCommitNum >= startCommitNum+n {
+			break
 		}
-		for _, v := range metrics.Vals[idx : idx+cnt] {
-			res = append(res, uint64(v))
+		// Calculate start index for copying.
+		i := 0
+		if metrics.StartCommitNum < startCommitNum {
+			i = startCommitNum - metrics.StartCommitNum
 		}
-		startCommitNum += cnt
-		n -= cnt
+		// Calculate end index for copying.
+		e := PerfRunLength
+		if metrics.StartCommitNum+e > startCommitNum+n {
+			e = startCommitNum + n - metrics.StartCommitNum
+		}
+		for ; i < e; i++ {
+			res[metrics.StartCommitNum-startCommitNum+i] = uint64(metrics.Vals[i])
+		}
+		if e != PerfRunLength {
+			break
+		}
 	}
 	return res, nil
 }

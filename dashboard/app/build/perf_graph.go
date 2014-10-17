@@ -231,7 +231,7 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 		idx := 0
 		for i := range vals[0] {
 			com := commits2[i]
-			if !com.NeedsBenchmarking {
+			if com == nil || !com.NeedsBenchmarking {
 				continue
 			}
 			c := perfGraphCommit{Id: idx, Name: fmt.Sprintf("%v (%v)", com.Desc, com.Time.Format("Jan 2, 2006 1:04"))}

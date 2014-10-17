@@ -67,7 +67,7 @@ func perfLearnHandler(w http.ResponseWriter, r *http.Request) {
 					last := uint64(0)
 					for i, v := range values {
 						if v == 0 {
-							if commits[i].NeedsBenchmarking {
+							if com := commits[i]; com == nil || com.NeedsBenchmarking {
 								last = 0
 							}
 							continue

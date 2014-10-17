@@ -37,3 +37,18 @@ indexes:
   - name: CommitNum
     direction: asc
 
+- kind: CommitRun
+  ancestor: yes
+  properties:
+  - name: StartCommitNum
+    direction: asc
+
+- kind: PerfMetricRun
+  ancestor: yes
+  properties:
+  - name: Builder
+  - name: Benchmark
+  - name: Metric
+  - name: StartCommitNum
+    direction: asc
+
