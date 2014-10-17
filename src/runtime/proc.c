@@ -2436,7 +2436,7 @@ extern byte runtime·etext[];
 void
 runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 {
-	int32 n, off;
+	int32 n;
 	bool traceback;
 	// Do not use global m in this function, use mp instead.
 	// On windows one m is sending reports about all the g's, so m means a wrong thing.
@@ -2530,20 +2530,9 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 	   ((uint8*)runtime·gogo <= pc && pc < (uint8*)runtime·gogo + RuntimeGogoBytes))
 		traceback = false;
 
-	off = 0;
-	if(gp == mp->g0 && mp->curg != nil) {
-		stk[0] = (uintptr)pc;
-		off = 1;
-		gp = mp->curg;
-		pc = (uint8*)gp->sched.pc;
-		sp = (uint8*)gp->sched.sp;
-		lr = 0;
-		traceback = true;
-	}
-
 	n = 0;
 	if(traceback)
-		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, stk+off, nelem(stk)-off, nil, nil, false);
+		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, stk, nelem(stk), nil, nil, false);
 	if(!traceback || n <= 0) {
 		// Normal traceback is impossible or has failed.
 		// See if it falls into several common cases.
