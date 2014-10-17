@@ -40,8 +40,6 @@ type pageID uintptr
 // base address for all 0-byte allocations
 var zerobase uintptr
 
-//go:nowritebarrier
-
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
