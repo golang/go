@@ -893,6 +893,18 @@ func TestMessageForExecuteEmpty(t *testing.T) {
 	}
 }
 
+func TestFinalForPrintf(t *testing.T) {
+	tmpl, err := New("").Parse(`{{"x" | printf}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	err = tmpl.Execute(&b, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 type cmpTest struct {
 	expr  string
 	truth string
