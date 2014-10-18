@@ -53,7 +53,7 @@ func testError(t *testing.T) {
 // Test basic encode/decode routines for unsigned integers
 func TestUintCodec(t *testing.T) {
 	defer testError(t)
-	b := new(bytes.Buffer)
+	b := new(encBuffer)
 	encState := newEncoderState(b)
 	for _, tt := range encodeT {
 		b.Reset()
@@ -62,10 +62,10 @@ func TestUintCodec(t *testing.T) {
 			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Bytes())
 		}
 	}
-	decState := newDecodeState(b)
 	for u := uint64(0); ; u = (u + 1) * 7 {
 		b.Reset()
 		encState.encodeUint(u)
+		decState := newDecodeState(bytes.NewBuffer(b.Bytes()))
 		v := decState.decodeUint()
 		if u != v {
 			t.Errorf("Encode/Decode: sent %#x received %#x", u, v)
@@ -78,10 +78,10 @@ func TestUintCodec(t *testing.T) {
 
 func verifyInt(i int64, t *testing.T) {
 	defer testError(t)
-	var b = new(bytes.Buffer)
+	var b = new(encBuffer)
 	encState := newEncoderState(b)
 	encState.encodeInt(i)
-	decState := newDecodeState(b)
+	decState := newDecodeState(bytes.NewBuffer(b.Bytes()))
 	decState.buf = make([]byte, 8)
 	j := decState.decodeInt()
 	if i != j {
@@ -125,7 +125,7 @@ func newDecodeState(buf *bytes.Buffer) *decoderState {
 	return d
 }
 
-func newEncoderState(b *bytes.Buffer) *encoderState {
+func newEncoderState(b *encBuffer) *encoderState {
 	b.Reset()
 	state := &encoderState{enc: nil, b: b}
 	state.fieldnum = -1
@@ -135,7 +135,7 @@ func newEncoderState(b *bytes.Buffer) *encoderState {
 // Test instruction execution for encoding.
 // Do not run the machine yet; instead do individual instructions crafted by hand.
 func TestScalarEncInstructions(t *testing.T) {
-	var b = new(bytes.Buffer)
+	var b = new(encBuffer)
 
 	// bool
 	{
