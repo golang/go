@@ -71,7 +71,7 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 			logErr(w, r, err)
 			return
 		}
-		startCommitNum = comFrom.Num - 1
+		startCommitNum = comFrom.Num
 
 	retry:
 		if commitTo == "tip" {
@@ -87,7 +87,7 @@ func perfGraphHandler(w http.ResponseWriter, r *http.Request) {
 				logErr(w, r, err)
 				return
 			}
-			endCommitNum = comTo.Num
+			endCommitNum = comTo.Num + 1
 		}
 		if endCommitNum <= startCommitNum {
 			// User probably selected from:go1.3 to:go1.2. Fix go1.2 to tip.
