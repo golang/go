@@ -235,6 +235,9 @@ func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 // If a Value has an IsBoolFlag() bool method returning true,
 // the command-line parser makes -name equivalent to -name=true
 // rather than using the next command-line argument.
+//
+// It is the implementer's responsibility to verify, if required, that the
+// flag has been set only once.
 type Value interface {
 	String() string
 	Set(string) error
@@ -270,6 +273,7 @@ type FlagSet struct {
 	parsed        bool
 	actual        map[string]*Flag
 	formal        map[string]*Flag
+	set           map[*Flag]bool
 	args          []string // arguments after flags
 	errorHandling ErrorHandling
 	output        io.Writer // nil means stderr; use out() accessor
@@ -717,6 +721,25 @@ func (f *FlagSet) usage() {
 	}
 }
 
+// alreadySet reports whether the flag has already been set during parsing.
+// Because user-defined flags may legally be set multiple times, it only
+// complains about flags defined in this package.
+func (f *FlagSet) alreadySet(flag *Flag) bool {
+	if f.set == nil {
+		f.set = make(map[*Flag]bool)
+	}
+	switch flag.Value.(type) {
+	case *boolValue, *intValue, *int64Value, *uintValue, *uint64Value, *stringValue, *float64Value, *durationValue:
+	default:
+		return false // Not one of ours.
+	}
+	if f.set[flag] {
+		return true
+	}
+	f.set[flag] = true
+	return false
+}
+
 // parseOne parses one flag. It reports whether a flag was seen.
 func (f *FlagSet) parseOne() (bool, error) {
 	if len(f.args) == 0 {
@@ -760,6 +783,12 @@ func (f *FlagSet) parseOne() (bool, error) {
 		}
 		return false, f.failf("flag provided but not defined: -%s", name)
 	}
+
+	// has it already been set?
+	if f.alreadySet(flag) {
+		return false, f.failf("flag set multiple times: -%s", name)
+	}
+
 	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
 		if has_value {
 			if err := fv.Set(value); err != nil {
@@ -795,6 +824,7 @@ func (f *FlagSet) parseOne() (bool, error) {
 // The return value will be ErrHelp if -help or -h were set but not defined.
 func (f *FlagSet) Parse(arguments []string) error {
 	f.parsed = true
+	f.set = nil
 	f.args = arguments
 	for {
 		seen, err := f.parseOne()
