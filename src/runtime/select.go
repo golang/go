@@ -398,9 +398,9 @@ loop:
 		} else {
 			c = k._chan
 			if k.kind == _CaseSend {
-				c.sendq.dequeueg(gp)
+				c.sendq.dequeueSudoG(sglist)
 			} else {
-				c.recvq.dequeueg(gp)
+				c.recvq.dequeueSudoG(sglist)
 			}
 		}
 		sgnext = sglist.waitlink
@@ -628,7 +628,7 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
 	return
 }
 
-func (q *waitq) dequeueg(gp *g) {
+func (q *waitq) dequeueSudoG(s *sudog) {
 	var prevsgp *sudog
 	l := &q.first
 	for {
@@ -636,7 +636,7 @@ func (q *waitq) dequeueg(gp *g) {
 		if sgp == nil {
 			return
 		}
-		if sgp.g == gp {
+		if sgp == s {
 			*l = sgp.next
 			if q.last == sgp {
 				q.last = prevsgp
