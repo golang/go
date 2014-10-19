@@ -65,7 +65,7 @@ func decBoolSlice(state *decoderState, v reflect.Value, length int, ovfl error) 
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding bool array or slice: length exceeds input size (%!d(string=Bool) elements)", length)
+			errorf("decoding bool array or slice: length exceeds input size (%d elements)", length)
 		}
 		slice[i] = state.decodeUint() != 0
 	}
@@ -88,7 +88,7 @@ func decComplex64Slice(state *decoderState, v reflect.Value, length int, ovfl er
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding complex64 array or slice: length exceeds input size (%!d(string=Complex64) elements)", length)
+			errorf("decoding complex64 array or slice: length exceeds input size (%d elements)", length)
 		}
 		real := float32FromBits(state.decodeUint(), ovfl)
 		imag := float32FromBits(state.decodeUint(), ovfl)
@@ -113,7 +113,7 @@ func decComplex128Slice(state *decoderState, v reflect.Value, length int, ovfl e
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding complex128 array or slice: length exceeds input size (%!d(string=Complex128) elements)", length)
+			errorf("decoding complex128 array or slice: length exceeds input size (%d elements)", length)
 		}
 		real := float64FromBits(state.decodeUint())
 		imag := float64FromBits(state.decodeUint())
@@ -138,7 +138,7 @@ func decFloat32Slice(state *decoderState, v reflect.Value, length int, ovfl erro
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding float32 array or slice: length exceeds input size (%!d(string=Float32) elements)", length)
+			errorf("decoding float32 array or slice: length exceeds input size (%d elements)", length)
 		}
 		slice[i] = float32(float32FromBits(state.decodeUint(), ovfl))
 	}
@@ -161,7 +161,7 @@ func decFloat64Slice(state *decoderState, v reflect.Value, length int, ovfl erro
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding float64 array or slice: length exceeds input size (%!d(string=Float64) elements)", length)
+			errorf("decoding float64 array or slice: length exceeds input size (%d elements)", length)
 		}
 		slice[i] = float64FromBits(state.decodeUint())
 	}
@@ -184,7 +184,7 @@ func decIntSlice(state *decoderState, v reflect.Value, length int, ovfl error) b
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding int array or slice: length exceeds input size (%!d(string=Int) elements)", length)
+			errorf("decoding int array or slice: length exceeds input size (%d elements)", length)
 		}
 		x := state.decodeInt()
 		// MinInt and MaxInt
@@ -212,7 +212,7 @@ func decInt16Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding int16 array or slice: length exceeds input size (%!d(string=Int16) elements)", length)
+			errorf("decoding int16 array or slice: length exceeds input size (%d elements)", length)
 		}
 		x := state.decodeInt()
 		if x < math.MinInt16 || math.MaxInt16 < x {
@@ -239,7 +239,7 @@ func decInt32Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding int32 array or slice: length exceeds input size (%!d(string=Int32) elements)", length)
+			errorf("decoding int32 array or slice: length exceeds input size (%d elements)", length)
 		}
 		x := state.decodeInt()
 		if x < math.MinInt32 || math.MaxInt32 < x {
@@ -266,7 +266,7 @@ func decInt64Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding int64 array or slice: length exceeds input size (%!d(string=Int64) elements)", length)
+			errorf("decoding int64 array or slice: length exceeds input size (%d elements)", length)
 		}
 		slice[i] = state.decodeInt()
 	}
@@ -289,7 +289,7 @@ func decInt8Slice(state *decoderState, v reflect.Value, length int, ovfl error) 
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding int8 array or slice: length exceeds input size (%!d(string=Int8) elements)", length)
+			errorf("decoding int8 array or slice: length exceeds input size (%d elements)", length)
 		}
 		x := state.decodeInt()
 		if x < math.MinInt8 || math.MaxInt8 < x {
@@ -316,7 +316,7 @@ func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding string array or slice: length exceeds input size (%!d(string=String) elements)", length)
+			errorf("decoding string array or slice: length exceeds input size (%d elements)", length)
 		}
 		u := state.decodeUint()
 		n := int(u)
@@ -352,7 +352,7 @@ func decUintSlice(state *decoderState, v reflect.Value, length int, ovfl error) 
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding uint array or slice: length exceeds input size (%!d(string=Uint) elements)", length)
+			errorf("decoding uint array or slice: length exceeds input size (%d elements)", length)
 		}
 		x := state.decodeUint()
 		/*TODO if math.MaxUint32 < x {
@@ -379,7 +379,7 @@ func decUint16Slice(state *decoderState, v reflect.Value, length int, ovfl error
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding uint16 array or slice: length exceeds input size (%!d(string=Uint16) elements)", length)
+			errorf("decoding uint16 array or slice: length exceeds input size (%d elements)", length)
 		}
 		x := state.decodeUint()
 		if math.MaxUint16 < x {
@@ -406,7 +406,7 @@ func decUint32Slice(state *decoderState, v reflect.Value, length int, ovfl error
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding uint32 array or slice: length exceeds input size (%!d(string=Uint32) elements)", length)
+			errorf("decoding uint32 array or slice: length exceeds input size (%d elements)", length)
 		}
 		x := state.decodeUint()
 		if math.MaxUint32 < x {
@@ -433,7 +433,7 @@ func decUint64Slice(state *decoderState, v reflect.Value, length int, ovfl error
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding uint64 array or slice: length exceeds input size (%!d(string=Uint64) elements)", length)
+			errorf("decoding uint64 array or slice: length exceeds input size (%d elements)", length)
 		}
 		slice[i] = state.decodeUint()
 	}
@@ -456,7 +456,7 @@ func decUintptrSlice(state *decoderState, v reflect.Value, length int, ovfl erro
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding uintptr array or slice: length exceeds input size (%!d(string=Uintptr) elements)", length)
+			errorf("decoding uintptr array or slice: length exceeds input size (%d elements)", length)
 		}
 		x := state.decodeUint()
 		if uint64(^uintptr(0)) < x {
