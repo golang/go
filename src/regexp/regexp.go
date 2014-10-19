@@ -452,7 +452,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 	return string(b)
 }
 
-// ReplaceAllStringLiteral returns a copy of src, replacing matches of the Regexp
+// ReplaceAllLiteralString returns a copy of src, replacing matches of the Regexp
 // with the replacement string repl.  The replacement repl is substituted directly,
 // without using Expand.
 func (re *Regexp) ReplaceAllLiteralString(src, repl string) string {
