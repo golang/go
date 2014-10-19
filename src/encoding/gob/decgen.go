@@ -231,7 +231,7 @@ func dec%[2]sSlice(state *decoderState, v reflect.Value, length int, ovfl error)
 	}
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
-			errorf("decoding %[1]s array or slice: length exceeds input size (%d elements)", length)
+			errorf("decoding %[1]s array or slice: length exceeds input size (%%d elements)", length)
 		}
 		%[3]s
 	}
