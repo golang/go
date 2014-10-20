@@ -208,7 +208,11 @@ func (z *Reader) readHeader(save bool) error {
 	}
 
 	z.digest.Reset()
-	z.decompressor = flate.NewReader(z.r)
+	if z.decompressor == nil {
+		z.decompressor = flate.NewReader(z.r)
+	} else {
+		z.decompressor.(flate.Resetter).Reset(z.r, nil)
+	}
 	return nil
 }
 
