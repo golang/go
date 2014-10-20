@@ -745,7 +745,13 @@ func (p *Package) gccMachine() []string {
 	case "386":
 		return []string{"-m32"}
 	case "arm":
-		return []string{"-marm"} // not thumb
+		args := []string{"-marm"} // not thumb
+		if strings.Contains(p.gccBaseCmd()[0], "clang") {
+			// The clang integrated assembler understands the .arch directive
+			// but does not appear to honor it, so disable it. Issue 8348.
+			args = append(args, "-no-integrated-as")
+		}
+		return args
 	}
 	return nil
 }
