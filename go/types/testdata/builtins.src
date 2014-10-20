@@ -649,6 +649,21 @@ type S2 struct{ // offset
 	*S1     //  0
 }               //  8
 
+type S3 struct { // offset
+	a int64  //  0
+	b int32  //  8
+}                // 12
+
+type S4 struct { // offset
+	S3       //  0
+	int32    // 12
+}                // 16
+
+type S5 struct {   // offset
+	a [3]int32 //  0
+	b int32    // 12
+}                  // 16
+
 func (S2) m() {}
 
 func Alignof1() {
@@ -779,6 +794,18 @@ func Sizeof1() {
 
 	var y2 S2
 	assert(unsafe.Sizeof(y2) == 8)
+
+	var y3 S3
+	assert(unsafe.Sizeof(y3) == 12)
+
+	var y4 S4
+	assert(unsafe.Sizeof(y4) == 16)
+
+	var y5 S5
+	assert(unsafe.Sizeof(y5) == 16)
+
+	var a3 [10]S3
+	assert(unsafe.Sizeof(a3) == 156)
 
 	// test case for issue 5670
 	type T struct {

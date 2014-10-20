@@ -28,11 +28,12 @@ type Sizes interface {
 //	  specified size.
 //	- The size of strings and interfaces is 2*WordSize.
 //	- The size of slices is 3*WordSize.
-//	- The size of arrays is the aligned size (see below) of an element
-//        multiplied by the number of elements.
+//	- The size of an array of n elements corresponds to the size of
+//	  a struct of n consecutive fields of the array's element type.
 //      - The size of a struct is the offset of the last field plus that
-//	  field's size. If the struct is used in an array its size must
-//        first be aligned to a multiple of the struct's alignment.
+//	  field's size. As with all element types, if the struct is used
+//	  in an array its size must first be aligned to a multiple of the
+//	  struct's alignment.
 //	- All other types have size WordSize.
 //	- Arrays and structs are aligned per spec definition; all other
 //	  types are naturally aligned with a maximum alignment MaxAlign.
@@ -117,9 +118,13 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 			return s.WordSize * 2
 		}
 	case *Array:
+		n := t.len
+		if n == 0 {
+			return 0
+		}
 		a := s.Alignof(t.elem)
 		z := s.Sizeof(t.elem)
-		return align(z, a) * t.len // may be 0
+		return align(z, a)*(n-1) + z
 	case *Slice:
 		return s.WordSize * 3
 	case *Struct:
