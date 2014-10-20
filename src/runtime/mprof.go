@@ -284,6 +284,8 @@ func SetBlockProfileRate(rate int) {
 	var r int64
 	if rate <= 0 {
 		r = 0 // disable profiling
+	} else if rate == 1 {
+		r = 1 // profile everything
 	} else {
 		// convert ns to cycles, use float64 to prevent overflow during multiplication
 		r = int64(float64(rate) * float64(tickspersecond()) / (1000 * 1000 * 1000))
@@ -297,7 +299,7 @@ func SetBlockProfileRate(rate int) {
 
 func blockevent(cycles int64, skip int) {
 	if cycles <= 0 {
-		return
+		cycles = 1
 	}
 	rate := int64(atomicload64(&blockprofilerate))
 	if rate <= 0 || (rate > cycles && int64(fastrand1())%rate > cycles) {
