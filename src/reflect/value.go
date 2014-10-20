@@ -406,7 +406,7 @@ func (v Value) call(op string, in []Value) []Value {
 		off = (off + a - 1) &^ (a - 1)
 		n := targ.size
 		addr := unsafe.Pointer(uintptr(args) + off)
-		v = v.assignTo("reflect.Value.Call", targ, (*interface{})(addr))
+		v = v.assignTo("reflect.Value.Call", targ, addr)
 		if v.flag&flagIndir != 0 {
 			memmove(addr, v.ptr, n)
 		} else {
@@ -1291,9 +1291,9 @@ func (v Value) send(x Value, nb bool) (selected bool) {
 func (v Value) Set(x Value) {
 	v.mustBeAssignable()
 	x.mustBeExported() // do not let unexported x leak
-	var target *interface{}
+	var target unsafe.Pointer
 	if v.kind() == Interface {
-		target = (*interface{})(v.ptr)
+		target = v.ptr
 	}
 	x = x.assignTo("reflect.Set", v.typ, target)
 	if x.flag&flagIndir != 0 {
@@ -2094,7 +2094,7 @@ func NewAt(typ Type, p unsafe.Pointer) Value {
 // assignTo returns a value v that can be assigned directly to typ.
 // It panics if v is not assignable to typ.
 // For a conversion to an interface type, target is a suggested scratch space to use.
-func (v Value) assignTo(context string, dst *rtype, target *interface{}) Value {
+func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value {
 	if v.flag&flagMethod != 0 {
 		v = makeMethodValue(context, v)
 	}
@@ -2110,15 +2110,15 @@ func (v Value) assignTo(context string, dst *rtype, target *interface{}) Value {
 
 	case implements(dst, v.typ):
 		if target == nil {
-			target = new(interface{})
+			target = unsafe_New(dst)
 		}
 		x := valueInterface(v, false)
 		if dst.NumMethod() == 0 {
-			*target = x
+			*(*interface{})(target) = x
 		} else {
-			ifaceE2I(dst, x, unsafe.Pointer(target))
+			ifaceE2I(dst, x, target)
 		}
-		return Value{dst, unsafe.Pointer(target), flagIndir | flag(Interface)}
+		return Value{dst, target, flagIndir | flag(Interface)}
 	}
 
 	// Failed.
@@ -2381,14 +2381,14 @@ func cvtDirect(v Value, typ Type) Value {
 
 // convertOp: concrete -> interface
 func cvtT2I(v Value, typ Type) Value {
-	target := new(interface{})
+	target := unsafe_New(typ.common())
 	x := valueInterface(v, false)
 	if typ.NumMethod() == 0 {
-		*target = x
+		*(*interface{})(target) = x
 	} else {
-		ifaceE2I(typ.(*rtype), x, unsafe.Pointer(target))
+		ifaceE2I(typ.(*rtype), x, target)
 	}
-	return Value{typ.common(), unsafe.Pointer(target), v.flag&flagRO | flagIndir | flag(Interface)}
+	return Value{typ.common(), target, v.flag&flagRO | flagIndir | flag(Interface)}
 }
 
 // convertOp: interface -> interface
