@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"strconv"
-	"unsafe"
 )
 
 // A File represents an open PE file.
@@ -125,6 +124,11 @@ func (f *File) Close() error {
 	return err
 }
 
+var (
+	sizeofOptionalHeader32 = uintptr(binary.Size(OptionalHeader32{}))
+	sizeofOptionalHeader64 = uintptr(binary.Size(OptionalHeader64{}))
+)
+
 // NewFile creates a new File for accessing a PE binary in an underlying reader.
 func NewFile(r io.ReaderAt) (*File, error) {
 	f := new(File)
@@ -206,7 +210,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	var oh32 OptionalHeader32
 	var oh64 OptionalHeader64
 	switch uintptr(f.FileHeader.SizeOfOptionalHeader) {
-	case unsafe.Sizeof(oh32):
+	case sizeofOptionalHeader32:
 		if err := binary.Read(sr, binary.LittleEndian, &oh32); err != nil {
 			return nil, err
 		}
@@ -214,7 +218,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			return nil, fmt.Errorf("pe32 optional header has unexpected Magic of 0x%x", oh32.Magic)
 		}
 		f.OptionalHeader = &oh32
-	case unsafe.Sizeof(oh64):
+	case sizeofOptionalHeader64:
 		if err := binary.Read(sr, binary.LittleEndian, &oh64); err != nil {
 			return nil, err
 		}
