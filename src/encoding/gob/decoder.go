@@ -6,7 +6,6 @@ package gob
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"io"
 	"reflect"
@@ -23,13 +22,12 @@ const tooBig = 1 << 30
 type Decoder struct {
 	mutex        sync.Mutex                              // each item must be received atomically
 	r            io.Reader                               // source of the data
-	buf          bytes.Buffer                            // buffer for more efficient i/o from r
+	buf          decBuffer                               // buffer for more efficient i/o from r
 	wireType     map[typeId]*wireType                    // map from remote ID to local description
 	decoderCache map[reflect.Type]map[typeId]**decEngine // cache of compiled engines
 	ignorerCache map[typeId]**decEngine                  // ditto for ignored objects
 	freeList     *decoderState                           // list of free decoderStates; avoids reallocation
 	countBuf     []byte                                  // used for decoding integers while parsing messages
-	tmp          []byte                                  // temporary storage for i/o; saves reallocating
 	err          error
 }
 
@@ -90,37 +88,17 @@ func (dec *Decoder) recvMessage() bool {
 
 // readMessage reads the next nbytes bytes from the input.
 func (dec *Decoder) readMessage(nbytes int) {
-	// Allocate the dec.tmp buffer, up to 10KB.
-	const maxBuf = 10 * 1024
-	nTmp := nbytes
-	if nTmp > maxBuf {
-		nTmp = maxBuf
+	if dec.buf.Len() != 0 {
+		// The buffer should always be empty now.
+		panic("non-empty decoder buffer")
 	}
-	if cap(dec.tmp) < nTmp {
-		nAlloc := nTmp + 100 // A little extra for growth.
-		if nAlloc > maxBuf {
-			nAlloc = maxBuf
-		}
-		dec.tmp = make([]byte, nAlloc)
-	}
-	dec.tmp = dec.tmp[:nTmp]
-
 	// Read the data
-	dec.buf.Grow(nbytes)
-	for nbytes > 0 {
-		if nbytes < nTmp {
-			dec.tmp = dec.tmp[:nbytes]
+	dec.buf.Size(nbytes)
+	_, dec.err = io.ReadFull(dec.r, dec.buf.Bytes())
+	if dec.err != nil {
+		if dec.err == io.EOF {
+			dec.err = io.ErrUnexpectedEOF
 		}
-		var nRead int
-		nRead, dec.err = io.ReadFull(dec.r, dec.tmp)
-		if dec.err != nil {
-			if dec.err == io.EOF {
-				dec.err = io.ErrUnexpectedEOF
-			}
-			return
-		}
-		dec.buf.Write(dec.tmp)
-		nbytes -= nRead
 	}
 }
 

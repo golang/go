@@ -50,6 +50,12 @@ func testError(t *testing.T) {
 	return
 }
 
+func newDecBuffer(data []byte) *decBuffer {
+	return &decBuffer{
+		data: data,
+	}
+}
+
 // Test basic encode/decode routines for unsigned integers
 func TestUintCodec(t *testing.T) {
 	defer testError(t)
@@ -65,7 +71,7 @@ func TestUintCodec(t *testing.T) {
 	for u := uint64(0); ; u = (u + 1) * 7 {
 		b.Reset()
 		encState.encodeUint(u)
-		decState := newDecodeState(bytes.NewBuffer(b.Bytes()))
+		decState := newDecodeState(newDecBuffer(b.Bytes()))
 		v := decState.decodeUint()
 		if u != v {
 			t.Errorf("Encode/Decode: sent %#x received %#x", u, v)
@@ -81,7 +87,7 @@ func verifyInt(i int64, t *testing.T) {
 	var b = new(encBuffer)
 	encState := newEncoderState(b)
 	encState.encodeInt(i)
-	decState := newDecodeState(bytes.NewBuffer(b.Bytes()))
+	decState := newDecodeState(newDecBuffer(b.Bytes()))
 	decState.buf = make([]byte, 8)
 	j := decState.decodeInt()
 	if i != j {
@@ -118,7 +124,7 @@ var complexResult = []byte{0x07, 0xFE, 0x31, 0x40, 0xFE, 0x33, 0x40}
 // The result of encoding "hello" with field number 7
 var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
 
-func newDecodeState(buf *bytes.Buffer) *decoderState {
+func newDecodeState(buf *decBuffer) *decoderState {
 	d := new(decoderState)
 	d.b = buf
 	d.buf = make([]byte, uint64Size)
@@ -328,7 +334,7 @@ func execDec(typ string, instr *decInstr, state *decoderState, t *testing.T, val
 }
 
 func newDecodeStateFromData(data []byte) *decoderState {
-	b := bytes.NewBuffer(data)
+	b := newDecBuffer(data)
 	state := newDecodeState(b)
 	state.fieldnum = -1
 	return state
