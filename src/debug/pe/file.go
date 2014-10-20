@@ -125,8 +125,8 @@ func (f *File) Close() error {
 }
 
 var (
-	sizeofOptionalHeader32 = uintptr(binary.Size(OptionalHeader32{}))
-	sizeofOptionalHeader64 = uintptr(binary.Size(OptionalHeader64{}))
+	sizeofOptionalHeader32 = uint16(binary.Size(OptionalHeader32{}))
+	sizeofOptionalHeader64 = uint16(binary.Size(OptionalHeader64{}))
 )
 
 // NewFile creates a new File for accessing a PE binary in an underlying reader.
@@ -209,7 +209,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 	var oh32 OptionalHeader32
 	var oh64 OptionalHeader64
-	switch uintptr(f.FileHeader.SizeOfOptionalHeader) {
+	switch f.FileHeader.SizeOfOptionalHeader {
 	case sizeofOptionalHeader32:
 		if err := binary.Read(sr, binary.LittleEndian, &oh32); err != nil {
 			return nil, err
