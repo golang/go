@@ -272,13 +272,18 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
 func repeatIsValid(re *Regexp, n int) bool {
 	if re.Op == OpRepeat {
 		m := re.Max
+		if m == 0 {
+			return true
+		}
 		if m < 0 {
 			m = re.Min
 		}
 		if m > n {
 			return false
 		}
-		n /= m
+		if m > 0 {
+			n /= m
+		}
 	}
 	for _, sub := range re.Sub {
 		if !repeatIsValid(sub, n) {
