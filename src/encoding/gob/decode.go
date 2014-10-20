@@ -7,7 +7,6 @@
 package gob
 
 import (
-	"bytes"
 	"encoding"
 	"errors"
 	"io"
@@ -29,15 +28,71 @@ type decoderState struct {
 	dec *Decoder
 	// The buffer is stored with an extra indirection because it may be replaced
 	// if we load a type during decode (when reading an interface value).
-	b        *bytes.Buffer
+	b        *decBuffer
 	fieldnum int // the last field number read.
 	buf      []byte
 	next     *decoderState // for free list
 }
 
+// decBuffer is an extremely simple, fast implementation of a read-only byte buffer.
+// It is initialized by calling Size and then copying the data into the slice returned by Bytes().
+type decBuffer struct {
+	data   []byte
+	offset int // Read offset.
+}
+
+func (d *decBuffer) Read(p []byte) (int, error) {
+	n := copy(p, d.data[d.offset:])
+	if n == 0 && len(p) != 0 {
+		return 0, io.EOF
+	}
+	d.offset += n
+	return n, nil
+}
+
+func (d *decBuffer) Drop(n int) {
+	if n > d.Len() {
+		panic("drop")
+	}
+	d.offset += n
+}
+
+// Size grows the buffer to exactly n bytes, so d.Bytes() will
+// return a slice of length n. Existing data is first discarded.
+func (d *decBuffer) Size(n int) {
+	d.Reset()
+	if cap(d.data) < n {
+		d.data = make([]byte, n)
+	} else {
+		d.data = d.data[0:n]
+	}
+}
+
+func (d *decBuffer) ReadByte() (byte, error) {
+	if d.offset >= len(d.data) {
+		return 0, io.EOF
+	}
+	c := d.data[d.offset]
+	d.offset++
+	return c, nil
+}
+
+func (d *decBuffer) Len() int {
+	return len(d.data) - d.offset
+}
+
+func (d *decBuffer) Bytes() []byte {
+	return d.data[d.offset:]
+}
+
+func (d *decBuffer) Reset() {
+	d.data = d.data[0:0]
+	d.offset = 0
+}
+
 // We pass the bytes.Buffer separately for easier testing of the infrastructure
 // without requiring a full Decoder.
-func (dec *Decoder) newDecoderState(buf *bytes.Buffer) *decoderState {
+func (dec *Decoder) newDecoderState(buf *decBuffer) *decoderState {
 	d := dec.freeList
 	if d == nil {
 		d = new(decoderState)
@@ -633,7 +688,7 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 		error_(dec.err)
 	}
 	// At this point, the decoder buffer contains a delimited value. Just toss it.
-	state.b.Next(int(state.decodeUint()))
+	state.b.Drop(int(state.decodeUint()))
 }
 
 // decodeGobDecoder decodes something implementing the GobDecoder interface.
