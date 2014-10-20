@@ -21,6 +21,7 @@ cmd/go: (via go/build): a GOOS prefix acts as a tag only if preceded by an under
 
 asm: make textflag.h available outside of cmd/ld (CL 128050043)
 bufio: handling of empty tokens at EOF changed, may require scanner change (CL 145390043)
+compress/flate, compress/gzip, compress/zlib: Reset support (https://codereview.appspot.com/97140043)
 crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
 crypto/tls: support programmatic selection of server certificates (CL 107400043)
 flag: it is now an error to set a flag multiple times (CL 156390043)
