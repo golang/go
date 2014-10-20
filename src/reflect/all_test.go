@@ -2502,10 +2502,21 @@ func TestAllocations(t *testing.T) {
 	noAlloc(t, 100, func(j int) {
 		var i interface{}
 		var v Value
-		i = 42 + j
+
+		// We can uncomment this when compiler escape analysis
+		// is good enough to see that the integer assigned to i
+		// does not escape and therefore need not be allocated.
+		//
+		// i = 42 + j
+		// v = ValueOf(i)
+		// if int(v.Int()) != 42+j {
+		// 	panic("wrong int")
+		// }
+
+		i = func(j int) int { return j }
 		v = ValueOf(i)
-		if int(v.Int()) != 42+j {
-			panic("wrong int")
+		if v.Interface().(func(int) int)(j) != j {
+			panic("wrong result")
 		}
 	})
 }
