@@ -55,6 +55,9 @@ type Timer struct {
 // Stop does not close the channel, to prevent a read from the channel succeeding
 // incorrectly.
 func (t *Timer) Stop() bool {
+	if t.r.f == nil {
+		panic("time: Stop called on uninitialized Timer")
+	}
 	return stopTimer(&t.r)
 }
 
@@ -78,6 +81,9 @@ func NewTimer(d Duration) *Timer {
 // It returns true if the timer had been active, false if the timer had
 // expired or been stopped.
 func (t *Timer) Reset(d Duration) bool {
+	if t.r.f == nil {
+		panic("time: Reset called on uninitialized Timer")
+	}
 	w := when(d)
 	active := stopTimer(&t.r)
 	t.r.when = w
