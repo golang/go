@@ -180,7 +180,11 @@ func exit(code int32)
 func breakpoint()
 func nanotime() int64
 func usleep(usec uint32)
+
+// careful: cputicks is not guaranteed to be monotonic!  In particular, we have
+// noticed drift between cpus on certain os/arch combinations.  See issue 8976.
 func cputicks() int64
+
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
 func munmap(addr unsafe.Pointer, n uintptr)
 func madvise(addr unsafe.Pointer, n uintptr, flags int32)

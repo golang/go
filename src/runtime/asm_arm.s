@@ -1275,9 +1275,6 @@ TEXT runtime·fastrand1(SB),NOSPLIT,$-4-4
 	MOVW	R0, ret+0(FP)
 	RET
 
-TEXT runtime·gocputicks(SB),NOSPLIT,$0
-	B runtime·cputicks(SB)
-
 TEXT runtime·return0(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	RET
