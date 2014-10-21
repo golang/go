@@ -855,13 +855,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	MOVQ	AX, ret+0(FP)
 	RET
 
-TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
-	RDTSC
-	SHLQ    $32, DX
-	ADDQ    DX, AX
-	MOVQ    AX, ret+0(FP)
-	RET
-
 // hash function using AES hardware instructions
 TEXT runtime·aeshash(SB),NOSPLIT,$0-32
 	MOVQ	p+0(FP), AX	// ptr to data
