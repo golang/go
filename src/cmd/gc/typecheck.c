@@ -2127,13 +2127,16 @@ lookdot(Node *n, Type *t, int dostrcmp)
 				n->left = nod(OADDR, n->left, N);
 				n->left->implicit = 1;
 				typecheck(&n->left, Etype|Erv);
-			} else if(tt->etype == tptr && eqtype(tt->type, rcvr)) {
+			} else if(tt->etype == tptr && rcvr->etype != tptr && eqtype(tt->type, rcvr)) {
 				n->left = nod(OIND, n->left, N);
 				n->left->implicit = 1;
 				typecheck(&n->left, Etype|Erv);
-			} else if(tt->etype == tptr && tt->type->etype == tptr && eqtype(derefall(tt), rcvr)) {
+			} else if(tt->etype == tptr && tt->type->etype == tptr && eqtype(derefall(tt), derefall(rcvr))) {
 				yyerror("calling method %N with receiver %lN requires explicit dereference", n->right, n->left);
 				while(tt->etype == tptr) {
+					// Stop one level early for method with pointer receiver.
+					if(rcvr->etype == tptr && tt->type->etype != tptr)
+						break;
 					n->left = nod(OIND, n->left, N);
 					n->left->implicit = 1;
 					typecheck(&n->left, Etype|Erv);
