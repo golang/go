@@ -120,7 +120,7 @@ For example:
 
 <p>
 If you'd like to see how this works, or want to extend it, take a look at <a
-href="/src/pkg/runtime/runtime-gdb.py">src/pkg/runtime/runtime-gdb.py</a> in
+href="/src/runtime/runtime-gdb.py">src/runtime/runtime-gdb.py</a> in
 the Go source distribution. It depends on some special magic types
 (<code>hash&lt;T,U&gt;</code>) and variables (<code>runtime.m</code> and
 <code>runtime.g</code>) that the linker
@@ -153,7 +153,7 @@ the form <code>pkg.(*MyType).Meth</code>.
 <p>
 In this tutorial we will inspect the binary of the
 <a href="/pkg/regexp/">regexp</a> package's unit tests. To build the binary,
-change to <code>$GOROOT/src/pkg/regexp</code> and run <code>go test -c</code>.
+change to <code>$GOROOT/src/regexp</code> and run <code>go test -c</code>.
 This should produce an executable file named <code>regexp.test</code>.
 </p>
 
@@ -172,7 +172,7 @@ License GPLv  3+: GNU GPL version 3 or later &lt;http://gnu.org/licenses/gpl.htm
 Type "show copying" and "show warranty" for licensing/warranty details.
 This GDB was configured as "x86_64-linux".
 
-Reading symbols from  /home/user/go/src/pkg/regexp/regexp.test...
+Reading symbols from  /home/user/go/src/regexp/regexp.test...
 done.
 Loading Go Runtime support.
 (gdb) 
@@ -180,7 +180,7 @@ Loading Go Runtime support.
 
 <p>
 The message <code>"Loading Go Runtime support"</code> means that GDB loaded the
-extension from <code>$GOROOT/src/pkg/runtime/runtime-gdb.py</code>.
+extension from <code>$GOROOT/src/runtime/runtime-gdb.py</code>.
 </p>
 
 <p>
@@ -199,7 +199,7 @@ it by hand by telling gdb (assuming you have the go sources in
 </p>
 
 <pre>
-(gdb) <b>source ~/go/src/pkg/runtime/runtime-gdb.py</b>
+(gdb) <b>source ~/go/src/runtime/runtime-gdb.py</b>
 Loading Go Runtime support.
 </pre>
 
@@ -259,7 +259,7 @@ Set a breakpoint at the <code>TestFind</code> function:
 
 <pre>
 (gdb) <b>b 'regexp.TestFind'</b>
-Breakpoint 1 at 0x424908: file /home/user/go/src/pkg/regexp/find_test.go, line 148.
+Breakpoint 1 at 0x424908: file /home/user/go/src/regexp/find_test.go, line 148.
 </pre>
 
 <p>
@@ -268,9 +268,9 @@ Run the program:
 
 <pre>
 (gdb) <b>run</b>
-Starting program: /home/user/go/src/pkg/regexp/regexp.test
+Starting program: /home/user/go/src/regexp/regexp.test
 
-Breakpoint 1, regexp.TestFind (t=0xf8404a89c0) at /home/user/go/src/pkg/regexp/find_test.go:148
+Breakpoint 1, regexp.TestFind (t=0xf8404a89c0) at /home/user/go/src/regexp/find_test.go:148
 148	func TestFind(t *testing.T) {
 </pre>
 
@@ -297,9 +297,9 @@ Look at the stack trace for where we’ve paused the program:
 
 <pre>
 (gdb) <b>bt</b>  <i># backtrace</i>
-#0  regexp.TestFind (t=0xf8404a89c0) at /home/user/go/src/pkg/regexp/find_test.go:148
-#1  0x000000000042f60b in testing.tRunner (t=0xf8404a89c0, test=0x573720) at /home/user/go/src/pkg/testing/testing.go:156
-#2  0x000000000040df64 in runtime.initdone () at /home/user/go/src/pkg/runtime/proc.c:242
+#0  regexp.TestFind (t=0xf8404a89c0) at /home/user/go/src/regexp/find_test.go:148
+#1  0x000000000042f60b in testing.tRunner (t=0xf8404a89c0, test=0x573720) at /home/user/go/src/testing/testing.go:156
+#2  0x000000000040df64 in runtime.initdone () at /home/user/go/src/runtime/proc.c:242
 #3  0x000000f8404a89c0 in ?? ()
 #4  0x0000000000573720 in ?? ()
 #5  0x0000000000000000 in ?? ()
@@ -311,18 +311,18 @@ The other goroutine, number 1, is stuck in <code>runtime.gosched</code>, blocked
 
 <pre>
 (gdb) <b>goroutine 1 bt</b>
-#0  0x000000000040facb in runtime.gosched () at /home/user/go/src/pkg/runtime/proc.c:873
+#0  0x000000000040facb in runtime.gosched () at /home/user/go/src/runtime/proc.c:873
 #1  0x00000000004031c9 in runtime.chanrecv (c=void, ep=void, selected=void, received=void)
- at  /home/user/go/src/pkg/runtime/chan.c:342
-#2  0x0000000000403299 in runtime.chanrecv1 (t=void, c=void) at/home/user/go/src/pkg/runtime/chan.c:423
+ at  /home/user/go/src/runtime/chan.c:342
+#2  0x0000000000403299 in runtime.chanrecv1 (t=void, c=void) at/home/user/go/src/runtime/chan.c:423
 #3  0x000000000043075b in testing.RunTests (matchString={void (struct string, struct string, bool *, error *)}
- 0x7ffff7f9ef60, tests=  []testing.InternalTest = {...}) at /home/user/go/src/pkg/testing/testing.go:201
+ 0x7ffff7f9ef60, tests=  []testing.InternalTest = {...}) at /home/user/go/src/testing/testing.go:201
 #4  0x00000000004302b1 in testing.Main (matchString={void (struct string, struct string, bool *, error *)} 
  0x7ffff7f9ef80, tests= []testing.InternalTest = {...}, benchmarks= []testing.InternalBenchmark = {...})
-at /home/user/go/src/pkg/testing/testing.go:168
-#5  0x0000000000400dc1 in main.main () at /home/user/go/src/pkg/regexp/_testmain.go:98
-#6  0x00000000004022e7 in runtime.mainstart () at /home/user/go/src/pkg/runtime/amd64/asm.s:78
-#7  0x000000000040ea6f in runtime.initdone () at /home/user/go/src/pkg/runtime/proc.c:243
+at /home/user/go/src/testing/testing.go:168
+#5  0x0000000000400dc1 in main.main () at /home/user/go/src/regexp/_testmain.go:98
+#6  0x00000000004022e7 in runtime.mainstart () at /home/user/go/src/runtime/amd64/asm.s:78
+#7  0x000000000040ea6f in runtime.initdone () at /home/user/go/src/runtime/proc.c:243
 #8  0x0000000000000000 in ?? ()
 </pre>
 
@@ -333,7 +333,7 @@ The stack frame shows we’re currently executing the <code>regexp.TestFind</cod
 <pre>
 (gdb) <b>info frame</b>
 Stack level 0, frame at 0x7ffff7f9ff88:
- rip = 0x425530 in regexp.TestFind (/home/user/go/src/pkg/regexp/find_test.go:148); 
+ rip = 0x425530 in regexp.TestFind (/home/user/go/src/regexp/find_test.go:148); 
     saved rip 0x430233
  called by frame at 0x7ffff7f9ffa8
  source language minimal.
@@ -410,7 +410,7 @@ We can step into the <code>String</code>function call with <code>"s"</code>:
 
 <pre>
 (gdb) <b>s</b>
-regexp.(*Regexp).String (re=0xf84068d070, noname=void) at /home/user/go/src/pkg/regexp/regexp.go:97
+regexp.(*Regexp).String (re=0xf84068d070, noname=void) at /home/user/go/src/regexp/regexp.go:97
 97      func (re *Regexp) String() string {
 </pre>
 
@@ -421,12 +421,12 @@ Get a stack trace to see where we are:
 <pre>
 (gdb) <b>bt</b>
 #0  regexp.(*Regexp).String (re=0xf84068d070, noname=void)
-    at /home/user/go/src/pkg/regexp/regexp.go:97
+    at /home/user/go/src/regexp/regexp.go:97
 #1  0x0000000000425615 in regexp.TestFind (t=0xf840688b60)
-    at /home/user/go/src/pkg/regexp/find_test.go:151
+    at /home/user/go/src/regexp/find_test.go:151
 #2  0x0000000000430233 in testing.tRunner (t=0xf840688b60, test=0x5747b8)
-    at /home/user/go/src/pkg/testing/testing.go:156
-#3  0x000000000040ea6f in runtime.initdone () at /home/user/go/src/pkg/runtime/proc.c:243
+    at /home/user/go/src/testing/testing.go:156
+#3  0x000000000040ea6f in runtime.initdone () at /home/user/go/src/runtime/proc.c:243
 ....
 </pre>
 

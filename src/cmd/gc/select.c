@@ -325,7 +325,7 @@ out:
 	lineno = lno;
 }
 
-// Keep in sync with src/pkg/runtime/chan.h.
+// Keep in sync with src/runtime/chan.h.
 static Type*
 selecttype(int32 size)
 {

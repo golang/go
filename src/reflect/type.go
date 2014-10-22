@@ -1563,7 +1563,7 @@ const (
 	bitsPointer = 2
 )
 
-// Make sure these routines stay in sync with ../../pkg/runtime/hashmap.go!
+// Make sure these routines stay in sync with ../../runtime/hashmap.go!
 // These types exist only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program.  We also fill in string
 // for possible debugging use.

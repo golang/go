@@ -272,7 +272,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 
 	case nil:
 
-	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
+	// These are ordered and grouped to match ../../go/ast/ast.go
 	case *ast.Field:
 		if len(n.Names) == 0 && context == "field" {
 			f.walk(&n.Type, "embed-type", visit)

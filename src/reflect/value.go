@@ -2679,7 +2679,7 @@ func cvtI2I(v Value, typ Type) Value {
 	return cvtT2I(v.Elem(), typ)
 }
 
-// implemented in ../pkg/runtime
+// implemented in ../runtime
 func chancap(ch unsafe.Pointer) int
 func chanclose(ch unsafe.Pointer)
 func chanlen(ch unsafe.Pointer) int

@@ -3641,7 +3641,7 @@ ngotype(Node *n)
  * users if we escape that as little as possible.
  *
  * If you edit this, edit ../ld/lib.c:/^pathtoprefix too.
- * If you edit this, edit ../../pkg/debug/goobj/read.go:/importPathToPrefix too.
+ * If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
  */
 static char*
 pathtoprefix(char *s)

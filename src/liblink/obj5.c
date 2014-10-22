@@ -33,7 +33,7 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/5l/5.out.h"
-#include "../pkg/runtime/stack.h"
+#include "../runtime/stack.h"
 
 static Prog zprg = {
 	.as = AGOK,

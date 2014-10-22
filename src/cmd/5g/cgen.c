@@ -1522,7 +1522,7 @@ sgen(Node *n, Node *res, int64 w)
 		f = sysfunc("duffcopy");
 		p = gins(ADUFFCOPY, N, f);
 		afunclit(&p->to, f);
-		// 8 and 128 = magic constants: see ../../pkg/runtime/asm_arm.s
+		// 8 and 128 = magic constants: see ../../runtime/asm_arm.s
 		p->to.offset = 8*(128-c);
 
 		regfree(&tmp);

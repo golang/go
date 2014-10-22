@@ -69,7 +69,7 @@
 #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
 #include <libc.h>
 #include "a.h"
-#include "../../pkg/runtime/funcdata.h"
+#include "../../runtime/funcdata.h"
 
 /* Line 371 of yacc.c  */
 #line 76 "y.tab.c"

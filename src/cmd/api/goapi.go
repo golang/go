@@ -143,7 +143,7 @@ func main() {
 
 	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
 	for _, context := range contexts {
-		w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src/pkg"))
+		w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
 
 		for _, name := range pkgNames {
 			// - Package "unsafe" contains special signatures requiring
