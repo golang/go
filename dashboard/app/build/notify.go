@@ -38,6 +38,7 @@ const (
 var ignoreFailure = map[string]bool{
 	"dragonfly-386":           true,
 	"dragonfly-amd64":         true,
+	"netbsd-amd64-bsiegert":   true,
 	"netbsd-arm-rpi":          true,
 	"solaris-amd64-smartos":   true,
 	"solaris-amd64-solaris11": true,
