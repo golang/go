@@ -35,7 +35,7 @@ type Gregset C.elf_gregset_t
 type FPregset C.elf_fpregset_t
 type Vreg C.elf_vrreg_t
 
-type Sigaltstack C.struct_sigaltstack
+type SigaltstackT C.struct_sigaltstack
 
 // PPC64 uses sigcontext in place of mcontext in ucontext.
 // see http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/arch/powerpc/include/uapi/asm/ucontext.h
