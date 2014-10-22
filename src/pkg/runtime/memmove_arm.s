@@ -23,7 +23,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // TE or TS are spilled to the stack during bulk register moves.
 TS = 0

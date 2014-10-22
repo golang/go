@@ -525,19 +525,6 @@ reswitch:
 		op = n->etype;
 		goto arith;
 
-	case OADDPTR:
-		ok |= Erv;
-		l = typecheck(&n->left, Erv);
-		r = typecheck(&n->right, Erv);
-		if(l->type == T || r->type == T)
-			goto error;
-		if(l->type->etype != tptr)
-			fatal("bad OADDPTR left type %E for %N", l->type->etype, n->left);
-		if(r->type->etype != TUINTPTR)
-			fatal("bad OADDPTR right type %E for %N", r->type->etype, n->right);
-		n->type = types[tptr];
-		goto ret;
-
 	case OADD:
 	case OAND:
 	case OANDAND:
@@ -2965,7 +2952,7 @@ typecheckas2(Node *n)
 			if(l->defn == n)
 				l->type = r->type;
 			l = n->list->next->n;
-			if(l->type != T)
+			if(l->type != T && l->type->etype != TBOOL)
 				checkassignto(types[TBOOL], l);
 			if(l->defn == n && l->ntype == N)
 				l->type = types[TBOOL];

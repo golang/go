@@ -770,10 +770,10 @@ bool
 hassuffix(char *p, char *suffix)
 {
 	int np, ns;
-	
+
 	np = strlen(p);
 	ns = strlen(suffix);
-	return np >= ns && strcmp(p+np-ns, suffix) == 0;
+	return np >= ns && streq(p+np-ns, suffix);
 }
 
 bool

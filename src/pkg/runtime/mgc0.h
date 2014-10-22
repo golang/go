@@ -15,8 +15,8 @@ enum {
 	// Should we just make the bitmap a byte array?
 
 	// Four bits per word (see #defines below).
-	wordsPerBitmapWord = sizeof(void*)*8/4,
 	gcBits = 4,
+	wordsPerBitmapByte = 8/gcBits,
 
 	// GC type info programs.
 	// The programs allow to store type info required for GC in a compact form.
@@ -57,12 +57,13 @@ enum {
 	BitsMultiWord	= 3,
 	// BitsMultiWord will be set for the first word of a multi-word item.
 	// When it is set, one of the following will be set for the second word.
-	BitsString	= 0,
-	BitsSlice	= 1,
+	// NOT USED ANYMORE: BitsString	= 0,
+	// NOT USED ANYMORE: BitsSlice	= 1,
 	BitsIface	= 2,
 	BitsEface	= 3,
 
-	MaxGCMask	= 0,	// disabled because wastes several bytes of memory
+	// 64 bytes cover objects of size 1024/512 on 64/32 bits, respectively.
+	MaxGCMask	= 64,
 };
 
 // Bits in per-word bitmap.
@@ -77,10 +78,8 @@ enum {
 // the off/16+1'th word before mheap.arena_start.  (On a 32-bit system,
 // the only difference is that the divisor is 8.)
 
-#define bitMiddle	((uintptr)0) // middle of an object
-#define bitBoundary	((uintptr)1) // boundary on a non-allocated object
-#define bitAllocated	((uintptr)2) // boundary on an allocated object
-#define bitMarked	((uintptr)3) // boundary on an allocated and marked object
+#define bitBoundary	((uintptr)1) // boundary of an object
+#define bitMarked	((uintptr)2) // marked object
 
-#define bitMask		((uintptr)bitMiddle|bitBoundary|bitAllocated|bitMarked)
+#define bitMask		((uintptr)bitBoundary|bitMarked)
 #define bitPtrMask	((uintptr)BitsMask<<2)

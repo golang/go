@@ -811,8 +811,8 @@ func TestChdirAndGetwd(t *testing.T) {
 		t.Fatalf("Open .: %s", err)
 	}
 	// These are chosen carefully not to be symlinks on a Mac
-	// (unlike, say, /var, /etc, and /tmp).
-	dirs := []string{"/", "/usr/bin"}
+	// (unlike, say, /var, /etc), except /tmp, which we handle below.
+	dirs := []string{"/", "/usr/bin", "/tmp"}
 	// /usr/bin does not usually exist on Plan 9 or Android.
 	switch runtime.GOOS {
 	case "android":
@@ -820,6 +820,7 @@ func TestChdirAndGetwd(t *testing.T) {
 	case "plan9":
 		dirs = []string{"/", "/usr"}
 	}
+	oldwd := Getenv("PWD")
 	for mode := 0; mode < 2; mode++ {
 		for _, d := range dirs {
 			if mode == 0 {
@@ -833,7 +834,11 @@ func TestChdirAndGetwd(t *testing.T) {
 				err = fd1.Chdir()
 				fd1.Close()
 			}
+			if d == "/tmp" {
+				Setenv("PWD", "/tmp")
+			}
 			pwd, err1 := Getwd()
+			Setenv("PWD", oldwd)
 			err2 := fd.Chdir()
 			if err2 != nil {
 				// We changed the current directory and cannot go back.

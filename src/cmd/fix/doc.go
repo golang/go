@@ -27,7 +27,7 @@ rewrites are idempotent, so that it is safe to apply fix to updated
 or partially updated code even without using the -r flag.
 
 Fix prints the full list of fixes it can apply in its help output;
-to see them, run go tool fix -?.
+to see them, run go tool fix -help.
 
 Fix does not make backup copies of the files that it edits.
 Instead, use a version control system's ``diff'' functionality to inspect

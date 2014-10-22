@@ -198,6 +198,26 @@ func TestChan(t *testing.T) {
 	}
 }
 
+func TestNonblockRecvRace(t *testing.T) {
+	n := 10000
+	if testing.Short() {
+		n = 100
+	}
+	for i := 0; i < n; i++ {
+		c := make(chan int, 1)
+		c <- 1
+		go func() {
+			select {
+			case <-c:
+			default:
+				t.Fatal("chan is not ready")
+			}
+		}()
+		close(c)
+		<-c
+	}
+}
+
 func TestSelfSelect(t *testing.T) {
 	// Ensure that send/recv on the same chan in select
 	// does not crash nor deadlock.
@@ -428,6 +448,38 @@ func TestMultiConsumer(t *testing.T) {
 		t.Errorf("Expected sum %d (got %d) from %d iter (saw %d)",
 			expect, s, niter, n)
 	}
+}
+
+func TestShrinkStackDuringBlockedSend(t *testing.T) {
+	// make sure that channel operations still work when we are
+	// blocked on a channel send and we shrink the stack.
+	// NOTE: this test probably won't fail unless stack.c:StackDebug
+	// is set to >= 1.
+	const n = 10
+	c := make(chan int)
+	done := make(chan struct{})
+
+	go func() {
+		for i := 0; i < n; i++ {
+			c <- i
+			// use lots of stack, briefly.
+			stackGrowthRecursive(20)
+		}
+		done <- struct{}{}
+	}()
+
+	for i := 0; i < n; i++ {
+		x := <-c
+		if x != i {
+			t.Errorf("bad channel read: want %d, got %d", i, x)
+		}
+		// Waste some time so sender can finish using lots of stack
+		// and block in channel send.
+		time.Sleep(1 * time.Millisecond)
+		// trigger GC which will shrink the stack of the sender.
+		runtime.GC()
+	}
+	<-done
 }
 
 func BenchmarkChanNonblocking(b *testing.B) {

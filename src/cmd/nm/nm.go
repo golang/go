@@ -6,13 +6,13 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"sort"
+
+	"cmd/internal/objfile"
 )
 
 func usage() {
@@ -85,55 +85,22 @@ func errorf(format string, args ...interface{}) {
 	exitCode = 1
 }
 
-type Sym struct {
-	Addr uint64
-	Size int64
-	Code rune
-	Name string
-	Type string
-}
-
-var parsers = []struct {
-	prefix []byte
-	parse  func(*os.File) []Sym
-}{
-	{[]byte("!<arch>\n"), goobjSymbols},
-	{[]byte("go object "), goobjSymbols},
-	{[]byte("\x7FELF"), elfSymbols},
-	{[]byte("\xFE\xED\xFA\xCE"), machoSymbols},
-	{[]byte("\xFE\xED\xFA\xCF"), machoSymbols},
-	{[]byte("\xCE\xFA\xED\xFE"), machoSymbols},
-	{[]byte("\xCF\xFA\xED\xFE"), machoSymbols},
-	{[]byte("MZ"), peSymbols},
-	{[]byte("\x00\x00\x01\xEB"), plan9Symbols}, // 386
-	{[]byte("\x00\x00\x04\x07"), plan9Symbols}, // mips
-	{[]byte("\x00\x00\x06\x47"), plan9Symbols}, // arm
-	{[]byte("\x00\x00\x8A\x97"), plan9Symbols}, // amd64
-}
-
 func nm(file string) {
-	f, err := os.Open(file)
+	f, err := objfile.Open(file)
 	if err != nil {
 		errorf("%v", err)
 		return
 	}
 	defer f.Close()
 
-	buf := make([]byte, 16)
-	io.ReadFull(f, buf)
-	f.Seek(0, 0)
-
-	var syms []Sym
-	for _, p := range parsers {
-		if bytes.HasPrefix(buf, p.prefix) {
-			syms = p.parse(f)
-			goto HaveSyms
-		}
+	syms, err := f.Symbols()
+	if err != nil {
+		errorf("reading %s: %v", file, err)
 	}
-	errorf("%v: unknown file format", file)
-	return
+	if len(syms) == 0 {
+		errorf("reading %s: no symbols", file)
+	}
 
-HaveSyms:
 	switch *sortOrder {
 	case "address":
 		sort.Sort(byAddr(syms))
@@ -165,19 +132,19 @@ HaveSyms:
 	w.Flush()
 }
 
-type byAddr []Sym
+type byAddr []objfile.Sym
 
 func (x byAddr) Len() int           { return len(x) }
 func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
 
-type byName []Sym
+type byName []objfile.Sym
 
 func (x byName) Len() int           { return len(x) }
 func (x byName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x byName) Less(i, j int) bool { return x[i].Name < x[j].Name }
 
-type bySize []Sym
+type bySize []objfile.Sym
 
 func (x bySize) Len() int           { return len(x) }
 func (x bySize) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }

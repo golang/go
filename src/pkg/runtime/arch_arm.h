@@ -6,7 +6,7 @@ enum {
 	thechar = '5',
 	BigEndian = 0,
 	CacheLineSize = 32,
-	RuntimeGogoBytes = 84,
+	RuntimeGogoBytes = 60,
 #ifdef GOOS_nacl
 	PhysPageSize = 65536,
 #else

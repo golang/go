@@ -591,7 +591,7 @@ Fconv(Fmt *fp)
 			d = mpgetflt(fvp);
 			if(d >= 0 && (fp->flags & FmtSign))
 				fmtprint(fp, "+");
-			return fmtprint(fp, "%g", d, exp, fvp);
+			return fmtprint(fp, "%g", d);
 		}
 		
 		// very out of range. compute decimal approximation by hand.

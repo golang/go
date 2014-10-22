@@ -17,14 +17,12 @@
 #include "typekind.h"
 #include "funcdata.h"
 #include "zaexperiment.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
-extern byte data[];
-extern byte edata[];
-extern byte bss[];
-extern byte ebss[];
-extern byte gcdata[];
-extern byte gcbss[];
+extern byte runtime·data[];
+extern byte runtime·edata[];
+extern byte runtime·bss[];
+extern byte runtime·ebss[];
 
 enum {
 	FieldKindEol = 0,
@@ -198,7 +196,7 @@ dumptype(Type *t)
 		write((byte*)".", 1);
 		write(t->x->name->str, t->x->name->len);
 	}
-	dumpbool(t->size > PtrSize || (t->kind & KindNoPointers) == 0);
+	dumpbool((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0);
 	dumpfields((BitVector){0, nil});
 }
 
@@ -262,16 +260,8 @@ dumpbv(BitVector *bv, uintptr offset)
 			break;
 		case BitsMultiWord:
 			switch(bv->bytedata[(i+BitsPerPointer)/8] >> (i+BitsPerPointer)%8 & 3) {
-			case BitsString:
-				dumpint(FieldKindString);
-				dumpint(offset + i / BitsPerPointer * PtrSize);
-				i += BitsPerPointer;
-				break;
-			case BitsSlice:
-				dumpint(FieldKindSlice);
-				dumpint(offset + i / BitsPerPointer * PtrSize);
-				i += 2 * BitsPerPointer;
-				break;
+			default:
+				runtime·throw("unexpected garbage collection bits");
 			case BitsIface:
 				dumpint(FieldKindIface);
 				dumpint(offset + i / BitsPerPointer * PtrSize);
@@ -319,7 +309,7 @@ dumpframe(Stkframe *s, void *arg)
 		dumpbvtypes(&child->args, (byte*)s->sp + child->argoff);
 	if(stackmap != nil && stackmap->n > 0) {
 		bv = runtime·stackmapdata(stackmap, pcdata);
-		dumpbvtypes(&bv, s->varp - bv.n / BitsPerPointer * PtrSize);
+		dumpbvtypes(&bv, (byte*)(s->varp - bv.n / BitsPerPointer * PtrSize));
 	} else {
 		bv.n = -1;
 	}
@@ -352,26 +342,26 @@ dumpframe(Stkframe *s, void *arg)
 	// Dump fields in the local vars section
 	if(stackmap == nil) {
 		// No locals information, dump everything.
-		for(off = child->arglen; off < s->varp - (byte*)s->sp; off += PtrSize) {
+		for(off = child->arglen; off < s->varp - s->sp; off += PtrSize) {
 			dumpint(FieldKindPtr);
 			dumpint(off);
 		}
 	} else if(stackmap->n < 0) {
 		// Locals size information, dump just the locals.
 		size = -stackmap->n;
-		for(off = s->varp - size - (byte*)s->sp; off < s->varp - (byte*)s->sp; off += PtrSize) {
+		for(off = s->varp - size - s->sp; off <  s->varp - s->sp; off += PtrSize) {
 			dumpint(FieldKindPtr);
 			dumpint(off);
 		}
 	} else if(stackmap->n > 0) {
 		// Locals bitmap information, scan just the pointers in
 		// locals.
-		dumpbv(&bv, s->varp - bv.n / BitsPerPointer * PtrSize - (byte*)s->sp);
+		dumpbv(&bv, s->varp - bv.n / BitsPerPointer * PtrSize - s->sp);
 	}
 	dumpint(FieldKindEol);
 
 	// Record arg info for parent.
-	child->argoff = s->argp - (byte*)s->fp;
+	child->argoff = s->argp - s->fp;
 	child->arglen = s->arglen;
 	child->sp = (byte*)s->sp;
 	child->depth++;
@@ -390,6 +380,7 @@ dumpgoroutine(G *gp)
 	ChildInfo child;
 	Defer *d;
 	Panic *p;
+	bool (*fn)(Stkframe*, void*);
 
 	if(gp->syscallstack != (uintptr)nil) {
 		sp = gp->syscallsp;
@@ -406,11 +397,11 @@ dumpgoroutine(G *gp)
 	dumpint((uintptr)sp);
 	dumpint(gp->goid);
 	dumpint(gp->gopc);
-	dumpint(gp->status);
+	dumpint(runtime·readgstatus(gp));
 	dumpbool(gp->issystem);
-	dumpbool(gp->isbackground);
+	dumpbool(false);  // isbackground
 	dumpint(gp->waitsince);
-	dumpcstr(gp->waitreason);
+	dumpstr(gp->waitreason);
 	dumpint((uintptr)gp->sched.ctxt);
 	dumpint((uintptr)gp->m);
 	dumpint((uintptr)gp->defer);
@@ -423,7 +414,8 @@ dumpgoroutine(G *gp)
 	child.depth = 0;
 	if(!ScanStackByFrames)
 		runtime·throw("need frame info to dump stacks");
-	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, dumpframe, &child, false);
+	fn = dumpframe;
+	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, &fn, &child, false);
 
 	// dump defer & panic records
 	for(d = gp->defer; d != nil; d = d->link) {
@@ -452,14 +444,16 @@ dumpgs(void)
 {
 	G *gp;
 	uint32 i;
+	uint32 status;
 
 	// goroutines & stacks
 	for(i = 0; i < runtime·allglen; i++) {
 		gp = runtime·allg[i];
-		switch(gp->status){
+		status = runtime·readgstatus(gp); // The world is stopped so gp will not be in a scan state.
+		switch(status){
 		default:
-			runtime·printf("unexpected G.status %d\n", gp->status);
-			runtime·throw("mark - bad status");
+			runtime·printf("runtime: unexpected G.status %d\n", status);
+			runtime·throw("dumpgs in STW - bad status");
 		case Gdead:
 			break;
 		case Grunnable:
@@ -495,15 +489,15 @@ dumproots(void)
 
 	// data segment
 	dumpint(TagData);
-	dumpint((uintptr)data);
-	dumpmemrange(data, edata - data);
-	dumpfields((BitVector){(edata - data)*8, (byte*)gcdata}); /* WRONG! gcbss is not a bitmap */
+	dumpint((uintptr)runtime·data);
+	dumpmemrange(runtime·data, runtime·edata - runtime·data);
+	dumpfields(runtime·gcdatamask);
 
 	// bss segment
 	dumpint(TagBss);
-	dumpint((uintptr)bss);
-	dumpmemrange(bss, ebss - bss);
-	dumpfields((BitVector){(ebss - bss)*8, (byte*)gcbss}); /* WRONG! gcbss is not a bitmap */
+	dumpint((uintptr)runtime·bss);
+	dumpmemrange(runtime·bss, runtime·ebss - runtime·bss);
+	dumpfields(runtime·gcdatamask);
 
 	// MSpan.types
 	allspans = runtime·mheap.allspans;
@@ -515,7 +509,7 @@ dumproots(void)
 				if(sp->kind != KindSpecialFinalizer)
 					continue;
 				spf = (SpecialFinalizer*)sp;
-				p = (byte*)((s->start << PageShift) + spf->offset);
+				p = (byte*)((s->start << PageShift) + spf->special.offset);
 				dumpfinalizer(p, spf->fn, spf->fint, spf->ot);
 			}
 		}
@@ -525,11 +519,17 @@ dumproots(void)
 	runtime·iterate_finq(finq_callback);
 }
 
+// Bit vector of free marks.	
+// Needs to be as big as the largest number of objects per span.	
+#pragma dataflag NOPTR
+static byte free[PageSize/8];	
+
 static void
 dumpobjs(void)
 {
-	uintptr i, j, size, n, off, shift, *bitp, bits;
+	uintptr i, j, size, n;
 	MSpan *s;
+	MLink *l;
 	byte *p;
 
 	for(i = 0; i < runtime·mheap.nspan; i++) {
@@ -539,15 +539,15 @@ dumpobjs(void)
 		p = (byte*)(s->start << PageShift);
 		size = s->elemsize;
 		n = (s->npages << PageShift) / size;
+		if(n > nelem(free))	
+			runtime·throw("free array doesn't have enough entries");	
+		for(l = s->freelist; l != nil; l = l->next)
+			free[((byte*)l - p) / size] = true;	
 		for(j = 0; j < n; j++, p += size) {
-			off = (uintptr*)p - (uintptr*)runtime·mheap.arena_start;
-			bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-			shift = (off % wordsPerBitmapWord) * gcBits;
-			bits = (*bitp >> shift) & bitMask;
-
-			// Skip FlagNoGC allocations (stacks)
-			if(bits != bitAllocated)
-				continue;
+			if(free[j]) {	
+				free[j] = false;	
+				continue;	
+			}
 			dumpobj(p, size, makeheapobjbv(p, size));
 		}
 	}
@@ -580,13 +580,16 @@ itab_callback(Itab *tab)
 	dumpint(TagItab);
 	dumpint((uintptr)tab);
 	t = tab->type;
-	dumpbool(t->size > PtrSize || (t->kind & KindNoPointers) == 0);
+	dumpbool((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0);
 }
 
 static void
 dumpitabs(void)
 {
-	runtime·iterate_itabs(itab_callback);
+	void (*fn)(Itab*);
+	
+	fn = itab_callback;
+	runtime·iterate_itabs(&fn);
 }
 
 static void
@@ -685,8 +688,10 @@ dumpmemprof(void)
 	Special *sp;
 	SpecialProfile *spp;
 	byte *p;
-
-	runtime·iterate_memprof(dumpmemprof_callback);
+	void (*fn)(Bucket*, uintptr, uintptr*, uintptr, uintptr, uintptr);
+	
+	fn = dumpmemprof_callback;
+	runtime·iterate_memprof(&fn);
 
 	allspans = runtime·mheap.allspans;
 	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
@@ -697,7 +702,7 @@ dumpmemprof(void)
 			if(sp->kind != KindSpecialProfile)
 				continue;
 			spp = (SpecialProfile*)sp;
-			p = (byte*)((s->start << PageShift) + spp->offset);
+			p = (byte*)((s->start << PageShift) + spp->special.offset);
 			dumpint(TagAllocSample);
 			dumpint((uintptr)p);
 			dumpint((uintptr)spp->b);
@@ -734,17 +739,18 @@ mdump(G *gp)
 	flush();
 
 	gp->param = nil;
-	gp->status = Grunning;
+	runtime·casgstatus(gp, Gwaiting, Grunning);
 	runtime·gogo(&gp->sched);
 }
 
 void
 runtime∕debug·WriteHeapDump(uintptr fd)
 {
+	void (*fn)(G*);
+
 	// Stop the world.
 	runtime·semacquire(&runtime·worldsema, false);
 	g->m->gcing = 1;
-	g->m->locks++;
 	runtime·stoptheworld();
 
 	// Update stats so we can dump them.
@@ -756,9 +762,10 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 	dumpfd = fd;
 
 	// Call dump routine on M stack.
-	g->status = Gwaiting;
-	g->waitreason = "dumping heap";
-	runtime·mcall(mdump);
+	runtime·casgstatus(g, Grunning, Gwaiting);
+	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
+	fn = mdump;
+	runtime·mcall(&fn);
 
 	// Reset dump file.
 	dumpfd = 0;
@@ -770,6 +777,7 @@ runtime∕debug·WriteHeapDump(uintptr fd)
 
 	// Start up the world again.
 	g->m->gcing = 0;
+	g->m->locks++;
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
 	g->m->locks--;
@@ -798,12 +806,10 @@ dumpbvtypes(BitVector *bv, byte *base)
 		if((bv->bytedata[i/8] >> i%8 & 3) != BitsMultiWord)
 			continue;
 		switch(bv->bytedata[(i+BitsPerPointer)/8] >> (i+BitsPerPointer)%8 & 3) {
-		case BitsString:
+		default:
+			runtime·throw("unexpected garbage collection bits");
 		case BitsIface:
 			i += BitsPerPointer;
-			break;
-		case BitsSlice:
-			i += 2 * BitsPerPointer;
 			break;
 		case BitsEface:
 			dumptype(*(Type**)(base + i / BitsPerPointer * PtrSize));
@@ -816,7 +822,8 @@ dumpbvtypes(BitVector *bv, byte *base)
 static BitVector
 makeheapobjbv(byte *p, uintptr size)
 {
-	uintptr off, shift, *bitp, bits, nptr, i;
+	uintptr off, nptr, i;
+	byte shift, *bitp, bits;
 	bool mw;
 
 	// Extend the temp buffer if necessary.
@@ -825,7 +832,7 @@ makeheapobjbv(byte *p, uintptr size)
 		if(tmpbuf != nil)
 			runtime·SysFree(tmpbuf, tmpbufsize, &mstats.other_sys);
 		tmpbufsize = nptr*BitsPerPointer/8+1;
-		tmpbuf = runtime·SysAlloc(tmpbufsize, &mstats.other_sys);
+		tmpbuf = runtime·sysAlloc(tmpbufsize, &mstats.other_sys);
 		if(tmpbuf == nil)
 			runtime·throw("heapdump: out of memory");
 	}
@@ -834,13 +841,13 @@ makeheapobjbv(byte *p, uintptr size)
 	mw = false;
 	for(i = 0; i < nptr; i++) {
 		off = (uintptr*)(p + i*PtrSize) - (uintptr*)runtime·mheap.arena_start;
-		bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
-		shift = (off % wordsPerBitmapWord) * gcBits;
-		bits = (*bitp >> (shift + 2)) & 3;
+		bitp = runtime·mheap.arena_start - off/wordsPerBitmapByte - 1;
+		shift = (off % wordsPerBitmapByte) * gcBits;
+		bits = (*bitp >> (shift + 2)) & BitsMask;
 		if(!mw && bits == BitsDead)
 			break;  // end of heap object
 		mw = !mw && bits == BitsMultiWord;
-		tmpbuf[i*BitsPerPointer/8] &= ~(3<<((i*BitsPerPointer)%8));
+		tmpbuf[i*BitsPerPointer/8] &= ~(BitsMask<<((i*BitsPerPointer)%8));
 		tmpbuf[i*BitsPerPointer/8] |= bits<<((i*BitsPerPointer)%8);
 	}
 	return (BitVector){i*BitsPerPointer, (byte*)tmpbuf};

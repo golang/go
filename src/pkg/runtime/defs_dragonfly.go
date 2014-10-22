@@ -110,7 +110,7 @@ const (
 
 type Rtprio C.struct_rtprio
 type Lwpparams C.struct_lwp_params
-type Sigaltstack C.struct_sigaltstack
+type SigaltstackT C.struct_sigaltstack
 type Sigset C.struct___sigset
 type StackT C.stack_t
 

@@ -193,3 +193,13 @@ func TestMatchFile(t *testing.T) {
 		}
 	}
 }
+
+func TestImportCmd(t *testing.T) {
+	p, err := Import("cmd/internal/objfile", "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(filepath.ToSlash(p.Dir), "src/cmd/internal/objfile") {
+		t.Fatalf("Import cmd/internal/objfile returned Dir=%q, want %q", filepath.ToSlash(p.Dir), ".../src/cmd/internal/objfile")
+	}
+}

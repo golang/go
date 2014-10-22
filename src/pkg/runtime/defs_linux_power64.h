@@ -147,7 +147,7 @@ enum {
 //typedef struct Usigset Usigset;
 typedef struct Ptregs Ptregs;
 typedef struct Vreg Vreg;
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigcontext Sigcontext;
 typedef struct Ucontext Ucontext;
 
@@ -179,7 +179,7 @@ struct Vreg {
 	uint32	u[4];
 };
 
-struct Sigaltstack {
+struct SigaltstackT {
 	byte	*ss_sp;
 	int32	ss_flags;
 	byte	Pad_cgo_0[4];
@@ -201,7 +201,7 @@ struct Sigcontext {
 struct Ucontext {
 	uint64	uc_flags;
 	Ucontext	*uc_link;
-	Sigaltstack	uc_stack;
+	SigaltstackT	uc_stack;
 	Usigset	uc_sigmask;
 	Usigset	__unused[15];
 	Sigcontext	uc_mcontext;

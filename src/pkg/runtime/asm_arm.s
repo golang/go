@@ -4,10 +4,10 @@
 
 #include "zasm_GOOS_GOARCH.h"
 #include "funcdata.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // using frame size $-4 means do not save LR on stack.
-TEXT _rt0_go(SB),NOSPLIT,$-4
+TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 	MOVW	$0xcafebabe, R12
 
 	// copy arguments forward on an even stack
@@ -64,7 +64,6 @@ nocgo:
 	MOVW	R1, 8(R13)
 	BL	runtime·args(SB)
 	BL	runtime·osinit(SB)
-	BL	runtime·hashinit(SB)
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
@@ -115,7 +114,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT, $-4-4
+TEXT runtime·gosave(SB),NOSPLIT,$-4-4
 	MOVW	0(FP), R0		// gobuf
 	MOVW	SP, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
@@ -128,13 +127,21 @@ TEXT runtime·gosave(SB), NOSPLIT, $-4-4
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $-4-4
+TEXT runtime·gogo(SB),NOSPLIT,$-4-4
 	MOVW	0(FP), R1		// gobuf
-	MOVW	gobuf_g(R1), g
-	MOVW	0(g), R2		// make sure g != nil
-	MOVB	runtime·iscgo(SB), R2
-	CMP 	$0, R2 // if in Cgo, we have to save g
-	BL.NE	runtime·save_g(SB) // this call will clobber R0
+	MOVW	gobuf_g(R1), R0
+	BL	setg<>(SB)
+
+	// NOTE: We updated g above, and we are about to update SP.
+	// Until LR and PC are also updated, the g/SP/LR/PC quadruple
+	// are out of sync and must not be used as the basis of a traceback.
+	// Sigprof skips the traceback when SP is not within g's bounds,
+	// and when the PC is inside this function, runtime.gogo.
+	// Since we are about to update SP, until we complete runtime.gogo
+	// we must not leave this function. In particular, no calls
+	// after this point: it must be straight-line code until the
+	// final B instruction.
+	// See large comment in sigprof for more details.
 	MOVW	gobuf_sp(R1), SP	// restore SP
 	MOVW	gobuf_lr(R1), LR
 	MOVW	gobuf_ret(R1), R0
@@ -144,15 +151,15 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
 	MOVW	R11, gobuf_ret(R1)
 	MOVW	R11, gobuf_lr(R1)
 	MOVW	R11, gobuf_ctxt(R1)
-	CMP	R11, R11 // set condition codes for == test, needed by stack split
 	MOVW	gobuf_pc(R1), R11
+	CMP	R11, R11 // set condition codes for == test, needed by stack split
 	B	(R11)
 
-// void mcall(void (*fn)(G*))
+// func mcall(fn func(*g))
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return.  It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB), NOSPLIT, $-4-4
+TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 	// Save caller state in g->sched.
 	MOVW	SP, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_pc)(g)
@@ -163,7 +170,8 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
 	// Switch to m->g0 & its stack, call fn.
 	MOVW	g, R1
 	MOVW	g_m(g), R8
-	MOVW	m_g0(R8), g
+	MOVW	m_g0(R8), R0
+	BL	setg<>(SB)
 	CMP	g, R1
 	B.NE	2(PC)
 	B	runtime·badmcall(SB)
@@ -174,6 +182,8 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	SUB	$8, SP
 	MOVW	R1, 4(SP)
+	MOVW	R0, R7
+	MOVW	0(R0), R0
 	BL	(R0)
 	B	runtime·badmcall2(SB)
 	RET
@@ -183,22 +193,30 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
 // lives at the bottom of the G stack from the one that lives
 // at the top of the M stack because the one at the top of
 // the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+TEXT runtime·switchtoM(SB),NOSPLIT,$0-4
 	MOVW	$0, R0
 	BL	(R0) // clobber lr to ensure push {lr} is kept
 	RET
 
-// void onM(void (*fn)())
-// calls fn() on the M stack.
-// switches to the M stack if not already on it, and
-// switches back when fn() returns.
-TEXT runtime·onM(SB), NOSPLIT, $0-4
+// func onM(fn func())
+TEXT runtime·onM(SB),NOSPLIT,$0-4
 	MOVW	fn+0(FP), R0	// R0 = fn
 	MOVW	g_m(g), R1	// R1 = m
+
 	MOVW	m_g0(R1), R2	// R2 = g0
 	CMP	g, R2
 	B.EQ	onm
-	
+
+	MOVW	m_curg(R1), R3
+	CMP	g, R3
+	B.EQ	oncurg
+
+	// Not g0, not curg. Must be gsignal, but that's not allowed.
+	// Hide call from linker nosplit analysis.
+	MOVW	$runtime·badonm(SB), R0
+	BL	(R0)
+
+oncurg:
 	// save our state in g->sched.  Pretend to
 	// be switchtoM if the G stack is scanned.
 	MOVW	$runtime·switchtoM(SB), R3
@@ -209,22 +227,35 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
 	MOVW	g, (g_sched+gobuf_g)(g)
 
 	// switch to g0
-	MOVW	R2, g
-	MOVW	(g_sched+gobuf_sp)(R2), SP
+	MOVW	R0, R5
+	MOVW	R2, R0
+	BL	setg<>(SB)
+	MOVW	R5, R0
+	MOVW	(g_sched+gobuf_sp)(R2), R3
+	// make it look like mstart called onM on g0, to stop traceback
+	SUB	$4, R3, R3
+	MOVW	$runtime·mstart(SB), R4
+	MOVW	R4, 0(R3)
+	MOVW	R3, SP
 
 	// call target function
 	ARGSIZE(0)
+	MOVW	R0, R7
+	MOVW	0(R0), R0
 	BL	(R0)
 
 	// switch back to g
 	MOVW	g_m(g), R1
-	MOVW	m_curg(R1), g
+	MOVW	m_curg(R1), R0
+	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	MOVW	$0, R3
 	MOVW	R3, (g_sched+gobuf_sp)(g)
 	RET
 
 onm:
+	MOVW	R0, R7
+	MOVW	0(R0), R0
 	BL	(R0)
 	RET
 
@@ -251,6 +282,11 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	CMP	g, R4
 	BL.EQ	runtime·abort(SB)
 
+	// Cannot grow signal stack (m->gsignal).
+	MOVW	m_gsignal(R8), R4
+	CMP	g, R4
+	BL.EQ	runtime·abort(SB)
+
 	MOVW	R1, m_moreframesize(R8)
 	MOVW	R2, m_moreargsize(R8)
 
@@ -270,7 +306,8 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	MOVW	g, (m_morebuf+gobuf_g)(R8)
 
 	// Call newstack on m->g0's stack.
-	MOVW	m_g0(R8), g
+	MOVW	m_g0(R8), R0
+	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	BL	runtime·newstack(SB)
 
@@ -282,49 +319,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 	MOVW	$0, R7
 	B runtime·morestack(SB)
 
-// Called from panic.  Mimics morestack,
-// reuses stack growth code to create a frame
-// with the desired args running the desired function.
-//
-// func call(fn *byte, arg *byte, argsize uint32).
-TEXT runtime·newstackcall(SB), NOSPLIT, $-4-12
-	// Save our caller's state as the PC and SP to
-	// restore when returning from f.
-	MOVW	g_m(g), R8
-	MOVW	LR, (m_morebuf+gobuf_pc)(R8)	// our caller's PC
-	MOVW	SP, (m_morebuf+gobuf_sp)(R8)	// our caller's SP
-	MOVW	g,  (m_morebuf+gobuf_g)(R8)
-
-	// Save our own state as the PC and SP to restore
-	// if this goroutine needs to be restarted.
-	MOVW	$runtime·newstackcall(SB), R11
-	MOVW	R11, (g_sched+gobuf_pc)(g)
-	MOVW	LR, (g_sched+gobuf_lr)(g)
-	MOVW	SP, (g_sched+gobuf_sp)(g)
-
-	// Set up morestack arguments to call f on a new stack.
-	// We set f's frame size to 1, as a hint to newstack
-	// that this is a call from runtime·newstackcall.
-	// If it turns out that f needs a larger frame than
-	// the default stack, f's usual stack growth prolog will
-	// allocate a new segment (and recopy the arguments).
-	MOVW	4(SP), R0			// fn
-	MOVW	8(SP), R1			// arg frame
-	MOVW	12(SP), R2			// arg size
-
-	MOVW	R0, m_cret(R8)			// f's PC
-	MOVW	R1, m_moreargp(R8)		// f's argument pointer
-	MOVW	R2, m_moreargsize(R8)		// f's argument size
-	MOVW	$1, R3
-	MOVW	R3, m_moreframesize(R8)		// f's frame size
-
-	// Call newstack on m->g0's stack.
-	MOVW	m_g0(R8), g
-	MOVW	(g_sched+gobuf_sp)(g), SP
-	B	runtime·newstack(SB)
-
 // reflect·call: call a function with the given argument list
-// func call(f *FuncVal, arg *byte, argsize uint32).
+// func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -332,10 +328,10 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $-4-12
 #define DISPATCH(NAME,MAXSIZE)		\
 	CMP	$MAXSIZE, R0;		\
 	B.HI	3(PC);			\
-	MOVW	$NAME(SB), R1;	\
+	MOVW	$NAME(SB), R1;		\
 	B	(R1)
 
-TEXT reflect·call(SB), NOSPLIT, $-4-16
+TEXT reflect·call(SB),NOSPLIT,$-4-16
 	MOVW	argsize+8(FP), R0
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -367,11 +363,10 @@ TEXT reflect·call(SB), NOSPLIT, $-4-16
 	MOVW	$runtime·badreflectcall(SB), R1
 	B	(R1)
 
-// Argument map for the callXX frames.  Each has one
-// stack map (for the single call) with 3 arguments.
+// Argument map for the callXX frames.  Each has one stack map.
 DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gcargs_reflectcall<>+0x04(SB)/4, $6  // 3 args
-DATA gcargs_reflectcall<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4))
+DATA gcargs_reflectcall<>+0x04(SB)/4, $8  // 4 words
+DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
 GLOBL gcargs_reflectcall<>(SB),RODATA,$12
 
 // callXX frames have no locals
@@ -380,7 +375,7 @@ DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
 GLOBL gclocals_reflectcall<>(SB),RODATA,$8
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
 	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
 	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
 	/* copy arguments to stack */		\
@@ -446,13 +441,14 @@ CALLFN(runtime·call1073741824, 1073741824)
 //
 // Lessstack can appear in stack traces for the same reason
 // as morestack; in that context, it has 0 arguments.
-TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
+TEXT runtime·lessstack(SB),NOSPLIT,$-4-0
 	// Save return value in m->cret
 	MOVW	g_m(g), R8
 	MOVW	R0, m_cret(R8)
 
 	// Call oldstack on m->g0's stack.
-	MOVW	m_g0(R8), g
+	MOVW	m_g0(R8), R0
+	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), SP
 	BL	runtime·oldstack(SB)
 
@@ -465,10 +461,10 @@ TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
 // to load all registers simultaneously, so that a profiling
 // interrupt can never see mismatched SP/LR/PC.
 // (And double-check that pop is atomic in that way.)
-TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
+TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	MOVW	0(SP), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
-	MOVW	fn+0(FP), R7
+	MOVW	fv+0(FP), R7
 	MOVW	argp+4(FP), SP
 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
 	MOVW	0(R7), R1
@@ -491,8 +487,20 @@ TEXT gosave<>(SB),NOSPLIT,$0
 TEXT	runtime·asmcgocall(SB),NOSPLIT,$0-8
 	MOVW	fn+0(FP), R1
 	MOVW	arg+4(FP), R0
+	BL	asmcgocall<>(SB)
+	RET
+
+TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+	MOVW	fn+0(FP), R1
+	MOVW	arg+4(FP), R0
+	BL	asmcgocall<>(SB)
+	MOVW	R0, ret+8(FP)
+	RET
+
+TEXT asmcgocall<>(SB),NOSPLIT,$0-0
+	// fn in R1, arg in R0.
 	MOVW	R13, R2
-	MOVW	g, R5
+	MOVW	g, R4
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
@@ -500,21 +508,27 @@ TEXT	runtime·asmcgocall(SB),NOSPLIT,$0-8
 	MOVW	g_m(g), R8
 	MOVW	m_g0(R8), R3
 	CMP	R3, g
-	BEQ	4(PC)
+	BEQ	asmcgocall_g0
 	BL	gosave<>(SB)
-	MOVW	R3, g
+	MOVW	R0, R5
+	MOVW	R3, R0
+	BL	setg<>(SB)
+	MOVW	R5, R0
 	MOVW	(g_sched+gobuf_sp)(g), R13
 
 	// Now on a scheduling stack (a pthread-created stack).
+asmcgocall_g0:
 	SUB	$24, R13
 	BIC	$0x7, R13	// alignment for gcc ABI
-	MOVW	R5, 20(R13) // save old g
+	MOVW	R4, 20(R13) // save old g
 	MOVW	R2, 16(R13)	// save old SP
-	// R0 already contains the first argument
 	BL	(R1)
 
 	// Restore registers, g, stack pointer.
-	MOVW	20(R13), g
+	MOVW	R0, R5
+	MOVW	20(R13), R0
+	BL	setg<>(SB)
+	MOVW	R5, R0
 	MOVW	16(R13), R13
 	RET
 
@@ -579,10 +593,8 @@ havem:
 	// the earlier calls.
 	//
 	// In the new goroutine, -8(SP) and -4(SP) are unused.
-	MOVW	fn+4(FP), R0
-	MOVW	frame+8(FP), R1
-	MOVW	framesize+12(FP), R2
-	MOVW	m_curg(R8), g
+	MOVW	m_curg(R8), R0
+	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVW	(g_sched+gobuf_pc)(g), R5
 	MOVW	R5, -12(R4)
@@ -599,7 +611,8 @@ havem:
 	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
 	// so we do not have to restore it.)
 	MOVW	g_m(g), R8
-	MOVW	m_g0(R8), g
+	MOVW	m_g0(R8), R0
+	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), R13
 	MOVW	savedsp-8(SP), R4
 	MOVW	R4, (g_sched+gobuf_sp)(g)
@@ -616,18 +629,25 @@ havem:
 	RET
 
 // void setg(G*); set g. for use by needm.
-TEXT runtime·setg(SB), NOSPLIT, $0-8
-	MOVW	gg+0(FP), g
+TEXT runtime·setg(SB),NOSPLIT,$-4-4
+	MOVW	gg+0(FP), R0
+	B	setg<>(SB)
+
+TEXT setg<>(SB),NOSPLIT,$-4-0
+	MOVW	R0, g
 
 	// Save g to thread-local storage.
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
-	BL.NE	runtime·save_g(SB)
+	B.EQ	2(PC)
+	B	runtime·save_g(SB)
 
+	MOVW	g, R0
 	RET
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
 	MOVW	0(SP), R0
+	MOVW	R0, ret+4(FP)
 	RET
 
 TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
@@ -635,13 +655,21 @@ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
 	RET
 
 TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
-	MOVW	x+4(FP), R0
+	MOVW	pc+4(FP), R0
 	MOVW	R0, 0(SP)
 	RET
 
 TEXT runtime·getcallersp(SB),NOSPLIT,$-4-4
 	MOVW	0(FP), R0
 	MOVW	$-4(R0), R0
+	MOVW	R0, ret+4(FP)
+	RET
+
+// func gogetcallersp(p unsafe.Pointer) uintptr
+TEXT runtime·gogetcallersp(SB),NOSPLIT,$-4-8
+	MOVW	0(FP), R0
+	MOVW	$-4(R0), R0
+	MOVW	R0, ret+4(FP)
 	RET
 
 TEXT runtime·emptyfunc(SB),0,$0-0
@@ -665,7 +693,7 @@ TEXT runtime·abort(SB),NOSPLIT,$-4-0
 //	TEXT runtime·cas(SB),NOSPLIT,$0
 //		B	runtime·armcas(SB)
 //
-TEXT runtime·armcas(SB),NOSPLIT,$0-12
+TEXT runtime·armcas(SB),NOSPLIT,$0-13
 	MOVW	valptr+0(FP), R1
 	MOVW	old+4(FP), R2
 	MOVW	new+8(FP), R3
@@ -677,10 +705,21 @@ casl:
 	CMP	$0, R0
 	BNE	casl
 	MOVW	$1, R0
+	MOVB	R0, ret+12(FP)
 	RET
 casfail:
 	MOVW	$0, R0
+	MOVB	R0, ret+12(FP)
 	RET
+
+TEXT runtime·casuintptr(SB),NOSPLIT,$0-13
+	B	runtime·cas(SB)
+
+TEXT runtime·atomicloaduintptr(SB),NOSPLIT,$0-8
+	B	runtime·atomicload(SB)
+
+TEXT runtime·atomicloaduint(SB),NOSPLIT,$0-8
+	B	runtime·atomicload(SB)
 
 TEXT runtime·stackguard(SB),NOSPLIT,$0-8
 	MOVW	R13, R1
@@ -703,24 +742,7 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
-TEXT runtime·memeq(SB),NOSPLIT,$-4-12
-	MOVW	a+0(FP), R1
-	MOVW	b+4(FP), R2
-	MOVW	n+8(FP), R3
-	ADD	R1, R3, R6
-	MOVW	$1, R0
-_next:
-	CMP	R1, R6
-	RET.EQ
-	MOVBU.P	1(R1), R4
-	MOVBU.P	1(R2), R5
-	CMP	R4, R5
-	BEQ	_next
-
-	MOVW	$0, R0
-	RET
-
-TEXT runtime·gomemeq(SB),NOSPLIT,$-4-13
+TEXT runtime·memeq(SB),NOSPLIT,$-4-13
 	MOVW	a+0(FP), R1
 	MOVW	b+4(FP), R2
 	MOVW	size+8(FP), R3
@@ -741,7 +763,7 @@ _next2:
 
 // eqstring tests whether two strings are equal.
 // See runtime_test.go:eqstring_generic for
-// equivlaent Go code.
+// equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
 	MOVW	s1len+4(FP), R0
 	MOVW	s2len+12(FP), R1
@@ -849,7 +871,7 @@ _sib_notfound:
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·timenow(SB), NOSPLIT, $0-0
+TEXT runtime·timenow(SB),NOSPLIT,$0-0
 	B	time·now(SB)
 
 // A Duff's device for zeroing memory.
@@ -860,7 +882,7 @@ TEXT runtime·timenow(SB), NOSPLIT, $0-0
 // R0: zero
 // R1: ptr to memory to be zeroed
 // R1 is updated as a side effect.
-TEXT runtime·duffzero(SB), NOSPLIT, $0-0
+TEXT runtime·duffzero(SB),NOSPLIT,$0-0
 	MOVW.P	R0, 4(R1)
 	MOVW.P	R0, 4(R1)
 	MOVW.P	R0, 4(R1)
@@ -1001,7 +1023,7 @@ TEXT runtime·duffzero(SB), NOSPLIT, $0-0
 // R1: ptr to source memory
 // R2: ptr to destination memory
 // R1 and R2 are updated as a side effect
-TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+TEXT runtime·duffcopy(SB),NOSPLIT,$0-0
 	MOVW.P	4(R1), R0
 	MOVW.P	R0, 4(R2)
 	MOVW.P	4(R1), R0
@@ -1260,7 +1282,7 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
 	MOVW.P	R0, 4(R2)
 	RET
 
-TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
+TEXT runtime·fastrand1(SB),NOSPLIT,$-4-4
 	MOVW	g_m(g), R1
 	MOVW	m_fastrand(R1), R0
 	ADD.S	R0, R0
@@ -1269,37 +1291,19 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
 	MOVW	R0, ret+0(FP)
 	RET
 
-// The goeq trampoline is necessary while we have
-// both Go and C calls to alg functions.  Once we move all call
-// sites to Go, we can redo the eq functions to use the
-// Go calling convention and remove this.
+TEXT runtime·gocputicks(SB),NOSPLIT,$0
+	B runtime·cputicks(SB)
 
-// convert call to:
-//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
-// to:
-//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
-TEXT runtime·goeq(SB), NOSPLIT, $16-17
-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
-	MOVW	alg+0(FP), R0
-	MOVW	alg_equal(R0), R0
-	MOVW	p+4(FP), R1
-	MOVW	q+8(FP), R2
-	MOVW	size+12(FP), R3
-	ADD	$40, R13, R4
-	MOVW	R4, 4(R13)
-	MOVW	R3, 8(R13)
-	MOVW	R2, 12(R13)
-	MOVW	R1, 16(R13)
-	PCDATA  $PCDATA_StackMapIndex, $0
-	BL	(R0)
+TEXT runtime·return0(SB),NOSPLIT,$0
+	MOVW	$0, R0
 	RET
 
-DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
-DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
-GLOBL gcargs_goeq<>(SB),RODATA,$12
-
-DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
-GLOBL gclocals_goeq<>(SB),RODATA,$8
+TEXT runtime·procyield(SB),NOSPLIT,$-4
+	MOVW	cycles+0(FP), R1
+	MOVW	$0, R0
+yieldloop:
+	CMP	R0, R1
+	B.NE	2(PC)
+	RET
+	SUB	$1, R1
+	B yieldloop

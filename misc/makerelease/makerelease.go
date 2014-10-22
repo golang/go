@@ -30,7 +30,7 @@ import (
 	"strings"
 
 	"code.google.com/p/goauth2/oauth"
-	"code.google.com/p/google-api-go-client/storage/v1beta2"
+	storage "code.google.com/p/google-api-go-client/storage/v1beta2"
 )
 
 var (
@@ -154,6 +154,7 @@ func main() {
 			log.Fatalln("setupOAuthClient:", err)
 		}
 	}
+	ok := true
 	for _, targ := range flag.Args() {
 		var b Build
 		if m := fileRe.FindStringSubmatch(targ); m != nil {
@@ -205,7 +206,11 @@ func main() {
 		}
 		if err := b.Do(); err != nil {
 			log.Printf("%s: %v", targ, err)
+			ok = false
 		}
+	}
+	if !ok {
+		os.Exit(1)
 	}
 }
 

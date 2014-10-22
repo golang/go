@@ -842,6 +842,38 @@ func TestLineByLineFscanf(t *testing.T) {
 	}
 }
 
+// TestScanStateCount verifies the correct byte count is returned. Issue 8512.
+
+// runeScanner implements the Scanner interface for TestScanStateCount.
+type runeScanner struct {
+	rune rune
+	size int
+}
+
+func (rs *runeScanner) Scan(state ScanState, verb rune) error {
+	r, size, err := state.ReadRune()
+	rs.rune = r
+	rs.size = size
+	return err
+}
+
+func TestScanStateCount(t *testing.T) {
+	var a, b, c runeScanner
+	n, err := Sscanf("12➂", "%c%c%c", &a, &b, &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 3 {
+		t.Fatalf("expected 3 items consumed, got %d")
+	}
+	if a.rune != '1' || b.rune != '2' || c.rune != '➂' {
+		t.Errorf("bad scan rune: %q %q %q should be '1' '2' '➂'", a.rune, b.rune, c.rune)
+	}
+	if a.size != 1 || b.size != 1 || c.size != 3 {
+		t.Errorf("bad scan size: %q %q %q should be 1 1 3", a.size, b.size, c.size)
+	}
+}
+
 // RecursiveInt accepts a string matching %d.%d.%d....
 // and parses it into a linked list.
 // It allows us to benchmark recursive descent style scanners.

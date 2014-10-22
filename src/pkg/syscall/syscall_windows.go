@@ -105,12 +105,22 @@ func (e Errno) Timeout() bool {
 	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
 }
 
+// Implemented in asm_windows.s
+func compileCallback(fn interface{}, cleanstack bool) uintptr
+
 // Converts a Go function to a function pointer conforming
-// to the stdcall or cdecl calling convention.  This is useful when
+// to the stdcall calling convention. This is useful when
 // interoperating with Windows code requiring callbacks.
-// Implemented in ../runtime/syscall_windows.goc
-func NewCallback(fn interface{}) uintptr
-func NewCallbackCDecl(fn interface{}) uintptr
+func NewCallback(fn interface{}) uintptr {
+	return compileCallback(fn, true)
+}
+
+// Converts a Go function to a function pointer conforming
+// to the cdecl calling convention. This is useful when
+// interoperating with Windows code requiring callbacks.
+func NewCallbackCDecl(fn interface{}) uintptr {
+	return compileCallback(fn, false)
+}
 
 // windows api calls
 
@@ -549,6 +559,7 @@ const socket_error = uintptr(^uint32(0))
 //sys	GetProtoByName(name string) (p *Protoent, err error) [failretval==nil] = ws2_32.getprotobyname
 //sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status error) = dnsapi.DnsQuery_W
 //sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
+//sys	DnsNameCompare(name1 *uint16, name2 *uint16) (same bool) = dnsapi.DnsNameCompare_W
 //sys	GetAddrInfoW(nodename *uint16, servicename *uint16, hints *AddrinfoW, result **AddrinfoW) (sockerr error) = ws2_32.GetAddrInfoW
 //sys	FreeAddrInfoW(addrinfo *AddrinfoW) = ws2_32.FreeAddrInfoW
 //sys	GetIfEntry(pIfRow *MibIfRow) (errcode error) = iphlpapi.GetIfEntry

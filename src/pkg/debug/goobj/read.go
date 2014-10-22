@@ -602,7 +602,8 @@ func (r *objReader) parseObject(prefix []byte) error {
 		s := &Sym{SymID: r.readSymID()}
 		r.p.Syms = append(r.p.Syms, s)
 		s.Kind = SymKind(typ)
-		s.DupOK = r.readInt() != 0
+		flags := r.readInt()
+		s.DupOK = flags&1 != 0
 		s.Size = r.readInt()
 		s.Type = r.readSymID()
 		s.Data = r.readData()
@@ -623,7 +624,8 @@ func (r *objReader) parseObject(prefix []byte) error {
 			s.Func = f
 			f.Args = r.readInt()
 			f.Frame = r.readInt()
-			f.Leaf = r.readInt() != 0
+			flags := r.readInt()
+			f.Leaf = flags&1 != 0
 			f.NoSplit = r.readInt() != 0
 			f.Var = make([]Var, r.readInt())
 			for i := range f.Var {

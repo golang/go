@@ -210,7 +210,7 @@ void	xcom(Node*);
 void	indx(Node*);
 int	bcomplex(Node*, Node*);
 Prog*	gtext(Sym*, int32);
-vlong	argsize(void);
+vlong	argsize(int);
 
 /*
  * cgen.c
@@ -239,7 +239,7 @@ Node*	nodfconst(double);
 Node*	nodgconst(vlong, Type*);
 int	nodreg(Node*, Node*, int);
 int	isreg(Node*, int);
-void	regret(Node*, Node*);
+void	regret(Node*, Node*, Type*, int);
 void	regalloc(Node*, Node*, Node*);
 void	regfree(Node*);
 void	regialloc(Node*, Node*, Node*);

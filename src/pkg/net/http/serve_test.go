@@ -15,6 +15,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	. "net/http"
 	"net/http/httptest"
@@ -1186,6 +1187,82 @@ func TestTimeoutHandler(t *testing.T) {
 	if g, e := <-writeErrors, ErrHandlerTimeout; g != e {
 		t.Errorf("expected Write error of %v; got %v", e, g)
 	}
+}
+
+// See issues 8209 and 8414.
+func TestTimeoutHandlerRace(t *testing.T) {
+	defer afterTest(t)
+
+	delayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
+		ms, _ := strconv.Atoi(r.URL.Path[1:])
+		if ms == 0 {
+			ms = 1
+		}
+		for i := 0; i < ms; i++ {
+			w.Write([]byte("hi"))
+			time.Sleep(time.Millisecond)
+		}
+	})
+
+	ts := httptest.NewServer(TimeoutHandler(delayHi, 20*time.Millisecond, ""))
+	defer ts.Close()
+
+	var wg sync.WaitGroup
+	gate := make(chan bool, 10)
+	n := 50
+	if testing.Short() {
+		n = 10
+		gate = make(chan bool, 3)
+	}
+	for i := 0; i < n; i++ {
+		gate <- true
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-gate }()
+			res, err := Get(fmt.Sprintf("%s/%d", ts.URL, rand.Intn(50)))
+			if err == nil {
+				io.Copy(ioutil.Discard, res.Body)
+				res.Body.Close()
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+// See issues 8209 and 8414.
+func TestTimeoutHandlerRaceHeader(t *testing.T) {
+	defer afterTest(t)
+
+	delay204 := HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(204)
+	})
+
+	ts := httptest.NewServer(TimeoutHandler(delay204, time.Nanosecond, ""))
+	defer ts.Close()
+
+	var wg sync.WaitGroup
+	gate := make(chan bool, 50)
+	n := 500
+	if testing.Short() {
+		n = 10
+	}
+	for i := 0; i < n; i++ {
+		gate <- true
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-gate }()
+			res, err := Get(ts.URL)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer res.Body.Close()
+			io.Copy(ioutil.Discard, res.Body)
+		}()
+	}
+	wg.Wait()
 }
 
 // Verifies we don't path.Clean() on the wrong parts in redirects.

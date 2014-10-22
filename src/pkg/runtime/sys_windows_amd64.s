@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // maxargs should be divisible by 2, as Windows stack
 // must be kept 16-byte aligned on syscall entry.
@@ -87,6 +87,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$48
 TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVQ	0x30(GS), AX
 	MOVL	0x68(AX), AX
+	MOVL	AX, ret+0(FP)
 	RET
 
 TEXT runtime·setlasterror(SB),NOSPLIT,$0
@@ -105,7 +106,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
 	// as required by windows callback convention.
 	PUSHFQ
-	SUBQ	$88, SP
+	SUBQ	$96, SP
 	MOVQ	DI, 80(SP)
 	MOVQ	SI, 72(SP)
 	MOVQ	BP, 64(SP)
@@ -113,7 +114,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVQ	R12, 48(SP)
 	MOVQ	R13, 40(SP)
 	MOVQ	R14, 32(SP)
-	MOVQ	R15, 24(SP)
+	MOVQ	R15, 88(SP)
 
 	MOVQ	0(CX), BX // ExceptionRecord*
 	MOVQ	8(CX), CX // Context*
@@ -134,10 +135,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVQ	DX, 16(SP)
 	CALL	runtime·sighandler(SB)
 	// AX is set to report result back to Windows
+	MOVL	24(SP), AX
 
 done:
 	// restore registers as required for windows callback
-	MOVQ	24(SP), R15
+	MOVQ	88(SP), R15
 	MOVQ	32(SP), R14
 	MOVQ	40(SP), R13
 	MOVQ	48(SP), R12
@@ -145,7 +147,7 @@ done:
 	MOVQ	64(SP), BP
 	MOVQ	72(SP), SI
 	MOVQ	80(SP), DI
-	ADDQ	$88, SP
+	ADDQ	$96, SP
 	POPFQ
 
 	RET
@@ -228,7 +230,8 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	ADDQ	$8, SP
 
 	// determine index into runtime·cbctxts table
-	SUBQ	$runtime·callbackasm(SB), AX
+	MOVQ	$runtime·callbackasm(SB), DX
+	SUBQ	DX, AX
 	MOVQ	$0, DX
 	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
 	DIVL	CX,
@@ -322,7 +325,7 @@ TEXT runtime·settls(SB),NOSPLIT,$0
 
 // Sleep duration is in 100ns units.
 TEXT runtime·usleep1(SB),NOSPLIT,$0
-	MOVL	duration+0(FP), BX
+	MOVL	usec+0(FP), BX
 	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
 
 	// Execute call on m->g0 stack, in case we are not actually
@@ -344,7 +347,7 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	MOVQ	R12, m_libcallg(R13)
 	// sp must be the last, because once async cpu profiler finds
 	// all three values to be non-zero, it will use them
-	LEAQ	8(SP), R12
+	LEAQ	usec+0(FP), R12
 	MOVQ	R12, m_libcallsp(R13)
 
 	MOVQ	m_g0(R13), R14
@@ -381,3 +384,24 @@ TEXT runtime·usleep2(SB),NOSPLIT,$16
 	CALL	AX
 	MOVQ	8(SP), SP
 	RET
+
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB),NOSPLIT,$8-12
+	CALL	runtime·unixnano(SB)
+	MOVQ	0(SP), AX
+
+	// generated code for
+	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+	// adapted to reduce duplication
+	MOVQ	AX, CX
+	MOVQ	$1360296554856532783, AX
+	MULQ	CX
+	ADDQ	CX, DX
+	RCRQ	$1, DX
+	SHRQ	$29, DX
+	MOVQ	DX, sec+0(FP)
+	IMULQ	$1000000000, DX
+	SUBQ	DX, CX
+	MOVL	CX, nsec+8(FP)
+	RET
+

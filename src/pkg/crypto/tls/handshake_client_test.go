@@ -205,7 +205,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
 	if !write {
 		flows, err := test.loadData()
 		if err != nil {
-			t.Fatalf("%s: failed to load data from %s", test.name, test.dataPath())
+			t.Fatalf("%s: failed to load data from %s: %v", test.name, test.dataPath(), err)
 		}
 		for i, b := range flows {
 			if i%2 == 1 {

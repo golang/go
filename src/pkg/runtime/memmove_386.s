@@ -25,7 +25,7 @@
 
 // +build !plan9
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT runtime·memmove(SB), NOSPLIT, $0-12
 	MOVL	to+0(FP), DI

@@ -18,6 +18,7 @@ var abbrs = map[string]abbr{
 	"South Africa Standard Time":      {"SAST", "SAST"},  // Africa/Johannesburg
 	"W. Central Africa Standard Time": {"WAT", "WAT"},    // Africa/Lagos
 	"E. Africa Standard Time":         {"EAT", "EAT"},    // Africa/Nairobi
+	"Libya Standard Time":             {"EET", "EET"},    // Africa/Tripoli
 	"Namibia Standard Time":           {"WAT", "WAST"},   // Africa/Windhoek
 	"Alaskan Standard Time":           {"AKST", "AKDT"},  // America/Anchorage
 	"Paraguay Standard Time":          {"PYT", "PYST"},   // America/Asuncion
@@ -63,7 +64,6 @@ var abbrs = map[string]abbr{
 	"Nepal Standard Time":             {"NPT", "NPT"},    // Asia/Katmandu
 	"North Asia Standard Time":        {"KRAT", "KRAT"},  // Asia/Krasnoyarsk
 	"Magadan Standard Time":           {"MAGT", "MAGT"},  // Asia/Magadan
-	"E. Europe Standard Time":         {"EET", "EEST"},   // Asia/Nicosia
 	"N. Central Asia Standard Time":   {"NOVT", "NOVT"},  // Asia/Novosibirsk
 	"Myanmar Standard Time":           {"MMT", "MMT"},    // Asia/Rangoon
 	"Arab Standard Time":              {"AST", "AST"},    // Asia/Riyadh
@@ -110,6 +110,7 @@ var abbrs = map[string]abbr{
 	"Fiji Standard Time":             {"FJT", "FJT"},       // Pacific/Fiji
 	"Central Pacific Standard Time":  {"SBT", "SBT"},       // Pacific/Guadalcanal
 	"Hawaiian Standard Time":         {"HST", "HST"},       // Pacific/Honolulu
+	"Line Islands Standard Time":     {"LINT", "LINT"},     // Pacific/Kiritimati
 	"West Pacific Standard Time":     {"PGT", "PGT"},       // Pacific/Port_Moresby
 	"Tonga Standard Time":            {"TOT", "TOT"},       // Pacific/Tongatapu
 }

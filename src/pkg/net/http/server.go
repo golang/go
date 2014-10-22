@@ -1916,9 +1916,9 @@ func (tw *timeoutWriter) Header() Header {
 
 func (tw *timeoutWriter) Write(p []byte) (int, error) {
 	tw.mu.Lock()
-	timedOut := tw.timedOut
-	tw.mu.Unlock()
-	if timedOut {
+	defer tw.mu.Unlock()
+	tw.wroteHeader = true // implicitly at least
+	if tw.timedOut {
 		return 0, ErrHandlerTimeout
 	}
 	return tw.w.Write(p)
@@ -1926,12 +1926,11 @@ func (tw *timeoutWriter) Write(p []byte) (int, error) {
 
 func (tw *timeoutWriter) WriteHeader(code int) {
 	tw.mu.Lock()
+	defer tw.mu.Unlock()
 	if tw.timedOut || tw.wroteHeader {
-		tw.mu.Unlock()
 		return
 	}
 	tw.wroteHeader = true
-	tw.mu.Unlock()
 	tw.w.WriteHeader(code)
 }
 

@@ -22,9 +22,9 @@ runtime·allocmcache(void)
 	MCache *c;
 	int32 i;
 
-	runtime·lock(&runtime·mheap);
+	runtime·lock(&runtime·mheap.lock);
 	c = runtime·FixAlloc_Alloc(&runtime·mheap.cachealloc);
-	runtime·unlock(&runtime·mheap);
+	runtime·unlock(&runtime·mheap.lock);
 	runtime·memclr((byte*)c, sizeof(*c));
 	for(i = 0; i < NumSizeClasses; i++)
 		c->alloc[i] = &emptymspan;
@@ -45,28 +45,30 @@ freemcache(MCache *c)
 	runtime·MCache_ReleaseAll(c);
 	runtime·stackcache_clear(c);
 	runtime·gcworkbuffree(c->gcworkbuf);
-	runtime·lock(&runtime·mheap);
+	runtime·lock(&runtime·mheap.lock);
 	runtime·purgecachedstats(c);
 	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
-	runtime·unlock(&runtime·mheap);
+	runtime·unlock(&runtime·mheap.lock);
 }
 
 static void
-freemcache_m(G *gp)
+freemcache_m(void)
 {
 	MCache *c;
 
 	c = g->m->ptrarg[0];
 	g->m->ptrarg[0] = nil;
 	freemcache(c);
-	runtime·gogo(&gp->sched);
 }
 
 void
 runtime·freemcache(MCache *c)
 {
+	void (*fn)(void);
+
 	g->m->ptrarg[0] = c;
-	runtime·mcall(freemcache_m);
+	fn = freemcache_m;
+	runtime·onM(&fn);
 }
 
 // Gets a span that has a free object in it and assigns it
@@ -85,7 +87,7 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
 		s->incache = false;
 
 	// Get a new cached span from the central lists.
-	s = runtime·MCentral_CacheSpan(&runtime·mheap.central[sizeclass]);
+	s = runtime·MCentral_CacheSpan(&runtime·mheap.central[sizeclass].mcentral);
 	if(s == nil)
 		runtime·throw("out of memory");
 	if(s->freelist == nil) {
@@ -106,7 +108,7 @@ runtime·MCache_ReleaseAll(MCache *c)
 	for(i=0; i<NumSizeClasses; i++) {
 		s = c->alloc[i];
 		if(s != &emptymspan) {
-			runtime·MCentral_UncacheSpan(&runtime·mheap.central[i], s);
+			runtime·MCentral_UncacheSpan(&runtime·mheap.central[i].mcentral, s);
 			c->alloc[i] = &emptymspan;
 		}
 	}

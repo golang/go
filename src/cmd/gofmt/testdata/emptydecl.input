@@ -1,3 +1,7 @@
+//gofmt -s
+
+// Test case for issue 7631.
+
 package main
 
 // Keep this declaration

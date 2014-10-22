@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+// This test depends on running C code on Go stacks. Not allowed anymore.
+
 // Demo of deferred C function with untrue prototype
 // breaking stack copying. See golang.org/issue/7695.
 

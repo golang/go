@@ -69,6 +69,8 @@ var numberTests = []numberTest{
 	{text: "1+2."},
 	{text: "'x"},
 	{text: "'xx'"},
+	// Issue 8622 - 0xe parsed as floating point. Very embarrassing.
+	{"0xef", true, true, true, false, 0xef, 0xef, 0xef, 0},
 }
 
 func TestNumberParse(t *testing.T) {
@@ -77,6 +79,7 @@ func TestNumberParse(t *testing.T) {
 		// because imaginary comes out as a number.
 		var c complex128
 		typ := itemNumber
+		var tree *Tree
 		if test.text[0] == '\'' {
 			typ = itemCharConstant
 		} else {
@@ -85,7 +88,7 @@ func TestNumberParse(t *testing.T) {
 				typ = itemComplex
 			}
 		}
-		n, err := newNumber(0, test.text, typ)
+		n, err := tree.newNumber(0, test.text, typ)
 		ok := test.isInt || test.isUint || test.isFloat || test.isComplex
 		if ok && err != nil {
 			t.Errorf("unexpected error for %q: %s", test.text, err)

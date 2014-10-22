@@ -9,4 +9,4 @@ $ ./buildgo.sh
 
 Tested with gcc 4.6.1 and 4.7.0.  On Windows it's built with 64-bit MinGW.
 
-Current runtime is built on rev 210365.
+Current runtime is built on rev 215000.

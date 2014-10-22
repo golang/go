@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	. "runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +16,8 @@ import (
 // See stack.h.
 const (
 	StackGuard = 256
-	StackLimit = 128
+	StackSmall = 64
+	StackLimit = StackGuard - StackSmall
 )
 
 // Test stack split logic by calling functions of every frame size
@@ -329,4 +331,37 @@ func TestStackCache(t *testing.T) {
 			<-done
 		}
 	}
+}
+
+func TestStackOutput(t *testing.T) {
+	b := make([]byte, 1024)
+	stk := string(b[:Stack(b, false)])
+	if !strings.HasPrefix(stk, "goroutine ") {
+		t.Errorf("Stack (len %d):\n%s", len(stk), stk)
+		t.Errorf("Stack output should begin with \"goroutine \"")
+	}
+}
+
+func TestStackAllOutput(t *testing.T) {
+	b := make([]byte, 1024)
+	stk := string(b[:Stack(b, true)])
+	if !strings.HasPrefix(stk, "goroutine ") {
+		t.Errorf("Stack (len %d):\n%s", len(stk), stk)
+		t.Errorf("Stack output should begin with \"goroutine \"")
+	}
+}
+
+func TestStackPanic(t *testing.T) {
+	// Test that stack copying copies panics correctly.  This is difficult
+	// to test because it is very unlikely that the stack will be copied
+	// in the middle of gopanic.  But it can happen.
+	// To make this test effective, edit panic.go:gopanic and uncomment
+	// the GC() call just before freedefer(d).
+	defer func() {
+		if x := recover(); x == nil {
+			t.Errorf("recover failed")
+		}
+	}()
+	useStack(32)
+	panic("test panic")
 }

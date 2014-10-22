@@ -108,6 +108,9 @@ bvnext(Bvec *bv, int32 i)
 {
 	uint32 w;
 
+	if(i >= bv->n)
+		return -1;
+
 	// Jump i ahead to next word with bits.
 	if((bv->b[i>>WORDSHIFT]>>(i&WORDMASK)) == 0) {
 		i &= ~WORDMASK;
@@ -117,7 +120,7 @@ bvnext(Bvec *bv, int32 i)
 	}
 	if(i >= bv->n)
 		return -1;
-	
+
 	// Find 1 bit.
 	w = bv->b[i>>WORDSHIFT]>>(i&WORDMASK);
 	while((w&1) == 0) {

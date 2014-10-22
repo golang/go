@@ -255,10 +255,11 @@ align(int32 i, Type *t, int op, int32 *maxalign)
 {
 	int32 o;
 	Type *v;
-	int w;
+	int w, packw;
 
 	o = i;
 	w = 1;
+	packw = 0;
 	switch(op) {
 	default:
 		diag(Z, "unknown align opcode %d", op);
@@ -269,7 +270,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
 		if(w < 1)
 			w = 1;
 		if(packflg)
-			w = packflg;
+			packw = packflg;
 		break;
 
 	case Ael1:	/* initial align of struct element */
@@ -285,7 +286,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
 		if(w < 1 || w > SZ_LONG)
 			fatal(Z, "align");
 		if(packflg) 
-			w = packflg;
+			packw = packflg;
 		break;
 
 	case Ael2:	/* width of a struct element */
@@ -320,6 +321,8 @@ align(int32 i, Type *t, int op, int32 *maxalign)
 		o = align(o, t, Ael2, nil);
 		break;
 	}
+	if(packw != 0 && xround(o, w) != xround(o, packw))
+		diag(Z, "#pragma pack changes offset of %T", t);
 	o = xround(o, w);
 	if(maxalign && *maxalign < w)
 		*maxalign = w;

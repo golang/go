@@ -7,7 +7,7 @@
 #include "os_GOOS.h"
 #include "signal_unix.h"
 #include "stack.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 enum
 {
@@ -26,7 +26,7 @@ extern SigTab runtime·sigtab[];
 static Sigset sigset_none;
 static Sigset sigset_all = ~(Sigset)0;
 
-extern int64 runtime·tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+extern int32 runtime·tfork(TforkT *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
 extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
 extern int32 runtime·thrwakeup(void *ident, int32 n);
 
@@ -54,6 +54,7 @@ getncpu(void)
 		return 1;
 }
 
+#pragma textflag NOSPLIT
 uintptr
 runtime·semacreate(void)
 {
@@ -111,26 +112,59 @@ runtime·semasleep(int64 ns)
 	return -1;
 }
 
+static void badsemawakeup(void);
+
+#pragma textflag NOSPLIT
 void
 runtime·semawakeup(M *mp)
 {
 	uint32 ret;
+	void *oldptr;
+	uint32 oldscalar;
+	void (*fn)(void);
 
 	// spin-mutex lock
 	while(runtime·xchg(&mp->waitsemalock, 1))
 		runtime·osyield();
 	mp->waitsemacount++;
 	ret = runtime·thrwakeup(&mp->waitsemacount, 1);
-	if(ret != 0 && ret != ESRCH)
-		runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
+	if(ret != 0 && ret != ESRCH) {
+		// semawakeup can be called on signal stack.
+		// Save old ptrarg/scalararg so we can restore them.
+		oldptr = g->m->ptrarg[0];
+		oldscalar = g->m->scalararg[0];
+		g->m->ptrarg[0] = mp;
+		g->m->scalararg[0] = ret;
+		fn = badsemawakeup;
+		if(g == g->m->gsignal)
+			fn();
+		else
+			runtime·onM(&fn);
+		g->m->ptrarg[0] = oldptr;
+		g->m->scalararg[0] = oldscalar;
+	}
 	// spin-mutex unlock
 	runtime·atomicstore(&mp->waitsemalock, 0);
+}
+
+static void
+badsemawakeup(void)
+{
+	M *mp;
+	int32 ret;
+
+	mp = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	ret = g->m->scalararg[0];
+	g->m->scalararg[0] = 0;
+
+	runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
 }
 
 void
 runtime·newosproc(M *mp, void *stk)
 {
-	Tfork param;
+	TforkT param;
 	Sigset oset;
 	int32 ret;
 
@@ -147,7 +181,7 @@ runtime·newosproc(M *mp, void *stk)
 	param.tf_stack = stk;
 
 	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
-	ret = runtime·tfork((byte*)&param, sizeof(param), mp, mp->g0, runtime·mstart);
+	ret = runtime·tfork(&param, sizeof(param), mp, mp->g0, runtime·mstart);
 	runtime·sigprocmask(SIG_SETMASK, oset);
 
 	if(ret < 0) {
@@ -164,6 +198,7 @@ runtime·osinit(void)
 	runtime·ncpu = getncpu();
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {
@@ -263,12 +298,12 @@ typedef struct sigaction {
 	} __sigaction_u;		/* signal handler */
 	uint32	sa_mask;		/* signal mask to apply */
 	int32	sa_flags;		/* see signal options below */
-} Sigaction;
+} SigactionT;
 
 void
 runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
@@ -284,7 +319,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 GoSighandler*
 runtime·getsig(int32 i)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	runtime·sigaction(i, nil, &sa);

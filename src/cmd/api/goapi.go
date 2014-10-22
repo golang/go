@@ -378,7 +378,51 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	}
 	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
 		// Just enough to keep the api checker happy.
-		src := "package runtime; type maptype struct{}; type _type struct{}; type alg struct{}; type mspan struct{}; type m struct{}; type lock struct{}; type slicetype struct{};"
+		src := "package runtime; type (" +
+			" _defer struct{};" +
+			" _func struct{};" +
+			" _panic struct{};" +
+			" _select struct{}; " +
+			" _type struct{};" +
+			" alg struct{};" +
+			" chantype struct{};" +
+			" context struct{};" + // windows
+			" eface struct{};" +
+			" funcval struct{};" +
+			" g struct{};" +
+			" gobuf struct{};" +
+			" hchan struct{};" +
+			" iface struct{};" +
+			" interfacetype struct{};" +
+			" itab struct{};" +
+			" m struct{};" +
+			" maptype struct{};" +
+			" mcache struct{};" +
+			" mspan struct{};" +
+			" mutex struct{};" +
+			" note struct{};" +
+			" slicetype struct{};" +
+			" stkframe struct{};" +
+			" sudog struct{};" +
+			" waitq struct{};" +
+			" wincallbackcontext struct{};" +
+			" keventt struct{};" +
+			" timespec struct{};" +
+			" epollevent struct{};" +
+			"); " +
+			"const (" +
+			" cb_max = 2000;" +
+			" _CacheLineSize = 64;" +
+			" _Gidle = 1;" +
+			" _Grunnable = 2;" +
+			" _Grunning = 3;" +
+			" _Gsyscall = 4;" +
+			" _Gwaiting = 5;" +
+			" _Gdead = 6;" +
+			" _Genqueue = 7;" +
+			" _Gcopystack = 8;" +
+			" _NSIG = 32;" +
+			")"
 		f, err = parser.ParseFile(fset, filename, src, 0)
 		if err != nil {
 			log.Fatalf("incorrect generated file: %s", err)

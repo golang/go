@@ -34,6 +34,12 @@ func NewWriter(w io.Writer) *Writer {
 	return &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
 }
 
+// Flush flushes any buffered data to the underlying writer.
+// Calling Flush is not normally necessary; calling Close is sufficient.
+func (w *Writer) Flush() error {
+	return w.cw.w.(*bufio.Writer).Flush()
+}
+
 // Close finishes writing the zip file by writing the central directory.
 // It does not (and can not) close the underlying writer.
 func (w *Writer) Close() error {

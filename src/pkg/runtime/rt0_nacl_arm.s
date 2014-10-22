@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // NaCl entry has:
 //	0(FP) - 0
@@ -17,4 +17,4 @@ TEXT _rt0_arm_nacl(SB),NOSPLIT,$-4
 	B	main(SB)
 
 TEXT main(SB),NOSPLIT,$0
-	B	_rt0_go(SB)
+	B	runtime·rt0_go(SB)

@@ -251,7 +251,7 @@ TestCases:
 			if line == "" {
 				continue
 			}
-			for _, subline := range strings.Split(line, ";") {
+			for i, subline := range strings.Split(line, ";") {
 				subline = strings.TrimSpace(subline)
 				if subline == "" {
 					continue
@@ -264,6 +264,14 @@ TestCases:
 				}
 				name := m[1]
 				size, _ := strconv.Atoi(m[2])
+
+				// The limit was originally 128 but is now 384.
+				// Instead of rewriting the test cases above, adjust
+				// the first stack frame to use up the extra 32 bytes.
+				if i == 0 {
+					size += 384 - 128
+				}
+
 				if size%ptrSize == 4 {
 					continue TestCases
 				}

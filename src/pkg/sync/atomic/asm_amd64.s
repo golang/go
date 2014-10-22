@@ -4,7 +4,7 @@
 
 // +build !race
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT ·SwapInt32(SB),NOSPLIT,$0-20
 	JMP	·SwapUint32(SB)

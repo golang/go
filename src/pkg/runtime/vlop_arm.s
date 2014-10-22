@@ -24,36 +24,35 @@
 // THE SOFTWARE.
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 arg=0
 
 /* replaced use of R10 by R11 because the former can be the data segment base register */
 
 TEXT _mulv(SB), NOSPLIT, $0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R2	/* l0 */
-	MOVW	8(FP), R11	/* h0 */
-	MOVW	12(FP), R4	/* l1 */
-	MOVW	16(FP), R5	/* h1 */
+	MOVW	l0+0(FP), R2	/* l0 */
+	MOVW	h0+4(FP), R11	/* h0 */
+	MOVW	l1+8(FP), R4	/* l1 */
+	MOVW	h1+12(FP), R5	/* h1 */
 	MULLU	R4, R2, (R7,R6)
 	MUL	R11, R4, R8
 	ADD	R8, R7
 	MUL	R2, R5, R8
 	ADD	R8, R7
-	MOVW	R6, 0(R(arg))
-	MOVW	R7, 4(R(arg))
+	MOVW	R6, ret_lo+16(FP)
+	MOVW	R7, ret_hi+20(FP)
 	RET
 
 // trampoline for _sfloat2. passes LR as arg0 and
 // saves registers R0-R13 and CPSR on the stack. R0-R12 and CPSR flags can
 // be changed by _sfloat2.
-TEXT _sfloat(SB), NOSPLIT, $64-0 // 4 arg + 14*4 saved regs + cpsr
+TEXT _sfloat(SB), NOSPLIT, $68-0 // 4 arg + 14*4 saved regs + cpsr + return value
 	MOVW	R14, 4(R13)
 	MOVW	R0, 8(R13)
 	MOVW	$12(R13), R0
 	MOVM.IA.W	[R1-R12], (R0)
-	MOVW	$68(R13), R1 // correct for frame size
+	MOVW	$72(R13), R1 // correct for frame size
 	MOVW	R1, 60(R13)
 	WORD	$0xe10f1000 // mrs r1, cpsr
 	MOVW	R1, 64(R13)
@@ -79,6 +78,7 @@ TEXT _sfloat(SB), NOSPLIT, $64-0 // 4 arg + 14*4 saved regs + cpsr
 	MOVW	$1, R1
 	MOVW	R1, m_softfloat(R8)
 	BL	runtime·_sfloat2(SB)
+	MOVW	68(R13), R0
 	MOVW	g_m(g), R8
 	MOVW	m_locks(R8), R1
 	SUB	$1, R1
@@ -93,6 +93,18 @@ TEXT _sfloat(SB), NOSPLIT, $64-0 // 4 arg + 14*4 saved regs + cpsr
 	MOVM.IA.W	(R0), [R1-R12]
 	MOVW	8(R13), R0
 	RET
+
+// trampoline for _sfloat2 panic.
+// _sfloat2 instructs _sfloat to return here.
+// We need to push a fake saved LR onto the stack,
+// load the signal fault address into LR, and jump
+// to the real sigpanic.
+// This simulates what sighandler does for a memory fault.
+TEXT _sfloatpanic(SB),NOSPLIT,$-4
+	MOVW	$0, R0
+	MOVW.W	R0, -4(R13)
+	MOVW	g_sigpc(g), LR
+	B	runtime·sigpanic(SB)
 
 // func udiv(n, d uint32) (q, r uint32)
 // Reference: 
@@ -294,3 +306,12 @@ out:
 	MOVW	12(R13), R(s)
 	MOVW	16(R13), R(M)
 	RET
+
+// _mul64by32 and _div64by32 not implemented on arm
+TEXT runtime·_mul64by32(SB), NOSPLIT, $0
+	MOVW	$0, R0
+	MOVW	(R0), R1 // crash
+
+TEXT runtime·_div64by32(SB), NOSPLIT, $0
+	MOVW	$0, R0
+	MOVW	(R0), R1 // crash

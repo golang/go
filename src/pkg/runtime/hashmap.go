@@ -162,12 +162,12 @@ func makemap(t *maptype, hint int64) *hmap {
 	}
 
 	// check compiler's and reflect's math
-	if t.key.size > maxKeySize && (t.indirectkey == 0 || t.keysize != uint8(ptrSize)) ||
-		t.key.size <= maxKeySize && (t.indirectkey == 1 || t.keysize != uint8(t.key.size)) {
+	if t.key.size > maxKeySize && (!t.indirectkey || t.keysize != uint8(ptrSize)) ||
+		t.key.size <= maxKeySize && (t.indirectkey || t.keysize != uint8(t.key.size)) {
 		gothrow("key size wrong")
 	}
-	if t.elem.size > maxValueSize && (t.indirectvalue == 0 || t.valuesize != uint8(ptrSize)) ||
-		t.elem.size <= maxValueSize && (t.indirectvalue == 1 || t.valuesize != uint8(t.elem.size)) {
+	if t.elem.size > maxValueSize && (!t.indirectvalue || t.valuesize != uint8(ptrSize)) ||
+		t.elem.size <= maxValueSize && (t.indirectvalue || t.valuesize != uint8(t.elem.size)) {
 		gothrow("value size wrong")
 	}
 
@@ -219,7 +219,7 @@ func makemap(t *maptype, hint int64) *hmap {
 	h.count = 0
 	h.B = B
 	h.flags = 0
-	h.hash0 = fastrand2()
+	h.hash0 = fastrand1()
 	h.buckets = buckets
 	h.oldbuckets = nil
 	h.nevacuate = 0
@@ -234,16 +234,16 @@ func makemap(t *maptype, hint int64) *hmap {
 // hold onto it for very long.
 func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if raceenabled && h != nil {
-		callerpc := gogetcallerpc(unsafe.Pointer(&t))
-		fn := mapaccess1
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		pc := funcPC(mapaccess1)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero)
 	}
-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+	alg := goalg(t.key.alg)
+	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -262,12 +262,12 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 				continue
 			}
 			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
-			if t.indirectkey != 0 {
+			if t.indirectkey {
 				k = *((*unsafe.Pointer)(k))
 			}
-			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
+			if alg.equal(key, k, uintptr(t.key.size)) {
 				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
-				if t.indirectvalue != 0 {
+				if t.indirectvalue {
 					v = *((*unsafe.Pointer)(v))
 				}
 				return v
@@ -282,16 +282,16 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 
 func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
-		callerpc := gogetcallerpc(unsafe.Pointer(&t))
-		fn := mapaccess2
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		pc := funcPC(mapaccess2)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero), false
 	}
-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+	alg := goalg(t.key.alg)
+	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -310,12 +310,12 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 				continue
 			}
 			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
-			if t.indirectkey != 0 {
+			if t.indirectkey {
 				k = *((*unsafe.Pointer)(k))
 			}
-			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
+			if alg.equal(key, k, uintptr(t.key.size)) {
 				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
-				if t.indirectvalue != 0 {
+				if t.indirectvalue {
 					v = *((*unsafe.Pointer)(v))
 				}
 				return v, true
@@ -333,7 +333,8 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 	if h == nil || h.count == 0 {
 		return nil, nil
 	}
-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+	alg := goalg(t.key.alg)
+	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
@@ -352,12 +353,12 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 				continue
 			}
 			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
-			if t.indirectkey != 0 {
+			if t.indirectkey {
 				k = *((*unsafe.Pointer)(k))
 			}
-			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
+			if alg.equal(key, k, uintptr(t.key.size)) {
 				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
-				if t.indirectvalue != 0 {
+				if t.indirectvalue {
 					v = *((*unsafe.Pointer)(v))
 				}
 				return k, v
@@ -375,15 +376,15 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 		panic("assignment to entry in nil map")
 	}
 	if raceenabled {
-		callerpc := gogetcallerpc(unsafe.Pointer(&t))
-		fn := mapassign1
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		pc := funcPC(mapassign1)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
 		raceReadObjectPC(t.elem, val, callerpc, pc)
 	}
 
-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+	alg := goalg(t.key.alg)
+	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 
 	if h.buckets == nil {
 		if checkgc {
@@ -418,17 +419,17 @@ again:
 			}
 			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
 			k2 := k
-			if t.indirectkey != 0 {
+			if t.indirectkey {
 				k2 = *((*unsafe.Pointer)(k2))
 			}
-			if !goeq(t.key.alg, key, k2, uintptr(t.key.size)) {
+			if !alg.equal(key, k2, uintptr(t.key.size)) {
 				continue
 			}
 			// already have a mapping for key.  Update it.
 			memmove(k2, key, uintptr(t.key.size))
 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
 			v2 := v
-			if t.indirectvalue != 0 {
+			if t.indirectvalue {
 				v2 = *((*unsafe.Pointer)(v2))
 			}
 			memmove(v2, val, uintptr(t.elem.size))
@@ -459,7 +460,7 @@ again:
 	}
 
 	// store new key/value at insert position
-	if t.indirectkey != 0 {
+	if t.indirectkey {
 		if checkgc {
 			memstats.next_gc = memstats.heap_alloc
 		}
@@ -467,7 +468,7 @@ again:
 		*(*unsafe.Pointer)(insertk) = kmem
 		insertk = kmem
 	}
-	if t.indirectvalue != 0 {
+	if t.indirectvalue {
 		if checkgc {
 			memstats.next_gc = memstats.heap_alloc
 		}
@@ -483,16 +484,16 @@ again:
 
 func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if raceenabled && h != nil {
-		callerpc := gogetcallerpc(unsafe.Pointer(&t))
-		fn := mapdelete
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		pc := funcPC(mapdelete)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if h == nil || h.count == 0 {
 		return
 	}
-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+	alg := goalg(t.key.alg)
+	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	bucket := hash & (uintptr(1)<<h.B - 1)
 	if h.oldbuckets != nil {
 		growWork(t, h, bucket)
@@ -509,10 +510,10 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 			}
 			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
 			k2 := k
-			if t.indirectkey != 0 {
+			if t.indirectkey {
 				k2 = *((*unsafe.Pointer)(k2))
 			}
-			if !goeq(t.key.alg, key, k2, uintptr(t.key.size)) {
+			if !alg.equal(key, k2, uintptr(t.key.size)) {
 				continue
 			}
 			memclr(k, uintptr(t.keysize))
@@ -539,10 +540,8 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	it.bptr = nil
 
 	if raceenabled && h != nil {
-		callerpc := gogetcallerpc(unsafe.Pointer(&t))
-		fn := mapiterinit
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiterinit))
 	}
 
 	if h == nil || h.count == 0 {
@@ -563,7 +562,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 
 	// iterator state
 	it.bucket = 0
-	it.offset = uint8(fastrand2() & (bucketCnt - 1))
+	it.offset = uint8(fastrand1() & (bucketCnt - 1))
 	it.done = false
 	it.bptr = nil
 
@@ -574,7 +573,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 		if old == old|iterator|oldIterator {
 			break
 		}
-		if gocas(&h.flags, old, old|iterator|oldIterator) {
+		if cas(&h.flags, old, old|iterator|oldIterator) {
 			break
 		}
 	}
@@ -585,16 +584,15 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 func mapiternext(it *hiter) {
 	h := it.h
 	if raceenabled {
-		callerpc := gogetcallerpc(unsafe.Pointer(&it))
-		fn := mapiternext
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		callerpc := getcallerpc(unsafe.Pointer(&it))
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiternext))
 	}
 	t := it.t
 	bucket := it.bucket
 	b := it.bptr
 	i := it.i
 	checkBucket := it.checkBucket
+	alg := goalg(t.key.alg)
 
 next:
 	if b == nil {
@@ -642,13 +640,13 @@ next:
 				// to the other new bucket (each oldbucket expands to two
 				// buckets during a grow).
 				k2 := k
-				if t.indirectkey != 0 {
+				if t.indirectkey {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
-				if goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
+				if alg.equal(k2, k2, uintptr(t.key.size)) {
 					// If the item in the oldbucket is not destined for
 					// the current new bucket in the iteration, skip it.
-					hash := goalg(t.key.alg).hash(k2, uintptr(t.key.size), uintptr(h.hash0))
+					hash := alg.hash(k2, uintptr(t.key.size), uintptr(h.hash0))
 					if hash&(uintptr(1)<<it.B-1) != checkBucket {
 						continue
 					}
@@ -667,11 +665,11 @@ next:
 			}
 			if b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY {
 				// this is the golden data, we can return it.
-				if t.indirectkey != 0 {
+				if t.indirectkey {
 					k = *((*unsafe.Pointer)(k))
 				}
 				it.key = k
-				if t.indirectvalue != 0 {
+				if t.indirectvalue {
 					v = *((*unsafe.Pointer)(v))
 				}
 				it.value = v
@@ -679,10 +677,10 @@ next:
 				// The hash table has grown since the iterator was started.
 				// The golden data for this key is now somewhere else.
 				k2 := k
-				if t.indirectkey != 0 {
+				if t.indirectkey {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
-				if goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
+				if alg.equal(k2, k2, uintptr(t.key.size)) {
 					// Check the current hash table for the data.
 					// This code handles the case where the key
 					// has been deleted, updated, or deleted and reinserted.
@@ -700,7 +698,7 @@ next:
 					// us because when key!=key we can't look it up
 					// successfully in the current table.
 					it.key = k2
-					if t.indirectvalue != 0 {
+					if t.indirectvalue {
 						v = *((*unsafe.Pointer)(v))
 					}
 					it.value = v
@@ -758,6 +756,7 @@ func growWork(t *maptype, h *hmap, bucket uintptr) {
 func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
 	newbit := uintptr(1) << (h.B - 1)
+	alg := goalg(t.key.alg)
 	if !evacuated(b) {
 		// TODO: reuse overflow buckets instead of using new ones, if there
 		// is no iterator using the old buckets.  (If !oldIterator.)
@@ -783,14 +782,14 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 					gothrow("bad map state")
 				}
 				k2 := k
-				if t.indirectkey != 0 {
+				if t.indirectkey {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
 				// Compute hash to make our evacuation decision (whether we need
 				// to send this key/value to bucket x or bucket y).
-				hash := goalg(t.key.alg).hash(k2, uintptr(t.key.size), uintptr(h.hash0))
+				hash := alg.hash(k2, uintptr(t.key.size), uintptr(h.hash0))
 				if h.flags&iterator != 0 {
-					if !goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
+					if !alg.equal(k2, k2, uintptr(t.key.size)) {
 						// If key != key (NaNs), then the hash could be (and probably
 						// will be) entirely different from the old hash.  Moreover,
 						// it isn't reproducible.  Reproducibility is required in the
@@ -827,12 +826,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 						xv = add(xk, bucketCnt*uintptr(t.keysize))
 					}
 					x.tophash[xi] = top
-					if t.indirectkey != 0 {
+					if t.indirectkey {
 						*(*unsafe.Pointer)(xk) = k2 // copy pointer
 					} else {
 						memmove(xk, k, uintptr(t.key.size)) // copy value
 					}
-					if t.indirectvalue != 0 {
+					if t.indirectvalue {
 						*(*unsafe.Pointer)(xv) = *(*unsafe.Pointer)(v)
 					} else {
 						memmove(xv, v, uintptr(t.elem.size))
@@ -854,12 +853,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 						yv = add(yk, bucketCnt*uintptr(t.keysize))
 					}
 					y.tophash[yi] = top
-					if t.indirectkey != 0 {
+					if t.indirectkey {
 						*(*unsafe.Pointer)(yk) = k2
 					} else {
 						memmove(yk, k, uintptr(t.key.size))
 					}
-					if t.indirectvalue != 0 {
+					if t.indirectvalue {
 						*(*unsafe.Pointer)(yv) = *(*unsafe.Pointer)(v)
 					} else {
 						memmove(yv, v, uintptr(t.elem.size))
@@ -889,7 +888,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 }
 
 func ismapkey(t *_type) bool {
-	return **(**uintptr)(unsafe.Pointer(&t.alg.hash)) != nohashcode
+	return goalg(t.alg).hash != nil
 }
 
 // Reflect stubs.  Called from ../reflect/asm_*.s
@@ -934,10 +933,8 @@ func reflect_maplen(h *hmap) int {
 		return 0
 	}
 	if raceenabled {
-		callerpc := gogetcallerpc(unsafe.Pointer(&h))
-		fn := reflect_maplen
-		pc := **(**uintptr)(unsafe.Pointer(&fn))
-		racereadpc(unsafe.Pointer(h), callerpc, pc)
+		callerpc := getcallerpc(unsafe.Pointer(&h))
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(reflect_maplen))
 	}
 	return h.count
 }

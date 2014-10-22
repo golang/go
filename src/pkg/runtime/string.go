@@ -18,7 +18,7 @@ func concatstrings(a []string) string {
 			continue
 		}
 		if l+n < l {
-			panic("string concatenation too long")
+			gothrow("string concatenation too long")
 		}
 		l += n
 		count++
@@ -57,11 +57,10 @@ func concatstring5(a [5]string) string {
 
 func slicebytetostring(b []byte) string {
 	if raceenabled && len(b) > 0 {
-		fn := slicebytetostring
 		racereadrangepc(unsafe.Pointer(&b[0]),
-			len(b),
-			gogetcallerpc(unsafe.Pointer(&b)),
-			**(**uintptr)(unsafe.Pointer(&fn)))
+			uintptr(len(b)),
+			getcallerpc(unsafe.Pointer(&b)),
+			funcPC(slicebytetostring))
 	}
 	s, c := rawstring(len(b))
 	copy(c, b)
@@ -78,11 +77,10 @@ func slicebytetostringtmp(b []byte) string {
 	// m is a string-keyed map and k is a []byte.
 
 	if raceenabled && len(b) > 0 {
-		fn := slicebytetostringtmp
 		racereadrangepc(unsafe.Pointer(&b[0]),
-			len(b),
-			gogetcallerpc(unsafe.Pointer(&b)),
-			**(**uintptr)(unsafe.Pointer(&fn)))
+			uintptr(len(b)),
+			getcallerpc(unsafe.Pointer(&b)),
+			funcPC(slicebytetostringtmp))
 	}
 	return *(*string)(unsafe.Pointer(&b))
 }
@@ -116,11 +114,10 @@ func stringtoslicerune(s string) []rune {
 
 func slicerunetostring(a []rune) string {
 	if raceenabled && len(a) > 0 {
-		fn := slicerunetostring
 		racereadrangepc(unsafe.Pointer(&a[0]),
-			len(a)*int(unsafe.Sizeof(a[0])),
-			gogetcallerpc(unsafe.Pointer(&a)),
-			**(**uintptr)(unsafe.Pointer(&fn)))
+			uintptr(len(a))*unsafe.Sizeof(a[0]),
+			getcallerpc(unsafe.Pointer(&a)),
+			funcPC(slicerunetostring))
 	}
 	var dum [4]byte
 	size1 := 0
@@ -142,19 +139,6 @@ func slicerunetostring(a []rune) string {
 type stringStruct struct {
 	str unsafe.Pointer
 	len int
-}
-
-func cstringToGo(str uintptr) (s string) {
-	i := 0
-	for ; ; i++ {
-		if *(*byte)(unsafe.Pointer(str + uintptr(i))) == 0 {
-			break
-		}
-	}
-	t := (*stringStruct)(unsafe.Pointer(&s))
-	t.str = unsafe.Pointer(str)
-	t.len = i
-	return
 }
 
 func intstring(v int64) string {
@@ -215,7 +199,7 @@ func rawstring(size int) (s string, b []byte) {
 
 	for {
 		ms := maxstring
-		if uintptr(size) <= uintptr(ms) || gocasx((*uintptr)(unsafe.Pointer(&maxstring)), uintptr(ms), uintptr(size)) {
+		if uintptr(size) <= uintptr(ms) || casuintptr((*uintptr)(unsafe.Pointer(&maxstring)), uintptr(ms), uintptr(size)) {
 			return
 		}
 	}

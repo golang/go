@@ -59,15 +59,15 @@ enum
 };
 
 typedef struct Tos Tos;
-typedef intptr Plink;
+typedef intptr _Plink;
 
 struct Tos {
 	struct			/* Per process profiling */
 	{
-		Plink	*pp;	/* known to be 0(ptr) */
-		Plink	*next;	/* known to be 4(ptr) */
-		Plink	*last;
-		Plink	*first;
+		_Plink	*pp;	/* known to be 0(ptr) */
+		_Plink	*next;	/* known to be 4(ptr) */
+		_Plink	*last;
+		_Plink	*first;
 		uint32	pid;
 		uint32	what;
 	} prof;
@@ -79,12 +79,14 @@ struct Tos {
 	/* top of stack is here */
 };
 
-#define	NSIG	14	/* number of signals in runtime·SigTab array */
-#define	ERRMAX	128	/* max length of note string */
+enum {
+	NSIG = 14, /* number of signals in runtime·SigTab array */
+	ERRMAX = 128, /* max length of note string */
 
-/* Notes in runtime·sigtab that are handled by runtime·sigpanic. */
-#define	SIGRFAULT	2
-#define	SIGWFAULT	3
-#define	SIGINTDIV	4
-#define	SIGFLOAT	5
-#define	SIGTRAP		6
+	/* Notes in runtime·sigtab that are handled by runtime·sigpanic. */
+	SIGRFAULT = 2,
+	SIGWFAULT = 3,
+	SIGINTDIV = 4,
+	SIGFLOAT = 5,
+	SIGTRAP = 6,
+};

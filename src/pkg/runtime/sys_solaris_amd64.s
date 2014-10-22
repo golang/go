@@ -7,7 +7,7 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // This is needed by asm_amd64.s
 TEXT runtime·settls(SB),NOSPLIT,$8
@@ -18,6 +18,7 @@ TEXT runtime·settls(SB),NOSPLIT,$8
 // Set the TLS errno pointer in M.
 //
 // Called using runtime·asmcgocall from os_solaris.c:/minit.
+// NOT USING GO CALLING CONVENTION.
 TEXT runtime·miniterrno(SB),NOSPLIT,$0
 	// asmcgocall will put first argument into DI.
 	CALL	DI	// SysV ABI so returns in AX
@@ -33,6 +34,7 @@ TEXT runtime·miniterrno(SB),NOSPLIT,$0
 // runtime·nanotime stack.
 //
 // Called using runtime·sysvicall6 from os_solaris.c:/nanotime.
+// NOT USING GO CALLING CONVENTION.
 TEXT runtime·nanotime1(SB),NOSPLIT,$0
 	// need space for the timespec argument.
 	SUBQ	$64, SP	// 16 bytes will do, but who knows in the future?
@@ -47,6 +49,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0
 	RET
 
 // pipe(3c) wrapper that returns fds in AX, DX.
+// NOT USING GO CALLING CONVENTION.
 TEXT runtime·pipe1(SB),NOSPLIT,$0
 	SUBQ	$16, SP // 8 bytes will do, but stack has to be 16-byte alligned
 	MOVQ	SP, DI
@@ -66,6 +69,7 @@ TEXT runtime·pipe1(SB),NOSPLIT,$0
 // section 3.2.3.
 //
 // Called by runtime·asmcgocall or runtime·cgocall.
+// NOT USING GO CALLING CONVENTION.
 TEXT runtime·asmsysvicall6(SB),NOSPLIT,$0
 	// asmcgocall will put first argument into DI.
 	PUSHQ	DI			// save for later
@@ -137,6 +141,7 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
 	CALL	runtime·mstart(SB)
 
 	XORL	AX, AX			// return 0 == success
+	MOVL	AX, ret+8(FP)
 	RET
 
 // Careful, this is called by __sighndlr, a libc function. We must preserve
@@ -274,7 +279,7 @@ exit:
 // Called from runtime·usleep (Go). Can be called on Go stack, on OS stack,
 // can also be called in cgo callback path without a g->m.
 TEXT runtime·usleep1(SB),NOSPLIT,$0
-	MOVL	us+0(FP), DI
+	MOVL	usec+0(FP), DI
 	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
 
 	// Execute call on m->g0.
@@ -321,4 +326,24 @@ TEXT runtime·usleep2(SB),NOSPLIT,$0
 TEXT runtime·osyield1(SB),NOSPLIT,$0
 	MOVQ	libc·sched_yield(SB), AX
 	CALL	AX
+	RET
+
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB),NOSPLIT,$8-12
+	CALL	runtime·nanotime(SB)
+	MOVQ	0(SP), AX
+
+	// generated code for
+	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+	// adapted to reduce duplication
+	MOVQ	AX, CX
+	MOVQ	$1360296554856532783, AX
+	MULQ	CX
+	ADDQ	CX, DX
+	RCRQ	$1, DX
+	SHRQ	$29, DX
+	MOVQ	DX, sec+0(FP)
+	IMULQ	$1000000000, DX
+	SUBQ	DX, CX
+	MOVL	CX, nsec+8(FP)
 	RET

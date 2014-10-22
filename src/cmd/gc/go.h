@@ -447,7 +447,6 @@ enum
 	OSUB,	// x - y
 	OOR,	// x | y
 	OXOR,	// x ^ y
-	OADDPTR,	// ptr + uintptr, inserted by compiler only, used to avoid unsafe type changes during codegen
 	OADDSTR,	// s + "foo"
 	OADDR,	// &x
 	OANDAND,	// b0 && b1
@@ -1169,6 +1168,7 @@ void	cgen_callmeth(Node *n, int proc);
 void	cgen_eface(Node* n, Node* res);
 void	cgen_slice(Node* n, Node* res);
 void	clearlabels(void);
+void	clearslim(Node*);
 void	checklabels(void);
 int	dotoffset(Node *n, int64 *oary, Node **nn);
 void	gen(Node *n);
@@ -1363,6 +1363,7 @@ int	is64(Type *t);
 int	isbadimport(Strlit *s);
 int	isblank(Node *n);
 int	isblanksym(Sym *s);
+int	isdirectiface(Type*);
 int	isfixedarray(Type *t);
 int	isideal(Type *t);
 int	isinter(Type *t);

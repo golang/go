@@ -82,7 +82,7 @@ enum {
 	EVFILT_WRITE	= 0x1,
 };
 
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigset Sigset;
 typedef struct Siginfo Siginfo;
 typedef struct StackT StackT;
@@ -91,11 +91,11 @@ typedef struct Timeval Timeval;
 typedef struct Itimerval Itimerval;
 typedef struct McontextT McontextT;
 typedef struct UcontextT UcontextT;
-typedef struct Kevent Kevent;
+typedef struct KeventT KeventT;
 
 #pragma pack on
 
-struct Sigaltstack {
+struct SigaltstackT {
 	byte	*ss_sp;
 	uint64	ss_size;
 	int32	ss_flags;
@@ -147,14 +147,14 @@ struct UcontextT {
 	McontextT	uc_mcontext;
 };
 
-struct Kevent {
+struct KeventT {
 	uint64	ident;
 	uint32	filter;
 	uint32	flags;
 	uint32	fflags;
 	byte	Pad_cgo_0[4];
 	int64	data;
-	int64	udata;
+	byte	*udata;
 };
 
 

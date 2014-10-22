@@ -628,6 +628,8 @@ var winisabstests = []IsAbsTest{
 	{`\`, false},
 	{`\Windows`, false},
 	{`c:a\b`, false},
+	{`c:\a\b`, true},
+	{`c:/a/b`, true},
 	{`\\host\share\foo`, true},
 	{`//host/share/foo/bar`, true},
 }
@@ -784,12 +786,6 @@ var absTests = []string{
 }
 
 func TestAbs(t *testing.T) {
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("Getwd failed: ", err)
-	}
-	defer os.Chdir(oldwd)
-
 	root, err := ioutil.TempDir("", "TestAbs")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
@@ -811,6 +807,19 @@ func TestAbs(t *testing.T) {
 		if err != nil {
 			t.Fatal("Mkdir failed: ", err)
 		}
+	}
+
+	if runtime.GOOS == "windows" {
+		vol := filepath.VolumeName(root)
+		var extra []string
+		for _, path := range absTests {
+			if strings.Index(path, "$") != -1 {
+				continue
+			}
+			path = vol + path
+			extra = append(extra, path)
+		}
+		absTests = append(absTests, extra...)
 	}
 
 	err = os.Chdir(absTestDirs[0])

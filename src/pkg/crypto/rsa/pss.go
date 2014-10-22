@@ -222,6 +222,17 @@ type PSSOptions struct {
 	// signature. It can either be a number of bytes, or one of the special
 	// PSSSaltLength constants.
 	SaltLength int
+
+	// Hash, if not zero, overrides the hash function passed to SignPSS.
+	// This is the only way to specify the hash function when using the
+	// crypto.Signer interface.
+	Hash crypto.Hash
+}
+
+// HashFunc returns pssOpts.Hash so that PSSOptions implements
+// crypto.SignerOpts.
+func (pssOpts *PSSOptions) HashFunc() crypto.Hash {
+	return pssOpts.Hash
 }
 
 func (opts *PSSOptions) saltLength() int {
@@ -242,6 +253,10 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, 
 		saltLength = (priv.N.BitLen()+7)/8 - 2 - hash.Size()
 	case PSSSaltLengthEqualsHash:
 		saltLength = hash.Size()
+	}
+
+	if opts.Hash != 0 {
+		hash = opts.Hash
 	}
 
 	salt := make([]byte, saltLength)

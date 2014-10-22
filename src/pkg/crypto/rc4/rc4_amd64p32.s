@@ -2,7 +2,7 @@
 //	http://www.zorinaq.com/papers/rc4-amd64.html
 //	http://www.zorinaq.com/papers/rc4-amd64.tar.bz2
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Local modifications:
 //

@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
-	"time"
 )
 
 func TestServer(t *testing.T) {
@@ -26,27 +25,5 @@ func TestServer(t *testing.T) {
 	}
 	if string(got) != "hello" {
 		t.Errorf("got %q, want hello", string(got))
-	}
-}
-
-func TestIssue7264(t *testing.T) {
-	for i := 0; i < 1000; i++ {
-		func() {
-			inHandler := make(chan bool, 1)
-			ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				inHandler <- true
-			}))
-			defer ts.Close()
-			tr := &http.Transport{
-				ResponseHeaderTimeout: time.Nanosecond,
-			}
-			defer tr.CloseIdleConnections()
-			c := &http.Client{Transport: tr}
-			res, err := c.Get(ts.URL)
-			<-inHandler
-			if err == nil {
-				res.Body.Close()
-			}
-		}()
 	}
 }

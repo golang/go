@@ -105,6 +105,58 @@ cp -R testdata/local "testdata/$bad"
 testlocal "$bad" 'with bad characters in path'
 rm -rf "testdata/$bad"
 
+TEST 'internal packages in $GOROOT are respected'
+if ./testgo build -v ./testdata/testinternal >testdata/std.out 2>&1; then
+	echo "go build ./testdata/testinternal succeeded incorrectly"
+	ok=false
+elif ! grep 'use of internal package not allowed' testdata/std.out >/dev/null; then
+	echo "wrong error message for testdata/testinternal"
+	cat std.out
+	ok=false
+fi
+
+TEST 'internal packages outside $GOROOT are not respected'
+if ! ./testgo build -v ./testdata/testinternal2; then
+	echo "go build ./testdata/testinternal2 failed"
+	ok=false
+fi
+
+export GOPATH=$(pwd)/testdata/importcom
+TEST 'import comment - match'
+if ! ./testgo build ./testdata/importcom/works.go; then
+	echo 'go build ./testdata/importcom/works.go failed'
+	ok=false
+fi
+TEST 'import comment - mismatch'
+if ./testgo build ./testdata/importcom/wrongplace.go 2>testdata/err; then
+	echo 'go build ./testdata/importcom/wrongplace.go suceeded'
+	ok=false
+elif ! grep 'wrongplace expects import "my/x"' testdata/err >/dev/null; then
+	echo 'go build did not mention incorrect import:'
+	cat testdata/err
+	ok=false
+fi
+TEST 'import comment - syntax error'
+if ./testgo build ./testdata/importcom/bad.go 2>testdata/err; then
+	echo 'go build ./testdata/importcom/bad.go suceeded'
+	ok=false
+elif ! grep 'cannot parse import comment' testdata/err >/dev/null; then
+	echo 'go build did not mention syntax error:'
+	cat testdata/err
+	ok=false
+fi
+TEST 'import comment - conflict'
+if ./testgo build ./testdata/importcom/conflict.go 2>testdata/err; then
+	echo 'go build ./testdata/importcom/conflict.go suceeded'
+	ok=false
+elif ! grep 'found import comments' testdata/err >/dev/null; then
+	echo 'go build did not mention comment conflict:'
+	cat testdata/err
+	ok=false
+fi
+rm -f ./testdata/err
+unset GOPATH
+
 TEST error message for syntax error in test go file says FAIL
 export GOPATH=$(pwd)/testdata
 if ./testgo test syntaxerror 2>testdata/err; then
@@ -527,6 +579,17 @@ TEST go get cover
 unset GOPATH
 rm -rf $d
 
+TEST go get -t "code.google.com/p/go-get-issue-8181/{a,b}"
+d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+export GOPATH=$d
+if ./testgo get -t code.google.com/p/go-get-issue-8181/{a,b}; then
+	./testgo list ... | grep go.tools/godoc > /dev/null || ok=false
+else
+	ok=false
+fi
+unset GOPATH
+rm -rf $d
+
 TEST shadowing logic
 export GOPATH=$(pwd)/testdata/shadow/root1:$(pwd)/testdata/shadow/root2
 
@@ -812,6 +875,33 @@ if ! ./testgo test -v ./testdata/norunexample > testdata/std.out; then
 	ok=false
 elif ! grep 'File with non-runnable example was built.' testdata/std.out > /dev/null; then
 	echo "file with non-runnable example was not built"
+	ok=false
+fi
+
+TEST 'go generate handles simple command'
+if ! ./testgo generate ./testdata/generate/test1.go > testdata/std.out; then
+	echo "go test ./testdata/generate/test1.go failed to run"
+	ok=false
+elif ! grep 'Success' testdata/std.out > /dev/null; then
+	echo "go test ./testdata/generate/test1.go generated wrong output"
+	ok=false
+fi
+
+TEST 'go generate handles command alias'
+if ! ./testgo generate ./testdata/generate/test2.go > testdata/std.out; then
+	echo "go test ./testdata/generate/test2.go failed to run"
+	ok=false
+elif ! grep 'Now is the time for all good men' testdata/std.out > /dev/null; then
+	echo "go test ./testdata/generate/test2.go generated wrong output"
+	ok=false
+fi
+
+TEST 'go generate variable substitution'
+if ! ./testgo generate ./testdata/generate/test3.go > testdata/std.out; then
+	echo "go test ./testdata/generate/test3.go failed to run"
+	ok=false
+elif ! grep "$GOARCH test3.go p xyzp/test3.go/123" testdata/std.out > /dev/null; then
+	echo "go test ./testdata/generate/test3.go generated wrong output"
 	ok=false
 fi
 

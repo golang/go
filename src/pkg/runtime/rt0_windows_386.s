@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT _rt0_386_windows(SB),NOSPLIT,$12
 	MOVL	12(SP), AX
@@ -13,7 +13,7 @@ TEXT _rt0_386_windows(SB),NOSPLIT,$12
 	JMP	main(SB)
 
 TEXT main(SB),NOSPLIT,$0
-	JMP	_rt0_go(SB)
+	JMP	runtime·rt0_go(SB)
 
 
 DATA  runtime·iswindows(SB)/4, $1

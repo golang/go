@@ -73,7 +73,8 @@ import (
 	"time"
 )
 
-// ErrHelp is the error returned if the flag -help is invoked but no such flag is defined.
+// ErrHelp is the error returned if the -help or -h flag is invoked
+// but no such flag is defined.
 var ErrHelp = errors.New("flag: help requested")
 
 // -- bool Value
@@ -788,7 +789,7 @@ func (f *FlagSet) parseOne() (bool, error) {
 // Parse parses flag definitions from the argument list, which should not
 // include the command name.  Must be called after all flags in the FlagSet
 // are defined and before flags are accessed by the program.
-// The return value will be ErrHelp if -help was set but not defined.
+// The return value will be ErrHelp if -help or -h were set but not defined.
 func (f *FlagSet) Parse(arguments []string) error {
 	f.parsed = true
 	f.args = arguments

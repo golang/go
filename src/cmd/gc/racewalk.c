@@ -419,8 +419,10 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 ret:
 	if(n->op != OBLOCK)  // OBLOCK is handled above in a special way.
 		racewalklist(n->list, init);
-	racewalknode(&n->ntest, &n->ntest->ninit, 0, 0);
-	racewalknode(&n->nincr, &n->nincr->ninit, 0, 0);
+	if(n->ntest != N)
+		racewalknode(&n->ntest, &n->ntest->ninit, 0, 0);
+	if(n->nincr != N)
+		racewalknode(&n->nincr, &n->nincr->ninit, 0, 0);
 	racewalklist(n->nbody, nil);
 	racewalklist(n->nelse, nil);
 	racewalklist(n->rlist, nil);

@@ -47,7 +47,7 @@ static uintptr iocphandle = INVALID_HANDLE_VALUE;  // completion port io handle
 void
 runtime·netpollinit(void)
 {
-	iocphandle = (uintptr)runtime·stdcall(runtime·CreateIoCompletionPort, 4, INVALID_HANDLE_VALUE, (uintptr)0, (uintptr)0, (uintptr)DWORD_MAX);
+	iocphandle = (uintptr)runtime·stdcall4(runtime·CreateIoCompletionPort, INVALID_HANDLE_VALUE, 0, 0, DWORD_MAX);
 	if(iocphandle == 0) {
 		runtime·printf("netpoll: failed to create iocp handle (errno=%d)\n", runtime·getlasterror());
 		runtime·throw("netpoll: failed to create iocp handle");
@@ -59,7 +59,7 @@ int32
 runtime·netpollopen(uintptr fd, PollDesc *pd)
 {
 	USED(pd);
-	if(runtime·stdcall(runtime·CreateIoCompletionPort, 4, fd, iocphandle, (uintptr)0, (uintptr)0) == 0)
+	if(runtime·stdcall4(runtime·CreateIoCompletionPort, fd, iocphandle, 0, 0) == 0)
 		return -runtime·getlasterror();
 	return 0;
 }
@@ -103,7 +103,7 @@ retry:
 			n = 8;
 		if(block)
 			g->m->blocked = true;
-		if(runtime·stdcall(runtime·GetQueuedCompletionStatusEx, 6, iocphandle, entries, (uintptr)n, &n, (uintptr)wait, (uintptr)0) == 0) {
+		if(runtime·stdcall6(runtime·GetQueuedCompletionStatusEx, iocphandle, (uintptr)entries, n, (uintptr)&n, wait, 0) == 0) {
 			g->m->blocked = false;
 			errno = runtime·getlasterror();
 			if(!block && errno == WAIT_TIMEOUT)
@@ -116,7 +116,7 @@ retry:
 			op = entries[i].op;
 			errno = 0;
 			qty = 0;
-			if(runtime·stdcall(runtime·WSAGetOverlappedResult, 5, runtime·netpollfd(op->pd), op, &qty, (uintptr)0, (uintptr)&flags) == 0)
+			if(runtime·stdcall5(runtime·WSAGetOverlappedResult, runtime·netpollfd(op->pd), (uintptr)op, (uintptr)&qty, 0, (uintptr)&flags) == 0)
 				errno = runtime·getlasterror();
 			handlecompletion(&gp, op, errno, qty);
 		}
@@ -126,7 +126,7 @@ retry:
 		qty = 0;
 		if(block)
 			g->m->blocked = true;
-		if(runtime·stdcall(runtime·GetQueuedCompletionStatus, 5, iocphandle, &qty, &key, &op, (uintptr)wait) == 0) {
+		if(runtime·stdcall5(runtime·GetQueuedCompletionStatus, iocphandle, (uintptr)&qty, (uintptr)&key, (uintptr)&op, wait) == 0) {
 			g->m->blocked = false;
 			errno = runtime·getlasterror();
 			if(!block && errno == WAIT_TIMEOUT)

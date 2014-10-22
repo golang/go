@@ -6,7 +6,7 @@
 // #defines generating 8a assembly, and adjusted for 386,
 // by the Go Authors.
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // MD5 optimized for AMD64.
 //

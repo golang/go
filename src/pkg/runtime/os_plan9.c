@@ -5,7 +5,7 @@
 #include "runtime.h"
 #include "os_GOOS.h"
 #include "arch_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 int8 *goos = "plan9";
 extern SigTab runtime·sigtab[];
@@ -20,11 +20,11 @@ runtime·mpreinit(M *mp)
 	// Initialize stack and goroutine for note handling.
 	mp->gsignal = runtime·malg(32*1024);
 	mp->gsignal->m = mp;
-	mp->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
+	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, 0);
 
 	// Initialize stack for handling strings from the
 	// errstr system call, as used in package syscall.
-	mp->errstr = (byte*)runtime·malloc(ERRMAX*sizeof(byte));
+	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, 0);
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -100,6 +100,7 @@ runtime·crash(void)
 	*(int32*)0 = 0;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {
@@ -159,18 +160,7 @@ runtime·nanotime(void)
 	return ns;
 }
 
-void
-time·now(int64 sec, int32 nsec)
-{
-	int64 ns;
-
-	ns = runtime·nanotime();
-	sec = ns / 1000000000LL;
-	nsec = ns - sec * 1000000000LL;
-	FLUSH(&sec);
-	FLUSH(&nsec);
-}
-
+#pragma textflag NOSPLIT
 void
 runtime·itoa(int32 n, byte *p, uint32 len)
 {
@@ -251,12 +241,29 @@ runtime·postnote(int32 pid, int8* msg)
 	return 0;
 }
 
+static void exit(void);
+
+#pragma textflag NOSPLIT
 void
 runtime·exit(int32 e)
 {
+	void (*fn)(void);
+
+	g->m->scalararg[0] = e;
+	fn = exit;
+	runtime·onM(&fn);
+}
+
+static void
+exit(void)
+{
+	int32 e;
 	byte tmp[16];
 	int8 *status;
  
+ 	e = g->m->scalararg[0];
+ 	g->m->scalararg[0] = 0;
+
 	if(e == 0)
 		status = "";
 	else {
@@ -282,6 +289,7 @@ runtime·newosproc(M *mp, void *stk)
 		runtime·throw("newosproc: rfork failed");
 }
 
+#pragma textflag NOSPLIT
 uintptr
 runtime·semacreate(void)
 {
@@ -311,16 +319,11 @@ runtime·semasleep(int64 ns)
 	return 0;  // success
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·semawakeup(M *mp)
 {
 	runtime·plan9_semrelease(&mp->waitsemacount, 1);
-}
-
-void
-os·sigpipe(void)
-{
-	runtime·throw("too many writes on closed pipe");
 }
 
 static int64
@@ -401,12 +404,14 @@ runtime·sigpanic(void)
 	}
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·read(int32 fd, void *buf, int32 nbytes)
 {
 	return runtime·pread(fd, buf, nbytes, -1LL);
 }
 
+#pragma textflag NOSPLIT
 int32
 runtime·write(uintptr fd, void *buf, int32 nbytes)
 {

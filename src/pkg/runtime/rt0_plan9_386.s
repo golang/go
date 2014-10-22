@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT _rt0_386_plan9(SB),NOSPLIT,$12
 	MOVL	AX, _tos(SB)
@@ -14,7 +14,7 @@ TEXT _rt0_386_plan9(SB),NOSPLIT,$12
 	MOVL	AX, 0(SP)
 	LEAL	inargv+0(FP), AX
 	MOVL	AX, 4(SP)
-	CALL	_rt0_go(SB)
+	CALL	runtime·rt0_go(SB)
 
 DATA  runtime·isplan9(SB)/4, $1
 GLOBL runtime·isplan9(SB), $4

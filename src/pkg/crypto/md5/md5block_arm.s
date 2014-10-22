@@ -4,7 +4,7 @@
 //
 // ARM version of md5block.go
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Register definitions
 table = 0	// Pointer to MD5 constants table

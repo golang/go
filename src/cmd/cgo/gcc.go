@@ -229,7 +229,8 @@ func (p *Package) guessKinds(f *File) []*Name {
 	// Determine kinds for names we already know about,
 	// like #defines or 'struct foo', before bothering with gcc.
 	var names, needType []*Name
-	for _, n := range f.Name {
+	for _, key := range nameKeys(f.Name) {
+		n := f.Name[key]
 		// If we've already found this name as a #define
 		// and we can translate it as a constant value, do so.
 		if n.Define != "" {
@@ -331,6 +332,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 	const (
 		notType = 1 << iota
 		notConst
+		notDeclared
 	)
 	for _, line := range strings.Split(stderr, "\n") {
 		if !strings.Contains(line, ": error:") {
@@ -365,7 +367,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 			completed = true
 
 		case "not-declared":
-			error_(token.NoPos, "%s", strings.TrimSpace(line[c2+1:]))
+			sniff[i] |= notDeclared
 		case "not-type":
 			sniff[i] |= notType
 		case "not-const":
@@ -374,12 +376,12 @@ func (p *Package) guessKinds(f *File) []*Name {
 	}
 
 	if !completed {
-		fatalf("%s did not produce error at completed:1\non input:\n%s", p.gccBaseCmd()[0], b.Bytes())
+		fatalf("%s did not produce error at completed:1\non input:\n%s\nfull error output:\n%s", p.gccBaseCmd()[0], b.Bytes(), stderr)
 	}
 
 	for i, n := range names {
 		switch sniff[i] {
-		case 0:
+		default:
 			error_(token.NoPos, "could not determine kind of name for C.%s", fixGo(n.Go))
 		case notType:
 			n.Kind = "const"
@@ -390,6 +392,14 @@ func (p *Package) guessKinds(f *File) []*Name {
 		}
 	}
 	if nerrors > 0 {
+		// Check if compiling the preamble by itself causes any errors,
+		// because the messages we've printed out so far aren't helpful
+		// to users debugging preamble mistakes.  See issue 8442.
+		preambleErrors := p.gccErrors([]byte(f.Preamble))
+		if len(preambleErrors) > 0 {
+			error_(token.NoPos, "\n%s errors for preamble:\n%s", p.gccBaseCmd()[0], preambleErrors)
+		}
+
 		fatalf("unresolved names")
 	}
 
@@ -649,7 +659,13 @@ func (p *Package) rewriteRef(f *File) {
 					f.Name[fpName] = name
 				}
 				r.Name = name
-				expr = ast.NewIdent(name.Mangle)
+				// Rewrite into call to _Cgo_ptr to prevent assignments.  The _Cgo_ptr
+				// function is defined in out.go and simply returns its argument. See
+				// issue 7757.
+				expr = &ast.CallExpr{
+					Fun:  &ast.Ident{NamePos: (*r.Expr).Pos(), Name: "_Cgo_ptr"},
+					Args: []ast.Expr{ast.NewIdent(name.Mangle)},
+				}
 			} else if r.Name.Kind == "type" {
 				// Okay - might be new(T)
 				expr = r.Name.Type.Go
@@ -1068,12 +1084,6 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		return t
 	}
 
-	// clang won't generate DW_AT_byte_size for pointer types,
-	// so we have to fix it here.
-	if dt, ok := base(dtype).(*dwarf.PtrType); ok && dt.ByteSize == -1 {
-		dt.ByteSize = c.ptrSize
-	}
-
 	t := new(Type)
 	t.Size = dtype.Size() // note: wrong for array of pointers, corrected below
 	t.Align = -1
@@ -1097,12 +1107,20 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			t.Go = c.Opaque(t.Size)
 			break
 		}
+		count := dt.Count
+		if count == -1 {
+			// Indicates flexible array member, which Go doesn't support.
+			// Translate to zero-length array instead.
+			count = 0
+		}
 		sub := c.Type(dt.Type, pos)
 		t.Align = sub.Align
 		t.Go = &ast.ArrayType{
-			Len: c.intExpr(dt.Count),
+			Len: c.intExpr(count),
 			Elt: sub.Go,
 		}
+		// Recalculate t.Size now that we know sub.Size.
+		t.Size = count * sub.Size
 		t.C.Set("__typeof__(%s[%d])", sub.C, dt.Count)
 
 	case *dwarf.BoolType:
@@ -1203,6 +1221,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		}
 
 	case *dwarf.PtrType:
+		// Clang doesn't emit DW_AT_byte_size for pointer types.
+		if t.Size != c.ptrSize && t.Size != -1 {
+			fatalf("%s: unexpected: %d-byte pointer type - %s", lineno(pos), t.Size, dtype)
+		}
+		t.Size = c.ptrSize
 		t.Align = c.ptrSize
 
 		if _, ok := base(dt.Type).(*dwarf.VoidType); ok {
@@ -1374,34 +1397,24 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		}
 	}
 
-	if t.Size <= 0 {
-		// Clang does not record the size of a pointer in its DWARF entry,
-		// so if dtype is an array, the call to dtype.Size at the top of the function
-		// computed the size as the array length * 0 = 0.
-		// The type switch called Type (this function) recursively on the pointer
-		// entry, and the code near the top of the function updated the size to
-		// be correct, so calling dtype.Size again will produce the correct value.
-		t.Size = dtype.Size()
-		if t.Size < 0 {
-			// Unsized types are [0]byte, unless they're typedefs of other types
-			// or structs with tags.
-			// if so, use the name we've already defined.
-			t.Size = 0
-			switch dt := dtype.(type) {
-			case *dwarf.TypedefType:
-				// ok
-			case *dwarf.StructType:
-				if dt.StructName != "" {
-					break
-				}
-				t.Go = c.Opaque(0)
-			default:
-				t.Go = c.Opaque(0)
+	if t.Size < 0 {
+		// Unsized types are [0]byte, unless they're typedefs of other types
+		// or structs with tags.
+		// if so, use the name we've already defined.
+		t.Size = 0
+		switch dt := dtype.(type) {
+		case *dwarf.TypedefType:
+			// ok
+		case *dwarf.StructType:
+			if dt.StructName != "" {
+				break
 			}
-			if t.C.Empty() {
-				t.C.Set("void")
-			}
-			return t
+			t.Go = c.Opaque(0)
+		default:
+			t.Go = c.Opaque(0)
+		}
+		if t.C.Empty() {
+			t.C.Set("void")
 		}
 	}
 
@@ -1533,6 +1546,9 @@ func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
 
 // Struct conversion: return Go and (6g) C syntax for type.
 func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.StructType, csyntax string, align int64) {
+	// Minimum alignment for a struct is 1 byte.
+	align = 1
+
 	var buf bytes.Buffer
 	buf.WriteString("struct {")
 	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1) // enough for padding around every field

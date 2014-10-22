@@ -18,11 +18,12 @@ import (
 // Really for use by package time, but we cannot import time here.
 
 type runtimeTimer struct {
-	i      int32
+	i      int
 	when   int64
 	period int64
-	f      func(int64, interface{}) // NOTE: must not be closure
+	f      func(interface{}, uintptr) // NOTE: must not be closure
 	arg    interface{}
+	seq    uintptr
 }
 
 func startTimer(*runtimeTimer)
@@ -49,7 +50,7 @@ func (t *timer) stop() {
 	stopTimer(&t.r)
 }
 
-func timerExpired(now int64, i interface{}) {
+func timerExpired(i interface{}, seq uintptr) {
 	t := i.(*timer)
 	go func() {
 		t.q.Lock()

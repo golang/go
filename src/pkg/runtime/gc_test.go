@@ -164,6 +164,14 @@ func TestGcLastTime(t *testing.T) {
 	if t0 > last || last > t1 {
 		t.Fatalf("bad last GC time: got %v, want [%v, %v]", last, t0, t1)
 	}
+	pause := ms.PauseNs[(ms.NumGC+255)%256]
+	// Due to timer granularity, pause can actually be 0 on windows
+	// or on virtualized environments.
+	if pause == 0 {
+		t.Logf("last GC pause was 0")
+	} else if pause > 10e9 {
+		t.Logf("bad last GC pause: got %v, want [0, 10e9]", pause)
+	}
 }
 
 var hugeSink interface{}

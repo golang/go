@@ -614,11 +614,8 @@ ismem(Node *n)
 	case ONAME:
 	case OPARAM:
 	case OCLOSUREVAR:
-		return 1;
 	case OADDR:
-		//if(flag_largemodel)
-			return 1;
-		break;
+		return 1;
 	}
 	return 0;
 }
@@ -1474,11 +1471,9 @@ optoas(int op, Type *t)
 	case CASE(OADD, TINT32):
 	case CASE(OADD, TUINT32):
 	case CASE(OADD, TPTR32):
-	case CASE(OADDPTR, TPTR32):
 	case CASE(OADD, TINT64):
 	case CASE(OADD, TUINT64):
 	case CASE(OADD, TPTR64):
-	case CASE(OADDPTR, TPTR64):
 		a = AADD;
 		break;
 

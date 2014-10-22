@@ -7,7 +7,7 @@
 #include "os_GOOS.h"
 #include "signal_unix.h"
 #include "stack.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 extern SigTab runtime·sigtab[];
 extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
@@ -42,12 +42,37 @@ getncpu(void)
 // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
 // thus the code is largely similar. See linux/thread.c and lock_futex.c for comments.
 
+static void futexsleep(void);
+
 #pragma textflag NOSPLIT
 void
 runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 {
+	void (*fn)(void);
+
+	g->m->ptrarg[0] = addr;
+	g->m->scalararg[0] = val;
+	g->m->ptrarg[1] = &ns;
+
+	fn = futexsleep;
+	runtime·onM(&fn);
+}
+
+static void
+futexsleep(void)
+{
+	uint32 *addr;
+	uint32 val;
+	int64 ns;
 	int32 ret;
 	Timespec ts;
+	
+	addr = g->m->ptrarg[0];
+	val = g->m->scalararg[0];
+	ns = *(int64*)g->m->ptrarg[1];
+	g->m->ptrarg[0] = nil;
+	g->m->scalararg[0] = 0;
+	g->m->ptrarg[1] = nil;
 
 	if(ns < 0) {
 		ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT_PRIVATE, val, nil, nil);
@@ -64,26 +89,47 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 
 fail:
 	runtime·prints("umtx_wait addr=");
-	runtime·printpointer_c(addr);
+	runtime·printpointer(addr);
 	runtime·prints(" val=");
-	runtime·printint_c(val);
+	runtime·printint(val);
 	runtime·prints(" ret=");
-	runtime·printint_c(ret);
+	runtime·printint(ret);
 	runtime·prints("\n");
 	*(int32*)0x1005 = 0x1005;
 }
 
+static void badfutexwakeup(void);
+
+#pragma textflag NOSPLIT
 void
 runtime·futexwakeup(uint32 *addr, uint32 cnt)
 {
 	int32 ret;
+	void (*fn)(void);
 
 	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE_PRIVATE, cnt, nil, nil);
 	if(ret >= 0)
 		return;
 
-	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
+	g->m->ptrarg[0] = addr;
+	g->m->scalararg[0] = ret;
+	fn = badfutexwakeup;
+	if(g == g->m->gsignal)
+		fn();
+	else
+		runtime·onM(&fn);
 	*(int32*)0x1006 = 0x1006;
+}
+
+static void
+badfutexwakeup(void)
+{
+	void *addr;
+	int32 ret;
+	
+	addr = g->m->ptrarg[0];
+	ret = g->m->scalararg[0];
+	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
 }
 
 void runtime·thr_start(void*);
@@ -127,6 +173,7 @@ runtime·osinit(void)
 	runtime·ncpu = getncpu();
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {
@@ -215,7 +262,7 @@ uintptr
 runtime·memlimit(void)
 {
 	Rlimit rl;
-	extern byte text[], end[];
+	extern byte runtime·text[], runtime·end[];
 	uintptr used;
 	
 	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
@@ -226,7 +273,7 @@ runtime·memlimit(void)
 	// Estimate our VM footprint excluding the heap.
 	// Not an exact science: use size of binary plus
 	// some room for thread stacks.
-	used = end - text + (64<<20);
+	used = runtime·end - runtime·text + (64<<20);
 	if(used >= rl.rlim_cur)
 		return 0;
 
@@ -248,12 +295,12 @@ typedef struct sigaction {
 	} __sigaction_u;		/* signal handler */
 	int32	sa_flags;		/* see signal options below */
 	Sigset	sa_mask;		/* signal mask to apply */
-} Sigaction;
+} SigactionT;
 
 void
 runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
@@ -272,7 +319,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 GoSighandler*
 runtime·getsig(int32 i)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	runtime·sigaction(i, nil, &sa);

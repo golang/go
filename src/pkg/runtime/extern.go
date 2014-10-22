@@ -46,6 +46,8 @@ a comma-separated list of name=val pairs. Supported names are:
 	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
 	error every X milliseconds, summarizing the scheduler state.
 
+	scavenge: scavenge=1 enables debugging mode of heap scavenger.
+
 The GOMAXPROCS variable limits the number of operating system threads that
 can execute user-level Go code simultaneously. There is no limit to the number of threads
 that can be blocked in system calls on behalf of Go code; those do not count against
@@ -73,64 +75,56 @@ of the run-time system.
 */
 package runtime
 
-// Gosched yields the processor, allowing other goroutines to run.  It does not
-// suspend the current goroutine, so execution resumes automatically.
-func Gosched()
-
-// Goexit terminates the goroutine that calls it.  No other goroutine is affected.
-// Goexit runs all deferred calls before terminating the goroutine.
-//
-// Calling Goexit from the main goroutine terminates that goroutine
-// without func main returning. Since func main has not returned,
-// the program continues execution of other goroutines.
-// If all other goroutines exit, the program crashes.
-func Goexit()
-
 // Caller reports file and line number information about function invocations on
 // the calling goroutine's stack.  The argument skip is the number of stack frames
 // to ascend, with 0 identifying the caller of Caller.  (For historical reasons the
 // meaning of skip differs between Caller and Callers.) The return values report the
 // program counter, file name, and line number within the file of the corresponding
 // call.  The boolean ok is false if it was not possible to recover the information.
-func Caller(skip int) (pc uintptr, file string, line int, ok bool)
+func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+	// Ask for two PCs: the one we were asked for
+	// and what it called, so that we can see if it
+	// "called" sigpanic.
+	var rpc [2]uintptr
+	if callers(1+skip-1, &rpc[0], 2) < 2 {
+		return
+	}
+	f := findfunc(rpc[1])
+	if f == nil {
+		// TODO(rsc): Probably a bug?
+		// The C version said "have retpc at least"
+		// but actually returned pc=0.
+		ok = true
+		return
+	}
+	pc = rpc[1]
+	xpc := pc
+	g := findfunc(rpc[0])
+	// All architectures turn faults into apparent calls to sigpanic.
+	// If we see a call to sigpanic, we do not back up the PC to find
+	// the line number of the call instruction, because there is no call.
+	if xpc > f.entry && (g == nil || g.entry != funcPC(sigpanic)) {
+		xpc--
+	}
+	line = int(funcline(f, xpc, &file))
+	ok = true
+	return
+}
 
 // Callers fills the slice pc with the program counters of function invocations
 // on the calling goroutine's stack.  The argument skip is the number of stack frames
 // to skip before recording in pc, with 0 identifying the frame for Callers itself and
 // 1 identifying the caller of Callers.
 // It returns the number of entries written to pc.
-func Callers(skip int, pc []uintptr) int
-
-type Func struct {
-	opaque struct{} // unexported field to disallow conversions
+func Callers(skip int, pc []uintptr) int {
+	// runtime.callers uses pc.array==nil as a signal
+	// to print a stack trace.  Pick off 0-length pc here
+	// so that we don't let a nil pc slice get to it.
+	if len(pc) == 0 {
+		return 0
+	}
+	return callers(skip, &pc[0], len(pc))
 }
-
-// FuncForPC returns a *Func describing the function that contains the
-// given program counter address, or else nil.
-func FuncForPC(pc uintptr) *Func
-
-// Name returns the name of the function.
-func (f *Func) Name() string {
-	return funcname_go(f)
-}
-
-// Entry returns the entry address of the function.
-func (f *Func) Entry() uintptr {
-	return funcentry_go(f)
-}
-
-// FileLine returns the file name and line number of the
-// source code corresponding to the program counter pc.
-// The result will not be accurate if pc is not a program
-// counter within f.
-func (f *Func) FileLine(pc uintptr) (file string, line int) {
-	return funcline_go(f, pc)
-}
-
-// implemented in symtab.c
-func funcline_go(*Func, uintptr) (string, int)
-func funcname_go(*Func) string
-func funcentry_go(*Func) uintptr
 
 func getgoroot() string
 
@@ -138,7 +132,7 @@ func getgoroot() string
 // It uses the GOROOT environment variable, if set,
 // or else the root used during the Go build.
 func GOROOT() string {
-	s := getgoroot()
+	s := gogetenv("GOROOT")
 	if s != "" {
 		return s
 	}

@@ -19,7 +19,7 @@ type soError struct {
 
 func (e *soError) Error() string { return e.Msg }
 
-// Implemented in ../runtime/syscall_solaris.goc.
+// Implemented in asm_solaris_amd64.s.
 func rawSysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func sysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func dlclose(handle uintptr) (err Errno)

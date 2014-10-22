@@ -36,7 +36,7 @@ gtext(Sym *s, int32 stkoff)
 {
 	vlong v;
 
-	v = ((uvlong)argsize() << 32) | (stkoff & 0xffffffff);
+	v = ((uvlong)argsize(1) << 32) | (stkoff & 0xffffffff);
 	if((textflag & NOSPLIT) && stkoff >= 128)
 		yyerror("stack frame too large for NOSPLIT function");
 
@@ -124,10 +124,7 @@ xcom(Node *n)
 		break;
 
 	case ONAME:
-		if(flag_largemodel)
-			n->addable = 9;
-		else
-			n->addable = 10;
+		n->addable = 9;
 		if(n->class == CPARAM || n->class == CAUTO)
 			n->addable = 11;
 		break;

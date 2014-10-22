@@ -141,7 +141,6 @@ extern	int	hintabsize;
 EXTERN	int32	maxargsafe;
 EXTERN	Multab	multab[20];
 EXTERN	int	mnstring;
-EXTERN	int	retok;
 EXTERN	Node*	nodrat;
 EXTERN	Node*	nodret;
 EXTERN	Node*	nodsafe;
@@ -212,7 +211,7 @@ void	noretval(int);
 void	xcom(Node*);
 int	bcomplex(Node*, Node*);
 Prog*	gtext(Sym*, int32);
-vlong	argsize(void);
+vlong	argsize(int);
 
 /*
  * cgen.c
@@ -238,7 +237,7 @@ Node*	nod32const(vlong);
 Node*	nodfconst(double);
 Node*	nodgconst(vlong v, Type *t);
 void	nodreg(Node*, Node*, int);
-void	regret(Node*, Node*);
+void	regret(Node*, Node*, Type*, int);
 void	regalloc(Node*, Node*, Node*);
 void	regfree(Node*);
 void	regialloc(Node*, Node*, Node*);

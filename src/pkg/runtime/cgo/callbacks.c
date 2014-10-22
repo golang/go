@@ -4,7 +4,7 @@
 
 #include "../runtime.h"
 #include "../cgocall.h"
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // These utility functions are available to be called from code
 // compiled with gcc via crosscall2.
@@ -38,8 +38,8 @@ _cgo_allocate_internal(uintptr len, byte *ret)
 {
 	CgoMal *c;
 
-	ret = runtime·mal(len);
-	c = runtime·mal(sizeof(*c));
+	ret = runtime·mallocgc(len, nil, 0);
+	c = runtime·mallocgc(sizeof(*c), nil, 0);
 	c->next = g->m->cgomal;
 	c->alloc = ret;
 	g->m->cgomal = c;
@@ -73,7 +73,7 @@ _cgo_panic_internal(byte *p)
 
 	s = runtime·gostring(p);
 	·cgoStringToEface(s, &err);
-	runtime·panic(err);
+	runtime·gopanic(err);
 }
 
 #pragma cgo_export_static _cgo_panic

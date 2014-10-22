@@ -4,7 +4,9 @@
 
 package mime
 
-import "testing"
+import (
+	"testing"
+)
 
 var typeTests = initMimeForTests()
 
@@ -14,16 +16,39 @@ func TestTypeByExtension(t *testing.T) {
 		if val != want {
 			t.Errorf("TypeByExtension(%q) = %q, want %q", ext, val, want)
 		}
-
 	}
 }
 
-func TestCustomExtension(t *testing.T) {
-	custom := "text/xml; charset=iso-8859-1"
-	if error := AddExtensionType(".xml", custom); error != nil {
-		t.Fatalf("error %s for AddExtension(%s)", error, custom)
+func TestTypeByExtensionCase(t *testing.T) {
+	const custom = "test/test; charset=iso-8859-1"
+	const caps = "test/test; WAS=ALLCAPS"
+	if err := AddExtensionType(".TEST", caps); err != nil {
+		t.Fatalf("error %s for AddExtension(%s)", err, custom)
 	}
-	if registered := TypeByExtension(".xml"); registered != custom {
-		t.Fatalf("registered %s instead of %s", registered, custom)
+	if err := AddExtensionType(".tesT", custom); err != nil {
+		t.Fatalf("error %s for AddExtension(%s)", err, custom)
+	}
+
+	// case-sensitive lookup
+	if got := TypeByExtension(".tesT"); got != custom {
+		t.Fatalf("for .tesT, got %q; want %q", got, custom)
+	}
+	if got := TypeByExtension(".TEST"); got != caps {
+		t.Fatalf("for .TEST, got %q; want %s", got, caps)
+	}
+
+	// case-insensitive
+	if got := TypeByExtension(".TesT"); got != custom {
+		t.Fatalf("for .TesT, got %q; want %q", got, custom)
+	}
+}
+
+func TestLookupMallocs(t *testing.T) {
+	n := testing.AllocsPerRun(10000, func() {
+		TypeByExtension(".html")
+		TypeByExtension(".HtML")
+	})
+	if n > 0 {
+		t.Errorf("allocs = %v; want 0", n)
 	}
 }

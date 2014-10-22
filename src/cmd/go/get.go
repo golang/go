@@ -151,7 +151,9 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 	}
 
 	// Only process each package once.
-	if downloadCache[arg] {
+	// (Unless we're fetching test dependencies for this package,
+	// in which case we want to process it again.)
+	if downloadCache[arg] && !getTestDeps {
 		return
 	}
 	downloadCache[arg] = true

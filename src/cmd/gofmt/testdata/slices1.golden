@@ -1,3 +1,5 @@
+//gofmt -s
+
 // Test cases for slice expression simplification.
 package p
 

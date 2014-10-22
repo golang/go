@@ -21,9 +21,6 @@ struct Ureg
 	uint32	pc;		/* pc */
 	uint32	cs;		/* old context */
 	uint32	flags;		/* old flags */
-	union {
-		uint32	usp;
-		uint32	sp;
-	};
+	uint32	sp;
 	uint32	ss;		/* old stack segment */
 };

@@ -28,3 +28,7 @@ func splitList(path string) []string {
 	}
 	return strings.Split(path, string(ListSeparator))
 }
+
+func abs(path string) (string, error) {
+	return unixAbs(path)
+}

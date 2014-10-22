@@ -172,9 +172,9 @@ func (p *Prog) layout() {
 			start = sect.VirtAddr
 			end = sect.VirtAddr + sect.Size
 		}
-		p.defineConst(name, start)
-		p.defineConst("e"+name, end)
+		p.defineConst("runtime."+name, start)
+		p.defineConst("runtime.e"+name, end)
 		progEnd = end
 	}
-	p.defineConst("end", progEnd)
+	p.defineConst("runtime.end", progEnd)
 }

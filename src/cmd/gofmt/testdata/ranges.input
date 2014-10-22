@@ -1,3 +1,5 @@
+//gofmt -s
+
 // Test cases for range simplification.
 package p
 

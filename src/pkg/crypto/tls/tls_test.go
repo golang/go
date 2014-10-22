@@ -5,6 +5,7 @@
 package tls
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -234,4 +235,48 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 		return fmt.Errorf("Second Read error = %v; want io.EOF", err)
 	}
 	return nil
+}
+
+func TestTLSUniqueMatches(t *testing.T) {
+	ln := newLocalListener(t)
+	defer ln.Close()
+
+	serverTLSUniques := make(chan []byte)
+	go func() {
+		for i := 0; i < 2; i++ {
+			sconn, err := ln.Accept()
+			if err != nil {
+				t.Fatal(err)
+			}
+			serverConfig := *testConfig
+			srv := Server(sconn, &serverConfig)
+			if err := srv.Handshake(); err != nil {
+				t.Fatal(err)
+			}
+			serverTLSUniques <- srv.ConnectionState().TLSUnique
+		}
+	}()
+
+	clientConfig := *testConfig
+	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
+	conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(conn.ConnectionState().TLSUnique, <-serverTLSUniques) {
+		t.Error("client and server channel bindings differ")
+	}
+	conn.Close()
+
+	conn, err = Dial("tcp", ln.Addr().String(), &clientConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if !conn.ConnectionState().DidResume {
+		t.Error("second session did not use resumption")
+	}
+	if !bytes.Equal(conn.ConnectionState().TLSUnique, <-serverTLSUniques) {
+		t.Error("client and server channel bindings differ when session resumption is used")
+	}
 }
