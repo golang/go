@@ -107,6 +107,20 @@ func chanrecv2(chanType *byte, hchan <-chan any, elem *any) bool
 func chansend1(chanType *byte, hchan chan<- any, elem *any)
 func closechan(hchan any)
 
+// *byte is really *runtime.Type
+func writebarrierptr(dst *any, src any)
+func writebarrierstring(dst *any, src any)
+func writebarrierslice(dst *any, src any)
+func writebarrieriface(dst *any, src any)
+
+// The unused *byte argument makes sure that src is 2-pointer-aligned,
+// which is the maximum alignment on NaCl amd64p32
+// (and possibly on 32-bit systems if we start 64-bit aligning uint64s).
+func writebarrierfat2(dst *any, _ *byte, src any)
+func writebarrierfat3(dst *any, _ *byte, src any)
+func writebarrierfat4(dst *any, _ *byte, src any)
+func writebarrierfat(typ *byte, dst *any, src *any)
+
 func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
 func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
 func selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool

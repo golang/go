@@ -4,6 +4,8 @@
 
 package runtime
 
+import "unsafe"
+
 // Called from C. Returns the Go type *m.
 func gc_m_ptr(ret *interface{}) {
 	*ret = (*m)(nil)
@@ -18,17 +20,6 @@ func gc_g_ptr(ret *interface{}) {
 func gc_itab_ptr(ret *interface{}) {
 	*ret = (*itab)(nil)
 }
-
-// Type used for "conservative" allocations in C code.
-type notype [8]*byte
-
-// Called from C. Returns the Go type used for C allocations w/o type.
-func gc_notype_ptr(ret *interface{}) {
-	var x notype
-	*ret = x
-}
-
-func timenow() (sec int64, nsec int32)
 
 func gc_unixnanotime(now *int64) {
 	sec, nsec := timenow()
@@ -67,4 +58,79 @@ func clearpools() {
 			p.deferpool[i] = nil
 		}
 	}
+}
+
+func gosweepone() uintptr
+func gosweepdone() bool
+
+func bgsweep() {
+	getg().issystem = true
+	for {
+		for gosweepone() != ^uintptr(0) {
+			sweep.nbgsweep++
+			Gosched()
+		}
+		lock(&gclock)
+		if !gosweepdone() {
+			// This can happen if a GC runs between
+			// gosweepone returning ^0 above
+			// and the lock being acquired.
+			unlock(&gclock)
+			continue
+		}
+		sweep.parked = true
+		goparkunlock(&gclock, "GC sweep wait")
+	}
+}
+
+// NOTE: Really dst *unsafe.Pointer, src unsafe.Pointer,
+// but if we do that, Go inserts a write barrier on *dst = src.
+//go:nosplit
+func writebarrierptr(dst *uintptr, src uintptr) {
+	*dst = src
+}
+
+//go:nosplit
+func writebarrierstring(dst *[2]uintptr, src [2]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+}
+
+//go:nosplit
+func writebarrierslice(dst *[3]uintptr, src [3]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+	dst[2] = src[2]
+}
+
+//go:nosplit
+func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+}
+
+//go:nosplit
+func writebarrierfat2(dst *[2]uintptr, _ *byte, src [2]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+}
+
+//go:nosplit
+func writebarrierfat3(dst *[3]uintptr, _ *byte, src [3]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+	dst[2] = src[2]
+}
+
+//go:nosplit
+func writebarrierfat4(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+	dst[0] = src[0]
+	dst[1] = src[1]
+	dst[2] = src[2]
+	dst[3] = src[3]
+}
+
+//go:nosplit
+func writebarrierfat(typ *_type, dst, src unsafe.Pointer) {
+	memmove(dst, src, typ.size)
 }

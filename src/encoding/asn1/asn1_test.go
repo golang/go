@@ -392,6 +392,10 @@ type TestContextSpecificTags2 struct {
 	B int
 }
 
+type TestContextSpecificTags3 struct {
+	S string `asn1:"tag:1,utf8"`
+}
+
 type TestElementsAfterString struct {
 	S    string
 	A, B int
@@ -420,6 +424,7 @@ var unmarshalTestData = []struct {
 	{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}, []byte{4, 4, 1, 2, 3, 4}}},
 	{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
 	{[]byte{0x30, 0x08, 0xa1, 0x03, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02}, &TestContextSpecificTags2{1, 2}},
+	{[]byte{0x30, 0x03, 0x81, 0x01, '@'}, &TestContextSpecificTags3{"@"}},
 	{[]byte{0x01, 0x01, 0x00}, newBool(false)},
 	{[]byte{0x01, 0x01, 0xff}, newBool(true)},
 	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},
@@ -810,5 +815,53 @@ func TestStringSlice(t *testing.T) {
 		if fmt.Sprintf("%v", res) != fmt.Sprintf("%v", test) {
 			t.Errorf("incorrect marshal/unmarshal; %v != %v", res, test)
 		}
+	}
+}
+
+type explicitTaggedTimeTest struct {
+	Time time.Time `asn1:"explicit,tag:0"`
+}
+
+var explicitTaggedTimeTestData = []struct {
+	in  []byte
+	out explicitTaggedTimeTest
+}{
+	{[]byte{0x30, 0x11, 0xa0, 0xf, 0x17, 0xd, '9', '1', '0', '5', '0', '6', '1', '6', '4', '5', '4', '0', 'Z'},
+		explicitTaggedTimeTest{time.Date(1991, 05, 06, 16, 45, 40, 0, time.UTC)}},
+	{[]byte{0x30, 0x17, 0xa0, 0xf, 0x18, 0x13, '2', '0', '1', '0', '0', '1', '0', '2', '0', '3', '0', '4', '0', '5', '+', '0', '6', '0', '7'},
+		explicitTaggedTimeTest{time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", 6*60*60+7*60))}},
+}
+
+func TestExplicitTaggedTime(t *testing.T) {
+	// Test that a time.Time will match either tagUTCTime or
+	// tagGeneralizedTime.
+	for i, test := range explicitTaggedTimeTestData {
+		var got explicitTaggedTimeTest
+		_, err := Unmarshal(test.in, &got)
+		if err != nil {
+			t.Errorf("Unmarshal failed at index %d %v", i, err)
+		}
+		if !got.Time.Equal(test.out.Time) {
+			t.Errorf("#%d: got %v, want %v", i, got.Time, test.out.Time)
+		}
+	}
+}
+
+type implicitTaggedTimeTest struct {
+	Time time.Time `asn1:"tag:24"`
+}
+
+func TestImplicitTaggedTime(t *testing.T) {
+	// An implicitly tagged time value, that happens to have an implicit
+	// tag equal to a GENERALIZEDTIME, should still be parsed as a UTCTime.
+	// (There's no "timeType" in fieldParameters to determine what type of
+	// time should be expected when implicitly tagged.)
+	der := []byte{0x30, 0x0f, 0x80 | 24, 0xd, '9', '1', '0', '5', '0', '6', '1', '6', '4', '5', '4', '0', 'Z'}
+	var result implicitTaggedTimeTest
+	if _, err := Unmarshal(der, &result); err != nil {
+		t.Fatalf("Error while parsing: %s", err)
+	}
+	if expected := time.Date(1991, 05, 06, 16, 45, 40, 0, time.UTC); !result.Time.Equal(expected) {
+		t.Errorf("Wrong result. Got %v, want %v", result.Time, expected)
 	}
 }

@@ -20,6 +20,10 @@ The operation op is given by one of these letters:
 	t	list files from the archive
 	x	extract files from the archive
 
+The archive argument to the c command must be non-existent or a
+valid archive file, which will be cleared before adding new entries. It
+is an error if the file exists but is not an archive.
+
 For the p, t, and x commands, listing no names on the command line
 causes the operation to apply to all files in the archive.
 

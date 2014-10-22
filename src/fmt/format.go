@@ -34,15 +34,8 @@ func init() {
 	}
 }
 
-// A fmt is the raw formatter used by Printf etc.
-// It prints into a buffer that must be set up separately.
-type fmt struct {
-	intbuf [nByte]byte
-	buf    *buffer
-	// width, precision
-	wid  int
-	prec int
-	// flags
+// flags placed in a separate struct for easy clearing.
+type fmtFlags struct {
 	widPresent  bool
 	precPresent bool
 	minus       bool
@@ -52,20 +45,27 @@ type fmt struct {
 	unicode     bool
 	uniQuote    bool // Use 'x'= prefix for %U if printable.
 	zero        bool
+
+	// For the formats %+v %#v, we set the plusV/sharpV flags
+	// and clear the plus/sharp flags since %+v and %#v are in effect
+	// different, flagless formats set at the top level.
+	plusV  bool
+	sharpV bool
+}
+
+// A fmt is the raw formatter used by Printf etc.
+// It prints into a buffer that must be set up separately.
+type fmt struct {
+	intbuf [nByte]byte
+	buf    *buffer
+	// width, precision
+	wid  int
+	prec int
+	fmtFlags
 }
 
 func (f *fmt) clearflags() {
-	f.wid = 0
-	f.widPresent = false
-	f.prec = 0
-	f.precPresent = false
-	f.minus = false
-	f.plus = false
-	f.sharp = false
-	f.space = false
-	f.unicode = false
-	f.uniQuote = false
-	f.zero = false
+	f.fmtFlags = fmtFlags{}
 }
 
 func (f *fmt) init(buf *buffer) {
@@ -199,10 +199,36 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 	// block but it's not worth the duplication, so ua has 64 bits.
 	i := len(buf)
 	ua := uint64(a)
-	for ua >= base {
-		i--
-		buf[i] = digits[ua%base]
-		ua /= base
+	// use constants for the division and modulo for more efficient code.
+	// switch cases ordered by popularity.
+	switch base {
+	case 10:
+		for ua >= 10 {
+			i--
+			next := ua / 10
+			buf[i] = byte('0' + ua - next*10)
+			ua = next
+		}
+	case 16:
+		for ua >= 16 {
+			i--
+			buf[i] = digits[ua&0xF]
+			ua >>= 4
+		}
+	case 8:
+		for ua >= 8 {
+			i--
+			buf[i] = byte('0' + ua&7)
+			ua >>= 3
+		}
+	case 2:
+		for ua >= 2 {
+			i--
+			buf[i] = byte('0' + ua&1)
+			ua >>= 1
+		}
+	default:
+		panic("fmt: unknown base; can't happen")
 	}
 	i--
 	buf[i] = digits[ua]
@@ -314,11 +340,17 @@ func (f *fmt) fmt_sbx(s string, b []byte, digits string) {
 
 // fmt_sx formats a string as a hexadecimal encoding of its bytes.
 func (f *fmt) fmt_sx(s, digits string) {
+	if f.precPresent && f.prec < len(s) {
+		s = s[:f.prec]
+	}
 	f.fmt_sbx(s, nil, digits)
 }
 
 // fmt_bx formats a byte slice as a hexadecimal encoding of its bytes.
 func (f *fmt) fmt_bx(b []byte, digits string) {
+	if f.precPresent && f.prec < len(b) {
+		b = b[:f.prec]
+	}
 	f.fmt_sbx("", b, digits)
 }
 

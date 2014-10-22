@@ -317,7 +317,7 @@ orderexprinplace(Node **np, Order *outer)
 
 // Orderstmtinplace orders the side effects of the single statement *np
 // and replaces it with the resulting statement list.
-static void
+void
 orderstmtinplace(Node **np)
 {
 	Node *n;
@@ -438,6 +438,9 @@ ordercall(Node *n, Order *order)
 // cases they are also typically registerizable, so not much harm done.
 // And this only applies to the multiple-assignment form.
 // We could do a more precise analysis if needed, like in walk.c.
+//
+// Ordermapassign also inserts these temporaries if needed for
+// calling writebarrierfat with a pointer to n->right.
 static void
 ordermapassign(Node *n, Order *order)
 {
@@ -451,7 +454,8 @@ ordermapassign(Node *n, Order *order)
 
 	case OAS:
 		order->out = list(order->out, n);
-		if(n->left->op == OINDEXMAP && !isaddrokay(n->right)) {
+		// We call writebarrierfat only for values > 4 pointers long. See walk.c.
+		if((n->left->op == OINDEXMAP || (needwritebarrier(n->left, n->right) && n->left->type->width > 4*widthptr)) && !isaddrokay(n->right)) {
 			m = n->left;
 			n->left = ordertemp(m->type, order, 0);
 			a = nod(OAS, m, n->left);
@@ -1028,11 +1032,21 @@ orderexpr(Node **np, Order *order)
 		orderexprinplace(&n->right, order);
 		break;
 	
-	case OCALLFUNC:
-	case OCALLMETH:
-	case OCALLINTER:
 	case OAPPEND:
+	case OCALLFUNC:
+	case OCALLINTER:
+	case OCALLMETH:
+	case OCAP:
 	case OCOMPLEX:
+	case OCOPY:
+	case OIMAG:
+	case OLEN:
+	case OMAKECHAN:
+	case OMAKEMAP:
+	case OMAKESLICE:
+	case ONEW:
+	case OREAL:
+	case ORECOVER:
 		ordercall(n, order);
 		n = ordercopyexpr(n, n->type, order, 0);
 		break;

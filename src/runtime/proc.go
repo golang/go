@@ -6,6 +6,80 @@ package runtime
 
 import "unsafe"
 
+func newsysmon()
+
+func runtime_init()
+func main_init()
+func main_main()
+
+// The main goroutine.
+func main() {
+	g := getg()
+
+	// Racectx of m0->g0 is used only as the parent of the main goroutine.
+	// It must not be used for anything else.
+	g.m.g0.racectx = 0
+
+	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
+	// Using decimal instead of binary GB and MB because
+	// they look nicer in the stack overflow failure message.
+	if ptrSize == 8 {
+		maxstacksize = 1000000000
+	} else {
+		maxstacksize = 250000000
+	}
+
+	onM(newsysmon)
+
+	// Lock the main goroutine onto this, the main OS thread,
+	// during initialization.  Most programs won't care, but a few
+	// do require certain calls to be made by the main thread.
+	// Those can arrange for main.main to run in the main thread
+	// by calling runtime.LockOSThread during initialization
+	// to preserve the lock.
+	lockOSThread()
+
+	if g.m != &m0 {
+		gothrow("runtime.main not on m0")
+	}
+
+	runtime_init() // must be before defer
+
+	// Defer unlock so that runtime.Goexit during init does the unlock too.
+	needUnlock := true
+	defer func() {
+		if needUnlock {
+			unlockOSThread()
+		}
+	}()
+
+	memstats.enablegc = true // now that runtime is initialized, GC is okay
+
+	main_init()
+
+	needUnlock = false
+	unlockOSThread()
+
+	main_main()
+	if raceenabled {
+		racefini()
+	}
+
+	// Make racy client program work: if panicking on
+	// another goroutine at the same time as main returns,
+	// let the other goroutine finish printing the panic trace.
+	// Once it does, it will exit. See issue 3934.
+	if panicking != 0 {
+		gopark(nil, nil, "panicwait")
+	}
+
+	exit(0)
+	for {
+		var x *int32
+		*x = 0
+	}
+}
+
 var parkunlock_c byte
 
 // start forcegc helper goroutine
@@ -30,6 +104,8 @@ func forcegchelper() {
 		gogc(1)
 	}
 }
+
+//go:nosplit
 
 // Gosched yields the processor, allowing other goroutines to run.  It does not
 // suspend the current goroutine, so execution resumes automatically.
@@ -72,6 +148,9 @@ func acquireSudog() *sudog {
 	c := gomcache()
 	s := c.sudogcache
 	if s != nil {
+		if s.elem != nil {
+			gothrow("acquireSudog: found s.elem != nil in cache")
+		}
 		c.sudogcache = s.next
 		return s
 	}
@@ -92,6 +171,16 @@ func acquireSudog() *sudog {
 
 //go:nosplit
 func releaseSudog(s *sudog) {
+	if s.elem != nil {
+		gothrow("runtime: sudog with non-nil elem")
+	}
+	if s.selectdone != nil {
+		gothrow("runtime: sudog with non-nil selectdone")
+	}
+	gp := getg()
+	if gp.param != nil {
+		gothrow("runtime: releaseSudog with non-nil gp.param")
+	}
 	c := gomcache()
 	s.next = c.sudogcache
 	c.sudogcache = s
@@ -120,4 +209,28 @@ func badreflectcall() {
 func lockedOSThread() bool {
 	gp := getg()
 	return gp.lockedm != nil && gp.m.lockedg != nil
+}
+
+func newP() *p {
+	return new(p)
+}
+
+func newM() *m {
+	return new(m)
+}
+
+func newG() *g {
+	return new(g)
+}
+
+func allgadd(gp *g) {
+	if readgstatus(gp) == _Gidle {
+		gothrow("allgadd: bad status Gidle")
+	}
+
+	lock(&allglock)
+	allgs = append(allgs, gp)
+	allg = &allgs[0]
+	allglen = uintptr(len(allgs))
+	unlock(&allglock)
 }

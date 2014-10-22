@@ -206,16 +206,6 @@ ggloblnod(Node *nam)
 }
 
 void
-gargsize(int32 size)
-{
-	Node n1, n2;
-	
-	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
-	nodconst(&n2, types[TINT32], size);
-	gins(APCDATA, &n1, &n2);
-}
-
-void
 ggloblsym(Sym *s, int32 width, int8 flags)
 {
 	Prog *p;
@@ -948,7 +938,7 @@ regalloc(Node *n, Type *t, Node *o)
 		fprint(2, "registers allocated at\n");
 		for(i=D_AX; i<=D_DI; i++)
 			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
-		yyerror("out of fixed registers");
+		fatal("out of fixed registers");
 		goto err;
 
 	case TFLOAT32:

@@ -32,7 +32,7 @@ var (
 )
 
 func gofmt(fset *token.FileSet, filename string, src *bytes.Buffer) error {
-	f, _, err := parse(fset, filename, src.Bytes(), false)
+	f, _, _, err := parse(fset, filename, src.Bytes(), false)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
 
 	// exclude files w/ syntax errors (typically test cases)
 	fset := token.NewFileSet()
-	if _, _, err = parse(fset, filename, b1.Bytes(), false); err != nil {
+	if _, _, _, err = parse(fset, filename, b1.Bytes(), false); err != nil {
 		if *verbose {
 			fmt.Fprintf(os.Stderr, "ignoring %s\n", err)
 		}

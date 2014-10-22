@@ -778,6 +778,35 @@ func TestChunkedResponseHeaders(t *testing.T) {
 	}
 }
 
+func TestIdentityResponseHeaders(t *testing.T) {
+	defer afterTest(t)
+	log.SetOutput(ioutil.Discard) // is noisy otherwise
+	defer log.SetOutput(os.Stderr)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Transfer-Encoding", "identity")
+		w.(Flusher).Flush()
+		fmt.Fprintf(w, "I am an identity response.")
+	}))
+	defer ts.Close()
+
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatalf("Get error: %v", err)
+	}
+	defer res.Body.Close()
+
+	if g, e := res.TransferEncoding, []string(nil); !reflect.DeepEqual(g, e) {
+		t.Errorf("expected TransferEncoding of %v; got %v", e, g)
+	}
+	if _, haveCL := res.Header["Content-Length"]; haveCL {
+		t.Errorf("Unexpected Content-Length")
+	}
+	if !res.Close {
+		t.Errorf("expected Connection: close; got %v", res.Close)
+	}
+}
+
 // Test304Responses verifies that 304s don't declare that they're
 // chunking in their response headers and aren't allowed to produce
 // output.
@@ -2604,6 +2633,126 @@ func TestServerConnStateNew(t *testing.T) {
 	})
 	if !sawNew { // testing that this read isn't racy
 		t.Error("StateNew not seen")
+	}
+}
+
+type closeWriteTestConn struct {
+	rwTestConn
+	didCloseWrite bool
+}
+
+func (c *closeWriteTestConn) CloseWrite() error {
+	c.didCloseWrite = true
+	return nil
+}
+
+func TestCloseWrite(t *testing.T) {
+	var srv Server
+	var testConn closeWriteTestConn
+	c, err := ExportServerNewConn(&srv, &testConn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ExportCloseWriteAndWait(c)
+	if !testConn.didCloseWrite {
+		t.Error("didn't see CloseWrite call")
+	}
+}
+
+// This verifies that a handler can Flush and then Hijack.
+//
+// An similar test crashed once during development, but it was only
+// testing this tangentially and temporarily until another TODO was
+// fixed.
+//
+// So add an explicit test for this.
+func TestServerFlushAndHijack(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		io.WriteString(w, "Hello, ")
+		w.(Flusher).Flush()
+		conn, buf, _ := w.(Hijacker).Hijack()
+		buf.WriteString("6\r\nworld!\r\n0\r\n\r\n")
+		if err := buf.Flush(); err != nil {
+			t.Error(err)
+		}
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer ts.Close()
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	all, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "Hello, world!"; string(all) != want {
+		t.Errorf("Got %q; want %q", all, want)
+	}
+}
+
+// golang.org/issue/8534 -- the Server shouldn't reuse a connection
+// for keep-alive after it's seen any Write error (e.g. a timeout) on
+// that net.Conn.
+//
+// To test, verify we don't timeout or see fewer unique client
+// addresses (== unique connections) than requests.
+func TestServerKeepAliveAfterWriteError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+	defer afterTest(t)
+	const numReq = 3
+	addrc := make(chan string, numReq)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		addrc <- r.RemoteAddr
+		time.Sleep(500 * time.Millisecond)
+		w.(Flusher).Flush()
+	}))
+	ts.Config.WriteTimeout = 250 * time.Millisecond
+	ts.Start()
+	defer ts.Close()
+
+	errc := make(chan error, numReq)
+	go func() {
+		defer close(errc)
+		for i := 0; i < numReq; i++ {
+			res, err := Get(ts.URL)
+			if res != nil {
+				res.Body.Close()
+			}
+			errc <- err
+		}
+	}()
+
+	timeout := time.NewTimer(numReq * 2 * time.Second) // 4x overkill
+	defer timeout.Stop()
+	addrSeen := map[string]bool{}
+	numOkay := 0
+	for {
+		select {
+		case v := <-addrc:
+			addrSeen[v] = true
+		case err, ok := <-errc:
+			if !ok {
+				if len(addrSeen) != numReq {
+					t.Errorf("saw %d unique client addresses; want %d", len(addrSeen), numReq)
+				}
+				if numOkay != 0 {
+					t.Errorf("got %d successful client requests; want 0", numOkay)
+				}
+				return
+			}
+			if err == nil {
+				numOkay++
+			}
+		case <-timeout.C:
+			t.Fatal("timeout waiting for requests to complete")
+		}
 	}
 }
 

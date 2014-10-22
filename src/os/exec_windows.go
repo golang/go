@@ -53,6 +53,9 @@ func terminateProcess(pid, exitcode int) error {
 }
 
 func (p *Process) signal(sig Signal) error {
+	if p.handle == uintptr(syscall.InvalidHandle) {
+		return syscall.EINVAL
+	}
 	if p.done() {
 		return errors.New("os: process already finished")
 	}

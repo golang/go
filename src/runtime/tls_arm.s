@@ -29,6 +29,9 @@ TEXT runtime·save_g(SB),NOSPLIT,$-4
 	MOVW	g, R0 // preserve R0 across call to setg<>
 	RET
 #endif
+	// If the host does not support MRC the linker will replace it with
+	// a call to runtime.read_tls_fallback which jumps to __kuser_get_tls.
+	// The replacement function saves LR in R11 over the call to read_tls_fallback.
 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the TLS base pointer to our
@@ -51,7 +54,8 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	// nothing to do as nacl/arm does not use TLS at all.
 	RET
 #endif
-	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+	// See save_g
+	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the TLS base pointer to our
 	// thread-local storage for g.

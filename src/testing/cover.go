@@ -9,6 +9,7 @@ package testing
 import (
 	"fmt"
 	"os"
+	"sync/atomic"
 )
 
 // CoverBlock records the coverage data for a single basic block.
@@ -44,8 +45,8 @@ type Cover struct {
 func Coverage() float64 {
 	var n, d int64
 	for _, counters := range cover.Counters {
-		for _, c := range counters {
-			if c > 0 {
+		for i := range counters {
+			if atomic.LoadUint32(&counters[i]) > 0 {
 				n++
 			}
 			d++
@@ -84,11 +85,13 @@ func coverReport() {
 	}
 
 	var active, total int64
+	var count uint32
 	for name, counts := range cover.Counters {
 		blocks := cover.Blocks[name]
-		for i, count := range counts {
+		for i := range counts {
 			stmts := int64(blocks[i].Stmts)
 			total += stmts
+			count = atomic.LoadUint32(&counts[i]) // For -mode=atomic.
 			if count > 0 {
 				active += stmts
 			}

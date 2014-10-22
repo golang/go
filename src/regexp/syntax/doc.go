@@ -21,8 +21,8 @@ Single characters:
   [^xyz]         negated character class
   \d             Perl character class
   \D             negated Perl character class
-  [:alpha:]      ASCII character class
-  [:^alpha:]     negated ASCII character class
+  [[:alpha:]]    ASCII character class
+  [[:^alpha:]]   negated ASCII character class
   \pN            Unicode character class (one-letter name)
   \p{Greek}      Unicode character class
   \PN            negated Unicode character class (one-letter name)
@@ -46,14 +46,14 @@ Repetitions:
   x{n,}?         n or more x, prefer fewer
   x{n}?          exactly n x
 
-Implementation restriction: The counting forms x{n} etc. (but not the other
-forms x* etc.) have an upper limit of n=1000. Negative or higher explicit
-counts yield the parse error ErrInvalidRepeatSize.
+Implementation restriction: The counting forms x{n,m}, x{n,}, and x{n}
+reject forms that create a minimum or maximum repetition count above 1000.
+Unlimited repetitions are not subject to this restriction.
 
 Grouping:
   (re)           numbered capturing group (submatch)
   (?P<name>re)   named & numbered capturing group (submatch)
-  (?:re)         non-capturing group (submatch)
+  (?:re)         non-capturing group
   (?flags)       set flags within current group; non-capturing
   (?flags:re)    set flags during re; non-capturing
 
@@ -69,7 +69,7 @@ Empty strings:
   $              at end of text (like \z not \Z) or line (flag m=true)
   \A             at beginning of text
   \b             at ASCII word boundary (\w on one side and \W, \A, or \z on the other)
-  \B             not an ASCII word boundary
+  \B             not at ASCII word boundary
   \z             at end of text
 
 Escape sequences:
@@ -103,29 +103,29 @@ Named character classes as character class elements:
   [\p{Name}]     named Unicode property inside character class (== \p{Name})
   [^\p{Name}]    named Unicode property inside negated character class (== \P{Name})
 
-Perl character classes:
+Perl character classes (all ASCII-only):
   \d             digits (== [0-9])
   \D             not digits (== [^0-9])
   \s             whitespace (== [\t\n\f\r ])
   \S             not whitespace (== [^\t\n\f\r ])
-  \w             ASCII word characters (== [0-9A-Za-z_])
-  \W             not ASCII word characters (== [^0-9A-Za-z_])
+  \w             word characters (== [0-9A-Za-z_])
+  \W             not word characters (== [^0-9A-Za-z_])
 
 ASCII character classes:
-  [:alnum:]      alphanumeric (== [0-9A-Za-z])
-  [:alpha:]      alphabetic (== [A-Za-z])
-  [:ascii:]      ASCII (== [\x00-\x7F])
-  [:blank:]      blank (== [\t ])
-  [:cntrl:]      control (== [\x00-\x1F\x7F])
-  [:digit:]      digits (== [0-9])
-  [:graph:]      graphical (== [!-~] == [A-Za-z0-9!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])
-  [:lower:]      lower case (== [a-z])
-  [:print:]      printable (== [ -~] == [ [:graph:]])
-  [:punct:]      punctuation (== [!-/:-@[-`{-~])
-  [:space:]      whitespace (== [\t\n\v\f\r ])
-  [:upper:]      upper case (== [A-Z])
-  [:word:]       word characters (== [0-9A-Za-z_])
-  [:xdigit:]     hex digit (== [0-9A-Fa-f])
+  [[:alnum:]]    alphanumeric (== [0-9A-Za-z])
+  [[:alpha:]]    alphabetic (== [A-Za-z])
+  [[:ascii:]]    ASCII (== [\x00-\x7F])
+  [[:blank:]]    blank (== [\t ])
+  [[:cntrl:]]    control (== [\x00-\x1F\x7F])
+  [[:digit:]]    digits (== [0-9])
+  [[:graph:]]    graphical (== [!-~] == [A-Za-z0-9!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])
+  [[:lower:]]    lower case (== [a-z])
+  [[:print:]]    printable (== [ -~] == [ [:graph:]])
+  [[:punct:]]    punctuation (== [!-/:-@[-`{-~])
+  [[:space:]]    whitespace (== [\t\n\v\f\r ])
+  [[:upper:]]    upper case (== [A-Z])
+  [[:word:]]     word characters (== [0-9A-Za-z_])
+  [[:xdigit:]]   hex digit (== [0-9A-Fa-f])
 
 */
 package syntax

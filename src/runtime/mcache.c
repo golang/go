@@ -13,7 +13,7 @@
 extern volatile intgo runtime·MemProfileRate;
 
 // dummy MSpan that contains no free objects.
-static MSpan emptymspan;
+MSpan runtime·emptymspan;
 
 MCache*
 runtime·allocmcache(void)
@@ -27,7 +27,7 @@ runtime·allocmcache(void)
 	runtime·unlock(&runtime·mheap.lock);
 	runtime·memclr((byte*)c, sizeof(*c));
 	for(i = 0; i < NumSizeClasses; i++)
-		c->alloc[i] = &emptymspan;
+		c->alloc[i] = &runtime·emptymspan;
 
 	// Set first allocation sample size.
 	rate = runtime·MemProfileRate;
@@ -83,7 +83,7 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
 	s = c->alloc[sizeclass];
 	if(s->freelist != nil)
 		runtime·throw("refill on a nonempty span");
-	if(s != &emptymspan)
+	if(s != &runtime·emptymspan)
 		s->incache = false;
 
 	// Get a new cached span from the central lists.
@@ -107,9 +107,9 @@ runtime·MCache_ReleaseAll(MCache *c)
 
 	for(i=0; i<NumSizeClasses; i++) {
 		s = c->alloc[i];
-		if(s != &emptymspan) {
+		if(s != &runtime·emptymspan) {
 			runtime·MCentral_UncacheSpan(&runtime·mheap.central[i].mcentral, s);
-			c->alloc[i] = &emptymspan;
+			c->alloc[i] = &runtime·emptymspan;
 		}
 	}
 }

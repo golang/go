@@ -237,13 +237,6 @@ func pcdatavalue(f *_func, table int32, targetpc uintptr) int32 {
 	return pcvalue(f, off, targetpc, true)
 }
 
-func funcarglen(f *_func, targetpc uintptr) int32 {
-	if targetpc == f.entry {
-		return 0
-	}
-	return pcdatavalue(f, _PCDATA_ArgSize, targetpc-_PCQuantum)
-}
-
 func funcdata(f *_func, i int32) unsafe.Pointer {
 	if i < 0 || i >= f.nfuncdata {
 		return nil

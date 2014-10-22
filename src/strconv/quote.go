@@ -143,7 +143,7 @@ func AppendQuoteRuneToASCII(dst []byte, r rune) []byte {
 
 // CanBackquote reports whether the string s can be represented
 // unchanged as a single-line backquoted string without control
-// characters other than space and tab.
+// characters other than tab.
 func CanBackquote(s string) bool {
 	for len(s) > 0 {
 		r, wid := utf8.DecodeRuneInString(s)

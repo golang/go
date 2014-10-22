@@ -26,7 +26,7 @@ func makechan(t *chantype, size int64) *hchan {
 	if hchanSize%maxAlign != 0 || elem.align > maxAlign {
 		gothrow("makechan: bad alignment")
 	}
-	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (maxMem-hchanSize)/uintptr(elem.size)) {
+	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (maxmem-hchanSize)/uintptr(elem.size)) {
 		panic("makechan: size out of range")
 	}
 
@@ -37,7 +37,7 @@ func makechan(t *chantype, size int64) *hchan {
 		// buf points into the same allocation, elemtype is persistent.
 		// SudoG's are referenced from their owning thread so they can't be collected.
 		// TODO(dvyukov,rlh): Rethink when collector can move allocated objects.
-		c = (*hchan)(gomallocgc(hchanSize+uintptr(size)*uintptr(elem.size), nil, flagNoScan))
+		c = (*hchan)(mallocgc(hchanSize+uintptr(size)*uintptr(elem.size), nil, flagNoScan))
 		if size > 0 && elem.size != 0 {
 			c.buf = (*uint8)(add(unsafe.Pointer(c), hchanSize))
 		} else {
@@ -140,10 +140,11 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 			unlock(&c.lock)
 
 			recvg := sg.g
-			recvg.param = unsafe.Pointer(sg)
 			if sg.elem != nil {
 				memmove(unsafe.Pointer(sg.elem), ep, uintptr(c.elemsize))
+				sg.elem = nil
 			}
+			recvg.param = unsafe.Pointer(sg)
 			if sg.releasetime != 0 {
 				sg.releasetime = cputicks()
 			}
@@ -173,19 +174,20 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		goparkunlock(&c.lock, "chan send")
 
 		// someone woke us up.
+		if mysg != gp.waiting {
+			gothrow("G waiting list is corrupted!")
+		}
+		gp.waiting = nil
 		if gp.param == nil {
 			if c.closed == 0 {
 				gothrow("chansend: spurious wakeup")
 			}
 			panic("send on closed channel")
 		}
+		gp.param = nil
 		if mysg.releasetime > 0 {
 			blockevent(int64(mysg.releasetime)-t0, 2)
 		}
-		if mysg != gp.waiting {
-			gothrow("G waiting list is corrupted!")
-		}
-		gp.waiting = nil
 		releaseSudog(mysg)
 		return true
 	}
@@ -278,6 +280,7 @@ func closechan(c *hchan) {
 			break
 		}
 		gp := sg.g
+		sg.elem = nil
 		gp.param = nil
 		if sg.releasetime != 0 {
 			sg.releasetime = cputicks()
@@ -292,6 +295,7 @@ func closechan(c *hchan) {
 			break
 		}
 		gp := sg.g
+		sg.elem = nil
 		gp.param = nil
 		if sg.releasetime != 0 {
 			sg.releasetime = cputicks()
@@ -372,6 +376,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 			if ep != nil {
 				memmove(ep, sg.elem, uintptr(c.elemsize))
 			}
+			sg.elem = nil
 			gp := sg.g
 			gp.param = unsafe.Pointer(sg)
 			if sg.releasetime != 0 {
@@ -405,13 +410,18 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 		goparkunlock(&c.lock, "chan receive")
 
 		// someone woke us up
+		if mysg != gp.waiting {
+			gothrow("G waiting list is corrupted!")
+		}
 		gp.waiting = nil
 		if mysg.releasetime > 0 {
 			blockevent(mysg.releasetime-t0, 2)
 		}
+		haveData := gp.param != nil
+		gp.param = nil
 		releaseSudog(mysg)
 
-		if gp.param != nil {
+		if haveData {
 			// a sender sent us some data. It already wrote to ep.
 			selected = true
 			received = true

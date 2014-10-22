@@ -20,7 +20,7 @@ void
 x_cgo_init(G *g)
 {
 	int tmp;
-	g->stackguard = (uintptr)&tmp - STACKSIZE + 8*1024;
+	g->stacklo = (uintptr)&tmp - STACKSIZE + 8*1024;
 }
 
 
@@ -44,8 +44,8 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	ts.g->stackbase = (uintptr)&ts;
-	ts.g->stackguard = (uintptr)&ts - STACKSIZE + 8*1024;
+	ts.g->stackhi = (uintptr)&ts;
+	ts.g->stacklo = (uintptr)&ts - STACKSIZE + 8*1024;
 
 	/*
 	 * Set specific keys in thread local storage.

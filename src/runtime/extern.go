@@ -126,8 +126,6 @@ func Callers(skip int, pc []uintptr) int {
 	return callers(skip, &pc[0], len(pc))
 }
 
-func getgoroot() string
-
 // GOROOT returns the root of the Go tree.
 // It uses the GOROOT environment variable, if set,
 // or else the root used during the Go build.

@@ -449,3 +449,87 @@ func TestStdcallAndCDeclCallbacks(t *testing.T) {
 		}
 	}
 }
+
+func TestRegisterClass(t *testing.T) {
+	kernel32 := GetDLL(t, "kernel32.dll")
+	user32 := GetDLL(t, "user32.dll")
+	mh, _, _ := kernel32.Proc("GetModuleHandleW").Call(0)
+	cb := syscall.NewCallback(func(hwnd syscall.Handle, msg uint32, wparam, lparam uintptr) (rc uintptr) {
+		t.Fatal("callback should never get called")
+		return 0
+	})
+	type Wndclassex struct {
+		Size       uint32
+		Style      uint32
+		WndProc    uintptr
+		ClsExtra   int32
+		WndExtra   int32
+		Instance   syscall.Handle
+		Icon       syscall.Handle
+		Cursor     syscall.Handle
+		Background syscall.Handle
+		MenuName   *uint16
+		ClassName  *uint16
+		IconSm     syscall.Handle
+	}
+	name := syscall.StringToUTF16Ptr("test_window")
+	wc := Wndclassex{
+		WndProc:   cb,
+		Instance:  syscall.Handle(mh),
+		ClassName: name,
+	}
+	wc.Size = uint32(unsafe.Sizeof(wc))
+	a, _, err := user32.Proc("RegisterClassExW").Call(uintptr(unsafe.Pointer(&wc)))
+	if a == 0 {
+		t.Fatalf("RegisterClassEx failed: %v", err)
+	}
+	r, _, err := user32.Proc("UnregisterClassW").Call(uintptr(unsafe.Pointer(name)), 0)
+	if r == 0 {
+		t.Fatalf("UnregisterClass failed: %v", err)
+	}
+}
+
+func TestOutputDebugString(t *testing.T) {
+	d := GetDLL(t, "kernel32.dll")
+	p := syscall.StringToUTF16Ptr("testing OutputDebugString")
+	d.Proc("OutputDebugStringW").Call(uintptr(unsafe.Pointer(p)))
+}
+
+func TestRaiseException(t *testing.T) {
+	o := executeTest(t, raiseExceptionSource, nil)
+	if strings.Contains(o, "RaiseException should not return") {
+		t.Fatalf("RaiseException did not crash program: %v", o)
+	}
+	if !strings.Contains(o, "Exception 0xbad") {
+		t.Fatalf("No stack trace: %v", o)
+	}
+}
+
+const raiseExceptionSource = `
+package main
+import "syscall"
+func main() {
+	const EXCEPTION_NONCONTINUABLE = 1
+	mod := syscall.MustLoadDLL("kernel32.dll")
+	proc := mod.MustFindProc("RaiseException")
+	proc.Call(0xbad, EXCEPTION_NONCONTINUABLE, 0, 0)
+	println("RaiseException should not return")
+}
+`
+
+func TestZeroDivisionException(t *testing.T) {
+	o := executeTest(t, zeroDivisionExceptionSource, nil)
+	if !strings.Contains(o, "panic: runtime error: integer divide by zero") {
+		t.Fatalf("No stack trace: %v", o)
+	}
+}
+
+const zeroDivisionExceptionSource = `
+package main
+func main() {
+	x := 1
+	y := 0
+	z := x / y
+	println(z)
+}
+`

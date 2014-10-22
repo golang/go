@@ -62,8 +62,8 @@ TEXT runtime∕pprof·runtime_cyclesPerSecond(SB),NOSPLIT,$0-0
 TEXT bytes·Compare(SB),NOSPLIT,$0-0
 	JMP	runtime·cmpbytes(SB)
 
-TEXT runtime·reflectcall(SB), NOSPLIT, $0-0
-	JMP	reflect·call(SB)
+TEXT reflect·call(SB), NOSPLIT, $0-0
+	JMP	runtime·reflectcall(SB)
 
 TEXT reflect·chanclose(SB), NOSPLIT, $0-0
 	JMP	runtime·closechan(SB)
@@ -80,8 +80,14 @@ TEXT reflect·chansend(SB), NOSPLIT, $0-0
 TEXT reflect·chanrecv(SB), NOSPLIT, $0-0
 	JMP	runtime·reflect_chanrecv(SB)
 
+TEXT reflect·memmove(SB), NOSPLIT, $0-0
+	JMP	runtime·memmove(SB)
+
 TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
 	JMP	runtime·freeOSMemory(SB)
+
+TEXT runtime∕debug·WriteHeapDump(SB), NOSPLIT, $0-0
+	JMP	runtime·writeHeapDump(SB)
 
 TEXT net·runtime_pollServerInit(SB),NOSPLIT,$0-0
 	JMP	runtime·netpollServerInit(SB)
@@ -109,6 +115,9 @@ TEXT net·runtime_pollUnblock(SB),NOSPLIT,$0-0
 
 TEXT syscall·setenv_c(SB), NOSPLIT, $0-0
 	JMP	runtime·syscall_setenv_c(SB)
+
+TEXT syscall·unsetenv_c(SB), NOSPLIT, $0-0
+	JMP	runtime·syscall_unsetenv_c(SB)
 
 TEXT reflect·makemap(SB),NOSPLIT,$0-0
 	JMP	runtime·reflect_makemap(SB)
@@ -149,8 +158,32 @@ TEXT reflect·unsafe_NewArray(SB),NOSPLIT,$0-0
 TEXT reflect·makechan(SB),NOSPLIT,$0-0
 	JMP	runtime·makechan(SB)
 
-TEXT reflect·rselect(SB), NOSPLIT, $0-0
+TEXT reflect·rselect(SB),NOSPLIT,$0-0
 	JMP	runtime·reflect_rselect(SB)
 
-TEXT os·sigpipe(SB), NOSPLIT, $0-0
+TEXT os·sigpipe(SB),NOSPLIT,$0-0
 	JMP	runtime·os_sigpipe(SB)
+
+TEXT runtime·runtime_init(SB),NOSPLIT,$0-0
+	JMP	runtime·init(SB)
+
+TEXT runtime·main_init(SB),NOSPLIT,$0-0
+	JMP	main·init(SB)
+
+TEXT runtime·main_main(SB),NOSPLIT,$0-0
+	JMP	main·main(SB)
+
+TEXT runtime·timenow(SB),NOSPLIT,$0-0
+	JMP	time·now(SB)
+
+TEXT sync∕atomic·runtime_procPin(SB),NOSPLIT,$0-0
+	JMP     sync·runtime_procPin(SB)
+
+TEXT sync∕atomic·runtime_procUnpin(SB),NOSPLIT,$0-0
+	JMP     sync·runtime_procUnpin(SB)
+
+TEXT syscall·runtime_envs(SB),NOSPLIT,$0-0
+	JMP	runtime·runtime_envs(SB)
+
+TEXT os·runtime_args(SB),NOSPLIT,$0-0
+	JMP	runtime·runtime_args(SB)

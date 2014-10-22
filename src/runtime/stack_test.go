@@ -10,61 +10,7 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"unsafe"
 )
-
-// See stack.h.
-const (
-	StackGuard = 256
-	StackSmall = 64
-	StackLimit = StackGuard - StackSmall
-)
-
-// Test stack split logic by calling functions of every frame size
-// from near 0 up to and beyond the default segment size (4k).
-// Each of those functions reports its SP + stack limit, and then
-// the test (the caller) checks that those make sense.  By not
-// doing the actual checking and reporting from the suspect functions,
-// we minimize the possibility of crashes during the test itself.
-//
-// Exhaustive test for http://golang.org/issue/3310.
-// The linker used to get a few sizes near the segment size wrong:
-//
-// --- FAIL: TestStackSplit (0.01 seconds)
-// 	stack_test.go:22: after runtime_test.stack3812: sp=0x7f7818d5d078 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3816: sp=0x7f7818d5d078 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3820: sp=0x7f7818d5d070 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3824: sp=0x7f7818d5d070 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3828: sp=0x7f7818d5d068 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3832: sp=0x7f7818d5d068 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3836: sp=0x7f7818d5d060 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3840: sp=0x7f7818d5d060 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3844: sp=0x7f7818d5d058 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3848: sp=0x7f7818d5d058 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3852: sp=0x7f7818d5d050 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3856: sp=0x7f7818d5d050 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3860: sp=0x7f7818d5d048 < limit=0x7f7818d5d080
-// 	stack_test.go:22: after runtime_test.stack3864: sp=0x7f7818d5d048 < limit=0x7f7818d5d080
-// FAIL
-func TestStackSplit(t *testing.T) {
-	for _, f := range splitTests {
-		sp, guard := f()
-		bottom := guard - StackGuard
-		if sp < bottom+StackLimit {
-			fun := FuncForPC(**(**uintptr)(unsafe.Pointer(&f)))
-			t.Errorf("after %s: sp=%#x < limit=%#x (guard=%#x, bottom=%#x)",
-				fun.Name(), sp, bottom+StackLimit, guard, bottom)
-		}
-	}
-}
-
-var Used byte
-
-func use(buf []byte) {
-	for _, c := range buf {
-		Used += c
-	}
-}
 
 // TestStackMem measures per-thread stack segment cache behavior.
 // The test consumed up to 500MB in the past.
@@ -125,10 +71,6 @@ func TestStackMem(t *testing.T) {
 
 // Test stack growing in different contexts.
 func TestStackGrowth(t *testing.T) {
-	switch GOARCH {
-	case "386", "arm":
-		t.Skipf("skipping test on %q; see issue 8083", GOARCH)
-	}
 	t.Parallel()
 	var wg sync.WaitGroup
 
@@ -195,7 +137,7 @@ func growStack() {
 	GC()
 }
 
-// This function is not an anonimous func, so that the compiler can do escape
+// This function is not an anonymous func, so that the compiler can do escape
 // analysis and place x on stack (and subsequently stack growth update the pointer).
 func growStackIter(p *int, n int) {
 	if n == 0 {
@@ -284,13 +226,101 @@ func TestDeferPtrs(t *testing.T) {
 	growStack()
 }
 
-// use about n KB of stack
-func useStack(n int) {
+type bigBuf [4 * 1024]byte
+
+// TestDeferPtrsGoexit is like TestDeferPtrs but exercises the possibility that the
+// stack grows as part of starting the deferred function. It calls Goexit at various
+// stack depths, forcing the deferred function (with >4kB of args) to be run at
+// the bottom of the stack. The goal is to find a stack depth less than 4kB from
+// the end of the stack. Each trial runs in a different goroutine so that an earlier
+// stack growth does not invalidate a later attempt.
+func TestDeferPtrsGoexit(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		c := make(chan int, 1)
+		go testDeferPtrsGoexit(c, i)
+		if n := <-c; n != 42 {
+			t.Fatalf("defer's stack references were not adjusted appropriately (i=%d n=%d)", i, n)
+		}
+	}
+}
+
+func testDeferPtrsGoexit(c chan int, i int) {
+	var y int
+	defer func() {
+		c <- y
+	}()
+	defer setBig(&y, 42, bigBuf{})
+	useStackAndCall(i, Goexit)
+}
+
+func setBig(p *int, x int, b bigBuf) {
+	*p = x
+}
+
+// TestDeferPtrsPanic is like TestDeferPtrsGoexit, but it's using panic instead
+// of Goexit to run the Defers. Those two are different execution paths
+// in the runtime.
+func TestDeferPtrsPanic(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		c := make(chan int, 1)
+		go testDeferPtrsGoexit(c, i)
+		if n := <-c; n != 42 {
+			t.Fatalf("defer's stack references were not adjusted appropriately (i=%d n=%d)", i, n)
+		}
+	}
+}
+
+func testDeferPtrsPanic(c chan int, i int) {
+	var y int
+	defer func() {
+		if recover() == nil {
+			c <- -1
+			return
+		}
+		c <- y
+	}()
+	defer setBig(&y, 42, bigBuf{})
+	useStackAndCall(i, func() { panic(1) })
+}
+
+// TestPanicUseStack checks that a chain of Panic structs on the stack are
+// updated correctly if the stack grows during the deferred execution that
+// happens as a result of the panic.
+func TestPanicUseStack(t *testing.T) {
+	pc := make([]uintptr, 10000)
+	defer func() {
+		recover()
+		Callers(0, pc) // force stack walk
+		useStackAndCall(100, func() {
+			defer func() {
+				recover()
+				Callers(0, pc) // force stack walk
+				useStackAndCall(200, func() {
+					defer func() {
+						recover()
+						Callers(0, pc) // force stack walk
+					}()
+					panic(3)
+				})
+			}()
+			panic(2)
+		})
+	}()
+	panic(1)
+}
+
+// use about n KB of stack and call f
+func useStackAndCall(n int, f func()) {
 	if n == 0 {
+		f()
 		return
 	}
 	var b [1024]byte // makes frame about 1KB
-	useStack(n - 1 + int(b[99]))
+	useStackAndCall(n-1+int(b[99]), f)
+}
+
+func useStack(n int) {
+	useStackAndCall(n, func() {})
 }
 
 func growing(c chan int, done chan struct{}) {

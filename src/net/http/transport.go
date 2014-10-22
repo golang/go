@@ -47,13 +47,16 @@ const DefaultMaxIdleConnsPerHost = 2
 // HTTPS, and HTTP proxies (for either HTTP or HTTPS with CONNECT).
 // Transport can also cache connections for future re-use.
 type Transport struct {
-	idleMu      sync.Mutex
-	idleConn    map[connectMethodKey][]*persistConn
-	idleConnCh  map[connectMethodKey]chan *persistConn
+	idleMu     sync.Mutex
+	wantIdle   bool // user has requested to close all idle conns
+	idleConn   map[connectMethodKey][]*persistConn
+	idleConnCh map[connectMethodKey]chan *persistConn
+
 	reqMu       sync.Mutex
 	reqCanceler map[*Request]func()
-	altMu       sync.RWMutex
-	altProto    map[string]RoundTripper // nil or map of URI scheme => RoundTripper
+
+	altMu    sync.RWMutex
+	altProto map[string]RoundTripper // nil or map of URI scheme => RoundTripper
 
 	// Proxy specifies a function to return a proxy for a given
 	// Request. If the function returns a non-nil error, the
@@ -116,15 +119,28 @@ type Transport struct {
 
 // ProxyFromEnvironment returns the URL of the proxy to use for a
 // given request, as indicated by the environment variables
-// $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy).
-// An error is returned if the proxy environment is invalid.
+// HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or the lowercase versions
+// thereof). HTTPS_PROXY takes precedence over HTTP_PROXY for https
+// requests.
+//
+// The environment values may be either a complete URL or a
+// "host[:port]", in which case the "http" scheme is assumed.
+// An error is returned if the value is a different form.
+//
 // A nil URL and nil error are returned if no proxy is defined in the
-// environment, or a proxy should not be used for the given request.
+// environment, or a proxy should not be used for the given request,
+// as defined by NO_PROXY.
 //
 // As a special case, if req.URL.Host is "localhost" (with or without
 // a port number), then a nil URL and nil error will be returned.
 func ProxyFromEnvironment(req *Request) (*url.URL, error) {
-	proxy := httpProxyEnv.Get()
+	var proxy string
+	if req.URL.Scheme == "https" {
+		proxy = httpsProxyEnv.Get()
+	}
+	if proxy == "" {
+		proxy = httpProxyEnv.Get()
+	}
 	if proxy == "" {
 		return nil, nil
 	}
@@ -249,6 +265,7 @@ func (t *Transport) CloseIdleConnections() {
 	m := t.idleConn
 	t.idleConn = nil
 	t.idleConnCh = nil
+	t.wantIdle = true
 	t.idleMu.Unlock()
 	for _, conns := range m {
 		for _, pconn := range conns {
@@ -275,6 +292,9 @@ func (t *Transport) CancelRequest(req *Request) {
 var (
 	httpProxyEnv = &envOnce{
 		names: []string{"HTTP_PROXY", "http_proxy"},
+	}
+	httpsProxyEnv = &envOnce{
+		names: []string{"HTTPS_PROXY", "https_proxy"},
 	}
 	noProxyEnv = &envOnce{
 		names: []string{"NO_PROXY", "no_proxy"},
@@ -316,7 +336,7 @@ func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectM
 	if t.Proxy != nil {
 		cm.proxyURL, err = t.Proxy(treq.Request)
 	}
-	return cm, nil
+	return cm, err
 }
 
 // proxyAuth returns the Proxy-Authorization header to set
@@ -369,6 +389,11 @@ func (t *Transport) putIdleConn(pconn *persistConn) bool {
 			delete(t.idleConnCh, key)
 		}
 	}
+	if t.wantIdle {
+		t.idleMu.Unlock()
+		pconn.close()
+		return false
+	}
 	if t.idleConn == nil {
 		t.idleConn = make(map[connectMethodKey][]*persistConn)
 	}
@@ -397,6 +422,7 @@ func (t *Transport) getIdleConnCh(cm connectMethod) chan *persistConn {
 	key := cm.key()
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
+	t.wantIdle = false
 	if t.idleConnCh == nil {
 		t.idleConnCh = make(map[connectMethodKey]chan *persistConn)
 	}
@@ -1014,11 +1040,14 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	}
 
 	// Ask for a compressed version if the caller didn't set their
-	// own value for Accept-Encoding. We only attempted to
+	// own value for Accept-Encoding. We only attempt to
 	// uncompress the gzip stream if we were the layer that
 	// requested it.
 	requestedGzip := false
-	if !pc.t.DisableCompression && req.Header.Get("Accept-Encoding") == "" && req.Method != "HEAD" {
+	if !pc.t.DisableCompression &&
+		req.Header.Get("Accept-Encoding") == "" &&
+		req.Header.Get("Range") == "" &&
+		req.Method != "HEAD" {
 		// Request gzip only, not deflate. Deflate is ambiguous and
 		// not as universally supported anyway.
 		// See: http://www.gzip.org/zlib/zlib_faq.html#faq38
@@ -1027,6 +1056,10 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		// due to a bug in nginx:
 		//   http://trac.nginx.org/nginx/ticket/358
 		//   http://golang.org/issue/5522
+		//
+		// We don't request gzip if the request is for a range, since
+		// auto-decoding a portion of a gzipped document will just fail
+		// anyway. See http://golang.org/issue/8923
 		requestedGzip = true
 		req.extraHeaders().Set("Accept-Encoding", "gzip")
 	}

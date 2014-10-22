@@ -109,7 +109,6 @@ void	split64(Node*, Node*, Node*);
 void	splitclean(void);
 Node*	ncon(uint32 i);
 void	gtrack(Sym*);
-void	gargsize(int32);
 
 /*
  * obj.c

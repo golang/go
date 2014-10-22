@@ -225,13 +225,8 @@ func LastIndex(s, sep string) int {
 // r, or -1 if rune is not present in s.
 func IndexRune(s string, r rune) int {
 	switch {
-	case r < 0x80:
-		b := byte(r)
-		for i := 0; i < len(s); i++ {
-			if s[i] == b {
-				return i
-			}
-		}
+	case r < utf8.RuneSelf:
+		return IndexByte(s, byte(r))
 	default:
 		for i, c := range s {
 			if c == r {
@@ -347,6 +342,8 @@ func Fields(s string) []string {
 // FieldsFunc splits the string s at each run of Unicode code points c satisfying f(c)
 // and returns an array of slices of s. If all code points in s satisfy f(c) or the
 // string is empty, an empty slice is returned.
+// FieldsFunc makes no guarantees about the order in which it calls f(c).
+// If f does not return consistent results for a given c, FieldsFunc may crash.
 func FieldsFunc(s string, f func(rune) bool) []string {
 	// First count the fields.
 	n := 0

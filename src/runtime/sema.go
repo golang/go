@@ -35,7 +35,7 @@ const semTabSize = 251
 
 var semtable [semTabSize]struct {
 	root semaRoot
-	pad  [cacheLineSize - unsafe.Sizeof(semaRoot{})]byte
+	pad  [_CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
 }
 
 // Called from sync/net packages.
@@ -49,6 +49,11 @@ func asyncsemrelease(addr *uint32) {
 
 // Called from runtime.
 func semacquire(addr *uint32, profile bool) {
+	gp := getg()
+	if gp != gp.m.curg {
+		gothrow("semacquire not on the G stack")
+	}
+
 	// Easy case.
 	if cansemacquire(addr) {
 		return
@@ -168,6 +173,7 @@ func (root *semaRoot) dequeue(s *sudog) {
 	} else {
 		root.head = s.next
 	}
+	s.elem = nil
 	s.next = nil
 	s.prev = nil
 }

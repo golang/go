@@ -12,6 +12,8 @@
 enum
 {
 	ESRCH = 3,
+	EAGAIN = 35,
+	EWOULDBLOCK = EAGAIN,
 	ENOTSUP = 91,
 
 	// From OpenBSD's sys/time.h
@@ -65,32 +67,24 @@ runtime·semacreate(void)
 int32
 runtime·semasleep(int64 ns)
 {
-	Timespec ts;
+	Timespec ts, *tsp = nil;
 
-	// spin-mutex lock
-	while(runtime·xchg(&g->m->waitsemalock, 1))
-		runtime·osyield();
+	// Compute sleep deadline.
+	if(ns >= 0) {
+		int32 nsec;
+		ns += runtime·nanotime();
+		ts.tv_sec = runtime·timediv(ns, 1000000000, &nsec);
+		ts.tv_nsec = nsec; // tv_nsec is int64 on amd64
+		tsp = &ts;
+	}
 
 	for(;;) {
-		// lock held
-		if(g->m->waitsemacount == 0) {
-			// sleep until semaphore != 0 or timeout.
-			// thrsleep unlocks m->waitsemalock.
-			if(ns < 0)
-				runtime·thrsleep(&g->m->waitsemacount, 0, nil, &g->m->waitsemalock, nil);
-			else {
-				ns += runtime·nanotime();
-				// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
-				ts.tv_nsec = 0;
-				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
-				runtime·thrsleep(&g->m->waitsemacount, CLOCK_MONOTONIC, &ts, &g->m->waitsemalock, nil);
-			}
-			// reacquire lock
-			while(runtime·xchg(&g->m->waitsemalock, 1))
-				runtime·osyield();
-		}
+		int32 ret;
 
-		// lock held (again)
+		// spin-mutex lock
+		while(runtime·xchg(&g->m->waitsemalock, 1))
+			runtime·osyield();
+
 		if(g->m->waitsemacount != 0) {
 			// semaphore is available.
 			g->m->waitsemacount--;
@@ -99,17 +93,12 @@ runtime·semasleep(int64 ns)
 			return 0;  // semaphore acquired
 		}
 
-		// semaphore not available.
-		// if there is a timeout, stop now.
-		// otherwise keep trying.
-		if(ns >= 0)
-			break;
+		// sleep until semaphore != 0 or timeout.
+		// thrsleep unlocks m->waitsemalock.
+		ret = runtime·thrsleep(&g->m->waitsemacount, CLOCK_MONOTONIC, tsp, &g->m->waitsemalock, (int32 *)&g->m->waitsemacount);
+		if(ret == EWOULDBLOCK)
+			return -1;
 	}
-
-	// lock held but giving up
-	// spin-mutex unlock
-	runtime·atomicstore(&g->m->waitsemalock, 0);
-	return -1;
 }
 
 static void badsemawakeup(void);
@@ -237,7 +226,7 @@ void
 runtime·minit(void)
 {
 	// Initialize signal handling
-	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stack.lo, 32*1024);
 	runtime·sigprocmask(SIG_SETMASK, sigset_none);
 }
 
@@ -246,41 +235,6 @@ void
 runtime·unminit(void)
 {
 	runtime·signalstack(nil, 0);
-}
-
-void
-runtime·sigpanic(void)
-{
-	if(!runtime·canpanic(g))
-		runtime·throw("unexpected signal during runtime execution");
-
-	switch(g->sig) {
-	case SIGBUS:
-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
-			if(g->sigpc == 0)
-				runtime·panicstring("call of nil func value");
-			runtime·panicstring("invalid memory address or nil pointer dereference");
-		}
-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
-		runtime·throw("fault");
-	case SIGSEGV:
-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
-			if(g->sigpc == 0)
-				runtime·panicstring("call of nil func value");
-			runtime·panicstring("invalid memory address or nil pointer dereference");
-		}
-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
-		runtime·throw("fault");
-	case SIGFPE:
-		switch(g->sigcode0) {
-		case FPE_INTDIV:
-			runtime·panicstring("integer divide by zero");
-		case FPE_INTOVF:
-			runtime·panicstring("integer overflow");
-		}
-		runtime·panicstring("floating point error");
-	}
-	runtime·panicstring(runtime·sigtab[g->sig].name);
 }
 
 uintptr
@@ -345,4 +299,11 @@ void
 runtime·unblocksignals(void)
 {
 	runtime·sigprocmask(SIG_SETMASK, sigset_none);
+}
+
+#pragma textflag NOSPLIT
+int8*
+runtime·signame(int32 sig)
+{
+	return runtime·sigtab[sig].name;
 }

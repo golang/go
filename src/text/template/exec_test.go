@@ -176,6 +176,12 @@ func (t *T) Method3(v interface{}) string {
 	return fmt.Sprintf("Method3: %v", v)
 }
 
+func (t *T) Copy() *T {
+	n := new(T)
+	*n = *t
+	return n
+}
+
 func (t *T) MAdd(a int, b []int) []int {
 	v := make([]int, len(b))
 	for i, x := range b {
@@ -519,6 +525,8 @@ var execTests = []execTest{
 	{"bug12xE", "{{printf `%T` 0xEE}}", "int", T{}, true},
 	{"bug12Xe", "{{printf `%T` 0Xef}}", "int", T{}, true},
 	{"bug12XE", "{{printf `%T` 0XEE}}", "int", T{}, true},
+	// Chained nodes did not work as arguments. Issue 8473.
+	{"bug13", "{{print (.Copy).I}}", "17", tVal, true},
 }
 
 func zeroArgs() string {
@@ -885,6 +893,18 @@ func TestMessageForExecuteEmpty(t *testing.T) {
 	}
 }
 
+func TestFinalForPrintf(t *testing.T) {
+	tmpl, err := New("").Parse(`{{"x" | printf}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	err = tmpl.Execute(&b, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 type cmpTest struct {
 	expr  string
 	truth string
@@ -902,8 +922,8 @@ var cmpTests = []cmpTest{
 	{"eq 1 2", "false", true},
 	{"eq `xy` `xy`", "true", true},
 	{"eq `xy` `xyz`", "false", true},
-	{"eq .Xuint .Xuint", "true", true},
-	{"eq .Xuint .Yuint", "false", true},
+	{"eq .Uthree .Uthree", "true", true},
+	{"eq .Uthree .Ufour", "false", true},
 	{"eq 3 4 5 6 3", "true", true},
 	{"eq 3 4 5 6 7", "false", true},
 	{"ne true true", "false", true},
@@ -916,16 +936,16 @@ var cmpTests = []cmpTest{
 	{"ne 1 2", "true", true},
 	{"ne `xy` `xy`", "false", true},
 	{"ne `xy` `xyz`", "true", true},
-	{"ne .Xuint .Xuint", "false", true},
-	{"ne .Xuint .Yuint", "true", true},
+	{"ne .Uthree .Uthree", "false", true},
+	{"ne .Uthree .Ufour", "true", true},
 	{"lt 1.5 1.5", "false", true},
 	{"lt 1.5 2.5", "true", true},
 	{"lt 1 1", "false", true},
 	{"lt 1 2", "true", true},
 	{"lt `xy` `xy`", "false", true},
 	{"lt `xy` `xyz`", "true", true},
-	{"lt .Xuint .Xuint", "false", true},
-	{"lt .Xuint .Yuint", "true", true},
+	{"lt .Uthree .Uthree", "false", true},
+	{"lt .Uthree .Ufour", "true", true},
 	{"le 1.5 1.5", "true", true},
 	{"le 1.5 2.5", "true", true},
 	{"le 2.5 1.5", "false", true},
@@ -935,9 +955,9 @@ var cmpTests = []cmpTest{
 	{"le `xy` `xy`", "true", true},
 	{"le `xy` `xyz`", "true", true},
 	{"le `xyz` `xy`", "false", true},
-	{"le .Xuint .Xuint", "true", true},
-	{"le .Xuint .Yuint", "true", true},
-	{"le .Yuint .Xuint", "false", true},
+	{"le .Uthree .Uthree", "true", true},
+	{"le .Uthree .Ufour", "true", true},
+	{"le .Ufour .Uthree", "false", true},
 	{"gt 1.5 1.5", "false", true},
 	{"gt 1.5 2.5", "false", true},
 	{"gt 1 1", "false", true},
@@ -945,9 +965,9 @@ var cmpTests = []cmpTest{
 	{"gt 1 2", "false", true},
 	{"gt `xy` `xy`", "false", true},
 	{"gt `xy` `xyz`", "false", true},
-	{"gt .Xuint .Xuint", "false", true},
-	{"gt .Xuint .Yuint", "false", true},
-	{"gt .Yuint .Xuint", "true", true},
+	{"gt .Uthree .Uthree", "false", true},
+	{"gt .Uthree .Ufour", "false", true},
+	{"gt .Ufour .Uthree", "true", true},
 	{"ge 1.5 1.5", "true", true},
 	{"ge 1.5 2.5", "false", true},
 	{"ge 2.5 1.5", "true", true},
@@ -957,11 +977,40 @@ var cmpTests = []cmpTest{
 	{"ge `xy` `xy`", "true", true},
 	{"ge `xy` `xyz`", "false", true},
 	{"ge `xyz` `xy`", "true", true},
-	{"ge .Xuint .Xuint", "true", true},
-	{"ge .Xuint .Yuint", "false", true},
-	{"ge .Yuint .Xuint", "true", true},
+	{"ge .Uthree .Uthree", "true", true},
+	{"ge .Uthree .Ufour", "false", true},
+	{"ge .Ufour .Uthree", "true", true},
+	// Mixing signed and unsigned integers.
+	{"eq .Uthree .Three", "true", true},
+	{"eq .Three .Uthree", "true", true},
+	{"le .Uthree .Three", "true", true},
+	{"le .Three .Uthree", "true", true},
+	{"ge .Uthree .Three", "true", true},
+	{"ge .Three .Uthree", "true", true},
+	{"lt .Uthree .Three", "false", true},
+	{"lt .Three .Uthree", "false", true},
+	{"gt .Uthree .Three", "false", true},
+	{"gt .Three .Uthree", "false", true},
+	{"eq .Ufour .Three", "false", true},
+	{"lt .Ufour .Three", "false", true},
+	{"gt .Ufour .Three", "true", true},
+	{"eq .NegOne .Uthree", "false", true},
+	{"eq .Uthree .NegOne", "false", true},
+	{"ne .NegOne .Uthree", "true", true},
+	{"ne .Uthree .NegOne", "true", true},
+	{"lt .NegOne .Uthree", "true", true},
+	{"lt .Uthree .NegOne", "false", true},
+	{"le .NegOne .Uthree", "true", true},
+	{"le .Uthree .NegOne", "false", true},
+	{"gt .NegOne .Uthree", "false", true},
+	{"gt .Uthree .NegOne", "true", true},
+	{"ge .NegOne .Uthree", "false", true},
+	{"ge .Uthree .NegOne", "true", true},
+	{"eq (index `x` 0) 'x'", "true", true}, // The example that triggered this rule.
+	{"eq (index `x` 0) 'y'", "false", true},
 	// Errors
 	{"eq `xy` 1", "", false},    // Different types.
+	{"eq 2 2.0", "", false},     // Different types.
 	{"lt true true", "", false}, // Unordered types.
 	{"lt 1+0i 1+0i", "", false}, // Unordered types.
 }
@@ -969,13 +1018,14 @@ var cmpTests = []cmpTest{
 func TestComparison(t *testing.T) {
 	b := new(bytes.Buffer)
 	var cmpStruct = struct {
-		Xuint, Yuint uint
-	}{3, 4}
+		Uthree, Ufour uint
+		NegOne, Three int
+	}{3, 4, -1, 3}
 	for _, test := range cmpTests {
 		text := fmt.Sprintf("{{if %s}}true{{else}}false{{end}}", test.expr)
 		tmpl, err := New("empty").Parse(text)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%q: %s", test.expr, err)
 		}
 		b.Reset()
 		err = tmpl.Execute(b, &cmpStruct)

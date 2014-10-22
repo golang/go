@@ -169,6 +169,7 @@ func (g *Generator) run() (ok bool) {
 			if e != stop {
 				panic(e)
 			}
+			setExitStatus(1)
 		}
 	}()
 	g.dir, g.file = filepath.Split(g.path)
@@ -267,7 +268,8 @@ Words:
 var stop = fmt.Errorf("error in generation")
 
 // errorf logs an error message prefixed with the file and line number.
-// It then exits the program because generation stops at the first error.
+// It then exits the program (with exit status 1) because generation stops
+// at the first error.
 func (g *Generator) errorf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "%s:%d: %s\n", shortPath(g.path), g.lineNum,
 		fmt.Sprintf(format, args...))

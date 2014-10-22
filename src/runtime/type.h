@@ -23,7 +23,7 @@ struct Type
 	uint8 kind;
 	void* alg;
 	// gc stores type info required for garbage collector.
-	// If (kind&KindGCProg)==0, then gc directly contains sparse GC bitmap
+	// If (kind&KindGCProg)==0, then gc[0] points at sparse GC bitmap
 	// (no indirection), 4 bits per word.
 	// If (kind&KindGCProg)!=0, then gc[1] points to a compiler-generated
 	// read-only GC program; and gc[0] points to BSS space for sparse GC bitmap.

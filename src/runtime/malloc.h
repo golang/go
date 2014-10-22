@@ -273,12 +273,16 @@ struct MStats
 	bool	debuggc;
 
 	// Statistics about allocation size classes.
-	struct {
+	
+	struct MStatsBySize {
 		uint32 size;
 		uint64 nmalloc;
 		uint64 nfree;
 	} by_size[NumSizeClasses];
+	
+	uint64	tinyallocs;	// number of tiny allocations that didn't cause actual allocation; not exported to Go directly
 };
+
 
 #define mstats runtime·memstats
 extern MStats mstats;
@@ -331,6 +335,7 @@ struct MCache
 	// See "Tiny allocator" comment in malloc.goc.
 	byte*	tiny;
 	uintptr	tinysize;
+	uintptr	local_tinyallocs;	// number of tiny allocs not counted in other stats
 	// The rest is not accessed on every malloc.
 	MSpan*	alloc[NumSizeClasses];	// spans to allocate from
 
@@ -486,7 +491,7 @@ struct MHeap
 	// the padding makes sure that the MCentrals are
 	// spaced CacheLineSize bytes apart, so that each MCentral.lock
 	// gets its own cache line.
-	struct {
+	struct MHeapCentral {
 		MCentral mcentral;
 		byte pad[CacheLineSize];
 	} central[NumSizeClasses];
@@ -523,12 +528,9 @@ uintptr	runtime·sweepone(void);
 void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);
 void	runtime·purgecachedstats(MCache*);
-void*	runtime·cnew(Type*);
-void*	runtime·cnewarray(Type*, intgo);
 void	runtime·tracealloc(void*, uintptr, Type*);
 void	runtime·tracefree(void*, uintptr);
 void	runtime·tracegc(void);
-extern Type*	runtime·conservative;
 
 int32	runtime·gcpercent;
 int32	runtime·readgogc(void);
@@ -552,6 +554,7 @@ void	runtime·createfing(void);
 G*	runtime·wakefing(void);
 void	runtime·getgcmask(byte*, Type*, byte**, uintptr*);
 
+// NOTE: Layout known to queuefinalizer.
 typedef struct Finalizer Finalizer;
 struct Finalizer
 {
@@ -586,7 +589,6 @@ void	runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, Ptr
 bool	runtime·freespecial(Special *s, void *p, uintptr size, bool freed);
 
 // Information from the compiler about the layout of stack frames.
-typedef struct BitVector BitVector;
 struct BitVector
 {
 	int32 n; // # of bits
@@ -597,7 +599,7 @@ struct StackMap
 {
 	int32 n; // number of bitmaps
 	int32 nbit; // number of bits in each bitmap
-	uint8 bytedata[];
+	uint8 bytedata[]; // bitmaps, each starting on a 32-bit boundary
 };
 // Returns pointer map data for the given stackmap index
 // (the index is encoded in PCDATA_StackMapIndex).

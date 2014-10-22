@@ -54,9 +54,6 @@ addrescapes(Node *n)
 		if(n->class == PAUTO && n->esc == EscNever)
 			break;
 
-		if(debug['N'] && n->esc != EscUnknown)
-			fatal("without escape analysis, only PAUTO's should have esc: %N", n);
-
 		switch(n->class) {
 		case PPARAMREF:
 			addrescapes(n->defn);
@@ -91,8 +88,7 @@ addrescapes(Node *n)
 			snprint(buf, sizeof buf, "&%S", n->sym);
 			n->heapaddr->sym = lookup(buf);
 			n->heapaddr->orig->sym = n->heapaddr->sym;
-			if(!debug['N'])
-				n->esc = EscHeap;
+			n->esc = EscHeap;
 			if(debug['m'])
 				print("%L: moved to heap: %N\n", n->lineno, n);
 			curfn = oldfn;
@@ -585,7 +581,7 @@ cgen_dcl(Node *n)
 	if(!(n->class & PHEAP))
 		return;
 	if(compiling_runtime)
-		fatal("%N escapes to heap, not allowed in runtime.", n);
+		yyerror("%N escapes to heap, not allowed in runtime.", n);
 	if(n->alloc == nil)
 		n->alloc = callnew(n->type);
 	cgen_as(n->heapaddr, n->alloc);
@@ -735,14 +731,10 @@ cgen_as(Node *nl, Node *nr)
 		return;
 	}
 
-	if(nr == N || isnil(nr)) {
-		// externals and heaps should already be clear
-		if(nr == N) {
-			if(nl->class == PEXTERN)
-				return;
-			if(nl->class & PHEAP)
-				return;
-		}
+	if(nr == N || iszero(nr)) {
+		// heaps should already be clear
+		if(nr == N && (nl->class & PHEAP))
+			return;
 
 		tl = nl->type;
 		if(tl == T)

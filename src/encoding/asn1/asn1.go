@@ -640,15 +640,19 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	// when it sees a string, so if we see a different string type on the
 	// wire, we change the universal type to match.
 	if universalTag == tagPrintableString {
-		switch t.tag {
-		case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
-			universalTag = t.tag
+		if t.class == classUniversal {
+			switch t.tag {
+			case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
+				universalTag = t.tag
+			}
+		} else if params.stringType != 0 {
+			universalTag = params.stringType
 		}
 	}
 
 	// Special case for time: UTCTime and GeneralizedTime both map to the
 	// Go type time.Time.
-	if universalTag == tagUTCTime && t.tag == tagGeneralizedTime {
+	if universalTag == tagUTCTime && t.tag == tagGeneralizedTime && t.class == classUniversal {
 		universalTag = tagGeneralizedTime
 	}
 

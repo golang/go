@@ -101,6 +101,7 @@ func Statfs(path string, buf *Statfs_t) (err error) {
 		return err
 	}
 	_, _, e := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(pathp)), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
+	use(unsafe.Pointer(pathp))
 	if e != 0 {
 		err = e
 	}

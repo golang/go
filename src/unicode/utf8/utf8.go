@@ -211,8 +211,11 @@ func FullRuneInString(s string) bool {
 	return !short
 }
 
-// DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and its width in bytes.
-// If the encoding is invalid, it returns (RuneError, 1), an impossible result for correct UTF-8.
+// DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and
+// its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
+// the encoding is invalid, it returns (RuneError, 1). Both are impossible
+// results for correct UTF-8.
+//
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
@@ -221,8 +224,10 @@ func DecodeRune(p []byte) (r rune, size int) {
 	return
 }
 
-// DecodeRuneInString is like DecodeRune but its input is a string.
-// If the encoding is invalid, it returns (RuneError, 1), an impossible result for correct UTF-8.
+// DecodeRuneInString is like DecodeRune but its input is a string. If s is
+// empty it returns (RuneError, 0). Otherwise, if the encoding is invalid, it
+// returns (RuneError, 1). Both are impossible results for correct UTF-8.
+//
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
@@ -231,8 +236,11 @@ func DecodeRuneInString(s string) (r rune, size int) {
 	return
 }
 
-// DecodeLastRune unpacks the last UTF-8 encoding in p and returns the rune and its width in bytes.
-// If the encoding is invalid, it returns (RuneError, 1), an impossible result for correct UTF-8.
+// DecodeLastRune unpacks the last UTF-8 encoding in p and returns the rune and
+// its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
+// the encoding is invalid, it returns (RuneError, 1). Both are impossible
+// results for correct UTF-8.
+//
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
@@ -268,8 +276,10 @@ func DecodeLastRune(p []byte) (r rune, size int) {
 	return r, size
 }
 
-// DecodeLastRuneInString is like DecodeLastRune but its input is a string.
-// If the encoding is invalid, it returns (RuneError, 1), an impossible result for correct UTF-8.
+// DecodeLastRuneInString is like DecodeLastRune but its input is a string. If
+// s is empty it returns (RuneError, 0). Otherwise, if the encoding is invalid,
+// it returns (RuneError, 1). Both are impossible results for correct UTF-8.
+//
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.

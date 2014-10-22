@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "textflag.h"
+
 // Supply environ and __progname, because we don't
 // link against the standard DragonFly crt0.o and the
 // libc dynamic library needs them.
 
+#pragma dataflag NOPTR
 char *environ[1];
+#pragma dataflag NOPTR
 char *__progname;
 
 #pragma dynexport environ environ

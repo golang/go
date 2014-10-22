@@ -260,6 +260,9 @@ type serverTest struct {
 	// expectAlert, if true, indicates that a fatal alert should be returned
 	// when handshaking with the server.
 	expectAlert bool
+	// expectHandshakeErrorIncluding, when not empty, contains a string
+	// that must be a substring of the error resulting from the handshake.
+	expectHandshakeErrorIncluding string
 	// validate, if not nil, is a function that will be called with the
 	// ConnectionState of the resulting connection. It returns false if the
 	// ConnectionState is unacceptable.
@@ -362,8 +365,16 @@ func (test *serverTest) run(t *testing.T, write bool) {
 	server := Server(serverConn, config)
 	connStateChan := make(chan ConnectionState, 1)
 	go func() {
-		if _, err := server.Write([]byte("hello, world\n")); err != nil {
+		var err error
+		if _, err = server.Write([]byte("hello, world\n")); err != nil {
 			t.Logf("Error from Server.Write: %s", err)
+		}
+		if len(test.expectHandshakeErrorIncluding) > 0 {
+			if err == nil {
+				t.Errorf("Error expected, but no error returned")
+			} else if s := err.Error(); !strings.Contains(s, test.expectHandshakeErrorIncluding) {
+				t.Errorf("Error expected containing '%s' but got '%s'", test.expectHandshakeErrorIncluding, s)
+			}
 		}
 		server.Close()
 		serverConn.Close()
@@ -429,7 +440,9 @@ func (test *serverTest) run(t *testing.T, write bool) {
 		recordingConn.Close()
 		if len(recordingConn.flows) < 3 {
 			childProcess.Stdout.(*bytes.Buffer).WriteTo(os.Stdout)
-			t.Fatalf("Handshake failed")
+			if len(test.expectHandshakeErrorIncluding) == 0 {
+				t.Fatalf("Handshake failed")
+			}
 		}
 		recordingConn.WriteTo(out)
 		fmt.Printf("Wrote %s\n", path)
@@ -674,6 +687,42 @@ func TestResumption(t *testing.T) {
 		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_in", sessionFilePath},
 	}
 	runServerTestTLS12(t, test)
+}
+
+func TestResumptionDisabled(t *testing.T) {
+	sessionFilePath := tempFile("")
+	defer os.Remove(sessionFilePath)
+
+	config := *testConfig
+
+	test := &serverTest{
+		name:    "IssueTicketPreDisable",
+		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_out", sessionFilePath},
+		config:  &config,
+	}
+	runServerTestTLS12(t, test)
+
+	config.SessionTicketsDisabled = true
+
+	test = &serverTest{
+		name:    "ResumeDisabled",
+		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_in", sessionFilePath},
+		config:  &config,
+	}
+	runServerTestTLS12(t, test)
+
+	// One needs to manually confirm that the handshake in the golden data
+	// file for ResumeDisabled does not include a resumption handshake.
+}
+
+func TestFallbackSCSV(t *testing.T) {
+	test := &serverTest{
+		name: "FallbackSCSV",
+		// OpenSSL 1.0.1j is needed for the -fallback_scsv option.
+		command: []string{"openssl", "s_client", "-fallback_scsv"},
+		expectHandshakeErrorIncluding: "inppropriate protocol fallback",
+	}
+	runServerTestTLS11(t, test)
 }
 
 // cert.pem and key.pem were generated with generate_cert.go

@@ -419,3 +419,39 @@ func TestScanWordsExcessiveWhiteSpace(t *testing.T) {
 		t.Fatalf("unexpected token: %v", token)
 	}
 }
+
+// Test that empty tokens, including at end of line or end of file, are found by the scanner.
+// Issue 8672: Could miss final empty token.
+
+func commaSplit(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	for i := 0; i < len(data); i++ {
+		if data[i] == ',' {
+			return i + 1, data[:i], nil
+		}
+	}
+	if !atEOF {
+		return 0, nil, nil
+	}
+	return 0, data, nil
+}
+
+func TestEmptyTokens(t *testing.T) {
+	s := NewScanner(strings.NewReader("1,2,3,"))
+	values := []string{"1", "2", "3", ""}
+	s.Split(commaSplit)
+	var i int
+	for i = 0; i < len(values); i++ {
+		if !s.Scan() {
+			break
+		}
+		if s.Text() != values[i] {
+			t.Errorf("%d: expected %q got %q", i, values[i], s.Text())
+		}
+	}
+	if i != len(values) {
+		t.Errorf("got %d fields, expected %d", i, len(values))
+	}
+	if err := s.Err(); err != nil {
+		t.Fatal(err)
+	}
+}

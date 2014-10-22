@@ -121,14 +121,17 @@ runtime·newosproc(M *mp, void *stk)
 	Sigset oset;
 	Pthread tid;
 	int32 ret;
+	uint64 size;
 
 	USED(stk);
 	if(runtime·pthread_attr_init(&attr) != 0)
 		runtime·throw("pthread_attr_init");
 	if(runtime·pthread_attr_setstack(&attr, 0, 0x200000) != 0)
 		runtime·throw("pthread_attr_setstack");
-	if(runtime·pthread_attr_getstack(&attr, (void**)&mp->g0->stackbase, &mp->g0->stacksize) != 0)
+	size = 0;
+	if(runtime·pthread_attr_getstack(&attr, (void**)&mp->g0->stack.hi, &size) != 0)
 		runtime·throw("pthread_attr_getstack");	
+	mp->g0->stack.lo = mp->g0->stack.hi - size;
 	if(runtime·pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED) != 0)
 		runtime·throw("pthread_attr_setdetachstate");
 
@@ -183,7 +186,7 @@ runtime·minit(void)
 {
 	runtime·asmcgocall(runtime·miniterrno, (void *)libc·___errno);
 	// Initialize signal handling
-	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stack.lo, 32*1024);
 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
 }
 
@@ -192,41 +195,6 @@ void
 runtime·unminit(void)
 {
 	runtime·signalstack(nil, 0);
-}
-
-void
-runtime·sigpanic(void)
-{
-	if(!runtime·canpanic(g))
-		runtime·throw("unexpected signal during runtime execution");
-
-	switch(g->sig) {
-	case SIGBUS:
-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
-			if(g->sigpc == 0)
-				runtime·panicstring("call of nil func value");
-			runtime·panicstring("invalid memory address or nil pointer dereference");
-		}
-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
-		runtime·throw("fault");
-	case SIGSEGV:
-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
-			if(g->sigpc == 0)
-				runtime·panicstring("call of nil func value");
-			runtime·panicstring("invalid memory address or nil pointer dereference");
-		}
-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
-		runtime·throw("fault");
-	case SIGFPE:
-		switch(g->sigcode0) {
-		case FPE_INTDIV:
-			runtime·panicstring("integer divide by zero");
-		case FPE_INTOVF:
-			runtime·panicstring("integer overflow");
-		}
-		runtime·panicstring("floating point error");
-	}
-	runtime·panicstring(runtime·sigtab[g->sig].name);
 }
 
 uintptr
@@ -324,11 +292,11 @@ runtime·semacreate(void)
 	// Call libc's malloc rather than runtime·malloc.  This will
 	// allocate space on the C heap.  We can't call runtime·malloc
 	// here because it could cause a deadlock.
-	g->m->libcall.fn = (void*)libc·malloc;
+	g->m->libcall.fn = (uintptr)(void*)libc·malloc;
 	g->m->libcall.n = 1;
 	runtime·memclr((byte*)&g->m->scratch, sizeof(g->m->scratch));
 	g->m->scratch.v[0] = (uintptr)sizeof(*sem);
-	g->m->libcall.args = (uintptr*)&g->m->scratch;
+	g->m->libcall.args = (uintptr)(uintptr*)&g->m->scratch;
 	runtime·asmcgocall(runtime·asmsysvicall6, &g->m->libcall);
 	sem = (void*)g->m->libcall.r1;
 	if(runtime·sem_init(sem, 0, 0) != 0)
@@ -347,12 +315,12 @@ runtime·semasleep(int64 ns)
 		m->ts.tv_sec = ns / 1000000000LL;
 		m->ts.tv_nsec = ns % 1000000000LL;
 
-		m->libcall.fn = (void*)libc·sem_reltimedwait_np;
+		m->libcall.fn = (uintptr)(void*)libc·sem_reltimedwait_np;
 		m->libcall.n = 2;
 		runtime·memclr((byte*)&m->scratch, sizeof(m->scratch));
 		m->scratch.v[0] = m->waitsema;
 		m->scratch.v[1] = (uintptr)&m->ts;
-		m->libcall.args = (uintptr*)&m->scratch;
+		m->libcall.args = (uintptr)(uintptr*)&m->scratch;
 		runtime·asmcgocall(runtime·asmsysvicall6, &m->libcall);
 		if(*m->perrno != 0) {
 			if(*m->perrno == ETIMEDOUT || *m->perrno == EAGAIN || *m->perrno == EINTR)
@@ -362,11 +330,11 @@ runtime·semasleep(int64 ns)
 		return 0;
 	}
 	for(;;) {
-		m->libcall.fn = (void*)libc·sem_wait;
+		m->libcall.fn = (uintptr)(void*)libc·sem_wait;
 		m->libcall.n = 1;
 		runtime·memclr((byte*)&m->scratch, sizeof(m->scratch));
 		m->scratch.v[0] = m->waitsema;
-		m->libcall.args = (uintptr*)&m->scratch;
+		m->libcall.args = (uintptr)(uintptr*)&m->scratch;
 		runtime·asmcgocall(runtime·asmsysvicall6, &m->libcall);
 		if(m->libcall.r1 == 0)
 			break;
@@ -579,4 +547,11 @@ runtime·osyield(void)
 		return;
 	}
 	runtime·osyield1();
+}
+
+#pragma textflag NOSPLIT
+int8*
+runtime·signame(int32 sig)
+{
+	return runtime·sigtab[sig].name;
 }

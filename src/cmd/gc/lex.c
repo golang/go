@@ -312,6 +312,8 @@ main(int argc, char *argv[])
 	flagcount("u", "reject unsafe code", &safemode);
 	flagcount("v", "increase debug verbosity", &debug['v']);
 	flagcount("w", "debug type checking", &debug['w']);
+	use_writebarrier = 1;
+	flagcount("wb", "enable write barrier", &use_writebarrier);
 	flagcount("x", "debug lexer", &debug['x']);
 	flagcount("y", "debug declarations in canned imports (with -d)", &debug['y']);
 	if(thechar == '6')
@@ -479,8 +481,12 @@ main(int argc, char *argv[])
 	}
 
 	// Phase 5: Escape analysis.
-	if(!debug['N'])
-		escapes(xtop);
+	// Required for moving heap allocations onto stack,
+	// which in turn is required by the closure implementation,
+	// which stores the addresses of stack variables into the closure.
+	// If the closure does not escape, it needs to be on the stack
+	// or else the stack copier will not update it.
+	escapes(xtop);
 	
 	// Escape analysis moved escaped values off stack.
 	// Move large values off stack too.

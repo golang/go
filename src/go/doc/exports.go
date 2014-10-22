@@ -6,15 +6,19 @@
 
 package doc
 
-import "go/ast"
+import (
+	"go/ast"
+	"go/token"
+)
 
 // filterIdentList removes unexported names from list in place
-// and returns the resulting list.
+// and returns the resulting list. If blankOk is set, blank
+// identifiers are considered exported names.
 //
-func filterIdentList(list []*ast.Ident) []*ast.Ident {
+func filterIdentList(list []*ast.Ident, blankOk bool) []*ast.Ident {
 	j := 0
 	for _, x := range list {
-		if ast.IsExported(x.Name) {
+		if ast.IsExported(x.Name) || (blankOk && x.Name == "_") {
 			list[j] = x
 			j++
 		}
@@ -74,7 +78,7 @@ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp 
 				r.remember(ityp)
 			}
 		} else {
-			field.Names = filterIdentList(field.Names)
+			field.Names = filterIdentList(field.Names, false)
 			if len(field.Names) < n {
 				removedFields = true
 			}
@@ -136,13 +140,15 @@ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
 	}
 }
 
-func (r *reader) filterSpec(spec ast.Spec) bool {
+func (r *reader) filterSpec(spec ast.Spec, tok token.Token) bool {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		// always keep imports so we can collect them
 		return true
 	case *ast.ValueSpec:
-		s.Names = filterIdentList(s.Names)
+		// special case: consider blank constants as exported
+		// (work-around for issue 5397)
+		s.Names = filterIdentList(s.Names, tok == token.CONST)
 		if len(s.Names) > 0 {
 			r.filterType(nil, s.Type)
 			return true
@@ -159,10 +165,10 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
 	return false
 }
 
-func (r *reader) filterSpecList(list []ast.Spec) []ast.Spec {
+func (r *reader) filterSpecList(list []ast.Spec, tok token.Token) []ast.Spec {
 	j := 0
 	for _, s := range list {
-		if r.filterSpec(s) {
+		if r.filterSpec(s, tok) {
 			list[j] = s
 			j++
 		}
@@ -173,7 +179,7 @@ func (r *reader) filterSpecList(list []ast.Spec) []ast.Spec {
 func (r *reader) filterDecl(decl ast.Decl) bool {
 	switch d := decl.(type) {
 	case *ast.GenDecl:
-		d.Specs = r.filterSpecList(d.Specs)
+		d.Specs = r.filterSpecList(d.Specs, d.Tok)
 		return len(d.Specs) > 0
 	case *ast.FuncDecl:
 		// ok to filter these methods early because any

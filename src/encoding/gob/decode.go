@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run decgen.go -output dec_helpers.go
+
 package gob
 
 import (
-	"bytes"
 	"encoding"
 	"errors"
 	"io"
@@ -19,21 +20,79 @@ var (
 	errRange   = errors.New("gob: bad data: field numbers out of bounds")
 )
 
+type decHelper func(state *decoderState, v reflect.Value, length int, ovfl error) bool
+
 // decoderState is the execution state of an instance of the decoder. A new state
 // is created for nested objects.
 type decoderState struct {
 	dec *Decoder
 	// The buffer is stored with an extra indirection because it may be replaced
 	// if we load a type during decode (when reading an interface value).
-	b        *bytes.Buffer
+	b        *decBuffer
 	fieldnum int // the last field number read.
 	buf      []byte
 	next     *decoderState // for free list
 }
 
+// decBuffer is an extremely simple, fast implementation of a read-only byte buffer.
+// It is initialized by calling Size and then copying the data into the slice returned by Bytes().
+type decBuffer struct {
+	data   []byte
+	offset int // Read offset.
+}
+
+func (d *decBuffer) Read(p []byte) (int, error) {
+	n := copy(p, d.data[d.offset:])
+	if n == 0 && len(p) != 0 {
+		return 0, io.EOF
+	}
+	d.offset += n
+	return n, nil
+}
+
+func (d *decBuffer) Drop(n int) {
+	if n > d.Len() {
+		panic("drop")
+	}
+	d.offset += n
+}
+
+// Size grows the buffer to exactly n bytes, so d.Bytes() will
+// return a slice of length n. Existing data is first discarded.
+func (d *decBuffer) Size(n int) {
+	d.Reset()
+	if cap(d.data) < n {
+		d.data = make([]byte, n)
+	} else {
+		d.data = d.data[0:n]
+	}
+}
+
+func (d *decBuffer) ReadByte() (byte, error) {
+	if d.offset >= len(d.data) {
+		return 0, io.EOF
+	}
+	c := d.data[d.offset]
+	d.offset++
+	return c, nil
+}
+
+func (d *decBuffer) Len() int {
+	return len(d.data) - d.offset
+}
+
+func (d *decBuffer) Bytes() []byte {
+	return d.data[d.offset:]
+}
+
+func (d *decBuffer) Reset() {
+	d.data = d.data[0:0]
+	d.offset = 0
+}
+
 // We pass the bytes.Buffer separately for easier testing of the infrastructure
 // without requiring a full Decoder.
-func (dec *Decoder) newDecoderState(buf *bytes.Buffer) *decoderState {
+func (dec *Decoder) newDecoderState(buf *decBuffer) *decoderState {
 	d := dec.freeList
 	if d == nil {
 		d = new(decoderState)
@@ -257,7 +316,7 @@ func float64FromBits(u uint64) float64 {
 // number, and returns it. It's a helper function for float32 and complex64.
 // It returns a float64 because that's what reflection needs, but its return
 // value is known to be accurately representable in a float32.
-func float32FromBits(i *decInstr, u uint64) float64 {
+func float32FromBits(u uint64, ovfl error) float64 {
 	v := float64FromBits(u)
 	av := v
 	if av < 0 {
@@ -265,7 +324,7 @@ func float32FromBits(i *decInstr, u uint64) float64 {
 	}
 	// +Inf is OK in both 32- and 64-bit floats.  Underflow is always OK.
 	if math.MaxFloat32 < av && av <= math.MaxFloat64 {
-		error_(i.ovfl)
+		error_(ovfl)
 	}
 	return v
 }
@@ -273,7 +332,7 @@ func float32FromBits(i *decInstr, u uint64) float64 {
 // decFloat32 decodes an unsigned integer, treats it as a 32-bit floating-point
 // number, and stores it in value.
 func decFloat32(i *decInstr, state *decoderState, value reflect.Value) {
-	value.SetFloat(float32FromBits(i, state.decodeUint()))
+	value.SetFloat(float32FromBits(state.decodeUint(), i.ovfl))
 }
 
 // decFloat64 decodes an unsigned integer, treats it as a 64-bit floating-point
@@ -286,8 +345,8 @@ func decFloat64(i *decInstr, state *decoderState, value reflect.Value) {
 // pair of floating point numbers, and stores them as a complex64 in value.
 // The real part comes first.
 func decComplex64(i *decInstr, state *decoderState, value reflect.Value) {
-	real := float32FromBits(i, state.decodeUint())
-	imag := float32FromBits(i, state.decodeUint())
+	real := float32FromBits(state.decodeUint(), i.ovfl)
+	imag := float32FromBits(state.decodeUint(), i.ovfl)
 	value.SetComplex(complex(real, imag))
 }
 
@@ -311,6 +370,9 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 	}
 	if n > state.b.Len() {
 		errorf("%s data too long for buffer: %d", value.Type(), n)
+	}
+	if n > tooBig {
+		errorf("byte slice too big: %d", n)
 	}
 	if value.Cap() < n {
 		value.Set(reflect.MakeSlice(value.Type(), n, n))
@@ -447,7 +509,10 @@ func (dec *Decoder) ignoreSingle(engine *decEngine) {
 }
 
 // decodeArrayHelper does the work for decoding arrays and slices.
-func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error) {
+func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error, helper decHelper) {
+	if helper != nil && helper(state, value, length, ovfl) {
+		return
+	}
 	instr := &decInstr{elemOp, 0, nil, ovfl}
 	isPtr := value.Type().Elem().Kind() == reflect.Ptr
 	for i := 0; i < length; i++ {
@@ -465,11 +530,11 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, 
 // decodeArray decodes an array and stores it in value.
 // The length is an unsigned integer preceding the elements.  Even though the length is redundant
 // (it's part of the type), it's a useful check and is included in the encoding.
-func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error) {
+func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error, helper decHelper) {
 	if n := state.decodeUint(); n != uint64(length) {
 		errorf("length mismatch in decodeArray")
 	}
-	dec.decodeArrayHelper(state, value, elemOp, length, ovfl)
+	dec.decodeArrayHelper(state, value, elemOp, length, ovfl, helper)
 }
 
 // decodeIntoValue is a helper for map decoding.
@@ -531,20 +596,24 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 
 // decodeSlice decodes a slice and stores it in value.
 // Slices are encoded as an unsigned length followed by the elements.
-func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp decOp, ovfl error) {
+func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp decOp, ovfl error, helper decHelper) {
 	u := state.decodeUint()
+	typ := value.Type()
+	size := uint64(typ.Elem().Size())
+	nBytes := u * size
 	n := int(u)
-	if n < 0 || uint64(n) != u {
+	// Take care with overflow in this calculation.
+	if n < 0 || uint64(n) != u || nBytes > tooBig || (size > 0 && nBytes/size != u) {
 		// We don't check n against buffer length here because if it's a slice
 		// of interfaces, there will be buffer reloads.
-		errorf("length of %s is negative (%d bytes)", value.Type(), u)
+		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 	}
 	if value.Cap() < n {
-		value.Set(reflect.MakeSlice(value.Type(), n, n))
+		value.Set(reflect.MakeSlice(typ, n, n))
 	} else {
 		value.Set(value.Slice(0, n))
 	}
-	dec.decodeArrayHelper(state, value, elemOp, n, ovfl)
+	dec.decodeArrayHelper(state, value, elemOp, n, ovfl, helper)
 }
 
 // ignoreSlice skips over the data for a slice value with no destination.
@@ -619,7 +688,7 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 		error_(dec.err)
 	}
 	// At this point, the decoder buffer contains a delimited value. Just toss it.
-	state.b.Next(int(state.decodeUint()))
+	state.b.Drop(int(state.decodeUint()))
 }
 
 // decodeGobDecoder decodes something implementing the GobDecoder interface.
@@ -713,8 +782,9 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			elemId := dec.wireType[wireId].ArrayT.Elem
 			elemOp := dec.decOpFor(elemId, t.Elem(), name, inProgress)
 			ovfl := overflow(name)
+			helper := decArrayHelper[t.Elem().Kind()]
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeArray(t, state, value, *elemOp, t.Len(), ovfl)
+				state.dec.decodeArray(t, state, value, *elemOp, t.Len(), ovfl, helper)
 			}
 
 		case reflect.Map:
@@ -741,8 +811,9 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			}
 			elemOp := dec.decOpFor(elemId, t.Elem(), name, inProgress)
 			ovfl := overflow(name)
+			helper := decSliceHelper[t.Elem().Kind()]
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeSlice(state, value, *elemOp, ovfl)
+				state.dec.decodeSlice(state, value, *elemOp, ovfl, helper)
 			}
 
 		case reflect.Struct:

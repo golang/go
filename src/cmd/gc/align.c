@@ -119,8 +119,10 @@ dowidth(Type *t)
 	if(t->width == -2) {
 		lno = lineno;
 		lineno = t->lineno;
-		if(!t->broke)
+		if(!t->broke) {
+			t->broke = 1;
 			yyerror("invalid recursive type %T", t);
+		}
 		t->width = 0;
 		lineno = lno;
 		return;

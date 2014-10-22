@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 var debug = debugT(false)
@@ -445,7 +446,7 @@ func decodeRFC2047Word(s string) (string, error) {
 		return "", errors.New("address not RFC 2047 encoded")
 	}
 	charset, enc := strings.ToLower(fields[1]), strings.ToLower(fields[2])
-	if charset != "iso-8859-1" && charset != "utf-8" {
+	if charset != "us-ascii" && charset != "iso-8859-1" && charset != "utf-8" {
 		return "", fmt.Errorf("charset not supported: %q", charset)
 	}
 
@@ -466,6 +467,16 @@ func decodeRFC2047Word(s string) (string, error) {
 	}
 
 	switch charset {
+	case "us-ascii":
+		b := new(bytes.Buffer)
+		for _, c := range dec {
+			if c >= 0x80 {
+				b.WriteRune(unicode.ReplacementChar)
+			} else {
+				b.WriteRune(rune(c))
+			}
+		}
+		return b.String(), nil
 	case "iso-8859-1":
 		b := new(bytes.Buffer)
 		for _, c := range dec {

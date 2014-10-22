@@ -32,7 +32,6 @@ The Listen function creates servers:
 		conn, err := ln.Accept()
 		if err != nil {
 			// handle error
-			continue
 		}
 		go handleConnection(conn)
 	}

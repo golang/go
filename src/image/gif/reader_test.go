@@ -22,16 +22,16 @@ const (
 	trailerStr = "\x3b"
 )
 
-func TestDecode(t *testing.T) {
-	// lzwEncode returns an LZW encoding (with 2-bit literals) of n zeroes.
-	lzwEncode := func(n int) []byte {
-		b := &bytes.Buffer{}
-		w := lzw.NewWriter(b, lzw.LSB, 2)
-		w.Write(make([]byte, n))
-		w.Close()
-		return b.Bytes()
-	}
+// lzwEncode returns an LZW encoding (with 2-bit literals) of n zeroes.
+func lzwEncode(n int) []byte {
+	b := &bytes.Buffer{}
+	w := lzw.NewWriter(b, lzw.LSB, 2)
+	w.Write(make([]byte, n))
+	w.Close()
+	return b.Bytes()
+}
 
+func TestDecode(t *testing.T) {
 	testCases := []struct {
 		nPix    int  // The number of pixels in the image data.
 		extra   bool // Whether to write an extra block after the LZW-encoded data.
@@ -86,6 +86,52 @@ func TestDecode(t *testing.T) {
 		}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("nPix=%d, extra=%t\ngot  %v\nwant %v", tc.nPix, tc.extra, got, want)
+		}
+	}
+}
+
+func TestTransparentIndex(t *testing.T) {
+	b := &bytes.Buffer{}
+	b.WriteString(headerStr)
+	b.WriteString(paletteStr)
+	for transparentIndex := 0; transparentIndex < 3; transparentIndex++ {
+		if transparentIndex < 2 {
+			// Write the graphic control for the transparent index.
+			b.WriteString("\x21\xf9\x00\x01\x00\x00")
+			b.WriteByte(byte(transparentIndex))
+			b.WriteByte(0)
+		}
+		// Write an image with bounds 2x1, as per TestDecode.
+		b.WriteString("\x2c\x00\x00\x00\x00\x02\x00\x01\x00\x00\x02")
+		enc := lzwEncode(2)
+		if len(enc) > 0xff {
+			t.Fatalf("compressed length %d is too large", len(enc))
+		}
+		b.WriteByte(byte(len(enc)))
+		b.Write(enc)
+		b.WriteByte(0x00)
+	}
+	b.WriteString(trailerStr)
+
+	g, err := DecodeAll(b)
+	if err != nil {
+		t.Fatalf("DecodeAll: %v", err)
+	}
+	c0 := color.RGBA{paletteStr[0], paletteStr[1], paletteStr[2], 0xff}
+	c1 := color.RGBA{paletteStr[3], paletteStr[4], paletteStr[5], 0xff}
+	cz := color.RGBA{}
+	wants := []color.Palette{
+		{cz, c1},
+		{c0, cz},
+		{c0, c1},
+	}
+	if len(g.Image) != len(wants) {
+		t.Fatalf("got %d images, want %d", len(g.Image), len(wants))
+	}
+	for i, want := range wants {
+		got := g.Image[i].Palette
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("palette #%d:\ngot  %v\nwant %v", i, got, want)
 		}
 	}
 }

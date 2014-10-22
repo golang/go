@@ -124,7 +124,7 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
 TEXT ·generalCAS64(SB),NOSPLIT,$0-21
 	B  	runtime·cas64(SB)
 
-GLOBL armCAS64(SB), $4
+GLOBL armCAS64(SB), NOPTR, $4
 
 TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4-21
 	MOVW	$0xffff0ffc, R0 // __kuser_helper_version

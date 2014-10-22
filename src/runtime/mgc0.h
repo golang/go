@@ -5,15 +5,6 @@
 // Garbage collector (GC)
 
 enum {
-	ScanStackByFrames = 1,
-
-	// TODO(rsc): Half the code in the garbage collector
-	// now accesses the bitmap as an array of bytes
-	// instead of as an array of uintptrs. 
-	// This is tricky to do correctly in a portable fashion.
-	// (It breaks on big-endian systems.)
-	// Should we just make the bitmap a byte array?
-
 	// Four bits per word (see #defines below).
 	gcBits = 4,
 	wordsPerBitmapByte = 8/gcBits,
@@ -51,6 +42,8 @@ enum {
 	BitsMask	= (1<<BitsPerPointer)-1,
 	PointersPerByte	= 8/BitsPerPointer,
 
+	// If you change these, also change scanblock.
+	// scanblock does "if(bits == BitsScalar || bits == BitsDead)" as "if(bits <= BitsScalar)".
 	BitsDead	= 0,
 	BitsScalar	= 1,
 	BitsPointer	= 2,
@@ -77,9 +70,9 @@ enum {
 // there.  On a 64-bit system the off'th word in the arena is tracked by
 // the off/16+1'th word before mheap.arena_start.  (On a 32-bit system,
 // the only difference is that the divisor is 8.)
-
-#define bitBoundary	((uintptr)1) // boundary of an object
-#define bitMarked	((uintptr)2) // marked object
-
-#define bitMask		((uintptr)bitBoundary|bitMarked)
-#define bitPtrMask	((uintptr)BitsMask<<2)
+enum {
+	bitBoundary = 1, // boundary of an object
+	bitMarked = 2, // marked object
+	bitMask = bitBoundary | bitMarked,
+	bitPtrMask = BitsMask<<2,
+};

@@ -68,6 +68,11 @@ func skipRawSocketTest(t *testing.T) (skip bool, skipmsg string) {
 }
 
 func TestResolveIPAddr(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
 	for _, tt := range resolveIPAddrTests {
 		addr, err := ResolveIPAddr(tt.net, tt.litAddrOrName)
 		if err != tt.err {
