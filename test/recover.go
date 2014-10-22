@@ -63,6 +63,7 @@ func main() {
 		test14reflect1()
 		test14reflect2()
 		test15()
+		test16()
 	}
 }
 
@@ -114,10 +115,23 @@ func withoutRecover() {
 	mustNotRecover() // because it's a sub-call
 }
 
+func withoutRecoverRecursive(n int) {
+	if n == 0 {
+		withoutRecoverRecursive(1)
+	} else {
+		v := recover()
+		if v != nil {
+			println("spurious recover (recursive)", v)
+			die()
+		}
+	}
+}
+
 func test1() {
-	defer mustNotRecover() // because mustRecover will squelch it
-	defer mustRecover(1)   // because of panic below
-	defer withoutRecover() // should be no-op, leaving for mustRecover to find
+	defer mustNotRecover()           // because mustRecover will squelch it
+	defer mustRecover(1)             // because of panic below
+	defer withoutRecover()           // should be no-op, leaving for mustRecover to find
+	defer withoutRecoverRecursive(0) // ditto
 	panic(1)
 }
 
@@ -546,4 +560,28 @@ func test15() {
 	f := reflect.MakeFunc(reflect.TypeOf((func())(nil)), reflectFunc).Interface().(func())
 	defer f()
 	panic(15)
+}
+
+func reflectFunc2(args []reflect.Value) (results []reflect.Value) {
+	// This will call reflectFunc3
+	args[0].Interface().(func())()
+	return nil
+}
+
+func reflectFunc3(args []reflect.Value) (results []reflect.Value) {
+	if v := recover(); v != nil {
+		println("spurious recover", v)
+		die()
+	}
+	return nil
+}
+
+func test16() {
+	defer mustRecover(16)
+
+	f2 := reflect.MakeFunc(reflect.TypeOf((func(func()))(nil)), reflectFunc2).Interface().(func(func()))
+	f3 := reflect.MakeFunc(reflect.TypeOf((func())(nil)), reflectFunc3).Interface().(func())
+	defer f2(f3)
+
+	panic(16)
 }
