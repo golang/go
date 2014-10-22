@@ -5,6 +5,8 @@
 // Routines that are implemented in assembly in asm_{amd64,386}.s
 // but are implemented in Go for arm.
 
+// +build arm power64 power64le
+
 package runtime
 
 func cmpstring(s1, s2 string) int {
