@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"unicode"
 
@@ -81,6 +82,10 @@ func isDigit(ch rune) bool {
 // the same file.
 //
 func sameFile(x, y string) bool {
+	if runtime.GOOS == "windows" {
+		x = filepath.ToSlash(x)
+		y = filepath.ToSlash(y)
+	}
 	if x == y {
 		return true
 	}

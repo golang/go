@@ -659,7 +659,7 @@ func f(z interface{}) {
 			if err := format.Node(&out, fset, f); err != nil {
 				return err
 			}
-			got[orig] = out.String()
+			got[filepath.ToSlash(orig)] = out.String()
 			return nil
 		}
 
@@ -707,6 +707,7 @@ func fakeContext(pkgs map[string][]string) *build.Context {
 	ctxt.GOROOT = "/go"
 	ctxt.GOPATH = ""
 	ctxt.IsDir = func(path string) bool {
+		path = filepath.ToSlash(path)
 		if path == "/go/src" {
 			return true // needed by (*build.Context).SrcDirs
 		}
@@ -719,6 +720,7 @@ func fakeContext(pkgs map[string][]string) *build.Context {
 		return ok
 	}
 	ctxt.ReadDir = func(dir string) ([]os.FileInfo, error) {
+		dir = filepath.ToSlash(dir)
 		dir = dir[len("/go/src/"):]
 		var fis []os.FileInfo
 		if dir == "" {
@@ -734,6 +736,7 @@ func fakeContext(pkgs map[string][]string) *build.Context {
 		return fis, nil
 	}
 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
+		path = filepath.ToSlash(path)
 		path = path[len("/go/src/"):]
 		dir, base := filepath.Split(path)
 		dir = filepath.Clean(dir)
@@ -741,6 +744,7 @@ func fakeContext(pkgs map[string][]string) *build.Context {
 		return ioutil.NopCloser(bytes.NewBufferString(pkgs[dir][index])), nil
 	}
 	ctxt.IsAbsPath = func(path string) bool {
+		path = filepath.ToSlash(path)
 		// Don't rely on the default (filepath.Path) since on
 		// Windows, it reports our virtual paths as non-absolute.
 		return strings.HasPrefix(path, "/")
