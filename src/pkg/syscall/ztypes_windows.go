@@ -689,6 +689,18 @@ const (
 	DNS_TYPE_NBSTAT  = 0xff01
 )
 
+const (
+	DNS_INFO_NO_RECORDS = 0x251D
+)
+
+const (
+	// flags inside DNSRecord.Dw
+	DnsSectionQuestion   = 0x0000
+	DnsSectionAnswer     = 0x0001
+	DnsSectionAuthority  = 0x0002
+	DnsSectionAdditional = 0x0003
+)
+
 type DNSSRVData struct {
 	Target   *uint16
 	Priority uint16

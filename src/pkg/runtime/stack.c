@@ -11,7 +11,7 @@
 #include "type.h"
 #include "race.h"
 #include "mgc0.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 enum
 {
@@ -25,6 +25,8 @@ enum
 	StackFaultOnFree = 0,	// old stacks are mapped noaccess to detect use after free
 
 	StackCache = 1,
+	
+	StackCopyAlways = 0,	// expect to be able to copy stacks 100% of the time
 };
 
 // Global pool of spans that have free stacks.
@@ -32,7 +34,7 @@ enum
 //     order = log_2(size/FixedStack)
 // There is a free list for each order.
 static MSpan stackpool[NumStackOrders];
-static Lock stackpoolmu;
+static Mutex stackpoolmu;
 // TODO: one lock per order?
 
 void
@@ -206,7 +208,7 @@ runtime·stackalloc(G *gp, uint32 n)
 
 	gp->stacksize += n;
 	if(runtime·debug.efence || StackFromSystem) {
-		v = runtime·SysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
+		v = runtime·sysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
 		if(v == nil)
 			runtime·throw("out of memory (stackalloc)");
 		return v;
@@ -223,9 +225,11 @@ runtime·stackalloc(G *gp, uint32 n)
 			n2 >>= 1;
 		}
 		c = g->m->mcache;
-		if(c == nil) {
-			// This can happen in the guts of exitsyscall or
+		if(c == nil || g->m->gcing || g->m->helpgc) {
+			// c == nil can happen in the guts of exitsyscall or
 			// procresize. Just get a stack from the global pool.
+			// Also don't touch stackcache during gc
+			// as it's flushed concurrently.
 			runtime·lock(&stackpoolmu);
 			x = poolalloc(order);
 			runtime·unlock(&stackpoolmu);
@@ -266,8 +270,10 @@ runtime·stackfree(G *gp, void *v, Stktop *top)
 	n = (uintptr)(top+1) - (uintptr)v;
 	if(n & (n-1))
 		runtime·throw("stack not a power of 2");
-	if(StackDebug >= 1)
+	if(StackDebug >= 1) {
 		runtime·printf("stackfree %p %d\n", v, (int32)n);
+		runtime·memclr(v, n); // for testing, clobber stack data
+	}
 	gp->stacksize -= n;
 	if(runtime·debug.efence || StackFromSystem) {
 		if(runtime·debug.efence || StackFaultOnFree)
@@ -285,7 +291,7 @@ runtime·stackfree(G *gp, void *v, Stktop *top)
 		}
 		x = (MLink*)v;
 		c = g->m->mcache;
-		if(c == nil) {
+		if(c == nil || g->m->gcing || g->m->helpgc) {
 			runtime·lock(&stackpoolmu);
 			poolfree(x, order);
 			runtime·unlock(&stackpoolmu);
@@ -320,6 +326,9 @@ runtime·oldstack(void)
 	int64 goid;
 	int32 oldstatus;
 
+	if(StackCopyAlways)
+		runtime·throw("unexpected call to oldstack");
+
 	gp = g->m->curg;
 	top = (Stktop*)gp->stackbase;
 	if(top == nil)
@@ -333,15 +342,20 @@ runtime·oldstack(void)
 			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, (uintptr)g->m->cret, (uintptr)argsize);
 	}
 
-	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
-	// happens during a function call inside entersyscall.
-	oldstatus = gp->status;
-	
 	gp->sched = top->gobuf;
 	gp->sched.ret = g->m->cret;
 	g->m->cret = 0; // drop reference
-	gp->status = Gwaiting;
-	gp->waitreason = "stack unsplit";
+	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
+	// happens during a function call inside entersyscall.
+
+	oldstatus = runtime·readgstatus(gp);
+	oldstatus &= ~Gscan;
+	if(oldstatus != Grunning && oldstatus != Gsyscall) {
+		runtime·printf("runtime: oldstack status=%d\n", oldstatus);
+		runtime·throw("oldstack");
+	}
+	runtime·casgstatus(gp, oldstatus, Gcopystack);
+	gp->waitreason = runtime·gostringnocopy((byte*)"stack unsplit");	
 
 	if(argsize > 0) {
 		sp -= argsize;
@@ -357,10 +371,8 @@ runtime·oldstack(void)
 	gp->stackbase = top->stackbase;
 	gp->stackguard = top->stackguard;
 	gp->stackguard0 = gp->stackguard;
-	gp->panicwrap = top->panicwrap;
 	runtime·stackfree(gp, old, top);
-
-	gp->status = oldstatus;
+	runtime·casgstatus(gp, Gcopystack, oldstatus); // oldstatus is Grunning or Gsyscall
 	runtime·gogo(&gp->sched);
 }
 
@@ -397,6 +409,7 @@ struct CopyableInfo {
 };
 
 void runtime·main(void);
+void runtime·switchtoM(void(*)(void));
 
 static bool
 checkframecopy(Stkframe *frame, void *arg)
@@ -410,7 +423,7 @@ checkframecopy(Stkframe *frame, void *arg)
 	if(StackDebug >= 2)
 		runtime·printf("    checking %s frame=[%p,%p] stk=[%p,%p]\n", runtime·funcname(f), frame->sp, frame->fp, cinfo->stk, cinfo->base);
 	// if we're not in the segment any more, return immediately.
-	if(frame->varp < cinfo->stk || frame->varp >= cinfo->base) {
+	if((byte*)frame->varp < cinfo->stk || (byte*)frame->varp >= cinfo->base) {
 		if(StackDebug >= 2)
 			runtime·printf("    <next segment>\n");
 		return false; // stop traceback
@@ -422,18 +435,25 @@ checkframecopy(Stkframe *frame, void *arg)
 		cinfo->frames++;
 		return false; // stop traceback
 	}
-	if(frame->varp != (byte*)frame->sp) { // not in prologue (and has at least one local or outarg)
+	if(f->entry == (uintptr)runtime·switchtoM) {
+		// A special routine at the bottom of stack of a goroutine that does onM call.
+		// We will allow it to be copied even though we don't
+		// have full GC info for it (because it is written in asm).
+		cinfo->frames++;
+		return true;
+	}
+	if((byte*)frame->varp != (byte*)frame->sp) { // not in prologue (and has at least one local or outarg)
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 		if(stackmap == nil) {
 			cinfo->frames = -1;
-			if(StackDebug >= 1)
-				runtime·printf("copystack: no locals info for %s\n", runtime·funcname(f));
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: no locals info for %s\n", runtime·funcname(f));
 			return false;
 		}
 		if(stackmap->n <= 0) {
 			cinfo->frames = -1;
-			if(StackDebug >= 1)
-				runtime·printf("copystack: locals size info only for %s\n", runtime·funcname(f));
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: locals size info only for %s\n", runtime·funcname(f));
 			return false;
 		}
 	}
@@ -441,8 +461,8 @@ checkframecopy(Stkframe *frame, void *arg)
 		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
 		if(stackmap == nil) {
 			cinfo->frames = -1;
-			if(StackDebug >= 1)
-				runtime·printf("copystack: no arg info for %s\n", runtime·funcname(f));
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: no arg info for %s\n", runtime·funcname(f));
 			return false;
 		}
 	}
@@ -461,6 +481,7 @@ copyabletopsegment(G *gp)
 	Func *f;
 	FuncVal *fn;
 	StackMap *stackmap;
+	bool (*cb)(Stkframe*, void*);
 
 	if(gp->stackbase == 0)
 		runtime·throw("stackbase == 0");
@@ -470,9 +491,13 @@ copyabletopsegment(G *gp)
 
 	// Check that each frame is copyable.  As a side effect,
 	// count the frames.
-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, checkframecopy, &cinfo, false);
+	cb = checkframecopy;
+	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &cb, &cinfo, false);
 	if(StackDebug >= 1 && cinfo.frames != -1)
 		runtime·printf("copystack: %d copyable frames\n", cinfo.frames);
+
+	if(cinfo.frames == -1)
+		return -1;
 
 	// Check to make sure all Defers are copyable
 	for(d = gp->defer; d != nil; d = d->link) {
@@ -482,14 +507,17 @@ copyabletopsegment(G *gp)
 			// For now, this only happens with the Defer in runtime.main.
 			continue;
 		}
-		if(d->argp < cinfo.stk || cinfo.base <= d->argp)
+		if((byte*)d->argp < cinfo.stk || cinfo.base <= (byte*)d->argp)
 			break; // a defer for the next segment
 		fn = d->fn;
 		if(fn == nil) // See issue 8047
 			continue;
 		f = runtime·findfunc((uintptr)fn->fn);
-		if(f == nil)
+		if(f == nil) {
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: no func for deferred pc %p\n", fn->fn);
 			return -1;
+		}
 
 		// Check to make sure we have an args pointer map for the defer's args.
 		// We only need the args map, but we check
@@ -497,11 +525,17 @@ copyabletopsegment(G *gp)
 		// isn't provided it means the ptr map came from C and
 		// C (particularly, cgo) lies to us.  See issue 7695.
 		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
-		if(stackmap == nil || stackmap->n <= 0)
+		if(stackmap == nil || stackmap->n <= 0) {
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: no arg info for deferred %s\n", runtime·funcname(f));
 			return -1;
+		}
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
-		if(stackmap == nil || stackmap->n <= 0)
+		if(stackmap == nil || stackmap->n <= 0) {
+			if(StackDebug >= 1 || StackCopyAlways)
+				runtime·printf("runtime: copystack: no local info for deferred %s\n", runtime·funcname(f));
 			return -1;
+		}
 
 		if(cinfo.stk <= (byte*)fn && (byte*)fn < cinfo.base) {
 			// FuncVal is on the stack.  Again, its copyableness
@@ -568,22 +602,11 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 			break;
 		case BitsMultiWord:
 			switch(bv->bytedata[(i+1) / (8 / BitsPerPointer)] >> ((i+1) * BitsPerPointer & 7) & 3) {
-			case BitsString:
-				// string referents are never on the stack, never need to be adjusted
-				i++; // skip len
-				break;
-			case BitsSlice:
-				p = scanp[i];
-				if(minp <= p && p < maxp) {
-					if(StackDebug >= 3)
-						runtime·printf("adjust slice %p\n", p);
-					scanp[i] = p + delta;
-				}
-				i += 2; // skip len, cap
-				break;
+			default:
+				runtime·throw("unexpected garbage collection bits");
 			case BitsEface:
 				t = (Type*)scanp[i];
-				if(t != nil && (t->size > PtrSize || (t->kind & KindNoPointers) == 0)) {
+				if(t != nil && ((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0)) {
 					p = scanp[i+1];
 					if(minp <= p && p < maxp) {
 						if(StackDebug >= 3)
@@ -600,7 +623,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 				if(tab != nil) {
 					t = tab->type;
 					//runtime·printf("          type=%p\n", t);
-					if(t->size > PtrSize || (t->kind & KindNoPointers) == 0) {
+					if((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0) {
 						p = scanp[i+1];
 						if(minp <= p && p < maxp) {
 							if(StackDebug >= 3)
@@ -634,7 +657,8 @@ adjustframe(Stkframe *frame, void *arg)
 	f = frame->fn;
 	if(StackDebug >= 2)
 		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p continpc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc, frame->continpc);
-	if(f->entry == (uintptr)runtime·main)
+	if(f->entry == (uintptr)runtime·main ||
+		f->entry == (uintptr)runtime·switchtoM)
 		return true;
 	targetpc = frame->continpc;
 	if(targetpc == 0) {
@@ -648,7 +672,7 @@ adjustframe(Stkframe *frame, void *arg)
 		pcdata = 0; // in prologue
 
 	// adjust local pointers
-	if(frame->varp != (byte*)frame->sp) {
+	if((byte*)frame->varp != (byte*)frame->sp) {
 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
 		if(stackmap == nil)
 			runtime·throw("no locals info");
@@ -662,8 +686,10 @@ adjustframe(Stkframe *frame, void *arg)
 	// adjust inargs and outargs
 	if(frame->arglen != 0) {
 		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
-		if(stackmap == nil)
+		if(stackmap == nil) {
+			runtime·printf("size %d\n", (int32)frame->arglen);
 			runtime·throw("no arg info");
+		}
 		bv = runtime·stackmapdata(stackmap, pcdata);
 		if(StackDebug >= 3)
 			runtime·printf("      args\n");
@@ -692,12 +718,12 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 		if(adjinfo->oldstk <= (byte*)d && (byte*)d < adjinfo->oldbase) {
 			// The Defer record is on the stack.  Its fields will
 			// get adjusted appropriately.
-			// This only happens for runtime.main now, but a compiler
-			// optimization could do more of this.
+			// This only happens for runtime.main and runtime.gopanic now,
+			// but a compiler optimization could do more of this.
 			*dp = (Defer*)((byte*)d + adjinfo->delta);
 			continue;
 		}
-		if(d->argp < adjinfo->oldstk || adjinfo->oldbase <= d->argp)
+		if((byte*)d->argp < adjinfo->oldstk || adjinfo->oldbase <= (byte*)d->argp)
 			break; // a defer for the next segment
 		fn = d->fn;
 		if(fn == nil) {
@@ -730,6 +756,40 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
 	}
 }
 
+static void
+adjustpanics(G *gp, AdjustInfo *adjinfo)
+{
+	Panic *p, **l;
+
+	// only the topmost panic is on the current stack
+	for(l = &gp->panic; (p = *l) != nil; ) {
+		if(adjinfo->oldstk <= (byte*)p && (byte*)p < adjinfo->oldbase)
+			*l = (Panic*)((byte*)p + adjinfo->delta);
+		l = &p->link;
+		
+		if(adjinfo->oldstk <= (byte*)p->argp && (byte*)p->argp < adjinfo->oldbase)
+			p->argp += adjinfo->delta;
+	}
+}
+
+static void
+adjustsudogs(G *gp, AdjustInfo *adjinfo)
+{
+	SudoG *s;
+	byte *e;
+
+	// the data elements pointed to by a SudoG structure
+	// might be in the stack.
+	for(s = gp->waiting; s != nil; s = s->waitlink) {
+		e = s->elem;
+		if(adjinfo->oldstk <= e && e < adjinfo->oldbase)
+			s->elem = e + adjinfo->delta;
+		e = (byte*)s->selectdone;
+		if(adjinfo->oldstk <= e && e < adjinfo->oldbase)
+			s->selectdone = (uint32*)(e + adjinfo->delta);
+	}
+}
+
 // Copies the top stack segment of gp to a new stack segment of a
 // different size.  The top segment must contain nframes frames.
 static void
@@ -739,6 +799,8 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	uintptr oldsize, used;
 	AdjustInfo adjinfo;
 	Stktop *oldtop, *newtop;
+	uint32 oldstatus;
+	bool (*cb)(Stkframe*, void*);
 
 	if(gp->syscallstack != 0)
 		runtime·throw("can't handle stack copy in syscall yet");
@@ -763,15 +825,23 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	adjinfo.oldstk = oldstk;
 	adjinfo.oldbase = oldbase;
 	adjinfo.delta = newbase - oldbase;
-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, nframes, adjustframe, &adjinfo, false);
+	cb = adjustframe;
+	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, nframes, &cb, &adjinfo, false);
 	
 	// adjust other miscellaneous things that have pointers into stacks.
 	adjustctxt(gp, &adjinfo);
 	adjustdefers(gp, &adjinfo);
+	adjustpanics(gp, &adjinfo);
+	adjustsudogs(gp, &adjinfo);
 	
 	// copy the stack (including Stktop) to the new location
 	runtime·memmove(newbase - used, oldbase - used, used);
-	
+	oldstatus = runtime·readgstatus(gp);
+	oldstatus &= ~Gscan;
+	if (oldstatus == Gwaiting || oldstatus == Grunnable)
+		runtime·casgstatus(gp, oldstatus, Gcopystack); // oldstatus is Gwaiting or Grunnable
+	else
+		runtime·throw("copystack: bad status, not Gwaiting or Grunnable");
 	// Swap out old stack for new one
 	gp->stackbase = (uintptr)newtop;
 	gp->stackguard = (uintptr)newstk + StackGuard;
@@ -779,6 +849,8 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
 	if(gp->stack0 == (uintptr)oldstk)
 		gp->stack0 = (uintptr)newstk;
 	gp->sched.sp = (uintptr)(newbase - used);
+
+	runtime·casgstatus(gp, Gcopystack, oldstatus); // oldstatus is Gwaiting or Grunnable
 
 	// free old stack
 	runtime·stackfree(gp, oldstk, oldtop);
@@ -796,23 +868,24 @@ runtime·round2(int32 x)
 	return 1 << s;
 }
 
-// Called from runtime·newstackcall or from runtime·morestack when a new
-// stack segment is needed.  Allocate a new stack big enough for
-// m->moreframesize bytes, copy m->moreargsize bytes to the new frame,
-// and then act as though runtime·lessstack called the function at
-// m->morepc.
+// Called from runtime·morestack when a new stack segment is needed.
+// Allocate a new stack big enough for m->moreframesize bytes,
+// copy m->moreargsize bytes to the new frame,
+// and then act as though runtime·lessstack called the function at m->morepc.
+//
+// g->atomicstatus will be Grunning, Gsyscall or Gscanrunning, Gscansyscall upon entry. 
+// If the GC is trying to stop this g then it will set preemptscan to true.
 void
 runtime·newstack(void)
 {
 	int32 framesize, argsize, oldstatus, oldsize, newsize, nframes;
-	Stktop *top, *oldtop;
+	Stktop *top;
 	byte *stk, *oldstk, *oldbase;
 	uintptr sp;
 	uintptr *src, *dst, *dstend;
 	G *gp;
 	Gobuf label, morebuf;
 	void *moreargp;
-	bool newstackcall;
 
 	if(g->m->forkstackguard)
 		runtime·throw("split stack after fork");
@@ -820,14 +893,20 @@ runtime·newstack(void)
 		runtime·printf("runtime: newstack called from g=%p\n"
 			"\tm=%p m->curg=%p m->g0=%p m->gsignal=%p\n",
 			g->m->morebuf.g, g->m, g->m->curg, g->m->g0, g->m->gsignal);
+		morebuf = g->m->morebuf;
+		runtime·traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g);
 		runtime·throw("runtime: wrong goroutine in newstack");
 	}
+	if(g->throwsplit)
+		runtime·throw("runtime: stack split at bad time");
+
+	// The goroutine must be executing in order to call newstack, so the possible states are
+	// Grunning and Gsyscall (and, due to GC, also Gscanrunning and Gscansyscall).	
 
 	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
 	// happens during a function call inside entersyscall.
 	gp = g->m->curg;
-	oldstatus = gp->status;
-
+	oldstatus = runtime·readgstatus(gp) & ~Gscan;
 	framesize = g->m->moreframesize;
 	argsize = g->m->moreargsize;
 	moreargp = g->m->moreargp;
@@ -836,22 +915,18 @@ runtime·newstack(void)
 	g->m->morebuf.pc = (uintptr)nil;
 	g->m->morebuf.lr = (uintptr)nil;
 	g->m->morebuf.sp = (uintptr)nil;
-	gp->status = Gwaiting;
-	gp->waitreason = "stack growth";
-	newstackcall = framesize==1;
-	if(newstackcall)
-		framesize = 0;
 
-	// For newstackcall the context already points to beginning of runtime·newstackcall.
-	if(!newstackcall)
-		runtime·rewindmorestack(&gp->sched);
+	runtime·casgstatus(gp, oldstatus, Gwaiting); // oldstatus is not in a Gscan status
+	gp->waitreason = runtime·gostringnocopy((byte*)"stack growth");
+
+	runtime·rewindmorestack(&gp->sched);
 
 	if(gp->stackbase == 0)
 		runtime·throw("nil stackbase");
 	sp = gp->sched.sp;
 	if(thechar == '6' || thechar == '8') {
 		// The call to morestack cost a word.
-		sp -= sizeof(uintptr);
+		sp -= sizeof(uintreg);
 	}
 	if(StackDebug >= 1 || sp < gp->stackguard - StackGuard) {
 		runtime·printf("runtime: newstack framesize=%p argsize=%p sp=%p stack=[%p, %p]\n"
@@ -862,6 +937,7 @@ runtime·newstack(void)
 			gp->sched.pc, gp->sched.sp, gp->sched.lr, gp->sched.ctxt);
 	}
 	if(sp < gp->stackguard - StackGuard) {
+		runtime·printf("runtime: gp=%p, gp->status=%d, oldstatus=%d\n ", (void*)gp, runtime·readgstatus(gp), oldstatus);
 		runtime·printf("runtime: split stack overflow: %p < %p\n", sp, gp->stackguard - StackGuard);
 		runtime·throw("runtime: split stack overflow");
 	}
@@ -878,18 +954,27 @@ runtime·newstack(void)
 			runtime·throw("runtime: g is running but p is not");
 		if(oldstatus == Gsyscall && g->m->locks == 0)
 			runtime·throw("runtime: stack growth during syscall");
+		if(oldstatus == Grunning && gp->preemptscan) {
+			runtime·gcphasework(gp);
+			runtime·casgstatus(gp, Gwaiting, Grunning);
+			gp->stackguard0 = gp->stackguard;
+			gp->preempt = false; 
+			gp->preemptscan = false;        // Tells the GC premption was successful.
+			runtime·gogo(&gp->sched);	// never return 
+		}
+
 		// Be conservative about where we preempt.
 		// We are interested in preempting user Go code, not runtime code.
 		if(oldstatus != Grunning || g->m->locks || g->m->mallocing || g->m->gcing || g->m->p->status != Prunning) {
 			// Let the goroutine keep running for now.
 			// gp->preempt is set, so it will be preempted next time.
 			gp->stackguard0 = gp->stackguard;
-			gp->status = oldstatus;
+			runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Gsyscall or Grunning
 			runtime·gogo(&gp->sched);	// never return
 		}
 		// Act like goroutine called runtime.Gosched.
-		gp->status = oldstatus;
-		runtime·gosched0(gp);	// never return
+		runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Gsyscall or Grunning
+		runtime·gosched_m(gp);	// never return
 	}
 
 	// If every frame on the top segment is copyable, allocate a bigger segment
@@ -903,6 +988,8 @@ runtime·newstack(void)
 			oldbase = (byte*)gp->stackbase + sizeof(Stktop);
 			oldsize = oldbase - oldstk;
 			newsize = oldsize * 2;
+			// Note that the concurrent GC might be scanning the stack as we try to replace it.
+			// copystack takes care of the appropriate coordination with the stack scanner.
 			copystack(gp, nframes, newsize);
 			if(StackDebug >= 1)
 				runtime·printf("stack grow done\n");
@@ -910,13 +997,16 @@ runtime·newstack(void)
 				runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
 				runtime·throw("stack overflow");
 			}
-			gp->status = oldstatus;
+			runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Gsyscall or Grunning
 			runtime·gogo(&gp->sched);
 		}
 		// TODO: if stack is uncopyable because we're in C code, patch return value at
 		// end of C code to trigger a copy as soon as C code exits.  That way, we'll
 		// have stack available if we get this deep again.
 	}
+	
+	if(StackCopyAlways)
+		runtime·throw("split stack not allowed");
 
 	// allocate new segment.
 	framesize += argsize;
@@ -942,20 +1032,6 @@ runtime·newstack(void)
 	top->argp = moreargp;
 	top->argsize = argsize;
 
-	// copy flag from panic
-	top->panic = gp->ispanic;
-	gp->ispanic = false;
-	
-	// if this isn't a panic, maybe we're splitting the stack for a panic.
-	// if we're splitting in the top frame, propagate the panic flag
-	// forward so that recover will know we're in a panic.
-	oldtop = (Stktop*)top->stackbase;
-	if(oldtop != nil && oldtop->panic && top->argp == (byte*)oldtop - oldtop->argsize - gp->panicwrap)
-		top->panic = true;
-
-	top->panicwrap = gp->panicwrap;
-	gp->panicwrap = 0;
-
 	gp->stackbase = (uintptr)top;
 	gp->stackguard = (uintptr)stk + StackGuard;
 	gp->stackguard0 = gp->stackguard;
@@ -969,6 +1045,7 @@ runtime·newstack(void)
 		while(dst < dstend)
 			*dst++ = *src++;
 	}
+	
 	if(thechar == '5' || thechar == '9') {
 		// caller would have saved its LR below args.
 		sp -= sizeof(void*);
@@ -981,13 +1058,9 @@ runtime·newstack(void)
 	label.sp = sp;
 	label.pc = (uintptr)runtime·lessstack;
 	label.g = g->m->curg;
-	if(newstackcall)
-		runtime·gostartcallfn(&label, (FuncVal*)g->m->cret);
-	else {
-		runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
-		gp->sched.ctxt = nil;
-	}
-	gp->status = oldstatus;
+	runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
+	gp->sched.ctxt = nil;
+	runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Grunning or Gsyscall
 	runtime·gogo(&label);
 
 	*(int32*)345 = 123;	// never return
@@ -1025,7 +1098,7 @@ runtime·shrinkstack(G *gp)
 
 	if(!runtime·copystack)
 		return;
-	if(gp->status == Gdead)
+	if(runtime·readgstatus(gp) == Gdead)
 		return;
 	if(gp->stackbase == 0)
 		runtime·throw("stackbase == 0");
@@ -1046,6 +1119,8 @@ runtime·shrinkstack(G *gp)
 	if(gp->m != nil && gp->m->libcallsp != 0)
 		return;
 #endif
+	if(StackDebug > 0)
+		runtime·printf("shrinking stack %D->%D\n", (uint64)oldsize, (uint64)newsize);
 	nframes = copyabletopsegment(gp);
 	if(nframes == -1)
 		return;

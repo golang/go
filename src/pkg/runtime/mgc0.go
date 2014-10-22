@@ -19,9 +19,52 @@ func gc_itab_ptr(ret *interface{}) {
 	*ret = (*itab)(nil)
 }
 
+// Type used for "conservative" allocations in C code.
+type notype [8]*byte
+
+// Called from C. Returns the Go type used for C allocations w/o type.
+func gc_notype_ptr(ret *interface{}) {
+	var x notype
+	*ret = x
+}
+
 func timenow() (sec int64, nsec int32)
 
 func gc_unixnanotime(now *int64) {
 	sec, nsec := timenow()
 	*now = sec*1e9 + int64(nsec)
+}
+
+func freeOSMemory() {
+	gogc(2) // force GC and do eager sweep
+	onM(scavenge_m)
+}
+
+var poolcleanup func()
+
+func registerPoolCleanup(f func()) {
+	poolcleanup = f
+}
+
+func clearpools() {
+	// clear sync.Pools
+	if poolcleanup != nil {
+		poolcleanup()
+	}
+
+	for _, p := range &allp {
+		if p == nil {
+			break
+		}
+		// clear tinyalloc pool
+		if c := p.mcache; c != nil {
+			c.tiny = nil
+			c.tinysize = 0
+			c.sudogcache = nil
+		}
+		// clear defer pools
+		for i := range p.deferpool {
+			p.deferpool[i] = nil
+		}
+	}
 }

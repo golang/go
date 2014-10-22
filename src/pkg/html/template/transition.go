@@ -102,7 +102,7 @@ func tTag(c context, s []byte) (context, int) {
 	if i == j {
 		return context{
 			state: stateError,
-			err:   errorf(ErrBadHTML, 0, "expected space, attr name, or end of tag, but got %q", s[i:]),
+			err:   errorf(ErrBadHTML, nil, 0, "expected space, attr name, or end of tag, but got %q", s[i:]),
 		}, len(s)
 	}
 	switch attrType(string(s[i:j])) {
@@ -245,7 +245,7 @@ func tJS(c context, s []byte) (context, int) {
 		default:
 			return context{
 				state: stateError,
-				err:   errorf(ErrSlashAmbig, 0, "'/' could start a division or regexp: %.32q", s[i:]),
+				err:   errorf(ErrSlashAmbig, nil, 0, "'/' could start a division or regexp: %.32q", s[i:]),
 			}, len(s)
 		}
 	default:
@@ -277,7 +277,7 @@ func tJSDelimited(c context, s []byte) (context, int) {
 			if i == len(s) {
 				return context{
 					state: stateError,
-					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in JS string: %q", s),
+					err:   errorf(ErrPartialEscape, nil, 0, "unfinished escape sequence in JS string: %q", s),
 				}, len(s)
 			}
 		case '[':
@@ -299,7 +299,7 @@ func tJSDelimited(c context, s []byte) (context, int) {
 		// into charsets is desired.
 		return context{
 			state: stateError,
-			err:   errorf(ErrPartialCharset, 0, "unfinished JS regexp charset: %q", s),
+			err:   errorf(ErrPartialCharset, nil, 0, "unfinished JS regexp charset: %q", s),
 		}, len(s)
 	}
 
@@ -459,7 +459,7 @@ func tCSSStr(c context, s []byte) (context, int) {
 			if i == len(s) {
 				return context{
 					state: stateError,
-					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in CSS string: %q", s),
+					err:   errorf(ErrPartialEscape, nil, 0, "unfinished escape sequence in CSS string: %q", s),
 				}, len(s)
 			}
 		} else {
@@ -489,7 +489,7 @@ func eatAttrName(s []byte, i int) (int, *Error) {
 			// These result in a parse warning in HTML5 and are
 			// indicative of serious problems if seen in an attr
 			// name in a template.
-			return -1, errorf(ErrBadHTML, 0, "%q in attribute name: %.32q", s[j:j+1], s)
+			return -1, errorf(ErrBadHTML, nil, 0, "%q in attribute name: %.32q", s[j:j+1], s)
 		default:
 			// No-op.
 		}

@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT,$0
-	MOVL	c+0(FP), BX
+	MOVL	fn+0(FP), BX
 
 	// SetLastError(0).
 	MOVL	$0, 0x34(FS)
@@ -29,7 +29,7 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	MOVL	BP, SP
 
 	// Return result.
-	MOVL	c+0(FP), BX
+	MOVL	fn+0(FP), BX
 	MOVL	AX, libcall_r1(BX)
 	MOVL	DX, libcall_r2(BX)
 
@@ -62,6 +62,7 @@ TEXT	runtime·badsignal2(SB),NOSPLIT,$24
 // faster get/set last error
 TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVL	0x34(FS), AX
+	MOVL	AX, ret+0(FP)
 	RET
 
 TEXT runtime·setlasterror(SB),NOSPLIT,$0
@@ -75,10 +76,10 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // Return 0 for 'not handled', -1 for handled.
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	ptrs+0(FP), CX
-	SUBL	$28, SP
+	SUBL	$32, SP
 
 	// save callee-saved registers
-	MOVL	BX, 12(SP)
+	MOVL	BX, 28(SP)
 	MOVL	BP, 16(SP)
 	MOVL	SI, 20(SP)
 	MOVL	DI, 24(SP)
@@ -102,15 +103,16 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	DX, 8(SP)
 	CALL	runtime·sighandler(SB)
 	// AX is set to report result back to Windows
+	MOVL	12(SP), AX
 
 done:
 	// restore callee-saved registers
 	MOVL	24(SP), DI
 	MOVL	20(SP), SI
 	MOVL	16(SP), BP
-	MOVL	12(SP), BX
+	MOVL	28(SP), BX
 
-	ADDL	$28, SP
+	ADDL	$32, SP
 	// RET 4 (return and pop 4 bytes parameters)
 	BYTE $0xC2; WORD $4
 	RET // unreached; make assembler happy
@@ -301,7 +303,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 
 // Sleep duration is in 100ns units.
 TEXT runtime·usleep1(SB),NOSPLIT,$0
-	MOVL	duration+0(FP), BX
+	MOVL	usec+0(FP), BX
 	MOVL	$runtime·usleep2(SB), AX // to hide from 8l
 
 	// Execute call on m->g0 stack, in case we are not actually
@@ -323,7 +325,7 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	MOVL	SI, m_libcallg(BP)
 	// sp must be the last, because once async cpu profiler finds
 	// all three values to be non-zero, it will use them
-	LEAL	4(SP), SI
+	LEAL	usec+0(FP), SI
 	MOVL	SI, m_libcallsp(BP)
 
 	MOVL	m_g0(BP), SI
@@ -362,4 +364,17 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
 	MOVL	runtime·NtWaitForSingleObject(SB), AX
 	CALL	AX
 	MOVL	BP, SP
+	RET
+
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB),NOSPLIT,$8-12
+	CALL	runtime·unixnano(SB)
+	MOVL	0(SP), AX
+	MOVL	4(SP), DX
+
+	MOVL	$1000000000, CX
+	DIVL	CX
+	MOVL	AX, sec+0(FP)
+	MOVL	$0, sec+4(FP)
+	MOVL	DX, nsec+8(FP)
 	RET

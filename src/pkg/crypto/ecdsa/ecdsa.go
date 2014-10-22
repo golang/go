@@ -13,7 +13,9 @@ package ecdsa
 //     http://www.secg.org/download/aid-780/sec1-v2.pdf
 
 import (
+	"crypto"
 	"crypto/elliptic"
+	"encoding/asn1"
 	"io"
 	"math/big"
 )
@@ -28,6 +30,28 @@ type PublicKey struct {
 type PrivateKey struct {
 	PublicKey
 	D *big.Int
+}
+
+type ecdsaSignature struct {
+	R, S *big.Int
+}
+
+// Public returns the public key corresponding to priv.
+func (priv *PrivateKey) Public() crypto.PublicKey {
+	return &priv.PublicKey
+}
+
+// Sign signs msg with priv, reading randomness from rand. This method is
+// intended to support keys where the private part is kept in, for example, a
+// hardware module. Common uses should use the Sign function in this package
+// directly.
+func (priv *PrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
+	r, s, err := Sign(rand, priv, msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return asn1.Marshal(ecdsaSignature{r, s})
 }
 
 var one = new(big.Int).SetInt64(1)

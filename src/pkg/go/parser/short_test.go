@@ -93,6 +93,7 @@ var invalids = []string{
 	`package p; func f() { go f /* ERROR HERE "function must be invoked" */ }`,
 	`package p; func f() { defer func() {} /* ERROR HERE "function must be invoked" */ }`,
 	`package p; func f() { go func() { func() { f(x func /* ERROR "expected '\)'" */ (){}) } } }`,
+	`package p; func f() (a b string /* ERROR "expected '\)'" */ , ok bool) // issue 8656`,
 }
 
 func TestInvalid(t *testing.T) {

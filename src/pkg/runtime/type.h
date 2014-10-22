@@ -21,7 +21,7 @@ struct Type
 	uint8 align;
 	uint8 fieldAlign;
 	uint8 kind;
-	Alg *alg;
+	void* alg;
 	// gc stores type info required for garbage collector.
 	// If (kind&KindGCProg)==0, then gc directly contains sparse GC bitmap
 	// (no indirection), 4 bits per word.
@@ -66,14 +66,14 @@ struct IMethod
 
 struct InterfaceType
 {
-	Type;
+	Type  typ;
 	Slice mhdr;
 	IMethod m[];
 };
 
 struct MapType
 {
-	Type;
+	Type typ;
 	Type *key;
 	Type *elem;
 	Type *bucket;		// internal type representing a hash bucket
@@ -87,20 +87,20 @@ struct MapType
 
 struct ChanType
 {
-	Type;
+	Type typ;
 	Type *elem;
 	uintptr dir;
 };
 
 struct SliceType
 {
-	Type;
+	Type typ;
 	Type *elem;
 };
 
 struct FuncType
 {
-	Type;
+	Type typ;
 	bool dotdotdot;
 	Slice in;
 	Slice out;
@@ -108,6 +108,6 @@ struct FuncType
 
 struct PtrType
 {
-	Type;
+	Type typ;
 	Type *elem;
 };

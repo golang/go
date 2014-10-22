@@ -84,35 +84,31 @@ extern uintptr libc·port_getn;
 int32
 runtime·fcntl(int32 fd, int32 cmd, uintptr arg)
 {
-	return runtime·sysvicall6(libc·fcntl, 3,
-	    (uintptr)fd, (uintptr)cmd, (uintptr)arg);
+	return runtime·sysvicall3(libc·fcntl, (uintptr)fd, (uintptr)cmd, (uintptr)arg);
 }
 
 int32
 runtime·port_create(void)
 {
-	return runtime·sysvicall6(libc·port_create, 0);
+	return runtime·sysvicall0(libc·port_create);
 }
 
 int32
 runtime·port_associate(int32 port, int32 source, uintptr object, int32 events, uintptr user)
 {
-	return runtime·sysvicall6(libc·port_associate,
-	    5, (uintptr)port, (uintptr)source, object, (uintptr)events, user);
+	return runtime·sysvicall5(libc·port_associate, (uintptr)port, (uintptr)source, object, (uintptr)events, user);
 }
 
 int32
 runtime·port_dissociate(int32 port, int32 source, uintptr object)
 {
-	return runtime·sysvicall6(libc·port_dissociate,
-	    3, (uintptr)port, (uintptr)source, object);
+	return runtime·sysvicall3(libc·port_dissociate, (uintptr)port, (uintptr)source, object);
 }
 
 int32
 runtime·port_getn(int32 port, PortEvent *evs, uint32 max, uint32 *nget, Timespec *timeout)
 {
-	return runtime·sysvicall6(libc·port_getn, 5, (uintptr)port,
-	    (uintptr)evs, (uintptr)max, (uintptr)nget, (uintptr)timeout);
+	return runtime·sysvicall5(libc·port_getn, (uintptr)port, (uintptr)evs, (uintptr)max, (uintptr)nget, (uintptr)timeout);
 }
 
 static int32 portfd = -1;

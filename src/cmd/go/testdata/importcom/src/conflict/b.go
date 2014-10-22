@@ -1,0 +1,1 @@
+package conflict /* import "b" */

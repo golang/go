@@ -183,7 +183,7 @@ func (p *Prog) pclntab() {
 
 	pclntab := &Sym{
 		Sym: &goobj.Sym{
-			SymID: goobj.SymID{Name: "pclntab"},
+			SymID: goobj.SymID{Name: "runtime.pclntab"},
 			Kind:  goobj.SPCLNTAB,
 			Size:  buf.Size(),
 			Reloc: buf.Reloc(),
@@ -437,7 +437,7 @@ func (it *PCIter) Next() {
 		return
 	}
 	it.start = false
-	sv := int32(uv)>>1 ^ int32(uv)<<31>>31
+	sv := int32(uv>>1) ^ int32(uv<<31)>>31
 	it.Value += sv
 
 	// pc delta

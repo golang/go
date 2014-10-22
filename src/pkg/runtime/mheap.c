@@ -17,7 +17,7 @@
 #include "malloc.h"
 
 static MSpan *MHeap_AllocSpanLocked(MHeap*, uintptr);
-static void MHeap_FreeSpanLocked(MHeap*, MSpan*);
+static void MHeap_FreeSpanLocked(MHeap*, MSpan*, bool, bool);
 static bool MHeap_Grow(MHeap*, uintptr);
 static MSpan *MHeap_AllocLarge(MHeap*, uintptr);
 static MSpan *BestFit(MSpan*, uintptr, MSpan*);
@@ -36,14 +36,14 @@ RecordSpan(void *vh, byte *p)
 		cap = 64*1024/sizeof(all[0]);
 		if(cap < h->nspancap*3/2)
 			cap = h->nspancap*3/2;
-		all = (MSpan**)runtime·SysAlloc(cap*sizeof(all[0]), &mstats.other_sys);
+		all = (MSpan**)runtime·sysAlloc(cap*sizeof(all[0]), &mstats.other_sys);
 		if(all == nil)
 			runtime·throw("runtime: cannot allocate memory");
 		if(h->allspans) {
 			runtime·memmove(all, h->allspans, h->nspancap*sizeof(all[0]));
 			// Don't free the old array if it's referenced by sweep.
 			// See the comment in mgc0.c.
-			if(h->allspans != runtime·mheap.sweepspans)
+			if(h->allspans != runtime·mheap.gcspans)
 				runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]), &mstats.other_sys);
 		}
 		h->allspans = all;
@@ -70,7 +70,7 @@ runtime·MHeap_Init(MHeap *h)
 	runtime·MSpanList_Init(&h->freelarge);
 	runtime·MSpanList_Init(&h->busylarge);
 	for(i=0; i<nelem(h->central); i++)
-		runtime·MCentral_Init(&h->central[i], i);
+		runtime·MCentral_Init(&h->central[i].mcentral, i);
 }
 
 void
@@ -106,9 +106,9 @@ retry:
 			runtime·MSpanList_Remove(s);
 			// swept spans are at the end of the list
 			runtime·MSpanList_InsertBack(list, s);
-			runtime·unlock(h);
-			n += runtime·MSpan_Sweep(s);
-			runtime·lock(h);
+			runtime·unlock(&h->lock);
+			n += runtime·MSpan_Sweep(s, false);
+			runtime·lock(&h->lock);
 			if(n >= npages)
 				return n;
 			// the span could have been moved elsewhere
@@ -153,7 +153,7 @@ MHeap_Reclaim(MHeap *h, uintptr npage)
 	}
 
 	// Now sweep everything that is not yet swept.
-	runtime·unlock(h);
+	runtime·unlock(&h->lock);
 	for(;;) {
 		n = runtime·sweepone();
 		if(n == -1)  // all spans are swept
@@ -162,7 +162,7 @@ MHeap_Reclaim(MHeap *h, uintptr npage)
 		if(reclaimed >= npage)
 			break;
 	}
-	runtime·lock(h);
+	runtime·lock(&h->lock);
 }
 
 // Allocate a new span of npage pages from the heap for GC'd memory
@@ -174,7 +174,7 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
 
 	if(g != g->m->g0)
 		runtime·throw("mheap_alloc not on M stack");
-	runtime·lock(h);
+	runtime·lock(&h->lock);
 
 	// To prevent excessive heap growth, before allocating n pages
 	// we need to sweep and reclaim at least n pages.
@@ -207,11 +207,11 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
 				runtime·MSpanList_InsertBack(&h->busylarge, s);
 		}
 	}
-	runtime·unlock(h);
+	runtime·unlock(&h->lock);
 	return s;
 }
 
-void
+static void
 mheap_alloc_m(G *gp)
 {
 	MHeap *h;
@@ -229,6 +229,7 @@ MSpan*
 runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool needzero)
 {
 	MSpan *s;
+	void (*fn)(G*);
 
 	// Don't do any operations that lock the heap on the G stack.
 	// It might trigger stack growth, and the stack growth code needs
@@ -240,7 +241,8 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool 
 		g->m->scalararg[0] = npage;
 		g->m->scalararg[1] = sizeclass;
 		g->m->scalararg[2] = large;
-		runtime·mcall(mheap_alloc_m);
+		fn = mheap_alloc_m;
+		runtime·mcall(&fn);
 		s = g->m->ptrarg[0];
 		g->m->ptrarg[0] = nil;
 	}
@@ -259,7 +261,7 @@ runtime·MHeap_AllocStack(MHeap *h, uintptr npage)
 
 	if(g != g->m->g0)
 		runtime·throw("mheap_allocstack not on M stack");
-	runtime·lock(h);
+	runtime·lock(&h->lock);
 	s = MHeap_AllocSpanLocked(h, npage);
 	if(s != nil) {
 		s->state = MSpanStack;
@@ -267,7 +269,7 @@ runtime·MHeap_AllocStack(MHeap *h, uintptr npage)
 		s->ref = 0;
 		mstats.stacks_inuse += s->npages<<PageShift;
 	}
-	runtime·unlock(h);
+	runtime·unlock(&h->lock);
 	return s;
 }
 
@@ -279,7 +281,7 @@ MHeap_AllocSpanLocked(MHeap *h, uintptr npage)
 {
 	uintptr n;
 	MSpan *s, *t;
-	PageID p;
+	pageID p;
 
 	// Try in fixed-size lists up to max.
 	for(n=npage; n < nelem(h->free); n++) {
@@ -326,7 +328,7 @@ HaveSpan:
 		t->needzero = s->needzero;
 		s->state = MSpanStack; // prevent coalescing with s
 		t->state = MSpanStack;
-		MHeap_FreeSpanLocked(h, t);
+		MHeap_FreeSpanLocked(h, t, false, false);
 		t->unusedsince = s->unusedsince; // preserve age (TODO: wrong: t is possibly merged and/or deallocated at this point)
 		s->state = MSpanFree;
 	}
@@ -380,7 +382,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	uintptr ask;
 	void *v;
 	MSpan *s;
-	PageID p;
+	pageID p;
 
 	// Ask for a big chunk, to reduce the number of mappings
 	// the operating system needs to track; also amortizes
@@ -413,7 +415,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	h->spans[p + s->npages - 1] = s;
 	runtime·atomicstore(&s->sweepgen, h->sweepgen);
 	s->state = MSpanInUse;
-	MHeap_FreeSpanLocked(h, s);
+	MHeap_FreeSpanLocked(h, s, false, true);
 	return true;
 }
 
@@ -441,7 +443,7 @@ MSpan*
 runtime·MHeap_LookupMaybe(MHeap *h, void *v)
 {
 	MSpan *s;
-	PageID p, q;
+	pageID p, q;
 
 	if((byte*)v < h->arena_start || (byte*)v >= h->arena_used)
 		return nil;
@@ -460,15 +462,15 @@ mheap_free(MHeap *h, MSpan *s, int32 acct)
 {
 	if(g != g->m->g0)
 		runtime·throw("mheap_free not on M stack");
-	runtime·lock(h);
+	runtime·lock(&h->lock);
 	mstats.heap_alloc += g->m->mcache->local_cachealloc;
 	g->m->mcache->local_cachealloc = 0;
 	if(acct) {
 		mstats.heap_alloc -= s->npages<<PageShift;
 		mstats.heap_objects--;
 	}
-	MHeap_FreeSpanLocked(h, s);
-	runtime·unlock(h);
+	MHeap_FreeSpanLocked(h, s, true, true);
+	runtime·unlock(&h->lock);
 }
 
 static void
@@ -488,13 +490,16 @@ mheap_free_m(G *gp)
 void
 runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
 {
+	void (*fn)(G*);
+
 	if(g == g->m->g0) {
 		mheap_free(h, s, acct);
 	} else {
 		g->m->ptrarg[0] = h;
 		g->m->ptrarg[1] = s;
 		g->m->scalararg[0] = acct;
-		runtime·mcall(mheap_free_m);
+		fn = mheap_free_m;
+		runtime·mcall(&fn);
 	}
 }
 
@@ -504,17 +509,17 @@ runtime·MHeap_FreeStack(MHeap *h, MSpan *s)
 	if(g != g->m->g0)
 		runtime·throw("mheap_freestack not on M stack");
 	s->needzero = 1;
-	runtime·lock(h);
+	runtime·lock(&h->lock);
 	mstats.stacks_inuse -= s->npages<<PageShift;
-	MHeap_FreeSpanLocked(h, s);
-	runtime·unlock(h);
+	MHeap_FreeSpanLocked(h, s, true, true);
+	runtime·unlock(&h->lock);
 }
 
 static void
-MHeap_FreeSpanLocked(MHeap *h, MSpan *s)
+MHeap_FreeSpanLocked(MHeap *h, MSpan *s, bool acctinuse, bool acctidle)
 {
 	MSpan *t;
-	PageID p;
+	pageID p;
 
 	switch(s->state) {
 	case MSpanStack:
@@ -532,8 +537,10 @@ MHeap_FreeSpanLocked(MHeap *h, MSpan *s)
 		runtime·throw("MHeap_FreeSpanLocked - invalid span state");
 		break;
 	}
-	mstats.heap_inuse -= s->npages<<PageShift;
-	mstats.heap_idle += s->npages<<PageShift;
+	if(acctinuse)
+		mstats.heap_inuse -= s->npages<<PageShift;
+	if(acctidle)
+		mstats.heap_idle += s->npages<<PageShift;
 	s->state = MSpanFree;
 	runtime·MSpanList_Remove(s);
 	// Stamp newly unused spans. The scavenger will use that
@@ -572,13 +579,6 @@ MHeap_FreeSpanLocked(MHeap *h, MSpan *s)
 		runtime·MSpanList_Insert(&h->freelarge, s);
 }
 
-static void
-forcegchelper(Note *note)
-{
-	runtime·gc(1);
-	runtime·notewakeup(note);
-}
-
 static uintptr
 scavengelist(MSpan *list, uint64 now, uint64 limit)
 {
@@ -601,103 +601,41 @@ scavengelist(MSpan *list, uint64 now, uint64 limit)
 	return sumreleased;
 }
 
-static void
-scavenge(int32 k, uint64 now, uint64 limit)
+void
+runtime·MHeap_Scavenge(int32 k, uint64 now, uint64 limit)
 {
 	uint32 i;
 	uintptr sumreleased;
 	MHeap *h;
 	
 	h = &runtime·mheap;
+	runtime·lock(&h->lock);
 	sumreleased = 0;
 	for(i=0; i < nelem(h->free); i++)
 		sumreleased += scavengelist(&h->free[i], now, limit);
 	sumreleased += scavengelist(&h->freelarge, now, limit);
+	runtime·unlock(&h->lock);
 
 	if(runtime·debug.gctrace > 0) {
 		if(sumreleased > 0)
 			runtime·printf("scvg%d: %D MB released\n", k, (uint64)sumreleased>>20);
+		// TODO(dvyukov): these stats are incorrect as we don't subtract stack usage from heap.
+		// But we can't call ReadMemStats on g0 holding locks.
 		runtime·printf("scvg%d: inuse: %D, idle: %D, sys: %D, released: %D, consumed: %D (MB)\n",
 			k, mstats.heap_inuse>>20, mstats.heap_idle>>20, mstats.heap_sys>>20,
 			mstats.heap_released>>20, (mstats.heap_sys - mstats.heap_released)>>20);
 	}
 }
 
-static void
-scavenge_m(G *gp)
-{
-	runtime·lock(&runtime·mheap);
-	scavenge(g->m->scalararg[0], g->m->scalararg[1], g->m->scalararg[2]);
-	runtime·unlock(&runtime·mheap);
-	runtime·gogo(&gp->sched);
-}
-
-static FuncVal forcegchelperv = {(void(*)(void))forcegchelper};
-
-// Release (part of) unused memory to OS.
-// Goroutine created at startup.
-// Loop forever.
 void
-runtime·MHeap_Scavenger(void)
+runtime·scavenge_m(void)
 {
-	uint64 tick, forcegc, limit;
-	int64 unixnow;
-	int32 k;
-	Note note, *notep;
-
-	g->issystem = true;
-	g->isbackground = true;
-
-	// If we go two minutes without a garbage collection, force one to run.
-	forcegc = 2*60*1e9;
-	// If a span goes unused for 5 minutes after a garbage collection,
-	// we hand it back to the operating system.
-	limit = 5*60*1e9;
-	// Make wake-up period small enough for the sampling to be correct.
-	if(forcegc < limit)
-		tick = forcegc/2;
-	else
-		tick = limit/2;
-
-	for(k=0;; k++) {
-		runtime·noteclear(&note);
-		runtime·notetsleepg(&note, tick);
-
-		unixnow = runtime·unixnanotime();
-		if(unixnow - mstats.last_gc > forcegc) {
-			// The scavenger can not block other goroutines,
-			// otherwise deadlock detector can fire spuriously.
-			// GC blocks other goroutines via the runtime·worldsema.
-			runtime·noteclear(&note);
-			notep = &note;
-			runtime·newproc1(&forcegchelperv, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
-			runtime·notetsleepg(&note, -1);
-			if(runtime·debug.gctrace > 0)
-				runtime·printf("scvg%d: GC forced\n", k);
-		}
-		g->m->locks++;	// ensure that we are on the same m while filling arguments
-		g->m->scalararg[0] = k;
-		g->m->scalararg[1] = runtime·nanotime();
-		g->m->scalararg[2] = limit;
-		runtime·mcall(scavenge_m);
-		g->m->locks--;
-	}
-}
-
-void
-runtime∕debug·freeOSMemory(void)
-{
-	runtime·gc(2);  // force GC and do eager sweep
-
-	g->m->scalararg[0] = -1;
-	g->m->scalararg[1] = ~(uintptr)0;
-	g->m->scalararg[2] = 0;
-	runtime·mcall(scavenge_m);
+	runtime·MHeap_Scavenge(-1, ~(uintptr)0, 0);
 }
 
 // Initialize a new span with the given start and npages.
 void
-runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
+runtime·MSpan_Init(MSpan *span, pageID start, uintptr npages)
 {
 	span->next = nil;
 	span->prev = nil;
@@ -865,12 +803,12 @@ runtime·addfinalizer(void *p, FuncVal *f, uintptr nret, Type *fint, PtrType *ot
 	runtime·lock(&runtime·mheap.speciallock);
 	s = runtime·FixAlloc_Alloc(&runtime·mheap.specialfinalizeralloc);
 	runtime·unlock(&runtime·mheap.speciallock);
-	s->kind = KindSpecialFinalizer;
+	s->special.kind = KindSpecialFinalizer;
 	s->fn = f;
 	s->nret = nret;
 	s->fint = fint;
 	s->ot = ot;
-	if(addspecial(p, s))
+	if(addspecial(p, &s->special))
 		return true;
 
 	// There was an old finalizer
@@ -896,16 +834,23 @@ runtime·removefinalizer(void *p)
 
 // Set the heap profile bucket associated with addr to b.
 void
-runtime·setprofilebucket(void *p, Bucket *b)
-{
+runtime·setprofilebucket_m(void)
+{	
+	void *p;
+	Bucket *b;
 	SpecialProfile *s;
+	
+	p = g->m->ptrarg[0];
+	b = g->m->ptrarg[1];
+	g->m->ptrarg[0] = nil;
+	g->m->ptrarg[1] = nil;
 
 	runtime·lock(&runtime·mheap.speciallock);
 	s = runtime·FixAlloc_Alloc(&runtime·mheap.specialprofilealloc);
 	runtime·unlock(&runtime·mheap.speciallock);
-	s->kind = KindSpecialProfile;
+	s->special.kind = KindSpecialProfile;
 	s->b = b;
-	if(!addspecial(p, s))
+	if(!addspecial(p, &s->special))
 		runtime·throw("setprofilebucket: profile already set");
 }
 
@@ -928,7 +873,7 @@ runtime·freespecial(Special *s, void *p, uintptr size, bool freed)
 		return false; // don't free p until finalizer is done
 	case KindSpecialProfile:
 		sp = (SpecialProfile*)s;
-		runtime·MProf_Free(sp->b, size, freed);
+		runtime·mProf_Free(sp->b, size, freed);
 		runtime·lock(&runtime·mheap.speciallock);
 		runtime·FixAlloc_Free(&runtime·mheap.specialprofilealloc, sp);
 		runtime·unlock(&runtime·mheap.speciallock);

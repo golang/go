@@ -5,14 +5,14 @@
 #include "runtime.h"
 #include "stack.h"
 #include "arch_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Keep a cached value to make gotraceback fast,
 // since we call it on every call to gentraceback.
 // The cached value is a uint32 in which the low bit
 // is the "crash" setting and the top 31 bits are the
 // gotraceback value.
-static uint32 traceback_cache = ~(uint32)0;
+static uint32 traceback_cache = 2<<1;
 
 // The GOTRACEBACK environment variable controls the
 // behavior of a Go program that is crashing and exiting.
@@ -20,32 +20,17 @@ static uint32 traceback_cache = ~(uint32)0;
 //	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
 //	GOTRACEBACK=2   show tracebacks including runtime frames
 //	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
+#pragma textflag NOSPLIT
 int32
 runtime·gotraceback(bool *crash)
 {
-	byte *p;
-	uint32 x;
-
 	if(crash != nil)
 		*crash = false;
 	if(g->m->traceback != 0)
 		return g->m->traceback;
-	x = runtime·atomicload(&traceback_cache);
-	if(x == ~(uint32)0) {
-		p = runtime·getenv("GOTRACEBACK");
-		if(p == nil)
-			p = (byte*)"";
-		if(p[0] == '\0')
-			x = 1<<1;
-		else if(runtime·strcmp(p, (byte*)"crash") == 0)
-			x = (2<<1) | 1;
-		else
-			x = runtime·atoi(p)<<1;	
-		runtime·atomicstore(&traceback_cache, x);
-	}
 	if(crash != nil)
-		*crash = x&1;
-	return x>>1;
+		*crash = traceback_cache&1;
+	return traceback_cache>>1;
 }
 
 int32
@@ -111,7 +96,7 @@ runtime·goargs(void)
 	if(Windows)
 		return;
 
-	s = runtime·malloc(argc*sizeof s[0]);
+	s = runtime·mallocgc(argc*sizeof s[0], nil, 0);
 	for(i=0; i<argc; i++)
 		s[i] = runtime·gostringnocopy(argv[i]);
 	os·Args.array = (byte*)s;
@@ -128,14 +113,19 @@ runtime·goenvs_unix(void)
 	for(n=0; argv[argc+1+n] != 0; n++)
 		;
 
-	s = runtime·malloc(n*sizeof s[0]);
+	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
 	for(i=0; i<n; i++)
 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
 	syscall·envs.array = (byte*)s;
 	syscall·envs.len = n;
 	syscall·envs.cap = n;
+}
 
-	traceback_cache = ~(uint32)0;
+#pragma textflag NOSPLIT
+Slice
+runtime·environ()
+{
+	return syscall·envs;
 }
 
 int32
@@ -277,49 +267,7 @@ runtime·check(void)
 		runtime·throw("FixedStack is not power-of-2");
 }
 
-uint32
-runtime·fastrand1(void)
-{
-	uint32 x;
-
-	x = g->m->fastrand;
-	x += x;
-	if(x & 0x80000000L)
-		x ^= 0x88888eefUL;
-	g->m->fastrand = x;
-	return x;
-}
-
-static Lock ticksLock;
-static int64 ticks;
-
-int64
-runtime·tickspersecond(void)
-{
-	int64 res, t0, t1, c0, c1;
-
-	res = (int64)runtime·atomicload64((uint64*)&ticks);
-	if(res != 0)
-		return ticks;
-	runtime·lock(&ticksLock);
-	res = ticks;
-	if(res == 0) {
-		t0 = runtime·nanotime();
-		c0 = runtime·cputicks();
-		runtime·usleep(100*1000);
-		t1 = runtime·nanotime();
-		c1 = runtime·cputicks();
-		if(t1 == t0)
-			t1++;
-		res = (c1-c0)*1000*1000*1000/(t1-t0);
-		if(res == 0)
-			res++;
-		runtime·atomicstore64((uint64*)&ticks, res);
-	}
-	runtime·unlock(&ticksLock);
-	return res;
-}
-
+#pragma dataflag NOPTR
 DebugVars	runtime·debug;
 
 static struct {
@@ -332,6 +280,7 @@ static struct {
 	{"gcdead", &runtime·debug.gcdead},
 	{"scheddetail", &runtime·debug.scheddetail},
 	{"schedtrace", &runtime·debug.schedtrace},
+	{"scavenge", &runtime·debug.scavenge},
 };
 
 void
@@ -354,6 +303,16 @@ runtime·parsedebugvars(void)
 			break;
 		p++;
 	}
+
+	p = runtime·getenv("GOTRACEBACK");
+	if(p == nil)
+		p = (byte*)"";
+	if(p[0] == '\0')
+		traceback_cache = 1<<1;
+	else if(runtime·strcmp(p, (byte*)"crash") == 0)
+		traceback_cache = (2<<1) | 1;
+	else
+		traceback_cache = runtime·atoi(p)<<1;	
 }
 
 // Poor mans 64-bit division.
@@ -381,4 +340,52 @@ runtime·timediv(int64 v, int32 div, int32 *rem)
 	if(rem != nil)
 		*rem = v;
 	return res;
+}
+
+// Helpers for Go. Must be NOSPLIT, must only call NOSPLIT functions, and must not block.
+
+#pragma textflag NOSPLIT
+G*
+runtime·getg(void)
+{
+	return g;
+}
+
+#pragma textflag NOSPLIT
+M*
+runtime·acquirem(void)
+{
+	g->m->locks++;
+	return g->m;
+}
+
+#pragma textflag NOSPLIT
+void
+runtime·releasem(M *mp)
+{
+	mp->locks--;
+	if(mp->locks == 0 && g->preempt) {
+		// restore the preemption request in case we've cleared it in newstack
+		g->stackguard0 = StackPreempt;
+	}
+}
+
+#pragma textflag NOSPLIT
+MCache*
+runtime·gomcache(void)
+{
+	return g->m->mcache;
+}
+
+#pragma textflag NOSPLIT
+Slice
+reflect·typelinks(void)
+{
+	extern Type *runtime·typelink[], *runtime·etypelink[];
+	Slice ret;
+
+	ret.array = (byte*)runtime·typelink;
+	ret.len = runtime·etypelink - runtime·typelink;
+	ret.cap = ret.len;
+	return ret;
 }

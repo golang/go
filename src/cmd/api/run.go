@@ -98,11 +98,9 @@ func prepGoPath() string {
 	if err == nil {
 		username = u.Username
 	} else {
-		// Only need to handle Unix here, as Windows's os/user uses
-		// native syscall and should work fine without cgo.
 		username = os.Getenv("USER")
 		if username == "" {
-			log.Fatalf("Error getting current user: %v", err)
+			username = "nobody"
 		}
 	}
 

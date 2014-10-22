@@ -108,9 +108,6 @@ void	mkzexperiment(char*, char*);
 // buildgo.c
 void	mkzdefaultcc(char*, char*);
 
-// goc2c.c
-void	goc2c(char*, char*);
-
 // main.c
 extern int vflag;
 extern int sflag;
@@ -129,6 +126,7 @@ bool	isfile(char *p);
 char*	lastelem(char*);
 Time	mtime(char*);
 void	readfile(Buf*, char*);
+void	copyfile(char*, char*, int);
 void	run(Buf *b, char *dir, int mode, char *cmd, ...);
 void	runv(Buf *b, char *dir, int mode, Vec *argv);
 void	bgrunv(char *dir, int mode, Vec *argv);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT _rt0_arm_linux(SB),NOSPLIT,$-4
 	MOVW	(R13), R0	// argc
@@ -56,7 +56,7 @@ TEXT _rt0_arm_linux1(SB),NOSPLIT,$-4
 	SUB	$4, R13 // fake a stack frame for runtime·setup_auxv
 	BL	runtime·setup_auxv(SB)
 	ADD	$4, R13
-	B	_rt0_go(SB)
+	B	runtime·rt0_go(SB)
 
 TEXT bad_abi<>(SB),NOSPLIT,$-4
 	// give diagnosis and exit

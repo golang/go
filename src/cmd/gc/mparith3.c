@@ -251,8 +251,8 @@ mpgetfltN(Mpflt *a, int prec, int bias)
 		s = minexp - e;
 		if(s > prec+1)
 			s = prec+1;
-		if((v & ((1<<s)-1)) != 0)
-			v |= 1<<s;
+		if((v & ((1ULL<<s)-1)) != 0)
+			v |= 1ULL<<s;
 		v >>= s;
 		e = minexp;
 	}

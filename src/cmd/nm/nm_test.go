@@ -77,7 +77,7 @@ func TestNM(t *testing.T) {
 		"elf/testdata/gcc-amd64-linux-exec",
 		"macho/testdata/gcc-386-darwin-exec",
 		"macho/testdata/gcc-amd64-darwin-exec",
-		"pe/testdata/gcc-amd64-mingw-exec",
+		// "pe/testdata/gcc-amd64-mingw-exec", // no symbols!
 		"pe/testdata/gcc-386-mingw-exec",
 		"plan9obj/testdata/amd64-plan9-exec",
 		"plan9obj/testdata/386-plan9-exec",
@@ -87,7 +87,7 @@ func TestNM(t *testing.T) {
 		cmd := exec.Command(testnmpath, exepath)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("go tool nm %v: %v\n%s", exepath, err, string(out))
+			t.Errorf("go tool nm %v: %v\n%s", exepath, err, string(out))
 		}
 	}
 

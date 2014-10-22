@@ -23,13 +23,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // void runtime·memmove(void*, void*, uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $0-24
 
 	MOVQ	to+0(FP), DI
-	MOVQ	fr+8(FP), SI
+	MOVQ	from+8(FP), SI
 	MOVQ	n+16(FP), BX
 
 	// REP instructions have a high startup cost, so we handle small sizes

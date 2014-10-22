@@ -6,13 +6,15 @@
 // in Go binaries. It is included by both C and assembly, so it must
 // be written using #defines. It is included by the runtime package
 // as well as the compilers.
+//
+// symtab.go also contains a copy of these constants.
 
 #define PCDATA_ArgSize 0 /* argument size at CALL instruction */
 #define PCDATA_StackMapIndex 1
 
-#define FUNCDATA_ArgsPointerMaps 2 /* garbage collector blocks */
-#define FUNCDATA_LocalsPointerMaps 3
-#define FUNCDATA_DeadValueMaps 4
+#define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
+#define FUNCDATA_LocalsPointerMaps 1
+#define FUNCDATA_DeadValueMaps 2
 
 // To be used in assembly.
 #define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n
@@ -27,9 +29,9 @@
 enum {
 	PCDATA_ArgSize = 0,
 	PCDATA_StackMapIndex = 1,
-	FUNCDATA_ArgsPointerMaps = 2,
-	FUNCDATA_LocalsPointerMaps = 3,
-	FUNCDATA_DeadValueMaps = 4,
+	FUNCDATA_ArgsPointerMaps = 0,
+	FUNCDATA_LocalsPointerMaps = 1,
+	FUNCDATA_DeadValueMaps = 2,
 	ArgsSizeUnknown = 0x80000000,
 };
 */

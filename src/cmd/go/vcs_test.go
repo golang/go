@@ -12,6 +12,9 @@ import (
 // Test that RepoRootForImportPath creates the correct RepoRoot for a given importPath.
 // TODO(cmang): Add tests for SVN and BZR.
 func TestRepoRootForImportPath(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test to avoid external network")
+	}
 	switch runtime.GOOS {
 	case "nacl", "android":
 		t.Skipf("no networking available on %s", runtime.GOOS)
@@ -106,7 +109,7 @@ func TestRepoRootForImportPath(t *testing.T) {
 
 		if want == nil {
 			if err == nil {
-				t.Errorf("RepoRootForImport(%q): Error expected but not received")
+				t.Errorf("RepoRootForImport(%q): Error expected but not received", test.path)
 			}
 			continue
 		}

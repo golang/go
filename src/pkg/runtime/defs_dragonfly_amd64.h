@@ -85,7 +85,7 @@ enum {
 
 typedef struct Rtprio Rtprio;
 typedef struct Lwpparams Lwpparams;
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigset Sigset;
 typedef struct StackT StackT;
 typedef struct Siginfo Siginfo;
@@ -94,7 +94,7 @@ typedef struct Ucontext Ucontext;
 typedef struct Timespec Timespec;
 typedef struct Timeval Timeval;
 typedef struct Itimerval Itimerval;
-typedef struct Kevent Kevent;
+typedef struct KeventT KeventT;
 
 #pragma pack on
 
@@ -109,7 +109,7 @@ struct Lwpparams {
 	int32	*tid1;
 	int32	*tid2;
 };
-struct Sigaltstack {
+struct SigaltstackT {
 	int8	*ss_sp;
 	uint64	ss_size;
 	int32	ss_flags;
@@ -195,7 +195,7 @@ struct Itimerval {
 	Timeval	it_value;
 };
 
-struct Kevent {
+struct KeventT {
 	uint64	ident;
 	int16	filter;
 	uint16	flags;

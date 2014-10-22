@@ -283,6 +283,26 @@ func TestValueConverters(t *testing.T) {
 
 // Tests that assigning to RawBytes doesn't allocate (and also works).
 func TestRawBytesAllocs(t *testing.T) {
+	var tests = []struct {
+		name string
+		in   interface{}
+		want string
+	}{
+		{"uint64", uint64(12345678), "12345678"},
+		{"uint32", uint32(1234), "1234"},
+		{"uint16", uint16(12), "12"},
+		{"uint8", uint8(1), "1"},
+		{"uint", uint(123), "123"},
+		{"int", int(123), "123"},
+		{"int8", int8(1), "1"},
+		{"int16", int16(12), "12"},
+		{"int32", int32(1234), "1234"},
+		{"int64", int64(12345678), "12345678"},
+		{"float32", float32(1.5), "1.5"},
+		{"float64", float64(64), "64"},
+		{"bool", false, "false"},
+	}
+
 	buf := make(RawBytes, 10)
 	test := func(name string, in interface{}, want string) {
 		if err := convertAssign(&buf, in); err != nil {
@@ -301,20 +321,11 @@ func TestRawBytesAllocs(t *testing.T) {
 			t.Fatalf("%s: got %q (len %d); want %q (len %d)", name, buf, len(buf), want, len(want))
 		}
 	}
+
 	n := testing.AllocsPerRun(100, func() {
-		test("uint64", uint64(12345678), "12345678")
-		test("uint32", uint32(1234), "1234")
-		test("uint16", uint16(12), "12")
-		test("uint8", uint8(1), "1")
-		test("uint", uint(123), "123")
-		test("int", int(123), "123")
-		test("int8", int8(1), "1")
-		test("int16", int16(12), "12")
-		test("int32", int32(1234), "1234")
-		test("int64", int64(12345678), "12345678")
-		test("float32", float32(1.5), "1.5")
-		test("float64", float64(64), "64")
-		test("bool", false, "false")
+		for _, tt := range tests {
+			test(tt.name, tt.in, tt.want)
+		}
 	})
 
 	// The numbers below are only valid for 64-bit interface word sizes,

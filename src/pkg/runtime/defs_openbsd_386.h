@@ -81,25 +81,25 @@ enum {
 	EVFILT_WRITE	= -0x2,
 };
 
-typedef struct Tfork Tfork;
-typedef struct Sigaltstack Sigaltstack;
+typedef struct TforkT TforkT;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigcontext Sigcontext;
 typedef struct Siginfo Siginfo;
 typedef struct StackT StackT;
 typedef struct Timespec Timespec;
 typedef struct Timeval Timeval;
 typedef struct Itimerval Itimerval;
-typedef struct Kevent Kevent;
+typedef struct KeventT KeventT;
 
 #pragma pack on
 
-struct Tfork {
+struct TforkT {
 	byte	*tf_tcb;
 	int32	*tf_tid;
 	byte	*tf_stack;
 };
 
-struct Sigaltstack {
+struct SigaltstackT {
 	byte	*ss_sp;
 	uint32	ss_size;
 	int32	ss_flags;
@@ -155,7 +155,7 @@ struct Itimerval {
 	Timeval	it_value;
 };
 
-struct Kevent {
+struct KeventT {
 	uint32	ident;
 	int16	filter;
 	uint16	flags;

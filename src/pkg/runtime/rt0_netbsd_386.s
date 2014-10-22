@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT _rt0_386_netbsd(SB),NOSPLIT,$8
 	MOVL	8(SP), AX
@@ -13,4 +13,4 @@ TEXT _rt0_386_netbsd(SB),NOSPLIT,$8
 	INT	$3
 
 TEXT main(SB),NOSPLIT,$0
-	JMP	_rt0_go(SB)
+	JMP	runtime·rt0_go(SB)

@@ -556,7 +556,7 @@ func (t Time) Format(layout string) string {
 				b = append(b, '+')
 			}
 			b = appendUint(b, uint(zone/60), '0')
-			if std == stdISO8601ColonTZ || std == stdNumColonTZ {
+			if std == stdISO8601ColonTZ || std == stdNumColonTZ || std == stdISO8601ColonSecondsTZ || std == stdNumColonSecondsTZ {
 				b = append(b, ':')
 			}
 			b = appendUint(b, uint(zone%60), '0')

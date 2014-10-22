@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -295,14 +296,39 @@ var reqTests = []reqTest{
 		noTrailer,
 		noError,
 	},
+
+	// Connection: close. golang.org/issue/8261
+	{
+		"GET / HTTP/1.1\r\nHost: issue8261.com\r\nConnection: close\r\n\r\n",
+		&Request{
+			Method: "GET",
+			URL: &url.URL{
+				Path: "/",
+			},
+			Header: Header{
+				// This wasn't removed from Go 1.0 to
+				// Go 1.3, so locking it in that we
+				// keep this:
+				"Connection": []string{"close"},
+			},
+			Host:       "issue8261.com",
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Close:      true,
+			RequestURI: "/",
+		},
+
+		noBody,
+		noTrailer,
+		noError,
+	},
 }
 
 func TestReadRequest(t *testing.T) {
 	for i := range reqTests {
 		tt := &reqTests[i]
-		var braw bytes.Buffer
-		braw.WriteString(tt.Raw)
-		req, err := ReadRequest(bufio.NewReader(&braw))
+		req, err := ReadRequest(bufio.NewReader(strings.NewReader(tt.Raw)))
 		if err != nil {
 			if err.Error() != tt.Error {
 				t.Errorf("#%d: error %q, want error %q", i, err.Error(), tt.Error)
@@ -311,21 +337,22 @@ func TestReadRequest(t *testing.T) {
 		}
 		rbody := req.Body
 		req.Body = nil
-		diff(t, fmt.Sprintf("#%d Request", i), req, tt.Req)
+		testName := fmt.Sprintf("Test %d (%q)", i, tt.Raw)
+		diff(t, testName, req, tt.Req)
 		var bout bytes.Buffer
 		if rbody != nil {
 			_, err := io.Copy(&bout, rbody)
 			if err != nil {
-				t.Fatalf("#%d. copying body: %v", i, err)
+				t.Fatalf("%s: copying body: %v", testName, err)
 			}
 			rbody.Close()
 		}
 		body := bout.String()
 		if body != tt.Body {
-			t.Errorf("#%d: Body = %q want %q", i, body, tt.Body)
+			t.Errorf("%s: Body = %q want %q", testName, body, tt.Body)
 		}
 		if !reflect.DeepEqual(tt.Trailer, req.Trailer) {
-			t.Errorf("#%d. Trailers differ.\n got: %v\nwant: %v", i, req.Trailer, tt.Trailer)
+			t.Errorf("%s: Trailers differ.\n got: %v\nwant: %v", testName, req.Trailer, tt.Trailer)
 		}
 	}
 }

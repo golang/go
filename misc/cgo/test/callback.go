@@ -13,12 +13,13 @@ void callPanic(void);
 import "C"
 
 import (
-	"./backdoor"
 	"path"
 	"runtime"
 	"strings"
 	"testing"
 	"unsafe"
+
+	"./backdoor"
 )
 
 // nestedCall calls into C, back into Go, and finally to f.
@@ -152,11 +153,13 @@ func testCallbackCallers(t *testing.T) {
 	n := 0
 	name := []string{
 		"test.goCallback",
+		"runtime.call16",
 		"runtime.cgocallbackg1",
 		"runtime.cgocallbackg",
 		"runtime.cgocallback_gofunc",
-		"runtime.asmcgocall",
-		"runtime.cgocall",
+		"asmcgocall",
+		"runtime.asmcgocall_errno",
+		"runtime.cgocall_errno",
 		"test._Cfunc_callback",
 		"test.nestedCall",
 		"test.testCallbackCallers",
@@ -181,8 +184,12 @@ func testCallbackCallers(t *testing.T) {
 		if strings.HasPrefix(fname, "_") {
 			fname = path.Base(f.Name()[1:])
 		}
-		if fname != name[i] {
-			t.Errorf("expected function name %s, got %s", name[i], fname)
+		namei := ""
+		if i < len(name) {
+			namei = name[i]
+		}
+		if fname != namei {
+			t.Errorf("stk[%d] = %q, want %q", i, fname, namei)
 		}
 	}
 }

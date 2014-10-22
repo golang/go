@@ -107,6 +107,6 @@ func main() {
 	for f := 0; f < 3; f++ {
 		fmt.Printf("\tCALL func%d(SB)\n", f)
 	}
-	fmt.Printf("\tMOVQ $pclntab(SB), AX\n")
+	fmt.Printf("\tMOVQ $runtime·pclntab(SB), AX\n")
 	fmt.Printf("\n\tRET\n")
 }

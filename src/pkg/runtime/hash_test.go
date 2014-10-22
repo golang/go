@@ -344,6 +344,64 @@ func (k *Int64Key) name() string {
 	return "int64"
 }
 
+type EfaceKey struct {
+	i interface{}
+}
+
+func (k *EfaceKey) clear() {
+	k.i = nil
+}
+func (k *EfaceKey) random(r *rand.Rand) {
+	k.i = uint64(r.Int63())
+}
+func (k *EfaceKey) bits() int {
+	// use 64 bits.  This tests inlined interfaces
+	// on 64-bit targets and indirect interfaces on
+	// 32-bit targets.
+	return 64
+}
+func (k *EfaceKey) flipBit(i int) {
+	k.i = k.i.(uint64) ^ uint64(1)<<uint(i)
+}
+func (k *EfaceKey) hash() uintptr {
+	return EfaceHash(k.i, 0)
+}
+func (k *EfaceKey) name() string {
+	return "Eface"
+}
+
+type IfaceKey struct {
+	i interface {
+		F()
+	}
+}
+type fInter uint64
+
+func (x fInter) F() {
+}
+
+func (k *IfaceKey) clear() {
+	k.i = nil
+}
+func (k *IfaceKey) random(r *rand.Rand) {
+	k.i = fInter(r.Int63())
+}
+func (k *IfaceKey) bits() int {
+	// use 64 bits.  This tests inlined interfaces
+	// on 64-bit targets and indirect interfaces on
+	// 32-bit targets.
+	return 64
+}
+func (k *IfaceKey) flipBit(i int) {
+	k.i = k.i.(fInter) ^ fInter(1)<<uint(i)
+}
+func (k *IfaceKey) hash() uintptr {
+	return IfaceHash(k.i, 0)
+}
+func (k *IfaceKey) name() string {
+	return "Iface"
+}
+
 // Flipping a single bit of a key should flip each output bit with 50% probability.
 func TestSmhasherAvalanche(t *testing.T) {
 	if !HaveGoodHash() {
@@ -360,6 +418,8 @@ func TestSmhasherAvalanche(t *testing.T) {
 	avalancheTest1(t, &BytesKey{make([]byte, 200)})
 	avalancheTest1(t, &Int32Key{})
 	avalancheTest1(t, &Int64Key{})
+	avalancheTest1(t, &EfaceKey{})
+	avalancheTest1(t, &IfaceKey{})
 }
 func avalancheTest1(t *testing.T, k Key) {
 	const REP = 100000

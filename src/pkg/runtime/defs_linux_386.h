@@ -95,9 +95,9 @@ typedef struct Xmmreg Xmmreg;
 typedef struct Fpstate Fpstate;
 typedef struct Timespec Timespec;
 typedef struct Timeval Timeval;
-typedef struct Sigaction Sigaction;
+typedef struct SigactionT SigactionT;
 typedef struct Siginfo Siginfo;
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigcontext Sigcontext;
 typedef struct Ucontext Ucontext;
 typedef struct Itimerval Itimerval;
@@ -144,7 +144,7 @@ struct Timeval {
 	int32	tv_sec;
 	int32	tv_usec;
 };
-struct Sigaction {
+struct SigactionT {
 	void	*k_sa_handler;
 	uint32	sa_flags;
 	void	*sa_restorer;
@@ -156,7 +156,7 @@ struct Siginfo {
 	int32	si_code;
 	byte	_sifields[116];
 };
-struct Sigaltstack {
+struct SigaltstackT {
 	byte	*ss_sp;
 	int32	ss_flags;
 	uint32	ss_size;
@@ -194,7 +194,7 @@ struct Sigcontext {
 struct Ucontext {
 	uint32	uc_flags;
 	Ucontext	*uc_link;
-	Sigaltstack	uc_stack;
+	SigaltstackT	uc_stack;
 	Sigcontext	uc_mcontext;
 	uint32	uc_sigmask;
 };
@@ -204,7 +204,7 @@ struct Itimerval {
 };
 struct EpollEvent {
 	uint32	events;
-	uint64	data;
+	byte	data[8]; // to match amd64
 };
 
 

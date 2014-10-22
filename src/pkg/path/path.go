@@ -206,13 +206,5 @@ func IsAbs(path string) bool {
 // slash.
 func Dir(path string) string {
 	dir, _ := Split(path)
-	dir = Clean(dir)
-	last := len(dir) - 1
-	if last > 0 && dir[last] == '/' {
-		dir = dir[:last]
-	}
-	if dir == "" {
-		dir = "."
-	}
-	return dir
+	return Clean(dir)
 }

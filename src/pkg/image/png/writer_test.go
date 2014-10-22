@@ -40,11 +40,7 @@ func encodeDecode(m image.Image) (image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	m, err = Decode(&b)
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
+	return Decode(&b)
 }
 
 func TestWriter(t *testing.T) {
@@ -78,6 +74,29 @@ func TestWriter(t *testing.T) {
 			t.Error(fn, err)
 			continue
 		}
+	}
+}
+
+func TestWriterLevels(t *testing.T) {
+	m := image.NewNRGBA(image.Rect(0, 0, 100, 100))
+
+	var b1, b2 bytes.Buffer
+	if err := (&Encoder{}).Encode(&b1, m); err != nil {
+		t.Fatal(err)
+	}
+	noenc := &Encoder{CompressionLevel: NoCompression}
+	if err := noenc.Encode(&b2, m); err != nil {
+		t.Fatal(err)
+	}
+
+	if b2.Len() <= b1.Len() {
+		t.Error("DefaultCompression encoding was larger than NoCompression encoding")
+	}
+	if _, err := Decode(&b1); err != nil {
+		t.Error("cannot decode DefaultCompression")
+	}
+	if _, err := Decode(&b2); err != nil {
+		t.Error("cannot decode NoCompression")
 	}
 }
 

@@ -311,15 +311,43 @@ nodreg(Node *n, Node *nn, int r)
 }
 
 void
-regret(Node *n, Node *nn)
+regret(Node *n, Node *nn, Type *t, int mode)
 {
 	int r;
 
-	r = REGRET;
-	if(typefd[nn->type->etype])
-		r = FREGRET;
-	nodreg(n, nn, r);
-	reg[r]++;
+	if(mode == 0 || hasdotdotdot(t) || nn->type->width == 0) {
+		r = REGRET;
+		if(typefd[nn->type->etype])
+			r = FREGRET;
+		nodreg(n, nn, r);
+		reg[r]++;
+		return;
+	}
+	
+	if(mode == 1) {
+		// fetch returned value after call.
+		// already called gargs, so curarg is set.
+		curarg = (curarg+3) & ~3;
+		regaalloc(n, nn);
+		return;
+	}
+	
+	if(mode == 2) {
+		// store value to be returned.
+		// must compute arg offset.
+		if(t->etype != TFUNC)
+			fatal(Z, "bad regret func %T", t);
+		*n = *nn;
+		n->op = ONAME;
+		n->class = CPARAM;
+		n->sym = slookup(".retx");
+		n->complex = 0;
+		n->addable = 20;
+		n->xoffset = argsize(0);
+		return;
+	}
+	
+	fatal(Z, "bad regret");
 }
 
 void

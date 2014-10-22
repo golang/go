@@ -366,11 +366,11 @@ func nonleaf(stop chan int) bool {
 }
 
 func TestSchedLocalQueue(t *testing.T) {
-	runtime.TestSchedLocalQueue1()
+	runtime.RunSchedLocalQueueTest()
 }
 
 func TestSchedLocalQueueSteal(t *testing.T) {
-	runtime.TestSchedLocalQueueSteal1()
+	runtime.RunSchedLocalQueueStealTest()
 }
 
 func benchmarkStackGrowth(b *testing.B, rec int) {

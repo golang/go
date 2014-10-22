@@ -101,11 +101,11 @@ enum {
 };
 
 typedef struct SemT SemT;
-typedef struct Sigaltstack Sigaltstack;
+typedef struct SigaltstackT SigaltstackT;
 typedef struct Sigset Sigset;
 typedef struct StackT StackT;
 typedef struct Siginfo Siginfo;
-typedef struct Sigaction Sigaction;
+typedef struct SigactionT SigactionT;
 typedef struct Fpregset Fpregset;
 typedef struct Mcontext Mcontext;
 typedef struct Ucontext Ucontext;
@@ -126,7 +126,7 @@ struct SemT {
 	uint64	sem_pad2[2];
 };
 
-struct Sigaltstack {
+struct SigaltstackT {
 	byte	*ss_sp;
 	uint64	ss_size;
 	int32	ss_flags;
@@ -149,7 +149,7 @@ struct Siginfo {
 	int32	si_pad;
 	byte	__data[240];
 };
-struct Sigaction {
+struct SigactionT {
 	int32	sa_flags;
 	byte	Pad_cgo_0[4];
 	byte	_funcptr[8];

@@ -1043,6 +1043,7 @@ complex:
 	}
 |	LSTRUCT sbody
 	{
+		diag(Z, "struct must have tag");
 		taggen++;
 		sprint(symb, "_%d_", taggen);
 		$$ = dotag(lookup(), TSTRUCT, autobn);

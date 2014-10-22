@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !race
-
 // Package atomic provides low-level atomic memory primitives
 // useful for implementing synchronization algorithms.
 //

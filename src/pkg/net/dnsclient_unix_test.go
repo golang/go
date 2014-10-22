@@ -204,7 +204,7 @@ func TestReloadResolvConfChange(t *testing.T) {
 	if _, err := goLookupIP("golang.org"); err != nil {
 		t.Fatalf("goLookupIP(good) failed: %v", err)
 	}
-	r.WantServers([]string{"[8.8.8.8]"})
+	r.WantServers([]string{"8.8.8.8"})
 
 	// Using a bad resolv.conf when we had a good one
 	// before should not update the config
@@ -215,5 +215,32 @@ func TestReloadResolvConfChange(t *testing.T) {
 
 	// A new good config should get picked up
 	r.SetConf("nameserver 8.8.4.4")
-	r.WantServers([]string{"[8.8.4.4]"})
+	r.WantServers([]string{"8.8.4.4"})
+}
+
+func BenchmarkGoLookupIP(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		goLookupIP("www.example.com")
+	}
+}
+
+func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		goLookupIP("some.nonexistent")
+	}
+}
+
+func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
+	onceLoadConfig.Do(loadDefaultConfig)
+	if cfg.dnserr != nil || cfg.dnsConfig == nil {
+		b.Fatalf("loadConfig failed: %v", cfg.dnserr)
+	}
+	// This looks ugly but it's safe as long as benchmarks are run
+	// sequentially in package testing.
+	orig := cfg.dnsConfig
+	cfg.dnsConfig.servers = append([]string{"203.0.113.254"}, cfg.dnsConfig.servers...) // use TEST-NET-3 block, see RFC 5737
+	for i := 0; i < b.N; i++ {
+		goLookupIP("www.example.com")
+	}
+	cfg.dnsConfig = orig
 }

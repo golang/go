@@ -28,7 +28,7 @@
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #pragma dataflag NOPTR
 int32 runtime·class_to_size[NumSizeClasses];

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // NaCl entry on 32-bit x86 has DI pointing at the arg block, which contains:
 //
@@ -27,4 +27,4 @@ TEXT main(SB),NOSPLIT,$0
 	// Uncomment for fake time like on Go Playground.
 	//MOVQ	$1257894000000000000, AX
 	//MOVQ	AX, runtime·timens(SB)
-	JMP	_rt0_go(SB)
+	JMP	runtime·rt0_go(SB)

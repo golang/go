@@ -6,6 +6,9 @@
 // Unicode code points.
 package unicode
 
+// Tables are regenerated each time we update the Unicode version.
+//go:generate go run maketables.go -tables=all -output tables.go
+
 const (
 	MaxRune         = '\U0010FFFF' // Maximum valid Unicode code point.
 	ReplacementChar = '\uFFFD'     // Represents invalid code points.

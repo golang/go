@@ -832,6 +832,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, plus, goSyntax bool, dep
 	return p.printReflectValue(value, verb, plus, goSyntax, depth)
 }
 
+var byteType = reflect.TypeOf(byte(0))
+
 // printReflectValue is the fallback for both printArg and printValue.
 // It uses reflect to print the value.
 func (p *pp) printReflectValue(value reflect.Value, verb rune, plus, goSyntax bool, depth int) (wasString bool) {
@@ -925,8 +927,12 @@ BigSwitch:
 			wasString = p.printValue(value, verb, plus, goSyntax, depth+1)
 		}
 	case reflect.Array, reflect.Slice:
-		// Byte slices are special.
-		if typ := f.Type(); typ.Elem().Kind() == reflect.Uint8 {
+		// Byte slices are special:
+		// - Handle []byte (== []uint8) with fmtBytes.
+		// - Handle []T, where T is a named byte type, with fmtBytes only
+		//   for the s, q, an x verbs. For other verbs, T might be a
+		//   Stringer, so we use printValue to print each element.
+		if typ := f.Type(); typ.Elem().Kind() == reflect.Uint8 && (typ.Elem() == byteType || verb == 's' || verb == 'q' || verb == 'x') {
 			var bytes []byte
 			if f.Kind() == reflect.Slice {
 				bytes = f.Bytes()

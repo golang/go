@@ -697,7 +697,8 @@ argmark(Node *n, int pass)
 {
 	Type *t;
 
-	autoffset = align(0, thisfn->link, Aarg0, nil);
+	if(hasdotdotdot(thisfn->link))
+		autoffset = align(0, thisfn->link, Aarg0, nil);
 	stkoff = 0;
 	for(; n->left != Z; n = n->left) {
 		if(n->op != OFUNC || n->left->op != ONAME)
@@ -1401,6 +1402,10 @@ xdecl(int c, Type *t, Sym *s)
 		}
 	tmerge(t, s);
 	s->type = t;
+	if(c == CTYPEDEF && (typechlv[t->etype] || typefd[t->etype])) {
+		s->type = copytyp(t);
+		s->type->tag = s;
+	}
 	s->class = c;
 	s->block = 0;
 	s->offset = o;
@@ -1481,12 +1486,9 @@ edecl(int c, Type *t, Sym *s)
 {
 	Type *t1;
 
-	if(s == S) {
-		if(!typesu[t->etype])
-			diag(Z, "unnamed structure element must be struct/union");
-		if(c != CXXX)
-			diag(Z, "unnamed structure element cannot have class");
-	} else
+	if(s == S)
+		diag(Z, "unnamed structure elements not supported");
+	else
 		if(c != CXXX)
 			diag(Z, "structure element cannot have class: %s", s->name);
 	t1 = t;

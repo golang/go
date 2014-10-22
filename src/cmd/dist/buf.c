@@ -202,7 +202,7 @@ vadd(Vec *v, char *p)
 }
 
 // vaddn adds a string consisting of the n bytes at p to the vector.
-void
+static void
 vaddn(Vec *v, char *p, int n)
 {
 	char *q;

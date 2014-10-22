@@ -216,6 +216,44 @@ func TestOutOfRangeSelector(t *testing.T) {
 	ioutil.ReadAll(decompressor)
 }
 
+func TestMTF(t *testing.T) {
+	mtf := newMTFDecoderWithRange(5)
+
+	// 0 1 2 3 4
+	expect := byte(1)
+	x := mtf.Decode(1)
+	if x != expect {
+		t.Errorf("expected %v, got %v", expect, x)
+	}
+
+	// 1 0 2 3 4
+	x = mtf.Decode(0)
+	if x != expect {
+		t.Errorf("expected %v, got %v", expect, x)
+	}
+
+	// 1 0 2 3 4
+	expect = byte(0)
+	x = mtf.Decode(1)
+	if x != expect {
+		t.Errorf("expected %v, got %v", expect, x)
+	}
+
+	// 0 1 2 3 4
+	expect = byte(4)
+	x = mtf.Decode(4)
+	if x != expect {
+		t.Errorf("expected %v, got %v", expect, x)
+	}
+
+	// 4 0 1 2 3
+	expect = byte(0)
+	x = mtf.Decode(1)
+	if x != expect {
+		t.Errorf("expected %v, got %v", expect, x)
+	}
+}
+
 var bufferOverrunBase64 string = `
 QlpoNTFBWSZTWTzyiGcACMP/////////////////////////////////3/7f3///
 ////4N/fCZODak2Xo44GIHZgkGzDRbFAuwAAKoFV7T6AO6qwA6APb6s2rOoAkAAD

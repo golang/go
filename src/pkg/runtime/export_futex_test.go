@@ -6,8 +6,5 @@
 
 package runtime
 
-func futexsleep(addr *uint32, val uint32, ns int64)
-func futexwakeup(addr *uint32, val uint32)
-
 var Futexsleep = futexsleep
 var Futexwakeup = futexwakeup

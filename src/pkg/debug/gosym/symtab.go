@@ -402,7 +402,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 			if n := len(t.Funcs); n > 0 {
 				t.Funcs[n-1].End = sym.Value
 			}
-			if sym.Name == "etext" {
+			if sym.Name == "runtime.etext" || sym.Name == "etext" {
 				continue
 			}
 

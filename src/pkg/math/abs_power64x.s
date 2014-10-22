@@ -4,7 +4,7 @@
 
 // +build power64 power64le
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT ·Abs(SB),NOSPLIT,$0-16
 	MOVD	x+0(FP), R3

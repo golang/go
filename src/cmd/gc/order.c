@@ -593,7 +593,10 @@ orderstmt(Node *n, Order *order)
 		orderexpr(&n->rlist->n->left, order);  // arg to recv
 		ch = n->rlist->n->left->type;
 		tmp1 = ordertemp(ch->type, order, haspointers(ch->type));
-		tmp2 = ordertemp(types[TBOOL], order, 0);
+		if(!isblank(n->list->next->n))
+			tmp2 = ordertemp(n->list->next->n->type, order, 0);
+		else
+			tmp2 = ordertemp(types[TBOOL], order, 0);
 		order->out = list(order->out, n);
 		r = nod(OAS, n->list->n, tmp1);
 		typecheck(&r, Etop);
@@ -768,6 +771,12 @@ orderstmt(Node *n, Order *order)
 		// Special: clean case temporaries in each block entry.
 		// Select must enter one of its blocks, so there is no
 		// need for a cleaning at the end.
+		// Doubly special: evaluation order for select is stricter
+		// than ordinary expressions. Even something like p.c
+		// has to be hoisted into a temporary, so that it cannot be
+		// reordered after the channel evaluation for a different
+		// case (if p were nil, then the timing of the fault would
+		// give this away).
 		t = marktemp(order);
 		for(l=n->list; l; l=l->next) {
 			if(l->n->op != OXCASE)
@@ -810,6 +819,8 @@ orderstmt(Node *n, Order *order)
 					// r->left == N means 'case <-c'.
 					// c is always evaluated; x and ok are only evaluated when assigned.
 					orderexpr(&r->right->left, order);
+					if(r->right->left->op != ONAME)
+						r->right->left = ordercopyexpr(r->right->left, r->right->left->type, order, 0);
 
 					// Introduce temporary for receive and move actual copy into case body.
 					// avoids problems with target being addressed, as usual.
@@ -1054,6 +1065,19 @@ orderexpr(Node **np, Order *order)
 	case ORECV:
 		orderexpr(&n->left, order);
 		n = ordercopyexpr(n, n->type, order, 1);
+		break;
+
+	case OEQ:
+	case ONE:
+		orderexpr(&n->left, order);
+		orderexpr(&n->right, order);
+		t = n->left->type;
+		if(t->etype == TSTRUCT || isfixedarray(t)) {
+			// for complex comparisons, we need both args to be
+			// addressable so we can pass them to the runtime.
+			orderaddrtemp(&n->left, order);
+			orderaddrtemp(&n->right, order);
+		}
 		break;
 	}
 	

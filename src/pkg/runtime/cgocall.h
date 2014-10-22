@@ -7,6 +7,7 @@
  */
 
 void runtime·cgocall(void (*fn)(void*), void*);
+int32 runtime·cgocall_errno(void (*fn)(void*), void*);
 void runtime·cgocallback(void (*fn)(void), void*, uintptr);
 void *runtime·cmalloc(uintptr);
 void runtime·cfree(void*);

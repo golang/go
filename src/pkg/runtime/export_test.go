@@ -6,6 +6,8 @@
 
 package runtime
 
+import "unsafe"
+
 var Fadd64 = fadd64
 var Fsub64 = fsub64
 var Fmul64 = fmul64
@@ -16,14 +18,12 @@ var Fcmp64 = fcmp64
 var Fintto64 = fintto64
 var F64toint = f64toint
 
-func entersyscall()
-func exitsyscall()
-func golockedOSThread() bool
+// in asm_*.s
 func stackguard() (sp, limit uintptr)
 
 var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
-var LockedOSThread = golockedOSThread
+var LockedOSThread = lockedOSThread
 var Stackguard = stackguard
 
 type LFNode struct {
@@ -31,11 +31,26 @@ type LFNode struct {
 	Pushcnt uintptr
 }
 
-func lfstackpush_go(head *uint64, node *LFNode)
-func lfstackpop_go(head *uint64) *LFNode
+func lfstackpush_m()
+func lfstackpop_m()
 
-var LFStackPush = lfstackpush_go
-var LFStackPop = lfstackpop_go
+func LFStackPush(head *uint64, node *LFNode) {
+	mp := acquirem()
+	mp.ptrarg[0] = unsafe.Pointer(head)
+	mp.ptrarg[1] = unsafe.Pointer(node)
+	onM(lfstackpush_m)
+	releasem(mp)
+}
+
+func LFStackPop(head *uint64) *LFNode {
+	mp := acquirem()
+	mp.ptrarg[0] = unsafe.Pointer(head)
+	onM(lfstackpop_m)
+	node := (*LFNode)(unsafe.Pointer(mp.ptrarg[0]))
+	mp.ptrarg[0] = nil
+	releasem(mp)
+	return node
+}
 
 type ParFor struct {
 	body    *byte
@@ -48,45 +63,101 @@ type ParFor struct {
 	wait    bool
 }
 
-func newParFor(nthrmax uint32) *ParFor
-func parForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32))
-func parForDo(desc *ParFor)
-func parForIters(desc *ParFor, tid uintptr) (uintptr, uintptr)
+func newparfor_m()
+func parforsetup_m()
+func parfordo_m()
+func parforiters_m()
 
-var NewParFor = newParFor
-var ParForSetup = parForSetup
-var ParForDo = parForDo
-
-func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
-	begin, end := parForIters(desc, uintptr(tid))
-	return uint32(begin), uint32(end)
+func NewParFor(nthrmax uint32) *ParFor {
+	mp := acquirem()
+	mp.scalararg[0] = uintptr(nthrmax)
+	onM(newparfor_m)
+	desc := (*ParFor)(mp.ptrarg[0])
+	mp.ptrarg[0] = nil
+	releasem(mp)
+	return desc
 }
 
+func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32)) {
+	mp := acquirem()
+	mp.ptrarg[0] = unsafe.Pointer(desc)
+	mp.ptrarg[1] = unsafe.Pointer(ctx)
+	mp.ptrarg[2] = unsafe.Pointer(funcPC(body)) // TODO(rsc): Should be a scalar.
+	mp.scalararg[0] = uintptr(nthr)
+	mp.scalararg[1] = uintptr(n)
+	mp.scalararg[2] = 0
+	if wait {
+		mp.scalararg[2] = 1
+	}
+	onM(parforsetup_m)
+	releasem(mp)
+}
+
+func ParForDo(desc *ParFor) {
+	mp := acquirem()
+	mp.ptrarg[0] = unsafe.Pointer(desc)
+	onM(parfordo_m)
+	releasem(mp)
+}
+
+func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
+	mp := acquirem()
+	mp.ptrarg[0] = unsafe.Pointer(desc)
+	mp.scalararg[0] = uintptr(tid)
+	onM(parforiters_m)
+	begin := uint32(mp.scalararg[0])
+	end := uint32(mp.scalararg[1])
+	releasem(mp)
+	return begin, end
+}
+
+// in mgc0.c
 //go:noescape
-func GCMask(x interface{}) []byte
+func getgcmask(data unsafe.Pointer, typ *_type, array **byte, len *uint)
+
+func GCMask(x interface{}) (ret []byte) {
+	e := (*eface)(unsafe.Pointer(&x))
+	s := (*slice)(unsafe.Pointer(&ret))
+	onM(func() {
+		getgcmask(e.data, e._type, &s.array, &s.len)
+		s.cap = s.len
+	})
+	return
+}
 
 func testSchedLocalQueue()
 func testSchedLocalQueueSteal()
-
-var TestSchedLocalQueue1 = testSchedLocalQueue
-var TestSchedLocalQueueSteal1 = testSchedLocalQueueSteal
+func RunSchedLocalQueueTest() {
+	onM(testSchedLocalQueue)
+}
+func RunSchedLocalQueueStealTest() {
+	onM(testSchedLocalQueueSteal)
+}
 
 var HaveGoodHash = haveGoodHash
 var StringHash = stringHash
 var BytesHash = bytesHash
 var Int32Hash = int32Hash
 var Int64Hash = int64Hash
+var EfaceHash = efaceHash
+var IfaceHash = ifaceHash
+var MemclrBytes = memclrBytes
 
 var HashLoad = &hashLoad
 
-func memclrBytes(b []byte)
+// For testing.
+func GogoBytes() int32 {
+	return _RuntimeGogoBytes
+}
 
-var MemclrBytes = memclrBytes
+// in string.c
+//go:noescape
+func gostringw(w *uint16) string
 
-func gogoBytes() int32
-
-var GogoBytes = gogoBytes
-
-func gostringW([]uint16) string
-
-var GostringW = gostringW
+// entry point for testing
+func GostringW(w []uint16) (s string) {
+	onM(func() {
+		s = gostringw(&w[0])
+	})
+	return
+}

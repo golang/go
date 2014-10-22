@@ -17,7 +17,7 @@ TEXT text1(SB),7,$0
 	RET
 
 TEXT text2(SB),7,$0
-	MOVQ $edata(SB),BX
+	MOVQ $runtime·edata(SB),BX
 	RET
 
 DATA data1<>+0(SB)/8, $data2(SB)
@@ -46,4 +46,3 @@ GLOBL dead_data1(SB), $16
 GLOBL dead_data2(SB), $1
 GLOBL dead_data3(SB), $1
 GLOBL dead_funcdata(SB), $8
-

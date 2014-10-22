@@ -7,7 +7,7 @@
 #include "os_GOOS.h"
 #include "signal_unix.h"
 #include "stack.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 extern SigTab runtime·sigtab[];
 
@@ -68,22 +68,42 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 	runtime·futex(addr, FUTEX_WAIT, val, &ts, nil, 0);
 }
 
+static void badfutexwakeup(void);
+
 // If any procs are sleeping on addr, wake up at most cnt.
+#pragma textflag NOSPLIT
 void
 runtime·futexwakeup(uint32 *addr, uint32 cnt)
 {
 	int64 ret;
+	void (*fn)(void);
 
 	ret = runtime·futex(addr, FUTEX_WAKE, cnt, nil, nil, 0);
-
 	if(ret >= 0)
 		return;
 
 	// I don't know that futex wakeup can return
 	// EAGAIN or EINTR, but if it does, it would be
 	// safe to loop and call futex again.
-	runtime·printf("futexwakeup addr=%p returned %D\n", addr, ret);
+	g->m->ptrarg[0] = addr;
+	g->m->scalararg[0] = (int32)ret; // truncated but fine
+	fn = badfutexwakeup;
+	if(g == g->m->gsignal)
+		fn();
+	else
+		runtime·onM(&fn);
 	*(int32*)0x1006 = 0x1006;
+}
+
+static void
+badfutexwakeup(void)
+{
+	void *addr;
+	int64 ret;
+	
+	addr = g->m->ptrarg[0];
+	ret = (int32)g->m->scalararg[0];
+	runtime·printf("futexwakeup addr=%p returned %D\n", addr, ret);
 }
 
 extern runtime·sched_getaffinity(uintptr pid, uintptr len, uintptr *buf);
@@ -178,6 +198,7 @@ runtime·osinit(void)
 byte*	runtime·startup_random_data;
 uint32	runtime·startup_random_data_len;
 
+#pragma textflag NOSPLIT
 void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {
@@ -271,7 +292,7 @@ uintptr
 runtime·memlimit(void)
 {
 	Rlimit rl;
-	extern byte text[], end[];
+	extern byte runtime·text[], runtime·end[];
 	uintptr used;
 
 	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
@@ -282,7 +303,7 @@ runtime·memlimit(void)
 	// Estimate our VM footprint excluding the heap.
 	// Not an exact science: use size of binary plus
 	// some room for thread stacks.
-	used = end - text + (64<<20);
+	used = runtime·end - runtime·text + (64<<20);
 	if(used >= rl.rlim_cur)
 		return 0;
 
@@ -309,7 +330,7 @@ extern void runtime·sigreturn(void);	// calls rt_sigreturn, only used with SA_R
 void
 runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
@@ -336,7 +357,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 GoSighandler*
 runtime·getsig(int32 i)
 {
-	Sigaction sa;
+	SigactionT sa;
 
 	runtime·memclr((byte*)&sa, sizeof sa);
 	if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)
@@ -349,7 +370,7 @@ runtime·getsig(int32 i)
 void
 runtime·signalstack(byte *p, int32 n)
 {
-	Sigaltstack st;
+	SigaltstackT st;
 
 	st.ss_sp = p;
 	st.ss_size = n;

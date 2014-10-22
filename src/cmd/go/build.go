@@ -885,7 +885,7 @@ func (b *builder) build(a *action) (err error) {
 	}
 
 	if len(gofiles) == 0 {
-		return &build.NoGoError{a.p.Dir}
+		return &build.NoGoError{Dir: a.p.Dir}
 	}
 
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
@@ -1613,8 +1613,10 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []
 }
 
 func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	sfile = mkAbs(p.Dir, sfile)
-	return b.run(p.Dir, p.ImportPath, nil, tool(archChar+"a"), "-trimpath", b.work, "-I", obj, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
+	return b.run(p.Dir, p.ImportPath, nil, tool(archChar+"a"), "-trimpath", b.work, "-I", obj, "-I", inc, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
 }
 
 func (gcToolchain) pkgpath(basedir string, p *Package) string {
@@ -2312,7 +2314,23 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles, gxxfiles, mfiles
 			nonGccObjs = append(nonGccObjs, f)
 		}
 	}
-	if err := b.gccld(p, ofile, stringList(bareLDFLAGS, "-Wl,-r", "-nostdlib", staticLibs), gccObjs); err != nil {
+	ldflags := stringList(bareLDFLAGS, "-Wl,-r", "-nostdlib", staticLibs)
+
+	// Some systems, such as Ubuntu, always add --build-id to
+	// every link, but we don't want a build ID since we are
+	// producing an object file.  On some of those system a plain
+	// -r (not -Wl,-r) will turn off --build-id, but clang 3.0
+	// doesn't support a plain -r.  I don't know how to turn off
+	// --build-id when using clang other than passing a trailing
+	// --build-id=none.  So that is what we do, but only on
+	// systems likely to support it, which is to say, systems that
+	// normally use gold or the GNU linker.
+	switch goos {
+	case "android", "dragonfly", "linux", "netbsd":
+		ldflags = append(ldflags, "-Wl,--build-id=none")
+	}
+
+	if err := b.gccld(p, ofile, ldflags, gccObjs); err != nil {
 		return nil, nil, err
 	}
 

@@ -4,7 +4,7 @@
 
 // +build power64 power64le
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.

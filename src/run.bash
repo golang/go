@@ -162,11 +162,16 @@ android-arm | dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | fr
 esac
 ) || exit $?
 
-# This tests cgo -godefs. That mode is not supported,
+# This tests cgo -cdefs. That mode is not supported,
 # so it's okay if it doesn't work on some systems.
 # In particular, it works badly with clang on OS X.
 [ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
 (xcd ../misc/cgo/testcdefs
+./test.bash || exit 1
+) || exit $?
+
+[ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
+(xcd ../misc/cgo/testgodefs
 ./test.bash || exit 1
 ) || exit $?
 

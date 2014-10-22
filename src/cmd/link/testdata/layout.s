@@ -5,7 +5,7 @@
 // Test of section assignment in layout.go.
 // Each symbol should end up in the section named by the symbol name prefix (up to the underscore).
 
-#include "../../ld/textflag.h"
+#include "textflag.h"
 
 TEXT text_start(SB),7,$0
 	MOVQ $rodata_sym(SB), AX

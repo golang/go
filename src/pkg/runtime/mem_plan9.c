@@ -7,18 +7,19 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "os_GOOS.h"
+#include "textflag.h"
 
-extern byte end[];
-static byte *bloc = { end };
-static Lock memlock;
+extern byte runtime·end[];
+static byte *bloc = { runtime·end };
+static Mutex memlock;
 
 enum
 {
 	Round = PAGESIZE-1
 };
 
-void*
-runtime·SysAlloc(uintptr nbytes, uint64 *stat)
+static void*
+brk(uintptr nbytes)
 {
 	uintptr bl;
 
@@ -31,8 +32,42 @@ runtime·SysAlloc(uintptr nbytes, uint64 *stat)
 	}
 	bloc = (byte*)bl + nbytes;
 	runtime·unlock(&memlock);
-	runtime·xadd64(stat, nbytes);
-	return (void*)bl;
+	return (void*)bl;	
+}
+
+static void
+sysalloc(void)
+{
+	uintptr nbytes;
+	uint64 *stat;
+	void *p;
+
+	nbytes = g->m->scalararg[0];
+	stat = g->m->ptrarg[0];
+	g->m->scalararg[0] = 0;
+	g->m->ptrarg[0] = nil;
+
+	p = brk(nbytes);
+	if(p != nil)
+		runtime·xadd64(stat, nbytes);
+
+	g->m->ptrarg[0] = p;
+}
+
+#pragma textflag NOSPLIT
+void*
+runtime·sysAlloc(uintptr nbytes, uint64 *stat)
+{
+	void (*fn)(void);
+	void *p;
+
+	g->m->scalararg[0] = nbytes;
+	g->m->ptrarg[0] = stat;
+	fn = sysalloc;
+	runtime·onM(&fn);
+	p = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	return p;
 }
 
 void
@@ -42,7 +77,7 @@ runtime·SysFree(void *v, uintptr nbytes, uint64 *stat)
 	runtime·lock(&memlock);
 	// from tiny/mem.c
 	// Push pointer back if this is a free
-	// of the most recent SysAlloc.
+	// of the most recent sysAlloc.
 	nbytes += (nbytes + Round) & ~Round;
 	if(bloc == (byte*)v+nbytes)
 		bloc -= nbytes;
@@ -64,7 +99,10 @@ runtime·SysUsed(void *v, uintptr nbytes)
 void
 runtime·SysMap(void *v, uintptr nbytes, bool reserved, uint64 *stat)
 {
-	USED(v, nbytes, reserved, stat);
+	// SysReserve has already allocated all heap memory,
+	// but has not adjusted stats.
+	USED(v, reserved);
+	runtime·xadd64(stat, nbytes);
 }
 
 void
@@ -78,5 +116,5 @@ runtime·SysReserve(void *v, uintptr nbytes, bool *reserved)
 {
 	USED(v);
 	*reserved = true;
-	return runtime·SysAlloc(nbytes, &mstats.heap_sys);
+	return brk(nbytes);
 }

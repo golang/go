@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // func Atan2(y, x float64) float64	// =atan(y/x)
 TEXT ·Atan2(SB),NOSPLIT,$0

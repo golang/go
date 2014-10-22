@@ -13,7 +13,7 @@
 #include "typekind.h"
 #include "race.h"
 #include "stack.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // Mark mheap as 'no pointers', it does not contain interesting pointers but occupies ~45K.
 #pragma dataflag NOPTR
@@ -21,7 +21,10 @@ MHeap runtime·mheap;
 #pragma dataflag NOPTR
 MStats runtime·memstats;
 
+Type* runtime·conservative;
+
 void runtime·cmallocgc(uintptr size, Type *typ, intgo flag, void **ret);
+void runtime·gc_notype_ptr(Eface*);
 
 void*
 runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
@@ -31,14 +34,10 @@ runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
 	// Call into the Go version of mallocgc.
 	// TODO: maybe someday we can get rid of this.  It is
 	// probably the only location where we run Go code on the M stack.
+	if((flag&FlagNoScan) == 0 && typ == nil)
+		typ = runtime·conservative;
 	runtime·cmallocgc(size, typ, flag, &ret);
 	return ret;
-}
-
-void*
-runtime·malloc(uintptr size)
-{
-	return runtime·mallocgc(size, nil, FlagNoInvokeGC);
 }
 
 int32
@@ -51,9 +50,9 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 	g->m->mcache->local_nlookup++;
 	if (sizeof(void*) == 4 && g->m->mcache->local_nlookup >= (1<<30)) {
 		// purge cache stats to prevent overflow
-		runtime·lock(&runtime·mheap);
+		runtime·lock(&runtime·mheap.lock);
 		runtime·purgecachedstats(g->m->mcache);
-		runtime·unlock(&runtime·mheap);
+		runtime·unlock(&runtime·mheap.lock);
 	}
 
 	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
@@ -88,6 +87,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 	return 1;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·purgecachedstats(MCache *c)
 {
@@ -126,10 +126,11 @@ runtime·mallocinit(void)
 {
 	byte *p, *p1;
 	uintptr arena_size, bitmap_size, spans_size, p_size;
-	extern byte end[];
+	extern byte runtime·end[];
 	uintptr limit;
 	uint64 i;
 	bool reserved;
+	Eface notype_eface;
 
 	p = nil;
 	p_size = 0;
@@ -232,7 +233,7 @@ runtime·mallocinit(void)
 		// So adjust it upward a little bit ourselves: 1/4 MB to get
 		// away from the running binary image and then round up
 		// to a MB boundary.
-		p = (byte*)ROUND((uintptr)end + (1<<18), 1<<20);
+		p = (byte*)ROUND((uintptr)runtime·end + (1<<18), 1<<20);
 		p_size = bitmap_size + spans_size + arena_size + PageSize;
 		p = runtime·SysReserve(p, p_size, &reserved);
 		if(p == nil)
@@ -257,6 +258,9 @@ runtime·mallocinit(void)
 	// Initialize the rest of the allocator.	
 	runtime·MHeap_Init(&runtime·mheap);
 	g->m->mcache = runtime·allocmcache();
+
+	runtime·gc_notype_ptr(&notype_eface);
+	runtime·conservative = notype_eface.type;
 }
 
 void*
@@ -317,7 +321,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	// try to get memory at a location chosen by the OS
 	// and hope that it is in the range we allocated bitmap for.
 	p_size = ROUND(n, PageSize) + PageSize;
-	p = runtime·SysAlloc(p_size, &mstats.heap_sys);
+	p = runtime·sysAlloc(p_size, &mstats.heap_sys);
 	if(p == nil)
 		return nil;
 
@@ -345,65 +349,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	return p;
 }
 
-static struct
-{
-	Lock;
-	byte*	pos;
-	byte*	end;
-} persistent;
-
-enum
-{
-	PersistentAllocChunk	= 256<<10,
-	PersistentAllocMaxBlock	= 64<<10,  // VM reservation granularity is 64K on windows
-};
-
-// Wrapper around SysAlloc that can allocate small chunks.
-// There is no associated free operation.
-// Intended for things like function/type/debug-related persistent data.
-// If align is 0, uses default align (currently 8).
-void*
-runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
-{
-	byte *p;
-
-	if(align != 0) {
-		if(align&(align-1))
-			runtime·throw("persistentalloc: align is not a power of 2");
-		if(align > PageSize)
-			runtime·throw("persistentalloc: align is too large");
-	} else
-		align = 8;
-	if(size >= PersistentAllocMaxBlock)
-		return runtime·SysAlloc(size, stat);
-	runtime·lock(&persistent);
-	persistent.pos = (byte*)ROUND((uintptr)persistent.pos, align);
-	if(persistent.pos + size > persistent.end) {
-		persistent.pos = runtime·SysAlloc(PersistentAllocChunk, &mstats.other_sys);
-		if(persistent.pos == nil) {
-			runtime·unlock(&persistent);
-			runtime·throw("runtime: cannot allocate memory");
-		}
-		persistent.end = persistent.pos + PersistentAllocChunk;
-	}
-	p = persistent.pos;
-	persistent.pos += size;
-	runtime·unlock(&persistent);
-	if(stat != &mstats.other_sys) {
-		// reaccount the allocation against provided stat
-		runtime·xadd64(stat, size);
-		runtime·xadd64(&mstats.other_sys, -(uint64)size);
-	}
-	return p;
-}
-
 // Runtime stubs.
-
-void*
-runtime·mal(uintptr n)
-{
-	return runtime·mallocgc(n, nil, 0);
-}
 
 static void*
 cnew(Type *typ, intgo n)
@@ -426,118 +372,47 @@ runtime·cnewarray(Type *typ, intgo n)
 	return cnew(typ, n);
 }
 
-static void
-setFinalizer(Eface obj, Eface finalizer)
+void
+runtime·setFinalizer_m(void)
 {
-	byte *base;
-	uintptr size;
-	FuncType *ft;
-	int32 i;
+	FuncVal *fn;
+	void *arg;
 	uintptr nret;
-	Type *t;
 	Type *fint;
 	PtrType *ot;
-	Iface iface;
 
-	if(obj.type == nil) {
-		runtime·printf("runtime.SetFinalizer: first argument is nil interface\n");
-		goto throw;
-	}
-	if((obj.type->kind&KindMask) != KindPtr) {
-		runtime·printf("runtime.SetFinalizer: first argument is %S, not pointer\n", *obj.type->string);
-		goto throw;
-	}
-	ot = (PtrType*)obj.type;
-	// As an implementation detail we do not run finalizers for zero-sized objects,
-	// because we use &runtime·zerobase for all such allocations.
-	if(ot->elem != nil && ot->elem->size == 0)
-		return;
-	// The following check is required for cases when a user passes a pointer to composite literal,
-	// but compiler makes it a pointer to global. For example:
-	//	var Foo = &Object{}
-	//	func main() {
-	//		runtime.SetFinalizer(Foo, nil)
-	//	}
-	// See issue 7656.
-	if((byte*)obj.data < runtime·mheap.arena_start || runtime·mheap.arena_used <= (byte*)obj.data)
-		return;
-	if(!runtime·mlookup(obj.data, &base, &size, nil) || obj.data != base) {
-		// As an implementation detail we allow to set finalizers for an inner byte
-		// of an object if it could come from tiny alloc (see mallocgc for details).
-		if(ot->elem == nil || (ot->elem->kind&KindNoPointers) == 0 || ot->elem->size >= TinySize) {
-			runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block (%p)\n", obj.data);
-			goto throw;
-		}
-	}
-	if(finalizer.type != nil) {
-		runtime·createfing();
-		if(finalizer.type->kind != KindFunc)
-			goto badfunc;
-		ft = (FuncType*)finalizer.type;
-		if(ft->dotdotdot || ft->in.len != 1)
-			goto badfunc;
-		fint = *(Type**)ft->in.array;
-		if(fint == obj.type) {
-			// ok - same type
-		} else if(fint->kind == KindPtr && (fint->x == nil || fint->x->name == nil || obj.type->x == nil || obj.type->x->name == nil) && ((PtrType*)fint)->elem == ((PtrType*)obj.type)->elem) {
-			// ok - not same type, but both pointers,
-			// one or the other is unnamed, and same element type, so assignable.
-		} else if(fint->kind == KindInterface && ((InterfaceType*)fint)->mhdr.len == 0) {
-			// ok - satisfies empty interface
-		} else if(fint->kind == KindInterface && runtime·ifaceE2I2((InterfaceType*)fint, obj, &iface)) {
-			// ok - satisfies non-empty interface
-		} else
-			goto badfunc;
-
-		// compute size needed for return parameters
-		nret = 0;
-		for(i=0; i<ft->out.len; i++) {
-			t = ((Type**)ft->out.array)[i];
-			nret = ROUND(nret, t->align) + t->size;
-		}
-		nret = ROUND(nret, sizeof(void*));
-		ot = (PtrType*)obj.type;
-		if(!runtime·addfinalizer(obj.data, finalizer.data, nret, fint, ot)) {
-			runtime·printf("runtime.SetFinalizer: finalizer already set\n");
-			goto throw;
-		}
-	} else {
-		// NOTE: asking to remove a finalizer when there currently isn't one set is OK.
-		runtime·removefinalizer(obj.data);
-	}
-	return;
-
-badfunc:
-	runtime·printf("runtime.SetFinalizer: cannot pass %S to finalizer %S\n", *obj.type->string, *finalizer.type->string);
-throw:
-	runtime·throw("runtime.SetFinalizer");
-}
-
-void
-runtime·setFinalizer(void)
-{
-	Eface obj, finalizer;
-
-	obj.type = g->m->ptrarg[0];
-	obj.data = g->m->ptrarg[1];
-	finalizer.type = g->m->ptrarg[2];
-	finalizer.data = g->m->ptrarg[3];
+	fn = g->m->ptrarg[0];
+	arg = g->m->ptrarg[1];
+	nret = g->m->scalararg[0];
+	fint = g->m->ptrarg[2];
+	ot = g->m->ptrarg[3];
 	g->m->ptrarg[0] = nil;
 	g->m->ptrarg[1] = nil;
 	g->m->ptrarg[2] = nil;
 	g->m->ptrarg[3] = nil;
-	setFinalizer(obj, finalizer);
+
+	g->m->scalararg[0] = runtime·addfinalizer(arg, fn, nret, fint, ot);
+}
+
+void
+runtime·removeFinalizer_m(void)
+{
+	void *p;
+
+	p = g->m->ptrarg[0];
+	g->m->ptrarg[0] = nil;
+	runtime·removefinalizer(p);
 }
 
 // mcallable cache refill
 void 
-runtime·mcacheRefill(void)
+runtime·mcacheRefill_m(void)
 {
 	runtime·MCache_Refill(g->m->mcache, (int32)g->m->scalararg[0]);
 }
 
 void
-runtime·largeAlloc(void)
+runtime·largeAlloc_m(void)
 {
 	uintptr npages, size;
 	MSpan *s;

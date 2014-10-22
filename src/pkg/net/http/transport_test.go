@@ -1063,20 +1063,18 @@ func TestTransportConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numReqs)
 
-	tr := &Transport{
-		Dial: func(netw, addr string) (c net.Conn, err error) {
-			// Due to the Transport's "socket late
-			// binding" (see idleConnCh in transport.go),
-			// the numReqs HTTP requests below can finish
-			// with a dial still outstanding.  So count
-			// our dials as work too so the leak checker
-			// doesn't complain at us.
-			wg.Add(1)
-			defer wg.Done()
-			return net.Dial(netw, addr)
-		},
-	}
+	// Due to the Transport's "socket late binding" (see
+	// idleConnCh in transport.go), the numReqs HTTP requests
+	// below can finish with a dial still outstanding.  To keep
+	// the leak checker happy, keep track of pending dials and
+	// wait for them to finish (and be closed or returned to the
+	// idle pool) before we close idle connections.
+	SetPendingDialHooks(func() { wg.Add(1) }, wg.Done)
+	defer SetPendingDialHooks(nil, nil)
+
+	tr := &Transport{}
 	defer tr.CloseIdleConnections()
+
 	c := &Client{Transport: tr}
 	reqs := make(chan string)
 	defer close(reqs)
@@ -2095,6 +2093,46 @@ func TestTransportClosesBodyOnError(t *testing.T) {
 	case <-didClose:
 	default:
 		t.Errorf("didn't see Body.Close")
+	}
+}
+
+func TestTransportDialTLS(t *testing.T) {
+	var mu sync.Mutex // guards following
+	var gotReq, didDial bool
+
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		mu.Lock()
+		gotReq = true
+		mu.Unlock()
+	}))
+	defer ts.Close()
+	tr := &Transport{
+		DialTLS: func(netw, addr string) (net.Conn, error) {
+			mu.Lock()
+			didDial = true
+			mu.Unlock()
+			c, err := tls.Dial(netw, addr, &tls.Config{
+				InsecureSkipVerify: true,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return c, c.Handshake()
+		},
+	}
+	defer tr.CloseIdleConnections()
+	client := &Client{Transport: tr}
+	res, err := client.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	mu.Lock()
+	if !gotReq {
+		t.Error("didn't get request")
+	}
+	if !didDial {
+		t.Error("didn't use dial hook")
 	}
 }
 

@@ -1,3 +1,5 @@
+//gofmt -s
+
 // Test cases for slice expression simplification.
 // Because of a dot import, these slices must remain untouched.
 package p

@@ -115,7 +115,7 @@ const (
 )
 
 type Timespec C.struct_timespec
-type Sigaltstack C.struct_sigaltstack
+type SigaltstackT C.struct_sigaltstack
 type Sigcontext C.struct_sigcontext
 type Ucontext C.struct_ucontext
 type Timeval C.struct_timeval

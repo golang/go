@@ -11,6 +11,7 @@
 #include "race.h"
 #include "type.h"
 #include "typekind.h"
+#include "textflag.h"
 
 // Race runtime functions called via runtime·racecall.
 void __tsan_init(void);
@@ -23,6 +24,8 @@ void __tsan_malloc(void);
 void __tsan_acquire(void);
 void __tsan_release(void);
 void __tsan_release_merge(void);
+void __tsan_go_ignore_sync_begin(void);
+void __tsan_go_ignore_sync_end(void);
 
 // Mimic what cmd/cgo would do.
 #pragma cgo_import_static __tsan_init
@@ -35,6 +38,8 @@ void __tsan_release_merge(void);
 #pragma cgo_import_static __tsan_acquire
 #pragma cgo_import_static __tsan_release
 #pragma cgo_import_static __tsan_release_merge
+#pragma cgo_import_static __tsan_go_ignore_sync_begin
+#pragma cgo_import_static __tsan_go_ignore_sync_end
 
 // These are called from race_amd64.s.
 #pragma cgo_import_static __tsan_read
@@ -46,8 +51,19 @@ void __tsan_release_merge(void);
 #pragma cgo_import_static __tsan_func_enter
 #pragma cgo_import_static __tsan_func_exit
 
-extern byte noptrdata[];
-extern byte enoptrbss[];
+#pragma cgo_import_static __tsan_go_atomic32_load
+#pragma cgo_import_static __tsan_go_atomic64_load
+#pragma cgo_import_static __tsan_go_atomic32_store
+#pragma cgo_import_static __tsan_go_atomic64_store
+#pragma cgo_import_static __tsan_go_atomic32_exchange
+#pragma cgo_import_static __tsan_go_atomic64_exchange
+#pragma cgo_import_static __tsan_go_atomic32_fetch_add
+#pragma cgo_import_static __tsan_go_atomic64_fetch_add
+#pragma cgo_import_static __tsan_go_atomic32_compare_exchange
+#pragma cgo_import_static __tsan_go_atomic64_compare_exchange
+
+extern byte runtime·noptrdata[];
+extern byte runtime·enoptrbss[];
   
 // start/end of heap for race_amd64.s
 uintptr runtime·racearenastart;
@@ -64,16 +80,18 @@ void runtime·racesymbolizethunk(void*);
 void runtime·racecall(void(*f)(void), ...);
 
 // checks if the address has shadow (i.e. heap or data/bss)
+#pragma textflag NOSPLIT
 static bool
 isvalidaddr(uintptr addr)
 {
 	if(addr >= runtime·racearenastart && addr < runtime·racearenaend)
 		return true;
-	if(addr >= (uintptr)noptrdata && addr < (uintptr)enoptrbss)
+	if(addr >= (uintptr)runtime·noptrdata && addr < (uintptr)runtime·enoptrbss)
 		return true;
 	return false;
 }
 
+#pragma textflag NOSPLIT
 uintptr
 runtime·raceinit(void)
 {
@@ -84,18 +102,20 @@ runtime·raceinit(void)
 		runtime·throw("raceinit: race build must use cgo");
 	runtime·racecall(__tsan_init, &racectx, runtime·racesymbolizethunk);
 	// Round data segment to page boundaries, because it's used in mmap().
-	start = (uintptr)noptrdata & ~(PageSize-1);
-	size = ROUND((uintptr)enoptrbss - start, PageSize);
+	start = (uintptr)runtime·noptrdata & ~(PageSize-1);
+	size = ROUND((uintptr)runtime·enoptrbss - start, PageSize);
 	runtime·racecall(__tsan_map_shadow, start, size);
 	return racectx;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racefini(void)
 {
 	runtime·racecall(__tsan_fini);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racemapshadow(void *addr, uintptr size)
 {
@@ -106,30 +126,45 @@ runtime·racemapshadow(void *addr, uintptr size)
 	runtime·racecall(__tsan_map_shadow, addr, size);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racemalloc(void *p, uintptr sz)
 {
 	runtime·racecall(__tsan_malloc, p, sz);
 }
 
+#pragma textflag NOSPLIT
 uintptr
 runtime·racegostart(void *pc)
 {
 	uintptr racectx;
+	G *spawng;
 
-	runtime·racecall(__tsan_go_start, g->racectx, &racectx, pc);
+	if(g->m->curg != nil)
+		spawng = g->m->curg;
+	else
+		spawng = g;
+
+	runtime·racecall(__tsan_go_start, spawng->racectx, &racectx, pc);
 	return racectx;
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racegoend(void)
 {
 	runtime·racecall(__tsan_go_end, g->racectx);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
+	if(g != g->m->curg) {
+		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
+		// Not interesting.
+		return;
+	}
 	if(callpc != nil)
 		runtime·racefuncenter(callpc);
 	runtime·racewriterangepc1(addr, sz, pc);
@@ -137,9 +172,15 @@ runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
 		runtime·racefuncexit();
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
 {
+	if(g != g->m->curg) {
+		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
+		// Not interesting.
+		return;
+	}
 	if(callpc != nil)
 		runtime·racefuncenter(callpc);
 	runtime·racereadrangepc1(addr, sz, pc);
@@ -147,6 +188,7 @@ runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
 		runtime·racefuncexit();
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
 {
@@ -159,6 +201,7 @@ runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
 		runtime·racewritepc(addr, callpc, pc);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
 {
@@ -171,12 +214,14 @@ runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
 		runtime·racereadpc(addr, callpc, pc);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·raceacquire(void *addr)
 {
 	runtime·raceacquireg(g, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·raceacquireg(G *gp, void *addr)
 {
@@ -185,6 +230,7 @@ runtime·raceacquireg(G *gp, void *addr)
 	runtime·racecall(__tsan_acquire, gp->racectx, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racerelease(void *addr)
 {
@@ -193,6 +239,7 @@ runtime·racerelease(void *addr)
 	runtime·racereleaseg(g, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racereleaseg(G *gp, void *addr)
 {
@@ -201,12 +248,14 @@ runtime·racereleaseg(G *gp, void *addr)
 	runtime·racecall(__tsan_release, gp->racectx, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racereleasemerge(void *addr)
 {
 	runtime·racereleasemergeg(g, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racereleasemergeg(G *gp, void *addr)
 {
@@ -215,6 +264,7 @@ runtime·racereleasemergeg(G *gp, void *addr)
 	runtime·racecall(__tsan_release_merge, gp->racectx, addr);
 }
 
+#pragma textflag NOSPLIT
 void
 runtime·racefingo(void)
 {
@@ -222,6 +272,7 @@ runtime·racefingo(void)
 }
 
 // func RaceAcquire(addr unsafe.Pointer)
+#pragma textflag NOSPLIT
 void
 runtime·RaceAcquire(void *addr)
 {
@@ -229,6 +280,7 @@ runtime·RaceAcquire(void *addr)
 }
 
 // func RaceRelease(addr unsafe.Pointer)
+#pragma textflag NOSPLIT
 void
 runtime·RaceRelease(void *addr)
 {
@@ -236,70 +288,27 @@ runtime·RaceRelease(void *addr)
 }
 
 // func RaceReleaseMerge(addr unsafe.Pointer)
+#pragma textflag NOSPLIT
 void
 runtime·RaceReleaseMerge(void *addr)
 {
 	runtime·racereleasemerge(addr);
 }
 
-// func RaceSemacquire(s *uint32)
-void
-runtime·RaceSemacquire(uint32 *s)
-{
-	runtime·semacquire(s, false);
-}
-
-// func RaceSemrelease(s *uint32)
-void
-runtime·RaceSemrelease(uint32 *s)
-{
-	runtime·semrelease(s);
-}
-
 // func RaceDisable()
+#pragma textflag NOSPLIT
 void
 runtime·RaceDisable(void)
 {
-	g->raceignore++;
+	if(g->raceignore++ == 0)
+		runtime·racecall(__tsan_go_ignore_sync_begin, g->racectx);
 }
 
 // func RaceEnable()
+#pragma textflag NOSPLIT
 void
 runtime·RaceEnable(void)
 {
-	g->raceignore--;
-}
-
-typedef struct SymbolizeContext SymbolizeContext;
-struct SymbolizeContext
-{
-	uintptr	pc;
-	int8*	func;
-	int8*	file;
-	uintptr	line;
-	uintptr	off;
-	uintptr	res;
-};
-
-// Callback from C into Go, runs on g0.
-void
-runtime·racesymbolize(SymbolizeContext *ctx)
-{
-	Func *f;
-	String file;
-
-	f = runtime·findfunc(ctx->pc);
-	if(f == nil) {
-		ctx->func = "??";
-		ctx->file = "-";
-		ctx->line = 0;
-		ctx->off = ctx->pc;
-		ctx->res = 1;
-		return;
-	}
-	ctx->func = runtime·funcname(f);
-	ctx->line = runtime·funcline(f, ctx->pc, &file);
-	ctx->file = (int8*)file.str;  // assume zero-terminated
-	ctx->off = ctx->pc - f->entry;
-	ctx->res = 1;
+	if(--g->raceignore == 0)
+		runtime·racecall(__tsan_go_ignore_sync_end, g->racectx);
 }

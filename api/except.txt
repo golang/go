@@ -327,3 +327,4 @@ pkg syscall (netbsd-arm), const SizeofIfData = 132
 pkg syscall (netbsd-arm), type IfMsghdr struct, Pad_cgo_1 [4]uint8
 pkg syscall (netbsd-arm-cgo), const SizeofIfData = 132
 pkg syscall (netbsd-arm-cgo), type IfMsghdr struct, Pad_cgo_1 [4]uint8
+pkg unicode, const Version = "6.3.0"

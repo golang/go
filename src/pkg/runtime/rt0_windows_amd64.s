@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
 	LEAQ	8(SP), SI // argv
@@ -12,7 +12,7 @@ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
 	JMP	AX
 
 TEXT main(SB),NOSPLIT,$-8
-	MOVQ	$_rt0_go(SB), AX
+	MOVQ	$runtime·rt0_go(SB), AX
 	JMP	AX
 
 DATA  runtime·iswindows(SB)/4, $1

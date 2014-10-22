@@ -261,7 +261,7 @@ static Prog*	stacksplit(Link*, Prog*, int32, int, Prog**);
 static void
 addstacksplit(Link *ctxt, LSym *cursym)
 {
-	Prog *p, *q;
+	Prog *p, *q, *p1, *p2;
 	int32 autoffset, deltasp;
 	int a;
 
@@ -317,13 +317,64 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	deltasp = autoffset;
 	
 	if(cursym->text->from.scale & WRAPPER) {
-		// g->panicwrap += autoffset + ctxt->arch->ptrsize;
+		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+		//
+		//	MOVL g_panic(CX), BX
+		//	TESTL BX, BX
+		//	JEQ end
+		//	LEAL (autoffset+4)(SP), DI
+		//	CMPL panic_argp(BX), DI
+		//	JNE end
+		//	MOVL SP, panic_argp(BX)
+		// end:
+		//	NOP
+		//
+		// The NOP is needed to give the jumps somewhere to land.
+		// It is a liblink NOP, not an x86 NOP: it encodes to 0 instruction bytes.
+
 		p = appendp(ctxt, p);
-		p->as = AADDL;
-		p->from.type = D_CONST;
-		p->from.offset = autoffset + ctxt->arch->ptrsize;
-		p->to.type = D_INDIR+D_CX;
-		p->to.offset = 2*ctxt->arch->ptrsize;
+		p->as = AMOVL;
+		p->from.type = D_INDIR+D_CX;
+		p->from.offset = 2*ctxt->arch->ptrsize; // G.panic
+		p->to.type = D_BX;
+
+		p = appendp(ctxt, p);
+		p->as = ATESTL;
+		p->from.type = D_BX;
+		p->to.type = D_BX;
+
+		p = appendp(ctxt, p);
+		p->as = AJEQ;
+		p->to.type = D_BRANCH;
+		p1 = p;
+
+		p = appendp(ctxt, p);
+		p->as = ALEAL;
+		p->from.type = D_INDIR+D_SP;
+		p->from.offset = autoffset+4;
+		p->to.type = D_DI;
+
+		p = appendp(ctxt, p);
+		p->as = ACMPL;
+		p->from.type = D_INDIR+D_BX;
+		p->from.offset = 0; // Panic.argp
+		p->to.type = D_DI;
+
+		p = appendp(ctxt, p);
+		p->as = AJNE;
+		p->to.type = D_BRANCH;
+		p2 = p;
+
+		p = appendp(ctxt, p);
+		p->as = AMOVL;
+		p->from.type = D_SP;
+		p->to.type = D_INDIR+D_BX;
+		p->to.offset = 0; // Panic.argp
+
+		p = appendp(ctxt, p);
+		p->as = ANOP;
+		p1->pcond = p;
+		p2->pcond = p;
 	}
 	
 	if(ctxt->debugzerostack && autoffset && !(cursym->text->from.scale&NOSPLIT)) {
@@ -395,19 +446,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 
 		if(autoffset != deltasp)
 			ctxt->diag("unbalanced PUSH/POP");
-
-		if(cursym->text->from.scale & WRAPPER) {
-			p = load_g_cx(ctxt, p);
-			p = appendp(ctxt, p);
-			// g->panicwrap -= autoffset + ctxt->arch->ptrsize;
-			p->as = ASUBL;
-			p->from.type = D_CONST;
-			p->from.offset = autoffset + ctxt->arch->ptrsize;
-			p->to.type = D_INDIR+D_CX;
-			p->to.offset = 2*ctxt->arch->ptrsize;
-			p = appendp(ctxt, p);
-			p->as = ARET;
-		}
 
 		if(autoffset) {
 			p->as = AADJSP;

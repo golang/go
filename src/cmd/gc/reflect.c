@@ -378,7 +378,7 @@ methods(Type *t)
 
 	// type stored in interface word
 	it = t;
-	if(it->width > widthptr)
+	if(!isdirectiface(it))
 		it = ptrto(t);
 
 	// make list of methods for t,
@@ -724,7 +724,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	if(ot != 0)
 		fatal("dcommontype %d", ot);
 
-	sizeofAlg = 4*widthptr;
+	sizeofAlg = 2*widthptr;
 	if(algarray == nil)
 		algarray = pkglookup("algarray", runtimepkg);
 	alg = algtype(t);
@@ -785,6 +785,8 @@ dcommontype(Sym *s, int ot, Type *t)
 		i = KindSlice;
 	if(!haspointers(t))
 		i |= KindNoPointers;
+	if(isdirectiface(t))
+		i |= KindDirectIface;
 	if(gcprog)
 		i |= KindGCProg;
 	ot = duint8(s, ot, i);  // kind
@@ -1239,8 +1241,7 @@ static Sym*
 dalgsym(Type *t)
 {
 	int ot;
-	Sym *s, *hash, *hashfunc, *eq;
-	char buf[100];
+	Sym *s, *hash, *hashfunc, *eq, *eqfunc;
 
 	// dalgsym is only called for a type that needs an algorithm table,
 	// which implies that the type is comparable (or else it would use ANOEQ).
@@ -1251,29 +1252,18 @@ dalgsym(Type *t)
 	eq = typesymprefix(".eq", t);
 	geneq(eq, t);
 
-	// make Go func (a closure) for calling the hash function from Go
+	// make Go funcs (closures) for calling hash and equal from Go
 	hashfunc = typesymprefix(".hashfunc", t);
 	dsymptr(hashfunc, 0, hash, 0);
 	ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
+	eqfunc = typesymprefix(".eqfunc", t);
+	dsymptr(eqfunc, 0, eq, 0);
+	ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
 
-	// ../../pkg/runtime/runtime.h:/Alg
+	// ../../pkg/runtime/alg.go:/typeAlg
 	ot = 0;
 	ot = dsymptr(s, ot, hashfunc, 0);
-	ot = dsymptr(s, ot, eq, 0);
-	ot = dsymptr(s, ot, pkglookup("memprint", runtimepkg), 0);
-	switch(t->width) {
-	default:
-		ot = dsymptr(s, ot, pkglookup("memcopy", runtimepkg), 0);
-		break;
-	case 1:
-	case 2:
-	case 4:
-	case 8:
-	case 16:
-		snprint(buf, sizeof buf, "memcopy%d", (int)t->width*8);
-		ot = dsymptr(s, ot, pkglookup(buf, runtimepkg), 0);
-		break;
-	}
+	ot = dsymptr(s, ot, eqfunc, 0);
 
 	ggloblsym(s, ot, DUPOK|RODATA);
 	return s;
@@ -1511,8 +1501,8 @@ gengcprog1(ProgGen *g, Type *t, vlong *xoffset)
 		*xoffset += t->width;
 		break;
 	case TSTRING:
-		proggendata(g, BitsMultiWord);
-		proggendata(g, BitsString);
+		proggendata(g, BitsPointer);
+		proggendata(g, BitsScalar);
 		*xoffset += t->width;
 		break;
 	case TINTER:
@@ -1525,8 +1515,8 @@ gengcprog1(ProgGen *g, Type *t, vlong *xoffset)
 		break;
 	case TARRAY:
 		if(isslice(t)) {
-			proggendata(g, BitsMultiWord);
-			proggendata(g, BitsSlice);
+			proggendata(g, BitsPointer);
+			proggendata(g, BitsScalar);
 			proggendata(g, BitsScalar);
 		} else {
 			t1 = t->type;

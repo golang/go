@@ -813,7 +813,7 @@ static Optab optab[] =
 	{ ASETNE,	yscond,	Pm, {0x95,(00)} },
 	{ ASETOC,	yscond,	Pm, {0x91,(00)} },
 	{ ASETOS,	yscond,	Pm, {0x90,(00)} },
-	{ ASETPC,	yscond,	Pm, {0x96,(00)} },
+	{ ASETPC,	yscond,	Pm, {0x9b,(00)} },
 	{ ASETPL,	yscond,	Pm, {0x99,(00)} },
 	{ ASETPS,	yscond,	Pm, {0x9a,(00)} },
 	{ ACDQ,		ynone,	Px, {0x99} },

@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Test maps, almost exhaustively.
-// NaN complexity test is in mapnan.go.
+// Complexity (linearity) test is in maplinear.go.
 
 package main
 

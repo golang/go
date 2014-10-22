@@ -35,7 +35,6 @@ bool	rebuildall;
 bool defaultclang;
 
 static bool shouldbuild(char*, char*);
-static void copy(char*, char*, int);
 static void dopack(char*, char*, char**, int);
 static char *findgoversion(void);
 
@@ -628,7 +627,6 @@ char *depsuffix[] = {
 	".h",
 	".s",
 	".go",
-	".goc",
 };
 
 // gentab records how to generate some trivial files.
@@ -661,7 +659,7 @@ install(char *dir)
 {
 	char *name, *p, *elem, *prefix, *exe;
 	bool islib, ispkg, isgo, stale, ispackcmd;
-	Buf b, b1, path;
+	Buf b, b1, path, final_path, final_name;
 	Vec compile, files, link, go, missing, clean, lib, extra;
 	Time ttarg, t;
 	int i, j, k, n, doclean, targ;
@@ -676,6 +674,8 @@ install(char *dir)
 	binit(&b);
 	binit(&b1);
 	binit(&path);
+	binit(&final_path);
+	binit(&final_name);
 	vinit(&compile);
 	vinit(&files);
 	vinit(&link);
@@ -688,11 +688,12 @@ install(char *dir)
 
 	// path = full path to dir.
 	bpathf(&path, "%s/src/%s", goroot, dir);
+	bpathf(&final_path, "%s/src/%s", goroot_final, dir);
 	name = lastelem(dir);
 
 	// For misc/prof, copy into the tool directory and we're done.
 	if(hasprefix(dir, "misc/")) {
-		copy(bpathf(&b, "%s/%s", tooldir, name),
+		copyfile(bpathf(&b, "%s/%s", tooldir, name),
 			bpathf(&b1, "%s/misc/%s", goroot, name), 1);
 		goto out;
 	}
@@ -904,17 +905,19 @@ install(char *dir)
 
 	// For package runtime, copy some files into the work space.
 	if(streq(dir, "pkg/runtime")) {
-		copy(bpathf(&b, "%s/arch_GOARCH.h", workdir),
+		copyfile(bpathf(&b, "%s/arch_GOARCH.h", workdir),
 			bpathf(&b1, "%s/arch_%s.h", bstr(&path), goarch), 0);
-		copy(bpathf(&b, "%s/defs_GOOS_GOARCH.h", workdir),
+		copyfile(bpathf(&b, "%s/defs_GOOS_GOARCH.h", workdir),
 			bpathf(&b1, "%s/defs_%s_%s.h", bstr(&path), goos, goarch), 0);
 		p = bpathf(&b1, "%s/signal_%s_%s.h", bstr(&path), goos, goarch);
 		if(isfile(p))
-			copy(bpathf(&b, "%s/signal_GOOS_GOARCH.h", workdir), p, 0);
-		copy(bpathf(&b, "%s/os_GOOS.h", workdir),
+			copyfile(bpathf(&b, "%s/signal_GOOS_GOARCH.h", workdir), p, 0);
+		copyfile(bpathf(&b, "%s/os_GOOS.h", workdir),
 			bpathf(&b1, "%s/os_%s.h", bstr(&path), goos), 0);
-		copy(bpathf(&b, "%s/signals_GOOS.h", workdir),
+		copyfile(bpathf(&b, "%s/signals_GOOS.h", workdir),
 			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos), 0);
+		copyfile(bpathf(&b, "%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
+			bpathf(&b1, "%s/src/cmd/ld/textflag.h", goroot), 0);
 	}
 
 	// Generate any missing files; regenerate existing ones.
@@ -948,24 +951,8 @@ install(char *dir)
 	// The last batch was required for the generators.
 	// This one is generated.
 	if(streq(dir, "pkg/runtime")) {
-		copy(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
+		copyfile(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
 			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch), 0);
-	}
-
-	// Generate .c files from .goc files.
-	if(streq(dir, "pkg/runtime")) {
-		for(i=0; i<files.len; i++) {
-			p = files.p[i];
-			if(!hassuffix(p, ".goc"))
-				continue;
-			// b = path/zp but with _goos_goarch.c instead of .goc
-			bprintf(&b, "%s%sz%s", bstr(&path), slash, lastelem(p));
-			b.len -= 4;
-			bwritef(&b, "_%s_%s.c", goos, goarch);
-			goc2c(p, bstr(&b));
-			vadd(&files, bstr(&b));
-		}
-		vuniq(&files);
 	}
 
 	if((!streq(goos, gohostos) || !streq(goarch, gohostarch)) && isgo) {
@@ -1138,9 +1125,9 @@ nobuild:
 	// In package runtime, we install runtime.h and cgocall.h too,
 	// for use by cgo compilation.
 	if(streq(dir, "pkg/runtime")) {
-		copy(bpathf(&b, "%s/pkg/%s_%s/cgocall.h", goroot, goos, goarch),
+		copyfile(bpathf(&b, "%s/pkg/%s_%s/cgocall.h", goroot, goos, goarch),
 			bpathf(&b1, "%s/src/pkg/runtime/cgocall.h", goroot), 0);
-		copy(bpathf(&b, "%s/pkg/%s_%s/runtime.h", goroot, goos, goarch),
+		copyfile(bpathf(&b, "%s/pkg/%s_%s/runtime.h", goroot, goos, goarch),
 			bpathf(&b1, "%s/src/pkg/runtime/runtime.h", goroot), 0);
 	}
 
@@ -1277,8 +1264,8 @@ out:
 }
 
 // copy copies the file src to dst, via memory (so only good for small files).
-static void
-copy(char *dst, char *src, int exec)
+void
+copyfile(char *dst, char *src, int exec)
 {
 	Buf b;
 

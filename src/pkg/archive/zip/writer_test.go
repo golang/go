@@ -6,6 +6,7 @@ package zip
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -83,6 +84,24 @@ func TestWriter(t *testing.T) {
 	}
 	for i, wt := range writeTests {
 		testReadFile(t, r.File[i], &wt)
+	}
+}
+
+func TestWriterFlush(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(struct{ io.Writer }{&buf})
+	_, err := w.Create("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() > 0 {
+		t.Fatalf("Unexpected %d bytes already in buffer", buf.Len())
+	}
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() == 0 {
+		t.Fatal("No bytes written after Flush")
 	}
 }
 

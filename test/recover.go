@@ -47,6 +47,7 @@ func main() {
 		test11reflect1()
 		test11reflect2()
 	}
+	test111()
 	test12()
 	if !interp {
 		test12reflect1()
@@ -77,7 +78,7 @@ func mustRecoverBody(v1, v2, v3, x interface{}) {
 	}
 	v = v2
 	if v == nil {
-		println("missing recover")
+		println("missing recover", x.(int))
 		die() // panic is useless here
 	}
 	if v != x {
@@ -137,7 +138,7 @@ func test1WithClosures() {
 		mustNotRecover()
 		v := recover()
 		if v == nil {
-			println("missing recover")
+			println("missing recover", x.(int))
 			die()
 		}
 		if v != x {
@@ -404,6 +405,49 @@ func test11reflect2() {
 	f := reflect.TypeOf(T3{}).Method(0).Func.Interface().(func(T3))
 	defer f(T3{})
 	panic(11)
+}
+
+// tiny receiver, so basic wrapper in i.M()
+type T3deeper struct{}
+
+func (T3deeper) M() {
+	badstate() // difference from T3
+	mustRecoverBody(doubleRecover(), recover(), recover(), 111)
+}
+
+func test111() {
+	var i I = T3deeper{}
+	defer i.M()
+	panic(111)
+}
+
+type Tiny struct{}
+
+func (Tiny) M() {
+	panic(112)
+}
+
+// i.M is a wrapper, and i.M panics.
+//
+// This is a torture test for an old implementation of recover that
+// tried to deal with wrapper functions by doing some argument
+// positioning math on both entry and exit. Doing anything on exit
+// is a problem because sometimes functions exit via panic instead
+// of an ordinary return, so panic would have to know to do the
+// same math when unwinding the stack. It gets complicated fast.
+// This particular test never worked with the old scheme, because
+// panic never did the right unwinding math.
+//
+// The new scheme adjusts Panic.argp on entry to a wrapper.
+// It has no exit work, so if a wrapper is interrupted by a panic,
+// there's no cleanup that panic itself must do.
+// This test just works now.
+func badstate() {
+	defer func() {
+		recover()
+	}()
+	var i I = Tiny{}
+	i.M()
 }
 
 // large receiver, so basic wrapper in i.M()

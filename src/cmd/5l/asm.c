@@ -599,10 +599,10 @@ asmb(void)
 			if(iself)
 				goto ElfSym;
 		case Hplan9:
-			symo = HEADR+segtext.len+segdata.filelen;
+			symo = segdata.fileoff+segdata.filelen;
 			break;
 		ElfSym:
-			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(HEADR+segrodata.filelen, INITRND)+segdata.filelen;
+			symo = segdata.fileoff+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
 		}

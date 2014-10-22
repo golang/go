@@ -42,7 +42,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 {
 	bool crash;
 	uintptr *sp;
-	extern byte text[], etext[];
+	extern byte runtime·text[], runtime·etext[];
 
 	if(info->ExceptionCode == DBG_PRINTEXCEPTION_C) {
 		// This exception is intended to be caught by debuggers.
@@ -59,7 +59,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 
 	// Only handle exception if executing instructions in Go binary
 	// (not Windows library code). 
-	if(r->Rip < (uint64)text || (uint64)etext < r->Rip)
+	if(r->Rip < (uint64)runtime·text || (uint64)runtime·etext < r->Rip)
 		return 0;
 
 	switch(info->ExceptionCode) {

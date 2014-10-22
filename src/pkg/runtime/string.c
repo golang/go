@@ -6,7 +6,7 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "race.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 String	runtime·emptystring;
 
@@ -90,6 +90,7 @@ runtime·gobytes(byte *p, intgo n)
 	return sl;
 }
 
+#pragma textflag NOSPLIT
 String
 runtime·gostringnocopy(byte *str)
 {
