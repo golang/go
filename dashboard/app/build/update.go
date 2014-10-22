@@ -58,6 +58,7 @@ func updateBenchmark(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			com.NeedsBenchmarking = true
+			com.ResultData = nil
 			if err := putCommit(c, com); err != nil {
 				return err
 			}
