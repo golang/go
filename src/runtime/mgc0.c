@@ -1799,7 +1799,7 @@ runtime·unrollgcprog_m(void)
 		}
 		
 		// atomic way to say mask[0] = 1
-		x = typ->gc[0];
+		x = *(uintptr*)mask;
 		((byte*)&x)[0] = 1;
 		runtime·atomicstorep((void**)mask, (void*)x);
 	}
