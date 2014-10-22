@@ -59,9 +59,9 @@ Support scripts
 Symlink the two scripts in this directory into your $PATH, just as you did with
 NaCl sdk above.
 
-	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_amd64p32_exec $GOPATH/bin/go_nacl_amd64p32_exec
-	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_386_exec $GOPATH/bin/go_nacl_386_exec
-	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_arm_exec $GOPATH/bin/go_nacl_arm_exec
+	% ln -nfs $GOROOT/misc/nacl/go_nacl_amd64p32_exec $GOPATH/bin/go_nacl_amd64p32_exec
+	% ln -nfs $GOROOT/misc/nacl/go_nacl_386_exec $GOPATH/bin/go_nacl_386_exec
+	% ln -nfs $GOROOT/misc/nacl/go_nacl_arm_exec $GOPATH/bin/go_nacl_arm_exec
 
 Building and testing
 --------------------

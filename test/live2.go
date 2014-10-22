@@ -1,4 +1,4 @@
-// errorcheck -0 -live
+// errorcheck -0 -live -wb=0
 
 // Copyright 2014 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -17,9 +17,8 @@ type T40 struct {
 }
 
 func newT40() *T40 {
-	ret := T40{ // ERROR "live at call to makemap: &ret"
-		make(map[int]int),
-	}
+	ret := T40{}
+	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret"
 	return &ret
 }
 
@@ -30,9 +29,8 @@ func bad40() {
 }
 
 func good40() {
-	ret := T40{ // ERROR "live at call to makemap: ret"
-		make(map[int]int),
-	}
+	ret := T40{}
+	ret.m = make(map[int]int) // ERROR "live at call to makemap: ret"
 	t := &ret
 	println() // ERROR "live at call to printnl: ret"
 	_ = t

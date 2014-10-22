@@ -42,7 +42,7 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
 # into a subdirectory of /data.
 export ANDROID_PRODUCT_OUT=/tmp/androidtest-$$
 FAKE_GOROOT=$ANDROID_PRODUCT_OUT/data/local/tmp/goroot
-mkdir -p $FAKE_GOROOT/src
+mkdir -p $FAKE_GOROOT
 ln -s $GOROOT/src $FAKE_GOROOT/src
 ln -s $GOROOT/test $FAKE_GOROOT/test
 ln -s $GOROOT/lib $FAKE_GOROOT/lib

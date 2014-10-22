@@ -157,7 +157,7 @@ void
 clearfat(Node *nl)
 {
 	uint32 w, c, q;
-	Node n1;
+	Node n1, z;
 	Prog *p;
 
 	/* clear a fat object */
@@ -171,6 +171,32 @@ clearfat(Node *nl)
 
 	c = w % 4;	// bytes
 	q = w / 4;	// quads
+
+	if(q < 4) {
+		// Write sequence of MOV 0, off(base) instead of using STOSL.
+		// The hope is that although the code will be slightly longer,
+		// the MOVs will have no dependencies and pipeline better
+		// than the unrolled STOSL loop.
+		// NOTE: Must use agen, not igen, so that optimizer sees address
+		// being taken. We are not writing on field boundaries.
+		regalloc(&n1, types[tptr], N);
+		agen(nl, &n1);
+		n1.op = OINDREG;
+		nodconst(&z, types[TUINT64], 0);
+		while(q-- > 0) {
+			n1.type = z.type;
+			gins(AMOVL, &z, &n1);
+			n1.xoffset += 4;
+		}
+		nodconst(&z, types[TUINT8], 0);
+		while(c-- > 0) {
+			n1.type = z.type;
+			gins(AMOVB, &z, &n1);
+			n1.xoffset++;
+		}
+		regfree(&n1);
+		return;
+	}
 
 	nodreg(&n1, types[tptr], D_DI);
 	agen(nl, &n1);
@@ -210,27 +236,11 @@ clearfat(Node *nl)
 void
 ginscall(Node *f, int proc)
 {
-	int32 arg;
 	Prog *p;
 	Node reg, r1, con;
 
 	if(f->type != T)
 		setmaxarg(f->type);
-
-	arg = -1;
-	// Most functions have a fixed-size argument block, so traceback uses that during unwind.
-	// Not all, though: there are some variadic functions in package runtime,
-	// and for those we emit call-specific metadata recorded by caller.
-	// Reflect generates functions with variable argsize (see reflect.methodValueCall/makeFuncStub),
-	// so we do this for all indirect calls as well.
-	if(f->type != T && (f->sym == S || (f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
-		arg = f->type->argwid;
-		if(proc == 1 || proc == 2)
-			arg += 2*widthptr;
-	}
-
-	if(arg != -1)
-		gargsize(arg);
 
 	switch(proc) {
 	default:
@@ -293,9 +303,6 @@ ginscall(Node *f, int proc)
 		}
 		break;
 	}
-	
-	if(arg != -1)
-		gargsize(-1);
 }
 
 /*

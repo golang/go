@@ -31,6 +31,7 @@
 #include	<u.h>
 #include	"cc.h"
 #include	"y.tab.h"
+#include	"../ld/textflag.h"
 
 #ifndef	CPP
 #define	CPP	"cpp"
@@ -1317,6 +1318,7 @@ cinit(void)
 	t->width = 0;
 	symstring = slookup(".string");
 	symstring->class = CSTATIC;
+	symstring->dataflag = NOPTR;
 	symstring->type = t;
 
 	t = typ(TARRAY, types[TCHAR]);

@@ -283,6 +283,7 @@ struct	Node
 	uchar	addrtaken;	// address taken, even if not moved to heap
 	uchar	dupok;	// duplicate definitions ok (for func)
 	uchar	wrapper;	// is method wrapper (for func)
+	uchar	reslice;	// this is a reslice x = x[0:y] or x = append(x, ...)
 	schar	likely; // likeliness of if statement
 	uchar	hasbreak;	// has break statement
 	uchar	needzero; // if it contains pointers, needs to be zeroed on function entry
@@ -973,6 +974,7 @@ EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
 EXTERN	int	compiling_runtime;
 EXTERN	int	compiling_wrappers;
+EXTERN	int	use_writebarrier;
 EXTERN	int	pure_go;
 EXTERN	char*	flag_installsuffix;
 EXTERN	int	flag_race;
@@ -1284,6 +1286,7 @@ LSym*	linksym(Sym*);
  *	order.c
  */
 void	order(Node *fn);
+void	orderstmtinplace(Node **stmt);
 
 /*
  *	range.c
@@ -1372,6 +1375,7 @@ int	isnilinter(Type *t);
 int	isptrto(Type *t, int et);
 int	isslice(Type *t);
 int	istype(Type *t, int et);
+int	iszero(Node *n);
 void	linehist(char *file, int32 off, int relative);
 NodeList*	list(NodeList *l, Node *n);
 NodeList*	list1(Node *n);
@@ -1464,6 +1468,7 @@ void	walkstmt(Node **np);
 void	walkstmtlist(NodeList *l);
 Node*	conv(Node*, Type*);
 int	candiscard(Node*);
+int	needwritebarrier(Node*, Node*);
 Node*	outervalue(Node*);
 void	usefield(Node*);
 

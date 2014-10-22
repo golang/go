@@ -9,6 +9,8 @@ var ticks struct {
 	val  uint64
 }
 
+var tls0 [8]uintptr // available storage for m0's TLS; not necessarily used; opaque to GC
+
 // Note: Called by runtime/pprof in addition to runtime code.
 func tickspersecond() int64 {
 	r := int64(atomicload64(&ticks.val))
@@ -35,3 +37,24 @@ func tickspersecond() int64 {
 	unlock(&ticks.lock)
 	return r
 }
+
+func makeStringSlice(n int) []string {
+	return make([]string, n)
+}
+
+// TODO: Move to parfor.go when parfor.c becomes parfor.go.
+func parforalloc(nthrmax uint32) *parfor {
+	return &parfor{
+		thr:     &make([]parforthread, nthrmax)[0],
+		nthrmax: nthrmax,
+	}
+}
+
+var envs []string
+var argslice []string
+
+// called from syscall
+func runtime_envs() []string { return envs }
+
+// called from os
+func runtime_args() []string { return argslice }

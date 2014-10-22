@@ -482,6 +482,35 @@ func TestShrinkStackDuringBlockedSend(t *testing.T) {
 	<-done
 }
 
+func TestSelectDuplicateChannel(t *testing.T) {
+	// This test makes sure we can queue a G on
+	// the same channel multiple times.
+	c := make(chan int)
+	d := make(chan int)
+	e := make(chan int)
+
+	// goroutine A
+	go func() {
+		select {
+		case <-c:
+		case <-c:
+		case <-d:
+		}
+		e <- 9
+	}()
+	time.Sleep(time.Millisecond) // make sure goroutine A gets qeueued first on c
+
+	// goroutine B
+	go func() {
+		<-c
+	}()
+	time.Sleep(time.Millisecond) // make sure goroutine B gets queued on c before continuing
+
+	d <- 7 // wake up A, it dequeues itself from c.  This operation used to corrupt c.recvq.
+	<-e    // A tells us it's done
+	c <- 8 // wake up B.  This operation used to fail because c.recvq was corrupted (it tries to wake up an already running G instead of B)
+}
+
 func BenchmarkChanNonblocking(b *testing.B) {
 	myc := make(chan int)
 	b.RunParallel(func(pb *testing.PB) {

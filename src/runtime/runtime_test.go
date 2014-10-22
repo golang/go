@@ -157,8 +157,8 @@ var faultAddrs = []uint64{
 	// or else malformed.
 	0xffffffffffffffff,
 	0xfffffffffffff001,
-	// no 0xffffffffffff0001; 0xffff0001 is mapped for 32-bit user space on OS X
-	// no 0xfffffffffff00001; 0xfff00001 is mapped for 32-bit user space sometimes on Linux
+	0xffffffffffff0001,
+	0xfffffffffff00001,
 	0xffffffffff000001,
 	0xfffffffff0000001,
 	0xffffffff00000001,
@@ -182,26 +182,32 @@ func TestSetPanicOnFault(t *testing.T) {
 	old := debug.SetPanicOnFault(true)
 	defer debug.SetPanicOnFault(old)
 
+	nfault := 0
 	for _, addr := range faultAddrs {
-		testSetPanicOnFault(t, uintptr(addr))
+		testSetPanicOnFault(t, uintptr(addr), &nfault)
+	}
+	if nfault == 0 {
+		t.Fatalf("none of the addresses faulted")
 	}
 }
 
-func testSetPanicOnFault(t *testing.T, addr uintptr) {
+func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
 	if GOOS == "nacl" {
 		t.Skip("nacl doesn't seem to fault on high addresses")
 	}
 
 	defer func() {
-		if err := recover(); err == nil {
-			t.Fatalf("did not find error in recover")
+		if err := recover(); err != nil {
+			*nfault++
 		}
 	}()
 
-	var p *int
-	p = (*int)(unsafe.Pointer(addr))
-	println(*p)
-	t.Fatalf("still here - should have faulted on address %#x", addr)
+	// The read should fault, except that sometimes we hit
+	// addresses that have had C or kernel pages mapped there
+	// readable by user code. So just log the content.
+	// If no addresses fault, we'll fail the test.
+	v := *(*byte)(unsafe.Pointer(addr))
+	t.Logf("addr %#x: %#x\n", addr, v)
 }
 
 func eqstring_generic(s1, s2 string) bool {

@@ -62,8 +62,11 @@ var ErrNoProgress = errors.New("multiple Read calls return no data or error")
 // allowed EOF behaviors.
 //
 // Implementations of Read are discouraged from returning a
-// zero byte count with a nil error, and callers should treat
-// that situation as a no-op. Implementations must not retain p.
+// zero byte count with a nil error, except when len(p) == 0.
+// Callers should treat a return of 0 and nil as indicating that
+// nothing happened; in particular it does not indicate EOF.
+//
+// Implementations must not retain p.
 type Reader interface {
 	Read(p []byte) (n int, err error)
 }

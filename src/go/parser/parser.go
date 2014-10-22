@@ -641,6 +641,7 @@ func (p *parser) parseArrayType() ast.Expr {
 	}
 
 	lbrack := p.expect(token.LBRACK)
+	p.exprLev++
 	var len ast.Expr
 	// always permit ellipsis for more fault-tolerant parsing
 	if p.tok == token.ELLIPSIS {
@@ -649,6 +650,7 @@ func (p *parser) parseArrayType() ast.Expr {
 	} else if p.tok != token.RBRACK {
 		len = p.parseRhs()
 	}
+	p.exprLev--
 	p.expect(token.RBRACK)
 	elt := p.parseType()
 

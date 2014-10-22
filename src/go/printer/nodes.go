@@ -163,8 +163,8 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 	size := 0
 
 	// print all list elements
+	prevLine := prev.Line
 	for i, x := range list {
-		prevLine := line
 		line = p.lineFor(x.Pos())
 
 		// determine if the next linebreak, if any, needs to use formfeed:
@@ -207,8 +207,8 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 			}
 		}
 
+		needsLinebreak := 0 < prevLine && prevLine < line
 		if i > 0 {
-			needsLinebreak := prevLine < line && prevLine > 0 && line > 0
 			// use position of expression following the comma as
 			// comma position for correct comment placement, but
 			// only if the expression is on the same line
@@ -232,16 +232,20 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 			}
 		}
 
-		if isPair && size > 0 && len(list) > 1 {
-			// we have a key:value expression that fits onto one line and
-			// is in a list with more then one entry: use a column for the
-			// key such that consecutive entries can align if possible
+		if len(list) > 1 && isPair && size > 0 && needsLinebreak {
+			// we have a key:value expression that fits onto one line
+			// and it's not on the same line as the prior expression:
+			// use a column for the key such that consecutive entries
+			// can align if possible
+			// (needsLinebreak is set if we started a new line before)
 			p.expr(pair.Key)
 			p.print(pair.Colon, token.COLON, vtab)
 			p.expr(pair.Value)
 		} else {
 			p.expr0(x, depth)
 		}
+
+		prevLine = line
 	}
 
 	if mode&commaTerm != 0 && next.IsValid() && p.pos.Line < next.Line {
@@ -732,7 +736,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
 			// don't print parentheses around an already parenthesized expression
 			// TODO(gri) consider making this more general and incorporate precedence levels
-			p.expr0(x.X, reduceDepth(depth)) // parentheses undo one level of depth
+			p.expr0(x.X, depth)
 		} else {
 			p.print(token.LPAREN)
 			p.expr0(x.X, reduceDepth(depth)) // parentheses undo one level of depth

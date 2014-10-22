@@ -18,13 +18,12 @@
 
 <Product
     Id="FF5B30B2-08C2-11E1-85A2-6ACA4824019B"
-    Name="Go Programming Language $(var.Arch) $(var.Version)"
+    Name="Go Programming Language $(var.Arch) $(var.GoVersion)"
     Language="1033"
     Codepage="1252"
-    Version="0.0.0.0"
+    Version="$(var.WixGoVersion)"
     Manufacturer="http://golang.org"
     UpgradeCode="$(var.UpgradeCode)" >
-    <!-- Version="$(var.Version)" TODO: Version requires X.X.X.X format -->
 
 <Package
     Id='*' 

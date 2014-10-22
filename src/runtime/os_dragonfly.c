@@ -204,7 +204,7 @@ void
 runtime·minit(void)
 {
 	// Initialize signal handling
-	runtime·signalstack((byte*)g->m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)g->m->gsignal->stack.lo, 32*1024);
 	runtime·sigprocmask(&sigset_none, nil);
 }
 
@@ -213,41 +213,6 @@ void
 runtime·unminit(void)
 {
 	runtime·signalstack(nil, 0);
-}
-
-void
-runtime·sigpanic(void)
-{
-	if(!runtime·canpanic(g))
-		runtime·throw("unexpected signal during runtime execution");
-
-	switch(g->sig) {
-	case SIGBUS:
-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
-			if(g->sigpc == 0)
-				runtime·panicstring("call of nil func value");
-			runtime·panicstring("invalid memory address or nil pointer dereference");
-		}
-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
-		runtime·throw("fault");
-	case SIGSEGV:
-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
-			if(g->sigpc == 0)
-				runtime·panicstring("call of nil func value");
-			runtime·panicstring("invalid memory address or nil pointer dereference");
-		}
-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
-		runtime·throw("fault");
-	case SIGFPE:
-		switch(g->sigcode0) {
-		case FPE_INTDIV:
-			runtime·panicstring("integer divide by zero");
-		case FPE_INTOVF:
-			runtime·panicstring("integer overflow");
-		}
-		runtime·panicstring("floating point error");
-	}
-	runtime·panicstring(runtime·sigtab[g->sig].name);
 }
 
 uintptr
@@ -337,4 +302,11 @@ void
 runtime·unblocksignals(void)
 {
 	runtime·sigprocmask(&sigset_none, nil);
+}
+
+#pragma textflag NOSPLIT
+int8*
+runtime·signame(int32 sig)
+{
+	return runtime·sigtab[sig].name;
 }

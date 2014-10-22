@@ -103,6 +103,7 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/ld/textflag.h"
+#include "../runtime/funcdata.h"
 
 static void writesym(Link*, Biobuf*, LSym*);
 static void wrint(Biobuf*, int64);
@@ -124,7 +125,7 @@ static LSym *rdsym(Link*, Biobuf*, char*);
 void
 writeobj(Link *ctxt, Biobuf *b)
 {
-	int flag;
+	int flag, found;
 	Hist *h;
 	LSym *s, *text, *etext, *curtext, *data, *edata;
 	Plist *pl;
@@ -234,11 +235,48 @@ writeobj(Link *ctxt, Biobuf *b)
 				continue;
 			}
 			
+			if(p->as == ctxt->arch->AFUNCDATA) {
+				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
+				if(curtext == nil) // func _() {}
+					continue;
+				if(strcmp(p->to.sym->name, "go_args_stackmap") == 0) {
+					if(p->from.type != ctxt->arch->D_CONST || p->from.offset != FUNCDATA_ArgsPointerMaps)
+						ctxt->diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps");
+					p->to.sym = linklookup(ctxt, smprint("%s.args_stackmap", curtext->name), curtext->version);
+				}
+			}
+			
 			if(curtext == nil)
 				continue;
 			s = curtext;
 			s->etext->link = p;
 			s->etext = p;
+		}
+	}
+	
+	// Add reference to Go arguments for C or assembly functions without them.
+	for(s = text; s != nil; s = s->next) {
+		if(strncmp(s->name, "\"\".", 3) != 0)
+			continue;
+		found = 0;
+		for(p = s->text; p != nil; p = p->link) {
+			if(p->as == ctxt->arch->AFUNCDATA && p->from.type == ctxt->arch->D_CONST && p->from.offset == FUNCDATA_ArgsPointerMaps) {
+				found = 1;
+				break;
+			}
+		}
+		if(!found) {
+			p = appendp(ctxt, s->text);
+			p->as = ctxt->arch->AFUNCDATA;
+			p->from.type = ctxt->arch->D_CONST;
+			p->from.offset = FUNCDATA_ArgsPointerMaps;
+			if(ctxt->arch->thechar == '6' || ctxt->arch->thechar == '8')
+				p->to.type = ctxt->arch->D_EXTERN;
+			else {
+				p->to.type = ctxt->arch->D_OREG;
+				p->to.name = ctxt->arch->D_EXTERN;
+			}
+			p->to.sym = linklookup(ctxt, smprint("%s.args_stackmap", s->name), s->version);
 		}
 	}
 
@@ -517,7 +555,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	static int ndup;
 	char *name;
 	Reloc *r;
-	LSym *s, *dup;
+	LSym *s, *dup, *typ;
 	Pcln *pc;
 	Auto *a;
 	
@@ -553,7 +591,11 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	s->type = t;
 	if(s->size < size)
 		s->size = size;
-	s->gotype = rdsym(ctxt, f, pkg);
+	typ = rdsym(ctxt, f, pkg);
+	if(typ != nil) // if bss sym defined multiple times, take type from any one def
+		s->gotype = typ;
+	if(dup != nil && typ != nil)
+		dup->gotype = typ;
 	rddata(f, &s->p, &s->np);
 	s->maxp = s->np;
 	n = rdint(f);

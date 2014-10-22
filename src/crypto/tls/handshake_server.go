@@ -224,12 +224,28 @@ Curves:
 		return false, errors.New("tls: no cipher suite supported by both client and server")
 	}
 
+	// See https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00.
+	for _, id := range hs.clientHello.cipherSuites {
+		if id == TLS_FALLBACK_SCSV {
+			// The client is doing a fallback connection.
+			if hs.clientHello.vers < c.config.MaxVersion {
+				c.sendAlert(alertInappropriateFallback)
+				return false, errors.New("tls: client using inppropriate protocol fallback")
+			}
+			break
+		}
+	}
+
 	return false, nil
 }
 
 // checkForResumption returns true if we should perform resumption on this connection.
 func (hs *serverHandshakeState) checkForResumption() bool {
 	c := hs.c
+
+	if c.config.SessionTicketsDisabled {
+		return false
+	}
 
 	var ok bool
 	if hs.sessionState, ok = c.decryptTicket(hs.clientHello.sessionTicket); !ok {

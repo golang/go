@@ -93,6 +93,8 @@ import (
 // as described in the next paragraph.
 // An anonymous struct field with a name given in its JSON tag is treated as
 // having that name, rather than being anonymous.
+// An anonymous struct field of interface type is treated the same as having
+// that type as its name, rather than being anonymous.
 //
 // The Go visibility rules for struct fields are amended for JSON when
 // deciding which field to marshal or unmarshal. If there are

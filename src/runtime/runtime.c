@@ -6,6 +6,7 @@
 #include "stack.h"
 #include "arch_GOARCH.h"
 #include "textflag.h"
+#include "malloc.h"
 
 // Keep a cached value to make gotraceback fast,
 // since we call it on every call to gentraceback.
@@ -61,10 +62,12 @@ runtime·mchr(byte *p, byte c, byte *ep)
 }
 
 static int32	argc;
+
+#pragma dataflag NOPTR /* argv not a heap pointer */
 static uint8**	argv;
 
-Slice os·Args;
-Slice syscall·envs;
+extern Slice runtime·argslice;
+extern Slice runtime·envs;
 
 void (*runtime·sysargs)(int32, uint8**);
 
@@ -96,12 +99,10 @@ runtime·goargs(void)
 	if(Windows)
 		return;
 
-	s = runtime·mallocgc(argc*sizeof s[0], nil, 0);
+	runtime·argslice = runtime·makeStringSlice(argc);
+	s = (String*)runtime·argslice.array;
 	for(i=0; i<argc; i++)
 		s[i] = runtime·gostringnocopy(argv[i]);
-	os·Args.array = (byte*)s;
-	os·Args.len = argc;
-	os·Args.cap = argc;
 }
 
 void
@@ -113,19 +114,17 @@ runtime·goenvs_unix(void)
 	for(n=0; argv[argc+1+n] != 0; n++)
 		;
 
-	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
+	runtime·envs = runtime·makeStringSlice(n);
+	s = (String*)runtime·envs.array;
 	for(i=0; i<n; i++)
 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
-	syscall·envs.array = (byte*)s;
-	syscall·envs.len = n;
-	syscall·envs.cap = n;
 }
 
 #pragma textflag NOSPLIT
 Slice
 runtime·environ()
 {
-	return syscall·envs;
+	return runtime·envs;
 }
 
 int32
@@ -270,10 +269,15 @@ runtime·check(void)
 #pragma dataflag NOPTR
 DebugVars	runtime·debug;
 
-static struct {
+typedef struct DbgVar DbgVar;
+struct DbgVar
+{
 	int8*	name;
 	int32*	value;
-} dbgvar[] = {
+};
+
+#pragma dataflag NOPTR /* dbgvar has no heap pointers */
+static DbgVar dbgvar[] = {
 	{"allocfreetrace", &runtime·debug.allocfreetrace},
 	{"efence", &runtime·debug.efence},
 	{"gctrace", &runtime·debug.gctrace},
@@ -290,18 +294,18 @@ runtime·parsedebugvars(void)
 	intgo i, n;
 
 	p = runtime·getenv("GODEBUG");
-	if(p == nil)
-		return;
-	for(;;) {
-		for(i=0; i<nelem(dbgvar); i++) {
-			n = runtime·findnull((byte*)dbgvar[i].name);
-			if(runtime·mcmp(p, (byte*)dbgvar[i].name, n) == 0 && p[n] == '=')
-				*dbgvar[i].value = runtime·atoi(p+n+1);
+	if(p != nil){
+		for(;;) {
+			for(i=0; i<nelem(dbgvar); i++) {
+				n = runtime·findnull((byte*)dbgvar[i].name);
+				if(runtime·mcmp(p, (byte*)dbgvar[i].name, n) == 0 && p[n] == '=')
+					*dbgvar[i].value = runtime·atoi(p+n+1);
+			}
+			p = runtime·strstr(p, (byte*)",");
+			if(p == nil)
+				break;
+			p++;
 		}
-		p = runtime·strstr(p, (byte*)",");
-		if(p == nil)
-			break;
-		p++;
 	}
 
 	p = runtime·getenv("GOTRACEBACK");

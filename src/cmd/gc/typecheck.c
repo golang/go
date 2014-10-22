@@ -33,7 +33,7 @@ static void	stringtoarraylit(Node**);
 static Node*	resolve(Node*);
 static void	checkdefergo(Node*);
 static int	checkmake(Type*, char*, Node*);
-static int	checksliceindex(Node*, Type*);
+static int	checksliceindex(Node*, Node*, Type*);
 static int	checksliceconst(Node*, Node*);
 
 static	NodeList*	typecheckdefstack;
@@ -311,6 +311,7 @@ typecheck1(Node **np, int top)
 	Type *t, *tp, *missing, *have, *badtype;
 	Val v;
 	char *why, *desc, descbuf[64];
+	vlong x;
 	
 	n = *np;
 
@@ -408,7 +409,10 @@ reswitch:
 				v = toint(l->val);
 				break;
 			default:
-				yyerror("invalid array bound %N", l);
+				if(l->type != T && isint[l->type->etype] && l->op != OLITERAL)
+					yyerror("non-constant array bound %N", l);
+				else
+					yyerror("invalid array bound %N", l);
 				goto error;
 			}
 			t->bound = mpgetfix(v.u.xval);
@@ -597,6 +601,10 @@ reswitch:
 		}
 		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
 			defaultlit2(&l, &r, 1);
+			if(n->op == OASOP && n->implicit) {
+				yyerror("invalid operation: %N (non-numeric type %T)", n, l->type);
+				goto error;
+			}
 			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
 			goto error;
 		}
@@ -733,10 +741,6 @@ reswitch:
 		l = n->left;
 		if((t = l->type) == T)
 			goto error;
-		// top&Eindir means this is &x in *&x.  (or the arg to built-in print)
-		// n->etype means code generator flagged it as non-escaping.
-		if(debug['N'] && !(top & Eindir) && !n->etype)
-			addrescapes(n->left);
 		n->type = ptrto(t);
 		goto ret;
 
@@ -892,11 +896,12 @@ reswitch:
 				break;
 			}
 			if(isconst(n->right, CTINT)) {
-				if(mpgetfix(n->right->val.u.xval) < 0)
+				x = mpgetfix(n->right->val.u.xval);
+				if(x < 0)
 					yyerror("invalid %s index %N (index must be non-negative)", why, n->right);
-				else if(isfixedarray(t) && t->bound > 0 && mpgetfix(n->right->val.u.xval) >= t->bound)
+				else if(isfixedarray(t) && t->bound > 0 && x >= t->bound)
 					yyerror("invalid array index %N (out of bounds for %d-element array)", n->right, t->bound);
-				else if(isconst(n->left, CTSTR) && mpgetfix(n->right->val.u.xval) >= n->left->val.u.sval->len)
+				else if(isconst(n->left, CTSTR) && x >= n->left->val.u.sval->len)
 					yyerror("invalid string index %N (out of bounds for %d-byte string)", n->right, n->left->val.u.sval->len);
 				else if(mpcmpfixfix(n->right->val.u.xval, maxintval[TINT]) > 0)
 					yyerror("invalid %s index %N (index too large)", why, n->right);
@@ -996,9 +1001,9 @@ reswitch:
 			yyerror("cannot slice %N (type %T)", l, t);
 			goto error;
 		}
-		if((lo = n->right->left) != N && checksliceindex(lo, tp) < 0)
+		if((lo = n->right->left) != N && checksliceindex(l, lo, tp) < 0)
 			goto error;
-		if((hi = n->right->right) != N && checksliceindex(hi, tp) < 0)
+		if((hi = n->right->right) != N && checksliceindex(l, hi, tp) < 0)
 			goto error;
 		if(checksliceconst(lo, hi) < 0)
 			goto error;
@@ -1045,11 +1050,11 @@ reswitch:
 			yyerror("cannot slice %N (type %T)", l, t);
 			goto error;
 		}
-		if((lo = n->right->left) != N && checksliceindex(lo, tp) < 0)
+		if((lo = n->right->left) != N && checksliceindex(l, lo, tp) < 0)
 			goto error;
-		if((mid = n->right->right->left) != N && checksliceindex(mid, tp) < 0)
+		if((mid = n->right->right->left) != N && checksliceindex(l, mid, tp) < 0)
 			goto error;
-		if((hi = n->right->right->right) != N && checksliceindex(hi, tp) < 0)
+		if((hi = n->right->right->right) != N && checksliceindex(l, hi, tp) < 0)
 			goto error;
 		if(checksliceconst(lo, hi) < 0 || checksliceconst(lo, mid) < 0 || checksliceconst(mid, hi) < 0)
 			goto error;
@@ -1819,7 +1824,7 @@ out:
 }
 
 static int
-checksliceindex(Node *r, Type *tp)
+checksliceindex(Node *l, Node *r, Type *tp)
 {
 	Type *t;
 
@@ -1835,6 +1840,9 @@ checksliceindex(Node *r, Type *tp)
 			return -1;
 		} else if(tp != nil && tp->bound > 0 && mpgetfix(r->val.u.xval) > tp->bound) {
 			yyerror("invalid slice index %N (out of bounds for %d-element array)", r, tp->bound);
+			return -1;
+		} else if(isconst(l, CTSTR) && mpgetfix(r->val.u.xval) > l->val.u.sval->len) {
+			yyerror("invalid slice index %N (out of bounds for %d-byte string)", r, l->val.u.sval->len);
 			return -1;
 		} else if(mpcmpfixfix(r->val.u.xval, maxintval[TINT]) > 0) {
 			yyerror("invalid slice index %N (index too large)", r);
@@ -2116,18 +2124,19 @@ lookdot(Node *n, Type *t, int dostrcmp)
 		if(!eqtype(rcvr, tt)) {
 			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
 				checklvalue(n->left, "call pointer method on");
-				if(debug['N'])
-					addrescapes(n->left);
 				n->left = nod(OADDR, n->left, N);
 				n->left->implicit = 1;
 				typecheck(&n->left, Etype|Erv);
-			} else if(tt->etype == tptr && eqtype(tt->type, rcvr)) {
+			} else if(tt->etype == tptr && rcvr->etype != tptr && eqtype(tt->type, rcvr)) {
 				n->left = nod(OIND, n->left, N);
 				n->left->implicit = 1;
 				typecheck(&n->left, Etype|Erv);
-			} else if(tt->etype == tptr && tt->type->etype == tptr && eqtype(derefall(tt), rcvr)) {
+			} else if(tt->etype == tptr && tt->type->etype == tptr && eqtype(derefall(tt), derefall(rcvr))) {
 				yyerror("calling method %N with receiver %lN requires explicit dereference", n->right, n->left);
 				while(tt->etype == tptr) {
+					// Stop one level early for method with pointer receiver.
+					if(rcvr->etype == tptr && tt->type->etype != tptr)
+						break;
 					n->left = nod(OIND, n->left, N);
 					n->left->implicit = 1;
 					typecheck(&n->left, Etype|Erv);
@@ -2808,6 +2817,33 @@ checkassignlist(NodeList *l)
 		checkassign(l->n);
 }
 
+// Check whether l and r are the same side effect-free expression,
+// so that it is safe to reuse one instead of computing both.
+static int
+samesafeexpr(Node *l, Node *r)
+{
+	if(l->op != r->op || !eqtype(l->type, r->type))
+		return 0;
+	
+	switch(l->op) {
+	case ONAME:
+	case OCLOSUREVAR:
+		return l == r;
+	
+	case ODOT:
+	case ODOTPTR:
+		return l->right != nil && r->right != nil && l->right->sym == r->right->sym && samesafeexpr(l->left, r->left);
+	
+	case OIND:
+		return samesafeexpr(l->left, r->left);
+	
+	case OINDEX:
+		return samesafeexpr(l->left, r->left) && samesafeexpr(l->right, r->right);
+	}
+	
+	return 0;
+}
+
 /*
  * type check assignment.
  * if this assignment is the definition of a var on the left side,
@@ -2845,6 +2881,29 @@ typecheckas(Node *n)
 	n->typecheck = 1;
 	if(n->left->typecheck == 0)
 		typecheck(&n->left, Erv | Easgn);
+	
+	// Recognize slices being updated in place, for better code generation later.
+	// Don't rewrite if using race detector, to avoid needing to teach race detector
+	// about this optimization.
+	if(n->left && n->left->op != OINDEXMAP && n->right && !flag_race) {
+		switch(n->right->op) {
+		case OSLICE:
+		case OSLICE3:
+		case OSLICESTR:
+			// For x = x[0:y], x can be updated in place, without touching pointer.
+			if(samesafeexpr(n->left, n->right->left) && (n->right->right->left == N || iszero(n->right->right->left)))
+				n->right->reslice = 1;
+			break;
+		
+		case OAPPEND:
+			// For x = append(x, ...), x can be updated in place when there is capacity,
+			// without touching the pointer; otherwise the emitted code to growslice
+			// can take care of updating the pointer, and only in that case.
+			if(n->right->list != nil && samesafeexpr(n->left, n->right->list->n))
+				n->right->reslice = 1;
+			break;
+		}
+	}
 }
 
 static void

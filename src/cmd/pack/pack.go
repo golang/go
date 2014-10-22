@@ -142,16 +142,19 @@ type Archive struct {
 	matchAll bool     // match all files in archive
 }
 
-// archive opens (or if necessary creates) the named archive.
+// archive opens (and if necessary creates) the named archive.
 func archive(name string, mode int, files []string) *Archive {
-	fd, err := os.OpenFile(name, mode, 0)
-	if err != nil && mode&^os.O_TRUNC == os.O_RDWR && os.IsNotExist(err) {
-		fd, err = create(name)
+	// If the file exists, it must be an archive. If it doesn't exist, or if
+	// we're doing the c command, indicated by O_TRUNC, truncate the archive.
+	if !existingArchive(name) || mode&os.O_TRUNC != 0 {
+		create(name)
+		mode &^= os.O_TRUNC
 	}
+	fd, err := os.OpenFile(name, mode, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
-	mustBeArchive(fd)
+	checkHeader(fd)
 	return &Archive{
 		fd:       fd,
 		files:    files,
@@ -160,23 +163,40 @@ func archive(name string, mode int, files []string) *Archive {
 }
 
 // create creates and initializes an archive that does not exist.
-func create(name string) (*os.File, error) {
-	fd, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+func create(name string) {
+	fd, err := os.Create(name)
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
-	fmt.Fprint(fd, arHeader)
-	fd.Seek(0, 0)
-	return fd, nil
+	_, err = fmt.Fprint(fd, arHeader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fd.Close()
 }
 
-// mustBeArchive verifies the header of the file. It assumes the file offset
-// is 0 coming in, and leaves it positioned immediately after the header.
-func mustBeArchive(fd *os.File) {
+// existingArchive reports whether the file exists and is a valid archive.
+// If it exists but is not an archive, existingArchive will exit.
+func existingArchive(name string) bool {
+	fd, err := os.Open(name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+		log.Fatal("cannot open file: %s", err)
+	}
+	checkHeader(fd)
+	fd.Close()
+	return true
+}
+
+// checkHeader verifies the header of the file. It assumes the file
+// is positioned at 0 and leaves it positioned at the end of the header.
+func checkHeader(fd *os.File) {
 	buf := make([]byte, len(arHeader))
 	_, err := io.ReadFull(fd, buf)
 	if err != nil || string(buf) != arHeader {
-		log.Fatal("file is not an archive: bad header")
+		log.Fatal("%s is not an archive: bad header", fd.Name())
 	}
 }
 

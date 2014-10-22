@@ -41,8 +41,8 @@ type MemStats struct {
 	OtherSys    uint64 // other system allocations
 
 	// Garbage collector statistics.
-	NextGC       uint64 // next run in HeapAlloc time (bytes)
-	LastGC       uint64 // last run in absolute time (ns)
+	NextGC       uint64 // next collection will happen when HeapAlloc ≥ this amount
+	LastGC       uint64 // end time of last collection (nanoseconds since 1970)
 	PauseTotalNs uint64
 	PauseNs      [256]uint64 // circular buffer of recent GC pause times, most recent at [(NumGC+255)%256]
 	NumGC        uint32
@@ -64,9 +64,44 @@ func init() {
 	var memStats MemStats
 	if sizeof_C_MStats != unsafe.Sizeof(memStats) {
 		println(sizeof_C_MStats, unsafe.Sizeof(memStats))
-		panic("MStats vs MemStatsType size mismatch")
+		gothrow("MStats vs MemStatsType size mismatch")
 	}
 }
 
 // ReadMemStats populates m with memory allocator statistics.
-func ReadMemStats(m *MemStats)
+func ReadMemStats(m *MemStats) {
+	// Have to acquire worldsema to stop the world,
+	// because stoptheworld can only be used by
+	// one goroutine at a time, and there might be
+	// a pending garbage collection already calling it.
+	semacquire(&worldsema, false)
+	gp := getg()
+	gp.m.gcing = 1
+	onM(stoptheworld)
+
+	gp.m.ptrarg[0] = noescape(unsafe.Pointer(m))
+	onM(readmemstats_m)
+
+	gp.m.gcing = 0
+	gp.m.locks++
+	semrelease(&worldsema)
+	onM(starttheworld)
+	gp.m.locks--
+}
+
+// Implementation of runtime/debug.WriteHeapDump
+func writeHeapDump(fd uintptr) {
+	semacquire(&worldsema, false)
+	gp := getg()
+	gp.m.gcing = 1
+	onM(stoptheworld)
+
+	gp.m.scalararg[0] = fd
+	onM(writeheapdump_m)
+
+	gp.m.gcing = 0
+	gp.m.locks++
+	semrelease(&worldsema)
+	onM(starttheworld)
+	gp.m.locks--
+}

@@ -31,33 +31,79 @@ import "unsafe"
 const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
 
 var (
-	deferprocPC = funcPC(deferproc)
-	goexitPC    = funcPC(goexit)
-	jmpdeferPC  = funcPC(jmpdefer)
-	lessstackPC = funcPC(lessstack)
-	mcallPC     = funcPC(mcall)
-	morestackPC = funcPC(morestack)
-	mstartPC    = funcPC(mstart)
-	newprocPC   = funcPC(newproc)
-	newstackPC  = funcPC(newstack)
-	rt0_goPC    = funcPC(rt0_go)
-	sigpanicPC  = funcPC(sigpanic)
+	// initialized in tracebackinit
+	deferprocPC uintptr
+	goexitPC    uintptr
+	jmpdeferPC  uintptr
+	mcallPC     uintptr
+	morestackPC uintptr
+	mstartPC    uintptr
+	newprocPC   uintptr
+	rt0_goPC    uintptr
+	sigpanicPC  uintptr
 
 	externalthreadhandlerp uintptr // initialized elsewhere
 )
 
-// System-specific hook. See traceback_windows.go
-var systraceback func(*_func, *stkframe, *g, bool, func(*stkframe, unsafe.Pointer) bool, unsafe.Pointer) (changed, aborted bool)
+func tracebackinit() {
+	// Go variable initialization happens late during runtime startup.
+	// Instead of initializing the variables above in the declarations,
+	// schedinit calls this function so that the variables are
+	// initialized and available earlier in the startup sequence.
+	deferprocPC = funcPC(deferproc)
+	goexitPC = funcPC(goexit)
+	jmpdeferPC = funcPC(jmpdefer)
+	mcallPC = funcPC(mcall)
+	morestackPC = funcPC(morestack)
+	mstartPC = funcPC(mstart)
+	newprocPC = funcPC(newproc)
+	rt0_goPC = funcPC(rt0_go)
+	sigpanicPC = funcPC(sigpanic)
+}
+
+// Traceback over the deferred function calls.
+// Report them like calls that have been invoked but not started executing yet.
+func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer) {
+	var frame stkframe
+	for d := gp._defer; d != nil; d = d.link {
+		fn := d.fn
+		if fn == nil {
+			// Defer of nil function. Args don't matter.
+			frame.pc = 0
+			frame.fn = nil
+			frame.argp = 0
+			frame.arglen = 0
+			frame.argmap = nil
+		} else {
+			frame.pc = uintptr(fn.fn)
+			f := findfunc(frame.pc)
+			if f == nil {
+				print("runtime: unknown pc in defer ", hex(frame.pc), "\n")
+				gothrow("unknown pc")
+			}
+			frame.fn = f
+			frame.argp = uintptr(deferArgs(d))
+			setArgInfo(&frame, f, true)
+		}
+		frame.continpc = frame.pc
+		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
+			return
+		}
+	}
+}
 
 // Generic traceback.  Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
 // duplicating the code and all its subtlety.
 func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, printall bool) int {
+	if goexitPC == 0 {
+		gothrow("gentraceback before goexitPC initialization")
+	}
 	g := getg()
 	gotraceback := gotraceback(nil)
 	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.
-		if gp.syscallstack != 0 {
+		if gp.syscallsp != 0 {
 			pc0 = gp.syscallpc
 			sp0 = gp.syscallsp
 			if usesLR {
@@ -82,14 +128,10 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 	waspanic := false
 	wasnewproc := false
 	printing := pcbuf == nil && callback == nil
-	panic := gp._panic
 	_defer := gp._defer
 
 	for _defer != nil && uintptr(_defer.argp) == _NoArgs {
 		_defer = _defer.link
-	}
-	for panic != nil && panic._defer == nil {
-		panic = panic.link
 	}
 
 	// If the PC is zero, it's likely a nil function call.
@@ -115,7 +157,6 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 	frame.fn = f
 
 	n := 0
-	stk := (*stktop)(unsafe.Pointer(gp.stackbase))
 	for n < max {
 		// Typically:
 		//	pc is the PC of the running function.
@@ -123,38 +164,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		//	fp is the frame pointer (caller's stack pointer) at that program counter, or nil if unknown.
 		//	stk is the stack containing sp.
 		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
-		if frame.pc == lessstackPC {
-			// Hit top of stack segment.  Unwind to next segment.
-			frame.pc = stk.gobuf.pc
-			frame.sp = stk.gobuf.sp
-			frame.lr = 0
-			frame.fp = 0
-			if printing && showframe(nil, gp) {
-				print("----- stack segment boundary -----\n")
-			}
-			stk = (*stktop)(unsafe.Pointer(stk.stackbase))
-			f = findfunc(frame.pc)
-			if f == nil {
-				print("runtime: unknown pc ", hex(frame.pc), " after stack split\n")
-				if callback != nil {
-					gothrow("unknown pc")
-				}
-			}
-			frame.fn = f
-			continue
-		}
 		f = frame.fn
-
-		// Hook for handling Windows exception handlers. See traceback_windows.go.
-		if systraceback != nil {
-			changed, aborted := systraceback(f, (*stkframe)(noescape(unsafe.Pointer(&frame))), gp, printing, callback, v)
-			if aborted {
-				return n
-			}
-			if changed {
-				continue
-			}
-		}
 
 		// Found an actual function.
 		// Derive frame pointer and link register.
@@ -220,30 +230,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 			if usesLR {
 				frame.argp += ptrSize
 			}
-			if f.args != _ArgsSizeUnknown {
-				frame.arglen = uintptr(f.args)
-			} else if flr == nil {
-				frame.arglen = 0
-			} else if frame.lr == lessstackPC {
-				frame.arglen = uintptr(stk.argsize)
-			} else {
-				i := funcarglen(flr, frame.lr)
-				if i >= 0 {
-					frame.arglen = uintptr(i)
-				} else {
-					var tmp string
-					if flr != nil {
-						tmp = gofuncname(flr)
-					} else {
-						tmp = "?"
-					}
-					print("runtime: unknown argument frame size for ", gofuncname(f), " called from ", hex(frame.lr), " [", tmp, "]\n")
-					if callback != nil {
-						gothrow("invalid stack")
-					}
-					frame.arglen = 0
-				}
-			}
+			setArgInfo(&frame, f, callback != nil)
 		}
 
 		// Determine function SP where deferproc would find its arguments.
@@ -284,19 +271,14 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		// returns; everything live at earlier deferprocs is still live at that one.
 		frame.continpc = frame.pc
 		if waspanic {
-			if panic != nil && panic._defer.argp == sparg {
-				frame.continpc = panic._defer.pc
-			} else if _defer != nil && _defer.argp == sparg {
+			if _defer != nil && _defer.argp == sparg {
 				frame.continpc = _defer.pc
 			} else {
 				frame.continpc = 0
 			}
 		}
 
-		// Unwind our local panic & defer stacks past this frame.
-		for panic != nil && (panic._defer == nil || panic._defer.argp == sparg || panic._defer.argp == _NoArgs) {
-			panic = panic.link
-		}
+		// Unwind our local defer stack past this frame.
 		for _defer != nil && (_defer.argp == sparg || _defer.argp == _NoArgs) {
 			_defer = _defer.link
 		}
@@ -367,6 +349,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		frame.lr = 0
 		frame.sp = frame.fp
 		frame.fp = 0
+		frame.argmap = nil
 
 		// On link register architectures, sighandler saves the LR on stack
 		// before faking a call to sigpanic.
@@ -440,23 +423,35 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		if _defer != nil {
 			print("runtime: g", gp.goid, ": leftover defer argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
 		}
-		if panic != nil {
-			print("runtime: g", gp.goid, ": leftover panic argp=", hex(panic._defer.argp), " pc=", hex(panic._defer.pc), "\n")
-		}
 		for _defer = gp._defer; _defer != nil; _defer = _defer.link {
 			print("\tdefer ", _defer, " argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
 		}
-		for panic = gp._panic; panic != nil; panic = panic.link {
-			print("\tpanic ", panic, " defer ", panic._defer)
-			if panic._defer != nil {
-				print(" argp=", hex(panic._defer.argp), " pc=", hex(panic._defer.pc))
-			}
-			print("\n")
-		}
-		gothrow("traceback has leftover defers or panics")
+		gothrow("traceback has leftover defers")
 	}
 
 	return n
+}
+
+func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
+	frame.arglen = uintptr(f.args)
+	if needArgMap && f.args == _ArgsSizeUnknown {
+		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
+		switch gofuncname(f) {
+		case "reflect.makeFuncStub", "reflect.methodValueCall":
+			arg0 := frame.sp
+			if usesLR {
+				arg0 += ptrSize
+			}
+			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
+			if fn[0] != f.entry {
+				print("runtime: confused by ", gofuncname(f), "\n")
+				gothrow("reflect mismatch")
+			}
+			bv := (*bitvector)(unsafe.Pointer(fn[1]))
+			frame.arglen = uintptr(bv.n / 2 * ptrSize)
+			frame.argmap = bv
+		}
+	}
 }
 
 func printcreatedby(gp *g) {
@@ -488,9 +483,9 @@ func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
 	}
 	// Print traceback. By default, omits runtime frames.
 	// If that means we print nothing at all, repeat forcing all frames printed.
-	n = gentraceback(pc, sp, 0, gp, 0, nil, _TracebackMaxFrames, nil, nil, false)
+	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, false)
 	if n == 0 {
-		n = gentraceback(pc, sp, 0, gp, 0, nil, _TracebackMaxFrames, nil, nil, true)
+		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, true)
 	}
 	if n == _TracebackMaxFrames {
 		print("...additional frames elided...\n")
@@ -523,23 +518,14 @@ func showframe(f *_func, gp *g) bool {
 		return true
 	}
 
-	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.")
+	return traceback > 1 || f != nil && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
 }
 
-func contains(s, t string) bool {
-	if len(t) == 0 {
-		return true
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] == t[0] && hasprefix(s[i:], t) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasprefix(s, t string) bool {
-	return len(s) >= len(t) && s[:len(t)] == t
+// isExportedRuntime reports whether name is an exported runtime function.
+// It is only for runtime functions, so ASCII A-Z is fine.
+func isExportedRuntime(name string) bool {
+	const n = len("runtime.")
+	return len(name) > n && name[:n] == "runtime." && 'A' <= name[n] && name[n] <= 'Z'
 }
 
 var gStatusStrings = [...]string{
@@ -633,7 +619,6 @@ func topofstack(f *_func) bool {
 		pc == mstartPC ||
 		pc == mcallPC ||
 		pc == morestackPC ||
-		pc == lessstackPC ||
 		pc == rt0_goPC ||
 		externalthreadhandlerp != 0 && pc == externalthreadhandlerp
 }

@@ -945,7 +945,6 @@ cgen(Node *n, Node *nn)
 			return;
 		}
 		gargs(r, &nod, &nod1);
-		gpcdata(PCDATA_ArgSize, curarg);
 		if(l->addable < INDEXED) {
 			reglcgen(&nod, l, nn);
 			nod.op = OREGISTER;
@@ -953,12 +952,9 @@ cgen(Node *n, Node *nn)
 			regfree(&nod);
 		} else
 			gopcode(OFUNC, n->type, Z, l);
-		gpcdata(PCDATA_ArgSize, -1);
 		if(REGARG >= 0 && reg[REGARG])
 			reg[REGARG]--;
 		regret(&nod, n, l->type, 1); // update maxarg if nothing else
-		gpcdata(PCDATA_ArgSize, curarg);
-		gpcdata(PCDATA_ArgSize, -1);
 		if(nn != Z)
 			gmove(&nod, nn);
 		if(nod.op == OREGISTER)

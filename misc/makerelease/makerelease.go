@@ -437,7 +437,8 @@ func (b *Build) Do() error {
 		// Build package.
 		_, err = b.run(work, "candle",
 			"-nologo",
-			"-dVersion="+version,
+			"-dGoVersion="+version,
+			"-dWixGoVersion="+wixVersion(version),
 			"-dArch="+b.Arch,
 			"-dSourceDir=go",
 			installer, appfiles)
@@ -469,6 +470,22 @@ func (b *Build) Do() error {
 		}
 	}
 	return err
+}
+
+var versionRe = regexp.MustCompile(`^go([0-9]+(\.[0-9]+)*)`)
+
+// The Microsoft installer requires version format major.minor.build
+// (http://msdn.microsoft.com/en-us/library/aa370859%28v=vs.85%29.aspx).
+// Where the major and minor field has a maximum value of 255 and build 65535.
+// The offical Go version format is goMAJOR.MINOR.PATCH at $GOROOT/VERSION.
+// It's based on the Mercurial tag. Remove prefix and suffix to make the
+// installer happy.
+func wixVersion(v string) string {
+	m := versionRe.FindStringSubmatch(v)
+	if m == nil {
+		return "0.0.0"
+	}
+	return m[1]
 }
 
 // extras fetches the go.tools, go.blog, and go-tour repositories,

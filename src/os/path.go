@@ -17,7 +17,7 @@ import (
 // If path is already a directory, MkdirAll does nothing
 // and returns nil.
 func MkdirAll(path string, perm FileMode) error {
-	// If path exists, stop with success or error.
+	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
 	dir, err := Stat(path)
 	if err == nil {
 		if dir.IsDir() {
@@ -26,7 +26,7 @@ func MkdirAll(path string, perm FileMode) error {
 		return &PathError{"mkdir", path, syscall.ENOTDIR}
 	}
 
-	// Doesn't already exist; make sure parent does.
+	// Slow path: make sure parent exists and then call Mkdir for path.
 	i := len(path)
 	for i > 0 && IsPathSeparator(path[i-1]) { // Skip trailing path separator.
 		i--
@@ -45,7 +45,7 @@ func MkdirAll(path string, perm FileMode) error {
 		}
 	}
 
-	// Now parent exists, try to create.
+	// Parent now exists; invoke Mkdir and use its result.
 	err = Mkdir(path, perm)
 	if err != nil {
 		// Handle arguments like "foo/." by
@@ -66,7 +66,7 @@ func MkdirAll(path string, perm FileMode) error {
 func RemoveAll(path string) error {
 	// Simple case: if Remove works, we're done.
 	err := Remove(path)
-	if err == nil {
+	if err == nil || IsNotExist(err) {
 		return nil
 	}
 
@@ -86,6 +86,11 @@ func RemoveAll(path string) error {
 	// Directory.
 	fd, err := Open(path)
 	if err != nil {
+		if IsNotExist(err) {
+			// Race. It was deleted between the Lstat and Open.
+			// Return nil per RemoveAll's docs.
+			return nil
+		}
 		return err
 	}
 
@@ -116,6 +121,9 @@ func RemoveAll(path string) error {
 
 	// Remove directory.
 	err1 := Remove(path)
+	if err1 == nil || IsNotExist(err1) {
+		return nil
+	}
 	if err == nil {
 		err = err1
 	}

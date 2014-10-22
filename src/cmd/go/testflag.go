@@ -65,9 +65,9 @@ type testFlagSpec struct {
 var testFlagDefn = []*testFlagSpec{
 	// local.
 	{name: "c", boolVar: &testC},
-	{name: "file", multiOK: true},
 	{name: "cover", boolVar: &testCover},
 	{name: "coverpkg"},
+	{name: "o"},
 
 	// build flags.
 	{name: "a", boolVar: &buildA},
@@ -153,6 +153,9 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		// bool flags.
 		case "a", "c", "i", "n", "x", "v", "race", "cover", "work":
 			setBoolFlag(f.boolVar, value)
+		case "o":
+			testO = value
+			testNeedBinary = true
 		case "p":
 			setIntFlag(&buildP, value)
 		case "exec":
@@ -184,8 +187,6 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			buildContext.BuildTags = strings.Fields(value)
 		case "compiler":
 			buildCompiler{}.Set(value)
-		case "file":
-			testFiles = append(testFiles, value)
 		case "bench":
 			// record that we saw the flag; don't care about the value
 			testBench = true

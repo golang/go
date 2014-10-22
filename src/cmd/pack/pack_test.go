@@ -56,11 +56,8 @@ func tmpDir(t *testing.T) string {
 	return name
 }
 
-// Test that we can create an archive, write to it, and get the same contents back.
-// Tests the rv and then the pv command on a new archive.
-func TestCreate(t *testing.T) {
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+// testCreate creates an archive in the specified directory.
+func testCreate(t *testing.T, dir string) {
 	name := filepath.Join(dir, "pack.a")
 	ar := archive(name, os.O_RDWR, nil)
 	// Add an entry by hand.
@@ -83,6 +80,22 @@ func TestCreate(t *testing.T) {
 	if result != expect {
 		t.Fatalf("expected %q got %q", expect, result)
 	}
+}
+
+// Test that we can create an archive, write to it, and get the same contents back.
+// Tests the rv and then the pv command on a new archive.
+func TestCreate(t *testing.T) {
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	testCreate(t, dir)
+}
+
+// Test that we can create an archive twice with the same name (Issue 8369).
+func TestCreateTwice(t *testing.T) {
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	testCreate(t, dir)
+	testCreate(t, dir)
 }
 
 // Test that we can create an archive, put some files in it, and get back a correct listing.

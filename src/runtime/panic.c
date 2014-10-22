@@ -18,7 +18,8 @@ uint32 runtime·panicking;
 static Mutex paniclk;
 
 void
-runtime·deferproc_m(void) {
+runtime·deferproc_m(void)
+{
 	int32 siz;
 	FuncVal *fn;
 	uintptr argp;
@@ -30,12 +31,15 @@ runtime·deferproc_m(void) {
 	argp = g->m->scalararg[1];
 	callerpc = g->m->scalararg[2];
 	g->m->ptrarg[0] = nil;
+	g->m->scalararg[1] = 0;
 
 	d = runtime·newdefer(siz);
+	if(d->panic != nil)
+		runtime·throw("deferproc: d->panic != nil after newdefer");
 	d->fn = fn;
 	d->pc = callerpc;
 	d->argp = argp;
-	runtime·memmove(d->args, (void*)argp, siz);
+	runtime·memmove(d+1, (void*)argp, siz);
 }
 
 // Unwind the stack after a deferred function calls recover
@@ -51,8 +55,11 @@ runtime·recovery_m(G *gp)
 	argp = (void*)gp->sigcode0;
 	pc = (uintptr)gp->sigcode1;
 
-	// Unwind to the stack frame with d's arguments in it.
-	runtime·unwindstack(gp, argp);
+	// d's arguments need to be in the stack.
+	if(argp != nil && ((uintptr)argp < gp->stack.lo || gp->stack.hi < (uintptr)argp)) {
+		runtime·printf("recover: %p not in [%p, %p]\n", argp, gp->stack.lo, gp->stack.hi);
+		runtime·throw("bad recovery");
+	}
 
 	// Make the deferproc for this d return again,
 	// this time returning 1.  The calling function will
@@ -71,34 +78,6 @@ runtime·recovery_m(G *gp)
 	gp->sched.lr = 0;
 	gp->sched.ret = 1;
 	runtime·gogo(&gp->sched);
-}
-
-// Free stack frames until we hit the last one
-// or until we find the one that contains the sp.
-void
-runtime·unwindstack(G *gp, byte *sp)
-{
-	Stktop *top;
-	byte *stk;
-
-	// Must be called from a different goroutine, usually m->g0.
-	if(g == gp)
-		runtime·throw("unwindstack on self");
-
-	while((top = (Stktop*)gp->stackbase) != 0 && top->stackbase != 0) {
-		stk = (byte*)gp->stackguard - StackGuard;
-		if(stk <= sp && sp < (byte*)gp->stackbase)
-			break;
-		gp->stackbase = top->stackbase;
-		gp->stackguard = top->stackguard;
-		gp->stackguard0 = gp->stackguard;
-		runtime·stackfree(gp, stk, top);
-	}
-
-	if(sp != nil && (sp < (byte*)gp->stackguard - StackGuard || (byte*)gp->stackbase < sp)) {
-		runtime·printf("recover: %p not in [%p, %p]\n", sp, gp->stackguard - StackGuard, gp->stackbase);
-		runtime·throw("bad unwindstack");
-	}
 }
 
 void
@@ -155,6 +134,7 @@ runtime·dopanic_m(void)
 	g->m->ptrarg[0] = nil;
 	pc = g->m->scalararg[0];
 	sp = g->m->scalararg[1];
+	g->m->scalararg[1] = 0;
 	if(gp->sig != 0)
 		runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
 			gp->sig, gp->sigcode0, gp->sigcode1, gp->sigpc);
@@ -190,6 +170,7 @@ runtime·dopanic_m(void)
 	runtime·exit(2);
 }
 
+#pragma textflag NOSPLIT
 bool
 runtime·canpanic(G *gp)
 {

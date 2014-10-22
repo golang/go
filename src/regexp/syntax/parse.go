@@ -244,6 +244,7 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
 	if sub.Op >= opPseudo {
 		return "", &Error{ErrMissingRepeatArgument, before[:len(before)-len(after)]}
 	}
+
 	re := p.newRegexp(op)
 	re.Min = min
 	re.Max = max
@@ -251,7 +252,45 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
 	re.Sub = re.Sub0[:1]
 	re.Sub[0] = sub
 	p.stack[n-1] = re
+
+	if op == OpRepeat && (min >= 2 || max >= 2) && !repeatIsValid(re, 1000) {
+		return "", &Error{ErrInvalidRepeatSize, before[:len(before)-len(after)]}
+	}
+
 	return after, nil
+}
+
+// repeatIsValid reports whether the repetition re is valid.
+// Valid means that the combination of the top-level repetition
+// and any inner repetitions does not exceed n copies of the
+// innermost thing.
+// This function rewalks the regexp tree and is called for every repetition,
+// so we have to worry about inducing quadratic behavior in the parser.
+// We avoid this by only calling repeatIsValid when min or max >= 2.
+// In that case the depth of any >= 2 nesting can only get to 9 without
+// triggering a parse error, so each subtree can only be rewalked 9 times.
+func repeatIsValid(re *Regexp, n int) bool {
+	if re.Op == OpRepeat {
+		m := re.Max
+		if m == 0 {
+			return true
+		}
+		if m < 0 {
+			m = re.Min
+		}
+		if m > n {
+			return false
+		}
+		if m > 0 {
+			n /= m
+		}
+	}
+	for _, sub := range re.Sub {
+		if !repeatIsValid(sub, n) {
+			return false
+		}
+	}
+	return true
 }
 
 // concat replaces the top of the stack (above the topmost '|' or '(') with its concatenation.

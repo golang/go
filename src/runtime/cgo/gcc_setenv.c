@@ -14,3 +14,10 @@ x_cgo_setenv(char **arg)
 {
 	setenv(arg[0], arg[1], 1);
 }
+
+/* Stub for calling unsetenv */
+void
+x_cgo_unsetenv(char *arg)
+{
+	unsetenv(arg);
+}

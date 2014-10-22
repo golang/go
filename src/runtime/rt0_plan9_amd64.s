@@ -15,7 +15,7 @@ TEXT _rt0_amd64_plan9(SB),NOSPLIT,$24
 	JMP	AX
 
 DATA runtime·isplan9(SB)/4, $1
-GLOBL runtime·isplan9(SB), $4
-GLOBL _tos(SB), $8
-GLOBL _privates(SB), $8
-GLOBL _nprivates(SB), $4
+GLOBL runtime·isplan9(SB), NOPTR, $4
+GLOBL _tos(SB), NOPTR, $8
+GLOBL _privates(SB), NOPTR, $8
+GLOBL _nprivates(SB), NOPTR, $4

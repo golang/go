@@ -96,6 +96,9 @@ type Type interface {
 	// ConvertibleTo returns true if a value of the type is convertible to type u.
 	ConvertibleTo(u Type) bool
 
+	// Comparable returns true if values of this type are comparable.
+	Comparable() bool
+
 	// Methods applicable only to some types, depending on Kind.
 	// The methods allowed for each kind are:
 	//
@@ -242,18 +245,27 @@ const (
 // with a unique tag like `reflect:"array"` or `reflect:"ptr"`
 // so that code cannot convert from, say, *arrayType to *ptrType.
 type rtype struct {
-	size          uintptr           // size in bytes
+	size          uintptr
 	hash          uint32            // hash of type; avoids computation in hash tables
 	_             uint8             // unused/padding
 	align         uint8             // alignment of variable with this type
 	fieldAlign    uint8             // alignment of struct field with this type
 	kind          uint8             // enumeration for C
-	alg           *uintptr          // algorithm table (../runtime/runtime.h:/Alg)
+	alg           *typeAlg          // algorithm table (../runtime/runtime.h:/Alg)
 	gc            [2]unsafe.Pointer // garbage collection data
 	string        *string           // string form; unnecessary but undeniably useful
 	*uncommonType                   // (relatively) uncommon fields
 	ptrToThis     *rtype            // type for pointer to this type, if used in binary or has methods
 	zero          unsafe.Pointer    // pointer to zero value
+}
+
+type typeAlg struct {
+	// function for hashing objects of this type
+	// (ptr to object, size, seed) -> hash
+	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
+	// function for comparing objects of this type
+	// (ptr to object A, ptr to object B, size) -> ==?
+	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
 }
 
 // Method on non-interface type
@@ -478,7 +490,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	if p.name != nil {
 		m.Name = *p.name
 	}
-	fl := flag(Func) << flagKindShift
+	fl := flag(Func)
 	if p.pkgPath != nil {
 		m.PkgPath = *p.pkgPath
 		fl |= flagRO
@@ -486,7 +498,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	mt := p.typ
 	m.Type = mt
 	fn := unsafe.Pointer(&p.tfn)
-	m.Func = Value{mt, fn, 0, fl}
+	m.Func = Value{mt, fn, fl}
 	m.Index = i
 	return
 }
@@ -1096,6 +1108,10 @@ func (t *rtype) ConvertibleTo(u Type) bool {
 	return convertOp(uu, t) != nil
 }
 
+func (t *rtype) Comparable() bool {
+	return t.alg != nil && t.alg.equal != nil
+}
+
 // implements returns true if the type V implements the interface type T.
 func implements(T, V *rtype) bool {
 	if T.Kind() != Interface {
@@ -1498,20 +1514,37 @@ func (gc *gcProg) appendProg(t *rtype) {
 		gc.size += t.size
 		return
 	}
-	nptr := t.size / unsafe.Sizeof(uintptr(0))
-	var prog []byte
-	if t.kind&kindGCProg != 0 {
-		// Ensure that the runtime has unrolled GC program.
-		// TODO(rsc): Do not allocate.
-		unsafe_New(t)
-		// The program is stored in t.gc[0], skip unroll flag.
-		prog = (*[1 << 30]byte)(unsafe.Pointer(t.gc[0]))[1:]
-	} else {
-		// The mask is embed directly in t.gc.
-		prog = (*[1 << 30]byte)(unsafe.Pointer(&t.gc[0]))[:]
-	}
-	for i := uintptr(0); i < nptr; i++ {
-		gc.appendWord(extractGCWord(prog, i))
+	switch t.Kind() {
+	default:
+		panic("reflect: non-pointer type marked as having pointers")
+	case Ptr, UnsafePointer, Chan, Func, Map:
+		gc.appendWord(bitsPointer)
+	case Slice:
+		gc.appendWord(bitsPointer)
+		gc.appendWord(bitsScalar)
+		gc.appendWord(bitsScalar)
+	case String:
+		gc.appendWord(bitsPointer)
+		gc.appendWord(bitsScalar)
+	case Array:
+		c := t.Len()
+		e := t.Elem().common()
+		for i := 0; i < c; i++ {
+			gc.appendProg(e)
+		}
+	case Interface:
+		gc.appendWord(bitsMultiWord)
+		if t.NumMethod() == 0 {
+			gc.appendWord(bitsEface)
+		} else {
+			gc.appendWord(bitsIface)
+		}
+	case Struct:
+		c := t.NumField()
+		for i := 0; i < c; i++ {
+			gc.appendProg(t.Field(i).Type.common())
+		}
+		gc.align(uintptr(t.align))
 	}
 }
 
@@ -1546,7 +1579,6 @@ func (gc *gcProg) finalize() unsafe.Pointer {
 			gc.appendWord(extractGCWord(gc.gc, i))
 		}
 	}
-	gc.gc = append([]byte{1}, gc.gc...) // prepend unroll flag
 	return unsafe.Pointer(&gc.gc[0])
 }
 
@@ -1558,9 +1590,14 @@ func (gc *gcProg) align(a uintptr) {
 	gc.size = align(gc.size, a)
 }
 
+// These constants must stay in sync with ../runtime/mgc0.h.
 const (
-	bitsScalar  = 1
-	bitsPointer = 2
+	bitsScalar    = 1
+	bitsPointer   = 2
+	bitsMultiWord = 3
+
+	bitsIface = 2
+	bitsEface = 3
 )
 
 // Make sure these routines stay in sync with ../../runtime/hashmap.go!
@@ -1603,7 +1640,6 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	b := new(rtype)
 	b.size = gc.size
 	b.gc[0] = gc.finalize()
-	b.kind |= kindGCProg
 	s := "bucket(" + *ktyp.string + "," + *etyp.string + ")"
 	b.string = &s
 	return b
@@ -1726,6 +1762,7 @@ type layoutType struct {
 	t         *rtype
 	argSize   uintptr // size of arguments
 	retOffset uintptr // offset of return values.
+	stack     *bitVector
 }
 
 var layoutCache struct {
@@ -1739,7 +1776,7 @@ var layoutCache struct {
 // The returned type exists only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program.  We also fill in
 // the name for possible debugging use.
-func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr) {
+func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stack *bitVector) {
 	if t.Kind() != Func {
 		panic("reflect: funcLayout of non-func type")
 	}
@@ -1750,36 +1787,43 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	layoutCache.RLock()
 	if x := layoutCache.m[k]; x.t != nil {
 		layoutCache.RUnlock()
-		return x.t, x.argSize, x.retOffset
+		return x.t, x.argSize, x.retOffset, x.stack
 	}
 	layoutCache.RUnlock()
 	layoutCache.Lock()
 	if x := layoutCache.m[k]; x.t != nil {
 		layoutCache.Unlock()
-		return x.t, x.argSize, x.retOffset
+		return x.t, x.argSize, x.retOffset, x.stack
 	}
 
 	tt := (*funcType)(unsafe.Pointer(t))
 
-	// compute gc program for arguments
+	// compute gc program & stack bitmap for arguments
+	stack = new(bitVector)
 	var gc gcProg
+	var offset uintptr
 	if rcvr != nil {
 		// Reflect uses the "interface" calling convention for
 		// methods, where receivers take one word of argument
 		// space no matter how big they actually are.
-		if !isDirectIface(rcvr) {
+		if ifaceIndir(rcvr) {
 			// we pass a pointer to the receiver.
 			gc.append(bitsPointer)
+			stack.append2(bitsPointer)
 		} else if rcvr.pointers() {
 			// rcvr is a one-word pointer object.  Its gc program
 			// is just what we need here.
 			gc.append(bitsPointer)
+			stack.append2(bitsPointer)
 		} else {
 			gc.append(bitsScalar)
+			stack.append2(bitsScalar)
 		}
+		offset += ptrSize
 	}
 	for _, arg := range tt.in {
 		gc.appendProg(arg)
+		addTypeBits(stack, &offset, arg)
 	}
 	argSize = gc.size
 	if runtime.GOARCH == "amd64p32" {
@@ -1789,6 +1833,7 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	retOffset = gc.size
 	for _, res := range tt.out {
 		gc.appendProg(res)
+		// stack map does not need result bits
 	}
 	gc.align(ptrSize)
 
@@ -1796,7 +1841,6 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	x := new(rtype)
 	x.size = gc.size
 	x.gc[0] = gc.finalize()
-	x.kind |= kindGCProg
 	var s string
 	if rcvr != nil {
 		s = "methodargs(" + *rcvr.string + ")(" + *t.string + ")"
@@ -1813,12 +1857,73 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 		t:         x,
 		argSize:   argSize,
 		retOffset: retOffset,
+		stack:     stack,
 	}
 	layoutCache.Unlock()
-	return x, argSize, retOffset
+	return x, argSize, retOffset, stack
 }
 
-// isDirectIface reports whether t is stored directly in an interface value.
-func isDirectIface(t *rtype) bool {
-	return t.kind&kindDirectIface != 0
+// ifaceIndir reports whether t is stored indirectly in an interface value.
+func ifaceIndir(t *rtype) bool {
+	return t.kind&kindDirectIface == 0
+}
+
+// Layout matches runtime.BitVector (well enough).
+type bitVector struct {
+	n    uint32 // number of bits
+	data []byte
+}
+
+// append a bit pair to the bitmap.
+func (bv *bitVector) append2(bits uint8) {
+	// assume bv.n is a multiple of 2, since append2 is the only operation.
+	if bv.n%8 == 0 {
+		bv.data = append(bv.data, 0)
+	}
+	bv.data[bv.n/8] |= bits << (bv.n % 8)
+	bv.n += 2
+}
+
+func addTypeBits(bv *bitVector, offset *uintptr, t *rtype) {
+	*offset = align(*offset, uintptr(t.align))
+	if t.kind&kindNoPointers != 0 {
+		*offset += t.size
+		return
+	}
+
+	switch Kind(t.kind & kindMask) {
+	case Chan, Func, Map, Ptr, Slice, String, UnsafePointer:
+		// 1 pointer at start of representation
+		for bv.n < uint32(*offset/uintptr(ptrSize)) {
+			bv.append2(bitsScalar)
+		}
+		bv.append2(bitsPointer)
+
+	case Interface:
+		// 2 pointers
+		for bv.n < uint32(*offset/uintptr(ptrSize)) {
+			bv.append2(bitsScalar)
+		}
+		bv.append2(bitsPointer)
+		bv.append2(bitsPointer)
+
+	case Array:
+		// repeat inner type
+		tt := (*arrayType)(unsafe.Pointer(t))
+		for i := 0; i < int(tt.len); i++ {
+			addTypeBits(bv, offset, tt.elem)
+		}
+
+	case Struct:
+		// apply fields
+		tt := (*structType)(unsafe.Pointer(t))
+		start := *offset
+		for i := range tt.fields {
+			f := &tt.fields[i]
+			off := start + f.offset
+			addTypeBits(bv, &off, f.typ)
+		}
+	}
+
+	*offset += t.size
 }

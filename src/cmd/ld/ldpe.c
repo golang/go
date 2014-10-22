@@ -128,6 +128,7 @@ struct PeObj {
 };
 
 static int map(PeObj *obj, PeSect *sect);
+static int issect(PeSym *s);
 static int readsym(PeObj *obj, int i, PeSym **sym);
 
 void
@@ -179,6 +180,15 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
 	if(Bread(f, obj->snames, l) != l)
 		goto bad;
+	// rewrite section names if they start with /
+	for(i=0; i < obj->fh.NumberOfSections; i++) {
+		if(obj->sect[i].name == nil)
+			continue;
+		if(obj->sect[i].name[0] != '/')
+			continue;
+		l = atoi(obj->sect[i].name + 1);
+		obj->sect[i].name = (char*)&obj->snames[l];
+	}
 	// read symbols
 	obj->pesym = mal(obj->fh.NumberOfSymbols*sizeof obj->pesym[0]);
 	obj->npesym = obj->fh.NumberOfSymbols;
@@ -309,8 +319,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			// ld -r could generate multiple section symbols for the
 			// same section but with different values, we have to take
 			// that into account
-			if (obj->pesym[symindex].name[0] == '.')
-					rp->add += obj->pesym[symindex].value;
+			if(issect(&obj->pesym[symindex]))
+				rp->add += obj->pesym[symindex].value;
 		}
 		qsort(r, rsect->sh.NumberOfRelocations, sizeof r[0], rbyoff);
 		
@@ -318,12 +328,12 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 		s->r = r;
 		s->nr = rsect->sh.NumberOfRelocations;
 	}
-	
+
 	// enter sub-symbols into symbol table.
 	for(i=0; i<obj->npesym; i++) {
 		if(obj->pesym[i].name == 0)
 			continue;
-		if(obj->pesym[i].name[0] == '.') //skip section
+		if(issect(&obj->pesym[i]))
 			continue;
 		if(obj->pesym[i].sectnum > 0) {
 			sect = &obj->sect[obj->pesym[i].sectnum-1];
@@ -422,6 +432,12 @@ map(PeObj *obj, PeSect *sect)
 }
 
 static int
+issect(PeSym *s)
+{
+	return s->sclass == IMAGE_SYM_CLASS_STATIC && s->type == 0 && s->name[0] == '.';
+}
+
+static int
 readsym(PeObj *obj, int i, PeSym **y)
 {
 	LSym *s;
@@ -436,7 +452,7 @@ readsym(PeObj *obj, int i, PeSym **y)
 	sym = &obj->pesym[i];
 	*y = sym;
 	
-	if(sym->name[0] == '.') // .section
+	if(issect(sym))
 		name = obj->sect[sym->sectnum-1].sym->name;
 	else {
 		name = sym->name;

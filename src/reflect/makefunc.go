@@ -13,9 +13,10 @@ import (
 // makeFuncImpl is the closure value implementing the function
 // returned by MakeFunc.
 type makeFuncImpl struct {
-	code uintptr
-	typ  *funcType
-	fn   func([]Value) []Value
+	code  uintptr
+	stack *bitVector // stack bitmap for args - offset known to runtime
+	typ   *funcType
+	fn    func([]Value) []Value
 }
 
 // MakeFunc returns a new function of the given Type
@@ -54,9 +55,12 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 	dummy := makeFuncStub
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 
-	impl := &makeFuncImpl{code: code, typ: ftyp, fn: fn}
+	// makeFuncImpl contains a stack map for use by the runtime
+	_, _, _, stack := funcLayout(t, nil)
 
-	return Value{t, unsafe.Pointer(impl), 0, flag(Func) << flagKindShift}
+	impl := &makeFuncImpl{code: code, stack: stack, typ: ftyp, fn: fn}
+
+	return Value{t, unsafe.Pointer(impl), flag(Func)}
 }
 
 // makeFuncStub is an assembly function that is the code half of
@@ -68,6 +72,7 @@ func makeFuncStub()
 
 type methodValue struct {
 	fn     uintptr
+	stack  *bitVector // stack bitmap for args - offset known to runtime
 	method int
 	rcvr   Value
 }
@@ -86,8 +91,8 @@ func makeMethodValue(op string, v Value) Value {
 
 	// Ignoring the flagMethod bit, v describes the receiver, not the method type.
 	fl := v.flag & (flagRO | flagAddr | flagIndir)
-	fl |= flag(v.typ.Kind()) << flagKindShift
-	rcvr := Value{v.typ, v.ptr, v.scalar, fl}
+	fl |= flag(v.typ.Kind())
+	rcvr := Value{v.typ, v.ptr, fl}
 
 	// v.Type returns the actual type of the method value.
 	funcType := v.Type().(*rtype)
@@ -98,8 +103,12 @@ func makeMethodValue(op string, v Value) Value {
 	dummy := methodValueCall
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 
+	// methodValue contains a stack map for use by the runtime
+	_, _, _, stack := funcLayout(funcType, nil)
+
 	fv := &methodValue{
 		fn:     code,
+		stack:  stack,
 		method: int(v.flag) >> flagMethodShift,
 		rcvr:   rcvr,
 	}
@@ -109,7 +118,7 @@ func makeMethodValue(op string, v Value) Value {
 	// but we want Interface() and other operations to fail early.
 	methodReceiver(op, fv.rcvr, fv.method)
 
-	return Value{funcType, unsafe.Pointer(fv), 0, v.flag&flagRO | flag(Func)<<flagKindShift}
+	return Value{funcType, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
 }
 
 // methodValueCall is an assembly function that is the code half of

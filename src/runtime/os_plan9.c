@@ -6,6 +6,7 @@
 #include "os_GOOS.h"
 #include "arch_GOARCH.h"
 #include "textflag.h"
+#include "malloc.h"
 
 int8 *goos = "plan9";
 extern SigTab runtime·sigtab[];
@@ -20,11 +21,11 @@ runtime·mpreinit(M *mp)
 	// Initialize stack and goroutine for note handling.
 	mp->gsignal = runtime·malg(32*1024);
 	mp->gsignal->m = mp;
-	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, 0);
+	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, FlagNoScan);
 
 	// Initialize stack for handling strings from the
 	// errstr system call, as used in package syscall.
-	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, 0);
+	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, FlagNoScan);
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -279,14 +280,16 @@ exit(void)
 void
 runtime·newosproc(M *mp, void *stk)
 {
-	mp->tls[0] = mp->id;	// so 386 asm can find it
-	if(0){
-		runtime·printf("newosproc stk=%p m=%p g=%p rfork=%p id=%d/%d ostk=%p\n",
-			stk, mp, mp->g0, runtime·rfork, mp->id, (int32)mp->tls[0], &mp);
-	}
+	int32 pid;
 
-	if(runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, mp, mp->g0, runtime·mstart) < 0)
-		runtime·throw("newosproc: rfork failed");
+	if(0)
+		runtime·printf("newosproc mp=%p ostk=%p\n", mp, &mp);
+
+	USED(stk);
+	if((pid = runtime·rfork(RFPROC|RFMEM|RFNOWAIT)) < 0)
+		runtime·throw("newosproc: rfork failed\n");
+	if(pid == 0)
+		runtime·tstart_plan9(mp);
 }
 
 #pragma textflag NOSPLIT
@@ -324,84 +327,6 @@ void
 runtime·semawakeup(M *mp)
 {
 	runtime·plan9_semrelease(&mp->waitsemacount, 1);
-}
-
-static int64
-atolwhex(byte *p)
-{
-	int64 n;
-	int32 f;
-
-	n = 0;
-	f = 0;
-	while(*p == ' ' || *p == '\t')
-		p++;
-	if(*p == '-' || *p == '+') {
-		if(*p++ == '-')
-			f = 1;
-		while(*p == ' ' || *p == '\t')
-			p++;
-	}
-	if(p[0] == '0' && p[1]) {
-		if(p[1] == 'x' || p[1] == 'X') {
-			p += 2;
-			for(;;) {
-				if('0' <= *p && *p <= '9')
-					n = n*16 + *p++ - '0';
-				else if('a' <= *p && *p <= 'f')
-					n = n*16 + *p++ - 'a' + 10;
-				else if('A' <= *p && *p <= 'F')
-					n = n*16 + *p++ - 'A' + 10;
-				else
-					break;
-			}
-		} else
-			while('0' <= *p && *p <= '7')
-				n = n*8 + *p++ - '0';
-	} else
-		while('0' <= *p && *p <= '9')
-			n = n*10 + *p++ - '0';
-	if(f)
-		n = -n;
-	return n;
-}
-
-void
-runtime·sigpanic(void)
-{
-	byte *p;
-
-	if(!runtime·canpanic(g))
-		runtime·throw("unexpected signal during runtime execution");
-
-	switch(g->sig) {
-	case SIGRFAULT:
-	case SIGWFAULT:
-		p = runtime·strstr((byte*)g->m->notesig, (byte*)"addr=")+5;
-		g->sigcode1 = atolwhex(p);
-		if(g->sigcode1 < 0x1000 || g->paniconfault) {
-			if(g->sigpc == 0)
-				runtime·panicstring("call of nil func value");
-			runtime·panicstring("invalid memory address or nil pointer dereference");
-		}
-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
-		runtime·throw("fault");
-		break;
-	case SIGTRAP:
-		if(g->paniconfault)
-			runtime·panicstring("invalid memory address or nil pointer dereference");
-		runtime·throw(g->m->notesig);
-		break;
-	case SIGINTDIV:
-		runtime·panicstring("integer divide by zero");
-		break;
-	case SIGFLOAT:
-		runtime·panicstring("floating point error");
-		break;
-	default:
-		runtime·panicstring(g->m->notesig);
-		break;
-	}
 }
 
 #pragma textflag NOSPLIT

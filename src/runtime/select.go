@@ -368,6 +368,7 @@ loop:
 	// someone woke us up
 	sellock(sel)
 	sg = (*sudog)(gp.param)
+	gp.param = nil
 
 	// pass 3 - dequeue from unsuccessful chans
 	// otherwise they stack up on quiet channels
@@ -376,6 +377,16 @@ loop:
 	// iterating through the linked list they are in reverse order.
 	cas = nil
 	sglist = gp.waiting
+	// Clear all selectdone and elem before unlinking from gp.waiting.
+	// They must be cleared before being put back into the sudog cache.
+	// Clear before unlinking, because if a stack copy happens after the unlink,
+	// they will not be updated, they will be left pointing to the old stack,
+	// which creates dangling pointers, which may be detected by the
+	// garbage collector.
+	for sg1 := gp.waiting; sg1 != nil; sg1 = sg1.waitlink {
+		sg1.selectdone = nil
+		sg1.elem = nil
+	}
 	gp.waiting = nil
 	for i := int(sel.ncase) - 1; i >= 0; i-- {
 		k = &scases[pollorder[i]]
@@ -387,9 +398,9 @@ loop:
 		} else {
 			c = k._chan
 			if k.kind == _CaseSend {
-				c.sendq.dequeueg(gp)
+				c.sendq.dequeueSudoG(sglist)
 			} else {
-				c.recvq.dequeueg(gp)
+				c.recvq.dequeueSudoG(sglist)
 			}
 		}
 		sgnext = sglist.waitlink
@@ -506,6 +517,7 @@ syncrecv:
 	if cas.elem != nil {
 		memmove(cas.elem, sg.elem, uintptr(c.elemsize))
 	}
+	sg.elem = nil
 	gp = sg.g
 	gp.param = unsafe.Pointer(sg)
 	if sg.releasetime != 0 {
@@ -541,6 +553,7 @@ syncsend:
 	if sg.elem != nil {
 		memmove(sg.elem, cas.elem, uintptr(c.elemsize))
 	}
+	sg.elem = nil
 	gp = sg.g
 	gp.param = unsafe.Pointer(sg)
 	if sg.releasetime != 0 {
@@ -588,7 +601,7 @@ const (
 func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
 	// flagNoScan is safe here, because all objects are also referenced from cases.
 	size := selectsize(uintptr(len(cases)))
-	sel := (*_select)(gomallocgc(size, nil, flagNoScan))
+	sel := (*_select)(mallocgc(size, nil, flagNoScan))
 	newselect(sel, int64(size), int32(len(cases)))
 	r := new(bool)
 	for i := range cases {
@@ -615,7 +628,7 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
 	return
 }
 
-func (q *waitq) dequeueg(gp *g) {
+func (q *waitq) dequeueSudoG(s *sudog) {
 	var prevsgp *sudog
 	l := &q.first
 	for {
@@ -623,7 +636,7 @@ func (q *waitq) dequeueg(gp *g) {
 		if sgp == nil {
 			return
 		}
-		if sgp.g == gp {
+		if sgp == s {
 			*l = sgp.next
 			if q.last == sgp {
 				q.last = prevsgp

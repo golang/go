@@ -15,5 +15,3 @@ func rtsigprocmask(sig int32, new, old unsafe.Pointer, size int32)
 func getrlimit(kind int32, limit unsafe.Pointer) int32
 func raise(sig int32)
 func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
-
-const stackSystem = 0

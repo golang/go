@@ -6,25 +6,28 @@ package gob
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"io"
 	"reflect"
 	"sync"
 )
 
+// tooBig provides a sanity check for sizes; used in several places.
+// Upper limit of 1GB, allowing room to grow a little without overflow.
+// TODO: make this adjustable?
+const tooBig = 1 << 30
+
 // A Decoder manages the receipt of type and data information read from the
 // remote side of a connection.
 type Decoder struct {
 	mutex        sync.Mutex                              // each item must be received atomically
 	r            io.Reader                               // source of the data
-	buf          bytes.Buffer                            // buffer for more efficient i/o from r
+	buf          decBuffer                               // buffer for more efficient i/o from r
 	wireType     map[typeId]*wireType                    // map from remote ID to local description
 	decoderCache map[reflect.Type]map[typeId]**decEngine // cache of compiled engines
 	ignorerCache map[typeId]**decEngine                  // ditto for ignored objects
 	freeList     *decoderState                           // list of free decoderStates; avoids reallocation
 	countBuf     []byte                                  // used for decoding integers while parsing messages
-	tmp          []byte                                  // temporary storage for i/o; saves reallocating
 	err          error
 }
 
@@ -75,9 +78,7 @@ func (dec *Decoder) recvMessage() bool {
 		dec.err = err
 		return false
 	}
-	// Upper limit of 1GB, allowing room to grow a little without overflow.
-	// TODO: We might want more control over this limit.
-	if nbytes >= 1<<30 {
+	if nbytes >= tooBig {
 		dec.err = errBadCount
 		return false
 	}
@@ -87,37 +88,17 @@ func (dec *Decoder) recvMessage() bool {
 
 // readMessage reads the next nbytes bytes from the input.
 func (dec *Decoder) readMessage(nbytes int) {
-	// Allocate the dec.tmp buffer, up to 10KB.
-	const maxBuf = 10 * 1024
-	nTmp := nbytes
-	if nTmp > maxBuf {
-		nTmp = maxBuf
+	if dec.buf.Len() != 0 {
+		// The buffer should always be empty now.
+		panic("non-empty decoder buffer")
 	}
-	if cap(dec.tmp) < nTmp {
-		nAlloc := nTmp + 100 // A little extra for growth.
-		if nAlloc > maxBuf {
-			nAlloc = maxBuf
-		}
-		dec.tmp = make([]byte, nAlloc)
-	}
-	dec.tmp = dec.tmp[:nTmp]
-
 	// Read the data
-	dec.buf.Grow(nbytes)
-	for nbytes > 0 {
-		if nbytes < nTmp {
-			dec.tmp = dec.tmp[:nbytes]
+	dec.buf.Size(nbytes)
+	_, dec.err = io.ReadFull(dec.r, dec.buf.Bytes())
+	if dec.err != nil {
+		if dec.err == io.EOF {
+			dec.err = io.ErrUnexpectedEOF
 		}
-		var nRead int
-		nRead, dec.err = io.ReadFull(dec.r, dec.tmp)
-		if dec.err != nil {
-			if dec.err == io.EOF {
-				dec.err = io.ErrUnexpectedEOF
-			}
-			return
-		}
-		dec.buf.Write(dec.tmp)
-		nbytes -= nRead
 	}
 }
 
@@ -209,7 +190,7 @@ func (dec *Decoder) Decode(e interface{}) error {
 // Otherwise, it stores the value into v.  In that case, v must represent
 // a non-nil pointer to data or be an assignable reflect.Value (v.CanSet())
 // If the input is at EOF, DecodeValue returns io.EOF and
-// does not modify e.
+// does not modify v.
 func (dec *Decoder) DecodeValue(v reflect.Value) error {
 	if v.IsValid() {
 		if v.Kind() == reflect.Ptr && !v.IsNil() {

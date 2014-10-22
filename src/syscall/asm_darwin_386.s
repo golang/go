@@ -6,6 +6,7 @@
 // so that go vet can check that they are correct.
 
 #include "textflag.h"
+#include "funcdata.h"
 
 //
 // System call support for 386, Darwin

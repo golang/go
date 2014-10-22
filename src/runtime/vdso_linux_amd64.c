@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "textflag.h"
 
 // Look up symbols in the Linux vDSO.
 
@@ -51,7 +52,7 @@ typedef uint16 Elf64_Section;
 typedef Elf64_Half Elf64_Versym;
 
 
-typedef struct
+typedef struct Elf64_Sym
 {
 	Elf64_Word st_name;
 	byte st_info;
@@ -61,7 +62,7 @@ typedef struct
 	Elf64_Xword st_size;
 } Elf64_Sym;
 
-typedef struct
+typedef struct Elf64_Verdef
 {
 	Elf64_Half vd_version; /* Version revision */
 	Elf64_Half vd_flags;   /* Version information */
@@ -72,7 +73,7 @@ typedef struct
 	Elf64_Word vd_next;    /* Offset in bytes to next verdef entry */
 } Elf64_Verdef;
 
-typedef struct
+typedef struct Elf64_Ehdr
 {
 	byte e_ident[EI_NIDENT]; /* Magic number and other info */
 	Elf64_Half e_type;       /* Object file type */
@@ -90,7 +91,7 @@ typedef struct
 	Elf64_Half e_shstrndx;   /* Section header string table index */
 } Elf64_Ehdr;
 
-typedef struct
+typedef struct Elf64_Phdr
 {
 	Elf64_Word p_type;    /* Segment type */
 	Elf64_Word p_flags;   /* Segment flags */
@@ -102,7 +103,7 @@ typedef struct
 	Elf64_Xword p_align;  /* Segment alignment */
 } Elf64_Phdr;
 
-typedef struct
+typedef struct Elf64_Shdr
 {
 	Elf64_Word sh_name;       /* Section name (string tbl index) */
 	Elf64_Word sh_type;       /* Section type */
@@ -116,7 +117,7 @@ typedef struct
 	Elf64_Xword sh_entsize;   /* Entry size if section holds table */
 } Elf64_Shdr;
 
-typedef struct
+typedef struct Elf64_Dyn
 {
 	Elf64_Sxword d_tag; /* Dynamic entry type */
 	union
@@ -126,13 +127,13 @@ typedef struct
 	} d_un;
 } Elf64_Dyn;
 
-typedef struct
+typedef struct Elf64_Verdaux
 {
 	Elf64_Word vda_name; /* Version or dependency names */
 	Elf64_Word vda_next; /* Offset in bytes to next verdaux entry */
 } Elf64_Verdaux;
 
-typedef struct
+typedef struct Elf64_auxv_t
 {
 	uint64 a_type;        /* Entry type */
 	union
@@ -142,13 +143,13 @@ typedef struct
 } Elf64_auxv_t;
 
 
-typedef struct {
+typedef struct symbol_key {
 	byte* name;
 	int32 sym_hash;
 	void** var_ptr;
 } symbol_key;
 
-typedef struct {
+typedef struct version_key {
 	byte* version;
 	int32 ver_hash;
 } version_key;
@@ -171,14 +172,18 @@ struct vdso_info {
 	Elf64_Verdef *verdef;
 };
 
+#pragma dataflag NOPTR
 static version_key linux26 = { (byte*)"LINUX_2.6", 0x3ae75f6 };
 
 // initialize with vsyscall fallbacks
+#pragma dataflag NOPTR
 void* runtime·__vdso_time_sym = (void*)0xffffffffff600400ULL;
+#pragma dataflag NOPTR
 void* runtime·__vdso_gettimeofday_sym = (void*)0xffffffffff600000ULL;
+#pragma dataflag NOPTR
 void* runtime·__vdso_clock_gettime_sym = (void*)0;
 
-#define SYM_KEYS_COUNT 3
+#pragma dataflag NOPTR
 static symbol_key sym_keys[] = {
 	{ (byte*)"__vdso_time", 0xa33c485, &runtime·__vdso_time_sym },
 	{ (byte*)"__vdso_gettimeofday", 0x315ca59, &runtime·__vdso_gettimeofday_sym },
@@ -301,7 +306,7 @@ vdso_parse_symbols(struct vdso_info *vdso_info, int32 version)
 	if(vdso_info->valid == false)
 		return;
 
-	for(i=0; i<SYM_KEYS_COUNT; i++) {
+	for(i=0; i<nelem(sym_keys); i++) {
 		for(chain = vdso_info->bucket[sym_keys[i].sym_hash % vdso_info->nbucket];
 			chain != 0; chain = vdso_info->chain[chain]) {
 

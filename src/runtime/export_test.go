@@ -24,7 +24,6 @@ func stackguard() (sp, limit uintptr)
 var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
-var Stackguard = stackguard
 
 type LFNode struct {
 	Next    *LFNode
@@ -161,3 +160,6 @@ func GostringW(w []uint16) (s string) {
 	})
 	return
 }
+
+var Gostringnocopy = gostringnocopy
+var Maxstring = &maxstring

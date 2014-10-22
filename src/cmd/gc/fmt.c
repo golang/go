@@ -810,6 +810,13 @@ stmtfmt(Fmt *f, Node *n)
 		break;
 
 	case OASOP:
+		if(n->implicit) {
+			if(n->etype == OADD)
+				fmtprint(f, "%N++", n->left);
+			else
+				fmtprint(f, "%N--", n->left);
+			break;
+		}
 		fmtprint(f, "%N %#O= %N", n->left, n->etype, n->right);
 		break;
 
@@ -1108,16 +1115,11 @@ exprfmt(Fmt *f, Node *n, int prec)
 
 	case ONAME:
 		// Special case: name used as local variable in export.
-		switch(n->class&~PHEAP){
-		case PAUTO:
-		case PPARAM:
-		case PPARAMOUT:
-			// _ becomes ~b%d internally; print as _ for export
-			if(fmtmode == FExp && n->sym && n->sym->name[0] == '~' && n->sym->name[1] == 'b')
-				return fmtprint(f, "_");
-			if(fmtmode == FExp && n->sym && !isblank(n) && n->vargen > 0)
-				return fmtprint(f, "%S·%d", n->sym, n->vargen);
-		}
+		// _ becomes ~b%d internally; print as _ for export
+		if(fmtmode == FExp && n->sym && n->sym->name[0] == '~' && n->sym->name[1] == 'b')
+			return fmtprint(f, "_");
+		if(fmtmode == FExp && n->sym && !isblank(n) && n->vargen > 0)
+			return fmtprint(f, "%S·%d", n->sym, n->vargen);
 
 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
 		// but for export, this should be rendered as (*pkg.T).meth.

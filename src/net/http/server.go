@@ -42,6 +42,12 @@ var (
 // and then return.  Returning signals that the request is finished
 // and that the HTTP server can move on to the next request on
 // the connection.
+//
+// If ServeHTTP panics, the server (the caller of ServeHTTP) assumes
+// that the effect of the panic was isolated to the active request.
+// It recovers the panic, logs a stack trace to the server error log,
+// and hangs up the connection.
+//
 type Handler interface {
 	ServeHTTP(ResponseWriter, *Request)
 }
@@ -108,6 +114,8 @@ type conn struct {
 	remoteAddr string               // network address of remote side
 	server     *Server              // the Server on which the connection arrived
 	rwc        net.Conn             // i/o connection
+	w          io.Writer            // checkConnErrorWriter's copy of wrc, not zeroed on Hijack
+	werr       error                // any errors writing to w
 	sr         liveSwitchReader     // where the LimitReader reads from; usually the rwc
 	lr         *io.LimitedReader    // io.LimitReader(sr)
 	buf        *bufio.ReadWriter    // buffered(lr,rwc), reading from bufio->limitReader->sr->rwc
@@ -426,13 +434,14 @@ func (srv *Server) newConn(rwc net.Conn) (c *conn, err error) {
 	c.remoteAddr = rwc.RemoteAddr().String()
 	c.server = srv
 	c.rwc = rwc
+	c.w = rwc
 	if debugServerConnections {
 		c.rwc = newLoggingConn("server", c.rwc)
 	}
 	c.sr = liveSwitchReader{r: c.rwc}
 	c.lr = io.LimitReader(&c.sr, noLimit).(*io.LimitedReader)
 	br := newBufioReader(c.lr)
-	bw := newBufioWriterSize(c.rwc, 4<<10)
+	bw := newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 	c.buf = bufio.NewReadWriter(br, bw)
 	return c, nil
 }
@@ -833,13 +842,20 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	} else if hasCL {
 		delHeader("Transfer-Encoding")
 	} else if w.req.ProtoAtLeast(1, 1) {
-		// HTTP/1.1 or greater: use chunked transfer encoding
-		// to avoid closing the connection at EOF.
-		// TODO: this blows away any custom or stacked Transfer-Encoding they
-		// might have set.  Deal with that as need arises once we have a valid
-		// use case.
-		cw.chunking = true
-		setHeader.transferEncoding = "chunked"
+		// HTTP/1.1 or greater: Transfer-Encoding has been set to identity,  and no
+		// content-length has been provided. The connection must be closed after the
+		// reply is written, and no chunking is to be done. This is the setup
+		// recommended in the Server-Sent Events candidate recommendation 11,
+		// section 8.
+		if hasTE && te == "identity" {
+			cw.chunking = false
+			w.closeAfterReply = true
+		} else {
+			// HTTP/1.1 or greater: use chunked transfer encoding
+			// to avoid closing the connection at EOF.
+			cw.chunking = true
+			setHeader.transferEncoding = "chunked"
+		}
 	} else {
 		// HTTP version < 1.1: cannot do chunked transfer
 		// encoding and we don't know the Content-Length so
@@ -943,8 +959,10 @@ func (w *response) bodyAllowed() bool {
 // 2. (*response).w, a *bufio.Writer of bufferBeforeChunkingSize bytes
 // 3. chunkWriter.Writer (whose writeHeader finalizes Content-Length/Type)
 //    and which writes the chunk headers, if needed.
-// 4. conn.buf, a bufio.Writer of default (4kB) bytes
-// 5. the rwc, the net.Conn.
+// 4. conn.buf, a bufio.Writer of default (4kB) bytes, writing to ->
+// 5. checkConnErrorWriter{c}, which notes any non-nil error on Write
+//    and populates c.werr with it if so. but otherwise writes to:
+// 6. the rwc, the net.Conn.
 //
 // TODO(bradfitz): short-circuit some of the buffering when the
 // initial header contains both a Content-Type and Content-Length.
@@ -1014,6 +1032,12 @@ func (w *response) finishRequest() {
 		// Did not write enough. Avoid getting out of sync.
 		w.closeAfterReply = true
 	}
+
+	// There was some error writing to the underlying connection
+	// during the request, so don't re-use this conn.
+	if w.conn.werr != nil {
+		w.closeAfterReply = true
+	}
 }
 
 func (w *response) Flush() {
@@ -1058,15 +1082,21 @@ func (c *conn) close() {
 // This timeout is somewhat arbitrary (~latency around the planet).
 const rstAvoidanceDelay = 500 * time.Millisecond
 
+type closeWriter interface {
+	CloseWrite() error
+}
+
+var _ closeWriter = (*net.TCPConn)(nil)
+
 // closeWrite flushes any outstanding data and sends a FIN packet (if
 // client is connected via TCP), signalling that we're done.  We then
-// pause for a bit, hoping the client processes it before `any
+// pause for a bit, hoping the client processes it before any
 // subsequent RST.
 //
 // See http://golang.org/issue/3595
 func (c *conn) closeWriteAndWait() {
 	c.finalFlush()
-	if tcp, ok := c.rwc.(*net.TCPConn); ok {
+	if tcp, ok := c.rwc.(closeWriter); ok {
 		tcp.CloseWrite()
 	}
 	time.Sleep(rstAvoidanceDelay)
@@ -2047,5 +2077,20 @@ func (c *loggingConn) Close() (err error) {
 	log.Printf("%s.Close() = ...", c.name)
 	err = c.Conn.Close()
 	log.Printf("%s.Close() = %v", c.name, err)
+	return
+}
+
+// checkConnErrorWriter writes to c.rwc and records any write errors to c.werr.
+// It only contains one field (and a pointer field at that), so it
+// fits in an interface value without an extra allocation.
+type checkConnErrorWriter struct {
+	c *conn
+}
+
+func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
+	n, err = w.c.w.Write(p) // c.w == c.rwc, except after a hijack, when rwc is nil.
+	if err != nil && w.c.werr == nil {
+		w.c.werr = err
+	}
 	return
 }

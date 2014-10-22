@@ -112,7 +112,9 @@ func (s *Scanner) Scan() bool {
 	// Loop until we have a token.
 	for {
 		// See if we can get a token with what we already have.
-		if s.end > s.start {
+		// If we've run out of data but have an error, give the split function
+		// a chance to recover any remaining, possibly empty token.
+		if s.end > s.start || s.err != nil {
 			advance, token, err := s.split(s.buf[s.start:s.end], s.err != nil)
 			if err != nil {
 				s.setErr(err)

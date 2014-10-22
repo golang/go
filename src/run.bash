@@ -52,7 +52,7 @@ timeout_scale=1
 [ "$GOARCH" == "arm" ] && timeout_scale=3
 
 echo '# Testing packages.'
-time go test std -short -timeout=$(expr 120 \* $timeout_scale)s
+time go test std -short -timeout=$(expr 120 \* $timeout_scale)s -gcflags "$GO_GCFLAGS"
 echo
 
 # We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
@@ -119,6 +119,8 @@ go run $GOROOT/test/run.go - . || exit 1
 
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
+# cgo tests inspect the traceback for runtime functions
+export GOTRACEBACK=2
 go test -ldflags '-linkmode=auto' || exit 1
 # linkmode=internal fails on dragonfly since errno is a TLS relocation.
 [ "$GOHOSTOS" == dragonfly ] || go test -ldflags '-linkmode=internal' || exit 1
@@ -165,10 +167,13 @@ esac
 # This tests cgo -cdefs. That mode is not supported,
 # so it's okay if it doesn't work on some systems.
 # In particular, it works badly with clang on OS X.
-[ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
-(xcd ../misc/cgo/testcdefs
-./test.bash || exit 1
-) || exit $?
+# It doesn't work at all now that we disallow C code
+# outside runtime. Once runtime has no C code it won't
+# even be necessary.
+# [ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
+# (xcd ../misc/cgo/testcdefs
+# ./test.bash || exit 1
+# ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
 (xcd ../misc/cgo/testgodefs

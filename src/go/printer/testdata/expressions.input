@@ -95,6 +95,11 @@ func _() {
 	_ = Open(dpath + "/file", O_WRONLY | O_CREAT, 0666)
 	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx)
 
+	// test case for issue 8021
+	// want:
+	//  ([]bool{})[([]int{})[((1)+(((1)+((((1)*(((1)+(1))+(1)))+(1))*(1)))+(1)))]]
+	_ = ([]bool{})[([]int{})[((1) + (((((1) + (((((((1) * (((((1) + (1))) + (1))))) + (1))) * (1))))) + (1))))]]
+
 	// the parser does not restrict expressions that may appear as statements
 	true
 	42

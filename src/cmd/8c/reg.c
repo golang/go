@@ -518,7 +518,7 @@ loop2:
 			rgp->cost = change;
 			nregion++;
 			if(nregion >= NRGN) {
-				warn(Z, "too many regions");
+				fatal(Z, "too many regions");
 				goto brk;
 			}
 			rgp++;
@@ -746,11 +746,8 @@ mkvar(Reg *r, Addr *a)
 			goto out;
 		v++;
 	}
-	if(nvar >= NVAR) {
-		if(debug['w'] > 1 && s)
-			warn(Z, "variable not optimized: %s", s->name);
-		goto none;
-	}
+	if(nvar >= NVAR)
+		fatal(Z, "variable not optimized: %s", s->name);
 	i = nvar;
 	nvar++;
 	v = &var[i];

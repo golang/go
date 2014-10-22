@@ -14,7 +14,6 @@ type I interface {
 
 func main() {
 	shouldPanic(p1)
-	shouldPanic(p2)
 }
 
 func p1() {
@@ -29,19 +28,6 @@ func p1() {
 type S struct{}
 
 func (s *S) _() {}
-
-type B interface {
-	_()
-}
-
-func p2() {
-	var s *S
-	var b B
-	var e interface{}
-	e = s
-	b = e.(B)
-	_ = b
-}
 
 func shouldPanic(f func()) {
 	defer func() {

@@ -353,8 +353,10 @@ godefvar(Sym *s)
 		case CSTATIC:
 		case CEXTERN:
 		case CGLOBL:
-			if(strchr(s->name, '$') != nil)	 // TODO(lvd)
-			    break;
+			if(strchr(s->name, '$') != nil)
+				break;
+			if(strncmp(s->name, "go.weak.", 8) == 0)
+				break;
 			Bprint(&outbuf, "var %U\t", s->name);
 			printtypename(t);
 			Bprint(&outbuf, "\n");

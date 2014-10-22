@@ -144,6 +144,10 @@ libinit(void)
 void
 errorexit(void)
 {
+	if(cout >= 0) {
+		// For rmtemp run at atexit time on Windows.
+		close(cout);
+	}
 	if(nerrors) {
 		if(cout >= 0)
 			mayberemoveoutfile();
@@ -217,8 +221,12 @@ loadlib(void)
 		// Provided by the code that imports the package.
 		// Since we are simulating the import, we have to provide this string.
 		cgostrsym = "go.string.\"runtime/cgo\"";
-		if(linkrlookup(ctxt, cgostrsym, 0) == nil)
+		if(linkrlookup(ctxt, cgostrsym, 0) == nil) {
+			s = linklookup(ctxt, cgostrsym, 0);
+			s->type = SRODATA;
+			s->reachable = 1;
 			addstrdata(cgostrsym, "runtime/cgo");
+		}
 	}
 
 	if(linkmode == LinkAuto) {

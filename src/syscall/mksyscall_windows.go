@@ -138,8 +138,6 @@ func (p *Param) StringTmpVarCode() string {
 // TmpVarCode returns source code for temp variable.
 func (p *Param) TmpVarCode() string {
 	switch {
-	case p.Type == "string":
-		return p.StringTmpVarCode()
 	case p.Type == "bool":
 		return p.BoolTmpVarCode()
 	case strings.HasPrefix(p.Type, "[]"):
@@ -149,19 +147,26 @@ func (p *Param) TmpVarCode() string {
 	}
 }
 
+// TmpVarHelperCode returns source code for helper's temp variable.
+func (p *Param) TmpVarHelperCode() string {
+	if p.Type != "string" {
+		return ""
+	}
+	return p.StringTmpVarCode()
+}
+
 // SyscallArgList returns source code fragments representing p parameter
 // in syscall. Slices are translated into 2 syscall parameters: pointer to
 // the first element and length.
 func (p *Param) SyscallArgList() []string {
+	t := p.HelperType()
 	var s string
 	switch {
-	case p.Type[0] == '*':
+	case t[0] == '*':
 		s = fmt.Sprintf("unsafe.Pointer(%s)", p.Name)
-	case p.Type == "string":
-		s = fmt.Sprintf("unsafe.Pointer(%s)", p.tmpVar())
-	case p.Type == "bool":
+	case t == "bool":
 		s = p.tmpVar()
-	case strings.HasPrefix(p.Type, "[]"):
+	case strings.HasPrefix(t, "[]"):
 		return []string{
 			fmt.Sprintf("uintptr(unsafe.Pointer(%s))", p.tmpVar()),
 			fmt.Sprintf("uintptr(len(%s))", p.Name),
@@ -175,6 +180,14 @@ func (p *Param) SyscallArgList() []string {
 // IsError determines if p parameter is used to return error.
 func (p *Param) IsError() bool {
 	return p.Name == "err" && p.Type == "error"
+}
+
+// HelperType returns type of parameter p used in helper function.
+func (p *Param) HelperType() string {
+	if p.Type == "string" {
+		return p.fn.StrconvType()
+	}
+	return p.Type
 }
 
 // join concatenates parameters ps into a string with sep separator.
@@ -454,6 +467,11 @@ func (f *Fn) ParamList() string {
 	return join(f.Params, func(p *Param) string { return p.Name + " " + p.Type }, ", ")
 }
 
+// HelperParamList returns source code for helper function f parameters.
+func (f *Fn) HelperParamList() string {
+	return join(f.Params, func(p *Param) string { return p.Name + " " + p.HelperType() }, ", ")
+}
+
 // ParamPrintList returns source code of trace printing part correspondent
 // to syscall input parameters.
 func (f *Fn) ParamPrintList() string {
@@ -510,6 +528,19 @@ func (f *Fn) SyscallParamList() string {
 	return strings.Join(a, ", ")
 }
 
+// HelperCallParamList returns source code of call into function f helper.
+func (f *Fn) HelperCallParamList() string {
+	a := make([]string, 0, len(f.Params))
+	for _, p := range f.Params {
+		s := p.Name
+		if p.Type == "string" {
+			s = p.tmpVar()
+		}
+		a = append(a, s)
+	}
+	return strings.Join(a, ", ")
+}
+
 // IsUTF16 is true, if f is W (utf16) function. It is false
 // for all A (ascii) functions.
 func (f *Fn) IsUTF16() bool {
@@ -531,6 +562,25 @@ func (f *Fn) StrconvType() string {
 		return "*uint16"
 	}
 	return "*byte"
+}
+
+// HasStringParam is true, if f has at least one string parameter.
+// Otherwise it is false.
+func (f *Fn) HasStringParam() bool {
+	for _, p := range f.Params {
+		if p.Type == "string" {
+			return true
+		}
+	}
+	return false
+}
+
+// HelperName returns name of function f helper.
+func (f *Fn) HelperName() string {
+	if !f.HasStringParam() {
+		return f.Name
+	}
+	return "_" + f.Name
 }
 
 // Source files and functions.
@@ -666,7 +716,7 @@ import "syscall"{{end}}
 var (
 {{template "dlls" .}}
 {{template "funcnames" .}})
-{{range .Funcs}}{{template "funcbody" .}}{{end}}
+{{range .Funcs}}{{if .HasStringParam}}{{template "helperbody" .}}{{end}}{{template "funcbody" .}}{{end}}
 {{end}}
 
 {{/* help functions */}}
@@ -677,15 +727,26 @@ var (
 {{define "funcnames"}}{{range .Funcs}}	proc{{.DLLFuncName}} = mod{{.DLLName}}.NewProc("{{.DLLFuncName}}")
 {{end}}{{end}}
 
+{{define "helperbody"}}
+func {{.Name}}({{.ParamList}}) {{template "results" .}}{
+{{template "helpertmpvars" .}}	return {{.HelperName}}({{.HelperCallParamList}})
+}
+{{end}}
+
 {{define "funcbody"}}
-func {{.Name}}({{.ParamList}}) {{if .Rets.List}}{{.Rets.List}} {{end}}{
+func {{.HelperName}}({{.HelperParamList}}) {{template "results" .}}{
 {{template "tmpvars" .}}	{{template "syscall" .}}
 {{template "seterror" .}}{{template "printtrace" .}}	return
 }
 {{end}}
 
+{{define "helpertmpvars"}}{{range .Params}}{{if .TmpVarHelperCode}}	{{.TmpVarHelperCode}}
+{{end}}{{end}}{{end}}
+
 {{define "tmpvars"}}{{range .Params}}{{if .TmpVarCode}}	{{.TmpVarCode}}
 {{end}}{{end}}{{end}}
+
+{{define "results"}}{{if .Rets.List}}{{.Rets.List}} {{end}}{{end}}
 
 {{define "syscall"}}{{.Rets.SetReturnValuesCode}}{{.Syscall}}(proc{{.DLLFuncName}}.Addr(), {{.ParamCount}}, {{.SyscallParamList}}){{end}}
 

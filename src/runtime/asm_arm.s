@@ -31,9 +31,11 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 
 	// create istack out of the OS stack
 	MOVW	$(-8192+104)(R13), R0
-	MOVW	R0, g_stackguard(g)	// (w 104b guard)
 	MOVW	R0, g_stackguard0(g)
-	MOVW	R13, g_stackbase(g)
+	MOVW	R0, g_stackguard1(g)
+	MOVW	R0, (g_stack+stack_lo)(g)
+	MOVW	R13, (g_stack+stack_hi)(g)
+
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
 #ifndef GOOS_nacl
@@ -51,8 +53,10 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 
 nocgo:
 	// update stackguard after _cgo_init
-	MOVW	g_stackguard0(g), R0
-	MOVW	R0, g_stackguard(g)
+	MOVW	(g_stack+stack_lo)(g), R0
+	ADD	$const_StackGuard, R0
+	MOVW	R0, g_stackguard0(g)
+	MOVW	R0, g_stackguard1(g)
 
 	BL	runtime·checkgoarm(SB)
 	BL	runtime·check(SB)
@@ -73,9 +77,7 @@ nocgo:
 	MOVW.W	R0, -4(R13)
 	MOVW	$0, R0
 	MOVW.W	R0, -4(R13)	// push $0 as guard
-	ARGSIZE(12)
 	BL	runtime·newproc(SB)
-	ARGSIZE(-1)
 	MOVW	$12(R13), R13	// pop args and LR
 
 	// start this M
@@ -94,7 +96,7 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 #ifdef GOOS_nacl
 	WORD	$0xe125be7f	// BKPT 0x5bef, NACL_INSTR_ARM_BREAKPOINT
 #else
-	WORD	$0xe1200071	// BKPT 0x0001
+	WORD	$0xe7f001f0	// undefined instruction that gdb understands is a software breakpoint
 #endif
 	RET
 
@@ -193,9 +195,24 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 // lives at the bottom of the G stack from the one that lives
 // at the top of the M stack because the one at the top of
 // the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB),NOSPLIT,$0-4
+TEXT runtime·switchtoM(SB),NOSPLIT,$0-0
 	MOVW	$0, R0
 	BL	(R0) // clobber lr to ensure push {lr} is kept
+	RET
+
+// func onM_signalok(fn func())
+TEXT runtime·onM_signalok(SB), NOSPLIT, $-4-4
+	MOVW	g_m(g), R1
+	MOVW	m_gsignal(R1), R2
+	CMP	g, R2
+	B.EQ	ongsignal
+	B	runtime·onM(SB)
+
+ongsignal:
+	MOVW	fn+0(FP), R0
+	MOVW	R0, R7
+	MOVW	0(R0), R0
+	BL	(R0)
 	RET
 
 // func onM(fn func())
@@ -239,7 +256,6 @@ oncurg:
 	MOVW	R3, SP
 
 	// call target function
-	ARGSIZE(0)
 	MOVW	R0, R7
 	MOVW	0(R0), R0
 	BL	(R0)
@@ -287,9 +303,6 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	CMP	g, R4
 	BL.EQ	runtime·abort(SB)
 
-	MOVW	R1, m_moreframesize(R8)
-	MOVW	R2, m_moreargsize(R8)
-
 	// Called from f.
 	// Set g->sched to context in f.
 	MOVW	R7, (g_sched+gobuf_ctxt)(g)
@@ -302,7 +315,6 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	MOVW	R3, (m_morebuf+gobuf_pc)(R8)	// f's caller's PC
 	MOVW	SP, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
 	MOVW	$4(SP), R3			// f's argument pointer
-	MOVW	R3, m_moreargp(R8)	
 	MOVW	g, (m_morebuf+gobuf_g)(R8)
 
 	// Call newstack on m->g0's stack.
@@ -319,7 +331,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 	MOVW	$0, R7
 	B runtime·morestack(SB)
 
-// reflect·call: call a function with the given argument list
+// reflectcall: call a function with the given argument list
 // func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
@@ -331,7 +343,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 	MOVW	$NAME(SB), R1;		\
 	B	(R1)
 
-TEXT reflect·call(SB),NOSPLIT,$-4-16
+TEXT ·reflectcall(SB),NOSPLIT,$-4-16
 	MOVW	argsize+8(FP), R0
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -363,21 +375,9 @@ TEXT reflect·call(SB),NOSPLIT,$-4-16
 	MOVW	$runtime·badreflectcall(SB), R1
 	B	(R1)
 
-// Argument map for the callXX frames.  Each has one stack map.
-DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gcargs_reflectcall<>+0x04(SB)/4, $8  // 4 words
-DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
-GLOBL gcargs_reflectcall<>(SB),RODATA,$12
-
-// callXX frames have no locals
-DATA gclocals_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
-GLOBL gclocals_reflectcall<>(SB),RODATA,$8
-
 #define CALLFN(NAME,MAXSIZE)			\
 TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
+	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
 	MOVW	argptr+4(FP), R0;		\
 	MOVW	argsize+8(FP), R2;		\
@@ -408,49 +408,33 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
 	SUB	$1, R2, R2;			\
 	B	-5(PC)				\
 
-CALLFN(runtime·call16, 16)
-CALLFN(runtime·call32, 32)
-CALLFN(runtime·call64, 64)
-CALLFN(runtime·call128, 128)
-CALLFN(runtime·call256, 256)
-CALLFN(runtime·call512, 512)
-CALLFN(runtime·call1024, 1024)
-CALLFN(runtime·call2048, 2048)
-CALLFN(runtime·call4096, 4096)
-CALLFN(runtime·call8192, 8192)
-CALLFN(runtime·call16384, 16384)
-CALLFN(runtime·call32768, 32768)
-CALLFN(runtime·call65536, 65536)
-CALLFN(runtime·call131072, 131072)
-CALLFN(runtime·call262144, 262144)
-CALLFN(runtime·call524288, 524288)
-CALLFN(runtime·call1048576, 1048576)
-CALLFN(runtime·call2097152, 2097152)
-CALLFN(runtime·call4194304, 4194304)
-CALLFN(runtime·call8388608, 8388608)
-CALLFN(runtime·call16777216, 16777216)
-CALLFN(runtime·call33554432, 33554432)
-CALLFN(runtime·call67108864, 67108864)
-CALLFN(runtime·call134217728, 134217728)
-CALLFN(runtime·call268435456, 268435456)
-CALLFN(runtime·call536870912, 536870912)
-CALLFN(runtime·call1073741824, 1073741824)
-
-// Return point when leaving stack.
-// using frame size $-4 means do not save LR on stack.
-//
-// Lessstack can appear in stack traces for the same reason
-// as morestack; in that context, it has 0 arguments.
-TEXT runtime·lessstack(SB),NOSPLIT,$-4-0
-	// Save return value in m->cret
-	MOVW	g_m(g), R8
-	MOVW	R0, m_cret(R8)
-
-	// Call oldstack on m->g0's stack.
-	MOVW	m_g0(R8), R0
-	BL	setg<>(SB)
-	MOVW	(g_sched+gobuf_sp)(g), SP
-	BL	runtime·oldstack(SB)
+CALLFN(·call16, 16)
+CALLFN(·call32, 32)
+CALLFN(·call64, 64)
+CALLFN(·call128, 128)
+CALLFN(·call256, 256)
+CALLFN(·call512, 512)
+CALLFN(·call1024, 1024)
+CALLFN(·call2048, 2048)
+CALLFN(·call4096, 4096)
+CALLFN(·call8192, 8192)
+CALLFN(·call16384, 16384)
+CALLFN(·call32768, 32768)
+CALLFN(·call65536, 65536)
+CALLFN(·call131072, 131072)
+CALLFN(·call262144, 262144)
+CALLFN(·call524288, 524288)
+CALLFN(·call1048576, 1048576)
+CALLFN(·call2097152, 2097152)
+CALLFN(·call4194304, 4194304)
+CALLFN(·call8388608, 8388608)
+CALLFN(·call16777216, 16777216)
+CALLFN(·call33554432, 33554432)
+CALLFN(·call67108864, 67108864)
+CALLFN(·call134217728, 134217728)
+CALLFN(·call268435456, 268435456)
+CALLFN(·call536870912, 536870912)
+CALLFN(·call1073741824, 1073741824)
 
 // void jmpdefer(fn, sp);
 // called from deferreturn.
@@ -484,13 +468,13 @@ TEXT gosave<>(SB),NOSPLIT,$0
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.c for more details.
-TEXT	runtime·asmcgocall(SB),NOSPLIT,$0-8
+TEXT	·asmcgocall(SB),NOSPLIT,$0-8
 	MOVW	fn+0(FP), R1
 	MOVW	arg+4(FP), R0
 	BL	asmcgocall<>(SB)
 	RET
 
-TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-12
 	MOVW	fn+0(FP), R1
 	MOVW	arg+4(FP), R0
 	BL	asmcgocall<>(SB)
@@ -521,15 +505,20 @@ asmcgocall_g0:
 	SUB	$24, R13
 	BIC	$0x7, R13	// alignment for gcc ABI
 	MOVW	R4, 20(R13) // save old g
-	MOVW	R2, 16(R13)	// save old SP
+	MOVW	(g_stack+stack_hi)(R4), R4
+	SUB	R2, R4
+	MOVW	R4, 16(R13)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
 	BL	(R1)
 
 	// Restore registers, g, stack pointer.
 	MOVW	R0, R5
 	MOVW	20(R13), R0
 	BL	setg<>(SB)
+	MOVW	(g_stack+stack_hi)(g), R1
+	MOVW	16(R13), R2
+	SUB	R2, R1
 	MOVW	R5, R0
-	MOVW	16(R13), R13
+	MOVW	R1, R13
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
@@ -548,7 +537,9 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
 
 // cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT	runtime·cgocallback_gofunc(SB),NOSPLIT,$8-12
+TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
+	NO_LOCAL_POINTERS
+	
 	// Load m and g from thread-local storage.
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
@@ -721,12 +712,8 @@ TEXT runtime·atomicloaduintptr(SB),NOSPLIT,$0-8
 TEXT runtime·atomicloaduint(SB),NOSPLIT,$0-8
 	B	runtime·atomicload(SB)
 
-TEXT runtime·stackguard(SB),NOSPLIT,$0-8
-	MOVW	R13, R1
-	MOVW	g_stackguard(g), R2
-	MOVW	R1, sp+0(FP)
-	MOVW	R2, limit+4(FP)
-	RET
+TEXT runtime·atomicstoreuintptr(SB),NOSPLIT,$0-8
+	B	runtime·atomicstore(SB)
 
 // AES hashing not implemented for ARM
 TEXT runtime·aeshash(SB),NOSPLIT,$-4-0
@@ -870,9 +857,6 @@ _sib_notfound:
 	MOVW	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
-
-TEXT runtime·timenow(SB),NOSPLIT,$0-0
-	B	time·now(SB)
 
 // A Duff's device for zeroing memory.
 // The compiler jumps to computed addresses within
@@ -1291,9 +1275,6 @@ TEXT runtime·fastrand1(SB),NOSPLIT,$-4-4
 	MOVW	R0, ret+0(FP)
 	RET
 
-TEXT runtime·gocputicks(SB),NOSPLIT,$0
-	B runtime·cputicks(SB)
-
 TEXT runtime·return0(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	RET
@@ -1307,3 +1288,20 @@ yieldloop:
 	RET
 	SUB	$1, R1
 	B yieldloop
+
+// Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+// Must obey the gcc calling convention.
+TEXT _cgo_topofstack(SB),NOSPLIT,$8
+	// R11 and g register are clobbered by load_g.  They are
+	// callee-save in the gcc calling convention, so save them here.
+	MOVW	R11, saveR11-4(SP)
+	MOVW	g, saveG-8(SP)
+	
+	BL	runtime·load_g(SB)
+	MOVW	g_m(g), R0
+	MOVW	m_curg(R0), R0
+	MOVW	(g_stack+stack_hi)(R0), R0
+	
+	MOVW	saveG-8(SP), g
+	MOVW	saveR11-4(SP), R11
+	RET

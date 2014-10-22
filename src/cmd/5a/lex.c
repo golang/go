@@ -85,6 +85,7 @@ main(int argc, char *argv[])
 	ctxt = linknew(&linkarm);
 	ctxt->diag = yyerror;
 	ctxt->bso = &bstdout;
+	ctxt->enforce_data_order = 1;
 	Binit(&bstdout, 1, OWRITE);
 	listinit5();
 	fmtinstall('L', Lconv);

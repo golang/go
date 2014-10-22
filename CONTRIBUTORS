@@ -38,6 +38,7 @@ Adam Langley <agl@golang.org>
 Adrian Nos <nos.adrian@gmail.com>
 Adrian O'Grady <elpollouk@gmail.com>
 Adrien Bustany <adrien-xx-google@bustany.org>
+Ahmed Waheed Moanes <oneofone@gmail.com>
 Akshat Kumar <seed@mail.nanosouffle.net>
 Alan Donovan <adonovan@google.com>
 Alan Shreve <alan@inconshreveable.com>
@@ -65,6 +66,7 @@ Amrut Joshi <amrut.joshi@gmail.com>
 Andrea Spadaccini <spadaccio@google.com>
 Andreas Jellinghaus <andreas@ionisiert.de> <anj@google.com>
 Andrei Vieru <euvieru@gmail.com>
+Andres Erbsen <andreser@google.com>
 Andrew Balholm <andybalholm@gmail.com>
 Andrew Bonventre <andybons@chromium.org>
 Andrew Bursavich <abursavich@gmail.com>
@@ -94,7 +96,7 @@ Arvindh Rajesh Tamilmani <art@a-30.net>
 Asim Shankar <asimshankar@gmail.com>
 Ato Araki <ato.araki@gmail.com>
 Aulus Egnatius Varialus <varialus@gmail.com>
-Austin Clements <aclements@csail.mit.edu>
+Austin Clements <austin@google.com> <aclements@csail.mit.edu>
 Balazs Lecz <leczb@google.com>
 Ben Eitzen <eitzenb@golang.org>
 Ben Fried <ben.fried@gmail.com>
@@ -158,6 +160,7 @@ Corey Thomasson <cthom.lists@gmail.com>
 Cosmos Nicolaou <cnicolaou@google.com>
 Cristian Staretu <unclejacksons@gmail.com>
 Damian Gryski <dgryski@gmail.com>
+Damien Neil <dneil@google.com>
 Dan Callahan <dan.callahan@gmail.com>
 Dan Peterson <dpiddy@gmail.com>
 Dan Sinclair <dan.sinclair@gmail.com>
@@ -254,9 +257,11 @@ Gustav Paul <gustav.paul@gmail.com>
 Gustavo Franco <gustavorfranco@gmail.com>
 Gustavo Niemeyer <gustavo@niemeyer.net> <n13m3y3r@gmail.com>
 Gwenael Treguier <gwenn.kahz@gmail.com>
+Hana Kim <hyangah@gmail.com>
 Han-Wen Nienhuys <hanwen@google.com>
 Harley Laue <losinggeneration@gmail.com>
 Hector Chu <hectorchu@gmail.com>
+Hector Martin Cantero <hector@marcansoft.com>
 Henning Schmiedehausen <henning@schmiedehausen.org>
 Henrik Edwards <henrik.edwards@gmail.com>
 Herbert Georg Fischer <herbert.fischer@gmail.com>
@@ -276,6 +281,7 @@ James Fysh <james.fysh@gmail.com>
 James Gray <james@james4k.com>
 James Meneghello <rawrz0r@gmail.com>
 James P. Cooper <jamespcooper@gmail.com>
+James Robinson <jamesr@google.com> <jamesr.gatech@gmail.com>
 James Toy <nil@opensesame.st>
 James Tucker <raggi@google.com>
 James Whitehead <jnwhiteh@gmail.com>
@@ -297,6 +303,7 @@ Jeff Hodges <jeff@somethingsimilar.com>
 Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
 Jeff Sickel <jas@corpus-callosum.com>
 Jeff Wendling <jeff@spacemonkey.com>
+Jens Frederich <jfrederich@gmail.com>
 Jeremiah Harmsen <jeremiah@google.com>
 Jeremy Jackins <jeremyjackins@gmail.com>
 Jeremy Schlatter <jeremy.schlatter@gmail.com>
@@ -317,6 +324,7 @@ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
 John Howard Palevich <jack.palevich@gmail.com>
 John Newlin <jnewlin@google.com>
 John Shahid <jvshahid@gmail.com>
+John Tuley <john@tuley.org>
 Jonathan Allie <jonallie@google.com>
 Jonathan Feinberg <feinberg@google.com>
 Jonathan Gold <jgold.bg@gmail.com>
@@ -337,6 +345,7 @@ Josh Hoak <jhoak@google.com>
 Josh Holland <jrh@joshh.co.uk>
 Joshua Chase <jcjoshuachase@gmail.com>
 JP Sugarbroad <jpsugar@google.com>
+JT Olds <jtolds@xnet5.com>
 Jukka-Pekka Kekkonen <karatepekka@gmail.com>
 Julian Phillips <julian@quantumfyre.co.uk>
 Julien Schmidt <google@julienschmidt.com>
@@ -409,6 +418,7 @@ Michael Hoisie <hoisie@gmail.com>
 Michael Hudson-Doyle <michael.hudson@linaro.org>
 Michael Kelly <mjk@google.com>
 Michael Lewis <mikelikespie@gmail.com>
+Michael MacInnis <Michael.P.MacInnis@gmail.com>
 Michael Matloob <matloob@google.com>
 Michael Pearson <mipearson@gmail.com>
 Michael Piatek <piatek@google.com>
@@ -431,6 +441,7 @@ Mikkel Krautz <mikkel@krautz.dk> <krautz@gmail.com>
 Miquel Sabaté Solà <mikisabate@gmail.com>
 Moriyoshi Koizumi <mozo@mozo.jp>
 Môshe van der Sterre <moshevds@gmail.com>
+Mrunal Patel <mrunalp@gmail.com>
 Nan Deng <monnand@gmail.com>
 Nathan John Youngman <nj@nathany.com>
 Nicholas Katsaros <nick@nickkatsaros.com>
@@ -490,6 +501,7 @@ Preetam Jinka <pj@preet.am>
 Quan Yong Zhai <qyzhai@gmail.com>
 Raif S. Naffah <go@naffah-raif.name>
 Raph Levien <raph@google.com>
+Raul Silvera <rsilvera@google.com>
 Rémy Oudompheng <oudomphe@phare.normalesup.org> <remyoudompheng@gmail.com>
 Richard Crowley <r@rcrowley.org>
 Richard Eric Gavaletz <gavaletz@gmail.com>
@@ -511,6 +523,7 @@ Rodrigo Moraes de Oliveira <rodrigo.moraes@gmail.com>
 Rodrigo Rafael Monti Kochenburger <divoxx@gmail.com>
 Roger Pau Monné <royger@gmail.com>
 Roger Peppe <rogpeppe@gmail.com>
+Ron Hashimoto <mail@h2so5.net>
 Ron Minnich <rminnich@gmail.com>
 Ross Light <rlight2@gmail.com>
 Rowan Worth <sqweek@gmail.com>
@@ -565,6 +578,7 @@ Timo Savola <timo.savola@gmail.com>
 Timo Truyts <alkaloid.btx@gmail.com>
 Tobias Columbus <tobias.columbus@gmail.com> <tobias.columbus@googlemail.com>
 Todd Wang <toddwang@gmail.com>
+Tom Linford <tomlinford@gmail.com>
 Tom Szymanski <tgs@google.com>
 Tor Andersson <tor.andersson@gmail.com>
 Travis Cline <travis.cline@gmail.com>

@@ -73,10 +73,11 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // Called by Windows as a Vectored Exception Handler (VEH).
 // First argument is pointer to struct containing
 // exception record and context pointers.
+// Handler function is stored in AX.
 // Return 0 for 'not handled', -1 for handled.
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	ptrs+0(FP), CX
-	SUBL	$32, SP
+	SUBL	$40, SP
 
 	// save callee-saved registers
 	MOVL	BX, 28(SP)
@@ -84,10 +85,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	SI, 20(SP)
 	MOVL	DI, 24(SP)
 
-	MOVL	0(CX), BX // ExceptionRecord*
-	MOVL	4(CX), CX // Context*
+	MOVL	AX, SI	// save handler address
 
-	// fetch g
+	// find g
 	get_tls(DX)
 	CMPL	DX, $0
 	JNE	3(PC)
@@ -97,13 +97,48 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	CMPL	DX, $0
 	JNE	2(PC)
 	CALL	runtime·badsignal2(SB)
-	// call sighandler(ExceptionRecord*, Context*, G*)
+
+	// save g and SP in case of stack switch
+	MOVL	DX, 32(SP)	// g
+	MOVL	SP, 36(SP)
+
+	// do we need to switch to the g0 stack?
+	MOVL	g_m(DX), BX
+	MOVL	m_g0(BX), BX
+	CMPL	DX, BX
+	JEQ	sigtramp_g0
+
+	// switch to the g0 stack
+	get_tls(BP)
+	MOVL	BX, g(BP)
+	MOVL	(g_sched+gobuf_sp)(BX), DI
+	// make it look like mstart called us on g0, to stop traceback
+	SUBL	$4, DI
+	MOVL	$runtime·mstart(SB), 0(DI)
+	// traceback will think that we've done SUBL
+	// on this stack, so subtract them here to match.
+	// (we need room for sighandler arguments anyway).
+	// and re-save old SP for restoring later.
+	SUBL	$40, DI
+	MOVL	SP, 36(DI)
+	MOVL	DI, SP
+
+sigtramp_g0:
+	MOVL	0(CX), BX // ExceptionRecord*
+	MOVL	4(CX), CX // Context*
 	MOVL	BX, 0(SP)
 	MOVL	CX, 4(SP)
 	MOVL	DX, 8(SP)
-	CALL	runtime·sighandler(SB)
+	CALL	SI	// call handler
 	// AX is set to report result back to Windows
 	MOVL	12(SP), AX
+
+	// switch back to original stack and g
+	// no-op if we never left.
+	MOVL	36(SP), SP
+	MOVL	32(SP), DX
+	get_tls(BP)
+	MOVL	DX, g(BP)
 
 done:
 	// restore callee-saved registers
@@ -112,10 +147,22 @@ done:
 	MOVL	16(SP), BP
 	MOVL	28(SP), BX
 
-	ADDL	$32, SP
+	ADDL	$40, SP
 	// RET 4 (return and pop 4 bytes parameters)
 	BYTE $0xC2; WORD $4
 	RET // unreached; make assembler happy
+ 
+TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
+	MOVL	$runtime·exceptionhandler(SB), AX
+	JMP	runtime·sigtramp(SB)
+
+TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
+	// is never called
+	INT	$3
+
+TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
+	MOVL	$runtime·lastcontinuehandler(SB), AX
+	JMP	runtime·sigtramp(SB)
 
 TEXT runtime·ctrlhandler(SB),NOSPLIT,$0
 	PUSHL	$runtime·ctrlhandler1(SB)
@@ -158,9 +205,12 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
 	LEAL	g_end(SP), BX
 	MOVL	BX, g_m(SP)
-	LEAL	-4096(SP), CX
-	MOVL	CX, g_stackguard(SP)
-	MOVL	DX, g_stackbase(SP)
+	LEAL	-8192(SP), CX
+	MOVL	CX, (g_stack+stack_lo)(SP)
+	ADDL	$const_StackGuard, CX
+	MOVL	CX, g_stackguard0(SP)
+	MOVL	CX, g_stackguard1(SP)
+	MOVL	DX, (g_stack+stack_hi)(SP)
 
 	PUSHL	16(BP)			// arg for handler
 	CALL	8(BP)
@@ -168,7 +218,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 	get_tls(CX)
 	MOVL	g(CX), CX
-	MOVL	g_stackbase(CX), SP
+	MOVL	(g_stack+stack_hi)(CX), SP
 	POPL	0x14(FS)
 	POPL	DI
 	POPL	SI
@@ -176,7 +226,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	POPL	BP
 	RET
 
-GLOBL runtime·cbctxts(SB), $4
+GLOBL runtime·cbctxts(SB), NOPTR, $4
 
 TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
   	MOVL	0(SP), AX	// will use to find our callback context
@@ -260,9 +310,12 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
 
 	// Layout new m scheduler stack on os stack.
 	MOVL	SP, AX
-	MOVL	AX, g_stackbase(DX)
+	MOVL	AX, (g_stack+stack_hi)(DX)
 	SUBL	$(64*1024), AX		// stack size
-	MOVL	AX, g_stackguard(DX)
+	MOVL	AX, (g_stack+stack_lo)(DX)
+	ADDL	$const_StackGuard, AX
+	MOVL	AX, g_stackguard0(DX)
+	MOVL	AX, g_stackguard1(DX)
 
 	// Set up tls.
 	LEAL	m_tls(CX), SI

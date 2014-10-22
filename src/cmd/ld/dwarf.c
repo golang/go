@@ -1733,6 +1733,7 @@ writeframes(void)
 	LSym *s;
 	vlong fdeo, fdesize, pad;
 	Pciter pcsp;
+	uint32 nextpc;
 
 	if(framesec == S)
 		framesec = linklookup(ctxt, ".dwarfframe", 0);
@@ -1775,8 +1776,17 @@ writeframes(void)
 		addrput(0);	// initial location
 		addrput(0);	// address range
 
-		for(pciterinit(ctxt, &pcsp, &s->pcln->pcsp); !pcsp.done; pciternext(&pcsp))
-			putpccfadelta(pcsp.nextpc - pcsp.pc, PtrSize + pcsp.value);
+		for(pciterinit(ctxt, &pcsp, &s->pcln->pcsp); !pcsp.done; pciternext(&pcsp)) {
+			nextpc = pcsp.nextpc;
+			// pciterinit goes up to the end of the function,
+			// but DWARF expects us to stop just before the end.
+			if(nextpc == s->size) {
+				nextpc--;
+				if(nextpc < pcsp.pc)
+					continue;
+			}
+			putpccfadelta(nextpc - pcsp.pc, PtrSize + pcsp.value);
+		}
 
 		fdesize = cpos() - fdeo - 4;	// exclude the length field.
 		pad = rnd(fdesize, PtrSize) - fdesize;

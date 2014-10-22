@@ -15,5 +15,3 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
 func getrlimit(kind int32, limit unsafe.Pointer) int32
 func raise(sig int32)
 func sys_umtx_op(addr unsafe.Pointer, mode int32, val uint32, ptr2, ts unsafe.Pointer) int32
-
-const stackSystem = 0

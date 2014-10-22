@@ -22,5 +22,3 @@ func mach_semaphore_wait(sema uint32) int32
 func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
 func mach_semaphore_signal(sema uint32) int32
 func mach_semaphore_signal_all(sema uint32) int32
-
-const stackSystem = 0

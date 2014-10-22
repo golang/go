@@ -19,9 +19,10 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// _cgo_init may update stackguard.
 	MOVL	$runtime·g0(SB), BP
 	LEAL	(-64*1024+104)(SP), BX
-	MOVL	BX, g_stackguard(BP)
 	MOVL	BX, g_stackguard0(BP)
-	MOVL	SP, g_stackbase(BP)
+	MOVL	BX, g_stackguard1(BP)
+	MOVL	BX, (g_stack+stack_lo)(BP)
+	MOVL	SP, (g_stack+stack_hi)(BP)
 	
 	// find out information about the processor we're on
 	MOVL	$0, AX
@@ -44,10 +45,14 @@ nocpuinfo:
 	MOVL	BX, 4(SP)
 	MOVL	BP, 0(SP)
 	CALL	AX
+
 	// update stackguard after _cgo_init
 	MOVL	$runtime·g0(SB), CX
-	MOVL	g_stackguard0(CX), AX
-	MOVL	AX, g_stackguard(CX)
+	MOVL	(g_stack+stack_lo)(CX), AX
+	ADDL	$const_StackGuard, AX
+	MOVL	AX, g_stackguard0(CX)
+	MOVL	AX, g_stackguard1(CX)
+
 	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
 	CMPL runtime·iswindows(SB), $0
 	JEQ ok
@@ -97,9 +102,7 @@ ok:
 	// create a new goroutine to start program
 	PUSHL	$runtime·main·f(SB)	// entry
 	PUSHL	$0	// arg size
-	ARGSIZE(8)
 	CALL	runtime·newproc(SB)
-	ARGSIZE(-1)
 	POPL	AX
 	POPL	AX
 
@@ -201,7 +204,24 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 // lives at the bottom of the G stack from the one that lives
 // at the top of the M stack because the one at the top of
 // the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
+	RET
+
+// func onM_signalok(fn func())
+TEXT runtime·onM_signalok(SB), NOSPLIT, $0-4
+	get_tls(CX)
+	MOVL	g(CX), AX	// AX = g
+	MOVL	g_m(AX), BX	// BX = m
+	MOVL	m_gsignal(BX), DX	// DX = gsignal
+	CMPL	AX, DX
+	JEQ	ongsignal
+	JMP	runtime·onM(SB)
+
+ongsignal:
+	MOVL	fn+0(FP), DI	// DI = fn
+	MOVL	DI, DX
+	MOVL	0(DI), DI
+	CALL	DI
 	RET
 
 // func onM(fn func())
@@ -241,7 +261,6 @@ oncurg:
 	MOVL	BX, SP
 
 	// call target function
-	ARGSIZE(0)
 	MOVL	DI, DX
 	MOVL	0(DI), DI
 	CALL	DI
@@ -289,19 +308,12 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	JNE	2(PC)
 	INT	$3
 
-	// frame size in DI
-	// arg size in AX
-	// Save in m.
-	MOVL	DI, m_moreframesize(BX)
-	MOVL	AX, m_moreargsize(BX)
-
 	// Called from f.
 	// Set m->morebuf to f's caller.
 	MOVL	4(SP), DI	// f's caller's PC
 	MOVL	DI, (m_morebuf+gobuf_pc)(BX)
 	LEAL	8(SP), CX	// f's caller's SP
 	MOVL	CX, (m_morebuf+gobuf_sp)(BX)
-	MOVL	CX, m_moreargp(BX)
 	get_tls(CX)
 	MOVL	g(CX), SI
 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
@@ -328,7 +340,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 	MOVL	$0, DX
 	JMP runtime·morestack(SB)
 
-// reflect·call: call a function with the given argument list
+// reflectcall: call a function with the given argument list
 // func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
@@ -341,7 +353,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
 
-TEXT reflect·call(SB), NOSPLIT, $0-16
+TEXT ·reflectcall(SB), NOSPLIT, $0-16
 	MOVL	argsize+8(FP), CX
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
@@ -373,21 +385,9 @@ TEXT reflect·call(SB), NOSPLIT, $0-16
 	MOVL	$runtime·badreflectcall(SB), AX
 	JMP	AX
 
-// Argument map for the callXX frames.  Each has one stack map.
-DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gcargs_reflectcall<>+0x04(SB)/4, $8  // 4 words
-DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
-GLOBL gcargs_reflectcall<>(SB),RODATA,$12
-
-// callXX frames have no locals
-DATA gclocals_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
-DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
-GLOBL gclocals_reflectcall<>(SB),RODATA,$8
-
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
+	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
 	MOVL	argptr+4(FP), SI;		\
 	MOVL	argsize+8(FP), CX;		\
@@ -409,52 +409,33 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
 	REP;MOVSB;				\
 	RET
 
-CALLFN(runtime·call16, 16)
-CALLFN(runtime·call32, 32)
-CALLFN(runtime·call64, 64)
-CALLFN(runtime·call128, 128)
-CALLFN(runtime·call256, 256)
-CALLFN(runtime·call512, 512)
-CALLFN(runtime·call1024, 1024)
-CALLFN(runtime·call2048, 2048)
-CALLFN(runtime·call4096, 4096)
-CALLFN(runtime·call8192, 8192)
-CALLFN(runtime·call16384, 16384)
-CALLFN(runtime·call32768, 32768)
-CALLFN(runtime·call65536, 65536)
-CALLFN(runtime·call131072, 131072)
-CALLFN(runtime·call262144, 262144)
-CALLFN(runtime·call524288, 524288)
-CALLFN(runtime·call1048576, 1048576)
-CALLFN(runtime·call2097152, 2097152)
-CALLFN(runtime·call4194304, 4194304)
-CALLFN(runtime·call8388608, 8388608)
-CALLFN(runtime·call16777216, 16777216)
-CALLFN(runtime·call33554432, 33554432)
-CALLFN(runtime·call67108864, 67108864)
-CALLFN(runtime·call134217728, 134217728)
-CALLFN(runtime·call268435456, 268435456)
-CALLFN(runtime·call536870912, 536870912)
-CALLFN(runtime·call1073741824, 1073741824)
-
-// Return point when leaving stack.
-//
-// Lessstack can appear in stack traces for the same reason
-// as morestack; in that context, it has 0 arguments.
-TEXT runtime·lessstack(SB), NOSPLIT, $0-0
-	// Save return value in m->cret
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_m(BX), BX
-	MOVL	AX, m_cret(BX)
-
-	// Call oldstack on m->g0's stack.
-	MOVL	m_g0(BX), BP
-	MOVL	BP, g(CX)
-	MOVL	(g_sched+gobuf_sp)(BP), SP
-	CALL	runtime·oldstack(SB)
-	MOVL	$0, 0x1004	// crash if oldstack returns
-	RET
+CALLFN(·call16, 16)
+CALLFN(·call32, 32)
+CALLFN(·call64, 64)
+CALLFN(·call128, 128)
+CALLFN(·call256, 256)
+CALLFN(·call512, 512)
+CALLFN(·call1024, 1024)
+CALLFN(·call2048, 2048)
+CALLFN(·call4096, 4096)
+CALLFN(·call8192, 8192)
+CALLFN(·call16384, 16384)
+CALLFN(·call32768, 32768)
+CALLFN(·call65536, 65536)
+CALLFN(·call131072, 131072)
+CALLFN(·call262144, 262144)
+CALLFN(·call524288, 524288)
+CALLFN(·call1048576, 1048576)
+CALLFN(·call2097152, 2097152)
+CALLFN(·call4194304, 4194304)
+CALLFN(·call8388608, 8388608)
+CALLFN(·call16777216, 16777216)
+CALLFN(·call33554432, 33554432)
+CALLFN(·call67108864, 67108864)
+CALLFN(·call134217728, 134217728)
+CALLFN(·call268435456, 268435456)
+CALLFN(·call536870912, 536870912)
+CALLFN(·call1073741824, 1073741824)
 
 // bool cas(int32 *val, int32 old, int32 new)
 // Atomically:
@@ -485,6 +466,9 @@ TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-8
 
 TEXT runtime·atomicloaduint(SB), NOSPLIT, $0-8
 	JMP	runtime·atomicload(SB)
+
+TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-8
+	JMP	runtime·atomicstore(SB)
 
 // bool runtime·cas64(uint64 *val, uint64 old, uint64 new)
 // Atomically:
@@ -653,20 +637,20 @@ TEXT gosave<>(SB),NOSPLIT,$0
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.c for more details.
-TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
+TEXT ·asmcgocall(SB),NOSPLIT,$0-8
 	MOVL	fn+0(FP), AX
 	MOVL	arg+4(FP), BX
 	CALL	asmcgocall<>(SB)
 	RET
 
-TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-12
 	MOVL	fn+0(FP), AX
 	MOVL	arg+4(FP), BX
 	CALL	asmcgocall<>(SB)
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT asmcgocall<>(SB),NOSPLIT,$0-12
+TEXT asmcgocall<>(SB),NOSPLIT,$0-0
 	// fn in AX, arg in BX
 	MOVL	SP, DX
 
@@ -688,15 +672,19 @@ TEXT asmcgocall<>(SB),NOSPLIT,$0-12
 	SUBL	$32, SP
 	ANDL	$~15, SP	// alignment, perhaps unnecessary
 	MOVL	DI, 8(SP)	// save g
-	MOVL	DX, 4(SP)	// save SP
+	MOVL	(g_stack+stack_hi)(DI), DI
+	SUBL	DX, DI
+	MOVL	DI, 4(SP)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
 	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
 	CALL	AX
 
 	// Restore registers, g, stack pointer.
 	get_tls(CX)
 	MOVL	8(SP), DI
+	MOVL	(g_stack+stack_hi)(DI), SI
+	SUBL	4(SP), SI
 	MOVL	DI, g(CX)
-	MOVL	4(SP), SP
+	MOVL	SI, SP
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
@@ -715,7 +703,9 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT runtime·cgocallback_gofunc(SB),NOSPLIT,$12-12
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$12-12
+	NO_LOCAL_POINTERS
+
 	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
@@ -832,14 +822,14 @@ TEXT setg_gcc<>(SB), NOSPLIT, $0
 	MOVL	DX, g(AX)
 	RET
 
-// check that SP is in range [g->stackbase, g->stackguard)
+// check that SP is in range [g->stack.lo, g->stack.hi)
 TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	get_tls(CX)
 	MOVL	g(CX), AX
-	CMPL	g_stackbase(AX), SP
+	CMPL	(g_stack+stack_hi)(AX), SP
 	JHI	2(PC)
 	INT	$3
-	CMPL	SP, g_stackguard(AX)
+	CMPL	SP, (g_stack+stack_lo)(AX)
 	JHI	2(PC)
 	INT	$3
 	RET
@@ -881,12 +871,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	MOVL	DX, ret_hi+4(FP)
 	RET
 
-TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
-	RDTSC
-	MOVL    AX, ret_lo+0(FP)
-	MOVL    DX, ret_hi+4(FP)
-	RET
-
 TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
 	// set up ldt 7 to point at tls0
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
@@ -903,17 +887,6 @@ TEXT runtime·emptyfunc(SB),0,$0-0
 
 TEXT runtime·abort(SB),NOSPLIT,$0-0
 	INT $0x3
-
-TEXT runtime·stackguard(SB),NOSPLIT,$0-8
-	MOVL	SP, DX
-	MOVL	DX, sp+0(FP)
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_stackguard(BX), DX
-	MOVL	DX, limit+4(FP)
-	RET
-
-GLOBL runtime·tls0(SB), $32
 
 // hash function using AES hardware instructions
 TEXT runtime·aeshash(SB),NOSPLIT,$0-16
@@ -2271,9 +2244,6 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
 	
 	RET
 
-TEXT runtime·timenow(SB), NOSPLIT, $0-0
-	JMP	time·now(SB)
-
 TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 	get_tls(CX)
 	MOVL	g(CX), AX
@@ -2289,4 +2259,14 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVL	$0, AX
+	RET
+
+// Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+// Must obey the gcc calling convention.
+TEXT _cgo_topofstack(SB),NOSPLIT,$0
+	get_tls(CX)
+	MOVL	g(CX), AX
+	MOVL	g_m(AX), AX
+	MOVL	m_curg(AX), AX
+	MOVL	(g_stack+stack_hi)(AX), AX
 	RET

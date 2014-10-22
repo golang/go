@@ -21,5 +21,5 @@ TEXT _fallback_vdso(SB),NOSPLIT,$0
 	RET
 
 DATA	runtime·_vdso(SB)/4, $_fallback_vdso(SB)
-GLOBL	runtime·_vdso(SB), $4
+GLOBL	runtime·_vdso(SB), NOPTR, $4
 

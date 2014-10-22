@@ -59,7 +59,8 @@ import (
 
 const (
 	// Maximum number of key/value pairs a bucket can hold.
-	bucketCnt = 8
+	bucketCntBits = 3
+	bucketCnt     = 1 << bucketCntBits
 
 	// Maximum average load of a bucket that triggers growth.
 	loadFactor = 6.5
@@ -134,11 +135,12 @@ type hiter struct {
 	h           *hmap
 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
 	bptr        *bmap          // current bucket
+	startBucket uintptr        // bucket iteration started at
 	offset      uint8          // intra-bucket offset to start from during iteration (should be big enough to hold bucketCnt-1)
-	done        bool
+	wrapped     bool           // already wrapped around from end of bucket array to beginning
 	B           uint8
+	i           uint8
 	bucket      uintptr
-	i           uintptr
 	checkBucket uintptr
 }
 
@@ -560,10 +562,17 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	it.B = h.B
 	it.buckets = h.buckets
 
+	// decide where to start
+	r := uintptr(fastrand1())
+	if h.B > 31-bucketCntBits {
+		r += uintptr(fastrand1()) << 31
+	}
+	it.startBucket = r & (uintptr(1)<<h.B - 1)
+	it.offset = uint8(r >> h.B & (bucketCnt - 1))
+
 	// iterator state
-	it.bucket = 0
-	it.offset = uint8(fastrand1() & (bucketCnt - 1))
-	it.done = false
+	it.bucket = it.startBucket
+	it.wrapped = false
 	it.bptr = nil
 
 	// Remember we have an iterator.
@@ -596,7 +605,7 @@ func mapiternext(it *hiter) {
 
 next:
 	if b == nil {
-		if it.done {
+		if bucket == it.startBucket && it.wrapped {
 			// end of iteration
 			it.key = nil
 			it.value = nil
@@ -622,14 +631,14 @@ next:
 		bucket++
 		if bucket == uintptr(1)<<it.B {
 			bucket = 0
-			it.done = true
+			it.wrapped = true
 		}
 		i = 0
 	}
 	for ; i < bucketCnt; i++ {
-		offi := (i + uintptr(it.offset)) & (bucketCnt - 1)
-		k := add(unsafe.Pointer(b), dataOffset+offi*uintptr(t.keysize))
-		v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+offi*uintptr(t.valuesize))
+		offi := (i + it.offset) & (bucketCnt - 1)
+		k := add(unsafe.Pointer(b), dataOffset+uintptr(offi)*uintptr(t.keysize))
+		v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+uintptr(offi)*uintptr(t.valuesize))
 		if b.tophash[offi] != empty && b.tophash[offi] != evacuatedEmpty {
 			if checkBucket != noCheck {
 				// Special case: iterator was started during a grow and the

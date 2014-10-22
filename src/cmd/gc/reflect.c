@@ -716,9 +716,10 @@ static int
 dcommontype(Sym *s, int ot, Type *t)
 {
 	int i, alg, sizeofAlg, gcprog;
-	Sym *sptr, *algsym, *zero, *gcprog0, *gcprog1;
+	Sym *sptr, *algsym, *zero, *gcprog0, *gcprog1, *sbits;
 	uint8 gcmask[16];
 	static Sym *algarray;
+	uint64 x1, x2;
 	char *p;
 	
 	if(ot != 0)
@@ -727,12 +728,12 @@ dcommontype(Sym *s, int ot, Type *t)
 	sizeofAlg = 2*widthptr;
 	if(algarray == nil)
 		algarray = pkglookup("algarray", runtimepkg);
+	dowidth(t);
 	alg = algtype(t);
 	algsym = S;
 	if(alg < 0)
 		algsym = dalgsym(t);
 
-	dowidth(t);
 	if(t->sym != nil && !isptr[t->etype])
 		sptr = dtypesym(ptrto(t));
 	else
@@ -804,8 +805,26 @@ dcommontype(Sym *s, int ot, Type *t)
 		ot = dsymptr(s, ot, gcprog1, 0);
 	} else {
 		gengcmask(t, gcmask);
-		for(i = 0; i < 2*widthptr; i++)
-			ot = duint8(s, ot, gcmask[i]);
+		x1 = 0;
+		for(i=0; i<8; i++)
+			x1 = x1<<8 | gcmask[i];
+		if(widthptr == 4) {
+			p = smprint("gcbits.%#016llux", x1);
+		} else {
+			x2 = 0;
+			for(i=0; i<8; i++)
+				x2 = x2<<8 | gcmask[i+8];
+			p = smprint("gcbits.%#016llux%016llux", x1, x2);
+		}
+		sbits = pkglookup(p, runtimepkg);
+		if((sbits->flags & SymUniq) == 0) {
+			sbits->flags |= SymUniq;
+			for(i = 0; i < 2*widthptr; i++)
+				duint8(sbits, i, gcmask[i]);
+			ggloblsym(sbits, 2*widthptr, DUPOK|RODATA);
+		}
+		ot = dsymptr(s, ot, sbits, 0);
+		ot = duintptr(s, ot, 0);
 	}
 	p = smprint("%-uT", t);
 	//print("dcommontype: %s\n", p);

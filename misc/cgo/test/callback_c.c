@@ -64,3 +64,19 @@ callGoStackCheck(void)
 	extern void goStackCheck(void);
 	goStackCheck();
 }
+
+int
+returnAfterGrow(void)
+{
+	extern int goReturnVal(void);
+	goReturnVal();
+	return 123456;
+}
+
+int
+returnAfterGrowFromGo(void)
+{
+	extern int goReturnVal(void);
+	return goReturnVal();
+}
+

@@ -188,7 +188,7 @@ func stringiter2(s string, k int) (int, rune) {
 // The storage is not zeroed. Callers should use
 // b to set the string contents and then drop b.
 func rawstring(size int) (s string, b []byte) {
-	p := gomallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
+	p := mallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
 
 	(*stringStruct)(unsafe.Pointer(&s)).str = p
 	(*stringStruct)(unsafe.Pointer(&s)).len = size
@@ -208,7 +208,7 @@ func rawstring(size int) (s string, b []byte) {
 // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
 func rawbyteslice(size int) (b []byte) {
 	cap := goroundupsize(uintptr(size))
-	p := gomallocgc(cap, nil, flagNoScan|flagNoZero)
+	p := mallocgc(cap, nil, flagNoScan|flagNoZero)
 	if cap != uintptr(size) {
 		memclr(add(p, uintptr(size)), cap-uintptr(size))
 	}
@@ -221,11 +221,11 @@ func rawbyteslice(size int) (b []byte) {
 
 // rawruneslice allocates a new rune slice. The rune slice is not zeroed.
 func rawruneslice(size int) (b []rune) {
-	if uintptr(size) > maxMem/4 {
+	if uintptr(size) > maxmem/4 {
 		gothrow("out of memory")
 	}
 	mem := goroundupsize(uintptr(size) * 4)
-	p := gomallocgc(mem, nil, flagNoScan|flagNoZero)
+	p := mallocgc(mem, nil, flagNoScan|flagNoZero)
 	if mem != uintptr(size)*4 {
 		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
 	}
@@ -234,4 +234,61 @@ func rawruneslice(size int) (b []rune) {
 	(*slice)(unsafe.Pointer(&b)).len = uint(size)
 	(*slice)(unsafe.Pointer(&b)).cap = uint(mem / 4)
 	return
+}
+
+// used by cmd/cgo
+func gobytes(p *byte, n int) []byte {
+	if n == 0 {
+		return make([]byte, 0)
+	}
+	x := make([]byte, n)
+	memmove(unsafe.Pointer(&x[0]), unsafe.Pointer(p), uintptr(n))
+	return x
+}
+
+func gostringsize(n int) string {
+	s, _ := rawstring(n)
+	return s
+}
+
+//go:noescape
+func findnull(*byte) int
+
+func gostring(p *byte) string {
+	l := findnull(p)
+	if l == 0 {
+		return ""
+	}
+	s, b := rawstring(l)
+	memmove(unsafe.Pointer(&b[0]), unsafe.Pointer(p), uintptr(l))
+	return s
+}
+
+func gostringn(p *byte, l int) string {
+	if l == 0 {
+		return ""
+	}
+	s, b := rawstring(l)
+	memmove(unsafe.Pointer(&b[0]), unsafe.Pointer(p), uintptr(l))
+	return s
+}
+
+func index(s, t string) int {
+	if len(t) == 0 {
+		return 0
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] == t[0] && hasprefix(s[i:], t) {
+			return i
+		}
+	}
+	return -1
+}
+
+func contains(s, t string) bool {
+	return index(s, t) >= 0
+}
+
+func hasprefix(s, t string) bool {
+	return len(s) >= len(t) && s[:len(t)] == t
 }

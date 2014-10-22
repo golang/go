@@ -99,6 +99,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
 // Called by Windows as a Vectored Exception Handler (VEH).
 // First argument is pointer to struct containing
 // exception record and context pointers.
+// Handler function is stored in AX.
 // Return 0 for 'not handled', -1 for handled.
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	// CX: PEXCEPTION_POINTERS ExceptionInfo
@@ -106,7 +107,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
 	// as required by windows callback convention.
 	PUSHFQ
-	SUBQ	$96, SP
+	SUBQ	$112, SP
 	MOVQ	DI, 80(SP)
 	MOVQ	SI, 72(SP)
 	MOVQ	BP, 64(SP)
@@ -116,10 +117,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVQ	R14, 32(SP)
 	MOVQ	R15, 88(SP)
 
-	MOVQ	0(CX), BX // ExceptionRecord*
-	MOVQ	8(CX), CX // Context*
+	MOVQ	AX, R15	// save handler address
 
-	// fetch g
+	// find g
 	get_tls(DX)
 	CMPQ	DX, $0
 	JNE	3(PC)
@@ -129,13 +129,50 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	CMPQ	DX, $0
 	JNE	2(PC)
 	CALL	runtime·badsignal2(SB)
-	// call sighandler(ExceptionRecord*, Context*, G*)
+
+	// save g and SP in case of stack switch
+	MOVQ	DX, 96(SP) // g
+	MOVQ	SP, 104(SP)
+
+	// do we need to switch to the g0 stack?
+	MOVQ	g_m(DX), BX
+	MOVQ	m_g0(BX), BX
+	CMPQ	DX, BX
+	JEQ	sigtramp_g0
+
+	// switch to g0 stack
+	get_tls(BP)
+	MOVQ	BX, g(BP)
+	MOVQ	(g_sched+gobuf_sp)(BX), DI
+	// make it look like mstart called us on g0, to stop traceback
+	SUBQ	$8, DI
+	MOVQ	$runtime·mstart(SB), SI
+	MOVQ	SI, 0(DI)
+	// traceback will think that we've done PUSHFQ and SUBQ
+	// on this stack, so subtract them here to match.
+	// (we need room for sighandler arguments anyway).
+	// and re-save old SP for restoring later.
+	SUBQ	$(112+8), DI
+	// save g, save old stack pointer.
+	MOVQ	SP, 104(DI)
+	MOVQ	DI, SP
+
+sigtramp_g0:
+	MOVQ	0(CX), BX // ExceptionRecord*
+	MOVQ	8(CX), CX // Context*
 	MOVQ	BX, 0(SP)
 	MOVQ	CX, 8(SP)
 	MOVQ	DX, 16(SP)
-	CALL	runtime·sighandler(SB)
+	CALL	R15	// call handler
 	// AX is set to report result back to Windows
 	MOVL	24(SP), AX
+
+	// switch back to original stack and g
+	// no-op if we never left.
+	MOVQ	104(SP), SP
+	MOVQ	96(SP), DX
+	get_tls(BP)
+	MOVQ	DX, g(BP)
 
 done:
 	// restore registers as required for windows callback
@@ -147,10 +184,22 @@ done:
 	MOVQ	64(SP), BP
 	MOVQ	72(SP), SI
 	MOVQ	80(SP), DI
-	ADDQ	$96, SP
+	ADDQ	$112, SP
 	POPFQ
 
 	RET
+
+TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
+	MOVQ	$runtime·exceptionhandler(SB), AX
+	JMP	runtime·sigtramp(SB)
+
+TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
+	MOVQ	$runtime·firstcontinuehandler(SB), AX
+	JMP	runtime·sigtramp(SB)
+
+TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
+	MOVQ	$runtime·lastcontinuehandler(SB), AX
+	JMP	runtime·sigtramp(SB)
 
 TEXT runtime·ctrlhandler(SB),NOSPLIT,$8
 	MOVQ	CX, 16(SP)		// spill
@@ -194,8 +243,11 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	MOVQ	BX, g_m(SP)
 
 	LEAQ	-8192(SP), CX
-	MOVQ	CX, g_stackguard(SP)
-	MOVQ	DX, g_stackbase(SP)
+	MOVQ	CX, (g_stack+stack_lo)(SP)
+	ADDQ	$const_StackGuard, CX
+	MOVQ	CX, g_stackguard0(SP)
+	MOVQ	CX, g_stackguard1(SP)
+	MOVQ	DX, (g_stack+stack_hi)(SP)
 
 	PUSHQ	32(BP)			// arg for handler
 	CALL	16(BP)
@@ -203,7 +255,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 	get_tls(CX)
 	MOVQ	g(CX), CX
-	MOVQ	g_stackbase(CX), SP
+	MOVQ	(g_stack+stack_hi)(CX), SP
 	POPQ	0x28(GS)
 	POPQ	DI
 	POPQ	SI
@@ -211,7 +263,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	POPQ	BP
 	RET
 
-GLOBL runtime·cbctxts(SB), $8
+GLOBL runtime·cbctxts(SB), NOPTR, $8
 
 TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	// Construct args vector for cgocallback().
@@ -299,9 +351,12 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 
 	// Layout new m scheduler stack on os stack.
 	MOVQ	SP, AX
-	MOVQ	AX, g_stackbase(DX)
+	MOVQ	AX, (g_stack+stack_hi)(DX)
 	SUBQ	$(64*1024), AX		// stack size
-	MOVQ	AX, g_stackguard(DX)
+	MOVQ	AX, (g_stack+stack_lo)(DX)
+	ADDQ	$const_StackGuard, AX
+	MOVQ	AX, g_stackguard0(DX)
+	MOVQ	AX, g_stackguard1(DX)
 
 	// Set up tls.
 	LEAQ	m_tls(CX), SI

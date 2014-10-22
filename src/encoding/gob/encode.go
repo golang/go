@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run encgen.go -output enc_helpers.go
+
 package gob
 
 import (
-	"bytes"
 	"encoding"
 	"math"
 	"reflect"
@@ -13,20 +14,54 @@ import (
 
 const uint64Size = 8
 
+type encHelper func(state *encoderState, v reflect.Value) bool
+
 // encoderState is the global execution state of an instance of the encoder.
 // Field numbers are delta encoded and always increase. The field
 // number is initialized to -1 so 0 comes out as delta(1). A delta of
 // 0 terminates the structure.
 type encoderState struct {
 	enc      *Encoder
-	b        *bytes.Buffer
+	b        *encBuffer
 	sendZero bool                 // encoding an array element or map key/value pair; send zero values
 	fieldnum int                  // the last field number written.
 	buf      [1 + uint64Size]byte // buffer used by the encoder; here to avoid allocation.
 	next     *encoderState        // for free list
 }
 
-func (enc *Encoder) newEncoderState(b *bytes.Buffer) *encoderState {
+// encBuffer is an extremely simple, fast implementation of a write-only byte buffer.
+// It never returns a non-nil error, but Write returns an error value so it matches io.Writer.
+type encBuffer struct {
+	data    []byte
+	scratch [64]byte
+}
+
+func (e *encBuffer) WriteByte(c byte) {
+	e.data = append(e.data, c)
+}
+
+func (e *encBuffer) Write(p []byte) (int, error) {
+	e.data = append(e.data, p...)
+	return len(p), nil
+}
+
+func (e *encBuffer) WriteString(s string) {
+	e.data = append(e.data, s...)
+}
+
+func (e *encBuffer) Len() int {
+	return len(e.data)
+}
+
+func (e *encBuffer) Bytes() []byte {
+	return e.data
+}
+
+func (e *encBuffer) Reset() {
+	e.data = e.data[0:0]
+}
+
+func (enc *Encoder) newEncoderState(b *encBuffer) *encoderState {
 	e := enc.freeList
 	if e == nil {
 		e = new(encoderState)
@@ -37,6 +72,9 @@ func (enc *Encoder) newEncoderState(b *bytes.Buffer) *encoderState {
 	e.sendZero = false
 	e.fieldnum = 0
 	e.b = b
+	if len(b.data) == 0 {
+		b.data = b.scratch[0:0]
+	}
 	return e
 }
 
@@ -53,10 +91,7 @@ func (enc *Encoder) freeEncoderState(e *encoderState) {
 // encodeUint writes an encoded unsigned integer to state.b.
 func (state *encoderState) encodeUint(x uint64) {
 	if x <= 0x7F {
-		err := state.b.WriteByte(uint8(x))
-		if err != nil {
-			error_(err)
-		}
+		state.b.WriteByte(uint8(x))
 		return
 	}
 	i := uint64Size
@@ -66,10 +101,7 @@ func (state *encoderState) encodeUint(x uint64) {
 		i--
 	}
 	state.buf[i] = uint8(i - uint64Size) // = loop count, negated
-	_, err := state.b.Write(state.buf[i : uint64Size+1])
-	if err != nil {
-		error_(err)
-	}
+	state.b.Write(state.buf[i : uint64Size+1])
 }
 
 // encodeInt writes an encoded signed integer to state.w.
@@ -247,7 +279,7 @@ func valid(v reflect.Value) bool {
 }
 
 // encodeSingle encodes a single top-level non-struct value.
-func (enc *Encoder) encodeSingle(b *bytes.Buffer, engine *encEngine, value reflect.Value) {
+func (enc *Encoder) encodeSingle(b *encBuffer, engine *encEngine, value reflect.Value) {
 	state := enc.newEncoderState(b)
 	defer enc.freeEncoderState(state)
 	state.fieldnum = singletonField
@@ -264,7 +296,7 @@ func (enc *Encoder) encodeSingle(b *bytes.Buffer, engine *encEngine, value refle
 }
 
 // encodeStruct encodes a single struct value.
-func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, value reflect.Value) {
+func (enc *Encoder) encodeStruct(b *encBuffer, engine *encEngine, value reflect.Value) {
 	if !valid(value) {
 		return
 	}
@@ -281,25 +313,30 @@ func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, value refle
 		field := value.FieldByIndex(instr.index)
 		if instr.indir > 0 {
 			field = encIndirect(field, instr.indir)
-		}
-		if !valid(field) {
-			continue
+			// TODO: Is field guaranteed valid? If so we could avoid this check.
+			if !valid(field) {
+				continue
+			}
 		}
 		instr.op(instr, state, field)
 	}
 }
 
-// encodeArray encodes the array whose 0th element is at p.
-func (enc *Encoder) encodeArray(b *bytes.Buffer, value reflect.Value, op encOp, elemIndir int, length int) {
+// encodeArray encodes an array.
+func (enc *Encoder) encodeArray(b *encBuffer, value reflect.Value, op encOp, elemIndir int, length int, helper encHelper) {
 	state := enc.newEncoderState(b)
 	defer enc.freeEncoderState(state)
 	state.fieldnum = -1
 	state.sendZero = true
 	state.encodeUint(uint64(length))
+	if helper != nil && helper(state, value) {
+		return
+	}
 	for i := 0; i < length; i++ {
 		elem := value.Index(i)
 		if elemIndir > 0 {
 			elem = encIndirect(elem, elemIndir)
+			// TODO: Is elem guaranteed valid? If so we could avoid this check.
 			if !valid(elem) {
 				errorf("encodeArray: nil element")
 			}
@@ -320,7 +357,7 @@ func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir in
 }
 
 // encodeMap encodes a map as unsigned count followed by key:value pairs.
-func (enc *Encoder) encodeMap(b *bytes.Buffer, mv reflect.Value, keyOp, elemOp encOp, keyIndir, elemIndir int) {
+func (enc *Encoder) encodeMap(b *encBuffer, mv reflect.Value, keyOp, elemOp encOp, keyIndir, elemIndir int) {
 	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	state.sendZero = true
@@ -338,7 +375,7 @@ func (enc *Encoder) encodeMap(b *bytes.Buffer, mv reflect.Value, keyOp, elemOp e
 // by the type identifier (which might require defining that type right now), followed
 // by the concrete value.  A nil value gets sent as the empty string for the name,
 // followed by no value.
-func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	// Gobs can encode nil interface values but not typed interface
 	// values holding nil pointers, since nil pointers point to no value.
 	elem := iv.Elem()
@@ -362,10 +399,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 	}
 	// Send the name.
 	state.encodeUint(uint64(len(name)))
-	_, err := state.b.WriteString(name)
-	if err != nil {
-		error_(err)
-	}
+	state.b.WriteString(name)
 	// Define the type id if necessary.
 	enc.sendTypeDescriptor(enc.writer(), state, ut)
 	// Send the type id.
@@ -373,7 +407,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 	// Encode the value into a new buffer.  Any nested type definitions
 	// should be written to b, before the encoded value.
 	enc.pushWriter(b)
-	data := new(bytes.Buffer)
+	data := new(encBuffer)
 	data.Write(spaceForLength)
 	enc.encode(data, elem, ut)
 	if enc.err != nil {
@@ -382,7 +416,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 	enc.popWriter()
 	enc.writeMessage(b, data)
 	if enc.err != nil {
-		error_(err)
+		error_(enc.err)
 	}
 	enc.freeEncoderState(state)
 }
@@ -424,7 +458,7 @@ func isZero(val reflect.Value) bool {
 
 // encGobEncoder encodes a value that implements the GobEncoder interface.
 // The data is sent as a byte array.
-func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, ut *userTypeInfo, v reflect.Value) {
+func (enc *Encoder) encodeGobEncoder(b *encBuffer, ut *userTypeInfo, v reflect.Value) {
 	// TODO: should we catch panics from the called method?
 
 	var data []byte
@@ -470,7 +504,7 @@ var encOpTable = [...]encOp{
 
 // encOpFor returns (a pointer to) the encoding op for the base type under rt and
 // the indirection count to reach it.
-func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int) {
+func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[*typeInfo]bool) (*encOp, int) {
 	ut := userType(rt)
 	// If the type implements GobEncoder, we handle it without further processing.
 	if ut.externalEnc != 0 {
@@ -498,24 +532,26 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int)
 				break
 			}
 			// Slices have a header; we decode it to find the underlying array.
-			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
+			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
+			helper := encSliceHelper[t.Elem().Kind()]
 			op = func(i *encInstr, state *encoderState, slice reflect.Value) {
 				if !state.sendZero && slice.Len() == 0 {
 					return
 				}
 				state.update(i)
-				state.enc.encodeArray(state.b, slice, *elemOp, elemIndir, slice.Len())
+				state.enc.encodeArray(state.b, slice, *elemOp, elemIndir, slice.Len(), helper)
 			}
 		case reflect.Array:
 			// True arrays have size in the type.
-			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
+			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
+			helper := encArrayHelper[t.Elem().Kind()]
 			op = func(i *encInstr, state *encoderState, array reflect.Value) {
 				state.update(i)
-				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len())
+				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len(), helper)
 			}
 		case reflect.Map:
-			keyOp, keyIndir := encOpFor(t.Key(), inProgress)
-			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
+			keyOp, keyIndir := encOpFor(t.Key(), inProgress, building)
+			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
 			op = func(i *encInstr, state *encoderState, mv reflect.Value) {
 				// We send zero-length (but non-nil) maps because the
 				// receiver might want to use the map.  (Maps don't use append.)
@@ -527,12 +563,13 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int)
 			}
 		case reflect.Struct:
 			// Generate a closure that calls out to the engine for the nested type.
-			getEncEngine(userType(typ))
+			getEncEngine(userType(typ), building)
 			info := mustGetTypeInfo(typ)
 			op = func(i *encInstr, state *encoderState, sv reflect.Value) {
 				state.update(i)
 				// indirect through info to delay evaluation for recursive structs
-				state.enc.encodeStruct(state.b, info.encoder, sv)
+				enc := info.encoder.Load().(*encEngine)
+				state.enc.encodeStruct(state.b, enc, sv)
 			}
 		case reflect.Interface:
 			op = func(i *encInstr, state *encoderState, iv reflect.Value) {
@@ -579,7 +616,7 @@ func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 }
 
 // compileEnc returns the engine to compile the type.
-func compileEnc(ut *userTypeInfo) *encEngine {
+func compileEnc(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
 	srt := ut.base
 	engine := new(encEngine)
 	seen := make(map[reflect.Type]*encOp)
@@ -593,7 +630,7 @@ func compileEnc(ut *userTypeInfo) *encEngine {
 			if !isSent(&f) {
 				continue
 			}
-			op, indir := encOpFor(f.Type, seen)
+			op, indir := encOpFor(f.Type, seen, building)
 			engine.instr = append(engine.instr, encInstr{*op, wireFieldNum, f.Index, indir})
 			wireFieldNum++
 		}
@@ -603,49 +640,47 @@ func compileEnc(ut *userTypeInfo) *encEngine {
 		engine.instr = append(engine.instr, encInstr{encStructTerminator, 0, nil, 0})
 	} else {
 		engine.instr = make([]encInstr, 1)
-		op, indir := encOpFor(rt, seen)
+		op, indir := encOpFor(rt, seen, building)
 		engine.instr[0] = encInstr{*op, singletonField, nil, indir}
 	}
 	return engine
 }
 
 // getEncEngine returns the engine to compile the type.
-// typeLock must be held (or we're in initialization and guaranteed single-threaded).
-func getEncEngine(ut *userTypeInfo) *encEngine {
-	info, err1 := getTypeInfo(ut)
-	if err1 != nil {
-		error_(err1)
+func getEncEngine(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
+	info, err := getTypeInfo(ut)
+	if err != nil {
+		error_(err)
 	}
-	if info.encoder == nil {
-		// Assign the encEngine now, so recursive types work correctly. But...
-		info.encoder = new(encEngine)
-		// ... if we fail to complete building the engine, don't cache the half-built machine.
-		// Doing this here means we won't cache a type that is itself OK but
-		// that contains a nested type that won't compile. The result is consistent
-		// error behavior when Encode is called multiple times on the top-level type.
-		ok := false
-		defer func() {
-			if !ok {
-				info.encoder = nil
-			}
-		}()
-		info.encoder = compileEnc(ut)
-		ok = true
+	enc, ok := info.encoder.Load().(*encEngine)
+	if !ok {
+		enc = buildEncEngine(info, ut, building)
 	}
-	return info.encoder
+	return enc
 }
 
-// lockAndGetEncEngine is a function that locks and compiles.
-// This lets us hold the lock only while compiling, not when encoding.
-func lockAndGetEncEngine(ut *userTypeInfo) *encEngine {
-	typeLock.Lock()
-	defer typeLock.Unlock()
-	return getEncEngine(ut)
+func buildEncEngine(info *typeInfo, ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
+	// Check for recursive types.
+	if building != nil && building[info] {
+		return nil
+	}
+	info.encInit.Lock()
+	defer info.encInit.Unlock()
+	enc, ok := info.encoder.Load().(*encEngine)
+	if !ok {
+		if building == nil {
+			building = make(map[*typeInfo]bool)
+		}
+		building[info] = true
+		enc = compileEnc(ut, building)
+		info.encoder.Store(enc)
+	}
+	return enc
 }
 
-func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInfo) {
+func (enc *Encoder) encode(b *encBuffer, value reflect.Value, ut *userTypeInfo) {
 	defer catchError(&enc.err)
-	engine := lockAndGetEncEngine(ut)
+	engine := getEncEngine(ut, nil)
 	indir := ut.indir
 	if ut.externalEnc != 0 {
 		indir = int(ut.encIndir)

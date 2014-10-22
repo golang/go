@@ -102,6 +102,29 @@ func TestWriter(t *testing.T) {
 	}
 }
 
+func TestSubImage(t *testing.T) {
+	m0, err := readImg("../testdata/video-001.gif")
+	if err != nil {
+		t.Fatalf("readImg: %v", err)
+	}
+	m0 = m0.(*image.Paletted).SubImage(image.Rect(0, 0, 50, 30))
+	var buf bytes.Buffer
+	err = Encode(&buf, m0, nil)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	m1, err := Decode(&buf)
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if m0.Bounds() != m1.Bounds() {
+		t.Fatalf("bounds differ: %v and %v", m0.Bounds(), m1.Bounds())
+	}
+	if averageDelta(m0, m1) != 0 {
+		t.Fatalf("images differ")
+	}
+}
+
 var frames = []string{
 	"../testdata/video-001.gif",
 	"../testdata/video-005.gray.gif",

@@ -32,70 +32,76 @@ runtime·dumpregs(Context *r)
 	runtime·printf("gs      %X\n", (uint64)r->SegGs);
 }
 
-#define DBG_PRINTEXCEPTION_C 0x40010006
-
-// Called by sigtramp from Windows VEH handler.
-// Return value signals whether the exception has been handled (-1)
-// or should be made available to other handlers in the chain (0).
-uint32
-runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+bool
+runtime·isgoexception(ExceptionRecord *info, Context *r)
 {
-	bool crash;
-	uintptr *sp;
 	extern byte runtime·text[], runtime·etext[];
-
-	if(info->ExceptionCode == DBG_PRINTEXCEPTION_C) {
-		// This exception is intended to be caught by debuggers.
-		// There is a not-very-informational message like
-		// "Invalid parameter passed to C runtime function"
-		// sitting at info->ExceptionInformation[0] (a wchar_t*),
-		// with length info->ExceptionInformation[1].
-		// The default behavior is to ignore this exception,
-		// but somehow returning 0 here (meaning keep going)
-		// makes the program crash instead. Maybe Windows has no
-		// other handler registered? In any event, ignore it.
-		return -1;
-	}
 
 	// Only handle exception if executing instructions in Go binary
 	// (not Windows library code). 
 	if(r->Rip < (uint64)runtime·text || (uint64)runtime·etext < r->Rip)
-		return 0;
+		return false;
 
-	switch(info->ExceptionCode) {
-	case EXCEPTION_BREAKPOINT:
-		// It is unclear whether this is needed, unclear whether it
-		// would work, and unclear how to test it. Leave out for now.
-		// This only handles breakpoint instructions written in the
-		// assembly sources, not breakpoints set by a debugger, and
-		// there are very few of the former.
-		break;
+	if(!runtime·issigpanic(info->ExceptionCode))
+		return false;
+
+	return true;
+}
+
+// Called by sigtramp from Windows VEH handler.
+// Return value signals whether the exception has been handled (EXCEPTION_CONTINUE_EXECUTION)
+// or should be made available to other handlers in the chain (EXCEPTION_CONTINUE_SEARCH).
+uint32
+runtime·exceptionhandler(ExceptionRecord *info, Context *r, G *gp)
+{
+	uintptr *sp;
+
+	if(!runtime·isgoexception(info, r))
+		return EXCEPTION_CONTINUE_SEARCH;
+
+	// Make it look like a call to the signal func.
+	// Have to pass arguments out of band since
+	// augmenting the stack frame would break
+	// the unwinding code.
+	gp->sig = info->ExceptionCode;
+	gp->sigcode0 = info->ExceptionInformation[0];
+	gp->sigcode1 = info->ExceptionInformation[1];
+	gp->sigpc = r->Rip;
+
+	// Only push runtime·sigpanic if r->rip != 0.
+	// If r->rip == 0, probably panicked because of a
+	// call to a nil func.  Not pushing that onto sp will
+	// make the trace look like a call to runtime·sigpanic instead.
+	// (Otherwise the trace will end at runtime·sigpanic and we
+	// won't get to see who faulted.)
+	if(r->Rip != 0) {
+		sp = (uintptr*)r->Rsp;
+		*--sp = r->Rip;
+		r->Rsp = (uintptr)sp;
 	}
+	r->Rip = (uintptr)runtime·sigpanic;
+	return EXCEPTION_CONTINUE_EXECUTION;
+}
 
-	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
-		// Make it look like a call to the signal func.
-		// Have to pass arguments out of band since
-		// augmenting the stack frame would break
-		// the unwinding code.
-		gp->sig = info->ExceptionCode;
-		gp->sigcode0 = info->ExceptionInformation[0];
-		gp->sigcode1 = info->ExceptionInformation[1];
-		gp->sigpc = r->Rip;
+// It seems Windows searches ContinueHandler's list even
+// if ExceptionHandler returns EXCEPTION_CONTINUE_EXECUTION.
+// firstcontinuehandler will stop that search,
+// if exceptionhandler did the same earlier.
+uint32
+runtime·firstcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
+{
+	USED(gp);
+	if(!runtime·isgoexception(info, r))
+		return EXCEPTION_CONTINUE_SEARCH;
+	return EXCEPTION_CONTINUE_EXECUTION;
+}
 
-		// Only push runtime·sigpanic if r->rip != 0.
-		// If r->rip == 0, probably panicked because of a
-		// call to a nil func.  Not pushing that onto sp will
-		// make the trace look like a call to runtime·sigpanic instead.
-		// (Otherwise the trace will end at runtime·sigpanic and we
-		// won't get to see who faulted.)
-		if(r->Rip != 0) {
-			sp = (uintptr*)r->Rsp;
-			*--sp = r->Rip;
-			r->Rsp = (uintptr)sp;
-		}
-		r->Rip = (uintptr)runtime·sigpanic;
-		return -1;
-	}
+// lastcontinuehandler is reached, because runtime cannot handle
+// current exception. lastcontinuehandler will print crash info and exit.
+uint32
+runtime·lastcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
+{
+	bool crash;
 
 	if(runtime·panicking)	// traceback already printed
 		runtime·exit(2);
@@ -122,7 +128,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 		runtime·crash();
 
 	runtime·exit(2);
-	return -1; // not reached
+	return 0; // not reached
 }
 
 void

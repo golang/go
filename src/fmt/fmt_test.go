@@ -194,8 +194,15 @@ var fmtTests = []struct {
 	{"%.5s", "日本語日本語", "日本語日本"},
 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
+	{"%.5x", "abcdefghijklmnopqrstuvwxyz", `6162636465`},
+	{"%.5q", []byte("abcdefghijklmnopqrstuvwxyz"), `"abcde"`},
+	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), `6162636465`},
 	{"%.3q", "日本語日本語", `"日本語"`},
 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
+	{"%.1q", "日本語", `"日"`},
+	{"%.1q", []byte("日本語"), `"日"`},
+	{"%.1x", "日本語", `e6`},
+	{"%.1X", []byte("日本語"), `E6`},
 	{"%10.1q", "日本語日本語", `       "日"`},
 	{"%3c", '⌘', "  ⌘"},
 	{"%5q", '\u2026', `  '…'`},
@@ -854,7 +861,25 @@ func BenchmarkManyArgs(b *testing.B) {
 	})
 }
 
+func BenchmarkFprintInt(b *testing.B) {
+	var buf bytes.Buffer
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Fprint(&buf, 123456)
+	}
+}
+
+func BenchmarkFprintIntNoAlloc(b *testing.B) {
+	var x interface{} = 123456
+	var buf bytes.Buffer
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Fprint(&buf, x)
+	}
+}
+
 var mallocBuf bytes.Buffer
+var mallocPointer *int // A pointer so we know the interface value won't allocate.
 
 var mallocTest = []struct {
 	count int
@@ -863,14 +888,16 @@ var mallocTest = []struct {
 }{
 	{0, `Sprintf("")`, func() { Sprintf("") }},
 	{1, `Sprintf("xxx")`, func() { Sprintf("xxx") }},
-	{1, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
+	{2, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
 	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
-	{1, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
-	// For %g we use a float32, not float64, to guarantee passing the argument
-	// does not need to allocate memory to store the result in a pointer-sized word.
-	{2, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }},
-	{0, `Fprintf(buf, "%x %x %x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x %x %x", 7, 8, 9) }},
+	{3, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
+	{2, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }}, // TODO: Can this be 1?
 	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
+	{0, `Fprintf(buf, "%x %x %x")`, func() {
+		mallocBuf.Reset()
+		Fprintf(&mallocBuf, "%x %x %x", mallocPointer, mallocPointer, mallocPointer)
+	}},
 }
 
 var _ bytes.Buffer
@@ -892,7 +919,7 @@ func TestCountMallocs(t *testing.T) {
 
 type flagPrinter struct{}
 
-func (*flagPrinter) Format(f State, c rune) {
+func (flagPrinter) Format(f State, c rune) {
 	s := "%"
 	for i := 0; i < 128; i++ {
 		if f.Flag(i) {
@@ -938,11 +965,12 @@ func TestFlagParser(t *testing.T) {
 }
 
 func TestStructPrinter(t *testing.T) {
-	var s struct {
+	type T struct {
 		a string
 		b string
 		c int
 	}
+	var s T
 	s.a = "abc"
 	s.b = "def"
 	s.c = 123
@@ -952,12 +980,35 @@ func TestStructPrinter(t *testing.T) {
 	}{
 		{"%v", "{abc def 123}"},
 		{"%+v", "{a:abc b:def c:123}"},
+		{"%#v", `fmt_test.T{a:"abc", b:"def", c:123}`},
 	}
 	for _, tt := range tests {
 		out := Sprintf(tt.fmt, s)
 		if out != tt.out {
-			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out)
+			t.Errorf("Sprintf(%q, s) = %#q, want %#q", tt.fmt, out, tt.out)
 		}
+		// The same but with a pointer.
+		out = Sprintf(tt.fmt, &s)
+		if out != "&"+tt.out {
+			t.Errorf("Sprintf(%q, &s) = %#q, want %#q", tt.fmt, out, "&"+tt.out)
+		}
+	}
+}
+
+func TestSlicePrinter(t *testing.T) {
+	slice := []int{}
+	s := Sprint(slice)
+	if s != "[]" {
+		t.Errorf("empty slice printed as %q not %q", s, "[]")
+	}
+	slice = []int{1, 2, 3}
+	s = Sprint(slice)
+	if s != "[1 2 3]" {
+		t.Errorf("slice: got %q expected %q", s, "[1 2 3]")
+	}
+	s = Sprint(&slice)
+	if s != "&[1 2 3]" {
+		t.Errorf("&slice: got %q expected %q", s, "&[1 2 3]")
 	}
 }
 
@@ -987,6 +1038,12 @@ func TestMapPrinter(t *testing.T) {
 	a := []string{"1:one", "2:two", "3:three"}
 	presentInMap(Sprintf("%v", m1), a, t)
 	presentInMap(Sprint(m1), a, t)
+	// Pointer to map prints the same but with initial &.
+	if !strings.HasPrefix(Sprint(&m1), "&") {
+		t.Errorf("no initial & for address of map")
+	}
+	presentInMap(Sprintf("%v", &m1), a, t)
+	presentInMap(Sprint(&m1), a, t)
 }
 
 func TestEmptyMap(t *testing.T) {
@@ -1117,10 +1174,10 @@ var panictests = []struct {
 }
 
 func TestPanics(t *testing.T) {
-	for _, tt := range panictests {
+	for i, tt := range panictests {
 		s := Sprintf(tt.fmt, tt.in)
 		if s != tt.out {
-			t.Errorf("%q: got %q expected %q", tt.fmt, s, tt.out)
+			t.Errorf("%d: %q: got %q expected %q", i, tt.fmt, s, tt.out)
 		}
 	}
 }
@@ -1178,5 +1235,76 @@ func TestNilDoesNotBecomeTyped(t *testing.T) {
 	const expect = "%!s(<nil>) %!s(*fmt_test.A=<nil>) %!s(<nil>) {} %!s(<nil>)"
 	if got != expect {
 		t.Errorf("expected:\n\t%q\ngot:\n\t%q", expect, got)
+	}
+}
+
+var formatterFlagTests = []struct {
+	in  string
+	val interface{}
+	out string
+}{
+	// scalar values with the (unused by fmt) 'a' verb.
+	{"%a", flagPrinter{}, "[%a]"},
+	{"%-a", flagPrinter{}, "[%-a]"},
+	{"%+a", flagPrinter{}, "[%+a]"},
+	{"%#a", flagPrinter{}, "[%#a]"},
+	{"% a", flagPrinter{}, "[% a]"},
+	{"%0a", flagPrinter{}, "[%0a]"},
+	{"%1.2a", flagPrinter{}, "[%1.2a]"},
+	{"%-1.2a", flagPrinter{}, "[%-1.2a]"},
+	{"%+1.2a", flagPrinter{}, "[%+1.2a]"},
+	{"%-+1.2a", flagPrinter{}, "[%+-1.2a]"},
+	{"%-+1.2abc", flagPrinter{}, "[%+-1.2a]bc"},
+	{"%-1.2abc", flagPrinter{}, "[%-1.2a]bc"},
+
+	// composite values with the 'a' verb
+	{"%a", [1]flagPrinter{}, "[[%a]]"},
+	{"%-a", [1]flagPrinter{}, "[[%-a]]"},
+	{"%+a", [1]flagPrinter{}, "[[%+a]]"},
+	{"%#a", [1]flagPrinter{}, "[[%#a]]"},
+	{"% a", [1]flagPrinter{}, "[[% a]]"},
+	{"%0a", [1]flagPrinter{}, "[[%0a]]"},
+	{"%1.2a", [1]flagPrinter{}, "[[%1.2a]]"},
+	{"%-1.2a", [1]flagPrinter{}, "[[%-1.2a]]"},
+	{"%+1.2a", [1]flagPrinter{}, "[[%+1.2a]]"},
+	{"%-+1.2a", [1]flagPrinter{}, "[[%+-1.2a]]"},
+	{"%-+1.2abc", [1]flagPrinter{}, "[[%+-1.2a]]bc"},
+	{"%-1.2abc", [1]flagPrinter{}, "[[%-1.2a]]bc"},
+
+	// simple values with the 'v' verb
+	{"%v", flagPrinter{}, "[%v]"},
+	{"%-v", flagPrinter{}, "[%-v]"},
+	{"%+v", flagPrinter{}, "[%+v]"},
+	{"%#v", flagPrinter{}, "[%#v]"},
+	{"% v", flagPrinter{}, "[% v]"},
+	{"%0v", flagPrinter{}, "[%0v]"},
+	{"%1.2v", flagPrinter{}, "[%1.2v]"},
+	{"%-1.2v", flagPrinter{}, "[%-1.2v]"},
+	{"%+1.2v", flagPrinter{}, "[%+1.2v]"},
+	{"%-+1.2v", flagPrinter{}, "[%+-1.2v]"},
+	{"%-+1.2vbc", flagPrinter{}, "[%+-1.2v]bc"},
+	{"%-1.2vbc", flagPrinter{}, "[%-1.2v]bc"},
+
+	// composite values with the 'v' verb.
+	{"%v", [1]flagPrinter{}, "[[%v]]"},
+	{"%-v", [1]flagPrinter{}, "[[%-v]]"},
+	{"%+v", [1]flagPrinter{}, "[[%+v]]"},
+	{"%#v", [1]flagPrinter{}, "[1]fmt_test.flagPrinter{[%#v]}"},
+	{"% v", [1]flagPrinter{}, "[[% v]]"},
+	{"%0v", [1]flagPrinter{}, "[[%0v]]"},
+	{"%1.2v", [1]flagPrinter{}, "[[%1.2v]]"},
+	{"%-1.2v", [1]flagPrinter{}, "[[%-1.2v]]"},
+	{"%+1.2v", [1]flagPrinter{}, "[[%+1.2v]]"},
+	{"%-+1.2v", [1]flagPrinter{}, "[[%+-1.2v]]"},
+	{"%-+1.2vbc", [1]flagPrinter{}, "[[%+-1.2v]]bc"},
+	{"%-1.2vbc", [1]flagPrinter{}, "[[%-1.2v]]bc"},
+}
+
+func TestFormatterFlags(t *testing.T) {
+	for _, tt := range formatterFlagTests {
+		s := Sprintf(tt.in, tt.val)
+		if s != tt.out {
+			t.Errorf("Sprintf(%q, %T) = %q, want %q", tt.in, tt.val, s, tt.out)
+		}
 	}
 }

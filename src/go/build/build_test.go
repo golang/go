@@ -85,6 +85,20 @@ func TestEmptyImport(t *testing.T) {
 	}
 }
 
+func TestEmptyFolderImport(t *testing.T) {
+	_, err := Import(".", "testdata/empty", 0)
+	if _, ok := err.(*NoGoError); !ok {
+		t.Fatal(`Import("testdata/empty") did not return NoGoError.`)
+	}
+}
+
+func TestMultiplePackageImport(t *testing.T) {
+	_, err := Import(".", "testdata/multi", 0)
+	if _, ok := err.(*MultiplePackageError); !ok {
+		t.Fatal(`Import("testdata/multi") did not return MultiplePackageError.`)
+	}
+}
+
 func TestLocalDirectory(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -173,6 +187,10 @@ var matchFileTests = []struct {
 	{ctxtAndroid, "foo_linux.go", "", true},
 	{ctxtAndroid, "foo_android.go", "", true},
 	{ctxtAndroid, "foo_plan9.go", "", false},
+	{ctxtAndroid, "android.go", "", true},
+	{ctxtAndroid, "plan9.go", "", true},
+	{ctxtAndroid, "arm.s", "", true},
+	{ctxtAndroid, "amd64.s", "", true},
 }
 
 func TestMatchFile(t *testing.T) {

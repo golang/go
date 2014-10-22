@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -48,7 +49,7 @@ It prints a summary of the test results in the format:
 followed by detailed output for each failed package.
 
 'Go test' recompiles each package along with any files with names matching
-the file pattern "*_test.go". 
+the file pattern "*_test.go".
 Files whose names begin with "_" (including "_test.go") or "." are ignored.
 These additional files can contain test functions, benchmark functions, and
 example functions.  See 'go help testfunc' for more.
@@ -65,16 +66,23 @@ non-test installation.
 
 In addition to the build flags, the flags handled by 'go test' itself are:
 
-	-c  Compile the test binary to pkg.test but do not run it.
-	    (Where pkg is the last element of the package's import path.)
+	-c
+		Compile the test binary to pkg.test but do not run it
+		(where pkg is the last element of the package's import path).
+		The file name can be changed with the -o flag.
+
+	-exec xprog
+	    Run the test binary using xprog. The behavior is the same as
+	    in 'go run'. See 'go help run' for details.
 
 	-i
 	    Install packages that are dependencies of the test.
 	    Do not run the test.
 
-	-exec xprog
-	    Run the test binary using xprog. The behavior is the same as
-	    in 'go run'. See 'go help run' for details.
+	-o file
+		Compile the test binary to the named file.
+		The test still runs (unless -c or -i is specified).
+
 
 The test binary also accepts flags that control execution of the test; these
 flags are also accessible by 'go test'.  See 'go help testflag' for details.
@@ -122,6 +130,7 @@ control the execution of any test:
 	-blockprofile block.out
 	    Write a goroutine blocking profile to the specified file
 	    when all tests are complete.
+	    Writes test binary as -c would.
 
 	-blockprofilerate n
 	    Control the detail provided in goroutine blocking profiles by
@@ -153,8 +162,7 @@ control the execution of any test:
 	    Sets -cover.
 
 	-coverprofile cover.out
-	    Write a coverage profile to the specified file after all tests
-	    have passed.
+	    Write a coverage profile to the file after all tests have passed.
 	    Sets -cover.
 
 	-cpu 1,2,4
@@ -164,10 +172,11 @@ control the execution of any test:
 
 	-cpuprofile cpu.out
 	    Write a CPU profile to the specified file before exiting.
+	    Writes test binary as -c would.
 
 	-memprofile mem.out
-	    Write a memory profile to the specified file after all tests
-	    have passed.
+	    Write a memory profile to the file after all tests have passed.
+	    Writes test binary as -c would.
 
 	-memprofilerate n
 	    Enable more precise (and expensive) memory profiles by setting
@@ -274,10 +283,10 @@ var (
 	testCoverMode    string     // -covermode flag
 	testCoverPaths   []string   // -coverpkg flag
 	testCoverPkgs    []*Package // -coverpkg flag
+	testO            string     // -o flag
 	testProfile      bool       // some profiling flag
 	testNeedBinary   bool       // profile needs to keep binary around
 	testV            bool       // -v flag
-	testFiles        []string   // -file flag(s)  TODO: not respected
 	testTimeout      string     // -timeout flag
 	testArgs         []string
 	testBench        bool
@@ -291,6 +300,7 @@ var testMainDeps = map[string]bool{
 	// Dependencies for testmain.
 	"testing": true,
 	"regexp":  true,
+	"os":      true,
 }
 
 func runTest(cmd *Command, args []string) {
@@ -307,6 +317,9 @@ func runTest(cmd *Command, args []string) {
 
 	if testC && len(pkgs) != 1 {
 		fatalf("cannot use -c flag with multiple packages")
+	}
+	if testO != "" && len(pkgs) != 1 {
+		fatalf("cannot use -o flag with multiple packages")
 	}
 	if testProfile && len(pkgs) != 1 {
 		fatalf("cannot use test profile flag with multiple packages")
@@ -522,6 +535,13 @@ func contains(x []string, s string) bool {
 	return false
 }
 
+var windowsBadWords = []string{
+	"install",
+	"patch",
+	"setup",
+	"update",
+}
+
 func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.action(modeBuild, modeBuild, p)
@@ -687,7 +707,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		omitDWARF:  !testC && !testNeedBinary,
 	}
 
-	// The generated main also imports testing and regexp.
+	// The generated main also imports testing, regexp, and os.
 	stk.push("testmain")
 	for dep := range testMainDeps {
 		if dep == ptest.ImportPath {
@@ -723,11 +743,13 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if t.ImportTest || ptest.coverMode != "" {
+	if len(ptest.GoFiles) > 0 {
 		pmain.imports = append(pmain.imports, ptest)
+		t.ImportTest = true
 	}
-	if t.ImportXtest {
+	if pxtest != nil {
 		pmain.imports = append(pmain.imports, pxtest)
+		t.ImportXtest = true
 	}
 
 	if ptest != p && localCover {
@@ -779,17 +801,54 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	a.objdir = testDir + string(filepath.Separator)
 	a.objpkg = filepath.Join(testDir, "main.a")
 	a.target = filepath.Join(testDir, testBinary) + exeSuffix
-	pmainAction := a
+	if goos == "windows" {
+		// There are many reserved words on Windows that,
+		// if used in the name of an executable, cause Windows
+		// to try to ask for extra permissions.
+		// The word list includes setup, install, update, and patch,
+		// but it does not appear to be defined anywhere.
+		// We have run into this trying to run the
+		// go.codereview/patch tests.
+		// For package names containing those words, use test.test.exe
+		// instead of pkgname.test.exe.
+		// Note that this file name is only used in the Go command's
+		// temporary directory. If the -c or other flags are
+		// given, the code below will still use pkgname.test.exe.
+		// There are two user-visible effects of this change.
+		// First, you can actually run 'go test' in directories that
+		// have names that Windows thinks are installer-like,
+		// without getting a dialog box asking for more permissions.
+		// Second, in the Windows process listing during go test,
+		// the test shows up as test.test.exe, not pkgname.test.exe.
+		// That second one is a drawback, but it seems a small
+		// price to pay for the test running at all.
+		// If maintaining the list of bad words is too onerous,
+		// we could just do this always on Windows.
+		for _, bad := range windowsBadWords {
+			if strings.Contains(testBinary, bad) {
+				a.target = filepath.Join(testDir, "test.test") + exeSuffix
+				break
+			}
+		}
+	}
+	buildAction = a
 
 	if testC || testNeedBinary {
 		// -c or profiling flag: create action to copy binary to ./test.out.
-		runAction = &action{
-			f:      (*builder).install,
-			deps:   []*action{pmainAction},
-			p:      pmain,
-			target: filepath.Join(cwd, testBinary+exeSuffix),
+		target := filepath.Join(cwd, testBinary+exeSuffix)
+		if testO != "" {
+			target = testO
+			if !filepath.IsAbs(target) {
+				target = filepath.Join(cwd, target)
+			}
 		}
-		pmainAction = runAction // in case we are running the test
+		buildAction = &action{
+			f:      (*builder).install,
+			deps:   []*action{buildAction},
+			p:      pmain,
+			target: target,
+		}
+		runAction = buildAction // make sure runAction != nil even if not running test
 	}
 	if testC {
 		printAction = &action{p: p, deps: []*action{runAction}} // nop
@@ -797,7 +856,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		// run test
 		runAction = &action{
 			f:          (*builder).runTest,
-			deps:       []*action{pmainAction},
+			deps:       []*action{buildAction},
 			p:          p,
 			ignoreFail: true,
 		}
@@ -813,7 +872,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		}
 	}
 
-	return pmainAction, runAction, printAction, nil
+	return buildAction, runAction, printAction, nil
 }
 
 func testImportStack(top string, p *Package, target string) []string {
@@ -1057,6 +1116,31 @@ func (b *builder) notest(a *action) error {
 	return nil
 }
 
+// isTestMain tells whether fn is a TestMain(m *testing.M) function.
+func isTestMain(fn *ast.FuncDecl) bool {
+	if fn.Name.String() != "TestMain" ||
+		fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
+		fn.Type.Params == nil ||
+		len(fn.Type.Params.List) != 1 ||
+		len(fn.Type.Params.List[0].Names) > 1 {
+		return false
+	}
+	ptr, ok := fn.Type.Params.List[0].Type.(*ast.StarExpr)
+	if !ok {
+		return false
+	}
+	// We can't easily check that the type is *testing.M
+	// because we don't know how testing has been imported,
+	// but at least check that it's *M or *something.M.
+	if name, ok := ptr.X.(*ast.Ident); ok && name.Name == "M" {
+		return true
+	}
+	if sel, ok := ptr.X.(*ast.SelectorExpr); ok && sel.Sel.Name == "M" {
+		return true
+	}
+	return false
+}
+
 // isTest tells whether name looks like a test (or benchmark, according to prefix).
 // It is a Test (say) if there is a character after Test that is not a lower-case letter.
 // We don't want TesticularCancer.
@@ -1113,6 +1197,7 @@ type testFuncs struct {
 	Tests       []testFunc
 	Benchmarks  []testFunc
 	Examples    []testFunc
+	TestMain    *testFunc
 	Package     *Package
 	ImportTest  bool
 	NeedTest    bool
@@ -1168,6 +1253,12 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 		}
 		name := n.Name.String()
 		switch {
+		case isTestMain(n):
+			if t.TestMain != nil {
+				return errors.New("multiple definitions of TestMain")
+			}
+			t.TestMain = &testFunc{pkg, name, ""}
+			*doImport, *seen = true, true
 		case isTest(name, "Test"):
 			t.Tests = append(t.Tests, testFunc{pkg, name, ""})
 			*doImport, *seen = true, true
@@ -1200,6 +1291,9 @@ var testmainTmpl = template.Must(template.New("main").Parse(`
 package main
 
 import (
+{{if not .TestMain}}
+	"os"
+{{end}}
 	"regexp"
 	"testing"
 
@@ -1294,7 +1388,12 @@ func main() {
 		CoveredPackages: {{printf "%q" .Covered}},
 	})
 {{end}}
-	testing.Main(matchString, tests, benchmarks, examples)
+	m := testing.MainStart(matchString, tests, benchmarks, examples)
+{{with .TestMain}}
+	{{.Package}}.{{.Name}}(m)
+{{else}}
+	os.Exit(m.Run())
+{{end}}
 }
 
 `))

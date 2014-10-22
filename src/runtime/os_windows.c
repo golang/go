@@ -7,6 +7,8 @@
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "textflag.h"
+#include "arch_GOARCH.h"
+#include "malloc.h"
 
 #pragma dynimport runtime·AddVectoredExceptionHandler AddVectoredExceptionHandler "kernel32.dll"
 #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
@@ -32,6 +34,7 @@
 #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
 #pragma dynimport runtime·SetProcessPriorityBoost SetProcessPriorityBoost "kernel32.dll"
 #pragma dynimport runtime·SetThreadPriority SetThreadPriority "kernel32.dll"
+#pragma dynimport runtime·SetUnhandledExceptionFilter SetUnhandledExceptionFilter "kernel32.dll"
 #pragma dynimport runtime·SetWaitableTimer SetWaitableTimer "kernel32.dll"
 #pragma dynimport runtime·Sleep Sleep "kernel32.dll"
 #pragma dynimport runtime·SuspendThread SuspendThread "kernel32.dll"
@@ -63,6 +66,7 @@ extern void *runtime·SetConsoleCtrlHandler;
 extern void *runtime·SetEvent;
 extern void *runtime·SetProcessPriorityBoost;
 extern void *runtime·SetThreadPriority;
+extern void *runtime·SetUnhandledExceptionFilter;
 extern void *runtime·SetWaitableTimer;
 extern void *runtime·Sleep;
 extern void *runtime·SuspendThread;
@@ -70,11 +74,28 @@ extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
 extern void *runtime·timeBeginPeriod;
 
+#pragma dataflag NOPTR
 void *runtime·GetQueuedCompletionStatusEx;
 
 extern uintptr runtime·externalthreadhandlerp;
 void runtime·externalthreadhandler(void);
-void runtime·sigtramp(void);
+void runtime·exceptiontramp(void);
+void runtime·firstcontinuetramp(void);
+void runtime·lastcontinuetramp(void);
+
+#pragma textflag NOSPLIT
+uintptr
+runtime·getLoadLibrary(void)
+{
+	return (uintptr)runtime·LoadLibrary;
+}
+
+#pragma textflag NOSPLIT
+uintptr
+runtime·getGetProcAddress(void)
+{
+	return (uintptr)runtime·GetProcAddress;
+}
 
 static int32
 getproccount(void)
@@ -89,12 +110,30 @@ void
 runtime·osinit(void)
 {
 	void *kernel32;
+	void *addVectoredContinueHandler;
+
+	kernel32 = runtime·stdcall1(runtime·LoadLibraryA, (uintptr)"kernel32.dll");
 
 	runtime·externalthreadhandlerp = (uintptr)runtime·externalthreadhandler;
 
-	runtime·stdcall2(runtime·AddVectoredExceptionHandler, 1, (uintptr)runtime·sigtramp);
+	runtime·stdcall2(runtime·AddVectoredExceptionHandler, 1, (uintptr)runtime·exceptiontramp);
+	addVectoredContinueHandler = nil;
+	if(kernel32 != nil)
+		addVectoredContinueHandler = runtime·stdcall2(runtime·GetProcAddress, (uintptr)kernel32, (uintptr)"AddVectoredContinueHandler");
+	if(addVectoredContinueHandler == nil || sizeof(void*) == 4) {
+		// use SetUnhandledExceptionFilter for windows-386 or
+		// if VectoredContinueHandler is unavailable.
+		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
+		runtime·stdcall1(runtime·SetUnhandledExceptionFilter, (uintptr)runtime·lastcontinuetramp);
+	} else {
+		runtime·stdcall2(addVectoredContinueHandler, 1, (uintptr)runtime·firstcontinuetramp);
+		runtime·stdcall2(addVectoredContinueHandler, 0, (uintptr)runtime·lastcontinuetramp);
+	}
+
 	runtime·stdcall2(runtime·SetConsoleCtrlHandler, (uintptr)runtime·ctrlhandler, 1);
+
 	runtime·stdcall1(runtime·timeBeginPeriod, 1);
+
 	runtime·ncpu = getproccount();
 	
 	// Windows dynamic priority boosting assumes that a process has different types
@@ -103,7 +142,6 @@ runtime·osinit(void)
 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
 	runtime·stdcall2(runtime·SetProcessPriorityBoost, -1, 1);
 
-	kernel32 = runtime·stdcall1(runtime·LoadLibraryA, (uintptr)"kernel32.dll");
 	if(kernel32 != nil) {
 		runtime·GetQueuedCompletionStatusEx = runtime·stdcall2(runtime·GetProcAddress, (uintptr)kernel32, (uintptr)"GetQueuedCompletionStatusEx");
 	}
@@ -131,7 +169,7 @@ runtime·get_random_data(byte **rnd, int32 *rnd_len)
 void
 runtime·goenvs(void)
 {
-	extern Slice syscall·envs;
+	extern Slice runtime·envs;
 
 	uint16 *env;
 	String *s;
@@ -144,16 +182,14 @@ runtime·goenvs(void)
 	for(p=env; *p; n++)
 		p += runtime·findnullw(p)+1;
 
-	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
+	runtime·envs = runtime·makeStringSlice(n);
+	s = (String*)runtime·envs.array;
 
 	p = env;
 	for(i=0; i<n; i++) {
 		s[i] = runtime·gostringw(p);
 		p += runtime·findnullw(p)+1;
 	}
-	syscall·envs.array = (byte*)s;
-	syscall·envs.len = n;
-	syscall·envs.cap = n;
 
 	runtime·stdcall1(runtime·FreeEnvironmentStringsW, (uintptr)env);
 }
@@ -253,17 +289,19 @@ runtime·mpreinit(M *mp)
 void
 runtime·minit(void)
 {
-	void *thandle;
+	uintptr thandle;
 
 	// -1 = current process, -2 = current thread
 	runtime·stdcall7(runtime·DuplicateHandle, -1, -2, -1, (uintptr)&thandle, 0, 0, DUPLICATE_SAME_ACCESS);
-	runtime·atomicstorep(&g->m->thread, thandle);
+	runtime·atomicstoreuintptr(&g->m->thread, thandle);
 }
 
 // Called from dropm to undo the effect of an minit.
 void
 runtime·unminit(void)
 {
+	runtime·stdcall1(runtime·CloseHandle, g->m->thread);
+	g->m->thread = 0;
 }
 
 // Described in http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
@@ -273,7 +311,9 @@ typedef struct KSYSTEM_TIME {
 	int32	High2Time;
 } KSYSTEM_TIME;
 
+#pragma dataflag NOPTR
 const KSYSTEM_TIME* INTERRUPT_TIME	= (KSYSTEM_TIME*)0x7ffe0008;
+#pragma dataflag NOPTR
 const KSYSTEM_TIME* SYSTEM_TIME		= (KSYSTEM_TIME*)0x7ffe0014;
 
 static void badsystime(void);
@@ -326,7 +366,7 @@ runtime·nanotime(void)
 static void*
 stdcall(void *fn)
 {
-	g->m->libcall.fn = fn;
+	g->m->libcall.fn = (uintptr)fn;
 	if(g->m->profilehz != 0) {
 		// leave pc/sp for cpu profiler
 		g->m->libcallg = g;
@@ -345,7 +385,7 @@ void*
 runtime·stdcall0(void *fn)
 {
 	g->m->libcall.n = 0;
-	g->m->libcall.args = &fn;  // it's unused but must be non-nil, otherwise crashes
+	g->m->libcall.args = (uintptr)&fn;  // it's unused but must be non-nil, otherwise crashes
 	return stdcall(fn);
 }
 
@@ -355,7 +395,7 @@ runtime·stdcall1(void *fn, uintptr a0)
 {
 	USED(a0);
 	g->m->libcall.n = 1;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -365,7 +405,7 @@ runtime·stdcall2(void *fn, uintptr a0, uintptr a1)
 {
 	USED(a0, a1);
 	g->m->libcall.n = 2;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -375,7 +415,7 @@ runtime·stdcall3(void *fn, uintptr a0, uintptr a1, uintptr a2)
 {
 	USED(a0, a1, a2);
 	g->m->libcall.n = 3;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -385,7 +425,7 @@ runtime·stdcall4(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3)
 {
 	USED(a0, a1, a2, a3);
 	g->m->libcall.n = 4;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -395,7 +435,7 @@ runtime·stdcall5(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uint
 {
 	USED(a0, a1, a2, a3, a4);
 	g->m->libcall.n = 5;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -405,7 +445,7 @@ runtime·stdcall6(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uint
 {
 	USED(a0, a1, a2, a3, a4, a5);
 	g->m->libcall.n = 6;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -415,7 +455,7 @@ runtime·stdcall7(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uint
 {
 	USED(a0, a1, a2, a3, a4, a5, a6);
 	g->m->libcall.n = 7;
-	g->m->libcall.args = &a0;
+	g->m->libcall.args = (uintptr)&a0;
 	return stdcall(fn);
 }
 
@@ -448,47 +488,23 @@ runtime·issigpanic(uint32 code)
 	case EXCEPTION_FLT_INEXACT_RESULT:
 	case EXCEPTION_FLT_OVERFLOW:
 	case EXCEPTION_FLT_UNDERFLOW:
+	case EXCEPTION_BREAKPOINT:
 		return 1;
 	}
 	return 0;
 }
 
 void
-runtime·sigpanic(void)
-{
-	if(!runtime·canpanic(g))
-		runtime·throw("unexpected signal during runtime execution");
-
-	switch(g->sig) {
-	case EXCEPTION_ACCESS_VIOLATION:
-		if(g->sigcode1 < 0x1000 || g->paniconfault) {
-			if(g->sigpc == 0)
-				runtime·panicstring("call of nil func value");
-			runtime·panicstring("invalid memory address or nil pointer dereference");
-		}
-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
-		runtime·throw("fault");
-	case EXCEPTION_INT_DIVIDE_BY_ZERO:
-		runtime·panicstring("integer divide by zero");
-	case EXCEPTION_INT_OVERFLOW:
-		runtime·panicstring("integer overflow");
-	case EXCEPTION_FLT_DENORMAL_OPERAND:
-	case EXCEPTION_FLT_DIVIDE_BY_ZERO:
-	case EXCEPTION_FLT_INEXACT_RESULT:
-	case EXCEPTION_FLT_OVERFLOW:
-	case EXCEPTION_FLT_UNDERFLOW:
-		runtime·panicstring("floating point error");
-	}
-	runtime·throw("fault");
-}
-
-void
 runtime·initsig(void)
 {
-	// following line keeps sigtramp alive at link stage
+	// following line keeps these functions alive at link stage
 	// if there's a better way please write it here
-	void *p = runtime·sigtramp;
-	USED(p);
+	void *e = runtime·exceptiontramp;
+	void *f = runtime·firstcontinuetramp;
+	void *l = runtime·lastcontinuetramp;
+	USED(e);
+	USED(f);
+	USED(l);
 }
 
 uint32
@@ -513,6 +529,7 @@ runtime·ctrlhandler1(uint32 type)
 
 extern void runtime·dosigprof(Context *r, G *gp, M *mp);
 extern void runtime·profileloop(void);
+#pragma dataflag NOPTR
 static void *profiletimer;
 
 static void
@@ -541,7 +558,7 @@ void
 runtime·profileloop1(void)
 {
 	M *mp, *allm;
-	void *thread;
+	uintptr thread;
 
 	runtime·stdcall2(runtime·SetThreadPriority, -2, THREAD_PRIORITY_HIGHEST);
 
@@ -549,11 +566,11 @@ runtime·profileloop1(void)
 		runtime·stdcall2(runtime·WaitForSingleObject, (uintptr)profiletimer, -1);
 		allm = runtime·atomicloadp(&runtime·allm);
 		for(mp = allm; mp != nil; mp = mp->alllink) {
-			thread = runtime·atomicloadp(&mp->thread);
+			thread = runtime·atomicloaduintptr(&mp->thread);
 			// Do not profile threads blocked on Notes,
 			// this includes idle worker threads,
 			// idle timer thread, idle heap scavenger, etc.
-			if(thread == nil || mp->profilehz == 0 || mp->blocked)
+			if(thread == 0 || mp->profilehz == 0 || mp->blocked)
 				continue;
 			runtime·stdcall1(runtime·SuspendThread, (uintptr)thread);
 			if(mp->profilehz != 0 && !mp->blocked)

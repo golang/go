@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -406,4 +407,24 @@ func TestOverflowRuntimeTimer(t *testing.T) {
 	// This may hang forever if timers are broken. See comment near
 	// the end of CheckRuntimeTimerOverflow in internal_test.go.
 	CheckRuntimeTimerOverflow()
+}
+
+func checkZeroPanicString(t *testing.T) {
+	e := recover()
+	s, _ := e.(string)
+	if want := "called on uninitialized Timer"; !strings.Contains(s, want) {
+		t.Errorf("panic = %v; want substring %q", e, want)
+	}
+}
+
+func TestZeroTimerResetPanics(t *testing.T) {
+	defer checkZeroPanicString(t)
+	var tr Timer
+	tr.Reset(1)
+}
+
+func TestZeroTimerStopPanics(t *testing.T) {
+	defer checkZeroPanicString(t)
+	var tr Timer
+	tr.Stop()
 }

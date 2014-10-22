@@ -412,30 +412,69 @@ func TestMapNanGrowIterator(t *testing.T) {
 
 func TestMapIterOrder(t *testing.T) {
 	for _, n := range [...]int{3, 7, 9, 15} {
-		// Make m be {0: true, 1: true, ..., n-1: true}.
-		m := make(map[int]bool)
-		for i := 0; i < n; i++ {
-			m[i] = true
-		}
-		// Check that iterating over the map produces at least two different orderings.
-		ord := func() []int {
-			var s []int
-			for key := range m {
-				s = append(s, key)
+		for i := 0; i < 1000; i++ {
+			// Make m be {0: true, 1: true, ..., n-1: true}.
+			m := make(map[int]bool)
+			for i := 0; i < n; i++ {
+				m[i] = true
 			}
-			return s
-		}
-		first := ord()
-		ok := false
-		for try := 0; try < 100; try++ {
-			if !reflect.DeepEqual(first, ord()) {
-				ok = true
+			// Check that iterating over the map produces at least two different orderings.
+			ord := func() []int {
+				var s []int
+				for key := range m {
+					s = append(s, key)
+				}
+				return s
+			}
+			first := ord()
+			ok := false
+			for try := 0; try < 100; try++ {
+				if !reflect.DeepEqual(first, ord()) {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				t.Errorf("Map with n=%d elements had consistent iteration order: %v", n, first)
 				break
 			}
 		}
-		if !ok {
-			t.Errorf("Map with n=%d elements had consistent iteration order: %v", n, first)
+	}
+}
+
+// Issue 8410
+func TestMapSparseIterOrder(t *testing.T) {
+	// Run several rounds to increase the probability
+	// of failure. One is not enough.
+NextRound:
+	for round := 0; round < 10; round++ {
+		m := make(map[int]bool)
+		// Add 1000 items, remove 980.
+		for i := 0; i < 1000; i++ {
+			m[i] = true
 		}
+		for i := 20; i < 1000; i++ {
+			delete(m, i)
+		}
+
+		var first []int
+		for i := range m {
+			first = append(first, i)
+		}
+
+		// 800 chances to get a different iteration order.
+		// See bug 8736 for why we need so many tries.
+		for n := 0; n < 800; n++ {
+			idx := 0
+			for i := range m {
+				if i != first[idx] {
+					// iteration order changed.
+					continue NextRound
+				}
+				idx++
+			}
+		}
+		t.Fatalf("constant iteration order on round %d: %v", round, first)
 	}
 }
 
@@ -475,3 +514,24 @@ func TestMapStringBytesLookup(t *testing.T) {
 		t.Errorf("AllocsPerRun for x,ok = m[string(buf)] = %v, want 0", n)
 	}
 }
+
+func benchmarkMapPop(b *testing.B, n int) {
+	m := map[int]int{}
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < n; j++ {
+			m[j] = j
+		}
+		for j := 0; j < n; j++ {
+			// Use iterator to pop an element.
+			// We want this to be fast, see issue 8412.
+			for k := range m {
+				delete(m, k)
+				break
+			}
+		}
+	}
+}
+
+func BenchmarkMapPop100(b *testing.B)   { benchmarkMapPop(b, 100) }
+func BenchmarkMapPop1000(b *testing.B)  { benchmarkMapPop(b, 1000) }
+func BenchmarkMapPop10000(b *testing.B) { benchmarkMapPop(b, 10000) }

@@ -63,9 +63,9 @@ Options new in this version:
 	-w
 		Omit the DWARF symbol table.
 	-X symbol value
-		Set the value of an otherwise uninitialized string variable.
-		The symbol name should be of the form importpath.name,
-		as displayed in the symbol table printed by "go tool nm".
+		Set the value of a string variable. The symbol name
+		should be of the form importpath.name, as displayed
+		in the symbol table printed by "go tool nm".
 	-race
 		Link with race detection libraries.
 	-B value

@@ -294,10 +294,10 @@ func defaultContext() Context {
 	// say "+build go1.x", and code that should only be built before Go 1.x
 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
 	//
-	// When we reach Go 1.4 the line will read
-	//	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4"}
+	// When we reach Go 1.5 the line will read
+	//	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4", "go1.5"}
 	// and so on.
-	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3"}
+	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4"}
 
 	switch os.Getenv("CGO_ENABLED") {
 	case "1":
@@ -415,6 +415,19 @@ type NoGoError struct {
 
 func (e *NoGoError) Error() string {
 	return "no buildable Go source files in " + e.Dir
+}
+
+// MultiplePackageError describes a directory containing
+// multiple buildable Go source files for multiple packages.
+type MultiplePackageError struct {
+	Dir      string   // directory containing files
+	Packages []string // package names found
+	Files    []string // corresponding files: Files[i] declares package Packages[i]
+}
+
+func (e *MultiplePackageError) Error() string {
+	// Error string limited to two entries for compatibility.
+	return fmt.Sprintf("found packages %s (%s) and %s (%s) in %s", e.Packages[0], e.Files[0], e.Packages[1], e.Files[1], e.Dir)
 }
 
 func nameExt(name string) string {
@@ -675,7 +688,7 @@ Found:
 			p.Name = pkg
 			firstFile = name
 		} else if pkg != p.Name {
-			return p, fmt.Errorf("found packages %s (%s) and %s (%s) in %s", p.Name, firstFile, pkg, name, p.Dir)
+			return p, &MultiplePackageError{p.Dir, []string{firstFile, name}, []string{p.Name, pkg}}
 		}
 		if pf.Doc != nil && p.Doc == "" {
 			p.Doc = doc.Synopsis(pf.Doc.Text())
@@ -1291,6 +1304,18 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	if dot := strings.Index(name, "."); dot != -1 {
 		name = name[:dot]
 	}
+
+	// Before Go 1.4, a file called "linux.go" would be equivalent to having a
+	// build tag "linux" in that file. For Go 1.4 and beyond, we require this
+	// auto-tagging to apply only to files with a non-empty prefix, so
+	// "foo_linux.go" is tagged but "linux.go" is not. This allows new operating
+	// sytems, such as android, to arrive without breaking existing code with
+	// innocuous source code in "android.go". The easiest fix: files without
+	// underscores are always included.
+	if !strings.ContainsRune(name, '_') {
+		return true
+	}
+
 	l := strings.Split(name, "_")
 	if n := len(l); n > 0 && l[n-1] == "test" {
 		l = l[:n-1]

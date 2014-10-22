@@ -140,4 +140,26 @@ func main() {
 			m[complex(float64(i), float64(i))] = 1
 		}
 	})
+
+	// ~70ms on a 1.6GHz Zeon.
+	// The iterate/delete idiom currently takes expected
+	// O(n lg n) time.  Fortunately, the checkLinear test
+	// leaves enough wiggle room to include n lg n time
+	// (it actually tests for O(n^log_2(3)).
+	// To prevent false positives, average away variation
+	// by doing multiple rounds within a single run.
+	checkLinear("iterdelete", 2500, func(n int) {
+		for round := 0; round < 4; round++ {
+			m := map[int]int{}
+			for i := 0; i < n; i++ {
+				m[i] = i
+			}
+			for i := 0; i < n; i++ {
+				for k := range m {
+					delete(m, k)
+					break
+				}
+			}
+		}
+	})
 }
