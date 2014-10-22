@@ -19,7 +19,7 @@
 #include	"../ld/elf.h"
 #include	"../ld/macho.h"
 #include	"../ld/pe.h"
-#include	"../../pkg/runtime/typekind.h"
+#include	"../../runtime/typekind.h"
 
 /*
  * Offsets and sizes of the debug_* sections in the cout file.

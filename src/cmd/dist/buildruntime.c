@@ -5,7 +5,7 @@
 #include "a.h"
 
 /*
- * Helpers for building pkg/runtime.
+ * Helpers for building runtime.
  */
 
 // mkzversion writes zversion.go:

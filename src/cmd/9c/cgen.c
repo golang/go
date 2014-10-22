@@ -28,7 +28,7 @@
 // THE SOFTWARE.
 
 #include "gc.h"
-#include "../../pkg/runtime/funcdata.h"
+#include "../../runtime/funcdata.h"
 
 void
 cgen(Node *n, Node *nn)

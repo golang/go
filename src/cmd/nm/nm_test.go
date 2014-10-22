@@ -83,7 +83,7 @@ func TestNM(t *testing.T) {
 		"plan9obj/testdata/386-plan9-exec",
 	}
 	for _, f := range testfiles {
-		exepath := filepath.Join(runtime.GOROOT(), "src", "pkg", "debug", f)
+		exepath := filepath.Join(runtime.GOROOT(), "src", "debug", f)
 		cmd := exec.Command(testnmpath, exepath)
 		out, err := cmd.CombinedOutput()
 		if err != nil {

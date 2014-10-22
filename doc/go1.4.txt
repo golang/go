@@ -7,6 +7,8 @@ Please keep the list sorted (as in sort.Strings of the lines).
 
 spec: permit for range x (CL 104680043)
 
+the directory src/pkg has been deleted, for instance src/pkg/fmt is now just src/fmt (CL 134570043)
+
 cmd/6l, liblink: use pc-relative addressing for all memory references, so that linking Go binaries at high addresses works (CL 125140043). This cuts the maximum size of a Go binary's text+data+bss from 4GB to 2GB.
 cmd/go: import comments (CL 124940043)
 cmd/go: implement "internal" (CL 120600043)

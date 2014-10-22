@@ -101,7 +101,7 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 	case *[]ast.Stmt:
 		walkBeforeAfter(*n, before, after)
 
-	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
+	// These are ordered and grouped to match ../../go/ast/ast.go
 	case *ast.Field:
 		walkBeforeAfter(&n.Names, before, after)
 		walkBeforeAfter(&n.Type, before, after)

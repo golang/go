@@ -910,7 +910,7 @@ clearfat(Node *nl)
 		f = sysfunc("duffzero");
 		p = gins(ADUFFZERO, N, f);
 		afunclit(&p->to, f);
-		// 4 and 128 = magic constants: see ../../pkg/runtime/asm_arm.s
+		// 4 and 128 = magic constants: see ../../runtime/asm_arm.s
 		p->to.offset = 4*(128-q);
 	} else
 	while(q > 0) {

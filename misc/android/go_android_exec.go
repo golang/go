@@ -38,7 +38,7 @@ func main() {
 
 	// Determine thepackage by examining the current working
 	// directory, which will look something like
-	// "$GOROOT/src/pkg/mime/multipart". We extract everything
+	// "$GOROOT/src/mime/multipart". We extract everything
 	// after the $GOROOT to run on the same relative directory
 	// on the target device.
 	//

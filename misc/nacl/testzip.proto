@@ -21,98 +21,97 @@ go	src=..
 			link
 				testdata
 					+
-		pkg
-			archive
-				tar
-					testdata
-						+
-				zip
-					testdata
-						+
-			compress
-				bzip2
-					testdata
-						+
-				flate
-				gzip
-					testdata
-						+
-				lzw
+		archive
+			tar
 				testdata
 					+
-				zlib
-			crypto
-				rsa
-					testdata
-						+
-				tls
-					testdata
-						+
-			debug
-				dwarf
-					testdata
-						+
-				elf
-					testdata
-						+
-				macho
-					testdata
-						+
-				pe
-					testdata
-						+
-				plan9obj
-					testdata
-						+
-			go
-				build
-					+
-				doc
-					testdata
-						+
-				format
-					+
-				parser
-					+
-				printer
-					+
-			image
+			zip
 				testdata
 					+
-				draw
-				gif
-				jpeg
-				png
-					testdata
-						+
-			io
+		compress
+			bzip2
+				testdata
+					+
+			flate
+			gzip
+				testdata
+					+
+			lzw
+			testdata
 				+
-			mime
+			zlib
+		crypto
+			rsa
 				testdata
 					+
-				multipart
-					testdata
-						+
-			net
-				http
-					+
+			tls
 				testdata
 					+
-			os
+		debug
+			dwarf
+				testdata
+					+
+			elf
+				testdata
+					+
+			macho
+				testdata
+					+
+			pe
+				testdata
+					+
+			plan9obj
+				testdata
+					+
+		go
+			build
 				+
-			path
-				filepath
-					+
-			regexp
+			doc
 				testdata
 					+
-			strconv
+			format
+				+
+			parser
+				+
+			printer
+				+
+		image
+			testdata
+				+
+			draw
+			gif
+			jpeg
+			png
 				testdata
 					+
-			text
-				template
-					testdata
-						+
+		io
+			+
+		mime
+			testdata
+				+
+			multipart
+				testdata
+					+
+		net
+			http
+				+
+			testdata
+				+
+		os
+			+
+		path
+			filepath
+				+
+		regexp
+			testdata
+				+
+		strconv
+			testdata
+				+
+		text
+			template
+				testdata
+					+
 	lib
 		time
 			zoneinfo.zip

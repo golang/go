@@ -34,7 +34,7 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/9l/9.out.h"
-#include "../pkg/runtime/stack.h"
+#include "../runtime/stack.h"
 
 enum {
 	FuncAlign = 8,

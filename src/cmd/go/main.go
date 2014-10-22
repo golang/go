@@ -537,7 +537,7 @@ func matchPackages(pattern string) []string {
 	})
 
 	for _, src := range buildContext.SrcDirs() {
-		if pattern == "std" && src != gorootSrcPkg {
+		if pattern == "std" && src != gorootSrc {
 			continue
 		}
 		src = filepath.Clean(src) + string(filepath.Separator)
@@ -619,7 +619,7 @@ func matchPackagesInFS(pattern string) []string {
 			// The initial case is not Cleaned, though, so we do this explicitly.
 			//
 			// This converts a path like "./io/" to "io". Without this step, running
-			// "cd $GOROOT/src/pkg; go list ./io/..." would incorrectly skip the io
+			// "cd $GOROOT/src; go list ./io/..." would incorrectly skip the io
 			// package, because prepending the prefix "./" to the unclean path would
 			// result in "././io", and match("././io") returns false.
 			path = filepath.Clean(path)

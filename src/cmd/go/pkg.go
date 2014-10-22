@@ -218,7 +218,7 @@ func dirToImportPath(dir string) string {
 }
 
 func makeImportValid(r rune) rune {
-	// Should match Go spec, compilers, and ../../pkg/go/parser/parser.go:/isValidImport.
+	// Should match Go spec, compilers, and ../../go/parser/parser.go:/isValidImport.
 	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
 	if !unicode.IsGraphic(r) || unicode.IsSpace(r) || strings.ContainsRune(illegalChars, r) {
 		return '_'
@@ -783,23 +783,12 @@ func loadPackage(arg string, stk *importStack) *Package {
 			arg = sub
 		}
 	}
-	if strings.HasPrefix(arg, "cmd/") {
+	if strings.HasPrefix(arg, "cmd/") && !strings.Contains(arg[4:], "/") {
 		if p := cmdCache[arg]; p != nil {
 			return p
 		}
 		stk.push(arg)
 		defer stk.pop()
-
-		if strings.Contains(arg[4:], "/") {
-			p := &Package{
-				Error: &PackageError{
-					ImportStack: stk.copy(),
-					Err:         fmt.Sprintf("invalid import path: cmd/... is reserved for Go commands"),
-					hard:        true,
-				},
-			}
-			return p
-		}
 
 		bp, err := buildContext.ImportDir(filepath.Join(gorootSrc, arg), 0)
 		bp.ImportPath = arg

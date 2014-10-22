@@ -35,7 +35,7 @@
 #include	"../ld/elf.h"
 #include	"../ld/macho.h"
 #include	"../ld/pe.h"
-#include	"../../pkg/runtime/mgc0.h"
+#include	"../../runtime/mgc0.h"
 
 void	dynreloc(void);
 

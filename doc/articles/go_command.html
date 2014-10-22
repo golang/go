@@ -99,7 +99,7 @@ deduce where to obtain the source code.</p>
 in a known way from the import path.  Specifically, the first choice
 is <code>$GOPATH/src/&lt;import-path&gt;</code>.  If <code>$GOPATH</code> is
 unset, the go command will fall back to storing source code alongside the
-standard Go packages, in <code>$GOROOT/src/pkg/&lt;import-path&gt;</code>.
+standard Go packages, in <code>$GOROOT/src/&lt;import-path&gt;</code>.
 If <code>$GOPATH</code> is set to a list of paths, the go command tries
 <code>&lt;dir&gt;/src/&lt;import-path&gt;</code> for each of the directories in
 that list.</p>
