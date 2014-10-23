@@ -230,9 +230,5 @@ func deref(typ types.Type) types.Type {
 
 // isPackageLevel reports whether obj is a package-level object.
 func isPackageLevel(obj types.Object) bool {
-	// TODO(adonovan): fix go/types bug:
-	//   obj.Parent().Parent() == obj.Pkg().Scope()
-	// doesn't work because obj.Parent() gets mutated during
-	// dot-imports.
 	return obj.Pkg().Scope().Lookup(obj.Name()) == obj
 }
