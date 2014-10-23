@@ -266,7 +266,9 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// can only appear in qualified identifiers which are mapped to
 	// selector expressions.
 	if ident, ok := e.X.(*ast.Ident); ok {
-		if pkg, _ := check.scope.LookupParent(ident.Name).(*PkgName); pkg != nil {
+		_, obj := check.scope.LookupParent(ident.Name)
+		if pkg, _ := obj.(*PkgName); pkg != nil {
+			assert(pkg.pkg == check.pkg)
 			check.recordUse(ident, pkg)
 			pkg.used = true
 			exp := pkg.imported.scope.Lookup(sel)

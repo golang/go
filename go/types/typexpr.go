@@ -23,7 +23,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 	x.mode = invalid
 	x.expr = e
 
-	obj := check.scope.LookupParent(e.Name)
+	scope, obj := check.scope.LookupParent(e.Name)
 	if obj == nil {
 		if e.Name == "_" {
 			check.errorf(e.Pos(), "cannot use _ as value or type")
@@ -38,18 +38,20 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 	typ := obj.Type()
 	assert(typ != nil)
 
+	// The object may be dot-imported: If so, remove its package from
+	// the map of unused dot imports for the respective file scope.
+	// (This code is only needed for dot-imports. Without them,
+	// we only have to mark variables, see *Var case below).
+	if pkg := obj.Pkg(); pkg != check.pkg && pkg != nil {
+		delete(check.unusedDotImports[scope], pkg)
+	}
+
 	switch obj := obj.(type) {
 	case *PkgName:
 		check.errorf(e.Pos(), "use of package %s not in selector", obj.name)
 		return
 
 	case *Const:
-		// The constant may be dot-imported. Mark it as used so that
-		// later we can determine if the corresponding dot-imported
-		// package was used. Same applies for other objects, below.
-		// (This code is only used for dot-imports. Without them, we
-		// would only have to mark Vars.)
-		obj.used = true
 		check.addDeclDep(obj)
 		if typ == Typ[Invalid] {
 			return
@@ -67,7 +69,6 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 		x.mode = constant
 
 	case *TypeName:
-		obj.used = true
 		x.mode = typexpr
 		// check for cycle
 		// (it's ok to iterate forward because each named type appears at most once in path)
@@ -86,7 +87,9 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 		}
 
 	case *Var:
-		obj.used = true
+		if obj.pkg == check.pkg {
+			obj.used = true
+		}
 		check.addDeclDep(obj)
 		if typ == Typ[Invalid] {
 			return
@@ -94,17 +97,14 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 		x.mode = variable
 
 	case *Func:
-		obj.used = true
 		check.addDeclDep(obj)
 		x.mode = value
 
 	case *Builtin:
-		obj.used = true // for built-ins defined by package unsafe
 		x.id = obj.id
 		x.mode = builtin
 
 	case *Nil:
-		// no need to "use" the nil object
 		x.mode = value
 
 	default:

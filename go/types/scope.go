@@ -71,14 +71,19 @@ func (s *Scope) Lookup(name string) Object {
 
 // LookupParent follows the parent chain of scopes starting with s until
 // it finds a scope where Lookup(name) returns a non-nil object, and then
-// returns that object. If no such scope exists, the result is nil.
-func (s *Scope) LookupParent(name string) Object {
+// returns that scope and object. If no such scope exists, the result is (nil, nil).
+//
+// Note that obj.Parent() may be different from the returned scope if the
+// object was inserted into the scope and already had a parent at that
+// time (see Insert, below). This can only happen for dot-imported objects
+// whose scope is the scope of the package that exported them.
+func (s *Scope) LookupParent(name string) (*Scope, Object) {
 	for ; s != nil; s = s.parent {
 		if obj := s.elems[name]; obj != nil {
-			return obj
+			return s, obj
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // Insert attempts to insert an object obj into scope s.

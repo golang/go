@@ -7,7 +7,6 @@
 package types
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 
@@ -73,9 +72,8 @@ type Checker struct {
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
-	files      []*ast.File              // package files
-	fileScopes []*Scope                 // file scope for each file
-	dotImports []map[*Package]token.Pos // positions of dot-imports for each file
+	files            []*ast.File                       // package files
+	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
 
 	firstErr error                 // first error encountered
 	methods  map[string][]*Func    // maps type names to associated methods
@@ -89,6 +87,22 @@ type Checker struct {
 
 	// debugging
 	indent int // indentation for tracing
+}
+
+// addUnusedImport adds the position of a dot-imported package
+// pkg to the map of dot imports for the given file scope.
+func (check *Checker) addUnusedDotImport(scope *Scope, pkg *Package, pos token.Pos) {
+	mm := check.unusedDotImports
+	if mm == nil {
+		mm = make(map[*Scope]map[*Package]token.Pos)
+		check.unusedDotImports = mm
+	}
+	m := mm[scope]
+	if m == nil {
+		m = make(map[*Package]token.Pos)
+		mm[scope] = m
+	}
+	m[pkg] = pos
 }
 
 // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
@@ -161,8 +175,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 func (check *Checker) initFiles(files []*ast.File) {
 	// start with a clean slate (check.Files may be called multiple times)
 	check.files = nil
-	check.fileScopes = nil
-	check.dotImports = nil
+	check.unusedDotImports = nil
 
 	check.firstErr = nil
 	check.methods = nil
@@ -170,9 +183,9 @@ func (check *Checker) initFiles(files []*ast.File) {
 	check.funcs = nil
 	check.delayed = nil
 
-	// determine package name, files, and set up file scopes, dotImports maps
+	// determine package name and collect valid files
 	pkg := check.pkg
-	for i, file := range files {
+	for _, file := range files {
 		switch name := file.Name.Name; pkg.name {
 		case "":
 			if name != "_" {
@@ -184,16 +197,6 @@ func (check *Checker) initFiles(files []*ast.File) {
 
 		case name:
 			check.files = append(check.files, file)
-			var comment string
-			if pos := file.Pos(); pos.IsValid() {
-				comment = "file " + check.fset.File(pos).Name()
-			} else {
-				comment = fmt.Sprintf("file[%d]", i)
-			}
-			fileScope := NewScope(pkg.scope, comment)
-			check.recordScope(file, fileScope)
-			check.fileScopes = append(check.fileScopes, fileScope)
-			check.dotImports = append(check.dotImports, nil) // element (map) is lazily allocated
 
 		default:
 			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
