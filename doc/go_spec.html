@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 16, 2014",
+	"Subtitle": "Version of October 23, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -6207,8 +6207,8 @@ type Error interface {
 The built-in package <code>unsafe</code>, known to the compiler,
 provides facilities for low-level programming including operations
 that violate the type system. A package using <code>unsafe</code>
-must be vetted manually for type safety.  The package provides the
-following interface:
+must be vetted manually for type safety and may not be portable.
+The package provides the following interface:
 </p>
 
 <pre class="grammar">
@@ -6223,10 +6223,11 @@ func Sizeof(variable ArbitraryType) uintptr
 </pre>
 
 <p>
-Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be converted to
-a <code>Pointer</code> type and vice versa.
 A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
 value may not be <a href="#Address_operators">dereferenced</a>.
+Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be converted to
+a <code>Pointer</code> type and vice versa.
+The effect of converting between <code>Pointer</code> and <code>uintptr</code> is implementation-defined.
 </p>
 
 <pre>
