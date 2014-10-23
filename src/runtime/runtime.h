@@ -573,7 +573,7 @@ enum {
 // Lock-free stack node.
 struct LFNode
 {
-	LFNode	*next;
+	uint64	next;
 	uintptr	pushcnt;
 };
 
