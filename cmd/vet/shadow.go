@@ -212,23 +212,23 @@ func checkShadowing(f *File, ident *ast.Ident) {
 		return
 	}
 	// obj.Parent.Parent is the surrounding scope. If we can find another declaration
-	// starting from there, we have a shadowed variable.
+	// starting from there, we have a shadowed identifier.
 	_, shadowed := obj.Parent().Parent().LookupParent(obj.Name())
 	if shadowed == nil {
 		return
 	}
-	// Don't complain if it's shadowing a universe-declared variable; that's fine.
+	// Don't complain if it's shadowing a universe-declared identifier; that's fine.
 	if shadowed.Parent() == types.Universe {
 		return
 	}
 	if *strictShadowing {
-		// The shadowed variable must appear before this one to be an instance of shadowing.
+		// The shadowed identifier must appear before this one to be an instance of shadowing.
 		if shadowed.Pos() > ident.Pos() {
 			return
 		}
 	} else {
-		// Don't complain if the span of validity of the shadowed variable doesn't include
-		// the shadowing variable.
+		// Don't complain if the span of validity of the shadowed identifier doesn't include
+		// the shadowing identifier.
 		span, ok := f.pkg.spans[shadowed]
 		if !ok {
 			f.Badf(ident.Pos(), "internal error: no range for %s", ident.Name)
@@ -238,7 +238,7 @@ func checkShadowing(f *File, ident *ast.Ident) {
 			return
 		}
 	}
-	// Don't complain if the types differ: that implies the programmer really wants two variables.
+	// Don't complain if the types differ: that implies the programmer really wants two different things.
 	if types.Identical(obj.Type(), shadowed.Type()) {
 		f.Badf(ident.Pos(), "declaration of %s shadows declaration at %s", obj.Name(), f.loc(shadowed.Pos()))
 	}
