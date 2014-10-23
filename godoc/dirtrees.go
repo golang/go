@@ -179,8 +179,11 @@ func (c *Corpus) newDirectory(root string, maxDepth int) *Directory {
 	case err != nil:
 		log.Printf("newDirectory(%s): %s", root, err)
 		return nil
-	case !isPkgDir(d):
+	case root != "/" && !isPkgDir(d):
 		log.Printf("newDirectory(%s): not a package directory", root)
+		return nil
+	case root == "/" && !d.IsDir():
+		log.Printf("newDirectory(%s): not a directory", root)
 		return nil
 	}
 	if maxDepth < 0 {
