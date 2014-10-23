@@ -46,7 +46,7 @@ runtime·lfstackpush(uint64 *head, LFNode *node)
 	new = (uint64)(uintptr)node|(((uint64)node->pushcnt&CNT_MASK)<<PTR_BITS);
 	for(;;) {
 		old = runtime·atomicload64(head);
-		node->next = (LFNode*)(uintptr)(old&PTR_MASK);
+		node->next = old;
 		if(runtime·cas64(head, old, new))
 			break;
 	}
@@ -55,19 +55,17 @@ runtime·lfstackpush(uint64 *head, LFNode *node)
 LFNode*
 runtime·lfstackpop(uint64 *head)
 {
-	LFNode *node, *node2;
-	uint64 old, new;
+	LFNode *node;
+	uint64 old, next;
 
 	for(;;) {
 		old = runtime·atomicload64(head);
 		if(old == 0)
 			return nil;
 		node = (LFNode*)(uintptr)(old&PTR_MASK);
-		node2 = runtime·atomicloadp(&node->next);
-		new = 0;
-		if(node2 != nil)
-			new = (uint64)(uintptr)node2|(((uint64)node2->pushcnt&CNT_MASK)<<PTR_BITS);
-		if(runtime·cas64(head, old, new))
+		next = runtime·atomicload64(&node->next);
+
+		if(runtime·cas64(head, old, next))
 			return node;
 	}
 }
