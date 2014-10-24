@@ -438,7 +438,15 @@ func gogc(force int32) {
 	mp = acquirem()
 	mp.gcing = 1
 	releasem(mp)
+
 	onM(stoptheworld)
+	onM(finishsweep_m) // finish sweep before we start concurrent scan.
+	onM(starttheworld)
+
+	// Do a concurrent heap scan before we stop the world.
+	onM(gcscan_m)
+	onM(stoptheworld)
+
 	if mp != acquirem() {
 		gothrow("gogc: rescheduled")
 	}

@@ -52,7 +52,7 @@
 //         see discussion of GC rate below.
 
 // Changing phases.
-// Phases are changed by setting the gcphase to the next phase and call ackgcphase.
+// Phases are changed by setting the gcphase to the next phase and possibly calling ackgcphase.
 // All phase action must be benign in the presence of a change.
 // Starting with GCoff
 // GCoff to GCscan
@@ -137,7 +137,7 @@ enum {
 // ptrmask for an allocation containing a single pointer.
 static byte oneptr[] = {BitsPointer};
 
-// Initialized from $GOGC.  GOGC=off means no gc.
+// Initialized from $GOGC.  GOGC=off means no GC.
 extern int32 runtime·gcpercent;
 
 // Holding worldsema grants an M the right to try to stop the world.
@@ -185,11 +185,12 @@ BitVector	runtime·gcbssmask;
 
 Mutex	runtime·gclock;
 
-static Workbuf* getpartial(void);
+static Workbuf* getpartialorempty(void);
 static void	putpartial(Workbuf*);
 static Workbuf* getempty(Workbuf*);
 static Workbuf* getfull(Workbuf*);
 static void	putempty(Workbuf*);
+static void	putfull(Workbuf*);
 static Workbuf* handoff(Workbuf*);
 static void	gchelperstart(void);
 static void	flushallmcaches(void);
@@ -205,12 +206,14 @@ static void     shade(byte*);
 static void	slottombits(byte*, Markbits*);
 
 void runtime·bgsweep(void);
+void runtime·finishsweep_m(void);
 static FuncVal bgsweepv = {runtime·bgsweep};
 
 typedef struct WorkData WorkData;
 struct WorkData {
-	uint64	full;  // lock-free list of full blocks
-	uint64	empty; // lock-free list of empty blocks
+	uint64	full;    // lock-free list of full blocks
+	uint64	empty;   // lock-free list of empty blocks
+	uint64  partial; // lock-free list of partially filled blocks
 	byte	pad0[CacheLineSize]; // prevents false-sharing between full/empty and nproc/nwait
 	uint32	nproc;
 	int64	tstart;
@@ -455,15 +458,22 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 	Workbuf *wbuf;
 	bool keepworking;
 
-	wbuf = getpartial();
+	wbuf = getpartialorempty();
 	if(b != nil) {
 		wbuf = scanobject(b, n, ptrmask, wbuf);
 		if(runtime·gcphase == GCscan) {
+			if(inheap(b) && !ptrmask)
+				// b is in heap, we are in GCscan so there should be a ptrmask.
+				runtime·throw("scanblock: In GCscan phase and inheap is true.");
+			// GCscan only goes one level deep since mark wb not turned on.
 			putpartial(wbuf);
 			return;
 		}
 	}
-
+	if(runtime·gcphase == GCscan) {
+		runtime·throw("scanblock: In GCscan phase but no b passed in.");
+	}
+	
 	keepworking = b == nil;
 
 	// ptrmask can have 2 possible values:
@@ -479,6 +489,11 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			wbuf = getfull(wbuf);
 			if(wbuf == nil) // nil means out of work barrier reached
 				return;
+
+			if(wbuf->nobj<=0) {
+				runtime·throw("runtime:scanblock getfull returns empty buffer");
+			}
+
 		}
 
 		// If another proc wants a pointer, give it some.
@@ -506,7 +521,7 @@ markroot(ParFor *desc, uint32 i)
 	void *p;
 	uint32 status;
 	bool restart;
-
+ 
 	USED(&desc);
 	// Note: if you add a case here, please also update heapdump.c:dumproots.
 	switch(i) {
@@ -553,7 +568,8 @@ markroot(ParFor *desc, uint32 i)
 		break;
 
 	case RootFlushCaches:
-		flushallmcaches();
+		if (runtime·gcphase != GCscan) // Do not flush mcaches during GCscan phase.
+			flushallmcaches();
 		break;
 
 	default:
@@ -566,9 +582,10 @@ markroot(ParFor *desc, uint32 i)
 		status = runtime·readgstatus(gp); // We are not in a scan state
 		if((status == Gwaiting || status == Gsyscall) && gp->waitsince == 0)
 			gp->waitsince = runtime·work.tstart;
-		// Shrink a stack if not much of it is being used.
-		runtime·shrinkstack(gp);
-		if(runtime·readgstatus(gp) == Gdead) 
+		// Shrink a stack if not much of it is being used but not in the scan phase.
+		if (runtime·gcphase != GCscan) // Do not shrink during GCscan phase.
+			runtime·shrinkstack(gp);
+		if(runtime·readgstatus(gp) == Gdead)
 			gp->gcworkdone = true;
 		else 
 			gp->gcworkdone = false; 
@@ -576,121 +593,120 @@ markroot(ParFor *desc, uint32 i)
 
 		// goroutine will scan its own stack when it stops running.
 		// Wait until it has.
-		while((status = runtime·readgstatus(gp)) == Grunning && !gp->gcworkdone) {
+		while(runtime·readgstatus(gp) == Grunning && !gp->gcworkdone) {
+		}
+
+		// scanstack(gp) is done as part of gcphasework
+		// But to make sure we finished we need to make sure that
+		// the stack traps have all responded so drop into
+		// this while loop until they respond.
+		while(!gp->gcworkdone){
+			status = runtime·readgstatus(gp);
 			if(status == Gdead) {
-				// TBD you need to explain why Gdead without gp->gcworkdone
-				// being true. If there is a race then it needs to be
-				// explained here.
 				gp->gcworkdone = true; // scan is a noop
 				break;
 				//do nothing, scan not needed. 
 			}
-			// try again
+			if(status == Gwaiting || status == Grunnable)
+				restart = runtime·stopg(gp);
 		}
-
-		//		scanstack(gp); now done as part of gcphasework
-		// But to make sure we finished we need to make sure that
-		// the stack traps have all responded so drop into
-		// this while loop until they respond.
-		if(!gp->gcworkdone)
-			// For some reason a G has not completed its work. This is  a bug that
-			// needs to be investigated. For now I'll just print this message in
-			// case the bug is benign.
-			runtime·printf("runtime:markroot: post stack scan work not done gp=%p has status %x\n", gp, status);
-
 		if(restart)
 			runtime·restartg(gp);
 		break;
 	}
 }
 
+// wblock is used for creating new empty work buffer blocks.
+static Mutex wblock;
+
 // Get an empty work buffer off the work.empty list,
 // allocating new buffers as needed.
 static Workbuf*
 getempty(Workbuf *b)
 {
-	MCache *c;
-
-	if(b != nil)
-		runtime·lfstackpush(&runtime·work.full, &b->node);
-	b = nil;
-	c = g->m->mcache;
-	if(c->gcworkbuf != nil) {
-		b = c->gcworkbuf;
-		c->gcworkbuf = nil;
+	if(b != nil) {
+		putfull(b);
+		b = nil;
 	}
-	if(b == nil)
+	if(runtime·work.empty)
 		b = (Workbuf*)runtime·lfstackpop(&runtime·work.empty);
+
+	if(b && b->nobj != 0) {
+		runtime·printf("m%d: getempty: popped b=%p with non-zero b->nobj=%D\n", g->m->id, b, b->nobj);
+		runtime·throw("getempty: workbuffer not empty, b->nobj not 0");
+	}
 	if(b == nil) {
+		runtime·lock(&wblock);
 		b = runtime·persistentalloc(sizeof(*b), CacheLineSize, &mstats.gc_sys);
 		b->nobj = 0;
+		runtime·unlock(&wblock);
 	}
-	if(b->nobj != 0) 
-		runtime·throw("getempty: b->nobj not 0/n");
-	b->nobj = 0;
 	return b;
 }
 
 static void
 putempty(Workbuf *b)
 {
-	MCache *c;
-
-	if(b->nobj != 0) 
-		runtime·throw("putempty: b->nobj=%D not 0\n");
-	c = g->m->mcache;
-	if(c->gcworkbuf == nil) {
-		c->gcworkbuf = b;
-		return;
+	if(b->nobj != 0) {
+		runtime·throw("putempty: b->nobj not 0\n");
 	}
 	runtime·lfstackpush(&runtime·work.empty, &b->node);
 }
 
-// Get an partially empty work buffer from the mcache structure
-// and if non is available get an empty one.
-static Workbuf*
-getpartial(void)
+// Put a full or partially full workbuf on the full list.
+static void
+putfull(Workbuf *b)
 {
-	MCache *c;
+	if(b->nobj <= 0) {
+		runtime·throw("putfull: b->nobj <= 0\n");
+	}
+	runtime·lfstackpush(&runtime·work.full, &b->node);
+}
+
+// Get an partially empty work buffer
+// if none are available get an empty one.
+static Workbuf*
+getpartialorempty(void)
+{
 	Workbuf *b;
 
-	c = g->m->mcache;
-	if(c->gcworkbuf != nil) {
-		b = c->gcworkbuf;
-		c->gcworkbuf = nil;
-	} else {
+	b = (Workbuf*)runtime·lfstackpop(&runtime·work.partial);
+	if(b == nil)
 		b = getempty(nil);
-	}
 	return b;
 }
 
 static void
 putpartial(Workbuf *b)
 {
-	MCache *c;
 
-	c = g->m->mcache;
-	if(c->gcworkbuf == nil) {
-		c->gcworkbuf = b;
-		return;
+	if(b->nobj == 0)
+		runtime·lfstackpush(&runtime·work.empty, &b->node);
+	else if (b->nobj < nelem(b->obj))
+		runtime·lfstackpush(&runtime·work.partial, &b->node);
+	else if (b->nobj == nelem(b->obj))
+		runtime·lfstackpush(&runtime·work.full, &b->node);
+	else {
+		runtime·printf("b=%p, b->nobj=%D, nelem(b->obj)=%d\n", b, b->nobj, nelem(b->obj));
+		runtime·throw("putpartial: bad Workbuf b->nobj");
 	}
-
-	runtime·throw("putpartial: c->gcworkbuf is not nil\n");
-	
-	runtime·lfstackpush(&runtime·work.full, &b->node);
 }
 
 void
 runtime·gcworkbuffree(Workbuf *b)
 {
-	if(b != nil) {
-		if(b->nobj != 0) 
-			runtime·throw("gcworkbufferfree: b->nobj not 0\n");
+	if(b == nil)
+		return;
+	if(b->nobj == 0)
 		putempty(b);
-	}
+	else
+		putfull(b);
 }
 
-// Get a full work buffer off the work.full list, or return nil.
+// Get a full work buffer off the work.full or a partially
+// filled one off the work.partial list. If nothing is available
+// wait until all the other gc helpers have finished and then
+// return nil.
 // getfull acts as a barrier for work.nproc helpers. As long as one
 // gchelper is actively marking objects it
 // may create a workbuffer that the other helpers can work on.
@@ -704,12 +720,12 @@ getfull(Workbuf *b)
 {
 	int32 i;
 
-	if(b != nil) {
-		if(b->nobj != 0) 
-			runtime·printf("runtime:getfull: b->nobj=%D not 0.", b->nobj);
-		runtime·lfstackpush(&runtime·work.empty, &b->node);
-	}
+	if(b != nil)
+		putempty(b);
+
 	b = (Workbuf*)runtime·lfstackpop(&runtime·work.full);
+	if(b==nil)
+		b = (Workbuf*)runtime·lfstackpop(&runtime·work.partial);
 	if(b != nil || runtime·work.nproc == 1)
 		return b;
 
@@ -718,7 +734,9 @@ getfull(Workbuf *b)
 		if(runtime·work.full != 0) {
 			runtime·xadd(&runtime·work.nwait, -1);
 			b = (Workbuf*)runtime·lfstackpop(&runtime·work.full);
-			if(b != nil)
+			if(b==nil)
+				b = (Workbuf*)runtime·lfstackpop(&runtime·work.partial);
+			if(b != nil) 
 				return b;
 			runtime·xadd(&runtime·work.nwait, +1);
 		}
@@ -861,8 +879,7 @@ scanstack(G *gp)
 	case Gdead:
 		return;
 	case Grunning:
-		runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
-		runtime·throw("mark - world not stopped");
+		runtime·throw("scanstack: - goroutine not stopped");
 	case Grunnable:
 	case Gsyscall:
 	case Gwaiting:
@@ -909,7 +926,7 @@ shade(byte *b)
 	if(!inheap(b))
 		runtime·throw("shade: passed an address not in the heap");
 	
-	wbuf = getpartial();
+	wbuf = getpartialorempty();
 	// Mark the object, return some important bits.
 	// If we combine the following two rotines we don't have to pass mbits or obj around.
 	obj = objectstart(b, &mbits);
@@ -932,8 +949,8 @@ runtime·markwb(void **slot, void *ptr)
 	*slot = ptr;
 }
 
-// The gp has been moved to a gc safepoint. If there is gcphase specific
-// work it is done here. 
+// The gp has been moved to a GC safepoint. GC phase specific
+// work is done here. 
 void
 runtime·gcphasework(G *gp)
 {
@@ -953,14 +970,8 @@ runtime·gcphasework(G *gp)
 		break;
 	case GCmark:
 	case GCmarktermination:
-		//
-		// Disabled until concurrent GC is implemented
-		// but indicate the scan has been done. 
 		scanstack(gp);
-		// scanstack will call shade which will populate
-		// the Workbuf.
-		// emptywbuf(gp) will empty it before returning
-		// 
+		// All available mark work will be emptied before returning.
 		break;
 	}
 	gp->gcworkdone = true;
@@ -1050,6 +1061,7 @@ runtime·iterate_finq(void (*callback)(FuncVal*, byte*, uintptr, Type*, PtrType*
 	}
 }
 
+// Returns only when span s has been swept.
 void
 runtime·MSpan_EnsureSwept(MSpan *s)
 {
@@ -1064,6 +1076,7 @@ runtime·MSpan_EnsureSwept(MSpan *s)
 	sg = runtime·mheap.sweepgen;
 	if(runtime·atomicload(&s->sweepgen) == sg)
 		return;
+	// The caller must be sure that the span is a MSpanInUse span.
 	if(runtime·cas(&s->sweepgen, sg-2, sg-1)) {
 		runtime·MSpan_Sweep(s, false);
 		return;
@@ -1347,7 +1360,7 @@ runtime·gchelper(void)
 	g->m->traceback = 2;
 	gchelperstart();
 
-	// parallel mark for over gc roots
+	// parallel mark for over GC roots
 	runtime·parfordo(runtime·work.markfor);
 	if(runtime·gcphase != GCscan) 
 		scanblock(nil, 0, nil); // blocks in getfull
@@ -1531,8 +1544,91 @@ runtime·gc_m(void)
 	a.start_time = (uint64)(g->m->scalararg[0]) | ((uint64)(g->m->scalararg[1]) << 32);
 	a.eagersweep = g->m->scalararg[2];
 	gc(&a);
-
 	runtime·casgstatus(gp, Gwaiting, Grunning);
+}
+
+void
+runtime·finishsweep_m(void)
+{
+	uint32 i, sg;
+	MSpan *s;
+
+	// The world is stopped so we should be able to complete the sweeps 
+	// quickly. 
+	while(runtime·sweepone() != -1)
+		runtime·sweep.npausesweep++;
+
+	// There may be some other spans being swept concurrently that 
+	// we need to wait for. If finishsweep_m is done with the world stopped
+	// this code is not required.
+	sg = runtime·mheap.sweepgen;
+	for(i=0; i<runtime·work.nspan; i++) {
+		s = runtime·work.spans[i];
+		if(s->sweepgen == sg) {
+			continue;
+		}
+		if(s->state != MSpanInUse) // Span is not part of the GCed heap so no need to ensure it is swept.
+			continue;
+		runtime·MSpan_EnsureSwept(s);
+	}	
+}
+
+// Scan all of the stacks, greying (or graying if in America) the referents
+// but not blackening them since the mark write barrier isn't installed.
+void
+runtime·gcscan_m(void)
+{
+	uint32 i, allglen, oldphase;
+	G *gp, *mastergp, **allg;
+
+	// Grab the g that called us and potentially allow rescheduling.
+	// This allows it to be scanned like other goroutines.
+	mastergp = g->m->curg;
+
+	runtime·casgstatus(mastergp, Grunning, Gwaiting);
+	mastergp->waitreason = runtime·gostringnocopy((byte*)"garbage collection scan");
+
+	// Span sweeping has been done by finishsweep_m.
+	// Long term we will want to make this goroutine runnable 
+	// by placing it onto a scanenqueue state and then calling 
+	// runtime·restartg(mastergp) to make it Grunnable.  
+	// At the bottom we will want to return this p back to the scheduler.
+
+	oldphase = runtime·gcphase;
+
+	runtime·lock(&runtime·allglock);
+	allglen = runtime·allglen;
+	allg = runtime·allg;
+	// Prepare flag indicating that the scan has not been completed.
+	for(i = 0; i < allglen; i++) {
+		gp = allg[i];
+		gp->gcworkdone = false;  // set to true in gcphasework
+	}
+	runtime·unlock(&runtime·allglock);
+
+	runtime·work.nwait = 0;
+	runtime·work.ndone = 0;
+	runtime·work.nproc = 1; // For now do not do this in parallel.
+	runtime·gcphase = GCscan;
+	//	ackgcphase is not needed since we are not scanning running goroutines.
+	runtime·parforsetup(runtime·work.markfor, runtime·work.nproc, RootCount + allglen, nil, false, markroot);
+	runtime·parfordo(runtime·work.markfor);
+	
+	runtime·lock(&runtime·allglock);	
+
+	allg = runtime·allg;
+	// Check that gc work is done. 
+	for(i = 0; i < allglen; i++) {
+		gp = allg[i];
+		if(!gp->gcworkdone) {
+			runtime·throw("scan missed a g");
+		}
+	}
+	runtime·unlock(&runtime·allglock);
+
+	runtime·gcphase = oldphase;
+	runtime·casgstatus(mastergp, Gwaiting, Grunning);
+	// Let the g that called us continue to run.
 }
 
 static void
@@ -1542,7 +1638,9 @@ gc(struct gc_args *args)
 	uint64 heap0, heap1, obj;
 	GCStats stats;
 	uint32 oldphase;
-	
+	uint32 i;
+	G *gp;
+
 	if(runtime·debug.allocfreetrace)
 		runtime·tracegc();
 
@@ -1554,9 +1652,7 @@ gc(struct gc_args *args)
 	if(runtime·debug.gctrace)
 		t1 = runtime·nanotime();
 
-	// Sweep what is not sweeped by bgsweep.
-	while(runtime·sweepone() != -1)
-		runtime·sweep.npausesweep++;
+	runtime·finishsweep_m();
 
 	// Cache runtime·mheap.allspans in work.spans to avoid conflicts with
 	// resizing/freeing allspans.
@@ -1580,7 +1676,13 @@ gc(struct gc_args *args)
 	runtime·work.nwait = 0;
 	runtime·work.ndone = 0;
 	runtime·work.nproc = runtime·gcprocs(); 
-	runtime·gcphase = GCmark;              //^^  vv
+	runtime·gcphase = GCmark;
+
+	// World is stopped so allglen will not change.
+	for(i = 0; i < runtime·allglen; i++) {
+		gp = runtime·allg[i];
+		gp->gcworkdone = false;  // set to true in gcphasework
+	}
 
 	runtime·parforsetup(runtime·work.markfor, runtime·work.nproc, RootCount + runtime·allglen, nil, false, markroot);
 	if(runtime·work.nproc > 1) {
@@ -1596,7 +1698,13 @@ gc(struct gc_args *args)
 	runtime·parfordo(runtime·work.markfor);
 
 	scanblock(nil, 0, nil);
-	runtime·gcphase = oldphase;            //^^  vv
+
+	if(runtime·work.full)
+		runtime·throw("runtime·work.full != nil");
+	if(runtime·work.partial)
+		runtime·throw("runtime·work.partial != nil");
+
+	runtime·gcphase = oldphase;
 	t3 = 0;
 	if(runtime·debug.gctrace)
 		t3 = runtime·nanotime();
@@ -1735,7 +1843,7 @@ readgcstats_m(void)
 	if(pauses->cap < nelem(mstats.pause_ns)+3)
 		runtime·throw("runtime: short slice passed to readGCStats");
 
-	// Pass back: pauses, last gc (absolute time), number of gc, total pause ns.
+	// Pass back: pauses, last GC (absolute time), number of GC, total pause ns.
 	p = (uint64*)pauses->array;
 	runtime·lock(&runtime·mheap.lock);
 	n = mstats.numgc;

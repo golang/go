@@ -343,11 +343,6 @@ struct MCache
 	StackFreeList stackcache[NumStackOrders];
 
 	SudoG*	sudogcache;
-	// Cached P local buffer holding grey objects (marked by not yet scanned)
-	// Used by mutator for write barrier work.
-	// GC uses the mcache of the P it is running on for stack and global scanning 
-	// work as well marking.
-	Workbuf*	gcworkbuf;
 
 	// Local allocator stats, flushed during GC.
 	uintptr local_nlookup;		// number of pointer lookups

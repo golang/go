@@ -649,6 +649,7 @@ struct ForceGCState
 };
 
 extern uint32 runtime·gcphase;
+extern Mutex runtime·allglock;
 
 /*
  * defined macros
@@ -677,6 +678,7 @@ enum {
 
 uint32  runtime·readgstatus(G*);
 void    runtime·casgstatus(G*, uint32, uint32);
+bool    runtime·castogscanstatus(G*, uint32, uint32);
 void    runtime·quiesce(G*);
 bool    runtime·stopg(G*);
 void    runtime·restartg(G*);
