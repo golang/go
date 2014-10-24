@@ -108,14 +108,14 @@ Pconv(Fmt *fp)
 		if(p->mark & NOSCHED)
 			s += sprint(s, "*");
 		if(p->reg == NREG && p->from3.type == D_NONE)
-			sprint(s, "%.5lld (%d)	%A	%D,%D", p->pc, p->lineno, a, &p->from, &p->to);
+			sprint(s, "%.5lld (%L)	%A	%D,%D", p->pc, p->lineno, a, &p->from, &p->to);
 		else
 		if(a != ATEXT && p->from.type == D_OREG) {
-			sprint(s, "%.5lld (%d)	%A	%lld(R%d+R%d),%D", p->pc, p->lineno, a,
+			sprint(s, "%.5lld (%L)	%A	%lld(R%d+R%d),%D", p->pc, p->lineno, a,
 				p->from.offset, p->from.reg, p->reg, &p->to);
 		} else
 		if(p->to.type == D_OREG) {
-			sprint(s, "%.5lld (%d)	%A	%D,%lld(R%d+R%d)", p->pc, p->lineno, a,
+			sprint(s, "%.5lld (%L)	%A	%D,%lld(R%d+R%d)", p->pc, p->lineno, a,
 					&p->from, p->to.offset, p->to.reg, p->reg);
 		} else {
 			s += sprint(s, "%.5lld (%L)	%A	%D", p->pc, p->lineno, a, &p->from);
