@@ -614,7 +614,7 @@ walkexpr(Node **np, NodeList **init)
 		if(oaslit(n, init))
 			goto ret;
 
-		if(n->right == N)
+		if(n->right == N || iszero(n->right) && !flag_race)
 			goto ret;
 
 		switch(n->right->op) {
@@ -1390,12 +1390,6 @@ walkexpr(Node **np, NodeList **init)
 	case OMAPLIT:
 	case OSTRUCTLIT:
 	case OPTRLIT:
-		// NOTE(rsc): Race detector cannot handle seeing
-		// a STRUCTLIT or ARRAYLIT representing a zero value,
-		// so make a temporary for those always in race mode.
-		// Otherwise, leave zero values in place.
-		if(iszero(n) && !flag_race)
-			goto ret;
 		var = temp(n->type);
 		anylit(0, n, var, init);
 		n = var;
