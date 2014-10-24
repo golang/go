@@ -112,6 +112,9 @@ func (b *Builder) todo(kinds []string, pkg, goHash string) (kind, rev string, be
 	if resp == nil {
 		return
 	}
+	if *verbose {
+		fmt.Printf("dash resp: %+v\n", *resp)
+	}
 	for _, k := range kinds {
 		if k == resp.Kind {
 			return resp.Kind, resp.Data.Hash, resp.Data.PerfResults, nil
@@ -204,6 +207,9 @@ func dashboardPackages(kind string) []string {
 	if err := dash("GET", "packages", args, nil, &resp); err != nil {
 		log.Println("dashboardPackages:", err)
 		return nil
+	}
+	if *verbose {
+		fmt.Printf("dash resp: %+v\n", resp)
 	}
 	var pkgs []string
 	for _, r := range resp {
