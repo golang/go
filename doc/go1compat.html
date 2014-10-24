@@ -104,6 +104,14 @@ outside of tests, and using it may cause a program to fail
 to compile in future releases.
 </li>
 
+<li>
+Use of package <code>unsafe</code>. Packages that import
+<a href="/pkg/unsafe/"><code>unsafe</code></a>
+may depend on internal properties of the Go implementation.
+We reserve the right to make changes to the implementation
+that may break such programs.
+</li>
+
 </ul>
 
 <p>
