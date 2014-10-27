@@ -1,0 +1,256 @@
+<!--{
+	"Title": "Go 1.4 Release Notes",
+	"Path":  "/doc/go1.4",
+	"Template": true
+}-->
+
+<h2 id="introduction">Introduction to Go 1.4</h2>
+
+<p>
+The latest Go release, version 1.4, arrives as scheduled six months after 1.3
+and contains only one tiny language change,
+a backwards-compatible simple form of <code>for</code>-<code>range</code> loop.
+The release focuses primarily on implementation work, improving the garbage collector
+and preparing the ground for a fully concurrent collector to be rolled out in the
+next few releases.
+Stacks are now contiguous, reallocated when necessary rather than linking on new
+"segments";
+this release therefore eliminates the notorious "hot stack split" problem.
+There are some new tools available including support in the <code>go</code> command
+for build-time source code generation
+and TODO.
+The release also adds support for TODO architecture and TODO operating systems.
+As always, Go 1.4 keeps the <a href="/doc/go1compat.html">promise
+of compatibility</a>,
+and almost everything 
+will continue to compile and run without change when moved to 1.4.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<h3 id="forrange">For-range loops</h3>
+<p>
+Up until Go 1.3, <code>for</code>-<code>range</code> loop had two forms
+</p>
+
+<pre>
+for k, v := range x {
+	...
+}
+</pre>
+
+<p>
+and
+</p>
+
+<pre>
+for k := range x {
+	...
+}
+</pre>
+
+<p>
+If one was not interested in the loop values, only the iteration itself, it was still
+necessary to mention a variable (probably the <a href="/ref/spec#Blank_identifier">blank identifier</a>, as in
+<code>for</code> <code>_</code> <code>=</code> <code>range</code> <code>x</code>), because
+the form
+</p>
+
+<pre>
+for range x {
+	...
+}
+</pre>
+
+<p>
+was not syntactically permitted.
+</p>
+
+<p>
+This situation seemed awkward, so as of Go 1.4 the variable-free form is now legal.
+The situation arises only rarely but the code can be cleaner when it does.
+</p>
+
+<p>
+<em>Updating</em>: The change is strictly backwards compatible to existing Go
+programs, but tools that analyze Go parse trees may need to be modified to accept
+this new form as the
+<code>Key</code> field of <a href="/pkg/go/ast/#RangeStmt"><code>RangeStmt</code></a>
+may now be <code>nil</code>.
+</p>
+
+<h2 id="os">Changes to the supported operating systems and architectures</h2>
+
+<h3 id="foobarblatz">FooBarBlatz</h3>
+
+<p>
+TODO news about foobarblatz
+</p>
+
+<h2 id="compatibility">Changes to the compatibility guidelines</h2>
+
+<p>
+The <a href="/pkg/unsafe/"><code>unsafe</code></a> package allows one
+to defeat Go's type system by exploiting internal details of the implementation
+or machine representation of data.
+It was never explicitly specified what use of <code>unsafe</code> meant
+with respect to compatibility as specified in the
+<a href="go1compat.html">Go compatibilty guidelines</a>.
+The answer, of course, is that we can make no promise of compatibility
+for code that does unsafe things.
+</p>
+
+<p>
+We have clarified this situation in the documentation included in the release.
+The <a href="go1compat.html">Go compatibilty guidelines</a> and the
+docs for the <a href="/pkg/unsafe/"><code>unsafe</code></a> package
+are now explicit that unsafe code is not guaranteed to remain compatible.
+</p>
+  
+<p>
+<em>Updating</em>: Nothing technical has changed; this is just a clarification
+of the documentation.
+</p>
+
+
+<h2 id="impl">Changes to the implementations and tools</h2>
+
+<h3 id="garbage_collector">Changes to the garbage collector</h3>
+
+<p>
+TODO news about garbage collection
+</p>
+
+<h3 id="stacks">Stack</h3>
+
+<p>
+TODO news about stacks
+</p>
+
+<h3 id="gccgo">Status of gccgo</h3>
+
+<p>
+TODO gccgo news
+</p>
+
+<h3 id="gocmd">Changes to the go command</h3>
+
+<p>
+TODO go command news
+</p>
+
+<h3 id="cgo">Changes to cgo</h3>
+
+<p>
+TODO cgo news
+</p>
+
+
+<h3 id="godoc">Changes to godoc</h3>
+<p>
+TODO godoc news
+</p>
+
+<h3 id="pkg">Changes to package source layout</h3>
+
+<p>
+In the main Go source repository, the source code for the packages was kept in
+the directory <code>src/pkg</code>, which made sense but differed from
+other repositories, including the Go sub-repositories such as <code>go.tools</code>.
+In Go 1.4, the<code> pkg</code> level of the source tree is now gone, so for example
+the <a href="/pkg/fmt/"><code>fmt</code></a> package's source, once kept in
+directory <code>src/pkg/fmt</code>, now lives one level higher in <code>src/fmt</code>.
+</p>
+
+<p>
+<em>Updating</em>: Tools like <code>godoc</code> that discover source code
+need to know about the new location. All tools and services maintained by the Go team
+have been updated.
+</p>
+
+<h3 id="misc">Miscellany</h3>
+
+<p>
+TODO misc news
+</p>
+
+<h2 id="performance">Performance</h2>
+
+<p>
+TODO performance news
+</p>
+
+<h2 id="library">Changes to the standard library</h2>
+
+<h3 id="new_packages">New packages</h3>
+
+<p>
+TODO new packages
+</p>
+
+<h3 id="major_library_changes">Major changes to the library</h3>
+
+<p>
+TODO major changes
+</p>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+The following list summarizes a number of minor changes to the library, mostly additions.
+See the relevant package documentation for more information about each change.
+</p>
+
+<ul>
+
+<li> TODO changes
+</li>
+</ul>
+
+<pre>
+
+the directory src/pkg has been deleted, for instance src/pkg/fmt is now just src/fmt (CL 134570043)
+
+cmd/6l, liblink: use pc-relative addressing for all memory references, so that linking Go binaries at high addresses works (CL 125140043). This cuts the maximum size of a Go binary's text+data+bss from 4GB to 2GB.
+cmd/go: import comments (CL 124940043)
+cmd/go: implement "internal" (CL 120600043)
+cmd/go: implement "generate" (CL 125580044)
+cmd/go: disallow C sources except when using cgo (CL 149720043)
+cmd/go: add test -o flag (CL 149070043)
+cmd/go: redefine build -a to skip standard library in releases (CL 151730045)
+cmd/go: compile and link all _test.go files during 'go test', even in packages where there are no Test functions (CL 150980043)
+cmd/go: (via go/build): a GOOS prefix acts as a tag only if preceded by an underscore. this is a breaking change. (CL 147690043)
+
+asm: make textflag.h available outside of cmd/ld (CL 128050043)
+bufio: handling of empty tokens at EOF changed, may require scanner change (CL 145390043)
+compress/flate, compress/gzip, compress/zlib: Reset support (https://codereview.appspot.com/97140043)
+crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
+crypto/tls: support programmatic selection of server certificates (CL 107400043)
+encoding/asn1: optional elements with a default value will now only be omitted if they have that value (CL 86960045)
+flag: it is now an error to set a flag multiple times (CL 156390043)
+fmt: print type *map[T]T as &amp;map[k:v] (CL 154870043)
+encoding/csv: do not quote empty strings, quote \. (CL 164760043)
+encoding/gob: remove unsafe (CL 102680045)
+misc: deleted editor support; refer to https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins instead (CL 105470043)
+net/http: add Request.BasicAuth method (CL 76540043)
+net/http: add Transport.DialTLS hook (CL 137940043)
+net/http/httputil: add ReverseProxy.ErrorLog (CL 132750043)
+os: implement symlink support for windows (CL 86160044)
+reflect: add type.Comparable (CL 144020043)
+runtime: implement monotonic clocks on windows (CL 108700045)
+runtime: memory consumption is reduced by 10-30% (CL 106260045 removes type info from heap, CL 145790043 reduces stack size to 2K (4K on plan 9 and windows))
+runtime: MemStats.Mallocs now counts very small allocations missed in Go 1.3. This may break tests using runtime.ReadMemStats or testing.AllocsPerRun by giving a more accurate answer than Go 1.3 did (CL 143150043).
+runtime/race: freebsd is supported (CL 107270043)
+swig: Due to runtime changes Go 1.4 will require SWIG 3.0.3 (not yet released)
+sync/atomic: add Value (CL 136710045)
+syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved (CL 106170043)
+syscall: now frozen (CL 129820043)
+testing: add Coverage (CL 98150043)
+testing: add TestMain support (CL 148770043)
+text/scanner: add IsIdentRune field of Scanner. (CL 108030044)
+text/template: allow comparison of signed and unsigned integers (CL 149780043)
+time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)
+unsafe: document the existing situation that unsafe programs are not go1-guaranteed (CL 162060043)
+
+go.sys subrepo created: http://golang.org/s/go1.4-syscall
+</pre>
