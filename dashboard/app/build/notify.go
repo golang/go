@@ -36,13 +36,11 @@ const (
 // ignoreFailure is a set of builders that we don't email about because
 // they are not yet production-ready.
 var ignoreFailure = map[string]bool{
-	"dragonfly-386":           true,
-	"dragonfly-amd64":         true,
-	"netbsd-amd64-bsiegert":   true,
-	"netbsd-arm-rpi":          true,
-	"solaris-amd64-smartos":   true,
-	"solaris-amd64-solaris11": true,
-	"plan9-amd64-aram":        true,
+	"dragonfly-386":         true,
+	"dragonfly-amd64":       true,
+	"netbsd-amd64-bsiegert": true,
+	"netbsd-arm-rpi":        true,
+	"plan9-amd64-aram":      true,
 }
 
 // notifyOnFailure checks whether the supplied Commit or the subsequent
