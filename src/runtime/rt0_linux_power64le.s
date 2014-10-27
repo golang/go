@@ -1,6 +1,6 @@
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
-TEXT _rt0_power64le_linux(SB),7,$0
+TEXT _rt0_power64le_linux(SB),NOSPLIT,$0
 	BR _main<>(SB)
 
 TEXT _main<>(SB),NOSPLIT,$-8
@@ -9,6 +9,6 @@ TEXT _main<>(SB),NOSPLIT,$-8
 	BR main(SB)
 
 TEXT main(SB),NOSPLIT,$-8
-	MOVD	$_rt0_go(SB), R31
+	MOVD	$runtime·rt0_go(SB), R31
 	MOVD	R31, CTR
 	BR	(CTR)

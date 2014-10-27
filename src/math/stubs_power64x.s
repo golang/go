@@ -4,7 +4,7 @@
 
 // +build power64 power64le
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT ·Asin(SB),NOSPLIT,$0
 	BR ·asin(SB)
