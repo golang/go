@@ -84,10 +84,13 @@ func symtabinit() {
 		}
 	}
 
-	// file table follows ftab.
+	// The ftab ends with a half functab consisting only of
+	// 'entry', followed by a uint32 giving the pcln-relative
+	// offset of the file table.
 	sp = (*sliceStruct)(unsafe.Pointer(&filetab))
-	p = unsafe.Pointer(add(unsafe.Pointer(pcln), ftab[nftab].funcoff))
-	sp.array = unsafe.Pointer(add(unsafe.Pointer(pcln), ftab[nftab].funcoff))
+	end := unsafe.Pointer(&ftab[nftab].funcoff) // just beyond ftab
+	fileoffset := *(*uint32)(end)
+	sp.array = unsafe.Pointer(&pclntable[fileoffset])
 	// length is in first element of array.
 	// set len to 1 so we can get first element.
 	sp.len = 1
@@ -224,7 +227,7 @@ func funcline(f *_func, targetpc uintptr, file *string) int32 {
 func funcspdelta(f *_func, targetpc uintptr) int32 {
 	x := pcvalue(f, f.pcsp, targetpc, true)
 	if x&(ptrSize-1) != 0 {
-		print("invalid spdelta ", f.pcsp, " ", x, "\n")
+		print("invalid spdelta ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
 	}
 	return x
 }
