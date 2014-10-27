@@ -571,6 +571,7 @@ enum {
 #endif
 
 // Lock-free stack node.
+// Also known to export_test.go.
 struct LFNode
 {
 	uint64	next;
