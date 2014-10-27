@@ -232,6 +232,7 @@ static Optab	optab[] = {
 	{ AMOVBZ,	C_REG,	C_NONE, C_NONE, 	C_LAUTO,	35, 8, REGSP },
 	{ AMOVB,	C_REG,	C_NONE, C_NONE, 	C_LAUTO,	35, 8, REGSP },
 	{ AMOVD,	C_REG,	C_NONE, C_NONE, 	C_LOREG,	35, 8, REGZERO },
+	{ AMOVW,	C_REG,	C_NONE, C_NONE, 	C_LOREG,	35, 8, REGZERO },
 	{ AMOVWZ,	C_REG,	C_NONE, C_NONE, 	C_LOREG,	35, 8, REGZERO },
 	{ AMOVBZ,	C_REG,	C_NONE, C_NONE, 	C_LOREG,	35, 8, REGZERO },
 	{ AMOVB,	C_REG,	C_NONE, C_NONE, 	C_LOREG,	35, 8, REGZERO },
@@ -349,8 +350,12 @@ static Optab	optab[] = {
 
 	{ AREM,		C_REG,	C_NONE, C_NONE, 	C_REG,		50, 12, 0 },
 	{ AREM,		C_REG,	C_REG, C_NONE, 	C_REG,		50, 12, 0 },
+	{ AREMU,		C_REG,	C_NONE, C_NONE, 	C_REG,		50, 16, 0 },
+	{ AREMU,		C_REG,	C_REG, C_NONE, 	C_REG,		50, 16, 0 },
 	{ AREMD,		C_REG,	C_NONE, C_NONE, 	C_REG,		51, 12, 0 },
 	{ AREMD,		C_REG,	C_REG, C_NONE, 	C_REG,		51, 12, 0 },
+	{ AREMDU,		C_REG,	C_NONE, C_NONE, 	C_REG,		51, 12, 0 },
+	{ AREMDU,		C_REG,	C_REG, C_NONE, 	C_REG,		51, 12, 0 },
 
 	{ AMTFSB0,	C_SCON,	C_NONE, C_NONE, 	C_NONE,		52, 4, 0 },
 	{ AMOVFL, C_FPSCR, C_NONE, C_NONE,	C_FREG,		53, 4, 0 },
@@ -433,11 +438,10 @@ static Optab	optab[] = {
 	{ AUSEFIELD,	C_ADDR,	C_NONE,	C_NONE, C_NONE,	0, 0, 0 },
 	{ APCDATA,	C_LCON,	C_NONE,	C_NONE, C_LCON,	0, 0, 0 },
 	{ AFUNCDATA,	C_SCON,	C_NONE,	C_NONE, C_ADDR,	0, 0, 0 },
+	{ ANOP,		C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0 },
 
 	{ ADUFFZERO,	C_NONE,	C_NONE, C_NONE,	C_LBRA,	11, 4, 0 },  // same as ABR/ABL
 	{ ADUFFCOPY,	C_NONE,	C_NONE, C_NONE,	C_LBRA,	11, 4, 0 },  // same as ABR/ABL
-
-	{ ANOP,		C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0 },
 
 	{ AXXX,		C_NONE,	C_NONE, C_NONE, 	C_NONE,		 0, 4, 0 },
 };
@@ -472,7 +476,7 @@ static struct
 	Optab*	stop;
 } oprange[ALAST];
 
-static char	xcmp[C_NCLASS][C_NCLASS];
+static uchar	xcmp[C_NCLASS][C_NCLASS];
 
 
 void
@@ -747,7 +751,7 @@ static Optab*
 oplook(Link *ctxt, Prog *p)
 {
 	int a1, a2, a3, a4, r;
-	char *c1, *c3, *c4;
+	uchar *c1, *c3, *c4;
 	Optab *o, *e;
 
 	a1 = p->optab;
@@ -931,6 +935,8 @@ buildop(Link *ctxt)
 			oprange[AREMCC] = oprange[r];
 			oprange[AREMV] = oprange[r];
 			oprange[AREMVCC] = oprange[r];
+			break;
+		case AREMU:
 			oprange[AREMU] = oprange[r];
 			oprange[AREMUCC] = oprange[r];
 			oprange[AREMUV] = oprange[r];
@@ -940,6 +946,8 @@ buildop(Link *ctxt)
 			oprange[AREMDCC] = oprange[r];
 			oprange[AREMDV] = oprange[r];
 			oprange[AREMDVCC] = oprange[r];
+			break;
+		case AREMDU:
 			oprange[AREMDU] = oprange[r];
 			oprange[AREMDUCC] = oprange[r];
 			oprange[AREMDUV] = oprange[r];
@@ -2005,6 +2013,11 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 		o1 = AOP_RRR(v&~t, REGTMP, r, p->from.reg);
 		o2 = AOP_RRR(OP_MULLW, REGTMP, REGTMP, p->from.reg);
 		o3 = AOP_RRR(OP_SUBF|t, p->to.reg, REGTMP, r);
+		if(p->as == AREMU) {
+			o4 = o3;
+			/* Clear top 32 bits */
+			o3 = OP_RLW(OP_RLDIC, REGTMP, REGTMP, 0, 0, 0) | (1<<5);
+		}
 		break;
 
 	case 51:	/* remd[u] r1[,r2],r3 */
@@ -2264,54 +2277,6 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 	out[3] = o4;
 	out[4] = o5;
 	return;
-
-#if NOTDEF
-	v = p->pc;
-	switch(o->size) {
-	default:
-		if(debug['a'])
-			Bprint(&bso, " %.8lux:\t\t%P\n", v, p);
-		break;
-	case 4:
-		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux\t%P\n", v, o1, p);
-		lput(o1);
-		break;
-	case 8:
-		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux %.8lux%P\n", v, o1, o2, p);
-		lput(o1);
-		lput(o2);
-		break;
-	case 12:
-		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux %.8lux %.8lux%P\n", v, o1, o2, o3, p);
-		lput(o1);
-		lput(o2);
-		lput(o3);
-		break;
-	case 16:
-		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux %.8lux %.8lux %.8lux%P\n",
-				v, o1, o2, o3, o4, p);
-		lput(o1);
-		lput(o2);
-		lput(o3);
-		lput(o4);
-		break;
-	case 20:
-		if(debug['a'])
-			Bprint(&bso, " %.8lux: %.8lux %.8lux %.8lux %.8lux %.8lux%P\n",
-				v, o1, o2, o3, o4, o5, p);
-		lput(o1);
-		lput(o2);
-		lput(o3);
-		lput(o4);
-		lput(o5);
-		break;
-	}
-	return 0;
-#endif
 }
 
 static vlong
