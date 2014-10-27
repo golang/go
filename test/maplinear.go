@@ -45,11 +45,11 @@ func checkLinear(typ string, tries int, f func(n int)) {
 			return
 		}
 		fails++
-		if fails == 6 {
+		if fails == 12 {
 			panic(fmt.Sprintf("%s: too slow: %d inserts: %v; %d inserts: %v\n",
 				typ, n, t1, 2*n, t2))
 		}
-		if fails < 4 {
+		if fails < 10 {
 			n *= 2
 		}
 	}
