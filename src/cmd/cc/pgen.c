@@ -72,7 +72,7 @@ argsize(int doret)
 	if(doret && thisfn->link->etype != TVOID) {
 		s = align(s, thisfn->link, Aarg1, nil);
 		s = align(s, thisfn->link, Aarg2, nil);
-		if(thechar == '6')
+		if(thechar == '6' || thechar == '9')
 			s = (s+7) & ~7;
 		else
 			s = (s+3) & ~3;
