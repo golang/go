@@ -455,7 +455,7 @@ func buildPerfTodo(c appengine.Context, builder string) (*PerfTodo, error) {
 				nums = append(nums, num)
 			}
 		}
-		todo.CommitNums = orderPrefTodo(nums)
+		todo.CommitNums = orderPerfTodo(nums)
 		todo.CommitNums = append(todo.CommitNums, releaseNums...)
 		if _, err = datastore.Put(c, todo.Key(c), todo); err != nil {
 			return fmt.Errorf("putting PerfTodo: %v", err)

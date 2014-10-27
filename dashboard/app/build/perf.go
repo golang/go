@@ -246,14 +246,14 @@ func significantPerfChanges(pc *PerfConfig, builder string, prevRes, res *PerfRe
 	return changes
 }
 
-// orderPrefTodo reorders commit nums for benchmarking todo.
+// orderPerfTodo reorders commit nums for benchmarking todo.
 // The resulting order is somewhat tricky. We want 2 things:
 // 1. benchmark sequentially backwards (this provides information about most
 // recent changes, and allows to estimate noise levels)
 // 2. benchmark old commits in "scatter" order (this allows to quickly gather
 // brief information about thousands of old commits)
 // So this function interleaves the two orders.
-func orderPrefTodo(nums []int) []int {
+func orderPerfTodo(nums []int) []int {
 	sort.Ints(nums)
 	n := len(nums)
 	pow2 := uint32(0) // next power-of-two that is >= n
