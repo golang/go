@@ -199,7 +199,7 @@ parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
 static void
 addstacksplit(Link *ctxt, LSym *cursym)
 {
-	Prog *p, *q, *q1;
+	Prog *p, *q, *p1, *p2, *q1;
 	int o, mov, aoffset;
 	vlong textstksiz, textarg;
 	int32 autoffset, autosize;
@@ -472,32 +472,92 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				q->spadj = -aoffset;
 
 			if(cursym->text->reg & WRAPPER) {
-				// g->panicwrap += autosize;
-				// MOVWZ panicwrap_offset(g), R3
-				// ADD $autosize, R3
-				// MOVWZ R3, panicwrap_offset(g)
-				p = appendp(ctxt, q);
-				p->as = AMOVWZ;
+				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+				//
+				//	MOVD g_panic(g), R3
+				//	CMP R0, R3
+				//	BEQ end
+				//	MOVD panic_argp(R3), R4
+				//	ADD $(autosize+8), R1, R5
+				//	CMP R4, R5
+				//	BNE end
+				//	ADD $8, R1, R6
+				//	MOVD R6, panic_argp(R3)
+				// end:
+				//	NOP
+				//
+				// The NOP is needed to give the jumps somewhere to land.
+				// It is a liblink NOP, not a Power64 NOP: it encodes to 0 instruction bytes.
+
+
+				p = appendp(ctxt, p);
+				p->as = AMOVD;
 				p->from.type = D_OREG;
 				p->from.reg = REGG;
-				p->from.offset = 2*ctxt->arch->ptrsize;
+				p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
 				p->to.type = D_REG;
 				p->to.reg = 3;
+
+				p = appendp(ctxt, p);
+				p->as = ACMP;
+				p->from.type = D_REG;
+				p->from.reg = 0;
+				p->to.type = D_REG;
+				p->to.reg = 3;
+
+				p = appendp(ctxt, p);
+				p->as = ABEQ;
+				p->to.type = D_BRANCH;
+				p1 = p;
+
+				p = appendp(ctxt, p);
+				p->as = AMOVD;
+				p->from.type = D_OREG;
+				p->from.reg = 3;
+				p->from.offset = 0; // Panic.argp
+				p->to.type = D_REG;
+				p->to.reg = 4;
 
 				p = appendp(ctxt, p);
 				p->as = AADD;
 				p->from.type = D_CONST;
-				p->from.offset = autosize;
+				p->from.offset = autosize+8;
+				p->reg = REGSP;
 				p->to.type = D_REG;
-				p->to.reg = 3;
+				p->to.reg = 5;
 
 				p = appendp(ctxt, p);
-				p->as = AMOVWZ;
+				p->as = ACMP;
 				p->from.type = D_REG;
-				p->from.reg = 3;
+				p->from.reg = 4;
+				p->to.type = D_REG;
+				p->to.reg = 5;
+
+				p = appendp(ctxt, p);
+				p->as = ABNE;
+				p->to.type = D_BRANCH;
+				p2 = p;
+
+				p = appendp(ctxt, p);
+				p->as = AADD;
+				p->from.type = D_CONST;
+				p->from.offset = 8;
+				p->reg = REGSP;
+				p->to.type = D_REG;
+				p->to.reg = 6;
+
+				p = appendp(ctxt, p);
+				p->as = AMOVD;
+				p->from.type = D_REG;
+				p->from.reg = 6;
 				p->to.type = D_OREG;
-				p->to.reg = REGG;
-				p->to.offset = 2*ctxt->arch->ptrsize;
+				p->to.reg = 3;
+				p->to.offset = 0; // Panic.argp
+
+				p = appendp(ctxt, p);
+				p->as = ANOP;
+				p1->pcond = p;
+				p2->pcond = p;
 			}
 
 			break;
@@ -511,36 +571,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				p->as = ABR;
 				p->to.type = D_BRANCH;
 				break;
-			}
-			if(cursym->text->reg & WRAPPER) {
-				// g->panicwrap -= autosize;
-				// MOVWZ panicwrap_offset(g), R3
-				// ADD $-autosize, R3
-				// MOVWZ R3, panicwrap_offset(g)
-				p->as = AMOVWZ;
-				p->from.type = D_OREG;
-				p->from.reg = REGG;
-				p->from.offset = 2*ctxt->arch->ptrsize;
-				p->to.type = D_REG;
-				p->to.reg = 3;
-				p = appendp(ctxt, p);
-
-				p->as = AADD;
-				p->from.type = D_CONST;
-				p->from.offset = -autosize;
-				p->to.type = D_REG;
-				p->to.reg = 3;
-				p = appendp(ctxt, p);
-
-				p->as = AMOVWZ;
-				p->from.type = D_REG;
-				p->from.reg = 3;
-				p->to.type = D_OREG;
-				p->to.reg = REGG;
-				p->to.offset = 2*ctxt->arch->ptrsize;
-				p = appendp(ctxt, p);
-
-				p->as = ARETURN;
 			}
 			if(cursym->text->mark & LEAF) {
 				if(!autosize) {
@@ -673,18 +703,19 @@ addstacksplit(Link *ctxt, LSym *cursym)
 static Prog*
 stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 {
-	int32 arg;
-	Prog *q, *q1;
+	Prog *q1;
 
 	// MOVD	g_stackguard(g), R3
 	p = appendp(ctxt, p);
 	p->as = AMOVD;
 	p->from.type = D_OREG;
 	p->from.reg = REGG;
+	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
+	if(ctxt->cursym->cfunc)
+		p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 	p->to.type = D_REG;
 	p->to.reg = 3;
 
-	q = nil;
 	if(framesize <= StackSmall) {
 		// small stack: SP < stackguard
 		//	CMP	stackguard, SP
@@ -735,7 +766,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		p->to.type = D_CONST;
 		p->to.offset = StackPreempt;
 
-		q = p = appendp(ctxt, p);
+		p = appendp(ctxt, p);
 		p->as = ABEQ;
 		p->to.type = D_BRANCH;
 
@@ -774,31 +805,6 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 	p->as = ABLT;
 	p->to.type = D_BRANCH;
 
-	// MOVD	$framesize, R3
-	p = appendp(ctxt, p);
-	p->as = AMOVD;
-	p->from.type = D_CONST;
-	p->from.offset = framesize;
-	p->to.type = D_REG;
-	p->to.reg = 3;
-	if(q)
-		q->pcond = p;
-
-	// MOVD	$args, R4
-	p = appendp(ctxt, p);
-	p->as = AMOVD;
-	p->from.type = D_CONST;
-	arg = (ctxt->cursym->text->to.offset >> 32) & 0xffffffffull;
-	if(arg == 1) // special marker for known 0
-		arg = 0;
-	else if(arg == ArgsSizeUnknown)
-		ctxt->diag("%s: arg size unknown, but split stack", ctxt->cursym->name);
-	if(arg&7)
-		ctxt->diag("misaligned argument size in stack split: %d", arg);
-	p->from.offset = arg;
-	p->to.type = D_REG;
-	p->to.reg = 4;
-
 	// MOVD	LR, R5
 	p = appendp(ctxt, p);
 	p->as = AMOVD;
@@ -811,7 +817,10 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 	p = appendp(ctxt, p);
 	p->as = ABL;
 	p->to.type = D_BRANCH;
-	p->to.sym = ctxt->symmorestack[noctxt];
+	if(ctxt->cursym->cfunc)
+		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
+	else
+		p->to.sym = ctxt->symmorestack[noctxt];
 
 	// BR	start
 	p = appendp(ctxt, p);
@@ -1010,6 +1019,7 @@ LinkArch linkpower64 = {
 	.D_PARAM = D_PARAM,
 	.D_SCONST = D_SCONST,
 	.D_STATIC = D_STATIC,
+	.D_OREG = D_OREG,
 
 	.ACALL = ABL,
 	.ADATA = ADATA,
@@ -1056,6 +1066,7 @@ LinkArch linkpower64le = {
 	.D_PARAM = D_PARAM,
 	.D_SCONST = D_SCONST,
 	.D_STATIC = D_STATIC,
+	.D_OREG = D_OREG,
 
 	.ACALL = ABL,
 	.ADATA = ADATA,
