@@ -4,7 +4,7 @@
 
 // +build power64 power64le
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // void runtime·memclr(void*, uintptr)
 TEXT runtime·memclr(SB),NOSPLIT,$0-16

@@ -4,7 +4,7 @@
 
 // +build power64 power64le
 
-#include "../../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 TEXT ·SwapInt32(SB),NOSPLIT,$0-20
 	BR	·SwapUint32(SB)

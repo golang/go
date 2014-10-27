@@ -1,7 +1,7 @@
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // actually a function descriptor for _main<>(SB)
-TEXT _rt0_power64_linux(SB),7,$0
+TEXT _rt0_power64_linux(SB),NOSPLIT,$0
 	DWORD $_main<>(SB)
 	DWORD $0
 	DWORD $0
@@ -12,6 +12,6 @@ TEXT _main<>(SB),NOSPLIT,$-8
 	BR main(SB)
 
 TEXT main(SB),NOSPLIT,$-8
-	MOVD	$_rt0_go(SB), R31
+	MOVD	$runtime·rt0_go(SB), R31
 	MOVD	R31, CTR
 	BR	(CTR)

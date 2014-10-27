@@ -10,7 +10,7 @@
 //
 
 #include "zasm_GOOS_GOARCH.h"
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 #define SYS_exit		  1
 #define SYS_read		  3
@@ -44,49 +44,54 @@
 #define SYS_clock_gettime	246
 #define SYS_epoll_create1	315
 
-TEXT runtime·exit(SB),NOSPLIT,$-8-8
-	MOVW	8(R1), R3
+TEXT runtime·exit(SB),NOSPLIT,$-8-4
+	MOVW	code+0(FP), R3
 	SYSCALL	$SYS_exit_group
 	RETURN
 
-TEXT runtime·exit1(SB),NOSPLIT,$-8-8
-	MOVW	8(R1), R3
+TEXT runtime·exit1(SB),NOSPLIT,$-8-4
+	MOVW	code+0(FP), R3
 	SYSCALL	$SYS_exit
 	RETURN
 
-TEXT runtime·open(SB),NOSPLIT,$-8-16
-	MOVD	8(R1), R3
-	MOVW	16(R1), R4
-	MOVW	20(R1), R5
+TEXT runtime·open(SB),NOSPLIT,$-8-20
+	MOVD	name+0(FP), R3
+	MOVW	mode+8(FP), R4
+	MOVW	perm+12(FP), R5
 	SYSCALL	$SYS_open
+	MOVW	R3, ret+16(FP)
 	RETURN
 
-TEXT runtime·close(SB),NOSPLIT,$-8-16
-	MOVW	8(R1), R3
+TEXT runtime·close(SB),NOSPLIT,$-8-12
+	MOVW	fd+0(FP), R3
 	SYSCALL	$SYS_close
+	MOVW	R3, ret+8(FP)
 	RETURN
 
-TEXT runtime·write(SB),NOSPLIT,$-8-24
-	MOVD	8(R1), R3
-	MOVD	16(R1), R4
-	MOVW	24(R1), R5
+TEXT runtime·write(SB),NOSPLIT,$-8-28
+	MOVD	fd+0(FP), R3
+	MOVD	p+8(FP), R4
+	MOVW	n+16(FP), R5
 	SYSCALL	$SYS_write
+	MOVW	R3, ret+24(FP)
 	RETURN
 
-TEXT runtime·read(SB),NOSPLIT,$-8-24
-	MOVW	8(R1), R3
-	MOVD	16(R1), R4
-	MOVW	24(R1), R5
+TEXT runtime·read(SB),NOSPLIT,$-8-28
+	MOVW	fd+0(FP), R3
+	MOVD	p+8(FP), R4
+	MOVW	n+16(FP), R5
 	SYSCALL	$SYS_read
+	MOVW	R3, ret+24(FP)
 	RETURN
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$-8-24
-	MOVW	8(R1), R3
-	MOVD	16(R1), R4
+TEXT runtime·getrlimit(SB),NOSPLIT,$-8-20
+	MOVW	kind+0(FP), R3
+	MOVD	limit+8(FP), R4
 	SYSCALL	$SYS_ugetrlimit
+	MOVW	R3, ret+16(FP)
 	RETURN
 
-TEXT runtime·usleep(SB),NOSPLIT,$-8-16
+TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	MOVW	usec+0(FP), R3
 	MOVD	R3, R5
 	MOVW	$1000000, R4
@@ -113,17 +118,18 @@ TEXT runtime·raise(SB),NOSPLIT,$-8
 	RETURN
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-8-24
-	MOVW	8(R1), R3
-	MOVD	16(R1), R4
-	MOVD	24(R1), R5
+	MOVW	mode+0(FP), R3
+	MOVD	new+8(FP), R4
+	MOVD	old+16(FP), R5
 	SYSCALL	$SYS_setitimer
 	RETURN
 
-TEXT runtime·mincore(SB),NOSPLIT,$-8-24
-	MOVD	8(R1), R3
-	MOVD	16(R1), R4
-	MOVD	24(R1), R5
+TEXT runtime·mincore(SB),NOSPLIT,$-8-28
+	MOVD	addr+0(FP), R3
+	MOVD	n+8(FP), R4
+	MOVD	dst+16(FP), R5
 	SYSCALL	$SYS_mincore
+	MOVW	R3, ret+24(FP)
 	RETURN
 
 // func now() (sec int64, nsec int32)
@@ -150,24 +156,26 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	MOVD	$1000000000, R4
 	MULLD	R4, R3
 	ADD	R5, R3
+	MOVD	R3, ret+0(FP)
 	RETURN
 
-TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-32
-	MOVW	8(R1), R3
-	MOVD	16(R1), R4
-	MOVD	24(R1), R5
-	MOVW	32(R1), R6
+TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
+	MOVW	sig+0(FP), R3
+	MOVD	new+8(FP), R4
+	MOVD	old+16(FP), R5
+	MOVW	size+24(FP), R6
 	SYSCALL	$SYS_rt_sigprocmask
 	BVC	2(PC)
 	MOVD	R0, 0xf1(R0)	// crash
 	RETURN
 
-TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-32
-	MOVD	8(R1), R3
-	MOVD	16(R1), R4
-	MOVD	24(R1), R5
-	MOVD	32(R1), R6
+TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
+	MOVD	sig+0(FP), R3
+	MOVD	new+8(FP), R4
+	MOVD	old+16(FP), R5
+	MOVD	size+24(FP), R6
 	SYSCALL	$SYS_rt_sigaction
+	MOVW	R3, ret+32(FP)
 	RETURN
 
 #ifdef GOARCH_power64le
@@ -214,28 +222,29 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 	RETURN
 
 TEXT runtime·mmap(SB),NOSPLIT,$-8
-	MOVD	8(R1), R3
-	MOVD	16(R1), R4
-	MOVW	24(R1), R5
-	MOVW	28(R1), R6
-	MOVW	32(R1), R7
-	MOVW	36(R1), R8
+	MOVD	addr+0(FP), R3
+	MOVD	n+8(FP), R4
+	MOVW	prot+16(FP), R5
+	MOVW	flags+20(FP), R6
+	MOVW	fd+24(FP), R7
+	MOVW	off+28(FP), R8
 
 	SYSCALL	$SYS_mmap
+	MOVD	R3, ret+32(FP)
 	RETURN
 
 TEXT runtime·munmap(SB),NOSPLIT,$-8
-	MOVD	8(R1), R3
-	MOVD	16(R1), R4
+	MOVD	addr+0(FP), R3
+	MOVD	n+8(FP), R4
 	SYSCALL	$SYS_munmap
 	BVC	2(PC)
 	MOVD	R0, 0xf3(R0)
 	RETURN
 
 TEXT runtime·madvise(SB),NOSPLIT,$-8
-	MOVD	8(R1), R3
-	MOVD	16(R1), R4
-	MOVD	24(R1), R5
+	MOVD	addr+0(FP), R3
+	MOVD	n+8(FP), R4
+	MOVW	flags+16(FP), R5
 	SYSCALL	$SYS_madvise
 	// ignore failure - maybe pages are locked
 	RETURN
@@ -243,19 +252,20 @@ TEXT runtime·madvise(SB),NOSPLIT,$-8
 // int64 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
 TEXT runtime·futex(SB),NOSPLIT,$-8
-	MOVD	8(R1), R3
-	MOVW	16(R1), R4
-	MOVW	20(R1), R5
-	MOVD	24(R1), R6
-	MOVD	32(R1), R7
-	MOVW	40(R1), R8
+	MOVD	addr+0(FP), R3
+	MOVW	op+8(FP), R4
+	MOVW	val+12(FP), R5
+	MOVD	ts+16(FP), R6
+	MOVD	addr2+24(FP), R7
+	MOVW	val3+32(FP), R8
 	SYSCALL	$SYS_futex
+	MOVW	R3, ret+40(FP)
 	RETURN
 
-// int64 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+// int64 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),NOSPLIT,$-8
 	MOVW	flags+0(FP), R3
-	MOVD	stack+8(FP), R4
+	MOVD	stk+8(FP), R4
 
 	// Copy mp, gp, fn off parent stack for use by child.
 	// Careful: Linux system call clobbers ???.
@@ -273,7 +283,8 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 
 	// In parent, return.
 	CMP	R3, $0
-	BEQ	2(PC)
+	BEQ	3(PC)
+	MOVW	R3, ret+40(FP)
 	RETURN
 
 	// In child, on new stack.
@@ -322,45 +333,50 @@ TEXT runtime·osyield(SB),NOSPLIT,$-8
 	RETURN
 
 TEXT runtime·sched_getaffinity(SB),NOSPLIT,$-8
-	MOVD	8(R1), R3
-	MOVD	16(R1), R4
-	MOVD	24(R1), R5
+	MOVD	pid+0(FP), R3
+	MOVD	len+8(FP), R4
+	MOVD	buf+16(FP), R5
 	SYSCALL	$SYS_sched_getaffinity
+	MOVW	R3, ret+24(FP)
 	RETURN
 
 // int32 runtime·epollcreate(int32 size);
 TEXT runtime·epollcreate(SB),NOSPLIT,$-8
-	MOVW    8(R1), R3
+	MOVW    size+0(FP), R3
 	SYSCALL	$SYS_epoll_create
+	MOVW	R3, ret+8(FP)
 	RETURN
 
 // int32 runtime·epollcreate1(int32 flags);
 TEXT runtime·epollcreate1(SB),NOSPLIT,$-8
-	MOVW	8(R1), R3
+	MOVW	flags+0(FP), R3
 	SYSCALL	$SYS_epoll_create1
+	MOVW	R3, ret+8(FP)
 	RETURN
 
-// int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
+// func epollctl(epfd, op, fd int32, ev *epollEvent) int
 TEXT runtime·epollctl(SB),NOSPLIT,$-8
-	MOVW	8(R1), R3
-	MOVW	12(R1), R4
-	MOVW	16(R1), R5
-	MOVD	24(R1), R6
+	MOVW	epfd+0(FP), R3
+	MOVW	op+4(FP), R4
+	MOVW	fd+8(FP), R5
+	MOVD	ev+16(FP), R6
 	SYSCALL	$SYS_epoll_ctl
+	MOVW	R3, ret+24(FP)
 	RETURN
 
 // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
 TEXT runtime·epollwait(SB),NOSPLIT,$-8
-	MOVW	8(R1), R3
-	MOVD	16(R1), R4
-	MOVW	24(R1), R5
-	MOVW	28(R1), R6
+	MOVW	epfd+0(FP), R3
+	MOVD	ev+8(FP), R4
+	MOVW	nev+16(FP), R5
+	MOVW	timeout+20(FP), R6
 	SYSCALL	$SYS_epoll_wait
+	MOVW	R3, ret+24(FP)
 	RETURN
 
 // void runtime·closeonexec(int32 fd);
 TEXT runtime·closeonexec(SB),NOSPLIT,$-8
-	MOVW    8(R1), R3  // fd
+	MOVW    fd+0(FP), R3  // fd
 	MOVD    $2, R4  // F_SETFD
 	MOVD    $1, R5  // FD_CLOEXEC
 	SYSCALL	$SYS_fcntl

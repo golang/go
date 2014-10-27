@@ -4,7 +4,7 @@
 
 // +build power64 power64le
 
-#include "../../cmd/ld/textflag.h"
+#include "textflag.h"
 
 // void runtime·memmove(void*, void*, uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $-8-24
