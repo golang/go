@@ -88,11 +88,10 @@ enum {
 typedef struct Sigset Sigset;
 typedef struct Timespec Timespec;
 typedef struct Timeval Timeval;
-typedef struct Sigaction Sigaction;
+typedef struct SigactionT SigactionT;
 typedef struct Siginfo Siginfo;
 typedef struct Itimerval Itimerval;
 typedef struct EpollEvent EpollEvent;
-typedef uint64 Usigset;
 
 #pragma pack on
 
@@ -109,11 +108,11 @@ struct Timeval {
 	int64	tv_sec;
 	int64	tv_usec;
 };
-struct Sigaction {
+struct SigactionT {
 	void	*sa_handler;
 	uint64	sa_flags;
 	void	*sa_restorer;
-	Usigset	sa_mask;
+	uint64	sa_mask;
 };
 struct Siginfo {
 	int32	si_signo;
@@ -129,7 +128,7 @@ struct Itimerval {
 struct EpollEvent {
 	uint32	events;
 	byte	Pad_cgo_0[4];
-	uint64	data;
+	byte	data[8]; // unaligned uintptr
 };
 
 
@@ -144,7 +143,6 @@ enum {
 	SA_RESTORER	= 0,
 };
 
-//typedef struct Usigset Usigset;
 typedef struct Ptregs Ptregs;
 typedef struct Vreg Vreg;
 typedef struct SigaltstackT SigaltstackT;
@@ -152,11 +150,6 @@ typedef struct Sigcontext Sigcontext;
 typedef struct Ucontext Ucontext;
 
 #pragma pack on
-
-//struct Usigset {
-//	uint64	sig[1];
-//};
-//typedef Sigset Usigset;
 
 struct Ptregs {
 	uint64	gpr[32];
@@ -202,8 +195,8 @@ struct Ucontext {
 	uint64	uc_flags;
 	Ucontext	*uc_link;
 	SigaltstackT	uc_stack;
-	Usigset	uc_sigmask;
-	Usigset	__unused[15];
+	uint64	uc_sigmask;
+	uint64	__unused[15];
 	Sigcontext	uc_mcontext;
 };
 
