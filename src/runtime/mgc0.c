@@ -632,7 +632,7 @@ getempty(Workbuf *b)
 		b = (Workbuf*)runtime·lfstackpop(&runtime·work.empty);
 
 	if(b && b->nobj != 0) {
-		runtime·printf("m%d: getempty: popped b=%p with non-zero b->nobj=%D\n", g->m->id, b, b->nobj);
+		runtime·printf("m%d: getempty: popped b=%p with non-zero b->nobj=%d\n", g->m->id, b, (uint32)b->nobj);
 		runtime·throw("getempty: workbuffer not empty, b->nobj not 0");
 	}
 	if(b == nil) {
@@ -687,7 +687,7 @@ putpartial(Workbuf *b)
 	else if (b->nobj == nelem(b->obj))
 		runtime·lfstackpush(&runtime·work.full, &b->node);
 	else {
-		runtime·printf("b=%p, b->nobj=%D, nelem(b->obj)=%d\n", b, b->nobj, nelem(b->obj));
+		runtime·printf("b=%p, b->nobj=%d, nelem(b->obj)=%d\n", b, b->nobj, (uint32)nelem(b->obj));
 		runtime·throw("putpartial: bad Workbuf b->nobj");
 	}
 }
