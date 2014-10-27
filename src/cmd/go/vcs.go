@@ -34,7 +34,8 @@ type vcsCmd struct {
 	scheme  []string
 	pingCmd string
 
-	remoteRepo func(v *vcsCmd, rootDir string) (remoteRepo string, err error)
+	remoteRepo  func(v *vcsCmd, rootDir string) (remoteRepo string, err error)
+	resolveRepo func(v *vcsCmd, rootDir, remoteRepo string) (realRepo string, err error)
 }
 
 // A tagCmd describes a command to list available tags
@@ -164,8 +165,51 @@ var vcsBzr = &vcsCmd{
 	tagSyncCmd:     "update -r {tag}",
 	tagSyncDefault: "update -r revno:-1",
 
-	scheme:  []string{"https", "http", "bzr", "bzr+ssh"},
-	pingCmd: "info {scheme}://{repo}",
+	scheme:      []string{"https", "http", "bzr", "bzr+ssh"},
+	pingCmd:     "info {scheme}://{repo}",
+	remoteRepo:  bzrRemoteRepo,
+	resolveRepo: bzrResolveRepo,
+}
+
+func bzrRemoteRepo(vcsBzr *vcsCmd, rootDir string) (remoteRepo string, err error) {
+	outb, err := vcsBzr.runOutput(rootDir, "config parent_location")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(outb)), nil
+}
+
+func bzrResolveRepo(vcsBzr *vcsCmd, rootDir, remoteRepo string) (realRepo string, err error) {
+	outb, err := vcsBzr.runOutput(rootDir, "info "+remoteRepo)
+	if err != nil {
+		return "", err
+	}
+	out := string(outb)
+
+	// Expect:
+	// ...
+	//   (branch root|repository branch): <URL>
+	// ...
+
+	found := false
+	for _, prefix := range []string{"\n  branch root: ", "\n  repository branch: "} {
+		i := strings.Index(out, prefix)
+		if i >= 0 {
+			out = out[i+len(prefix):]
+			found = true
+			break
+		}
+	}
+	if !found {
+		return "", fmt.Errorf("unable to parse output of bzr info")
+	}
+
+	i := strings.Index(out, "\n")
+	if i < 0 {
+		return "", fmt.Errorf("unable to parse output of bzr info")
+	}
+	out = out[:i]
+	return strings.TrimSpace(string(out)), nil
 }
 
 // vcsSvn describes how to use Subversion.

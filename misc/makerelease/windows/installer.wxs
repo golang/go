@@ -39,9 +39,9 @@
 
 <Property Id="ARPCOMMENTS" Value="The Go programming language is a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language." />
 <Property Id="ARPCONTACT" Value="golang-nuts@googlegroups.com" />
-<Property Id="ARPHELPLINK" Value="golang.org/doc/community.html" />
-<Property Id="ARPREADME" Value="golang.org" />
-<Property Id="ARPURLINFOABOUT" Value="golang.org" />
+<Property Id="ARPHELPLINK" Value="https://golang.org/help/" />
+<Property Id="ARPREADME" Value="https://golang.org" />
+<Property Id="ARPURLINFOABOUT" Value="https://golang.org" />
 <Property Id="LicenseAccepted">1</Property>
 <Icon Id="gopher.ico" SourceFile="images\gopher.ico"/>
 <Property Id="ARPPRODUCTICON" Value="gopher.ico" />

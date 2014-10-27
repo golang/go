@@ -272,8 +272,15 @@ func downloadPackage(p *Package) error {
 			dir := filepath.Join(p.build.SrcRoot, rootPath)
 			if remote, err := vcs.remoteRepo(vcs, dir); err == nil {
 				if rr, err := repoRootForImportPath(p.ImportPath); err == nil {
-					if remote != rr.repo {
-						return fmt.Errorf("%s is from %s, should be from %s", dir, remote, rr.repo)
+					repo := rr.repo
+					if rr.vcs.resolveRepo != nil {
+						resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
+						if err == nil {
+							repo = resolved
+						}
+					}
+					if remote != repo {
+						return fmt.Errorf("%s is from %s, should be from %s", dir, remote, repo)
 					}
 				}
 			}
