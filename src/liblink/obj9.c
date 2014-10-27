@@ -703,7 +703,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 static Prog*
 stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 {
-	Prog *q1;
+	Prog *q, *q1;
 
 	// MOVD	g_stackguard(g), R3
 	p = appendp(ctxt, p);
@@ -716,6 +716,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 	p->to.type = D_REG;
 	p->to.reg = 3;
 
+	q = nil;
 	if(framesize <= StackSmall) {
 		// small stack: SP < stackguard
 		//	CMP	stackguard, SP
@@ -766,7 +767,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		p->to.type = D_CONST;
 		p->to.offset = StackPreempt;
 
-		p = appendp(ctxt, p);
+		q = p = appendp(ctxt, p);
 		p->as = ABEQ;
 		p->to.type = D_BRANCH;
 
@@ -812,6 +813,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 	p->from.offset = D_LR;
 	p->to.type = D_REG;
 	p->to.reg = 5;
+	if(q)
+		q->pcond = p;
 
 	// BL	runtime.morestack(SB)
 	p = appendp(ctxt, p);
