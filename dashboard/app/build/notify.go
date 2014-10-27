@@ -42,6 +42,7 @@ var ignoreFailure = map[string]bool{
 	"netbsd-arm-rpi":          true,
 	"solaris-amd64-smartos":   true,
 	"solaris-amd64-solaris11": true,
+	"plan9-amd64-aram":        true,
 }
 
 // notifyOnFailure checks whether the supplied Commit or the subsequent
