@@ -46,6 +46,7 @@ var inputs = []string{
 	"testdata/funcreflect.go",
 	"testdata/hello.go", // NB: causes spurious failure of HVN cross-check
 	"testdata/interfaces.go",
+	"testdata/issue9002.go",
 	"testdata/mapreflect.go",
 	"testdata/maps.go",
 	"testdata/panic.go",

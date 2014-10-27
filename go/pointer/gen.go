@@ -936,7 +936,8 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		case token.ARROW: // <-x
 			// We can ignore instr.CommaOk because the node we're
 			// altering is always at zero offset relative to instr
-			a.genLoad(cgn, a.valueNode(instr), instr.X, 0, a.sizeof(instr.Type()))
+			tElem := instr.X.Type().Underlying().(*types.Chan).Elem()
+			a.genLoad(cgn, a.valueNode(instr), instr.X, 0, a.sizeof(tElem))
 
 		case token.MUL: // *x
 			a.genLoad(cgn, a.valueNode(instr), instr.X, 0, a.sizeof(instr.Type()))
