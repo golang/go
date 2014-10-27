@@ -121,7 +121,7 @@ func TestLFStackStress(t *testing.T) {
 			}
 			cnt++
 			sum2 += node.data
-			node.Next = nil
+			node.Next = 0
 		}
 	}
 	if cnt != K {
