@@ -87,7 +87,35 @@ may now be <code>nil</code>.
 TODO news about foobarblatz
 </p>
 
-<h2 id="runtime">Changes to the runtime</h2>
+<h2 id="compatibility">Changes to the compatibility guidelines</h2>
+
+<p>
+The <a href="/pkg/unsafe/"><code>unsafe</code></a> package allows one
+to defeat Go's type system by exploiting internal details of the implementation
+or machine representation of data.
+It was never explicitly specified what use of <code>unsafe</code> meant
+with respect to compatibility as specified in the
+<a href="go1compat.html">Go compatibilty guidelines</a>.
+The answer, of course, is that we can make no promise of compatibility
+for code that does unsafe things.
+</p>
+
+<p>
+We have clarified this situation in the documentation included in the release.
+The <a href="go1compat.html">Go compatibilty guidelines</a> and the
+docs for the <a href="/pkg/unsafe/"><code>unsafe</code></a> package
+are now explicit that unsafe code is not guaranteed to remain compatible.
+</p>
+  
+<p>
+<em>Updating</em>: Nothing technical has changed; this is just a clarification
+of the documentation.
+</p>
+
+
+<h2 id="impl">Changes to the implementations and tools</h2>
+
+<h3 id="runtime">Changes to the runtime</h3>
 
 <p>
 Up to Go 1.4, the runtime (garbage collector, concurrency support, interface management,
@@ -140,57 +168,113 @@ so the effect is minimal, but programs that store integers (for example) in
 interfaces will see more allocations.
 </p>
 
-<h2 id="compatibility">Changes to the compatibility guidelines</h2>
-
-<p>
-The <a href="/pkg/unsafe/"><code>unsafe</code></a> package allows one
-to defeat Go's type system by exploiting internal details of the implementation
-or machine representation of data.
-It was never explicitly specified what use of <code>unsafe</code> meant
-with respect to compatibility as specified in the
-<a href="go1compat.html">Go compatibilty guidelines</a>.
-The answer, of course, is that we can make no promise of compatibility
-for code that does unsafe things.
-</p>
-
-<p>
-We have clarified this situation in the documentation included in the release.
-The <a href="go1compat.html">Go compatibilty guidelines</a> and the
-docs for the <a href="/pkg/unsafe/"><code>unsafe</code></a> package
-are now explicit that unsafe code is not guaranteed to remain compatible.
-</p>
-  
-<p>
-<em>Updating</em>: Nothing technical has changed; this is just a clarification
-of the documentation.
-</p>
-
-
-<h2 id="impl">Changes to the implementations and tools</h2>
-
-<h3 id="garbage_collector">Changes to the garbage collector</h3>
-
-<p>
-TODO news about garbage collection
-</p>
-
-<h3 id="stacks">Stack</h3>
-
-<p>
-TODO news about stacks
-</p>
-
 <h3 id="gccgo">Status of gccgo</h3>
 
 <p>
 TODO gccgo news
 </p>
 
-<h3 id="gocmd">Changes to the go command</h3>
+<h3 id="internalpackages">Internal packages</h3>
+<pre>
+TODO prose for these
+cmd/go: implement "internal" (CL 120600043)
+</pre>
+
+<h3 id="importcomments">Import comments</h3>
+
+<pre>
+TODO prose for these
+cmd/go: import comments (CL 124940043)
+</pre>
+
+<h3 id="gogenerate">The go generate subcommand</h3>
 
 <p>
-TODO go command news
+The <a href="/cmd/go/"><code>go</code></a> command has a new subcommand,
+<a href="/cmd/go/#hdr-Generate_Go_files_by_processing_source"><code>go generate</code></a>,
+to automate the running of tools to generate source code before compilation.
+For example, it can be used to run the <a href="http://en.wikipedia.org/wiki/Yacc"><code>yacc</code></a>
+compiler-compiler on a <code>.y</code> file to produce the Go source file implementing the grammar,
+or to automate the generation of <code>String</code> methods for typed constants using the new
+<a href="http://godoc.org/code.google.com/p/go.tools/cmd/stringer">stringer</a>
+tool in the <code>go.tools</code> repository.
 </p>
+
+<p>
+For more information, see the 
+<a href="http://golang.org/s/go1.4-generate">design document</a>.
+</p>
+
+<h3 id="filenames">Change to file name handling</h3>
+
+<p>
+Build constraints, also known as build tags, control compilation by including or excluding files
+(see the documentation <a href="/pkg/go/build/"><code>/go/build</code></a>).
+Compilation can also be controlled by the name of the file itself by "tagging" the file with
+a suffix (before the <code>.go</code> or <code>.s</code> extension) with an underscore
+and the name of the architecture or operating system.
+For instance, the file <code>gopher_arm.go</code> will only be compiled if the target
+processor is an ARM.
+</p>
+
+<p>
+Before Go 1.4, a file called just <code>arm.go</code> was similarly tagged, but this behavior
+can break sources when new architectures are added, causing files to suddenly become tagged.
+In 1.4, therefore, a file will be tagged in this manner only if the tag (architecture or operating
+system name) is preceded by an underscore.
+</p>
+
+<p>
+<em>Updating</em>: Packages that depend on the old behavior will no longer compile correctly.
+Files with names like <code>windows.go</code> or <code>arm64.go</code> should either
+have explicit build tags added to the source or be renamed to something like
+<code>os_windows.go</code> or <code>support_arm64.go</code>.
+</p>
+
+<h3 id="gocmd">Other changes to the go command</h3>
+
+<p>
+There were a number of minor changes to the
+<a href="/cmd/go/"><code>cmd/go</code></a>
+command worth noting.
+</p>
+
+<ul>
+
+<li>
+Unless <a href="/cmd/cgo/"><code>cgo</code></a> is being used to build the package,
+the <code>go</code> command now refuses to compile C source files,
+since the relevant C compilers
+(<a href="/cmd/6c/"><code>6c</code></a> etc.)
+are intended to be removed from the installation in some future release.
+(They are used today only to build part of the runtime.)
+It is difficult to use them correctly in any case, so any extant uses are likely incorrect,
+so we have disabled them.
+</li>
+
+<li>
+The <a href="/cmd/go/#hdr-Test_packages"><code>go</code> <code>test</code></a>
+subcommand has a new flag, <code>-o</code>, to set the name of the resulting binary,
+corresponding to the same flag in other subcommands.
+The non-functional <code>-file</code> flag has been removed.
+</li>
+
+<li>
+The <a href="/cmd/go/#hdr-Test_packages"><code>go</code> <code>test</code></a>
+will compile and link all <code>*_test.go</code> files in the package,
+even when there are no <code>Test</code> functions in them. 
+It previously ignored such files.
+</li>
+
+<li>
+The behavior of the
+<a href="/cmd/go/#hdr-Test_packages"><code>go</code> <code>build</code></a>'s
+<code>-a</code> flag has been changed for non-development installations.
+For installations running a released distribution, the <code>-a</code> flag will no longer
+rebuild the standard library and commands, to avoid overwriting the installation's files.
+</li>
+
+</ul>
 
 <h3 id="cgo">Changes to cgo</h3>
 
@@ -285,14 +369,6 @@ See the relevant package documentation for more information about each change.
 <pre>
 
 cmd/6l, liblink: use pc-relative addressing for all memory references, so that linking Go binaries at high addresses works (CL 125140043). This cuts the maximum size of a Go binary's text+data+bss from 4GB to 2GB.
-cmd/go: import comments (CL 124940043)
-cmd/go: implement "internal" (CL 120600043)
-cmd/go: implement "generate" (CL 125580044)
-cmd/go: disallow C sources except when using cgo (CL 149720043)
-cmd/go: add test -o flag (CL 149070043)
-cmd/go: redefine build -a to skip standard library in releases (CL 151730045)
-cmd/go: compile and link all _test.go files during 'go test', even in packages where there are no Test functions (CL 150980043)
-cmd/go: (via go/build): a GOOS prefix acts as a tag only if preceded by an underscore. this is a breaking change. (CL 147690043)
 
 asm: make textflag.h available outside of cmd/ld (CL 128050043)
 bufio: handling of empty tokens at EOF changed, may require scanner change (CL 145390043)
