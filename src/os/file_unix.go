@@ -242,7 +242,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
-	return fixCount(syscall.Seek(f.fd, offset, whence))
+	return syscall.Seek(f.fd, offset, whence)
 }
 
 // Truncate changes the size of the named file.
