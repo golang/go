@@ -1459,6 +1459,7 @@ gc(struct gc_args *args)
 	t4 = runtime·nanotime();
 	runtime·atomicstore64(&mstats.last_gc, runtime·unixnanotime());  // must be Unix time to make sense to user
 	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t4 - t0;
+	mstats.pause_end[mstats.numgc%nelem(mstats.pause_end)] = t4;
 	mstats.pause_total_ns += t4 - t0;
 	mstats.numgc++;
 	if(mstats.debuggc)
@@ -1572,7 +1573,7 @@ readgcstats_m(void)
 {
 	Slice *pauses;	
 	uint64 *p;
-	uint32 i, n;
+	uint32 i, j, n;
 	
 	pauses = g->m->ptrarg[0];
 	g->m->ptrarg[0] = nil;
@@ -1581,25 +1582,29 @@ readgcstats_m(void)
 	if(pauses->cap < nelem(mstats.pause_ns)+3)
 		runtime·throw("runtime: short slice passed to readGCStats");
 
-	// Pass back: pauses, last gc (absolute time), number of gc, total pause ns.
+	// Pass back: pauses, pause ends, last gc (absolute time), number of gc, total pause ns.
 	p = (uint64*)pauses->array;
 	runtime·lock(&runtime·mheap.lock);
+
 	n = mstats.numgc;
 	if(n > nelem(mstats.pause_ns))
 		n = nelem(mstats.pause_ns);
-	
+
 	// The pause buffer is circular. The most recent pause is at
 	// pause_ns[(numgc-1)%nelem(pause_ns)], and then backward
 	// from there to go back farther in time. We deliver the times
 	// most recent first (in p[0]).
-	for(i=0; i<n; i++)
-		p[i] = mstats.pause_ns[(mstats.numgc-1-i)%nelem(mstats.pause_ns)];
+	for(i=0; i<n; i++) {
+		j = (mstats.numgc-1-i)%nelem(mstats.pause_ns);
+		p[i] = mstats.pause_ns[j];
+		p[n+i] = mstats.pause_end[j];
+	}
 
-	p[n] = mstats.last_gc;
-	p[n+1] = mstats.numgc;
-	p[n+2] = mstats.pause_total_ns;	
+	p[n+n] = mstats.last_gc;
+	p[n+n+1] = mstats.numgc;
+	p[n+n+2] = mstats.pause_total_ns;	
 	runtime·unlock(&runtime·mheap.lock);
-	pauses->len = n+3;
+	pauses->len = n+n+3;
 }
 
 void
