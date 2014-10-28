@@ -18,7 +18,7 @@ func sigpipe() // implemented in package runtime
 func Readlink(name string) (string, error) {
 	for len := 128; ; len *= 2 {
 		b := make([]byte, len)
-		n, e := syscall.Readlink(name, b)
+		n, e := fixCount(syscall.Readlink(name, b))
 		if e != nil {
 			return "", &PathError{"readlink", name, e}
 		}
