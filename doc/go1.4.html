@@ -87,6 +87,59 @@ may now be <code>nil</code>.
 TODO news about foobarblatz
 </p>
 
+<h2 id="runtime">Changes to the runtime</h2>
+
+<p>
+Up to Go 1.4, the runtime (garbage collector, concurrency support, interface management,
+maps, slices, strings, ...) was mostly written in C, with some assembler support.
+In 1.4, much of the code has been translated to Go so that the garbage collector can scan
+the stacks of programs in the runtime and get accurate information about what variables
+are active.
+This change was large but should have no semantic effect on programs.
+</p>
+
+<p>
+This rewrite allows the garbage collector in 1.4 to be fully precise,
+meaning that it is aware of the location of all active pointers in the program.
+This means the heap will be smaller as there will be no false positives keeping non-pointers alive.
+Other related changes also reduce the heap size, which is smaller by 10%-30% overall
+relative to the previous release.
+</p>
+
+<p>
+A consequence is that stacks are no longer segmented, eliminating the "hot split" problem.
+When a stack limit is reached, a new, larger stack is allocated, all active frames for
+the goroutine are copied there, and any pointers into the stack are updated.
+Performance can be noticeably better in some cases and is always more predictable.
+Details are available in <a href="/s/contigstacks">the design document</a>.
+</p>
+
+<p>
+The use of contiguous stacks means that stacks can start smaller without triggering performance issues,
+so the default starting size for a goroutine's stack in 1.4 has been reduced to 2048 bytes from 8192 bytes.
+TODO: It may be bumped to 4096 for the release.
+</p>
+
+<p>
+As preparation for the concurrent garbage collector scheduled for the 1.5 release,
+writes to pointer values in the heap are now done by a function call,
+called a write barrier, rather than directly from the function updating the value.
+In this next release, this will permit the garbage collector to mediate writes to the heap while it is running.
+This change has no semantic effect on programs in 1.4, but was
+included in the release to test the compiler and the resulting performance.
+</p>
+
+<p>
+The implementation of interface values has been modified.
+In earlier releases, the interface contained a word that was either a pointer or a one-word
+scalar value, depending on the type of the concrete object stored.
+This implementation was problematical for the garbage collector,
+so as of 1.4 interface values always hold a pointer.
+In running programs, most interface values were pointers anyway,
+so the effect is minimal, but programs that store integers (for example) in
+interfaces will see more allocations.
+</p>
+
 <h2 id="compatibility">Changes to the compatibility guidelines</h2>
 
 <p>
@@ -177,7 +230,29 @@ TODO misc news
 <h2 id="performance">Performance</h2>
 
 <p>
-TODO performance news
+Most programs will run about the same speed or slightly faster in 1.4 than in 1.3;
+some will be slightly slower.
+There are many changes, making it hard to be precise about what to expect.
+</p>
+
+<p>
+As mentioned above, much of the runtime was translated to Go from C,
+which led to some reduction in heap sizes.
+It also improved performance slightly because the Go compiler is better
+at optimization, due to things like inlining, than the C compiler used to build
+the runtime.
+</p>
+
+<p>
+The garbage collector was sped up, leading to measurable improvements for
+garbage-heavy programs.
+On the other hand, the new write barriers slow things down again, typically
+by about the same amount but, depending on their behavior, some programs
+may be somewhat slower or faster.
+</p>
+
+<p>
+Library changes that affect performance are documented below.
 </p>
 
 <h2 id="library">Changes to the standard library</h2>
@@ -209,8 +284,6 @@ See the relevant package documentation for more information about each change.
 
 <pre>
 
-the directory src/pkg has been deleted, for instance src/pkg/fmt is now just src/fmt (CL 134570043)
-
 cmd/6l, liblink: use pc-relative addressing for all memory references, so that linking Go binaries at high addresses works (CL 125140043). This cuts the maximum size of a Go binary's text+data+bss from 4GB to 2GB.
 cmd/go: import comments (CL 124940043)
 cmd/go: implement "internal" (CL 120600043)
@@ -237,8 +310,8 @@ net/http: add Transport.DialTLS hook (CL 137940043)
 net/http/httputil: add ReverseProxy.ErrorLog (CL 132750043)
 os: implement symlink support for windows (CL 86160044)
 reflect: add type.Comparable (CL 144020043)
+reflect: Value is one word smaller
 runtime: implement monotonic clocks on windows (CL 108700045)
-runtime: memory consumption is reduced by 10-30% (CL 106260045 removes type info from heap, CL 145790043 reduces stack size to 2K (4K on plan 9 and windows))
 runtime: MemStats.Mallocs now counts very small allocations missed in Go 1.3. This may break tests using runtime.ReadMemStats or testing.AllocsPerRun by giving a more accurate answer than Go 1.3 did (CL 143150043).
 runtime/race: freebsd is supported (CL 107270043)
 swig: Due to runtime changes Go 1.4 will require SWIG 3.0.3 (not yet released)
