@@ -216,7 +216,7 @@ func (h *handlerServer) includePath(path string, mode PageInfoMode) (r bool) {
 		return true
 	}
 	if strings.Contains(path, "internal") {
-		for _, c := range strings.Split(path, string(os.PathSeparator)) {
+		for _, c := range strings.Split(filepath.Clean(path), string(os.PathSeparator)) {
 			if c == "internal" {
 				return false
 			}
