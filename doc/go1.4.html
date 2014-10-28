@@ -19,7 +19,8 @@ this release therefore eliminates the notorious "hot stack split" problem.
 There are some new tools available including support in the <code>go</code> command
 for build-time source code generation
 and TODO.
-The release also adds support for TODO architecture and TODO operating systems.
+The release also adds support for ARM processors on Android and Native Client (NaCl)
+and AMD64 on Plan 9.
 As always, Go 1.4 keeps the <a href="/doc/go1compat.html">promise
 of compatibility</a>,
 and almost everything 
@@ -68,7 +69,7 @@ was not syntactically permitted.
 
 <p>
 This situation seemed awkward, so as of Go 1.4 the variable-free form is now legal.
-The situation arises only rarely but the code can be cleaner when it does.
+The pattern arises rarely but the code can be cleaner when it does.
 </p>
 
 <p>
@@ -81,10 +82,30 @@ may now be <code>nil</code>.
 
 <h2 id="os">Changes to the supported operating systems and architectures</h2>
 
-<h3 id="foobarblatz">FooBarBlatz</h3>
+<h3 id="android">Android</h3>
 
 <p>
-TODO news about foobarblatz
+Go 1.4 can build binaries for ARM processors running the Android operating system.
+It can also build a <code>.so</code> library that can be loaded by an Android application
+using the supporting packages in the <a href="http://code.google.com/p/go.mobile">go.mobile</a> repository.
+A brief description of the plans for this experimental port are available
+<a href="/s/go14android">here</a>.
+</p>
+
+<h3 id="naclarm">NaCl on ARM</h3>
+
+<p>
+The previous release introduced Native Client (NaCl) support for the 32-bit x86
+(<code>GOARCH=386</code>)
+and 64-bit x86 using 32-bit pointers (GOARCH=amd64p32).
+The 1.4 release adds NaCl support for ARM (GOARCH=arm).
+</p>
+
+<h3 id="plan9amd64">Plan9 on AMD64</h3>
+
+<p>
+This release adds support for the Plan 9 operating system on AMD64 processors,
+provided the kernel supports the <code>nsec</code> system call and uses 4K pages.
 </p>
 
 <h2 id="compatibility">Changes to the compatibility guidelines</h2>
@@ -388,6 +409,7 @@ have been updated.
 
 <p>
 TODO misc news
+misc: deleted editor support; refer to https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins instead (CL 105470043)
 </p>
 
 <h2 id="performance">Performance</h2>
@@ -432,6 +454,11 @@ TODO new packages
 TODO major changes
 </p>
 
+<pre>
+encoding/gob: remove unsafe (CL 102680045)
+syscall: now frozen (CL 129820043)
+</pre>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -457,8 +484,6 @@ crypto/tls: support programmatic selection of server certificates (CL 107400043)
 encoding/asn1: optional elements with a default value will now only be omitted if they have that value (CL 86960045)
 fmt: print type *map[T]T as &amp;map[k:v] (CL 154870043)
 encoding/csv: do not quote empty strings, quote \. (CL 164760043)
-encoding/gob: remove unsafe (CL 102680045)
-misc: deleted editor support; refer to https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins instead (CL 105470043)
 net/http: add Request.BasicAuth method (CL 76540043)
 net/http: add Transport.DialTLS hook (CL 137940043)
 net/http/httputil: add ReverseProxy.ErrorLog (CL 132750043)
@@ -472,13 +497,11 @@ runtime: add PauseEnd array to MemStats and GCStats (CL 153670043)
 swig: Due to runtime changes Go 1.4 will require SWIG 3.0.3 (not yet released)
 sync/atomic: add Value (CL 136710045)
 syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved (CL 106170043)
-syscall: now frozen (CL 129820043)
 testing: add Coverage (CL 98150043)
 testing: add TestMain support (CL 148770043)
 text/scanner: add IsIdentRune field of Scanner. (CL 108030044)
 text/template: allow comparison of signed and unsigned integers (CL 149780043)
 time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)
-unsafe: document the existing situation that unsafe programs are not go1-guaranteed (CL 162060043)
 
 go.sys subrepo created: http://golang.org/s/go1.4-syscall
 </pre>
