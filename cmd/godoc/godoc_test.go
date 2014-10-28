@@ -5,8 +5,10 @@
 package main_test
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -272,13 +274,30 @@ func main() { print(lib.V) }
 		cmd.Env = append(cmd.Env, e)
 	}
 	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	cmd.Args[0] = "godoc"
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start godoc: %s", err)
 	}
 	defer cmd.Process.Kill()
 	waitForServer(t, addr)
+
+	// Wait for type analysis to complete.
+	reader := bufio.NewReader(stderr)
+	for {
+		s, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Fprint(os.Stderr, s)
+		if strings.Contains(s, "Type analysis complete.") {
+			break
+		}
+	}
+	go io.Copy(os.Stderr, reader)
 
 	t0 := time.Now()
 
