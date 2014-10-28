@@ -259,6 +259,9 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 // Since Plan 9 preserves message boundaries, never allow
 // a zero-byte write.
 func (f *File) write(b []byte) (n int, err error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
 	return fixCount(syscall.Write(f.fd, b))
 }
 
