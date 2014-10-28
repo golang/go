@@ -706,10 +706,9 @@ outgcode(int a, Addr *g1, int reg, Addr *g2, Addr *g3)
 		p->mark |= NOSCHED;
 	p->from = *g1;
 	p->reg = reg;
-	p->to = *g2;
-	p->from3 = *g3;
+	p->from3 = *g2;
+	p->to = *g3;
 	p->pc = pc;
-	print("oc: %P\n", p);
 
 	if(lastpc == nil) {
 		pl = linknewplist(ctxt);
