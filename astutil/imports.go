@@ -14,7 +14,6 @@ import (
 	"go/parser"
 	"go/token"
 	"log"
-	"path"
 	"strconv"
 	"strings"
 )
@@ -298,77 +297,6 @@ func declImports(gen *ast.GenDecl, path string) bool {
 		}
 	}
 	return false
-}
-
-// RenameTop renames all references to the top-level name old.
-// It returns true if it makes any changes.
-func RenameTop(f *ast.File, old, new string) bool {
-	var fixed bool
-
-	// Rename any conflicting imports
-	// (assuming package name is last element of path).
-	for _, s := range f.Imports {
-		if s.Name != nil {
-			if s.Name.Name == old {
-				s.Name.Name = new
-				fixed = true
-			}
-		} else {
-			_, thisName := path.Split(importPath(s))
-			if thisName == old {
-				s.Name = ast.NewIdent(new)
-				fixed = true
-			}
-		}
-	}
-
-	// Rename any top-level declarations.
-	for _, d := range f.Decls {
-		switch d := d.(type) {
-		case *ast.FuncDecl:
-			if d.Recv == nil && d.Name.Name == old {
-				d.Name.Name = new
-				d.Name.Obj.Name = new
-				fixed = true
-			}
-		case *ast.GenDecl:
-			for _, s := range d.Specs {
-				switch s := s.(type) {
-				case *ast.TypeSpec:
-					if s.Name.Name == old {
-						s.Name.Name = new
-						s.Name.Obj.Name = new
-						fixed = true
-					}
-				case *ast.ValueSpec:
-					for _, n := range s.Names {
-						if n.Name == old {
-							n.Name = new
-							n.Obj.Name = new
-							fixed = true
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Rename top-level old to new, both unresolved names
-	// (probably defined in another file) and names that resolve
-	// to a declaration we renamed.
-	ast.Walk(visitFn(func(n ast.Node) {
-		id, ok := n.(*ast.Ident)
-		if ok && isTopName(id, old) {
-			id.Name = new
-			fixed = true
-		}
-		if ok && id.Obj != nil && id.Name == old && id.Obj.Name == new {
-			id.Name = id.Obj.Name
-			fixed = true
-		}
-	}), f)
-
-	return fixed
 }
 
 // matchLen returns the length of the longest prefix shared by x and y.

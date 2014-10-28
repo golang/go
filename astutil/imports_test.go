@@ -657,38 +657,6 @@ func TestRewriteImport(t *testing.T) {
 	}
 }
 
-var renameTests = []rewriteTest{
-	{
-		name:   "rename pkg use",
-		srcPkg: "bytes",
-		dstPkg: "bytes_",
-		in: `package main
-
-func f() []byte {
-	buf := new(bytes.Buffer)
-	return buf.Bytes()
-}
-`,
-		out: `package main
-
-func f() []byte {
-	buf := new(bytes_.Buffer)
-	return buf.Bytes()
-}
-`,
-	},
-}
-
-func TestRenameTop(t *testing.T) {
-	for _, test := range renameTests {
-		file := parse(t, test.name, test.in)
-		RenameTop(file, test.srcPkg, test.dstPkg)
-		if got := print(t, test.name, file); got != test.out {
-			t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
-		}
-	}
-}
-
 var importsTests = []struct {
 	name string
 	in   string
