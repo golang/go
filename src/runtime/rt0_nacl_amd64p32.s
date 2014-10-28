@@ -25,6 +25,6 @@ TEXT _rt0_amd64p32_nacl(SB),NOSPLIT,$16
 
 TEXT main(SB),NOSPLIT,$0
 	// Uncomment for fake time like on Go Playground.
-	MOVQ	$1257894000000000000, AX
-	MOVQ	AX, runtime·faketime(SB)
+	//MOVQ	$1257894000000000000, AX
+	//MOVQ	AX, runtime·faketime(SB)
 	JMP	runtime·rt0_go(SB)
