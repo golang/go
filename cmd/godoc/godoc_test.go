@@ -140,6 +140,11 @@ func waitForServer(t *testing.T, address string) {
 	t.Fatalf("Server %q failed to respond in 5 seconds", address)
 }
 
+func killAndWait(cmd *exec.Cmd) {
+	cmd.Process.Kill()
+	cmd.Wait()
+}
+
 // Basic integration test for godoc HTTP interface.
 func TestWeb(t *testing.T) {
 	bin, cleanup := buildGodoc(t)
@@ -152,7 +157,7 @@ func TestWeb(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start godoc: %s", err)
 	}
-	defer cmd.Process.Kill()
+	defer killAndWait(cmd)
 	waitForServer(t, addr)
 	tests := []struct {
 		path      string
@@ -282,7 +287,7 @@ func main() { print(lib.V) }
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start godoc: %s", err)
 	}
-	defer cmd.Process.Kill()
+	defer killAndWait(cmd)
 	waitForServer(t, addr)
 
 	// Wait for type analysis to complete.
