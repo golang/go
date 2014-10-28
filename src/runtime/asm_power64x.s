@@ -409,17 +409,19 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
 	MOVD	p+0(FP), R3
 	MOVW	old+8(FP), R4
 	MOVW	new+12(FP), R5
+cas_again:
 	SYNC
 	LWAR	(R3), R6
 	CMPW	R6, R4
-	BNE	8(PC)
+	BNE	cas_fail
 	STWCCC	R5, (R3)
-	BNE	-5(PC)
+	BNE	cas_again
 	MOVD	$1, R3
 	SYNC
 	ISYNC
 	MOVB	R3, ret+16(FP)
 	RETURN
+cas_fail:
 	MOVD	$0, R3
 	BR	-5(PC)
 
@@ -435,19 +437,21 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-25
 	MOVD	p+0(FP), R3
 	MOVD	old+8(FP), R4
 	MOVD	new+16(FP), R5
+cas64_again:
 	SYNC
 	LDAR	(R3), R6
 	CMP	R6, R4
-	BNE	7(PC)
+	BNE	cas64_fail
 	STDCCC	R5, (R3)
-	BNE	-5(PC)
+	BNE	cas64_again
 	MOVD	$1, R3
 	SYNC
 	ISYNC
 	MOVB	R3, ret+24(FP)
 	RETURN
+cas64_fail:
 	MOVD	$0, R3
-	BR	-4(PC)
+	BR	-5(PC)
 
 TEXT runtime·casuintptr(SB), NOSPLIT, $0-25
 	BR	runtime·cas64(SB)
