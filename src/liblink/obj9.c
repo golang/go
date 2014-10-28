@@ -490,74 +490,74 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				// It is a liblink NOP, not a Power64 NOP: it encodes to 0 instruction bytes.
 
 
-				p = appendp(ctxt, p);
-				p->as = AMOVD;
-				p->from.type = D_OREG;
-				p->from.reg = REGG;
-				p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
-				p->to.type = D_REG;
-				p->to.reg = 3;
+				q = appendp(ctxt, q);
+				q->as = AMOVD;
+				q->from.type = D_OREG;
+				q->from.reg = REGG;
+				q->from.offset = 4*ctxt->arch->ptrsize; // G.panic
+				q->to.type = D_REG;
+				q->to.reg = 3;
 
-				p = appendp(ctxt, p);
-				p->as = ACMP;
-				p->from.type = D_REG;
-				p->from.reg = 0;
-				p->to.type = D_REG;
-				p->to.reg = 3;
+				q = appendp(ctxt, q);
+				q->as = ACMP;
+				q->from.type = D_REG;
+				q->from.reg = 0;
+				q->to.type = D_REG;
+				q->to.reg = 3;
 
-				p = appendp(ctxt, p);
-				p->as = ABEQ;
-				p->to.type = D_BRANCH;
-				p1 = p;
+				q = appendp(ctxt, q);
+				q->as = ABEQ;
+				q->to.type = D_BRANCH;
+				p1 = q;
 
-				p = appendp(ctxt, p);
-				p->as = AMOVD;
-				p->from.type = D_OREG;
-				p->from.reg = 3;
-				p->from.offset = 0; // Panic.argp
-				p->to.type = D_REG;
-				p->to.reg = 4;
+				q = appendp(ctxt, q);
+				q->as = AMOVD;
+				q->from.type = D_OREG;
+				q->from.reg = 3;
+				q->from.offset = 0; // Panic.argp
+				q->to.type = D_REG;
+				q->to.reg = 4;
 
-				p = appendp(ctxt, p);
-				p->as = AADD;
-				p->from.type = D_CONST;
-				p->from.offset = autosize+8;
-				p->reg = REGSP;
-				p->to.type = D_REG;
-				p->to.reg = 5;
+				q = appendp(ctxt, q);
+				q->as = AADD;
+				q->from.type = D_CONST;
+				q->from.offset = autosize+8;
+				q->reg = REGSP;
+				q->to.type = D_REG;
+				q->to.reg = 5;
 
-				p = appendp(ctxt, p);
-				p->as = ACMP;
-				p->from.type = D_REG;
-				p->from.reg = 4;
-				p->to.type = D_REG;
-				p->to.reg = 5;
+				q = appendp(ctxt, q);
+				q->as = ACMP;
+				q->from.type = D_REG;
+				q->from.reg = 4;
+				q->to.type = D_REG;
+				q->to.reg = 5;
 
-				p = appendp(ctxt, p);
-				p->as = ABNE;
-				p->to.type = D_BRANCH;
-				p2 = p;
+				q = appendp(ctxt, q);
+				q->as = ABNE;
+				q->to.type = D_BRANCH;
+				p2 = q;
 
-				p = appendp(ctxt, p);
-				p->as = AADD;
-				p->from.type = D_CONST;
-				p->from.offset = 8;
-				p->reg = REGSP;
-				p->to.type = D_REG;
-				p->to.reg = 6;
+				q = appendp(ctxt, q);
+				q->as = AADD;
+				q->from.type = D_CONST;
+				q->from.offset = 8;
+				q->reg = REGSP;
+				q->to.type = D_REG;
+				q->to.reg = 6;
 
-				p = appendp(ctxt, p);
-				p->as = AMOVD;
-				p->from.type = D_REG;
-				p->from.reg = 6;
-				p->to.type = D_OREG;
-				p->to.reg = 3;
-				p->to.offset = 0; // Panic.argp
+				q = appendp(ctxt, q);
+				q->as = AMOVD;
+				q->from.type = D_REG;
+				q->from.reg = 6;
+				q->to.type = D_OREG;
+				q->to.reg = 3;
+				q->to.offset = 0; // Panic.argp
 
-				p = appendp(ctxt, p);
-				p->as = ANOP;
-				p1->pcond = p;
-				p2->pcond = p;
+				q = appendp(ctxt, q);
+				q->as = ANOP;
+				p1->pcond = q;
+				p2->pcond = q;
 			}
 
 			break;
