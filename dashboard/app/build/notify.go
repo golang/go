@@ -201,21 +201,28 @@ var (
 )
 
 func sendPerfFailMail(c appengine.Context, builder string, res *PerfResult) error {
-	com := &Commit{Hash: res.CommitHash}
-	logHash := ""
-	parsed := res.ParseData()
-	for _, data := range parsed[builder] {
-		if !data.OK {
-			logHash = data.Artifacts["log"]
-			break
+	return datastore.RunInTransaction(c, func(c appengine.Context) error {
+		com := &Commit{Hash: res.CommitHash}
+		if err := datastore.Get(c, com.Key(c), com); err != nil {
+			return err
 		}
-	}
-	if logHash == "" {
-		return fmt.Errorf("can not find failed result for commit %v on builder %v", com.Hash, builder)
-	}
-	return commonNotify(c, com, builder, logHash)
+		logHash := ""
+		parsed := res.ParseData()
+		for _, data := range parsed[builder] {
+			if !data.OK {
+				logHash = data.Artifacts["log"]
+				break
+			}
+		}
+		if logHash == "" {
+			return fmt.Errorf("can not find failed result for commit %v on builder %v", com.Hash, builder)
+		}
+		return commonNotify(c, com, builder, logHash)
+	}, nil)
 }
 
+// commonNotify MUST!!! be called from within a transaction inside which
+// the provided Commit entity was retrieved from the datastore.
 func commonNotify(c appengine.Context, com *Commit, builder, logHash string) error {
 	if com.Num == 0 || com.Desc == "" {
 		stk := make([]byte, 10000)
