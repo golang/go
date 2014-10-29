@@ -3157,7 +3157,7 @@ countfield(Type *t)
 static void
 walkcompare(Node **np, NodeList **init)
 {
-	Node *n, *l, *r, *call, *a, *li, *ri, *expr;
+	Node *n, *l, *r, *call, *a, *li, *ri, *expr, *cmpl, *cmpr;
 	int andor, i;
 	Type *t, *t1;
 	
@@ -3177,18 +3177,25 @@ walkcompare(Node **np, NodeList **init)
 		break;
 	}
 	
-	if(!islvalue(n->left) || !islvalue(n->right)) {
-		fatal("arguments of comparison must be lvalues");
+	cmpl = n->left;
+	while(cmpl != N && cmpl->op == OCONVNOP)
+		cmpl = cmpl->left;
+	cmpr = n->right;
+	while(cmpr != N && cmpr->op == OCONVNOP)
+		cmpr = cmpr->left;
+	
+	if(!islvalue(cmpl) || !islvalue(cmpr)) {
+		fatal("arguments of comparison must be lvalues - %N %N", cmpl, cmpr);
 	}
 
 	l = temp(ptrto(t));
-	a = nod(OAS, l, nod(OADDR, n->left, N));
+	a = nod(OAS, l, nod(OADDR, cmpl, N));
 	a->right->etype = 1;  // addr does not escape
 	typecheck(&a, Etop);
 	*init = list(*init, a);
 
 	r = temp(ptrto(t));
-	a = nod(OAS, r, nod(OADDR, n->right, N));
+	a = nod(OAS, r, nod(OADDR, cmpr, N));
 	a->right->etype = 1;  // addr does not escape
 	typecheck(&a, Etop);
 	*init = list(*init, a);
