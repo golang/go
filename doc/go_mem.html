@@ -21,6 +21,29 @@ reads of a variable in one goroutine can be guaranteed to
 observe values produced by writes to the same variable in a different goroutine.
 </p>
 
+
+<h2>Advice</h2>
+
+<p>
+Programs that modify data being simultaneously accessed by multiple goroutines
+must serialize such access.
+</p>
+
+<p>
+To serialize access, protect the data with channel operations or other synchronization primitives
+such as those in the <a href="/pkg/sync/"><code>sync</code></a>
+and <a href="/pkg/sync/atomic/"><code>sync/atomic</code></a> packages.
+</p>
+
+<p>
+If you must read the rest of this document to understand the behavior of your program,
+you are being too clever.
+</p>
+
+<p>
+Don't be clever.
+</p>
+
 <h2>Happens Before</h2>
 
 <p>

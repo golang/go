@@ -60,7 +60,7 @@ TEXT syscall·naclWrite(SB), NOSPLIT, $24-20
 TEXT runtime·write(SB),NOSPLIT,$16-20
 	// If using fake time and writing to stdout or stderr,
 	// emit playback header before actual data.
-	MOVQ runtime·timens(SB), AX
+	MOVQ runtime·faketime(SB), AX
 	CMPQ AX, $0
 	JEQ write
 	MOVL fd+0(FP), DI
@@ -242,7 +242,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
 	RET
 
 TEXT time·now(SB),NOSPLIT,$16
-	MOVQ runtime·timens(SB), AX
+	MOVQ runtime·faketime(SB), AX
 	CMPQ AX, $0
 	JEQ realtime
 	MOVQ $0, DX
@@ -277,7 +277,7 @@ TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·nanotime(SB),NOSPLIT,$16
-	MOVQ runtime·timens(SB), AX
+	MOVQ runtime·faketime(SB), AX
 	CMPQ AX, $0
 	JEQ 3(PC)
 	MOVQ	AX, ret+0(FP)

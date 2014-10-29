@@ -295,7 +295,7 @@ func (f *File) read(b []byte) (n int, err error) {
 	if f.isConsole {
 		return f.readConsole(b)
 	}
-	return syscall.Read(f.fd, b)
+	return fixCount(syscall.Read(f.fd, b))
 }
 
 // pread reads len(b) bytes from the File starting at byte offset off.
@@ -376,7 +376,7 @@ func (f *File) write(b []byte) (n int, err error) {
 	if f.isConsole {
 		return f.writeConsole(b)
 	}
-	return syscall.Write(f.fd, b)
+	return fixCount(syscall.Write(f.fd, b))
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.

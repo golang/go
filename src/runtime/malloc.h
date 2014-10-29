@@ -267,7 +267,8 @@ struct MStats
 	uint64	next_gc;	// next GC (in heap_alloc time)
 	uint64  last_gc;	// last GC (in absolute time)
 	uint64	pause_total_ns;
-	uint64	pause_ns[256];
+	uint64	pause_ns[256];  // circular buffer of recent GC pause lengths
+	uint64	pause_end[256]; // circular buffer of recent GC end times (nanoseconds since 1970)
 	uint32	numgc;
 	bool	enablegc;
 	bool	debuggc;

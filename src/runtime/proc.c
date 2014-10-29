@@ -2758,6 +2758,8 @@ static void
 checkdead(void)
 {
 	G *gp;
+	P *p;
+	M *mp;
 	int32 run, grunning, s;
 	uintptr i;
 
@@ -2799,6 +2801,24 @@ checkdead(void)
 	runtime·unlock(&runtime·allglock);
 	if(grunning == 0)  // possible if main goroutine calls runtime·Goexit()
 		runtime·throw("no goroutines (main called runtime.Goexit) - deadlock!");
+
+	// Maybe jump time forward for playground.
+	if((gp = runtime·timejump()) != nil) {
+		runtime·casgstatus(gp, Gwaiting, Grunnable);
+		globrunqput(gp);
+ 		p = pidleget();
+ 		if(p == nil)
+ 			runtime·throw("checkdead: no p for timer");
+ 		mp = mget();
+ 		if(mp == nil)
+ 			newm(nil, p);
+ 		else {
+ 			mp->nextp = p;
+ 			runtime·notewakeup(&mp->park);
+ 		}
+ 		return;
+ 	}
+
 	g->m->throwing = -1;  // do not dump full stacks
 	runtime·throw("all goroutines are asleep - deadlock!");
 }

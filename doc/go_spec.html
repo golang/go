@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 23, 2014",
+	"Subtitle": "Version of October 27, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -2449,12 +2449,11 @@ Primary expressions are the operands for unary and binary expressions.
 PrimaryExpr =
 	Operand |
 	Conversion |
-	BuiltinCall |
 	PrimaryExpr Selector |
 	PrimaryExpr Index |
 	PrimaryExpr Slice |
 	PrimaryExpr TypeAssertion |
-	PrimaryExpr Call .
+	PrimaryExpr Arguments .
 
 Selector       = "." identifier .
 Index          = "[" Expression "]" .
@@ -2462,8 +2461,7 @@ Slice          = "[" ( [ Expression ] ":" [ Expression ] ) |
                      ( [ Expression ] ":" Expression ":" Expression )
                  "]" .
 TypeAssertion  = "." "(" Type ")" .
-Call           = "(" [ ArgumentList [ "," ] ] ")" .
-ArgumentList   = ExpressionList [ "..." ] .
+Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
 </pre>
 
 
@@ -3166,7 +3164,7 @@ the method.
 <pre>
 math.Atan2(x, y)  // function call
 var pt *Point
-pt.Scale(3.5)  // method call with receiver pt
+pt.Scale(3.5)     // method call with receiver pt
 </pre>
 
 <p>
@@ -5370,11 +5368,6 @@ The built-in functions do not have standard Go types,
 so they can only appear in <a href="#Calls">call expressions</a>;
 they cannot be used as function values.
 </p>
-
-<pre class="ebnf">
-BuiltinCall = identifier "(" [ BuiltinArgs [ "," ] ] ")" .
-BuiltinArgs = Type [ "," ArgumentList ] | ArgumentList .
-</pre>
 
 <h3 id="Close">Close</h3>
 

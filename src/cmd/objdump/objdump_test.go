@@ -157,12 +157,15 @@ var armNeed = []string{
 // binary for the current system (only) and test that objdump
 // can handle that one.
 
-func TestDisasm(t *testing.T) {
+func testDisasm(t *testing.T, flags ...string) {
 	tmp, exe := buildObjdump(t)
 	defer os.RemoveAll(tmp)
 
 	hello := filepath.Join(tmp, "hello.exe")
-	out, err := exec.Command("go", "build", "-o", hello, "testdata/fmthello.go").CombinedOutput()
+	args := []string{"build", "-o", hello}
+	args = append(args, flags...)
+	args = append(args, "testdata/fmthello.go")
+	out, err := exec.Command("go", args...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build fmthello.go: %v\n%s", err, out)
 	}
@@ -193,4 +196,16 @@ func TestDisasm(t *testing.T) {
 	if !ok {
 		t.Logf("full disassembly:\n%s", text)
 	}
+}
+
+func TestDisasm(t *testing.T) {
+	testDisasm(t)
+}
+
+func TestDisasmExtld(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping on %s", runtime.GOOS)
+	}
+	testDisasm(t, "-ldflags=-linkmode=external")
 }
