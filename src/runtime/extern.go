@@ -117,11 +117,20 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	return
 }
 
-// Callers fills the slice pc with the program counters of function invocations
+// Callers fills the slice pc with the return program counters of function invocations
 // on the calling goroutine's stack.  The argument skip is the number of stack frames
 // to skip before recording in pc, with 0 identifying the frame for Callers itself and
 // 1 identifying the caller of Callers.
 // It returns the number of entries written to pc.
+//
+// Note that since each slice entry pc[i] is a return program counter,
+// looking up the file and line for pc[i] (for example, using (*Func).FileLine)
+// will return the file and line number of the instruction immediately
+// following the call.
+// To look up the file and line number of the call itself, use pc[i]-1.
+// As an exception to this rule, if pc[i-1] corresponds to the function
+// runtime.sigpanic, then pc[i] is the program counter of a faulting
+// instruction and should be used without any subtraction.
 func Callers(skip int, pc []uintptr) int {
 	// runtime.callers uses pc.array==nil as a signal
 	// to print a stack trace.  Pick off 0-length pc here
