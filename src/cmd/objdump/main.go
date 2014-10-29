@@ -159,7 +159,7 @@ func dump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, goarch string,
 
 	printed := false
 	for _, sym := range syms {
-		if sym.Code != 'T' || sym.Size == 0 || sym.Name == "_text" || sym.Name == "text" || sym.Addr < textStart || symRE != nil && !symRE.MatchString(sym.Name) {
+		if (sym.Code != 'T' && sym.Code != 't') || sym.Size == 0 || sym.Name == "_text" || sym.Name == "text" || sym.Addr < textStart || symRE != nil && !symRE.MatchString(sym.Name) {
 			continue
 		}
 		if sym.Addr >= textStart+uint64(len(textData)) || sym.Addr+uint64(sym.Size) > textStart+uint64(len(textData)) {
