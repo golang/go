@@ -18,8 +18,7 @@ Stacks are now contiguous, reallocated when necessary rather than linking on new
 "segments";
 this release therefore eliminates the notorious "hot stack split" problem.
 There are some new tools available including support in the <code>go</code> command
-for build-time source code generation
-and TODO.
+for build-time source code generation.
 The release also adds support for ARM processors on Android and Native Client (NaCl)
 and AMD64 on Plan 9.
 As always, Go 1.4 keeps the <a href="/doc/go1compat.html">promise
@@ -281,7 +280,9 @@ More information about these changes is in the <a href="/doc/asm">assembly docum
 <h3 id="gccgo">Status of gccgo</h3>
 
 <p>
-TODO gccgo news
+The release schedules for the GCC and Go projects do not coincide.
+GCC release 4.9 contains the Go 1.2 version of gccgo.
+The next release, GCC 5, will likely have the Go 1.4 version of gccgo.
 </p>
 
 <h3 id="internalpackages">Internal packages</h3>
@@ -593,13 +594,11 @@ of the <a href="/pkg/crypo/tls/#Config"><code>Config</code></a> struct.
 </li>
 
 <li>
-Also in the <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package,
-the server now supports 
+Also in the crypto/tls package, the server now supports 
 <a href="https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00">TLS_FALLBACK_SCSV</a>
-to help clients detect fallback attacks like 
-<a href="http://googleonlinesecurity.blogspot.com/2014/10/this-poodle-bites-exploiting-ssl-30.html">POODLE</a>.
-(The crypto/tls package's client has never supported SSLv3, so it is not
-vulnerable to the POODLE attack.)
+to help clients detect fallback attacks.
+(The Go client does not support fallback at all, so it is not vulnerable to
+those attacks.)
 </li>
 
 <li>
