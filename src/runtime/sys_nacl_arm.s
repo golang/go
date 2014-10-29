@@ -269,7 +269,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
 	// restore g
 	MOVW	20(R13), g
 
-sigtramp_ret:
 	// Enable exceptions again.
 	NACL_SYSCALL(SYS_exception_clear_flag)
 

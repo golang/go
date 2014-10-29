@@ -287,24 +287,24 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 	// Execute call on m->g0.
 	get_tls(R15)
 	CMPQ	R15, $0
-	JE	usleep1_noswitch
+	JE	noswitch
 
 	MOVQ	g(R15), R13
 	CMPQ	R13, $0
-	JE	usleep1_noswitch
+	JE	noswitch
 	MOVQ	g_m(R13), R13
 	CMPQ	R13, $0
-	JE	usleep1_noswitch
+	JE	noswitch
 	// TODO(aram): do something about the cpu profiler here.
 
 	MOVQ	m_g0(R13), R14
 	CMPQ	g(R15), R14
-	JNE	usleep1_switch
+	JNE	switch
 	// executing on m->g0 already
 	CALL	AX
 	RET
 
-usleep1_switch:
+switch:
 	// Switch to m->g0 stack and back.
 	MOVQ	(g_sched+gobuf_sp)(R14), R14
 	MOVQ	SP, -8(R14)
@@ -313,7 +313,7 @@ usleep1_switch:
 	MOVQ	0(SP), SP
 	RET
 
-usleep1_noswitch:
+noswitch:
 	// Not a Go-managed thread. Do not switch stack.
 	CALL	AX
 	RET

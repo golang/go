@@ -70,6 +70,7 @@ struct	Sym
 	vlong	value;
 	ushort	type;
 	char	*name;
+	char*	labelname;
 	char	sym;
 };
 #define	S	((Sym*)0)
@@ -148,6 +149,8 @@ void	newio(void);
 void	newfile(char*, int);
 Sym*	slookup(char*);
 Sym*	lookup(void);
+Sym*	labellookup(Sym*);
+void	settext(LSym*);
 void	syminit(Sym*);
 int32	yylex(void);
 int	getc(void);

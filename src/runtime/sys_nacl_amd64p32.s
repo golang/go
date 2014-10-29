@@ -338,7 +338,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
 	MOVL	20(SP), BX
 	MOVL	BX, g(CX)
 
-sigtramp_ret:
 	// Enable exceptions again.
 	NACL_SYSCALL(SYS_exception_clear_flag)
 

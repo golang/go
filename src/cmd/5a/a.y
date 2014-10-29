@@ -73,15 +73,11 @@ prog:
 	line
 
 line:
-	LLAB ':'
+	LNAME ':'
 	{
-		if($1->value != pc)
-			yyerror("redeclaration of %s", $1->name);
-		$1->value = pc;
-	}
-	line
-|	LNAME ':'
-	{
+		$1 = labellookup($1);
+		if($1->type == LLAB && $1->value != pc)
+			yyerror("redeclaration of %s", $1->labelname);
 		$1->type = LLAB;
 		$1->value = pc;
 	}
@@ -218,18 +214,21 @@ inst:
  */
 |	LTYPEB name ',' imm
 	{
+		settext($2.sym);
 		$4.type = D_CONST2;
 		$4.offset2 = ArgsSizeUnknown;
 		outcode($1, Always, &$2, 0, &$4);
 	}
 |	LTYPEB name ',' con ',' imm
 	{
+		settext($2.sym);
 		$6.type = D_CONST2;
 		$6.offset2 = ArgsSizeUnknown;
 		outcode($1, Always, &$2, $4, &$6);
 	}
 |	LTYPEB name ',' con ',' imm '-' con
 	{
+		settext($2.sym);
 		$6.type = D_CONST2;
 		$6.offset2 = $8;
 		outcode($1, Always, &$2, $4, &$6);
@@ -373,15 +372,10 @@ rel:
 	}
 |	LNAME offset
 	{
+		$1 = labellookup($1);
 		$$ = nullgen;
-		if(pass == 2)
-			yyerror("undefined label: %s", $1->name);
-		$$.type = D_BRANCH;
-		$$.offset = $2;
-	}
-|	LLAB offset
-	{
-		$$ = nullgen;
+		if(pass == 2 && $1->type != LLAB)
+			yyerror("undefined label: %s", $1->labelname);
 		$$.type = D_BRANCH;
 		$$.offset = $1->value + $2;
 	}
