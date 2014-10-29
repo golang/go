@@ -36,6 +36,9 @@ func TestCgoTraceback(t *testing.T) {
 }
 
 func TestCgoExternalThreadPanic(t *testing.T) {
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
 	got := executeTest(t, cgoExternalThreadPanicSource, nil, "main.c", cgoExternalThreadPanicC)
 	want := "panic: BOOM"
 	if !strings.Contains(got, want) {
