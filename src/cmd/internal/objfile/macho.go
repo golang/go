@@ -85,6 +85,30 @@ func (f *machoFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 	return textStart, symtab, pclntab, nil
 }
 
+func (f *machoFile) text() (textStart uint64, text []byte, err error) {
+	sect := f.macho.Section("__text")
+	if sect == nil {
+		return 0, nil, fmt.Errorf("text section not found")
+	}
+	textStart = sect.Addr
+	text, err = sect.Data()
+	return
+}
+
+func (f *machoFile) goarch() string {
+	switch f.macho.Cpu {
+	case macho.Cpu386:
+		return "386"
+	case macho.CpuAmd64:
+		return "amd64"
+	case macho.CpuArm:
+		return "arm"
+	case macho.CpuPpc64:
+		return "power64"
+	}
+	return ""
+}
+
 type uint64s []uint64
 
 func (x uint64s) Len() int           { return len(x) }

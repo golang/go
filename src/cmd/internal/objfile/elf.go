@@ -8,6 +8,7 @@ package objfile
 
 import (
 	"debug/elf"
+	"fmt"
 	"os"
 )
 
@@ -76,4 +77,28 @@ func (f *elfFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
 		}
 	}
 	return textStart, symtab, pclntab, nil
+}
+
+func (f *elfFile) text() (textStart uint64, text []byte, err error) {
+	sect := f.elf.Section(".text")
+	if sect == nil {
+		return 0, nil, fmt.Errorf("text section not found")
+	}
+	textStart = sect.Addr
+	text, err = sect.Data()
+	return
+}
+
+func (f *elfFile) goarch() string {
+	switch f.elf.Machine {
+	case elf.EM_386:
+		return "386"
+	case elf.EM_X86_64:
+		return "amd64"
+	case elf.EM_ARM:
+		return "arm"
+	case elf.EM_PPC64:
+		return "power64"
+	}
+	return ""
 }
