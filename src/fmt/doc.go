@@ -39,7 +39,7 @@
 		%f	decimal point but no exponent, e.g. 123.456
 		%F	synonym for %f
 		%g	%e for large exponents, %f otherwise
-		%G	%E for large exponents, %G otherwise
+		%G	%E for large exponents, %F otherwise
 	String and slice of bytes:
 		%s	the uninterpreted bytes of the string or slice
 		%q	a double-quoted string safely escaped with Go syntax
