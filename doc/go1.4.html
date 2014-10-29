@@ -487,6 +487,16 @@ need to know about the new location. All tools and services maintained by the Go
 have been updated.
 </p>
 
+
+<h3 id="swig">SWIG</h3>
+
+<p>
+Due to the runtime changes in this release, Go 1.4 will require SWIG 3.0.3.
+At time of writing that has not yet been released, but we expect it to be by
+Go 1.4's release date.
+TODO
+</p>
+
 <h3 id="misc">Miscellany</h3>
 
 <p>
@@ -549,7 +559,7 @@ TODO major changes
 </p>
 
 <pre>
-encoding/gob: remove unsafe (CL 102680045)
+bufio: handling of empty tokens at EOF changed, may require scanner change (CL 145390043)
 syscall: now frozen (CL 129820043); go.sys subrepo created: http://golang.org/s/go1.4-syscall
 </pre>
 
@@ -562,37 +572,131 @@ See the relevant package documentation for more information about each change.
 
 <ul>
 
-<li> TODO changes
+<li>
+The <a href="/pkg/compress/flate/"><code>compress/flate</code></a>,
+<a href="/pkg/compress/gzip/"><code>compress/gzip</code></a>,
+and <a href="/pkg/compress/zlib/"><code>compress/zlib</code></a>
+packages now support a <code>Reset</code> method
+for the decompressors, allowing them to reuse buffers and improve performance.
 </li>
+
+<li>
+The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+now supports APLN as defined in <a href="http://tools.ietf.org/html/rfc7301">RFC 7301</a>.
+</li>
+
+<li>
+The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+now supports programmatic selection of server certificates
+through the new <a href="/pkg/crypto/tls/#Config.CertificateForName"><code>CertificateForName</code></a> function
+of the <a href="/pkg/crypo/tls/#Config"><code>Config</code></a> struct.
+</li>
+
+<li>
+Also in the <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package,
+the server now supports 
+<a href="https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00">TLS_FALLBACK_SCSV</a>
+to help clients detect fallback attacks like 
+<a href="http://googleonlinesecurity.blogspot.com/2014/10/this-poodle-bites-exploiting-ssl-30.html">POODLE</a>.
+(The crypto/tls package's client has never supported SSLv3, so it is not
+vulnerable to the POODLE attack.)
+</li>
+
+<li>
+In the <a href="/pkg/encoding/asn1/"><code>encoding/asn1</code></a> package,
+optional elements with a default value will now only be omitted if they have that value.
+</li>
+
+<li>
+The <a href="/pkg/encoding/csv/"><code>encoding/csv</code></a> package no longer
+quotes empty strings but does quote the end-of-data marker <code>\.</code> (backslash dot).
+This is permitted by the definition of CSV and allows it to work better with Postgres.
+</li>
+
+<li>
+The <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a> package has been rewritten to eliminate
+the use of unsafe operations, allowing it to be used in environments that do not permit use of the
+<a href="/pkg/unsafe/"><code>unsafe</code></a> package.
+For typical uses it will be 10-30% slower, but the delta is dependent on the type of the data and
+in some cases, especially involving arrays, it can be faster.
+There is no functional change.
+</li>
+
+<li>
+In the <a href="/pkg/fmt/"><code>fmt</code></a> package,
+formatting of pointers to maps has changed to be consistent with that of pointers
+to structs, arrays, and so on.
+For instance, <code>&amp;map[string]int{"one":</code> <code>1}</code> now prints by default as
+<code>&amp;map[one:</code> <code>1]</code> rather than as a hexadecimal pointer value.
+</li>
+
+<li>TODO net/http: add Request.BasicAuth method ( https://codereview.appspot.com/76540043)</li>
+
+<li>TODO net/http: add Transport.DialTLS hook ( https://codereview.appspot.com/137940043)</li>
+
+<li>TODO net/http/httputil: add ReverseProxy.ErrorLog ( https://codereview.appspot.com/132750043)</li>
+
+<li>
+The <a href="/pkg/os/"><code>os</code></a> package
+now implements symbolic links on the Windows operating system
+through the <a href="/pkg/os/#Symlink"><code>Symlink</code></a> function.
+Other operating systems already have this functionality.
+</li>
+
+<li>
+The <a href="/pkg/reflect/"><code>reflect</code></a> package's
+<a href="/pkg/reflect/#Type"><code>Type</code></a> interface
+has a new method, <a href="/pkg/reflect/#type.Comparable"><code>Comparable</code></a>,
+that reports whether the type implements general comparisons.
+</li>
+
+<li>
+Also in the <a href="/pkg/reflect/"><code>reflect</code></a> package, the
+<a href="/pkg/reflect/#Value"><code>Value</code></a> interface is now three instead of four words
+because of changes to the implementation of interfaces in the runtime.
+This saves memory but has no semantic effect.
+</li>
+
+<li>TODO runtime: implement monotonic clocks on windows ( https://codereview.appspot.com/108700045)</li>
+
+<li>TODO runtime: MemStats.Mallocs now counts very small allocations missed in Go 1.3. This may break tests using runtime.ReadMemStats or testing.AllocsPerRun by giving a more accurate answer than Go 1.3 did ( https://codereview.appspot.com/143150043).</li>
+
+<li>TODO runtime/race: freebsd is supported ( https://codereview.appspot.com/107270043)</li>
+
+<li>TODO runtime: add PauseEnd array to MemStats and GCStats ( https://codereview.appspot.com/153670043)</li>
+
+<li>TODO sync/atomic: add Value ( https://codereview.appspot.com/136710045)</li>
+
+<li>TODO syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved ( https://codereview.appspot.com/106170043)</li>
+
+<li>TODO testing: add Coverage ( https://codereview.appspot.com/98150043)</li>
+
+<li>TODO testing: add TestMain support ( https://codereview.appspot.com/148770043)</li>
+
+<li>
+The <a href="/pkg/text/scanner/"><code>text/scanner</code></a> package's
+<a href="/pkg/text/scanner/#Scanner"><code>Scanner</code></a> type
+has a new function,
+<a href="/pkg/text/scanner/#Scanner.IsIdentRune"><code>IsIdentRune</code></a>,
+allowing one to control the definition of an identifier when scanning.
+</li>
+
+<li>
+The <a href="/pkg/text/template/"><code>text/template</code></a> package's boolean
+functions <code>eq</code>, <code>lt</code>, and so on have been generalized to allow comparison
+of signed and unsigned integers, simplifying their use in practice.
+(Previously one could only compare values of the same signedness.)
+All negative values compare less than all unsigned values.
+</li>
+
+<li>
+The <code>time</code> package now uses the standard symbol for the micro prefix,
+the micro symbol (U+00B5 'µ'), to print microsecond durations.
+<a href="/pkg/time/#ParseDuration"><code>ParseDuration</code></a> still accepts <code>us</code>
+but the package no longer prints microseconds as <code>us</code>.
+<br>
+<em>Updating</em>: Code that depends on the output format of durations
+but does not use ParseDuration will need to be updated.
+</li>
+
 </ul>
-
-<pre>
-
-cmd/6l, liblink: use pc-relative addressing for all memory references, so that linking Go binaries at high addresses works (CL 125140043). This cuts the maximum size of a Go binary's text+data+bss from 4GB to 2GB.
-
-bufio: handling of empty tokens at EOF changed, may require scanner change (CL 145390043)
-compress/flate, compress/gzip, compress/zlib: Reset support (https://codereview.appspot.com/97140043)
-crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
-crypto/tls: support programmatic selection of server certificates (CL 107400043)
-encoding/asn1: optional elements with a default value will now only be omitted if they have that value (CL 86960045)
-fmt: print type *map[T]T as &amp;map[k:v] (CL 154870043)
-encoding/csv: do not quote empty strings, quote \. (CL 164760043)
-net/http: add Request.BasicAuth method (CL 76540043)
-net/http: add Transport.DialTLS hook (CL 137940043)
-net/http/httputil: add ReverseProxy.ErrorLog (CL 132750043)
-os: implement symlink support for windows (CL 86160044)
-reflect: add type.Comparable (CL 144020043)
-reflect: Value is one word smaller
-runtime: implement monotonic clocks on windows (CL 108700045)
-runtime: MemStats.Mallocs now counts very small allocations missed in Go 1.3. This may break tests using runtime.ReadMemStats or testing.AllocsPerRun by giving a more accurate answer than Go 1.3 did (CL 143150043).
-runtime/race: freebsd is supported (CL 107270043)
-runtime: add PauseEnd array to MemStats and GCStats (CL 153670043)
-swig: Due to runtime changes Go 1.4 will require SWIG 3.0.3 (not yet released)
-sync/atomic: add Value (CL 136710045)
-syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved (CL 106170043)
-testing: add Coverage (CL 98150043)
-testing: add TestMain support (CL 148770043)
-text/scanner: add IsIdentRune field of Scanner. (CL 108030044)
-text/template: allow comparison of signed and unsigned integers (CL 149780043)
-time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)
-</pre>
