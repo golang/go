@@ -620,7 +620,7 @@ copystack(G *gp, uintptr newsize)
 	adjinfo.old = old;
 	adjinfo.delta = new.hi - old.hi;
 	cb = adjustframe;
-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &cb, &adjinfo, false);
+	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &cb, &adjinfo, 0);
 	
 	// adjust other miscellaneous things that have pointers into stacks.
 	adjustctxt(gp, &adjinfo);

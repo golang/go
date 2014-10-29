@@ -108,7 +108,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 
 	if(runtime·gotraceback(&crash)){
 		runtime·goroutineheader(gp);
-		runtime·traceback(SIG_PC(info, ctxt), SIG_SP(info, ctxt), SIG_LR(info, ctxt), gp);
+		runtime·tracebacktrap(SIG_PC(info, ctxt), SIG_SP(info, ctxt), SIG_LR(info, ctxt), gp);
 		runtime·tracebackothers(gp);
 		runtime·printf("\n");
 		runtime·dumpregs(info, ctxt);

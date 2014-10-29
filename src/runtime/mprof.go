@@ -562,7 +562,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 }
 
 func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
-	n := gentraceback(pc, sp, 0, gp, 0, &r.Stack0[0], len(r.Stack0), nil, nil, false)
+	n := gentraceback(pc, sp, 0, gp, 0, &r.Stack0[0], len(r.Stack0), nil, nil, 0)
 	if n < len(r.Stack0) {
 		r.Stack0[n] = 0
 	}
