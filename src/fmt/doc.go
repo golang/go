@@ -38,8 +38,8 @@
 		%E	scientific notation, e.g. -1234.456E+78
 		%f	decimal point but no exponent, e.g. 123.456
 		%F	synonym for %f
-		%g	whichever of %e or %f produces more compact output
-		%G	whichever of %E or %f produces more compact output
+		%g	%e for large exponents, %f otherwise
+		%G	%E for large exponents, %G otherwise
 	String and slice of bytes:
 		%s	the uninterpreted bytes of the string or slice
 		%q	a double-quoted string safely escaped with Go syntax
