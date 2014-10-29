@@ -49,9 +49,22 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 		runtime·futex(addr, FUTEX_WAIT, val, nil, nil, 0);
 		return;
 	}
-	// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+
+	// It's difficult to live within the no-split stack limits here.
+	// On ARM and 386, a 64-bit divide invokes a general software routine
+	// that needs more stack than we can afford. So we use timediv instead.
+	// But on real 64-bit systems, where words are larger but the stack limit
+	// is not, even timediv is too heavy, and we really need to use just an
+	// ordinary machine instruction.
+	// Sorry for the #ifdef.
+	// For what it's worth, the #ifdef eliminated an implicit little-endian assumption.
+#ifdef _64BIT
+	ts.tv_sec = ns / 1000000000LL;
+	ts.tv_nsec = ns % 1000000000LL;
+#else
 	ts.tv_nsec = 0;
 	ts.tv_sec = runtime·timediv(ns, 1000000000LL, (int32*)&ts.tv_nsec);
+#endif
 	runtime·futex(addr, FUTEX_WAIT, val, &ts, nil, 0);
 }
 
@@ -98,19 +111,22 @@ static int32
 getproccount(void)
 {
 	uintptr buf[16], t;
-	int32 r, cnt, i;
+	int32 r, n, i;
 
-	cnt = 0;
 	r = runtime·sched_getaffinity(0, sizeof(buf), buf);
-	if(r > 0)
+	if(r <= 0)
+		return 1;
+	n = 0;
 	for(i = 0; i < r/sizeof(buf[0]); i++) {
 		t = buf[i];
-		t = t - ((t >> 1) & 0x5555555555555555ULL);
-		t = (t & 0x3333333333333333ULL) + ((t >> 2) & 0x3333333333333333ULL);
-		cnt += (int32)((((t + (t >> 4)) & 0xF0F0F0F0F0F0F0FULL) * 0x101010101010101ULL) >> 56);
+		while(t != 0) {
+			n += t&1;
+			t >>= 1;
+		}
 	}
-
-	return cnt ? cnt : 1;
+	if(n < 1)
+		n = 1;
+	return n;
 }
 
 // Clone, the Linux rfork.
@@ -298,7 +314,8 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
 	if(fn == runtime·sighandler)
 		fn = (void*)runtime·sigtramp;
 	sa.sa_handler = fn;
-	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
+	// Qemu rejects rt_sigaction of SIGRTMAX (64).
+	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0 && i != 64)
 		runtime·throw("rt_sigaction failure");
 }
 

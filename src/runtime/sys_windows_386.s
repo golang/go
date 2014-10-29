@@ -106,7 +106,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	g_m(DX), BX
 	MOVL	m_g0(BX), BX
 	CMPL	DX, BX
-	JEQ	sigtramp_g0
+	JEQ	g0
 
 	// switch to the g0 stack
 	get_tls(BP)
@@ -123,7 +123,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	SP, 36(DI)
 	MOVL	DI, SP
 
-sigtramp_g0:
+g0:
 	MOVL	0(CX), BX // ExceptionRecord*
 	MOVL	4(CX), CX // Context*
 	MOVL	BX, 0(SP)
@@ -383,12 +383,12 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 
 	MOVL	m_g0(BP), SI
 	CMPL	g(CX), SI
-	JNE	usleep1_switch
+	JNE	switch
 	// executing on m->g0 already
 	CALL	AX
-	JMP	usleep1_ret
+	JMP	ret
 
-usleep1_switch:
+switch:
 	// Switch to m->g0 stack and back.
 	MOVL	(g_sched+gobuf_sp)(SI), SI
 	MOVL	SP, -4(SI)
@@ -396,7 +396,7 @@ usleep1_switch:
 	CALL	AX
 	MOVL	0(SP), SP
 
-usleep1_ret:
+ret:
 	get_tls(CX)
 	MOVL	g(CX), BP
 	MOVL	g_m(BP), BP

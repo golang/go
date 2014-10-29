@@ -61,7 +61,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	// we can only call nosplit routines.
 	argp := uintptr(unsafe.Pointer(&fn))
 	argp += unsafe.Sizeof(fn)
-	if GOARCH == "arm" {
+	if GOARCH == "arm" || GOARCH == "power64" || GOARCH == "power64le" {
 		argp += ptrSize // skip caller's saved link register
 	}
 	mp := acquirem()
@@ -494,12 +494,12 @@ func throw(s *byte) {
 
 //go:nosplit
 func gothrow(s string) {
+	print("fatal error: ", s, "\n")
 	gp := getg()
 	if gp.m.throwing == 0 {
 		gp.m.throwing = 1
 	}
 	startpanic()
-	print("fatal error: ", s, "\n")
 	dopanic(0)
 	*(*int)(nil) = 0 // not reached
 }

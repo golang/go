@@ -248,7 +248,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	MOVL	BX, 0(SP)
 	MOVL	$runtime·badsignal(SB), AX
 	CALL	AX
-	JMP 	sigtramp_ret
+	JMP 	ret
 
 	// save g
 	MOVL	DI, 20(SP)
@@ -275,7 +275,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	MOVL	20(SP), DI
 	MOVL	DI, g(CX)
 
-sigtramp_ret:
+ret:
 	// call sigreturn
 	MOVL	context+16(FP), CX
 	MOVL	style+4(FP), BX

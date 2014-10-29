@@ -2065,6 +2065,7 @@ runtime·unrollgcprog_m(void)
 			prog = (byte*)typ->gc[1];
 			unrollgcprog1(mask, prog, &pos, false, true);
 		}
+
 		// atomic way to say mask[0] = 1
 		x = *(uintptr*)mask;
 		((byte*)&x)[0] = 1;

@@ -594,6 +594,7 @@ hostlink(void)
 		argv[argc++] = "-m32";
 		break;
 	case '6':
+	case '9':
 		argv[argc++] = "-m64";
 		break;
 	case '5':
@@ -1033,7 +1034,7 @@ static LSym *newstack;
 
 enum
 {
-	HasLinkRegister = (thechar == '5'),
+	HasLinkRegister = (thechar == '5' || thechar == '9'),
 };
 
 // TODO: Record enough information in new object files to
@@ -1042,7 +1043,7 @@ enum
 static int
 callsize(void)
 {
-	if(thechar == '5')
+	if(HasLinkRegister)
 		return 0;
 	return RegSize;
 }
@@ -1052,7 +1053,7 @@ dostkcheck(void)
 {
 	Chain ch;
 	LSym *s;
-	
+
 	morestack = linklookup(ctxt, "runtime.morestack", 0);
 	newstack = linklookup(ctxt, "runtime.newstack", 0);
 
@@ -1076,18 +1077,18 @@ dostkcheck(void)
 			continue;
 
 		if(s->nosplit) {
-		ctxt->cursym = s;
-		ch.sym = s;
-		stkcheck(&ch, 0);
-	}
+			ctxt->cursym = s;
+			ch.sym = s;
+			stkcheck(&ch, 0);
+		}
 	}
 	for(s = ctxt->textp; s != nil; s = s->next) {
 		if(!s->nosplit) {
-		ctxt->cursym = s;
-		ch.sym = s;
-		stkcheck(&ch, 0);
+			ctxt->cursym = s;
+			ch.sym = s;
+			stkcheck(&ch, 0);
+		}
 	}
-}
 }
 
 static int
@@ -1106,7 +1107,7 @@ stkcheck(Chain *up, int depth)
 	// function at top of safe zone once.
 	if(limit == StackLimit-callsize()) {
 		if(s->stkcheck)
-		return 0;
+			return 0;
 		s->stkcheck = 1;
 	}
 	
@@ -1154,6 +1155,7 @@ stkcheck(Chain *up, int depth)
 			switch(r->type) {
 			case R_CALL:
 			case R_CALLARM:
+			case R_CALLPOWER:
 				// Direct call.
 				ch.limit = limit - pcsp.value - callsize();
 				ch.sym = r->sym;
@@ -1164,8 +1166,8 @@ stkcheck(Chain *up, int depth)
 				// to StackLimit beyond the frame size.
 				if(strncmp(r->sym->name, "runtime.morestack", 17) == 0) {
 					limit = StackLimit + s->locals;
-					if(thechar == '5')
-						limit += 4; // saved LR
+					if(HasLinkRegister)
+						limit += RegSize;
 				}
 				break;
 
@@ -1184,7 +1186,7 @@ stkcheck(Chain *up, int depth)
 				break;
 			}
 		}
-		}
+	}
 		
 	return 0;
 }
@@ -1213,7 +1215,7 @@ stkprint(Chain *ch, int limit)
 		else
 			print("\t%d\tguaranteed after split check in %s\n", ch->limit, name);
 	} else {
-		stkprint(ch->up, ch->limit + (!HasLinkRegister)*PtrSize);
+		stkprint(ch->up, ch->limit + (!HasLinkRegister)*RegSize);
 		if(!HasLinkRegister)
 			print("\t%d\ton entry to %s\n", ch->limit, name);
 	}
@@ -1533,7 +1535,7 @@ callgraph(void)
 			r = &s->r[i];
 			if(r->sym == nil)
 				continue;
-			if((r->type == R_CALL || r->type == R_CALLARM) && r->sym->type == STEXT)
+			if((r->type == R_CALL || r->type == R_CALLARM || r->type == R_CALLPOWER) && r->sym->type == STEXT)
 				Bprint(&bso, "%s calls %s\n", s->name, r->sym->name);
 		}
 	}
