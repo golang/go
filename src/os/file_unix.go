@@ -187,7 +187,7 @@ func (f *File) read(b []byte) (n int, err error) {
 	if needsMaxRW && len(b) > maxRW {
 		b = b[:maxRW]
 	}
-	return syscall.Read(f.fd, b)
+	return fixCount(syscall.Read(f.fd, b))
 }
 
 // pread reads len(b) bytes from the File starting at byte offset off.
@@ -197,7 +197,7 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 	if needsMaxRW && len(b) > maxRW {
 		b = b[:maxRW]
 	}
-	return syscall.Pread(f.fd, b, off)
+	return fixCount(syscall.Pread(f.fd, b, off))
 }
 
 // write writes len(b) bytes to the File.
@@ -208,7 +208,7 @@ func (f *File) write(b []byte) (n int, err error) {
 		if needsMaxRW && len(bcap) > maxRW {
 			bcap = bcap[:maxRW]
 		}
-		m, err := syscall.Write(f.fd, bcap)
+		m, err := fixCount(syscall.Write(f.fd, bcap))
 		n += m
 
 		// If the syscall wrote some data but not all (short write)
@@ -234,7 +234,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 	if needsMaxRW && len(b) > maxRW {
 		b = b[:maxRW]
 	}
-	return syscall.Pwrite(f.fd, b, off)
+	return fixCount(syscall.Pwrite(f.fd, b, off))
 }
 
 // seek sets the offset for the next Read or Write on file to offset, interpreted

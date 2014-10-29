@@ -656,7 +656,7 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 }
 
 static int
-iszero(Mpint *a)
+mpiszero(Mpint *a)
 {
 	long *a1;
 	int i;
@@ -687,7 +687,7 @@ mpdivfract(Mpint *a, Mpint *b)
 		for(j=0; j<Mpscale; j++) {
 			x <<= 1;
 			if(mpcmp(&d, &n) <= 0) {
-				if(!iszero(&d))
+				if(!mpiszero(&d))
 					x |= 1;
 				mpsubfixfix(&n, &d);
 			}

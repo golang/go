@@ -44,7 +44,8 @@ type MemStats struct {
 	NextGC       uint64 // next collection will happen when HeapAlloc ≥ this amount
 	LastGC       uint64 // end time of last collection (nanoseconds since 1970)
 	PauseTotalNs uint64
-	PauseNs      [256]uint64 // circular buffer of recent GC pause times, most recent at [(NumGC+255)%256]
+	PauseNs      [256]uint64 // circular buffer of recent GC pause durations, most recent at [(NumGC+255)%256]
+	PauseEnd     [256]uint64 // circular buffer of recent GC pause end times
 	NumGC        uint32
 	EnableGC     bool
 	DebugGC      bool

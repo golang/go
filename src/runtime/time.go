@@ -35,8 +35,8 @@ var timers struct {
 	t            []*timer
 }
 
-// nacl fake time support.
-var timens int64
+// nacl fake time support - time in nanoseconds since 1970
+var faketime int64
 
 // Package time APIs.
 // Godoc uses the comments in package time, not these.
@@ -194,7 +194,7 @@ func timerproc() {
 			f(arg, seq)
 			lock(&timers.lock)
 		}
-		if delta < 0 {
+		if delta < 0 || faketime > 0 {
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true
 			goparkunlock(&timers.lock, "timer goroutine (idle)")
@@ -206,6 +206,29 @@ func timerproc() {
 		unlock(&timers.lock)
 		notetsleepg(&timers.waitnote, delta)
 	}
+}
+
+func timejump() *g {
+	if faketime == 0 {
+		return nil
+	}
+
+	lock(&timers.lock)
+	if !timers.created || len(timers.t) == 0 {
+		unlock(&timers.lock)
+		return nil
+	}
+
+	var gp *g
+	if faketime < timers.t[0].when {
+		faketime = timers.t[0].when
+		if timers.rescheduling {
+			timers.rescheduling = false
+			gp = timers.gp
+		}
+	}
+	unlock(&timers.lock)
+	return gp
 }
 
 // Heap maintenance algorithms.

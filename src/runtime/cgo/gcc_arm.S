@@ -12,13 +12,6 @@
 #endif
 
 /*
- * Because the assembler might target an earlier revision of the ISA
- * by default, we must explicitly specify the ISA revision to ensure
- * BLX is recognized as a valid instruction.
- */	
-.arch armv5t
-
-/*
  * void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
  *
  * Calling into the 5c tool chain, where all registers are caller save.
@@ -31,8 +24,12 @@ EXT(crosscall_arm1):
 	mov r4, r0
 	mov r5, r1
 	mov r0, r2
-	blx r5 // setg(g) 
-	blx r4 // fn() 
+
+	// Because the assembler might target an earlier revision of the ISA
+	// by default, we encode BLX as a .word.
+	.word 0xe12fff35 // blx r5 // setg(g)
+	.word 0xe12fff34 // blx r4 // fn()
+
 	pop {r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
 
 .globl EXT(__stack_chk_fail_local)

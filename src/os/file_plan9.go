@@ -244,14 +244,14 @@ func (f *File) Sync() (err error) {
 // read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an error, if any.
 func (f *File) read(b []byte) (n int, err error) {
-	return syscall.Read(f.fd, b)
+	return fixCount(syscall.Read(f.fd, b))
 }
 
 // pread reads len(b) bytes from the File starting at byte offset off.
 // It returns the number of bytes read and the error, if any.
 // EOF is signaled by a zero count with err set to nil.
 func (f *File) pread(b []byte, off int64) (n int, err error) {
-	return syscall.Pread(f.fd, b, off)
+	return fixCount(syscall.Pread(f.fd, b, off))
 }
 
 // write writes len(b) bytes to the File.
@@ -262,7 +262,7 @@ func (f *File) write(b []byte) (n int, err error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
-	return syscall.Write(f.fd, b)
+	return fixCount(syscall.Write(f.fd, b))
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
@@ -273,7 +273,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
-	return syscall.Pwrite(f.fd, b, off)
+	return fixCount(syscall.Pwrite(f.fd, b, off))
 }
 
 // seek sets the offset for the next Read or Write on file to offset, interpreted

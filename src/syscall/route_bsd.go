@@ -153,7 +153,7 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
 	// RTAX_NETMASK socket address on the FreeBSD kernel.
 	preferredFamily := uint8(AF_UNSPEC)
 	for i := uint(0); i < RTAX_MAX; i++ {
-		if m.Header.Addrs&rtaIfaMask&(1<<i) == 0 {
+		if m.Header.Addrs&(1<<i) == 0 {
 			continue
 		}
 		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))

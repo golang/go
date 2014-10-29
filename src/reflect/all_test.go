@@ -2502,10 +2502,21 @@ func TestAllocations(t *testing.T) {
 	noAlloc(t, 100, func(j int) {
 		var i interface{}
 		var v Value
-		i = 42 + j
+
+		// We can uncomment this when compiler escape analysis
+		// is good enough to see that the integer assigned to i
+		// does not escape and therefore need not be allocated.
+		//
+		// i = 42 + j
+		// v = ValueOf(i)
+		// if int(v.Int()) != 42+j {
+		// 	panic("wrong int")
+		// }
+
+		i = func(j int) int { return j }
 		v = ValueOf(i)
-		if int(v.Int()) != 42+j {
-			panic("wrong int")
+		if v.Interface().(func(int) int)(j) != j {
+			panic("wrong result")
 		}
 	})
 }
@@ -2675,6 +2686,26 @@ func TestFuncArg(t *testing.T) {
 	r := ValueOf(f1).Call([]Value{ValueOf(100), ValueOf(f2)})
 	if r[0].Int() != 101 {
 		t.Errorf("function returned %d, want 101", r[0].Int())
+	}
+}
+
+func TestStructArg(t *testing.T) {
+	type padded struct {
+		B string
+		C int32
+	}
+	var (
+		gotA  padded
+		gotB  uint32
+		wantA = padded{"3", 4}
+		wantB = uint32(5)
+	)
+	f := func(a padded, b uint32) {
+		gotA, gotB = a, b
+	}
+	ValueOf(f).Call([]Value{ValueOf(wantA), ValueOf(wantB)})
+	if gotA != wantA || gotB != wantB {
+		t.Errorf("function called with (%v, %v), want (%v, %v)", gotA, gotB, wantA, wantB)
 	}
 }
 

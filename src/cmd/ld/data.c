@@ -633,9 +633,7 @@ addstrdata(char *name, char *value)
 	s->dupok = 1;
 	reachable = s->reachable;
 	addaddr(ctxt, s, sp);
-	adduint32(ctxt, s, strlen(value));
-	if(PtrSize == 8)
-		adduint32(ctxt, s, 0);  // round struct to pointer width
+	adduintxx(ctxt, s, strlen(value), PtrSize);
 
 	// addstring, addaddr, etc., mark the symbols as reachable.
 	// In this case that is not necessarily true, so stick to what

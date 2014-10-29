@@ -200,6 +200,8 @@ func poolCleanup() {
 			}
 			l.shared = nil
 		}
+		p.local = nil
+		p.localSize = 0
 	}
 	allPools = []*Pool{}
 }

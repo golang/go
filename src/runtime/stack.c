@@ -401,12 +401,12 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 			break;
 		case BitsPointer:
 			p = scanp[i];
-			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
+			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize && runtime·invalidptr || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
 				g->m->traceback = 2;
 				runtime·printf("runtime: bad pointer in frame %s at %p: %p\n", runtime·funcname(f), &scanp[i], p);
-				runtime·throw("bad pointer!");
+				runtime·throw("invalid stack pointer");
 			}
 			if(minp <= p && p < maxp) {
 				if(StackDebug >= 3)

@@ -60,7 +60,7 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 
 	impl := &makeFuncImpl{code: code, stack: stack, typ: ftyp, fn: fn}
 
-	return Value{t, unsafe.Pointer(impl), flag(Func) << flagKindShift}
+	return Value{t, unsafe.Pointer(impl), flag(Func)}
 }
 
 // makeFuncStub is an assembly function that is the code half of
@@ -91,7 +91,7 @@ func makeMethodValue(op string, v Value) Value {
 
 	// Ignoring the flagMethod bit, v describes the receiver, not the method type.
 	fl := v.flag & (flagRO | flagAddr | flagIndir)
-	fl |= flag(v.typ.Kind()) << flagKindShift
+	fl |= flag(v.typ.Kind())
 	rcvr := Value{v.typ, v.ptr, fl}
 
 	// v.Type returns the actual type of the method value.
@@ -118,7 +118,7 @@ func makeMethodValue(op string, v Value) Value {
 	// but we want Interface() and other operations to fail early.
 	methodReceiver(op, fv.rcvr, fv.method)
 
-	return Value{funcType, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)<<flagKindShift}
+	return Value{funcType, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
 }
 
 // methodValueCall is an assembly function that is the code half of

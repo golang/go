@@ -17,7 +17,6 @@ enum
 	InitPending = 2,
 };
 
-static int iszero(Node*);
 static void initplan(Node*);
 static NodeList *initlist;
 static void init2(Node*, NodeList**);
@@ -1068,7 +1067,7 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 		if(t->etype != TSTRUCT)
 			fatal("anylit: not struct");
 
-		if(simplename(var)) {
+		if(simplename(var) && count(n->list) > 4) {
 
 			if(ctxt == 0) {
 				// lay out static data
@@ -1091,7 +1090,7 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 		}
 
 		// initialize of not completely specified
-		if(count(n->list) < structcount(t)) {
+		if(simplename(var) || count(n->list) < structcount(t)) {
 			a = nod(OAS, var, N);
 			typecheck(&a, Etop);
 			walkexpr(&a, init);
@@ -1108,7 +1107,7 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 			break;
 		}
 
-		if(simplename(var)) {
+		if(simplename(var) && count(n->list) > 4) {
 
 			if(ctxt == 0) {
 				// lay out static data
@@ -1131,7 +1130,7 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 		}
 
 		// initialize of not completely specified
-		if(count(n->list) < t->bound) {
+		if(simplename(var) || count(n->list) < t->bound) {
 			a = nod(OAS, var, N);
 			typecheck(&a, Etop);
 			walkexpr(&a, init);
@@ -1356,7 +1355,6 @@ no:
 	return 0;
 }
 
-static int iszero(Node*);
 static int isvaluelit(Node*);
 static InitEntry* entry(InitPlan*);
 static void addvalue(InitPlan*, vlong, Node*, Node*);
@@ -1440,7 +1438,7 @@ addvalue(InitPlan *p, vlong xoffset, Node *key, Node *n)
 	e->expr = n;
 }
 
-static int
+int
 iszero(Node *n)
 {
 	NodeList *l;
