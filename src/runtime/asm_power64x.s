@@ -699,7 +699,7 @@ TEXT runtime·memeq(SB),NOSPLIT,$-8-25
 	SUB	$1, R3
 	SUB	$1, R4
 	ADD	R3, R5, R8
-_next:
+loop:
 	CMP	R3, R8
 	BNE	4(PC)
 	MOVD	$1, R3
@@ -708,7 +708,7 @@ _next:
 	MOVBZU	1(R3), R6
 	MOVBZU	1(R4), R7
 	CMP	R6, R7
-	BEQ	_next
+	BEQ	loop
 
 	MOVB	R0, ret+24(FP)
 	RETURN
@@ -720,14 +720,14 @@ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
 	MOVD	s1len+8(FP), R4
 	MOVD	s2len+24(FP), R5
 	CMP	R4, R5
-	BNE	str_noteq
+	BNE	noteq
 
 	MOVD	s1str+0(FP), R3
 	MOVD	s2str+16(FP), R4
 	SUB	$1, R3
 	SUB	$1, R4
 	ADD	R3, R5, R8
-eq_next:
+loop:
 	CMP	R3, R8
 	BNE	4(PC)
 	MOVD	$1, R3
@@ -736,8 +736,8 @@ eq_next:
 	MOVBZU	1(R3), R6
 	MOVBZU	1(R4), R7
 	CMP	R6, R7
-	BEQ	eq_next
-str_noteq:
+	BEQ	loop
+noteq:
 	MOVB	R0, ret+32(FP)
 	RETURN
 
@@ -747,7 +747,7 @@ TEXT bytes·Equal(SB),NOSPLIT,$0-49
 	MOVD	b_len+32(FP), R4
 
 	CMP	R3, R4		// unequal lengths are not equal
-	BNE	_notequal
+	BNE	noteq
 
 	MOVD	a+0(FP), R5
 	MOVD	b+24(FP), R6
@@ -755,19 +755,19 @@ TEXT bytes·Equal(SB),NOSPLIT,$0-49
 	SUB	$1, R6
 	ADD	R5, R3		// end-1
 
-_byteseq_next:
+loop:
 	CMP	R5, R3
-	BEQ	_equal		// reached the end
+	BEQ	equal		// reached the end
 	MOVBZU	1(R5), R4
 	MOVBZU	1(R6), R7
 	CMP	R4, R7
-	BEQ	_byteseq_next
+	BEQ	loop
 
-_notequal:
+noteq:
 	MOVBZ	R0, ret+48(FP)
 	RETURN
 
-_equal:
+equal:
 	MOVD	$1, R3
 	MOVBZ	R3, ret+48(FP)
 	RETURN
@@ -780,18 +780,18 @@ TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
 	SUB	$1, R3
 	ADD	R3, R4		// end-1
 
-_index_loop:
+loop:
 	CMP	R3, R4
-	BEQ	_index_notfound
+	BEQ	notfound
 	MOVBZU	1(R3), R7
 	CMP	R7, R5
-	BNE	_index_loop
+	BNE	loop
 
 	SUB	R6, R3		// remove base
 	MOVD	R3, ret+32(FP)
 	RETURN
 
-_index_notfound:
+notfound:
 	MOVD	$-1, R3
 	MOVD	R3, ret+32(FP)
 	RETURN
@@ -804,18 +804,18 @@ TEXT strings·IndexByte(SB),NOSPLIT,$0
 	SUB	$1, R3
 	ADD	R3, R4		// end-1
 
-_index2_loop:
+loop:
 	CMP	R3, R4
-	BEQ	_index2_notfound
+	BEQ	notfound
 	MOVBZU	1(R3), R7
 	CMP	R7, R5
-	BNE	_index2_loop
+	BNE	loop
 
 	SUB	R6, R3		// remove base
 	MOVD	R3, ret+24(FP)
 	RETURN
 
-_index2_notfound:
+notfound:
 	MOVD	$-1, R3
 	MOVD	R3, ret+24(FP)
 	RETURN
