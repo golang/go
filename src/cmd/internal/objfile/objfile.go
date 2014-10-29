@@ -14,6 +14,8 @@ import (
 type rawFile interface {
 	symbols() (syms []Sym, err error)
 	pcln() (textStart uint64, symtab, pclntab []byte, err error)
+	text() (textStart uint64, text []byte, err error)
+	goarch() string
 }
 
 // A File is an opened executable file.
@@ -69,4 +71,12 @@ func (f *File) PCLineTable() (*gosym.Table, error) {
 		return nil, err
 	}
 	return gosym.NewTable(symtab, gosym.NewLineTable(pclntab, textStart))
+}
+
+func (f *File) Text() (uint64, []byte, error) {
+	return f.raw.text()
+}
+
+func (f *File) GOARCH() string {
+	return f.raw.goarch()
 }
