@@ -24,7 +24,6 @@ char *runtimeimport =
 	"func @\"\".printslice (? any)\n"
 	"func @\"\".printnl ()\n"
 	"func @\"\".printsp ()\n"
-	"func @\"\".goprintf ()\n"
 	"func @\"\".concatstring2 (? string, ? string) (? string)\n"
 	"func @\"\".concatstring3 (? string, ? string, ? string) (? string)\n"
 	"func @\"\".concatstring4 (? string, ? string, ? string, ? string) (? string)\n"
