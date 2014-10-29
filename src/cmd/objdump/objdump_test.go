@@ -204,7 +204,7 @@ func TestDisasm(t *testing.T) {
 
 func TestDisasmExtld(t *testing.T) {
 	switch runtime.GOOS {
-	case "windows":
+	case "plan9", "windows":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 	testDisasm(t, "-ldflags=-linkmode=external")
