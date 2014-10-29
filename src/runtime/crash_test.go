@@ -31,7 +31,7 @@ func testEnv(cmd *exec.Cmd) *exec.Cmd {
 	return cmd
 }
 
-func executeTest(t *testing.T, templ string, data interface{}) string {
+func executeTest(t *testing.T, templ string, data interface{}, extra ...string) string {
 	switch runtime.GOOS {
 	case "android", "nacl":
 		t.Skipf("skipping on %s", runtime.GOOS)
@@ -61,7 +61,20 @@ func executeTest(t *testing.T, templ string, data interface{}) string {
 		t.Fatalf("failed to close file: %v", err)
 	}
 
-	got, _ := testEnv(exec.Command("go", "run", src)).CombinedOutput()
+	for i := 0; i < len(extra); i += 2 {
+		if err := ioutil.WriteFile(filepath.Join(dir, extra[i]), []byte(extra[i+1]), 0666); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cmd := exec.Command("go", "build", "-o", "a.exe")
+	cmd.Dir = dir
+	out, err := testEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("building source: %v\n%s", err, out)
+	}
+
+	got, _ := testEnv(exec.Command(filepath.Join(dir, "a.exe"))).CombinedOutput()
 	return string(got)
 }
 
