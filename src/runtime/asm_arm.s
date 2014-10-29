@@ -556,6 +556,21 @@ TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
 	MOVW	$runtime·needm(SB), R0
 	BL	(R0)
 
+	// Set m->sched.sp = SP, so that if a panic happens
+	// during the function we are about to execute, it will
+	// have a valid SP to run on the g0 stack.
+	// The next few lines (after the havem label)
+	// will save this SP onto the stack and then write
+	// the same SP back to m->sched.sp. That seems redundant,
+	// but if an unrecovered panic happens, unwindm will
+	// restore the g->sched.sp from the stack location
+	// and then onM will try to use it. If we don't set it here,
+	// that restored SP will be uninitialized (typically 0) and
+	// will not be usable.
+	MOVW	g_m(g), R8
+	MOVW	m_g0(R8), R3
+	MOVW	R13, (g_sched+gobuf_sp)(R3)
+
 havem:
 	MOVW	g_m(g), R8
 	MOVW	R8, savedm-4(SP)
