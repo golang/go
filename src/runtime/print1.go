@@ -19,32 +19,17 @@ func bytes(s string) (ret []byte) {
 	return
 }
 
-// goprintf is the function call that is actually deferred when you write
-//	defer print(...)
-// It is otherwise unused. In particular it is not used for ordinary prints.
-// Right now a dynamically allocated string that is being passed as an
-// argument is invisible to the garbage collector and might be collected
-// if that argument list is the only reference. For now we ignore that possibility.
-// To fix, we should change to defer a call to vprintf with a pointer to
-// an argument list on the stack, stored in an appropriately typed
-// struct. golang.org/issue/8614.
-//go:nosplit
-func goprintf(s string) {
-	vprintf(s, add(unsafe.Pointer(&s), unsafe.Sizeof(s)))
-}
-
-// printf is only called from C code. It has the same problem as goprintf
-// with strings possibly being collected from underneath.
-// However, the runtime never prints dynamically allocated
-// Go strings using printf. The strings it prints come from the symbol
-// and type tables.
+// printf is only called from C code. It has no type information for the args,
+// but C stacks are ignored by the garbage collector anyway, so having
+// type information would not add anything.
 //go:nosplit
 func printf(s *byte) {
 	vprintf(gostringnocopy(s), add(unsafe.Pointer(&s), unsafe.Sizeof(s)))
 }
 
-// sprintf is only called from C code.
-// It has the same problem as goprintf.
+// sprintf is only called from C code. It has no type information for the args,
+// but C stacks are ignored by the garbage collector anyway, so having
+// type information would not add anything.
 //go:nosplit
 func snprintf(dst *byte, n int32, s *byte) {
 	buf := (*[1 << 30]byte)(unsafe.Pointer(dst))[0:n:n]
