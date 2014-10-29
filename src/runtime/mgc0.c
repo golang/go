@@ -330,7 +330,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 			if(obj == nil)
 				continue;
 			if(obj < arena_start || obj >= arena_used) {
-				if((uintptr)obj < PhysPageSize) {
+				if((uintptr)obj < PhysPageSize && runtime·invalidptr) {
 					s = nil;
 					goto badobj;
 				}
@@ -375,7 +375,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
 					else
 						runtime·printf(" span=%p-%p-%p state=%d\n", (uintptr)s->start<<PageShift, s->limit, (uintptr)(s->start+s->npages)<<PageShift, s->state);
 					if(ptrmask != nil)
-						runtime·throw("bad pointer");
+						runtime·throw("invalid heap pointer");
 					// Add to badblock list, which will cause the garbage collection
 					// to keep repeating until it has traced the chain of pointers
 					// leading to obj all the way back to a root.

@@ -657,6 +657,8 @@ enum {
 byte*	runtime·startup_random_data;
 uint32	runtime·startup_random_data_len;
 
+int32	runtime·invalidptr;
+
 enum {
 	// hashinit wants this many random bytes
 	HashRandomBytes = 32
