@@ -492,7 +492,7 @@ TEXT asmcgocall<>(SB),NOSPLIT,$0-0
 	MOVW	g_m(g), R8
 	MOVW	m_g0(R8), R3
 	CMP	R3, g
-	BEQ	asmcgocall_g0
+	BEQ	g0
 	BL	gosave<>(SB)
 	MOVW	R0, R5
 	MOVW	R3, R0
@@ -501,7 +501,7 @@ TEXT asmcgocall<>(SB),NOSPLIT,$0-0
 	MOVW	(g_sched+gobuf_sp)(g), R13
 
 	// Now on a scheduling stack (a pthread-created stack).
-asmcgocall_g0:
+g0:
 	SUB	$24, R13
 	BIC	$0x7, R13	// alignment for gcc ABI
 	MOVW	R4, 20(R13) // save old g
@@ -751,13 +751,13 @@ TEXT runtime·memeq(SB),NOSPLIT,$-4-13
 	ADD	R1, R3, R6
 	MOVW	$1, R0
 	MOVB	R0, ret+12(FP)
-_next2:
+loop:
 	CMP	R1, R6
 	RET.EQ
 	MOVBU.P	1(R1), R4
 	MOVBU.P	1(R2), R5
 	CMP	R4, R5
-	BEQ	_next2
+	BEQ	loop
 
 	MOVW	$0, R0
 	MOVB	R0, ret+12(FP)
@@ -780,13 +780,13 @@ TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
 	CMP	R2, R3
 	RET.EQ
 	ADD	R2, R0, R6
-_eqnext:
+loop:
 	CMP	R2, R6
 	RET.EQ
 	MOVBU.P	1(R2), R4
 	MOVBU.P	1(R3), R5
 	CMP	R4, R5
-	BEQ	_eqnext
+	BEQ	loop
 	MOVB	R7, v+16(FP)
 	RET
 
@@ -801,26 +801,26 @@ TEXT bytes·Equal(SB),NOSPLIT,$0
 	MOVW	b_len+16(FP), R3
 	
 	CMP	R1, R3		// unequal lengths are not equal
-	B.NE	_notequal
+	B.NE	notequal
 
 	MOVW	a+0(FP), R0
 	MOVW	b+12(FP), R2
 	ADD	R0, R1		// end
 
-_byteseq_next:
+loop:
 	CMP	R0, R1
-	B.EQ	_equal		// reached the end
+	B.EQ	equal		// reached the end
 	MOVBU.P	1(R0), R4
 	MOVBU.P	1(R2), R5
 	CMP	R4, R5
-	B.EQ	_byteseq_next
+	B.EQ	loop
 
-_notequal:
+notequal:
 	MOVW	$0, R0
 	MOVBU	R0, ret+24(FP)
 	RET
 
-_equal:
+equal:
 	MOVW	$1, R0
 	MOVBU	R0, ret+24(FP)
 	RET

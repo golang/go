@@ -70,7 +70,7 @@ runtime·recovery_m(G *gp)
 	// (The pc we're returning to does pop pop
 	// before it tests the return value.)
 	// On the arm there are 2 saved LRs mixed in too.
-	if(thechar == '5')
+	if(thechar == '5' || thechar == '9')
 		gp->sched.sp = (uintptr)argp - 4*sizeof(uintptr);
 	else
 		gp->sched.sp = (uintptr)argp - 2*sizeof(uintptr);

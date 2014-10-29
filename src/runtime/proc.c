@@ -2128,7 +2128,7 @@ runtime·newproc(int32 siz, FuncVal* fn, ...)
 	byte *argp;
 	void (*mfn)(void);
 
-	if(thechar == '5')
+	if(thechar == '5' || thechar == '9')
 		argp = (byte*)(&fn+2);  // skip caller's saved LR
 	else
 		argp = (byte*)(&fn+1);
@@ -2188,7 +2188,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 	sp -= 4*sizeof(uintreg); // extra space in case of reads slightly beyond frame
 	sp -= siz;
 	runtime·memmove(sp, argp, narg);
-	if(thechar == '5') {
+	if(thechar == '5' || thechar == '9') {
 		// caller's LR
 		sp -= sizeof(void*);
 		*(void**)sp = nil;

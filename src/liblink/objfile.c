@@ -142,6 +142,8 @@ writeobj(Link *ctxt, Biobuf *b)
 	edata = nil;
 	for(pl = ctxt->plist; pl != nil; pl = pl->link) {
 		for(p = pl->firstpc; p != nil; p = plink) {
+			if(ctxt->debugasm && ctxt->debugvlog)
+				print("obj: %p %P\n", p, p);
 			plink = p->link;
 			p->link = nil;
 
@@ -365,7 +367,10 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 			name = "";
 			if(r->sym != nil)
 				name = r->sym->name;
-			Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%lld\n", (int)r->off, r->siz, r->type, name, (vlong)r->add);
+			if(ctxt->arch->thechar == '5' || ctxt->arch->thechar == '9')
+				Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%llux\n", (int)r->off, r->siz, r->type, name, (vlong)r->add);
+			else
+				Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%lld\n", (int)r->off, r->siz, r->type, name, (vlong)r->add);
 		}
 	}
 
@@ -777,7 +782,7 @@ rdsym(Link *ctxt, Biobuf *f, char *pkg)
 			s->type = SRODATA;
 			adduint32(ctxt, s, i32);
 			s->reachable = 0;
-		} else if(strncmp(s->name, "$f64.", 5) == 0) {
+		} else if(strncmp(s->name, "$f64.", 5) == 0 || strncmp(s->name, "$i64.", 5) == 0) {
 			int64 i64;
 			i64 = strtoull(s->name+5, nil, 16);
 			s->type = SRODATA;

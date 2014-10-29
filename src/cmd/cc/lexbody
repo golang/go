@@ -220,6 +220,31 @@ slookup(char *s)
 	return lookup();
 }
 
+LSym *thetext;
+
+void
+settext(LSym *s)
+{
+	thetext = s;
+}
+
+Sym*
+labellookup(Sym *s)
+{
+	char *p;
+	Sym *lab;
+	
+	if(thetext == nil) {
+		s->labelname = s->name;
+		return s;
+	}
+	p = smprint("%s.%s", thetext->name, s->name);
+	lab = slookup(p);
+	free(p);
+	lab->labelname = s->name;
+	return lab;
+}
+
 Sym*
 lookup(void)
 {

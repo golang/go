@@ -148,6 +148,13 @@ static struct {
 	{"arm", "",
 	"#define	LR	R14\n"
 	},
+
+	{"power64", "",
+	"#define	g	R30\n"
+	},
+	{"power64le", "",
+	"#define	g	R30\n"
+	},
 };
 
 #define MAXWINCB 2000 /* maximum number of windows callbacks allowed */

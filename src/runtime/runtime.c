@@ -185,6 +185,7 @@ runtime·check(void)
 	float64 j, j1;
 	byte *k, *k1;
 	uint16* l;
+	byte m[4];
 	struct x1 {
 		byte x;
 	};
@@ -235,6 +236,11 @@ runtime·check(void)
 		runtime·throw("casp2");
 	if(k != k1)
 		runtime·throw("casp3");
+
+	m[0] = m[1] = m[2] = m[3] = 0x1;
+	runtime·atomicor8(&m[1], 0xf0);
+	if (m[0] != 0x1 || m[1] != 0xf1 || m[2] != 0x1 || m[3] != 0x1)
+		runtime·throw("atomicor8");
 
 	*(uint64*)&j = ~0ULL;
 	if(j == j)

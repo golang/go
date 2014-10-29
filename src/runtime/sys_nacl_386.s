@@ -293,7 +293,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVL	$0, 0(SP)
 	MOVL	$runtime·badsignal(SB), AX
 	CALL	AX
-	JMP 	sigtramp_ret
+	JMP 	ret
 
 	// save g
 	MOVL	DI, 20(SP)
@@ -317,7 +317,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVL	20(SP), BX
 	MOVL	BX, g(CX)
 
-sigtramp_ret:
+ret:
 	// Enable exceptions again.
 	NACL_SYSCALL(SYS_exception_clear_flag)
 
