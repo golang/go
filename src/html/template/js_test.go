@@ -138,7 +138,7 @@ func TestJSValEscaper(t *testing.T) {
 		// Newlines.
 		{"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`},
 		// "\v" == "v" on IE 6 so use "\x0b" instead.
-		{"\t\x0b", `"\u0009\u000b"`},
+		{"\t\x0b", `"\t\u000b"`},
 		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`},
 		{[]interface{}{}, "[]"},
 		{[]interface{}{42, "foo", nil}, `[42,"foo",null]`},

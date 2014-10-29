@@ -282,9 +282,13 @@ struct DbgVar
 	int32*	value;
 };
 
+// Do we report invalid pointers found during stack or heap scans?
+int32 runtime·invalidptr = 1;
+
 #pragma dataflag NOPTR /* dbgvar has no heap pointers */
 static DbgVar dbgvar[] = {
 	{"allocfreetrace", &runtime·debug.allocfreetrace},
+	{"invalidptr", &runtime·invalidptr},
 	{"efence", &runtime·debug.efence},
 	{"gctrace", &runtime·debug.gctrace},
 	{"gcdead", &runtime·debug.gcdead},

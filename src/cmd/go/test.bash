@@ -219,6 +219,16 @@ q' | ed $d/src/$config >/dev/null 2>&1
 			cat $d/err
 			ok=false
 		fi
+		
+		if GOPATH=$d ./testgo get -d -f -u $url 2>$d/err; then
+			echo "go get -d -u $url succeeded with wrong remote repo"
+			cat $d/err
+			ok=false
+		elif ! egrep -i 'validating server certificate|not found' $d/err >/dev/null; then
+			echo "go get -d -f -u $url failed for wrong reason"
+			cat $d/err
+			ok=false
+		fi
 	fi
 	rm -rf $d
 }

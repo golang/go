@@ -255,3 +255,12 @@ var lstat = Lstat
 func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)
 }
+
+// Many functions in package syscall return a count of -1 instead of 0.
+// Using fixCount(call()) instead of call() corrects the count.
+func fixCount(n int, err error) (int, error) {
+	if n < 0 {
+		n = 0
+	}
+	return n, err
+}

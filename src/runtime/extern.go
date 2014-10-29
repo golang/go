@@ -39,6 +39,12 @@ a comma-separated list of name=val pairs. Supported names are:
 	gcdead: setting gcdead=1 causes the garbage collector to clobber all stack slots
 	that it thinks are dead.
 
+	invalidptr: defaults to invalidptr=1, causing the garbage collector and stack
+	copier to crash the program if an invalid pointer value (for example, 1)
+	is found in a pointer-typed location. Setting invalidptr=0 disables this check.
+	This should only be used as a temporary workaround to diagnose buggy code.
+	The real fix is to not store integers in pointer-typed locations.
+
 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
 	detailed multiline info every X milliseconds, describing state of the scheduler,
 	processors, threads and goroutines.
