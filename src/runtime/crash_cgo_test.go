@@ -36,10 +36,14 @@ func TestCgoTraceback(t *testing.T) {
 }
 
 func TestCgoExternalThreadPanic(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+	if runtime.GOOS == "plan9" {
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
-	got := executeTest(t, cgoExternalThreadPanicSource, nil, "main.c", cgoExternalThreadPanicC)
+	csrc := cgoExternalThreadPanicC
+	if runtime.GOOS == "windows" {
+		csrc = cgoExternalThreadPanicC_windows
+	}
+	got := executeTest(t, cgoExternalThreadPanicSource, nil, "main.c", csrc)
 	want := "panic: BOOM"
 	if !strings.Contains(got, want) {
 		t.Fatalf("want failure containing %q. output:\n%s\n", want, got)
@@ -167,5 +171,26 @@ start(void)
 	pthread_t t;
 	if(pthread_create(&t, 0, die, 0) != 0)
 		printf("pthread_create failed\n");
+}
+`
+
+const cgoExternalThreadPanicC_windows = `
+#include <stdlib.h>
+#include <stdio.h>
+
+void gopanic(void);
+
+static void*
+die(void* x)
+{
+	gopanic();
+	return 0;
+}
+
+void
+start(void)
+{
+	if(_beginthreadex(0, 0, die, 0, 0, 0) != 0)
+		printf("_beginthreadex failed\n");
 }
 `
