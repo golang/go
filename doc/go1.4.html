@@ -466,11 +466,6 @@ rebuild the standard library and commands, to avoid overwriting the installation
 
 </ul>
 
-<h3 id="godoc">Changes to godoc</h3>
-<p>
-TODO godoc news
-</p>
-
 <h3 id="pkg">Changes to package source layout</h3>
 
 <p>
@@ -555,14 +550,57 @@ There are no new packages in this release.
 
 <h3 id="major_library_changes">Major changes to the library</h3>
 
+<h4 id="scanner">bufio.Scanner</h4>
+
 <p>
-TODO major changes
+The <a href="/pkg/bufio/#Scanner"><code>Scanner</code></a> type in the
+<a href="/pkg/bufio/"><code>bufio</code></a> package
+has had a bug fixed that may require changes to custom
+<a href="/pkg/bufio/#SplitFunc"><code>split functions</code></a>. 
+The bug made it impossible to generate an empty token at EOF; the fix
+changes the end conditions seen by the split function.
+Previously, scanning stopped at EOF if there was no more data.
+As of 1.4, the split function will be called once at EOF after input is exhausted,
+so the split function can generate a final empty token
+as the documentation already promised.
 </p>
 
-<pre>
-bufio: handling of empty tokens at EOF changed, may require scanner change (CL 145390043)
-syscall: now frozen (CL 129820043); go.sys subrepo created: http://golang.org/s/go1.4-syscall
-</pre>
+<p>
+<em>Updating</em>: Custom split functions may need to be modified to
+handle empty tokens at EOF as desired.
+</p>
+
+<h4 id="syscall">syscall</h4>
+
+<p>
+The <a href="/pkg/syscall/"><code>syscall</code></a> package is now frozen except
+for changes needed to maintain the core repository.
+In particular, it will no longer be extended to support new or different system calls
+that are not used by the core.
+The reasons are described at length in <a href="http://golang.org/s/go1.4-syscall">a
+separate document</a>.
+</p>
+
+<p>
+A new subrepository, <a href="http://code.google.com/p/go.sys">go.sys</a>,
+has been created to serve as the location for new developments to support system
+calls on all kernels.
+It has a nicer structure, with three packages that each hold the implementation of
+system calls for one of
+<a href="http://godoc.org/code.google.com/p/go.sys/unix">Unix</a>,
+<a href="http://godoc.org/code.google.com/p/go.sys/windows">Windows</a> and
+<a href="http://godoc.org/code.google.com/p/go.sys/plan9">Plan 9</a>.
+These packages will be curated more generously, accepting all reasonable changes
+that reflect kernel interfaces in those operating systems.
+See the documentation and the article mentioned above for more information.
+</p>
+
+<p>
+<em>Updating</em>: Existing programs are not affected as the <code>syscall</code>
+package is largely unchanged from the 1.3 release.
+Future development that requires system calls not in the <code>syscall</code> package
+should build on <code>go.sys</code> instead.
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -629,11 +667,28 @@ For instance, <code>&amp;map[string]int{"one":</code> <code>1}</code> now prints
 <code>&amp;map[one:</code> <code>1]</code> rather than as a hexadecimal pointer value.
 </li>
 
-<li>TODO net/http: add Request.BasicAuth method ( https://codereview.appspot.com/76540043)</li>
+<li>
+The <a href="/pkg/net/http/"><code>net/http</code></a> package's
+<a href="/pkg/net/http/#Request"><code>Request</code></a> type
+has a new <a href="/pkg/net/http/#Request.BasicAuth"><code>BasicAuth</code></a> method
+that returns the username and password from authenticated requests using the
+HTTP Basic Authentication
+Scheme.
+</li>
 
-<li>TODO net/http: add Transport.DialTLS hook ( https://codereview.appspot.com/137940043)</li>
+<li>The <a href="/pkg/net/http/"><code>net/http</code></a> package's
+<a href="/pkg/net/http/#Request"><code>Transport</code></a> type
+has a new <a href="/pkg/net/http/#Transport.DialTLS"><code>DialTLS</code></a> function
+that simplifies setting up TLS connections.
+</li>
 
-<li>TODO net/http/httputil: add ReverseProxy.ErrorLog ( https://codereview.appspot.com/132750043)</li>
+<li>
+The <a href="/pkg/net/http/httputil/"><code>net/http/httputil</code></a> package's
+<a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a> type
+has a new field,
+<a href="/pkg/net/http/#ReverseProxy.ErrorLog"><code>ErrorLog</code></a>, that
+provides user control of logging.
+</li>
 
 <li>
 The <a href="/pkg/os/"><code>os</code></a> package
@@ -656,21 +711,74 @@ because of changes to the implementation of interfaces in the runtime.
 This saves memory but has no semantic effect.
 </li>
 
-<li>TODO runtime: implement monotonic clocks on windows ( https://codereview.appspot.com/108700045)</li>
+<li>
+The <a href="/pkg/runtime/"><code>runtime</code></a> package
+now implements monotonic clocks on Windows,
+as it already did for the other systems.
+</li>
 
-<li>TODO runtime: MemStats.Mallocs now counts very small allocations missed in Go 1.3. This may break tests using runtime.ReadMemStats or testing.AllocsPerRun by giving a more accurate answer than Go 1.3 did ( https://codereview.appspot.com/143150043).</li>
+<li>
+The <a href="/pkg/runtime/"><code>runtime</code></a> package's
+<a href="/pkg/runtime/#MemStats.Mallocs"><code>Mallocs</code></a> counter
+now counts very small allocations that were missed in Go 1.3.
+This may break tests using <a href="/pkg/runtime/#ReadMemStats"><code>ReadMemStats</code></a>
+or <a href="/pkg/testing/#AllocsPerRun"><code>AllocsPerRun</code></a>
+due to the more accurate answer.
+</li>
 
-<li>TODO runtime/race: freebsd is supported ( https://codereview.appspot.com/107270043)</li>
+<li>
+In the <a href="/pkg/runtime/"><code>runtime</code></a> package,
+an array <a href="/pkg/runtime/#MemStats.PauseEnd"><code>PauseEnd</code></a>
+has been added to the
+<a href="/pkg/runtime/#MemStats"><code>MemStats</code></a>
+and <a href="/pkg/runtime/#GCStats"><code>GCStats</code></a> structs.
+This array is a circular buffer of times when garbage collection pauses ended.
+The corresponding pause durations are already recorded in
+<a href="/pkg/runtime/#MemStats.PauseNs"><code>PauseNs</code></a>
+</li>
 
-<li>TODO runtime: add PauseEnd array to MemStats and GCStats ( https://codereview.appspot.com/153670043)</li>
+<li>
+The <a href="/pkg/runtime/race/"><code>runtime/race</code></a> package
+now supports FreeBSD, which means the
+<a href="/pkg/cmd/go/"><code>go</code></a> command's <code>-race</code>
+flag now works on FreeBSD.
+</li>
 
-<li>TODO sync/atomic: add Value ( https://codereview.appspot.com/136710045)</li>
+<li>
+The <a href="/pkg/sync/atomic/"><code>sync/atomic</code></a> package
+has a new type, <a href="/pkg/sync/atomic/#Value"><code>Value</code></a>.
+<code>Value</code> provides an efficient mechanism for atomic loads and
+stores of values of arbitrary type.
+</li>
 
-<li>TODO syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved ( https://codereview.appspot.com/106170043)</li>
+<li>
+In the <a href="/pkg/syscall/"><code>syscall</code></a> package's
+implementation on Linux, the
+<a href="/pkg/syscall/#Setuid"><code>Setuid</code></a>
+and <a href="/pkg/syscall/#Setgid"><code>Setgid</code></a> have been disabled
+because those system calls operate on the calling thread, not the whole process, which is
+different from other platforms and not the expected result.
+</li>
 
-<li>TODO testing: add Coverage ( https://codereview.appspot.com/98150043)</li>
+<li>
+The <a href="/pkg/testing/"><code>testing</code></a> package
+has a new facility to provide more control over running a set of tests.
+If the test code contains a function
+<pre>
+func TestMain(m *<a href="/pkg/testing/#M"><code>testing.M</code></a>) 
+</pre>
 
-<li>TODO testing: add TestMain support ( https://codereview.appspot.com/148770043)</li>
+that function will be called instead of running the tests directly.
+The <code>M</code> struct contains methods to access and run the tests.
+</li>
+
+<li>
+Also in the <a href="/pkg/testing/"><code>testing</code></a> package,
+a new <a href="/pkg/testing/#Coverage"><code>Coverage</code></a>
+function reports the current test coverage fraction,
+enabling individual tests to report how much they are contributing to the
+overall coverage.
+</li>
 
 <li>
 The <a href="/pkg/text/scanner/"><code>text/scanner</code></a> package's
