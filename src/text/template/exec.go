@@ -546,7 +546,7 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 	argv := make([]reflect.Value, numIn)
 	// Args must be evaluated. Fixed args first.
 	i := 0
-	for ; i < numFixed; i++ {
+	for ; i < numFixed && i < len(args); i++ {
 		argv[i] = s.evalArg(dot, typ.In(i), args[i])
 	}
 	// Now the ... args.

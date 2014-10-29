@@ -40,10 +40,16 @@ func lookupIPMerge(host string) (addrs []IP, err error) {
 	addrsi, err, shared := lookupGroup.Do(host, func() (interface{}, error) {
 		return lookupIP(host)
 	})
+	return lookupIPReturn(addrsi, err, shared)
+}
+
+// lookupIPReturn turns the return values from singleflight.Do into
+// the return values from LookupIP.
+func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IP, error) {
 	if err != nil {
 		return nil, err
 	}
-	addrs = addrsi.([]IP)
+	addrs := addrsi.([]IP)
 	if shared {
 		clone := make([]IP, len(addrs))
 		copy(clone, addrs)
@@ -52,41 +58,40 @@ func lookupIPMerge(host string) (addrs []IP, err error) {
 	return addrs, nil
 }
 
+// lookupIPDeadline looks up a hostname with a deadline.
 func lookupIPDeadline(host string, deadline time.Time) (addrs []IP, err error) {
 	if deadline.IsZero() {
 		return lookupIPMerge(host)
 	}
 
-	// TODO(bradfitz): consider pushing the deadline down into the
-	// name resolution functions. But that involves fixing it for
-	// the native Go resolver, cgo, Windows, etc.
-	//
-	// In the meantime, just use a goroutine. Most users affected
-	// by http://golang.org/issue/2631 are due to TCP connections
-	// to unresponsive hosts, not DNS.
+	// We could push the deadline down into the name resolution
+	// functions.  However, the most commonly used implementation
+	// calls getaddrinfo, which has no timeout.
+
 	timeout := deadline.Sub(time.Now())
 	if timeout <= 0 {
-		err = errTimeout
-		return
+		return nil, errTimeout
 	}
 	t := time.NewTimer(timeout)
 	defer t.Stop()
-	type res struct {
-		addrs []IP
-		err   error
-	}
-	resc := make(chan res, 1)
-	go func() {
-		a, err := lookupIPMerge(host)
-		resc <- res{a, err}
-	}()
+
+	ch := lookupGroup.DoChan(host, func() (interface{}, error) {
+		return lookupIP(host)
+	})
+
 	select {
 	case <-t.C:
-		err = errTimeout
-	case r := <-resc:
-		addrs, err = r.addrs, r.err
+		// The DNS lookup timed out for some reason.  Force
+		// future requests to start the DNS lookup again
+		// rather than waiting for the current lookup to
+		// complete.  See issue 8602.
+		lookupGroup.Forget(host)
+
+		return nil, errTimeout
+
+	case r := <-ch:
+		return lookupIPReturn(r.v, r.err, r.shared)
 	}
-	return
 }
 
 // LookupPort looks up the port for the given network and service.

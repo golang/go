@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -365,5 +366,45 @@ func TestInitialReset(t *testing.T) {
 	}
 	if s := buf.String(); s != gunzipTests[1].raw {
 		t.Errorf("got %q want %q", s, gunzipTests[1].raw)
+	}
+}
+
+func TestMultistreamFalse(t *testing.T) {
+	// Find concatenation test.
+	var tt gunzipTest
+	for _, tt = range gunzipTests {
+		if strings.HasSuffix(tt.desc, " x2") {
+			goto Found
+		}
+	}
+	t.Fatal("cannot find hello.txt x2 in gunzip tests")
+
+Found:
+	br := bytes.NewReader(tt.gzip)
+	var r Reader
+	if err := r.Reset(br); err != nil {
+		t.Fatalf("first reset: %v", err)
+	}
+
+	// Expect two streams with "hello world\n", then real EOF.
+	const hello = "hello world\n"
+
+	r.Multistream(false)
+	data, err := ioutil.ReadAll(&r)
+	if string(data) != hello || err != nil {
+		t.Fatalf("first stream = %q, %v, want %q, %v", string(data), err, hello, nil)
+	}
+
+	if err := r.Reset(br); err != nil {
+		t.Fatalf("second reset: %v", err)
+	}
+	r.Multistream(false)
+	data, err = ioutil.ReadAll(&r)
+	if string(data) != hello || err != nil {
+		t.Fatalf("second stream = %q, %v, want %q, %v", string(data), err, hello, nil)
+	}
+
+	if err := r.Reset(br); err != io.EOF {
+		t.Fatalf("third reset: err=%v, want io.EOF", err)
 	}
 }

@@ -818,6 +818,12 @@ func create(name string, mode uint32, sec int64, data []byte) error {
 	fs.mu.Unlock()
 	f, err := fs.open(name, O_CREATE|O_EXCL, mode)
 	if err != nil {
+		if mode&S_IFMT == S_IFDIR {
+			ip, _, err := fs.namei(name, false)
+			if err == nil && (ip.Mode&S_IFMT) == S_IFDIR {
+				return nil // directory already exists
+			}
+		}
 		return err
 	}
 	ip := f.(*fsysFile).inode

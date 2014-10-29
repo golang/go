@@ -28,6 +28,17 @@ var writeTests = []struct {
 	{Input: [][]string{{"abc\ndef"}}, Output: "\"abc\r\ndef\"\r\n", UseCRLF: true},
 	{Input: [][]string{{"abc\rdef"}}, Output: "\"abcdef\"\r\n", UseCRLF: true},
 	{Input: [][]string{{"abc\rdef"}}, Output: "\"abc\rdef\"\n", UseCRLF: false},
+	{Input: [][]string{{""}}, Output: "\n"},
+	{Input: [][]string{{"", ""}}, Output: ",\n"},
+	{Input: [][]string{{"", "", ""}}, Output: ",,\n"},
+	{Input: [][]string{{"", "", "a"}}, Output: ",,a\n"},
+	{Input: [][]string{{"", "a", ""}}, Output: ",a,\n"},
+	{Input: [][]string{{"", "a", "a"}}, Output: ",a,a\n"},
+	{Input: [][]string{{"a", "", ""}}, Output: "a,,\n"},
+	{Input: [][]string{{"a", "", "a"}}, Output: "a,,a\n"},
+	{Input: [][]string{{"a", "a", ""}}, Output: "a,a,\n"},
+	{Input: [][]string{{"a", "a", "a"}}, Output: "a,a,a\n"},
+	{Input: [][]string{{`\.`}}, Output: "\"\\.\"\n"},
 }
 
 func TestWrite(t *testing.T) {

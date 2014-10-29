@@ -8,10 +8,10 @@
 
 package main
 
-type T struct {}
+type T struct{}
 
 func (t *T) pm() {}
-func (t T) m() {}
+func (t T) m()   {}
 
 func main() {
 	p := &T{}
@@ -20,5 +20,5 @@ func main() {
 
 	q := &p
 	q.m()  // ERROR "requires explicit dereference"
-	q.pm()
+	q.pm() // ERROR "requires explicit dereference"
 }

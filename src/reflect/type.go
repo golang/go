@@ -490,7 +490,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	if p.name != nil {
 		m.Name = *p.name
 	}
-	fl := flag(Func) << flagKindShift
+	fl := flag(Func)
 	if p.pkgPath != nil {
 		m.PkgPath = *p.pkgPath
 		fl |= flagRO
@@ -1540,6 +1540,7 @@ func (gc *gcProg) appendProg(t *rtype) {
 		for i := 0; i < c; i++ {
 			gc.appendProg(t.Field(i).Type.common())
 		}
+		gc.align(uintptr(t.align))
 	}
 }
 

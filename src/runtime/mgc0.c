@@ -687,7 +687,7 @@ putpartial(Workbuf *b)
 	else if (b->nobj == nelem(b->obj))
 		runtime·lfstackpush(&runtime·work.full, &b->node);
 	else {
-		runtime·printf("b=%p, b->nobj=%d, nelem(b->obj)=%d\n", b, b->nobj, (uint32)nelem(b->obj));
+		runtime·printf("b=%p, b->nobj=%d, nelem(b->obj)=%d\n", b, (uint32)b->nobj, (uint32)nelem(b->obj));
 		runtime·throw("putpartial: bad Workbuf b->nobj");
 	}
 }
@@ -1725,6 +1725,7 @@ gc(struct gc_args *args)
 	t4 = runtime·nanotime();
 	runtime·atomicstore64(&mstats.last_gc, runtime·unixnanotime());  // must be Unix time to make sense to user
 	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t4 - t0;
+	mstats.pause_end[mstats.numgc%nelem(mstats.pause_end)] = t4;
 	mstats.pause_total_ns += t4 - t0;
 	mstats.numgc++;
 	if(mstats.debuggc)
@@ -1773,7 +1774,6 @@ gc(struct gc_args *args)
 	runtime·sweep.spanidx = 0;
 	runtime·unlock(&runtime·mheap.lock);
 
-	// Temporary disable concurrent sweep, because we see failures on builders.
 	if(ConcurrentSweep && !args->eagersweep) {
 		runtime·lock(&runtime·gclock);
 		if(runtime·sweep.g == nil)
@@ -1787,6 +1787,8 @@ gc(struct gc_args *args)
 		// Sweep all spans eagerly.
 		while(runtime·sweepone() != -1)
 			runtime·sweep.npausesweep++;
+		// Do an additional mProf_GC, because all 'free' events are now real as well.
+		runtime·mProf_GC();
 	}
 
 	runtime·mProf_GC();
@@ -1834,7 +1836,7 @@ readgcstats_m(void)
 {
 	Slice *pauses;	
 	uint64 *p;
-	uint32 i, n;
+	uint32 i, j, n;
 	
 	pauses = g->m->ptrarg[0];
 	g->m->ptrarg[0] = nil;
@@ -1843,25 +1845,29 @@ readgcstats_m(void)
 	if(pauses->cap < nelem(mstats.pause_ns)+3)
 		runtime·throw("runtime: short slice passed to readGCStats");
 
-	// Pass back: pauses, last GC (absolute time), number of GC, total pause ns.
+	// Pass back: pauses, pause ends, last gc (absolute time), number of gc, total pause ns.
 	p = (uint64*)pauses->array;
 	runtime·lock(&runtime·mheap.lock);
+
 	n = mstats.numgc;
 	if(n > nelem(mstats.pause_ns))
 		n = nelem(mstats.pause_ns);
-	
+
 	// The pause buffer is circular. The most recent pause is at
 	// pause_ns[(numgc-1)%nelem(pause_ns)], and then backward
 	// from there to go back farther in time. We deliver the times
 	// most recent first (in p[0]).
-	for(i=0; i<n; i++)
-		p[i] = mstats.pause_ns[(mstats.numgc-1-i)%nelem(mstats.pause_ns)];
+	for(i=0; i<n; i++) {
+		j = (mstats.numgc-1-i)%nelem(mstats.pause_ns);
+		p[i] = mstats.pause_ns[j];
+		p[n+i] = mstats.pause_end[j];
+	}
 
-	p[n] = mstats.last_gc;
-	p[n+1] = mstats.numgc;
-	p[n+2] = mstats.pause_total_ns;	
+	p[n+n] = mstats.last_gc;
+	p[n+n+1] = mstats.numgc;
+	p[n+n+2] = mstats.pause_total_ns;	
 	runtime·unlock(&runtime·mheap.lock);
-	pauses->len = n+3;
+	pauses->len = n+n+3;
 }
 
 void
@@ -2041,7 +2047,7 @@ runtime·unrollgcprog_m(void)
 	Type *typ;
 	byte *mask, *prog;
 	uintptr pos;
-	uint32 x;
+	uintptr x;
 
 	typ = g->m->ptrarg[0];
 	g->m->ptrarg[0] = nil;
@@ -2060,8 +2066,9 @@ runtime·unrollgcprog_m(void)
 			unrollgcprog1(mask, prog, &pos, false, true);
 		}
 		// atomic way to say mask[0] = 1
-		x = ((uint32*)mask)[0];
-		runtime·atomicstore((uint32*)mask, x|1);
+		x = *(uintptr*)mask;
+		((byte*)&x)[0] = 1;
+		runtime·atomicstorep((void**)mask, (void*)x);
 	}
 	runtime·unlock(&lock);
 }

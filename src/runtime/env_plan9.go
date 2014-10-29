@@ -30,7 +30,7 @@ func gogetenv(key string) string {
 	if fd < 0 {
 		return ""
 	}
-	n := seek(fd, 0, 2) - 1
+	n := seek(fd, 0, 2)
 	if n <= 0 {
 		close(fd)
 		return ""
@@ -42,6 +42,10 @@ func gogetenv(key string) string {
 	close(fd)
 	if r < 0 {
 		return ""
+	}
+
+	if p[r-1] == 0 {
+		r--
 	}
 
 	var s string

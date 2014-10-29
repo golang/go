@@ -620,6 +620,7 @@ func after() {
 			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
 			os.Exit(2)
 		}
+		runtime.GC() // materialize all statistics
 		if err = pprof.WriteHeapProfile(f); err != nil {
 			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *memProfile, err)
 			os.Exit(2)

@@ -56,6 +56,15 @@ func (e *WriteError) Error() string {
 	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
 }
 
+// Resetter resets a ReadCloser returned by NewReader or NewReaderDict to
+// to switch to a new underlying Reader. This permits reusing a ReadCloser
+// instead of allocating a new one.
+type Resetter interface {
+	// Reset discards any buffered data and resets the Resetter as if it was
+	// newly initialized with the given reader.
+	Reset(r io.Reader, dict []byte) error
+}
+
 // Note that much of the implementation of huffmanDecoder is also copied
 // into gen.go (in package main) for the purpose of precomputing the
 // fixed huffman tables so they can be included statically.
@@ -679,12 +688,28 @@ func makeReader(r io.Reader) Reader {
 	return bufio.NewReader(r)
 }
 
+func (f *decompressor) Reset(r io.Reader, dict []byte) error {
+	*f = decompressor{
+		r:        makeReader(r),
+		bits:     f.bits,
+		codebits: f.codebits,
+		hist:     f.hist,
+		step:     (*decompressor).nextBlock,
+	}
+	if dict != nil {
+		f.setDict(dict)
+	}
+	return nil
+}
+
 // NewReader returns a new ReadCloser that can be used
 // to read the uncompressed version of r.
 // If r does not also implement io.ByteReader,
 // the decompressor may read more data than necessary from r.
 // It is the caller's responsibility to call Close on the ReadCloser
 // when finished reading.
+//
+// The ReadCloser returned by NewReader also implements Resetter.
 func NewReader(r io.Reader) io.ReadCloser {
 	var f decompressor
 	f.bits = new([maxLit + maxDist]int)
@@ -700,6 +725,8 @@ func NewReader(r io.Reader) io.ReadCloser {
 // the uncompressed data stream started with the given dictionary,
 // which has already been read.  NewReaderDict is typically used
 // to read data compressed by NewWriterDict.
+//
+// The ReadCloser returned by NewReader also implements Resetter.
 func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	var f decompressor
 	f.r = makeReader(r)

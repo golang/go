@@ -162,6 +162,10 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Unknown profile: %s\n", name)
 		return
 	}
+	gc, _ := strconv.Atoi(r.FormValue("gc"))
+	if name == "heap" && gc > 0 {
+		runtime.GC()
+	}
 	p.WriteTo(w, debug)
 	return
 }

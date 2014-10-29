@@ -760,6 +760,7 @@ func (f *FlagSet) parseOne() (bool, error) {
 		}
 		return false, f.failf("flag provided but not defined: -%s", name)
 	}
+
 	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
 		if has_value {
 			if err := fv.Set(value); err != nil {

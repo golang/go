@@ -36,7 +36,7 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 		if d.bufp >= d.nbuf {
 			d.bufp = 0
 			var errno error
-			d.nbuf, errno = syscall.ReadDirent(f.fd, d.buf)
+			d.nbuf, errno = fixCount(syscall.ReadDirent(f.fd, d.buf))
 			if errno != nil {
 				return names, NewSyscallError("readdirent", errno)
 			}
