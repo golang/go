@@ -1764,15 +1764,13 @@ walkprint(Node *nn, NodeList **init)
 	Node *on;
 	Type *t;
 	int notfirst, et, op;
-	NodeList *calls, *intypes, *args;
+	NodeList *calls;
 
 	on = nil;
 	op = nn->op;
 	all = nn->list;
 	calls = nil;
 	notfirst = 0;
-	intypes = nil;
-	args = nil;
 
 	for(l=all; l; l=l->next) {
 		if(notfirst) {
