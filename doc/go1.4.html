@@ -157,7 +157,7 @@ for code that does unsafe things.
 
 <p>
 We have clarified this situation in the documentation included in the release.
-The <a href="go1compat.html">Go compatibilty guidelines</a> and the
+The <a href="go1compat.html">Go compatibility guidelines</a> and the
 docs for the <a href="/pkg/unsafe/"><code>unsafe</code></a> package
 are now explicit that unsafe code is not guaranteed to remain compatible.
 </p>
@@ -221,6 +221,61 @@ so as of 1.4 interface values always hold a pointer.
 In running programs, most interface values were pointers anyway,
 so the effect is minimal, but programs that store integers (for example) in
 interfaces will see more allocations.
+</p>
+
+<p>
+As of Go 1.3, the runtime crashes if it finds a memory word that should contain
+a valid pointer but instead contains an obviously invalid pointer (for example, the value 3).
+Programs that store integers in pointer values may run afoul of this check and crash.
+In Go 1.4, setting the <a href="/pkg/runtime/"><code>GODEBUG</code></a> variable
+<code>invalidptr=0</code> disables
+the crash as a workaround, but we cannot guarantee that future releases will be
+able to avoid the crash; the correct fix is to rewrite code not to alias integers and pointers.
+</p>
+
+<h3 id="asm">Assembly</h3>
+
+<p>
+The language accepted by the assemblers <code>cmd/5a</code>, <code>cmd/6a</code>
+and <code>cmd/8a</code> has had several changes,
+mostly to make it easier to deliver type information to the runtime.
+</p>
+
+<p>
+First, the <code>textflag.h</code> file that defines flags for <code>TEXT</code> directives
+has been copied from the linker source directory to a standard location so it can be
+included with the simple directive
+</p>
+
+<pre>
+#include "textflag.h"
+</pre>
+
+<p>
+The more important changes are in how assembler source can define the necessary
+type information.
+For most programs it will suffice to move data
+definitions (<code>DATA</code> and <code>GLOBL</code> directives)
+out of assembly into Go files
+and to write a Go declaration for each assembly function.
+The <a href="/doc/asm#runtime">assembly document</a> describes what to do.
+</p>
+
+<p>
+<em>Updating</em>:
+Assembly files that include <code>textflag.h</code> from its old
+location will still work, but should be updated.
+For the type information, most assembly routines will need no change,
+but all should be examined.
+Assembly source files that define data,
+functions with non-empty stack frames, or functions that return pointers
+need particular attention.
+A description of the necessary (but simple) changes
+is in the <a href="/doc/asm#runtime">assembly document</a>.
+</p>
+
+<p>
+More information about these changes is in the <a href="/doc/asm">assembly document</a>.
 </p>
 
 <h3 id="gccgo">Status of gccgo</h3>
@@ -410,13 +465,6 @@ rebuild the standard library and commands, to avoid overwriting the installation
 
 </ul>
 
-<h3 id="cgo">Changes to cgo</h3>
-
-<p>
-TODO cgo news
-</p>
-
-
 <h3 id="godoc">Changes to godoc</h3>
 <p>
 TODO godoc news
@@ -522,7 +570,6 @@ See the relevant package documentation for more information about each change.
 
 cmd/6l, liblink: use pc-relative addressing for all memory references, so that linking Go binaries at high addresses works (CL 125140043). This cuts the maximum size of a Go binary's text+data+bss from 4GB to 2GB.
 
-asm: make textflag.h available outside of cmd/ld (CL 128050043)
 bufio: handling of empty tokens at EOF changed, may require scanner change (CL 145390043)
 compress/flate, compress/gzip, compress/zlib: Reset support (https://codereview.appspot.com/97140043)
 crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
