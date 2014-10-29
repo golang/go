@@ -97,7 +97,7 @@ runtime·lastcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
 	runtime·printf("\n");
 
 	if(runtime·gotraceback(&crash)){
-		runtime·traceback(r->Eip, r->Esp, 0, gp);
+		runtime·tracebacktrap(r->Eip, r->Esp, 0, gp);
 		runtime·tracebackothers(gp);
 		runtime·dumpregs(r);
 	}

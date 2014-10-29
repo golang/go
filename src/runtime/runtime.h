@@ -719,9 +719,15 @@ struct Stkframe
 	BitVector*	argmap;	// force use of this argmap
 };
 
-intgo	runtime·gentraceback(uintptr, uintptr, uintptr, G*, intgo, uintptr*, intgo, bool(**)(Stkframe*, void*), void*, bool);
+enum
+{
+	TraceRuntimeFrames = 1<<0, // include frames for internal runtime functions.
+	TraceTrap = 1<<1, // the initial PC, SP are from a trap, not a return PC from a call
+};
+intgo	runtime·gentraceback(uintptr, uintptr, uintptr, G*, intgo, uintptr*, intgo, bool(**)(Stkframe*, void*), void*, uintgo);
 void	runtime·tracebackdefers(G*, bool(**)(Stkframe*, void*), void*);
 void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
+void	runtime·tracebacktrap(uintptr pc, uintptr sp, uintptr lr, G* gp);
 void	runtime·tracebackothers(G*);
 bool	runtime·haszeroargs(uintptr pc);
 bool	runtime·topofstack(Func*);

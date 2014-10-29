@@ -774,7 +774,7 @@ scanstack(G *gp)
 		runtime·throw("can't scan gchelper stack");
 
 	fn = scanframe;
-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, false);
+	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, 0);
 	runtime·tracebackdefers(gp, &fn, nil);
 }
 
@@ -1964,7 +1964,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
 	frame.fn = nil;
 	frame.sp = (uintptr)p;
 	cb = getgcmaskcb;
-	runtime·gentraceback(g->m->curg->sched.pc, g->m->curg->sched.sp, 0, g->m->curg, 0, nil, 1000, &cb, &frame, false);
+	runtime·gentraceback(g->m->curg->sched.pc, g->m->curg->sched.sp, 0, g->m->curg, 0, nil, 1000, &cb, &frame, 0);
 	if(frame.fn != nil) {
 		Func *f;
 		StackMap *stackmap;
