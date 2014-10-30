@@ -711,7 +711,7 @@ test:
 	CMP	R6, R7
 	BEQ	loop
 
-	MOVB	$0, ret+24(FP)
+	MOVB	R0, ret+24(FP)
 	RETURN
 
 // eqstring tests whether two strings are equal.
