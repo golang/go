@@ -405,6 +405,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 			" note struct{};" +
 			" p struct{};" +
 			" parfor struct{};" +
+			" slice struct{};" +
 			" slicetype struct{};" +
 			" stkframe struct{};" +
 			" sudog struct{};" +

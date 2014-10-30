@@ -6,6 +6,7 @@
 #include	<libc.h>
 #include	"go.h"
 #include	"../ld/textflag.h"
+#include	"../../runtime/mgc0.h"
 
 static	Node*	walkprint(Node*, NodeList**);
 static	Node*	writebarrierfn(char*, Type*, Type*);
@@ -1988,14 +1989,15 @@ applywritebarrier(Node *n, NodeList **init)
 {
 	Node *l, *r;
 	Type *t;
+	vlong x;
+	static Bvec *bv;
+	char name[32];
 
 	if(n->left && n->right && needwritebarrier(n->left, n->right)) {
 		t = n->left->type;
 		l = nod(OADDR, n->left, N);
 		l->etype = 1; // addr does not escape
 		if(t->width == widthptr) {
-			n = mkcall1(writebarrierfn("writebarrierptr", t, n->right->type), T, init,
-				l, n->right);
 		} else if(t->etype == TSTRING) {
 			n = mkcall1(writebarrierfn("writebarrierstring", t, n->right->type), T, init,
 				l, n->right);
@@ -2005,14 +2007,33 @@ applywritebarrier(Node *n, NodeList **init)
 		} else if(isinter(t)) {
 			n = mkcall1(writebarrierfn("writebarrieriface", t, n->right->type), T, init,
 				l, n->right);
-		} else if(t->width == 2*widthptr) {
-			n = mkcall1(writebarrierfn("writebarrierfat2", t, n->right->type), T, init,
-				l, nodnil(), n->right);
-		} else if(t->width == 3*widthptr) {
-			n = mkcall1(writebarrierfn("writebarrierfat3", t, n->right->type), T, init,
-				l, nodnil(), n->right);
-		} else if(t->width == 4*widthptr) {
-			n = mkcall1(writebarrierfn("writebarrierfat4", t, n->right->type), T, init,
+		} else if(t->width <= 4*widthptr) {
+			x = 0;
+			if(bv == nil)
+				bv = bvalloc(BitsPerPointer*4);
+			bvresetall(bv);
+			twobitwalktype1(t, &x, bv);
+			// The bvgets are looking for BitsPointer in successive slots.
+			enum {
+				PtrBit = 1,
+			};
+			if(BitsPointer != (1<<PtrBit))
+				fatal("wrong PtrBit");
+			switch(t->width/widthptr) {
+			case 2:
+				snprint(name, sizeof name, "writebarrierfat%d%d",
+					bvget(bv, PtrBit), bvget(bv, BitsPerPointer+PtrBit));
+				break;
+			case 3:
+				snprint(name, sizeof name, "writebarrierfat%d%d%d",
+					bvget(bv, PtrBit), bvget(bv, BitsPerPointer+PtrBit), bvget(bv, 2*BitsPerPointer+PtrBit));
+				break;
+			case 4:
+				snprint(name, sizeof name, "writebarrierfat%d%d%d%d",
+					bvget(bv, PtrBit), bvget(bv, BitsPerPointer+PtrBit), bvget(bv, 2*BitsPerPointer+PtrBit), bvget(bv, 3*BitsPerPointer+PtrBit));
+				break;
+			}
+			n = mkcall1(writebarrierfn(name, t, n->right->type), T, init,
 				l, nodnil(), n->right);
 		} else {
 			r = n->right;
@@ -2874,6 +2895,11 @@ copyany(Node *n, NodeList **init, int runtimecall)
 {
 	Node *nl, *nr, *nfrm, *nto, *nif, *nlen, *nwid, *fn;
 	NodeList *l;
+	
+	if(haspointers(n->left->type->type)) {
+		fn = writebarrierfn("writebarriercopy", n->left->type, n->right->type);
+		return mkcall1(fn, n->type, init, typename(n->left->type->type), n->left, n->right);
+	}
 
 	if(runtimecall) {
 		if(n->right->type->etype == TSTRING)
