@@ -299,7 +299,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
 // Note: can't just "BR NAME(SB)" - bad inlining results.
 
 TEXT ·reflectcall(SB), NOSPLIT, $-8-24
-	MOVW argsize+16(FP), R3
+	MOVWZ argsize+16(FP), R3
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -336,7 +336,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
 	MOVD	argptr+8(FP), R3;		\
-	MOVW	argsize+16(FP), R4;		\
+	MOVWZ	argsize+16(FP), R4;		\
 	MOVD	R1, R5;				\
 	ADD	$(8-1), R5;			\
 	SUB	$1, R3;				\
@@ -354,8 +354,8 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	BL	(CTR);				\
 	/* copy return values back */		\
 	MOVD	argptr+8(FP), R3;		\
-	MOVW	argsize+16(FP), R4;		\
-	MOVW	retoffset+20(FP), R6;		\
+	MOVWZ	argsize+16(FP), R4;		\
+	MOVWZ	retoffset+20(FP), R6;		\
 	MOVD	R1, R5;				\
 	ADD	R6, R5; 			\
 	ADD	R6, R3;				\
@@ -398,7 +398,7 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-// bool cas(int32 *val, int32 old, int32 new)
+// bool cas(uint32 *val, uint32 old, uint32 new)
 // Atomically:
 //	if(*val == old){
 //		*val = new;
@@ -407,8 +407,8 @@ CALLFN(·call1073741824, 1073741824)
 //		return 0;
 TEXT runtime·cas(SB), NOSPLIT, $0-17
 	MOVD	p+0(FP), R3
-	MOVW	old+8(FP), R4
-	MOVW	new+12(FP), R5
+	MOVWZ	old+8(FP), R4
+	MOVWZ	new+12(FP), R5
 cas_again:
 	SYNC
 	LWAR	(R3), R6
