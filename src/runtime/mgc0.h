@@ -56,7 +56,7 @@ enum {
 	BitsEface	= 3,
 
 	// 64 bytes cover objects of size 1024/512 on 64/32 bits, respectively.
-	MaxGCMask	= 64,
+	MaxGCMask	= 65536, // TODO(rsc): change back to 64
 };
 
 // Bits in per-word bitmap.

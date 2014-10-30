@@ -83,54 +83,112 @@ func bgsweep() {
 	}
 }
 
+const (
+	_PoisonGC    = 0xf969696969696969 & ^uintptr(0)
+	_PoisonStack = 0x6868686868686868 & ^uintptr(0)
+)
+
 // NOTE: Really dst *unsafe.Pointer, src unsafe.Pointer,
 // but if we do that, Go inserts a write barrier on *dst = src.
 //go:nosplit
 func writebarrierptr(dst *uintptr, src uintptr) {
+	if src != 0 && (src < _PageSize || src == _PoisonGC || src == _PoisonStack) {
+		onM(func() { gothrow("bad pointer in write barrier") })
+	}
 	*dst = src
 }
 
 //go:nosplit
 func writebarrierstring(dst *[2]uintptr, src [2]uintptr) {
-	dst[0] = src[0]
+	writebarrierptr(&dst[0], src[0])
 	dst[1] = src[1]
 }
 
 //go:nosplit
 func writebarrierslice(dst *[3]uintptr, src [3]uintptr) {
-	dst[0] = src[0]
+	writebarrierptr(&dst[0], src[0])
 	dst[1] = src[1]
 	dst[2] = src[2]
 }
 
 //go:nosplit
 func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
-	dst[0] = src[0]
-	dst[1] = src[1]
+	writebarrierptr(&dst[0], src[0])
+	writebarrierptr(&dst[1], src[1])
 }
 
-//go:nosplit
-func writebarrierfat2(dst *[2]uintptr, _ *byte, src [2]uintptr) {
-	dst[0] = src[0]
-	dst[1] = src[1]
-}
-
-//go:nosplit
-func writebarrierfat3(dst *[3]uintptr, _ *byte, src [3]uintptr) {
-	dst[0] = src[0]
-	dst[1] = src[1]
-	dst[2] = src[2]
-}
-
-//go:nosplit
-func writebarrierfat4(dst *[4]uintptr, _ *byte, src [4]uintptr) {
-	dst[0] = src[0]
-	dst[1] = src[1]
-	dst[2] = src[2]
-	dst[3] = src[3]
-}
+//go:generate go run wbfat_gen.go -- wbfat.go
+//
+// The above line generates multiword write barriers for
+// all the combinations of ptr+scalar up to four words.
+// The implementations are written to wbfat.go.
 
 //go:nosplit
 func writebarrierfat(typ *_type, dst, src unsafe.Pointer) {
-	memmove(dst, src, typ.size)
+	mask := loadPtrMask(typ)
+	nptr := typ.size / ptrSize
+	for i := uintptr(0); i < nptr; i += 2 {
+		bits := mask[i/2]
+		if (bits>>2)&_BitsMask == _BitsPointer {
+			writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
+		} else {
+			*(*uintptr)(dst) = *(*uintptr)(src)
+		}
+		dst = add(dst, ptrSize)
+		src = add(src, ptrSize)
+		if i+1 == nptr {
+			break
+		}
+		bits >>= 4
+		if (bits>>2)&_BitsMask == _BitsPointer {
+			writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
+		} else {
+			*(*uintptr)(dst) = *(*uintptr)(src)
+		}
+		dst = add(dst, ptrSize)
+		src = add(src, ptrSize)
+	}
+}
+
+//go:nosplit
+func writebarriercopy(typ *_type, dst, src slice) int {
+	n := dst.len
+	if n > src.len {
+		n = src.len
+	}
+	if n == 0 {
+		return 0
+	}
+	dstp := unsafe.Pointer(dst.array)
+	srcp := unsafe.Pointer(src.array)
+
+	if uintptr(srcp) < uintptr(dstp) && uintptr(srcp)+uintptr(n)*typ.size > uintptr(dstp) {
+		// Overlap with src before dst.
+		// Copy backward, being careful not to move dstp/srcp
+		// out of the array they point into.
+		dstp = add(dstp, uintptr(n-1)*typ.size)
+		srcp = add(srcp, uintptr(n-1)*typ.size)
+		i := uint(0)
+		for {
+			writebarrierfat(typ, dstp, srcp)
+			if i++; i >= n {
+				break
+			}
+			dstp = add(dstp, -typ.size)
+			srcp = add(srcp, -typ.size)
+		}
+	} else {
+		// Copy forward, being careful not to move dstp/srcp
+		// out of the array they point into.
+		i := uint(0)
+		for {
+			writebarrierfat(typ, dstp, srcp)
+			if i++; i >= n {
+				break
+			}
+			dstp = add(dstp, typ.size)
+			srcp = add(srcp, typ.size)
+		}
+	}
+	return int(n)
 }
