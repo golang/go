@@ -226,6 +226,12 @@ runtime·check(void)
 	if(z != 4)
 		runtime·throw("cas4");
 
+	z = 0xffffffff;
+	if(!runtime·cas(&z, 0xffffffff, 0xfffffffe))
+		runtime·throw("cas5");
+	if(z != 0xfffffffe)
+		runtime·throw("cas6");
+
 	k = (byte*)0xfedcb123;
 	if(sizeof(void*) == 8)
 		k = (byte*)((uintptr)k<<10);
