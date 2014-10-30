@@ -5,7 +5,7 @@ typedef struct {} git_merge_file_input;
 
 typedef struct {} git_merge_file_options;
 
-int git_merge_file(
+void git_merge_file(
         git_merge_file_input *in,
         git_merge_file_options *opts) {}
 */
