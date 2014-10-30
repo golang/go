@@ -131,8 +131,8 @@ func putCommit(c appengine.Context, com *Commit) error {
 	if err := com.Valid(); err != nil {
 		return fmt.Errorf("putting Commit: %v", err)
 	}
-	if com.Num == 0 {
-		return fmt.Errorf("putting Commit: com.Num == 0")
+	if com.Num == 0 && com.ParentHash != "0000" { // 0000 is used in tests
+		return fmt.Errorf("putting Commit: invalid Num (must be > 0)")
 	}
 	if _, err := datastore.Put(c, com.Key(c), com); err != nil {
 		return fmt.Errorf("putting Commit: %v", err)

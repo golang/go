@@ -172,7 +172,7 @@ func addCommit(c appengine.Context, com *Commit) error {
 	}
 	// if this isn't the first Commit test the parent commit exists.
 	// The all zeros are returned by hg's p1node template for parentless commits.
-	if com.ParentHash != "" && com.ParentHash != "0000000000000000000000000000000000000000" {
+	if com.ParentHash != "" && com.ParentHash != "0000000000000000000000000000000000000000" && com.ParentHash != "0000" {
 		n, err := datastore.NewQuery("Commit").
 			Filter("Hash =", com.ParentHash).
 			Ancestor(p.Key(c)).
@@ -609,7 +609,8 @@ func perfResultHandler(r *http.Request) (interface{}, error) {
 }
 
 // addPerfResult creates PerfResult and updates Commit, PerfTodo,
-// PerfMetricRun and PerfConfig. Must be executed within a transaction.
+// PerfMetricRun and PerfConfig.
+// MUST be called from inside a transaction.
 func addPerfResult(c appengine.Context, r *http.Request, req *PerfRequest) error {
 	// check Package exists
 	p, err := GetPackage(c, "")
@@ -676,6 +677,7 @@ func addPerfResult(c appengine.Context, r *http.Request, req *PerfRequest) error
 	return nil
 }
 
+// MUST be called from inside a transaction.
 func checkPerfChanges(c appengine.Context, r *http.Request, com *Commit, builder string, res *PerfResult) error {
 	pc, err := GetPerfConfig(c, r)
 	if err != nil {
