@@ -200,25 +200,24 @@ var (
 	)
 )
 
+// MUST be called from inside a transaction.
 func sendPerfFailMail(c appengine.Context, builder string, res *PerfResult) error {
-	return datastore.RunInTransaction(c, func(c appengine.Context) error {
-		com := &Commit{Hash: res.CommitHash}
-		if err := datastore.Get(c, com.Key(c), com); err != nil {
-			return err
+	com := &Commit{Hash: res.CommitHash}
+	if err := datastore.Get(c, com.Key(c), com); err != nil {
+		return err
+	}
+	logHash := ""
+	parsed := res.ParseData()
+	for _, data := range parsed[builder] {
+		if !data.OK {
+			logHash = data.Artifacts["log"]
+			break
 		}
-		logHash := ""
-		parsed := res.ParseData()
-		for _, data := range parsed[builder] {
-			if !data.OK {
-				logHash = data.Artifacts["log"]
-				break
-			}
-		}
-		if logHash == "" {
-			return fmt.Errorf("can not find failed result for commit %v on builder %v", com.Hash, builder)
-		}
-		return commonNotify(c, com, builder, logHash)
-	}, nil)
+	}
+	if logHash == "" {
+		return fmt.Errorf("can not find failed result for commit %v on builder %v", com.Hash, builder)
+	}
+	return commonNotify(c, com, builder, logHash)
 }
 
 // commonNotify MUST!!! be called from within a transaction inside which
