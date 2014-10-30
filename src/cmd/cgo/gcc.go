@@ -944,6 +944,8 @@ type typeConv struct {
 
 	// Map from types to incomplete pointers to those types.
 	ptrs map[dwarf.Type][]*Type
+	// Keys of ptrs in insertion order (deterministic worklist)
+	ptrKeys []dwarf.Type
 
 	// Predeclared types.
 	bool                                   ast.Expr
@@ -1061,16 +1063,17 @@ func (tr *TypeRepr) Set(repr string, fargs ...interface{}) {
 func (c *typeConv) FinishType(pos token.Pos) {
 	// Completing one pointer type might produce more to complete.
 	// Keep looping until they're all done.
-	for len(c.ptrs) > 0 {
-		for dtype := range c.ptrs {
-			// Note Type might invalidate c.ptrs[dtype].
-			t := c.Type(dtype, pos)
-			for _, ptr := range c.ptrs[dtype] {
-				ptr.Go.(*ast.StarExpr).X = t.Go
-				ptr.C.Set("%s*", t.C)
-			}
-			delete(c.ptrs, dtype)
+	for len(c.ptrKeys) > 0 {
+		dtype := c.ptrKeys[0]
+		c.ptrKeys = c.ptrKeys[1:]
+
+		// Note Type might invalidate c.ptrs[dtype].
+		t := c.Type(dtype, pos)
+		for _, ptr := range c.ptrs[dtype] {
+			ptr.Go.(*ast.StarExpr).X = t.Go
+			ptr.C.Set("%s*", t.C)
 		}
+		c.ptrs[dtype] = nil // retain the map key
 	}
 }
 
@@ -1237,6 +1240,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		// Placeholder initialization; completed in FinishType.
 		t.Go = &ast.StarExpr{}
 		t.C.Set("<incomplete>*")
+		if _, ok := c.ptrs[dt.Type]; !ok {
+			c.ptrKeys = append(c.ptrKeys, dt.Type)
+		}
 		c.ptrs[dt.Type] = append(c.ptrs[dt.Type], t)
 
 	case *dwarf.QualType:
