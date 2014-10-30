@@ -143,7 +143,7 @@ var x86Need = []string{
 var armNeed = []string{
 	"fmthello.go:6",
 	"TEXT main.main(SB)",
-	"B.LS main.main(SB)",
+	//"B.LS main.main(SB)", // TODO(rsc): restore; golang.org/issue/9021
 	"BL fmt.Println(SB)",
 	"RET",
 }
