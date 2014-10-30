@@ -86,7 +86,7 @@ TEXT runtime·reginit(SB),NOSPLIT,$-8-0
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
 TEXT runtime·gosave(SB), NOSPLIT, $-8-8
-	MOVD	gobuf+0(FP), R3
+	MOVD	buf+0(FP), R3
 	MOVD	R1, gobuf_sp(R3)
 	MOVD	LR, R31
 	MOVD	R31, gobuf_pc(R3)
@@ -99,7 +99,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $-8-8
-	MOVD	gobuf+0(FP), R5
+	MOVD	buf+0(FP), R5
 	MOVD	gobuf_g(R5), g	// make sure g is not nil
 	MOVD	0(g), R4
 	MOVD	gobuf_sp(R5), R1
@@ -299,7 +299,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
 // Note: can't just "BR NAME(SB)" - bad inlining results.
 
 TEXT ·reflectcall(SB), NOSPLIT, $-8-24
-	MOVWZ argsize+16(FP), R3
+	MOVWZ n+16(FP), R3
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -335,8 +335,8 @@ TEXT ·reflectcall(SB), NOSPLIT, $-8-24
 TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
-	MOVD	argptr+8(FP), R3;		\
-	MOVWZ	argsize+16(FP), R4;		\
+	MOVD	arg+8(FP), R3;			\
+	MOVWZ	n+16(FP), R4;			\
 	MOVD	R1, R5;				\
 	ADD	$(8-1), R5;			\
 	SUB	$1, R3;				\
@@ -353,8 +353,8 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(CTR);				\
 	/* copy return values back */		\
-	MOVD	argptr+8(FP), R3;		\
-	MOVWZ	argsize+16(FP), R4;		\
+	MOVD	arg+8(FP), R3;			\
+	MOVWZ	n+16(FP), R4;			\
 	MOVWZ	retoffset+20(FP), R6;		\
 	MOVD	R1, R5;				\
 	ADD	R6, R5; 			\
@@ -398,7 +398,7 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-// bool cas(uint32 *val, uint32 old, uint32 new)
+// bool cas(uint32 *ptr, uint32 old, uint32 new)
 // Atomically:
 //	if(*val == old){
 //		*val = new;
@@ -406,7 +406,7 @@ CALLFN(·call1073741824, 1073741824)
 //	} else
 //		return 0;
 TEXT runtime·cas(SB), NOSPLIT, $0-17
-	MOVD	p+0(FP), R3
+	MOVD	ptr+0(FP), R3
 	MOVWZ	old+8(FP), R4
 	MOVWZ	new+12(FP), R5
 cas_again:
@@ -425,7 +425,7 @@ cas_fail:
 	MOVD	$0, R3
 	BR	-5(PC)
 
-// bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
+// bool	runtime·cas64(uint64 *ptr, uint64 old, uint64 new)
 // Atomically:
 //	if(*val == *old){
 //		*val = new;
@@ -434,7 +434,7 @@ cas_fail:
 //		return 0;
 //	}
 TEXT runtime·cas64(SB), NOSPLIT, $0-25
-	MOVD	p+0(FP), R3
+	MOVD	ptr+0(FP), R3
 	MOVD	old+8(FP), R4
 	MOVD	new+16(FP), R5
 cas64_again:
@@ -475,12 +475,12 @@ TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
 TEXT runtime·casp(SB), NOSPLIT, $0-25
 	BR runtime·cas64(SB)
 
-// uint32 xadd(uint32 volatile *val, int32 delta)
+// uint32 xadd(uint32 volatile *ptr, int32 delta)
 // Atomically:
 //	*val += delta;
 //	return *val;
 TEXT runtime·xadd(SB), NOSPLIT, $0-20
-	MOVD	p+0(FP), R4
+	MOVD	ptr+0(FP), R4
 	MOVW	delta+8(FP), R5
 	SYNC
 	LWAR	(R4), R3
@@ -493,7 +493,7 @@ TEXT runtime·xadd(SB), NOSPLIT, $0-20
 	RETURN
 
 TEXT runtime·xadd64(SB), NOSPLIT, $0-24
-	MOVD	p+0(FP), R4
+	MOVD	ptr+0(FP), R4
 	MOVD	delta+8(FP), R5
 	SYNC
 	LDAR	(R4), R3
@@ -506,7 +506,7 @@ TEXT runtime·xadd64(SB), NOSPLIT, $0-24
 	RETURN
 
 TEXT runtime·xchg(SB), NOSPLIT, $0-20
-	MOVD	p+0(FP), R4
+	MOVD	ptr+0(FP), R4
 	MOVW	new+8(FP), R5
 	SYNC
 	LWAR	(R4), R3
@@ -518,7 +518,7 @@ TEXT runtime·xchg(SB), NOSPLIT, $0-20
 	RETURN
 
 TEXT runtime·xchg64(SB), NOSPLIT, $0-24
-	MOVD	p+0(FP), R4
+	MOVD	ptr+0(FP), R4
 	MOVD	new+8(FP), R5
 	SYNC
 	LDAR	(R4), R3
@@ -651,7 +651,7 @@ TEXT runtime·setcallerpc(SB),NOSPLIT,$-8-16
 	RETURN
 
 TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
-	MOVD	sp+0(FP), R3
+	MOVD	argp+0(FP), R3
 	SUB	$8, R3
 	MOVD	R3, ret+8(FP)
 	RETURN
@@ -695,22 +695,23 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$-8-0
 TEXT runtime·memeq(SB),NOSPLIT,$-8-25
 	MOVD	a+0(FP), R3
 	MOVD	b+8(FP), R4
-	MOVD	count+16(FP), R5
+	MOVD	size+16(FP), R5
 	SUB	$1, R3
 	SUB	$1, R4
 	ADD	R3, R5, R8
 loop:
 	CMP	R3, R8
-	BNE	4(PC)
+	BNE	test
 	MOVD	$1, R3
 	MOVB	R3, ret+24(FP)
 	RETURN
+test:
 	MOVBZU	1(R3), R6
 	MOVBZU	1(R4), R7
 	CMP	R6, R7
 	BEQ	loop
 
-	MOVB	R0, ret+24(FP)
+	MOVB	$0, ret+24(FP)
 	RETURN
 
 // eqstring tests whether two strings are equal.
