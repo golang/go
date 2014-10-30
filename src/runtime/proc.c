@@ -1643,12 +1643,10 @@ runtime·gosched_m(G *gp)
 }
 
 // Finishes execution of the current goroutine.
-// Need to mark it as nosplit, because it runs with sp > stackbase.
-// Since it does not return it does not matter.  But if it is preempted
-// at the split stack check, GC will complain about inconsistent sp.
+// Must be NOSPLIT because it is called from Go.
 #pragma textflag NOSPLIT
 void
-runtime·goexit(void)
+runtime·goexit1(void)
 {
 	void (*fn)(G*);
 
@@ -2192,7 +2190,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 
 	runtime·memclr((byte*)&newg->sched, sizeof newg->sched);
 	newg->sched.sp = (uintptr)sp;
-	newg->sched.pc = (uintptr)runtime·goexit;
+	newg->sched.pc = (uintptr)runtime·goexit + PCQuantum; // +PCQuantum so that previous instruction is in same function
 	newg->sched.g = newg;
 	runtime·gostartcallfn(&newg->sched, fn);
 	newg->gopc = (uintptr)callerpc;

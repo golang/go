@@ -2229,3 +2229,9 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 	MOVQ	m_curg(AX), AX
 	MOVQ	(g_stack+stack_hi)(AX), AX
 	RET
+
+// The top-most function running on a goroutine
+// returns to goexit+PCQuantum.
+TEXT runtime·goexit(SB),NOSPLIT,$0-0
+	BYTE	$0x90	// NOP
+	CALL	runtime·goexit1(SB)	// does not return
