@@ -260,7 +260,7 @@ Go generate sets several variables when it runs the generator:
 	$GOPACKAGE
 		The name of the package of the file containing the directive.
 
-Other than variable substition and quoted-string evaluation, no
+Other than variable substitution and quoted-string evaluation, no
 special processing such as "globbing" is performed on the command
 line.
 
