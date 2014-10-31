@@ -829,7 +829,7 @@ notfound:
 // in ../../cmd/9g/ggen.c:/^clearfat.
 // R0: always zero
 // R3 (aka REGRT1): ptr to memory to be zeroed - 8
-// R3 is updated as a side effect.
+// On return, R3 points to the last zeroed dword.
 TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
 	MOVDU	R0, 8(R3)
 	MOVDU	R0, 8(R3)

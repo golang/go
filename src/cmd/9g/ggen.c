@@ -900,7 +900,7 @@ ret:
 void
 clearfat(Node *nl)
 {
-	uint64 w, c, q, t;
+	uint64 w, c, q, t, boff;
 	Node dst, end, r0, *f;
 	Prog *p, *pl;
 
@@ -944,6 +944,8 @@ clearfat(Node *nl)
 		patch(gbranch(ABNE, T, 0), pl);
 
 		regfree(&end);
+		// The loop leaves R3 on the last zeroed dword
+		boff = 8;
 	} else if(q >= 4) {
 		p = gins(ASUB, N, &dst);
 		p->from.type = D_CONST;
@@ -953,17 +955,21 @@ clearfat(Node *nl)
 		afunclit(&p->to, f);
 		// 4 and 128 = magic constants: see ../../runtime/asm_power64x.s
 		p->to.offset = 4*(128-q);
-	} else
-	for(t = 0; t < q; t++) {
-		p = gins(AMOVD, &r0, &dst);
-		p->to.type = D_OREG;
-		p->to.offset = 8*t;
+		// duffzero leaves R3 on the last zeroed dword
+		boff = 8;
+	} else {
+		for(t = 0; t < q; t++) {
+			p = gins(AMOVD, &r0, &dst);
+			p->to.type = D_OREG;
+			p->to.offset = 8*t;
+		}
+		boff = 8*q;
 	}
 
 	for(t = 0; t < c; t++) {
 		p = gins(AMOVB, &r0, &dst);
 		p->to.type = D_OREG;
-		p->to.offset = t;
+		p->to.offset = t+boff;
 	}
 	reg[REGRT1]--;
 }
