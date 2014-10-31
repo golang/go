@@ -305,7 +305,7 @@ var _ interface {f()} = C(0)
 				`would conflict with this method`,
 		},
 		{
-			from: "(main.I).f", to: "h",
+			from: `("main".I).f`, to: "h", // NB: exercises quoted import paths too
 			want: `renaming this interface method "f" to "h".*` +
 				`would conflict with this method.*` +
 				`in named interface type "J"`,

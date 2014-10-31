@@ -5,6 +5,7 @@
 package rename
 
 import (
+	"go/ast"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -97,4 +98,16 @@ func sameFile(x, y string) bool {
 		}
 	}
 	return false
+}
+
+// unparen returns e with any enclosing parentheses stripped.
+func unparen(e ast.Expr) ast.Expr {
+	for {
+		p, ok := e.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		e = p.X
+	}
+	return e
 }

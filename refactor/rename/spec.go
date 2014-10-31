@@ -68,16 +68,19 @@ type spec struct {
 const FromFlagUsage = `
 A legal -from query has one of the following forms:
 
-  (encoding/json.Decoder).Decode      method of package-level named type
-  (encoding/json.Decoder).buf         field of package-level named struct type
-  encoding/json.HTMLEscape            package member (const, func, var, type)
-  (encoding/json.Decoder).Decode::x   local object x within a method
-  encoding/json.HTMLEscape::x         local object x within a function
-  encoding/json::x                    object x anywhere within a package
-  json.go::x                          object x within file json.go
+  "encoding/json".Decoder.Decode	method of package-level named type
+  (*"encoding/json".Decoder).Decode	ditto, alternative syntax
+  "encoding/json".Decoder.buf           field of package-level named struct type
+  "encoding/json".HTMLEscape            package member (const, func, var, type)
+  "encoding/json".Decoder.Decode::x     local object x within a method
+  "encoding/json".HTMLEscape::x         local object x within a function
+  "encoding/json"::x                    object x anywhere within a package
+  json.go::x                            object x within file json.go
 
-  For methods attached to a pointer type, the '*' must not be specified.
-  [TODO(adonovan): fix that.]
+  For methods, the parens and '*' on the receiver type are both optional.
+
+  Double-quotes may be omitted for single-segment import paths such as
+  fmt.  They may need to be escaped when writing a shell command.
 
   It is an error if one of the ::x queries matches multiple objects.
 `
@@ -100,14 +103,8 @@ func parseFromFlag(ctxt *build.Context, fromFlag string) (*spec, error) {
 		return nil, fmt.Errorf("-from %q: invalid identifier specification (see -help for formats)", fromFlag)
 	}
 
-	// main is one of:
-	//  filename.go
-	//  importpath
-	//  importpath.member
-	//  (importpath.type).fieldormethod
-
 	if strings.HasSuffix(main, ".go") {
-		// filename.go
+		// main is "filename.go"
 		if spec.searchFor == "" {
 			return nil, fmt.Errorf("-from: filename %q must have a ::name suffix", main)
 		}
@@ -122,30 +119,14 @@ func parseFromFlag(ctxt *build.Context, fromFlag string) (*spec, error) {
 		}
 		spec.pkg = bp.ImportPath
 
-	} else if a, b := splitAtLastDot(main); b == "" {
-		// importpath e.g. "encoding/json"
-		if spec.searchFor == "" {
-			return nil, fmt.Errorf("-from %q: package import path %q must have a ::name suffix",
-				main, a)
-		}
-		spec.pkg = a
-
-	} else if strings.HasPrefix(a, "(") && strings.HasSuffix(a, ")") {
-		// field/method of type e.g. (encoding/json.Decoder).Decode
-		c, d := splitAtLastDot(a[1 : len(a)-1])
-		if d == "" {
-			return nil, fmt.Errorf("-from %q: not a package-level named type: %q", a)
-		}
-		spec.pkg = c        // e.g. "encoding/json"
-		spec.pkgMember = d  // e.g. "Decoder"
-		spec.typeMember = b // e.g. "Decode"
-		spec.fromName = b
-
 	} else {
-		// package member e.g. "encoding/json.HTMLEscape"
-		spec.pkg = a       // e.g. "encoding/json"
-		spec.pkgMember = b // e.g.  "HTMLEscape"
-		spec.fromName = b
+		// main is one of:
+		//  "importpath"
+		//  "importpath".member
+		//  (*"importpath".type).fieldormethod           (parens and star optional)
+		if err := parseObjectSpec(&spec, main); err != nil {
+			return nil, err
+		}
 	}
 
 	if spec.searchFor != "" {
@@ -171,14 +152,70 @@ func parseFromFlag(ctxt *build.Context, fromFlag string) (*spec, error) {
 	return &spec, nil
 }
 
-// "encoding/json.HTMLEscape" -> ("encoding/json", "HTMLEscape")
-// "encoding/json"            -> ("encoding/json", "")
-func splitAtLastDot(s string) (string, string) {
-	i := strings.LastIndex(s, ".")
-	if i == -1 {
-		return s, ""
+// parseObjectSpec parses main as one of the non-filename forms of
+// object specification.
+func parseObjectSpec(spec *spec, main string) error {
+	// Parse main as a Go expression, albeit a strange one.
+	e, _ := parser.ParseExpr(main)
+
+	if pkg := parseImportPath(e); pkg != "" {
+		// e.g. bytes or "encoding/json": a package
+		spec.pkg = pkg
+		if spec.searchFor == "" {
+			return fmt.Errorf("-from %q: package import path %q must have a ::name suffix",
+				main, main)
+		}
+		return nil
 	}
-	return s[:i], s[i+1:]
+
+	if e, ok := e.(*ast.SelectorExpr); ok {
+		x := unparen(e.X)
+
+		// Strip off star constructor, if any.
+		if star, ok := x.(*ast.StarExpr); ok {
+			x = star.X
+		}
+
+		if pkg := parseImportPath(x); pkg != "" {
+			// package member e.g. "encoding/json".HTMLEscape
+			spec.pkg = pkg              // e.g. "encoding/json"
+			spec.pkgMember = e.Sel.Name // e.g. "HTMLEscape"
+			spec.fromName = e.Sel.Name
+			return nil
+		}
+
+		if x, ok := x.(*ast.SelectorExpr); ok {
+			// field/method of type e.g. ("encoding/json".Decoder).Decode
+			y := unparen(x.X)
+			if pkg := parseImportPath(y); pkg != "" {
+				spec.pkg = pkg               // e.g. "encoding/json"
+				spec.pkgMember = x.Sel.Name  // e.g. "Decoder"
+				spec.typeMember = e.Sel.Name // e.g. "Decode"
+				spec.fromName = e.Sel.Name
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("-from %q: invalid expression")
+}
+
+// parseImportPath returns the import path of the package denoted by e.
+// Any import path may be represented as a string literal;
+// single-segment import paths (e.g. "bytes") may also be represented as
+// ast.Ident.  parseImportPath returns "" for all other expressions.
+func parseImportPath(e ast.Expr) string {
+	switch e := e.(type) {
+	case *ast.Ident:
+		return e.Name // e.g. bytes
+
+	case *ast.BasicLit:
+		if e.Kind == token.STRING {
+			pkgname, _ := strconv.Unquote(e.Value)
+			return pkgname // e.g. "encoding/json"
+		}
+	}
+	return ""
 }
 
 // parseOffsetFlag interprets the "-offset" flag value as a renaming specification.

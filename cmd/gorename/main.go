@@ -86,7 +86,7 @@ Examples:
 
   Rename the object whose identifier is at byte offset 123 within file file.go.
 
-% gorename -from '(bytes.Buffer).Len' -to Size
+% gorename -from '"bytes".Buffer.Len' -to Size
 
   Rename the "Len" method of the *bytes.Buffer type to "Size".
 
@@ -98,6 +98,7 @@ Correctness:
 - sketch a proof of exhaustiveness.
 
 Features:
+- support running on packages specified as *.go files on the command line
 - support running on programs containing errors (loader.Config.AllowErrors)
 - allow users to specify a scope other than "global" (to avoid being
   stuck by neglected packages in $GOPATH that don't build).
@@ -114,7 +115,6 @@ Features:
   all local variables of a given type,
   all PkgNames for a given package.
 - emit JSON output for other editors and tools.
-- integration with editors other than Emacs.
 `
 
 func main() {
