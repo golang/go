@@ -965,7 +965,7 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 	MOVD	g_m(g), R4
 	MOVWZ	m_fastrand(R4), R3
 	ADD	R3, R3
-	CMP	R3, $0
+	CMPW	R3, $0
 	BGE	2(PC)
 	XOR	$0x88888eef, R3
 	MOVW	R3, m_fastrand(R4)
