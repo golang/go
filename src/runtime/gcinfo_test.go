@@ -137,7 +137,7 @@ func infoBigStruct() []byte {
 			BitsScalar, BitsScalar, BitsScalar, BitsScalar, // t int; y uint16; u uint64
 			BitsPointer, BitsDead, // i string
 		}
-	case "amd64":
+	case "amd64", "power64", "power64le":
 		return []byte{
 			BitsPointer,                        // q *int
 			BitsScalar, BitsScalar, BitsScalar, // w byte; e [17]byte
@@ -152,12 +152,6 @@ func infoBigStruct() []byte {
 			BitsPointer, BitsDead, BitsDead, // r []byte
 			BitsScalar, BitsScalar, BitsDead, BitsScalar, BitsScalar, // t int; y uint16; u uint64
 			BitsPointer, BitsDead, // i string
-		}
-	case "power64", "power64le":
-		return []byte{
-			BitsPointer, BitsScalar, BitsScalar, BitsScalar,
-			BitsMultiWord, BitsSlice, BitsScalar, BitsScalar,
-			BitsScalar, BitsScalar, BitsMultiWord, BitsString,
 		}
 	default:
 		panic("unknown arch")
