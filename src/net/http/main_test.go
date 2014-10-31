@@ -70,7 +70,7 @@ func goroutineLeaked() bool {
 	}
 	fmt.Fprintf(os.Stderr, "Too many goroutines running after net/http test(s).\n")
 	for stack, count := range stackCount {
-		fmt.Fprintf(os.Stderr, "%d instances of:\n%s", count, stack)
+		fmt.Fprintf(os.Stderr, "%d instances of:\n%s\n", count, stack)
 	}
 	return true
 }
