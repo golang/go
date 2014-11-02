@@ -49,6 +49,10 @@ func runObjDump(t *testing.T, exe, startaddr, endaddr string) (path, lineno stri
 	case "android", "nacl":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
+	switch runtime.GOARCH {
+	case "power64", "power64le":
+		t.Skipf("skipping on %s, issue 9039", runtime.GOARCH)
+	}
 
 	cmd := exec.Command(exe, os.Args[0], startaddr, endaddr)
 	out, err := cmd.CombinedOutput()
@@ -199,6 +203,10 @@ func testDisasm(t *testing.T, flags ...string) {
 }
 
 func TestDisasm(t *testing.T) {
+	switch runtime.GOARCH {
+	case "power64", "power64le":
+		t.Skipf("skipping on %s, issue 9039", runtime.GOARCH)
+	}
 	testDisasm(t)
 }
 
@@ -206,6 +214,10 @@ func TestDisasmExtld(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("skipping on %s", runtime.GOOS)
+	}
+	switch runtime.GOARCH {
+	case "power64", "power64le":
+		t.Skipf("skipping on %s, no support for external linking, issue 9038", runtime.GOARCH)
 	}
 	testDisasm(t, "-ldflags=-linkmode=external")
 }
