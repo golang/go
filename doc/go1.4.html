@@ -372,6 +372,15 @@ and should be removed manually.
 </p>
 
 <p>
+To complement this new feature, a check has been added at update time to verify
+that the local package's remote repository matches that of its custom import.
+The <code>go</code> <code>get</code> <code>-u</code> command will fail to
+update a package if its remote repository has changed since it was first
+downloaded.
+The new <code>-f</code> flag overrides this check.
+</p>
+
+<p>
 Further information is in
 <a href="http://golang.org/s/go14customimport">the design document</a>.
 </p>
