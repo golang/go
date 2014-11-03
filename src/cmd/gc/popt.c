@@ -847,10 +847,6 @@ nilopt(Prog *firstp)
 	Graph *g;
 	int ncheck, nkill;
 
-	// TODO(minux): nilopt on power64 throw away seemly random segment of code.
-	if(thechar == '9')
-		return;
-
 	g = flowstart(firstp, sizeof(NilFlow));
 	if(g == nil)
 		return;
