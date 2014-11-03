@@ -614,8 +614,8 @@ func newT40() *T40 {
 
 func bad40() {
 	t := newT40()
-	println()
 	_ = t
+	println()
 }
 
 func good40() {
