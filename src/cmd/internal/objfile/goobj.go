@@ -79,3 +79,15 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
 	return 0, nil, nil, fmt.Errorf("pcln not available in go object file")
 }
+
+// text does not make sense for Go object files, because
+// each function has a separate section.
+func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
+	return 0, nil, fmt.Errorf("text not available in go object file")
+}
+
+// goarch makes sense but is not exposed in debug/goobj's API,
+// and we don't need it yet for any users of internal/objfile.
+func (f *goobjFile) goarch() string {
+	return "GOARCH unimplemented for debug/goobj files"
+}

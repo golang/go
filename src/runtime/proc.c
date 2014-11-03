@@ -1643,12 +1643,10 @@ runtime·gosched_m(G *gp)
 }
 
 // Finishes execution of the current goroutine.
-// Need to mark it as nosplit, because it runs with sp > stackbase.
-// Since it does not return it does not matter.  But if it is preempted
-// at the split stack check, GC will complain about inconsistent sp.
+// Must be NOSPLIT because it is called from Go.
 #pragma textflag NOSPLIT
 void
-runtime·goexit(void)
+runtime·goexit1(void)
 {
 	void (*fn)(G*);
 
@@ -2192,7 +2190,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 
 	runtime·memclr((byte*)&newg->sched, sizeof newg->sched);
 	newg->sched.sp = (uintptr)sp;
-	newg->sched.pc = (uintptr)runtime·goexit;
+	newg->sched.pc = (uintptr)runtime·goexit + PCQuantum; // +PCQuantum so that previous instruction is in same function
 	newg->sched.g = newg;
 	runtime·gostartcallfn(&newg->sched, fn);
 	newg->gopc = (uintptr)callerpc;
@@ -2532,7 +2530,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 
 	n = 0;
 	if(traceback)
-		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, stk, nelem(stk), nil, nil, false);
+		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, stk, nelem(stk), nil, nil, TraceTrap);
 	if(!traceback || n <= 0) {
 		// Normal traceback is impossible or has failed.
 		// See if it falls into several common cases.
@@ -2542,13 +2540,13 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
 			// Cgo, we can't unwind and symbolize arbitrary C code,
 			// so instead collect Go stack that leads to the cgo call.
 			// This is especially important on windows, since all syscalls are cgo calls.
-			n = runtime·gentraceback(mp->curg->syscallpc, mp->curg->syscallsp, 0, mp->curg, 0, stk, nelem(stk), nil, nil, false);
+			n = runtime·gentraceback(mp->curg->syscallpc, mp->curg->syscallsp, 0, mp->curg, 0, stk, nelem(stk), nil, nil, 0);
 		}
 #ifdef GOOS_windows
 		if(n == 0 && mp->libcallg != nil && mp->libcallpc != 0 && mp->libcallsp != 0) {
 			// Libcall, i.e. runtime syscall on windows.
 			// Collect Go stack that leads to the call.
-			n = runtime·gentraceback(mp->libcallpc, mp->libcallsp, 0, mp->libcallg, 0, stk, nelem(stk), nil, nil, false);
+			n = runtime·gentraceback(mp->libcallpc, mp->libcallsp, 0, mp->libcallg, 0, stk, nelem(stk), nil, nil, 0);
 		}
 #endif
 		if(n == 0) {

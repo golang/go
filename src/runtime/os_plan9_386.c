@@ -114,7 +114,7 @@ Throw:
 
 	if(runtime·gotraceback(&crash)) {
 		runtime·goroutineheader(gp);
-		runtime·traceback(ureg->pc, ureg->sp, 0, gp);
+		runtime·tracebacktrap(ureg->pc, ureg->sp, 0, gp);
 		runtime·tracebackothers(gp);
 		runtime·printf("\n");
 		runtime·dumpregs(ureg);

@@ -38,7 +38,7 @@ func (v *Value) Load() (x interface{}) {
 	return
 }
 
-// Store sets the value of the Value to v.
+// Store sets the value of the Value to x.
 // All calls to Store for a given Value must use values of the same concrete type.
 // Store of an inconsistent type panics, as does Store(nil).
 func (v *Value) Store(x interface{}) {

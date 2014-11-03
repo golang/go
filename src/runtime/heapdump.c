@@ -413,7 +413,7 @@ dumpgoroutine(G *gp)
 	child.sp = nil;
 	child.depth = 0;
 	fn = dumpframe;
-	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, &fn, &child, false);
+	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, &fn, &child, 0);
 
 	// dump defer & panic records
 	for(d = gp->defer; d != nil; d = d->link) {

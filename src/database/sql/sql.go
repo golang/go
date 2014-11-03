@@ -37,6 +37,11 @@ func Register(name string, driver driver.Driver) {
 	drivers[name] = driver
 }
 
+func unregisterAllDrivers() {
+	// For tests.
+	drivers = make(map[string]driver.Driver)
+}
+
 // Drivers returns a sorted list of the names of the registered drivers.
 func Drivers() []string {
 	var list []string

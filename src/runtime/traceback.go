@@ -96,7 +96,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
 // duplicating the code and all its subtlety.
-func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, printall bool) int {
+func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
 	if goexitPC == 0 {
 		gothrow("gentraceback before goexitPC initialization")
 	}
@@ -297,13 +297,13 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 			}
 		}
 		if printing {
-			if printall || showframe(f, gp) {
+			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp) {
 				// Print during crash.
 				//	main(0x1, 0x2, 0x3)
 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
 				//
 				tracepc := frame.pc // back up to CALL instruction for funcline.
-				if n > 0 && frame.pc > f.entry && !waspanic {
+				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
 					tracepc--
 				}
 				print(gofuncname(f), "(")
@@ -475,17 +475,32 @@ func printcreatedby(gp *g) {
 }
 
 func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
+	traceback1(pc, sp, lr, gp, 0)
+}
+
+// tracebacktrap is like traceback but expects that the PC and SP were obtained
+// from a trap, not from gp->sched or gp->syscallpc/gp->syscallsp or getcallerpc/getcallersp.
+// Because they are from a trap instead of from a saved pair,
+// the initial PC must not be rewound to the previous instruction.
+// (All the saved pairs record a PC that is a return address, so we
+// rewind it into the CALL instruction.)
+func tracebacktrap(pc uintptr, sp uintptr, lr uintptr, gp *g) {
+	traceback1(pc, sp, lr, gp, _TraceTrap)
+}
+
+func traceback1(pc uintptr, sp uintptr, lr uintptr, gp *g, flags uint) {
 	var n int
 	if readgstatus(gp)&^_Gscan == _Gsyscall {
-		// Override signal registers if blocked in system call.
+		// Override registers if blocked in system call.
 		pc = gp.syscallpc
 		sp = gp.syscallsp
+		flags &^= _TraceTrap
 	}
 	// Print traceback. By default, omits runtime frames.
 	// If that means we print nothing at all, repeat forcing all frames printed.
-	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, false)
-	if n == 0 {
-		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, true)
+	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags)
+	if n == 0 && (flags&_TraceRuntimeFrames) == 0 {
+		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags|_TraceRuntimeFrames)
 	}
 	if n == _TracebackMaxFrames {
 		print("...additional frames elided...\n")
@@ -496,11 +511,11 @@ func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
 func callers(skip int, pcbuf *uintptr, m int) int {
 	sp := getcallersp(unsafe.Pointer(&skip))
 	pc := uintptr(getcallerpc(unsafe.Pointer(&skip)))
-	return gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, false)
+	return gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, 0)
 }
 
 func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {
-	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, false)
+	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, 0)
 }
 
 func showframe(f *_func, gp *g) bool {

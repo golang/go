@@ -133,6 +133,25 @@ func (f *peFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
 	return textStart, symtab, pclntab, nil
 }
 
+func (f *peFile) text() (textStart uint64, text []byte, err error) {
+	var imageBase uint64
+	switch oh := f.pe.OptionalHeader.(type) {
+	case *pe.OptionalHeader32:
+		imageBase = uint64(oh.ImageBase)
+	case *pe.OptionalHeader64:
+		imageBase = oh.ImageBase
+	default:
+		return 0, nil, fmt.Errorf("pe file format not recognized")
+	}
+	sect := f.pe.Section(".text")
+	if sect == nil {
+		return 0, nil, fmt.Errorf("text section not found")
+	}
+	textStart = imageBase + uint64(sect.VirtualAddress)
+	text, err = sect.Data()
+	return
+}
+
 func findPESymbol(f *pe.File, name string) (*pe.Symbol, error) {
 	for _, s := range f.Symbols {
 		if s.Name != name {
@@ -167,4 +186,16 @@ func loadPETable(f *pe.File, sname, ename string) ([]byte, error) {
 		return nil, err
 	}
 	return data[ssym.Value:esym.Value], nil
+}
+
+func (f *peFile) goarch() string {
+	// Not sure how to get the info we want from PE header.
+	// Look in symbol table for telltale rt0 symbol.
+	if _, err := findPESymbol(f.pe, "_rt0_386_windows"); err == nil {
+		return "386"
+	}
+	if _, err := findPESymbol(f.pe, "_rt0_amd64_windows"); err == nil {
+		return "amd64"
+	}
+	return ""
 }
