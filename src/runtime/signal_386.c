@@ -109,7 +109,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 
 	if(runtime·gotraceback(&crash)){
 		runtime·goroutineheader(gp);
-		runtime·traceback(SIG_EIP(info, ctxt), SIG_ESP(info, ctxt), 0, gp);
+		runtime·tracebacktrap(SIG_EIP(info, ctxt), SIG_ESP(info, ctxt), 0, gp);
 		runtime·tracebackothers(gp);
 		runtime·printf("\n");
 		runtime·dumpregs(info, ctxt);

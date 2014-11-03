@@ -980,3 +980,9 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 // Must obey the gcc calling convention.
 TEXT _cgo_topofstack(SB),NOSPLIT,$0
 	MOVD	R0, 26(R0)
+
+// The top-most function running on a goroutine
+// returns to goexit+PCQuantum.
+TEXT runtime·goexit(SB),NOSPLIT,$-8-0
+	MOVD	R0, R0	// NOP
+	BL	runtime·goexit1(SB)	// does not return

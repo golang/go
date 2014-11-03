@@ -247,7 +247,7 @@ The arguments are space-separated tokens or double-quoted strings
 passed to the generator as individual arguments when it is run.
 
 Quoted strings use Go syntax and are evaluated before execution; a
-quoted string appears a single argument to the generator.
+quoted string appears as a single argument to the generator.
 
 Go generate sets several variables when it runs the generator:
 
@@ -260,7 +260,7 @@ Go generate sets several variables when it runs the generator:
 	$GOPACKAGE
 		The name of the package of the file containing the directive.
 
-Other than variable substition and quoted-string evaluation, no
+Other than variable substitution and quoted-string evaluation, no
 special processing such as "globbing" is performed on the command
 line.
 
