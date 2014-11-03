@@ -14,6 +14,9 @@ TEXT ·arg1(SB),0,$0-2
 	MOVW	y+1(FP), AX // ERROR "invalid MOVW of y\+1\(FP\); uint8 is 1-byte value"
 	MOVB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
 	MOVB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
+	MOVB	8(R13), AX // ERROR "8\(R13\) should be x\+0\(FP\)"
+	MOVB	9(R13), AX // ERROR "9\(R13\) should be y\+1\(FP\)"
+	MOVB	10(R13), AX // ERROR "use of 10\(R13\) points beyond argument frame"
 	RET
 
 TEXT ·arg2(SB),0,$0-4
@@ -163,4 +166,13 @@ TEXT ·returnnamed(SB),0,$0-21
 	MOVW	AX, r3_len+16(FP)
 	MOVB	AX, r4+20(FP)
 	MOVB	AX, r1+4(FP) // ERROR "invalid MOVB of r1\+4\(FP\); int is 4-byte value"
+	RET
+
+TEXT ·returnintmissing(SB),0,$0-4
+	RET // ERROR "RET without writing to 4-byte ret\+0\(FP\)"
+
+TEXT ·leaf(SB),0,$-4-12
+	MOVW	x+0(FP), AX
+	MOVW	y+4(FP), AX
+	MOVW	AX, ret+8(FP)
 	RET
