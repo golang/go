@@ -344,8 +344,8 @@ main(int argc, char *argv[])
 					break;
 				}
 			}
-			if(j == nelem(debugtab))
-				fatal("unknown debug information -d '%s'\n", f[i]);
+			if(debugtab[j].name == nil)
+				sysfatal("unknown debug information -d '%s'\n", f[i]);
 		}
 	}
 
