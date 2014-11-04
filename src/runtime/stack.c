@@ -382,8 +382,6 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 	uintptr delta;
 	int32 num, i;
 	byte *p, *minp, *maxp;
-	Type *t;
-	Itab *tab;
 	
 	minp = (byte*)adjinfo->old.lo;
 	maxp = (byte*)adjinfo->old.hi;
@@ -415,43 +413,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
 			}
 			break;
 		case BitsMultiWord:
-			switch(bv->bytedata[(i+1) / (8 / BitsPerPointer)] >> ((i+1) * BitsPerPointer & 7) & 3) {
-			default:
-				runtime·throw("unexpected garbage collection bits");
-			case BitsEface:
-				t = (Type*)scanp[i];
-				if(t != nil && ((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0)) {
-					p = scanp[i+1];
-					if(minp <= p && p < maxp) {
-						if(StackDebug >= 3)
-							runtime·printf("adjust eface %p\n", p);
-						if(t->size > PtrSize) // currently we always allocate such objects on the heap
-							runtime·throw("large interface value found on stack");
-						scanp[i+1] = p + delta;
-					}
-				}
-				i++;
-				break;
-			case BitsIface:
-				tab = (Itab*)scanp[i];
-				if(tab != nil) {
-					t = tab->type;
-					//runtime·printf("          type=%p\n", t);
-					if((t->kind & KindDirectIface) == 0 || (t->kind & KindNoPointers) == 0) {
-						p = scanp[i+1];
-						if(minp <= p && p < maxp) {
-							if(StackDebug >= 3)
-								runtime·printf("adjust iface %p\n", p);
-							if(t->size > PtrSize) // currently we always allocate such objects on the heap
-								runtime·throw("large interface value found on stack");
-							scanp[i+1] = p + delta;
-						}
-					}
-				}
-				i++;
-				break;
-			}
-			break;
+			runtime·throw("adjustpointers: unexpected garbage collection bits");
 		}
 	}
 }
