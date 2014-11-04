@@ -34,7 +34,7 @@
 #include "opt.h"
 
 #define	NREGVAR	32	/* 16 general + 16 floating */
-#define	REGBITS	((uint32)0xffffffff)
+#define	REGBITS	((uint64)0xffffffffull)
 /*c2go enum {
 	NREGVAR = 32,
 	REGBITS = 0xffffffff,
@@ -71,7 +71,7 @@ setaddrs(Bits bit)
 		i = bnum(bit);
 		node = var[i].node;
 		n = var[i].name;
-		bit.b[i/32] &= ~(1L<<(i%32));
+		biclr(&bit, i);
 
 		// disable all pieces of that variable
 		for(i=0; i<nvar; i++) {
@@ -364,7 +364,7 @@ loop2:
 			rgp->varno = i;
 			change = 0;
 			paint1(r, i);
-			bit.b[i/32] &= ~(1L<<(i%32));
+			biclr(&bit, i);
 			if(change <= 0)
 				continue;
 			rgp->cost = change;
@@ -477,7 +477,7 @@ walkvardef(Node *n, Reg *r, int active)
 			break;
 		for(v=n->opt; v!=nil; v=v->nextinnode) {
 			bn = v - var;
-			r1->act.b[bn/32] |= 1L << (bn%32);
+			biset(&r1->act, bn);
 		}
 		if(r1->f.prog->as == ACALL)
 			break;
@@ -822,10 +822,10 @@ prop(Reg *r, Bits ref, Bits cal)
 			for(z=0; z<BITS; z++) {
 				if(cal.b[z] == 0)
 					continue;
-				for(i=0; i<32; i++) {
-					if(z*32+i >= nvar || ((cal.b[z]>>i)&1) == 0)
+				for(i=0; i<64; i++) {
+					if(z*64+i >= nvar || ((cal.b[z]>>i)&1) == 0)
 						continue;
-					v = var+z*32+i;
+					v = var+z*64+i;
 					if(v->node->opt == nil) // v represents fixed register, not Go variable
 						continue;
 
@@ -841,10 +841,10 @@ prop(Reg *r, Bits ref, Bits cal)
 					// This will set the bits at most twice, keeping the overall loop linear.
 					v1 = v->node->opt;
 					j = v1 - var;
-					if(v == v1 || ((cal.b[j/32]>>(j&31))&1) == 0) {
+					if(v == v1 || !btest(&cal, j)) {
 						for(; v1 != nil; v1 = v1->nextinnode) {
 							j = v1 - var;
-							cal.b[j/32] |= 1UL<<(j&31);
+							biset(&cal, j);
 						}
 					}
 				}
@@ -959,10 +959,10 @@ paint1(Reg *r, int bn)
 {
 	Reg *r1;
 	int z;
-	uint32 bb;
+	uint64 bb;
 
-	z = bn/32;
-	bb = 1L<<(bn%32);
+	z = bn/64;
+	bb = 1LL<<(bn%64);
 	if(r->act.b[z] & bb)
 		return;
 	for(;;) {
@@ -1061,10 +1061,10 @@ paint2(Reg *r, int bn)
 {
 	Reg *r1;
 	int z;
-	uint32 bb, vreg, x;
+	uint64 bb, vreg, x;
 
-	z = bn/32;
-	bb = 1L << (bn%32);
+	z = bn/64;
+	bb = 1LL << (bn%64);
 	vreg = regbits;
 	if(!(r->act.b[z] & bb))
 		return vreg;
@@ -1117,15 +1117,15 @@ paint2(Reg *r, int bn)
 }
 
 void
-paint3(Reg *r, int bn, int32 rb, int rn)
+paint3(Reg *r, int bn, uint32 rb, int rn)
 {
 	Reg *r1;
 	Prog *p;
 	int z;
-	uint32 bb;
+	uint64 bb;
 
-	z = bn/32;
-	bb = 1L << (bn%32);
+	z = bn/64;
+	bb = 1LL << (bn%64);
 	if(r->act.b[z] & bb)
 		return;
 	for(;;) {
@@ -1198,7 +1198,7 @@ addreg(Adr *a, int rn)
 	ostats.ncvtreg++;
 }
 
-int32
+uint32
 RtoB(int r)
 {
 
@@ -1208,7 +1208,7 @@ RtoB(int r)
 }
 
 int
-BtoR(int32 b)
+BtoR(uint32 b)
 {
 	b &= 0xffffL;
 	if(nacl)
@@ -1224,7 +1224,7 @@ BtoR(int32 b)
  *	...
  *	31	X15
  */
-int32
+uint32
 FtoB(int f)
 {
 	if(f < D_X0 || f > D_X15)
@@ -1233,7 +1233,7 @@ FtoB(int f)
 }
 
 int
-BtoF(int32 b)
+BtoF(uint32 b)
 {
 
 	b &= 0xFFFF0000L;
