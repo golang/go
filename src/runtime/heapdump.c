@@ -259,20 +259,7 @@ dumpbv(BitVector *bv, uintptr offset)
 			dumpint(offset + i / BitsPerPointer * PtrSize);
 			break;
 		case BitsMultiWord:
-			switch(bv->bytedata[(i+BitsPerPointer)/8] >> (i+BitsPerPointer)%8 & 3) {
-			default:
-				runtime·throw("unexpected garbage collection bits");
-			case BitsIface:
-				dumpint(FieldKindIface);
-				dumpint(offset + i / BitsPerPointer * PtrSize);
-				i += BitsPerPointer;
-				break;
-			case BitsEface:
-				dumpint(FieldKindEface);
-				dumpint(offset + i / BitsPerPointer * PtrSize);
-				i += BitsPerPointer;
-				break;
-			}
+			runtime·throw("bumpbv unexpected garbage collection bits");
 		}
 	}
 }

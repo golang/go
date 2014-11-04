@@ -306,6 +306,18 @@ func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
 		}
 	}
 marked:
+
+	// GCmarkterminate allocates black
+	// All slots hold nil so no scanning is needed.
+	// This may be racing with GC so do it atomically if there can be
+	// a race marking the bit.
+	if gcphase == _GCmarktermination {
+		mp := acquirem()
+		mp.ptrarg[0] = x
+		onM(gcmarknewobject_m)
+		releasem(mp)
+	}
+
 	if raceenabled {
 		racemalloc(x, size)
 	}
@@ -478,8 +490,12 @@ func gogc(force int32) {
 
 	// Do a concurrent heap scan before we stop the world.
 	onM(gcscan_m)
+	onM(gcinstallmarkwb_m)
 	onM(stoptheworld)
-
+	//	onM(starttheworld)
+	// mark from roots scanned in gcscan_m. startthework when write barrier works
+	onM(gcmark_m)
+	//	onM(stoptheworld)
 	if mp != acquirem() {
 		gothrow("gogc: rescheduled")
 	}
@@ -510,6 +526,8 @@ func gogc(force int32) {
 		onM(gc_m)
 	}
 
+	onM(gccheckmark_m)
+
 	// all done
 	mp.gcing = 0
 	semrelease(&worldsema)
@@ -522,6 +540,14 @@ func gogc(force int32) {
 		// give the queued finalizers, if any, a chance to run
 		Gosched()
 	}
+}
+
+func GCcheckmarkenable() {
+	onM(gccheckmarkenable_m)
+}
+
+func GCcheckmarkdisable() {
+	onM(gccheckmarkdisable_m)
 }
 
 // GC runs a garbage collection.
