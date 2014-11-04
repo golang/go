@@ -112,7 +112,14 @@ var (
 	copy_slice = slice
 	copy_sliceInt = sliceInt
 	copy_hello = hello
-	copy_bytes = bytes
+
+	// Could be handled without an initialization function, but
+	// requires special handling for "a = []byte("..."); b = a"
+	// which is not a likely case.
+	// copy_bytes = bytes
+	// https://codereview.appspot.com/171840043 is one approach to
+	// make this special case work.
+
 	copy_four, copy_five = four, five
 	copy_x, copy_y = x, y
 	copy_nilslice = nilslice
@@ -202,58 +209,66 @@ var pt0b = &T{X: 0}
 var pt1 = &T{X: 1, Y: 2}
 var pt1a = &T{3, 4}
 
-var copy_bx = bx
+// The checks similar to
+// var copy_bx = bx
+// are commented out.  The  compiler no longer statically initializes them.
+// See issue 7665 and https://codereview.appspot.com/93200044.
+// If https://codereview.appspot.com/169040043 is submitted, and this
+// test is changed to pass -complete to the compiler, then we can
+// uncomment the copy lines again.
+
+// var copy_bx = bx
 var copy_b0 = b0
 var copy_b1 = b1
 
-var copy_fx = fx
+// var copy_fx = fx
 var copy_f0 = f0
 var copy_f1 = f1
 
-var copy_gx = gx
+// var copy_gx = gx
 var copy_g0 = g0
 var copy_g1 = g1
 
-var copy_ix = ix
+// var copy_ix = ix
 var copy_i0 = i0
 var copy_i1 = i1
 
-var copy_jx = jx
+// var copy_jx = jx
 var copy_j0 = j0
 var copy_j1 = j1
 
-var copy_cx = cx
+// var copy_cx = cx
 var copy_c0 = c0
 var copy_c1 = c1
 
-var copy_dx = dx
+// var copy_dx = dx
 var copy_d0 = d0
 var copy_d1 = d1
 
-var copy_sx = sx
+// var copy_sx = sx
 var copy_s0 = s0
 var copy_s1 = s1
 
-var copy_ax = ax
+// var copy_ax = ax
 var copy_a0 = a0
 var copy_a1 = a1
 
-var copy_tx = tx
+// var copy_tx = tx
 var copy_t0 = t0
 var copy_t0a = t0a
 var copy_t0b = t0b
 var copy_t1 = t1
 var copy_t1a = t1a
 
-var copy_psx = psx
+// var copy_psx = psx
 var copy_ps0 = ps0
 var copy_ps1 = ps1
 
-var copy_pax = pax
+// var copy_pax = pax
 var copy_pa0 = pa0
 var copy_pa1 = pa1
 
-var copy_ptx = ptx
+// var copy_ptx = ptx
 var copy_pt0 = pt0
 var copy_pt0a = pt0a
 var copy_pt0b = pt0b
