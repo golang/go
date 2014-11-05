@@ -4,11 +4,13 @@
 
 // Package buildutil provides utilities related to the go/build
 // package in the standard library.
+//
+// All I/O is done via the build.Context file system interface, which must
+// be concurrency-safe.
 package buildutil
 
 import (
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -23,7 +25,7 @@ import (
 // The result may include import paths for directories that contain no
 // *.go files, such as "archive" (in $GOROOT/src).
 //
-// All I/O is via the build.Context virtual file system,
+// All I/O is done via the build.Context file system interface,
 // which must be concurrency-safe.
 //
 func AllPackages(ctxt *build.Context) []string {
@@ -45,7 +47,7 @@ func AllPackages(ctxt *build.Context) []string {
 // If the package directory exists but could not be read, the second
 // argument to the found function provides the error.
 //
-// The found function and the build.Context virtual file system
+// The found function and the build.Context file system interface
 // accessors must be concurrency safe.
 //
 func ForEachPackage(ctxt *build.Context, found func(importPath string, err error)) {
@@ -66,11 +68,6 @@ func ForEachPackage(ctxt *build.Context, found func(importPath string, err error
 }
 
 func allPackages(ctxt *build.Context, sema chan bool, root string, found func(string, error)) {
-	ReadDir := ctxt.ReadDir
-	if ReadDir == nil {
-		ReadDir = ioutil.ReadDir
-	}
-
 	root = filepath.Clean(root) + string(os.PathSeparator)
 
 	var wg sync.WaitGroup
@@ -92,7 +89,7 @@ func allPackages(ctxt *build.Context, sema chan bool, root string, found func(st
 		}
 
 		sema <- true
-		files, err := ReadDir(dir)
+		files, err := ReadDir(ctxt, dir)
 		<-sema
 		if pkg != "" || err != nil {
 			found(pkg, err)
