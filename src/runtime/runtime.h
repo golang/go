@@ -345,6 +345,7 @@ struct	M
 	int32	helpgc;
 	bool	spinning;	// M is out of work and is actively looking for work
 	bool	blocked;	// M is blocked on a Note
+	int8	printlock;
 	uint32	fastrand;
 	uint64	ncgocall;	// number of cgo calls in total
 	int32	ncgo;		// number of cgo calls currently in progress
