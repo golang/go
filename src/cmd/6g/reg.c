@@ -621,6 +621,9 @@ mkvar(Reg *r, Adr *a)
 	if(r != R)
 		r->use1.b[0] |= doregbits(a->index);
 
+	if(t >= D_INDIR && t < 2*D_INDIR)
+		goto none;
+
 	switch(t) {
 	default:
 		regu = doregbits(t);
