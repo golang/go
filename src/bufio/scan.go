@@ -36,6 +36,7 @@ type Scanner struct {
 	start        int       // First non-processed byte in buf.
 	end          int       // End of data in buf.
 	err          error     // Sticky error.
+	empties      int       // Count of successive empty tokens.
 }
 
 // SplitFunc is the signature of the split function used to tokenize the
@@ -108,6 +109,8 @@ func (s *Scanner) Text() string {
 // After Scan returns false, the Err method will return any error that
 // occurred during scanning, except that if it was io.EOF, Err
 // will return nil.
+// Split panics if the split function returns 100 empty tokens without
+// advancing the input. This is a common error mode for scanners.
 func (s *Scanner) Scan() bool {
 	// Loop until we have a token.
 	for {
@@ -125,6 +128,14 @@ func (s *Scanner) Scan() bool {
 			}
 			s.token = token
 			if token != nil {
+				if len(token) > 0 {
+					s.empties = 0
+				} else {
+					s.empties++
+					if s.empties > 100 {
+						panic("bufio.Scan: 100 empty tokens without progressing")
+					}
+				}
 				return true
 			}
 		}
@@ -172,6 +183,7 @@ func (s *Scanner) Scan() bool {
 				break
 			}
 			if n > 0 {
+				s.empties = 0
 				break
 			}
 			loop++
