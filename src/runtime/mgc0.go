@@ -84,8 +84,8 @@ func bgsweep() {
 }
 
 const (
-	_PoisonGC    = 0xf969696969696969 & ^uintptr(0)
-	_PoisonStack = 0x6868686868686868 & ^uintptr(0)
+	_PoisonGC    = 0xf969696969696969 & (1<<(8*ptrSize) - 1)
+	_PoisonStack = 0x6868686868686868 & (1<<(8*ptrSize) - 1)
 )
 
 // NOTE: Really dst *unsafe.Pointer, src unsafe.Pointer,
