@@ -2015,6 +2015,8 @@ applywritebarrier(Node *n, NodeList **init)
 		l = nod(OADDR, n->left, N);
 		l->etype = 1; // addr does not escape
 		if(t->width == widthptr) {
+			n = mkcall1(writebarrierfn("writebarrierptr", t, n->right->type), T, init,
+				l, n->right);
 		} else if(t->etype == TSTRING) {
 			n = mkcall1(writebarrierfn("writebarrierstring", t, n->right->type), T, init,
 				l, n->right);
@@ -2037,6 +2039,8 @@ applywritebarrier(Node *n, NodeList **init)
 			if(BitsPointer != (1<<PtrBit))
 				fatal("wrong PtrBit");
 			switch(t->width/widthptr) {
+			default:
+				fatal("found writebarrierfat for %d-byte object of type %T", (int)t->width, t);
 			case 2:
 				snprint(name, sizeof name, "writebarrierfat%d%d",
 					bvget(bv, PtrBit), bvget(bv, BitsPerPointer+PtrBit));
