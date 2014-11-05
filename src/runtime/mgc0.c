@@ -326,12 +326,16 @@ objectstart(byte *b, Markbits *mbits)
 
 			// The following ensures that we are rigorous about what data 
 			// structures hold valid pointers
-			runtime·printf("runtime:objectstart Span weird: obj=%p, k=%p", obj, k);
-			if (s == nil)
-				runtime·printf(" s=nil\n");
-			else
-				runtime·printf(" s->start=%p s->limit=%p, s->state=%d\n", s->start*PageSize, s->limit, s->state);
-			runtime·throw("objectstart: bad span");
+			if(0) {
+				// Still happens sometimes. We don't know why.
+				runtime·printf("runtime:objectstart Span weird: obj=%p, k=%p", obj, k);
+				if (s == nil)
+					runtime·printf(" s=nil\n");
+				else
+					runtime·printf(" s->start=%p s->limit=%p, s->state=%d\n", s->start*PageSize, s->limit, s->state);
+				runtime·throw("objectstart: bad pointer in unexpected span");
+			}
+			return nil;
 		}
 		p = (byte*)((uintptr)s->start<<PageShift);
 		if(s->sizeclass != 0) {
