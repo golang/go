@@ -199,7 +199,7 @@ regopt(Prog *firstp)
 		proginfo(&info, p);
 
 		// Avoid making variables for direct-called functions.
-		if(p->as == ABL && p->to.type == D_EXTERN)
+		if(p->as == ABL && p->to.name == D_EXTERN)
 			continue;
 
 		bit = mkvar(r, &p->from);
