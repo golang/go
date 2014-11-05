@@ -364,6 +364,15 @@ walkexprlistsafe(NodeList *l, NodeList **init)
 }
 
 void
+walkexprlistcheap(NodeList *l, NodeList **init)
+{
+	for(; l; l=l->next) {
+		l->n = cheapexpr(l->n, init);
+		walkexpr(&l->n, init);
+	}
+}
+
+void
 walkexpr(Node **np, NodeList **init)
 {
 	Node *r, *l, *var, *a;
@@ -1773,6 +1782,11 @@ walkprint(Node *nn, NodeList **init)
 	calls = nil;
 	notfirst = 0;
 
+	// Hoist all the argument evaluation up before the lock.
+	walkexprlistcheap(all, init);
+
+	calls = list(calls, mkcall("printlock", T, init));
+
 	for(l=all; l; l=l->next) {
 		if(notfirst) {
 			calls = list(calls, mkcall("printsp", T, init));
@@ -1853,6 +1867,9 @@ walkprint(Node *nn, NodeList **init)
 
 	if(op == OPRINTN)
 		calls = list(calls, mkcall("printnl", T, nil));
+
+	calls = list(calls, mkcall("printunlock", T, init));
+
 	typechecklist(calls, Etop);
 	walkexprlist(calls, init);
 

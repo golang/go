@@ -36,6 +36,8 @@ func printeface(any)
 func printslice(any)
 func printnl()
 func printsp()
+func printlock()
+func printunlock()
 
 func concatstring2(string, string) string
 func concatstring3(string, string, string) string
