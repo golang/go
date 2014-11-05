@@ -257,7 +257,7 @@ WorkData runtime·work;
 // encoding, otherwise one uses the bitMarked bit in the lower two bits 
 // of the nibble.
 static bool checkmark = false;
-static bool gccheckmarkenable = false;
+static bool gccheckmarkenable = true;
 
 // Is address b in the known heap. If it doesn't have a valid gcmap
 // returns false. For example pointers into stacks will return false.
@@ -292,7 +292,7 @@ slottombits(byte *obj, Markbits *mbits)
 	mbits->shift = (off % wordsPerBitmapByte) * gcBits;
 	mbits->xbits = *mbits->bitp;
 	mbits->bits = (mbits->xbits >> mbits->shift) & bitMask;
-	mbits->tbits = (mbits->xbits >> mbits->shift) & bitPtrMask;
+	mbits->tbits = ((mbits->xbits >> mbits->shift) & bitPtrMask) >> 2;
 }
 
 // b is a pointer into the heap.
@@ -354,13 +354,13 @@ objectstart(byte *b, Markbits *mbits)
 
 // Slow for now as we serialize this, since this is on a debug path 
 // speed is not critical at this point.
-static Mutex xorlock;
+static Mutex andlock;
 static void
-atomicxor8(byte *src, byte val)
+atomicand8(byte *src, byte val)
 {
-	runtime·lock(&xorlock);
-	*src = *src^val;
-	runtime·unlock(&xorlock);
+	runtime·lock(&andlock);
+	*src = *src&val;
+	runtime·unlock(&andlock);
 }
 
 // Mark using the checkmark scheme.
@@ -369,7 +369,16 @@ docheckmark(Markbits *mbits)
 {
 	// xor 01 moves 01(scalar unmarked) to 00(scalar marked) 
 	// and 10(pointer unmarked) to 11(pointer marked)
-	atomicxor8(mbits->bitp, BitsCheckMarkXor<<mbits->shift<<2);
+	if(mbits->tbits == BitsScalar)
+		atomicand8(mbits->bitp, ~(byte)(BitsCheckMarkXor<<mbits->shift<<2));
+	else if(mbits->tbits == BitsPointer)
+		runtime·atomicor8(mbits->bitp, BitsCheckMarkXor<<mbits->shift<<2);
+
+	// reload bits for ischeckmarked
+	mbits->xbits = *mbits->bitp;
+	mbits->bits = (mbits->xbits >> mbits->shift) & bitMask;
+	mbits->tbits = ((mbits->xbits >> mbits->shift) & bitPtrMask) >> 2;
+
 	return;
 }
 
@@ -434,10 +443,15 @@ greyobject(byte *obj, Markbits *mbits, Workbuf *wbuf)
 	if(checkmark) {
 		if(!ismarked(mbits)) {
 			runtime·printf("runtime:greyobject: checkmarks finds unexpected unmarked object obj=%p, mbits->bits=%x, *mbits->bitp=%x\n", obj, mbits->bits, *mbits->bitp);
+			runtime·throw("checkmark found unmarked object");
 		}
 		if(ischeckmarked(mbits))
 			return wbuf;
 		docheckmark(mbits);
+		if(!ischeckmarked(mbits)) {
+			runtime·printf("mbits xbits=%x bits=%x tbits=%x shift=%d\n", mbits->xbits, mbits->bits, mbits->tbits, mbits->shift);
+			runtime·throw("docheckmark and ischeckmarked disagree");
+		}
 	} else {
 		// If marked we have nothing to do.
 		if((mbits->bits&bitMarked) != 0)
@@ -1670,9 +1684,6 @@ clearcheckmarkbitsspan(MSpan *s)
 	uintptr size, off, step;
 	byte *p, *bitp, *arena_start, b;
 
-	if(!checkmark)
-		runtime·throw("clearcheckmarkbitsspan: checkmark not set.");
-
 	if(s->state != MSpanInUse) {
 		runtime·printf("runtime:clearcheckmarkbitsspan: state=%d\n",
 			s->state);
@@ -1700,19 +1711,65 @@ clearcheckmarkbitsspan(MSpan *s)
 	bitp = arena_start - off/wordsPerBitmapByte - 1;
 	step = size/(PtrSize*wordsPerBitmapByte);
 
+	// The type bit values are:
+	//	00 - BitsDead, for us BitsScalarMarked
+	//	01 - BitsScalar
+	//	10 - BitsPointer
+	//	11 - unused, for us BitsPointerMarked
+	//
+	// When called to prepare for the checkmark phase (checkmark==1),
+	// we change BitsDead to BitsScalar, so that there are no BitsScalarMarked
+	// type bits anywhere.
+	//
+	// The checkmark phase marks by changing BitsScalar to BitsScalarMarked
+	// and BitsPointer to BitsPointerMarked.
+	//
+	// When called to clean up after the checkmark phase (checkmark==0),
+	// we unmark by changing BitsScalarMarked back to BitsScalar and
+	// BitsPointerMarked back to BitsPointer.
+	//
+	// There are two problems with the scheme as just described.
+	// First, the setup rewrites BitsDead to BitsScalar, but the type bits
+	// following a BitsDead are uninitialized and must not be used.
+	// Second, objects that are free are expected to have their type
+	// bits zeroed (BitsDead), so in the cleanup we need to restore
+	// any BitsDeads that were there originally.
+	//
+	// In a one-word object (8-byte allocation on 64-bit system),
+	// there is no difference between BitsScalar and BitsDead, because
+	// neither is a pointer and there are no more words in the object,
+	// so using BitsScalar during the checkmark is safe and mapping
+	// both back to BitsDead during cleanup is also safe.
+	//
+	// In a larger object, we need to be more careful. During setup,
+	// if the type of the first word is BitsDead, we change it to BitsScalar
+	// (as we must) but also initialize the type of the second
+	// word to BitsDead, so that a scan during the checkmark phase
+	// will still stop before seeing the uninitialized type bits in the
+	// rest of the object. The sequence 'BitsScalar BitsDead' never
+	// happens in real type bitmaps - BitsDead is always as early
+	// as possible, so immediately after the last BitsPointer.
+	// During cleanup, if we see a BitsScalar, we can check to see if it
+	// is followed by BitsDead. If so, it was originally BitsDead and
+	// we can change it back.
+
 	if(step == 0) {
 		// updating top and bottom nibbles, all boundaries
 		for(i=0; i<n/2; i++, bitp--) {
 			if((*bitp & bitBoundary) != bitBoundary)
-				runtime·throw("missing bitBoundary");            
+				runtime·throw("missing bitBoundary");      
 			b = (*bitp & bitPtrMask)>>2;
-			if(b == BitsScalarMarked || b == BitsPointerMarked)
+			if(!checkmark && (b == BitsScalar || b == BitsScalarMarked))
+				*bitp &= ~0x0c; // convert to BitsDead
+			else if(b == BitsScalarMarked || b == BitsPointerMarked)
 				*bitp ^= BitsCheckMarkXor<<2;
-			
+ 			
 			if(((*bitp>>gcBits) & bitBoundary) != bitBoundary)
 				runtime·throw("missing bitBoundary");            
 			b = ((*bitp>>gcBits) & bitPtrMask)>>2;
-			if(b == BitsScalarMarked || b == BitsPointerMarked)
+			if(!checkmark && (b == BitsScalar || b == BitsScalarMarked))
+				*bitp &= ~0xc0; // convert to BitsDead
+			else if(b == BitsScalarMarked || b == BitsPointerMarked)
 				*bitp ^= BitsCheckMarkXor<<(2+gcBits);
 		}
 	} else {
@@ -1721,7 +1778,19 @@ clearcheckmarkbitsspan(MSpan *s)
 			if((*bitp & bitBoundary) != bitBoundary)
 				runtime·throw("missing bitBoundary");            
 			b = (*bitp & bitPtrMask)>>2;
-			if(b == BitsScalarMarked || b == BitsPointerMarked)
+			
+			if(checkmark && b == BitsDead) {
+				// move BitsDead into second word.
+				// set bits to BitsScalar in preparation for checkmark phase.
+				*bitp &= ~0xc0;
+				*bitp |= BitsScalar<<2;
+			} else if(!checkmark && (b == BitsScalar || b == BitsScalarMarked) && (*bitp & 0xc0) == 0) {
+				// Cleaning up after checkmark phase.
+				// First word is scalar or dead (we forgot)
+				// and second word is dead.
+				// First word might as well be dead too.
+				*bitp &= ~0x0c;
+			} else if(b == BitsScalarMarked || b == BitsPointerMarked)
 				*bitp ^= BitsCheckMarkXor<<2;
 		}
 	}
@@ -1763,10 +1832,9 @@ runtime·gccheckmark_m(void)
 
 	checkmark = true;
 	clearcheckmarkbits(); // Converts BitsDead to BitsScalar.
-	runtime·gc_m();
+	runtime·gc_m(); // turns off checkmark
 	// Work done, fixed up the GC bitmap to remove the checkmark bits.
 	clearcheckmarkbits();
-	checkmark = false;
 }
 
 // checkmarkenable is initially false
@@ -2016,6 +2084,16 @@ gc(struct gc_args *args)
 	// Free the old cached mark array if necessary.
 	if(runtime·work.spans != nil && runtime·work.spans != runtime·mheap.allspans)
 		runtime·SysFree(runtime·work.spans, runtime·work.nspan*sizeof(runtime·work.spans[0]), &mstats.other_sys);
+	
+	if(gccheckmarkenable) {
+		if(!checkmark) {
+			// first half of two-pass; don't set up sweep
+			runtime·unlock(&runtime·mheap.lock);
+			return;
+		}
+		checkmark = false; // done checking marks
+	}
+
 	// Cache the current array for sweeping.
 	runtime·mheap.gcspans = runtime·mheap.allspans;
 	runtime·mheap.sweepgen += 2;
@@ -2025,24 +2103,22 @@ gc(struct gc_args *args)
 	runtime·sweep.spanidx = 0;
 	runtime·unlock(&runtime·mheap.lock);
 
-	// Start the sweep after the checkmark phase if there is one.
-	if(!gccheckmarkenable || checkmark) {
-		if(ConcurrentSweep && !args->eagersweep) {
-			runtime·lock(&runtime·gclock);
-			if(runtime·sweep.g == nil)
-				runtime·sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, gc);
-			else if(runtime·sweep.parked) {
-				runtime·sweep.parked = false;
-				runtime·ready(runtime·sweep.g);
-			}
-			runtime·unlock(&runtime·gclock);
-		} else {
-			// Sweep all spans eagerly.
-			while(runtime·sweepone() != -1)
-				runtime·sweep.npausesweep++;
-			// Do an additional mProf_GC, because all 'free' events are now real as well.
-			runtime·mProf_GC();
+
+	if(ConcurrentSweep && !args->eagersweep) {
+		runtime·lock(&runtime·gclock);
+		if(runtime·sweep.g == nil)
+			runtime·sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, gc);
+		else if(runtime·sweep.parked) {
+			runtime·sweep.parked = false;
+			runtime·ready(runtime·sweep.g);
 		}
+		runtime·unlock(&runtime·gclock);
+	} else {
+		// Sweep all spans eagerly.
+		while(runtime·sweepone() != -1)
+			runtime·sweep.npausesweep++;
+		// Do an additional mProf_GC, because all 'free' events are now real as well.
+		runtime·mProf_GC();
 	}
 
 	runtime·mProf_GC();
