@@ -128,9 +128,10 @@ func (s *Scanner) Scan() bool {
 			}
 			s.token = token
 			if token != nil {
-				if len(token) > 0 {
+				if s.err == nil || advance > 0 {
 					s.empties = 0
 				} else {
+					// Returning tokens not advancing input at EOF.
 					s.empties++
 					if s.empties > 100 {
 						panic("bufio.Scan: 100 empty tokens without progressing")
