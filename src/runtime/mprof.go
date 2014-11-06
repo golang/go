@@ -528,8 +528,6 @@ var allgs []*g // proc.c
 // Most clients should use the runtime/pprof package instead
 // of calling GoroutineProfile directly.
 func GoroutineProfile(p []StackRecord) (n int, ok bool) {
-	sp := getcallersp(unsafe.Pointer(&p))
-	pc := getcallerpc(unsafe.Pointer(&p))
 
 	n = NumGoroutine()
 	if n <= len(p) {
@@ -542,7 +540,11 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 		if n <= len(p) {
 			ok = true
 			r := p
-			saveg(pc, sp, gp, &r[0])
+			sp := getcallersp(unsafe.Pointer(&p))
+			pc := getcallerpc(unsafe.Pointer(&p))
+			onM(func() {
+				saveg(pc, sp, gp, &r[0])
+			})
 			r = r[1:]
 			for _, gp1 := range allgs {
 				if gp1 == gp || readgstatus(gp1) == _Gdead {
@@ -573,8 +575,6 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
 // If all is true, Stack formats stack traces of all other goroutines
 // into buf after the trace for the current goroutine.
 func Stack(buf []byte, all bool) int {
-	sp := getcallersp(unsafe.Pointer(&buf))
-	pc := getcallerpc(unsafe.Pointer(&buf))
 	mp := acquirem()
 	gp := mp.curg
 	if all {
@@ -589,14 +589,19 @@ func Stack(buf []byte, all bool) int {
 
 	n := 0
 	if len(buf) > 0 {
-		gp.writebuf = buf[0:0:len(buf)]
-		goroutineheader(gp)
-		traceback(pc, sp, 0, gp)
-		if all {
-			tracebackothers(gp)
-		}
-		n = len(gp.writebuf)
-		gp.writebuf = nil
+		sp := getcallersp(unsafe.Pointer(&buf))
+		pc := getcallerpc(unsafe.Pointer(&buf))
+		onM(func() {
+			g0 := getg()
+			g0.writebuf = buf[0:0:len(buf)]
+			goroutineheader(gp)
+			traceback(pc, sp, 0, gp)
+			if all {
+				tracebackothers(gp)
+			}
+			n = len(g0.writebuf)
+			g0.writebuf = nil
+		})
 	}
 
 	if all {
@@ -623,7 +628,11 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
 	}
 	if gp.m.curg == nil || gp == gp.m.curg {
 		goroutineheader(gp)
-		traceback(getcallerpc(unsafe.Pointer(&p)), getcallersp(unsafe.Pointer(&p)), 0, gp)
+		pc := getcallerpc(unsafe.Pointer(&p))
+		sp := getcallersp(unsafe.Pointer(&p))
+		onM(func() {
+			traceback(pc, sp, 0, gp)
+		})
 	} else {
 		goroutineheader(gp.m.curg)
 		traceback(^uintptr(0), ^uintptr(0), 0, gp.m.curg)
@@ -639,7 +648,11 @@ func tracefree(p unsafe.Pointer, size uintptr) {
 	gp.m.traceback = 2
 	print("tracefree(", p, ", ", hex(size), ")\n")
 	goroutineheader(gp)
-	traceback(getcallerpc(unsafe.Pointer(&p)), getcallersp(unsafe.Pointer(&p)), 0, gp)
+	pc := getcallerpc(unsafe.Pointer(&p))
+	sp := getcallersp(unsafe.Pointer(&p))
+	onM(func() {
+		traceback(pc, sp, 0, gp)
+	})
 	print("\n")
 	gp.m.traceback = 0
 	unlock(&tracelock)
