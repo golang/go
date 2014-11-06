@@ -467,15 +467,12 @@ func TestDontLoopForever(t *testing.T) {
 	s := NewScanner(strings.NewReader("abc"))
 	s.Split(loopAtEOFSplit)
 	// Expect a panic
-	panicked := true
 	defer func() {
 		err := recover()
 		if err == nil {
 			t.Fatal("should have panicked")
 		}
-		if msg, ok := err.(string); ok && strings.Contains(msg, "empty tokens") {
-			panicked = true
-		} else {
+		if msg, ok := err.(string); !ok || !strings.Contains(msg, "empty tokens") {
 			panic(err)
 		}
 	}()
