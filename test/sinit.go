@@ -1,7 +1,4 @@
-// $G -S $D/$F.go | egrep initdone >/dev/null && echo BUG sinit || true
-
-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
-// To run this test you must use the ./run shell script.
+// skip
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -9,6 +6,7 @@
 
 // Test that many initializations can be done at link time and
 // generate no executable init functions.
+// This test is run by sinit_run.go.
 
 package p
 
@@ -106,12 +104,12 @@ var answers = [...]int{
 }
 
 var (
-	copy_zero = zero
-	copy_one = one
-	copy_pi = pi
-	copy_slice = slice
+	copy_zero     = zero
+	copy_one      = one
+	copy_pi       = pi
+	copy_slice    = slice
 	copy_sliceInt = sliceInt
-	copy_hello = hello
+	copy_hello    = hello
 
 	// Could be handled without an initialization function, but
 	// requires special handling for "a = []byte("..."); b = a"
@@ -121,12 +119,12 @@ var (
 	// make this special case work.
 
 	copy_four, copy_five = four, five
-	copy_x, copy_y = x, y
-	copy_nilslice = nilslice
-	copy_nilmap = nilmap
-	copy_nilfunc = nilfunc
-	copy_nilchan = nilchan
-	copy_nilptr = nilptr
+	copy_x, copy_y       = x, y
+	copy_nilslice        = nilslice
+	copy_nilmap          = nilmap
+	copy_nilfunc         = nilfunc
+	copy_nilchan         = nilchan
+	copy_nilptr          = nilptr
 )
 
 var copy_a = a
@@ -179,7 +177,7 @@ var sx []int
 var s0 = []int{0, 0, 0}
 var s1 = []int{1, 2, 3}
 
-func fi() int
+func fi() int { return 1 }
 
 var ax [10]int
 var a0 = [10]int{0, 0, 0}
@@ -281,6 +279,8 @@ type T1 int
 
 func (t *T1) M() {}
 
-type Mer interface { M() }
+type Mer interface {
+	M()
+}
 
 var _ Mer = (*T1)(nil)
