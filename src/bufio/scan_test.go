@@ -489,6 +489,18 @@ func TestDontLoopForever(t *testing.T) {
 	}
 }
 
+func TestBlankLines(t *testing.T) {
+	s := NewScanner(strings.NewReader(strings.Repeat("\n", 1000)))
+	for count := 0; s.Scan(); count++ {
+		if count > 2000 {
+			t.Fatal("looping")
+		}
+	}
+	if s.Err() != nil {
+		t.Fatal("after scan:", s.Err())
+	}
+}
+
 type countdown int
 
 func (c *countdown) split(data []byte, atEOF bool) (advance int, token []byte, err error) {
