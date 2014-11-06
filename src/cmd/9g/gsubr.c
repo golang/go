@@ -1001,9 +1001,12 @@ hard:
 Prog*
 gins(int as, Node *f, Node *t)
 {
-	//int32 w;
+	int32 w;
 	Prog *p;
 	Addr af, at;
+
+	// TODO(austin): Add self-move test like in 6g (but be careful
+	// of truncation moves)
 
 	memset(&af, 0, sizeof af);
 	memset(&at, 0, sizeof at);
@@ -1021,9 +1024,6 @@ gins(int as, Node *f, Node *t)
 	if(debug['g'])
 		print("%P\n", p);
 
-	// TODO(minux): enable these.
-	// right now it fails on MOVD $type."".TypeAssertionError(SB) [width=1], R7 [width=8]
-	/*
 	w = 0;
 	switch(as) {
 	case AMOVB:
@@ -1049,12 +1049,11 @@ gins(int as, Node *f, Node *t)
 		w = 8;
 		break;
 	}
-	if(w != 0 && ((f != N && af.width < w) || (t != N && at.width > w))) {
+	if(w != 0 && ((f != N && af.width < w) || (t != N && at.type != D_REG && at.width > w))) {
 		dump("f", f);
 		dump("t", t);
 		fatal("bad width: %P (%d, %d)\n", p, af.width, at.width);
 	}
-	*/
 
 	return p;
 }
@@ -1116,12 +1115,9 @@ naddr(Node *n, Addr *a, int canemitcode)
 
 	case ONAME:
 		a->etype = 0;
-		a->width = 0;
 		a->reg = NREG;
-		if(n->type != T) {
+		if(n->type != T)
 			a->etype = simtype[n->type->etype];
-			a->width = n->type->width;
-		}
 		a->offset = n->xoffset;
 		s = n->sym;
 		a->node = n->orig;
@@ -1242,15 +1238,16 @@ naddr(Node *n, Addr *a, int canemitcode)
 		naddr(n->left, a, canemitcode);
 		a->etype = simtype[tptr];
 		if(a->type == D_CONST && a->offset == 0)
-			break;	// len(nil)
+			break;	// itab(nil)
+		a->width = widthptr;
 		break;
 
 	case OSPTR:
 		// pointer in a string or slice
 		naddr(n->left, a, canemitcode);
+		a->etype = simtype[tptr];
 		if(a->type == D_CONST && a->offset == 0)
 			break;	// ptr(nil)
-		a->etype = simtype[tptr];
 		a->offset += Array_array;
 		a->width = widthptr;
 		break;
@@ -1262,6 +1259,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		if(a->type == D_CONST && a->offset == 0)
 			break;	// len(nil)
 		a->offset += Array_nel;
+		a->width = widthint;
 		break;
 
 	case OCAP:
@@ -1271,11 +1269,13 @@ naddr(Node *n, Addr *a, int canemitcode)
 		if(a->type == D_CONST && a->offset == 0)
 			break;	// cap(nil)
 		a->offset += Array_cap;
+		a->width = widthint;
 		break;
 
 	case OADDR:
 		naddr(n->left, a, canemitcode);
 		a->etype = tptr;
+		a->width = widthptr;
 		switch(a->type) {
 		case D_OREG:
 			a->type = D_CONST;
@@ -1288,6 +1288,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		default:
 			fatal("naddr: OADDR %d\n", a->type);
 		}
+		break;
 	}
 }
 
