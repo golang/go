@@ -990,7 +990,7 @@ runtime·newextram(void)
 	// the goroutine stack ends.
 	mp = runtime·allocm(nil);
 	gp = runtime·malg(4096);
-	gp->sched.pc = (uintptr)runtime·goexit;
+	gp->sched.pc = (uintptr)runtime·goexit + PCQuantum;
 	gp->sched.sp = gp->stack.hi;
 	gp->sched.sp -= 4*sizeof(uintreg); // extra space in case of reads slightly beyond frame
 	gp->sched.lr = 0;
@@ -2424,9 +2424,10 @@ static struct ProfState {
 	int32 hz;
 } prof;
 
-static void System(void) {}
-static void ExternalCode(void) {}
-static void GC(void) {}
+static void System(void) { System(); }
+static void ExternalCode(void) { ExternalCode(); }
+static void GC(void) { GC(); }
+
 extern void runtime·cpuproftick(uintptr*, int32);
 extern byte runtime·etext[];
 
