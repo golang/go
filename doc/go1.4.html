@@ -120,9 +120,9 @@ compile but is easy to fix by adding an explicit dereference.
 <p>
 Go 1.4 can build binaries for ARM processors running the Android operating system.
 It can also build a <code>.so</code> library that can be loaded by an Android application
-using the supporting packages in the <a href="http://golang.org/x/mobile">mobile</a> subrepository.
+using the supporting packages in the <a href="https://golang.org/x/mobile">mobile</a> subrepository.
 A brief description of the plans for this experimental port are available
-<a href="/s/go14android">here</a>.
+<a href="https://golang.org/s/go14android">here</a>.
 </p>
 
 <h3 id="naclarm">NaCl on ARM</h3>
@@ -193,7 +193,7 @@ A consequence is that stacks are no longer segmented, eliminating the "hot split
 When a stack limit is reached, a new, larger stack is allocated, all active frames for
 the goroutine are copied there, and any pointers into the stack are updated.
 Performance can be noticeably better in some cases and is always more predictable.
-Details are available in <a href="/s/contigstacks">the design document</a>.
+Details are available in <a href="https://golang.org/s/contigstacks">the design document</a>.
 </p>
 
 <p>
@@ -320,7 +320,7 @@ from 1.5 and onward it will be enforced for any repository.
 
 <p>
 Full details of the mechanism are in
-<a href="http://golang.org/s/go14internal">the design document</a>.
+<a href="https://golang.org/s/go14internal">the design document</a>.
 </p>
 
 <h3 id="canonicalimports">Canonical import paths</h3>
@@ -382,7 +382,7 @@ The new <code>-f</code> flag overrides this check.
 
 <p>
 Further information is in
-<a href="http://golang.org/s/go14customimport">the design document</a>.
+<a href="https://golang.org/s/go14customimport">the design document</a>.
 </p>
 
 <h3 id="subrepo">Import paths for the subrepositories</h3>
@@ -418,7 +418,7 @@ tool in the <code>golang.org/x/tools</code> subrepository.
 
 <p>
 For more information, see the 
-<a href="http://golang.org/s/go1.4-generate">design document</a>.
+<a href="https://golang.org/s/go1.4-generate">design document</a>.
 </p>
 
 <h3 id="filenames">Change to file name handling</h3>
@@ -604,12 +604,12 @@ The <a href="/pkg/syscall/"><code>syscall</code></a> package is now frozen excep
 for changes needed to maintain the core repository.
 In particular, it will no longer be extended to support new or different system calls
 that are not used by the core.
-The reasons are described at length in <a href="http://golang.org/s/go1.4-syscall">a
+The reasons are described at length in <a href="https://golang.org/s/go1.4-syscall">a
 separate document</a>.
 </p>
 
 <p>
-A new subrepository, <a href="http://golang.org/x/sys">golang.org/x/sys</a>,
+A new subrepository, <a href="https://golang.org/x/sys">golang.org/x/sys</a>,
 has been created to serve as the location for new developments to support system
 calls on all kernels.
 It has a nicer structure, with three packages that each hold the implementation of
