@@ -89,7 +89,7 @@ datagostring(Strlit *sval, Addr *a)
 	a->reg = NREG;
 	a->node = sym->def;
 	a->offset = 0;  // header
-	a->etype = TINT32;
+	a->etype = TSTRING;
 }
 
 void

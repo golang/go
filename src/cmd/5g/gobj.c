@@ -86,7 +86,7 @@ datagostring(Strlit *sval, Addr *a)
 	sym = stringsym(sval->s, sval->len);
 	a->type = D_OREG;
 	a->name = D_EXTERN;
-	a->etype = TINT32;
+	a->etype = TSTRING;
 	a->offset = 0;  // header
 	a->reg = NREG;
 	a->sym = linksym(sym);
