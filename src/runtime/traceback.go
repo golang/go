@@ -101,6 +101,22 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		gothrow("gentraceback before goexitPC initialization")
 	}
 	g := getg()
+	if g == gp && g == g.m.curg {
+		// The starting sp has been passed in as a uintptr, and the caller may
+		// have other uintptr-typed stack references as well.
+		// If during one of the calls that got us here or during one of the
+		// callbacks below the stack must be grown, all these uintptr references
+		// to the stack will not be updated, and gentraceback will continue
+		// to inspect the old stack memory, which may no longer be valid.
+		// Even if all the variables were updated correctly, it is not clear that
+		// we want to expose a traceback that begins on one stack and ends
+		// on another stack. That could confuse callers quite a bit.
+		// Instead, we require that gentraceback and any other function that
+		// accepts an sp for the current goroutine (typically obtained by
+		// calling getcallersp) must not run on that goroutine's stack but
+		// instead on the g0 stack.
+		gothrow("gentraceback cannot trace user goroutine on its own stack")
+	}
 	gotraceback := gotraceback(nil)
 	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.
 		if gp.syscallsp != 0 {
@@ -511,7 +527,11 @@ func traceback1(pc uintptr, sp uintptr, lr uintptr, gp *g, flags uint) {
 func callers(skip int, pcbuf *uintptr, m int) int {
 	sp := getcallersp(unsafe.Pointer(&skip))
 	pc := uintptr(getcallerpc(unsafe.Pointer(&skip)))
-	return gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, 0)
+	var n int
+	onM(func() {
+		n = gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, 0)
+	})
+	return n
 }
 
 func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {
