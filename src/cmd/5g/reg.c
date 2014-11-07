@@ -393,7 +393,7 @@ loop2:
 		for(z=0; z<BITS; z++)
 			bit.b[z] = (r->refahead.b[z] | r->calahead.b[z]) &
 			  ~(externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z]);
-		if(bany(&bit) & !r->f.refset) {
+		if(bany(&bit) && !r->f.refset) {
 			// should never happen - all variables are preset
 			if(debug['w'])
 				print("%L: used and not set: %Q\n", r->f.prog->lineno, bit);
