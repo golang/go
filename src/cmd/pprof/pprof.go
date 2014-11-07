@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"cmd/internal/objfile"
 	"cmd/pprof/internal/commands"
@@ -100,7 +101,10 @@ func (flags) ExtraUsage() string {
 
 // objTool implements plugin.ObjTool using Go libraries
 // (instead of invoking GNU binutils).
-type objTool struct{}
+type objTool struct {
+	mu          sync.Mutex
+	disasmCache map[string]*objfile.Disasm
+}
 
 func (*objTool) Open(name string, start uint64) (plugin.ObjFile, error) {
 	of, err := objfile.Open(name)
@@ -119,8 +123,39 @@ func (*objTool) Demangle(names []string) (map[string]string, error) {
 	return make(map[string]string), nil
 }
 
-func (*objTool) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
-	return nil, fmt.Errorf("disassembly not supported")
+func (t *objTool) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
+	d, err := t.cachedDisasm(file)
+	if err != nil {
+		return nil, err
+	}
+	var asm []plugin.Inst
+	d.Decode(start, end, func(pc, size uint64, file string, line int, text string) {
+		asm = append(asm, plugin.Inst{Addr: pc, File: file, Line: line, Text: text})
+	})
+	return asm, nil
+}
+
+func (t *objTool) cachedDisasm(file string) (*objfile.Disasm, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.disasmCache == nil {
+		t.disasmCache = make(map[string]*objfile.Disasm)
+	}
+	d := t.disasmCache[file]
+	if d != nil {
+		return d, nil
+	}
+	f, err := objfile.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	d, err = f.Disasm()
+	f.Close()
+	if err != nil {
+		return nil, err
+	}
+	t.disasmCache[file] = d
+	return d, nil
 }
 
 func (*objTool) SetConfig(config string) {

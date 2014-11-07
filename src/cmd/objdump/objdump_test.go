@@ -5,112 +5,14 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 )
-
-func loadSyms(t *testing.T) map[string]string {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
-
-	cmd := exec.Command("go", "tool", "nm", os.Args[0])
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go tool nm %v: %v\n%s", os.Args[0], err, string(out))
-	}
-	syms := make(map[string]string)
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	for scanner.Scan() {
-		f := strings.Fields(scanner.Text())
-		if len(f) < 3 {
-			continue
-		}
-		syms[f[2]] = f[0]
-	}
-	if err := scanner.Err(); err != nil {
-		t.Fatalf("error reading symbols: %v", err)
-	}
-	return syms
-}
-
-func runObjDump(t *testing.T, exe, startaddr, endaddr string) (path, lineno string) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
-
-	cmd := exec.Command(exe, os.Args[0], startaddr, endaddr)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go tool objdump %v: %v\n%s", os.Args[0], err, string(out))
-	}
-	f := strings.Split(string(out), "\n")
-	if len(f) < 1 {
-		t.Fatal("objdump output must have at least one line")
-	}
-	pathAndLineNo := f[0]
-	f = strings.Split(pathAndLineNo, ":")
-	if runtime.GOOS == "windows" {
-		switch len(f) {
-		case 2:
-			return f[0], f[1]
-		case 3:
-			return f[0] + ":" + f[1], f[2]
-		default:
-			t.Fatalf("no line number found in %q", pathAndLineNo)
-		}
-	}
-	if len(f) != 2 {
-		t.Fatalf("no line number found in %q", pathAndLineNo)
-	}
-	return f[0], f[1]
-}
-
-func testObjDump(t *testing.T, exe, startaddr, endaddr string, line int) {
-	srcPath, srcLineNo := runObjDump(t, exe, startaddr, endaddr)
-	fi1, err := os.Stat("objdump_test.go")
-	if err != nil {
-		t.Fatalf("Stat failed: %v", err)
-	}
-	fi2, err := os.Stat(srcPath)
-	if err != nil {
-		t.Fatalf("Stat failed: %v", err)
-	}
-	if !os.SameFile(fi1, fi2) {
-		t.Fatalf("objdump_test.go and %s are not same file", srcPath)
-	}
-	if srcLineNo != fmt.Sprint(line) {
-		t.Fatalf("line number = %v; want %d", srcLineNo, line)
-	}
-}
-
-func TestObjDump(t *testing.T) {
-	_, _, line, _ := runtime.Caller(0)
-	syms := loadSyms(t)
-
-	tmp, exe := buildObjdump(t)
-	defer os.RemoveAll(tmp)
-
-	startaddr := syms["cmd/objdump.TestObjDump"]
-	addr, err := strconv.ParseUint(startaddr, 16, 64)
-	if err != nil {
-		t.Fatalf("invalid start address %v: %v", startaddr, err)
-	}
-	endaddr := fmt.Sprintf("%x", addr+10)
-	testObjDump(t, exe, startaddr, endaddr, line-1)
-	testObjDump(t, exe, "0x"+startaddr, "0x"+endaddr, line-1)
-}
 
 func buildObjdump(t *testing.T) (tmp, exe string) {
 	switch runtime.GOOS {

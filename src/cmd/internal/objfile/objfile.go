@@ -9,6 +9,7 @@ import (
 	"debug/gosym"
 	"fmt"
 	"os"
+	"sort"
 )
 
 type rawFile interface {
@@ -62,8 +63,19 @@ func (f *File) Close() error {
 }
 
 func (f *File) Symbols() ([]Sym, error) {
-	return f.raw.symbols()
+	syms, err := f.raw.symbols()
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(byAddr(syms))
+	return syms, nil
 }
+
+type byAddr []Sym
+
+func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
+func (x byAddr) Len() int           { return len(x) }
+func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 func (f *File) PCLineTable() (*gosym.Table, error) {
 	textStart, symtab, pclntab, err := f.raw.pcln()
