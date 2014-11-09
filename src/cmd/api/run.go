@@ -91,7 +91,7 @@ func file(s ...string) string {
 // It tries to re-use a go.tools checkout from a previous run if possible,
 // else it hg clones it.
 func prepGoPath() string {
-	const tempBase = "tools.TMP"
+	const tempBase = "go.tools.TMP"
 
 	username := ""
 	u, err := user.Current()
@@ -108,14 +108,14 @@ func prepGoPath() string {
 	gopath := filepath.Join(os.TempDir(), "gopath-api-"+cleanUsername(username), goToolsVersion)
 
 	// cloneDir is where we run "hg clone".
-	cloneDir := filepath.Join(gopath, "src", "golang.org", "x")
+	cloneDir := filepath.Join(gopath, "src", "code.google.com", "p")
 
 	// The dir we clone into. We only atomically rename it to finalDir on
 	// clone success.
 	tmpDir := filepath.Join(cloneDir, tempBase)
 
 	// finalDir is where the checkout will live once it's complete.
-	finalDir := filepath.Join(cloneDir, "tools")
+	finalDir := filepath.Join(cloneDir, "go.tools")
 
 	if goToolsCheckoutGood(finalDir) {
 		return gopath
