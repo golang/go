@@ -27,7 +27,7 @@ import (
 // goToolsVersion is the hg revision of the go.tools subrepo we need
 // to build cmd/api.  This only needs to be updated whenever a go/types
 // bug fix is needed by the cmd/api tool.
-const goToolsVersion = "ae08a5291439"
+const goToolsVersion = "6698ca2900e2"
 
 var goroot string
 
