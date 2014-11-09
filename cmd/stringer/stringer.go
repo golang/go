@@ -74,10 +74,10 @@ import (
 	"sort"
 	"strings"
 
-	"code.google.com/p/go.tools/go/exact"
-	"code.google.com/p/go.tools/go/types"
+	"golang.org/x/tools/go/exact"
+	"golang.org/x/tools/go/types"
 
-	_ "code.google.com/p/go.tools/go/gcimporter"
+	_ "golang.org/x/tools/go/gcimporter"
 )
 
 var (
@@ -91,7 +91,7 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\tstringer [flags] -type T [directory]\n")
 	fmt.Fprintf(os.Stderr, "\tstringer [flags[ -type T files... # Must be a single package\n")
 	fmt.Fprintf(os.Stderr, "For more information, see:\n")
-	fmt.Fprintf(os.Stderr, "\thttp://godoc.org/code.google.com/p/go.tools/cmd/stringer\n")
+	fmt.Fprintf(os.Stderr, "\thttp://godoc.org/golang.org/x/tools/cmd/stringer\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 	os.Exit(2)

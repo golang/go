@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"code.google.com/p/go.tools/astutil"
-	"code.google.com/p/go.tools/go/types"
+	"golang.org/x/tools/astutil"
+	"golang.org/x/tools/go/types"
 )
 
 // Transform applies the transformation to the specified parsed file,

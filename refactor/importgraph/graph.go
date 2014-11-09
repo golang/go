@@ -10,7 +10,7 @@ import (
 	"go/build"
 	"sync"
 
-	"code.google.com/p/go.tools/go/buildutil"
+	"golang.org/x/tools/go/buildutil"
 )
 
 // A Graph is an import dependency graph, either forward or reverse.

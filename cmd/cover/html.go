@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"code.google.com/p/go.tools/cover"
+	"golang.org/x/tools/cover"
 )
 
 // htmlOutput reads the profile data from profile and generates an HTML

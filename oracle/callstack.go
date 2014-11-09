@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"go/token"
 
-	"code.google.com/p/go.tools/go/callgraph"
-	"code.google.com/p/go.tools/go/ssa"
-	"code.google.com/p/go.tools/oracle/serial"
+	"golang.org/x/tools/go/callgraph"
+	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/oracle/serial"
 )
 
 // Callstack displays an arbitrary path from a root of the callgraph

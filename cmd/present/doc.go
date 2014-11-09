@@ -8,7 +8,7 @@ presents slide and article files from the current directory.
 
 It may be run as a stand-alone command or an App Engine app.
 Instructions for deployment to App Engine are in the README of the
-code.google.com/p/go.tools repository.
+golang.org/x/tools repository.
 
 Usage of present:
   -base="": base path for slide template and static resources
@@ -26,6 +26,6 @@ the generated output. The supported formats are:
 	.article      // article format, such as a blog post
 
 The present file format is documented by the present package:
-http://godoc.org/code.google.com/p/go.tools/present
+http://godoc.org/golang.org/x/tools/present
 */
 package main

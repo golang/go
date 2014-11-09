@@ -74,7 +74,7 @@ Example usage:
 
    Show the transitive closure of imports of the digraph tool itself:
    % go list -f '{{.ImportPath}}{{.Imports}}' ... | tr '[]' '  ' |
-         digraph forward code.google.com/p/go.tools/cmd/digraph
+         digraph forward golang.org/x/tools/cmd/digraph
 
    Show which clothes (see above) must be donned before a jacket:
    %  digraph reverse jacket <clothes.txt

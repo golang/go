@@ -14,11 +14,11 @@ import (
 	"log"
 	"path"
 
-	"code.google.com/p/go.tools/godoc"
-	"code.google.com/p/go.tools/godoc/static"
-	"code.google.com/p/go.tools/godoc/vfs"
-	"code.google.com/p/go.tools/godoc/vfs/mapfs"
-	"code.google.com/p/go.tools/godoc/vfs/zipfs"
+	"golang.org/x/tools/godoc"
+	"golang.org/x/tools/godoc/static"
+	"golang.org/x/tools/godoc/vfs"
+	"golang.org/x/tools/godoc/vfs/mapfs"
+	"golang.org/x/tools/godoc/vfs/zipfs"
 )
 
 func init() {

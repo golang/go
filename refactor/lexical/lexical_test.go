@@ -8,8 +8,8 @@ import (
 	"go/build"
 	"testing"
 
-	"code.google.com/p/go.tools/go/buildutil"
-	"code.google.com/p/go.tools/go/loader"
+	"golang.org/x/tools/go/buildutil"
+	"golang.org/x/tools/go/loader"
 )
 
 func TestStdlib(t *testing.T) {
@@ -28,8 +28,8 @@ func TestStdlib(t *testing.T) {
 
 	// Throw in a number of go.tools packages too.
 	pkgs = append(pkgs,
-		"code.google.com/p/go.tools/cmd/godoc",
-		"code.google.com/p/go.tools/refactor/lexical")
+		"golang.org/x/tools/cmd/godoc",
+		"golang.org/x/tools/refactor/lexical")
 
 	// Load, parse and type-check the program.
 	conf := loader.Config{

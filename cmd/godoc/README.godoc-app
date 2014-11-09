@@ -10,7 +10,7 @@ Prerequisites
 * Go sources at tip under $GOROOT
 
 * Godoc sources at tip inside $GOPATH
-  (go get -d code.google.com/p/go.tools/cmd/godoc)
+  (go get -d golang.org/x/tools/cmd/godoc)
 
 
 Directory structure
@@ -23,7 +23,7 @@ Directory structure
   app-engine release and version of godoc):
 
 	app.yaml
-	code.google.com/p/go.tools/cmd/godoc
+	golang.org/x/tools/cmd/godoc
 	godoc.zip
 	index.split.*
 

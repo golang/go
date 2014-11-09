@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strconv"
 
-	"code.google.com/p/go.tools/go/exact"
+	"golang.org/x/tools/go/exact"
 )
 
 // ident type-checks identifier e and initializes x with the value or type of e.

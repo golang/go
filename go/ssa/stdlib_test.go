@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"code.google.com/p/go.tools/go/buildutil"
-	"code.google.com/p/go.tools/go/loader"
-	"code.google.com/p/go.tools/go/ssa"
-	"code.google.com/p/go.tools/go/ssa/ssautil"
+	"golang.org/x/tools/go/buildutil"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
 )
 
 func TestStdlib(t *testing.T) {

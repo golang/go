@@ -11,7 +11,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"code.google.com/p/go.tools/go/types"
+	"golang.org/x/tools/go/types"
 )
 
 // emitNew emits to f a new (heap Alloc) instruction allocating an

@@ -57,11 +57,11 @@ import (
 	"strings"
 	"sync"
 
-	"code.google.com/p/go.tools/go/loader"
-	"code.google.com/p/go.tools/go/pointer"
-	"code.google.com/p/go.tools/go/ssa"
-	"code.google.com/p/go.tools/go/ssa/ssautil"
-	"code.google.com/p/go.tools/go/types"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/pointer"
+	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
+	"golang.org/x/tools/go/types"
 )
 
 // -- links ------------------------------------------------------------
@@ -364,7 +364,7 @@ func Run(pta bool, result *Result) {
 	}
 
 	// Uncomment to make startup quicker during debugging.
-	//args = []string{"code.google.com/p/go.tools/cmd/godoc"}
+	//args = []string{"golang.org/x/tools/cmd/godoc"}
 	//args = []string{"fmt"}
 
 	if _, err := conf.FromArgs(args, true); err != nil {

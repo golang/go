@@ -13,9 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"code.google.com/p/go.tools/astutil"
-	"code.google.com/p/go.tools/go/loader"
-	"code.google.com/p/go.tools/go/ssa"
+	"golang.org/x/tools/astutil"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/ssa"
 )
 
 // findInterval parses input and returns the [start, end) positions of

@@ -21,7 +21,7 @@
 //
 // godex automatically tries all possible package path prefixes if only a
 // partial package path is given. For instance, for the path "go/types",
-// godex prepends "code.google.com/p/go.tools".
+// godex prepends "golang.org/x/tools".
 //
 // The prefixes are computed by searching the directories specified by
 // the GOROOT and GOPATH environment variables (and by excluding the

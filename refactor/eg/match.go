@@ -8,9 +8,9 @@ import (
 	"os"
 	"reflect"
 
-	"code.google.com/p/go.tools/go/exact"
-	"code.google.com/p/go.tools/go/loader"
-	"code.google.com/p/go.tools/go/types"
+	"golang.org/x/tools/go/exact"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/types"
 )
 
 // matchExpr reports whether pattern x matches y.

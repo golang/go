@@ -7,8 +7,8 @@ import (
 	"go/token"
 	"testing"
 
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/go/types/typeutil"
+	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 func TestDependencies(t *testing.T) {

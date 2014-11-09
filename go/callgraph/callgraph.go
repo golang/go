@@ -43,7 +43,7 @@ import (
 	"fmt"
 	"go/token"
 
-	"code.google.com/p/go.tools/go/ssa"
+	"golang.org/x/tools/go/ssa"
 )
 
 // A Graph represents a call graph.

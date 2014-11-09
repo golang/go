@@ -21,7 +21,7 @@ function die() {
 trap "rm -f $log" EXIT
 
 # Build and install oracle.
-go get code.google.com/p/go.tools/cmd/oracle || die "'go get' failed"
+go get golang.org/x/tools/cmd/oracle || die "'go get' failed"
 mv -f $GOPATH/bin/oracle $GOROOT/bin/
 $GOROOT/bin/oracle >$log 2>&1 || true # (prints usage and exits 1)
 grep -q "Run.*help" $log || die "$GOROOT/bin/oracle not installed"
@@ -34,7 +34,7 @@ emacs --batch --no-splash --no-window-system --no-init \
     --load $thisdir/oracle.el \
     --eval '
 (progn
-  (setq go-oracle-scope "code.google.com/p/go.tools/cmd/oracle")
+  (setq go-oracle-scope "golang.org/x/tools/cmd/oracle")
   (find-file "'$thisdir'/main.go")
   (search-forward "\"fmt\"")
   (backward-char)

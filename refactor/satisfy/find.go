@@ -49,8 +49,8 @@ import (
 	"go/ast"
 	"go/token"
 
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/go/types/typeutil"
+	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 // A Constraint records the fact that the RHS type does and must
@@ -697,7 +697,7 @@ func (f *Finder) stmt(s ast.Stmt) {
 	}
 }
 
-// -- Plundered from code.google.com/p/go.tools/go/ssa -----------------
+// -- Plundered from golang.org/x/tools/go/ssa -----------------
 
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {

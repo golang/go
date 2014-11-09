@@ -12,8 +12,8 @@ import (
 	"sort"
 	"testing"
 
-	_ "code.google.com/p/go.tools/go/gcimporter"
-	. "code.google.com/p/go.tools/go/types"
+	_ "golang.org/x/tools/go/gcimporter"
+	. "golang.org/x/tools/go/types"
 )
 
 var sources = []string{

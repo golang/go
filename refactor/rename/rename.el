@@ -5,8 +5,8 @@
 ;;; Integration of the 'gorename' tool into Emacs.
 ;;;
 ;;; To install:
-;;; % go get code.google.com/p/go.tools/cmd/gorename
-;;; % go build code.google.com/p/go.tools/cmd/gorename
+;;; % go get golang.org/x/tools/cmd/gorename
+;;; % go build golang.org/x/tools/cmd/gorename
 ;;; % mv gorename $HOME/bin/         # or elsewhere on $PATH
 ;;;
 ;;; The go-rename-command variable can be customized to specify an

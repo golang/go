@@ -23,7 +23,7 @@ package oracle_test
 // correctness, since it is critical information.)
 //
 // Run this test with:
-// 	% go test code.google.com/p/go.tools/oracle -update
+// 	% go test golang.org/x/tools/oracle -update
 // to update the golden files.
 
 import (
@@ -44,8 +44,8 @@ import (
 	"strings"
 	"testing"
 
-	"code.google.com/p/go.tools/go/loader"
-	"code.google.com/p/go.tools/oracle"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/oracle"
 )
 
 var updateFlag = flag.Bool("update", false, "Update the golden files.")

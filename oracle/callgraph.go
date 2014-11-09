@@ -9,10 +9,10 @@ import (
 	"go/token"
 	"sort"
 
-	"code.google.com/p/go.tools/go/callgraph"
-	"code.google.com/p/go.tools/go/ssa"
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/oracle/serial"
+	"golang.org/x/tools/go/callgraph"
+	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/oracle/serial"
 )
 
 // doCallgraph displays the entire callgraph of the current program,

@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	"code.google.com/p/go.tools/godoc/vfs"
+	"golang.org/x/tools/godoc/vfs"
 )
 
 // New returns a new FileSystem that delegates to fs.

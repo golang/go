@@ -35,7 +35,7 @@ import (
 	"os"
 	"strconv"
 
-	"code.google.com/p/go.tools/go/types"
+	"golang.org/x/tools/go/types"
 )
 
 const trace = false
@@ -745,7 +745,7 @@ func Structure(fset *token.FileSet, pkg *types.Package, info *types.Info, files 
 	return r.result
 }
 
-// -- Plundered from code.google.com/p/go.tools/go/ssa -----------------
+// -- Plundered from golang.org/x/tools/go/ssa -----------------
 
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {

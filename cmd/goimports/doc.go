@@ -3,7 +3,7 @@
 Command goimports updates your Go import lines,
 adding missing ones and removing unreferenced ones.
 
-     $ go get code.google.com/p/go.tools/cmd/goimports
+     $ go get golang.org/x/tools/cmd/goimports
 
 It's a drop-in replacement for your editor's gofmt-on-save hook.
 It has the same command-line interface as gofmt and formats

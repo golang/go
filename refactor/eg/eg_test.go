@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"code.google.com/p/go.tools/go/exact"
-	"code.google.com/p/go.tools/go/loader"
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/refactor/eg"
+	"golang.org/x/tools/go/exact"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/refactor/eg"
 )
 
 // TODO(adonovan): more tests:

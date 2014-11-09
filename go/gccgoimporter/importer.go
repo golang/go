@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"code.google.com/p/go.tools/go/importer"
-	"code.google.com/p/go.tools/go/types"
+	"golang.org/x/tools/go/importer"
+	"golang.org/x/tools/go/types"
 )
 
 // A PackageInit describes an imported package that needs initialization.

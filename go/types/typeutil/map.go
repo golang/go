@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"code.google.com/p/go.tools/go/types"
+	"golang.org/x/tools/go/types"
 )
 
 // Map is a hash-table-based mapping from types (types.Type) to

@@ -548,7 +548,7 @@ func readKey() (string, error) {
 
 // subrepoList fetches a list of sub-repositories from the dashboard
 // and returns them as a slice of base import paths.
-// Eg, []string{"code.google.com/p/go.tools", "code.google.com/p/go.net"}.
+// Eg, []string{"golang.org/x/tools", "golang.org/x/net"}.
 func subrepoList() ([]string, error) {
 	r, err := http.Get(*dashboard + "packages?kind=subrepo")
 	if err != nil {

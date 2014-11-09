@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"code.google.com/p/go.tools/godoc/vfs"
+	"golang.org/x/tools/godoc/vfs"
 )
 
 // An RWValue wraps a value and permits mutually exclusive

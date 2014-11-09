@@ -10,7 +10,7 @@ import (
 	"go/token"
 	"strings"
 
-	"code.google.com/p/go.tools/go/exact"
+	"golang.org/x/tools/go/exact"
 )
 
 var (

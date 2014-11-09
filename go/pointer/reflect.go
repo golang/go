@@ -28,9 +28,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"code.google.com/p/go.tools/go/exact"
-	"code.google.com/p/go.tools/go/ssa"
-	"code.google.com/p/go.tools/go/types"
+	"golang.org/x/tools/go/exact"
+	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/types"
 )
 
 func init() {

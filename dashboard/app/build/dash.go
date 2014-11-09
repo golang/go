@@ -61,47 +61,47 @@ var goPackages = []*Package{
 	{
 		Kind: "subrepo",
 		Name: "go.blog",
-		Path: "code.google.com/p/go.blog",
+		Path: "golang.org/x/blog",
 	},
 	{
 		Kind: "subrepo",
 		Name: "go.codereview",
-		Path: "code.google.com/p/go.codereview",
+		Path: "golang.org/x/codereview",
 	},
 	{
 		Kind: "subrepo",
 		Name: "go.crypto",
-		Path: "code.google.com/p/go.crypto",
+		Path: "golang.org/x/crypto",
 	},
 	{
 		Kind: "subrepo",
 		Name: "go.exp",
-		Path: "code.google.com/p/go.exp",
+		Path: "golang.org/x/exp",
 	},
 	{
 		Kind: "subrepo",
 		Name: "go.image",
-		Path: "code.google.com/p/go.image",
+		Path: "golang.org/x/image",
 	},
 	{
 		Kind: "subrepo",
 		Name: "go.net",
-		Path: "code.google.com/p/go.net",
+		Path: "golang.org/x/net",
 	},
 	{
 		Kind: "subrepo",
 		Name: "go.sys",
-		Path: "code.google.com/p/go.sys",
+		Path: "golang.org/x/sys",
 	},
 	{
 		Kind: "subrepo",
 		Name: "go.talks",
-		Path: "code.google.com/p/go.talks",
+		Path: "golang.org/x/talks",
 	},
 	{
 		Kind: "subrepo",
 		Name: "go.tools",
-		Path: "code.google.com/p/go.tools",
+		Path: "golang.org/x/tools",
 	},
 }
 

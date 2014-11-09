@@ -23,8 +23,8 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"code.google.com/p/go.tools/go/loader"
-	"code.google.com/p/go.tools/oracle"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/oracle"
 )
 
 var posFlag = flag.String("pos", "",
@@ -69,8 +69,8 @@ The user manual is available here:  http://golang.org/s/oracle-user-manual
 Examples:
 
 Describe the syntax at offset 530 in this file (an import spec):
-% oracle -pos=src/code.google.com/p/go.tools/cmd/oracle/main.go:#530 describe \
-   code.google.com/p/go.tools/cmd/oracle
+% oracle -pos=src/golang.org/x/tools/cmd/oracle/main.go:#530 describe \
+   golang.org/x/tools/cmd/oracle
 
 Print the callgraph of the trivial web-server in JSON format:
 % oracle -format=json $GOROOT/src/net/http/triv.go callgraph

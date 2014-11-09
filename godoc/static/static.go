@@ -1800,13 +1800,13 @@ function cgAddChild(tree, ul, cgn) {
 	Install them with "<a href="/cmd/go/#hdr-Download_and_install_packages_and_dependencies">go get</a>".
 	</p>
 	<ul>
-		<li><a href="//godoc.org/code.google.com/p/go.crypto">crypto</a> — additional cryptography packages.</li>
-		<li><a href="//godoc.org/code.google.com/p/go.image">image</a> — additional imaging packages.</li>
-		<li><a href="//godoc.org/code.google.com/p/go.net">net</a> — additional networking packages.</li>
-		<li><a href="//godoc.org/code.google.com/p/go.sys">sys</a> — packages for making system calls.</li>
-		<li><a href="//godoc.org/code.google.com/p/go.text">text</a> — packages for working with text.</li>
-		<li><a href="//godoc.org/code.google.com/p/go.tools">tools</a> — godoc, vet, cover, and other tools.</li>
-		<li><a href="//godoc.org/code.google.com/p/go.exp">exp</a> — experimental code (handle with care; may change without warning).</li>
+		<li><a href="//godoc.org/golang.org/x/crypto">crypto</a> — additional cryptography packages.</li>
+		<li><a href="//godoc.org/golang.org/x/image">image</a> — additional imaging packages.</li>
+		<li><a href="//godoc.org/golang.org/x/net">net</a> — additional networking packages.</li>
+		<li><a href="//godoc.org/golang.org/x/sys">sys</a> — packages for making system calls.</li>
+		<li><a href="//godoc.org/golang.org/x/text">text</a> — packages for working with text.</li>
+		<li><a href="//godoc.org/golang.org/x/tools">tools</a> — godoc, vet, cover, and other tools.</li>
+		<li><a href="//godoc.org/golang.org/x/exp">exp</a> — experimental code (handle with care; may change without warning).</li>
 	</ul>
 
 	<h3 id="community">Community</h3>

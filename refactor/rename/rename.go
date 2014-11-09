@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package rename contains the implementation of the 'gorename' command
-// whose main function is in code.google.com/p/go.tools/refactor/rename.
+// whose main function is in golang.org/x/tools/refactor/rename.
 // See that package for the command documentation.
 package rename
 
@@ -20,10 +20,10 @@ import (
 	"sort"
 	"strings"
 
-	"code.google.com/p/go.tools/go/loader"
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/refactor/importgraph"
-	"code.google.com/p/go.tools/refactor/satisfy"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/refactor/importgraph"
+	"golang.org/x/tools/refactor/satisfy"
 )
 
 var (

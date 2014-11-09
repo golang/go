@@ -8,7 +8,7 @@ import (
 	"go/build"
 	"testing"
 
-	"code.google.com/p/go.tools/go/buildutil"
+	"golang.org/x/tools/go/buildutil"
 )
 
 func TestAllPackages(t *testing.T) {
@@ -24,7 +24,7 @@ func TestAllPackages(t *testing.T) {
 		t.Errorf("Found only %d packages, want at least %d", len(all), wantAtLeast)
 	}
 
-	for _, want := range []string{"fmt", "crypto/sha256", "code.google.com/p/go.tools/go/buildutil"} {
+	for _, want := range []string{"fmt", "crypto/sha256", "golang.org/x/tools/go/buildutil"} {
 		if !set[want] {
 			t.Errorf("Package %q not found; got %s", want, all)
 		}

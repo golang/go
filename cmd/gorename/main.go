@@ -10,7 +10,7 @@ import (
 	"os"
 	"runtime"
 
-	"code.google.com/p/go.tools/refactor/rename"
+	"golang.org/x/tools/refactor/rename"
 )
 
 var (
