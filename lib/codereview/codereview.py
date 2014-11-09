@@ -3451,6 +3451,7 @@ class FakeMercurialUI(object):
 	def __init__(self):
 		self.quiet = True
 		self.output = ''
+		self.debugflag = False
 	
 	def write(self, *args, **opts):
 		self.output += ' '.join(args)
