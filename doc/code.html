@@ -60,37 +60,35 @@ To give you an idea of how a workspace looks in practice, here's an example:
 
 <pre>
 bin/
-    streak                         # command executable
-    todo                           # command executable
+    hello                          # command executable
+    outyet                         # command executable
 pkg/
     linux_amd64/
-        code.google.com/p/goauth2/
-            oauth.a                # package object
-        github.com/nf/todo/
-            task.a                 # package object
+        github.com/golang/example/
+            stringutil.a           # package object
 src/
-    code.google.com/p/goauth2/
-        .hg/                       # mercurial repository metadata
-        oauth/
-            oauth.go               # package source
-            oauth_test.go          # test source
-    github.com/nf/
-        streak/
-            .git/                  # git repository metadata
-            oauth.go               # command source
-            streak.go              # command source
-        todo/
-            .git/                  # git repository metadata
-            task/
-                task.go            # package source
-            todo.go                # command source
+    <a href="https://github.com/golang/example/">github.com/golang/example/</a>
+        .git/                      # Git repository metadata
+	hello/
+	    hello.go               # command source
+	outyet/
+	    main.go                # command source
+	    main_test.go           # test source
+	stringutil/
+	    reverse.go             # package source
+	    reverse_test.go        # test source
 </pre>
 
 <p>
-This workspace contains three repositories (<code>goauth2</code>,
-<code>streak</code>, and <code>todo</code>) comprising two commands
-(<code>streak</code> and <code>todo</code>) and two libraries
-(<code>oauth</code> and <code>task</code>).
+This workspace contains one repository (<code>example</code>)
+comprising two commands (<code>hello</code> and <code>outyet</code>)
+and one library (<code>stringutil</code>).
+</p>
+
+<p>
+A typical workspace would contain many source repositories containing many
+packages and commands. Most Go programmers keep <i>all</i> their Go source code
+and dependencies in a single workspace.
 </p>
 
 <p>
@@ -277,29 +275,29 @@ Let's write a library and use it from the <code>hello</code> program.
 
 <p>
 Again, the first step is to choose a package path (we'll use
-<code>github.com/user/newmath</code>) and create the package directory:
+<code>github.com/user/stringutil</code>) and create the package directory:
 </p>
 
 <pre>
-$ <b>mkdir $GOPATH/src/github.com/user/newmath</b>
+$ <b>mkdir $GOPATH/src/github.com/user/stringutil</b>
 </pre>
 
 <p>
-Next, create a file named <code>sqrt.go</code> in that directory with the
+Next, create a file named <code>reverse.go</code> in that directory with the
 following contents.
 </p>
 
 <pre>
-// Package newmath is a trivial example package.
-package newmath
+// Package stringutil contains utility functions for working with strings.
+package stringutil
 
-// Sqrt returns an approximation to the square root of x.
-func Sqrt(x float64) float64 {
-	z := 1.0
-	for i := 0; i &lt; 1000; i++ {
-		z -= (z*z - x) / (2 * z)
+// Reverse returns its argument string reversed rune-wise left to right.
+func Reverse(s string) string {
+	r := []rune(s)
+	for i, j := 0, len(r)-1; i &lt; len(r)/2; i, j = i+1, j-1 {
+		r[i], r[j] = r[j], r[i]
 	}
-	return z
+	return string(r)
 }
 </pre>
 
@@ -308,7 +306,7 @@ Now, test that the package compiles with <code>go build</code>:
 </p>
 
 <pre>
-$ <b>go build github.com/user/newmath</b>
+$ <b>go build github.com/user/stringutil</b>
 </pre>
 
 <p>
@@ -326,7 +324,7 @@ directory of the workspace.
 </p>
 
 <p>
-After confirming that the <code>newmath</code> package builds,
+After confirming that the <code>stringutil</code> package builds,
 modify your original <code>hello.go</code> (which is in
 <code>$GOPATH/src/github.com/user/hello</code>) to use it:
 </p>
@@ -337,18 +335,18 @@ package main
 import (
 	"fmt"
 
-	<b>"github.com/user/newmath"</b>
+	<b>"github.com/user/stringutil"</b>
 )
 
 func main() {
-	fmt.Printf("Hello, world.  <b>Sqrt(2) = %v\n", newmath.Sqrt(2)</b>)
+	fmt.Printf(stringutil.Reverse("!oG ,olleH"))
 }
 </pre>
 
 <p>
 Whenever the <code>go</code> tool installs a package or binary, it also
-installs whatever dependencies it has. So when you install the <code>hello</code>
-program
+installs whatever dependencies it has.
+So when you install the <code>hello</code> program
 </p>
 
 <pre>
@@ -356,16 +354,16 @@ $ <b>go install github.com/user/hello</b>
 </pre>
 
 <p>
-the <code>newmath</code> package will be installed as well, automatically.
+the <code>stringutil</code> package will be installed as well, automatically.
 </p>
 
 <p>
-Running the new version of the program, you should see some numerical output:
+Running the new version of the program, you should see a new, reversed message:
 </p>
 
 <pre>
 $ <b>hello</b>
-Hello, world.  Sqrt(2) = 1.414213562373095
+Hello, Go!
 </pre>
 
 <p>
@@ -374,22 +372,22 @@ After the steps above, your workspace should look like this:
 
 <pre>
 bin/
-    hello              # command executable
+    hello                 # command executable
 pkg/
-    linux_amd64/       # this will reflect your OS and architecture
+    linux_amd64/          # this will reflect your OS and architecture
         github.com/user/
-            newmath.a  # package object
+            stringutil.a  # package object
 src/
     github.com/user/
         hello/
-            hello.go   # command source
-        newmath/
-            sqrt.go    # package source
+            hello.go      # command source
+        stringutil/
+            reverse.go    # package source
 </pre>
 
 <p>
-Note that <code>go install</code> placed the <code>newmath.a</code> object in a
-directory inside <code>pkg/linux_amd64</code> that mirrors its source
+Note that <code>go install</code> placed the <code>stringutil.a</code> object
+in a directory inside <code>pkg/linux_amd64</code> that mirrors its source
 directory.
 This is so that future invocations of the <code>go</code> tool can find the
 package object and avoid recompiling the package unnecessarily.
@@ -457,20 +455,29 @@ if the function calls a failure function such as <code>t.Error</code> or
 </p>
 
 <p>
-Add a test to the <code>newmath</code> package by creating the file
-<code>$GOPATH/src/github.com/user/newmath/sqrt_test.go</code> containing the
-following Go code.
+Add a test to the <code>stringutil</code> package by creating the file
+<code>$GOPATH/src/github.com/user/stringutil/reverse_test.go</code> containing
+the following Go code.
 </p>
 
 <pre>
-package newmath
+package stringutil
 
 import "testing"
 
-func TestSqrt(t *testing.T) {
-	const in, out = 4, 2
-	if x := Sqrt(in); x != out {
-		t.Errorf("Sqrt(%v) = %v, want %v", in, x, out)
+func TestReverse(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"Hello, world", "dlrow ,olleH"},
+		{"Hello, 世界", "界世 ,olleH"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		got := Reverse(c.in)
+		if got != c.want {
+			t.Errorf("Reverse(%q) == %q, want %q", c.in, got, c.want)
+		}
 	}
 }
 </pre>
@@ -480,8 +487,8 @@ Then run the test with <code>go test</code>:
 </p>
 
 <pre>
-$ <b>go test github.com/user/newmath</b>
-ok  	github.com/user/newmath 0.165s
+$ <b>go test github.com/user/stringutil</b>
+ok  	github.com/user/stringutil 0.165s
 </pre>
 
 <p>
@@ -491,7 +498,7 @@ directory, you can omit the package path:
 
 <pre>
 $ <b>go test</b>
-ok  	github.com/user/newmath 0.165s
+ok  	github.com/user/stringutil 0.165s
 </pre>
 
 <p>
@@ -507,16 +514,16 @@ An import path can describe how to obtain the package source code using a
 revision control system such as Git or Mercurial. The <code>go</code> tool uses
 this property to automatically fetch packages from remote repositories.
 For instance, the examples described in this document are also kept in a
-Mercurial repository hosted at Google Code,
-<code><a href="//code.google.com/p/go.example">code.google.com/p/go.example</a></code>.
+Git repository hosted at GitHub
+<code><a href="https://github.com/golang/example">github.com/golang/example</a></code>.
 If you include the repository URL in the package's import path,
 <code>go get</code> will fetch, build, and install it automatically:
 </p>
 
 <pre>
-$ <b>go get code.google.com/p/go.example/hello</b>
+$ <b>go get github.com/golang/example/hello</b>
 $ <b>$GOPATH/bin/hello</b>
-Hello, world.  Sqrt(2) = 1.414213562373095
+Hello, Go examples!
 </pre>
 
 <p>
@@ -533,37 +540,39 @@ tree should now look like this:
 
 <pre>
 bin/
-    hello                 # command executable
+    hello                           # command executable
 pkg/
     linux_amd64/
-        code.google.com/p/go.example/
-            newmath.a     # package object
+        github.com/golang/example/
+            stringutil.a            # package object
         github.com/user/
-            newmath.a     # package object
+            stringutil.a            # package object
 src/
-    code.google.com/p/go.example/
+    github.com/golang/example/
+	.git/                       # Git repository metadata
         hello/
-            hello.go      # command source
-        newmath/
-            sqrt.go       # package source
-            sqrt_test.go  # test source
+            hello.go                # command source
+        stringutil/
+            reverse.go              # package source
+            reverse_test.go         # test source
     github.com/user/
         hello/
-            hello.go      # command source
-        newmath/
-            sqrt.go       # package source
-            sqrt_test.go  # test source
+            hello.go                # command source
+        stringutil/
+            reverse.go              # package source
+            reverse_test.go         # test source
 </pre>
 
 <p>
-The <code>hello</code> command hosted at Google Code depends on the
-<code>newmath</code> package within the same repository. The imports in
-<code>hello.go</code> file use the same import path convention, so the <code>go
-get</code> command is able to locate and install the dependent package, too.
+The <code>hello</code> command hosted at GitHub depends on the
+<code>stringutil</code> package within the same repository. The imports in
+<code>hello.go</code> file use the same import path convention, so the
+<code>go get</code> command is able to locate and install the dependent
+package, too.
 </p>
 
 <pre>
-import "code.google.com/p/go.example/newmath"
+import "github.com/golang/example/stringutil"
 </pre>
 
 <p>
