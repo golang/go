@@ -581,6 +581,9 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
 		env[i] = p + filepath.Join(goRoot, "bin") + sep + filepath.Join(goPath, "bin") + sep + e[len(p):]
 	}
 
+	// HACK: check out to new sub-repo location instead of old location.
+	pkg = strings.Replace(pkg, "code.google.com/p/go.", "golang.org/x/", 1)
+
 	// fetch package and dependencies
 	var outbuf bytes.Buffer
 	err := run(exec.Command(goTool, "get", "-d", pkg+"/..."), runEnv(env), allOutput(&outbuf), runDir(goPath))
