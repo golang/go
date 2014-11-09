@@ -9,7 +9,7 @@
 // Export the runtime entry point symbol.
 //
 // Used by the app package to start the Go runtime after loading
-// a shared library via JNI. See code.google.com/p/go.mobile/app.
+// a shared library via JNI. See golang.org/x/mobile/app.
 
 void _rt0_arm_linux1();
 #pragma cgo_export_static _rt0_arm_linux1

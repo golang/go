@@ -53,8 +53,8 @@ var (
 )
 
 const (
-	blogPath       = "code.google.com/p/go.blog"
-	toolPath       = "code.google.com/p/go.tools"
+	blogPath       = "golang.org/x/blog"
+	toolPath       = "golang.org/x/tools"
 	tourPath       = "code.google.com/p/go-tour"
 	defaultToolTag = "release-branch.go1.3"
 	defaultTourTag = "release-branch.go1.3"
@@ -64,9 +64,9 @@ const (
 // These must be the command that cmd/go knows to install to $GOROOT/bin
 // or $GOROOT/pkg/tool.
 var toolPaths = []string{
-	"code.google.com/p/go.tools/cmd/cover",
-	"code.google.com/p/go.tools/cmd/godoc",
-	"code.google.com/p/go.tools/cmd/vet",
+	"golang.org/x/tools/cmd/cover",
+	"golang.org/x/tools/cmd/godoc",
+	"golang.org/x/tools/cmd/vet",
 }
 
 var preBuildCleanFiles = []string{
