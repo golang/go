@@ -383,9 +383,10 @@ func findInternal(path string) (index int, ok bool) {
 type targetDir int
 
 const (
-	toRoot targetDir = iota // to bin dir inside package root (default)
-	toTool                  // GOROOT/pkg/tool
-	toBin                   // GOROOT/bin
+	toRoot    targetDir = iota // to bin dir inside package root (default)
+	toTool                     // GOROOT/pkg/tool
+	toBin                      // GOROOT/bin
+	stalePath                  // the old import path; fail to build
 )
 
 // goTools is a map of Go program import path to install target directory.
@@ -399,9 +400,12 @@ var goTools = map[string]targetDir{
 	"cmd/objdump":                          toTool,
 	"cmd/pack":                             toTool,
 	"cmd/yacc":                             toTool,
-	"code.google.com/p/go.tools/cmd/cover": toTool,
-	"code.google.com/p/go.tools/cmd/godoc": toBin,
-	"code.google.com/p/go.tools/cmd/vet":   toTool,
+	"golang.org/x/tools/cmd/cover":         toTool,
+	"golang.org/x/tools/cmd/godoc":         toBin,
+	"golang.org/x/tools/cmd/vet":           toTool,
+	"code.google.com/p/go.tools/cmd/cover": stalePath,
+	"code.google.com/p/go.tools/cmd/godoc": stalePath,
+	"code.google.com/p/go.tools/cmd/vet":   stalePath,
 }
 
 // expandScanner expands a scanner.List error into all the errors in the list.
@@ -462,6 +466,13 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	}
 
 	if p.Name == "main" {
+		// Report an error when the old code.google.com/p/go.tools paths are used.
+		if goTools[p.ImportPath] == stalePath {
+			newPath := strings.Replace(p.ImportPath, "code.google.com/p/go.", "golang.org/x/", 1)
+			e := fmt.Sprintf("the %v command has moved; use %v instead.", p.ImportPath, newPath)
+			p.Error = &PackageError{Err: e}
+			return p
+		}
 		_, elem := filepath.Split(p.Dir)
 		full := buildContext.GOOS + "_" + buildContext.GOARCH + "/" + elem
 		if buildContext.GOOS != toolGOOS || buildContext.GOARCH != toolGOARCH {
