@@ -486,16 +486,17 @@ func gogc(force int32) {
 
 	onM(stoptheworld)
 	onM(finishsweep_m) // finish sweep before we start concurrent scan.
-	onM(starttheworld)
-
-	// Do a concurrent heap scan before we stop the world.
-	onM(gcscan_m)
-	onM(gcinstallmarkwb_m)
-	onM(stoptheworld)
-	//	onM(starttheworld)
-	// mark from roots scanned in gcscan_m. startthework when write barrier works
-	onM(gcmark_m)
-	//	onM(stoptheworld)
+	if false {         // To turn on concurrent scan and mark set to true...
+		onM(starttheworld)
+		// Do a concurrent heap scan before we stop the world.
+		onM(gcscan_m)
+		onM(stoptheworld)
+		onM(gcinstallmarkwb_m)
+		onM(starttheworld)
+		onM(gcmark_m)
+		onM(stoptheworld)
+		onM(gcinstalloffwb_m)
+	}
 	if mp != acquirem() {
 		gothrow("gogc: rescheduled")
 	}
