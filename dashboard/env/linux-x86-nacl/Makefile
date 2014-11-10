@@ -9,4 +9,4 @@ upload: docker
 	docker save gobuilders/linux-x86-nacl | gzip | (cd ../../coordinator/buildongce && go run create.go --write_object=go-builder-data/docker-linux.nacl.tar.gz)
 
 check: docker
-	docker run gobuilders/linux-x86-nacl /usr/local/bin/builder -rev=073fc578434b -buildroot=/ -v -cmd=/usr/local/bin/build-command.pl -report=false nacl-amd64p32-temp
+	docker run gobuilders/linux-x86-nacl /usr/local/bin/builder -rev=8c27884843c3 -buildroot=/ -v -cmd=/usr/local/bin/build-command.pl -report=false nacl-amd64p32-temp

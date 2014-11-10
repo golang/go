@@ -9,4 +9,4 @@ docker-linux.sid.tar.gz: docker
 	docker save gobuilders/linux-x86-sid | gzip | (cd ../../coordinator/buildongce && go run create.go --write_object=go-builder-data/docker-linux.sid.tar.gz)
 
 check: docker
-	docker run gobuilders/linux-x86-sid /usr/local/bin/builder -rev=fa76e8393654 -buildroot=/ -v -report=false linux-amd64-sid
+	docker run gobuilders/linux-x86-sid /usr/local/bin/builder -rev=8c27884843c3 -buildroot=/ -v -report=false linux-amd64-sid

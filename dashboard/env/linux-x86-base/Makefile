@@ -9,4 +9,4 @@ docker-linux.base.tar.gz: docker
 	docker save gobuilders/linux-x86-base | gzip | (cd ../../coordinator/buildongce && go run create.go --write_object=go-builder-data/docker-linux.base.tar.gz)
 
 check: docker
-	docker run gobuilders/linux-x86-base /usr/local/bin/builder -rev=073fc578434b -buildroot=/ -v -report=false linux-amd64-temp
+	docker run gobuilders/linux-x86-base /usr/local/bin/builder -rev=8c27884843c3 -buildroot=/ -v -report=false linux-amd64-temp

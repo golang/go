@@ -9,7 +9,7 @@ docker-linux.clang.tar.gz: docker
 	docker save gobuilders/linux-x86-clang | gzip | (cd ../../coordinator/buildongce && go run create.go --write_object=go-builder-data/docker-linux.clang.tar.gz)
 
 check: docker
-	docker run gobuilders/linux-x86-clang /usr/local/bin/builder -rev=fa76e8393654 -buildroot=/ -v -report=false linux-amd64-temp
+	docker run gobuilders/linux-x86-clang /usr/local/bin/builder -rev=8c27884843c3 -buildroot=/ -v -report=false linux-amd64-temp
 
 check32: docker
-	docker run gobuilders/linux-x86-clang /usr/local/bin/builder -rev=fa76e8393654 -buildroot=/ -v -report=false linux-386-temp
+	docker run gobuilders/linux-x86-clang /usr/local/bin/builder -rev=8c27884843c3 -buildroot=/ -v -report=false linux-386-temp
