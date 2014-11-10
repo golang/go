@@ -16,6 +16,7 @@ var certFiles = []string{
 	"/etc/ssl/cert.pem",                      // OpenBSD
 	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD/DragonFly
 	"/etc/pki/tls/cacert.pem",                // OpenELEC
+	"/etc/certs/ca-certificates.crt",         // Solaris 11.2+
 }
 
 // Possible directories with certificate files; stop after successfully
