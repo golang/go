@@ -472,7 +472,7 @@ TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
 //		return 1;
 //	} else
 //		return 0;
-TEXT runtime·casp(SB), NOSPLIT, $0-25
+TEXT runtime·casp1(SB), NOSPLIT, $0-25
 	BR runtime·cas64(SB)
 
 // uint32 xadd(uint32 volatile *val, int32 delta)
@@ -529,7 +529,7 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
 	MOVD	R3, ret+16(FP)
 	RETURN
 
-TEXT runtime·xchgp(SB), NOSPLIT, $0-24
+TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
 	BR	runtime·xchg64(SB)
 
 TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
@@ -538,7 +538,7 @@ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	RETURN
 
-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-16
+TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-16
 	BR	runtime·atomicstore64(SB)
 
 TEXT runtime·atomicstore(SB), NOSPLIT, $0-12

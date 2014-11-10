@@ -92,13 +92,24 @@ const (
 // but if we do that, Go inserts a write barrier on *dst = src.
 //go:nosplit
 func writebarrierptr(dst *uintptr, src uintptr) {
+	*dst = src
+	writebarrierptr_nostore(dst, src)
+}
+
+// Like writebarrierptr, but the store has already been applied.
+// Do not reapply.
+//go:nosplit
+func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+	if getg() == nil { // very low-level startup
+		return
+	}
+
 	if src != 0 && (src < _PageSize || src == _PoisonGC || src == _PoisonStack) {
 		onM(func() { gothrow("bad pointer in write barrier") })
 	}
 
 	mp := acquirem()
 	if mp.inwb {
-		*dst = src
 		releasem(mp)
 		return
 	}
@@ -112,7 +123,6 @@ func writebarrierptr(dst *uintptr, src uintptr) {
 	mp.scalararg[1] = oldscalar1
 	mp.inwb = false
 	releasem(mp)
-	//	*dst = src is done inside of the write barrier.
 }
 
 //go:nosplit

@@ -1098,7 +1098,6 @@ runtime·gcmarkwb_m()
 	slot = (byte**)g->m->scalararg[0];
 	ptr = (byte*)g->m->scalararg[1];
 
-	*slot = ptr;
 	switch(runtime·gcphase) {
 	default:
 		runtime·throw("gcphasework in bad gcphase");

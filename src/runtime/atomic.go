@@ -20,8 +20,16 @@ func xchg(ptr *uint32, new uint32) uint32
 //go:noescape
 func xchg64(ptr *uint64, new uint64) uint64
 
-//go:noescape
-func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+// Cannot use noescape here: ptr does not but new does escape.
+// Instead use noescape(ptr) in wrapper below.
+func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+
+//go:nosplit
+func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
+	old := xchgp1(noescape(ptr), new)
+	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
+	return old
+}
 
 //go:noescape
 func xchguintptr(ptr *uintptr, new uintptr) uintptr
@@ -47,5 +55,27 @@ func atomicstore(ptr *uint32, val uint32)
 //go:noescape
 func atomicstore64(ptr *uint64, val uint64)
 
-//go:noescape
-func atomicstorep(ptr unsafe.Pointer, val unsafe.Pointer)
+// Cannot use noescape here: ptr does not but val does escape.
+// Instead use noescape(ptr) in wrapper below.
+func atomicstorep1(ptr unsafe.Pointer, val unsafe.Pointer)
+
+//go:nosplit
+func atomicstorep(ptr unsafe.Pointer, val unsafe.Pointer) {
+	atomicstorep1(noescape(ptr), val)
+	// TODO(rsc): Why does the compiler think writebarrierptr_nostore's dst argument escapes?
+	writebarrierptr_nostore((*uintptr)(noescape(ptr)), uintptr(val))
+}
+
+// Cannot use noescape here: ptr does not but new does escape.
+// Instead use noescape(ptr) in wrapper below.
+func casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+
+//go:nosplit
+func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
+	ok := casp1((*unsafe.Pointer)(noescape(unsafe.Pointer(ptr))), old, new)
+	if !ok {
+		return false
+	}
+	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
+	return true
+}
