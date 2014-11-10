@@ -502,7 +502,7 @@ fail:
 //		return 1;
 //	}else
 //		return 0;
-TEXT runtime·casp(SB), NOSPLIT, $0-13
+TEXT runtime·casp1(SB), NOSPLIT, $0-13
 	MOVL	ptr+0(FP), BX
 	MOVL	old+4(FP), AX
 	MOVL	new+8(FP), CX
@@ -537,7 +537,7 @@ TEXT runtime·xchg(SB), NOSPLIT, $0-12
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·xchgp(SB), NOSPLIT, $0-12
+TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), BX
 	MOVL	new+4(FP), AX
 	XCHGL	AX, 0(BX)
@@ -555,7 +555,7 @@ again:
 	JNZ	again
 	RET
 
-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-8
+TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), BX
 	MOVL	val+4(FP), AX
 	XCHGL	AX, 0(BX)

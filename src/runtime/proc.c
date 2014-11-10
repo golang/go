@@ -1060,7 +1060,7 @@ runtime·dropm(void)
 	unlockextra(mp);
 }
 
-#define MLOCKED ((M*)1)
+#define MLOCKED 1
 
 // lockextra locks the extra list and returns the list head.
 // The caller must unlock the list by storing a new list head
@@ -1071,28 +1071,28 @@ runtime·dropm(void)
 static M*
 lockextra(bool nilokay)
 {
-	M *mp;
+	uintptr mpx;
 	void (*yield)(void);
 
 	for(;;) {
-		mp = runtime·atomicloadp(&runtime·extram);
-		if(mp == MLOCKED) {
+		mpx = runtime·atomicloaduintptr((uintptr*)&runtime·extram);
+		if(mpx == MLOCKED) {
 			yield = runtime·osyield;
 			yield();
 			continue;
 		}
-		if(mp == nil && !nilokay) {
+		if(mpx == 0 && !nilokay) {
 			runtime·usleep(1);
 			continue;
 		}
-		if(!runtime·casp(&runtime·extram, mp, MLOCKED)) {
+		if(!runtime·casuintptr((uintptr*)&runtime·extram, mpx, MLOCKED)) {
 			yield = runtime·osyield;
 			yield();
 			continue;
 		}
 		break;
 	}
-	return mp;
+	return (M*)mpx;
 }
 
 #pragma textflag NOSPLIT

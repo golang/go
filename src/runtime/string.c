@@ -48,7 +48,7 @@ runtime·gostringnocopy(byte *str)
 	s.len = runtime·findnull(str);
 	while(true) {
 		ms = runtime·maxstring;
-		if(s.len <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)s.len))
+		if(s.len <= ms || runtime·casuintptr(&runtime·maxstring, ms, s.len))
 			return s;
 	}
 }

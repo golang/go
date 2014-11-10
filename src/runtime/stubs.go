@@ -214,9 +214,6 @@ func write(fd uintptr, p unsafe.Pointer, n int32) int32
 func cas(ptr *uint32, old, new uint32) bool
 
 //go:noescape
-func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
-
-//go:noescape
 func casuintptr(ptr *uintptr, old, new uintptr) bool
 
 //go:noescape

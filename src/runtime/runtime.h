@@ -894,6 +894,7 @@ int32	runtime·round2(int32 x); // round x up to a power of 2.
 bool	runtime·cas(uint32*, uint32, uint32);
 bool	runtime·cas64(uint64*, uint64, uint64);
 bool	runtime·casp(void**, void*, void*);
+bool	runtime·casuintptr(uintptr*, uintptr, uintptr);
 // Don't confuse with XADD x86 instruction,
 // this one is actually 'addx', that is, add-and-fetch.
 uint32	runtime·xadd(uint32 volatile*, int32);
