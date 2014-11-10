@@ -1061,13 +1061,34 @@ shade(byte *b)
 //
 // Shade indicates that it has seen a white pointer by adding the referent
 // to wbuf.
+// slot is the destination (dst) in go code
+// ptr is the value that goes into the slot (src) in the go code
 void
-runtime·markwb(void **slot, void *ptr)
+runtime·gcmarkwb_m()
 {
-	// initial nil check avoids some needlesss loads
-	if(ptr != nil && inheap(ptr) && shaded((void*)slot))
-		shade(ptr);
+	byte **slot, *ptr;
+	slot = (byte**)g->m->scalararg[0];
+	ptr = (byte*)g->m->scalararg[1];
+
 	*slot = ptr;
+	switch(runtime·gcphase) {
+	default:
+		runtime·throw("gcphasework in bad gcphase");
+	case GCoff:
+	case GCquiesce:
+	case GCstw:
+	case GCsweep:
+	case GCscan:
+		break;
+	case GCmark:
+		if(ptr != nil && inheap(ptr) && shaded((byte*)slot))
+			shade(ptr);
+		break;
+	case GCmarktermination:
+		if(ptr != nil && inheap(ptr) && shaded((byte*)slot))
+			shade(ptr);
+		break;
+	}
 }
 
 // The gp has been moved to a GC safepoint. GC phase specific
@@ -1945,12 +1966,20 @@ runtime·gcmark_m(void)
 	scanblock(nil, 0, nil);
 }
 
-// For now this must be followed by a stoptheworld and a starttheworld to ensure
+// For now this must be bracketed with a stoptheworld and a starttheworld to ensure
 // all go routines see the new barrier.
 void
 runtime·gcinstallmarkwb_m(void)
 {
 	runtime·gcphase = GCmark;
+}
+
+// For now this must be bracketed with a stoptheworld and a starttheworld to ensure
+// all go routines see the new barrier.
+void
+runtime·gcinstalloffwb_m(void)
+{
+	runtime·gcphase = GCoff;
 }
 
 static void

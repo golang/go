@@ -95,7 +95,24 @@ func writebarrierptr(dst *uintptr, src uintptr) {
 	if src != 0 && (src < _PageSize || src == _PoisonGC || src == _PoisonStack) {
 		onM(func() { gothrow("bad pointer in write barrier") })
 	}
-	*dst = src
+
+	mp := acquirem()
+	if mp.inwb {
+		*dst = src
+		releasem(mp)
+		return
+	}
+	mp.inwb = true
+	oldscalar0 := mp.scalararg[0]
+	oldscalar1 := mp.scalararg[1]
+	mp.scalararg[0] = uintptr(unsafe.Pointer(dst))
+	mp.scalararg[1] = src
+	onM_signalok(gcmarkwb_m)
+	mp.scalararg[0] = oldscalar0
+	mp.scalararg[1] = oldscalar1
+	mp.inwb = false
+	releasem(mp)
+	//	*dst = src is done inside of the write barrier.
 }
 
 //go:nosplit
