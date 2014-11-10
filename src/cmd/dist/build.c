@@ -670,13 +670,6 @@ install(char *dir)
 	bpathf(&final_path, "%s/src/%s", goroot_final, dir);
 	name = lastelem(dir);
 
-	// For misc/prof, copy into the tool directory and we're done.
-	if(hasprefix(dir, "misc/")) {
-		copyfile(bpathf(&b, "%s/%s", tooldir, name),
-			bpathf(&b1, "%s/misc/%s", goroot, name), 1);
-		goto out;
-	}
-
 	// set up gcc command line on first run.
 	if(gccargs.len == 0) {
 		bprintf(&b, "%s %s", defaultcc, defaultcflags);
@@ -1292,8 +1285,6 @@ static char *buildorder[] = {
 	"lib9",
 	"libbio",
 	"liblink",
-
-	"misc/pprof",
 
 	"cmd/cc",  // must be before c
 	"cmd/gc",  // must be before g
