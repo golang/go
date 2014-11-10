@@ -275,7 +275,10 @@ func (conf buildConfig) dockerRunArgs(rev string) (args []string) {
 				log.Fatal(err)
 			}
 		}
+		// Images may look for .gobuildkey in / or /root, so provide both.
+		// TODO(adg): fix images that look in the wrong place.
 		args = append(args, "-v", tmpKey+":/.gobuildkey")
+		args = append(args, "-v", tmpKey+":/root/.gobuildkey")
 	}
 	for _, pair := range conf.env {
 		args = append(args, "-e", pair)
