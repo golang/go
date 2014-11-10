@@ -1,3 +1,7 @@
+// Copyright 2014 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package objfile
 
 import (
@@ -17,14 +21,14 @@ import (
 
 // Disasm is a disassembler for a given File.
 type Disasm struct {
-	syms      []Sym
-	pcln      *gosym.Table
-	text      []byte
-	textStart uint64
-	textEnd   uint64
-	goarch    string
-	disasm    disasmFunc
-	byteOrder binary.ByteOrder
+	syms      []Sym            //symbols in file, sorted by address
+	pcln      *gosym.Table     // pcln table
+	text      []byte           // bytes of text segment (actual instructions)
+	textStart uint64           // start PC of text
+	textEnd   uint64           // end PC of text
+	goarch    string           // GOARCH string
+	disasm    disasmFunc       // disassembler function for goarch
+	byteOrder binary.ByteOrder // byte order for goarch
 }
 
 // Disasm returns a disassembler for the file f.
@@ -89,7 +93,8 @@ func (d *Disasm) lookup(addr uint64) (name string, base uint64) {
 }
 
 // base returns the final element in the path.
-// It works on both Windows and Unix paths.
+// It works on both Windows and Unix paths,
+// regardless of host operating system.
 func base(path string) string {
 	path = path[strings.LastIndex(path, "/")+1:]
 	path = path[strings.LastIndex(path, `\`)+1:]
