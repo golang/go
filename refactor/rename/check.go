@@ -293,10 +293,21 @@ func (r *renamer) checkStructField(from *types.Var) {
 	// method) to its declaring struct (or interface), so we must
 	// ascend the AST.
 	info, path, _ := r.iprog.PathEnclosingInterval(from.Pos(), from.Pos())
-	// path is [Ident Field FieldList StructType ... File].  Can't fail.
+	// path matches this pattern:
+	// [Ident SelectorExpr? StarExpr? Field FieldList StructType ParenExpr* ... File]
 
+	// Ascend to FieldList.
+	var i int
+	for {
+		if _, ok := path[i].(*ast.FieldList); ok {
+			break
+		}
+		i++
+	}
+	i++
+	tStruct := path[i].(*ast.StructType)
+	i++
 	// Ascend past parens (unlikely).
-	i := 4
 	for {
 		_, ok := path[i].(*ast.ParenExpr)
 		if !ok {
@@ -320,7 +331,7 @@ func (r *renamer) checkStructField(from *types.Var) {
 	} else {
 		// This struct is not a named type.
 		// We need only check for direct (non-promoted) field/field conflicts.
-		T := info.Types[path[3].(*ast.StructType)].Type.Underlying().(*types.Struct)
+		T := info.Types[tStruct].Type.Underlying().(*types.Struct)
 		for i := 0; i < T.NumFields(); i++ {
 			if prev := T.Field(i); prev.Name() == r.to {
 				r.errorf(from.Pos(), "renaming this field %q to %q",

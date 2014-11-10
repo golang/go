@@ -648,6 +648,33 @@ func f(z interface{}) {
 }
 `},
 		},
+
+		// Renaming of embedded field that is a qualified reference.
+		// (Regression test for bug 8924.)
+		{
+			ctxt: fakeContext(map[string][]string{
+				"foo": {`package foo; type T int`},
+				"main": {`package main
+
+import "foo"
+
+type _ struct{ *foo.T }
+`},
+			}),
+			offset: "/go/src/main/0.go:#48", to: "U", // the "T" in *foo.T
+			want: map[string]string{
+				"/go/src/foo/0.go": `package foo
+
+type U int
+`,
+				"/go/src/main/0.go": `package main
+
+import "foo"
+
+type _ struct{ *foo.U }
+`,
+			},
+		},
 	} {
 		if test.ctxt != nil {
 			ctxt = test.ctxt
