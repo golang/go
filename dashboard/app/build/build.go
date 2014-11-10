@@ -154,7 +154,7 @@ func (com *Commit) AddResult(c appengine.Context, r *Result) error {
 	var resultExists bool
 	for i, s := range com.ResultData {
 		// if there already exists result data for this builder at com, overwrite it.
-		if strings.Contains(s, r.Builder) {
+		if strings.HasPrefix(s, r.Builder+"|") {
 			resultExists = true
 			com.ResultData[i] = r.Data()
 		}
