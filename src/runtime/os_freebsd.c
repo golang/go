@@ -9,7 +9,7 @@
 #include "stack.h"
 #include "textflag.h"
 
-extern SigTab runtime·sigtab[];
+extern SigTabT runtime·sigtab[];
 extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
 
 // From FreeBSD's <sys/sysctl.h>
