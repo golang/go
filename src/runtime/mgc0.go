@@ -109,7 +109,7 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 	}
 
 	mp := acquirem()
-	if mp.inwb {
+	if mp.inwb || mp.dying > 0 {
 		releasem(mp)
 		return
 	}

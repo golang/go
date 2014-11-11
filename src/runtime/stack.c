@@ -706,6 +706,14 @@ runtime·newstack(void)
 		runtime·printf("runtime: split stack overflow: %p < %p\n", sp, gp->stack.lo);
 		runtime·throw("runtime: split stack overflow");
 	}
+	
+	if(gp->sched.ctxt != nil) {
+		// morestack wrote sched.ctxt on its way in here,
+		// without a write barrier. Run the write barrier now.
+		// It is not possible to be preempted between then
+		// and now, so it's okay.
+		runtime·writebarrierptr_nostore(&gp->sched.ctxt, gp->sched.ctxt);
+	}
 
 	if(gp->stackguard0 == (uintptr)StackPreempt) {
 		if(gp == g->m->g0)

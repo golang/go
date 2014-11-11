@@ -1121,6 +1121,8 @@ void	runtime·osyield(void);
 void	runtime·lockOSThread(void);
 void	runtime·unlockOSThread(void);
 
+void	runtime·writebarrierptr_nostore(void*, void*);
+
 bool	runtime·showframe(Func*, G*);
 void	runtime·printcreatedby(G*);
 

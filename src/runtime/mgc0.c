@@ -1094,8 +1094,7 @@ shade(byte *b)
 void
 runtime·gcmarkwb_m()
 {
-	byte **slot, *ptr;
-	slot = (byte**)g->m->scalararg[0];
+	byte *ptr;
 	ptr = (byte*)g->m->scalararg[1];
 
 	switch(runtime·gcphase) {
