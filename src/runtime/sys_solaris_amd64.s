@@ -6,7 +6,8 @@
 // /usr/include/sys/syscall.h for syscall numbers.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // This is needed by asm_amd64.s

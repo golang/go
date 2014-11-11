@@ -6,7 +6,8 @@
 // System calls and other sys.stuff for arm, Linux
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // for EABI, as we don't support OABI
@@ -391,7 +392,7 @@ cascheck:
 	MOVB	R0, ret+12(FP)
 	RET
 
-TEXT runtime·casp(SB),NOSPLIT,$0
+TEXT runtime·casp1(SB),NOSPLIT,$0
 	B	runtime·cas(SB)
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
