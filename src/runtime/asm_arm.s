@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -1326,3 +1327,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
 TEXT runtime·goexit(SB),NOSPLIT,$-4-0
 	MOVW	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
+
+TEXT runtime·getg(SB),NOSPLIT,$-4-4
+	MOVW	g, ret+0(FP)
+	RET

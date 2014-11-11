@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 #include "syscall_nacl.h"
 
@@ -301,7 +302,7 @@ nog:
 TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
 	RET
 
-TEXT runtime·casp(SB),NOSPLIT,$0
+TEXT runtime·casp1(SB),NOSPLIT,$0
 	B	runtime·cas(SB)
 
 // This is only valid for ARMv6+, however, NaCl/ARM is only defined

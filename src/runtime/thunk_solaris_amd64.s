@@ -4,7 +4,8 @@
 
 // This file exposes various external library functions to Go code in the runtime.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 TEXT runtime·libc_chdir(SB),NOSPLIT,$0
