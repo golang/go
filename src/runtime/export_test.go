@@ -34,21 +34,11 @@ func lfstackpush_m()
 func lfstackpop_m()
 
 func LFStackPush(head *uint64, node *LFNode) {
-	mp := acquirem()
-	mp.ptrarg[0] = unsafe.Pointer(head)
-	mp.ptrarg[1] = unsafe.Pointer(node)
-	onM(lfstackpush_m)
-	releasem(mp)
+	lfstackpush(head, (*lfnode)(unsafe.Pointer(node)))
 }
 
 func LFStackPop(head *uint64) *LFNode {
-	mp := acquirem()
-	mp.ptrarg[0] = unsafe.Pointer(head)
-	onM(lfstackpop_m)
-	node := (*LFNode)(unsafe.Pointer(mp.ptrarg[0]))
-	mp.ptrarg[0] = nil
-	releasem(mp)
-	return node
+	return (*LFNode)(unsafe.Pointer(lfstackpop(head)))
 }
 
 type ParFor struct {
@@ -68,64 +58,44 @@ func parfordo_m()
 func parforiters_m()
 
 func NewParFor(nthrmax uint32) *ParFor {
-	mp := acquirem()
-	mp.scalararg[0] = uintptr(nthrmax)
-	onM(newparfor_m)
-	desc := (*ParFor)(mp.ptrarg[0])
-	mp.ptrarg[0] = nil
-	releasem(mp)
+	var desc *ParFor
+	onM(func() {
+		desc = (*ParFor)(unsafe.Pointer(parforalloc(nthrmax)))
+	})
 	return desc
 }
 
 func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32)) {
-	mp := acquirem()
-	mp.ptrarg[0] = unsafe.Pointer(desc)
-	mp.ptrarg[1] = unsafe.Pointer(ctx)
-	mp.ptrarg[2] = unsafe.Pointer(funcPC(body)) // TODO(rsc): Should be a scalar.
-	mp.scalararg[0] = uintptr(nthr)
-	mp.scalararg[1] = uintptr(n)
-	mp.scalararg[2] = 0
-	if wait {
-		mp.scalararg[2] = 1
-	}
-	onM(parforsetup_m)
-	releasem(mp)
+	onM(func() {
+		parforsetup((*parfor)(unsafe.Pointer(desc)), nthr, n, unsafe.Pointer(ctx), wait,
+			*(*func(*parfor, uint32))(unsafe.Pointer(&body)))
+	})
 }
 
 func ParForDo(desc *ParFor) {
-	mp := acquirem()
-	mp.ptrarg[0] = unsafe.Pointer(desc)
-	onM(parfordo_m)
-	releasem(mp)
+	onM(func() {
+		parfordo((*parfor)(unsafe.Pointer(desc)))
+	})
 }
 
 func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
-	mp := acquirem()
-	mp.ptrarg[0] = unsafe.Pointer(desc)
-	mp.scalararg[0] = uintptr(tid)
-	onM(parforiters_m)
-	begin := uint32(mp.scalararg[0])
-	end := uint32(mp.scalararg[1])
-	releasem(mp)
-	return begin, end
+	desc1 := (*parfor)(unsafe.Pointer(desc))
+	pos := desc_thr_index(desc1, tid).pos
+	return uint32(pos), uint32(pos >> 32)
 }
-
-// in mgc0.c
-//go:noescape
-func getgcmask(data unsafe.Pointer, typ *_type, array **byte, len *uint)
 
 func GCMask(x interface{}) (ret []byte) {
 	e := (*eface)(unsafe.Pointer(&x))
 	s := (*slice)(unsafe.Pointer(&ret))
 	onM(func() {
-		getgcmask(e.data, e._type, &s.array, &s.len)
+		var len uintptr
+		getgcmask(e.data, e._type, &s.array, &len)
+		s.len = uint(len)
 		s.cap = s.len
 	})
 	return
 }
 
-func testSchedLocalQueue()
-func testSchedLocalQueueSteal()
 func RunSchedLocalQueueTest() {
 	onM(testSchedLocalQueue)
 }
@@ -148,10 +118,6 @@ var HashLoad = &hashLoad
 func GogoBytes() int32 {
 	return _RuntimeGogoBytes
 }
-
-// in string.c
-//go:noescape
-func gostringw(w *uint16) string
 
 // entry point for testing
 func GostringW(w []uint16) (s string) {
