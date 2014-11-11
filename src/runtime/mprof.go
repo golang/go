@@ -190,8 +190,6 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 	return b
 }
 
-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer
-
 func eqslice(x, y []uintptr) bool {
 	if len(x) != len(y) {
 		return false
@@ -246,16 +244,9 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 	// This reduces potential contention and chances of deadlocks.
 	// Since the object must be alive during call to mProf_Malloc,
 	// it's fine to do this non-atomically.
-	setprofilebucket(p, b)
-}
-
-func setprofilebucket_m() // mheap.c
-
-func setprofilebucket(p unsafe.Pointer, b *bucket) {
-	g := getg()
-	g.m.ptrarg[0] = p
-	g.m.ptrarg[1] = unsafe.Pointer(b)
-	onM(setprofilebucket_m)
+	onM(func() {
+		setprofilebucket(p, b)
+	})
 }
 
 // Called when freeing a profiled block.
@@ -518,8 +509,6 @@ func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
 	}
 	return
 }
-
-var allgs []*g // proc.c
 
 // GoroutineProfile returns n, the number of records in the active goroutine stack profile.
 // If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
