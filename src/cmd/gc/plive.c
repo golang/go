@@ -1092,7 +1092,7 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 	case TCOMPLEX64:
 	case TCOMPLEX128:
 		for(i = 0; i < t->width; i++) {
-			bvset(bv, ((*xoffset + i) / widthptr) * BitsPerPointer); // 1 = live scalar
+			bvset(bv, ((*xoffset + i) / widthptr) * BitsPerPointer); // 1 = live scalar (BitsScalar)
 		}
 		*xoffset += t->width;
 		break;
@@ -1105,7 +1105,7 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 	case TMAP:
 		if((*xoffset & (widthptr-1)) != 0)
 			fatal("twobitwalktype1: invalid alignment, %T", t);
-		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr
+		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr (BitsPointer)
 		*xoffset += t->width;
 		break;
 
@@ -1113,7 +1113,7 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 		// struct { byte *str; intgo len; }
 		if((*xoffset & (widthptr-1)) != 0)
 			fatal("twobitwalktype1: invalid alignment, %T", t);
-		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr in first slot
+		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr in first slot (BitsPointer)
 		*xoffset += t->width;
 		break;
 
@@ -1123,15 +1123,8 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 		// struct { Type *type; union { void *ptr, uintptr val } data; }
 		if((*xoffset & (widthptr-1)) != 0)
 			fatal("twobitwalktype1: invalid alignment, %T", t);
-		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 0);
-		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 1); // 3 = multiword
-		// next word contains 2 = Iface, 3 = Eface
-		if(isnilinter(t)) {
-			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 2);
-			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 3);
-		} else {
-			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 3);
-		}
+		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr in first slot (BitsPointer)
+		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 3); // 2 = live ptr in second slot (BitsPointer)
 		*xoffset += t->width;
 		break;
 
@@ -1144,7 +1137,7 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
 			// struct { byte *array; uintgo len; uintgo cap; }
 			if((*xoffset & (widthptr-1)) != 0)
 				fatal("twobitwalktype1: invalid TARRAY alignment, %T", t);
-			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr in first slot
+			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr in first slot (BitsPointer)
 			*xoffset += t->width;
 		} else
 			for(i = 0; i < t->bound; i++)
