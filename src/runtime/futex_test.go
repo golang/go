@@ -44,9 +44,9 @@ func TestFutexsleep(t *testing.T) {
 	start := time.Now()
 	for _, tt := range futexsleepTests {
 		go func(tt futexsleepTest) {
-			runtime.Entersyscall()
+			runtime.Entersyscall(0)
 			runtime.Futexsleep(&tt.mtx, tt.mtx, tt.ns)
-			runtime.Exitsyscall()
+			runtime.Exitsyscall(0)
 			tt.ch <- tt
 		}(tt)
 	}

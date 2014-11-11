@@ -6,8 +6,6 @@ package runtime
 
 import "unsafe"
 
-func newsysmon()
-
 func runtime_init()
 func main_init()
 func main_main()
@@ -55,6 +53,24 @@ func main() {
 
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
 
+	if iscgo {
+		if _cgo_thread_start == nil {
+			gothrow("_cgo_thread_start missing")
+		}
+		if _cgo_malloc == nil {
+			gothrow("_cgo_malloc missing")
+		}
+		if _cgo_free == nil {
+			gothrow("_cgo_free missing")
+		}
+		if _cgo_setenv == nil {
+			gothrow("_cgo_setenv missing")
+		}
+		if _cgo_unsetenv == nil {
+			gothrow("_cgo_unsetenv missing")
+		}
+	}
+
 	main_init()
 
 	needUnlock = false
@@ -79,8 +95,6 @@ func main() {
 		*x = 0
 	}
 }
-
-var parkunlock_c byte
 
 // start forcegc helper goroutine
 func init() {
@@ -115,7 +129,7 @@ func Gosched() {
 
 // Puts the current goroutine into a waiting state and calls unlockf.
 // If unlockf returns false, the goroutine is resumed.
-func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
+func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string) {
 	mp := acquirem()
 	gp := mp.curg
 	status := readgstatus(gp)
@@ -123,7 +137,7 @@ func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
 		gothrow("gopark: bad g status")
 	}
 	mp.waitlock = lock
-	mp.waitunlockf = unlockf
+	mp.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
 	gp.waitreason = reason
 	releasem(mp)
 	// can't do anything that might move the G between Ms here.
@@ -133,14 +147,13 @@ func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
 // Puts the current goroutine into a waiting state and unlocks the lock.
 // The goroutine can be made runnable again by calling goready(gp).
 func goparkunlock(lock *mutex, reason string) {
-	gopark(unsafe.Pointer(&parkunlock_c), unsafe.Pointer(lock), reason)
+	gopark(parkunlock_c, unsafe.Pointer(lock), reason)
 }
 
 func goready(gp *g) {
-	mp := acquirem()
-	mp.ptrarg[0] = unsafe.Pointer(gp)
-	onM(ready_m)
-	releasem(mp)
+	onM(func() {
+		ready(gp)
+	})
 }
 
 //go:nosplit
@@ -222,6 +235,11 @@ func newM() *m {
 func newG() *g {
 	return new(g)
 }
+
+var (
+	allgs    []*g
+	allglock mutex
+)
 
 func allgadd(gp *g) {
 	if readgstatus(gp) == _Gidle {
