@@ -546,9 +546,10 @@ ldobjfile(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn)
 static void
 readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 {
-	int i, j, c, t, v, n, size, dupok;
+	int i, j, c, t, v, n, ndata, nreloc, size, dupok;
 	static int ndup;
 	char *name;
+	uchar *data;
 	Reloc *r;
 	LSym *s, *dup, *typ;
 	Pcln *pc;
@@ -564,12 +565,24 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 	dupok = rdint(f);
 	dupok &= 1;
 	size = rdint(f);
+	typ = rdsym(ctxt, f, pkg);
+	rddata(f, &data, &ndata);
+	nreloc = rdint(f);
 	
 	if(v != 0)
 		v = ctxt->version;
 	s = linklookup(ctxt, name, v);
 	dup = nil;
 	if(s->type != 0 && s->type != SXREF) {
+		if((t == SDATA || t == SBSS || t == SNOPTRBSS) && ndata == 0 && nreloc == 0) {
+			if(s->size < size)
+				s->size = size;
+			if(typ != nil && s->gotype == nil)
+				s->gotype = typ;
+			return;
+		}
+		if((s->type == SDATA || s->type == SBSS || s->type == SNOPTRBSS) && s->np == 0 && s->nr == 0)
+			goto overwrite;
 		if(s->type != SBSS && s->type != SNOPTRBSS && !dupok && !s->dupok)
 			sysfatal("duplicate symbol %s (types %d and %d) in %s and %s", s->name, s->type, t, s->file, pn);
 		if(s->np > 0) {
@@ -577,28 +590,30 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
 			s = linknewsym(ctxt, ".dup", ndup++); // scratch
 		}
 	}
+overwrite:
 	s->file = pkg;
 	s->dupok = dupok;
 	if(t == SXREF)
 		sysfatal("bad sxref");
 	if(t == 0)
 		sysfatal("missing type for %s in %s", name, pn);
+	if(t == SBSS && (s->type == SRODATA || s->type == SNOPTRBSS))
+		t = s->type;
 	s->type = t;
 	if(s->size < size)
 		s->size = size;
-	typ = rdsym(ctxt, f, pkg);
 	if(typ != nil) // if bss sym defined multiple times, take type from any one def
 		s->gotype = typ;
 	if(dup != nil && typ != nil)
 		dup->gotype = typ;
-	rddata(f, &s->p, &s->np);
+	s->p = data;
+	s->np = ndata;
 	s->maxp = s->np;
-	n = rdint(f);
-	if(n > 0) {
-		s->r = emallocz(n * sizeof s->r[0]);
-		s->nr = n;
-		s->maxr = n;
-		for(i=0; i<n; i++) {
+	if(nreloc > 0) {
+		s->r = emallocz(nreloc * sizeof s->r[0]);
+		s->nr = nreloc;
+		s->maxr = nreloc;
+		for(i=0; i<nreloc; i++) {
 			r = &s->r[i];
 			r->off = rdint(f);
 			r->siz = rdint(f);
