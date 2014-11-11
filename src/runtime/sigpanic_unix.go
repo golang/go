@@ -6,8 +6,6 @@
 
 package runtime
 
-func signame(int32) *byte
-
 func sigpanic() {
 	g := getg()
 	if !canpanic(g) {
@@ -36,5 +34,10 @@ func sigpanic() {
 		}
 		panicfloat()
 	}
-	panic(errorString(gostringnocopy(signame(g.sig))))
+
+	if g.sig >= uint32(len(sigtable)) {
+		// can't happen: we looked up g.sig in sigtable to decide to call sigpanic
+		gothrow("unexpected signal value")
+	}
+	panic(errorString(sigtable[g.sig].name))
 }
