@@ -9,7 +9,7 @@
 #include "stack.h"
 #include "textflag.h"
 
-extern SigTab runtime·sigtab[];
+extern SigTabT runtime·sigtab[];
 extern int32 runtime·sys_umtx_sleep(uint32*, int32, int32);
 extern int32 runtime·sys_umtx_wakeup(uint32*, int32);
 
