@@ -45,7 +45,7 @@ const (
 
 // Called from sighandler to send a signal back out of the signal handling thread.
 // Reports whether the signal was sent. If not, the caller typically crashes the program.
-func sigsend(s int32) bool {
+func sigsend(s uint32) bool {
 	bit := uint32(1) << uint(s&31)
 	if !sig.inuse || s < 0 || int(s) >= 32*len(sig.wanted) || sig.wanted[s/32]&bit == 0 {
 		return false
@@ -156,9 +156,6 @@ func signal_disable(s uint32) {
 func badsignal(sig uintptr) {
 	cgocallback(unsafe.Pointer(funcPC(sigsend)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
 }
-
-func sigenable_m()
-func sigdisable_m()
 
 func sigenable_go(s uint32) {
 	g := getg()
