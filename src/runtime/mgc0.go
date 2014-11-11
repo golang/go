@@ -60,10 +60,8 @@ func clearpools() {
 	}
 }
 
-func gosweepone() uintptr
-func gosweepdone() bool
-
 func bgsweep() {
+	sweep.g = getg()
 	getg().issystem = true
 	for {
 		for gosweepone() != ^uintptr(0) {

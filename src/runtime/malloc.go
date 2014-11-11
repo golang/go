@@ -28,10 +28,11 @@ const (
 	maxGCMask       = _MaxGCMask
 	bitsDead        = _BitsDead
 	bitsPointer     = _BitsPointer
+	bitsScalar      = _BitsScalar
 
 	mSpanInUse = _MSpanInUse
 
-	concurrentSweep = _ConcurrentSweep != 0
+	concurrentSweep = _ConcurrentSweep
 )
 
 // Page number (address>>pageShift)
@@ -142,10 +143,9 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			s = c.alloc[tinySizeClass]
 			v := s.freelist
 			if v == nil {
-				mp := acquirem()
-				mp.scalararg[0] = tinySizeClass
-				onM(mcacheRefill_m)
-				releasem(mp)
+				onM(func() {
+					mCache_Refill(c, tinySizeClass)
+				})
 				s = c.alloc[tinySizeClass]
 				v = s.freelist
 			}
@@ -173,10 +173,9 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			s = c.alloc[sizeclass]
 			v := s.freelist
 			if v == nil {
-				mp := acquirem()
-				mp.scalararg[0] = uintptr(sizeclass)
-				onM(mcacheRefill_m)
-				releasem(mp)
+				onM(func() {
+					mCache_Refill(c, int32(sizeclass))
+				})
 				s = c.alloc[sizeclass]
 				v = s.freelist
 			}
@@ -193,13 +192,10 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		}
 		c.local_cachealloc += intptr(size)
 	} else {
-		mp := acquirem()
-		mp.scalararg[0] = uintptr(size)
-		mp.scalararg[1] = uintptr(flags)
-		onM(largeAlloc_m)
-		s = (*mspan)(mp.ptrarg[0])
-		mp.ptrarg[0] = nil
-		releasem(mp)
+		var s *mspan
+		onM(func() {
+			s = largeAlloc(size, uint32(flags))
+		})
 		x = unsafe.Pointer(uintptr(s.start << pageShift))
 		size = uintptr(s.elemsize)
 	}
@@ -359,7 +355,7 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
 	if typ.kind&kindNoPointers != 0 {
 		flags |= flagNoScan
 	}
-	if int(n) < 0 || (typ.size > 0 && n > maxmem/uintptr(typ.size)) {
+	if int(n) < 0 || (typ.size > 0 && n > _MaxMem/uintptr(typ.size)) {
 		panic("runtime: allocation size out of range")
 	}
 	return mallocgc(uintptr(typ.size)*n, typ, flags)
@@ -585,10 +581,9 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	ftyp := f._type
 	if ftyp == nil {
 		// switch to M stack and remove finalizer
-		mp := acquirem()
-		mp.ptrarg[0] = e.data
-		onM(removeFinalizer_m)
-		releasem(mp)
+		onM(func() {
+			removefinalizer(e.data)
+		})
 		return
 	}
 
@@ -633,18 +628,11 @@ okarg:
 	// make sure we have a finalizer goroutine
 	createfing()
 
-	// switch to M stack to add finalizer record
-	mp := acquirem()
-	mp.ptrarg[0] = f.data
-	mp.ptrarg[1] = e.data
-	mp.scalararg[0] = nret
-	mp.ptrarg[2] = unsafe.Pointer(fint)
-	mp.ptrarg[3] = unsafe.Pointer(ot)
-	onM(setFinalizer_m)
-	if mp.scalararg[0] != 1 {
-		gothrow("runtime.SetFinalizer: finalizer already set")
-	}
-	releasem(mp)
+	onM(func() {
+		if !addfinalizer(e.data, (*funcval)(f.data), nret, fint, ot) {
+			gothrow("runtime.SetFinalizer: finalizer already set")
+		}
+	})
 }
 
 // round n up to a multiple of a.  a must be a power of 2.

@@ -4,11 +4,15 @@
 
 // Garbage collector (GC)
 
-enum {
-	// Four bits per word (see #defines below).
-	gcBits = 4,
-	wordsPerBitmapByte = 8/gcBits,
+package runtime
 
+const (
+	// Four bits per word (see #defines below).
+	gcBits             = 4
+	wordsPerBitmapByte = 8 / gcBits
+)
+
+const (
 	// GC type info programs.
 	// The programs allow to store type info required for GC in a compact form.
 	// Most importantly arrays take O(1) space instead of O(n).
@@ -26,38 +30,33 @@ enum {
 	// For example, for type struct { x []byte; y [20]struct{ z int; w *byte }; }
 	// the program looks as:
 	//
-	// insData 3 (BitsMultiWord BitsSlice BitsScalar)
+	// insData 3 (BitsPointer BitsScalar BitsScalar)
 	//	insArray 20 insData 2 (BitsScalar BitsPointer) insArrayEnd insEnd
 	//
 	// Total size of the program is 17 bytes (13 bytes on 32-bits).
 	// The corresponding GC mask would take 43 bytes (it would be repeated
 	// because the type has odd number of words).
-	insData = 1,
-	insArray,
-	insArrayEnd,
-	insEnd,
+	insData = 1 + iota
+	insArray
+	insArrayEnd
+	insEnd
+)
 
+const (
 	// Pointer map
-	BitsPerPointer	= 2,
-	BitsMask	= (1<<BitsPerPointer)-1,
-	PointersPerByte	= 8/BitsPerPointer,
+	_BitsPerPointer  = 2
+	_BitsMask        = (1 << _BitsPerPointer) - 1
+	_PointersPerByte = 8 / _BitsPerPointer
 
 	// If you change these, also change scanblock.
 	// scanblock does "if(bits == BitsScalar || bits == BitsDead)" as "if(bits <= BitsScalar)".
-	BitsDead	= 0,
-	BitsScalar	= 1,
-	BitsPointer	= 2,
-	BitsMultiWord	= 3,
-	// BitsMultiWord will be set for the first word of a multi-word item.
-	// When it is set, one of the following will be set for the second word.
-	// NOT USED ANYMORE: BitsString	= 0,
-	// NOT USED ANYMORE: BitsSlice	= 1,
-	BitsIface	= 2,
-	BitsEface	= 3,
+	_BitsDead    = 0
+	_BitsScalar  = 1
+	_BitsPointer = 2
 
 	// 64 bytes cover objects of size 1024/512 on 64/32 bits, respectively.
-	MaxGCMask	= 64,
-};
+	_MaxGCMask = 64
+)
 
 // Bits in per-word bitmap.
 // #defines because we shift the values beyond 32 bits.
@@ -70,9 +69,9 @@ enum {
 // there.  On a 64-bit system the off'th word in the arena is tracked by
 // the off/16+1'th word before mheap.arena_start.  (On a 32-bit system,
 // the only difference is that the divisor is 8.)
-enum {
-	bitBoundary = 1, // boundary of an object
-	bitMarked = 2, // marked object
-	bitMask = bitBoundary | bitMarked,
-	bitPtrMask = BitsMask<<2,
-};
+const (
+	bitBoundary = 1 // boundary of an object
+	bitMarked   = 2 // marked object
+	bitMask     = bitBoundary | bitMarked
+	bitPtrMask  = _BitsMask << 2
+)
