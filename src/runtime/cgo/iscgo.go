@@ -9,7 +9,12 @@
 // correctly, and sometimes they break.  This variable is a
 // backup: it depends only on old C style static linking rules.
 
-#include "../runtime.h"
+package cgo
 
-bool runtime·iscgo = 1;
-uint32 runtime·needextram = 1;  // create an extra M on first cgo call
+import _ "unsafe"
+
+//go:linkname _iscgo runtime.iscgo
+var _iscgo bool = true
+
+//go:linkname _needextram runtime.needextram
+var _needextram uint32 = 1 // create an extra M on first cgo call
