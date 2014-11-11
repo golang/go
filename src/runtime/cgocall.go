@@ -127,9 +127,9 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
 	 * so it is safe to call while "in a system call", outside
 	 * the $GOMAXPROCS accounting.
 	 */
-	entersyscall()
+	entersyscall(0)
 	errno := asmcgocall_errno(fn, arg)
-	exitsyscall()
+	exitsyscall(0)
 
 	return errno
 }
@@ -153,17 +153,13 @@ func endcgo(mp *m) {
 
 // Helper functions for cgo code.
 
-// Filled by schedinit from corresponding C variables,
-// which are in turn filled in by dynamic linker when Cgo is available.
-var cgoMalloc, cgoFree unsafe.Pointer
-
 func cmalloc(n uintptr) unsafe.Pointer {
 	var args struct {
 		n   uint64
 		ret unsafe.Pointer
 	}
 	args.n = uint64(n)
-	cgocall(cgoMalloc, unsafe.Pointer(&args))
+	cgocall(_cgo_malloc, unsafe.Pointer(&args))
 	if args.ret == nil {
 		gothrow("C malloc failed")
 	}
@@ -171,7 +167,7 @@ func cmalloc(n uintptr) unsafe.Pointer {
 }
 
 func cfree(p unsafe.Pointer) {
-	cgocall(cgoFree, p)
+	cgocall(_cgo_free, p)
 }
 
 // Call from C back to Go.
@@ -189,10 +185,10 @@ func cgocallbackg() {
 	// save syscall* and let reentersyscall restore them.
 	savedsp := unsafe.Pointer(gp.syscallsp)
 	savedpc := gp.syscallpc
-	exitsyscall() // coming out of cgo call
+	exitsyscall(0) // coming out of cgo call
 	cgocallbackg1()
 	// going back to cgo call
-	reentersyscall(savedpc, savedsp)
+	reentersyscall(savedpc, uintptr(savedsp))
 }
 
 func cgocallbackg1() {

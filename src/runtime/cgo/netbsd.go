@@ -2,18 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build freebsd
+// +build netbsd
 
-#include "textflag.h"
+package cgo
 
 // Supply environ and __progname, because we don't
-// link against the standard FreeBSD crt0.o and the
+// link against the standard NetBSD crt0.o and the
 // libc dynamic library needs them.
 
-#pragma dataflag NOPTR
-char *environ[1];
-#pragma dataflag NOPTR
-char *__progname;
+//go:linkname _environ environ
+//go:linkname _progname __progname
 
-#pragma dynexport environ environ
-#pragma dynexport __progname __progname
+var _environ uintptr
+var _progname uintptr

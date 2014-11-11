@@ -4,24 +4,26 @@
 
 // +build openbsd
 
-#include "textflag.h"
+package cgo
 
 // Supply environ, __progname and __guard_local, because
 // we don't link against the standard OpenBSD crt0.o and
 // the libc dynamic library needs them.
 
-#pragma dataflag NOPTR
-char *environ[1];
-#pragma dataflag NOPTR
-char *__progname;
-long __guard_local;
+//go:linkname _environ environ
+//go:linkname _progname __progname
+//go:linkname _guard_local __guard_local
 
-#pragma dynexport environ environ
-#pragma dynexport __progname __progname
+var _environ uintptr
+var _progname uintptr
+var _guard_local uintptr
+
+//go:cgo_export_dynamic environ environ
+//go:cgo_export_dynamic __progname __progname
 
 // This is normally marked as hidden and placed in the
 // .openbsd.randomdata section.
-#pragma dynexport __guard_local __guard_local
+//go:cgo_export_dynamic __guard_local __guard_local
 
 // We override pthread_create to support PT_TLS.
-#pragma dynexport pthread_create pthread_create
+//go:cgo_export_dynamic pthread_create pthread_create
