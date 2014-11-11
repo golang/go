@@ -86,9 +86,6 @@ import "unsafe"
 // Notes:  Rounding mode detection omitted.
 
 const (
-	uvnan      = 0x7FF8000000000001
-	uvinf      = 0x7FF0000000000000
-	uvneginf   = 0xFFF0000000000000
 	mask       = 0x7FF
 	shift      = 64 - 11 - 1
 	bias       = 1023
@@ -104,7 +101,7 @@ func sqrt(x float64) float64 {
 	case x == 0 || x != x || x > maxFloat64:
 		return x
 	case x < 0:
-		return nan
+		return nan()
 	}
 	ix := float64bits(x)
 	// normalize x
