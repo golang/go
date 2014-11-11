@@ -101,8 +101,6 @@ var (
 	eod = [3]uintptr{0, 1, 0}
 )
 
-func setcpuprofilerate_m() // proc.c
-
 func setcpuprofilerate(hz int32) {
 	g := getg()
 	g.m.scalararg[0] = uintptr(hz)
