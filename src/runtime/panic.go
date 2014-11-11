@@ -54,6 +54,11 @@ func throwinit() {
 // The compiler turns a defer statement into a call to this.
 //go:nosplit
 func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+	if getg().m.curg != getg() {
+		// go code on the m stack can't defer
+		gothrow("defer on m")
+	}
+
 	// the arguments of fn are in a perilous state.  The stack map
 	// for deferproc does not describe them.  So we can't let garbage
 	// collection or stack copying trigger until we've copied them out
@@ -64,20 +69,18 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	if GOARCH == "arm" {
 		argp += ptrSize // skip caller's saved link register
 	}
-	mp := acquirem()
-	mp.scalararg[0] = uintptr(siz)
-	mp.ptrarg[0] = unsafe.Pointer(fn)
-	mp.scalararg[1] = argp
-	mp.scalararg[2] = getcallerpc(unsafe.Pointer(&siz))
+	callerpc := getcallerpc(unsafe.Pointer(&siz))
 
-	if mp.curg != getg() {
-		// go code on the m stack can't defer
-		gothrow("defer on m")
-	}
-
-	onM(deferproc_m)
-
-	releasem(mp)
+	onM(func() {
+		d := newdefer(siz)
+		if d._panic != nil {
+			gothrow("deferproc: d.panic != nil after newdefer")
+		}
+		d.fn = fn
+		d.pc = callerpc
+		d.argp = argp
+		memmove(add(unsafe.Pointer(d), unsafe.Sizeof(*d)), unsafe.Pointer(argp), uintptr(siz))
+	})
 
 	// deferproc returns 0 normally.
 	// a deferred func that stops a panic
@@ -298,8 +301,6 @@ func Goexit() {
 	goexit()
 }
 
-func canpanic(*g) bool
-
 // Print all currently active panics.  Used when crashing.
 func printpanics(p *_panic) {
 	if p.link != nil {
@@ -318,6 +319,9 @@ func printpanics(p *_panic) {
 func gopanic(e interface{}) {
 	gp := getg()
 	if gp.m.curg != gp {
+		print("panic: ")
+		printany(e)
+		print("\n")
 		gothrow("panic on m stack")
 	}
 
@@ -414,7 +418,7 @@ func gopanic(e interface{}) {
 			// Pass information about recovering frame to recovery.
 			gp.sigcode0 = uintptr(argp)
 			gp.sigcode1 = pc
-			mcall(recovery_m)
+			mcall(recovery)
 			gothrow("recovery failed") // mcall should not return
 		}
 	}

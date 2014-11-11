@@ -41,6 +41,7 @@ var (
 	newprocPC   uintptr
 	rt0_goPC    uintptr
 	sigpanicPC  uintptr
+	switchtoMPC uintptr
 
 	externalthreadhandlerp uintptr // initialized elsewhere
 )
@@ -59,6 +60,7 @@ func tracebackinit() {
 	newprocPC = funcPC(newproc)
 	rt0_goPC = funcPC(rt0_go)
 	sigpanicPC = funcPC(sigpanic)
+	switchtoMPC = funcPC(switchtoM)
 }
 
 // Traceback over the deferred function calls.
