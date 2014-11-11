@@ -20,6 +20,7 @@ runtime·gostartcall(Gobuf *gobuf, void (*fn)(void), void *ctxt)
 	gobuf->sp = (uintptr)sp;
 	gobuf->pc = (uintptr)fn;
 	gobuf->ctxt = ctxt;
+	runtime·writebarrierptr_nostore(&gobuf->ctxt, ctxt);
 }
 
 // Called to rewind context saved during morestack back to beginning of function.
