@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 27, 2014",
+	"Subtitle": "Version of November 11, 2014",
 	"Path": "/ref/spec"
 }-->
 
@@ -2521,30 +2521,40 @@ The following rules apply to selectors:
 <ol>
 <li>
 For a value <code>x</code> of type <code>T</code> or <code>*T</code>
-where <code>T</code> is not an interface type,
+where <code>T</code> is not a pointer or interface type,
 <code>x.f</code> denotes the field or method at the shallowest depth
 in <code>T</code> where there
 is such an <code>f</code>.
 If there is not exactly <a href="#Uniqueness_of_identifiers">one <code>f</code></a>
 with shallowest depth, the selector expression is illegal.
 </li>
+
 <li>
-For a variable <code>x</code> of type <code>I</code> where <code>I</code>
+For a value <code>x</code> of type <code>I</code> where <code>I</code>
 is an interface type, <code>x.f</code> denotes the actual method with name
-<code>f</code> of the value assigned to <code>x</code>.
+<code>f</code> of the dynamic value of <code>x</code>.
 If there is no method with name <code>f</code> in the
 <a href="#Method_sets">method set</a> of <code>I</code>, the selector
 expression is illegal.
 </li>
+
+<li>
+As an exception, if the type of <code>x</code> is a named pointer type
+and <code>(*x).f</code> is a valid selector expression denoting a field
+(but not a method), <code>x.f</code> is shorthand for <code>(*x).f</code>.
+</li>
+
 <li>
 In all other cases, <code>x.f</code> is illegal.
 </li>
+
 <li>
 If <code>x</code> is of pointer type and has the value
 <code>nil</code> and <code>x.f</code> denotes a struct field,
 assigning to or evaluating <code>x.f</code>
 causes a <a href="#Run_time_panics">run-time panic</a>.
 </li>
+
 <li>
 If <code>x</code> is of interface type and has the value
 <code>nil</code>, <a href="#Calls">calling</a> or
@@ -2552,18 +2562,6 @@ If <code>x</code> is of interface type and has the value
 causes a <a href="#Run_time_panics">run-time panic</a>.
 </li>
 </ol>
-
-<p>
-Selectors automatically <a href="#Address_operators">dereference</a>
-pointers to structs.
-If <code>x</code> is a pointer to a struct, <code>x.y</code>
-is shorthand for <code>(*x).y</code>; if the field <code>y</code>
-is also a pointer to a struct, <code>x.y.z</code> is shorthand
-for <code>(*(*x).y).z</code>, and so on.
-If <code>x</code> contains an anonymous field of type <code>*A</code>,
-where <code>A</code> is also a struct type,
-<code>x.f</code> is shorthand for <code>(*x.A).f</code>.
-</p>
 
 <p>
 For example, given the declarations:
@@ -2574,13 +2572,13 @@ type T0 struct {
 	x int
 }
 
-func (recv *T0) M0()
+func (*T0) M0()
 
 type T1 struct {
 	y int
 }
 
-func (recv T1) M1()
+func (T1) M1()
 
 type T2 struct {
 	z int
@@ -2588,9 +2586,13 @@ type T2 struct {
 	*T0
 }
 
-func (recv *T2) M2()
+func (*T2) M2()
 
-var p *T2  // with p != nil and p.T0 != nil
+type Q *T2
+
+var t T2     // with t.T0 != nil
+var p *T2    // with p != nil and (*p).T0 != nil
+var q Q = p
 </pre>
 
 <p>
@@ -2598,13 +2600,27 @@ one may write:
 </p>
 
 <pre>
-p.z   // (*p).z
-p.y   // ((*p).T1).y
-p.x   // (*(*p).T0).x
+t.z          // t.z
+t.y          // t.T1.y
+t.x          // (*t.TO).x
 
-p.M2()  // (*p).M2()
-p.M1()  // ((*p).T1).M1()
-p.M0()  // ((*p).T0).M0()
+p.z          // (*p).z
+p.y          // (*p).T1.y
+p.x          // (*(*p).T0).x
+
+q.x          // (*(*q).T0).x        (*q).x is a valid field selector
+
+p.M2()       // p.M2()              M2 expects *T2 receiver
+p.M1()       // ((*p).T1).M1()      M1 expects T1 receiver
+p.M0()       // ((&(*p).T0)).M0()   M0 expects *T0 receiver, see section on Calls
+</pre>
+
+<p>
+but the following is invalid:
+</p>
+
+<pre>
+q.M0()       // (*q).M0 is valid but not a field selector
 </pre>
 
 
