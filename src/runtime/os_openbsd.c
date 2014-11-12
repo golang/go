@@ -217,7 +217,10 @@ void
 runtime·mpreinit(M *mp)
 {
 	mp->gsignal = runtime·malg(32*1024);
+	runtime·writebarrierptr_nostore(&mp->gsignal, mp->gsignal);
+
 	mp->gsignal->m = mp;
+	runtime·writebarrierptr_nostore(&mp->gsignal->m, mp->gsignal->m);
 }
 
 // Called to initialize a new m (including the bootstrap m).

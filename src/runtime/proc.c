@@ -876,7 +876,9 @@ runtime·allocm(P *p)
 		mp->g0 = runtime·malg(-1);
 	else
 		mp->g0 = runtime·malg(8192);
+	runtime·writebarrierptr_nostore(&mp->g0, mp->g0);
 	mp->g0->m = mp;
+	runtime·writebarrierptr_nostore(&mp->g0->m, mp->g0->m);
 
 	if(p == g->m->p)
 		releasep();

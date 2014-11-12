@@ -29,8 +29,7 @@
 //       Preempted goroutines are scanned before P schedules next goroutine.
 //  3. Set phase = GCmark.
 //  4. Wait for all P's to acknowledge phase change.
-//  5. Now write barrier marks and enqueues black or grey to white pointers. If a pointer is
-//       stored into a white slot, such pointer is not marked.
+//  5. Now write barrier marks and enqueues black, grey, or white to white pointers.
 //       Malloc still allocates white (non-marked) objects.
 //  6. Meanwhile GC transitively walks the heap marking reachable objects.
 //  7. When GC finishes marking heap, it preempts P's one-by-one and
@@ -446,7 +445,25 @@ greyobject(byte *obj, Markbits *mbits, Workbuf *wbuf)
 
 	if(checkmark) {
 		if(!ismarked(mbits)) {
+			MSpan *s;
+			pageID k;
+			uintptr x, i;
+
 			runtime·printf("runtime:greyobject: checkmarks finds unexpected unmarked object obj=%p, mbits->bits=%x, *mbits->bitp=%x\n", obj, mbits->bits, *mbits->bitp);
+
+			k = (uintptr)obj>>PageShift;
+			x = k;
+			x -= (uintptr)runtime·mheap.arena_start>>PageShift;
+			s = runtime·mheap.spans[x];
+			runtime·printf("runtime:greyobject Span: obj=%p, k=%p", obj, k);
+			if (s == nil) {
+				runtime·printf(" s=nil\n");
+			} else {
+				runtime·printf(" s->start=%p s->limit=%p, s->state=%d, s->sizeclass=%d, s->elemsize=%D \n", s->start*PageSize, s->limit, s->state, s->sizeclass, s->elemsize);
+				for(i=0; i<s->sizeclass; i++) {
+					runtime·printf(" ((uintptr*)obj)[%D]=%p\n", i, ((uintptr*)obj)[i]);
+				}
+			}
 			runtime·throw("checkmark found unmarked object");
 		}
 		if(ischeckmarked(mbits))
