@@ -96,13 +96,13 @@ type rtprio struct {
 }
 
 type thrparam struct {
-	start_func unsafe.Pointer
-	arg        *byte
-	stack_base *uint8
-	stack_size uint32
-	tls_base   *uint8
-	tls_size   uint32
-	child_tid  *int32
+	start_func uintptr
+	arg        unsafe.Pointer
+	stack_base uintptr
+	stack_size uintptr
+	tls_base   unsafe.Pointer
+	tls_size   uintptr
+	child_tid  unsafe.Pointer // *int32
 	parent_tid *int32
 	flags      int32
 	rtp        *rtprio
@@ -120,8 +120,8 @@ type sigset struct {
 }
 
 type stackt struct {
-	ss_sp    *uint8
-	ss_size  uint32
+	ss_sp    uintptr
+	ss_size  uintptr
 	ss_flags int32
 }
 
@@ -132,7 +132,7 @@ type siginfo struct {
 	si_pid    int32
 	si_uid    uint32
 	si_status int32
-	si_addr   *byte
+	si_addr   uintptr
 	si_value  [4]byte
 	_reason   [32]byte
 }
@@ -157,10 +157,18 @@ type timespec struct {
 	pad_cgo_0 [4]byte
 }
 
+func (ts *timespec) set_sec(x int32) {
+	ts.tv_sec = int64(x)
+}
+
 type timeval struct {
 	tv_sec    int64
 	tv_usec   int32
 	pad_cgo_0 [4]byte
+}
+
+func (tv *timeval) set_usec(x int32) {
+	tv.tv_usec = x
 }
 
 type itimerval struct {

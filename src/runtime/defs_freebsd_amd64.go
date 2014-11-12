@@ -96,13 +96,13 @@ type rtprio struct {
 }
 
 type thrparam struct {
-	start_func unsafe.Pointer
-	arg        *byte
-	stack_base *int8
-	stack_size uint64
-	tls_base   *int8
-	tls_size   uint64
-	child_tid  *int64
+	start_func uintptr
+	arg        unsafe.Pointer
+	stack_base uintptr
+	stack_size uintptr
+	tls_base   unsafe.Pointer
+	tls_size   uintptr
+	child_tid  unsafe.Pointer // *int64
 	parent_tid *int64
 	flags      int32
 	pad_cgo_0  [4]byte
@@ -122,8 +122,8 @@ type sigset struct {
 }
 
 type stackt struct {
-	ss_sp     *int8
-	ss_size   uint64
+	ss_sp     uintptr
+	ss_size   uintptr
 	ss_flags  int32
 	pad_cgo_0 [4]byte
 }
@@ -135,50 +135,50 @@ type siginfo struct {
 	si_pid    int32
 	si_uid    uint32
 	si_status int32
-	si_addr   *byte
+	si_addr   uint64
 	si_value  [8]byte
 	_reason   [40]byte
 }
 
 type mcontext struct {
-	mc_onstack       int64
-	mc_rdi           int64
-	mc_rsi           int64
-	mc_rdx           int64
-	mc_rcx           int64
-	mc_r8            int64
-	mc_r9            int64
-	mc_rax           int64
-	mc_rbx           int64
-	mc_rbp           int64
-	mc_r10           int64
-	mc_r11           int64
-	mc_r12           int64
-	mc_r13           int64
-	mc_r14           int64
-	mc_r15           int64
+	mc_onstack       uint64
+	mc_rdi           uint64
+	mc_rsi           uint64
+	mc_rdx           uint64
+	mc_rcx           uint64
+	mc_r8            uint64
+	mc_r9            uint64
+	mc_rax           uint64
+	mc_rbx           uint64
+	mc_rbp           uint64
+	mc_r10           uint64
+	mc_r11           uint64
+	mc_r12           uint64
+	mc_r13           uint64
+	mc_r14           uint64
+	mc_r15           uint64
 	mc_trapno        uint32
 	mc_fs            uint16
 	mc_gs            uint16
-	mc_addr          int64
+	mc_addr          uint64
 	mc_flags         uint32
 	mc_es            uint16
 	mc_ds            uint16
-	mc_err           int64
-	mc_rip           int64
-	mc_cs            int64
-	mc_rflags        int64
-	mc_rsp           int64
-	mc_ss            int64
-	mc_len           int64
-	mc_fpformat      int64
-	mc_ownedfp       int64
-	mc_fpstate       [64]int64
-	mc_fsbase        int64
-	mc_gsbase        int64
-	mc_xfpustate     int64
-	mc_xfpustate_len int64
-	mc_spare         [4]int64
+	mc_err           uint64
+	mc_rip           uint64
+	mc_cs            uint64
+	mc_rflags        uint64
+	mc_rsp           uint64
+	mc_ss            uint64
+	mc_len           uint64
+	mc_fpformat      uint64
+	mc_ownedfp       uint64
+	mc_fpstate       [64]uint64
+	mc_fsbase        uint64
+	mc_gsbase        uint64
+	mc_xfpustate     uint64
+	mc_xfpustate_len uint64
+	mc_spare         [4]uint64
 }
 
 type ucontext struct {
@@ -196,9 +196,17 @@ type timespec struct {
 	tv_nsec int64
 }
 
+func (ts *timespec) set_sec(x int32) {
+	ts.tv_sec = int64(x)
+}
+
 type timeval struct {
 	tv_sec  int64
 	tv_usec int64
+}
+
+func (tv *timeval) set_usec(x int32) {
+	tv.tv_usec = int64(x)
 }
 
 type itimerval struct {
