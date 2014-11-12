@@ -15,8 +15,8 @@ import _ "unsafe" // for go:linkname
 //go:linkname _environ environ
 //go:linkname _progname __progname
 
-//go:cgo_export_static environ
-//go:cgo_export_static __progname
+//go:cgo_export_dynamic environ
+//go:cgo_export_dynamic __progname
 
 var _environ uintptr
 var _progname uintptr
