@@ -1046,6 +1046,8 @@ gins(int as, Node *f, Node *t)
 		break;
 	case AMOVD:
 	case AMOVDU:
+		if(af.type == D_CONST)
+			break;
 		w = 8;
 		break;
 	}
@@ -1275,7 +1277,6 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case OADDR:
 		naddr(n->left, a, canemitcode);
 		a->etype = tptr;
-		a->width = widthptr;
 		switch(a->type) {
 		case D_OREG:
 			a->type = D_CONST;
