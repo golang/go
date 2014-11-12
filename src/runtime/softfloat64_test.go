@@ -182,7 +182,7 @@ func hwcmp(f, g float64) (cmp int, isnan bool) {
 func testcmp(t *testing.T, f, g float64) {
 	hcmp, hisnan := hwcmp(f, g)
 	scmp, sisnan := Fcmp64(math.Float64bits(f), math.Float64bits(g))
-	if hcmp != scmp || hisnan != sisnan {
+	if int32(hcmp) != scmp || hisnan != sisnan {
 		err(t, "cmp(%g, %g) = sw %v, %v, hw %v, %v\n", f, g, scmp, sisnan, hcmp, hisnan)
 	}
 }

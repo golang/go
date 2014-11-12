@@ -55,7 +55,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 nocgo:
 	// update stackguard after _cgo_init
 	MOVW	(g_stack+stack_lo)(g), R0
-	ADD	$const_StackGuard, R0
+	ADD	$const__StackGuard, R0
 	MOVW	R0, g_stackguard0(g)
 	MOVW	R0, g_stackguard1(g)
 
@@ -202,15 +202,17 @@ TEXT runtime·switchtoM(SB),NOSPLIT,$0-0
 	RET
 
 // func onM_signalok(fn func())
-TEXT runtime·onM_signalok(SB), NOSPLIT, $-4-4
+TEXT runtime·onM_signalok(SB), NOSPLIT, $4-4
 	MOVW	g_m(g), R1
 	MOVW	m_gsignal(R1), R2
+	MOVW	fn+0(FP), R0
 	CMP	g, R2
 	B.EQ	ongsignal
-	B	runtime·onM(SB)
+	MOVW	R0, 4(R13)
+	BL	runtime·onM(SB)
+	RET
 
 ongsignal:
-	MOVW	fn+0(FP), R0
 	MOVW	R0, R7
 	MOVW	0(R0), R0
 	BL	(R0)
