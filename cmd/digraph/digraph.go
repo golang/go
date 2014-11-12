@@ -16,19 +16,26 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"sort"
-	"strings"
+	"strconv"
+	"unicode"
+	"unicode/utf8"
 )
 
 const Usage = `digraph: queries over directed graphs in text form.
 
 Graph format:
 
-  Each line contains zero or more whitespace-separated fields.
+  Each line contains zero or more words.  Words are separated by
+  unquoted whitespace; words may contain Go-style double-quoted portions,
+  allowing spaces and other characters to be expressed.
+
   Each field declares a node, and if there are more than one,
   an edge from the first to each subsequent one.
   The graph is provided on the standard input.
@@ -38,7 +45,7 @@ Graph format:
 
 	% cat clothes.txt
 	socks shoes
-	shorts pants
+	"boxer shorts" pants
 	pants belt shoes
 	shirt tie sweater
 	sweater jacket
@@ -225,9 +232,15 @@ func (g graph) sccs() []nodeset {
 func parse(rd io.Reader) (graph, error) {
 	g := make(graph)
 
+	var linenum int
 	in := bufio.NewScanner(rd)
 	for in.Scan() {
-		words := strings.Fields(in.Text())
+		linenum++
+		// Split into words, honoring double-quotes per Go spec.
+		words, err := split(in.Text())
+		if err != nil {
+			return nil, fmt.Errorf("at line %d: %v", linenum, err)
+		}
 		if len(words) > 0 {
 			g.addEdges(words[0], words[1:]...)
 		}
@@ -408,4 +421,120 @@ func digraph(cmd string, args []string) error {
 	}
 
 	return nil
+}
+
+// -- Utilities --------------------------------------------------------
+
+// split splits a line into words, which are generally separated by
+// spaces, but Go-style double-quoted string literals are also supported.
+// (This approximates the behaviour of the Bourne shell.)
+//
+//   `one "two three"` -> ["one" "two three"]
+//   `a"\n"b` -> ["a\nb"]
+//
+func split(line string) ([]string, error) {
+	var (
+		words   []string
+		inWord  bool
+		current bytes.Buffer
+	)
+
+	for len(line) > 0 {
+		r, size := utf8.DecodeRuneInString(line)
+		if unicode.IsSpace(r) {
+			if inWord {
+				words = append(words, current.String())
+				current.Reset()
+				inWord = false
+			}
+		} else if r == '"' {
+			var ok bool
+			size, ok = quotedLength(line)
+			if !ok {
+				return nil, errors.New("invalid quotation")
+			}
+			s, err := strconv.Unquote(line[:size])
+			if err != nil {
+				return nil, err
+			}
+			current.WriteString(s)
+			inWord = true
+		} else {
+			current.WriteRune(r)
+			inWord = true
+		}
+		line = line[size:]
+	}
+	if inWord {
+		words = append(words, current.String())
+	}
+	return words, nil
+}
+
+// quotedLength returns the length in bytes of the prefix of input that
+// contain a possibly-valid double-quoted Go string literal.
+//
+// On success, n is at least two (""); input[:n] may be passed to
+// strconv.Unquote to interpret its value, and input[n:] contains the
+// rest of the input.
+//
+// On failure, quotedLength returns false, and the entire input can be
+// passed to strconv.Unquote if an informative error message is desired.
+//
+// quotedLength does not and need not detect all errors, such as
+// invalid hex or octal escape sequences, since it assumes
+// strconv.Unquote will be applied to the prefix.  It guarantees only
+// that if there is a prefix of input containing a valid string literal,
+// its length is returned.
+//
+// TODO(adonovan): move this into a strconv-like utility package.
+//
+func quotedLength(input string) (n int, ok bool) {
+	var offset int
+
+	// next returns the rune at offset, or -1 on EOF.
+	// offset advances to just after that rune.
+	next := func() rune {
+		if offset < len(input) {
+			r, size := utf8.DecodeRuneInString(input[offset:])
+			offset += size
+			return r
+		}
+		return -1
+	}
+
+	if next() != '"' {
+		return // error: not a quotation
+	}
+
+	for {
+		r := next()
+		if r == '\n' || r < 0 {
+			return // error: string literal not terminated
+		}
+		if r == '"' {
+			return offset, true // success
+		}
+		if r == '\\' {
+			var skip int
+			switch next() {
+			case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '"':
+				skip = 0
+			case '0', '1', '2', '3', '4', '5', '6', '7':
+				skip = 2
+			case 'x':
+				skip = 2
+			case 'u':
+				skip = 4
+			case 'U':
+				skip = 8
+			default:
+				return // error: invalid escape
+			}
+
+			for i := 0; i < skip; i++ {
+				next()
+			}
+		}
+	}
 }
