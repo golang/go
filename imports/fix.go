@@ -239,11 +239,9 @@ func loadPkg(wg *sync.WaitGroup, root, pkgrelpath string) {
 	// then the calls to importPathToName below can be expensive.
 	hasGo := false
 	for _, child := range children {
+		// Avoid .foo, _foo, and testdata directory trees.
 		name := child.Name()
-		if name == "" {
-			continue
-		}
-		if c := name[0]; c == '.' || ('0' <= c && c <= '9') {
+		if name == "" || name[0] == '.' || name[0] == '_' || name == "testdata" {
 			continue
 		}
 		if strings.HasSuffix(name, ".go") {
