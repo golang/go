@@ -174,7 +174,7 @@ func mHeap_Reclaim(h *mheap, npage uintptr) {
 func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan {
 	_g_ := getg()
 	if _g_ != _g_.m.g0 {
-		gothrow("_mheap_alloc not on M stack")
+		gothrow("_mheap_alloc not on g0 stack")
 	}
 	lock(&h.lock)
 
@@ -226,7 +226,7 @@ func mHeap_Alloc(h *mheap, npage uintptr, sizeclass int32, large bool, needzero 
 	// It might trigger stack growth, and the stack growth code needs
 	// to be able to allocate heap.
 	var s *mspan
-	onM(func() {
+	systemstack(func() {
 		s = mHeap_Alloc_m(h, npage, sizeclass, large)
 	})
 
@@ -242,7 +242,7 @@ func mHeap_Alloc(h *mheap, npage uintptr, sizeclass int32, large bool, needzero 
 func mHeap_AllocStack(h *mheap, npage uintptr) *mspan {
 	_g_ := getg()
 	if _g_ != _g_.m.g0 {
-		gothrow("mheap_allocstack not on M stack")
+		gothrow("mheap_allocstack not on g0 stack")
 	}
 	lock(&h.lock)
 	s := mHeap_AllocSpanLocked(h, npage)
@@ -428,7 +428,7 @@ func mHeap_LookupMaybe(h *mheap, v unsafe.Pointer) *mspan {
 
 // Free the span back into the heap.
 func mHeap_Free(h *mheap, s *mspan, acct int32) {
-	onM(func() {
+	systemstack(func() {
 		mp := getg().m
 		lock(&h.lock)
 		memstats.heap_alloc += uint64(mp.mcache.local_cachealloc)
@@ -447,7 +447,7 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
 func mHeap_FreeStack(h *mheap, s *mspan) {
 	_g_ := getg()
 	if _g_ != _g_.m.g0 {
-		gothrow("mheap_freestack not on M stack")
+		gothrow("mheap_freestack not on g0 stack")
 	}
 	s.needzero = 1
 	lock(&h.lock)

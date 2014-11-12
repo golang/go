@@ -362,7 +362,7 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 //go:nosplit
 func casgstatus(gp *g, oldval, newval uint32) {
 	if (oldval&_Gscan != 0) || (newval&_Gscan != 0) || oldval == newval {
-		onM(func() {
+		systemstack(func() {
 			print("casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
 			gothrow("casgstatus: bad incoming values")
 		})
@@ -374,7 +374,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		// Help GC if needed.
 		if gp.preemptscan && !gp.gcworkdone && (oldval == _Grunning || oldval == _Gsyscall) {
 			gp.preemptscan = false
-			onM(func() {
+			systemstack(func() {
 				gcphasework(gp)
 			})
 		}
@@ -1573,8 +1573,8 @@ func save(pc, sp uintptr) {
 // because we do not know which of the uintptr arguments are
 // really pointers (back into the stack).
 // In practice, this means that we make the fast path run through
-// entersyscall doing no-split things, and the slow path has to use onM
-// to run bigger things on the m stack.
+// entersyscall doing no-split things, and the slow path has to use systemstack
+// to run bigger things on the system stack.
 //
 // reentersyscall is the entry point used by cgo callbacks, where explicitly
 // saved SP and PC are restored. This is needed when exitsyscall will be called
@@ -1602,11 +1602,11 @@ func reentersyscall(pc, sp uintptr) {
 	_g_.syscallpc = pc
 	casgstatus(_g_, _Grunning, _Gsyscall)
 	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
-		onM(entersyscall_bad)
+		systemstack(entersyscall_bad)
 	}
 
 	if atomicload(&sched.sysmonwait) != 0 { // TODO: fast atomic
-		onM(entersyscall_sysmon)
+		systemstack(entersyscall_sysmon)
 		save(pc, sp)
 	}
 
@@ -1614,7 +1614,7 @@ func reentersyscall(pc, sp uintptr) {
 	_g_.m.p.m = nil
 	atomicstore(&_g_.m.p.status, _Psyscall)
 	if sched.gcwaiting != 0 {
-		onM(entersyscall_gcwait)
+		systemstack(entersyscall_gcwait)
 		save(pc, sp)
 	}
 
@@ -1674,10 +1674,10 @@ func entersyscallblock(dummy int32) {
 	_g_.syscallpc = _g_.sched.pc
 	casgstatus(_g_, _Grunning, _Gsyscall)
 	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
-		onM(entersyscall_bad)
+		systemstack(entersyscall_bad)
 	}
 
-	onM(entersyscallblock_handoff)
+	systemstack(entersyscallblock_handoff)
 
 	// Resave for traceback during blocked call.
 	save(getcallerpc(unsafe.Pointer(&dummy)), getcallersp(unsafe.Pointer(&dummy)))
@@ -1768,18 +1768,18 @@ func exitsyscallfast() bool {
 	// Try to get any other idle P.
 	_g_.m.p = nil
 	if sched.pidle != nil {
-		onM(exitsyscallfast_pidle)
-		if _g_.m.scalararg[0] != 0 {
-			_g_.m.scalararg[0] = 0
+		var ok bool
+		systemstack(func() {
+			ok = exitsyscallfast_pidle()
+		})
+		if ok {
 			return true
 		}
 	}
 	return false
 }
 
-func exitsyscallfast_pidle() {
-	_g_ := getg()
-
+func exitsyscallfast_pidle() bool {
 	lock(&sched.lock)
 	_p_ := pidleget()
 	if _p_ != nil && atomicload(&sched.sysmonwait) != 0 {
@@ -1789,10 +1789,9 @@ func exitsyscallfast_pidle() {
 	unlock(&sched.lock)
 	if _p_ != nil {
 		acquirep(_p_)
-		_g_.m.scalararg[0] = 1
-	} else {
-		_g_.m.scalararg[0] = 0
+		return true
 	}
+	return false
 }
 
 // exitsyscall slow path on g0.
@@ -1844,7 +1843,7 @@ func beforefork() {
 // Called from syscall package before fork.
 //go:nosplit
 func syscall_BeforeFork() {
-	onM(beforefork)
+	systemstack(beforefork)
 }
 
 func afterfork() {
@@ -1863,7 +1862,7 @@ func afterfork() {
 // Called from syscall package after fork in parent.
 //go:nosplit
 func syscall_AfterFork() {
-	onM(afterfork)
+	systemstack(afterfork)
 }
 
 // Allocate a new g, with a stack big enough for stacksize bytes.
@@ -1871,7 +1870,7 @@ func malg(stacksize int32) *g {
 	newg := allocg()
 	if stacksize >= 0 {
 		stacksize = round2(_StackSystem + stacksize)
-		onM(func() {
+		systemstack(func() {
 			newg.stack = stackalloc(uint32(stacksize))
 		})
 		newg.stackguard0 = newg.stack.lo + _StackGuard
@@ -1894,7 +1893,7 @@ func newproc(siz int32, fn *funcval) {
 	}
 
 	pc := getcallerpc(unsafe.Pointer(&siz))
-	onM(func() {
+	systemstack(func() {
 		newproc1(fn, (*uint8)(argp), siz, 0, pc)
 	})
 }
@@ -2037,7 +2036,7 @@ retry:
 		_p_.gfreecnt--
 		if gp.stack.lo == 0 {
 			// Stack was deallocated in gfput.  Allocate a new one.
-			onM(func() {
+			systemstack(func() {
 				gp.stack = stackalloc(_FixedStack)
 			})
 			gp.stackguard0 = gp.stack.lo + _StackGuard
@@ -2121,7 +2120,7 @@ func UnlockOSThread() {
 func unlockOSThread() {
 	_g_ := getg()
 	if _g_.m.locked < _LockInternal {
-		onM(badunlockosthread)
+		systemstack(badunlockosthread)
 	}
 	_g_.m.locked -= _LockInternal
 	dounlockOSThread()
@@ -2307,12 +2306,7 @@ func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
 }
 
 // Arrange to call fn with a traceback hz times a second.
-func setcpuprofilerate_m() {
-	_g_ := getg()
-
-	hz := int32(_g_.m.scalararg[0])
-	_g_.m.scalararg[0] = 0
-
+func setcpuprofilerate_m(hz int32) {
 	// Force sane arguments.
 	if hz < 0 {
 		hz = 0
@@ -2320,6 +2314,7 @@ func setcpuprofilerate_m() {
 
 	// Disable preemption, otherwise we can be rescheduled to another thread
 	// that has profiling enabled.
+	_g_ := getg()
 	_g_.m.locks++
 
 	// Stop profiler on this thread so that it is safe to lock prof.

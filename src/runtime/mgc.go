@@ -1058,7 +1058,7 @@ func sweepone() uintptr {
 
 func gosweepone() uintptr {
 	var ret uintptr
-	onM(func() {
+	systemstack(func() {
 		ret = sweepone()
 	})
 	return ret
@@ -1152,7 +1152,7 @@ func updatememstats(stats *gcstats) {
 	}
 
 	// Flush MCache's to MCentral.
-	onM(flushallmcaches)
+	systemstack(flushallmcaches)
 
 	// Aggregate local stats.
 	cachestats()
@@ -1193,13 +1193,6 @@ func updatememstats(stats *gcstats) {
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }
 
-// Structure of arguments passed to function gc().
-// This allows the arguments to be passed via mcall.
-type gc_args struct {
-	start_time int64 // start time of GC in ns (just before stoptheworld)
-	eagersweep bool
-}
-
 func gcinit() {
 	if unsafe.Sizeof(workbuf{}) != _WorkbufSize {
 		gothrow("runtime: size of Workbuf is suboptimal")
@@ -1211,21 +1204,18 @@ func gcinit() {
 	gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcbss)), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)))
 }
 
-func gc_m() {
+func gc_m(start_time int64, eagersweep bool) {
 	_g_ := getg()
 	gp := _g_.m.curg
 	casgstatus(gp, _Grunning, _Gwaiting)
 	gp.waitreason = "garbage collection"
 
-	var a gc_args
-	a.start_time = int64(_g_.m.scalararg[0]) | int64(uintptr(_g_.m.scalararg[1]))<<32
-	a.eagersweep = _g_.m.scalararg[2] != 0
-	gc(&a)
+	gc(start_time, eagersweep)
 
 	if nbadblock > 0 {
 		// Work out path from root to bad block.
 		for {
-			gc(&a)
+			gc(start_time, eagersweep)
 			if nbadblock >= int32(len(badblock)) {
 				gothrow("cannot find path to bad pointer")
 			}
@@ -1235,7 +1225,7 @@ func gc_m() {
 	casgstatus(gp, _Gwaiting, _Grunning)
 }
 
-func gc(args *gc_args) {
+func gc(start_time int64, eagersweep bool) {
 	if _DebugGCPtrs {
 		print("GC start\n")
 	}
@@ -1246,8 +1236,8 @@ func gc(args *gc_args) {
 
 	_g_ := getg()
 	_g_.m.traceback = 2
-	t0 := args.start_time
-	work.tstart = args.start_time
+	t0 := start_time
+	work.tstart = start_time
 
 	var t1 int64
 	if debug.gctrace > 0 {
@@ -1367,7 +1357,7 @@ func gc(args *gc_args) {
 	sweep.spanidx = 0
 	unlock(&mheap_.lock)
 
-	if _ConcurrentSweep && !args.eagersweep {
+	if _ConcurrentSweep && !eagersweep {
 		lock(&gclock)
 		if !sweep.started {
 			go bgsweep()
@@ -1394,11 +1384,7 @@ func gc(args *gc_args) {
 	}
 }
 
-func readmemstats_m() {
-	_g_ := getg()
-	stats := (*mstats)(_g_.m.ptrarg[0])
-	_g_.m.ptrarg[0] = nil
-
+func readmemstats_m(stats *MemStats) {
 	updatememstats(nil)
 
 	// Size of the trailing by_size array differs between Go and C,
@@ -1406,14 +1392,14 @@ func readmemstats_m() {
 	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
 
 	// Stack numbers are part of the heap numbers, separate those out for user consumption
-	stats.stacks_sys = stats.stacks_inuse
-	stats.heap_inuse -= stats.stacks_inuse
-	stats.heap_sys -= stats.stacks_inuse
+	stats.StackSys = stats.StackInuse
+	stats.HeapInuse -= stats.StackInuse
+	stats.HeapSys -= stats.StackInuse
 }
 
 //go:linkname readGCStats runtime/debug.readGCStats
 func readGCStats(pauses *[]uint64) {
-	onM(func() {
+	systemstack(func() {
 		readGCStats_m(pauses)
 	})
 }
@@ -1578,16 +1564,7 @@ func unrollglobgcprog(prog *byte, size uintptr) bitvector {
 	return bitvector{int32(masksize * 8), &mask[0]}
 }
 
-func unrollgcproginplace_m() {
-	_g_ := getg()
-
-	v := _g_.m.ptrarg[0]
-	typ := (*_type)(_g_.m.ptrarg[1])
-	size := _g_.m.scalararg[0]
-	size0 := _g_.m.scalararg[1]
-	_g_.m.ptrarg[0] = nil
-	_g_.m.ptrarg[1] = nil
-
+func unrollgcproginplace_m(v unsafe.Pointer, typ *_type, size, size0 uintptr) {
 	pos := uintptr(0)
 	prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
 	for pos != size0 {
@@ -1613,12 +1590,7 @@ func unrollgcproginplace_m() {
 var unroll mutex
 
 // Unrolls GC program in typ.gc[1] into typ.gc[0]
-func unrollgcprog_m() {
-	_g_ := getg()
-
-	typ := (*_type)(_g_.m.ptrarg[0])
-	_g_.m.ptrarg[0] = nil
-
+func unrollgcprog_m(typ *_type) {
 	lock(&unroll)
 	mask := (*byte)(unsafe.Pointer(uintptr(typ.gc[0])))
 	if *mask == 0 {

@@ -57,7 +57,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	// This function must be atomic wrt GC, but for performance reasons
 	// we don't acquirem/releasem on fast path. The code below does not have
 	// split stack checks, so it can't be preempted by GC.
-	// Functions like roundup/add are inlined. And onM/racemalloc are nosplit.
+	// Functions like roundup/add are inlined. And systemstack/racemalloc are nosplit.
 	// If debugMalloc = true, these assumptions are checked below.
 	if debugMalloc {
 		mp := acquirem()
@@ -143,7 +143,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			s = c.alloc[tinySizeClass]
 			v := s.freelist
 			if v == nil {
-				onM(func() {
+				systemstack(func() {
 					mCache_Refill(c, tinySizeClass)
 				})
 				s = c.alloc[tinySizeClass]
@@ -173,7 +173,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			s = c.alloc[sizeclass]
 			v := s.freelist
 			if v == nil {
-				onM(func() {
+				systemstack(func() {
 					mCache_Refill(c, int32(sizeclass))
 				})
 				s = c.alloc[sizeclass]
@@ -193,7 +193,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		c.local_cachealloc += intptr(size)
 	} else {
 		var s *mspan
-		onM(func() {
+		systemstack(func() {
 			s = largeAlloc(size, uint32(flags))
 		})
 		x = unsafe.Pointer(uintptr(s.start << pageShift))
@@ -247,22 +247,17 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 				// into the GC bitmap. It's 7 times slower than copying
 				// from the pre-unrolled mask, but saves 1/16 of type size
 				// memory for the mask.
-				mp := acquirem()
-				mp.ptrarg[0] = x
-				mp.ptrarg[1] = unsafe.Pointer(typ)
-				mp.scalararg[0] = uintptr(size)
-				mp.scalararg[1] = uintptr(size0)
-				onM(unrollgcproginplace_m)
-				releasem(mp)
+				systemstack(func() {
+					unrollgcproginplace_m(x, typ, size, size0)
+				})
 				goto marked
 			}
 			ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
 			// Check whether the program is already unrolled.
 			if uintptr(atomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
-				mp := acquirem()
-				mp.ptrarg[0] = unsafe.Pointer(typ)
-				onM(unrollgcprog_m)
-				releasem(mp)
+				systemstack(func() {
+					unrollgcprog_m(typ)
+				})
 			}
 			ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
 		} else {
@@ -434,7 +429,7 @@ func gogc(force int32) {
 	mp = acquirem()
 	mp.gcing = 1
 	releasem(mp)
-	onM(stoptheworld)
+	systemstack(stoptheworld)
 	if mp != acquirem() {
 		gothrow("gogc: rescheduled")
 	}
@@ -455,20 +450,16 @@ func gogc(force int32) {
 			startTime = nanotime()
 		}
 		// switch to g0, call gc, then switch back
-		mp.scalararg[0] = uintptr(uint32(startTime)) // low 32 bits
-		mp.scalararg[1] = uintptr(startTime >> 32)   // high 32 bits
-		if force >= 2 {
-			mp.scalararg[2] = 1 // eagersweep
-		} else {
-			mp.scalararg[2] = 0
-		}
-		onM(gc_m)
+		eagersweep := force >= 2
+		systemstack(func() {
+			gc_m(startTime, eagersweep)
+		})
 	}
 
 	// all done
 	mp.gcing = 0
 	semrelease(&worldsema)
-	onM(starttheworld)
+	systemstack(starttheworld)
 	releasem(mp)
 	mp = nil
 
@@ -580,8 +571,8 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	f := (*eface)(unsafe.Pointer(&finalizer))
 	ftyp := f._type
 	if ftyp == nil {
-		// switch to M stack and remove finalizer
-		onM(func() {
+		// switch to system stack and remove finalizer
+		systemstack(func() {
 			removefinalizer(e.data)
 		})
 		return
@@ -628,7 +619,7 @@ okarg:
 	// make sure we have a finalizer goroutine
 	createfing()
 
-	onM(func() {
+	systemstack(func() {
 		if !addfinalizer(e.data, (*funcval)(f.data), nret, fint, ot) {
 			gothrow("runtime.SetFinalizer: finalizer already set")
 		}

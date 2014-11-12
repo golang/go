@@ -24,7 +24,7 @@ func semawakeup(mp *m) {
 //go:nosplit
 func semacreate() uintptr {
 	var x uintptr
-	onM(func() {
+	systemstack(func() {
 		x = uintptr(mach_semcreate())
 	})
 	return x
@@ -349,7 +349,7 @@ func semasleep1(ns int64) int32 {
 //go:nosplit
 func semasleep(ns int64) int32 {
 	var r int32
-	onM(func() {
+	systemstack(func() {
 		r = semasleep1(ns)
 	})
 	return r
@@ -368,9 +368,9 @@ func mach_semrelease(sem uint32) {
 
 		// mach_semrelease must be completely nosplit,
 		// because it is called from Go code.
-		// If we're going to die, start that process on the m stack
+		// If we're going to die, start that process on the system stack
 		// to avoid a Go stack split.
-		onM_signalok(func() { macherror(r, "semaphore_signal") })
+		systemstack(func() { macherror(r, "semaphore_signal") })
 	}
 }
 

@@ -59,21 +59,21 @@ func parforiters_m()
 
 func NewParFor(nthrmax uint32) *ParFor {
 	var desc *ParFor
-	onM(func() {
+	systemstack(func() {
 		desc = (*ParFor)(unsafe.Pointer(parforalloc(nthrmax)))
 	})
 	return desc
 }
 
 func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32)) {
-	onM(func() {
+	systemstack(func() {
 		parforsetup((*parfor)(unsafe.Pointer(desc)), nthr, n, unsafe.Pointer(ctx), wait,
 			*(*func(*parfor, uint32))(unsafe.Pointer(&body)))
 	})
 }
 
 func ParForDo(desc *ParFor) {
-	onM(func() {
+	systemstack(func() {
 		parfordo((*parfor)(unsafe.Pointer(desc)))
 	})
 }
@@ -87,7 +87,7 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
 func GCMask(x interface{}) (ret []byte) {
 	e := (*eface)(unsafe.Pointer(&x))
 	s := (*slice)(unsafe.Pointer(&ret))
-	onM(func() {
+	systemstack(func() {
 		var len uintptr
 		getgcmask(e.data, e._type, &s.array, &len)
 		s.len = uint(len)
@@ -97,10 +97,10 @@ func GCMask(x interface{}) (ret []byte) {
 }
 
 func RunSchedLocalQueueTest() {
-	onM(testSchedLocalQueue)
+	systemstack(testSchedLocalQueue)
 }
 func RunSchedLocalQueueStealTest() {
-	onM(testSchedLocalQueueSteal)
+	systemstack(testSchedLocalQueueSteal)
 }
 
 var HaveGoodHash = haveGoodHash
@@ -121,7 +121,7 @@ func GogoBytes() int32 {
 
 // entry point for testing
 func GostringW(w []uint16) (s string) {
-	onM(func() {
+	systemstack(func() {
 		s = gostringw(&w[0])
 	})
 	return

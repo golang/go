@@ -418,8 +418,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	if stackDebug >= 2 {
 		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
 	}
-	if f.entry == switchtoMPC {
-		// A special routine at the bottom of stack of a goroutine that does an onM call.
+	if f.entry == systemstack_switchPC {
+		// A special routine at the bottom of stack of a goroutine that does an systemstack call.
 		// We will allow it to be copied even though we don't
 		// have full GC info for it (because it is written in asm).
 		return true
@@ -801,7 +801,7 @@ func shrinkfinish() {
 
 //go:nosplit
 func morestackc() {
-	onM(func() {
+	systemstack(func() {
 		gothrow("attempt to execute C code on Go stack")
 	})
 }

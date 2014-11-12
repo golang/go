@@ -27,7 +27,7 @@ func main() {
 		maxstacksize = 250000000
 	}
 
-	onM(newsysmon)
+	systemstack(newsysmon)
 
 	// Lock the main goroutine onto this, the main OS thread,
 	// during initialization.  Most programs won't care, but a few
@@ -151,7 +151,7 @@ func goparkunlock(lock *mutex, reason string) {
 }
 
 func goready(gp *g) {
-	onM(func() {
+	systemstack(func() {
 		ready(gp)
 	})
 }

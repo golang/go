@@ -139,7 +139,7 @@ func signal_enable(s uint32) {
 		return
 	}
 	sig.wanted[s/32] |= 1 << (s & 31)
-	sigenable_go(s)
+	sigenable(s)
 }
 
 // Must only be called from a single goroutine at a time.
@@ -148,23 +148,11 @@ func signal_disable(s uint32) {
 		return
 	}
 	sig.wanted[s/32] &^= 1 << (s & 31)
-	sigdisable_go(s)
+	sigdisable(s)
 }
 
 // This runs on a foreign stack, without an m or a g.  No stack split.
 //go:nosplit
 func badsignal(sig uintptr) {
 	cgocallback(unsafe.Pointer(funcPC(sigsend)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
-}
-
-func sigenable_go(s uint32) {
-	g := getg()
-	g.m.scalararg[0] = uintptr(s)
-	onM(sigenable_m)
-}
-
-func sigdisable_go(s uint32) {
-	g := getg()
-	g.m.scalararg[0] = uintptr(s)
-	onM(sigdisable_m)
 }

@@ -121,8 +121,8 @@ func (f *Func) Entry() uintptr {
 func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	// Pass strict=false here, because anyone can call this function,
 	// and they might just be wrong about targetpc belonging to f.
-	line = int(funcline1(f.raw(), pc, &file, false))
-	return file, line
+	file, line32 := funcline1(f.raw(), pc, false)
+	return file, int(line32)
 }
 
 func findfunc(pc uintptr) *_func {
@@ -207,20 +207,19 @@ func gofuncname(f *_func) string {
 	return gostringnocopy(funcname(f))
 }
 
-func funcline1(f *_func, targetpc uintptr, file *string, strict bool) int32 {
-	*file = "?"
+func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32) {
 	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
-	line := pcvalue(f, f.pcln, targetpc, strict)
+	line = pcvalue(f, f.pcln, targetpc, strict)
 	if fileno == -1 || line == -1 || fileno >= len(filetab) {
 		// print("looking for ", hex(targetpc), " in ", gofuncname(f), " got file=", fileno, " line=", lineno, "\n")
-		return 0
+		return "?", 0
 	}
-	*file = gostringnocopy(&pclntable[filetab[fileno]])
-	return line
+	file = gostringnocopy(&pclntable[filetab[fileno]])
+	return
 }
 
-func funcline(f *_func, targetpc uintptr, file *string) int32 {
-	return funcline1(f, targetpc, file, true)
+func funcline(f *_func, targetpc uintptr) (file string, line int32) {
+	return funcline1(f, targetpc, true)
 }
 
 func funcspdelta(f *_func, targetpc uintptr) int32 {
