@@ -6,7 +6,7 @@
 
 package cgo
 
-import _ "unsafe"
+import _ "unsafe" // for go:linkname
 
 // Supply environ, __progname and __guard_local, because
 // we don't link against the standard OpenBSD crt0.o and
