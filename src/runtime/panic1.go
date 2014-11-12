@@ -94,20 +94,13 @@ func startpanic_m() {
 var didothers bool
 var deadlock mutex
 
-func dopanic_m() {
-	_g_ := getg()
-
-	gp := (*g)(_g_.m.ptrarg[0])
-	_g_.m.ptrarg[0] = nil
-	pc := uintptr(_g_.m.scalararg[0])
-	sp := uintptr(_g_.m.scalararg[1])
-	_g_.m.scalararg[1] = 0
-
+func dopanic_m(gp *g, pc, sp uintptr) {
 	if gp.sig != 0 {
 		print("[signal ", hex(gp.sig), " code=", hex(gp.sigcode0), " addr=", hex(gp.sigcode1), " pc=", hex(gp.sigpc), "]\n")
 	}
 
 	var docrash bool
+	_g_ := getg()
 	if t := gotraceback(&docrash); t > 0 {
 		if gp != gp.m.g0 {
 			print("\n")

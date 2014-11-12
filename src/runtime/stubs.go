@@ -38,56 +38,28 @@ func getg() *g
 //go:noescape
 func mcall(fn func(*g))
 
-// onM switches from the g to the g0 stack and invokes fn().
-// When fn returns, onM switches back to the g and returns,
-// continuing execution on the g stack.
-// If arguments must be passed to fn, they can be written to
-// g->m->ptrarg (pointers) and g->m->scalararg (non-pointers)
-// before the call and then consulted during fn.
-// Similarly, fn can pass return values back in those locations.
-// If fn is written in Go, it can be a closure, which avoids the need for
-// ptrarg and scalararg entirely.
-// After reading values out of ptrarg and scalararg it is conventional
-// to zero them to avoid (memory or information) leaks.
+// systemstack runs fn on a system stack.
+// If systemstack is called from the per-OS-thread (g0) stack, or
+// if systemstack is called from the signal handling (gsignal) stack,
+// systemstack calls fn directly and returns.
+// Otherwise, systemstack is being called from the limited stack
+// of an ordinary goroutine. In this case, systemstack switches
+// to the per-OS-thread stack, calls fn, and switches back.
+// It is common to use a func literal as the argument, in order
+// to share inputs and outputs with the code around the call
+// to system stack:
 //
-// If onM is called from a g0 stack, it invokes fn and returns,
-// without any stack switches.
-//
-// If onM is called from a gsignal stack, it crashes the program.
-// The implication is that functions used in signal handlers must
-// not use onM.
-//
-// NOTE(rsc): We could introduce a separate onMsignal that is
-// like onM but if called from a gsignal stack would just run fn on
-// that stack. The caller of onMsignal would be required to save the
-// old values of ptrarg/scalararg and restore them when the call
-// was finished, in case the signal interrupted an onM sequence
-// in progress on the g or g0 stacks. Until there is a clear need for this,
-// we just reject onM in signal handling contexts entirely.
+//	... set up y ...
+//	systemstack(func() {
+//		x = bigcall(y)
+//	})
+//	... use x ...
 //
 //go:noescape
-func onM(fn func())
+func systemstack(fn func())
 
-// onMsignal is like onM but is allowed to be used in code that
-// might run on the gsignal stack. Code running on a signal stack
-// may be interrupting an onM sequence on the main stack, so
-// if the onMsignal calling sequence writes to ptrarg/scalararg,
-// it must first save the old values and then restore them when
-// finished. As an exception to the rule, it is fine not to save and
-// restore the values if the program is trying to crash rather than
-// return from the signal handler.
-// Once all the runtime is written in Go, there will be no ptrarg/scalararg
-// and the distinction between onM and onMsignal (and perhaps mcall)
-// can go away.
-//
-// If onMsignal is called from a gsignal stack, it invokes fn directly,
-// without a stack switch. Otherwise onMsignal behaves like onM.
-//
-//go:noescape
-func onM_signalok(fn func())
-
-func badonm() {
-	gothrow("onM called from signal goroutine")
+func badsystemstack() {
+	gothrow("systemstack called from unexpected goroutine")
 }
 
 // memclr clears n bytes starting at ptr.
@@ -272,4 +244,4 @@ func call268435456(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call536870912(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call1073741824(fn, arg unsafe.Pointer, n, retoffset uint32)
 
-func switchtoM()
+func systemstack_switch()

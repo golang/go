@@ -35,7 +35,7 @@ func allocmcache() *mcache {
 }
 
 func freemcache(c *mcache) {
-	onM(func() {
+	systemstack(func() {
 		mCache_ReleaseAll(c)
 		stackcache_clear(c)
 		gcworkbuffree(c.gcworkbuf)

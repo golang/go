@@ -245,8 +245,6 @@ type m struct {
 	traceback     uint8
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
 	waitlock      unsafe.Pointer
-	scalararg     [4]uintptr        // scalar argument/return for mcall
-	ptrarg        [4]unsafe.Pointer // pointer argument/return for mcall
 	//#ifdef GOOS_windows
 	thread uintptr // thread handle
 	// these are here because they are too large to be on the stack

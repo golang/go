@@ -28,7 +28,7 @@ func gc_unixnanotime(now *int64) {
 
 func freeOSMemory() {
 	gogc(2) // force GC and do eager sweep
-	onM(scavenge_m)
+	systemstack(scavenge_m)
 }
 
 var poolcleanup func()

@@ -55,8 +55,8 @@ func throwinit() {
 //go:nosplit
 func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	if getg().m.curg != getg() {
-		// go code on the m stack can't defer
-		gothrow("defer on m")
+		// go code on the system stack can't defer
+		gothrow("defer on system stack")
 	}
 
 	// the arguments of fn are in a perilous state.  The stack map
@@ -71,7 +71,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	}
 	callerpc := getcallerpc(unsafe.Pointer(&siz))
 
-	onM(func() {
+	systemstack(func() {
 		d := newdefer(siz)
 		if d._panic != nil {
 			gothrow("deferproc: d.panic != nil after newdefer")
@@ -322,7 +322,7 @@ func gopanic(e interface{}) {
 		print("panic: ")
 		printany(e)
 		print("\n")
-		gothrow("panic on m stack")
+		gothrow("panic on system stack")
 	}
 
 	// m.softfloat is set during software floating point.
@@ -470,17 +470,17 @@ func gorecover(argp uintptr) interface{} {
 
 //go:nosplit
 func startpanic() {
-	onM_signalok(startpanic_m)
+	systemstack(startpanic_m)
 }
 
 //go:nosplit
 func dopanic(unused int) {
+	pc := getcallerpc(unsafe.Pointer(&unused))
+	sp := getcallersp(unsafe.Pointer(&unused))
 	gp := getg()
-	mp := acquirem()
-	mp.ptrarg[0] = unsafe.Pointer(gp)
-	mp.scalararg[0] = getcallerpc((unsafe.Pointer)(&unused))
-	mp.scalararg[1] = getcallersp((unsafe.Pointer)(&unused))
-	onM_signalok(dopanic_m) // should never return
+	systemstack(func() {
+		dopanic_m(gp, pc, sp) // should never return
+	})
 	*(*int)(nil) = 0
 }
 

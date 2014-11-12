@@ -602,8 +602,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 			if i > 0 && pc > f.entry {
 				pc--
 			}
-			var file string
-			line := funcline(f, pc, &file)
+			file, line := funcline(f, pc)
 			dumpstr(file)
 			dumpint(uint64(line))
 		}
@@ -657,11 +656,8 @@ func mdump() {
 	flush()
 }
 
-func writeheapdump_m() {
+func writeheapdump_m(fd uintptr) {
 	_g_ := getg()
-	fd := _g_.m.scalararg[0]
-	_g_.m.scalararg[0] = 0
-
 	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
 	_g_.waitreason = "dumping heap"
 

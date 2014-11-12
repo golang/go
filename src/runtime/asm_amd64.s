@@ -190,55 +190,41 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	JMP	AX
 	RET
 
-// switchtoM is a dummy routine that onM leaves at the bottom
+// systemstack_switch is a dummy routine that systemstack leaves at the bottom
 // of the G stack.  We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
-// at the top of the M stack because the one at the top of
-// the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
+// at the top of the system stack because the one at the top of
+// the system stack terminates the stack walk (see topofstack()).
+TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	RET
 
-// func onM_signalok(fn func())
-TEXT runtime·onM_signalok(SB), NOSPLIT, $0-8
+// func systemstack(fn func())
+TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+	MOVQ	fn+0(FP), DI	// DI = fn
 	get_tls(CX)
 	MOVQ	g(CX), AX	// AX = g
 	MOVQ	g_m(AX), BX	// BX = m
+
 	MOVQ	m_gsignal(BX), DX	// DX = gsignal
 	CMPQ	AX, DX
-	JEQ	ongsignal
-	JMP	runtime·onM(SB)
-
-ongsignal:
-	MOVQ	fn+0(FP), DI	// DI = fn
-	MOVQ	DI, DX
-	MOVQ	0(DI), DI
-	CALL	DI
-	RET
-
-// func onM(fn func())
-TEXT runtime·onM(SB), NOSPLIT, $0-8
-	MOVQ	fn+0(FP), DI	// DI = fn
-	get_tls(CX)
-	MOVQ	g(CX), AX	// AX = g
-	MOVQ	g_m(AX), BX	// BX = m
+	JEQ	noswitch
 
 	MOVQ	m_g0(BX), DX	// DX = g0
 	CMPQ	AX, DX
-	JEQ	onm
+	JEQ	noswitch
 
 	MOVQ	m_curg(BX), BP
 	CMPQ	AX, BP
-	JEQ	oncurg
+	JEQ	switch
 	
-	// Not g0, not curg. Must be gsignal, but that's not allowed.
-	// Hide call from linker nosplit analysis.
-	MOVQ	$runtime·badonm(SB), AX
+	// Bad: g is not gsignal, not g0, not curg. What is it?
+	MOVQ	$runtime·badsystemstack(SB), AX
 	CALL	AX
 
-oncurg:
+switch:
 	// save our state in g->sched.  Pretend to
-	// be switchtoM if the G stack is scanned.
-	MOVQ	$runtime·switchtoM(SB), BP
+	// be systemstack_switch if the G stack is scanned.
+	MOVQ	$runtime·systemstack_switch(SB), BP
 	MOVQ	BP, (g_sched+gobuf_pc)(AX)
 	MOVQ	SP, (g_sched+gobuf_sp)(AX)
 	MOVQ	AX, (g_sched+gobuf_g)(AX)
@@ -246,7 +232,7 @@ oncurg:
 	// switch to g0
 	MOVQ	DX, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(DX), BX
-	// make it look like mstart called onM on g0, to stop traceback
+	// make it look like mstart called systemstack on g0, to stop traceback
 	SUBQ	$8, BX
 	MOVQ	$runtime·mstart(SB), DX
 	MOVQ	DX, 0(BX)
@@ -267,7 +253,7 @@ oncurg:
 	MOVQ	$0, (g_sched+gobuf_sp)(AX)
 	RET
 
-onm:
+noswitch:
 	// already on m stack, just call directly
 	MOVQ	DI, DX
 	MOVQ	0(DI), DI
@@ -727,7 +713,7 @@ needm:
 	// the same SP back to m->sched.sp. That seems redundant,
 	// but if an unrecovered panic happens, unwindm will
 	// restore the g->sched.sp from the stack location
-	// and then onM will try to use it. If we don't set it here,
+	// and then systemstack will try to use it. If we don't set it here,
 	// that restored SP will be uninitialized (typically 0) and
 	// will not be usable.
 	MOVQ	m_g0(BP), SI

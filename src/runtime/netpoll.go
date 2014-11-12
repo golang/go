@@ -72,7 +72,7 @@ type pollCache struct {
 var pollcache pollCache
 
 func netpollServerInit() {
-	onM(netpollinit)
+	systemstack(netpollinit)
 }
 
 func netpollOpen(fd uintptr) (*pollDesc, int) {
@@ -94,7 +94,7 @@ func netpollOpen(fd uintptr) (*pollDesc, int) {
 	unlock(&pd.lock)
 
 	var errno int32
-	onM(func() {
+	systemstack(func() {
 		errno = netpollopen(fd, pd)
 	})
 	return pd, int(errno)
@@ -110,7 +110,7 @@ func netpollClose(pd *pollDesc) {
 	if pd.rg != 0 && pd.rg != pdReady {
 		gothrow("netpollClose: blocked read on closing descriptor")
 	}
-	onM(func() {
+	systemstack(func() {
 		netpollclose(uintptr(pd.fd))
 	})
 	pollcache.free(pd)
@@ -143,7 +143,7 @@ func netpollWait(pd *pollDesc, mode int) int {
 	}
 	// As for now only Solaris uses level-triggered IO.
 	if GOOS == "solaris" {
-		onM(func() {
+		systemstack(func() {
 			netpollarm(pd, mode)
 		})
 	}

@@ -82,15 +82,16 @@ func ReadMemStats(m *MemStats) {
 	semacquire(&worldsema, false)
 	gp := getg()
 	gp.m.gcing = 1
-	onM(stoptheworld)
+	systemstack(stoptheworld)
 
-	gp.m.ptrarg[0] = noescape(unsafe.Pointer(m))
-	onM(readmemstats_m)
+	systemstack(func() {
+		readmemstats_m(m)
+	})
 
 	gp.m.gcing = 0
 	gp.m.locks++
 	semrelease(&worldsema)
-	onM(starttheworld)
+	systemstack(starttheworld)
 	gp.m.locks--
 }
 
@@ -99,14 +100,15 @@ func writeHeapDump(fd uintptr) {
 	semacquire(&worldsema, false)
 	gp := getg()
 	gp.m.gcing = 1
-	onM(stoptheworld)
+	systemstack(stoptheworld)
 
-	gp.m.scalararg[0] = fd
-	onM(writeheapdump_m)
+	systemstack(func() {
+		writeheapdump_m(fd)
+	})
 
 	gp.m.gcing = 0
 	gp.m.locks++
 	semrelease(&worldsema)
-	onM(starttheworld)
+	systemstack(starttheworld)
 	gp.m.locks--
 }

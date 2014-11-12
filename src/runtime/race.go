@@ -80,8 +80,8 @@ func racesymbolize(ctx *symbolizeContext) {
 	}
 
 	ctx.fn = funcname(f)
-	var file string
-	ctx.line = uintptr(funcline(f, ctx.pc, &file))
+	file, line := funcline(f, ctx.pc)
+	ctx.line = uintptr(line)
 	ctx.file = &bytes(file)[0] // assume NUL-terminated
 	ctx.off = ctx.pc - f.entry
 	ctx.res = 1
