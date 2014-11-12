@@ -6,6 +6,8 @@
 
 package cgo
 
+import _ "unsafe"
+
 // Supply environ and __progname, because we don't
 // link against the standard NetBSD crt0.o and the
 // libc dynamic library needs them.
