@@ -6,6 +6,8 @@
 
 package cgo
 
+import _ "unsafe"
+
 // Supply environ, __progname and __guard_local, because
 // we don't link against the standard OpenBSD crt0.o and
 // the libc dynamic library needs them.
