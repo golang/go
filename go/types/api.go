@@ -215,8 +215,10 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 	if t, ok := info.Types[e]; ok {
 		return t.Type
 	}
-	if id, ok := e.(*ast.Ident); ok {
-		return info.ObjectOf(id).Type()
+	if id, _ := e.(*ast.Ident); id != nil {
+		if obj := info.ObjectOf(id); obj != nil {
+			return obj.Type()
+		}
 	}
 	return nil
 }
@@ -230,7 +232,7 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 // Precondition: the Uses and Defs maps are populated.
 //
 func (info *Info) ObjectOf(id *ast.Ident) Object {
-	if obj, ok := info.Defs[id]; ok {
+	if obj, _ := info.Defs[id]; obj != nil {
 		return obj
 	}
 	return info.Uses[id]
