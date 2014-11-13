@@ -1020,51 +1020,11 @@ paint1(Reg *r, int bn)
 }
 
 uint32
-regset(Reg *r, uint32 bb)
-{
-	uint32 b, set;
-	Adr v;
-	int c;
-
-	set = 0;
-	v = zprog.from;
-	while(b = bb & ~(bb-1)) {
-		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
-		if(v.type == 0)
-			fatal("zero v.type for %#ux", b);
-		c = copyu(r->f.prog, &v, nil);
-		if(c == 3)
-			set |= b;
-		bb &= ~b;
-	}
-	return set;
-}
-
-uint32
-reguse(Reg *r, uint32 bb)
-{
-	uint32 b, set;
-	Adr v;
-	int c;
-
-	set = 0;
-	v = zprog.from;
-	while(b = bb & ~(bb-1)) {
-		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
-		c = copyu(r->f.prog, &v, nil);
-		if(c == 1 || c == 2 || c == 4)
-			set |= b;
-		bb &= ~b;
-	}
-	return set;
-}
-
-uint32
 paint2(Reg *r, int bn)
 {
 	Reg *r1;
 	int z;
-	uint64 bb, vreg, x;
+	uint64 bb, vreg;
 
 	z = bn/64;
 	bb = 1LL << (bn%64);
@@ -1108,14 +1068,6 @@ paint2(Reg *r, int bn)
 			break;
 	}
 
-	bb = vreg;
-	for(; r; r=(Reg*)r->f.s1) {
-		x = r->regu & ~bb;
-		if(x) {
-			vreg |= reguse(r, x);
-			bb |= regset(r, x);
-		}
-	}
 	return vreg;
 }
 
