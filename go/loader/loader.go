@@ -297,6 +297,7 @@ func (conf *Config) fset() *token.FileSet {
 // the Config's FileSet, which is initialized if nil.
 //
 func (conf *Config) ParseFile(filename string, src interface{}) (*ast.File, error) {
+	// TODO(adonovan): use conf.build() etc like parseFiles does.
 	return parser.ParseFile(conf.fset(), filename, src, conf.ParserMode)
 }
 

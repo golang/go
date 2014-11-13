@@ -124,8 +124,8 @@ type ImplementsType struct {
 // a "what" query.
 type SyntaxNode struct {
 	Description string `json:"desc"`  // description of syntax tree
-	Start       int    `json:"start"` // start offset (0-based)
-	End         int    `json:"end"`   // end offset
+	Start       int    `json:"start"` // start byte offset, 0-based
+	End         int    `json:"end"`   // end byte offset
 }
 
 // A What is the result of the "what" query, which quickly identifies

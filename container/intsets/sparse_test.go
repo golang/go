@@ -458,6 +458,7 @@ func TestFailFastOnShallowCopy(t *testing.T) {
 // -- Benchmarks -------------------------------------------------------
 
 // TODO(adonovan):
+// - Add benchmarks of each method.
 // - Gather set distributions from pointer analysis.
 // - Measure memory usage.
 

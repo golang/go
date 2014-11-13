@@ -15,6 +15,7 @@ package intsets
 
 // TODO(adonovan):
 // - Add SymmetricDifference(x, y *Sparse), i.e. x ∆ y.
+// - Add SubsetOf (x∖y=∅) and Intersects (x∩y≠∅) predicates.
 // - Add InsertAll(...int), RemoveAll(...int)
 // - Add 'bool changed' results for {Intersection,Difference}With too.
 //
@@ -25,6 +26,9 @@ package intsets
 // TODO(adonovan): experiment with making the root block indirect (nil
 // iff IsEmpty).  This would reduce the memory usage when empty and
 // might simplify the aliasing invariants.
+//
+// TODO(adonovan): opt: make UnionWith and Difference faster.
+// These are the hot-spots for go/pointer.
 
 import (
 	"bytes"
@@ -641,7 +645,7 @@ func (s *Sparse) Difference(x, y *Sparse) {
 			if sum != 0 {
 				sb = sb.next
 			} else {
-				// sb will be overrwritten or removed
+				// sb will be overwritten or removed
 			}
 
 			yb = yb.next
@@ -707,7 +711,7 @@ func (s *Sparse) String() string {
 //
 // Examples:
 //              {}.BitString() =      "0"
-//	     {4,5}.BitString() = "110000"
+//           {4,5}.BitString() = "110000"
 //            {-3}.BitString() =      "0.001"
 //      {-3,0,4,5}.BitString() = "110001.001"
 //

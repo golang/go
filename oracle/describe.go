@@ -465,6 +465,9 @@ func (r *describeTypeResult) display(printf printfFunc) {
 		if len(r.methods) > 0 {
 			printf(r.node, "Method set:")
 			for _, meth := range r.methods {
+				// TODO(adonovan): print these relative
+				// to the owning package, not the
+				// query package.
 				printf(meth.Obj(), "\t%s", r.qpos.SelectionString(meth))
 			}
 		} else {
