@@ -7,7 +7,7 @@ package ssa_test
 // This file runs the SSA builder in sanity-checking mode on all
 // packages beneath $GOROOT and prints some summary information.
 //
-// Run test with GOMAXPROCS=8.
+// Run with "go test -cpu=8 to" set GOMAXPROCS.
 
 import (
 	"go/build"
@@ -22,9 +22,17 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
+func bytesAllocated() uint64 {
+	runtime.GC()
+	var stats runtime.MemStats
+	runtime.ReadMemStats(&stats)
+	return stats.Alloc
+}
+
 func TestStdlib(t *testing.T) {
 	// Load, parse and type-check the program.
 	t0 := time.Now()
+	alloc0 := bytesAllocated()
 
 	// Load, parse and type-check the program.
 	ctxt := build.Default // copy
@@ -44,11 +52,7 @@ func TestStdlib(t *testing.T) {
 	}
 
 	t1 := time.Now()
-
-	runtime.GC()
-	var memstats runtime.MemStats
-	runtime.ReadMemStats(&memstats)
-	alloc := memstats.Alloc
+	alloc1 := bytesAllocated()
 
 	// Create SSA packages.
 	var mode ssa.BuilderMode
@@ -63,13 +67,16 @@ func TestStdlib(t *testing.T) {
 	prog.BuildAll()
 
 	t3 := time.Now()
-
-	runtime.GC()
-	runtime.ReadMemStats(&memstats)
+	alloc3 := bytesAllocated()
 
 	numPkgs := len(prog.AllPackages())
 	if want := 140; numPkgs < want {
 		t.Errorf("Loaded only %d packages, want at least %d", numPkgs, want)
+	}
+
+	// Keep iprog reachable until after we've measured memory usage.
+	if len(iprog.AllPackages) == 0 {
+		print() // unreachable
 	}
 
 	allFuncs := ssautil.AllFunctions(prog)
@@ -118,5 +125,6 @@ func TestStdlib(t *testing.T) {
 	t.Log("#Packages:            ", numPkgs)
 	t.Log("#Functions:           ", len(allFuncs))
 	t.Log("#Instructions:        ", numInstrs)
-	t.Log("#MB:                  ", int64(memstats.Alloc-alloc)/1000000)
+	t.Log("#MB AST+types:        ", int64(alloc1-alloc0)/1e6)
+	t.Log("#MB SSA:              ", int64(alloc3-alloc1)/1e6)
 }
