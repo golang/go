@@ -96,8 +96,6 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
 func gogo(buf *gobuf)
 func gosave(buf *gobuf)
-func read(fd int32, p unsafe.Pointer, n int32) int32
-func close(fd int32) int32
 func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 
 //go:noescape
@@ -105,21 +103,12 @@ func jmpdefer(fv *funcval, argp uintptr)
 func exit1(code int32)
 func asminit()
 func setg(gg *g)
-func exit(code int32)
 func breakpoint()
-func nanotime() int64
-func usleep(usec uint32)
 
-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
-func munmap(addr unsafe.Pointer, n uintptr)
-func madvise(addr unsafe.Pointer, n uintptr, flags int32)
 func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
 func procyield(cycles uint32)
 func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
 func goexit()
-
-//go:noescape
-func write(fd uintptr, p unsafe.Pointer, n int32) int32
 
 //go:noescape
 func cas(ptr *uint32, old, new uint32) bool
@@ -194,9 +183,6 @@ func asmcgocall(fn, arg unsafe.Pointer)
 
 //go:noescape
 func asmcgocall_errno(fn, arg unsafe.Pointer) int32
-
-//go:noescape
-func open(name *byte, mode, perm int32) int32
 
 // argp used in Defer structs when there is no argp.
 const _NoArgs = ^uintptr(0)
