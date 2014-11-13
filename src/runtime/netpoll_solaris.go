@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "runtime.h"
-#include "arch_GOARCH.h"
-#include "defs_GOOS_GOARCH.h"
-#include "os_GOOS.h"
+package runtime
+
+import "unsafe"
 
 // Solaris runtime-integrated network poller.
-// 
+//
 // Solaris uses event ports for scalable network I/O. Event
 // ports are level-triggered, unlike epoll and kqueue which
 // can be configured in both level-triggered and edge-triggered
@@ -18,7 +17,7 @@
 // events for that descriptor. When doing this we must keep track of
 // what kind of events the goroutines are currently interested in,
 // for example a fd may be open both for reading and writing.
-// 
+//
 // A description of the high level operation of this code
 // follows. Networking code will get a file descriptor by some means
 // and will register it with the netpolling mechanism by a code path
@@ -29,7 +28,7 @@
 // readiness notification at some point in the future. If I/O becomes
 // ready when nobody is listening, when we finally care about it,
 // nobody will tell us anymore.
-// 
+//
 // Beside calling runtime·netpollopen, the networking code paths
 // will call runtime·netpollarm each time goroutines are interested
 // in doing network I/O. Because now we know what kind of I/O we
@@ -39,7 +38,7 @@
 // when we now call port_associate, we will unblock the main poller
 // loop (in runtime·netpoll) right away if the socket is actually
 // ready for I/O.
-// 
+//
 // The main poller loop runs in its own thread waiting for events
 // using port_getn. When an event happens, it will tell the scheduler
 // about it using runtime·netpollready. Besides doing this, it must
@@ -47,7 +46,7 @@
 // notification with the file descriptor. Failing to do this would
 // mean each notification will prevent concurrent code using the
 // same file descriptor in parallel.
-// 
+//
 // The logic dealing with re-associations is encapsulated in
 // runtime·netpollupdate. This function takes care to associate the
 // descriptor only with the subset of events that were previously
@@ -56,7 +55,7 @@
 // are level triggered so it would cause a busy loop. Instead, that
 // association is effected only by the runtime·netpollarm code path,
 // when Go code actually asks for I/O.
-// 
+//
 // The open and arming mechanisms are serialized using the lock
 // inside PollDesc. This is required because the netpoll loop runs
 // asynchonously in respect to other Go code and by the time we get
@@ -68,179 +67,157 @@
 // again we know for sure we are always talking about the same file
 // descriptor and can safely access the data we want (the event set).
 
-#pragma dynimport libc·fcntl fcntl "libc.so"
-#pragma dynimport libc·port_create port_create "libc.so"
-#pragma dynimport libc·port_associate port_associate "libc.so"
-#pragma dynimport libc·port_dissociate port_dissociate "libc.so"
-#pragma dynimport libc·port_getn port_getn "libc.so"
-extern uintptr libc·fcntl;
-extern uintptr libc·port_create;
-extern uintptr libc·port_associate;
-extern uintptr libc·port_dissociate;
-extern uintptr libc·port_getn;
+//go:cgo_import_dynamic libc_port_create port_create "libc.so"
+//go:cgo_import_dynamic libc_port_associate port_associate "libc.so"
+//go:cgo_import_dynamic libc_port_dissociate port_dissociate "libc.so"
+//go:cgo_import_dynamic libc_port_getn port_getn "libc.so"
 
-#define errno (*g->m->perrno)
+//go:linkname libc_port_create libc_port_create
+//go:linkname libc_port_associate libc_port_associate
+//go:linkname libc_port_dissociate libc_port_dissociate
+//go:linkname libc_port_getn libc_port_getn
 
-int32
-runtime·fcntl(int32 fd, int32 cmd, uintptr arg)
-{
-	return runtime·sysvicall3(libc·fcntl, (uintptr)fd, (uintptr)cmd, (uintptr)arg);
+var (
+	libc_port_create,
+	libc_port_associate,
+	libc_port_dissociate,
+	libc_port_getn libcFunc
+)
+
+func errno() int32 {
+	return *getg().m.perrno
 }
 
-int32
-runtime·port_create(void)
-{
-	return runtime·sysvicall0(libc·port_create);
+func fcntl(fd, cmd int32, arg uintptr) int32 {
+	return int32(sysvicall3(libc_fcntl, uintptr(fd), uintptr(cmd), arg))
 }
 
-int32
-runtime·port_associate(int32 port, int32 source, uintptr object, int32 events, uintptr user)
-{
-	return runtime·sysvicall5(libc·port_associate, (uintptr)port, (uintptr)source, object, (uintptr)events, user);
+func port_create() int32 {
+	return int32(sysvicall0(libc_port_create))
 }
 
-int32
-runtime·port_dissociate(int32 port, int32 source, uintptr object)
-{
-	return runtime·sysvicall3(libc·port_dissociate, (uintptr)port, (uintptr)source, object);
+func port_associate(port, source int32, object uintptr, events uint32, user uintptr) int32 {
+	return int32(sysvicall5(libc_port_associate, uintptr(port), uintptr(source), object, uintptr(events), user))
 }
 
-int32
-runtime·port_getn(int32 port, PortEvent *evs, uint32 max, uint32 *nget, Timespec *timeout)
-{
-	return runtime·sysvicall5(libc·port_getn, (uintptr)port, (uintptr)evs, (uintptr)max, (uintptr)nget, (uintptr)timeout);
+func port_dissociate(port, source int32, object uintptr) int32 {
+	return int32(sysvicall3(libc_port_dissociate, uintptr(port), uintptr(source), object))
 }
 
-static int32 portfd = -1;
+func port_getn(port int32, evs *portevent, max uint32, nget *uint32, timeout *timespec) int32 {
+	return int32(sysvicall5(libc_port_getn, uintptr(port), uintptr(unsafe.Pointer(evs)), uintptr(max), uintptr(unsafe.Pointer(nget)), uintptr(unsafe.Pointer(timeout))))
+}
 
-void
-runtime·netpollinit(void)
-{
-	if((portfd = runtime·port_create()) >= 0) {
-		runtime·fcntl(portfd, F_SETFD, FD_CLOEXEC);
-		return;
+var portfd int32 = -1
+
+func netpollinit() {
+	portfd = port_create()
+	if portfd >= 0 {
+		fcntl(portfd, _F_SETFD, _FD_CLOEXEC)
+		return
 	}
 
-	runtime·printf("netpollinit: failed to create port (%d)\n", errno);
-	runtime·throw("netpollinit: failed to create port");
+	print("netpollinit: failed to create port (", errno(), ")\n")
+	gothrow("netpollinit: failed to create port")
 }
 
-int32
-runtime·netpollopen(uintptr fd, PollDesc *pd)
-{
-	int32 r;
-
-	runtime·netpolllock(pd);
+func netpollopen(fd uintptr, pd *pollDesc) int32 {
+	lock(&pd.lock)
 	// We don't register for any specific type of events yet, that's
 	// netpollarm's job. We merely ensure we call port_associate before
 	// asynchonous connect/accept completes, so when we actually want
 	// to do any I/O, the call to port_associate (from netpollarm,
 	// with the interested event set) will unblock port_getn right away
 	// because of the I/O readiness notification.
-	*runtime·netpolluser(pd) = 0;
-	r = runtime·port_associate(portfd, PORT_SOURCE_FD, fd, 0, (uintptr)pd);
-	runtime·netpollunlock(pd);
-	return r;
+	pd.user = 0
+	r := port_associate(portfd, _PORT_SOURCE_FD, fd, 0, uintptr(unsafe.Pointer(pd)))
+	unlock(&pd.lock)
+	return r
 }
 
-int32
-runtime·netpollclose(uintptr fd)
-{
-	return runtime·port_dissociate(portfd, PORT_SOURCE_FD, fd);
+func netpollclose(fd uintptr) int32 {
+	return port_dissociate(portfd, _PORT_SOURCE_FD, fd)
 }
 
 // Updates the association with a new set of interested events. After
 // this call, port_getn will return one and only one event for that
 // particular descriptor, so this function needs to be called again.
-void
-runtime·netpollupdate(PollDesc* pd, uint32 set, uint32 clear)
-{
-	uint32 *ep, old, events;
-	uintptr fd = runtime·netpollfd(pd);
-	ep = (uint32*)runtime·netpolluser(pd);
+func netpollupdate(pd *pollDesc, set, clear uint32) {
+	if pd.closing {
+		return
+	}
 
-	if(runtime·netpollclosing(pd))
-		return;
+	old := pd.user
+	events := (old & ^clear) | set
+	if old == events {
+		return
+	}
 
-	old = *ep;
-	events = (old & ~clear) | set;
-	if(old == events)
-		return;
-
-	if(events && runtime·port_associate(portfd, PORT_SOURCE_FD, fd, events, (uintptr)pd) != 0) {
-		runtime·printf("netpollupdate: failed to associate (%d)\n", errno);
-		runtime·throw("netpollupdate: failed to associate");
-	} 
-	*ep = events;
+	if events != 0 && port_associate(portfd, _PORT_SOURCE_FD, pd.fd, events, uintptr(unsafe.Pointer(pd))) != 0 {
+		print("netpollupdate: failed to associate (", errno(), ")\n")
+		gothrow("netpollupdate: failed to associate")
+	}
+	pd.user = events
 }
 
 // subscribe the fd to the port such that port_getn will return one event.
-void
-runtime·netpollarm(PollDesc* pd, int32 mode)
-{
-	runtime·netpolllock(pd);
-	switch(mode) {
+func netpollarm(pd *pollDesc, mode int) {
+	lock(&pd.lock)
+	switch mode {
 	case 'r':
-		runtime·netpollupdate(pd, POLLIN, 0);
-		break;
+		netpollupdate(pd, _POLLIN, 0)
 	case 'w':
-		runtime·netpollupdate(pd, POLLOUT, 0);
-		break;
+		netpollupdate(pd, _POLLOUT, 0)
 	default:
-		runtime·throw("netpollarm: bad mode");
+		gothrow("netpollarm: bad mode")
 	}
-	runtime·netpollunlock(pd);
+	unlock(&pd.lock)
 }
+
+// netpolllasterr holds the last error code returned by port_getn to prevent log spamming
+var netpolllasterr int32
 
 // polls for ready network connections
 // returns list of goroutines that become runnable
-G*
-runtime·netpoll(bool block)
-{
-	static int32 lasterr;
-	PortEvent events[128], *ev;
-	PollDesc *pd;
-	int32 i, mode, clear;
-	uint32 n;
-	Timespec *wait = nil, zero;
-	G *gp;
-
-	if(portfd == -1)
-		return (nil);
-
-	if(!block) {
-		zero.tv_sec = 0;
-		zero.tv_nsec = 0;
-		wait = &zero;
+func netpoll(block bool) (gp *g) {
+	if portfd == -1 {
+		return
 	}
 
+	var wait *timespec
+	var zero timespec
+	if !block {
+		wait = &zero
+	}
+
+	var events [128]portevent
 retry:
-	n = 1;
-	if(runtime·port_getn(portfd, events, nelem(events), &n, wait) < 0) {
-		if(errno != EINTR && errno != lasterr) {
-			lasterr = errno;
-			runtime·printf("runtime: port_getn on fd %d failed with %d\n", portfd, errno);
+	var n uint32 = 1
+	if port_getn(portfd, &events[0], uint32(len(events)), &n, wait) < 0 {
+		if e := errno(); e != _EINTR && e != netpolllasterr {
+			netpolllasterr = e
+			print("runtime: port_getn on fd ", portfd, " failed with ", e, "\n")
 		}
-		goto retry;
+		goto retry
 	}
 
-	gp = nil;
-	for(i = 0; i < n; i++) {
-		ev = &events[i];
+	gp = nil
+	for i := 0; i < int(n); i++ {
+		ev := &events[i]
 
-		if(ev->portev_events == 0)
-			continue;
-		pd = (PollDesc *)ev->portev_user;
-
-		mode = 0;
-		clear = 0;
-		if(ev->portev_events & (POLLIN|POLLHUP|POLLERR)) {
-			mode += 'r';
-			clear |= POLLIN;
+		if ev.portev_events == 0 {
+			continue
 		}
-		if(ev->portev_events & (POLLOUT|POLLHUP|POLLERR)) {
-			mode += 'w';
-			clear |= POLLOUT;
+		pd := (*pollDesc)(unsafe.Pointer(ev.portev_user))
+
+		var mode, clear int32
+		if (ev.portev_events & (_POLLIN | _POLLHUP | _POLLERR)) != 0 {
+			mode += 'r'
+			clear |= _POLLIN
+		}
+		if (ev.portev_events & (_POLLOUT | _POLLHUP | _POLLERR)) != 0 {
+			mode += 'w'
+			clear |= _POLLOUT
 		}
 		// To effect edge-triggered events, we need to be sure to
 		// update our association with whatever events were not
@@ -248,17 +225,19 @@ retry:
 		// for POLLIN|POLLOUT, and we get POLLIN, besides waking
 		// the goroutine interested in POLLIN we have to not forget
 		// about the one interested in POLLOUT.
-		if(clear != 0) {
-			runtime·netpolllock(pd);
-			runtime·netpollupdate(pd, 0, clear);
-			runtime·netpollunlock(pd);
+		if clear != 0 {
+			lock(&pd.lock)
+			netpollupdate(pd, 0, uint32(clear))
+			unlock(&pd.lock)
 		}
 
-		if(mode)
-			runtime·netpollready(&gp, pd, mode);
+		if mode != 0 {
+			netpollready((**g)(noescape(unsafe.Pointer(&gp))), pd, mode)
+		}
 	}
 
-	if(block && gp == nil)
-		goto retry;
-	return gp;
+	if block && gp == nil {
+		goto retry
+	}
+	return gp
 }

@@ -172,6 +172,10 @@ type timeval struct {
 	tv_usec int64
 }
 
+func (tv *timeval) set_usec(x int32) {
+	tv.tv_usec = int64(x)
+}
+
 type itimerval struct {
 	it_interval timeval
 	it_value    timeval
@@ -185,6 +189,7 @@ type portevent struct {
 	portev_user   *byte
 }
 
+type pthread uint32
 type pthreadattr struct {
 	__pthread_attrp *byte
 }

@@ -49,14 +49,14 @@ type pollDesc struct {
 	lock    mutex // protectes the following fields
 	fd      uintptr
 	closing bool
-	seq     uintptr        // protects from stale timers and ready notifications
-	rg      uintptr        // pdReady, pdWait, G waiting for read or nil
-	rt      timer          // read deadline timer (set if rt.f != nil)
-	rd      int64          // read deadline
-	wg      uintptr        // pdReady, pdWait, G waiting for write or nil
-	wt      timer          // write deadline timer
-	wd      int64          // write deadline
-	user    unsafe.Pointer // user settable cookie
+	seq     uintptr // protects from stale timers and ready notifications
+	rg      uintptr // pdReady, pdWait, G waiting for read or nil
+	rt      timer   // read deadline timer (set if rt.f != nil)
+	rd      int64   // read deadline
+	wg      uintptr // pdReady, pdWait, G waiting for write or nil
+	wt      timer   // write deadline timer
+	wd      int64   // write deadline
+	user    uint32  // user settable cookie
 }
 
 type pollCache struct {
@@ -72,7 +72,7 @@ type pollCache struct {
 var pollcache pollCache
 
 func netpollServerInit() {
-	systemstack(netpollinit)
+	netpollinit()
 }
 
 func netpollOpen(fd uintptr) (*pollDesc, int) {
@@ -94,9 +94,7 @@ func netpollOpen(fd uintptr) (*pollDesc, int) {
 	unlock(&pd.lock)
 
 	var errno int32
-	systemstack(func() {
-		errno = netpollopen(fd, pd)
-	})
+	errno = netpollopen(fd, pd)
 	return pd, int(errno)
 }
 
@@ -110,9 +108,7 @@ func netpollClose(pd *pollDesc) {
 	if pd.rg != 0 && pd.rg != pdReady {
 		gothrow("netpollClose: blocked read on closing descriptor")
 	}
-	systemstack(func() {
-		netpollclose(uintptr(pd.fd))
-	})
+	netpollclose(uintptr(pd.fd))
 	pollcache.free(pd)
 }
 
@@ -143,9 +139,7 @@ func netpollWait(pd *pollDesc, mode int) int {
 	}
 	// As for now only Solaris uses level-triggered IO.
 	if GOOS == "solaris" {
-		systemstack(func() {
-			netpollarm(pd, mode)
-		})
+		netpollarm(pd, mode)
 	}
 	for !netpollblock(pd, int32(mode), false) {
 		err = netpollcheckerr(pd, int32(mode))
@@ -261,26 +255,6 @@ func netpollUnblock(pd *pollDesc) {
 	if wg != nil {
 		goready(wg)
 	}
-}
-
-func netpollfd(pd *pollDesc) uintptr {
-	return pd.fd
-}
-
-func netpolluser(pd *pollDesc) *unsafe.Pointer {
-	return &pd.user
-}
-
-func netpollclosing(pd *pollDesc) bool {
-	return pd.closing
-}
-
-func netpolllock(pd *pollDesc) {
-	lock(&pd.lock)
-}
-
-func netpollunlock(pd *pollDesc) {
-	unlock(&pd.lock)
 }
 
 // make pd ready, newly runnable goroutines (if any) are returned in rg/wg
