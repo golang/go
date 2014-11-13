@@ -123,9 +123,9 @@
     {{with $.Pagination}}
     <div class="paginate">
       <nav>
-        <a {{if .HasPrev}}href="?{{with $.Package.Path}}repo={{.}}&{{end}}page={{.Prev}}"{{else}}class="inactive"{{end}}>newer</a>
-        <a {{if .Next}}href="?{{with $.Package.Path}}repo={{.}}&{{end}}page={{.Next}}"{{else}}class="inactive"{{end}}>older</a>
-        <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>latest</a>
+        <a {{if .HasPrev}}href="?{{with $.Package.Path}}repo={{.}}&{{end}}page={{.Prev}}{{with $.Branch}}&branch={{.}}{{end}}"{{else}}class="inactive"{{end}}>newer</a>
+        <a {{if .Next}}href="?{{with $.Package.Path}}repo={{.}}&{{end}}page={{.Next}}{{with $.Branch}}&branch={{.}}{{end}}"{{else}}class="inactive"{{end}}>older</a>
+        <a {{if .HasPrev}}href=".{{with $.Branch}}?branch={{.}}{{end}}"{{else}}class="inactive"{{end}}>latest</a>
       </nav>
     </div>
     {{end}}

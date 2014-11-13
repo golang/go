@@ -12,6 +12,7 @@ package build
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"regexp"
@@ -36,22 +37,28 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	d := dashboardForRequest(r)
 	c := d.Context(appengine.NewContext(r))
 	now := cache.Now(c)
-	const key = "build-ui"
+	key := "build-ui"
 
 	page, _ := strconv.Atoi(r.FormValue("page"))
 	if page < 0 {
 		page = 0
 	}
-	repo := r.FormValue("repo")
-	useCache := page == 0 && repo == ""
+	key += fmt.Sprintf("-page%v", page)
 
-	// Used cached version of front page, if available.
-	if useCache {
-		var b []byte
-		if cache.Get(r, now, key, &b) {
-			w.Write(b)
-			return
-		}
+	branch := r.FormValue("branch")
+	if branch != "" {
+		key += "-branch-" + branch
+	}
+
+	repo := r.FormValue("repo")
+	if repo != "" {
+		key += "-repo-" + repo
+	}
+
+	var b []byte
+	if cache.Get(r, now, key, &b) {
+		w.Write(b)
+		return
 	}
 
 	pkg := &Package{} // empty package is the main repository
@@ -63,7 +70,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	commits, err := dashCommits(c, pkg, page)
+	commits, err := dashCommits(c, pkg, page, branch)
 	if err != nil {
 		logErr(w, r, err)
 		return
@@ -71,7 +78,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	builders := commitBuilders(commits)
 
 	var tipState *TagState
-	if pkg.Kind == "" && page == 0 && commits != nil {
+	if pkg.Kind == "" && page == 0 && (branch == "" || branch == "default") {
 		// only show sub-repo state on first page of normal repo view
 		tipState, err = TagStateByName(c, "tip")
 		if err != nil {
@@ -88,7 +95,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		p.Prev = page - 1
 		p.HasPrev = true
 	}
-	data := &uiTemplateData{d, pkg, commits, builders, tipState, p}
+	data := &uiTemplateData{d, pkg, commits, builders, tipState, p, branch}
 
 	var buf bytes.Buffer
 	if err := uiTemplate.Execute(&buf, data); err != nil {
@@ -96,10 +103,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cache the front page.
-	if useCache {
-		cache.Set(r, now, key, buf.Bytes())
-	}
+	cache.Set(r, now, key, buf.Bytes())
 
 	buf.WriteTo(w)
 }
@@ -111,15 +115,49 @@ type Pagination struct {
 
 // dashCommits gets a slice of the latest Commits to the current dashboard.
 // If page > 0 it paginates by commitsPerPage.
-func dashCommits(c appengine.Context, pkg *Package, page int) ([]*Commit, error) {
+func dashCommits(c appengine.Context, pkg *Package, page int, branch string) ([]*Commit, error) {
+	offset := page * commitsPerPage
 	q := datastore.NewQuery("Commit").
 		Ancestor(pkg.Key(c)).
-		Order("-Num").
-		Limit(commitsPerPage).
-		Offset(page * commitsPerPage)
+		Order("-Num")
+
 	var commits []*Commit
-	_, err := q.GetAll(c, &commits)
-	return commits, err
+	if branch == "" {
+		_, err := q.Limit(commitsPerPage).Offset(offset).
+			GetAll(c, &commits)
+		return commits, err
+	}
+
+	// Look for commits on a specific branch.
+	for t, n := q.Run(c), 0; len(commits) < commitsPerPage && n < 1000; {
+		var c Commit
+		_, err := t.Next(&c)
+		if err == datastore.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if !isBranchCommit(&c, branch) {
+			continue
+		}
+		if n >= offset {
+			commits = append(commits, &c)
+		}
+		n++
+	}
+	return commits, nil
+}
+
+// isBranchCommit reports whether the given commit is on the specified branch.
+// It does so by examining the commit description, so there will be some bad
+// matches where the branch commits do not begin with the "[branch]" prefix.
+func isBranchCommit(c *Commit, b string) bool {
+	d := strings.TrimSpace(c.Desc)
+	if b == "default" {
+		return !strings.HasPrefix(d, "[")
+	}
+	return strings.HasPrefix(d, "["+b+"]")
 }
 
 // commitBuilders returns the names of the builders that provided
@@ -251,6 +289,7 @@ type uiTemplateData struct {
 	Builders   []string
 	TipState   *TagState
 	Pagination *Pagination
+	Branch     string
 }
 
 var uiTemplate = template.Must(
