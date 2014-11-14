@@ -34,7 +34,7 @@ func test6997(t *testing.T) {
 		if r == 0 {
 			t.Error("pthread finished but wasn't cancelled??")
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Error("hung in pthread_cancel/pthread_join")
 	}
 }

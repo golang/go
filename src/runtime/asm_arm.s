@@ -1320,3 +1320,9 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
 	MOVW	saveG-8(SP), g
 	MOVW	saveR11-4(SP), R11
 	RET
+
+// The top-most function running on a goroutine
+// returns to goexit+PCQuantum.
+TEXT runtime·goexit(SB),NOSPLIT,$-4-0
+	MOVW	R0, R0	// NOP
+	BL	runtime·goexit1(SB)	// does not return

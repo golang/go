@@ -21,7 +21,7 @@ func (h Hash) HashFunc() Hash {
 }
 
 const (
-	MD4       Hash = 1 + iota // import code.google.com/p/go.crypto/md4
+	MD4       Hash = 1 + iota // import golang.org/x/crypto/md4
 	MD5                       // import crypto/md5
 	SHA1                      // import crypto/sha1
 	SHA224                    // import crypto/sha256
@@ -29,11 +29,11 @@ const (
 	SHA384                    // import crypto/sha512
 	SHA512                    // import crypto/sha512
 	MD5SHA1                   // no implementation; MD5+SHA1 used for TLS RSA
-	RIPEMD160                 // import code.google.com/p/go.crypto/ripemd160
-	SHA3_224                  // import code.google.com/p/go.crypto/sha3
-	SHA3_256                  // import code.google.com/p/go.crypto/sha3
-	SHA3_384                  // import code.google.com/p/go.crypto/sha3
-	SHA3_512                  // import code.google.com/p/go.crypto/sha3
+	RIPEMD160                 // import golang.org/x/crypto/ripemd160
+	SHA3_224                  // import golang.org/x/crypto/sha3
+	SHA3_256                  // import golang.org/x/crypto/sha3
+	SHA3_384                  // import golang.org/x/crypto/sha3
+	SHA3_512                  // import golang.org/x/crypto/sha3
 	maxHash
 )
 

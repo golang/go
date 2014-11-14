@@ -25,7 +25,8 @@ type file struct {
 	dirinfo *dirInfo // nil unless directory being read
 }
 
-// Fd returns the integer Unix file descriptor referencing the open file.
+// Fd returns the integer Plan 9 file descriptor referencing the open file.
+// The file descriptor is valid only until f.Close is called or f is garbage collected.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
