@@ -96,6 +96,10 @@ func (ts *timespec) set_sec(x int32) {
 	ts.tv_sec = int64(x)
 }
 
+func (ts *timespec) set_nsec(x int32) {
+	ts.tv_nsec = int64(x)
+}
+
 type timeval struct {
 	tv_sec  int64
 	tv_usec int64

@@ -88,6 +88,10 @@ func (ts *timespec) set_sec(x int32) {
 	ts.tv_sec = x
 }
 
+func (ts *timespec) set_nsec(x int32) {
+	ts.tv_nsec = x
+}
+
 type sigaltstackt struct {
 	ss_sp    *byte
 	ss_flags int32
