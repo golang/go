@@ -497,6 +497,8 @@ enum
 	D_DCONST,
 	D_ADDR, // not used, use D_CONST with non-empty sym.
 
+	D_LAST,
+
 /* reg names for 9g OREGISTER */
 	D_R0 = 0, // type is D_REG
 	D_F0 = D_R0+NREG, // type is D_FREG

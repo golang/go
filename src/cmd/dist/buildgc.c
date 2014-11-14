@@ -184,12 +184,14 @@ mkanames(char *dir, char *file)
 				continue;
 
 			p = lines.p[i] + 3;
+			if(xstrcmp(p, "LAST") == 0)
+				continue;
 			vadd(&dnames[n], p);
 			j++;
 		}
 	}
 	if(j>0){
-		bwritestr(&out, bprintf(&b, "char*	dnames%c[] = {\n", ch));
+		bwritestr(&out, bprintf(&b, "char*	dnames%c[D_LAST] = {\n", ch));
 		for(i=0; i<nelem(dnames); i++) {
 			if(dnames[i].len == 0)
 				continue;

@@ -865,6 +865,8 @@ enum
 
 	D_INDIR,	/* additive */
 
+	D_LAST,
+
 	T_TYPE		= 1<<0,
 	T_INDEX		= 1<<1,
 	T_OFFSET	= 1<<2,
