@@ -92,16 +92,16 @@ type rtprio struct {
 }
 
 type lwpparams struct {
-	_type unsafe.Pointer
-	arg   *byte
-	stack *byte
-	tid1  *int32
-	tid2  *int32
+	start_func uintptr
+	arg        unsafe.Pointer
+	stack      uintptr
+	tid1       unsafe.Pointer // *int32
+	tid2       unsafe.Pointer // *int32
 }
 
 type sigaltstackt struct {
-	ss_sp     *int8
-	ss_size   uint64
+	ss_sp     uintptr
+	ss_size   uintptr
 	ss_flags  int32
 	pad_cgo_0 [4]byte
 }
@@ -111,8 +111,8 @@ type sigset struct {
 }
 
 type stackt struct {
-	ss_sp     *int8
-	ss_size   uint64
+	ss_sp     uintptr
+	ss_size   uintptr
 	ss_flags  int32
 	pad_cgo_0 [4]byte
 }
@@ -124,7 +124,7 @@ type siginfo struct {
 	si_pid    int32
 	si_uid    uint32
 	si_status int32
-	si_addr   *byte
+	si_addr   uint64
 	si_value  [8]byte
 	si_band   int64
 	__spare__ [7]int32
@@ -132,32 +132,32 @@ type siginfo struct {
 }
 
 type mcontext struct {
-	mc_onstack  int64
-	mc_rdi      int64
-	mc_rsi      int64
-	mc_rdx      int64
-	mc_rcx      int64
-	mc_r8       int64
-	mc_r9       int64
-	mc_rax      int64
-	mc_rbx      int64
-	mc_rbp      int64
-	mc_r10      int64
-	mc_r11      int64
-	mc_r12      int64
-	mc_r13      int64
-	mc_r14      int64
-	mc_r15      int64
-	mc_xflags   int64
-	mc_trapno   int64
-	mc_addr     int64
-	mc_flags    int64
-	mc_err      int64
-	mc_rip      int64
-	mc_cs       int64
-	mc_rflags   int64
-	mc_rsp      int64
-	mc_ss       int64
+	mc_onstack  uint64
+	mc_rdi      uint64
+	mc_rsi      uint64
+	mc_rdx      uint64
+	mc_rcx      uint64
+	mc_r8       uint64
+	mc_r9       uint64
+	mc_rax      uint64
+	mc_rbx      uint64
+	mc_rbp      uint64
+	mc_r10      uint64
+	mc_r11      uint64
+	mc_r12      uint64
+	mc_r13      uint64
+	mc_r14      uint64
+	mc_r15      uint64
+	mc_xflags   uint64
+	mc_trapno   uint64
+	mc_addr     uint64
+	mc_flags    uint64
+	mc_err      uint64
+	mc_rip      uint64
+	mc_cs       uint64
+	mc_rflags   uint64
+	mc_rsp      uint64
+	mc_ss       uint64
 	mc_len      uint32
 	mc_fpformat uint32
 	mc_ownedfp  uint32
@@ -180,9 +180,17 @@ type timespec struct {
 	tv_nsec int64
 }
 
+func (ts *timespec) set_sec(x int32) {
+	ts.tv_sec = int64(x)
+}
+
 type timeval struct {
 	tv_sec  int64
 	tv_usec int64
+}
+
+func (tv *timeval) set_usec(x int32) {
+	tv.tv_usec = int64(x)
 }
 
 type itimerval struct {
