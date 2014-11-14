@@ -3604,11 +3604,17 @@ class MercurialVCS(VersionControlSystem):
 			if use_hg_shell:
 				base_content = RunShell(["hg", "cat", "-r", base_rev, oldrelpath], silent_ok=True)
 			else:
-				base_content = str(self.repo[base_rev][oldrelpath].data())
+                                try:
+                                        base_content = str(self.repo[base_rev][oldrelpath].data())
+                                except Exception:
+                                        pass
 			is_binary = "\0" in base_content  # Mercurial's heuristic
 		if status != "R":
-			new_content = open(relpath, "rb").read()
-			is_binary = is_binary or "\0" in new_content
+                        try:
+                                new_content = open(relpath, "rb").read()
+                                is_binary = is_binary or "\0" in new_content
+                        except Exception:
+                                pass
 		if is_binary and base_content and use_hg_shell:
 			# Fetch again without converting newlines
 			base_content = RunShell(["hg", "cat", "-r", base_rev, oldrelpath],

@@ -1888,7 +1888,7 @@ func malg(stacksize int32) *g {
 //go:nosplit
 func newproc(siz int32, fn *funcval) {
 	argp := add(unsafe.Pointer(&fn), ptrSize)
-	if thechar == '5' {
+	if hasLinkRegister {
 		argp = add(argp, ptrSize) // skip caller's saved LR
 	}
 
@@ -1940,7 +1940,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 	sp -= 4 * regSize // extra space in case of reads slightly beyond frame
 	sp -= uintptr(siz)
 	memmove(unsafe.Pointer(sp), unsafe.Pointer(argp), uintptr(narg))
-	if thechar == '5' {
+	if hasLinkRegister {
 		// caller's LR
 		sp -= ptrSize
 		*(*unsafe.Pointer)(unsafe.Pointer(sp)) = nil

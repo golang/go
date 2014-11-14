@@ -146,6 +146,7 @@ func check() {
 		j, j1 float64
 		k, k1 unsafe.Pointer
 		l     *uint16
+		m     [4]byte
 	)
 	type x1t struct {
 		x uint8
@@ -224,6 +225,14 @@ func check() {
 		gothrow("cas4")
 	}
 
+	z = 0xffffffff
+	if !cas(&z, 0xffffffff, 0xfffffffe) {
+		gothrow("cas5")
+	}
+	if z != 0xfffffffe {
+		gothrow("cas6")
+	}
+
 	k = unsafe.Pointer(uintptr(0xfedcb123))
 	if ptrSize == 8 {
 		k = unsafe.Pointer(uintptr(unsafe.Pointer(k)) << 10)
@@ -237,6 +246,12 @@ func check() {
 	}
 	if k != k1 {
 		gothrow("casp3")
+	}
+
+	m = [4]byte{1, 1, 1, 1}
+	atomicor8(&m[1], 0xf0)
+	if m[0] != 1 || m[1] != 0xf1 || m[2] != 1 || m[3] != 1 {
+		gothrow("atomicor8")
 	}
 
 	*(*uint64)(unsafe.Pointer(&j)) = ^uint64(0)

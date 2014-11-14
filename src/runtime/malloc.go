@@ -4,9 +4,7 @@
 
 package runtime
 
-import (
-	"unsafe"
-)
+import "unsafe"
 
 const (
 	debugMalloc = false
@@ -253,8 +251,10 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 				goto marked
 			}
 			ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
-			// Check whether the program is already unrolled.
-			if uintptr(atomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
+			// Check whether the program is already unrolled
+			// by checking if the unroll flag byte is set
+			maskword := uintptr(atomicloadp(unsafe.Pointer(ptrmask)))
+			if *(*uint8)(unsafe.Pointer(&maskword)) == 0 {
 				systemstack(func() {
 					unrollgcprog_m(typ)
 				})

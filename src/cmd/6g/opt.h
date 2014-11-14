@@ -63,8 +63,8 @@ enum
 
 uint32 BLOAD(Reg*);
 uint32 BSTORE(Reg*);
-uint32 LOAD(Reg*);
-uint32 STORE(Reg*);
+uint64 LOAD(Reg*);
+uint64 STORE(Reg*);
 */
 
 // A Reg is a wrapper around a single Prog (one instruction) that holds
@@ -141,7 +141,7 @@ void	synch(Reg*, Bits);
 uint32	allreg(uint32, Rgn*);
 void	paint1(Reg*, int);
 uint32	paint2(Reg*, int);
-void	paint3(Reg*, int, int32, int);
+void	paint3(Reg*, int, uint32, int);
 void	addreg(Adr*, int);
 void	dumpone(Flow*, int);
 void	dumpit(char*, Flow*, int);
@@ -153,10 +153,10 @@ void	peep(Prog*);
 void	excise(Flow*);
 int	copyu(Prog*, Adr*, Adr*);
 
-int32	RtoB(int);
-int32	FtoB(int);
-int	BtoR(int32);
-int	BtoF(int32);
+uint32	RtoB(int);
+uint32	FtoB(int);
+int	BtoR(uint32);
+int	BtoF(uint32);
 
 /*
  * prog.c

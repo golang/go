@@ -39,7 +39,7 @@ static void dopack(char*, char*, char**, int);
 static char *findgoversion(void);
 
 // The known architecture letters.
-static char *gochars = "5668";
+static char *gochars = "566899";
 
 // The known architectures.
 static char *okgoarch[] = {
@@ -48,6 +48,8 @@ static char *okgoarch[] = {
 	"amd64",
 	"amd64p32",
 	"386",
+	"power64",
+	"power64le",
 };
 
 // The known operating systems.
@@ -344,6 +346,7 @@ static char *oldtool[] = {
 	"5a", "5c", "5g", "5l",
 	"6a", "6c", "6g", "6l",
 	"8a", "8c", "8g", "8l",
+	"9a", "9c", "9g", "9l",
 	"6cov",
 	"6nm",
 	"6prof",
@@ -521,6 +524,7 @@ static struct {
 		"anames5.c",
 		"anames6.c",
 		"anames8.c",
+		"anames9.c",
 	}},
 	{"cmd/gc", {
 		"-cplx.c",
@@ -554,6 +558,14 @@ static struct {
 		"../gc/popt.h",
 		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libgc.a",
 	}},
+	{"cmd/9g", {
+		"../gc/cplx.c",
+		"../gc/pgen.c",
+		"../gc/plive.c",
+		"../gc/popt.c",
+		"../gc/popt.h",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libgc.a",
+	}},
 	{"cmd/5l", {
 		"../ld/*",
 	}},
@@ -561,6 +573,9 @@ static struct {
 		"../ld/*",
 	}},
 	{"cmd/8l", {
+		"../ld/*",
+	}},
+	{"cmd/9l", {
 		"../ld/*",
 	}},
 	{"cmd/go", {
@@ -597,6 +612,7 @@ static struct {
 	{"anames5.c", mkanames},
 	{"anames6.c", mkanames},
 	{"anames8.c", mkanames},
+	{"anames9.c", mkanames},
 	{"zdefaultcc.go", mkzdefaultcc},
 	{"zsys_", mkzsys},
 	{"zgoarch_", mkzgoarch},
@@ -1114,12 +1130,26 @@ shouldbuild(char *file, char *dir)
 	
 	// Check file name for GOOS or GOARCH.
 	name = lastelem(file);
-	for(i=0; i<nelem(okgoos); i++)
-		if(contains(name, okgoos[i]) && !streq(okgoos[i], goos))
+	for(i=0; i<nelem(okgoos); i++) {
+		if(streq(okgoos[i], goos))
+			continue;
+		p = xstrstr(name, okgoos[i]);
+		if(p == nil)
+			continue;
+		p += xstrlen(okgoos[i]);
+		if(*p == '.' || *p == '_' || *p == '\0')
 			return 0;
-	for(i=0; i<nelem(okgoarch); i++)
-		if(contains(name, okgoarch[i]) && !streq(okgoarch[i], goarch))
+	}
+	for(i=0; i<nelem(okgoarch); i++) {
+		if(streq(okgoarch[i], goarch))
+			continue;
+		p = xstrstr(name, okgoarch[i]);
+		if(p == nil)
+			continue;
+		p += xstrlen(okgoarch[i]);
+		if(*p == '.' || *p == '_' || *p == '\0')
 			return 0;
+	}
 
 	// Omit test files.
 	if(contains(name, "_test"))
@@ -1311,6 +1341,9 @@ static char *cleantab[] = {
 	"cmd/8a",
 	"cmd/8g",
 	"cmd/8l",
+	"cmd/9a",
+	"cmd/9g",
+	"cmd/9l",
 	"cmd/gc",
 	"cmd/go",	
 	"lib9",

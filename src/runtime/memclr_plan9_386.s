@@ -10,40 +10,40 @@ TEXT runtime·memclr(SB), NOSPLIT, $0-8
 	MOVL	n+4(FP), BX
 	XORL	AX, AX
 
-clr_tail:
+tail:
 	TESTL	BX, BX
-	JEQ	clr_0
+	JEQ	_0
 	CMPL	BX, $2
-	JBE	clr_1or2
+	JBE	_1or2
 	CMPL	BX, $4
-	JBE	clr_3or4
+	JBE	_3or4
 	CMPL	BX, $8
-	JBE	clr_5through8
+	JBE	_5through8
 	CMPL	BX, $16
-	JBE	clr_9through16
+	JBE	_9through16
 	MOVL	BX, CX
 	SHRL	$2, CX
 	REP
 	STOSL
 	ANDL	$3, BX
-	JNE	clr_tail
+	JNE	tail
 	RET
 
-clr_1or2:
+_1or2:
 	MOVB	AX, (DI)
 	MOVB	AX, -1(DI)(BX*1)
 	RET
-clr_0:
+_0:
 	RET
-clr_3or4:
+_3or4:
 	MOVW	AX, (DI)
 	MOVW	AX, -2(DI)(BX*1)
 	RET
-clr_5through8:
+_5through8:
 	MOVL	AX, (DI)
 	MOVL	AX, -4(DI)(BX*1)
 	RET
-clr_9through16:
+_9through16:
 	MOVL	AX, (DI)
 	MOVL	AX, 4(DI)
 	MOVL	AX, -8(DI)(BX*1)

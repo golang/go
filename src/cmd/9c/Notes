@@ -1,0 +1,14 @@
+-	effect of register expansion on 32-bit shifts and masks etc
+9c
+-	multab
+-	floating-point conversions
+-	conversions of constants
+-	nodtype for loads
+-	sign-extension instruction (32-64) when in register?
+-	double indexing
+-	SLW (eg, in cat)
+-	scheduling
+
+9l
+-	D_QCONST, DWORD
+-	maskgen

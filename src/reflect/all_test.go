@@ -1052,6 +1052,11 @@ func TestChan(t *testing.T) {
 		ok = cv.TrySend(ValueOf(6))
 		if !ok {
 			t.Errorf("TrySend on empty chan failed")
+			select {
+			case x := <-c:
+				t.Errorf("TrySend failed but it did send %d", x)
+			default:
+			}
 		} else {
 			if i = <-c; i != 6 {
 				t.Errorf("TrySend 6, recv %d", i)

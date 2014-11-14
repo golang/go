@@ -39,22 +39,18 @@ func concatstrings(a []string) string {
 	return s
 }
 
-//go:nosplit
 func concatstring2(a [2]string) string {
 	return concatstrings(a[:])
 }
 
-//go:nosplit
 func concatstring3(a [3]string) string {
 	return concatstrings(a[:])
 }
 
-//go:nosplit
 func concatstring4(a [4]string) string {
 	return concatstrings(a[:])
 }
 
-//go:nosplit
 func concatstring5(a [5]string) string {
 	return concatstrings(a[:])
 }

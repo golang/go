@@ -44,6 +44,7 @@ machoinit(void)
 	switch(thechar) {
 	// 64-bit architectures
 	case '6':
+	case '9':
 		macho64 = 1;
 		break;
 

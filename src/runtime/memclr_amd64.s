@@ -15,30 +15,30 @@ TEXT runtime·memclr(SB), NOSPLIT, $0-16
 	XORQ	AX, AX
 
 	// MOVOU seems always faster than REP STOSQ.
-clr_tail:
+tail:
 	TESTQ	BX, BX
-	JEQ	clr_0
+	JEQ	_0
 	CMPQ	BX, $2
-	JBE	clr_1or2
+	JBE	_1or2
 	CMPQ	BX, $4
-	JBE	clr_3or4
+	JBE	_3or4
 	CMPQ	BX, $8
-	JBE	clr_5through8
+	JBE	_5through8
 	CMPQ	BX, $16
-	JBE	clr_9through16
+	JBE	_9through16
 	PXOR	X0, X0
 	CMPQ	BX, $32
-	JBE	clr_17through32
+	JBE	_17through32
 	CMPQ	BX, $64
-	JBE	clr_33through64
+	JBE	_33through64
 	CMPQ	BX, $128
-	JBE	clr_65through128
+	JBE	_65through128
 	CMPQ	BX, $256
-	JBE	clr_129through256
+	JBE	_129through256
 	// TODO: use branch table and BSR to make this just a single dispatch
 	// TODO: for really big clears, use MOVNTDQ.
 
-clr_loop:
+loop:
 	MOVOU	X0, 0(DI)
 	MOVOU	X0, 16(DI)
 	MOVOU	X0, 32(DI)
@@ -58,38 +58,38 @@ clr_loop:
 	SUBQ	$256, BX
 	ADDQ	$256, DI
 	CMPQ	BX, $256
-	JAE	clr_loop
-	JMP	clr_tail
+	JAE	loop
+	JMP	tail
 
-clr_1or2:
+_1or2:
 	MOVB	AX, (DI)
 	MOVB	AX, -1(DI)(BX*1)
 	RET
-clr_0:
+_0:
 	RET
-clr_3or4:
+_3or4:
 	MOVW	AX, (DI)
 	MOVW	AX, -2(DI)(BX*1)
 	RET
-clr_5through8:
+_5through8:
 	MOVL	AX, (DI)
 	MOVL	AX, -4(DI)(BX*1)
 	RET
-clr_9through16:
+_9through16:
 	MOVQ	AX, (DI)
 	MOVQ	AX, -8(DI)(BX*1)
 	RET
-clr_17through32:
+_17through32:
 	MOVOU	X0, (DI)
 	MOVOU	X0, -16(DI)(BX*1)
 	RET
-clr_33through64:
+_33through64:
 	MOVOU	X0, (DI)
 	MOVOU	X0, 16(DI)
 	MOVOU	X0, -32(DI)(BX*1)
 	MOVOU	X0, -16(DI)(BX*1)
 	RET
-clr_65through128:
+_65through128:
 	MOVOU	X0, (DI)
 	MOVOU	X0, 16(DI)
 	MOVOU	X0, 32(DI)
@@ -99,7 +99,7 @@ clr_65through128:
 	MOVOU	X0, -32(DI)(BX*1)
 	MOVOU	X0, -16(DI)(BX*1)
 	RET
-clr_129through256:
+_129through256:
 	MOVOU	X0, (DI)
 	MOVOU	X0, 16(DI)
 	MOVOU	X0, 32(DI)

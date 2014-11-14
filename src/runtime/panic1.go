@@ -12,7 +12,7 @@ import "unsafe"
 //uint32 runtime·panicking;
 var paniclk mutex
 
-const hasLinkRegister = thechar == '5'
+const hasLinkRegister = GOARCH == "arm" || GOARCH == "power64" || GOARCH == "power64le"
 
 // Unwind the stack after a deferred function calls recover
 // after a panic.  Then arrange to continue running as though
@@ -36,7 +36,7 @@ func recovery(gp *g) {
 	// each call to deferproc.
 	// (The pc we're returning to does pop pop
 	// before it tests the return value.)
-	// On the arm there are 2 saved LRs mixed in too.
+	// On the arm and power there are 2 saved LRs mixed in too.
 	if hasLinkRegister {
 		gp.sched.sp = uintptr(argp) - 4*ptrSize
 	} else {
