@@ -16,8 +16,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/callgraph"
+	"golang.org/x/tools/go/callgraph/rta"
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/rta"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/types"
 )
