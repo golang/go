@@ -1353,9 +1353,10 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case OITAB:
 		// itable of interface value
 		naddr(n->left, a, canemitcode);
-		a->etype = TINT32;
+		a->etype = simtype[tptr];
 		if(a->type == D_CONST && a->offset == 0)
 			break;	// len(nil)
+		a->width = widthptr;
 		break;
 
 	case OSPTR:

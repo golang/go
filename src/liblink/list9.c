@@ -259,11 +259,12 @@ Dconv(Fmt *fp)
 				sprint(str, "%s+%.5lux(BRANCH)", a->sym->name, v);
 			else
 				sprint(str, "%.5lux(BRANCH)", v);
-		} else
-			if(a->sym != nil)
-				sprint(str, "%s+%lld(APC)", a->sym->name, a->offset);
-			else
-				sprint(str, "%lld(APC)", a->offset);
+		} else if(a->u.branch != nil)
+			sprint(str, "%lld", a->u.branch->pc);
+		else if(a->sym != nil)
+			sprint(str, "%s+%lld(APC)", a->sym->name, a->offset);
+		else
+			sprint(str, "%lld(APC)", a->offset);
 		break;
 
 	case D_FCONST:

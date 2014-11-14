@@ -704,13 +704,13 @@ enum
 	Ecomplit = 1<<11,	// type in composite literal
 };
 
-#define	BITS	5
-#define	NVAR	(BITS*sizeof(uint32)*8)
+#define	BITS	3
+#define	NVAR	(BITS*sizeof(uint64)*8)
 
 typedef	struct	Bits	Bits;
 struct	Bits
 {
-	uint32	b[BITS];
+	uint64	b[BITS];
 };
 
 EXTERN	Bits	zbits;
@@ -1027,12 +1027,14 @@ int	Qconv(Fmt *fp);
 Bits	band(Bits a, Bits b);
 int	bany(Bits *a);
 int	beq(Bits a, Bits b);
-int	bitno(int32 b);
+int	bitno(uint64 b);
 Bits	blsh(uint n);
 Bits	bnot(Bits a);
 int	bnum(Bits a);
 Bits	bor(Bits a, Bits b);
-int	bset(Bits a, uint n);
+int	btest(Bits *a, uint n);
+void	biset(Bits *a, uint n);
+void	biclr(Bits *a, uint n);
 
 /*
  *	bv.c
