@@ -4,9 +4,21 @@
 
 package runtime
 
-// Amd64 uses 48-bit virtual addresses, 47-th bit is used as kernel/user flag.
-// So we use 17msb of pointers as ABA counter.
-const (
-	lfPtrBits   = 47
-	lfCountMask = 1<<17 - 1
-)
+import "unsafe"
+
+// On AMD64, virtual addresses are 48-bit numbers sign extended to 64.
+// We shift the address left 16 to eliminate the sign extended part and make
+// room in the bottom for the count.
+// In addition to the 16 bits taken from the top, we can take 3 from the
+// bottom, because node must be pointer-aligned, giving a total of 19 bits
+// of count.
+
+func lfstackPack(node *lfnode, cnt uintptr) uint64 {
+	return uint64(uintptr(unsafe.Pointer(node)))<<16 | uint64(cnt&(1<<19-1))
+}
+
+func lfstackUnpack(val uint64) (node *lfnode, cnt uintptr) {
+	node = (*lfnode)(unsafe.Pointer(uintptr(int64(val) >> 19 << 3)))
+	cnt = uintptr(val & (1<<19 - 1))
+	return
+}

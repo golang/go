@@ -6,8 +6,16 @@
 
 package runtime
 
+import "unsafe"
+
 // On 32-bit systems, the stored uint64 has a 32-bit pointer and 32-bit count.
-const (
-	lfPtrBits   = 32
-	lfCountMask = 1<<32 - 1
-)
+
+func lfstackPack(node *lfnode, cnt uintptr) uint64 {
+	return uint64(uintptr(unsafe.Pointer(node)))<<32 | uint64(cnt)
+}
+
+func lfstackUnpack(val uint64) (node *lfnode, cnt uintptr) {
+	node = (*lfnode)(unsafe.Pointer(uintptr(val >> 32)))
+	cnt = uintptr(val)
+	return
+}
