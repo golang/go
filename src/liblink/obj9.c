@@ -202,7 +202,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	Prog *p, *q, *p1, *p2, *q1;
 	int o, mov, aoffset;
 	vlong textstksiz, textarg;
-	int32 autoffset, autosize;
+	int32 autosize;
 
 	if(ctxt->symmorestack[0] == nil) {
 		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
@@ -217,9 +217,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
 
 	p = cursym->text;
 	parsetextconst(p->to.offset, &textstksiz, &textarg);
-	autoffset = textstksiz;
-	if(autoffset < 0)
-		autoffset = 0;
 	
 	cursym->args = p->to.offset>>32;
 	cursym->locals = textstksiz;
