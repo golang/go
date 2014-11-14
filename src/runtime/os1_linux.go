@@ -48,11 +48,11 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 	// is not, even timediv is too heavy, and we really need to use just an
 	// ordinary machine instruction.
 	if ptrSize == 8 {
-		ts.set_sec(int32(ns / 1000000000))
+		ts.set_sec(ns / 1000000000)
 		ts.set_nsec(int32(ns % 1000000000))
 	} else {
 		ts.tv_nsec = 0
-		ts.set_sec(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec))))
+		ts.set_sec(int64(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec)))))
 	}
 	futex(unsafe.Pointer(addr), _FUTEX_WAIT, val, unsafe.Pointer(&ts), nil, 0)
 }
