@@ -42,7 +42,7 @@ func futexsleep1(addr *uint32, val uint32, ns int64) {
 	if ns >= 0 {
 		var ts timespec
 		ts.tv_nsec = 0
-		ts.set_sec(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec))))
+		ts.set_sec(int64(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec)))))
 		tsp = &ts
 	}
 	ret := sys_umtx_op(addr, _UMTX_OP_WAIT_UINT_PRIVATE, val, nil, tsp)

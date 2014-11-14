@@ -157,8 +157,8 @@ type timespec struct {
 	pad_cgo_0 [4]byte
 }
 
-func (ts *timespec) set_sec(x int32) {
-	ts.tv_sec = int64(x)
+func (ts *timespec) set_sec(x int64) {
+	ts.tv_sec = x
 }
 
 type timeval struct {

@@ -56,7 +56,7 @@ func semasleep(ns int64) int32 {
 		var ts timespec
 		var nsec int32
 		ns += nanotime()
-		ts.set_sec(timediv(ns, 1000000000, &nsec))
+		ts.set_sec(int64(timediv(ns, 1000000000, &nsec)))
 		ts.set_nsec(nsec)
 		tsp = &ts
 	}
