@@ -85,45 +85,45 @@ const (
 )
 
 type tforkt struct {
-	tf_tcb   *byte
+	tf_tcb   unsafe.Pointer
 	tf_tid   *int32
-	tf_stack *byte
+	tf_stack uintptr
 }
 
 type sigaltstackt struct {
-	ss_sp     *byte
+	ss_sp     uintptr
 	ss_size   uint64
 	ss_flags  int32
 	pad_cgo_0 [4]byte
 }
 
 type sigcontext struct {
-	sc_rdi      int64
-	sc_rsi      int64
-	sc_rdx      int64
-	sc_rcx      int64
-	sc_r8       int64
-	sc_r9       int64
-	sc_r10      int64
-	sc_r11      int64
-	sc_r12      int64
-	sc_r13      int64
-	sc_r14      int64
-	sc_r15      int64
-	sc_rbp      int64
-	sc_rbx      int64
-	sc_rax      int64
-	sc_gs       int64
-	sc_fs       int64
-	sc_es       int64
-	sc_ds       int64
-	sc_trapno   int64
-	sc_err      int64
-	sc_rip      int64
-	sc_cs       int64
-	sc_rflags   int64
-	sc_rsp      int64
-	sc_ss       int64
+	sc_rdi      uint64
+	sc_rsi      uint64
+	sc_rdx      uint64
+	sc_rcx      uint64
+	sc_r8       uint64
+	sc_r9       uint64
+	sc_r10      uint64
+	sc_r11      uint64
+	sc_r12      uint64
+	sc_r13      uint64
+	sc_r14      uint64
+	sc_r15      uint64
+	sc_rbp      uint64
+	sc_rbx      uint64
+	sc_rax      uint64
+	sc_gs       uint64
+	sc_fs       uint64
+	sc_es       uint64
+	sc_ds       uint64
+	sc_trapno   uint64
+	sc_err      uint64
+	sc_rip      uint64
+	sc_cs       uint64
+	sc_rflags   uint64
+	sc_rsp      uint64
+	sc_ss       uint64
 	sc_fpstate  unsafe.Pointer
 	__sc_unused int32
 	sc_mask     int32
@@ -138,7 +138,7 @@ type siginfo struct {
 }
 
 type stackt struct {
-	ss_sp     *byte
+	ss_sp     uintptr
 	ss_size   uint64
 	ss_flags  int32
 	pad_cgo_0 [4]byte
@@ -149,9 +149,21 @@ type timespec struct {
 	tv_nsec int64
 }
 
+func (ts *timespec) set_sec(x int32) {
+	ts.tv_sec = int64(x)
+}
+
+func (ts *timespec) set_nsec(x int32) {
+	ts.tv_nsec = int64(x)
+}
+
 type timeval struct {
 	tv_sec  int64
 	tv_usec int64
+}
+
+func (tv *timeval) set_usec(x int32) {
+	tv.tv_usec = int64(x)
 }
 
 type itimerval struct {
