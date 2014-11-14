@@ -116,7 +116,7 @@ TEXT time·now(SB),NOSPLIT,$16
 	// That leaves 104 for the gettime code to use. Hope that's enough!
 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
 	CMPQ	AX, $0
-	JEQ	fallback_gtod
+	JEQ	fallback
 	MOVL	$0, DI // CLOCK_REALTIME
 	LEAQ	0(SP), SI
 	CALL	AX
@@ -125,7 +125,7 @@ TEXT time·now(SB),NOSPLIT,$16
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
-fallback_gtod:
+fallback:
 	LEAQ	0(SP), DI
 	MOVQ	$0, SI
 	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
@@ -142,7 +142,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	// See comment above in time.now.
 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
 	CMPQ	AX, $0
-	JEQ	fallback_gtod_nt
+	JEQ	fallback
 	MOVL	$1, DI // CLOCK_MONOTONIC
 	LEAQ	0(SP), SI
 	CALL	AX
@@ -154,7 +154,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	ADDQ	DX, AX
 	MOVQ	AX, ret+0(FP)
 	RET
-fallback_gtod_nt:
+fallback:
 	LEAQ	0(SP), DI
 	MOVQ	$0, SI
 	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX

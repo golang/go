@@ -7,7 +7,7 @@ package runtime
 import "unsafe"
 
 const (
-	_PAGE_SIZE = 4096
+	_PAGE_SIZE = _PhysPageSize
 	_EACCES    = 13
 )
 
@@ -37,9 +37,9 @@ func addrspace_free(v unsafe.Pointer, n uintptr) bool {
 
 func mmap_fixed(v unsafe.Pointer, n uintptr, prot, flags, fd int32, offset uint32) unsafe.Pointer {
 	p := mmap(v, n, prot, flags, fd, offset)
+	// On some systems, mmap ignores v without
+	// MAP_FIXED, so retry if the address space is free.
 	if p != v && addrspace_free(v, n) {
-		// On some systems, mmap ignores v without
-		// MAP_FIXED, so retry if the address space is free.
 		if uintptr(p) > 4096 {
 			munmap(p, n)
 		}

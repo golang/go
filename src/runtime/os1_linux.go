@@ -41,9 +41,19 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 		return
 	}
 
-	// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
-	ts.tv_nsec = 0
-	ts.set_sec(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec))))
+	// It's difficult to live within the no-split stack limits here.
+	// On ARM and 386, a 64-bit divide invokes a general software routine
+	// that needs more stack than we can afford. So we use timediv instead.
+	// But on real 64-bit systems, where words are larger but the stack limit
+	// is not, even timediv is too heavy, and we really need to use just an
+	// ordinary machine instruction.
+	if ptrSize == 8 {
+		ts.set_sec(ns / 1000000000)
+		ts.set_nsec(ns % 1000000000)
+	} else {
+		ts.tv_nsec = 0
+		ts.set_sec(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec))))
+	}
 	futex(unsafe.Pointer(addr), _FUTEX_WAIT, val, unsafe.Pointer(&ts), nil, 0)
 }
 

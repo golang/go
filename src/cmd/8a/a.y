@@ -74,15 +74,11 @@ prog:
 	line
 
 line:
-	LLAB ':'
+	LNAME ':'
 	{
-		if($1->value != pc)
-			yyerror("redeclaration of %s", $1->name);
-		$1->value = pc;
-	}
-	line
-|	LNAME ':'
-	{
+		$1 = labellookup($1);
+		if($1->type == LLAB && $1->value != pc)
+			yyerror("redeclaration of %s", $1->labelname);
 		$1->type = LLAB;
 		$1->value = pc;
 	}
@@ -199,11 +195,13 @@ spec1:	/* DATA */
 spec2:	/* TEXT */
 	mem ',' imm2
 	{
+		settext($1.sym);
 		$$.from = $1;
 		$$.to = $3;
 	}
 |	mem ',' con ',' imm2
 	{
+		settext($1.sym);
 		$$.from = $1;
 		$$.from.scale = $3;
 		$$.to = $5;
@@ -362,15 +360,10 @@ rel:
 	}
 |	LNAME offset
 	{
+		$1 = labellookup($1);
 		$$ = nullgen;
-		if(pass == 2)
-			yyerror("undefined label: %s", $1->name);
-		$$.type = D_BRANCH;
-		$$.offset = $2;
-	}
-|	LLAB offset
-	{
-		$$ = nullgen;
+		if(pass == 2 && $1->type != LLAB)
+			yyerror("undefined label: %s", $1->labelname);
 		$$.type = D_BRANCH;
 		$$.offset = $1->value + $2;
 	}

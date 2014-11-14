@@ -1605,10 +1605,9 @@ func unrollgcprog_m(typ *_type) {
 			prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
 			unrollgcprog1(mask, prog, &pos, false, true)
 		}
+
 		// atomic way to say mask[0] = 1
-		x := *(*uintptr)(unsafe.Pointer(mask))
-		*(*byte)(unsafe.Pointer(&x)) = 1
-		atomicstoreuintptr((*uintptr)(unsafe.Pointer(mask)), x)
+		atomicor8(mask, 1)
 	}
 	unlock(&unroll)
 }
