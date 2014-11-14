@@ -222,7 +222,7 @@ func signalstack(p *byte, n int32) {
 	var st stackt
 
 	st.ss_sp = uintptr(unsafe.Pointer(p))
-	st.ss_size = uint64(n)
+	st.ss_size = uintptr(n)
 	st.ss_flags = 0
 	if p == nil {
 		st.ss_flags = _SS_DISABLE
