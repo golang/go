@@ -1322,7 +1322,6 @@ void
 dumpit(char *str, Flow *r0, int isreg)
 {
 	Flow *r, *r1;
-	int s1v, s2v;
 
 	print("\n%s\n", str);
 	for(r = r0; r != nil; r = r->link) {
@@ -1334,10 +1333,8 @@ dumpit(char *str, Flow *r0, int isreg)
 				print(" %.4ud", (int)r1->prog->pc);
 			print("\n");
 		}
-		// If at least one successor is "interesting", print both
-		s1v = (r->s1 != nil) && (r->s1->prog != r->prog->link);
-		s2v = (r->s2 != nil) && (r->s2->prog != r->prog->link);
-		if(s1v || s2v) {
+		// Print successors if it's not just the next one
+		if(r->s1 != r->link || r->s2 != nil) {
 			print("	succ:");
 			if(r->s1 != nil)
 				print(" %.4ud", (int)r->s1->prog->pc);

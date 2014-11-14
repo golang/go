@@ -454,9 +454,13 @@ brk:
 	 * replace code (paint3)
 	 */
 	rgp = region;
+	if(debug['R'] && debug['v'])
+		print("\nregisterizing\n");
 	for(i=0; i<nregion; i++) {
+		if(debug['R'] && debug['v'])
+			print("region %d: cost %d varno %d enter %d\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
 		bit = blsh(rgp->varno);
-		vreg = paint2(rgp->enter, rgp->varno);
+		vreg = paint2(rgp->enter, rgp->varno, 0);
 		vreg = allreg(vreg, rgp);
 		if(debug['R']) {
 			if(rgp->regno >= NREG)
@@ -477,9 +481,6 @@ brk:
 		rgp++;
 	}
 
-	if(debug['R'] && debug['v'])
-		dumpit("pass6", &firstr->f, 1);
-
 	/*
 	 * free aux structures. peep allocates new ones.
 	 */
@@ -487,6 +488,15 @@ brk:
 		var[i].node->opt = nil;
 	flowend(g);
 	firstr = R;
+
+	if(debug['R'] && debug['v']) {
+		// Rebuild flow graph, since we inserted instructions
+		g = flowstart(firstp, sizeof(Reg));
+		firstr = (Reg*)g->start;
+		dumpit("pass6", &firstr->f, 1);
+		flowend(g);
+		firstr = R;
+	}
 
 	/*
 	 * pass 7
@@ -1189,7 +1199,7 @@ paint1(Reg *r, int bn)
 }
 
 uint32
-paint2(Reg *r, int bn)
+paint2(Reg *r, int bn, int depth)
 {
 	Reg *r1;
 	int z;
@@ -1213,6 +1223,9 @@ paint2(Reg *r, int bn)
 		r = r1;
 	}
 	for(;;) {
+		if(debug['R'] && debug['v'])
+			print("  paint2 %d %P\n", depth, r->f.prog);
+
 		r->act.b[z] &= ~bb;
 
 		vreg |= r->regu;
@@ -1220,14 +1233,14 @@ paint2(Reg *r, int bn)
 		if(r->refbehind.b[z] & bb)
 			for(r1 = (Reg*)r->f.p2; r1 != R; r1 = (Reg*)r1->f.p2link)
 				if(r1->refahead.b[z] & bb)
-					vreg |= paint2(r1, bn);
+					vreg |= paint2(r1, bn, depth+1);
 
 		if(!(r->refahead.b[z] & bb))
 			break;
 		r1 = (Reg*)r->f.s2;
 		if(r1 != R)
 			if(r1->refbehind.b[z] & bb)
-				vreg |= paint2(r1, bn);
+				vreg |= paint2(r1, bn, depth+1);
 		r = (Reg*)r->f.s1;
 		if(r == R)
 			break;
@@ -1344,6 +1357,8 @@ RtoB(int r)
 int
 BtoR(uint32 b)
 {
+	// TODO Allow R0 and R1, but be careful with a 0 return
+	// TODO Allow R9. Only R10 is reserved now (just g, not m).
 	b &= 0x11fcL;	// excluded R9 and R10 for m and g, but not R12
 	if(b == 0)
 		return 0;
@@ -1442,12 +1457,14 @@ dumpit(char *str, Flow *r0, int isreg)
 				print(" (only)");
 			print("\n");
 		}
-//		r1 = r->s1;
-//		if(r1 != nil) {
-//			print("	succ:");
-//			for(; r1 != R; r1 = r1->s1)
-//				print(" %.4ud", (int)r1->prog->pc);
-//			print("\n");
-//		}
+		// Print successors if it's not just the next one
+		if(r->s1 != r->link || r->s2 != nil) {
+			print("	succ:");
+			if(r->s1 != nil)
+				print(" %.4ud", (int)r->s1->prog->pc);
+			if(r->s2 != nil)
+				print(" %.4ud", (int)r->s2->prog->pc);
+			print("\n");
+		}
 	}
 }

@@ -156,7 +156,7 @@ void	prop(Reg*, Bits, Bits);
 void	synch(Reg*, Bits);
 uint32	allreg(uint32, Rgn*);
 void	paint1(Reg*, int);
-uint32	paint2(Reg*, int);
+uint32	paint2(Reg*, int, int);
 void	paint3(Reg*, int, uint32, int);
 void	addreg(Adr*, int);
 void	dumpone(Flow*, int);
