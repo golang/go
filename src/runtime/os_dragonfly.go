@@ -6,15 +6,35 @@ package runtime
 
 import "unsafe"
 
-func lwp_create(param unsafe.Pointer) int32
-func sigaltstack(new, old unsafe.Pointer)
-func sigaction(sig int32, new, old unsafe.Pointer)
-func sigprocmask(new, old unsafe.Pointer)
-func setitimer(mode int32, new, old unsafe.Pointer)
+//go:noescape
+func lwp_create(param *lwpparams) int32
+
+//go:noescape
+func sigaltstack(new, old *sigaltstackt)
+
+//go:noescape
+func sigaction(sig int32, new, old *sigactiont)
+
+//go:noescape
+func sigprocmask(new, old *sigset)
+
+//go:noescape
+func setitimer(mode int32, new, old *itimerval)
+
+//go:noescape
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+
+//go:noescape
 func getrlimit(kind int32, limit unsafe.Pointer) int32
+
 func raise(sig int32)
-func sys_umtx_sleep(addr unsafe.Pointer, val, timeout int32) int32
-func sys_umtx_wakeup(addr unsafe.Pointer, val int32) int32
+
+//go:noescape
+func sys_umtx_sleep(addr *uint32, val, timeout int32) int32
+
+//go:noescape
+func sys_umtx_wakeup(addr *uint32, val int32) int32
+
+func osyield()
 
 const stackSystem = 0
