@@ -11,7 +11,7 @@
 // two non-literal codes are a clear code and an EOF code.
 //
 // The TIFF file format uses a similar but incompatible version of the LZW
-// algorithm. See the code.google.com/p/go.image/tiff/lzw package for an
+// algorithm. See the golang.org/x/image/tiff/lzw package for an
 // implementation.
 package lzw
 

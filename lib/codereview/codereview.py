@@ -1631,7 +1631,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 	try:
 		cmd = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None, close_fds=sys.platform != "win32")
 	except:
-		return "hgapplydiff: " + ExceptionDetail() + "\nInstall hgapplydiff with:\n$ go get code.google.com/p/go.codereview/cmd/hgapplydiff\n"
+		return "hgapplydiff: " + ExceptionDetail() + "\nInstall hgapplydiff with:\n$ go get golang.org/x/codereview/cmd/hgapplydiff\n"
 
 	out, err = cmd.communicate(patch)
 	if cmd.returncode != 0 and not opts["ignore_hgapplydiff_failure"]:
@@ -3451,6 +3451,7 @@ class FakeMercurialUI(object):
 	def __init__(self):
 		self.quiet = True
 		self.output = ''
+		self.debugflag = False
 	
 	def write(self, *args, **opts):
 		self.output += ' '.join(args)

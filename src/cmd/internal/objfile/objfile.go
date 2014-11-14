@@ -9,11 +9,14 @@ import (
 	"debug/gosym"
 	"fmt"
 	"os"
+	"sort"
 )
 
 type rawFile interface {
 	symbols() (syms []Sym, err error)
 	pcln() (textStart uint64, symtab, pclntab []byte, err error)
+	text() (textStart uint64, text []byte, err error)
+	goarch() string
 }
 
 // A File is an opened executable file.
@@ -60,8 +63,19 @@ func (f *File) Close() error {
 }
 
 func (f *File) Symbols() ([]Sym, error) {
-	return f.raw.symbols()
+	syms, err := f.raw.symbols()
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(byAddr(syms))
+	return syms, nil
 }
+
+type byAddr []Sym
+
+func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
+func (x byAddr) Len() int           { return len(x) }
+func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 func (f *File) PCLineTable() (*gosym.Table, error) {
 	textStart, symtab, pclntab, err := f.raw.pcln()
@@ -69,4 +83,12 @@ func (f *File) PCLineTable() (*gosym.Table, error) {
 		return nil, err
 	}
 	return gosym.NewTable(symtab, gosym.NewLineTable(pclntab, textStart))
+}
+
+func (f *File) Text() (uint64, []byte, error) {
+	return f.raw.text()
+}
+
+func (f *File) GOARCH() string {
+	return f.raw.goarch()
 }

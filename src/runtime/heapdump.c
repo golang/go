@@ -251,7 +251,9 @@ dumpbv(BitVector *bv, uintptr offset)
 	for(i = 0; i < bv->n; i += BitsPerPointer) {
 		switch(bv->bytedata[i/8] >> i%8 & 3) {
 		case BitsDead:
-			return;
+			// BitsDead has already been processed in makeheapobjbv.
+			// We should only see it in stack maps, in which case we should continue processing.
+			break;
 		case BitsScalar:
 			break;
 		case BitsPointer:
@@ -400,7 +402,7 @@ dumpgoroutine(G *gp)
 	child.sp = nil;
 	child.depth = 0;
 	fn = dumpframe;
-	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, &fn, &child, false);
+	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, &fn, &child, 0);
 
 	// dump defer & panic records
 	for(d = gp->defer; d != nil; d = d->link) {

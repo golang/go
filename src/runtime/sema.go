@@ -259,6 +259,7 @@ func syncsemrelease(s *syncSema, n uint32) {
 		}
 		s.tail = w
 		goparkunlock(&s.lock, "semarelease")
+		releaseSudog(w)
 	} else {
 		unlock(&s.lock)
 	}

@@ -141,6 +141,8 @@ type Dummy struct {
 }
 
 func TestDrivers(t *testing.T) {
+	unregisterAllDrivers()
+	Register("test", fdriver)
 	Register("invalid", Dummy{})
 	all := Drivers()
 	if len(all) < 2 || !sort.StringsAreSorted(all) || !contains(all, "test") || !contains(all, "invalid") {

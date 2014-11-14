@@ -88,6 +88,16 @@ func (f *plan9File) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 	return textStart, symtab, pclntab, nil
 }
 
+func (f *plan9File) text() (textStart uint64, text []byte, err error) {
+	sect := f.plan9.Section("text")
+	if sect == nil {
+		return 0, nil, fmt.Errorf("text section not found")
+	}
+	textStart = f.plan9.LoadAddress + f.plan9.HdrSize
+	text, err = sect.Data()
+	return
+}
+
 func findPlan9Symbol(f *plan9obj.File, name string) (*plan9obj.Sym, error) {
 	syms, err := f.Symbols()
 	if err != nil {
@@ -121,4 +131,16 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
 	}
 	textStart := f.LoadAddress + f.HdrSize
 	return data[ssym.Value-textStart : esym.Value-textStart], nil
+}
+
+func (f *plan9File) goarch() string {
+	switch f.plan9.Magic {
+	case plan9obj.Magic386:
+		return "386"
+	case plan9obj.MagicAMD64:
+		return "amd64"
+	case plan9obj.MagicARM:
+		return "arm"
+	}
+	return ""
 }

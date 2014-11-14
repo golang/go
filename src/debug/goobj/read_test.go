@@ -12,7 +12,7 @@ var importPathToPrefixTests = []struct {
 }{
 	{"runtime", "runtime"},
 	{"sync/atomic", "sync/atomic"},
-	{"code.google.com/p/go.tools/godoc", "code.google.com/p/go.tools/godoc"},
+	{"golang.org/x/tools/godoc", "golang.org/x/tools/godoc"},
 	{"foo.bar/baz.quux", "foo.bar/baz%2equux"},
 	{"", ""},
 	{"%foo%bar", "%25foo%25bar"},

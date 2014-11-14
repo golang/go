@@ -433,20 +433,20 @@ TEST godoc installs into GOBIN
 d=$(mktemp -d -t testgoXXX)
 export GOPATH=$d
 mkdir $d/gobin
-GOBIN=$d/gobin ./testgo get code.google.com/p/go.tools/cmd/godoc || ok=false
+GOBIN=$d/gobin ./testgo get golang.org/x/tools/cmd/godoc || ok=false
 if [ ! -x $d/gobin/godoc ]; then
 	echo did not install godoc to '$GOBIN'
-	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' code.google.com/p/go.tools/cmd/godoc || true
+	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' golang.org/x/tools/cmd/godoc || true
 	ok=false
 fi
 
 TEST godoc installs into GOROOT
 GOROOT=$(./testgo env GOROOT)
 rm -f $GOROOT/bin/godoc
-./testgo install code.google.com/p/go.tools/cmd/godoc || ok=false
+./testgo install golang.org/x/tools/cmd/godoc || ok=false
 if [ ! -x $GOROOT/bin/godoc ]; then
 	echo did not install godoc to '$GOROOT/bin'
-	./testgo list -f 'Target: {{.Target}}' code.google.com/p/go.tools/cmd/godoc || true
+	./testgo list -f 'Target: {{.Target}}' golang.org/x/tools/cmd/godoc || true
 	ok=false
 fi
 
@@ -561,8 +561,8 @@ fi
 TEST without GOPATH, go get fails
 d=$(mktemp -d -t testgoXXX)
 mkdir -p $d/src
-if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then 
-	echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with $GOPATH unset'
+if GOPATH= GOROOT=$d ./testgo get -d golang.org/x/codereview/cmd/hgpatch ; then 
+	echo 'go get golang.org/x/codereview/cmd/hgpatch should not succeed with $GOPATH unset'
 	ok=false
 fi	
 rm -rf $d
@@ -571,8 +571,8 @@ rm -rf $d
 TEST with GOPATH=GOROOT, go get fails
 d=$(mktemp -d -t testgoXXX)
 mkdir -p $d/src
-if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then
-        echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
+if GOPATH=$d GOROOT=$d ./testgo get -d golang.org/x/codereview/cmd/hgpatch ; then
+        echo 'go get golang.org/x/codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
         ok=false
 fi
 rm -rf $d
@@ -728,7 +728,7 @@ elif ! grep "case-insensitive file name collision" $d/out >/dev/null; then
 fi
 
 TEST go get cover
-./testgo get code.google.com/p/go.tools/cmd/cover || ok=false
+./testgo get golang.org/x/tools/cmd/cover || ok=false
 
 unset GOPATH
 rm -rf $d
