@@ -54,7 +54,7 @@ struct	Addr
 	{
 		char	sval[8];
 		float64	dval;
-		Prog*	branch;	// for 5g, 6g, 8g
+		Prog*	branch;	// for 5g, 6g, 8g, 9g
 	} u;
 
 	LSym*	sym;
@@ -89,10 +89,13 @@ struct	Prog
 	int32	lineno;
 	Prog*	link;
 	short	as;
-	uchar	reg; // arm, power64 only
 	uchar	scond; // arm only
+
+	// operands
 	Addr	from;
-	Addr	from3; // power64 only, fma and rlwm
+	uchar	reg; // arm, power64 only (e.g., ADD from, reg, to);
+		     // also used for ADATA width on arm, power64
+	Addr	from3; // power64 only (e.g., RLWM/FMADD from, reg, from3, to)
 	Addr	to;
 	
 	// for 5g, 6g, 8g internal use

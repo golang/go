@@ -131,7 +131,7 @@ enum
 	C_NCLASS,	/* must be the last */
 };
 
-enum	as
+enum
 {
 	AXXX,
 	AADD,
@@ -501,7 +501,7 @@ enum
 	D_R0 = 0, // type is D_REG
 	D_F0 = D_R0+NREG, // type is D_FREG
 
-/* reg names iff type is D_SPR */
+/* reg names in offset field iff type is D_SPR */
 	D_XER	= 1,
 	D_LR	= 8,
 	D_CTR	= 9

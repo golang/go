@@ -122,6 +122,7 @@
 
 enum {
 	Debug		= 0,
+	DebugPtrs	= 0, // if 1, print trace of every pointer load during GC
 	ConcurrentSweep	= 1,
 
 	FinBlockSize	= 4*1024,
