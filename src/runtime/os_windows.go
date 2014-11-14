@@ -21,10 +21,6 @@ func asmstdcall(fn unsafe.Pointer)
 func getlasterror() uint32
 func setlasterror(err uint32)
 func usleep1(usec uint32)
-func netpollinit()
-func netpollopen(fd uintptr, pd *pollDesc) int32
-func netpollclose(fd uintptr) int32
-func netpollarm(pd *pollDesc, mode int)
 
 func os_sigpipe() {
 	gothrow("too many writes on closed pipe")
