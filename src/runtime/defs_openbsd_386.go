@@ -85,38 +85,38 @@ const (
 )
 
 type tforkt struct {
-	tf_tcb   *byte
+	tf_tcb   unsafe.Pointer
 	tf_tid   *int32
-	tf_stack *byte
+	tf_stack uintptr
 }
 
 type sigaltstackt struct {
-	ss_sp    *byte
-	ss_size  uint32
+	ss_sp    uintptr
+	ss_size  uintptr
 	ss_flags int32
 }
 
 type sigcontext struct {
-	sc_gs       int32
-	sc_fs       int32
-	sc_es       int32
-	sc_ds       int32
-	sc_edi      int32
-	sc_esi      int32
-	sc_ebp      int32
-	sc_ebx      int32
-	sc_edx      int32
-	sc_ecx      int32
-	sc_eax      int32
-	sc_eip      int32
-	sc_cs       int32
-	sc_eflags   int32
-	sc_esp      int32
-	sc_ss       int32
-	__sc_unused int32
-	sc_mask     int32
-	sc_trapno   int32
-	sc_err      int32
+	sc_gs       uint32
+	sc_fs       uint32
+	sc_es       uint32
+	sc_ds       uint32
+	sc_edi      uint32
+	sc_esi      uint32
+	sc_ebp      uint32
+	sc_ebx      uint32
+	sc_edx      uint32
+	sc_ecx      uint32
+	sc_eax      uint32
+	sc_eip      uint32
+	sc_cs       uint32
+	sc_eflags   uint32
+	sc_esp      uint32
+	sc_ss       uint32
+	__sc_unused uint32
+	sc_mask     uint32
+	sc_trapno   uint32
+	sc_err      uint32
 	sc_fpstate  unsafe.Pointer
 }
 
@@ -128,8 +128,8 @@ type siginfo struct {
 }
 
 type stackt struct {
-	ss_sp    *byte
-	ss_size  uint32
+	ss_sp    uintptr
+	ss_size  uintptr
 	ss_flags int32
 }
 
@@ -138,9 +138,21 @@ type timespec struct {
 	tv_nsec int32
 }
 
+func (ts *timespec) set_sec(x int32) {
+	ts.tv_sec = int64(x)
+}
+
+func (ts *timespec) set_nsec(x int32) {
+	ts.tv_nsec = x
+}
+
 type timeval struct {
 	tv_sec  int64
 	tv_usec int32
+}
+
+func (tv *timeval) set_usec(x int32) {
+	tv.tv_usec = x
 }
 
 type itimerval struct {

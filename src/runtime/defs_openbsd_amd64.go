@@ -92,7 +92,7 @@ type tforkt struct {
 
 type sigaltstackt struct {
 	ss_sp     uintptr
-	ss_size   uint64
+	ss_size   uintptr
 	ss_flags  int32
 	pad_cgo_0 [4]byte
 }
@@ -139,7 +139,7 @@ type siginfo struct {
 
 type stackt struct {
 	ss_sp     uintptr
-	ss_size   uint64
+	ss_size   uintptr
 	ss_flags  int32
 	pad_cgo_0 [4]byte
 }
