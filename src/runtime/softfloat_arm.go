@@ -605,10 +605,11 @@ done:
 }
 
 //go:nosplit
-func _sfloat2(pc uint32, regs *[15]uint32) {
+func _sfloat2(pc uint32, regs [15]uint32) (newpc uint32) {
 	systemstack(func() {
-		pc = sfloat2(pc, regs)
+		newpc = sfloat2(pc, &regs)
 	})
+	return
 }
 
 func _sfloatpanic()
