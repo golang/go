@@ -382,6 +382,7 @@ enum
 	SymExported	= 1<<2,	// already written out by export
 	SymUniq		= 1<<3,
 	SymSiggen	= 1<<4,
+	SymAsm		= 1<<5,
 };
 
 struct	Sym
@@ -393,6 +394,7 @@ struct	Sym
 	int32	npkg;	// number of imported packages with this name
 	uint32	uniqgen;
 	Pkg*	importdef;	// where imported definition was found
+	char*	linkname;	// link name
 
 	// saved and restored by dcopy
 	Pkg*	pkg;
@@ -860,6 +862,8 @@ EXTERN	int32	lexlineno;
 EXTERN	int32	lineno;
 EXTERN	int32	prevlineno;
 
+EXTERN	Fmt	pragcgobuf;
+
 EXTERN	char*	infile;
 EXTERN	char*	outfile;
 EXTERN	Biobuf*	bout;
@@ -890,6 +894,7 @@ EXTERN	Pkg*	typelinkpkg;	// fake package for runtime type info (data)
 EXTERN	Pkg*	weaktypepkg;	// weak references to runtime type info
 EXTERN	Pkg*	unsafepkg;	// package unsafe
 EXTERN	Pkg*	trackpkg;	// fake package for field tracking
+EXTERN	Pkg*	rawpkg;	// fake package for raw symbol names
 EXTERN	Pkg*	phash[128];
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	runtimeimport;
@@ -897,6 +902,7 @@ extern	char*	unsafeimport;
 EXTERN	char*	myimportpath;
 EXTERN	Idir*	idirs;
 EXTERN	char*	localimport;
+EXTERN	char*	asmhdr;
 
 EXTERN	Type*	types[NTYPE];
 EXTERN	Type*	idealstring;
@@ -1147,6 +1153,7 @@ void	escapes(NodeList*);
  */
 void	autoexport(Node *n, int ctxt);
 void	dumpexport(void);
+void	dumpasmhdr(void);
 int	exportname(char *s);
 void	exportsym(Node *n);
 void    importconst(Sym *s, Type *t, Node *n);

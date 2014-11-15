@@ -6,7 +6,8 @@
 // See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
 // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // Exit the entire program (like C exit)

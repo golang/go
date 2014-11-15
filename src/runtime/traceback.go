@@ -32,15 +32,16 @@ const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
 
 var (
 	// initialized in tracebackinit
-	deferprocPC uintptr
-	goexitPC    uintptr
-	jmpdeferPC  uintptr
-	mcallPC     uintptr
-	morestackPC uintptr
-	mstartPC    uintptr
-	newprocPC   uintptr
-	rt0_goPC    uintptr
-	sigpanicPC  uintptr
+	deferprocPC          uintptr
+	goexitPC             uintptr
+	jmpdeferPC           uintptr
+	mcallPC              uintptr
+	morestackPC          uintptr
+	mstartPC             uintptr
+	newprocPC            uintptr
+	rt0_goPC             uintptr
+	sigpanicPC           uintptr
+	systemstack_switchPC uintptr
 
 	externalthreadhandlerp uintptr // initialized elsewhere
 )
@@ -59,6 +60,7 @@ func tracebackinit() {
 	newprocPC = funcPC(newproc)
 	rt0_goPC = funcPC(rt0_go)
 	sigpanicPC = funcPC(sigpanic)
+	systemstack_switchPC = funcPC(systemstack_switch)
 }
 
 // Traceback over the deferred function calls.
@@ -335,8 +337,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 					print(hex(argp[i]))
 				}
 				print(")\n")
-				var file string
-				line := funcline(f, tracepc, &file)
+				file, line := funcline(f, tracepc)
 				print("\t", file, ":", line)
 				if frame.pc > f.entry {
 					print(" +", hex(frame.pc-f.entry))
@@ -480,8 +481,7 @@ func printcreatedby(gp *g) {
 		if pc > f.entry {
 			tracepc -= _PCQuantum
 		}
-		var file string
-		line := funcline(f, tracepc, &file)
+		file, line := funcline(f, tracepc)
 		print("\t", file, ":", line)
 		if pc > f.entry {
 			print(" +", hex(pc-f.entry))
@@ -528,7 +528,7 @@ func callers(skip int, pcbuf *uintptr, m int) int {
 	sp := getcallersp(unsafe.Pointer(&skip))
 	pc := uintptr(getcallerpc(unsafe.Pointer(&skip)))
 	var n int
-	onM(func() {
+	systemstack(func() {
 		n = gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, 0)
 	})
 	return n

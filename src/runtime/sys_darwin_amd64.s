@@ -11,7 +11,8 @@
 // The high 8 bits specify the kind of system call: 1=Mach, 2=BSD, 3=Machine-Dependent.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // Exit the entire program (like C exit)

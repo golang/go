@@ -34,12 +34,12 @@ func benchmarkSyscall(b *testing.B, work, excess int) {
 	b.RunParallel(func(pb *testing.PB) {
 		foo := 42
 		for pb.Next() {
-			runtime.Entersyscall()
+			runtime.Entersyscall(0)
 			for i := 0; i < work; i++ {
 				foo *= 2
 				foo /= 2
 			}
-			runtime.Exitsyscall()
+			runtime.Exitsyscall(0)
 		}
 		_ = foo
 	})

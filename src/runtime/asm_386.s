@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -49,7 +50,7 @@ nocpuinfo:
 	// update stackguard after _cgo_init
 	MOVL	$runtime·g0(SB), CX
 	MOVL	(g_stack+stack_lo)(CX), AX
-	ADDL	$const_StackGuard, AX
+	ADDL	$const__StackGuard, AX
 	MOVL	AX, g_stackguard0(CX)
 	MOVL	AX, g_stackguard1(CX)
 
@@ -199,62 +200,49 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	JMP	AX
 	RET
 
-// switchtoM is a dummy routine that onM leaves at the bottom
+// systemstack_switch is a dummy routine that systemstack leaves at the bottom
 // of the G stack.  We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
-// at the top of the M stack because the one at the top of
-// the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
+// at the top of the system stack because the one at the top of
+// the system stack terminates the stack walk (see topofstack()).
+TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	RET
 
-// func onM_signalok(fn func())
-TEXT runtime·onM_signalok(SB), NOSPLIT, $0-4
+// func systemstack(fn func())
+TEXT runtime·systemstack(SB), NOSPLIT, $0-4
+	MOVL	fn+0(FP), DI	// DI = fn
 	get_tls(CX)
 	MOVL	g(CX), AX	// AX = g
 	MOVL	g_m(AX), BX	// BX = m
+
 	MOVL	m_gsignal(BX), DX	// DX = gsignal
 	CMPL	AX, DX
-	JEQ	ongsignal
-	JMP	runtime·onM(SB)
-
-ongsignal:
-	MOVL	fn+0(FP), DI	// DI = fn
-	MOVL	DI, DX
-	MOVL	0(DI), DI
-	CALL	DI
-	RET
-
-// func onM(fn func())
-TEXT runtime·onM(SB), NOSPLIT, $0-4
-	MOVL	fn+0(FP), DI	// DI = fn
-	get_tls(CX)
-	MOVL	g(CX), AX	// AX = g
-	MOVL	g_m(AX), BX	// BX = m
+	JEQ	noswitch
 
 	MOVL	m_g0(BX), DX	// DX = g0
 	CMPL	AX, DX
-	JEQ	onm
+	JEQ	noswitch
 
 	MOVL	m_curg(BX), BP
 	CMPL	AX, BP
-	JEQ	oncurg
+	JEQ	switch
 	
-	// Not g0, not curg. Must be gsignal, but that's not allowed.
+	// Bad: g is not gsignal, not g0, not curg. What is it?
 	// Hide call from linker nosplit analysis.
-	MOVL	$runtime·badonm(SB), AX
+	MOVL	$runtime·badsystemstack(SB), AX
 	CALL	AX
 
-oncurg:
+switch:
 	// save our state in g->sched.  Pretend to
-	// be switchtoM if the G stack is scanned.
-	MOVL	$runtime·switchtoM(SB), (g_sched+gobuf_pc)(AX)
+	// be systemstack_switch if the G stack is scanned.
+	MOVL	$runtime·systemstack_switch(SB), (g_sched+gobuf_pc)(AX)
 	MOVL	SP, (g_sched+gobuf_sp)(AX)
 	MOVL	AX, (g_sched+gobuf_g)(AX)
 
 	// switch to g0
 	MOVL	DX, g(CX)
 	MOVL	(g_sched+gobuf_sp)(DX), BX
-	// make it look like mstart called onM on g0, to stop traceback
+	// make it look like mstart called systemstack on g0, to stop traceback
 	SUBL	$4, BX
 	MOVL	$runtime·mstart(SB), DX
 	MOVL	DX, 0(BX)
@@ -275,8 +263,8 @@ oncurg:
 	MOVL	$0, (g_sched+gobuf_sp)(AX)
 	RET
 
-onm:
-	// already on m stack, just call directly
+noswitch:
+	// already on system stack, just call directly
 	MOVL	DI, DX
 	MOVL	0(DI), DI
 	CALL	DI
@@ -740,7 +728,7 @@ needm:
 	// the same SP back to m->sched.sp. That seems redundant,
 	// but if an unrecovered panic happens, unwindm will
 	// restore the g->sched.sp from the stack location
-	// and then onM will try to use it. If we don't set it here,
+	// and then systemstack will try to use it. If we don't set it here,
 	// that restored SP will be uninitialized (typically 0) and
 	// will not be usable.
 	MOVL	m_g0(BP), SI
@@ -2290,3 +2278,10 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	BYTE	$0x90	// NOP
 	CALL	runtime·goexit1(SB)	// does not return
+
+TEXT runtime·getg(SB),NOSPLIT,$0-4
+	get_tls(CX)
+	MOVL	g(CX), AX
+	MOVL	AX, ret+0(FP)
+	RET
+

@@ -85,7 +85,7 @@ func atomicstore(addr *uint32, v uint32) {
 //go:nosplit
 func cas64(addr *uint64, old, new uint64) bool {
 	var ok bool
-	onM(func() {
+	systemstack(func() {
 		lock(addrLock(addr))
 		if *addr == old {
 			*addr = new
@@ -99,7 +99,7 @@ func cas64(addr *uint64, old, new uint64) bool {
 //go:nosplit
 func xadd64(addr *uint64, delta int64) uint64 {
 	var r uint64
-	onM(func() {
+	systemstack(func() {
 		lock(addrLock(addr))
 		r = *addr + uint64(delta)
 		*addr = r
@@ -111,7 +111,7 @@ func xadd64(addr *uint64, delta int64) uint64 {
 //go:nosplit
 func xchg64(addr *uint64, v uint64) uint64 {
 	var r uint64
-	onM(func() {
+	systemstack(func() {
 		lock(addrLock(addr))
 		r = *addr
 		*addr = v
@@ -123,7 +123,7 @@ func xchg64(addr *uint64, v uint64) uint64 {
 //go:nosplit
 func atomicload64(addr *uint64) uint64 {
 	var r uint64
-	onM(func() {
+	systemstack(func() {
 		lock(addrLock(addr))
 		r = *addr
 		unlock(addrLock(addr))
@@ -133,7 +133,7 @@ func atomicload64(addr *uint64) uint64 {
 
 //go:nosplit
 func atomicstore64(addr *uint64, v uint64) {
-	onM(func() {
+	systemstack(func() {
 		lock(addrLock(addr))
 		*addr = v
 		unlock(addrLock(addr))

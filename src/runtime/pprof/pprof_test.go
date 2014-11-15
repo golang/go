@@ -249,7 +249,7 @@ func TestGoroutineSwitch(t *testing.T) {
 			// exists to record a PC without a traceback. Those are okay.
 			if len(stk) == 2 {
 				f := runtime.FuncForPC(stk[1])
-				if f != nil && (f.Name() == "System" || f.Name() == "ExternalCode" || f.Name() == "GC") {
+				if f != nil && (f.Name() == "runtime._System" || f.Name() == "runtime._ExternalCode" || f.Name() == "runtime._GC") {
 					return
 				}
 			}

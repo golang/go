@@ -6,7 +6,8 @@
 // /usr/src/sys/kern/syscalls.master for syscall numbers.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // int32 lwp_create(void *context, uintptr flags, void *lwpid)

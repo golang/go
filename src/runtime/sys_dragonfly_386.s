@@ -6,7 +6,8 @@
 // /usr/src/sys/kern/syscalls.master for syscall numbers.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 	
 TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$-4

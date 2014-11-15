@@ -6,7 +6,8 @@
 // /usr/src/sys/kern/syscalls.master for syscall numbers.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // Exit the entire program (like C exit)
@@ -330,7 +331,7 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	SWI $0xa0005c	// sys_fcntl
 	RET
 
-TEXT runtime·casp(SB),NOSPLIT,$0
+TEXT runtime·casp1(SB),NOSPLIT,$0
 	B	runtime·cas(SB)
 
 // TODO(minux): this is only valid for ARMv6+

@@ -6,8 +6,6 @@
 
 package runtime
 
-func sigpipe()
-
 func os_sigpipe() {
-	onM(sigpipe)
+	systemstack(sigpipe)
 }

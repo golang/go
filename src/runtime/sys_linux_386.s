@@ -6,7 +6,8 @@
 // System calls and other sys.stuff for 386, Linux
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 TEXT runtime·exit(SB),NOSPLIT,$0
