@@ -3802,39 +3802,25 @@ checknil(Node *x, NodeList **init)
 
 /*
  * Can this type be stored directly in an interface word?
+ * Yes, if the representation is a single pointer.
  */
 int
 isdirectiface(Type *t)
 {
-	// Setting IfacePointerOnly = 1 changes the
-	// interface representation so that the data word
-	// in an interface value must always be a pointer.
-	// Setting it to 0 uses the original representation,
-	// where the data word can hold a pointer or any
-	// non-pointer value no bigger than a pointer.
-	enum {
-		IfacePointerOnly = 1,
-	};
-
-	if(IfacePointerOnly) {
-		switch(t->etype) {
-		case TPTR32:
-		case TPTR64:
-		case TCHAN:
-		case TMAP:
-		case TFUNC:
-		case TUNSAFEPTR:
-			return 1;
-		case TARRAY:
-			// Array of 1 direct iface type can be direct.
-			return t->bound == 1 && isdirectiface(t->type);
-		case TSTRUCT:
-			// Struct with 1 field of direct iface type can be direct.
-			return t->type != T && t->type->down == T && isdirectiface(t->type->type);
-		}
-		return 0;
+	switch(t->etype) {
+	case TPTR32:
+	case TPTR64:
+	case TCHAN:
+	case TMAP:
+	case TFUNC:
+	case TUNSAFEPTR:
+		return 1;
+	case TARRAY:
+		// Array of 1 direct iface type can be direct.
+		return t->bound == 1 && isdirectiface(t->type);
+	case TSTRUCT:
+		// Struct with 1 field of direct iface type can be direct.
+		return t->type != T && t->type->down == T && isdirectiface(t->type->type);
 	}
-	
-	dowidth(t);
-	return t->width <= widthptr;
+	return 0;
 }

@@ -28,7 +28,7 @@ func gc_unixnanotime(now *int64) {
 
 func freeOSMemory() {
 	gogc(2) // force GC and do eager sweep
-	onM(scavenge_m)
+	systemstack(scavenge_m)
 }
 
 var poolcleanup func()
@@ -60,10 +60,8 @@ func clearpools() {
 	}
 }
 
-func gosweepone() uintptr
-func gosweepdone() bool
-
 func bgsweep() {
+	sweep.g = getg()
 	getg().issystem = true
 	for {
 		for gosweepone() != ^uintptr(0) {
@@ -105,7 +103,7 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 	}
 
 	if src != 0 && (src < _PageSize || src == _PoisonGC || src == _PoisonStack) {
-		onM(func() { gothrow("bad pointer in write barrier") })
+		systemstack(func() { gothrow("bad pointer in write barrier") })
 	}
 
 	mp := acquirem()
@@ -114,13 +112,9 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 		return
 	}
 	mp.inwb = true
-	oldscalar0 := mp.scalararg[0]
-	oldscalar1 := mp.scalararg[1]
-	mp.scalararg[0] = uintptr(unsafe.Pointer(dst))
-	mp.scalararg[1] = src
-	onM_signalok(gcmarkwb_m)
-	mp.scalararg[0] = oldscalar0
-	mp.scalararg[1] = oldscalar1
+	systemstack(func() {
+		gcmarkwb_m(dst, src)
+	})
 	mp.inwb = false
 	releasem(mp)
 }

@@ -89,7 +89,7 @@ struct	Prog
 	int32	lineno;
 	Prog*	link;
 	short	as;
-	uchar	scond; // arm only
+	uchar	scond; // arm only; condition codes
 
 	// operands
 	Addr	from;

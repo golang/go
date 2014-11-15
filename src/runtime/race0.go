@@ -18,7 +18,7 @@ const raceenabled = false
 
 func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr)  { gothrow("race") }
 func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) { gothrow("race") }
-func raceinit()                                                             { gothrow("race") }
+func raceinit() uintptr                                                     { gothrow("race"); return 0 }
 func racefini()                                                             { gothrow("race") }
 func racemapshadow(addr unsafe.Pointer, size uintptr)                       { gothrow("race") }
 func racewritepc(addr unsafe.Pointer, callerpc, pc uintptr)                 { gothrow("race") }

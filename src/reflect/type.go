@@ -1588,9 +1588,8 @@ func (gc *gcProg) align(a uintptr) {
 
 // These constants must stay in sync with ../runtime/mgc0.h.
 const (
-	bitsScalar    = 1
-	bitsPointer   = 2
-	bitsMultiWord = 3
+	bitsScalar  = 1
+	bitsPointer = 2
 
 	bitsIface = 2
 	bitsEface = 3

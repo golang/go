@@ -12,18 +12,6 @@ import (
 	"unsafe"
 )
 
-func racefini()
-
-// RaceDisable disables handling of race events in the current goroutine.
-func RaceDisable()
-
-// RaceEnable re-enables handling of race events in the current goroutine.
-func RaceEnable()
-
-func RaceAcquire(addr unsafe.Pointer)
-func RaceRelease(addr unsafe.Pointer)
-func RaceReleaseMerge(addr unsafe.Pointer)
-
 func RaceRead(addr unsafe.Pointer)
 func RaceWrite(addr unsafe.Pointer)
 func RaceReadRange(addr unsafe.Pointer, len int)
@@ -67,32 +55,6 @@ func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
 //go:noescape
 func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
 
-//go:noescape
-func racereadrangepc(addr unsafe.Pointer, len uintptr, callpc, pc uintptr)
-
-//go:noescape
-func racewriterangepc(addr unsafe.Pointer, len uintptr, callpc, pc uintptr)
-
-//go:noescape
-func raceacquire(addr unsafe.Pointer)
-
-//go:noescape
-func racerelease(addr unsafe.Pointer)
-
-//go:noescape
-func raceacquireg(gp *g, addr unsafe.Pointer)
-
-//go:noescape
-func racereleaseg(gp *g, addr unsafe.Pointer)
-
-func racefingo()
-
-//go:noescape
-func racemalloc(p unsafe.Pointer, size uintptr)
-
-//go:noescape
-func racereleasemerge(addr unsafe.Pointer)
-
 type symbolizeContext struct {
 	pc   uintptr
 	fn   *byte
@@ -118,8 +80,8 @@ func racesymbolize(ctx *symbolizeContext) {
 	}
 
 	ctx.fn = funcname(f)
-	var file string
-	ctx.line = uintptr(funcline(f, ctx.pc, &file))
+	file, line := funcline(f, ctx.pc)
+	ctx.line = uintptr(line)
 	ctx.file = &bytes(file)[0] // assume NUL-terminated
 	ctx.off = ctx.pc - f.entry
 	ctx.res = 1

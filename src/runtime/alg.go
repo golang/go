@@ -314,9 +314,6 @@ const hashRandomBytes = 32
 
 var aeskeysched [hashRandomBytes]byte
 
-//go:noescape
-func get_random_data(rnd *unsafe.Pointer, n *int32)
-
 func init() {
 	if theGoos == "nacl" {
 		return

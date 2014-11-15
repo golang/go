@@ -8,8 +8,6 @@ package runtime
 
 import "unsafe"
 
-func environ() []string
-
 func getenv(s *byte) *byte {
 	val := gogetenv(gostringnocopy(s))
 	if val == "" {
@@ -32,13 +30,13 @@ func gogetenv(key string) string {
 	return ""
 }
 
-var _cgo_setenv uintptr   // pointer to C function
-var _cgo_unsetenv uintptr // pointer to C function
+var _cgo_setenv unsafe.Pointer   // pointer to C function
+var _cgo_unsetenv unsafe.Pointer // pointer to C function
 
 // Update the C environment if cgo is loaded.
 // Called from syscall.Setenv.
 func syscall_setenv_c(k string, v string) {
-	if _cgo_setenv == 0 {
+	if _cgo_setenv == nil {
 		return
 	}
 	arg := [2]unsafe.Pointer{cstring(k), cstring(v)}
@@ -48,7 +46,7 @@ func syscall_setenv_c(k string, v string) {
 // Update the C environment if cgo is loaded.
 // Called from syscall.unsetenv.
 func syscall_unsetenv_c(k string) {
-	if _cgo_unsetenv == 0 {
+	if _cgo_unsetenv == nil {
 		return
 	}
 	arg := [1]unsafe.Pointer{cstring(k)}

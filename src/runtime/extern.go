@@ -112,7 +112,8 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	if xpc > f.entry && (g == nil || g.entry != funcPC(sigpanic)) {
 		xpc--
 	}
-	line = int(funcline(f, xpc, &file))
+	file, line32 := funcline(f, xpc)
+	line = int(line32)
 	ok = true
 	return
 }
