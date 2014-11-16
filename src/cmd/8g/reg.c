@@ -926,7 +926,7 @@ paint1(Reg *r, int bn)
 	Reg *r1;
 	Prog *p;
 	int z;
-	uint64 bb;
+	uint64 bb, rbz;
 
 	z = bn/64;
 	bb = 1LL<<(bn%64);
@@ -945,7 +945,8 @@ paint1(Reg *r, int bn)
 		r = r1;
 	}
 
-	if(LOAD(r) & ~(r->set.b[z]&~(r->use1.b[z]|r->use2.b[z])) & bb) {
+	rbz = ~(r->set.b[z]&~(r->use1.b[z]|r->use2.b[z]));
+	if(LOAD(r) & rbz & bb) {
 		change -= CLOAD * r->f.loop;
 	}
 	for(;;) {
@@ -1053,7 +1054,7 @@ paint3(Reg *r, int bn, uint32 rb, int rn)
 	Reg *r1;
 	Prog *p;
 	int z;
-	uint64 bb;
+	uint64 bb, rbz;
 
 	z = bn/64;
 	bb = 1LL << (bn%64);
@@ -1072,7 +1073,8 @@ paint3(Reg *r, int bn, uint32 rb, int rn)
 		r = r1;
 	}
 
-	if(LOAD(r) & ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z])) & bb)
+	rbz = ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z]));
+	if(LOAD(r) & rbz & bb)
 		addmove(r, bn, rn, 0);
 	for(;;) {
 		r->act.b[z] |= bb;
