@@ -180,8 +180,8 @@ type timespec struct {
 	tv_nsec int64
 }
 
-func (ts *timespec) set_sec(x int32) {
-	ts.tv_sec = int64(x)
+func (ts *timespec) set_sec(x int64) {
+	ts.tv_sec = x
 }
 
 type timeval struct {

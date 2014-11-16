@@ -256,9 +256,9 @@ Dconv(Fmt *fp)
 			//if(v >= INITTEXT)
 			//	v -= INITTEXT-HEADR;
 			if(a->sym != nil)
-				sprint(str, "%s+%.5lux(BRANCH)", a->sym->name, v);
+				sprint(str, "%s+%.5ux(BRANCH)", a->sym->name, v);
 			else
-				sprint(str, "%.5lux(BRANCH)", v);
+				sprint(str, "%.5ux(BRANCH)", v);
 		} else if(a->u.branch != nil)
 			sprint(str, "%lld", a->u.branch->pc);
 		else if(a->sym != nil)
@@ -316,7 +316,7 @@ Mconv(Fmt *fp)
 		if(a->offset != 0)
 			sprint(str, "%s+%lld(SB)", s->name, a->offset);
 		else
-			sprint(str, "%s(SB)", s->name, a->offset);
+			sprint(str, "%s(SB)", s->name);
 		break;
 
 	case D_STATIC:
