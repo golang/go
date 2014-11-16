@@ -7,7 +7,7 @@
 // finalizers, etc.) to a file.
 
 // The format of the dumped file is described at
-// http://code.google.com/p/go-wiki/wiki/heapdump14
+// http://golang.org/s/go14heapdump.
 
 #include "runtime.h"
 #include "arch_GOARCH.h"
