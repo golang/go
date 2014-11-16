@@ -498,7 +498,6 @@ span9(Link *ctxt, LSym *cursym)
 	if(oprange[AANDN].start == nil)
  		buildop(ctxt);
 
-	bflag = 0;
 	c = 0;	
 	p->pc = c;
 
