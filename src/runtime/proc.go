@@ -152,6 +152,7 @@ func acquireSudog() *sudog {
 			gothrow("acquireSudog: found s.elem != nil in cache")
 		}
 		c.sudogcache = s.next
+		s.next = nil
 		return s
 	}
 
@@ -176,6 +177,15 @@ func releaseSudog(s *sudog) {
 	}
 	if s.selectdone != nil {
 		gothrow("runtime: sudog with non-nil selectdone")
+	}
+	if s.next != nil {
+		gothrow("runtime: sudog with non-nil next")
+	}
+	if s.prev != nil {
+		gothrow("runtime: sudog with non-nil prev")
+	}
+	if s.waitlink != nil {
+		gothrow("runtime: sudog with non-nil waitlink")
 	}
 	gp := getg()
 	if gp.param != nil {

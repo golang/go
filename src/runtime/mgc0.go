@@ -51,10 +51,26 @@ func clearpools() {
 		if c := p.mcache; c != nil {
 			c.tiny = nil
 			c.tinysize = 0
+
+			// disconnect cached list before dropping it on the floor,
+			// so that a dangling ref to one entry does not pin all of them.
+			var sg, sgnext *sudog
+			for sg = c.sudogcache; sg != nil; sg = sgnext {
+				sgnext = sg.next
+				sg.next = nil
+			}
 			c.sudogcache = nil
 		}
+
 		// clear defer pools
 		for i := range p.deferpool {
+			// disconnect cached list before dropping it on the floor,
+			// so that a dangling ref to one entry does not pin all of them.
+			var d, dlink *_defer
+			for d = p.deferpool[i]; d != nil; d = dlink {
+				dlink = d.link
+				d.link = nil
+			}
 			p.deferpool[i] = nil
 		}
 	}
