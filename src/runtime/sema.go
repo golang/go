@@ -201,6 +201,7 @@ func syncsemacquire(s *syncSema) {
 		}
 		unlock(&s.lock)
 		if wake != nil {
+			wake.next = nil
 			goready(wake.g)
 		}
 	} else {
@@ -242,6 +243,7 @@ func syncsemrelease(s *syncSema, n uint32) {
 		if wake.releasetime != 0 {
 			wake.releasetime = cputicks()
 		}
+		wake.next = nil
 		goready(wake.g)
 		n--
 	}
