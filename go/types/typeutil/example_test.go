@@ -10,8 +10,6 @@ import (
 
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
-
-	_ "golang.org/x/tools/go/gcimporter" // no imports; why is this necessary?
 )
 
 func ExampleMap() {
