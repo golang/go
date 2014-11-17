@@ -18,6 +18,9 @@ go	src=..
 				gofmt_test.go
 				testdata
 					+
+			link
+				testdata
+					+
 		archive
 			tar
 				testdata
