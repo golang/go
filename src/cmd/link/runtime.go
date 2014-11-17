@@ -7,7 +7,7 @@
 
 package main
 
-import "debug/goobj"
+import "cmd/internal/goobj"
 
 func (p *Prog) runtime() {
 	p.pclntab()
