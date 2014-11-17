@@ -74,7 +74,7 @@ func init() {
 
 func main() {
 	if err := doMain(); err != nil {
-		fmt.Fprintf(os.Stderr, "ssadump: %s.\n", err)
+		fmt.Fprintf(os.Stderr, "ssadump: %s\n", err)
 		os.Exit(1)
 	}
 }

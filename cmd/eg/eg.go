@@ -11,7 +11,6 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
@@ -37,7 +36,7 @@ Usage: eg -t template.go [-w] [-transitive] <args>...
 
 func main() {
 	if err := doMain(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s.\n", filepath.Base(os.Args[0]), err)
+		fmt.Fprintf(os.Stderr, "eg: %s\n", err)
 		os.Exit(1)
 	}
 }
@@ -128,7 +127,7 @@ func doMain() error {
 					}
 				}
 				if err := eg.WriteAST(iprog.Fset, filename, file); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+					fmt.Fprintf(os.Stderr, "eg: %s\n", err)
 					hadErrors = true
 				}
 			} else {

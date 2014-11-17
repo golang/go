@@ -98,7 +98,7 @@ func main() {
 	}
 
 	if err := digraph(args[0], args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		fmt.Fprintf(os.Stderr, "digraph: %s\n", err)
 		os.Exit(1)
 	}
 }
@@ -265,7 +265,7 @@ func digraph(cmd string, args []string) error {
 	switch cmd {
 	case "nodes":
 		if len(args) != 0 {
-			return fmt.Errorf("usage: nodes")
+			return fmt.Errorf("usage: digraph nodes")
 		}
 		nodes := make(nodeset)
 		for label := range g {
@@ -275,7 +275,7 @@ func digraph(cmd string, args []string) error {
 
 	case "degree":
 		if len(args) != 0 {
-			return fmt.Errorf("usage: degree")
+			return fmt.Errorf("usage: digraph degree")
 		}
 		nodes := make(nodeset)
 		for label := range g {
@@ -288,7 +288,7 @@ func digraph(cmd string, args []string) error {
 
 	case "succs", "preds":
 		if len(args) == 0 {
-			return fmt.Errorf("usage: %s <label> ...", cmd)
+			return fmt.Errorf("usage: digraph %s <label> ...", cmd)
 		}
 		g := g
 		if cmd == "preds" {
@@ -306,7 +306,7 @@ func digraph(cmd string, args []string) error {
 
 	case "forward", "reverse":
 		if len(args) == 0 {
-			return fmt.Errorf("usage: %s <label> ...", cmd)
+			return fmt.Errorf("usage: digraph %s <label> ...", cmd)
 		}
 		roots := make(nodeset)
 		for _, root := range args {
@@ -323,7 +323,7 @@ func digraph(cmd string, args []string) error {
 
 	case "somepath":
 		if len(args) != 2 {
-			return fmt.Errorf("usage: somepath <from> <to>")
+			return fmt.Errorf("usage: digraph somepath <from> <to>")
 		}
 		from, to := args[0], args[1]
 		if g[from] == nil {
@@ -356,7 +356,7 @@ func digraph(cmd string, args []string) error {
 
 	case "allpaths":
 		if len(args) != 2 {
-			return fmt.Errorf("usage: allpaths <from> <to>")
+			return fmt.Errorf("usage: digraph allpaths <from> <to>")
 		}
 		from, to := args[0], args[1]
 		if g[from] == nil {
@@ -395,7 +395,7 @@ func digraph(cmd string, args []string) error {
 
 	case "sccs":
 		if len(args) != 0 {
-			return fmt.Errorf("usage: sccs")
+			return fmt.Errorf("usage: digraph sccs")
 		}
 		for _, scc := range g.sccs() {
 			scc.sort().println(" ")
@@ -403,7 +403,7 @@ func digraph(cmd string, args []string) error {
 
 	case "scc":
 		if len(args) != 1 {
-			return fmt.Errorf("usage: scc <label>")
+			return fmt.Errorf("usage: digraph scc <label>")
 		}
 		label := args[0]
 		if g[label] == nil {

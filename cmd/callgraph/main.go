@@ -134,7 +134,7 @@ func init() {
 func main() {
 	flag.Parse()
 	if err := doCallgraph(&build.Default, *algoFlag, *formatFlag, *testFlag, flag.Args()); err != nil {
-		fmt.Fprintf(os.Stderr, "callgraph: %s.\n", err)
+		fmt.Fprintf(os.Stderr, "callgraph: %s\n", err)
 		os.Exit(1)
 	}
 }

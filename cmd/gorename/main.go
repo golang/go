@@ -120,7 +120,7 @@ Features:
 func main() {
 	flag.Parse()
 	if len(flag.Args()) > 0 {
-		fmt.Fprintf(os.Stderr, "Error: surplus arguments.\n")
+		fmt.Fprintln(os.Stderr, "gorename: surplus arguments.")
 		os.Exit(1)
 	}
 
@@ -131,7 +131,7 @@ func main() {
 
 	if err := rename.Main(&build.Default, *offsetFlag, *fromFlag, *toFlag); err != nil {
 		if err != rename.ConflictError {
-			fmt.Fprintf(os.Stderr, "Error: %s.\n", err)
+			fmt.Fprintf(os.Stderr, "gorename: %s\n", err)
 		}
 		os.Exit(1)
 	}

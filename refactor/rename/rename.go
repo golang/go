@@ -281,7 +281,7 @@ func (r *renamer) update() error {
 					}
 				}
 				if err := rewriteFile(r.iprog.Fset, f, tokenFile.Name()); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %s.\n", err)
+					fmt.Fprintf(os.Stderr, "gorename: %s\n", err)
 					nerrs++
 				}
 			}
