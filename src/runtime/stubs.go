@@ -231,7 +231,7 @@ func setcallerpc(argp unsafe.Pointer, pc uintptr)
 //
 //	func f(arg1, arg2, arg3 int) {
 //		pc := getcallerpc(unsafe.Pointer(&arg1))
-//		sp := getcallerpc(unsafe.Pointer(&arg2))
+//		sp := getcallersp(unsafe.Pointer(&arg1))
 //	}
 //
 // These two lines find the PC and SP immediately following
