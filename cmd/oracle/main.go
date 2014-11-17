@@ -60,9 +60,10 @@ The mode argument determines the query to perform:
 	callstack 	show path from callgraph root to selected function
 	describe  	describe selected syntax: definition, methods, etc
 	freevars  	show free variables of selection
-	implements	show 'implements' relation for selected package
+	implements	show 'implements' relation for selected type
 	peers     	show send/receive corresponding to selected channel op
 	referrers 	show all refs to entity denoted by selected identifier
+	what		show basic information about the selected syntax node
 
 The user manual is available here:  http://golang.org/s/oracle-user-manual
 
@@ -111,7 +112,7 @@ func main() {
 
 	args := flag.Args()
 	if len(args) == 0 || args[0] == "" {
-		fmt.Fprint(os.Stderr, "Error: a mode argument is required.\n"+useHelp)
+		fmt.Fprint(os.Stderr, "oracle: a mode argument is required.\n"+useHelp)
 		os.Exit(2)
 	}
 
@@ -123,7 +124,7 @@ func main() {
 	}
 
 	if len(args) == 0 && mode != "what" {
-		fmt.Fprint(os.Stderr, "Error: no package arguments.\n"+useHelp)
+		fmt.Fprint(os.Stderr, "oracle: no package arguments.\n"+useHelp)
 		os.Exit(2)
 	}
 
@@ -157,14 +158,14 @@ func main() {
 	case "json", "plain", "xml":
 		// ok
 	default:
-		fmt.Fprintf(os.Stderr, "Error: illegal -format value: %q.\n"+useHelp, *formatFlag)
+		fmt.Fprintf(os.Stderr, "oracle: illegal -format value: %q.\n"+useHelp, *formatFlag)
 		os.Exit(2)
 	}
 
 	// Ask the oracle.
 	res, err := oracle.Query(args, mode, *posFlag, ptalog, &build.Default, *reflectFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s.\n", err)
+		fmt.Fprintf(os.Stderr, "oracle: %s.\n", err)
 		os.Exit(1)
 	}
 
@@ -173,7 +174,7 @@ func main() {
 	case "json":
 		b, err := json.MarshalIndent(res.Serial(), "", "\t")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "JSON error: %s.\n", err)
+			fmt.Fprintf(os.Stderr, "oracle: JSON error: %s.\n", err)
 			os.Exit(1)
 		}
 		os.Stdout.Write(b)
@@ -181,7 +182,7 @@ func main() {
 	case "xml":
 		b, err := xml.MarshalIndent(res.Serial(), "", "\t")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "XML error: %s.\n", err)
+			fmt.Fprintf(os.Stderr, "oracle: XML error: %s.\n", err)
 			os.Exit(1)
 		}
 		os.Stdout.Write(b)

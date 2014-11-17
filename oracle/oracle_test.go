@@ -74,8 +74,8 @@ func parseQueries(t *testing.T, filename string) []*query {
 	}
 
 	// Parse the file once to discover the test queries.
-	var fset token.FileSet
-	f, err := parser.ParseFile(&fset, filename, filedata, parser.ParseComments)
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filename, filedata, parser.ParseComments)
 	if err != nil {
 		t.Fatal(err)
 	}

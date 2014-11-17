@@ -15,8 +15,6 @@ tools, which should act as if they were saved.
 
 Fix: make the guessImportPath hack work with external _test.go files too.
 
-Allow the analysis scope to include multiple test packages at once.
-
 Include complete pos/end information Serial output.
   But beware that sometimes a single token (e.g. +) is more helpful
   than the pos/end of the containing expression (e.g. x \n + \n y).
