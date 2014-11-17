@@ -197,7 +197,7 @@ func parseObjectSpec(spec *spec, main string) error {
 		}
 	}
 
-	return fmt.Errorf("-from %q: invalid expression")
+	return fmt.Errorf("-from %q: invalid expression", main)
 }
 
 // parseImportPath returns the import path of the package denoted by e.
