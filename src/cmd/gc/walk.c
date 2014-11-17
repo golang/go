@@ -1766,7 +1766,6 @@ walkprint(Node *nn, NodeList **init)
 	int notfirst, et, op;
 	NodeList *calls;
 
-	on = nil;
 	op = nn->op;
 	all = nn->list;
 	calls = nil;
