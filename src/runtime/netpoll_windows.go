@@ -108,7 +108,7 @@ retry:
 			op = entries[i].op
 			errno = 0
 			qty = 0
-			if stdcall5(_WSAGetOverlappedResult, netpollfd(op.pd), uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
+			if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
 				errno = int32(getlasterror())
 			}
 			handlecompletion(&gp, op, errno, qty)
