@@ -56,8 +56,8 @@ const (
 	blogPath       = "golang.org/x/blog"
 	toolPath       = "golang.org/x/tools"
 	tourPath       = "code.google.com/p/go-tour"
-	defaultToolTag = "release-branch.go1.3"
-	defaultTourTag = "release-branch.go1.3"
+	defaultToolTag = "release-branch.go1.4"
+	defaultTourTag = "release-branch.go1.4"
 )
 
 // Import paths for tool commands.
