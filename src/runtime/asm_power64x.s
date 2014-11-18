@@ -4,7 +4,8 @@
 
 // +build power64 power64le
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -472,7 +473,7 @@ TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
 //		return 1;
 //	} else
 //		return 0;
-TEXT runtime·casp(SB), NOSPLIT, $0-25
+TEXT runtime·casp1(SB), NOSPLIT, $0-25
 	BR runtime·cas64(SB)
 
 // uint32 xadd(uint32 volatile *ptr, int32 delta)
@@ -529,7 +530,7 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
 	MOVD	R3, ret+16(FP)
 	RETURN
 
-TEXT runtime·xchgp(SB), NOSPLIT, $0-24
+TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
 	BR	runtime·xchg64(SB)
 
 TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
@@ -538,7 +539,7 @@ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	RETURN
 
-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-16
+TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-16
 	BR	runtime·atomicstore64(SB)
 
 TEXT runtime·atomicstore(SB), NOSPLIT, $0-12
@@ -986,3 +987,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 TEXT runtime·goexit(SB),NOSPLIT,$-8-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
+
+TEXT runtime·getg(SB),NOSPLIT,$-8-8
+	MOVD	g, ret+0(FP)
+	RETURN
