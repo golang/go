@@ -129,6 +129,7 @@ var prefixHelpers = map[string]string{
 	"cl":     "https://codereview.appspot.com/",
 	"issue":  "https://code.google.com/p/go/issues/detail?id=",
 	"play":   "http://play.golang.org/",
+	"review": "https://go-review.googlesource.com/#/q/",
 	"talks":  "http://talks.golang.org/",
 	"wiki":   "https://code.google.com/p/go-wiki/wiki/",
 }
