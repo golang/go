@@ -615,8 +615,6 @@ static struct {
 	{"anames9.c", mkanames},
 	{"zdefaultcc.go", mkzdefaultcc},
 	{"zsys_", mkzsys},
-	{"zgoarch_", mkzgoarch},
-	{"zgoos_", mkzgoos},
 	{"zversion.go", mkzversion},
 	{"zaexperiment.h", mkzexperiment},
 
@@ -1419,12 +1417,13 @@ clean(void)
 			xremove(bpathf(&b, "%s/%s", bstr(&path), cleantab[i]+4));
 	}
 
-	// remove src/runtime/z* unconditionally
+	// remove src/runtime/z* unconditionally,
+	// except leave zgoos and zgoarch, now maintained with go generate.
 	vreset(&dir);
 	bpathf(&path, "%s/src/runtime", goroot);
 	xreaddir(&dir, bstr(&path));
 	for(j=0; j<dir.len; j++) {
-		if(hasprefix(dir.p[j], "z"))
+		if(hasprefix(dir.p[j], "z") && !hasprefix(dir.p[j], "zg"))
 			xremove(bpathf(&b, "%s/%s", bstr(&path), dir.p[j]));
 	}
 
