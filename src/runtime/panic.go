@@ -162,7 +162,7 @@ func init() {
 
 // Allocate a Defer, usually using per-P pool.
 // Each defer must be released with freedefer.
-// Note: runs on M stack
+// Note: runs on g0 stack
 func newdefer(siz int32) *_defer {
 	var d *_defer
 	sc := deferclass(uintptr(siz))

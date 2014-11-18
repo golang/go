@@ -169,7 +169,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 // of the G stack.  We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
 // at the top of the system stack because the one at the top of
-// the M stack terminates the stack walk (see topofstack()).
+// the system stack terminates the stack walk (see topofstack()).
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	RET
 
