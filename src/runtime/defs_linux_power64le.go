@@ -79,7 +79,7 @@ const (
 	_EPOLLERR      = 0x8
 	_EPOLLHUP      = 0x10
 	_EPOLLRDHUP    = 0x2000
-	_EPOLLET       = -0x80000000
+	_EPOLLET       = 0x80000000
 	_EPOLL_CLOEXEC = 0x80000
 	_EPOLL_CTL_ADD = 0x1
 	_EPOLL_CTL_DEL = 0x2
@@ -96,9 +96,21 @@ type timespec struct {
 	tv_nsec int64
 }
 
+func (ts *timespec) set_sec(x int64) {
+	ts.tv_sec = x
+}
+
+func (ts *timespec) set_nsec(x int32) {
+	ts.tv_nsec = int64(x)
+}
+
 type timeval struct {
 	tv_sec  int64
 	tv_usec int64
+}
+
+func (tv *timeval) set_usec(x int32) {
+	tv.tv_usec = int64(x)
 }
 
 type sigactiont struct {
@@ -160,7 +172,7 @@ type sigaltstackt struct {
 	ss_sp     *byte
 	ss_flags  int32
 	pad_cgo_0 [4]byte
-	ss_size   uint64
+	ss_size   uintptr
 }
 
 type sigcontext struct {
