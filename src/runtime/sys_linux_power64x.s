@@ -9,7 +9,8 @@
 // System calls and other sys.stuff for Power64, Linux
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 #define SYS_exit		  1
