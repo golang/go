@@ -9,7 +9,7 @@ const (
 	_BigEndian        = 0
 	_CacheLineSize    = 64
 	_RuntimeGogoBytes = 64
-	_PhysPageSize     = _NaCl*65536 + (1-_NaCl)*4096 // 4k normally; 64k on NaCl
+	_PhysPageSize     = goos_nacl*65536 + (1-goos_nacl)*4096 // 4k normally; 64k on NaCl
 	_PCQuantum        = 1
 	_Int64Align       = 4
 )
