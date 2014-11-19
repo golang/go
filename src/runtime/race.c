@@ -63,8 +63,14 @@ void __tsan_go_ignore_sync_end(void);
 #pragma cgo_import_static __tsan_go_atomic64_compare_exchange
 
 extern byte runtime·noptrdata[];
+extern byte runtime·enoptrdata[];
+extern byte runtime·data[];
+extern byte runtime·edata[];
+extern byte runtime·bss[];
+extern byte runtime·ebss[];
+extern byte runtime·noptrbss[];
 extern byte runtime·enoptrbss[];
-  
+
 // start/end of heap for race_amd64.s
 uintptr runtime·racearenastart;
 uintptr runtime·racearenaend;
@@ -86,7 +92,13 @@ isvalidaddr(uintptr addr)
 {
 	if(addr >= runtime·racearenastart && addr < runtime·racearenaend)
 		return true;
-	if(addr >= (uintptr)runtime·noptrdata && addr < (uintptr)runtime·enoptrbss)
+	if(addr >= (uintptr)runtime·noptrdata && addr < (uintptr)runtime·enoptrdata)
+		return true;
+	if(addr >= (uintptr)runtime·data && addr < (uintptr)runtime·edata)
+		return true;
+	if(addr >= (uintptr)runtime·bss && addr < (uintptr)runtime·ebss)
+		return true;
+	if(addr >= (uintptr)runtime·noptrbss && addr < (uintptr)runtime·enoptrbss)
 		return true;
 	return false;
 }
@@ -95,15 +107,37 @@ isvalidaddr(uintptr addr)
 uintptr
 runtime·raceinit(void)
 {
-	uintptr racectx, start, size;
+	uintptr racectx, start, end, size;
 
 	// cgo is required to initialize libc, which is used by race runtime
 	if(!runtime·iscgo)
 		runtime·throw("raceinit: race build must use cgo");
 	runtime·racecall(__tsan_init, &racectx, runtime·racesymbolizethunk);
 	// Round data segment to page boundaries, because it's used in mmap().
-	start = (uintptr)runtime·noptrdata & ~(PageSize-1);
-	size = ROUND((uintptr)runtime·enoptrbss - start, PageSize);
+	// The relevant sections are noptrdata, data, bss, noptrbss.
+	// In external linking mode, there may be other non-Go data mixed in,
+	// and the sections may even occur out of order.
+	// Work out a conservative range of addresses.
+	start = ~(uintptr)0;
+	end = 0;
+	if(start > (uintptr)runtime·noptrdata)
+		start = (uintptr)runtime·noptrdata;
+	if(start > (uintptr)runtime·data)
+		start = (uintptr)runtime·data;
+	if(start > (uintptr)runtime·noptrbss)
+		start = (uintptr)runtime·noptrbss;
+	if(start > (uintptr)runtime·bss)
+		start = (uintptr)runtime·bss;
+	if(end < (uintptr)runtime·enoptrdata)
+		end = (uintptr)runtime·enoptrdata;
+	if(end < (uintptr)runtime·edata)
+		end = (uintptr)runtime·edata;
+	if(end < (uintptr)runtime·enoptrbss)
+		end = (uintptr)runtime·enoptrbss;
+	if(end < (uintptr)runtime·ebss)
+		end = (uintptr)runtime·ebss;
+	start = start & ~(PageSize-1);
+	size = ROUND(end - start, PageSize);
 	runtime·racecall(__tsan_map_shadow, start, size);
 	return racectx;
 }

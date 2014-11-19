@@ -70,9 +70,10 @@ case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
 linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
 	echo
 	echo '# Testing race detector.'
-	go test -race -i runtime/race flag
+	go test -race -i runtime/race flag os/exec
 	go test -race -run=Output runtime/race
-	go test -race -short flag
+	go test -race -short flag os/exec
+	go test -race -short -ldflags=-linkmode=external flag os/exec
 esac
 
 xcd() {
