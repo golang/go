@@ -35,7 +35,7 @@ var xMap = map[string]xRepo{
 	"text":       {"https://code.google.com/p/go.text", "hg"},
 	"tools":      {"https://code.google.com/p/go.tools", "hg"},
 
-	"review": {"https://go.googlecode.com/review", "git"},
+	"review": {"https://go.googlesource.com/review", "git"},
 }
 
 func init() {
