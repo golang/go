@@ -56,7 +56,7 @@ func (c *sigctxt) xer() uint64   { return c.regs().xer }
 func (c *sigctxt) ccr() uint64   { return c.regs().ccr }
 
 func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
-func (c *sigctxt) sigaddr() uint64 { return uint64(*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize))) }
+func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
 func (c *sigctxt) fault() uint64   { return c.regs().dar }
 
 func (c *sigctxt) set_r0(x uint64)   { c.regs().gpr[0] = x }

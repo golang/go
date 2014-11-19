@@ -36,7 +36,7 @@ func (c *sigctxt) cs() uint64      { return uint64(c.regs().cs) }
 func (c *sigctxt) fs() uint64      { return uint64(c.regs().fs) }
 func (c *sigctxt) gs() uint64      { return uint64(c.regs().gs) }
 func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
-func (c *sigctxt) sigaddr() uint64 { return uint64(*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize))) }
+func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
 
 func (c *sigctxt) set_rip(x uint64)     { c.regs().rip = x }
 func (c *sigctxt) set_rsp(x uint64)     { c.regs().rsp = x }
