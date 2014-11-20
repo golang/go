@@ -230,7 +230,7 @@ regopt(Prog *firstp)
 
 		/* the mod/div runtime routines smash R12 */
 		if(p->as == ADIV || p->as == ADIVU || p->as == AMOD || p->as == AMODU)
-			r->set.b[z] |= RtoB(12);
+			r->set.b[0] |= RtoB(12);
 	}
 	if(firstr == R)
 		return;

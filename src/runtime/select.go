@@ -404,6 +404,7 @@ loop:
 			}
 		}
 		sgnext = sglist.waitlink
+		sglist.waitlink = nil
 		releaseSudog(sglist)
 		sglist = sgnext
 	}
@@ -641,6 +642,7 @@ func (q *waitq) dequeueSudoG(s *sudog) {
 			if q.last == sgp {
 				q.last = prevsgp
 			}
+			s.next = nil
 			return
 		}
 		l = &sgp.next

@@ -81,6 +81,10 @@ var __tsan_go_ignore_sync_end byte
 //go:cgo_import_static __tsan_go_atomic32_compare_exchange
 //go:cgo_import_static __tsan_go_atomic64_compare_exchange
 
+// start/end of global data (data+bss).
+var racedatastart uintptr
+var racedataend uintptr
+
 // start/end of heap for race_amd64.s
 var racearenastart uintptr
 var racearenaend uintptr
@@ -99,7 +103,7 @@ func racecall(*byte, uintptr, uintptr, uintptr, uintptr)
 //go:nosplit
 func isvalidaddr(addr unsafe.Pointer) bool {
 	return racearenastart <= uintptr(addr) && uintptr(addr) < racearenaend ||
-		uintptr(unsafe.Pointer(&noptrdata)) <= uintptr(addr) && uintptr(addr) < uintptr(unsafe.Pointer(&enoptrbss))
+		racedatastart <= uintptr(addr) && uintptr(addr) < racedataend
 }
 
 //go:nosplit
@@ -113,9 +117,36 @@ func raceinit() uintptr {
 	racecall(&__tsan_init, uintptr(unsafe.Pointer(&racectx)), funcPC(racesymbolizethunk), 0, 0)
 
 	// Round data segment to page boundaries, because it's used in mmap().
-	start := uintptr(unsafe.Pointer(&noptrdata)) &^ (_PageSize - 1)
-	size := round(uintptr(unsafe.Pointer(&enoptrbss))-start, _PageSize)
+	start := ^uintptr(0)
+	end := uintptr(0)
+	if start > uintptr(unsafe.Pointer(&noptrdata)) {
+		start = uintptr(unsafe.Pointer(&noptrdata))
+	}
+	if start > uintptr(unsafe.Pointer(&data)) {
+		start = uintptr(unsafe.Pointer(&data))
+	}
+	if start > uintptr(unsafe.Pointer(&noptrbss)) {
+		start = uintptr(unsafe.Pointer(&noptrbss))
+	}
+	if start > uintptr(unsafe.Pointer(&bss)) {
+		start = uintptr(unsafe.Pointer(&bss))
+	}
+	if end < uintptr(unsafe.Pointer(&enoptrdata)) {
+		end = uintptr(unsafe.Pointer(&enoptrdata))
+	}
+	if end < uintptr(unsafe.Pointer(&edata)) {
+		end = uintptr(unsafe.Pointer(&edata))
+	}
+	if end < uintptr(unsafe.Pointer(&enoptrbss)) {
+		end = uintptr(unsafe.Pointer(&enoptrbss))
+	}
+	if end < uintptr(unsafe.Pointer(&ebss)) {
+		end = uintptr(unsafe.Pointer(&ebss))
+	}
+	size := round(end-start, _PageSize)
 	racecall(&__tsan_map_shadow, start, size, 0, 0)
+	racedatastart = start
+	racedataend = start + size
 
 	return racectx
 }

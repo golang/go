@@ -6,7 +6,7 @@ package main
 
 import (
 	"bytes"
-	"debug/goobj"
+	"cmd/internal/goobj"
 	"fmt"
 	"math/rand"
 	"sort"

@@ -358,8 +358,12 @@ func getFunctionSource(fun, file string, fns nodes, start, end int) (nodes, stri
 	for {
 		line, err := buf.ReadString('\n')
 		if err != nil {
-			if line == "" || err != io.EOF {
+			if err != io.EOF {
 				return nil, file, err
+			}
+			if line == "" {
+				// end was at or past EOF; that's okay
+				break
 			}
 		}
 		if lineno >= start {
