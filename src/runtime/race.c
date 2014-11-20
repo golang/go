@@ -71,6 +71,9 @@ extern byte runtime·ebss[];
 extern byte runtime·noptrbss[];
 extern byte runtime·enoptrbss[];
 
+// start/end of global data (data+bss).
+uintptr runtime·racedatastart;
+uintptr runtime·racedataend;
 // start/end of heap for race_amd64.s
 uintptr runtime·racearenastart;
 uintptr runtime·racearenaend;
@@ -92,13 +95,7 @@ isvalidaddr(uintptr addr)
 {
 	if(addr >= runtime·racearenastart && addr < runtime·racearenaend)
 		return true;
-	if(addr >= (uintptr)runtime·noptrdata && addr < (uintptr)runtime·enoptrdata)
-		return true;
-	if(addr >= (uintptr)runtime·data && addr < (uintptr)runtime·edata)
-		return true;
-	if(addr >= (uintptr)runtime·bss && addr < (uintptr)runtime·ebss)
-		return true;
-	if(addr >= (uintptr)runtime·noptrbss && addr < (uintptr)runtime·enoptrbss)
+	if(addr >= runtime·racedatastart && addr < runtime·racedataend)
 		return true;
 	return false;
 }
@@ -139,6 +136,8 @@ runtime·raceinit(void)
 	start = start & ~(PageSize-1);
 	size = ROUND(end - start, PageSize);
 	runtime·racecall(__tsan_map_shadow, start, size);
+	runtime·racedatastart = start;
+	runtime·racedataend = start + size;
 	return racectx;
 }
 
