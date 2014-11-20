@@ -152,5 +152,5 @@ func handlecompletion(gpp **g, op *net_op, errno int32, qty uint32) {
 	}
 	op.errno = errno
 	op.qty = qty
-	netpollready(gpp, op.pd, mode)
+	netpollready((**g)(noescape(unsafe.Pointer(gpp))), op.pd, mode)
 }
