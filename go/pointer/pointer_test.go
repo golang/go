@@ -191,7 +191,8 @@ func doOneInput(input, filename string) bool {
 			for _, b := range fn.Blocks {
 				for _, instr := range b.Instrs {
 					if instr, ok := instr.(ssa.CallInstruction); ok {
-						if b, ok := instr.Common().Value.(*ssa.Builtin); ok && b.Name() == "print" {
+						call := instr.Common()
+						if b, ok := call.Value.(*ssa.Builtin); ok && b.Name() == "print" && len(call.Args) == 1 {
 							probes[instr.Common()] = true
 						}
 					}
