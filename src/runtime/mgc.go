@@ -312,7 +312,7 @@ func objectstart(b uintptr, mbits *markbits) uintptr {
 			p = p + idx*size
 		}
 		if p == obj {
-			print("runtime: failed to find block beginning for ", hex(p), " s=", hex(s.start*_PageSize), " s.limit=", s.limit, "\n")
+			print("runtime: failed to find block beginning for ", hex(p), " s=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), "\n")
 			gothrow("failed to find block beginning")
 		}
 		obj = p
@@ -1201,13 +1201,14 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	}
 	res := false
 	nfree := 0
-	var head mlink
-	end := &head
+
+	var head, end gclinkptr
+
 	c := _g_.m.mcache
 	sweepgenset := false
 
 	// Mark any free objects in this span so we don't collect them.
-	for link := s.freelist; link != nil; link = link.next {
+	for link := s.freelist; link.ptr() != nil; link = link.ptr().next {
 		off := (uintptr(unsafe.Pointer(link)) - arena_start) / ptrSize
 		bitp := arena_start - off/wordsPerBitmapByte - 1
 		shift := (off % wordsPerBitmapByte) * gcBits
@@ -1328,8 +1329,13 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 			} else if size > ptrSize {
 				*(*uintptr)(unsafe.Pointer(p + ptrSize)) = 0
 			}
-			end.next = (*mlink)(unsafe.Pointer(p))
-			end = end.next
+			if head.ptr() == nil {
+				head = gclinkptr(p)
+			} else {
+				end.ptr().next = gclinkptr(p)
+			}
+			end = gclinkptr(p)
+			end.ptr().next = gclinkptr(0xbaddadae5)
 			nfree++
 		}
 	}
@@ -1352,7 +1358,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 		c.local_nsmallfree[cl] += uintptr(nfree)
 		c.local_cachealloc -= intptr(uintptr(nfree) * size)
 		xadd64(&memstats.next_gc, -int64(nfree)*int64(size)*int64(gcpercent+100)/100)
-		res = mCentral_FreeSpan(&mheap_.central[cl].mcentral, s, int32(nfree), head.next, end, preserve)
+		res = mCentral_FreeSpan(&mheap_.central[cl].mcentral, s, int32(nfree), head, end, preserve)
 		// MCentral_FreeSpan updates sweepgen
 	}
 	return res
