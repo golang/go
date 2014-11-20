@@ -19,8 +19,6 @@ type SysProcAttr struct {
 	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
 	Setctty    bool        // Set controlling terminal to fd 0
 	Noctty     bool        // Detach fd 0 from controlling terminal
-	Foreground bool        // Set foreground process group to child's pid. (Implies Setpgid. Stdin should be a TTY)
-	Joinpgrp   int         // If != 0, child's process group ID. (Setpgid must not be set)
 }
 
 // Implemented in runtime package.
@@ -81,22 +79,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	if r1 != 0 {
 		// parent; return PID
 		runtime_AfterFork()
-		pid = int(r1)
-
-		if sys.Joinpgrp != 0 {
-			// Place the child in the specified process group.
-			RawSyscall(SYS_SETPGID, r1, uintptr(sys.Joinpgrp), 0)
-		} else if sys.Foreground || sys.Setpgid {
-			// Place the child in a new process group.
-			RawSyscall(SYS_SETPGID, 0, 0, 0)
-
-			if sys.Foreground {
-				// Set new foreground process group.
-				RawSyscall(SYS_IOCTL, uintptr(Stdin), TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
-			}
-		}
-
-		return pid, 0
+		return int(r1), 0
 	}
 
 	// Fork succeeded, now in child.
@@ -118,29 +101,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// Set process group
-	if sys.Joinpgrp != 0 {
-		// Place the child in the specified process group.
-		_, _, err1 = RawSyscall(SYS_SETPGID, r1, uintptr(sys.Joinpgrp), 0)
-		if err1 != 0 {
-			goto childerror
-		}
-	} else if sys.Foreground || sys.Setpgid {
-		// Place the child in a new process group.
+	if sys.Setpgid {
 		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
 		if err1 != 0 {
 			goto childerror
-		}
-
-		if sys.Foreground {
-			r1, _, _ = RawSyscall(SYS_GETPID, 0, 0, 0)
-
-			pid := int(r1)
-
-			// Set new foreground process group.
-			_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(Stdin), TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
-			if err1 != 0 {
-				goto childerror
-			}
 		}
 	}
 

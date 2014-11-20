@@ -152,7 +152,7 @@ In C, a function argument written as a fixed size array
 actually requires a pointer to the first element of the array.
 C compilers are aware of this calling convention and adjust
 the call accordingly, but Go cannot.  In Go, you must pass
-the pointer to the first element explicitly: C.f(&x[0]).
+the pointer to the first element explicitly: C.f(&C.x[0]).
 
 A few special functions convert between Go and C types
 by making copies of the data.  In pseudo-Go definitions:

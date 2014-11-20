@@ -13,7 +13,7 @@ package main
 
 import (
 	"bytes"
-	"debug/goobj"
+	"cmd/internal/goobj"
 	"testing"
 )
 

@@ -29,8 +29,6 @@ type SysProcAttr struct {
 	Ctty        int            // Controlling TTY fd (Linux only)
 	Pdeathsig   Signal         // Signal that the process will get when its parent dies (Linux only)
 	Cloneflags  uintptr        // Flags for clone calls (Linux only)
-	Foreground  bool           // Set foreground process group to child's pid. (Implies Setpgid. Stdin should be a TTY)
-	Joinpgrp    int            // If != 0, child's process group ID. (Setpgid must not be set)
 	UidMappings []SysProcIDMap // User ID mappings for user namespaces.
 	GidMappings []SysProcIDMap // Group ID mappings for user namespaces.
 }
@@ -105,19 +103,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 			Close(p[1])
 		}
 
-		if sys.Joinpgrp != 0 {
-			// Place the child in the specified process group.
-			RawSyscall(SYS_SETPGID, r1, uintptr(sys.Joinpgrp), 0)
-		} else if sys.Foreground || sys.Setpgid {
-			// Place the child in a new process group.
-			RawSyscall(SYS_SETPGID, 0, 0, 0)
-
-			if sys.Foreground {
-				// Set new foreground process group.
-				RawSyscall(SYS_IOCTL, uintptr(Stdin), TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
-			}
-		}
-
 		return pid, 0
 	}
 
@@ -179,29 +164,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// Set process group
-	if sys.Joinpgrp != 0 {
-		// Place the child in the specified process group.
-		_, _, err1 = RawSyscall(SYS_SETPGID, r1, uintptr(sys.Joinpgrp), 0)
-		if err1 != 0 {
-			goto childerror
-		}
-	} else if sys.Foreground || sys.Setpgid {
-		// Place the child in a new process group.
+	if sys.Setpgid {
 		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
 		if err1 != 0 {
 			goto childerror
-		}
-
-		if sys.Foreground {
-			r1, _, _ = RawSyscall(SYS_GETPID, 0, 0, 0)
-
-			pid := int(r1)
-
-			// Set new foreground process group.
-			_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(Stdin), TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
-			if err1 != 0 {
-				goto childerror
-			}
 		}
 	}
 

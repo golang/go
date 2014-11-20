@@ -17,8 +17,8 @@ const Size = 4
 
 // Predefined polynomials.
 const (
-	// Far and away the most common CRC-32 polynomial.
-	// Used by ethernet (IEEE 802.3), v.42, fddi, gzip, zip, png, mpeg-2, ...
+	// IEEE is by far and away the most common CRC-32 polynomial.
+	// Used by ethernet (IEEE 802.3), v.42, fddi, gzip, zip, png, ...
 	IEEE = 0xedb88320
 
 	// Castagnoli's polynomial, used in iSCSI.

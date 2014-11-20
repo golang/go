@@ -477,6 +477,8 @@ func GC() {
 
 // linker-provided
 var noptrdata struct{}
+var enoptrdata struct{}
+var noptrbss struct{}
 var enoptrbss struct{}
 
 // SetFinalizer sets the finalizer associated with x to f.
@@ -553,8 +555,13 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		//	func main() {
 		//		runtime.SetFinalizer(Foo, nil)
 		//	}
-		// The segments are, in order: text, rodata, noptrdata, data, bss, noptrbss.
-		if uintptr(unsafe.Pointer(&noptrdata)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&enoptrbss)) {
+		// The relevant segments are: noptrdata, data, bss, noptrbss.
+		// We cannot assume they are in any order or even contiguous,
+		// due to external linking.
+		if uintptr(unsafe.Pointer(&noptrdata)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&enoptrdata)) ||
+			uintptr(unsafe.Pointer(&data)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&edata)) ||
+			uintptr(unsafe.Pointer(&bss)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&ebss)) ||
+			uintptr(unsafe.Pointer(&noptrbss)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&enoptrbss)) {
 			return
 		}
 		gothrow("runtime.SetFinalizer: pointer not in allocated block")

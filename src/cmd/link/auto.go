@@ -10,7 +10,7 @@
 package main
 
 import (
-	"debug/goobj"
+	"cmd/internal/goobj"
 	"strconv"
 	"strings"
 )

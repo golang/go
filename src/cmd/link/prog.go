@@ -5,7 +5,7 @@
 package main
 
 import (
-	"debug/goobj"
+	"cmd/internal/goobj"
 	"encoding/binary"
 	"fmt"
 	"go/build"

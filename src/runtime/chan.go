@@ -630,6 +630,7 @@ func (q *waitq) dequeue() *sudog {
 			return nil
 		}
 		q.first = sgp.next
+		sgp.next = nil
 		if q.last == sgp {
 			q.last = nil
 		}
