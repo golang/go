@@ -140,14 +140,14 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			// Allocate a new maxTinySize block.
 			s = c.alloc[tinySizeClass]
 			v := s.freelist
-			if v == nil {
+			if v.ptr() == nil {
 				systemstack(func() {
 					mCache_Refill(c, tinySizeClass)
 				})
 				s = c.alloc[tinySizeClass]
 				v = s.freelist
 			}
-			s.freelist = v.next
+			s.freelist = v.ptr().next
 			s.ref++
 			//TODO: prefetch v.next
 			x = unsafe.Pointer(v)
@@ -170,19 +170,19 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			size = uintptr(class_to_size[sizeclass])
 			s = c.alloc[sizeclass]
 			v := s.freelist
-			if v == nil {
+			if v.ptr() == nil {
 				systemstack(func() {
 					mCache_Refill(c, int32(sizeclass))
 				})
 				s = c.alloc[sizeclass]
 				v = s.freelist
 			}
-			s.freelist = v.next
+			s.freelist = v.ptr().next
 			s.ref++
 			//TODO: prefetch
 			x = unsafe.Pointer(v)
 			if flags&flagNoZero == 0 {
-				v.next = nil
+				v.ptr().next = 0
 				if size > 2*ptrSize && ((*[2]uintptr)(x))[1] != 0 {
 					memclr(unsafe.Pointer(v), size)
 				}
@@ -341,7 +341,7 @@ marked:
 		}
 	}
 
-	if memstats.heap_alloc >= memstats.next_gc {
+	if memstats.heap_alloc >= memstats.next_gc/2 {
 		gogc(0)
 	}
 
@@ -475,7 +475,7 @@ func gogc(force int32) {
 
 	systemstack(stoptheworld)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
-	if false {                 // To turn on concurrent scan and mark set to true...
+	if true {                  // To turn on concurrent scan and mark set to true...
 		systemstack(starttheworld)
 		// Do a concurrent heap scan before we stop the world.
 		systemstack(gcscan_m)

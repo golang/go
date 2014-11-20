@@ -464,8 +464,8 @@ func dumpobjs() {
 		if n > uintptr(len(freemark)) {
 			gothrow("freemark array doesn't have enough entries")
 		}
-		for l := s.freelist; l != nil; l = l.next {
-			freemark[(uintptr(unsafe.Pointer(l))-p)/size] = true
+		for l := s.freelist; l.ptr() != nil; l = l.ptr().next {
+			freemark[(uintptr(l)-p)/size] = true
 		}
 		for j := uintptr(0); j < n; j, p = j+1, p+size {
 			if freemark[j] {

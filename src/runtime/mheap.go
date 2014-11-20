@@ -196,7 +196,7 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 		// able to map interior pointer to containing span.
 		atomicstore(&s.sweepgen, h.sweepgen)
 		s.state = _MSpanInUse
-		s.freelist = nil
+		s.freelist = 0
 		s.ref = 0
 		s.sizeclass = uint8(sizeclass)
 		if sizeclass == 0 {
@@ -248,7 +248,7 @@ func mHeap_AllocStack(h *mheap, npage uintptr) *mspan {
 	s := mHeap_AllocSpanLocked(h, npage)
 	if s != nil {
 		s.state = _MSpanStack
-		s.freelist = nil
+		s.freelist = 0
 		s.ref = 0
 		memstats.stacks_inuse += uint64(s.npages << _PageShift)
 	}
@@ -571,7 +571,7 @@ func mSpan_Init(span *mspan, start pageID, npages uintptr) {
 	span.prev = nil
 	span.start = start
 	span.npages = npages
-	span.freelist = nil
+	span.freelist = 0
 	span.ref = 0
 	span.sizeclass = 0
 	span.incache = false
