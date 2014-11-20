@@ -626,6 +626,11 @@ extern	char*	anames9[];
 extern	char*	cnames5[];
 extern	char*	cnames9[];
 
+extern	char*	dnames5[];
+extern	char*	dnames6[];
+extern	char*	dnames8[];
+extern	char*	dnames9[];
+
 extern	LinkArch	link386;
 extern	LinkArch	linkamd64;
 extern	LinkArch	linkamd64p32;
