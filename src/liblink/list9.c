@@ -178,13 +178,13 @@ Dconv(Fmt *fp)
 			s += sprint(s, "type=%s ", dnames9[a->type]);
 		else
 			s += sprint(s, "type=%d ", a->type);
-		if(a->name >= 0 && a->name < D_LAST && dnames9[a->name] != nil)
-			s += sprint(s, "name=%s ", dnames9[a->name]);
+		if(a->name >= 0 && a->name < D_LAST && dnames9[(int)a->name] != nil)
+			s += sprint(s, "name=%s ", dnames9[(int)a->name]);
 		else
 			s += sprint(s, "name=%d ", a->name);
 		s += sprint(s, "offset=%ld etype=%E width=%d", a->offset, a->etype, a->width);
 		if(a->class != 0)
-			s += sprint(s, " class=%s", cnames9[a->class]);
+			s += sprint(s, " class=%s", cnames9[(int)a->class]);
 		if(a->reg != NREG)
 			s += sprint(s, " reg=%d", a->reg);
 		if(a->sym != nil)
