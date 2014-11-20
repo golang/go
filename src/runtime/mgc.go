@@ -1335,7 +1335,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 				end.ptr().next = gclinkptr(p)
 			}
 			end = gclinkptr(p)
-			end.ptr().next = gclinkptr(0xbaddadae5)
+			end.ptr().next = gclinkptr(0x0bade5)
 			nfree++
 		}
 	}
