@@ -923,14 +923,11 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
 }
 
 func scanstack(gp *g) {
-	// TODO(rsc): Due to a precedence error, this was never checked in the original C version.
-	// If you enable the check, the gothrow happens.
-	/*
-		if readgstatus(gp)&_Gscan == 0 {
-			print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
-			gothrow("mark - bad status")
-		}
-	*/
+
+	if readgstatus(gp)&_Gscan == 0 {
+		print("runtime:scanstack: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", hex(readgstatus(gp)), "\n")
+		gothrow("scanstack - bad status")
+	}
 
 	switch readgstatus(gp) &^ _Gscan {
 	default:
