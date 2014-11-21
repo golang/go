@@ -986,3 +986,15 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 TEXT runtime·goexit(SB),NOSPLIT,$-8-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
+
+TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
+	RETURN
+
+TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
+	RETURN
+
+TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+	RETURN
+
+TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+	RETURN

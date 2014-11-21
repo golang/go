@@ -1320,3 +1320,15 @@ TEXT runtime·goexit(SB),NOSPLIT,$-4-0
 TEXT runtime·getg(SB),NOSPLIT,$-4-4
 	MOVW	g, ret+0(FP)
 	RET
+
+TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
+	RET
+
+TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
+	RET
+
+TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
+	RET
+
+TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
+	RET
