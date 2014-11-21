@@ -175,7 +175,7 @@ func goenvs() {
 
 	n := 0
 	for p = env; *p != 0; n++ {
-		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)))
+		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)*unsafe.Sizeof(*p)))
 	}
 
 	envs = makeStringSlice(int(n))
@@ -183,7 +183,7 @@ func goenvs() {
 	p = env
 	for i := 0; i < n; i++ {
 		envs[i] = gostringw(p)
-		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)))
+		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)*unsafe.Sizeof(*p)))
 	}
 
 	stdcall1(_FreeEnvironmentStringsW, uintptr(unsafe.Pointer(env)))
