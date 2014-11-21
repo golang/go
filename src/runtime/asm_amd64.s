@@ -2228,3 +2228,23 @@ TEXT runtime·getg(SB),NOSPLIT,$0-8
 	MOVQ	g(CX), AX
 	MOVQ	AX, ret+0(FP)
 	RET
+
+TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
+	MOVQ	addr+0(FP), AX
+	PREFETCHT0	(AX)
+	RET
+
+TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
+	MOVQ	addr+0(FP), AX
+	PREFETCHT1	(AX)
+	RET
+
+TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+	MOVQ	addr+0(FP), AX
+	PREFETCHT2	(AX)
+	RET
+
+TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+	MOVQ	addr+0(FP), AX
+	PREFETCHNTA	(AX)
+	RET
