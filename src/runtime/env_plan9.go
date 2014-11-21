@@ -54,3 +54,6 @@ func gogetenv(key string) string {
 	sp.len = int(r)
 	return s
 }
+
+var _cgo_setenv unsafe.Pointer   // pointer to C function
+var _cgo_unsetenv unsafe.Pointer // pointer to C function
