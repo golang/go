@@ -316,6 +316,10 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 
 	// Check that transition is valid.
 	switch oldval {
+	default:
+		print("runtime: casfrom_Gscanstatus bad oldval gp=", gp, ", oldval=", hex(oldval), ", newval=", hex(newval), "\n")
+		dumpgstatus(gp)
+		gothrow("casfrom_Gscanstatus:top gp->status is not in scan state")
 	case _Gscanrunnable,
 		_Gscanwaiting,
 		_Gscanrunning,
@@ -417,13 +421,6 @@ func stopg(gp *g) bool {
 			return false
 
 		case _Grunning:
-			if gcphase == _GCscan {
-				// Running routines not scanned during
-				// GCscan phase, we only scan non-running routines.
-				gp.gcworkdone = true
-				return false
-			}
-
 			// Claim goroutine, so we aren't racing with a status
 			// transition away from Grunning.
 			if !castogscanstatus(gp, _Grunning, _Gscanrunning) {
