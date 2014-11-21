@@ -62,7 +62,7 @@ struct	Addr
 	short	type;
 	uint8	index;
 	int8	scale;
-	int8	reg;	// for 5l, 9l
+	int8	reg;	// for 5l, 9l; GPRs and FPRs both start at 0
 	int8	name; // for 5l, 9l
 	int8	class;	// for 5l, 9l
 	uint8	etype; // for 5g, 6g, 8g
@@ -94,6 +94,7 @@ struct	Prog
 	// operands
 	Addr	from;
 	uchar	reg; // arm, power64 only (e.g., ADD from, reg, to);
+		     // starts at 0 for both GPRs and FPRs;
 		     // also used for ADATA width on arm, power64
 	Addr	from3; // power64 only (e.g., RLWM/FMADD from, reg, from3, to)
 	Addr	to;
