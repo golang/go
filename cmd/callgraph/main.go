@@ -31,7 +31,9 @@ import (
 	"text/template"
 
 	"golang.org/x/tools/go/callgraph"
+	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/callgraph/rta"
+	"golang.org/x/tools/go/callgraph/static"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
@@ -51,21 +53,30 @@ const Usage = `callgraph: display the the call graph of a Go program.
 
 Usage:
 
-  callgraph [-algo=rta|pta] [-test] [-format=...] <args>...
+  callgraph [-algo=static|cha|rta|pta] [-test] [-format=...] <args>...
 
 Flags:
 
--algo      Specifies the call-graph construction algorithm.  One of:
-           "rta": Rapid Type Analysis  (simple and fast)
-           "pta": inclusion-based Points-To Analysis (slower but more precise)
+-algo      Specifies the call-graph construction algorithm, one of:
+
+            static      static calls only (unsound)
+            cha         Class Hierarchy Analysis
+            rta         Rapid Type Analysis
+            pta         inclusion-based Points-To Analysis
+
+           The algorithms are ordered by increasing precision in their
+           treatment of dynamic calls (and thus also computational cost).
+           RTA and PTA require a whole program (main or test), and
+           include only functions reachable from main.
 
 -test      Include the package's tests in the analysis.
 
 -format    Specifies the format in which each call graph edge is displayed.
            One of:
-           "digraph":   output suitable for input to
+
+            digraph     output suitable for input to
                         golang.org/x/tools/cmd/digraph.
-           "graphviz":  output in AT&T GraphViz (.dot) format.
+            graphviz    output in AT&T GraphViz (.dot) format.
 
            All other values are interpreted using text/template syntax.
            The default value is:
@@ -168,44 +179,22 @@ func doCallgraph(ctxt *build.Context, algo, format string, tests bool, args []st
 	prog := ssa.Create(iprog, 0)
 	prog.BuildAll()
 
-	// Determine the main package.
-	// TODO(adonovan): allow independent control over tests, mains
-	// and libraries.
-	// TODO(adonovan): put this logic in a library; we keep reinventing it.
-	var main *ssa.Package
-	pkgs := prog.AllPackages()
-	if tests {
-		// If -test, use all packages' tests.
-		if len(pkgs) > 0 {
-			main = prog.CreateTestMainPackage(pkgs...)
-		}
-		if main == nil {
-			return fmt.Errorf("no tests")
-		}
-	} else {
-		// Otherwise, use main.main.
-		for _, pkg := range pkgs {
-			if pkg.Object.Name() == "main" {
-				main = pkg
-				if main.Func("main") == nil {
-					return fmt.Errorf("no func main() in main package")
-				}
-				break
-			}
-		}
-		if main == nil {
-			return fmt.Errorf("no main package")
-		}
-	}
-
-	// Invariant: main package has a main() function.
-
 	// -- call graph construction ------------------------------------------
 
 	var cg *callgraph.Graph
 
 	switch algo {
+	case "static":
+		cg = static.CallGraph(prog)
+
+	case "cha":
+		cg = cha.CallGraph(prog)
+
 	case "pta":
+		main, err := mainPackage(prog, tests)
+		if err != nil {
+			return err
+		}
 		config := &pointer.Config{
 			Mains:          []*ssa.Package{main},
 			BuildCallGraph: true,
@@ -217,6 +206,10 @@ func doCallgraph(ctxt *build.Context, algo, format string, tests bool, args []st
 		cg = ptares.CallGraph
 
 	case "rta":
+		main, err := mainPackage(prog, tests)
+		if err != nil {
+			return err
+		}
 		roots := []*ssa.Function{
 			main.Func("init"),
 			main.Func("main"),
@@ -277,6 +270,37 @@ func doCallgraph(ctxt *build.Context, algo, format string, tests bool, args []st
 	}
 	fmt.Fprint(stdout, after)
 	return nil
+}
+
+// mainPackage returns the main package to analyze.
+// The resulting package has a main() function.
+func mainPackage(prog *ssa.Program, tests bool) (*ssa.Package, error) {
+	pkgs := prog.AllPackages()
+
+	// TODO(adonovan): allow independent control over tests, mains and libraries.
+	// TODO(adonovan): put this logic in a library; we keep reinventing it.
+
+	if tests {
+		// If -test, use all packages' tests.
+		if len(pkgs) > 0 {
+			if main := prog.CreateTestMainPackage(pkgs...); main != nil {
+				return main, nil
+			}
+		}
+		return nil, fmt.Errorf("no tests")
+	}
+
+	// Otherwise, use the first package named main.
+	for _, pkg := range pkgs {
+		if pkg.Object.Name() == "main" {
+			if pkg.Func("main") == nil {
+				return nil, fmt.Errorf("no func main() in main package")
+			}
+			return pkg, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no main package")
 }
 
 type Edge struct {
