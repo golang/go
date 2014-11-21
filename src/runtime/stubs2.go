@@ -4,6 +4,7 @@
 
 // +build !solaris
 // +build !windows
+// +build !nacl
 
 package runtime
 

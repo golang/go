@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build dragonfly freebsd netbsd openbsd solaris
+// +build dragonfly freebsd nacl netbsd openbsd solaris
 
 package runtime
 
@@ -38,7 +38,7 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	// On 64-bit, people with ulimit -v set complain if we reserve too
 	// much address space.  Instead, assume that the reservation is okay
 	// and check the assumption in SysMap.
-	if ptrSize == 8 && uint64(n) > 1<<32 {
+	if ptrSize == 8 && uint64(n) > 1<<32 || goos_nacl != 0 {
 		*reserved = false
 		return v
 	}
