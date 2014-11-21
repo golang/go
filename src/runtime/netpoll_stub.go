@@ -4,15 +4,12 @@
 
 // +build plan9
 
-#include "runtime.h"
+package runtime
 
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
-G*
-runtime·netpoll(bool block)
-{
+func netpoll(block bool) (gp *g) {
 	// Implementation for platforms that do not support
 	// integrated network poller.
-	USED(block);
-	return nil;
+	return
 }

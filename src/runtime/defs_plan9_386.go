@@ -1,5 +1,7 @@
 package runtime
 
+const _PAGESIZE = 0x1000
+
 type ureg struct {
 	di    uint32 /* general registers */
 	si    uint32 /* ... */

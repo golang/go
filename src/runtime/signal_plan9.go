@@ -2,62 +2,53 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "textflag.h"
+package runtime
 
-#define N SigNotify
-#define K SigKill
-#define T SigThrow
-#define P SigPanic
-#define E SigGoExit
+type sigTabT struct {
+	flags int
+	name  []byte
+}
 
 // Incoming notes are compared against this table using strncmp, so the
 // order matters: longer patterns must appear before their prefixes.
-// There are #defined SIG constants in os_plan9.h for the table index of
-// some of these.
+// There are _SIG constants in os2_plan9.go for the table index of some
+// of these.
 //
 // If you add entries to this table, you must respect the prefix ordering
-// and also update the constant values is os_plan9.h.
-
-#pragma dataflag NOPTR
-SigTab runtime·sigtab[] = {
+// and also update the constant values is os2_plan9.go.
+var sigtable = [...]sigTabT{
 	// Traps that we cannot be recovered.
-	T,	"sys: trap: debug exception",
-	T,	"sys: trap: invalid opcode",
+	{_SigThrow, []byte("sys: trap: debug exception")},
+	{_SigThrow, []byte("sys: trap: invalid opcode")},
 
 	// We can recover from some memory errors in runtime·sigpanic.
-	P,	"sys: trap: fault read addr",	// SIGRFAULT
-	P,	"sys: trap: fault write addr",	// SIGWFAULT
+	{_SigPanic, []byte("sys: trap: fault read addr")},  // SIGRFAULT
+	{_SigPanic, []byte("sys: trap: fault write addr")}, // SIGWFAULT
 
 	// We can also recover from math errors.
-	P,	"sys: trap: divide error",	// SIGINTDIV
-	P,	"sys: fp:",	// SIGFLOAT
+	{_SigPanic, []byte("sys: trap: divide error")}, // SIGINTDIV
+	{_SigPanic, []byte("sys: fp:")},                // SIGFLOAT
 
 	// All other traps are normally handled as if they were marked SigThrow.
 	// We mark them SigPanic here so that debug.SetPanicOnFault will work.
-	P,	"sys: trap:",	// SIGTRAP
+	{_SigPanic, []byte("sys: trap:")}, // SIGTRAP
 
 	// Writes to a closed pipe can be handled if desired, otherwise they're ignored.
-	N,	"sys: write on closed pipe",
+	{_SigNotify, []byte("sys: write on closed pipe")},
 
 	// Other system notes are more serious and cannot be recovered.
-	T,	"sys:",
+	{_SigThrow, []byte("sys:")},
 
 	// Issued to all other procs when calling runtime·exit.
-	E,	"go: exit ",
+	{_SigGoExit, []byte("go: exit ")},
 
 	// Kill is sent by external programs to cause an exit.
-	K,	"kill",
+	{_SigKill, []byte("kill")},
 
 	// Interrupts can be handled if desired, otherwise they cause an exit.
-	N+K,	"interrupt",
-	N+K,	"hangup",
+	{_SigNotify + _SigKill, []byte("interrupt")},
+	{_SigNotify + _SigKill, []byte("hangup")},
 
 	// Alarms can be handled if desired, otherwise they're ignored.
-	N,	"alarm",
-};
-
-#undef N
-#undef K
-#undef T
-#undef P
-#undef E
+	{_SigNotify, []byte("alarm")},
+}
