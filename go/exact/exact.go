@@ -560,14 +560,16 @@ func ord(x Value) int {
 	switch x.(type) {
 	default:
 		return 0
-	case int64Val:
+	case boolVal, stringVal:
 		return 1
-	case intVal:
+	case int64Val:
 		return 2
-	case floatVal:
+	case intVal:
 		return 3
-	case complexVal:
+	case floatVal:
 		return 4
+	case complexVal:
+		return 5
 	}
 }
 

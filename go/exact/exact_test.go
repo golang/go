@@ -346,3 +346,30 @@ func TestBytes(t *testing.T) {
 		}
 	}
 }
+
+func TestUnknown(t *testing.T) {
+	u := MakeUnknown()
+	var values = []Value{
+		u,
+		MakeBool(false), // token.ADD ok below, operation is never considered
+		MakeString(""),
+		MakeInt64(1),
+		MakeFromLiteral("-1234567890123456789012345678901234567890", token.INT),
+		MakeFloat64(1.2),
+		MakeImag(MakeFloat64(1.2)),
+	}
+	for _, val := range values {
+		x, y := val, u
+		for i := range [2]int{} {
+			if i == 1 {
+				x, y = y, x
+			}
+			if got := BinaryOp(x, token.ADD, y); got.Kind() != Unknown {
+				t.Errorf("%s + %s: got %s; want %s", x, y, got, u)
+			}
+			if got := Compare(x, token.EQL, y); got {
+				t.Errorf("%s == %s: got true; want false", x, y)
+			}
+		}
+	}
+}
