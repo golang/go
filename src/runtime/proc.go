@@ -63,11 +63,13 @@ func main() {
 		if _cgo_free == nil {
 			gothrow("_cgo_free missing")
 		}
-		if _cgo_setenv == nil {
-			gothrow("_cgo_setenv missing")
-		}
-		if _cgo_unsetenv == nil {
-			gothrow("_cgo_unsetenv missing")
+		if GOOS != "windows" {
+			if _cgo_setenv == nil {
+				gothrow("_cgo_setenv missing")
+			}
+			if _cgo_unsetenv == nil {
+				gothrow("_cgo_unsetenv missing")
+			}
 		}
 	}
 
