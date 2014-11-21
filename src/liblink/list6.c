@@ -91,7 +91,7 @@ Pconv(Fmt *fp)
 		if(p->reg)
 			s += sprint(s, " reg=%d", p->reg);
 		if(p->to.type != D_NONE)
-			s += sprint(s, " to={%#D}", &p->to);
+			sprint(s, " to={%#D}", &p->to);
 		return fmtstrcpy(fp, str);
 	}
 
@@ -154,13 +154,13 @@ Dconv(Fmt *fp)
 			s += sprint(s, "%s ", dnames6[i]);
 		else
 			s += sprint(s, "%d ", i);
-		s += sprint(s, "offset=%ld etype=%E width=%d", a->offset, a->etype, a->width);
+		s += sprint(s, "offset=%lld etype=%E width=%lld", a->offset, a->etype, a->width);
 		if(a->class != 0)
 			s += sprint(s, " class=%s", cnames9[(int)a->class]);
 		if(a->sym != nil)
 			s += sprint(s, " sym=%s", a->sym->name);
 		if(a->type == D_BRANCH && a->u.branch != nil)
-			s += sprint(s, " branch=%.5lld", a->u.branch->pc);
+			sprint(s, " branch=%.5lld", a->u.branch->pc);
 		goto brk;
 	}
 
