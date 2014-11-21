@@ -639,6 +639,7 @@ extern	LinkArch	linkpower64;
 extern	LinkArch	linkpower64le;
 
 #pragma	varargck	type	"A"	int
+#pragma	varargck	type	"E"	uint
 #pragma	varargck	type	"D"	Addr*
 #pragma	varargck	type	"lD"	Addr*
 #pragma	varargck	type	"P"	Prog*
