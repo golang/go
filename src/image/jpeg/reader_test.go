@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -86,6 +87,51 @@ func decodeFile(filename string) (image.Image, error) {
 	}
 	defer f.Close()
 	return Decode(f)
+}
+
+type eofReader struct {
+	data     []byte // deliver from Read without EOF
+	dataEOF  []byte // then deliver from Read with EOF on last chunk
+	lenAtEOF int
+}
+
+func (r *eofReader) Read(b []byte) (n int, err error) {
+	if len(r.data) > 0 {
+		n = copy(b, r.data)
+		r.data = r.data[n:]
+	} else {
+		n = copy(b, r.dataEOF)
+		r.dataEOF = r.dataEOF[n:]
+		if len(r.dataEOF) == 0 {
+			err = io.EOF
+			if r.lenAtEOF == -1 {
+				r.lenAtEOF = n
+			}
+		}
+	}
+	return
+}
+
+func TestDecodeEOF(t *testing.T) {
+	// Check that if reader returns final data and EOF at same time, jpeg handles it.
+	data, err := ioutil.ReadFile("../testdata/video-001.jpeg")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	n := len(data)
+	for i := 0; i < n; {
+		r := &eofReader{data[:n-i], data[n-i:], -1}
+		_, err := Decode(r)
+		if err != nil {
+			t.Errorf("Decode with Read() = %d, EOF: %v", r.lenAtEOF, err)
+		}
+		if i == 0 {
+			i = 1
+		} else {
+			i *= 2
+		}
+	}
 }
 
 // check checks that the two pix data are equal, within the given bounds.
