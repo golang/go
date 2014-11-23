@@ -143,6 +143,9 @@ func (d *decoder) fill() error {
 	// Fill in the rest of the buffer.
 	n, err := d.r.Read(d.bytes.buf[d.bytes.j:])
 	d.bytes.j += n
+	if n > 0 {
+		err = nil
+	}
 	return err
 }
 
