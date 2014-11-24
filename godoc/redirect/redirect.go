@@ -10,6 +10,7 @@ package redirect
 import (
 	"net/http"
 	"regexp"
+	"strings"
 )
 
 // Register registers HTTP handlers that redirect old godoc paths to their new
@@ -29,7 +30,8 @@ func Register(mux *http.ServeMux) {
 		mux.Handle(path, Handler(redirect))
 	}
 	// NB: /src/pkg (sans trailing slash) is the index of packages.
-	http.HandleFunc("/src/pkg/", srcPkgHandler)
+	mux.HandleFunc("/src/pkg/", srcPkgHandler)
+	mux.HandleFunc("/cl/", clHandler)
 }
 
 func handlePathRedirects(mux *http.ServeMux, redirects map[string]string, prefix string) {
@@ -126,10 +128,8 @@ var redirects = map[string]string{
 
 var prefixHelpers = map[string]string{
 	"change": "https://code.google.com/p/go/source/detail?r=",
-	"cl":     "https://codereview.appspot.com/",
 	"issue":  "https://code.google.com/p/go/issues/detail?id=",
 	"play":   "http://play.golang.org/",
-	"review": "https://go-review.googlesource.com/#/q/",
 	"talks":  "http://talks.golang.org/",
 	"wiki":   "https://code.google.com/p/go-wiki/wiki/",
 }
@@ -164,4 +164,25 @@ func PrefixHandler(prefix, baseURL string) http.Handler {
 func srcPkgHandler(w http.ResponseWriter, r *http.Request) {
 	r.URL.Path = "/src/" + r.URL.Path[len("/src/pkg/"):]
 	http.Redirect(w, r, r.URL.String(), http.StatusMovedPermanently)
+}
+
+func clHandler(w http.ResponseWriter, r *http.Request) {
+	const prefix = "/cl/"
+	if p := r.URL.Path; p == prefix {
+		// redirect /prefix/ to /prefix
+		http.Redirect(w, r, p[:len(p)-1], http.StatusFound)
+		return
+	}
+	id := r.URL.Path[len(prefix):]
+	if !validId.MatchString(id) {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+	target := ""
+	if strings.HasPrefix(id, "I") {
+		target = "https://go-review.googlesource.com/#/q/" + id
+	} else {
+		target = "https://codereview.appspot.com/" + id
+	}
+	http.Redirect(w, r, target, http.StatusFound)
 }
