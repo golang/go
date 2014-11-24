@@ -126,7 +126,7 @@ const (
 	// See http://golang.org/issue/5402 and http://golang.org/issue/5236.
 	// On other 64-bit platforms, we limit the arena to 128GB, or 37 bits.
 	// On 32-bit, we don't bother limiting anything, so we use the full 32-bit address.
-	_MHeapMap_TotalBits = (_64bit*_Windows)*35 + (_64bit*(1-_Windows))*37 + (1-_64bit)*32
+	_MHeapMap_TotalBits = (_64bit*goos_windows)*35 + (_64bit*(1-goos_windows))*37 + (1-_64bit)*32
 	_MHeapMap_Bits      = _MHeapMap_TotalBits - _PageShift
 
 	_MaxMem = uintptr(1<<_MHeapMap_TotalBits - 1)

@@ -62,7 +62,7 @@ struct	Addr
 	short	type;
 	uint8	index;
 	int8	scale;
-	int8	reg;	// for 5l, 9l
+	int8	reg;	// for 5l, 9l; GPRs and FPRs both start at 0
 	int8	name; // for 5l, 9l
 	int8	class;	// for 5l, 9l
 	uint8	etype; // for 5g, 6g, 8g
@@ -94,6 +94,7 @@ struct	Prog
 	// operands
 	Addr	from;
 	uchar	reg; // arm, power64 only (e.g., ADD from, reg, to);
+		     // starts at 0 for both GPRs and FPRs;
 		     // also used for ADATA width on arm, power64
 	Addr	from3; // power64 only (e.g., RLWM/FMADD from, reg, from3, to)
 	Addr	to;
@@ -626,6 +627,11 @@ extern	char*	anames9[];
 extern	char*	cnames5[];
 extern	char*	cnames9[];
 
+extern	char*	dnames5[];
+extern	char*	dnames6[];
+extern	char*	dnames8[];
+extern	char*	dnames9[];
+
 extern	LinkArch	link386;
 extern	LinkArch	linkamd64;
 extern	LinkArch	linkamd64p32;
@@ -634,6 +640,7 @@ extern	LinkArch	linkpower64;
 extern	LinkArch	linkpower64le;
 
 #pragma	varargck	type	"A"	int
+#pragma	varargck	type	"E"	uint
 #pragma	varargck	type	"D"	Addr*
 #pragma	varargck	type	"lD"	Addr*
 #pragma	varargck	type	"P"	Prog*

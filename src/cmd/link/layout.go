@@ -7,7 +7,7 @@
 package main
 
 import (
-	"debug/goobj"
+	"cmd/internal/goobj"
 )
 
 // A layoutSection describes a single section to add to the

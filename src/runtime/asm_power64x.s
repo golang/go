@@ -4,7 +4,8 @@
 
 // +build power64 power64le
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -144,58 +145,44 @@ TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 	BL	(CTR)
 	BR	runtime·badmcall2(SB)
 
-// switchtoM is a dummy routine that onM leaves at the bottom
+// systemstack_switch is a dummy routine that systemstack leaves at the bottom
 // of the G stack.  We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
-// at the top of the M stack because the one at the top of
-// the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
+// at the top of the system stack because the one at the top of
+// the system stack terminates the stack walk (see topofstack()).
+TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	UNDEF
 	BL	(LR)	// make sure this function is not leaf
 	RETURN
 
-// func onM_signalok(fn func())
-TEXT runtime·onM_signalok(SB), NOSPLIT, $8-8
-	MOVD	g, R3			// R3 = g
-	MOVD	g_m(R3), R4		// R4 = g->m
-	MOVD	m_gsignal(R4), R4	// R4 = g->m->gsignal
-	MOVD	fn+0(FP), R11		// context for call below
-	CMP	R3, R4
-	BEQ	onsignal
-	MOVD	R11, 8(R1)
-	BL	runtime·onM(SB)
-	RETURN
-
-onsignal:
-	MOVD	0(R11), R3		// code pointer
-	MOVD	R3, CTR
-	BL	(CTR)
-	RETURN
-
-// void onM(fn func())
-TEXT runtime·onM(SB), NOSPLIT, $0-8
+// func systemstack(fn func())
+TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	MOVD	fn+0(FP), R3	// R3 = fn
 	MOVD	R3, R11		// context
 	MOVD	g_m(g), R4	// R4 = m
 
+	MOVD	m_gsignal(R4), R5	// R5 = gsignal
+	CMP	g, R5
+	BEQ	noswitch
+
 	MOVD	m_g0(R4), R5	// R5 = g0
 	CMP	g, R5
-	BEQ	onm
+	BEQ	noswitch
 
 	MOVD	m_curg(R4), R6
 	CMP	g, R6
-	BEQ	oncurg
+	BEQ	switch
 
-	// Not g0, not curg. Must be gsignal, but that's not allowed.
+	// Bad: g is not gsignal, not g0, not curg. What is it?
 	// Hide call from linker nosplit analysis.
-	MOVD	$runtime·badonm(SB), R3
+	MOVD	$runtime·badsystemstack(SB), R3
 	MOVD	R3, CTR
 	BL	(CTR)
 
-oncurg:
+switch:
 	// save our state in g->sched.  Pretend to
-	// be switchtoM if the G stack is scanned.
-	MOVD	$runtime·switchtoM(SB), R6
+	// be systemstack_switch if the G stack is scanned.
+	MOVD	$runtime·systemstack_switch(SB), R6
 	ADD	$8, R6	// get past prologue
 	MOVD	R6, (g_sched+gobuf_pc)(g)
 	MOVD	R1, (g_sched+gobuf_sp)(g)
@@ -205,7 +192,7 @@ oncurg:
 	// switch to g0
 	MOVD	R5, g
 	MOVD	(g_sched+gobuf_sp)(g), R3
-	// make it look like mstart called onM on g0, to stop traceback
+	// make it look like mstart called systemstack on g0, to stop traceback
 	SUB	$8, R3
 	MOVD	$runtime·mstart(SB), R4
 	MOVD	R4, 0(R3)
@@ -223,7 +210,7 @@ oncurg:
 	MOVD	R0, (g_sched+gobuf_sp)(g)
 	RETURN
 
-onm:
+noswitch:
 	// already on m stack, just call directly
 	MOVD	0(R11), R3	// code pointer
 	MOVD	R3, CTR
@@ -986,6 +973,10 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 TEXT runtime·goexit(SB),NOSPLIT,$-8-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
+
+TEXT runtime·getg(SB),NOSPLIT,$-8-8
+	MOVD	g, ret+0(FP)
+	RETURN
 
 TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
 	RETURN

@@ -654,6 +654,8 @@ enum
 
 	D_CONST2 = D_INDIR+D_INDIR,
 
+	D_LAST,
+
 	T_TYPE		= 1<<0,
 	T_INDEX		= 1<<1,
 	T_OFFSET	= 1<<2,

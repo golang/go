@@ -108,7 +108,7 @@ retry:
 			op = entries[i].op
 			errno = 0
 			qty = 0
-			if stdcall5(_WSAGetOverlappedResult, netpollfd(op.pd), uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
+			if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
 				errno = int32(getlasterror())
 			}
 			handlecompletion(&gp, op, errno, qty)
@@ -152,5 +152,5 @@ func handlecompletion(gpp **g, op *net_op, errno int32, qty uint32) {
 	}
 	op.errno = errno
 	op.qty = qty
-	netpollready(gpp, op.pd, mode)
+	netpollready((**g)(noescape(unsafe.Pointer(gpp))), op.pd, mode)
 }

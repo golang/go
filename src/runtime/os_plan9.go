@@ -6,22 +6,49 @@ package runtime
 
 import "unsafe"
 
+//go:noescape
 func pread(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
+
+//go:noescape
 func pwrite(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
+
 func seek(fd int32, offset int64, whence int32) int64
+
+//go:noescape
 func exits(msg *byte)
+
+//go:noescape
 func brk_(addr unsafe.Pointer) uintptr
+
 func sleep(ms int32) int32
+
 func rfork(flags int32) int32
+
+//go:noescape
 func plan9_semacquire(addr *uint32, block int32) int32
+
+//go:noescape
 func plan9_tsemacquire(addr *uint32, ms int32) int32
+
+//go:noescape
 func plan9_semrelease(addr *uint32, count int32) int32
+
+//go:noescape
 func notify(fn unsafe.Pointer) int32
+
 func noted(mode int32) int32
+
+//go:noescape
 func nsec(*int64) int64
+
+//go:noescape
 func sigtramp(ureg, msg unsafe.Pointer)
+
 func setfpmasks()
+
+//go:noescape
 func tstart_plan9(newm *m)
+
 func errstr() string
 
 type _Plink uintptr

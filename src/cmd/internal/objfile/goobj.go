@@ -7,7 +7,7 @@
 package objfile
 
 import (
-	"debug/goobj"
+	"cmd/internal/goobj"
 	"fmt"
 	"os"
 )

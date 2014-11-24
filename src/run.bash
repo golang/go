@@ -64,18 +64,6 @@ echo
 echo '# sync -cpu=10'
 go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
 
-# Race detector only supported on Linux, FreeBSD and OS X,
-# and only on amd64, and only when cgo is enabled.
-# DISABLED until we get garbage collection working.
-case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED-XXX-DISABLED" in
-linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
-	echo
-	echo '# Testing race detector.'
-	go test -race -i runtime/race flag
-	go test -race -run=Output runtime/race
-	go test -race -short flag
-esac
-
 xcd() {
 	echo
 	echo '#' $1
@@ -121,6 +109,7 @@ go run $GOROOT/test/run.go - . || exit 1
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
 # cgo tests inspect the traceback for runtime functions
+extlink=0
 export GOTRACEBACK=2
 go test -ldflags '-linkmode=auto' || exit 1
 # linkmode=internal fails on dragonfly since errno is a TLS relocation.
@@ -129,19 +118,24 @@ case "$GOHOSTOS-$GOARCH" in
 openbsd-386 | openbsd-amd64)
 	# test linkmode=external, but __thread not supported, so skip testtls.
 	go test -ldflags '-linkmode=external' || exit 1
+	extlink=1
 	;;
 darwin-386 | darwin-amd64)
 	# linkmode=external fails on OS X 10.6 and earlier == Darwin
 	# 10.8 and earlier.
 	case $(uname -r) in
 	[0-9].* | 10.*) ;;
-	*) go test -ldflags '-linkmode=external'  || exit 1;;
+	*)
+		go test -ldflags '-linkmode=external'  || exit 1
+		extlink=1
+		;;
 	esac
 	;;
 android-arm | dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | freebsd-arm | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
 	go test -ldflags '-linkmode=external' || exit 1
 	go test -ldflags '-linkmode=auto' ../testtls || exit 1
 	go test -ldflags '-linkmode=external' ../testtls || exit 1
+	extlink=1
 	
 	case "$GOHOSTOS-$GOARCH" in
 	netbsd-386 | netbsd-amd64) ;; # no static linking
@@ -164,6 +158,24 @@ android-arm | dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | fr
 	;;
 esac
 ) || exit $?
+
+# Race detector only supported on Linux, FreeBSD and OS X,
+# and only on amd64, and only when cgo is enabled.
+# Delayed until here so we know whether to try external linking.
+# DISABLED until we get garbage collection working.
+case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED-XXX-DISABLED" in
+linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
+	echo
+	echo '# Testing race detector.'
+	go test -race -i runtime/race flag os/exec
+	go test -race -run=Output runtime/race
+	go test -race -short flag os/exec
+	
+	# Test with external linking; see issue 9133.
+	if [ "$extlink" = 1 ]; then
+		go test -race -short -ldflags=-linkmode=external flag os/exec
+	fi
+esac
 
 # This tests cgo -cdefs. That mode is not supported,
 # so it's okay if it doesn't work on some systems.

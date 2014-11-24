@@ -11,7 +11,7 @@
 package main
 
 import (
-	"debug/goobj"
+	"cmd/internal/goobj"
 	"os"
 	"sort"
 	"strings"
@@ -69,7 +69,7 @@ func (p *Prog) scanFile(pkgpath string, file string) {
 		return
 	}
 
-	// TODO(rsc): Change debug/goobj to record package name as gp.Name.
+	// TODO(rsc): Change cmd/internal/goobj to record package name as gp.Name.
 	// TODO(rsc): If pkgpath == "main", check that gp.Name == "main".
 
 	pkg.Package = gp

@@ -63,11 +63,13 @@ func main() {
 		if _cgo_free == nil {
 			gothrow("_cgo_free missing")
 		}
-		if _cgo_setenv == nil {
-			gothrow("_cgo_setenv missing")
-		}
-		if _cgo_unsetenv == nil {
-			gothrow("_cgo_unsetenv missing")
+		if GOOS != "windows" {
+			if _cgo_setenv == nil {
+				gothrow("_cgo_setenv missing")
+			}
+			if _cgo_unsetenv == nil {
+				gothrow("_cgo_unsetenv missing")
+			}
 		}
 	}
 
@@ -165,6 +167,7 @@ func acquireSudog() *sudog {
 			gothrow("acquireSudog: found s.elem != nil in cache")
 		}
 		c.sudogcache = s.next
+		s.next = nil
 		return s
 	}
 
@@ -192,6 +195,15 @@ func releaseSudog(s *sudog) {
 	}
 	if s.selectdone != nil {
 		gothrow("runtime: sudog with non-nil selectdone")
+	}
+	if s.next != nil {
+		gothrow("runtime: sudog with non-nil next")
+	}
+	if s.prev != nil {
+		gothrow("runtime: sudog with non-nil prev")
+	}
+	if s.waitlink != nil {
+		gothrow("runtime: sudog with non-nil waitlink")
 	}
 	gp := getg()
 	if gp.param != nil {

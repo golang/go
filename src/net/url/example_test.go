@@ -7,7 +7,10 @@ package url_test
 import (
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httputil"
 	"net/url"
+	"strings"
 )
 
 func ExampleValues() {
@@ -38,4 +41,31 @@ func ExampleURL() {
 	u.RawQuery = q.Encode()
 	fmt.Println(u)
 	// Output: https://google.com/search?q=golang
+}
+
+func ExampleURL_opaque() {
+	// Sending a literal '%' in an HTTP request's Path
+	req := &http.Request{
+		Method: "GET",
+		Host:   "example.com", // takes precendence over URL.Host
+		URL: &url.URL{
+			Host:   "ignored",
+			Scheme: "https",
+			Opaque: "/%2f/",
+		},
+		Header: http.Header{
+			"User-Agent": {"godoc-example/0.1"},
+		},
+	}
+	out, err := httputil.DumpRequestOut(req, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(strings.Replace(string(out), "\r", "", -1))
+	// Output:
+	// GET /%2f/ HTTP/1.1
+	// Host: example.com
+	// User-Agent: godoc-example/0.1
+	// Accept-Encoding: gzip
+	//
 }

@@ -1,5 +1,7 @@
 package runtime
 
+const _PAGESIZE = 0x1000
+
 type ureg struct {
 	ax  uint64
 	bx  uint64
