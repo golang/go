@@ -117,11 +117,11 @@ type sigactiont struct {
 }
 
 type siginfo struct {
-	si_signo  int32
-	si_errno  int32
-	si_code   int32
-	pad_cgo_0 [4]byte
-	_sifields [112]byte
+	si_signo int32
+	si_errno int32
+	si_code  int32
+	// below here is a union; si_addr is the only field we use
+	si_addr uint64
 }
 
 type itimerval struct {

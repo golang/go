@@ -41,20 +41,20 @@ func callbackasmAddr(i int) uintptr {
 
 func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
-		panic("compilecallback: not a function")
+		panic("compileCallback: not a function")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
-	if len(ft.out) != 1 {
-		panic("compilecallback: function must have one output parameter")
+	if ft.out.len != 1 {
+		panic("compileCallback: function must have one output parameter")
 	}
 	uintptrSize := unsafe.Sizeof(uintptr(0))
-	if t := (**_type)(unsafe.Pointer(&ft.out[0])); (*t).size != uintptrSize {
-		panic("compilecallback: output parameter size is wrong")
+	if t := (**_type)(unsafe.Pointer(ft.out.array)); (*t).size != uintptrSize {
+		panic("compileCallback: output parameter size is wrong")
 	}
 	argsize := uintptr(0)
-	for _, t := range (*[1024](*_type))(unsafe.Pointer(&ft.in[0]))[:len(ft.in)] {
+	for _, t := range (*[1024](*_type))(unsafe.Pointer(ft.in.array))[:ft.in.len] {
 		if (*t).size > uintptrSize {
-			panic("compilecallback: input parameter size is wrong")
+			panic("compileCallback: input parameter size is wrong")
 		}
 		argsize += uintptrSize
 	}
@@ -87,8 +87,6 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	return callbackasmAddr(n)
 }
 
-func getLoadLibrary() uintptr
-
 //go:nosplit
 func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 	var c libcall
@@ -102,8 +100,6 @@ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 	}
 	return
 }
-
-func getGetProcAddress() uintptr
 
 //go:nosplit
 func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {

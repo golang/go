@@ -250,7 +250,7 @@ struct
 	"R27",		LREG,	27,
 	"R28",		LREG,	28,
 	"R29",		LREG,	29,
-	"R30",		LREG,	30,
+	"g",		LREG,	30, // avoid unintentionally clobbering g using R30
 	"R31",		LREG,	31,
 
 	"F",		LF,	0,
@@ -488,6 +488,7 @@ struct
 	"SYSCALL",	LNOP, ASYSCALL,
 	"UNDEF",	LNOP, AUNDEF,
 
+	"RET",		LRETRN, ARETURN,
 	"RETURN",	LRETRN, ARETURN,
 	"RFI",		LRETRN,	ARFI,
 	"RFCI",		LRETRN,	ARFCI,

@@ -66,7 +66,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$48
 	// stderr
 	MOVQ	$-12, CX // stderr
 	MOVQ	CX, 0(SP)
-	MOVQ	runtime·GetStdHandle(SB), AX
+	MOVQ	runtime·_GetStdHandle(SB), AX
 	CALL	AX
 
 	MOVQ	AX, CX	// handle
@@ -79,7 +79,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$48
 	MOVQ	$0, 0(R9)
 	MOVQ	R9, 24(SP)
 	MOVQ	$0, 32(SP)	// overlapped
-	MOVQ	runtime·WriteFile(SB), AX
+	MOVQ	runtime·_WriteFile(SB), AX
 	CALL	AX
 	
 	RET
@@ -245,7 +245,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 	LEAQ	-8192(SP), CX
 	MOVQ	CX, (g_stack+stack_lo)(SP)
-	ADDQ	$const_StackGuard, CX
+	ADDQ	$const__StackGuard, CX
 	MOVQ	CX, g_stackguard0(SP)
 	MOVQ	CX, g_stackguard1(SP)
 	MOVQ	DX, (g_stack+stack_hi)(SP)
@@ -294,8 +294,8 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	MOVQ	-8(CX)(AX*8), AX
 
 	// extract callback context
-	MOVQ	cbctxt_argsize(AX), DX
-	MOVQ	cbctxt_gobody(AX), AX
+	MOVQ	wincallbackcontext_argsize(AX), DX
+	MOVQ	wincallbackcontext_gobody(AX), AX
 
 	// preserve whatever's at the memory location that
 	// the callback will use to store the return value
@@ -355,7 +355,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	MOVQ	AX, (g_stack+stack_hi)(DX)
 	SUBQ	$(64*1024), AX		// stack size
 	MOVQ	AX, (g_stack+stack_lo)(DX)
-	ADDQ	$const_StackGuard, AX
+	ADDQ	$const__StackGuard, AX
 	MOVQ	AX, g_stackguard0(DX)
 	MOVQ	AX, g_stackguard1(DX)
 
@@ -436,7 +436,7 @@ TEXT runtime·usleep2(SB),NOSPLIT,$16
 	MOVQ	BX, (R8)
 	MOVQ	$-1, CX // handle
 	MOVQ	$0, DX // alertable
-	MOVQ	runtime·NtWaitForSingleObject(SB), AX
+	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
 	CALL	AX
 	MOVQ	8(SP), SP
 	RET

@@ -139,17 +139,15 @@ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
-	// Check that addr is within [arenastart, arenaend) or within [noptrdata, enoptrbss).
+	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	CMPQ	RARG1, runtime·racearenastart(SB)
 	JB	data
 	CMPQ	RARG1, runtime·racearenaend(SB)
 	JB	call
 data:
-	MOVQ	$runtime·noptrdata(SB), R13
-	CMPQ	RARG1, R13
+	CMPQ	RARG1, runtime·racedatastart(SB)
 	JB	ret
-	MOVQ	$runtime·enoptrbss(SB), R13
-	CMPQ	RARG1, R13
+	CMPQ	RARG1, runtime·racedataend(SB)
 	JAE	ret
 call:
 	MOVQ	AX, AX		// w/o this 6a miscompiles this function
@@ -167,6 +165,7 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 	MOVQ	callpc+0(FP), RARG1
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
 	MOVQ	$__tsan_func_enter(SB), AX
+	// racecall<> preserves R15
 	CALL	racecall<>(SB)
 	MOVQ	R15, DX	// restore function entry context
 	RET
@@ -307,13 +306,45 @@ TEXT	sync∕atomic·CompareAndSwapPointer(SB), NOSPLIT, $0-0
 TEXT	racecallatomic<>(SB), NOSPLIT, $0-0
 	// Trigger SIGSEGV early.
 	MOVQ	16(SP), R12
-	MOVL	(R12), R12
+	MOVL	(R12), R13
+	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
+	CMPQ	R12, runtime·racearenastart(SB)
+	JB	racecallatomic_data
+	CMPQ	R12, runtime·racearenaend(SB)
+	JB	racecallatomic_ok
+racecallatomic_data:
+	CMPQ	R12, runtime·racedatastart(SB)
+	JB	racecallatomic_ignore
+	CMPQ	R12, runtime·racedataend(SB)
+	JAE	racecallatomic_ignore
+racecallatomic_ok:
+	// Addr is within the good range, call the atomic function.
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	MOVQ	8(SP), RARG1	// caller pc
 	MOVQ	(SP), RARG2	// pc
 	LEAQ	16(SP), RARG3	// arguments
+	JMP	racecall<>(SB)	// does not return
+racecallatomic_ignore:
+	// Addr is outside the good range.
+	// Call __tsan_go_ignore_sync_begin to ignore synchronization during the atomic op.
+	// An attempt to synchronize on the address would cause crash.
+	MOVQ	AX, R15	// remember the original function
+	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
+	MOVQ	g(R12), R14
+	MOVQ	g_racectx(R14), RARG0	// goroutine context
+	CALL	racecall<>(SB)
+	MOVQ	R15, AX	// restore the original function
+	// Call the atomic function.
+	MOVQ	g_racectx(R14), RARG0	// goroutine context
+	MOVQ	8(SP), RARG1	// caller pc
+	MOVQ	(SP), RARG2	// pc
+	LEAQ	16(SP), RARG3	// arguments
+	CALL	racecall<>(SB)
+	// Call __tsan_go_ignore_sync_end.
+	MOVQ	$__tsan_go_ignore_sync_end(SB), AX
+	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	JMP	racecall<>(SB)
 
 // void runtime·racecall(void(*f)(...), ...)

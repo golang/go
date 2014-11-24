@@ -91,6 +91,21 @@ Pconv(Fmt *fp)
 	p = va_arg(fp->args, Prog*);
 	bigP = p;
 	a = p->as;
+
+	if(fp->flags & FmtSharp) {
+		s = str;
+		s += sprint(s, "%.5lld (%L) %A", p->pc, p->lineno, a);
+		if(p->from.type != D_NONE)
+			s += sprint(s, " from={%#D}", &p->from);
+		if(p->reg)
+			s += sprint(s, " reg=%d", p->reg);
+		if(p->from3.type != D_NONE)
+			s += sprint(s, " from3={%#D}", &p->from3);
+		if(p->to.type != D_NONE)
+			sprint(s, " to={%#D}", &p->to);
+		return fmtstrcpy(fp, str);
+	}
+
 	if(a == ADATA || a == AINIT || a == ADYNT)
 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
 	else if(a == ATEXT) {
@@ -152,6 +167,32 @@ Dconv(Fmt *fp)
 	int32 v;
 
 	a = va_arg(fp->args, Addr*);
+
+	if(fp->flags & FmtSharp) {
+		char *s = str;
+		if(a->type == D_NONE) {
+			sprint(s, "type=NONE");
+			goto ret;
+		}
+		if(a->type >= 0 && a->type < D_LAST && dnames9[a->type] != nil)
+			s += sprint(s, "type=%s ", dnames9[a->type]);
+		else
+			s += sprint(s, "type=%d ", a->type);
+		if(a->name >= 0 && a->name < D_LAST && dnames9[(int)a->name] != nil)
+			s += sprint(s, "name=%s ", dnames9[(int)a->name]);
+		else
+			s += sprint(s, "name=%d ", a->name);
+		s += sprint(s, "offset=%lld etype=%E width=%lld", a->offset, a->etype, a->width);
+		if(a->class != 0)
+			s += sprint(s, " class=%s", cnames9[(int)a->class]);
+		if(a->reg != NREG)
+			s += sprint(s, " reg=%d", a->reg);
+		if(a->sym != nil)
+			s += sprint(s, " sym=%s", a->sym->name);
+		if(a->type == D_BRANCH && a->u.branch != nil)
+			sprint(s, " branch=%.5lld", a->u.branch->pc);
+		goto ret;
+	}
 
 	if(fp->flags & FmtLong) {
 		if(a->type == D_CONST)

@@ -7,7 +7,7 @@
 package main
 
 import (
-	"debug/goobj"
+	"cmd/internal/goobj"
 	"encoding/binary"
 	"os"
 	"sort"

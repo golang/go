@@ -6,8 +6,8 @@ package runtime
 
 import "unsafe"
 
-func nacl_exception_stack(p unsafe.Pointer, size int32) int32
-func nacl_exception_handler(fn, arg unsafe.Pointer) int32
+func nacl_exception_stack(p uintptr, size int32) int32
+func nacl_exception_handler(fn uintptr, arg unsafe.Pointer) int32
 func nacl_sem_create(flag int32) int32
 func nacl_sem_wait(sem int32) int32
 func nacl_sem_post(sem int32) int32
@@ -19,9 +19,20 @@ func nacl_cond_create(flag int32) int32
 func nacl_cond_wait(cond, n int32) int32
 func nacl_cond_signal(cond int32) int32
 func nacl_cond_broadcast(cond int32) int32
-func nacl_cond_timed_wait_abs(cond, lock int32, ts unsafe.Pointer) int32
-func nacl_thread_create(fn, stk, tls, xx unsafe.Pointer) int32
-func nacl_nanosleep(ts, extra unsafe.Pointer) int32
+
+//go:noescape
+func nacl_cond_timed_wait_abs(cond, lock int32, ts *timespec) int32
+func nacl_thread_create(fn uintptr, stk, tls, xx unsafe.Pointer) int32
+
+//go:noescape
+func nacl_nanosleep(ts, extra *timespec) int32
+func nanotime() int64
+func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+func exit(code int32)
+func osyield()
+
+//go:noescape
+func write(fd uintptr, p unsafe.Pointer, n int32) int32
 
 func os_sigpipe() {
 	gothrow("too many writes on closed pipe")

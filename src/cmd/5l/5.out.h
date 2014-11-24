@@ -338,6 +338,8 @@ enum
 	D_STATIC = (D_NONE+4),
 	D_AUTO = (D_NONE+5),
 	D_PARAM = (D_NONE+6),
+
+	D_LAST = (D_NONE+26),
 };
 
 /*

@@ -781,7 +781,7 @@ func shrinkstack(gp *g) {
 	if gp.syscallsp != 0 {
 		return
 	}
-	if _Windows != 0 && gp.m != nil && gp.m.libcallsp != 0 {
+	if goos_windows != 0 && gp.m != nil && gp.m.libcallsp != 0 {
 		return
 	}
 

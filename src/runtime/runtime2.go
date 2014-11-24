@@ -45,7 +45,13 @@ const (
 	_Pdead
 )
 
-// XXX inserting below here
+// The next line makes 'go generate' write the zgen_*.go files with
+// per-OS and per-arch information, including constants
+// named goos_$GOOS and goarch_$GOARCH for every
+// known GOOS and GOARCH. The constant is 1 on the
+// current system, 0 otherwise; multiplying by them is
+// useful for defining GOOS- or GOARCH-specific constants.
+//go:generate go run gengoos.go
 
 type mutex struct {
 	// Futex-based impl treats it as uint32 key,
@@ -396,14 +402,6 @@ type itab struct {
 	unused int32
 	fun    [0]uintptr
 }
-
-const (
-	// TODO: Generate in cmd/dist.
-	_NaCl    = 0
-	_Windows = 0
-	_Solaris = 0
-	_Plan9   = 0
-)
 
 // Lock-free stack node.
 // // Also known to export_test.go.

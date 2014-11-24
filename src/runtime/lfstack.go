@@ -12,6 +12,10 @@ import "unsafe"
 func lfstackpush(head *uint64, node *lfnode) {
 	node.pushcnt++
 	new := lfstackPack(node, node.pushcnt)
+	if node1, _ := lfstackUnpack(new); node1 != node {
+		println("runtime: lfstackpush invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
+		gothrow("lfstackpush")
+	}
 	for {
 		old := atomicload64(head)
 		node.next = old

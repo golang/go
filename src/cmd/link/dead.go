@@ -6,7 +6,7 @@
 
 package main
 
-import "debug/goobj"
+import "cmd/internal/goobj"
 
 // dead removes unreachable code and data from the program.
 // It is basically a mark-sweep garbage collection: traverse all the

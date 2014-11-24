@@ -134,11 +134,12 @@ proginfo(ProgInfo *info, Prog *p)
 	}
 
 	if(p->as == ADUFFZERO) {
-		info->reguse |= RtoB(0) | RtoB(2);
-		info->regset |= RtoB(2);
+		info->reguse |= (1<<D_R0) | RtoB(3);
+		info->regset |= RtoB(3);
 	}
 	if(p->as == ADUFFCOPY) {
-		info->reguse |= RtoB(0) | RtoB(2) | RtoB(3);
-		info->regset |= RtoB(2) | RtoB(3);
+		// TODO(austin) Revisit when duffcopy is implemented
+		info->reguse |= RtoB(3) | RtoB(4) | RtoB(5);
+		info->regset |= RtoB(3) | RtoB(4);
 	}
 }
