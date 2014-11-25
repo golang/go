@@ -1310,11 +1310,13 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	// auto-tagging to apply only to files with a non-empty prefix, so
 	// "foo_linux.go" is tagged but "linux.go" is not. This allows new operating
 	// sytems, such as android, to arrive without breaking existing code with
-	// innocuous source code in "android.go". The easiest fix: files without
-	// underscores are always included.
-	if !strings.ContainsRune(name, '_') {
+	// innocuous source code in "android.go". The easiest fix: cut everything
+	// in the name before the initial _.
+	i := strings.Index(name, "_")
+	if i < 0 {
 		return true
 	}
+	name = name[i:] // ignore everything before first _
 
 	l := strings.Split(name, "_")
 	if n := len(l); n > 0 && l[n-1] == "test" {
