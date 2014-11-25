@@ -65,14 +65,6 @@ needlib(char *name)
 
 int	nelfsym = 1;
 
-// b is the addresses, a is the I-form branch instruction template, peform
-// addition so that the instruction jumps to address (offset) b.
-static int32
-braddoff(int32 a, int32 b)
-{
-	return (((uint32)a) & 0xfc000003U) | (0x03fffffcU & (uint32)((a & 0x3fffffcU) + b));
-}
-
 void
 adddynrela(LSym *rel, LSym *s, Reloc *r)
 {
@@ -160,7 +152,19 @@ archreloc(Reloc *r, LSym *s, vlong *val)
 			*val = ((vlong)o2 << 32) | o1;
 		return 0;
 	case R_CALLPOWER:
-		*val = braddoff((uint32)r->add, (int32)(symaddr(r->sym) - (s->value + r->off)));
+		// Bits 6 through 29 = (S + A - P) >> 2
+		if(ctxt->arch->endian == BigEndian)
+			o1 = be32(s->p + r->off);
+		else
+			o1 = le32(s->p + r->off);
+
+		t = symaddr(r->sym) + r->add - (s->value + r->off);
+		if(t & 3)
+			ctxt->diag("relocation for %s is not aligned: %lld", s->name, t);
+		if(t << 6 >> 6 != t)
+			ctxt->diag("relocation for %s is too big: %lld", s->name, t);
+
+		*val = (o1 & 0xfc000003U) | (t & ~0xfc000003U);
 		return 0;
 	}
 	return -1;
