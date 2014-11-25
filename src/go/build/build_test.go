@@ -189,6 +189,7 @@ var matchFileTests = []struct {
 	{ctxtAndroid, "foo_plan9.go", "", false},
 	{ctxtAndroid, "android.go", "", true},
 	{ctxtAndroid, "plan9.go", "", true},
+	{ctxtAndroid, "plan9_test.go", "", true},
 	{ctxtAndroid, "arm.s", "", true},
 	{ctxtAndroid, "amd64.s", "", true},
 }
