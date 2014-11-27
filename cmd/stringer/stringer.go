@@ -261,7 +261,7 @@ func (g *Generator) parsePackage(directory string, names []string, text interfac
 // check type-checks the package. The package must be OK to proceed.
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) {
 	pkg.defs = make(map[*ast.Ident]types.Object)
-	var config types.Config
+	config := types.Config{FakeImportC: true}
 	info := &types.Info{
 		Defs: pkg.defs,
 	}
