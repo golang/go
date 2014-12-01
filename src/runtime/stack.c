@@ -637,12 +637,7 @@ copystack(G *gp, uintptr newsize)
 	}
 	runtime·memmove((byte*)new.hi - used, (byte*)old.hi - used, used);
 
-	oldstatus = runtime·readgstatus(gp);
-	oldstatus &= ~Gscan;
-	if(oldstatus == Gwaiting || oldstatus == Grunnable)
-		runtime·casgstatus(gp, oldstatus, Gcopystack); // oldstatus is Gwaiting or Grunnable
-	else
-		runtime·throw("copystack: bad status, not Gwaiting or Grunnable");
+	oldstatus = runtime·casgcopystack(gp); // cas from Gwaiting or Grunnable to Gcopystack, return old status
 
 	// Swap out old stack for new one
 	gp->stack = new;

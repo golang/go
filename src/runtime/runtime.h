@@ -666,6 +666,8 @@ enum {
 
 uint32  runtime·readgstatus(G*);
 void    runtime·casgstatus(G*, uint32, uint32);
+void    runtime·casgstatus(G*, uint32, uint32);
+uint32	runtime·casgcopystack(G*);
 void    runtime·quiesce(G*);
 bool    runtime·stopg(G*);
 void    runtime·restartg(G*);
