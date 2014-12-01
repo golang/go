@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"go/build"
 	"io"
 	"io/ioutil"
 	"os"
@@ -43,6 +44,10 @@ func TestEndToEnd(t *testing.T) {
 	for _, name := range names {
 		if !strings.HasSuffix(name, ".go") {
 			t.Errorf("%s is not a Go file", name)
+			continue
+		}
+		if name == "cgo.go" && !build.Default.CgoEnabled {
+			t.Logf("cgo is no enabled for %s", name)
 			continue
 		}
 		// Names are known to be ASCII and long enough.
