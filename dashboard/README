@@ -8,7 +8,7 @@ app/:     an AppEngine server. The code that runs http://build.golang.org/
 builder/: gobuilder, a Go continuous build client
 coordinator/: daemon that runs on CoreOS on Google Compute Engine and manages
           builds (using the builder in single-shot mode) in Docker containers.
-env/:     configuration files describing the environment of builders.
+env/:     configuration files describing the environment of builders and related binaries.
           Many builders are still configured ad-hoc.
 watcher/: a daemon that watches for new commits to the Go repository and
           its sub-repositories, and notifies the dashboard of those commits.

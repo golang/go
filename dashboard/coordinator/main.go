@@ -37,6 +37,7 @@ var (
 var (
 	startTime = time.Now()
 	builders  = map[string]buildConfig{} // populated once at startup
+	watchers  = map[string]watchConfig{} // populated once at startup
 	donec     = make(chan builderRev)    // reports of finished builders
 
 	statusMu sync.Mutex
@@ -51,6 +52,7 @@ type imageInfo struct {
 }
 
 var images = map[string]*imageInfo{
+	"go-commit-watcher":          {url: "https://storage.googleapis.com/go-builder-data/docker-commit-watcher.tar.gz"},
 	"gobuilders/linux-x86-base":  {url: "https://storage.googleapis.com/go-builder-data/docker-linux.base.tar.gz"},
 	"gobuilders/linux-x86-clang": {url: "https://storage.googleapis.com/go-builder-data/docker-linux.clang.tar.gz"},
 	"gobuilders/linux-x86-gccgo": {url: "https://storage.googleapis.com/go-builder-data/docker-linux.gccgo.tar.gz"},
@@ -65,6 +67,12 @@ type buildConfig struct {
 	env     []string // extra environment ("key=value") pairs
 	dashURL string   // url of the build dashboard
 	tool    string   // the tool this configuration is for
+}
+
+type watchConfig struct {
+	repo     string        // "https://code.google.com/p/go"
+	dash     string        // "https://build.golang.org/" (must end in /)
+	interval time.Duration // Polling interval
 }
 
 func main() {
@@ -96,6 +104,9 @@ func main() {
 	addBuilder(buildConfig{name: "linux-386-clang", image: "gobuilders/linux-x86-clang"})
 	addBuilder(buildConfig{name: "linux-amd64-clang", image: "gobuilders/linux-x86-clang"})
 
+	addWatcher(watchConfig{repo: "https://code.google.com/p/go", dash: "https://build.golang.org/"})
+	addWatcher(watchConfig{repo: "https://code.google.com/p/gofrontend", dash: "https://build.golang.org/gccgo/"})
+
 	if (*just != "") != (*rev != "") {
 		log.Fatalf("--just and --rev must be used together")
 	}
@@ -117,6 +128,12 @@ func main() {
 	http.HandleFunc("/logs", handleLogs)
 	go http.ListenAndServe(":80", nil)
 
+	for _, watcher := range watchers {
+		if err := startWatching(watchers[watcher.repo]); err != nil {
+			log.Printf("Error starting watcher for %s: %v", watcher.repo, err)
+		}
+	}
+
 	workc := make(chan builderRev)
 	for name, builder := range builders {
 		go findWorkLoop(name, builder.dashURL, workc)
@@ -129,10 +146,7 @@ func main() {
 			log.Printf("workc received %+v; len(status) = %v, maxBuilds = %v; cur = %p", work, len(status), *maxBuilds, status[work])
 			mayBuild := mayBuildRev(work)
 			if mayBuild {
-				out, _ := exec.Command("docker", "ps").Output()
-				numBuilds := bytes.Count(out, []byte("\n")) - 1
-				log.Printf("num current docker builds: %d", numBuilds)
-				if numBuilds > *maxBuilds {
+				if numBuilds() > *maxBuilds {
 					mayBuild = false
 				}
 			}
@@ -333,6 +347,40 @@ func addBuilder(c buildConfig) {
 	builders[c.name] = c
 }
 
+// returns the part after "docker run"
+func (conf watchConfig) dockerRunArgs() (args []string) {
+	if key := builderKey("watcher"); key != "" {
+		tmpKey := "/tmp/watcher.buildkey"
+		if _, err := os.Stat(tmpKey); err != nil {
+			if err := ioutil.WriteFile(tmpKey, []byte(key), 0600); err != nil {
+				log.Fatal(err)
+			}
+		}
+		args = append(args, "-v", tmpKey+":/.gobuildkey")
+	}
+	args = append(args,
+		"go-commit-watcher",
+		"/usr/local/bin/watcher",
+		"-repo="+conf.repo,
+		"-dash="+conf.dash,
+		"-poll="+conf.interval.String(),
+	)
+	return
+}
+
+func addWatcher(c watchConfig) {
+	if c.repo == "" {
+		c.repo = "https://code.google.com/p/go"
+	}
+	if c.dash == "" {
+		c.dash = "https://build.golang.org/"
+	}
+	if c.interval == 0 {
+		c.interval = 10 * time.Second
+	}
+	watchers[c.repo] = c
+}
+
 func condUpdateImage(img string) error {
 	ii := images[img]
 	if ii == nil {
@@ -373,6 +421,20 @@ func condUpdateImage(img string) error {
 	return nil
 }
 
+// numBuilds finds the number of go builder instances currently running.
+func numBuilds() int {
+	out, _ := exec.Command("docker", "ps").Output()
+	numBuilds := 0
+	ps := bytes.Split(out, []byte("\n"))
+	for _, p := range ps {
+		if bytes.HasPrefix(p, []byte("gobuilders/")) {
+			numBuilds++
+		}
+	}
+	log.Printf("num current docker builds: %d", numBuilds)
+	return numBuilds
+}
+
 func startBuilding(conf buildConfig, rev string) (*buildStatus, error) {
 	if err := condUpdateImage(conf.image); err != nil {
 		log.Printf("Failed to setup container for %v %v: %v", conf.name, rev, err)
@@ -409,6 +471,18 @@ type buildStatus struct {
 
 	mu sync.Mutex
 	// ...
+}
+
+func startWatching(conf watchConfig) error {
+	if err := condUpdateImage("go-commit-watcher"); err != nil {
+		log.Printf("Failed to setup container for commit watcher: %v", err)
+		return err
+	}
+
+	cmd := exec.Command("docker", append([]string{"run", "-d"}, conf.dockerRunArgs()...)...)
+	all, err := cmd.CombinedOutput()
+	log.Printf("Docker run for commit watcher = err:%v, output: %s", err, all)
+	return err
 }
 
 func builderKey(builder string) string {
