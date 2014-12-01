@@ -402,6 +402,7 @@ runtime·castogscanstatus(G *gp, uint32 oldval, uint32 newval)
 
 static void badcasgstatus(void);
 static void helpcasgstatus(void);
+static void badgstatusrunnable(void);
 
 // If asked to move to or from a Gscanstatus this will throw. Use the castogscanstatus
 // and casfromgscanstatus instead.
@@ -423,6 +424,10 @@ runtime·casgstatus(G *gp, uint32 oldval, uint32 newval)
 	// loop if gp->atomicstatus is in a scan state giving
 	// GC time to finish and change the state to oldval.
 	while(!runtime·cas(&gp->atomicstatus, oldval, newval)) {
+		if(oldval == Gwaiting && gp->atomicstatus == Grunnable) {
+			fn = badgstatusrunnable;
+			runtime·onM(&fn);
+		}
 		// Help GC if needed. 
 		if(gp->preemptscan && !gp->gcworkdone && (oldval == Grunning || oldval == Gsyscall)) {
 			gp->preemptscan = false;
@@ -431,6 +436,33 @@ runtime·casgstatus(G *gp, uint32 oldval, uint32 newval)
 			runtime·onM(&fn);
 		}
 	}	
+}
+
+static void
+badgstatusrunnable(void)
+{
+	runtime·throw("casgstatus: waiting for Gwaiting but is Grunnable");
+}
+
+// casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
+// Returns old status. Cannot call casgstatus directly, because we are racing with an
+// async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
+// it might have become Grunnable by the time we get to the cas. If we called casgstatus,
+// it would loop waiting for the status to go back to Gwaiting, which it never will.
+#pragma textflag NOSPLIT
+uint32
+runtime·casgcopystack(G *gp)
+{
+	uint32 oldstatus;
+
+	for(;;) {
+		oldstatus = runtime·readgstatus(gp) & ~Gscan;
+		if(oldstatus != Gwaiting && oldstatus != Grunnable)
+			runtime·throw("copystack: bad status, not Gwaiting or Grunnable");
+		if(runtime·cas(&gp->atomicstatus, oldstatus, Gcopystack))
+			break;
+	}
+	return oldstatus;
 }
 
 static void
