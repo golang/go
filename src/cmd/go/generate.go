@@ -45,7 +45,7 @@ The arguments are space-separated tokens or double-quoted strings
 passed to the generator as individual arguments when it is run.
 
 Quoted strings use Go syntax and are evaluated before execution; a
-quoted string appears a single argument to the generator.
+quoted string appears as a single argument to the generator.
 
 Go generate sets several variables when it runs the generator:
 
