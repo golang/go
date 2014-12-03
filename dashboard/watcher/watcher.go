@@ -9,11 +9,9 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -23,25 +21,26 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
 
+const goBase = "https://go.googlesource.com/"
+
 var (
-	repoURL      = flag.String("repo", "https://code.google.com/p/go", "Repository URL")
-	dashboard    = flag.String("dash", "https://build.golang.org/", "Dashboard URL (must end in /)")
+	repoURL      = flag.String("repo", goBase+"go", "Repository URL")
+	dashboard    = flag.String("dash", "https://build.golang.org/git/", "Dashboard URL (must end in /)")
 	keyFile      = flag.String("key", defaultKeyFile, "Build dashboard key file")
 	pollInterval = flag.Duration("poll", 10*time.Second, "Remote repo poll interval")
+	network      = flag.Bool("network", true, "Enable network calls (disable for testing)")
 )
 
 var (
 	defaultKeyFile = filepath.Join(homeDir(), ".gobuildkey")
 	dashboardKey   = ""
+	networkSeen    = make(map[string]bool) // track known hashes for testing
 )
-
-// The first main repo commit on the dashboard; ignore commits before this.
-// This is for the main Go repo only.
-const dashboardStart = "2f970046e1ba96f32de62f5639b7141cda2e977c"
 
 func main() {
 	flag.Parse()
@@ -56,9 +55,6 @@ func main() {
 func run() error {
 	if !strings.HasSuffix(*dashboard, "/") {
 		return errors.New("dashboard URL (-dashboard) must end in /")
-	}
-	if err := checkHgVersion(); err != nil {
-		return err
 	}
 
 	if k, err := readKey(); err != nil {
@@ -90,7 +86,7 @@ func run() error {
 	}
 	for _, path := range subrepos {
 		go func(path string) {
-			url := "https://" + path
+			url := goBase + strings.TrimPrefix(path, "golang.org/x/")
 			r, err := NewRepo(dir, url, path)
 			if err != nil {
 				errc <- err
@@ -106,7 +102,7 @@ func run() error {
 
 // Repo represents a repository to be watched.
 type Repo struct {
-	root     string             // on-disk location of the hg repo
+	root     string             // on-disk location of the git repo
 	path     string             // base import path for repo (blank for main repo)
 	commits  map[string]*Commit // keyed by full commit hash (40 lowercase hex digits)
 	branches map[string]*Branch // keyed by branch name, eg "release-branch.go1.3" (or empty for default)
@@ -118,21 +114,20 @@ type Repo struct {
 // and should be empty for the main Go repo.
 func NewRepo(dir, url, path string) (*Repo, error) {
 	r := &Repo{
-		path: path,
-		root: filepath.Join(dir, filepath.Base(path)),
+		path:     path,
+		root:     filepath.Join(dir, filepath.Base(path)),
+		commits:  make(map[string]*Commit),
+		branches: make(map[string]*Branch),
 	}
 
 	r.logf("cloning %v", url)
-	cmd := exec.Command("hg", "clone", url, r.root)
+	cmd := exec.Command("git", "clone", url, r.root)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("%v\n\n%s", err, out)
 	}
 
 	r.logf("loading commit log")
-	if err := r.loadCommits(); err != nil {
-		return nil, err
-	}
-	if err := r.findBranches(); err != nil {
+	if err := r.update(false); err != nil {
 		return nil, err
 	}
 
@@ -140,15 +135,15 @@ func NewRepo(dir, url, path string) (*Repo, error) {
 	return r, nil
 }
 
-// Watch continuously runs "hg pull" in the repo, checks for
+// Watch continuously runs "git fetch" in the repo, checks for
 // new commits, and posts any new commits to the dashboard.
 // It only returns a non-nil error.
 func (r *Repo) Watch() error {
 	for {
-		if err := hgPull(r.root); err != nil {
+		if err := r.fetch(); err != nil {
 			return err
 		}
-		if err := r.update(); err != nil {
+		if err := r.update(true); err != nil {
 			return err
 		}
 		for _, b := range r.branches {
@@ -176,8 +171,31 @@ func (r *Repo) postNewCommits(b *Branch) error {
 	}
 	c := b.LastSeen
 	if c == nil {
-		// Haven't seen any: find the commit that this branch forked from.
-		for c := b.Head; c.Branch == b.Name; c = c.parent {
+		// Haven't seen anything on this branch yet:
+		if b.Name == master {
+			// For the master branch, bootstrap by creating a dummy
+			// commit with a lone child that is the initial commit.
+			c = &Commit{}
+			for _, c2 := range r.commits {
+				if c2.Parent == "" {
+					c.children = []*Commit{c2}
+					break
+				}
+			}
+			if c.children == nil {
+				return fmt.Errorf("couldn't find initial commit")
+			}
+		} else {
+			// Find the commit that this branch forked from.
+			base, err := r.mergeBase(b.Name, master)
+			if err != nil {
+				return err
+			}
+			var ok bool
+			c, ok = r.commits[base]
+			if !ok {
+				return fmt.Errorf("couldn't find base commit: %v", base)
+			}
 		}
 	}
 	// Add unseen commits on this branch, working forward from last seen.
@@ -213,7 +231,7 @@ func (r *Repo) postNewCommits(b *Branch) error {
 func (r *Repo) postCommit(c *Commit) error {
 	r.logf("sending commit to dashboard: %v", c)
 
-	t, err := time.Parse(time.RFC3339, c.Date)
+	t, err := time.Parse("Mon, 2 Jan 2006 15:04:05 -0700", c.Date)
 	if err != nil {
 		return err
 	}
@@ -243,123 +261,105 @@ func (r *Repo) postCommit(c *Commit) error {
 		return err
 	}
 
+	if !*network {
+		networkSeen[c.Hash] = true
+		return nil
+	}
+
+	// TODO(adg): bump version number
 	u := *dashboard + "commit?version=2&key=" + dashboardKey
 	resp, err := http.Post(u, "text/json", bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
+	resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("status: %v", resp.Status)
 	}
 	return nil
 }
 
-// loadCommits runs "hg log" and populates the Repo's commit map.
-func (r *Repo) loadCommits() error {
-	log, err := hgLog(r.root)
+const master = "origin/master" // name of the master branch
+
+// update looks for new commits and branches,
+// and updates the commits and branches maps.
+func (r *Repo) update(noisy bool) error {
+	remotes, err := r.remotes()
 	if err != nil {
 		return err
 	}
-	r.commits = make(map[string]*Commit)
-	for _, c := range log {
-		r.commits[c.Hash] = c
-	}
-	for _, c := range r.commits {
-		if p, ok := r.commits[c.Parent]; ok {
-			c.parent = p
-			p.children = append(p.children, c)
-		}
-	}
-	return nil
-}
+	for _, name := range remotes {
+		b := r.branches[name]
 
-// findBranches finds branch heads in the Repo's commit map
-// and populates its branch map.
-func (r *Repo) findBranches() error {
-	r.branches = make(map[string]*Branch)
-	for _, c := range r.commits {
-		if c.children == nil {
-			if !validHead(c) {
-				continue
-			}
-			seen, err := r.lastSeen(c.Hash)
+		// Find all unseen commits on this branch.
+		revspec := name
+		if b != nil {
+			// If we know about this branch,
+			// only log commits down to the known head.
+			revspec = b.Head.Hash + ".." + name
+		} else if revspec != master {
+			// If this is an unknown non-master branch,
+			// log up to where it forked from master.
+			base, err := r.mergeBase(name, master)
 			if err != nil {
 				return err
 			}
-			b := &Branch{Name: c.Branch, Head: c, LastSeen: seen}
-			r.branches[c.Branch] = b
-			r.logf("found branch: %v", b)
+			revspec = base + ".." + name
 		}
-	}
-	return nil
-}
-
-// validHead reports whether the specified commit should be considered a branch
-// head. It considers pre-go1 branches and certain specific commits as invalid.
-func validHead(c *Commit) bool {
-	// Pre Go-1 releases branches are irrelevant.
-	if strings.HasPrefix(c.Branch, "release-branch.r") {
-		return false
-	}
-	// Not sure why these revisions have no child commits,
-	// but they're old so let's just ignore them.
-	if c.Hash == "b59f4ff1b51094314f735a4d57a2b8f06cfadf15" ||
-		c.Hash == "fc75f13840b896e82b9fa6165cf705fbacaf019c" {
-		return false
-	}
-	// All other branches are valid.
-	return true
-}
-
-// update runs "hg pull" in the specified reporoot,
-// looks for new commits and branches,
-// and updates the comits and branches maps.
-func (r *Repo) update() error {
-	// TODO(adg): detect new branches with "hg branches".
-
-	// Check each branch for new commits.
-	for _, b := range r.branches {
-
-		// Find all commits on this branch from known head.
-		// The logic of this function assumes that "hg log $HASH:"
-		// returns hashes in the order they were committed (parent first).
-		bname := b.Name
-		if bname == "" {
-			bname = "default"
-		}
-		log, err := hgLog(r.root, "-r", b.Head.Hash+":", "-b", bname)
+		log, err := r.log("--topo-order", revspec)
 		if err != nil {
 			return err
 		}
+		if len(log) == 0 {
+			// No commits to handle; carry on.
+			continue
+		}
 
-		// Add unknown commits to r.commits, and update branch head.
+		// Add unknown commits to r.commits.
+		var added []*Commit
 		for _, c := range log {
-			// Ignore if we already know this commit.
+			// Sanity check: we shouldn't see the same commit twice.
 			if _, ok := r.commits[c.Hash]; ok {
+				return fmt.Errorf("found commit we already knew about: %v", c.Hash)
+			}
+			if noisy {
+				r.logf("found new commit %v", c)
+			}
+			c.Branch = name
+			r.commits[c.Hash] = c
+			added = append(added, c)
+		}
+
+		// Link added commits.
+		for _, c := range added {
+			if c.Parent == "" {
+				// This is the initial commit; no parent.
 				continue
 			}
-			r.logf("found new commit %v", c)
-
-			// Sanity check that we're looking at a commit on this branch.
-			if c.Branch != b.Name {
-				return fmt.Errorf("hg log gave us a commit from wrong branch: want %q, got %q", b.Name, c.Branch)
-			}
-
 			// Find parent commit.
 			p, ok := r.commits[c.Parent]
 			if !ok {
 				return fmt.Errorf("can't find parent hash %q for %v", c.Parent, c)
 			}
-
 			// Link parent and child Commits.
 			c.parent = p
 			p.children = append(p.children, c)
+		}
 
-			// Update branch head.
-			b.Head = c
-
-			// Add new commit to map.
-			r.commits[c.Hash] = c
+		// Update branch head, or add newly discovered branch.
+		head := log[0]
+		if b != nil {
+			// Known branch; update head.
+			b.Head = head
+		} else {
+			// It's a new branch; add it.
+			seen, err := r.lastSeen(head.Hash)
+			if err != nil {
+				return err
+			}
+			b = &Branch{Name: name, Head: head, LastSeen: seen}
+			r.branches[name] = b
+			r.logf("found branch: %v", b)
 		}
 	}
 
@@ -378,83 +378,149 @@ func (r *Repo) lastSeen(head string) (*Commit, error) {
 	var s []*Commit
 	for c := h; c != nil; c = c.parent {
 		s = append(s, c)
-		if r.path == "" && c.Hash == dashboardStart {
-			break
-		}
 	}
 
-	for _, c := range s {
-		v := url.Values{"hash": {c.Hash}, "packagePath": {r.path}}
-		u := *dashboard + "commit?" + v.Encode()
-		r, err := http.Get(u)
+	var err error
+	i := sort.Search(len(s), func(i int) bool {
 		if err != nil {
-			return nil, err
+			return false
 		}
-		var resp struct {
-			Error string
-		}
-		err = json.NewDecoder(r.Body).Decode(&resp)
-		r.Body.Close()
-		if err != nil {
-			return nil, err
-		}
-		switch resp.Error {
-		case "":
-			// Found one.
-			return c, nil
-		case "Commit not found":
-			// Commit not found, keep looking for earlier commits.
-			continue
-		default:
-			return nil, fmt.Errorf("dashboard: %v", resp.Error)
-		}
+		ok, err = r.dashSeen(s[i].Hash)
+		return ok
+	})
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("lastSeen:", err)
+	case i < len(s):
+		return s[i], nil
+	default:
+		// Dashboard saw no commits.
+		return nil, nil
 	}
-
-	// Dashboard saw no commits.
-	return nil, nil
 }
 
-// hgLog runs "hg log" with the supplied arguments
-// and parses the output into Commit values.
-func hgLog(dir string, args ...string) ([]*Commit, error) {
-	args = append([]string{"log", "--template", xmlLogTemplate}, args...)
-	cmd := exec.Command("hg", args...)
-	cmd.Dir = dir
+// dashSeen reports whether the build dashboard knows the specified commit.
+func (r *Repo) dashSeen(hash string) (bool, error) {
+	if !*network {
+		return networkSeen[hash], nil
+	}
+	v := url.Values{"hash": {hash}, "packagePath": {r.path}}
+	u := *dashboard + "commit?" + v.Encode()
+	resp, err := http.Get(u)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+	var s struct {
+		Error string
+	}
+	err = json.NewDecoder(resp.Body).Decode(&s)
+	if err != nil {
+		return false, err
+	}
+	switch s.Error {
+	case "":
+		// Found one.
+		return true, nil
+	case "Commit not found":
+		// Commit not found, keep looking for earlier commits.
+		return false, nil
+	default:
+		return false, fmt.Errorf("dashboard: %v", s.Error)
+	}
+}
+
+// mergeBase returns the hash of the merge base for revspecs a and b.
+func (r *Repo) mergeBase(a, b string) (string, error) {
+	cmd := exec.Command("git", "merge-base", a, b)
+	cmd.Dir = r.root
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("git merge-base: %v", err)
+	}
+	return string(bytes.TrimSpace(out)), nil
+}
+
+// remotes returns a slice of remote branches known to the git repo.
+// It always puts "origin/master" first.
+func (r *Repo) remotes() ([]string, error) {
+	cmd := exec.Command("git", "branch", "-r")
+	cmd.Dir = r.root
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("git branch: %v", err)
+	}
+	bs := []string{master}
+	for _, b := range strings.Split(string(out), "\n") {
+		b = strings.TrimSpace(b)
+		// Ignore aliases, blank lines, and master (it's already in bs).
+		if b == "" || strings.Contains(b, "->") || b == master {
+			continue
+		}
+		bs = append(bs, b)
+	}
+	return bs, nil
+}
+
+const logFormat = `--format=format:%H
+%P
+%an <%ae>
+%aD
+%B
+` + logBoundary
+
+const logBoundary = `_-_- magic boundary -_-_`
+
+// log runs "git log" with the supplied arguments
+// and parses the output into Commit values.
+func (r *Repo) log(dir string, args ...string) ([]*Commit, error) {
+	args = append([]string{"log", "--date=rfc", logFormat}, args...)
+	cmd := exec.Command("git", args...)
+	cmd.Dir = r.root
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("git log %v: %v", strings.Join(args, " "), err)
 	}
 
 	// We have a commit with description that contains 0x1b byte.
 	// Mercurial does not escape it, but xml.Unmarshal does not accept it.
+	// TODO(adg): do we still need to scrub this? Probably.
 	out = bytes.Replace(out, []byte{0x1b}, []byte{'?'}, -1)
 
-	xr := io.MultiReader(
-		strings.NewReader("<Top>"),
-		bytes.NewReader(out),
-		strings.NewReader("</Top>"),
-	)
-	var logStruct struct {
-		Log []*Commit
+	var cs []*Commit
+	for _, text := range strings.Split(string(out), logBoundary) {
+		text = strings.TrimSpace(text)
+		if text == "" {
+			continue
+		}
+		p := strings.SplitN(text, "\n", 5)
+		if len(p) != 5 {
+			return nil, fmt.Errorf("git log %v: malformed commit: %q", strings.Join(args, " "), text)
+		}
+		cs = append(cs, &Commit{
+			Hash: p[0],
+			// TODO(adg): This may break with branch merges.
+			Parent: strings.Split(p[1], " ")[0],
+			Author: p[2],
+			Date:   p[3],
+			Desc:   strings.TrimSpace(p[4]),
+			// TODO(adg): populate Files
+		})
 	}
-	err = xml.NewDecoder(xr).Decode(&logStruct)
-	if err != nil {
-		return nil, err
-	}
-	return logStruct.Log, nil
+	return cs, nil
 }
 
-// hgPull runs "hg pull" in the specified directory.
+// fetch runs "git fetch" in the repository root.
 // It tries three times, just in case it failed because of a transient error.
-func hgPull(dir string) error {
+func (r *Repo) fetch() error {
 	var err error
 	for tries := 0; tries < 3; tries++ {
 		time.Sleep(time.Duration(tries) * 5 * time.Second) // Linear back-off.
-		cmd := exec.Command("hg", "pull")
-		cmd.Dir = dir
+		cmd := exec.Command("git", "fetch", "--all")
+		cmd.Dir = r.root
 		if out, e := cmd.CombinedOutput(); err != nil {
 			e = fmt.Errorf("%v\n\n%s", e, out)
-			log.Printf("hg pull error %v: %v", dir, e)
+			log.Printf("git fetch error %v: %v", r.root, e)
 			if err == nil {
 				err = e
 			}
@@ -476,12 +542,12 @@ func (b *Branch) String() string {
 	return fmt.Sprintf("%q(Head: %v LastSeen: %v)", b.Name, b.Head, b.LastSeen)
 }
 
-// Commit represents a single Mercurial revision.
+// Commit represents a single Git commit.
 type Commit struct {
 	Hash   string
 	Author string
-	Date   string
-	Desc   string // Plain text, first linefeed-terminated line is a short description.
+	Date   string // Format: "Mon, 2 Jan 2006 15:04:05 -0700"
+	Desc   string // Plain text, first line is a short description.
 	Parent string
 	Branch string
 	Files  string
@@ -499,7 +565,7 @@ func (c *Commit) String() string {
 func (c *Commit) NeedsBenchmarking() bool {
 	// Do not benchmark branch commits, they are usually not interesting
 	// and fall out of the trunk succession.
-	if c.Branch != "" {
+	if c.Branch != master {
 		return false
 	}
 	// Do not benchmark commits that do not touch source files (e.g. CONTRIBUTORS).
@@ -511,22 +577,6 @@ func (c *Commit) NeedsBenchmarking() bool {
 	}
 	return false
 }
-
-// xmlLogTemplate is a template to pass to Mercurial to make
-// hg log print the log in valid XML for parsing with xml.Unmarshal.
-// Can not escape branches and files, because it crashes python with:
-// AttributeError: 'NoneType' object has no attribute 'replace'
-const xmlLogTemplate = `
-        <Log>
-        <Hash>{node|escape}</Hash>
-        <Parent>{p1node}</Parent>
-        <Author>{author|escape}</Author>
-        <Date>{date|rfc3339date}</Date>
-        <Desc>{desc|escape}</Desc>
-        <Branch>{branches}</Branch>
-        <Files>{files}</Files>
-        </Log>
-`
 
 func homeDir() string {
 	switch runtime.GOOS {
@@ -550,9 +600,17 @@ func readKey() (string, error) {
 // and returns them as a slice of base import paths.
 // Eg, []string{"golang.org/x/tools", "golang.org/x/net"}.
 func subrepoList() ([]string, error) {
+	if !*network {
+		return nil, nil
+	}
+
 	r, err := http.Get(*dashboard + "packages?kind=subrepo")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("subrepo list: %v", err)
+	}
+	defer r.Body.Close()
+	if r.StatusCode != 200 {
+		return nil, fmt.Errorf("subrepo list: got status %v", r.Status)
 	}
 	var resp struct {
 		Response []struct {
@@ -561,29 +619,15 @@ func subrepoList() ([]string, error) {
 		Error string
 	}
 	err = json.NewDecoder(r.Body).Decode(&resp)
-	r.Body.Close()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("subrepo list: %v", err)
 	}
 	if resp.Error != "" {
-		return nil, errors.New(resp.Error)
+		return nil, fmt.Errorf("subrepo list: %v", resp.Error)
 	}
 	var pkgs []string
 	for _, r := range resp.Response {
 		pkgs = append(pkgs, r.Path)
 	}
 	return pkgs, nil
-}
-
-// checkHgVersion checks whether the installed version of hg supports the
-// template features we need. (May not be precise.)
-func checkHgVersion() error {
-	out, err := exec.Command("hg", "help", "templates").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error running hg help templates: %v\n\n%s", err, out)
-	}
-	if !bytes.Contains(out, []byte("p1node")) {
-		return errors.New("installed hg doesn't support 'p1node' template keyword; please upgrade")
-	}
-	return nil
 }
