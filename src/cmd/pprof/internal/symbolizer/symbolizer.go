@@ -32,6 +32,10 @@ func Symbolize(mode string, prof *profile.Profile, obj plugin.ObjTool, ui plugin
 		}
 	}
 
+	if len(prof.Mapping) == 0 {
+		return fmt.Errorf("no known mappings")
+	}
+
 	mt, err := newMapping(prof, obj, ui, force)
 	if err != nil {
 		return err
