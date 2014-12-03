@@ -13,17 +13,26 @@ import (
 	"appengine"
 )
 
+func handleFunc(path string, h http.HandlerFunc) {
+	for _, d := range dashboards {
+		http.HandleFunc(d.Prefix+path, h)
+	}
+}
+
 // Dashboard describes a unique build dashboard.
 type Dashboard struct {
 	Name     string     // This dashboard's name and namespace
-	RelPath  string     // The relative url path
+	Prefix   string     // The path prefix (no trailing /)
 	Packages []*Package // The project's packages to build
 }
 
 // dashboardForRequest returns the appropriate dashboard for a given URL path.
 func dashboardForRequest(r *http.Request) *Dashboard {
-	if strings.HasPrefix(r.URL.Path, gccgoDash.RelPath) {
+	if strings.HasPrefix(r.URL.Path, gccgoDash.Prefix) {
 		return gccgoDash
+	}
+	if strings.HasPrefix(r.URL.Path, gitDash.Prefix) {
+		return gitDash
 	}
 	return goDash
 }
@@ -43,12 +52,12 @@ func (d *Dashboard) Context(c appengine.Context) appengine.Context {
 }
 
 // the currently known dashboards.
-var dashboards = []*Dashboard{goDash, gccgoDash}
+var dashboards = []*Dashboard{goDash, gitDash, gccgoDash}
 
 // goDash is the dashboard for the main go repository.
 var goDash = &Dashboard{
 	Name:     "Go",
-	RelPath:  "/",
+	Prefix:   "",
 	Packages: goPackages,
 }
 
@@ -105,10 +114,71 @@ var goPackages = []*Package{
 	},
 }
 
+// gitDash is the dashboard for the main go repository on git.
+var gitDash = &Dashboard{
+	Name:     "Git",
+	Prefix:   "/git",
+	Packages: gitPackages,
+}
+
+// gitPackages is a list of all of the packages built by the main go repository
+// on git.
+var gitPackages = []*Package{
+	{
+		Kind: "go",
+		Name: "Go",
+	},
+	{
+		Kind: "subrepo",
+		Name: "blog",
+		Path: "golang.org/x/blog",
+	},
+	{
+		Kind: "subrepo",
+		Name: "codereview",
+		Path: "golang.org/x/codereview",
+	},
+	{
+		Kind: "subrepo",
+		Name: "crypto",
+		Path: "golang.org/x/crypto",
+	},
+	{
+		Kind: "subrepo",
+		Name: "exp",
+		Path: "golang.org/x/exp",
+	},
+	{
+		Kind: "subrepo",
+		Name: "image",
+		Path: "golang.org/x/image",
+	},
+	{
+		Kind: "subrepo",
+		Name: "net",
+		Path: "golang.org/x/net",
+	},
+	{
+		Kind: "subrepo",
+		Name: "sys",
+		Path: "golang.org/x/sys",
+	},
+	{
+		Kind: "subrepo",
+		Name: "talks",
+		Path: "golang.org/x/talks",
+	},
+	{
+		Kind: "subrepo",
+		Name: "tools",
+		Path: "golang.org/x/tools",
+	},
+}
+
 // gccgoDash is the dashboard for gccgo.
 var gccgoDash = &Dashboard{
-	Name:    "Gccgo",
-	RelPath: "/gccgo/",
+	Name:   "Gccgo",
+	Prefix: "/gccgo",
 	Packages: []*Package{
 		{
 			Kind: "gccgo",

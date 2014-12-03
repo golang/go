@@ -26,7 +26,7 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/buildtest", testHandler)
+	handleFunc("/buildtest", testHandler)
 }
 
 var testEntityKinds = []string{

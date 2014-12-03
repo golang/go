@@ -11,11 +11,11 @@ api_version: go1
 handlers:
 - url: /static
   static_dir: static
-- url: /(|gccgo/)log/.+
+- url: /(|gccgo/|git/)log/.+
   script: _go_app
-- url: /(|gccgo/)(|commit|packages|result|perf-result|tag|todo|perf|perfdetail|perfgraph|updatebenchmark)
+- url: /(|gccgo/|git/)(|commit|packages|result|perf-result|tag|todo|perf|perfdetail|perfgraph|updatebenchmark)
   script: _go_app
-- url: /(|gccgo/)(init|buildtest|key|perflearn|_ah/queue/go/delay)
+- url: /(|gccgo/|git/)(init|buildtest|key|perflearn|_ah/queue/go/delay)
   script: _go_app
   login: admin
 

@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/updatebenchmark", updateBenchmark)
+	handleFunc("/updatebenchmark", updateBenchmark)
 }
 
 func updateBenchmark(w http.ResponseWriter, r *http.Request) {

@@ -20,9 +20,7 @@ import (
 )
 
 func init() {
-	for _, d := range dashboards {
-		http.HandleFunc(d.RelPath+"perfdetail", perfDetailUIHandler)
-	}
+	handleFunc("/perfdetail", perfDetailUIHandler)
 }
 
 func perfDetailUIHandler(w http.ResponseWriter, r *http.Request) {

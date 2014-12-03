@@ -18,7 +18,7 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/perflearn", perfLearnHandler)
+	handleFunc("/perflearn", perfLearnHandler)
 }
 
 const (

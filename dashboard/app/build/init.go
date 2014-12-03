@@ -33,6 +33,7 @@ func initHandler(w http.ResponseWriter, r *http.Request) {
 			logErr(w, r, err)
 			return
 		}
+		p.NextNum = 1 // So we can add the first commit.
 		if _, err := datastore.Put(c, p.Key(c), p); err != nil {
 			logErr(w, r, err)
 			return

@@ -18,9 +18,7 @@ import (
 )
 
 func init() {
-	for _, d := range dashboards {
-		http.HandleFunc(d.RelPath+"perfgraph", perfGraphHandler)
-	}
+	handleFunc("/perfgraph", perfGraphHandler)
 }
 
 func perfGraphHandler(w http.ResponseWriter, r *http.Request) {

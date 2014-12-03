@@ -841,22 +841,20 @@ func keyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
-	for _, d := range dashboards {
-		// admin handlers
-		http.HandleFunc(d.RelPath+"init", initHandler)
-		http.HandleFunc(d.RelPath+"key", keyHandler)
+	// admin handlers
+	handleFunc("/init", initHandler)
+	handleFunc("/key", keyHandler)
 
-		// authenticated handlers
-		http.HandleFunc(d.RelPath+"commit", AuthHandler(commitHandler))
-		http.HandleFunc(d.RelPath+"packages", AuthHandler(packagesHandler))
-		http.HandleFunc(d.RelPath+"result", AuthHandler(resultHandler))
-		http.HandleFunc(d.RelPath+"perf-result", AuthHandler(perfResultHandler))
-		http.HandleFunc(d.RelPath+"tag", AuthHandler(tagHandler))
-		http.HandleFunc(d.RelPath+"todo", AuthHandler(todoHandler))
+	// authenticated handlers
+	handleFunc("/commit", AuthHandler(commitHandler))
+	handleFunc("/packages", AuthHandler(packagesHandler))
+	handleFunc("/result", AuthHandler(resultHandler))
+	handleFunc("/perf-result", AuthHandler(perfResultHandler))
+	handleFunc("/tag", AuthHandler(tagHandler))
+	handleFunc("/todo", AuthHandler(todoHandler))
 
-		// public handlers
-		http.HandleFunc(d.RelPath+"log/", logHandler)
-	}
+	// public handlers
+	handleFunc("/log/", logHandler)
 }
 
 func validHash(hash string) bool {

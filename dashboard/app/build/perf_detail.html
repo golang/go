@@ -21,9 +21,9 @@
   <header id="topbar">
     <h1>Go Dashboard</h1>
     <nav>
-        <a href="{{$.Dashboard.RelPath}}">Test</a>
-        <a href="{{$.Dashboard.RelPath}}perf">Perf</a>
-        <a href="{{$.Dashboard.RelPath}}perfgraph">Graphs</a>
+        <a href="{{$.Dashboard.Prefix}}/">Test</a>
+        <a href="{{$.Dashboard.Prefix}}/perf">Perf</a>
+        <a href="{{$.Dashboard.Prefix}}/perfgraph">Graphs</a>
     </nav>
     <div class="clear"></div>
   </header>
@@ -74,12 +74,12 @@
             <tr>
               <td class="metric">{{$m.Name}}</td>
               {{if $m.Link0}}
-                <td><a href="{{$.Dashboard.RelPath}}{{$m.Link0}}">{{$m.Val0}}</td>
+                <td><a href="{{$.Dashboard.Prefix}}/{{$m.Link0}}">{{$m.Val0}}</td>
               {{else}}
                 <td>{{$m.Val0}}</td>
               {{end}}
               {{if $m.Link1}}
-                <td><a href="{{$.Dashboard.RelPath}}{{$m.Link1}}">{{$m.Val1}}</td>
+                <td><a href="{{$.Dashboard.Prefix}}/{{$m.Link1}}">{{$m.Val1}}</td>
               {{else}}
                 <td>{{$m.Val1}}</td>
               {{end}}

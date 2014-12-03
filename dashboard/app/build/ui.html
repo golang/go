@@ -22,16 +22,16 @@
     <header id="topbar">
       <h1>Go Dashboard</h1>
       <nav>
-        <a href="{{$.Dashboard.RelPath}}">Test</a>
-        <a href="{{$.Dashboard.RelPath}}perf">Perf</a>
-        <a href="{{$.Dashboard.RelPath}}perfgraph">Graphs</a>
+        <a href="{{$.Dashboard.Prefix}}/">Test</a>
+        <a href="{{$.Dashboard.Prefix}}/perf">Perf</a>
+        <a href="{{$.Dashboard.Prefix}}/perfgraph">Graphs</a>
       </nav>
       <div class="clear"></div>
     </header>
 
     <nav class="dashboards">
       {{range buildDashboards}}
-        <a href="{{.RelPath}}">{{.Name}}</a>
+        <a href="{{.Prefix}}/">{{.Name}}</a>
       {{end}}
       <label>
         <input type=checkbox id="showshort">
@@ -99,7 +99,7 @@
                 {{if .OK}}
                   <span class="ok">ok</span>
                 {{else}}
-                  <a href="{{$.Dashboard.RelPath}}log/{{.LogHash}}" class="fail">fail</a>
+                  <a href="{{$.Dashboard.Prefix}}/log/{{.LogHash}}" class="fail">fail</a>
                 {{end}}
               {{else}}
                 &nbsp;
@@ -187,7 +187,7 @@
               {{if .OK}}
                 <span class="ok">ok</span>
               {{else}}
-                <a href="{{$.Dashboard.RelPath}}log/{{.LogHash}}" class="fail">fail</a>
+                <a href="{{$.Dashboard.Prefix}}/log/{{.LogHash}}" class="fail">fail</a>
               {{end}}
             {{else}}
               &nbsp;

@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/perf", perfChangesHandler)
+	handleFunc("/perf", perfChangesHandler)
 }
 
 // perfSummaryHandler draws the main benchmarking page.
