@@ -45,29 +45,27 @@ type Builder struct {
 }
 
 var (
-	doBuild        = flag.Bool("build", true, "Build and test packages")
-	doBench        = flag.Bool("bench", false, "Run benchmarks")
-	buildroot      = flag.String("buildroot", defaultBuildRoot(), "Directory under which to build")
-	dashboard      = flag.String("dashboard", "https://build.golang.org", "Dashboard app base path")
-	buildRelease   = flag.Bool("release", false, "Build and upload binary release archives")
-	buildRevision  = flag.String("rev", "", "Build specified revision and exit")
-	buildCmd       = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
-	buildTool      = flag.String("tool", "go", "Tool to build.")
-	gcPath         = flag.String("gcpath", "code.google.com/p/go", "Path to download gc from")
-	gccPath        = flag.String("gccpath", "https://github.com/mirrors/gcc.git", "Path to download gcc from")
-	benchPath      = flag.String("benchpath", "golang.org/x/benchmarks/bench", "Path to download benchmarks from")
-	failAll        = flag.Bool("fail", false, "fail all builds")
-	parallel       = flag.Bool("parallel", false, "Build multiple targets in parallel")
-	buildTimeout   = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
-	cmdTimeout     = flag.Duration("cmdTimeout", 10*time.Minute, "Maximum time to wait for an external command")
-	commitInterval = flag.Duration("commitInterval", 1*time.Minute, "Time to wait between polling for new commits (0 disables commit poller)")
-	commitWatch    = flag.Bool("commitWatch", false, "run the commit watch loop only (do no builds)")
-	benchNum       = flag.Int("benchnum", 5, "Run each benchmark that many times")
-	benchTime      = flag.Duration("benchtime", 5*time.Second, "Benchmarking time for a single benchmark run")
-	benchMem       = flag.Int("benchmem", 64, "Approx RSS value to aim at in benchmarks, in MB")
-	fileLock       = flag.String("filelock", "", "File to lock around benchmaring (synchronizes several builders)")
-	verbose        = flag.Bool("v", false, "verbose")
-	report         = flag.Bool("report", true, "whether to report results to the dashboard")
+	doBuild       = flag.Bool("build", true, "Build and test packages")
+	doBench       = flag.Bool("bench", false, "Run benchmarks")
+	buildroot     = flag.String("buildroot", defaultBuildRoot(), "Directory under which to build")
+	dashboard     = flag.String("dashboard", "https://build.golang.org/git", "Dashboard app base path")
+	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
+	buildRevision = flag.String("rev", "", "Build specified revision and exit")
+	buildCmd      = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
+	buildTool     = flag.String("tool", "go", "Tool to build.")
+	gcPath        = flag.String("gcpath", "go.googlesource.com/go", "Path to download gc from")
+	gccPath       = flag.String("gccpath", "https://github.com/mirrors/gcc.git", "Path to download gcc from")
+	benchPath     = flag.String("benchpath", "golang.org/x/benchmarks/bench", "Path to download benchmarks from")
+	failAll       = flag.Bool("fail", false, "fail all builds")
+	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
+	buildTimeout  = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
+	cmdTimeout    = flag.Duration("cmdTimeout", 10*time.Minute, "Maximum time to wait for an external command")
+	benchNum      = flag.Int("benchnum", 5, "Run each benchmark that many times")
+	benchTime     = flag.Duration("benchtime", 5*time.Second, "Benchmarking time for a single benchmark run")
+	benchMem      = flag.Int("benchmem", 64, "Approx RSS value to aim at in benchmarks, in MB")
+	fileLock      = flag.String("filelock", "", "File to lock around benchmaring (synchronizes several builders)")
+	verbose       = flag.Bool("v", false, "verbose")
+	report        = flag.Bool("report", true, "whether to report results to the dashboard")
 )
 
 var (
@@ -128,7 +126,7 @@ func main() {
 		os.Exit(2)
 	}
 	flag.Parse()
-	if len(flag.Args()) == 0 && !*commitWatch {
+	if len(flag.Args()) == 0 {
 		flag.Usage()
 	}
 
@@ -163,7 +161,7 @@ func main() {
 			log.Fatalf("Error creating repository with url (%s): %s", goroot.Master.Root, err)
 		}
 
-		goroot, err = goroot.Clone(goroot.Path, "tip")
+		goroot, err = goroot.Clone(goroot.Path, "")
 		if err != nil {
 			log.Fatal("Error cloning repository:", err)
 		}
@@ -211,12 +209,6 @@ func main() {
 	if !*doBuild && !*doBench {
 		fmt.Fprintf(os.Stderr, "Nothing to do, exiting (specify either -build or -bench or both)\n")
 		os.Exit(2)
-	}
-
-	// Start commit watcher.
-	if *commitWatch {
-		commitWatcher(goroot)
-		return
 	}
 
 	// go continuous build mode
@@ -632,154 +624,6 @@ func isDirectory(name string) bool {
 func isFile(name string) bool {
 	s, err := os.Stat(name)
 	return err == nil && !s.IsDir()
-}
-
-// commitWatcher polls hg for new commits and tells the dashboard about them.
-func commitWatcher(goroot *Repo) {
-	if *commitInterval == 0 {
-		log.Printf("commitInterval is 0; disabling commitWatcher")
-		return
-	}
-	if !*report {
-		log.Printf("-report is false; disabling commitWatcher")
-		return
-	}
-	// Create builder just to get master key.
-	b, err := NewBuilder(goroot, "mercurial-commit")
-	if err != nil {
-		log.Fatal(err)
-	}
-	key := b.key
-
-	benchMutex.RLock()
-	for {
-		if *verbose {
-			log.Printf("poll...")
-		}
-		// Main Go repository.
-		commitPoll(goroot, "", key)
-		// Go sub-repositories.
-		for _, pkg := range dashboardPackages("subrepo") {
-			pkgmaster, err := vcs.RepoRootForImportPath(pkg, *verbose)
-			if err != nil {
-				log.Printf("Error finding subrepo (%s): %s", pkg, err)
-				continue
-			}
-			pkgroot := &Repo{
-				Path:   filepath.Join(*buildroot, pkg),
-				Master: pkgmaster,
-			}
-			commitPoll(pkgroot, pkg, key)
-		}
-		benchMutex.RUnlock()
-		if *verbose {
-			log.Printf("sleep...")
-		}
-		time.Sleep(*commitInterval)
-		benchMutex.RLock()
-	}
-}
-
-// logByHash is a cache of all Mercurial revisions we know about,
-// indexed by full hash.
-var logByHash = map[string]*HgLog{}
-
-// commitPoll pulls any new revisions from the hg server
-// and tells the server about them.
-func commitPoll(repo *Repo, pkg, key string) {
-	pkgPath := filepath.Join(*buildroot, repo.Master.Root)
-	if !repo.Exists() {
-		var err error
-		repo, err = RemoteRepo(pkg, pkgPath)
-		if err != nil {
-			log.Printf("Error cloning package (%s): %s", pkg, err)
-			return
-		}
-
-		path := repo.Path
-		repo, err = repo.Clone(path, "tip")
-		if err != nil {
-			log.Printf("%s: hg clone failed: %v", pkg, err)
-			if err := os.RemoveAll(path); err != nil {
-				log.Printf("%s: %v", pkg, err)
-			}
-		}
-		return
-	}
-
-	logs, err := repo.Log() // repo.Log calls repo.Pull internally
-	if err != nil {
-		log.Printf("hg log: %v", err)
-		return
-	}
-
-	// Pass 1.  Fill in parents and add new log entries to logByHash.
-	// Empty parent means take parent from next log entry.
-	// Non-empty parent has form 1234:hashhashhash; we want full hash.
-	for i := range logs {
-		l := &logs[i]
-		if l.Parent == "" && i+1 < len(logs) {
-			l.Parent = logs[i+1].Hash
-		} else if l.Parent != "" {
-			l.Parent, _ = repo.FullHash(l.Parent)
-		}
-		if *verbose {
-			log.Printf("hg log %s: %s < %s\n", pkg, l.Hash, l.Parent)
-		}
-		if logByHash[l.Hash] == nil {
-			l.bench = needsBenchmarking(l)
-			// These fields are needed only for needsBenchmarking, do not waste memory.
-			l.Branch = ""
-			l.Files = ""
-			// Make copy to avoid pinning entire slice when only one entry is new.
-			t := *l
-			logByHash[t.Hash] = &t
-		}
-	}
-
-	for _, l := range logs {
-		addCommit(pkg, l.Hash, key)
-	}
-}
-
-// addCommit adds the commit with the named hash to the dashboard.
-// key is the secret key for authentication to the dashboard.
-// It avoids duplicate effort.
-func addCommit(pkg, hash, key string) bool {
-	l := logByHash[hash]
-	if l == nil {
-		return false
-	}
-	if l.added {
-		return true
-	}
-
-	// Check for already added, perhaps in an earlier run.
-	if dashboardCommit(pkg, hash) {
-		log.Printf("%s already on dashboard\n", hash)
-		// Record that this hash is on the dashboard,
-		// as must be all its parents.
-		for l != nil {
-			l.added = true
-			l = logByHash[l.Parent]
-		}
-		return true
-	}
-
-	// Create parent first, to maintain some semblance of order.
-	if l.Parent != "" {
-		if !addCommit(pkg, l.Parent, key) {
-			return false
-		}
-	}
-
-	// Create commit.
-	if err := postCommit(key, pkg, l); err != nil {
-		log.Printf("failed to add %s to dashboard: %v", hash, err)
-		return false
-	}
-	l.added = true
-	return true
 }
 
 // defaultSuffix returns file extension used for command files in

@@ -47,12 +47,10 @@ func (r *Repo) Clone(path, rev string) (*Repo, error) {
 		if !r.Exists() {
 			downloadPath = r.Master.Repo
 		}
-
-		err := r.Master.VCS.CreateAtRev(path, downloadPath, rev)
-		if err != nil {
-			return err
+		if rev == "" {
+			return r.Master.VCS.Create(path, downloadPath)
 		}
-		return r.Master.VCS.TagSync(path, "")
+		return r.Master.VCS.CreateAtRev(path, downloadPath, rev)
 	})
 	if err != nil {
 		return nil, err
@@ -66,18 +64,27 @@ func (r *Repo) Clone(path, rev string) (*Repo, error) {
 // Export exports the current Repo at revision rev to a new destination.
 func (r *Repo) Export(path, rev string) error {
 	r.Lock()
-	defer r.Unlock()
 
 	downloadPath := r.Path
 	if !r.Exists() {
+		r.Unlock()
 		_, err := r.Clone(path, rev)
 		return err
 	}
 
-	cmd := exec.Command(r.Master.VCS.Cmd, "archive", "-t", "files", "-r", rev, path)
-	cmd.Dir = downloadPath
-	if err := run(cmd); err != nil {
-		return fmt.Errorf("executing %v: %v", cmd.Args, err)
+	switch r.Master.VCS.Cmd {
+	default:
+		r.Unlock()
+		// TODO(adg,cmang): implement Export in go/vcs
+		_, err := r.Clone(path, rev)
+		return err
+	case "hg":
+		defer r.Unlock()
+		cmd := exec.Command(r.Master.VCS.Cmd, "archive", "-t", "files", "-r", rev, path)
+		cmd.Dir = downloadPath
+		if err := run(cmd); err != nil {
+			return fmt.Errorf("executing %v: %v", cmd.Args, err)
+		}
 	}
 	return nil
 }

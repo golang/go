@@ -19,7 +19,7 @@ func run(cmd *exec.Cmd, opts ...runOpt) error {
 		opt.modArgs(&a)
 	}
 	if *verbose {
-		log.Printf("running %v", a.cmd.Args)
+		log.Printf("running %v in %v", a.cmd.Args, a.cmd.Dir)
 	}
 	if err := cmd.Start(); err != nil {
 		return err
