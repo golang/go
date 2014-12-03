@@ -239,9 +239,10 @@ func (v *Cmd) Create(dir, repo string) error {
 // The parent of dir must exist; dir must not.
 // rev must be a valid revision in repo.
 func (v *Cmd) CreateAtRev(dir, repo, rev string) error {
-	// Append revision flag to CreateCmd
-	createAtRevCmd := v.CreateCmd + " --rev=" + rev
-	return v.run(".", createAtRevCmd, "dir", dir, "repo", repo)
+	if err := v.Create(dir, repo); err != nil {
+		return err
+	}
+	return v.run(dir, v.TagSyncCmd, "tag", rev)
 }
 
 // Download downloads any new changes for the repo in dir.
@@ -589,6 +590,15 @@ func expand(match map[string]string, s string) string {
 
 // vcsPaths lists the known vcs paths.
 var vcsPaths = []*vcsPath{
+	// go.googlesource.com
+	{
+		prefix: "go.googlesource.com",
+		re:     `^(?P<root>go\.googlesource\.com/[A-Za-z0-9_.\-]+/?)$`,
+		vcs:    "git",
+		repo:   "https://{root}",
+		check:  noVCSSuffix,
+	},
+
 	// Google Code - new syntax
 	{
 		prefix: "code.google.com/",
