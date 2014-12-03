@@ -56,70 +56,68 @@ func (g Graph) Search(roots ...string) map[string]bool {
 // It also returns a mapping from import paths to errors for packages
 // that could not be loaded.
 func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error) {
-	// The (sole) graph builder goroutine receives a stream of import
-	// edges from the package loading goroutine.
-	forward = make(Graph)
-	reverse = make(Graph)
-	edgec := make(chan [2]string)
-	go func() {
-		for edge := range edgec {
-			if edge[1] == "C" {
-				continue // "C" is fake
-			}
-			forward.addEdge(edge[0], edge[1])
-			reverse.addEdge(edge[1], edge[0])
-		}
-	}()
-
-	// The (sole) error goroutine receives a stream of ReadDir and
-	// Import errors.
+	type importEdge struct {
+		from, to string
+	}
 	type pathError struct {
 		path string
 		err  error
 	}
-	errorc := make(chan pathError)
-	go func() {
-		for e := range errorc {
-			if errors == nil {
-				errors = make(map[string]error)
-			}
-			errors[e.path] = e.err
-		}
-	}()
+
+	ch := make(chan interface{})
 
 	var wg sync.WaitGroup
 	buildutil.ForEachPackage(ctxt, func(path string, err error) {
-		if err != nil {
-			errorc <- pathError{path, err}
-			return
-		}
 		wg.Add(1)
-		// The import goroutines load the metadata for each package.
-		go func(path string) {
+		go func() {
 			defer wg.Done()
+			if err != nil {
+				ch <- pathError{path, err}
+				return
+			}
 			bp, err := ctxt.Import(path, "", 0)
 			if _, ok := err.(*build.NoGoError); ok {
 				return // empty directory is not an error
 			}
 			if err != nil {
-				errorc <- pathError{path, err}
+				ch <- pathError{path, err}
 				return
 			}
 			for _, imp := range bp.Imports {
-				edgec <- [2]string{path, imp}
+				ch <- importEdge{path, imp}
 			}
 			for _, imp := range bp.TestImports {
-				edgec <- [2]string{path, imp}
+				ch <- importEdge{path, imp}
 			}
 			for _, imp := range bp.XTestImports {
-				edgec <- [2]string{path, imp}
+				ch <- importEdge{path, imp}
 			}
-		}(path)
+		}()
 	})
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
 
-	close(edgec)
-	close(errorc)
+	forward = make(Graph)
+	reverse = make(Graph)
+
+	for e := range ch {
+		switch e := e.(type) {
+		case pathError:
+			if errors == nil {
+				errors = make(map[string]error)
+			}
+			errors[e.path] = e.err
+
+		case importEdge:
+			if e.to == "C" {
+				continue // "C" is fake
+			}
+			forward.addEdge(e.from, e.to)
+			reverse.addEdge(e.to, e.from)
+		}
+	}
 
 	return forward, reverse, errors
 }
