@@ -50,7 +50,6 @@ import (
 	"go/token"
 
 	"golang.org/x/tools/go/types"
-	"golang.org/x/tools/go/types/typeutil"
 )
 
 // A Constraint records the fact that the RHS type does and must
@@ -72,7 +71,6 @@ type Constraint struct {
 type Finder struct {
 	Result    map[Constraint]bool
 	msetcache types.MethodSetCache
-	canon     typeutil.Map // maps types to canonical type
 
 	// per-Find state
 	info *types.Info
@@ -81,6 +79,9 @@ type Finder struct {
 
 // Find inspects a single package, populating Result with its pairs of
 // constrained types.
+//
+// The result is non-canonical and thus may contain duplicates (but this
+// tends to preserves names of interface types better).
 //
 // The package must be free of type errors, and
 // info.{Defs,Uses,Selections,Types} must have been populated by the
@@ -281,25 +282,15 @@ func (f *Finder) assign(lhs, rhs types.Type) {
 	if !isInterface(lhs) {
 		return
 	}
+
 	if f.msetcache.MethodSet(lhs).Len() == 0 {
 		return
 	}
 	if f.msetcache.MethodSet(rhs).Len() == 0 {
 		return
 	}
-	// canonicalize types
-	lhsc, ok := f.canon.At(lhs).(types.Type)
-	if !ok {
-		lhsc = lhs
-		f.canon.Set(lhs, lhsc)
-	}
-	rhsc, ok := f.canon.At(rhs).(types.Type)
-	if !ok {
-		rhsc = rhs
-		f.canon.Set(rhs, rhsc)
-	}
 	// record the pair
-	f.Result[Constraint{lhsc, rhsc}] = true
+	f.Result[Constraint{lhs, rhs}] = true
 }
 
 // typeAssert must be called for each type assertion x.(T) where x has
@@ -417,7 +408,7 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 		x := f.expr(e.X)
 		i := f.expr(e.Index)
 		if ux, ok := x.Underlying().(*types.Map); ok {
-			f.assign(ux.Elem(), i)
+			f.assign(ux.Key(), i)
 		}
 
 	case *ast.SliceExpr:

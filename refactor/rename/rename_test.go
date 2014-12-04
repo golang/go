@@ -241,14 +241,14 @@ func f() {
 			from: "(main.U).u", to: "w",
 			want: `renaming this field "u" to "w".*` +
 				`would change the referent of this selection.*` +
-				`to this field`,
+				`of this field`,
 		},
 		{
 			// field/field shadowing at different promotion levels ('to' selection)
 			from: "(main.W).w", to: "u",
 			want: `renaming this field "w" to "u".*` +
 				`would shadow this selection.*` +
-				`to the field declared here`,
+				`of the field declared here`,
 		},
 		{
 			from: "(main.V).v", to: "w",
@@ -323,17 +323,65 @@ var _ interface {f()} = C(0)
 		{
 			from: "(main.C).f", to: "e",
 			want: `renaming this method "f" to "e".*` +
-				`would make it no longer assignable to interface{f..}`,
+				`would make main.C no longer assignable to interface{f..}.*` +
+				`(rename interface{f..}.f if you intend to change both types)`,
 		},
 		{
 			from: "(main.D).g", to: "e",
 			want: `renaming this method "g" to "e".*` +
-				`would make it no longer assignable to interface I`,
+				`would make \*main.D no longer assignable to interface I.*` +
+				`(rename main.I.g if you intend to change both types)`,
 		},
 		{
 			from: "(main.I).f", to: "e",
-			want: `renaming this method "f" to "e".*` +
-				`would make \*main.D no longer assignable to it`,
+			want: `OK`,
+		},
+		// Indirect C/I method coupling via another concrete type D.
+		{
+			ctxt: main(`
+package main
+type I interface { f() }
+type C int
+func (C) f()
+type D struct{C}
+var _ I = D{}
+`),
+			from: "(main.C).f", to: "F",
+			want: `renaming this method "f" to "F".*` +
+				`would make main.D no longer assignable to interface I.*` +
+				`(rename main.I.f if you intend to change both types)`,
+		},
+		// Renaming causes promoted method to become shadowed; C no longer satisfies I.
+		{
+			ctxt: main(`
+package main
+type I interface { f() }
+type C struct { I }
+func (C) g() int
+var _ I = C{}
+`),
+			from: "main.I.f", to: "g",
+			want: `renaming this method "f" to "g".*` +
+				`would change the g method of main.C invoked via interface main.I.*` +
+				`from \(main.I\).g.*` +
+				`to \(main.C\).g`,
+		},
+		// Renaming causes promoted method to become ambiguous; C no longer satisfies I.
+		{
+			ctxt: main(`
+package main
+type I interface{f()}
+type C int
+func (C) f()
+type D int
+func (D) g()
+type E struct{C;D}
+var _ I = E{}
+`),
+			from: "main.I.f", to: "g",
+			want: `renaming this method "f" to "g".*` +
+				`would make the g method of main.E invoked via interface main.I ambiguous.*` +
+				`with \(main.D\).g`,
 		},
 	} {
 		var conflicts []string
@@ -672,6 +720,257 @@ type U int
 import "foo"
 
 type _ struct{ *foo.U }
+`,
+			},
+		},
+
+		// Interface method renaming.
+		{
+			ctxt: fakeContext(map[string][]string{
+				"main": {`
+package main
+type I interface { f() }
+type J interface { f(); g() }
+type A int
+func (A) f()
+type B int
+func (B) f()
+func (B) g()
+type C int
+func (C) f()
+func (C) g()
+var _, _ I = A(0), B(0)
+var _, _ J = B(0), C(0)
+`,
+				},
+			}),
+			offset: "/go/src/main/0.go:#33", to: "F", // abstract method I.f
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type I interface {
+	F()
+}
+type J interface {
+	F()
+	g()
+}
+type A int
+
+func (A) F()
+
+type B int
+
+func (B) F()
+func (B) g()
+
+type C int
+
+func (C) F()
+func (C) g()
+
+var _, _ I = A(0), B(0)
+var _, _ J = B(0), C(0)
+`,
+			},
+		},
+		{
+			offset: "/go/src/main/0.go:#58", to: "F", // abstract method J.f
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type I interface {
+	F()
+}
+type J interface {
+	F()
+	g()
+}
+type A int
+
+func (A) F()
+
+type B int
+
+func (B) F()
+func (B) g()
+
+type C int
+
+func (C) F()
+func (C) g()
+
+var _, _ I = A(0), B(0)
+var _, _ J = B(0), C(0)
+`,
+			},
+		},
+		{
+			offset: "/go/src/main/0.go:#63", to: "G", // abstract method J.g
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type I interface {
+	f()
+}
+type J interface {
+	f()
+	G()
+}
+type A int
+
+func (A) f()
+
+type B int
+
+func (B) f()
+func (B) G()
+
+type C int
+
+func (C) f()
+func (C) G()
+
+var _, _ I = A(0), B(0)
+var _, _ J = B(0), C(0)
+`,
+			},
+		},
+		// Indirect coupling of I.f to C.f from D->I assignment and anonymous field of D.
+		{
+			ctxt: fakeContext(map[string][]string{
+				"main": {`
+package main
+type I interface { f() }
+type C int
+func (C) f()
+type D struct{C}
+var _ I = D{}
+`,
+				},
+			}),
+			offset: "/go/src/main/0.go:#33", to: "F", // abstract method I.f
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type I interface {
+	F()
+}
+type C int
+
+func (C) F()
+
+type D struct{ C }
+
+var _ I = D{}
+`,
+			},
+		},
+		// Interface embedded in struct.  No conflict if C need not satisfy I.
+		{
+			ctxt: fakeContext(map[string][]string{
+				"main": {`
+package main
+type I interface {f()}
+type C struct{I}
+func (C) g() int
+var _ int = C{}.g()
+`,
+				},
+			}),
+			offset: "/go/src/main/0.go:#32", to: "g", // abstract method I.f
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type I interface {
+	g()
+}
+type C struct{ I }
+
+func (C) g() int
+
+var _ int = C{}.g()
+`,
+			},
+		},
+		// A type assertion causes method coupling iff signatures match.
+		{
+			ctxt: fakeContext(map[string][]string{
+				"main": {`package main
+type I interface{f()}
+type J interface{f()}
+var _ = I(nil).(J)
+`,
+				},
+			}),
+			offset: "/go/src/main/0.go:#30", to: "g", // abstract method I.f
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type I interface {
+	g()
+}
+type J interface {
+	g()
+}
+
+var _ = I(nil).(J)
+`,
+			},
+		},
+		// Impossible type assertion: no method coupling.
+		{
+			ctxt: fakeContext(map[string][]string{
+				"main": {`package main
+type I interface{f()}
+type J interface{f()int}
+var _ = I(nil).(J)
+`,
+				},
+			}),
+			offset: "/go/src/main/0.go:#30", to: "g", // abstract method I.f
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type I interface {
+	g()
+}
+type J interface {
+	f() int
+}
+
+var _ = I(nil).(J)
+`,
+			},
+		},
+		// Impossible type assertion: no method coupling C.f<->J.f.
+		{
+			ctxt: fakeContext(map[string][]string{
+				"main": {`package main
+type I interface{f()}
+type C int
+func (C) f()
+type J interface{f()int}
+var _ = I(C(0)).(J)
+`,
+				},
+			}),
+			offset: "/go/src/main/0.go:#30", to: "g", // abstract method I.f
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type I interface {
+	g()
+}
+type C int
+
+func (C) g()
+
+type J interface {
+	f() int
+}
+
+var _ = I(C(0)).(J)
 `,
 			},
 		},

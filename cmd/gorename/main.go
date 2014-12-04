@@ -73,11 +73,13 @@ affected.  For a local renaming, this is just the package specified by
 -from or -offset, but for a potentially exported name, gorename scans
 the workspace ($GOROOT and $GOPATH).
 
+gorename rejects renamings of concrete methods that would change the
+assignability relation between types and interfaces.  If the interface
+change was intentional, initiate the renaming at the interface method.
+
 gorename rejects any renaming that would create a conflict at the point
 of declaration, or a reference conflict (ambiguity or shadowing), or
 anything else that could cause the resulting program not to compile.
-Currently, it also rejects any method renaming that would change the
-assignability relation between types and interfaces.
 
 
 Examples:

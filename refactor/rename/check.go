@@ -39,7 +39,7 @@ func (r *renamer) check(from types.Object) {
 		r.checkInPackageBlock(from)
 	} else if v, ok := from.(*types.Var); ok && v.IsField() {
 		r.checkStructField(v)
-	} else if f, ok := from.(*types.Func); ok && f.Type().(*types.Signature).Recv() != nil {
+	} else if f, ok := from.(*types.Func); ok && recv(f) != nil {
 		r.checkMethod(f)
 	} else if isLocal(from) {
 		r.checkInLocalScope(from)
@@ -430,7 +430,7 @@ func (r *renamer) selectionConflict(from types.Object, delta int, syntax *ast.Se
 		// analogous to sub-block conflict
 		r.errorf(syntax.Sel.Pos(),
 			"\twould change the referent of this selection")
-		r.errorf(obj.Pos(), "\tto this %s", objectKind(obj))
+		r.errorf(obj.Pos(), "\tof this %s", objectKind(obj))
 	case delta == 0:
 		// analogous to same-block conflict
 		r.errorf(syntax.Sel.Pos(),
@@ -440,7 +440,7 @@ func (r *renamer) selectionConflict(from types.Object, delta int, syntax *ast.Se
 		// analogous to super-block conflict
 		r.errorf(syntax.Sel.Pos(),
 			"\twould shadow this selection")
-		r.errorf(obj.Pos(), "\tto the %s declared here",
+		r.errorf(obj.Pos(), "\tof the %s declared here",
 			objectKind(obj))
 	}
 }
@@ -449,7 +449,11 @@ func (r *renamer) selectionConflict(from types.Object, delta int, syntax *ast.Se
 // There are three hazards:
 // - declaration conflicts
 // - selection ambiguity/changes
-// - entailed renamings of assignable concrete/interface types (for now, just reject)
+// - entailed renamings of assignable concrete/interface types.
+//   We reject renamings initiated at concrete methods if it would
+//   change the assignability relation.  For renamings of abstract
+//   methods, we rename all methods transitively coupled to it via
+//   assignability.
 func (r *renamer) checkMethod(from *types.Func) {
 	// e.g. error.Error
 	if from.Pkg() == nil {
@@ -457,50 +461,20 @@ func (r *renamer) checkMethod(from *types.Func) {
 		return
 	}
 
-	// As always, having to support concrete methods with pointer
-	// and non-pointer receivers, and named vs unnamed types with
-	// methods, makes tooling fun.
-
-	// ASSIGNABILITY
-	//
-	// For now, if any method renaming breaks a required
-	// assignability to another type, we reject it.
-	//
-	// TODO(adonovan): probably we should compute the entailed
-	// renamings so that an interface method renaming causes
-	// concrete methods to change too.  But which ones?
-	//
-	// There is no correct answer, only heuristics, because Go's
-	// "duck typing" doesn't distinguish intentional from contingent
-	// assignability.  There are two obvious approaches:
-	//
-	// (1) Update the minimum set of types to preserve the
-	//     assignability of types all syntactic assignments
-	//     (incl. implicit ones in calls, returns, sends, etc).
-	//     The satisfy.Finder enumerates these.
-	//     This is likely to be an underapproximation.
-	//
-	// (2) Update all types that are assignable to/from the changed
-	//     type.  This requires computing the "implements" relation
-	//     for all pairs of types (as godoc and oracle do).
-	//     This is likely to be an overapproximation.
-	//
-	// If a concrete type is renamed, we probably do not want to
-	// rename corresponding interfaces; interface renamings should
-	// probably be initiated at the interface.  (But what if a
-	// concrete type implements multiple interfaces with the same
-	// method?  Then the user is stuck.)
-	//
-	// We need some experience before we decide how to implement this.
+	// ASSIGNABILITY: We reject renamings of concrete methods that
+	// would break a 'satisfy' constraint; but renamings of abstract
+	// methods are allowed to proceed, and we rename affected
+	// concrete and abstract methods as necessary.  It is the
+	// initial method that determines the policy.
 
 	// Check for conflict at point of declaration.
 	// Check to ensure preservation of assignability requirements.
-	recv := from.Type().(*types.Signature).Recv().Type()
-	if isInterface(recv) {
+	R := recv(from).Type()
+	if isInterface(R) {
 		// Abstract method
 
 		// declaration
-		prev, _, _ := types.LookupFieldOrMethod(recv, false, from.Pkg(), r.to)
+		prev, _, _ := types.LookupFieldOrMethod(R, false, from.Pkg(), r.to)
 		if prev != nil {
 			r.errorf(from.Pos(), "renaming this interface method %q to %q",
 				from.Name(), r.to)
@@ -542,30 +516,100 @@ func (r *renamer) checkMethod(from *types.Func) {
 		}
 
 		// assignability
-		for T := range r.findAssignments(recv) {
-			if obj, _, _ := types.LookupFieldOrMethod(T, false, from.Pkg(), from.Name()); obj == nil {
+		//
+		// Find the set of concrete or abstract methods directly
+		// coupled to abstract method 'from' by some
+		// satisfy.Constraint, and rename them too.
+		for key := range r.satisfy() {
+			// key = (lhs, rhs) where lhs is always an interface.
+
+			lsel := r.msets.MethodSet(key.LHS).Lookup(from.Pkg(), from.Name())
+			if lsel == nil {
+				continue
+			}
+			rmethods := r.msets.MethodSet(key.RHS)
+			rsel := rmethods.Lookup(from.Pkg(), from.Name())
+			if rsel == nil {
 				continue
 			}
 
-			r.errorf(from.Pos(), "renaming this method %q to %q",
-				from.Name(), r.to)
-			var pos token.Pos
-			var other string
-			if named, ok := T.(*types.Named); ok {
-				pos = named.Obj().Pos()
-				other = named.Obj().Name()
-			} else {
-				pos = from.Pos()
-				other = T.String()
+			// If both sides have a method of this name,
+			// and one of them is m, the other must be coupled.
+			var coupled *types.Func
+			switch from {
+			case lsel.Obj():
+				coupled = rsel.Obj().(*types.Func)
+			case rsel.Obj():
+				coupled = lsel.Obj().(*types.Func)
+			default:
+				continue
 			}
-			r.errorf(pos, "\twould make %s no longer assignable to it", other)
-			return
+
+			// We must treat concrete-to-interface
+			// constraints like an implicit selection C.f of
+			// each interface method I.f, and check that the
+			// renaming leaves the selection unchanged and
+			// unambiguous.
+			//
+			// Fun fact: the implicit selection of C.f
+			// 	type I interface{f()}
+			// 	type C struct{I}
+			// 	func (C) g()
+			//      var _ I = C{} // here
+			// yields abstract method I.f.  This can make error
+			// messages less than obvious.
+			//
+			if !isInterface(key.RHS) {
+				// The logic below was derived from checkSelections.
+
+				rtosel := rmethods.Lookup(from.Pkg(), r.to)
+				if rtosel != nil {
+					rto := rtosel.Obj().(*types.Func)
+					delta := len(rsel.Index()) - len(rtosel.Index())
+					if delta < 0 {
+						continue // no ambiguity
+					}
+
+					// TODO(adonovan): record the constraint's position.
+					keyPos := token.NoPos
+
+					r.errorf(from.Pos(), "renaming this method %q to %q",
+						from.Name(), r.to)
+					if delta == 0 {
+						// analogous to same-block conflict
+						r.errorf(keyPos, "\twould make the %s method of %s invoked via interface %s ambiguous",
+							r.to, key.RHS, key.LHS)
+						r.errorf(rto.Pos(), "\twith (%s).%s",
+							recv(rto).Type(), r.to)
+					} else {
+						// analogous to super-block conflict
+						r.errorf(keyPos, "\twould change the %s method of %s invoked via interface %s",
+							r.to, key.RHS, key.LHS)
+						r.errorf(coupled.Pos(), "\tfrom (%s).%s",
+							recv(coupled).Type(), r.to)
+						r.errorf(rto.Pos(), "\tto (%s).%s",
+							recv(rto).Type(), r.to)
+					}
+					return // one error is enough
+				}
+			}
+
+			if !r.changeMethods {
+				// This should be unreachable.
+				r.errorf(from.Pos(), "internal error: during renaming of abstract method %s", from)
+				r.errorf(coupled.Pos(), "\tchangedMethods=false, coupled method=%s", coupled)
+				r.errorf(from.Pos(), "\tPlease file a bug report")
+				return
+			}
+
+			// Rename the coupled method to preserve assignability.
+			r.check(coupled)
 		}
 	} else {
 		// Concrete method
 
 		// declaration
-		prev, indices, _ := types.LookupFieldOrMethod(recv, true, from.Pkg(), r.to)
+		prev, indices, _ := types.LookupFieldOrMethod(R, true, from.Pkg(), r.to)
 		if prev != nil && len(indices) == 1 {
 			r.errorf(from.Pos(), "renaming this method %q to %q",
 				from.Name(), r.to)
@@ -574,17 +618,44 @@ func (r *renamer) checkMethod(from *types.Func) {
 			return
 		}
 
-		// assignability (of both T and *T)
-		recvBase := deref(recv)
-		for _, R := range []types.Type{recvBase, types.NewPointer(recvBase)} {
-			for I := range r.findAssignments(R) {
-				if obj, _, _ := types.LookupFieldOrMethod(I, true, from.Pkg(), from.Name()); obj == nil {
-					continue
-				}
+		// assignability
+		//
+		// Find the set of abstract methods coupled to concrete
+		// method 'from' by some satisfy.Constraint, and rename
+		// them too.
+		//
+		// Coupling may be indirect, e.g. I.f <-> C.f via type D.
+		//
+		// 	type I interface {f()}
+		//	type C int
+		//	type (C) f()
+		//	type D struct{C}
+		//	var _ I = D{}
+		//
+		for key := range r.satisfy() {
+			// key = (lhs, rhs) where lhs is always an interface.
+			if isInterface(key.RHS) {
+				continue
+			}
+			rsel := r.msets.MethodSet(key.RHS).Lookup(from.Pkg(), from.Name())
+			if rsel == nil || rsel.Obj() != from {
+				continue // rhs does not have the method
+			}
+			lsel := r.msets.MethodSet(key.LHS).Lookup(from.Pkg(), from.Name())
+			if lsel == nil {
+				continue
+			}
+			imeth := lsel.Obj().(*types.Func)
+
+			// imeth is the abstract method (e.g. I.f)
+			// and key.RHS is the concrete coupling type (e.g. D).
+			if !r.changeMethods {
 				r.errorf(from.Pos(), "renaming this method %q to %q",
 					from.Name(), r.to)
 				var pos token.Pos
 				var iface string
+
+				I := recv(imeth).Type()
 				if named, ok := I.(*types.Named); ok {
 					pos = named.Obj().Pos()
 					iface = "interface " + named.Obj().Name()
@@ -592,9 +663,15 @@ func (r *renamer) checkMethod(from *types.Func) {
 					pos = from.Pos()
 					iface = I.String()
 				}
-				r.errorf(pos, "\twould make it no longer assignable to %s", iface)
-				return // one is enough
+				r.errorf(pos, "\twould make %s no longer assignable to %s",
+					key.RHS, iface)
+				r.errorf(imeth.Pos(), "\t(rename %s.%s if you intend to change both types)",
+					I, from.Name())
+				return // one error is enough
 			}
+
+			// Rename the coupled interface method to preserve assignability.
+			r.check(imeth)
 		}
 	}
 
@@ -618,9 +695,8 @@ func (r *renamer) checkExport(id *ast.Ident, pkg *types.Package, from types.Obje
 	return true
 }
 
-// findAssignments returns the set of types to or from which type T is
-// assigned in the program syntax.
-func (r *renamer) findAssignments(T types.Type) map[types.Type]bool {
+// satisfy returns the set of interface satisfaction constraints.
+func (r *renamer) satisfy() map[satisfy.Constraint]bool {
 	if r.satisfyConstraints == nil {
 		// Compute on demand: it's expensive.
 		var f satisfy.Finder
@@ -629,22 +705,15 @@ func (r *renamer) findAssignments(T types.Type) map[types.Type]bool {
 		}
 		r.satisfyConstraints = f.Result
 	}
-
-	result := make(map[types.Type]bool)
-	for key := range r.satisfyConstraints {
-		// key = (lhs, rhs) where lhs is always an interface.
-		if types.Identical(key.RHS, T) {
-			result[key.LHS] = true
-		}
-		if isInterface(T) && types.Identical(key.LHS, T) {
-			// must check both sides
-			result[key.RHS] = true
-		}
-	}
-	return result
+	return r.satisfyConstraints
 }
 
 // -- helpers ----------------------------------------------------------
+
+// recv returns the method's receiver.
+func recv(meth *types.Func) *types.Var {
+	return meth.Type().(*types.Signature).Recv()
+}
 
 // someUse returns an arbitrary use of obj within info.
 func someUse(info *loader.PackageInfo, obj types.Object) *ast.Ident {

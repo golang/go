@@ -50,6 +50,8 @@ type renamer struct {
 	to                 string
 	satisfyConstraints map[satisfy.Constraint]bool
 	packages           map[*types.Package]*loader.PackageInfo // subset of iprog.AllPackages to inspect
+	msets              types.MethodSetCache
+	changeMethods      bool
 }
 
 var reportError = func(posn token.Position, message string) {
@@ -149,6 +151,19 @@ func Main(ctxt *build.Context, offsetFlag, fromFlag, to string) error {
 		objsToUpdate: make(map[types.Object]bool),
 		to:           to,
 		packages:     make(map[*types.Package]*loader.PackageInfo),
+	}
+
+	// A renaming initiated at an interface method indicates the
+	// intention to rename abstract and concrete methods as needed
+	// to preserve assignability.
+	for _, obj := range fromObjects {
+		if obj, ok := obj.(*types.Func); ok {
+			recv := obj.Type().(*types.Signature).Recv()
+			if recv != nil && isInterface(recv.Type().Underlying()) {
+				r.changeMethods = true
+				break
+			}
+		}
 	}
 
 	// Only the initially imported packages (iprog.Imported) and
