@@ -7,6 +7,12 @@
 #ifdef GOARCH_arm
 #define JMP B
 #endif
+#ifdef GOARCH_power64
+#define JMP BR
+#endif
+#ifdef GOARCH_power64le
+#define JMP BR
+#endif
 
 TEXT ·setMaxStack(SB),NOSPLIT,$0-0
   JMP runtime·setMaxStack(SB)

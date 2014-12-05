@@ -77,8 +77,8 @@ struct sockaddr_any {
 // copied from /usr/include/linux/un.h
 struct my_sockaddr_un {
 	sa_family_t sun_family;
-#ifdef __ARM_EABI__
-	// on ARM char is by default unsigned
+#if defined(__ARM_EABI__) || defined(__powerpc64__)
+	// on ARM and PPC char is by default unsigned
 	signed char sun_path[108];
 #else
 	char sun_path[108];
@@ -87,6 +87,8 @@ struct my_sockaddr_un {
 
 #ifdef __ARM_EABI__
 typedef struct user_regs PtraceRegs;
+#elif defined(__powerpc64__)
+typedef struct pt_regs PtraceRegs;
 #else
 typedef struct user_regs_struct PtraceRegs;
 #endif
@@ -382,103 +384,9 @@ const (
 type Termios C.struct_termios
 
 const (
-	VINTR    = C.VINTR
-	VQUIT    = C.VQUIT
-	VERASE   = C.VERASE
-	VKILL    = C.VKILL
-	VEOF     = C.VEOF
-	VTIME    = C.VTIME
-	VMIN     = C.VMIN
-	VSWTC    = C.VSWTC
-	VSTART   = C.VSTART
-	VSTOP    = C.VSTOP
-	VSUSP    = C.VSUSP
-	VEOL     = C.VEOL
-	VREPRINT = C.VREPRINT
-	VDISCARD = C.VDISCARD
-	VWERASE  = C.VWERASE
-	VLNEXT   = C.VLNEXT
-	VEOL2    = C.VEOL2
-	IGNBRK   = C.IGNBRK
-	BRKINT   = C.BRKINT
-	IGNPAR   = C.IGNPAR
-	PARMRK   = C.PARMRK
-	INPCK    = C.INPCK
-	ISTRIP   = C.ISTRIP
-	INLCR    = C.INLCR
-	IGNCR    = C.IGNCR
-	ICRNL    = C.ICRNL
-	IUCLC    = C.IUCLC
-	IXON     = C.IXON
-	IXANY    = C.IXANY
-	IXOFF    = C.IXOFF
-	IMAXBEL  = C.IMAXBEL
-	IUTF8    = C.IUTF8
-	OPOST    = C.OPOST
-	OLCUC    = C.OLCUC
-	ONLCR    = C.ONLCR
-	OCRNL    = C.OCRNL
-	ONOCR    = C.ONOCR
-	ONLRET   = C.ONLRET
-	OFILL    = C.OFILL
-	OFDEL    = C.OFDEL
-	B0       = C.B0
-	B50      = C.B50
-	B75      = C.B75
-	B110     = C.B110
-	B134     = C.B134
-	B150     = C.B150
-	B200     = C.B200
-	B300     = C.B300
-	B600     = C.B600
-	B1200    = C.B1200
-	B1800    = C.B1800
-	B2400    = C.B2400
-	B4800    = C.B4800
-	B9600    = C.B9600
-	B19200   = C.B19200
-	B38400   = C.B38400
-	CSIZE    = C.CSIZE
-	CS5      = C.CS5
-	CS6      = C.CS6
-	CS7      = C.CS7
-	CS8      = C.CS8
-	CSTOPB   = C.CSTOPB
-	CREAD    = C.CREAD
-	PARENB   = C.PARENB
-	PARODD   = C.PARODD
-	HUPCL    = C.HUPCL
-	CLOCAL   = C.CLOCAL
-	B57600   = C.B57600
-	B115200  = C.B115200
-	B230400  = C.B230400
-	B460800  = C.B460800
-	B500000  = C.B500000
-	B576000  = C.B576000
-	B921600  = C.B921600
-	B1000000 = C.B1000000
-	B1152000 = C.B1152000
-	B1500000 = C.B1500000
-	B2000000 = C.B2000000
-	B2500000 = C.B2500000
-	B3000000 = C.B3000000
-	B3500000 = C.B3500000
-	B4000000 = C.B4000000
-	ISIG     = C.ISIG
-	ICANON   = C.ICANON
-	XCASE    = C.XCASE
-	ECHO     = C.ECHO
-	ECHOE    = C.ECHOE
-	ECHOK    = C.ECHOK
-	ECHONL   = C.ECHONL
-	NOFLSH   = C.NOFLSH
-	TOSTOP   = C.TOSTOP
-	ECHOCTL  = C.ECHOCTL
-	ECHOPRT  = C.ECHOPRT
-	ECHOKE   = C.ECHOKE
-	FLUSHO   = C.FLUSHO
-	PENDIN   = C.PENDIN
-	IEXTEN   = C.IEXTEN
-	TCGETS   = C.TCGETS
-	TCSETS   = C.TCSETS
+	IUCLC  = C.IUCLC
+	OLCUC  = C.OLCUC
+	TCGETS = C.TCGETS
+	TCSETS = C.TCSETS
+	XCASE  = C.XCASE
 )

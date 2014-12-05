@@ -4,11 +4,16 @@
 
 // This file exposes various internal runtime functions to other packages in std lib.
 
-#include "zasm_GOOS_GOARCH.h"
 #include "textflag.h"
 
 #ifdef GOARCH_arm
 #define JMP B
+#endif
+#ifdef GOARCH_power64
+#define JMP BR
+#endif
+#ifdef GOARCH_power64le
+#define JMP BR
 #endif
 
 TEXT net·runtimeNano(SB),NOSPLIT,$0-0
@@ -181,3 +186,18 @@ TEXT syscall·runtime_envs(SB),NOSPLIT,$0-0
 
 TEXT os·runtime_args(SB),NOSPLIT,$0-0
 	JMP	runtime·runtime_args(SB)
+
+TEXT sync·runtime_procUnpin(SB),NOSPLIT,$0-0
+	JMP	runtime·sync_procUnpin(SB)
+
+TEXT sync·runtime_procPin(SB),NOSPLIT,$0-0
+	JMP	runtime·sync_procPin(SB)
+
+TEXT syscall·runtime_BeforeFork(SB),NOSPLIT,$0-0
+	JMP	runtime·syscall_BeforeFork(SB)
+
+TEXT syscall·runtime_AfterFork(SB),NOSPLIT,$0-0
+	JMP	runtime·syscall_AfterFork(SB)
+
+TEXT reflect·typelinks(SB),NOSPLIT,$0-0
+	JMP	runtime·typelinks(SB)

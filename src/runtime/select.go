@@ -167,8 +167,8 @@ func selunlock(sel *_select) {
 	}
 }
 
-func selparkcommit(gp *g, sel *_select) bool {
-	selunlock(sel)
+func selparkcommit(gp *g, sel unsafe.Pointer) bool {
+	selunlock((*_select)(sel))
 	return true
 }
 
@@ -363,7 +363,7 @@ loop:
 
 	// wait for someone to wake us up
 	gp.param = nil
-	gopark(unsafe.Pointer(funcPC(selparkcommit)), unsafe.Pointer(sel), "select")
+	gopark(selparkcommit, unsafe.Pointer(sel), "select")
 
 	// someone woke us up
 	sellock(sel)

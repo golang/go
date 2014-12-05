@@ -17,6 +17,8 @@ extern int yychar;
 int yyprev;
 int yylast;
 
+static int	imported_unsafe;
+
 static void	lexinit(void);
 static void	lexinit1(void);
 static void	lexfini(void);
@@ -271,6 +273,9 @@ main(int argc, char *argv[])
 		flag_largemodel = 1;
 
 	setexp();
+	
+	fmtstrinit(&pragcgobuf);
+	quotefmtinstall();
 
 	outfile = nil;
 	flagcount("+", "compiling runtime", &compiling_runtime);
@@ -289,6 +294,7 @@ main(int argc, char *argv[])
 	flagcount("S", "print assembly listing", &debug['S']);
 	flagfn0("V", "print compiler version", doversion);
 	flagcount("W", "debug parse tree after type checking", &debug['W']);
+	flagstr("asmhdr", "file: write assembly header to named file", &asmhdr);
 	flagcount("complete", "compiling complete package (no C or assembly)", &pure_go);
 	flagstr("d", "list: print debug information about items in list", &debugstr);
 	flagcount("e", "no limit on number of errors reported", &debug['e']);
@@ -403,6 +409,8 @@ main(int argc, char *argv[])
 
 		block = 1;
 		iota = -1000000;
+		
+		imported_unsafe = 0;
 
 		yyparse();
 		if(nsyntaxerrors != 0)
@@ -509,6 +517,9 @@ main(int argc, char *argv[])
 		errorexit();
 
 	dumpobj();
+	
+	if(asmhdr)
+		dumpasmhdr();
 
 	if(nerrors+nsavederrors)
 		errorexit();
@@ -724,6 +735,7 @@ importfile(Val *f, int line)
 		}
 		importpkg = mkpkg(f->u.sval);
 		cannedimports("unsafe.6", unsafeimport);
+		imported_unsafe = 1;
 		return;
 	}
 	
@@ -1501,6 +1513,20 @@ caseout:
 	return LLITERAL;
 }
 
+static void pragcgo(char*);
+
+static int
+more(char **pp)
+{
+	char *p;
+	
+	p = *pp;
+	while(yy_isspace(*p))
+		p++;
+	*pp = p;
+	return *p != '\0';
+}
+
 /*
  * read and interpret syntax that looks like
  * //line parse.y:15
@@ -1583,9 +1609,39 @@ go:
 			*cp++ = c;
 	}
 	*cp = 0;
+	
+	if(strncmp(lexbuf, "go:cgo_", 7) == 0)
+		pragcgo(lexbuf);
+	
 	ep = strchr(lexbuf, ' ');
 	if(ep != nil)
 		*ep = 0;
+	
+	if(strcmp(lexbuf, "go:linkname") == 0) {
+		if(!imported_unsafe)
+			yyerror("//go:linkname only allowed in Go files that import \"unsafe\"");
+		if(ep == nil) {
+			yyerror("usage: //go:linkname localname linkname");
+			goto out;
+		}
+		cp = ep+1;
+		while(yy_isspace(*cp))
+			cp++;
+		ep = strchr(cp, ' ');
+		if(ep == nil) {
+			yyerror("usage: //go:linkname localname linkname");
+			goto out;
+		}
+		*ep++ = 0;
+		while(yy_isspace(*ep))
+			ep++;
+		if(*ep == 0) {
+			yyerror("usage: //go:linkname localname linkname");
+			goto out;
+		}
+		lookup(cp)->linkname = strdup(ep);
+		goto out;
+	}	
 
 	if(strcmp(lexbuf, "go:nointerface") == 0 && fieldtrack_enabled) {
 		nointerface = 1;
@@ -1602,6 +1658,150 @@ go:
 	
 out:
 	return c;
+}
+
+static char*
+getimpsym(char **pp)
+{
+	char *p, *start;
+	
+	more(pp); // skip spaces
+
+	p = *pp;
+	if(*p == '\0' || *p == '"')
+		return nil;
+	
+	start = p;
+	while(*p != '\0' && !yy_isspace(*p) && *p != '"')
+		p++;
+	if(*p != '\0')
+		*p++ = '\0';
+	
+	*pp = p;
+	return start;
+}
+
+static char*
+getquoted(char **pp)
+{
+	char *p, *start;
+	
+	more(pp); // skip spaces
+	
+	p = *pp;
+	if(*p != '"')
+		return nil;
+	p++;
+	
+	start = p;
+	while(*p != '"') {
+		if(*p == '\0')
+			return nil;
+		p++;
+	}
+	*p++ = '\0';
+	*pp = p;
+	return start;
+}
+
+// Copied nearly verbatim from the C compiler's #pragma parser.
+// TODO: Rewrite more cleanly once the compiler is written in Go.
+static void
+pragcgo(char *text)
+{
+	char *local, *remote, *p, *q, *verb;
+	
+	for(q=text; *q != '\0' && *q != ' '; q++)
+		;
+	if(*q == ' ')
+		*q++ = '\0';
+	
+	verb = text+3; // skip "go:"
+
+	if(strcmp(verb, "cgo_dynamic_linker") == 0 || strcmp(verb, "dynlinker") == 0) {
+		p = getquoted(&q);
+		if(p == nil)
+			goto err1;
+		fmtprint(&pragcgobuf, "cgo_dynamic_linker %q\n", p);
+		goto out;
+	
+	err1:
+		yyerror("usage: //go:cgo_dynamic_linker \"path\"");
+		goto out;
+	}	
+
+	if(strcmp(verb, "dynexport") == 0)
+		verb = "cgo_export_dynamic";
+	if(strcmp(verb, "cgo_export_static") == 0 || strcmp(verb, "cgo_export_dynamic") == 0) {
+		local = getimpsym(&q);
+		if(local == nil)
+			goto err2;
+		if(!more(&q)) {
+			fmtprint(&pragcgobuf, "%s %q\n", verb, local);
+			goto out;
+		}
+		remote = getimpsym(&q);
+		if(remote == nil)
+			goto err2;
+		fmtprint(&pragcgobuf, "%s %q %q\n", verb, local, remote);
+		goto out;
+	
+	err2:
+		yyerror("usage: //go:%s local [remote]", verb);
+		goto out;
+	}
+	
+	if(strcmp(verb, "cgo_import_dynamic") == 0 || strcmp(verb, "dynimport") == 0) {
+		local = getimpsym(&q);
+		if(local == nil)
+			goto err3;
+		if(!more(&q)) {
+			fmtprint(&pragcgobuf, "cgo_import_dynamic %q\n", local);
+			goto out;
+		}
+		remote = getimpsym(&q);
+		if(remote == nil)
+			goto err3;
+		if(!more(&q)) {
+			fmtprint(&pragcgobuf, "cgo_import_dynamic %q %q\n", local, remote);
+			goto out;
+		}
+		p = getquoted(&q);
+		if(p == nil)	
+			goto err3;
+		fmtprint(&pragcgobuf, "cgo_import_dynamic %q %q %q\n", local, remote, p);
+		goto out;
+	
+	err3:
+		yyerror("usage: //go:cgo_import_dynamic local [remote [\"library\"]]");
+		goto out;
+	}
+	
+	if(strcmp(verb, "cgo_import_static") == 0) {
+		local = getimpsym(&q);
+		if(local == nil || more(&q))
+			goto err4;
+		fmtprint(&pragcgobuf, "cgo_import_static %q\n", local);
+		goto out;
+		
+	err4:
+		yyerror("usage: //go:cgo_import_static local");
+		goto out;
+	}
+	
+	if(strcmp(verb, "cgo_ldflag") == 0) {
+		p = getquoted(&q);
+		if(p == nil)
+			goto err5;
+		fmtprint(&pragcgobuf, "cgo_ldflag %q\n", p);
+		goto out;
+
+	err5:
+		yyerror("usage: //go:cgo_ldflag \"arg\"");
+		goto out;
+	}
+
+out:;
 }
 
 int32

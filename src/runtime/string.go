@@ -39,22 +39,18 @@ func concatstrings(a []string) string {
 	return s
 }
 
-//go:nosplit
 func concatstring2(a [2]string) string {
 	return concatstrings(a[:])
 }
 
-//go:nosplit
 func concatstring3(a [3]string) string {
 	return concatstrings(a[:])
 }
 
-//go:nosplit
 func concatstring4(a [4]string) string {
 	return concatstrings(a[:])
 }
 
-//go:nosplit
 func concatstring5(a [5]string) string {
 	return concatstrings(a[:])
 }
@@ -225,7 +221,7 @@ func rawbyteslice(size int) (b []byte) {
 
 // rawruneslice allocates a new rune slice. The rune slice is not zeroed.
 func rawruneslice(size int) (b []rune) {
-	if uintptr(size) > maxmem/4 {
+	if uintptr(size) > _MaxMem/4 {
 		gothrow("out of memory")
 	}
 	mem := goroundupsize(uintptr(size) * 4)
@@ -254,9 +250,6 @@ func gostringsize(n int) string {
 	s, _ := rawstring(n)
 	return s
 }
-
-//go:noescape
-func findnull(*byte) int
 
 func gostring(p *byte) string {
 	l := findnull(p)
@@ -295,4 +288,13 @@ func contains(s, t string) bool {
 
 func hasprefix(s, t string) bool {
 	return len(s) >= len(t) && s[:len(t)] == t
+}
+
+func goatoi(s string) int {
+	n := 0
+	for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
+		n = n*10 + int(s[0]) - '0'
+		s = s[1:]
+	}
+	return n
 }

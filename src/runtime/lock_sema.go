@@ -31,10 +31,6 @@ const (
 	passive_spin    = 1
 )
 
-func semacreate() uintptr
-func semasleep(int64) int32
-func semawakeup(mp *m)
-
 func lock(l *mutex) {
 	gp := getg()
 	if gp.m.locks < 0 {
@@ -263,8 +259,8 @@ func notetsleepg(n *note, ns int64) bool {
 	if gp.m.waitsema == 0 {
 		gp.m.waitsema = semacreate()
 	}
-	entersyscallblock()
+	entersyscallblock(0)
 	ok := notetsleep_internal(n, ns, nil, 0)
-	exitsyscall()
+	exitsyscall(0)
 	return ok
 }

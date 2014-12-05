@@ -1533,12 +1533,8 @@ func (gc *gcProg) appendProg(t *rtype) {
 			gc.appendProg(e)
 		}
 	case Interface:
-		gc.appendWord(bitsMultiWord)
-		if t.NumMethod() == 0 {
-			gc.appendWord(bitsEface)
-		} else {
-			gc.appendWord(bitsIface)
-		}
+		gc.appendWord(bitsPointer)
+		gc.appendWord(bitsPointer)
 	case Struct:
 		c := t.NumField()
 		for i := 0; i < c; i++ {
@@ -1592,9 +1588,8 @@ func (gc *gcProg) align(a uintptr) {
 
 // These constants must stay in sync with ../runtime/mgc0.h.
 const (
-	bitsScalar    = 1
-	bitsPointer   = 2
-	bitsMultiWord = 3
+	bitsScalar  = 1
+	bitsPointer = 2
 
 	bitsIface = 2
 	bitsEface = 3

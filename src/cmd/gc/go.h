@@ -382,6 +382,7 @@ enum
 	SymExported	= 1<<2,	// already written out by export
 	SymUniq		= 1<<3,
 	SymSiggen	= 1<<4,
+	SymAsm		= 1<<5,
 };
 
 struct	Sym
@@ -393,6 +394,7 @@ struct	Sym
 	int32	npkg;	// number of imported packages with this name
 	uint32	uniqgen;
 	Pkg*	importdef;	// where imported definition was found
+	char*	linkname;	// link name
 
 	// saved and restored by dcopy
 	Pkg*	pkg;
@@ -704,13 +706,13 @@ enum
 	Ecomplit = 1<<11,	// type in composite literal
 };
 
-#define	BITS	5
-#define	NVAR	(BITS*sizeof(uint32)*8)
+#define	BITS	3
+#define	NVAR	(BITS*sizeof(uint64)*8)
 
 typedef	struct	Bits	Bits;
 struct	Bits
 {
-	uint32	b[BITS];
+	uint64	b[BITS];
 };
 
 EXTERN	Bits	zbits;
@@ -860,6 +862,8 @@ EXTERN	int32	lexlineno;
 EXTERN	int32	lineno;
 EXTERN	int32	prevlineno;
 
+EXTERN	Fmt	pragcgobuf;
+
 EXTERN	char*	infile;
 EXTERN	char*	outfile;
 EXTERN	Biobuf*	bout;
@@ -890,6 +894,7 @@ EXTERN	Pkg*	typelinkpkg;	// fake package for runtime type info (data)
 EXTERN	Pkg*	weaktypepkg;	// weak references to runtime type info
 EXTERN	Pkg*	unsafepkg;	// package unsafe
 EXTERN	Pkg*	trackpkg;	// fake package for field tracking
+EXTERN	Pkg*	rawpkg;	// fake package for raw symbol names
 EXTERN	Pkg*	phash[128];
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	runtimeimport;
@@ -897,6 +902,7 @@ extern	char*	unsafeimport;
 EXTERN	char*	myimportpath;
 EXTERN	Idir*	idirs;
 EXTERN	char*	localimport;
+EXTERN	char*	asmhdr;
 
 EXTERN	Type*	types[NTYPE];
 EXTERN	Type*	idealstring;
@@ -1027,12 +1033,14 @@ int	Qconv(Fmt *fp);
 Bits	band(Bits a, Bits b);
 int	bany(Bits *a);
 int	beq(Bits a, Bits b);
-int	bitno(int32 b);
+int	bitno(uint64 b);
 Bits	blsh(uint n);
 Bits	bnot(Bits a);
 int	bnum(Bits a);
 Bits	bor(Bits a, Bits b);
-int	bset(Bits a, uint n);
+int	btest(Bits *a, uint n);
+void	biset(Bits *a, uint n);
+void	biclr(Bits *a, uint n);
 
 /*
  *	bv.c
@@ -1145,6 +1153,7 @@ void	escapes(NodeList*);
  */
 void	autoexport(Node *n, int ctxt);
 void	dumpexport(void);
+void	dumpasmhdr(void);
 int	exportname(char *s);
 void	exportsym(Node *n);
 void    importconst(Sym *s, Type *t, Node *n);

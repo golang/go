@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -54,7 +55,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 nocgo:
 	// update stackguard after _cgo_init
 	MOVW	(g_stack+stack_lo)(g), R0
-	ADD	$const_StackGuard, R0
+	ADD	$const__StackGuard, R0
 	MOVW	R0, g_stackguard0(g)
 	MOVW	R0, g_stackguard1(g)
 
@@ -190,53 +191,42 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 	B	runtime·badmcall2(SB)
 	RET
 
-// switchtoM is a dummy routine that onM leaves at the bottom
+// systemstack_switch is a dummy routine that systemstack leaves at the bottom
 // of the G stack.  We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
-// at the top of the M stack because the one at the top of
-// the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB),NOSPLIT,$0-0
+// at the top of the system stack because the one at the top of
+// the system stack terminates the stack walk (see topofstack()).
+TEXT runtime·systemstack_switch(SB),NOSPLIT,$0-0
 	MOVW	$0, R0
 	BL	(R0) // clobber lr to ensure push {lr} is kept
 	RET
 
-// func onM_signalok(fn func())
-TEXT runtime·onM_signalok(SB), NOSPLIT, $-4-4
-	MOVW	g_m(g), R1
-	MOVW	m_gsignal(R1), R2
-	CMP	g, R2
-	B.EQ	ongsignal
-	B	runtime·onM(SB)
-
-ongsignal:
-	MOVW	fn+0(FP), R0
-	MOVW	R0, R7
-	MOVW	0(R0), R0
-	BL	(R0)
-	RET
-
-// func onM(fn func())
-TEXT runtime·onM(SB),NOSPLIT,$0-4
+// func systemstack(fn func())
+TEXT runtime·systemstack(SB),NOSPLIT,$0-4
 	MOVW	fn+0(FP), R0	// R0 = fn
 	MOVW	g_m(g), R1	// R1 = m
 
+	MOVW	m_gsignal(R1), R2	// R2 = gsignal
+	CMP	g, R2
+	B.EQ	noswitch
+
 	MOVW	m_g0(R1), R2	// R2 = g0
 	CMP	g, R2
-	B.EQ	onm
+	B.EQ	noswitch
 
 	MOVW	m_curg(R1), R3
 	CMP	g, R3
-	B.EQ	oncurg
+	B.EQ	switch
 
-	// Not g0, not curg. Must be gsignal, but that's not allowed.
+	// Bad: g is not gsignal, not g0, not curg. What is it?
 	// Hide call from linker nosplit analysis.
-	MOVW	$runtime·badonm(SB), R0
+	MOVW	$runtime·badsystemstack(SB), R0
 	BL	(R0)
 
-oncurg:
+switch:
 	// save our state in g->sched.  Pretend to
-	// be switchtoM if the G stack is scanned.
-	MOVW	$runtime·switchtoM(SB), R3
+	// be systemstack_switch if the G stack is scanned.
+	MOVW	$runtime·systemstack_switch(SB), R3
 	ADD	$4, R3, R3 // get past push {lr}
 	MOVW	R3, (g_sched+gobuf_pc)(g)
 	MOVW	SP, (g_sched+gobuf_sp)(g)
@@ -249,7 +239,7 @@ oncurg:
 	BL	setg<>(SB)
 	MOVW	R5, R0
 	MOVW	(g_sched+gobuf_sp)(R2), R3
-	// make it look like mstart called onM on g0, to stop traceback
+	// make it look like mstart called systemstack on g0, to stop traceback
 	SUB	$4, R3, R3
 	MOVW	$runtime·mstart(SB), R4
 	MOVW	R4, 0(R3)
@@ -269,7 +259,7 @@ oncurg:
 	MOVW	R3, (g_sched+gobuf_sp)(g)
 	RET
 
-onm:
+noswitch:
 	MOVW	R0, R7
 	MOVW	0(R0), R0
 	BL	(R0)
@@ -492,7 +482,7 @@ TEXT asmcgocall<>(SB),NOSPLIT,$0-0
 	MOVW	g_m(g), R8
 	MOVW	m_g0(R8), R3
 	CMP	R3, g
-	BEQ	asmcgocall_g0
+	BEQ	g0
 	BL	gosave<>(SB)
 	MOVW	R0, R5
 	MOVW	R3, R0
@@ -501,7 +491,7 @@ TEXT asmcgocall<>(SB),NOSPLIT,$0-0
 	MOVW	(g_sched+gobuf_sp)(g), R13
 
 	// Now on a scheduling stack (a pthread-created stack).
-asmcgocall_g0:
+g0:
 	SUB	$24, R13
 	BIC	$0x7, R13	// alignment for gcc ABI
 	MOVW	R4, 20(R13) // save old g
@@ -564,7 +554,7 @@ TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
 	// the same SP back to m->sched.sp. That seems redundant,
 	// but if an unrecovered panic happens, unwindm will
 	// restore the g->sched.sp from the stack location
-	// and then onM will try to use it. If we don't set it here,
+	// and then systemstack will try to use it. If we don't set it here,
 	// that restored SP will be uninitialized (typically 0) and
 	// will not be usable.
 	MOVW	g_m(g), R8
@@ -751,13 +741,13 @@ TEXT runtime·memeq(SB),NOSPLIT,$-4-13
 	ADD	R1, R3, R6
 	MOVW	$1, R0
 	MOVB	R0, ret+12(FP)
-_next2:
+loop:
 	CMP	R1, R6
 	RET.EQ
 	MOVBU.P	1(R1), R4
 	MOVBU.P	1(R2), R5
 	CMP	R4, R5
-	BEQ	_next2
+	BEQ	loop
 
 	MOVW	$0, R0
 	MOVB	R0, ret+12(FP)
@@ -780,13 +770,13 @@ TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
 	CMP	R2, R3
 	RET.EQ
 	ADD	R2, R0, R6
-_eqnext:
+loop:
 	CMP	R2, R6
 	RET.EQ
 	MOVBU.P	1(R2), R4
 	MOVBU.P	1(R3), R5
 	CMP	R4, R5
-	BEQ	_eqnext
+	BEQ	loop
 	MOVB	R7, v+16(FP)
 	RET
 
@@ -801,26 +791,26 @@ TEXT bytes·Equal(SB),NOSPLIT,$0
 	MOVW	b_len+16(FP), R3
 	
 	CMP	R1, R3		// unequal lengths are not equal
-	B.NE	_notequal
+	B.NE	notequal
 
 	MOVW	a+0(FP), R0
 	MOVW	b+12(FP), R2
 	ADD	R0, R1		// end
 
-_byteseq_next:
+loop:
 	CMP	R0, R1
-	B.EQ	_equal		// reached the end
+	B.EQ	equal		// reached the end
 	MOVBU.P	1(R0), R4
 	MOVBU.P	1(R2), R5
 	CMP	R4, R5
-	B.EQ	_byteseq_next
+	B.EQ	loop
 
-_notequal:
+notequal:
 	MOVW	$0, R0
 	MOVBU	R0, ret+24(FP)
 	RET
 
-_equal:
+equal:
 	MOVW	$1, R0
 	MOVBU	R0, ret+24(FP)
 	RET
@@ -1326,3 +1316,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
 TEXT runtime·goexit(SB),NOSPLIT,$-4-0
 	MOVW	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
+
+TEXT runtime·getg(SB),NOSPLIT,$-4-4
+	MOVW	g, ret+0(FP)
+	RET

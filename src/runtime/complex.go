@@ -4,28 +4,47 @@
 
 package runtime
 
+func isposinf(f float64) bool { return f > maxFloat64 }
+func isneginf(f float64) bool { return f < -maxFloat64 }
+func isnan(f float64) bool    { return f != f }
+
+func nan() float64 {
+	var f float64 = 0
+	return f / f
+}
+
+func posinf() float64 {
+	var f float64 = maxFloat64
+	return f * f
+}
+
+func neginf() float64 {
+	var f float64 = maxFloat64
+	return -f * f
+}
+
 func complex128div(n complex128, d complex128) complex128 {
 	// Special cases as in C99.
-	ninf := real(n) == posinf || real(n) == neginf ||
-		imag(n) == posinf || imag(n) == neginf
-	dinf := real(d) == posinf || real(d) == neginf ||
-		imag(d) == posinf || imag(d) == neginf
+	ninf := isposinf(real(n)) || isneginf(real(n)) ||
+		isposinf(imag(n)) || isneginf(imag(n))
+	dinf := isposinf(real(d)) || isneginf(real(d)) ||
+		isposinf(imag(d)) || isneginf(imag(d))
 
-	nnan := !ninf && (real(n) != real(n) || imag(n) != imag(n))
-	dnan := !dinf && (real(d) != real(d) || imag(d) != imag(d))
+	nnan := !ninf && (isnan(real(n)) || isnan(imag(n)))
+	dnan := !dinf && (isnan(real(d)) || isnan(imag(d)))
 
 	switch {
 	case nnan || dnan:
-		return complex(nan, nan)
+		return complex(nan(), nan())
 	case ninf && !dinf:
-		return complex(posinf, posinf)
+		return complex(posinf(), posinf())
 	case !ninf && dinf:
 		return complex(0, 0)
 	case real(d) == 0 && imag(d) == 0:
 		if real(n) == 0 && imag(n) == 0 {
-			return complex(nan, nan)
+			return complex(nan(), nan())
 		} else {
-			return complex(posinf, posinf)
+			return complex(posinf(), posinf())
 		}
 	default:
 		// Standard complex arithmetic, factored to avoid unnecessary overflow.

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // void runtime·asmstdcall(void *c);
@@ -43,7 +44,7 @@ TEXT	runtime·badsignal2(SB),NOSPLIT,$24
 	// stderr
 	MOVL	$-12, 0(SP)
 	MOVL	SP, BP
-	CALL	*runtime·GetStdHandle(SB)
+	CALL	*runtime·_GetStdHandle(SB)
 	MOVL	BP, SP
 
 	MOVL	AX, 0(SP)	// handle
@@ -55,7 +56,7 @@ TEXT	runtime·badsignal2(SB),NOSPLIT,$24
 	MOVL	$0, 0(DX)
 	MOVL	DX, 12(SP)
 	MOVL	$0, 16(SP) // overlapped
-	CALL	*runtime·WriteFile(SB)
+	CALL	*runtime·_WriteFile(SB)
 	MOVL	BP, SI
 	RET
 
@@ -106,7 +107,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	g_m(DX), BX
 	MOVL	m_g0(BX), BX
 	CMPL	DX, BX
-	JEQ	sigtramp_g0
+	JEQ	g0
 
 	// switch to the g0 stack
 	get_tls(BP)
@@ -123,7 +124,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVL	SP, 36(DI)
 	MOVL	DI, SP
 
-sigtramp_g0:
+g0:
 	MOVL	0(CX), BX // ExceptionRecord*
 	MOVL	4(CX), CX // Context*
 	MOVL	BX, 0(SP)
@@ -207,7 +208,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	MOVL	BX, g_m(SP)
 	LEAL	-8192(SP), CX
 	MOVL	CX, (g_stack+stack_lo)(SP)
-	ADDL	$const_StackGuard, CX
+	ADDL	$const__StackGuard, CX
 	MOVL	CX, g_stackguard0(SP)
 	MOVL	CX, g_stackguard1(SP)
 	MOVL	DX, (g_stack+stack_hi)(SP)
@@ -254,8 +255,8 @@ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
 	MOVL	-4(BX)(AX*4), BX
 
 	// extract callback context
-	MOVL	cbctxt_gobody(BX), AX
-	MOVL	cbctxt_argsize(BX), DX
+	MOVL	wincallbackcontext_gobody(BX), AX
+	MOVL	wincallbackcontext_argsize(BX), DX
 
 	// preserve whatever's at the memory location that
 	// the callback will use to store the return value
@@ -265,7 +266,7 @@ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
 	ADDL	$4, DX
 
 	// remember how to restore stack on return
-	MOVL	cbctxt_restorestack(BX), BX
+	MOVL	wincallbackcontext_restorestack(BX), BX
 	PUSHL	BX
 
 	// call target Go function
@@ -313,7 +314,7 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
 	MOVL	AX, (g_stack+stack_hi)(DX)
 	SUBL	$(64*1024), AX		// stack size
 	MOVL	AX, (g_stack+stack_lo)(DX)
-	ADDL	$const_StackGuard, AX
+	ADDL	$const__StackGuard, AX
 	MOVL	AX, g_stackguard0(DX)
 	MOVL	AX, g_stackguard1(DX)
 
@@ -383,12 +384,12 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 
 	MOVL	m_g0(BP), SI
 	CMPL	g(CX), SI
-	JNE	usleep1_switch
+	JNE	switch
 	// executing on m->g0 already
 	CALL	AX
-	JMP	usleep1_ret
+	JMP	ret
 
-usleep1_switch:
+switch:
 	// Switch to m->g0 stack and back.
 	MOVL	(g_sched+gobuf_sp)(SI), SI
 	MOVL	SP, -4(SI)
@@ -396,7 +397,7 @@ usleep1_switch:
 	CALL	AX
 	MOVL	0(SP), SP
 
-usleep1_ret:
+ret:
 	get_tls(CX)
 	MOVL	g(CX), BP
 	MOVL	g_m(BP), BP
@@ -414,7 +415,7 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
 	MOVL	$0, alertable-16(SP)
 	MOVL	$-1, handle-20(SP)
 	MOVL	SP, BP
-	MOVL	runtime·NtWaitForSingleObject(SB), AX
+	MOVL	runtime·_NtWaitForSingleObject(SB), AX
 	CALL	AX
 	MOVL	BP, SP
 	RET

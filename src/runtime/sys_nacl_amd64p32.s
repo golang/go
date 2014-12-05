@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 #include "syscall_nacl.h"
 
@@ -338,7 +339,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
 	MOVL	20(SP), BX
 	MOVL	BX, g(CX)
 
-sigtramp_ret:
 	// Enable exceptions again.
 	NACL_SYSCALL(SYS_exception_clear_flag)
 

@@ -1318,7 +1318,7 @@ gengcmask(Type *t, uint8 gcmask[16])
 {
 	Bvec *vec;
 	vlong xoffset, nptr, i, j;
-	int  half, mw;
+	int  half;
 	uint8 bits, *pos;
 
 	memset(gcmask, 0, 16);
@@ -1335,7 +1335,6 @@ gengcmask(Type *t, uint8 gcmask[16])
 	pos = (uint8*)gcmask;
 	nptr = (t->width+widthptr-1)/widthptr;
 	half = 0;
-	mw = 0;
 	// If number of words is odd, repeat the mask.
 	// This makes simpler handling of arrays in runtime.
 	for(j=0; j<=(nptr%2); j++) {
@@ -1344,9 +1343,8 @@ gengcmask(Type *t, uint8 gcmask[16])
 			// Some fake types (e.g. Hmap) has missing fileds.
 			// twobitwalktype1 generates BitsDead for that holes,
 			// replace BitsDead with BitsScalar.
-			if(!mw && bits == BitsDead)
+			if(bits == BitsDead)
 				bits = BitsScalar;
-			mw = !mw && bits == BitsMultiWord;
 			bits <<= 2;
 			if(half)
 				bits <<= 4;
@@ -1525,11 +1523,9 @@ gengcprog1(ProgGen *g, Type *t, vlong *xoffset)
 		*xoffset += t->width;
 		break;
 	case TINTER:
-		proggendata(g, BitsMultiWord);
-		if(isnilinter(t))
-			proggendata(g, BitsEface);
-		else
-			proggendata(g, BitsIface);
+		// Assuming IfacePointerOnly=1.
+		proggendata(g, BitsPointer);
+		proggendata(g, BitsPointer);
 		*xoffset += t->width;
 		break;
 	case TARRAY:

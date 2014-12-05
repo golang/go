@@ -1766,7 +1766,6 @@ walkprint(Node *nn, NodeList **init)
 	int notfirst, et, op;
 	NodeList *calls;
 
-	on = nil;
 	op = nn->op;
 	all = nn->list;
 	calls = nil;
@@ -3301,6 +3300,9 @@ walkrotate(Node **np)
 	int w, sl, sr, s;
 	Node *l, *r;
 	Node *n;
+
+	if(thechar == '9')
+		return;
 	
 	n = *np;
 
@@ -3425,6 +3427,10 @@ walkdiv(Node **np, NodeList **init)
 	int w;
 	Type *twide;
 	Magic m;
+
+	// TODO(minux)
+	if(thechar == '9')
+		return;
 
 	n = *np;
 	if(n->right->op != OLITERAL)

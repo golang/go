@@ -34,9 +34,6 @@ const (
 // Note that there can be spinning threads during all states - they do not
 // affect mutex's state.
 
-func futexsleep(addr *uint32, val uint32, ns int64)
-func futexwakeup(addr *uint32, cnt uint32)
-
 // We use the uintptr mutex.key and note.key as a uint32.
 func key32(p *uintptr) *uint32 {
 	return (*uint32)(unsafe.Pointer(p))
@@ -198,8 +195,8 @@ func notetsleepg(n *note, ns int64) bool {
 		gothrow("notetsleepg on g0")
 	}
 
-	entersyscallblock()
+	entersyscallblock(0)
 	ok := notetsleep_internal(n, ns)
-	exitsyscall()
+	exitsyscall(0)
 	return ok
 }

@@ -63,8 +63,8 @@ enum
 
 uint32 BLOAD(Reg*);
 uint32 BSTORE(Reg*);
-uint32 LOAD(Reg*);
-uint32 STORE(Reg*);
+uint64 LOAD(Reg*);
+uint64 STORE(Reg*);
 */
 
 // A Reg is a wrapper around a single Prog (one instruction) that holds
@@ -75,12 +75,18 @@ struct	Reg
 {
 	Flow	f;
 
-	Bits	set;  		// variables written by this instruction.
-	Bits	use1; 		// variables read by prog->from.
-	Bits	use2; 		// variables read by prog->to.
+	Bits	set;  		// regopt variables written by this instruction.
+	Bits	use1; 		// regopt variables read by prog->from.
+	Bits	use2; 		// regopt variables read by prog->to.
 
+	// refahead/refbehind are the regopt variables whose current
+	// value may be used in the following/preceding instructions
+	// up to a CALL (or the value is clobbered).
 	Bits	refbehind;
 	Bits	refahead;
+	// calahead/calbehind are similar, but for variables in
+	// instructions that are reachable after hitting at least one
+	// CALL.
 	Bits	calbehind;
 	Bits	calahead;
 	Bits	regdiff;
@@ -93,6 +99,16 @@ struct	Reg
 
 #define	NRGN	600
 /*c2go enum { NRGN = 600 }; */
+
+// A Rgn represents a single regopt variable over a region of code
+// where a register could potentially be dedicated to that variable.
+// The code encompassed by a Rgn is defined by the flow graph,
+// starting at enter, flood-filling forward while varno is refahead
+// and backward while varno is refbehind, and following branches.  A
+// single variable may be represented by multiple disjoint Rgns and
+// each Rgn may choose a different register for that variable.
+// Registers are allocated to regions greedily in order of descending
+// cost.
 struct	Rgn
 {
 	Reg*	enter;
@@ -144,8 +160,8 @@ void	prop(Reg*, Bits, Bits);
 void	synch(Reg*, Bits);
 uint32	allreg(uint32, Rgn*);
 void	paint1(Reg*, int);
-uint32	paint2(Reg*, int);
-void	paint3(Reg*, int, int32, int);
+uint32	paint2(Reg*, int, int);
+void	paint3(Reg*, int, uint32, int);
 void	addreg(Adr*, int);
 void	dumpit(char *str, Flow *r0, int);
 
@@ -156,10 +172,10 @@ void	peep(Prog*);
 void	excise(Flow*);
 int	copyu(Prog*, Adr*, Adr*);
 
-int32	RtoB(int);
-int32	FtoB(int);
-int	BtoR(int32);
-int	BtoF(int32);
+uint32	RtoB(int);
+uint32	FtoB(int);
+int	BtoR(uint32);
+int	BtoF(uint32);
 
 /*
  * prog.c
@@ -187,16 +203,16 @@ enum
 	SizeF = 1<<7, // float aka float32
 	SizeD = 1<<8, // double aka float64
 
-	// Left side: address taken, read, write.
+	// Left side (Prog.from): address taken, read, write.
 	LeftAddr = 1<<9,
 	LeftRead = 1<<10,
 	LeftWrite = 1<<11,
 	
-	// Register in middle; never written.
+	// Register in middle (Prog.reg); only ever read.
 	RegRead = 1<<12,
 	CanRegRead = 1<<13,
 	
-	// Right side: address taken, read, write.
+	// Right side (Prog.to): address taken, read, write.
 	RightAddr = 1<<14,
 	RightRead = 1<<15,
 	RightWrite = 1<<16,

@@ -95,11 +95,11 @@ int
 bnum(Bits a)
 {
 	int i;
-	int32 b;
+	uint64 b;
 
 	for(i=0; i<BITS; i++)
 		if(b = a.b[i])
-			return 32*i + bitno(b);
+			return 64*i + bitno(b);
 	fatal("bad in bnum");
 	return 0;
 }
@@ -110,27 +110,35 @@ blsh(uint n)
 	Bits c;
 
 	c = zbits;
-	c.b[n/32] = 1L << (n%32);
+	c.b[n/64] = 1LL << (n%64);
 	return c;
 }
 
-/*
 int
-bset(Bits a, uint n)
+btest(Bits *a, uint n)
 {
-	if(a.b[n/32] & (1L << (n%32)))
-		return 1;
-	return 0;
+	return (a->b[n/64] & (1LL << (n%64))) != 0;
 }
-*/
+
+void
+biset(Bits *a, uint n)
+{
+	a->b[n/64] |= 1LL << (n%64);
+}
+
+void
+biclr(Bits *a, uint n)
+{
+	a->b[n/64] &= ~(1LL << (n%64));
+}
 
 int
-bitno(int32 b)
+bitno(uint64 b)
 {
 	int i;
 
-	for(i=0; i<32; i++)
-		if(b & (1L<<i))
+	for(i=0; i<64; i++)
+		if(b & (1LL<<i))
 			return i;
 	fatal("bad in bitno");
 	return 0;
@@ -157,7 +165,7 @@ Qconv(Fmt *fp)
 			if(var[i].offset != 0)
 				fmtprint(fp, "%+lld", (vlong)var[i].offset);
 		}
-		bits.b[i/32] &= ~(1L << (i%32));
+		biclr(&bits, i);
 	}
 	return 0;
 }
