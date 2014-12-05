@@ -84,8 +84,8 @@ const (
 )
 
 type sigaltstackt struct {
-	ss_sp    *byte
-	ss_size  uint32
+	ss_sp    uintptr
+	ss_size  uintptr
 	ss_flags int32
 }
 
@@ -94,15 +94,16 @@ type sigset struct {
 }
 
 type siginfo struct {
-	_signo  int32
-	_code   int32
-	_errno  int32
-	_reason [20]byte
+	_signo   int32
+	_code    int32
+	_errno   int32
+	_reason  uintptr
+	_reasonx [16]byte
 }
 
 type stackt struct {
-	ss_sp    *byte
-	ss_size  uint32
+	ss_sp    uintptr
+	ss_size  uintptr
 	ss_flags int32
 }
 
@@ -111,9 +112,21 @@ type timespec struct {
 	tv_nsec int32
 }
 
+func (ts *timespec) set_sec(x int32) {
+	ts.tv_sec = int64(x)
+}
+
+func (ts *timespec) set_nsec(x int32) {
+	ts.tv_nsec = x
+}
+
 type timeval struct {
 	tv_sec  int64
 	tv_usec int32
+}
+
+func (tv *timeval) set_usec(x int32) {
+	tv.tv_usec = x
 }
 
 type itimerval struct {
