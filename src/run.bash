@@ -163,7 +163,7 @@ esac
 # and only on amd64, and only when cgo is enabled.
 # Delayed until here so we know whether to try external linking.
 # DISABLED until we get garbage collection working.
-case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED-XXX-DISABLED" in
+case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
 linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
 	echo
 	echo '# Testing race detector.'
