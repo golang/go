@@ -23,7 +23,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 arg=0
@@ -100,7 +101,7 @@ TEXT _sfloat(SB), NOSPLIT, $68-0 // 4 arg + 14*4 saved regs + cpsr + return valu
 // load the signal fault address into LR, and jump
 // to the real sigpanic.
 // This simulates what sighandler does for a memory fault.
-TEXT _sfloatpanic(SB),NOSPLIT,$-4
+TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
 	MOVW	$0, R0
 	MOVW.W	R0, -4(R13)
 	MOVW	g_sigpc(g), LR

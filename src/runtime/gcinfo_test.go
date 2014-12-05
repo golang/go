@@ -62,12 +62,10 @@ func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
 func nonStackInfo(mask []byte) []byte {
 	// BitsDead is replaced with BitsScalar everywhere except stacks.
 	mask1 := make([]byte, len(mask))
-	mw := false
 	for i, v := range mask {
-		if !mw && v == BitsDead {
+		if v == BitsDead {
 			v = BitsScalar
 		}
-		mw = !mw && v == BitsMultiWord
 		mask1[i] = v
 	}
 	return mask1
@@ -84,7 +82,6 @@ const (
 	BitsDead = iota
 	BitsScalar
 	BitsPointer
-	BitsMultiWord
 )
 
 const (
@@ -137,7 +134,7 @@ func infoBigStruct() []byte {
 			BitsScalar, BitsScalar, BitsScalar, BitsScalar, // t int; y uint16; u uint64
 			BitsPointer, BitsDead, // i string
 		}
-	case "amd64":
+	case "amd64", "power64", "power64le":
 		return []byte{
 			BitsPointer,                        // q *int
 			BitsScalar, BitsScalar, BitsScalar, // w byte; e [17]byte
@@ -188,6 +185,6 @@ var (
 
 	infoString = []byte{BitsPointer, BitsDead}
 	infoSlice  = []byte{BitsPointer, BitsDead, BitsDead}
-	infoEface  = []byte{BitsMultiWord, BitsEface}
-	infoIface  = []byte{BitsMultiWord, BitsIface}
+	infoEface  = []byte{BitsPointer, BitsPointer}
+	infoIface  = []byte{BitsPointer, BitsPointer}
 )

@@ -67,6 +67,16 @@ dumpobj(void)
 		startobj = Boffset(bout);
 		Bprint(bout, "go object %s %s %s %s\n", getgoos(), getgoarch(), getgoversion(), expstring());
 	}
+	
+	if(pragcgobuf.to > pragcgobuf.start) {
+		if(writearchive) {
+			// write empty export section; must be before cgo section
+			Bprint(bout, "\n$$\n\n$$\n\n");
+		}
+		Bprint(bout, "\n$$  // cgo\n");
+		Bprint(bout, "%s\n$$\n\n", fmtstrflush(&pragcgobuf));
+	}
+
 
 	Bprint(bout, "\n!\n");
 
@@ -153,6 +163,8 @@ linksym(Sym *s)
 		return s->lsym;
 	if(isblanksym(s))
 		s->lsym = linklookup(ctxt, "_", 0);
+	else if(s->linkname != nil)
+		s->lsym = linklookup(ctxt, s->linkname, 0);
 	else {
 		p = smprint("%s.%s", s->pkg->prefix, s->name);
 		s->lsym = linklookup(ctxt, p, 0);

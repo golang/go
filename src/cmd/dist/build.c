@@ -39,7 +39,7 @@ static void dopack(char*, char*, char**, int);
 static char *findgoversion(void);
 
 // The known architecture letters.
-static char *gochars = "5668";
+static char *gochars = "566899";
 
 // The known architectures.
 static char *okgoarch[] = {
@@ -48,6 +48,8 @@ static char *okgoarch[] = {
 	"amd64",
 	"amd64p32",
 	"386",
+	"power64",
+	"power64le",
 };
 
 // The known operating systems.
@@ -344,6 +346,7 @@ static char *oldtool[] = {
 	"5a", "5c", "5g", "5l",
 	"6a", "6c", "6g", "6l",
 	"8a", "8c", "8g", "8l",
+	"9a", "9c", "9g", "9l",
 	"6cov",
 	"6nm",
 	"6prof",
@@ -521,10 +524,7 @@ static struct {
 		"anames5.c",
 		"anames6.c",
 		"anames8.c",
-	}},
-	{"cmd/cc", {
-		"-pgen.c",
-		"-pswt.c",
+		"anames9.c",
 	}},
 	{"cmd/gc", {
 		"-cplx.c",
@@ -533,21 +533,6 @@ static struct {
 		"-popt.c",
 		"-y1.tab.c",  // makefile dreg
 		"opnames.h",
-	}},
-	{"cmd/5c", {
-		"../cc/pgen.c",
-		"../cc/pswt.c",
-		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libcc.a",
-	}},
-	{"cmd/6c", {
-		"../cc/pgen.c",
-		"../cc/pswt.c",
-		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libcc.a",
-	}},
-	{"cmd/8c", {
-		"../cc/pgen.c",
-		"../cc/pswt.c",
-		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libcc.a",
 	}},
 	{"cmd/5g", {
 		"../gc/cplx.c",
@@ -573,6 +558,14 @@ static struct {
 		"../gc/popt.h",
 		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libgc.a",
 	}},
+	{"cmd/9g", {
+		"../gc/cplx.c",
+		"../gc/pgen.c",
+		"../gc/plive.c",
+		"../gc/popt.c",
+		"../gc/popt.h",
+		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libgc.a",
+	}},
 	{"cmd/5l", {
 		"../ld/*",
 	}},
@@ -580,6 +573,9 @@ static struct {
 		"../ld/*",
 	}},
 	{"cmd/8l", {
+		"../ld/*",
+	}},
+	{"cmd/9l", {
 		"../ld/*",
 	}},
 	{"cmd/go", {
@@ -591,12 +587,10 @@ static struct {
 		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/lib9.a",
 	}},
 	{"runtime", {
-		"zaexperiment.h", // must sort above zasm
-		"zasm_$GOOS_$GOARCH.h",
+		"zaexperiment.h",
 		"zsys_$GOOS_$GOARCH.s",
 		"zgoarch_$GOARCH.go",
 		"zgoos_$GOOS.go",
-		"zruntime_defs_$GOOS_$GOARCH.go",
 		"zversion.go",
 	}},
 };
@@ -618,12 +612,9 @@ static struct {
 	{"anames5.c", mkanames},
 	{"anames6.c", mkanames},
 	{"anames8.c", mkanames},
-	{"zasm_", mkzasm},
+	{"anames9.c", mkanames},
 	{"zdefaultcc.go", mkzdefaultcc},
 	{"zsys_", mkzsys},
-	{"zgoarch_", mkzgoarch},
-	{"zgoos_", mkzgoos},
-	{"zruntime_defs_", mkzruntimedefs},
 	{"zversion.go", mkzversion},
 	{"zaexperiment.h", mkzexperiment},
 
@@ -638,7 +629,7 @@ install(char *dir)
 {
 	char *name, *p, *elem, *prefix, *exe;
 	bool islib, ispkg, isgo, stale, ispackcmd;
-	Buf b, b1, path, final_path, final_name;
+	Buf b, b1, path, final_path, final_name, archive;
 	Vec compile, files, link, go, missing, clean, lib, extra;
 	Time ttarg, t;
 	int i, j, k, n, doclean, targ;
@@ -655,6 +646,7 @@ install(char *dir)
 	binit(&path);
 	binit(&final_path);
 	binit(&final_name);
+	binit(&archive);
 	vinit(&compile);
 	vinit(&files);
 	vinit(&link);
@@ -698,7 +690,7 @@ install(char *dir)
 		splitfields(&ldargs, bstr(&b));
 	}
 
-	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
+	islib = hasprefix(dir, "lib") || streq(dir, "cmd/gc");
 	ispkg = !islib && !hasprefix(dir, "cmd/");
 	isgo = ispkg || streq(dir, "cmd/go") || streq(dir, "cmd/cgo");
 
@@ -877,17 +869,6 @@ install(char *dir)
 
 	// For package runtime, copy some files into the work space.
 	if(streq(dir, "runtime")) {
-		copyfile(bpathf(&b, "%s/arch_GOARCH.h", workdir),
-			bpathf(&b1, "%s/arch_%s.h", bstr(&path), goarch), 0);
-		copyfile(bpathf(&b, "%s/defs_GOOS_GOARCH.h", workdir),
-			bpathf(&b1, "%s/defs_%s_%s.h", bstr(&path), goos, goarch), 0);
-		p = bpathf(&b1, "%s/signal_%s_%s.h", bstr(&path), goos, goarch);
-		if(isfile(p))
-			copyfile(bpathf(&b, "%s/signal_GOOS_GOARCH.h", workdir), p, 0);
-		copyfile(bpathf(&b, "%s/os_GOOS.h", workdir),
-			bpathf(&b1, "%s/os_%s.h", bstr(&path), goos), 0);
-		copyfile(bpathf(&b, "%s/signals_GOOS.h", workdir),
-			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos), 0);
 		copyfile(bpathf(&b, "%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
 			bpathf(&b1, "%s/src/cmd/ld/textflag.h", goroot), 0);
 		copyfile(bpathf(&b, "%s/pkg/%s_%s/funcdata.h", goroot, goos, goarch),
@@ -921,19 +902,47 @@ install(char *dir)
 	built:;
 	}
 
-	// One more copy for package runtime.
-	// The last batch was required for the generators.
-	// This one is generated.
-	if(streq(dir, "runtime")) {
-		copyfile(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
-			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch), 0);
-	}
-
 	if((!streq(goos, gohostos) || !streq(goarch, gohostarch)) && isgo) {
 		// We've generated the right files; the go command can do the build.
 		if(vflag > 1)
 			errprintf("skip build for cross-compile %s\n", dir);
 		goto nobuild;
+	}
+
+	if(isgo) {
+		// The next loop will compile individual non-Go files.
+		// Hand the Go files to the compiler en masse.
+		// For package runtime, this writes go_asm.h, which
+		// the assembly files will need.
+		vreset(&compile);
+		vadd(&compile, bpathf(&b, "%s/%sg", tooldir, gochar));
+
+		bpathf(&b, "%s/_go_.a", workdir);
+		vadd(&compile, "-pack");
+		vadd(&compile, "-o");
+		vadd(&compile, bstr(&b));
+		vadd(&clean, bstr(&b));
+		if(!ispackcmd)
+			vadd(&link, bstr(&b));
+		else
+			bwriteb(&archive, &b);
+
+		vadd(&compile, "-p");
+		if(hasprefix(dir, "cmd/"))
+			vadd(&compile, "main");
+		else
+			vadd(&compile, dir);
+
+		if(streq(dir, "runtime")) {
+			vadd(&compile, "-+");
+			vadd(&compile, "-asmhdr");
+			bpathf(&b1, "%s/go_asm.h", workdir);
+			vadd(&compile, bstr(&b1));
+		}
+
+		vcopy(&compile, go.p, go.len);
+
+		runv(nil, bstr(&path), CheckExit, &compile);
 	}
 
 	// Compile the files.
@@ -1049,38 +1058,10 @@ install(char *dir)
 	}
 	bgwait();
 
-	if(isgo) {
-		// The last loop was compiling individual files.
-		// Hand the Go files to the compiler en masse.
-		vreset(&compile);
-		vadd(&compile, bpathf(&b, "%s/%sg", tooldir, gochar));
-
-		bpathf(&b, "%s/_go_.a", workdir);
-		vadd(&compile, "-pack");
-		vadd(&compile, "-o");
-		vadd(&compile, bstr(&b));
-		vadd(&clean, bstr(&b));
-		if(!ispackcmd)
-			vadd(&link, bstr(&b));
-
-		vadd(&compile, "-p");
-		if(hasprefix(dir, "pkg/"))
-			vadd(&compile, dir+4);
-		else
-			vadd(&compile, "main");
-
-		if(streq(dir, "runtime"))
-			vadd(&compile, "-+");
-
-		vcopy(&compile, go.p, go.len);
-
-		runv(nil, bstr(&path), CheckExit, &compile);
-
-		if(ispackcmd) {
-			xremove(link.p[targ]);
-			dopack(link.p[targ], bstr(&b), &link.p[targ+1], link.len - (targ+1));
-			goto nobuild;
-		}
+	if(isgo && ispackcmd) {
+		xremove(link.p[targ]);
+		dopack(link.p[targ], bstr(&archive), &link.p[targ+1], link.len - (targ+1));
+		goto nobuild;
 	}
 
 	if(!islib && !isgo) {
@@ -1094,17 +1075,7 @@ install(char *dir)
 	xremove(link.p[targ]);
 
 	runv(nil, nil, CheckExit, &link);
-
 nobuild:
-	// In package runtime, we install runtime.h and cgocall.h too,
-	// for use by cgo compilation.
-	if(streq(dir, "runtime")) {
-		copyfile(bpathf(&b, "%s/pkg/%s_%s/cgocall.h", goroot, goos, goarch),
-			bpathf(&b1, "%s/src/runtime/cgocall.h", goroot), 0);
-		copyfile(bpathf(&b, "%s/pkg/%s_%s/runtime.h", goroot, goos, goarch),
-			bpathf(&b1, "%s/src/runtime/runtime.h", goroot), 0);
-	}
-
 
 out:
 	for(i=0; i<clean.len; i++)
@@ -1113,6 +1084,7 @@ out:
 	bfree(&b);
 	bfree(&b1);
 	bfree(&path);
+	bfree(&archive);
 	vfree(&compile);
 	vfree(&files);
 	vfree(&link);
@@ -1156,12 +1128,26 @@ shouldbuild(char *file, char *dir)
 	
 	// Check file name for GOOS or GOARCH.
 	name = lastelem(file);
-	for(i=0; i<nelem(okgoos); i++)
-		if(contains(name, okgoos[i]) && !streq(okgoos[i], goos))
+	for(i=0; i<nelem(okgoos); i++) {
+		if(streq(okgoos[i], goos))
+			continue;
+		p = xstrstr(name, okgoos[i]);
+		if(p == nil)
+			continue;
+		p += xstrlen(okgoos[i]);
+		if(*p == '.' || *p == '_' || *p == '\0')
 			return 0;
-	for(i=0; i<nelem(okgoarch); i++)
-		if(contains(name, okgoarch[i]) && !streq(okgoarch[i], goarch))
+	}
+	for(i=0; i<nelem(okgoarch); i++) {
+		if(streq(okgoarch[i], goarch))
+			continue;
+		p = xstrstr(name, okgoarch[i]);
+		if(p == nil)
+			continue;
+		p += xstrlen(okgoarch[i]);
+		if(*p == '.' || *p == '_' || *p == '\0')
 			return 0;
+	}
 
 	// Omit test files.
 	if(contains(name, "_test"))
@@ -1286,11 +1272,9 @@ static char *buildorder[] = {
 	"libbio",
 	"liblink",
 
-	"cmd/cc",  // must be before c
 	"cmd/gc",  // must be before g
-	"cmd/%sl",  // must be before a, c, g
+	"cmd/%sl",  // must be before a, g
 	"cmd/%sa",
-	"cmd/%sc",
 	"cmd/%sg",
 
 	// The dependency order here was copied from a buildscript
@@ -1347,18 +1331,17 @@ static char *buildorder[] = {
 static char *cleantab[] = {
 	// Commands and C libraries.
 	"cmd/5a",
-	"cmd/5c",
 	"cmd/5g",
 	"cmd/5l",
 	"cmd/6a",
-	"cmd/6c",
 	"cmd/6g",
 	"cmd/6l",
 	"cmd/8a",
-	"cmd/8c",
 	"cmd/8g",
 	"cmd/8l",
-	"cmd/cc",
+	"cmd/9a",
+	"cmd/9g",
+	"cmd/9l",
 	"cmd/gc",
 	"cmd/go",	
 	"lib9",
@@ -1434,12 +1417,13 @@ clean(void)
 			xremove(bpathf(&b, "%s/%s", bstr(&path), cleantab[i]+4));
 	}
 
-	// remove src/runtime/z* unconditionally
+	// remove src/runtime/z* unconditionally,
+	// except leave zgoos and zgoarch, now maintained with go generate.
 	vreset(&dir);
 	bpathf(&path, "%s/src/runtime", goroot);
 	xreaddir(&dir, bstr(&path));
 	for(j=0; j<dir.len; j++) {
-		if(hasprefix(dir.p[j], "z"))
+		if(hasprefix(dir.p[j], "z") && !hasprefix(dir.p[j], "zg"))
 			xremove(bpathf(&b, "%s/%s", bstr(&path), dir.p[j]));
 	}
 

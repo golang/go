@@ -34,7 +34,7 @@
 #include "opt.h"
 
 #define	NREGVAR	32	/* 16 general + 16 floating */
-#define	REGBITS	((uint32)0xffffffff)
+#define	REGBITS	((uint64)0xffffffffull)
 /*c2go enum {
 	NREGVAR = 32,
 	REGBITS = 0xffffffff,
@@ -71,7 +71,7 @@ setaddrs(Bits bit)
 		i = bnum(bit);
 		node = var[i].node;
 		n = var[i].name;
-		bit.b[i/32] &= ~(1L<<(i%32));
+		biclr(&bit, i);
 
 		// disable all pieces of that variable
 		for(i=0; i<nvar; i++) {
@@ -364,7 +364,7 @@ loop2:
 			rgp->varno = i;
 			change = 0;
 			paint1(r, i);
-			bit.b[i/32] &= ~(1L<<(i%32));
+			biclr(&bit, i);
 			if(change <= 0)
 				continue;
 			rgp->cost = change;
@@ -389,9 +389,13 @@ brk:
 	 * replace code (paint3)
 	 */
 	rgp = region;
+	if(debug['R'] && debug['v'])
+		print("\nregisterizing\n");
 	for(i=0; i<nregion; i++) {
+		if(debug['R'] && debug['v'])
+			print("region %d: cost %d varno %d enter %lld\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
 		bit = blsh(rgp->varno);
-		vreg = paint2(rgp->enter, rgp->varno);
+		vreg = paint2(rgp->enter, rgp->varno, 0);
 		vreg = allreg(vreg, rgp);
 		if(rgp->regno != 0) {
 			if(debug['R'] && debug['v']) {
@@ -406,9 +410,6 @@ brk:
 		rgp++;
 	}
 
-	if(debug['R'] && debug['v'])
-		dumpit("pass6", &firstr->f, 1);
-	
 	/*
 	 * free aux structures. peep allocates new ones.
 	 */
@@ -416,6 +417,15 @@ brk:
 		var[i].node->opt = nil;
 	flowend(g);
 	firstr = R;
+
+	if(debug['R'] && debug['v']) {
+		// Rebuild flow graph, since we inserted instructions
+		g = flowstart(firstp, sizeof(Reg));
+		firstr = (Reg*)g->start;
+		dumpit("pass6", &firstr->f, 1);
+		flowend(g);
+		firstr = R;
+	}
 
 	/*
 	 * pass 7
@@ -477,7 +487,7 @@ walkvardef(Node *n, Reg *r, int active)
 			break;
 		for(v=n->opt; v!=nil; v=v->nextinnode) {
 			bn = v - var;
-			r1->act.b[bn/32] |= 1L << (bn%32);
+			biset(&r1->act, bn);
 		}
 		if(r1->f.prog->as == ACALL)
 			break;
@@ -620,6 +630,9 @@ mkvar(Reg *r, Adr *a)
 
 	if(r != R)
 		r->use1.b[0] |= doregbits(a->index);
+
+	if(t >= D_INDIR && t < 2*D_INDIR)
+		goto none;
 
 	switch(t) {
 	default:
@@ -822,10 +835,10 @@ prop(Reg *r, Bits ref, Bits cal)
 			for(z=0; z<BITS; z++) {
 				if(cal.b[z] == 0)
 					continue;
-				for(i=0; i<32; i++) {
-					if(z*32+i >= nvar || ((cal.b[z]>>i)&1) == 0)
+				for(i=0; i<64; i++) {
+					if(z*64+i >= nvar || ((cal.b[z]>>i)&1) == 0)
 						continue;
-					v = var+z*32+i;
+					v = var+z*64+i;
 					if(v->node->opt == nil) // v represents fixed register, not Go variable
 						continue;
 
@@ -841,10 +854,10 @@ prop(Reg *r, Bits ref, Bits cal)
 					// This will set the bits at most twice, keeping the overall loop linear.
 					v1 = v->node->opt;
 					j = v1 - var;
-					if(v == v1 || ((cal.b[j/32]>>(j&31))&1) == 0) {
+					if(v == v1 || !btest(&cal, j)) {
 						for(; v1 != nil; v1 = v1->nextinnode) {
 							j = v1 - var;
-							cal.b[j/32] |= 1UL<<(j&31);
+							biset(&cal, j);
 						}
 					}
 				}
@@ -959,10 +972,10 @@ paint1(Reg *r, int bn)
 {
 	Reg *r1;
 	int z;
-	uint32 bb;
+	uint64 bb;
 
-	z = bn/32;
-	bb = 1L<<(bn%32);
+	z = bn/64;
+	bb = 1LL<<(bn%64);
 	if(r->act.b[z] & bb)
 		return;
 	for(;;) {
@@ -1017,54 +1030,14 @@ paint1(Reg *r, int bn)
 }
 
 uint32
-regset(Reg *r, uint32 bb)
-{
-	uint32 b, set;
-	Adr v;
-	int c;
-
-	set = 0;
-	v = zprog.from;
-	while(b = bb & ~(bb-1)) {
-		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
-		if(v.type == 0)
-			fatal("zero v.type for %#ux", b);
-		c = copyu(r->f.prog, &v, nil);
-		if(c == 3)
-			set |= b;
-		bb &= ~b;
-	}
-	return set;
-}
-
-uint32
-reguse(Reg *r, uint32 bb)
-{
-	uint32 b, set;
-	Adr v;
-	int c;
-
-	set = 0;
-	v = zprog.from;
-	while(b = bb & ~(bb-1)) {
-		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
-		c = copyu(r->f.prog, &v, nil);
-		if(c == 1 || c == 2 || c == 4)
-			set |= b;
-		bb &= ~b;
-	}
-	return set;
-}
-
-uint32
-paint2(Reg *r, int bn)
+paint2(Reg *r, int bn, int depth)
 {
 	Reg *r1;
 	int z;
-	uint32 bb, vreg, x;
+	uint64 bb, vreg;
 
-	z = bn/32;
-	bb = 1L << (bn%32);
+	z = bn/64;
+	bb = 1LL << (bn%64);
 	vreg = regbits;
 	if(!(r->act.b[z] & bb))
 		return vreg;
@@ -1081,6 +1054,9 @@ paint2(Reg *r, int bn)
 		r = r1;
 	}
 	for(;;) {
+		if(debug['R'] && debug['v'])
+			print("  paint2 %d %P\n", depth, r->f.prog);
+
 		r->act.b[z] &= ~bb;
 
 		vreg |= r->regu;
@@ -1088,14 +1064,14 @@ paint2(Reg *r, int bn)
 		if(r->refbehind.b[z] & bb)
 			for(r1 = (Reg*)r->f.p2; r1 != R; r1 = (Reg*)r1->f.p2link)
 				if(r1->refahead.b[z] & bb)
-					vreg |= paint2(r1, bn);
+					vreg |= paint2(r1, bn, depth+1);
 
 		if(!(r->refahead.b[z] & bb))
 			break;
 		r1 = (Reg*)r->f.s2;
 		if(r1 != R)
 			if(r1->refbehind.b[z] & bb)
-				vreg |= paint2(r1, bn);
+				vreg |= paint2(r1, bn, depth+1);
 		r = (Reg*)r->f.s1;
 		if(r == R)
 			break;
@@ -1105,27 +1081,19 @@ paint2(Reg *r, int bn)
 			break;
 	}
 
-	bb = vreg;
-	for(; r; r=(Reg*)r->f.s1) {
-		x = r->regu & ~bb;
-		if(x) {
-			vreg |= reguse(r, x);
-			bb |= regset(r, x);
-		}
-	}
 	return vreg;
 }
 
 void
-paint3(Reg *r, int bn, int32 rb, int rn)
+paint3(Reg *r, int bn, uint32 rb, int rn)
 {
 	Reg *r1;
 	Prog *p;
 	int z;
-	uint32 bb;
+	uint64 bb;
 
-	z = bn/32;
-	bb = 1L << (bn%32);
+	z = bn/64;
+	bb = 1LL << (bn%64);
 	if(r->act.b[z] & bb)
 		return;
 	for(;;) {
@@ -1198,7 +1166,7 @@ addreg(Adr *a, int rn)
 	ostats.ncvtreg++;
 }
 
-int32
+uint32
 RtoB(int r)
 {
 
@@ -1208,7 +1176,7 @@ RtoB(int r)
 }
 
 int
-BtoR(int32 b)
+BtoR(uint32 b)
 {
 	b &= 0xffffL;
 	if(nacl)
@@ -1224,7 +1192,7 @@ BtoR(int32 b)
  *	...
  *	31	X15
  */
-int32
+uint32
 FtoB(int f)
 {
 	if(f < D_X0 || f > D_X15)
@@ -1233,7 +1201,7 @@ FtoB(int f)
 }
 
 int
-BtoF(int32 b)
+BtoF(uint32 b)
 {
 
 	b &= 0xFFFF0000L;
@@ -1304,12 +1272,14 @@ dumpit(char *str, Flow *r0, int isreg)
 				print(" %.4ud", (int)r1->prog->pc);
 			print("\n");
 		}
-//		r1 = r->s1;
-//		if(r1 != R) {
-//			print("	succ:");
-//			for(; r1 != R; r1 = r1->s1)
-//				print(" %.4ud", (int)r1->prog->pc);
-//			print("\n");
-//		}
+		// Print successors if it's not just the next one
+		if(r->s1 != r->link || r->s2 != nil) {
+			print("	succ:");
+			if(r->s1 != nil)
+				print(" %.4ud", (int)r->s1->prog->pc);
+			if(r->s2 != nil)
+				print(" %.4ud", (int)r->s2->prog->pc);
+			print("\n");
+		}
 	}
 }

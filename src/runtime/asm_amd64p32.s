@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -164,55 +165,42 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	JMP	AX
 	RET
 
-// switchtoM is a dummy routine that onM leaves at the bottom
+// systemstack_switch is a dummy routine that systemstack leaves at the bottom
 // of the G stack.  We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
-// at the top of the M stack because the one at the top of
-// the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
+// at the top of the system stack because the one at the top of
+// the system stack terminates the stack walk (see topofstack()).
+TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	RET
 
-// func onM_signalok(fn func())
-TEXT runtime·onM_signalok(SB), NOSPLIT, $0-4
+// func systemstack(fn func())
+TEXT runtime·systemstack(SB), NOSPLIT, $0-4
+	MOVL	fn+0(FP), DI	// DI = fn
 	get_tls(CX)
 	MOVL	g(CX), AX	// AX = g
 	MOVL	g_m(AX), BX	// BX = m
+
 	MOVL	m_gsignal(BX), DX	// DX = gsignal
 	CMPL	AX, DX
-	JEQ	ongsignal
-	JMP	runtime·onM(SB)
-
-ongsignal:
-	MOVL	fn+0(FP), DI	// DI = fn
-	MOVL	DI, DX
-	MOVL	0(DI), DI
-	CALL	DI
-	RET
-
-// func onM(fn func())
-TEXT runtime·onM(SB), NOSPLIT, $0-4
-	MOVL	fn+0(FP), DI	// DI = fn
-	get_tls(CX)
-	MOVL	g(CX), AX	// AX = g
-	MOVL	g_m(AX), BX	// BX = m
+	JEQ	noswitch
 
 	MOVL	m_g0(BX), DX	// DX = g0
 	CMPL	AX, DX
-	JEQ	onm
+	JEQ	noswitch
 
 	MOVL	m_curg(BX), R8
 	CMPL	AX, R8
-	JEQ	oncurg
+	JEQ	switch
 	
 	// Not g0, not curg. Must be gsignal, but that's not allowed.
 	// Hide call from linker nosplit analysis.
-	MOVL	$runtime·badonm(SB), AX
+	MOVL	$runtime·badsystemstack(SB), AX
 	CALL	AX
 
-oncurg:
+switch:
 	// save our state in g->sched.  Pretend to
-	// be switchtoM if the G stack is scanned.
-	MOVL	$runtime·switchtoM(SB), SI
+	// be systemstack_switch if the G stack is scanned.
+	MOVL	$runtime·systemstack_switch(SB), SI
 	MOVL	SI, (g_sched+gobuf_pc)(AX)
 	MOVL	SP, (g_sched+gobuf_sp)(AX)
 	MOVL	AX, (g_sched+gobuf_g)(AX)
@@ -236,7 +224,7 @@ oncurg:
 	MOVL	$0, (g_sched+gobuf_sp)(AX)
 	RET
 
-onm:
+noswitch:
 	// already on m stack, just call directly
 	MOVL	DI, DX
 	MOVL	0(DI), DI
@@ -444,11 +432,11 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-25
 	MOVQ	new+16(FP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BX)
-	JNZ	cas64_fail
+	JNZ	fail
 	MOVL	$1, AX
 	MOVB	AX, ret+24(FP)
 	RET
-cas64_fail:
+fail:
 	MOVL	$0, AX
 	MOVB	AX, ret+24(FP)
 	RET
@@ -460,7 +448,7 @@ cas64_fail:
 //		return 1;
 //	} else
 //		return 0;
-TEXT runtime·casp(SB), NOSPLIT, $0-17
+TEXT runtime·casp1(SB), NOSPLIT, $0-17
 	MOVL	ptr+0(FP), BX
 	MOVL	old+4(FP), AX
 	MOVL	new+8(FP), CX
@@ -512,7 +500,7 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
 	MOVQ	AX, ret+16(FP)
 	RET
 
-TEXT runtime·xchgp(SB), NOSPLIT, $0-12
+TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), BX
 	MOVL	new+4(FP), AX
 	XCHGL	AX, 0(BX)
@@ -530,7 +518,7 @@ again:
 	JNZ	again
 	RET
 
-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-8
+TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), BX
 	MOVL	val+4(FP), AX
 	XCHGL	AX, 0(BX)
@@ -834,29 +822,29 @@ TEXT runtime·cmpbytes(SB),NOSPLIT,$0-28
 //   AX = 1/0/-1
 TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
 	CMPQ	SI, DI
-	JEQ	cmp_allsame
+	JEQ	allsame
 	CMPQ	BX, DX
 	MOVQ	DX, R8
 	CMOVQLT	BX, R8 // R8 = min(alen, blen) = # of bytes to compare
 	CMPQ	R8, $8
-	JB	cmp_small
+	JB	small
 
-cmp_loop:
+loop:
 	CMPQ	R8, $16
-	JBE	cmp_0through16
+	JBE	_0through16
 	MOVOU	(SI), X0
 	MOVOU	(DI), X1
 	PCMPEQB X0, X1
 	PMOVMSKB X1, AX
 	XORQ	$0xffff, AX	// convert EQ to NE
-	JNE	cmp_diff16	// branch if at least one byte is not equal
+	JNE	diff16	// branch if at least one byte is not equal
 	ADDQ	$16, SI
 	ADDQ	$16, DI
 	SUBQ	$16, R8
-	JMP	cmp_loop
+	JMP	loop
 	
 	// AX = bit mask of differences
-cmp_diff16:
+diff16:
 	BSFQ	AX, BX	// index of first byte that differs
 	XORQ	AX, AX
 	ADDQ	BX, SI
@@ -868,23 +856,23 @@ cmp_diff16:
 	RET
 
 	// 0 through 16 bytes left, alen>=8, blen>=8
-cmp_0through16:
+_0through16:
 	CMPQ	R8, $8
-	JBE	cmp_0through8
+	JBE	_0through8
 	MOVQ	(SI), AX
 	MOVQ	(DI), CX
 	CMPQ	AX, CX
-	JNE	cmp_diff8
-cmp_0through8:
+	JNE	diff8
+_0through8:
 	ADDQ	R8, SI
 	ADDQ	R8, DI
 	MOVQ	-8(SI), AX
 	MOVQ	-8(DI), CX
 	CMPQ	AX, CX
-	JEQ	cmp_allsame
+	JEQ	allsame
 
 	// AX and CX contain parts of a and b that differ.
-cmp_diff8:
+diff8:
 	BSWAPQ	AX	// reverse order of bytes
 	BSWAPQ	CX
 	XORQ	AX, CX
@@ -895,46 +883,46 @@ cmp_diff8:
 	RET
 
 	// 0-7 bytes in common
-cmp_small:
+small:
 	LEAQ	(R8*8), CX	// bytes left -> bits left
 	NEGQ	CX		//  - bits lift (== 64 - bits left mod 64)
-	JEQ	cmp_allsame
+	JEQ	allsame
 
 	// load bytes of a into high bytes of AX
 	CMPB	SI, $0xf8
-	JA	cmp_si_high
+	JA	si_high
 	MOVQ	(SI), SI
-	JMP	cmp_si_finish
-cmp_si_high:
+	JMP	si_finish
+si_high:
 	ADDQ	R8, SI
 	MOVQ	-8(SI), SI
 	SHRQ	CX, SI
-cmp_si_finish:
+si_finish:
 	SHLQ	CX, SI
 
 	// load bytes of b in to high bytes of BX
 	CMPB	DI, $0xf8
-	JA	cmp_di_high
+	JA	di_high
 	MOVQ	(DI), DI
-	JMP	cmp_di_finish
-cmp_di_high:
+	JMP	di_finish
+di_high:
 	ADDQ	R8, DI
 	MOVQ	-8(DI), DI
 	SHRQ	CX, DI
-cmp_di_finish:
+di_finish:
 	SHLQ	CX, DI
 
 	BSWAPQ	SI	// reverse order of bytes
 	BSWAPQ	DI
 	XORQ	SI, DI	// find bit differences
-	JEQ	cmp_allsame
+	JEQ	allsame
 	BSRQ	DI, CX	// index of highest bit difference
 	SHRQ	CX, SI	// move a's bit to bottom
 	ANDQ	$1, SI	// mask bit
 	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
 	RET
 
-cmp_allsame:
+allsame:
 	XORQ	AX, AX
 	XORQ	CX, CX
 	CMPQ	BX, DX
@@ -969,7 +957,7 @@ TEXT runtime·indexbytebody(SB),NOSPLIT,$0
 	MOVL SI, DI
 
 	CMPL BX, $16
-	JLT indexbyte_small
+	JLT small
 
 	// round up to first 16-byte boundary
 	TESTL $15, SI
@@ -1027,7 +1015,7 @@ failure:
 	RET
 
 // handle for lengths < 16
-indexbyte_small:
+small:
 	MOVL BX, CX
 	REPN; SCASB
 	JZ success
@@ -1085,3 +1073,9 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	BYTE	$0x90	// NOP
 	CALL	runtime·goexit1(SB)	// does not return
+
+TEXT runtime·getg(SB),NOSPLIT,$0-4
+	get_tls(CX)
+	MOVL	g(CX), AX
+	MOVL	AX, ret+0(FP)
+	RET

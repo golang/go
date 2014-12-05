@@ -23,12 +23,7 @@ func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + delta)
 }
 
-// in runtime.c
 func getg() *g
-func acquirem() *m
-func releasem(mp *m)
-func gomcache() *mcache
-func readgstatus(*g) uint32 // proc.c
 
 // mcall switches from the g to the g0 stack and invokes fn(g),
 // where g is the goroutine that made the call.
@@ -43,84 +38,29 @@ func readgstatus(*g) uint32 // proc.c
 //go:noescape
 func mcall(fn func(*g))
 
-// onM switches from the g to the g0 stack and invokes fn().
-// When fn returns, onM switches back to the g and returns,
-// continuing execution on the g stack.
-// If arguments must be passed to fn, they can be written to
-// g->m->ptrarg (pointers) and g->m->scalararg (non-pointers)
-// before the call and then consulted during fn.
-// Similarly, fn can pass return values back in those locations.
-// If fn is written in Go, it can be a closure, which avoids the need for
-// ptrarg and scalararg entirely.
-// After reading values out of ptrarg and scalararg it is conventional
-// to zero them to avoid (memory or information) leaks.
+// systemstack runs fn on a system stack.
+// If systemstack is called from the per-OS-thread (g0) stack, or
+// if systemstack is called from the signal handling (gsignal) stack,
+// systemstack calls fn directly and returns.
+// Otherwise, systemstack is being called from the limited stack
+// of an ordinary goroutine. In this case, systemstack switches
+// to the per-OS-thread stack, calls fn, and switches back.
+// It is common to use a func literal as the argument, in order
+// to share inputs and outputs with the code around the call
+// to system stack:
 //
-// If onM is called from a g0 stack, it invokes fn and returns,
-// without any stack switches.
-//
-// If onM is called from a gsignal stack, it crashes the program.
-// The implication is that functions used in signal handlers must
-// not use onM.
-//
-// NOTE(rsc): We could introduce a separate onMsignal that is
-// like onM but if called from a gsignal stack would just run fn on
-// that stack. The caller of onMsignal would be required to save the
-// old values of ptrarg/scalararg and restore them when the call
-// was finished, in case the signal interrupted an onM sequence
-// in progress on the g or g0 stacks. Until there is a clear need for this,
-// we just reject onM in signal handling contexts entirely.
+//	... set up y ...
+//	systemstack(func() {
+//		x = bigcall(y)
+//	})
+//	... use x ...
 //
 //go:noescape
-func onM(fn func())
+func systemstack(fn func())
 
-// onMsignal is like onM but is allowed to be used in code that
-// might run on the gsignal stack. Code running on a signal stack
-// may be interrupting an onM sequence on the main stack, so
-// if the onMsignal calling sequence writes to ptrarg/scalararg,
-// it must first save the old values and then restore them when
-// finished. As an exception to the rule, it is fine not to save and
-// restore the values if the program is trying to crash rather than
-// return from the signal handler.
-// Once all the runtime is written in Go, there will be no ptrarg/scalararg
-// and the distinction between onM and onMsignal (and perhaps mcall)
-// can go away.
-//
-// If onMsignal is called from a gsignal stack, it invokes fn directly,
-// without a stack switch. Otherwise onMsignal behaves like onM.
-//
-//go:noescape
-func onM_signalok(fn func())
-
-func badonm() {
-	gothrow("onM called from signal goroutine")
+func badsystemstack() {
+	gothrow("systemstack called from unexpected goroutine")
 }
-
-// C functions that run on the M stack.
-// Call using mcall.
-func gosched_m(*g)
-func park_m(*g)
-func recovery_m(*g)
-
-// More C functions that run on the M stack.
-// Call using onM.
-func mcacheRefill_m()
-func largeAlloc_m()
-func gc_m()
-func scavenge_m()
-func setFinalizer_m()
-func removeFinalizer_m()
-func markallocated_m()
-func unrollgcprog_m()
-func unrollgcproginplace_m()
-func setgcpercent_m()
-func setmaxthreads_m()
-func ready_m()
-func deferproc_m()
-func goexit_m()
-func startpanic_m()
-func dopanic_m()
-func readmemstats_m()
-func writeheapdump_m()
 
 // memclr clears n bytes starting at ptr.
 // in memclr_*.s
@@ -131,12 +71,6 @@ func memclr(ptr unsafe.Pointer, n uintptr)
 // in memmove_*.s
 //go:noescape
 func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
-
-func starttheworld()
-func stoptheworld()
-func newextram()
-func lockOSThread()
-func unlockOSThread()
 
 // exported value for testing
 var hashLoad = loadFactor
@@ -159,16 +93,9 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(x ^ 0)
 }
 
-func entersyscall()
-func reentersyscall(pc uintptr, sp unsafe.Pointer)
-func entersyscallblock()
-func exitsyscall()
-
 func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
 func gogo(buf *gobuf)
 func gosave(buf *gobuf)
-func read(fd int32, p unsafe.Pointer, n int32) int32
-func close(fd int32) int32
 func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 
 //go:noescape
@@ -176,35 +103,31 @@ func jmpdefer(fv *funcval, argp uintptr)
 func exit1(code int32)
 func asminit()
 func setg(gg *g)
-func exit(code int32)
 func breakpoint()
-func nanotime() int64
-func usleep(usec uint32)
 
-// careful: cputicks is not guaranteed to be monotonic!  In particular, we have
-// noticed drift between cpus on certain os/arch combinations.  See issue 8976.
-func cputicks() int64
-
-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
-func munmap(addr unsafe.Pointer, n uintptr)
-func madvise(addr unsafe.Pointer, n uintptr, flags int32)
 func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
-func osyield()
 func procyield(cycles uint32)
 func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
-func readgogc() int32
-func purgecachedstats(c *mcache)
-func gostringnocopy(b *byte) string
 func goexit()
-
-//go:noescape
-func write(fd uintptr, p unsafe.Pointer, n int32) int32
 
 //go:noescape
 func cas(ptr *uint32, old, new uint32) bool
 
-//go:noescape
-func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+// casp cannot have a go:noescape annotation, because
+// while ptr and old do not escape, new does. If new is marked as
+// not escaping, the compiler will make incorrect escape analysis
+// decisions about the value being xchg'ed.
+// Instead, make casp a wrapper around the actual atomic.
+// When calling the wrapper we mark ptr as noescape explicitly.
+
+//go:nosplit
+func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
+	return casp1((*unsafe.Pointer)(noescape(unsafe.Pointer(ptr))), noescape(old), new)
+}
+
+func casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+
+func nop() // call to prevent inlining of function body
 
 //go:noescape
 func casuintptr(ptr *uintptr, old, new uintptr) bool
@@ -261,18 +184,10 @@ func asmcgocall(fn, arg unsafe.Pointer)
 //go:noescape
 func asmcgocall_errno(fn, arg unsafe.Pointer) int32
 
-//go:noescape
-func open(name *byte, mode, perm int32) int32
-
-//go:noescape
-func gotraceback(*bool) int32
-
+// argp used in Defer structs when there is no argp.
 const _NoArgs = ^uintptr(0)
 
-func newstack()
-func newproc()
 func morestack()
-func mstart()
 func rt0_go()
 
 // return0 is a stub used to return 0 from deferproc.
@@ -314,3 +229,5 @@ func call134217728(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call268435456(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call536870912(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call1073741824(fn, arg unsafe.Pointer, n, retoffset uint32)
+
+func systemstack_switch()

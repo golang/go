@@ -340,7 +340,7 @@ func f32to64(f uint32) uint64 {
 	return fpack64(fs64, uint64(fm)<<d, fe, 0)
 }
 
-func fcmp64(f, g uint64) (cmp int, isnan bool) {
+func fcmp64(f, g uint64) (cmp int32, isnan bool) {
 	fs, fm, _, fi, fn := funpack64(f)
 	gs, gm, _, gi, gn := funpack64(g)
 
@@ -486,13 +486,13 @@ again2:
 
 // callable from C
 
-func fadd64c(f, g uint64, ret *uint64)            { *ret = fadd64(f, g) }
-func fsub64c(f, g uint64, ret *uint64)            { *ret = fsub64(f, g) }
-func fmul64c(f, g uint64, ret *uint64)            { *ret = fmul64(f, g) }
-func fdiv64c(f, g uint64, ret *uint64)            { *ret = fdiv64(f, g) }
-func fneg64c(f uint64, ret *uint64)               { *ret = fneg64(f) }
-func f32to64c(f uint32, ret *uint64)              { *ret = f32to64(f) }
-func f64to32c(f uint64, ret *uint32)              { *ret = f64to32(f) }
-func fcmp64c(f, g uint64, ret *int, retnan *bool) { *ret, *retnan = fcmp64(f, g) }
-func fintto64c(val int64, ret *uint64)            { *ret = fintto64(val) }
-func f64tointc(f uint64, ret *int64, retok *bool) { *ret, *retok = f64toint(f) }
+func fadd64c(f, g uint64, ret *uint64)              { *ret = fadd64(f, g) }
+func fsub64c(f, g uint64, ret *uint64)              { *ret = fsub64(f, g) }
+func fmul64c(f, g uint64, ret *uint64)              { *ret = fmul64(f, g) }
+func fdiv64c(f, g uint64, ret *uint64)              { *ret = fdiv64(f, g) }
+func fneg64c(f uint64, ret *uint64)                 { *ret = fneg64(f) }
+func f32to64c(f uint32, ret *uint64)                { *ret = f32to64(f) }
+func f64to32c(f uint64, ret *uint32)                { *ret = f64to32(f) }
+func fcmp64c(f, g uint64, ret *int32, retnan *bool) { *ret, *retnan = fcmp64(f, g) }
+func fintto64c(val int64, ret *uint64)              { *ret = fintto64(val) }
+func f64tointc(f uint64, ret *int64, retok *bool)   { *ret, *retok = f64toint(f) }

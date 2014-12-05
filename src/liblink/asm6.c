@@ -1543,9 +1543,8 @@ static vlong	vaddr(Link*, Addr*, Reloc*);
 static int
 isextern(LSym *s)
 {
-	// All the Solaris dynamic imports from libc.so begin with "libc·", which
-	// the compiler rewrites to "libc." by the time liblink gets it.
-	return strncmp(s->name, "libc.", 5) == 0;
+	// All the Solaris dynamic imports from libc.so begin with "libc_".
+	return strncmp(s->name, "libc_", 5) == 0;
 }
 
 // single-instruction no-ops of various lengths.

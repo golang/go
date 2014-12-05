@@ -4,7 +4,8 @@
 
 // +build race
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -140,18 +141,18 @@ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	CMPQ	RARG1, runtime·racearenastart(SB)
-	JB	racecalladdr_data
+	JB	data
 	CMPQ	RARG1, runtime·racearenaend(SB)
-	JB	racecalladdr_call
-racecalladdr_data:
+	JB	call
+data:
 	CMPQ	RARG1, runtime·racedatastart(SB)
-	JB	racecalladdr_ret
+	JB	ret
 	CMPQ	RARG1, runtime·racedataend(SB)
-	JAE	racecalladdr_ret
-racecalladdr_call:
+	JAE	ret
+call:
 	MOVQ	AX, AX		// w/o this 6a miscompiles this function
 	JMP	racecall<>(SB)
-racecalladdr_ret:
+ret:
 	RET
 
 // func runtime·racefuncenter(pc uintptr)
@@ -366,9 +367,9 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 	MOVQ	SP, R12		// callee-saved, preserved across the CALL
 	MOVQ	m_g0(R13), R10
 	CMPQ	R10, R14
-	JE	racecall_cont	// already on g0
+	JE	call	// already on g0
 	MOVQ	(g_sched+gobuf_sp)(R10), SP
-racecall_cont:
+call:
 	ANDQ	$~15, SP	// alignment for gcc ABI
 	CALL	AX
 	MOVQ	R12, SP

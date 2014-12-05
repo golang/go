@@ -54,7 +54,7 @@ struct	Addr
 	{
 		char	sval[8];
 		float64	dval;
-		Prog*	branch;	// for 5g, 6g, 8g
+		Prog*	branch;	// for 5g, 6g, 8g, 9g
 	} u;
 
 	LSym*	sym;
@@ -62,9 +62,9 @@ struct	Addr
 	short	type;
 	uint8	index;
 	int8	scale;
-	int8	reg;	// for 5l
-	int8	name; // for 5l
-	int8	class;	// for 5l
+	int8	reg;	// for 5l, 9l; GPRs and FPRs both start at 0
+	int8	name; // for 5l, 9l
+	int8	class;	// for 5l, 9l
 	uint8	etype; // for 5g, 6g, 8g
 	int32	offset2;	// for 5l, 8l
 	struct Node*	node; // for 5g, 6g, 8g
@@ -89,9 +89,14 @@ struct	Prog
 	int32	lineno;
 	Prog*	link;
 	short	as;
-	uchar	reg; // arm only
-	uchar	scond; // arm only
+	uchar	scond; // arm only; condition codes
+
+	// operands
 	Addr	from;
+	uchar	reg; // arm, power64 only (e.g., ADD from, reg, to);
+		     // starts at 0 for both GPRs and FPRs;
+		     // also used for ADATA width on arm, power64
+	Addr	from3; // power64 only (e.g., RLWM/FMADD from, reg, from3, to)
 	Addr	to;
 	
 	// for 5g, 6g, 8g internal use
@@ -103,11 +108,11 @@ struct	Prog
 	Prog*	comefrom;	// 6l, 8l
 	Prog*	pcrel;	// 5l
 	int32	spadj;
-	uchar	mark;
+	uint16	mark;
+	uint16	optab;	// 5l, 9l
 	uchar	back;	// 6l, 8l
 	uchar	ft;	/* 6l, 8l oclass cache */
 	uchar	tt;	// 6l, 8l
-	uint16	optab;	// 5l
 	uchar	isize;	// 6l, 8l
 
 	char	width;	/* fake for DATA */
@@ -233,10 +238,12 @@ enum
 enum
 {
 	R_ADDR = 1,
+	R_ADDRPOWER, // relocation for loading 31-bit address using addis and addi/ld/st for Power
 	R_SIZE,
 	R_CALL, // relocation for direct PC-relative call
 	R_CALLARM, // relocation for ARM direct call
 	R_CALLIND, // marker for indirect call (no actual relocating necessary)
+	R_CALLPOWER, // relocation for Power direct call
 	R_CONST,
 	R_PCREL,
 	R_TLS,
@@ -529,6 +536,9 @@ void	span6(Link *ctxt, LSym *s);
 // asm8.c
 void	span8(Link *ctxt, LSym *s);
 
+// asm9.c
+void	span9(Link *ctxt, LSym *s);
+
 // data.c
 vlong	addaddr(Link *ctxt, LSym *s, LSym *t);
 vlong	addaddrplus(Link *ctxt, LSym *s, LSym *t, vlong add);
@@ -576,10 +586,11 @@ Prog*	copyp(Link*, Prog*);
 Prog*	appendp(Link*, Prog*);
 vlong	atolwhex(char*);
 
-// list[568].c
+// list[5689].c
 void	listinit5(void);
 void	listinit6(void);
 void	listinit8(void);
+void	listinit9(void);
 
 // obj.c
 int	linklinefmt(Link *ctxt, Fmt *fp);
@@ -611,20 +622,30 @@ char*	headstr(int);
 extern	char*	anames5[];
 extern	char*	anames6[];
 extern	char*	anames8[];
+extern	char*	anames9[];
 
 extern	char*	cnames5[];
+extern	char*	cnames9[];
+
+extern	char*	dnames5[];
+extern	char*	dnames6[];
+extern	char*	dnames8[];
+extern	char*	dnames9[];
 
 extern	LinkArch	link386;
 extern	LinkArch	linkamd64;
 extern	LinkArch	linkamd64p32;
 extern	LinkArch	linkarm;
+extern	LinkArch	linkpower64;
+extern	LinkArch	linkpower64le;
 
 #pragma	varargck	type	"A"	int
+#pragma	varargck	type	"E"	uint
 #pragma	varargck	type	"D"	Addr*
 #pragma	varargck	type	"lD"	Addr*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
-#pragma varargck	type	"^"	int
+#pragma	varargck	type	"^"	int // for 5l/9l, C_* classes (liblink internal)
 
 // TODO(ality): remove this workaround.
 //   It's here because Pconv in liblink/list?.c references %L.

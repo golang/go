@@ -6,7 +6,8 @@
 // See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
 // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // Exit the entire program (like C exit)
@@ -248,7 +249,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	MOVL	BX, 0(SP)
 	MOVL	$runtime·badsignal(SB), AX
 	CALL	AX
-	JMP 	sigtramp_ret
+	JMP 	ret
 
 	// save g
 	MOVL	DI, 20(SP)
@@ -275,7 +276,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	MOVL	20(SP), DI
 	MOVL	DI, g(CX)
 
-sigtramp_ret:
+ret:
 	// call sigreturn
 	MOVL	context+16(FP), CX
 	MOVL	style+4(FP), BX

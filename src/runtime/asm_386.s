@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -49,7 +50,7 @@ nocpuinfo:
 	// update stackguard after _cgo_init
 	MOVL	$runtime·g0(SB), CX
 	MOVL	(g_stack+stack_lo)(CX), AX
-	ADDL	$const_StackGuard, AX
+	ADDL	$const__StackGuard, AX
 	MOVL	AX, g_stackguard0(CX)
 	MOVL	AX, g_stackguard1(CX)
 
@@ -199,62 +200,49 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	JMP	AX
 	RET
 
-// switchtoM is a dummy routine that onM leaves at the bottom
+// systemstack_switch is a dummy routine that systemstack leaves at the bottom
 // of the G stack.  We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
-// at the top of the M stack because the one at the top of
-// the M stack terminates the stack walk (see topofstack()).
-TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
+// at the top of the system stack because the one at the top of
+// the system stack terminates the stack walk (see topofstack()).
+TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	RET
 
-// func onM_signalok(fn func())
-TEXT runtime·onM_signalok(SB), NOSPLIT, $0-4
+// func systemstack(fn func())
+TEXT runtime·systemstack(SB), NOSPLIT, $0-4
+	MOVL	fn+0(FP), DI	// DI = fn
 	get_tls(CX)
 	MOVL	g(CX), AX	// AX = g
 	MOVL	g_m(AX), BX	// BX = m
+
 	MOVL	m_gsignal(BX), DX	// DX = gsignal
 	CMPL	AX, DX
-	JEQ	ongsignal
-	JMP	runtime·onM(SB)
-
-ongsignal:
-	MOVL	fn+0(FP), DI	// DI = fn
-	MOVL	DI, DX
-	MOVL	0(DI), DI
-	CALL	DI
-	RET
-
-// func onM(fn func())
-TEXT runtime·onM(SB), NOSPLIT, $0-4
-	MOVL	fn+0(FP), DI	// DI = fn
-	get_tls(CX)
-	MOVL	g(CX), AX	// AX = g
-	MOVL	g_m(AX), BX	// BX = m
+	JEQ	noswitch
 
 	MOVL	m_g0(BX), DX	// DX = g0
 	CMPL	AX, DX
-	JEQ	onm
+	JEQ	noswitch
 
 	MOVL	m_curg(BX), BP
 	CMPL	AX, BP
-	JEQ	oncurg
+	JEQ	switch
 	
-	// Not g0, not curg. Must be gsignal, but that's not allowed.
+	// Bad: g is not gsignal, not g0, not curg. What is it?
 	// Hide call from linker nosplit analysis.
-	MOVL	$runtime·badonm(SB), AX
+	MOVL	$runtime·badsystemstack(SB), AX
 	CALL	AX
 
-oncurg:
+switch:
 	// save our state in g->sched.  Pretend to
-	// be switchtoM if the G stack is scanned.
-	MOVL	$runtime·switchtoM(SB), (g_sched+gobuf_pc)(AX)
+	// be systemstack_switch if the G stack is scanned.
+	MOVL	$runtime·systemstack_switch(SB), (g_sched+gobuf_pc)(AX)
 	MOVL	SP, (g_sched+gobuf_sp)(AX)
 	MOVL	AX, (g_sched+gobuf_g)(AX)
 
 	// switch to g0
 	MOVL	DX, g(CX)
 	MOVL	(g_sched+gobuf_sp)(DX), BX
-	// make it look like mstart called onM on g0, to stop traceback
+	// make it look like mstart called systemstack on g0, to stop traceback
 	SUBL	$4, BX
 	MOVL	$runtime·mstart(SB), DX
 	MOVL	DX, 0(BX)
@@ -275,8 +263,8 @@ oncurg:
 	MOVL	$0, (g_sched+gobuf_sp)(AX)
 	RET
 
-onm:
-	// already on m stack, just call directly
+noswitch:
+	// already on system stack, just call directly
 	MOVL	DI, DX
 	MOVL	0(DI), DI
 	CALL	DI
@@ -486,11 +474,11 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-21
 	MOVL	new_hi+16(FP), CX
 	LOCK
 	CMPXCHG8B	0(BP)
-	JNZ	cas64_fail
+	JNZ	fail
 	MOVL	$1, AX
 	MOVB	AX, ret+20(FP)
 	RET
-cas64_fail:
+fail:
 	MOVL	$0, AX
 	MOVB	AX, ret+20(FP)
 	RET
@@ -502,7 +490,7 @@ cas64_fail:
 //		return 1;
 //	}else
 //		return 0;
-TEXT runtime·casp(SB), NOSPLIT, $0-13
+TEXT runtime·casp1(SB), NOSPLIT, $0-13
 	MOVL	ptr+0(FP), BX
 	MOVL	old+4(FP), AX
 	MOVL	new+8(FP), CX
@@ -537,7 +525,7 @@ TEXT runtime·xchg(SB), NOSPLIT, $0-12
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·xchgp(SB), NOSPLIT, $0-12
+TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), BX
 	MOVL	new+4(FP), AX
 	XCHGL	AX, 0(BX)
@@ -555,7 +543,7 @@ again:
 	JNZ	again
 	RET
 
-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-8
+TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), BX
 	MOVL	val+4(FP), AX
 	XCHGL	AX, 0(BX)
@@ -740,7 +728,7 @@ needm:
 	// the same SP back to m->sched.sp. That seems redundant,
 	// but if an unrecovered panic happens, unwindm will
 	// restore the g->sched.sp from the stack location
-	// and then onM will try to use it. If we don't set it here,
+	// and then systemstack will try to use it. If we don't set it here,
 	// that restored SP will be uninitialized (typically 0) and
 	// will not be usable.
 	MOVL	m_g0(BP), SI
@@ -1356,29 +1344,29 @@ TEXT strings·IndexByte(SB),NOSPLIT,$0
 //   AX = 1/0/-1
 TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
 	CMPL	SI, DI
-	JEQ	cmp_allsame
+	JEQ	allsame
 	CMPL	BX, DX
 	MOVL	DX, BP
 	CMOVLLT	BX, BP // BP = min(alen, blen)
 	CMPL	BP, $4
-	JB	cmp_small
+	JB	small
 	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
-	JE	cmp_mediumloop
-cmp_largeloop:
+	JE	mediumloop
+largeloop:
 	CMPL	BP, $16
-	JB	cmp_mediumloop
+	JB	mediumloop
 	MOVOU	(SI), X0
 	MOVOU	(DI), X1
 	PCMPEQB X0, X1
 	PMOVMSKB X1, AX
 	XORL	$0xffff, AX	// convert EQ to NE
-	JNE	cmp_diff16	// branch if at least one byte is not equal
+	JNE	diff16	// branch if at least one byte is not equal
 	ADDL	$16, SI
 	ADDL	$16, DI
 	SUBL	$16, BP
-	JMP	cmp_largeloop
+	JMP	largeloop
 
-cmp_diff16:
+diff16:
 	BSFL	AX, BX	// index of first byte that differs
 	XORL	AX, AX
 	MOVB	(SI)(BX*1), CX
@@ -1387,25 +1375,25 @@ cmp_diff16:
 	LEAL	-1(AX*2), AX	// convert 1/0 to +1/-1
 	RET
 
-cmp_mediumloop:
+mediumloop:
 	CMPL	BP, $4
-	JBE	cmp_0through4
+	JBE	_0through4
 	MOVL	(SI), AX
 	MOVL	(DI), CX
 	CMPL	AX, CX
-	JNE	cmp_diff4
+	JNE	diff4
 	ADDL	$4, SI
 	ADDL	$4, DI
 	SUBL	$4, BP
-	JMP	cmp_mediumloop
+	JMP	mediumloop
 
-cmp_0through4:
+_0through4:
 	MOVL	-4(SI)(BP*1), AX
 	MOVL	-4(DI)(BP*1), CX
 	CMPL	AX, CX
-	JEQ	cmp_allsame
+	JEQ	allsame
 
-cmp_diff4:
+diff4:
 	BSWAPL	AX	// reverse order of bytes
 	BSWAPL	CX
 	XORL	AX, CX	// find bit differences
@@ -1416,37 +1404,37 @@ cmp_diff4:
 	RET
 
 	// 0-3 bytes in common
-cmp_small:
+small:
 	LEAL	(BP*8), CX
 	NEGL	CX
-	JEQ	cmp_allsame
+	JEQ	allsame
 
 	// load si
 	CMPB	SI, $0xfc
-	JA	cmp_si_high
+	JA	si_high
 	MOVL	(SI), SI
-	JMP	cmp_si_finish
-cmp_si_high:
+	JMP	si_finish
+si_high:
 	MOVL	-4(SI)(BP*1), SI
 	SHRL	CX, SI
-cmp_si_finish:
+si_finish:
 	SHLL	CX, SI
 
 	// same for di
 	CMPB	DI, $0xfc
-	JA	cmp_di_high
+	JA	di_high
 	MOVL	(DI), DI
-	JMP	cmp_di_finish
-cmp_di_high:
+	JMP	di_finish
+di_high:
 	MOVL	-4(DI)(BP*1), DI
 	SHRL	CX, DI
-cmp_di_finish:
+di_finish:
 	SHLL	CX, DI
 
 	BSWAPL	SI	// reverse order of bytes
 	BSWAPL	DI
 	XORL	SI, DI	// find bit differences
-	JEQ	cmp_allsame
+	JEQ	allsame
 	BSRL	DI, CX	// index of highest bit difference
 	SHRL	CX, SI	// move a's bit to bottom
 	ANDL	$1, SI	// mask bit
@@ -1455,7 +1443,7 @@ cmp_di_finish:
 
 	// all the bytes in common are the same, so we just need
 	// to compare the lengths.
-cmp_allsame:
+allsame:
 	XORL	AX, AX
 	XORL	CX, CX
 	CMPL	BX, DX
@@ -2290,3 +2278,10 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
 TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	BYTE	$0x90	// NOP
 	CALL	runtime·goexit1(SB)	// does not return
+
+TEXT runtime·getg(SB),NOSPLIT,$0-4
+	get_tls(CX)
+	MOVL	g(CX), AX
+	MOVL	AX, ret+0(FP)
+	RET
+

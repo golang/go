@@ -445,11 +445,11 @@ blk(LSym *start, int64 addr, int64 size)
 			continue;
 		if(sym->value >= eaddr)
 			break;
+		ctxt->cursym = sym;
 		if(sym->value < addr) {
 			diag("phase error: addr=%#llx but sym=%#llx type=%d", (vlong)addr, (vlong)sym->value, sym->type);
 			errorexit();
 		}
-		ctxt->cursym = sym;
 		for(; addr < sym->value; addr++)
 			cput(0);
 		p = sym->p;
@@ -463,6 +463,8 @@ blk(LSym *start, int64 addr, int64 size)
 			diag("phase error: addr=%#llx value+size=%#llx", (vlong)addr, (vlong)sym->value+sym->size);
 			errorexit();
 		}
+		if(sym->value+sym->size >= eaddr)
+			break;
 	}
 
 	for(; addr < eaddr; addr++)

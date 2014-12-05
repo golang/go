@@ -59,7 +59,11 @@ type MemStats struct {
 	}
 }
 
-var sizeof_C_MStats uintptr // filled in by malloc.goc
+// Size of the trailing by_size array differs between Go and C,
+// and all data after by_size is local to runtime, not exported.
+// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
+// sizeof_C_MStats is what C thinks about size of Go struct.
+var sizeof_C_MStats = unsafe.Offsetof(memstats.by_size) + 61*unsafe.Sizeof(memstats.by_size[0])
 
 func init() {
 	var memStats MemStats
@@ -78,15 +82,16 @@ func ReadMemStats(m *MemStats) {
 	semacquire(&worldsema, false)
 	gp := getg()
 	gp.m.gcing = 1
-	onM(stoptheworld)
+	systemstack(stoptheworld)
 
-	gp.m.ptrarg[0] = noescape(unsafe.Pointer(m))
-	onM(readmemstats_m)
+	systemstack(func() {
+		readmemstats_m(m)
+	})
 
 	gp.m.gcing = 0
 	gp.m.locks++
 	semrelease(&worldsema)
-	onM(starttheworld)
+	systemstack(starttheworld)
 	gp.m.locks--
 }
 
@@ -95,14 +100,15 @@ func writeHeapDump(fd uintptr) {
 	semacquire(&worldsema, false)
 	gp := getg()
 	gp.m.gcing = 1
-	onM(stoptheworld)
+	systemstack(stoptheworld)
 
-	gp.m.scalararg[0] = fd
-	onM(writeheapdump_m)
+	systemstack(func() {
+		writeheapdump_m(fd)
+	})
 
 	gp.m.gcing = 0
 	gp.m.locks++
 	semrelease(&worldsema)
-	onM(starttheworld)
+	systemstack(starttheworld)
 	gp.m.locks--
 }

@@ -15,12 +15,14 @@ package runtime
 /*
 #include <ucontext.h>
 #include <fcntl.h>
+#include <asm/signal.h>
 */
 import "C"
 
 const (
-	O_RDONLY  = C.O_RDONLY
-	O_CLOEXEC = C.O_CLOEXEC
+	O_RDONLY    = C.O_RDONLY
+	O_CLOEXEC   = C.O_CLOEXEC
+	SA_RESTORER = C.SA_RESTORER
 )
 
 type Usigset C.__sigset_t

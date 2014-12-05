@@ -6,7 +6,8 @@
 // /usr/src/sys/kern/syscalls.master for syscall numbers.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 	
 TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$-4
@@ -217,7 +218,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	MOVL	BX, 0(SP)
 	MOVL	$runtime·badsignal(SB), AX
 	CALL	AX
-	JMP 	sigtramp_ret
+	JMP 	ret
 
 	// save g
 	MOVL	DI, 20(SP)
@@ -243,7 +244,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	MOVL	20(SP), BX
 	MOVL	BX, g(CX)
 
-sigtramp_ret:
+ret:
 	// call sigreturn
 	MOVL	context+8(FP), AX
 	MOVL	$0, 0(SP)	// syscall gap

@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Must match runtime and reflect.
+// Included by cmd/gc.
+
 enum {
 	KindBool = 1,
 	KindInt,
@@ -30,9 +33,8 @@ enum {
 	KindStruct,
 	KindUnsafePointer,
 
-	KindDirectIface = 1<<5,
-	KindGCProg = 1<<6,	// Type.gc points to GC program
-	KindNoPointers = 1<<7,
-	KindMask = (1<<5)-1,
+	KindDirectIface = 1 << 5,
+	KindGCProg      = 1 << 6, // Type.gc points to GC program
+	KindNoPointers  = 1 << 7,
+	KindMask        = (1 << 5) - 1,
 };
-

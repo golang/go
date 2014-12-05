@@ -11,7 +11,8 @@
 // The high 8 bits specify the kind of system call: 1=Mach, 2=BSD, 3=Machine-Dependent.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // Exit the entire program (like C exit)
@@ -211,7 +212,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	MOVL	DX, 0(SP)
 	MOVQ	$runtime·badsignal(SB), AX
 	CALL	AX
-	JMP 	sigtramp_ret
+	JMP 	ret
 
 	// save g
 	MOVQ	R10, 48(SP)
@@ -233,7 +234,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	MOVQ	48(SP), R10
 	MOVQ	R10, g(BX)
 
-sigtramp_ret:
+ret:
 	// call sigreturn
 	MOVL	$(0x2000000+184), AX	// sigreturn(ucontext, infostyle)
 	MOVQ	32(SP), DI	// saved ucontext

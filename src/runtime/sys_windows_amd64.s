@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "go_asm.h"
+#include "go_tls.h"
 #include "textflag.h"
 
 // maxargs should be divisible by 2, as Windows stack
@@ -65,7 +66,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$48
 	// stderr
 	MOVQ	$-12, CX // stderr
 	MOVQ	CX, 0(SP)
-	MOVQ	runtime·GetStdHandle(SB), AX
+	MOVQ	runtime·_GetStdHandle(SB), AX
 	CALL	AX
 
 	MOVQ	AX, CX	// handle
@@ -78,7 +79,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$48
 	MOVQ	$0, 0(R9)
 	MOVQ	R9, 24(SP)
 	MOVQ	$0, 32(SP)	// overlapped
-	MOVQ	runtime·WriteFile(SB), AX
+	MOVQ	runtime·_WriteFile(SB), AX
 	CALL	AX
 	
 	RET
@@ -138,7 +139,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVQ	g_m(DX), BX
 	MOVQ	m_g0(BX), BX
 	CMPQ	DX, BX
-	JEQ	sigtramp_g0
+	JEQ	g0
 
 	// switch to g0 stack
 	get_tls(BP)
@@ -157,7 +158,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
 	MOVQ	SP, 104(DI)
 	MOVQ	DI, SP
 
-sigtramp_g0:
+g0:
 	MOVQ	0(CX), BX // ExceptionRecord*
 	MOVQ	8(CX), CX // Context*
 	MOVQ	BX, 0(SP)
@@ -244,7 +245,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 	LEAQ	-8192(SP), CX
 	MOVQ	CX, (g_stack+stack_lo)(SP)
-	ADDQ	$const_StackGuard, CX
+	ADDQ	$const__StackGuard, CX
 	MOVQ	CX, g_stackguard0(SP)
 	MOVQ	CX, g_stackguard1(SP)
 	MOVQ	DX, (g_stack+stack_hi)(SP)
@@ -293,8 +294,8 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	MOVQ	-8(CX)(AX*8), AX
 
 	// extract callback context
-	MOVQ	cbctxt_argsize(AX), DX
-	MOVQ	cbctxt_gobody(AX), AX
+	MOVQ	wincallbackcontext_argsize(AX), DX
+	MOVQ	wincallbackcontext_gobody(AX), AX
 
 	// preserve whatever's at the memory location that
 	// the callback will use to store the return value
@@ -354,7 +355,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	MOVQ	AX, (g_stack+stack_hi)(DX)
 	SUBQ	$(64*1024), AX		// stack size
 	MOVQ	AX, (g_stack+stack_lo)(DX)
-	ADDQ	$const_StackGuard, AX
+	ADDQ	$const__StackGuard, AX
 	MOVQ	AX, g_stackguard0(DX)
 	MOVQ	AX, g_stackguard1(DX)
 
@@ -407,12 +408,12 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
 
 	MOVQ	m_g0(R13), R14
 	CMPQ	g(R15), R14
-	JNE	usleep1_switch
+	JNE	switch
 	// executing on m->g0 already
 	CALL	AX
-	JMP	usleep1_ret
+	JMP	ret
 
-usleep1_switch:
+switch:
 	// Switch to m->g0 stack and back.
 	MOVQ	(g_sched+gobuf_sp)(R14), R14
 	MOVQ	SP, -8(R14)
@@ -420,7 +421,7 @@ usleep1_switch:
 	CALL	AX
 	MOVQ	0(SP), SP
 
-usleep1_ret:
+ret:
 	MOVQ	$0, m_libcallsp(R13)
 	RET
 
@@ -435,7 +436,7 @@ TEXT runtime·usleep2(SB),NOSPLIT,$16
 	MOVQ	BX, (R8)
 	MOVQ	$-1, CX // handle
 	MOVQ	$0, DX // alertable
-	MOVQ	runtime·NtWaitForSingleObject(SB), AX
+	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
 	CALL	AX
 	MOVQ	8(SP), SP
 	RET
