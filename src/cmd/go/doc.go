@@ -234,17 +234,24 @@ create or update Go source files, for instance by running yacc.
 Go generate is never run automatically by go build, go get, go test,
 and so on. It must be run explicitly.
 
-Directives are written as a whole-line comment of the form
+Go generate scans the file for directives, which are lines of
+the form,
 
 	//go:generate command argument...
 
-(note: no space in "//go") where command is the generator to be
-run, corresponding to an executable file that can be run locally.
-It must either be in the shell path (gofmt), a fully qualified path
-(/usr/you/bin/mytool), or a command alias, described below.
+(note: no leading spaces and no space in "//go") where command
+is the generator to be run, corresponding to an executable file
+that can be run locally. It must either be in the shell path
+(gofmt), a fully qualified path (/usr/you/bin/mytool), or a
+command alias, described below.
 
-The arguments are space-separated tokens or double-quoted strings
-passed to the generator as individual arguments when it is run.
+Note that go generate does not parse the file, so lines that look
+like directives in comments or multiline strings will be treated
+as directives.
+
+The arguments to the directive are space-separated tokens or
+double-quoted strings passed to the generator as individual
+arguments when it is run.
 
 Quoted strings use Go syntax and are evaluated before execution; a
 quoted string appears as a single argument to the generator.
