@@ -283,7 +283,7 @@ func compareAPI(w io.Writer, features, required, optional, exception []string) (
 				delete(optionalSet, newFeature)
 			} else {
 				fmt.Fprintf(w, "+%s\n", newFeature)
-				if !*allowNew {
+				if !*allowNew || !strings.Contains(runtime.Version(), "devel") {
 					ok = false // we're in lock-down mode for next release
 				}
 			}
@@ -313,11 +313,15 @@ func fileFeatures(filename string) []string {
 	if err != nil {
 		log.Fatalf("Error reading file %s: %v", filename, err)
 	}
-	text := strings.TrimSpace(string(bs))
-	if text == "" {
-		return nil
+	lines := strings.Split(string(bs), "\n")
+	var nonblank []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			nonblank = append(nonblank, line)
+		}
 	}
-	return strings.Split(text, "\n")
+	return nonblank
 }
 
 var fset = token.NewFileSet()
