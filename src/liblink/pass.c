@@ -41,7 +41,7 @@ brchain(Link *ctxt, Prog *p)
 	int i;
 
 	for(i=0; i<20; i++) {
-		if(p == nil || p->as != ctxt->arch->AJMP)
+		if(p == nil || p->as != ctxt->arch->AJMP || p->pcond == nil)
 			return p;
 		p = p->pcond;
 	}
@@ -56,7 +56,7 @@ brloop(Link *ctxt, Prog *p)
 
 	c = 0;
 	for(q = p; q != nil; q = q->pcond) {
-		if(q->as != ctxt->arch->AJMP)
+		if(q->as != ctxt->arch->AJMP || q->pcond == nil)
 			break;
 		c++;
 		if(c >= 5000)

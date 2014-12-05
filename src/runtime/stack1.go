@@ -718,9 +718,7 @@ func newstack() {
 		gothrow("stack overflow")
 	}
 
-	oldstatus := readgstatus(gp)
-	oldstatus &^= _Gscan
-	casgstatus(gp, oldstatus, _Gcopystack) // oldstatus is Gwaiting or Grunnable
+	casgstatus(gp, _Gwaiting, _Gcopystack)
 
 	// The concurrent GC will not scan the stack while we are doing the copy since
 	// the gp is in a Gcopystack status.
@@ -789,15 +787,7 @@ func shrinkstack(gp *g) {
 		print("shrinking stack ", oldsize, "->", newsize, "\n")
 	}
 
-	// This is being done in a Gscan state and was initiated by the GC so no need to move to
-	// the Gcopystate.
-	// The world is stopped, so the goroutine must be Gwaiting or Grunnable,
-	// and what it is is not changing underfoot.
-	oldstatus := readgstatus(gp) &^ _Gscan
-	if oldstatus != _Gwaiting && oldstatus != _Grunnable {
-		gothrow("status is not Gwaiting or Grunnable")
-	}
-	casgstatus(gp, oldstatus, _Gcopystack)
+	oldstatus := casgcopystack(gp)
 	copystack(gp, newsize)
 	casgstatus(gp, _Gcopystack, oldstatus)
 }

@@ -225,6 +225,16 @@ enum
 
 void proginfo(ProgInfo*, Prog*);
 
+// Many Power ISA arithmetic and logical instructions come in four
+// standard variants.  These bits let us map between variants.
+enum {
+	V_CC = 1<<0,		// xCC (affect CR field 0 flags)
+	V_V  = 1<<1,		// xV (affect SO and OV flags)
+};
+
+int as2variant(int);
+int variant2as(int, int);
+
 // To allow use of AJMP, ACALL, ARET in ../gc/popt.c.
 enum
 {
