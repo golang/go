@@ -319,16 +319,23 @@ func plural(n int) string {
 	return ""
 }
 
-func writeFile(name string, fset *token.FileSet, f *ast.File) error {
-	out, err := os.Create(name)
+func writeFile(name string, fset *token.FileSet, f *ast.File, mode os.FileMode) error {
+	out, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		// assume error includes the filename
 		return fmt.Errorf("failed to open file: %s", err)
 	}
+
+	// Oddly, os.OpenFile doesn't preserve all the mode bits, hence
+	// this chmod.  (We use 0600 above to avoid a brief
+	// vulnerability if the user has an insecure umask.)
+	os.Chmod(name, mode) // ignore error
+
 	if err := format.Node(out, fset, f); err != nil {
 		out.Close() // ignore error
 		return fmt.Errorf("failed to write file: %s", err)
 	}
+
 	return out.Close()
 }
 
@@ -339,11 +346,16 @@ var rewriteFile = func(fset *token.FileSet, f *ast.File, orig string) (err error
 	if Verbose {
 		fmt.Fprintf(os.Stderr, "\t%s\n", orig)
 	}
+	// save file mode
+	var mode os.FileMode = 0666
+	if fi, err := os.Stat(orig); err == nil {
+		mode = fi.Mode()
+	}
 	if err := os.Rename(orig, backup); err != nil {
 		return fmt.Errorf("failed to make backup %s -> %s: %s",
 			orig, filepath.Base(backup), err)
 	}
-	if err := writeFile(orig, fset, f); err != nil {
+	if err := writeFile(orig, fset, f, mode); err != nil {
 		// Restore the file from the backup.
 		os.Remove(orig)         // ignore error
 		os.Rename(backup, orig) // ignore error
