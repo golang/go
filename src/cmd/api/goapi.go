@@ -352,139 +352,16 @@ var parsedFileCache = make(map[string]*ast.File)
 
 func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	filename := filepath.Join(dir, file)
-	f, _ := parsedFileCache[filename]
-	if f != nil {
+	if f := parsedFileCache[filename]; f != nil {
 		return f, nil
 	}
 
-	var err error
-
-	// generate missing context-dependent files.
-
-	if w.context != nil && file == fmt.Sprintf("zgoos_%s.go", w.context.GOOS) {
-		src := fmt.Sprintf("package runtime; const theGoos = `%s`", w.context.GOOS)
-		f, err = parser.ParseFile(fset, filename, src, 0)
-		if err != nil {
-			log.Fatalf("incorrect generated file: %s", err)
-		}
+	f, err := parser.ParseFile(fset, filename, nil, 0)
+	if err != nil {
+		return nil, err
 	}
-
-	if w.context != nil && file == fmt.Sprintf("zgoarch_%s.go", w.context.GOARCH) {
-		src := fmt.Sprintf("package runtime; const theGoarch = `%s`", w.context.GOARCH)
-		f, err = parser.ParseFile(fset, filename, src, 0)
-		if err != nil {
-			log.Fatalf("incorrect generated file: %s", err)
-		}
-	}
-	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
-		// Just enough to keep the api checker happy. Keep sorted.
-		src := "package runtime; type (" +
-			" _defer struct{};" +
-			" _func struct{};" +
-			" _panic struct{};" +
-			" _select struct{}; " +
-			" _type struct{};" +
-			" alg struct{};" +
-			" chantype struct{};" +
-			" context struct{};" + // windows
-			" eface struct{};" +
-			" epollevent struct{};" +
-			" funcval struct{};" +
-			" g struct{};" +
-			" gobuf struct{};" +
-			" hchan struct{};" +
-			" iface struct{};" +
-			" interfacetype struct{};" +
-			" itab struct{};" +
-			" keventt struct{};" +
-			" m struct{};" +
-			" maptype struct{};" +
-			" mcache struct{};" +
-			" mspan struct{};" +
-			" mutex struct{};" +
-			" note struct{};" +
-			" p struct{};" +
-			" parfor struct{};" +
-			" slicetype struct{};" +
-			" stkframe struct{};" +
-			" sudog struct{};" +
-			" timespec struct{};" +
-			" waitq struct{};" +
-			" wincallbackcontext struct{};" +
-			"); " +
-			"const (" +
-			" cb_max = 2000;" +
-			" _CacheLineSize = 64;" +
-			" _Gidle = 1;" +
-			" _Grunnable = 2;" +
-			" _Grunning = 3;" +
-			" _Gsyscall = 4;" +
-			" _Gwaiting = 5;" +
-			" _Gdead = 6;" +
-			" _Genqueue = 7;" +
-			" _Gcopystack = 8;" +
-			" _NSIG = 32;" +
-			" _FlagNoScan = iota;" +
-			" _FlagNoZero;" +
-			" _TinySize;" +
-			" _TinySizeClass;" +
-			" _MaxSmallSize;" +
-			" _PageShift;" +
-			" _PageSize;" +
-			" _PageMask;" +
-			" _BitsPerPointer;" +
-			" _BitsMask;" +
-			" _PointersPerByte;" +
-			" _MaxGCMask;" +
-			" _BitsDead;" +
-			" _BitsPointer;" +
-			" _MSpanInUse;" +
-			" _ConcurrentSweep;" +
-			" _KindBool;" +
-			" _KindInt;" +
-			" _KindInt8;" +
-			" _KindInt16;" +
-			" _KindInt32;" +
-			" _KindInt64;" +
-			" _KindUint;" +
-			" _KindUint8;" +
-			" _KindUint16;" +
-			" _KindUint32;" +
-			" _KindUint64;" +
-			" _KindUintptr;" +
-			" _KindFloat32;" +
-			" _KindFloat64;" +
-			" _KindComplex64;" +
-			" _KindComplex128;" +
-			" _KindArray;" +
-			" _KindChan;" +
-			" _KindFunc;" +
-			" _KindInterface;" +
-			" _KindMap;" +
-			" _KindPtr;" +
-			" _KindSlice;" +
-			" _KindString;" +
-			" _KindStruct;" +
-			" _KindUnsafePointer;" +
-			" _KindDirectIface;" +
-			" _KindGCProg;" +
-			" _KindNoPointers;" +
-			" _KindMask;" +
-			")"
-		f, err = parser.ParseFile(fset, filename, src, 0)
-		if err != nil {
-			log.Fatalf("incorrect generated file: %s", err)
-		}
-	}
-
-	if f == nil {
-		f, err = parser.ParseFile(fset, filename, nil, 0)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	parsedFileCache[filename] = f
+
 	return f, nil
 }
 
@@ -590,25 +467,6 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	}
 
 	filenames := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
-
-	// Certain files only exist when building for the specified context.
-	// Add them manually.
-	if name == "runtime" {
-		n := fmt.Sprintf("zgoos_%s.go", w.context.GOOS)
-		if !contains(filenames, n) {
-			filenames = append(filenames, n)
-		}
-
-		n = fmt.Sprintf("zgoarch_%s.go", w.context.GOARCH)
-		if !contains(filenames, n) {
-			filenames = append(filenames, n)
-		}
-
-		n = fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH)
-		if !contains(filenames, n) {
-			filenames = append(filenames, n)
-		}
-	}
 
 	// Parse package files.
 	var files []*ast.File

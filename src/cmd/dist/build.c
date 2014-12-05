@@ -588,9 +588,6 @@ static struct {
 	}},
 	{"runtime", {
 		"zaexperiment.h",
-		"zsys_$GOOS_$GOARCH.s",
-		"zgoarch_$GOARCH.go",
-		"zgoos_$GOOS.go",
 		"zversion.go",
 	}},
 };
@@ -614,7 +611,6 @@ static struct {
 	{"anames8.c", mkanames},
 	{"anames9.c", mkanames},
 	{"zdefaultcc.go", mkzdefaultcc},
-	{"zsys_", mkzsys},
 	{"zversion.go", mkzversion},
 	{"zaexperiment.h", mkzexperiment},
 
@@ -1391,6 +1387,11 @@ static char *cleantab[] = {
 	"unicode/utf8",
 };
 
+static char *runtimegen[] = {
+	"zaexperiment.h",
+	"zversion.go",
+};
+
 static void
 clean(void)
 {
@@ -1417,15 +1418,11 @@ clean(void)
 			xremove(bpathf(&b, "%s/%s", bstr(&path), cleantab[i]+4));
 	}
 
-	// remove src/runtime/z* unconditionally,
+	// remove src/runtime/zaexperiment.h and 
 	// except leave zgoos and zgoarch, now maintained with go generate.
-	vreset(&dir);
 	bpathf(&path, "%s/src/runtime", goroot);
-	xreaddir(&dir, bstr(&path));
-	for(j=0; j<dir.len; j++) {
-		if(hasprefix(dir.p[j], "z") && !hasprefix(dir.p[j], "zg"))
-			xremove(bpathf(&b, "%s/%s", bstr(&path), dir.p[j]));
-	}
+	for(j=0; j<nelem(runtimegen); j++)
+		xremove(bpathf(&b, "%s/%s", bstr(&path), runtimegen[j]));
 
 	if(rebuildall) {
 		// Remove object tree.

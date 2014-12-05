@@ -4,6 +4,8 @@
 
 package runtime
 
+//go:generate go run wincallback.go
+
 var ticks struct {
 	lock mutex
 	val  uint64
