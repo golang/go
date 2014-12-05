@@ -314,7 +314,11 @@ class CL(object):
 		if self.name != "new":
 			s = "code review %s: %s" % (self.name, s)
 		typecheck(s, str)
-		return branch_prefix(ui, repo) + s
+		s = branch_prefix(ui, repo) + s
+		# Rietveld does a hard reject on any subject > 100 chars. Be sure.
+		if len(s) >= 100:
+			s = s[0:95] + "..."
+		return s
 
 	def Upload(self, ui, repo, send_mail=False, gofmt=True, gofmt_just_warn=False, creating=False, quiet=False):
 		if not self.files and not creating:
@@ -409,7 +413,7 @@ class CL(object):
 		if not self.mailed:
 			pmsg += "I'd like you to review this change to"
 			branch = repo[None].branch()
-			if branch.startswith("dev."):
+			if workbranch(branch) and branch != "default":
 				pmsg += " the " + branch + " branch of"
 			pmsg += "\n" + repourl + "\n"
 		else:
@@ -1921,7 +1925,7 @@ def need_sync():
 def branch_prefix(ui, repo):
 	prefix = ""
 	branch = repo[None].branch()
-	if branch.startswith("dev."):
+	if workbranch(branch) and branch != "default":
 		prefix = "[" + branch + "] "
 	return prefix
 
