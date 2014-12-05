@@ -4060,3 +4060,104 @@ func TestLargeGCProg(t *testing.T) {
 	fv := ValueOf(func([256]*byte) {})
 	fv.Call([]Value{ValueOf([256]*byte{})})
 }
+
+// Issue 9179.
+func TestCallGC(t *testing.T) {
+	f := func(a, b, c, d, e string) {
+	}
+	g := func(in []Value) []Value {
+		runtime.GC()
+		return nil
+	}
+	typ := ValueOf(f).Type()
+	f2 := MakeFunc(typ, g).Interface().(func(string, string, string, string, string))
+	f2("four", "five5", "six666", "seven77", "eight888")
+}
+
+type funcLayoutTest struct {
+	rcvr, t            Type
+	argsize, retOffset uintptr
+	stack              []byte
+}
+
+var funcLayoutTests []funcLayoutTest
+
+func init() {
+	var argAlign = PtrSize
+	if runtime.GOARCH == "amd64p32" {
+		argAlign = 2 * PtrSize
+	}
+	roundup := func(x uintptr, a uintptr) uintptr {
+		return (x + a - 1) / a * a
+	}
+
+	funcLayoutTests = append(funcLayoutTests,
+		funcLayoutTest{
+			nil,
+			ValueOf(func(a, b string) string { return "" }).Type(),
+			4 * PtrSize,
+			4 * PtrSize,
+			[]byte{BitsPointer, BitsScalar, BitsPointer},
+		})
+
+	var r []byte
+	if PtrSize == 4 {
+		r = []byte{BitsScalar, BitsScalar, BitsScalar, BitsPointer}
+	} else {
+		r = []byte{BitsScalar, BitsScalar, BitsPointer}
+	}
+	funcLayoutTests = append(funcLayoutTests,
+		funcLayoutTest{
+			nil,
+			ValueOf(func(a, b, c uint32, p *byte, d uint16) {}).Type(),
+			roundup(3*4, PtrSize) + PtrSize + 2,
+			roundup(roundup(3*4, PtrSize)+PtrSize+2, argAlign),
+			r,
+		})
+
+	funcLayoutTests = append(funcLayoutTests,
+		funcLayoutTest{
+			nil,
+			ValueOf(func(a map[int]int, b uintptr, c interface{}) {}).Type(),
+			4 * PtrSize,
+			4 * PtrSize,
+			[]byte{BitsPointer, BitsScalar, BitsPointer, BitsPointer},
+		})
+
+	type S struct {
+		a, b uintptr
+		c, d *byte
+	}
+	funcLayoutTests = append(funcLayoutTests,
+		funcLayoutTest{
+			nil,
+			ValueOf(func(a S) {}).Type(),
+			4 * PtrSize,
+			4 * PtrSize,
+			[]byte{BitsScalar, BitsScalar, BitsPointer, BitsPointer},
+		})
+
+	funcLayoutTests = append(funcLayoutTests,
+		funcLayoutTest{
+			ValueOf((*byte)(nil)).Type(),
+			ValueOf(func(a uintptr, b *int) {}).Type(),
+			3 * PtrSize,
+			roundup(3*PtrSize, argAlign),
+			[]byte{BitsPointer, BitsScalar, BitsPointer},
+		})
+}
+
+func TestFuncLayout(t *testing.T) {
+	for _, lt := range funcLayoutTests {
+		_, argsize, retOffset, stack := FuncLayout(lt.t, lt.rcvr)
+		if argsize != lt.argsize {
+			t.Errorf("funcLayout(%v, %v).argsize=%d, want %d", lt.t, lt.rcvr, argsize, lt.argsize)
+		}
+		if retOffset != lt.retOffset {
+			t.Errorf("funcLayout(%v, %v).retOffset=%d, want %d", lt.t, lt.rcvr, retOffset, lt.retOffset)
+		}
+		if !bytes.Equal(stack, lt.stack) {
+			t.Errorf("funcLayout(%v, %v).stack=%v, want %v", lt.t, lt.rcvr, stack, lt.stack)
+		}
+	}
+}

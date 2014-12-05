@@ -563,13 +563,7 @@ func copystack(gp *g, newsize uintptr) {
 	}
 	memmove(unsafe.Pointer(new.hi-used), unsafe.Pointer(old.hi-used), used)
 
-	oldstatus := readgstatus(gp)
-	oldstatus &^= _Gscan
-	if oldstatus == _Gwaiting || oldstatus == _Grunnable {
-		casgstatus(gp, oldstatus, _Gcopystack) // oldstatus is Gwaiting or Grunnable
-	} else {
-		gothrow("copystack: bad status, not Gwaiting or Grunnable")
-	}
+	oldstatus := casgcopystack(gp) // cas from Gwaiting or Grunnable to Gcopystack, return old status
 
 	// Swap out old stack for new one
 	gp.stack = new
