@@ -135,10 +135,8 @@ set GOMAXPROCS=%OLDGOMAXPROCS%
 set OLDGOMAXPROCS=
 
 :: echo # Checking API compatibility.
-:: go run "%GOROOT%\src\cmd\api\run.go"
-:: if errorlevel 1 goto fail
-:: echo.
-echo # SKIPPING API COMPATIBILITY UNTIL ALL SYSTEMS BUILD.
+go run "%GOROOT%\src\cmd\api\run.go"
+if errorlevel 1 goto fail
 echo.
 
 echo ALL TESTS PASSED

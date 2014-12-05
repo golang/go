@@ -255,8 +255,7 @@ rm -f runtest
 [ "$GOOS" == nacl ] ||
 (
 echo
-echo '# SKIPPING API CHECK UNTIL ALL SYSTEMS BUILD.'
-# time go run $GOROOT/src/cmd/api/run.go || exit 1
+time go run $GOROOT/src/cmd/api/run.go || exit 1
 ) || exit $?
 
 echo
