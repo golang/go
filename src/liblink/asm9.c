@@ -1589,7 +1589,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 				ctxt->diag("odd branch target address\n%P", p);
 				v &= ~03;
 			}
-			rel->add = o1 | (v & 0x03FFFFFC);
+			rel->add = v;
 			rel->type = R_CALLPOWER;
 		}
 		break;

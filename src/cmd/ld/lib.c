@@ -202,7 +202,18 @@ loadlib(void)
 		iscgo |= strcmp(ctxt->library[i].pkg, "runtime/cgo") == 0;
 		objfile(ctxt->library[i].file, ctxt->library[i].pkg);
 	}
-	
+
+	if(linkmode == LinkAuto) {
+		if(iscgo && externalobj)
+			linkmode = LinkExternal;
+		else
+			linkmode = LinkInternal;
+
+		// Force external linking for android.
+		if(strcmp(goos, "android") == 0)
+			linkmode = LinkExternal;
+	}
+
 	if(linkmode == LinkExternal && !iscgo) {
 		// This indicates a user requested -linkmode=external.
 		// The startup code uses an import of runtime/cgo to decide
@@ -227,17 +238,6 @@ loadlib(void)
 			s->reachable = 1;
 			addstrdata(cgostrsym, "runtime/cgo");
 		}
-	}
-
-	if(linkmode == LinkAuto) {
-		if(iscgo && externalobj)
-			linkmode = LinkExternal;
-		else
-			linkmode = LinkInternal;
-
-		// Force external linking for android.
-		if(strcmp(goos, "android") == 0)
-			linkmode = LinkExternal;
 	}
 
 	if(linkmode == LinkInternal) {

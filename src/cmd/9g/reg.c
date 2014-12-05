@@ -437,7 +437,7 @@ brk:
 		print("\nregisterizing\n");
 	for(i=0; i<nregion; i++) {
 		if(debug['R'] && debug['v'])
-			print("region %d: cost %d varno %d enter %d\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
+			print("region %d: cost %d varno %d enter %lld\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
 		bit = blsh(rgp->varno);
 		usedreg = paint2(rgp->enter, rgp->varno, 0);
 		vreg = allreg(usedreg, rgp);
