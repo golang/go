@@ -32,20 +32,27 @@ create or update Go source files, for instance by running yacc.
 Go generate is never run automatically by go build, go get, go test,
 and so on. It must be run explicitly.
 
-Directives are written as a whole-line comment of the form
+Go generate scans the file for directives, which are lines of
+the form,
 
 	//go:generate command argument...
 
-(note: no space in "//go") where command is the generator to be
-run, corresponding to an executable file that can be run locally.
-It must either be in the shell path (gofmt), a fully qualified path
-(/usr/you/bin/mytool), or a command alias, described below.
+(note: no leading spaces and no space in "//go") where command
+is the generator to be run, corresponding to an executable file
+that can be run locally. It must either be in the shell path
+(gofmt), a fully qualified path (/usr/you/bin/mytool), or a
+command alias, described below.
 
-The arguments are space-separated tokens or double-quoted strings
-passed to the generator as individual arguments when it is run.
+Note that go generate does not parse the file, so lines that look
+like directives in comments or multiline strings will be treated
+as directives.
+
+The arguments to the directive are space-separated tokens or
+double-quoted strings passed to the generator as individual
+arguments when it is run.
 
 Quoted strings use Go syntax and are evaluated before execution; a
-quoted string appears a single argument to the generator.
+quoted string appears as a single argument to the generator.
 
 Go generate sets several variables when it runs the generator:
 
@@ -178,13 +185,43 @@ func (g *Generator) run() (ok bool) {
 		fmt.Fprintf(os.Stderr, "%s\n", shortPath(g.path))
 	}
 
-	s := bufio.NewScanner(g.r)
-	for s.Scan() {
-		g.lineNum++
-		if !bytes.HasPrefix(s.Bytes(), []byte("//go:generate ")) && !bytes.HasPrefix(s.Bytes(), []byte("//go:generate\t")) {
+	// Scan for lines that start "//go:generate".
+	// Can't use bufio.Scanner because it can't handle long lines,
+	// which are likely to appear when using generate.
+	input := bufio.NewReader(g.r)
+	var err error
+	// One line per loop.
+	for {
+		g.lineNum++ // 1-indexed.
+		var buf []byte
+		buf, err = input.ReadSlice('\n')
+		if err == bufio.ErrBufferFull {
+			// Line too long - consume and ignore.
+			if isGoGenerate(buf) {
+				g.errorf("directive too long")
+			}
+			for err == bufio.ErrBufferFull {
+				_, err = input.ReadSlice('\n')
+			}
+			if err != nil {
+				break
+			}
 			continue
 		}
-		words := g.split(s.Text())
+
+		if err != nil {
+			// Check for marker at EOF without final \n.
+			if err == io.EOF && isGoGenerate(buf) {
+				err = io.ErrUnexpectedEOF
+			}
+			break
+		}
+
+		if !isGoGenerate(buf) {
+			continue
+		}
+
+		words := g.split(string(buf))
 		if len(words) == 0 {
 			g.errorf("no arguments to directive")
 		}
@@ -201,19 +238,23 @@ func (g *Generator) run() (ok bool) {
 		}
 		g.exec(words)
 	}
-	if s.Err() != nil {
-		g.errorf("error reading %s: %s", shortPath(g.path), s.Err())
+	if err != nil && err != io.EOF {
+		g.errorf("error reading %s: %s", shortPath(g.path), err)
 	}
 	return true
 }
 
+func isGoGenerate(buf []byte) bool {
+	return bytes.HasPrefix(buf, []byte("//go:generate ")) || bytes.HasPrefix(buf, []byte("//go:generate\t"))
+}
+
 // split breaks the line into words, evaluating quoted
 // strings and evaluating environment variables.
-// The initial //go:generate element is dropped.
+// The initial //go:generate element is present in line.
 func (g *Generator) split(line string) []string {
 	// Parse line, obeying quoted strings.
 	var words []string
-	line = line[len("//go:generate "):]
+	line = line[len("//go:generate ") : len(line)-1] // Drop preamble and final newline.
 	// One (possibly quoted) word per iteration.
 Words:
 	for {

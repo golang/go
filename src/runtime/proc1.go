@@ -371,12 +371,35 @@ func casgstatus(gp *g, oldval, newval uint32) {
 	// loop if gp->atomicstatus is in a scan state giving
 	// GC time to finish and change the state to oldval.
 	for !cas(&gp.atomicstatus, oldval, newval) {
+		if oldval == _Gwaiting && gp.atomicstatus == _Grunnable {
+			systemstack(func() {
+				gothrow("casgstatus: waiting for Gwaiting but is Grunnable")
+			})
+		}
 		// Help GC if needed.
 		if gp.preemptscan && !gp.gcworkdone && (oldval == _Grunning || oldval == _Gsyscall) {
 			gp.preemptscan = false
 			systemstack(func() {
 				gcphasework(gp)
 			})
+		}
+	}
+}
+
+// casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
+// Returns old status. Cannot call casgstatus directly, because we are racing with an
+// async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
+// it might have become Grunnable by the time we get to the cas. If we called casgstatus,
+// it would loop waiting for the status to go back to Gwaiting, which it never will.
+//go:nosplit
+func casgcopystack(gp *g) uint32 {
+	for {
+		oldstatus := readgstatus(gp) &^ _Gscan
+		if oldstatus != _Gwaiting && oldstatus != _Grunnable {
+			gothrow("copystack: bad status, not Gwaiting or Grunnable")
+		}
+		if cas(&gp.atomicstatus, oldstatus, _Gcopystack) {
+			return oldstatus
 		}
 	}
 }

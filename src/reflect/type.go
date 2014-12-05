@@ -1889,14 +1889,14 @@ func addTypeBits(bv *bitVector, offset *uintptr, t *rtype) {
 	switch Kind(t.kind & kindMask) {
 	case Chan, Func, Map, Ptr, Slice, String, UnsafePointer:
 		// 1 pointer at start of representation
-		for bv.n < uint32(*offset/uintptr(ptrSize)) {
+		for bv.n < 2*uint32(*offset/uintptr(ptrSize)) {
 			bv.append2(bitsScalar)
 		}
 		bv.append2(bitsPointer)
 
 	case Interface:
 		// 2 pointers
-		for bv.n < uint32(*offset/uintptr(ptrSize)) {
+		for bv.n < 2*uint32(*offset/uintptr(ptrSize)) {
 			bv.append2(bitsScalar)
 		}
 		bv.append2(bitsPointer)

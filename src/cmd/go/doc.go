@@ -234,17 +234,24 @@ create or update Go source files, for instance by running yacc.
 Go generate is never run automatically by go build, go get, go test,
 and so on. It must be run explicitly.
 
-Directives are written as a whole-line comment of the form
+Go generate scans the file for directives, which are lines of
+the form,
 
 	//go:generate command argument...
 
-(note: no space in "//go") where command is the generator to be
-run, corresponding to an executable file that can be run locally.
-It must either be in the shell path (gofmt), a fully qualified path
-(/usr/you/bin/mytool), or a command alias, described below.
+(note: no leading spaces and no space in "//go") where command
+is the generator to be run, corresponding to an executable file
+that can be run locally. It must either be in the shell path
+(gofmt), a fully qualified path (/usr/you/bin/mytool), or a
+command alias, described below.
 
-The arguments are space-separated tokens or double-quoted strings
-passed to the generator as individual arguments when it is run.
+Note that go generate does not parse the file, so lines that look
+like directives in comments or multiline strings will be treated
+as directives.
+
+The arguments to the directive are space-separated tokens or
+double-quoted strings passed to the generator as individual
+arguments when it is run.
 
 Quoted strings use Go syntax and are evaluated before execution; a
 quoted string appears as a single argument to the generator.
@@ -317,13 +324,18 @@ Download and install packages and dependencies
 
 Usage:
 
-	go get [-d] [-fix] [-t] [-u] [build flags] [packages]
+	go get [-d] [-f] [-fix] [-t] [-u] [build flags] [packages]
 
 Get downloads and installs the packages named by the import paths,
 along with their dependencies.
 
 The -d flag instructs get to stop after downloading the packages; that is,
 it instructs get not to install the packages.
+
+The -f flag, valid only when -u is set, forces get -u not to verify that
+each package has been checked out from the source control repository
+implied by its import path. This can be useful if the source is a local fork
+of the original.
 
 The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
