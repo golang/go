@@ -2726,7 +2726,7 @@ def RietveldSetup(ui, repo):
 			releaseBranch = t			
 
 def workbranch(name):
-	return name == "default" or name.startswith('dev.')
+	return name == "default" or name.startswith('dev.') or name == 'release-branch.go1.4'
 
 #######################################################################
 # http://codereview.appspot.com/static/upload.py, heavily edited.
