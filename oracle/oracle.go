@@ -101,6 +101,7 @@ var modes = []*modeInfo{
 	{"callstack", needPTA | needPos, callstack},
 	{"peers", needPTA | needSSADebug | needPos, peers},
 	{"pointsto", needPTA | needSSADebug | needExactPos, pointsto},
+	{"whicherrs", needPTA | needSSADebug | needExactPos, whicherrs},
 
 	// Type-based, modular analyses:
 	{"definition", needPos, definition},

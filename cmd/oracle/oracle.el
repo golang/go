@@ -213,6 +213,12 @@ identifier."
   (interactive)
   (go-oracle--run "referrers"))
 
+(defun go-oracle-whicherrs ()
+  "Show globals, constants and types to which the selected
+expression (of type 'error') may refer."
+  (interactive)
+  (go-oracle--run "whicherrs"))
+
 ;; TODO(dominikh): better docstring
 (define-minor-mode go-oracle-mode "Oracle minor mode for go-mode
 

@@ -229,6 +229,21 @@ type PTAWarning struct {
 	Message string `json:"message"` // warning message
 }
 
+// A WhichErrs is the result of a 'whicherrs' query.
+// It contains the position of the queried error and the possible globals,
+// constants, and types it may point to.
+type WhichErrs struct {
+	ErrPos    string          `json:"errpos,omitempty"`    // location of queried error
+	Globals   []string        `json:"globals,omitempty"`   // locations of globals
+	Constants []string        `json:"constants,omitempty"` // locations of constants
+	Types     []WhichErrsType `json:"types,omitempty"`     // Types
+}
+
+type WhichErrsType struct {
+	Type     string `json:"type,omitempty"`
+	Position string `json:"position,omitempty"`
+}
+
 // A Result is the common result of any oracle query.
 // It contains a query-specific result element.
 //
@@ -251,6 +266,7 @@ type Result struct {
 	PointsTo   []PointsTo  `json:"pointsto,omitempty"`
 	Referrers  *Referrers  `json:"referrers,omitempty"`
 	What       *What       `json:"what,omitempty"`
+	WhichErrs  *WhichErrs  `json:"whicherrs,omitempty"`
 
 	Warnings []PTAWarning `json:"warnings,omitempty"` // warnings from pointer analysis
 }
