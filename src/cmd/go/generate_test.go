@@ -40,7 +40,7 @@ func TestGenerateCommandParse(t *testing.T) {
 	}
 	g.setShorthand([]string{"-command", "yacc", "go", "tool", "yacc"})
 	for _, test := range splitTests {
-		got := g.split("//go:generate " + test.in)
+		got := g.split("//go:generate " + test.in + "\n")
 		if !reflect.DeepEqual(got, test.out) {
 			t.Errorf("split(%q): got %q expected %q", test.in, got, test.out)
 		}

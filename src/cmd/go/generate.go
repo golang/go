@@ -250,7 +250,7 @@ func isGoGenerate(buf []byte) bool {
 
 // split breaks the line into words, evaluating quoted
 // strings and evaluating environment variables.
-// The initial //go:generate element is dropped.
+// The initial //go:generate element is present in line.
 func (g *Generator) split(line string) []string {
 	// Parse line, obeying quoted strings.
 	var words []string
