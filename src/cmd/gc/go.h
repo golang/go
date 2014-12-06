@@ -1473,6 +1473,7 @@ void	walk(Node *fn);
 void	walkexpr(Node **np, NodeList **init);
 void	walkexprlist(NodeList *l, NodeList **init);
 void	walkexprlistsafe(NodeList *l, NodeList **init);
+void	walkexprlistcheap(NodeList *l, NodeList **init);
 void	walkstmt(Node **np);
 void	walkstmtlist(NodeList *l);
 Node*	conv(Node*, Type*);

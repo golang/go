@@ -26,7 +26,7 @@ var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 
 type LFNode struct {
-	Next    *LFNode
+	Next    uint64
 	Pushcnt uintptr
 }
 

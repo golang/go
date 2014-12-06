@@ -140,14 +140,14 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			// Allocate a new maxTinySize block.
 			s = c.alloc[tinySizeClass]
 			v := s.freelist
-			if v == nil {
+			if v.ptr() == nil {
 				systemstack(func() {
 					mCache_Refill(c, tinySizeClass)
 				})
 				s = c.alloc[tinySizeClass]
 				v = s.freelist
 			}
-			s.freelist = v.next
+			s.freelist = v.ptr().next
 			s.ref++
 			//TODO: prefetch v.next
 			x = unsafe.Pointer(v)
@@ -170,19 +170,19 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			size = uintptr(class_to_size[sizeclass])
 			s = c.alloc[sizeclass]
 			v := s.freelist
-			if v == nil {
+			if v.ptr() == nil {
 				systemstack(func() {
 					mCache_Refill(c, int32(sizeclass))
 				})
 				s = c.alloc[sizeclass]
 				v = s.freelist
 			}
-			s.freelist = v.next
+			s.freelist = v.ptr().next
 			s.ref++
 			//TODO: prefetch
 			x = unsafe.Pointer(v)
 			if flags&flagNoZero == 0 {
-				v.next = nil
+				v.ptr().next = 0
 				if size > 2*ptrSize && ((*[2]uintptr)(x))[1] != 0 {
 					memclr(unsafe.Pointer(v), size)
 				}
@@ -241,6 +241,8 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			masksize = masksize * pointersPerByte / 8 // 4 bits per word
 			masksize++                                // unroll flag in the beginning
 			if masksize > maxGCMask && typ.gc[1] != 0 {
+				// write barriers have not been updated to deal with this case yet.
+				gothrow("maxGCMask too small for now")
 				// If the mask is too large, unroll the program directly
 				// into the GC bitmap. It's 7 times slower than copying
 				// from the pre-unrolled mask, but saves 1/16 of type size
@@ -295,6 +297,17 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		}
 	}
 marked:
+
+	// GCmarkterminate allocates black
+	// All slots hold nil so no scanning is needed.
+	// This may be racing with GC so do it atomically if there can be
+	// a race marking the bit.
+	if gcphase == _GCmarktermination {
+		systemstack(func() {
+			gcmarknewobject_m(uintptr(x))
+		})
+	}
+
 	if raceenabled {
 		racemalloc(x, size)
 	}
@@ -328,11 +341,41 @@ marked:
 		}
 	}
 
-	if memstats.heap_alloc >= memstats.next_gc {
+	if memstats.heap_alloc >= memstats.next_gc/2 {
 		gogc(0)
 	}
 
 	return x
+}
+
+func loadPtrMask(typ *_type) []uint8 {
+	var ptrmask *uint8
+	nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
+	if typ.kind&kindGCProg != 0 {
+		masksize := nptr
+		if masksize%2 != 0 {
+			masksize *= 2 // repeated
+		}
+		masksize = masksize * pointersPerByte / 8 // 4 bits per word
+		masksize++                                // unroll flag in the beginning
+		if masksize > maxGCMask && typ.gc[1] != 0 {
+			// write barriers have not been updated to deal with this case yet.
+			gothrow("maxGCMask too small for now")
+		}
+		ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
+		// Check whether the program is already unrolled
+		// by checking if the unroll flag byte is set
+		maskword := uintptr(atomicloadp(unsafe.Pointer(ptrmask)))
+		if *(*uint8)(unsafe.Pointer(&maskword)) == 0 {
+			systemstack(func() {
+				unrollgcprog_m(typ)
+			})
+		}
+		ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
+	} else {
+		ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
+	}
+	return (*[1 << 30]byte)(unsafe.Pointer(ptrmask))[:(nptr+1)/2]
 }
 
 // implementation of new builtin
@@ -429,7 +472,21 @@ func gogc(force int32) {
 	mp = acquirem()
 	mp.gcing = 1
 	releasem(mp)
+
 	systemstack(stoptheworld)
+	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
+	if true {                  // To turn on concurrent scan and mark set to true...
+		systemstack(starttheworld)
+		// Do a concurrent heap scan before we stop the world.
+		systemstack(gcscan_m)
+		systemstack(stoptheworld)
+		systemstack(gcinstallmarkwb_m)
+		systemstack(starttheworld)
+		systemstack(gcmark_m)
+		systemstack(stoptheworld)
+		systemstack(gcinstalloffwb_m)
+	}
+
 	if mp != acquirem() {
 		gothrow("gogc: rescheduled")
 	}
@@ -445,16 +502,20 @@ func gogc(force int32) {
 	if debug.gctrace > 1 {
 		n = 2
 	}
+	eagersweep := force >= 2
 	for i := 0; i < n; i++ {
 		if i > 0 {
 			startTime = nanotime()
 		}
 		// switch to g0, call gc, then switch back
-		eagersweep := force >= 2
 		systemstack(func() {
 			gc_m(startTime, eagersweep)
 		})
 	}
+
+	systemstack(func() {
+		gccheckmark_m(startTime, eagersweep)
+	})
 
 	// all done
 	mp.gcing = 0
@@ -468,6 +529,14 @@ func gogc(force int32) {
 		// give the queued finalizers, if any, a chance to run
 		Gosched()
 	}
+}
+
+func GCcheckmarkenable() {
+	systemstack(gccheckmarkenable_m)
+}
+
+func GCcheckmarkdisable() {
+	systemstack(gccheckmarkdisable_m)
 }
 
 // GC runs a garbage collection.

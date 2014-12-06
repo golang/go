@@ -377,12 +377,7 @@ loop:
 	// iterating through the linked list they are in reverse order.
 	cas = nil
 	sglist = gp.waiting
-	// Clear all selectdone and elem before unlinking from gp.waiting.
-	// They must be cleared before being put back into the sudog cache.
-	// Clear before unlinking, because if a stack copy happens after the unlink,
-	// they will not be updated, they will be left pointing to the old stack,
-	// which creates dangling pointers, which may be detected by the
-	// garbage collector.
+	// Clear all elem before unlinking from gp.waiting.
 	for sg1 := gp.waiting; sg1 != nil; sg1 = sg1.waitlink {
 		sg1.selectdone = nil
 		sg1.elem = nil

@@ -36,6 +36,8 @@ func printeface(any)
 func printslice(any)
 func printnl()
 func printsp()
+func printlock()
+func printunlock()
 
 func concatstring2(string, string) string
 func concatstring3(string, string, string) string
@@ -115,10 +117,35 @@ func writebarrieriface(dst *any, src any)
 // The unused *byte argument makes sure that src is 2-pointer-aligned,
 // which is the maximum alignment on NaCl amd64p32
 // (and possibly on 32-bit systems if we start 64-bit aligning uint64s).
-func writebarrierfat2(dst *any, _ *byte, src any)
-func writebarrierfat3(dst *any, _ *byte, src any)
-func writebarrierfat4(dst *any, _ *byte, src any)
+// The bitmap in the name tells which words being copied are pointers.
+func writebarrierfat01(dst *any, _ *byte, src any)
+func writebarrierfat10(dst *any, _ *byte, src any)
+func writebarrierfat11(dst *any, _ *byte, src any)
+func writebarrierfat001(dst *any, _ *byte, src any)
+func writebarrierfat010(dst *any, _ *byte, src any)
+func writebarrierfat011(dst *any, _ *byte, src any)
+func writebarrierfat100(dst *any, _ *byte, src any)
+func writebarrierfat101(dst *any, _ *byte, src any)
+func writebarrierfat110(dst *any, _ *byte, src any)
+func writebarrierfat111(dst *any, _ *byte, src any)
+func writebarrierfat0001(dst *any, _ *byte, src any)
+func writebarrierfat0010(dst *any, _ *byte, src any)
+func writebarrierfat0011(dst *any, _ *byte, src any)
+func writebarrierfat0100(dst *any, _ *byte, src any)
+func writebarrierfat0101(dst *any, _ *byte, src any)
+func writebarrierfat0110(dst *any, _ *byte, src any)
+func writebarrierfat0111(dst *any, _ *byte, src any)
+func writebarrierfat1000(dst *any, _ *byte, src any)
+func writebarrierfat1001(dst *any, _ *byte, src any)
+func writebarrierfat1010(dst *any, _ *byte, src any)
+func writebarrierfat1011(dst *any, _ *byte, src any)
+func writebarrierfat1100(dst *any, _ *byte, src any)
+func writebarrierfat1101(dst *any, _ *byte, src any)
+func writebarrierfat1110(dst *any, _ *byte, src any)
+func writebarrierfat1111(dst *any, _ *byte, src any)
+
 func writebarrierfat(typ *byte, dst *any, src *any)
+func writebarriercopy(typ *byte, dst any, src any) int
 
 func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
 func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool

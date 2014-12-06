@@ -97,7 +97,10 @@ func testAtomic64() {
 
 	z64 = 42
 	x64 = 0
-	// TODO: PREFETCH((unsafe.Pointer)(&z64))
+	prefetcht0(uintptr(unsafe.Pointer(&z64)))
+	prefetcht1(uintptr(unsafe.Pointer(&z64)))
+	prefetcht2(uintptr(unsafe.Pointer(&z64)))
+	prefetchnta(uintptr(unsafe.Pointer(&z64)))
 	if cas64(&z64, x64, 1) {
 		gothrow("cas64 failed")
 	}

@@ -55,7 +55,7 @@ retry:
 			mSpanList_InsertBack(&c.empty, s)
 			unlock(&c.lock)
 			mSpan_Sweep(s, true)
-			if s.freelist != nil {
+			if s.freelist.ptr() != nil {
 				goto havespan
 			}
 			lock(&c.lock)
@@ -90,7 +90,7 @@ havespan:
 	if n == 0 {
 		gothrow("empty span")
 	}
-	if s.freelist == nil {
+	if s.freelist.ptr() == nil {
 		gothrow("freelist empty")
 	}
 	s.incache = true
@@ -122,14 +122,14 @@ func mCentral_UncacheSpan(c *mcentral, s *mspan) {
 // the latest generation.
 // If preserve=true, don't return the span to heap nor relink in MCentral lists;
 // caller takes care of it.
-func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start *mlink, end *mlink, preserve bool) bool {
+func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gclinkptr, preserve bool) bool {
 	if s.incache {
 		gothrow("freespan into cached span")
 	}
 
 	// Add the objects back to s's free list.
-	wasempty := s.freelist == nil
-	end.next = s.freelist
+	wasempty := s.freelist.ptr() == nil
+	end.ptr().next = s.freelist
 	s.freelist = start
 	s.ref -= uint16(n)
 
@@ -165,7 +165,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start *mlink, end *mlink,
 	// s is completely freed, return it to the heap.
 	mSpanList_Remove(s)
 	s.needzero = 1
-	s.freelist = nil
+	s.freelist = 0
 	unlock(&c.lock)
 	unmarkspan(uintptr(s.start)<<_PageShift, s.npages<<_PageShift)
 	mHeap_Free(&mheap_, s, 0)
@@ -183,17 +183,21 @@ func mCentral_Grow(c *mcentral) *mspan {
 		return nil
 	}
 
-	// Carve span into sequence of blocks.
-	tailp := &s.freelist
 	p := uintptr(s.start << _PageShift)
 	s.limit = p + size*n
-	for i := uintptr(0); i < n; i++ {
-		v := (*mlink)(unsafe.Pointer(p))
-		*tailp = v
-		tailp = &v.next
+	head := gclinkptr(p)
+	tail := gclinkptr(p)
+	// i==0 iteration already done
+	for i := uintptr(1); i < n; i++ {
 		p += size
+		tail.ptr().next = gclinkptr(p)
+		tail = gclinkptr(p)
 	}
-	*tailp = nil
+	if s.freelist.ptr() != nil {
+		gothrow("freelist not empty")
+	}
+	tail.ptr().next = 0
+	s.freelist = head
 	markspan(unsafe.Pointer(uintptr(s.start)<<_PageShift), size, n, size*n < s.npages<<_PageShift)
 	return s
 }

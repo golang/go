@@ -316,6 +316,10 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 
 	// Check that transition is valid.
 	switch oldval {
+	default:
+		print("runtime: casfrom_Gscanstatus bad oldval gp=", gp, ", oldval=", hex(oldval), ", newval=", hex(newval), "\n")
+		dumpgstatus(gp)
+		gothrow("casfrom_Gscanstatus:top gp->status is not in scan state")
 	case _Gscanrunnable,
 		_Gscanwaiting,
 		_Gscanrunning,
@@ -377,12 +381,12 @@ func casgstatus(gp *g, oldval, newval uint32) {
 			})
 		}
 		// Help GC if needed.
-		if gp.preemptscan && !gp.gcworkdone && (oldval == _Grunning || oldval == _Gsyscall) {
-			gp.preemptscan = false
-			systemstack(func() {
-				gcphasework(gp)
-			})
-		}
+		// if gp.preemptscan && !gp.gcworkdone && (oldval == _Grunning || oldval == _Gsyscall) {
+		// 	gp.preemptscan = false
+		// 	systemstack(func() {
+		// 		gcphasework(gp)
+		// 	})
+		// }
 	}
 }
 
@@ -512,9 +516,10 @@ func stopscanstart(gp *g) {
 
 // Runs on g0 and does the actual work after putting the g back on the run queue.
 func mquiesce(gpmaster *g) {
-	activeglen := len(allgs)
 	// enqueue the calling goroutine.
 	restartg(gpmaster)
+
+	activeglen := len(allgs)
 	for i := 0; i < activeglen; i++ {
 		gp := allgs[i]
 		if readgstatus(gp) == _Gdead {
@@ -1579,7 +1584,8 @@ func save(pc, sp uintptr) {
 	_g_.sched.lr = 0
 	_g_.sched.ret = 0
 	_g_.sched.ctxt = nil
-	_g_.sched.g = _g_
+	// write as uintptr to avoid write barrier, which will smash _g_.sched.
+	*(*uintptr)(unsafe.Pointer(&_g_.sched.g)) = uintptr(unsafe.Pointer(_g_))
 }
 
 // The goroutine g is about to enter a system call.
@@ -1625,7 +1631,10 @@ func reentersyscall(pc, sp uintptr) {
 	_g_.syscallpc = pc
 	casgstatus(_g_, _Grunning, _Gsyscall)
 	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
-		systemstack(entersyscall_bad)
+		systemstack(func() {
+			print("entersyscall inconsistent ", hex(_g_.syscallsp), " [", hex(_g_.stack.lo), ",", hex(_g_.stack.hi), "]\n")
+			gothrow("entersyscall")
+		})
 	}
 
 	if atomicload(&sched.sysmonwait) != 0 { // TODO: fast atomic
@@ -1652,13 +1661,6 @@ func reentersyscall(pc, sp uintptr) {
 //go:nosplit
 func entersyscall(dummy int32) {
 	reentersyscall(getcallerpc(unsafe.Pointer(&dummy)), getcallersp(unsafe.Pointer(&dummy)))
-}
-
-func entersyscall_bad() {
-	var gp *g
-	gp = getg().m.curg
-	print("entersyscall inconsistent ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
-	gothrow("entersyscall")
 }
 
 func entersyscall_sysmon() {
@@ -1692,12 +1694,26 @@ func entersyscallblock(dummy int32) {
 	_g_.stackguard0 = stackPreempt // see comment in entersyscall
 
 	// Leave SP around for GC and traceback.
-	save(getcallerpc(unsafe.Pointer(&dummy)), getcallersp(unsafe.Pointer(&dummy)))
+	pc := getcallerpc(unsafe.Pointer(&dummy))
+	sp := getcallersp(unsafe.Pointer(&dummy))
+	save(pc, sp)
 	_g_.syscallsp = _g_.sched.sp
 	_g_.syscallpc = _g_.sched.pc
+	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
+		sp1 := sp
+		sp2 := _g_.sched.sp
+		sp3 := _g_.syscallsp
+		systemstack(func() {
+			print("entersyscallblock inconsistent ", hex(sp1), " ", hex(sp2), " ", hex(sp3), " [", hex(_g_.stack.lo), ",", hex(_g_.stack.hi), "]\n")
+			gothrow("entersyscallblock")
+		})
+	}
 	casgstatus(_g_, _Grunning, _Gsyscall)
 	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
-		systemstack(entersyscall_bad)
+		systemstack(func() {
+			print("entersyscallblock inconsistent ", hex(sp), " ", hex(_g_.sched.sp), " ", hex(_g_.syscallsp), " [", hex(_g_.stack.lo), ",", hex(_g_.stack.hi), "]\n")
+			gothrow("entersyscallblock")
+		})
 	}
 
 	systemstack(entersyscallblock_handoff)
@@ -1776,6 +1792,7 @@ func exitsyscallfast() bool {
 
 	// Freezetheworld sets stopwait but does not retake P's.
 	if sched.stopwait != 0 {
+		_g_.m.mcache = nil
 		_g_.m.p = nil
 		return false
 	}
@@ -1789,6 +1806,7 @@ func exitsyscallfast() bool {
 	}
 
 	// Try to get any other idle P.
+	_g_.m.mcache = nil
 	_g_.m.p = nil
 	if sched.pidle != nil {
 		var ok bool
@@ -2363,6 +2381,8 @@ func setcpuprofilerate_m(hz int32) {
 }
 
 // Change number of processors.  The world is stopped, sched is locked.
+// gcworkbufs are not being modified by either the GC or
+// the write barrier code.
 func procresize(new int32) {
 	old := gomaxprocs
 	if old < 0 || old > _MaxGomaxprocs || new <= 0 || new > _MaxGomaxprocs {

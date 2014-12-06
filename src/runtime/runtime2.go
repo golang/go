@@ -227,6 +227,8 @@ type m struct {
 	helpgc        int32
 	spinning      bool // m is out of work and is actively looking for work
 	blocked       bool // m is blocked on a note
+	inwb          bool // m is executing a write barrier
+	printlock     int8
 	fastrand      uint32
 	ncgocall      uint64 // number of cgo calls in total
 	ncgo          int32  // number of cgo calls currently in progress
@@ -402,8 +404,9 @@ type itab struct {
 }
 
 // Lock-free stack node.
+// // Also known to export_test.go.
 type lfnode struct {
-	next    *lfnode
+	next    uint64
 	pushcnt uintptr
 }
 
@@ -448,11 +451,13 @@ type debugvars struct {
 
 // Indicates to write barrier and sychronization task to preform.
 const (
-	_GCoff     = iota // stop and start             nop
-	_GCquiesce        // stop and start             nop
-	_GCstw            // stop the ps                nop
-	_GCmark           // scan the stacks and start  no white to black
-	_GCsweep          // stop and start             nop
+	_GCoff             = iota // GC not running, write barrier disabled
+	_GCquiesce                // unused state
+	_GCstw                    // unused state
+	_GCscan                   // GC collecting roots into workbufs, write barrier disabled
+	_GCmark                   // GC marking from workbufs, write barrier ENABLED
+	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
+	_GCsweep                  // GC mark completed; sweeping in background, write barrier disabled
 )
 
 type forcegcstate struct {

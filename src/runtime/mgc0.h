@@ -12,9 +12,11 @@ enum {
 	BitsPointer = 2,
 	BitsMask = 3,
 	PointersPerByte = 8/BitsPerPointer,
-	MaxGCMask = 64,
 	insData = 1,
 	insArray,
 	insArrayEnd,
 	insEnd,
+
+	// 64 bytes cover objects of size 1024/512 on 64/32 bits, respectively.
+	MaxGCMask	= 65536, // TODO(rsc): change back to 64
 };

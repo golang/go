@@ -17,7 +17,7 @@ enum {
 #endif	// Windows
 
 	StackBig = 4096,
-	StackGuard = 512 + StackSystem,
+	StackGuard = 640 + StackSystem,
 	StackSmall = 128,
 	StackLimit = StackGuard - StackSystem - StackSmall,
 };
