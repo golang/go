@@ -48,8 +48,8 @@ static char *okgoarch[] = {
 	"amd64",
 	"amd64p32",
 	"386",
-	"power64",
-	"power64le",
+	"ppc64",
+	"ppc64le",
 };
 
 // The known operating systems.

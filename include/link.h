@@ -93,10 +93,10 @@ struct	Prog
 
 	// operands
 	Addr	from;
-	uchar	reg; // arm, power64 only (e.g., ADD from, reg, to);
+	uchar	reg; // arm, ppc64 only (e.g., ADD from, reg, to);
 		     // starts at 0 for both GPRs and FPRs;
-		     // also used for ADATA width on arm, power64
-	Addr	from3; // power64 only (e.g., RLWM/FMADD from, reg, from3, to)
+		     // also used for ADATA width on arm, ppc64
+	Addr	from3; // ppc64 only (e.g., RLWM/FMADD from, reg, from3, to)
 	Addr	to;
 	
 	// for 5g, 6g, 8g internal use
@@ -636,8 +636,8 @@ extern	LinkArch	link386;
 extern	LinkArch	linkamd64;
 extern	LinkArch	linkamd64p32;
 extern	LinkArch	linkarm;
-extern	LinkArch	linkpower64;
-extern	LinkArch	linkpower64le;
+extern	LinkArch	linkppc64;
+extern	LinkArch	linkppc64le;
 
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"E"	uint

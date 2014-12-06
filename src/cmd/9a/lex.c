@@ -71,7 +71,7 @@ dodef(char *p)
 	Dlist[nDlist++] = p;
 }
 
-LinkArch*       thelinkarch = &linkpower64;
+LinkArch*       thelinkarch = &linkppc64;
 
 void
 usage(void)
@@ -87,15 +87,15 @@ main(int argc, char *argv[])
 	char *p;
 
 	thechar = '9';
-	thestring = "power64";
+	thestring = "ppc64";
 
 	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
 	// but not other values.	
 	p = getgoarch();
 	if(strncmp(p, thestring, strlen(thestring)) != 0)
 		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
-	if(strcmp(p, "power64le") == 0)
-		thelinkarch = &linkpower64le;
+	if(strcmp(p, "ppc64le") == 0)
+		thelinkarch = &linkppc64le;
 
 	ctxt = linknew(thelinkarch);
 	ctxt->diag = yyerror;

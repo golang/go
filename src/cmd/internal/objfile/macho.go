@@ -104,7 +104,7 @@ func (f *machoFile) goarch() string {
 	case macho.CpuArm:
 		return "arm"
 	case macho.CpuPpc64:
-		return "power64"
+		return "ppc64"
 	}
 	return ""
 }

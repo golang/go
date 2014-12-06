@@ -12,7 +12,7 @@ import "unsafe"
 //uint32 runtime·panicking;
 var paniclk mutex
 
-const hasLinkRegister = GOARCH == "arm" || GOARCH == "power64" || GOARCH == "power64le"
+const hasLinkRegister = GOARCH == "arm" || GOARCH == "ppc64" || GOARCH == "ppc64le"
 
 // Unwind the stack after a deferred function calls recover
 // after a panic.  Then arrange to continue running as though

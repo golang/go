@@ -212,8 +212,8 @@ ginscall(Node *f, int proc)
 				// However, the stack trace code will show the line
 				// of the instruction byte before the return PC. 
 				// To avoid that being an unrelated instruction,
-				// insert a Power64 NOP that we will have the right line number.
-				// Power64 NOP is really or r0, r0, r0; use that description
+				// insert a ppc64 NOP that we will have the right line number.
+				// The ppc64 NOP is really or r0, r0, r0; use that description
 				// because the NOP pseudo-instruction would be removed by
 				// the linker.
 				nodreg(&reg, types[TINT], D_R0);
@@ -953,7 +953,7 @@ clearfat(Node *nl)
 		f = sysfunc("duffzero");
 		p = gins(ADUFFZERO, N, f);
 		afunclit(&p->to, f);
-		// 4 and 128 = magic constants: see ../../runtime/asm_power64x.s
+		// 4 and 128 = magic constants: see ../../runtime/asm_ppc64x.s
 		p->to.offset = 4*(128-q);
 		// duffzero leaves R3 on the last zeroed dword
 		boff = 8;

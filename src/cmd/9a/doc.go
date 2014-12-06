@@ -14,8 +14,8 @@ Go-specific considerations are documented at
 
 	http://golang.org/doc/asm
 
-Its target architecture is the Power64, referred to by these tools as
-power64 (big endian) or power64le (little endian).
+Its target architecture is 64-bit PowerPC and Power Architecture processors,
+referred to by these tools as ppc64 (big endian) or ppc64le (little endian).
 
 */
 package main

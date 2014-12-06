@@ -2,11 +2,11 @@
 
 package runtime
 
-const theGoarch = `power64le`
+const theGoarch = `ppc64`
 
 const goarch_386 = 0
 const goarch_amd64 = 0
 const goarch_amd64p32 = 0
 const goarch_arm = 0
-const goarch_power64 = 0
-const goarch_power64le = 1
+const goarch_ppc64 = 1
+const goarch_ppc64le = 0

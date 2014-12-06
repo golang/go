@@ -4,17 +4,17 @@
 
 // Assembly to get into package runtime without using exported symbols.
 
-// +build amd64 amd64p32 arm 386 power64 power64le
+// +build amd64 amd64p32 arm 386 ppc64 ppc64le
 
 #include "textflag.h"
 
 #ifdef GOARCH_arm
 #define JMP B
 #endif
-#ifdef GOARCH_power64
+#ifdef GOARCH_ppc64
 #define JMP BR
 #endif
-#ifdef GOARCH_power64le
+#ifdef GOARCH_ppc64le
 #define JMP BR
 #endif
 

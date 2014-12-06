@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build power64 power64le
+// +build ppc64 ppc64le
 // +build linux
 
 package runtime
 
 import "unsafe"
 
-// On Power64, Linux limits the user address space to 46 bits (see
+// On ppc64, Linux limits the user address space to 46 bits (see
 // TASK_SIZE_USER64 in the Linux kernel).  This has grown over time,
 // so here we allow 48 bit addresses.
 //

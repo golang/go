@@ -62,7 +62,7 @@ enum
 	ElfMachSparc32Plus,	/* SPARC V8+ */
 	ElfMach960,		/* Intel 80960 */
 	ElfMachPower,		/* PowerPC */
-	ElfMachPower64,	/* PowerPC 64 */
+	ElfMachPower64,	/* PowerPC 64-bit */
 	ElfMachS390,		/* IBM System/390 */
 	ElfMachV800 = 36,	/* NEC V800 */
 	ElfMachFr20,		/* Fujitsu FR20 */
@@ -438,7 +438,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		break;
 	case '9':
 		if(obj->machine != ElfMachPower64 || hdr->ident[4] != ElfClass64) {
-			diag("%s: elf object but not power64", pn);
+			diag("%s: elf object but not ppc64", pn);
 			return;
 		}
 		break;

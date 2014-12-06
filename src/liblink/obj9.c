@@ -484,7 +484,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				//	NOP
 				//
 				// The NOP is needed to give the jumps somewhere to land.
-				// It is a liblink NOP, not a Power64 NOP: it encodes to 0 instruction bytes.
+				// It is a liblink NOP, not a ppc64 NOP: it encodes to 0 instruction bytes.
 
 
 				q = appendp(ctxt, q);
@@ -988,8 +988,8 @@ prg(void)
 	return p;
 }
 
-LinkArch linkpower64 = {
-	.name = "power64",
+LinkArch linkppc64 = {
+	.name = "ppc64",
 	.thechar = '9',
 	.endian = BigEndian,
 
@@ -1035,8 +1035,8 @@ LinkArch linkpower64 = {
 	.AUSEFIELD = AUSEFIELD,
 };
 
-LinkArch linkpower64le = {
-	.name = "power64le",
+LinkArch linkppc64le = {
+	.name = "ppc64le",
 	.thechar = '9',
 	.endian = LittleEndian,
 

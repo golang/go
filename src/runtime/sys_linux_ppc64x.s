@@ -3,10 +3,10 @@
 // license that can be found in the LICENSE file.
 
 // +build linux
-// +build power64 power64le
+// +build ppc64 ppc64le
 
 //
-// System calls and other sys.stuff for Power64, Linux
+// System calls and other sys.stuff for ppc64, Linux
 //
 
 #include "go_asm.h"
@@ -179,8 +179,8 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
 	MOVW	R3, ret+32(FP)
 	RETURN
 
-#ifdef GOARCH_power64le
-// power64le doesn't need function descriptors
+#ifdef GOARCH_ppc64le
+// ppc64le doesn't need function descriptors
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
 #else
 // function descriptor for the real sigtramp
