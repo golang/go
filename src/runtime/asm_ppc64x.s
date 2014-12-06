@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build power64 power64le
+// +build ppc64 ppc64le
 
 #include "go_asm.h"
 #include "go_tls.h"
@@ -550,7 +550,7 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-9
 	// R5 = (R3 << 0) & ~3
 	RLDCR	$0, R3, $~3, R5
 	// Compute val shift.
-#ifdef GOARCH_power64
+#ifdef GOARCH_ppc64
 	// Big endian.  ptr = ptr ^ 3
 	XOR	$3, R3
 #endif
@@ -669,7 +669,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	MOVD	R3, ret+0(FP)
 	RETURN
 
-// AES hashing not implemented for Power
+// AES hashing not implemented for ppc64
 TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
 	MOVW	(R0), R1
 TEXT runtime·aeshash32(SB),NOSPLIT,$-8-0

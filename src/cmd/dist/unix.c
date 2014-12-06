@@ -709,9 +709,9 @@ main(int argc, char **argv)
 		else if(contains(u.machine, "arm"))
 			gohostarch = "arm";
 		else if(contains(u.machine, "ppc64le"))
-			gohostarch = "power64le";
+			gohostarch = "ppc64le";
 		else if(contains(u.machine, "ppc64"))
-			gohostarch = "power64";
+			gohostarch = "ppc64";
 		else
 			fatal("unknown architecture: %s", u.machine);
 	}

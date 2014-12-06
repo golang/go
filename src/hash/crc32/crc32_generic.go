@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build 386 arm power64 power64le
+// +build 386 arm ppc64 ppc64le
 
 package crc32
 

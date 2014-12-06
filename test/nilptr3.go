@@ -1,6 +1,6 @@
 // errorcheck -0 -d=nil
-// Fails on power64x because of incomplete optimization.  See issue 9058.
-// +build !power64,!power64le
+// Fails on ppc64x because of incomplete optimization.  See issue 9058.
+// +build !ppc64,!ppc64le
 
 // Copyright 2013 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style

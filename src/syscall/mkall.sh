@@ -177,15 +177,15 @@ linux_arm)
 	mksysnum="curl -s 'http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/arch/arm/include/uapi/asm/unistd.h' | ./mksysnum_linux.pl"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
-linux_power64)
-	GOOSARCH_in=syscall_linux_power64x.go
+linux_ppc64)
+	GOOSARCH_in=syscall_linux_ppc64x.go
 	unistd_h=/usr/include/asm/unistd.h
 	mkerrors="$mkerrors -m64"
 	mksysnum="./mksysnum_linux.pl $unistd_h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
-linux_power64le)
-	GOOSARCH_in=syscall_linux_power64x.go
+linux_ppc64le)
+	GOOSARCH_in=syscall_linux_ppc64x.go
 	unistd_h=/usr/include/powerpc64le-linux-gnu/asm/unistd.h
 	mkerrors="$mkerrors -m64"
 	mksysnum="./mksysnum_linux.pl $unistd_h"

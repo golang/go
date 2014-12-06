@@ -7,10 +7,10 @@
 #ifdef GOARCH_arm
 #define JMP B
 #endif
-#ifdef GOARCH_power64
+#ifdef GOARCH_ppc64
 #define JMP BR
 #endif
-#ifdef GOARCH_power64le
+#ifdef GOARCH_ppc64le
 #define JMP BR
 #endif
 

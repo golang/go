@@ -36,17 +36,17 @@
 #include	"../ld/dwarf.h"
 #include	<ar.h>
 
-char *thestring = "power64";
+char *thestring = "ppc64";
 LinkArch *thelinkarch;
 
 void
 linkarchinit(void)
 {
 	thestring = getgoarch();
-	if(strcmp(thestring, "power64le") == 0)
-		thelinkarch = &linkpower64le;
+	if(strcmp(thestring, "ppc64le") == 0)
+		thelinkarch = &linkppc64le;
 	else
-		thelinkarch = &linkpower64;
+		thelinkarch = &linkppc64;
 }
 
 void
@@ -79,7 +79,7 @@ archinit(void)
 		if(INITRND == -1)
 			INITRND = 4096;
 		break;
-	case Hlinux:	/* power64 elf */
+	case Hlinux:	/* ppc64 elf */
 		debug['d'] = 1;	// TODO(minux): dynamic linking is not supported yet.
 		elfinit();
 		HEADR = ELFRESERVE;

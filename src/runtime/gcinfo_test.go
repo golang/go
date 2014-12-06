@@ -134,7 +134,7 @@ func infoBigStruct() []byte {
 			BitsScalar, BitsScalar, BitsScalar, BitsScalar, // t int; y uint16; u uint64
 			BitsPointer, BitsDead, // i string
 		}
-	case "amd64", "power64", "power64le":
+	case "amd64", "ppc64", "ppc64le":
 		return []byte{
 			BitsPointer,                        // q *int
 			BitsScalar, BitsScalar, BitsScalar, // w byte; e [17]byte

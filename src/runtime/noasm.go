@@ -5,7 +5,7 @@
 // Routines that are implemented in assembly in asm_{amd64,386}.s
 // but are implemented in Go for arm.
 
-// +build arm power64 power64le
+// +build arm ppc64 ppc64le
 
 package runtime
 

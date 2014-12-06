@@ -1,10 +1,7 @@
 #include "textflag.h"
 
-// actually a function descriptor for _main<>(SB)
-TEXT _rt0_power64_linux(SB),NOSPLIT,$0
-	DWORD $_main<>(SB)
-	DWORD $0
-	DWORD $0
+TEXT _rt0_ppc64le_linux(SB),NOSPLIT,$0
+	BR _main<>(SB)
 
 TEXT _main<>(SB),NOSPLIT,$-8
 	MOVD 0(R1), R3 // argc

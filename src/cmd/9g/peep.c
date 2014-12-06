@@ -935,7 +935,7 @@ copyau1(Prog *p, Addr *v)
 }
 
 // copysub replaces v with s in a if f!=0 or indicates it if could if f==0.
-// Returns 1 on failure to substitute (it always succeeds on power64).
+// Returns 1 on failure to substitute (it always succeeds on ppc64).
 static int
 copysub(Addr *a, Addr *v, Addr *s, int f)
 {
@@ -946,7 +946,7 @@ copysub(Addr *a, Addr *v, Addr *s, int f)
 }
 
 // copysub1 replaces v with s in p1->reg if f!=0 or indicates if it could if f==0.
-// Returns 1 on failure to substitute (it always succeeds on power64).
+// Returns 1 on failure to substitute (it always succeeds on ppc64).
 static int
 copysub1(Prog *p1, Addr *v, Addr *s, int f)
 {

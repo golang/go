@@ -7,17 +7,17 @@
 #include "gg.h"
 
 int	thechar	= '9';
-char*	thestring = "power64";
+char*	thestring = "ppc64";
 LinkArch*	thelinkarch;
 
 void
 linkarchinit(void)
 {
 	thestring = getgoarch();
-	if(strcmp(thestring, "power64le") == 0)
-		thelinkarch = &linkpower64le;
+	if(strcmp(thestring, "ppc64le") == 0)
+		thelinkarch = &linkppc64le;
 	else
-		thelinkarch = &linkpower64;
+		thelinkarch = &linkppc64;
 }
 
 vlong MAXWIDTH = 1LL<<50;

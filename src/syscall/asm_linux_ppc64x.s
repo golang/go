@@ -3,12 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // +build linux
-// +build power64 power64le
+// +build ppc64 ppc64le
 
 #include "textflag.h"
 
 //
-// System calls for Power64, Linux
+// System calls for ppc64, Linux
 //
 
 // func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);

@@ -240,9 +240,9 @@ var disasms = map[string]disasmFunc{
 }
 
 var byteOrders = map[string]binary.ByteOrder{
-	"386":       binary.LittleEndian,
-	"amd64":     binary.LittleEndian,
-	"arm":       binary.LittleEndian,
-	"power64":   binary.BigEndian,
-	"power64le": binary.LittleEndian,
+	"386":     binary.LittleEndian,
+	"amd64":   binary.LittleEndian,
+	"arm":     binary.LittleEndian,
+	"ppc64":   binary.BigEndian,
+	"ppc64le": binary.LittleEndian,
 }

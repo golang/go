@@ -129,7 +129,7 @@ archreloc(Reloc *r, LSym *s, vlong *val)
 		*val = symaddr(r->sym) + r->add - symaddr(linklookup(ctxt, ".got", 0));
 		return 0;
 	case R_ADDRPOWER:
-		// r->add is two power64 instructions holding an immediate 32-bit constant.
+		// r->add is two ppc64 instructions holding an immediate 32-bit constant.
 		// We want to add r->sym's address to that constant.
 		// The encoding of the immediate x<<16 + y,
 		// where x is the low 16 bits of the first instruction and y is the low 16

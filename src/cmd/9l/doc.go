@@ -6,9 +6,9 @@
 
 /*
 
-9l is the linker for the Power64.
-The $GOARCH for these tools is power64 (big endian) or
-power64le (little endian).
+9l is the linker for 64-bit PowerPC and Power Architecture processors.
+The $GOARCH for these tools is ppc64 (big endian) or
+ppc64le (little endian).
 
 The flags are documented in ../ld/doc.go.
 

@@ -6,9 +6,9 @@
 
 /*
 
-9g is the version of the gc compiler for the Power64.
-The $GOARCH for these tools is power64 (big endian) or
-power64le (little endian).
+9g is the version of the gc compiler for 64-bit PowerPC or Power Architecture processors.
+The $GOARCH for these tools is ppc64 (big endian) or
+ppc64le (little endian).
 
 It reads .go files and outputs .9 files. The flags are documented in ../gc/doc.go.
 

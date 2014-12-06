@@ -4,10 +4,10 @@
 
 #include "textflag.h"
 
-#ifdef GOARCH_power64
+#ifdef GOARCH_ppc64
 #define RET RETURN
 #endif
-#ifdef GOARCH_power64le
+#ifdef GOARCH_ppc64le
 #define RET RETURN
 #endif
 
