@@ -14,8 +14,7 @@ const (
 
 var _vdso uint32
 
-//go:nosplit
-func linux_setup_vdso(argc int32, argv **byte) {
+func sysargs(argc int32, argv **byte) {
 	// skip over argv, envv to get to auxv
 	n := argc + 1
 	for argv_index(argv, n) != nil {

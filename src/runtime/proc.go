@@ -181,6 +181,9 @@ func acquireSudog() *sudog {
 	// which keeps the garbage collector from being invoked.
 	mp := acquirem()
 	p := new(sudog)
+	if p.elem != nil {
+		gothrow("acquireSudog: found p.elem != nil after new")
+	}
 	releasem(mp)
 	return p
 }

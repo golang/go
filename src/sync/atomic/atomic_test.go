@@ -164,7 +164,7 @@ func TestSwapPointer(t *testing.T) {
 	x.before = magicptr
 	x.after = magicptr
 	var j uintptr
-	for delta := uintptr(1); delta+delta > delta; delta += delta {
+	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
 		k := SwapPointer(&x.i, unsafe.Pointer(delta))
 		if uintptr(x.i) != delta || uintptr(k) != j {
 			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
@@ -456,7 +456,7 @@ func TestCompareAndSwapPointer(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	for val := uintptr(1); val+val > val; val += val {
+	for val := uintptr(1 << 16); val+val > val; val += val {
 		x.i = unsafe.Pointer(val)
 		if !CompareAndSwapPointer(&x.i, unsafe.Pointer(val), unsafe.Pointer(val+1)) {
 			t.Fatalf("should have swapped %#x %#x", val, val+1)
@@ -595,7 +595,7 @@ func TestLoadPointer(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	for delta := uintptr(1); delta+delta > delta; delta += delta {
+	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
 		k := LoadPointer(&x.i)
 		if k != x.i {
 			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
@@ -731,7 +731,7 @@ func TestStorePointer(t *testing.T) {
 	x.before = magicptr
 	x.after = magicptr
 	v := unsafe.Pointer(uintptr(0))
-	for delta := uintptr(1); delta+delta > delta; delta += delta {
+	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
 		StorePointer(&x.i, unsafe.Pointer(v))
 		if x.i != v {
 			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)

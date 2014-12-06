@@ -2891,7 +2891,8 @@ typecheckas(Node *n)
 		case OSLICE3:
 		case OSLICESTR:
 			// For x = x[0:y], x can be updated in place, without touching pointer.
-			if(samesafeexpr(n->left, n->right->left) && (n->right->right->left == N || iszero(n->right->right->left)))
+			// TODO(rsc): Reenable once it is actually updated in place without touching the pointer.
+			if(0 && samesafeexpr(n->left, n->right->left) && (n->right->right->left == N || iszero(n->right->right->left)))
 				n->right->reslice = 1;
 			break;
 		
@@ -2899,7 +2900,8 @@ typecheckas(Node *n)
 			// For x = append(x, ...), x can be updated in place when there is capacity,
 			// without touching the pointer; otherwise the emitted code to growslice
 			// can take care of updating the pointer, and only in that case.
-			if(n->right->list != nil && samesafeexpr(n->left, n->right->list->n))
+			// TODO(rsc): Reenable once the emitted code does update the pointer.
+			if(0 && n->right->list != nil && samesafeexpr(n->left, n->right->list->n))
 				n->right->reslice = 1;
 			break;
 		}

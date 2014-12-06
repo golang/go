@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build !linux !amd64
+// +build !linux !386
 
 package runtime
 

@@ -231,3 +231,8 @@ func call536870912(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call1073741824(fn, arg unsafe.Pointer, n, retoffset uint32)
 
 func systemstack_switch()
+
+func prefetcht0(addr uintptr)
+func prefetcht1(addr uintptr)
+func prefetcht2(addr uintptr)
+func prefetchnta(addr uintptr)

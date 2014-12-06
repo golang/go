@@ -50,12 +50,15 @@ const (
 
 	// If you change these, also change scanblock.
 	// scanblock does "if(bits == BitsScalar || bits == BitsDead)" as "if(bits <= BitsScalar)".
-	_BitsDead    = 0
-	_BitsScalar  = 1
-	_BitsPointer = 2
+	_BitsDead          = 0
+	_BitsScalar        = 1                                // 01
+	_BitsPointer       = 2                                // 10
+	_BitsCheckMarkXor  = 1                                // 10
+	_BitsScalarMarked  = _BitsScalar ^ _BitsCheckMarkXor  // 00
+	_BitsPointerMarked = _BitsPointer ^ _BitsCheckMarkXor // 11
 
 	// 64 bytes cover objects of size 1024/512 on 64/32 bits, respectively.
-	_MaxGCMask = 64
+	_MaxGCMask = 65536 // TODO(rsc): change back to 64
 )
 
 // Bits in per-word bitmap.

@@ -139,8 +139,33 @@ const (
 )
 
 // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
+// Since assignments to mlink.next will result in a write barrier being preformed
+// this can not be used by some of the internal GC structures. For example when
+// the sweeper is placing an unmarked object on the free list it does not want the
+// write barrier to be called since that could result in the object being reachable.
 type mlink struct {
 	next *mlink
+}
+
+// A gclink is a node in a linked list of blocks, like mlink,
+// but it is opaque to the garbage collector.
+// The GC does not trace the pointers during collection,
+// and the compiler does not emit write barriers for assignments
+// of gclinkptr values. Code should store references to gclinks
+// as gclinkptr, not as *gclink.
+type gclink struct {
+	next gclinkptr
+}
+
+// A gclinkptr is a pointer to a gclink, but it is opaque
+// to the garbage collector.
+type gclinkptr uintptr
+
+// ptr returns the *gclink form of p.
+// The result should be used for accessing fields, not stored
+// in other data structures.
+func (p gclinkptr) ptr() *gclink {
+	return (*gclink)(unsafe.Pointer(p))
 }
 
 // sysAlloc obtains a large chunk of zeroed memory from the
@@ -275,8 +300,8 @@ type mcachelist struct {
 }
 
 type stackfreelist struct {
-	list *mlink  // linked list of free stacks
-	size uintptr // total size of stacks in list
+	list gclinkptr // linked list of free stacks
+	size uintptr   // total size of stacks in list
 }
 
 // Per-thread (in Go, per-P) cache for small objects.
@@ -298,8 +323,6 @@ type mcache struct {
 	stackcache [_NumStackOrders]stackfreelist
 
 	sudogcache *sudog
-
-	gcworkbuf unsafe.Pointer
 
 	// Local allocator stats, flushed during GC.
 	local_nlookup    uintptr                  // number of pointer lookups
@@ -348,11 +371,11 @@ const (
 )
 
 type mspan struct {
-	next     *mspan  // in a span linked list
-	prev     *mspan  // in a span linked list
-	start    pageID  // starting page number
-	npages   uintptr // number of pages in span
-	freelist *mlink  // list of free objects
+	next     *mspan    // in a span linked list
+	prev     *mspan    // in a span linked list
+	start    pageID    // starting page number
+	npages   uintptr   // number of pages in span
+	freelist gclinkptr // list of free objects
 	// sweep generation:
 	// if sweepgen == h->sweepgen - 2, the span needs sweeping
 	// if sweepgen == h->sweepgen - 1, the span is currently being swept

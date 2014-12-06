@@ -9,7 +9,6 @@ TEXT _rt0_386_linux(SB),NOSPLIT,$8
 	LEAL	12(SP), BX
 	MOVL	AX, 0(SP)
 	MOVL	BX, 4(SP)
-	CALL	runtime·linux_setup_vdso(SB)
 	CALL	main(SB)
 	INT	$3
 

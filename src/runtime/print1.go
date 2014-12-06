@@ -41,7 +41,31 @@ func snprintf(dst *byte, n int32, s *byte) {
 	gp.writebuf = nil
 }
 
-//var debuglock mutex
+var debuglock mutex
+
+// The compiler emits calls to printlock and printunlock around
+// the multiple calls that implement a single Go print or println
+// statement. Some of the print helpers (printsp, for example)
+// call print recursively. There is also the problem of a crash
+// happening during the print routines and needing to acquire
+// the print lock to print information about the crash.
+// For both these reasons, let a thread acquire the printlock 'recursively'.
+
+func printlock() {
+	mp := getg().m
+	mp.printlock++
+	if mp.printlock == 1 {
+		lock(&debuglock)
+	}
+}
+
+func printunlock() {
+	mp := getg().m
+	mp.printlock--
+	if mp.printlock == 0 {
+		unlock(&debuglock)
+	}
+}
 
 // write to goroutine-local buffer if diverting output,
 // or else standard error.
@@ -80,7 +104,7 @@ func printnl() {
 // Very simple printf.  Only for debugging prints.
 // Do not add to this without checking with Rob.
 func vprintf(str string, arg unsafe.Pointer) {
-	//lock(&debuglock);
+	printlock()
 
 	s := bytes(str)
 	start := 0
@@ -160,7 +184,7 @@ func vprintf(str string, arg unsafe.Pointer) {
 		gwrite(s[start:i])
 	}
 
-	//unlock(&debuglock);
+	printunlock()
 }
 
 func printpc(p unsafe.Pointer) {
