@@ -29,7 +29,6 @@ import (
 type SyntaxError struct {
 	Msg  string
 	Line int
-	Byte int64 // byte offset from start of stream
 }
 
 func (e *SyntaxError) Error() string {
