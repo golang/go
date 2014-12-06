@@ -268,11 +268,11 @@ TestCases:
 				name := m[1]
 				size, _ := strconv.Atoi(m[2])
 
-				// The limit was originally 128 but is now 384.
+				// The limit was originally 128 but is now 512.
 				// Instead of rewriting the test cases above, adjust
 				// the first stack frame to use up the extra 32 bytes.
 				if i == 0 {
-					size += 384 - 128
+					size += 512 - 128
 				}
 
 				if size%ptrSize == 4 {
