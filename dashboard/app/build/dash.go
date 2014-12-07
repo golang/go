@@ -135,11 +135,6 @@ var gitPackages = []*Package{
 	},
 	{
 		Kind: "subrepo",
-		Name: "codereview",
-		Path: "golang.org/x/codereview",
-	},
-	{
-		Kind: "subrepo",
 		Name: "crypto",
 		Path: "golang.org/x/crypto",
 	},
@@ -155,6 +150,11 @@ var gitPackages = []*Package{
 	},
 	{
 		Kind: "subrepo",
+		Name: "mobile",
+		Path: "golang.org/x/mobile",
+	},
+	{
+		Kind: "subrepo",
 		Name: "net",
 		Path: "golang.org/x/net",
 	},
@@ -167,6 +167,11 @@ var gitPackages = []*Package{
 		Kind: "subrepo",
 		Name: "talks",
 		Path: "golang.org/x/talks",
+	},
+	{
+		Kind: "subrepo",
+		Name: "text",
+		Path: "golang.org/x/text",
 	},
 	{
 		Kind: "subrepo",
