@@ -86,13 +86,13 @@ var cmdRedirects = map[string]string{
 var redirects = map[string]string{
 	"/blog":       "/blog/",
 	"/build":      "http://build.golang.org",
-	"/change":     "https://code.google.com/p/go/source/list",
-	"/cl":         "https://gocodereview.appspot.com/",
+	"/change":     "https://go.googlesource.com/go",
+	"/cl":         "https://go-review.googlesource.com",
 	"/cmd/godoc/": "http://godoc.org/golang.org/x/tools/cmd/godoc/",
 	"/cmd/vet/":   "http://godoc.org/golang.org/x/tools/cmd/vet/",
-	"/issue":      "https://code.google.com/p/go/issues",
-	"/issue/new":  "https://code.google.com/p/go/issues/entry",
-	"/issues":     "https://code.google.com/p/go/issues",
+	"/issue":      "https://github.com/golang/go/issues",
+	"/issue/new":  "https://github.com/golang/go/issues/new",
+	"/issues":     "https://github.com/golang/go/issues",
 	"/play":       "http://play.golang.org",
 
 	// In Go 1.2 the references page is part of /doc/.
@@ -107,7 +107,7 @@ var redirects = map[string]string{
 
 	"/talks": "http://talks.golang.org",
 	"/tour":  "http://tour.golang.org",
-	"/wiki":  "https://code.google.com/p/go-wiki/w/list",
+	"/wiki":  "https://github.com/golang/go/wiki",
 
 	"/doc/articles/c_go_cgo.html":                    "/blog/c-go-cgo",
 	"/doc/articles/concurrency_patterns.html":        "/blog/go-concurrency-patterns-timing-out-and",
@@ -127,11 +127,15 @@ var redirects = map[string]string{
 }
 
 var prefixHelpers = map[string]string{
+	// TODO(adg): add redirects from known hg hashes to the git equivalents
+	// and switch this to point to "https://go.googlesource.com/go/+/".
+	// (We can only change this once we know all the new git hashes.)
 	"change": "https://code.google.com/p/go/source/detail?r=",
-	"issue":  "https://code.google.com/p/go/issues/detail?id=",
-	"play":   "http://play.golang.org/",
-	"talks":  "http://talks.golang.org/",
-	"wiki":   "https://code.google.com/p/go-wiki/wiki/",
+
+	"issue": "https://github.com/golang/go/issues/",
+	"play":  "http://play.golang.org/",
+	"talks": "http://talks.golang.org/",
+	"wiki":  "https://github.com/golang/go/wiki/",
 }
 
 func Handler(target string) http.Handler {
