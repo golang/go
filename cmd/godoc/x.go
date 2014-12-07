@@ -22,21 +22,21 @@ type xRepo struct {
 }
 
 var xMap = map[string]xRepo{
-	"benchmarks": {"https://code.google.com/p/go.benchmarks", "hg"},
-	"blog":       {"https://code.google.com/p/go.blog", "hg"},
 	"codereview": {"https://code.google.com/p/go.codereview", "hg"},
-	"crypto":     {"https://code.google.com/p/go.crypto", "hg"},
-	"exp":        {"https://code.google.com/p/go.exp", "hg"},
-	"image":      {"https://code.google.com/p/go.image", "hg"},
-	"mobile":     {"https://code.google.com/p/go.mobile", "hg"},
-	"net":        {"https://code.google.com/p/go.net", "hg"},
-	"sys":        {"https://code.google.com/p/go.sys", "hg"},
-	"talks":      {"https://code.google.com/p/go.talks", "hg"},
-	"text":       {"https://code.google.com/p/go.text", "hg"},
-	"tools":      {"https://code.google.com/p/go.tools", "hg"},
 
-	"oauth2": {"https://go.googlesource.com/oauth2", "git"},
-	"review": {"https://go.googlesource.com/review", "git"},
+	"benchmarks": {"https://go.googlesource.com/benchmarks", "git"},
+	"blog":       {"https://go.googlesource.com/blog", "git"},
+	"crypto":     {"https://go.googlesource.com/crypto", "git"},
+	"exp":        {"https://go.googlesource.com/exp", "git"},
+	"image":      {"https://go.googlesource.com/image", "git"},
+	"mobile":     {"https://go.googlesource.com/mobile", "git"},
+	"net":        {"https://go.googlesource.com/net", "git"},
+	"oauth2":     {"https://go.googlesource.com/oauth2", "git"},
+	"review":     {"https://go.googlesource.com/review", "git"},
+	"sys":        {"https://go.googlesource.com/sys", "git"},
+	"talks":      {"https://go.googlesource.com/talks", "git"},
+	"text":       {"https://go.googlesource.com/text", "git"},
+	"tools":      {"https://go.googlesource.com/tools", "git"},
 }
 
 func init() {
