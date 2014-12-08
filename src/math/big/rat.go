@@ -326,14 +326,14 @@ func (z *Rat) SetFrac64(a, b int64) *Rat {
 // SetInt sets z to x (by making a copy of x) and returns z.
 func (z *Rat) SetInt(x *Int) *Rat {
 	z.a.Set(x)
-	z.b.abs = z.b.abs.make(0)
+	z.b.abs = z.b.abs[:0]
 	return z
 }
 
 // SetInt64 sets z to x and returns z.
 func (z *Rat) SetInt64(x int64) *Rat {
 	z.a.SetInt64(x)
-	z.b.abs = z.b.abs.make(0)
+	z.b.abs = z.b.abs[:0]
 	return z
 }
 
@@ -372,7 +372,7 @@ func (z *Rat) Inv(x *Rat) *Rat {
 	}
 	b := z.a.abs
 	if b.cmp(natOne) == 0 {
-		b = b.make(0) // normalize denominator
+		b = b[:0] // normalize denominator
 	}
 	z.a.abs, z.b.abs = a, b // sign doesn't change
 	return z
@@ -417,12 +417,12 @@ func (z *Rat) norm() *Rat {
 	case len(z.a.abs) == 0:
 		// z == 0 - normalize sign and denominator
 		z.a.neg = false
-		z.b.abs = z.b.abs.make(0)
+		z.b.abs = z.b.abs[:0]
 	case len(z.b.abs) == 0:
 		// z is normalized int - nothing to do
 	case z.b.abs.cmp(natOne) == 0:
 		// z is int - normalize denominator
-		z.b.abs = z.b.abs.make(0)
+		z.b.abs = z.b.abs[:0]
 	default:
 		neg := z.a.neg
 		z.a.neg = false
@@ -432,7 +432,7 @@ func (z *Rat) norm() *Rat {
 			z.b.abs, _ = z.b.abs.div(nil, z.b.abs, f.abs)
 			if z.b.abs.cmp(natOne) == 0 {
 				// z is int - normalize denominator
-				z.b.abs = z.b.abs.make(0)
+				z.b.abs = z.b.abs[:0]
 			}
 		}
 		z.a.neg = neg
@@ -561,32 +561,26 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 
 	// parse floating-point number
-
-	// parse sign
-	var neg bool
-	switch s[0] {
-	case '-':
-		neg = true
-		fallthrough
-	case '+':
-		s = s[1:]
-	}
-
-	// parse exponent, if any
-	var exp int64
-	if sep := strings.IndexAny(s, "eE"); sep >= 0 {
-		var err error
-		if exp, err = strconv.ParseInt(s[sep+1:], 10, 64); err != nil {
-			return nil, false
-		}
-		s = s[:sep]
-	}
-
-	// parse mantissa
-	var err error
-	var ecorr int // exponent correction, valid if ecorr <= 0
 	r := strings.NewReader(s)
-	if z.a.abs, _, ecorr, err = z.a.abs.scan(r, 1); err != nil {
+
+	// sign
+	neg, err := scanSign(r)
+	if err != nil {
+		return nil, false
+	}
+
+	// mantissa
+	var ecorr int
+	z.a.abs, _, ecorr, err = z.a.abs.scan(r, 1)
+	if err != nil {
+		return nil, false
+	}
+
+	// exponent
+	var exp int64
+	var ebase int
+	exp, ebase, err = scanExponent(r)
+	if ebase == 2 || err != nil {
 		return nil, false
 	}
 
@@ -600,7 +594,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		exp += int64(ecorr)
 	}
 
-	// compute exponent factor
+	// compute exponent power
 	expabs := exp
 	if expabs < 0 {
 		expabs = -expabs
@@ -619,6 +613,64 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	z.a.neg = neg && len(z.a.abs) > 0 // 0 has no sign
 
 	return z, true
+}
+
+func scanExponent(r io.RuneScanner) (exp int64, base int, err error) {
+	base = 10
+
+	var ch rune
+	if ch, _, err = r.ReadRune(); err != nil {
+		if err == io.EOF {
+			err = nil // no exponent; same as e0
+		}
+		return
+	}
+
+	switch ch {
+	case 'e', 'E':
+		// ok
+	case 'p':
+		base = 2
+	default:
+		r.UnreadRune()
+		return // no exponent; same as e0
+	}
+
+	var neg bool
+	if neg, err = scanSign(r); err != nil {
+		return
+	}
+
+	var digits []byte
+	if neg {
+		digits = append(digits, '-')
+	}
+
+	// no need to use nat.scan for exponent digits
+	// since we only care about int64 values - the
+	// from-scratch scan is easy enough and faster
+	for i := 0; ; i++ {
+		if ch, _, err = r.ReadRune(); err != nil {
+			if err != io.EOF || i == 0 {
+				return
+			}
+			err = nil
+			break // i > 0
+		}
+		if ch < '0' || '9' < ch {
+			if i == 0 {
+				r.UnreadRune()
+				err = fmt.Errorf("invalid exponent (missing digits)")
+				return
+			}
+			break // i > 0
+		}
+		digits = append(digits, byte(ch))
+	}
+	// i > 0 => we have at least one digit
+
+	exp, err = strconv.ParseInt(string(digits), 10, 64)
+	return
 }
 
 // String returns a string representation of x in the form "a/b" (even if b == 1).

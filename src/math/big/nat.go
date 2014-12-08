@@ -5,18 +5,22 @@
 // Package big implements multi-precision arithmetic (big numbers).
 // The following numeric types are supported:
 //
-//	- Int	signed integers
-//	- Rat	rational numbers
+//   Int    signed integers
+//   Rat    rational numbers
+//   Float  floating-point numbers
 //
 // Methods are typically of the form:
 //
-//	func (z *Int) Op(x, y *Int) *Int	(similar for *Rat)
+//   func (z *T) Unary(x *T) *T        // z = op x
+//   func (z *T) Binary(x, y *T) *T    // z = x op y
+//   func (x *T) M() T1                // v = x.M()
 //
-// and implement operations z = x Op y with the result as receiver; if it
-// is one of the operands it may be overwritten (and its memory reused).
+// with T one of Int, Rat, or Float. For unary and binary operations, the
+// result is the receiver (usually named z in that case); if it is one of
+// the operands x or y it may be overwritten (and its memory reused).
 // To enable chaining of operations, the result is also returned. Methods
-// returning a result other than *Int or *Rat take one of the operands as
-// the receiver.
+// returning a result other than *Int, *Rat, or *Float take an operand as
+// the receiver (usually named x in that case).
 //
 package big
 
@@ -1196,6 +1200,28 @@ func (x nat) bit(i uint) uint {
 	}
 	// 0 <= j < len(x)
 	return uint(x[j] >> (i % _W) & 1)
+}
+
+// sticky returns 1 if there's a 1 bit within the
+// i least significant bits, otherwise it returns 0.
+func (x nat) sticky(i uint) uint {
+	j := i / _W
+	if j >= uint(len(x)) {
+		if len(x) == 0 {
+			return 0
+		}
+		return 1
+	}
+	// 0 <= j < len(x)
+	for _, x := range x[:j] {
+		if x != 0 {
+			return 1
+		}
+	}
+	if x[j]<<(_W-i%_W) != 0 {
+		return 1
+	}
+	return 0
 }
 
 func (z nat) and(x, y nat) nat {

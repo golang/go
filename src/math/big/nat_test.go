@@ -894,3 +894,43 @@ func TestBit(t *testing.T) {
 		}
 	}
 }
+
+var stickyTests = []struct {
+	x    string
+	i    uint
+	want uint
+}{
+	{"0", 0, 0},
+	{"0", 1, 0},
+	{"0", 1000, 0},
+
+	{"0x1", 0, 0},
+	{"0x1", 1, 1},
+
+	{"0x1350", 0, 0},
+	{"0x1350", 4, 0},
+	{"0x1350", 5, 1},
+
+	{"0x8000000000000000", 63, 0},
+	{"0x8000000000000000", 64, 1},
+
+	{"0x1" + strings.Repeat("0", 100), 400, 0},
+	{"0x1" + strings.Repeat("0", 100), 401, 1},
+}
+
+func TestSticky(t *testing.T) {
+	for i, test := range stickyTests {
+		x := natFromString(test.x)
+		if got := x.sticky(test.i); got != test.want {
+			t.Errorf("#%d: %s.sticky(%d) = %v; want %v", i, test.x, test.i, got, test.want)
+		}
+		if test.want == 1 {
+			// all subsequent i's should also return 1
+			for d := uint(1); d <= 3; d++ {
+				if got := x.sticky(test.i + d); got != 1 {
+					t.Errorf("#%d: %s.sticky(%d) = %v; want %v", i, test.x, test.i+d, got, 1)
+				}
+			}
+		}
+	}
+}
