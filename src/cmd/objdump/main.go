@@ -80,7 +80,7 @@ func main() {
 
 	dis, err := f.Disasm()
 	if err != nil {
-		log.Fatal("disassemble %s: %v", flag.Arg(0), err)
+		log.Fatalf("disassemble %s: %v", flag.Arg(0), err)
 	}
 
 	switch flag.NArg() {
