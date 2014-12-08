@@ -463,17 +463,9 @@ func (x *Int) Format(s fmt.State, ch rune) {
 //
 func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, error) {
 	// determine sign
-	ch, _, err := r.ReadRune()
+	neg, err := scanSign(r)
 	if err != nil {
 		return nil, 0, err
-	}
-	neg := false
-	switch ch {
-	case '-':
-		neg = true
-	case '+': // nothing to do
-	default:
-		r.UnreadRune()
 	}
 
 	// determine mantissa
@@ -484,6 +476,22 @@ func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, error) {
 	z.neg = len(z.abs) > 0 && neg // 0 has no sign
 
 	return z, base, nil
+}
+
+func scanSign(r io.RuneScanner) (neg bool, err error) {
+	var ch rune
+	if ch, _, err = r.ReadRune(); err != nil {
+		return false, err
+	}
+	switch ch {
+	case '-':
+		neg = true
+	case '+':
+		// nothing to do
+	default:
+		r.UnreadRune()
+	}
+	return
 }
 
 // Scan is a support routine for fmt.Scanner; it sets z to the value of
