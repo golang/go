@@ -48,4 +48,5 @@ goinstall.log
 last-change
 VERSION.cache
 
+bin/
 pkg/
