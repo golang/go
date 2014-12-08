@@ -908,7 +908,6 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 
 var skipOkay = map[string]bool{
 	"fixedbugs/bug248.go": true, // combines errorcheckdir and rundir in the same dir.
-	"fixedbugs/bug302.go": true, // tests both .$O and .a imports.
 	"fixedbugs/bug345.go": true, // needs the appropriate flags in gc invocation.
 	"fixedbugs/bug369.go": true, // needs compiler flags.
 	"fixedbugs/bug429.go": true, // like "run" but program should fail
