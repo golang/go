@@ -1418,7 +1418,7 @@ Node*	cheapexpr(Node *n, NodeList **init);
 Node*	localexpr(Node *n, Type *t, NodeList **init);
 void	saveorignode(Node *n);
 int32	setlineno(Node *n);
-void	setmaxarg(Type *t);
+void	setmaxarg(Type *t, int32 extra);
 Type*	shallow(Type *t);
 int	simsimtype(Type *t);
 void	smagic(Magic *m);

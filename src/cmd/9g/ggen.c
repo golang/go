@@ -194,9 +194,14 @@ ginscall(Node *f, int proc)
 	Prog *p;
 	Node reg, con, reg2;
 	Node r1;
+	int32 extra;
 
-	if(f->type != T)
-		setmaxarg(f->type);
+	if(f->type != T) {
+		extra = 0;
+		if(proc == 1 || proc == 2)
+			extra = 2 * widthptr;
+		setmaxarg(f->type, extra);
+	}
 
 	switch(proc) {
 	default:
@@ -245,12 +250,6 @@ ginscall(Node *f, int proc)
 		nodreg(&reg2, types[TINT64], D_R0+4);
 		gmove(f, &reg);
 
-		p = gins(ASUB, N, N);
-		p->from.type = D_CONST;
-		p->from.offset = 3 * 8;
-		p->to.type = D_REG;
-		p->to.reg = REGSP;
-
 		gmove(&con, &reg2);
 		p = gins(AMOVW, &reg2, N);
 		p->to.type = D_OREG;
@@ -269,12 +268,6 @@ ginscall(Node *f, int proc)
 				fatal("hasdefer=0 but has defer");
 			ginscall(deferproc, 0);
 		}
-
-		p = gins(AADD, N, N);
-		p->from.type = D_CONST;
-		p->from.offset = 3 * 8;
-		p->to.type = D_REG;
-		p->to.reg = REGSP;
 
 		if(proc == 2) {
 			nodreg(&reg, types[TINT64], D_R0+3);
@@ -324,9 +317,11 @@ cgen_callinter(Node *n, Node *res, int proc)
 
 	nodindreg(&nodsp, types[tptr], D_R0+REGSP);
 	nodsp.xoffset = widthptr;
+	if(proc != 0)
+		nodsp.xoffset += 2 * widthptr; // leave room for size & fn
 	nodi.type = types[tptr];
 	nodi.xoffset += widthptr;
-	cgen(&nodi, &nodsp);	// 0(SP) = 8(REG) -- i.data
+	cgen(&nodi, &nodsp);	// {8 or 24}(SP) = 8(REG) -- i.data
 
 	regalloc(&nodo, types[tptr], res);
 	nodi.type = types[tptr];

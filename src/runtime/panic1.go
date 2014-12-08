@@ -4,8 +4,6 @@
 
 package runtime
 
-import "unsafe"
-
 // Code related to defer, panic and recover.
 // TODO: Merge into panic.go.
 
@@ -19,29 +17,19 @@ const hasLinkRegister = GOARCH == "arm" || GOARCH == "ppc64" || GOARCH == "ppc64
 // the caller of the deferred function returned normally.
 func recovery(gp *g) {
 	// Info about defer passed in G struct.
-	argp := (unsafe.Pointer)(gp.sigcode0)
-	pc := uintptr(gp.sigcode1)
+	sp := gp.sigcode0
+	pc := gp.sigcode1
 
 	// d's arguments need to be in the stack.
-	if argp != nil && (uintptr(argp) < gp.stack.lo || gp.stack.hi < uintptr(argp)) {
-		print("recover: ", argp, " not in [", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
+	if sp != 0 && (sp < gp.stack.lo || gp.stack.hi < sp) {
+		print("recover: ", hex(sp), " not in [", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
 		gothrow("bad recovery")
 	}
 
 	// Make the deferproc for this d return again,
 	// this time returning 1.  The calling function will
 	// jump to the standard return epilogue.
-	// The -2*sizeof(uintptr) makes up for the
-	// two extra words that are on the stack at
-	// each call to deferproc.
-	// (The pc we're returning to does pop pop
-	// before it tests the return value.)
-	// On the arm and power there are 2 saved LRs mixed in too.
-	if hasLinkRegister {
-		gp.sched.sp = uintptr(argp) - 4*ptrSize
-	} else {
-		gp.sched.sp = uintptr(argp) - 2*ptrSize
-	}
+	gp.sched.sp = sp
 	gp.sched.pc = pc
 	gp.sched.lr = 0
 	gp.sched.ret = 1

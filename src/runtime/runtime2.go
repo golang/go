@@ -508,7 +508,7 @@ var invalidptr int32
 type _defer struct {
 	siz     int32
 	started bool
-	argp    uintptr // where args were copied from
+	sp      uintptr // sp at time of defer
 	pc      uintptr
 	fn      *funcval
 	_panic  *_panic // panic that is running defer

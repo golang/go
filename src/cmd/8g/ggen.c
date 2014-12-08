@@ -237,10 +237,15 @@ void
 ginscall(Node *f, int proc)
 {
 	Prog *p;
-	Node reg, r1, con;
+	Node reg, r1, con, stk;
+	int32 extra;
 
-	if(f->type != T)
-		setmaxarg(f->type);
+	if(f->type != T) {
+		extra = 0;
+		if(proc == 1 || proc == 2)
+			extra = 2 * widthptr;
+		setmaxarg(f->type, extra);
+	}
 
 	switch(proc) {
 	default:
@@ -284,18 +289,25 @@ ginscall(Node *f, int proc)
 
 	case 1:	// call in new proc (go)
 	case 2:	// deferred call (defer)
-		nodreg(&reg, types[TINT32], D_CX);
-		gins(APUSHL, f, N);
+		memset(&stk, 0, sizeof(stk));
+		stk.op = OINDREG;
+		stk.val.u.reg = D_SP;
+		stk.xoffset = 0;
+
+		// size of arguments at 0(SP)
 		nodconst(&con, types[TINT32], argsize(f->type));
-		gins(APUSHL, &con, N);
+		gins(AMOVL, &con, &stk);
+
+		// FuncVal* at 4(SP)
+		stk.xoffset = widthptr;
+		gins(AMOVL, f, &stk);
+
 		if(proc == 1)
 			ginscall(newproc, 0);
 		else
 			ginscall(deferproc, 0);
-		gins(APOPL, N, &reg);
-		gins(APOPL, N, &reg);
 		if(proc == 2) {
-			nodreg(&reg, types[TINT64], D_AX);
+			nodreg(&reg, types[TINT32], D_AX);
 			gins(ATESTL, &reg, &reg);
 			p = gbranch(AJEQ, T, +1);
 			cgen_ret(N);
@@ -338,9 +350,12 @@ cgen_callinter(Node *n, Node *res, int proc)
 	igen(i, &nodi, res);		// REG = &inter
 
 	nodindreg(&nodsp, types[tptr], D_SP);
+	nodsp.xoffset = 0;
+	if(proc != 0)
+		nodsp.xoffset += 2 * widthptr; // leave room for size & fn
 	nodi.type = types[tptr];
 	nodi.xoffset += widthptr;
-	cgen(&nodi, &nodsp);	// 0(SP) = 4(REG) -- i.data
+	cgen(&nodi, &nodsp);	// {0 or 8}(SP) = 4(REG) -- i.data
 
 	regalloc(&nodo, types[tptr], res);
 	nodi.type = types[tptr];

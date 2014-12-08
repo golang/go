@@ -32,13 +32,11 @@ const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
 
 var (
 	// initialized in tracebackinit
-	deferprocPC          uintptr
 	goexitPC             uintptr
 	jmpdeferPC           uintptr
 	mcallPC              uintptr
 	morestackPC          uintptr
 	mstartPC             uintptr
-	newprocPC            uintptr
 	rt0_goPC             uintptr
 	sigpanicPC           uintptr
 	systemstack_switchPC uintptr
@@ -51,13 +49,11 @@ func tracebackinit() {
 	// Instead of initializing the variables above in the declarations,
 	// schedinit calls this function so that the variables are
 	// initialized and available earlier in the startup sequence.
-	deferprocPC = funcPC(deferproc)
 	goexitPC = funcPC(goexit)
 	jmpdeferPC = funcPC(jmpdefer)
 	mcallPC = funcPC(mcall)
 	morestackPC = funcPC(morestack)
 	mstartPC = funcPC(mstart)
-	newprocPC = funcPC(newproc)
 	rt0_goPC = funcPC(rt0_go)
 	sigpanicPC = funcPC(sigpanic)
 	systemstack_switchPC = funcPC(systemstack_switch)
@@ -144,11 +140,10 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		frame.lr = lr0
 	}
 	waspanic := false
-	wasnewproc := false
 	printing := pcbuf == nil && callback == nil
 	_defer := gp._defer
 
-	for _defer != nil && uintptr(_defer.argp) == _NoArgs {
+	for _defer != nil && uintptr(_defer.sp) == _NoArgs {
 		_defer = _defer.link
 	}
 
@@ -251,32 +246,6 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 			setArgInfo(&frame, f, callback != nil)
 		}
 
-		// Determine function SP where deferproc would find its arguments.
-		var sparg uintptr
-		if usesLR {
-			// On link register architectures, that's the standard bottom-of-stack plus 1 word
-			// for the saved LR. If the previous frame was a direct call to newproc/deferproc,
-			// however, the SP is three words lower than normal.
-			// If the function has no frame at all - perhaps it just started, or perhaps
-			// it is a leaf with no local variables - then we cannot possibly find its
-			// SP in a defer, and we might confuse its SP for its caller's SP, so
-			// leave sparg=0 in that case.
-			if frame.fp != frame.sp {
-				sparg = frame.sp + regSize
-				if wasnewproc {
-					sparg += 3 * regSize
-				}
-			}
-		} else {
-			// On x86 that's the standard bottom-of-stack, so SP exactly.
-			// If the previous frame was a direct call to newproc/deferproc, however,
-			// the SP is two words lower than normal.
-			sparg = frame.sp
-			if wasnewproc {
-				sparg += 2 * ptrSize
-			}
-		}
-
 		// Determine frame's 'continuation PC', where it can continue.
 		// Normally this is the return address on the stack, but if sigpanic
 		// is immediately below this function on the stack, then the frame
@@ -289,7 +258,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		// returns; everything live at earlier deferprocs is still live at that one.
 		frame.continpc = frame.pc
 		if waspanic {
-			if _defer != nil && _defer.argp == sparg {
+			if _defer != nil && _defer.sp == frame.sp {
 				frame.continpc = _defer.pc
 			} else {
 				frame.continpc = 0
@@ -297,7 +266,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		}
 
 		// Unwind our local defer stack past this frame.
-		for _defer != nil && (_defer.argp == sparg || _defer.argp == _NoArgs) {
+		for _defer != nil && (_defer.sp == frame.sp || _defer.sp == _NoArgs) {
 			_defer = _defer.link
 		}
 
@@ -353,7 +322,6 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 
 	skipped:
 		waspanic = f.entry == sigpanicPC
-		wasnewproc = f.entry == newprocPC || f.entry == deferprocPC
 
 		// Do not unwind past the bottom of the stack.
 		if flr == nil {
@@ -438,10 +406,10 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 	// incomplete information then is still better than nothing.
 	if callback != nil && n < max && _defer != nil {
 		if _defer != nil {
-			print("runtime: g", gp.goid, ": leftover defer argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
+			print("runtime: g", gp.goid, ": leftover defer sp=", hex(_defer.sp), " pc=", hex(_defer.pc), "\n")
 		}
 		for _defer = gp._defer; _defer != nil; _defer = _defer.link {
-			print("\tdefer ", _defer, " argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
+			print("\tdefer ", _defer, " sp=", hex(_defer.sp), " pc=", hex(_defer.pc), "\n")
 		}
 		gothrow("traceback has leftover defers")
 	}
