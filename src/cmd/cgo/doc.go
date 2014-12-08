@@ -60,6 +60,18 @@ concatenated and used at link time.  All the pkg-config directives are
 concatenated and sent to pkg-config simultaneously to add to each appropriate
 set of command-line flags.
 
+When the cgo directives are parsed, any occurrence of the string ${SRCDIR}
+will be replaced by the absolute path to the directory containing the source
+file. This allows pre-compiled static libraries to be included in the package
+directory and linked properly.
+For example if package foo is in the directory /go/src/foo:
+
+       // #cgo LDFLAGS: -L${SRCDIR}/libs -lfoo
+
+Will be expanded to:
+
+       // #cgo LDFLAGS: -L/go/src/foo/libs -lfoo
+
 When the Go tool sees that one or more Go files use the special import
 "C", it will look for other non-Go files in the directory and compile
 them as part of the Go package.  Any .c, .s, or .S files will be

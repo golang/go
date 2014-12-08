@@ -1120,10 +1120,12 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		if err != nil {
 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
 		}
-		for _, arg := range args {
+		for i, arg := range args {
+			arg = expandSrcDir(arg, di.Dir)
 			if !safeCgoName(arg) {
 				return fmt.Errorf("%s: malformed #cgo argument: %s", filename, arg)
 			}
+			args[i] = arg
 		}
 
 		switch verb {
@@ -1142,6 +1144,14 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		}
 	}
 	return nil
+}
+
+func expandSrcDir(str string, srcdir string) string {
+	// "\" delimited paths cause safeCgoName to fail
+	// so convert native paths with a different delimeter
+	// to "/" before starting (eg: on windows)
+	srcdir = filepath.ToSlash(srcdir)
+	return strings.Replace(str, "${SRCDIR}", srcdir, -1)
 }
 
 // NOTE: $ is not safe for the shell, but it is allowed here because of linker options like -Wl,$ORIGIN.
