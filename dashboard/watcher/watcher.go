@@ -146,7 +146,16 @@ func (r *Repo) Watch() error {
 		if err := r.update(true); err != nil {
 			return err
 		}
-		for _, b := range r.branches {
+		remotes, err := r.remotes()
+		if err != nil {
+			return err
+		}
+		for _, name := range remotes {
+			b, ok := r.branches[name]
+			if !ok {
+				// skip branch; must be already merged
+				continue
+			}
 			if err := r.postNewCommits(b); err != nil {
 				return err
 			}
@@ -198,31 +207,28 @@ func (r *Repo) postNewCommits(b *Branch) error {
 			}
 		}
 	}
-	// Add unseen commits on this branch, working forward from last seen.
-	for c.children != nil {
-		// Find the next commit on this branch.
-		var next *Commit
-		for _, c2 := range c.children {
-			if c2.Branch != b.Name {
-				continue
-			}
-			if next != nil {
-				// Shouldn't happen, but be paranoid.
-				return fmt.Errorf("found multiple children of %v on branch %q: %v and %v", c, b.Name, next, c2)
-			}
-			next = c2
-		}
-		if next == nil {
-			// No more children on this branch, bail.
-			break
-		}
-		// Found it.
-		c = next
+	if err := r.postChildren(b, c); err != nil {
+		return err
+	}
+	b.LastSeen = b.Head
+	return nil
+}
 
+// postChildren posts to the dashboard all descendants of the given parent.
+// It ignores descendants that are not on the given branch.
+func (r *Repo) postChildren(b *Branch, parent *Commit) error {
+	for _, c := range parent.children {
+		if c.Branch != b.Name {
+			continue
+		}
 		if err := r.postCommit(c); err != nil {
 			return err
 		}
-		b.LastSeen = c
+	}
+	for _, c := range parent.children {
+		if err := r.postChildren(b, c); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -233,16 +239,17 @@ func (r *Repo) postCommit(c *Commit) error {
 
 	t, err := time.Parse("Mon, 2 Jan 2006 15:04:05 -0700", c.Date)
 	if err != nil {
-		return err
+		return fmt.Errorf("postCommit: parsing date %q for commit %v: %v", c.Date, c, err)
 	}
 	dc := struct {
 		PackagePath string // (empty for main repo commits)
 		Hash        string
 		ParentHash  string
 
-		User string
-		Desc string
-		Time time.Time
+		User   string
+		Desc   string
+		Time   time.Time
+		Branch string
 
 		NeedsBenchmarking bool
 	}{
@@ -250,36 +257,59 @@ func (r *Repo) postCommit(c *Commit) error {
 		Hash:        c.Hash,
 		ParentHash:  c.Parent,
 
-		User: c.Author,
-		Desc: c.Desc,
-		Time: t,
+		User:   c.Author,
+		Desc:   c.Desc,
+		Time:   t,
+		Branch: strings.TrimPrefix(c.Branch, origin),
 
 		NeedsBenchmarking: c.NeedsBenchmarking(),
 	}
 	b, err := json.Marshal(dc)
 	if err != nil {
-		return err
+		return fmt.Errorf("postCommit: marshaling request body: %v", err)
 	}
 
 	if !*network {
+		if c.Parent != "" {
+			if !networkSeen[c.Parent] {
+				r.logf("%v: %v", c.Parent, r.commits[c.Parent])
+				return fmt.Errorf("postCommit: no parent %v found on dashboard for %v", c.Parent, c)
+			}
+		}
+		if networkSeen[c.Hash] {
+			return fmt.Errorf("postCommit: already seen %v", c)
+		}
 		networkSeen[c.Hash] = true
 		return nil
 	}
 
-	// TODO(adg): bump version number
 	u := *dashboard + "commit?version=2&key=" + dashboardKey
 	resp, err := http.Post(u, "text/json", bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("status: %v", resp.Status)
+		return fmt.Errorf("postCommit: status: %v", resp.Status)
+	}
+
+	var s struct {
+		Error string
+	}
+	err = json.NewDecoder(resp.Body).Decode(&s)
+	if err != nil {
+		return fmt.Errorf("postCommit: decoding response: %v", err)
+	}
+	if s.Error != "" {
+		return fmt.Errorf("postCommit: error: %v", s.Error)
 	}
 	return nil
 }
 
-const master = "origin/master" // name of the master branch
+const (
+	origin = "origin/"
+	master = origin + "master" // name of the master branch
+)
 
 // update looks for new commits and branches,
 // and updates the commits and branches maps.
@@ -334,15 +364,17 @@ func (r *Repo) update(noisy bool) error {
 		for _, c := range added {
 			if c.Parent == "" {
 				// This is the initial commit; no parent.
+				r.logf("no parents for initial commit %v", c)
 				continue
 			}
 			// Find parent commit.
 			p, ok := r.commits[c.Parent]
 			if !ok {
-				return fmt.Errorf("can't find parent hash %q for %v", c.Parent, c)
+				return fmt.Errorf("can't find parent %q for %v", c.Parent, c)
 			}
-			// Link parent and child Commits.
+			// Link parent Commit.
 			c.parent = p
+			// Link child Commits.
 			p.children = append(p.children, c)
 		}
 
@@ -351,6 +383,7 @@ func (r *Repo) update(noisy bool) error {
 		if b != nil {
 			// Known branch; update head.
 			b.Head = head
+			r.logf("updated branch head: %v", b)
 		} else {
 			// It's a new branch; add it.
 			seen, err := r.lastSeen(head.Hash)
@@ -390,7 +423,7 @@ func (r *Repo) lastSeen(head string) (*Commit, error) {
 	})
 	switch {
 	case err != nil:
-		return nil, fmt.Errorf("lastSeen:", err)
+		return nil, fmt.Errorf("lastSeen: %v", err)
 	case i < len(s):
 		return s[i], nil
 	default:
@@ -411,6 +444,9 @@ func (r *Repo) dashSeen(hash string) (bool, error) {
 		return false, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return false, fmt.Errorf("status: %v", resp.Status)
+	}
 	var s struct {
 		Error string
 	}
@@ -455,6 +491,10 @@ func (r *Repo) remotes() ([]string, error) {
 		b = strings.TrimSpace(b)
 		// Ignore aliases, blank lines, and master (it's already in bs).
 		if b == "" || strings.Contains(b, "->") || b == master {
+			continue
+		}
+		// Ignore pre-go1 release branches; they are just noise.
+		if strings.HasPrefix(b, origin+"release-branch.r") {
 			continue
 		}
 		bs = append(bs, b)
@@ -558,7 +598,12 @@ type Commit struct {
 }
 
 func (c *Commit) String() string {
-	return fmt.Sprintf("%v(%q)", c.Hash, strings.SplitN(c.Desc, "\n", 2)[0])
+	s := c.Hash
+	if c.Branch != "" {
+		s += fmt.Sprintf("[%v]", strings.TrimPrefix(c.Branch, origin))
+	}
+	s += fmt.Sprintf("(%q)", strings.SplitN(c.Desc, "\n", 2)[0])
+	return s
 }
 
 // NeedsBenchmarking reports whether the Commit needs benchmarking.
