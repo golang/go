@@ -5,13 +5,13 @@
 // license that can be found in the LICENSE file.
 
 // Usage:
-// fibo <n>	compute fibonacci(n), n must be >= 0
-// fibo -bench	benchmark fibonacci computation (takes about 1 min)
+// fibo <n>     compute fibonacci(n), n must be >= 0
+// fibo -bench  benchmark fibonacci computation (takes about 1 min)
 //
 // Additional flags:
 // -half        add values using two half-digit additions
-// -opt		optimize memory allocation through reuse
-// -short	only print the first 10 digits of very large fibonacci numbers
+// -opt         optimize memory allocation through reuse
+// -short       only print the first 10 digits of very large fibonacci numbers
 
 // Command fibo is a stand-alone test and benchmark to
 // evaluate the performance of bignum arithmetic written
