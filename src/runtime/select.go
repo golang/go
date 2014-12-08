@@ -389,6 +389,7 @@ loop:
 			k.releasetime = sglist.releasetime
 		}
 		if sg == sglist {
+			// sg has already been dequeued by the G that woke us up.
 			cas = k
 		} else {
 			c = k._chan
@@ -624,23 +625,36 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
 	return
 }
 
-func (q *waitq) dequeueSudoG(s *sudog) {
-	var prevsgp *sudog
-	l := &q.first
-	for {
-		sgp := *l
-		if sgp == nil {
+func (q *waitq) dequeueSudoG(sgp *sudog) {
+	x := sgp.prev
+	y := sgp.next
+	if x != nil {
+		if y != nil {
+			// middle of queue
+			x.next = y
+			y.prev = x
+			sgp.next = nil
+			sgp.prev = nil
 			return
 		}
-		if sgp == s {
-			*l = sgp.next
-			if q.last == sgp {
-				q.last = prevsgp
-			}
-			s.next = nil
-			return
-		}
-		l = &sgp.next
-		prevsgp = sgp
+		// end of queue
+		x.next = nil
+		q.last = x
+		sgp.prev = nil
+		return
+	}
+	if y != nil {
+		// start of queue
+		y.prev = nil
+		q.first = y
+		sgp.next = nil
+		return
+	}
+
+	// x==y==nil.  Either sgp is the only element in the queue,
+	// or it has already been removed.  Use q.first to disambiguate.
+	if q.first == sgp {
+		q.first = nil
+		q.last = nil
 	}
 }
