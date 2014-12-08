@@ -77,7 +77,7 @@ func symtabinit() {
 			}
 			println("function symbol table not sorted by program counter:", hex(ftab[i].entry), gofuncname(f1), ">", hex(ftab[i+1].entry), f2name)
 			for j := 0; j <= i; j++ {
-				print("\t", hex(ftab[j].entry), " ", gofuncname((*_func)(unsafe.Pointer(&pclntable[ftab[j].funcoff]))))
+				print("\t", hex(ftab[j].entry), " ", gofuncname((*_func)(unsafe.Pointer(&pclntable[ftab[j].funcoff]))), "\n")
 			}
 			gothrow("invalid runtime symbol table")
 		}
