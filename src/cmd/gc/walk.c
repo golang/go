@@ -128,6 +128,35 @@ paramoutheap(Node *fn)
 	return 0;
 }
 
+// adds "adjust" to all the argument locations for the call n.
+// n must be a defer or go node that has already been walked.
+static void
+adjustargs(Node *n, int adjust)
+{
+	Node *callfunc, *arg, *lhs;
+	NodeList *args;
+
+	callfunc = n->left;
+	for(args = callfunc->list; args != 0; args = args->next) {
+		arg = args->n;
+		if(arg->op != OAS)
+			yyerror("call arg not assignment");
+		lhs = arg->left;
+		if(lhs->op == ONAME) {
+			// This is a temporary introduced by reorder1.
+			// The real store to the stack appears later in the arg list.
+			continue;
+		}
+		if(lhs->op != OINDREG) {
+			yyerror("call argument store does not use OINDREG");
+		}
+		// can't really check this in machine-indep code.
+		//if(lhs->val.u.reg != D_SP)
+		//      yyerror("call arg assign not indreg(SP)");
+		lhs->xoffset += adjust;
+	}
+}
+
 void
 walkstmt(Node **np)
 {
@@ -237,6 +266,8 @@ walkstmt(Node **np)
 			walkexpr(&n->left, &n->ninit);
 			break;
 		}
+		// make room for size & fn arguments.
+		adjustargs(n, 2 * widthptr);
 		break;
 
 	case OFOR:
@@ -270,6 +301,8 @@ walkstmt(Node **np)
 			walkexpr(&n->left, &n->ninit);
 			break;
 		}
+		// make room for size & fn arguments.
+		adjustargs(n, 2 * widthptr);
 		break;
 
 	case ORETURN:

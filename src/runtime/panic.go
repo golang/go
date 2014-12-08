@@ -62,13 +62,10 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	// the arguments of fn are in a perilous state.  The stack map
 	// for deferproc does not describe them.  So we can't let garbage
 	// collection or stack copying trigger until we've copied them out
-	// to somewhere safe.  deferproc_m does that.  Until deferproc_m,
-	// we can only call nosplit routines.
-	argp := uintptr(unsafe.Pointer(&fn))
-	argp += unsafe.Sizeof(fn)
-	if GOARCH == "arm" || GOARCH == "ppc64" || GOARCH == "ppc64le" {
-		argp += ptrSize // skip caller's saved link register
-	}
+	// to somewhere safe.  The memmove below does that.
+	// Until the copy completes, we can only call nosplit routines.
+	sp := getcallersp(unsafe.Pointer(&siz))
+	argp := uintptr(unsafe.Pointer(&fn)) + unsafe.Sizeof(fn)
 	callerpc := getcallerpc(unsafe.Pointer(&siz))
 
 	systemstack(func() {
@@ -78,7 +75,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 		}
 		d.fn = fn
 		d.pc = callerpc
-		d.argp = argp
+		d.sp = sp
 		memmove(add(unsafe.Pointer(d), unsafe.Sizeof(*d)), unsafe.Pointer(argp), uintptr(siz))
 	})
 
@@ -240,8 +237,8 @@ func deferreturn(arg0 uintptr) {
 	if d == nil {
 		return
 	}
-	argp := uintptr(unsafe.Pointer(&arg0))
-	if d.argp != argp {
+	sp := getcallersp(unsafe.Pointer(&arg0))
+	if d.sp != sp {
 		return
 	}
 
@@ -250,13 +247,13 @@ func deferreturn(arg0 uintptr) {
 	// won't know the form of the arguments until the jmpdefer can
 	// flip the PC over to fn.
 	mp := acquirem()
-	memmove(unsafe.Pointer(argp), deferArgs(d), uintptr(d.siz))
+	memmove(unsafe.Pointer(&arg0), deferArgs(d), uintptr(d.siz))
 	fn := d.fn
 	d.fn = nil
 	gp._defer = d.link
 	freedefer(d)
 	releasem(mp)
-	jmpdefer(fn, argp)
+	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
 }
 
 // Goexit terminates the goroutine that calls it.  No other goroutine is affected.
@@ -403,7 +400,7 @@ func gopanic(e interface{}) {
 		//GC()
 
 		pc := d.pc
-		argp := unsafe.Pointer(d.argp) // must be pointer so it gets adjusted during stack copy
+		sp := unsafe.Pointer(d.sp) // must be pointer so it gets adjusted during stack copy
 		freedefer(d)
 		if p.recovered {
 			gp._panic = p.link
@@ -416,7 +413,7 @@ func gopanic(e interface{}) {
 				gp.sig = 0
 			}
 			// Pass information about recovering frame to recovery.
-			gp.sigcode0 = uintptr(argp)
+			gp.sigcode0 = uintptr(sp)
 			gp.sigcode1 = pc
 			mcall(recovery)
 			gothrow("recovery failed") // mcall should not return

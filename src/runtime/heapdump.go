@@ -366,7 +366,7 @@ func dumpgoroutine(gp *g) {
 		dumpint(tagDefer)
 		dumpint(uint64(uintptr(unsafe.Pointer(d))))
 		dumpint(uint64(uintptr(unsafe.Pointer(gp))))
-		dumpint(uint64(d.argp))
+		dumpint(uint64(d.sp))
 		dumpint(uint64(d.pc))
 		dumpint(uint64(uintptr(unsafe.Pointer(d.fn))))
 		dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))

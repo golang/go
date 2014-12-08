@@ -1931,10 +1931,6 @@ func malg(stacksize int32) *g {
 //go:nosplit
 func newproc(siz int32, fn *funcval) {
 	argp := add(unsafe.Pointer(&fn), ptrSize)
-	if hasLinkRegister {
-		argp = add(argp, ptrSize) // skip caller's saved LR
-	}
-
 	pc := getcallerpc(unsafe.Pointer(&siz))
 	systemstack(func() {
 		newproc1(fn, (*uint8)(argp), siz, 0, pc)

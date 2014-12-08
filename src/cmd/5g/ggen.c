@@ -181,9 +181,14 @@ ginscall(Node *f, int proc)
 {
 	Prog *p;
 	Node n1, r, r1, con;
+	int32 extra;
 
-	if(f->type != T)
-		setmaxarg(f->type);
+	if(f->type != T) {
+		extra = 0;
+		if(proc == 1 || proc == 2)
+			extra = 2 * widthptr;
+		setmaxarg(f->type, extra);
+	}
 
 	switch(proc) {
 	default:
@@ -230,46 +235,28 @@ ginscall(Node *f, int proc)
 	case 1:	// call in new proc (go)
 	case 2:	// deferred call (defer)
 		regalloc(&r, types[tptr], N);
-		p = gins(AMOVW, N, &r);
-		p->from.type = D_OREG;
-		p->from.reg = REGSP;
-		
-		p = gins(AMOVW, &r, N);
-		p->to.type = D_OREG;
-		p->to.reg = REGSP;
-		p->to.offset = -12;
-		p->scond |= C_WBIT;
-
-		memset(&n1, 0, sizeof n1);
-		n1.op = OADDR;
-		n1.left = f;
-		gins(AMOVW, &n1, &r);
-
-		p = gins(AMOVW, &r, N);
-		p->to.type = D_OREG;
-		p->to.reg = REGSP;
-		p->to.offset = 8;
-
 		nodconst(&con, types[TINT32], argsize(f->type));
 		gins(AMOVW, &con, &r);
 		p = gins(AMOVW, &r, N);
 		p->to.type = D_OREG;
 		p->to.reg = REGSP;
 		p->to.offset = 4;
+
+		memset(&n1, 0, sizeof n1);
+		n1.op = OADDR;
+		n1.left = f;
+		gins(AMOVW, &n1, &r);
+		p = gins(AMOVW, &r, N);
+		p->to.type = D_OREG;
+		p->to.reg = REGSP;
+		p->to.offset = 8;
+
 		regfree(&r);
 
 		if(proc == 1)
 			ginscall(newproc, 0);
 		else
 			ginscall(deferproc, 0);
-
-		nodreg(&r, types[tptr], 1);
-		p = gins(AMOVW, N, N);
-		p->from.type = D_CONST;
-		p->from.reg = REGSP;
-		p->from.offset = 12;
-		p->to.reg = REGSP;
-		p->to.type = D_REG;
 
 		if(proc == 2) {
 			nodconst(&con, types[TINT32], 0);
@@ -330,9 +317,11 @@ cgen_callinter(Node *n, Node *res, int proc)
 	agen(i, &nodr);		// REG = &inter
 
 	nodindreg(&nodsp, types[tptr], REGSP);
-	nodsp.xoffset = 4;
+	nodsp.xoffset = widthptr;
+	if(proc != 0)
+		nodsp.xoffset += 2 * widthptr; // leave room for size & fn
 	nodo.xoffset += widthptr;
-	cgen(&nodo, &nodsp);	// 4(SP) = 4(REG) -- i.data
+	cgen(&nodo, &nodsp);	// {4 or 12}(SP) = 4(REG) -- i.data
 
 	nodo.xoffset -= widthptr;
 	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.tab

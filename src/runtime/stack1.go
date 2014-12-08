@@ -499,7 +499,7 @@ func adjustdefers(gp *g, adjinfo *adjustinfo) {
 	// Defer structs themselves are never on the stack.
 	for d := gp._defer; d != nil; d = d.link {
 		adjustpointer(adjinfo, (unsafe.Pointer)(&d.fn))
-		adjustpointer(adjinfo, (unsafe.Pointer)(&d.argp))
+		adjustpointer(adjinfo, (unsafe.Pointer)(&d.sp))
 		adjustpointer(adjinfo, (unsafe.Pointer)(&d._panic))
 	}
 }

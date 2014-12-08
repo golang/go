@@ -176,11 +176,16 @@ void
 ginscall(Node *f, int proc)
 {
 	Prog *p;
-	Node reg, con;
+	Node reg, stk;
 	Node r1;
+	int32 extra;
 
-	if(f->type != T)
-		setmaxarg(f->type);
+	if(f->type != T) {
+		extra = 0;
+		if(proc == 1 || proc == 2)
+			extra = 2 * widthptr;
+		setmaxarg(f->type, extra);
+	}
 
 	switch(proc) {
 	default:
@@ -224,21 +229,31 @@ ginscall(Node *f, int proc)
 
 	case 1:	// call in new proc (go)
 	case 2:	// deferred call (defer)
-		nodconst(&con, types[TINT64], argsize(f->type));
-		if(widthptr == 4) {
-			nodreg(&r1, types[TINT32], D_CX);
-			gmove(f, &r1);
-			nodreg(&reg, types[TINT64], D_CX);
-			nodconst(&r1, types[TINT64], 32);
-			gins(ASHLQ, &r1, &reg);
-			gins(AORQ, &con, &reg);
-			gins(APUSHQ, &reg, N);
-		} else {
-			nodreg(&reg, types[TINT64], D_CX);
+		memset(&stk, 0, sizeof(stk));
+		stk.op = OINDREG;
+		stk.val.u.reg = D_SP;
+		stk.xoffset = 0;
+
+		if(widthptr == 8) {
+			// size of arguments at 0(SP)
+			ginscon(AMOVQ, argsize(f->type), &stk);
+
+			// FuncVal* at 8(SP)
+			stk.xoffset = widthptr;
+			nodreg(&reg, types[TINT64], D_AX);
 			gmove(f, &reg);
-			gins(APUSHQ, &reg, N);
-			gins(APUSHQ, &con, N);
+			gins(AMOVQ, &reg, &stk);
+		} else {
+			// size of arguments at 0(SP)
+			ginscon(AMOVL, argsize(f->type), &stk);
+
+			// FuncVal* at 4(SP)
+			stk.xoffset = widthptr;
+			nodreg(&reg, types[TINT32], D_AX);
+			gmove(f, &reg);
+			gins(AMOVL, &reg, &stk);
 		}
+
 		if(proc == 1)
 			ginscall(newproc, 0);
 		else {
@@ -246,13 +261,9 @@ ginscall(Node *f, int proc)
 				fatal("hasdefer=0 but has defer");
 			ginscall(deferproc, 0);
 		}
-		nodreg(&reg, types[TINT64], D_CX);
-		gins(APOPQ, N, &reg);
-		if(widthptr == 8)
-			gins(APOPQ, N, &reg);
 		if(proc == 2) {
-			nodreg(&reg, types[TINT64], D_AX);
-			gins(ATESTQ, &reg, &reg);
+			nodreg(&reg, types[TINT32], D_AX);
+			gins(ATESTL, &reg, &reg);
 			p = gbranch(AJEQ, T, +1);
 			cgen_ret(N);
 			patch(p, pc);
@@ -294,9 +305,12 @@ cgen_callinter(Node *n, Node *res, int proc)
 	igen(i, &nodi, res);		// REG = &inter
 
 	nodindreg(&nodsp, types[tptr], D_SP);
+        nodsp.xoffset = 0;
+	if(proc != 0)
+		nodsp.xoffset += 2 * widthptr; // leave room for size & fn
 	nodi.type = types[tptr];
 	nodi.xoffset += widthptr;
-	cgen(&nodi, &nodsp);	// 0(SP) = 8(REG) -- i.data
+	cgen(&nodi, &nodsp);	// {0, 8(nacl), or 16}(SP) = 8(REG) -- i.data
 
 	regalloc(&nodo, types[tptr], res);
 	nodi.type = types[tptr];
