@@ -237,24 +237,65 @@ chomp(Buf *b)
 		b->len--;
 }
 
+static char*
+branchtag(char *branch, bool *precise)
+{
+	char *tag, *p, *q;
+	int i;
+	Buf b, arg;
+	Vec tags;
+
+	binit(&b);
+	binit(&arg);
+	vinit(&tags);
+
+	bprintf(&arg, "master..%s", branch);
+	run(&b, goroot, CheckExit, "git", "log", "--decorate=full", "--format=format:%d", bstr(&arg), nil);
+
+	splitlines(&tags, bstr(&b));
+	tag = branch;
+	for(i=0; i < tags.len; i++) {
+		// Each line is either blank, or looks like
+		//	  (tag: refs/tags/go1.4rc2, refs/remotes/origin/release-branch.go1.4, refs/heads/release-branch.go1.4)
+		// We need to find an element starting with refs/tags/.
+		p = xstrstr(tags.p[i], " refs/tags/");
+		if(p == nil)
+			continue;
+		p += xstrlen(" refs/tags/");
+		// The tag name ends at a comma or paren (prefer the first).
+		q = xstrstr(p, ",");
+		if(q == nil)
+			q = xstrstr(p, ")");
+		if(q == nil)
+			continue;  // malformed line; ignore it
+		*q = '\0';
+		tag = xstrdup(p);
+		if(i == 0)
+			*precise = 1;  // tag denotes HEAD
+		break;
+	}
+
+	bfree(&b);
+	bfree(&arg);
+	vfree(&tags);
+	return tag;
+}
 
 // findgoversion determines the Go version to use in the version string.
 static char*
 findgoversion(void)
 {
-	char *tag, *rev, *p;
-	int i, nrev;
+	char *tag, *p;
+	bool precise;
 	Buf b, path, bmore, branch;
-	Vec tags;
 
 	binit(&b);
 	binit(&path);
 	binit(&bmore);
 	binit(&branch);
-	vinit(&tags);
 
 	// The $GOROOT/VERSION file takes priority, for distributions
-	// without the Mercurial repo.
+	// without the source repo.
 	bpathf(&path, "%s/VERSION", goroot);
 	if(isfile(bstr(&path))) {
 		readfile(&b, bstr(&path));
@@ -268,7 +309,7 @@ findgoversion(void)
 	}
 
 	// The $GOROOT/VERSION.cache file is a cache to avoid invoking
-	// hg every time we run this command.  Unlike VERSION, it gets
+	// git every time we run this command.  Unlike VERSION, it gets
 	// deleted by the clean command.
 	bpathf(&path, "%s/VERSION.cache", goroot);
 	if(isfile(bstr(&path))) {
@@ -277,49 +318,27 @@ findgoversion(void)
 		goto done;
 	}
 
-	// Otherwise, use Mercurial.
+	// Otherwise, use Git.
 	// What is the current branch?
-	run(&branch, goroot, CheckExit, "hg", "identify", "-b", nil);
+	run(&branch, goroot, CheckExit, "git", "rev-parse", "--abbrev-ref", "HEAD", nil);
 	chomp(&branch);
 
 	// What are the tags along the current branch?
 	tag = "devel";
-	rev = ".";
-	run(&b, goroot, CheckExit, "hg", "log", "-b", bstr(&branch), "-r", ".:0", "--template", "{tags} + ", nil);
-	splitfields(&tags, bstr(&b));
-	nrev = 0;
-	for(i=0; i<tags.len; i++) {
-		p = tags.p[i];
-		if(streq(p, "+"))
-			nrev++;
-		// Only show the beta tag for the exact revision.
-		if(hasprefix(p, "go") && (!contains(p, "beta") || nrev == 0)) {
-			tag = xstrdup(p);
-			// If this tag matches the current checkout
-			// exactly (no "+" yet), don't show extra
-			// revision information.
-			if(nrev == 0)
-				rev = "";
-			break;
-		}
-	}
+	precise = 0;
 
-	if(tag[0] == '\0') {
-		// Did not find a tag; use branch name.
-		bprintf(&b, "branch.%s", bstr(&branch));
-		tag = btake(&b);
-	}
-
-	if(rev[0]) {
-		// Tag is before the revision we're building.
-		// Add extra information.
-		run(&bmore, goroot, CheckExit, "hg", "log", "--template", " +{node|short} {date|date}", "-r", rev, nil);
-		chomp(&bmore);
-	}
+	// If we're on a release branch, use the closest matching tag
+	// that is on the release branch (and not on the master branch).
+	if(hasprefix(bstr(&branch), "release-branch."))
+		tag = branchtag(bstr(&branch), &precise);
 
 	bprintf(&b, "%s", tag);
-	if(bmore.len > 0)
+	if(!precise) {
+		// Tag does not point at HEAD; add hash and date to version.
+		run(&bmore, goroot, CheckExit, "git", "log", "-n", "1", "--format=format: +%h %cd", "HEAD", nil);
+		chomp(&bmore);
 		bwriteb(&b, &bmore);
+	}
 
 	// Cache version.
 	writefile(&b, bstr(&path), 0);
@@ -332,7 +351,6 @@ done:
 	bfree(&path);
 	bfree(&bmore);
 	bfree(&branch);
-	vfree(&tags);
 
 	return p;
 }
