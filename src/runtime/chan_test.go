@@ -818,3 +818,26 @@ func BenchmarkChanSem(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkChanPopular(b *testing.B) {
+	const n = 1000
+	c := make(chan bool)
+	var a []chan bool
+	for j := 0; j < n; j++ {
+		d := make(chan bool)
+		a = append(a, d)
+		go func() {
+			for i := 0; i < b.N; i++ {
+				select {
+				case <-c:
+				case <-d:
+				}
+			}
+		}()
+	}
+	for i := 0; i < b.N; i++ {
+		for _, d := range a {
+			d <- true
+		}
+	}
+}

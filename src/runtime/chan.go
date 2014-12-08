@@ -614,12 +614,15 @@ func reflect_chancap(c *hchan) int {
 
 func (q *waitq) enqueue(sgp *sudog) {
 	sgp.next = nil
-	if q.first == nil {
+	x := q.last
+	if x == nil {
+		sgp.prev = nil
 		q.first = sgp
 		q.last = sgp
 		return
 	}
-	q.last.next = sgp
+	sgp.prev = x
+	x.next = sgp
 	q.last = sgp
 }
 
@@ -629,10 +632,14 @@ func (q *waitq) dequeue() *sudog {
 		if sgp == nil {
 			return nil
 		}
-		q.first = sgp.next
-		sgp.next = nil
-		if q.last == sgp {
+		y := sgp.next
+		if y == nil {
+			q.first = nil
 			q.last = nil
+		} else {
+			y.prev = nil
+			q.first = y
+			sgp.next = nil // mark as removed (see dequeueSudog)
 		}
 
 		// if sgp participates in a select and is already signaled, ignore it
