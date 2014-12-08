@@ -183,6 +183,11 @@ func addCommit(c appengine.Context, com *Commit) error {
 		if n == 0 {
 			return errors.New("parent commit not found")
 		}
+	} else if com.Num != 1 {
+		// This is the first commit; fail if it is not number 1.
+		// (This will happen if we try to upload a new/different repo
+		// where there is already commit data. A bad thing to do.)
+		return errors.New("this package already has a first commit; aborting")
 	}
 	// update the tip Tag if this is the Go repo and this isn't on a release branch
 	if p.Path == "" && !strings.HasPrefix(com.Desc, "[") && !isUpdate {
