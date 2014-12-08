@@ -231,3 +231,33 @@ func TestImportCmd(t *testing.T) {
 		t.Fatalf("Import cmd/internal/objfile returned Dir=%q, want %q", filepath.ToSlash(p.Dir), ".../src/cmd/internal/objfile")
 	}
 }
+
+var (
+	expandSrcDirPath = filepath.Join(string(filepath.Separator)+"projects", "src", "add")
+)
+
+var expandSrcDirTests = []struct {
+	input, expected string
+}{
+	{"-L ${SRCDIR}/libs -ladd", "-L /projects/src/add/libs -ladd"},
+	{"${SRCDIR}/add_linux_386.a -pthread -lstdc++", "/projects/src/add/add_linux_386.a -pthread -lstdc++"},
+	{"Nothing to expand here!", "Nothing to expand here!"},
+	{"$", "$"},
+	{"$$", "$$"},
+	{"${", "${"},
+	{"$}", "$}"},
+	{"$FOO ${BAR}", "$FOO ${BAR}"},
+	{"Find me the $SRCDIRECTORY.", "Find me the $SRCDIRECTORY."},
+	{"$SRCDIR is missing braces", "$SRCDIR is missing braces"},
+}
+
+func TestExpandSrcDir(t *testing.T) {
+	for _, test := range expandSrcDirTests {
+		output := expandSrcDir(test.input, expandSrcDirPath)
+		if output != test.expected {
+			t.Errorf("%q expands to %q with SRCDIR=%q when %q is expected", test.input, output, expandSrcDirPath, test.expected)
+		} else {
+			t.Logf("%q expands to %q with SRCDIR=%q", test.input, output, expandSrcDirPath)
+		}
+	}
+}
