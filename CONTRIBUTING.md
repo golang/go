@@ -1,7 +1,7 @@
 The Go project is an open source project.
 For information, see: https://golang.org/
 
-Its canonical Git repository is located at https://go.googlecode.com/go.
+Its canonical Git repository is located at https://go.googlesource.com/go.
 (There is a mirror of the repository at https://github.com/golang/go.)
 
 Report issues here: https://github.com/golang/go/issues
