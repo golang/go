@@ -2172,6 +2172,9 @@ out:
 
 	// rebuild elided dots
 	for c := d - 1; c >= 0; c-- {
+		if n.Left.Type != nil && Isptr[n.Left.Type.Etype] != 0 {
+			n.Left.Implicit = 1
+		}
 		n.Left = Nod(ODOT, n.Left, newname(dotlist[c].field.Sym))
 	}
 
