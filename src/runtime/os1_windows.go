@@ -148,24 +148,21 @@ func osinit() {
 	}
 }
 
-var random_data [_HashRandomBytes]byte
-
 //go:nosplit
-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
+func getRandomData(r []byte) {
 	const (
 		prov_rsa_full       = 1
 		crypt_verifycontext = 0xF0000000
 	)
 	var handle uintptr
-	*rnd = nil
-	*rnd_len = 0
+	n := 0
 	if stdcall5(_CryptAcquireContextW, uintptr(unsafe.Pointer(&handle)), 0, 0, prov_rsa_full, crypt_verifycontext) != 0 {
-		if stdcall3(_CryptGenRandom, handle, _HashRandomBytes, uintptr(unsafe.Pointer(&random_data[0]))) != 0 {
-			*rnd = unsafe.Pointer(&random_data[0])
-			*rnd_len = _HashRandomBytes
+		if stdcall3(_CryptGenRandom, handle, uintptr(len(r)), uintptr(unsafe.Pointer(&r[0]))) != 0 {
+			n = len(r)
 		}
 		stdcall2(_CryptReleaseContext, handle, 0)
 	}
+	extendRandom(r, n)
 }
 
 func goenvs() {

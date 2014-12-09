@@ -29,8 +29,7 @@ func sysargs(argc int32, argv **byte) {
 			_vdso = auxv[i+1]
 
 		case _AT_RANDOM:
-			startup_random_data = (*byte)(unsafe.Pointer(uintptr(auxv[i+1])))
-			startup_random_data_len = 16
+			startupRandomData = (*[16]byte)(unsafe.Pointer(uintptr(auxv[i+1])))[:]
 		}
 	}
 }
