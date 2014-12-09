@@ -12,9 +12,15 @@ complex double complexDoubleSquared(complex double a) { return a*a; }
 */
 import "C"
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 func test8694(t *testing.T) {
+	if runtime.GOARCH == "arm" {
+		t.Skip("test8694 is disabled on ARM because 5l cannot handle thumb library.")
+	}
 	// Really just testing that this compiles, but check answer anyway.
 	x := complex64(2 + 3i)
 	x2 := x * x
