@@ -6,9 +6,21 @@
 
 <p>
 This document explains how to contribute changes to the Go project.
-It assumes you have installed Go using the
+It assumes you have installed Go from source:
+<p>
+
+<pre>
+$ git clone https://go.googlesource.com/go
+$ cd go/src
+$ ./all.bash
+</pre>
+<!--
+TODO(adg): delete the above, restore the below after we have updated install-source.html
 <a href="/doc/install/source">installation instructions</a> and
 have <a href="code.html">written and tested your code</a>.
+-->
+
+<p>
 (Note that the <code>gccgo</code> frontend lives elsewhere;
 see <a href="gccgo_contribute.html">Contributing to gccgo</a>.)
 </p>
@@ -54,7 +66,8 @@ $ ./all.bash
 </p>
 
 <p>
-After running for a while, the command should print "<code>ALL TESTS PASSED</code>".
+After running for a while, the command should print
+"<code>ALL</code> <code>TESTS</code> <code>PASSED</code>".
 </p>
 
 <h2 id="Code_review">Code review</h2>
@@ -64,208 +77,229 @@ Changes to Go must be reviewed before they are submitted,
 no matter who makes the change.
 (In exceptional cases, such as fixing a build, the review can
 follow shortly after submitting.)
-A Mercurial extension helps manage the code review process.
-The extension is included in the Go source tree but needs
-to be added to your Mercurial configuration.
+A custom git command called <code>git-review</code>,
+discussed below, helps manage the code review process through a Google-hosted
+<a href="https://go-review.googlesource.com/">instance</a> of the code review
+system called <a href="https://code.google.com/p/gerrit/">Gerrit</a>.
 </p>
 
-<h3>Caveat for Mercurial aficionados</h3>
+<h3>Set up authentication for code review</h3>
 
 <p>
-<i>Using Mercurial with the code review extension is not the same
-as using standard Mercurial.</i>
-</p>
-
-<p>
-The Go repository is maintained as a single line of reviewed changes;
-we prefer to avoid the complexity of Mercurial's arbitrary change graph.
-The code review extension helps here: its <code>hg submit</code> command
-automatically checks for and warns about the local repository
-being out of date compared to the remote one.
-The <code>hg submit</code> command also verifies other
-properties about the Go repository.
-For example,
-it checks that Go code being checked in is formatted in the standard style,
-as defined by <a href="/cmd/gofmt">gofmt</a>,
-and it checks that the author of the code is properly recorded for
-<a href="#copyright">copyright purposes</a>.
-</p>
-
-<p>
-To help ensure changes are only created by <code>hg submit</code>,
-the code review extension disables the standard <code>hg commit</code>
-command.
-</p>
-
-<h3>Configure the extension</h3>
-
-<p>Edit <code>.hg/hgrc</code> in the root of your Go checkout to add:</p>
-
-<pre>
-[extensions]
-codereview = /path/to/go/lib/codereview/codereview.py
-
-[ui]
-username = Your Name &lt;you@server.dom&gt;
-</pre>
-
-<p>
-The <code>username</code> information will not be used unless
-you are a committer (see below), but Mercurial complains if it is missing.
-</p>
-
-<p>
-As the codereview extension is only enabled for your Go checkout, the remainder of this document assumes you
-are inside the go directory when issuing commands.
-</p>
-
-<p>To contribute to subrepositories, edit the <code>.hg/hgrc</code> for each
-subrepository in the same way. For example, add the codereview extension to
-<code>golang.org/x/tools/.hg/hgrc</code>.
-</p>
-
-<h3>Understanding the extension</h3>
-
-<p>After adding the code review extension, you can run</p>
-
-<pre>
-$ hg help codereview
-</pre>
-
-<p>to learn more about its commands. To learn about a specific code-review-specific
-command such as <code>change</code>, run</p>
-
-<pre>
-$ hg help change
-</pre>
-
-<p>
-Windows users may need to perform extra steps to get the code review
-extension working. See the
-<a href="https://code.google.com/p/go-wiki/wiki/CodeReview">CodeReview page</a>
-on the <a href="https://code.google.com/p/go-wiki/wiki">Go Wiki</a> for details.
-</p>
-
-<h3>Log in to the code review site.</h3>
-
-<p>
-The code review server uses a Google Account to authenticate.
+The Git code hosting server and Gerrit code review server both use a Google
+Account to authenticate. You therefore need a Google Account to proceed.
 (If you can use the account to
-<a href="https://www.google.com/accounts/Login?hl=en&amp;continue=http://www.google.com/">sign in at google.com</a>,
+<a href="https://www.google.com/accounts/Login">sign in at google.com</a>,
 you can use it to sign in to the code review server.)
-The email address you use on the Code Review site
-will be recorded in the <a href="https://code.google.com/p/go/source/list">Mercurial change log</a>
+The email address you use with the code review system
+will be recorded in the <a href="https://go.googlesource.com/go">change log</a>
 and in the <a href="/CONTRIBUTORS"><code>CONTRIBUTORS</code></a> file.
 You can <a href="https://www.google.com/accounts/NewAccount">create a Google Account</a>
 associated with any address where you receive email.
-If you've enabled the two-step verification feature, don't forget to generate an
-application-specific password and use that when prompted for a password.
+</p>
+
+<p>
+Visit the site <a href="https://go.googlesource.com">go.googlesource.com</a>
+and log in using your Google Account.
+Click on the "Generate Password" link that appears at the top of the page.
+</p>
+
+<p>
+Click the radio button that says "Only <code>go.googlesource.com</code>"
+to use this authentication token only for the Go project.
+</p>
+
+<p>
+Further down the page is a box containing commands to install
+the authentication cookie in file called <code>.gitcookies</code> in your home
+directory.
+Copy the text for the commands into a Unix shell window to execute it.
+That will install the authentication token.
+</p>
+
+<p>
+(If you are on a Windows computer, you should instead follow the instructions
+in the yellow box to run the command.)
+</p>
+
+<h3>Register with Gerrit</h3>
+
+<p>
+Now that you have a Google account and the authentication token,
+you need to register your account with Gerrit, the code review system.
+To do this, visit <a href="https://golang.org/cl">golang.org/cl</a>
+and log in using the same Google Account you used above.
+That is all that is required.
+</p>
+
+<h3>Install the git-review command</h3>
+
+<p>
+Now install the <code>git-review</code> command by running,
 </p>
 
 <pre>
-$ hg code-login
-Email (login for uploading to codereview.appspot.com): rsc@golang.org
-Password for rsc@golang.org:
-
-Saving authentication cookies to /Users/rsc/.codereview_upload_cookies_codereview.appspot.com
+go get -u golang.org/x/review/git-review
 </pre>
 
-<h3>Configure your account settings.</h3>
-
-<p>Edit your <a href="https://codereview.appspot.com/settings">code review settings</a>.
-Grab a nickname.
-Many people prefer to set the Context option to
-&ldquo;Whole file&rdquo; to see more context when reviewing changes.
+<p>
+Make sure <code>git-review</code> is installed in your shell path, so that the
+<code>git</code> command can find it. Check that
 </p>
 
-<p>Once you have chosen a nickname in the settings page, others
-can use that nickname as a shorthand for naming reviewers and the CC list.
-For example, <code>rsc</code> is an alias for <code>rsc@golang.org</code>.
+<pre>
+$ git review help
+</pre>
+ 
+<p>
+prints help text, not an error.
 </p>
 
-<h3>Switch to the default branch</h3>
+<p>
+Note to Git aficionados: The <code>git-review</code> command is not required to
+upload and manage Gerrit code reviews. For those who prefer plain Git, the text
+below gives the Git equivalent of each git-review command. If you do use plain
+Git, note that you still need the commit hooks that the git-review command
+configures; those hooks add a Gerrit <code>Change-Id</code> line to the commit
+message and check that all Go source files have been formatted with gofmt. Even
+if you intend to use plain Git for daily work, install the hooks in a new Git
+checkout by running <code>git-review</code> <code>hooks</code>).
+</p>
+
+<h3>Set up git aliases</h3>
+
+<p>
+The <code>git-review</code> command can be run directly from the shell
+by typing, for instance,
+</p>
+
+<pre>
+$ git review sync
+</pre>
+
+<p>
+but it is more convenient to set up aliases for <code>git-review</code>'s own
+subcommands, so that the above becomes,
+</p>
+
+<pre>
+$ git sync
+</pre>
+
+</p>
+The <code>git-review</code> subcommands have been chosen to be distinct from
+Git's own, so it's safe to do so.
+</p>
+
+<p>
+The aliases are optional, but in the rest of this document we will assume
+they are installed.
+To install them, copy this text into your Git configuration file
+(usually <code>.gitconfig</code> in your home directory):
+</p>
+
+<pre>
+[alias]
+	change = review change
+	gofmt = review gofmt
+	mail = review mail
+	pending = review pending
+	sync = review sync
+</pre>
+
+<h3>Understanding the git-review command</h3>
+
+<p>After installing the <code>git-review</code> command, you can run</p>
+
+<pre>
+$ git review help
+</pre>
+
+<p>
+to learn more about its commands.
+You can also read the <a href="https://godoc.org/golang.org/x/review/git-review">command documentation</a>.
+</p>
+
+<h3>Switch to the master branch</h3>
 
 <p>
 Most Go installations use a release branch, but new changes should
-only be made to the default branch. (They may be applied later to a release
-branch as part of the release process.)
-Before making a change, make sure you use the default branch:
+only be made based on the master branch.
+(They may be applied later to a release branch as part of the release process,
+but most contributors won't do this themselves.)
+Before making a change, make sure you start on the master branch:
 </p>
 
 <pre>
-$ hg update default
+$ git checkout master
+$ git sync
 </pre>
+
+<p>
+(In Git terms, <code>git</code> <code>sync</code> runs
+<code>git</code> <code>pull</code> <code>-r</code>.)
+</p>
 
 <h3>Make a change</h3>
 
 <p>
 The entire checked-out tree is writable.
-If you need to edit files, just edit them: Mercurial will figure out which ones changed.
-You do need to inform Mercurial of added, removed, copied, or renamed files,
-by running
-<code>hg add</code>,
-<code>hg rm</code>,
-<code>hg cp</code>,
-or
-<code>hg mv</code>.
+Once you have edited files, you must tell Git that they have been modified.
+You must also tell Git about any files that are added, removed, or renamed files.
+These operations are done with the usual Git commands,
+<code>git</code> <code>add</code>,
+<code>git</code> <code>rm</code>,
+and
+<code>git</code> <code>mv</code>.
 </p>
 
-<p>When you are ready to send a change out for review, run</p>
+<p>
+If you wish to checkpoint your work, or are ready to send the code out for review, run</p>
 
 <pre>
-$ hg change
+$ git change <i>&lt;branch&gt;</i>
 </pre>
 
-<p>from any directory in your Go repository.
-Mercurial will open a change description file in your editor.
-(It uses the editor named by the <code>$EDITOR</code> environment variable, <code>vi</code> by default.)
+<p>
+from any directory in your Go repository to commit the changes so far.
+The name <i>&lt;branch&gt;</i> is an arbitrary one you choose to identify the
+local branch containing your changes.
+</p>
+
+<p>
+(In Git terms, <code>git</code> <code>change</code> <code>&lt;branch&gt;</code>
+runs <code>git</code> <code>checkout</code> <code>-b</code> <code>branch</code>,
+then <code>git</code> <code>branch</code> <code>--set-upstream-to</code> <code>origin/master</code>,
+then <code>git</code> <code>commit</code>.)
+</p>
+
+<p>
+Git will open a change description file in your editor.
+(It uses the editor named by the <code>$EDITOR</code> environment variable,
+<code>vi</code> by default.)
 The file will look like:
 </p>
 
 <pre>
-# Change list.
-# Lines beginning with # are ignored.
-# Multi-line values should be indented.
 
-Reviewer:
-CC:
-
-Description:
-	&lt;enter description here&gt;
-
-Files:
-	src/math/sin.go
-	src/math/tan.go
-	src/regexp/regexp.go
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+# On branch foo
+# Changes not staged for commit:
+#	modified:   editedfile.go
+#
 </pre>
 
 <p>
-The <code>Reviewer</code> line lists the reviewers assigned
-to this change, and the <code>CC</code> line lists people to
-notify about the change.
-These can be code review nicknames or arbitrary email addresses.
-Unless explicitly told otherwise, such as in the discussion leading
-up to sending in the change list, leave the reviewer field blank.
-This means that the
-<a href="https://groups.google.com/group/golang-codereviews">golang-codereviews@googlegroups.com</a>
-mailing list will be used as the reviewer.
-</p>
-
-<p>
-Replace &ldquo;<code>&lt;enter description here&gt;</code>&rdquo;
-with a description of your change.
+At the beginning of this file is a blank line; replace it
+with a thorough description of your change.
 The first line of the change description is conventionally a one-line
 summary of the change, prefixed by the primary affected package,
-and is used as the subject for code review mail; the rest of the
-description elaborates.
-</p>
-
-<p>
-The <code>Files</code> section lists all the modified files
-in your client.
-It is best to keep unrelated changes in different change lists.
-In this example, we can include just the changes to package <code>math</code>
-by deleting the line mentioning <code>regexp.go</code>.
+and is used as the subject for code review mail.
+The rest of the
+description elaborates and should provide context for the
+change and explain what it does.
+If there is a helpful reference, mention it here.
 </p>
 
 <p>
@@ -273,343 +307,314 @@ After editing, the template might now read:
 </p>
 
 <pre>
-# Change list.
-# Lines beginning with # are ignored.
-# Multi-line values should be indented.
+math: improved Sin, Cos and Tan precision for very large arguments
 
-Reviewer: golang-codereviews@googlegroups.com
-CC: math-nuts@swtch.com
+The existing implementation has poor numerical properties for
+large arguments, so use the McGillicutty algorithm to improve
+accuracy above 1e10.
 
-Description:
-	math: improved Sin, Cos and Tan precision for very large arguments.
+The algorithm is described at http://wikipedia.org/wiki/McGillicutty_Algorithm
 
-	See Bimmler and Shaney, ``Extreme sinusoids,'' J. Math 3(14).
-	Fixes issue 159.
+Fixes #159
 
-Files:
-	src/math/sin.go
-	src/math/tan.go
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+# On branch foo
+# Changes not staged for commit:
+#	modified:   editedfile.go
+#
 </pre>
 
 <p>
-The special sentence &ldquo;Fixes issue 159.&rdquo; associates
-the change with issue 159 in the <a href="https://code.google.com/p/go/issues/list">Go issue tracker</a>.
-When this change is eventually submitted, the issue
-tracker will automatically mark the issue as fixed.
-(These conventions are described in detail by the
-<a href="https://code.google.com/p/support/wiki/IssueTracker#Integration_with_version_control">Google Project Hosting Issue Tracker documentation</a>.)
+The commented section of the file lists all the modified files in your client.
+It is best to keep unrelated changes in different change lists,
+so if you see a file listed that should not be included, abort
+the command and move that file to a different branch.
 </p>
 
 <p>
-Save the file and exit the editor.</p>
+The special notation "Fixes #159" associates the change with issue 159 in the
+<a href="https://golang.org/issue/159">Go issue tracker</a>.
+When this change is eventually submitted, the issue
+tracker will automatically mark the issue as fixed.
+(There are several such conventions, described in detail in the
+<a href="https://help.github.com/articles/closing-issues-via-commit-messages/">GitHub Issue Tracker documentation</a>.)
+</p>
 
 <p>
-The code review server assigns your change an issue number and URL,
-which <code>hg change</code> will print, something like:
+Once you have finished writing the commit message,
+save the file and exit the editor.
+</p>
+
+<p>
+If you wish to do more editing, re-stage your changes using
+<code>git</code> <code>add</code>, and then run
 </p>
 
 <pre>
-CL created: https://codereview.appspot.com/99999
+$ git change
 </pre>
+
+<p>
+to update the change description and incorporate the staged changes.  The
+change description contains a <code>Change-Id</code> line near the bottom,
+added by a Git commit hook during the initial
+<code>git</code> <code>change</code>.
+That line is used by Gerrit to match successive uploads of the same change.
+Do not edit or delete it.
+</p>
+
+<p>
+(In Git terms, <code>git</code> <code>change</code> with no branch name
+runs <code>git</code> <code>commit</code> <code>--amend</code>.)
+</p> 
 
 <h3>Mail the change for review</h3>
 
 <p>
-Creating or uploading the change uploads a copy of the diff to the code review server,
-but it does not notify anyone about it. To do that, you need to run <code>hg mail</code>
-(see below).
-</p>
-
-<p>To send out a change for review, run <code>hg mail</code> using the change list number
-assigned during <code>hg change</code>:</p>
-
-<pre>
-$ hg mail 99999
-</pre>
-
-<p>You can add to the <code>Reviewer:</code> and <code>CC:</code> lines
-using the <code>-r</code> or <code>--cc</code> options.
-In the above example, we could have left the <code>Reviewer</code> and <code>CC</code>
-lines blank and then run:
+Once the change is ready, mail it out for review:
 </p>
 
 <pre>
-$ hg mail -r golang-codereviews@googlegroups.com --cc math-nuts@swtch.com 99999
+$ git mail
 </pre>
 
-<p>to achieve the same effect.</p>
+<p>
+You can specify a reviewer or CC interested parties
+using the <code>-r</code> or <code>-cc</code> options.
+Both accept a comma-separated list of email addresses:
+</p>
 
-<p>Note that <code>-r</code> and <code>--cc</code> cannot be spelled <code>--r</code> or <code>-cc</code>.</p>
+<pre>
+$ git mail -r joe@golang.org -cc mabel@example.com,math-nuts@swtch.com
+</pre>
+
+<p>
+Unless explicitly told otherwise, such as in the discussion leading
+up to sending in the change list, it's better not to specify a reviewer.
+All changes are automatically CC'ed to the
+<a href="https://groups.google.com/group/golang-codereviews">golang-codereviews@googlegroups.com</a>
+mailing list.
+</p>
+
+<p>
+(In Git terms, <code>git</code> <code>mail</code> pushes the local committed
+changes to Gerrit using <code>git</code> <code>push</code> <code>origin</code>
+<code>HEAD:refs/for/master</code>.)
+</p>
 
 <p>
 If your change relates to an open issue, please add a comment to the issue
 announcing your proposed fix, including a link to your CL.
 </p>
 
+<p>
+The code review server assigns your change an issue number and URL,
+which <code>git</code> <code>mail</code> will print, something like:
+</p>
+
+<pre>
+remote: New Changes:
+remote:   https://go-review.googlesource.com/99999 math: improved Sin, Cos and Tan precision for very large arguments
+</pre>
+
 <h3>Reviewing code</h3>
 
 <p>
-Running <code>hg mail</code> will send an email to you and the reviewers
-asking them to visit the issue's URL and make comments on the change.
-When done, the reviewer clicks &ldquo;Publish and Mail comments&rdquo;
-to send comments back.
+Running <code>git</code> <code>mail</code> will send an email to you and the
+reviewers asking them to visit the issue's URL and make comments on the change.
+When done, the reviewer adds comments through the Gerrit user interface
+and clicks "Reply" to send comments back.
+You will receive a mail notification when this happens.
+You must reply through the web interface.
+(Unlike with the old Rietveld review system, replying by mail has no effect.)
 </p>
-
 
 <h3>Revise and upload</h3>
 
 <p>
+You must respond to review comments through the web interface.
+(Unlike with the old Rietveld review system, responding by mail has no effect.)
+</p>
+
+<p>
 When you have revised the code and are ready for another round of review,
-you can upload your change and send mail asking the reviewers to
-please take another look (<code>PTAL</code>). Use the change list number
-assigned during <code>hg change</code>
-</p>
-
-<pre>
-$ hg mail 99999
-</pre>
-
-
-<p>
-Or to upload your change without sending a notification, run
-</p>
-
-<pre>
-$ hg upload 99999
-</pre>
-
-<p>
-You will probably revise your code in response to the reviewer comments.
-You might also visit the code review web page and reply to the comments,
-letting the reviewer know that you've addressed them or explain why you
-haven't.  When you're done replying, click &ldquo;Publish and Mail comments&rdquo;
-to send the line-by-line replies and any other comments.
+stage those changes and use <code>git</code> <code>change</code> to update the
+commit.
+To send the update change list for another round of review,
+run <code>git</code> <code>mail</code> again.
 </p>
 
 <p>
 The reviewer can comment on the new copy, and the process repeats.
-The reviewer approves the change by replying with a mail that says
-<code>LGTM</code>: looks good to me.
+The reviewer approves the change by giving it a positive score
+(+1 or +2) and replying <code>LGTM</code>: looks good to me.
 </p>
 
 <p>
-You can see a list of your pending changes by running <code>hg pending</code> (<code>hg p</code> for short).
-</p>
-
-<h3>Adding or removing files from an existing change</h3>
-
-<p>
-If you need to re-edit the change description, or change the files included in the CL,
-run <code>hg change 99999</code>.
-</p>
-
-<p>
-Alternatively, you can use
-</p>
-
-<pre>
-$ hg file 99999 somefile
-</pre>
-
-<p>
-to add <code>somefile</code> to CL 99999, and
-</p>
-
-<pre>
-$ hg file -d 99999 somefile
-</pre>
-
-<p>
-to remove <code>somefile</code> from the CL.
-</p>
-
-<p>
-A file may only belong to a single active CL at a time. <code>hg file</code>
-will issue a warning if a file is moved between changes.
+You can see a list of your pending changes by running <code>git</code>
+<code>pending</code>, and switch between change branches with <code>git</code>
+<code>change</code> <code><i>&lt;branch&gt;</i></code>.
 </p>
 
 <h3>Synchronize your client</h3>
 
-<p>While you were working, others might have submitted changes
-to the repository.  To update your client, run</p>
+<p>
+While you were working, others might have submitted changes to the repository.
+To update your local branch, run
+</p>
 
 <pre>
-$ hg sync
+$ git sync
 </pre>
 
-<p>(For Mercurial fans, <code>hg sync</code> runs <code>hg pull -u</code>
-but then also synchronizes the local change list state against the new data.)</p>
-
 <p>
-If files you were editing have changed, Mercurial does its best to merge the
-remote changes into your local changes.  It may leave some files to merge by hand.
+(In git terms, git sync runs
+<code>git</code> <code>pull</code> <code>-r</code>.)
 </p>
 
 <p>
-For example, suppose you have edited <code>flag_test.go</code> but
+If files you were editing have changed, Git does its best to merge the
+remote changes into your local changes.
+It may leave some files to merge by hand.
+</p>
+
+<p>
+For example, suppose you have edited <code>sin.go</code> but
 someone else has committed an independent change.
-When you run <code>hg sync</code>, you will get the (scary-looking) output
-(emphasis added):
+When you run <code>git</code> <code>sync</code>,
+you will get the (scary-looking) output:
 
 <pre>
-$ hg sync
-adding changesets
-adding manifests
-adding file changes
-added 1 changeset with 2 changes to 2 files
-getting src/flag/flag.go
-couldn't find merge tool hgmerge
-merging src/flag/flag_test.go
-warning: conflicts during merge.
-<i>merging src/flag/flag_test.go failed!</i>
-1 file updated, 0 files merged, 0 files removed, 1 file unresolved
-use 'hg resolve' to retry unresolved file merges
-$
+$ git sync
+Failed to merge in the changes.
+Patch failed at 0023 math: improved Sin, Cos and Tan precision for very large arguments
+The copy of the patch that failed is found in:
+   /home/you/repo/.git/rebase-apply/patch
+
+When you have resolved this problem, run "git rebase --continue".
+If you prefer to skip this patch, run "git rebase --skip" instead.
+To check out the original branch and stop rebasing, run "git rebase --abort".
 </pre>
 
 <p>
-The only important part in that transcript is the italicized line:
-Mercurial failed to merge your changes with the independent change.
-When this happens, Mercurial leaves both edits in the file,
-marked by <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> and
+If this happens, run
+</p>
+
+<pre>
+$ git status
+</pre>
+
+<p>
+to see which files failed to merge.
+The output will look something like this:
+</p>
+
+<pre>
+rebase in progress; onto a24c3eb
+You are currently rebasing branch 'mcgillicutty' on 'a24c3eb'.
+  (fix conflicts and then run "git rebase --continue")
+  (use "git rebase --skip" to skip this patch)
+  (use "git rebase --abort" to check out the original branch)
+
+Unmerged paths:
+  (use "git reset HEAD &lt;file&gt;..." to unstage)
+  (use "git add &lt;file&gt;..." to mark resolution)
+
+	<i>both modified:   sin.go</i>
+</pre>
+
+<p>
+The only important part in that transcript is the italicized "both modified"
+line: Git failed to merge your changes with the conflicting change.
+When this happens, Git leaves both sets of edits in the file,
+with conflicts marked by <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> and
 <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>.
 It is now your job to edit the file to combine them.
-Continuing the example, searching for those strings in <code>flag_test.go</code>
+Continuing the example, searching for those strings in <code>sin.go</code>
 might turn up:
 </p>
 
 <pre>
-	VisitAll(visitor);
-&lt;&lt;&lt;&lt;&lt;&lt;&lt; local
-	if len(m) != 7 {
+	arg = scale(arg)
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+	if arg > 1e9 {
 =======
-	if len(m) != 8 {
-&gt;&gt;&gt;&gt;&gt;&gt;&gt; other
-		t.Error("VisitAll misses some flags");
+	if arg > 1e10 {
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; mcgillicutty
+		largeReduce(arg)
 </pre>
 
 <p>
-Mercurial doesn't show it, but suppose the original text that both edits
-started with was 6; you added 1 and the other change added 2,
-so the correct answer might now be 9.  First, edit the section
+Git doesn't show it, but suppose the original text that both edits
+started with was 1e8; you changed it to 1e10 and the other change to 1e9,
+so the correct answer might now be 1e10.  First, edit the section
 to remove the markers and leave the correct code:
 </p>
 
 <pre>
-	VisitAll(visitor);
-	if len(m) != 9 {
-		t.Error("VisitAll misses some flags");
+	arg = scale(arg)
+	if arg > 1e10 {
+		largeReduce(arg)
 </pre>
 
 <p>
-Then ask Mercurial to mark the conflict as resolved:
+Then tell Git that the conflict is resolved by running
 </p>
 
 <pre>
-$ hg resolve -m flag_test.go
+$ git add sin.go
 </pre>
 
 <p>
 If you had been editing the file, say for debugging, but do not
 care to preserve your changes, you can run
-<code>hg revert flag_test.go</code> to abandon your
-changes, but you may still need to run
-<code>hg resolve -m</code> to mark the conflict resolved.
+<code>git</code> <code>reset</code> <code>HEAD</code> <code>sin.go</code>
+to abandon your changes.
+Then run <code>git</code> <code>rebase</code> <code>--continue</code> to
+restore the change commit.
 </p>
 
 <h3>Reviewing code by others</h3>
 
 <p>
-You can import a CL proposed by someone else into your local Mercurial client
-by using the <code>hg clpatch</code> command. Running
+You can import a change proposed by someone else into your local Git repository.
+On the Gerrit review page, click the "Download ▼" link in the upper right
+corner, copy the "Checkout" command and run it from your local Git repo.
+It should look something like this:
 </p>
 
 <pre>
-$ hg clpatch 99999
+$ git fetch https://go.googlesource.com/review refs/changes/21/1221/1 && git checkout FETCH_HEAD
 </pre>
 
 <p>
-will apply the latest diff for CL 99999 to your working copy. If any of the
-files referenced in CL 99999 have local modifications, <code>clpatch</code>
-will refuse to apply the whole diff. Once applied, CL 99999 will show up in
-the output of <code>hg pending</code> and others.
-</p>
-
-<p>
-To revert a CL you have applied locally, use the <code>hg revert</code>
-command. Running
-</p>
-
-<pre>
-$ hg revert @99999
-</pre>
-
-<p>
-will revert any files mentioned on CL 99999 to their original state. This can
-be an effective way of reverting one CL revision and applying another.
-</p>
-
-<p>
-Once the CL has been submitted, the next time you run <code>hg sync</code>
-it will be removed from your local pending list. Occasionally the pending list
-can get out of sync leaving stale references to closed or abandoned CLs.
-You can use <code>hg change -D 99999</code> to remove the reference to CL 99999.
+To revert, change back to the branch you were working in.
 </p>
 
 <h3>Submit the change after the review</h3>
 
 <p>
-After the code has been <code>LGTM</code>'ed, it is time to submit
-it to the Mercurial repository.
+After the code has been <code>LGTM</code>'ed, an approver may
+submit it to the master branch using the Gerrit UI.
+There is a "Submit" button on the web page for the change
+that appears once the change is approved (marked +2).
 </p>
-
-<p>
-If you are not a committer, you cannot submit the change directly.
-Instead a committer, usually the reviewer who said <code>LGTM</code>,
-will run:
-</p>
-
-<pre>
-$ hg clpatch 99999
-$ hg submit 99999
-</pre>
-
-<p>
-The <code>submit</code> command submits the code.  You will be listed as the
-author, but the change message will also indicate who the committer was.
-Your local client will notice that the change has been submitted
-when you next run <code>hg sync</code>.
-</p>
-
-<p>
-If you are a committer, you can run:
-</p>
-
-<pre>
-$ hg submit 99999
-</pre>
 
 <p>
 This checks the change into the repository.
 The change description will include a link to the code review,
 and the code review will be updated with a link to the change
 in the repository.
+Since the method used to integrate the changes is "Cherry Pick",
+the commit hashes in the repository will be changed by
+the submit operation.
 </p>
-
-<p>
-If your local copy of the repository is out of date,
-<code>hg submit</code> will refuse the change:
-</p>
-
-<pre>
-$ hg submit 99999
-local repository out of date; must sync before submit
-</pre>
 
 <h3>More information</h3>
 
 <p>
-In addition to the information here, the Go community maintains a <a href="https://code.google.com/p/go-wiki/wiki/CodeReview">CodeReview</a> wiki page.
+In addition to the information here, the Go community maintains a <a href="https://golang.org/wiki/CodeReview">CodeReview</a> wiki page.
 Feel free to contribute to this page as you learn the review process.
 </p>
 
@@ -617,7 +622,8 @@ Feel free to contribute to this page as you learn the review process.
 
 <p>Files in the Go repository don't list author names,
 both to avoid clutter and to avoid having to keep the lists up to date.
-Instead, your name will appear in the <a href="https://code.google.com/p/go/source/list">Mercurial change log</a>
+Instead, your name will appear in the
+<a href="https://golang.org/change">change log</a>
 and in the <a href="/CONTRIBUTORS"><code>CONTRIBUTORS</code></a> file
 and perhaps the <a href="/AUTHORS"><code>AUTHORS</code></a> file.
 </p>
