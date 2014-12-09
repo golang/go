@@ -10,6 +10,7 @@ package redirect
 import (
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -183,7 +184,9 @@ func clHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	target := ""
-	if strings.HasPrefix(id, "I") {
+	// the first CL in rietveld is about 152046, so if id is less than
+	// 150000, treat it as a Gerrit change id.
+	if n, _ := strconv.Atoi(id); strings.HasPrefix(id, "I") || n < 150000 {
 		target = "https://go-review.googlesource.com/#/q/" + id
 	} else {
 		target = "https://codereview.appspot.com/" + id
