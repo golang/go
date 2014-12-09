@@ -1,6 +1,6 @@
 // Package static computes the call graph of a Go program containing
 // only static call edges.
-package static
+package static // import "golang.org/x/tools/go/callgraph/static"
 
 import (
 	"golang.org/x/tools/go/callgraph"

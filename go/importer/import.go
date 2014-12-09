@@ -7,7 +7,7 @@
 // by R. Griesemer, Technical Report 156, ETH Zürich, 1991.
 
 // package importer implements an exporter and importer for Go export data.
-package importer
+package importer // import "golang.org/x/tools/go/importer"
 
 import (
 	"encoding/binary"

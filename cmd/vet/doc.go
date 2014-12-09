@@ -179,4 +179,4 @@ These flags configure the behavior of vet:
 	-test
 		For testing only: sets -all and -shadow.
 */
-package main
+package main // import "golang.org/x/tools/cmd/vet"

@@ -1,7 +1,7 @@
 // The gorename command performs precise type-safe renaming of
 // identifiers in Go source code.  See the -help message or Usage
 // constant for details.
-package main
+package main // import "golang.org/x/tools/cmd/gorename"
 
 import (
 	"flag"

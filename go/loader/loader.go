@@ -73,7 +73,7 @@
 // DEPENDENCY is a package loaded to satisfy an import in an initial
 // package or another dependency.
 //
-package loader
+package loader // import "golang.org/x/tools/go/loader"
 
 // 'go test', in-package test files, and import cycles
 // ---------------------------------------------------

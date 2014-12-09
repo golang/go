@@ -34,4 +34,4 @@ in a format like this:
 	BenchmarkConcat     80            48            -40.00%
 
 */
-package main
+package main // import "golang.org/x/tools/cmd/benchcmp"

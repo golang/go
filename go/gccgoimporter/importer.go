@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package gccgoimporter implements Import for gccgo-generated object files.
-package gccgoimporter
+package gccgoimporter // import "golang.org/x/tools/go/gccgoimporter"
 
 import (
 	"bytes"

@@ -4,7 +4,7 @@
 
 // Package imports implements a Go pretty-printer (like package "go/format")
 // that also adds or removes import statements as necessary.
-package imports
+package imports // import "golang.org/x/tools/imports"
 
 import (
 	"bufio"

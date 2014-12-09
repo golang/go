@@ -9,7 +9,7 @@
 //
 // THIS INTERFACE IS EXPERIMENTAL AND MAY CHANGE OR BE REMOVED IN FUTURE.
 //
-package lexical
+package lexical // import "golang.org/x/tools/refactor/lexical"
 
 // OVERVIEW
 //

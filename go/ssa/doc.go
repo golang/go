@@ -120,4 +120,4 @@
 // domains of source locations, ast.Nodes, types.Objects,
 // ssa.Values/Instructions.
 //
-package ssa
+package ssa // import "golang.org/x/tools/go/ssa"

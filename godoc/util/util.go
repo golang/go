@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package util contains utility types and functions for godoc.
-package util
+package util // import "golang.org/x/tools/godoc/util"
 
 import (
 	pathpkg "path"

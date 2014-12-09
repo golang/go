@@ -7,7 +7,7 @@
 //
 // This package comment will evolve over time as this package splits
 // into smaller pieces.
-package godoc
+package godoc // import "golang.org/x/tools/godoc"
 
 import (
 	"bytes"

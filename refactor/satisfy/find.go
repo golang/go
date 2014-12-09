@@ -15,7 +15,7 @@
 // since it is computing it anyway, and it is robust for ill-typed
 // inputs, which this package is not.
 //
-package satisfy
+package satisfy // import "golang.org/x/tools/refactor/satisfy"
 
 // NOTES:
 //

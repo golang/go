@@ -56,7 +56,7 @@
 // where t is the lower-cased name of the first type listed. It can be overridden
 // with the -output flag.
 //
-package main
+package main // import "golang.org/x/tools/cmd/stringer"
 
 import (
 	"bytes"

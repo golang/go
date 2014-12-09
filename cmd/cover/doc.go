@@ -18,4 +18,4 @@ For usage information, please see:
 	go help testflag
 	go tool cover -help
 */
-package main
+package main // import "golang.org/x/tools/cmd/cover"

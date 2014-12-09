@@ -63,7 +63,7 @@
 //
 // If no -s argument is provided, godex will try to find a matching source.
 //
-package main
+package main // import "golang.org/x/tools/cmd/godex"
 
 // BUG(gri): support for -s=source is not yet implemented
 // BUG(gri): gccgo-importing appears to have occasional problems stalling godex; try -s=gc as work-around

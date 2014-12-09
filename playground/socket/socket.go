@@ -11,7 +11,7 @@
 // The wire format is JSON and is described by the Message type.
 //
 // This will not run on App Engine as WebSockets are not supported there.
-package socket
+package socket // import "golang.org/x/tools/playground/socket"
 
 import (
 	"bytes"

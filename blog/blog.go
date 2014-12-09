@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package blog implements a web server for articles written in present format.
-package blog
+package blog // import "golang.org/x/tools/blog"
 
 import (
 	"bytes"

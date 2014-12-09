@@ -8,7 +8,7 @@
 //
 // Run with -help flag or help subcommand for usage information.
 //
-package main
+package main // import "golang.org/x/tools/cmd/oracle"
 
 import (
 	"bufio"

@@ -5,7 +5,7 @@
 // Package redirect provides hooks to register HTTP handlers that redirect old
 // godoc paths to their new equivalents and assist in accessing the issue
 // tracker, wiki, code review system, etc.
-package redirect
+package redirect // import "golang.org/x/tools/godoc/redirect"
 
 import (
 	"net/http"

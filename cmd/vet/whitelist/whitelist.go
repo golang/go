@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package whitelist defines exceptions for the vet tool.
-package whitelist
+package whitelist // import "golang.org/x/tools/cmd/vet/whitelist"
 
 // UnkeyedLiteral are types that are actually slices, but
 // syntactically, we cannot tell whether the Typ in pkg.Typ{1, 2, 3}

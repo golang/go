@@ -5,7 +5,7 @@
 // Package rename contains the implementation of the 'gorename' command
 // whose main function is in golang.org/x/tools/refactor/rename.
 // See that package for the command documentation.
-package rename
+package rename // import "golang.org/x/tools/refactor/rename"
 
 import (
 	"errors"

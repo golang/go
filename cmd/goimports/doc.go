@@ -30,4 +30,4 @@ For other editors, you probably know what to do.
 Happy hacking!
 
 */
-package main
+package main // import "golang.org/x/tools/cmd/goimports"

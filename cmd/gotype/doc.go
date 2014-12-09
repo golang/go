@@ -59,4 +59,4 @@ To verify the output of a pipe:
 	echo "package foo" | gotype
 
 */
-package main
+package main // import "golang.org/x/tools/cmd/gotype"

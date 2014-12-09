@@ -8,7 +8,7 @@
 // http://golang.org/s/oracle-design
 // http://golang.org/s/oracle-user-manual
 //
-package oracle
+package oracle // import "golang.org/x/tools/oracle"
 
 // This file defines oracle.Query, the entry point for the oracle tool.
 // The actual executable is defined in cmd/oracle.

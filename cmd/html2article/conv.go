@@ -4,7 +4,7 @@
 
 // This program takes an HTML file and outputs a corresponding article file in
 // present format. See: golang.org/x/tools/present
-package main
+package main // import "golang.org/x/tools/cmd/html2article"
 
 import (
 	"bufio"

@@ -12,7 +12,7 @@
 //   a comment syntax, etc.
 // - allow queries to nest, like Blaze query language.
 //
-package main
+package main // import "golang.org/x/tools/cmd/digraph"
 
 import (
 	"bufio"

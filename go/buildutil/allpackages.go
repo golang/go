@@ -7,7 +7,7 @@
 //
 // All I/O is done via the build.Context file system interface, which must
 // be concurrency-safe.
-package buildutil
+package buildutil // import "golang.org/x/tools/go/buildutil"
 
 import (
 	"go/build"

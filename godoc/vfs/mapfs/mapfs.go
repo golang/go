@@ -4,7 +4,7 @@
 
 // Package mapfs file provides an implementation of the FileSystem
 // interface based on the contents of a map[string]string.
-package mapfs
+package mapfs // import "golang.org/x/tools/godoc/vfs/mapfs"
 
 import (
 	"io"

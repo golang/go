@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssautil
+package ssautil // import "golang.org/x/tools/go/ssa/ssautil"
 
 import "golang.org/x/tools/go/ssa"
 

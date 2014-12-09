@@ -202,4 +202,4 @@ It is your responsibilty to make sure the included HTML is valid and safe.
 	.html file.html
 
 */
-package present
+package present // import "golang.org/x/tools/present"

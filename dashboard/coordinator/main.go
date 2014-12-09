@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // The coordinator runs on GCE and coordinates builds in Docker containers.
-package main
+package main // import "golang.org/x/tools/dashboard/coordinator"
 
 import (
 	"bytes"
