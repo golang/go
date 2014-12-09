@@ -644,6 +644,13 @@ reswitch:
 				n->left = l;
 				n->right = r;
 			}
+		} else if(n->op == OANDAND || n->op == OOROR) {
+			if(l->type == r->type)
+				t = l->type;
+			else if(l->type == idealbool)
+				t = r->type;
+			else if(r->type == idealbool)
+				t = l->type;
 		// non-comparison operators on ideal bools should make them lose their ideal-ness
 		} else if(t == idealbool)
 			t = types[TBOOL];
@@ -1438,7 +1445,7 @@ reswitch:
 		}
 		switch(n->op) {
 		case OCONVNOP:
-			if(n->left->op == OLITERAL) {
+			if(n->left->op == OLITERAL && n->type != types[TBOOL]) {
 				r = nod(OXXX, N, N);
 				n->op = OCONV;
 				n->orig = r;
