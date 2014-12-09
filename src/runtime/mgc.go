@@ -1093,10 +1093,9 @@ var finalizer1 = [...]byte{
 
 func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot *ptrtype) {
 	lock(&finlock)
-	if finq == nil || finq.cnt == finq.cap {
+	if finq == nil || finq.cnt == int32(len(finq.fin)) {
 		if finc == nil {
 			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gc_sys))
-			finc.cap = int32((_FinBlockSize-unsafe.Sizeof(finblock{}))/unsafe.Sizeof(finalizer{}) + 1)
 			finc.alllink = allfin
 			allfin = finc
 			if finptrmask[0] == 0 {
@@ -1121,7 +1120,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 		block.next = finq
 		finq = block
 	}
-	f := (*finalizer)(add(unsafe.Pointer(&finq.fin[0]), uintptr(finq.cnt)*unsafe.Sizeof(finq.fin[0])))
+	f := &finq.fin[finq.cnt]
 	finq.cnt++
 	f.fn = fn
 	f.nret = nret
