@@ -1639,7 +1639,7 @@ func exprfmt(n *Node, prec int) string {
 			f += fmt.Sprintf("make(%v, %v, %v)", Tconv(n.Type, 0), Nconv(n.Left, 0), Nconv(n.Right, 0))
 			return f
 		}
-		if n.Left != nil {
+		if n.Left != nil && (n.Op == OMAKESLICE || !isideal(n.Left.Type)) {
 			var f string
 			f += fmt.Sprintf("make(%v, %v)", Tconv(n.Type, 0), Nconv(n.Left, 0))
 			return f
