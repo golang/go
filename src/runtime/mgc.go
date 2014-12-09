@@ -18,7 +18,7 @@
 //
 // The algorithm's intellectual heritage includes Dijkstra's on-the-fly algorithm, see
 // Edsger W. Dijkstra, Leslie Lamport, A. J. Martin, C. S. Scholten, and E. F. M. Steffens. 1978.
-// On-the-fly garbage collection: an exercise in cooperation. Commun. ACM 21, 11 (November 1978), 
+// On-the-fly garbage collection: an exercise in cooperation. Commun. ACM 21, 11 (November 1978),
 // 966-975.
 // For journal quality proofs that these steps are complete, correct, and terminate see
 // Hudson, R., and Moss, J.E.B. Copying Garbage Collection without stopping the world.
@@ -43,7 +43,7 @@
 //  9. Wait for all P's to acknowledge phase change.
 // 10. Malloc now allocates black objects, so number of unmarked reachable objects
 //        monotonically decreases.
-// 11. GC preempts P's one-by-one taking partial wbufs and marks all unmarked yet 
+// 11. GC preempts P's one-by-one taking partial wbufs and marks all unmarked yet
 //        reachable objects.
 // 12. When GC completes a full cycle over P's and discovers no new grey
 //         objects, (which means all reachable objects are marked) set phase = GCsweep.
@@ -96,7 +96,7 @@
 // that many pages into heap. Together these two measures ensure that we don't surpass
 // target next_gc value by a large margin. There is an exception: if a goroutine sweeps
 // and frees two nonadjacent one-page spans to the heap, it will allocate a new two-page span,
-// but there can still be other one-page unswept spans which could be combined into a 
+// but there can still be other one-page unswept spans which could be combined into a
 // two-page span.
 // It's critical to ensure that no operations proceed on unswept spans (that would corrupt
 // mark bits in GC bitmap). During GC all mcaches are flushed into the central cache,
@@ -212,6 +212,7 @@ var work workdata
 var weak_cgo_allocate byte
 
 // Is _cgo_allocate linked into the binary?
+//go:nowritebarrier
 func have_cgo_allocate() bool {
 	return &weak_cgo_allocate != nil
 }
@@ -242,6 +243,7 @@ var (
 
 // Is address b in the known heap. If it doesn't have a valid gcmap
 // returns false. For example pointers into stacks will return false.
+//go:nowritebarrier
 func inheap(b uintptr) bool {
 	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
 		return false
@@ -259,9 +261,10 @@ func inheap(b uintptr) bool {
 
 // Given an address in the heap return the relevant byte from the gcmap. This routine
 // can be used on addresses to the start of an object or to the interior of the an object.
+//go:nowritebarrier
 func slottombits(obj uintptr, mbits *markbits) {
 	off := (obj&^(ptrSize-1) - mheap_.arena_start) / ptrSize
-	mbits.bitp = (*byte)(unsafe.Pointer(mheap_.arena_start - off/wordsPerBitmapByte - 1))
+	*(*uintptr)(unsafe.Pointer(&mbits.bitp)) = mheap_.arena_start - off/wordsPerBitmapByte - 1
 	mbits.shift = off % wordsPerBitmapByte * gcBits
 	mbits.xbits = *mbits.bitp
 	mbits.bits = (mbits.xbits >> mbits.shift) & bitMask
@@ -273,6 +276,7 @@ func slottombits(obj uintptr, mbits *markbits) {
 // Set mbits to the associated bits from the bit map.
 // If b is not a valid heap object return nil and
 // undefined values in mbits.
+//go:nowritebarrier
 func objectstart(b uintptr, mbits *markbits) uintptr {
 	obj := b &^ (ptrSize - 1)
 	for {
@@ -331,6 +335,7 @@ func objectstart(b uintptr, mbits *markbits) uintptr {
 // speed is not critical at this point.
 var andlock mutex
 
+//go:nowritebarrier
 func atomicand8(src *byte, val byte) {
 	lock(&andlock)
 	*src &= val
@@ -338,6 +343,7 @@ func atomicand8(src *byte, val byte) {
 }
 
 // Mark using the checkmark scheme.
+//go:nowritebarrier
 func docheckmark(mbits *markbits) {
 	// xor 01 moves 01(scalar unmarked) to 00(scalar marked)
 	// and 10(pointer unmarked) to 11(pointer marked)
@@ -354,6 +360,7 @@ func docheckmark(mbits *markbits) {
 }
 
 // In the default scheme does mbits refer to a marked object.
+//go:nowritebarrier
 func ismarked(mbits *markbits) bool {
 	if mbits.bits&bitBoundary != bitBoundary {
 		gothrow("ismarked: bits should have boundary bit set")
@@ -362,6 +369,7 @@ func ismarked(mbits *markbits) bool {
 }
 
 // In the checkmark scheme does mbits refer to a marked object.
+//go:nowritebarrier
 func ischeckmarked(mbits *markbits) bool {
 	if mbits.bits&bitBoundary != bitBoundary {
 		gothrow("ischeckmarked: bits should have boundary bit set")
@@ -370,6 +378,7 @@ func ischeckmarked(mbits *markbits) bool {
 }
 
 // When in GCmarkterminate phase we allocate black.
+//go:nowritebarrier
 func gcmarknewobject_m(obj uintptr) {
 	if gcphase != _GCmarktermination {
 		gothrow("marking new object while not in mark termination phase")
@@ -399,6 +408,7 @@ func gcmarknewobject_m(obj uintptr) {
 // obj is the start of an object with mark mbits.
 // If it isn't already marked, mark it and enqueue into workbuf.
 // Return possibly new workbuf to use.
+//go:nowritebarrier
 func greyobject(obj uintptr, mbits *markbits, wbuf *workbuf) *workbuf {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
 	if obj&(ptrSize-1) != 0 {
@@ -480,6 +490,7 @@ func greyobject(obj uintptr, mbits *markbits, wbuf *workbuf) *workbuf {
 // If ptrmask == nil, the GC bitmap should be consulted.
 // In this case, n may be an overestimate of the size; the GC bitmap
 // must also be used to make sure the scan stops at the end of b.
+//go:nowritebarrier
 func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 	arena_start := mheap_.arena_start
 	arena_used := mheap_.arena_used
@@ -563,6 +574,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 // Otherwise it traverses some fraction of the pointers it found in b, recursively.
 // As a special case, scanblock(nil, 0, nil) means to scan previously queued work,
 // stopping only when no work is left in the system.
+//go:nowritebarrier
 func scanblock(b, n uintptr, ptrmask *uint8) {
 	wbuf := getpartialorempty()
 	if b != 0 {
@@ -618,6 +630,7 @@ func scanblock(b, n uintptr, ptrmask *uint8) {
 	}
 }
 
+//go:nowritebarrier
 func markroot(desc *parfor, i uint32) {
 	// Note: if you add a case here, please also update heapdump.c:dumproots.
 	switch i {
@@ -718,6 +731,7 @@ func markroot(desc *parfor, i uint32) {
 
 // Get an empty work buffer off the work.empty list,
 // allocating new buffers as needed.
+//go:nowritebarrier
 func getempty(b *workbuf) *workbuf {
 	if b != nil {
 		putfull(b)
@@ -738,6 +752,7 @@ func getempty(b *workbuf) *workbuf {
 	return b
 }
 
+//go:nowritebarrier
 func putempty(b *workbuf) {
 	if b.nobj != 0 {
 		gothrow("putempty: b->nobj not 0")
@@ -745,6 +760,7 @@ func putempty(b *workbuf) {
 	lfstackpush(&work.empty, &b.node)
 }
 
+//go:nowritebarrier
 func putfull(b *workbuf) {
 	if b.nobj <= 0 {
 		gothrow("putfull: b->nobj <= 0")
@@ -754,6 +770,7 @@ func putfull(b *workbuf) {
 
 // Get an partially empty work buffer
 // if none are available get an empty one.
+//go:nowritebarrier
 func getpartialorempty() *workbuf {
 	b := (*workbuf)(lfstackpop(&work.partial))
 	if b == nil {
@@ -762,6 +779,7 @@ func getpartialorempty() *workbuf {
 	return b
 }
 
+//go:nowritebarrier
 func putpartial(b *workbuf) {
 	if b.nobj == 0 {
 		lfstackpush(&work.empty, &b.node)
@@ -787,6 +805,7 @@ func putpartial(b *workbuf) {
 // looking for work and thus not capable of creating new work.
 // This is in fact the termination condition for the STW mark
 // phase.
+//go:nowritebarrier
 func getfull(b *workbuf) *workbuf {
 	if b != nil {
 		putempty(b)
@@ -830,6 +849,7 @@ func getfull(b *workbuf) *workbuf {
 	}
 }
 
+//go:nowritebarrier
 func handoff(b *workbuf) *workbuf {
 	// Make new buffer with half of b's pointers.
 	b1 := getempty(nil)
@@ -846,6 +866,7 @@ func handoff(b *workbuf) *workbuf {
 	return b1
 }
 
+//go:nowritebarrier
 func stackmapdata(stkmap *stackmap, n int32) bitvector {
 	if n < 0 || n >= stkmap.n {
 		gothrow("stackmapdata: index out of range")
@@ -854,6 +875,7 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
 }
 
 // Scan a stack frame: local variables and function arguments/results.
+//go:nowritebarrier
 func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
 
 	f := frame.fn
@@ -925,6 +947,7 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
 	return true
 }
 
+//go:nowritebarrier
 func scanstack(gp *g) {
 
 	if readgstatus(gp)&_Gscan == 0 {
@@ -963,6 +986,7 @@ func scanstack(gp *g) {
 // The slot is grey if its mark bit is set and it is enqueued to be scanned.
 // The slot is black if it has already been scanned.
 // It is white if it has a valid mark bit and the bit is not set.
+//go:nowritebarrier
 func shaded(slot uintptr) bool {
 	if !inheap(slot) { // non-heap slots considered grey
 		return true
@@ -983,6 +1007,7 @@ func shaded(slot uintptr) bool {
 
 // Shade the object if it isn't already.
 // The object is not nil and known to be in the heap.
+//go:nowritebarrier
 func shade(b uintptr) {
 	if !inheap(b) {
 		gothrow("shade: passed an address not in the heap")
@@ -1033,6 +1058,7 @@ func shade(b uintptr) {
 // answer is yes without inserting a memory barriers between the st and the ld.
 // These barriers are expensive so we have decided that we will
 // always grey the ptr object regardless of the slot's color.
+//go:nowritebarrier
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	switch gcphase {
 	default:
@@ -1050,6 +1076,7 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 
 // The gp has been moved to a GC safepoint. GC phase specific
 // work is done here.
+//go:nowritebarrier
 func gcphasework(gp *g) {
 	switch gcphase {
 	default:
@@ -1095,6 +1122,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 	lock(&finlock)
 	if finq == nil || finq.cnt == int32(len(finq.fin)) {
 		if finc == nil {
+			// Note: write barrier here, assigning to finc, but should be okay.
 			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gc_sys))
 			finc.alllink = allfin
 			allfin = finc
@@ -1131,6 +1159,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 	unlock(&finlock)
 }
 
+//go:nowritebarrier
 func iterate_finq(callback func(*funcval, unsafe.Pointer, uintptr, *_type, *ptrtype)) {
 	for fb := allfin; fb != nil; fb = fb.alllink {
 		for i := int32(0); i < fb.cnt; i++ {
@@ -1141,6 +1170,7 @@ func iterate_finq(callback func(*funcval, unsafe.Pointer, uintptr, *_type, *ptrt
 }
 
 // Returns only when span s has been swept.
+//go:nowritebarrier
 func mSpan_EnsureSwept(s *mspan) {
 	// Caller must disable preemption.
 	// Otherwise when this function returns the span can become unswept again
@@ -1170,6 +1200,7 @@ func mSpan_EnsureSwept(s *mspan) {
 // Returns true if the span was returned to heap.
 // If preserve=true, don't return it to heap nor relink in MCentral lists;
 // caller takes care of it.
+//TODO go:nowritebarrier
 func mSpan_Sweep(s *mspan, preserve bool) bool {
 	if checkmark {
 		gothrow("MSpan_Sweep: checkmark only runs in STW and after the sweep")
@@ -1380,6 +1411,7 @@ var sweep sweepdata
 
 // sweeps one span
 // returns number of pages returned to heap, or ^uintptr(0) if there is nothing to sweep
+//go:nowritebarrier
 func sweepone() uintptr {
 	_g_ := getg()
 
@@ -1411,6 +1443,7 @@ func sweepone() uintptr {
 	}
 }
 
+//go:nowritebarrier
 func gosweepone() uintptr {
 	var ret uintptr
 	systemstack(func() {
@@ -1419,10 +1452,12 @@ func gosweepone() uintptr {
 	return ret
 }
 
+//go:nowritebarrier
 func gosweepdone() bool {
 	return mheap_.sweepdone != 0
 }
 
+//go:nowritebarrier
 func gchelper() {
 	_g_ := getg()
 	_g_.m.traceback = 2
@@ -1441,6 +1476,7 @@ func gchelper() {
 	_g_.m.traceback = 0
 }
 
+//go:nowritebarrier
 func cachestats() {
 	for i := 0; ; i++ {
 		p := allp[i]
@@ -1455,6 +1491,7 @@ func cachestats() {
 	}
 }
 
+//go:nowritebarrier
 func flushallmcaches() {
 	for i := 0; ; i++ {
 		p := allp[i]
@@ -1470,6 +1507,7 @@ func flushallmcaches() {
 	}
 }
 
+//go:nowritebarrier
 func updatememstats(stats *gcstats) {
 	if stats != nil {
 		*stats = gcstats{}
@@ -1560,6 +1598,7 @@ func gcinit() {
 }
 
 // Called from malloc.go using onM, stopping and starting the world handled in caller.
+//go:nowritebarrier
 func gc_m(start_time int64, eagersweep bool) {
 	_g_ := getg()
 	gp := _g_.m.curg
@@ -1579,6 +1618,7 @@ func gc_m(start_time int64, eagersweep bool) {
 // For the second case it is possible to restore the BitsDead pattern but since
 // clearmark is a debug tool performance has a lower priority than simplicity.
 // The span is MSpanInUse and the world is stopped.
+//go:nowritebarrier
 func clearcheckmarkbitsspan(s *mspan) {
 	if s.state != _MSpanInUse {
 		print("runtime:clearcheckmarkbitsspan: state=", s.state, "\n")
@@ -1707,6 +1747,7 @@ func clearcheckmarkbitsspan(s *mspan) {
 //    BitsScalarMark (00) to BitsScalar (01), thus clearing the checkmark mark encoding.
 // This is a bit expensive but preserves the BitsDead encoding during the normal marking.
 // BitsDead remains valid for every nibble except the ones with BitsBoundary set.
+//go:nowritebarrier
 func clearcheckmarkbits() {
 	for _, s := range work.spans {
 		if s.state == _MSpanInUse {
@@ -1720,6 +1761,7 @@ func clearcheckmarkbits() {
 // using the bitMarkedCheck bit instead of the
 // bitMarked bit. If the marking encounters an
 // bitMarked bit that is not set then we throw.
+//go:nowritebarrier
 func gccheckmark_m(startTime int64, eagersweep bool) {
 	if !gccheckmarkenable {
 		return
@@ -1736,14 +1778,17 @@ func gccheckmark_m(startTime int64, eagersweep bool) {
 	clearcheckmarkbits()
 }
 
+//go:nowritebarrier
 func gccheckmarkenable_m() {
 	gccheckmarkenable = true
 }
 
+//go:nowritebarrier
 func gccheckmarkdisable_m() {
 	gccheckmarkenable = false
 }
 
+//go:nowritebarrier
 func finishsweep_m() {
 	// The world is stopped so we should be able to complete the sweeps
 	// quickly.
@@ -1764,6 +1809,7 @@ func finishsweep_m() {
 
 // Scan all of the stacks, greying (or graying if in America) the referents
 // but not blackening them since the mark write barrier isn't installed.
+//go:nowritebarrier
 func gcscan_m() {
 	_g_ := getg()
 
@@ -1813,22 +1859,26 @@ func gcscan_m() {
 }
 
 // Mark all objects that are known about.
+//go:nowritebarrier
 func gcmark_m() {
 	scanblock(0, 0, nil)
 }
 
 // For now this must be bracketed with a stoptheworld and a starttheworld to ensure
 // all go routines see the new barrier.
+//go:nowritebarrier
 func gcinstallmarkwb_m() {
 	gcphase = _GCmark
 }
 
 // For now this must be bracketed with a stoptheworld and a starttheworld to ensure
 // all go routines see the new barrier.
+//go:nowritebarrier
 func gcinstalloffwb_m() {
 	gcphase = _GCoff
 }
 
+//TODO go:nowritebarrier
 func gc(start_time int64, eagersweep bool) {
 	if _DebugGCPtrs {
 		print("GC start\n")
@@ -2100,6 +2150,7 @@ func wakefing() *g {
 	return res
 }
 
+//go:nowritebarrier
 func addb(p *byte, n uintptr) *byte {
 	return (*byte)(add(unsafe.Pointer(p), n))
 }
@@ -2108,6 +2159,7 @@ func addb(p *byte, n uintptr) *byte {
 // mask is where to store the result.
 // ppos is a pointer to position in mask, in bits.
 // sparse says to generate 4-bits per word mask for heap (2-bits for data/bss otherwise).
+//go:nowritebarrier
 func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool) *byte {
 	arena_start := mheap_.arena_start
 	pos := *ppos
@@ -2219,6 +2271,7 @@ func unrollgcproginplace_m(v unsafe.Pointer, typ *_type, size, size0 uintptr) {
 var unroll mutex
 
 // Unrolls GC program in typ.gc[1] into typ.gc[0]
+//go:nowritebarrier
 func unrollgcprog_m(typ *_type) {
 	lock(&unroll)
 	mask := (*byte)(unsafe.Pointer(uintptr(typ.gc[0])))
@@ -2243,6 +2296,7 @@ func unrollgcprog_m(typ *_type) {
 
 // mark the span of memory at v as having n blocks of the given size.
 // if leftover is true, there is left over space at the end of the span.
+//go:nowritebarrier
 func markspan(v unsafe.Pointer, size uintptr, n uintptr, leftover bool) {
 	if uintptr(v)+size*n > mheap_.arena_used || uintptr(v) < mheap_.arena_start {
 		gothrow("markspan: bad pointer")
@@ -2288,6 +2342,7 @@ func markspan(v unsafe.Pointer, size uintptr, n uintptr, leftover bool) {
 }
 
 // unmark the span of memory at v of length n bytes.
+//go:nowritebarrier
 func unmarkspan(v, n uintptr) {
 	if v+n > mheap_.arena_used || v < mheap_.arena_start {
 		gothrow("markspan: bad pointer")
@@ -2312,6 +2367,7 @@ func unmarkspan(v, n uintptr) {
 	memclr(unsafe.Pointer(b-n+1), n)
 }
 
+//go:nowritebarrier
 func mHeap_MapBits(h *mheap) {
 	// Caller has added extra mappings to the arena.
 	// Add extra mappings of bitmap words as needed.
