@@ -1261,14 +1261,14 @@ func exprfmt(n *Node, prec int) string {
 		return f
 
 	case OLITERAL: // this is a bit of a mess
+		if n.Orig != nil && n.Orig != n {
+			var f string
+			f += exprfmt(n.Orig, prec)
+			return f
+		}
 		if fmtmode == FErr && n.Sym != nil {
 			var f string
 			f += fmt.Sprintf("%v", Sconv(n.Sym, 0))
-			return f
-		}
-		if n.Val.Ctype == CTNIL && n.Orig != nil && n.Orig != n {
-			var f string
-			f += exprfmt(n.Orig, prec)
 			return f
 		}
 		if n.Type != nil && n.Type != Types[n.Type.Etype] && n.Type != idealbool && n.Type != idealstring {
