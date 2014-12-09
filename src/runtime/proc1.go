@@ -861,8 +861,7 @@ func needm(x byte) {
 	if needextram != 0 {
 		// Can happen if C/C++ code calls Go from a global ctor.
 		// Can not throw, because scheduler is not initialized yet.
-		// XXX
-		// write(2, unsafe.Pointer("fatal error: cgo callback before cgo call\n"), sizeof("fatal error: cgo callback before cgo call\n") - 1)
+		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
 		exit(1)
 	}
 
@@ -897,6 +896,8 @@ func needm(x byte) {
 	asminit()
 	minit()
 }
+
+var earlycgocallback = []byte("fatal error: cgo callback before cgo call\n")
 
 // newextram allocates an m and puts it on the extra list.
 // It is called with a working local m, so that it can do things
