@@ -25,7 +25,7 @@ func main() {
 
 	run("go", "tool", a+"g", filepath.Join("fixedbugs", "bug302.dir", "p.go"))
 	run("go", "tool", "pack", "grc", "pp.a", "p."+a)
-	run("go", "tool", a+"g", filepath.Join("fixedbugs", "bug302.dir", "main.go"))
+	run("go", "tool", a+"g", "-I", ".", filepath.Join("fixedbugs", "bug302.dir", "main.go"))
 	os.Remove("p."+a)
 	os.Remove("pp.a")
 	os.Remove("main."+a)
