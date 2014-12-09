@@ -7,8 +7,8 @@
 
 // Garbage collector (GC).
 //
-// The GC runs concurrently with mutator threads, is type accurate (aka precise), allows multiple GC
-// thread to run in parallel. It is a concurrent mark and sweep that uses a write barrier. It is
+// The GC runs concurrently with mutator threads, is type accurate (aka precise), allows multiple
+// GC thread to run in parallel. It is a concurrent mark and sweep that uses a write barrier. It is
 // non-generational and non-compacting. Allocation is done using size segregated per P allocation
 // areas to minimize fragmentation while eliminating locks in the common case.
 //
@@ -18,7 +18,8 @@
 //
 // The algorithm's intellectual heritage includes Dijkstra's on-the-fly algorithm, see
 // Edsger W. Dijkstra, Leslie Lamport, A. J. Martin, C. S. Scholten, and E. F. M. Steffens. 1978.
-// On-the-fly garbage collection: an exercise in cooperation. Commun. ACM 21, 11 (November 1978), 966-975.
+// On-the-fly garbage collection: an exercise in cooperation. Commun. ACM 21, 11 (November 1978), 
+// 966-975.
 // For journal quality proofs that these steps are complete, correct, and terminate see
 // Hudson, R., and Moss, J.E.B. Copying Garbage Collection without stopping the world.
 // Concurrency and Computation: Practice and Experience 15(3-5), 2003.
@@ -28,7 +29,7 @@
 //         At this point all goroutines have passed through a GC safepoint and
 //         know we are in the GCscan phase.
 //  2. GC scans all goroutine stacks, mark and enqueues all encountered pointers
-//       (marking avoids most duplicate enqueuing but races may produce duplication which is benign).
+//       (marking avoids most duplicate enqueuing but races may produce benign duplication).
 //       Preempted goroutines are scanned before P schedules next goroutine.
 //  3. Set phase = GCmark.
 //  4. Wait for all P's to acknowledge phase change.
@@ -42,7 +43,8 @@
 //  9. Wait for all P's to acknowledge phase change.
 // 10. Malloc now allocates black objects, so number of unmarked reachable objects
 //        monotonically decreases.
-// 11. GC preempts P's one-by-one taking partial wbufs and marks all unmarked yet reachable objects.
+// 11. GC preempts P's one-by-one taking partial wbufs and marks all unmarked yet 
+//        reachable objects.
 // 12. When GC completes a full cycle over P's and discovers no new grey
 //         objects, (which means all reachable objects are marked) set phase = GCsweep.
 // 13. Wait for all P's to acknowledge phase change.
@@ -94,7 +96,8 @@
 // that many pages into heap. Together these two measures ensure that we don't surpass
 // target next_gc value by a large margin. There is an exception: if a goroutine sweeps
 // and frees two nonadjacent one-page spans to the heap, it will allocate a new two-page span,
-// but there can still be other one-page unswept spans which could be combined into a two-page span.
+// but there can still be other one-page unswept spans which could be combined into a 
+// two-page span.
 // It's critical to ensure that no operations proceed on unswept spans (that would corrupt
 // mark bits in GC bitmap). During GC all mcaches are flushed into the central cache,
 // so they are empty. When a goroutine grabs a new span into mcache, it sweeps it.
