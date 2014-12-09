@@ -321,8 +321,7 @@ func sysargs(argc int32, argv **byte) {
 			vdso_parse_symbols(info1, vdso_find_version(info1, &linux26))
 
 		case _AT_RANDOM:
-			startup_random_data = (*byte)(unsafe.Pointer(uintptr(av.a_val)))
-			startup_random_data_len = 16
+			startupRandomData = (*[16]byte)(unsafe.Pointer(uintptr(av.a_val)))[:]
 		}
 	}
 }

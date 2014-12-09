@@ -145,30 +145,18 @@ func osinit() {
 	ncpu = getproccount()
 }
 
-// Random bytes initialized at startup.  These come
-// from the ELF AT_RANDOM auxiliary vector (vdso_linux_amd64.c).
-// byte*	runtime·startup_random_data;
-// uint32	runtime·startup_random_data_len;
-
-var urandom_data [_HashRandomBytes]byte
 var urandom_dev = []byte("/dev/random\x00")
 
-//go:nosplit
-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
-	if startup_random_data != nil {
-		*rnd = unsafe.Pointer(startup_random_data)
-		*rnd_len = int32(startup_random_data_len)
+func getRandomData(r []byte) {
+	if startupRandomData != nil {
+		n := copy(r, startupRandomData)
+		extendRandom(r, n)
 		return
 	}
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
-	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
-		*rnd = unsafe.Pointer(&urandom_data[0])
-		*rnd_len = _HashRandomBytes
-	} else {
-		*rnd = nil
-		*rnd_len = 0
-	}
+	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	close(fd)
+	extendRandom(r, int(n))
 }
 
 func goenvs() {

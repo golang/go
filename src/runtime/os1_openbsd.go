@@ -138,20 +138,14 @@ func osinit() {
 	ncpu = getncpu()
 }
 
-var urandom_data [_HashRandomBytes]byte
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
+func getRandomData(r []byte) {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
-	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
-		*rnd = unsafe.Pointer(&urandom_data[0])
-		*rnd_len = _HashRandomBytes
-	} else {
-		*rnd = nil
-		*rnd_len = 0
-	}
+	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	close(fd)
+	extendRandom(r, int(n))
 }
 
 func goenvs() {

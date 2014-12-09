@@ -475,15 +475,32 @@ const (
 	_Structrnd = regSize
 )
 
-var startup_random_data *byte
-var startup_random_data_len uint32
+// startup_random_data holds random bytes initialized at startup.  These come from
+// the ELF AT_RANDOM auxiliary vector (vdso_linux_amd64.go or os_linux_386.go).
+var startupRandomData []byte
+
+// extendRandom extends the random numbers in r[:n] to the whole slice r.
+// Treats n<0 as n==0.
+func extendRandom(r []byte, n int) {
+	if n < 0 {
+		n = 0
+	}
+	for n < len(r) {
+		// Extend random bits using hash function & time seed
+		w := n
+		if w > 16 {
+			w = 16
+		}
+		h := memhash(unsafe.Pointer(&r[n-w]), uintptr(w), uintptr(nanotime()))
+		for i := 0; i < ptrSize && n < len(r); i++ {
+			r[n] = byte(h)
+			n++
+			h >>= 8
+		}
+	}
+}
 
 var invalidptr int32
-
-const (
-	// hashinit wants this many random bytes
-	_HashRandomBytes = 32
-)
 
 /*
  * deferred subroutine calls
