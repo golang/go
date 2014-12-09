@@ -476,8 +476,8 @@ type finblock struct {
 	alllink *finblock
 	next    *finblock
 	cnt     int32
-	cap     int32
-	fin     [1]finalizer
+	_       int32
+	fin     [(_FinBlockSize-2*ptrSize-2*4)/unsafe.Sizeof(finalizer{})]finalizer
 }
 
 // Information from the compiler about the layout of stack frames.
