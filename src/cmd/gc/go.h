@@ -271,6 +271,7 @@ struct	Node
 	uchar	noescape;	// func arguments do not escape
 	uchar	nosplit;	// func should not execute on separate stack
 	uchar	builtin;	// built-in name, like len or close
+	uchar	nowritebarrier;	// emit compiler error instead of write barrier
 	uchar	walkdef;
 	uchar	typecheck;
 	uchar	local;
@@ -987,6 +988,7 @@ EXTERN	int	flag_race;
 EXTERN	int	flag_largemodel;
 EXTERN	int	noescape;
 EXTERN	int	nosplit;
+EXTERN	int	nowritebarrier;
 EXTERN	int	debuglive;
 EXTERN	Link*	ctxt;
 

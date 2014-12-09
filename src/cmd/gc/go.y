@@ -1319,6 +1319,7 @@ xfndcl:
 		$$->endlineno = lineno;
 		$$->noescape = noescape;
 		$$->nosplit = nosplit;
+		$$->nowritebarrier = nowritebarrier;
 		funcbody($$);
 	}
 
@@ -1502,6 +1503,7 @@ xdcl_list:
 		nointerface = 0;
 		noescape = 0;
 		nosplit = 0;
+		nowritebarrier = 0;
 	}
 
 vardcl_list:

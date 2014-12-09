@@ -2010,6 +2010,8 @@ applywritebarrier(Node *n, NodeList **init)
 	char name[32];
 
 	if(n->left && n->right && needwritebarrier(n->left, n->right)) {
+		if(curfn && curfn->nowritebarrier)
+			yyerror("write barrier prohibited");
 		t = n->left->type;
 		l = nod(OADDR, n->left, N);
 		l->etype = 1; // addr does not escape

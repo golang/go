@@ -1655,6 +1655,12 @@ go:
 		nosplit = 1;
 		goto out;
 	}
+	if(strcmp(lexbuf, "go:nowritebarrier") == 0) {
+		if(!compiling_runtime)
+			yyerror("//go:nowritebarrier only allowed in runtime");
+		nowritebarrier = 1;
+		goto out;
+	}
 	
 out:
 	return c;
