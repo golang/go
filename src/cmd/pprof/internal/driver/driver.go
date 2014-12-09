@@ -886,7 +886,6 @@ var usageMsg = "Output file parameters (for file-based output formats):\n" +
 	"Miscellaneous:\n" +
 	"  -call_tree        Generate a context-sensitive call tree\n" +
 	"  -unit=u           Convert all samples to unit u for display\n" +
-	"  -show_bytes       Display all space in bytes\n" +
 	"  -divide_by=f      Scale all samples by dividing them by f\n" +
 	"  -buildid=id       Override build id for main binary in profile\n" +
 	"  -tools=path       Search path for object-level tools\n" +
