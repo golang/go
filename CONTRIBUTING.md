@@ -1,15 +1,29 @@
-The Go project is an open source project.
-For information, see: https://golang.org/
+# Contributing to Go
 
-Its canonical Git repository is located at https://go.googlesource.com/go.
-(There is a mirror of the repository at https://github.com/golang/go.)
+Go is an open source project.
 
-Report issues here: https://github.com/golang/go/issues
+It is the work of hundreds of contributors. We appreciate your help!
 
-Go is the work of hundreds of contributors. We appreciate your help!
 
-To contribute, please read the contribution guidelines:
-	http://golang.org/doc/contribute.html
+## Filing issues
 
-## We DO NOT accept pull requests.
+When filing an issue, make sure to answer these five questions:
+
+1. What version of Go are you using (`go version`)?
+2. What operating system and processor architecture are you using?
+3. What did you do?
+4. What did you expect to see?
+5. What did you see instead?
+
+
+## Contributing code
+
+Please read the [Contribution Guidelines](https://golang.org/doc/contribute.html)
+before sending patches.
+
+**We do not accept GitHub pull requests**
+(we use [Gerrit](https://code.google.com/p/gerrit/) instead for code review).
+
+Unless otherwise noted, the Go source files ared istributed under
+the BSD-style license found in the LICENSE file.
 

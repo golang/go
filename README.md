@@ -1,19 +1,27 @@
-This is the source code repository for the Go programming language.  
+# The Go Programming Language
+
+![Gopher image](doc/gopher/fiveyears.jpg)
 
 For documentation about how to install and use Go,
 visit http://golang.org/ or load doc/install-source.html
 in your web browser.
 
-After installing Go, you can view a nicely formatted
-doc/install-source.html by running godoc --http=:6060
-and then visiting http://localhost:6060/doc/install/source.
+Our canonical Git repository is located at https://go.googlesource.com/go.
+(There is a mirror of the repository at https://github.com/golang/go.)
+
+Please report issues here: https://github.com/golang/go/issues
+
+Go is the work of hundreds of contributors. We appreciate your help!
+
+To contribute, please read the contribution guidelines:
+	http://golang.org/doc/contribute.html
 
 Unless otherwise noted, the Go source files are distributed
 under the BSD-style license found in the LICENSE file.
 
 --
 
-Binary Distribution Notes
+## Binary Distribution Notes
 
 If you have just untarred a binary Go distribution, you need to set
 the environment variable $GOROOT to the full path of the go
@@ -26,7 +34,8 @@ to your shell's path.
 For example, if you extracted the tar file into $HOME/go, you might
 put the following in your .profile:
 
-    export GOROOT=$HOME/go
-    export PATH=$PATH:$GOROOT/bin
+	export GOROOT=$HOME/go
+	export PATH=$PATH:$GOROOT/bin
 
-See doc/install.html for more details.
+See https://golang.org/doc/install or doc/install.html for more details.
+
