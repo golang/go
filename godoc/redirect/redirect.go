@@ -177,17 +177,19 @@ func clHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.URL.Path[len(prefix):]
+	// support /cl/152700045/, which is used in commit 0edafefc36.
+	id = strings.TrimSuffix(id, "/")
 	if !validId.MatchString(id) {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}
 	target := ""
-	// the first CL in rietveld is about 152046, so if id is less than
-	// 150000, treat it as a Gerrit change id.
-	if n, _ := strconv.Atoi(id); strings.HasPrefix(id, "I") || n < 150000 {
-		target = "https://go-review.googlesource.com/#/q/" + id
-	} else {
+	// the first CL in rietveld is about 152046, so only treat the id as
+	// a rietveld CL if it is larger than 150000.
+	if n, err := strconv.Atoi(id); err == nil && n > 150000 {
 		target = "https://codereview.appspot.com/" + id
+	} else {
+		target = "https://go-review.googlesource.com/r/" + id
 	}
 	http.Redirect(w, r, target, http.StatusFound)
 }
