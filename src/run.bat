@@ -19,7 +19,7 @@ set GOPATH=
 rem TODO avoid rebuild if possible
 
 if x%1==x--no-rebuild goto norebuild
-echo # Building packages and commands.
+echo ##### Building packages and commands.
 go install -a -v std
 if errorlevel 1 goto fail
 echo.
@@ -37,7 +37,7 @@ call env.bat
 del env.bat
 echo.
 
-echo # Testing packages.
+echo ##### Testing packages.
 go test std -short -timeout=120s
 if errorlevel 1 goto fail
 echo.
@@ -46,7 +46,7 @@ set OLDGOMAXPROCS=%GOMAXPROCS%
 
 :: We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
 :: creation of first goroutines and first garbage collections in the parallel setting.
-echo # GOMAXPROCS=2 runtime -cpu=1,2,4
+echo ##### GOMAXPROCS=2 runtime -cpu=1,2,4
 set GOMAXPROCS=2
 go test runtime -short -timeout=300s -cpu=1,2,4
 if errorlevel 1 goto fail
@@ -55,7 +55,7 @@ echo.
 set GOMAXPROCS=%OLDGOMAXPROCS%
 set OLDGOMAXPROCS=
 
-echo # sync -cpu=10
+echo ##### sync -cpu=10
 go test sync -short -timeout=120s -cpu=10
 if errorlevel 1 goto fail
 echo.
@@ -63,7 +63,7 @@ echo.
 :: Race detector only supported on Linux and OS X,
 :: and only on amd64, and only when cgo is enabled.
 if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
-echo # Testing race detector.
+echo ##### Testing race detector.
 go test -race -i runtime/race flag
 if errorlevel 1 goto fail
 go test -race -run=Output runtime/race
@@ -73,19 +73,19 @@ if errorlevel 1 goto fail
 echo.
 :norace
 
-echo # ..\test\bench\go1
+echo ##### ..\test\bench\go1
 go test ..\test\bench\go1
 if errorlevel 1 goto fail
 echo.
 
 :: cgo tests
 if x%CGO_ENABLED% == x0 goto nocgo
-echo # ..\misc\cgo\life
+echo ##### ..\misc\cgo\life
 go run "%GOROOT%\test\run.go" - ..\misc\cgo\life
 if errorlevel 1 goto fail
 echo.
 
-echo # ..\misc\cgo\stdio
+echo ##### ..\misc\cgo\stdio
 go run "%GOROOT%\test\run.go" - ..\misc\cgo\stdio
 if errorlevel 1 goto fail
 echo.
@@ -94,7 +94,7 @@ echo.
 set OLDGOTRACEBACK=%GOTRACEBACK%
 set GOTRACEBACK=2
 
-echo # ..\misc\cgo\test
+echo ##### ..\misc\cgo\test
 go test ..\misc\cgo\test
 if errorlevel 1 goto fail
 echo.
@@ -102,7 +102,7 @@ echo.
 set GOTRACEBACK=%OLDGOTRACEBACK%
 set OLDGOTRACEBACK=
 
-echo # ..\misc\cgo\testso
+echo ##### ..\misc\cgo\testso
 cd ..\misc\cgo\testso
 set FAIL=0
 call test.bat
@@ -111,7 +111,7 @@ if %FAIL%==1 goto fail
 echo.
 :nocgo
 
-echo # ..\doc\progs
+echo ##### ..\doc\progs
 go run "%GOROOT%\test\run.go" - ..\doc\progs
 if errorlevel 1 goto fail
 echo.
@@ -121,7 +121,7 @@ echo.
 
 set OLDGOMAXPROCS=%GOMAXPROCS%
 
-echo # ..\test
+echo ##### ..\test
 cd ..\test
 set FAIL=0
 set GOMAXPROCS=
@@ -134,7 +134,7 @@ if %FAIL%==1 goto fail
 set GOMAXPROCS=%OLDGOMAXPROCS%
 set OLDGOMAXPROCS=
 
-:: echo # Checking API compatibility.
+:: echo ##### Checking API compatibility.
 go run "%GOROOT%\src\cmd\api\run.go"
 if errorlevel 1 goto fail
 echo.

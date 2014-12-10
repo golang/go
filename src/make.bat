@@ -56,7 +56,7 @@ cd src
 if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
 set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
 
-echo # Building C bootstrap tool.
+echo ##### Building C bootstrap tool.
 echo cmd/dist
 if not exist ..\bin\tool mkdir ..\bin\tool
 :: Windows has no glob expansion, so spell out cmd/dist/*.c.
@@ -71,7 +71,7 @@ echo.
 if x%1==x--dist-tool goto copydist
 if x%2==x--dist-tool goto copydist
 
-echo # Building compilers and Go bootstrap tool.
+echo ##### Building compilers and Go bootstrap tool.
 set buildall=-a
 if x%1==x--no-clean set buildall=
 .\cmd\dist\dist bootstrap %buildall% -v
@@ -86,7 +86,7 @@ if not %GOHOSTOS% == %GOOS% goto localbuild
 goto mainbuild
 
 :localbuild
-echo # Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
+echo ##### Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
 setlocal
 set GOOS=%GOHOSTOS%
 set GOARCH=%GOHOSTARCH%
@@ -96,7 +96,7 @@ if errorlevel 1 goto fail
 echo.
 
 :mainbuild
-echo # Building packages and commands.
+echo ##### Building packages and commands.
 "%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std
 if errorlevel 1 goto fail
 del "%GOTOOLDIR%\go_bootstrap.exe"

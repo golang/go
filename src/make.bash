@@ -110,7 +110,7 @@ rm -f ./runtime/runtime_defs.go
 
 # Finally!  Run the build.
 
-echo '# Building C bootstrap tool.'
+echo '##### Building C bootstrap tool.'
 echo cmd/dist
 export GOROOT="$(cd .. && pwd)"
 GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
@@ -149,7 +149,7 @@ if [ "$1" = "--dist-tool" ]; then
 	exit 0
 fi
 
-echo "# Building compilers and Go bootstrap tool for host, $GOHOSTOS/$GOHOSTARCH."
+echo "##### Building compilers and Go bootstrap tool for host, $GOHOSTOS/$GOHOSTARCH."
 buildall="-a"
 if [ "$1" = "--no-clean" ]; then
 	buildall=""
@@ -162,7 +162,7 @@ mv cmd/dist/dist "$GOTOOLDIR"/dist
 echo
 
 if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
-	echo "# Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
+	echo "##### Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
 	# CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the host, however,
 	# use the host compiler, CC, from `cmd/dist/dist env` instead.
 	CC=$CC GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
@@ -170,7 +170,7 @@ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
 	echo
 fi
 
-echo "# Building packages and commands for $GOOS/$GOARCH."
+echo "##### Building packages and commands for $GOOS/$GOARCH."
 CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
 echo
 
