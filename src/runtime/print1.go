@@ -75,7 +75,7 @@ func gwrite(b []byte) {
 	}
 	gp := getg()
 	if gp == nil || gp.writebuf == nil {
-		write(2, unsafe.Pointer(&b[0]), int32(len(b)))
+		writeErr(b)
 		return
 	}
 
