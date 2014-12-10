@@ -310,7 +310,7 @@ func goalg(a unsafe.Pointer) *typeAlg {
 }
 
 // used in asm_{386,amd64}.s
-const hashRandomBytes = 32
+const hashRandomBytes = ptrSize / 4 * 64
 
 var aeskeysched [hashRandomBytes]byte
 
