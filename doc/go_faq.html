@@ -228,7 +228,7 @@ document server running in a production configuration on
 </p>
 
 <p>
-Other examples include the <a href="https://code.google.com/p/vitess/">Vitess</a>
+Other examples include the <a href="//code.google.com/p/vitess/">Vitess</a>
 system for large-scale SQL installations and Google's download server, <code>dl.google.com</code>,
 which delivers Chrome binaries and other large installables such as <code>apt-get</code>
 packages.
@@ -984,32 +984,6 @@ If you want to make a significant change, please discuss on the mailing list bef
 See the document
 <a href="contribute.html">Contributing to the Go project</a>
 for more information about how to proceed.
-</p>
-
-<h3 id="Why_does_the_project_use_Mercurial_and_not_git">
-Why does the project use Mercurial and not git?</h3>
-
-<p>
-The Go project, hosted by Google Code at
-<a href="//code.google.com/p/go">code.google.com/p/go</a>,
-uses Mercurial as its version control system.
-When the project launched,
-Google Code supported only Subversion and Mercurial.
-Mercurial was a better choice because of its plugin mechanism
-that allowed us to create the "codereview" plugin to connect
-the project to the excellent code review tools at
-<a href="//codereview.appspot.com">codereview.appspot.com</a>.
-</p>
-
-<p>
-Programmers who work
-with the Go project's source rather than release downloads sometimes
-ask for the project to switch to git.
-That would be possible, but it would be a lot of work and
-would also require reimplementing the codereview plugin.
-Given that Mercurial works today, with code review support,
-combined with the Go project's mostly linear, non-branching use of
-version control, a switch to git doesn't seem worthwhile.
 </p>
 
 <h3 id="git_https">
