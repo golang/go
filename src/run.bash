@@ -37,7 +37,7 @@ rebuild=true
 if [ "$1" == "--no-rebuild" ]; then
 	shift
 else
-	echo '# Building packages and commands.'
+	echo '##### Building packages and commands.'
 	time go install -a -v std
 	echo
 fi
@@ -51,22 +51,22 @@ unset GOROOT_FINAL
 timeout_scale=1
 [ "$GOARCH" == "arm" ] && timeout_scale=3
 
-echo '# Testing packages.'
+echo '##### Testing packages.'
 time go test std -short -timeout=$(expr 120 \* $timeout_scale)s -gcflags "$GO_GCFLAGS"
 echo
 
 # We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
 # creation of first goroutines and first garbage collections in the parallel setting.
-echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
+echo '##### GOMAXPROCS=2 runtime -cpu=1,2,4'
 GOMAXPROCS=2 go test runtime -short -timeout=$(expr 300 \* $timeout_scale)s -cpu=1,2,4
 echo
 
-echo '# sync -cpu=10'
+echo '##### sync -cpu=10'
 go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
 
 xcd() {
 	echo
-	echo '#' $1
+	echo '#####' $1
 	builtin cd "$GOROOT"/src/$1 || exit 1
 }
 
@@ -165,7 +165,7 @@ esac
 case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
 linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
 	echo
-	echo '# Testing race detector.'
+	echo '##### Testing race detector.'
 	go test -race -i runtime/race flag os/exec
 	go test -race -run=Output runtime/race
 	go test -race -short flag os/exec
@@ -239,7 +239,7 @@ time ./timing.sh -test || exit 1
 [ "$GOOS" == openbsd ] || # golang.org/issue/5057
 (
 echo
-echo '#' ../test/bench/go1
+echo '#####' ../test/bench/go1
 go test ../test/bench/go1 || exit 1
 ) || exit $?
 
