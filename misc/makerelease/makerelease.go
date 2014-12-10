@@ -14,6 +14,7 @@ import (
 	"compress/gzip"
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -30,7 +31,7 @@ import (
 	"strings"
 
 	"code.google.com/p/goauth2/oauth"
-	storage "code.google.com/p/google-api-go-client/storage/v1beta2"
+	storage "code.google.com/p/google-api-go-client/storage/v1"
 )
 
 var (
@@ -512,8 +513,15 @@ func (b *Build) get(repoPath, revision string) error {
 	}
 
 	// Update the repo to the specified revision.
-	p := filepath.Join(b.gopath, "src", filepath.FromSlash(repoPath))
-	_, err = b.run(p, "hg", "update", revision)
+	dest := filepath.Join(b.gopath, "src", filepath.FromSlash(repoPath))
+	switch {
+	case exists(filepath.Join(dest, ".git")):
+		_, err = b.run(dest, "git", "checkout", revision)
+	case exists(filepath.Join(dest, ".hg")):
+		_, err = b.run(dest, "hg", "update", revision)
+	default:
+		err = errors.New("unknown version control system")
+	}
 	return err
 }
 
