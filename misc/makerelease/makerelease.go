@@ -14,6 +14,7 @@ import (
 	"compress/gzip"
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -30,7 +31,7 @@ import (
 	"strings"
 
 	"code.google.com/p/goauth2/oauth"
-	storage "code.google.com/p/google-api-go-client/storage/v1beta2"
+	storage "code.google.com/p/google-api-go-client/storage/v1"
 )
 
 var (
@@ -56,8 +57,8 @@ const (
 	blogPath       = "golang.org/x/blog"
 	toolPath       = "golang.org/x/tools"
 	tourPath       = "code.google.com/p/go-tour"
-	defaultToolTag = "release-branch.go1.3"
-	defaultTourTag = "release-branch.go1.3"
+	defaultToolTag = "release-branch.go1.4"
+	defaultTourTag = "release-branch.go1.4"
 )
 
 // Import paths for tool commands.
@@ -504,16 +505,38 @@ func (b *Build) extras() error {
 }
 
 func (b *Build) get(repoPath, revision string) error {
-	// Fetch the packages (without building/installing).
-	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"),
-		"get", "-d", repoPath+"/...")
-	if err != nil {
-		return err
+	dest := filepath.Join(b.gopath, "src", filepath.FromSlash(repoPath))
+
+	if strings.HasPrefix(repoPath, "golang.org/x/") {
+		// For sub-repos, fetch the old Mercurial repo; bypass "go get".
+		// DO NOT import this special case into the git tree.
+
+		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+			return err
+		}
+		repo := strings.Replace(repoPath, "golang.org/x/", "https://code.google.com/p/go.", 1)
+		if _, err := b.run(b.gopath, "hg", "clone", repo, dest); err != nil {
+			return err
+		}
+	} else {
+		// Fetch the packages (without building/installing).
+		_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"),
+			"get", "-d", repoPath+"/...")
+		if err != nil {
+			return err
+		}
 	}
 
 	// Update the repo to the specified revision.
-	p := filepath.Join(b.gopath, "src", filepath.FromSlash(repoPath))
-	_, err = b.run(p, "hg", "update", revision)
+	var err error
+	switch {
+	case exists(filepath.Join(dest, ".git")):
+		_, err = b.run(dest, "git", "checkout", revision)
+	case exists(filepath.Join(dest, ".hg")):
+		_, err = b.run(dest, "hg", "update", revision)
+	default:
+		err = errors.New("unknown version control system")
+	}
 	return err
 }
 
