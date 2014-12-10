@@ -24,6 +24,6 @@ before sending patches.
 **We do not accept GitHub pull requests**
 (we use [Gerrit](https://code.google.com/p/gerrit/) instead for code review).
 
-Unless otherwise noted, the Go source files ared istributed under
+Unless otherwise noted, the Go source files are distributed under
 the BSD-style license found in the LICENSE file.
 
