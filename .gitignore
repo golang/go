@@ -37,7 +37,8 @@ src/cmd/gc/y.output
 src/cmd/go/zdefaultcc.go
 src/go/doc/headscan
 src/runtime/mkversion
-src/runtime/z*
+src/runtime/zaexperiment.h
+src/runtime/zversion.go
 src/unicode/maketables
 src/*.*/
 test/pass.out
