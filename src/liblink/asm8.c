@@ -611,6 +611,12 @@ static uchar	ymshufb[] =
 	0
 };
 
+static uchar   yxshuf[] =
+{
+	Yxm,    Yxr,    Zibm_r, 2,
+	0
+};
+
 static Optab optab[] =
 /*	as, ytab, andproto, opcode */
 {
@@ -1141,6 +1147,10 @@ static Optab optab[] =
 	{ AUNPCKLPS,	yxm,	Pm, {0x14} },
 	{ AXORPD,	yxm,	Pe, {0x57} },
 	{ AXORPS,	yxm,	Pm, {0x57} },
+	{ APSHUFHW,	yxshuf,	Pf3, {0x70,(00)} },
+	{ APSHUFL,	yxshuf,	Pq, {0x70,(00)} },
+	{ APSHUFLW,	yxshuf,	Pf2, {0x70,(00)} },
+
 
 	{ AAESENC,	yaes,	Pq, {0x38,0xdc,(0)} },
 	{ APINSRD,	yinsrd,	Pq, {0x3a, 0x22, (00)} },

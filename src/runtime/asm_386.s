@@ -906,57 +906,162 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$0-16
 // AX: data
 // CX: length
 TEXT runtime·aeshashbody(SB),NOSPLIT,$0-16
-	MOVL	h+8(FP), X0	// seed to low 32 bits of xmm0
-	PINSRD	$1, CX, X0	// size to next 32 bits of xmm0
-	MOVO	runtime·aeskeysched+0(SB), X2
-	MOVO	runtime·aeskeysched+16(SB), X3
+	MOVL	h+8(FP), X6	// seed to low 64 bits of xmm6
+	PINSRD	$2, CX, X6	// size to high 64 bits of xmm6
+	PSHUFHW	$0, X6, X6	// replace size with its low 2 bytes repeated 4 times
+	MOVO	runtime·aeskeysched(SB), X7
 	CMPL	CX, $16
-	JB	aessmall
-aesloop:
-	CMPL	CX, $16
-	JBE	aesloopend
-	MOVOU	(AX), X1
-	AESENC	X2, X0
-	AESENC	X1, X0
-	SUBL	$16, CX
-	ADDL	$16, AX
-	JMP	aesloop
-// 1-16 bytes remaining
-aesloopend:
-	// This load may overlap with the previous load above.
-	// We'll hash some bytes twice, but that's ok.
-	MOVOU	-16(AX)(CX*1), X1
-	JMP	partial
-// 0-15 bytes
-aessmall:
+	JB	aes0to15
+	JE	aes16
+	CMPL	CX, $32
+	JBE	aes17to32
+	CMPL	CX, $64
+	JBE	aes33to64
+	JMP	aes65plus
+	
+aes0to15:
 	TESTL	CX, CX
-	JE	finalize	// 0 bytes
+	JE	aes0
 
-	CMPB	AX, $0xf0
-	JA	highpartial
+	ADDL	$16, AX
+	TESTW	$0xff0, AX
+	JE	endofpage
 
 	// 16 bytes loaded at this address won't cross
 	// a page boundary, so we can load it directly.
-	MOVOU	(AX), X1
+	MOVOU	-16(AX), X0
 	ADDL	CX, CX
-	PAND	masks<>(SB)(CX*8), X1
-	JMP	partial
-highpartial:
+	PAND	masks<>(SB)(CX*8), X0
+
+	// scramble 3 times
+	AESENC	X6, X0
+	AESENC	X7, X0
+	AESENC	X7, X0
+	MOVL	X0, ret+12(FP)
+	RET
+
+endofpage:
 	// address ends in 1111xxxx.  Might be up against
 	// a page boundary, so load ending at last byte.
 	// Then shift bytes down using pshufb.
-	MOVOU	-16(AX)(CX*1), X1
+	MOVOU	-32(AX)(CX*1), X0
 	ADDL	CX, CX
-	PSHUFB	shifts<>(SB)(CX*8), X1
-partial:
-	// incorporate partial block into hash
-	AESENC	X3, X0
-	AESENC	X1, X0
-finalize:	
-	// finalize hash
-	AESENC	X2, X0
-	AESENC	X3, X0
-	AESENC	X2, X0
+	PSHUFB	shifts<>(SB)(CX*8), X0
+	AESENC	X6, X0
+	AESENC	X7, X0
+	AESENC	X7, X0
+	MOVL	X0, ret+12(FP)
+	RET
+
+aes0:
+	// return input seed
+	MOVL	h+8(FP), AX
+	MOVL	AX, ret+12(FP)
+	RET
+
+aes16:
+	MOVOU	(AX), X0
+	AESENC	X6, X0
+	AESENC	X7, X0
+	AESENC	X7, X0
+	MOVL	X0, ret+12(FP)
+	RET
+
+
+aes17to32:
+	// load data to be hashed
+	MOVOU	(AX), X0
+	MOVOU	-16(AX)(CX*1), X1
+
+	// scramble 3 times
+	AESENC	X6, X0
+	AESENC	runtime·aeskeysched+16(SB), X1
+	AESENC	X7, X0
+	AESENC	X7, X1
+	AESENC	X7, X0
+	AESENC	X7, X1
+
+	// combine results
+	PXOR	X1, X0
+	MOVL	X0, ret+12(FP)
+	RET
+
+aes33to64:
+	MOVOU	(AX), X0
+	MOVOU	16(AX), X1
+	MOVOU	-32(AX)(CX*1), X2
+	MOVOU	-16(AX)(CX*1), X3
+	
+	AESENC	X6, X0
+	AESENC	runtime·aeskeysched+16(SB), X1
+	AESENC	runtime·aeskeysched+32(SB), X2
+	AESENC	runtime·aeskeysched+48(SB), X3
+	AESENC	X7, X0
+	AESENC	X7, X1
+	AESENC	X7, X2
+	AESENC	X7, X3
+	AESENC	X7, X0
+	AESENC	X7, X1
+	AESENC	X7, X2
+	AESENC	X7, X3
+
+	PXOR	X2, X0
+	PXOR	X3, X1
+	PXOR	X1, X0
+	MOVL	X0, ret+12(FP)
+	RET
+
+aes65plus:
+	// start with last (possibly overlapping) block
+	MOVOU	-64(AX)(CX*1), X0
+	MOVOU	-48(AX)(CX*1), X1
+	MOVOU	-32(AX)(CX*1), X2
+	MOVOU	-16(AX)(CX*1), X3
+
+	// scramble state once
+	AESENC	X6, X0
+	AESENC	runtime·aeskeysched+16(SB), X1
+	AESENC	runtime·aeskeysched+32(SB), X2
+	AESENC	runtime·aeskeysched+48(SB), X3
+
+	// compute number of remaining 64-byte blocks
+	DECL	CX
+	SHRL	$6, CX
+	
+aesloop:
+	// scramble state, xor in a block
+	MOVOU	(AX), X4
+	MOVOU	16(AX), X5
+	AESENC	X4, X0
+	AESENC	X5, X1
+	MOVOU	32(AX), X4
+	MOVOU	48(AX), X5
+	AESENC	X4, X2
+	AESENC	X5, X3
+
+	// scramble state
+	AESENC	X7, X0
+	AESENC	X7, X1
+	AESENC	X7, X2
+	AESENC	X7, X3
+
+	ADDL	$64, AX
+	DECL	CX
+	JNE	aesloop
+
+	// 2 more scrambles to finish
+	AESENC	X7, X0
+	AESENC	X7, X1
+	AESENC	X7, X2
+	AESENC	X7, X3
+	AESENC	X7, X0
+	AESENC	X7, X1
+	AESENC	X7, X2
+	AESENC	X7, X3
+
+	PXOR	X2, X0
+	PXOR	X3, X1
+	PXOR	X1, X0
 	MOVL	X0, ret+12(FP)
 	RET
 
@@ -967,7 +1072,7 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-16
 	PINSRD	$1, (AX), X0	// data
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
-	AESENC	runtime·aeskeysched+0(SB), X0
+	AESENC	runtime·aeskeysched+32(SB), X0
 	MOVL	X0, ret+12(FP)
 	RET
 
@@ -978,7 +1083,7 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-16
 	PINSRD	$2, h+8(FP), X0	// seed
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
-	AESENC	runtime·aeskeysched+0(SB), X0
+	AESENC	runtime·aeskeysched+32(SB), X0
 	MOVL	X0, ret+12(FP)
 	RET
 
