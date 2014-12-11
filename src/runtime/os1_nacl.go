@@ -47,9 +47,9 @@ func crash() {
 }
 
 //go:nosplit
-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
-	*rnd = nil
-	*rnd_len = 0
+func getRandomData(r []byte) {
+	// TODO: does nacl have a random source we can use?
+	extendRandom(r, 0)
 }
 
 func goenvs() {
