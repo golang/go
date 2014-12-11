@@ -1404,6 +1404,10 @@ func (n nat) probablyPrime(reps int) bool {
 		}
 	}
 
+	if n[0]&1 == 0 {
+		return false // n is even
+	}
+
 	const primesProduct32 = 0xC0CFD797         // Π {p ∈ primes, 2 < p <= 29}
 	const primesProduct64 = 0xE221F97C30E94E1D // Π {p ∈ primes, 2 < p <= 53}
 
