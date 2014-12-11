@@ -26,8 +26,11 @@ import (
 	"key"
 )
 
-const commitsPerPage = 30
-const watcherVersion = 3 // must match dashboard/watcher/watcher.go's watcherVersion
+const (
+	commitsPerPage = 30
+	watcherVersion = 3 // must match dashboard/watcher/watcher.go
+	builderVersion = 1 // must match dashboard/builder/http.go
+)
 
 // commitHandler retrieves commit data or records a new commit.
 //
@@ -85,10 +88,9 @@ func commitHandler(r *http.Request) (interface{}, error) {
 		return nil, errors.New("can only POST commits with master key")
 	}
 
-	// For now, the commit watcher doesn't support gccgo,
-	// so only do this check for Go commits.
-	// TODO(adg,cmang): remove this check when gccgo is supported.
-	if dashboardForRequest(r) == goDash {
+	// For now, the commit watcher doesn't support gccgo.
+	// TODO(adg,cmang): remove this exception when gccgo is supported.
+	if dashboardForRequest(r) != gccgoDash {
 		v, _ := strconv.Atoi(r.FormValue("version"))
 		if v != watcherVersion {
 			return nil, fmt.Errorf("rejecting POST from commit watcher; need version %v", watcherVersion)
@@ -522,6 +524,15 @@ func packagesHandler(r *http.Request) (interface{}, error) {
 func resultHandler(r *http.Request) (interface{}, error) {
 	if r.Method != "POST" {
 		return nil, errBadMethod(r.Method)
+	}
+
+	// For now, the gccgo builders are using the old stuff.
+	// TODO(adg,cmang): remove this exception when gccgo is updated.
+	if dashboardForRequest(r) != gccgoDash {
+		v, _ := strconv.Atoi(r.FormValue("version"))
+		if v != builderVersion {
+			return nil, fmt.Errorf("rejecting POST from builder; need version %v", builderVersion)
+		}
 	}
 
 	c := contextForRequest(r)

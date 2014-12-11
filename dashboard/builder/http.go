@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+const builderVersion = 1 // keep in sync with dashboard/app/build/handler.go
+
 type obj map[string]interface{}
 
 // dash runs the given method and command on the dashboard.
@@ -24,15 +26,19 @@ type obj map[string]interface{}
 // If resp is non-nil the server's response is decoded into the value pointed
 // to by resp (resp must be a pointer).
 func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
+	argsCopy := url.Values{"version": {fmt.Sprint(builderVersion)}}
+	for k, v := range args {
+		if k == "version" {
+			panic(`dash: reserved args key: "version"`)
+		}
+		argsCopy[k] = v
+	}
 	var r *http.Response
 	var err error
 	if *verbose {
-		log.Println("dash <-", meth, cmd, args, req)
+		log.Println("dash <-", meth, cmd, argsCopy, req)
 	}
-	cmd = *dashboard + "/" + cmd
-	if len(args) > 0 {
-		cmd += "?" + args.Encode()
-	}
+	cmd = *dashboard + "/" + cmd + "?" + argsCopy.Encode()
 	switch meth {
 	case "GET":
 		if req != nil {
