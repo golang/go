@@ -21,9 +21,10 @@ var knownTags = map[string]string{
 	"go1.1": "d29da2ced72ba2cf48ed6a8f1ec4abc01e4c5bf1",
 	"go1.2": "b1edf8faa5d6cbc50c6515785df9df9c19296564",
 	"go1.3": "f153208c0a0e306bfca14f71ef11f09859ccabc8",
+	"go1.4": "faa3ed1dc30e42771a68b6337dcf8be9518d5c07",
 }
 
-var lastRelease = "go1.3"
+var lastRelease = "go1.4"
 
 func splitBench(benchProcs string) (string, int) {
 	ss := strings.Split(benchProcs, "-")
