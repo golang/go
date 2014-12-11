@@ -8,9 +8,15 @@
 
 <p>
 The latest Go release, version 1.4, arrives as scheduled six months after 1.3.
+</p>
+
+<p>
 It contains only one tiny language change,
 in the form of a backwards-compatible simple variant of <code>for</code>-<code>range</code> loop,
 and a possibly breaking change to the compiler involving methods on pointers-to-pointers.
+</p>
+
+<p>
 The release focuses primarily on implementation work, improving the garbage collector
 and preparing the ground for a fully concurrent collector to be rolled out in the
 next few releases.
@@ -21,6 +27,9 @@ There are some new tools available including support in the <code>go</code> comm
 for build-time source code generation.
 The release also adds support for ARM processors on Android and Native Client (NaCl)
 and for AMD64 on Plan 9.
+</p>
+
+<p>
 As always, Go 1.4 keeps the <a href="/doc/go1compat.html">promise
 of compatibility</a>,
 and almost everything 
@@ -35,7 +44,7 @@ Up until Go 1.3, <code>for</code>-<code>range</code> loop had two forms
 </p>
 
 <pre>
-for k, v := range x {
+for i, v := range x {
 	...
 }
 </pre>
@@ -45,7 +54,7 @@ and
 </p>
 
 <pre>
-for k := range x {
+for i := range x {
 	...
 }
 </pre>
@@ -172,7 +181,7 @@ of the documentation.
 <h3 id="runtime">Changes to the runtime</h3>
 
 <p>
-Up to Go 1.4, the runtime (garbage collector, concurrency support, interface management,
+Prior to Go 1.4, the runtime (garbage collector, concurrency support, interface management,
 maps, slices, strings, ...) was mostly written in C, with some assembler support.
 In 1.4, much of the code has been translated to Go so that the garbage collector can scan
 the stacks of programs in the runtime and get accurate information about what variables
@@ -198,7 +207,7 @@ Details are available in <a href="https://golang.org/s/contigstacks">the design 
 
 <p>
 The use of contiguous stacks means that stacks can start smaller without triggering performance issues,
-so the default starting size for a goroutine's stack in 1.4 has been reduced to 2048 bytes from 8192 bytes.
+so the default starting size for a goroutine's stack in 1.4 has been reduced from 8192 bytes to 2048 bytes.
 </p>
 
 <p>
@@ -532,7 +541,7 @@ editor, even for editors we do not use.
 The Go community at large is much better suited to managing this information.
 In Go 1.4, therefore, this support has been removed from the repository.
 Instead, there is a curated, informative list of what's available on
-a <a href="//golang.org/wiki/wiki/IDEsAndTextEditorPlugins">wiki page</a>.
+a <a href="//golang.org/wiki/IDEsAndTextEditorPlugins">wiki page</a>.
 </p>
 
 <h2 id="performance">Performance</h2>
