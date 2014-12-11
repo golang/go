@@ -21,9 +21,10 @@ func handleFunc(path string, h http.HandlerFunc) {
 
 // Dashboard describes a unique build dashboard.
 type Dashboard struct {
-	Name     string     // This dashboard's name and namespace
-	Prefix   string     // The path prefix (no trailing /)
-	Packages []*Package // The project's packages to build
+	Name      string     // This dashboard's name (eg, "Go")
+	Namespace string     // This dashboard's namespace (eg, "" (default), "Git")
+	Prefix    string     // The path prefix (no trailing /)
+	Packages  []*Package // The project's packages to build
 }
 
 // dashboardForRequest returns the appropriate dashboard for a given URL path.
@@ -31,8 +32,8 @@ func dashboardForRequest(r *http.Request) *Dashboard {
 	if strings.HasPrefix(r.URL.Path, gccgoDash.Prefix) {
 		return gccgoDash
 	}
-	if strings.HasPrefix(r.URL.Path, gitDash.Prefix) {
-		return gitDash
+	if strings.HasPrefix(r.URL.Path, hgDash.Prefix) {
+		return goDash
 	}
 	return goDash
 }
@@ -40,11 +41,10 @@ func dashboardForRequest(r *http.Request) *Dashboard {
 // Context returns a namespaced context for this dashboard, or panics if it
 // fails to create a new context.
 func (d *Dashboard) Context(c appengine.Context) appengine.Context {
-	// No namespace needed for the original Go dashboard.
-	if d.Name == "Go" {
+	if d.Namespace == "" {
 		return c
 	}
-	n, err := appengine.Namespace(c, d.Name)
+	n, err := appengine.Namespace(c, d.Namespace)
 	if err != nil {
 		panic(err)
 	}
@@ -52,17 +52,19 @@ func (d *Dashboard) Context(c appengine.Context) appengine.Context {
 }
 
 // the currently known dashboards.
-var dashboards = []*Dashboard{goDash, gitDash, gccgoDash}
+var dashboards = []*Dashboard{goDash, hgDash, gccgoDash}
 
-// goDash is the dashboard for the main go repository.
-var goDash = &Dashboard{
-	Name:     "Go",
-	Prefix:   "",
-	Packages: goPackages,
+// hgDash is the dashboard for the old Mercural Go repository.
+var hgDash = &Dashboard{
+	Name:      "Mercurial",
+	Namespace: "", // Used to be the default.
+	Prefix:    "/hg",
+	Packages:  hgPackages,
 }
 
-// goPackages is a list of all of the packages built by the main go repository.
-var goPackages = []*Package{
+// hgPackages is a list of all of the packages
+// built by the old Mercurial Go repository.
+var hgPackages = []*Package{
 	{
 		Kind: "go",
 		Name: "Go",
@@ -114,16 +116,16 @@ var goPackages = []*Package{
 	},
 }
 
-// gitDash is the dashboard for the main go repository on git.
-var gitDash = &Dashboard{
-	Name:     "Git",
-	Prefix:   "/git",
-	Packages: gitPackages,
+// goDash is the dashboard for the main go repository.
+var goDash = &Dashboard{
+	Name:      "Go",
+	Namespace: "Git",
+	Prefix:    "",
+	Packages:  goPackages,
 }
 
-// gitPackages is a list of all of the packages built by the main go repository
-// on git.
-var gitPackages = []*Package{
+// goPackages is a list of all of the packages built by the main go repository.
+var goPackages = []*Package{
 	{
 		Kind: "go",
 		Name: "Go",
@@ -182,8 +184,9 @@ var gitPackages = []*Package{
 
 // gccgoDash is the dashboard for gccgo.
 var gccgoDash = &Dashboard{
-	Name:   "Gccgo",
-	Prefix: "/gccgo",
+	Name:      "Gccgo",
+	Namespace: "Gccgo",
+	Prefix:    "/gccgo",
 	Packages: []*Package{
 		{
 			Kind: "gccgo",

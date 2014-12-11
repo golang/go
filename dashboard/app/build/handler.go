@@ -27,7 +27,7 @@ import (
 )
 
 const commitsPerPage = 30
-const watcherVersion = 2
+const watcherVersion = 3 // must match dashboard/watcher/watcher.go's watcherVersion
 
 // commitHandler retrieves commit data or records a new commit.
 //

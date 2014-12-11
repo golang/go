@@ -435,24 +435,24 @@ func repoURL(dashboard, hash, packagePath string) (string, error) {
 		if dashboard == "Gccgo" {
 			return "https://code.google.com/p/gofrontend/source/detail?r=" + hash, nil
 		}
-		if dashboard == "Git" {
-			return "https://go.googlesource.com/go/+/" + hash, nil
-		}
 		return "https://golang.org/change/" + hash, nil
 	}
-	if dashboard == "Git" {
-		repo := strings.TrimPrefix(packagePath, "golang.org/x/")
-		return "https://go.googlesource.com/" + repo + "/+/" + hash, nil
+
+	// TODO(adg): remove this old hg stuff, one day.
+	if dashboard == "Mercurial" {
+		m := repoRe.FindStringSubmatch(packagePath)
+		if m == nil {
+			return "", errors.New("unrecognized package: " + packagePath)
+		}
+		url := "https://code.google.com/p/" + m[1] + "/source/detail?r=" + hash
+		if len(m) > 2 {
+			url += "&repo=" + m[2][1:]
+		}
+		return url, nil
 	}
-	m := repoRe.FindStringSubmatch(packagePath)
-	if m == nil {
-		return "", errors.New("unrecognized package: " + packagePath)
-	}
-	url := "https://code.google.com/p/" + m[1] + "/source/detail?r=" + hash
-	if len(m) > 2 {
-		url += "&repo=" + m[2][1:]
-	}
-	return url, nil
+
+	repo := strings.TrimPrefix(packagePath, "golang.org/x/")
+	return "https://go.googlesource.com/" + repo + "/+/" + hash, nil
 }
 
 // tail returns the trailing n lines of s.

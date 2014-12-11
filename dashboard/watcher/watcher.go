@@ -26,11 +26,16 @@ import (
 	"time"
 )
 
-const goBase = "https://go.googlesource.com/"
+const (
+	goBase         = "https://go.googlesource.com/"
+	watcherVersion = 3 // must match dashboard/app/build/handler.go's watcherVersion
+	origin         = "origin/"
+	master         = origin + "master" // name of the master branch
+)
 
 var (
 	repoURL      = flag.String("repo", goBase+"go", "Repository URL")
-	dashboard    = flag.String("dash", "https://build.golang.org/git/", "Dashboard URL (must end in /)")
+	dashboard    = flag.String("dash", "https://build.golang.org/", "Dashboard URL (must end in /)")
 	keyFile      = flag.String("key", defaultKeyFile, "Build dashboard key file")
 	pollInterval = flag.Duration("poll", 10*time.Second, "Remote repo poll interval")
 	network      = flag.Bool("network", true, "Enable network calls (disable for testing)")
@@ -283,7 +288,7 @@ func (r *Repo) postCommit(c *Commit) error {
 		return nil
 	}
 
-	u := *dashboard + "commit?version=2&key=" + dashboardKey
+	u := fmt.Sprintf("%vcommit?version=%v&key=%v", *dashboard, watcherVersion, dashboardKey)
 	resp, err := http.Post(u, "text/json", bytes.NewReader(b))
 	if err != nil {
 		return err
@@ -305,11 +310,6 @@ func (r *Repo) postCommit(c *Commit) error {
 	}
 	return nil
 }
-
-const (
-	origin = "origin/"
-	master = origin + "master" // name of the master branch
-)
 
 // update looks for new commits and branches,
 // and updates the commits and branches maps.
