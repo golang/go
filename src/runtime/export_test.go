@@ -103,7 +103,6 @@ func RunSchedLocalQueueStealTest() {
 	systemstack(testSchedLocalQueueSteal)
 }
 
-var HaveGoodHash = haveGoodHash
 var StringHash = stringHash
 var BytesHash = bytesHash
 var Int32Hash = int32Hash
