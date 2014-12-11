@@ -72,8 +72,6 @@ var algarray = [alg_max]typeAlg{
 	alg_CPLX128:  {c128hash, c128equal},
 }
 
-const nacl = GOOS == "nacl"
-
 var useAeshash bool
 
 // in asm_*.s
@@ -82,22 +80,9 @@ func aeshash32(p unsafe.Pointer, s, h uintptr) uintptr
 func aeshash64(p unsafe.Pointer, s, h uintptr) uintptr
 func aeshashstr(p unsafe.Pointer, s, h uintptr) uintptr
 
-func memhash(p unsafe.Pointer, s, h uintptr) uintptr {
-	if !nacl && useAeshash {
-		return aeshash(p, s, h)
-	}
-
-	h ^= c0
-	for s > 0 {
-		h = (h ^ uintptr(*(*byte)(p))) * c1
-		p = add(p, 1)
-		s--
-	}
-	return h
-}
-
 func strhash(a unsafe.Pointer, s, h uintptr) uintptr {
-	return memhash((*stringStruct)(a).str, uintptr(len(*(*string)(a))), h)
+	x := (*stringStruct)(a)
+	return memhash(x.str, uintptr(x.len), h)
 }
 
 // NOTE: Because NaN != NaN, a map can contain any
@@ -267,10 +252,6 @@ func ifaceeq(p, q interface {
 }
 
 // Testing adapters for hash quality tests (see hash_test.go)
-func haveGoodHash() bool {
-	return useAeshash
-}
-
 func stringHash(s string, seed uintptr) uintptr {
 	return algarray[alg_STRING].hash(noescape(unsafe.Pointer(&s)), unsafe.Sizeof(s), seed)
 }
@@ -315,7 +296,7 @@ const hashRandomBytes = ptrSize / 4 * 64
 var aeskeysched [hashRandomBytes]byte
 
 func init() {
-	if theGoos == "nacl" {
+	if GOOS == "nacl" {
 		return
 	}
 
