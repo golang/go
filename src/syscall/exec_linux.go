@@ -58,6 +58,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		p      [2]int
 	)
 
+	// Record parent PID so child can test if it has died.
+	ppid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+
 	// Guard against side effects of shuffling fds below.
 	// Make sure that nextfd is beyond any currently open files so
 	// that we can't run the risk of overwriting any of them.
@@ -138,7 +141,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		// duplicate signal in rare cases, but it won't matter when
 		// using SIGKILL.
 		r1, _, _ = RawSyscall(SYS_GETPPID, 0, 0, 0)
-		if r1 == 1 {
+		if r1 != ppid {
 			pid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
 			_, _, err1 := RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
 			if err1 != 0 {
