@@ -505,7 +505,7 @@ func (r *Repo) remotes() ([]string, error) {
 const logFormat = `--format=format:%H
 %P
 %an <%ae>
-%aD
+%cD
 %B
 ` + logBoundary
 
