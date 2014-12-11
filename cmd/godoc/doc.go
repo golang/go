@@ -109,6 +109,11 @@ via regular expressions). The maximum number of full text search results shown
 can be set with the -maxresults flag; if set to 0, no full text results are
 shown, and only an identifier index but no full text search index is created.
 
+By default, godoc uses the system's GOOS/GOARCH; in command-line mode you can
+set the GOOS/GOARCH environment variables to get output for the system specified.
+If -http was specified you can provide the URL parameters "GOOS" and "GOARCH"
+to set the output on the web page.
+
 The presentation mode of web pages served by godoc can be controlled with the
 "m" URL parameter; it accepts a comma-separated list of flag names as value:
 

@@ -54,16 +54,15 @@ func (s *handlerServer) registerWithMux(mux *http.ServeMux) {
 // directories, PageInfo.Dirs is nil. If an error occurred, PageInfo.Err is
 // set to the respective error but the error is not logged.
 //
-func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode) *PageInfo {
+func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode, goos, goarch string) *PageInfo {
 	info := &PageInfo{Dirname: abspath}
 
 	// Restrict to the package files that would be used when building
 	// the package on this system.  This makes sure that if there are
 	// separate implementations for, say, Windows vs Unix, we don't
 	// jumble them all together.
-	// Note: Uses current binary's GOOS/GOARCH.
-	// To use different pair, such as if we allowed the user to choose,
-	// set ctxt.GOOS and ctxt.GOARCH before calling ctxt.ImportDir.
+	// Note: If goos/goarch aren't set, the current binary's GOOS/GOARCH
+	// are used.
 	ctxt := build.Default
 	ctxt.IsAbsPath = pathpkg.IsAbs
 	ctxt.ReadDir = func(dir string) ([]os.FileInfo, error) {
@@ -82,6 +81,13 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode) 
 			return nil, err
 		}
 		return ioutil.NopCloser(bytes.NewReader(data)), nil
+	}
+
+	if goos != "" {
+		ctxt.GOOS = goos
+	}
+	if goarch != "" {
+		ctxt.GOARCH = goarch
 	}
 
 	pkginfo, err := ctxt.ImportDir(abspath, 0)
@@ -242,7 +248,7 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if relpath == builtinPkgPath {
 		mode = NoFiltering | NoTypeAssoc
 	}
-	info := h.GetPageInfo(abspath, relpath, mode)
+	info := h.GetPageInfo(abspath, relpath, mode, r.FormValue("GOOS"), r.FormValue("GOARCH"))
 	if info.Err != nil {
 		log.Print(info.Err)
 		h.p.ServeError(w, r, relpath, info.Err)
