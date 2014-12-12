@@ -42,6 +42,7 @@ var usageMessage = `Usage of go test:
   -run="": passes -test.run to test
   -short=false: passes -test.short to test
   -timeout=0: passes -test.timeout to test
+  -trace="": passes -test.trace to test
   -v=false: passes -test.v to test
 `
 
@@ -103,6 +104,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "run", passToTest: true},
 	{name: "short", boolVar: new(bool), passToTest: true},
 	{name: "timeout", passToTest: true},
+	{name: "trace", passToTest: true},
 	{name: "v", boolVar: &testV, passToTest: true},
 }
 
@@ -192,7 +194,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			testBench = true
 		case "timeout":
 			testTimeout = value
-		case "blockprofile", "cpuprofile", "memprofile":
+		case "blockprofile", "cpuprofile", "memprofile", "trace":
 			testProfile = true
 			testNeedBinary = true
 		case "coverpkg":
