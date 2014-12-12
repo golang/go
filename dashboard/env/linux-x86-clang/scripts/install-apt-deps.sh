@@ -15,7 +15,7 @@ apt-get install -y --no-install-recommends libc6-dev-i386 gcc-multilib
 # Remove gcc binary so it doesn't interfere with clang
 rm -f /usr/bin/gcc
 # For interacting with the Go source & subrepos:
-apt-get install -y --no-install-recommends mercurial git-core
+apt-get install -y --no-install-recommends git-core
 
 apt-get clean
 rm -fr /var/lib/apt/lists
