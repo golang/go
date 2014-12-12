@@ -345,6 +345,7 @@ type mapType struct {
 	valuesize     uint8  // size of value slot
 	indirectvalue uint8  // store ptr to value instead of value itself
 	bucketsize    uint16 // size of bucket
+	reflexivekey  bool   // true if k==k for all keys
 }
 
 // ptrType represents a pointer type.
@@ -1489,11 +1490,37 @@ func MapOf(key, elem Type) Type {
 		mt.indirectvalue = 0
 	}
 	mt.bucketsize = uint16(mt.bucket.size)
+	mt.reflexivekey = isReflexive(ktyp)
 	mt.uncommonType = nil
 	mt.ptrToThis = nil
 	mt.zero = unsafe.Pointer(&make([]byte, mt.size)[0])
 
 	return cachePut(ckey, &mt.rtype)
+}
+
+// isReflexive reports whether the == operation on the type is reflexive.
+// That is, x == x for all values x of type t.
+func isReflexive(t *rtype) bool {
+	switch t.Kind() {
+	case Bool, Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr, Chan, Ptr, String, UnsafePointer:
+		return true
+	case Float32, Float64, Complex64, Complex128, Interface:
+		return false
+	case Array:
+		tt := (*arrayType)(unsafe.Pointer(t))
+		return isReflexive(tt.elem)
+	case Struct:
+		tt := (*structType)(unsafe.Pointer(t))
+		for _, f := range tt.fields {
+			if !isReflexive(f.typ) {
+				return false
+			}
+		}
+		return true
+	default:
+		// Func, Map, Slice, Invalid
+		panic("isReflexive called on non-key type " + t.String())
+	}
 }
 
 // gcProg is a helper type for generatation of GC pointer info.
