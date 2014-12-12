@@ -37,7 +37,7 @@ func example(n int) {
 	z.RLock()
 
 	// Should be no match however currently matches due to:
-	// https://code.google.com/p/go/issues/detail?id=8584
+	// https://golang.org/issue/8584
 	// Will start failing when this is fixed then just change golden to
 	// No match pointer indirect
 	// a.Lock()

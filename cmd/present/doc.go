@@ -18,7 +18,7 @@ Usage of present:
   -play=true: enable playground (permit execution of arbitrary user code)
 
 The setup of the Go version of NaCl is documented at:
-https://code.google.com/p/go-wiki/wiki/NativeClient
+https://golang.org/wiki/NativeClient
 
 Input files are named foo.extension, where "extension" defines the format of
 the generated output. The supported formats are:

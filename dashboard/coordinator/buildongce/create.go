@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 package main // import "golang.org/x/tools/dashboard/coordinator/buildongce"
 
 import (
@@ -19,7 +21,7 @@ import (
 	"time"
 
 	"code.google.com/p/goauth2/oauth"
-	compute "code.google.com/p/google-api-go-client/compute/v1"
+	compute "google.golang.org/api/compute/v1"
 )
 
 var (
@@ -127,7 +129,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// http://godoc.org/code.google.com/p/google-api-go-client/compute/v1#AddressAggregatedList
+		// https://godoc.org/google.golang.org/api/compute/v1#AddressAggregatedList
 	IPLoop:
 		for _, asl := range aggAddrList.Items {
 			for _, addr := range asl.Addresses {
