@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -124,13 +123,6 @@ func (env *goEnv) setup(repo *Repo, workpath, hash string, envv []string) (strin
 	goworkpath := filepath.Join(workpath, "go")
 	if err := repo.Export(goworkpath, hash); err != nil {
 		return "", fmt.Errorf("error exporting repository: %s", err)
-	}
-	// Write out VERSION file if it does not already exist.
-	vFile := filepath.Join(goworkpath, "VERSION")
-	if _, err := os.Stat(vFile); os.IsNotExist(err) {
-		if err := ioutil.WriteFile(vFile, []byte(hash), 0644); err != nil {
-			return "", fmt.Errorf("error writing VERSION file: %s", err)
-		}
 	}
 	return filepath.Join(goworkpath, "src"), nil
 }
