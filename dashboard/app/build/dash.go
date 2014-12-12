@@ -33,7 +33,7 @@ func dashboardForRequest(r *http.Request) *Dashboard {
 		return gccgoDash
 	}
 	if strings.HasPrefix(r.URL.Path, hgDash.Prefix) {
-		return goDash
+		return hgDash
 	}
 	return goDash
 }
