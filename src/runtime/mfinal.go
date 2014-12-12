@@ -127,7 +127,7 @@ func runfinq() {
 			fing = gp
 			fingwait = true
 			gp.issystem = true
-			goparkunlock(&finlock, "finalizer wait")
+			goparkunlock(&finlock, "finalizer wait", traceEvGoBlock)
 			gp.issystem = false
 			continue
 		}

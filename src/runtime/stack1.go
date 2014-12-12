@@ -721,7 +721,7 @@ func newstack() {
 
 		// Act like goroutine called runtime.Gosched.
 		casgstatus(gp, _Gwaiting, _Grunning)
-		gosched_m(gp) // never return
+		gopreempt_m(gp) // never return
 	}
 
 	// Allocate a bigger segment and move the stack.

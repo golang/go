@@ -71,7 +71,7 @@ type pollCache struct {
 
 var (
 	netpollInited uint32
-	pollcache pollCache
+	pollcache     pollCache
 )
 
 //go:linkname net_runtime_pollServerInit net.runtime_pollServerInit
@@ -333,7 +333,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 	// this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
 	// do the opposite: store to closing/rd/wd, membarrier, load of rg/wg
 	if waitio || netpollcheckerr(pd, mode) == 0 {
-		gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait")
+		gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet)
 	}
 	// be careful to not lose concurrent READY notification
 	old := xchguintptr(gpp, 0)
