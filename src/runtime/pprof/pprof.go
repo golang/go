@@ -615,6 +615,33 @@ func StopCPUProfile() {
 	<-cpu.done
 }
 
+// TODO(rsc): Decide if StartTrace belongs in this package.
+// See golang.org/issue/9710.
+// StartTrace enables tracing for the current process.
+// While tracing, the trace will be buffered and written to w.
+// StartTrace returns an error if profiling is tracing enabled.
+func StartTrace(w io.Writer) error {
+	if err := runtime.StartTrace(); err != nil {
+		return err
+	}
+	go func() {
+		for {
+			data := runtime.ReadTrace()
+			if data == nil {
+				break
+			}
+			w.Write(data)
+		}
+	}()
+	return nil
+}
+
+// StopTrace stops the current tracing, if any.
+// StopTrace only returns after all the writes for the trace have completed.
+func StopTrace() {
+	runtime.StopTrace()
+}
+
 type byCycles []runtime.BlockProfileRecord
 
 func (x byCycles) Len() int           { return len(x) }
