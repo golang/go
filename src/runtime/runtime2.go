@@ -277,6 +277,8 @@ type m struct {
 	traceback     uint8
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
 	waitlock      unsafe.Pointer
+	waittraceev   byte
+	syscalltick   uint32
 	//#ifdef GOOS_windows
 	thread uintptr // thread handle
 	// these are here because they are too large to be on the stack

@@ -217,6 +217,9 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 			}
 		}
 	}
+	if trace.enabled {
+		traceHeapAlloc()
+	}
 	unlock(&h.lock)
 	return s
 }
@@ -440,6 +443,9 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
 			memstats.heap_objects--
 		}
 		mHeap_FreeSpanLocked(h, s, true, true)
+		if trace.enabled {
+			traceHeapAlloc()
+		}
 		unlock(&h.lock)
 	})
 }

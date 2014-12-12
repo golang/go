@@ -71,6 +71,9 @@ func purgecachedstats(c *mcache) {
 	h := &mheap_
 	memstats.heap_alloc += uint64(c.local_cachealloc)
 	c.local_cachealloc = 0
+	if trace.enabled {
+		traceHeapAlloc()
+	}
 	memstats.tinyallocs += uint64(c.local_tinyallocs)
 	c.local_tinyallocs = 0
 	memstats.nlookup += uint64(c.local_nlookup)

@@ -368,6 +368,12 @@ func gcwork(force int32) {
 	if force == 0 {
 		gctimer.cycle.sweepterm = nanotime()
 	}
+
+	if trace.enabled {
+		traceGoSched()
+		traceGCStart()
+	}
+
 	// Pick up the remaining unswept/not being swept spans before we STW
 	for gosweepone() != ^uintptr(0) {
 		sweep.nbgsweep++
@@ -422,6 +428,11 @@ func gcwork(force int32) {
 	systemstack(func() {
 		gccheckmark_m(startTime, eagersweep)
 	})
+
+	if trace.enabled {
+		traceGCDone()
+		traceGoStart()
+	}
 
 	// all done
 	mp.gcing = 0

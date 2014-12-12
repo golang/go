@@ -1003,6 +1003,11 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 		print("MSpan_Sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
 		throw("MSpan_Sweep: bad span state")
 	}
+
+	if trace.enabled {
+		traceGCSweepStart()
+	}
+
 	cl := s.sizeclass
 	size := s.elemsize
 	res := false
@@ -1132,6 +1137,10 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 		res = mCentral_FreeSpan(&mheap_.central[cl].mcentral, s, int32(nfree), head, end, preserve)
 		// MCentral_FreeSpan updates sweepgen
 	}
+	if trace.enabled {
+		traceGCSweepDone()
+		traceNextGC()
+	}
 	return res
 }
 
@@ -1212,10 +1221,18 @@ func gchelper() {
 	_g_.m.traceback = 2
 	gchelperstart()
 
+	if trace.enabled {
+		traceGCScanStart()
+	}
+
 	// parallel mark for over GC roots
 	parfordo(work.markfor)
 	if gcphase != _GCscan {
 		scanblock(0, 0, nil) // blocks in getfull
+	}
+
+	if trace.enabled {
+		traceGCScanDone()
 	}
 
 	nproc := work.nproc // work.nproc can change right after we increment work.ndone
@@ -1540,6 +1557,10 @@ func gc(start_time int64, eagersweep bool) {
 		gp.gcworkdone = false // set to true in gcphasework
 	}
 
+	if trace.enabled {
+		traceGCScanStart()
+	}
+
 	parforsetup(work.markfor, work.nproc, uint32(_RootCount+allglen), nil, false, markroot)
 	if work.nproc > 1 {
 		noteclear(&work.alldone)
@@ -1572,6 +1593,10 @@ func gc(start_time int64, eagersweep bool) {
 		notesleep(&work.alldone)
 	}
 
+	if trace.enabled {
+		traceGCScanDone()
+	}
+
 	shrinkfinish()
 
 	cachestats()
@@ -1581,6 +1606,9 @@ func gc(start_time int64, eagersweep bool) {
 	// conservatively set next_gc to high value assuming that everything is live
 	// concurrent/lazy sweep will reduce this number while discovering new garbage
 	memstats.next_gc = memstats.heap_alloc + memstats.heap_alloc*uint64(gcpercent)/100
+	if trace.enabled {
+		traceNextGC()
+	}
 
 	t4 := nanotime()
 	atomicstore64(&memstats.last_gc, uint64(unixnanotime())) // must be Unix time to make sense to user
