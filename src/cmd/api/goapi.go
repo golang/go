@@ -107,12 +107,22 @@ func setContexts() {
 	}
 }
 
-var internalPkg = regexp.MustCompile(`(^|/)internal($|/)`)
+var (
+	internalPkg = regexp.MustCompile(`(^|/)internal($|/)`)
+	hashRx      = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
+)
+
+func isDevelVersion(v string) bool {
+	if strings.Contains(v, "devel") {
+		return true
+	}
+	return hashRx.MatchString(v)
+}
 
 func main() {
 	flag.Parse()
 
-	if !strings.Contains(runtime.Version(), "weekly") && !strings.Contains(runtime.Version(), "devel") {
+	if v := runtime.Version(); !strings.Contains(v, "weekly") && !isDevelVersion(v) {
 		if *nextFile != "" {
 			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFile)
 			*nextFile = ""
@@ -283,7 +293,7 @@ func compareAPI(w io.Writer, features, required, optional, exception []string) (
 				delete(optionalSet, newFeature)
 			} else {
 				fmt.Fprintf(w, "+%s\n", newFeature)
-				if !*allowNew || !strings.Contains(runtime.Version(), "devel") {
+				if !*allowNew || !isDevelVersion(runtime.Version()) {
 					ok = false // we're in lock-down mode for next release
 				}
 			}
