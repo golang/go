@@ -239,7 +239,8 @@ vuniq(Vec *v)
 }
 
 // splitlines replaces the vector v with the result of splitting
-// the input p after each \n.
+// the input p after each \n. If there is a \r immediately before
+// each \n, it will be removed.
 void
 splitlines(Vec *v, char *p)
 {
@@ -249,8 +250,12 @@ splitlines(Vec *v, char *p)
 	vreset(v);
 	start = p;
 	for(i=0; p[i]; i++) {
-		if(p[i] == '\n') {
+		if((p[i] == '\r' && p[i+1] == '\n') || p[i] == '\n') {
 			vaddn(v, start, (p+i+1)-start);
+			if(p[i] == '\r') {
+				v->p[v->len-1][(p+i)-start] = '\n';
+				i++;
+			}
 			start = p+i+1;
 		}
 	}
