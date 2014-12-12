@@ -1,8 +1,7 @@
 set -ex
 
 apt-get update
-# For running curl to get the hg starter tarballs (faster than hg clone).
-apt-get install -y --no-install-recommends curl ca-certificates
+apt-get install -y --no-install-recommends ca-certificates
 # Optionally used by some net/http tests:
 apt-get install -y --no-install-recommends strace 
 # For building Go's bootstrap 'dist' prog
