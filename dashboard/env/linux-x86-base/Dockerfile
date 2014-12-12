@@ -13,4 +13,4 @@ ADD /scripts/install-apt-deps.sh /scripts/
 RUN /scripts/install-apt-deps.sh
 
 ADD /scripts/build-go-builder.sh /scripts/
-RUN GO_REV=8c27884843c3 BUILDER_REV=98c15d46be /scripts/build-go-builder.sh && test -f /usr/local/bin/builder
+RUN GO_REV=go1.4 BUILDER_REV=6735829f /scripts/build-go-builder.sh && test -f /usr/local/bin/builder

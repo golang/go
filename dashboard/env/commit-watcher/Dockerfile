@@ -14,4 +14,4 @@ ADD /scripts/install-apt-deps.sh /scripts/
 RUN /scripts/install-apt-deps.sh
 
 ADD /scripts/build-commit-watcher.sh /scripts/
-RUN GO_REV=8c27884843c3 WATCHER_REV=ae08a5291439 /scripts/build-commit-watcher.sh && test -f /usr/local/bin/watcher
+RUN GO_REV=go1.4 WATCHER_REV=6735829fe0 /scripts/build-commit-watcher.sh && test -f /usr/local/bin/watcher
