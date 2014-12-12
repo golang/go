@@ -213,6 +213,7 @@ type g struct {
 	sigcode1     uintptr
 	sigpc        uintptr
 	gopc         uintptr // pc of go statement that created this goroutine
+	startpc      uintptr // pc of goroutine function
 	racectx      uintptr
 	waiting      *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
 }
@@ -323,6 +324,8 @@ type p struct {
 	// Available G's (status == Gdead)
 	gfree    *g
 	gfreecnt int32
+
+	tracebuf *traceBuf
 
 	pad [64]byte
 }
