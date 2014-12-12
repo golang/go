@@ -73,6 +73,7 @@ type maptype struct {
 	valuesize     uint8  // size of value slot
 	indirectvalue bool   // store ptr to value instead of value itself
 	bucketsize    uint16 // size of bucket
+	reflexivekey  bool   // true if k==k for all keys
 }
 
 type chantype struct {

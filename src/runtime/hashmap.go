@@ -652,7 +652,7 @@ next:
 				if t.indirectkey {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
-				if alg.equal(k2, k2, uintptr(t.key.size)) {
+				if t.reflexivekey || alg.equal(k2, k2, uintptr(t.key.size)) {
 					// If the item in the oldbucket is not destined for
 					// the current new bucket in the iteration, skip it.
 					hash := alg.hash(k2, uintptr(t.key.size), uintptr(h.hash0))
@@ -689,7 +689,7 @@ next:
 				if t.indirectkey {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
-				if alg.equal(k2, k2, uintptr(t.key.size)) {
+				if t.reflexivekey || alg.equal(k2, k2, uintptr(t.key.size)) {
 					// Check the current hash table for the data.
 					// This code handles the case where the key
 					// has been deleted, updated, or deleted and reinserted.
@@ -798,7 +798,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 				// to send this key/value to bucket x or bucket y).
 				hash := alg.hash(k2, uintptr(t.key.size), uintptr(h.hash0))
 				if h.flags&iterator != 0 {
-					if !alg.equal(k2, k2, uintptr(t.key.size)) {
+					if !t.reflexivekey && !alg.equal(k2, k2, uintptr(t.key.size)) {
 						// If key != key (NaNs), then the hash could be (and probably
 						// will be) entirely different from the old hash.  Moreover,
 						// it isn't reproducible.  Reproducibility is required in the
