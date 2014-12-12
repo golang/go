@@ -442,14 +442,22 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 	mProf_Malloc(x, size)
 }
 
-// force = 1 - do GC regardless of current heap usage
-// force = 2 - go GC and eager sweep
+// For now this must be bracketed with a stoptheworld and a starttheworld to ensure
+// all go routines see the new barrier.
+func gcinstallmarkwb() {
+	gcphase = _GCmark
+}
+
+// force = 0 - start concurrent GC
+// force = 1 - do STW GC regardless of current heap usage
+// force = 2 - go STW GC and eager sweep
 func gogc(force int32) {
 	// The gc is turned off (via enablegc) until the bootstrap has completed.
 	// Also, malloc gets called in the guts of a number of libraries that might be
 	// holding locks. To avoid deadlocks during stoptheworld, don't bother
 	// trying to run gc while holding a lock. The next mallocgc without a lock
 	// will do the gc instead.
+
 	mp := acquirem()
 	if gp := getg(); gp == mp.g0 || mp.locks > 1 || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
 		releasem(mp)
@@ -467,22 +475,35 @@ func gogc(force int32) {
 		return
 	}
 
+	// Pick up the remaining unswept/not being swept spans concurrently
+	for gosweepone() != ^uintptr(0) {
+		sweep.nbgsweep++
+	}
+
 	// Ok, we're doing it!  Stop everybody else
+
 	startTime := nanotime()
 	mp = acquirem()
 	mp.gcing = 1
 	releasem(mp)
-
+	gctimer.count++
+	if force == 0 {
+		gctimer.cycle.sweepterm = nanotime()
+	}
 	systemstack(stoptheworld)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
-	if true {                  // To turn on concurrent scan and mark set to true...
+	if force == 0 {            // Do as much work concurrently as possible
 		systemstack(starttheworld)
+		gctimer.cycle.scan = nanotime()
 		// Do a concurrent heap scan before we stop the world.
 		systemstack(gcscan_m)
+		gctimer.cycle.installmarkwb = nanotime()
 		systemstack(stoptheworld)
-		systemstack(gcinstallmarkwb_m)
+		gcinstallmarkwb()
 		systemstack(starttheworld)
+		gctimer.cycle.mark = nanotime()
 		systemstack(gcmark_m)
+		gctimer.cycle.markterm = nanotime()
 		systemstack(stoptheworld)
 		systemstack(gcinstalloffwb_m)
 	}
@@ -519,8 +540,23 @@ func gogc(force int32) {
 
 	// all done
 	mp.gcing = 0
+
+	if force == 0 {
+		gctimer.cycle.sweep = nanotime()
+	}
+
 	semrelease(&worldsema)
+
+	if force == 0 {
+		if gctimer.verbose > 1 {
+			GCprinttimes()
+		} else if gctimer.verbose > 0 {
+			calctimes() // ignore result
+		}
+	}
+
 	systemstack(starttheworld)
+
 	releasem(mp)
 	mp = nil
 
@@ -537,6 +573,98 @@ func GCcheckmarkenable() {
 
 func GCcheckmarkdisable() {
 	systemstack(gccheckmarkdisable_m)
+}
+
+// gctimes records the time in nanoseconds of each phase of the concurrent GC.
+type gctimes struct {
+	sweepterm     int64 // stw
+	scan          int64 // stw
+	installmarkwb int64
+	mark          int64
+	markterm      int64 // stw
+	sweep         int64
+}
+
+// gcchronograph holds timer information related to GC phases
+// max records the maximum time spent in each GC phase since GCstarttimes.
+// total records the total time spent in each GC phase since GCstarttimes.
+// cycle records the absolute time (as returned by nanoseconds()) that each GC phase last started at.
+type gcchronograph struct {
+	count    int64
+	verbose  int64
+	maxpause int64
+	max      gctimes
+	total    gctimes
+	cycle    gctimes
+}
+
+var gctimer gcchronograph
+
+// GCstarttimes initializes the gc timess. All previous timess are lost.
+func GCstarttimes(verbose int64) {
+	gctimer = gcchronograph{verbose: verbose}
+}
+
+// GCendtimes stops the gc timers.
+func GCendtimes() {
+	gctimer.verbose = 0
+}
+
+// calctimes converts gctimer.cycle into the elapsed times, updates gctimer.total
+// and updates gctimer.max with the max pause time.
+func calctimes() gctimes {
+	var times gctimes
+
+	var max = func(a, b int64) int64 {
+		if a > b {
+			return a
+		}
+		return b
+	}
+
+	times.sweepterm = gctimer.cycle.scan - gctimer.cycle.sweepterm
+	gctimer.total.sweepterm += times.sweepterm
+	gctimer.max.sweepterm = max(gctimer.max.sweepterm, times.sweepterm)
+	gctimer.maxpause = max(gctimer.maxpause, gctimer.max.sweepterm)
+
+	times.scan = gctimer.cycle.installmarkwb - gctimer.cycle.scan
+	gctimer.total.scan += times.scan
+	gctimer.max.scan = max(gctimer.max.scan, times.scan)
+
+	times.installmarkwb = gctimer.cycle.mark - gctimer.cycle.installmarkwb
+	gctimer.total.installmarkwb += times.installmarkwb
+	gctimer.max.installmarkwb = max(gctimer.max.installmarkwb, times.installmarkwb)
+	gctimer.maxpause = max(gctimer.maxpause, gctimer.max.installmarkwb)
+
+	times.mark = gctimer.cycle.markterm - gctimer.cycle.mark
+	gctimer.total.mark += times.mark
+	gctimer.max.mark = max(gctimer.max.mark, times.mark)
+
+	times.markterm = gctimer.cycle.sweep - gctimer.cycle.markterm
+	gctimer.total.markterm += times.markterm
+	gctimer.max.markterm = max(gctimer.max.markterm, times.markterm)
+	gctimer.maxpause = max(gctimer.maxpause, gctimer.max.markterm)
+
+	return times
+}
+
+// GCprinttimes prints latency information in nanoseconds about various
+// phases in the GC. The information for each phase includes the maximum pause
+// and total time since the most recent call to GCstarttimes as well as
+// the information from the most recent Concurent GC cycle. Calls from the
+// application to runtime.GC() are ignored.
+func GCprinttimes() {
+	times := calctimes()
+	println("GC:", gctimer.count, "maxpause=", gctimer.maxpause, "Go routines=", allglen)
+	println("          sweep termination: max=", gctimer.max.sweepterm, "total=", gctimer.total.sweepterm, "cycle=", times.sweepterm, "absolute time=", gctimer.cycle.sweepterm)
+	println("          scan:              max=", gctimer.max.scan, "total=", gctimer.total.scan, "cycle=", times.scan, "absolute time=", gctimer.cycle.scan)
+	println("          installmarkwb:     max=", gctimer.max.installmarkwb, "total=", gctimer.total.installmarkwb, "cycle=", times.installmarkwb, "absolute time=", gctimer.cycle.installmarkwb)
+	println("          mark:              max=", gctimer.max.mark, "total=", gctimer.total.mark, "cycle=", times.mark, "absolute time=", gctimer.cycle.mark)
+	println("          markterm:          max=", gctimer.max.markterm, "total=", gctimer.total.markterm, "cycle=", times.markterm, "absolute time=", gctimer.cycle.markterm)
+	cycletime := gctimer.cycle.sweep - gctimer.cycle.sweepterm
+	println("          Total cycle time =", cycletime)
+	totalstw := times.sweepterm + times.installmarkwb + times.markterm
+	println("          Cycle STW time     =", totalstw)
 }
 
 // GC runs a garbage collection.
