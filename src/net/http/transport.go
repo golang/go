@@ -1087,7 +1087,9 @@ WaitResponse:
 				break WaitResponse
 			}
 			if d := pc.t.ResponseHeaderTimeout; d > 0 {
-				respHeaderTimer = time.After(d)
+				timer := time.NewTimer(d)
+				defer timer.Stop() // prevent leaks
+				respHeaderTimer = timer.C
 			}
 		case <-pconnDeadCh:
 			// The persist connection is dead. This shouldn't
