@@ -77,7 +77,8 @@
 <p>
   Clicking on the identifier that defines a named type causes a panel
   to appear, displaying information about the named type, including
-  its size and alignment in bytes, its <a href='http://golang.org/ref/spec#Method_sets'>method set</a>, and its
+  its size and alignment in bytes, its
+  <a href='http://golang.org/ref/spec#Method_sets'>method set</a>, and its
   <i>implements</i> relation: the set of types T that are assignable to
   or from this type U where at least one of T or U is an interface.
 
@@ -251,7 +252,7 @@
   <span class='err'>⚠</span> All analysis results pertain to exactly
   one configuration (e.g. amd64 linux).  Files that are conditionally
   compiled based on different platforms or build tags are not visible
-  to the analysis.</br>
+  to the analysis.<br/>
 
   <span class='err'>⚠</span> Files that <code>import "C"</code> require
   preprocessing by the cgo tool.  The file offsets after preprocessing
@@ -259,7 +260,8 @@
 
   <span class='err'>⚠</span> Files are not periodically re-analyzed.
   If the files change underneath the running server, the displayed
-  markup is misaligned.</br>
+  markup is misaligned.<br/>
 
-  <span class='err'>⚠</span> Additional issues are listed at <a href='https://code.google.com/p/go/source/browse/godoc/analysis/README?repo=tools'>go.tools/godoc/analysis/README</a>.</br>
+  <span class='err'>⚠</span> Additional issues are listed at
+  <a href='https://go.googlesource.com/tools/+/master/godoc/analysis/README'>tools/godoc/analysis/README</a>.<br/>
 </p>
