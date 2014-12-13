@@ -435,7 +435,11 @@ func repoURL(dashboard, hash, packagePath string) (string, error) {
 		if dashboard == "Gccgo" {
 			return "https://code.google.com/p/gofrontend/source/detail?r=" + hash, nil
 		}
-		return "https://golang.org/change/" + hash, nil
+		if dashboard == "Mercurial" {
+			return "https://golang.org/change/" + hash, nil
+		}
+		// TODO(adg): use the above once /change/ points to git hashes
+		return "https://go.googlesource.com/go/+/" + hash, nil
 	}
 
 	// TODO(adg): remove this old hg stuff, one day.
