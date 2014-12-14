@@ -139,8 +139,8 @@ func dirList(w io.Writer, name string) (isDir bool, err error) {
 	}
 	d := &dirListData{Path: name}
 	for _, fi := range fis {
-		// skip the pkg directory
-		if name == "." && fi.Name() == "pkg" {
+		// skip the golang.org directory
+		if name == "." && fi.Name() == "golang.org" {
 			continue
 		}
 		e := dirEntry{
