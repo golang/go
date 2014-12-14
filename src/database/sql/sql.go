@@ -644,7 +644,6 @@ func (db *DB) conn() (*driverConn, error) {
 		// connectionOpener doesn't block while waiting for the req to be read.
 		req := make(chan connRequest, 1)
 		db.connRequests = append(db.connRequests, req)
-		db.maybeOpenNewConnections()
 		db.mu.Unlock()
 		ret := <-req
 		return ret.conn, ret.err
