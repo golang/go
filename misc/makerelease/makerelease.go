@@ -507,24 +507,11 @@ func (b *Build) extras() error {
 func (b *Build) get(repoPath, revision string) error {
 	dest := filepath.Join(b.gopath, "src", filepath.FromSlash(repoPath))
 
-	if strings.HasPrefix(repoPath, "golang.org/x/") {
-		// For sub-repos, fetch the old Mercurial repo; bypass "go get".
-		// DO NOT import this special case into the git tree.
-
-		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
-			return err
-		}
-		repo := strings.Replace(repoPath, "golang.org/x/", "https://code.google.com/p/go.", 1)
-		if _, err := b.run(b.gopath, "hg", "clone", repo, dest); err != nil {
-			return err
-		}
-	} else {
-		// Fetch the packages (without building/installing).
-		_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"),
-			"get", "-d", repoPath+"/...")
-		if err != nil {
-			return err
-		}
+	// Fetch the packages (without building/installing).
+	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"),
+		"get", "-d", repoPath+"/...")
+	if err != nil {
+		return err
 	}
 
 	// Update the repo to the specified revision.
