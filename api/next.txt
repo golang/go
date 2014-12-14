@@ -1,141 +1,251 @@
-pkg debug/goobj, const SBSS = 21
-pkg debug/goobj, const SBSS SymKind
-pkg debug/goobj, const SCONST = 31
-pkg debug/goobj, const SCONST SymKind
-pkg debug/goobj, const SDATA = 19
-pkg debug/goobj, const SDATA SymKind
-pkg debug/goobj, const SDYNIMPORT = 32
-pkg debug/goobj, const SDYNIMPORT SymKind
-pkg debug/goobj, const SELFROSECT = 12
-pkg debug/goobj, const SELFROSECT SymKind
-pkg debug/goobj, const SELFRXSECT = 2
-pkg debug/goobj, const SELFRXSECT SymKind
-pkg debug/goobj, const SELFSECT = 14
-pkg debug/goobj, const SELFSECT SymKind
-pkg debug/goobj, const SFILE = 29
-pkg debug/goobj, const SFILE SymKind
-pkg debug/goobj, const SFILEPATH = 30
-pkg debug/goobj, const SFILEPATH SymKind
-pkg debug/goobj, const SFUNCTAB = 8
-pkg debug/goobj, const SFUNCTAB SymKind
-pkg debug/goobj, const SGOFUNC = 6
-pkg debug/goobj, const SGOFUNC SymKind
-pkg debug/goobj, const SGOSTRING = 5
-pkg debug/goobj, const SGOSTRING SymKind
-pkg debug/goobj, const SHOSTOBJ = 33
-pkg debug/goobj, const SHOSTOBJ SymKind
-pkg debug/goobj, const SINITARR = 18
-pkg debug/goobj, const SINITARR SymKind
-pkg debug/goobj, const SMACHO = 15
-pkg debug/goobj, const SMACHO SymKind
-pkg debug/goobj, const SMACHOGOT = 16
-pkg debug/goobj, const SMACHOGOT SymKind
-pkg debug/goobj, const SMACHOINDIRECTGOT = 28
-pkg debug/goobj, const SMACHOINDIRECTGOT SymKind
-pkg debug/goobj, const SMACHOINDIRECTPLT = 27
-pkg debug/goobj, const SMACHOINDIRECTPLT SymKind
-pkg debug/goobj, const SMACHOPLT = 13
-pkg debug/goobj, const SMACHOPLT SymKind
-pkg debug/goobj, const SMACHOSYMSTR = 25
-pkg debug/goobj, const SMACHOSYMSTR SymKind
-pkg debug/goobj, const SMACHOSYMTAB = 26
-pkg debug/goobj, const SMACHOSYMTAB SymKind
-pkg debug/goobj, const SNOPTRBSS = 22
-pkg debug/goobj, const SNOPTRBSS SymKind
-pkg debug/goobj, const SNOPTRDATA = 17
-pkg debug/goobj, const SNOPTRDATA SymKind
-pkg debug/goobj, const SPCLNTAB = 11
-pkg debug/goobj, const SPCLNTAB SymKind
-pkg debug/goobj, const SRODATA = 7
-pkg debug/goobj, const SRODATA SymKind
-pkg debug/goobj, const SSTRING = 4
-pkg debug/goobj, const SSTRING SymKind
-pkg debug/goobj, const SSYMTAB = 10
-pkg debug/goobj, const SSYMTAB SymKind
-pkg debug/goobj, const STEXT = 1
-pkg debug/goobj, const STEXT SymKind
-pkg debug/goobj, const STLSBSS = 23
-pkg debug/goobj, const STLSBSS SymKind
-pkg debug/goobj, const STYPE = 3
-pkg debug/goobj, const STYPE SymKind
-pkg debug/goobj, const STYPELINK = 9
-pkg debug/goobj, const STYPELINK SymKind
-pkg debug/goobj, const SWINDOWS = 20
-pkg debug/goobj, const SWINDOWS SymKind
-pkg debug/goobj, const SXREF = 24
-pkg debug/goobj, const SXREF SymKind
-pkg debug/goobj, func Parse(io.ReadSeeker, string) (*Package, error)
-pkg debug/goobj, method (Sym) String() string
-pkg debug/goobj, method (SymID) String() string
-pkg debug/goobj, method (SymKind) String() string
-pkg debug/goobj, type Data struct
-pkg debug/goobj, type Data struct, Offset int64
-pkg debug/goobj, type Data struct, Size int64
-pkg debug/goobj, type Func struct
-pkg debug/goobj, type Func struct, Args int
-pkg debug/goobj, type Func struct, File []string
-pkg debug/goobj, type Func struct, Frame int
-pkg debug/goobj, type Func struct, FuncData []FuncData
-pkg debug/goobj, type Func struct, Leaf bool
-pkg debug/goobj, type Func struct, NoSplit bool
-pkg debug/goobj, type Func struct, PCData []Data
-pkg debug/goobj, type Func struct, PCFile Data
-pkg debug/goobj, type Func struct, PCLine Data
-pkg debug/goobj, type Func struct, PCSP Data
-pkg debug/goobj, type Func struct, Var []Var
-pkg debug/goobj, type FuncData struct
-pkg debug/goobj, type FuncData struct, Offset int64
-pkg debug/goobj, type FuncData struct, Sym SymID
-pkg debug/goobj, type Package struct
-pkg debug/goobj, type Package struct, ImportPath string
-pkg debug/goobj, type Package struct, Imports []string
-pkg debug/goobj, type Package struct, MaxVersion int
-pkg debug/goobj, type Package struct, Syms []*Sym
-pkg debug/goobj, type Reloc struct
-pkg debug/goobj, type Reloc struct, Add int
-pkg debug/goobj, type Reloc struct, Offset int
-pkg debug/goobj, type Reloc struct, Size int
-pkg debug/goobj, type Reloc struct, Sym SymID
-pkg debug/goobj, type Reloc struct, Type int
-pkg debug/goobj, type Sym struct
-pkg debug/goobj, type Sym struct, Data Data
-pkg debug/goobj, type Sym struct, DupOK bool
-pkg debug/goobj, type Sym struct, Func *Func
-pkg debug/goobj, type Sym struct, Kind SymKind
-pkg debug/goobj, type Sym struct, Reloc []Reloc
-pkg debug/goobj, type Sym struct, Size int
-pkg debug/goobj, type Sym struct, Type SymID
-pkg debug/goobj, type Sym struct, embedded SymID
-pkg debug/goobj, type SymID struct
-pkg debug/goobj, type SymID struct, Name string
-pkg debug/goobj, type SymID struct, Version int
-pkg debug/goobj, type SymKind int
-pkg debug/goobj, type Var struct
-pkg debug/goobj, type Var struct, Kind int
-pkg debug/goobj, type Var struct, Name string
-pkg debug/goobj, type Var struct, Offset int
-pkg debug/goobj, type Var struct, Type SymID
-pkg unicode, const Version = "7.0.0"
-pkg unicode, var Bassa_Vah *RangeTable
-pkg unicode, var Caucasian_Albanian *RangeTable
-pkg unicode, var Duployan *RangeTable
-pkg unicode, var Elbasan *RangeTable
-pkg unicode, var Grantha *RangeTable
-pkg unicode, var Khojki *RangeTable
-pkg unicode, var Khudawadi *RangeTable
-pkg unicode, var Linear_A *RangeTable
-pkg unicode, var Mahajani *RangeTable
-pkg unicode, var Manichaean *RangeTable
-pkg unicode, var Mende_Kikakui *RangeTable
-pkg unicode, var Modi *RangeTable
-pkg unicode, var Mro *RangeTable
-pkg unicode, var Nabataean *RangeTable
-pkg unicode, var Old_North_Arabian *RangeTable
-pkg unicode, var Old_Permic *RangeTable
-pkg unicode, var Pahawh_Hmong *RangeTable
-pkg unicode, var Palmyrene *RangeTable
-pkg unicode, var Pau_Cin_Hau *RangeTable
-pkg unicode, var Psalter_Pahlavi *RangeTable
-pkg unicode, var Siddham *RangeTable
-pkg unicode, var Tirhuta *RangeTable
-pkg unicode, var Warang_Citi *RangeTable
+pkg debug/elf, const R_PPC64_ADDR14 = 7
+pkg debug/elf, const R_PPC64_ADDR14 R_PPC64
+pkg debug/elf, const R_PPC64_ADDR14_BRNTAKEN = 9
+pkg debug/elf, const R_PPC64_ADDR14_BRNTAKEN R_PPC64
+pkg debug/elf, const R_PPC64_ADDR14_BRTAKEN = 8
+pkg debug/elf, const R_PPC64_ADDR14_BRTAKEN R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16 = 3
+pkg debug/elf, const R_PPC64_ADDR16 R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_DS = 56
+pkg debug/elf, const R_PPC64_ADDR16_DS R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HA = 6
+pkg debug/elf, const R_PPC64_ADDR16_HA R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HI = 5
+pkg debug/elf, const R_PPC64_ADDR16_HI R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HIGHER = 39
+pkg debug/elf, const R_PPC64_ADDR16_HIGHER R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HIGHERA = 40
+pkg debug/elf, const R_PPC64_ADDR16_HIGHERA R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HIGHEST = 41
+pkg debug/elf, const R_PPC64_ADDR16_HIGHEST R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HIGHESTA = 42
+pkg debug/elf, const R_PPC64_ADDR16_HIGHESTA R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_LO = 4
+pkg debug/elf, const R_PPC64_ADDR16_LO R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_LO_DS = 57
+pkg debug/elf, const R_PPC64_ADDR16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_ADDR24 = 2
+pkg debug/elf, const R_PPC64_ADDR24 R_PPC64
+pkg debug/elf, const R_PPC64_ADDR32 = 1
+pkg debug/elf, const R_PPC64_ADDR32 R_PPC64
+pkg debug/elf, const R_PPC64_ADDR64 = 38
+pkg debug/elf, const R_PPC64_ADDR64 R_PPC64
+pkg debug/elf, const R_PPC64_DTPMOD64 = 68
+pkg debug/elf, const R_PPC64_DTPMOD64 R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16 = 74
+pkg debug/elf, const R_PPC64_DTPREL16 R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_DS = 101
+pkg debug/elf, const R_PPC64_DTPREL16_DS R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HA = 77
+pkg debug/elf, const R_PPC64_DTPREL16_HA R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HI = 76
+pkg debug/elf, const R_PPC64_DTPREL16_HI R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHER = 103
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHER R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHERA = 104
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHERA R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHEST = 105
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHEST R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHESTA = 106
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHESTA R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_LO = 75
+pkg debug/elf, const R_PPC64_DTPREL16_LO R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_LO_DS = 102
+pkg debug/elf, const R_PPC64_DTPREL16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL64 = 78
+pkg debug/elf, const R_PPC64_DTPREL64 R_PPC64
+pkg debug/elf, const R_PPC64_GOT16 = 14
+pkg debug/elf, const R_PPC64_GOT16 R_PPC64
+pkg debug/elf, const R_PPC64_GOT16_DS = 58
+pkg debug/elf, const R_PPC64_GOT16_DS R_PPC64
+pkg debug/elf, const R_PPC64_GOT16_HA = 17
+pkg debug/elf, const R_PPC64_GOT16_HA R_PPC64
+pkg debug/elf, const R_PPC64_GOT16_HI = 16
+pkg debug/elf, const R_PPC64_GOT16_HI R_PPC64
+pkg debug/elf, const R_PPC64_GOT16_LO = 15
+pkg debug/elf, const R_PPC64_GOT16_LO R_PPC64
+pkg debug/elf, const R_PPC64_GOT16_LO_DS = 59
+pkg debug/elf, const R_PPC64_GOT16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_DS = 91
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_DS R_PPC64
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_HA = 94
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_HA R_PPC64
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_HI = 93
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_HI R_PPC64
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_LO_DS = 92
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSGD16 = 79
+pkg debug/elf, const R_PPC64_GOT_TLSGD16 R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_HA = 82
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_HA R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_HI = 81
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_HI R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_LO = 80
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_LO R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSLD16 = 83
+pkg debug/elf, const R_PPC64_GOT_TLSLD16 R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_HA = 86
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_HA R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_HI = 85
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_HI R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_LO = 84
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_LO R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TPREL16_DS = 87
+pkg debug/elf, const R_PPC64_GOT_TPREL16_DS R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TPREL16_HA = 90
+pkg debug/elf, const R_PPC64_GOT_TPREL16_HA R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TPREL16_HI = 89
+pkg debug/elf, const R_PPC64_GOT_TPREL16_HI R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TPREL16_LO_DS = 88
+pkg debug/elf, const R_PPC64_GOT_TPREL16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_JMP_SLOT = 21
+pkg debug/elf, const R_PPC64_JMP_SLOT R_PPC64
+pkg debug/elf, const R_PPC64_NONE = 0
+pkg debug/elf, const R_PPC64_NONE R_PPC64
+pkg debug/elf, const R_PPC64_REL14 = 11
+pkg debug/elf, const R_PPC64_REL14 R_PPC64
+pkg debug/elf, const R_PPC64_REL14_BRNTAKEN = 13
+pkg debug/elf, const R_PPC64_REL14_BRNTAKEN R_PPC64
+pkg debug/elf, const R_PPC64_REL14_BRTAKEN = 12
+pkg debug/elf, const R_PPC64_REL14_BRTAKEN R_PPC64
+pkg debug/elf, const R_PPC64_REL16 = 249
+pkg debug/elf, const R_PPC64_REL16 R_PPC64
+pkg debug/elf, const R_PPC64_REL16_HA = 252
+pkg debug/elf, const R_PPC64_REL16_HA R_PPC64
+pkg debug/elf, const R_PPC64_REL16_HI = 251
+pkg debug/elf, const R_PPC64_REL16_HI R_PPC64
+pkg debug/elf, const R_PPC64_REL16_LO = 250
+pkg debug/elf, const R_PPC64_REL16_LO R_PPC64
+pkg debug/elf, const R_PPC64_REL24 = 10
+pkg debug/elf, const R_PPC64_REL24 R_PPC64
+pkg debug/elf, const R_PPC64_REL32 = 26
+pkg debug/elf, const R_PPC64_REL32 R_PPC64
+pkg debug/elf, const R_PPC64_REL64 = 44
+pkg debug/elf, const R_PPC64_REL64 R_PPC64
+pkg debug/elf, const R_PPC64_TLS = 67
+pkg debug/elf, const R_PPC64_TLS R_PPC64
+pkg debug/elf, const R_PPC64_TLSGD = 107
+pkg debug/elf, const R_PPC64_TLSGD R_PPC64
+pkg debug/elf, const R_PPC64_TLSLD = 108
+pkg debug/elf, const R_PPC64_TLSLD R_PPC64
+pkg debug/elf, const R_PPC64_TOC = 51
+pkg debug/elf, const R_PPC64_TOC R_PPC64
+pkg debug/elf, const R_PPC64_TOC16 = 47
+pkg debug/elf, const R_PPC64_TOC16 R_PPC64
+pkg debug/elf, const R_PPC64_TOC16_DS = 63
+pkg debug/elf, const R_PPC64_TOC16_DS R_PPC64
+pkg debug/elf, const R_PPC64_TOC16_HA = 50
+pkg debug/elf, const R_PPC64_TOC16_HA R_PPC64
+pkg debug/elf, const R_PPC64_TOC16_HI = 49
+pkg debug/elf, const R_PPC64_TOC16_HI R_PPC64
+pkg debug/elf, const R_PPC64_TOC16_LO = 48
+pkg debug/elf, const R_PPC64_TOC16_LO R_PPC64
+pkg debug/elf, const R_PPC64_TOC16_LO_DS = 64
+pkg debug/elf, const R_PPC64_TOC16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16 = 69
+pkg debug/elf, const R_PPC64_TPREL16 R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_DS = 95
+pkg debug/elf, const R_PPC64_TPREL16_DS R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HA = 72
+pkg debug/elf, const R_PPC64_TPREL16_HA R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HI = 71
+pkg debug/elf, const R_PPC64_TPREL16_HI R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HIGHER = 97
+pkg debug/elf, const R_PPC64_TPREL16_HIGHER R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HIGHERA = 98
+pkg debug/elf, const R_PPC64_TPREL16_HIGHERA R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HIGHEST = 99
+pkg debug/elf, const R_PPC64_TPREL16_HIGHEST R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HIGHESTA = 100
+pkg debug/elf, const R_PPC64_TPREL16_HIGHESTA R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_LO = 70
+pkg debug/elf, const R_PPC64_TPREL16_LO R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_LO_DS = 96
+pkg debug/elf, const R_PPC64_TPREL16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_TPREL64 = 73
+pkg debug/elf, const R_PPC64_TPREL64 R_PPC64
+pkg debug/elf, method (R_PPC64) GoString() string
+pkg debug/elf, method (R_PPC64) String() string
+pkg debug/elf, type R_PPC64 int
+pkg runtime (openbsd-386), const CLOCK_MONOTONIC = 3
+pkg runtime (openbsd-386), const CLOCK_MONOTONIC ideal-int
+pkg runtime (openbsd-386), const CLOCK_PROF = 2
+pkg runtime (openbsd-386), const CLOCK_PROF ideal-int
+pkg runtime (openbsd-386), const CLOCK_REALTIME = 0
+pkg runtime (openbsd-386), const CLOCK_REALTIME ideal-int
+pkg runtime (openbsd-386), const CLOCK_VIRTUAL = 1
+pkg runtime (openbsd-386), const CLOCK_VIRTUAL ideal-int
+pkg runtime (openbsd-386), const CTL_HW = 6
+pkg runtime (openbsd-386), const CTL_HW ideal-int
+pkg runtime (openbsd-386), const EAGAIN = 35
+pkg runtime (openbsd-386), const EAGAIN ideal-int
+pkg runtime (openbsd-386), const ENOTSUP = 91
+pkg runtime (openbsd-386), const ENOTSUP ideal-int
+pkg runtime (openbsd-386), const ESRCH = 3
+pkg runtime (openbsd-386), const ESRCH ideal-int
+pkg runtime (openbsd-386), const EWOULDBLOCK = 35
+pkg runtime (openbsd-386), const EWOULDBLOCK ideal-int
+pkg runtime (openbsd-386), const HW_NCPU = 3
+pkg runtime (openbsd-386), const HW_NCPU ideal-int
+pkg runtime (openbsd-386-cgo), const CLOCK_MONOTONIC = 3
+pkg runtime (openbsd-386-cgo), const CLOCK_MONOTONIC ideal-int
+pkg runtime (openbsd-386-cgo), const CLOCK_PROF = 2
+pkg runtime (openbsd-386-cgo), const CLOCK_PROF ideal-int
+pkg runtime (openbsd-386-cgo), const CLOCK_REALTIME = 0
+pkg runtime (openbsd-386-cgo), const CLOCK_REALTIME ideal-int
+pkg runtime (openbsd-386-cgo), const CLOCK_VIRTUAL = 1
+pkg runtime (openbsd-386-cgo), const CLOCK_VIRTUAL ideal-int
+pkg runtime (openbsd-386-cgo), const CTL_HW = 6
+pkg runtime (openbsd-386-cgo), const CTL_HW ideal-int
+pkg runtime (openbsd-386-cgo), const EAGAIN = 35
+pkg runtime (openbsd-386-cgo), const EAGAIN ideal-int
+pkg runtime (openbsd-386-cgo), const ENOTSUP = 91
+pkg runtime (openbsd-386-cgo), const ENOTSUP ideal-int
+pkg runtime (openbsd-386-cgo), const ESRCH = 3
+pkg runtime (openbsd-386-cgo), const ESRCH ideal-int
+pkg runtime (openbsd-386-cgo), const EWOULDBLOCK = 35
+pkg runtime (openbsd-386-cgo), const EWOULDBLOCK ideal-int
+pkg runtime (openbsd-386-cgo), const HW_NCPU = 3
+pkg runtime (openbsd-386-cgo), const HW_NCPU ideal-int
+pkg runtime (openbsd-amd64), const CLOCK_MONOTONIC = 3
+pkg runtime (openbsd-amd64), const CLOCK_MONOTONIC ideal-int
+pkg runtime (openbsd-amd64), const CLOCK_PROF = 2
+pkg runtime (openbsd-amd64), const CLOCK_PROF ideal-int
+pkg runtime (openbsd-amd64), const CLOCK_REALTIME = 0
+pkg runtime (openbsd-amd64), const CLOCK_REALTIME ideal-int
+pkg runtime (openbsd-amd64), const CLOCK_VIRTUAL = 1
+pkg runtime (openbsd-amd64), const CLOCK_VIRTUAL ideal-int
+pkg runtime (openbsd-amd64), const CTL_HW = 6
+pkg runtime (openbsd-amd64), const CTL_HW ideal-int
+pkg runtime (openbsd-amd64), const EAGAIN = 35
+pkg runtime (openbsd-amd64), const EAGAIN ideal-int
+pkg runtime (openbsd-amd64), const ENOTSUP = 91
+pkg runtime (openbsd-amd64), const ENOTSUP ideal-int
+pkg runtime (openbsd-amd64), const ESRCH = 3
+pkg runtime (openbsd-amd64), const ESRCH ideal-int
+pkg runtime (openbsd-amd64), const EWOULDBLOCK = 35
+pkg runtime (openbsd-amd64), const EWOULDBLOCK ideal-int
+pkg runtime (openbsd-amd64), const HW_NCPU = 3
+pkg runtime (openbsd-amd64), const HW_NCPU ideal-int
+pkg runtime (openbsd-amd64-cgo), const CLOCK_MONOTONIC = 3
+pkg runtime (openbsd-amd64-cgo), const CLOCK_MONOTONIC ideal-int
+pkg runtime (openbsd-amd64-cgo), const CLOCK_PROF = 2
+pkg runtime (openbsd-amd64-cgo), const CLOCK_PROF ideal-int
+pkg runtime (openbsd-amd64-cgo), const CLOCK_REALTIME = 0
+pkg runtime (openbsd-amd64-cgo), const CLOCK_REALTIME ideal-int
+pkg runtime (openbsd-amd64-cgo), const CLOCK_VIRTUAL = 1
+pkg runtime (openbsd-amd64-cgo), const CLOCK_VIRTUAL ideal-int
+pkg runtime (openbsd-amd64-cgo), const CTL_HW = 6
+pkg runtime (openbsd-amd64-cgo), const CTL_HW ideal-int
+pkg runtime (openbsd-amd64-cgo), const EAGAIN = 35
+pkg runtime (openbsd-amd64-cgo), const EAGAIN ideal-int
+pkg runtime (openbsd-amd64-cgo), const ENOTSUP = 91
+pkg runtime (openbsd-amd64-cgo), const ENOTSUP ideal-int
+pkg runtime (openbsd-amd64-cgo), const ESRCH = 3
+pkg runtime (openbsd-amd64-cgo), const ESRCH ideal-int
+pkg runtime (openbsd-amd64-cgo), const EWOULDBLOCK = 35
+pkg runtime (openbsd-amd64-cgo), const EWOULDBLOCK ideal-int
+pkg runtime (openbsd-amd64-cgo), const HW_NCPU = 3
+pkg runtime (openbsd-amd64-cgo), const HW_NCPU ideal-int
+pkg runtime, func GCcheckmarkdisable()
+pkg runtime, func GCcheckmarkenable()
