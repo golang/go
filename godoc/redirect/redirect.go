@@ -126,7 +126,7 @@ var redirects = map[string]string{
 	"/doc/articles/json_rpc_tale_of_interfaces.html": "/blog/json-rpc-tale-of-interfaces",
 	"/doc/articles/laws_of_reflection.html":          "/blog/laws-of-reflection",
 	"/doc/articles/slices_usage_and_internals.html":  "/blog/go-slices-usage-and-internals",
-	"/doc/go_for_cpp_programmers.html":               "https://code.google.com/p/go-wiki/wiki/GoForCPPProgrammers",
+	"/doc/go_for_cpp_programmers.html":               "/wiki/GoForCPPProgrammers",
 	"/doc/go_tutorial.html":                          "http://tour.golang.org/",
 }
 
