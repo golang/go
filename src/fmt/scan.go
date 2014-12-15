@@ -875,34 +875,40 @@ func (s *ss) quotedString() string {
 	return ""
 }
 
-// hexDigit returns the value of the hexadecimal digit
-func (s *ss) hexDigit(d rune) int {
+// hexDigit returns the value of the hexadecimal digit.
+func hexDigit(d rune) (int, bool) {
 	digit := int(d)
 	switch digit {
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		return digit - '0'
+		return digit - '0', true
 	case 'a', 'b', 'c', 'd', 'e', 'f':
-		return 10 + digit - 'a'
+		return 10 + digit - 'a', true
 	case 'A', 'B', 'C', 'D', 'E', 'F':
-		return 10 + digit - 'A'
+		return 10 + digit - 'A', true
 	}
-	s.errorString("illegal hex digit")
-	return 0
+	return -1, false
 }
 
 // hexByte returns the next hex-encoded (two-character) byte from the input.
-// There must be either two hexadecimal digits or a space character in the input.
+// It returns ok==false if the next bytes in the input do not encode a hex byte.
+// If the first byte is hex and the second is not, processing stops.
 func (s *ss) hexByte() (b byte, ok bool) {
 	rune1 := s.getRune()
 	if rune1 == eof {
-		return
-	}
-	if isSpace(rune1) {
 		s.UnreadRune()
 		return
 	}
-	rune2 := s.mustReadRune()
-	return byte(s.hexDigit(rune1)<<4 | s.hexDigit(rune2)), true
+	value1, ok := hexDigit(rune1)
+	if !ok {
+		s.UnreadRune()
+		return
+	}
+	value2, ok := hexDigit(s.mustReadRune())
+	if !ok {
+		s.errorString("illegal hex digit")
+		return
+	}
+	return byte(value1<<4 | value2), true
 }
 
 // hexString returns the space-delimited hexpair-encoded string.
