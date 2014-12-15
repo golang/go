@@ -8,7 +8,9 @@
 package redirect // import "golang.org/x/tools/godoc/redirect"
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -33,6 +35,7 @@ func Register(mux *http.ServeMux) {
 	// NB: /src/pkg (sans trailing slash) is the index of packages.
 	mux.HandleFunc("/src/pkg/", srcPkgHandler)
 	mux.HandleFunc("/cl/", clHandler)
+	mux.HandleFunc("/change/", changeHandler)
 }
 
 func handlePathRedirects(mux *http.ServeMux, redirects map[string]string, prefix string) {
@@ -128,11 +131,6 @@ var redirects = map[string]string{
 }
 
 var prefixHelpers = map[string]string{
-	// TODO(adg): add redirects from known hg hashes to the git equivalents
-	// and switch this to point to "https://go.googlesource.com/go/+/".
-	// (We can only change this once we know all the new git hashes.)
-	"change": "https://code.google.com/p/go/source/detail?r=",
-
 	"issue": "https://github.com/golang/go/issues/",
 	"play":  "http://play.golang.org/",
 	"talks": "http://talks.golang.org/",
@@ -190,6 +188,42 @@ func clHandler(w http.ResponseWriter, r *http.Request) {
 		target = "https://go-review.googlesource.com/#/q/" + id
 	} else {
 		target = "https://codereview.appspot.com/" + id
+	}
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
+var changeMap *hashMap
+
+// LoadChangeMap loads the specified map of Mercurial to Git revisions,
+// which is used by the /change/ handler to intelligently map old hg
+// revisions to their new git equivalents.
+// It should be called before calling Register.
+// The file should remain open as long as the process is running.
+// See the implementation of this package for details.
+func LoadChangeMap(filename string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	m, err := newHashMap(f)
+	if err != nil {
+		return err
+	}
+	changeMap = m
+	return nil
+}
+
+func changeHandler(w http.ResponseWriter, r *http.Request) {
+	const prefix = "/change/"
+	if p := r.URL.Path; p == prefix {
+		// redirect /prefix/ to /prefix
+		http.Redirect(w, r, p[:len(p)-1], http.StatusFound)
+		return
+	}
+	hash := r.URL.Path[len(prefix):]
+	target := "https://go.googlesource.com/go/+/" + hash
+	if git := changeMap.Lookup(hash); git > 0 {
+		target = fmt.Sprintf("https://go.googlesource.com/%v/+/%v", git.Repo(), git.Hash())
 	}
 	http.Redirect(w, r, target, http.StatusFound)
 }
