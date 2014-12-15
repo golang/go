@@ -95,6 +95,11 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	data := &uiTemplateData{d, pkg, commits, builders, tipState, p, branch}
 
+	if r.FormValue("mode") == "failures" {
+		failuresHandler(w, r, data)
+		return
+	}
+
 	var buf bytes.Buffer
 	if err := uiTemplate.Execute(&buf, data); err != nil {
 		logErr(w, r, err)
@@ -104,6 +109,24 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	cache.Set(r, now, key, buf.Bytes())
 
 	buf.WriteTo(w)
+}
+
+// failuresHandler is https://build.golang.org/?mode=failures , where it outputs
+// one line per failure on the front page, in the form:
+//    hash builder failure-url
+func failuresHandler(w http.ResponseWriter, r *http.Request, data *uiTemplateData) {
+	w.Header().Set("Content-Type", "text/plain")
+	d := dashboardForRequest(r)
+	for _, c := range data.Commits {
+		for _, b := range data.Builders {
+			res := c.Result(b, "")
+			if res == nil || res.OK || res.LogHash == "" {
+				continue
+			}
+			url := fmt.Sprintf("https://%v%v/log/%v", r.Host, d.Prefix, res.LogHash)
+			fmt.Fprintln(w, c.Hash, b, url)
+		}
+	}
 }
 
 type Pagination struct {
