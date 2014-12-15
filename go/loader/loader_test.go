@@ -135,7 +135,8 @@ func fakeContext(pkgs map[string]string) *build.Context {
 	ctxt.ReadDir = func(dir string) ([]os.FileInfo, error) { return justXgo[:], nil }
 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
 		path = path[len("/go/src/"):]
-		return ioutil.NopCloser(bytes.NewBufferString(pkgs[path[0:1]])), nil
+		importPath := path[:strings.IndexByte(path, '/')]
+		return ioutil.NopCloser(bytes.NewBufferString(pkgs[importPath])), nil
 	}
 	return &ctxt
 }
@@ -200,6 +201,15 @@ func TestTransitivelyErrorFreeFlag(t *testing.T) {
 	}
 }
 
+func hasError(errors []error, substr string) bool {
+	for _, err := range errors {
+		if strings.Contains(err.Error(), substr) {
+			return true
+		}
+	}
+	return false
+}
+
 // Test that both syntax (scan/parse) and type errors are both recorded
 // (in PackageInfo.Errors) and reported (via Config.TypeChecker.Error).
 func TestErrorReporting(t *testing.T) {
@@ -226,15 +236,6 @@ func TestErrorReporting(t *testing.T) {
 		t.Fatalf("Load returned nil *Program")
 	}
 
-	hasError := func(errors []error, substr string) bool {
-		for _, err := range errors {
-			if strings.Contains(err.Error(), substr) {
-				return true
-			}
-		}
-		return false
-	}
-
 	// TODO(adonovan): test keys of ImportMap.
 
 	// Check errors recorded in each PackageInfo.
@@ -256,4 +257,58 @@ func TestErrorReporting(t *testing.T) {
 		!hasError(allErrors, "rune literal not terminated") {
 		t.Errorf("allErrors = %v, want both syntax and type errors", allErrors)
 	}
+}
+
+func TestCycles(t *testing.T) {
+	for _, test := range []struct {
+		ctxt    *build.Context
+		wantErr string
+	}{
+		{
+			fakeContext(map[string]string{
+				"main":      `package main; import _ "selfcycle"`,
+				"selfcycle": `package selfcycle; import _ "selfcycle"`,
+			}),
+			`import cycle: selfcycle -> selfcycle`,
+		},
+		{
+			fakeContext(map[string]string{
+				"main": `package main; import _ "a"`,
+				"a":    `package a; import _ "b"`,
+				"b":    `package b; import _ "c"`,
+				"c":    `package c; import _ "a"`,
+			}),
+			`import cycle: c -> a -> b -> c`,
+		},
+	} {
+		conf := loader.Config{
+			AllowErrors:   true,
+			SourceImports: true,
+			Build:         test.ctxt,
+		}
+		var allErrors []error
+		conf.TypeChecker.Error = func(err error) {
+			allErrors = append(allErrors, err)
+		}
+		conf.Import("main")
+
+		prog, err := conf.Load()
+		if err != nil {
+			t.Errorf("Load failed: %s", err)
+		}
+		if prog == nil {
+			t.Fatalf("Load returned nil *Program")
+		}
+
+		if !hasError(allErrors, test.wantErr) {
+			t.Errorf("Load() errors = %q, want %q", allErrors, test.wantErr)
+		}
+	}
+
+	// TODO(adonovan):
+	// - Test that in a legal test cycle, none of the symbols
+	//   defined by augmentation are visible via import.
+	// - Test when augmentation discovers a wholly new cycle among the deps.
+	//
+	// These tests require that fakeContext let us control the filenames.
 }

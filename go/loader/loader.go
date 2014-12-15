@@ -73,7 +73,7 @@
 // DEPENDENCY is a package loaded to satisfy an import in an initial
 // package or another dependency.
 //
-package loader // import "golang.org/x/tools/go/loader"
+package loader
 
 // 'go test', in-package test files, and import cycles
 // ---------------------------------------------------
@@ -112,12 +112,78 @@ package loader // import "golang.org/x/tools/go/loader"
 //   compress/bzip2/bzip2_test.go (package bzip2)  imports "io/ioutil"
 //   io/ioutil/tempfile_test.go   (package ioutil) imports "regexp"
 //   regexp/exec_test.go          (package regexp) imports "compress/bzip2"
+//
+//
+// Concurrency
+// -----------
+//
+// Let us define the import dependency graph as follows.  Each node is a
+// list of files passed to (Checker).Files at once.  Many of these lists
+// are the production code of an importable Go package, so those nodes
+// are labelled by the package's import path.  The remaining nodes are
+// ad-hoc packages and lists of in-package *_test.go files that augment
+// an importable package; those nodes have no label.
+//
+// The edges of the graph represent import statements appearing within a
+// file.  An edge connects a node (a list of files) to the node it
+// imports, which is importable and thus always labelled.
+//
+// Loading is controlled by this dependency graph.
+//
+// To reduce I/O latency, we start loading a package's dependencies
+// asynchronously as soon as we've parsed its files and enumerated its
+// imports (scanImports).  This performs a preorder traversal of the
+// import dependency graph.
+//
+// To exploit hardware parallelism, we type-check unrelated packages in
+// parallel, where "unrelated" means not ordered by the partial order of
+// the import dependency graph.
+//
+// We use a concurrency-safe blocking cache (importer.imported) to
+// record the results of type-checking, whether success or failure.  An
+// entry is created in this cache by startLoad the first time the
+// package is imported.  The first goroutine to request an entry becomes
+// responsible for completing the task and broadcasting completion to
+// subsequent requestors, which block until then.
+//
+// Type checking occurs in (parallel) postorder: we cannot type-check a
+// set of files until we have loaded and type-checked all of their
+// immediate dependencies (and thus all of their transitive
+// dependencies). If the input were guaranteed free of import cycles,
+// this would be trivial: we could simply wait for completion of the
+// dependencies and then invoke the typechecker.
+//
+// But as we saw in the 'go test' section above, some cycles in the
+// import graph over packages are actually legal, so long as the
+// cycle-forming edge originates in the in-package test files that
+// augment the package.  This explains why the nodes of the import
+// dependency graph are not packages, but lists of files: the unlabelled
+// nodes avoid the cycles.  Consider packages A and B where B imports A
+// and A's in-package tests AT import B.  The naively constructed import
+// graph over packages would contain a cycle (A+AT) --> B --> (A+AT) but
+// the graph over lists of files is AT --> B --> A, where AT is an
+// unlabelled node.
+//
+// Awaiting completion of the dependencies in a cyclic graph would
+// deadlock, so we must materialize the import dependency graph (as
+// importer.graph) and check whether each import edge forms a cycle.  If
+// x imports y, and the graph already contains a path from y to x, then
+// there is an import cycle, in which case the processing of x must not
+// wait for the completion of processing of y.
+//
+// When the type-checker makes a callback (doImport) to the loader for a
+// given import edge, there are two possible cases.  In the normal case,
+// the dependency has already been completely type-checked; doImport
+// does a cache lookup and returns it.  In the cyclic case, the entry in
+// the cache is still necessarily incomplete, indicating a cycle.  We
+// perform the cycle check again to obtain the error message, and return
+// the error.
+//
+// The result of using concurrency is about a 2.5x speedup for stdlib_test.
 
 // TODO(adonovan):
 // - (*Config).ParseFile is very handy, but feels like feature creep.
 //   (*Config).CreateFromFiles has a nasty precondition.
-// - s/path/importPath/g to avoid ambiguity with other meanings of
-//   "path": a file name, a colon-separated directory list.
 // - cache the calls to build.Import so we don't do it three times per
 //   test package.
 // - Thorough overhaul of package documentation.
@@ -135,11 +201,15 @@ import (
 	"go/token"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/gcimporter"
 	"golang.org/x/tools/go/types"
 )
+
+const trace = false // show timing info for type-checking
 
 // Config specifies the configuration for a program to load.
 // The zero value for Config is a ready-to-use default configuration.
@@ -242,7 +312,7 @@ type Config struct {
 }
 
 type CreatePkg struct {
-	Path  string
+	Path  string // the import path of the resulting (non-importable) types.Package
 	Files []*ast.File
 }
 
@@ -395,6 +465,8 @@ func (conf *Config) FromArgs(args []string, xtest bool) (rest []string, err erro
 // conf.CreatePkgs.
 //
 // It fails if any file could not be loaded or parsed.
+// TODO(adonovan): make it not return an error, by making CreatePkg
+// store filenames and defer parsing until Load.
 //
 func (conf *Config) CreateFromFilenames(path string, filenames ...string) error {
 	files, errs := parseFiles(conf.fset(), conf.build(), nil, ".", filenames, conf.ParserMode)
@@ -506,15 +578,63 @@ func (prog *Program) InitialPackages() []*PackageInfo {
 
 // importer holds the working state of the algorithm.
 type importer struct {
-	conf     *Config                // the client configuration
-	prog     *Program               // resulting program
-	imported map[string]*importInfo // all imported packages (incl. failures) by import path
+	conf  *Config   // the client configuration
+	prog  *Program  // resulting program
+	start time.Time // for logging
+
+	// This mutex serializes access to prog.ImportMap (aka
+	// TypeChecker.Packages); we also use it for AllPackages.
+	//
+	// The TypeChecker.Packages map is not really used by this
+	// package, but may be used by the client's Import function,
+	// and by clients of the returned Program.
+	typecheckerMu sync.Mutex
+
+	importedMu sync.Mutex
+	imported   map[string]*importInfo // all imported packages (incl. failures) by import path
+
+	// import dependency graph: graph[x][y] => x imports y
+	//
+	// Since non-importable packages cannot be cyclic, we ignore
+	// their imports, thus we only need the subgraph over importable
+	// packages.  Nodes are identified by their import paths.
+	graphMu sync.Mutex
+	graph   map[string]map[string]bool
 }
 
 // importInfo tracks the success or failure of a single import.
+//
+// Upon completion, exactly one of info and err is non-nil:
+// info on successful creation of a package, err otherwise.
+// A successful package may still contain type errors.
+//
 type importInfo struct {
-	info *PackageInfo // results of typechecking (including errors)
-	err  error        // reason for failure to make a package
+	path     string       // import path
+	mu       sync.Mutex   // guards the following fields prior to completion
+	info     *PackageInfo // results of typechecking (including errors)
+	err      error        // reason for failure to create a package
+	complete sync.Cond    // complete condition is that one of info, err is non-nil.
+}
+
+// awaitCompletion blocks until ii is complete,
+// i.e. the info and err fields are safe to inspect without a lock.
+// It is concurrency-safe and idempotent.
+func (ii *importInfo) awaitCompletion() {
+	ii.mu.Lock()
+	for ii.info == nil && ii.err == nil {
+		ii.complete.Wait()
+	}
+	ii.mu.Unlock()
+}
+
+// Complete marks ii as complete.
+// Its info and err fields will not be subsequently updated.
+func (ii *importInfo) Complete(info *PackageInfo, err error) {
+	ii.mu.Lock()
+	ii.info = info
+	ii.err = err
+	ii.complete.Broadcast()
+	ii.mu.Unlock()
 }
 
 // Load creates the initial packages specified by conf.{Create,Import}Pkgs,
@@ -553,17 +673,23 @@ func (conf *Config) Load() (*Program, error) {
 		conf:     conf,
 		prog:     prog,
 		imported: make(map[string]*importInfo),
+		start:    time.Now(),
+		graph:    make(map[string]map[string]bool),
 	}
 
-	for path := range conf.ImportPkgs {
-		info, err := imp.importPackage(path)
-		if err != nil {
-			return nil, err // failed to create package
+	// -- loading proper (concurrent phase) --------------------------------
+
+	// Load the initially imported packages and their dependencies,
+	// in parallel.
+	for _, ii := range imp.loadAll("", conf.ImportPkgs) {
+		if ii.err != nil {
+			return nil, ii.err // failed to create package
 		}
-		prog.Imported[path] = info
+		prog.Imported[ii.info.Pkg.Path()] = ii.info
 	}
 
-	// Now augment those packages that need it.
+	// Augment the initial packages that need it.
+	// Dependencies are loaded in parallel.
 	for path, augment := range conf.ImportPkgs {
 		if augment {
 			// Find and create the actual package.
@@ -573,24 +699,36 @@ func (conf *Config) Load() (*Program, error) {
 				return nil, err // package not found
 			}
 
+			imp.importedMu.Lock()           // (unnecessary, we're sequential here)
 			info := imp.imported[path].info // must be non-nil, see above
+			imp.importedMu.Unlock()
+
 			files, errs := imp.conf.parsePackageFiles(bp, 't')
 			for _, err := range errs {
 				info.appendError(err)
 			}
-			typeCheckFiles(info, files...)
+			// The test files augmenting package P cannot be imported,
+			// but may import packages that import P,
+			// so we must disable the cycle check.
+			imp.addFiles(info, files, false)
 		}
 	}
 
+	// CreatePkgs includes all external test packages,
+	// so they must be processed after augmentation.
+	// Dependencies are loaded in parallel.
 	for _, create := range conf.CreatePkgs {
 		path := create.Path
 		if create.Path == "" && len(create.Files) > 0 {
 			path = create.Files[0].Name.Name
 		}
 		info := imp.newPackageInfo(path)
-		typeCheckFiles(info, create.Files...)
+		// Ad-hoc packages are non-importable; no cycle check is needed.
+		imp.addFiles(info, create.Files, false)
 		prog.Created = append(prog.Created, info)
 	}
+
+	// -- finishing up (sequential) ----------------------------------------
 
 	if len(prog.Imported)+len(prog.Created) == 0 {
 		return nil, errors.New("no initial packages were specified")
@@ -743,52 +881,150 @@ func (conf *Config) parsePackageFiles(bp *build.Package, which rune) ([]*ast.Fil
 //
 // Idempotent.
 //
-func (imp *importer) doImport(imports map[string]*types.Package, path string) (*types.Package, error) {
+func (imp *importer) doImport(from *PackageInfo, to string) (*types.Package, error) {
 	// Package unsafe is handled specially, and has no PackageInfo.
-	if path == "unsafe" {
+	// TODO(adonovan): move this check into go/types?
+	if to == "unsafe" {
 		return types.Unsafe, nil
 	}
 
-	info, err := imp.importPackage(path)
-	if err != nil {
-		return nil, err
+	imp.importedMu.Lock()
+	ii := imp.imported[to]
+	imp.importedMu.Unlock()
+	if ii == nil {
+		panic("internal error: unexpected import: " + to)
+	}
+	if ii.err != nil {
+		return nil, ii.err
+	}
+	if ii.info != nil {
+		return ii.info.Pkg, nil
 	}
 
-	// Update the type checker's package map on success.
-	imports[path] = info.Pkg
+	// Import of incomplete package: this indicates a cycle.
+	fromPath := from.Pkg.Path()
+	if cycle := imp.findPath(to, fromPath); cycle != nil {
+		cycle = append([]string{fromPath}, cycle...)
+		return nil, fmt.Errorf("import cycle: %s", strings.Join(cycle, " -> "))
+	}
 
-	return info.Pkg, nil
+	panic("internal error: import of incomplete (yet acyclic) package: " + fromPath)
 }
 
-// importPackage imports the package with the given import path, plus
-// its dependencies.
+// loadAll loads, parses, and type-checks the specified packages in
+// parallel and returns their completed importInfos in unspecified order.
 //
-// On success, it returns a PackageInfo, possibly containing errors.
-// importPackage returns an error if it couldn't even create the package.
+// fromPath is the import path of the importing package, if it is
+// importable, "" otherwise.  It is used for cycle detection.
+//
+func (imp *importer) loadAll(fromPath string, paths map[string]bool) []*importInfo {
+	result := make([]*importInfo, 0, len(paths))
+	for path := range paths {
+		result = append(result, imp.startLoad(path))
+	}
+
+	if fromPath != "" {
+		// We're loading a set of imports.
+		//
+		// We must record graph edges from the importing package
+		// to its dependencies, and check for cycles.
+		imp.graphMu.Lock()
+		deps, ok := imp.graph[fromPath]
+		if !ok {
+			deps = make(map[string]bool)
+			imp.graph[fromPath] = deps
+		}
+		for path := range paths {
+			deps[path] = true
+		}
+		imp.graphMu.Unlock()
+	}
+
+	for _, ii := range result {
+		if fromPath != "" {
+			if cycle := imp.findPath(ii.path, fromPath); cycle != nil {
+				// Cycle-forming import: we must not await its
+				// completion since it would deadlock.
+				//
+				// We don't record the error in ii since
+				// the error is really associated with the
+				// cycle-forming edge, not the package itself.
+				// (Also it would complicate the
+				// invariants of importPath completion.)
+				if trace {
+					fmt.Fprintln(os.Stderr, "import cycle: %q", cycle)
+				}
+				continue
+			}
+		}
+		ii.awaitCompletion()
+
+	}
+	return result
+}
+
+// findPath returns an arbitrary path from 'from' to 'to' in the import
+// graph, or nil if there was none.
+func (imp *importer) findPath(from, to string) []string {
+	imp.graphMu.Lock()
+	defer imp.graphMu.Unlock()
+
+	seen := make(map[string]bool)
+	var search func(stack []string, importPath string) []string
+	search = func(stack []string, importPath string) []string {
+		if !seen[importPath] {
+			seen[importPath] = true
+			stack = append(stack, importPath)
+			if importPath == to {
+				return stack
+			}
+			for x := range imp.graph[importPath] {
+				if p := search(stack, x); p != nil {
+					return p
+				}
+			}
+		}
+		return nil
+	}
+	return search(make([]string, 0, 20), from)
+}
+
+// startLoad initiates the loading, parsing and type-checking of the
+// specified package and its dependencies, if it has not already begun.
+//
+// It returns an importInfo, not necessarily in a completed state.  The
+// caller must call awaitCompletion() before accessing its info and err
+// fields.
+//
+// startLoad is concurrency-safe and idempotent.
 //
 // Precondition: path != "unsafe".
 //
-func (imp *importer) importPackage(path string) (*PackageInfo, error) {
+func (imp *importer) startLoad(path string) *importInfo {
+	imp.importedMu.Lock()
 	ii, ok := imp.imported[path]
 	if !ok {
-		// In preorder, initialize the map entry to a cycle
-		// error in case importPackage(path) is called again
-		// before the import is completed.
-		ii = &importInfo{err: fmt.Errorf("import cycle in package %s", path)}
+		ii = &importInfo{path: path}
+		ii.complete.L = &ii.mu
 		imp.imported[path] = ii
 
-		// Find and create the actual package.
-		if _, ok := imp.conf.ImportPkgs[path]; ok || imp.conf.SourceImports {
-			ii.info, ii.err = imp.importFromSource(path)
-		} else {
-			ii.info, ii.err = imp.importFromBinary(path)
-		}
-		if ii.info != nil {
-			ii.info.Importable = true
-		}
+		go imp.load(path, ii)
 	}
+	imp.importedMu.Unlock()
 
-	return ii.info, ii.err
+	return ii
+}
+
+func (imp *importer) load(path string, ii *importInfo) {
+	var info *PackageInfo
+	var err error
+	// Find and create the actual package.
+	if _, ok := imp.conf.ImportPkgs[path]; ok || imp.conf.SourceImports {
+		info, err = imp.loadFromSource(path)
+	} else {
+		info, err = imp.importFromBinary(path)
+	}
+	ii.Complete(info, err)
 }
 
 // importFromBinary implements package loading from the client-supplied
@@ -800,43 +1036,79 @@ func (imp *importer) importFromBinary(path string) (*PackageInfo, error) {
 	if importfn == nil {
 		importfn = gcimporter.Import
 	}
+	imp.typecheckerMu.Lock()
 	pkg, err := importfn(imp.conf.TypeChecker.Packages, path)
+	if pkg != nil {
+		imp.conf.TypeChecker.Packages[path] = pkg
+	}
+	imp.typecheckerMu.Unlock()
 	if err != nil {
 		return nil, err
 	}
 	info := &PackageInfo{Pkg: pkg}
+	info.Importable = true
+	imp.typecheckerMu.Lock()
 	imp.prog.AllPackages[pkg] = info
+	imp.typecheckerMu.Unlock()
 	return info, nil
 }
 
-// importFromSource implements package loading by parsing Go source files
+// loadFromSource implements package loading by parsing Go source files
 // located by go/build.
+// The returned PackageInfo's typeCheck function must be called.
 //
-func (imp *importer) importFromSource(path string) (*PackageInfo, error) {
+func (imp *importer) loadFromSource(path string) (*PackageInfo, error) {
 	bp, err := imp.conf.findSourcePackage(path)
 	if err != nil {
 		return nil, err // package not found
 	}
-	// Type-check the package.
 	info := imp.newPackageInfo(path)
+	info.Importable = true
 	files, errs := imp.conf.parsePackageFiles(bp, 'g')
 	for _, err := range errs {
 		info.appendError(err)
 	}
-	typeCheckFiles(info, files...)
+
+	imp.addFiles(info, files, true)
+
+	imp.typecheckerMu.Lock()
+	imp.conf.TypeChecker.Packages[path] = info.Pkg
+	imp.typecheckerMu.Unlock()
+
 	return info, nil
 }
 
-// typeCheckFiles adds the specified files to info and type-checks them.
-// The order of files determines the package initialization order.
-// It may be called multiple times.
+// addFiles adds and type-checks the specified files to info, loading
+// their dependencies if needed.  The order of files determines the
+// package initialization order.  It may be called multiple times on the
+// same package.  Errors are appended to the info.Errors field.
 //
-// Errors are stored in the info.Errors field.
-func typeCheckFiles(info *PackageInfo, files ...*ast.File) {
+// cycleCheck determines whether the imports within files create
+// dependency edges that should be checked for potential cycles.
+//
+func (imp *importer) addFiles(info *PackageInfo, files []*ast.File, cycleCheck bool) {
 	info.Files = append(info.Files, files...)
 
-	// Ignore the returned (first) error since we already collect them all.
-	_ = info.checker.Files(files)
+	// Ensure the dependencies are loaded, in parallel.
+	var fromPath string
+	if cycleCheck {
+		fromPath = info.Pkg.Path()
+	}
+	imp.loadAll(fromPath, scanImports(files))
+
+	if trace {
+		fmt.Fprintf(os.Stderr, "%s: start %q (%d)\n",
+			time.Since(imp.start), info.Pkg.Path(), len(files))
+	}
+
+	// Ignore the returned (first) error since we
+	// already collect them all in the PackageInfo.
+	info.checker.Files(files)
+
+	if trace {
+		fmt.Fprintf(os.Stderr, "%s: stop %q\n",
+			time.Since(imp.start), info.Pkg.Path())
+	}
 }
 
 func (imp *importer) newPackageInfo(path string) *PackageInfo {
@@ -863,10 +1135,14 @@ func (imp *importer) newPackageInfo(path string) *PackageInfo {
 	if f := imp.conf.TypeCheckFuncBodies; f != nil {
 		tc.IgnoreFuncBodies = !f(path)
 	}
-	tc.Import = imp.doImport    // doImport wraps the user's importfn, effectively
+	tc.Import = func(_ map[string]*types.Package, to string) (*types.Package, error) {
+		return imp.doImport(info, to)
+	}
 	tc.Error = info.appendError // appendError wraps the user's Error function
 
 	info.checker = types.NewChecker(&tc, imp.conf.fset(), pkg, &info.Info)
+	imp.typecheckerMu.Lock()
 	imp.prog.AllPackages[pkg] = info
+	imp.typecheckerMu.Unlock()
 	return info
 }
