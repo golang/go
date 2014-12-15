@@ -40,7 +40,13 @@ func TestGenerateCommandParse(t *testing.T) {
 	}
 	g.setShorthand([]string{"-command", "yacc", "go", "tool", "yacc"})
 	for _, test := range splitTests {
+		// First with newlines.
 		got := g.split("//go:generate " + test.in + "\n")
+		if !reflect.DeepEqual(got, test.out) {
+			t.Errorf("split(%q): got %q expected %q", test.in, got, test.out)
+		}
+		// Then with CRLFs, thank you Windows.
+		got = g.split("//go:generate " + test.in + "\r\n")
 		if !reflect.DeepEqual(got, test.out) {
 			t.Errorf("split(%q): got %q expected %q", test.in, got, test.out)
 		}
