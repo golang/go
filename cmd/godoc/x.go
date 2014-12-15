@@ -27,6 +27,7 @@ var xMap = map[string]xRepo{
 	"benchmarks": {"https://go.googlesource.com/benchmarks", "git"},
 	"blog":       {"https://go.googlesource.com/blog", "git"},
 	"crypto":     {"https://go.googlesource.com/crypto", "git"},
+	"debug":      {"https://go.googlesource.com/debug", "git"},
 	"exp":        {"https://go.googlesource.com/exp", "git"},
 	"image":      {"https://go.googlesource.com/image", "git"},
 	"mobile":     {"https://go.googlesource.com/mobile", "git"},
