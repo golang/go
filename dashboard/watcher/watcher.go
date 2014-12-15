@@ -7,11 +7,13 @@
 package main // import "golang.org/x/tools/dashboard/watcher"
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -23,6 +25,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -31,6 +34,7 @@ const (
 	watcherVersion = 3 // must match dashboard/app/build/handler.go's watcherVersion
 	origin         = "origin/"
 	master         = origin + "master" // name of the master branch
+	metaURL        = goBase + "?b=master&format=JSON"
 )
 
 var (
@@ -49,6 +53,7 @@ var (
 
 func main() {
 	flag.Parse()
+	go pollGerritAndTickle()
 
 	err := run()
 	fmt.Fprintln(os.Stderr, err)
@@ -144,6 +149,7 @@ func NewRepo(dir, url, path string) (*Repo, error) {
 // new commits, and posts any new commits to the dashboard.
 // It only returns a non-nil error.
 func (r *Repo) Watch() error {
+	tickler := repoTickler(r.name())
 	for {
 		if err := r.fetch(); err != nil {
 			return err
@@ -165,16 +171,27 @@ func (r *Repo) Watch() error {
 				return err
 			}
 		}
-		time.Sleep(*pollInterval)
+		// We still run a timer but a very slow one, just
+		// in case the mechanism updating the repo tickler
+		// breaks for some reason.
+		timer := time.NewTimer(5 * time.Minute)
+		select {
+		case <-tickler:
+			timer.Stop()
+		case <-timer.C:
+		}
 	}
 }
 
-func (r *Repo) logf(format string, args ...interface{}) {
-	p := "go"
-	if r.path != "" {
-		p = path.Base(r.path)
+func (r *Repo) name() string {
+	if r.path == "" {
+		return "go"
 	}
-	log.Printf(p+": "+format, args...)
+	return path.Base(r.path)
+}
+
+func (r *Repo) logf(format string, args ...interface{}) {
+	log.Printf(r.name()+": "+format, args...)
 }
 
 // postNewCommits looks for unseen commits on the specified branch and
@@ -675,4 +692,84 @@ func subrepoList() ([]string, error) {
 		pkgs = append(pkgs, r.Path)
 	}
 	return pkgs, nil
+}
+
+var (
+	ticklerMu sync.Mutex
+	ticklers  = make(map[string]chan bool)
+)
+
+// repo is the gerrit repo: e.g. "go", "net", "crypto", ...
+func repoTickler(repo string) chan bool {
+	ticklerMu.Lock()
+	defer ticklerMu.Unlock()
+	if c, ok := ticklers[repo]; ok {
+		return c
+	}
+	c := make(chan bool, 1)
+	ticklers[repo] = c
+	return c
+}
+
+// pollGerritAndTickle polls Gerrit's JSON meta URL of all its URLs
+// and their current branch heads.  When this sees that one has
+// changed, it tickles the channel for that repo and wakes up its
+// poller, if its poller is in a sleep.
+func pollGerritAndTickle() {
+	last := map[string]string{} // repo -> last seen hash
+	for {
+		for repo, hash := range gerritMetaMap() {
+			if hash != last[repo] {
+				last[repo] = hash
+				select {
+				case repoTickler(repo) <- true:
+					log.Printf("tickled the %s repo poller", repo)
+				default:
+				}
+			}
+		}
+		time.Sleep(*pollInterval)
+	}
+}
+
+// gerritMetaMap returns the map from repo name (e.g. "go") to its
+// latest master hash.
+// The returned map is nil on any transient error.
+func gerritMetaMap() map[string]string {
+	res, err := http.Get(metaURL)
+	if err != nil {
+		return nil
+	}
+	defer res.Body.Close()
+	defer io.Copy(ioutil.Discard, res.Body) // ensure EOF for keep-alive
+	if res.StatusCode != 200 {
+		return nil
+	}
+	var meta map[string]struct {
+		Branches map[string]string
+	}
+	br := bufio.NewReader(res.Body)
+	// For security reasons or something, this URL starts with ")]}'\n" before
+	// the JSON object. So ignore that.
+	// Shawn Pearce says it's guaranteed to always be just one line, ending in '\n'.
+	for {
+		b, err := br.ReadByte()
+		if err != nil {
+			return nil
+		}
+		if b == '\n' {
+			break
+		}
+	}
+	if err := json.NewDecoder(br).Decode(&meta); err != nil {
+		log.Printf("JSON decoding error from %v: %s", metaURL, err)
+		return nil
+	}
+	m := map[string]string{}
+	for repo, v := range meta {
+		if master, ok := v.Branches["master"]; ok {
+			m[repo] = master
+		}
+	}
+	return m
 }
