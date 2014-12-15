@@ -864,7 +864,7 @@ func TestScanStateCount(t *testing.T) {
 		t.Fatal(err)
 	}
 	if n != 3 {
-		t.Fatalf("expected 3 items consumed, got %d")
+		t.Fatalf("expected 3 items consumed, got %d", n)
 	}
 	if a.rune != '1' || b.rune != '2' || c.rune != '➂' {
 		t.Errorf("bad scan rune: %q %q %q should be '1' '2' '➂'", a.rune, b.rune, c.rune)
@@ -988,5 +988,59 @@ func BenchmarkScanRecursiveInt(b *testing.B) {
 		b.StartTimer()
 		Fscan(buf, &r)
 		b.StopTimer()
+	}
+}
+
+// Issue 9124.
+// %x on bytes couldn't handle non-space bytes terminating the scan.
+func TestHexBytes(t *testing.T) {
+	var a, b []byte
+	n, err := Sscanf("00010203", "%x", &a)
+	if n != 1 || err != nil {
+		t.Errorf("simple: got count, err = %d, %v; expected 1, nil", n, err)
+	}
+	check := func(msg string, x []byte) {
+		if len(x) != 4 {
+			t.Errorf("%s: bad length %d", msg, len(x))
+		}
+		for i, b := range x {
+			if int(b) != i {
+				t.Errorf("%s: bad x[%d] = %x", msg, i, x[i])
+			}
+		}
+	}
+	check("simple", a)
+	a = nil
+
+	n, err = Sscanf("00010203 00010203", "%x %x", &a, &b)
+	if n != 2 || err != nil {
+		t.Errorf("simple pair: got count, err = %d, %v; expected 2, nil", n, err)
+	}
+	check("simple pair a", a)
+	check("simple pair b", b)
+	a = nil
+	b = nil
+
+	n, err = Sscanf("00010203:", "%x", &a)
+	if n != 1 || err != nil {
+		t.Errorf("colon: got count, err = %d, %v; expected 1, nil", n, err)
+	}
+	check("colon", a)
+	a = nil
+
+	n, err = Sscanf("00010203:00010203", "%x:%x", &a, &b)
+	if n != 2 || err != nil {
+		t.Errorf("colon pair: got count, err = %d, %v; expected 2, nil", n, err)
+	}
+	check("colon pair a", a)
+	check("colon pair b", b)
+	a = nil
+	b = nil
+
+	// This one fails because there is a hex byte after the data,
+	// that is, an odd number of hex input bytes.
+	n, err = Sscanf("000102034:", "%x", &a)
+	if n != 0 || err == nil {
+		t.Errorf("odd count: got count, err = %d, %v; expected 0, error", n, err)
 	}
 }
