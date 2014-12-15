@@ -505,8 +505,6 @@ func (b *Build) extras() error {
 }
 
 func (b *Build) get(repoPath, revision string) error {
-	dest := filepath.Join(b.gopath, "src", filepath.FromSlash(repoPath))
-
 	// Fetch the packages (without building/installing).
 	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"),
 		"get", "-d", repoPath+"/...")
@@ -516,7 +514,6 @@ func (b *Build) get(repoPath, revision string) error {
 
 	// Update the repo to the specified revision.
 	dest := filepath.Join(b.gopath, "src", filepath.FromSlash(repoPath))
-	var err error
 	switch {
 	case exists(filepath.Join(dest, ".git")):
 		_, err = b.run(dest, "git", "checkout", revision)
