@@ -1,7 +1,7 @@
 # Update with
-#	google_appengine/appcfg.py [-V test-build] update .
+#	google_appengine/appcfg.py [-V build-test] update .
 #
-# Using -V test-build will run as test-build.golang.org.
+# Using -V build-test will run as build-test.golang.org.
 
 application: golang-org
 version: build
