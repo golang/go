@@ -575,20 +575,16 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
 // If all is true, Stack formats stack traces of all other goroutines
 // into buf after the trace for the current goroutine.
 func Stack(buf []byte, all bool) int {
-	mp := acquirem()
-	gp := mp.curg
 	if all {
 		semacquire(&worldsema, false)
-		mp.gcing = 1
-		releasem(mp)
+		gp := getg()
+		gp.m.gcing = 1
 		onM(stoptheworld)
-		if mp != acquirem() {
-			gothrow("Stack: rescheduled")
-		}
 	}
 
 	n := 0
 	if len(buf) > 0 {
+		gp := getg()
 		sp := getcallersp(unsafe.Pointer(&buf))
 		pc := getcallerpc(unsafe.Pointer(&buf))
 		onM(func() {
@@ -605,11 +601,11 @@ func Stack(buf []byte, all bool) int {
 	}
 
 	if all {
-		mp.gcing = 0
+		gp := getg()
+		gp.m.gcing = 0
 		semrelease(&worldsema)
 		onM(starttheworld)
 	}
-	releasem(mp)
 	return n
 }
 
