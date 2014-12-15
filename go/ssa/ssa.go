@@ -30,6 +30,7 @@ type Program struct {
 
 	methodsMu  sync.Mutex                 // guards the following maps:
 	methodSets typeutil.Map               // maps type to its concrete methodSet
+	canon      typeutil.Map               // type canonicalization map
 	bounds     map[*types.Func]*Function  // bounds for curried x.Method closures
 	thunks     map[selectionKey]*Function // thunks for T.Method expressions
 }

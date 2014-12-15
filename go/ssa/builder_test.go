@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types"
 )
 
@@ -315,5 +316,101 @@ func init():
 		if initbuf.String() != test.want {
 			t.Errorf("test 'package %s': got %s, want %s", f.Name.Name, initbuf.String(), test.want)
 		}
+	}
+}
+
+// TestSyntheticFuncs checks that the expected synthetic functions are
+// created, reachable, and not duplicated.
+func TestSyntheticFuncs(t *testing.T) {
+	const input = `package P
+type T int
+func (T) f() int
+func (*T) g() int
+var (
+	// thunks
+	a = T.f
+	b = T.f
+	c = (struct{T}).f
+	d = (struct{T}).f
+	e = (*T).g
+	f = (*T).g
+	g = (struct{*T}).g
+	h = (struct{*T}).g
+
+	// bounds
+	i = T(0).f
+	j = T(0).f
+	k = new(T).g
+	l = new(T).g
+
+	// wrappers
+	m interface{} = struct{T}{}
+	n interface{} = struct{T}{}
+	o interface{} = struct{*T}{}
+	p interface{} = struct{*T}{}
+	q interface{} = new(struct{T})
+	r interface{} = new(struct{T})
+	s interface{} = new(struct{*T})
+	t interface{} = new(struct{*T})
+)
+`
+	// Parse
+	var conf loader.Config
+	f, err := conf.ParseFile("<input>", input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	conf.CreateFromFiles(f.Name.Name, f)
+
+	// Load
+	iprog, err := conf.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Create and build SSA
+	prog := ssa.Create(iprog, 0)
+	prog.BuildAll()
+
+	// Enumerate reachable synthetic functions
+	want := map[string]string{
+		"(*P.T).g$bound": "bound method wrapper for func (*P.T).g() int",
+		"(P.T).f$bound":  "bound method wrapper for func (P.T).f() int",
+
+		"(*P.T).g$thunk":         "thunk for func (*P.T).g() int",
+		"(P.T).f$thunk":          "thunk for func (P.T).f() int",
+		"(struct{*P.T}).g$thunk": "thunk for func (*P.T).g() int",
+		"(struct{P.T}).f$thunk":  "thunk for func (P.T).f() int",
+
+		"(*P.T).f":          "wrapper for func (P.T).f() int",
+		"(*struct{*P.T}).f": "wrapper for func (P.T).f() int",
+		"(*struct{*P.T}).g": "wrapper for func (*P.T).g() int",
+		"(*struct{P.T}).f":  "wrapper for func (P.T).f() int",
+		"(*struct{P.T}).g":  "wrapper for func (*P.T).g() int",
+		"(struct{*P.T}).f":  "wrapper for func (P.T).f() int",
+		"(struct{*P.T}).g":  "wrapper for func (*P.T).g() int",
+		"(struct{P.T}).f":   "wrapper for func (P.T).f() int",
+
+		"P.init": "package initializer",
+	}
+	for fn := range ssautil.AllFunctions(prog) {
+		if fn.Synthetic == "" {
+			continue
+		}
+		name := fn.String()
+		wantDescr, ok := want[name]
+		if !ok {
+			t.Errorf("got unexpected/duplicate func: %q: %q", name, fn.Synthetic)
+			continue
+		}
+		delete(want, name)
+
+		if wantDescr != fn.Synthetic {
+			t.Errorf("(%s).Synthetic = %q, want %q",
+				name, fn.Synthetic, wantDescr)
+		}
+	}
+	for fn, descr := range want {
+		t.Errorf("want func: %q: %q", fn, descr)
 	}
 }

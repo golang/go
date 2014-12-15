@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 // BuilderMode is a bitmask of options for diagnostics and checking.
@@ -48,6 +49,10 @@ func Create(iprog *loader.Program, mode BuilderMode) *Program {
 		bounds:   make(map[*types.Func]*Function),
 		mode:     mode,
 	}
+
+	h := typeutil.MakeHasher() // protected by methodsMu, in effect
+	prog.methodSets.SetHasher(h)
+	prog.canon.SetHasher(h)
 
 	for _, info := range iprog.AllPackages {
 		// TODO(adonovan): relax this constraint if the

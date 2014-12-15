@@ -5,13 +5,13 @@
 package ssa
 
 // This file defines synthesis of Functions that delegate to declared
-// methods, which come in three kinds:
+// methods; they come in three kinds:
 //
 // (1) wrappers: methods that wrap declared methods, performing
 //     implicit pointer indirections and embedded field selections.
 //
 // (2) thunks: funcs that wrap declared methods.  Like wrappers,
-//     thunks perform indirections and field selections. The thunks's
+//     thunks perform indirections and field selections. The thunk's
 //     first parameter is used as the receiver for the method call.
 //
 // (3) bounds: funcs that wrap declared methods.  The bound's sole
@@ -250,8 +250,6 @@ func makeThunk(prog *Program, sel *types.Selection) *Function {
 		panic(sel)
 	}
 
-	// TODO(adonovan): opt: canonicalize the recv Type to avoid
-	// construct unnecessary duplicate thunks.
 	key := selectionKey{
 		kind:     sel.Kind(),
 		recv:     sel.Recv(),
@@ -262,6 +260,15 @@ func makeThunk(prog *Program, sel *types.Selection) *Function {
 
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
+
+	// Canonicalize key.recv to avoid constructing duplicate thunks.
+	canonRecv, ok := prog.canon.At(key.recv).(types.Type)
+	if !ok {
+		canonRecv = key.recv
+		prog.canon.Set(key.recv, canonRecv)
+	}
+	key.recv = canonRecv
+
 	fn, ok := prog.thunks[key]
 	if !ok {
 		fn = makeWrapper(prog, sel)
@@ -280,7 +287,7 @@ func changeRecv(s *types.Signature, recv *types.Var) *types.Signature {
 // selectionKey is like types.Selection but a usable map key.
 type selectionKey struct {
 	kind     types.SelectionKind
-	recv     types.Type
+	recv     types.Type // canonicalized via Program.canon
 	obj      types.Object
 	index    string
 	indirect bool
