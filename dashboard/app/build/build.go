@@ -145,7 +145,7 @@ func putCommit(c appengine.Context, com *Commit) error {
 // build history and the AppEngine datastore limit of 1mb.
 const maxResults = 1000
 
-// AddResult adds the denormalized Result data to the Commit's Result field.
+// AddResult adds the denormalized Result data to the Commit's ResultData field.
 // It must be called from inside a datastore transaction.
 func (com *Commit) AddResult(c appengine.Context, r *Result) error {
 	if err := datastore.Get(c, com.Key(c), com); err != nil {
@@ -165,6 +165,21 @@ func (com *Commit) AddResult(c appengine.Context, r *Result) error {
 		com.ResultData = trim(append(com.ResultData, r.Data()), maxResults)
 	}
 	return putCommit(c, com)
+}
+
+// removeResult removes the denormalized Result data from the ResultData field
+// for the given builder and go hash.
+// It must be called from within the datastore transaction that gets and puts
+// the Commit. Note this is slightly different to AddResult, above.
+func (com *Commit) RemoveResult(r *Result) {
+	var rd []string
+	for _, s := range com.ResultData {
+		if strings.HasPrefix(s, r.Builder+"|") && strings.HasSuffix(s, "|"+r.GoHash) {
+			continue
+		}
+		rd = append(rd, s)
+	}
+	com.ResultData = rd
 }
 
 // AddPerfResult remembers that the builder has run the benchmark on the commit.
@@ -205,7 +220,7 @@ func (c *Commit) Result(builder, goHash string) *Result {
 		if len(p) != 4 || p[0] != builder || p[3] != goHash {
 			continue
 		}
-		return partsToHash(c, p)
+		return partsToResult(c, p)
 	}
 	return nil
 }
@@ -217,7 +232,7 @@ func (c *Commit) Results() (results []*Result) {
 		if len(p) != 4 {
 			continue
 		}
-		results = append(results, partsToHash(c, p))
+		results = append(results, partsToResult(c, p))
 	}
 	return
 }
@@ -371,8 +386,8 @@ func GetCommits(c appengine.Context, startCommitNum, n int) ([]*Commit, error) {
 	return res, nil
 }
 
-// partsToHash converts a Commit and ResultData substrings to a Result.
-func partsToHash(c *Commit, p []string) *Result {
+// partsToResult converts a Commit and ResultData substrings to a Result.
+func partsToResult(c *Commit, p []string) *Result {
 	return &Result{
 		Builder:     p[0],
 		Hash:        c.Hash,

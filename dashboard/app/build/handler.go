@@ -793,6 +793,53 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
+// clearResultsHandler purges the last commitsPerPage results for the given builder.
+// It optionally takes a comma-separated list of specific hashes to clear.
+func clearResultsHandler(r *http.Request) (interface{}, error) {
+	if r.Method != "POST" {
+		return nil, errBadMethod(r.Method)
+	}
+	builder := r.FormValue("builder")
+	if builder == "" {
+		return nil, errors.New("must specify a builder")
+	}
+	clearAll := r.FormValue("hash") == ""
+	hash := strings.Split(r.FormValue("hash"), ",")
+
+	c := contextForRequest(r)
+	defer cache.Tick(c)
+	pkg := (&Package{}).Key(c) // TODO(adg): support clearing sub-repos
+	err := datastore.RunInTransaction(c, func(c appengine.Context) error {
+		var coms []*Commit
+		keys, err := datastore.NewQuery("Commit").
+			Ancestor(pkg).
+			Order("-Num").
+			Limit(commitsPerPage).
+			GetAll(c, &coms)
+		if err != nil {
+			return err
+		}
+		var rKeys []*datastore.Key
+		for _, com := range coms {
+			if !(clearAll || contains(hash, com.Hash)) {
+				continue
+			}
+			r := com.Result(builder, "")
+			if r == nil {
+				continue
+			}
+			com.RemoveResult(r)
+			rKeys = append(rKeys, r.Key(c))
+		}
+		_, err = datastore.PutMulti(c, keys, coms)
+		if err != nil {
+			return err
+		}
+		return datastore.DeleteMulti(c, rKeys)
+	}, nil)
+	return nil, err
+}
+
 type dashHandler func(*http.Request) (interface{}, error)
 
 type dashResponse struct {
@@ -862,10 +909,11 @@ func init() {
 	handleFunc("/key", keyHandler)
 
 	// authenticated handlers
+	handleFunc("/clear-results", AuthHandler(clearResultsHandler))
 	handleFunc("/commit", AuthHandler(commitHandler))
 	handleFunc("/packages", AuthHandler(packagesHandler))
-	handleFunc("/result", AuthHandler(resultHandler))
 	handleFunc("/perf-result", AuthHandler(perfResultHandler))
+	handleFunc("/result", AuthHandler(resultHandler))
 	handleFunc("/tag", AuthHandler(tagHandler))
 	handleFunc("/todo", AuthHandler(todoHandler))
 
