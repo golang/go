@@ -155,8 +155,6 @@ Dconv(Fmt *fp)
 		else
 			s += sprint(s, "%d ", i);
 		s += sprint(s, "offset=%lld etype=%E width=%lld", a->offset, a->etype, a->width);
-		if(a->class != 0)
-			s += sprint(s, " class=%s", cnames9[(int)a->class]);
 		if(a->sym != nil)
 			s += sprint(s, " sym=%s", a->sym->name);
 		if(a->type == D_BRANCH && a->u.branch != nil)
