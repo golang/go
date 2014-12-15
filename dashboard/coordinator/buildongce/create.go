@@ -32,6 +32,7 @@ var (
 	sshPub    = flag.String("ssh_public_key", "", "ssh public key file to authorize. Can modify later in Google's web UI anyway.")
 	staticIP  = flag.String("static_ip", "", "Static IP to use. If empty, automatic.")
 	reuseDisk = flag.Bool("reuse_disk", true, "Whether disk images should be reused between shutdowns/restarts.")
+	ssd       = flag.Bool("ssd", false, "use a solid state disk (faster, more expensive)")
 
 	writeObject = flag.String("write_object", "", "If non-empty, a VM isn't created and the flag value is Google Cloud Storage bucket/object to write. The contents from stdin.")
 )
@@ -62,6 +63,9 @@ var config = &oauth.Config{
 
 const baseConfig = `#cloud-config
 coreos:
+  update:
+    group: alpha
+    reboot-strategy: off
   units:
     - name: gobuild.service
       command: start
@@ -266,6 +270,11 @@ func instanceDisk(svc *compute.Service) *compute.AttachedDisk {
 		}
 	}
 
+	diskType := ""
+	if *ssd {
+		diskType = "https://www.googleapis.com/compute/v1/projects/" + *proj + "/zones/" + *zone + "/diskTypes/pd-ssd"
+	}
+
 	return &compute.AttachedDisk{
 		AutoDelete: !*reuseDisk,
 		Boot:       true,
@@ -274,6 +283,7 @@ func instanceDisk(svc *compute.Service) *compute.AttachedDisk {
 			DiskName:    diskName,
 			SourceImage: imageURL,
 			DiskSizeGb:  50,
+			DiskType:    diskType,
 		},
 	}
 }
