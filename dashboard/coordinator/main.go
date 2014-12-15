@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"io/ioutil"
 	"log"
@@ -129,6 +130,8 @@ func main() {
 	http.HandleFunc("/logs", handleLogs)
 	go http.ListenAndServe(":80", nil)
 
+	go cleanUpOldContainers()
+
 	for _, watcher := range watchers {
 		if err := startWatching(watchers[watcher.repo]); err != nil {
 			log.Printf("Error starting watcher for %s: %v", watcher.repo, err)
@@ -218,7 +221,12 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%-22s hg %s in container <a href='/logs?name=%s&rev=%s'>%s</a>, %v ago\n", st.name, st.rev, st.name, st.rev,
 			st.container, time.Now().Sub(st.start))
 	}
-	fmt.Fprintf(w, "</pre></body></html>")
+	fmt.Fprintf(w, "</pre><h2>disk space</h2><pre>%s</pre></body></html>", html.EscapeString(diskFree()))
+}
+
+func diskFree() string {
+	out, _ := exec.Command("df", "-h").Output()
+	return string(out)
 }
 
 func handleLogs(w http.ResponseWriter, r *http.Request) {
@@ -557,4 +565,19 @@ func loadKey() {
 		log.Fatal(err)
 	}
 	masterKeyCache = bytes.TrimSpace(slurp)
+}
+
+func cleanUpOldContainers() {
+	for {
+		for _, cid := range oldContainers() {
+			log.Printf("Cleaning old container %v", cid)
+			exec.Command("docker", "rm", "-v", cid).Run()
+		}
+		time.Sleep(30 * time.Second)
+	}
+}
+
+func oldContainers() []string {
+	out, _ := exec.Command("docker", "ps", "-a", "--filter=status=exited", "--no-trunc", "-q").Output()
+	return strings.Fields(string(out))
 }
