@@ -10,6 +10,7 @@ package ssa_test
 // Run with "go test -cpu=8 to" set GOMAXPROCS.
 
 import (
+	"go/ast"
 	"go/build"
 	"go/token"
 	"runtime"
@@ -82,9 +83,11 @@ func TestStdlib(t *testing.T) {
 	allFuncs := ssautil.AllFunctions(prog)
 
 	// Check that all non-synthetic functions have distinct names.
+	// Synthetic wrappers for exported methods should be distinct too,
+	// except for unexported ones (explained at (*Function).RelString).
 	byName := make(map[string]*ssa.Function)
 	for fn := range allFuncs {
-		if fn.Synthetic == "" {
+		if fn.Synthetic == "" || ast.IsExported(fn.Name()) {
 			str := fn.String()
 			prev := byName[str]
 			byName[str] = fn

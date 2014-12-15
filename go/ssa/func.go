@@ -464,7 +464,10 @@ func (f *Function) emit(instr Instruction) Value {
 // (i.e. from == f.Pkg.Object), they are rendered without the package path.
 // For example: "IsNaN", "(*Buffer).Bytes", etc.
 //
-// Invariant: all non-synthetic functions have distinct package-qualified names.
+// All non-synthetic functions have distinct package-qualified names.
+// (But two methods may have the same name "(T).f" if one is a synthetic
+// wrapper promoting a non-exported method "f" from another package; in
+// that case, the strings are equal but the identifiers "f" are distinct.)
 //
 func (f *Function) RelString(from *types.Package) string {
 	// Anonymous?
