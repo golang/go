@@ -241,6 +241,20 @@ func (b *builder) builtin(fn *Function, obj *types.Builtin, args []ast.Expr, typ
 			if len(args) == 3 {
 				m = b.expr(fn, args[2])
 			}
+			if m, ok := m.(*Const); ok {
+				// treat make([]T, n, m) as new([m]T)[:n]
+				cap, _ := exact.Int64Val(m.Value)
+				at := types.NewArray(typ.Underlying().(*types.Slice).Elem(), cap)
+				alloc := emitNew(fn, at, pos)
+				alloc.Comment = "makeslice"
+				v := &Slice{
+					X:    alloc,
+					High: n,
+				}
+				v.setPos(pos)
+				v.setType(typ)
+				return fn.emit(v)
+			}
 			v := &MakeSlice{
 				Len: n,
 				Cap: m,

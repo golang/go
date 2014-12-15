@@ -33,7 +33,7 @@ func f(spilled, unspilled int) {
 	_ = /*@Phi*/ (y)
 	map1 := /*@MakeMap*/ (make(map[string]string))
 	_ = map1
-	_ = /*@MakeSlice*/ (make([]int, 0))
+	_ = /*@Slice*/ (make([]int, 0))
 	_ = /*@MakeClosure*/ (func() { print(spilled) })
 
 	sl := []int{}

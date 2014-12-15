@@ -478,7 +478,28 @@ func init() {
 	}
 }
 
-// Test that a nice error is issue by indirection wrappers.
+var one = 1 // not a constant
+
+// Test makeslice.
+func init() {
+	check := func(s []string, wantLen, wantCap int) {
+		if len(s) != wantLen {
+			panic(len(s))
+		}
+		if cap(s) != wantCap {
+			panic(cap(s))
+		}
+	}
+	//                                       SSA form:
+	check(make([]string, 10), 10, 10)     // new([10]string)[:10]
+	check(make([]string, one), 1, 1)      // make([]string, one, one)
+	check(make([]string, 0, 10), 0, 10)   // new([10]string)[:0]
+	check(make([]string, 0, one), 0, 1)   // make([]string, 0, one)
+	check(make([]string, one, 10), 1, 10) // new([10]string)[:one]
+	check(make([]string, one, one), 1, 1) // make([]string, one, one)
+}
+
+// Test that a nice error is issued by indirection wrappers.
 func init() {
 	var ptr *T
 	var i I = ptr

@@ -90,9 +90,9 @@ func main() {
 	_ = v8ptr[0]  // v8ptr::Alloc
 	_ = *v8ptr    // v8ptr::Alloc
 
-	v8a := make([]int, 1) // v8a::MakeSlice
-	v8a[0] = 0            // v8a::MakeSlice
-	print(v8a[:])         // v8a::MakeSlice
+	v8a := make([]int, 1) // v8a::Slice
+	v8a[0] = 0            // v8a::Slice
+	print(v8a[:])         // v8a::Slice
 
 	v9 := S{} // &v9::Alloc
 
