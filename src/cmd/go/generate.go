@@ -255,6 +255,10 @@ func (g *Generator) split(line string) []string {
 	// Parse line, obeying quoted strings.
 	var words []string
 	line = line[len("//go:generate ") : len(line)-1] // Drop preamble and final newline.
+	// There may still be a carriage return.
+	if len(line) > 0 && line[len(line)-1] == '\r' {
+		line = line[:len(line)-1]
+	}
 	// One (possibly quoted) word per iteration.
 Words:
 	for {
