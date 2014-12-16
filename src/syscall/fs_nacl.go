@@ -815,7 +815,7 @@ func fdToFsysFile(fd int) (*fsysFile, error) {
 // It is meant to be called when initializing the file system image.
 func create(name string, mode uint32, sec int64, data []byte) error {
 	fs.mu.Lock()
-	fs.mu.Unlock()
+	defer fs.mu.Unlock()
 	f, err := fs.open(name, O_CREATE|O_EXCL, mode)
 	if err != nil {
 		if mode&S_IFMT == S_IFDIR {
