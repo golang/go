@@ -39,6 +39,7 @@ var hostPortHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
 	if r.FormValue("close") == "true" {
 		w.Header().Set("Connection", "close")
 	}
+	w.Header().Set("X-Saw-Close", fmt.Sprint(r.Close))
 	w.Write([]byte(r.RemoteAddr))
 })
 
@@ -228,6 +229,10 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error in connectionClose=%v, req #%d, Do: %v", connectionClose, n, err)
 			}
+			if got, want := res.Header.Get("X-Saw-Close"), fmt.Sprint(connectionClose); got != want {
+				t.Errorf("For connectionClose = %v; handler's X-Saw-Close was %v; want %v",
+					connectionClose, got, !connectionClose)
+			}
 			body, err := ioutil.ReadAll(res.Body)
 			if err != nil {
 				t.Fatalf("error in connectionClose=%v, req #%d, ReadAll: %v", connectionClose, n, err)
@@ -247,6 +252,27 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 	}
 
 	connSet.check(t)
+}
+
+// if the Transport's DisableKeepAlives is set, all requests should
+// send Connection: close.
+func TestTransportConnectionCloseOnRequestDisableKeepAlive(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(hostPortHandler)
+	defer ts.Close()
+
+	tr := &Transport{
+		DisableKeepAlives: true,
+	}
+	c := &Client{Transport: tr}
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.Header.Get("X-Saw-Close") != "true" {
+		t.Errorf("handler didn't see Connection: close ")
+	}
 }
 
 func TestTransportIdleCacheKeys(t *testing.T) {
