@@ -48,6 +48,7 @@ enum
 	REGRT2		= 4,	/* reserved for runtime, duffcopy */
 	REGMIN		= 7,	/* register variables allocated from here to REGMAX */
 	REGENV		= 11,	/* environment for closures */
+	REGTLS		= 13,	/* C ABI TLS base pointer */
 	REGMAX		= 27,
 	REGEXT		= 30,	/* external registers allocated from here down */
 	REGG		= 30,	/* G */
