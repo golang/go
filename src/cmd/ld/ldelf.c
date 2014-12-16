@@ -721,6 +721,8 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 				else
 					diag("invalid rela size %d", rp->siz);
 			}
+			if(rp->siz == 2)
+				rp->add = (int16)rp->add;
 			if(rp->siz == 4)
 				rp->add = (int32)rp->add;
 			//print("rel %s %d %d %s %#llx\n", sect->sym->name, rp->type, rp->siz, rp->sym->name, rp->add);

@@ -132,6 +132,7 @@ relocsym(LSym *s)
 {
 	Reloc *r;
 	LSym *rs;
+	int16 i16;
 	int32 i, off, siz, fl;
 	vlong o;
 	uchar *cast;
@@ -316,6 +317,14 @@ relocsym(LSym *s)
 		case 1:
 			// TODO(rsc): Remove.
 			s->p[off] = (int8)o;
+			break;
+		case 2:
+			if(o != (int16)o)
+				diag("relocation address is too big: %#llx", o);
+			i16 = o;
+			cast = (uchar*)&i16;
+			for(i=0; i<2; i++)
+				s->p[off+i] = cast[inuxi2[i]];
 			break;
 		case 4:
 			if(r->type == R_PCREL || r->type == R_CALL) {
