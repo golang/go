@@ -311,6 +311,16 @@ func TestHandshakeClientECDHEECDSAAESGCM(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
+func TestHandshakeClientECDHEECDSAAES256GCM384(t *testing.T) {
+	test := &clientTest{
+		name:    "ECDHE-ECDSA-AES-256-GCM-384",
+		command: []string{"openssl", "s_server", "-cipher", "ECDHE-ECDSA-AES256-GCM-SHA384"},
+		cert:    testECDSACertificate,
+		key:     testECDSAPrivateKey,
+	}
+	runClientTestTLS12(t, test)
+}
+
 func TestHandshakeClientCertRSA(t *testing.T) {
 	config := *testConfig
 	cert, _ := X509KeyPair([]byte(clientCertificatePEM), []byte(clientKeyPEM))
