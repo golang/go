@@ -327,7 +327,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	int32 base;
 	uint64 add, info;
 	char *name;
-	int i, j, rela, is64, n;
+	int i, j, rela, is64, n, flag;
 	uchar hdrbuf[64];
 	uchar *p;
 	ElfHdrBytes *hdr;
@@ -615,6 +615,13 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			if(s->external && !s->dupok)
 					diag("%s: duplicate definition of %s", pn, s->name);
 			s->external = 1;
+		}
+		if(obj->machine == ElfMachPower64) {
+			flag = sym.other >> 5;
+			if(2 <= flag && flag <= 6)
+				s->localentry = 1 << (flag - 2);
+			else if(flag == 7)
+				diag("%s: invalid sym.other 0x%x for %s", pn, sym.other, s->name);
 		}
 	}
 	

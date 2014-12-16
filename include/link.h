@@ -141,6 +141,7 @@ struct	LSym
 	uchar	hide;
 	uchar	leaf;	// arm only
 	uchar	fnptr;	// arm only
+	uchar	localentry;	// ppc64: instrs between global & local entry
 	uchar	seenglobl;
 	uchar	onlist;	// on the textp or datap lists
 	int16	symid;	// for writing .5/.6/.8 files
