@@ -32,13 +32,12 @@ func TestWriteHeapDumpNonempty(t *testing.T) {
 	}
 }
 
-
 type Obj struct {
-       x, y int
+	x, y int
 }
 
 func objfin(x *Obj) {
-       println("finalized", x)
+	println("finalized", x)
 }
 
 func TestWriteHeapDumpFinalizers(t *testing.T) {
