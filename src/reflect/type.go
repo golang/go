@@ -1908,7 +1908,7 @@ func (bv *bitVector) append2(bits uint8) {
 
 func addTypeBits(bv *bitVector, offset *uintptr, t *rtype) {
 	*offset = align(*offset, uintptr(t.align))
-	if t.kind&kindNoPointers != 0 {
+	if !t.pointers() {
 		*offset += t.size
 		return
 	}
