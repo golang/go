@@ -50,15 +50,23 @@ var ServeFileRangeTests = []struct {
 	{r: "bytes=2-", code: StatusPartialContent, ranges: []wantRange{{2, testFileLen}}},
 	{r: "bytes=-5", code: StatusPartialContent, ranges: []wantRange{{testFileLen - 5, testFileLen}}},
 	{r: "bytes=3-7", code: StatusPartialContent, ranges: []wantRange{{3, 8}}},
-	{r: "bytes=20-", code: StatusRequestedRangeNotSatisfiable},
 	{r: "bytes=0-0,-2", code: StatusPartialContent, ranges: []wantRange{{0, 1}, {testFileLen - 2, testFileLen}}},
 	{r: "bytes=0-1,5-8", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, 9}}},
 	{r: "bytes=0-1,5-", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, testFileLen}}},
 	{r: "bytes=5-1000", code: StatusPartialContent, ranges: []wantRange{{5, testFileLen}}},
 	{r: "bytes=0-,1-,2-,3-,4-", code: StatusOK}, // ignore wasteful range request
-	{r: "bytes=0-" + itoa(testFileLen-2), code: StatusPartialContent, ranges: []wantRange{{0, testFileLen - 1}}},
-	{r: "bytes=0-" + itoa(testFileLen-1), code: StatusPartialContent, ranges: []wantRange{{0, testFileLen}}},
-	{r: "bytes=0-" + itoa(testFileLen), code: StatusPartialContent, ranges: []wantRange{{0, testFileLen}}},
+	{r: "bytes=0-9", code: StatusPartialContent, ranges: []wantRange{{0, testFileLen - 1}}},
+	{r: "bytes=0-10", code: StatusPartialContent, ranges: []wantRange{{0, testFileLen}}},
+	{r: "bytes=0-11", code: StatusPartialContent, ranges: []wantRange{{0, testFileLen}}},
+	{r: "bytes=10-11", code: StatusPartialContent, ranges: []wantRange{{testFileLen - 1, testFileLen}}},
+	{r: "bytes=10-", code: StatusPartialContent, ranges: []wantRange{{testFileLen - 1, testFileLen}}},
+	{r: "bytes=11-", code: StatusRequestedRangeNotSatisfiable},
+	{r: "bytes=11-12", code: StatusRequestedRangeNotSatisfiable},
+	{r: "bytes=12-12", code: StatusRequestedRangeNotSatisfiable},
+	{r: "bytes=11-100", code: StatusRequestedRangeNotSatisfiable},
+	{r: "bytes=12-100", code: StatusRequestedRangeNotSatisfiable},
+	{r: "bytes=100-", code: StatusRequestedRangeNotSatisfiable},
+	{r: "bytes=100-1000", code: StatusRequestedRangeNotSatisfiable},
 }
 
 func TestServeFile(t *testing.T) {
