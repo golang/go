@@ -13,10 +13,6 @@ import (
 	"strings"
 )
 
-// BUG(rsc): To let callers manage exposure to denial of service
-// attacks, Reader should allow them to set and reset a limit on
-// the number of bytes read from the connection.
-
 // A Reader implements convenience methods for reading requests
 // or responses from a text protocol network connection.
 type Reader struct {
@@ -26,6 +22,10 @@ type Reader struct {
 }
 
 // NewReader returns a new Reader reading from r.
+//
+// To avoid denial of service attacks, the provided bufio.Reader
+// should be reading from an io.LimitReader or similar Reader to bound
+// the size of responses.
 func NewReader(r *bufio.Reader) *Reader {
 	return &Reader{R: r}
 }
