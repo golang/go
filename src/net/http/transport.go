@@ -1064,6 +1064,10 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		req.extraHeaders().Set("Accept-Encoding", "gzip")
 	}
 
+	if pc.t.DisableKeepAlives {
+		req.extraHeaders().Set("Connection", "close")
+	}
+
 	// Write the request concurrently with waiting for a response,
 	// in case the server decides to reply before reading our full
 	// request body.
