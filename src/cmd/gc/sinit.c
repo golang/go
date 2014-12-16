@@ -374,7 +374,7 @@ staticcopy(Node *l, Node *r, NodeList **out)
 static int
 staticassign(Node *l, Node *r, NodeList **out)
 {
-	Node *a, n1;
+	Node *a, n1, nam;
 	Type *ta;
 	InitPlan *p;
 	InitEntry *e;
@@ -398,13 +398,10 @@ staticassign(Node *l, Node *r, NodeList **out)
 		return 1;
 
 	case OADDR:
-		switch(r->left->op) {
-		default:
-			//dump("not static addr", r);
-			break;
-
-		case ONAME:
-			gdata(l, r, l->type->width);
+		if(stataddr(&nam, r->left)) {
+			n1 = *r;
+			n1.left = &nam;
+			gdata(l, &n1, l->type->width);
 			return 1;
 		}
 	
