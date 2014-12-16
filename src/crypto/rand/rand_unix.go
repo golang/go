@@ -58,10 +58,26 @@ func (r *devReader) Read(b []byte) (n int, err error) {
 		if runtime.GOOS == "plan9" {
 			r.f = f
 		} else {
-			r.f = bufio.NewReader(f)
+			r.f = bufio.NewReader(hideAgainReader{f})
 		}
 	}
 	return r.f.Read(b)
+}
+
+var isEAGAIN func(error) bool // set by eagain.go on unix systems
+
+// hideAgainReader masks EAGAIN reads from /dev/urandom.
+// See golang.org/issue/9205
+type hideAgainReader struct {
+	r io.Reader
+}
+
+func (hr hideAgainReader) Read(p []byte) (n int, err error) {
+	n, err = hr.r.Read(p)
+	if err != nil && isEAGAIN != nil && isEAGAIN(err) {
+		err = nil
+	}
+	return
 }
 
 // Alternate pseudo-random implementation for use on
