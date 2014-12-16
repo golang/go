@@ -20,6 +20,8 @@
 // ppc64 code that will overwrite this register.
 //
 // If !iscgo, this is a no-op.
+//
+// NOTE: setg_gcc<> assume this clobbers only R31.
 TEXT runtime·save_g(SB),NOSPLIT,$-8-0
 	MOVB	runtime·iscgo(SB), R31
 	CMP	R31, $0
@@ -46,6 +48,8 @@ nocgo:
 // This is never called directly from C code (it doesn't have to
 // follow the C ABI), but it may be called from a C context, where the
 // usual Go registers aren't set up.
+//
+// NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
 TEXT runtime·load_g(SB),NOSPLIT,$-8-0
 	MOVD	$runtime·tlsg(SB), R31
 	// R13 is the C ABI TLS base pointer + 0x7000

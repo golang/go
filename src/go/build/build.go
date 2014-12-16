@@ -267,6 +267,7 @@ var cgoEnabled = map[string]bool{
 	"linux/386":       true,
 	"linux/amd64":     true,
 	"linux/arm":       true,
+	"linux/ppc64le":   true,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,

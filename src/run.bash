@@ -118,6 +118,7 @@ export GOTRACEBACK=2
 go test -ldflags '-linkmode=auto' || exit 1
 # linkmode=internal fails on dragonfly since errno is a TLS relocation.
 [ "$GOHOSTOS" == dragonfly ] || go test -ldflags '-linkmode=internal' || exit 1
+# TODO(austin): Add linux-ppc64(le) once external linking works (issue #8912)
 case "$GOHOSTOS-$GOARCH" in
 openbsd-386 | openbsd-amd64)
 	# test linkmode=external, but __thread not supported, so skip testtls.

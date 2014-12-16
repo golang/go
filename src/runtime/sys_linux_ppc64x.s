@@ -193,6 +193,13 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 	// initialize essential registers (just in case)
 	BL	runtime·reginit(SB)
 
+	// this might be called in external code context,
+	// where g is not set.
+	MOVB	runtime·iscgo(SB), R6
+	CMP 	R6, $0
+	BEQ	2(PC)
+	BL	runtime·load_g(SB)
+
 	// check that g exists
 	CMP	g, $0
 	BNE	6(PC)
