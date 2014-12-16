@@ -108,13 +108,14 @@ when developing Go code.
 <p>
 To get started, create a workspace directory and set <code>GOPATH</code>
 accordingly. Your workspace can be located wherever you like, but we'll use
-<code>$HOME/go</code> in this document. Note that this must <b>not</b> be the
+<code>$HOME/work</code> in this document. Note that this must <b>not</b> be the
 same path as your Go installation.
+(Another common setup is to set <code>GOPATH=$HOME</code>.)
 </p>
 
 <pre>
-$ <b>mkdir $HOME/go</b>
-$ <b>export GOPATH=$HOME/go</b>
+$ <b>mkdir $HOME/work</b>
+$ <b>export GOPATH=$HOME/work</b>
 </pre>
 
 <p>
@@ -218,7 +219,7 @@ This command builds the <code>hello</code> command, producing an executable
 binary. It then installs that binary to the workspace's <code>bin</code>
 directory as <code>hello</code> (or, under Windows, <code>hello.exe</code>).
 In our example, that will be <code>$GOPATH/bin/hello</code>, which is
-<code>$HOME/go/bin/hello</code>.
+<code>$HOME/work/bin/hello</code>.
 </p>
 
 <p>
@@ -254,7 +255,7 @@ optional: you do not need to use source control to write Go code.
 <pre>
 $ <b>cd $GOPATH/src/github.com/user/hello</b>
 $ <b>git init</b>
-Initialized empty Git repository in /home/user/go/src/github.com/user/hello/.git/
+Initialized empty Git repository in /home/user/work/src/github.com/user/hello/.git/
 $ <b>git add hello.go</b>
 $ <b>git commit -m "initial commit"</b>
 [master (root-commit) 0b4507d] initial commit
