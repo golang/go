@@ -203,6 +203,12 @@ func (f *File) WriteString(s string) (ret int, err error) {
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
 	e := syscall.Mkdir(name, syscallMode(perm))
+
+	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
+	if !supportsCreateWithStickyBit && e == nil && perm&ModeSticky != 0 {
+		e = Chmod(name, perm)
+	}
+
 	if e != nil {
 		return &PathError{"mkdir", name, e}
 	}

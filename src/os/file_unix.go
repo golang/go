@@ -75,9 +75,21 @@ const DevNull = "/dev/null"
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+	chmod := false
+	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
+		if _, err := Stat(name); IsNotExist(err) {
+			chmod = true
+		}
+	}
+
 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
 	if e != nil {
 		return nil, &PathError{"open", name, e}
+	}
+
+	// open(2) itself won't handle the sticky bit on *BSD and Solaris
+	if chmod && e == nil {
+		e = Chmod(name, perm)
 	}
 
 	// There's a race here with fork/exec, which we are
