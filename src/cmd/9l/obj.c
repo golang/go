@@ -80,7 +80,8 @@ archinit(void)
 			INITRND = 4096;
 		break;
 	case Hlinux:	/* ppc64 elf */
-		debug['d'] = 1;	// TODO(minux): dynamic linking is not supported yet.
+		if(strcmp(thestring, "ppc64") == 0)
+			debug['d'] = 1;	// TODO(austin): ELF ABI v1 not supported yet
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)

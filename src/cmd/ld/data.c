@@ -49,7 +49,11 @@ datcmp(LSym *s1, LSym *s2)
 {
 	if(s1->type != s2->type)
 		return (int)s1->type - (int)s2->type;
-	if(s1->size != s2->size) {
+	// For ppc64, we want to interleave the .got and .toc sections
+	// from input files.  Both are type SELFGOT, so in that case
+	// fall through to the name comparison (conveniently, .got
+	// sorts before .toc).
+	if(s1->type != SELFGOT && s1->size != s2->size) {
 		if(s1->size < s2->size)
 			return -1;
 		return +1;
@@ -920,7 +924,7 @@ dodata(void)
 	vlong datsize;
 	Section *sect;
 	Segment *segro;
-	LSym *s, *last, **l;
+	LSym *s, *last, **l, *toc;
 	LSym *gcdata, *gcbss;
 	ProgGen gen;
 
@@ -994,7 +998,7 @@ dodata(void)
 
 	/* writable ELF sections */
 	datsize = 0;
-	for(; s != nil && s->type < SNOPTRDATA; s = s->next) {
+	for(; s != nil && s->type < SELFGOT; s = s->next) {
 		sect = addsection(&segdata, s->name, 06);
 		sect->align = symalign(s);
 		datsize = rnd(datsize, sect->align);
@@ -1003,6 +1007,33 @@ dodata(void)
 		s->type = SDATA;
 		s->value = datsize - sect->vaddr;
 		growdatsize(&datsize, s);
+		sect->len = datsize - sect->vaddr;
+	}
+
+	/* .got (and .toc on ppc64) */
+	if(s->type == SELFGOT) {
+		sect = addsection(&segdata, ".got", 06);
+		sect->align = maxalign(s, SELFGOT);
+		datsize = rnd(datsize, sect->align);
+		sect->vaddr = datsize;
+		for(; s != nil && s->type == SELFGOT; s = s->next) {
+			datsize = aligndatsize(datsize, s);
+			s->sect = sect;
+			s->type = SDATA;
+			s->value = datsize - sect->vaddr;
+
+			// Resolve .TOC. symbol for this object file (ppc64)
+			toc = linkrlookup(ctxt, ".TOC.", s->version);
+			if(toc != nil) {
+				toc->sect = sect;
+				toc->outer = s;
+				toc->sub = s->sub;
+				s->sub = toc;
+
+				toc->value = 0x8000;
+			}
+			growdatsize(&datsize, s);
+		}
 		sect->len = datsize - sect->vaddr;
 	}
 
