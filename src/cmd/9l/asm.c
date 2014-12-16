@@ -165,9 +165,11 @@ archreloc(Reloc *r, LSym *s, vlong *val)
 
 		t = symaddr(r->sym) + r->add - (s->value + r->off);
 		if(t & 3)
-			ctxt->diag("relocation for %s is not aligned: %lld", s->name, t);
+			ctxt->diag("relocation for %s+%d is not aligned: %lld", r->sym->name, r->off, t);
 		if(t << 6 >> 6 != t)
-			ctxt->diag("relocation for %s is too big: %lld", s->name, t);
+			// TODO(austin) This can happen if text > 32M.
+			// Add a call trampoline to .text in that case.
+			ctxt->diag("relocation for %s+%d is too big: %lld", r->sym->name, r->off, t);
 
 		*val = (o1 & 0xfc000003U) | (t & ~0xfc000003U);
 		return 0;
