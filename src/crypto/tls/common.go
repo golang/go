@@ -123,6 +123,7 @@ const (
 const (
 	hashSHA1   uint8 = 2
 	hashSHA256 uint8 = 4
+	hashSHA384 uint8 = 8 // TODO: find spec
 )
 
 // Signature algorithms for TLS 1.2 (See RFC 5246, section A.4.1)
@@ -142,6 +143,8 @@ type signatureAndHash struct {
 var supportedSKXSignatureAlgorithms = []signatureAndHash{
 	{hashSHA256, signatureRSA},
 	{hashSHA256, signatureECDSA},
+	{hashSHA384, signatureRSA},
+	{hashSHA384, signatureECDSA},
 	{hashSHA1, signatureRSA},
 	{hashSHA1, signatureECDSA},
 }
@@ -152,6 +155,8 @@ var supportedSKXSignatureAlgorithms = []signatureAndHash{
 var supportedClientCertSignatureAlgorithms = []signatureAndHash{
 	{hashSHA256, signatureRSA},
 	{hashSHA256, signatureECDSA},
+	{hashSHA384, signatureRSA},
+	{hashSHA384, signatureECDSA},
 }
 
 // ConnectionState records basic TLS details about the connection.

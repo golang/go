@@ -12,6 +12,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
@@ -119,6 +120,14 @@ func sha256Hash(slices [][]byte) []byte {
 	return h.Sum(nil)
 }
 
+func sha384Hash(slices [][]byte) []byte {
+	h := sha512.New384()
+	for _, slice := range slices {
+		h.Write(slice)
+	}
+	return h.Sum(nil)
+}
+
 // hashForServerKeyExchange hashes the given slices and returns their digest
 // and the identifier of the hash function used. The hashFunc argument is only
 // used for >= TLS 1.2 and precisely identifies the hash function to use.
@@ -127,6 +136,8 @@ func hashForServerKeyExchange(sigType, hashFunc uint8, version uint16, slices ..
 		switch hashFunc {
 		case hashSHA256:
 			return sha256Hash(slices), crypto.SHA256, nil
+		case hashSHA384:
+			return sha384Hash(slices), crypto.SHA384, nil
 		case hashSHA1:
 			return sha1Hash(slices), crypto.SHA1, nil
 		default:
@@ -155,7 +166,7 @@ func pickTLS12HashForSignature(sigType uint8, clientSignatureAndHashes []signatu
 			continue
 		}
 		switch sigAndHash.hash {
-		case hashSHA1, hashSHA256:
+		case hashSHA1, hashSHA256, hashSHA384:
 			return sigAndHash.hash, nil
 		}
 	}
