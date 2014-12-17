@@ -74,6 +74,11 @@ static void addpltsym(LSym*);
 static void addgotsym(LSym*);
 
 void
+gentext(void)
+{
+}
+
+void
 adddynrela(LSym *rela, LSym *s, Reloc *r)
 {
 	addaddrplus(ctxt, rela, s, r->off);
