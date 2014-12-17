@@ -70,6 +70,11 @@ static void	addpltsym(Link*, LSym*);
 static void	addgotsym(Link*, LSym*);
 
 void
+gentext(void)
+{
+}
+
+void
 adddynrela(LSym *rela, LSym *s, Reloc *r)
 {
 	USED(rela);

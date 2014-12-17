@@ -66,6 +66,11 @@ needlib(char *name)
 int	nelfsym = 1;
 
 void
+gentext(void)
+{
+}
+
+void
 adddynrela(LSym *rel, LSym *s, Reloc *r)
 {
 	// TODO(minux)

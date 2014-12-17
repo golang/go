@@ -227,6 +227,7 @@ vlong	entryvalue(void);
 void	errorexit(void);
 void	follow(void);
 void	genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*));
+void	gentext(void);
 void	growdatsize(vlong *datsizep, LSym *s);
 char*	headstr(int v);
 int	headtype(char *name);

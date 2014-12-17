@@ -69,6 +69,11 @@ static void	addpltsym(Link*, LSym*);
 static void	addgotsym(Link*, LSym*);
 static void	addgotsyminternal(Link*, LSym*);
 
+void
+gentext(void)
+{
+}
+
 // Preserve highest 8 bits of a, and do addition to lower 24-bit
 // of a and b; used to adjust ARM branch intruction's target
 static int32
