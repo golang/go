@@ -106,9 +106,9 @@ enum
 	C_ANDCON,	/* 0 < v <= 0xFFFF */
 	C_LCON,		/* other 32 */
 	C_DCON,		/* other 64 (could subdivide further) */
-	C_SACON,
+	C_SACON,	/* $n(REG) where n is small */
 	C_SECON,
-	C_LACON,
+	C_LACON,	/* $n(REG) where n is large */
 	C_LECON,
 	C_SBRA,
 	C_LBRA,
