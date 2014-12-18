@@ -145,7 +145,8 @@ progedit(Link *ctxt, Prog *p)
 		}
 		break;
 	case AMOVD:
-		if(p->from.type == D_CONST && p->from.name == D_NONE && (int64)(uint32)p->from.offset != p->from.offset) {
+		// Put >32-bit constants in memory and load them
+		if(p->from.type == D_CONST && p->from.name == D_NONE && p->from.reg == NREG && (int32)p->from.offset != p->from.offset) {
 			sprint(literal, "$i64.%016llux", (uvlong)p->from.offset);
 			s = linklookup(ctxt, literal, 0);
 			s->size = 8;
