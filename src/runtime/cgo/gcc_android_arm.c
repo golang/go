@@ -12,8 +12,10 @@
 
 // PTHREAD_KEYS_MAX has been added to sys/limits.h at head in bionic:
 // https://android.googlesource.com/platform/bionic/+/master/libc/include/sys/limits.h
-// TODO(crawshaw): remove this definition when a new NDK is released.
+// TODO(crawshaw): remove this definition when NDK r10d is required.
+#ifndef PTHREAD_KEYS_MAX
 #define PTHREAD_KEYS_MAX 128
+#endif
 
 // inittls allocates a thread-local storage slot for g.
 //
