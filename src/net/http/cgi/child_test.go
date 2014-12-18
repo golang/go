@@ -22,6 +22,7 @@ func TestRequest(t *testing.T) {
 		"CONTENT_LENGTH":  "123",
 		"CONTENT_TYPE":    "text/xml",
 		"REMOTE_ADDR":     "5.6.7.8",
+		"REMOTE_PORT":     "54321",
 	}
 	req, err := RequestFromMap(env)
 	if err != nil {
@@ -60,7 +61,7 @@ func TestRequest(t *testing.T) {
 	if req.TLS != nil {
 		t.Errorf("expected nil TLS")
 	}
-	if e, g := "5.6.7.8:0", req.RemoteAddr; e != g {
+	if e, g := "5.6.7.8:54321", req.RemoteAddr; e != g {
 		t.Errorf("RemoteAddr: got %q; want %q", g, e)
 	}
 }
@@ -127,5 +128,23 @@ func TestRequestWithoutRequestURI(t *testing.T) {
 	}
 	if g, e := req.URL.String(), "http://example.com/dir/scriptname/p1/p2?a=1&b=2"; e != g {
 		t.Errorf("URL = %q; want %q", g, e)
+	}
+}
+
+func TestRequestWithoutRemotePort(t *testing.T) {
+	env := map[string]string{
+		"SERVER_PROTOCOL": "HTTP/1.1",
+		"HTTP_HOST":       "example.com",
+		"REQUEST_METHOD":  "GET",
+		"REQUEST_URI":     "/path?a=b",
+		"CONTENT_LENGTH":  "123",
+		"REMOTE_ADDR":     "5.6.7.8",
+	}
+	req, err := RequestFromMap(env)
+	if err != nil {
+		t.Fatalf("RequestFromMap: %v", err)
+	}
+	if e, g := "5.6.7.8:0", req.RemoteAddr; e != g {
+		t.Errorf("RemoteAddr: got %q; want %q", g, e)
 	}
 }
