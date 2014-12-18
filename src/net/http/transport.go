@@ -914,13 +914,21 @@ func (pc *persistConn) readLoop() {
 			}
 		}
 
+		// The connection might be going away when we put the
+		// idleConn below. When that happens, we close the response channel to signal
+		// to roundTrip that the connection is gone. roundTrip waits for
+		// both closing and a response in a select, so it might choose
+		// the close channel, rather than the response.
+		// We send the response first so that roundTrip can check
+		// if there is a pending one with a non-blocking select
+		// on the response channel before erroring out.
+		rc.ch <- responseAndError{resp, err}
+
 		if alive && !hasBody {
 			alive = !pc.sawEOF &&
 				pc.wroteRequest() &&
 				pc.t.putIdleConn(pc)
 		}
-
-		rc.ch <- responseAndError{resp, err}
 
 		// Wait for the just-returned response body to be fully consumed
 		// before we race and peek on the underlying bufio reader.
@@ -1028,6 +1036,8 @@ func (e *httpError) Temporary() bool { return true }
 var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
 var errClosed error = &httpError{err: "net/http: transport closed before response was received"}
 
+var testHookPersistConnClosedGotRes func() // nil except for tests
+
 func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
 	pc.t.setReqCanceler(req.Request, pc.cancelRequest)
 	pc.lk.Lock()
@@ -1078,8 +1088,6 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	pc.reqch <- requestAndChan{req.Request, resc, requestedGzip}
 
 	var re responseAndError
-	var pconnDeadCh = pc.closech
-	var failTicker <-chan time.Time
 	var respHeaderTimer <-chan time.Time
 WaitResponse:
 	for {
@@ -1095,23 +1103,25 @@ WaitResponse:
 				defer timer.Stop() // prevent leaks
 				respHeaderTimer = timer.C
 			}
-		case <-pconnDeadCh:
+		case <-pc.closech:
 			// The persist connection is dead. This shouldn't
 			// usually happen (only with Connection: close responses
 			// with no response bodies), but if it does happen it
 			// means either a) the remote server hung up on us
 			// prematurely, or b) the readLoop sent us a response &
 			// closed its closech at roughly the same time, and we
-			// selected this case first, in which case a response
-			// might still be coming soon.
-			//
-			// We can't avoid the select race in b) by using a unbuffered
-			// resc channel instead, because then goroutines can
-			// leak if we exit due to other errors.
-			pconnDeadCh = nil                               // avoid spinning
-			failTicker = time.After(100 * time.Millisecond) // arbitrary time to wait for resc
-		case <-failTicker:
-			re = responseAndError{err: errClosed}
+			// selected this case first. If we got a response, readLoop makes sure
+			// to send it before it puts the conn and closes the channel.
+			// That way, we can fetch the response, if there is one,
+			// with a non-blocking receive.
+			select {
+			case re = <-resc:
+				if fn := testHookPersistConnClosedGotRes; fn != nil {
+					fn()
+				}
+			default:
+				re = responseAndError{err: errClosed}
+			}
 			break WaitResponse
 		case <-respHeaderTimer:
 			pc.close()
