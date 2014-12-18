@@ -6,22 +6,6 @@ package runtime
 
 import "unsafe"
 
-func dumpregs(u *ureg) {
-	print("ax    ", hex(u.ax), "\n")
-	print("bx    ", hex(u.bx), "\n")
-	print("cx    ", hex(u.cx), "\n")
-	print("dx    ", hex(u.dx), "\n")
-	print("di    ", hex(u.di), "\n")
-	print("si    ", hex(u.si), "\n")
-	print("bp    ", hex(u.bp), "\n")
-	print("sp    ", hex(u.sp), "\n")
-	print("pc    ", hex(u.pc), "\n")
-	print("flags ", hex(u.flags), "\n")
-	print("cs    ", hex(u.cs), "\n")
-	print("fs    ", hex(u.fs), "\n")
-	print("gs    ", hex(u.gs), "\n")
-}
-
 func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	_g_ := getg()
 	var t sigTabT
@@ -29,6 +13,8 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	var length int
 	var sig int
 	var flags int
+
+	c := &sigctxt{_ureg}
 
 	// The kernel will never pass us a nil note or ureg so we probably
 	// made a mistake somewhere in sigtramp.
@@ -65,24 +51,24 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		// we can reliably access it from the panic routines.
 		memmove(unsafe.Pointer(_g_.m.notesig), unsafe.Pointer(note), uintptr(length+1))
 		gp.sig = uint32(sig)
-		gp.sigpc = uintptr(_ureg.pc)
+		gp.sigpc = c.pc()
 		// Only push sigpanic if PC != 0.
 		//
 		// If PC == 0, probably panicked because of a call to a nil func.
 		// Not pushing that onto SP will make the trace look like a call
 		// to sigpanic instead. (Otherwise the trace will end at
 		// sigpanic and we won't get to see who faulted).
-		if _ureg.pc != 0 {
-			sp := _ureg.sp
+		if c.pc() != 0 {
+			sp := c.sp()
 			if regSize > ptrSize {
 				sp -= ptrSize
-				*(*uintptr)(unsafe.Pointer(uintptr(sp))) = 0
+				*(*uintptr)(unsafe.Pointer(sp)) = 0
 			}
 			sp -= ptrSize
-			*(*uintptr)(unsafe.Pointer(uintptr(sp))) = uintptr(_ureg.pc)
-			_ureg.sp = sp
+			*(*uintptr)(unsafe.Pointer(sp)) = c.pc()
+			c.setsp(sp)
 		}
-		_ureg.pc = uint32(funcPC(sigpanic))
+		c.setpc(funcPC(sigpanic))
 		return _NCONT
 	}
 	if flags&_SigNotify != 0 {
@@ -101,11 +87,11 @@ Throw:
 	_g_.m.caughtsig = gp
 	startpanic()
 	print(gostringnocopy(note), "\n")
-	print("PC=", hex(_ureg.pc), "\n")
+	print("PC=", hex(c.pc()), "\n")
 	print("\n")
 	if gotraceback(&docrash) > 0 {
 		goroutineheader(gp)
-		tracebacktrap(uintptr(_ureg.pc), uintptr(_ureg.sp), 0, gp)
+		tracebacktrap(c.pc(), c.sp(), 0, gp)
 		tracebackothers(gp)
 		print("\n")
 		dumpregs(_ureg)

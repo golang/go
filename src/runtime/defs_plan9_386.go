@@ -23,3 +23,29 @@ type ureg struct {
 	sp    uint32
 	ss    uint32 /* old stack segment */
 }
+
+type sigctxt struct {
+	u *ureg
+}
+
+func (c *sigctxt) pc() uintptr { return uintptr(c.u.pc) }
+func (c *sigctxt) sp() uintptr { return uintptr(c.u.sp) }
+
+func (c *sigctxt) setpc(x uintptr) { c.u.pc = uint32(x) }
+func (c *sigctxt) setsp(x uintptr) { c.u.sp = uint32(x) }
+
+func dumpregs(u *ureg) {
+	print("ax    ", hex(u.ax), "\n")
+	print("bx    ", hex(u.bx), "\n")
+	print("cx    ", hex(u.cx), "\n")
+	print("dx    ", hex(u.dx), "\n")
+	print("di    ", hex(u.di), "\n")
+	print("si    ", hex(u.si), "\n")
+	print("bp    ", hex(u.bp), "\n")
+	print("sp    ", hex(u.sp), "\n")
+	print("pc    ", hex(u.pc), "\n")
+	print("flags ", hex(u.flags), "\n")
+	print("cs    ", hex(u.cs), "\n")
+	print("fs    ", hex(u.fs), "\n")
+	print("gs    ", hex(u.gs), "\n")
+}
