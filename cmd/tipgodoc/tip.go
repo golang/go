@@ -9,7 +9,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,23 +25,16 @@ import (
 
 const metaURL = "https://go.googlesource.com/?b=master&format=JSON"
 
-var (
-	pollInterval = flag.Duration("poll", 10*time.Second, "Remote repo poll interval")
-	listenAddr   = flag.String("listen", "localhost:8080", "HTTP listen address")
-)
-
-func main() {
-	flag.Parse()
+func init() {
 	p := new(Proxy)
 	go p.run()
 	http.Handle("/", p)
-	log.Fatal(http.ListenAndServe(*listenAddr, nil))
 }
 
 type Proxy struct {
-	mu    sync.Mutex // owns the followin'
+	mu    sync.Mutex // protects the followin'
 	proxy *httputil.ReverseProxy
-	last  string // signature of gorepo+toolsrepo
+	cur   string // signature of gorepo+toolsrepo
 	side  string
 }
 
@@ -51,7 +43,7 @@ func (p *Proxy) run() {
 	p.side = "a"
 	for {
 		p.poll()
-		time.Sleep(*pollInterval)
+		time.Sleep(30 * time.Second)
 	}
 }
 
@@ -62,15 +54,18 @@ func (p *Proxy) poll() {
 		return
 	}
 
+	sig := heads["go"] + "-" + heads["tools"]
+
 	p.mu.Lock()
+	changes := sig != p.cur
 	curSide := p.side
-	lastSig := p.last
+	p.cur = sig
 	p.mu.Unlock()
 
-	sig := heads["go"] + "-" + heads["tools"]
-	if sig == lastSig {
+	if !changes {
 		return
 	}
+
 	newSide := "b"
 	if curSide == "b" {
 		newSide = "a"
@@ -91,7 +86,6 @@ func (p *Proxy) poll() {
 	}
 	p.side = newSide
 	p.proxy = httputil.NewSingleHostReverseProxy(u)
-	p.last = sig
 }
 
 func initSide(side, goHash, toolsHash string) (hostport string, err error) {
@@ -112,7 +106,7 @@ func initSide(side, goHash, toolsHash string) (hostport string, err error) {
 
 	env := []string{"GOROOT=" + goDir, "GOPATH=" + filepath.Join(dir, "gopath")}
 
-	make := exec.Command("./make.bash")
+	make := exec.Command(filepath.Join(goDir, "src/make.bash"))
 	make.Stdout = os.Stdout
 	make.Stderr = os.Stderr
 	make.Dir = filepath.Join(goDir, "src")
@@ -209,7 +203,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	proxy := p.proxy
 	p.mu.Unlock()
 	if proxy == nil {
-		http.Error(w, "not ready", http.StatusInternalServerError)
+		http.Error(w, "tip.golang.org is currently starting up, compiling tip", http.StatusInternalServerError)
 		return
 	}
 	proxy.ServeHTTP(w, r)
@@ -218,7 +212,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) serveStatus(w http.ResponseWriter, r *http.Request) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	fmt.Fprintf(w, "side=%v\nlast=%v\n", p.side, p.last)
+	fmt.Fprintf(w, "side=%v\ncurrent=%v\n", p.side, p.cur)
 }
 
 // gerritMetaMap returns the map from repo name (e.g. "go") to its
