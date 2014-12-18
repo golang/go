@@ -716,8 +716,12 @@ func TestResumptionDisabled(t *testing.T) {
 }
 
 func TestFallbackSCSV(t *testing.T) {
+	serverConfig := &Config{
+		Certificates: testConfig.Certificates,
+	}
 	test := &serverTest{
-		name: "FallbackSCSV",
+		name:   "FallbackSCSV",
+		config: serverConfig,
 		// OpenSSL 1.0.1j is needed for the -fallback_scsv option.
 		command: []string{"openssl", "s_client", "-fallback_scsv"},
 		expectHandshakeErrorIncluding: "inppropriate protocol fallback",

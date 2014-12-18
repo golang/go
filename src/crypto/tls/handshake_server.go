@@ -228,7 +228,7 @@ Curves:
 	for _, id := range hs.clientHello.cipherSuites {
 		if id == TLS_FALLBACK_SCSV {
 			// The client is doing a fallback connection.
-			if hs.clientHello.vers < c.config.MaxVersion {
+			if hs.clientHello.vers < c.config.maxVersion() {
 				c.sendAlert(alertInappropriateFallback)
 				return false, errors.New("tls: client using inppropriate protocol fallback")
 			}
