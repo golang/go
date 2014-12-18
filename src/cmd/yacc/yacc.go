@@ -3400,6 +3400,13 @@ $$default:
 	_ = $$pt // guard against "declared and not used"
 
 	$$p -= $$R2[$$n]
+	// $$p is now the index of $0. Perform the default action. Iff the
+	// reduced production is ε, $1 is possibly out of range.
+	if $$p+1 >= len($$S) {
+		nyys := make([]$$SymType, len($$S)*2)
+		copy(nyys, $$S)
+		$$S = nyys
+	}
 	$$VAL = $$S[$$p+1]
 
 	/* consult goto table to find next state */
