@@ -2275,6 +2275,52 @@ func TestTransportRangeAndGzip(t *testing.T) {
 	res.Body.Close()
 }
 
+// Previously, we used to handle a logical race within RoundTrip by waiting for 100ms
+// in the case of an error. Changing the order of the channel operations got rid of this
+// race.
+//
+// In order to test that the channel op reordering works, we install a hook into the
+// roundTrip function which gets called if we saw the connection go away and
+// we subsequently received a response.
+func TestTransportResponseCloseRace(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	}))
+	defer ts.Close()
+	sawRace := false
+	SetInstallConnClosedHook(func() {
+		sawRace = true
+	})
+	defer SetInstallConnClosedHook(nil)
+	tr := &Transport{
+		DisableKeepAlives: true,
+	}
+	req, err := NewRequest("GET", ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// selects are not deterministic, so do this a bunch
+	// and see if we handle the logical race at least once.
+	for i := 0; i < 10000; i++ {
+		resp, err := tr.RoundTrip(req)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+			continue
+		}
+		resp.Body.Close()
+		if sawRace {
+			break
+		}
+	}
+	if !sawRace {
+		t.Errorf("didn't see response/connection going away race")
+	}
+}
+
 func wantBody(res *http.Response, err error, want string) error {
 	if err != nil {
 		return err

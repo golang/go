@@ -78,6 +78,10 @@ func (t *Transport) PutIdleTestConn() bool {
 	})
 }
 
+func SetInstallConnClosedHook(f func()) {
+	testHookPersistConnClosedGotRes = f
+}
+
 func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
 	f := func() <-chan time.Time {
 		return ch
