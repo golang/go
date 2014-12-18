@@ -40,7 +40,7 @@ import "unsafe"
 //
 //	3. If the MCentral free list is empty, replenish it by
 //	   allocating a run of pages from the MHeap and then
-//	   chopping that memory into a objects of the given size.
+//	   chopping that memory into objects of the given size.
 //	   Allocating many objects amortizes the cost of locking
 //	   the heap.
 //
