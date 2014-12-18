@@ -772,29 +772,24 @@ func (f *zeroFile) pread(b []byte, offset int64) (int, error) {
 	return len(b), nil
 }
 
-type randomFile struct {
-	naclFD int
-}
+type randomFile struct{}
 
 func openRandom() (devFile, error) {
-	fd, err := openNamedService("SecureRandom", O_RDONLY)
-	if err != nil {
-		return nil, err
-	}
-	return &randomFile{naclFD: fd}, nil
+	return randomFile{}, nil
 }
 
-func (f *randomFile) close() error {
-	naclClose(f.naclFD)
-	f.naclFD = -1
+func (f randomFile) close() error {
 	return nil
 }
 
-func (f *randomFile) pread(b []byte, offset int64) (int, error) {
-	return naclRead(f.naclFD, b)
+func (f randomFile) pread(b []byte, offset int64) (int, error) {
+	if err := naclGetRandomBytes(b); err != nil {
+		return 0, err
+	}
+	return len(b), nil
 }
 
-func (f *randomFile) pwrite(b []byte, offset int64) (int, error) {
+func (f randomFile) pwrite(b []byte, offset int64) (int, error) {
 	return 0, EPERM
 }
 

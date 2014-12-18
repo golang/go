@@ -46,11 +46,8 @@ func crash() {
 	*(*int32)(nil) = 0
 }
 
-//go:nosplit
-func getRandomData(r []byte) {
-	// TODO: does nacl have a random source we can use?
-	extendRandom(r, 0)
-}
+//go:noescape
+func getRandomData([]byte)
 
 func goenvs() {
 	goenvs_unix()
