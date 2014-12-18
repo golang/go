@@ -97,9 +97,11 @@ bnum(Bits a)
 	int i;
 	uint64 b;
 
-	for(i=0; i<BITS; i++)
-		if(b = a.b[i])
+	for(i=0; i<BITS; i++){
+		b = a.b[i];
+		if(b)
 			return 64*i + bitno(b);
+	}
 	fatal("bad in bnum");
 	return 0;
 }
