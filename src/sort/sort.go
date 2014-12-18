@@ -359,30 +359,25 @@ func symMerge(data Interface, a, m, b int) {
 
 	mid := a + (b-a)/2
 	n := mid + m
-	start := 0
+	var start, r int
 	if m > mid {
 		start = n - b
-		r, p := mid, n-1
-		for start < r {
-			c := start + (r-start)/2
-			if !data.Less(p-c, c) {
-				start = c + 1
-			} else {
-				r = c
-			}
-		}
+		r = mid
 	} else {
 		start = a
-		r, p := m, n-1
-		for start < r {
-			c := start + (r-start)/2
-			if !data.Less(p-c, c) {
-				start = c + 1
-			} else {
-				r = c
-			}
+		r = m
+	}
+	p := n - 1
+
+	for start < r {
+		c := start + (r-start)/2
+		if !data.Less(p-c, c) {
+			start = c + 1
+		} else {
+			r = c
 		}
 	}
+
 	end := n - start
 	rotate(data, start, m, end)
 	symMerge(data, a, start, mid)
