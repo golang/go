@@ -126,12 +126,9 @@ func main() {
 		status := "ok  "
 		errStr := ""
 		if _, isSkip := test.err.(skipError); isSkip {
-			status = "skip"
 			test.err = nil
-			if !skipOkay[path.Join(test.dir, test.gofile)] {
-				errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + errStr
-				status = "FAIL"
-			}
+			errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + errStr
+			status = "FAIL"
 		}
 		if test.err != nil {
 			status = "FAIL"
@@ -904,14 +901,6 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 	}
 
 	return
-}
-
-var skipOkay = map[string]bool{
-	"fixedbugs/bug248.go": true, // combines errorcheckdir and rundir in the same dir.
-	"fixedbugs/bug345.go": true, // needs the appropriate flags in gc invocation.
-	"fixedbugs/bug369.go": true, // needs compiler flags.
-	"fixedbugs/bug429.go": true, // like "run" but program should fail
-	"bugs/bug395.go":      true,
 }
 
 // defaultRunOutputLimit returns the number of runoutput tests that
