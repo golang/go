@@ -203,7 +203,7 @@ func (p *cpuProfile) add(pc []uintptr) {
 	h := uintptr(0)
 	for _, x := range pc {
 		h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1)))
-		h += x*31 + x*7 + x*3
+		h += x * 41
 	}
 	p.count++
 
