@@ -49,6 +49,7 @@ elfinit(void)
 			hdr.flags = 1;		/* Version 1 ABI */
 		else
 			hdr.flags = 2;		/* Version 2 ABI */
+		// fallthrough
 	case '6':
 		elf64 = 1;
 		hdr.phoff = ELF64HDRSIZE;	/* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
