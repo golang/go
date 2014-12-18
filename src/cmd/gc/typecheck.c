@@ -2959,14 +2959,6 @@ typecheckas2(Node *n)
 	l = n->list->n;
 	r = n->rlist->n;
 
-	// m[i] = x, ok
-	if(cl == 1 && cr == 2 && l->op == OINDEXMAP) {
-		if(l->type == T)
-			goto out;
-		yyerror("assignment count mismatch: %d = %d (use delete)", cl, cr);
-		goto out;
-	}
-
 	// x,y,z = f()
 	if(cr == 1) {
 		if(r->type == T)
