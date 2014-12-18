@@ -456,9 +456,9 @@ func Dir(path string) string {
 }
 
 // VolumeName returns leading volume name.
-// Given "C:\foo\bar" it returns "C:" under windows.
+// Given "C:\foo\bar" it returns "C:" on Windows.
 // Given "\\host\share\foo" it returns "\\host\share".
 // On other platforms it returns "".
-func VolumeName(path string) (v string) {
+func VolumeName(path string) string {
 	return path[:volumeNameLen(path)]
 }
