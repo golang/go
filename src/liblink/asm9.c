@@ -683,7 +683,9 @@ aclass(Link *ctxt, Addr *a)
 			if(a->reg != NREG) {
 				if(-BIG <= ctxt->instoffset && ctxt->instoffset <= BIG)
 					return C_SACON;
-				return C_LACON;
+				if(isint32(ctxt->instoffset))
+					return C_LACON;
+				return C_DACON;
 			}
 		consize:
 			if(ctxt->instoffset >= 0) {
@@ -1800,12 +1802,10 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 		if(p->to.reg == REGTMP)
 			ctxt->diag("can't synthesize large constant\n%P", p);
 		v = regoff(ctxt, &p->from);
-		if(v & 0x8000L)
-			v += 0x10000L;
 		r = p->from.reg;
 		if(r == NREG)
 			r = o->param;
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
+		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
 		o2 = AOP_IRR(OP_ADDI, p->to.reg, REGTMP, v);
 		break;
 
@@ -1913,34 +1913,28 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 
 	case 35:	/* mov r,lext/lauto/loreg ==> cau $(v>>16),sb,r'; store o(r') */
 		v = regoff(ctxt, &p->to);
-		if(v & 0x8000L)
-			v += 0x10000L;
 		r = p->to.reg;
 		if(r == NREG)
 			r = o->param;
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
+		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
 		o2 = AOP_IRR(opstore(ctxt, p->as), p->from.reg, REGTMP, v);
 		break;
 
 	case 36:	/* mov bz/h/hz lext/lauto/lreg,r ==> lbz/lha/lhz etc */
 		v = regoff(ctxt, &p->from);
-		if(v & 0x8000L)
-			v += 0x10000L;
 		r = p->from.reg;
 		if(r == NREG)
 			r = o->param;
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
+		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
 		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
 		break;
 
 	case 37:	/* movb lext/lauto/lreg,r ==> lbz o(reg),r; extsb r */
 		v = regoff(ctxt, &p->from);
-		if(v & 0x8000L)
-			v += 0x10000L;
 		r = p->from.reg;
 		if(r == NREG)
 			r = o->param;
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
+		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
 		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
 		o3 = LOP_RRR(OP_EXTSB, p->to.reg, p->to.reg, 0);
 		break;
