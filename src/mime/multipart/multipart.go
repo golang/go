@@ -19,6 +19,7 @@ import (
 	"io"
 	"io/ioutil"
 	"mime"
+	"mime/internal/quotedprintable"
 	"net/textproto"
 )
 
@@ -111,7 +112,7 @@ func newPart(mr *Reader) (*Part, error) {
 	const cte = "Content-Transfer-Encoding"
 	if bp.Header.Get(cte) == "quoted-printable" {
 		bp.Header.Del(cte)
-		bp.r = newQuotedPrintableReader(bp.r)
+		bp.r = quotedprintable.NewReader(bp.r)
 	}
 	return bp, nil
 }
