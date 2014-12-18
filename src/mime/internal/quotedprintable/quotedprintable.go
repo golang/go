@@ -8,7 +8,7 @@
 // 2. it will pass through a '\r' or '\n' not preceded by '=', consistent
 //    with other broken QP encoders & decoders.
 
-package multipart
+package quotedprintable
 
 import (
 	"bufio"
@@ -23,7 +23,7 @@ type qpReader struct {
 	line []byte // to be consumed before more of br
 }
 
-func newQuotedPrintableReader(r io.Reader) io.Reader {
+func NewReader(r io.Reader) io.Reader {
 	return &qpReader{
 		br: bufio.NewReader(r),
 	}

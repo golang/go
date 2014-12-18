@@ -311,7 +311,7 @@ var pkgDeps = map[string][]string{
 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
 
 	// Simple net+crypto-aware packages.
-	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto"},
+	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto", "mime/internal/quotedprintable"},
 	"net/smtp":       {"L4", "CRYPTO", "NET", "crypto/tls"},
 
 	// HTTP, kingpin of dependencies.
