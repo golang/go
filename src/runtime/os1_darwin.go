@@ -394,6 +394,10 @@ func setsig(i int32, fn uintptr, restart bool) {
 	sigaction(uint32(i), &sa, nil)
 }
 
+func setsigstack(i int32) {
+	gothrow("setsigstack")
+}
+
 func getsig(i int32) uintptr {
 	var sa sigactiont
 	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))

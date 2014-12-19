@@ -37,6 +37,11 @@ func initsig() {
 			}
 		}
 
+		if t.flags&_SigSetStack != 0 {
+			setsigstack(i)
+			continue
+		}
+
 		t.flags |= _SigHandling
 		setsig(i, funcPC(sighandler), true)
 	}

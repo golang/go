@@ -203,6 +203,10 @@ func setsig(i int32, fn uintptr, restart bool) {
 	sigaction(i, &sa, nil)
 }
 
+func setsigstack(i int32) {
+	gothrow("setsigstack")
+}
+
 func getsig(i int32) uintptr {
 	var sa sigactiont
 	sigaction(i, nil, &sa)
