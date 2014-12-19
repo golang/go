@@ -372,6 +372,7 @@ const (
 	_SigHandling = 1 << 5 // our signal handler is registered
 	_SigIgnored  = 1 << 6 // the signal was ignored before we registered for it
 	_SigGoExit   = 1 << 7 // cause all runtime procs to exit (only used on Plan 9).
+	_SigSetStack = 1 << 8 // add SA_ONSTACK to libc handler
 )
 
 // Layout of in-memory per-function information prepared by linker

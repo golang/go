@@ -42,8 +42,8 @@ var sigtable = [...]sigTabT{
 	/* 29 */ {_SigNotify, "SIGIO: i/o now possible"},
 	/* 30 */ {_SigNotify, "SIGPWR: power failure restart"},
 	/* 31 */ {_SigNotify, "SIGSYS: bad system call"},
-	/* 32 */ {0, "signal 32"}, /* SIGCANCEL; see issue 6997 */
-	/* 33 */ {0, "signal 33"}, /* SIGSETXID; see issue 3871 */
+	/* 32 */ {_SigSetStack, "signal 32"}, /* SIGCANCEL; see issue 6997 */
+	/* 33 */ {_SigSetStack, "signal 33"}, /* SIGSETXID; see issue 3871, 9400 */
 	/* 34 */ {_SigNotify, "signal 34"},
 	/* 35 */ {_SigNotify, "signal 35"},
 	/* 36 */ {_SigNotify, "signal 36"},

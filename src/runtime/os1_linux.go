@@ -246,6 +246,20 @@ func setsig(i int32, fn uintptr, restart bool) {
 	}
 }
 
+func setsigstack(i int32) {
+	var sa sigactiont
+	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
+		gothrow("rt_sigaction failure")
+	}
+	if sa.sa_handler == 0 || sa.sa_handler == _SIG_DFL || sa.sa_handler == _SIG_IGN || sa.sa_flags&_SA_ONSTACK != 0 {
+		return
+	}
+	sa.sa_flags |= _SA_ONSTACK
+	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
+		gothrow("rt_sigaction failure")
+	}
+}
+
 func getsig(i int32) uintptr {
 	var sa sigactiont
 

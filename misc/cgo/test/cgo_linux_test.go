@@ -9,3 +9,4 @@ import "testing"
 func TestSetgid(t *testing.T)  { testSetgid(t) }
 func Test6997(t *testing.T)    { test6997(t) }
 func TestBuildID(t *testing.T) { testBuildID(t) }
+func Test9400(t *testing.T)    { test9400(t) }
