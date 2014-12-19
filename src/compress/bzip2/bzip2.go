@@ -353,7 +353,7 @@ func (bz2 *reader) readBlock() (err error) {
 	// variables accumulate the repeat count. See the Wikipedia page for
 	// details.
 	repeat := 0
-	repeat_power := 0
+	repeatPower := 0
 
 	// The `C' array (used by the inverse BWT) needs to be zero initialized.
 	for i := range bz2.c {
@@ -380,10 +380,10 @@ func (bz2 *reader) readBlock() (err error) {
 		if v < 2 {
 			// This is either the RUNA or RUNB symbol.
 			if repeat == 0 {
-				repeat_power = 1
+				repeatPower = 1
 			}
-			repeat += repeat_power << v
-			repeat_power <<= 1
+			repeat += repeatPower << v
+			repeatPower <<= 1
 
 			// This limit of 2 million comes from the bzip2 source
 			// code. It prevents repeat from overflowing.
