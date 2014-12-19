@@ -26,11 +26,12 @@ func main() {
 		os.Exit(1)
 	}
 	out := run("go", "tool", a+"g", "-S", filepath.Join("fixedbugs", "issue9355.dir", "a.go"))
+	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
 	patterns := []string{
-		`rel 0\+\d t=1 \"\"\.x\+8\r?\n`,  // y = &x.b
-		`rel 0\+\d t=1 \"\"\.x\+28\r?\n`, // z = &x.d.q
-		`rel 0\+\d t=1 \"\"\.b\+5\r?\n`,  // c = &b[5]
-		`rel 0\+\d t=1 \"\"\.x\+88\r?\n`, // w = &x.f[3].r
+		`rel 0\+\d t=1 \"\"\.x\+8\r?\n`,       // y = &x.b
+		`rel 0\+\d t=1 \"\"\.x\+(28|1c)\r?\n`, // z = &x.d.q
+		`rel 0\+\d t=1 \"\"\.b\+5\r?\n`,       // c = &b[5]
+		`rel 0\+\d t=1 \"\"\.x\+(88|58)\r?\n`, // w = &x.f[3].r
 	}
 	for _, p := range patterns {
 		if ok, err := regexp.Match(p, out); !ok || err != nil {
