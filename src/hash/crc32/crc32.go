@@ -54,6 +54,13 @@ func castagnoliInit() {
 // IEEETable is the table for the IEEE polynomial.
 var IEEETable = makeTable(IEEE)
 
+// slicing8Table is array of 8 Tables
+type slicing8Table [8]Table
+
+// iEEETable8 is the slicing8Table for IEEE
+var iEEETable8 *slicing8Table
+var iEEETable8Once sync.Once
+
 // MakeTable returns the Table constructed from the specified polynomial.
 func MakeTable(poly uint32) *Table {
 	switch poly {
@@ -79,6 +86,20 @@ func makeTable(poly uint32) *Table {
 			}
 		}
 		t[i] = crc
+	}
+	return t
+}
+
+// makeTable8 returns slicing8Table constructed from the specified polynomial.
+func makeTable8(poly uint32) *slicing8Table {
+	t := new(slicing8Table)
+	t[0] = *makeTable(poly)
+	for i := 0; i < 256; i++ {
+		crc := t[0][i]
+		for j := 1; j < 8; j++ {
+			crc = t[0][crc&0xFF] ^ (crc >> 8)
+			t[j][i] = crc
+		}
 	}
 	return t
 }
@@ -111,10 +132,31 @@ func update(crc uint32, tab *Table, p []byte) uint32 {
 	return ^crc
 }
 
+// updateSlicingBy8 updates CRC using Slicing-by-8
+func updateSlicingBy8(crc uint32, tab *slicing8Table, p []byte) uint32 {
+	crc = ^crc
+	for len(p) > 8 {
+		crc ^= uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
+		crc = tab[0][p[7]] ^ tab[1][p[6]] ^ tab[2][p[5]] ^ tab[3][p[4]] ^
+			tab[4][crc>>24] ^ tab[5][(crc>>16)&0xFF] ^
+			tab[6][(crc>>8)&0xFF] ^ tab[7][crc&0xFF]
+		p = p[8:]
+	}
+	crc = ^crc
+	return update(crc, &tab[0], p)
+}
+
 // Update returns the result of adding the bytes in p to the crc.
 func Update(crc uint32, tab *Table, p []byte) uint32 {
 	if tab == castagnoliTable {
 		return updateCastagnoli(crc, p)
+	}
+	// only use slicing-by-8 when input is larger than 4KB
+	if tab == IEEETable && len(p) >= 4096 {
+		iEEETable8Once.Do(func() {
+			iEEETable8 = makeTable8(IEEE)
+		})
+		return updateSlicingBy8(crc, iEEETable8, p)
 	}
 	return update(crc, tab, p)
 }
@@ -137,4 +179,4 @@ func Checksum(data []byte, tab *Table) uint32 { return Update(0, tab, data) }
 
 // ChecksumIEEE returns the CRC-32 checksum of data
 // using the IEEE polynomial.
-func ChecksumIEEE(data []byte) uint32 { return update(0, IEEETable, data) }
+func ChecksumIEEE(data []byte) uint32 { return Update(0, IEEETable, data) }
