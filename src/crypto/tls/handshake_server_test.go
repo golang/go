@@ -103,6 +103,54 @@ func TestNoCompressionOverlap(t *testing.T) {
 	testClientHelloFailure(t, clientHello, "client does not support uncompressed connections")
 }
 
+func TestRenegotiationExtension(t *testing.T) {
+	clientHello := &clientHelloMsg{
+		vers:                VersionTLS12,
+		compressionMethods:  []uint8{compressionNone},
+		random:              make([]byte, 32),
+		secureRenegotiation: true,
+		cipherSuites:        []uint16{TLS_RSA_WITH_RC4_128_SHA},
+	}
+
+	var buf []byte
+	c, s := net.Pipe()
+
+	go func() {
+		cli := Client(c, testConfig)
+		cli.vers = clientHello.vers
+		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
+
+		buf = make([]byte, 1024)
+		n, err := c.Read(buf)
+		if err != nil {
+			t.Fatalf("Server read returned error: %s", err)
+		}
+		buf = buf[:n]
+		c.Close()
+	}()
+
+	Server(s, testConfig).Handshake()
+
+	if len(buf) < 5+4 {
+		t.Fatalf("Server returned short message of length %d", len(buf))
+	}
+	// buf contains a TLS record, with a 5 byte record header and a 4 byte
+	// handshake header. The length of the ServerHello is taken from the
+	// handshake header.
+	serverHelloLen := int(buf[6])<<16 | int(buf[7])<<8 | int(buf[8])
+
+	var serverHello serverHelloMsg
+	// unmarshal expects to be given the handshake header, but
+	// serverHelloLen doesn't include it.
+	if !serverHello.unmarshal(buf[5 : 9+serverHelloLen]) {
+		t.Fatalf("Failed to parse ServerHello")
+	}
+
+	if !serverHello.secureRenegotiation {
+		t.Errorf("Secure renegotiation extension was not echoed.")
+	}
+}
+
 func TestTLS12OnlyCipherSuites(t *testing.T) {
 	// Test that a Server doesn't select a TLS 1.2-only cipher suite when
 	// the client negotiates TLS 1.1.
