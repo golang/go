@@ -430,7 +430,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 				m.signatureAndHashes[i].signature = d[1]
 				d = d[2:]
 			}
-		case extensionRenegotiationInfo + 1:
+		case extensionRenegotiationInfo:
 			if length != 1 || data[0] != 0 {
 				return false
 			}
