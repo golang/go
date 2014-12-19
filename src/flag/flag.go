@@ -726,27 +726,27 @@ func (f *FlagSet) parseOne() (bool, error) {
 	if len(s) == 0 || s[0] != '-' || len(s) == 1 {
 		return false, nil
 	}
-	num_minuses := 1
+	numMinuses := 1
 	if s[1] == '-' {
-		num_minuses++
+		numMinuses++
 		if len(s) == 2 { // "--" terminates the flags
 			f.args = f.args[1:]
 			return false, nil
 		}
 	}
-	name := s[num_minuses:]
+	name := s[numMinuses:]
 	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
 		return false, f.failf("bad flag syntax: %s", s)
 	}
 
 	// it's a flag. does it have an argument?
 	f.args = f.args[1:]
-	has_value := false
+	hasValue := false
 	value := ""
 	for i := 1; i < len(name); i++ { // equals cannot be first
 		if name[i] == '=' {
 			value = name[i+1:]
-			has_value = true
+			hasValue = true
 			name = name[0:i]
 			break
 		}
@@ -762,7 +762,7 @@ func (f *FlagSet) parseOne() (bool, error) {
 	}
 
 	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
-		if has_value {
+		if hasValue {
 			if err := fv.Set(value); err != nil {
 				return false, f.failf("invalid boolean value %q for -%s: %v", value, name, err)
 			}
@@ -771,12 +771,12 @@ func (f *FlagSet) parseOne() (bool, error) {
 		}
 	} else {
 		// It must have a value, which might be the next argument.
-		if !has_value && len(f.args) > 0 {
+		if !hasValue && len(f.args) > 0 {
 			// value is the next arg
-			has_value = true
+			hasValue = true
 			value, f.args = f.args[0], f.args[1:]
 		}
-		if !has_value {
+		if !hasValue {
 			return false, f.failf("flag needs an argument: -%s", name)
 		}
 		if err := flag.Value.Set(value); err != nil {
