@@ -583,6 +583,124 @@ func (z *Int) ModInverse(g, n *Int) *Int {
 	return z
 }
 
+// Jacobi returns the Jacobi symbol (x/y), either +1, -1, or 0.
+// The y argument must be an odd integer.
+func Jacobi(x, y *Int) int {
+	if len(y.abs) == 0 || y.abs[0]&1 == 0 {
+		panic(fmt.Sprintf("big: invalid 2nd argument to Int.Jacobi: need odd integer but got %s", y))
+	}
+
+	// We use the formulation described in chapter 2, section 2.4,
+	// "The Yacas Book of Algorithms":
+	// http://yacas.sourceforge.net/Algo.book.pdf
+
+	var a, b, c Int
+	a.Set(x)
+	b.Set(y)
+	j := 1
+
+	if b.neg {
+		if a.neg {
+			j = -1
+		}
+		b.neg = false
+	}
+
+	for {
+		if b.Cmp(intOne) == 0 {
+			return j
+		}
+		if len(a.abs) == 0 {
+			return 0
+		}
+		a.Mod(&a, &b)
+		if len(a.abs) == 0 {
+			return 0
+		}
+		// a > 0
+
+		// handle factors of 2 in 'a'
+		s := a.abs.trailingZeroBits()
+		if s&1 != 0 {
+			bmod8 := b.abs[0] & 7
+			if bmod8 == 3 || bmod8 == 5 {
+				j = -j
+			}
+		}
+		c.Rsh(&a, s) // a = 2^s*c
+
+		// swap numerator and denominator
+		if b.abs[0]&3 == 3 && c.abs[0]&3 == 3 {
+			j = -j
+		}
+		a.Set(&b)
+		b.Set(&c)
+	}
+}
+
+// ModSqrt sets z to a square root of x mod p if such a square root exists, and
+// returns z. The modulus p must be an odd prime. If x is not a square mod p,
+// ModSqrt leaves z unchanged and returns nil. This function panics if p is
+// not an odd integer.
+func (z *Int) ModSqrt(x, p *Int) *Int {
+	switch Jacobi(x, p) {
+	case -1:
+		return nil // x is not a square mod p
+	case 0:
+		return z.SetInt64(0) // sqrt(0) mod p = 0
+	case 1:
+		break
+	}
+	if x.neg || x.Cmp(p) >= 0 { // ensure 0 <= x < p
+		x = new(Int).Mod(x, p)
+	}
+
+	// Break p-1 into s*2^e such that s is odd.
+	var s Int
+	s.Sub(p, intOne)
+	e := s.abs.trailingZeroBits()
+	s.Rsh(&s, e)
+
+	// find some non-square n
+	var n Int
+	n.SetInt64(2)
+	for Jacobi(&n, p) != -1 {
+		n.Add(&n, intOne)
+	}
+
+	// Core of the Tonelli-Shanks algorithm. Follows the description in
+	// section 6 of "Square roots from 1; 24, 51, 10 to Dan Shanks" by Ezra
+	// Brown:
+	// https://www.maa.org/sites/default/files/pdf/upload_library/22/Polya/07468342.di020786.02p0470a.pdf
+	var y, b, g, t Int
+	y.Add(&s, intOne)
+	y.Rsh(&y, 1)
+	y.Exp(x, &y, p)  // y = x^((s+1)/2)
+	b.Exp(x, &s, p)  // b = x^s
+	g.Exp(&n, &s, p) // g = n^s
+	r := e
+	for {
+		// find the least m such that ord_p(b) = 2^m
+		var m uint
+		t.Set(&b)
+		for t.Cmp(intOne) != 0 {
+			t.Mul(&t, &t).Mod(&t, p)
+			m++
+		}
+
+		if m == 0 {
+			return z.Set(&y)
+		}
+
+		t.SetInt64(0).SetBit(&t, int(r-m-1), 1).Exp(&g, &t, p)
+		// t = g^(2^(r-m-1)) mod p
+		g.Mul(&t, &t).Mod(&g, p) // g = g^(2^(r-m)) mod p
+		y.Mul(&y, &t).Mod(&y, p)
+		b.Mul(&b, &g).Mod(&b, p)
+		r = m
+	}
+}
+
 // Lsh sets z = x << n and returns z.
 func (z *Int) Lsh(x *Int, n uint) *Int {
 	z.abs = z.abs.shl(x.abs, n)
