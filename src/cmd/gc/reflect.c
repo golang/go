@@ -143,18 +143,6 @@ mapbucket(Type *t)
 	// We don't need to encode it as GC doesn't care about it.
 	offset = BUCKETSIZE * 1;
 
-	overflowfield = typ(TFIELD);
-	overflowfield->type = ptrto(bucket);
-	overflowfield->width = offset;         // "width" is offset in structure
-	overflowfield->sym = mal(sizeof(Sym)); // not important but needs to be set to give this type a name
-	overflowfield->sym->name = "overflow";
-	offset += widthptr;
-	
-	// The keys are padded to the native integer alignment.
-	// This is usually the same as widthptr; the exception (as usual) is nacl/amd64.
-	if(widthreg > widthptr)
-		offset += widthreg - widthptr;
-
 	keysfield = typ(TFIELD);
 	keysfield->type = typ(TARRAY);
 	keysfield->type->type = keytype;
@@ -175,11 +163,23 @@ mapbucket(Type *t)
 	valuesfield->sym->name = "values";
 	offset += BUCKETSIZE * valtype->width;
 
+	overflowfield = typ(TFIELD);
+	overflowfield->type = ptrto(bucket);
+	overflowfield->width = offset;         // "width" is offset in structure
+	overflowfield->sym = mal(sizeof(Sym)); // not important but needs to be set to give this type a name
+	overflowfield->sym->name = "overflow";
+	offset += widthptr;
+	
+	// Pad to the native integer alignment.
+	// This is usually the same as widthptr; the exception (as usual) is nacl/amd64.
+	if(widthreg > widthptr)
+		offset += widthreg - widthptr;
+
 	// link up fields
-	bucket->type = overflowfield;
-	overflowfield->down = keysfield;
+	bucket->type = keysfield;
 	keysfield->down = valuesfield;
-	valuesfield->down = T;
+	valuesfield->down = overflowfield;
+	overflowfield->down = T;
 
 	bucket->width = offset;
 	bucket->local = t->local;
