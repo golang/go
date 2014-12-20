@@ -899,11 +899,54 @@ func TestClientTimeout(t *testing.T) {
 	select {
 	case err := <-errc:
 		if err == nil {
-			t.Error("expected error from ReadAll")
+			t.Fatal("expected error from ReadAll")
 		}
-		// Expected error.
+		ne, ok := err.(net.Error)
+		if !ok {
+			t.Errorf("error value from ReadAll was %T; expected some net.Error", err)
+		} else if !ne.Timeout() {
+			t.Errorf("net.Error.Timeout = false; want true")
+		}
+		if got := ne.Error(); !strings.Contains(got, "Client.Timeout exceeded") {
+			t.Errorf("error string = %q; missing timeout substring", got)
+		}
 	case <-time.After(failTime):
 		t.Errorf("timeout after %v waiting for timeout of %v", failTime, timeout)
+	}
+}
+
+// Client.Timeout firing before getting to the body
+func TestClientTimeout_Headers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	defer afterTest(t)
+	donec := make(chan bool)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		<-donec
+	}))
+	defer ts.Close()
+	defer close(donec)
+
+	c := &Client{Timeout: 500 * time.Millisecond}
+
+	_, err := c.Get(ts.URL)
+	if err == nil {
+		t.Fatal("got response from Get; expected error")
+	}
+	ue, ok := err.(*url.Error)
+	if !ok {
+		t.Fatalf("Got error of type %T; want *url.Error", err)
+	}
+	ne, ok := ue.Err.(net.Error)
+	if !ok {
+		t.Fatalf("Got url.Error.Err of type %T; want some net.Error", err)
+	}
+	if !ne.Timeout() {
+		t.Error("net.Error.Timeout = false; want true")
+	}
+	if got := ne.Error(); !strings.Contains(got, "Client.Timeout exceeded") {
+		t.Errorf("error string = %q; missing timeout substring", got)
 	}
 }
 
