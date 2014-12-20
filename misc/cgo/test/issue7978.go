@@ -82,6 +82,9 @@ func issue7978go() {
 }
 
 func test7978(t *testing.T) {
+	if runtime.Compiler == "gccgo" {
+		t.Skip("gccgo can not do stack traces of C code")
+	}
 	if os.Getenv("GOTRACEBACK") != "2" {
 		t.Fatalf("GOTRACEBACK must be 2")
 	}
