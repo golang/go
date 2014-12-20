@@ -4,4 +4,4 @@
 
 package backdoor
 
-func LockedOSThread() bool // in thunk.s
+func LockedOSThread() bool // in thunk.s or runtime_gccgo.c
