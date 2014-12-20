@@ -106,6 +106,7 @@ var flakePhrases = []string{
 	"Bseek: unknown state 0",
 	"error exporting repository: exit status",
 	"remote error: User Is Over Quota",
+	"fatal: remote did not send all necessary objects",
 }
 
 func isFlaky(failLog string) bool {
@@ -119,6 +120,12 @@ func isFlaky(failLog string) bool {
 	}
 	numLines := strings.Count(failLog, "\n")
 	if numLines < 20 && strings.Contains(failLog, "error: exit status") {
+		return true
+	}
+	// e.g. fatal: destination path 'go.tools.TMP' already exists and is not an empty directory.
+	// To be fixed in golang.org/issue/9407
+	if strings.Contains(failLog, "fatal: destination path '") &&
+		strings.Contains(failLog, "' already exists and is not an empty directory.") {
 		return true
 	}
 	return false
