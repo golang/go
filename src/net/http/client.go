@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -299,6 +300,8 @@ func (c *Client) Get(url string) (resp *Response, err error) {
 	return c.doFollowingRedirects(req, shouldRedirectGet)
 }
 
+func alwaysFalse() bool { return false }
+
 func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bool) (resp *Response, err error) {
 	var base *url.URL
 	redirectChecker := c.CheckRedirect
@@ -316,7 +319,10 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
 	req := ireq
 
 	var timer *time.Timer
+	var atomicWasCanceled int32 // atomic bool (1 or 0)
+	var wasCanceled = alwaysFalse
 	if c.Timeout > 0 {
+		wasCanceled = func() bool { return atomic.LoadInt32(&atomicWasCanceled) != 0 }
 		type canceler interface {
 			CancelRequest(*Request)
 		}
@@ -325,6 +331,7 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
 			return nil, fmt.Errorf("net/http: Client Transport of type %T doesn't support CancelRequest; Timeout not supported", c.transport())
 		}
 		timer = time.AfterFunc(c.Timeout, func() {
+			atomic.StoreInt32(&atomicWasCanceled, 1)
 			reqmu.Lock()
 			defer reqmu.Unlock()
 			tr.CancelRequest(req)
@@ -365,6 +372,12 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
 
 		urlStr = req.URL.String()
 		if resp, err = c.send(req); err != nil {
+			if wasCanceled() {
+				err = &httpError{
+					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
+					timeout: true,
+				}
+			}
 			break
 		}
 
@@ -385,7 +398,11 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
 			continue
 		}
 		if timer != nil {
-			resp.Body = &cancelTimerBody{timer, resp.Body}
+			resp.Body = &cancelTimerBody{
+				t:              timer,
+				rc:             resp.Body,
+				reqWasCanceled: wasCanceled,
+			}
 		}
 		return resp, nil
 	}
@@ -491,15 +508,25 @@ func (c *Client) Head(url string) (resp *Response, err error) {
 	return c.doFollowingRedirects(req, shouldRedirectGet)
 }
 
+// cancelTimerBody is an io.ReadCloser that wraps rc with two features:
+// 1) on Read EOF or Close, the timer t is Stopped,
+// 2) On Read failure, if reqWasCanceled is true, the error is wrapped and
+//    marked as net.Error that hit its timeout.
 type cancelTimerBody struct {
-	t  *time.Timer
-	rc io.ReadCloser
+	t              *time.Timer
+	rc             io.ReadCloser
+	reqWasCanceled func() bool
 }
 
 func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
 	n, err = b.rc.Read(p)
 	if err == io.EOF {
 		b.t.Stop()
+	} else if err != nil && b.reqWasCanceled() {
+		return n, &httpError{
+			err:     err.Error() + " (Client.Timeout exceeded while reading body)",
+			timeout: true,
+		}
 	}
 	return
 }
