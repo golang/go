@@ -1281,12 +1281,19 @@ synthesizemaptypes(DWDie *die)
 		
 		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "keys");
 		newrefattr(fld, DW_AT_type, dwhk);
-		newmemberoffsetattr(fld, BucketSize + PtrSize);
+		newmemberoffsetattr(fld, BucketSize);
 		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "values");
 		newrefattr(fld, DW_AT_type, dwhv);
-		newmemberoffsetattr(fld, BucketSize + PtrSize + BucketSize * keysize);
-		newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize + PtrSize + BucketSize * keysize + BucketSize * valsize, 0);
-		substitutetype(dwhb, "overflow", defptrto(dwhb));
+		newmemberoffsetattr(fld, BucketSize + BucketSize * keysize);
+		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "overflow");
+		newrefattr(fld, DW_AT_type, defptrto(dwhb));
+		newmemberoffsetattr(fld, BucketSize + BucketSize * (keysize + valsize));
+		if(RegSize > PtrSize) {
+			fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "pad");
+			newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+			newmemberoffsetattr(fld, BucketSize + BucketSize * (keysize + valsize) + PtrSize);
+		}
+		newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize + BucketSize * keysize + BucketSize * valsize + RegSize, 0);
 
 		// Construct hash<K,V>
 		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
