@@ -83,8 +83,10 @@ func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask 
 	}
 	(*sp).X += dx
 	(*sp).Y += dy
-	(*mp).X += dx
-	(*mp).Y += dy
+	if mp != nil {
+		(*mp).X += dx
+		(*mp).Y += dy
+	}
 }
 
 func processBackward(dst Image, r image.Rectangle, src image.Image, sp image.Point) bool {

@@ -191,3 +191,13 @@ func TestClip(t *testing.T) {
 		}
 	}
 }
+
+func TestClipWithNilMP(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	// dst must be smaller than src for clipping to occur
+	dst := image.NewRGBA(image.Rect(50, 50, 100, 100))
+	r := image.Rect(0, 0, 100, 100)
+	sp := image.ZP
+	// issue 9177: floydSteinberg.Draw passes nil for mp, which used to cause clip to panic
+	clip(dst, &r, src, &sp, nil, nil)
+}
