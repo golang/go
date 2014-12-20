@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Expose some runtime functions for testing.
-// This is the gccgo version of runtime.c.
+// This is the gccgo version of thunk.s.
 
 // +build gccgo
 
