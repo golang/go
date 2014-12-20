@@ -835,8 +835,6 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm io.Writer) {
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
 
-	fmt.Fprintf(fm, "#include \"_cgo_export.h\"\n")
-
 	for _, exp := range p.ExpFunc {
 		fn := exp.Func
 		fntype := fn.Type
@@ -924,7 +922,8 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm io.Writer) {
 		fmt.Fprint(fgcc, "}\n")
 
 		// Dummy declaration for _cgo_main.c
-		fmt.Fprintf(fm, "%s %s %s {}\n", cRet, goName, cParams)
+		fmt.Fprintf(fm, `char %s[1] __asm__("%s.%s");`, goName, gccgoSymbolPrefix, goName)
+		fmt.Fprint(fm, "\n")
 
 		// For gccgo we use a wrapper function in Go, in order
 		// to call CgocallBack and CgocallBackDone.
