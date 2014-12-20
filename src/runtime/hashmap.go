@@ -117,12 +117,12 @@ type hmap struct {
 
 // A bucket for a Go map.
 type bmap struct {
-	tophash  [bucketCnt]uint8
-	overflow *bmap
+	tophash [bucketCnt]uint8
 	// Followed by bucketCnt keys and then bucketCnt values.
 	// NOTE: packing all the keys together and then all the values together makes the
 	// code a bit more complicated than alternating key/value/key/value/... but it allows
 	// us to eliminate padding which would be needed for, e.g., map[int64]int8.
+	// Followed by an overflow pointer.
 }
 
 // A hash iteration structure.
@@ -147,6 +147,13 @@ type hiter struct {
 func evacuated(b *bmap) bool {
 	h := b.tophash[0]
 	return h > empty && h < minTopHash
+}
+
+func (b *bmap) overflow(t *maptype) *bmap {
+	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-ptrSize))
+}
+func (b *bmap) setoverflow(t *maptype, ovf *bmap) {
+	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-ptrSize)) = ovf
 }
 
 func makemap(t *maptype, hint int64) *hmap {
@@ -275,7 +282,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 				return v
 			}
 		}
-		b = b.overflow
+		b = b.overflow(t)
 		if b == nil {
 			return unsafe.Pointer(t.elem.zero)
 		}
@@ -323,7 +330,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 				return v, true
 			}
 		}
-		b = b.overflow
+		b = b.overflow(t)
 		if b == nil {
 			return unsafe.Pointer(t.elem.zero), false
 		}
@@ -366,7 +373,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 				return k, v
 			}
 		}
-		b = b.overflow
+		b = b.overflow(t)
 		if b == nil {
 			return nil, nil
 		}
@@ -437,10 +444,11 @@ again:
 			memmove(v2, val, uintptr(t.elem.size))
 			return
 		}
-		if b.overflow == nil {
+		ovf := b.overflow(t)
+		if ovf == nil {
 			break
 		}
-		b = b.overflow
+		b = ovf
 	}
 
 	// did not find mapping for key.  Allocate new cell & add entry.
@@ -455,7 +463,7 @@ again:
 			memstats.next_gc = memstats.heap_alloc
 		}
 		newb := (*bmap)(newobject(t.bucket))
-		b.overflow = newb
+		b.setoverflow(t, newb)
 		inserti = &newb.tophash[0]
 		insertk = add(unsafe.Pointer(newb), dataOffset)
 		insertv = add(insertk, bucketCnt*uintptr(t.keysize))
@@ -525,7 +533,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 			h.count--
 			return
 		}
-		b = b.overflow
+		b = b.overflow(t)
 		if b == nil {
 			return
 		}
@@ -720,7 +728,7 @@ next:
 			return
 		}
 	}
-	b = b.overflow
+	b = b.overflow(t)
 	i = 0
 	goto next
 }
@@ -778,7 +786,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 		yk := add(unsafe.Pointer(y), dataOffset)
 		xv := add(xk, bucketCnt*uintptr(t.keysize))
 		yv := add(yk, bucketCnt*uintptr(t.keysize))
-		for ; b != nil; b = b.overflow {
+		for ; b != nil; b = b.overflow(t) {
 			k := add(unsafe.Pointer(b), dataOffset)
 			v := add(k, bucketCnt*uintptr(t.keysize))
 			for i := 0; i < bucketCnt; i, k, v = i+1, add(k, uintptr(t.keysize)), add(v, uintptr(t.valuesize)) {
@@ -828,7 +836,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 							memstats.next_gc = memstats.heap_alloc
 						}
 						newx := (*bmap)(newobject(t.bucket))
-						x.overflow = newx
+						x.setoverflow(t, newx)
 						x = newx
 						xi = 0
 						xk = add(unsafe.Pointer(x), dataOffset)
@@ -855,7 +863,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 							memstats.next_gc = memstats.heap_alloc
 						}
 						newy := (*bmap)(newobject(t.bucket))
-						y.overflow = newy
+						y.setoverflow(t, newy)
 						y = newy
 						yi = 0
 						yk = add(unsafe.Pointer(y), dataOffset)
@@ -881,7 +889,6 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 		// Unlink the overflow buckets & clear key/value to help GC.
 		if h.flags&oldIterator == 0 {
 			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
-			b.overflow = nil
 			memclr(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
 		}
 	}

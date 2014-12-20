@@ -43,7 +43,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
 		}
-		b = b.overflow
+		b = b.overflow(t)
 		if b == nil {
 			return unsafe.Pointer(t.elem.zero)
 		}
@@ -85,7 +85,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize)), true
 		}
-		b = b.overflow
+		b = b.overflow(t)
 		if b == nil {
 			return unsafe.Pointer(t.elem.zero), false
 		}
@@ -127,7 +127,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 		}
-		b = b.overflow
+		b = b.overflow(t)
 		if b == nil {
 			return unsafe.Pointer(t.elem.zero)
 		}
@@ -169,7 +169,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
 		}
-		b = b.overflow
+		b = b.overflow(t)
 		if b == nil {
 			return unsafe.Pointer(t.elem.zero), false
 		}
@@ -271,7 +271,7 @@ dohash:
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
 			}
 		}
-		b = b.overflow
+		b = b.overflow(t)
 		if b == nil {
 			return unsafe.Pointer(t.elem.zero)
 		}
@@ -371,7 +371,7 @@ dohash:
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
 			}
 		}
-		b = b.overflow
+		b = b.overflow(t)
 		if b == nil {
 			return unsafe.Pointer(t.elem.zero), false
 		}

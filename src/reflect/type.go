@@ -1628,10 +1628,6 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	for i := 0; i < int(bucketSize*unsafe.Sizeof(uint8(0))/ptrsize); i++ {
 		gc.append(bitsScalar)
 	}
-	gc.append(bitsPointer) // overflow
-	if runtime.GOARCH == "amd64p32" {
-		gc.append(bitsScalar)
-	}
 	// keys
 	for i := 0; i < bucketSize; i++ {
 		gc.appendProg(ktyp)
@@ -1639,6 +1635,11 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	// values
 	for i := 0; i < bucketSize; i++ {
 		gc.appendProg(etyp)
+	}
+	// overflow
+	gc.append(bitsPointer)
+	if runtime.GOARCH == "amd64p32" {
+		gc.append(bitsScalar)
 	}
 
 	b := new(rtype)
