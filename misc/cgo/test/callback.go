@@ -22,8 +22,6 @@ import (
 	"strings"
 	"testing"
 	"unsafe"
-
-	"./backdoor"
 )
 
 // nestedCall calls into C, back into Go, and finally to f.
@@ -49,8 +47,6 @@ func testCallback(t *testing.T) {
 func testCallbackGC(t *testing.T) {
 	nestedCall(runtime.GC)
 }
-
-var lockedOSThread = backdoor.LockedOSThread
 
 func testCallbackPanic(t *testing.T) {
 	// Make sure panic during callback unwinds properly.
