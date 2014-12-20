@@ -16,8 +16,10 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
@@ -158,6 +160,46 @@ type renamer struct {
 
 var reportError = func(posn token.Position, message string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", posn, message)
+}
+
+// importName renames imports of the package with the given path in
+// the given package.  If fromName is not empty, only imports as
+// fromName will be renamed.  Even if renaming is successful, there
+// may be some files that are unchanged; they are reported in
+// unchangedFiles.
+func importName(iprog *loader.Program, info *loader.PackageInfo, fromPath, fromName, to string) (unchangedFiles []string, err error) {
+	for _, f := range info.Files {
+		var from types.Object
+		for _, imp := range f.Imports {
+			importPath, _ := strconv.Unquote(imp.Path.Value)
+			importName := path.Base(importPath)
+			if imp.Name != nil {
+				importName = imp.Name.Name
+			}
+			if importPath == fromPath && (fromName == "" || importName == fromName) {
+				from = info.Implicits[imp]
+				break
+			}
+		}
+		if from == nil {
+			continue
+		}
+		r := renamer{
+			iprog:        iprog,
+			objsToUpdate: make(map[types.Object]bool),
+			to:           to,
+			packages:     map[*types.Package]*loader.PackageInfo{info.Pkg: info},
+		}
+		r.check(from)
+		if r.hadConflicts {
+			continue // ignore errors; leave the existing name
+			unchangedFiles = append(unchangedFiles, f.Name.Name)
+		}
+		if err := r.update(); err != nil {
+			return nil, err
+		}
+	}
+	return unchangedFiles, nil
 }
 
 func Main(ctxt *build.Context, offsetFlag, fromFlag, to string) error {

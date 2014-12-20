@@ -177,7 +177,7 @@ func (r *renamer) checkInLocalScope(from types.Object) {
 // same-, sub-, and super-block conflicts.  We will illustrate all three
 // using this example:
 //
-//      var x int
+//	var x int
 //	var z int
 //
 //	func f(y int) {

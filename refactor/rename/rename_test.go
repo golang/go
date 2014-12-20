@@ -1067,6 +1067,9 @@ func fakeContext(pkgs map[string][]string) *build.Context {
 		dir, base := filepath.Split(path)
 		dir = filepath.Clean(dir)
 		index, _ := strconv.Atoi(strings.TrimSuffix(base, ".go"))
+		if _, ok := pkgs[dir]; !ok || index >= len(pkgs[dir]) {
+			return nil, fmt.Errorf("file does not exist")
+		}
 		return ioutil.NopCloser(bytes.NewBufferString(pkgs[dir][index])), nil
 	}
 	ctxt.IsAbsPath = func(path string) bool {
