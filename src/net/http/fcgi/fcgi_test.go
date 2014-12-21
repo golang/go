@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/ioutil"
+	"net/http"
 	"testing"
 )
 
@@ -146,5 +148,107 @@ func TestGetValues(t *testing.T) {
 		"\x00\x00\x00\x00\x00\x00\x01\n\x00\x00\x00\x00\x00\x00"
 	if got := string(wc.buf); got != want {
 		t.Errorf(" got: %q\nwant: %q\n", got, want)
+	}
+}
+
+func nameValuePair11(nameData, valueData string) []byte {
+	return bytes.Join(
+		[][]byte{
+			{byte(len(nameData)), byte(len(valueData))},
+			[]byte(nameData),
+			[]byte(valueData),
+		},
+		nil,
+	)
+}
+
+func makeRecord(
+	recordType recType,
+	requestId uint16,
+	contentData []byte,
+) []byte {
+	requestIdB1 := byte(requestId >> 8)
+	requestIdB0 := byte(requestId)
+
+	contentLength := len(contentData)
+	contentLengthB1 := byte(contentLength >> 8)
+	contentLengthB0 := byte(contentLength)
+	return bytes.Join([][]byte{
+		{1, byte(recordType), requestIdB1, requestIdB0, contentLengthB1,
+			contentLengthB0, 0, 0},
+		contentData,
+	},
+		nil)
+}
+
+// a series of FastCGI records that start a request and begin sending the
+// request body
+var streamBeginTypeStdin = bytes.Join([][]byte{
+	// set up request 1
+	makeRecord(typeBeginRequest, 1,
+		[]byte{0, byte(roleResponder), 0, 0, 0, 0, 0, 0}),
+	// add required parameters to request 1
+	makeRecord(typeParams, 1, nameValuePair11("REQUEST_METHOD", "GET")),
+	makeRecord(typeParams, 1, nameValuePair11("SERVER_PROTOCOL", "HTTP/1.1")),
+	makeRecord(typeParams, 1, nil),
+	// begin sending body of request 1
+	makeRecord(typeStdin, 1, []byte("0123456789abcdef")),
+},
+	nil)
+
+var cleanUpTests = []struct {
+	input []byte
+	err   error
+}{
+	// confirm that child.handleRecord closes req.pw after aborting req
+	{
+		bytes.Join([][]byte{
+			streamBeginTypeStdin,
+			makeRecord(typeAbortRequest, 1, nil),
+		},
+			nil),
+		ErrRequestAborted,
+	},
+	// confirm that child.serve closes all pipes after error reading record
+	{
+		bytes.Join([][]byte{
+			streamBeginTypeStdin,
+			nil,
+		},
+			nil),
+		ErrConnClosed,
+	},
+}
+
+type nopWriteCloser struct {
+	io.ReadWriter
+}
+
+func (nopWriteCloser) Close() error {
+	return nil
+}
+
+// Test that child.serve closes the bodies of aborted requests and closes the
+// bodies of all requests before returning. Causes deadlock if either condition
+// isn't met. See issue 6934.
+func TestChildServeCleansUp(t *testing.T) {
+	for _, tt := range cleanUpTests {
+		rc := nopWriteCloser{bytes.NewBuffer(tt.input)}
+		done := make(chan bool)
+		c := newChild(rc, http.HandlerFunc(func(
+			w http.ResponseWriter,
+			r *http.Request,
+		) {
+			// block on reading body of request
+			_, err := io.Copy(ioutil.Discard, r.Body)
+			if err != tt.err {
+				t.Errorf("Expected %#v, got %#v", tt.err, err)
+			}
+			// not reached if body of request isn't closed
+			done <- true
+		}))
+		go c.serve()
+		// wait for body of request to be closed or all goroutines to block
+		<-done
 	}
 }
