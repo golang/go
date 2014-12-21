@@ -767,7 +767,9 @@ func (f *FlagSet) parseOne() (bool, error) {
 				return false, f.failf("invalid boolean value %q for -%s: %v", value, name, err)
 			}
 		} else {
-			fv.Set("true")
+			if err := fv.Set("true"); err != nil {
+				return false, f.failf("invalid boolean flag %s: %v", name, err)
+			}
 		}
 	} else {
 		// It must have a value, which might be the next argument.
