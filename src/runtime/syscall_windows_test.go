@@ -271,7 +271,7 @@ func (f cbDLLFunc) buildOne(stdcall bool) string {
 	typename := "t" + funcname
 	p := make([]string, f)
 	for i := range p {
-		p[i] = "void*"
+		p[i] = "uintptr_t"
 	}
 	params := strings.Join(p, ",")
 	for i := range p {
@@ -280,9 +280,9 @@ func (f cbDLLFunc) buildOne(stdcall bool) string {
 	args := strings.Join(p, ",")
 	return fmt.Sprintf(`
 typedef void %s (*%s)(%s);
-void %s(%s f, void *n) {
-	int i;
-	for(i=0;i<(int)n;i++){
+void %s(%s f, uintptr_t n) {
+	uintptr_t i;
+	for(i=0;i<n;i++){
 		f(%s);
 	}
 }
@@ -290,7 +290,7 @@ void %s(%s f, void *n) {
 }
 
 func (f cbDLLFunc) build() string {
-	return f.buildOne(false) + f.buildOne(true)
+	return "#include <stdint.h>\n\n" + f.buildOne(false) + f.buildOne(true)
 }
 
 var cbFuncs = [...]interface{}{
@@ -379,13 +379,13 @@ var cbDLLs = []cbDLL{
 	{
 		"test",
 		func(out, src string) []string {
-			return []string{"gcc", "-shared", "-s", "-o", out, src}
+			return []string{"gcc", "-shared", "-s", "-Werror", "-o", out, src}
 		},
 	},
 	{
 		"testO2",
 		func(out, src string) []string {
-			return []string{"gcc", "-shared", "-s", "-o", out, "-O2", src}
+			return []string{"gcc", "-shared", "-s", "-Werror", "-o", out, "-O2", src}
 		},
 	},
 }
