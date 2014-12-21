@@ -24,6 +24,16 @@ import (
 // changed by tests, without modifying http.DefaultClient.
 var httpClient = http.DefaultClient
 
+type httpError struct {
+	status     string
+	statusCode int
+	url        string
+}
+
+func (e *httpError) Error() string {
+	return fmt.Sprintf("%s: %s", e.url, e.status)
+}
+
 // httpGET returns the data from an HTTP GET request for the given URL.
 func httpGET(url string) ([]byte, error) {
 	resp, err := httpClient.Get(url)
@@ -32,7 +42,9 @@ func httpGET(url string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("%s: %s", url, resp.Status)
+		err := &httpError{status: resp.Status, statusCode: resp.StatusCode, url: url}
+
+		return nil, err
 	}
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

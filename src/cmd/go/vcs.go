@@ -808,10 +808,25 @@ func bitbucketVCS(match map[string]string) error {
 	url := expand(match, "https://api.bitbucket.org/1.0/repositories/{bitname}")
 	data, err := httpGET(url)
 	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return fmt.Errorf("decoding %s: %v", url, err)
+		if httpErr, ok := err.(*httpError); ok && httpErr.statusCode == 403 {
+			// this may be a private repository. If so, attempt to determine which
+			// VCS it uses. See issue 5375.
+			root := match["root"]
+			for _, vcs := range []string{"git", "hg"} {
+				if vcsByCmd(vcs).ping("https", root) == nil {
+					resp.SCM = vcs
+					break
+				}
+			}
+		}
+
+		if resp.SCM == "" {
+			return err
+		}
+	} else {
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return fmt.Errorf("decoding %s: %v", url, err)
+		}
 	}
 
 	if vcsByCmd(resp.SCM) != nil {
