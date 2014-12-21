@@ -545,7 +545,10 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			s->type = SRODATA;
 			break;
 		case ElfSectFlagAlloc + ElfSectFlagWrite:
-			s->type = SNOPTRDATA;
+			if(sect->type == ElfSectNobits)
+				s->type = SNOPTRBSS;
+			else
+				s->type = SNOPTRDATA;
 			break;
 		case ElfSectFlagAlloc + ElfSectFlagExec:
 			s->type = STEXT;
