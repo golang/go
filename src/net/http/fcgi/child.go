@@ -144,6 +144,7 @@ func newChild(rwc io.ReadWriteCloser, handler http.Handler) *child {
 
 func (c *child) serve() {
 	defer c.conn.Close()
+	defer c.cleanUp()
 	var rec record
 	for {
 		if err := rec.read(c.conn.rwc); err != nil {
@@ -158,6 +159,14 @@ func (c *child) serve() {
 var errCloseConn = errors.New("fcgi: connection should be closed")
 
 var emptyBody = ioutil.NopCloser(strings.NewReader(""))
+
+// ErrRequestAborted is returned by Read when a handler attempts to read the
+// body of a request that has been aborted by the web server.
+var ErrRequestAborted = errors.New("fcgi: request aborted by web server")
+
+// ErrConnClosed is returned by Read when a handler attempts to read the body of
+// a request after the connection to the web server has been closed.
+var ErrConnClosed = errors.New("fcgi: connection to web server closed")
 
 func (c *child) handleRecord(rec *record) error {
 	c.mu.Lock()
@@ -227,11 +236,13 @@ func (c *child) handleRecord(rec *record) error {
 		// If the filter role is implemented, read the data stream here.
 		return nil
 	case typeAbortRequest:
-		println("abort")
 		c.mu.Lock()
 		delete(c.requests, rec.h.Id)
 		c.mu.Unlock()
 		c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
+		if req.pw != nil {
+			req.pw.CloseWithError(ErrRequestAborted)
+		}
 		if !req.keepConn {
 			// connection will close upon return
 			return errCloseConn
@@ -274,6 +285,16 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 
 	if !req.keepConn {
 		c.conn.Close()
+	}
+}
+
+func (c *child) cleanUp() {
+	for _, req := range c.requests {
+		if req.pw != nil {
+			// race with call to Close in c.serveRequest doesn't matter because
+			// Pipe(Reader|Writer).Close are idempotent
+			req.pw.CloseWithError(ErrConnClosed)
+		}
 	}
 }
 
