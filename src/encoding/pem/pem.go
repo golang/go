@@ -171,6 +171,8 @@ type lineBreaker struct {
 	out  io.Writer
 }
 
+var nl = []byte{'\n'}
+
 func (l *lineBreaker) Write(b []byte) (n int, err error) {
 	if l.used+len(b) < pemLineLength {
 		copy(l.line[l.used:], b)
@@ -190,7 +192,7 @@ func (l *lineBreaker) Write(b []byte) (n int, err error) {
 		return
 	}
 
-	n, err = l.out.Write([]byte{'\n'})
+	n, err = l.out.Write(nl)
 	if err != nil {
 		return
 	}
@@ -204,7 +206,7 @@ func (l *lineBreaker) Close() (err error) {
 		if err != nil {
 			return
 		}
-		_, err = l.out.Write([]byte{'\n'})
+		_, err = l.out.Write(nl)
 	}
 
 	return
@@ -248,7 +250,7 @@ func Encode(out io.Writer, b *Block) error {
 				return err
 			}
 		}
-		if _, err := out.Write([]byte{'\n'}); err != nil {
+		if _, err := out.Write(nl); err != nil {
 			return err
 		}
 	}

@@ -6,6 +6,7 @@ package pem
 
 import (
 	"bytes"
+	"io/ioutil"
 	"reflect"
 	"testing"
 )
@@ -113,6 +114,24 @@ func TestLineBreaker(t *testing.T) {
 		if string(buf.Bytes()) != test.out {
 			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, string(buf.Bytes()), test.out)
 		}
+	}
+}
+
+func BenchmarkEncode(b *testing.B) {
+	data := &Block{Bytes: make([]byte, 65536)}
+	b.SetBytes(int64(len(data.Bytes)))
+	for i := 0; i < b.N; i++ {
+		Encode(ioutil.Discard, data)
+	}
+}
+
+func BenchmarkDecode(b *testing.B) {
+	block := &Block{Bytes: make([]byte, 65536)}
+	data := EncodeToMemory(block)
+	b.SetBytes(int64(len(data)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Decode(data)
 	}
 }
 
