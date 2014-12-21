@@ -17,6 +17,14 @@ import (
 
 var errHTTP = errors.New("no http in bootstrap go command")
 
+type httpError struct {
+	statusCode int
+}
+
+func (e *httpError) Error() string {
+	panic("unreachable")
+}
+
 func httpGET(url string) ([]byte, error) {
 	return nil, errHTTP
 }
