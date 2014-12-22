@@ -86,6 +86,7 @@ void	adddynlib(char *lib);
 void	adddynrel(LSym *s, Reloc *r);
 void	adddynsym(Link *ctxt, LSym *s);
 int	archreloc(Reloc *r, LSym *s, vlong *val);
+vlong	archrelocvariant(Reloc *r, LSym *s, vlong t);
 void	listinit(void);
 vlong	rnd(vlong, int32);
 
