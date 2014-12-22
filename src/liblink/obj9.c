@@ -619,6 +619,22 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			p->link = q;
 			p = q;
 
+			if(0) {
+				// Debug bad returns
+				q = ctxt->arch->prg();
+				q->as = AMOVD;
+				q->lineno = p->lineno;
+				q->from.type = D_OREG;
+				q->from.offset = 0;
+				q->from.reg = REGTMP;
+				q->to.type = D_REG;
+				q->to.reg = REGTMP;
+
+				q->link = p->link;
+				p->link = q;
+				p = q;
+			}
+
 			if(autosize) {
 				q = ctxt->arch->prg();
 				q->as = AADD;
