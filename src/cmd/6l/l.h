@@ -90,6 +90,7 @@ void	adddynrel(LSym *s, Reloc *r);
 void	adddynrela(LSym *rela, LSym *s, Reloc *r);
 void	adddynsym(Link *ctxt, LSym *s);
 int	archreloc(Reloc *r, LSym *s, vlong *val);
+vlong	archrelocvariant(Reloc *r, LSym *s, vlong t);
 void	asmb(void);
 int	elfreloc1(Reloc *r, vlong sectoff);
 void	elfsetupplt(void);

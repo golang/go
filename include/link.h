@@ -77,6 +77,7 @@ struct	Reloc
 	uchar	siz;
 	uchar	done;
 	int32	type;
+	int32	variant; // RV_*: variant on computed value
 	int64	add;
 	int64	xadd;
 	LSym*	sym;
@@ -255,6 +256,12 @@ enum
 	R_PLT1,
 	R_PLT2,
 	R_USEFIELD,
+};
+
+// Reloc.variant
+enum
+{
+	RV_NONE,		// identity variant
 };
 
 // Auto.type
