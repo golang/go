@@ -94,8 +94,17 @@ func TestEmptyFolderImport(t *testing.T) {
 
 func TestMultiplePackageImport(t *testing.T) {
 	_, err := Import(".", "testdata/multi", 0)
-	if _, ok := err.(*MultiplePackageError); !ok {
+	mpe, ok := err.(*MultiplePackageError)
+	if !ok {
 		t.Fatal(`Import("testdata/multi") did not return MultiplePackageError.`)
+	}
+	want := &MultiplePackageError{
+		Dir:      "testdata/multi",
+		Packages: []string{"main", "test_package"},
+		Files:    []string{"file.go", "file_appengine.go"},
+	}
+	if !reflect.DeepEqual(mpe, want) {
+		t.Errorf("got %#v; want %#v", mpe, want)
 	}
 }
 
