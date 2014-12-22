@@ -794,8 +794,6 @@ walkexpr(Node **np, NodeList **init)
 		//   var,b = mapaccess2*(t, m, i)
 		//   a = *var
 		a = n->list->n;
-		var = temp(ptrto(t->type));
-		var->typecheck = 1;
 		fn = mapfn(p, t);
 		r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, key);
 
@@ -806,10 +804,17 @@ walkexpr(Node **np, NodeList **init)
 			r->type->type->down->type = n->list->next->n->type;
 		n->rlist = list1(r);
 		n->op = OAS2FUNC;
-		n->list->n = var;
-		walkexpr(&n, init);
-		*init = list(*init, n);
-		n = nod(OAS, a, nod(OIND, var, N));
+
+		// don't generate a = *var if a is _
+		if(!isblank(a)) {
+			var = temp(ptrto(t->type));
+			var->typecheck = 1;
+			n->list->n = var;
+			walkexpr(&n, init);
+			*init = list(*init, n);
+			n = nod(OAS, a, nod(OIND, var, N));
+		}
+
 		typecheck(&n, Etop);
 		walkexpr(&n, init);
 		// mapaccess needs a zero value to be at least this big.
