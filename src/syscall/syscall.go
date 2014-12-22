@@ -20,7 +20,7 @@
 //
 // NOTE: This package is locked down. Code outside the standard
 // Go repository should be migrated to use the corresponding
-// package in the go.sys subrepository. That is also where updates
+// package in the golang.org/x/sys repository. That is also where updates
 // required by new systems or versions should be applied.
 // See https://golang.org/s/go1.4-syscall for more information.
 //
