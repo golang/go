@@ -504,19 +504,13 @@ done:
 void
 fatal(char *msg, ...)
 {
-	char buf[ERRMAX];
 	va_list arg;
 	
-	rerrstr(buf, sizeof buf);
-
 	fflush(stdout);
 	fprintf(stderr, "go tool dist: ");
 	va_start(arg, msg);
 	vfprintf(stderr, msg, arg);
 	va_end(arg);
-
-	if(buf[0])
-		fprintf(stderr, ": %s", buf);
 	fprintf(stderr, "\n");
 
 	bgwait();
