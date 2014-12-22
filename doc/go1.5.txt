@@ -1,1 +1,2 @@
 crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
