@@ -99,7 +99,7 @@ func TestMultiplePackageImport(t *testing.T) {
 		t.Fatal(`Import("testdata/multi") did not return MultiplePackageError.`)
 	}
 	want := &MultiplePackageError{
-		Dir:      "testdata/multi",
+		Dir:      filepath.FromSlash("testdata/multi"),
 		Packages: []string{"main", "test_package"},
 		Files:    []string{"file.go", "file_appengine.go"},
 	}
