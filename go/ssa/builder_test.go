@@ -406,8 +406,7 @@ var (
 		delete(want, name)
 
 		if wantDescr != fn.Synthetic {
-			t.Errorf("(%s).Synthetic = %q, want %q",
-				name, fn.Synthetic, wantDescr)
+			t.Errorf("(%s).Synthetic = %q, want %q", name, fn.Synthetic, wantDescr)
 		}
 	}
 	for fn, descr := range want {
