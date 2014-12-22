@@ -330,6 +330,9 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
 
+TEXT reflect·call(SB), NOSPLIT, $0-0
+	JMP	·reflectcall(SB)
+
 TEXT ·reflectcall(SB), NOSPLIT, $0-24
 	MOVLQZX argsize+16(FP), CX
 	DISPATCH(runtime·call16, 16)
@@ -1336,7 +1339,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
 	MOVQ	AX, ret+32(FP)
 	RET
 
-TEXT runtime·cmpbytes(SB),NOSPLIT,$0-56
+TEXT bytes·Compare(SB),NOSPLIT,$0-56
 	MOVQ	s1+0(FP), SI
 	MOVQ	s1+8(FP), BX
 	MOVQ	s2+24(FP), DI

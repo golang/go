@@ -6,6 +6,9 @@
 
 package runtime
 
+import _ "unsafe" // for go:linkname
+
+//go:linkname os_sigpipe os.sigpipe
 func os_sigpipe() {
 	systemstack(sigpipe)
 }

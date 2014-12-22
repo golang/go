@@ -6,6 +6,7 @@ package runtime
 
 type stdFunction *byte
 
+//go:linkname os_sigpipe os.sigpipe
 func os_sigpipe() {
 	gothrow("too many writes on closed pipe")
 }

@@ -71,11 +71,13 @@ type pollCache struct {
 
 var pollcache pollCache
 
-func netpollServerInit() {
+//go:linkname net_runtime_pollServerInit net.runtime_pollServerInit
+func net_runtime_pollServerInit() {
 	netpollinit()
 }
 
-func netpollOpen(fd uintptr) (*pollDesc, int) {
+//go:linkname net_runtime_pollOpen net.runtime_pollOpen
+func net_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 	pd := pollcache.alloc()
 	lock(&pd.lock)
 	if pd.wg != 0 && pd.wg != pdReady {
@@ -98,7 +100,8 @@ func netpollOpen(fd uintptr) (*pollDesc, int) {
 	return pd, int(errno)
 }
 
-func netpollClose(pd *pollDesc) {
+//go:linkname net_runtime_pollClose net.runtime_pollClose
+func net_runtime_pollClose(pd *pollDesc) {
 	if !pd.closing {
 		gothrow("netpollClose: close w/o unblock")
 	}
@@ -119,7 +122,8 @@ func (c *pollCache) free(pd *pollDesc) {
 	unlock(&c.lock)
 }
 
-func netpollReset(pd *pollDesc, mode int) int {
+//go:linkname net_runtime_pollReset net.runtime_pollReset
+func net_runtime_pollReset(pd *pollDesc, mode int) int {
 	err := netpollcheckerr(pd, int32(mode))
 	if err != 0 {
 		return err
@@ -132,7 +136,8 @@ func netpollReset(pd *pollDesc, mode int) int {
 	return 0
 }
 
-func netpollWait(pd *pollDesc, mode int) int {
+//go:linkname net_runtime_pollWait net.runtime_pollWait
+func net_runtime_pollWait(pd *pollDesc, mode int) int {
 	err := netpollcheckerr(pd, int32(mode))
 	if err != 0 {
 		return err
@@ -153,14 +158,16 @@ func netpollWait(pd *pollDesc, mode int) int {
 	return 0
 }
 
-func netpollWaitCanceled(pd *pollDesc, mode int) {
+//go:linkname net_runtime_pollWaitCanceled net.runtime_pollWaitCanceled
+func net_runtime_pollWaitCanceled(pd *pollDesc, mode int) {
 	// This function is used only on windows after a failed attempt to cancel
 	// a pending async IO operation. Wait for ioready, ignore closing or timeouts.
 	for !netpollblock(pd, int32(mode), true) {
 	}
 }
 
-func netpollSetDeadline(pd *pollDesc, d int64, mode int) {
+//go:linkname net_runtime_pollSetDeadline net.runtime_pollSetDeadline
+func net_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	lock(&pd.lock)
 	if pd.closing {
 		unlock(&pd.lock)
@@ -229,7 +236,8 @@ func netpollSetDeadline(pd *pollDesc, d int64, mode int) {
 	}
 }
 
-func netpollUnblock(pd *pollDesc) {
+//go:linkname net_runtime_pollUnblock net.runtime_pollUnblock
+func net_runtime_pollUnblock(pd *pollDesc) {
 	lock(&pd.lock)
 	if pd.closing {
 		gothrow("netpollUnblock: already closing")

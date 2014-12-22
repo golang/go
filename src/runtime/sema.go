@@ -38,12 +38,23 @@ var semtable [semTabSize]struct {
 	pad  [_CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
 }
 
-// Called from sync/net packages.
-func asyncsemacquire(addr *uint32) {
+//go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
+func sync_runtime_Semacquire(addr *uint32) {
 	semacquire(addr, true)
 }
 
-func asyncsemrelease(addr *uint32) {
+//go:linkname net_runtime_Semacquire net.runtime_Semacquire
+func net_runtime_Semacquire(addr *uint32) {
+	semacquire(addr, true)
+}
+
+//go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
+func sync_runtime_Semrelease(addr *uint32) {
+	semrelease(addr)
+}
+
+//go:linkname net_runtime_Semrelease net.runtime_Semrelease
+func net_runtime_Semrelease(addr *uint32) {
 	semrelease(addr)
 }
 
@@ -185,7 +196,8 @@ type syncSema struct {
 	tail *sudog
 }
 
-// Syncsemacquire waits for a pairing syncsemrelease on the same semaphore s.
+// syncsemacquire waits for a pairing syncsemrelease on the same semaphore s.
+//go:linkname syncsemacquire sync.runtime_Syncsemacquire
 func syncsemacquire(s *syncSema) {
 	lock(&s.lock)
 	if s.head != nil && s.head.nrelease > 0 {
@@ -230,7 +242,8 @@ func syncsemacquire(s *syncSema) {
 	}
 }
 
-// Syncsemrelease waits for n pairing syncsemacquire on the same semaphore s.
+// syncsemrelease waits for n pairing syncsemacquire on the same semaphore s.
+//go:linkname syncsemrelease sync.runtime_Syncsemrelease
 func syncsemrelease(s *syncSema, n uint32) {
 	lock(&s.lock)
 	for n > 0 && s.head != nil && s.head.nrelease < 0 {
@@ -267,6 +280,7 @@ func syncsemrelease(s *syncSema, n uint32) {
 	}
 }
 
+//go:linkname syncsemcheck sync.runtime_Syncsemcheck
 func syncsemcheck(sz uintptr) {
 	if sz != unsafe.Sizeof(syncSema{}) {
 		print("runtime: bad syncSema size - sync=", sz, " runtime=", unsafe.Sizeof(syncSema{}), "\n")

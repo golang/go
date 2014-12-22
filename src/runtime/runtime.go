@@ -4,6 +4,8 @@
 
 package runtime
 
+import _ "unsafe" // for go:linkname
+
 //go:generate go run wincallback.go
 
 var ticks struct {
@@ -55,8 +57,8 @@ func parforalloc(nthrmax uint32) *parfor {
 var envs []string
 var argslice []string
 
-// called from syscall
-func runtime_envs() []string { return envs }
+//go:linkname syscall_runtime_envs syscall.runtime_envs
+func syscall_runtime_envs() []string { return envs }
 
-// called from os
-func runtime_args() []string { return argslice }
+//go:linkname os_runtime_args os.runtime_args
+func os_runtime_args() []string { return argslice }

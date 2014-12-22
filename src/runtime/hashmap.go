@@ -909,10 +909,12 @@ func ismapkey(t *_type) bool {
 
 // Reflect stubs.  Called from ../reflect/asm_*.s
 
+//go:linkname reflect_makemap reflect.makemap
 func reflect_makemap(t *maptype) *hmap {
 	return makemap(t, 0)
 }
 
+//go:linkname reflect_mapaccess reflect.mapaccess
 func reflect_mapaccess(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	val, ok := mapaccess2(t, h, key)
 	if !ok {
@@ -922,28 +924,34 @@ func reflect_mapaccess(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	return val
 }
 
+//go:linkname reflect_mapassign reflect.mapassign
 func reflect_mapassign(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 	mapassign1(t, h, key, val)
 }
 
+//go:linkname reflect_mapdelete reflect.mapdelete
 func reflect_mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	mapdelete(t, h, key)
 }
 
+//go:linkname reflect_mapiterinit reflect.mapiterinit
 func reflect_mapiterinit(t *maptype, h *hmap) *hiter {
 	it := new(hiter)
 	mapiterinit(t, h, it)
 	return it
 }
 
+//go:linkname reflect_mapiternext reflect.mapiternext
 func reflect_mapiternext(it *hiter) {
 	mapiternext(it)
 }
 
+//go:linkname reflect_mapiterkey reflect.mapiterkey
 func reflect_mapiterkey(it *hiter) unsafe.Pointer {
 	return it.key
 }
 
+//go:linkname reflect_maplen reflect.maplen
 func reflect_maplen(h *hmap) int {
 	if h == nil {
 		return 0
@@ -955,6 +963,7 @@ func reflect_maplen(h *hmap) int {
 	return h.count
 }
 
+//go:linkname reflect_ismapkey reflect.ismapkey
 func reflect_ismapkey(t *_type) bool {
 	return ismapkey(t)
 }

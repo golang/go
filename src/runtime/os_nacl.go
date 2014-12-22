@@ -34,6 +34,7 @@ func osyield()
 //go:noescape
 func write(fd uintptr, p unsafe.Pointer, n int32) int32
 
+//go:linkname os_sigpipe os.sigpipe
 func os_sigpipe() {
 	gothrow("too many writes on closed pipe")
 }

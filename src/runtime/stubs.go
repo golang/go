@@ -70,7 +70,12 @@ func memclr(ptr unsafe.Pointer, n uintptr)
 // memmove copies n bytes from "from" to "to".
 // in memmove_*.s
 //go:noescape
-func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
+func memmove(to, from unsafe.Pointer, n uintptr)
+
+//go:linkname reflect_memmove reflect.memmove
+func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
+	memmove(to, from, n)
+}
 
 // exported value for testing
 var hashLoad = loadFactor
@@ -197,8 +202,8 @@ func rt0_go()
 // in asm_*.s
 func return0()
 
-// thunk to call time.now.
-func timenow() (sec int64, nsec int32)
+//go:linkname time_now time.now
+func time_now() (sec int64, nsec int32)
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.

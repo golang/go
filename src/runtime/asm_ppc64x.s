@@ -285,6 +285,9 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
 	BR	(CTR)
 // Note: can't just "BR NAME(SB)" - bad inlining results.
 
+TEXT reflect·call(SB), NOSPLIT, $0-0
+	BR	·reflectcall(SB)
+
 TEXT ·reflectcall(SB), NOSPLIT, $-8-24
 	MOVWZ n+16(FP), R3
 	DISPATCH(runtime·call16, 16)

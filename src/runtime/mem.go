@@ -95,8 +95,8 @@ func ReadMemStats(m *MemStats) {
 	gp.m.locks--
 }
 
-// Implementation of runtime/debug.WriteHeapDump
-func writeHeapDump(fd uintptr) {
+//go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
+func runtime_debug_WriteHeapDump(fd uintptr) {
 	semacquire(&worldsema, false)
 	gp := getg()
 	gp.m.gcing = 1

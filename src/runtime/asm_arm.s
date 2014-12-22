@@ -333,6 +333,9 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 	MOVW	$NAME(SB), R1;		\
 	B	(R1)
 
+TEXT reflect·call(SB), NOSPLIT, $0-0
+	B	·reflectcall(SB)
+
 TEXT ·reflectcall(SB),NOSPLIT,$-4-16
 	MOVW	argsize+8(FP), R0
 	DISPATCH(runtime·call16, 16)
