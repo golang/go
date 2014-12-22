@@ -223,6 +223,69 @@ func mallocinit() {
 	_g_.m.mcache = allocmcache()
 }
 
+func wbshadowinit() {
+	// Initialize write barrier shadow heap if we were asked for it
+	// and we have enough address space (not on 32-bit).
+	if debug.wbshadow == 0 {
+		return
+	}
+	if ptrSize != 8 {
+		print("runtime: GODEBUG=wbshadow=1 disabled on 32-bit system\n")
+		return
+	}
+
+	var reserved bool
+	p1 := sysReserve(nil, mheap_.arena_end-mheap_.arena_start, &reserved)
+	if p1 == nil {
+		throw("cannot map shadow heap")
+	}
+	mheap_.shadow_heap = uintptr(p1) - mheap_.arena_start
+	sysMap(p1, mheap_.arena_used-mheap_.arena_start, reserved, &memstats.other_sys)
+	memmove(p1, unsafe.Pointer(mheap_.arena_start), mheap_.arena_used-mheap_.arena_start)
+
+	mheap_.shadow_reserved = reserved
+	start := ^uintptr(0)
+	end := uintptr(0)
+	if start > uintptr(unsafe.Pointer(&noptrdata)) {
+		start = uintptr(unsafe.Pointer(&noptrdata))
+	}
+	if start > uintptr(unsafe.Pointer(&data)) {
+		start = uintptr(unsafe.Pointer(&data))
+	}
+	if start > uintptr(unsafe.Pointer(&noptrbss)) {
+		start = uintptr(unsafe.Pointer(&noptrbss))
+	}
+	if start > uintptr(unsafe.Pointer(&bss)) {
+		start = uintptr(unsafe.Pointer(&bss))
+	}
+	if end < uintptr(unsafe.Pointer(&enoptrdata)) {
+		end = uintptr(unsafe.Pointer(&enoptrdata))
+	}
+	if end < uintptr(unsafe.Pointer(&edata)) {
+		end = uintptr(unsafe.Pointer(&edata))
+	}
+	if end < uintptr(unsafe.Pointer(&enoptrbss)) {
+		end = uintptr(unsafe.Pointer(&enoptrbss))
+	}
+	if end < uintptr(unsafe.Pointer(&ebss)) {
+		end = uintptr(unsafe.Pointer(&ebss))
+	}
+	start &^= _PageSize - 1
+	end = round(end, _PageSize)
+	mheap_.data_start = start
+	mheap_.data_end = end
+	reserved = false
+	p1 = sysReserve(nil, end-start, &reserved)
+	if p1 == nil {
+		throw("cannot map shadow data")
+	}
+	mheap_.shadow_data = uintptr(p1) - start
+	sysMap(p1, end-start, reserved, &memstats.other_sys)
+	memmove(p1, unsafe.Pointer(start), end-start)
+
+	mheap_.shadow_enabled = true
+}
+
 func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 	if n > uintptr(h.arena_end)-uintptr(h.arena_used) {
 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
@@ -259,6 +322,9 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 		mHeap_MapSpans(h)
 		if raceenabled {
 			racemapshadow((unsafe.Pointer)(p), n)
+		}
+		if mheap_.shadow_enabled {
+			sysMap(unsafe.Pointer(p+mheap_.shadow_heap), n, h.shadow_reserved, &memstats.other_sys)
 		}
 
 		if uintptr(p)&(_PageSize-1) != 0 {

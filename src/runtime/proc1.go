@@ -122,6 +122,7 @@ func schedinit() {
 	goargs()
 	goenvs()
 	parsedebugvars()
+	wbshadowinit()
 	gcinit()
 
 	sched.lastpoll = uint64(nanotime())

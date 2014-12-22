@@ -308,6 +308,10 @@ marked:
 		})
 	}
 
+	if mheap_.shadow_enabled {
+		clearshadow(uintptr(x), size)
+	}
+
 	if raceenabled {
 		racemalloc(x, size)
 	}

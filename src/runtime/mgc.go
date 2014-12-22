@@ -241,8 +241,8 @@ var (
 	gccheckmarkenable = true
 )
 
-// Is address b in the known heap. If it doesn't have a valid gcmap
-// returns false. For example pointers into stacks will return false.
+// inheap reports whether b is a pointer into a (potentially dead) heap object.
+// It returns false for pointers into stack spans.
 //go:nowritebarrier
 func inheap(b uintptr) bool {
 	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
@@ -557,6 +557,10 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 			continue
 		}
 
+		if mheap_.shadow_enabled && debug.wbshadow >= 2 && gccheckmarkenable && checkmark {
+			checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
+		}
+
 		// Mark the object. return some important bits.
 		// We we combine the following two rotines we don't have to pass mbits or obj around.
 		var mbits markbits
@@ -575,7 +579,12 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 // As a special case, scanblock(nil, 0, nil) means to scan previously queued work,
 // stopping only when no work is left in the system.
 //go:nowritebarrier
-func scanblock(b, n uintptr, ptrmask *uint8) {
+func scanblock(b0, n0 uintptr, ptrmask *uint8) {
+	// Use local copies of original parameters, so that a stack trace
+	// due to one of the throws below shows the original block
+	// base and extent.
+	b := b0
+	n := n0
 	wbuf := getpartialorempty()
 	if b != 0 {
 		wbuf = scanobject(b, n, ptrmask, wbuf)

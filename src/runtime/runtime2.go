@@ -439,17 +439,6 @@ type cgomal struct {
 	alloc unsafe.Pointer
 }
 
-// Holds variables parsed from GODEBUG env var.
-type debugvars struct {
-	allocfreetrace int32
-	efence         int32
-	gctrace        int32
-	gcdead         int32
-	scheddetail    int32
-	schedtrace     int32
-	scavenge       int32
-}
-
 // Indicates to write barrier and sychronization task to preform.
 const (
 	_GCoff             = iota // GC not running, write barrier disabled
@@ -500,8 +489,6 @@ func extendRandom(r []byte, n int) {
 		}
 	}
 }
-
-var invalidptr int32
 
 /*
  * deferred subroutine calls
@@ -569,7 +556,6 @@ var (
 	iscgo       bool
 	cpuid_ecx   uint32
 	cpuid_edx   uint32
-	debug       debugvars
 	signote     note
 	forcegc     forcegcstate
 	sched       schedt

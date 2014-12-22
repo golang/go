@@ -54,6 +54,18 @@ a comma-separated list of name=val pairs. Supported names are:
 
 	scavenge: scavenge=1 enables debugging mode of heap scavenger.
 
+	wbshadow: setting wbshadow=1 enables a shadow copy of the heap
+	used to detect missing write barriers at the next write to a
+	given location. If a bug can be detected in this mode it is
+	typically easy to understand, since the crash says quite
+	clearly what kind of word has missed a write barrier.
+	Setting wbshadow=2 checks the shadow copy during garbage
+	collection as well. Bugs detected at garbage collection can be
+	difficult to understand, because there is no context for what
+	the found word means. Typically you have to reproduce the
+	problem with allocfreetrace=1 in order to understand the type
+	of the badly updated word.
+
 The GOMAXPROCS variable limits the number of operating system threads that
 can execute user-level Go code simultaneously. There is no limit to the number of threads
 that can be blocked in system calls on behalf of Go code; those do not count against

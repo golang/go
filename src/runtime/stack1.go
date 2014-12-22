@@ -389,7 +389,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 		case _BitsPointer:
 			p := *(*unsafe.Pointer)(add(scanp, i*ptrSize))
 			up := uintptr(p)
-			if f != nil && 0 < up && up < _PageSize && invalidptr != 0 || up == poisonGC || up == poisonStack {
+			if f != nil && 0 < up && up < _PageSize && debug.invalidptr != 0 || up == poisonGC || up == poisonStack {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
 				getg().m.traceback = 2
@@ -611,13 +611,13 @@ func round2(x int32) int32 {
 func newstack() {
 	thisg := getg()
 	// TODO: double check all gp. shouldn't be getg().
-	if thisg.m.morebuf.g.stackguard0 == stackFork {
+	if thisg.m.morebuf.g.ptr().stackguard0 == stackFork {
 		throw("stack growth after fork")
 	}
-	if thisg.m.morebuf.g != thisg.m.curg {
+	if thisg.m.morebuf.g.ptr() != thisg.m.curg {
 		print("runtime: newstack called from g=", thisg.m.morebuf.g, "\n"+"\tm=", thisg.m, " m->curg=", thisg.m.curg, " m->g0=", thisg.m.g0, " m->gsignal=", thisg.m.gsignal, "\n")
 		morebuf := thisg.m.morebuf
-		traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g)
+		traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g.ptr())
 		throw("runtime: wrong goroutine in newstack")
 	}
 	if thisg.m.curg.throwsplit {
@@ -629,6 +629,8 @@ func newstack() {
 		print("runtime: newstack sp=", hex(gp.sched.sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
 			"\tmorebuf={pc:", hex(morebuf.pc), " sp:", hex(morebuf.sp), " lr:", hex(morebuf.lr), "}\n",
 			"\tsched={pc:", hex(gp.sched.pc), " sp:", hex(gp.sched.sp), " lr:", hex(gp.sched.lr), " ctxt:", gp.sched.ctxt, "}\n")
+
+		traceback(morebuf.pc, morebuf.sp, morebuf.lr, gp)
 		throw("runtime: stack split at bad time")
 	}
 
@@ -640,7 +642,7 @@ func newstack() {
 	thisg.m.morebuf.pc = 0
 	thisg.m.morebuf.lr = 0
 	thisg.m.morebuf.sp = 0
-	thisg.m.morebuf.g = nil
+	thisg.m.morebuf.g = 0
 
 	casgstatus(gp, _Grunning, _Gwaiting)
 	gp.waitreason = "stack growth"
