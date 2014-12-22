@@ -6,14 +6,9 @@
 package astutil // import "golang.org/x/tools/astutil"
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"go/ast"
-	"go/format"
-	"go/parser"
 	"go/token"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -46,17 +41,18 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 	}
 
 	// Find an import decl to add to.
+	// The goal is to find an existing import
+	// whose import path has the longest shared
+	// prefix with ipath.
 	var (
-		bestMatch  = -1
-		lastImport = -1
-		impDecl    *ast.GenDecl
-		impIndex   = -1
-		hasImports = false
+		bestMatch  = -1         // length of longest shared prefix
+		lastImport = -1         // index in f.Decls of the file's final import decl
+		impDecl    *ast.GenDecl // import decl containing the best match
+		impIndex   = -1         // spec index in impDecl containing the best match
 	)
 	for i, decl := range f.Decls {
 		gen, ok := decl.(*ast.GenDecl)
 		if ok && gen.Tok == token.IMPORT {
-			hasImports = true
 			lastImport = i
 			// Do not add to import "C", to avoid disrupting the
 			// association with its doc comment, breaking cgo.
@@ -64,7 +60,12 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 				continue
 			}
 
-			// Compute longest shared prefix with imports in this block.
+			// Match an empty import decl if that's all that is available.
+			if len(gen.Specs) == 0 && bestMatch == -1 {
+				impDecl = gen
+			}
+
+			// Compute longest shared prefix with imports in this group.
 			for j, spec := range gen.Specs {
 				impspec := spec.(*ast.ImportSpec)
 				n := matchLen(importPath(impspec), ipath)
@@ -79,49 +80,57 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 
 	// If no import decl found, add one after the last import.
 	if impDecl == nil {
-		// TODO(bradfitz): remove this hack. See comment below on
-		// addImportViaSourceModification.
-		if !hasImports {
-			f2, err := addImportViaSourceModification(fset, f, name, ipath)
-			if err == nil {
-				*f = *f2
-				return true
-			}
-			log.Printf("addImportViaSourceModification error: %v", err)
-		}
-
-		// TODO(bradfitz): fix above and resume using this old code:
 		impDecl = &ast.GenDecl{
 			Tok: token.IMPORT,
+		}
+		if lastImport >= 0 {
+			impDecl.TokPos = f.Decls[lastImport].End()
+		} else {
+			// There are no existing imports.
+			// Our new import goes after the package declaration and after
+			// the comment, if any, that starts on the same line as the
+			// package declaration.
+			impDecl.TokPos = f.Package
+
+			file := fset.File(f.Package)
+			pkgLine := file.Line(f.Package)
+			for _, c := range f.Comments {
+				if file.Line(c.Pos()) > pkgLine {
+					break
+				}
+				impDecl.TokPos = c.End()
+			}
 		}
 		f.Decls = append(f.Decls, nil)
 		copy(f.Decls[lastImport+2:], f.Decls[lastImport+1:])
 		f.Decls[lastImport+1] = impDecl
 	}
 
-	// Ensure the import decl has parentheses, if needed.
-	if len(impDecl.Specs) > 0 && !impDecl.Lparen.IsValid() {
-		impDecl.Lparen = impDecl.Pos()
-	}
-
-	insertAt := impIndex + 1
-	if insertAt == 0 {
-		insertAt = len(impDecl.Specs)
+	// Insert new import at insertAt.
+	insertAt := 0
+	if impIndex >= 0 {
+		// insert after the found import
+		insertAt = impIndex + 1
 	}
 	impDecl.Specs = append(impDecl.Specs, nil)
 	copy(impDecl.Specs[insertAt+1:], impDecl.Specs[insertAt:])
 	impDecl.Specs[insertAt] = newImport
+	pos := impDecl.Pos()
 	if insertAt > 0 {
 		// Assign same position as the previous import,
 		// so that the sorter sees it as being in the same block.
-		prev := impDecl.Specs[insertAt-1]
-		newImport.Path.ValuePos = prev.Pos()
-		newImport.EndPos = prev.Pos()
+		pos = impDecl.Specs[insertAt-1].Pos()
 	}
-	if len(impDecl.Specs) > 1 && impDecl.Lparen == 0 {
-		// set Lparen to something not zero, so the printer prints
-		// the full block rather just the first ImportSpec.
-		impDecl.Lparen = 1
+	newImport.Path.ValuePos = pos
+	newImport.EndPos = pos
+
+	// Clean up parens. impDecl contains at least one spec.
+	if len(impDecl.Specs) == 1 {
+		// Remove unneeded parens.
+		impDecl.Lparen = token.NoPos
+	} else if !impDecl.Lparen.IsValid() {
+		// impDecl needs parens added.
+		impDecl.Lparen = impDecl.Specs[0].Pos()
 	}
 
 	f.Imports = append(f.Imports, newImport)
@@ -342,30 +351,4 @@ func Imports(fset *token.FileSet, f *ast.File) [][]*ast.ImportSpec {
 	}
 
 	return groups
-}
-
-// NOTE(bradfitz): this is a bit of a hack for golang.org/issue/6884
-// because we can't get the comment positions correct. Instead of modifying
-// the AST, we print it, modify the text, and re-parse it. Gross.
-func addImportViaSourceModification(fset *token.FileSet, f *ast.File, name, ipath string) (*ast.File, error) {
-	var buf bytes.Buffer
-	if err := format.Node(&buf, fset, f); err != nil {
-		return nil, fmt.Errorf("Error formatting ast.File node: %v", err)
-	}
-	var out bytes.Buffer
-	sc := bufio.NewScanner(bytes.NewReader(buf.Bytes()))
-	didAdd := false
-	for sc.Scan() {
-		ln := sc.Text()
-		out.WriteString(ln)
-		out.WriteByte('\n')
-		if !didAdd && strings.HasPrefix(ln, "package ") {
-			fmt.Fprintf(&out, "\nimport %s %q\n\n", name, ipath)
-			didAdd = true
-		}
-	}
-	if err := sc.Err(); err != nil {
-		return nil, err
-	}
-	return parser.ParseFile(fset, "", out.Bytes(), parser.ParseComments)
 }
