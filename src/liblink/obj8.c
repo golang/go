@@ -177,6 +177,19 @@ progedit(Link *ctxt, Prog *p)
 
 	// Rewrite float constants to values stored in memory.
 	switch(p->as) {
+	case AMOVSS:
+		// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
+		if(p->from.type == D_FCONST)
+		if(p->from.u.dval == 0)
+		if(p->to.type >= D_X0)
+		if(p->to.type <= D_X7) {
+			p->as = AXORPS;
+			p->from.type = p->to.type;
+			p->from.index = p->to.index;
+			break;
+		}
+		// fallthrough
+
 	case AFMOVF:
 	case AFADDF:
 	case AFSUBF:
@@ -186,7 +199,6 @@ progedit(Link *ctxt, Prog *p)
 	case AFDIVRF:
 	case AFCOMF:
 	case AFCOMFP:
-	case AMOVSS:
 	case AADDSS:
 	case ASUBSS:
 	case AMULSS:
@@ -211,6 +223,19 @@ progedit(Link *ctxt, Prog *p)
 		}
 		break;
 
+	case AMOVSD:
+		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
+		if(p->from.type == D_FCONST)
+		if(p->from.u.dval == 0)
+		if(p->to.type >= D_X0)
+		if(p->to.type <= D_X7) {
+			p->as = AXORPS;
+			p->from.type = p->to.type;
+			p->from.index = p->to.index;
+			break;
+		}
+		// fallthrough
+
 	case AFMOVD:
 	case AFADDD:
 	case AFSUBD:
@@ -220,7 +245,6 @@ progedit(Link *ctxt, Prog *p)
 	case AFDIVRD:
 	case AFCOMD:
 	case AFCOMDP:
-	case AMOVSD:
 	case AADDSD:
 	case ASUBSD:
 	case AMULSD:
