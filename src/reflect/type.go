@@ -1809,6 +1809,7 @@ type layoutType struct {
 	argSize   uintptr // size of arguments
 	retOffset uintptr // offset of return values.
 	stack     *bitVector
+	framePool *sync.Pool
 }
 
 var layoutCache struct {
@@ -1822,7 +1823,7 @@ var layoutCache struct {
 // The returned type exists only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program.  We also fill in
 // the name for possible debugging use.
-func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stack *bitVector) {
+func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stack *bitVector, framePool *sync.Pool) {
 	if t.Kind() != Func {
 		panic("reflect: funcLayout of non-func type")
 	}
@@ -1833,13 +1834,13 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	layoutCache.RLock()
 	if x := layoutCache.m[k]; x.t != nil {
 		layoutCache.RUnlock()
-		return x.t, x.argSize, x.retOffset, x.stack
+		return x.t, x.argSize, x.retOffset, x.stack, x.framePool
 	}
 	layoutCache.RUnlock()
 	layoutCache.Lock()
 	if x := layoutCache.m[k]; x.t != nil {
 		layoutCache.Unlock()
-		return x.t, x.argSize, x.retOffset, x.stack
+		return x.t, x.argSize, x.retOffset, x.stack, x.framePool
 	}
 
 	tt := (*funcType)(unsafe.Pointer(t))
@@ -1903,14 +1904,18 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	if layoutCache.m == nil {
 		layoutCache.m = make(map[layoutKey]layoutType)
 	}
+	framePool = &sync.Pool{New: func() interface{} {
+		return unsafe_New(x)
+	}}
 	layoutCache.m[k] = layoutType{
 		t:         x,
 		argSize:   argSize,
 		retOffset: retOffset,
 		stack:     stack,
+		framePool: framePool,
 	}
 	layoutCache.Unlock()
-	return x, argSize, retOffset, stack
+	return x, argSize, retOffset, stack, framePool
 }
 
 // ifaceIndir reports whether t is stored indirectly in an interface value.
