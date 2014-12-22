@@ -61,6 +61,11 @@ func badsystemstack() {
 //go:noescape
 func memclr(ptr unsafe.Pointer, n uintptr)
 
+//go:linkname reflect_memclr reflect.memclr
+func reflect_memclr(ptr unsafe.Pointer, n uintptr) {
+	memclr(ptr, n)
+}
+
 // memmove copies n bytes from "from" to "to".
 // in memmove_*.s
 //go:noescape
