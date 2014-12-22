@@ -150,10 +150,10 @@ func evacuated(b *bmap) bool {
 }
 
 func (b *bmap) overflow(t *maptype) *bmap {
-	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-ptrSize))
+	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize))
 }
 func (b *bmap) setoverflow(t *maptype, ovf *bmap) {
-	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-ptrSize)) = ovf
+	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize)) = ovf
 }
 
 func makemap(t *maptype, hint int64) *hmap {
