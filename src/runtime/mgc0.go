@@ -22,18 +22,20 @@ func gc_itab_ptr(ret *interface{}) {
 }
 
 func gc_unixnanotime(now *int64) {
-	sec, nsec := timenow()
+	sec, nsec := time_now()
 	*now = sec*1e9 + int64(nsec)
 }
 
-func freeOSMemory() {
+//go:linkname runtime_debug_freeOSMemory runtime/debug.freeOSMemory
+func runtime_debug_freeOSMemory() {
 	gogc(2) // force GC and do eager sweep
 	systemstack(scavenge_m)
 }
 
 var poolcleanup func()
 
-func registerPoolCleanup(f func()) {
+//go:linkname sync_runtime_registerPoolCleanup sync.runtime_registerPoolCleanup
+func sync_runtime_registerPoolCleanup(f func()) {
 	poolcleanup = f
 }
 

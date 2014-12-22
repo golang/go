@@ -386,6 +386,7 @@ func assertE2I2(inter *interfacetype, e interface{}) (r fInterface, ok bool) {
 	return
 }
 
+//go:linkname reflect_ifaceE2I reflect.ifaceE2I
 func reflect_ifaceE2I(inter *interfacetype, e interface{}, dst *fInterface) {
 	*dst = assertE2I(inter, e)
 }

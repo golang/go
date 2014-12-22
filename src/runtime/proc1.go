@@ -1884,8 +1884,9 @@ func beforefork() {
 }
 
 // Called from syscall package before fork.
+//go:linkname syscall_runtime_BeforeFork syscall.runtime_BeforeFork
 //go:nosplit
-func syscall_BeforeFork() {
+func syscall_runtime_BeforeFork() {
 	systemstack(beforefork)
 }
 
@@ -1903,8 +1904,9 @@ func afterfork() {
 }
 
 // Called from syscall package after fork in parent.
+//go:linkname syscall_runtime_AfterFork syscall.runtime_AfterFork
 //go:nosplit
-func syscall_AfterFork() {
+func syscall_runtime_AfterFork() {
 	systemstack(afterfork)
 }
 
@@ -3196,7 +3198,7 @@ func haveexperiment(name string) bool {
 }
 
 //go:nosplit
-func sync_procPin() int {
+func procPin() int {
 	_g_ := getg()
 	mp := _g_.m
 
@@ -3205,7 +3207,31 @@ func sync_procPin() int {
 }
 
 //go:nosplit
-func sync_procUnpin() {
+func procUnpin() {
 	_g_ := getg()
 	_g_.m.locks--
+}
+
+//go:linkname sync_runtime_procPin sync.runtime_procPin
+//go:nosplit
+func sync_runtime_procPin() int {
+	return procPin()
+}
+
+//go:linkname sync_runtime_procUnpin sync.runtime_procUnpin
+//go:nosplit
+func sync_runtime_procUnpin() {
+	procUnpin()
+}
+
+//go:linkname sync_atomic_runtime_procPin sync/atomic.runtime_procPin
+//go:nosplit
+func sync_atomic_runtime_procPin() int {
+	return procPin()
+}
+
+//go:linkname sync_atomic_runtime_procUnpin sync/atomic.runtime_procUnpin
+//go:nosplit
+func sync_atomic_runtime_procUnpin() {
+	procUnpin()
 }

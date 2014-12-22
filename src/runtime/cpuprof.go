@@ -421,3 +421,8 @@ func uintptrBytes(p []uintptr) (ret []byte) {
 func CPUProfile() []byte {
 	return cpuprof.getprofile()
 }
+
+//go:linkname runtime_pprof_runtime_cyclesPerSecond runtime/pprof.runtime_cyclesPerSecond
+func runtime_pprof_runtime_cyclesPerSecond() int64 {
+	return tickspersecond()
+}

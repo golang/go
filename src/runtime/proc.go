@@ -6,8 +6,13 @@ package runtime
 
 import "unsafe"
 
+//go:linkname runtime_init runtime.init
 func runtime_init()
+
+//go:linkname main_init main.init
 func main_init()
+
+//go:linkname main_main main.main
 func main_main()
 
 // The main goroutine.

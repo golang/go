@@ -387,6 +387,11 @@ func newobject(typ *_type) unsafe.Pointer {
 	return mallocgc(uintptr(typ.size), typ, flags)
 }
 
+//go:linkname reflect_unsafe_New reflect.unsafe_New
+func reflect_unsafe_New(typ *_type) unsafe.Pointer {
+	return newobject(typ)
+}
+
 // implementation of make builtin for slices
 func newarray(typ *_type, n uintptr) unsafe.Pointer {
 	flags := uint32(0)
@@ -397,6 +402,11 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
 		panic("runtime: allocation size out of range")
 	}
 	return mallocgc(uintptr(typ.size)*n, typ, flags)
+}
+
+//go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray
+func reflect_unsafe_NewArray(typ *_type, n uintptr) unsafe.Pointer {
+	return newarray(typ, n)
 }
 
 // rawmem returns a chunk of pointerless memory.  It is
