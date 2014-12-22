@@ -519,7 +519,7 @@ func (g *Generator) createIndexAndNameDecl(run []Value, typeName string, suffix 
 	nameConst := fmt.Sprintf("_%s_name%s = %q", typeName, suffix, b.String())
 	nameLen := b.Len()
 	b.Reset()
-	fmt.Fprintf(b, "_%s_index%s = [...]uint%d{", typeName, suffix, usize(nameLen))
+	fmt.Fprintf(b, "_%s_index%s = [...]uint%d{0, ", typeName, suffix, usize(nameLen))
 	for i, v := range indexes {
 		if i > 0 {
 			fmt.Fprintf(b, ", ")
@@ -563,15 +563,10 @@ func (g *Generator) buildOneRun(runs [][]Value, typeName string) {
 //	[2]: size of index element (8 for uint8 etc.)
 //	[3]: less than zero check (for signed types)
 const stringOneRun = `func (i %[1]s) String() string {
-	if %[3]si >= %[1]s(len(_%[1]s_index)) {
+	if %[3]si+1 >= %[1]s(len(_%[1]s_index)) {
 		return fmt.Sprintf("%[1]s(%%d)", i)
 	}
-	hi := _%[1]s_index[i]
-	lo := uint%[2]d(0)
-	if i > 0 {
-		lo = _%[1]s_index[i-1]
-	}
-	return _%[1]s_name[lo:hi]
+	return _%[1]s_name[_%[1]s_index[i]:_%[1]s_index[i+1]]
 }
 `
 
@@ -584,15 +579,10 @@ const stringOneRun = `func (i %[1]s) String() string {
  */
 const stringOneRunWithOffset = `func (i %[1]s) String() string {
 	i -= %[2]s
-	if %[4]si >= %[1]s(len(_%[1]s_index)) {
+	if %[4]si+1 >= %[1]s(len(_%[1]s_index)) {
 		return fmt.Sprintf("%[1]s(%%d)", i + %[2]s)
 	}
-	hi := _%[1]s_index[i]
-	lo := uint%[3]d(0)
-	if i > 0 {
-		lo = _%[1]s_index[i-1]
-	}
-	return _%[1]s_name[lo : hi]
+	return _%[1]s_name[_%[1]s_index[i] : _%[1]s_index[i+1]]
 }
 `
 
@@ -613,11 +603,8 @@ func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string) {
 		if values[0].value != 0 {
 			g.Printf("\t\ti -= %s\n", &values[0])
 		}
-		g.Printf("\t\tlo := uint%d(0)\n", usize(len(values)))
-		g.Printf("\t\tif i > 0 {\n")
-		g.Printf("\t\t\tlo = _%s_index_%d[i-1]\n", typeName, i)
-		g.Printf("\t\t}\n")
-		g.Printf("\t\treturn _%s_name_%d[lo:_%s_index_%d[i]]\n", typeName, i, typeName, i)
+		g.Printf("\t\treturn _%s_name_%d[_%s_index_%d[i]:_%s_index_%d[i+1]]\n",
+			typeName, i, typeName, i, typeName, i)
 	}
 	g.Printf("\tdefault:\n")
 	g.Printf("\t\treturn fmt.Sprintf(\"%s(%%d)\", i)\n", typeName)

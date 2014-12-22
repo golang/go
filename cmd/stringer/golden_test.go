@@ -48,18 +48,13 @@ const (
 const day_out = `
 const _Day_name = "MondayTuesdayWednesdayThursdayFridaySaturdaySunday"
 
-var _Day_index = [...]uint8{6, 13, 22, 30, 36, 44, 50}
+var _Day_index = [...]uint8{0, 6, 13, 22, 30, 36, 44, 50}
 
 func (i Day) String() string {
-	if i < 0 || i >= Day(len(_Day_index)) {
+	if i < 0 || i+1 >= Day(len(_Day_index)) {
 		return fmt.Sprintf("Day(%d)", i)
 	}
-	hi := _Day_index[i]
-	lo := uint8(0)
-	if i > 0 {
-		lo = _Day_index[i-1]
-	}
-	return _Day_name[lo:hi]
+	return _Day_name[_Day_index[i]:_Day_index[i+1]]
 }
 `
 
@@ -78,19 +73,14 @@ const (
 const offset_out = `
 const _Number_name = "OneTwoThree"
 
-var _Number_index = [...]uint8{3, 6, 11}
+var _Number_index = [...]uint8{0, 3, 6, 11}
 
 func (i Number) String() string {
 	i -= 1
-	if i < 0 || i >= Number(len(_Number_index)) {
+	if i < 0 || i+1 >= Number(len(_Number_index)) {
 		return fmt.Sprintf("Number(%d)", i+1)
 	}
-	hi := _Number_index[i]
-	lo := uint8(0)
-	if i > 0 {
-		lo = _Number_index[i-1]
-	}
-	return _Number_name[lo:hi]
+	return _Number_name[_Number_index[i]:_Number_index[i+1]]
 }
 `
 
@@ -116,27 +106,19 @@ const (
 )
 
 var (
-	_Gap_index_0 = [...]uint8{3, 8}
-	_Gap_index_1 = [...]uint8{4, 7, 12, 17, 21}
-	_Gap_index_2 = [...]uint8{6}
+	_Gap_index_0 = [...]uint8{0, 3, 8}
+	_Gap_index_1 = [...]uint8{0, 4, 7, 12, 17, 21}
+	_Gap_index_2 = [...]uint8{0, 6}
 )
 
 func (i Gap) String() string {
 	switch {
 	case 2 <= i && i <= 3:
 		i -= 2
-		lo := uint8(0)
-		if i > 0 {
-			lo = _Gap_index_0[i-1]
-		}
-		return _Gap_name_0[lo:_Gap_index_0[i]]
+		return _Gap_name_0[_Gap_index_0[i]:_Gap_index_0[i+1]]
 	case 5 <= i && i <= 9:
 		i -= 5
-		lo := uint8(0)
-		if i > 0 {
-			lo = _Gap_index_1[i-1]
-		}
-		return _Gap_name_1[lo:_Gap_index_1[i]]
+		return _Gap_name_1[_Gap_index_1[i]:_Gap_index_1[i+1]]
 	case i == 11:
 		return _Gap_name_2
 	default:
@@ -159,19 +141,14 @@ const (
 const num_out = `
 const _Num_name = "m_2m_1m0m1m2"
 
-var _Num_index = [...]uint8{3, 6, 8, 10, 12}
+var _Num_index = [...]uint8{0, 3, 6, 8, 10, 12}
 
 func (i Num) String() string {
 	i -= -2
-	if i < 0 || i >= Num(len(_Num_index)) {
+	if i < 0 || i+1 >= Num(len(_Num_index)) {
 		return fmt.Sprintf("Num(%d)", i+-2)
 	}
-	hi := _Num_index[i]
-	lo := uint8(0)
-	if i > 0 {
-		lo = _Num_index[i-1]
-	}
-	return _Num_name[lo:hi]
+	return _Num_name[_Num_index[i]:_Num_index[i+1]]
 }
 `
 
@@ -196,25 +173,17 @@ const (
 )
 
 var (
-	_Unum_index_0 = [...]uint8{2, 4, 6}
-	_Unum_index_1 = [...]uint8{3, 6}
+	_Unum_index_0 = [...]uint8{0, 2, 4, 6}
+	_Unum_index_1 = [...]uint8{0, 3, 6}
 )
 
 func (i Unum) String() string {
 	switch {
 	case 0 <= i && i <= 2:
-		lo := uint8(0)
-		if i > 0 {
-			lo = _Unum_index_0[i-1]
-		}
-		return _Unum_name_0[lo:_Unum_index_0[i]]
+		return _Unum_name_0[_Unum_index_0[i]:_Unum_index_0[i+1]]
 	case 253 <= i && i <= 254:
 		i -= 253
-		lo := uint8(0)
-		if i > 0 {
-			lo = _Unum_index_1[i-1]
-		}
-		return _Unum_name_1[lo:_Unum_index_1[i]]
+		return _Unum_name_1[_Unum_index_1[i]:_Unum_index_1[i+1]]
 	default:
 		return fmt.Sprintf("Unum(%d)", i)
 	}
