@@ -92,7 +92,12 @@ func file(s ...string) string {
 // It tries to re-use a go.tools checkout from a previous run if possible,
 // else it hg clones it.
 func prepGoPath() string {
-	const tempBase = "go.tools.TMP"
+	// Use a builder-specific temp directory name, so builders running
+	// two copies don't trample on each other: https://golang.org/issue/9407
+	// We don't use io.TempDir or a PID or timestamp here because we do
+	// want this to be stable between runs, to minimize "git clone" calls
+	// in the common case.
+	var tempBase = fmt.Sprintf("go.tools.TMP.%s.%s", runtime.GOOS, runtime.GOARCH)
 
 	username := ""
 	u, err := user.Current()
