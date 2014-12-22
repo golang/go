@@ -105,24 +105,39 @@ const (
 )
 
 func needwb() bool {
-	return gcphase == _GCmark || gcphase == _GCmarktermination
+	return gcphase == _GCmark || gcphase == _GCmarktermination || mheap_.shadow_enabled
+}
+
+// shadowptr returns a pointer to the shadow value for addr.
+//go:nosplit
+func shadowptr(addr uintptr) *uintptr {
+	var shadow *uintptr
+	if mheap_.data_start <= addr && addr < mheap_.data_end {
+		shadow = (*uintptr)(unsafe.Pointer(addr + mheap_.shadow_data))
+	} else if inheap(addr) {
+		shadow = (*uintptr)(unsafe.Pointer(addr + mheap_.shadow_heap))
+	}
+	return shadow
+}
+
+// clearshadow clears the shadow copy associated with the n bytes of memory at addr.
+func clearshadow(addr, n uintptr) {
+	if !mheap_.shadow_enabled {
+		return
+	}
+	p := shadowptr(addr)
+	if p == nil || n <= ptrSize {
+		return
+	}
+	memclr(unsafe.Pointer(p), n)
 }
 
 // NOTE: Really dst *unsafe.Pointer, src unsafe.Pointer,
 // but if we do that, Go inserts a write barrier on *dst = src.
 //go:nosplit
 func writebarrierptr(dst *uintptr, src uintptr) {
-	*dst = src
-	if needwb() {
-		writebarrierptr_nostore(dst, src)
-	}
-}
-
-// Like writebarrierptr, but the store has already been applied.
-// Do not reapply.
-//go:nosplit
-func writebarrierptr_nostore(dst *uintptr, src uintptr) {
-	if getg() == nil || !needwb() { // very low-level startup
+	if !needwb() {
+		*dst = src
 		return
 	}
 
@@ -130,6 +145,110 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 		systemstack(func() { throw("bad pointer in write barrier") })
 	}
 
+	if mheap_.shadow_enabled {
+		systemstack(func() {
+			addr := uintptr(unsafe.Pointer(dst))
+			shadow := shadowptr(addr)
+			if shadow == nil {
+				return
+			}
+			// There is a race here but only if the program is using
+			// racy writes instead of sync/atomic. In that case we
+			// don't mind crashing.
+			if *shadow != *dst && *shadow != noShadow && istrackedptr(*dst) {
+				mheap_.shadow_enabled = false
+				print("runtime: write barrier dst=", dst, " old=", hex(*dst), " shadow=", shadow, " old=", hex(*shadow), " new=", hex(src), "\n")
+				throw("missed write barrier")
+			}
+			*shadow = src
+		})
+	}
+
+	*dst = src
+	writebarrierptr_nostore1(dst, src)
+}
+
+// istrackedptr reports whether the pointer value p requires a write barrier
+// when stored into the heap.
+func istrackedptr(p uintptr) bool {
+	return inheap(p)
+}
+
+// checkwbshadow checks that p matches its shadow word.
+// The garbage collector calls checkwbshadow for each pointer during the checkmark phase.
+// It is only called when mheap_.shadow_enabled is true.
+func checkwbshadow(p *uintptr) {
+	addr := uintptr(unsafe.Pointer(p))
+	shadow := shadowptr(addr)
+	if shadow == nil {
+		return
+	}
+	// There is no race on the accesses here, because the world is stopped,
+	// but there may be racy writes that lead to the shadow and the
+	// heap being inconsistent. If so, we will detect that here as a
+	// missed write barrier and crash. We don't mind.
+	// Code should use sync/atomic instead of racy pointer writes.
+	if *shadow != *p && *shadow != noShadow && istrackedptr(*p) {
+		mheap_.shadow_enabled = false
+		print("runtime: checkwritebarrier p=", p, " *p=", hex(*p), " shadow=", shadow, " *shadow=", hex(*shadow), "\n")
+		throw("missed write barrier")
+	}
+}
+
+// noShadow is stored in as the shadow pointer to mark that there is no
+// shadow word recorded. It matches any actual pointer word.
+// noShadow is used when it is impossible to know the right word
+// to store in the shadow heap, such as when the real heap word
+// is being manipulated atomically.
+const noShadow uintptr = 1
+
+// writebarrierptr_noshadow records that the value in *dst
+// has been written to using an atomic operation and the shadow
+// has not been updated. (In general if dst must be manipulated
+// atomically we cannot get the right bits for use in the shadow.)
+//go:nosplit
+func writebarrierptr_noshadow(dst *uintptr) {
+	addr := uintptr(unsafe.Pointer(dst))
+	shadow := shadowptr(addr)
+	if shadow == nil {
+		return
+	}
+
+	*shadow = noShadow
+}
+
+// Like writebarrierptr, but the store has already been applied.
+// Do not reapply.
+//go:nosplit
+func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+	if !needwb() {
+		return
+	}
+
+	if src != 0 && (src < _PageSize || src == _PoisonGC || src == _PoisonStack) {
+		systemstack(func() { throw("bad pointer in write barrier") })
+	}
+
+	// Apply changes to shadow.
+	// Since *dst has been overwritten already, we cannot check
+	// whether there were any missed updates, but writebarrierptr_nostore
+	// is only rarely used (right now there is just one call, in newstack).
+	if mheap_.shadow_enabled {
+		systemstack(func() {
+			addr := uintptr(unsafe.Pointer(dst))
+			shadow := shadowptr(addr)
+			if shadow == nil {
+				return
+			}
+			*shadow = src
+		})
+	}
+
+	writebarrierptr_nostore1(dst, src)
+}
+
+//go:nosplit
+func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 	mp := acquirem()
 	if mp.inwb || mp.dying > 0 {
 		releasem(mp)
