@@ -688,7 +688,11 @@ Found:
 			p.Name = pkg
 			firstFile = name
 		} else if pkg != p.Name {
-			return p, &MultiplePackageError{p.Dir, []string{firstFile, name}, []string{p.Name, pkg}}
+			return p, &MultiplePackageError{
+				Dir:      p.Dir,
+				Packages: []string{p.Name, pkg},
+				Files:    []string{firstFile, name},
+			}
 		}
 		if pf.Doc != nil && p.Doc == "" {
 			p.Doc = doc.Synopsis(pf.Doc.Text())
