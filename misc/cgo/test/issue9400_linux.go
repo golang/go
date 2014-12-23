@@ -52,7 +52,7 @@ func test9400(t *testing.T) {
 	// Check test pattern
 	for i := range big {
 		if big[i] != pattern {
-			t.Fatalf("entry %d of test pattern is wrong; %#x != %#x", i, big[i], pattern)
+			t.Fatalf("entry %d of test pattern is wrong; %#x != %#x", i, big[i], uint64(pattern))
 		}
 	}
 }
