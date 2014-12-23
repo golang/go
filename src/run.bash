@@ -47,8 +47,12 @@ fi
 # at least runtime/debug test will fail.
 unset GOROOT_FINAL
 
-# increase timeout for ARM up to 3 times the normal value
+# TODO(adg): create an environment variable and to permit the builders to
+# specify the timeout scale.
 timeout_scale=1
+# the freebsd-* builders are slow, and there's no easy way to make them faster.
+[ "$GOOS" == "freebsd" ] && timeout_scale=2
+# increase timeout for ARM up to 3 times the normal value
 [ "$GOARCH" == "arm" ] && timeout_scale=3
 
 echo '##### Testing packages.'
