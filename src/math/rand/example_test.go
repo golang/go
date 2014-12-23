@@ -72,7 +72,7 @@ func Example_rand() {
 	// depending on the size of 'int'.
 	show("Int31", r.Int31(), r.Int31(), r.Int31())
 	show("Int63", r.Int63(), r.Int63(), r.Int63())
-	show("Uint32", r.Int63(), r.Int63(), r.Int63())
+	show("Uint32", r.Uint32(), r.Uint32(), r.Uint32())
 
 	// Intn, Int31n, and Int63n limit their output to be < n.
 	// They do so more carefully than using r.Int()%n.
@@ -89,7 +89,7 @@ func Example_rand() {
 	// NormFloat64 0.17233959114940064 1.577014951434847   0.04259129641113857
 	// Int31       1501292890          1486668269          182840835
 	// Int63       3546343826724305832 5724354148158589552 5239846799706671610
-	// Uint32      5927547564735367388 637072299495207830  4128311955958246186
+	// Uint32      2760229429          296659907           1922395059
 	// Intn(10)    1                   2                   5
 	// Int31n(10)  4                   7                   8
 	// Int63n(10)  7                   6                   3
