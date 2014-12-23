@@ -128,6 +128,11 @@ dowidth(Type *t)
 		return;
 	}
 
+	// break infinite recursion if the broken recursive type
+	// is referenced again
+	if(t->broke && t->width == 0)
+		return;
+
 	// defer checkwidth calls until after we're done
 	defercalc++;
 
