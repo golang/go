@@ -182,7 +182,7 @@ func exit(e int) {
 	} else {
 		// build error string
 		var tmp [32]byte
-		status = []byte(gostringnocopy(&itoa(tmp[:], uint64(e))[0]) + "\x00")
+		status = []byte(gostringnocopy(&itoa(tmp[:len(tmp)-1], uint64(e))[0]))
 	}
 	goexitsall(&status[0])
 	exits(&status[0])
