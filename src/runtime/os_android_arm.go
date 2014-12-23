@@ -4,7 +4,7 @@
 
 package runtime
 
-import _ "unsafe"
+import _ "unsafe" // for go:cgo_export_static and go:cgo_export_dynamic
 
 // Export the runtime entry point symbol.
 //

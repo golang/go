@@ -9,7 +9,7 @@
 
 package runtime
 
-import _ "unsafe"
+import _ "unsafe" // for go:linkname
 
 func cmpstring(s1, s2 string) int {
 	l := len(s1)

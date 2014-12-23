@@ -4,7 +4,7 @@
 
 package runtime
 
-import _ "unsafe"
+import _ "unsafe" // for go:linkname
 
 type stdFunction *byte
 
