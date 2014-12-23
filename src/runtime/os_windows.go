@@ -4,6 +4,8 @@
 
 package runtime
 
+import _ "unsafe"
+
 type stdFunction *byte
 
 //go:linkname os_sigpipe os.sigpipe
