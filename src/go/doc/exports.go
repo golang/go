@@ -26,6 +26,17 @@ func filterIdentList(list []*ast.Ident, blankOk bool) []*ast.Ident {
 	return list[0:j]
 }
 
+// hasExportedOrBlankName reports whether list contains any exported or blank names.
+//
+func hasExportedOrBlankName(list []*ast.Ident) bool {
+	for _, x := range list {
+		if x.IsExported() || x.Name == "_" {
+			return true
+		}
+	}
+	return false
+}
+
 // removeErrorField removes anonymous fields named "error" from an interface.
 // This is called when "error" has been determined to be a local name,
 // not the predeclared type.
@@ -165,7 +176,47 @@ func (r *reader) filterSpec(spec ast.Spec, tok token.Token) bool {
 	return false
 }
 
+// copyConstType returns a copy of typ with position pos.
+// typ must be a valid constant type.
+// In practice, only (possibly qualified) identifiers are possible.
+//
+func copyConstType(typ ast.Expr, pos token.Pos) ast.Expr {
+	switch typ := typ.(type) {
+	case *ast.Ident:
+		return &ast.Ident{Name: typ.Name, NamePos: pos}
+	case *ast.SelectorExpr:
+		if id, ok := typ.X.(*ast.Ident); ok {
+			// presumably a qualified identifier
+			return &ast.SelectorExpr{
+				Sel: ast.NewIdent(typ.Sel.Name),
+				X:   &ast.Ident{Name: id.Name, NamePos: pos},
+			}
+		}
+	}
+	return nil // shouldn't happen, but be conservative and don't panic
+}
+
 func (r *reader) filterSpecList(list []ast.Spec, tok token.Token) []ast.Spec {
+	if tok == token.CONST {
+		// Propagate any type information that would get lost otherwise
+		// when unexported constants are filtered.
+		var prevType ast.Expr
+		for _, spec := range list {
+			spec := spec.(*ast.ValueSpec)
+			if spec.Type == nil && prevType != nil {
+				// provide current spec with an explicit type
+				spec.Type = copyConstType(prevType, spec.Pos())
+			}
+			if hasExportedOrBlankName(spec.Names) {
+				// both exported and blank names are preserved
+				// so there's no need to propagate the type
+				prevType = nil
+			} else {
+				prevType = spec.Type
+			}
+		}
+	}
+
 	j := 0
 	for _, s := range list {
 		if r.filterSpec(s, tok) {
