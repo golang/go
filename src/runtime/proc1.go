@@ -908,7 +908,7 @@ func newextram() {
 	gp.sched.sp = gp.stack.hi
 	gp.sched.sp -= 4 * regSize // extra space in case of reads slightly beyond frame
 	gp.sched.lr = 0
-	gp.sched.g = gp
+	gp.sched.g = guintptr(unsafe.Pointer(gp))
 	gp.syscallpc = gp.sched.pc
 	gp.syscallsp = gp.sched.sp
 	// malg returns status as Gidle, change to Gsyscall before adding to allg
@@ -1580,8 +1580,7 @@ func save(pc, sp uintptr) {
 	_g_.sched.lr = 0
 	_g_.sched.ret = 0
 	_g_.sched.ctxt = nil
-	// _g_.sched.g = _g_, but avoid write barrier, which smashes _g_.sched
-	*(*uintptr)(unsafe.Pointer(&_g_.sched.g)) = uintptr(unsafe.Pointer(_g_))
+	_g_.sched.g = guintptr(unsafe.Pointer(_g_))
 }
 
 // The goroutine g is about to enter a system call.
@@ -1984,7 +1983,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 	memclr(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
 	newg.sched.sp = sp
 	newg.sched.pc = funcPC(goexit) + _PCQuantum // +PCQuantum so that previous instruction is in same function
-	newg.sched.g = newg
+	newg.sched.g = guintptr(unsafe.Pointer(newg))
 	gostartcallfn(&newg.sched, fn)
 	newg.gopc = callerpc
 	casgstatus(newg, _Gdead, _Grunnable)
