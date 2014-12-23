@@ -44,3 +44,13 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 	ptrs = ft.kind&kindNoPointers == 0
 	return
 }
+
+func TypeLinks() []string {
+	var r []string
+	for _, m := range typelinks() {
+		for _, t := range m {
+			r = append(r, *t.string)
+		}
+	}
+	return r
+}

@@ -1396,6 +1396,14 @@ func cachePut(k cacheKey, t *rtype) Type {
 	return t
 }
 
+// The funcLookupCache caches FuncOf lookups.
+// FuncOf does not share the common lookupCache since cacheKey is not
+// sufficient to represent functions unambiguously.
+var funcLookupCache struct {
+	sync.RWMutex
+	m map[uint32][]*rtype // keyed by hash calculated in FuncOf
+}
+
 // ChanOf returns the channel type with the given direction and element type.
 // For example, if t represents int, ChanOf(RecvDir, t) represents <-chan int.
 //
@@ -1514,6 +1522,120 @@ func MapOf(key, elem Type) Type {
 	mt.zero = unsafe.Pointer(&make([]byte, mt.size)[0])
 
 	return cachePut(ckey, &mt.rtype)
+}
+
+// FuncOf returns the function type with the given argument and result types.
+// For example if k represents int and e represents string,
+// FuncOf([]Type{k}, []Type{e}, false) represents func(int) string.
+//
+// The variadic argument controls whether the function is variadic. FuncOf
+// panics if the in[len(in)-1] does not represent a slice and variadic is
+// true.
+func FuncOf(in, out []Type, variadic bool) Type {
+	if variadic && (len(in) == 0 || in[len(in)-1].Kind() != Slice) {
+		panic("reflect.FuncOf: last arg of variadic func must be slice")
+	}
+
+	// Make a func type.
+	var ifunc interface{} = (func())(nil)
+	prototype := *(**funcType)(unsafe.Pointer(&ifunc))
+	ft := new(funcType)
+	*ft = *prototype
+
+	// Build a hash and minimally populate ft.
+	var hash uint32
+	var fin, fout []*rtype
+	for _, in := range in {
+		t := in.(*rtype)
+		fin = append(fin, t)
+		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
+	}
+	if variadic {
+		hash = fnv1(hash, 'v')
+	}
+	hash = fnv1(hash, '.')
+	for _, out := range out {
+		t := out.(*rtype)
+		fout = append(fout, t)
+		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
+	}
+	ft.hash = hash
+	ft.in = fin
+	ft.out = fout
+	ft.dotdotdot = variadic
+
+	// Look in cache.
+	funcLookupCache.RLock()
+	for _, t := range funcLookupCache.m[hash] {
+		if haveIdenticalUnderlyingType(&ft.rtype, t) {
+			funcLookupCache.RUnlock()
+			return t
+		}
+	}
+	funcLookupCache.RUnlock()
+
+	// Not in cache, lock and retry.
+	funcLookupCache.Lock()
+	defer funcLookupCache.Unlock()
+	if funcLookupCache.m == nil {
+		funcLookupCache.m = make(map[uint32][]*rtype)
+	}
+	for _, t := range funcLookupCache.m[hash] {
+		if haveIdenticalUnderlyingType(&ft.rtype, t) {
+			return t
+		}
+	}
+
+	// Look in known types for the same string representation.
+	str := funcStr(ft)
+	for _, tt := range typesByString(str) {
+		if haveIdenticalUnderlyingType(&ft.rtype, tt) {
+			funcLookupCache.m[hash] = append(funcLookupCache.m[hash], tt)
+			return tt
+		}
+	}
+
+	// Populate the remaining fields of ft and store in cache.
+	ft.string = &str
+	ft.uncommonType = nil
+	ft.ptrToThis = nil
+	ft.zero = unsafe.Pointer(&make([]byte, ft.size)[0])
+	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
+
+	return ft
+}
+
+// funcStr builds a string representation of a funcType.
+func funcStr(ft *funcType) string {
+	repr := make([]byte, 0, 64)
+	repr = append(repr, "func("...)
+	for i, t := range ft.in {
+		if i > 0 {
+			repr = append(repr, ", "...)
+		}
+		if ft.dotdotdot && i == len(ft.in)-1 {
+			repr = append(repr, "..."...)
+			repr = append(repr, *(*sliceType)(unsafe.Pointer(t)).elem.string...)
+		} else {
+			repr = append(repr, *t.string...)
+		}
+	}
+	repr = append(repr, ')')
+	if l := len(ft.out); l == 1 {
+		repr = append(repr, ' ')
+	} else if l > 1 {
+		repr = append(repr, " ("...)
+	}
+	for i, t := range ft.out {
+		if i > 0 {
+			repr = append(repr, ", "...)
+		}
+		repr = append(repr, *t.string...)
+	}
+	if len(ft.out) > 1 {
+		repr = append(repr, ')')
+	}
+	return string(repr)
 }
 
 // isReflexive reports whether the == operation on the type is reflexive.

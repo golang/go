@@ -852,10 +852,11 @@ func typelinksym(t *Type) *Sym {
 	// %-T is the complete, unambiguous type name.
 	// We want the types to end up sorted by string field,
 	// so use that first in the name, and then add :%-T to
-	// disambiguate. The names are a little long but they are
-	// discarded by the linker and do not end up in the symbol
-	// table of the final binary.
-	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned) + "/" + Tconv(t, obj.FmtLeft)
+	// disambiguate. We use a tab character as the separator to
+	// ensure the types appear sorted by their string field. The
+	// names are a little long but they are discarded by the linker
+	// and do not end up in the symbol table of the final binary.
+	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned) + "\t" + Tconv(t, obj.FmtLeft)
 
 	s := Pkglookup(p, typelinkpkg)
 
@@ -1212,7 +1213,7 @@ ok:
 	// we want be able to find.
 	if t.Sym == nil {
 		switch t.Etype {
-		case TARRAY, TCHAN, TMAP:
+		case TARRAY, TCHAN, TFUNC, TMAP:
 			slink := typelinksym(t)
 			dsymptr(slink, 0, s, 0)
 			ggloblsym(slink, int32(Widthptr), int8(dupok|obj.RODATA))
