@@ -4085,8 +4085,10 @@ var funcLayoutTests []funcLayoutTest
 
 func init() {
 	var argAlign = PtrSize
+	var naclExtra []byte
 	if runtime.GOARCH == "amd64p32" {
 		argAlign = 2 * PtrSize
+		naclExtra = append(naclExtra, BitsScalar)
 	}
 	roundup := func(x uintptr, a uintptr) uintptr {
 		return (x + a - 1) / a * a
@@ -4106,7 +4108,7 @@ func init() {
 	var r, s []byte
 	if PtrSize == 4 {
 		r = []byte{BitsScalar, BitsScalar, BitsScalar, BitsPointer}
-		s = []byte{BitsScalar, BitsScalar, BitsScalar, BitsPointer, BitsScalar}
+		s = append([]byte{BitsScalar, BitsScalar, BitsScalar, BitsPointer, BitsScalar}, naclExtra...)
 	} else {
 		r = []byte{BitsScalar, BitsScalar, BitsPointer}
 		s = []byte{BitsScalar, BitsScalar, BitsPointer, BitsScalar}
@@ -4156,24 +4158,24 @@ func init() {
 			3 * PtrSize,
 			roundup(3*PtrSize, argAlign),
 			[]byte{BitsPointer, BitsScalar, BitsPointer},
-			[]byte{BitsPointer, BitsScalar, BitsPointer},
+			append([]byte{BitsPointer, BitsScalar, BitsPointer}, naclExtra...),
 		})
 
 	funcLayoutTests = append(funcLayoutTests,
 		funcLayoutTest{
 			nil,
-			ValueOf(func(a uintptr){}).Type(),
+			ValueOf(func(a uintptr) {}).Type(),
+			roundup(PtrSize, argAlign),
 			PtrSize,
-			PtrSize,
-			PtrSize,
+			roundup(PtrSize, argAlign),
 			[]byte{},
-			[]byte{BitsScalar},
+			append([]byte{BitsScalar}, naclExtra...),
 		})
 
 	funcLayoutTests = append(funcLayoutTests,
 		funcLayoutTest{
 			nil,
-			ValueOf(func() uintptr{return 0}).Type(),
+			ValueOf(func() uintptr { return 0 }).Type(),
 			PtrSize,
 			0,
 			0,
@@ -4184,10 +4186,10 @@ func init() {
 	funcLayoutTests = append(funcLayoutTests,
 		funcLayoutTest{
 			ValueOf(uintptr(0)).Type(),
-			ValueOf(func(a uintptr){}).Type(),
-			2*PtrSize,
-			2*PtrSize,
-			2*PtrSize,
+			ValueOf(func(a uintptr) {}).Type(),
+			2 * PtrSize,
+			2 * PtrSize,
+			2 * PtrSize,
 			[]byte{BitsPointer},
 			[]byte{BitsPointer, BitsScalar},
 			// Note: this one is tricky, as the receiver is not a pointer.  But we
