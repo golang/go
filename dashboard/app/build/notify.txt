@@ -3,7 +3,7 @@ http://{{.Hostname}}/log/{{.LogHash}}
 
 {{.Commit.Desc}}
 
-http://code.google.com/p/go/source/detail?r={{shortHash .Commit.Hash}}
+https://golang.org/change/{{shortHash .Commit.Hash}}
 
 $ tail -200 < log
 {{printf "%s" .LogText | tail 200}}
