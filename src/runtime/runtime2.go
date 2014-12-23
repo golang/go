@@ -93,11 +93,35 @@ type slice struct {
 	cap   uint  // allocated number of elements
 }
 
+// A guintptr holds a goroutine pointer, but typed as a uintptr
+// to bypass write barriers. It is used in the Gobuf goroutine state.
+//
+// The Gobuf.g goroutine pointer is almost always updated by assembly code.
+// In one of the few places it is updated by Go code - func save - it must be
+// treated as a uintptr to avoid a write barrier being emitted at a bad time.
+// Instead of figuring out how to emit the write barriers missing in the
+// assembly manipulation, we change the type of the field to uintptr,
+// so that it does not require write barriers at all.
+//
+// Goroutine structs are published in the allg list and never freed.
+// That will keep the goroutine structs from being collected.
+// There is never a time that Gobuf.g's contain the only references
+// to a goroutine: the publishing of the goroutine in allg comes first.
+// Goroutine pointers are also kept in non-GC-visible places like TLS,
+// so I can't see them ever moving. If we did want to start moving data
+// in the GC, we'd need to allocate the goroutine structs from an
+// alternate arena. Using guintptr doesn't make that problem any worse.
+type guintptr uintptr
+
+func (gp guintptr) ptr() *g {
+	return (*g)(unsafe.Pointer(gp))
+}
+
 type gobuf struct {
 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
 	sp   uintptr
 	pc   uintptr
-	g    *g
+	g    guintptr
 	ctxt unsafe.Pointer // this has to be a pointer so that gc scans it
 	ret  uintreg
 	lr   uintptr
