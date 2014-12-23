@@ -22,7 +22,7 @@ const PtrSize = ptrSize
 const BitsPointer = bitsPointer
 const BitsScalar = bitsScalar
 
-func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, stack []byte) {
+func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, stack []byte, gc []byte, ptrs bool) {
 	var ft *rtype
 	var s *bitVector
 	if rcvr != nil {
@@ -34,5 +34,13 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 	for i := uint32(0); i < s.n; i += 2 {
 		stack = append(stack, s.data[i/8]>>(i%8)&3)
 	}
+	if ft.kind & kindGCProg != 0 {
+		panic("can't handle gc programs")
+	}
+	gcdata := (*[1000]byte)(ft.gc[0])
+	for i := uintptr(0); i < ft.size/ptrSize; i++ {
+		gc = append(gc, gcdata[i/2] >> (i%2*4+2) & 3)
+	}
+	ptrs = ft.kind & kindNoPointers == 0
 	return
 }
