@@ -9,6 +9,8 @@
 
 package runtime
 
+import _ "unsafe"
+
 func cmpstring(s1, s2 string) int {
 	l := len(s1)
 	if len(s2) < l {
