@@ -150,7 +150,19 @@ func prepGoPath() string {
 	}
 
 	if err := os.Rename(tmpDir, finalDir); err != nil {
-		log.Fatal(err)
+		if os.IsExist(err) {
+			// A different builder beat us into putting this repo into
+			// its final place. But that's fine; if it's there, it's
+			// the right version and we can use it.
+			//
+			// This happens on the Go project's Windows builders
+			// especially, where we have two builders (386 and amd64)
+			// running at the same time, trying to compete for moving
+			// it into place.
+			os.RemoveAll(tmpDir)
+		} else {
+			log.Fatal(err)
+		}
 	}
 	return gopath
 }
