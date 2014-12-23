@@ -39,6 +39,7 @@ func callbackasmAddr(i int) uintptr {
 	return uintptr(add(unsafe.Pointer(&callbackasm), uintptr(i*5)))
 }
 
+//go:linkname compileCallback syscall.compileCallback
 func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
 		panic("compileCallback: not a function")
@@ -87,6 +88,7 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	return callbackasmAddr(n)
 }
 
+//go:linkname syscall_loadlibrary syscall.loadlibrary
 //go:nosplit
 func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 	var c libcall
@@ -101,6 +103,7 @@ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 	return
 }
 
+//go:linkname syscall_getprocaddress syscall.getprocaddress
 //go:nosplit
 func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
 	var c libcall
@@ -115,6 +118,7 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
 	return
 }
 
+//go:linkname syscall_Syscall syscall.Syscall
 //go:nosplit
 func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	var c libcall
@@ -125,6 +129,7 @@ func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	return c.r1, c.r2, c.err
 }
 
+//go:linkname syscall_Syscall6 syscall.Syscall6
 //go:nosplit
 func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
 	var c libcall
@@ -135,6 +140,7 @@ func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
 	return c.r1, c.r2, c.err
 }
 
+//go:linkname syscall_Syscall9 syscall.Syscall9
 //go:nosplit
 func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
 	var c libcall
@@ -145,6 +151,7 @@ func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1
 	return c.r1, c.r2, c.err
 }
 
+//go:linkname syscall_Syscall12 syscall.Syscall12
 //go:nosplit
 func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
 	var c libcall
@@ -155,6 +162,7 @@ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 	return c.r1, c.r2, c.err
 }
 
+//go:linkname syscall_Syscall15 syscall.Syscall15
 //go:nosplit
 func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
 	var c libcall
