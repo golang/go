@@ -39,9 +39,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0-24
 TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
 	BR	·SwapUint64(SB)
 
-TEXT ·SwapPointer(SB),NOSPLIT,$0-24
-	BR	·SwapUint64(SB)
-
 TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
 	BR	·CompareAndSwapUint32(SB)
 
@@ -64,9 +61,6 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
 	RETURN
 
 TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
-	BR	·CompareAndSwapUint64(SB)
-
-TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0-25
 	BR	·CompareAndSwapUint64(SB)
 
 TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
@@ -178,7 +172,4 @@ TEXT ·StoreUint64(SB),NOSPLIT,$0-16
 	RETURN
 
 TEXT ·StoreUintptr(SB),NOSPLIT,$0-16
-	BR	·StorePointer(SB)
-
-TEXT ·StorePointer(SB),NOSPLIT,$0-16
 	BR	·StoreUint64(SB)

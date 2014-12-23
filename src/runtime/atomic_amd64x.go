@@ -42,18 +42,7 @@ func xchg(ptr *uint32, new uint32) uint32
 //go:noescape
 func xchg64(ptr *uint64, new uint64) uint64
 
-// xchgp cannot have a go:noescape annotation, because
-// while ptr does not escape, new does. If new is marked as
-// not escaping, the compiler will make incorrect escape analysis
-// decisions about the value being xchg'ed.
-// Instead, make xchgp a wrapper around the actual atomic.
-// When calling the wrapper we mark ptr as noescape explicitly.
-
-//go:nosplit
-func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
-	return xchgp1(noescape(ptr), new)
-}
-
+// NO go:noescape annotation; see atomic_pointer.go.
 func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
 
 //go:noescape
@@ -71,12 +60,5 @@ func atomicstore(ptr *uint32, val uint32)
 //go:noescape
 func atomicstore64(ptr *uint64, val uint64)
 
-// atomicstorep cannot have a go:noescape annotation.
-// See comment above for xchgp.
-
-//go:nosplit
-func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
-	atomicstorep1(noescape(ptr), new)
-}
-
+// NO go:noescape annotation; see atomic_pointer.go.
 func atomicstorep1(ptr unsafe.Pointer, val unsafe.Pointer)

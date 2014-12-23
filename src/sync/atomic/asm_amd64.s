@@ -29,9 +29,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0-24
 TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
 	JMP	·SwapUint64(SB)
 
-TEXT ·SwapPointer(SB),NOSPLIT,$0-24
-	JMP	·SwapUint64(SB)
-
 TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
 	JMP	·CompareAndSwapUint32(SB)
 
@@ -45,9 +42,6 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
 	RET
 
 TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
-	JMP	·CompareAndSwapUint64(SB)
-
-TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0-25
 	JMP	·CompareAndSwapUint64(SB)
 
 TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
@@ -137,10 +131,4 @@ TEXT ·StoreUint64(SB),NOSPLIT,$0-16
 	RET
 
 TEXT ·StoreUintptr(SB),NOSPLIT,$0-16
-	JMP	·StorePointer(SB)
-
-TEXT ·StorePointer(SB),NOSPLIT,$0-16
-	MOVQ	addr+0(FP), BP
-	MOVQ	val+8(FP), AX
-	XCHGQ	AX, 0(BP)
-	RET
+	JMP	·StoreUint64(SB)

@@ -50,9 +50,6 @@ swaploop:
 TEXT ·SwapUintptr(SB),NOSPLIT,$0-12
 	JMP	·SwapUint32(SB)
 
-TEXT ·SwapPointer(SB),NOSPLIT,$0-12
-	JMP	·SwapUint32(SB)
-
 TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-13
 	JMP	·CompareAndSwapUint32(SB)
 
@@ -67,9 +64,6 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-13
 	RET
 
 TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-13
-	JMP	·CompareAndSwapUint32(SB)
-
-TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0-13
 	JMP	·CompareAndSwapUint32(SB)
 
 TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-21
@@ -208,7 +202,4 @@ TEXT ·StoreUint64(SB),NOSPLIT,$0-12
 	RET
 
 TEXT ·StoreUintptr(SB),NOSPLIT,$0-8
-	JMP	·StoreUint32(SB)
-
-TEXT ·StorePointer(SB),NOSPLIT,$0-8
 	JMP	·StoreUint32(SB)

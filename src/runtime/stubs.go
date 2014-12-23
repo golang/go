@@ -118,18 +118,7 @@ func goexit()
 //go:noescape
 func cas(ptr *uint32, old, new uint32) bool
 
-// casp cannot have a go:noescape annotation, because
-// while ptr and old do not escape, new does. If new is marked as
-// not escaping, the compiler will make incorrect escape analysis
-// decisions about the value being xchg'ed.
-// Instead, make casp a wrapper around the actual atomic.
-// When calling the wrapper we mark ptr as noescape explicitly.
-
-//go:nosplit
-func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
-	return casp1((*unsafe.Pointer)(noescape(unsafe.Pointer(ptr))), noescape(old), new)
-}
-
+// NO go:noescape annotation; see atomic_pointer.go.
 func casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
 
 func nop() // call to prevent inlining of function body

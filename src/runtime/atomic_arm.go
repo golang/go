@@ -38,10 +38,10 @@ func xchg(addr *uint32, v uint32) uint32 {
 }
 
 //go:nosplit
-func xchgp(addr *unsafe.Pointer, v unsafe.Pointer) unsafe.Pointer {
+func xchgp1(addr *unsafe.Pointer, v unsafe.Pointer) unsafe.Pointer {
 	for {
 		old := *addr
-		if casp(addr, old, v) {
+		if casp1(addr, old, v) {
 			return old
 		}
 	}
@@ -63,10 +63,10 @@ func atomicloadp(addr unsafe.Pointer) unsafe.Pointer {
 }
 
 //go:nosplit
-func atomicstorep(addr unsafe.Pointer, v unsafe.Pointer) {
+func atomicstorep1(addr unsafe.Pointer, v unsafe.Pointer) {
 	for {
 		old := *(*unsafe.Pointer)(addr)
-		if casp((*unsafe.Pointer)(addr), old, v) {
+		if casp1((*unsafe.Pointer)(addr), old, v) {
 			return
 		}
 	}

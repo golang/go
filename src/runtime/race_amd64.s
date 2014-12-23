@@ -202,9 +202,6 @@ TEXT	sync∕atomic·LoadUint64(SB), NOSPLIT, $0-0
 TEXT	sync∕atomic·LoadUintptr(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·LoadInt64(SB)
 
-TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0-0
-	JMP	sync∕atomic·LoadInt64(SB)
-
 // Store
 TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0-0
 	MOVQ	$__tsan_go_atomic32_store(SB), AX
@@ -225,9 +222,6 @@ TEXT	sync∕atomic·StoreUint64(SB), NOSPLIT, $0-0
 TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·StoreInt64(SB)
 
-TEXT	sync∕atomic·StorePointer(SB), NOSPLIT, $0-0
-	JMP	sync∕atomic·StoreInt64(SB)
-
 // Swap
 TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0-0
 	MOVQ	$__tsan_go_atomic32_exchange(SB), AX
@@ -246,9 +240,6 @@ TEXT	sync∕atomic·SwapUint64(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·SwapInt64(SB)
 
 TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0-0
-	JMP	sync∕atomic·SwapInt64(SB)
-
-TEXT	sync∕atomic·SwapPointer(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·SwapInt64(SB)
 
 // Add
@@ -275,9 +266,6 @@ TEXT	sync∕atomic·AddUint64(SB), NOSPLIT, $0-0
 TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·AddInt64(SB)
 
-TEXT	sync∕atomic·AddPointer(SB), NOSPLIT, $0-0
-	JMP	sync∕atomic·AddInt64(SB)
-
 // CompareAndSwap
 TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-0
 	MOVQ	$__tsan_go_atomic32_compare_exchange(SB), AX
@@ -296,9 +284,6 @@ TEXT	sync∕atomic·CompareAndSwapUint64(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·CompareAndSwapInt64(SB)
 
 TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-0
-	JMP	sync∕atomic·CompareAndSwapInt64(SB)
-
-TEXT	sync∕atomic·CompareAndSwapPointer(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·CompareAndSwapInt64(SB)
 
 // Generic atomic operation implementation.
