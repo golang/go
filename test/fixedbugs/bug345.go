@@ -1,4 +1,4 @@
-// +build !nacl,!windows
+// +build !nacl,!plan9,!windows
 // run
 
 // Copyright 2011 The Go Authors.  All rights reserved.
@@ -19,7 +19,7 @@ func main() {
 	a, err := build.ArchChar(build.Default.GOARCH)
 	check(err)
 
-	// TODO: If we get rid of errchk, re-enable this test on Windows.
+	// TODO: If we get rid of errchk, re-enable this test on Plan 9 and Windows.
 	errchk, err := filepath.Abs("errchk")
 	check(err)
 
