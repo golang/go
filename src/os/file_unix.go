@@ -88,8 +88,8 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 	}
 
 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
-	if chmod && e == nil {
-		e = Chmod(name, perm)
+	if chmod {
+		Chmod(name, perm)
 	}
 
 	// There's a race here with fork/exec, which we are
