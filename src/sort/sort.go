@@ -381,7 +381,9 @@ func symMerge(data Interface, a, m, b int) {
 	}
 
 	end := n - start
-	rotate(data, start, m, end)
+	if start < m && m < end {
+		rotate(data, start, m, end)
+	}
 	if a < start && start < mid {
 		symMerge(data, a, start, mid)
 	}
@@ -393,32 +395,22 @@ func symMerge(data Interface, a, m, b int) {
 // Rotate two consecutives blocks u = data[a:m] and v = data[m:b] in data:
 // Data of the form 'x u v y' is changed to 'x v u y'.
 // Rotate performs at most b-a many calls to data.Swap.
+// Rotate assumes non-degenerate arguments: a < m && m < b.
 func rotate(data Interface, a, m, b int) {
 	i := m - a
-	if i == 0 {
-		return
-	}
 	j := b - m
-	if j == 0 {
-		return
-	}
 
-	if i == j {
-		swapRange(data, a, m, i)
-		return
-	}
-
-	p := a + i
 	for i != j {
 		if i > j {
-			swapRange(data, p-i, p, j)
+			swapRange(data, m-i, m, j)
 			i -= j
 		} else {
-			swapRange(data, p-i, p+j-i, i)
+			swapRange(data, m-i, m+j-i, i)
 			j -= i
 		}
 	}
-	swapRange(data, p-i, p, i)
+	// i == j
+	swapRange(data, m-i, m, i)
 }
 
 /*
