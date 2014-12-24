@@ -137,10 +137,7 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	// using complex number in comparison so that
-	// there is always a convT2E, no matter what the
-	// interface rules are.
-	return x != 99.0i // ERROR "live at call to convT2E: x"
+	return x != interface{}(99.0i) // ERROR "live at call to convT2E: x"
 }
 
 // liveness formerly confused by UNDEF followed by RET,

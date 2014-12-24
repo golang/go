@@ -3339,10 +3339,51 @@ static void
 walkcompare(Node **np, NodeList **init)
 {
 	Node *n, *l, *r, *call, *a, *li, *ri, *expr, *cmpl, *cmpr;
+	Node *x, *ok;
 	int andor, i, needsize;
 	Type *t, *t1;
 	
 	n = *np;
+
+	// Given interface value l and concrete value r, rewrite
+	//   l == r
+	// to
+	//   x, ok := l.(type(r)); ok && x == r
+	// Handle != similarly.
+	// This avoids the allocation that would be required
+	// to convert r to l for comparison.
+	l = N;
+	r = N;
+	if(isinter(n->left->type) && !isinter(n->right->type)) {
+		l = n->left;
+		r = n->right;
+	} else if(!isinter(n->left->type) && isinter(n->right->type)) {
+		l = n->right;
+		r = n->left;
+	}
+	if(l != N) {
+		x = temp(r->type);
+		ok = temp(types[TBOOL]);
+
+		// l.(type(r))
+		a = nod(ODOTTYPE, l, N);
+		a->type = r->type;
+
+		// x, ok := l.(type(r))
+		expr = nod(OAS2, N, N);
+		expr->list = list1(x);
+		expr->list = list(expr->list, ok);
+		expr->rlist = list1(a);
+		typecheck(&expr, Etop);
+		walkexpr(&expr, init);
+
+		if(n->op == OEQ)
+			r = nod(OANDAND, ok, nod(OEQ, x, r));
+		else
+			r = nod(OOROR, nod(ONOT, ok, N), nod(ONE, x, r));
+		*init = list(*init, expr);
+		goto ret;
+	}
 	
 	// Must be comparison of array or struct.
 	// Otherwise back end handles it.
