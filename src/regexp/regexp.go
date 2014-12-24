@@ -83,7 +83,7 @@ type Regexp struct {
 	// read-only after Compile
 	expr           string         // as passed to Compile
 	prog           *syntax.Prog   // compiled program
-	onepass        *onePassProg   // onpass program or nil
+	onepass        *onePassProg   // onepass program or nil
 	prefix         string         // required prefix in unanchored matches
 	prefixBytes    []byte         // prefix, as a []byte
 	prefixComplete bool           // prefix is the entire regexp
