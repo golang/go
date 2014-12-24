@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -37,6 +38,47 @@ var (
 	tm TM
 	tl TL
 )
+
+// Issue 9370
+func TestCmpIfaceConcreteAlloc(t *testing.T) {
+	if runtime.Compiler != "gc" {
+		t.Skip("skipping on non-gc compiler")
+	}
+
+	n := testing.AllocsPerRun(1, func() {
+		_ = e == ts
+		_ = i1 == ts
+		_ = e == 1
+	})
+
+	if n > 0 {
+		t.Fatalf("iface cmp allocs=%v; want 0", n)
+	}
+}
+
+func BenchmarkEqEfaceConcrete(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = e == ts
+	}
+}
+
+func BenchmarkEqIfaceConcrete(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = i1 == ts
+	}
+}
+
+func BenchmarkNeEfaceConcrete(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = e != ts
+	}
+}
+
+func BenchmarkNeIfaceConcrete(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = i1 != ts
+	}
+}
 
 func BenchmarkConvT2ESmall(b *testing.B) {
 	for i := 0; i < b.N; i++ {

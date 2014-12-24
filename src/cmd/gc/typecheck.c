@@ -570,6 +570,7 @@ reswitch:
 		et = t->etype;
 		if(et == TIDEAL)
 			et = TINT;
+		aop = 0;
 		if(iscmp[n->op] && t->etype != TIDEAL && !eqtype(l->type, r->type)) {
 			// comparison is okay as long as one side is
 			// assignable to the other.  convert so they have
@@ -577,16 +578,20 @@ reswitch:
 			//
 			// the only conversion that isn't a no-op is concrete == interface.
 			// in that case, check comparability of the concrete type.
+			// The conversion allocates, so only do it if the concrete type is huge.
 			if(r->type->etype != TBLANK && (aop = assignop(l->type, r->type, nil)) != 0) {
 				if(isinter(r->type) && !isinter(l->type) && algtype1(l->type, nil) == ANOEQ) {
 					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(l->type));
 					goto error;
 				}
-				l = nod(aop, l, N);
-				l->type = r->type;
-				l->typecheck = 1;
-				n->left = l;
-				t = l->type;
+				dowidth(l->type);
+				if(isinter(r->type) == isinter(l->type) || l->type->width >= 1<<16) {
+					l = nod(aop, l, N);
+					l->type = r->type;
+					l->typecheck = 1;
+					n->left = l;
+				}
+				t = r->type;
 				goto converted;
 			}
 			if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
@@ -594,11 +599,14 @@ reswitch:
 					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(r->type));
 					goto error;
 				}
-				r = nod(aop, r, N);
-				r->type = l->type;
-				r->typecheck = 1;
-				n->right = r;
-				t = r->type;
+				dowidth(r->type);
+				if(isinter(r->type) == isinter(l->type) || r->type->width >= 1<<16) {
+					r = nod(aop, r, N);
+					r->type = l->type;
+					r->typecheck = 1;
+					n->right = r;
+				}
+				t = l->type;
 			}
 		converted:
 			et = t->etype;
@@ -609,8 +617,10 @@ reswitch:
 				yyerror("invalid operation: %N (non-numeric type %T)", n, l->type);
 				goto error;
 			}
-			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
-			goto error;
+			if(isinter(r->type) == isinter(l->type) || aop == 0) {
+				yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
+				goto error;
+			}
 		}
 		if(!okfor[op][et]) {
 			yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(t));
@@ -685,7 +695,7 @@ reswitch:
 				n->right = l;
 			} else if(r->op == OLITERAL && r->val.ctype == CTNIL) {
 				// leave alone for back end
-			} else {
+			} else if(isinter(r->type) == isinter(l->type)) {
 				n->etype = n->op;
 				n->op = OCMPIFACE;
 			}
