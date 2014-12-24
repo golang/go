@@ -7,16 +7,18 @@ package main
 import (
 	"fmt"
 	"math"
+
+	"golang.org/x/tools/benchmark/parse"
 )
 
 // BenchCmp is a pair of benchmarks.
 type BenchCmp struct {
-	Before *Bench
-	After  *Bench
+	Before *parse.Bench
+	After  *parse.Bench
 }
 
 // Correlate correlates benchmarks from two BenchSets.
-func Correlate(before, after BenchSet) (cmps []BenchCmp, warnings []string) {
+func Correlate(before, after parse.BenchSet) (cmps []BenchCmp, warnings []string) {
 	cmps = make([]BenchCmp, 0, len(after))
 	for name, beforebb := range before {
 		afterbb := after[name]
@@ -102,7 +104,7 @@ type ByParseOrder []BenchCmp
 
 func (x ByParseOrder) Len() int           { return len(x) }
 func (x ByParseOrder) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x ByParseOrder) Less(i, j int) bool { return x[i].Before.ord < x[j].Before.ord }
+func (x ByParseOrder) Less(i, j int) bool { return x[i].Before.Ord < x[j].Before.Ord }
 
 // lessByDelta provides lexicographic ordering:
 //   * largest delta by magnitude

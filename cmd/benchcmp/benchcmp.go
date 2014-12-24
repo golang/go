@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"text/tabwriter"
+
+	"golang.org/x/tools/benchmark/parse"
 )
 
 var (
@@ -66,7 +68,7 @@ func main() {
 		sort.Sort(ByParseOrder(cmps))
 	}
 	for _, cmp := range cmps {
-		if !cmp.Measured(NsOp) {
+		if !cmp.Measured(parse.NsOp) {
 			continue
 		}
 		if delta := cmp.DeltaNsOp(); !*changedOnly || delta.Changed() {
@@ -83,7 +85,7 @@ func main() {
 		sort.Sort(ByDeltaMbS(cmps))
 	}
 	for _, cmp := range cmps {
-		if !cmp.Measured(MbS) {
+		if !cmp.Measured(parse.MbS) {
 			continue
 		}
 		if delta := cmp.DeltaMbS(); !*changedOnly || delta.Changed() {
@@ -100,7 +102,7 @@ func main() {
 		sort.Sort(ByDeltaAllocsOp(cmps))
 	}
 	for _, cmp := range cmps {
-		if !cmp.Measured(AllocsOp) {
+		if !cmp.Measured(parse.AllocsOp) {
 			continue
 		}
 		if delta := cmp.DeltaAllocsOp(); !*changedOnly || delta.Changed() {
@@ -117,7 +119,7 @@ func main() {
 		sort.Sort(ByDeltaBOp(cmps))
 	}
 	for _, cmp := range cmps {
-		if !cmp.Measured(BOp) {
+		if !cmp.Measured(parse.BOp) {
 			continue
 		}
 		if delta := cmp.DeltaBOp(); !*changedOnly || delta.Changed() {
@@ -135,16 +137,36 @@ func fatal(msg interface{}) {
 	os.Exit(1)
 }
 
-func parseFile(path string) BenchSet {
+func parseFile(path string) parse.BenchSet {
 	f, err := os.Open(path)
 	if err != nil {
 		fatal(err)
 	}
-	bb, err := ParseBenchSet(f)
+	bb, err := parse.ParseBenchSet(f)
 	if err != nil {
 		fatal(err)
 	}
+	if *best {
+		selectBest(bb)
+	}
 	return bb
+}
+
+func selectBest(bs parse.BenchSet) {
+	for name, bb := range bs {
+		if len(bb) < 2 {
+			continue
+		}
+		ord := bb[0].Ord
+		best := bb[0]
+		for _, b := range bb {
+			if b.NsOp < best.NsOp {
+				b.Ord = ord
+				best = b
+			}
+		}
+		bs[name] = []*parse.Bench{best}
+	}
 }
 
 // formatNs formats ns measurements to expose a useful amount of

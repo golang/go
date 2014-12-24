@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package parse
 
 import (
 	"reflect"
@@ -117,7 +117,7 @@ func TestParseBenchSet(t *testing.T) {
 				Name: "BenchmarkReadRequestApachebench",
 				N:    1000000, NsOp: 2960, MbS: 27.70, BOp: 839, AllocsOp: 9,
 				Measured: NsOp | MbS | BOp | AllocsOp,
-				ord:      2,
+				Ord:      2,
 			},
 		},
 		"BenchmarkClientServerParallel64": []*Bench{
@@ -125,7 +125,7 @@ func TestParseBenchSet(t *testing.T) {
 				Name: "BenchmarkClientServerParallel64",
 				N:    50000, NsOp: 59192, BOp: 7028, AllocsOp: 60,
 				Measured: NsOp | BOp | AllocsOp,
-				ord:      3,
+				Ord:      3,
 			},
 		},
 		"BenchmarkEncrypt": []*Bench{
@@ -133,53 +133,13 @@ func TestParseBenchSet(t *testing.T) {
 				Name: "BenchmarkEncrypt",
 				N:    100000000, NsOp: 19.6,
 				Measured: NsOp,
-				ord:      0,
+				Ord:      0,
 			},
 			{
 				Name: "BenchmarkEncrypt",
 				N:    5000000, NsOp: 517,
 				Measured: NsOp,
-				ord:      1,
-			},
-		},
-	}
-
-	have, err := ParseBenchSet(strings.NewReader(in))
-	if err != nil {
-		t.Fatalf("unexpected err during ParseBenchSet: %v", err)
-	}
-	if !reflect.DeepEqual(want, have) {
-		t.Errorf("parsed bench set incorrectly, want %v have %v", want, have)
-	}
-}
-
-func TestParseBenchSetBest(t *testing.T) {
-	// Test that -best mode takes best ns/op.
-	*best = true
-	defer func() {
-		*best = false
-	}()
-
-	in := `
-		Benchmark1 10 100 ns/op
-		Benchmark2 10 60 ns/op
-		Benchmark2 10 500 ns/op
-		Benchmark1 10 50 ns/op
-	`
-
-	want := BenchSet{
-		"Benchmark1": []*Bench{
-			{
-				Name: "Benchmark1",
-				N:    10, NsOp: 50, Measured: NsOp,
-				ord: 0,
-			},
-		},
-		"Benchmark2": []*Bench{
-			{
-				Name: "Benchmark2",
-				N:    10, NsOp: 60, Measured: NsOp,
-				ord: 1,
+				Ord:      1,
 			},
 		},
 	}

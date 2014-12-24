@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"golang.org/x/tools/benchmark/parse"
 )
 
 func TestDelta(t *testing.T) {
@@ -52,29 +54,29 @@ func TestCorrelate(t *testing.T) {
 	// Benches that are going to be successfully correlated get N thus:
 	//   0x<counter><num benches><b = before | a = after>
 	// Read this: "<counter> of <num benches>, from <before|after>".
-	before := BenchSet{
-		"BenchmarkOneEach":   []*Bench{{Name: "BenchmarkOneEach", N: 0x11b}},
-		"BenchmarkOneToNone": []*Bench{{Name: "BenchmarkOneToNone"}},
-		"BenchmarkOneToTwo":  []*Bench{{Name: "BenchmarkOneToTwo"}},
-		"BenchmarkTwoToOne": []*Bench{
+	before := parse.BenchSet{
+		"BenchmarkOneEach":   []*parse.Bench{{Name: "BenchmarkOneEach", N: 0x11b}},
+		"BenchmarkOneToNone": []*parse.Bench{{Name: "BenchmarkOneToNone"}},
+		"BenchmarkOneToTwo":  []*parse.Bench{{Name: "BenchmarkOneToTwo"}},
+		"BenchmarkTwoToOne": []*parse.Bench{
 			{Name: "BenchmarkTwoToOne"},
 			{Name: "BenchmarkTwoToOne"},
 		},
-		"BenchmarkTwoEach": []*Bench{
+		"BenchmarkTwoEach": []*parse.Bench{
 			{Name: "BenchmarkTwoEach", N: 0x12b},
 			{Name: "BenchmarkTwoEach", N: 0x22b},
 		},
 	}
 
-	after := BenchSet{
-		"BenchmarkOneEach":   []*Bench{{Name: "BenchmarkOneEach", N: 0x11a}},
-		"BenchmarkNoneToOne": []*Bench{{Name: "BenchmarkNoneToOne"}},
-		"BenchmarkTwoToOne":  []*Bench{{Name: "BenchmarkTwoToOne"}},
-		"BenchmarkOneToTwo": []*Bench{
+	after := parse.BenchSet{
+		"BenchmarkOneEach":   []*parse.Bench{{Name: "BenchmarkOneEach", N: 0x11a}},
+		"BenchmarkNoneToOne": []*parse.Bench{{Name: "BenchmarkNoneToOne"}},
+		"BenchmarkTwoToOne":  []*parse.Bench{{Name: "BenchmarkTwoToOne"}},
+		"BenchmarkOneToTwo": []*parse.Bench{
 			{Name: "BenchmarkOneToTwo"},
 			{Name: "BenchmarkOneToTwo"},
 		},
-		"BenchmarkTwoEach": []*Bench{
+		"BenchmarkTwoEach": []*parse.Bench{
 			{Name: "BenchmarkTwoEach", N: 0x12a},
 			{Name: "BenchmarkTwoEach", N: 0x22a},
 		},
@@ -108,10 +110,10 @@ func TestCorrelate(t *testing.T) {
 
 func TestBenchCmpSorting(t *testing.T) {
 	c := []BenchCmp{
-		{&Bench{Name: "BenchmarkMuchFaster", NsOp: 10, ord: 3}, &Bench{Name: "BenchmarkMuchFaster", NsOp: 1}},
-		{&Bench{Name: "BenchmarkSameB", NsOp: 5, ord: 1}, &Bench{Name: "BenchmarkSameB", NsOp: 5}},
-		{&Bench{Name: "BenchmarkSameA", NsOp: 5, ord: 2}, &Bench{Name: "BenchmarkSameA", NsOp: 5}},
-		{&Bench{Name: "BenchmarkSlower", NsOp: 10, ord: 0}, &Bench{Name: "BenchmarkSlower", NsOp: 11}},
+		{&parse.Bench{Name: "BenchmarkMuchFaster", NsOp: 10, Ord: 3}, &parse.Bench{Name: "BenchmarkMuchFaster", NsOp: 1}},
+		{&parse.Bench{Name: "BenchmarkSameB", NsOp: 5, Ord: 1}, &parse.Bench{Name: "BenchmarkSameB", NsOp: 5}},
+		{&parse.Bench{Name: "BenchmarkSameA", NsOp: 5, Ord: 2}, &parse.Bench{Name: "BenchmarkSameA", NsOp: 5}},
+		{&parse.Bench{Name: "BenchmarkSlower", NsOp: 10, Ord: 0}, &parse.Bench{Name: "BenchmarkSlower", NsOp: 11}},
 	}
 
 	// Test just one magnitude-based sort order; they are symmetric.
