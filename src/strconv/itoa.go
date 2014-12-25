@@ -40,9 +40,7 @@ func AppendUint(dst []byte, i uint64, base int) []byte {
 }
 
 const (
-	digits   = "0123456789abcdefghijklmnopqrstuvwxyz"
-	digits01 = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
-	digits10 = "0000000000111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999"
+	digits = "0123456789abcdefghijklmnopqrstuvwxyz"
 )
 
 var shifts = [len(digits) + 1]uint{
@@ -74,23 +72,34 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 
 	// convert bits
 	if base == 10 {
-		// common case: use constants for / and % because
-		// the compiler can optimize it into a multiply+shift,
-		// and unroll loop
-		for u >= 100 {
-			i -= 2
-			q := u / 100
-			j := uintptr(u - q*100)
-			a[i+1] = digits01[j]
-			a[i+0] = digits10[j]
-			u = q
+		// common case: use constants for / because
+		// the compiler can optimize it into a multiply+shift
+
+		if ^uintptr(0)>>32 == 0 {
+			for u > uint64(^uintptr(0)) {
+				q := u / 1e9
+				us := uintptr(u - q*1e9) // us % 1e9 fits into a uintptr
+				for j := 9; j > 0; j-- {
+					i--
+					qs := us / 10
+					a[i] = byte(us - qs*10 + '0')
+					us = qs
+				}
+				u = q
+			}
 		}
-		if u >= 10 {
+
+		// u guaranteed to fit into a uintptr
+		us := uintptr(u)
+		for us >= 10 {
 			i--
-			q := u / 10
-			a[i] = digits[uintptr(u-q*10)]
-			u = q
+			q := us / 10
+			a[i] = byte(us - q*10 + '0')
+			us = q
 		}
+		// u < 10
+		i--
+		a[i] = byte(us + '0')
 
 	} else if s := shifts[base]; s > 0 {
 		// base is power of 2: use shifts and masks instead of / and %
@@ -101,20 +110,23 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 			a[i] = digits[uintptr(u)&m]
 			u >>= s
 		}
+		// u < base
+		i--
+		a[i] = digits[uintptr(u)]
 
 	} else {
 		// general case
 		b := uint64(base)
 		for u >= b {
 			i--
-			a[i] = digits[uintptr(u%b)]
-			u /= b
+			q := u / b
+			a[i] = digits[uintptr(u-q*b)]
+			u = q
 		}
+		// u < base
+		i--
+		a[i] = digits[uintptr(u)]
 	}
-
-	// u < base
-	i--
-	a[i] = digits[uintptr(u)]
 
 	// add sign, if any
 	if neg {
