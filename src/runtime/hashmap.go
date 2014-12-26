@@ -117,7 +117,7 @@ type hmap struct {
 
 // A bucket for a Go map.
 type bmap struct {
-	tophash  [bucketCnt]uint8
+	tophash [bucketCnt]uint8
 	// Followed by bucketCnt keys and then bucketCnt values.
 	// NOTE: packing all the keys together and then all the values together makes the
 	// code a bit more complicated than alternating key/value/key/value/... but it allows
@@ -150,10 +150,10 @@ func evacuated(b *bmap) bool {
 }
 
 func (b *bmap) overflow(t *maptype) *bmap {
-	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize) - regSize))
+	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize))
 }
 func (b *bmap) setoverflow(t *maptype, ovf *bmap) {
-	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize) - regSize)) = ovf
+	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize)) = ovf
 }
 
 func makemap(t *maptype, hint int64) *hmap {
