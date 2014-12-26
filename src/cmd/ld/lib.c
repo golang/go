@@ -257,7 +257,13 @@ loadlib(void)
 	}
 	
 	tlsg = linklookup(ctxt, "runtime.tlsg", 0);
-	tlsg->type = STLSBSS;
+	// For most ports, runtime.tlsg is a placeholder symbol for TLS
+	// relocation. However, the Android and Darwin ports need it to
+	// be a real variable. Instead of hard-coding which platforms
+	// need it to be a real variable, we set the type to STLSBSS only
+	// when the runtime has not declared its type already.
+	if(tlsg->type == 0)
+		tlsg->type = STLSBSS;
 	tlsg->size = PtrSize;
 	tlsg->hide = 1;
 	tlsg->reachable = 1;
