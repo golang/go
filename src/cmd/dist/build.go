@@ -617,7 +617,7 @@ func install(dir string) {
 		}
 		// disable word wrapping in error messages
 		gccargs = append(gccargs, "-fmessage-length=0")
-		if gohostos == "darwin" {
+		if gohostos == "darwin" && gohostarch != "arm" {
 			// golang.org/issue/5261
 			gccargs = append(gccargs, "-mmacosx-version-min=10.6")
 		}
