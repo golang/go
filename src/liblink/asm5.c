@@ -1638,8 +1638,9 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			// runtime.tlsg is special.
 			// Its "address" is the offset from the TLS thread pointer
 			// to the thread-local g and m pointers.
-			// Emit a TLS relocation instead of a standard one.
-			if(rel->sym == ctxt->tlsg) {
+			// Emit a TLS relocation instead of a standard one if it's
+			// typed STLSBSS.
+			if(rel->sym == ctxt->tlsg && ctxt->tlsg->type == STLSBSS) {
 				rel->type = R_TLS;
 				if(ctxt->flag_shared)
 					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;

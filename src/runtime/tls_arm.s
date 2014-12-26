@@ -17,6 +17,9 @@
 
 // On android, runtime.tlsg is a normal variable.
 // TLS offset is computed in x_cgo_inittls.
+#ifdef GOOS_android
+#define TLSG_IS_VARIABLE
+#endif
 
 // save_g saves the g register into pthread-provided
 // thread-local memory, so that we can call externally compiled
@@ -37,7 +40,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-4
 	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the TLS base pointer to our
 	// thread-local storage for g.
-#ifdef GOOS_android
+#ifdef TLSG_IS_VARIABLE
 	MOVW	runtime·tlsg(SB), R11
 #else
 	MOVW	$runtime·tlsg(SB), R11
@@ -60,7 +63,7 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the TLS base pointer to our
 	// thread-local storage for g.
-#ifdef GOOS_android
+#ifdef TLSG_IS_VARIABLE
 	MOVW	runtime·tlsg(SB), R11
 #else
 	MOVW	$runtime·tlsg(SB), R11
@@ -68,3 +71,7 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	ADD	R11, R0
 	MOVW	0(R0), g
 	RET
+
+#ifdef TLSG_IS_VARIABLE
+GLOBL runtime·tlsg+0(SB), NOPTR, $4
+#endif
