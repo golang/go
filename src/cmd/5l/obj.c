@@ -33,6 +33,7 @@
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
+#include	"../ld/macho.h"
 #include	"../ld/dwarf.h"
 #include	<ar.h>
 
@@ -64,6 +65,7 @@ archinit(void)
 	case Hlinux:
 	case Hfreebsd:
 	case Hnacl:
+	case Hdarwin:
 		break;
 	}
 
@@ -103,6 +105,17 @@ archinit(void)
 			INITDAT = 0;
 		if(INITRND == -1)
 			INITRND = 0x10000;
+		break;
+	case Hdarwin:   /* apple MACH */
+		debug['w'] = 1; // disable DWARF generataion
+		machoinit();
+		HEADR = INITIAL_MACHO_HEADR;
+		if(INITTEXT == -1)
+			INITTEXT = 4096+HEADR;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = 4096;
 		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)
