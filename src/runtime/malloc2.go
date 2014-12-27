@@ -117,7 +117,17 @@ const (
 
 	// Number of orders that get caching.  Order 0 is FixedStack
 	// and each successive order is twice as large.
-	_NumStackOrders = 3
+	// We want to cache 2KB, 4KB, 8KB, and 16KB stacks.  Larger stacks
+	// will be allocated directly.
+	// Since FixedStack is different on different systems, we
+	// must vary NumStackOrders to keep the same maximum cached size.
+	//   OS               | FixedStack | NumStackOrders
+	//   -----------------+------------+---------------
+	//   linux/darwin/bsd | 2KB        | 4
+	//   windows/32       | 4KB        | 3
+	//   windows/64       | 8KB        | 2
+	//   plan9            | 4KB        | 3
+	_NumStackOrders = 4 - ptrSize/4*goos_windows - 1*goos_plan9
 
 	// Number of bits in page to span calculations (4k pages).
 	// On Windows 64-bit we limit the arena to 32GB or 35 bits.
