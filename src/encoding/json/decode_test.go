@@ -688,6 +688,7 @@ var wrongStringTests = []wrongStringTest{
 	{`{"result":"x"}`, `json: invalid use of ,string struct tag, trying to unmarshal "x" into string`},
 	{`{"result":"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "foo" into string`},
 	{`{"result":"123"}`, `json: invalid use of ,string struct tag, trying to unmarshal "123" into string`},
+	{`{"result":123}`, `json: invalid use of ,string struct tag, trying to unmarshal unquoted value into string`},
 }
 
 // If people misuse the ,string modifier, the error message should be
@@ -1085,7 +1086,7 @@ func TestNullString(t *testing.T) {
 	*s.C = 2
 	err := Unmarshal(data, &s)
 	if err != nil {
-		t.Fatalf("Unmarshal: %v")
+		t.Fatalf("Unmarshal: %v", err)
 	}
 	if s.B != 1 || s.C != nil {
 		t.Fatalf("after Unmarshal, s.B=%d, s.C=%p, want 1, nil", s.B, s.C)
