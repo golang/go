@@ -349,7 +349,7 @@ func TestSetCookieDoubleQuotes(t *testing.T) {
 		{Name: "quoted3", Value: "both"},
 	}
 	if len(got) != len(want) {
-		t.Fatal("got %d cookies, want %d", len(got), len(want))
+		t.Fatalf("got %d cookies, want %d", len(got), len(want))
 	}
 	for i, w := range want {
 		g := got[i]
