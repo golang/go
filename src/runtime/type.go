@@ -16,7 +16,7 @@ type _type struct {
 	align      uint8
 	fieldalign uint8
 	kind       uint8
-	alg        unsafe.Pointer
+	alg        *typeAlg
 	// gc stores _type info required for garbage collector.
 	// If (kind&KindGCProg)==0, then gc[0] points at sparse GC bitmap
 	// (no indirection), 4 bits per word.

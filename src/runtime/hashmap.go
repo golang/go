@@ -251,7 +251,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero)
 	}
-	alg := goalg(t.key.alg)
+	alg := t.key.alg
 	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
@@ -299,7 +299,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 	if h == nil || h.count == 0 {
 		return unsafe.Pointer(t.elem.zero), false
 	}
-	alg := goalg(t.key.alg)
+	alg := t.key.alg
 	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
@@ -342,7 +342,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 	if h == nil || h.count == 0 {
 		return nil, nil
 	}
-	alg := goalg(t.key.alg)
+	alg := t.key.alg
 	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
@@ -392,7 +392,7 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 		raceReadObjectPC(t.elem, val, callerpc, pc)
 	}
 
-	alg := goalg(t.key.alg)
+	alg := t.key.alg
 	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 
 	if h.buckets == nil {
@@ -502,7 +502,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if h == nil || h.count == 0 {
 		return
 	}
-	alg := goalg(t.key.alg)
+	alg := t.key.alg
 	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
 	bucket := hash & (uintptr(1)<<h.B - 1)
 	if h.oldbuckets != nil {
@@ -609,7 +609,7 @@ func mapiternext(it *hiter) {
 	b := it.bptr
 	i := it.i
 	checkBucket := it.checkBucket
-	alg := goalg(t.key.alg)
+	alg := t.key.alg
 
 next:
 	if b == nil {
@@ -773,7 +773,7 @@ func growWork(t *maptype, h *hmap, bucket uintptr) {
 func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
 	newbit := uintptr(1) << (h.B - 1)
-	alg := goalg(t.key.alg)
+	alg := t.key.alg
 	if !evacuated(b) {
 		// TODO: reuse overflow buckets instead of using new ones, if there
 		// is no iterator using the old buckets.  (If !oldIterator.)
@@ -904,7 +904,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 }
 
 func ismapkey(t *_type) bool {
-	return goalg(t.alg).hash != nil
+	return t.alg.hash != nil
 }
 
 // Reflect stubs.  Called from ../reflect/asm_*.s

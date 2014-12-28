@@ -131,7 +131,7 @@ func interhash(p unsafe.Pointer, s, h uintptr) uintptr {
 		return h
 	}
 	t := tab._type
-	fn := goalg(t.alg).hash
+	fn := t.alg.hash
 	if fn == nil {
 		panic(errorString("hash of unhashable type " + *t._string))
 	}
@@ -148,7 +148,7 @@ func nilinterhash(p unsafe.Pointer, s, h uintptr) uintptr {
 	if t == nil {
 		return h
 	}
-	fn := goalg(t.alg).hash
+	fn := t.alg.hash
 	if fn == nil {
 		panic(errorString("hash of unhashable type " + *t._string))
 	}
@@ -219,7 +219,7 @@ func efaceeq(p, q interface{}) bool {
 	if t == nil {
 		return true
 	}
-	eq := goalg(t.alg).equal
+	eq := t.alg.equal
 	if eq == nil {
 		panic(errorString("comparing uncomparable type " + *t._string))
 	}
@@ -241,7 +241,7 @@ func ifaceeq(p, q interface {
 		return true
 	}
 	t := xtab._type
-	eq := goalg(t.alg).equal
+	eq := t.alg.equal
 	if eq == nil {
 		panic(errorString("comparing uncomparable type " + *t._string))
 	}
@@ -283,11 +283,6 @@ func ifaceHash(i interface {
 func memclrBytes(b []byte) {
 	s := (*sliceStruct)(unsafe.Pointer(&b))
 	memclr(s.array, uintptr(s.len))
-}
-
-// TODO(dvyukov): remove when Type is converted to Go and contains *typeAlg.
-func goalg(a unsafe.Pointer) *typeAlg {
-	return (*typeAlg)(a)
 }
 
 // used in asm_{386,amd64}.s
