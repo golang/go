@@ -248,13 +248,14 @@ func doOneInput(input, filename string) bool {
 							continue
 						}
 						mainFileScope := mainpkg.Object.Scope().Child(0)
-						t, _, err = types.EvalNode(prog.Fset, texpr, mainpkg.Object, mainFileScope)
+						tv, err := types.EvalNode(prog.Fset, texpr, mainpkg.Object, mainFileScope)
 						if err != nil {
 							ok = false
 							// Don't print err since its location is bad.
 							e.errorf("'%s' is not a valid type: %s", typstr, err)
 							continue
 						}
+						t = tv.Type
 					}
 					e.types = append(e.types, t)
 				}

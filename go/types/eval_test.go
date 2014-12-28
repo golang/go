@@ -18,12 +18,12 @@ import (
 )
 
 func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, typStr, valStr string) {
-	gotTyp, gotVal, err := Eval(str, pkg, scope)
+	gotTv, err := Eval(str, pkg, scope)
 	if err != nil {
 		t.Errorf("Eval(%q) failed: %s", str, err)
 		return
 	}
-	if gotTyp == nil {
+	if gotTv.Type == nil {
 		t.Errorf("Eval(%q) got nil type but no error", str)
 		return
 	}
@@ -31,13 +31,13 @@ func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, ty
 	// compare types
 	if typ != nil {
 		// we have a type, check identity
-		if !Identical(gotTyp, typ) {
-			t.Errorf("Eval(%q) got type %s, want %s", str, gotTyp, typ)
+		if !Identical(gotTv.Type, typ) {
+			t.Errorf("Eval(%q) got type %s, want %s", str, gotTv.Type, typ)
 			return
 		}
 	} else {
 		// we have a string, compare type string
-		gotStr := gotTyp.String()
+		gotStr := gotTv.Type.String()
 		if gotStr != typStr {
 			t.Errorf("Eval(%q) got type %s, want %s", str, gotStr, typStr)
 			return
@@ -46,8 +46,8 @@ func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, ty
 
 	// compare values
 	gotStr := ""
-	if gotVal != nil {
-		gotStr = gotVal.String()
+	if gotTv.Value != nil {
+		gotStr = gotTv.Value.String()
 	}
 	if gotStr != valStr {
 		t.Errorf("Eval(%q) got value %s, want %s", str, gotStr, valStr)

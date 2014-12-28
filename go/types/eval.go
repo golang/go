@@ -11,8 +11,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-
-	"golang.org/x/tools/go/exact"
 )
 
 // New is a convenience function to create a new type from a given
@@ -22,11 +20,11 @@ import (
 // Position info for objects in the result type is undefined.
 //
 func New(str string) Type {
-	typ, _, err := Eval(str, nil, nil)
+	tv, err := Eval(str, nil, nil)
 	if err != nil {
 		panic(err)
 	}
-	return typ
+	return tv.Type
 }
 
 // Eval returns the type and, if constant, the value for the
@@ -50,10 +48,10 @@ func New(str string) Type {
 // level untyped constants will return an untyped type rather then the
 // respective context-specific type.
 //
-func Eval(str string, pkg *Package, scope *Scope) (typ Type, val exact.Value, err error) {
+func Eval(str string, pkg *Package, scope *Scope) (TypeAndValue, error) {
 	node, err := parser.ParseExpr(str)
 	if err != nil {
-		return nil, nil, err
+		return TypeAndValue{}, err
 	}
 
 	// Create a file set that looks structurally identical to the
@@ -70,7 +68,7 @@ func Eval(str string, pkg *Package, scope *Scope) (typ Type, val exact.Value, er
 // An error is returned if the scope is incorrect
 // if the node cannot be evaluated in the scope.
 //
-func EvalNode(fset *token.FileSet, node ast.Expr, pkg *Package, scope *Scope) (typ Type, val exact.Value, err error) {
+func EvalNode(fset *token.FileSet, node ast.Expr, pkg *Package, scope *Scope) (tv TypeAndValue, err error) {
 	// verify package/scope relationship
 	if pkg == nil {
 		scope = Universe
@@ -81,7 +79,7 @@ func EvalNode(fset *token.FileSet, node ast.Expr, pkg *Package, scope *Scope) (t
 		}
 		// s == nil || s == pkg.scope
 		if s == nil {
-			return nil, nil, fmt.Errorf("scope does not belong to package %s", pkg.name)
+			return TypeAndValue{}, fmt.Errorf("scope does not belong to package %s", pkg.name)
 		}
 	}
 
@@ -92,18 +90,6 @@ func EvalNode(fset *token.FileSet, node ast.Expr, pkg *Package, scope *Scope) (t
 
 	// evaluate node
 	var x operand
-	check.exprOrType(&x, node)
-	switch x.mode {
-	case invalid, novalue:
-		fallthrough
-	default:
-		unreachable() // or bailed out with error
-	case constant:
-		val = x.val
-		fallthrough
-	case typexpr, variable, mapindex, value, commaok:
-		typ = x.typ
-	}
-
-	return
+	check.rawExpr(&x, node, nil)
+	return TypeAndValue{x.mode, x.typ, x.val}, nil
 }
