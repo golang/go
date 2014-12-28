@@ -251,7 +251,7 @@ type rtype struct {
 	align         uint8             // alignment of variable with this type
 	fieldAlign    uint8             // alignment of struct field with this type
 	kind          uint8             // enumeration for C
-	alg           *typeAlg          // algorithm table (../runtime/runtime.h:/Alg)
+	alg           *typeAlg          // algorithm table
 	gc            [2]unsafe.Pointer // garbage collection data
 	string        *string           // string form; unnecessary but undeniably useful
 	*uncommonType                   // (relatively) uncommon fields
@@ -259,6 +259,7 @@ type rtype struct {
 	zero          unsafe.Pointer    // pointer to zero value
 }
 
+// a copy of runtime.typeAlg
 type typeAlg struct {
 	// function for hashing objects of this type
 	// (ptr to object, size, seed) -> hash
