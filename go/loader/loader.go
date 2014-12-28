@@ -226,6 +226,19 @@ type Config struct {
 	// values indicate whether to augment the package by *_test.go
 	// files in a second pass.
 	ImportPkgs map[string]bool
+
+	// PackageCreated is a hook called when a types.Package
+	// is created but before it has been populated.
+	//
+	// The package's import Path() and Scope() are defined,
+	// but not its Name() since no package declaration has
+	// been seen yet.
+	//
+	// Clients may use this to insert synthetic items into
+	// the package scope, for example.
+	//
+	// It must be safe to call concurrently from multiple goroutines.
+	PackageCreated func(*types.Package)
 }
 
 type CreatePkg struct {
@@ -828,6 +841,9 @@ func typeCheckFiles(info *PackageInfo, files ...*ast.File) {
 
 func (imp *importer) newPackageInfo(path string) *PackageInfo {
 	pkg := types.NewPackage(path, "")
+	if imp.conf.PackageCreated != nil {
+		imp.conf.PackageCreated(pkg)
+	}
 	info := &PackageInfo{
 		Pkg: pkg,
 		Info: types.Info{
