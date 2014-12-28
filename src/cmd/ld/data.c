@@ -1315,7 +1315,10 @@ textaddress(void)
 			sub->value += va;
 		if(sym->size == 0 && sym->sub != S)
 			ctxt->cursym = sym;
-		va += sym->size;
+		if(sym->size < MINFUNC)
+			va += MINFUNC; // spacing required for findfunctab
+		else
+			va += sym->size;
 	}
 	sect->len = va - sect->vaddr;
 }

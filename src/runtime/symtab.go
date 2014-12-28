@@ -34,12 +34,30 @@ var (
 	ftab      []functab
 	filetab   []uint32
 
-	pclntab, epclntab struct{} // linker symbols
+	pclntab, epclntab, findfunctab struct{} // linker symbols
+
+	minpc, maxpc uintptr
 )
 
 type functab struct {
 	entry   uintptr
 	funcoff uintptr
+}
+
+const minfunc = 16 // minimum function size
+const pcbucketsize = 256*minfunc // size of bucket in the pc->func lookup table
+
+// findfunctab is an array of these structures.
+// Each bucket represents 4096 bytes of the text segment.
+// Each subbucket represents 256 bytes of the text segment.
+// To find a function given a pc, locate the bucket and subbucket for
+// that pc.  Add together the idx and subbucket value to obtain a
+// function index.  Then scan the functab array starting at that
+// index to find the target function.
+// This table uses 20 bytes for every 4096 bytes of code, or ~0.5% overhead.
+type findfuncbucket struct {
+	idx uint32
+	subbuckets [16]byte
 }
 
 func symtabinit() {
@@ -96,6 +114,9 @@ func symtabinit() {
 	sp.cap = 1
 	sp.len = int(filetab[0])
 	sp.cap = sp.len
+
+	minpc = ftab[0].entry
+	maxpc = ftab[nftab].entry
 }
 
 // FuncForPC returns a *Func describing the function that contains the
@@ -126,32 +147,26 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 }
 
 func findfunc(pc uintptr) *_func {
-	if len(ftab) == 0 {
+	if pc < minpc || pc >= maxpc {
 		return nil
 	}
+	const nsub = uintptr(len(findfuncbucket{}.subbuckets))
 
-	if pc < ftab[0].entry || pc >= ftab[len(ftab)-1].entry {
-		return nil
+	x := pc - minpc
+	b := x / pcbucketsize
+	i := x % pcbucketsize / (pcbucketsize/nsub)
+
+	ffb := (*findfuncbucket)(add(unsafe.Pointer(&findfunctab), b * unsafe.Sizeof(findfuncbucket{})))
+	idx := ffb.idx + uint32(ffb.subbuckets[i])
+	if pc < ftab[idx].entry {
+		throw("findfunc: bad findfunctab entry")
 	}
 
-	// binary search to find func with entry <= pc.
-	lo := 0
-	nf := len(ftab) - 1 // last entry is sentinel
-	for nf > 0 {
-		n := nf / 2
-		f := &ftab[lo+n]
-		if f.entry <= pc && pc < ftab[lo+n+1].entry {
-			return (*_func)(unsafe.Pointer(&pclntable[f.funcoff]))
-		} else if pc < f.entry {
-			nf = n
-		} else {
-			lo += n + 1
-			nf -= n + 1
-		}
+	// linear search to find func with pc >= entry.
+	for ftab[idx+1].entry <= pc {
+		idx++
 	}
-
-	throw("findfunc: binary search failed")
-	return nil
+	return (*_func)(unsafe.Pointer(&pclntable[ftab[idx].funcoff]))
 }
 
 func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {

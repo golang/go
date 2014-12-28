@@ -242,3 +242,58 @@ pclntab(void)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f pclntab=%lld bytes, funcdata total %lld bytes\n", cputime(), (vlong)ftab->size, (vlong)funcdata_bytes);
 }	
+
+enum {
+	BUCKETSIZE = 256*MINFUNC,
+	SUBBUCKETS = 16,
+};
+
+// findfunctab generates a lookup table to quickly find the containing
+// function for a pc.  See src/runtime/symtab.go:findfunc for details.
+void
+findfunctab(void)
+{
+	LSym *t, *s;
+	int32 idx, bidx, i, j, nbuckets;
+	vlong min, max;
+
+	t = linklookup(ctxt, "runtime.findfunctab", 0);
+	t->type = SRODATA;
+	t->reachable = 1;
+
+	// find min and max address
+	min = ctxt->textp->value;
+	max = 0;
+	for(s = ctxt->textp; s != nil; s = s->next)
+		max = s->value + s->size;
+
+	// allocate table
+	nbuckets = (max-min+BUCKETSIZE-1)/BUCKETSIZE;
+	symgrow(ctxt, t, nbuckets * (4+SUBBUCKETS));
+
+	// fill in table
+	s = ctxt->textp;
+	idx = 0;
+	for(i = 0; i < nbuckets; i++) {
+		// Find first function which overlaps this bucket.
+		// Only do leaf symbols; skip symbols which are just containers (sub != nil but outer == nil).
+		while(s != nil && (s->value+s->size <= min + i * BUCKETSIZE || s->sub != nil && s->outer == nil)) {
+			s = s->next;
+			idx++;
+		}
+		// record this function in bucket header
+		setuint32(ctxt, t, i*(4+SUBBUCKETS), idx);
+		bidx = idx;
+
+		// compute SUBBUCKETS deltas
+		for(j = 0; j < SUBBUCKETS; j++) {
+			while(s != nil && (s->value+s->size <= min + i * BUCKETSIZE + j * (BUCKETSIZE/SUBBUCKETS) || s->sub != nil && s->outer == nil)) {
+				s = s->next;
+				idx++;
+			}
+			if(idx - bidx >= 256)
+				diag("too many functions in a findfunc bucket! %d %s", idx-bidx, s->name);
+			setuint8(ctxt, t, i*(4+SUBBUCKETS)+4+j, idx-bidx);
+		}
+	}
+}
