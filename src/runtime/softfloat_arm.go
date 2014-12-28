@@ -21,7 +21,7 @@ const (
 var fptrace = 0
 
 func fabort() {
-	gothrow("unsupported floating point instruction")
+	throw("unsupported floating point instruction")
 }
 
 func fputf(reg uint32, val uint32) {

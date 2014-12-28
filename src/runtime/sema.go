@@ -62,7 +62,7 @@ func net_runtime_Semrelease(addr *uint32) {
 func semacquire(addr *uint32, profile bool) {
 	gp := getg()
 	if gp != gp.m.curg {
-		gothrow("semacquire not on the G stack")
+		throw("semacquire not on the G stack")
 	}
 
 	// Easy case.
@@ -284,6 +284,6 @@ func syncsemrelease(s *syncSema, n uint32) {
 func syncsemcheck(sz uintptr) {
 	if sz != unsafe.Sizeof(syncSema{}) {
 		print("runtime: bad syncSema size - sync=", sz, " runtime=", unsafe.Sizeof(syncSema{}), "\n")
-		gothrow("bad syncSema size")
+		throw("bad syncSema size")
 	}
 }

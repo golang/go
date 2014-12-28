@@ -127,7 +127,7 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 	}
 
 	if src != 0 && (src < _PageSize || src == _PoisonGC || src == _PoisonStack) {
-		systemstack(func() { gothrow("bad pointer in write barrier") })
+		systemstack(func() { throw("bad pointer in write barrier") })
 	}
 
 	mp := acquirem()

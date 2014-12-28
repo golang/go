@@ -50,5 +50,5 @@ func rewindmorestack(buf *gobuf) {
 		return
 	}
 	print("runtime: pc=", pc, " ", hex(pc[0]), " ", hex(pc[1]), " ", hex(pc[2]), " ", hex(pc[3]), " ", hex(pc[4]), "\n")
-	gothrow("runtime: misuse of rewindmorestack")
+	throw("runtime: misuse of rewindmorestack")
 }

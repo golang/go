@@ -18,7 +18,7 @@ func concatstrings(a []string) string {
 			continue
 		}
 		if l+n < l {
-			gothrow("string concatenation too long")
+			throw("string concatenation too long")
 		}
 		l += n
 		count++
@@ -222,7 +222,7 @@ func rawbyteslice(size int) (b []byte) {
 // rawruneslice allocates a new rune slice. The rune slice is not zeroed.
 func rawruneslice(size int) (b []rune) {
 	if uintptr(size) > _MaxMem/4 {
-		gothrow("out of memory")
+		throw("out of memory")
 	}
 	mem := goroundupsize(uintptr(size) * 4)
 	p := mallocgc(mem, nil, flagNoScan|flagNoZero)

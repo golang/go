@@ -25,7 +25,7 @@ func netpollinit() {
 	kq = kqueue()
 	if kq < 0 {
 		println("netpollinit: kqueue failed with", -kq)
-		gothrow("netpollinit: kqueue failed")
+		throw("netpollinit: kqueue failed")
 	}
 	closeonexec(kq)
 }
@@ -57,7 +57,7 @@ func netpollclose(fd uintptr) int32 {
 }
 
 func netpollarm(pd *pollDesc, mode int) {
-	gothrow("unused")
+	throw("unused")
 }
 
 // Polls for ready network connections.

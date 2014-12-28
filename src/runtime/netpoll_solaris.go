@@ -118,7 +118,7 @@ func netpollinit() {
 	}
 
 	print("netpollinit: failed to create port (", errno(), ")\n")
-	gothrow("netpollinit: failed to create port")
+	throw("netpollinit: failed to create port")
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
@@ -155,7 +155,7 @@ func netpollupdate(pd *pollDesc, set, clear uint32) {
 
 	if events != 0 && port_associate(portfd, _PORT_SOURCE_FD, pd.fd, events, uintptr(unsafe.Pointer(pd))) != 0 {
 		print("netpollupdate: failed to associate (", errno(), ")\n")
-		gothrow("netpollupdate: failed to associate")
+		throw("netpollupdate: failed to associate")
 	}
 	pd.user = events
 }
@@ -169,7 +169,7 @@ func netpollarm(pd *pollDesc, mode int) {
 	case 'w':
 		netpollupdate(pd, _POLLOUT, 0)
 	default:
-		gothrow("netpollarm: bad mode")
+		throw("netpollarm: bad mode")
 	}
 	unlock(&pd.lock)
 }

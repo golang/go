@@ -28,7 +28,7 @@ func selectsize(size uintptr) uintptr {
 func newselect(sel *_select, selsize int64, size int32) {
 	if selsize != int64(selectsize(uintptr(size))) {
 		print("runtime: bad select size ", selsize, ", want ", selectsize(uintptr(size)), "\n")
-		gothrow("bad select size")
+		throw("bad select size")
 	}
 	sel.tcase = uint16(size)
 	sel.ncase = 0
@@ -53,7 +53,7 @@ func selectsend(sel *_select, c *hchan, elem unsafe.Pointer) (selected bool) {
 func selectsendImpl(sel *_select, c *hchan, pc uintptr, elem unsafe.Pointer, so uintptr) {
 	i := sel.ncase
 	if i >= sel.tcase {
-		gothrow("selectsend: too many cases")
+		throw("selectsend: too many cases")
 	}
 	sel.ncase = i + 1
 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
@@ -90,7 +90,7 @@ func selectrecv2(sel *_select, c *hchan, elem unsafe.Pointer, received *bool) (s
 func selectrecvImpl(sel *_select, c *hchan, pc uintptr, elem unsafe.Pointer, received *bool, so uintptr) {
 	i := sel.ncase
 	if i >= sel.tcase {
-		gothrow("selectrecv: too many cases")
+		throw("selectrecv: too many cases")
 	}
 	sel.ncase = i + 1
 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
@@ -115,7 +115,7 @@ func selectdefault(sel *_select) (selected bool) {
 func selectdefaultImpl(sel *_select, callerpc uintptr, so uintptr) {
 	i := sel.ncase
 	if i >= sel.tcase {
-		gothrow("selectdefault: too many cases")
+		throw("selectdefault: too many cases")
 	}
 	sel.ncase = i + 1
 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
@@ -263,7 +263,7 @@ func selectgoImpl(sel *_select) (uintptr, uint16) {
 		for i := 0; i+1 < int(sel.ncase); i++ {
 			if lockorder[i].sortkey() > lockorder[i+1].sortkey() {
 				print("i=", i, " x=", lockorder[i], " y=", lockorder[i+1], "\n")
-				gothrow("select: broken sort")
+				throw("select: broken sort")
 			}
 		}
 	*/
@@ -412,7 +412,7 @@ loop:
 	c = cas._chan
 
 	if c.dataqsiz > 0 {
-		gothrow("selectgo: shouldn't happen")
+		throw("selectgo: shouldn't happen")
 	}
 
 	if debugSelect {

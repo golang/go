@@ -110,7 +110,7 @@ func isvalidaddr(addr unsafe.Pointer) bool {
 func raceinit() uintptr {
 	// cgo is required to initialize libc, which is used by race runtime
 	if !iscgo {
-		gothrow("raceinit: race build must use cgo")
+		throw("raceinit: race build must use cgo")
 	}
 
 	var racectx uintptr

@@ -56,7 +56,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 			small &^= 4096 - 1
 		}
 		if small < 4096 {
-			gothrow("runtime: failed to decommit pages")
+			throw("runtime: failed to decommit pages")
 		}
 		v = add(v, small)
 		n -= small
@@ -66,7 +66,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 func sysUsed(v unsafe.Pointer, n uintptr) {
 	r := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
 	if r != uintptr(v) {
-		gothrow("runtime: failed to commit pages")
+		throw("runtime: failed to commit pages")
 	}
 
 	// Commit failed. See SysUnused.
@@ -77,7 +77,7 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
 			small &^= 4096 - 1
 		}
 		if small < 4096 {
-			gothrow("runtime: failed to decommit pages")
+			throw("runtime: failed to decommit pages")
 		}
 		v = add(v, small)
 		n -= small
@@ -88,7 +88,7 @@ func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
 	xadd64(stat, -int64(n))
 	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
 	if r == 0 {
-		gothrow("runtime: failed to release pages")
+		throw("runtime: failed to release pages")
 	}
 }
 
@@ -114,6 +114,6 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
 	xadd64(stat, int64(n))
 	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
 	if p != uintptr(v) {
-		gothrow("runtime: cannot map pages in arena address space")
+		throw("runtime: cannot map pages in arena address space")
 	}
 }

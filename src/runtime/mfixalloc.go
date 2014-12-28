@@ -26,7 +26,7 @@ func fixAlloc_Init(f *fixalloc, size uintptr, first func(unsafe.Pointer, unsafe.
 func fixAlloc_Alloc(f *fixalloc) unsafe.Pointer {
 	if f.size == 0 {
 		print("runtime: use of FixAlloc_Alloc before FixAlloc_Init\n")
-		gothrow("runtime: internal error")
+		throw("runtime: internal error")
 	}
 
 	if f.list != nil {

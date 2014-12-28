@@ -20,7 +20,7 @@ func getenv(s *byte) *byte {
 func gogetenv(key string) string {
 	env := environ()
 	if env == nil {
-		gothrow("getenv before env init")
+		throw("getenv before env init")
 	}
 	for _, s := range environ() {
 		if len(s) > len(key) && s[len(key)] == '=' && s[:len(key)] == key {

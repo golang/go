@@ -9,7 +9,7 @@ package runtime
 func sigpanic() {
 	g := getg()
 	if !canpanic(g) {
-		gothrow("unexpected signal during runtime execution")
+		throw("unexpected signal during runtime execution")
 	}
 
 	switch g.sig {
@@ -18,13 +18,13 @@ func sigpanic() {
 			panicmem()
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
-		gothrow("fault")
+		throw("fault")
 	case _SIGSEGV:
 		if (g.sigcode0 == 0 || g.sigcode0 == _SEGV_MAPERR || g.sigcode0 == _SEGV_ACCERR) && g.sigcode1 < 0x1000 || g.paniconfault {
 			panicmem()
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
-		gothrow("fault")
+		throw("fault")
 	case _SIGFPE:
 		switch g.sigcode0 {
 		case _FPE_INTDIV:
@@ -37,7 +37,7 @@ func sigpanic() {
 
 	if g.sig >= uint32(len(sigtable)) {
 		// can't happen: we looked up g.sig in sigtable to decide to call sigpanic
-		gothrow("unexpected signal value")
+		throw("unexpected signal value")
 	}
 	panic(errorString(sigtable[g.sig].name))
 }

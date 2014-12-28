@@ -43,7 +43,7 @@ func main() {
 	lockOSThread()
 
 	if g.m != &m0 {
-		gothrow("runtime.main not on m0")
+		throw("runtime.main not on m0")
 	}
 
 	runtime_init() // must be before defer
@@ -60,20 +60,20 @@ func main() {
 
 	if iscgo {
 		if _cgo_thread_start == nil {
-			gothrow("_cgo_thread_start missing")
+			throw("_cgo_thread_start missing")
 		}
 		if _cgo_malloc == nil {
-			gothrow("_cgo_malloc missing")
+			throw("_cgo_malloc missing")
 		}
 		if _cgo_free == nil {
-			gothrow("_cgo_free missing")
+			throw("_cgo_free missing")
 		}
 		if GOOS != "windows" {
 			if _cgo_setenv == nil {
-				gothrow("_cgo_setenv missing")
+				throw("_cgo_setenv missing")
 			}
 			if _cgo_unsetenv == nil {
-				gothrow("_cgo_unsetenv missing")
+				throw("_cgo_unsetenv missing")
 			}
 		}
 	}
@@ -114,7 +114,7 @@ func forcegchelper() {
 	for {
 		lock(&forcegc.lock)
 		if forcegc.idle != 0 {
-			gothrow("forcegc: phase error")
+			throw("forcegc: phase error")
 		}
 		atomicstore(&forcegc.idle, 1)
 		goparkunlock(&forcegc.lock, "force gc (idle)")
@@ -141,7 +141,7 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason s
 	gp := mp.curg
 	status := readgstatus(gp)
 	if status != _Grunning && status != _Gscanrunning {
-		gothrow("gopark: bad g status")
+		throw("gopark: bad g status")
 	}
 	mp.waitlock = lock
 	mp.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
@@ -169,7 +169,7 @@ func acquireSudog() *sudog {
 	s := c.sudogcache
 	if s != nil {
 		if s.elem != nil {
-			gothrow("acquireSudog: found s.elem != nil in cache")
+			throw("acquireSudog: found s.elem != nil in cache")
 		}
 		c.sudogcache = s.next
 		s.next = nil
@@ -187,7 +187,7 @@ func acquireSudog() *sudog {
 	mp := acquirem()
 	p := new(sudog)
 	if p.elem != nil {
-		gothrow("acquireSudog: found p.elem != nil after new")
+		throw("acquireSudog: found p.elem != nil after new")
 	}
 	releasem(mp)
 	return p
@@ -196,23 +196,23 @@ func acquireSudog() *sudog {
 //go:nosplit
 func releaseSudog(s *sudog) {
 	if s.elem != nil {
-		gothrow("runtime: sudog with non-nil elem")
+		throw("runtime: sudog with non-nil elem")
 	}
 	if s.selectdone != nil {
-		gothrow("runtime: sudog with non-nil selectdone")
+		throw("runtime: sudog with non-nil selectdone")
 	}
 	if s.next != nil {
-		gothrow("runtime: sudog with non-nil next")
+		throw("runtime: sudog with non-nil next")
 	}
 	if s.prev != nil {
-		gothrow("runtime: sudog with non-nil prev")
+		throw("runtime: sudog with non-nil prev")
 	}
 	if s.waitlink != nil {
-		gothrow("runtime: sudog with non-nil waitlink")
+		throw("runtime: sudog with non-nil waitlink")
 	}
 	gp := getg()
 	if gp.param != nil {
-		gothrow("runtime: releaseSudog with non-nil gp.param")
+		throw("runtime: releaseSudog with non-nil gp.param")
 	}
 	c := gomcache()
 	s.next = c.sudogcache
@@ -228,11 +228,11 @@ func funcPC(f interface{}) uintptr {
 
 // called from assembly
 func badmcall(fn func(*g)) {
-	gothrow("runtime: mcall called on m->g0 stack")
+	throw("runtime: mcall called on m->g0 stack")
 }
 
 func badmcall2(fn func(*g)) {
-	gothrow("runtime: mcall function returned")
+	throw("runtime: mcall function returned")
 }
 
 func badreflectcall() {
@@ -263,7 +263,7 @@ var (
 
 func allgadd(gp *g) {
 	if readgstatus(gp) == _Gidle {
-		gothrow("allgadd: bad status Gidle")
+		throw("allgadd: bad status Gidle")
 	}
 
 	lock(&allglock)

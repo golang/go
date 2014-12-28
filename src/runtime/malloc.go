@@ -49,7 +49,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	size0 := size
 
 	if flags&flagNoScan == 0 && typ == nil {
-		gothrow("malloc missing type")
+		throw("malloc missing type")
 	}
 
 	// This function must be atomic wrt GC, but for performance reasons
@@ -60,7 +60,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	if debugMalloc {
 		mp := acquirem()
 		if mp.mallocing != 0 {
-			gothrow("malloc deadlock")
+			throw("malloc deadlock")
 		}
 		mp.mallocing = 1
 		if mp.curg != nil {
@@ -123,7 +123,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 					if debugMalloc {
 						mp := acquirem()
 						if mp.mallocing == 0 {
-							gothrow("bad malloc")
+							throw("bad malloc")
 						}
 						mp.mallocing = 0
 						if mp.curg != nil {
@@ -222,7 +222,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		shift := (off % wordsPerBitmapByte) * gcBits
 		if debugMalloc && ((*xbits>>shift)&(bitMask|bitPtrMask)) != bitBoundary {
 			println("runtime: bits =", (*xbits>>shift)&(bitMask|bitPtrMask))
-			gothrow("bad bits in markallocated")
+			throw("bad bits in markallocated")
 		}
 
 		var ti, te uintptr
@@ -242,7 +242,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			masksize++                                // unroll flag in the beginning
 			if masksize > maxGCMask && typ.gc[1] != 0 {
 				// write barriers have not been updated to deal with this case yet.
-				gothrow("maxGCMask too small for now")
+				throw("maxGCMask too small for now")
 				// If the mask is too large, unroll the program directly
 				// into the GC bitmap. It's 7 times slower than copying
 				// from the pre-unrolled mask, but saves 1/16 of type size
@@ -315,7 +315,7 @@ marked:
 	if debugMalloc {
 		mp := acquirem()
 		if mp.mallocing == 0 {
-			gothrow("bad malloc")
+			throw("bad malloc")
 		}
 		mp.mallocing = 0
 		if mp.curg != nil {
@@ -360,7 +360,7 @@ func loadPtrMask(typ *_type) []uint8 {
 		masksize++                                // unroll flag in the beginning
 		if masksize > maxGCMask && typ.gc[1] != 0 {
 			// write barriers have not been updated to deal with this case yet.
-			gothrow("maxGCMask too small for now")
+			throw("maxGCMask too small for now")
 		}
 		ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
 		// Check whether the program is already unrolled
@@ -519,7 +519,7 @@ func gogc(force int32) {
 	}
 
 	if mp != acquirem() {
-		gothrow("gogc: rescheduled")
+		throw("gogc: rescheduled")
 	}
 
 	clearpools()
@@ -738,14 +738,14 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	e := (*eface)(unsafe.Pointer(&obj))
 	etyp := e._type
 	if etyp == nil {
-		gothrow("runtime.SetFinalizer: first argument is nil")
+		throw("runtime.SetFinalizer: first argument is nil")
 	}
 	if etyp.kind&kindMask != kindPtr {
-		gothrow("runtime.SetFinalizer: first argument is " + *etyp._string + ", not pointer")
+		throw("runtime.SetFinalizer: first argument is " + *etyp._string + ", not pointer")
 	}
 	ot := (*ptrtype)(unsafe.Pointer(etyp))
 	if ot.elem == nil {
-		gothrow("nil elem type!")
+		throw("nil elem type!")
 	}
 
 	// find the containing object
@@ -771,14 +771,14 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 			uintptr(unsafe.Pointer(&noptrbss)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&enoptrbss)) {
 			return
 		}
-		gothrow("runtime.SetFinalizer: pointer not in allocated block")
+		throw("runtime.SetFinalizer: pointer not in allocated block")
 	}
 
 	if e.data != base {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
 		if ot.elem == nil || ot.elem.kind&kindNoPointers == 0 || ot.elem.size >= maxTinySize {
-			gothrow("runtime.SetFinalizer: pointer not at beginning of allocated block")
+			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
 		}
 	}
 
@@ -793,12 +793,12 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	}
 
 	if ftyp.kind&kindMask != kindFunc {
-		gothrow("runtime.SetFinalizer: second argument is " + *ftyp._string + ", not a function")
+		throw("runtime.SetFinalizer: second argument is " + *ftyp._string + ", not a function")
 	}
 	ft := (*functype)(unsafe.Pointer(ftyp))
 	ins := *(*[]*_type)(unsafe.Pointer(&ft.in))
 	if ft.dotdotdot || len(ins) != 1 {
-		gothrow("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
+		throw("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
 	}
 	fint := ins[0]
 	switch {
@@ -821,7 +821,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 			goto okarg
 		}
 	}
-	gothrow("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
+	throw("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
 okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
@@ -835,7 +835,7 @@ okarg:
 
 	systemstack(func() {
 		if !addfinalizer(e.data, (*funcval)(f.data), nret, fint, ot) {
-			gothrow("runtime.SetFinalizer: finalizer already set")
+			throw("runtime.SetFinalizer: finalizer already set")
 		}
 	})
 }
@@ -933,7 +933,7 @@ func runfinq() {
 				}
 
 				if f.fint == nil {
-					gothrow("missing type in runfinq")
+					throw("missing type in runfinq")
 				}
 				switch f.fint.kind & kindMask {
 				case kindPtr:
@@ -950,7 +950,7 @@ func runfinq() {
 						*(*fInterface)(frame) = assertE2I(ityp, *(*interface{})(frame))
 					}
 				default:
-					gothrow("bad kind in runfinq")
+					throw("bad kind in runfinq")
 				}
 				reflectcall(unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz))
 
@@ -988,10 +988,10 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 
 	if align != 0 {
 		if align&(align-1) != 0 {
-			gothrow("persistentalloc: align is not a power of 2")
+			throw("persistentalloc: align is not a power of 2")
 		}
 		if align > _PageSize {
-			gothrow("persistentalloc: align is too large")
+			throw("persistentalloc: align is too large")
 		}
 	} else {
 		align = 8
@@ -1007,7 +1007,7 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 		persistent.pos = sysAlloc(chunk, &memstats.other_sys)
 		if persistent.pos == nil {
 			unlock(&persistent.lock)
-			gothrow("runtime: cannot allocate memory")
+			throw("runtime: cannot allocate memory")
 		}
 		persistent.end = add(persistent.pos, chunk)
 	}

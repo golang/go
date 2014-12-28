@@ -31,7 +31,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 		sp := (*slice)(unsafe.Pointer(&new))
 		sp.array = (*byte)(sysAlloc(uintptr(n)*ptrSize, &memstats.other_sys))
 		if sp.array == nil {
-			gothrow("runtime: cannot allocate memory")
+			throw("runtime: cannot allocate memory")
 		}
 		sp.len = uint(len(h_allspans))
 		sp.cap = uint(n)
@@ -174,7 +174,7 @@ func mHeap_Reclaim(h *mheap, npage uintptr) {
 func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan {
 	_g_ := getg()
 	if _g_ != _g_.m.g0 {
-		gothrow("_mheap_alloc not on g0 stack")
+		throw("_mheap_alloc not on g0 stack")
 	}
 	lock(&h.lock)
 
@@ -242,7 +242,7 @@ func mHeap_Alloc(h *mheap, npage uintptr, sizeclass int32, large bool, needzero 
 func mHeap_AllocStack(h *mheap, npage uintptr) *mspan {
 	_g_ := getg()
 	if _g_ != _g_.m.g0 {
-		gothrow("mheap_allocstack not on g0 stack")
+		throw("mheap_allocstack not on g0 stack")
 	}
 	lock(&h.lock)
 	s := mHeap_AllocSpanLocked(h, npage)
@@ -285,14 +285,14 @@ func mHeap_AllocSpanLocked(h *mheap, npage uintptr) *mspan {
 HaveSpan:
 	// Mark span in use.
 	if s.state != _MSpanFree {
-		gothrow("MHeap_AllocLocked - MSpan not free")
+		throw("MHeap_AllocLocked - MSpan not free")
 	}
 	if s.npages < npage {
-		gothrow("MHeap_AllocLocked - bad npages")
+		throw("MHeap_AllocLocked - bad npages")
 	}
 	mSpanList_Remove(s)
 	if s.next != nil || s.prev != nil {
-		gothrow("still in list")
+		throw("still in list")
 	}
 	if s.npreleased > 0 {
 		sysUsed((unsafe.Pointer)(s.start<<_PageShift), s.npages<<_PageShift)
@@ -332,7 +332,7 @@ HaveSpan:
 
 	//println("spanalloc", hex(s.start<<_PageShift))
 	if s.next != nil || s.prev != nil {
-		gothrow("still in list")
+		throw("still in list")
 	}
 	return s
 }
@@ -447,7 +447,7 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
 func mHeap_FreeStack(h *mheap, s *mspan) {
 	_g_ := getg()
 	if _g_ != _g_.m.g0 {
-		gothrow("mheap_freestack not on g0 stack")
+		throw("mheap_freestack not on g0 stack")
 	}
 	s.needzero = 1
 	lock(&h.lock)
@@ -460,15 +460,15 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool) {
 	switch s.state {
 	case _MSpanStack:
 		if s.ref != 0 {
-			gothrow("MHeap_FreeSpanLocked - invalid stack free")
+			throw("MHeap_FreeSpanLocked - invalid stack free")
 		}
 	case _MSpanInUse:
 		if s.ref != 0 || s.sweepgen != h.sweepgen {
 			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.start<<_PageShift), " ref ", s.ref, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
-			gothrow("MHeap_FreeSpanLocked - invalid free")
+			throw("MHeap_FreeSpanLocked - invalid free")
 		}
 	default:
-		gothrow("MHeap_FreeSpanLocked - invalid span state")
+		throw("MHeap_FreeSpanLocked - invalid span state")
 	}
 
 	if acctinuse {
@@ -608,7 +608,7 @@ func mSpanList_IsEmpty(list *mspan) bool {
 func mSpanList_Insert(list *mspan, span *mspan) {
 	if span.next != nil || span.prev != nil {
 		println("failed MSpanList_Insert", span, span.next, span.prev)
-		gothrow("MSpanList_Insert")
+		throw("MSpanList_Insert")
 	}
 	span.next = list.next
 	span.prev = list
@@ -619,7 +619,7 @@ func mSpanList_Insert(list *mspan, span *mspan) {
 func mSpanList_InsertBack(list *mspan, span *mspan) {
 	if span.next != nil || span.prev != nil {
 		println("failed MSpanList_InsertBack", span, span.next, span.prev)
-		gothrow("MSpanList_InsertBack")
+		throw("MSpanList_InsertBack")
 	}
 	span.next = list
 	span.prev = list.prev
@@ -636,7 +636,7 @@ func mSpanList_InsertBack(list *mspan, span *mspan) {
 func addspecial(p unsafe.Pointer, s *special) bool {
 	span := mHeap_LookupMaybe(&mheap_, p)
 	if span == nil {
-		gothrow("addspecial on invalid pointer")
+		throw("addspecial on invalid pointer")
 	}
 
 	// Ensure that the span is swept.
@@ -683,7 +683,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 func removespecial(p unsafe.Pointer, kind uint8) *special {
 	span := mHeap_LookupMaybe(&mheap_, p)
 	if span == nil {
-		gothrow("removespecial on invalid pointer")
+		throw("removespecial on invalid pointer")
 	}
 
 	// Ensure that the span is swept.
@@ -755,7 +755,7 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
 	s.special.kind = _KindSpecialProfile
 	s.b = b
 	if !addspecial(p, &s.special) {
-		gothrow("setprofilebucket: profile already set")
+		throw("setprofilebucket: profile already set")
 	}
 }
 
@@ -779,7 +779,7 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) bool {
 		unlock(&mheap_.speciallock)
 		return true
 	default:
-		gothrow("bad special kind")
+		throw("bad special kind")
 		panic("not reached")
 	}
 }

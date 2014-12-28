@@ -67,7 +67,7 @@ Send:
 	for {
 		switch atomicload(&sig.state) {
 		default:
-			gothrow("sigsend: inconsistent state")
+			throw("sigsend: inconsistent state")
 		case sigIdle:
 			if cas(&sig.state, sigIdle, sigSending) {
 				break Send
@@ -103,7 +103,7 @@ func signal_recv() uint32 {
 		for {
 			switch atomicload(&sig.state) {
 			default:
-				gothrow("signal_recv: inconsistent state")
+				throw("signal_recv: inconsistent state")
 			case sigIdle:
 				if cas(&sig.state, sigIdle, sigReceiving) {
 					notetsleepg(&sig.note, -1)

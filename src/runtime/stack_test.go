@@ -395,3 +395,21 @@ func TestStackPanic(t *testing.T) {
 	useStack(32)
 	panic("test panic")
 }
+
+func BenchmarkStackCopy(b *testing.B) {
+	c := make(chan bool)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			count(1000000)
+			c <- true
+		}()
+		<-c
+	}
+}
+
+func count(n int) int {
+	if n == 0 {
+		return 0
+	}
+	return 1 + count(n-1)
+}

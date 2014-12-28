@@ -36,13 +36,13 @@ func write(fd uintptr, p unsafe.Pointer, n int32) int32
 
 //go:linkname os_sigpipe os.sigpipe
 func os_sigpipe() {
-	gothrow("too many writes on closed pipe")
+	throw("too many writes on closed pipe")
 }
 
 func sigpanic() {
 	g := getg()
 	if !canpanic(g) {
-		gothrow("unexpected signal during runtime execution")
+		throw("unexpected signal during runtime execution")
 	}
 
 	// Native Client only invokes the exception handler for memory faults.

@@ -26,10 +26,10 @@ func makechan(t *chantype, size int64) *hchan {
 
 	// compiler checks this but be safe.
 	if elem.size >= 1<<16 {
-		gothrow("makechan: invalid channel element type")
+		throw("makechan: invalid channel element type")
 	}
 	if hchanSize%maxAlign != 0 || elem.align > maxAlign {
-		gothrow("makechan: bad alignment")
+		throw("makechan: bad alignment")
 	}
 	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (_MaxMem-hchanSize)/uintptr(elem.size)) {
 		panic("makechan: size out of range")
@@ -95,7 +95,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 			return false
 		}
 		gopark(nil, nil, "chan send (nil chan)")
-		gothrow("unreachable")
+		throw("unreachable")
 	}
 
 	if debugChan {
@@ -180,12 +180,12 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 
 		// someone woke us up.
 		if mysg != gp.waiting {
-			gothrow("G waiting list is corrupted!")
+			throw("G waiting list is corrupted!")
 		}
 		gp.waiting = nil
 		if gp.param == nil {
 			if c.closed == 0 {
-				gothrow("chansend: spurious wakeup")
+				throw("chansend: spurious wakeup")
 			}
 			panic("send on closed channel")
 		}
@@ -339,7 +339,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 			return
 		}
 		gopark(nil, nil, "chan receive (nil chan)")
-		gothrow("unreachable")
+		throw("unreachable")
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
@@ -416,7 +416,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 
 		// someone woke us up
 		if mysg != gp.waiting {
-			gothrow("G waiting list is corrupted!")
+			throw("G waiting list is corrupted!")
 		}
 		gp.waiting = nil
 		if mysg.releasetime > 0 {
@@ -435,7 +435,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 
 		lock(&c.lock)
 		if c.closed == 0 {
-			gothrow("chanrecv: spurious wakeup")
+			throw("chanrecv: spurious wakeup")
 		}
 		return recvclosed(c, ep)
 	}

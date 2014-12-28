@@ -43,7 +43,7 @@ package runtime
 
 func sizeToClass(size int32) int32 {
 	if size > _MaxSmallSize {
-		gothrow("SizeToClass - invalid size")
+		throw("SizeToClass - invalid size")
 	}
 	if size > 1024-8 {
 		return int32(size_to_class128[(size-1024+127)>>7])
@@ -67,7 +67,7 @@ func initSizes() {
 			}
 		}
 		if align&(align-1) != 0 {
-			gothrow("InitSizes - bug")
+			throw("InitSizes - bug")
 		}
 
 		// Make the allocnpages big enough that
@@ -95,7 +95,7 @@ func initSizes() {
 	}
 	if sizeclass != _NumSizeClasses {
 		print("sizeclass=", sizeclass, " NumSizeClasses=", _NumSizeClasses, "\n")
-		gothrow("InitSizes - bad NumSizeClasses")
+		throw("InitSizes - bad NumSizeClasses")
 	}
 
 	// Initialize the size_to_class tables.
@@ -155,7 +155,7 @@ dump:
 		}
 		print("\n")
 	}
-	gothrow("InitSizes failed")
+	throw("InitSizes failed")
 }
 
 // Returns size of the memory block that mallocgc will allocate if you ask for the size.

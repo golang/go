@@ -16,22 +16,22 @@ const raceenabled = false
 
 // Because raceenabled is false, none of these functions should be called.
 
-func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr)  { gothrow("race") }
-func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) { gothrow("race") }
-func raceinit() uintptr                                                     { gothrow("race"); return 0 }
-func racefini()                                                             { gothrow("race") }
-func racemapshadow(addr unsafe.Pointer, size uintptr)                       { gothrow("race") }
-func racewritepc(addr unsafe.Pointer, callerpc, pc uintptr)                 { gothrow("race") }
-func racereadpc(addr unsafe.Pointer, callerpc, pc uintptr)                  { gothrow("race") }
-func racereadrangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)         { gothrow("race") }
-func racewriterangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)        { gothrow("race") }
-func raceacquire(addr unsafe.Pointer)                                       { gothrow("race") }
-func raceacquireg(gp *g, addr unsafe.Pointer)                               { gothrow("race") }
-func racerelease(addr unsafe.Pointer)                                       { gothrow("race") }
-func racereleaseg(gp *g, addr unsafe.Pointer)                               { gothrow("race") }
-func racereleasemerge(addr unsafe.Pointer)                                  { gothrow("race") }
-func racereleasemergeg(gp *g, addr unsafe.Pointer)                          { gothrow("race") }
-func racefingo()                                                            { gothrow("race") }
-func racemalloc(p unsafe.Pointer, sz uintptr)                               { gothrow("race") }
-func racegostart(pc uintptr) uintptr                                        { gothrow("race"); return 0 }
-func racegoend()                                                            { gothrow("race") }
+func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr)  { throw("race") }
+func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) { throw("race") }
+func raceinit() uintptr                                                     { throw("race"); return 0 }
+func racefini()                                                             { throw("race") }
+func racemapshadow(addr unsafe.Pointer, size uintptr)                       { throw("race") }
+func racewritepc(addr unsafe.Pointer, callerpc, pc uintptr)                 { throw("race") }
+func racereadpc(addr unsafe.Pointer, callerpc, pc uintptr)                  { throw("race") }
+func racereadrangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)         { throw("race") }
+func racewriterangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)        { throw("race") }
+func raceacquire(addr unsafe.Pointer)                                       { throw("race") }
+func raceacquireg(gp *g, addr unsafe.Pointer)                               { throw("race") }
+func racerelease(addr unsafe.Pointer)                                       { throw("race") }
+func racereleaseg(gp *g, addr unsafe.Pointer)                               { throw("race") }
+func racereleasemerge(addr unsafe.Pointer)                                  { throw("race") }
+func racereleasemergeg(gp *g, addr unsafe.Pointer)                          { throw("race") }
+func racefingo()                                                            { throw("race") }
+func racemalloc(p unsafe.Pointer, sz uintptr)                               { throw("race") }
+func racegostart(pc uintptr) uintptr                                        { throw("race"); return 0 }
+func racegoend()                                                            { throw("race") }

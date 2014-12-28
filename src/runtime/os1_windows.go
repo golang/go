@@ -246,7 +246,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
 	if thandle == 0 {
 		println("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")")
-		gothrow("runtime.newosproc")
+		throw("runtime.newosproc")
 	}
 }
 
@@ -300,7 +300,7 @@ func systime(addr uintptr) int64 {
 		}
 	}
 	systemstack(func() {
-		gothrow("interrupt/system time is changing too fast")
+		throw("interrupt/system time is changing too fast")
 	})
 	return 0
 }

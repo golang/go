@@ -46,7 +46,7 @@ func netpollinit() {
 	iocphandle = uintptr(stdcall4(_CreateIoCompletionPort, _INVALID_HANDLE_VALUE, 0, 0, _DWORD_MAX))
 	if iocphandle == 0 {
 		println("netpoll: failed to create iocp handle (errno=", getlasterror(), ")")
-		gothrow("netpoll: failed to create iocp handle")
+		throw("netpoll: failed to create iocp handle")
 	}
 }
 
@@ -63,7 +63,7 @@ func netpollclose(fd uintptr) int32 {
 }
 
 func netpollarm(pd *pollDesc, mode int) {
-	gothrow("unused")
+	throw("unused")
 }
 
 // Polls for completed network IO.
@@ -101,7 +101,7 @@ retry:
 				return nil
 			}
 			println("netpoll: GetQueuedCompletionStatusEx failed (errno=", errno, ")")
-			gothrow("netpoll: GetQueuedCompletionStatusEx failed")
+			throw("netpoll: GetQueuedCompletionStatusEx failed")
 		}
 		mp.blocked = false
 		for i = 0; i < n; i++ {
@@ -128,7 +128,7 @@ retry:
 			}
 			if op == nil {
 				println("netpoll: GetQueuedCompletionStatus failed (errno=", errno, ")")
-				gothrow("netpoll: GetQueuedCompletionStatus failed")
+				throw("netpoll: GetQueuedCompletionStatus failed")
 			}
 			// dequeued failed IO packet, so report that
 		}
@@ -143,12 +143,12 @@ retry:
 
 func handlecompletion(gpp **g, op *net_op, errno int32, qty uint32) {
 	if op == nil {
-		gothrow("netpoll: GetQueuedCompletionStatus returned op == nil")
+		throw("netpoll: GetQueuedCompletionStatus returned op == nil")
 	}
 	mode := op.mode
 	if mode != 'r' && mode != 'w' {
 		println("netpoll: GetQueuedCompletionStatus returned invalid mode=", mode)
-		gothrow("netpoll: GetQueuedCompletionStatus returned invalid mode")
+		throw("netpoll: GetQueuedCompletionStatus returned invalid mode")
 	}
 	op.errno = errno
 	op.qty = qty

@@ -102,36 +102,36 @@ func testAtomic64() {
 	prefetcht2(uintptr(unsafe.Pointer(&z64)))
 	prefetchnta(uintptr(unsafe.Pointer(&z64)))
 	if cas64(&z64, x64, 1) {
-		gothrow("cas64 failed")
+		throw("cas64 failed")
 	}
 	if x64 != 0 {
-		gothrow("cas64 failed")
+		throw("cas64 failed")
 	}
 	x64 = 42
 	if !cas64(&z64, x64, 1) {
-		gothrow("cas64 failed")
+		throw("cas64 failed")
 	}
 	if x64 != 42 || z64 != 1 {
-		gothrow("cas64 failed")
+		throw("cas64 failed")
 	}
 	if atomicload64(&z64) != 1 {
-		gothrow("load64 failed")
+		throw("load64 failed")
 	}
 	atomicstore64(&z64, (1<<40)+1)
 	if atomicload64(&z64) != (1<<40)+1 {
-		gothrow("store64 failed")
+		throw("store64 failed")
 	}
 	if xadd64(&z64, (1<<40)+1) != (2<<40)+2 {
-		gothrow("xadd64 failed")
+		throw("xadd64 failed")
 	}
 	if atomicload64(&z64) != (2<<40)+2 {
-		gothrow("xadd64 failed")
+		throw("xadd64 failed")
 	}
 	if xchg64(&z64, (3<<40)+3) != (2<<40)+2 {
-		gothrow("xchg64 failed")
+		throw("xchg64 failed")
 	}
 	if atomicload64(&z64) != (3<<40)+3 {
-		gothrow("xchg64 failed")
+		throw("xchg64 failed")
 	}
 }
 
@@ -162,78 +162,78 @@ func check() {
 	var y1 y1t
 
 	if unsafe.Sizeof(a) != 1 {
-		gothrow("bad a")
+		throw("bad a")
 	}
 	if unsafe.Sizeof(b) != 1 {
-		gothrow("bad b")
+		throw("bad b")
 	}
 	if unsafe.Sizeof(c) != 2 {
-		gothrow("bad c")
+		throw("bad c")
 	}
 	if unsafe.Sizeof(d) != 2 {
-		gothrow("bad d")
+		throw("bad d")
 	}
 	if unsafe.Sizeof(e) != 4 {
-		gothrow("bad e")
+		throw("bad e")
 	}
 	if unsafe.Sizeof(f) != 4 {
-		gothrow("bad f")
+		throw("bad f")
 	}
 	if unsafe.Sizeof(g) != 8 {
-		gothrow("bad g")
+		throw("bad g")
 	}
 	if unsafe.Sizeof(h) != 8 {
-		gothrow("bad h")
+		throw("bad h")
 	}
 	if unsafe.Sizeof(i) != 4 {
-		gothrow("bad i")
+		throw("bad i")
 	}
 	if unsafe.Sizeof(j) != 8 {
-		gothrow("bad j")
+		throw("bad j")
 	}
 	if unsafe.Sizeof(k) != ptrSize {
-		gothrow("bad k")
+		throw("bad k")
 	}
 	if unsafe.Sizeof(l) != ptrSize {
-		gothrow("bad l")
+		throw("bad l")
 	}
 	if unsafe.Sizeof(x1) != 1 {
-		gothrow("bad unsafe.Sizeof x1")
+		throw("bad unsafe.Sizeof x1")
 	}
 	if unsafe.Offsetof(y1.y) != 1 {
-		gothrow("bad offsetof y1.y")
+		throw("bad offsetof y1.y")
 	}
 	if unsafe.Sizeof(y1) != 2 {
-		gothrow("bad unsafe.Sizeof y1")
+		throw("bad unsafe.Sizeof y1")
 	}
 
 	if timediv(12345*1000000000+54321, 1000000000, &e) != 12345 || e != 54321 {
-		gothrow("bad timediv")
+		throw("bad timediv")
 	}
 
 	var z uint32
 	z = 1
 	if !cas(&z, 1, 2) {
-		gothrow("cas1")
+		throw("cas1")
 	}
 	if z != 2 {
-		gothrow("cas2")
+		throw("cas2")
 	}
 
 	z = 4
 	if cas(&z, 5, 6) {
-		gothrow("cas3")
+		throw("cas3")
 	}
 	if z != 4 {
-		gothrow("cas4")
+		throw("cas4")
 	}
 
 	z = 0xffffffff
 	if !cas(&z, 0xffffffff, 0xfffffffe) {
-		gothrow("cas5")
+		throw("cas5")
 	}
 	if z != 0xfffffffe {
-		gothrow("cas6")
+		throw("cas6")
 	}
 
 	k = unsafe.Pointer(uintptr(0xfedcb123))
@@ -241,58 +241,58 @@ func check() {
 		k = unsafe.Pointer(uintptr(unsafe.Pointer(k)) << 10)
 	}
 	if casp(&k, nil, nil) {
-		gothrow("casp1")
+		throw("casp1")
 	}
 	k1 = add(k, 1)
 	if !casp(&k, k, k1) {
-		gothrow("casp2")
+		throw("casp2")
 	}
 	if k != k1 {
-		gothrow("casp3")
+		throw("casp3")
 	}
 
 	m = [4]byte{1, 1, 1, 1}
 	atomicor8(&m[1], 0xf0)
 	if m[0] != 1 || m[1] != 0xf1 || m[2] != 1 || m[3] != 1 {
-		gothrow("atomicor8")
+		throw("atomicor8")
 	}
 
 	*(*uint64)(unsafe.Pointer(&j)) = ^uint64(0)
 	if j == j {
-		gothrow("float64nan")
+		throw("float64nan")
 	}
 	if !(j != j) {
-		gothrow("float64nan1")
+		throw("float64nan1")
 	}
 
 	*(*uint64)(unsafe.Pointer(&j1)) = ^uint64(1)
 	if j == j1 {
-		gothrow("float64nan2")
+		throw("float64nan2")
 	}
 	if !(j != j1) {
-		gothrow("float64nan3")
+		throw("float64nan3")
 	}
 
 	*(*uint32)(unsafe.Pointer(&i)) = ^uint32(0)
 	if i == i {
-		gothrow("float32nan")
+		throw("float32nan")
 	}
 	if i == i {
-		gothrow("float32nan1")
+		throw("float32nan1")
 	}
 
 	*(*uint32)(unsafe.Pointer(&i1)) = ^uint32(1)
 	if i == i1 {
-		gothrow("float32nan2")
+		throw("float32nan2")
 	}
 	if i == i1 {
-		gothrow("float32nan3")
+		throw("float32nan3")
 	}
 
 	testAtomic64()
 
 	if _FixedStack != round2(_FixedStack) {
-		gothrow("FixedStack is not power-of-2")
+		throw("FixedStack is not power-of-2")
 	}
 }
 
