@@ -951,6 +951,6 @@ func TestErrorForHugeSlice(t *testing.T) {
 		t.Fatal("decode: no error")
 	}
 	if !strings.Contains(err.Error(), "slice too big") {
-		t.Fatal("decode: expected slice too big error, got %s", err.Error())
+		t.Fatalf("decode: expected slice too big error, got %s", err.Error())
 	}
 }
