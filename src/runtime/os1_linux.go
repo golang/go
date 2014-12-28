@@ -137,7 +137,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
-		gothrow("newosproc")
+		throw("newosproc")
 	}
 }
 
@@ -242,21 +242,21 @@ func setsig(i int32, fn uintptr, restart bool) {
 	}
 	sa.sa_handler = fn
 	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
-		gothrow("rt_sigaction failure")
+		throw("rt_sigaction failure")
 	}
 }
 
 func setsigstack(i int32) {
 	var sa sigactiont
 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
-		gothrow("rt_sigaction failure")
+		throw("rt_sigaction failure")
 	}
 	if sa.sa_handler == 0 || sa.sa_handler == _SIG_DFL || sa.sa_handler == _SIG_IGN || sa.sa_flags&_SA_ONSTACK != 0 {
 		return
 	}
 	sa.sa_flags |= _SA_ONSTACK
 	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
-		gothrow("rt_sigaction failure")
+		throw("rt_sigaction failure")
 	}
 }
 
@@ -265,7 +265,7 @@ func getsig(i int32) uintptr {
 
 	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
-		gothrow("rt_sigaction read failure")
+		throw("rt_sigaction read failure")
 	}
 	if sa.sa_handler == funcPC(sigtramp) {
 		return funcPC(sighandler)

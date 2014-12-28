@@ -88,10 +88,10 @@ havespan:
 	cap := int32((s.npages << _PageShift) / s.elemsize)
 	n := cap - int32(s.ref)
 	if n == 0 {
-		gothrow("empty span")
+		throw("empty span")
 	}
 	if s.freelist.ptr() == nil {
-		gothrow("freelist empty")
+		throw("freelist empty")
 	}
 	s.incache = true
 	return s
@@ -104,7 +104,7 @@ func mCentral_UncacheSpan(c *mcentral, s *mspan) {
 	s.incache = false
 
 	if s.ref == 0 {
-		gothrow("uncaching full span")
+		throw("uncaching full span")
 	}
 
 	cap := int32((s.npages << _PageShift) / s.elemsize)
@@ -124,7 +124,7 @@ func mCentral_UncacheSpan(c *mcentral, s *mspan) {
 // caller takes care of it.
 func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gclinkptr, preserve bool) bool {
 	if s.incache {
-		gothrow("freespan into cached span")
+		throw("freespan into cached span")
 	}
 
 	// Add the objects back to s's free list.
@@ -137,7 +137,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 		// preserve is set only when called from MCentral_CacheSpan above,
 		// the span must be in the empty list.
 		if s.next == nil {
-			gothrow("can't preserve unlinked span")
+			throw("can't preserve unlinked span")
 		}
 		atomicstore(&s.sweepgen, mheap_.sweepgen)
 		return false
@@ -194,7 +194,7 @@ func mCentral_Grow(c *mcentral) *mspan {
 		tail = gclinkptr(p)
 	}
 	if s.freelist.ptr() != nil {
-		gothrow("freelist not empty")
+		throw("freelist not empty")
 	}
 	tail.ptr().next = 0
 	s.freelist = head

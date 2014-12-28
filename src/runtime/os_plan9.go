@@ -55,13 +55,13 @@ type _Plink uintptr
 
 //go:linkname os_sigpipe os.sigpipe
 func os_sigpipe() {
-	gothrow("too many writes on closed pipe")
+	throw("too many writes on closed pipe")
 }
 
 func sigpanic() {
 	g := getg()
 	if !canpanic(g) {
-		gothrow("unexpected signal during runtime execution")
+		throw("unexpected signal during runtime execution")
 	}
 
 	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
@@ -73,12 +73,12 @@ func sigpanic() {
 			panicmem()
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
-		gothrow("fault")
+		throw("fault")
 	case _SIGTRAP:
 		if g.paniconfault {
 			panicmem()
 		}
-		gothrow(note)
+		throw(note)
 	case _SIGINTDIV:
 		panicdivide()
 	case _SIGFLOAT:

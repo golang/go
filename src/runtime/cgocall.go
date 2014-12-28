@@ -90,11 +90,11 @@ func cgocall(fn, arg unsafe.Pointer) {
 //go:nosplit
 func cgocall_errno(fn, arg unsafe.Pointer) int32 {
 	if !iscgo && GOOS != "solaris" && GOOS != "windows" {
-		gothrow("cgocall unavailable")
+		throw("cgocall unavailable")
 	}
 
 	if fn == nil {
-		gothrow("cgocall nil")
+		throw("cgocall nil")
 	}
 
 	if raceenabled {
@@ -161,7 +161,7 @@ func cmalloc(n uintptr) unsafe.Pointer {
 	args.n = uint64(n)
 	cgocall(_cgo_malloc, unsafe.Pointer(&args))
 	if args.ret == nil {
-		gothrow("C malloc failed")
+		throw("C malloc failed")
 	}
 	return args.ret
 }
@@ -218,7 +218,7 @@ func cgocallbackg1() {
 	sp := gp.m.g0.sched.sp
 	switch GOARCH {
 	default:
-		gothrow("cgocallbackg is unimplemented on arch")
+		throw("cgocallbackg is unimplemented on arch")
 	case "arm":
 		// On arm, stack frame is two words and there's a saved LR between
 		// SP and the stack frame and between the stack frame and the arguments.
@@ -253,7 +253,7 @@ func unwindm(restore *bool) {
 	sched := &mp.g0.sched
 	switch GOARCH {
 	default:
-		gothrow("unwindm not implemented")
+		throw("unwindm not implemented")
 	case "386", "amd64":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp))
 	case "arm":
@@ -264,12 +264,12 @@ func unwindm(restore *bool) {
 
 // called from assembly
 func badcgocallback() {
-	gothrow("misaligned stack in cgocallback")
+	throw("misaligned stack in cgocallback")
 }
 
 // called from (incomplete) assembly
 func cgounimpl() {
-	gothrow("cgo not implemented")
+	throw("cgo not implemented")
 }
 
 var racecgosync uint64 // represents possible synchronization in C code

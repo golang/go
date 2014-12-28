@@ -16,7 +16,7 @@ func initsig() {
 	// sigtable should describe what to do for all the possible signals.
 	if len(sigtable) != _NSIG {
 		print("runtime: len(sigtable)=", len(sigtable), " _NSIG=", _NSIG, "\n")
-		gothrow("initsig")
+		throw("initsig")
 	}
 
 	// First call: basic setup.

@@ -60,7 +60,7 @@ func mCache_Refill(c *mcache, sizeclass int32) *mspan {
 	// Return the current cached span to the central lists.
 	s := c.alloc[sizeclass]
 	if s.freelist.ptr() != nil {
-		gothrow("refill on a nonempty span")
+		throw("refill on a nonempty span")
 	}
 	if s != &emptymspan {
 		s.incache = false
@@ -69,11 +69,11 @@ func mCache_Refill(c *mcache, sizeclass int32) *mspan {
 	// Get a new cached span from the central lists.
 	s = mCentral_CacheSpan(&mheap_.central[sizeclass].mcentral)
 	if s == nil {
-		gothrow("out of memory")
+		throw("out of memory")
 	}
 	if s.freelist.ptr() == nil {
 		println(s.ref, (s.npages<<_PageShift)/s.elemsize)
-		gothrow("empty span")
+		throw("empty span")
 	}
 	c.alloc[sizeclass] = s
 	_g_.m.locks--

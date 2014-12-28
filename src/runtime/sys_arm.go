@@ -10,7 +10,7 @@ import "unsafe"
 // and then did an immediate Gosave.
 func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
 	if buf.lr != 0 {
-		gothrow("invalid use of gostartcall")
+		throw("invalid use of gostartcall")
 	}
 	buf.lr = buf.pc
 	buf.pc = uintptr(fn)
@@ -31,5 +31,5 @@ func rewindmorestack(buf *gobuf) {
 	}
 
 	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
-	gothrow("runtime: misuse of rewindmorestack")
+	throw("runtime: misuse of rewindmorestack")
 }

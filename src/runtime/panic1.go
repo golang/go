@@ -23,7 +23,7 @@ func recovery(gp *g) {
 	// d's arguments need to be in the stack.
 	if sp != 0 && (sp < gp.stack.lo || gp.stack.hi < sp) {
 		print("recover: ", hex(sp), " not in [", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
-		gothrow("bad recovery")
+		throw("bad recovery")
 	}
 
 	// Make the deferproc for this d return again,

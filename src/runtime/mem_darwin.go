@@ -50,9 +50,9 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
 	xadd64(stat, int64(n))
 	p := (unsafe.Pointer)(mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0))
 	if uintptr(p) == _ENOMEM {
-		gothrow("runtime: out of memory")
+		throw("runtime: out of memory")
 	}
 	if p != v {
-		gothrow("runtime: cannot map pages in arena address space")
+		throw("runtime: cannot map pages in arena address space")
 	}
 }

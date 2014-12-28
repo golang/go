@@ -222,7 +222,7 @@ func dumpbv(cbv *bitvector, offset uintptr) {
 	for i := uintptr(0); i < uintptr(bv.n); i += bitsPerPointer {
 		switch bv.bytedata[i/8] >> (i % 8) & 3 {
 		default:
-			gothrow("unexpected pointer bits")
+			throw("unexpected pointer bits")
 		case _BitsDead:
 			// BitsDead has already been processed in makeheapobjbv.
 			// We should only see it in stack maps, in which case we should continue processing.
@@ -392,7 +392,7 @@ func dumpgs() {
 		switch status {
 		default:
 			print("runtime: unexpected G.status ", hex(status), "\n")
-			gothrow("dumpgs in STW - bad status")
+			throw("dumpgs in STW - bad status")
 		case _Gdead:
 			// ok
 		case _Grunnable,
@@ -462,7 +462,7 @@ func dumpobjs() {
 		size := s.elemsize
 		n := (s.npages << _PageShift) / size
 		if n > uintptr(len(freemark)) {
-			gothrow("freemark array doesn't have enough entries")
+			throw("freemark array doesn't have enough entries")
 		}
 		for l := s.freelist; l.ptr() != nil; l = l.ptr().next {
 			freemark[(uintptr(l)-p)/size] = true
@@ -708,7 +708,7 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 		n := nptr*_BitsPerPointer/8 + 1
 		p := sysAlloc(n, &memstats.other_sys)
 		if p == nil {
-			gothrow("heapdump: out of memory")
+			throw("heapdump: out of memory")
 		}
 		tmpbuf = (*[1 << 30]byte)(p)[:n]
 	}

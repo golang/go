@@ -69,7 +69,7 @@ func init() {
 	var memStats MemStats
 	if sizeof_C_MStats != unsafe.Sizeof(memStats) {
 		println(sizeof_C_MStats, unsafe.Sizeof(memStats))
-		gothrow("MStats vs MemStatsType size mismatch")
+		throw("MStats vs MemStatsType size mismatch")
 	}
 }
 

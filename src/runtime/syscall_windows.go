@@ -70,7 +70,7 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 		}
 	}
 	if n >= cb_max {
-		gothrow("too many callback functions")
+		throw("too many callback functions")
 	}
 
 	c := new(wincallbackcontext)

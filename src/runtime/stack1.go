@@ -49,7 +49,7 @@ var stackfreequeue stack
 
 func stackinit() {
 	if _StackCacheSize&_PageMask != 0 {
-		gothrow("cache size must be a multiple of page size")
+		throw("cache size must be a multiple of page size")
 	}
 	for i := range stackpool {
 		mSpanList_Init(&stackpool[i])
@@ -65,13 +65,13 @@ func stackpoolalloc(order uint8) gclinkptr {
 		// no free stacks.  Allocate another span worth.
 		s = mHeap_AllocStack(&mheap_, _StackCacheSize>>_PageShift)
 		if s == nil {
-			gothrow("out of memory")
+			throw("out of memory")
 		}
 		if s.ref != 0 {
-			gothrow("bad ref")
+			throw("bad ref")
 		}
 		if s.freelist.ptr() != nil {
-			gothrow("bad freelist")
+			throw("bad freelist")
 		}
 		for i := uintptr(0); i < _StackCacheSize; i += _FixedStack << order {
 			x := gclinkptr(uintptr(s.start)<<_PageShift + i)
@@ -82,7 +82,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 	}
 	x := s.freelist
 	if x.ptr() == nil {
-		gothrow("span has no free stacks")
+		throw("span has no free stacks")
 	}
 	s.freelist = x.ptr().next
 	s.ref++
@@ -97,7 +97,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 func stackpoolfree(x gclinkptr, order uint8) {
 	s := mHeap_Lookup(&mheap_, (unsafe.Pointer)(x))
 	if s.state != _MSpanStack {
-		gothrow("freeing stack not in a stack span")
+		throw("freeing stack not in a stack span")
 	}
 	if s.freelist.ptr() == nil {
 		// s will now have a free stack
@@ -179,10 +179,10 @@ func stackalloc(n uint32) stack {
 	// Doing so would cause a deadlock (issue 1547).
 	thisg := getg()
 	if thisg != thisg.m.g0 {
-		gothrow("stackalloc not on scheduler stack")
+		throw("stackalloc not on scheduler stack")
 	}
 	if n&(n-1) != 0 {
-		gothrow("stack size not a power of 2")
+		throw("stack size not a power of 2")
 	}
 	if stackDebug >= 1 {
 		print("stackalloc ", n, "\n")
@@ -191,7 +191,7 @@ func stackalloc(n uint32) stack {
 	if debug.efence != 0 || stackFromSystem != 0 {
 		v := sysAlloc(round(uintptr(n), _PageSize), &memstats.stacks_sys)
 		if v == nil {
-			gothrow("out of memory (stackalloc)")
+			throw("out of memory (stackalloc)")
 		}
 		return stack{uintptr(v), uintptr(v) + uintptr(n)}
 	}
@@ -230,7 +230,7 @@ func stackalloc(n uint32) stack {
 	} else {
 		s := mHeap_AllocStack(&mheap_, round(uintptr(n), _PageSize)>>_PageShift)
 		if s == nil {
-			gothrow("out of memory")
+			throw("out of memory")
 		}
 		v = (unsafe.Pointer)(s.start << _PageShift)
 	}
@@ -249,7 +249,7 @@ func stackfree(stk stack) {
 	n := stk.hi - stk.lo
 	v := (unsafe.Pointer)(stk.lo)
 	if n&(n-1) != 0 {
-		gothrow("stack not a power of 2")
+		throw("stack not a power of 2")
 	}
 	if stackDebug >= 1 {
 		println("stackfree", v, n)
@@ -288,7 +288,7 @@ func stackfree(stk stack) {
 		s := mHeap_Lookup(&mheap_, v)
 		if s.state != _MSpanStack {
 			println(hex(s.start<<_PageShift), v)
-			gothrow("bad span state")
+			throw("bad span state")
 		}
 		mHeap_FreeStack(&mheap_, s)
 	}
@@ -379,7 +379,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 		}
 		switch ptrbits(&bv, i) {
 		default:
-			gothrow("unexpected pointer bits")
+			throw("unexpected pointer bits")
 		case _BitsDead:
 			if debug.gcdead != 0 {
 				*(*unsafe.Pointer)(add(scanp, i*ptrSize)) = unsafe.Pointer(uintptr(poisonStack))
@@ -394,7 +394,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 				// Live analysis wrong?
 				getg().m.traceback = 2
 				print("runtime: bad pointer in frame ", gofuncname(f), " at ", add(scanp, i*ptrSize), ": ", p, "\n")
-				gothrow("invalid stack pointer")
+				throw("invalid stack pointer")
 			}
 			if minp <= up && up < maxp {
 				if stackDebug >= 3 {
@@ -445,13 +445,13 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		stackmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
 		if stackmap == nil || stackmap.n <= 0 {
 			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
-			gothrow("missing stackmap")
+			throw("missing stackmap")
 		}
 		// Locals bitmap information, scan just the pointers in locals.
 		if pcdata < 0 || pcdata >= stackmap.n {
 			// don't know where we are
 			print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
-			gothrow("bad symbol table")
+			throw("bad symbol table")
 		}
 		bv = stackmapdata(stackmap, pcdata)
 		size = (uintptr(bv.n) * ptrSize) / _BitsPerPointer
@@ -470,12 +470,12 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 			stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
 			if stackmap == nil || stackmap.n <= 0 {
 				print("runtime: frame ", funcname(f), " untyped args ", frame.argp, "+", uintptr(frame.arglen), "\n")
-				gothrow("missing stackmap")
+				throw("missing stackmap")
 			}
 			if pcdata < 0 || pcdata >= stackmap.n {
 				// don't know where we are
 				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " args stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
-				gothrow("bad symbol table")
+				throw("bad symbol table")
 			}
 			bv = stackmapdata(stackmap, pcdata)
 		}
@@ -529,11 +529,11 @@ func fillstack(stk stack, b byte) {
 // Caller must have changed gp status to Gcopystack.
 func copystack(gp *g, newsize uintptr) {
 	if gp.syscallsp != 0 {
-		gothrow("stack growth not allowed in system call")
+		throw("stack growth not allowed in system call")
 	}
 	old := gp.stack
 	if old.lo == 0 {
-		gothrow("nil stackbase")
+		throw("nil stackbase")
 	}
 	used := old.hi - gp.sched.sp
 
@@ -612,13 +612,13 @@ func newstack() {
 	thisg := getg()
 	// TODO: double check all gp. shouldn't be getg().
 	if thisg.m.morebuf.g.stackguard0 == stackFork {
-		gothrow("stack growth after fork")
+		throw("stack growth after fork")
 	}
 	if thisg.m.morebuf.g != thisg.m.curg {
 		print("runtime: newstack called from g=", thisg.m.morebuf.g, "\n"+"\tm=", thisg.m, " m->curg=", thisg.m.curg, " m->g0=", thisg.m.g0, " m->gsignal=", thisg.m.gsignal, "\n")
 		morebuf := thisg.m.morebuf
 		traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g)
-		gothrow("runtime: wrong goroutine in newstack")
+		throw("runtime: wrong goroutine in newstack")
 	}
 	if thisg.m.curg.throwsplit {
 		gp := thisg.m.curg
@@ -629,7 +629,7 @@ func newstack() {
 		print("runtime: newstack sp=", hex(gp.sched.sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
 			"\tmorebuf={pc:", hex(morebuf.pc), " sp:", hex(morebuf.sp), " lr:", hex(morebuf.lr), "}\n",
 			"\tsched={pc:", hex(gp.sched.pc), " sp:", hex(gp.sched.sp), " lr:", hex(gp.sched.lr), " ctxt:", gp.sched.ctxt, "}\n")
-		gothrow("runtime: stack split at bad time")
+		throw("runtime: stack split at bad time")
 	}
 
 	// The goroutine must be executing in order to call newstack,
@@ -648,7 +648,7 @@ func newstack() {
 	rewindmorestack(&gp.sched)
 
 	if gp.stack.lo == 0 {
-		gothrow("missing stack in newstack")
+		throw("missing stack in newstack")
 	}
 	sp := gp.sched.sp
 	if thechar == '6' || thechar == '8' {
@@ -663,7 +663,7 @@ func newstack() {
 	if sp < gp.stack.lo {
 		print("runtime: gp=", gp, ", gp->status=", hex(readgstatus(gp)), "\n ")
 		print("runtime: split stack overflow: ", hex(sp), " < ", hex(gp.stack.lo), "\n")
-		gothrow("runtime: split stack overflow")
+		throw("runtime: split stack overflow")
 	}
 
 	if gp.sched.ctxt != nil {
@@ -676,10 +676,10 @@ func newstack() {
 
 	if gp.stackguard0 == stackPreempt {
 		if gp == thisg.m.g0 {
-			gothrow("runtime: preempt g0")
+			throw("runtime: preempt g0")
 		}
 		if thisg.m.p == nil && thisg.m.locks == 0 {
-			gothrow("runtime: g is running but p is not")
+			throw("runtime: g is running but p is not")
 		}
 		if gp.preemptscan {
 			for !castogscanstatus(gp, _Gwaiting, _Gscanwaiting) {
@@ -715,7 +715,7 @@ func newstack() {
 	newsize := oldsize * 2
 	if uintptr(newsize) > maxstacksize {
 		print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
-		gothrow("stack overflow")
+		throw("stack overflow")
 	}
 
 	casgstatus(gp, _Gwaiting, _Gcopystack)
@@ -761,7 +761,7 @@ func shrinkstack(gp *g) {
 		return
 	}
 	if gp.stack.lo == 0 {
-		gothrow("missing stack in shrinkstack")
+		throw("missing stack in shrinkstack")
 	}
 
 	oldsize := gp.stack.hi - gp.stack.lo
@@ -808,6 +808,6 @@ func shrinkfinish() {
 //go:nosplit
 func morestackc() {
 	systemstack(func() {
-		gothrow("attempt to execute C code on Go stack")
+		throw("attempt to execute C code on Go stack")
 	})
 }

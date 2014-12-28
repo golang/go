@@ -77,7 +77,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&tls[2]), nil)
 	if ret < 0 {
 		print("nacl_thread_create: error ", -ret, "\n")
-		gothrow("newosproc")
+		throw("newosproc")
 	}
 }
 
@@ -88,12 +88,12 @@ func semacreate() uintptr {
 		mu := nacl_mutex_create(0)
 		if mu < 0 {
 			print("nacl_mutex_create: error ", -mu, "\n")
-			gothrow("semacreate")
+			throw("semacreate")
 		}
 		c := nacl_cond_create(0)
 		if c < 0 {
 			print("nacl_cond_create: error ", -cond, "\n")
-			gothrow("semacreate")
+			throw("semacreate")
 		}
 		cond = uintptr(c)
 		_g_ := getg()
@@ -109,13 +109,13 @@ func semasleep(ns int64) int32 {
 	systemstack(func() {
 		_g_ := getg()
 		if nacl_mutex_lock(int32(_g_.m.waitsemalock)) < 0 {
-			gothrow("semasleep")
+			throw("semasleep")
 		}
 
 		for _g_.m.waitsemacount == 0 {
 			if ns < 0 {
 				if nacl_cond_wait(int32(_g_.m.waitsema), int32(_g_.m.waitsemalock)) < 0 {
-					gothrow("semasleep")
+					throw("semasleep")
 				}
 			} else {
 				var ts timespec
@@ -129,7 +129,7 @@ func semasleep(ns int64) int32 {
 					return
 				}
 				if r < 0 {
-					gothrow("semasleep")
+					throw("semasleep")
 				}
 			}
 		}
@@ -145,10 +145,10 @@ func semasleep(ns int64) int32 {
 func semawakeup(mp *m) {
 	systemstack(func() {
 		if nacl_mutex_lock(int32(mp.waitsemalock)) < 0 {
-			gothrow("semawakeup")
+			throw("semawakeup")
 		}
 		if mp.waitsemacount != 0 {
-			gothrow("semawakeup")
+			throw("semawakeup")
 		}
 		mp.waitsemacount = 1
 		nacl_cond_signal(int32(mp.waitsema))

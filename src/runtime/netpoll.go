@@ -81,10 +81,10 @@ func net_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 	pd := pollcache.alloc()
 	lock(&pd.lock)
 	if pd.wg != 0 && pd.wg != pdReady {
-		gothrow("netpollOpen: blocked write on free descriptor")
+		throw("netpollOpen: blocked write on free descriptor")
 	}
 	if pd.rg != 0 && pd.rg != pdReady {
-		gothrow("netpollOpen: blocked read on free descriptor")
+		throw("netpollOpen: blocked read on free descriptor")
 	}
 	pd.fd = fd
 	pd.closing = false
@@ -103,13 +103,13 @@ func net_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 //go:linkname net_runtime_pollClose net.runtime_pollClose
 func net_runtime_pollClose(pd *pollDesc) {
 	if !pd.closing {
-		gothrow("netpollClose: close w/o unblock")
+		throw("netpollClose: close w/o unblock")
 	}
 	if pd.wg != 0 && pd.wg != pdReady {
-		gothrow("netpollClose: blocked write on closing descriptor")
+		throw("netpollClose: blocked write on closing descriptor")
 	}
 	if pd.rg != 0 && pd.rg != pdReady {
-		gothrow("netpollClose: blocked read on closing descriptor")
+		throw("netpollClose: blocked read on closing descriptor")
 	}
 	netpollclose(uintptr(pd.fd))
 	pollcache.free(pd)
@@ -240,7 +240,7 @@ func net_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 func net_runtime_pollUnblock(pd *pollDesc) {
 	lock(&pd.lock)
 	if pd.closing {
-		gothrow("netpollUnblock: already closing")
+		throw("netpollUnblock: already closing")
 	}
 	pd.closing = true
 	pd.seq++
@@ -314,7 +314,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 			return true
 		}
 		if old != 0 {
-			gothrow("netpollblock: double wait")
+			throw("netpollblock: double wait")
 		}
 		if casuintptr(gpp, 0, pdWait) {
 			break
@@ -330,7 +330,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 	// be careful to not lose concurrent READY notification
 	old := xchguintptr(gpp, 0)
 	if old > pdWait {
-		gothrow("netpollblock: corrupted state")
+		throw("netpollblock: corrupted state")
 	}
 	return old == pdReady
 }
@@ -376,7 +376,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	var rg *g
 	if read {
 		if pd.rd <= 0 || pd.rt.f == nil {
-			gothrow("netpolldeadlineimpl: inconsistent read deadline")
+			throw("netpolldeadlineimpl: inconsistent read deadline")
 		}
 		pd.rd = -1
 		atomicstorep(unsafe.Pointer(&pd.rt.f), nil) // full memory barrier between store to rd and load of rg in netpollunblock
@@ -385,7 +385,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	var wg *g
 	if write {
 		if pd.wd <= 0 || pd.wt.f == nil && !read {
-			gothrow("netpolldeadlineimpl: inconsistent write deadline")
+			throw("netpolldeadlineimpl: inconsistent write deadline")
 		}
 		pd.wd = -1
 		atomicstorep(unsafe.Pointer(&pd.wt.f), nil) // full memory barrier between store to wd and load of wg in netpollunblock

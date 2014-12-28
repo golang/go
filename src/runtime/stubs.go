@@ -59,7 +59,7 @@ func mcall(fn func(*g))
 func systemstack(fn func())
 
 func badsystemstack() {
-	gothrow("systemstack called from unexpected goroutine")
+	throw("systemstack called from unexpected goroutine")
 }
 
 // memclr clears n bytes starting at ptr.

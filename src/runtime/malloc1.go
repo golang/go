@@ -89,7 +89,7 @@ func mallocinit() {
 	initSizes()
 
 	if class_to_size[_TinySizeClass] != _TinySize {
-		gothrow("bad TinySizeClass")
+		throw("bad TinySizeClass")
 	}
 
 	var p, bitmapSize, spansSize, pSize, limit uintptr
@@ -196,7 +196,7 @@ func mallocinit() {
 			}
 		}
 		if p == 0 {
-			gothrow("runtime: cannot reserve arena virtual address space")
+			throw("runtime: cannot reserve arena virtual address space")
 		}
 	}
 
@@ -214,7 +214,7 @@ func mallocinit() {
 
 	if mheap_.arena_start&(_PageSize-1) != 0 {
 		println("bad pagesize", hex(p), hex(p1), hex(spansSize), hex(bitmapSize), hex(_PageSize), "start", hex(mheap_.arena_start))
-		gothrow("misrounded allocation in mallocinit")
+		throw("misrounded allocation in mallocinit")
 	}
 
 	// Initialize the rest of the allocator.
@@ -262,7 +262,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 		}
 
 		if uintptr(p)&(_PageSize-1) != 0 {
-			gothrow("misrounded allocation in MHeap_SysAlloc")
+			throw("misrounded allocation in MHeap_SysAlloc")
 		}
 		return (unsafe.Pointer)(p)
 	}
@@ -302,7 +302,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 	}
 
 	if uintptr(p)&(_PageSize-1) != 0 {
-		gothrow("misrounded allocation in MHeap_SysAlloc")
+		throw("misrounded allocation in MHeap_SysAlloc")
 	}
 	return (unsafe.Pointer)(p)
 }
@@ -313,7 +313,7 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
 	// print("largeAlloc size=", size, "\n")
 
 	if size+_PageSize < size {
-		gothrow("out of memory")
+		throw("out of memory")
 	}
 	npages := size >> _PageShift
 	if size&_PageMask != 0 {
@@ -321,7 +321,7 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
 	}
 	s := mHeap_Alloc(&mheap_, npages, 0, true, flag&_FlagNoZero == 0)
 	if s == nil {
-		gothrow("out of memory")
+		throw("out of memory")
 	}
 	s.limit = uintptr(s.start)<<_PageShift + size
 	v := unsafe.Pointer(uintptr(s.start) << _PageShift)

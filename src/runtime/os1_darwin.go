@@ -64,9 +64,9 @@ func goenvs() {
 	if !iscgo {
 		if bsdthread_register() != 0 {
 			if gogetenv("DYLD_INSERT_LIBRARIES") != "" {
-				gothrow("runtime: bsdthread_register error (unset DYLD_INSERT_LIBRARIES)")
+				throw("runtime: bsdthread_register error (unset DYLD_INSERT_LIBRARIES)")
 			}
-			gothrow("runtime: bsdthread_register error")
+			throw("runtime: bsdthread_register error")
 		}
 	}
 }
@@ -84,7 +84,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 	if errno < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -errno, ")\n")
-		gothrow("runtime.newosproc")
+		throw("runtime.newosproc")
 	}
 }
 
@@ -114,7 +114,7 @@ func unminit() {
 
 func macherror(r int32, fn string) {
 	print("mach error ", fn, ": ", r, "\n")
-	gothrow("mach error")
+	throw("mach error")
 }
 
 const _DebugMach = false
@@ -395,7 +395,7 @@ func setsig(i int32, fn uintptr, restart bool) {
 }
 
 func setsigstack(i int32) {
-	gothrow("setsigstack")
+	throw("setsigstack")
 }
 
 func getsig(i int32) uintptr {

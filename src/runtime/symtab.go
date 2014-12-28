@@ -50,7 +50,7 @@ func symtabinit() {
 	pcln32 := (*[2]uint32)(unsafe.Pointer(&pclntab))
 	if pcln32[0] != 0xfffffffb || pcln[4] != 0 || pcln[5] != 0 || pcln[6] != _PCQuantum || pcln[7] != ptrSize {
 		println("runtime: function symbol table header:", hex(pcln32[0]), hex(pcln[4]), hex(pcln[5]), hex(pcln[6]), hex(pcln[7]))
-		gothrow("invalid function symbol table\n")
+		throw("invalid function symbol table\n")
 	}
 
 	// pclntable is all bytes of pclntab symbol.
@@ -79,7 +79,7 @@ func symtabinit() {
 			for j := 0; j <= i; j++ {
 				print("\t", hex(ftab[j].entry), " ", gofuncname((*_func)(unsafe.Pointer(&pclntable[ftab[j].funcoff]))), "\n")
 			}
-			gothrow("invalid runtime symbol table")
+			throw("invalid runtime symbol table")
 		}
 	}
 
@@ -150,7 +150,7 @@ func findfunc(pc uintptr) *_func {
 		}
 	}
 
-	gothrow("findfunc: binary search failed")
+	throw("findfunc: binary search failed")
 	return nil
 }
 
@@ -192,7 +192,7 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
 		print("\tvalue=", val, " until pc=", hex(pc), "\n")
 	}
 
-	gothrow("invalid runtime symbol table")
+	throw("invalid runtime symbol table")
 	return -1
 }
 

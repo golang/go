@@ -27,7 +27,7 @@ func desc_thr_index(desc *parfor, i uint32) *parforthread {
 func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, body func(*parfor, uint32)) {
 	if desc == nil || nthr == 0 || nthr > desc.nthrmax || body == nil {
 		print("desc=", desc, " nthr=", nthr, " count=", n, " body=", body, "\n")
-		gothrow("parfor: invalid args")
+		throw("parfor: invalid args")
 	}
 
 	desc.body = *(*unsafe.Pointer)(unsafe.Pointer(&body))
@@ -48,7 +48,7 @@ func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, bo
 		end := uint32(uint64(n) * uint64(i+1) / uint64(nthr))
 		pos := &desc_thr_index(desc, i).pos
 		if uintptr(unsafe.Pointer(pos))&7 != 0 {
-			gothrow("parforsetup: pos is not aligned")
+			throw("parforsetup: pos is not aligned")
 		}
 		*pos = uint64(begin) | uint64(end)<<32
 	}
@@ -59,7 +59,7 @@ func parfordo(desc *parfor) {
 	tid := xadd(&desc.thrseq, 1) - 1
 	if tid >= desc.nthr {
 		print("tid=", tid, " nthr=", desc.nthr, "\n")
-		gothrow("parfor: invalid tid")
+		throw("parfor: invalid tid")
 	}
 
 	// If single-threaded, just execute the for serially.
@@ -141,7 +141,7 @@ func parfordo(desc *parfor) {
 			if begin < end {
 				// Has successfully stolen some work.
 				if idle {
-					gothrow("parfor: should not be idle")
+					throw("parfor: should not be idle")
 				}
 				atomicstore64(mypos, uint64(begin)|uint64(end)<<32)
 				me.nsteal++

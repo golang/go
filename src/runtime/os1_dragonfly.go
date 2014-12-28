@@ -190,7 +190,7 @@ func setsig(i int32, fn uintptr, restart bool) {
 }
 
 func setsigstack(i int32) {
-	gothrow("setsigstack")
+	throw("setsigstack")
 }
 
 func getsig(i int32) uintptr {
