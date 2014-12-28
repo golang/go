@@ -50,6 +50,18 @@ func TestCgoExternalThreadPanic(t *testing.T) {
 	}
 }
 
+func TestCgoExternalThreadSIGPROF(t *testing.T) {
+	// issue 9456.
+	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	got := executeTest(t, cgoExternalThreadSIGPROFSource, nil)
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
 const cgoSignalDeadlockSource = `
 package main
 
@@ -192,5 +204,48 @@ start(void)
 {
 	if(_beginthreadex(0, 0, die, 0, 0, 0) != 0)
 		printf("_beginthreadex failed\n");
+}
+`
+
+const cgoExternalThreadSIGPROFSource = `
+package main
+
+/*
+#include <stdint.h>
+#include <signal.h>
+#include <pthread.h>
+
+volatile int32_t spinlock;
+
+static void *thread1(void *p) {
+	(void)p;
+	while (spinlock == 0)
+		;
+	pthread_kill(pthread_self(), SIGPROF);
+	spinlock = 0;
+	return NULL;
+}
+__attribute__((constructor)) void issue9456() {
+	pthread_t tid;
+	pthread_create(&tid, 0, thread1, NULL);
+}
+*/
+import "C"
+
+import (
+	"runtime"
+	"sync/atomic"
+	"unsafe"
+)
+
+func main() {
+	// This test intends to test that sending SIGPROF to foreign threads
+	// before we make any cgo call will not abort the whole process, so
+	// we cannot make any cgo call here. See http://golang.org/issue/9456.
+	atomic.StoreInt32((*int32)(unsafe.Pointer(&C.spinlock)), 1)
+	for atomic.LoadInt32((*int32)(unsafe.Pointer(&C.spinlock))) == 1 {
+		runtime.Gosched()
+	}
+	println("OK")
 }
 `
