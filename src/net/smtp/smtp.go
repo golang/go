@@ -157,6 +157,17 @@ func (c *Client) StartTLS(config *tls.Config) error {
 	return c.ehlo()
 }
 
+// TLSConnectionState returns the client's TLS connection state.
+// The return values are their zero values if StartTLS did
+// not succeed.
+func (c *Client) TLSConnectionState() (state tls.ConnectionState, ok bool) {
+	tc, ok := c.conn.(*tls.Conn)
+	if !ok {
+		return
+	}
+	return tc.ConnectionState(), true
+}
+
 // Verify checks the validity of an email address on the server.
 // If Verify returns nil, the address is valid. A non-nil return
 // does not necessarily indicate an invalid address. Many servers
