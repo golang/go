@@ -172,7 +172,6 @@ main(int argc, char *argv[])
 		mark(linklookup(ctxt, "runtime.read_tls_fallback", 0));
 	}
 
-	checkgo();
 	deadcode();
 	callgraph();
 	paramspace = "SP";	/* (FP) now (SP) on output */

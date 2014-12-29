@@ -492,7 +492,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				q->as = AMOVD;
 				q->from.type = D_OREG;
 				q->from.reg = REGG;
-				q->from.offset = 4*ctxt->arch->ptrsize; // G.panic
+				q->from.offset = 3*ctxt->arch->ptrsize; // G.panic
 				q->to.type = D_REG;
 				q->to.reg = 3;
 
@@ -724,9 +724,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 	p->as = AMOVD;
 	p->from.type = D_OREG;
 	p->from.reg = REGG;
-	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
-	if(ctxt->cursym->cfunc)
-		p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
+	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
 	p->to.type = D_REG;
 	p->to.reg = 3;
 
@@ -834,10 +832,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 	p = appendp(ctxt, p);
 	p->as = ABL;
 	p->to.type = D_BRANCH;
-	if(ctxt->cursym->cfunc)
-		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
-	else
-		p->to.sym = ctxt->symmorestack[noctxt];
+	p->to.sym = ctxt->symmorestack[noctxt];
 
 	// BR	start
 	p = appendp(ctxt, p);

@@ -154,14 +154,10 @@ type stack struct {
 type g struct {
 	// Stack parameters.
 	// stack describes the actual stack memory: [stack.lo, stack.hi).
-	// stackguard0 is the stack pointer compared in the Go stack growth prologue.
+	// stackguard is the stack pointer compared in the Go stack growth prologue.
 	// It is stack.lo+StackGuard normally, but can be StackPreempt to trigger a preemption.
-	// stackguard1 is the stack pointer compared in the C stack growth prologue.
-	// It is stack.lo+StackGuard on g0 and gsignal stacks.
-	// It is ~0 on other goroutine stacks, to trigger a call to morestackc (and crash).
-	stack       stack   // offset known to runtime/cgo
-	stackguard0 uintptr // offset known to liblink
-	stackguard1 uintptr // offset known to liblink
+	stack      stack   // offset known to runtime/cgo
+	stackguard uintptr // offset known to liblink
 
 	_panic       *_panic // innermost panic - offset known to liblink
 	_defer       *_defer // innermost defer
@@ -175,7 +171,7 @@ type g struct {
 	waitreason   string // if status==gwaiting
 	schedlink    *g
 	issystem     bool // do not output in stack dump, ignore in deadlock detector
-	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
+	preempt      bool // preemption signal, duplicates stackguard = stackpreempt
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	preemptscan  bool // preempted g does scan for gc
 	gcworkdone   bool // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
