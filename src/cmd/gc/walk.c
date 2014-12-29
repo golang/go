@@ -408,7 +408,7 @@ walkexprlistcheap(NodeList *l, NodeList **init)
 void
 walkexpr(Node **np, NodeList **init)
 {
-	Node *r, *l, *var, *a;
+	Node *r, *l, *var, *a, *ok;
 	Node *map, *key;
 	NodeList *ll, *lr;
 	Type *t;
@@ -665,6 +665,29 @@ walkexpr(Node **np, NodeList **init)
 			walkexpr(&n->right, init);
 			break;
 		
+		case ODOTTYPE:
+			// x = i.(T); n->left is x, n->right->left is i.
+			// orderstmt made sure x is addressable.
+			walkexpr(&n->right->left, init);
+			n1 = nod(OADDR, n->left, N);
+			r = n->right; // i.(T)
+
+			strcpy(buf, "assertI2T");
+			if(isnilinter(r->left->type))
+				buf[6] = 'E';
+			if(isnilinter(r->type))
+				buf[8] = 'E';
+			else if(isinter(r->type))
+				buf[8] = 'I';
+			
+			fn = syslook(buf, 1);
+			argtype(fn, r->left->type);
+			argtype(fn, r->type);
+		
+			n = mkcall1(fn, T, init, typename(r->type), r->left, n1);
+			walkexpr(&n, init);
+			goto ret;
+
 		case ORECV:
 			// x = <-c; n->left is x, n->right->left is c.
 			// orderstmt made sure x is addressable.
@@ -810,77 +833,42 @@ walkexpr(Node **np, NodeList **init)
 
 	case OAS2DOTTYPE:
 		// a,b = i.(T)
+		// orderstmt made sure a is addressable.
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
-		if(isblank(n->list->n) && !isinter(r->type)) {
-			strcpy(buf, "assert");
-			p = buf+strlen(buf);
-			if(isnilinter(r->left->type))
-				*p++ = 'E';
-			else
-				*p++ = 'I';
-			*p++ = '2';
-			*p++ = 'T';
-			*p++ = 'O';
-			*p++ = 'K';
-			*p = '\0';
-			
-			fn = syslook(buf, 1);
+		walkexpr(&r->left, init);
+		if(isblank(n->list->n))
+			n1 = nodnil();
+		else
+			n1 = nod(OADDR, n->list->n, N);
+		n1->etype = 1; // addr does not escape
 
-			// runtime.assert(E|I)2TOK returns a typed bool, but due
-			// to spec changes, the boolean result of i.(T) is now untyped
-			// so we make it the same type as the variable on the lhs.
-			if(!isblank(n->list->next->n))
-				fn->type->type->down->type->type = n->list->next->n->type;
-			ll = list1(typename(r->type));
-			ll = list(ll, r->left);
-			argtype(fn, r->left->type);
-			n1 = nod(OCALL, fn, N);
-			n1->list = ll;
-			n = nod(OAS, n->list->next->n, n1);
-			typecheck(&n, Etop);
-			walkexpr(&n, init);
-			goto ret;
-		}
-
-		r->op = ODOTTYPE2;
-		walkexpr(&r, init);
-		ll = ascompatet(n->op, n->list, &r->type, 0, init);
-		n = liststmt(concat(list1(r), ll));
+		strcpy(buf, "assertI2T2");
+		if(isnilinter(r->left->type))
+			buf[6] = 'E';
+		if(isnilinter(r->type))
+			buf[8] = 'E';
+		else if(isinter(r->type))
+			buf[8] = 'I';
+		
+		fn = syslook(buf, 1);
+		argtype(fn, r->left->type);
+		argtype(fn, r->type);
+		
+		t = types[TBOOL];
+		ok = n->list->next->n;
+		if(!isblank(ok))
+			t = ok->type;
+		r = mkcall1(fn, t, init, typename(r->type), r->left, n1);
+		n = nod(OAS, ok, r);
+		typecheck(&n, Etop);
 		goto ret;
 
 	case ODOTTYPE:
 	case ODOTTYPE2:
-		// Build name of function: assertI2E2 etc.
-		strcpy(buf, "assert");
-		p = buf+strlen(buf);
-		if(isnilinter(n->left->type))
-			*p++ = 'E';
-		else
-			*p++ = 'I';
-		*p++ = '2';
-		if(isnilinter(n->type))
-			*p++ = 'E';
-		else if(isinter(n->type))
-			*p++ = 'I';
-		else
-			*p++ = 'T';
-		if(n->op == ODOTTYPE2)
-			*p++ = '2';
-		*p = '\0';
-
-		fn = syslook(buf, 1);
-		ll = list1(typename(n->type));
-		ll = list(ll, n->left);
-		argtype(fn, n->left->type);
-		argtype(fn, n->type);
-		n = nod(OCALL, fn, N);
-		n->list = ll;
-		typecheck(&n, Erv | Efnstruct);
-		walkexpr(&n, init);
-		goto ret;
+		fatal("walkexpr ODOTTYPE"); // should see inside OAS or OAS2 only
 
 	case OCONVIFACE:
 		walkexpr(&n->left, init);

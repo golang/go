@@ -497,7 +497,7 @@ orderstmt(Node *n, Order *order)
 	int lno;
 	NodeList *l, *t, *t1;
 	Node *r, *tmp1, *tmp2, **np;
-	Type *ch;
+	Type *ch, *typ;
 
 	if(n == N)
 		return;
@@ -516,7 +516,6 @@ orderstmt(Node *n, Order *order)
 
 	case OAS:
 	case OAS2:
-	case OAS2DOTTYPE:
 	case OCLOSE:
 	case OCOPY:
 	case OPRINT:
@@ -588,9 +587,29 @@ orderstmt(Node *n, Order *order)
 		cleantemp(t, order);
 		break;
 
+	case OAS2DOTTYPE:
+		// Special: use temporary variables to hold result,
+		// so that assertI2Tetc can take address of temporary.
+		// No temporary for blank assignment.
+		t = marktemp(order);
+		orderexprlist(n->list, order);
+		orderexpr(&n->rlist->n->left, order);  // i in i.(T)
+		if(isblank(n->list->n))
+			order->out = list(order->out, n);
+		else {
+			typ = n->rlist->n->type;
+			tmp1 = ordertemp(typ, order, haspointers(typ));
+			order->out = list(order->out, n);
+			r = nod(OAS, n->list->n, tmp1);
+			typecheck(&r, Etop);
+			ordermapassign(r, order);
+			n->list = list(list1(tmp1), n->list->next->n);
+		}
+		cleantemp(t, order);
+		break;
+
 	case OAS2RECV:
-		// Special: avoid copy of receive.
-		// Use temporary variables to hold result,
+		// Special: use temporary variables to hold result,
 		// so that chanrecv can take address of temporary.
 		t = marktemp(order);
 		orderexprlist(n->list, order);
@@ -1077,6 +1096,7 @@ orderexpr(Node **np, Order *order)
 		break;
 
 	case ORECV:
+	case ODOTTYPE:
 		orderexpr(&n->left, order);
 		n = ordercopyexpr(n, n->type, order, 1);
 		break;

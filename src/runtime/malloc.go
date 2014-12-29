@@ -807,7 +807,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 			// ok - satisfies empty interface
 			goto okarg
 		}
-		if _, ok := assertE2I2(ityp, obj); ok {
+		if assertE2I2(ityp, obj, nil) {
 			goto okarg
 		}
 	}
@@ -937,7 +937,7 @@ func runfinq() {
 					if len(ityp.mhdr) != 0 {
 						// convert to interface with methods
 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
-						*(*fInterface)(frame) = assertE2I(ityp, *(*interface{})(frame))
+						assertE2I(ityp, *(*interface{})(frame), (*fInterface)(frame))
 					}
 				default:
 					throw("bad kind in runfinq")
