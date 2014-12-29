@@ -71,7 +71,8 @@ func isConstType(typ Type) bool {
 	return ok && t.info&IsConstType != 0
 }
 
-func isInterface(typ Type) bool {
+// IsInterface reports whether typ is an interface type.
+func IsInterface(typ Type) bool {
 	_, ok := typ.Underlying().(*Interface)
 	return ok
 }

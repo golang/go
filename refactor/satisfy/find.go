@@ -701,7 +701,4 @@ func deref(typ types.Type) types.Type {
 
 func unparen(e ast.Expr) ast.Expr { return astutil.Unparen(e) }
 
-func isInterface(T types.Type) bool {
-	_, ok := T.Underlying().(*types.Interface)
-	return ok
-}
+func isInterface(T types.Type) bool { return types.IsInterface(T) }

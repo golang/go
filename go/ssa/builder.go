@@ -600,7 +600,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		case *types.Basic, *types.Slice, *types.Pointer: // *array
 			x = b.expr(fn, e.X)
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		if e.High != nil {
 			high = b.expr(fn, e.High)

@@ -215,10 +215,7 @@ func (a *analysis) namedType(obj *types.TypeName, implements map[*types.Named]im
 
 // -- utilities --------------------------------------------------------
 
-func isInterface(T types.Type) bool {
-	_, isI := T.Underlying().(*types.Interface)
-	return isI
-}
+func isInterface(T types.Type) bool { return types.IsInterface(T) }
 
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {

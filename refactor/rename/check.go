@@ -727,10 +727,7 @@ func someUse(info *loader.PackageInfo, obj types.Object) *ast.Ident {
 
 // -- Plundered from golang.org/x/tools/go/ssa -----------------
 
-func isInterface(T types.Type) bool {
-	_, ok := T.Underlying().(*types.Interface)
-	return ok
-}
+func isInterface(T types.Type) bool { return types.IsInterface(T) }
 
 func deref(typ types.Type) types.Type {
 	if p, _ := typ.(*types.Pointer); p != nil {

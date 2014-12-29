@@ -397,7 +397,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 					// includes the methods of typ.
 					// Variables are addressable, so we can always take their
 					// address.
-					if _, ok := typ.(*Pointer); !ok && !isInterface(typ) {
+					if _, ok := typ.(*Pointer); !ok && !IsInterface(typ) {
 						typ = &Pointer{base: typ}
 					}
 				}

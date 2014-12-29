@@ -54,7 +54,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		//   use the default type (e.g., []byte("foo") should report string
 		//   not []byte as type for the constant "foo").
 		// - Keep untyped nil for untyped nil arguments.
-		if isInterface(T) || constArg && !isConstType(T) {
+		if IsInterface(T) || constArg && !isConstType(T) {
 			final = defaultType(x.typ)
 		}
 		check.updateExprType(x.expr, final, true)

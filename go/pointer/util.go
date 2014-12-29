@@ -50,11 +50,7 @@ func CanHaveDynamicTypes(T types.Type) bool {
 	return false
 }
 
-// isInterface reports whether T is an interface type.
-func isInterface(T types.Type) bool {
-	_, ok := T.Underlying().(*types.Interface)
-	return ok
-}
+func isInterface(T types.Type) bool { return types.IsInterface(T) }
 
 // mustDeref returns the element type of its argument, which must be a
 // pointer; panic ensues otherwise.

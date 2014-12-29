@@ -191,10 +191,7 @@ func typeKind(T types.Type) string {
 	return strings.ToLower(strings.TrimPrefix(s, "*types."))
 }
 
-func isInterface(T types.Type) bool {
-	_, isI := T.Underlying().(*types.Interface)
-	return isI
-}
+func isInterface(T types.Type) bool { return types.IsInterface(T) }
 
 type typesByString []types.Type
 

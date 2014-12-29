@@ -17,10 +17,6 @@ import (
 	"golang.org/x/tools/go/types"
 )
 
-func unreachable() {
-	panic("unreachable")
-}
-
 //// AST utilities
 
 func unparen(e ast.Expr) ast.Expr { return astutil.Unparen(e) }
@@ -41,11 +37,7 @@ func isPointer(typ types.Type) bool {
 	return ok
 }
 
-// isInterface reports whether T's underlying type is an interface.
-func isInterface(T types.Type) bool {
-	_, ok := T.Underlying().(*types.Interface)
-	return ok
-}
+func isInterface(T types.Type) bool { return types.IsInterface(T) }
 
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {
