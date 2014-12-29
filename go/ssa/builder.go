@@ -347,7 +347,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		if v == nil {
 			v = fn.lookup(obj, escaping)
 		}
-		return &address{addr: v, expr: e}
+		return &address{addr: v, pos: e.Pos(), expr: e}
 
 	case *ast.CompositeLit:
 		t := deref(fn.Pkg.typeOf(e))
@@ -359,7 +359,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		}
 		v.Comment = "complit"
 		b.compLit(fn, v, e, true) // initialize in place
-		return &address{addr: v, expr: e}
+		return &address{addr: v, pos: e.Lbrace, expr: e}
 
 	case *ast.ParenExpr:
 		return b.addr(fn, e.X, escaping)
@@ -378,6 +378,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		last := len(sel.Index()) - 1
 		return &address{
 			addr: emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel),
+			pos:  e.Sel.Pos(),
 			expr: e.Sel,
 		}
 
@@ -410,10 +411,10 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		}
 		v.setPos(e.Lbrack)
 		v.setType(et)
-		return &address{addr: fn.emit(v), expr: e}
+		return &address{addr: fn.emit(v), pos: e.Lbrack, expr: e}
 
 	case *ast.StarExpr:
-		return &address{addr: b.expr(fn, e.X), starPos: e.Star, expr: e}
+		return &address{addr: b.expr(fn, e.X), pos: e.Star, expr: e}
 	}
 
 	panic(fmt.Sprintf("unexpected address expression: %T", e))
@@ -891,7 +892,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 				}
 				iaddr.setType(types.NewPointer(vt))
 				fn.emit(iaddr)
-				emitStore(fn, iaddr, arg)
+				emitStore(fn, iaddr, arg, arg.Pos())
 			}
 			s := &Slice{X: a}
 			s.setType(st)
@@ -1044,17 +1045,19 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 	switch t := typ.Underlying().(type) {
 	case *types.Struct:
 		if !isZero && len(e.Elts) != t.NumFields() {
-			emitMemClear(fn, addr)
+			emitMemClear(fn, addr, e.Lbrace)
 			isZero = true
 		}
 		for i, e := range e.Elts {
 			fieldIndex := i
+			pos := e.Pos()
 			if kv, ok := e.(*ast.KeyValueExpr); ok {
 				fname := kv.Key.(*ast.Ident).Name
 				for i, n := 0, t.NumFields(); i < n; i++ {
 					sf := t.Field(i)
 					if sf.Name() == fname {
 						fieldIndex = i
+						pos = kv.Colon
 						e = kv.Value
 						break
 					}
@@ -1067,7 +1070,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 			}
 			faddr.setType(types.NewPointer(sf.Type()))
 			fn.emit(faddr)
-			b.exprInPlace(fn, &address{addr: faddr, expr: e}, e, isZero)
+			b.exprInPlace(fn, &address{addr: faddr, pos: pos, expr: e}, e, isZero)
 		}
 
 	case *types.Array, *types.Slice:
@@ -1086,7 +1089,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 		}
 
 		if !isZero && int64(len(e.Elts)) != at.Len() {
-			emitMemClear(fn, array)
+			emitMemClear(fn, array, e.Lbrace)
 			isZero = true
 		}
 
@@ -1108,20 +1111,20 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 			}
 			iaddr.setType(types.NewPointer(at.Elem()))
 			fn.emit(iaddr)
-			b.exprInPlace(fn, &address{addr: iaddr, expr: e}, e, isZero)
+			b.exprInPlace(fn, &address{addr: iaddr, pos: e.Pos(), expr: e}, e, isZero)
 		}
 		if t != at { // slice
 			s := &Slice{X: array}
 			s.setPos(e.Lbrace)
 			s.setType(typ)
-			emitStore(fn, addr, fn.emit(s))
+			emitStore(fn, addr, fn.emit(s), e.Lbrace)
 		}
 
 	case *types.Map:
 		m := &MakeMap{Reserve: intConst(int64(len(e.Elts)))}
 		m.setPos(e.Lbrace)
 		m.setType(typ)
-		emitStore(fn, addr, fn.emit(m))
+		emitStore(fn, addr, fn.emit(m), e.Lbrace)
 		for _, e := range e.Elts {
 			e := e.(*ast.KeyValueExpr)
 			loc := &element{
@@ -1337,7 +1340,7 @@ func (b *builder) typeCaseBody(fn *Function, cc *ast.CaseClause, x Value, done *
 		// In a single-type case, y has that type.
 		// In multi-type cases, 'case nil' and default,
 		// y has the same type as the interface operand.
-		emitStore(fn, fn.addNamedLocal(obj), x)
+		emitStore(fn, fn.addNamedLocal(obj), x, obj.Pos())
 	}
 	fn.targets = &targets{
 		tail:   fn.targets,
@@ -1588,8 +1591,9 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 // rangeIndexed emits to fn the header for an integer-indexed loop
 // over array, *array or slice value x.
 // The v result is defined only if tv is non-nil.
+// forPos is the position of the "for" token.
 //
-func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value, loop, done *BasicBlock) {
+func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, pos token.Pos) (k, v Value, loop, done *BasicBlock) {
 	//
 	//      length = len(x)
 	//      index = -1
@@ -1623,7 +1627,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	}
 
 	index := fn.addLocal(tInt, token.NoPos)
-	emitStore(fn, index, intConst(-1))
+	emitStore(fn, index, intConst(-1), pos)
 
 	loop = fn.newBasicBlock("rangeindex.loop")
 	emitJump(fn, loop)
@@ -1635,7 +1639,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 		Y:  vOne,
 	}
 	incr.setType(tInt)
-	emitStore(fn, index, fn.emit(incr))
+	emitStore(fn, index, fn.emit(incr), pos)
 
 	body := fn.newBasicBlock("rangeindex.body")
 	done = fn.newBasicBlock("rangeindex.done")
@@ -1814,10 +1818,10 @@ func (b *builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 	var loop, done *BasicBlock
 	switch rt := x.Type().Underlying().(type) {
 	case *types.Slice, *types.Array, *types.Pointer: // *array
-		k, v, loop, done = b.rangeIndexed(fn, x, tv)
+		k, v, loop, done = b.rangeIndexed(fn, x, tv, s.For)
 
 	case *types.Chan:
-		k, loop, done = b.rangeChan(fn, x, tk, s.TokPos)
+		k, loop, done = b.rangeChan(fn, x, tk, s.For)
 
 	case *types.Map, *types.Basic: // string
 		k, v, loop, done = b.rangeIter(fn, x, tk, tv, s.For)
@@ -1955,7 +1959,7 @@ start:
 			// Function has named result parameters (NRPs).
 			// Perform parallel assignment of return operands to NRPs.
 			for i, r := range results {
-				emitStore(fn, fn.namedResults[i], r)
+				emitStore(fn, fn.namedResults[i], r, s.Return)
 			}
 		}
 		// Run function calls deferred in this
@@ -2206,7 +2210,7 @@ func (p *Package) Build() {
 		done = init.newBasicBlock("init.done")
 		emitIf(init, emitLoad(init, initguard), done, doinit)
 		init.currentBlock = doinit
-		emitStore(init, initguard, vTrue)
+		emitStore(init, initguard, vTrue, token.NoPos)
 
 		// Call the init() function of each package we import.
 		for _, pkg := range p.info.Pkg.Imports() {
@@ -2234,7 +2238,7 @@ func (p *Package) Build() {
 			// 1:1 initialization: var x, y = a(), b()
 			var lval lvalue
 			if v := varinit.Lhs[0]; v.Name() != "_" {
-				lval = &address{addr: p.values[v].(*Global)}
+				lval = &address{addr: p.values[v].(*Global), pos: v.Pos()}
 			} else {
 				lval = blank{}
 			}
@@ -2246,7 +2250,7 @@ func (p *Package) Build() {
 				if v.Name() == "_" {
 					continue
 				}
-				emitStore(init, p.values[v].(*Global), emitExtract(init, tuple, i))
+				emitStore(init, p.values[v].(*Global), emitExtract(init, tuple, i), v.Pos())
 			}
 		}
 	}

@@ -27,20 +27,19 @@ type lvalue interface {
 
 // An address is an lvalue represented by a true pointer.
 type address struct {
-	addr    Value
-	starPos token.Pos // source position, if from explicit *addr
-	expr    ast.Expr  // source syntax [debug mode]
+	addr Value
+	pos  token.Pos // source position
+	expr ast.Expr  // source syntax [debug mode]
 }
 
 func (a *address) load(fn *Function) Value {
 	load := emitLoad(fn, a.addr)
-	load.pos = a.starPos
+	load.pos = a.pos
 	return load
 }
 
 func (a *address) store(fn *Function, v Value) {
-	store := emitStore(fn, a.addr, v)
-	store.pos = a.starPos
+	store := emitStore(fn, a.addr, v, a.pos)
 	if a.expr != nil {
 		// store.Val is v, converted for assignability.
 		emitDebugRef(fn, a.expr, store.Val, false)

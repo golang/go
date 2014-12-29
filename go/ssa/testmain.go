@@ -247,7 +247,7 @@ func testMainSlice(fn *Function, testfuncs []*Function, slice types.Type) Value 
 		pname := fn.emit(fa)
 
 		// Emit: *pname = "testfunc"
-		emitStore(fn, pname, stringConst(testfunc.Name()))
+		emitStore(fn, pname, stringConst(testfunc.Name()), token.NoPos)
 
 		// Emit: pfunc = &pitem.F
 		fa = &FieldAddr{X: pitem, Field: 1} // .F
@@ -255,7 +255,7 @@ func testMainSlice(fn *Function, testfuncs []*Function, slice types.Type) Value 
 		pfunc := fn.emit(fa)
 
 		// Emit: *pfunc = testfunc
-		emitStore(fn, pfunc, testfunc)
+		emitStore(fn, pfunc, testfunc, token.NoPos)
 	}
 
 	// Emit: slice array[:]

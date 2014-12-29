@@ -564,8 +564,12 @@ type BinOp struct {
 // and a boolean indicating the success of the receive.  The
 // components of the tuple are accessed using Extract.
 //
-// Pos() returns the ast.UnaryExpr.OpPos or ast.RangeStmt.TokPos (for
-// ranging over a channel), if explicit in the source.
+// Pos() returns the ast.UnaryExpr.OpPos, if explicit in the source.
+// For receive operations (ARROW) implicit in ranging over a channel,
+// Pos() returns the ast.RangeStmt.For.
+// For implicit memory loads (STAR), Pos() returns the position of the
+// most closely associated source-level construct; the details are not
+// specified.
 //
 // Example printed form:
 // 	t0 = *x
@@ -1162,7 +1166,10 @@ type Send struct {
 // The Store instruction stores Val at address Addr.
 // Stores can be of arbitrary types.
 //
-// Pos() returns the ast.StarExpr.Star, if explicit in the source.
+// Pos() returns the position of the source-level construct most closely
+// associated with the memory store operation.
+// Since implicit memory stores are numerous and varied and depend upon
+// implementation choices, the details are not specified.
 //
 // Example printed form:
 // 	*x = y

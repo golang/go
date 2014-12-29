@@ -246,10 +246,11 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 // emitStore emits to f an instruction to store value val at location
 // addr, applying implicit conversions as required by assignability rules.
 //
-func emitStore(f *Function, addr, val Value) *Store {
+func emitStore(f *Function, addr, val Value, pos token.Pos) *Store {
 	s := &Store{
 		Addr: addr,
 		Val:  emitConv(f, val, deref(addr.Type())),
+		pos:  pos,
 	}
 	f.emit(s)
 	return s
@@ -430,9 +431,9 @@ func zeroValue(f *Function, t types.Type) Value {
 }
 
 // emitMemClear emits to f code to zero the value pointed to by ptr.
-func emitMemClear(f *Function, ptr Value) {
+func emitMemClear(f *Function, ptr Value, pos token.Pos) {
 	// TODO(adonovan): define and use a 'memclr' intrinsic for aggregate types.
-	emitStore(f, ptr, zeroValue(f, deref(ptr.Type())))
+	emitStore(f, ptr, zeroValue(f, deref(ptr.Type())), pos)
 }
 
 // createRecoverBlock emits to f a block of code to return after a
