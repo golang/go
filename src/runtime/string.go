@@ -207,7 +207,7 @@ func rawstring(size int) (s string, b []byte) {
 
 // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
 func rawbyteslice(size int) (b []byte) {
-	cap := goroundupsize(uintptr(size))
+	cap := roundupsize(uintptr(size))
 	p := mallocgc(cap, nil, flagNoScan|flagNoZero)
 	if cap != uintptr(size) {
 		memclr(add(p, uintptr(size)), cap-uintptr(size))
@@ -224,7 +224,7 @@ func rawruneslice(size int) (b []rune) {
 	if uintptr(size) > _MaxMem/4 {
 		throw("out of memory")
 	}
-	mem := goroundupsize(uintptr(size) * 4)
+	mem := roundupsize(uintptr(size) * 4)
 	p := mallocgc(mem, nil, flagNoScan|flagNoZero)
 	if mem != uintptr(size)*4 {
 		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
@@ -290,7 +290,7 @@ func hasprefix(s, t string) bool {
 	return len(s) >= len(t) && s[:len(t)] == t
 }
 
-func goatoi(s string) int {
+func atoi(s string) int {
 	n := 0
 	for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
 		n = n*10 + int(s[0]) - '0'

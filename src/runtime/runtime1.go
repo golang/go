@@ -331,7 +331,7 @@ func parsedebugvars() {
 		key, value := field[:i], field[i+1:]
 		for _, v := range dbgvars {
 			if v.name == key {
-				*v.value = int32(goatoi(value))
+				*v.value = int32(atoi(value))
 			}
 		}
 	}
@@ -342,7 +342,7 @@ func parsedebugvars() {
 	case "crash":
 		traceback_cache = 2<<1 | 1
 	default:
-		traceback_cache = uint32(goatoi(p)) << 1
+		traceback_cache = uint32(atoi(p)) << 1
 	}
 }
 
@@ -417,5 +417,5 @@ func readgogc() int32 {
 	if p == "off" {
 		return -1
 	}
-	return int32(goatoi(p))
+	return int32(atoi(p))
 }

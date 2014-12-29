@@ -885,7 +885,7 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
 		return true
 	}
 	if _DebugGC > 1 {
-		print("scanframe ", gofuncname(f), "\n")
+		print("scanframe ", funcname(f), "\n")
 	}
 	if targetpc != f.entry {
 		targetpc--
@@ -909,14 +909,14 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
 	if size > minsize {
 		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
 		if stkmap == nil || stkmap.n <= 0 {
-			print("runtime: frame ", gofuncname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
+			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
 			throw("missing stackmap")
 		}
 
 		// Locals bitmap information, scan just the pointers in locals.
 		if pcdata < 0 || pcdata >= stkmap.n {
 			// don't know where we are
-			print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " locals stack map entries for ", gofuncname(f), " (targetpc=", targetpc, ")\n")
+			print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
 			throw("scanframe: bad symbol table")
 		}
 		bv := stackmapdata(stkmap, pcdata)
@@ -932,12 +932,12 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
 		} else {
 			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
 			if stkmap == nil || stkmap.n <= 0 {
-				print("runtime: frame ", gofuncname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
+				print("runtime: frame ", funcname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
 				throw("missing stackmap")
 			}
 			if pcdata < 0 || pcdata >= stkmap.n {
 				// don't know where we are
-				print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " args stack map entries for ", gofuncname(f), " (targetpc=", targetpc, ")\n")
+				print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " args stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
 				throw("scanframe: bad symbol table")
 			}
 			bv = stackmapdata(stkmap, pcdata)

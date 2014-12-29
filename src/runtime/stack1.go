@@ -393,12 +393,12 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
 				getg().m.traceback = 2
-				print("runtime: bad pointer in frame ", gofuncname(f), " at ", add(scanp, i*ptrSize), ": ", p, "\n")
+				print("runtime: bad pointer in frame ", funcname(f), " at ", add(scanp, i*ptrSize), ": ", p, "\n")
 				throw("invalid stack pointer")
 			}
 			if minp <= up && up < maxp {
 				if stackDebug >= 3 {
-					print("adjust ptr ", p, " ", gofuncname(f), "\n")
+					print("adjust ptr ", p, " ", funcname(f), "\n")
 				}
 				*(*unsafe.Pointer)(add(scanp, i*ptrSize)) = unsafe.Pointer(up + delta)
 			}

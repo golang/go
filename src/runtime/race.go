@@ -79,7 +79,7 @@ func racesymbolize(ctx *symbolizeContext) {
 		return
 	}
 
-	ctx.fn = funcname(f)
+	ctx.fn = cfuncname(f)
 	file, line := funcline(f, ctx.pc)
 	ctx.line = uintptr(line)
 	ctx.file = &bytes(file)[0] // assume NUL-terminated

@@ -73,11 +73,11 @@ func symtabinit() {
 			f2 := (*_func)(unsafe.Pointer(&pclntable[ftab[i+1].funcoff]))
 			f2name := "end"
 			if i+1 < nftab {
-				f2name = gofuncname(f2)
+				f2name = funcname(f2)
 			}
-			println("function symbol table not sorted by program counter:", hex(ftab[i].entry), gofuncname(f1), ">", hex(ftab[i+1].entry), f2name)
+			println("function symbol table not sorted by program counter:", hex(ftab[i].entry), funcname(f1), ">", hex(ftab[i+1].entry), f2name)
 			for j := 0; j <= i; j++ {
-				print("\t", hex(ftab[j].entry), " ", gofuncname((*_func)(unsafe.Pointer(&pclntable[ftab[j].funcoff]))), "\n")
+				print("\t", hex(ftab[j].entry), " ", funcname((*_func)(unsafe.Pointer(&pclntable[ftab[j].funcoff]))), "\n")
 			}
 			throw("invalid runtime symbol table")
 		}
@@ -106,7 +106,7 @@ func FuncForPC(pc uintptr) *Func {
 
 // Name returns the name of the function.
 func (f *Func) Name() string {
-	return gofuncname(f.raw())
+	return funcname(f.raw())
 }
 
 // Entry returns the entry address of the function.
@@ -178,7 +178,7 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
 		return -1
 	}
 
-	print("runtime: invalid pc-encoded table f=", gofuncname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
+	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
 
 	p = pclntable[off:]
 	pc = f.entry
@@ -196,22 +196,22 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
 	return -1
 }
 
-func funcname(f *_func) *byte {
+func cfuncname(f *_func) *byte {
 	if f == nil || f.nameoff == 0 {
 		return nil
 	}
 	return (*byte)(unsafe.Pointer(&pclntable[f.nameoff]))
 }
 
-func gofuncname(f *_func) string {
-	return gostringnocopy(funcname(f))
+func funcname(f *_func) string {
+	return gostringnocopy(cfuncname(f))
 }
 
 func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32) {
 	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
 	line = pcvalue(f, f.pcln, targetpc, strict)
 	if fileno == -1 || line == -1 || fileno >= len(filetab) {
-		// print("looking for ", hex(targetpc), " in ", gofuncname(f), " got file=", fileno, " line=", lineno, "\n")
+		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
 		return "?", 0
 	}
 	file = gostringnocopy(&pclntable[filetab[fileno]])

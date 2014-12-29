@@ -274,7 +274,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	dumpint(uint64(f.entry))
 	dumpint(uint64(s.pc))
 	dumpint(uint64(s.continpc))
-	name := gofuncname(f)
+	name := funcname(f)
 	if name == "" {
 		name = "unknown function"
 	}
@@ -598,7 +598,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 			dumpstr("?")
 			dumpint(0)
 		} else {
-			dumpstr(gofuncname(f))
+			dumpstr(funcname(f))
 			if i > 0 && pc > f.entry {
 				pc--
 			}

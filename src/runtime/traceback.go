@@ -220,7 +220,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 				// But if callback is set, we're doing a garbage collection and must
 				// get everything, so crash loudly.
 				if callback != nil {
-					print("runtime: unexpected return pc for ", gofuncname(f), " called from ", hex(frame.lr), "\n")
+					print("runtime: unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
 					throw("unknown caller pc")
 				}
 			}
@@ -293,7 +293,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
 					tracepc--
 				}
-				print(gofuncname(f), "(")
+				print(funcname(f), "(")
 				argp := (*[100]uintptr)(unsafe.Pointer(frame.argp))
 				for i := uintptr(0); i < frame.arglen/ptrSize; i++ {
 					if i >= 10 {
@@ -421,7 +421,7 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
 	frame.arglen = uintptr(f.args)
 	if needArgMap && f.args == _ArgsSizeUnknown {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
-		switch gofuncname(f) {
+		switch funcname(f) {
 		case "reflect.makeFuncStub", "reflect.methodValueCall":
 			arg0 := frame.sp
 			if usesLR {
@@ -429,7 +429,7 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
 			}
 			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
 			if fn[0] != f.entry {
-				print("runtime: confused by ", gofuncname(f), "\n")
+				print("runtime: confused by ", funcname(f), "\n")
 				throw("reflect mismatch")
 			}
 			bv := (*bitvector)(unsafe.Pointer(fn[1]))
@@ -444,7 +444,7 @@ func printcreatedby(gp *g) {
 	pc := gp.gopc
 	f := findfunc(pc)
 	if f != nil && showframe(f, gp) && gp.goid != 1 {
-		print("created by ", gofuncname(f), "\n")
+		print("created by ", funcname(f), "\n")
 		tracepc := pc // back up to CALL instruction for funcline.
 		if pc > f.entry {
 			tracepc -= _PCQuantum
@@ -512,7 +512,7 @@ func showframe(f *_func, gp *g) bool {
 		return true
 	}
 	traceback := gotraceback(nil)
-	name := gostringnocopy(funcname(f))
+	name := funcname(f)
 
 	// Special case: always show runtime.panic frame, so that we can
 	// see where a panic started in the middle of a stack trace.
