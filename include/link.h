@@ -131,7 +131,6 @@ struct	LSym
 	short	type;
 	short	version;
 	uchar	dupok;
-	uchar	cfunc;
 	uchar	external;
 	uchar	nosplit;
 	uchar	reachable;

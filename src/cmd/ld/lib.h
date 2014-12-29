@@ -183,7 +183,6 @@ uint16	be16(uchar *b);
 uint32	be32(uchar *b);
 uint64	be64(uchar *b);
 void	callgraph(void);
-void	checkgo(void);
 void	cflush(void);
 void	codeblk(int64 addr, int64 size);
 vlong	cpos(void);

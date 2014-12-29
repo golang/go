@@ -97,7 +97,7 @@ const (
 )
 
 // Goroutine preemption request.
-// Stored into g->stackguard0 to cause split stack check failure.
+// Stored into g->stackguard to cause split stack check failure.
 // Must be greater than any real sp.
 // 0xfffffade in hex.
 const (

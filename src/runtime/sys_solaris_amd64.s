@@ -134,8 +134,7 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
 	SUBQ	$(0x100000), AX		// stack size
 	MOVQ	AX, (g_stack+stack_lo)(DX)
 	ADDQ	$const__StackGuard, AX
-	MOVQ	AX, g_stackguard0(DX)
-	MOVQ	AX, g_stackguard1(DX)
+	MOVQ	AX, g_stackguard(DX)
 
 	// Someday the convention will be D is always cleared.
 	CLD

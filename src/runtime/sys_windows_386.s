@@ -209,8 +209,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	LEAL	-8192(SP), CX
 	MOVL	CX, (g_stack+stack_lo)(SP)
 	ADDL	$const__StackGuard, CX
-	MOVL	CX, g_stackguard0(SP)
-	MOVL	CX, g_stackguard1(SP)
+	MOVL	CX, g_stackguard(SP)
 	MOVL	DX, (g_stack+stack_hi)(SP)
 
 	PUSHL	16(BP)			// arg for handler
@@ -315,8 +314,7 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
 	SUBL	$(64*1024), AX		// stack size
 	MOVL	AX, (g_stack+stack_lo)(DX)
 	ADDL	$const__StackGuard, AX
-	MOVL	AX, g_stackguard0(DX)
-	MOVL	AX, g_stackguard1(DX)
+	MOVL	AX, g_stackguard(DX)
 
 	// Set up tls.
 	LEAL	m_tls(CX), SI

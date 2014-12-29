@@ -246,8 +246,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	LEAQ	-8192(SP), CX
 	MOVQ	CX, (g_stack+stack_lo)(SP)
 	ADDQ	$const__StackGuard, CX
-	MOVQ	CX, g_stackguard0(SP)
-	MOVQ	CX, g_stackguard1(SP)
+	MOVQ	CX, g_stackguard(SP)
 	MOVQ	DX, (g_stack+stack_hi)(SP)
 
 	PUSHQ	32(BP)			// arg for handler
@@ -356,8 +355,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	SUBQ	$(64*1024), AX		// stack size
 	MOVQ	AX, (g_stack+stack_lo)(DX)
 	ADDQ	$const__StackGuard, AX
-	MOVQ	AX, g_stackguard0(DX)
-	MOVQ	AX, g_stackguard1(DX)
+	MOVQ	AX, g_stackguard(DX)
 
 	// Set up tls.
 	LEAQ	m_tls(CX), SI

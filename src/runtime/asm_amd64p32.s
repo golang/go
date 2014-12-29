@@ -22,8 +22,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// create istack out of the given (operating system) stack.
 	MOVL	$runtime·g0(SB), DI
 	LEAL	(-64*1024+104)(SP), BX
-	MOVL	BX, g_stackguard0(DI)
-	MOVL	BX, g_stackguard1(DI)
+	MOVL	BX, g_stackguard(DI)
 	MOVL	BX, (g_stack+stack_lo)(DI)
 	MOVL	SP, (g_stack+stack_hi)(DI)
 
