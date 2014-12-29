@@ -144,8 +144,8 @@ func writebarrierfat1101(dst *any, _ *byte, src any)
 func writebarrierfat1110(dst *any, _ *byte, src any)
 func writebarrierfat1111(dst *any, _ *byte, src any)
 
-func writebarrierfat(typ *byte, dst *any, src *any)
-func writebarriercopy(typ *byte, dst any, src any) int
+func typedmemmove(typ *byte, dst *any, src *any)
+func typedslicecopy(typ *byte, dst any, src any) int
 
 func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
 func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool

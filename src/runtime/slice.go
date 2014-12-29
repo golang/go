@@ -88,7 +88,7 @@ func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
 		// TODO(rsc): Use memmove when !needwb().
 		p = newarray(et, uintptr(newcap))
 		for i := 0; i < old.len; i++ {
-			writebarrierfat(et, add(p, uintptr(i)*et.size), add(old.array, uintptr(i)*et.size))
+			typedmemmove(et, add(p, uintptr(i)*et.size), add(old.array, uintptr(i)*et.size))
 		}
 	}
 

@@ -2096,8 +2096,8 @@ applywritebarrier(Node *n, NodeList **init)
 				r = r->left;
 			r = nod(OADDR, r, N);
 			r->etype = 1; // addr does not escape
-			//warnl(n->lineno, "writebarrierfat %T %N", t, r);
-			n = mkcall1(writebarrierfn("writebarrierfat", t, r->left->type), T, init,
+			//warnl(n->lineno, "typedmemmove %T %N", t, r);
+			n = mkcall1(writebarrierfn("typedmemmove", t, r->left->type), T, init,
 				typename(t), l, r);
 		}
 	}
@@ -2952,7 +2952,7 @@ copyany(Node *n, NodeList **init, int runtimecall)
 	NodeList *l;
 	
 	if(haspointers(n->left->type->type)) {
-		fn = writebarrierfn("writebarriercopy", n->left->type, n->right->type);
+		fn = writebarrierfn("typedslicecopy", n->left->type, n->right->type);
 		return mkcall1(fn, n->type, init, typename(n->left->type->type), n->left, n->right);
 	}
 

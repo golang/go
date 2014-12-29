@@ -288,8 +288,8 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
 // The implementations are written to wbfat.go.
 
 //go:nosplit
-func writebarrierfat(typ *_type, dst, src unsafe.Pointer) {
-	if !needwb() {
+func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	if !needwb() || (typ.kind&kindNoPointers) != 0 {
 		memmove(dst, src, typ.size)
 		return
 	}
@@ -322,7 +322,7 @@ func writebarrierfat(typ *_type, dst, src unsafe.Pointer) {
 }
 
 //go:nosplit
-func writebarriercopy(typ *_type, dst, src slice) int {
+func typedslicecopy(typ *_type, dst, src slice) int {
 	n := dst.len
 	if n > src.len {
 		n = src.len
@@ -347,7 +347,7 @@ func writebarriercopy(typ *_type, dst, src slice) int {
 			srcp = add(srcp, uintptr(n-1)*typ.size)
 			i := uint(0)
 			for {
-				writebarrierfat(typ, dstp, srcp)
+				typedmemmove(typ, dstp, srcp)
 				if i++; i >= n {
 					break
 				}
@@ -359,7 +359,7 @@ func writebarriercopy(typ *_type, dst, src slice) int {
 			// out of the array they point into.
 			i := uint(0)
 			for {
-				writebarrierfat(typ, dstp, srcp)
+				typedmemmove(typ, dstp, srcp)
 				if i++; i >= n {
 					break
 				}
