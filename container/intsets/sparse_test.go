@@ -60,7 +60,7 @@ func TestBasics(t *testing.T) {
 
 // Insert, Len, IsEmpty, Hash, Clear, AppendTo.
 func TestMoreBasics(t *testing.T) {
-	var set intsets.Sparse
+	set := new(intsets.Sparse)
 	set.Insert(456)
 	set.Insert(123)
 	set.Insert(789)
@@ -78,7 +78,7 @@ func TestMoreBasics(t *testing.T) {
 	}
 	got := set.AppendTo([]int{-1})
 	if want := []int{-1, 123, 456, 789}; fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Errorf("%s.AppendTo: got %v, want %v", got, want)
+		t.Errorf("%s.AppendTo: got %v, want %v", set, got, want)
 	}
 
 	set.Clear()
@@ -107,7 +107,7 @@ func TestTakeMin(t *testing.T) {
 		}
 	}
 	if set.TakeMin(&got) {
-		t.Errorf("%s.TakeMin returned true", set, got)
+		t.Errorf("%s.TakeMin returned true", &set)
 	}
 	if err := set.Check(); err != nil {
 		t.Fatalf("check: %s: %#v", err, &set)

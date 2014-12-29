@@ -813,10 +813,10 @@ func main() {
 			got := sig.Recv().Type()
 			want := sel.Recv()
 			if !Identical(got, want) {
-				t.Errorf("%s: Recv() = %s, want %s", got, want)
+				t.Errorf("%s: Recv() = %s, want %s", syntax, got, want)
 			}
 		} else if sig != nil && sig.Recv() != nil {
-			t.Error("%s: signature has receiver %s", sig, sig.Recv().Type())
+			t.Errorf("%s: signature has receiver %s", sig, sig.Recv().Type())
 		}
 	}
 	// Assert that all wantOut entries were used exactly once.

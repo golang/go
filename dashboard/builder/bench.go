@@ -118,7 +118,7 @@ func chooseBenchmark(benchBin string, doneBenchs []string) (bench string, procs,
 	var out bytes.Buffer
 	err := run(exec.Command(benchBin), allOutput(&out))
 	if err != nil {
-		log.Printf("Failed to query benchmark list: %v\n%s", err, out)
+		log.Printf("Failed to query benchmark list: %v\n%s", err, &out)
 		last = true
 		return
 	}

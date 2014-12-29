@@ -106,7 +106,7 @@ func TestLoadFromArgsSource(t *testing.T) {
 		t.Fatalf("loadFromArgs(%q) failed: %s", args, err)
 	}
 	if len(prog.Created) != 1 {
-		t.Errorf("loadFromArgs(%q): got %d items, want 1", len(prog.Created))
+		t.Errorf("loadFromArgs(%q): got %d items, want 1", args, len(prog.Created))
 	}
 	if len(prog.Created) > 0 {
 		path := prog.Created[0].Pkg.Path()

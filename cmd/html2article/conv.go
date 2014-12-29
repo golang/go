@@ -223,7 +223,7 @@ func text(n *html.Node) string {
 			}
 			// Use original url for Google Docs redirections.
 			if u, err := url.Parse(href); err != nil {
-				log.Println("parsing url %q: %v", href, err)
+				log.Printf("parsing url %q: %v", href, err)
 			} else if u.Host == "www.google.com" && u.Path == "/url" {
 				href = u.Query().Get("q")
 			}
