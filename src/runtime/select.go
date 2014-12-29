@@ -449,7 +449,7 @@ asyncrecv:
 		*cas.receivedp = true
 	}
 	if cas.elem != nil {
-		memmove(cas.elem, chanbuf(c, c.recvx), uintptr(c.elemsize))
+		typedmemmove(c.elemtype, cas.elem, chanbuf(c, c.recvx))
 	}
 	memclr(chanbuf(c, c.recvx), uintptr(c.elemsize))
 	c.recvx++
@@ -477,7 +477,7 @@ asyncsend:
 		racerelease(chanbuf(c, c.sendx))
 		raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
 	}
-	memmove(chanbuf(c, c.sendx), cas.elem, uintptr(c.elemsize))
+	typedmemmove(c.elemtype, chanbuf(c, c.sendx), cas.elem)
 	c.sendx++
 	if c.sendx == c.dataqsiz {
 		c.sendx = 0
@@ -512,7 +512,7 @@ syncrecv:
 		*cas.receivedp = true
 	}
 	if cas.elem != nil {
-		memmove(cas.elem, sg.elem, uintptr(c.elemsize))
+		typedmemmove(c.elemtype, cas.elem, sg.elem)
 	}
 	sg.elem = nil
 	gp = sg.g
@@ -548,7 +548,7 @@ syncsend:
 		print("syncsend: sel=", sel, " c=", c, "\n")
 	}
 	if sg.elem != nil {
-		memmove(sg.elem, cas.elem, uintptr(c.elemsize))
+		typedmemmove(c.elemtype, sg.elem, cas.elem)
 	}
 	sg.elem = nil
 	gp = sg.g

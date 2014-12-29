@@ -146,7 +146,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 
 			recvg := sg.g
 			if sg.elem != nil {
-				memmove(unsafe.Pointer(sg.elem), ep, uintptr(c.elemsize))
+				typedmemmove(c.elemtype, unsafe.Pointer(sg.elem), ep)
 				sg.elem = nil
 			}
 			recvg.param = unsafe.Pointer(sg)
@@ -234,7 +234,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		raceacquire(chanbuf(c, c.sendx))
 		racerelease(chanbuf(c, c.sendx))
 	}
-	memmove(chanbuf(c, c.sendx), ep, uintptr(c.elemsize))
+	typedmemmove(c.elemtype, chanbuf(c, c.sendx), ep)
 	c.sendx++
 	if c.sendx == c.dataqsiz {
 		c.sendx = 0
@@ -379,7 +379,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 			unlock(&c.lock)
 
 			if ep != nil {
-				memmove(ep, sg.elem, uintptr(c.elemsize))
+				typedmemmove(c.elemtype, ep, sg.elem)
 			}
 			sg.elem = nil
 			gp := sg.g
@@ -484,7 +484,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 		racerelease(chanbuf(c, c.recvx))
 	}
 	if ep != nil {
-		memmove(ep, chanbuf(c, c.recvx), uintptr(c.elemsize))
+		typedmemmove(c.elemtype, ep, chanbuf(c, c.recvx))
 	}
 	memclr(chanbuf(c, c.recvx), uintptr(c.elemsize))
 
