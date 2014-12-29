@@ -2786,6 +2786,7 @@ islvalue(Node *n)
 	case OIND:
 	case ODOTPTR:
 	case OCLOSUREVAR:
+	case OPARAM:
 		return 1;
 	case ODOT:
 		return islvalue(n->left);

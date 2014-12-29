@@ -462,6 +462,7 @@ walkexpr(Node **np, NodeList **init)
 	case ONONAME:
 	case OINDREG:
 	case OEMPTY:
+	case OPARAM:
 		goto ret;
 
 	case ONOT:
@@ -2519,7 +2520,7 @@ paramstoheap(Type **argin, int out)
 {
 	Type *t;
 	Iter savet;
-	Node *v;
+	Node *v, *as;
 	NodeList *nn;
 
 	nn = nil;
@@ -2544,8 +2545,13 @@ paramstoheap(Type **argin, int out)
 		if(v->alloc == nil)
 			v->alloc = callnew(v->type);
 		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));
-		if((v->class & ~PHEAP) != PPARAMOUT)
-			nn = list(nn, nod(OAS, v, v->stackparam));
+		if((v->class & ~PHEAP) != PPARAMOUT) {
+			as = nod(OAS, v, v->stackparam);
+			v->stackparam->typecheck = 1;
+			typecheck(&as, Etop);
+			as = applywritebarrier(as, &nn);
+			nn = list(nn, as);
+		}
 	}
 	return nn;
 }
