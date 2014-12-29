@@ -482,17 +482,7 @@ func ptrAnalysis(o *Oracle) *pointer.Result {
 	return result
 }
 
-// unparen returns e with any enclosing parentheses stripped.
-func unparen(e ast.Expr) ast.Expr {
-	for {
-		p, ok := e.(*ast.ParenExpr)
-		if !ok {
-			break
-		}
-		e = p.X
-	}
-	return e
-}
+func unparen(e ast.Expr) ast.Expr { return astutil.Unparen(e) }
 
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {

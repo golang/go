@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 
+	"golang.org/x/tools/astutil"
 	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
@@ -216,18 +217,7 @@ func (tr *Transformer) matchWildcard(xobj *types.Var, y ast.Expr) bool {
 
 // -- utilities --------------------------------------------------------
 
-// unparen returns e with any enclosing parentheses stripped.
-// TODO(adonovan): move to astutil package.
-func unparen(e ast.Expr) ast.Expr {
-	for {
-		p, ok := e.(*ast.ParenExpr)
-		if !ok {
-			break
-		}
-		e = p.X
-	}
-	return e
-}
+func unparen(e ast.Expr) ast.Expr { return astutil.Unparen(e) }
 
 // isRef returns the object referred to by this (possibly qualified)
 // identifier, or nil if the node is not a referring identifier.

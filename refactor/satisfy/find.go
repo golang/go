@@ -49,6 +49,7 @@ import (
 	"go/ast"
 	"go/token"
 
+	"golang.org/x/tools/astutil"
 	"golang.org/x/tools/go/types"
 )
 
@@ -698,17 +699,7 @@ func deref(typ types.Type) types.Type {
 	return typ
 }
 
-// unparen returns e with any enclosing parentheses stripped.
-func unparen(e ast.Expr) ast.Expr {
-	for {
-		p, ok := e.(*ast.ParenExpr)
-		if !ok {
-			break
-		}
-		e = p.X
-	}
-	return e
-}
+func unparen(e ast.Expr) ast.Expr { return astutil.Unparen(e) }
 
 func isInterface(T types.Type) bool {
 	_, ok := T.Underlying().(*types.Interface)
