@@ -2800,7 +2800,21 @@ appendslice(Node *n, NodeList **init)
 
 	l = list(l, nif);
 
-	if(flag_race) {
+	if(haspointers(l1->type->type)) {
+		// copy(s[len(l1):len(l1)+len(l2)], l2)
+		nptr1 = nod(OSLICE, s, nod(OKEY,
+			nod(OLEN, l1, N),
+			nod(OADD, nod(OLEN, l1, N), nod(OLEN, l2, N))));
+		nptr1->etype = 1;
+		nptr2 = l2;
+		fn = syslook("typedslicecopy", 1);
+		argtype(fn, l1->type);
+		argtype(fn, l2->type);
+		nt = mkcall1(fn, types[TINT], &l,
+				typename(l1->type->type),
+				nptr1, nptr2);
+		l = list(l, nt);
+	} else if(flag_race) {
 		// rely on runtime to instrument copy.
 		// copy(s[len(l1):len(l1)+len(l2)], l2)
 		nptr1 = nod(OSLICE, s, nod(OKEY,
