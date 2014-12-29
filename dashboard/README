@@ -5,6 +5,10 @@
 The files in this directory constitute the continuous builder:
 
 app/:     an AppEngine server. The code that runs http://build.golang.org/
+buildlet/: HTTP server that runs on a VM and is told what to write to disk
+           and what command to run. This is cross-compiled to all architectures
+           and is the first program run when a builder VM comes up. It then
+           is contacted by the coordinator to do a build.
 builder/: gobuilder, a Go continuous build client
 coordinator/: daemon that runs on CoreOS on Google Compute Engine and manages
           builds (using the builder in single-shot mode) in Docker containers.
