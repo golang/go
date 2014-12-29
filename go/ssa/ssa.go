@@ -28,11 +28,12 @@ type Program struct {
 	mode       BuilderMode                 // set of mode bits for SSA construction
 	MethodSets types.MethodSetCache        // cache of type-checker's method-sets
 
-	methodsMu  sync.Mutex                 // guards the following maps:
-	methodSets typeutil.Map               // maps type to its concrete methodSet
-	canon      typeutil.Map               // type canonicalization map
-	bounds     map[*types.Func]*Function  // bounds for curried x.Method closures
-	thunks     map[selectionKey]*Function // thunks for T.Method expressions
+	methodsMu    sync.Mutex                 // guards the following maps:
+	methodSets   typeutil.Map               // maps type to its concrete methodSet
+	runtimeTypes typeutil.Map               // types for which rtypes are needed
+	canon        typeutil.Map               // type canonicalization map
+	bounds       map[*types.Func]*Function  // bounds for curried x.Method closures
+	thunks       map[selectionKey]*Function // thunks for T.Method expressions
 }
 
 // A Package is a single analyzed Go package containing Members for
@@ -41,21 +42,18 @@ type Program struct {
 // type-specific accessor methods Func, Type, Var and Const.
 //
 type Package struct {
-	Prog       *Program               // the owning program
-	Object     *types.Package         // the type checker's package object for this package
-	Members    map[string]Member      // all package members keyed by name
-	methodsMu  sync.Mutex             // guards needRTTI and methodSets
-	methodSets []types.Type           // types whose method sets are included in this package
-	values     map[types.Object]Value // package members (incl. types and methods), keyed by object
-	init       *Function              // Func("init"); the package's init function
-	debug      bool                   // include full debug info in this package.
+	Prog    *Program               // the owning program
+	Object  *types.Package         // the type checker's package object for this package
+	Members map[string]Member      // all package members keyed by name
+	values  map[types.Object]Value // package members (incl. types and methods), keyed by object
+	init    *Function              // Func("init"); the package's init function
+	debug   bool                   // include full debug info in this package.
 
 	// The following fields are set transiently, then cleared
 	// after building.
-	started  int32               // atomically tested and set at start of build phase
-	ninit    int32               // number of init functions
-	info     *loader.PackageInfo // package ASTs and type information
-	needRTTI typeutil.Map        // types for which runtime type info is needed
+	started int32               // atomically tested and set at start of build phase
+	ninit   int32               // number of init functions
+	info    *loader.PackageInfo // package ASTs and type information
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,

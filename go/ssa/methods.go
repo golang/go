@@ -55,44 +55,6 @@ func (prog *Program) LookupMethod(T types.Type, pkg *types.Package, name string)
 	return prog.Method(sel)
 }
 
-// makeMethods ensures that all concrete methods of type T are
-// generated.  It is equivalent to calling prog.Method() on all
-// members of T.methodSet(), but acquires fewer locks.
-//
-// It reports whether the type's (concrete) method set is non-empty.
-//
-// Thread-safe.
-//
-// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
-//
-func (prog *Program) makeMethods(T types.Type) bool {
-	if isInterface(T) {
-		return false // abstract method
-	}
-	tmset := prog.MethodSets.MethodSet(T)
-	n := tmset.Len()
-	if n == 0 {
-		return false // empty (common case)
-	}
-
-	if prog.mode&LogSource != 0 {
-		defer logStack("makeMethods %s", T)()
-	}
-
-	prog.methodsMu.Lock()
-	defer prog.methodsMu.Unlock()
-
-	mset := prog.createMethodSet(T)
-	if !mset.complete {
-		mset.complete = true
-		for i := 0; i < n; i++ {
-			prog.addMethod(mset, tmset.At(i))
-		}
-	}
-
-	return true
-}
-
 // methodSet contains the (concrete) methods of a non-interface type.
 type methodSet struct {
 	mapping  map[string]*Function // populated lazily
@@ -135,18 +97,15 @@ func (prog *Program) addMethod(mset *methodSet, sel *types.Selection) *Function 
 	return fn
 }
 
-// TypesWithMethodSets returns a new unordered slice containing all
+// RuntimeTypes returns a new unordered slice containing all
 // concrete types in the program for which a complete (non-empty)
 // method set is required at run-time.
-//
-// It is the union of pkg.TypesWithMethodSets() for all pkg in
-// prog.AllPackages().
 //
 // Thread-safe.
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
 //
-func (prog *Program) TypesWithMethodSets() []types.Type {
+func (prog *Program) RuntimeTypes() []types.Type {
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
 
@@ -159,33 +118,6 @@ func (prog *Program) TypesWithMethodSets() []types.Type {
 	return res
 }
 
-// TypesWithMethodSets returns an unordered slice containing the set
-// of all concrete types referenced within package pkg and not
-// belonging to some other package, for which a complete (non-empty)
-// method set is required at run-time.
-//
-// A type belongs to a package if it is a named type or a pointer to a
-// named type, and the name was defined in that package.  All other
-// types belong to no package.
-//
-// A type may appear in the TypesWithMethodSets() set of multiple
-// distinct packages if that type belongs to no package.  Typical
-// compilers emit method sets for such types multiple times (using
-// weak symbols) into each package that references them, with the
-// linker performing duplicate elimination.
-//
-// This set includes the types of all operands of some MakeInterface
-// instruction, the types of all exported members of some package, and
-// all types that are subcomponents, since even types that aren't used
-// directly may be derived via reflection.
-//
-// Callers must not mutate the result.
-//
-func (pkg *Package) TypesWithMethodSets() []types.Type {
-	// pkg.methodsMu not required; concurrent (build) phase is over.
-	return pkg.methodSets
-}
-
 // declaredFunc returns the concrete function/method denoted by obj.
 // Panic ensues if there is none.
 //
@@ -194,4 +126,118 @@ func (prog *Program) declaredFunc(obj *types.Func) *Function {
 		return v.(*Function)
 	}
 	panic("no concrete method: " + obj.String())
+}
+
+// needMethodsOf ensures that runtime type information (including the
+// complete method set) is available for the specified type T and all
+// its subcomponents.
+//
+// needMethodsOf must be called for at least every type that is an
+// operand of some MakeInterface instruction, and for the type of
+// every exported package member.
+//
+// Precondition: T is not a method signature (*Signature with Recv()!=nil).
+//
+// Thread-safe.  (Called via emitConv from multiple builder goroutines.)
+//
+// TODO(adonovan): make this faster.  It accounts for 20% of SSA build time.
+//
+// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
+//
+func (prog *Program) needMethodsOf(T types.Type) {
+	prog.methodsMu.Lock()
+	prog.needMethods(T, false)
+	prog.methodsMu.Unlock()
+}
+
+// Precondition: T is not a method signature (*Signature with Recv()!=nil).
+// Recursive case: skip => don't create methods for T.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
+//
+func (prog *Program) needMethods(T types.Type, skip bool) {
+	// Each package maintains its own set of types it has visited.
+	if prevSkip, ok := prog.runtimeTypes.At(T).(bool); ok {
+		// needMethods(T) was previously called
+		if !prevSkip || skip {
+			return // already seen, with same or false 'skip' value
+		}
+	}
+	prog.runtimeTypes.Set(T, skip)
+
+	tmset := prog.MethodSets.MethodSet(T)
+
+	if !skip && !isInterface(T) && tmset.Len() > 0 {
+		// Create methods of T.
+		mset := prog.createMethodSet(T)
+		if !mset.complete {
+			mset.complete = true
+			n := tmset.Len()
+			for i := 0; i < n; i++ {
+				prog.addMethod(mset, tmset.At(i))
+			}
+		}
+	}
+
+	// Recursion over signatures of each method.
+	for i := 0; i < tmset.Len(); i++ {
+		sig := tmset.At(i).Type().(*types.Signature)
+		prog.needMethods(sig.Params(), false)
+		prog.needMethods(sig.Results(), false)
+	}
+
+	switch t := T.(type) {
+	case *types.Basic:
+		// nop
+
+	case *types.Interface:
+		// nop---handled by recursion over method set.
+
+	case *types.Pointer:
+		prog.needMethods(t.Elem(), false)
+
+	case *types.Slice:
+		prog.needMethods(t.Elem(), false)
+
+	case *types.Chan:
+		prog.needMethods(t.Elem(), false)
+
+	case *types.Map:
+		prog.needMethods(t.Key(), false)
+		prog.needMethods(t.Elem(), false)
+
+	case *types.Signature:
+		if t.Recv() != nil {
+			panic(fmt.Sprintf("Signature %s has Recv %s", t, t.Recv()))
+		}
+		prog.needMethods(t.Params(), false)
+		prog.needMethods(t.Results(), false)
+
+	case *types.Named:
+		// A pointer-to-named type can be derived from a named
+		// type via reflection.  It may have methods too.
+		prog.needMethods(types.NewPointer(T), false)
+
+		// Consider 'type T struct{S}' where S has methods.
+		// Reflection provides no way to get from T to struct{S},
+		// only to S, so the method set of struct{S} is unwanted,
+		// so set 'skip' flag during recursion.
+		prog.needMethods(t.Underlying(), true)
+
+	case *types.Array:
+		prog.needMethods(t.Elem(), false)
+
+	case *types.Struct:
+		for i, n := 0, t.NumFields(); i < n; i++ {
+			prog.needMethods(t.Field(i).Type(), false)
+		}
+
+	case *types.Tuple:
+		for i, n := 0, t.Len(); i < n; i++ {
+			prog.needMethods(t.At(i).Type(), false)
+		}
+
+	default:
+		panic(T)
+	}
 }

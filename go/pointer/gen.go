@@ -1262,7 +1262,7 @@ func (a *analysis) generate() {
 
 	// Create nodes and constraints for all methods of all types
 	// that are dynamically accessible via reflection or interfaces.
-	for _, T := range a.prog.TypesWithMethodSets() {
+	for _, T := range a.prog.RuntimeTypes() {
 		a.genMethodsOf(T)
 	}
 

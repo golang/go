@@ -151,8 +151,8 @@ func main() {
 	}
 }
 
-// TestTypesWithMethodSets tests that Package.TypesWithMethodSets includes all necessary types.
-func TestTypesWithMethodSets(t *testing.T) {
+// TestRuntimeTypes tests that (*Program).RuntimeTypes() includes all necessary types.
+func TestRuntimeTypes(t *testing.T) {
 	tests := []struct {
 		input string
 		want  []string
@@ -167,7 +167,7 @@ func TestTypesWithMethodSets(t *testing.T) {
 		},
 		// Subcomponents of type of exported package-level var are needed.
 		{`package C; import "bytes"; var V struct {*bytes.Buffer}`,
-			[]string{"*struct{*bytes.Buffer}", "struct{*bytes.Buffer}"},
+			[]string{"*bytes.Buffer", "*struct{*bytes.Buffer}", "struct{*bytes.Buffer}"},
 		},
 		// Subcomponents of type of unexported package-level var are not needed.
 		{`package D; import "bytes"; var v struct {*bytes.Buffer}`,
@@ -175,7 +175,7 @@ func TestTypesWithMethodSets(t *testing.T) {
 		},
 		// Subcomponents of type of exported package-level function are needed.
 		{`package E; import "bytes"; func F(struct {*bytes.Buffer}) {}`,
-			[]string{"struct{*bytes.Buffer}"},
+			[]string{"*bytes.Buffer", "struct{*bytes.Buffer}"},
 		},
 		// Subcomponents of type of unexported package-level function are not needed.
 		{`package F; import "bytes"; func f(struct {*bytes.Buffer}) {}`,
@@ -187,11 +187,11 @@ func TestTypesWithMethodSets(t *testing.T) {
 		},
 		// ...unless used by MakeInterface.
 		{`package G2; import "bytes"; type x struct{}; func (x) G(struct {*bytes.Buffer}) {}; var v interface{} = x{}`,
-			[]string{"*p.x", "p.x", "struct{*bytes.Buffer}"},
+			[]string{"*bytes.Buffer", "*p.x", "p.x", "struct{*bytes.Buffer}"},
 		},
 		// Subcomponents of type of unexported method are not needed.
 		{`package I; import "bytes"; type X struct{}; func (X) G(struct {*bytes.Buffer}) {}`,
-			[]string{"*p.X", "p.X", "struct{*bytes.Buffer}"},
+			[]string{"*bytes.Buffer", "*p.X", "p.X", "struct{*bytes.Buffer}"},
 		},
 		// Local types aren't needed.
 		{`package J; import "bytes"; func f() { type T struct {*bytes.Buffer}; var t T; _ = t }`,
@@ -199,11 +199,11 @@ func TestTypesWithMethodSets(t *testing.T) {
 		},
 		// ...unless used by MakeInterface.
 		{`package K; import "bytes"; func f() { type T struct {*bytes.Buffer}; _ = interface{}(T{}) }`,
-			[]string{"*p.T", "p.T"},
+			[]string{"*bytes.Buffer", "*p.T", "p.T"},
 		},
 		// Types used as operand of MakeInterface are needed.
 		{`package L; import "bytes"; func f() { _ = interface{}(struct{*bytes.Buffer}{}) }`,
-			[]string{"struct{*bytes.Buffer}"},
+			[]string{"*bytes.Buffer", "struct{*bytes.Buffer}"},
 		},
 		// MakeInterface is optimized away when storing to a blank.
 		{`package M; import "bytes"; var _ interface{} = struct{*bytes.Buffer}{}`,
@@ -226,17 +226,17 @@ func TestTypesWithMethodSets(t *testing.T) {
 			continue
 		}
 		prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
-		mainPkg := prog.Package(iprog.Created[0].Pkg)
 		prog.BuildAll()
 
 		var typstrs []string
-		for _, T := range mainPkg.TypesWithMethodSets() {
+		for _, T := range prog.RuntimeTypes() {
 			typstrs = append(typstrs, T.String())
 		}
 		sort.Strings(typstrs)
 
 		if !reflect.DeepEqual(typstrs, test.want) {
-			t.Errorf("test 'package %s': got %q, want %q", f.Name.Name, typstrs, test.want)
+			t.Errorf("test 'package %s': got %q, want %q",
+				f.Name.Name, typstrs, test.want)
 		}
 	}
 }
