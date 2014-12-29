@@ -130,7 +130,7 @@ func testdefersizes() {
 		if defersc >= uintptr(len(m)) {
 			break
 		}
-		siz := goroundupsize(totaldefersize(i))
+		siz := roundupsize(totaldefersize(i))
 		if m[defersc] < 0 {
 			m[defersc] = int32(siz)
 			continue
@@ -173,7 +173,7 @@ func newdefer(siz int32) *_defer {
 	}
 	if d == nil {
 		// Allocate new defer+args.
-		total := goroundupsize(totaldefersize(uintptr(siz)))
+		total := roundupsize(totaldefersize(uintptr(siz)))
 		d = (*_defer)(mallocgc(total, deferType, 0))
 	}
 	d.siz = siz

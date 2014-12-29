@@ -126,7 +126,7 @@ func schedinit() {
 
 	sched.lastpoll = uint64(nanotime())
 	procs := 1
-	if n := goatoi(gogetenv("GOMAXPROCS")); n > 0 {
+	if n := atoi(gogetenv("GOMAXPROCS")); n > 0 {
 		if n > _MaxGomaxprocs {
 			n = _MaxGomaxprocs
 		}

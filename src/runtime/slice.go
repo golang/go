@@ -76,7 +76,7 @@ func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
 		panic(errorString("growslice: cap out of range"))
 	}
 	lenmem := uintptr(old.len) * uintptr(et.size)
-	capmem := goroundupsize(uintptr(newcap) * uintptr(et.size))
+	capmem := roundupsize(uintptr(newcap) * uintptr(et.size))
 	newcap = int(capmem / uintptr(et.size))
 	var p unsafe.Pointer
 	if et.kind&kindNoPointers != 0 {

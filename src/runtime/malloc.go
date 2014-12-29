@@ -415,20 +415,6 @@ func rawmem(size uintptr) unsafe.Pointer {
 	return mallocgc(size, nil, flagNoScan|flagNoZero)
 }
 
-// round size up to next size class
-func goroundupsize(size uintptr) uintptr {
-	if size < maxSmallSize {
-		if size <= 1024-8 {
-			return uintptr(class_to_size[size_to_class8[(size+7)>>3]])
-		}
-		return uintptr(class_to_size[size_to_class128[(size-1024+127)>>7]])
-	}
-	if size+pageSize < size {
-		return size
-	}
-	return (size + pageSize - 1) &^ pageMask
-}
-
 func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 	c := mp.mcache
 	rate := MemProfileRate
