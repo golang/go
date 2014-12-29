@@ -631,6 +631,20 @@ func init() {
 	environ = append(environ, "GOARCH="+runtime.GOARCH)
 }
 
+// deleteBodies delete the bodies of all standalone functions except the
+// specified ones.  A missing intrinsic leads to a clear runtime error.
+func deleteBodies(pkg *ssa.Package, except ...string) {
+	keep := make(map[string]bool)
+	for _, e := range except {
+		keep[e] = true
+	}
+	for _, mem := range pkg.Members {
+		if fn, ok := mem.(*ssa.Function); ok && !keep[fn.Name()] {
+			fn.Blocks = nil
+		}
+	}
+}
+
 // Interpret interprets the Go program whose main package is mainpkg.
 // mode specifies various interpreter options.  filename and args are
 // the initial values of os.Args for the target program.  sizes is the
@@ -676,22 +690,13 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 		case "syscall":
 			setGlobal(i, pkg, "envs", environ)
 
+		case "reflect":
+			deleteBodies(pkg, "DeepEqual", "deepValueEqual")
+
 		case "runtime":
 			sz := sizes.Sizeof(pkg.Object.Scope().Lookup("MemStats").Type())
 			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(sz))
-
-			// Delete the bodies of almost all "runtime" functions since they're magic.
-			// A missing intrinsic leads to a very clear error.
-			for _, mem := range pkg.Members {
-				if fn, ok := mem.(*ssa.Function); ok {
-					switch fn.Name() {
-					case "GOROOT", "gogetenv":
-						// keep
-					default:
-						fn.Blocks = nil
-					}
-				}
-			}
+			deleteBodies(pkg, "GOROOT", "gogetenv")
 		}
 	}
 
@@ -712,7 +717,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 		case string:
 			fmt.Fprintln(os.Stderr, "panic:", p)
 		default:
-			fmt.Fprintf(os.Stderr, "panic: unexpected type: %T\n", p)
+			fmt.Fprintf(os.Stderr, "panic: unexpected type: %T: %v\n", p, p)
 		}
 
 		// TODO(adonovan): dump panicking interpreter goroutine?

@@ -80,6 +80,7 @@ func init() {
 		"math.Min":                         ext۰math۰Min,
 		"os.runtime_args":                  ext۰os۰runtime_args,
 		"reflect.New":                      ext۰reflect۰New,
+		"reflect.SliceOf":                  ext۰reflect۰SliceOf,
 		"reflect.TypeOf":                   ext۰reflect۰TypeOf,
 		"reflect.ValueOf":                  ext۰reflect۰ValueOf,
 		"reflect.init":                     ext۰reflect۰Init,

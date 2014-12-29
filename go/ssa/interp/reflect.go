@@ -150,8 +150,13 @@ func ext۰reflect۰New(fr *frame, args []value) value {
 	return makeReflectValue(types.NewPointer(t), &alloc)
 }
 
+func ext۰reflect۰SliceOf(fr *frame, args []value) value {
+	// Signature: func (t reflect.rtype) Type
+	return makeReflectType(rtype{types.NewSlice(args[0].(iface).v.(rtype).t)})
+}
+
 func ext۰reflect۰TypeOf(fr *frame, args []value) value {
-	// Signature: func (t reflect.rtype) string
+	// Signature: func (t reflect.rtype) Type
 	return makeReflectType(rtype{args[0].(iface).t})
 }
 

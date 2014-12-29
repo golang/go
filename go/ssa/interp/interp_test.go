@@ -146,6 +146,7 @@ var testdataTests = []string{
 	"mrvchain.go",
 	"range.go",
 	"recover.go",
+	"reflect.go",
 	"static.go",
 	"callstack.go",
 }
@@ -276,10 +277,12 @@ func printFailures(failures []string) {
 	}
 }
 
-// The "normal" success predicate.
-func exitsZero(exitcode int, _ string) error {
+func success(exitcode int, output string) error {
 	if exitcode != 0 {
 		return fmt.Errorf("exit code was %d", exitcode)
+	}
+	if strings.Contains(output, "BUG") {
+		return fmt.Errorf("exited zero but output contained 'BUG'")
 	}
 	return nil
 }
@@ -288,7 +291,7 @@ func exitsZero(exitcode int, _ string) error {
 func TestTestdataFiles(t *testing.T) {
 	var failures []string
 	for _, input := range testdataTests {
-		if !run(t, "testdata"+slash, input, exitsZero) {
+		if !run(t, "testdata"+slash, input, success) {
 			failures = append(failures, input)
 		}
 	}
@@ -303,16 +306,6 @@ func TestGorootTest(t *testing.T) {
 
 	var failures []string
 
-	// $GOROOT/tests are also considered a failure if they print "BUG".
-	success := func(exitcode int, output string) error {
-		if exitcode != 0 {
-			return fmt.Errorf("exit code was %d", exitcode)
-		}
-		if strings.Contains(output, "BUG") {
-			return fmt.Errorf("exited zero but output contained 'BUG'")
-		}
-		return nil
-	}
 	for _, input := range gorootTestTests {
 		if !run(t, filepath.Join(build.Default.GOROOT, "test")+slash, input, success) {
 			failures = append(failures, input)
