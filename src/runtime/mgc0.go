@@ -304,8 +304,9 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 			} else {
 				*(*uintptr)(dst) = *(*uintptr)(src)
 			}
-			dst = add(dst, ptrSize)
-			src = add(src, ptrSize)
+			// TODO(rsc): The noescape calls should be unnecessary.
+			dst = add(noescape(dst), ptrSize)
+			src = add(noescape(src), ptrSize)
 			if i+1 == nptr {
 				break
 			}
@@ -315,8 +316,8 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 			} else {
 				*(*uintptr)(dst) = *(*uintptr)(src)
 			}
-			dst = add(dst, ptrSize)
-			src = add(src, ptrSize)
+			dst = add(noescape(dst), ptrSize)
+			src = add(noescape(src), ptrSize)
 		}
 	})
 }

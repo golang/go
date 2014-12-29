@@ -132,16 +132,15 @@ func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
 }
 
 func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
-	size := uintptr(t.size)
 	ep := (*eface)(unsafe.Pointer(&e))
 	if isDirectIface(t) {
 		ep._type = t
-		memmove(unsafe.Pointer(&ep.data), elem, size)
+		typedmemmove(t, unsafe.Pointer(&ep.data), elem)
 	} else {
 		x := newobject(t)
 		// TODO: We allocate a zeroed object only to overwrite it with
 		// actual data.  Figure out how to avoid zeroing.  Also below in convT2I.
-		memmove(x, elem, size)
+		typedmemmove(t, x, elem)
 		ep._type = t
 		ep.data = x
 	}
@@ -154,14 +153,13 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) 
 		tab = getitab(inter, t, false)
 		atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
 	}
-	size := uintptr(t.size)
 	pi := (*iface)(unsafe.Pointer(&i))
 	if isDirectIface(t) {
 		pi.tab = tab
-		memmove(unsafe.Pointer(&pi.data), elem, size)
+		typedmemmove(t, unsafe.Pointer(&pi.data), elem)
 	} else {
 		x := newobject(t)
-		memmove(x, elem, size)
+		typedmemmove(t, x, elem)
 		pi.tab = tab
 		pi.data = x
 	}
@@ -180,11 +178,15 @@ func assertI2T(t *_type, i fInterface) (r struct{}) {
 	if tab._type != t {
 		panic(&TypeAssertionError{*tab.inter.typ._string, *tab._type._string, *t._string, ""})
 	}
-	size := uintptr(t.size)
+	// NOTE(rsc): If this changes to take a pointer argument
+	// instead of using &r, these calls need to change to be
+	// typedmemmove (the first can be just writebarrierptr).
+	// Until then, it is very important that no blocking operation
+	// happens between the memmove and the return.
 	if isDirectIface(t) {
-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), size)
+		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), uintptr(t.size))
 	} else {
-		memmove(unsafe.Pointer(&r), ip.data, size)
+		memmove(unsafe.Pointer(&r), ip.data, uintptr(t.size))
 	}
 	return
 }
@@ -192,19 +194,23 @@ func assertI2T(t *_type, i fInterface) (r struct{}) {
 //go:nosplit
 func assertI2T2(t *_type, i fInterface) (r byte) {
 	ip := (*iface)(unsafe.Pointer(&i))
-	size := uintptr(t.size)
-	ok := (*bool)(add(unsafe.Pointer(&r), size))
+	ok := (*bool)(add(unsafe.Pointer(&r), uintptr(t.size)))
 	tab := ip.tab
 	if tab == nil || tab._type != t {
 		*ok = false
-		memclr(unsafe.Pointer(&r), size)
+		memclr(unsafe.Pointer(&r), uintptr(t.size))
 		return
 	}
 	*ok = true
+	// NOTE(rsc): If this changes to take a pointer argument
+	// instead of using &r, these calls need to change to be
+	// typedmemmove (the first can be just writebarrierptr).
+	// Until then, it is very important that no blocking operation
+	// happens between the memmove and the return.
 	if isDirectIface(t) {
-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), size)
+		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), uintptr(t.size))
 	} else {
-		memmove(unsafe.Pointer(&r), ip.data, size)
+		memmove(unsafe.Pointer(&r), ip.data, uintptr(t.size))
 	}
 	return
 }
@@ -224,11 +230,15 @@ func assertE2T(t *_type, e interface{}) (r struct{}) {
 	if ep._type != t {
 		panic(&TypeAssertionError{"", *ep._type._string, *t._string, ""})
 	}
-	size := uintptr(t.size)
+	// NOTE(rsc): If this changes to take a pointer argument
+	// instead of using &r, these calls need to change to be
+	// typedmemmove (the first can be just writebarrierptr).
+	// Until then, it is very important that no blocking operation
+	// happens between the memmove and the return.
 	if isDirectIface(t) {
-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), size)
+		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), uintptr(t.size))
 	} else {
-		memmove(unsafe.Pointer(&r), ep.data, size)
+		memmove(unsafe.Pointer(&r), ep.data, uintptr(t.size))
 	}
 	return
 }
@@ -244,6 +254,11 @@ func assertE2T2(t *_type, e interface{}) (r byte) {
 		return
 	}
 	*ok = true
+	// NOTE(rsc): If this changes to take a pointer argument
+	// instead of using &r, these calls need to change to be
+	// typedmemmove (the first can be just writebarrierptr).
+	// Until then, it is very important that no blocking operation
+	// happens between the memmove and the return.
 	if isDirectIface(t) {
 		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), size)
 	} else {

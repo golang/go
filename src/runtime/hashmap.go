@@ -435,13 +435,13 @@ again:
 				continue
 			}
 			// already have a mapping for key.  Update it.
-			memmove(k2, key, uintptr(t.key.size))
+			typedmemmove(t.key, k2, key)
 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
 			v2 := v
 			if t.indirectvalue {
 				v2 = *((*unsafe.Pointer)(v2))
 			}
-			memmove(v2, val, uintptr(t.elem.size))
+			typedmemmove(t.elem, v2, val)
 			return
 		}
 		ovf := b.overflow(t)
@@ -486,8 +486,8 @@ again:
 		*(*unsafe.Pointer)(insertv) = vmem
 		insertv = vmem
 	}
-	memmove(insertk, key, uintptr(t.key.size))
-	memmove(insertv, val, uintptr(t.elem.size))
+	typedmemmove(t.key, insertk, key)
+	typedmemmove(t.elem, insertv, val)
 	*inserti = top
 	h.count++
 }
@@ -846,12 +846,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 					if t.indirectkey {
 						*(*unsafe.Pointer)(xk) = k2 // copy pointer
 					} else {
-						memmove(xk, k, uintptr(t.key.size)) // copy value
+						typedmemmove(t.key, xk, k) // copy value
 					}
 					if t.indirectvalue {
 						*(*unsafe.Pointer)(xv) = *(*unsafe.Pointer)(v)
 					} else {
-						memmove(xv, v, uintptr(t.elem.size))
+						typedmemmove(t.elem, xv, v)
 					}
 					xi++
 					xk = add(xk, uintptr(t.keysize))
@@ -873,12 +873,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 					if t.indirectkey {
 						*(*unsafe.Pointer)(yk) = k2
 					} else {
-						memmove(yk, k, uintptr(t.key.size))
+						typedmemmove(t.key, yk, k)
 					}
 					if t.indirectvalue {
 						*(*unsafe.Pointer)(yv) = *(*unsafe.Pointer)(v)
 					} else {
-						memmove(yv, v, uintptr(t.elem.size))
+						typedmemmove(t.elem, yv, v)
 					}
 					yi++
 					yk = add(yk, uintptr(t.keysize))
