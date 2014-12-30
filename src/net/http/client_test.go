@@ -1027,24 +1027,12 @@ func TestClientTrailers(t *testing.T) {
 				r.Trailer.Get("Client-Trailer-B"))
 		}
 
-		// TODO: golang.org/issue/7759: there's no way yet for
-		// the server to set trailers without hijacking, so do
-		// that for now, just to test the client.  Later, in
-		// Go 1.4, it should be implicit that any mutations
-		// to w.Header() after the initial write are the
-		// trailers to be sent, if and only if they were
-		// previously declared with w.Header().Set("Trailer",
-		// ..keys..)
-		w.(Flusher).Flush()
-		conn, buf, _ := w.(Hijacker).Hijack()
-		t := Header{}
-		t.Set("Server-Trailer-A", "valuea")
-		t.Set("Server-Trailer-C", "valuec") // skipping B
-		buf.WriteString("0\r\n")            // eof
-		t.Write(buf)
-		buf.WriteString("\r\n") // end of trailers
-		buf.Flush()
-		conn.Close()
+		// How handlers set Trailers: declare it ahead of time
+		// with the Trailer header, and then mutate the
+		// Header() of those values later, after the response
+		// has been written (we wrote to w above).
+		w.Header().Set("Server-Trailer-A", "valuea")
+		w.Header().Set("Server-Trailer-C", "valuec") // skipping B
 	}))
 	defer ts.Close()
 
