@@ -218,7 +218,7 @@ expect -timeout 600 eof
 EOF
 
 # Create Compute Engine disk image.
-echo "Zipping disk.raw... (this may take a while)"
+echo "Archiving disk.raw... (this may take a while)"
 tar -Szcf openbsd-amd64-gce.tar.gz disk.raw
 
 echo "Done. GCE image is openbsd-amd64-gce.tar.gz."

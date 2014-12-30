@@ -13,6 +13,6 @@ Then:
    gcloud compute --project symbolic-datum-552 images create openbsd-amd64-56 --source-uri gs://go-builder-data/openbsd-amd64-gce.tar.gz
 
 The VM needs to be run with the GCE metadata attribute "buildlet-binary-url" set to a URL
-of the OpenBSD builetlet (cross-compiled, typically).
+of the OpenBSD buildlet (cross-compiled, typically).
 
     buildlet-binary-url == http://storage.googleapis.com/go-builder-data/buildlet.openbsd-amd64
