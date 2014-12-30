@@ -110,7 +110,17 @@ func asminit()
 func setg(gg *g)
 func breakpoint()
 
-func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
+// reflectcall calls fn with a copy of the n argument bytes pointed at by arg.
+// After fn returns, reflectcall copies n-retoffset result bytes
+// back into arg+retoffset before returning. If copying result bytes back,
+// the caller should pass the argument frame type as argtype, so that
+// call can execute appropriate write barriers during the copy.
+// Package reflect passes a frame type. In package runtime, there is only
+// one call that copies results back, in cgocallbackg1, and it does NOT pass a
+// frame type, meaning there are no write barriers invoked. See that call
+// site for justification.
+func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
+
 func procyield(cycles uint32)
 func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
 func goexit()

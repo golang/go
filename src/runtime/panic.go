@@ -301,7 +301,7 @@ func Goexit() {
 			continue
 		}
 		d.started = true
-		reflectcall(unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+		reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
 		if gp._defer != d {
 			throw("bad defer entry in Goexit")
 		}
@@ -401,7 +401,7 @@ func gopanic(e interface{}) {
 		d._panic = (*_panic)(noescape((unsafe.Pointer)(&p)))
 
 		p.argp = unsafe.Pointer(getargp(0))
-		reflectcall(unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+		reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
 		p.argp = nil
 
 		// reflectcall did not panic. Remove d.

@@ -167,6 +167,9 @@ func testCallbackCallers(t *testing.T) {
 		"testing.tRunner",
 		"runtime.goexit",
 	}
+	if unsafe.Sizeof((*byte)(nil)) == 8 {
+		name[1] = "runtime.call32"
+	}
 	nestedCall(func() {
 		n = runtime.Callers(2, pc)
 	})

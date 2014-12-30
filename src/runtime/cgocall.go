@@ -232,7 +232,12 @@ func cgocallbackg1() {
 	}
 
 	// Invoke callback.
-	reflectcall(unsafe.Pointer(cb.fn), unsafe.Pointer(cb.arg), uint32(cb.argsize), 0)
+	// NOTE(rsc): passing nil for argtype means that the copying of the
+	// results back into cb.arg happens without any corresponding write barriers.
+	// For cgo, cb.arg points into a C stack frame and therefore doesn't
+	// hold any pointers that the GC can find anyway - the write barrier
+	// would be a no-op.
+	reflectcall(nil, unsafe.Pointer(cb.fn), unsafe.Pointer(cb.arg), uint32(cb.argsize), 0)
 
 	if raceenabled {
 		racereleasemerge(unsafe.Pointer(&racecgosync))
