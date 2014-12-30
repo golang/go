@@ -154,16 +154,32 @@ func untar(r io.Reader, dir string) error {
 	return nil
 }
 
+// Process-State is an HTTP Trailer set in the /exec handler to "ok"
+// on success, or os.ProcessState.String() on failure.
+const hdrProcessState = "Process-State"
+
 func handleExec(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "requires POST method", http.StatusBadRequest)
 		return
 	}
+	if r.ProtoMajor*10+r.ProtoMinor < 11 {
+		// We need trailers, only available in HTTP/1.1 or HTTP/2.
+		http.Error(w, "HTTP/1.1 or higher required", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Trailer", hdrProcessState) // declare it so we can set it
+
 	cmdPath := r.FormValue("cmd") // required
 	if !validRelPath(cmdPath) {
 		http.Error(w, "requires 'cmd' parameter", http.StatusBadRequest)
 		return
 	}
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+
 	absCmd := filepath.Join(*scratchDir, filepath.FromSlash(cmdPath))
 	cmd := exec.Command(absCmd, r.PostForm["cmdArg"]...)
 	cmd.Dir = filepath.Dir(absCmd)
@@ -171,9 +187,16 @@ func handleExec(w http.ResponseWriter, r *http.Request) {
 	cmd.Stdout = cmdOutput
 	cmd.Stderr = cmdOutput
 	err := cmd.Run()
-	log.Printf("Run = %v", err)
-	// TODO: put the exit status in the HTTP trailer,
-	// once https://golang.org/issue/7759 is fixed.
+	state := "ok"
+	if err != nil {
+		if ps := cmd.ProcessState; ps != nil {
+			state = ps.String()
+		} else {
+			state = err.Error()
+		}
+	}
+	w.Header().Set(hdrProcessState, state)
+	log.Printf("Run = %s", state)
 }
 
 // flushWriter is an io.Writer wrapper that writes to w and
