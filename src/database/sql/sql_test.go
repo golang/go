@@ -1070,6 +1070,57 @@ func TestMaxOpenConns(t *testing.T) {
 	}
 }
 
+// Issue 9453: tests that SetMaxOpenConns can be lowered at runtime
+// and affects the subsequent release of connections.
+func TestMaxOpenConnsOnBusy(t *testing.T) {
+	defer setHookpostCloseConn(nil)
+	setHookpostCloseConn(func(_ *fakeConn, err error) {
+		if err != nil {
+			t.Errorf("Error closing fakeConn: %v", err)
+		}
+	})
+
+	db := newTestDB(t, "magicquery")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(3)
+
+	conn0, err := db.conn()
+	if err != nil {
+		t.Fatalf("db open conn fail: %v", err)
+	}
+
+	conn1, err := db.conn()
+	if err != nil {
+		t.Fatalf("db open conn fail: %v", err)
+	}
+
+	conn2, err := db.conn()
+	if err != nil {
+		t.Fatalf("db open conn fail: %v", err)
+	}
+
+	if g, w := db.numOpen, 3; g != w {
+		t.Errorf("free conns = %d; want %d", g, w)
+	}
+
+	db.SetMaxOpenConns(2)
+	if g, w := db.numOpen, 3; g != w {
+		t.Errorf("free conns = %d; want %d", g, w)
+	}
+
+	conn0.releaseConn(nil)
+	conn1.releaseConn(nil)
+	if g, w := db.numOpen, 2; g != w {
+		t.Errorf("free conns = %d; want %d", g, w)
+	}
+
+	conn2.releaseConn(nil)
+	if g, w := db.numOpen, 2; g != w {
+		t.Errorf("free conns = %d; want %d", g, w)
+	}
+}
+
 func TestSingleOpenConn(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)

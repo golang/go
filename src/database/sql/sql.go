@@ -782,6 +782,9 @@ func (db *DB) putConn(dc *driverConn, err error) {
 // If a connRequest was fulfilled or the *driverConn was placed in the
 // freeConn list, then true is returned, otherwise false is returned.
 func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
+	if db.maxOpen > 0 && db.numOpen > db.maxOpen {
+		return false
+	}
 	if c := len(db.connRequests); c > 0 {
 		req := db.connRequests[0]
 		// This copy is O(n) but in practice faster than a linked list.
