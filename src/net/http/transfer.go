@@ -232,7 +232,6 @@ func (t *transferWriter) WriteBody(w io.Writer) error {
 			t.ContentLength, ncopy)
 	}
 
-	// TODO(petar): Place trailer writer code here.
 	if chunked(t.TransferEncoding) {
 		// Write Trailer header
 		if t.Trailer != nil {
