@@ -40,6 +40,9 @@ var valids = []string{
 	`package p; func (*(T),) m() {}`,
 	`package p; func _(x []int) { for range x {} }`,
 	`package p; func _() { if [T{}.n]int{} {} }`,
+	`package p; func _() { map[int]int{}[0]++; map[int]int{}[0] += 1 }`,
+	`package p; func _(x interface{f()}) { interface{f()}(x).f() }`,
+	`package p; func _(x chan int) { chan int(x) <- 0 }`,
 }
 
 func TestValid(t *testing.T) {
