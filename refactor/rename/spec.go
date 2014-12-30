@@ -6,7 +6,7 @@ package rename
 
 // This file contains logic related to specifying a renaming: parsing of
 // the flags as a form of query, and finding the object(s) it denotes.
-// See FromFlagUsage for details.
+// See Usage for flag details.
 
 import (
 	"bytes"
@@ -27,8 +27,8 @@ import (
 
 // A spec specifies an entity to rename.
 //
-// It is populated from an -offset flag or -from query; see
-// FromFlagUsage for the allowed -from query forms.
+// It is populated from an -offset flag or -from query;
+// see Usage for the allowed -from query forms.
 //
 type spec struct {
 	// pkg is the package containing the position
@@ -65,28 +65,8 @@ type spec struct {
 	offset int
 }
 
-const FromFlagUsage = `
-A legal -from query has one of the following forms:
-
-  "encoding/json".Decoder.Decode	method of package-level named type
-  (*"encoding/json".Decoder).Decode	ditto, alternative syntax
-  "encoding/json".Decoder.buf           field of package-level named struct type
-  "encoding/json".HTMLEscape            package member (const, func, var, type)
-  "encoding/json".Decoder.Decode::x     local object x within a method
-  "encoding/json".HTMLEscape::x         local object x within a function
-  "encoding/json"::x                    object x anywhere within a package
-  json.go::x                            object x within file json.go
-
-  For methods, the parens and '*' on the receiver type are both optional.
-
-  Double-quotes may be omitted for single-segment import paths such as
-  fmt.  They may need to be escaped when writing a shell command.
-
-  It is an error if one of the ::x queries matches multiple objects.
-`
-
 // parseFromFlag interprets the "-from" flag value as a renaming specification.
-// See FromFlagUsage for valid formats.
+// See Usage in rename.go for valid formats.
 func parseFromFlag(ctxt *build.Context, fromFlag string) (*spec, error) {
 	var spec spec
 	var main string // sans "::x" suffix
