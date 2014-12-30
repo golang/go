@@ -942,7 +942,7 @@ func runfinq() {
 				default:
 					throw("bad kind in runfinq")
 				}
-				reflectcall(unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz))
+				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz))
 
 				// drop finalizer queue references to finalized object
 				f.fn = nil

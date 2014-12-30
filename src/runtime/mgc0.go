@@ -104,6 +104,7 @@ const (
 	_PoisonStack = 0x6868686868686868 & (1<<(8*ptrSize) - 1)
 )
 
+//go:nosplit
 func needwb() bool {
 	return gcphase == _GCmark || gcphase == _GCmarktermination || mheap_.shadow_enabled
 }
@@ -232,7 +233,7 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 	// Apply changes to shadow.
 	// Since *dst has been overwritten already, we cannot check
 	// whether there were any missed updates, but writebarrierptr_nostore
-	// is only rarely used (right now there is just one call, in newstack).
+	// is only rarely used.
 	if mheap_.shadow_enabled {
 		systemstack(func() {
 			addr := uintptr(unsafe.Pointer(dst))
@@ -287,6 +288,12 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
 // all the combinations of ptr+scalar up to four words.
 // The implementations are written to wbfat.go.
 
+//go:linkname reflect_typedmemmove reflect.typedmemmove
+func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	typedmemmove(typ, dst, src)
+}
+
+// typedmemmove copies a value of type t to dst from src.
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if !needwb() || (typ.kind&kindNoPointers) != 0 {
@@ -320,6 +327,79 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 			src = add(noescape(src), ptrSize)
 		}
 	})
+}
+
+// typedmemmovepartial is like typedmemmove but assumes that
+// dst and src point off bytes into the value and only copies size bytes.
+//go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
+func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+	if !needwb() || (typ.kind&kindNoPointers) != 0 || size < ptrSize {
+		memmove(dst, src, size)
+		return
+	}
+
+	if off&(ptrSize-1) != 0 {
+		frag := -off & (ptrSize - 1)
+		// frag < size, because size >= ptrSize, checked above.
+		memmove(dst, src, frag)
+		size -= frag
+		dst = add(noescape(dst), frag)
+		src = add(noescape(src), frag)
+		off += frag
+	}
+
+	mask := loadPtrMask(typ)
+	nptr := (off + size) / ptrSize
+	for i := uintptr(off / ptrSize); i < nptr; i++ {
+		bits := mask[i/2] >> ((i & 1) << 2)
+		if (bits>>2)&_BitsMask == _BitsPointer {
+			writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
+		} else {
+			*(*uintptr)(dst) = *(*uintptr)(src)
+		}
+		// TODO(rsc): The noescape calls should be unnecessary.
+		dst = add(noescape(dst), ptrSize)
+		src = add(noescape(src), ptrSize)
+	}
+	size &= ptrSize - 1
+	if size > 0 {
+		memmove(dst, src, size)
+	}
+}
+
+// callwritebarrier is invoked at the end of reflectcall, to execute
+// write barrier operations to record the fact that a call's return
+// values have just been copied to frame, starting at retoffset
+// and continuing to framesize. The entire frame (not just the return
+// values) is described by typ. Because the copy has already
+// happened, we call writebarrierptr_nostore, and we must be careful
+// not to be preempted before the write barriers have been run.
+//go:nosplit
+func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
+	if !needwb() || typ == nil || (typ.kind&kindNoPointers) != 0 || framesize-retoffset < ptrSize {
+		return
+	}
+
+	systemstack(func() {
+		mask := loadPtrMask(typ)
+		// retoffset is known to be pointer-aligned (at least).
+		// TODO(rsc): The noescape call should be unnecessary.
+		dst := add(noescape(frame), retoffset)
+		nptr := framesize / ptrSize
+		for i := uintptr(retoffset / ptrSize); i < nptr; i++ {
+			bits := mask[i/2] >> ((i & 1) << 2)
+			if (bits>>2)&_BitsMask == _BitsPointer {
+				writebarrierptr_nostore((*uintptr)(dst), *(*uintptr)(dst))
+			}
+			// TODO(rsc): The noescape call should be unnecessary.
+			dst = add(noescape(dst), ptrSize)
+		}
+	})
+}
+
+//go:linkname reflect_typedslicecopy reflect.typedslicecopy
+func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+	return typedslicecopy(elemType, dst, src)
 }
 
 //go:nosplit

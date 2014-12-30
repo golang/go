@@ -271,7 +271,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
 	BR	runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
-// func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -288,9 +288,10 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
 TEXT reflect·call(SB), NOSPLIT, $0-0
 	BR	·reflectcall(SB)
 
-TEXT ·reflectcall(SB), NOSPLIT, $-8-24
-	MOVWZ n+16(FP), R3
-	DISPATCH(runtime·call16, 16)
+TEXT ·reflectcall(SB), NOSPLIT, $-8-32
+	MOVWZ argsize+24(FP), R3
+	// NOTE(rsc): No call16, because CALLFN needs four words
+	// of argument space to invoke callwritebarrier.
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -325,8 +326,8 @@ TEXT ·reflectcall(SB), NOSPLIT, $-8-24
 TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
-	MOVD	arg+8(FP), R3;			\
-	MOVWZ	n+16(FP), R4;			\
+	MOVD	arg+16(FP), R3;			\
+	MOVWZ	argsize+24(FP), R4;			\
 	MOVD	R1, R5;				\
 	ADD	$(8-1), R5;			\
 	SUB	$1, R3;				\
@@ -337,15 +338,15 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	MOVBZU	R6, 1(R5);			\
 	BR	-4(PC);				\
 	/* call function */			\
-	MOVD	f+0(FP), R11;			\
+	MOVD	f+8(FP), R11;			\
 	MOVD	(R11), R31;			\
 	MOVD	R31, CTR;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(CTR);				\
 	/* copy return values back */		\
-	MOVD	arg+8(FP), R3;			\
-	MOVWZ	n+16(FP), R4;			\
-	MOVWZ	retoffset+20(FP), R6;		\
+	MOVD	arg+16(FP), R3;			\
+	MOVWZ	n+24(FP), R4;			\
+	MOVWZ	retoffset+28(FP), R6;		\
 	MOVD	R1, R5;				\
 	ADD	R6, R5; 			\
 	ADD	R6, R3;				\
@@ -353,11 +354,23 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	ADD	$(8-1), R5;			\
 	SUB	$1, R3;				\
 	ADD	R5, R4;				\
+loop:						\
 	CMP	R5, R4;				\
-	BEQ	4(PC);				\
+	BEQ	end;				\
 	MOVBZU	1(R5), R6;			\
 	MOVBZU	R6, 1(R3);			\
-	BR	-4(PC);				\
+	BR	loop;				\
+end:						\
+	/* execute write barrier updates */	\
+	MOVD	argtype+0(FP), R7;		\
+	MOVD	arg+16(FP), R3;			\
+	MOVWZ	n+24(FP), R4;			\
+	MOVWZ	retoffset+28(FP), R6;		\
+	MOVD	R7, 8(R1);			\
+	MOVD	R3, 16(R1);			\
+	MOVD	R4, 24(R1);			\
+	MOVD	R6, 32(R1);			\
+	BL	runtime·callwritebarrier(SB);	\
 	RETURN
 
 CALLFN(·call16, 16)

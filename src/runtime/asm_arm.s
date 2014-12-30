@@ -322,7 +322,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 	B runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
-// func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -336,8 +336,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
 TEXT reflect·call(SB), NOSPLIT, $0-0
 	B	·reflectcall(SB)
 
-TEXT ·reflectcall(SB),NOSPLIT,$-4-16
-	MOVW	argsize+8(FP), R0
+TEXT ·reflectcall(SB),NOSPLIT,$-4-20
+	MOVW	argsize+12(FP), R0
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -369,11 +369,11 @@ TEXT ·reflectcall(SB),NOSPLIT,$-4-16
 	B	(R1)
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
-	MOVW	argptr+4(FP), R0;		\
-	MOVW	argsize+8(FP), R2;		\
+	MOVW	argptr+8(FP), R0;		\
+	MOVW	argsize+12(FP), R2;		\
 	ADD	$4, SP, R1;			\
 	CMP	$0, R2;				\
 	B.EQ	5(PC);				\
@@ -382,24 +382,37 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
 	SUB	$1, R2, R2;			\
 	B	-5(PC);				\
 	/* call function */			\
-	MOVW	f+0(FP), R7;			\
+	MOVW	f+4(FP), R7;			\
 	MOVW	(R7), R0;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(R0);				\
 	/* copy return values back */		\
-	MOVW	argptr+4(FP), R0;		\
-	MOVW	argsize+8(FP), R2;		\
-	MOVW	retoffset+12(FP), R3;		\
+	MOVW	argptr+8(FP), R0;		\
+	MOVW	argsize+12(FP), R2;		\
+	MOVW	retoffset+16(FP), R3;		\
 	ADD	$4, SP, R1;			\
 	ADD	R3, R1;				\
 	ADD	R3, R0;				\
 	SUB	R3, R2;				\
+loop:
 	CMP	$0, R2;				\
-	RET.EQ	;				\
+	B.EQ	end;				\
 	MOVBU.P	1(R1), R5;			\
 	MOVBU.P R5, 1(R0);			\
 	SUB	$1, R2, R2;			\
-	B	-5(PC)				\
+	B	loop;				\
+end:						\
+	/* execute write barrier updates */	\
+	MOVW	argtype+0(FP), R1;		\
+	MOVW	argptr+8(FP), R0;		\
+	MOVW	argsize+12(FP), R2;		\
+	MOVW	retoffset+16(FP), R3;		\
+	MOVW	R1, 4(R13);			\
+	MOVW	R0, 8(R13);			\
+	MOVW	R2, 12(R13);			\
+	MOVW	R3, 16(R13);			\
+	BL	runtime·callwritebarrier(SB);	\
+	RET	
 
 CALLFN(·call16, 16)
 CALLFN(·call32, 32)

@@ -107,7 +107,7 @@ func packEface(v Value) interface{} {
 			// TODO: pass safe boolean from valueInterface so
 			// we don't need to copy if safe==true?
 			c := unsafe_New(t)
-			memmove(c, ptr, t.size)
+			typedmemmove(t, c, ptr)
 			ptr = c
 		}
 		e.word = ptr
@@ -412,7 +412,7 @@ func (v Value) call(op string, in []Value) []Value {
 		addr := unsafe.Pointer(uintptr(args) + off)
 		v = v.assignTo("reflect.Value.Call", targ, addr)
 		if v.flag&flagIndir != 0 {
-			memmove(addr, v.ptr, n)
+			typedmemmove(targ, addr, v.ptr)
 		} else {
 			*(*unsafe.Pointer)(addr) = v.ptr
 		}
@@ -420,7 +420,7 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 
 	// Call.
-	call(fn, args, uint32(frametype.size), uint32(retOffset))
+	call(frametype, fn, args, uint32(frametype.size), uint32(retOffset))
 
 	// For testing; see TestCallMethodJump.
 	if callGC {
@@ -473,7 +473,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 			// and we cannot let f keep a reference to the stack frame
 			// after this function returns, not even a read-only reference.
 			v.ptr = unsafe_New(typ)
-			memmove(v.ptr, addr, typ.size)
+			typedmemmove(typ, v.ptr, addr)
 			v.flag |= flagIndir
 		} else {
 			v.ptr = *(*unsafe.Pointer)(addr)
@@ -509,7 +509,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 			off += -off & uintptr(typ.align-1)
 			addr := unsafe.Pointer(uintptr(ptr) + off)
 			if v.flag&flagIndir != 0 {
-				memmove(addr, v.ptr, typ.size)
+				typedmemmove(typ, addr, v.ptr)
 			} else {
 				*(*unsafe.Pointer)(addr) = v.ptr
 			}
@@ -603,10 +603,10 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 
 	// Copy in receiver and rest of args.
 	storeRcvr(rcvr, args)
-	memmove(unsafe.Pointer(uintptr(args)+ptrSize), frame, argSize-ptrSize)
+	typedmemmovepartial(frametype, unsafe.Pointer(uintptr(args)+ptrSize), frame, ptrSize, argSize-ptrSize)
 
 	// Call.
-	call(fn, args, uint32(frametype.size), uint32(retOffset))
+	call(frametype, fn, args, uint32(frametype.size), uint32(retOffset))
 
 	// Copy return values. On amd64p32, the beginning of return values
 	// is 64-bit aligned, so the caller's frame layout (which doesn't have
@@ -617,8 +617,11 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	if runtime.GOARCH == "amd64p32" {
 		callerRetOffset = align(argSize-ptrSize, 8)
 	}
-	memmove(unsafe.Pointer(uintptr(frame)+callerRetOffset),
-		unsafe.Pointer(uintptr(args)+retOffset), frametype.size-retOffset)
+	typedmemmovepartial(frametype,
+		unsafe.Pointer(uintptr(frame)+callerRetOffset),
+		unsafe.Pointer(uintptr(args)+retOffset),
+		retOffset,
+		frametype.size-retOffset)
 }
 
 // funcName returns the name of f, for use in error messages.
@@ -1017,7 +1020,7 @@ func (v Value) MapIndex(key Value) Value {
 		// Copy result so future changes to the map
 		// won't change the underlying value.
 		c := unsafe_New(typ)
-		memmove(c, e, typ.size)
+		typedmemmove(typ, c, e)
 		return Value{typ, c, fl | flagIndir}
 	} else {
 		return Value{typ, *(*unsafe.Pointer)(e), fl}
@@ -1055,7 +1058,7 @@ func (v Value) MapKeys() []Value {
 			// Copy result so future changes to the map
 			// won't change the underlying value.
 			c := unsafe_New(keyType)
-			memmove(c, key, keyType.size)
+			typedmemmove(keyType, c, key)
 			a[i] = Value{keyType, c, fl | flagIndir}
 		} else {
 			a[i] = Value{keyType, *(*unsafe.Pointer)(key), fl}
@@ -1301,7 +1304,7 @@ func (v Value) Set(x Value) {
 	}
 	x = x.assignTo("reflect.Set", v.typ, target)
 	if x.flag&flagIndir != 0 {
-		memmove(v.ptr, x.ptr, v.typ.size)
+		typedmemmove(v.typ, v.ptr, x.ptr)
 	} else {
 		*(*unsafe.Pointer)(v.ptr) = x.ptr
 	}
@@ -1815,27 +1818,23 @@ func Copy(dst, src Value) int {
 	se := src.typ.Elem()
 	typesMustMatch("reflect.Copy", de, se)
 
-	n := dst.Len()
-	if sn := src.Len(); n > sn {
-		n = sn
+	var ds, ss sliceHeader
+	if dk == Array {
+		ds.Data = dst.ptr
+		ds.Len = dst.Len()
+		ds.Cap = ds.Len
+	} else {
+		ds = *(*sliceHeader)(dst.ptr)
+	}
+	if sk == Array {
+		ss.Data = src.ptr
+		ss.Len = src.Len()
+		ss.Cap = ss.Len
+	} else {
+		ss = *(*sliceHeader)(src.ptr)
 	}
 
-	// Copy via memmove.
-	var da, sa unsafe.Pointer
-	if dk == Array {
-		da = dst.ptr
-	} else {
-		da = (*sliceHeader)(dst.ptr).Data
-	}
-	if src.flag&flagIndir == 0 {
-		sa = unsafe.Pointer(&src.ptr)
-	} else if sk == Array {
-		sa = src.ptr
-	} else {
-		sa = (*sliceHeader)(src.ptr).Data
-	}
-	memmove(da, sa, uintptr(n)*de.Size())
-	return n
+	return typedslicecopy(de.common(), ds, ss)
 }
 
 // A runtimeSelect is a single case passed to rselect.
@@ -2376,7 +2375,7 @@ func cvtDirect(v Value, typ Type) Value {
 	if f&flagAddr != 0 {
 		// indirect, mutable word - make a copy
 		c := unsafe_New(t)
-		memmove(c, ptr, t.size)
+		typedmemmove(t, c, ptr)
 		ptr = c
 		f &^= flagAddr
 	}
@@ -2425,12 +2424,29 @@ func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer
 func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
 func mapiternext(it unsafe.Pointer)
 func maplen(m unsafe.Pointer) int
-func call(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
+
+// call calls fn with a copy of the n argument bytes pointed at by arg.
+// After fn returns, reflectcall copies n-retoffset result bytes
+// back into arg+retoffset before returning. If copying result bytes back,
+// the caller must pass the argument frame type as argtype, so that
+// call can execute appropriate write barriers during the copy.
+func call(argtype *rtype, fn, arg unsafe.Pointer, n uint32, retoffset uint32)
 
 func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
 
+// typedmemmove copies a value of type t to dst from src.
 //go:noescape
-func memmove(adst, asrc unsafe.Pointer, n uintptr)
+func typedmemmove(t *rtype, dst, src unsafe.Pointer)
+
+// typedmemmovepartial is like typedmemmove but assumes that
+// dst and src point off bytes into the value and only copies size bytes.
+//go:noescape
+func typedmemmovepartial(t *rtype, dst, src unsafe.Pointer, off, size uintptr)
+
+// typedslicecopy copies a slice of elemType values from src to dst,
+// returning the number of elements copied.
+//go:noescape
+func typedslicecopy(elemType *rtype, dst, src sliceHeader) int
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that
