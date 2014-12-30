@@ -92,13 +92,17 @@ func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
 }
 
 func slicecopy(to sliceStruct, fm sliceStruct, width uintptr) int {
-	if fm.len == 0 || to.len == 0 || width == 0 {
+	if fm.len == 0 || to.len == 0 {
 		return 0
 	}
 
 	n := fm.len
 	if to.len < n {
 		n = to.len
+	}
+
+	if width == 0 {
+		return n
 	}
 
 	if raceenabled {
