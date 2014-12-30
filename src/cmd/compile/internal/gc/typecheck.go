@@ -2787,7 +2787,14 @@ out:
 notenough:
 	if n == nil || n.Diag == 0 {
 		if call != nil {
-			Yyerror("not enough arguments in call to %v", call)
+			// call is the expression being called, not the overall call.
+			// Method expressions have the form T.M, and the compiler has
+			// rewritten those to ONAME nodes but left T in Left.
+			if call.Op == ONAME && call.Left != nil && call.Left.Op == OTYPE {
+				Yyerror("not enough arguments in call to method expression %v", call)
+			} else {
+				Yyerror("not enough arguments in call to %v", call)
+			}
 		} else {
 			Yyerror("not enough arguments to %v", Oconv(int(op), 0))
 		}
