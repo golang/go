@@ -303,7 +303,7 @@ func zoneToString(zone int) string {
 	if ifi, err := InterfaceByIndex(zone); err == nil {
 		return ifi.Name
 	}
-	return itod(uint(zone))
+	return uitoa(uint(zone))
 }
 
 func zoneToInt(zone string) int {
