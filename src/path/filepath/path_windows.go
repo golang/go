@@ -108,3 +108,40 @@ func splitList(path string) []string {
 func abs(path string) (string, error) {
 	return syscall.FullPath(path)
 }
+
+func join(elem []string) string {
+	for i, e := range elem {
+		if e != "" {
+			return joinNonEmpty(elem[i:])
+		}
+	}
+	return ""
+}
+
+// joinNonEmpty is like join, but it assumes that the first element is non-empty.
+func joinNonEmpty(elem []string) string {
+	// The following logic prevents Join from inadvertently creating a
+	// UNC path on Windows. Unless the first element is a UNC path, Join
+	// shouldn't create a UNC path. See golang.org/issue/9167.
+	p := Clean(strings.Join(elem, string(Separator)))
+	if !isUNC(p) {
+		return p
+	}
+	// p == UNC only allowed when the first element is a UNC path.
+	head := Clean(elem[0])
+	if isUNC(head) {
+		return p
+	}
+	// head + tail == UNC, but joining two non-UNC paths should not result
+	// in a UNC path. Undo creation of UNC path.
+	tail := Clean(strings.Join(elem[1:], string(Separator)))
+	if head[len(head)-1] == Separator {
+		return head + tail
+	}
+	return head + string(Separator) + tail
+}
+
+// isUNC returns true if path is a UNC path.
+func isUNC(path string) bool {
+	return volumeNameLen(path) > 2
+}
