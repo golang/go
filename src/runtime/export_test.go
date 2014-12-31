@@ -18,9 +18,6 @@ var Fcmp64 = fcmp64
 var Fintto64 = fintto64
 var F64toint = f64toint
 
-// in asm_*.s
-func stackguard() (sp, limit uintptr)
-
 var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
@@ -29,9 +26,6 @@ type LFNode struct {
 	Next    uint64
 	Pushcnt uintptr
 }
-
-func lfstackpush_m()
-func lfstackpop_m()
 
 func LFStackPush(head *uint64, node *LFNode) {
 	lfstackpush(head, (*lfnode)(unsafe.Pointer(node)))
@@ -51,11 +45,6 @@ type ParFor struct {
 	Ctx     *byte
 	wait    bool
 }
-
-func newparfor_m()
-func parforsetup_m()
-func parfordo_m()
-func parforiters_m()
 
 func NewParFor(nthrmax uint32) *ParFor {
 	var desc *ParFor
