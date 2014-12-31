@@ -34,3 +34,13 @@ func splitList(path string) []string {
 func abs(path string) (string, error) {
 	return unixAbs(path)
 }
+
+func join(elem []string) string {
+	// If there's a bug here, fix the logic in ./path_plan9.go too.
+	for i, e := range elem {
+		if e != "" {
+			return Clean(strings.Join(elem[i:], string(Separator)))
+		}
+	}
+	return ""
+}
