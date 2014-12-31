@@ -235,7 +235,7 @@ func wbshadowinit() {
 	}
 
 	var reserved bool
-	p1 := sysReserve(nil, mheap_.arena_end-mheap_.arena_start, &reserved)
+	p1 := sysReserveHigh(mheap_.arena_end-mheap_.arena_start, &reserved)
 	if p1 == nil {
 		throw("cannot map shadow heap")
 	}
@@ -275,7 +275,7 @@ func wbshadowinit() {
 	mheap_.data_start = start
 	mheap_.data_end = end
 	reserved = false
-	p1 = sysReserve(nil, end-start, &reserved)
+	p1 = sysReserveHigh(end-start, &reserved)
 	if p1 == nil {
 		throw("cannot map shadow data")
 	}
@@ -284,6 +284,29 @@ func wbshadowinit() {
 	memmove(p1, unsafe.Pointer(start), end-start)
 
 	mheap_.shadow_enabled = true
+}
+
+// sysReserveHigh reserves space somewhere high in the address space.
+// sysReserve doesn't actually reserve the full amount requested on
+// 64-bit systems, because of problems with ulimit. Instead it checks
+// that it can get the first 64 kB and assumes it can grab the rest as
+// needed. This doesn't work well with the "let the kernel pick an address"
+// mode, so don't do that. Pick a high address instead.
+func sysReserveHigh(n uintptr, reserved *bool) unsafe.Pointer {
+	if ptrSize == 4 {
+		return sysReserve(nil, n, reserved)
+	}
+
+	for i := 0; i <= 0x7f; i++ {
+		p := uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
+		*reserved = false
+		p = uintptr(sysReserve(unsafe.Pointer(p), n, reserved))
+		if p != 0 {
+			return unsafe.Pointer(p)
+		}
+	}
+
+	return sysReserve(nil, n, reserved)
 }
 
 func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
