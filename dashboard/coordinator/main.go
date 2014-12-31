@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build build_coordinator
+
 // The coordinator runs on GCE and coordinates builds in Docker containers.
 package main // import "golang.org/x/tools/dashboard/coordinator"
 
@@ -20,14 +22,22 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/compute/v1"
+	"google.golang.org/cloud/compute/metadata"
 )
 
 var (
 	masterKeyFile = flag.String("masterkey", "", "Path to builder master key. Else fetched using GCE project attribute 'builder-master-key'.")
 	maxBuilds     = flag.Int("maxbuilds", 6, "Max concurrent builds")
+
+	cleanZones = flag.String("zones", "us-central1-a,us-central1-b,us-central1-f", "Comma-separated list of zones to periodically clean of stale build VMs (ones that failed to shut themselves down)")
 
 	// Debug flags:
 	addTemp = flag.Bool("temp", false, "Append -temp to all builders.")
@@ -131,6 +141,7 @@ func main() {
 	go http.ListenAndServe(":80", nil)
 
 	go cleanUpOldContainers()
+	go cleanUpOldVMs()
 
 	for _, watcher := range watchers {
 		if err := startWatching(watchers[watcher.repo]); err != nil {
@@ -580,4 +591,104 @@ func cleanUpOldContainers() {
 func oldContainers() []string {
 	out, _ := exec.Command("docker", "ps", "-a", "--filter=status=exited", "--no-trunc", "-q").Output()
 	return strings.Fields(string(out))
+}
+
+// cleanUpOldVMs loops forever and periodically enumerates virtual
+// machines and deletes those which have expired.
+//
+// A VM is considered expired if it has a "delete-at" metadata
+// attribute having a unix timestamp before the current time.
+//
+// This is the safety mechanism to delete VMs which stray from the
+// normal deleting process. VMs are created to run a single build and
+// should be shut down by a controlling process. Due to various types
+// of failures, they might get stranded. To prevent them from getting
+// stranded and wasting resources forever, we instead set the
+// "delete-at" metadata attribute on them when created to some time
+// that's well beyond their expected lifetime.
+func cleanUpOldVMs() {
+	if !hasComputeScope() {
+		log.Printf("The coordinator is not running with access to read and write Compute resources. Background VM cleaning disabled.")
+		return
+	}
+	ts := google.ComputeTokenSource("default")
+	computeService, _ := compute.New(oauth2.NewClient(oauth2.NoContext, ts))
+	for {
+		for _, zone := range strings.Split(*cleanZones, ",") {
+			zone = strings.TrimSpace(zone)
+			if err := cleanZoneVMs(computeService, zone); err != nil {
+				log.Printf("Error cleaning VMs in zone %q: %v", zone, err)
+			}
+		}
+		time.Sleep(time.Minute)
+	}
+}
+
+// cleanZoneVMs is part of cleanUpOldVMs, operating on a single zone.
+func cleanZoneVMs(svc *compute.Service, zone string) error {
+	proj, err := metadata.ProjectID()
+	if err != nil {
+		return fmt.Errorf("failed to get current GCE ProjectID: %v", err)
+	}
+	// Fetch the first 500 (default) running instances and clean
+	// thoes. We expect that we'll be running many fewer than
+	// that. Even if we have more, eventually the first 500 will
+	// either end or be cleaned, and then the next call will get a
+	// partially-different 500.
+	// TODO(bradfitz): revist this code if we ever start running
+	// thousands of VMs.
+	list, err := svc.Instances.List(proj, zone).Do()
+	if err != nil {
+		return fmt.Errorf("listing instances: %v", err)
+	}
+	for _, inst := range list.Items {
+		if inst.Metadata == nil {
+			// Defensive. Not seen in practice.
+			continue
+		}
+		for _, it := range inst.Metadata.Items {
+			if it.Key == "delete-at" {
+				unixDeadline, err := strconv.ParseInt(it.Value, 10, 64)
+				if err != nil {
+					log.Printf("invalid delete-at value %q seen; ignoring", it.Value)
+				}
+				if err == nil && time.Now().Unix() > unixDeadline {
+					log.Printf("Deleting expired VM %q in zone %q ...", inst.Name, zone)
+					deleteVM(svc, zone, inst.Name)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func deleteVM(svc *compute.Service, zone, instName string) {
+	proj, err := metadata.ProjectID()
+	if err != nil {
+		log.Printf("failed to get project id to delete instace: %v", err)
+		return
+	}
+	op, err := svc.Instances.Delete(proj, zone, instName).Do()
+	if err != nil {
+		log.Printf("Failed to delete instance %q in zone %q: %v", instName, zone, err)
+		return
+	}
+	log.Printf("Sent request to delete instance %q in zone %q. Operation ID == %v", instName, zone, op.Id)
+}
+
+func hasComputeScope() bool {
+	if !metadata.OnGCE() {
+		return false
+	}
+	scopes, err := metadata.Scopes("default")
+	if err != nil {
+		log.Printf("failed to query metadata default scopes: %v", err)
+		return false
+	}
+	for _, v := range scopes {
+		if v == compute.DevstorageFull_controlScope {
+			return true
+		}
+	}
+	return false
 }
