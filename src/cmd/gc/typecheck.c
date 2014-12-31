@@ -2537,7 +2537,7 @@ pushtype(Node *n, Type *t)
 	else if(debug['s']) {
 		typecheck(&n->right, Etype);
 		if(n->right->type != T && eqtype(n->right->type, t))
-			print("%lL: redundant type: %T\n", n->lineno, t);
+			print("%L: redundant type: %T\n", n->lineno, t);
 	}
 }
 
