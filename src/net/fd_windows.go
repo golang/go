@@ -6,7 +6,6 @@ package net
 
 import (
 	"errors"
-	"io"
 	"os"
 	"runtime"
 	"sync"
@@ -468,12 +467,10 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	n, err := rsrv.ExecIO(o, "WSARecv", func(o *operation) error {
 		return syscall.WSARecv(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, &o.o, nil)
 	})
-	if err == nil && n == 0 {
-		err = io.EOF
-	}
 	if raceenabled {
 		raceAcquire(unsafe.Pointer(&ioSync))
 	}
+	err = fd.eofError(n, err)
 	return n, err
 }
 
@@ -494,6 +491,7 @@ func (fd *netFD) readFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 		o.rsan = int32(unsafe.Sizeof(*o.rsa))
 		return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
 	})
+	err = fd.eofError(n, err)
 	if err != nil {
 		return 0, nil, err
 	}
