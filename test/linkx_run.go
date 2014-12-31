@@ -16,6 +16,7 @@ import (
 )
 
 func main() {
+	// Successful run
 	cmd := exec.Command("go", "run", "-ldflags=-X main.tbd hello -X main.overwrite trumped -X main.nosuchsymbol neverseen", "linkx.go")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -28,6 +29,14 @@ func main() {
 	got := string(out)
 	if got != want {
 		fmt.Printf("got %q want %q\n", got, want)
+		os.Exit(1)
+	}
+
+	// Issue 8810
+	cmd = exec.Command("go", "run", "-ldflags=-X main.tbd", "linkx.go")
+	_, err = cmd.CombinedOutput()
+	if err == nil {
+		fmt.Println("-X linker flag should not accept keys without values")
 		os.Exit(1)
 	}
 }

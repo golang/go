@@ -1776,9 +1776,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 			cxx = true
 		}
 	}
-	ldflags := buildLdflags
-	// Limit slice capacity so that concurrent appends do not race on the shared array.
-	ldflags = ldflags[:len(ldflags):len(ldflags)]
+	var ldflags []string
 	if buildContext.InstallSuffix != "" {
 		ldflags = append(ldflags, "-installsuffix", buildContext.InstallSuffix)
 	}
@@ -1824,6 +1822,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 			}
 		}
 	}
+	ldflags = append(ldflags, buildLdflags...)
 	return b.run(".", p.ImportPath, nil, tool(archChar+"l"), "-o", out, importArgs, ldflags, mainpkg)
 }
 
