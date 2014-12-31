@@ -533,3 +533,21 @@ func main() {
 	println(z)
 }
 `
+
+func TestWERDialogue(t *testing.T) {
+	if os.Getenv("TESTING_WER_DIALOGUE") == "1" {
+		defer os.Exit(0)
+
+		*runtime.TestingWER = true
+		const EXCEPTION_NONCONTINUABLE = 1
+		mod := syscall.MustLoadDLL("kernel32.dll")
+		proc := mod.MustFindProc("RaiseException")
+		proc.Call(0xbad, EXCEPTION_NONCONTINUABLE, 0, 0)
+		println("RaiseException should not return")
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestWERDialogue")
+	cmd.Env = []string{"TESTING_WER_DIALOGUE=1"}
+	// Child process should not open WER dialogue, but return immediately instead.
+	cmd.CombinedOutput()
+}

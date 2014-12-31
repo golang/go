@@ -29,6 +29,7 @@ import (
 //go:cgo_import_dynamic runtime._NtWaitForSingleObject NtWaitForSingleObject "ntdll.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetEvent SetEvent "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetProcessPriorityBoost SetProcessPriorityBoost "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetThreadPriority SetThreadPriority "kernel32.dll"
@@ -62,6 +63,7 @@ var (
 	_NtWaitForSingleObject,
 	_ResumeThread,
 	_SetConsoleCtrlHandler,
+	_SetErrorMode,
 	_SetEvent,
 	_SetProcessPriorityBoost,
 	_SetThreadPriority,
@@ -103,6 +105,13 @@ const (
 	currentThread  = ^uintptr(1) // -2 = current thread
 )
 
+const (
+	SEM_FAILCRITICALERRORS     = 0x0001
+	SEM_NOGPFAULTERRORBOX      = 0x0002
+	SEM_NOALIGNMENTFAULTEXCEPT = 0x0004
+	SEM_NOOPENFILEERRORBOX     = 0x8000
+)
+
 var (
 	kernel32Name                    = []byte("kernel32.dll\x00")
 	addVectoredContinueHandlerName  = []byte("AddVectoredContinueHandler\x00")
@@ -113,6 +122,10 @@ func osinit() {
 	setBadSignalMsg()
 
 	kernel32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32Name[0])))
+
+	// don't display the crash dialog
+	errormode := uint32(stdcall1(_SetErrorMode, SEM_NOGPFAULTERRORBOX))
+	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
 
 	externalthreadhandlerp = funcPC(externalthreadhandler)
 
