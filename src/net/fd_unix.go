@@ -244,7 +244,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 				}
 			}
 		}
-		err = chkReadErr(n, err, fd)
+		err = fd.eofError(n, err)
 		break
 	}
 	if err != nil && err != io.EOF {
@@ -271,7 +271,7 @@ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 				}
 			}
 		}
-		err = chkReadErr(n, err, fd)
+		err = fd.eofError(n, err)
 		break
 	}
 	if err != nil && err != io.EOF {
@@ -298,20 +298,13 @@ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 				}
 			}
 		}
-		err = chkReadErr(n, err, fd)
+		err = fd.eofError(n, err)
 		break
 	}
 	if err != nil && err != io.EOF {
 		err = &OpError{"read", fd.net, fd.laddr, err}
 	}
 	return
-}
-
-func chkReadErr(n int, err error, fd *netFD) error {
-	if n == 0 && err == nil && fd.sotype != syscall.SOCK_DGRAM && fd.sotype != syscall.SOCK_RAW {
-		return io.EOF
-	}
-	return err
 }
 
 func (fd *netFD) Write(p []byte) (nn int, err error) {

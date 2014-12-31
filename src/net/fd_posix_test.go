@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
 
 package net
 
@@ -12,13 +12,12 @@ import (
 	"testing"
 )
 
-var chkReadErrTests = []struct {
+var eofErrorTests = []struct {
 	n        int
 	err      error
 	fd       *netFD
 	expected error
 }{
-
 	{100, nil, &netFD{sotype: syscall.SOCK_STREAM}, nil},
 	{100, io.EOF, &netFD{sotype: syscall.SOCK_STREAM}, io.EOF},
 	{100, errClosing, &netFD{sotype: syscall.SOCK_STREAM}, errClosing},
@@ -48,11 +47,11 @@ var chkReadErrTests = []struct {
 	{0, errClosing, &netFD{sotype: syscall.SOCK_RAW}, errClosing},
 }
 
-func TestChkReadErr(t *testing.T) {
-	for _, tt := range chkReadErrTests {
-		actual := chkReadErr(tt.n, tt.err, tt.fd)
+func TestEOFError(t *testing.T) {
+	for _, tt := range eofErrorTests {
+		actual := tt.fd.eofError(tt.n, tt.err)
 		if actual != tt.expected {
-			t.Errorf("chkReadError(%v, %v, %v): expected %v, actual %v", tt.n, tt.err, tt.fd.sotype, tt.expected, actual)
+			t.Errorf("eofError(%v, %v, %v): expected %v, actual %v", tt.n, tt.err, tt.fd.sotype, tt.expected, actual)
 		}
 	}
 }
