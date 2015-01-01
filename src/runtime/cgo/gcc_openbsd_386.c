@@ -114,7 +114,6 @@ x_cgo_init(G *g, void (*setg)(void*))
 {
 	pthread_attr_t attr;
 	size_t size;
-	void *handle;
 
 	setg_gcc = setg;
 	pthread_attr_init(&attr);
