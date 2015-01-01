@@ -400,12 +400,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
 	MOVL	new+8(FP), CX
 	LOCK
 	CMPXCHGL	CX, 0(BX)
-	JZ 4(PC)
-	MOVL	$0, AX
-	MOVB	AX, ret+16(FP)
-	RET
-	MOVL	$1, AX
-	MOVB	AX, ret+16(FP)
+	SETEQ	, ret+16(FP)
 	RET
 
 TEXT runtime·casuintptr(SB), NOSPLIT, $0-17
@@ -434,13 +429,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-25
 	MOVQ	new+16(FP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BX)
-	JNZ	fail
-	MOVL	$1, AX
-	MOVB	AX, ret+24(FP)
-	RET
-fail:
-	MOVL	$0, AX
-	MOVB	AX, ret+24(FP)
+	SETEQ	, ret+24(FP)
 	RET
 
 // bool casp(void **val, void *old, void *new)
@@ -456,12 +445,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-17
 	MOVL	new+8(FP), CX
 	LOCK
 	CMPXCHGL	CX, 0(BX)
-	JZ 4(PC)
-	MOVL	$0, AX
-	MOVB	AX, ret+16(FP)
-	RET
-	MOVL	$1, AX
-	MOVB	AX, ret+16(FP)
+	SETEQ	, ret+16(FP)
 	RET
 
 // uint32 xadd(uint32 volatile *val, int32 delta)
