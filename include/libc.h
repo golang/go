@@ -310,24 +310,15 @@ extern	void	flagprint(int);
 #ifdef _WIN32
 
 #if !defined(_WIN64) && !defined(__MINGW64_VERSION_MAJOR)
-struct timespec {
-	int tv_sec;
-	long tv_nsec;
-};
 #define execv(prog, argv) execv(prog, (const char* const*)(argv))
 #define execvp(prog, argv) execvp(prog, (const char**)(argv))
 #endif
 
-extern int nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
-extern int fork(void);
-extern int pread(int fd, void *buf, int n, int off);
-extern int pwrite(int fd, void *buf, int n, int off);
 #undef  getwd
 #define getwd(s, ns) getcwd(s, ns)
 #undef  lseek
 #define lseek(fd, n, base) _lseeki64(fd, n, base)
 #define mkdir(path, perm) mkdir(path)
-#define pipe(fd) _pipe(fd, 512, O_BINARY)
 #else
 #define O_BINARY 0
 #endif
