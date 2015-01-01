@@ -359,6 +359,54 @@ func Stable(data Interface) {
 // Having the caller check this condition eliminates many leaf recursion calls,
 // which improves performance.
 func symMerge(data Interface, a, m, b int) {
+	// Avoid unnecessary recursions of symMerge
+	// by direct insertion of data[a] into data[m:b]
+	// if data[a:m] only contains one element.
+	if m-a == 1 {
+		// Use binary search to find the lowest index i
+		// such that data[i] >= data[a] for m <= i < b.
+		// Exit the search loop with i == b in case no such index exists.
+		i := m
+		j := b
+		for i < j {
+			h := i + (j-i)/2
+			if data.Less(h, a) {
+				i = h + 1
+			} else {
+				j = h
+			}
+		}
+		// Swap values until data[a] reaches the position before i.
+		for k := a; k < i-1; k++ {
+			data.Swap(k, k+1)
+		}
+		return
+	}
+
+	// Avoid unnecessary recursions of symMerge
+	// by direct insertion of data[m] into data[a:m]
+	// if data[m:b] only contains one element.
+	if b-m == 1 {
+		// Use binary search to find the lowest index i
+		// such that data[i] > data[m] for a <= i < m.
+		// Exit the search loop with i == m in case no such index exists.
+		i := a
+		j := m
+		for i < j {
+			h := i + (j-i)/2
+			if !data.Less(m, h) {
+				i = h + 1
+			} else {
+				j = h
+			}
+		}
+		// Swap values until data[m] reaches the position i.
+		for k := m; k > i; k-- {
+			data.Swap(k, k-1)
+		}
+		return
+	}
+
 	mid := a + (b-a)/2
 	n := mid + m
 	var start, r int
