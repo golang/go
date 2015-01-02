@@ -1268,6 +1268,135 @@ func TestWriterReset(t *testing.T) {
 	}
 }
 
+func TestReaderDiscard(t *testing.T) {
+	tests := []struct {
+		name     string
+		r        io.Reader
+		bufSize  int // 0 means 16
+		peekSize int
+
+		n int // input to Discard
+
+		want    int   // from Discard
+		wantErr error // from Discard
+
+		wantBuffered int
+	}{
+		{
+			name:         "normal case",
+			r:            strings.NewReader("abcdefghijklmnopqrstuvwxyz"),
+			peekSize:     16,
+			n:            6,
+			want:         6,
+			wantBuffered: 10,
+		},
+		{
+			name:         "discard causing read",
+			r:            strings.NewReader("abcdefghijklmnopqrstuvwxyz"),
+			n:            6,
+			want:         6,
+			wantBuffered: 10,
+		},
+		{
+			name:         "discard all without peek",
+			r:            strings.NewReader("abcdefghijklmnopqrstuvwxyz"),
+			n:            26,
+			want:         26,
+			wantBuffered: 0,
+		},
+		{
+			name:         "discard more than end",
+			r:            strings.NewReader("abcdefghijklmnopqrstuvwxyz"),
+			n:            27,
+			want:         26,
+			wantErr:      io.EOF,
+			wantBuffered: 0,
+		},
+		// Any error from filling shouldn't show up until we
+		// get past the valid bytes. Here we return we return 5 valid bytes at the same time
+		// as an error, but test that we don't see the error from Discard.
+		{
+			name: "fill error, discard less",
+			r: newScriptedReader(func(p []byte) (n int, err error) {
+				if len(p) < 5 {
+					panic("unexpected small read")
+				}
+				return 5, errors.New("5-then-error")
+			}),
+			n:            4,
+			want:         4,
+			wantErr:      nil,
+			wantBuffered: 1,
+		},
+		{
+			name: "fill error, discard equal",
+			r: newScriptedReader(func(p []byte) (n int, err error) {
+				if len(p) < 5 {
+					panic("unexpected small read")
+				}
+				return 5, errors.New("5-then-error")
+			}),
+			n:            5,
+			want:         5,
+			wantErr:      nil,
+			wantBuffered: 0,
+		},
+		{
+			name: "fill error, discard more",
+			r: newScriptedReader(func(p []byte) (n int, err error) {
+				if len(p) < 5 {
+					panic("unexpected small read")
+				}
+				return 5, errors.New("5-then-error")
+			}),
+			n:            6,
+			want:         5,
+			wantErr:      errors.New("5-then-error"),
+			wantBuffered: 0,
+		},
+		// Discard of 0 shouldn't cause a read:
+		{
+			name:         "discard zero",
+			r:            newScriptedReader(), // will panic on Read
+			n:            0,
+			want:         0,
+			wantErr:      nil,
+			wantBuffered: 0,
+		},
+		{
+			name:         "discard negative",
+			r:            newScriptedReader(), // will panic on Read
+			n:            -1,
+			want:         0,
+			wantErr:      ErrNegativeCount,
+			wantBuffered: 0,
+		},
+	}
+	for _, tt := range tests {
+		br := NewReaderSize(tt.r, tt.bufSize)
+		if tt.peekSize > 0 {
+			peekBuf, err := br.Peek(tt.peekSize)
+			if err != nil {
+				t.Errorf("%s: Peek(%d): %v", tt.name, tt.peekSize, err)
+				continue
+			}
+			if len(peekBuf) != tt.peekSize {
+				t.Errorf("%s: len(Peek(%d)) = %v; want %v", tt.name, tt.peekSize, len(peekBuf), tt.peekSize)
+				continue
+			}
+		}
+		discarded, err := br.Discard(tt.n)
+		if ge, we := fmt.Sprint(err), fmt.Sprint(tt.wantErr); discarded != tt.want || ge != we {
+			t.Errorf("%s: Discard(%d) = (%v, %v); want (%v, %v)", tt.name, tt.n, discarded, ge, tt.want, we)
+			continue
+		}
+		if bn := br.Buffered(); bn != tt.wantBuffered {
+			t.Errorf("%s: after Discard, Buffered = %d; want %d", tt.name, bn, tt.wantBuffered)
+		}
+	}
+
+}
+
 // An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.
 type onlyReader struct {
 	io.Reader
@@ -1276,6 +1405,23 @@ type onlyReader struct {
 // An onlyWriter only implements io.Writer, no matter what other methods the underlying implementation may have.
 type onlyWriter struct {
 	io.Writer
+}
+
+// A scriptedReader is an io.Reader that executes its steps sequentially.
+type scriptedReader []func(p []byte) (n int, err error)
+
+func (sr *scriptedReader) Read(p []byte) (n int, err error) {
+	if len(*sr) == 0 {
+		panic("too many Read calls on scripted Reader. No steps remain.")
+	}
+	step := (*sr)[0]
+	*sr = (*sr)[1:]
+	return step(p)
+}
+
+func newScriptedReader(steps ...func(p []byte) (n int, err error)) io.Reader {
+	sr := scriptedReader(steps)
+	return &sr
 }
 
 func BenchmarkReaderCopyOptimal(b *testing.B) {
