@@ -638,8 +638,7 @@ func (b *body) readTrailer() error {
 	// The common case, since nobody uses trailers.
 	buf, err := b.r.Peek(2)
 	if bytes.Equal(buf, singleCRLF) {
-		b.r.ReadByte()
-		b.r.ReadByte()
+		b.r.Discard(2)
 		return nil
 	}
 	if len(buf) < 2 {
