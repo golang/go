@@ -51,9 +51,12 @@ var (
 	watchers  = map[string]watchConfig{} // populated once at startup
 	donec     = make(chan builderRev)    // reports of finished builders
 
-	statusMu sync.Mutex
-	status   = map[builderRev]*buildStatus{}
+	statusMu   sync.Mutex // guards both status (ongoing ones) and statusDone (just finished)
+	status     = map[builderRev]*buildStatus{}
+	statusDone []*buildStatus // finished recently, capped to maxStatusDone
 )
+
+const maxStatusDone = 30
 
 type imageInfo struct {
 	url string // of tar file
@@ -175,7 +178,7 @@ func main() {
 			}
 		case done := <-donec:
 			log.Printf("%v done", done)
-			setStatus(done, nil)
+			markDone(done)
 		case <-ticker.C:
 			if numCurrentBuilds() == 0 && time.Now().After(startTime.Add(10*time.Minute)) {
 				// TODO: halt the whole machine to kill the VM or something
@@ -199,17 +202,36 @@ func mayBuildRev(work builderRev) bool {
 func setStatus(work builderRev, st *buildStatus) {
 	statusMu.Lock()
 	defer statusMu.Unlock()
-	if st == nil {
-		delete(status, work)
-	} else {
-		status[work] = st
+	status[work] = st
+}
+
+func markDone(work builderRev) {
+	statusMu.Lock()
+	defer statusMu.Unlock()
+	st, ok := status[work]
+	if !ok {
+		return
 	}
+	delete(status, work)
+	if len(statusDone) == maxStatusDone {
+		copy(statusDone, statusDone[1:])
+		statusDone = statusDone[:len(statusDone)-1]
+	}
+	statusDone = append(statusDone, st)
 }
 
 func getStatus(work builderRev) *buildStatus {
 	statusMu.Lock()
 	defer statusMu.Unlock()
-	return status[work]
+	if st, ok := status[work]; ok {
+		return st
+	}
+	for _, st := range statusDone {
+		if st.builderRev == work {
+			return st
+		}
+	}
+	return nil
 }
 
 type byAge []*buildStatus
@@ -220,19 +242,32 @@ func (s byAge) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	var active []*buildStatus
+	var recent []*buildStatus
 	statusMu.Lock()
 	for _, st := range status {
 		active = append(active, st)
 	}
+	recent = append(recent, statusDone...)
 	statusMu.Unlock()
 
-	fmt.Fprintf(w, "<html><body><h1>Go build coordinator</h1>%d of max %d builds running:<p><pre>", len(status), *maxBuilds)
 	sort.Sort(byAge(active))
+	sort.Sort(byAge(recent))
+
+	io.WriteString(w, "<html><body><h1>Go build coordinator</h1>")
+
+	fmt.Fprintf(w, "<h2>running</h2>%d of max %d builds running:<p><pre>", len(status), *maxBuilds)
 	for _, st := range active {
-		fmt.Fprintf(w, "%-22s hg %s in container <a href='/logs?name=%s&rev=%s'>%s</a>, %v ago\n", st.name, st.rev, st.name, st.rev,
-			st.container, time.Now().Sub(st.start))
+		io.WriteString(w, st.htmlStatusLine())
 	}
-	fmt.Fprintf(w, "</pre><h2>disk space</h2><pre>%s</pre></body></html>", html.EscapeString(diskFree()))
+	io.WriteString(w, "</pre>")
+
+	io.WriteString(w, "<h2>recently completed</h2><pre>")
+	for _, st := range recent {
+		io.WriteString(w, st.htmlStatusLine())
+	}
+	io.WriteString(w, "</pre>")
+
+	fmt.Fprintf(w, "<h2>disk space</h2><pre>%s</pre></body></html>", html.EscapeString(diskFree()))
 }
 
 func diskFree() string {
@@ -243,19 +278,15 @@ func diskFree() string {
 func handleLogs(w http.ResponseWriter, r *http.Request) {
 	st := getStatus(builderRev{r.FormValue("name"), r.FormValue("rev")})
 	if st == nil {
-		fmt.Fprintf(w, "<html><body><h1>not building</h1>")
+		http.NotFound(w, r)
 		return
 	}
-	out, err := exec.Command("docker", "logs", st.container).CombinedOutput()
-	if err != nil {
-		log.Print(err)
-		http.Error(w, "Error fetching logs. Already finished?", 500)
-		return
-	}
-	key := builderKey(st.name)
-	logs := strings.Replace(string(out), key, "BUILDERKEY", -1)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	io.WriteString(w, logs)
+	io.WriteString(w, st.logs())
+	// TODO: if st is still building, stream them to the user with
+	// http.Flusher.Flush and CloseNotifier and registering interest
+	// of new writes with the buildStatus. Will require moving the
+	// BUILDERKEY scrubbing into the Write method.
 }
 
 func findWorkLoop(builderName, dashURL string, work chan<- builderRev) {
@@ -296,8 +327,10 @@ func findWork(builderName, dashURL string) (rev string, err error) {
 	return rev, err
 }
 
+// builderRev is a build configuration type and a revision.
 type builderRev struct {
-	name, rev string
+	name string // e.g. "linux-amd64-race"
+	rev  string // lowercase hex git hash
 }
 
 // returns the part after "docker run"
@@ -472,29 +505,112 @@ func startBuilding(conf buildConfig, rev string) (*buildStatus, error) {
 		return nil, err
 	}
 	container := strings.TrimSpace(string(all))
-	go func() {
-		all, err := exec.Command("docker", "wait", container).CombinedOutput()
-		log.Printf("docker wait %s/%s: %v, %s", container, rev, err, strings.TrimSpace(string(all)))
-		donec <- builderRev{conf.name, rev}
-		exec.Command("docker", "rm", container).Run()
-	}()
-	return &buildStatus{
+	bs := &buildStatus{
 		builderRev: builderRev{
 			name: conf.name,
 			rev:  rev,
 		},
 		container: container,
 		start:     time.Now(),
-	}, nil
+	}
+	go func() {
+		all, err := exec.Command("docker", "wait", container).CombinedOutput()
+		output := strings.TrimSpace(string(all))
+		var ok bool
+		if err == nil {
+			exit, err := strconv.Atoi(output)
+			ok = (err == nil && exit == 0)
+		}
+		bs.setDone(ok)
+		log.Printf("docker wait %s/%s: %v, %s", container, rev, err, output)
+		donec <- builderRev{conf.name, rev}
+		exec.Command("docker", "rm", container).Run()
+	}()
+	go func() {
+		cmd := exec.Command("docker", "logs", "-f", container)
+		cmd.Stdout = bs
+		cmd.Stderr = bs
+		if err := cmd.Run(); err != nil {
+			// The docker logs subcommand always returns
+			// success, even if the underlying process
+			// fails.
+			log.Printf("failed to follow docker logs of %s: %v", container, err)
+		}
+	}()
+	return bs, nil
 }
 
+// buildStatus is the status of a build.
 type buildStatus struct {
+	// Immutable:
 	builderRev
-	container string
 	start     time.Time
+	container string // container ID for docker, else it's a VM
 
-	mu sync.Mutex
-	// ...
+	mu        sync.Mutex   // guards following
+	done      time.Time    // finished running
+	succeeded bool         // set when done
+	output    bytes.Buffer // stdout and stderr
+}
+
+func (st *buildStatus) setDone(succeeded bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.succeeded = succeeded
+	st.done = time.Now()
+}
+
+// htmlStatusLine returns the HTML to show within the <pre> block on
+// the main page's list of active builds.
+func (st *buildStatus) htmlStatusLine() string {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	urlPrefix := "https://go-review.googlesource.com/#/q/"
+	if strings.Contains(st.name, "gccgo") {
+		urlPrefix = "https://code.google.com/p/gofrontend/source/detail?r="
+	}
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "<a href='https://github.com/golang/go/wiki/DashboardBuilders'>%s</a> rev <a href='%s%s'>%s</a>",
+		st.name, urlPrefix, st.rev, st.rev)
+
+	if st.done.IsZero() {
+		buf.WriteString(", running")
+	} else if st.succeeded {
+		buf.WriteString(", succeeded")
+	} else {
+		buf.WriteString(", failed")
+	}
+
+	if st.container != "" {
+		fmt.Fprintf(&buf, " in container <a href='/logs?name=%s&rev=%s'>%s</a>", st.name, st.rev, st.container)
+	}
+
+	t := st.done
+	if t.IsZero() {
+		t = st.start
+	}
+	fmt.Fprintf(&buf, ", %v ago\n", time.Since(t))
+	return buf.String()
+}
+
+func (st *buildStatus) logs() string {
+	st.mu.Lock()
+	logs := st.output.String()
+	st.mu.Unlock()
+	key := builderKey(st.name)
+	return strings.Replace(string(logs), key, "BUILDERKEY", -1)
+}
+
+func (st *buildStatus) Write(p []byte) (n int, err error) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	const maxBufferSize = 2 << 20 // 2MB of output is way more than we expect.
+	if st.output.Len()+len(p) > maxBufferSize {
+		p = p[:maxBufferSize-st.output.Len()]
+	}
+	return st.output.Write(p)
 }
 
 func startWatching(conf watchConfig) (err error) {
