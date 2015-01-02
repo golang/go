@@ -1425,6 +1425,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 	prototype := *(**chanType)(unsafe.Pointer(&ichan))
 	ch := new(chanType)
 	*ch = *prototype
+	ch.dir = uintptr(dir)
 	ch.string = &s
 	ch.hash = fnv1(typ.hash, 'c', byte(dir))
 	ch.elem = typ

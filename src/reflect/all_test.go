@@ -3487,6 +3487,26 @@ func TestChanOf(t *testing.T) {
 	checkSameType(t, Zero(ChanOf(BothDir, TypeOf(T1(1)))).Interface(), (chan T1)(nil))
 }
 
+func TestChanOfDir(t *testing.T) {
+	// check construction and use of type not in binary
+	type T string
+	crt := ChanOf(RecvDir, TypeOf(T("")))
+	cst := ChanOf(SendDir, TypeOf(T("")))
+
+	// check that type already in binary is found
+	type T1 int
+	checkSameType(t, Zero(ChanOf(RecvDir, TypeOf(T1(1)))).Interface(), (<-chan T1)(nil))
+	checkSameType(t, Zero(ChanOf(SendDir, TypeOf(T1(1)))).Interface(), (chan<- T1)(nil))
+
+	// check String form of ChanDir
+	if crt.ChanDir().String() != "<-chan" {
+		t.Errorf("chan dir: have %q, want %q", crt.ChanDir().String(), "<-chan")
+	}
+	if cst.ChanDir().String() != "chan<-" {
+		t.Errorf("chan dir: have %q, want %q", cst.ChanDir().String(), "chan<-")
+	}
+}
+
 func TestChanOfGC(t *testing.T) {
 	done := make(chan bool, 1)
 	go func() {
