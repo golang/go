@@ -7,9 +7,9 @@
 package runtime_test
 
 import (
+	"os/exec"
 	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 )
 
@@ -59,12 +59,12 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 	case "darwin":
 		// static constructor needs external linking, but we don't support
 		// external linking on OS X 10.6.
-		osver, err := syscall.Sysctl("kern.osrelease")
+		out, err := exec.Command("uname", "-r").Output()
 		if err != nil {
-			t.Fatalf("Sysctl(kern.osrelease) failed: %v", err)
+			t.Fatalf("uname -r failed: %v", err)
 		}
 		// OS X 10.6 == Darwin 10.x
-		if strings.HasPrefix(osver, "10.") {
+		if strings.HasPrefix(string(out), "10.") {
 			t.Skipf("no external linking on OS X 10.6")
 		}
 	}
