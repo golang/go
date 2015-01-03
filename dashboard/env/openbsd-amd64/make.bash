@@ -17,7 +17,7 @@ fi
 mkdir -p etc
 cat >install.site <<EOF
 #!/bin/sh
-env PKG_PATH=ftp://ftp.usa.openbsd.org/pub/OpenBSD/5.6/packages/amd64 pkg_add -iv bash curl
+env PKG_PATH=ftp://ftp.usa.openbsd.org/pub/OpenBSD/5.6/packages/amd64 pkg_add -iv bash curl git
 
 # See https://code.google.com/p/google-compute-engine/issues/detail?id=77
 echo "ignore classless-static-routes;" >> /etc/dhclient.conf
@@ -202,7 +202,10 @@ send "yes\n"
 expect -timeout 600 "Location of sets\?"
 send "done\n"
 
-# Need to wait for install.site to install curl.
+expect "Ambiguous: choose dependency for git"
+send "0\n"
+
+# Need to wait for install.site to install curl, git, et
 expect -timeout 600 "CONGRATULATIONS!"
 
 expect "# "
