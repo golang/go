@@ -160,13 +160,8 @@ func badsignal(sig uintptr) {
 	// call to cgocallback below will bring down the whole process.
 	// It's better to miss a few SIGPROF signals than to abort in this case.
 	// See http://golang.org/issue/9456.
-	switch GOOS {
-	case "windows", "plan9":
-		// no actual SIGPROF is defined, nothing to do
-	default:
-		if sig == _SIGPROF && needextram != 0 {
-			return
-		}
+	if _SIGPROF != 0 && sig == _SIGPROF && needextram != 0 {
+		return
 	}
 	cgocallback(unsafe.Pointer(funcPC(sigsend)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
 }
