@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build buildlet
+
 // The buildlet is an HTTP server that untars content to disk and runs
 // commands it has untarred, streaming their output back over HTTP.
 // It is part of Go's continuous build system.
@@ -29,7 +31,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -37,7 +38,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"time"
+
+	"google.golang.org/cloud/compute/metadata"
 )
 
 var (
@@ -46,7 +48,7 @@ var (
 )
 
 func defaultListenAddr() string {
-	if OnGCE() {
+	if metadata.OnGCE() {
 		// In production, default to
 		return ":80"
 	}
@@ -55,7 +57,7 @@ func defaultListenAddr() string {
 
 func main() {
 	flag.Parse()
-	if !OnGCE() && !strings.HasPrefix(*listenAddr, "localhost:") {
+	if !metadata.OnGCE() && !strings.HasPrefix(*listenAddr, "localhost:") {
 		log.Printf("** WARNING ***  This server is unsafe and offers no security. Be careful.")
 	}
 	if *scratchDir == "" {
@@ -238,38 +240,4 @@ func (he httpError) httpStatus() int { return he.statusCode }
 
 func badRequest(msg string) error {
 	return httpError{http.StatusBadRequest, msg}
-}
-
-// metaClient to fetch GCE metadata values.
-var metaClient = &http.Client{
-	Transport: &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout:   750 * time.Millisecond,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
-		ResponseHeaderTimeout: 750 * time.Millisecond,
-	},
-}
-
-var onGCE struct {
-	sync.Mutex
-	set bool
-	v   bool
-}
-
-// OnGCE reports whether this process is running on Google Compute Engine.
-func OnGCE() bool {
-	defer onGCE.Unlock()
-	onGCE.Lock()
-	if onGCE.set {
-		return onGCE.v
-	}
-	onGCE.set = true
-
-	res, err := metaClient.Get("http://metadata.google.internal")
-	if err != nil {
-		return false
-	}
-	onGCE.v = res.Header.Get("Metadata-Flavor") == "Google"
-	return onGCE.v
 }
