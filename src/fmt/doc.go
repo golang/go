@@ -66,13 +66,13 @@
 		maps:               map[key1:value1 key2:value2]
 		pointer to above:   &{}, &[], &map[]
 
-	Width is specified by an optional decimal number immediately following the verb.
+	Width is specified by an optional decimal number immediately preceding the verb.
 	If absent, the width is whatever is necessary to represent the value.
 	Precision is specified after the (optional) width by a period followed by a
 	decimal number. If no period is present, a default precision is used.
 	A period with no following number specifies a precision of zero.
 	Examples:
-		%f:    default width, default precision
+		%f     default width, default precision
 		%9f    width 9, default precision
 		%.2f   default width, precision 2
 		%9.2f  width 9, precision 2
