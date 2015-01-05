@@ -35,6 +35,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/tools/dashboard/types"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/cloud/compute/metadata"
 )
@@ -193,7 +194,7 @@ func main() {
 	addBuilder(buildConfig{name: "linux-amd64-clang", image: "gobuilders/linux-x86-clang"})
 
 	// VMs:
-	// addBuilder(buildConfig{name: "openbsd-amd64-gce56", vmImage: "openbsd-amd64-56"})
+	addBuilder(buildConfig{name: "openbsd-amd64-gce56", vmImage: "openbsd-amd64-56"})
 	// addBuilder(buildConfig{name: "plan9-386-gce", vmImage: "plan9-386"})
 
 	addWatcher(watchConfig{repo: "https://go.googlesource.com/go", dash: "https://build.golang.org/"})
@@ -232,9 +233,8 @@ func main() {
 	}
 
 	workc := make(chan builderRev)
-	for name, builder := range builders {
-		go findWorkLoop(name, builder.dashURL, workc)
-	}
+	go findWorkLoop(workc)
+	// TODO(cmang): gccgo will need its own findWorkLoop
 
 	ticker := time.NewTicker(1 * time.Minute)
 	for {
@@ -264,6 +264,13 @@ func numCurrentBuilds() int {
 	statusMu.Lock()
 	defer statusMu.Unlock()
 	return len(status)
+}
+
+func isBuilding(work builderRev) bool {
+	statusMu.Lock()
+	defer statusMu.Unlock()
+	_, building := status[work]
+	return building
 }
 
 // mayBuildRev reports whether the build type & revision should be started.
@@ -395,42 +402,80 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	// BUILDERKEY scrubbing into the Write method.
 }
 
-func findWorkLoop(builderName, dashURL string, work chan<- builderRev) {
-	// TODO: make this better
+// findWorkLoop polls http://build.golang.org/?mode=json looking for new work
+// for the main dashboard. It does not support gccgo.
+// TODO(bradfitz): it also currently does not support subrepos.
+func findWorkLoop(work chan<- builderRev) {
+	ticker := time.NewTicker(15 * time.Second)
 	for {
-		rev, err := findWork(builderName, dashURL)
-		if err != nil {
-			log.Printf("Finding work for %s: %v", builderName, err)
-		} else if rev != "" {
-			work <- builderRev{builderName, rev}
+		if err := findWork(work); err != nil {
+			log.Printf("failed to find new work: %v", err)
 		}
-		time.Sleep(60 * time.Second)
+		<-ticker.C
 	}
 }
 
-func findWork(builderName, dashURL string) (rev string, err error) {
-	var jres struct {
-		Response struct {
-			Kind string
-			Data struct {
-				Hash        string
-				PerfResults []string
+func findWork(work chan<- builderRev) error {
+	var bs types.BuildStatus
+	res, err := http.Get("https://build.golang.org/?mode=json")
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if err := json.NewDecoder(res.Body).Decode(&bs); err != nil {
+		return err
+	}
+	if res.StatusCode != 200 {
+		return fmt.Errorf("unexpected http status %v", res.Status)
+	}
+
+	knownToDashboard := map[string]bool{} // keys are builder
+	for _, b := range bs.Builders {
+		knownToDashboard[b] = true
+	}
+
+	var goRevisions []string
+	for _, br := range bs.Revisions {
+		if br.Repo == "go" {
+			goRevisions = append(goRevisions, br.Revision)
+		} else {
+			// TODO(bradfitz): support these: golang.org/issue/9506
+			continue
+		}
+		if len(br.Results) != len(bs.Builders) {
+			return errors.New("bogus JSON response from dashboard: results is too long.")
+		}
+		for i, res := range br.Results {
+			if res != "" {
+				// It's either "ok" or a failure URL.
+				continue
+			}
+			builder := bs.Builders[i]
+			if _, ok := builders[builder]; !ok {
+				// Not managed by the coordinator.
+				continue
+			}
+			br := builderRev{bs.Builders[i], br.Revision}
+			if !isBuilding(br) {
+				work <- br
 			}
 		}
 	}
-	res, err := http.Get(dashURL + "/todo?builder=" + builderName + "&kind=build-go-commit")
-	if err != nil {
-		return
+
+	// And to bootstrap new builders, see if we have any builders
+	// that the dashboard doesn't know about.
+	for b := range builders {
+		if knownToDashboard[b] {
+			continue
+		}
+		for _, rev := range goRevisions {
+			br := builderRev{b, rev}
+			if !isBuilding(br) {
+				work <- br
+			}
+		}
 	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return "", fmt.Errorf("unexpected http status %d", res.StatusCode)
-	}
-	err = json.NewDecoder(res.Body).Decode(&jres)
-	if jres.Response.Kind == "build-go-commit" {
-		rev = jres.Response.Data.Hash
-	}
-	return rev, err
+	return nil
 }
 
 // builderRev is a build configuration type and a revision.
@@ -554,7 +599,7 @@ func addWatcher(c watchConfig) {
 func condUpdateImage(img string) error {
 	ii := images[img]
 	if ii == nil {
-		log.Fatalf("Image %q not described.", img)
+		return fmt.Errorf("image %q doesn't exist", img)
 	}
 	ii.mu.Lock()
 	defer ii.mu.Unlock()
@@ -758,7 +803,9 @@ func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
 	// take minutes for it to come up, and then even more time to do the build.
 	go func() {
 		err := watchVM(st)
-		deleteVM(projectZone, st.instName)
+		if st.hasEvent("instance_created") {
+			deleteVM(projectZone, st.instName)
+		}
 		st.setDone(err == nil)
 		if err != nil {
 			fmt.Fprintf(st, "\n\nError: %v\n", err)
@@ -958,6 +1005,17 @@ func (st *buildStatus) logEventTime(event string) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	st.events = append(st.events, eventAndTime{event, time.Now()})
+}
+
+func (st *buildStatus) hasEvent(event string) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	for _, e := range st.events {
+		if e.evt == event {
+			return true
+		}
+	}
+	return false
 }
 
 // htmlStatusLine returns the HTML to show within the <pre> block on
