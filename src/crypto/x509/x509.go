@@ -1575,7 +1575,7 @@ func (c *Certificate) CreateCRL(rand io.Reader, priv interface{}, revokedCerts [
 		return nil, errors.New("x509: non-RSA private keys not supported")
 	}
 	tbsCertList := pkix.TBSCertificateList{
-		Version: 2,
+		Version: 1,
 		Signature: pkix.AlgorithmIdentifier{
 			Algorithm: oidSignatureSHA1WithRSA,
 		},
