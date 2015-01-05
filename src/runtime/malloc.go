@@ -493,6 +493,7 @@ func gogc(force int32) {
 	systemstack(stoptheworld)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
 	if force == 0 {            // Do as much work concurrently as possible
+		gcphase = _GCscan
 		systemstack(starttheworld)
 		gctimer.cycle.scan = nanotime()
 		// Do a concurrent heap scan before we stop the world.
