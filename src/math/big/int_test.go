@@ -989,6 +989,21 @@ func TestProbablyPrime(t *testing.T) {
 			break
 		}
 	}
+
+	// check that ProbablyPrime panics if n <= 0
+	c := NewInt(11) // a prime
+	for _, n := range []int{-1, 0, 1} {
+		func() {
+			defer func() {
+				if n <= 0 && recover() == nil {
+					t.Fatalf("expected panic from ProbablyPrime(%d)", n)
+				}
+			}()
+			if !c.ProbablyPrime(n) {
+				t.Fatalf("%v should be a prime", c)
+			}
+		}()
+	}
 }
 
 type intShiftTest struct {
