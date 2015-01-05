@@ -11,6 +11,7 @@ package build
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -19,6 +20,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"golang.org/x/tools/dashboard/types"
 
 	"cache"
 
@@ -95,8 +98,12 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	data := &uiTemplateData{d, pkg, commits, builders, tipState, p, branch}
 
-	if r.FormValue("mode") == "failures" {
+	switch r.FormValue("mode") {
+	case "failures":
 		failuresHandler(w, r, data)
+		return
+	case "json":
+		jsonHandler(w, r, data)
 		return
 	}
 
@@ -127,6 +134,62 @@ func failuresHandler(w http.ResponseWriter, r *http.Request, data *uiTemplateDat
 			fmt.Fprintln(w, c.Hash, b, url)
 		}
 	}
+}
+
+// jsonHandler is https://build.golang.org/?mode=json
+// The output is a types.BuildStatus JSON object.
+func jsonHandler(w http.ResponseWriter, r *http.Request, data *uiTemplateData) {
+	d := dashboardForRequest(r)
+
+	// cell returns one of "" (no data), "ok", or a failure URL.
+	cell := func(res *Result) string {
+		switch {
+		case res == nil:
+			return ""
+		case res.OK:
+			return "ok"
+		}
+		return fmt.Sprintf("https://%v%v/log/%v", r.Host, d.Prefix, res.LogHash)
+	}
+
+	var res types.BuildStatus
+	res.Builders = data.Builders
+
+	// First the commits from the main section (the "go" repo)
+	for _, c := range data.Commits {
+		rev := types.BuildRevision{
+			Repo:     "go",
+			Revision: c.Hash,
+			Results:  make([]string, len(data.Builders)),
+		}
+		for i, b := range data.Builders {
+			rev.Results[i] = cell(c.Result(b, ""))
+		}
+		res.Revisions = append(res.Revisions, rev)
+	}
+
+	// Then the one commit each for the subrepos.
+	// TODO(bradfitz): we'll probably want more than one later, for people looking at
+	// the subrepo-specific build history pages. But for now this gets me some data
+	// to make forward progress.
+	tip := data.TipState // a TagState
+	for _, pkgState := range tip.Packages {
+		goRev := tip.Tag.Hash
+		rev := types.BuildRevision{
+			Repo:       pkgState.Package.Name,
+			Revision:   pkgState.Commit.Hash,
+			GoRevision: goRev,
+			Results:    make([]string, len(data.Builders)),
+		}
+		for i, b := range res.Builders {
+			rev.Results[i] = cell(pkgState.Commit.Result(b, goRev))
+		}
+		res.Revisions = append(res.Revisions, rev)
+	}
+
+	v, _ := json.MarshalIndent(res, "", "\t")
+	w.Header().Set("Content-Type", "text/json; charset=utf-8")
+	w.Write(v)
 }
 
 type Pagination struct {
