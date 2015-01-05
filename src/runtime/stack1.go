@@ -26,13 +26,13 @@ const (
 	poisonStack = uintptrMask & 0x6868686868686868
 
 	// Goroutine preemption request.
-	// Stored into g->stackguard to cause split stack check failure.
+	// Stored into g->stackguard0 to cause split stack check failure.
 	// Must be greater than any real sp.
 	// 0xfffffade in hex.
 	stackPreempt = uintptrMask & -1314
 
 	// Thread is forking.
-	// Stored into g->stackguard to cause split stack check failure.
+	// Stored into g->stackguard0 to cause split stack check failure.
 	// Must be greater than any real sp.
 	stackFork = uintptrMask & -1234
 )
@@ -566,7 +566,7 @@ func copystack(gp *g, newsize uintptr) {
 
 	// Swap out old stack for new one
 	gp.stack = new
-	gp.stackguard = new.lo + _StackGuard // NOTE: might clobber a preempt request
+	gp.stackguard0 = new.lo + _StackGuard // NOTE: might clobber a preempt request
 	gp.sched.sp = new.hi - used
 
 	// free old stack
@@ -611,7 +611,7 @@ func round2(x int32) int32 {
 func newstack() {
 	thisg := getg()
 	// TODO: double check all gp. shouldn't be getg().
-	if thisg.m.morebuf.g.stackguard == stackFork {
+	if thisg.m.morebuf.g.stackguard0 == stackFork {
 		throw("stack growth after fork")
 	}
 	if thisg.m.morebuf.g != thisg.m.curg {
@@ -674,7 +674,7 @@ func newstack() {
 		writebarrierptr_nostore((*uintptr)(unsafe.Pointer(&gp.sched.ctxt)), uintptr(gp.sched.ctxt))
 	}
 
-	if gp.stackguard == stackPreempt {
+	if gp.stackguard0 == stackPreempt {
 		if gp == thisg.m.g0 {
 			throw("runtime: preempt g0")
 		}
@@ -689,7 +689,7 @@ func newstack() {
 			gcphasework(gp)
 			casfrom_Gscanstatus(gp, _Gscanwaiting, _Gwaiting)
 			casgstatus(gp, _Gwaiting, _Grunning)
-			gp.stackguard = gp.stack.lo + _StackGuard
+			gp.stackguard0 = gp.stack.lo + _StackGuard
 			gp.preempt = false
 			gp.preemptscan = false // Tells the GC premption was successful.
 			gogo(&gp.sched)        // never return
@@ -700,7 +700,7 @@ func newstack() {
 		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.gcing != 0 || thisg.m.p.status != _Prunning {
 			// Let the goroutine keep running for now.
 			// gp->preempt is set, so it will be preempted next time.
-			gp.stackguard = gp.stack.lo + _StackGuard
+			gp.stackguard0 = gp.stack.lo + _StackGuard
 			casgstatus(gp, _Gwaiting, _Grunning)
 			gogo(&gp.sched) // never return
 		}
@@ -803,4 +803,11 @@ func shrinkfinish() {
 		stackfree(s)
 		s = t
 	}
+}
+
+//go:nosplit
+func morestackc() {
+	systemstack(func() {
+		throw("attempt to execute C code on Go stack")
+	})
 }

@@ -32,7 +32,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 
 	// create istack out of the OS stack
 	MOVW	$(-8192+104)(R13), R0
-	MOVW	R0, g_stackguard(g)
+	MOVW	R0, g_stackguard0(g)
+	MOVW	R0, g_stackguard1(g)
 	MOVW	R0, (g_stack+stack_lo)(g)
 	MOVW	R13, (g_stack+stack_hi)(g)
 
@@ -55,7 +56,8 @@ nocgo:
 	// update stackguard after _cgo_init
 	MOVW	(g_stack+stack_lo)(g), R0
 	ADD	$const__StackGuard, R0
-	MOVW	R0, g_stackguard(g)
+	MOVW	R0, g_stackguard0(g)
+	MOVW	R0, g_stackguard1(g)
 
 	BL	runtime·checkgoarm(SB)
 	BL	runtime·check(SB)

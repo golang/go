@@ -148,7 +148,8 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
 	MOVL	AX, (g_stack+stack_hi)(DX)
 	SUBL	$(64*1024), AX		// stack size
 	MOVL	AX, (g_stack+stack_lo)(DX)
-	MOVL	AX, g_stackguard(DX)
+	MOVL	AX, g_stackguard0(DX)
+	MOVL	AX, g_stackguard1(DX)
 
 	// Initialize procid from TOS struct.
 	MOVL	_tos(SB), AX
