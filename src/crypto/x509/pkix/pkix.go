@@ -46,14 +46,17 @@ type Extension struct {
 }
 
 // Name represents an X.509 distinguished name. This only includes the common
-// elements of a DN.  Additional elements in the name are ignored.
+// elements of a DN. When parsing, all elements are stored in Names and
+// non-standard elements can be extracted from there. When marshaling, elements
+// in ExtraNames are appended and override other values with the same OID.
 type Name struct {
 	Country, Organization, OrganizationalUnit []string
 	Locality, Province                        []string
 	StreetAddress, PostalCode                 []string
 	SerialNumber, CommonName                  string
 
-	Names []AttributeTypeAndValue
+	Names      []AttributeTypeAndValue
+	ExtraNames []AttributeTypeAndValue
 }
 
 func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
@@ -110,8 +113,8 @@ var (
 // and returns the new value. The relativeDistinguishedNameSET contains an
 // attributeTypeAndValue for each of the given values. See RFC 5280, A.1, and
 // search for AttributeTypeAndValue.
-func appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentifier) RDNSequence {
-	if len(values) == 0 {
+func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentifier) RDNSequence {
+	if len(values) == 0 || oidInAttributeTypeAndValue(oid, n.ExtraNames) {
 		return in
 	}
 
@@ -125,21 +128,35 @@ func appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentifier) RDNS
 }
 
 func (n Name) ToRDNSequence() (ret RDNSequence) {
-	ret = appendRDNs(ret, n.Country, oidCountry)
-	ret = appendRDNs(ret, n.Organization, oidOrganization)
-	ret = appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
-	ret = appendRDNs(ret, n.Locality, oidLocality)
-	ret = appendRDNs(ret, n.Province, oidProvince)
-	ret = appendRDNs(ret, n.StreetAddress, oidStreetAddress)
-	ret = appendRDNs(ret, n.PostalCode, oidPostalCode)
+	ret = n.appendRDNs(ret, n.Country, oidCountry)
+	ret = n.appendRDNs(ret, n.Organization, oidOrganization)
+	ret = n.appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
+	ret = n.appendRDNs(ret, n.Locality, oidLocality)
+	ret = n.appendRDNs(ret, n.Province, oidProvince)
+	ret = n.appendRDNs(ret, n.StreetAddress, oidStreetAddress)
+	ret = n.appendRDNs(ret, n.PostalCode, oidPostalCode)
 	if len(n.CommonName) > 0 {
-		ret = appendRDNs(ret, []string{n.CommonName}, oidCommonName)
+		ret = n.appendRDNs(ret, []string{n.CommonName}, oidCommonName)
 	}
 	if len(n.SerialNumber) > 0 {
-		ret = appendRDNs(ret, []string{n.SerialNumber}, oidSerialNumber)
+		ret = n.appendRDNs(ret, []string{n.SerialNumber}, oidSerialNumber)
+	}
+	for _, atv := range n.ExtraNames {
+		ret = append(ret, []AttributeTypeAndValue{atv})
 	}
 
 	return ret
+}
+
+// oidInAttributeTypeAndValue returns whether a type with the given OID exists
+// in atv.
+func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAndValue) bool {
+	for _, a := range atv {
+		if a.Type.Equal(oid) {
+			return true
+		}
+	}
+	return false
 }
 
 // CertificateList represents the ASN.1 structure of the same name. See RFC
