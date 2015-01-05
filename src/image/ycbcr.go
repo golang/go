@@ -144,11 +144,14 @@ func NewYCbCr(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *YCbCr {
 		cw = w
 		ch = h
 	}
-	b := make([]byte, w*h+2*cw*ch)
+	i0 := w*h + 0*cw*ch
+	i1 := w*h + 1*cw*ch
+	i2 := w*h + 2*cw*ch
+	b := make([]byte, i2)
 	return &YCbCr{
-		Y:              b[:w*h],
-		Cb:             b[w*h+0*cw*ch : w*h+1*cw*ch],
-		Cr:             b[w*h+1*cw*ch : w*h+2*cw*ch],
+		Y:              b[:i0:i0],
+		Cb:             b[i0:i1:i1],
+		Cr:             b[i1:i2:i2],
 		SubsampleRatio: subsampleRatio,
 		YStride:        w,
 		CStride:        cw,
