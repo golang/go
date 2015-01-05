@@ -139,7 +139,19 @@ var clipTests = []clipTest{
 		image.Pt(20, 0),
 		image.Pt(20, 0),
 	},
-	// TODO(nigeltao): write more tests.
+	{
+		"clip sr and mr",
+		image.Rect(0, 0, 100, 100),
+		image.Rect(0, 0, 100, 100),
+		image.Rect(23, 23, 55, 86),
+		image.Rect(44, 44, 87, 58),
+		image.Pt(10, 10),
+		image.Pt(11, 11),
+		false,
+		image.Rect(33, 33, 45, 47),
+		image.Pt(43, 43),
+		image.Pt(44, 44),
+	},
 }
 
 func TestClip(t *testing.T) {
@@ -149,12 +161,12 @@ func TestClip(t *testing.T) {
 	for _, c := range clipTests {
 		dst := dst0.SubImage(c.dr).(*image.RGBA)
 		src := src0.SubImage(c.sr).(*image.RGBA)
-		var mask image.Image
-		if !c.nilMask {
-			mask = mask0.SubImage(c.mr)
-		}
 		r, sp, mp := c.r, c.sp, c.mp
-		clip(dst, &r, src, &sp, mask, &mp)
+		if c.nilMask {
+			clip(dst, &r, src, &sp, nil, nil)
+		} else {
+			clip(dst, &r, src, &sp, mask0.SubImage(c.mr), &mp)
+		}
 
 		// Check that the actual results equal the expected results.
 		if !c.r0.Eq(r) {
@@ -190,14 +202,4 @@ func TestClip(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestClipWithNilMP(t *testing.T) {
-	src := image.NewRGBA(image.Rect(0, 0, 100, 100))
-	// dst must be smaller than src for clipping to occur
-	dst := image.NewRGBA(image.Rect(50, 50, 100, 100))
-	r := image.Rect(0, 0, 100, 100)
-	sp := image.ZP
-	// issue 9177: floydSteinberg.Draw passes nil for mp, which used to cause clip to panic
-	clip(dst, &r, src, &sp, nil, nil)
 }
