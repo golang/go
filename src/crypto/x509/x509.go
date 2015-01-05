@@ -1587,6 +1587,17 @@ func (c *Certificate) CreateCRL(rand io.Reader, priv crypto.Signer, revokedCerts
 		RevokedCertificates: revokedCerts,
 	}
 
+	// Authority Key Id
+	if len(c.SubjectKeyId) > 0 {
+		var aki pkix.Extension
+		aki.Id = oidExtensionAuthorityKeyId
+		aki.Value, err = asn1.Marshal(authKeyId{Id: c.SubjectKeyId})
+		if err != nil {
+			return
+		}
+		tbsCertList.Extensions = append(tbsCertList.Extensions, aki)
+	}
+
 	tbsCertListContents, err := asn1.Marshal(tbsCertList)
 	if err != nil {
 		return
