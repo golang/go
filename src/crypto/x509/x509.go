@@ -1377,8 +1377,11 @@ func signingParamsForPrivateKey(priv interface{}, requestedSigAlgo SignatureAlgo
 	switch priv := priv.(type) {
 	case *rsa.PrivateKey:
 		pubType = RSA
-		sigAlgo.Algorithm = oidSignatureSHA256WithRSA
 		hashFunc = crypto.SHA256
+		sigAlgo.Algorithm = oidSignatureSHA256WithRSA
+		sigAlgo.Parameters = asn1.RawValue{
+			Tag: 5,
+		}
 
 	case *ecdsa.PrivateKey:
 		pubType = ECDSA
