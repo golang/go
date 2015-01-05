@@ -81,11 +81,11 @@ func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask 
 	if dx == 0 && dy == 0 {
 		return
 	}
-	(*sp).X += dx
-	(*sp).Y += dy
+	sp.X += dx
+	sp.Y += dy
 	if mp != nil {
-		(*mp).X += dx
-		(*mp).Y += dy
+		mp.X += dx
+		mp.Y += dy
 	}
 }
 
