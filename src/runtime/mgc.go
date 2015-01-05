@@ -408,8 +408,9 @@ func gcmarknewobject_m(obj uintptr) {
 // obj is the start of an object with mark mbits.
 // If it isn't already marked, mark it and enqueue into workbuf.
 // Return possibly new workbuf to use.
+// base and off are for debugging only and could be removed.
 //go:nowritebarrier
-func greyobject(obj uintptr, mbits *markbits, wbuf *workbuf) *workbuf {
+func greyobject(obj uintptr, base, off uintptr, mbits *markbits, wbuf *workbuf) *workbuf {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
 	if obj&(ptrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
@@ -418,6 +419,7 @@ func greyobject(obj uintptr, mbits *markbits, wbuf *workbuf) *workbuf {
 	if checkmark {
 		if !ismarked(mbits) {
 			print("runtime:greyobject: checkmarks finds unexpected unmarked object obj=", hex(obj), ", mbits->bits=", hex(mbits.bits), " *mbits->bitp=", hex(*mbits.bitp), "\n")
+			print("runtime: found obj at *(", hex(base), "+", hex(off), ")\n")
 
 			k := obj >> _PageShift
 			x := k
@@ -568,7 +570,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 		if obj == 0 {
 			continue
 		}
-		wbuf = greyobject(obj, &mbits, wbuf)
+		wbuf = greyobject(obj, b, i, &mbits, wbuf)
 	}
 	return wbuf
 }
@@ -603,6 +605,11 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8) {
 	}
 
 	keepworking := b == 0
+
+	if gcphase != _GCmark && gcphase != _GCmarktermination {
+		println("gcphase", gcphase)
+		throw("scanblock phase")
+	}
 
 	// ptrmask can have 2 possible values:
 	// 1. nil - obtain pointer mask from GC bitmap.
@@ -1028,7 +1035,7 @@ func shade(b uintptr) {
 	var mbits markbits
 	obj := objectstart(b, &mbits)
 	if obj != 0 {
-		wbuf = greyobject(obj, &mbits, wbuf) // augments the wbuf
+		wbuf = greyobject(obj, 0, 0, &mbits, wbuf) // augments the wbuf
 	}
 	putpartial(wbuf)
 }
@@ -1782,9 +1789,7 @@ func gccheckmark_m(startTime int64, eagersweep bool) {
 
 	checkmark = true
 	clearcheckmarkbits()        // Converts BitsDead to BitsScalar.
-	gc_m(startTime, eagersweep) // turns off checkmark
-	// Work done, fixed up the GC bitmap to remove the checkmark bits.
-	clearcheckmarkbits()
+	gc_m(startTime, eagersweep) // turns off checkmark + calls clearcheckmarkbits
 }
 
 //go:nowritebarrier
@@ -1833,7 +1838,6 @@ func gcscan_m() {
 	// by placing it onto a scanenqueue state and then calling
 	// runtime·restartg(mastergp) to make it Grunnable.
 	// At the bottom we will want to return this p back to the scheduler.
-	oldphase := gcphase
 
 	// Prepare flag indicating that the scan has not been completed.
 	lock(&allglock)
@@ -1847,7 +1851,6 @@ func gcscan_m() {
 	work.nwait = 0
 	work.ndone = 0
 	work.nproc = 1 // For now do not do this in parallel.
-	gcphase = _GCscan
 	//	ackgcphase is not needed since we are not scanning running goroutines.
 	parforsetup(work.markfor, work.nproc, uint32(_RootCount+local_allglen), nil, false, markroot)
 	parfordo(work.markfor)
@@ -1862,7 +1865,6 @@ func gcscan_m() {
 	}
 	unlock(&allglock)
 
-	gcphase = oldphase
 	casgstatus(mastergp, _Gwaiting, _Grunning)
 	// Let the g that called us continue to run.
 }
@@ -2035,6 +2037,7 @@ func gc(start_time int64, eagersweep bool) {
 			return
 		}
 		checkmark = false // done checking marks
+		clearcheckmarkbits()
 	}
 
 	// Cache the current array for sweeping.
