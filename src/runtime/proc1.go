@@ -179,6 +179,9 @@ func mcommoninit(mp *m) {
 	sched.mcount++
 	checkmcount()
 	mpreinit(mp)
+	if mp.gsignal != nil {
+		mp.gsignal.stackguard1 = mp.gsignal.stack.lo + _StackGuard
+	}
 
 	// Add to allm so garbage collector doesn't free g->m
 	// when it is just in a register or thread-local storage.
@@ -210,7 +213,7 @@ func ready(gp *g) {
 	}
 	_g_.m.locks--
 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
-		_g_.stackguard = stackPreempt
+		_g_.stackguard0 = stackPreempt
 	}
 }
 
@@ -460,7 +463,7 @@ func stopg(gp *g) bool {
 			if !gp.gcworkdone {
 				gp.preemptscan = true
 				gp.preempt = true
-				gp.stackguard = stackPreempt
+				gp.stackguard0 = stackPreempt
 			}
 
 			// Unclaim.
@@ -542,7 +545,7 @@ func mquiesce(gpmaster *g) {
 				gp.gcworkdone = true // scan is a noop
 				break
 			}
-			if status == _Grunning && gp.stackguard == uintptr(stackPreempt) && notetsleep(&sched.stopnote, 100*1000) { // nanosecond arg
+			if status == _Grunning && gp.stackguard0 == uintptr(stackPreempt) && notetsleep(&sched.stopnote, 100*1000) { // nanosecond arg
 				noteclear(&sched.stopnote)
 			} else {
 				stopscanstart(gp)
@@ -701,7 +704,7 @@ func starttheworld() {
 	}
 	_g_.m.locks--
 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
-		_g_.stackguard = stackPreempt
+		_g_.stackguard0 = stackPreempt
 	}
 }
 
@@ -722,7 +725,8 @@ func mstart() {
 	}
 	// Initialize stack guards so that we can start calling
 	// both Go and C functions with stack growth prologues.
-	_g_.stackguard = _g_.stack.lo + _StackGuard
+	_g_.stackguard0 = _g_.stack.lo + _StackGuard
+	_g_.stackguard1 = _g_.stackguard0
 	mstart1()
 }
 
@@ -802,7 +806,7 @@ func allocm(_p_ *p) *m {
 	}
 	_g_.m.locks--
 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
-		_g_.stackguard = stackPreempt
+		_g_.stackguard0 = stackPreempt
 	}
 
 	return mp
@@ -879,7 +883,7 @@ func needm(x byte) {
 	_g_ := getg()
 	_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&x))) + 1024
 	_g_.stack.lo = uintptr(noescape(unsafe.Pointer(&x))) - 32*1024
-	_g_.stackguard = _g_.stack.lo + _StackGuard
+	_g_.stackguard0 = _g_.stack.lo + _StackGuard
 
 	// Initialize this thread to use the m.
 	asminit()
@@ -1217,7 +1221,7 @@ func execute(gp *g) {
 	casgstatus(gp, _Grunnable, _Grunning)
 	gp.waitsince = 0
 	gp.preempt = false
-	gp.stackguard = gp.stack.lo + _StackGuard
+	gp.stackguard0 = gp.stack.lo + _StackGuard
 	_g_.m.p.schedtick++
 	_g_.m.curg = gp
 	gp.m = _g_.m
@@ -1613,7 +1617,7 @@ func reentersyscall(pc, sp uintptr) {
 	// (See details in comment above.)
 	// Catch calls that might, by replacing the stack guard with something that
 	// will trip any stack check and leaving a flag to tell newstack to die.
-	_g_.stackguard = stackPreempt
+	_g_.stackguard0 = stackPreempt
 	_g_.throwsplit = true
 
 	// Leave SP around for GC and traceback.
@@ -1644,7 +1648,7 @@ func reentersyscall(pc, sp uintptr) {
 	// Goroutines must not split stacks in Gsyscall status (it would corrupt g->sched).
 	// We set _StackGuard to StackPreempt so that first split stack check calls morestack.
 	// Morestack detects this case and throws.
-	_g_.stackguard = stackPreempt
+	_g_.stackguard0 = stackPreempt
 	_g_.m.locks--
 }
 
@@ -1682,7 +1686,7 @@ func entersyscallblock(dummy int32) {
 
 	_g_.m.locks++ // see comment in entersyscall
 	_g_.throwsplit = true
-	_g_.stackguard = stackPreempt // see comment in entersyscall
+	_g_.stackguard0 = stackPreempt // see comment in entersyscall
 
 	// Leave SP around for GC and traceback.
 	pc := getcallerpc(unsafe.Pointer(&dummy))
@@ -1748,10 +1752,10 @@ func exitsyscall(dummy int32) {
 		_g_.m.locks--
 		if _g_.preempt {
 			// restore the preemption request in case we've cleared it in newstack
-			_g_.stackguard = stackPreempt
+			_g_.stackguard0 = stackPreempt
 		} else {
 			// otherwise restore the real _StackGuard, we've spoiled it in entersyscall/entersyscallblock
-			_g_.stackguard = _g_.stack.lo + _StackGuard
+			_g_.stackguard0 = _g_.stack.lo + _StackGuard
 		}
 		_g_.throwsplit = false
 		return
@@ -1869,7 +1873,7 @@ func beforefork() {
 	// Code between fork and exec must not allocate memory nor even try to grow stack.
 	// Here we spoil g->_StackGuard to reliably detect any attempts to grow stack.
 	// runtime_AfterFork will undo this in parent process, but not in child.
-	gp.stackguard = stackFork
+	gp.stackguard0 = stackFork
 }
 
 // Called from syscall package before fork.
@@ -1883,7 +1887,7 @@ func afterfork() {
 	gp := getg().m.curg
 
 	// See the comment in beforefork.
-	gp.stackguard = gp.stack.lo + _StackGuard
+	gp.stackguard0 = gp.stack.lo + _StackGuard
 
 	hz := sched.profilehz
 	if hz != 0 {
@@ -1907,7 +1911,8 @@ func malg(stacksize int32) *g {
 		systemstack(func() {
 			newg.stack = stackalloc(uint32(stacksize))
 		})
-		newg.stackguard = newg.stack.lo + _StackGuard
+		newg.stackguard0 = newg.stack.lo + _StackGuard
+		newg.stackguard1 = ^uintptr(0)
 	}
 	return newg
 }
@@ -2003,7 +2008,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 	}
 	_g_.m.locks--
 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
-		_g_.stackguard = stackPreempt
+		_g_.stackguard0 = stackPreempt
 	}
 	return newg
 }
@@ -2022,7 +2027,7 @@ func gfput(_p_ *p, gp *g) {
 		stackfree(gp.stack)
 		gp.stack.lo = 0
 		gp.stack.hi = 0
-		gp.stackguard = 0
+		gp.stackguard0 = 0
 	}
 
 	gp.schedlink = _p_.gfree
@@ -2068,7 +2073,7 @@ retry:
 			systemstack(func() {
 				gp.stack = stackalloc(_FixedStack)
 			})
-			gp.stackguard = gp.stack.lo + _StackGuard
+			gp.stackguard0 = gp.stack.lo + _StackGuard
 		} else {
 			if raceenabled {
 				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
@@ -2773,10 +2778,10 @@ func preemptone(_p_ *p) bool {
 	gp.preempt = true
 
 	// Every call in a go routine checks for stack overflow by
-	// comparing the current stack pointer to gp->stackguard.
-	// Setting gp->stackguard to StackPreempt folds
+	// comparing the current stack pointer to gp->stackguard0.
+	// Setting gp->stackguard0 to StackPreempt folds
 	// preemption into the normal stack overflow check.
-	gp.stackguard = stackPreempt
+	gp.stackguard0 = stackPreempt
 	return true
 }
 

@@ -335,7 +335,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		p = appendp(ctxt, p);
 		p->as = AMOVL;
 		p->from.type = D_INDIR+D_CX;
-		p->from.offset = 3*ctxt->arch->ptrsize; // G.panic
+		p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
 		p->to.type = D_BX;
 
 		p = appendp(ctxt, p);
@@ -538,7 +538,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 		p->as = ACMPL;
 		p->from.type = D_SP;
 		p->to.type = D_INDIR+D_CX;
-		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
+		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
+		if(ctxt->cursym->cfunc)
+			p->to.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 	} else if(framesize <= StackBig) {
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAL -(framesize-StackSmall)(SP), AX
@@ -553,7 +555,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 		p->as = ACMPL;
 		p->from.type = D_AX;
 		p->to.type = D_INDIR+D_CX;
-		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
+		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
+		if(ctxt->cursym->cfunc)
+			p->to.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 	} else {
 		// Such a large stack we need to protect against wraparound
 		// if SP is close to zero.
@@ -573,7 +577,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 		p->as = AMOVL;
 		p->from.type = D_INDIR+D_CX;
 		p->from.offset = 0;
-		p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
+		p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
+		if(ctxt->cursym->cfunc)
+			p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 		p->to.type = D_SI;
 
 		p = appendp(ctxt, p);
@@ -616,7 +622,10 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
 	p = appendp(ctxt, p);
 	p->as = ACALL;
 	p->to.type = D_BRANCH;
-	p->to.sym = ctxt->symmorestack[noctxt];
+	if(ctxt->cursym->cfunc)
+		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
+	else
+		p->to.sym = ctxt->symmorestack[noctxt];
 
 	p = appendp(ctxt, p);
 	p->as = AJMP;

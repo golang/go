@@ -474,7 +474,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				p->as = AMOVW;
 				p->from.type = D_OREG;
 				p->from.reg = REGG;
-				p->from.offset = 3*ctxt->arch->ptrsize; // G.panic
+				p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
 				p->to.type = D_REG;
 				p->to.reg = 1;
 			
@@ -783,7 +783,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 	p->as = AMOVW;
 	p->from.type = D_OREG;
 	p->from.reg = REGG;
-	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
+	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
+	if(ctxt->cursym->cfunc)
+		p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
 	p->to.type = D_REG;
 	p->to.reg = 1;
 	
@@ -876,7 +878,10 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 	p->as = ABL;
 	p->scond = C_SCOND_LS;
 	p->to.type = D_BRANCH;
-	p->to.sym = ctxt->symmorestack[noctxt];
+	if(ctxt->cursym->cfunc)
+		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
+	else
+		p->to.sym = ctxt->symmorestack[noctxt];
 	
 	// BLS	start
 	p = appendp(ctxt, p);

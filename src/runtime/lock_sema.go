@@ -115,7 +115,7 @@ func unlock(l *mutex) {
 		throw("runtime·unlock: lock count")
 	}
 	if gp.m.locks == 0 && gp.preempt { // restore the preemption request in case we've cleared it in newstack
-		gp.stackguard = stackPreempt
+		gp.stackguard0 = stackPreempt
 	}
 }
 

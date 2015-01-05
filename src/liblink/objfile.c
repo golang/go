@@ -332,6 +332,8 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 			Bprint(ctxt->bso, "t=%d ", s->type);
 		if(s->dupok)
 			Bprint(ctxt->bso, "dupok ");
+		if(s->cfunc)
+			Bprint(ctxt->bso, "cfunc ");
 		if(s->nosplit)
 			Bprint(ctxt->bso, "nosplit ");
 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
@@ -397,7 +399,7 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 		wrint(b, s->args);
 		wrint(b, s->locals);
 		wrint(b, s->nosplit);
-		wrint(b, s->leaf);
+		wrint(b, s->leaf | s->cfunc<<1);
 		n = 0;
 		for(a = s->autom; a != nil; a = a->link)
 			n++;
@@ -641,6 +643,7 @@ overwrite:
 		s->nosplit = rdint(f);
 		v = rdint(f);
 		s->leaf = v&1;
+		s->cfunc = v&2;
 		n = rdint(f);
 		for(i=0; i<n; i++) {
 			a = emallocz(sizeof *a);
@@ -696,6 +699,8 @@ overwrite:
 			Bprint(ctxt->bso, "t=%d ", s->type);
 		if(s->dupok)
 			Bprint(ctxt->bso, "dupok ");
+		if(s->cfunc)
+			Bprint(ctxt->bso, "cfunc ");
 		if(s->nosplit)
 			Bprint(ctxt->bso, "nosplit ");
 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);

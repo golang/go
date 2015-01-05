@@ -20,7 +20,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// _cgo_init may update stackguard.
 	MOVQ	$runtime·g0(SB), DI
 	LEAQ	(-64*1024+104)(SP), BX
-	MOVQ	BX, g_stackguard(DI)
+	MOVQ	BX, g_stackguard0(DI)
+	MOVQ	BX, g_stackguard1(DI)
 	MOVQ	BX, (g_stack+stack_lo)(DI)
 	MOVQ	SP, (g_stack+stack_hi)(DI)
 
@@ -48,7 +49,8 @@ nocpuinfo:
 	MOVQ	$runtime·g0(SB), CX
 	MOVQ	(g_stack+stack_lo)(CX), AX
 	ADDQ	$const__StackGuard, AX
-	MOVQ	AX, g_stackguard(CX)
+	MOVQ	AX, g_stackguard0(CX)
+	MOVQ	AX, g_stackguard1(CX)
 
 	CMPL	runtime·iswindows(SB), $0
 	JEQ ok

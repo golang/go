@@ -64,7 +64,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		}
 		mp.mallocing = 1
 		if mp.curg != nil {
-			mp.curg.stackguard = ^uintptr(0xfff) | 0xbad
+			mp.curg.stackguard0 = ^uintptr(0xfff) | 0xbad
 		}
 	}
 
@@ -127,7 +127,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 						}
 						mp.mallocing = 0
 						if mp.curg != nil {
-							mp.curg.stackguard = mp.curg.stack.lo + _StackGuard
+							mp.curg.stackguard0 = mp.curg.stack.lo + _StackGuard
 						}
 						// Note: one releasem for the acquirem just above.
 						// The other for the acquirem at start of malloc.
@@ -319,7 +319,7 @@ marked:
 		}
 		mp.mallocing = 0
 		if mp.curg != nil {
-			mp.curg.stackguard = mp.curg.stack.lo + _StackGuard
+			mp.curg.stackguard0 = mp.curg.stack.lo + _StackGuard
 		}
 		// Note: one releasem for the acquirem just above.
 		// The other for the acquirem at start of malloc.
