@@ -255,7 +255,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, 
 		saltLength = hash.Size()
 	}
 
-	if opts.Hash != 0 {
+	if opts != nil && opts.Hash != 0 {
 		hash = opts.Hash
 	}
 
