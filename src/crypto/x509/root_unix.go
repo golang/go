@@ -8,22 +8,10 @@ package x509
 
 import "io/ioutil"
 
-// Possible certificate files; stop after finding one.
-var certFiles = []string{
-	"/etc/ssl/certs/ca-certificates.crt",     // Debian/Ubuntu/Gentoo etc.
-	"/etc/pki/tls/certs/ca-bundle.crt",       // Fedora/RHEL
-	"/etc/ssl/ca-bundle.pem",                 // OpenSUSE
-	"/etc/ssl/cert.pem",                      // OpenBSD
-	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD/DragonFly
-	"/etc/pki/tls/cacert.pem",                // OpenELEC
-	"/etc/certs/ca-certificates.crt",         // Solaris 11.2+
-}
-
 // Possible directories with certificate files; stop after successfully
 // reading at least one file from a directory.
 var certDirectories = []string{
 	"/system/etc/security/cacerts", // Android
-
 }
 
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
