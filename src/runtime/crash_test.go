@@ -5,12 +5,14 @@
 package runtime_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 )
@@ -78,14 +80,25 @@ func executeTest(t *testing.T, templ string, data interface{}, extra ...string) 
 	return string(got)
 }
 
+var (
+	staleRuntimeOnce sync.Once // guards init of staleRuntimeErr
+	staleRuntimeErr  error
+)
+
 func checkStaleRuntime(t *testing.T) {
-	// 'go run' uses the installed copy of runtime.a, which may be out of date.
-	out, err := testEnv(exec.Command("go", "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to execute 'go list': %v\n%v", err, string(out))
-	}
-	if string(out) != "false\n" {
-		t.Fatalf("Stale runtime.a. Run 'go install runtime'.")
+	staleRuntimeOnce.Do(func() {
+		// 'go run' uses the installed copy of runtime.a, which may be out of date.
+		out, err := testEnv(exec.Command("go", "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
+		if err != nil {
+			staleRuntimeErr = fmt.Errorf("failed to execute 'go list': %v\n%v", err, string(out))
+			return
+		}
+		if string(out) != "false\n" {
+			staleRuntimeErr = fmt.Errorf("Stale runtime.a. Run 'go install runtime'.")
+		}
+	})
+	if staleRuntimeErr != nil {
+		t.Fatal(staleRuntimeErr)
 	}
 }
 
