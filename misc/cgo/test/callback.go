@@ -17,6 +17,7 @@ int returnAfterGrowFromGo(void);
 import "C"
 
 import (
+	"os"
 	"path"
 	"runtime"
 	"strings"
@@ -211,6 +212,19 @@ func testPanicFromC(t *testing.T) {
 }
 
 func testAllocateFromC(t *testing.T) {
+	if strings.Contains(os.Getenv("GODEBUG"), "wbshadow=") {
+		// This test is writing pointers to Go heap objects from C.
+		// As such, those writes have no write barriers, and
+		// wbshadow=2 mode correctly discovers that and crashes.
+		// Disable test if any wbshadow mode is enabled.
+		// TODO(rsc): I am not sure whether the test is fundamentally
+		// incompatible with concurrent collection and should be
+		// turned off or rewritten entirely. The test is attempting to
+		// mimic some SWIG behavior, so it is important to work
+		// through what we expect before trying SWIG and C++
+		// with the concurrent collector.
+		t.Skip("test is incompatible with wbshadow=")
+	}
 	C.callCgoAllocate() // crashes or exits on failure
 }
 
