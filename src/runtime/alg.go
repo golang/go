@@ -285,20 +285,21 @@ func memclrBytes(b []byte) {
 	memclr(s.array, uintptr(s.len))
 }
 
-// used in asm_{386,amd64}.s
 const hashRandomBytes = ptrSize / 4 * 64
 
+// used in asm_{386,amd64}.s to seed the hash function
 var aeskeysched [hashRandomBytes]byte
 
-func init() {
-	if GOOS == "nacl" {
-		return
-	}
+// used in hash{32,64}.go to seed the hash function
+var hashkey [4]uintptr
 
+func init() {
 	// Install aes hash algorithm if we have the instructions we need
-	if (cpuid_ecx&(1<<25)) != 0 && // aes (aesenc)
-		(cpuid_ecx&(1<<9)) != 0 && // sse3 (pshufb)
-		(cpuid_ecx&(1<<19)) != 0 { // sse4.1 (pinsr{d,q})
+	if (GOARCH == "386" || GOARCH == "amd64") &&
+		GOOS != "nacl" &&
+		cpuid_ecx&(1<<25) != 0 && // aes (aesenc)
+		cpuid_ecx&(1<<9) != 0 && // sse3 (pshufb)
+		cpuid_ecx&(1<<19) != 0 { // sse4.1 (pinsr{d,q})
 		useAeshash = true
 		algarray[alg_MEM].hash = aeshash
 		algarray[alg_MEM8].hash = aeshash
@@ -309,5 +310,8 @@ func init() {
 		algarray[alg_STRING].hash = aeshashstr
 		// Initialize with random data so hash collisions will be hard to engineer.
 		getRandomData(aeskeysched[:])
+		return
 	}
+	getRandomData((*[len(hashkey) * ptrSize]byte)(unsafe.Pointer(&hashkey))[:])
+	hashkey[0] |= 1 // make sure this number is odd
 }

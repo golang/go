@@ -24,54 +24,53 @@ func memhash(p unsafe.Pointer, s, seed uintptr) uintptr {
 	if GOARCH == "386" && GOOS != "nacl" && useAeshash {
 		return aeshash(p, s, seed)
 	}
-	h := uint32(seed + s)
+	h := uint32(seed + s*hashkey[0])
 tail:
 	switch {
 	case s == 0:
 	case s < 4:
-		w := uint32(*(*byte)(p))
-		w += uint32(*(*byte)(add(p, s>>1))) << 8
-		w += uint32(*(*byte)(add(p, s-1))) << 16
-		h ^= w * m1
+		h ^= uint32(*(*byte)(p))
+		h ^= uint32(*(*byte)(add(p, s>>1))) << 8
+		h ^= uint32(*(*byte)(add(p, s-1))) << 16
+		h = rotl_15(h*m1) * m2
 	case s == 4:
-		h ^= readUnaligned32(p) * m1
+		h ^= readUnaligned32(p)
+		h = rotl_15(h*m1) * m2
 	case s <= 8:
-		h ^= readUnaligned32(p) * m1
-		h = rotl_15(h) * m2
-		h = rotl_11(h)
-		h ^= readUnaligned32(add(p, s-4)) * m1
+		h ^= readUnaligned32(p)
+		h = rotl_15(h*m1) * m2
+		h ^= readUnaligned32(add(p, s-4))
+		h = rotl_15(h*m1) * m2
 	case s <= 16:
-		h ^= readUnaligned32(p) * m1
-		h = rotl_15(h) * m2
-		h = rotl_11(h)
-		h ^= readUnaligned32(add(p, 4)) * m1
-		h = rotl_15(h) * m2
-		h = rotl_11(h)
-		h ^= readUnaligned32(add(p, s-8)) * m1
-		h = rotl_15(h) * m2
-		h = rotl_11(h)
-		h ^= readUnaligned32(add(p, s-4)) * m1
+		h ^= readUnaligned32(p)
+		h = rotl_15(h*m1) * m2
+		h ^= readUnaligned32(add(p, 4))
+		h = rotl_15(h*m1) * m2
+		h ^= readUnaligned32(add(p, s-8))
+		h = rotl_15(h*m1) * m2
+		h ^= readUnaligned32(add(p, s-4))
+		h = rotl_15(h*m1) * m2
 	default:
 		v1 := h
-		v2 := h + m1
-		v3 := h + m2
-		v4 := h + m3
+		v2 := uint32(hashkey[1])
+		v3 := uint32(hashkey[2])
+		v4 := uint32(hashkey[3])
 		for s >= 16 {
-			v1 ^= readUnaligned32(p) * m1
-			v1 = rotl_15(v1) * m2
+			v1 ^= readUnaligned32(p)
+			v1 = rotl_15(v1*m1) * m2
 			p = add(p, 4)
-			v2 ^= readUnaligned32(p) * m1
-			v2 = rotl_15(v2) * m2
+			v2 ^= readUnaligned32(p)
+			v2 = rotl_15(v2*m2) * m3
 			p = add(p, 4)
-			v3 ^= readUnaligned32(p) * m1
-			v3 = rotl_15(v3) * m2
+			v3 ^= readUnaligned32(p)
+			v3 = rotl_15(v3*m3) * m4
 			p = add(p, 4)
-			v4 ^= readUnaligned32(p) * m1
-			v4 = rotl_15(v4) * m2
+			v4 ^= readUnaligned32(p)
+			v4 = rotl_15(v4*m4) * m1
 			p = add(p, 4)
 			s -= 16
 		}
-		h = rotl_11(v1)*m1 + rotl_11(v2)*m2 + rotl_11(v3)*m3 + rotl_11(v4)*m4
+		h = v1 ^ v2 ^ v3 ^ v4
 		goto tail
 	}
 	h ^= h >> 17
@@ -87,7 +86,4 @@ tail:
 // TODO: convince the compiler to issue rotl instructions after inlining.
 func rotl_15(x uint32) uint32 {
 	return (x << 15) | (x >> (32 - 15))
-}
-func rotl_11(x uint32) uint32 {
-	return (x << 11) | (x >> (32 - 11))
 }
