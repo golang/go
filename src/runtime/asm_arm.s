@@ -394,7 +394,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	ADD	R3, R1;				\
 	ADD	R3, R0;				\
 	SUB	R3, R2;				\
-loop:
+loop:						\
 	CMP	$0, R2;				\
 	B.EQ	end;				\
 	MOVBU.P	1(R1), R5;			\

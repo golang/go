@@ -38,10 +38,10 @@ func xchg(addr *uint32, v uint32) uint32 {
 }
 
 //go:nosplit
-func xchgp1(addr *unsafe.Pointer, v unsafe.Pointer) unsafe.Pointer {
+func xchgp1(addr unsafe.Pointer, v unsafe.Pointer) unsafe.Pointer {
 	for {
-		old := *addr
-		if casp1(addr, old, v) {
+		old := *(*unsafe.Pointer)(addr)
+		if casp1((*unsafe.Pointer)(addr), old, v) {
 			return old
 		}
 	}
