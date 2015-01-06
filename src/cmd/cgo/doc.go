@@ -213,10 +213,10 @@ placed in preambles in other files, or in C source files.
 Using cgo directly
 
 Usage:
-	go tool cgo [cgo options] [-- compiler options] file.go
+	go tool cgo [cgo options] [-- compiler options] gofiles...
 
-Cgo transforms the input file.go into four output files: two Go source
-files, a C file for 6c (or 8c or 5c), and a C file for gcc.
+Cgo transforms the specified input Go source files into several output
+Go and C source files.
 
 The compiler options are passed through uninterpreted when
 invoking the C compiler to compile the C parts of the package.
@@ -229,6 +229,8 @@ The following options are available when running cgo directly:
 		build when building a cgo package.
 	-dynout file
 		Write -dynimport output to file.
+	-dynpackage package
+		Set Go package for -dynimport output.
 	-dynlinker
 		Write dynamic linker as part of -dynimport output.
 	-godefs
@@ -375,9 +377,9 @@ the translation process.
 
 Translating Go
 
-[The rest of this comment refers to 6g and 6c, the Go and C compilers
-that are part of the amd64 port of the gc Go toolchain. Everything here
-applies to another architecture's compilers as well.]
+[The rest of this comment refers to 6g, the Go compiler that is part
+of the amd64 port of the gc Go toolchain. Everything here applies to
+another architecture's compilers as well.]
 
 Given the input Go files x.go and y.go, cgo generates these source
 files:
@@ -385,44 +387,41 @@ files:
 	x.cgo1.go       # for 6g
 	y.cgo1.go       # for 6g
 	_cgo_gotypes.go # for 6g
-	_cgo_defun.c    # for 6c
+	_cgo_import.go  # for 6g (if -dynout _cgo_import.go)
 	x.cgo2.c        # for gcc
 	y.cgo2.c        # for gcc
+	_cgo_defun.c    # for gcc (if -gccgo)
 	_cgo_export.c   # for gcc
+	_cgo_export.h   # for gcc
 	_cgo_main.c     # for gcc
+	_cgo_flags      # for alternative build tools
 
 The file x.cgo1.go is a copy of x.go with the import "C" removed and
 references to C.xxx replaced with names like _Cfunc_xxx or _Ctype_xxx.
 The definitions of those identifiers, written as Go functions, types,
 or variables, are provided in _cgo_gotypes.go.
 
-Here is a _cgo_gotypes.go containing definitions for C.flush (provided
-in the preamble) and C.puts (from stdio):
+Here is a _cgo_gotypes.go containing definitions for needed C types:
 
 	type _Ctype_char int8
 	type _Ctype_int int32
 	type _Ctype_void [0]byte
 
-	func _Cfunc_CString(string) *_Ctype_char
-	func _Cfunc_flush() _Ctype_void
-	func _Cfunc_puts(*_Ctype_char) _Ctype_int
-
-For functions, cgo only writes an external declaration in the Go
-output. The implementation is in a combination of C for 6c (meaning
-any gc-toolchain compiler) and C for gcc.
-
-The 6c file contains the definitions of the functions. They all have
-similar bodies that invoke runtime·cgocall to make a switch from the
-Go runtime world to the system C (GCC-based) world.
+The _cgo_gotypes.go file also contains the definitions of the
+functions.  They all have similar bodies that invoke runtime·cgocall
+to make a switch from the Go runtime world to the system C (GCC-based)
+world.
 
 For example, here is the definition of _Cfunc_puts:
 
-	void _cgo_be59f0f25121_Cfunc_puts(void*);
+	//go:cgo_import_static _cgo_be59f0f25121_Cfunc_puts
+	//go:linkname __cgofn__cgo_be59f0f25121_Cfunc_puts _cgo_be59f0f25121_Cfunc_puts
+	var __cgofn__cgo_be59f0f25121_Cfunc_puts byte
+	var _cgo_be59f0f25121_Cfunc_puts = unsafe.Pointer(&__cgofn__cgo_be59f0f25121_Cfunc_puts)
 
-	void
-	·_Cfunc_puts(struct{uint8 x[1];}p)
-	{
-		runtime·cgocall(_cgo_be59f0f25121_Cfunc_puts, &p);
+	func _Cfunc_puts(p0 *_Ctype_char) (r1 _Ctype_int) {
+		_cgo_runtime_cgocall_errno(_cgo_be59f0f25121_Cfunc_puts, uintptr(unsafe.Pointer(&p0)))
+		return
 	}
 
 The hexadecimal number is a hash of cgo's input, chosen to be
@@ -468,23 +467,21 @@ code generated for gcc. The build process links this stub, along with
 _cgo_export.c and *.cgo2.c, into a dynamic executable and then lets
 cgo examine the executable. Cgo records the list of shared library
 references and resolved names and writes them into a new file
-_cgo_import.c, which looks like:
+_cgo_import.go, which looks like:
 
-	#pragma cgo_dynamic_linker "/lib64/ld-linux-x86-64.so.2"
-	#pragma cgo_import_dynamic puts puts#GLIBC_2.2.5 "libc.so.6"
-	#pragma cgo_import_dynamic __libc_start_main __libc_start_main#GLIBC_2.2.5 "libc.so.6"
-	#pragma cgo_import_dynamic stdout stdout#GLIBC_2.2.5 "libc.so.6"
-	#pragma cgo_import_dynamic fflush fflush#GLIBC_2.2.5 "libc.so.6"
-	#pragma cgo_import_dynamic _ _ "libpthread.so.0"
-	#pragma cgo_import_dynamic _ _ "libc.so.6"
+	//go:cgo_dynamic_linker "/lib64/ld-linux-x86-64.so.2"
+	//go:cgo_import_dynamic puts puts#GLIBC_2.2.5 "libc.so.6"
+	//go:cgo_import_dynamic __libc_start_main __libc_start_main#GLIBC_2.2.5 "libc.so.6"
+	//go:cgo_import_dynamic stdout stdout#GLIBC_2.2.5 "libc.so.6"
+	//go:cgo_import_dynamic fflush fflush#GLIBC_2.2.5 "libc.so.6"
+	//go:cgo_import_dynamic _ _ "libpthread.so.0"
+	//go:cgo_import_dynamic _ _ "libc.so.6"
 
 In the end, the compiled Go package, which will eventually be
 presented to 6l as part of a larger program, contains:
 
-	_go_.6        # 6g-compiled object for _cgo_gotypes.go *.cgo1.go
-	_cgo_defun.6  # 6c-compiled object for _cgo_defun.c
+	_go_.6        # 6g-compiled object for _cgo_gotypes.go, _cgo_import.go, *.cgo1.go
 	_all.o        # gcc-compiled object for _cgo_export.c, *.cgo2.c
-	_cgo_import.6 # 6c-compiled object for _cgo_import.c
 
 The final program will be a dynamic executable, so that 6l can avoid
 needing to process arbitrary .o files. It only needs to process the .o
@@ -508,20 +505,21 @@ Runtime
 
 When using cgo, Go must not assume that it owns all details of the
 process. In particular it needs to coordinate with C in the use of
-threads and thread-local storage. The runtime package, in its own
-(6c-compiled) C code, declares a few uninitialized (default bss)
+threads and thread-local storage. The runtime package declares a few
 variables:
 
-	bool	runtime·iscgo;
-	void	(*libcgo_thread_start)(void*);
-	void	(*initcgo)(G*);
+	var (
+		iscgo             bool
+		_cgo_init         unsafe.Pointer
+		_cgo_thread_start unsafe.Pointer
+	)
 
 Any package using cgo imports "runtime/cgo", which provides
-initializations for these variables. It sets iscgo to 1, initcgo to a
-gcc-compiled function that can be called early during program startup,
-and libcgo_thread_start to a gcc-compiled function that can be used to
-create a new thread, in place of the runtime's usual direct system
-calls.
+initializations for these variables. It sets iscgo to true, _cgo_init
+to a gcc-compiled function that can be called early during program
+startup, and _cgo_thread_start to a gcc-compiled function that can be
+used to create a new thread, in place of the runtime's usual direct
+system calls.
 
 Internal and External Linking
 
@@ -534,12 +532,12 @@ code can only be used as a dynamic library). On the other hand, when
 using internal linking, 6l can generate Go binaries by itself.
 
 In order to allow linking arbitrary object files without requiring
-dynamic libraries, cgo will soon support an "external" linking mode
-too. In external linking mode, 6l does not process any host object
-files. Instead, it collects all the Go code and writes a single go.o
-object file containing it. Then it invokes the host linker (usually
-gcc) to combine the go.o object file and any supporting non-Go code
-into a final executable. External linking avoids the dynamic library
+dynamic libraries, cgo supports an "external" linking mode too. In
+external linking mode, 6l does not process any host object files.
+Instead, it collects all the Go code and writes a single go.o object
+file containing it. Then it invokes the host linker (usually gcc) to
+combine the go.o object file and any supporting non-Go code into a
+final executable. External linking avoids the dynamic library
 requirement but introduces a requirement that the host linker be
 present to create such a binary.
 
@@ -567,13 +565,13 @@ to be made when linking the final binary.
 Linking Directives
 
 In either linking mode, package-specific directives must be passed
-through to 6l. These are communicated by writing #pragma directives
-in a C source file compiled by 6c. The directives are copied into the .6 object file
-and then processed by the linker.
+through to 6l. These are communicated by writing //go: directives in a
+Go source file compiled by 6g. The directives are copied into the .6
+object file and then processed by the linker.
 
 The directives are:
 
-#pragma cgo_import_dynamic <local> [<remote> ["<library>"]]
+//go:cgo_import_dynamic <local> [<remote> ["<library>"]]
 
 	In internal linking mode, allow an unresolved reference to
 	<local>, assuming it will be resolved by a dynamic library
@@ -584,9 +582,9 @@ The directives are:
 	In the <remote>, # or @ can be used to introduce a symbol version.
 
 	Examples:
-	#pragma cgo_import_dynamic puts
-	#pragma cgo_import_dynamic puts puts#GLIBC_2.2.5
-	#pragma cgo_import_dynamic puts puts#GLIBC_2.2.5 "libc.so.6"
+	//go:cgo_import_dynamic puts
+	//go:cgo_import_dynamic puts puts#GLIBC_2.2.5
+	//go:cgo_import_dynamic puts puts#GLIBC_2.2.5 "libc.so.6"
 
 	A side effect of the cgo_import_dynamic directive with a
 	library is to make the final binary depend on that dynamic
@@ -594,12 +592,12 @@ The directives are:
 	symbols, use _ for local and remote.
 
 	Example:
-	#pragma cgo_import_dynamic _ _ "libc.so.6"
+	//go:cgo_import_dynamic _ _ "libc.so.6"
 
 	For compatibility with current versions of SWIG,
-	#pragma dynimport is an alias for #pragma cgo_import_dynamic.
+	#pragma dynimport is an alias for //go:cgo_import_dynamic.
 
-#pragma cgo_dynamic_linker "<path>"
+//go:cgo_dynamic_linker "<path>"
 
 	In internal linking mode, use "<path>" as the dynamic linker
 	in the final binary. This directive is only needed from one
@@ -607,9 +605,9 @@ The directives are:
 	supplied by runtime/cgo.
 
 	Example:
-	#pragma cgo_dynamic_linker "/lib/ld-linux.so.2"
+	//go:cgo_dynamic_linker "/lib/ld-linux.so.2"
 
-#pragma cgo_export_dynamic <local> <remote>
+//go:cgo_export_dynamic <local> <remote>
 
 	In internal linking mode, put the Go symbol
 	named <local> into the program's exported symbol table as
@@ -618,9 +616,9 @@ The directives are:
 	to share Go's data.
 
 	For compatibility with current versions of SWIG,
-	#pragma dynexport is an alias for #pragma cgo_export_dynamic.
+	#pragma dynexport is an alias for //go:cgo_export_dynamic.
 
-#pragma cgo_import_static <local>
+//go:cgo_import_static <local>
 
 	In external linking mode, allow unresolved references to
 	<local> in the go.o object file prepared for the host linker,
@@ -628,9 +626,9 @@ The directives are:
 	other object files that will be linked with go.o.
 
 	Example:
-	#pragma cgo_import_static puts_wrapper
+	//go:cgo_import_static puts_wrapper
 
-#pragma cgo_export_static <local> <remote>
+//go:cgo_export_static <local> <remote>
 
 	In external linking mode, put the Go symbol
 	named <local> into the program's exported symbol table as
@@ -638,15 +636,15 @@ The directives are:
 	mechanism makes it possible for C code to call back into Go or
 	to share Go's data.
 
-#pragma cgo_ldflag "<arg>"
+//go:cgo_ldflag "<arg>"
 
 	In external linking mode, invoke the host linker (usually gcc)
 	with "<arg>" as a command-line argument following the .o files.
 	Note that the arguments are for "gcc", not "ld".
 
 	Example:
-	#pragma cgo_ldflag "-lpthread"
-	#pragma cgo_ldflag "-L/usr/local/sqlite3/lib"
+	//go:cgo_ldflag "-lpthread"
+	//go:cgo_ldflag "-L/usr/local/sqlite3/lib"
 
 A package compiled with cgo will include directives for both
 internal and external linking; the linker will select the appropriate
@@ -659,22 +657,18 @@ The following code will be generated by cgo:
 
 	// compiled by 6g
 
+	//go:cgo_ldflag "-lm"
+
 	type _Ctype_double float64
-	func _Cfunc_sin(_Ctype_double) _Ctype_double
 
-	// compiled by 6c
+	//go:cgo_import_static _cgo_gcc_Cfunc_sin
+	//go:linkname __cgo_gcc_Cfunc_sin _cgo_gcc_Cfunc_sin
+	var __cgo_gcc_Cfunc_sin byte
+	var _cgo_gcc_Cfunc_sin = unsafe.Pointer(&__cgo_gcc_Cfunc_sin)
 
-	#pragma cgo_import_dynamic sin sin#GLIBC_2.2.5 "libm.so.6"
-
-	#pragma cgo_import_static _cgo_gcc_Cfunc_sin
-	#pragma cgo_ldflag "-lm"
-
-	void _cgo_gcc_Cfunc_sin(void*);
-
-	void
-	·_Cfunc_sin(struct{uint8 x[16];}p)
-	{
-		runtime·cgocall(_cgo_gcc_Cfunc_sin, &p);
+	func _Cfunc_sin(p0 _Ctype_double) (r1 _Ctype_double) {
+		_cgo_runtime_cgocall_errno(_cgo_gcc_Cfunc_sin, uintptr(unsafe.Pointer(&p0)))
+		return
 	}
 
 	// compiled by gcc, into foo.cgo2.o
@@ -694,8 +688,8 @@ using the internal or external mode. If other packages are compiled in
 "external only" mode, then the final link will be an external one.
 Otherwise the link will be an internal one.
 
-The directives in the 6c-compiled file are used according to the kind
-of final link used.
+The linking directives are used according to the kind of final link
+used.
 
 In internal mode, 6l itself processes all the host object files, in
 particular foo.cgo2.o. To do so, it uses the cgo_import_dynamic and
@@ -706,10 +700,10 @@ symbol sin with version GLIBC_2.2.5 from the dynamic library
 runtime dynamic linker.
 
 In external mode, 6l does not process any host object files, in
-particular foo.cgo2.o. It links together the 6g- and 6c-generated
-object files, along with any other Go code, into a go.o file. While
-doing that, 6l will discover that there is no definition for
-_cgo_gcc_Cfunc_sin, referred to by the 6c-compiled source file. This
+particular foo.cgo2.o. It links together the 6g-generated object
+files, along with any other Go code, into a go.o file. While doing
+that, 6l will discover that there is no definition for
+_cgo_gcc_Cfunc_sin, referred to by the 6g-compiled source file. This
 is okay, because 6l also processes the cgo_import_static directive and
 knows that _cgo_gcc_Cfunc_sin is expected to be supplied by a host
 object file, so 6l does not treat the missing symbol as an error when

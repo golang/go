@@ -21,8 +21,8 @@ import (
 
 var conf = printer.Config{Mode: printer.SourcePos, Tabwidth: 8}
 
-// writeDefs creates output files to be compiled by 6g, 6c, and gcc.
-// (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
+// writeDefs creates output files to be compiled by 6g and gcc.
+// (The comments here say 6g but the code applies to the 8 and 5 tools too.)
 func (p *Package) writeDefs() {
 	var fgo2, fc io.Writer
 	f := creat(*objDir + "_cgo_gotypes.go")
@@ -159,14 +159,14 @@ func (p *Package) writeDefs() {
 	for _, key := range nameKeys(p.Name) {
 		n := p.Name[key]
 		if n.FuncType != nil {
-			p.writeDefsFunc(fc, fgo2, n)
+			p.writeDefsFunc(fgo2, n)
 		}
 	}
 
 	if *gccgo {
-		p.writeGccgoExports(fgo2, fc, fm)
+		p.writeGccgoExports(fgo2, fm)
 	} else {
-		p.writeExports(fgo2, fc, fm)
+		p.writeExports(fgo2, fm)
 	}
 
 	init := gccgoInit.String()
@@ -258,10 +258,10 @@ func dynimport(obj string) {
 	fatalf("cannot parse %s as ELF, Mach-O or PE", obj)
 }
 
-// Construct a gcc struct matching the 6c argument frame.
+// Construct a gcc struct matching the 6g argument frame.
 // Assumes that in gcc, char is 1 byte, short 2 bytes, int 4 bytes, long long 8 bytes.
 // These assumptions are checked by the gccProlog.
-// Also assumes that 6c convention is to word-align the
+// Also assumes that 6g convention is to word-align the
 // input and output parameters.
 func (p *Package) structType(n *Name) (string, int64) {
 	var buf bytes.Buffer
@@ -310,7 +310,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 	return buf.String(), off
 }
 
-func (p *Package) writeDefsFunc(fc, fgo2 io.Writer, n *Name) {
+func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name) {
 	name := n.Go
 	gtype := n.FuncType.Go
 	void := gtype.Results == nil || len(gtype.Results.List) == 0
@@ -442,7 +442,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 io.Writer, n *Name) {
 }
 
 // writeOutput creates stubs for a specific source file to be compiled by 6g
-// (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
+// (The comments here say 6g but the code applies to the 8 and 5 tools too.)
 func (p *Package) writeOutput(f *File, srcfile string) {
 	base := srcfile
 	if strings.HasSuffix(base, ".go") {
@@ -459,7 +459,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n\n")
 	conf.Fprint(fgo1, fset, f.AST)
 
-	// While we process the vars and funcs, also write 6c and gcc output.
+	// While we process the vars and funcs, also write gcc output.
 	// Gcc output starts with the preamble.
 	fmt.Fprintf(fgcc, "%s\n", f.Preamble)
 	fmt.Fprintf(fgcc, "%s\n", gccProlog)
@@ -521,7 +521,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	if n.AddError {
 		fmt.Fprintf(fgcc, "\terrno = 0;\n")
 	}
-	// We're trying to write a gcc struct that matches 6c/8c/5c's layout.
+	// We're trying to write a gcc struct that matches 6g's layout.
 	// Use packed attribute to force no padding in this struct in case
 	// gcc has different packing requirements.
 	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
@@ -617,8 +617,8 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
 }
 
 // packedAttribute returns host compiler struct attribute that will be
-// used to match 6c/8c/5c's struct layout. For example, on 386 Windows,
-// gcc wants to 8-align int64s, but 8c does not.
+// used to match 6g's struct layout. For example, on 386 Windows,
+// gcc wants to 8-align int64s, but 8g does not.
 // Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
 // and http://golang.org/issue/5603.
 func (p *Package) packedAttribute() string {
@@ -631,7 +631,7 @@ func (p *Package) packedAttribute() string {
 
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
-func (p *Package) writeExports(fgo2, fc, fm io.Writer) {
+func (p *Package) writeExports(fgo2, fm io.Writer) {
 	fgcc := creat(*objDir + "_cgo_export.c")
 	fgcch := creat(*objDir + "_cgo_export.h")
 
@@ -647,7 +647,7 @@ func (p *Package) writeExports(fgo2, fc, fm io.Writer) {
 	for _, exp := range p.ExpFunc {
 		fn := exp.Func
 
-		// Construct a gcc struct matching the 6c argument and
+		// Construct a gcc struct matching the 6g argument and
 		// result frame.  The gcc struct will be compiled with
 		// __attribute__((packed)) so all padding must be accounted
 		// for explicitly.
@@ -763,7 +763,7 @@ func (p *Package) writeExports(fgo2, fc, fm io.Writer) {
 		}
 		fmt.Fprintf(fgcc, "}\n")
 
-		// Build the wrapper function compiled by 6c/8c
+		// Build the wrapper function compiled by 6g.
 		goname := exp.Func.Name.Name
 		if fn.Recv != nil {
 			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
@@ -822,7 +822,7 @@ func (p *Package) writeExports(fgo2, fc, fm io.Writer) {
 }
 
 // Write out the C header allowing C code to call exported gccgo functions.
-func (p *Package) writeGccgoExports(fgo2, fc, fm io.Writer) {
+func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
 	fgcc := creat(*objDir + "_cgo_export.c")
 	fgcch := creat(*objDir + "_cgo_export.h")
 
