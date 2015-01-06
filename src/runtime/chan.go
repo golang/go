@@ -46,7 +46,9 @@ func makechan(t *chantype, size int64) *hchan {
 		if size > 0 && elem.size != 0 {
 			c.buf = (*uint8)(add(unsafe.Pointer(c), hchanSize))
 		} else {
-			c.buf = (*uint8)(unsafe.Pointer(c)) // race detector uses this location for synchronization
+			// race detector uses this location for synchronization
+			// Also prevents us from pointing beyond the allocation (see issue 9401).
+			c.buf = (*uint8)(unsafe.Pointer(c))
 		}
 	} else {
 		c = new(hchan)
