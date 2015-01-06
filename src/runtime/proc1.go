@@ -960,12 +960,13 @@ func dropm() {
 	unminit()
 
 	// Clear m and g, and return m to the extra list.
-	// After the call to setmg we can only call nosplit functions.
+	// After the call to setg we can only call nosplit functions
+	// with no pointer manipulation.
 	mp := getg().m
-	setg(nil)
-
 	mnext := lockextra(true)
 	mp.schedlink = mnext
+
+	setg(nil)
 	unlockextra(mp)
 }
 
