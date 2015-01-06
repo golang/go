@@ -137,7 +137,7 @@ func (check *Checker) reportCycle(cycle []*objNode, i int) {
 	obj := cycle[i].obj
 	check.errorf(obj.Pos(), "initialization cycle for %s", obj.Name())
 	// print cycle
-	for _ = range cycle {
+	for range cycle {
 		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
 		i++
 		if i >= len(cycle) {

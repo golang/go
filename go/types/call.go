@@ -179,14 +179,18 @@ func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
 // arguments checks argument passing for the call with the given signature.
 // The arg function provides the operand for the i'th argument.
 func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, arg getter, n int) {
-	passSlice := false
 	if call.Ellipsis.IsValid() {
 		// last argument is of the form x...
-		if sig.variadic {
-			passSlice = true
-		} else {
+		if len(call.Args) == 1 && n > 1 {
+			// f()... is not permitted if f() is multi-valued
+			check.errorf(call.Ellipsis, "cannot use ... with %d-valued expression %s", n, call.Args[0])
+			check.useGetter(arg, n)
+			return
+		}
+		if !sig.variadic {
 			check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
-			// ok to continue
+			check.useGetter(arg, n)
+			return
 		}
 	}
 
@@ -194,7 +198,11 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 	for i := 0; i < n; i++ {
 		arg(x, i)
 		if x.mode != invalid {
-			check.argument(sig, i, x, passSlice && i == n-1)
+			var ellipsis token.Pos
+			if i == n-1 && call.Ellipsis.IsValid() {
+				ellipsis = call.Ellipsis
+			}
+			check.argument(sig, i, x, ellipsis)
 		}
 	}
 
@@ -211,8 +219,8 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 }
 
 // argument checks passing of argument x to the i'th parameter of the given signature.
-// If passSlice is set, the argument is followed by ... in the call.
-func (check *Checker) argument(sig *Signature, i int, x *operand, passSlice bool) {
+// If ellipsis is valid, the argument is followed by ... at that position in the call.
+func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token.Pos) {
 	n := sig.params.Len()
 
 	// determine parameter type
@@ -232,13 +240,19 @@ func (check *Checker) argument(sig *Signature, i int, x *operand, passSlice bool
 		return
 	}
 
-	if passSlice {
+	if ellipsis.IsValid() {
 		// argument is of the form x...
 		if i != n-1 {
-			check.errorf(x.pos(), "can only use ... with matching parameter")
+			check.errorf(ellipsis, "can only use ... with matching parameter")
 			return
 		}
-		if _, ok := x.typ.Underlying().(*Slice); !ok {
+		switch t := x.typ.Underlying().(type) {
+		case *Slice:
+			// ok
+		case *Tuple:
+			check.errorf(ellipsis, "cannot use ... with %d-valued expression %s", t.Len(), x)
+			return
+		default:
 			check.errorf(x.pos(), "cannot use %s as parameter of type %s", x, typ)
 			return
 		}

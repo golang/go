@@ -41,3 +41,33 @@ func issue9182() {
 	// no error for composite literal based on unknown type
 	_ = Point{x: 1, y: 2}
 }
+
+func f0() (a []int)         { return }
+func f1() (a []int, b int)  { return }
+func f2() (a, b []int)      { return }
+
+func append_([]int, ...int) {}
+
+func issue9473(a []int, b ...int) {
+	// variadic builtin function
+	_ = append(f0())
+	_ = append(f0(), f0()...)
+	_ = append(f1())
+	_ = append(f2 /* ERROR cannot pass argument */ ())
+	_ = append(f2()... /* ERROR cannot use ... */ )
+	_ = append(f0(), f1 /* ERROR 2-valued expression */ ())
+	_ = append(f0(), f2 /* ERROR 2-valued expression */ ())
+	_ = append(f0(), f1()... /* ERROR cannot use ... */ )
+	_ = append(f0(), f2()... /* ERROR cannot use ... */ )
+
+	// variadic user-defined function
+	append_(f0())
+	append_(f0(), f0()...)
+	append_(f1())
+	append_(f2 /* ERROR cannot pass argument */ ())
+	append_(f2()... /* ERROR cannot use ... */ )
+	append_(f0(), f1 /* ERROR 2-valued expression */ ())
+	append_(f0(), f2 /* ERROR 2-valued expression */ ())
+	append_(f0(), f1()... /* ERROR cannot use */ )
+	append_(f0(), f2()... /* ERROR cannot use */ )
+}
