@@ -36,13 +36,7 @@ const intSize = 32 << (^uint(0) >> 63)
 // IntSize is the size in bits of an int or uint value.
 const IntSize = intSize
 
-// Return the first number n such that n*base >= 1<<64.
-func cutoff64(base int) uint64 {
-	if base < 2 {
-		return 0
-	}
-	return (1<<64-1)/uint64(base) + 1
-}
+const maxUint64 = (1<<64 - 1)
 
 // ParseUint is like ParseInt but for unsigned numbers.
 func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
@@ -52,7 +46,7 @@ func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
 		bitSize = int(IntSize)
 	}
 
-	s0 := s
+	i := 0
 	switch {
 	case len(s) < 1:
 		err = ErrSyntax
@@ -65,14 +59,15 @@ func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
 		// Look for octal, hex prefix.
 		switch {
 		case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
-			base = 16
-			s = s[2:]
-			if len(s) < 1 {
+			if len(s) < 3 {
 				err = ErrSyntax
 				goto Error
 			}
+			base = 16
+			i = 2
 		case s[0] == '0':
 			base = 8
+			i = 1
 		default:
 			base = 10
 		}
@@ -82,11 +77,20 @@ func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
 		goto Error
 	}
 
-	n = 0
-	cutoff = cutoff64(base)
+	// Cutoff is the smallest number such that cutoff*base > maxUint64.
+	// Use compile-time constants for common cases.
+	switch base {
+	case 10:
+		cutoff = maxUint64/10 + 1
+	case 16:
+		cutoff = maxUint64/16 + 1
+	default:
+		cutoff = maxUint64/uint64(base) + 1
+	}
+
 	maxVal = 1<<uint(bitSize) - 1
 
-	for i := 0; i < len(s); i++ {
+	for ; i < len(s); i++ {
 		var v byte
 		d := s[i]
 		switch {
@@ -101,7 +105,7 @@ func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
 			err = ErrSyntax
 			goto Error
 		}
-		if int(v) >= base {
+		if v >= byte(base) {
 			n = 0
 			err = ErrSyntax
 			goto Error
@@ -109,7 +113,7 @@ func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
 
 		if n >= cutoff {
 			// n*base overflows
-			n = 1<<64 - 1
+			n = maxUint64
 			err = ErrRange
 			goto Error
 		}
@@ -118,7 +122,7 @@ func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
 		n1 := n + uint64(v)
 		if n1 < n || n1 > maxVal {
 			// n+v overflows
-			n = 1<<64 - 1
+			n = maxUint64
 			err = ErrRange
 			goto Error
 		}
@@ -128,7 +132,7 @@ func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
 	return n, nil
 
 Error:
-	return n, &NumError{"ParseUint", s0, err}
+	return n, &NumError{"ParseUint", s, err}
 }
 
 // ParseInt interprets a string s in the given base (2 to 36) and
