@@ -1003,13 +1003,22 @@ func Readlink(path string, buf []byte) (n int, err error) {
 	}
 
 	rdb := (*reparseDataBuffer)(unsafe.Pointer(&rdbbuf[0]))
-	if uintptr(bytesReturned) < unsafe.Sizeof(*rdb) ||
-		rdb.ReparseTag != IO_REPARSE_TAG_SYMLINK {
-		// the path is not a symlink but another type of reparse point
+	var s string
+	switch rdb.ReparseTag {
+	case IO_REPARSE_TAG_SYMLINK:
+		data := (*symbolicLinkReparseBuffer)(unsafe.Pointer(&rdb.reparseBuffer))
+		p := (*[0xffff]uint16)(unsafe.Pointer(&data.PathBuffer[0]))
+		s = UTF16ToString(p[data.PrintNameOffset/2 : (data.PrintNameLength-data.PrintNameOffset)/2])
+	case _IO_REPARSE_TAG_MOUNT_POINT:
+		data := (*mountPointReparseBuffer)(unsafe.Pointer(&rdb.reparseBuffer))
+		p := (*[0xffff]uint16)(unsafe.Pointer(&data.PathBuffer[0]))
+		s = UTF16ToString(p[data.PrintNameOffset/2 : (data.PrintNameLength-data.PrintNameOffset)/2])
+	default:
+		// the path is not a symlink or junction but another type of reparse
+		// point
 		return -1, ENOENT
 	}
-
-	s := UTF16ToString((*[0xffff]uint16)(unsafe.Pointer(&rdb.PathBuffer[0]))[:rdb.PrintNameLength/2])
 	n = copy(buf, []byte(s))
+
 	return n, nil
 }
