@@ -39,10 +39,27 @@ type pageID uintptr
 // base address for all 0-byte allocations
 var zerobase uintptr
 
+// Determine whether to initiate a GC.
+// Currently the primitive heuristic we use will start a new
+// concurrent GC when approximately half the available space
+// made available by the last GC cycle has been used.
+// If the GC is already working no need to trigger another one.
+// This should establish a feedback loop where if the GC does not
+// have sufficient time to complete then more memory will be
+// requested from the OS increasing heap size thus allow future
+// GCs more time to complete.
+// memstat.heap_alloc and memstat.next_gc reads have benign races
+// A false negative simple does not start a GC, a false positive
+// will start a GC needlessly. Neither have correctness issues.
+func shouldtriggergc() bool {
+	return memstats.heap_alloc+memstats.heap_alloc*3/4 >= memstats.next_gc && atomicloaduint(&bggc.working) == 0
+}
+
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
 func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+	shouldhelpgc := false
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
 	}
@@ -144,6 +161,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 				systemstack(func() {
 					mCache_Refill(c, tinySizeClass)
 				})
+				shouldhelpgc = true
 				s = c.alloc[tinySizeClass]
 				v = s.freelist
 			}
@@ -174,6 +192,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 				systemstack(func() {
 					mCache_Refill(c, int32(sizeclass))
 				})
+				shouldhelpgc = true
 				s = c.alloc[sizeclass]
 				v = s.freelist
 			}
@@ -191,6 +210,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		c.local_cachealloc += intptr(size)
 	} else {
 		var s *mspan
+		shouldhelpgc = true
 		systemstack(func() {
 			s = largeAlloc(size, uint32(flags))
 		})
@@ -345,8 +365,15 @@ marked:
 		}
 	}
 
-	if memstats.heap_alloc >= memstats.next_gc/2 {
+	if shouldtriggergc() {
 		gogc(0)
+	} else if shouldhelpgc && atomicloaduint(&bggc.working) == 1 {
+		// bggc.lock not taken since race on bggc.working is benign.
+		// At worse we don't call gchelpwork.
+		// Delay the gchelpwork until the epilogue so that it doesn't
+		// interfere with the inner working of malloc such as
+		// mcache refills that might happen while doing the gchelpwork
+		systemstack(gchelpwork)
 	}
 
 	return x
@@ -466,14 +493,25 @@ func gogc(force int32) {
 	releasem(mp)
 	mp = nil
 
-	semacquire(&worldsema, false)
-
-	if force == 0 && memstats.heap_alloc < memstats.next_gc {
-		// typically threads which lost the race to grab
-		// worldsema exit here when gc is done.
-		semrelease(&worldsema)
-		return
+	if force == 0 {
+		lock(&bggc.lock)
+		if !bggc.started {
+			bggc.working = 1
+			bggc.started = true
+			go backgroundgc()
+		} else if bggc.working == 0 {
+			bggc.working = 1
+			ready(bggc.g)
+		}
+		unlock(&bggc.lock)
+	} else {
+		gcwork(force)
 	}
+}
+
+func gcwork(force int32) {
+
+	semacquire(&worldsema, false)
 
 	// Pick up the remaining unswept/not being swept spans concurrently
 	for gosweepone() != ^uintptr(0) {
@@ -482,13 +520,16 @@ func gogc(force int32) {
 
 	// Ok, we're doing it!  Stop everybody else
 
-	startTime := nanotime()
-	mp = acquirem()
+	mp := acquirem()
 	mp.gcing = 1
 	releasem(mp)
 	gctimer.count++
 	if force == 0 {
 		gctimer.cycle.sweepterm = nanotime()
+	}
+	// Pick up the remaining unswept/not being swept spans before we STW
+	for gosweepone() != ^uintptr(0) {
+		sweep.nbgsweep++
 	}
 	systemstack(stoptheworld)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
@@ -500,7 +541,7 @@ func gogc(force int32) {
 		systemstack(gcscan_m)
 		gctimer.cycle.installmarkwb = nanotime()
 		systemstack(stoptheworld)
-		gcinstallmarkwb()
+		systemstack(gcinstallmarkwb)
 		systemstack(starttheworld)
 		gctimer.cycle.mark = nanotime()
 		systemstack(gcmark_m)
@@ -509,6 +550,7 @@ func gogc(force int32) {
 		systemstack(gcinstalloffwb_m)
 	}
 
+	startTime := nanotime()
 	if mp != acquirem() {
 		throw("gogc: rescheduled")
 	}
@@ -527,6 +569,7 @@ func gogc(force int32) {
 	eagersweep := force >= 2
 	for i := 0; i < n; i++ {
 		if i > 0 {
+			// refresh start time if doing a second GC
 			startTime = nanotime()
 		}
 		// switch to g0, call gc, then switch back
@@ -579,8 +622,8 @@ func GCcheckmarkdisable() {
 // gctimes records the time in nanoseconds of each phase of the concurrent GC.
 type gctimes struct {
 	sweepterm     int64 // stw
-	scan          int64 // stw
-	installmarkwb int64
+	scan          int64
+	installmarkwb int64 // stw
 	mark          int64
 	markterm      int64 // stw
 	sweep         int64
@@ -601,7 +644,7 @@ type gcchronograph struct {
 
 var gctimer gcchronograph
 
-// GCstarttimes initializes the gc timess. All previous timess are lost.
+// GCstarttimes initializes the gc times. All previous times are lost.
 func GCstarttimes(verbose int64) {
 	gctimer = gcchronograph{verbose: verbose}
 }
@@ -655,6 +698,11 @@ func calctimes() gctimes {
 // the information from the most recent Concurent GC cycle. Calls from the
 // application to runtime.GC() are ignored.
 func GCprinttimes() {
+	if gctimer.verbose == 0 {
+		println("GC timers not enabled")
+		return
+	}
+
 	// Explicitly put times on the heap so printPhase can use it.
 	times := new(gctimes)
 	*times = calctimes()
