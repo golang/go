@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
@@ -236,7 +237,9 @@ func capitalize(s string) string {
 }
 
 func printUsage(w io.Writer) {
-	tmpl(w, usageTemplate, commands)
+	bw := bufio.NewWriter(w)
+	tmpl(bw, usageTemplate, commands)
+	bw.Flush()
 }
 
 func usage() {
