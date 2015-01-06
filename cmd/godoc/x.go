@@ -33,6 +33,7 @@ var xMap = map[string]xRepo{
 	"mobile":     {"https://go.googlesource.com/mobile", "git"},
 	"net":        {"https://go.googlesource.com/net", "git"},
 	"oauth2":     {"https://go.googlesource.com/oauth2", "git"},
+	"playground": {"https://go.googlesource.com/playground", "git"},
 	"review":     {"https://go.googlesource.com/review", "git"},
 	"sys":        {"https://go.googlesource.com/sys", "git"},
 	"talks":      {"https://go.googlesource.com/talks", "git"},
