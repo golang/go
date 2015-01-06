@@ -78,6 +78,19 @@ func clearpools() {
 	}
 }
 
+// backgroundgc is running in a goroutine and does the concurrent GC work.
+// bggc holds the state of the backgroundgc.
+func backgroundgc() {
+	bggc.g = getg()
+	bggc.g.issystem = true
+	for {
+		gcwork(0)
+		lock(&bggc.lock)
+		bggc.working = 0
+		goparkunlock(&bggc.lock, "Concurrent GC wait")
+	}
+}
+
 func bgsweep() {
 	sweep.g = getg()
 	getg().issystem = true
