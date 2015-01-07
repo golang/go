@@ -13,6 +13,7 @@ import (
 	"compress/gzip"
 	"crypto/hmac"
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -63,7 +64,16 @@ var (
 	statusDone []*buildStatus // finished recently, capped to maxStatusDone
 )
 
-const maxStatusDone = 30
+const (
+	maxStatusDone = 30
+
+	// vmDeleteTimeout is how long before we delete a VM.
+	// In practice this need only be as long as the slowest
+	// builder (plan9 currently), because on startup this program
+	// already deletes all buildlets it doesn't know about
+	// (i.e. ones from a previous instance of the coordinator).
+	vmDeleteTimeout = 45 * time.Minute
+)
 
 // Initialized by initGCE:
 var (
@@ -194,8 +204,38 @@ func main() {
 	addBuilder(buildConfig{name: "linux-amd64-clang", image: "gobuilders/linux-x86-clang"})
 
 	// VMs:
-	addBuilder(buildConfig{name: "openbsd-amd64-gce56", vmImage: "openbsd-amd64-56"})
-	// addBuilder(buildConfig{name: "plan9-386-gce", vmImage: "plan9-386"})
+	addBuilder(buildConfig{
+		name:        "openbsd-amd64-gce56",
+		vmImage:     "openbsd-amd64-56",
+		machineType: "n1-highcpu-2",
+	})
+	addBuilder(buildConfig{
+		name:    "plan9-386-gce",
+		vmImage: "plan9-386",
+		// We *were* using n1-standard-1 because Plan 9 can only
+		// reliably use a single CPU. Using 2 or 4 and we see
+		// test failures. See:
+		//    https://golang.org/issue/8393
+		//    https://golang.org/issue/9491
+		// n1-standard-1 has 3.6 GB of memory which is
+		// overkill (userspace probably only sees 2GB anyway),
+		// but it's the cheapest option. And plenty to keep
+		// our ~250 MB of inputs+outputs in its ramfs.
+		//
+		// But the docs says "For the n1 series of machine
+		// types, a virtual CPU is implemented as a single
+		// hyperthread on a 2.6GHz Intel Sandy Bridge Xeon or
+		// Intel Ivy Bridge Xeon (or newer) processor. This
+		// means that the n1-standard-2 machine type will see
+		// a whole physical core."
+		//
+		// ... so we use n1-highcpu-2 (1.80 RAM, still
+		// plenty), just so we can get 1 whole core for the
+		// single-core Plan 9. It will see 2 virtual cores and
+		// only use 1, but we hope that 1 will be more powerful
+		// and we'll stop timing out on tests.
+		machineType: "n1-highcpu-2",
+	})
 
 	addWatcher(watchConfig{repo: "https://go.googlesource.com/go", dash: "https://build.golang.org/"})
 	// TODO(adg,cmang): fix gccgo watcher
@@ -316,6 +356,21 @@ func markDone(work builderRev) {
 		statusDone = statusDone[:len(statusDone)-1]
 	}
 	statusDone = append(statusDone, st)
+}
+
+func vmIsBuilding(instName string) bool {
+	if instName == "" {
+		log.Printf("bogus empty instance name passed to vmIsBuilding")
+		return false
+	}
+	statusMu.Lock()
+	defer statusMu.Unlock()
+	for _, st := range status {
+		if st.instName == instName {
+			return true
+		}
+	}
+	return false
 }
 
 // statusPtrStr disambiguates which status to return if there are
@@ -710,6 +765,15 @@ func startBuildingInDocker(conf buildConfig, rev string) (*buildStatus, error) {
 
 var osArchRx = regexp.MustCompile(`^(\w+-\w+)`)
 
+func randHex(n int) string {
+	buf := make([]byte, n/2)
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic("Failed to get randomness: " + err.Error())
+	}
+	return fmt.Sprintf("%x", buf)
+}
+
 // startBuildingInVM starts a VM on GCE running the buildlet binary to build rev.
 func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
 	brev := builderRev{
@@ -723,7 +787,7 @@ func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
 
 	// name is the project-wide unique name of the GCE instance. It can't be longer
 	// than 61 bytes, so we only use the first 8 bytes of the rev.
-	name := "buildlet-" + conf.name + "-" + rev[:8]
+	name := "buildlet-" + conf.name + "-" + rev[:8] + "-rn" + randHex(6)
 
 	// buildletURL is the URL of the buildlet binary which the VMs
 	// are configured to download at boot and run. This lets us
@@ -776,7 +840,7 @@ func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
 				// that killing.
 				{
 					Key:   "delete-at",
-					Value: fmt.Sprint(time.Now().Add(30 * time.Minute).Unix()),
+					Value: fmt.Sprint(time.Now().Add(vmDeleteTimeout).Unix()),
 				},
 			},
 		},
@@ -816,14 +880,16 @@ func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
 }
 
 // watchVM monitors a VM doing a build.
-func watchVM(st *buildStatus) (err error) {
+func watchVM(st *buildStatus) (retErr error) {
 	goodRes := func(res *http.Response, err error, what string) bool {
 		if err != nil {
-			err = fmt.Errorf("%s: %v", what, err)
+			retErr = fmt.Errorf("%s: %v", what, err)
 			return false
 		}
 		if res.StatusCode/100 != 2 {
-			err = fmt.Errorf("%s: %v", what, res.Status)
+			slurp, _ := ioutil.ReadAll(io.LimitReader(res.Body, 4<<10))
+			retErr = fmt.Errorf("%s: %v; body: %s", what, res.Status, slurp)
+			res.Body.Close()
 			return false
 
 		}
@@ -1241,12 +1307,18 @@ func cleanZoneVMs(zone string) error {
 		return fmt.Errorf("listing instances: %v", err)
 	}
 	for _, inst := range list.Items {
+		if !strings.HasPrefix(inst.Name, "buildlet-") {
+			// We only delete ones we created.
+			continue
+		}
 		if inst.Metadata == nil {
 			// Defensive. Not seen in practice.
 			continue
 		}
+		sawDeleteAt := false
 		for _, it := range inst.Metadata.Items {
 			if it.Key == "delete-at" {
+				sawDeleteAt = true
 				unixDeadline, err := strconv.ParseInt(it.Value, 10, 64)
 				if err != nil {
 					log.Printf("invalid delete-at value %q seen; ignoring", it.Value)
@@ -1256,6 +1328,10 @@ func cleanZoneVMs(zone string) error {
 					deleteVM(zone, inst.Name)
 				}
 			}
+		}
+		if sawDeleteAt && !vmIsBuilding(inst.Name) {
+			log.Printf("Deleting VM %q in zone %q from an earlier coordinator generation ...", inst.Name, zone)
+			deleteVM(zone, inst.Name)
 		}
 	}
 	return nil
