@@ -439,7 +439,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
 	MOVL	new+12(FP), CX
 	LOCK
 	CMPXCHGL	CX, 0(BX)
-	SETEQ	, ret+16(FP)
+	SETEQ	ret+16(FP)
 	RET
 
 // bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
@@ -456,7 +456,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-25
 	MOVQ	new+16(FP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BX)
-	SETEQ	, ret+24(FP)
+	SETEQ	ret+24(FP)
 	RET
 	
 TEXT runtime·casuintptr(SB), NOSPLIT, $0-25
@@ -484,7 +484,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-25
 	MOVQ	new+16(FP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BX)
-	SETEQ	, ret+24(FP)
+	SETEQ	ret+24(FP)
 	RET
 
 // uint32 xadd(uint32 volatile *val, int32 delta)
