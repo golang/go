@@ -202,6 +202,9 @@ TEXT	sync∕atomic·LoadUint64(SB), NOSPLIT, $0-0
 TEXT	sync∕atomic·LoadUintptr(SB), NOSPLIT, $0-0
 	JMP	sync∕atomic·LoadInt64(SB)
 
+TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0-0
+	JMP	sync∕atomic·LoadInt64(SB)
+
 // Store
 TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0-0
 	MOVQ	$__tsan_go_atomic32_store(SB), AX
