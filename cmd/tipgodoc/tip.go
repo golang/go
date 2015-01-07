@@ -25,7 +25,10 @@ import (
 	"time"
 )
 
-const metaURL = "https://go.googlesource.com/?b=master&format=JSON"
+const (
+	repoURL = "https://go.googlesource.com/"
+	metaURL = "https://go.googlesource.com/?b=master&format=JSON"
+)
 
 func init() {
 	p := new(Proxy)
@@ -35,9 +38,36 @@ func init() {
 
 type Proxy struct {
 	mu    sync.Mutex // protects the followin'
-	proxy *httputil.ReverseProxy
+	proxy http.Handler
 	cur   string // signature of gorepo+toolsrepo
 	side  string
+	err   error
+}
+
+func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/_tipstatus" {
+		p.serveStatus(w, r)
+		return
+	}
+	p.mu.Lock()
+	proxy := p.proxy
+	err := p.err
+	p.mu.Unlock()
+	if proxy == nil {
+		s := "tip.golang.org is starting up"
+		if err != nil {
+			s = err.Error()
+		}
+		http.Error(w, s, http.StatusInternalServerError)
+		return
+	}
+	proxy.ServeHTTP(w, r)
+}
+
+func (p *Proxy) serveStatus(w http.ResponseWriter, r *http.Request) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	fmt.Fprintf(w, "side=%v\ncurrent=%v\nerror=%v\n", p.side, p.cur, p.err)
 }
 
 // run runs in its own goroutine.
@@ -74,16 +104,18 @@ func (p *Proxy) poll() {
 	}
 
 	hostport, err := initSide(newSide, heads["go"], heads["tools"])
-	if err != nil {
-		log.Println(err)
-		return
-	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if err != nil {
+		log.Println(err)
+		p.err = err
+		return
+	}
 	u, err := url.Parse(fmt.Sprintf("http://%v/", hostport))
 	if err != nil {
 		log.Println(err)
+		p.err = err
 		return
 	}
 	p.side = newSide
@@ -98,29 +130,23 @@ func initSide(side, goHash, toolsHash string) (hostport string, err error) {
 
 	goDir := filepath.Join(dir, "go")
 	toolsDir := filepath.Join(dir, "gopath/src/golang.org/x/tools")
-	if err := checkout("https://go.googlesource.com/go", goHash, goDir); err != nil {
+	if err := checkout(repoURL+"go", goHash, goDir); err != nil {
 		return "", err
 	}
-	if err := checkout("https://go.googlesource.com/tools", toolsHash, toolsDir); err != nil {
+	if err := checkout(repoURL+"tools", toolsHash, toolsDir); err != nil {
 		return "", err
 
 	}
-
-	env := []string{"GOROOT=" + goDir, "GOPATH=" + filepath.Join(dir, "gopath")}
 
 	make := exec.Command(filepath.Join(goDir, "src/make.bash"))
-	make.Stdout = os.Stdout
-	make.Stderr = os.Stderr
 	make.Dir = filepath.Join(goDir, "src")
-	if err := make.Run(); err != nil {
+	if err := runErr(make); err != nil {
 		return "", err
 	}
 	goBin := filepath.Join(goDir, "bin/go")
 	install := exec.Command(goBin, "install", "golang.org/x/tools/cmd/godoc")
-	install.Stdout = os.Stdout
-	install.Stderr = os.Stderr
-	install.Env = env
-	if err := install.Run(); err != nil {
+	install.Env = []string{"GOROOT=" + goDir, "GOPATH=" + filepath.Join(dir, "gopath")}
+	if err := runErr(install); err != nil {
 		return "", err
 	}
 
@@ -130,7 +156,8 @@ func initSide(side, goHash, toolsHash string) (hostport string, err error) {
 		hostport = "localhost:8082"
 	}
 	godoc := exec.Command(godocBin, "-http="+hostport)
-	godoc.Env = env
+	godoc.Env = []string{"GOROOT=" + goDir}
+	// TODO(adg): log this somewhere useful
 	godoc.Stdout = os.Stdout
 	godoc.Stderr = os.Stderr
 	if err := godoc.Start(); err != nil {
@@ -158,63 +185,44 @@ func initSide(side, goHash, toolsHash string) (hostport string, err error) {
 	return "", fmt.Errorf("timed out waiting for side %v at %v (%v)", side, hostport, err)
 }
 
+func runErr(cmd *exec.Cmd) error {
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if len(out) == 0 {
+			return err
+		}
+		return fmt.Errorf("%s\n%v", out, err)
+	}
+	return nil
+}
+
 func checkout(repo, hash, path string) error {
 	// Clone git repo if it doesn't exist.
 	if _, err := os.Stat(filepath.Join(path, ".git")); os.IsNotExist(err) {
-		if err := os.MkdirAll(filepath.Base(path), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return err
 		}
-		cmd := exec.Command("git", "clone", repo, path)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			// TODO(bradfitz): capture the standard error output
+		if err := runErr(exec.Command("git", "clone", repo, path)); err != nil {
 			return err
 		}
 	} else if err != nil {
 		return err
 	}
 
+	// Pull down changes and update to hash.
 	cmd := exec.Command("git", "fetch")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	cmd.Dir = path
-	if err := cmd.Run(); err != nil {
+	if err := runErr(cmd); err != nil {
 		return err
 	}
 	cmd = exec.Command("git", "reset", "--hard", hash)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	cmd.Dir = path
-	if err := cmd.Run(); err != nil {
+	if err := runErr(cmd); err != nil {
 		return err
 	}
 	cmd = exec.Command("git", "clean", "-d", "-f", "-x")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	cmd.Dir = path
-	return cmd.Run()
-}
-
-func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/_tipstatus" {
-		p.serveStatus(w, r)
-		return
-	}
-	p.mu.Lock()
-	proxy := p.proxy
-	p.mu.Unlock()
-	if proxy == nil {
-		http.Error(w, "tip.golang.org is currently starting up, compiling tip", http.StatusInternalServerError)
-		return
-	}
-	proxy.ServeHTTP(w, r)
-}
-
-func (p *Proxy) serveStatus(w http.ResponseWriter, r *http.Request) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	fmt.Fprintf(w, "side=%v\ncurrent=%v\n", p.side, p.cur)
+	return runErr(cmd)
 }
 
 // gerritMetaMap returns the map from repo name (e.g. "go") to its

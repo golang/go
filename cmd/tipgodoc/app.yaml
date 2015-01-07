@@ -1,5 +1,6 @@
+application: golang-org
 version: tip
-runtime: go
+runtime: custom
 api_version: go1
 vm: true
 
