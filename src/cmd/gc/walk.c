@@ -3194,7 +3194,7 @@ sliceany(Node* n, NodeList **init)
 }
 
 static Node*
-eqfor(Type *t)
+eqfor(Type *t, int *needsize)
 {
 	int a;
 	Node *n;
@@ -3213,6 +3213,7 @@ eqfor(Type *t)
 		n = syslook("memequal", 1);
 		argtype(n, t);
 		argtype(n, t);
+		*needsize = 1;
 		return n;
 	}
 
@@ -3222,10 +3223,10 @@ eqfor(Type *t)
 	ntype = nod(OTFUNC, N, N);
 	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
 	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
-	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
 	ntype->rlist = list(ntype->rlist, nod(ODCLFIELD, N, typenod(types[TBOOL])));
 	typecheck(&ntype, Etype);
 	n->type = ntype->type;
+	*needsize = 0;
 	return n;
 }
 
@@ -3245,7 +3246,7 @@ static void
 walkcompare(Node **np, NodeList **init)
 {
 	Node *n, *l, *r, *call, *a, *li, *ri, *expr, *cmpl, *cmpr;
-	int andor, i;
+	int andor, i, needsize;
 	Type *t, *t1;
 	
 	n = *np;
@@ -3333,10 +3334,11 @@ walkcompare(Node **np, NodeList **init)
 	}
 
 	// Chose not to inline.  Call equality function directly.
-	call = nod(OCALL, eqfor(t), N);
+	call = nod(OCALL, eqfor(t, &needsize), N);
 	call->list = list(call->list, l);
 	call->list = list(call->list, r);
-	call->list = list(call->list, nodintconst(t->width));
+	if(needsize)
+		call->list = list(call->list, nodintconst(t->width));
 	r = call;
 	if(n->op != OEQ)
 		r = nod(ONOT, r, N);

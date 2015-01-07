@@ -2627,7 +2627,7 @@ hashmem(Type *t)
 {
 	Node *tfn, *n;
 	Sym *sym;
-	
+
 	sym = pkglookup("memhash", runtimepkg);
 
 	n = newname(sym);
@@ -2652,7 +2652,7 @@ hashfor(Type *t)
 	a = algtype1(t, nil);
 	switch(a) {
 	case AMEM:
-		return hashmem(t);
+		fatal("hashfor with AMEM type");
 	case AINTER:
 		sym = pkglookup("interhash", runtimepkg);
 		break;
@@ -2684,7 +2684,6 @@ hashfor(Type *t)
 	tfn = nod(OTFUNC, N, N);
 	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
 	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
-	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
 	tfn->rlist = list(tfn->rlist, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
 	typecheck(&tfn, Etype);
 	n->type = tfn->type;
@@ -2710,7 +2709,7 @@ genhash(Sym *sym, Type *t)
 	dclcontext = PEXTERN;
 	markdcl();
 
-	// func sym(p *T, s uintptr, h uintptr) uintptr
+	// func sym(p *T, h uintptr) uintptr
 	fn = nod(ODCLFUNC, N, N);
 	fn->nname = newname(sym);
 	fn->nname->class = PFUNC;
@@ -2720,8 +2719,6 @@ genhash(Sym *sym, Type *t)
 	n = nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)));
 	tfn->list = list(tfn->list, n);
 	np = n->left;
-	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
-	tfn->list = list(tfn->list, n);
 	n = nod(ODCLFIELD, newname(lookup("h")), typenod(types[TUINTPTR]));
 	tfn->list = list(tfn->list, n);
 	nh = n->left;
@@ -2773,14 +2770,13 @@ genhash(Sym *sym, Type *t)
 				nh,
 				nod(OMUL, nh, nodintconst(mul))));
 
-		// h = hashel(&p[i], sizeof(p[i]), h)
+		// h = hashel(&p[i], h)
 		call = nod(OCALL, hashel, N);
 		nx = nod(OINDEX, np, ni);
 		nx->bounded = 1;
 		na = nod(OADDR, nx, N);
 		na->etype = 1;  // no escape to heap
 		call->list = list(call->list, na);
-		call->list = list(call->list, nodintconst(t->type->width));
 		call->list = list(call->list, nh);
 		n->nbody = list(n->nbody, nod(OAS, nh, call));
 
@@ -2813,8 +2809,8 @@ genhash(Sym *sym, Type *t)
 				na = nod(OADDR, nx, N);
 				na->etype = 1;  // no escape to heap
 				call->list = list(call->list, na);
-				call->list = list(call->list, nodintconst(size));
 				call->list = list(call->list, nh);
+				call->list = list(call->list, nodintconst(size));
 				fn->nbody = list(fn->nbody, nod(OAS, nh, call));
 
 				first = T;
@@ -2825,16 +2821,28 @@ genhash(Sym *sym, Type *t)
 				continue;
 
 			// Run hash for this field.
-			hashel = hashfor(t1->type);
-			// h = hashel(&p.t1, size, h)
-			call = nod(OCALL, hashel, N);
-			nx = nod(OXDOT, np, newname(t1->sym));  // TODO: fields from other packages?
-			na = nod(OADDR, nx, N);
-			na->etype = 1;  // no escape to heap
-			call->list = list(call->list, na);
-			call->list = list(call->list, nodintconst(t1->type->width));
-			call->list = list(call->list, nh);
-			fn->nbody = list(fn->nbody, nod(OAS, nh, call));
+			if(algtype1(t1->type, nil) == AMEM) {
+				hashel = hashmem(t1->type);
+				// h = memhash(&p.t1, h, size)
+				call = nod(OCALL, hashel, N);
+				nx = nod(OXDOT, np, newname(t1->sym));  // TODO: fields from other packages?
+				na = nod(OADDR, nx, N);
+				na->etype = 1;  // no escape to heap
+				call->list = list(call->list, na);
+				call->list = list(call->list, nh);
+				call->list = list(call->list, nodintconst(t1->type->width));
+				fn->nbody = list(fn->nbody, nod(OAS, nh, call));
+			} else {
+				hashel = hashfor(t1->type);
+				// h = hashel(&p.t1, h)
+				call = nod(OCALL, hashel, N);
+				nx = nod(OXDOT, np, newname(t1->sym));  // TODO: fields from other packages?
+				na = nod(OADDR, nx, N);
+				na->etype = 1;  // no escape to heap
+				call->list = list(call->list, na);
+				call->list = list(call->list, nh);
+				fn->nbody = list(fn->nbody, nod(OAS, nh, call));
+			}
 		}
 		break;
 	}
@@ -2881,7 +2889,7 @@ eqfield(Node *p, Node *q, Node *field)
 }
 
 static Node*
-eqmemfunc(vlong size, Type *type)
+eqmemfunc(vlong size, Type *type, int *needsize)
 {
 	char buf[30];
 	Node *fn;
@@ -2889,6 +2897,7 @@ eqmemfunc(vlong size, Type *type)
 	switch(size) {
 	default:
 		fn = syslook("memequal", 1);
+		*needsize = 1;
 		break;
 	case 1:
 	case 2:
@@ -2897,6 +2906,7 @@ eqmemfunc(vlong size, Type *type)
 	case 16:
 		snprint(buf, sizeof buf, "memequal%d", (int)size*8);
 		fn = syslook(buf, 1);
+		*needsize = 0;
 		break;
 	}
 	argtype(fn, type);
@@ -2905,11 +2915,12 @@ eqmemfunc(vlong size, Type *type)
 }
 
 // Return node for
-//	if !memequal(&p.field, &q.field, size) { return false }
+//	if !memequal(&p.field, &q.field [, size]) { return false }
 static Node*
 eqmem(Node *p, Node *q, Node *field, vlong size)
 {
 	Node *nif, *nx, *ny, *call, *r;
+	int needsize;
 
 	nx = nod(OADDR, nod(OXDOT, p, field), N);
 	nx->etype = 1;  // does not escape
@@ -2918,10 +2929,11 @@ eqmem(Node *p, Node *q, Node *field, vlong size)
 	typecheck(&nx, Erv);
 	typecheck(&ny, Erv);
 
-	call = nod(OCALL, eqmemfunc(size, nx->type->type), N);
+	call = nod(OCALL, eqmemfunc(size, nx->type->type, &needsize), N);
 	call->list = list(call->list, nx);
 	call->list = list(call->list, ny);
-	call->list = list(call->list, nodintconst(size));
+	if(needsize)
+		call->list = list(call->list, nodintconst(size));
 
 	nif = nod(OIF, N, N);
 	nif->ninit = list(nif->ninit, call);
@@ -2951,7 +2963,7 @@ geneq(Sym *sym, Type *t)
 	dclcontext = PEXTERN;
 	markdcl();
 
-	// func sym(p, q *T, s uintptr) bool
+	// func sym(p, q *T) bool
 	fn = nod(ODCLFUNC, N, N);
 	fn->nname = newname(sym);
 	fn->nname->class = PFUNC;
@@ -2964,8 +2976,6 @@ geneq(Sym *sym, Type *t)
 	n = nod(ODCLFIELD, newname(lookup("q")), typenod(ptrto(t)));
 	tfn->list = list(tfn->list, n);
 	nq = n->left;
-	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
-	tfn->list = list(tfn->list, n);
 	n = nod(ODCLFIELD, N, typenod(types[TBOOL]));
 	tfn->rlist = list(tfn->rlist, n);
 

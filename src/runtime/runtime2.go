@@ -503,7 +503,7 @@ func extendRandom(r []byte, n int) {
 		if w > 16 {
 			w = 16
 		}
-		h := memhash(unsafe.Pointer(&r[n-w]), uintptr(w), uintptr(nanotime()))
+		h := memhash(unsafe.Pointer(&r[n-w]), uintptr(nanotime()), uintptr(w))
 		for i := 0; i < ptrSize && n < len(r); i++ {
 			r[n] = byte(h)
 			n++
