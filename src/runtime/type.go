@@ -47,7 +47,6 @@ type uncommontype struct {
 	name    *string
 	pkgpath *string
 	mhdr    []method
-	m       [0]method
 }
 
 type imethod struct {
@@ -59,7 +58,6 @@ type imethod struct {
 type interfacetype struct {
 	typ  _type
 	mhdr []imethod
-	m    [0]imethod
 }
 
 type maptype struct {

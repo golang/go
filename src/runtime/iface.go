@@ -35,8 +35,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		if canfail {
 			return nil
 		}
-		i := (*imethod)(add(unsafe.Pointer(inter), unsafe.Sizeof(interfacetype{})))
-		panic(&TypeAssertionError{"", *typ._string, *inter.typ._string, *i.name})
+		panic(&TypeAssertionError{"", *typ._string, *inter.typ._string, *inter.mhdr[0].name})
 	}
 
 	// compiler has provided some good hash codes for us.
@@ -76,7 +75,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		}
 	}
 
-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr))*ptrSize, 0, &memstats.other_sys))
+	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*ptrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
 
@@ -89,15 +88,15 @@ search:
 	nt := len(x.mhdr)
 	j := 0
 	for k := 0; k < ni; k++ {
-		i := (*imethod)(add(unsafe.Pointer(inter), unsafe.Sizeof(interfacetype{})+uintptr(k)*unsafe.Sizeof(imethod{})))
+		i := &inter.mhdr[k]
 		iname := i.name
 		ipkgpath := i.pkgpath
 		itype := i._type
 		for ; j < nt; j++ {
-			t := (*method)(add(unsafe.Pointer(x), unsafe.Sizeof(uncommontype{})+uintptr(j)*unsafe.Sizeof(method{})))
+			t := &x.mhdr[j]
 			if t.mtyp == itype && t.name == iname && t.pkgpath == ipkgpath {
 				if m != nil {
-					*(*unsafe.Pointer)(add(unsafe.Pointer(m), unsafe.Sizeof(itab{})+uintptr(k)*ptrSize)) = t.ifn
+					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*ptrSize)) = t.ifn
 				}
 				goto nextimethod
 			}
