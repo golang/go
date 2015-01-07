@@ -1527,9 +1527,10 @@ func isReflexive(t *rtype) bool {
 
 // gcProg is a helper type for generatation of GC pointer info.
 type gcProg struct {
-	gc     []byte
-	size   uintptr // size of type in bytes
-	hasPtr bool
+	gc       []byte
+	size     uintptr // size of type in bytes
+	hasPtr   bool
+	lastZero uintptr // largest offset of a zero-byte field
 }
 
 func (gc *gcProg) append(v byte) {
@@ -1542,6 +1543,9 @@ func (gc *gcProg) appendProg(t *rtype) {
 	gc.align(uintptr(t.align))
 	if !t.pointers() {
 		gc.size += t.size
+		if t.size == 0 {
+			gc.lastZero = gc.size
+		}
 		return
 	}
 	switch t.Kind() {
@@ -1566,11 +1570,15 @@ func (gc *gcProg) appendProg(t *rtype) {
 		gc.appendWord(bitsPointer)
 		gc.appendWord(bitsPointer)
 	case Struct:
+		oldsize := gc.size
 		c := t.NumField()
 		for i := 0; i < c; i++ {
 			gc.appendProg(t.Field(i).Type.common())
 		}
-		gc.align(uintptr(t.align))
+		if gc.size > oldsize + t.size {
+			panic("reflect: struct components are larger than the struct itself")
+		}
+		gc.size = oldsize + t.size
 	}
 }
 
@@ -1594,6 +1602,9 @@ func (gc *gcProg) appendWord(v byte) {
 func (gc *gcProg) finalize() (unsafe.Pointer, bool) {
 	if gc.size == 0 {
 		return nil, false
+	}
+	if gc.lastZero == gc.size {
+		gc.size++
 	}
 	ptrsize := unsafe.Sizeof(uintptr(0))
 	gc.align(ptrsize)
