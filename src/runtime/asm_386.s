@@ -451,7 +451,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-13
 	MOVL	new+8(FP), CX
 	LOCK
 	CMPXCHGL	CX, 0(BX)
-	SETEQ	, ret+12(FP)
+	SETEQ	ret+12(FP)
 	RET
 
 TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
@@ -482,7 +482,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-21
 	MOVL	new_hi+16(FP), CX
 	LOCK
 	CMPXCHG8B	0(BP)
-	SETEQ	, ret+20(FP)
+	SETEQ	ret+20(FP)
 	RET
 
 // bool casp(void **p, void *old, void *new)
@@ -498,7 +498,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-13
 	MOVL	new+8(FP), CX
 	LOCK
 	CMPXCHGL	CX, 0(BX)
-	SETEQ	, ret+12(FP)
+	SETEQ	ret+12(FP)
 	RET
 
 // uint32 xadd(uint32 volatile *val, int32 delta)
