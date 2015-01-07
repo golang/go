@@ -289,6 +289,86 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// host subcomponent; IPv4 address in RFC 3986
+	{
+		"http://192.168.0.1/",
+		&URL{
+			Scheme: "http",
+			Host:   "192.168.0.1",
+			Path:   "/",
+		},
+		"",
+	},
+	// host and port subcomponents; IPv4 address in RFC 3986
+	{
+		"http://192.168.0.1:8080/",
+		&URL{
+			Scheme: "http",
+			Host:   "192.168.0.1:8080",
+			Path:   "/",
+		},
+		"",
+	},
+	// host subcomponent; IPv6 address in RFC 3986
+	{
+		"http://[fe80::1]/",
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1]",
+			Path:   "/",
+		},
+		"",
+	},
+	// host and port subcomponents; IPv6 address in RFC 3986
+	{
+		"http://[fe80::1]:8080/",
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1]:8080",
+			Path:   "/",
+		},
+		"",
+	},
+	// host subcomponent; IPv6 address with zone identifier in RFC 6847
+	{
+		"http://[fe80::1%25en0]/", // alphanum zone identifier
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1%en0]",
+			Path:   "/",
+		},
+		"",
+	},
+	// host and port subcomponents; IPv6 address with zone identifier in RFC 6847
+	{
+		"http://[fe80::1%25en0]:8080/", // alphanum zone identifier
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1%en0]:8080",
+			Path:   "/",
+		},
+		"",
+	},
+	// host subcomponent; IPv6 address with zone identifier in RFC 6847
+	{
+		"http://[fe80::1%25%65%6e%301-._~]/", // percent-encoded+unreserved zone identifier
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1%en01-._~]",
+			Path:   "/",
+		},
+		"http://[fe80::1%25en01-._~]/",
+	},
+	// host and port subcomponents; IPv6 address with zone identifier in RFC 6847
+	{
+		"http://[fe80::1%25%65%6e%301-._~]:8080/", // percent-encoded+unreserved zone identifier
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1%en01-._~]:8080",
+			Path:   "/",
+		},
+		"http://[fe80::1%25en01-._~]:8080/",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -358,9 +438,33 @@ var parseRequestURLTests = []struct {
 	{"/", true},
 	{pathThatLooksSchemeRelative, true},
 	{"//not.a.user@%66%6f%6f.com/just/a/path/also", true},
+	{"*", true},
+	{"http://192.168.0.1/", true},
+	{"http://192.168.0.1:8080/", true},
+	{"http://[fe80::1]/", true},
+	{"http://[fe80::1]:8080/", true},
+
+	// Tests exercising RFC 6874 compliance:
+	{"http://[fe80::1%25en0]/", true},                 // with alphanum zone identifier
+	{"http://[fe80::1%25en0]:8080/", true},            // with alphanum zone identifier
+	{"http://[fe80::1%25%65%6e%301-._~]/", true},      // with percent-encoded+unreserved zone identifier
+	{"http://[fe80::1%25%65%6e%301-._~]:8080/", true}, // with percent-encoded+unreserved zone identifier
+
 	{"foo.html", false},
 	{"../dir/", false},
-	{"*", true},
+	{"http://192.168.0.%31/", false},
+	{"http://192.168.0.%31:8080/", false},
+	{"http://[fe80::%31]/", false},
+	{"http://[fe80::%31]:8080/", false},
+	{"http://[fe80::%31%25en0]/", false},
+	{"http://[fe80::%31%25en0]:8080/", false},
+
+	// These two cases are valid as textual representations as
+	// described in RFC 4007, but are not valid as address
+	// literals with IPv6 zone identifiers in URIs as described in
+	// RFC 6874.
+	{"http://[fe80::1%en0]/", false},
+	{"http://[fe80::1%en0]:8080/", false},
 }
 
 func TestParseRequestURI(t *testing.T) {
