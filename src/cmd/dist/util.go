@@ -2,722 +2,375 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// These #ifdefs are being used as a substitute for
-// build configuration, so that on any system, this
-// tool can be built with the local equivalent of
-//	cc *.c
-//
-#ifndef WIN32
-#ifndef PLAN9
+package main
 
-#include "a.h"
-#include <unistd.h>
-#include <dirent.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <sys/param.h>
-#include <sys/utsname.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <setjmp.h>
-#include <signal.h>
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+)
 
-// bprintf replaces the buffer with the result of the printf formatting
-// and returns a pointer to the NUL-terminated buffer contents.
-char*
-bprintf(Buf *b, char *fmt, ...)
-{
-	va_list arg;
-	char buf[4096];
-	
-	breset(b);
-	va_start(arg, fmt);
-	vsnprintf(buf, sizeof buf, fmt, arg);
-	va_end(arg);
-	bwritestr(b, buf);
-	return bstr(b);
+// pathf is fmt.Sprintf for generating paths
+// (on windows it turns / into \ after the printf).
+func pathf(format string, args ...interface{}) string {
+	return filepath.Clean(fmt.Sprintf(format, args...))
 }
 
-// bpathf is the same as bprintf (on windows it turns / into \ after the printf).
-// It returns a pointer to the NUL-terminated buffer contents.
-char*
-bpathf(Buf *b, char *fmt, ...)
-{
-	va_list arg;
-	char buf[4096];
-	
-	breset(b);
-	va_start(arg, fmt);
-	vsnprintf(buf, sizeof buf, fmt, arg);
-	va_end(arg);
-	bwritestr(b, buf);
-	return bstr(b);
-}
-
-// bwritef is like bprintf but does not reset the buffer
-// and does not return the NUL-terminated string.
-void
-bwritef(Buf *b, char *fmt, ...)
-{
-	va_list arg;
-	char buf[4096];
-	
-	va_start(arg, fmt);
-	vsnprintf(buf, sizeof buf, fmt, arg);
-	va_end(arg);
-	bwritestr(b, buf);
-}
-
-// breadfrom appends to b all the data that can be read from fd.
-static void
-breadfrom(Buf *b, int fd)
-{
-	int n;
-
-	for(;;) {
-		bgrow(b, 4096);
-		n = read(fd, b->p+b->len, 4096);
-		if(n < 0)
-			fatal("read: %s", strerror(errno));
-		if(n == 0)
-			break;
-		b->len += n;
-	}
-}
-
-// xgetenv replaces b with the value of the named environment variable.
-void
-xgetenv(Buf *b, char *name)
-{
-	char *p;
-	
-	breset(b);
-	p = getenv(name);
-	if(p != NULL)
-		bwritestr(b, p);
-}
-
-static void genrun(Buf *b, char *dir, int mode, Vec *argv, int bg);
-
-// run runs the command named by cmd.
-// If b is not nil, run replaces b with the output of the command.
-// If dir is not nil, run runs the command in that directory.
-// If mode is CheckExit, run calls fatal if the command is not successful.
-void
-run(Buf *b, char *dir, int mode, char *cmd, ...)
-{
-	va_list arg;
-	Vec argv;
-	char *p;
-	
-	vinit(&argv);
-	vadd(&argv, cmd);
-	va_start(arg, cmd);
-	while((p = va_arg(arg, char*)) != nil)
-		vadd(&argv, p);
-	va_end(arg);
-	
-	runv(b, dir, mode, &argv);
-	
-	vfree(&argv);
-}
-
-// runv is like run but takes a vector.
-void
-runv(Buf *b, char *dir, int mode, Vec *argv)
-{
-	genrun(b, dir, mode, argv, 1);
-}
-
-// bgrunv is like run but runs the command in the background.
-// bgwait waits for pending bgrunv to finish.
-void
-bgrunv(char *dir, int mode, Vec *argv)
-{
-	genrun(nil, dir, mode, argv, 0);
-}
-
-#define MAXBG 4 /* maximum number of jobs to run at once */
-
-static struct {
-	int pid;
-	int mode;
-	char *cmd;
-	Buf *b;
-} bg[MAXBG];
-static int nbg;
-static int maxnbg = nelem(bg);
-
-static void bgwait1(void);
-
-// genrun is the generic run implementation.
-static void
-genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
-{
-	int i, p[2], pid;
-	Buf cmd;
-	char *q;
-
-	while(nbg >= maxnbg)
-		bgwait1();
-
-	// Generate a copy of the command to show in a log.
-	// Substitute $WORK for the work directory.
-	binit(&cmd);
-	for(i=0; i<argv->len; i++) {
-		if(i > 0)
-			bwritestr(&cmd, " ");
-		q = argv->p[i];
-		if(workdir != nil && hasprefix(q, workdir)) {
-			bwritestr(&cmd, "$WORK");
-			q += strlen(workdir);
+// filter returns a slice containing the elements x from list for which f(x) == true.
+func filter(list []string, f func(string) bool) []string {
+	var out []string
+	for _, x := range list {
+		if f(x) {
+			out = append(out, x)
 		}
-		bwritestr(&cmd, q);
 	}
-	if(vflag > 1)
-		errprintf("%s\n", bstr(&cmd));
+	return out
+}
 
-	if(b != nil) {
-		breset(b);
-		if(pipe(p) < 0)
-			fatal("pipe: %s", strerror(errno));
-	}
-
-	switch(pid = fork()) {
-	case -1:
-		fatal("fork: %s", strerror(errno));
-	case 0:
-		if(b != nil) {
-			close(0);
-			close(p[0]);
-			dup2(p[1], 1);
-			dup2(p[1], 2);
-			if(p[1] > 2)
-				close(p[1]);
+// uniq returns a sorted slice containing the unique elements of list.
+func uniq(list []string) []string {
+	out := make([]string, len(list))
+	copy(out, list)
+	sort.Strings(out)
+	keep := out[:0]
+	for _, x := range out {
+		if len(keep) == 0 || keep[len(keep)-1] != x {
+			keep = append(keep, x)
 		}
-		if(dir != nil) {
-			if(chdir(dir) < 0) {
-				fprintf(stderr, "chdir %s: %s\n", dir, strerror(errno));
-				_exit(1);
-			}
+	}
+	return keep
+}
+
+// splitlines returns a slice with the result of splitting
+// the input p after each \n.
+func splitlines(p string) []string {
+	return strings.SplitAfter(p, "\n")
+}
+
+// splitfields replaces the vector v with the result of splitting
+// the input p into non-empty fields containing no spaces.
+func splitfields(p string) []string {
+	return strings.Fields(p)
+}
+
+const (
+	CheckExit = 1 << iota
+	ShowOutput
+	Background
+)
+
+var outputLock sync.Mutex
+
+// run runs the command line cmd in dir.
+// If mode has ShowOutput set, run collects cmd's output and returns it as a string;
+// otherwise, run prints cmd's output to standard output after the command finishes.
+// If mode has CheckExit set and the command fails, run calls fatal.
+// If mode has Background set, this command is being run as a
+// Background job. Only bgrun should use the Background mode,
+// not other callers.
+func run(dir string, mode int, cmd ...string) string {
+	if vflag > 1 {
+		errprintf("run: %s\n", strings.Join(cmd, " "))
+	}
+
+	xcmd := exec.Command(cmd[0], cmd[1:]...)
+	xcmd.Dir = dir
+	var err error
+	data, err := xcmd.CombinedOutput()
+	if err != nil && mode&CheckExit != 0 {
+		outputLock.Lock()
+		if len(data) > 0 {
+			xprintf("%s\n", data)
 		}
-		vadd(argv, nil);
-		execvp(argv->p[0], argv->p);
-		fprintf(stderr, "%s\n", bstr(&cmd));
-		fprintf(stderr, "exec %s: %s\n", argv->p[0], strerror(errno));
-		_exit(1);
+		outputLock.Unlock()
+		atomic.AddInt32(&ndone, +1)
+		die := func() {
+			time.Sleep(100 * time.Millisecond)
+			fatal("FAILED: %v", strings.Join(cmd, " "))
+		}
+		if mode&Background != 0 {
+			// This is a background run, and fatal will
+			// wait for it to finish before exiting.
+			// If we call fatal directly, that's a deadlock.
+			// Instead, call fatal in a background goroutine
+			// and let this run return normally, so that
+			// fatal can wait for it to finish.
+			go die()
+		} else {
+			die()
+		}
 	}
-	if(b != nil) {
-		close(p[1]);
-		breadfrom(b, p[0]);
-		close(p[0]);
+	if mode&ShowOutput != 0 {
+		os.Stdout.Write(data)
 	}
-
-	if(nbg < 0)
-		fatal("bad bookkeeping");
-	bg[nbg].pid = pid;
-	bg[nbg].mode = mode;
-	bg[nbg].cmd = btake(&cmd);
-	bg[nbg].b = b;
-	nbg++;
-	
-	if(wait)
-		bgwait();
-
-	bfree(&cmd);
+	return string(data)
 }
 
-// bgwait1 waits for a single background job.
-static void
-bgwait1(void)
-{
-	int i, pid, status, mode;
-	char *cmd;
-	Buf *b;
+var maxbg = 4 /* maximum number of jobs to run at once */
 
-	errno = 0;
-	while((pid = wait(&status)) < 0) {
-		if(errno != EINTR)
-			fatal("waitpid: %s", strerror(errno));
+var (
+	bgwork = make(chan func())
+	bgdone = make(chan struct{}, 1e6)
+	nwork  int32
+	ndone  int32
+)
+
+func bginit() {
+	for i := 0; i < maxbg; i++ {
+		go bghelper()
 	}
-	for(i=0; i<nbg; i++)
-		if(bg[i].pid == pid)
-			goto ok;
-	fatal("waitpid: unexpected pid");
+}
 
-ok:
-	cmd = bg[i].cmd;
-	mode = bg[i].mode;
-	bg[i].pid = 0;
-	b = bg[i].b;
-	bg[i].b = nil;
-	bg[i] = bg[--nbg];
-	
-	if(mode == CheckExit && (!WIFEXITED(status) || WEXITSTATUS(status) != 0)) {
-		if(b != nil)
-			xprintf("%s\n", bstr(b));
-		fatal("FAILED: %s", cmd);
+func bghelper() {
+	for {
+		(<-bgwork)()
 	}
-	xfree(cmd);
 }
 
-// bgwait waits for all the background jobs.
-void
-bgwait(void)
-{
-	while(nbg > 0)
-		bgwait1();
+// bgrun is like run but runs the command in the background.
+// CheckExit|ShowOutput mode is implied (since output cannot be returned).
+func bgrun(dir string, cmd ...string) {
+	bgwork <- func() {
+		run(dir, CheckExit|ShowOutput|Background, cmd...)
+	}
 }
 
-// xgetwd replaces b with the current directory.
-void
-xgetwd(Buf *b)
-{
-	char buf[MAXPATHLEN];
-	
-	breset(b);
-	if(getcwd(buf, MAXPATHLEN) == nil)
-		fatal("getcwd: %s", strerror(errno));
-	bwritestr(b, buf);	
+// bgwait waits for pending bgruns to finish.
+func bgwait() {
+	var wg sync.WaitGroup
+	wg.Add(maxbg)
+	for i := 0; i < maxbg; i++ {
+		bgwork <- func() {
+			wg.Done()
+			wg.Wait()
+		}
+	}
+	wg.Wait()
 }
 
-// xrealwd replaces b with the 'real' name for the given path.
-// real is defined as what getcwd returns in that directory.
-void
-xrealwd(Buf *b, char *path)
-{
-	int fd;
-	
-	fd = open(".", 0);
-	if(fd < 0)
-		fatal("open .: %s", strerror(errno));
-	if(chdir(path) < 0)
-		fatal("chdir %s: %s", path, strerror(errno));
-	xgetwd(b);
-	if(fchdir(fd) < 0)
-		fatal("fchdir: %s", strerror(errno));
-	close(fd);
+// xgetwd returns the current directory.
+func xgetwd() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		fatal("%s", err)
+	}
+	return wd
+}
+
+// xrealwd returns the 'real' name for the given path.
+// real is defined as what xgetwd returns in that directory.
+func xrealwd(path string) string {
+	old := xgetwd()
+	if err := os.Chdir(path); err != nil {
+		fatal("chdir %s: %v", path, err)
+	}
+	real := xgetwd()
+	if err := os.Chdir(old); err != nil {
+		fatal("chdir %s: %v", old, err)
+	}
+	return real
 }
 
 // isdir reports whether p names an existing directory.
-bool
-isdir(char *p)
-{
-	struct stat st;
-	
-	return stat(p, &st) >= 0 && S_ISDIR(st.st_mode);
+func isdir(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.IsDir()
 }
 
 // isfile reports whether p names an existing file.
-bool
-isfile(char *p)
-{
-	struct stat st;
-	
-	return stat(p, &st) >= 0 && S_ISREG(st.st_mode);
+func isfile(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.Mode().IsRegular()
 }
 
 // mtime returns the modification time of the file p.
-Time
-mtime(char *p)
-{
-	struct stat st;
-	
-	if(stat(p, &st) < 0)
-		return 0;
-	return (Time)st.st_mtime*1000000000LL;
+func mtime(p string) time.Time {
+	fi, err := os.Stat(p)
+	if err != nil {
+		return time.Time{}
+	}
+	return fi.ModTime()
 }
 
 // isabs reports whether p is an absolute path.
-bool
-isabs(char *p)
-{
-	return hasprefix(p, "/");
+func isabs(p string) bool {
+	return filepath.IsAbs(p)
 }
 
-// readfile replaces b with the content of the named file.
-void
-readfile(Buf *b, char *file)
-{
-	int fd;
-	
-	breset(b);
-	fd = open(file, 0);
-	if(fd < 0)
-		fatal("open %s: %s", file, strerror(errno));
-	breadfrom(b, fd);
-	close(fd);
+// readfile returns the content of the named file.
+func readfile(file string) string {
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		fatal("%v", err)
+	}
+	return string(data)
 }
 
 // writefile writes b to the named file, creating it if needed.  if
 // exec is non-zero, marks the file as executable.
-void
-writefile(Buf *b, char *file, int exec)
-{
-	int fd;
-	
-	fd = creat(file, 0666);
-	if(fd < 0)
-		fatal("create %s: %s", file, strerror(errno));
-	if(write(fd, b->p, b->len) != b->len)
-		fatal("short write: %s", strerror(errno));
-	if(exec)
-		fchmod(fd, 0755);
-	close(fd);
+func writefile(b, file string, exec int) {
+	mode := os.FileMode(0666)
+	if exec != 0 {
+		mode = 0777
+	}
+	err := ioutil.WriteFile(file, []byte(b), mode)
+	if err != nil {
+		fatal("%v", err)
+	}
 }
 
 // xmkdir creates the directory p.
-void
-xmkdir(char *p)
-{
-	if(mkdir(p, 0777) < 0)
-		fatal("mkdir %s: %s", p, strerror(errno));
+func xmkdir(p string) {
+	err := os.Mkdir(p, 0777)
+	if err != nil {
+		fatal("%v", err)
+	}
 }
 
 // xmkdirall creates the directory p and its parents, as needed.
-void
-xmkdirall(char *p)
-{
-	char *q;
-
-	if(isdir(p))
-		return;
-	q = strrchr(p, '/');
-	if(q != nil) {
-		*q = '\0';
-		xmkdirall(p);
-		*q = '/';
+func xmkdirall(p string) {
+	err := os.MkdirAll(p, 0777)
+	if err != nil {
+		fatal("%v", err)
 	}
-	xmkdir(p);
 }
 
 // xremove removes the file p.
-void
-xremove(char *p)
-{
-	if(vflag > 2)
-		errprintf("rm %s\n", p);
-	unlink(p);
+func xremove(p string) {
+	if vflag > 2 {
+		errprintf("rm %s\n", p)
+	}
+	os.Remove(p)
 }
 
 // xremoveall removes the file or directory tree rooted at p.
-void
-xremoveall(char *p)
-{
-	int i;
-	Buf b;
-	Vec dir;
-
-	binit(&b);
-	vinit(&dir);
-
-	if(isdir(p)) {
-		xreaddir(&dir, p);
-		for(i=0; i<dir.len; i++) {
-			bprintf(&b, "%s/%s", p, dir.p[i]);
-			xremoveall(bstr(&b));
-		}
-		if(vflag > 2)
-			errprintf("rm %s\n", p);
-		rmdir(p);
-	} else {
-		if(vflag > 2)
-			errprintf("rm %s\n", p);
-		unlink(p);
+func xremoveall(p string) {
+	if vflag > 2 {
+		errprintf("rm -r %s\n", p)
 	}
-	
-	bfree(&b);
-	vfree(&dir);
+	os.RemoveAll(p)
 }
 
 // xreaddir replaces dst with a list of the names of the files in dir.
 // The names are relative to dir; they are not full paths.
-void
-xreaddir(Vec *dst, char *dir)
-{
-	DIR *d;
-	struct dirent *dp;
-
-	vreset(dst);
-	d = opendir(dir);
-	if(d == nil)
-		fatal("opendir %s: %s", dir, strerror(errno));
-	while((dp = readdir(d)) != nil) {
-		if(streq(dp->d_name, ".") || streq(dp->d_name, ".."))
-			continue;
-		vadd(dst, dp->d_name);
+func xreaddir(dir string) []string {
+	f, err := os.Open(dir)
+	if err != nil {
+		fatal("%v", err)
 	}
-	closedir(d);
+	defer f.Close()
+	names, err := f.Readdirnames(-1)
+	if err != nil {
+		fatal("reading %s: %v", dir, err)
+	}
+	return names
 }
 
 // xworkdir creates a new temporary directory to hold object files
 // and returns the name of that directory.
-char*
-xworkdir(void)
-{
-	Buf b;
-	char *p;
-
-	binit(&b);
-
-	xgetenv(&b, "TMPDIR");
-	if(b.len == 0)
-		bwritestr(&b, "/var/tmp");
-	if(b.p[b.len-1] != '/')
-		bwrite(&b, "/", 1);
-	bwritestr(&b, "go-cbuild-XXXXXX");
-	p = bstr(&b);
-	if(mkdtemp(p) == nil)
-		fatal("mkdtemp(%s): %s", p, strerror(errno));
-	p = btake(&b);
-
-	bfree(&b);
-
-	return p;
+func xworkdir() string {
+	name, err := ioutil.TempDir("", "go-tool-dist-")
+	if err != nil {
+		fatal("%v", err)
+	}
+	return name
 }
 
 // fatal prints an error message to standard error and exits.
-void
-fatal(char *msg, ...)
-{
-	va_list arg;
-	
-	fflush(stdout);
-	fprintf(stderr, "go tool dist: ");
-	va_start(arg, msg);
-	vfprintf(stderr, msg, arg);
-	va_end(arg);
-	fprintf(stderr, "\n");
-	
-	bgwait();
-	exit(1);
+func fatal(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, "go tool dist: %s\n", fmt.Sprintf(format, args...))
+	bgwait()
+	xexit(2)
 }
 
-// xmalloc returns a newly allocated zeroed block of n bytes of memory.
-// It calls fatal if it runs out of memory.
-void*
-xmalloc(int n)
-{
-	void *p;
-	
-	p = malloc(n);
-	if(p == nil)
-		fatal("out of memory");
-	memset(p, 0, n);
-	return p;
-}
-
-// xstrdup returns a newly allocated copy of p.
-// It calls fatal if it runs out of memory.
-char*
-xstrdup(char *p)
-{
-	p = strdup(p);
-	if(p == nil)
-		fatal("out of memory");
-	return p;
-}
-
-// xrealloc grows the allocation p to n bytes and
-// returns the new (possibly moved) pointer.
-// It calls fatal if it runs out of memory.
-void*
-xrealloc(void *p, int n)
-{
-	p = realloc(p, n);
-	if(p == nil)
-		fatal("out of memory");
-	return p;
-}
-
-// xfree frees the result returned by xmalloc, xstrdup, or xrealloc.
-void
-xfree(void *p)
-{
-	free(p);
-}
-
-// hassuffix reports whether p ends with suffix.
-bool
-hassuffix(char *p, char *suffix)
-{
-	int np, ns;
-
-	np = strlen(p);
-	ns = strlen(suffix);
-	return np >= ns && streq(p+np-ns, suffix);
-}
-
-// hasprefix reports whether p begins with prefix.
-bool
-hasprefix(char *p, char *prefix)
-{
-	return strncmp(p, prefix, strlen(prefix)) == 0;
-}
-
-// contains reports whether sep appears in p.
-bool
-contains(char *p, char *sep)
-{
-	return strstr(p, sep) != nil;
-}
-
-// streq reports whether p and q are the same string.
-bool
-streq(char *p, char *q)
-{
-	return strcmp(p, q) == 0;
-}
-
-// lastelem returns the final path element in p.
-char*
-lastelem(char *p)
-{
-	char *out;
-
-	out = p;
-	for(; *p; p++)
-		if(*p == '/')
-			out = p+1;
-	return out;
-}
-
-// xmemmove copies n bytes from src to dst.
-void
-xmemmove(void *dst, void *src, int n)
-{
-	memmove(dst, src, n);
-}
-
-// xmemcmp compares the n-byte regions starting at a and at b.
-int
-xmemcmp(void *a, void *b, int n)
-{
-	return memcmp(a, b, n);
-}
-
-// xstrlen returns the length of the NUL-terminated string at p.
-int
-xstrlen(char *p)
-{
-	return strlen(p);
-}
+var atexits []func()
 
 // xexit exits the process with return code n.
-void
-xexit(int n)
-{
-	exit(n);
+func xexit(n int) {
+	for i := len(atexits) - 1; i >= 0; i-- {
+		atexits[i]()
+	}
+	os.Exit(n)
 }
 
 // xatexit schedules the exit-handler f to be run when the program exits.
-void
-xatexit(void (*f)(void))
-{
-	atexit(f);
+func xatexit(f func()) {
+	atexits = append(atexits, f)
 }
 
 // xprintf prints a message to standard output.
-void
-xprintf(char *fmt, ...)
-{
-	va_list arg;
-	
-	va_start(arg, fmt);
-	vprintf(fmt, arg);
-	va_end(arg);
+func xprintf(format string, args ...interface{}) {
+	fmt.Printf(format, args...)
 }
 
 // errprintf prints a message to standard output.
-void
-errprintf(char *fmt, ...)
-{
-	va_list arg;
-	
-	va_start(arg, fmt);
-	vfprintf(stderr, fmt, arg);
-	va_end(arg);
-}
-
-// xsetenv sets the environment variable $name to the given value.
-void
-xsetenv(char *name, char *value)
-{
-	setenv(name, value, 1);
+func errprintf(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, args...)
 }
 
 // main takes care of OS-specific startup and dispatches to xmain.
-int
-main(int argc, char **argv)
-{
-	Buf b;
-	int osx;
-	struct utsname u;
+func main() {
+	os.Setenv("TERM", "dumb") // disable escape codes in clang errors
 
-	setvbuf(stdout, nil, _IOLBF, 0);
-	setvbuf(stderr, nil, _IOLBF, 0);
+	slash = string(filepath.Separator)
 
-	setenv("TERM", "dumb", 1); // disable escape codes in clang errors
-
-	binit(&b);
-	
-	slash = "/";
-
-#if defined(__APPLE__)
-	gohostos = "darwin";
-	// Even on 64-bit platform, darwin uname -m prints i386.
-	run(&b, nil, 0, "sysctl", "machdep.cpu.extfeatures", nil);
-	if(contains(bstr(&b), "EM64T"))
-		gohostarch = "amd64";
-#elif defined(__linux__)
-	gohostos = "linux";
-#elif defined(__DragonFly__)
-	gohostos = "dragonfly";
-#elif defined(__FreeBSD__)
-	gohostos = "freebsd";
-#elif defined(__FreeBSD_kernel__)
-	// detect debian/kFreeBSD. 
-	// http://wiki.debian.org/Debian_GNU/kFreeBSD_FAQ#Q._How_do_I_detect_kfreebsd_with_preprocessor_directives_in_a_C_program.3F
-	gohostos = "freebsd";	
-#elif defined(__OpenBSD__)
-	gohostos = "openbsd";
-#elif defined(__NetBSD__)
-	gohostos = "netbsd";
-#elif defined(__sun) && defined(__SVR4)
-	gohostos = "solaris";
-	// Even on 64-bit platform, solaris uname -m prints i86pc.
-	run(&b, nil, 0, "isainfo", "-n", nil);
-	if(contains(bstr(&b), "amd64"))
-		gohostarch = "amd64";
-	if(contains(bstr(&b), "i386"))
-		gohostarch = "386";
-#else
-	fatal("unknown operating system");
-#endif
-
-	if(gohostarch == nil) {
-		if(uname(&u) < 0)
-			fatal("uname: %s", strerror(errno));
-		if(contains(u.machine, "x86_64") || contains(u.machine, "amd64"))
-			gohostarch = "amd64";
-		else if(hassuffix(u.machine, "86"))
-			gohostarch = "386";
-		else if(contains(u.machine, "arm"))
-			gohostarch = "arm";
-		else if(contains(u.machine, "ppc64le"))
-			gohostarch = "ppc64le";
-		else if(contains(u.machine, "ppc64"))
-			gohostarch = "ppc64";
-		else
-			fatal("unknown architecture: %s", u.machine);
+	gohostos = runtime.GOOS
+	switch gohostos {
+	case "darwin":
+		// Even on 64-bit platform, darwin uname -m prints i386.
+		if strings.Contains(run("", CheckExit, "sysctl", "machdep.cpu.extfeatures"), "EM64T") {
+			gohostarch = "amd64"
+		}
+	case "solaris":
+		// Even on 64-bit platform, solaris uname -m prints i86pc.
+		out := run("", CheckExit, "isainfo", "-n")
+		if strings.Contains(out, "amd64") {
+			gohostarch = "amd64"
+		}
+		if strings.Contains(out, "i386") {
+			gohostarch = "386"
+		}
+	case "plan9":
+		gohostarch = os.Getenv("objtype")
+		if gohostarch == "" {
+			fatal("$objtype is unset")
+		}
 	}
 
-	if(streq(gohostarch, "arm"))
-		maxnbg = 1;
+	sysinit()
+
+	if gohostarch == "" {
+		// Default Unix system.
+		out := run("", CheckExit, "uname", "-m")
+		switch {
+		case strings.Contains(out, "x86_64"), strings.Contains(out, "amd64"):
+			gohostarch = "amd64"
+		case strings.Contains(out, "86"):
+			gohostarch = "386"
+		case strings.Contains(out, "arm"):
+			gohostarch = "arm"
+		case strings.Contains(out, "ppc64le"):
+			gohostarch = "ppc64le"
+		case strings.Contains(out, "ppc64"):
+			gohostarch = "ppc64"
+		default:
+			fatal("unknown architecture: %s", out)
+		}
+	}
+
+	if gohostarch == "arm" {
+		maxbg = 1
+	}
+	bginit()
 
 	// The OS X 10.6 linker does not support external linking mode.
 	// See golang.org/issue/5130.
@@ -728,120 +381,77 @@ main(int argc, char **argv)
 	//
 	// Roughly, OS X 10.N shows up as uname release (N+4),
 	// so OS X 10.6 is uname version 10 and OS X 10.8 is uname version 12.
-	if(streq(gohostos, "darwin")) {
-		if(uname(&u) < 0)
-			fatal("uname: %s", strerror(errno));
-		osx = atoi(u.release) - 4;
-		if(osx <= 6)
-			goextlinkenabled = "0";
-		if(osx >= 8)
-			defaultclang = 1;
+	if gohostos == "darwin" {
+		rel := run("", CheckExit, "uname", "-r")
+		if i := strings.Index(rel, "."); i >= 0 {
+			rel = rel[:i]
+		}
+		osx, _ := strconv.Atoi(rel)
+		if osx <= 6+4 {
+			goextlinkenabled = "0"
+		}
+		if osx >= 8+4 {
+			defaultclang = true
+		}
 	}
 
-	init();
-	xmain(argc, argv);
-	bfree(&b);
-	return 0;
-}
-
-// xqsort is a wrapper for the C standard qsort.
-void
-xqsort(void *data, int n, int elemsize, int (*cmp)(const void*, const void*))
-{
-	qsort(data, n, elemsize, cmp);
-}
-
-// xstrcmp compares the NUL-terminated strings a and b.
-int
-xstrcmp(char *a, char *b)
-{
-	return strcmp(a, b);
-}
-
-// xstrstr returns a pointer to the first occurrence of b in a.
-char*
-xstrstr(char *a, char *b)
-{
-	return strstr(a, b);
-}
-
-// xstrrchr returns a pointer to the final occurrence of c in p.
-char*
-xstrrchr(char *p, int c)
-{
-	return strrchr(p, c);
+	xinit()
+	xmain()
 }
 
 // xsamefile reports whether f1 and f2 are the same file (or dir)
-int
-xsamefile(char *f1, char *f2)
-{
-	return streq(f1, f2); // suffice for now
-}
-
-sigjmp_buf sigill_jmpbuf;
-static void sigillhand(int);
-
-// xtryexecfunc tries to execute function f, if any illegal instruction
-// signal received in the course of executing that function, it will
-// return 0, otherwise it will return 1.
-// Some systems (notably NetBSD) will spin and spin when executing VFPv3
-// instructions on VFPv2 system (e.g. Raspberry Pi) without ever triggering
-// SIGILL, so we set a 1-second alarm to catch that case.
-int
-xtryexecfunc(void (*f)(void))
-{
-	int r;
-	r = 0;
-	signal(SIGILL, sigillhand);
-	signal(SIGALRM, sigillhand);
-	alarm(1);
-	if(sigsetjmp(sigill_jmpbuf, 1) == 0) {
-		f();
-		r = 1;
+func xsamefile(f1, f2 string) bool {
+	fi1, err1 := os.Stat(f1)
+	fi2, err2 := os.Stat(f2)
+	if err1 != nil || err2 != nil {
+		return f1 == f2
 	}
-	signal(SIGILL, SIG_DFL);
-	alarm(0);
-	signal(SIGALRM, SIG_DFL);
-	return r;
+	return os.SameFile(fi1, fi2)
 }
 
-// SIGILL handler helper
-static void
-sigillhand(int signum)
-{
-	USED(signum);
-	siglongjmp(sigill_jmpbuf, 1);
+func cpuid(info *[4]uint32, ax uint32)
+
+func cansse2() bool {
+	if gohostarch != "386" && gohostarch != "amd64" {
+		return false
+	}
+
+	var info [4]uint32
+	cpuid(&info, 1)
+	return info[3]&(1<<26) != 0 // SSE2
 }
 
-static void
-__cpuid(int dst[4], int ax)
-{
-#ifdef __i386__
-	// we need to avoid ebx on i386 (esp. when -fPIC).
-	asm volatile(
-		"mov %%ebx, %%edi\n\t"
-		"cpuid\n\t"
-		"xchgl %%ebx, %%edi"
-		: "=a" (dst[0]), "=D" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
-		: "0" (ax));
-#elif defined(__x86_64__)
-	asm volatile("cpuid"
-		: "=a" (dst[0]), "=b" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
-		: "0" (ax));
-#else
-	dst[0] = dst[1] = dst[2] = dst[3] = 0;
-#endif
+func xgetgoarm() string {
+	if goos == "nacl" {
+		// NaCl guarantees VFPv3 and is always cross-compiled.
+		return "7"
+	}
+	if gohostarch != "arm" || goos != gohostos {
+		// Conservative default for cross-compilation.
+		return "5"
+	}
+	if goos == "freebsd" {
+		// FreeBSD has broken VFP support.
+		return "5"
+	}
+	if xtryexecfunc(useVFPv3) {
+		return "7"
+	}
+	if xtryexecfunc(useVFPv1) {
+		return "6"
+	}
+	return "5"
 }
 
-bool
-cansse2(void)
-{
-	int info[4];
-	
-	__cpuid(info, 1);
-	return (info[3] & (1<<26)) != 0;	// SSE2
+func xtryexecfunc(f func()) bool {
+	// TODO(rsc): Implement.
+	// The C cmd/dist used this to test whether certain assembly
+	// sequences could be executed properly. It used signals and
+	// timers and sigsetjmp, which is basically not possible in Go.
+	// We probably have to invoke ourselves as a subprocess instead,
+	// to contain the fault/timeout.
+	return false
 }
 
-#endif // PLAN9
-#endif // __WINDOWS__
+func useVFPv1()
+func useVFPv3()
