@@ -35,3 +35,9 @@ func issue8799b(x int, ok bool) {
 	_ = !ok
 	_ = x
 }
+
+func issue9182() {
+	type Point C /* ERROR undeclared */ .Point
+	// no error for composite literal based on unknown type
+	_ = Point{x: 1, y: 2}
+}

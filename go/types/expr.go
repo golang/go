@@ -1126,8 +1126,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			}
 
 		default:
-			check.errorf(e.Pos(), "invalid composite literal type %s", typ)
-			goto Error
+			// if utyp is invalid, an error was reported before
+			if utyp != Typ[Invalid] {
+				check.errorf(e.Pos(), "invalid composite literal type %s", typ)
+				goto Error
+			}
 		}
 
 		x.mode = value
