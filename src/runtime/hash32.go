@@ -20,9 +20,9 @@ const (
 	m4 = 2336365089
 )
 
-func memhash(p unsafe.Pointer, s, seed uintptr) uintptr {
+func memhash(p unsafe.Pointer, seed, s uintptr) uintptr {
 	if GOARCH == "386" && GOOS != "nacl" && useAeshash {
-		return aeshash(p, s, seed)
+		return aeshash(p, seed, s)
 	}
 	h := uint32(seed + s*hashkey[0])
 tail:

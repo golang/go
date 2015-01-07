@@ -20,9 +20,9 @@ const (
 	m4 = 15839092249703872147
 )
 
-func memhash(p unsafe.Pointer, s, seed uintptr) uintptr {
+func memhash(p unsafe.Pointer, seed, s uintptr) uintptr {
 	if GOARCH == "amd64" && GOOS != "nacl" && useAeshash {
-		return aeshash(p, s, seed)
+		return aeshash(p, seed, s)
 	}
 	h := uint64(seed + s*hashkey[0])
 tail:

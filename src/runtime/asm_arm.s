@@ -750,6 +750,23 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
+// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+// redirects to memhash(p, h, size) using the size
+// stored in the closure.
+TEXT runtime·memhash_varlen(SB),NOSPLIT,$16-12
+	GO_ARGS
+	NO_LOCAL_POINTERS
+	MOVW	p+0(FP), R0
+	MOVW	h+4(FP), R1
+	MOVW	4(R7), R2
+	MOVW	R0, 4(R13)
+	MOVW	R1, 8(R13)
+	MOVW	R2, 12(R13)
+	BL	runtime·memhash(SB)
+	MOVW	16(R13), R0
+	MOVW	R0, ret+8(FP)
+	RET
+
 TEXT runtime·memeq(SB),NOSPLIT,$-4-13
 	MOVW	a+0(FP), R1
 	MOVW	b+4(FP), R2
@@ -767,6 +784,25 @@ loop:
 
 	MOVW	$0, R0
 	MOVB	R0, ret+12(FP)
+	RET
+
+// memequal_varlen(a, b unsafe.Pointer) bool
+TEXT runtime·memequal_varlen(SB),NOSPLIT,$16-9
+	MOVW	a+0(FP), R0
+	MOVW	b+4(FP), R1
+	CMP	R0, R1
+	BEQ	eq
+	MOVW	4(R7), R2    // compiler stores size at offset 4 in the closure
+	MOVW	R0, 4(R13)
+	MOVW	R1, 8(R13)
+	MOVW	R2, 12(R13)
+	BL	runtime·memeq(SB)
+	MOVB	16(R13), R0
+	MOVB	R0, ret+8(FP)
+	RET
+eq:
+	MOVW	$1, R0
+	MOVB	R0, ret+8(FP)
 	RET
 
 // eqstring tests whether two strings are equal.

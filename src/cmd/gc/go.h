@@ -384,6 +384,7 @@ enum
 	SymUniq		= 1<<3,
 	SymSiggen	= 1<<4,
 	SymAsm		= 1<<5,
+	SymAlgGen	= 1<<6,
 };
 
 struct	Sym

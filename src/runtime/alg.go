@@ -40,21 +40,45 @@ const (
 
 type typeAlg struct {
 	// function for hashing objects of this type
-	// (ptr to object, size, seed) -> hash
-	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
+	// (ptr to object, seed) -> hash
+	hash func(unsafe.Pointer, uintptr) uintptr
 	// function for comparing objects of this type
-	// (ptr to object A, ptr to object B, size) -> ==?
-	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
+	// (ptr to object A, ptr to object B) -> ==?
+	equal func(unsafe.Pointer, unsafe.Pointer) bool
 }
 
+func memhash0(p unsafe.Pointer, h uintptr) uintptr {
+	return h
+}
+func memhash8(p unsafe.Pointer, h uintptr) uintptr {
+	return memhash(p, h, 1)
+}
+func memhash16(p unsafe.Pointer, h uintptr) uintptr {
+	return memhash(p, h, 2)
+}
+func memhash32(p unsafe.Pointer, h uintptr) uintptr {
+	return memhash(p, h, 4)
+}
+func memhash64(p unsafe.Pointer, h uintptr) uintptr {
+	return memhash(p, h, 8)
+}
+func memhash128(p unsafe.Pointer, h uintptr) uintptr {
+	return memhash(p, h, 16)
+}
+
+// memhash_varlen is defined in assembly because it needs access
+// to the closure.  It appears here to provide an argument
+// signature for the assembly routine.
+func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr
+
 var algarray = [alg_max]typeAlg{
-	alg_MEM:      {memhash, memequal},
-	alg_MEM0:     {memhash, memequal0},
-	alg_MEM8:     {memhash, memequal8},
-	alg_MEM16:    {memhash, memequal16},
-	alg_MEM32:    {memhash, memequal32},
-	alg_MEM64:    {memhash, memequal64},
-	alg_MEM128:   {memhash, memequal128},
+	alg_MEM:      {nil, nil}, // not used
+	alg_MEM0:     {memhash0, memequal0},
+	alg_MEM8:     {memhash8, memequal8},
+	alg_MEM16:    {memhash16, memequal16},
+	alg_MEM32:    {memhash32, memequal32},
+	alg_MEM64:    {memhash64, memequal64},
+	alg_MEM128:   {memhash128, memequal128},
 	alg_NOEQ:     {nil, nil},
 	alg_NOEQ0:    {nil, nil},
 	alg_NOEQ8:    {nil, nil},
@@ -75,14 +99,14 @@ var algarray = [alg_max]typeAlg{
 var useAeshash bool
 
 // in asm_*.s
-func aeshash(p unsafe.Pointer, s, h uintptr) uintptr
-func aeshash32(p unsafe.Pointer, s, h uintptr) uintptr
-func aeshash64(p unsafe.Pointer, s, h uintptr) uintptr
-func aeshashstr(p unsafe.Pointer, s, h uintptr) uintptr
+func aeshash(p unsafe.Pointer, h, s uintptr) uintptr
+func aeshash32(p unsafe.Pointer, h uintptr) uintptr
+func aeshash64(p unsafe.Pointer, h uintptr) uintptr
+func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
 
-func strhash(a unsafe.Pointer, s, h uintptr) uintptr {
+func strhash(a unsafe.Pointer, h uintptr) uintptr {
 	x := (*stringStruct)(a)
-	return memhash(x.str, uintptr(x.len), h)
+	return memhash(x.str, h, uintptr(x.len))
 }
 
 // NOTE: Because NaN != NaN, a map can contain any
@@ -90,7 +114,7 @@ func strhash(a unsafe.Pointer, s, h uintptr) uintptr {
 // To avoid long hash chains, we assign a random number
 // as the hash value for a NaN.
 
-func f32hash(p unsafe.Pointer, s, h uintptr) uintptr {
+func f32hash(p unsafe.Pointer, h uintptr) uintptr {
 	f := *(*float32)(p)
 	switch {
 	case f == 0:
@@ -98,11 +122,11 @@ func f32hash(p unsafe.Pointer, s, h uintptr) uintptr {
 	case f != f:
 		return c1 * (c0 ^ h ^ uintptr(fastrand1())) // any kind of NaN
 	default:
-		return memhash(p, 4, h)
+		return memhash(p, h, 4)
 	}
 }
 
-func f64hash(p unsafe.Pointer, s, h uintptr) uintptr {
+func f64hash(p unsafe.Pointer, h uintptr) uintptr {
 	f := *(*float64)(p)
 	switch {
 	case f == 0:
@@ -110,21 +134,21 @@ func f64hash(p unsafe.Pointer, s, h uintptr) uintptr {
 	case f != f:
 		return c1 * (c0 ^ h ^ uintptr(fastrand1())) // any kind of NaN
 	default:
-		return memhash(p, 8, h)
+		return memhash(p, h, 8)
 	}
 }
 
-func c64hash(p unsafe.Pointer, s, h uintptr) uintptr {
+func c64hash(p unsafe.Pointer, h uintptr) uintptr {
 	x := (*[2]float32)(p)
-	return f32hash(unsafe.Pointer(&x[1]), 4, f32hash(unsafe.Pointer(&x[0]), 4, h))
+	return f32hash(unsafe.Pointer(&x[1]), f32hash(unsafe.Pointer(&x[0]), h))
 }
 
-func c128hash(p unsafe.Pointer, s, h uintptr) uintptr {
+func c128hash(p unsafe.Pointer, h uintptr) uintptr {
 	x := (*[2]float64)(p)
-	return f64hash(unsafe.Pointer(&x[1]), 8, f64hash(unsafe.Pointer(&x[0]), 8, h))
+	return f64hash(unsafe.Pointer(&x[1]), f64hash(unsafe.Pointer(&x[0]), h))
 }
 
-func interhash(p unsafe.Pointer, s, h uintptr) uintptr {
+func interhash(p unsafe.Pointer, h uintptr) uintptr {
 	a := (*iface)(p)
 	tab := a.tab
 	if tab == nil {
@@ -136,13 +160,13 @@ func interhash(p unsafe.Pointer, s, h uintptr) uintptr {
 		panic(errorString("hash of unhashable type " + *t._string))
 	}
 	if isDirectIface(t) {
-		return c1 * fn(unsafe.Pointer(&a.data), uintptr(t.size), h^c0)
+		return c1 * fn(unsafe.Pointer(&a.data), h^c0)
 	} else {
-		return c1 * fn(a.data, uintptr(t.size), h^c0)
+		return c1 * fn(a.data, h^c0)
 	}
 }
 
-func nilinterhash(p unsafe.Pointer, s, h uintptr) uintptr {
+func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 	a := (*eface)(p)
 	t := a._type
 	if t == nil {
@@ -153,9 +177,9 @@ func nilinterhash(p unsafe.Pointer, s, h uintptr) uintptr {
 		panic(errorString("hash of unhashable type " + *t._string))
 	}
 	if isDirectIface(t) {
-		return c1 * fn(unsafe.Pointer(&a.data), uintptr(t.size), h^c0)
+		return c1 * fn(unsafe.Pointer(&a.data), h^c0)
 	} else {
-		return c1 * fn(a.data, uintptr(t.size), h^c0)
+		return c1 * fn(a.data, h^c0)
 	}
 }
 
@@ -166,47 +190,47 @@ func memequal(p, q unsafe.Pointer, size uintptr) bool {
 	return memeq(p, q, size)
 }
 
-func memequal0(p, q unsafe.Pointer, size uintptr) bool {
+func memequal0(p, q unsafe.Pointer) bool {
 	return true
 }
-func memequal8(p, q unsafe.Pointer, size uintptr) bool {
+func memequal8(p, q unsafe.Pointer) bool {
 	return *(*int8)(p) == *(*int8)(q)
 }
-func memequal16(p, q unsafe.Pointer, size uintptr) bool {
+func memequal16(p, q unsafe.Pointer) bool {
 	return *(*int16)(p) == *(*int16)(q)
 }
-func memequal32(p, q unsafe.Pointer, size uintptr) bool {
+func memequal32(p, q unsafe.Pointer) bool {
 	return *(*int32)(p) == *(*int32)(q)
 }
-func memequal64(p, q unsafe.Pointer, size uintptr) bool {
+func memequal64(p, q unsafe.Pointer) bool {
 	return *(*int64)(p) == *(*int64)(q)
 }
-func memequal128(p, q unsafe.Pointer, size uintptr) bool {
+func memequal128(p, q unsafe.Pointer) bool {
 	return *(*[2]int64)(p) == *(*[2]int64)(q)
 }
-func f32equal(p, q unsafe.Pointer, size uintptr) bool {
+func f32equal(p, q unsafe.Pointer) bool {
 	return *(*float32)(p) == *(*float32)(q)
 }
-func f64equal(p, q unsafe.Pointer, size uintptr) bool {
+func f64equal(p, q unsafe.Pointer) bool {
 	return *(*float64)(p) == *(*float64)(q)
 }
-func c64equal(p, q unsafe.Pointer, size uintptr) bool {
+func c64equal(p, q unsafe.Pointer) bool {
 	return *(*complex64)(p) == *(*complex64)(q)
 }
-func c128equal(p, q unsafe.Pointer, size uintptr) bool {
+func c128equal(p, q unsafe.Pointer) bool {
 	return *(*complex128)(p) == *(*complex128)(q)
 }
-func strequal(p, q unsafe.Pointer, size uintptr) bool {
+func strequal(p, q unsafe.Pointer) bool {
 	return *(*string)(p) == *(*string)(q)
 }
-func interequal(p, q unsafe.Pointer, size uintptr) bool {
+func interequal(p, q unsafe.Pointer) bool {
 	return ifaceeq(*(*interface {
 		f()
 	})(p), *(*interface {
 		f()
 	})(q))
 }
-func nilinterequal(p, q unsafe.Pointer, size uintptr) bool {
+func nilinterequal(p, q unsafe.Pointer) bool {
 	return efaceeq(*(*interface{})(p), *(*interface{})(q))
 }
 func efaceeq(p, q interface{}) bool {
@@ -224,9 +248,9 @@ func efaceeq(p, q interface{}) bool {
 		panic(errorString("comparing uncomparable type " + *t._string))
 	}
 	if isDirectIface(t) {
-		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)), uintptr(t.size))
+		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)))
 	}
-	return eq(x.data, y.data, uintptr(t.size))
+	return eq(x.data, y.data)
 }
 func ifaceeq(p, q interface {
 	f()
@@ -246,37 +270,37 @@ func ifaceeq(p, q interface {
 		panic(errorString("comparing uncomparable type " + *t._string))
 	}
 	if isDirectIface(t) {
-		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)), uintptr(t.size))
+		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)))
 	}
-	return eq(x.data, y.data, uintptr(t.size))
+	return eq(x.data, y.data)
 }
 
 // Testing adapters for hash quality tests (see hash_test.go)
 func stringHash(s string, seed uintptr) uintptr {
-	return algarray[alg_STRING].hash(noescape(unsafe.Pointer(&s)), unsafe.Sizeof(s), seed)
+	return algarray[alg_STRING].hash(noescape(unsafe.Pointer(&s)), seed)
 }
 
 func bytesHash(b []byte, seed uintptr) uintptr {
 	s := (*sliceStruct)(unsafe.Pointer(&b))
-	return algarray[alg_MEM].hash(s.array, uintptr(s.len), seed)
+	return memhash(s.array, seed, uintptr(s.len))
 }
 
 func int32Hash(i uint32, seed uintptr) uintptr {
-	return algarray[alg_MEM32].hash(noescape(unsafe.Pointer(&i)), 4, seed)
+	return algarray[alg_MEM32].hash(noescape(unsafe.Pointer(&i)), seed)
 }
 
 func int64Hash(i uint64, seed uintptr) uintptr {
-	return algarray[alg_MEM64].hash(noescape(unsafe.Pointer(&i)), 8, seed)
+	return algarray[alg_MEM64].hash(noescape(unsafe.Pointer(&i)), seed)
 }
 
 func efaceHash(i interface{}, seed uintptr) uintptr {
-	return algarray[alg_NILINTER].hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
+	return algarray[alg_NILINTER].hash(noescape(unsafe.Pointer(&i)), seed)
 }
 
 func ifaceHash(i interface {
 	F()
 }, seed uintptr) uintptr {
-	return algarray[alg_INTER].hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
+	return algarray[alg_INTER].hash(noescape(unsafe.Pointer(&i)), seed)
 }
 
 // Testing adapter for memclr
@@ -301,12 +325,8 @@ func init() {
 		cpuid_ecx&(1<<9) != 0 && // sse3 (pshufb)
 		cpuid_ecx&(1<<19) != 0 { // sse4.1 (pinsr{d,q})
 		useAeshash = true
-		algarray[alg_MEM].hash = aeshash
-		algarray[alg_MEM8].hash = aeshash
-		algarray[alg_MEM16].hash = aeshash
 		algarray[alg_MEM32].hash = aeshash32
 		algarray[alg_MEM64].hash = aeshash64
-		algarray[alg_MEM128].hash = aeshash
 		algarray[alg_STRING].hash = aeshashstr
 		// Initialize with random data so hash collisions will be hard to engineer.
 		getRandomData(aeskeysched[:])
