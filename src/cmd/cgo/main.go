@@ -155,10 +155,9 @@ var dynpackage = flag.String("dynpackage", "main", "set Go package for -dynimpor
 var dynlinker = flag.Bool("dynlinker", false, "record dynamic linker information in -dynimport mode")
 
 // These flags are for bootstrapping a new Go implementation,
-// to generate Go and C headers that match the data layout and
+// to generate Go types that match the data layout and
 // constant values used in the host's C libraries and system calls.
 var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for C file to standard output")
-var cdefs = flag.Bool("cdefs", false, "for bootstrap: write C definitions for C file to standard output")
 var objDir = flag.String("objdir", "", "object directory")
 
 var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
@@ -185,12 +184,7 @@ func main() {
 		return
 	}
 
-	if *godefs && *cdefs {
-		fmt.Fprintf(os.Stderr, "cgo: cannot use -cdefs and -godefs together\n")
-		os.Exit(2)
-	}
-
-	if *godefs || *cdefs {
+	if *godefs {
 		// Generating definitions pulled from header files,
 		// to be checked into Go repositories.
 		// Line numbers are just noise.
@@ -282,14 +276,12 @@ func main() {
 		p.Record(f)
 		if *godefs {
 			os.Stdout.WriteString(p.godefs(f, input))
-		} else if *cdefs {
-			os.Stdout.WriteString(p.cdefs(f, input))
 		} else {
 			p.writeOutput(f, input)
 		}
 	}
 
-	if !*godefs && !*cdefs {
+	if !*godefs {
 		p.writeDefs()
 	}
 	if nerrors > 0 {
