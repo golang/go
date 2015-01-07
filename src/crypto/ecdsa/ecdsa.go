@@ -4,6 +4,10 @@
 
 // Package ecdsa implements the Elliptic Curve Digital Signature Algorithm, as
 // defined in FIPS 186-3.
+//
+// This implementation  derives the nonce from an AES-CTR CSPRNG keyed by
+// ChopMD(256, SHA2-512(priv.D || entropy || hash)). The CSPRNG key is IRO by
+// a result of Coron; the AES-CTR stream is IRO under standard assumptions.
 package ecdsa
 
 // References:
@@ -14,10 +18,17 @@ package ecdsa
 
 import (
 	"crypto"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/elliptic"
+	"crypto/sha512"
 	"encoding/asn1"
 	"io"
 	"math/big"
+)
+
+const (
+	aesIV = "IV for ECDSA CTR"
 )
 
 // PublicKey represents an ECDSA public key.
@@ -123,6 +134,38 @@ func fermatInverse(k, N *big.Int) *big.Int {
 // pair of integers. The security of the private key depends on the entropy of
 // rand.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+	// Get max(log2(q) / 2, 256) bits of entropy from rand.
+	entropylen := (priv.Curve.Params().BitSize + 7) / 16
+	if entropylen > 32 {
+		entropylen = 32
+	}
+	entropy := make([]byte, entropylen)
+	_, err = rand.Read(entropy)
+	if err != nil {
+		return
+	}
+
+	// Initialize an SHA-512 hash context; digest ...
+	md := sha512.New()
+	md.Write(priv.D.Bytes()) // the private key,
+	md.Write(entropy)        // the entropy,
+	md.Write(hash)           // and the input hash;
+	key := md.Sum(nil)[:32]  // and compute ChopMD-256(SHA-512),
+	// which is an indifferentiable MAC.
+
+	// Create an AES-CTR instance to use as a CSPRNG.
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create a CSPRNG that xors a stream of zeros with
+	// the output of the AES-CTR instance.
+	csprng := cipher.StreamReader{
+		R: zeroReader,
+		S: cipher.NewCTR(block, []byte(aesIV)),
+	}
+
 	// See [NSA] 3.4.1
 	c := priv.PublicKey.Curve
 	N := c.Params().N
@@ -130,7 +173,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 	var k, kInv *big.Int
 	for {
 		for {
-			k, err = randFieldElement(c, rand)
+			k, err = randFieldElement(c, csprng)
 			if err != nil {
 				r = nil
 				return
@@ -187,3 +230,17 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	x.Mod(x, N)
 	return x.Cmp(r) == 0
 }
+
+type zr struct {
+	io.Reader
+}
+
+// Read replaces the contents of dst with zeros.
+func (z *zr) Read(dst []byte) (n int, err error) {
+	for i := range dst {
+		dst[i] = 0
+	}
+	return len(dst), nil
+}
+
+var zeroReader = &zr{}
