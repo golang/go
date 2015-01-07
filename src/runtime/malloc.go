@@ -655,17 +655,24 @@ func calctimes() gctimes {
 // the information from the most recent Concurent GC cycle. Calls from the
 // application to runtime.GC() are ignored.
 func GCprinttimes() {
-	times := calctimes()
-	println("GC:", gctimer.count, "maxpause=", gctimer.maxpause, "Go routines=", allglen)
-	println("          sweep termination: max=", gctimer.max.sweepterm, "total=", gctimer.total.sweepterm, "cycle=", times.sweepterm, "absolute time=", gctimer.cycle.sweepterm)
-	println("          scan:              max=", gctimer.max.scan, "total=", gctimer.total.scan, "cycle=", times.scan, "absolute time=", gctimer.cycle.scan)
-	println("          installmarkwb:     max=", gctimer.max.installmarkwb, "total=", gctimer.total.installmarkwb, "cycle=", times.installmarkwb, "absolute time=", gctimer.cycle.installmarkwb)
-	println("          mark:              max=", gctimer.max.mark, "total=", gctimer.total.mark, "cycle=", times.mark, "absolute time=", gctimer.cycle.mark)
-	println("          markterm:          max=", gctimer.max.markterm, "total=", gctimer.total.markterm, "cycle=", times.markterm, "absolute time=", gctimer.cycle.markterm)
+	// Explicitly put times on the heap so printPhase can use it.
+	times := new(gctimes)
+	*times = calctimes()
 	cycletime := gctimer.cycle.sweep - gctimer.cycle.sweepterm
-	println("          Total cycle time =", cycletime)
-	totalstw := times.sweepterm + times.installmarkwb + times.markterm
-	println("          Cycle STW time     =", totalstw)
+	pause := times.sweepterm + times.installmarkwb + times.markterm
+	gomaxprocs := GOMAXPROCS(-1)
+
+	printlock()
+	print("GC: #", gctimer.count, " ", cycletime, "ns @", gctimer.cycle.sweepterm, " pause=", pause, " maxpause=", gctimer.maxpause, " goroutines=", allglen, " gomaxprocs=", gomaxprocs, "\n")
+	printPhase := func(label string, get func(*gctimes) int64, procs int) {
+		print("GC:     ", label, " ", get(times), "ns\tmax=", get(&gctimer.max), "\ttotal=", get(&gctimer.total), "\tprocs=", procs, "\n")
+	}
+	printPhase("sweep term:", func(t *gctimes) int64 { return t.sweepterm }, gomaxprocs)
+	printPhase("scan:      ", func(t *gctimes) int64 { return t.scan }, 1)
+	printPhase("install wb:", func(t *gctimes) int64 { return t.installmarkwb }, gomaxprocs)
+	printPhase("mark:      ", func(t *gctimes) int64 { return t.mark }, 1)
+	printPhase("mark term: ", func(t *gctimes) int64 { return t.markterm }, gomaxprocs)
+	printunlock()
 }
 
 // GC runs a garbage collection.
