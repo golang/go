@@ -48,6 +48,12 @@ var (
 )
 
 func defaultListenAddr() string {
+	if runtime.GOOS == "darwin" {
+		// Darwin will never run on GCE, so let's always
+		// listen on a high port (so we don't need to be
+		// root).
+		return ":5936"
+	}
 	if metadata.OnGCE() {
 		// In production, default to
 		return ":80"
