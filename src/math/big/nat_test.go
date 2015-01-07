@@ -769,3 +769,55 @@ func BenchmarkExp3Power0x10000(b *testing.B)  { ExpHelper(b, 3, 0x10000) }
 func BenchmarkExp3Power0x40000(b *testing.B)  { ExpHelper(b, 3, 0x40000) }
 func BenchmarkExp3Power0x100000(b *testing.B) { ExpHelper(b, 3, 0x100000) }
 func BenchmarkExp3Power0x400000(b *testing.B) { ExpHelper(b, 3, 0x400000) }
+
+func fibo(n int) nat {
+	switch n {
+	case 0:
+		return nil
+	case 1:
+		return nat{1}
+	}
+	f0 := fibo(0)
+	f1 := fibo(1)
+	var f2 nat
+	for i := 1; i < n; i++ {
+		f2 = f2.add(f0, f1)
+		f0, f1, f2 = f1, f2, f0
+	}
+	return f1
+}
+
+var fiboNums = []string{
+	"0",
+	"55",
+	"6765",
+	"832040",
+	"102334155",
+	"12586269025",
+	"1548008755920",
+	"190392490709135",
+	"23416728348467685",
+	"2880067194370816120",
+	"354224848179261915075",
+}
+
+func TestFibo(t *testing.T) {
+	for i, want := range fiboNums {
+		n := i * 10
+		got := fibo(n).decimalString()
+		if got != want {
+			t.Errorf("fibo(%d) failed: got %s want %s", n, got, want)
+		}
+	}
+}
+
+func BenchmarkFibo(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		fibo(1e0)
+		fibo(1e1)
+		fibo(1e2)
+		fibo(1e3)
+		fibo(1e4)
+		fibo(1e5)
+	}
+}
