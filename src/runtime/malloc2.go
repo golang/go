@@ -498,7 +498,7 @@ type bitvector struct {
 type stackmap struct {
 	n        int32   // number of bitmaps
 	nbit     int32   // number of bits in each bitmap
-	bytedata [0]byte // bitmaps, each starting on a 32-bit boundary
+	bytedata [1]byte // bitmaps, each starting on a 32-bit boundary
 }
 
 // Returns pointer map data for the given stackmap index
