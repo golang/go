@@ -17,7 +17,7 @@ func test() {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	test := func() {
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 10; i++ {
 			buf := &bytes.Buffer{}
 			pprof.Lookup("goroutine").WriteTo(buf, 2)
 		}
@@ -30,8 +30,8 @@ func test() {
 }
 
 func main() {
-	runtime.GOMAXPROCS(2)
-	for i := 0; i < 100; i++ {
+	runtime.GOMAXPROCS(4)
+	for i := 0; i < 10; i++ {
 		test()
 	}
 }
