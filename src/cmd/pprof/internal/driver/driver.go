@@ -1013,6 +1013,10 @@ func generate(interactive bool, prof *profile.Profile, obj plugin.ObjTool, ui pl
 		w = outputFile
 	}
 
+	if prof.Empty() {
+		return fmt.Errorf("profile is empty")
+	}
+
 	value, stype, unit := sampleFormat(prof, f)
 	o.SampleType = stype
 	rpt := report.New(prof, *o, value, unit)
