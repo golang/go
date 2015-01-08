@@ -2,8 +2,6 @@
 // Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
-// +build appenginevm
-
 // Command tipgodoc is the beginning of the new tip.golang.org server,
 // serving the latest HEAD straight from the Git oven.
 package main
@@ -30,10 +28,11 @@ const (
 	metaURL = "https://go.googlesource.com/?b=master&format=JSON"
 )
 
-func init() {
+func main() {
 	p := new(Proxy)
 	go p.run()
 	http.Handle("/", p)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 type Proxy struct {

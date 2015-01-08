@@ -1,0 +1,3 @@
+To deploy as an App Engine Manged VM, use gcloud:
+
+	$ gcloud preview app deploy .
