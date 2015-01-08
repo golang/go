@@ -154,20 +154,6 @@ func splitQuoted(s string) (r []string, err error) {
 	return args, err
 }
 
-var safeBytes = []byte(`+-.,/0123456789:=ABCDEFGHIJKLMNOPQRSTUVWXYZ\_abcdefghijklmnopqrstuvwxyz`)
-
-func safeName(s string) bool {
-	if s == "" {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if c := s[i]; c < 0x80 && bytes.IndexByte(safeBytes, c) < 0 {
-			return false
-		}
-	}
-	return true
-}
-
 // Translate rewrites f.AST, the original Go input, to remove
 // references to the imported package C, replacing them with
 // references to the equivalent Go types, functions, and variables.
