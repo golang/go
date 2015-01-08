@@ -19,6 +19,8 @@ Go is the work of hundreds of contributors. We appreciate your help!
 To contribute, please read the contribution guidelines:
 	https://golang.org/doc/contribute.html
 
+##### Please note that we do not use pull requests.
+
 Unless otherwise noted, the Go source files are distributed
 under the BSD-style license found in the LICENSE file.
 
