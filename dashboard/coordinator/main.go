@@ -210,7 +210,12 @@ func main() {
 		machineType: "n1-highcpu-2",
 	})
 	addBuilder(buildConfig{
-		name:    "plan9-386-gce",
+		// It's named "partial" because the buildlet sets
+		// GOTESTONLY=std to stop after the "go test std"
+		// tests because it's so slow otherwise.
+		// TODO(braditz): move that env variable to the
+		// coordinator and into this config.
+		name:    "plan9-386-gcepartial",
 		vmImage: "plan9-386",
 		// We *were* using n1-standard-1 because Plan 9 can only
 		// reliably use a single CPU. Using 2 or 4 and we see
