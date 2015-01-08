@@ -27,6 +27,7 @@ import (
 
 	"appengine"
 	"appengine/datastore"
+	"appengine/memcache"
 )
 
 func init() {
@@ -97,6 +98,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		p.HasPrev = true
 	}
 	data := &uiTemplateData{d, pkg, commits, builders, tipState, p, branch}
+	data.populateBuildingURLs(c)
 
 	switch r.FormValue("mode") {
 	case "failures":
@@ -374,6 +376,54 @@ type uiTemplateData struct {
 	TipState   *TagState
 	Pagination *Pagination
 	Branch     string
+}
+
+// populateBuildingURLs populates each commit in Commits' buildingURLs map with the
+// URLs of builds which are currently in progress.
+func (td *uiTemplateData) populateBuildingURLs(ctx appengine.Context) {
+	// need are memcache keys: "building|<hash>|<gohash>|<builder>"
+	// The hash is of the main "go" repo, or the subrepo commit hash.
+	// The gohash is empty for the main repo, else it's the Go hash.
+	var need []string
+
+	commit := map[string]*Commit{} // commit hash -> Commit
+
+	// TODO(bradfitz): this only populates the main repo, not subpackages currently.
+	for _, b := range td.Builders {
+		for _, c := range td.Commits {
+			if c.Result(b, "") == nil {
+				commit[c.Hash] = c
+				need = append(need, "building|"+c.Hash+"||"+b)
+			}
+		}
+	}
+	if len(need) == 0 {
+		return
+	}
+	m, err := memcache.GetMulti(ctx, need)
+	if err != nil {
+		// oh well. this is a cute non-critical feature anyway.
+		ctx.Debugf("GetMulti of building keys: %v", err)
+		return
+	}
+	for k, it := range m {
+		f := strings.SplitN(k, "|", 4)
+		if len(f) != 4 {
+			continue
+		}
+		hash, goHash, builder := f[1], f[2], f[3]
+		c, ok := commit[hash]
+		if !ok {
+			continue
+		}
+		m := c.buildingURLs
+		if m == nil {
+			m = make(map[builderAndGoHash]string)
+			c.buildingURLs = m
+		}
+		m[builderAndGoHash{builder, goHash}] = string(it.Value)
+	}
+
 }
 
 var uiTemplate = template.Must(

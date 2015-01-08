@@ -17,10 +17,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"appengine"
 	"appengine/datastore"
+	"appengine/memcache"
 
 	"cache"
 	"key"
@@ -516,6 +518,29 @@ func packagesHandler(r *http.Request) (interface{}, error) {
 	return p, nil
 }
 
+// buildingHandler records that a build is in progress.
+// The data is only stored in memcache and with a timeout. It's assumed
+// that the build system will periodically refresh this if the build
+// is slow.
+func buildingHandler(r *http.Request) (interface{}, error) {
+	if r.Method != "POST" {
+		return nil, errBadMethod(r.Method)
+	}
+	c := contextForRequest(r)
+	key := fmt.Sprintf("building|%s|%s|%s", r.FormValue("hash"), r.FormValue("gohash"), r.FormValue("builder"))
+	err := memcache.Set(c, &memcache.Item{
+		Key:        key,
+		Value:      []byte(r.FormValue("url")),
+		Expiration: 15 * time.Minute,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"key": key,
+	}, nil
+}
+
 // resultHandler records a build result.
 // It reads a JSON-encoded Result value from the request body,
 // creates a new Result entity, and updates the relevant Commit entity.
@@ -909,6 +934,7 @@ func init() {
 	handleFunc("/key", keyHandler)
 
 	// authenticated handlers
+	handleFunc("/building", AuthHandler(buildingHandler))
 	handleFunc("/clear-results", AuthHandler(clearResultsHandler))
 	handleFunc("/commit", AuthHandler(commitHandler))
 	handleFunc("/packages", AuthHandler(packagesHandler))

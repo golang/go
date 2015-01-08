@@ -78,6 +78,10 @@ func GetPackage(c appengine.Context, path string) (*Package, error) {
 	return p, err
 }
 
+type builderAndGoHash struct {
+	builder, goHash string
+}
+
 // A Commit describes an individual commit in a package.
 //
 // Each Commit entity is a descendant of its associated Package entity.
@@ -107,6 +111,8 @@ type Commit struct {
 	PerfResults []string `datastore:",noindex"`
 
 	FailNotificationSent bool
+
+	buildingURLs map[builderAndGoHash]string
 }
 
 func (com *Commit) Key(c appengine.Context) *datastore.Key {
@@ -216,11 +222,23 @@ func min(a, b int) int {
 // Result returns the build Result for this Commit for the given builder/goHash.
 func (c *Commit) Result(builder, goHash string) *Result {
 	for _, r := range c.ResultData {
+		if !strings.HasPrefix(r, builder) {
+			// Avoid strings.SplitN alloc in the common case.
+			continue
+		}
 		p := strings.SplitN(r, "|", 4)
 		if len(p) != 4 || p[0] != builder || p[3] != goHash {
 			continue
 		}
 		return partsToResult(c, p)
+	}
+	if u, ok := c.buildingURLs[builderAndGoHash{builder, goHash}]; ok {
+		return &Result{
+			Builder:     builder,
+			BuildingURL: u,
+			Hash:        c.Hash,
+			GoHash:      goHash,
+		}
 	}
 	return nil
 }
@@ -409,9 +427,10 @@ type Result struct {
 	// The Go Commit this was built against (empty for Go commits).
 	GoHash string
 
-	OK      bool
-	Log     string `datastore:"-"`        // for JSON unmarshaling only
-	LogHash string `datastore:",noindex"` // Key to the Log record.
+	BuildingURL string `datastore:"-"` // non-empty if currently building
+	OK          bool
+	Log         string `datastore:"-"`        // for JSON unmarshaling only
+	LogHash     string `datastore:",noindex"` // Key to the Log record.
 
 	RunTime int64 // time to build+test in nanoseconds
 }
