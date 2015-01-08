@@ -4,6 +4,6 @@
 # license that can be found in the LICENSE file.
 
 go install # So the next line will produce updated documentation.
-go help documentation > doc.go
+go help documentation | sed 's; \*/; * /;' >doc.go
 gofmt -w doc.go
 
