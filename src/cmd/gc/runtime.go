@@ -160,6 +160,7 @@ func block()
 func makeslice(typ *byte, nel int64, cap int64) (ary []any)
 func growslice(typ *byte, old []any, n int64) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
+func memclr(ptr *byte, length uintptr)
 
 func memequal(x, y *any, size uintptr) bool
 func memequal8(x, y *any) bool
