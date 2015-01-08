@@ -66,6 +66,16 @@ func main() {
 	if !metadata.OnGCE() && !strings.HasPrefix(*listenAddr, "localhost:") {
 		log.Printf("** WARNING ***  This server is unsafe and offers no security. Be careful.")
 	}
+	if runtime.GOOS == "plan9" {
+		// Plan 9 is too slow on GCE, so stop running run.rc after the basics.
+		// See https://golang.org/cl/2522 and https://golang.org/issue/9491
+		// TODO(bradfitz): once the buildlet has environment variable support,
+		// the coordinator can send this in, and this variable can be part of
+		// the build configuration struct instead of hard-coded here.
+		// But no need for environment variables quite yet.
+		os.Setenv("GOTESTONLY", "std")
+	}
+
 	if *scratchDir == "" {
 		dir, err := ioutil.TempDir("", "buildlet-scatch")
 		if err != nil {
