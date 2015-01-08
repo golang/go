@@ -1135,6 +1135,8 @@ func Componentgen(nr *Node, nl *Node) bool {
 	freel := 0
 	freer := 0
 
+	var isConstString bool
+
 	switch nl.Type.Etype {
 	default:
 		goto no
@@ -1178,9 +1180,10 @@ func Componentgen(nr *Node, nl *Node) bool {
 		break
 	}
 
+	isConstString = Isconst(nr, CTSTR)
 	nodl = *nl
 	if !cadable(nl) {
-		if nr != nil && !cadable(nr) {
+		if nr != nil && !cadable(nr) && !isConstString {
 			goto no
 		}
 		Igen(nl, &nodl, nil)
@@ -1189,7 +1192,7 @@ func Componentgen(nr *Node, nl *Node) bool {
 
 	if nr != nil {
 		nodr = *nr
-		if !cadable(nr) {
+		if !cadable(nr) && !isConstString {
 			Igen(nr, &nodr, nil)
 			freer = 1
 		}
@@ -1275,7 +1278,13 @@ func Componentgen(nr *Node, nl *Node) bool {
 		nodl.Xoffset += int64(Array_array)
 		nodl.Type = Ptrto(Types[TUINT8])
 
-		if nr != nil {
+		if isConstString {
+			Regalloc(&nodr, Types[Tptr], nil)
+			p := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &nodr)
+			Datastring(nr.Val.U.Sval, &p.From)
+			p.From.Type = obj.TYPE_ADDR
+			Regfree(&nodr)
+		} else if nr != nil {
 			nodr.Xoffset += int64(Array_array)
 			nodr.Type = nodl.Type
 		}
@@ -1285,7 +1294,9 @@ func Componentgen(nr *Node, nl *Node) bool {
 		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
 		nodl.Type = Types[Simtype[TUINT]]
 
-		if nr != nil {
+		if isConstString {
+			Nodconst(&nodr, nodl.Type, int64(len(nr.Val.U.Sval)))
+		} else if nr != nil {
 			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
 			nodr.Type = nodl.Type
 		}
