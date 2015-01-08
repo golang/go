@@ -165,7 +165,7 @@ func newosproc(mp *m, _ unsafe.Pointer) {
 	}
 }
 
-var urandom_dev = []byte("/dev/random\x00")
+var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
 func getRandomData(r []byte) {
