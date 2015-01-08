@@ -1013,26 +1013,27 @@ OpLoop:
 		return fmt.Errorf("error copying response: %v", err)
 	}
 	st.logEventTime("done")
-	state := res.Trailer.Get("Process-State")
 
 	// Don't record to the dashboard unless we heard the trailer from
 	// the buildlet, otherwise it was probably some unrelated error
 	// (like the VM being killed, or the buildlet crashing due to
 	// e.g. https://golang.org/issue/9309, since we require a tip
 	// build of the buildlet to get Trailers support)
-	if state != "" {
-		conf := builders[st.name]
-		var log string
-		if state != "ok" {
-			log = st.logs()
-		}
-		if err := conf.recordResult(state == "ok", st.rev, log, time.Since(execStartTime)); err != nil {
-			return fmt.Errorf("Status was %q but failed to report it to the dashboard: %v", state, err)
-		}
+	state := res.Trailer.Get("Process-State")
+	if state == "" {
+		return errors.New("missing Process-State trailer from HTTP response; buildlet built with old (<= 1.4) Go?")
+	}
+
+	conf := builders[st.name]
+	var log string
+	if state != "ok" {
+		log = st.logs()
+	}
+	if err := conf.recordResult(state == "ok", st.rev, log, time.Since(execStartTime)); err != nil {
+		return fmt.Errorf("Status was %q but failed to report it to the dashboard: %v", state, err)
 	}
 	if state != "ok" {
-
-		return fmt.Errorf("got Trailer process state %q", state)
+		return fmt.Errorf("%s failed: %v", cmd, state)
 	}
 	return nil
 }
