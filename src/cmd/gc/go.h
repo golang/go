@@ -1451,6 +1451,7 @@ void	walkswitch(Node *sw);
  *	typecheck.c
  */
 int	islvalue(Node *n);
+int	samesafeexpr(Node *l, Node *r);
 Node*	typecheck(Node **np, int top);
 void	typechecklist(NodeList *l, int top);
 Node*	typecheckdef(Node *n);

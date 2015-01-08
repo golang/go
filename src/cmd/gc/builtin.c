@@ -126,6 +126,7 @@ char *runtimeimport =
 	"func @\"\".makeslice (@\"\".typ·2 *byte, @\"\".nel·3 int64, @\"\".cap·4 int64) (@\"\".ary·1 []any)\n"
 	"func @\"\".growslice (@\"\".typ·2 *byte, @\"\".old·3 []any, @\"\".n·4 int64) (@\"\".ary·1 []any)\n"
 	"func @\"\".memmove (@\"\".to·1 *any, @\"\".frm·2 *any, @\"\".length·3 uintptr)\n"
+	"func @\"\".memclr (@\"\".ptr·1 *byte, @\"\".length·2 uintptr)\n"
 	"func @\"\".memequal (@\"\".x·2 *any, @\"\".y·3 *any, @\"\".size·4 uintptr) (? bool)\n"
 	"func @\"\".memequal8 (@\"\".x·2 *any, @\"\".y·3 *any) (? bool)\n"
 	"func @\"\".memequal16 (@\"\".x·2 *any, @\"\".y·3 *any) (? bool)\n"

@@ -2831,7 +2831,7 @@ checkassignlist(NodeList *l)
 
 // Check whether l and r are the same side effect-free expression,
 // so that it is safe to reuse one instead of computing both.
-static int
+int
 samesafeexpr(Node *l, Node *r)
 {
 	if(l->op != r->op || !eqtype(l->type, r->type))
