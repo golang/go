@@ -80,6 +80,7 @@ var (
 	projectID      string
 	projectZone    string
 	computeService *compute.Service
+	externalIP     string
 )
 
 func initGCE() error {
@@ -100,6 +101,10 @@ func initGCE() error {
 	if !hasComputeScope() {
 		return errors.New("The coordinator is not running with access to read and write Compute resources. VM support disabled.")
 
+	}
+	externalIP, err = metadata.ExternalIP()
+	if err != nil {
+		return fmt.Errorf("ExternalIP: %v", err)
 	}
 	ts := google.ComputeTokenSource("default")
 	computeService, _ = compute.New(oauth2.NewClient(oauth2.NoContext, ts))
@@ -161,6 +166,29 @@ func (b *buildConfig) recordResult(ok bool, hash, buildLog string, runTime time.
 	}
 	args := url.Values{"key": {builderKey(b.name)}, "builder": {b.name}}
 	return dash("POST", "result", args, req, nil)
+}
+
+// pingDashboard is a goroutine that periodically POSTS to build.golang.org/building
+// to let it know that we're still working on a build.
+func pingDashboard(st *buildStatus) {
+	u := "https://build.golang.org/building?" + url.Values{
+		"builder": []string{st.name},
+		"key":     []string{builderKey(st.name)},
+		"hash":    []string{st.rev},
+		"url":     []string{fmt.Sprintf("http://%v/logs?name=%s&rev=%s&st=%p", externalIP, st.name, st.rev, st)},
+	}.Encode()
+	for {
+		st.mu.Lock()
+		done := st.done
+		st.mu.Unlock()
+		if !done.IsZero() {
+			return
+		}
+		if res, _ := http.PostForm(u, nil); res != nil {
+			res.Body.Close()
+		}
+		time.Sleep(60 * time.Second)
+	}
 }
 
 type watchConfig struct {
@@ -290,6 +318,7 @@ func main() {
 				conf := builders[work.name]
 				if st, err := startBuilding(conf, work.rev); err == nil {
 					setStatus(work, st)
+					go pingDashboard(st)
 				} else {
 					log.Printf("Error starting to build %v: %v", work, err)
 				}
