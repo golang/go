@@ -645,7 +645,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 // memhash_varlen(p unsafe.Pointer, h seed) uintptr
 // redirects to memhash(p, h, size) using the size
 // stored in the closure.
-TEXT runtime·memhash_varlen(SB),NOSPLIT,$20-12
+TEXT runtime·memhash_varlen(SB),NOSPLIT,$24-12
 	GO_ARGS
 	NO_LOCAL_POINTERS
 	MOVL	p+0(FP), AX
