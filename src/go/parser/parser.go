@@ -1259,7 +1259,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	return &ast.CallExpr{Fun: fun, Lparen: lparen, Args: list, Ellipsis: ellipsis, Rparen: rparen}
 }
 
-func (p *parser) parseElement(keyOk bool) ast.Expr {
+func (p *parser) parseValue(keyOk bool) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Element"))
 	}
@@ -1287,16 +1287,30 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
 	x := p.checkExpr(p.parseExpr(keyOk))
 	if keyOk {
 		if p.tok == token.COLON {
-			colon := p.pos
-			p.next()
 			// Try to resolve the key but don't collect it
 			// as unresolved identifier if it fails so that
 			// we don't get (possibly false) errors about
 			// undeclared names.
 			p.tryResolve(x, false)
-			return &ast.KeyValueExpr{Key: x, Colon: colon, Value: p.parseElement(false)}
+		} else {
+			// not a key
+			p.resolve(x)
 		}
-		p.resolve(x) // not a key
+	}
+
+	return x
+}
+
+func (p *parser) parseElement() ast.Expr {
+	if p.trace {
+		defer un(trace(p, "Element"))
+	}
+
+	x := p.parseValue(true)
+	if p.tok == token.COLON {
+		colon := p.pos
+		p.next()
+		x = &ast.KeyValueExpr{Key: x, Colon: colon, Value: p.parseValue(false)}
 	}
 
 	return x
@@ -1308,7 +1322,7 @@ func (p *parser) parseElementList() (list []ast.Expr) {
 	}
 
 	for p.tok != token.RBRACE && p.tok != token.EOF {
-		list = append(list, p.parseElement(true))
+		list = append(list, p.parseElement())
 		if !p.atComma("composite literal") {
 			break
 		}
