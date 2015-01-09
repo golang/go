@@ -134,7 +134,6 @@ func initSide(side, goHash, toolsHash string) (hostport string, err error) {
 	}
 	if err := checkout(repoURL+"tools", toolsHash, toolsDir); err != nil {
 		return "", err
-
 	}
 
 	make := exec.Command(filepath.Join(goDir, "src/make.bash"))

@@ -6,4 +6,5 @@ RUN apt-get update && apt-get install --no-install-recommends -y -q build-essent
 ADD . /go/src/tipgodoc
 RUN go install tipgodoc
 ENTRYPOINT ["/go/bin/tipgodoc"]
-EXPOSE 8080 # what kubernetes expects
+# Kubernetes expects us to listen on port 8080
+EXPOSE 8080 
