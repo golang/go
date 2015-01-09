@@ -1373,13 +1373,15 @@ cadable(Node *n)
 /*
  * copy a composite value by moving its individual components.
  * Slices, strings and interfaces are supported.
+ * Small structs or arrays with elements of basic type are
+ * also supported.
  * nr is N when assigning a zero value.
  * return 1 if can do, 0 if can't.
  */
 int
 componentgen(Node *nr, Node *nl)
 {
-	Node nodl, nodr;
+	Node nodl, nodr, tmp;
 	Type *t;
 	int freel, freer;
 	vlong fldcount;
@@ -1439,6 +1441,12 @@ componentgen(Node *nr, Node *nl)
 			igen(nr, &nodr, N);
 			freer = 1;
 		}
+	} else {
+		// When zeroing, prepare a register containing zero.
+		nodconst(&tmp, nl->type, 0);
+		regalloc(&nodr, types[TUINT], N);
+		gmove(&tmp, &nodr);
+		freer = 1;
 	}
 	
 	// nl and nr are 'cadable' which basically means they are names (variables) now.
@@ -1475,8 +1483,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1485,8 +1492,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_cap-Array_nel;
@@ -1495,8 +1501,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_cap-Array_nel;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;
@@ -1510,8 +1515,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1520,8 +1524,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;
@@ -1535,8 +1538,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1545,8 +1547,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;
