@@ -35,10 +35,13 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
+// Proxy implements the tip.golang.org server: a reverse-proxy
+// that builds and runs godoc instances showing the latest docs.
 type Proxy struct {
 	mu    sync.Mutex // protects the followin'
 	proxy http.Handler
-	cur   string // signature of gorepo+toolsrepo
+	cur   string    // signature of gorepo+toolsrepo
+	cmd   *exec.Cmd // live godoc instance, or nil for none
 	side  string
 	err   error
 }
@@ -102,7 +105,7 @@ func (p *Proxy) poll() {
 		newSide = "a"
 	}
 
-	hostport, err := initSide(newSide, heads["go"], heads["tools"])
+	cmd, hostport, err := initSide(newSide, heads["go"], heads["tools"])
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -111,41 +114,46 @@ func (p *Proxy) poll() {
 		p.err = err
 		return
 	}
+
 	u, err := url.Parse(fmt.Sprintf("http://%v/", hostport))
 	if err != nil {
 		log.Println(err)
 		p.err = err
 		return
 	}
-	p.side = newSide
 	p.proxy = httputil.NewSingleHostReverseProxy(u)
+	p.side = newSide
+	if p.cmd != nil {
+		p.cmd.Process.Kill()
+	}
+	p.cmd = cmd
 }
 
-func initSide(side, goHash, toolsHash string) (hostport string, err error) {
+func initSide(side, goHash, toolsHash string) (godoc *exec.Cmd, hostport string, err error) {
 	dir := filepath.Join(os.TempDir(), "tipgodoc", side)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", err
+		return nil, "", err
 	}
 
 	goDir := filepath.Join(dir, "go")
 	toolsDir := filepath.Join(dir, "gopath/src/golang.org/x/tools")
 	if err := checkout(repoURL+"go", goHash, goDir); err != nil {
-		return "", err
+		return nil, "", err
 	}
 	if err := checkout(repoURL+"tools", toolsHash, toolsDir); err != nil {
-		return "", err
+		return nil, "", err
 	}
 
 	make := exec.Command(filepath.Join(goDir, "src/make.bash"))
 	make.Dir = filepath.Join(goDir, "src")
 	if err := runErr(make); err != nil {
-		return "", err
+		return nil, "", err
 	}
 	goBin := filepath.Join(goDir, "bin/go")
 	install := exec.Command(goBin, "install", "golang.org/x/tools/cmd/godoc")
 	install.Env = []string{"GOROOT=" + goDir, "GOPATH=" + filepath.Join(dir, "gopath")}
 	if err := runErr(install); err != nil {
-		return "", err
+		return nil, "", err
 	}
 
 	godocBin := filepath.Join(goDir, "bin/godoc")
@@ -153,13 +161,13 @@ func initSide(side, goHash, toolsHash string) (hostport string, err error) {
 	if side == "b" {
 		hostport = "localhost:8082"
 	}
-	godoc := exec.Command(godocBin, "-http="+hostport)
+	godoc = exec.Command(godocBin, "-http="+hostport)
 	godoc.Env = []string{"GOROOT=" + goDir}
 	// TODO(adg): log this somewhere useful
 	godoc.Stdout = os.Stdout
 	godoc.Stderr = os.Stderr
 	if err := godoc.Start(); err != nil {
-		return "", err
+		return nil, "", err
 	}
 	go func() {
 		// TODO(bradfitz): tell the proxy that this side is dead
@@ -177,10 +185,10 @@ func initSide(side, goHash, toolsHash string) (hostport string, err error) {
 		}
 		res.Body.Close()
 		if res.StatusCode == http.StatusOK {
-			return hostport, nil
+			return godoc, hostport, nil
 		}
 	}
-	return "", fmt.Errorf("timed out waiting for side %v at %v (%v)", side, hostport, err)
+	return nil, "", fmt.Errorf("timed out waiting for side %v at %v (%v)", side, hostport, err)
 }
 
 func runErr(cmd *exec.Cmd) error {
