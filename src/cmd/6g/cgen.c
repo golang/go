@@ -1390,22 +1390,25 @@ sgen(Node *n, Node *ns, int64 w)
 		return;
 	}
 
+	nodreg(&noddi, types[tptr], REG_DI);
+	nodreg(&nodsi, types[tptr], REG_SI);
+
 	if(n->ullman >= ns->ullman) {
-		agenr(n, &nodr, N);
+		agenr(n, &nodr, &nodsi);
 		if(ns->op == ONAME)
 			gvardef(ns);
-		agenr(ns, &nodl, N);
+		agenr(ns, &nodl, &noddi);
 	} else {
 		if(ns->op == ONAME)
 			gvardef(ns);
-		agenr(ns, &nodl, N);
-		agenr(n, &nodr, N);
+		agenr(ns, &nodl, &noddi);
+		agenr(n, &nodr, &nodsi);
 	}
 	
-	nodreg(&noddi, types[tptr], REG_DI);
-	nodreg(&nodsi, types[tptr], REG_SI);
-	gmove(&nodl, &noddi);
-	gmove(&nodr, &nodsi);
+	if(nodl.val.u.reg != REG_DI)
+		gmove(&nodl, &noddi);
+	if(nodr.val.u.reg != REG_SI)
+		gmove(&nodr, &nodsi);
 	regfree(&nodl);
 	regfree(&nodr);
 
@@ -1468,24 +1471,29 @@ sgen(Node *n, Node *ns, int64 w)
 		} else if(w < 8 || c <= 4) {
 			nodsi.op = OINDREG;
 			noddi.op = OINDREG;
+			cx.type = types[TINT32];
 			nodsi.type = types[TINT32];
 			noddi.type = types[TINT32];
 			if(c > 4) {
 				nodsi.xoffset = 0;
 				noddi.xoffset = 0;
-				gmove(&nodsi, &noddi);
+				gmove(&nodsi, &cx);
+				gmove(&cx, &noddi);
 			}
 			nodsi.xoffset = c-4;
 			noddi.xoffset = c-4;
-			gmove(&nodsi, &noddi);
+			gmove(&nodsi, &cx);
+			gmove(&cx, &noddi);
 		} else {
 			nodsi.op = OINDREG;
 			noddi.op = OINDREG;
+			cx.type = types[TINT64];
 			nodsi.type = types[TINT64];
 			noddi.type = types[TINT64];
 			nodsi.xoffset = c-8;
 			noddi.xoffset = c-8;
-			gmove(&nodsi, &noddi);
+			gmove(&nodsi, &cx);
+			gmove(&cx, &noddi);
 		}
 	}
 
