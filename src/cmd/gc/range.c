@@ -185,6 +185,7 @@ walkrange(Node *n)
 				tmp->bounded = 1;
 				tmp = nod(OADDR, tmp, N);
 				tmp = nod(OCONVNOP, tmp, N);
+				tmp->type = ptrto(types[TUINT8]);
 				n->nbody = list(n->nbody, nod(OAS, hp, tmp));
 
 				// hn = len(a) * sizeof(elem(a))
