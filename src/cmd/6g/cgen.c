@@ -1457,6 +1457,18 @@ sgen(Node *n, Node *ns, int64 w)
 			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
 			// 14 and 128 = magic constants: see ../../runtime/asm_amd64.s
 			p->to.offset = 14*(128-q);
+		} else if(!nacl && c == 0) {
+			// We don't need the MOVSQ side-effect of updating SI and DI,
+			// and issuing a sequence of MOVQs directly is faster.
+			nodsi.op = OINDREG;
+			noddi.op = OINDREG;
+			while(q > 0) {
+				gmove(&nodsi, &cx); // MOVQ x+(SI),CX
+				gmove(&cx, &noddi); // MOVQ CX,x+(DI)
+				nodsi.xoffset += 8;
+				noddi.xoffset += 8;
+				q--;
+			}
 		} else
 		while(q > 0) {
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+

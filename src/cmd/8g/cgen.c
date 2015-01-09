@@ -1213,7 +1213,7 @@ stkof(Node *n)
 void
 sgen(Node *n, Node *res, int64 w)
 {
-	Node dst, src, tdst, tsrc;
+	Node dst, src, tdst, tsrc, cx;
 	int32 c, q, odst, osrc;
 	NodeList *l;
 	Prog *p;
@@ -1329,6 +1329,19 @@ sgen(Node *n, Node *res, int64 w)
 			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
 			// 10 and 128 = magic constants: see ../../runtime/asm_386.s
 			p->to.offset = 10*(128-q);
+		} else if(!nacl && c == 0) {
+			nodreg(&cx, types[TINT32], REG_CX);
+			// We don't need the MOVSL side-effect of updating SI and DI,
+			// and issuing a sequence of MOVLs directly is faster.
+			src.op = OINDREG;
+			dst.op = OINDREG;
+			while(q > 0) {
+				gmove(&src, &cx); // MOVL x+(SI),CX
+				gmove(&cx, &dst); // MOVL CX,x+(DI)
+				src.xoffset += 4;
+				dst.xoffset += 4;
+				q--;
+			}
 		} else
 		while(q > 0) {
 			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
