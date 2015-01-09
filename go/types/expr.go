@@ -998,6 +998,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			}
 		}
 		if typ == nil {
+			// TODO(gri) provide better error messages depending on context
 			check.error(e.Pos(), "missing type in composite literal")
 			goto Error
 		}
@@ -1094,7 +1095,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					check.error(e.Pos(), "missing key in map literal")
 					continue
 				}
-				check.expr(x, kv.Key)
+				check.exprWithHint(x, kv.Key, utyp.key)
 				if !check.assignment(x, utyp.key) {
 					if x.mode != invalid {
 						check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.key)
