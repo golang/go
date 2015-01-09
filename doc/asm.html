@@ -350,7 +350,11 @@ live pointers in its arguments, results, and local stack frame.
 For an assembly function with no pointer results and
 either no local stack frame or no function calls,
 the only requirement is to define a Go prototype for the function
-in a Go source file in the same package.
+in a Go source file in the same package. The name of the assembly
+function must not contain the package name component (for example,
+function <code>Syscall</code> in package <code>syscall</code> should
+use the name <code>·Syscall</code> instead of the equivalent name
+<code>syscall·Syscall</code> in its <code>TEXT</code> directive).
 For more complex situations, explicit annotation is needed.
 These annotations use pseudo-instructions defined in the standard
 <code>#include</code> file <code>funcdata.h</code>.
