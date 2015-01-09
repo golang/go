@@ -611,14 +611,6 @@ func gcwork(force int32) {
 	}
 }
 
-func GCcheckmarkenable() {
-	systemstack(gccheckmarkenable_m)
-}
-
-func GCcheckmarkdisable() {
-	systemstack(gccheckmarkdisable_m)
-}
-
 // gctimes records the time in nanoseconds of each phase of the concurrent GC.
 type gctimes struct {
 	sweepterm     int64 // stw

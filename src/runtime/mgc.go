@@ -236,10 +236,7 @@ func have_cgo_allocate() bool {
 // When marking an object if the bool checkmark is true one uses the above
 // encoding, otherwise one uses the bitMarked bit in the lower two bits
 // of the nibble.
-var (
-	checkmark         = false
-	gccheckmarkenable = true
-)
+var checkmark = false
 
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
 // It returns false for pointers into stack spans.
@@ -559,7 +556,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 			continue
 		}
 
-		if mheap_.shadow_enabled && debug.wbshadow >= 2 && gccheckmarkenable && checkmark {
+		if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && checkmark {
 			checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
 		}
 
@@ -1856,7 +1853,7 @@ func clearcheckmarkbits() {
 // bitMarked bit that is not set then we throw.
 //go:nowritebarrier
 func gccheckmark_m(startTime int64, eagersweep bool) {
-	if !gccheckmarkenable {
+	if debug.gccheckmark == 0 {
 		return
 	}
 
@@ -1867,16 +1864,6 @@ func gccheckmark_m(startTime int64, eagersweep bool) {
 	checkmark = true
 	clearcheckmarkbits()        // Converts BitsDead to BitsScalar.
 	gc_m(startTime, eagersweep) // turns off checkmark + calls clearcheckmarkbits
-}
-
-//go:nowritebarrier
-func gccheckmarkenable_m() {
-	gccheckmarkenable = true
-}
-
-//go:nowritebarrier
-func gccheckmarkdisable_m() {
-	gccheckmarkenable = false
 }
 
 //go:nowritebarrier
@@ -1987,6 +1974,9 @@ func gc(start_time int64, eagersweep bool) {
 	}
 
 	if !checkmark {
+		// TODO(austin) This is a noop beceause we should
+		// already have swept everything to the current
+		// sweepgen.
 		finishsweep_m() // skip during checkmark debug phase.
 	}
 
@@ -2107,7 +2097,7 @@ func gc(start_time int64, eagersweep bool) {
 		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
 	}
 
-	if gccheckmarkenable {
+	if debug.gccheckmark > 0 {
 		if !checkmark {
 			// first half of two-pass; don't set up sweep
 			unlock(&mheap_.lock)

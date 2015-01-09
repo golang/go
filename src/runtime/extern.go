@@ -66,6 +66,12 @@ a comma-separated list of name=val pairs. Supported names are:
 	problem with allocfreetrace=1 in order to understand the type
 	of the badly updated word.
 
+	gccheckmark: setting gccheckmark=1 enables verification of the
+	garbage collector's concurrent mark phase by performing a
+	second mark pass while the world is stopped.  If the second
+	pass finds a reachable object that was not found by concurrent
+	mark, the garbage collector will panic.
+
 The GOMAXPROCS variable limits the number of operating system threads that
 can execute user-level Go code simultaneously. There is no limit to the number of threads
 that can be blocked in system calls on behalf of Go code; those do not count against
