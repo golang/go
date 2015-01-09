@@ -16,3 +16,7 @@ buildlet.windows-amd64: buildlet.go
 buildlet.darwin-amd64: buildlet.go
 	GOOS=darwin GOARCH=amd64 go build -o $@ --tags=buildlet
 	cat $@ | (cd ../coordinator/buildongce && go run create.go --write_object=go-builder-data/$@)
+
+buildlet.netbsd-amd64: buildlet.go
+	GOOS=netbsd GOARCH=amd64 go build -o $@ --tags=buildlet
+	cat $@ | (cd ../coordinator/buildongce && go run create.go --write_object=go-builder-data/$@)
