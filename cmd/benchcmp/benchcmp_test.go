@@ -8,45 +8,45 @@ import (
 )
 
 func TestSelectBest(t *testing.T) {
-	have := parse.BenchSet{
-		"Benchmark1": []*parse.Bench{
+	have := parse.Set{
+		"Benchmark1": []*parse.Benchmark{
 			{
 				Name: "Benchmark1",
-				N:    10, NsOp: 100, Measured: parse.NsOp,
+				N:    10, NsPerOp: 100, Measured: parse.NsPerOp,
 				Ord: 0,
 			},
 			{
 				Name: "Benchmark1",
-				N:    10, NsOp: 50, Measured: parse.NsOp,
+				N:    10, NsPerOp: 50, Measured: parse.NsPerOp,
 				Ord: 3,
 			},
 		},
-		"Benchmark2": []*parse.Bench{
+		"Benchmark2": []*parse.Benchmark{
 			{
 				Name: "Benchmark2",
-				N:    10, NsOp: 60, Measured: parse.NsOp,
+				N:    10, NsPerOp: 60, Measured: parse.NsPerOp,
 				Ord: 1,
 			},
 			{
 				Name: "Benchmark2",
-				N:    10, NsOp: 500, Measured: parse.NsOp,
+				N:    10, NsPerOp: 500, Measured: parse.NsPerOp,
 				Ord: 2,
 			},
 		},
 	}
 
-	want := parse.BenchSet{
-		"Benchmark1": []*parse.Bench{
+	want := parse.Set{
+		"Benchmark1": []*parse.Benchmark{
 			{
 				Name: "Benchmark1",
-				N:    10, NsOp: 50, Measured: parse.NsOp,
+				N:    10, NsPerOp: 50, Measured: parse.NsPerOp,
 				Ord: 0,
 			},
 		},
-		"Benchmark2": []*parse.Bench{
+		"Benchmark2": []*parse.Benchmark{
 			{
 				Name: "Benchmark2",
-				N:    10, NsOp: 60, Measured: parse.NsOp,
+				N:    10, NsPerOp: 60, Measured: parse.NsPerOp,
 				Ord: 1,
 			},
 		},

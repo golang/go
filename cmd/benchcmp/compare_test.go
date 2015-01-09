@@ -54,29 +54,29 @@ func TestCorrelate(t *testing.T) {
 	// Benches that are going to be successfully correlated get N thus:
 	//   0x<counter><num benches><b = before | a = after>
 	// Read this: "<counter> of <num benches>, from <before|after>".
-	before := parse.BenchSet{
-		"BenchmarkOneEach":   []*parse.Bench{{Name: "BenchmarkOneEach", N: 0x11b}},
-		"BenchmarkOneToNone": []*parse.Bench{{Name: "BenchmarkOneToNone"}},
-		"BenchmarkOneToTwo":  []*parse.Bench{{Name: "BenchmarkOneToTwo"}},
-		"BenchmarkTwoToOne": []*parse.Bench{
+	before := parse.Set{
+		"BenchmarkOneEach":   []*parse.Benchmark{{Name: "BenchmarkOneEach", N: 0x11b}},
+		"BenchmarkOneToNone": []*parse.Benchmark{{Name: "BenchmarkOneToNone"}},
+		"BenchmarkOneToTwo":  []*parse.Benchmark{{Name: "BenchmarkOneToTwo"}},
+		"BenchmarkTwoToOne": []*parse.Benchmark{
 			{Name: "BenchmarkTwoToOne"},
 			{Name: "BenchmarkTwoToOne"},
 		},
-		"BenchmarkTwoEach": []*parse.Bench{
+		"BenchmarkTwoEach": []*parse.Benchmark{
 			{Name: "BenchmarkTwoEach", N: 0x12b},
 			{Name: "BenchmarkTwoEach", N: 0x22b},
 		},
 	}
 
-	after := parse.BenchSet{
-		"BenchmarkOneEach":   []*parse.Bench{{Name: "BenchmarkOneEach", N: 0x11a}},
-		"BenchmarkNoneToOne": []*parse.Bench{{Name: "BenchmarkNoneToOne"}},
-		"BenchmarkTwoToOne":  []*parse.Bench{{Name: "BenchmarkTwoToOne"}},
-		"BenchmarkOneToTwo": []*parse.Bench{
+	after := parse.Set{
+		"BenchmarkOneEach":   []*parse.Benchmark{{Name: "BenchmarkOneEach", N: 0x11a}},
+		"BenchmarkNoneToOne": []*parse.Benchmark{{Name: "BenchmarkNoneToOne"}},
+		"BenchmarkTwoToOne":  []*parse.Benchmark{{Name: "BenchmarkTwoToOne"}},
+		"BenchmarkOneToTwo": []*parse.Benchmark{
 			{Name: "BenchmarkOneToTwo"},
 			{Name: "BenchmarkOneToTwo"},
 		},
-		"BenchmarkTwoEach": []*parse.Bench{
+		"BenchmarkTwoEach": []*parse.Benchmark{
 			{Name: "BenchmarkTwoEach", N: 0x12a},
 			{Name: "BenchmarkTwoEach", N: 0x22a},
 		},
@@ -110,14 +110,14 @@ func TestCorrelate(t *testing.T) {
 
 func TestBenchCmpSorting(t *testing.T) {
 	c := []BenchCmp{
-		{&parse.Bench{Name: "BenchmarkMuchFaster", NsOp: 10, Ord: 3}, &parse.Bench{Name: "BenchmarkMuchFaster", NsOp: 1}},
-		{&parse.Bench{Name: "BenchmarkSameB", NsOp: 5, Ord: 1}, &parse.Bench{Name: "BenchmarkSameB", NsOp: 5}},
-		{&parse.Bench{Name: "BenchmarkSameA", NsOp: 5, Ord: 2}, &parse.Bench{Name: "BenchmarkSameA", NsOp: 5}},
-		{&parse.Bench{Name: "BenchmarkSlower", NsOp: 10, Ord: 0}, &parse.Bench{Name: "BenchmarkSlower", NsOp: 11}},
+		{&parse.Benchmark{Name: "BenchmarkMuchFaster", NsPerOp: 10, Ord: 3}, &parse.Benchmark{Name: "BenchmarkMuchFaster", NsPerOp: 1}},
+		{&parse.Benchmark{Name: "BenchmarkSameB", NsPerOp: 5, Ord: 1}, &parse.Benchmark{Name: "BenchmarkSameB", NsPerOp: 5}},
+		{&parse.Benchmark{Name: "BenchmarkSameA", NsPerOp: 5, Ord: 2}, &parse.Benchmark{Name: "BenchmarkSameA", NsPerOp: 5}},
+		{&parse.Benchmark{Name: "BenchmarkSlower", NsPerOp: 10, Ord: 0}, &parse.Benchmark{Name: "BenchmarkSlower", NsPerOp: 11}},
 	}
 
 	// Test just one magnitude-based sort order; they are symmetric.
-	sort.Sort(ByDeltaNsOp(c))
+	sort.Sort(ByDeltaNsPerOp(c))
 	want := []string{"BenchmarkMuchFaster", "BenchmarkSlower", "BenchmarkSameA", "BenchmarkSameB"}
 	have := []string{c[0].Name(), c[1].Name(), c[2].Name(), c[3].Name()}
 	if !reflect.DeepEqual(want, have) {

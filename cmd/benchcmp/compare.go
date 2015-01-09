@@ -13,12 +13,12 @@ import (
 
 // BenchCmp is a pair of benchmarks.
 type BenchCmp struct {
-	Before *parse.Bench
-	After  *parse.Bench
+	Before *parse.Benchmark
+	After  *parse.Benchmark
 }
 
 // Correlate correlates benchmarks from two BenchSets.
-func Correlate(before, after parse.BenchSet) (cmps []BenchCmp, warnings []string) {
+func Correlate(before, after parse.Set) (cmps []BenchCmp, warnings []string) {
 	cmps = make([]BenchCmp, 0, len(after))
 	for name, beforebb := range before {
 		afterbb := after[name]
@@ -36,12 +36,14 @@ func Correlate(before, after parse.BenchSet) (cmps []BenchCmp, warnings []string
 
 func (c BenchCmp) Name() string           { return c.Before.Name }
 func (c BenchCmp) String() string         { return fmt.Sprintf("<%s, %s>", c.Before, c.After) }
-func (c BenchCmp) Measured(flag int) bool { return c.Before.Measured&c.After.Measured&flag != 0 }
-func (c BenchCmp) DeltaNsOp() Delta       { return Delta{c.Before.NsOp, c.After.NsOp} }
-func (c BenchCmp) DeltaMbS() Delta        { return Delta{c.Before.MbS, c.After.MbS} }
-func (c BenchCmp) DeltaBOp() Delta        { return Delta{float64(c.Before.BOp), float64(c.After.BOp)} }
-func (c BenchCmp) DeltaAllocsOp() Delta {
-	return Delta{float64(c.Before.AllocsOp), float64(c.After.AllocsOp)}
+func (c BenchCmp) Measured(flag int) bool { return (c.Before.Measured & c.After.Measured & flag) != 0 }
+func (c BenchCmp) DeltaNsPerOp() Delta    { return Delta{c.Before.NsPerOp, c.After.NsPerOp} }
+func (c BenchCmp) DeltaMBPerS() Delta     { return Delta{c.Before.MBPerS, c.After.MBPerS} }
+func (c BenchCmp) DeltaAllocedBytesPerOp() Delta {
+	return Delta{float64(c.Before.AllocedBytesPerOp), float64(c.After.AllocedBytesPerOp)}
+}
+func (c BenchCmp) DeltaAllocsPerOp() Delta {
+	return Delta{float64(c.Before.AllocsPerOp), float64(c.After.AllocsPerOp)}
 }
 
 // Delta is the before and after value for a benchmark measurement.
@@ -117,34 +119,38 @@ func lessByDelta(i, j BenchCmp, calcDelta func(BenchCmp) Delta) bool {
 	return i.Name() < j.Name()
 }
 
-// ByDeltaNsOp sorts BenchCmps lexicographically by change
+// ByDeltaNsPerOp sorts BenchCmps lexicographically by change
 // in ns/op, descending, then by benchmark name.
-type ByDeltaNsOp []BenchCmp
+type ByDeltaNsPerOp []BenchCmp
 
-func (x ByDeltaNsOp) Len() int           { return len(x) }
-func (x ByDeltaNsOp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x ByDeltaNsOp) Less(i, j int) bool { return lessByDelta(x[i], x[j], BenchCmp.DeltaNsOp) }
+func (x ByDeltaNsPerOp) Len() int           { return len(x) }
+func (x ByDeltaNsPerOp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x ByDeltaNsPerOp) Less(i, j int) bool { return lessByDelta(x[i], x[j], BenchCmp.DeltaNsPerOp) }
 
-// ByDeltaMbS sorts BenchCmps lexicographically by change
+// ByDeltaMBPerS sorts BenchCmps lexicographically by change
 // in MB/s, descending, then by benchmark name.
-type ByDeltaMbS []BenchCmp
+type ByDeltaMBPerS []BenchCmp
 
-func (x ByDeltaMbS) Len() int           { return len(x) }
-func (x ByDeltaMbS) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x ByDeltaMbS) Less(i, j int) bool { return lessByDelta(x[i], x[j], BenchCmp.DeltaMbS) }
+func (x ByDeltaMBPerS) Len() int           { return len(x) }
+func (x ByDeltaMBPerS) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x ByDeltaMBPerS) Less(i, j int) bool { return lessByDelta(x[i], x[j], BenchCmp.DeltaMBPerS) }
 
-// ByDeltaBOp sorts BenchCmps lexicographically by change
+// ByDeltaAllocedBytesPerOp sorts BenchCmps lexicographically by change
 // in B/op, descending, then by benchmark name.
-type ByDeltaBOp []BenchCmp
+type ByDeltaAllocedBytesPerOp []BenchCmp
 
-func (x ByDeltaBOp) Len() int           { return len(x) }
-func (x ByDeltaBOp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x ByDeltaBOp) Less(i, j int) bool { return lessByDelta(x[i], x[j], BenchCmp.DeltaBOp) }
+func (x ByDeltaAllocedBytesPerOp) Len() int      { return len(x) }
+func (x ByDeltaAllocedBytesPerOp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+func (x ByDeltaAllocedBytesPerOp) Less(i, j int) bool {
+	return lessByDelta(x[i], x[j], BenchCmp.DeltaAllocedBytesPerOp)
+}
 
-// ByDeltaAllocsOp sorts BenchCmps lexicographically by change
+// ByDeltaAllocsPerOp sorts BenchCmps lexicographically by change
 // in allocs/op, descending, then by benchmark name.
-type ByDeltaAllocsOp []BenchCmp
+type ByDeltaAllocsPerOp []BenchCmp
 
-func (x ByDeltaAllocsOp) Len() int           { return len(x) }
-func (x ByDeltaAllocsOp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x ByDeltaAllocsOp) Less(i, j int) bool { return lessByDelta(x[i], x[j], BenchCmp.DeltaAllocsOp) }
+func (x ByDeltaAllocsPerOp) Len() int      { return len(x) }
+func (x ByDeltaAllocsPerOp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+func (x ByDeltaAllocsPerOp) Less(i, j int) bool {
+	return lessByDelta(x[i], x[j], BenchCmp.DeltaAllocsPerOp)
+}

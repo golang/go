@@ -13,47 +13,47 @@ import (
 func TestParseLine(t *testing.T) {
 	cases := []struct {
 		line string
-		want *Bench
+		want *Benchmark
 		err  bool // expect an error
 	}{
 		{
 			line: "BenchmarkEncrypt	100000000	        19.6 ns/op",
-			want: &Bench{
+			want: &Benchmark{
 				Name: "BenchmarkEncrypt",
-				N:    100000000, NsOp: 19.6,
-				Measured: NsOp,
+				N:    100000000, NsPerOp: 19.6,
+				Measured: NsPerOp,
 			},
 		},
 		{
 			line: "BenchmarkEncrypt	100000000	        19.6 ns/op	 817.77 MB/s",
-			want: &Bench{
+			want: &Benchmark{
 				Name: "BenchmarkEncrypt",
-				N:    100000000, NsOp: 19.6, MbS: 817.77,
-				Measured: NsOp | MbS,
+				N:    100000000, NsPerOp: 19.6, MBPerS: 817.77,
+				Measured: NsPerOp | MBPerS,
 			},
 		},
 		{
 			line: "BenchmarkEncrypt	100000000	        19.6 ns/op	 817.77",
-			want: &Bench{
+			want: &Benchmark{
 				Name: "BenchmarkEncrypt",
-				N:    100000000, NsOp: 19.6,
-				Measured: NsOp,
+				N:    100000000, NsPerOp: 19.6,
+				Measured: NsPerOp,
 			},
 		},
 		{
 			line: "BenchmarkEncrypt	100000000	        19.6 ns/op	 817.77 MB/s	       5 allocs/op",
-			want: &Bench{
+			want: &Benchmark{
 				Name: "BenchmarkEncrypt",
-				N:    100000000, NsOp: 19.6, MbS: 817.77, AllocsOp: 5,
-				Measured: NsOp | MbS | AllocsOp,
+				N:    100000000, NsPerOp: 19.6, MBPerS: 817.77, AllocsPerOp: 5,
+				Measured: NsPerOp | MBPerS | AllocsPerOp,
 			},
 		},
 		{
 			line: "BenchmarkEncrypt	100000000	        19.6 ns/op	 817.77 MB/s	       3 B/op	       5 allocs/op",
-			want: &Bench{
+			want: &Benchmark{
 				Name: "BenchmarkEncrypt",
-				N:    100000000, NsOp: 19.6, MbS: 817.77, BOp: 3, AllocsOp: 5,
-				Measured: NsOp | MbS | BOp | AllocsOp,
+				N:    100000000, NsPerOp: 19.6, MBPerS: 817.77, AllocedBytesPerOp: 3, AllocsPerOp: 5,
+				Measured: NsPerOp | MBPerS | AllocedBytesPerOp | AllocsPerOp,
 			},
 		},
 		// error handling cases
@@ -67,7 +67,7 @@ func TestParseLine(t *testing.T) {
 		},
 		{
 			line: "BenchmarkBridge	100000000	        19.6 smoots", // unknown unit
-			want: &Bench{
+			want: &Benchmark{
 				Name: "BenchmarkBridge",
 				N:    100000000,
 			},
@@ -90,7 +90,7 @@ func TestParseLine(t *testing.T) {
 	}
 }
 
-func TestParseBenchSet(t *testing.T) {
+func TestParseSet(t *testing.T) {
 	// Test two things:
 	// 1. The noise that can accompany testing.B output gets ignored.
 	// 2. Benchmarks with the same name have their order preserved.
@@ -111,42 +111,42 @@ func TestParseBenchSet(t *testing.T) {
 		ok  	net/http	95.783s
 	`
 
-	want := BenchSet{
-		"BenchmarkReadRequestApachebench": []*Bench{
+	want := Set{
+		"BenchmarkReadRequestApachebench": []*Benchmark{
 			{
 				Name: "BenchmarkReadRequestApachebench",
-				N:    1000000, NsOp: 2960, MbS: 27.70, BOp: 839, AllocsOp: 9,
-				Measured: NsOp | MbS | BOp | AllocsOp,
+				N:    1000000, NsPerOp: 2960, MBPerS: 27.70, AllocedBytesPerOp: 839, AllocsPerOp: 9,
+				Measured: NsPerOp | MBPerS | AllocedBytesPerOp | AllocsPerOp,
 				Ord:      2,
 			},
 		},
-		"BenchmarkClientServerParallel64": []*Bench{
+		"BenchmarkClientServerParallel64": []*Benchmark{
 			{
 				Name: "BenchmarkClientServerParallel64",
-				N:    50000, NsOp: 59192, BOp: 7028, AllocsOp: 60,
-				Measured: NsOp | BOp | AllocsOp,
+				N:    50000, NsPerOp: 59192, AllocedBytesPerOp: 7028, AllocsPerOp: 60,
+				Measured: NsPerOp | AllocedBytesPerOp | AllocsPerOp,
 				Ord:      3,
 			},
 		},
-		"BenchmarkEncrypt": []*Bench{
+		"BenchmarkEncrypt": []*Benchmark{
 			{
 				Name: "BenchmarkEncrypt",
-				N:    100000000, NsOp: 19.6,
-				Measured: NsOp,
+				N:    100000000, NsPerOp: 19.6,
+				Measured: NsPerOp,
 				Ord:      0,
 			},
 			{
 				Name: "BenchmarkEncrypt",
-				N:    5000000, NsOp: 517,
-				Measured: NsOp,
+				N:    5000000, NsPerOp: 517,
+				Measured: NsPerOp,
 				Ord:      1,
 			},
 		},
 	}
 
-	have, err := ParseBenchSet(strings.NewReader(in))
+	have, err := ParseSet(strings.NewReader(in))
 	if err != nil {
-		t.Fatalf("unexpected err during ParseBenchSet: %v", err)
+		t.Fatalf("unexpected err during ParseSet: %v", err)
 	}
 	if !reflect.DeepEqual(want, have) {
 		t.Errorf("parsed bench set incorrectly, want %v have %v", want, have)

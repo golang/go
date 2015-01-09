@@ -15,29 +15,30 @@ import (
 	"strings"
 )
 
-// Flags used by Bench.Measured to indicate
-// which measurements a Bench contains.
+// Flags used by Benchmark.Measured to indicate
+// which measurements a Benchmark contains.
 const (
-	NsOp = 1 << iota
-	MbS
-	BOp
-	AllocsOp
+	NsPerOp = 1 << iota
+	MBPerS
+	AllocedBytesPerOp
+	AllocsPerOp
 )
 
-// Bench is one run of a single benchmark.
-type Bench struct {
-	Name     string  // benchmark name
-	N        int     // number of iterations
-	NsOp     float64 // nanoseconds per iteration
-	MbS      float64 // MB processed per second
-	BOp      uint64  // bytes allocated per iteration
-	AllocsOp uint64  // allocs per iteration
-	Measured int     // which measurements were recorded
-	Ord      int     // ordinal position within a benchmark run
+// Benchmark is one run of a single benchmark.
+type Benchmark struct {
+	Name              string  // benchmark name
+	N                 int     // number of iterations
+	NsPerOp           float64 // nanoseconds per iteration
+	AllocedBytesPerOp uint64  // bytes allocated per iteration
+	AllocsPerOp       uint64  // allocs per iteration
+	MBPerS            float64 // MB processed per second
+	Measured          int     // which measurements were recorded
+	Ord               int     // ordinal position within a benchmark run
 }
 
-// ParseLine extracts a Bench from a single line of testing.B output.
-func ParseLine(line string) (*Bench, error) {
+// ParseLine extracts a Benchmark from a single line of testing.B
+// output.
+func ParseLine(line string) (*Benchmark, error) {
 	fields := strings.Fields(line)
 
 	// Two required, positional fields: Name and iterations.
@@ -51,7 +52,7 @@ func ParseLine(line string) (*Bench, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := &Bench{Name: fields[0], N: n}
+	b := &Benchmark{Name: fields[0], N: n}
 
 	// Parse any remaining pairs of fields; we've parsed one pair already.
 	for i := 1; i < len(fields)/2; i++ {
@@ -60,58 +61,58 @@ func ParseLine(line string) (*Bench, error) {
 	return b, nil
 }
 
-func (b *Bench) parseMeasurement(quant string, unit string) {
+func (b *Benchmark) parseMeasurement(quant string, unit string) {
 	switch unit {
 	case "ns/op":
 		if f, err := strconv.ParseFloat(quant, 64); err == nil {
-			b.NsOp = f
-			b.Measured |= NsOp
+			b.NsPerOp = f
+			b.Measured |= NsPerOp
 		}
 	case "MB/s":
 		if f, err := strconv.ParseFloat(quant, 64); err == nil {
-			b.MbS = f
-			b.Measured |= MbS
+			b.MBPerS = f
+			b.Measured |= MBPerS
 		}
 	case "B/op":
 		if i, err := strconv.ParseUint(quant, 10, 64); err == nil {
-			b.BOp = i
-			b.Measured |= BOp
+			b.AllocedBytesPerOp = i
+			b.Measured |= AllocedBytesPerOp
 		}
 	case "allocs/op":
 		if i, err := strconv.ParseUint(quant, 10, 64); err == nil {
-			b.AllocsOp = i
-			b.Measured |= AllocsOp
+			b.AllocsPerOp = i
+			b.Measured |= AllocsPerOp
 		}
 	}
 }
 
-func (b *Bench) String() string {
+func (b *Benchmark) String() string {
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "%s %d", b.Name, b.N)
-	if b.Measured&NsOp != 0 {
-		fmt.Fprintf(buf, " %.2f ns/op", b.NsOp)
+	if (b.Measured & NsPerOp) != 0 {
+		fmt.Fprintf(buf, " %.2f ns/op", b.NsPerOp)
 	}
-	if b.Measured&MbS != 0 {
-		fmt.Fprintf(buf, " %.2f MB/s", b.MbS)
+	if (b.Measured & MBPerS) != 0 {
+		fmt.Fprintf(buf, " %.2f MB/s", b.MBPerS)
 	}
-	if b.Measured&BOp != 0 {
-		fmt.Fprintf(buf, " %d B/op", b.BOp)
+	if (b.Measured & AllocedBytesPerOp) != 0 {
+		fmt.Fprintf(buf, " %d B/op", b.AllocedBytesPerOp)
 	}
-	if b.Measured&AllocsOp != 0 {
-		fmt.Fprintf(buf, " %d allocs/op", b.AllocsOp)
+	if (b.Measured & AllocsPerOp) != 0 {
+		fmt.Fprintf(buf, " %d allocs/op", b.AllocsPerOp)
 	}
 	return buf.String()
 }
 
-// BenchSet is a collection of benchmarks from one
+// Set is a collection of benchmarks from one
 // testing.B run, keyed by name to facilitate comparison.
-type BenchSet map[string][]*Bench
+type Set map[string][]*Benchmark
 
-// ParseBenchSet extracts a BenchSet from testing.B output.
-// ParseBenchSet preserves the order of benchmarks that have identical
+// ParseSet extracts a Set from testing.B output.
+// ParseSet preserves the order of benchmarks that have identical
 // names.
-func ParseBenchSet(r io.Reader) (BenchSet, error) {
-	bb := make(BenchSet)
+func ParseSet(r io.Reader) (Set, error) {
+	bb := make(Set)
 	scan := bufio.NewScanner(r)
 	ord := 0
 	for scan.Scan() {
