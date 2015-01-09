@@ -317,6 +317,7 @@ var debug struct {
 	scheddetail    int32
 	schedtrace     int32
 	wbshadow       int32
+	gccheckmark    int32
 }
 
 var dbgvars = []dbgVar{
@@ -329,9 +330,13 @@ var dbgvars = []dbgVar{
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
 	{"wbshadow", &debug.wbshadow},
+	{"gccheckmark", &debug.gccheckmark},
 }
 
 func parsedebugvars() {
+	// gccheckmark is enabled by default for the 1.5 dev cycle
+	debug.gccheckmark = 1
+
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
 		i := index(p, ",")
