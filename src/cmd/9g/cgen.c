@@ -1602,7 +1602,7 @@ componentgen(Node *nr, Node *nl)
 
 	nodl = *nl;
 	if(!cadable(nl)) {
-		if(nr == N || !cadable(nr))
+		if(nr != N && !cadable(nr))
 			goto no;
 		igen(nl, &nodl, N);
 		freel = 1;
