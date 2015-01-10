@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -214,6 +215,9 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 }
 
 func TestReverseProxyCancellation(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test; see http://golang.org/issue/9554")
+	}
 	const backendResponse = "I am the backend"
 
 	reqInFlight := make(chan struct{})
