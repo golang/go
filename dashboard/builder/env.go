@@ -284,6 +284,7 @@ func extraEnv() []string {
 	extra := []string{
 		"GOARM",
 		"GO386",
+		"GOROOT_BOOTSTRAP", // See https://golang.org/s/go15bootstrap
 		"CGO_ENABLED",
 		"CC",
 		"CC_FOR_TARGET",
