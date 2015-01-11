@@ -34,8 +34,7 @@ func checkgoarm() {
 	}
 }
 
-//go:nosplit
-func setup_auxv(argc int32, argv **byte) {
+func sysargs(argc int32, argv **byte) {
 	// skip over argv, envv to get to auxv
 	n := argc + 1
 	for argv_index(argv, n) != nil {

@@ -53,9 +53,6 @@ TEXT _rt0_arm_linux1(SB),NOSPLIT,$-4
 	// SWI	$0 // restore signal handler
 	// ADD	$32, R13
 
-	SUB	$4, R13 // fake a stack frame for runtime·setup_auxv
-	BL	runtime·setup_auxv(SB)
-	ADD	$4, R13
 	B	runtime·rt0_go(SB)
 
 TEXT bad_abi<>(SB),NOSPLIT,$-4
