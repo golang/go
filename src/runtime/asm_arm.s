@@ -59,7 +59,6 @@ nocgo:
 	MOVW	R0, g_stackguard0(g)
 	MOVW	R0, g_stackguard1(g)
 
-	BL	runtime·checkgoarm(SB)
 	BL	runtime·check(SB)
 
 	// saved argc, argv
@@ -68,6 +67,7 @@ nocgo:
 	MOVW	64(R13), R1
 	MOVW	R1, 8(R13)
 	BL	runtime·args(SB)
+	BL	runtime·checkgoarm(SB)
 	BL	runtime·osinit(SB)
 	BL	runtime·schedinit(SB)
 
