@@ -329,25 +329,25 @@ static struct {
 static int	checkpool(Link*, Prog*, int);
 static int 	flushpool(Link*, Prog*, int, int);
 static void	addpool(Link*, Prog*, Addr*);
-static void	asmout(Link*, Prog*, Optab*, int32*);
-static int	asmoutnacl(Link*, int32, Prog*, Optab*, int32 *);
+static void	asmout(Link*, Prog*, Optab*, uint32*);
+static int	asmoutnacl(Link*, int32, Prog*, Optab*, uint32*);
 static Optab*	oplook(Link*, Prog*);
-static int32	oprrr(Link*, int, int);
-static int32	olr(Link*, int32, int, int, int);
-static int32	olhr(Link*, int32, int, int, int);
-static int32	olrr(Link*, int, int, int, int);
-static int32	olhrr(Link*, int, int, int, int);
-static int32	osr(Link*, int, int, int32, int, int);
-static int32	oshr(Link*, int, int32, int, int);
-static int32	ofsr(Link*, int, int, int32, int, int, Prog*);
-static int32	osrr(Link*, int, int, int, int);
-static int32	oshrr(Link*, int, int, int, int);
-static int32	omvl(Link*, Prog*, Addr*, int);
+static uint32	oprrr(Link*, int, int);
+static uint32	olr(Link*, int32, int, int, int);
+static uint32	olhr(Link*, int32, int, int, int);
+static uint32	olrr(Link*, int, int, int, int);
+static uint32	olhrr(Link*, int, int, int, int);
+static uint32	osr(Link*, int, int, int32, int, int);
+static uint32	oshr(Link*, int, int32, int, int);
+static uint32	ofsr(Link*, int, int, int32, int, int, Prog*);
+static uint32	osrr(Link*, int, int, int, int);
+static uint32	oshrr(Link*, int, int, int, int);
+static uint32	omvl(Link*, Prog*, Addr*, int);
 static int32	immaddr(int32);
 static int	aclass(Link*, Addr*);
 static int32	immrot(uint32);
 static int32	immaddr(int32);
-static int32	opbra(Link*, int, int);
+static uint32	opbra(Link*, int, int);
 
 static	Oprang	oprange[ALAST];
 static	uchar	xcmp[C_GOK+1][C_GOK+1];
@@ -405,7 +405,7 @@ static void buildop(Link*);
 // In rare cases, asmoutnacl might split p into two instructions.
 // origPC is the PC for this Prog (no padding is taken into account).
 static int
-asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, int32 *out)
+asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, uint32 *out)
 {
 	int size, reg;
 	Prog *q;
@@ -642,7 +642,8 @@ span5(Link *ctxt, LSym *cursym)
 	Prog *p, *op;
 	Optab *o;
 	int m, bflag, i, v, times;
-	int32 c, opc, out[6+3];
+	int32 c, opc;
+	uint32 out[6+3];
 	uchar *bp;
 
 	p = cursym->text;
@@ -682,7 +683,10 @@ span5(Link *ctxt, LSym *cursym)
 		}
 		// must check literal pool here in case p generates many instructions
 		if(ctxt->blitrl){
-			if(checkpool(ctxt, op, p->as == ACASE ? casesz(ctxt, p) : m)) {
+			i = m;
+			if(p->as == ACASE)
+				i = casesz(ctxt, p);
+			if(checkpool(ctxt, op, i)) {
 				p = op;
 				continue;
 			}
@@ -1070,8 +1074,11 @@ aclass(Link *ctxt, Addr *a)
 			ctxt->instoffset = ctxt->autosize + a->offset;
 			t = immaddr(ctxt->instoffset);
 			if(t){
-				if(immhalf(ctxt->instoffset))
-					return immfloat(t) ? C_HFAUTO : C_HAUTO;
+				if(immhalf(ctxt->instoffset)) {
+					if(immfloat(t))
+						return C_HFAUTO;
+					return C_HAUTO;
+				}
 				if(immfloat(t))
 					return C_FAUTO;
 				return C_SAUTO;
@@ -1082,8 +1089,11 @@ aclass(Link *ctxt, Addr *a)
 			ctxt->instoffset = ctxt->autosize + a->offset + 4L;
 			t = immaddr(ctxt->instoffset);
 			if(t){
-				if(immhalf(ctxt->instoffset))
-					return immfloat(t) ? C_HFAUTO : C_HAUTO;
+				if(immhalf(ctxt->instoffset)) {
+					if(immfloat(t))
+						return C_HFAUTO;
+					return C_HAUTO;
+				}
 				if(immfloat(t))
 					return C_FAUTO;
 				return C_SAUTO;
@@ -1093,8 +1103,11 @@ aclass(Link *ctxt, Addr *a)
 			ctxt->instoffset = a->offset;
 			t = immaddr(ctxt->instoffset);
 			if(t) {
-				if(immhalf(ctxt->instoffset))		 /* n.b. that it will also satisfy immrot */
-					return immfloat(t) ? C_HFOREG : C_HOREG;
+				if(immhalf(ctxt->instoffset)) {		 /* n.b. that it will also satisfy immrot */
+					if(immfloat(t))
+						return C_HFOREG;
+					return C_HOREG;
+				}
 				if(immfloat(t))
 					return C_FOREG; /* n.b. that it will also satisfy immrot */
 				t = immrot(ctxt->instoffset);
@@ -1488,12 +1501,13 @@ buildop(Link *ctxt)
 	}
 }
 
-static int32 mov(Link*, Prog*);
+static uint32 mov(Link*, Prog*);
 
 static void
-asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 {
-	int32 o1, o2, o3, o4, o5, o6, v;
+	uint32 o1, o2, o3, o4, o5, o6;
+	int32 v;
 	int r, rf, rt, rt2;
 	Reloc *rel;
 
@@ -2315,10 +2329,10 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 	return;
 }
 
-static int32
+static uint32
 mov(Link *ctxt, Prog *p)
 {
-	int32 o1;
+	uint32 o1;
 	int rt, r;
 
 	aclass(ctxt, &p->from);
@@ -2336,10 +2350,10 @@ mov(Link *ctxt, Prog *p)
 	return o1;
 }
 
-static int32
+static uint32
 oprrr(Link *ctxt, int a, int sc)
 {
-	int32 o;
+	uint32 o;
 
 	o = (sc & C_SCOND) << 28;
 	if(sc & C_SBIT)
@@ -2450,7 +2464,7 @@ oprrr(Link *ctxt, int a, int sc)
 	return 0;
 }
 
-static int32
+static uint32
 opbra(Link *ctxt, int a, int sc)
 {
 
@@ -2485,10 +2499,10 @@ opbra(Link *ctxt, int a, int sc)
 	return 0;
 }
 
-static int32
+static uint32
 olr(Link *ctxt, int32 v, int b, int r, int sc)
 {
-	int32 o;
+	uint32 o;
 
 	if(sc & C_SBIT)
 		ctxt->diag(".nil on LDR/STR instruction");
@@ -2514,10 +2528,10 @@ olr(Link *ctxt, int32 v, int b, int r, int sc)
 	return o;
 }
 
-static int32
+static uint32
 olhr(Link *ctxt, int32 v, int b, int r, int sc)
 {
-	int32 o;
+	uint32 o;
 
 	if(sc & C_SBIT)
 		ctxt->diag(".nil on LDRH/STRH instruction");
@@ -2539,10 +2553,10 @@ olhr(Link *ctxt, int32 v, int b, int r, int sc)
 	return o;
 }
 
-static int32
+static uint32
 osr(Link *ctxt, int a, int r, int32 v, int b, int sc)
 {
-	int32 o;
+	uint32 o;
 
 	o = olr(ctxt, v, b, r, sc) ^ (1<<20);
 	if(a != AMOVW)
@@ -2550,46 +2564,46 @@ osr(Link *ctxt, int a, int r, int32 v, int b, int sc)
 	return o;
 }
 
-static int32
+static uint32
 oshr(Link *ctxt, int r, int32 v, int b, int sc)
 {
-	int32 o;
+	uint32 o;
 
 	o = olhr(ctxt, v, b, r, sc) ^ (1<<20);
 	return o;
 }
 
 
-static int32
+static uint32
 osrr(Link *ctxt, int r, int i, int b, int sc)
 {
 
 	return olr(ctxt, i, b, r, sc) ^ ((1<<25) | (1<<20));
 }
 
-static int32
+static uint32
 oshrr(Link *ctxt, int r, int i, int b, int sc)
 {
 	return olhr(ctxt, i, b, r, sc) ^ ((1<<22) | (1<<20));
 }
 
-static int32
+static uint32
 olrr(Link *ctxt, int i, int b, int r, int sc)
 {
 
 	return olr(ctxt, i, b, r, sc) ^ (1<<25);
 }
 
-static int32
+static uint32
 olhrr(Link *ctxt, int i, int b, int r, int sc)
 {
 	return olhr(ctxt, i, b, r, sc) ^ (1<<22);
 }
 
-static int32
+static uint32
 ofsr(Link *ctxt, int a, int r, int32 v, int b, int sc, Prog *p)
 {
-	int32 o;
+	uint32 o;
 
 	if(sc & C_SBIT)
 		ctxt->diag(".nil on FLDR/FSTR instruction");
@@ -2623,10 +2637,11 @@ ofsr(Link *ctxt, int a, int r, int32 v, int b, int sc, Prog *p)
 	return o;
 }
 
-static int32
+static uint32
 omvl(Link *ctxt, Prog *p, Addr *a, int dr)
 {
-	int32 v, o1;
+	int32 v;
+	uint32 o1;
 	if(!p->pcond) {
 		aclass(ctxt, a);
 		v = immrot(~ctxt->instoffset);
@@ -2659,7 +2674,7 @@ chipfloat5(Link *ctxt, float64 e)
 {
 	int n;
 	ulong h1;
-	int32 l, h;
+	uint32 l, h;
 	uint64 ei;
 
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
@@ -2667,8 +2682,8 @@ chipfloat5(Link *ctxt, float64 e)
 		goto no;
 
 	memmove(&ei, &e, 8);
-	l = (int32)ei;
-	h = (int32)(ei>>32);
+	l = (uint32)ei;
+	h = (uint32)(ei>>32);
 
 	if(l != 0 || (h&0xffff) != 0)
 		goto no;

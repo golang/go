@@ -118,11 +118,11 @@ progedit(Link *ctxt, Prog *p)
 	switch(p->as) {
 	case AFMOVS:
 		if(p->from.type == D_FCONST) {
-			int32 i32;
+			uint32 i32;
 			float32 f32;
 			f32 = p->from.u.dval;
 			memmove(&i32, &f32, 4);
-			sprint(literal, "$f32.%08ux", (uint32)i32);
+			sprint(literal, "$f32.%08ux", i32);
 			s = linklookup(ctxt, literal, 0);
 			s->size = 4;
 			p->from.type = D_OREG;
@@ -133,9 +133,9 @@ progedit(Link *ctxt, Prog *p)
 		break;
 	case AFMOVD:
 		if(p->from.type == D_FCONST) {
-			int64 i64;
+			uint64 i64;
 			memmove(&i64, &p->from.u.dval, 8);
-			sprint(literal, "$f64.%016llux", (uvlong)i64);
+			sprint(literal, "$f64.%016llux", i64);
 			s = linklookup(ctxt, literal, 0);
 			s->size = 8;
 			p->from.type = D_OREG;
@@ -414,7 +414,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			else
 				if(autosize & 4)
 					autosize += 4;
-			p->to.offset = (p->to.offset & (0xffffffffull<<32)) | (uint32)(autosize-8);
+			p->to.offset = ((uint64)p->to.offset & (0xffffffffull<<32)) | (uint32)(autosize-8);
 
 			if(!(p->reg & NOSPLIT))
 				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
@@ -668,14 +668,15 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		}
 	}
 
-#if 0 // instruction scheduling
+/*
+// instruction scheduling
 	if(debug['Q'] == 0)
 		return;
 
 	curtext = nil;
-	q = nil;	/* p - 1 */
-	q1 = firstp;	/* top of block */
-	o = 0;		/* count of instructions */
+	q = nil;	// p - 1
+	q1 = firstp;	// top of block
+	o = 0;		// count of instructions
 	for(p = firstp; p != nil; p = p1) {
 		p1 = p->link;
 		o++;
@@ -711,7 +712,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		}
 		q = p;
 	}
-#endif
+*/
 }
 
 static Prog*

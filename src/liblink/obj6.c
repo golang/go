@@ -270,11 +270,11 @@ progedit(Link *ctxt, Prog *p)
 	case ACOMISS:
 	case AUCOMISS:
 		if(p->from.type == D_FCONST) {
-			int32 i32;
+			uint32 i32;
 			float32 f32;
 			f32 = p->from.u.dval;
 			memmove(&i32, &f32, 4);
-			sprint(literal, "$f32.%08ux", (uint32)i32);
+			sprint(literal, "$f32.%08ux", i32);
 			s = linklookup(ctxt, literal, 0);
 			if(s->type == 0) {
 				s->type = SRODATA;
@@ -316,9 +316,9 @@ progedit(Link *ctxt, Prog *p)
 	case ACOMISD:
 	case AUCOMISD:
 		if(p->from.type == D_FCONST) {
-			int64 i64;
+			uint64 i64;
 			memmove(&i64, &p->from.u.dval, 8);
-			sprint(literal, "$f64.%016llux", (uvlong)i64);
+			sprint(literal, "$f64.%016llux", i64);
 			s = linklookup(ctxt, literal, 0);
 			if(s->type == 0) {
 				s->type = SRODATA;
