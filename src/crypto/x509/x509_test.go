@@ -1016,6 +1016,28 @@ func TestMaxPathLen(t *testing.T) {
 	}
 }
 
+func TestASN1BitLength(t *testing.T) {
+	tests := []struct {
+		bytes  []byte
+		bitLen int
+	}{
+		{nil, 0},
+		{[]byte{0x00}, 0},
+		{[]byte{0x00, 0x00}, 0},
+		{[]byte{0xf0}, 4},
+		{[]byte{0x88}, 5},
+		{[]byte{0xff}, 8},
+		{[]byte{0xff, 0x80}, 9},
+		{[]byte{0xff, 0x81}, 16},
+	}
+
+	for i, test := range tests {
+		if got := asn1BitLength(test.bytes); got != test.bitLen {
+			t.Errorf("#%d: calculated bit-length of %d for %x, wanted %d", i, got, test.bytes, test.bitLen)
+		}
+	}
+}
+
 // This CSR was generated with OpenSSL:
 //  openssl req -out CSR.csr -new -newkey rsa:2048 -nodes -keyout privateKey.key -config openssl.cnf
 //

@@ -1135,6 +1135,26 @@ func reverseBitsInAByte(in byte) byte {
 	return b3
 }
 
+// asn1BitLength returns the bit-length of bitString by considering the
+// most-significant bit in a byte to be the "first" bit. This convention
+// matches ASN.1, but differs from almost everything else.
+func asn1BitLength(bitString []byte) int {
+	bitLen := len(bitString) * 8
+
+	for i := range bitString {
+		b := bitString[len(bitString)-i-1]
+
+		for bit := uint(0); bit < 8; bit++ {
+			if (b>>bit)&1 == 1 {
+				return bitLen
+			}
+			bitLen--
+		}
+	}
+
+	return 0
+}
+
 var (
 	oidExtensionSubjectKeyId          = []int{2, 5, 29, 14}
 	oidExtensionKeyUsage              = []int{2, 5, 29, 15}
@@ -1203,7 +1223,8 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 			l = 2
 		}
 
-		ret[n].Value, err = asn1.Marshal(asn1.BitString{Bytes: a[0:l], BitLength: l * 8})
+		bitString := a[:l]
+		ret[n].Value, err = asn1.Marshal(asn1.BitString{Bytes: bitString, BitLength: asn1BitLength(bitString)})
 		if err != nil {
 			return
 		}
