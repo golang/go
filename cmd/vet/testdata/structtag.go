@@ -2,14 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains tests for the structtag checker.
-
 // This file contains the test for canonical struct tags.
 
 package testdata
 
 type StructTagTest struct {
-	X int "hello" // ERROR "not compatible with reflect.StructTag.Get"
+	A   int "hello"            // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag pair"
+	B   int "\tx:\"y\""        // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag key"
+	C   int "x:\"y\"\tx:\"y\"" // ERROR "not compatible with reflect.StructTag.Get"
+	D   int "x:`y`"            // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag value"
+	OK0 int `x:"y" u:"v" w:""`
+	OK1 int `x:"y:z" u:"v" w:""` // note multiple colons.
 }
 
 type UnexportedEncodingTagTest struct {
