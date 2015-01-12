@@ -14,7 +14,7 @@ import "testing"
 
 var v7234 = [...]string{"runtime/cgo"}
 
-func TestIssue7234(t *testing.T) {
+func Test7234(t *testing.T) {
 	if v7234[0] != "runtime/cgo" {
 		t.Errorf("bad string constant %q", v7234[0])
 	}
