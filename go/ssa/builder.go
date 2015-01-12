@@ -747,7 +747,7 @@ func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 // selections of sel.
 //
 // wantAddr requests that the result is an an address.  If
-// !sel.Indirect(), this may require that e be build in addr() mode; it
+// !sel.Indirect(), this may require that e be built in addr() mode; it
 // must thus be addressable.
 //
 // escaping is defined as per builder.addr().
@@ -780,10 +780,11 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		sel, ok := fn.Pkg.info.Selections[selector]
 		if ok && sel.Kind() == types.MethodVal {
 			obj := sel.Obj().(*types.Func)
-			wantAddr := isPointer(recvType(obj))
+			recv := recvType(obj)
+			wantAddr := isPointer(recv)
 			escaping := true
 			v := b.receiver(fn, selector.X, wantAddr, escaping, sel)
-			if isInterface(deref(v.Type())) {
+			if isInterface(recv) {
 				// Invoke-mode call.
 				c.Value = v
 				c.Method = obj
