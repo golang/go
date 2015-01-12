@@ -454,7 +454,7 @@ static int isint32(vlong);
 static int isuint32(uvlong);
 static int aclass(Link*, Addr*);
 static Optab* oplook(Link*, Prog*);
-static void asmout(Link*, Prog*, Optab*, int32*);
+static void asmout(Link*, Prog*, Optab*, uint32*);
 static vlong vregoff(Link*, Addr*);
 static int32 regoff(Link*, Addr*);
 static int32 oprrr(Link*, int);
@@ -468,13 +468,16 @@ static void maskgen(Link*, Prog*, uchar*, uint32);
 static int getmask64(uchar*, uvlong);
 static void maskgen64(Link*, Prog*, uchar*, uvlong);
 static uint32 loadu32(int, vlong);
-static void addaddrreloc(Link*, LSym*, int*, int*);
+static void addaddrreloc(Link*, LSym*, uint32*, uint32*);
 
-static struct
+typedef struct Oprang Oprang;
+struct Oprang
 {
 	Optab*	start;
 	Optab*	stop;
-} oprange[ALAST];
+};
+
+static Oprang oprange[ALAST];
 
 static uchar	xcmp[C_NCLASS][C_NCLASS];
 
@@ -486,7 +489,8 @@ span9(Link *ctxt, LSym *cursym)
 	Optab *o;
 	int m, bflag;
 	vlong c, otxt;
-	int32 out[6], i, j;
+	uint32 out[6];
+	int32 i, j;
 	uchar *bp, *cast;
 
 	p = cursym->text;
@@ -687,27 +691,7 @@ aclass(Link *ctxt, Addr *a)
 					return C_LACON;
 				return C_DACON;
 			}
-		consize:
-			if(ctxt->instoffset >= 0) {
-				if(ctxt->instoffset == 0)
-					return C_ZCON;
-				if(ctxt->instoffset <= 0x7fff)
-					return C_SCON;
-				if(ctxt->instoffset <= 0xffff)
-					return C_ANDCON;
-				if((ctxt->instoffset & 0xffff) == 0 && isuint32(ctxt->instoffset))	/* && (instoffset & (1<<31)) == 0) */
-					return C_UCON;
-				if(isint32(ctxt->instoffset) || isuint32(ctxt->instoffset))
-					return C_LCON;
-				return C_DCON;
-			}
-			if(ctxt->instoffset >= -0x8000)
-				return C_ADDCON;
-			if((ctxt->instoffset & 0xffff) == 0 && isint32(ctxt->instoffset))
-				return C_UCON;
-			if(isint32(ctxt->instoffset))
-				return C_LCON;
-			return C_DCON;
+			goto consize;
 
 		case D_EXTERN:
 		case D_STATIC:
@@ -735,6 +719,28 @@ aclass(Link *ctxt, Addr *a)
 			return C_LACON;
 		}
 		return C_GOK;
+
+	consize:
+		if(ctxt->instoffset >= 0) {
+			if(ctxt->instoffset == 0)
+				return C_ZCON;
+			if(ctxt->instoffset <= 0x7fff)
+				return C_SCON;
+			if(ctxt->instoffset <= 0xffff)
+				return C_ANDCON;
+			if((ctxt->instoffset & 0xffff) == 0 && isuint32(ctxt->instoffset))	/* && (instoffset & (1<<31)) == 0) */
+				return C_UCON;
+			if(isint32(ctxt->instoffset) || isuint32(ctxt->instoffset))
+				return C_LCON;
+			return C_DCON;
+		}
+		if(ctxt->instoffset >= -0x8000)
+			return C_ADDCON;
+		if((ctxt->instoffset & 0xffff) == 0 && isint32(ctxt->instoffset))
+			return C_UCON;
+		if(isint32(ctxt->instoffset))
+			return C_LCON;
+		return C_DCON;
 
 	case D_BRANCH:
 		return C_SBRA;
@@ -1271,61 +1277,120 @@ buildop(Link *ctxt)
 	}
 }
 
-#define	OPVCC(o,xo,oe,rc) (((o)<<26)|((xo)<<1)|((oe)<<10)|((rc)&1))
-#define	OPCC(o,xo,rc) OPVCC((o),(xo),0,(rc))
-#define	OP(o,xo) OPVCC((o),(xo),0,0)
+uint32
+OPVCC(uint32 o, uint32 xo, uint32 oe, uint32 rc)
+{
+	return o<<26 | xo<<1 | oe<<10 | rc&1;
+}
+
+uint32
+OPCC(uint32 o, uint32 xo, uint32 rc)
+{
+	return OPVCC(o, xo, 0, rc);
+}
+
+uint32
+OP(uint32 o, uint32 xo)
+{
+	return OPVCC(o, xo, 0, 0);
+}
 
 /* the order is dest, a/s, b/imm for both arithmetic and logical operations */
-#define	AOP_RRR(op,d,a,b) ((op)|(((d)&31L)<<21)|(((a)&31L)<<16)|(((b)&31L)<<11))
-#define	AOP_IRR(op,d,a,simm) ((op)|(((d)&31L)<<21)|(((a)&31L)<<16)|((simm)&0xFFFF))
-#define	LOP_RRR(op,a,s,b) ((op)|(((s)&31L)<<21)|(((a)&31L)<<16)|(((b)&31L)<<11))
-#define	LOP_IRR(op,a,s,uimm) ((op)|(((s)&31L)<<21)|(((a)&31L)<<16)|((uimm)&0xFFFF))
-#define	OP_BR(op,li,aa) ((op)|((li)&0x03FFFFFC)|((aa)<<1))
-#define	OP_BC(op,bo,bi,bd,aa) ((op)|(((bo)&0x1F)<<21)|(((bi)&0x1F)<<16)|((bd)&0xFFFC)|((aa)<<1))
-#define	OP_BCR(op,bo,bi) ((op)|(((bo)&0x1F)<<21)|(((bi)&0x1F)<<16))
-#define	OP_RLW(op,a,s,sh,mb,me) ((op)|(((s)&31L)<<21)|(((a)&31L)<<16)|(((sh)&31L)<<11)|\
-					(((mb)&31L)<<6)|(((me)&31L)<<1))
+uint32
+AOP_RRR(uint32 op, uint32 d, uint32 a, uint32 b)
+{
+	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11;
+}
 
-#define	OP_ADD	OPVCC(31,266,0,0)
-#define	OP_ADDI	OPVCC(14,0,0,0)
-#define	OP_ADDIS OPVCC(15,0,0,0)
-#define	OP_ANDI	OPVCC(28,0,0,0)
-#define	OP_EXTSB	OPVCC(31,954,0,0)
-#define	OP_EXTSH OPVCC(31,922,0,0)
-#define	OP_EXTSW OPVCC(31,986,0,0)
-#define	OP_MCRF	OPVCC(19,0,0,0)
-#define	OP_MCRFS OPVCC(63,64,0,0)
-#define	OP_MCRXR OPVCC(31,512,0,0)
-#define	OP_MFCR	OPVCC(31,19,0,0)
-#define	OP_MFFS	OPVCC(63,583,0,0)
-#define	OP_MFMSR OPVCC(31,83,0,0)
-#define	OP_MFSPR OPVCC(31,339,0,0)
-#define	OP_MFSR	OPVCC(31,595,0,0)
-#define	OP_MFSRIN	OPVCC(31,659,0,0)
-#define	OP_MTCRF OPVCC(31,144,0,0)
-#define	OP_MTFSF OPVCC(63,711,0,0)
-#define	OP_MTFSFI OPVCC(63,134,0,0)
-#define	OP_MTMSR OPVCC(31,146,0,0)
-#define	OP_MTMSRD OPVCC(31,178,0,0)
-#define	OP_MTSPR OPVCC(31,467,0,0)
-#define	OP_MTSR	OPVCC(31,210,0,0)
-#define	OP_MTSRIN	OPVCC(31,242,0,0)
-#define	OP_MULLW OPVCC(31,235,0,0)
-#define	OP_MULLD OPVCC(31,233,0,0)
-#define	OP_OR	OPVCC(31,444,0,0)
-#define	OP_ORI	OPVCC(24,0,0,0)
-#define	OP_ORIS	OPVCC(25,0,0,0)
-#define	OP_RLWINM	OPVCC(21,0,0,0)
-#define	OP_SUBF	OPVCC(31,40,0,0)
-#define	OP_RLDIC	OPVCC(30,4,0,0)
-#define	OP_RLDICR	OPVCC(30,2,0,0)
-#define	OP_RLDICL	OPVCC(30,0,0,0)
+uint32
+AOP_IRR(uint32 op, uint32 d, uint32 a, uint32 simm)
+{
+	return op | (d&31)<<21 | (a&31)<<16 | (simm&0xFFFF);
+}
 
-#define	oclass(v)	((v).class-1)
+uint32
+LOP_RRR(uint32 op, uint32 a, uint32 s, uint32 b)
+{
+	return op | (s&31)<<21 | (a&31)<<16 | (b&31)<<11;
+}
+
+uint32
+LOP_IRR(uint32 op, uint32 a, uint32 s, uint32 uimm)
+{
+	return op | (s&31)<<21 | (a&31)<<16 | (uimm&0xFFFF);
+}
+
+uint32
+OP_BR(uint32 op, uint32 li, uint32 aa)
+{
+	return op | li&0x03FFFFFC | aa<<1;
+}
+
+uint32
+OP_BC(uint32 op, uint32 bo, uint32 bi, uint32 bd, uint32 aa)
+{
+	return op | (bo&0x1F)<<21 | (bi&0x1F)<<16 | bd&0xFFFC | aa<<1;
+}
+
+uint32
+OP_BCR(uint32 op, uint32 bo, uint32 bi)
+{
+	return op | (bo&0x1F)<<21 | (bi&0x1F)<<16;
+}
+
+uint32
+OP_RLW(uint32 op, uint32 a, uint32 s, uint32 sh, uint32 mb, uint32 me)
+{
+	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | (mb&31)<<6 | (me&31)<<1;
+}
+
+enum {
+	/* each rhs is OPVCC(_, _, _, _) */
+	OP_ADD =	31<<26 | 266<<1 | 0<<10 | 0,
+	OP_ADDI =	14<<26 | 0<<1 | 0<<10 | 0,
+	OP_ADDIS = 15<<26 | 0<<1 | 0<<10 | 0,
+	OP_ANDI =	28<<26 | 0<<1 | 0<<10 | 0,
+	OP_EXTSB =	31<<26 | 954<<1 | 0<<10 | 0,
+	OP_EXTSH = 31<<26 | 922<<1 | 0<<10 | 0,
+	OP_EXTSW = 31<<26 | 986<<1 | 0<<10 | 0,
+	OP_MCRF =	19<<26 | 0<<1 | 0<<10 | 0,
+	OP_MCRFS = 63<<26 | 64<<1 | 0<<10 | 0,
+	OP_MCRXR = 31<<26 | 512<<1 | 0<<10 | 0,
+	OP_MFCR =	31<<26 | 19<<1 | 0<<10 | 0,
+	OP_MFFS =	63<<26 | 583<<1 | 0<<10 | 0,
+	OP_MFMSR = 31<<26 | 83<<1 | 0<<10 | 0,
+	OP_MFSPR = 31<<26 | 339<<1 | 0<<10 | 0,
+	OP_MFSR =	31<<26 | 595<<1 | 0<<10 | 0,
+	OP_MFSRIN =	31<<26 | 659<<1 | 0<<10 | 0,
+	OP_MTCRF = 31<<26 | 144<<1 | 0<<10 | 0,
+	OP_MTFSF = 63<<26 | 711<<1 | 0<<10 | 0,
+	OP_MTFSFI = 63<<26 | 134<<1 | 0<<10 | 0,
+	OP_MTMSR = 31<<26 | 146<<1 | 0<<10 | 0,
+	OP_MTMSRD = 31<<26 | 178<<1 | 0<<10 | 0,
+	OP_MTSPR = 31<<26 | 467<<1 | 0<<10 | 0,
+	OP_MTSR =	31<<26 | 210<<1 | 0<<10 | 0,
+	OP_MTSRIN =	31<<26 | 242<<1 | 0<<10 | 0,
+	OP_MULLW = 31<<26 | 235<<1 | 0<<10 | 0,
+	OP_MULLD = 31<<26 | 233<<1 | 0<<10 | 0,
+	OP_OR =	31<<26 | 444<<1 | 0<<10 | 0,
+	OP_ORI =	24<<26 | 0<<1 | 0<<10 | 0,
+	OP_ORIS =	25<<26 | 0<<1 | 0<<10 | 0,
+	OP_RLWINM =	21<<26 | 0<<1 | 0<<10 | 0,
+	OP_SUBF =	31<<26 | 40<<1 | 0<<10 | 0,
+	OP_RLDIC =	30<<26 | 4<<1 | 0<<10 | 0,
+	OP_RLDICR =	30<<26 | 2<<1 | 0<<10 | 0,
+	OP_RLDICL =	30<<26 | 0<<1 | 0<<10 | 0,
+};
+
+int
+oclass(Addr *a)
+{
+	return a->class - 1;
+}
 
 // add R_ADDRPOWER relocation to symbol s for the two instructions o1 and o2.
 static void
-addaddrreloc(Link *ctxt, LSym *s, int *o1, int *o2)
+addaddrreloc(Link *ctxt, LSym *s, uint32 *o1, uint32 *o2)
 {
 	Reloc *rel;
 
@@ -1346,7 +1411,7 @@ getmask(uchar *m, uint32 v)
 	int i;
 
 	m[0] = m[1] = 0;
-	if(v != ~0U && v & (1<<31) && v & 1){	/* MB > ME */
+	if(v != ~(uint32)0 && v & (1<<31) && v & 1){	/* MB > ME */
 		if(getmask(m, ~v)){
 			i = m[0]; m[0] = m[1]+1; m[1] = i-1;
 			return 1;
@@ -1424,9 +1489,10 @@ high16adjusted(int32 d)
 }
 
 static void
-asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 {
-	int32 o1, o2, o3, o4, o5, v, t;
+	uint32 o1, o2, o3, o4, o5;
+	int32 v, t;
 	vlong d;
 	int r, a;
 	uchar mask[2];
@@ -1694,7 +1760,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 		r = p->reg;
 		if(r == NREG)
 			r = 0;
-		switch(oclass(p->to)) {
+		switch(oclass(&p->to)) {
 		case C_CTR:
 			o1 = OPVCC(19, 528, 0, 0);
 			break;
@@ -1902,7 +1968,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 
 	case 33:	/* fabs [frb,]frd; fmr. frb,frd */
 		r = p->from.reg;
-		if(oclass(p->from) == C_NONE)
+		if(oclass(&p->from) == C_NONE)
 			r = p->to.reg;
 		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, 0, r);
 		break;
@@ -2034,7 +2100,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
 		break;
 
 	case 54:	/* mov msr,r1; mov r1, msr*/
-		if(oclass(p->from) == C_REG){
+		if(oclass(&p->from) == C_REG){
 			if(p->as == AMOVD)
 				o1 = AOP_RRR(OP_MTMSRD, p->from.reg, 0, 0);
 			else

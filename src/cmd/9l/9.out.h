@@ -30,10 +30,13 @@
 /*
  * powerpc 64
  */
-#define	NSNAME	8
-#define	NSYM	50
-#define	NREG	32	/* number of general registers */
-#define	NFREG	32	/* number of floating point registers */
+enum
+{
+	NSNAME = 8,
+	NSYM = 50,
+	NREG = 32,	/* number of general registers */
+	NFREG = 32,	/* number of floating point registers */
+};
 
 #include "../ld/textflag.h"
 

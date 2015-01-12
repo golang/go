@@ -83,18 +83,6 @@ Pconv(Fmt *fp)
 	p = va_arg(fp->args, Prog*);
 	bigP = p;
 
-	if(fp->flags & FmtSharp) {
-		char *s = str;
-		s += sprint(s, "%.5lld (%L) %A", p->pc, p->lineno, p->as);
-		if(p->from.type != D_NONE)
-			s += sprint(s, " from={%#D}", &p->from);
-		if(p->reg)
-			s += sprint(s, " reg=%d", p->reg);
-		if(p->to.type != D_NONE)
-			sprint(s, " to={%#D}", &p->to);
-		return fmtstrcpy(fp, str);
-	}
-
 	switch(p->as) {
 	case ADATA:
 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D",
@@ -138,29 +126,6 @@ Dconv(Fmt *fp)
 
 	a = va_arg(fp->args, Addr*);
 	i = a->type;
-
-	if(fp->flags & FmtSharp) {
-		char *s = str;
-		s += sprint(s, "type=");
-		if(i == D_NONE) {
-			sprint(s, "NONE");
-			goto brk;
-		}
-		if(i >= D_INDIR) {
-			i -= D_INDIR;
-			s += sprint(s, "INDIR+");
-		}
-		if(i >= 0 && i < D_LAST && dnames6[i] != nil)
-			s += sprint(s, "%s ", dnames6[i]);
-		else
-			s += sprint(s, "%d ", i);
-		s += sprint(s, "offset=%lld etype=%E width=%lld", a->offset, a->etype, a->width);
-		if(a->sym != nil)
-			s += sprint(s, " sym=%s", a->sym->name);
-		if(a->type == D_BRANCH && a->u.branch != nil)
-			sprint(s, " branch=%.5lld", a->u.branch->pc);
-		goto brk;
-	}
 
 	if(fp->flags & FmtLong) {
 		if(i == D_CONST)
