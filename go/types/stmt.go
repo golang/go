@@ -569,11 +569,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			}
 
 			check.openScope(s, "case")
-			defer check.closeScope()
 			if clause.Comm != nil {
 				check.stmt(inner, clause.Comm)
 			}
 			check.stmtList(inner, clause.Body)
+			check.closeScope()
 		}
 
 	case *ast.ForStmt:

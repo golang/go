@@ -215,6 +215,17 @@ func selects() {
 	case x /* ERROR send or receive */ :
 	case a /* ERROR send or receive */ := ch:
 	}
+
+	// test for issue 9570: ch2 in second case falsely resolved to
+	// ch2 declared in body of first case
+	ch1 := make(chan int)
+	ch2 := make(chan int)
+	select {
+	case <-ch1:
+		var ch2 /* ERROR ch2 declared but not used */ chan bool
+	case i := <-ch2:
+		print(i + 1)
+	}
 }
 
 func gos() {
