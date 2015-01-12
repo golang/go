@@ -659,6 +659,13 @@ func (p *Package) rewriteRef(f *File) {
 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
 			}
 
+		case "selector":
+			if r.Name.Kind == "var" {
+				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+			} else {
+				error_(r.Pos(), "only C variables allowed in selector expression", fixGo(r.Name.Go))
+			}
+
 		case "type":
 			if r.Name.Kind != "type" {
 				error_(r.Pos(), "expression C.%s used as type", fixGo(r.Name.Go))
