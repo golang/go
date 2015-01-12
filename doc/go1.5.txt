@@ -8,6 +8,9 @@ log: add global Output function (https://golang.org/cl/2686)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
 
+Tools:
+
+cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
 
 Performance:
 
