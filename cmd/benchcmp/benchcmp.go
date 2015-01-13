@@ -142,6 +142,7 @@ func parseFile(path string) parse.BenchSet {
 	if err != nil {
 		fatal(err)
 	}
+	defer f.Close()
 	bb, err := parse.ParseBenchSet(f)
 	if err != nil {
 		fatal(err)
