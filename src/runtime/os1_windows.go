@@ -182,24 +182,34 @@ func getRandomData(r []byte) {
 }
 
 func goenvs() {
-	var p *uint16
-
-	env := (*uint16)(unsafe.Pointer(stdcall0(_GetEnvironmentStringsW)))
+	// strings is a pointer to environment variable pairs in the form:
+	//     "envA=valA\x00envB=valB\x00\x00" (in UTF-16)
+	// Two consecutive zero bytes end the list.
+	strings := unsafe.Pointer(stdcall0(_GetEnvironmentStringsW))
+	p := (*[1 << 24]uint16)(strings)[:]
 
 	n := 0
-	for p = env; *p != 0; n++ {
-		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)*unsafe.Sizeof(*p)))
+	for from, i := 0, 0; true; i++ {
+		if p[i] == 0 {
+			// empty string marks the end
+			if i == from {
+				break
+			}
+			from = i + 1
+			n++
+		}
+	}
+	envs = makeStringSlice(n)
+
+	for i := range envs {
+		envs[i] = gostringw(&p[0])
+		for p[0] != 0 {
+			p = p[1:]
+		}
+		p = p[1:] // skip nil byte
 	}
 
-	envs = makeStringSlice(int(n))
-
-	p = env
-	for i := 0; i < n; i++ {
-		envs[i] = gostringw(p)
-		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)*unsafe.Sizeof(*p)))
-	}
-
-	stdcall1(_FreeEnvironmentStringsW, uintptr(unsafe.Pointer(env)))
+	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
 }
 
 //go:nosplit
