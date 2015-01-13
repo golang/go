@@ -527,6 +527,8 @@ var execTests = []execTest{
 	{"bug12XE", "{{printf `%T` 0XEE}}", "int", T{}, true},
 	// Chained nodes did not work as arguments. Issue 8473.
 	{"bug13", "{{print (.Copy).I}}", "17", tVal, true},
+	// Didn't protect against explicit nil in field chains.
+	{"bug14", "{{nil.True}}", "", tVal, false},
 }
 
 func zeroArgs() string {

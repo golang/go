@@ -418,11 +418,14 @@ func (s *state) evalFieldNode(dot reflect.Value, field *parse.FieldNode, args []
 
 func (s *state) evalChainNode(dot reflect.Value, chain *parse.ChainNode, args []parse.Node, final reflect.Value) reflect.Value {
 	s.at(chain)
-	// (pipe).Field1.Field2 has pipe as .Node, fields as .Field. Eval the pipeline, then the fields.
-	pipe := s.evalArg(dot, nil, chain.Node)
 	if len(chain.Field) == 0 {
 		s.errorf("internal error: no fields in evalChainNode")
 	}
+	if chain.Node.Type() == parse.NodeNil {
+		s.errorf("indirection through explicit nil in %s", chain)
+	}
+	// (pipe).Field1.Field2 has pipe as .Node, fields as .Field. Eval the pipeline, then the fields.
+	pipe := s.evalArg(dot, nil, chain.Node)
 	return s.evalFieldChain(dot, pipe, chain, chain.Field, args, final)
 }
 
