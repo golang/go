@@ -8,19 +8,17 @@ package main // import "golang.org/x/tools/dashboard/coordinator/buildongce"
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	"code.google.com/p/goauth2/oauth"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	compute "google.golang.org/api/compute/v1"
 )
 
@@ -33,8 +31,6 @@ var (
 	staticIP  = flag.String("static_ip", "", "Static IP to use. If empty, automatic.")
 	reuseDisk = flag.Bool("reuse_disk", true, "Whether disk images should be reused between shutdowns/restarts.")
 	ssd       = flag.Bool("ssd", false, "use a solid state disk (faster, more expensive)")
-
-	writeObject = flag.String("write_object", "", "If non-empty, a VM isn't created and the flag value is Google Cloud Storage bucket/object to write. The contents from stdin.")
 )
 
 func readFile(v string) string {
@@ -45,19 +41,18 @@ func readFile(v string) string {
 	return strings.TrimSpace(string(slurp))
 }
 
-var config = &oauth.Config{
+var config = &oauth2.Config{
 	// The client-id and secret should be for an "Installed Application" when using
 	// the CLI. Later we'll use a web application with a callback.
-	ClientId:     readFile("client-id.dat"),
+	ClientID:     readFile("client-id.dat"),
 	ClientSecret: readFile("client-secret.dat"),
-	Scope: strings.Join([]string{
+	Endpoint:     google.Endpoint,
+	Scopes: []string{
 		compute.DevstorageFull_controlScope,
 		compute.ComputeScope,
 		"https://www.googleapis.com/auth/sqlservice",
 		"https://www.googleapis.com/auth/sqlservice.admin",
-	}, " "),
-	AuthURL:     "https://accounts.google.com/o/oauth2/auth",
-	TokenURL:    "https://accounts.google.com/o/oauth2/token",
+	},
 	RedirectURL: "urn:ietf:wg:oauth:2.0:oob",
 }
 
@@ -94,35 +89,28 @@ func main() {
 	prefix := "https://www.googleapis.com/compute/v1/projects/" + *proj
 	machType := prefix + "/zones/" + *zone + "/machineTypes/" + *mach
 
-	tr := &oauth.Transport{
-		Config: config,
-	}
-
-	tokenCache := oauth.CacheFile("token.dat")
-	token, err := tokenCache.Token()
+	const tokenFileName = "token.dat"
+	tokenFile := tokenCacheFile(tokenFileName)
+	tokenSource := oauth2.ReuseTokenSource(nil, tokenFile)
+	token, err := tokenSource.Token()
 	if err != nil {
-		if *writeObject != "" {
-			log.Fatalf("Can't use --write_object without a valid token.dat file already cached.")
-		}
-		log.Printf("Error getting token from %s: %v", string(tokenCache), err)
+		log.Printf("Error getting token from %s: %v", tokenFileName, err)
 		log.Printf("Get auth code from %v", config.AuthCodeURL("my-state"))
 		fmt.Print("\nEnter auth code: ")
 		sc := bufio.NewScanner(os.Stdin)
 		sc.Scan()
 		authCode := strings.TrimSpace(sc.Text())
-		token, err = tr.Exchange(authCode)
+		token, err = config.Exchange(oauth2.NoContext, authCode)
 		if err != nil {
 			log.Fatalf("Error exchanging auth code for a token: %v", err)
 		}
-		tokenCache.PutToken(token)
+		if err := tokenFile.WriteToken(token); err != nil {
+			log.Fatalf("Error writing to %s: %v", tokenFileName, err)
+		}
+		tokenSource = oauth2.ReuseTokenSource(token, nil)
 	}
 
-	tr.Token = token
-	oauthClient := &http.Client{Transport: tr}
-	if *writeObject != "" {
-		writeCloudStorageObject(oauthClient)
-		return
-	}
+	oauthClient := oauth2.NewClient(oauth2.NoContext, tokenSource)
 
 	computeService, _ := compute.New(oauthClient)
 
@@ -288,31 +276,24 @@ func instanceDisk(svc *compute.Service) *compute.AttachedDisk {
 	}
 }
 
-func writeCloudStorageObject(httpClient *http.Client) {
-	content := os.Stdin
-	const maxSlurp = 1 << 20
-	var buf bytes.Buffer
-	n, err := io.CopyN(&buf, content, maxSlurp)
-	if err != nil && err != io.EOF {
-		log.Fatalf("Error reading from stdin: %v, %v", n, err)
-	}
-	contentType := http.DetectContentType(buf.Bytes())
+type tokenCacheFile string
 
-	req, err := http.NewRequest("PUT", "https://storage.googleapis.com/"+*writeObject, io.MultiReader(&buf, content))
+func (f tokenCacheFile) Token() (*oauth2.Token, error) {
+	slurp, err := ioutil.ReadFile(string(f))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	req.Header.Set("x-goog-api-version", "2")
-	req.Header.Set("x-goog-acl", "public-read")
-	req.Header.Set("Content-Type", contentType)
-	res, err := httpClient.Do(req)
+	t := new(oauth2.Token)
+	if err := json.Unmarshal(slurp, t); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+func (f tokenCacheFile) WriteToken(t *oauth2.Token) error {
+	jt, err := json.Marshal(t)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	if res.StatusCode != 200 {
-		res.Write(os.Stderr)
-		log.Fatalf("Failed.")
-	}
-	log.Printf("Success.")
-	os.Exit(0)
+	return ioutil.WriteFile(string(f), jt, 0600)
 }

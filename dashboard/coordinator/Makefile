@@ -6,4 +6,4 @@ coordinator: main.go
 # And watch its logs with:
 #   sudo journalctl -f -u gobuild.service
 upload: coordinator
-	cat coordinator | (cd buildongce && go run create.go --write_object=go-builder-data/coordinator)
+	cat coordinator | (cd ../upload && go run upload.go --public go-builder-data/coordinator)

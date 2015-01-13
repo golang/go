@@ -18,6 +18,7 @@ env/:     configuration files describing the environment of builders and related
           environment.
 retrybuilds/: a Go client program to delete build results from the dashboard (app)
 types/:   a Go package contain common types used by other pieces.
+upload/:  a Go program to upload to Google Cloud Storage. used by Makefiles elsewhere.
 watcher/: a daemon that watches for new commits to the Go repository and
           its sub-repositories, and notifies the dashboard of those commits.
 
