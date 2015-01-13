@@ -105,12 +105,17 @@ const (
 	currentThread  = ^uintptr(1) // -2 = current thread
 )
 
-const (
-	SEM_FAILCRITICALERRORS     = 0x0001
-	SEM_NOGPFAULTERRORBOX      = 0x0002
-	SEM_NOALIGNMENTFAULTEXCEPT = 0x0004
-	SEM_NOOPENFILEERRORBOX     = 0x8000
-)
+func disableWER() {
+	// do not display Windows Error Reporting dialogue
+	const (
+		SEM_FAILCRITICALERRORS     = 0x0001
+		SEM_NOGPFAULTERRORBOX      = 0x0002
+		SEM_NOALIGNMENTFAULTEXCEPT = 0x0004
+		SEM_NOOPENFILEERRORBOX     = 0x8000
+	)
+	errormode := uint32(stdcall1(_SetErrorMode, SEM_NOGPFAULTERRORBOX))
+	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
+}
 
 var (
 	kernel32Name                    = []byte("kernel32.dll\x00")
@@ -123,9 +128,7 @@ func osinit() {
 
 	kernel32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32Name[0])))
 
-	// don't display the crash dialog
-	errormode := uint32(stdcall1(_SetErrorMode, SEM_NOGPFAULTERRORBOX))
-	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
+	disableWER()
 
 	externalthreadhandlerp = funcPC(externalthreadhandler)
 
