@@ -1338,7 +1338,7 @@ stop:
 	}
 
 	// poll network
-	if xchg64(&sched.lastpoll, 0) != 0 {
+	if netpollinited() && xchg64(&sched.lastpoll, 0) != 0 {
 		if _g_.m.p != nil {
 			throw("findrunnable: netpoll with p")
 		}
