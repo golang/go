@@ -249,7 +249,10 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		var ptrmask *uint8
 		if size == ptrSize {
 			// It's one word and it has pointers, it must be a pointer.
-			*xbits |= (bitsPointer << 2) << shift
+			// The bitmap byte is shared with the one-word object
+			// next to it, and concurrent GC might be marking that
+			// object, so we must use an atomic update.
+			atomicor8(xbits, (bitsPointer<<2)<<shift)
 			goto marked
 		}
 		if typ.kind&kindGCProg != 0 {

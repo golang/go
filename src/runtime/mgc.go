@@ -391,15 +391,10 @@ func gcmarknewobject_m(obj uintptr) {
 	}
 
 	// Each byte of GC bitmap holds info for two words.
-	// If the current object is larger than two words, or if the object is one word
-	// but the object it shares the byte with is already marked,
-	// then all the possible concurrent updates are trying to set the same bit,
-	// so we can use a non-atomic update.
-	if mbits.xbits&(bitMask|(bitMask<<gcBits)) != bitBoundary|bitBoundary<<gcBits || work.nproc == 1 {
-		*mbits.bitp = mbits.xbits | bitMarked<<mbits.shift
-	} else {
-		atomicor8(mbits.bitp, bitMarked<<mbits.shift)
-	}
+	// Might be racing with other updates, so use atomic update always.
+	// We used to be clever here and use a non-atomic update in certain
+	// cases, but it's not worth the risk.
+	atomicor8(mbits.bitp, bitMarked<<mbits.shift)
 }
 
 // obj is the start of an object with mark mbits.
@@ -451,15 +446,10 @@ func greyobject(obj uintptr, base, off uintptr, mbits *markbits, wbuf *workbuf) 
 		}
 
 		// Each byte of GC bitmap holds info for two words.
-		// If the current object is larger than two words, or if the object is one word
-		// but the object it shares the byte with is already marked,
-		// then all the possible concurrent updates are trying to set the same bit,
-		// so we can use a non-atomic update.
-		if mbits.xbits&(bitMask|bitMask<<gcBits) != bitBoundary|bitBoundary<<gcBits || work.nproc == 1 {
-			*mbits.bitp = mbits.xbits | bitMarked<<mbits.shift
-		} else {
-			atomicor8(mbits.bitp, bitMarked<<mbits.shift)
-		}
+		// Might be racing with other updates, so use atomic update always.
+		// We used to be clever here and use a non-atomic update in certain
+		// cases, but it's not worth the risk.
+		atomicor8(mbits.bitp, bitMarked<<mbits.shift)
 	}
 
 	if !checkmark && (mbits.xbits>>(mbits.shift+2))&_BitsMask == _BitsDead {
@@ -865,7 +855,7 @@ func getfull(b *workbuf) *workbuf {
 	if b == nil {
 		b = (*workbuf)(lfstackpop(&work.partial))
 	}
-	if b != nil || work.nproc == 1 {
+	if b != nil {
 		return b
 	}
 
@@ -2336,7 +2326,12 @@ func unrollgcproginplace_m(v unsafe.Pointer, typ *_type, size, size0 uintptr) {
 	off := (uintptr(v) - arena_start) / ptrSize
 	bitp := (*byte)(unsafe.Pointer(arena_start - off/wordsPerBitmapByte - 1))
 	shift := (off % wordsPerBitmapByte) * gcBits
-	*bitp |= bitBoundary << shift
+
+	// NOTE(rsc): An argument can be made that unrollgcproginplace
+	// is only used for very large objects, and in particular it is not used
+	// for 1-word objects, so the atomic here is not necessary.
+	// But if that's true, neither is the shift, and yet here it is.
+	atomicor8(bitp, bitBoundary<<shift)
 
 	// Mark word after last as BitsDead.
 	if size0 < size {
