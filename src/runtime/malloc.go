@@ -31,10 +31,12 @@ type pageID uintptr
 // base address for all 0-byte allocations
 var zerobase uintptr
 
+// triggers the concurrent GC when 1/triggerratio memory is available to allocate.
+// Adjust this ratio as part of a scheme to ensure that mutators have enough
+// memory to allocate in durring a concurrent GC cycle.
+var triggerratio = uint64(8)
+
 // Determine whether to initiate a GC.
-// Currently the primitive heuristic we use will start a new
-// concurrent GC when approximately half the available space
-// made available by the last GC cycle has been used.
 // If the GC is already working no need to trigger another one.
 // This should establish a feedback loop where if the GC does not
 // have sufficient time to complete then more memory will be
@@ -44,7 +46,7 @@ var zerobase uintptr
 // A false negative simple does not start a GC, a false positive
 // will start a GC needlessly. Neither have correctness issues.
 func shouldtriggergc() bool {
-	return memstats.heap_alloc+memstats.heap_alloc*3/4 >= memstats.next_gc && atomicloaduint(&bggc.working) == 0
+	return memstats.heap_alloc+memstats.heap_alloc/triggerratio >= memstats.next_gc && atomicloaduint(&bggc.working) == 0
 }
 
 // Allocate an object of size bytes.
