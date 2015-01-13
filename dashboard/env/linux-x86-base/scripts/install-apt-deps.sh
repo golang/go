@@ -11,6 +11,8 @@ apt-get install -y --no-install-recommends gcc libc6-dev
 apt-get install -y --no-install-recommends libc6-dev-i386 gcc-multilib
 # For interacting with the Go source & subrepos:
 apt-get install -y --no-install-recommends git-core
+# For downloading Go 1.4:
+apt-get install -y --no-install-recommends curl
 
 apt-get clean
 rm -fr /var/lib/apt/lists

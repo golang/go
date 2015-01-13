@@ -590,6 +590,11 @@ func (conf buildConfig) dockerRunArgs(rev string) (args []string) {
 	for _, pair := range conf.env {
 		args = append(args, "-e", pair)
 	}
+	if strings.HasPrefix(conf.name, "linux-amd64") {
+		args = append(args, "-e", "GOROOT_BOOTSTRAP=/go1.4-amd64/go")
+	} else if strings.HasPrefix(conf.name, "linux-386") {
+		args = append(args, "-e", "GOROOT_BOOTSTRAP=/go1.4-386/go")
+	}
 	args = append(args,
 		conf.image,
 		"/usr/local/bin/builder",
