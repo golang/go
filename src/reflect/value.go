@@ -732,7 +732,7 @@ func (v Value) Field(i int) Value {
 	// Either flagIndir is set and v.ptr points at struct,
 	// or flagIndir is not set and v.ptr is the actual struct data.
 	// In the former case, we want v.ptr + offset.
-	// In the latter case, we must be have field.offset = 0,
+	// In the latter case, we must have field.offset = 0,
 	// so v.ptr + field.offset is still okay.
 	ptr := unsafe.Pointer(uintptr(v.ptr) + field.offset)
 	return Value{typ, ptr, fl}
