@@ -94,13 +94,13 @@ playback:
 	MOVL n+8(FP), DX
 	BSWAPL DX
 	MOVL DX, 12(SP)
-	MOVL $1, DI // standard output
+	MOVL fd+0(FP), DI
 	MOVL SP, SI
 	MOVL $16, DX
 	NACL_SYSCALL(SYS_write)
 
 	// Write actual data.
-	MOVL $1, DI // standard output
+	MOVL fd+0(FP), DI
 	MOVL p+4(FP), SI
 	MOVL n+8(FP), DX
 	NACL_SYSCALL(SYS_write)
