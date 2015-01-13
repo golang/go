@@ -1344,6 +1344,7 @@ func gcinit() {
 	gcpercent = readgogc()
 	gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcdata)), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)))
 	gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcbss)), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)))
+	memstats.next_gc = 4 << 20 // 4 megs to start with
 }
 
 // Called from malloc.go using onM, stopping and starting the world handled in caller.
