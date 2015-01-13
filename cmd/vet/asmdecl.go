@@ -110,6 +110,7 @@ func asmCheck(pkg *Package) {
 		}
 	}
 
+Files:
 	for _, f := range pkg.files {
 		if !strings.HasSuffix(f.name, ".s") {
 			continue
@@ -173,7 +174,7 @@ func asmCheck(pkg *Package) {
 				flushRet()
 				if arch == "" {
 					f.Warnf(token.NoPos, "%s: cannot determine architecture for assembly file", f.name)
-					return
+					continue Files
 				}
 				fnName = m[1]
 				fn = knownFunc[m[1]][arch]
