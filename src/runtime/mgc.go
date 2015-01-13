@@ -276,11 +276,31 @@ func greyobject(obj, base, off uintptr, hbits heapBits, wbuf *workbuf) *workbuf 
 			print("runtime:greyobject: checkmarks finds unexpected unmarked object obj=", hex(obj), "\n")
 			print("runtime: found obj at *(", hex(base), "+", hex(off), ")\n")
 
+			// Dump the source (base) object
+
+			kb := base >> _PageShift
+			xb := kb
+			xb -= mheap_.arena_start >> _PageShift
+			sb := h_spans[xb]
+			printlock()
+			print("runtime:greyobject Span: base=", hex(base), " kb=", hex(kb))
+			if sb == nil {
+				print(" sb=nil\n")
+			} else {
+				print(" sb.start*_PageSize=", hex(sb.start*_PageSize), " sb.limit=", hex(sb.limit), " sb.sizeclass=", sb.sizeclass, " sb.elemsize=", sb.elemsize, "\n")
+				// base is (a pointer to) the source object holding the reference to object. Create a pointer to each of the fields
+				// fields in base and print them out as hex values.
+				for i := 0; i < int(sb.elemsize/ptrSize); i++ {
+					print(" *(base+", i*ptrSize, ") = ", hex(*(*uintptr)(unsafe.Pointer(base + uintptr(i)*ptrSize))), "\n")
+				}
+			}
+
+			// Dump the object
+
 			k := obj >> _PageShift
 			x := k
 			x -= mheap_.arena_start >> _PageShift
 			s := h_spans[x]
-			printlock()
 			print("runtime:greyobject Span: obj=", hex(obj), " k=", hex(k))
 			if s == nil {
 				print(" s=nil\n")
