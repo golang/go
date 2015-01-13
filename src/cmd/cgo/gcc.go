@@ -739,6 +739,10 @@ func (p *Package) gccMachine() []string {
 		return []string{"-m32"}
 	case "arm":
 		return []string{"-marm"} // not thumb
+	case "s390":
+		return []string{"-m31"}
+	case "s390x":
+		return []string{"-m64"}
 	}
 	return nil
 }
