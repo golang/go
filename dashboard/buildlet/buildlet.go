@@ -14,23 +14,16 @@
 // instances.
 package main // import "golang.org/x/tools/dashboard/buildlet"
 
-/* Notes:
-
-https://go.googlesource.com/go/+archive/3b76b017cabb.tar.gz
-curl -X PUT --data-binary "@go-3b76b017cabb.tar.gz" http://127.0.0.1:5937/writetgz
-
-curl -d "cmd=src/make.bash" http://127.0.0.1:5937/exec
-
-*/
-
 import (
 	"archive/tar"
 	"compress/gzip"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -38,6 +31,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"google.golang.org/cloud/compute/metadata"
 )
@@ -54,11 +48,15 @@ func defaultListenAddr() string {
 		// root).
 		return ":5936"
 	}
-	if metadata.OnGCE() {
-		// In production, default to
-		return ":80"
+	if !metadata.OnGCE() {
+		return "localhost:5936"
 	}
-	return "localhost:5936"
+	// In production, default to port 80 or 443, depending on
+	// whether TLS is configured.
+	if metadataValue("tls-cert") != "" {
+		return ":443"
+	}
+	return ":80"
 }
 
 func main() {
@@ -86,16 +84,90 @@ func main() {
 	if _, err := os.Lstat(*scratchDir); err != nil {
 		log.Fatalf("invalid --scratchdir %q: %v", *scratchDir, err)
 	}
-	http.HandleFunc("/writetgz", handleWriteTGZ)
-	http.HandleFunc("/exec", handleExec)
 	http.HandleFunc("/", handleRoot)
+
+	password := metadataValue("password")
+	http.Handle("/writetgz", requirePassword{http.HandlerFunc(handleWriteTGZ), password})
+	http.Handle("/exec", requirePassword{http.HandlerFunc(handleExec), password})
 	// TODO: removeall
+
+	tlsCert, tlsKey := metadataValue("tls-cert"), metadataValue("tls-key")
+	if (tlsCert == "") != (tlsKey == "") {
+		log.Fatalf("tls-cert and tls-key must both be supplied, or neither.")
+	}
+
 	log.Printf("Listening on %s ...", *listenAddr)
-	log.Fatalf("ListenAndServe: %v", http.ListenAndServe(*listenAddr, nil))
+	ln, err := net.Listen("tcp", *listenAddr)
+	if err != nil {
+		log.Fatalf("Failed to listen on %s: %v", *listenAddr, err)
+	}
+	ln = tcpKeepAliveListener{ln.(*net.TCPListener)}
+
+	var srv http.Server
+	if tlsCert != "" {
+		cert, err := tls.X509KeyPair([]byte(tlsCert), []byte(tlsKey))
+		if err != nil {
+			log.Fatalf("TLS cert error: %v", err)
+		}
+		tlsConf := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		}
+		ln = tls.NewListener(ln, tlsConf)
+	}
+
+	log.Fatalf("Serve: %v", srv.Serve(ln))
+}
+
+// metadataValue returns the GCE metadata instance value for the given key.
+//
+// If not running on GCE, it falls back to using environment variables
+// for local development.
+func metadataValue(key string) string {
+	// The common case:
+	if metadata.OnGCE() {
+		v, err := metadata.InstanceAttributeValue(key)
+		if err != nil {
+			log.Fatalf("metadata.InstanceAttributeValue(%q): %v", key, err)
+		}
+		return v
+	}
+
+	// Else let developers use environment variables to fake
+	// metadata keys, for local testing.
+	envKey := "GCEMETA_" + strings.Replace(key, "-", "_", -1)
+	v := os.Getenv(envKey)
+	// Respect curl-style '@' prefix to mean the rest is a filename.
+	if strings.HasPrefix(v, "@") {
+		slurp, err := ioutil.ReadFile(v[1:])
+		if err != nil {
+			log.Fatalf("Error reading file for GCEMETA_%v: %v", key, err)
+		}
+		return string(slurp)
+	}
+	if v == "" {
+		log.Printf("Warning: not running on GCE, and no %v environment variable defined", envKey)
+	}
+	return v
+}
+
+// tcpKeepAliveListener is a net.Listener that sets TCP keep-alive
+// timeouts on accepted connections.
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
 }
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "buildlet running on %s-%s", runtime.GOOS, runtime.GOARCH)
+	fmt.Fprintf(w, "buildlet running on %s-%s\n", runtime.GOOS, runtime.GOARCH)
 }
 
 func handleWriteTGZ(w http.ResponseWriter, r *http.Request) {
@@ -256,4 +328,20 @@ func (he httpError) httpStatus() int { return he.statusCode }
 
 func badRequest(msg string) error {
 	return httpError{http.StatusBadRequest, msg}
+}
+
+// requirePassword is an http.Handler auth wrapper that enforces a
+// HTTP Basic password. The username is ignored.
+type requirePassword struct {
+	h        http.Handler
+	password string // empty means no password
+}
+
+func (h requirePassword) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	_, gotPass, _ := r.BasicAuth()
+	if h.password != "" && h.password != gotPass {
+		http.Error(w, "invalid password", http.StatusForbidden)
+		return
+	}
+	h.h.ServeHTTP(w, r)
 }

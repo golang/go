@@ -1,0 +1,12 @@
+Local development notes:
+
+Server:  (TLS stuff is optional)
+$ go run $GOROOT/src/crypto/tls/generate_cert.go --host=example.com
+$ GCEMETA_password=foo GCEMETA_tls_cert=@cert.pem GCEMETA_tls_key='@key.pem' ./buildlet
+
+Client:
+$ curl -O https://go.googlesource.com/go/+archive/3b76b017cabb.tar.gz
+$ curl -k --user :foo -X PUT --data-binary "@go-3b76b017cabb.tar.gz" https://localhost:5936/writetgz
+$ curl -k --user :foo -d "cmd=src/make.bash" http://127.0.0.1:5937/exec
+etc
+
