@@ -13,3 +13,7 @@ func netpoll(block bool) (gp *g) {
 	// integrated network poller.
 	return
 }
+
+func netpollinited() bool {
+	return false
+}
