@@ -21,8 +21,7 @@ vets the files named, all of which must be in the same package.
 
 By directory:
 	go tool vet source/directory
-recursively descends the directory, vetting each file in isolation.
-Package-level type-checking is disabled, so the vetting is weaker.
+recursively descends the directory, vetting each package it finds.
 
 Vet's exit code is 2 for erroneous invocation of the tool, 1 if a
 problem was reported, and 0 otherwise. Note that the tool does not
