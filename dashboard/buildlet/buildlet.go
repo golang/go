@@ -119,6 +119,7 @@ func main() {
 }
 
 // metadataValue returns the GCE metadata instance value for the given key.
+// If the metadata is not defined, the returned string is empty.
 //
 // If not running on GCE, it falls back to using environment variables
 // for local development.
@@ -126,6 +127,9 @@ func metadataValue(key string) string {
 	// The common case:
 	if metadata.OnGCE() {
 		v, err := metadata.InstanceAttributeValue(key)
+		if _, notDefined := err.(metadata.NotDefinedError); notDefined {
+			return ""
+		}
 		if err != nil {
 			log.Fatalf("metadata.InstanceAttributeValue(%q): %v", key, err)
 		}
