@@ -38,14 +38,15 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
 #
 # The adb sync command will sync either the /system or /data
 # directories of an android device from a similar directory
-# on the host. So we fake one with symlinks to push the GOROOT
-# into a subdirectory of /data.
+# on the host. We copy the files required for running tests under
+# /data/local/tmp/goroot. The adb sync command does not follow
+# symlinks so we have to copy.
 export ANDROID_PRODUCT_OUT=/tmp/androidtest-$$
 FAKE_GOROOT=$ANDROID_PRODUCT_OUT/data/local/tmp/goroot
 mkdir -p $FAKE_GOROOT
-ln -s $GOROOT/src $FAKE_GOROOT/src
-ln -s $GOROOT/test $FAKE_GOROOT/test
-ln -s $GOROOT/lib $FAKE_GOROOT/lib
+cp -R --preserve=all "${GOROOT}/src" "${FAKE_GOROOT}/"
+cp -R --preserve=all "${GOROOT}/test" "${FAKE_GOROOT}/"
+cp -R --preserve=all "${GOROOT}/lib" "${FAKE_GOROOT}/"
 echo '# Syncing test files to android device'
 time adb sync data &> /dev/null
 echo ''
