@@ -397,6 +397,47 @@ func TestSetOperations(t *testing.T) {
 		D.bits.Copy(&X.bits)
 		D.bits.DifferenceWith(&D.bits)
 		D.check(t, "D.DifferenceWith(D)")
+
+		// SD.SymmetricDifference(X, Y)
+		SD := makePset()
+		SD.bits.SymmetricDifference(&X.bits, &Y.bits)
+		for n := range X.hash {
+			if !Y.hash[n] {
+				SD.hash[n] = true
+			}
+		}
+		for n := range Y.hash {
+			if !X.hash[n] {
+				SD.hash[n] = true
+			}
+		}
+		SD.check(t, "SD.SymmetricDifference(X, Y)")
+
+		// X.SymmetricDifferenceWith(Y)
+		SD.bits.Copy(&X.bits)
+		SD.bits.SymmetricDifferenceWith(&Y.bits)
+		SD.check(t, "X.SymmetricDifference(Y)")
+
+		// Y.SymmetricDifferenceWith(X)
+		SD.bits.Copy(&Y.bits)
+		SD.bits.SymmetricDifferenceWith(&X.bits)
+		SD.check(t, "Y.SymmetricDifference(X)")
+
+		// SD.SymmetricDifference(X, X)
+		SD.bits.SymmetricDifference(&X.bits, &X.bits)
+		SD.hash = nil
+		SD.check(t, "SD.SymmetricDifference(X, X)")
+
+		// SD.SymmetricDifference(X, Copy(X))
+		X2 := makePset()
+		X2.bits.Copy(&X.bits)
+		SD.bits.SymmetricDifference(&X.bits, &X2.bits)
+		SD.check(t, "SD.SymmetricDifference(X, Copy(X))")
+
+		// Copy(X).SymmetricDifferenceWith(X)
+		SD.bits.Copy(&X.bits)
+		SD.bits.SymmetricDifferenceWith(&X.bits)
+		SD.check(t, "Copy(X).SymmetricDifferenceWith(X)")
 	}
 }
 
@@ -414,6 +455,82 @@ func TestIntersectionWith(t *testing.T) {
 	X.IntersectionWith(&Y)
 	if got, want := X.String(), "{1}"; got != want {
 		t.Errorf("IntersectionWith: got %s, want %s", got, want)
+	}
+}
+
+func TestIntersects(t *testing.T) {
+	prng := rand.New(rand.NewSource(0))
+
+	for i := uint(0); i < 12; i++ {
+		X, Y := randomPset(prng, 1<<i), randomPset(prng, 1<<i)
+		x, y := &X.bits, &Y.bits
+
+		// test the slow way
+		var z intsets.Sparse
+		z.Copy(x)
+		z.IntersectionWith(y)
+
+		if got, want := x.Intersects(y), !z.IsEmpty(); got != want {
+			t.Errorf("Intersects: got %v, want %v", got, want)
+		}
+
+		// make it false
+		a := x.AppendTo(nil)
+		for _, v := range a {
+			y.Remove(v)
+		}
+
+		if got, want := x.Intersects(y), false; got != want {
+			t.Errorf("Intersects: got %v, want %v", got, want)
+		}
+
+		// make it true
+		if x.IsEmpty() {
+			continue
+		}
+		i := prng.Intn(len(a))
+		y.Insert(a[i])
+
+		if got, want := x.Intersects(y), true; got != want {
+			t.Errorf("Intersects: got %v, want %v", got, want)
+		}
+	}
+}
+
+func TestSubsetOf(t *testing.T) {
+	prng := rand.New(rand.NewSource(0))
+
+	for i := uint(0); i < 12; i++ {
+		X, Y := randomPset(prng, 1<<i), randomPset(prng, 1<<i)
+		x, y := &X.bits, &Y.bits
+
+		// test the slow way
+		var z intsets.Sparse
+		z.Copy(x)
+		z.DifferenceWith(y)
+
+		if got, want := x.SubsetOf(y), z.IsEmpty(); got != want {
+			t.Errorf("SubsetOf: got %v, want %v", got, want)
+		}
+
+		// make it true
+		y.UnionWith(x)
+
+		if got, want := x.SubsetOf(y), true; got != want {
+			t.Errorf("SubsetOf: got %v, want %v", got, want)
+		}
+
+		// make it false
+		if x.IsEmpty() {
+			continue
+		}
+		a := x.AppendTo(nil)
+		i := prng.Intn(len(a))
+		y.Remove(a[i])
+
+		if got, want := x.SubsetOf(y), false; got != want {
+			t.Errorf("SubsetOf: got %v, want %v", got, want)
+		}
 	}
 }
 
