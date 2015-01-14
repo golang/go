@@ -642,6 +642,11 @@ func newstack() {
 	thisg.m.morebuf.g = 0
 	rewindmorestack(&gp.sched)
 
+	// NOTE: stackguard0 may change underfoot, if another thread
+	// is about to try to preempt gp. Read it just once and use that same
+	// value now and below.
+	preempt := atomicloaduintptr(&gp.stackguard0) == stackPreempt
+
 	// Be conservative about where we preempt.
 	// We are interested in preempting user Go code, not runtime code.
 	// If we're holding locks, mallocing, or GCing, don't preempt.
@@ -653,7 +658,7 @@ func newstack() {
 	// If the GC is in some way dependent on this goroutine (for example,
 	// it needs a lock held by the goroutine), that small preemption turns
 	// into a real deadlock.
-	if gp.stackguard0 == stackPreempt {
+	if preempt {
 		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.gcing != 0 || thisg.m.p.status != _Prunning {
 			// Let the goroutine keep running for now.
 			// gp->preempt is set, so it will be preempted next time.
@@ -694,7 +699,7 @@ func newstack() {
 		writebarrierptr_nostore((*uintptr)(unsafe.Pointer(&gp.sched.ctxt)), uintptr(gp.sched.ctxt))
 	}
 
-	if gp.stackguard0 == stackPreempt {
+	if preempt {
 		if gp == thisg.m.g0 {
 			throw("runtime: preempt g0")
 		}
