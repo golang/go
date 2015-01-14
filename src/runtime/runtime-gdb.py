@@ -202,7 +202,7 @@ def lookup_type(name):
 	except gdb.error:
 		pass
 
-_rctp_type = gdb.lookup_type("struct runtime.rtype").pointer()
+_rctp_type = gdb.lookup_type("struct reflect.rtype").pointer()
 
 
 def iface_commontype(obj):
