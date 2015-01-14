@@ -69,6 +69,7 @@ var xTemplate = template.Must(template.New("x").Parse(`<!DOCTYPE html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <meta name="go-import" content="golang.org{{.Prefix}}{{.Head}} {{.Repo.VCS}} {{.Repo.URL}}">
+<meta name="go-source" content="golang.org{{.Prefix}}{{.Head}} https://github.com/golang/{{.Head}}/ https://github.com/golang/{{.Head}}/tree/master{/dir} https://github.com/golang/{{.Head}}/blob/master{/dir}/{file}#L{line}">
 <meta http-equiv="refresh" content="0; url=https://godoc.org/golang.org{{.Prefix}}{{.Head}}{{.Tail}}">
 </head>
 <body>
