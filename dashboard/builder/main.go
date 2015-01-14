@@ -421,6 +421,7 @@ func (b *Builder) buildHash(hash string) error {
 
 	buildLog, runTime, err := b.buildRepoOnHash(workpath, hash, b.buildCmd())
 	if err != nil {
+		log.Printf("%s failed at %v: %v", b.name, hash, err)
 		// record failure
 		return b.recordResult(false, "", hash, "", buildLog, runTime)
 	}

@@ -22,6 +22,7 @@ func run(cmd *exec.Cmd, opts ...runOpt) error {
 		log.Printf("running %v in %v", a.cmd.Args, a.cmd.Dir)
 	}
 	if err := cmd.Start(); err != nil {
+		log.Printf("failed to start command %v: %v", a.cmd.Args, err)
 		return err
 	}
 	err := timeout(a.timeout, cmd.Wait)
