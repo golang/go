@@ -128,7 +128,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			} else if size&1 == 0 {
 				off = round(off, 2)
 			}
-			if off+size <= maxTinySize {
+			if off+size <= maxTinySize && c.tiny != nil {
 				// The object fits into existing tiny block.
 				x = add(c.tiny, off)
 				c.tinyoffset = off + size
@@ -1042,7 +1042,7 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 
 	lock(&persistent.lock)
 	persistent.off = round(persistent.off, align)
-	if persistent.off+size > chunk {
+	if persistent.off+size > chunk || persistent.base == nil {
 		persistent.base = sysAlloc(chunk, &memstats.other_sys)
 		if persistent.base == nil {
 			unlock(&persistent.lock)
