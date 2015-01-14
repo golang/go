@@ -57,8 +57,8 @@ if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
 if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
 setlocal
 set GOROOT=%GOROOT_BOOTSTRAP%
-set GOOS=%GOHOSTOS%
-set GOARCH=%GOHOSTARCH%
+set GOOS=
+set GOARCH=
 "%GOROOT_BOOTSTRAP%\bin\go" build -o cmd\dist\dist.exe .\cmd\dist
 endlocal
 if errorlevel 1 goto fail
