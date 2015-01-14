@@ -323,8 +323,8 @@ type mcache struct {
 	local_cachealloc intptr // bytes allocated (or freed) from cache since last lock of heap
 	// Allocator cache for tiny objects w/o pointers.
 	// See "Tiny allocator" comment in malloc.goc.
-	tiny             *byte
-	tinysize         uintptr
+	tiny             unsafe.Pointer
+	tinyoffset       uintptr
 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
 
 	// The rest is not accessed on every malloc.
