@@ -484,11 +484,39 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	writeStatusHeader(w, st)
+
 	io.WriteString(w, st.logs())
 	// TODO: if st is still building, stream them to the user with
 	// http.Flusher.Flush and CloseNotifier and registering interest
 	// of new writes with the buildStatus. Will require moving the
 	// BUILDERKEY scrubbing into the Write method.
+}
+
+func writeStatusHeader(w http.ResponseWriter, st *buildStatus) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	fmt.Fprintf(w, "  builder: %s\n", st.name)
+	fmt.Fprintf(w, "      rev: %s\n", st.rev)
+	if st.container != "" {
+		fmt.Fprintf(w, "container: %s\n", st.container)
+	}
+	if st.instName != "" {
+		fmt.Fprintf(w, "  vm name: %s\n", st.instName)
+	}
+	fmt.Fprintf(w, "  started: %v\n", st.start)
+	done := !st.done.IsZero()
+	if done {
+		fmt.Fprintf(w, "  started: %v\n", st.done)
+		fmt.Fprintf(w, "  success: %v\n", st.succeeded)
+	} else {
+		fmt.Fprintf(w, "   status: still running\n")
+	}
+	if len(st.events) > 0 {
+		io.WriteString(w, "\nEvents:\n")
+		st.writeEventsLocked(w, false)
+	}
+	io.WriteString(w, "\nBuild log:\n")
 }
 
 // findWorkLoop polls http://build.golang.org/?mode=json looking for new work
@@ -982,8 +1010,9 @@ OpLoop:
 	buildletURL := "http://" + ip
 	const numTries = 60
 	var alive bool
+	impatientClient := &http.Client{Timeout: 2 * time.Second}
 	for i := 1; i <= numTries; i++ {
-		res, err := http.Get(buildletURL)
+		res, err := impatientClient.Get(buildletURL)
 		if err != nil {
 			time.Sleep(1 * time.Second)
 			continue
@@ -1147,11 +1176,10 @@ func (st *buildStatus) htmlStatusLine() string {
 		buf.WriteString(", failed")
 	}
 
-	logsURL := fmt.Sprintf("/logs?name=%s&rev=%s&st=%p", st.name, st.rev, st)
 	if st.container != "" {
-		fmt.Fprintf(&buf, " in container <a href='%s'>%s</a>", logsURL, st.container)
+		fmt.Fprintf(&buf, " in container <a href='%s'>%s</a>", st.logsURL(), st.container)
 	} else {
-		fmt.Fprintf(&buf, " in VM <a href='%s'>%s</a>", logsURL, st.instName)
+		fmt.Fprintf(&buf, " in VM <a href='%s'>%s</a>", st.logsURL(), st.instName)
 	}
 
 	t := st.done
@@ -1159,18 +1187,27 @@ func (st *buildStatus) htmlStatusLine() string {
 		t = st.start
 	}
 	fmt.Fprintf(&buf, ", %v ago\n", time.Since(t))
+	st.writeEventsLocked(&buf, true)
+	return buf.String()
+}
+
+func (st *buildStatus) logsURL() string {
+	return fmt.Sprintf("/logs?name=%s&rev=%s&st=%p", st.name, st.rev, st)
+}
+
+// st.mu must be held.
+func (st *buildStatus) writeEventsLocked(w io.Writer, html bool) {
 	for i, evt := range st.events {
 		var elapsed string
 		if i != 0 {
 			elapsed = fmt.Sprintf("+%0.1fs", evt.t.Sub(st.events[i-1].t).Seconds())
 		}
 		msg := evt.evt
-		if msg == "running_exec" {
-			msg = fmt.Sprintf("<a href='%s'>%s</a>", logsURL, msg)
+		if msg == "running_exec" && html {
+			msg = fmt.Sprintf("<a href='%s'>%s</a>", st.logsURL(), msg)
 		}
-		fmt.Fprintf(&buf, " %7s %v %s\n", elapsed, evt.t.Format(time.RFC3339), msg)
+		fmt.Fprintf(w, " %7s %v %s\n", elapsed, evt.t.Format(time.RFC3339), msg)
 	}
-	return buf.String()
 }
 
 func (st *buildStatus) logs() string {
