@@ -113,6 +113,9 @@ func schedinit() {
 
 	sched.maxmcount = 10000
 
+	// Cache the framepointer experiment.  This affects stack unwinding.
+	framepointer_enabled = haveexperiment("framepointer")
+
 	tracebackinit()
 	symtabinit()
 	stackinit()

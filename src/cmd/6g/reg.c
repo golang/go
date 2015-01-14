@@ -1186,6 +1186,9 @@ BtoR(uint32 b)
 	b &= 0xffffL;
 	if(nacl)
 		b &= ~((1<<(REG_BP-REG_AX)) | (1<<(REG_R15-REG_AX)));
+	else if(framepointer_enabled)
+		// BP is part of the calling convention if framepointer_enabled.
+		b &= ~(1<<(REG_BP-REG_AX));
 	if(b == 0)
 		return 0;
 	return bitno(b) + REG_AX;

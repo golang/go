@@ -125,6 +125,7 @@ type gobuf struct {
 	ctxt unsafe.Pointer // this has to be a pointer so that gc scans it
 	ret  uintreg
 	lr   uintptr
+	bp   uintptr // for GOEXPERIMENT=framepointer
 }
 
 // Known to compiler.

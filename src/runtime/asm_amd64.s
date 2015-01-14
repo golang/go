@@ -134,6 +134,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
 	MOVQ	BX, gobuf_pc(AX)
 	MOVQ	$0, gobuf_ret(AX)
 	MOVQ	$0, gobuf_ctxt(AX)
+	MOVQ	BP, gobuf_bp(AX)
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	BX, gobuf_g(AX)
@@ -150,9 +151,11 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
 	MOVQ	gobuf_sp(BX), SP	// restore SP
 	MOVQ	gobuf_ret(BX), AX
 	MOVQ	gobuf_ctxt(BX), DX
+	MOVQ	gobuf_bp(BX), BP
 	MOVQ	$0, gobuf_sp(BX)	// clear to help garbage collector
 	MOVQ	$0, gobuf_ret(BX)
 	MOVQ	$0, gobuf_ctxt(BX)
+	MOVQ	$0, gobuf_bp(BX)
 	MOVQ	gobuf_pc(BX), BX
 	JMP	BX
 
@@ -170,6 +173,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	LEAQ	fn+0(FP), BX	// caller's SP
 	MOVQ	BX, (g_sched+gobuf_sp)(AX)
 	MOVQ	AX, (g_sched+gobuf_g)(AX)
+	MOVQ	BP, (g_sched+gobuf_bp)(AX)
 
 	// switch to m->g0 & its stack, call fn
 	MOVQ	g(CX), BX
@@ -228,6 +232,7 @@ switch:
 	MOVQ	SI, (g_sched+gobuf_pc)(AX)
 	MOVQ	SP, (g_sched+gobuf_sp)(AX)
 	MOVQ	AX, (g_sched+gobuf_g)(AX)
+	MOVQ	BP, (g_sched+gobuf_bp)(AX)
 
 	// switch to g0
 	MOVQ	DX, g(CX)
@@ -303,6 +308,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	LEAQ	8(SP), AX // f's SP
 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
 	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
+	MOVQ	BP, (g_sched+gobuf_bp)(SI)
 
 	// Call newstack on m->g0's stack.
 	MOVQ	m_g0(BX), BX
@@ -592,6 +598,7 @@ TEXT gosave<>(SB),NOSPLIT,$0
 	MOVQ	R9, (g_sched+gobuf_sp)(R8)
 	MOVQ	$0, (g_sched+gobuf_ret)(R8)
 	MOVQ	$0, (g_sched+gobuf_ctxt)(R8)
+	MOVQ	BP, (g_sched+gobuf_bp)(R8)
 	RET
 
 // asmcgocall(void(*fn)(void*), void *arg)
@@ -747,17 +754,30 @@ havem:
 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
 	MOVQ	(g_sched+gobuf_pc)(SI), BX
 	MOVQ	BX, -8(DI)
-	LEAQ	-(8+8)(DI), SP
+	// Compute the size of the frame, including return PC and, if
+	// GOEXPERIMENT=framepointer, the saved based pointer
+	LEAQ	x+0(FP), AX
+	SUBQ	SP, AX
+	SUBQ	AX, DI
+	MOVQ	DI, SP
+
 	MOVQ	R8, 0(SP)
 	CALL	runtime·cgocallbackg(SB)
 	MOVQ	0(SP), R8
 
+	// Compute the size of the frame again.  FP and SP have
+	// completely different values here than they did above,
+	// but only their difference matters.
+	LEAQ	x+0(FP), AX
+	SUBQ	SP, AX
+
 	// Restore g->sched (== m->curg->sched) from saved values.
 	get_tls(CX)
 	MOVQ	g(CX), SI
-	MOVQ	8(SP), BX
+	MOVQ	SP, DI
+	ADDQ	AX, DI
+	MOVQ	-8(DI), BX
 	MOVQ	BX, (g_sched+gobuf_pc)(SI)
-	LEAQ	(8+8)(SP), DI
 	MOVQ	DI, (g_sched+gobuf_sp)(SI)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
