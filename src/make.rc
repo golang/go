@@ -58,7 +58,7 @@ if(! test -x $GOROOT_BOOTSTRAP/bin/go){
 	exit bootstrap
 }
 rm -f cmd/dist/dist
-GOROOT=$GOROOT_BOOTSTRAP $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
+GOROOT=$GOROOT_BOOTSTRAP GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
 
 eval `{./cmd/dist/dist env -9}
 echo

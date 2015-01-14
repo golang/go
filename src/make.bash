@@ -121,7 +121,7 @@ if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
 fi
 rm -f cmd/dist/dist
-GOROOT="$GOROOT_BOOTSTRAP" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+GOROOT="$GOROOT_BOOTSTRAP" GOOS="$GOHOSTOS" GOARCH="$GOHOSTARCH" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
 
 # -e doesn't propagate out of eval, so check success by hand.
 eval $(./cmd/dist/dist env -p || echo FAIL=true)
