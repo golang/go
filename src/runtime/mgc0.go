@@ -52,7 +52,7 @@ func clearpools() {
 		// clear tinyalloc pool
 		if c := p.mcache; c != nil {
 			c.tiny = nil
-			c.tinysize = 0
+			c.tinyoffset = 0
 
 			// disconnect cached list before dropping it on the floor,
 			// so that a dangling ref to one entry does not pin all of them.

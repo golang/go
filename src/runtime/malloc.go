@@ -119,40 +119,35 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			// standalone escaping variables. On a json benchmark
 			// the allocator reduces number of allocations by ~12% and
 			// reduces heap size by ~20%.
-			tinysize := uintptr(c.tinysize)
-			if size <= tinysize {
-				tiny := unsafe.Pointer(c.tiny)
-				// Align tiny pointer for required (conservative) alignment.
-				if size&7 == 0 {
-					tiny = roundup(tiny, 8)
-				} else if size&3 == 0 {
-					tiny = roundup(tiny, 4)
-				} else if size&1 == 0 {
-					tiny = roundup(tiny, 2)
-				}
-				size1 := size + (uintptr(tiny) - uintptr(unsafe.Pointer(c.tiny)))
-				if size1 <= tinysize {
-					// The object fits into existing tiny block.
-					x = tiny
-					c.tiny = (*byte)(add(x, size))
-					c.tinysize -= uintptr(size1)
-					c.local_tinyallocs++
-					if debugMalloc {
-						mp := acquirem()
-						if mp.mallocing == 0 {
-							throw("bad malloc")
-						}
-						mp.mallocing = 0
-						if mp.curg != nil {
-							mp.curg.stackguard0 = mp.curg.stack.lo + _StackGuard
-						}
-						// Note: one releasem for the acquirem just above.
-						// The other for the acquirem at start of malloc.
-						releasem(mp)
-						releasem(mp)
+			off := c.tinyoffset
+			// Align tiny pointer for required (conservative) alignment.
+			if size&7 == 0 {
+				off = round(off, 8)
+			} else if size&3 == 0 {
+				off = round(off, 4)
+			} else if size&1 == 0 {
+				off = round(off, 2)
+			}
+			if off+size <= maxTinySize {
+				// The object fits into existing tiny block.
+				x = add(c.tiny, off)
+				c.tinyoffset = off + size
+				c.local_tinyallocs++
+				if debugMalloc {
+					mp := acquirem()
+					if mp.mallocing == 0 {
+						throw("bad malloc")
 					}
-					return x
+					mp.mallocing = 0
+					if mp.curg != nil {
+						mp.curg.stackguard0 = mp.curg.stack.lo + _StackGuard
+					}
+					// Note: one releasem for the acquirem just above.
+					// The other for the acquirem at start of malloc.
+					releasem(mp)
+					releasem(mp)
 				}
+				return x
 			}
 			// Allocate a new maxTinySize block.
 			s = c.alloc[tinySizeClass]
@@ -173,9 +168,9 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			(*[2]uint64)(x)[1] = 0
 			// See if we need to replace the existing tiny block with the new one
 			// based on amount of remaining free space.
-			if maxTinySize-size > tinysize {
-				c.tiny = (*byte)(add(x, size))
-				c.tinysize = uintptr(maxTinySize - size)
+			if size < c.tinyoffset {
+				c.tiny = x
+				c.tinyoffset = size
 			}
 			size = maxTinySize
 		} else {
@@ -1013,8 +1008,8 @@ func runfinq() {
 
 var persistent struct {
 	lock mutex
-	pos  unsafe.Pointer
-	end  unsafe.Pointer
+	base unsafe.Pointer
+	off  uintptr
 }
 
 // Wrapper around sysAlloc that can allocate small chunks.
@@ -1027,6 +1022,9 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows
 	)
 
+	if size == 0 {
+		throw("persistentalloc: size == 0")
+	}
 	if align != 0 {
 		if align&(align-1) != 0 {
 			throw("persistentalloc: align is not a power of 2")
@@ -1043,17 +1041,17 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 	}
 
 	lock(&persistent.lock)
-	persistent.pos = roundup(persistent.pos, align)
-	if uintptr(persistent.pos)+size > uintptr(persistent.end) {
-		persistent.pos = sysAlloc(chunk, &memstats.other_sys)
-		if persistent.pos == nil {
+	persistent.off = round(persistent.off, align)
+	if persistent.off+size > chunk {
+		persistent.base = sysAlloc(chunk, &memstats.other_sys)
+		if persistent.base == nil {
 			unlock(&persistent.lock)
 			throw("runtime: cannot allocate memory")
 		}
-		persistent.end = add(persistent.pos, chunk)
+		persistent.off = 0
 	}
-	p := persistent.pos
-	persistent.pos = add(persistent.pos, size)
+	p := add(persistent.base, persistent.off)
+	persistent.off += size
 	unlock(&persistent.lock)
 
 	if stat != &memstats.other_sys {
