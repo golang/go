@@ -1,0 +1,10 @@
+# Treat all files in the Go repo as binary, with no git magic updating
+# line endings. Windows users contributing to Go will need to use a
+# modern version of git and editors capable of LF line endings.
+#
+# We'll prevent accidental CRLF line endings from entering the repo
+# via the git-review gofmt checks.
+#
+# See golang.org/issue/9281
+
+* -text
