@@ -170,9 +170,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 
 	if docrash {
 		// TODO(rsc): Implement raiseproc on other systems
-		// and then add to this switch.
-		switch GOOS {
-		case "darwin", "linux":
+		// and then add to this if condition.
+		if GOOS == "darwin" || GOOS == "linux" {
 			crashing++
 			if crashing < sched.mcount {
 				// There are other m's that need to dump their stacks.
