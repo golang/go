@@ -6,26 +6,6 @@ package runtime
 
 import "unsafe"
 
-// Called from C. Returns the Go type *m.
-func gc_m_ptr(ret *interface{}) {
-	*ret = (*m)(nil)
-}
-
-// Called from C. Returns the Go type *g.
-func gc_g_ptr(ret *interface{}) {
-	*ret = (*g)(nil)
-}
-
-// Called from C. Returns the Go type *itab.
-func gc_itab_ptr(ret *interface{}) {
-	*ret = (*itab)(nil)
-}
-
-func gc_unixnanotime(now *int64) {
-	sec, nsec := time_now()
-	*now = sec*1e9 + int64(nsec)
-}
-
 //go:linkname runtime_debug_freeOSMemory runtime/debug.freeOSMemory
 func runtime_debug_freeOSMemory() {
 	gogc(2) // force GC and do eager sweep
