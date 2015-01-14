@@ -66,7 +66,12 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$24
+TEXT runtime·raise(SB),NOSPLIT,$0
+	// Ideally we'd send the signal to the current thread,
+	// not the whole process, but that's too hard on OS X.
+	JMP	runtime·raiseproc(SB)
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVL	$(0x2000000+20), AX // getpid
 	SYSCALL
 	MOVQ	AX, DI	// arg 1 - pid

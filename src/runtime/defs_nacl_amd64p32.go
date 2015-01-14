@@ -3,6 +3,7 @@ package runtime
 const (
 	// These values are referred to in the source code
 	// but really don't matter. Even so, use the standard numbers.
+	_SIGQUIT = 3
 	_SIGSEGV = 11
 	_SIGPROF = 27
 )
