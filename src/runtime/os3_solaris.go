@@ -418,6 +418,10 @@ func raise(sig int32) /* int32 */ {
 	sysvicall1(libc_raise, uintptr(sig))
 }
 
+func raiseproc(sig int32) /* int32 */ {
+	sysvicall1(libc_raise, uintptr(sig))
+}
+
 //go:nosplit
 func read(fd int32, buf unsafe.Pointer, nbyte int32) int32 {
 	return int32(sysvicall3(libc_read, uintptr(fd), uintptr(buf), uintptr(nbyte)))

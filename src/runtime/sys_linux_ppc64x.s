@@ -18,6 +18,8 @@
 #define SYS_write		  4
 #define SYS_open		  5
 #define SYS_close		  6
+#define SYS_getpid		 20
+#define SYS_kill		 37
 #define SYS_fcntl		 55
 #define SYS_gettimeofday	 78
 #define SYS_select		 82	// always return -ENOSYS
@@ -116,6 +118,13 @@ TEXT runtime·raise(SB),NOSPLIT,$-8
 	MOVW	R3, R3	// arg 1 tid
 	MOVW	sig+0(FP), R4	// arg 2
 	SYSCALL	$SYS_tkill
+	RETURN
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$-8
+	SYSCALL	$SYS_getpid
+	MOVW	R3, R3	// arg 1 pid
+	MOVW	sig+0(FP), R4	// arg 2
+	SYSCALL	$SYS_kill
 	RETURN
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-8-24

@@ -575,6 +575,14 @@ func setBadSignalMsg() {
 	}
 }
 
+const (
+	_SIGPROF = 0 // dummy value for badsignal
+	_SIGQUIT = 0 // dummy value for sighandler
+)
+
+func raiseproc(sig int32) {
+}
+
 func crash() {
 	// TODO: This routine should do whatever is needed
 	// to make the Windows program abort/crash as it
