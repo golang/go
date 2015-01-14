@@ -285,6 +285,9 @@ ginit(void)
 	if(nacl) {
 		reg[REG_BP]++;
 		reg[REG_R15]++;
+	} else if(framepointer_enabled) {
+		// BP is part of the calling convention of framepointer_enabled.
+		reg[REG_BP]++;
 	}
 }
 
@@ -298,6 +301,8 @@ gclean(void)
 	if(nacl) {
 		reg[REG_BP]--;
 		reg[REG_R15]--;
+	} else if(framepointer_enabled) {
+		reg[REG_BP]--;
 	}
 
 

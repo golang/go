@@ -225,6 +225,11 @@ func cgocallbackg1() {
 		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
 	case "amd64":
 		// On amd64, stack frame is one word, plus caller PC.
+		if framepointer_enabled {
+			// In this case, there's also saved BP.
+			cb = (*args)(unsafe.Pointer(sp + 3*ptrSize))
+			break
+		}
 		cb = (*args)(unsafe.Pointer(sp + 2*ptrSize))
 	case "386":
 		// On 386, stack frame is three words, plus caller PC.

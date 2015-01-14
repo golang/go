@@ -379,7 +379,7 @@ preprocess(Link *ctxt, LSym *cursym)
 {
 	Prog *p, *q, *p1, *p2;
 	int32 autoffset, deltasp;
-	int a, pcsize;
+	int a, pcsize, bpsize;
 	vlong textstksiz, textarg;
 
 	if(ctxt->tlsg == nil)
@@ -403,6 +403,18 @@ preprocess(Link *ctxt, LSym *cursym)
 	if(autoffset < 0)
 		autoffset = 0;
 	
+	if(framepointer_enabled && autoffset > 0) {
+		// Make room for to save a base pointer.  If autoffset == 0,
+		// this might do something special like a tail jump to
+		// another function, so in that case we omit this.
+		bpsize = ctxt->arch->ptrsize;
+		autoffset += bpsize;
+		textstksiz += bpsize;
+		p->to.offset = ((uint64)p->to.offset & (0xffffffffull<<32)) | (uint32)autoffset;
+	} else {
+		bpsize = 0;
+	}
+
 	cursym->args = p->to.offset>>32;
 	cursym->locals = textstksiz;
 
@@ -447,6 +459,28 @@ preprocess(Link *ctxt, LSym *cursym)
 	if(q != nil)
 		q->pcond = p;
 	deltasp = autoffset;
+
+	if(bpsize > 0) {
+		// Save caller's BP
+		p = appendp(ctxt, p);
+		p->as = AMOVQ;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_BP;
+		p->to.type = TYPE_MEM;
+		p->to.reg = REG_SP;
+		p->to.scale = 1;
+		p->to.offset = autoffset - bpsize;
+
+		// Move current frame to BP
+		p = appendp(ctxt, p);
+		p->as = ALEAQ;
+		p->from.type = TYPE_MEM;
+		p->from.reg = REG_SP;
+		p->from.scale = 1;
+		p->from.offset = autoffset - bpsize;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_BP;
+	}
 	
 	if(cursym->text->from.scale & WRAPPER) {
 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
@@ -580,12 +614,12 @@ preprocess(Link *ctxt, LSym *cursym)
 		pcsize = p->mode/8;
 		a = p->from.name;
 		if(a == NAME_AUTO)
-			p->from.offset += deltasp;
+			p->from.offset += deltasp - bpsize;
 		if(a == NAME_PARAM)
 			p->from.offset += deltasp + pcsize;
 		a = p->to.name;
 		if(a == NAME_AUTO)
-			p->to.offset += deltasp;
+			p->to.offset += deltasp - bpsize;
 		if(a == NAME_PARAM)
 			p->to.offset += deltasp + pcsize;
 
@@ -630,6 +664,18 @@ preprocess(Link *ctxt, LSym *cursym)
 			ctxt->diag("unbalanced PUSH/POP");
 
 		if(autoffset) {
+			if(bpsize > 0) {
+				// Restore caller's BP
+				p->as = AMOVQ;
+				p->from.type = TYPE_MEM;
+				p->from.reg = REG_SP;
+				p->from.scale = 1;
+				p->from.offset = autoffset - bpsize;
+				p->to.type = TYPE_REG;
+				p->to.reg = REG_BP;
+				p = appendp(ctxt, p);
+			}
+
 			p->as = AADJSP;
 			p->from.type = TYPE_CONST;
 			p->from.offset = -autoffset;

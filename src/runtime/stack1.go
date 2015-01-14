@@ -46,6 +46,9 @@ var stackpoolmu mutex
 
 var stackfreequeue stack
 
+// Cached value of haveexperiment("framepointer")
+var framepointer_enabled bool
+
 func stackinit() {
 	if _StackCacheSize&_PageMask != 0 {
 		throw("cache size must be a multiple of page size")
@@ -308,6 +311,8 @@ var mapnames = []string{
 // | args from caller |
 // +------------------+ <- frame->argp
 // |  return address  |
+// +------------------+
+// |  caller's BP (*) | (*) if framepointer_enabled && varp < sp
 // +------------------+ <- frame->varp
 // |     locals       |
 // +------------------+
@@ -458,6 +463,18 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 			print("      locals ", pcdata, "/", stackmap.n, " ", size/ptrSize, " words ", bv.bytedata, "\n")
 		}
 		adjustpointers(unsafe.Pointer(frame.varp-size), &bv, adjinfo, f)
+	}
+
+	// Adjust saved base pointer if there is one.
+	if thechar == '6' && frame.argp-frame.varp == 2*ptrSize {
+		if !framepointer_enabled {
+			print("runtime: found space for saved base pointer, but no framepointer experiment")
+			throw("bad frame layout")
+		}
+		if stackDebug >= 3 {
+			print("      saved bp\n")
+		}
+		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
 	}
 
 	// Adjust arguments.
