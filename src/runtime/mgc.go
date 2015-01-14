@@ -2551,7 +2551,6 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
 }
 
 func unixnanotime() int64 {
-	var now int64
-	gc_unixnanotime(&now)
-	return now
+	sec, nsec := time_now()
+	return sec*1e9 + int64(nsec)
 }

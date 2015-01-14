@@ -17,12 +17,6 @@ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
 }
 
-// n must be a power of 2
-func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
-	delta := -uintptr(p) & (n - 1)
-	return unsafe.Pointer(uintptr(p) + delta)
-}
-
 func getg() *g
 
 // mcall switches from the g to the g0 stack and invokes fn(g),
