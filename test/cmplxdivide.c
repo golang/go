@@ -2,7 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// gcc '-std=c99' cmplxdivide.c && a.out >cmplxdivide1.go
+// This C program generates the file cmplxdivide1.go. It uses the
+// output of the operations by C99 as the reference to check
+// the implementation of complex numbers in Go.
+// The generated file, cmplxdivide1.go, is compiled along
+// with the driver cmplxdivide.go (the names are confusing
+// and unimaginative) to run the actual test. This is done by
+// the usual test runner.
+//
+// The file cmplxdivide1.go is checked in to the repository, but
+// if it needs to be regenerated, compile and run this C program
+// like this:
+//	gcc '-std=c99' cmplxdivide.c && a.out >cmplxdivide1.go
 
 #include <complex.h>
 #include <math.h>
