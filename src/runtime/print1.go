@@ -53,10 +53,12 @@ var debuglock mutex
 
 func printlock() {
 	mp := getg().m
+	mp.locks++ // do not reschedule between printlock++ and lock(&debuglock).
 	mp.printlock++
 	if mp.printlock == 1 {
 		lock(&debuglock)
 	}
+	mp.locks-- // now we know debuglock is held and holding up mp.locks for us.
 }
 
 func printunlock() {
