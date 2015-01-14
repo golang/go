@@ -65,11 +65,38 @@ thread_start_wrapper(void *arg)
 	return args.func(args.arg);
 }
 
+static void init_pthread_wrapper(void) {
+	void *handle;
+
+	// Locate symbol for the system pthread_create function.
+	handle = dlopen("libpthread.so", RTLD_LAZY);
+	if(handle == NULL) {
+		fprintf(stderr, "runtime/cgo: dlopen failed to load libpthread: %s\n", dlerror());
+		abort();
+	}
+	sys_pthread_create = dlsym(handle, "pthread_create");
+	if(sys_pthread_create == NULL) {
+		fprintf(stderr, "runtime/cgo: dlsym failed to find pthread_create: %s\n", dlerror());
+		abort();
+	}
+	dlclose(handle);
+}
+
+static pthread_once_t init_pthread_wrapper_once = PTHREAD_ONCE_INIT;
+
 int
 pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 	void *(*start_routine)(void *), void *arg)
 {
 	struct thread_args *p;
+
+	// we must initialize our wrapper in pthread_create, because it is valid to call
+	// pthread_create in a static constructor, and in fact, our test for issue 9456
+	// does just that.
+	if(pthread_once(&init_pthread_wrapper_once, init_pthread_wrapper) != 0) {
+		fprintf(stderr, "runtime/cgo: failed to initialize pthread_create wrapper\n");
+		abort();
+	}
 
 	p = malloc(sizeof(*p));
 	if(p == NULL) {
@@ -87,7 +114,6 @@ x_cgo_init(G *g, void (*setg)(void*))
 {
 	pthread_attr_t attr;
 	size_t size;
-	void *handle;
 
 	setg_gcc = setg;
 	pthread_attr_init(&attr);
@@ -95,18 +121,10 @@ x_cgo_init(G *g, void (*setg)(void*))
 	g->stacklo = (uintptr)&attr - size + 4096;
 	pthread_attr_destroy(&attr);
 
-	// Locate symbol for the system pthread_create function.
-	handle = dlopen("libpthread.so", RTLD_LAZY);
-	if(handle == NULL) {
-		fprintf(stderr, "dlopen: failed to load libpthread: %s\n", dlerror());
+	if(pthread_once(&init_pthread_wrapper_once, init_pthread_wrapper) != 0) {
+		fprintf(stderr, "runtime/cgo: failed to initialize pthread_create wrapper\n");
 		abort();
 	}
-	sys_pthread_create = dlsym(handle, "pthread_create");
-	if(sys_pthread_create == NULL) {
-		fprintf(stderr, "dlsym: failed to find pthread_create: %s\n", dlerror());
-		abort();
-	}
-	dlclose(handle);
 
 	tcb_fixup(1);
 }

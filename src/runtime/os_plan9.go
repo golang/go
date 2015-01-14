@@ -6,6 +6,8 @@ package runtime
 
 import "unsafe"
 
+const _SIGPROF = 0 // dummy value for badsignal
+
 func pread(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
 func pwrite(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
 func seek(fd int32, offset int64, whence int32) int64

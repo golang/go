@@ -8,6 +8,8 @@ import (
 	"unsafe"
 )
 
+const _SIGPROF = 0 // dummy value for badsignal
+
 type callbacks struct {
 	lock mutex
 	ctxt [cb_max]*wincallbackcontext
