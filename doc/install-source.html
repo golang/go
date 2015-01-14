@@ -81,38 +81,21 @@ The full set of supported combinations is listed in the discussion of
 
 <p>
 The Go tool chain is written in C. To build it, you need a C compiler installed. 
-Please refer to the <a href="//golang.org/wiki/InstallFromSource#Install_C_tools">InstallFromSource</a>
+Please refer to the <a href="//golang.org/wiki/InstallFromSource#install-c-tools">InstallFromSource</a>
 page on the Go community Wiki for operating system specific instructions.
 </p>
 
-<h2 id="mercurial">Install Mercurial, if needed</h2>
+<h2 id="git">Install Git, if needed</h2>
 
 <p>
-To perform the next step you must have Mercurial installed. (Check that you
-have an <code>hg</code> command.)
+To perform the next step you must have Git installed. (Check that you
+have a <code>git</code> command before proceeding.)
 </p>
 
 <p>
-If you do not have a working Mercurial installation,
+If you do not have a working Git installation,
 follow the instructions on the
-<a href="http://mercurial.selenic.com/downloads">Mercurial downloads</a> page.
-</p>
-
-<p>
-Mercurial versions 1.7.x and up require the configuration of
-<a href="http://mercurial.selenic.com/wiki/CACertificates">Certification Authorities</a>
-(CAs). Error messages of the form:
-</p>
-
-<pre>
-warning: code.google.com certificate with fingerprint b1:af: ... bc not verified (check hostfingerprints or web.cacerts config setting)
-</pre>
-
-<p>
-when using Mercurial indicate that the CAs are missing.
-Check your Mercurial version (<code>hg --version</code>) and
-<a href="http://mercurial.selenic.com/wiki/CACertificates#Configuration_of_HTTPS_certificate_authorities">configure the CAs</a>
-if necessary.
+<a href="http://git-scm.com/downloads">Git downloads</a> page.
 </p>
 
 
@@ -121,22 +104,24 @@ if necessary.
 <p>Go will install to a directory named <code>go</code>.
 Change to the directory that will be its parent
 and make sure the <code>go</code> directory does not exist.
-Then check out the repository:</p>
+Then clone the repository and check out the latest release tag:</p>
 
 <pre>
-$ hg clone -u release https://code.google.com/p/go
+$ git clone https://go.googlesource.com/go
+$ cd go
+$ git checkout go1.4
 </pre>
 
-<h2 id="head">(Optional) Switch to the default branch</h2>
+<h2 id="head">(Optional) Switch to the master branch</h2>
 
 <p>If you intend to modify the go source code, and
 <a href="/doc/contribute.html">contribute your changes</a>
 to the project, then move your repository
-off the release branch, and onto the default (development) branch.
+off the release branch, and onto the master (development) branch.
 Otherwise, skip this step.</p>
 
 <pre>
-$ hg update default
+$ git checkout master
 </pre>
 
 <h2 id="install">Install Go</h2>
@@ -259,7 +244,7 @@ $ go get golang.org/x/tools/cmd/godoc
 
 <p>
 To install these tools, the <code>go</code> <code>get</code> command requires 
-that <a href="#mercurial">Mercurial</a> be installed locally.
+that <a href="#git">Git</a> be installed locally.
 </p>
 
 <p>
@@ -292,22 +277,18 @@ that receives a message summarizing each checkin to the Go repository.
 </p>
 
 <p>
-Bugs can be reported using the <a href="//code.google.com/p/go/issues/list">Go issue tracker</a>.
+Bugs can be reported using the <a href="//golang.org/issue/new">Go issue tracker</a>.
 </p>
 
 
 <h2 id="releases">Keeping up with releases</h2>
 
 <p>
-The Go project maintains a stable tag in its Mercurial repository:
-<code>release</code>.
-</p>
-
-<p>
-The <code>release</code> tag refers to the current stable release of Go.
-Most Go users should use this version. New releases are announced on the
+New releases are announced on the
 <a href="//groups.google.com/group/golang-announce">golang-announce</a>
 mailing list.
+Each announcement mentions the latest release tag, for instance,
+<code>go1.4</code>.
 </p>
 
 <p>
@@ -316,10 +297,12 @@ To update an existing tree to the latest release, you can run:
 
 <pre>
 $ cd go/src
-$ hg pull
-$ hg update release
+$ git fetch
+$ git checkout <i>&lt;tag&gt;</i>
 $ ./all.bash
 </pre>
+
+Where <code>&lt;tag&gt;</code> is the version string of the release.
 
 
 <h2 id="environment">Optional environment variables</h2>
