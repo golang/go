@@ -45,16 +45,10 @@ goto fail
 :: Clean old generated file that will cause problems in the build.
 del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
 
-:: Grab default GOROOT_FINAL and set GOROOT for build.
-:: The expression %VAR:\=\\% means to take %VAR%
-:: and apply the substitution \ = \\, escaping the
-:: backslashes.  Then we wrap that in quotes to create
-:: a C string.
+:: Set GOROOT for build.
 cd ..
 set GOROOT=%CD%
 cd src
-if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
-set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
 
 echo ##### Building Go bootstrap tool.
 echo cmd/dist
@@ -63,6 +57,8 @@ if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
 if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
 setlocal
 set GOROOT=%GOROOT_BOOTSTRAP%
+set GOOS=%GOHOSTOS%
+set GOARCH=%GOHOSTARCH%
 "%GOROOT_BOOTSTRAP%\bin\go" build -o cmd\dist\dist.exe .\cmd\dist
 endlocal
 if errorlevel 1 goto fail
