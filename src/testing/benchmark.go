@@ -280,6 +280,14 @@ func (r BenchmarkResult) MemString() string {
 		r.AllocedBytesPerOp(), r.AllocsPerOp())
 }
 
+// benchmarkName returns full name of benchmark including procs suffix.
+func benchmarkName(name string, n int) string {
+	if n != 1 {
+		return fmt.Sprintf("%s-%d", name, n)
+	}
+	return name
+}
+
 // An internal function but exported because it is cross-package; part of the implementation
 // of the "go test" command.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
@@ -287,15 +295,30 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 	if len(*matchBenchmarks) == 0 {
 		return
 	}
+	// Collect matching benchmarks and determine longest name.
+	maxprocs := 1
+	for _, procs := range cpuList {
+		if procs > maxprocs {
+			maxprocs = procs
+		}
+	}
+	maxlen := 0
+	var bs []InternalBenchmark
 	for _, Benchmark := range benchmarks {
 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.bench: %s\n", err)
 			os.Exit(1)
 		}
-		if !matched {
-			continue
+		if matched {
+			bs = append(bs, Benchmark)
+			benchName := benchmarkName(Benchmark.Name, maxprocs)
+			if l := len(benchName); l > maxlen {
+				maxlen = l
+			}
 		}
+	}
+	for _, Benchmark := range bs {
 		for _, procs := range cpuList {
 			runtime.GOMAXPROCS(procs)
 			b := &B{
@@ -304,11 +327,8 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 				},
 				benchmark: Benchmark,
 			}
-			benchName := Benchmark.Name
-			if procs != 1 {
-				benchName = fmt.Sprintf("%s-%d", Benchmark.Name, procs)
-			}
-			fmt.Printf("%s\t", benchName)
+			benchName := benchmarkName(Benchmark.Name, procs)
+			fmt.Printf("%-*s\t", maxlen, benchName)
 			r := b.run()
 			if b.failed {
 				// The output could be very long here, but probably isn't.
