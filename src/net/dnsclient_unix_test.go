@@ -57,13 +57,13 @@ var specialDomainNameTests = []struct {
 	qtype uint16
 	rcode int
 }{
-	// Name resoltion APIs and libraries should not recongnize the
+	// Name resolution APIs and libraries should not recognize the
 	// followings as special.
 	{"1.0.168.192.in-addr.arpa.", dnsTypePTR, dnsRcodeNameError},
 	{"test.", dnsTypeALL, dnsRcodeNameError},
 	{"example.com.", dnsTypeALL, dnsRcodeSuccess},
 
-	// Name resoltion APIs and libraries should recongnize the
+	// Name resolution APIs and libraries should recognize the
 	// followings as special and should not send any queries.
 	// Though, we test those names here for verifying nagative
 	// answers at DNS query-response interaction level.
