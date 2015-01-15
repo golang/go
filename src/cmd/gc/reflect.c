@@ -731,7 +731,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	dowidth(t);
 	alg = algtype(t);
 	algsym = S;
-	if(alg < 0)
+	if(alg < 0 || alg == AMEM)
 		algsym = dalgsym(t);
 
 	if(t->sym != nil && !isptr[t->etype])
@@ -791,7 +791,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	if(gcprog)
 		i |= KindGCProg;
 	ot = duint8(s, ot, i);  // kind
-	if(alg >= 0)
+	if(algsym == S)
 		ot = dsymptr(s, ot, algarray, alg*sizeofAlg);
 	else
 		ot = dsymptr(s, ot, algsym, 0);
@@ -1311,29 +1311,58 @@ dalgsym(Type *t)
 {
 	int ot;
 	Sym *s, *hash, *hashfunc, *eq, *eqfunc;
+	char *p;
 
 	// dalgsym is only called for a type that needs an algorithm table,
 	// which implies that the type is comparable (or else it would use ANOEQ).
 
-	s = typesymprefix(".alg", t);
-	hash = typesymprefix(".hash", t);
-	genhash(hash, t);
-	eq = typesymprefix(".eq", t);
-	geneq(eq, t);
+	if(algtype(t) == AMEM) {
+		// we use one algorithm table for all AMEM types of a given size
+		p = smprint(".alg%lld", t->width);
+		s = pkglookup(p, typepkg);
+		free(p);
+		if(s->flags & SymAlgGen)
+			return s;
+		s->flags |= SymAlgGen;
 
-	// make Go funcs (closures) for calling hash and equal from Go
-	hashfunc = typesymprefix(".hashfunc", t);
-	dsymptr(hashfunc, 0, hash, 0);
-	ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
-	eqfunc = typesymprefix(".eqfunc", t);
-	dsymptr(eqfunc, 0, eq, 0);
-	ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
+		// make hash closure
+		p = smprint(".hashfunc%lld", t->width);
+		hashfunc = pkglookup(p, typepkg);
+		free(p);
+		ot = 0;
+		ot = dsymptr(hashfunc, ot, pkglookup("memhash_varlen", runtimepkg), 0);
+		ot = duintxx(hashfunc, ot, t->width, widthptr); // size encoded in closure
+		ggloblsym(hashfunc, ot, DUPOK|RODATA);
 
+		// make equality closure
+		p = smprint(".eqfunc%lld", t->width);
+		eqfunc = pkglookup(p, typepkg);
+		free(p);
+		ot = 0;
+		ot = dsymptr(eqfunc, ot, pkglookup("memequal_varlen", runtimepkg), 0);
+		ot = duintxx(eqfunc, ot, t->width, widthptr);
+		ggloblsym(eqfunc, ot, DUPOK|RODATA);
+	} else {
+		// generate an alg table specific to this type
+		s = typesymprefix(".alg", t);
+		hash = typesymprefix(".hash", t);
+		eq = typesymprefix(".eq", t);
+		hashfunc = typesymprefix(".hashfunc", t);
+		eqfunc = typesymprefix(".eqfunc", t);
+
+		genhash(hash, t);
+		geneq(eq, t);
+
+		// make Go funcs (closures) for calling hash and equal from Go
+		dsymptr(hashfunc, 0, hash, 0);
+		ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
+		dsymptr(eqfunc, 0, eq, 0);
+		ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
+	}
 	// ../../runtime/alg.go:/typeAlg
 	ot = 0;
 	ot = dsymptr(s, ot, hashfunc, 0);
 	ot = dsymptr(s, ot, eqfunc, 0);
-
 	ggloblsym(s, ot, DUPOK|RODATA);
 	return s;
 }

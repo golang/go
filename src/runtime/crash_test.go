@@ -526,3 +526,31 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 	}()
 	runtime.Goexit()
 }
+
+func TestNetpollDeadlock(t *testing.T) {
+	output := executeTest(t, netpollDeadlockSource, nil)
+	want := "done\n"
+	if !strings.HasSuffix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+const netpollDeadlockSource = `
+package main
+import (
+	"fmt"
+	"net"
+)
+func init() {
+	fmt.Println("dialing")
+	c, err := net.Dial("tcp", "localhost:14356")
+	if err == nil {
+		c.Close()
+	} else {
+		fmt.Println("error: ", err)
+	}
+}
+func main() {
+	fmt.Println("done")
+}
+`

@@ -29,13 +29,25 @@ if not {
 GOROOT_FINAL = ()
 
 echo '# Testing packages.'
-time go test std -short -timeout 120s
+time go test std -short -timeout 240s
 echo
+
+# Temporary GCE builder hack until Plan 9 on GCE is fast enough.
+# See https://golang.org/issue/9491
+if(~ $GOTESTONLY std) {
+	echo
+	echo PARTIAL TESTS PASSED: std
+	exit
+}
 
 # We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
 # creation of first goroutines and first garbage collections in the parallel setting.
+# TODO(bradfitz,0intro): make this not be 15 minutes once Plan 9 runs quickly on GCE.
+# Linux does 63 seconds on GCE, but Plan 9 was failing with 8 minutes.
+# See issue 8393 and 9491.
+# TODO(bradfitz,0intro): remove -v once we see some a successful build.
 echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
-GOMAXPROCS=2 go test runtime -short -timeout 240s -cpu 1,2,4
+GOMAXPROCS=2 go test runtime -v -short -timeout 15m -cpu 1,2,4
 echo
 
 echo '# sync -cpu=10'

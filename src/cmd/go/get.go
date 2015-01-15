@@ -290,7 +290,7 @@ func downloadPackage(p *Package) error {
 						}
 					}
 					if remote != repo {
-						return fmt.Errorf("%s is from %s, should be from %s", dir, remote, repo)
+						return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
 					}
 				}
 			}

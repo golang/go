@@ -247,5 +247,3 @@ pkg runtime (openbsd-amd64-cgo), const EWOULDBLOCK = 35
 pkg runtime (openbsd-amd64-cgo), const EWOULDBLOCK ideal-int
 pkg runtime (openbsd-amd64-cgo), const HW_NCPU = 3
 pkg runtime (openbsd-amd64-cgo), const HW_NCPU ideal-int
-pkg runtime, func GCcheckmarkdisable()
-pkg runtime, func GCcheckmarkenable()

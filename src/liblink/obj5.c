@@ -35,7 +35,7 @@
 #include "../cmd/5l/5.out.h"
 #include "../runtime/stack.h"
 
-static Prog zprg = {
+static Prog zprg5 = {
 	.as = AGOK,
 	.scond = C_SCOND_NONE,
 	.reg = NREG,
@@ -156,11 +156,11 @@ progedit(Link *ctxt, Prog *p)
 	case AMOVF:
 		if(p->from.type == D_FCONST && chipfloat5(ctxt, p->from.u.dval) < 0 &&
 		   (chipzero5(ctxt, p->from.u.dval) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
-			int32 i32;
+			uint32 i32;
 			float32 f32;
 			f32 = p->from.u.dval;
 			memmove(&i32, &f32, 4);
-			sprint(literal, "$f32.%08ux", (uint32)i32);
+			sprint(literal, "$f32.%08ux", i32);
 			s = linklookup(ctxt, literal, 0);
 			if(s->type == 0) {
 				s->type = SRODATA;
@@ -177,9 +177,9 @@ progedit(Link *ctxt, Prog *p)
 	case AMOVD:
 		if(p->from.type == D_FCONST && chipfloat5(ctxt, p->from.u.dval) < 0 &&
 		   (chipzero5(ctxt, p->from.u.dval) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
-			int64 i64;
+			uint64 i64;
 			memmove(&i64, &p->from.u.dval, 8);
-			sprint(literal, "$f64.%016llux", (uvlong)i64);
+			sprint(literal, "$f64.%016llux", i64);
 			s = linklookup(ctxt, literal, 0);
 			if(s->type == 0) {
 				s->type = SRODATA;
@@ -216,7 +216,7 @@ prg(void)
 	Prog *p;
 
 	p = emallocz(sizeof(*p));
-	*p = zprg;
+	*p = zprg5;
 	return p;
 }
 
@@ -247,7 +247,7 @@ linkcase(Prog *casep)
 }
 
 static void
-nocache(Prog *p)
+nocache5(Prog *p)
 {
 	p->optab = 0;
 	p->from.class = 0;
@@ -540,11 +540,11 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			break;
 
 		case ARET:
-			nocache(p);
+			nocache5(p);
 			if(cursym->text->mark & LEAF) {
 				if(!autosize) {
 					p->as = AB;
-					p->from = zprg.from;
+					p->from = zprg5.from;
 					if(p->to.sym) { // retjmp
 						p->to.type = D_BRANCH;
 					} else {
@@ -758,7 +758,7 @@ softfloat(Link *ctxt, LSym *cursym)
 			*next = *p;
 
 			// BL _sfloat(SB)
-			*p = zprg;
+			*p = zprg5;
 			p->link = next;
 			p->as = ABL;
  				p->to.type = D_BRANCH;

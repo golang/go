@@ -551,6 +551,7 @@ dumpasmhdr(void)
 			t = n->type;
 			if(t->etype != TSTRUCT || t->map != T || t->funarg)
 				break;
+			Bprint(b, "#define %s__size %d\n", t->sym->name, (int)t->width);
 			for(t=t->type; t != T; t=t->down)
 				if(!isblanksym(t->sym))
 					Bprint(b, "#define %s_%s %d\n", n->sym->name, t->sym->name, (int)t->width);

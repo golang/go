@@ -8,9 +8,11 @@ package httputil
 
 import (
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -209,5 +211,63 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 		// OK
 	case <-time.After(5 * time.Second):
 		t.Error("maxLatencyWriter flushLoop() never exited")
+	}
+}
+
+func TestReverseProxyCancellation(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test; see http://golang.org/issue/9554")
+	}
+	const backendResponse = "I am the backend"
+
+	reqInFlight := make(chan struct{})
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(reqInFlight)
+
+		select {
+		case <-time.After(10 * time.Second):
+			// Note: this should only happen in broken implementations, and the
+			// closenotify case should be instantaneous.
+			t.Log("Failed to close backend connection")
+			t.Fail()
+		case <-w.(http.CloseNotifier).CloseNotify():
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(backendResponse))
+	}))
+
+	defer backend.Close()
+
+	backend.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+
+	// Discards errors of the form:
+	// http: proxy error: read tcp 127.0.0.1:44643: use of closed network connection
+	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0)
+
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	go func() {
+		<-reqInFlight
+		http.DefaultTransport.(*http.Transport).CancelRequest(getReq)
+	}()
+	res, err := http.DefaultClient.Do(getReq)
+	if res != nil {
+		t.Fatal("Non-nil response")
+	}
+	if err == nil {
+		// This should be an error like:
+		// Get http://127.0.0.1:58079: read tcp 127.0.0.1:58079:
+		//    use of closed network connection
+		t.Fatal("DefaultClient.Do() returned nil error")
 	}
 }

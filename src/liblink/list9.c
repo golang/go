@@ -84,27 +84,13 @@ static Prog*	bigP;
 static int
 Pconv(Fmt *fp)
 {
-	char str[STRINGSZ], *s;
+	char str[STRINGSZ];
 	Prog *p;
-	int a;
+	int a, ch;
 
 	p = va_arg(fp->args, Prog*);
 	bigP = p;
 	a = p->as;
-
-	if(fp->flags & FmtSharp) {
-		s = str;
-		s += sprint(s, "%.5lld (%L) %A", p->pc, p->lineno, a);
-		if(p->from.type != D_NONE)
-			s += sprint(s, " from={%#D}", &p->from);
-		if(p->reg)
-			s += sprint(s, " reg=%d", p->reg);
-		if(p->from3.type != D_NONE)
-			s += sprint(s, " from3={%#D}", &p->from3);
-		if(p->to.type != D_NONE)
-			sprint(s, " to={%#D}", &p->to);
-		return fmtstrcpy(fp, str);
-	}
 
 	if(a == ADATA || a == AINIT || a == ADYNT)
 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
@@ -119,26 +105,29 @@ Pconv(Fmt *fp)
 		else
 			sprint(str, "%.5lld (%L)        %A      %D,%D", p->pc, p->lineno, a, &p->from, &p->to);
 	} else {
-		s = str;
 		if(p->mark & NOSCHED)
-			s += sprint(s, "*");
+			sprint(strchr(str, 0), "*");
 		if(p->reg == NREG && p->from3.type == D_NONE)
-			sprint(s, "%.5lld (%L)	%A	%D,%D", p->pc, p->lineno, a, &p->from, &p->to);
+			sprint(strchr(str, 0), "%.5lld (%L)	%A	%D,%D", p->pc, p->lineno, a, &p->from, &p->to);
 		else
 		if(a != ATEXT && p->from.type == D_OREG) {
-			sprint(s, "%.5lld (%L)	%A	%lld(R%d+R%d),%D", p->pc, p->lineno, a,
+			sprint(strchr(str, 0), "%.5lld (%L)	%A	%lld(R%d+R%d),%D", p->pc, p->lineno, a,
 				p->from.offset, p->from.reg, p->reg, &p->to);
 		} else
 		if(p->to.type == D_OREG) {
-			sprint(s, "%.5lld (%L)	%A	%D,%lld(R%d+R%d)", p->pc, p->lineno, a,
+			sprint(strchr(str, 0), "%.5lld (%L)	%A	%D,%lld(R%d+R%d)", p->pc, p->lineno, a,
 					&p->from, p->to.offset, p->to.reg, p->reg);
 		} else {
-			s += sprint(s, "%.5lld (%L)	%A	%D", p->pc, p->lineno, a, &p->from);
-			if(p->reg != NREG)
-				s += sprint(s, ",%c%d", p->from.type==D_FREG?'F':'R', p->reg);
+			sprint(strchr(str, 0), "%.5lld (%L)	%A	%D", p->pc, p->lineno, a, &p->from);
+			if(p->reg != NREG) {
+				ch = 'R';
+				if(p->from.type == D_FREG)
+					ch = 'F';
+				sprint(strchr(str, 0), ",%c%d", ch, p->reg);
+			}
 			if(p->from3.type != D_NONE)
-				s += sprint(s, ",%D", &p->from3);
-			sprint(s, ",%D", &p->to);
+				sprint(strchr(str, 0), ",%D", &p->from3);
+			sprint(strchr(str, 0), ",%D", &p->to);
 		}
 		if(p->spadj != 0)
 			return fmtprint(fp, "%s # spadj=%d", str, p->spadj);
@@ -167,32 +156,6 @@ Dconv(Fmt *fp)
 	int32 v;
 
 	a = va_arg(fp->args, Addr*);
-
-	if(fp->flags & FmtSharp) {
-		char *s = str;
-		if(a->type == D_NONE) {
-			sprint(s, "type=NONE");
-			goto ret;
-		}
-		if(a->type >= 0 && a->type < D_LAST && dnames9[a->type] != nil)
-			s += sprint(s, "type=%s ", dnames9[a->type]);
-		else
-			s += sprint(s, "type=%d ", a->type);
-		if(a->name >= 0 && a->name < D_LAST && dnames9[(int)a->name] != nil)
-			s += sprint(s, "name=%s ", dnames9[(int)a->name]);
-		else
-			s += sprint(s, "name=%d ", a->name);
-		s += sprint(s, "offset=%lld etype=%E width=%lld", a->offset, a->etype, a->width);
-		if(a->class != 0)
-			s += sprint(s, " class=%s", cnames9[(int)a->class]);
-		if(a->reg != NREG)
-			s += sprint(s, " reg=%d", a->reg);
-		if(a->sym != nil)
-			s += sprint(s, " sym=%s", a->sym->name);
-		if(a->type == D_BRANCH && a->u.branch != nil)
-			sprint(s, " branch=%.5lld", a->u.branch->pc);
-		goto ret;
-	}
 
 	if(fp->flags & FmtLong) {
 		if(a->type == D_CONST)

@@ -91,6 +91,15 @@ TEXT runtime·raise(SB),NOSPLIT,$0
 	SYSCALL
 	RET
 
+TEXT runtime·raiseproc(SB),NOSPLIT,$0
+	MOVL	$39, AX	// syscall - getpid
+	SYSCALL
+	MOVL	AX, DI	// arg 1 pid
+	MOVL	sig+0(FP), SI	// arg 2
+	MOVL	$62, AX	// syscall - kill
+	SYSCALL
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT,$0-24
 	MOVL	mode+0(FP), DI
 	MOVQ	new+8(FP), SI

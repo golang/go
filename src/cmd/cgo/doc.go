@@ -237,10 +237,6 @@ The following options are available when running cgo directly:
 		Write out input file in Go syntax replacing C package
 		names with real values. Used to generate files in the
 		syscall package when bootstrapping a new target.
-	-cdefs
-		Like -godefs, but write file in C syntax.
-		Used to generate files in the runtime package when
-		bootstrapping a new target.
 	-objdir directory
 		Put all generated files in directory.
 	-gccgo

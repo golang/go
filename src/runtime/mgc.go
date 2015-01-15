@@ -123,7 +123,7 @@ const (
 	_DebugGCPtrs     = false // if true, print trace of every pointer load during GC
 	_ConcurrentSweep = true
 
-	_WorkbufSize     = 4 * 1024
+	_WorkbufSize     = 4 * 256
 	_FinBlockSize    = 4 * 1024
 	_RootData        = 0
 	_RootBss         = 1
@@ -191,9 +191,9 @@ var badblock [1024]uintptr
 var nbadblock int32
 
 type workdata struct {
-	full    uint64                // lock-free list of full blocks
-	empty   uint64                // lock-free list of empty blocks
-	partial uint64                // lock-free list of partially filled blocks
+	full    uint64                // lock-free list of full blocks workbuf
+	empty   uint64                // lock-free list of empty blocks workbuf
+	partial uint64                // lock-free list of partially filled blocks workbuf
 	pad0    [_CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
 	nproc   uint32
 	tstart  int64
@@ -233,13 +233,10 @@ func have_cgo_allocate() bool {
 // there are no more pointers in the object. This information is held
 // in the second nibble.
 
-// When marking an object if the bool checkmark is true one uses the above
+// When marking an object if the bool checkmarkphase is true one uses the above
 // encoding, otherwise one uses the bitMarked bit in the lower two bits
 // of the nibble.
-var (
-	checkmark         = false
-	gccheckmarkenable = true
-)
+var checkmarkphase = false
 
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
 // It returns false for pointers into stack spans.
@@ -383,7 +380,7 @@ func gcmarknewobject_m(obj uintptr) {
 	if gcphase != _GCmarktermination {
 		throw("marking new object while not in mark termination phase")
 	}
-	if checkmark { // The world should be stopped so this should not happen.
+	if checkmarkphase { // The world should be stopped so this should not happen.
 		throw("gcmarknewobject called while doing checkmark")
 	}
 
@@ -394,15 +391,10 @@ func gcmarknewobject_m(obj uintptr) {
 	}
 
 	// Each byte of GC bitmap holds info for two words.
-	// If the current object is larger than two words, or if the object is one word
-	// but the object it shares the byte with is already marked,
-	// then all the possible concurrent updates are trying to set the same bit,
-	// so we can use a non-atomic update.
-	if mbits.xbits&(bitMask|(bitMask<<gcBits)) != bitBoundary|bitBoundary<<gcBits || work.nproc == 1 {
-		*mbits.bitp = mbits.xbits | bitMarked<<mbits.shift
-	} else {
-		atomicor8(mbits.bitp, bitMarked<<mbits.shift)
-	}
+	// Might be racing with other updates, so use atomic update always.
+	// We used to be clever here and use a non-atomic update in certain
+	// cases, but it's not worth the risk.
+	atomicor8(mbits.bitp, bitMarked<<mbits.shift)
 }
 
 // obj is the start of an object with mark mbits.
@@ -416,7 +408,7 @@ func greyobject(obj uintptr, base, off uintptr, mbits *markbits, wbuf *workbuf) 
 		throw("greyobject: obj not pointer-aligned")
 	}
 
-	if checkmark {
+	if checkmarkphase {
 		if !ismarked(mbits) {
 			print("runtime:greyobject: checkmarks finds unexpected unmarked object obj=", hex(obj), ", mbits->bits=", hex(mbits.bits), " *mbits->bitp=", hex(*mbits.bitp), "\n")
 			print("runtime: found obj at *(", hex(base), "+", hex(off), ")\n")
@@ -454,18 +446,13 @@ func greyobject(obj uintptr, base, off uintptr, mbits *markbits, wbuf *workbuf) 
 		}
 
 		// Each byte of GC bitmap holds info for two words.
-		// If the current object is larger than two words, or if the object is one word
-		// but the object it shares the byte with is already marked,
-		// then all the possible concurrent updates are trying to set the same bit,
-		// so we can use a non-atomic update.
-		if mbits.xbits&(bitMask|bitMask<<gcBits) != bitBoundary|bitBoundary<<gcBits || work.nproc == 1 {
-			*mbits.bitp = mbits.xbits | bitMarked<<mbits.shift
-		} else {
-			atomicor8(mbits.bitp, bitMarked<<mbits.shift)
-		}
+		// Might be racing with other updates, so use atomic update always.
+		// We used to be clever here and use a non-atomic update in certain
+		// cases, but it's not worth the risk.
+		atomicor8(mbits.bitp, bitMarked<<mbits.shift)
 	}
 
-	if !checkmark && (mbits.xbits>>(mbits.shift+2))&_BitsMask == _BitsDead {
+	if !checkmarkphase && (mbits.xbits>>(mbits.shift+2))&_BitsMask == _BitsDead {
 		return wbuf // noscan object
 	}
 
@@ -547,7 +534,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 		}
 
 		if bits&_BitsPointer != _BitsPointer {
-			print("gc checkmark=", checkmark, " b=", hex(b), " ptrmask=", ptrmask, " mbits.bitp=", mbits.bitp, " mbits.xbits=", hex(mbits.xbits), " bits=", hex(bits), "\n")
+			print("gc checkmarkphase=", checkmarkphase, " b=", hex(b), " ptrmask=", ptrmask, " mbits.bitp=", mbits.bitp, " mbits.xbits=", hex(mbits.xbits), " bits=", hex(bits), "\n")
 			throw("unexpected garbage collection bits")
 		}
 
@@ -559,7 +546,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 			continue
 		}
 
-		if mheap_.shadow_enabled && debug.wbshadow >= 2 && gccheckmarkenable && checkmark {
+		if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && checkmarkphase {
 			checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
 		}
 
@@ -587,6 +574,11 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8) {
 	// base and extent.
 	b := b0
 	n := n0
+
+	// ptrmask can have 2 possible values:
+	// 1. nil - obtain pointer mask from GC bitmap.
+	// 2. pointer to a compact mask (for stacks and data).
+
 	wbuf := getpartialorempty()
 	if b != 0 {
 		wbuf = scanobject(b, n, ptrmask, wbuf)
@@ -600,23 +592,23 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8) {
 			return
 		}
 	}
-	if gcphase == _GCscan {
-		throw("scanblock: In GCscan phase but no b passed in.")
-	}
 
-	keepworking := b == 0
+	drainallwbufs := b == 0
+	drainworkbuf(wbuf, drainallwbufs)
+}
 
+// Scan objects in wbuf until wbuf is empty.
+// If drainallwbufs is true find all other available workbufs and repeat the process.
+//go:nowritebarrier
+func drainworkbuf(wbuf *workbuf, drainallwbufs bool) {
 	if gcphase != _GCmark && gcphase != _GCmarktermination {
 		println("gcphase", gcphase)
 		throw("scanblock phase")
 	}
 
-	// ptrmask can have 2 possible values:
-	// 1. nil - obtain pointer mask from GC bitmap.
-	// 2. pointer to a compact mask (for stacks and data).
 	for {
 		if wbuf.nobj == 0 {
-			if !keepworking {
+			if !drainallwbufs {
 				putempty(wbuf)
 				return
 			}
@@ -641,9 +633,30 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8) {
 		//         PREFETCH(wbuf->obj[wbuf->nobj - 3];
 		//  }
 		wbuf.nobj--
-		b = wbuf.obj[wbuf.nobj]
+		b := wbuf.obj[wbuf.nobj]
 		wbuf = scanobject(b, mheap_.arena_used-b, nil, wbuf)
 	}
+}
+
+// Scan at most count objects in the wbuf.
+//go:nowritebarrier
+func drainobjects(wbuf *workbuf, count uintptr) {
+	for i := uintptr(0); i < count; i++ {
+		if wbuf.nobj == 0 {
+			putempty(wbuf)
+			return
+		}
+
+		// This might be a good place to add prefetch code...
+		// if(wbuf->nobj > 4) {
+		//         PREFETCH(wbuf->obj[wbuf->nobj - 3];
+		//  }
+		wbuf.nobj--
+		b := wbuf.obj[wbuf.nobj]
+		wbuf = scanobject(b, mheap_.arena_used-b, nil, wbuf)
+	}
+	putpartial(wbuf)
+	return
 }
 
 //go:nowritebarrier
@@ -669,7 +682,7 @@ func markroot(desc *parfor, i uint32) {
 			if s.state != mSpanInUse {
 				continue
 			}
-			if !checkmark && s.sweepgen != sg {
+			if !checkmarkphase && s.sweepgen != sg {
 				// sweepgen was updated (+2) during non-checkmark GC pass
 				print("sweep ", s.sweepgen, " ", sg, "\n")
 				throw("gc: unswept span")
@@ -809,6 +822,17 @@ func putpartial(b *workbuf) {
 	}
 }
 
+// trygetfull tries to get a full or partially empty workbuffer.
+// if one is not immediately available return nil
+//go:nowritebarrier
+func trygetfull() *workbuf {
+	wbuf := (*workbuf)(lfstackpop(&work.full))
+	if wbuf == nil {
+		wbuf = (*workbuf)(lfstackpop(&work.partial))
+	}
+	return wbuf
+}
+
 // Get a full work buffer off the work.full or a partially
 // filled one off the work.partial list. If nothing is available
 // wait until all the other gc helpers have finished and then
@@ -831,7 +855,7 @@ func getfull(b *workbuf) *workbuf {
 	if b == nil {
 		b = (*workbuf)(lfstackpop(&work.partial))
 	}
-	if b != nil || work.nproc == 1 {
+	if b != nil {
 		return b
 	}
 
@@ -1014,7 +1038,7 @@ func shaded(slot uintptr) bool {
 		return true
 	}
 
-	if checkmark {
+	if checkmarkphase {
 		return ischeckmarked(&mbits)
 	}
 
@@ -1087,6 +1111,38 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 		if ptr != 0 && inheap(ptr) {
 			shade(ptr)
 		}
+	}
+}
+
+// gchelpwork does a small bounded amount of gc work. The purpose is to
+// shorten the time (as measured by allocations) spent doing a concurrent GC.
+// The number of mutator calls is roughly propotional to the number of allocations
+// made by that mutator. This slows down the allocation while speeding up the GC.
+//go:nowritebarrier
+func gchelpwork() {
+	switch gcphase {
+	default:
+		throw("gcphasework in bad gcphase")
+	case _GCoff, _GCquiesce, _GCstw:
+		// No work.
+	case _GCsweep:
+		// We could help by calling sweepone to sweep a single span.
+		// _ = sweepone()
+	case _GCscan:
+		// scan the stack, mark the objects, put pointers in work buffers
+		// hanging off the P where this is being run.
+		// scanstack(gp)
+	case _GCmark:
+		// Get a full work buffer and empty it.
+		var wbuf *workbuf
+		wbuf = trygetfull()
+		if wbuf != nil {
+			drainobjects(wbuf, uintptr(len(wbuf.obj))) // drain upto one buffer's worth of objects
+		}
+	case _GCmarktermination:
+		// We should never be here since the world is stopped.
+		// All available mark work will be emptied before returning.
+		throw("gcphasework in bad gcphase")
 	}
 }
 
@@ -1218,7 +1274,7 @@ func mSpan_EnsureSwept(s *mspan) {
 // caller takes care of it.
 //TODO go:nowritebarrier
 func mSpan_Sweep(s *mspan, preserve bool) bool {
-	if checkmark {
+	if checkmarkphase {
 		throw("MSpan_Sweep: checkmark only runs in STW and after the sweep")
 	}
 
@@ -1424,6 +1480,14 @@ type sweepdata struct {
 }
 
 var sweep sweepdata
+
+// State of the background concurrent GC goroutine.
+var bggc struct {
+	lock    mutex
+	g       *g
+	working uint
+	started bool
+}
 
 // sweeps one span
 // returns number of pages returned to heap, or ^uintptr(0) if there is nothing to sweep
@@ -1671,14 +1735,14 @@ func clearcheckmarkbitsspan(s *mspan) {
 	//	10 - BitsPointer
 	//	11 - unused, for us BitsPointerMarked
 	//
-	// When called to prepare for the checkmark phase (checkmark==1),
+	// When called to prepare for the checkmark phase (checkmarkphase==true),
 	// we change BitsDead to BitsScalar, so that there are no BitsScalarMarked
 	// type bits anywhere.
 	//
 	// The checkmark phase marks by changing BitsScalar to BitsScalarMarked
 	// and BitsPointer to BitsPointerMarked.
 	//
-	// When called to clean up after the checkmark phase (checkmark==0),
+	// When called to clean up after the checkmark phase (checkmarkphase==false),
 	// we unmark by changing BitsScalarMarked back to BitsScalar and
 	// BitsPointerMarked back to BitsPointer.
 	//
@@ -1714,7 +1778,7 @@ func clearcheckmarkbitsspan(s *mspan) {
 				throw("missing bitBoundary")
 			}
 			b := (*bitp & bitPtrMask) >> 2
-			if !checkmark && (b == _BitsScalar || b == _BitsScalarMarked) {
+			if !checkmarkphase && (b == _BitsScalar || b == _BitsScalarMarked) {
 				*bitp &^= 0x0c // convert to _BitsDead
 			} else if b == _BitsScalarMarked || b == _BitsPointerMarked {
 				*bitp &^= _BitsCheckMarkXor << 2
@@ -1724,7 +1788,7 @@ func clearcheckmarkbitsspan(s *mspan) {
 				throw("missing bitBoundary")
 			}
 			b = ((*bitp >> gcBits) & bitPtrMask) >> 2
-			if !checkmark && (b == _BitsScalar || b == _BitsScalarMarked) {
+			if !checkmarkphase && (b == _BitsScalar || b == _BitsScalarMarked) {
 				*bitp &^= 0xc0 // convert to _BitsDead
 			} else if b == _BitsScalarMarked || b == _BitsPointerMarked {
 				*bitp &^= _BitsCheckMarkXor << (2 + gcBits)
@@ -1738,12 +1802,12 @@ func clearcheckmarkbitsspan(s *mspan) {
 			}
 			b := (*bitp & bitPtrMask) >> 2
 
-			if checkmark && b == _BitsDead {
+			if checkmarkphase && b == _BitsDead {
 				// move BitsDead into second word.
 				// set bits to BitsScalar in preparation for checkmark phase.
 				*bitp &^= 0xc0
 				*bitp |= _BitsScalar << 2
-			} else if !checkmark && (b == _BitsScalar || b == _BitsScalarMarked) && *bitp&0xc0 == 0 {
+			} else if !checkmarkphase && (b == _BitsScalar || b == _BitsScalarMarked) && *bitp&0xc0 == 0 {
 				// Cleaning up after checkmark phase.
 				// First word is scalar or dead (we forgot)
 				// and second word is dead.
@@ -1779,27 +1843,17 @@ func clearcheckmarkbits() {
 // bitMarked bit that is not set then we throw.
 //go:nowritebarrier
 func gccheckmark_m(startTime int64, eagersweep bool) {
-	if !gccheckmarkenable {
+	if debug.gccheckmark == 0 {
 		return
 	}
 
-	if checkmark {
-		throw("gccheckmark_m, entered with checkmark already true")
+	if checkmarkphase {
+		throw("gccheckmark_m, entered with checkmarkphase already true")
 	}
 
-	checkmark = true
+	checkmarkphase = true
 	clearcheckmarkbits()        // Converts BitsDead to BitsScalar.
-	gc_m(startTime, eagersweep) // turns off checkmark + calls clearcheckmarkbits
-}
-
-//go:nowritebarrier
-func gccheckmarkenable_m() {
-	gccheckmarkenable = true
-}
-
-//go:nowritebarrier
-func gccheckmarkdisable_m() {
-	gccheckmarkenable = false
+	gc_m(startTime, eagersweep) // turns off checkmarkphase + calls clearcheckmarkbits
 }
 
 //go:nowritebarrier
@@ -1909,7 +1963,10 @@ func gc(start_time int64, eagersweep bool) {
 		t1 = nanotime()
 	}
 
-	if !checkmark {
+	if !checkmarkphase {
+		// TODO(austin) This is a noop beceause we should
+		// already have swept everything to the current
+		// sweepgen.
 		finishsweep_m() // skip during checkmark debug phase.
 	}
 
@@ -2030,13 +2087,13 @@ func gc(start_time int64, eagersweep bool) {
 		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
 	}
 
-	if gccheckmarkenable {
-		if !checkmark {
+	if debug.gccheckmark > 0 {
+		if !checkmarkphase {
 			// first half of two-pass; don't set up sweep
 			unlock(&mheap_.lock)
 			return
 		}
-		checkmark = false // done checking marks
+		checkmarkphase = false // done checking marks
 		clearcheckmarkbits()
 	}
 
@@ -2269,7 +2326,12 @@ func unrollgcproginplace_m(v unsafe.Pointer, typ *_type, size, size0 uintptr) {
 	off := (uintptr(v) - arena_start) / ptrSize
 	bitp := (*byte)(unsafe.Pointer(arena_start - off/wordsPerBitmapByte - 1))
 	shift := (off % wordsPerBitmapByte) * gcBits
-	*bitp |= bitBoundary << shift
+
+	// NOTE(rsc): An argument can be made that unrollgcproginplace
+	// is only used for very large objects, and in particular it is not used
+	// for 1-word objects, so the atomic here is not necessary.
+	// But if that's true, neither is the shift, and yet here it is.
+	atomicor8(bitp, bitBoundary<<shift)
 
 	// Mark word after last as BitsDead.
 	if size0 < size {
@@ -2489,7 +2551,6 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
 }
 
 func unixnanotime() int64 {
-	var now int64
-	gc_unixnanotime(&now)
-	return now
+	sec, nsec := time_now()
+	return sec*1e9 + int64(nsec)
 }

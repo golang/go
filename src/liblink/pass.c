@@ -69,6 +69,7 @@ void
 linkpatch(Link *ctxt, LSym *sym)
 {
 	int32 c;
+	char *name;
 	Prog *p, *q;
 
 	ctxt->cursym = sym;
@@ -95,8 +96,10 @@ linkpatch(Link *ctxt, LSym *sym)
 				q = q->link;
 		}
 		if(q == nil) {
-			ctxt->diag("branch out of range (%#ux)\n%P [%s]",
-				c, p, p->to.sym ? p->to.sym->name : "<nil>");
+			name = "<nil>";
+			if(p->to.sym)
+				name = p->to.sym->name;
+			ctxt->diag("branch out of range (%#ux)\n%P [%s]", c, p, name);
 			p->to.type = ctxt->arch->D_NONE;
 		}
 		p->to.u.branch = q;

@@ -69,6 +69,6 @@ const (
 	_SIGINTDIV = 4
 	_SIGFLOAT  = 5
 	_SIGTRAP   = 6
-	// dummy value defined for badsignal
-	_SIGPROF   = 0
+	_SIGPROF   = 0 // dummy value defined for badsignal
+	_SIGQUIT   = 0 // dummy value defined for sighandler
 )

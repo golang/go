@@ -229,6 +229,11 @@ func cgocallbackg1() {
 	case "386":
 		// On 386, stack frame is three words, plus caller PC.
 		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+	case "ppc64", "ppc64le":
+		// On ppc64, stack frame is two words and there's a
+		// saved LR between SP and the stack frame and between
+		// the stack frame and the arguments.
+		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
 	}
 
 	// Invoke callback.
@@ -263,6 +268,8 @@ func unwindm(restore *bool) {
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp))
 	case "arm":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 4))
+	case "ppc64", "ppc64le":
+		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 8))
 	}
 	releasem(mp)
 }

@@ -77,6 +77,9 @@ func goargs() {
 }
 
 func goenvs_unix() {
+	// TODO(austin): ppc64 in dynamic linking mode doesn't
+	// guarantee env[] will immediately follow argv.  Might cause
+	// problems.
 	n := int32(0)
 	for argv_index(argv, argc+1+n) != nil {
 		n++
@@ -314,6 +317,7 @@ var debug struct {
 	scheddetail    int32
 	schedtrace     int32
 	wbshadow       int32
+	gccheckmark    int32
 }
 
 var dbgvars = []dbgVar{
@@ -326,9 +330,13 @@ var dbgvars = []dbgVar{
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
 	{"wbshadow", &debug.wbshadow},
+	{"gccheckmark", &debug.gccheckmark},
 }
 
 func parsedebugvars() {
+	// gccheckmark is enabled by default for the 1.5 dev cycle
+	debug.gccheckmark = 1
+
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
 		i := index(p, ",")

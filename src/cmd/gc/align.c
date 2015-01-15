@@ -48,10 +48,13 @@ widstruct(Type *errtype, Type *t, vlong o, int flag)
 	Type *f;
 	int64 w;
 	int32 maxalign;
+	vlong starto, lastzero;
 	
+	starto = o;
 	maxalign = flag;
 	if(maxalign < 1)
 		maxalign = 1;
+	lastzero = 0;
 	for(f=t->type; f!=T; f=f->down) {
 		if(f->etype != TFIELD)
 			fatal("widstruct: not TFIELD: %lT", f);
@@ -80,22 +83,28 @@ widstruct(Type *errtype, Type *t, vlong o, int flag)
 			} else
 				f->nname->xoffset = o;
 		}
+		if(w == 0)
+			lastzero = o;
 		o += w;
 		if(o >= MAXWIDTH) {
 			yyerror("type %lT too large", errtype);
 			o = 8;  // small but nonzero
 		}
 	}
+	// For nonzero-sized structs which end in a zero-sized thing, we add
+	// an extra byte of padding to the type.  This padding ensures that
+	// taking the address of the zero-sized thing can't manufacture a
+	// pointer to the next object in the heap.  See issue 9401.
+	if(flag == 1 && o > starto && o == lastzero)
+		o++;
+
 	// final width is rounded
 	if(flag)
 		o = rnd(o, maxalign);
 	t->align = maxalign;
 
 	// type width only includes back to first field's offset
-	if(t->type == T)
-		t->width = 0;
-	else
-		t->width = o - t->type->width;
+	t->width = o - starto;
 	return o;
 }
 
@@ -127,6 +136,11 @@ dowidth(Type *t)
 		lineno = lno;
 		return;
 	}
+
+	// break infinite recursion if the broken recursive type
+	// is referenced again
+	if(t->broke && t->width == 0)
+		return;
 
 	// defer checkwidth calls until after we're done
 	defercalc++;

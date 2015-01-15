@@ -384,6 +384,7 @@ enum
 	SymUniq		= 1<<3,
 	SymSiggen	= 1<<4,
 	SymAsm		= 1<<5,
+	SymAlgGen	= 1<<6,
 };
 
 struct	Sym
@@ -1450,6 +1451,7 @@ void	walkswitch(Node *sw);
  *	typecheck.c
  */
 int	islvalue(Node *n);
+int	samesafeexpr(Node *l, Node *r);
 Node*	typecheck(Node **np, int top);
 void	typechecklist(NodeList *l, int top);
 Node*	typecheckdef(Node *n);

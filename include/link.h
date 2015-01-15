@@ -77,6 +77,7 @@ struct	Reloc
 	uchar	siz;
 	uchar	done;
 	int32	type;
+	int32	variant; // RV_*: variant on computed value
 	int64	add;
 	int64	xadd;
 	LSym*	sym;
@@ -141,6 +142,7 @@ struct	LSym
 	uchar	hide;
 	uchar	leaf;	// arm only
 	uchar	fnptr;	// arm only
+	uchar	localentry;	// ppc64: instrs between global & local entry
 	uchar	seenglobl;
 	uchar	onlist;	// on the textp or datap lists
 	int16	symid;	// for writing .5/.6/.8 files
@@ -210,6 +212,7 @@ enum
 	SMACHO,	/* Mach-O __nl_symbol_ptr */
 	SMACHOGOT,
 	SWINDOWS,
+	SELFGOT,	/* also .toc in ppc64 ABI */
 	SNOPTRDATA,
 	SINITARR,
 	SDATA,
@@ -254,6 +257,20 @@ enum
 	R_PLT1,
 	R_PLT2,
 	R_USEFIELD,
+	R_POWER_TOC,		// ELF R_PPC64_TOC16*
+};
+
+// Reloc.variant
+enum
+{
+	RV_NONE,		// identity variant
+	RV_POWER_LO,		// x & 0xFFFF
+	RV_POWER_HI,		// x >> 16
+	RV_POWER_HA,		// (x + 0x8000) >> 16
+	RV_POWER_DS,		// x & 0xFFFC, check x&0x3 == 0
+
+	RV_CHECK_OVERFLOW = 1<<8,	// check overflow flag
+	RV_TYPE_MASK = (RV_CHECK_OVERFLOW - 1),
 };
 
 // Auto.type

@@ -30,10 +30,13 @@
 /*
  * powerpc 64
  */
-#define	NSNAME	8
-#define	NSYM	50
-#define	NREG	32	/* number of general registers */
-#define	NFREG	32	/* number of floating point registers */
+enum
+{
+	NSNAME = 8,
+	NSYM = 50,
+	NREG = 32,	/* number of general registers */
+	NFREG = 32,	/* number of floating point registers */
+};
 
 #include "../ld/textflag.h"
 
@@ -48,6 +51,7 @@ enum
 	REGRT2		= 4,	/* reserved for runtime, duffcopy */
 	REGMIN		= 7,	/* register variables allocated from here to REGMAX */
 	REGENV		= 11,	/* environment for closures */
+	REGTLS		= 13,	/* C ABI TLS base pointer */
 	REGMAX		= 27,
 	REGEXT		= 30,	/* external registers allocated from here down */
 	REGG		= 30,	/* G */

@@ -832,6 +832,14 @@ var parseDurationTests = []struct {
 	{"52763797000ns", true, 52763797000 * Nanosecond},
 	// more than 9 digits after decimal point, see http://golang.org/issue/6617
 	{"0.3333333333333333333h", true, 20 * Minute},
+	// 9007199254740993 = 1<<53+1 cannot be stored precisely in a float64
+	{"9007199254740993ns", true, (1<<53 + 1) * Nanosecond},
+	// largest duration that can be represented by int64 in nanoseconds
+	{"9223372036854775807ns", true, (1<<63 - 1) * Nanosecond},
+	{"9223372036854775.807us", true, (1<<63 - 1) * Nanosecond},
+	{"9223372036s854ms775us807ns", true, (1<<63 - 1) * Nanosecond},
+	// large negative value
+	{"-9223372036854775807ns", true, -1<<63 + 1*Nanosecond},
 
 	// errors
 	{"", false, 0},
@@ -842,7 +850,13 @@ var parseDurationTests = []struct {
 	{"-.", false, 0},
 	{".s", false, 0},
 	{"+.s", false, 0},
-	{"3000000h", false, 0}, // overflow
+	{"3000000h", false, 0},                  // overflow
+	{"9223372036854775808ns", false, 0},     // overflow
+	{"9223372036854775.808us", false, 0},    // overflow
+	{"9223372036854ms775us808ns", false, 0}, // overflow
+	// largest negative value of type int64 in nanoseconds should fail
+	// see https://go-review.googlesource.com/#/c/2461/
+	{"-9223372036854775808ns", false, 0},
 }
 
 func TestParseDuration(t *testing.T) {
@@ -1049,6 +1063,13 @@ func BenchmarkFormatNow(b *testing.B) {
 func BenchmarkParse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Parse(ANSIC, "Mon Jan  2 15:04:05 2006")
+	}
+}
+
+func BenchmarkParseDuration(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ParseDuration("9007199254.740993ms")
+		ParseDuration("9007199254740993ns")
 	}
 }
 

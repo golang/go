@@ -187,6 +187,7 @@ main(int argc, char *argv[])
 	gentext();		// trampolines, call stubs, etc.
 	textaddress();
 	pclntab();
+	findfunctab();
 	symtab();
 	dodata();
 	address();

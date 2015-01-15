@@ -624,7 +624,6 @@ bignodes(void)
  *	t = f
  * hard part is conversions.
  */
-// TODO: lost special constants for floating point.  XORPD for 0.0?
 void
 gmove(Node *f, Node *t)
 {

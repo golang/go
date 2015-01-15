@@ -154,20 +154,6 @@ func splitQuoted(s string) (r []string, err error) {
 	return args, err
 }
 
-var safeBytes = []byte(`+-.,/0123456789:=ABCDEFGHIJKLMNOPQRSTUVWXYZ\_abcdefghijklmnopqrstuvwxyz`)
-
-func safeName(s string) bool {
-	if s == "" {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if c := s[i]; c < 0x80 && bytes.IndexByte(safeBytes, c) < 0 {
-			return false
-		}
-	}
-	return true
-}
-
 // Translate rewrites f.AST, the original Go input, to remove
 // references to the imported package C, replacing them with
 // references to the equivalent Go types, functions, and variables.
@@ -582,7 +568,7 @@ func (p *Package) mangleName(n *Name) {
 
 // rewriteRef rewrites all the C.xxx references in f.AST to refer to the
 // Go equivalents, now that we have figured out the meaning of all
-// the xxx.  In *godefs or *cdefs mode, rewriteRef replaces the names
+// the xxx.  In *godefs mode, rewriteRef replaces the names
 // with full definitions instead of mangled names.
 func (p *Package) rewriteRef(f *File) {
 	// Keep a list of all the functions, to remove the ones
@@ -673,6 +659,13 @@ func (p *Package) rewriteRef(f *File) {
 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
 			}
 
+		case "selector":
+			if r.Name.Kind == "var" {
+				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+			} else {
+				error_(r.Pos(), "only C variables allowed in selector expression", fixGo(r.Name.Go))
+			}
+
 		case "type":
 			if r.Name.Kind != "type" {
 				error_(r.Pos(), "expression C.%s used as type", fixGo(r.Name.Go))
@@ -688,7 +681,7 @@ func (p *Package) rewriteRef(f *File) {
 				error_(r.Pos(), "must call C.%s", fixGo(r.Name.Go))
 			}
 		}
-		if *godefs || *cdefs {
+		if *godefs {
 			// Substitute definition for mangled type name.
 			if id, ok := expr.(*ast.Ident); ok {
 				if t := typedef[id.Name]; t != nil {
@@ -992,8 +985,8 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.goVoid = c.Ident("_Ctype_void")
 
 	// Normally cgo translates void* to unsafe.Pointer,
-	// but for historical reasons -cdefs and -godefs use *byte instead.
-	if *cdefs || *godefs {
+	// but for historical reasons -godefs uses *byte instead.
+	if *godefs {
 		c.goVoidPtr = &ast.StarExpr{X: c.byte}
 	} else {
 		c.goVoidPtr = c.Ident("unsafe.Pointer")
@@ -1334,8 +1327,8 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		// If sub.Go.Name is "_Ctype_struct_foo" or "_Ctype_union_foo" or "_Ctype_class_foo",
 		// use that as the Go form for this typedef too, so that the typedef will be interchangeable
 		// with the base type.
-		// In -godefs and -cdefs mode, do this for all typedefs.
-		if isStructUnionClass(sub.Go) || *godefs || *cdefs {
+		// In -godefs mode, do this for all typedefs.
+		if isStructUnionClass(sub.Go) || *godefs {
 			t.Go = sub.Go
 
 			if isStructUnionClass(sub.Go) {
@@ -1397,7 +1390,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			name := c.Ident("_Ctype_" + s)
 			tt := *t
 			typedef[name.Name] = &tt
-			if !*godefs && !*cdefs {
+			if !*godefs {
 				t.Go = name
 			}
 		}
@@ -1573,7 +1566,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 		used[f.Name] = true
 	}
 
-	if !*godefs && !*cdefs {
+	if !*godefs {
 		for cid, goid := range ident {
 			if token.Lookup(goid).IsKeyword() {
 				// Avoid keyword
@@ -1600,12 +1593,12 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 		name := f.Name
 		ft := f.Type
 
-		// In godefs or cdefs mode, if this field is a C11
+		// In godefs mode, if this field is a C11
 		// anonymous union then treat the first field in the
 		// union as the field in the struct.  This handles
 		// cases like the glibc <sys/resource.h> file; see
 		// issue 6677.
-		if *godefs || *cdefs {
+		if *godefs {
 			if st, ok := f.Type.(*dwarf.StructType); ok && name == "" && st.Kind == "union" && len(st.Field) > 0 && !used[st.Field[0].Name] {
 				name = st.Field[0].Name
 				ident[name] = name
@@ -1635,14 +1628,12 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 			talign = size
 		}
 
-		if talign > 0 && f.ByteOffset%talign != 0 && !*cdefs {
+		if talign > 0 && f.ByteOffset%talign != 0 {
 			// Drop misaligned fields, the same way we drop integer bit fields.
 			// The goal is to make available what can be made available.
 			// Otherwise one bad and unneeded field in an otherwise okay struct
 			// makes the whole program not compile. Much of the time these
 			// structs are in system headers that cannot be corrected.
-			// Exception: In -cdefs mode, we use #pragma pack, so misaligned
-			// fields should still work.
 			continue
 		}
 		n := len(fld)
@@ -1672,7 +1663,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	buf.WriteString("}")
 	csyntax = buf.String()
 
-	if *godefs || *cdefs {
+	if *godefs {
 		godefsFields(fld)
 	}
 	expr = &ast.StructType{Fields: &ast.FieldList{List: fld}}
@@ -1707,9 +1698,7 @@ func godefsFields(fld []*ast.Field) {
 				n.Name = "Pad_cgo_" + strconv.Itoa(npad)
 				npad++
 			}
-			if !*cdefs {
-				n.Name = upper(n.Name)
-			}
+			n.Name = upper(n.Name)
 		}
 	}
 }
@@ -1721,9 +1710,6 @@ func godefsFields(fld []*ast.Field) {
 // package syscall's data structures, we drop a common prefix
 // (so sec, usec, which will get turned into Sec, Usec for exporting).
 func fieldPrefix(fld []*ast.Field) string {
-	if *cdefs {
-		return ""
-	}
 	prefix := ""
 	for _, f := range fld {
 		for _, n := range f.Names {

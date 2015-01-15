@@ -93,6 +93,15 @@ TEXT runtime·raise(SB),NOSPLIT,$12
 	CALL	*runtime·_vdso(SB)
 	RET
 
+TEXT runtime·raiseproc(SB),NOSPLIT,$12
+	MOVL	$20, AX	// syscall - getpid
+	CALL	*runtime·_vdso(SB)
+	MOVL	AX, BX	// arg 1 pid
+	MOVL	sig+0(FP), CX	// arg 2 signal
+	MOVL	$37, AX	// syscall - kill
+	CALL	*runtime·_vdso(SB)
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT,$0-12
 	MOVL	$104, AX			// syscall - setitimer
 	MOVL	mode+0(FP), BX

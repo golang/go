@@ -57,7 +57,6 @@ static struct {
 	{"solaris",	Hsolaris},
 	{"windows",	Hwindows},
 	{"windowsgui",	Hwindows},
-	{0, 0},
 };
 
 int
@@ -65,7 +64,7 @@ headtype(char *name)
 {
 	int i;
 
-	for(i=0; headers[i].name; i++)
+	for(i=0; i < nelem(headers); i++)
 		if(strcmp(name, headers[i].name) == 0)
 			return headers[i].val;
 	return -1;
@@ -77,7 +76,7 @@ headstr(int v)
 	static char buf[20];
 	int i;
 
-	for(i=0; headers[i].name; i++)
+	for(i=0; i < nelem(headers); i++)
 		if(v == headers[i].val)
 			return headers[i].name;
 	snprint(buf, sizeof buf, "%d", v);

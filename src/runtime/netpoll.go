@@ -69,11 +69,19 @@ type pollCache struct {
 	// seq is incremented when deadlines are changed or descriptor is reused.
 }
 
-var pollcache pollCache
+var (
+	netpollInited uint32
+	pollcache pollCache
+)
 
 //go:linkname net_runtime_pollServerInit net.runtime_pollServerInit
 func net_runtime_pollServerInit() {
 	netpollinit()
+	atomicstore(&netpollInited, 1)
+}
+
+func netpollinited() bool {
+	return atomicload(&netpollInited) != 0
 }
 
 //go:linkname net_runtime_pollOpen net.runtime_pollOpen

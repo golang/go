@@ -225,22 +225,22 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	MOVQ	SP, DX
 
 	// setup dummy m, g
-	SUBQ	$m_end, SP		// space for M
+	SUBQ	$m__size, SP		// space for M
 	MOVQ	SP, 0(SP)
-	MOVQ	$m_end, 8(SP)
+	MOVQ	$m__size, 8(SP)
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
 
 	LEAQ	m_tls(SP), CX
 	MOVQ	CX, 0x28(GS)
 	MOVQ	SP, BX
-	SUBQ	$g_end, SP		// space for G
+	SUBQ	$g__size, SP		// space for G
 	MOVQ	SP, g(CX)
 	MOVQ	SP, m_g0(BX)
 
 	MOVQ	SP, 0(SP)
-	MOVQ	$g_end, 8(SP)
+	MOVQ	$g__size, 8(SP)
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
-	LEAQ	g_end(SP), BX
+	LEAQ	g__size(SP), BX
 	MOVQ	BX, g_m(SP)
 
 	LEAQ	-8192(SP), CX

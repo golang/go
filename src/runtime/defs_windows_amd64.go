@@ -15,7 +15,6 @@ const (
 	_DUPLICATE_SAME_ACCESS   = 0x2
 	_THREAD_PRIORITY_HIGHEST = 0x2
 
-	_SIGPROF          = 0 // dummy value for badsignal
 	_SIGINT           = 0x2
 	_CTRL_C_EVENT     = 0x0
 	_CTRL_BREAK_EVENT = 0x1

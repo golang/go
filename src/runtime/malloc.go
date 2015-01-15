@@ -39,10 +39,27 @@ type pageID uintptr
 // base address for all 0-byte allocations
 var zerobase uintptr
 
+// Determine whether to initiate a GC.
+// Currently the primitive heuristic we use will start a new
+// concurrent GC when approximately half the available space
+// made available by the last GC cycle has been used.
+// If the GC is already working no need to trigger another one.
+// This should establish a feedback loop where if the GC does not
+// have sufficient time to complete then more memory will be
+// requested from the OS increasing heap size thus allow future
+// GCs more time to complete.
+// memstat.heap_alloc and memstat.next_gc reads have benign races
+// A false negative simple does not start a GC, a false positive
+// will start a GC needlessly. Neither have correctness issues.
+func shouldtriggergc() bool {
+	return memstats.heap_alloc+memstats.heap_alloc*3/4 >= memstats.next_gc && atomicloaduint(&bggc.working) == 0
+}
+
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
 func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+	shouldhelpgc := false
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
 	}
@@ -102,40 +119,35 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			// standalone escaping variables. On a json benchmark
 			// the allocator reduces number of allocations by ~12% and
 			// reduces heap size by ~20%.
-			tinysize := uintptr(c.tinysize)
-			if size <= tinysize {
-				tiny := unsafe.Pointer(c.tiny)
-				// Align tiny pointer for required (conservative) alignment.
-				if size&7 == 0 {
-					tiny = roundup(tiny, 8)
-				} else if size&3 == 0 {
-					tiny = roundup(tiny, 4)
-				} else if size&1 == 0 {
-					tiny = roundup(tiny, 2)
-				}
-				size1 := size + (uintptr(tiny) - uintptr(unsafe.Pointer(c.tiny)))
-				if size1 <= tinysize {
-					// The object fits into existing tiny block.
-					x = tiny
-					c.tiny = (*byte)(add(x, size))
-					c.tinysize -= uintptr(size1)
-					c.local_tinyallocs++
-					if debugMalloc {
-						mp := acquirem()
-						if mp.mallocing == 0 {
-							throw("bad malloc")
-						}
-						mp.mallocing = 0
-						if mp.curg != nil {
-							mp.curg.stackguard0 = mp.curg.stack.lo + _StackGuard
-						}
-						// Note: one releasem for the acquirem just above.
-						// The other for the acquirem at start of malloc.
-						releasem(mp)
-						releasem(mp)
+			off := c.tinyoffset
+			// Align tiny pointer for required (conservative) alignment.
+			if size&7 == 0 {
+				off = round(off, 8)
+			} else if size&3 == 0 {
+				off = round(off, 4)
+			} else if size&1 == 0 {
+				off = round(off, 2)
+			}
+			if off+size <= maxTinySize && c.tiny != nil {
+				// The object fits into existing tiny block.
+				x = add(c.tiny, off)
+				c.tinyoffset = off + size
+				c.local_tinyallocs++
+				if debugMalloc {
+					mp := acquirem()
+					if mp.mallocing == 0 {
+						throw("bad malloc")
 					}
-					return x
+					mp.mallocing = 0
+					if mp.curg != nil {
+						mp.curg.stackguard0 = mp.curg.stack.lo + _StackGuard
+					}
+					// Note: one releasem for the acquirem just above.
+					// The other for the acquirem at start of malloc.
+					releasem(mp)
+					releasem(mp)
 				}
+				return x
 			}
 			// Allocate a new maxTinySize block.
 			s = c.alloc[tinySizeClass]
@@ -144,6 +156,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 				systemstack(func() {
 					mCache_Refill(c, tinySizeClass)
 				})
+				shouldhelpgc = true
 				s = c.alloc[tinySizeClass]
 				v = s.freelist
 			}
@@ -155,9 +168,9 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			(*[2]uint64)(x)[1] = 0
 			// See if we need to replace the existing tiny block with the new one
 			// based on amount of remaining free space.
-			if maxTinySize-size > tinysize {
-				c.tiny = (*byte)(add(x, size))
-				c.tinysize = uintptr(maxTinySize - size)
+			if size < c.tinyoffset {
+				c.tiny = x
+				c.tinyoffset = size
 			}
 			size = maxTinySize
 		} else {
@@ -174,6 +187,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 				systemstack(func() {
 					mCache_Refill(c, int32(sizeclass))
 				})
+				shouldhelpgc = true
 				s = c.alloc[sizeclass]
 				v = s.freelist
 			}
@@ -191,6 +205,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		c.local_cachealloc += intptr(size)
 	} else {
 		var s *mspan
+		shouldhelpgc = true
 		systemstack(func() {
 			s = largeAlloc(size, uint32(flags))
 		})
@@ -229,7 +244,10 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		var ptrmask *uint8
 		if size == ptrSize {
 			// It's one word and it has pointers, it must be a pointer.
-			*xbits |= (bitsPointer << 2) << shift
+			// The bitmap byte is shared with the one-word object
+			// next to it, and concurrent GC might be marking that
+			// object, so we must use an atomic update.
+			atomicor8(xbits, (bitsPointer<<2)<<shift)
 			goto marked
 		}
 		if typ.kind&kindGCProg != 0 {
@@ -345,8 +363,15 @@ marked:
 		}
 	}
 
-	if memstats.heap_alloc >= memstats.next_gc/2 {
+	if shouldtriggergc() {
 		gogc(0)
+	} else if shouldhelpgc && atomicloaduint(&bggc.working) == 1 {
+		// bggc.lock not taken since race on bggc.working is benign.
+		// At worse we don't call gchelpwork.
+		// Delay the gchelpwork until the epilogue so that it doesn't
+		// interfere with the inner working of malloc such as
+		// mcache refills that might happen while doing the gchelpwork
+		systemstack(gchelpwork)
 	}
 
 	return x
@@ -466,14 +491,25 @@ func gogc(force int32) {
 	releasem(mp)
 	mp = nil
 
-	semacquire(&worldsema, false)
-
-	if force == 0 && memstats.heap_alloc < memstats.next_gc {
-		// typically threads which lost the race to grab
-		// worldsema exit here when gc is done.
-		semrelease(&worldsema)
-		return
+	if force == 0 {
+		lock(&bggc.lock)
+		if !bggc.started {
+			bggc.working = 1
+			bggc.started = true
+			go backgroundgc()
+		} else if bggc.working == 0 {
+			bggc.working = 1
+			ready(bggc.g)
+		}
+		unlock(&bggc.lock)
+	} else {
+		gcwork(force)
 	}
+}
+
+func gcwork(force int32) {
+
+	semacquire(&worldsema, false)
 
 	// Pick up the remaining unswept/not being swept spans concurrently
 	for gosweepone() != ^uintptr(0) {
@@ -482,13 +518,16 @@ func gogc(force int32) {
 
 	// Ok, we're doing it!  Stop everybody else
 
-	startTime := nanotime()
-	mp = acquirem()
+	mp := acquirem()
 	mp.gcing = 1
 	releasem(mp)
 	gctimer.count++
 	if force == 0 {
 		gctimer.cycle.sweepterm = nanotime()
+	}
+	// Pick up the remaining unswept/not being swept spans before we STW
+	for gosweepone() != ^uintptr(0) {
+		sweep.nbgsweep++
 	}
 	systemstack(stoptheworld)
 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
@@ -500,7 +539,7 @@ func gogc(force int32) {
 		systemstack(gcscan_m)
 		gctimer.cycle.installmarkwb = nanotime()
 		systemstack(stoptheworld)
-		gcinstallmarkwb()
+		systemstack(gcinstallmarkwb)
 		systemstack(starttheworld)
 		gctimer.cycle.mark = nanotime()
 		systemstack(gcmark_m)
@@ -509,6 +548,7 @@ func gogc(force int32) {
 		systemstack(gcinstalloffwb_m)
 	}
 
+	startTime := nanotime()
 	if mp != acquirem() {
 		throw("gogc: rescheduled")
 	}
@@ -527,6 +567,7 @@ func gogc(force int32) {
 	eagersweep := force >= 2
 	for i := 0; i < n; i++ {
 		if i > 0 {
+			// refresh start time if doing a second GC
 			startTime = nanotime()
 		}
 		// switch to g0, call gc, then switch back
@@ -568,19 +609,11 @@ func gogc(force int32) {
 	}
 }
 
-func GCcheckmarkenable() {
-	systemstack(gccheckmarkenable_m)
-}
-
-func GCcheckmarkdisable() {
-	systemstack(gccheckmarkdisable_m)
-}
-
 // gctimes records the time in nanoseconds of each phase of the concurrent GC.
 type gctimes struct {
 	sweepterm     int64 // stw
-	scan          int64 // stw
-	installmarkwb int64
+	scan          int64
+	installmarkwb int64 // stw
 	mark          int64
 	markterm      int64 // stw
 	sweep         int64
@@ -601,7 +634,7 @@ type gcchronograph struct {
 
 var gctimer gcchronograph
 
-// GCstarttimes initializes the gc timess. All previous timess are lost.
+// GCstarttimes initializes the gc times. All previous times are lost.
 func GCstarttimes(verbose int64) {
 	gctimer = gcchronograph{verbose: verbose}
 }
@@ -655,17 +688,29 @@ func calctimes() gctimes {
 // the information from the most recent Concurent GC cycle. Calls from the
 // application to runtime.GC() are ignored.
 func GCprinttimes() {
-	times := calctimes()
-	println("GC:", gctimer.count, "maxpause=", gctimer.maxpause, "Go routines=", allglen)
-	println("          sweep termination: max=", gctimer.max.sweepterm, "total=", gctimer.total.sweepterm, "cycle=", times.sweepterm, "absolute time=", gctimer.cycle.sweepterm)
-	println("          scan:              max=", gctimer.max.scan, "total=", gctimer.total.scan, "cycle=", times.scan, "absolute time=", gctimer.cycle.scan)
-	println("          installmarkwb:     max=", gctimer.max.installmarkwb, "total=", gctimer.total.installmarkwb, "cycle=", times.installmarkwb, "absolute time=", gctimer.cycle.installmarkwb)
-	println("          mark:              max=", gctimer.max.mark, "total=", gctimer.total.mark, "cycle=", times.mark, "absolute time=", gctimer.cycle.mark)
-	println("          markterm:          max=", gctimer.max.markterm, "total=", gctimer.total.markterm, "cycle=", times.markterm, "absolute time=", gctimer.cycle.markterm)
+	if gctimer.verbose == 0 {
+		println("GC timers not enabled")
+		return
+	}
+
+	// Explicitly put times on the heap so printPhase can use it.
+	times := new(gctimes)
+	*times = calctimes()
 	cycletime := gctimer.cycle.sweep - gctimer.cycle.sweepterm
-	println("          Total cycle time =", cycletime)
-	totalstw := times.sweepterm + times.installmarkwb + times.markterm
-	println("          Cycle STW time     =", totalstw)
+	pause := times.sweepterm + times.installmarkwb + times.markterm
+	gomaxprocs := GOMAXPROCS(-1)
+
+	printlock()
+	print("GC: #", gctimer.count, " ", cycletime, "ns @", gctimer.cycle.sweepterm, " pause=", pause, " maxpause=", gctimer.maxpause, " goroutines=", allglen, " gomaxprocs=", gomaxprocs, "\n")
+	printPhase := func(label string, get func(*gctimes) int64, procs int) {
+		print("GC:     ", label, " ", get(times), "ns\tmax=", get(&gctimer.max), "\ttotal=", get(&gctimer.total), "\tprocs=", procs, "\n")
+	}
+	printPhase("sweep term:", func(t *gctimes) int64 { return t.sweepterm }, gomaxprocs)
+	printPhase("scan:      ", func(t *gctimes) int64 { return t.scan }, 1)
+	printPhase("install wb:", func(t *gctimes) int64 { return t.installmarkwb }, gomaxprocs)
+	printPhase("mark:      ", func(t *gctimes) int64 { return t.mark }, 1)
+	printPhase("mark term: ", func(t *gctimes) int64 { return t.markterm }, gomaxprocs)
+	printunlock()
 }
 
 // GC runs a garbage collection.
@@ -963,8 +1008,8 @@ func runfinq() {
 
 var persistent struct {
 	lock mutex
-	pos  unsafe.Pointer
-	end  unsafe.Pointer
+	base unsafe.Pointer
+	off  uintptr
 }
 
 // Wrapper around sysAlloc that can allocate small chunks.
@@ -977,6 +1022,9 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows
 	)
 
+	if size == 0 {
+		throw("persistentalloc: size == 0")
+	}
 	if align != 0 {
 		if align&(align-1) != 0 {
 			throw("persistentalloc: align is not a power of 2")
@@ -993,17 +1041,17 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
 	}
 
 	lock(&persistent.lock)
-	persistent.pos = roundup(persistent.pos, align)
-	if uintptr(persistent.pos)+size > uintptr(persistent.end) {
-		persistent.pos = sysAlloc(chunk, &memstats.other_sys)
-		if persistent.pos == nil {
+	persistent.off = round(persistent.off, align)
+	if persistent.off+size > chunk || persistent.base == nil {
+		persistent.base = sysAlloc(chunk, &memstats.other_sys)
+		if persistent.base == nil {
 			unlock(&persistent.lock)
 			throw("runtime: cannot allocate memory")
 		}
-		persistent.end = add(persistent.pos, chunk)
+		persistent.off = 0
 	}
-	p := persistent.pos
-	persistent.pos = add(persistent.pos, size)
+	p := add(persistent.base, persistent.off)
+	persistent.off += size
 	unlock(&persistent.lock)
 
 	if stat != &memstats.other_sys {

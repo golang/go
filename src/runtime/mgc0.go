@@ -6,26 +6,6 @@ package runtime
 
 import "unsafe"
 
-// Called from C. Returns the Go type *m.
-func gc_m_ptr(ret *interface{}) {
-	*ret = (*m)(nil)
-}
-
-// Called from C. Returns the Go type *g.
-func gc_g_ptr(ret *interface{}) {
-	*ret = (*g)(nil)
-}
-
-// Called from C. Returns the Go type *itab.
-func gc_itab_ptr(ret *interface{}) {
-	*ret = (*itab)(nil)
-}
-
-func gc_unixnanotime(now *int64) {
-	sec, nsec := time_now()
-	*now = sec*1e9 + int64(nsec)
-}
-
 //go:linkname runtime_debug_freeOSMemory runtime/debug.freeOSMemory
 func runtime_debug_freeOSMemory() {
 	gogc(2) // force GC and do eager sweep
@@ -52,7 +32,7 @@ func clearpools() {
 		// clear tinyalloc pool
 		if c := p.mcache; c != nil {
 			c.tiny = nil
-			c.tinysize = 0
+			c.tinyoffset = 0
 
 			// disconnect cached list before dropping it on the floor,
 			// so that a dangling ref to one entry does not pin all of them.
@@ -75,6 +55,19 @@ func clearpools() {
 			}
 			p.deferpool[i] = nil
 		}
+	}
+}
+
+// backgroundgc is running in a goroutine and does the concurrent GC work.
+// bggc holds the state of the backgroundgc.
+func backgroundgc() {
+	bggc.g = getg()
+	bggc.g.issystem = true
+	for {
+		gcwork(0)
+		lock(&bggc.lock)
+		bggc.working = 0
+		goparkunlock(&bggc.lock, "Concurrent GC wait")
 	}
 }
 
