@@ -23,6 +23,9 @@ import (
 
 func TestEndToEnd(t *testing.T) {
 	dir, err := ioutil.TempDir("", "stringer")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer os.RemoveAll(dir)
 	// Create stringer in temporary directory.
 	stringer := filepath.Join(dir, "stringer.exe")
