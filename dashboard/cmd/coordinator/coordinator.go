@@ -36,6 +36,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/tools/dashboard"
 	"golang.org/x/tools/dashboard/types"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/cloud/compute/metadata"
@@ -48,14 +49,12 @@ var (
 	cleanZones = flag.String("zones", "us-central1-a,us-central1-b,us-central1-f", "Comma-separated list of zones to periodically clean of stale build VMs (ones that failed to shut themselves down)")
 
 	// Debug flags:
-	addTemp = flag.Bool("temp", false, "Append -temp to all builders.")
-	just    = flag.String("just", "", "If non-empty, run single build in the foreground. Requires rev.")
-	rev     = flag.String("rev", "", "Revision to build.")
+	just = flag.String("just", "", "If non-empty, run single build in the foreground. Requires rev.")
+	rev  = flag.String("rev", "", "Revision to build.")
 )
 
 var (
 	startTime = time.Now()
-	builders  = map[string]buildConfig{} // populated at startup, keys like "openbsd-amd64-56"
 	watchers  = map[string]watchConfig{} // populated at startup, keyed by repo, e.g. "https://go.googlesource.com/go"
 	donec     = make(chan builderRev)    // reports of finished builders
 
@@ -127,36 +126,10 @@ var images = map[string]*imageInfo{
 	"gobuilders/linux-x86-sid":   {url: "https://storage.googleapis.com/go-builder-data/docker-linux.sid.tar.gz"},
 }
 
-// A buildConfig describes how to run either a Docker-based or VM-based build.
-type buildConfig struct {
-	name string // "linux-amd64-race"
-
-	// VM-specific settings: (used if vmImage != "")
-	vmImage     string // e.g. "openbsd-amd64-56"
-	machineType string // optional GCE instance type
-
-	// Docker-specific settings: (used if vmImage == "")
-	image   string   // Docker image to use to build
-	cmd     string   // optional -cmd flag (relative to go/src/)
-	env     []string // extra environment ("key=value") pairs
-	dashURL string   // url of the build dashboard
-	tool    string   // the tool this configuration is for
-}
-
-func (c *buildConfig) usesDocker() bool { return c.vmImage == "" }
-func (c *buildConfig) usesVM() bool     { return c.vmImage != "" }
-
-func (c *buildConfig) MachineType() string {
-	if v := c.machineType; v != "" {
-		return v
-	}
-	return "n1-highcpu-4"
-}
-
 // recordResult sends build results to the dashboard
-func (b *buildConfig) recordResult(ok bool, hash, buildLog string, runTime time.Duration) error {
+func recordResult(builderName string, ok bool, hash, buildLog string, runTime time.Duration) error {
 	req := map[string]interface{}{
-		"Builder":     b.name,
+		"Builder":     builderName,
 		"PackagePath": "",
 		"Hash":        hash,
 		"GoHash":      "",
@@ -164,7 +137,7 @@ func (b *buildConfig) recordResult(ok bool, hash, buildLog string, runTime time.
 		"Log":         buildLog,
 		"RunTime":     runTime,
 	}
-	args := url.Values{"key": {builderKey(b.name)}, "builder": {b.name}}
+	args := url.Values{"key": {builderKey(builderName)}, "builder": {builderName}}
 	return dash("POST", "result", args, req, nil)
 }
 
@@ -204,72 +177,6 @@ func main() {
 		log.Printf("VM support disabled due to error initializing GCE: %v", err)
 	}
 
-	addBuilder(buildConfig{name: "linux-386"})
-	addBuilder(buildConfig{name: "linux-386-387", env: []string{"GO386=387"}})
-	addBuilder(buildConfig{name: "linux-amd64"})
-	addBuilder(buildConfig{name: "linux-amd64-nocgo", env: []string{"CGO_ENABLED=0", "USER=root"}})
-	addBuilder(buildConfig{name: "linux-amd64-noopt", env: []string{"GO_GCFLAGS=-N -l"}})
-	addBuilder(buildConfig{name: "linux-amd64-race"})
-	addBuilder(buildConfig{name: "nacl-386"})
-	addBuilder(buildConfig{name: "nacl-amd64p32"})
-	addBuilder(buildConfig{
-		name:    "linux-amd64-gccgo",
-		image:   "gobuilders/linux-x86-gccgo",
-		cmd:     "make RUNTESTFLAGS=\"--target_board=unix/-m64\" check-go -j16",
-		dashURL: "https://build.golang.org/gccgo",
-		tool:    "gccgo",
-	})
-	addBuilder(buildConfig{
-		name:    "linux-386-gccgo",
-		image:   "gobuilders/linux-x86-gccgo",
-		cmd:     "make RUNTESTFLAGS=\"--target_board=unix/-m32\" check-go -j16",
-		dashURL: "https://build.golang.org/gccgo",
-		tool:    "gccgo",
-	})
-	addBuilder(buildConfig{name: "linux-386-sid", image: "gobuilders/linux-x86-sid"})
-	addBuilder(buildConfig{name: "linux-amd64-sid", image: "gobuilders/linux-x86-sid"})
-	addBuilder(buildConfig{name: "linux-386-clang", image: "gobuilders/linux-x86-clang"})
-	addBuilder(buildConfig{name: "linux-amd64-clang", image: "gobuilders/linux-x86-clang"})
-
-	// VMs:
-	addBuilder(buildConfig{
-		name:        "openbsd-amd64-gce56",
-		vmImage:     "openbsd-amd64-56",
-		machineType: "n1-highcpu-2",
-	})
-	addBuilder(buildConfig{
-		// It's named "partial" because the buildlet sets
-		// GOTESTONLY=std to stop after the "go test std"
-		// tests because it's so slow otherwise.
-		// TODO(braditz): move that env variable to the
-		// coordinator and into this config.
-		name:    "plan9-386-gcepartial",
-		vmImage: "plan9-386",
-		// We *were* using n1-standard-1 because Plan 9 can only
-		// reliably use a single CPU. Using 2 or 4 and we see
-		// test failures. See:
-		//    https://golang.org/issue/8393
-		//    https://golang.org/issue/9491
-		// n1-standard-1 has 3.6 GB of memory which is
-		// overkill (userspace probably only sees 2GB anyway),
-		// but it's the cheapest option. And plenty to keep
-		// our ~250 MB of inputs+outputs in its ramfs.
-		//
-		// But the docs says "For the n1 series of machine
-		// types, a virtual CPU is implemented as a single
-		// hyperthread on a 2.6GHz Intel Sandy Bridge Xeon or
-		// Intel Ivy Bridge Xeon (or newer) processor. This
-		// means that the n1-standard-2 machine type will see
-		// a whole physical core."
-		//
-		// ... so we use n1-highcpu-2 (1.80 RAM, still
-		// plenty), just so we can get 1 whole core for the
-		// single-core Plan 9. It will see 2 virtual cores and
-		// only use 1, but we hope that 1 will be more powerful
-		// and we'll stop timing out on tests.
-		machineType: "n1-highcpu-2",
-	})
-
 	addWatcher(watchConfig{repo: "https://go.googlesource.com/go", dash: "https://build.golang.org/"})
 	// TODO(adg,cmang): fix gccgo watcher
 	// addWatcher(watchConfig{repo: "https://code.google.com/p/gofrontend", dash: "https://build.golang.org/gccgo/"})
@@ -278,11 +185,15 @@ func main() {
 		log.Fatalf("--just and --rev must be used together")
 	}
 	if *just != "" {
-		conf, ok := builders[*just]
+		conf, ok := dashboard.Builders[*just]
 		if !ok {
 			log.Fatalf("unknown builder %q", *just)
 		}
-		cmd := exec.Command("docker", append([]string{"run"}, conf.dockerRunArgs(*rev)...)...)
+		args, err := conf.DockerRunArgs(*rev, builderKey(*just))
+		if err != nil {
+			log.Fatal(err)
+		}
+		cmd := exec.Command("docker", append([]string{"run"}, args...)...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
@@ -315,7 +226,7 @@ func main() {
 		case work := <-workc:
 			log.Printf("workc received %+v; len(status) = %v, maxLocalBuilds = %v; cur = %p", work, len(status), *maxLocalBuilds, status[work])
 			if mayBuildRev(work) {
-				conf := builders[work.name]
+				conf, _ := dashboard.Builders[work.name]
 				if st, err := startBuilding(conf, work.rev); err == nil {
 					setStatus(work, st)
 					go pingDashboard(st)
@@ -350,7 +261,10 @@ func isBuilding(work builderRev) bool {
 // mayBuildRev reports whether the build type & revision should be started.
 // It returns true if it's not already building, and there is capacity.
 func mayBuildRev(work builderRev) bool {
-	conf := builders[work.name]
+	conf, ok := dashboard.Builders[work.name]
+	if !ok {
+		return false
+	}
 
 	statusMu.Lock()
 	_, building := status[work]
@@ -359,7 +273,7 @@ func mayBuildRev(work builderRev) bool {
 	if building {
 		return false
 	}
-	if conf.usesVM() {
+	if conf.UsesVM() {
 		// These don't count towards *maxLocalBuilds.
 		return true
 	}
@@ -568,7 +482,7 @@ func findWork(work chan<- builderRev) error {
 				continue
 			}
 			builder := bs.Builders[i]
-			if _, ok := builders[builder]; !ok {
+			if _, ok := dashboard.Builders[builder]; !ok {
 				// Not managed by the coordinator.
 				continue
 			}
@@ -581,7 +495,7 @@ func findWork(work chan<- builderRev) error {
 
 	// And to bootstrap new builders, see if we have any builders
 	// that the dashboard doesn't know about.
-	for b := range builders {
+	for b := range dashboard.Builders {
 		if knownToDashboard[b] {
 			continue
 		}
@@ -599,85 +513,6 @@ func findWork(work chan<- builderRev) error {
 type builderRev struct {
 	name string // e.g. "linux-amd64-race"
 	rev  string // lowercase hex git hash
-}
-
-// returns the part after "docker run"
-func (conf buildConfig) dockerRunArgs(rev string) (args []string) {
-	if key := builderKey(conf.name); key != "" {
-		tmpKey := "/tmp/" + conf.name + ".buildkey"
-		if _, err := os.Stat(tmpKey); err != nil {
-			if err := ioutil.WriteFile(tmpKey, []byte(key), 0600); err != nil {
-				log.Fatal(err)
-			}
-		}
-		// Images may look for .gobuildkey in / or /root, so provide both.
-		// TODO(adg): fix images that look in the wrong place.
-		args = append(args, "-v", tmpKey+":/.gobuildkey")
-		args = append(args, "-v", tmpKey+":/root/.gobuildkey")
-	}
-	for _, pair := range conf.env {
-		args = append(args, "-e", pair)
-	}
-	if strings.HasPrefix(conf.name, "linux-amd64") {
-		args = append(args, "-e", "GOROOT_BOOTSTRAP=/go1.4-amd64/go")
-	} else if strings.HasPrefix(conf.name, "linux-386") {
-		args = append(args, "-e", "GOROOT_BOOTSTRAP=/go1.4-386/go")
-	}
-	args = append(args,
-		conf.image,
-		"/usr/local/bin/builder",
-		"-rev="+rev,
-		"-dashboard="+conf.dashURL,
-		"-tool="+conf.tool,
-		"-buildroot=/",
-		"-v",
-	)
-	if conf.cmd != "" {
-		args = append(args, "-cmd", conf.cmd)
-	}
-	args = append(args, conf.name)
-	return
-}
-
-func addBuilder(c buildConfig) {
-	if c.tool == "gccgo" {
-		// TODO(cmang,bradfitz,adg): fix gccgo
-		return
-	}
-	if c.name == "" {
-		panic("empty name")
-	}
-	if *addTemp {
-		c.name += "-temp"
-	}
-	if _, dup := builders[c.name]; dup {
-		panic("dup name")
-	}
-	if c.dashURL == "" {
-		c.dashURL = "https://build.golang.org"
-	}
-	if c.tool == "" {
-		c.tool = "go"
-	}
-
-	if strings.HasPrefix(c.name, "nacl-") {
-		if c.image == "" {
-			c.image = "gobuilders/linux-x86-nacl"
-		}
-		if c.cmd == "" {
-			c.cmd = "/usr/local/bin/build-command.pl"
-		}
-	}
-	if strings.HasPrefix(c.name, "linux-") && c.image == "" {
-		c.image = "gobuilders/linux-x86-base"
-	}
-	if c.image == "" && c.vmImage == "" {
-		panic("empty image and vmImage")
-	}
-	if c.image != "" && c.vmImage != "" {
-		panic("can't specify both image and vmImage")
-	}
-	builders[c.name] = c
 }
 
 // returns the part after "docker run"
@@ -772,29 +607,33 @@ func numDockerBuilds() (n int, err error) {
 	return n, nil
 }
 
-func startBuilding(conf buildConfig, rev string) (*buildStatus, error) {
-	if conf.usesVM() {
+func startBuilding(conf dashboard.BuildConfig, rev string) (*buildStatus, error) {
+	if conf.UsesVM() {
 		return startBuildingInVM(conf, rev)
 	} else {
 		return startBuildingInDocker(conf, rev)
 	}
 }
 
-func startBuildingInDocker(conf buildConfig, rev string) (*buildStatus, error) {
-	if err := condUpdateImage(conf.image); err != nil {
-		log.Printf("Failed to setup container for %v %v: %v", conf.name, rev, err)
+func startBuildingInDocker(conf dashboard.BuildConfig, rev string) (*buildStatus, error) {
+	if err := condUpdateImage(conf.Image); err != nil {
+		log.Printf("Failed to setup container for %v %v: %v", conf.Name, rev, err)
 		return nil, err
 	}
 
-	cmd := exec.Command("docker", append([]string{"run", "-d"}, conf.dockerRunArgs(rev)...)...)
+	runArgs, err := conf.DockerRunArgs(rev, builderKey(conf.Name))
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.Command("docker", append([]string{"run", "-d"}, runArgs...)...)
 	all, err := cmd.CombinedOutput()
-	log.Printf("Docker run for %v %v = err:%v, output:%s", conf.name, rev, err, all)
+	log.Printf("Docker run for %v %v = err:%v, output:%s", conf.Name, rev, err, all)
 	if err != nil {
 		return nil, err
 	}
 	container := strings.TrimSpace(string(all))
 	brev := builderRev{
-		name: conf.name,
+		name: conf.Name,
 		rev:  rev,
 	}
 	st := &buildStatus{
@@ -813,7 +652,7 @@ func startBuildingInDocker(conf buildConfig, rev string) (*buildStatus, error) {
 		}
 		st.setDone(ok)
 		log.Printf("docker wait %s/%s: %v, %s", container, rev, err, output)
-		donec <- builderRev{conf.name, rev}
+		donec <- builderRev{conf.Name, rev}
 		exec.Command("docker", "rm", container).Run()
 	}()
 	go func() {
@@ -842,9 +681,10 @@ func randHex(n int) string {
 }
 
 // startBuildingInVM starts a VM on GCE running the buildlet binary to build rev.
-func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
+// TODO(bradfitz): move this into a buildlet client package.
+func startBuildingInVM(conf dashboard.BuildConfig, rev string) (*buildStatus, error) {
 	brev := builderRev{
-		name: conf.name,
+		name: conf.Name,
 		rev:  rev,
 	}
 	st := &buildStatus{
@@ -854,7 +694,7 @@ func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
 
 	// name is the project-wide unique name of the GCE instance. It can't be longer
 	// than 61 bytes, so we only use the first 8 bytes of the rev.
-	name := "buildlet-" + conf.name + "-" + rev[:8] + "-rn" + randHex(6)
+	name := "buildlet-" + conf.Name + "-" + rev[:8] + "-rn" + randHex(6)
 
 	// buildletURL is the URL of the buildlet binary which the VMs
 	// are configured to download at boot and run. This lets us
@@ -862,9 +702,9 @@ func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
 	// VM image. We put this URL in a well-known GCE metadata attribute.
 	// The value will be of the form:
 	//  http://storage.googleapis.com/go-builder-data/buildlet.GOOS-GOARCH
-	m := osArchRx.FindStringSubmatch(conf.name)
+	m := osArchRx.FindStringSubmatch(conf.Name)
 	if m == nil {
-		return nil, fmt.Errorf("invalid builder name %q", conf.name)
+		return nil, fmt.Errorf("invalid builder name %q", conf.Name)
 	}
 	buildletURL := "http://storage.googleapis.com/go-builder-data/buildlet." + m[1]
 
@@ -873,7 +713,7 @@ func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
 
 	instance := &compute.Instance{
 		Name:        name,
-		Description: fmt.Sprintf("Go Builder building %s %s", conf.name, rev),
+		Description: fmt.Sprintf("Go Builder building %s %s", conf.Name, rev),
 		MachineType: machType,
 		Disks: []*compute.AttachedDisk{
 			{
@@ -882,7 +722,7 @@ func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
 				Type:       "PERSISTENT",
 				InitializeParams: &compute.AttachedDiskInitializeParams{
 					DiskName:    name,
-					SourceImage: "https://www.googleapis.com/compute/v1/projects/" + projectID + "/global/images/" + conf.vmImage,
+					SourceImage: "https://www.googleapis.com/compute/v1/projects/" + projectID + "/global/images/" + conf.VMImage,
 					DiskType:    "https://www.googleapis.com/compute/v1/projects/" + projectID + "/zones/" + projectZone + "/diskTypes/pd-ssd",
 				},
 			},
@@ -941,7 +781,7 @@ func startBuildingInVM(conf buildConfig, rev string) (*buildStatus, error) {
 		if err != nil {
 			fmt.Fprintf(st, "\n\nError: %v\n", err)
 		}
-		donec <- builderRev{conf.name, rev}
+		donec <- builderRev{conf.Name, rev}
 	}()
 	return st, nil
 }
@@ -1092,12 +932,11 @@ OpLoop:
 		return errors.New("missing Process-State trailer from HTTP response; buildlet built with old (<= 1.4) Go?")
 	}
 
-	conf := builders[st.name]
 	var log string
 	if state != "ok" {
 		log = st.logs()
 	}
-	if err := conf.recordResult(state == "ok", st.rev, log, time.Since(execStartTime)); err != nil {
+	if err := recordResult(st.name, state == "ok", st.rev, log, time.Since(execStartTime)); err != nil {
 		return fmt.Errorf("Status was %q but failed to report it to the dashboard: %v", state, err)
 	}
 	if state != "ok" {
@@ -1310,21 +1149,11 @@ func loadKey() {
 		masterKeyCache = bytes.TrimSpace(b)
 		return
 	}
-	req, _ := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/project/attributes/builder-master-key", nil)
-	req.Header.Set("Metadata-Flavor", "Google")
-	res, err := http.DefaultClient.Do(req)
+	masterKey, err := metadata.ProjectAttributeValue("builder-master-key")
 	if err != nil {
-		log.Fatal("No builder master key available")
+		log.Fatalf("No builder master key available: %v", err)
 	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		log.Fatalf("No builder-master-key project attribute available.")
-	}
-	slurp, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	masterKeyCache = bytes.TrimSpace(slurp)
+	masterKeyCache = []byte(strings.TrimSpace(masterKey))
 }
 
 func cleanUpOldContainers() {
