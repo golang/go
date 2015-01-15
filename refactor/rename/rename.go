@@ -55,12 +55,11 @@ Flags:
   "encoding/json"::x                    object x anywhere within a package
   json.go::x                            object x within file json.go
 
+           Double-quotes must be escaped when writing a shell command.
+           Quotes may be omitted for single-segment import paths such as "fmt".
+
            For methods, the parens and '*' on the receiver type are both
            optional.
-
-           Double-quotes may be omitted for single-segment import paths
-           such as fmt.  They may need to be escaped when writing a
-           shell command.
 
            It is an error if one of the ::x queries matches multiple
            objects.
@@ -99,7 +98,7 @@ Examples:
 
   Rename the object whose identifier is at byte offset 123 within file file.go.
 
-% gorename -from '"bytes".Buffer.Len' -to Size
+% gorename -from \"bytes\".Buffer.Len' -to Size
 
   Rename the "Len" method of the *bytes.Buffer type to "Size".
 
