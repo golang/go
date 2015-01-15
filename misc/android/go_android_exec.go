@@ -9,6 +9,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"go/build"
 	"io"
 	"log"
 	"os"
@@ -32,33 +33,36 @@ func run(args ...string) string {
 	return buf.String()
 }
 
+const (
+	// Directory structure on the target device androidtest.bash assumes.
+	deviceGoroot = "/data/local/tmp/goroot"
+	deviceGopath = "/data/local/tmp/gopath"
+)
+
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("go_android_exec: ")
 
-	// Determine thepackage by examining the current working
+	// Prepare a temporary directory that will be cleaned up at the end.
+	deviceGotmp := fmt.Sprintf("/data/local/tmp/%s-%d",
+		filepath.Base(os.Args[1]), os.Getpid())
+	run("shell", "mkdir", "-p", deviceGotmp)
+
+	// Determine the package by examining the current working
 	// directory, which will look something like
-	// "$GOROOT/src/mime/multipart". We extract everything
-	// after the $GOROOT to run on the same relative directory
-	// on the target device.
-	//
-	// TODO(crawshaw): Pick useful subdir when we are not
-	// inside a GOROOT, e.g. we are in a GOPATH.
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
+	// "$GOROOT/src/mime/multipart" or "$GOPATH/src/golang.org/x/mobile".
+	// We extract everything after the $GOROOT or $GOPATH to run on the
+	// same relative directory on the target device.
+	subdir, inGoRoot := subdir()
+	deviceCwd := filepath.Join(deviceGoroot, subdir)
+	if !inGoRoot {
+		deviceCwd = filepath.Join(deviceGopath, subdir)
 	}
-	subdir, err := filepath.Rel(runtime.GOROOT(), cwd)
-	if err != nil {
-		log.Fatal(err)
-	}
-	subdir = filepath.ToSlash(subdir)
 
 	// Binary names can conflict.
 	// E.g. template.test from the {html,text}/template packages.
 	binName := filepath.Base(os.Args[1])
-	deviceGoroot := "/data/local/tmp/goroot"
-	deviceBin := fmt.Sprintf("%s/%s-%d", deviceGoroot, binName, os.Getpid())
+	deviceBin := fmt.Sprintf("%s/%s-%d", deviceGotmp, binName, os.Getpid())
 
 	// The push of the binary happens in parallel with other tests.
 	// Unfortunately, a simultaneous call to adb shell hold open
@@ -71,19 +75,22 @@ func main() {
 
 	// The adb shell command will return an exit code of 0 regardless
 	// of the command run. E.g.
-	//	$ adb shell false
-	//	$ echo $?
-	//	0
+	//      $ adb shell false
+	//      $ echo $?
+	//      0
 	// https://code.google.com/p/android/issues/detail?id=3254
 	// So we append the exitcode to the output and parse it from there.
 	const exitstr = "exitcode="
-	cmd := `export TMPDIR="/data/local/tmp"` +
+	cmd := `export TMPDIR="` + deviceGotmp + `"` +
 		`; export GOROOT="` + deviceGoroot + `"` +
-		`; cd "$GOROOT/` + subdir + `"` +
+		`; export GOPATH="` + deviceGopath + `"` +
+		`; cd "` + deviceCwd + `"` +
 		"; '" + deviceBin + "' " + strings.Join(os.Args[2:], " ") +
 		"; echo -n " + exitstr + "$?"
 	output := run("shell", cmd)
-	run("shell", "rm '"+deviceBin+"'") // cleanup
+
+	run("shell", "rm", "-rf", deviceGotmp) // Clean up.
+
 	output = output[strings.LastIndex(output, "\n")+1:]
 	if !strings.HasPrefix(output, exitstr) {
 		log.Fatalf("no exit code: %q", output)
@@ -93,4 +100,33 @@ func main() {
 		log.Fatalf("bad exit code: %v", err)
 	}
 	os.Exit(code)
+}
+
+// subdir determines the package based on the current working directory,
+// and returns the path to the package source relative to $GOROOT (or $GOPATH).
+func subdir() (pkgpath string, underGoRoot bool) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if root := runtime.GOROOT(); strings.HasPrefix(cwd, root) {
+		subdir, err := filepath.Rel(root, cwd)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return subdir, true
+	}
+
+	for _, p := range filepath.SplitList(build.Default.GOPATH) {
+		if !strings.HasPrefix(cwd, p) {
+			continue
+		}
+		subdir, err := filepath.Rel(p, cwd)
+		if err == nil {
+			return subdir, false
+		}
+	}
+	log.Fatalf("the current path %q is not in either GOROOT(%q) or GOPATH(%q)",
+		cwd, runtime.GOROOT(), build.Default.GOPATH)
+	return "", false
 }

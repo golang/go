@@ -2,9 +2,9 @@ Android
 =======
 
 For details on developing Go for Android, see the documentation in the
-go.mobile subrepository:
+mobile subrepository:
 
-	https://code.google.com/p/go/source/browse/README?repo=mobile
+	https://github.com/golang/mobile
 
 To run the standard library tests, see androidtest.bash. Run it as
 
