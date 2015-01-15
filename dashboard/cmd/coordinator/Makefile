@@ -1,5 +1,5 @@
-coordinator: main.go
-	GOOS=linux go build --tags=build_coordinator -o coordinator .
+coordinator: coordinator.go
+	GOOS=linux go build --tags=extdep -o coordinator .
 
 # After "make upload", either reboot the machine, or ssh to it and:
 #   sudo systemctl restart gobuild.service

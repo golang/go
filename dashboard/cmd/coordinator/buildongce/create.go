@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+// +build extdep
 
-package main // import "golang.org/x/tools/dashboard/coordinator/buildongce"
+package main // import "golang.org/x/tools/dashboard/cmd/coordinator/buildongce"
 
 import (
 	"bufio"

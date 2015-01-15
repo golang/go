@@ -2,11 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build upload
-
-//       ^ this is so we don't break the build of x/tools/...  build due
-//         to missing depenencies on the builders. We don't want full builds
-//         needing to pull in dependencies outside of the x/tools repo.
+// +build extdep
 
 // The upload command writes a file to Google Cloud Storage. It's used
 // exclusively by the Makefiles in the Go project repos. Think of it

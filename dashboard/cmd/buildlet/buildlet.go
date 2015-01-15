@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build buildlet
+// +build extdep
 
 // The buildlet is an HTTP server that untars content to disk and runs
 // commands it has untarred, streaming their output back over HTTP.
@@ -12,7 +12,7 @@
 // provides no security of its own. It is assumed that any user uses
 // it with an appropriately-configured firewall between their VM
 // instances.
-package main // import "golang.org/x/tools/dashboard/buildlet"
+package main // import "golang.org/x/tools/dashboard/cmd/buildlet"
 
 import (
 	"archive/tar"

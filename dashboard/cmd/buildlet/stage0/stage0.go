@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build stage0
+// +build extdep
 
 // The stage0 command looks up the buildlet's URL from the GCE metadata
 // service, downloads it, and runs it. It's used primarily by Windows,
