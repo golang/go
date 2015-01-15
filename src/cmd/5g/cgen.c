@@ -236,18 +236,14 @@ cgen(Node *n, Node *res)
 		cgen(nl, &n1);
 		nodconst(&n2, nl->type, -1);
 		gins(a, &n2, &n1);
-		gmove(&n1, res);
-		regfree(&n1);
-		goto ret;
+		goto norm;
 
 	case OMINUS:
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);
 		nodconst(&n2, nl->type, 0);
 		gins(optoas(OMINUS, nl->type), &n2, &n1);
-		gmove(&n1, res);
-		regfree(&n1);
-		goto ret;
+		goto norm;
 
 	// symmetric binary
 	case OAND:
@@ -483,12 +479,15 @@ abop:	// asymmetric binary
 		cgen(nl, &n1);
 	}
 	gins(a, &n2, &n1);
+norm:
 	// Normalize result for types smaller than word.
 	if(n->type->width < widthptr) {
 		switch(n->op) {
 		case OADD:
 		case OSUB:
 		case OMUL:
+		case OCOM:
+		case OMINUS:
 			gins(optoas(OAS, n->type), &n1, &n1);
 			break;
 		}
