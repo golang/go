@@ -11,7 +11,7 @@ set -e
 ulimit -c 0 # no core files
 
 if [ ! -f make.bash ]; then
-	echo 'nacl.bash must be run from $GOROOT/src' 1>&2
+	echo 'androidtest.bash must be run from $GOROOT/src' 1>&2
 	exit 1
 fi
 
