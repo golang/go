@@ -22,7 +22,6 @@ const (
 
 const (
 	uintptrMask = 1<<(8*ptrSize) - 1
-	poisonGC    = uintptrMask & 0xf969696969696969
 	poisonStack = uintptrMask & 0x6868686868686868
 
 	// Goroutine preemption request.
@@ -389,7 +388,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 		case _BitsPointer:
 			p := *(*unsafe.Pointer)(add(scanp, i*ptrSize))
 			up := uintptr(p)
-			if f != nil && 0 < up && up < _PageSize && debug.invalidptr != 0 || up == poisonGC || up == poisonStack {
+			if f != nil && 0 < up && up < _PageSize && debug.invalidptr != 0 || up == poisonStack {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
 				getg().m.traceback = 2

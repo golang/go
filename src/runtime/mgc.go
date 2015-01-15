@@ -1064,56 +1064,6 @@ func shade(b uintptr) {
 	putpartial(wbuf)
 }
 
-// This is the Dijkstra barrier coarsened to always shade the ptr (dst) object.
-// The original Dijkstra barrier only shaded ptrs being placed in black slots.
-//
-// Shade indicates that it has seen a white pointer by adding the referent
-// to wbuf as well as marking it.
-//
-// slot is the destination (dst) in go code
-// ptr is the value that goes into the slot (src) in the go code
-//
-// Dijkstra pointed out that maintaining the no black to white
-// pointers means that white to white pointers not need
-// to be noted by the write barrier. Furthermore if either
-// white object dies before it is reached by the
-// GC then the object can be collected during this GC cycle
-// instead of waiting for the next cycle. Unfortunately the cost of
-// ensure that the object holding the slot doesn't concurrently
-// change to black without the mutator noticing seems prohibitive.
-//
-// Consider the following example where the mutator writes into
-// a slot and then loads the slot's mark bit while the GC thread
-// writes to the slot's mark bit and then as part of scanning reads
-// the slot.
-//
-// Initially both [slot] and [slotmark] are 0 (nil)
-// Mutator thread          GC thread
-// st [slot], ptr          st [slotmark], 1
-//
-// ld r1, [slotmark]       ld r2, [slot]
-//
-// This is a classic example of independent reads of independent writes,
-// aka IRIW. The question is if r1==r2==0 is allowed and for most HW the
-// answer is yes without inserting a memory barriers between the st and the ld.
-// These barriers are expensive so we have decided that we will
-// always grey the ptr object regardless of the slot's color.
-//go:nowritebarrier
-func gcmarkwb_m(slot *uintptr, ptr uintptr) {
-	switch gcphase {
-	default:
-		throw("gcphasework in bad gcphase")
-
-	case _GCoff, _GCquiesce, _GCstw, _GCsweep, _GCscan:
-		// ok
-
-	case _GCmark, _GCmarktermination:
-		if ptr != 0 && inheap(ptr) {
-			shade(ptr)
-		}
-	}
-}
-
 // gchelpwork does a small bounded amount of gc work. The purpose is to
 // shorten the time (as measured by allocations) spent doing a concurrent GC.
 // The number of mutator calls is roughly propotional to the number of allocations

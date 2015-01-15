@@ -223,69 +223,6 @@ func mallocinit() {
 	_g_.m.mcache = allocmcache()
 }
 
-func wbshadowinit() {
-	// Initialize write barrier shadow heap if we were asked for it
-	// and we have enough address space (not on 32-bit).
-	if debug.wbshadow == 0 {
-		return
-	}
-	if ptrSize != 8 {
-		print("runtime: GODEBUG=wbshadow=1 disabled on 32-bit system\n")
-		return
-	}
-
-	var reserved bool
-	p1 := sysReserveHigh(mheap_.arena_end-mheap_.arena_start, &reserved)
-	if p1 == nil {
-		throw("cannot map shadow heap")
-	}
-	mheap_.shadow_heap = uintptr(p1) - mheap_.arena_start
-	sysMap(p1, mheap_.arena_used-mheap_.arena_start, reserved, &memstats.other_sys)
-	memmove(p1, unsafe.Pointer(mheap_.arena_start), mheap_.arena_used-mheap_.arena_start)
-
-	mheap_.shadow_reserved = reserved
-	start := ^uintptr(0)
-	end := uintptr(0)
-	if start > uintptr(unsafe.Pointer(&noptrdata)) {
-		start = uintptr(unsafe.Pointer(&noptrdata))
-	}
-	if start > uintptr(unsafe.Pointer(&data)) {
-		start = uintptr(unsafe.Pointer(&data))
-	}
-	if start > uintptr(unsafe.Pointer(&noptrbss)) {
-		start = uintptr(unsafe.Pointer(&noptrbss))
-	}
-	if start > uintptr(unsafe.Pointer(&bss)) {
-		start = uintptr(unsafe.Pointer(&bss))
-	}
-	if end < uintptr(unsafe.Pointer(&enoptrdata)) {
-		end = uintptr(unsafe.Pointer(&enoptrdata))
-	}
-	if end < uintptr(unsafe.Pointer(&edata)) {
-		end = uintptr(unsafe.Pointer(&edata))
-	}
-	if end < uintptr(unsafe.Pointer(&enoptrbss)) {
-		end = uintptr(unsafe.Pointer(&enoptrbss))
-	}
-	if end < uintptr(unsafe.Pointer(&ebss)) {
-		end = uintptr(unsafe.Pointer(&ebss))
-	}
-	start &^= _PageSize - 1
-	end = round(end, _PageSize)
-	mheap_.data_start = start
-	mheap_.data_end = end
-	reserved = false
-	p1 = sysReserveHigh(end-start, &reserved)
-	if p1 == nil {
-		throw("cannot map shadow data")
-	}
-	mheap_.shadow_data = uintptr(p1) - start
-	sysMap(p1, end-start, reserved, &memstats.other_sys)
-	memmove(p1, unsafe.Pointer(start), end-start)
-
-	mheap_.shadow_enabled = true
-}
-
 // sysReserveHigh reserves space somewhere high in the address space.
 // sysReserve doesn't actually reserve the full amount requested on
 // 64-bit systems, because of problems with ulimit. Instead it checks
