@@ -74,6 +74,11 @@ func buildGodoc(t *testing.T) (bin string, cleanup func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if cleanup == nil { // probably, go build failed.
+			os.RemoveAll(tmp)
+		}
+	}()
 
 	bin = filepath.Join(tmp, "godoc")
 	if runtime.GOOS == "windows" {
