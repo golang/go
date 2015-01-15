@@ -775,7 +775,19 @@ func setupOAuthClient() error {
 
 func (b *Build) clean(files []string) error {
 	for _, name := range files {
-		err := os.RemoveAll(filepath.Join(b.root, name))
+		path := filepath.Join(b.root, name)
+		var err error
+		if b.OS == "windows" {
+			// Git sets some of its packfiles as 'read only',
+			// so os.RemoveAll will fail for the ".git" directory.
+			// Instead, shell out to cmd's 'del' subcommand.
+			cmd := exec.Command("cmd.exe", "/C", "del", "/Q", "/F", "/S", path)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			err = cmd.Run()
+		} else {
+			err = os.RemoveAll(path)
+		}
 		if err != nil {
 			return err
 		}
