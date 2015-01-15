@@ -104,7 +104,7 @@ const (
 	// Tunable constants.
 	_MaxSmallSize = 32 << 10
 
-	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.goc.
+	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.go.
 	_TinySize      = 16
 	_TinySizeClass = 2
 
@@ -322,7 +322,7 @@ type mcache struct {
 	next_sample      int32  // trigger heap sample after allocating this many bytes
 	local_cachealloc intptr // bytes allocated (or freed) from cache since last lock of heap
 	// Allocator cache for tiny objects w/o pointers.
-	// See "Tiny allocator" comment in malloc.goc.
+	// See "Tiny allocator" comment in malloc.go.
 	tiny             unsafe.Pointer
 	tinyoffset       uintptr
 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats

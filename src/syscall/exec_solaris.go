@@ -44,7 +44,7 @@ func write1(fd uintptr, buf uintptr, nbyte uintptr) (n uintptr, err Errno)
 // no rescheduling, no malloc calls, and no new stack segments.
 //
 // We call hand-crafted syscalls, implemented in
-// ../runtime/syscall_solaris.goc, rather than generated libc wrappers
+// ../runtime/syscall_solaris.go, rather than generated libc wrappers
 // because we need to avoid lazy-loading the functions (might malloc,
 // split the stack, or acquire mutexes). We can't call RawSyscall
 // because it's not safe even for BSD-subsystem calls.
