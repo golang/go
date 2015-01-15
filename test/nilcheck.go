@@ -182,3 +182,8 @@ func f4(x *[10]int) {
 	_ = &x[9] // ERROR "nil check"
 }
 
+func f5(m map[string]struct{}) bool {
+	// Existence-only map lookups should not generate a nil check
+	_, ok := m[""]
+	return ok
+}

@@ -7,10 +7,10 @@
 
 enum {
 #ifdef GOOS_windows
-	StackSystem = 512 * sizeof(uintptr),
+#define StackSystem (512*sizeof(uintptr))
 #else
 #ifdef GOOS_plan9
-	StackSystem = 512,
+#define StackSystem (512)
 #else
 	StackSystem = 0,
 #endif	// Plan 9
@@ -23,3 +23,9 @@ enum {
 };
 
 #define StackPreempt ((uint64)-1314)
+/*c2go
+enum
+{
+	StackPreempt = 1, // TODO: Change to (uint64)-1314 in Go translation
+};
+*/

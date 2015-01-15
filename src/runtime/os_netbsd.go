@@ -24,6 +24,7 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
 func lwp_tramp()
 
 func raise(sig int32)
+func raiseproc(sig int32)
 
 //go:noescape
 func getcontext(ctxt unsafe.Pointer)

@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package runtime
 
 import "unsafe"
@@ -38,8 +34,7 @@ func checkgoarm() {
 	}
 }
 
-//go:nosplit
-func setup_auxv(argc int32, argv **byte) {
+func sysargs(argc int32, argv **byte) {
 	// skip over argv, envv to get to auxv
 	n := argc + 1
 	for argv_index(argv, n) != nil {
@@ -51,12 +46,11 @@ func setup_auxv(argc int32, argv **byte) {
 	for i := 0; auxv[i] != _AT_NULL; i += 2 {
 		switch auxv[i] {
 		case _AT_RANDOM: // kernel provides a pointer to 16-bytes worth of random data
-			if auxv[i+1] != 0 {
-				// the pointer provided may not be word alined, so we must to treat it
-				// as a byte array.
-				rnd := (*[16]byte)(unsafe.Pointer(uintptr(auxv[i+1])))
-				randomNumber = uint32(rnd[0]) | uint32(rnd[1])<<8 | uint32(rnd[2])<<16 | uint32(rnd[3])<<24
-			}
+			startupRandomData = (*[16]byte)(unsafe.Pointer(uintptr(auxv[i+1])))[:]
+			// the pointer provided may not be word alined, so we must to treat it
+			// as a byte array.
+			randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+				uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
 
 		case _AT_PLATFORM: // v5l, v6l, v7l
 			t := *(*uint8)(unsafe.Pointer(uintptr(auxv[i+1] + 1)))

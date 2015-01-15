@@ -1377,8 +1377,11 @@ func signingParamsForPrivateKey(priv interface{}, requestedSigAlgo SignatureAlgo
 	switch priv := priv.(type) {
 	case *rsa.PrivateKey:
 		pubType = RSA
-		sigAlgo.Algorithm = oidSignatureSHA256WithRSA
 		hashFunc = crypto.SHA256
+		sigAlgo.Algorithm = oidSignatureSHA256WithRSA
+		sigAlgo.Parameters = asn1.RawValue{
+			Tag: 5,
+		}
 
 	case *ecdsa.PrivateKey:
 		pubType = ECDSA
@@ -1572,7 +1575,7 @@ func (c *Certificate) CreateCRL(rand io.Reader, priv interface{}, revokedCerts [
 		return nil, errors.New("x509: non-RSA private keys not supported")
 	}
 	tbsCertList := pkix.TBSCertificateList{
-		Version: 2,
+		Version: 1,
 		Signature: pkix.AlgorithmIdentifier{
 			Algorithm: oidSignatureSHA1WithRSA,
 		},

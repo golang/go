@@ -31,7 +31,7 @@ func init() {
 	}
 	runtime.ReadMemStats(memstats)
 	sys1 := memstats.Sys
-	if sys1-sys > chunk*50 {
+	if sys1-sys > chunk*500 {
 		println("allocated 1000 chunks of", chunk, "and used ", sys1-sys, "memory")
 		panic("init1")
 	}

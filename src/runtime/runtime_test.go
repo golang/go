@@ -247,3 +247,44 @@ func TestEqString(t *testing.T) {
 		}
 	}
 }
+
+func TestTrailingZero(t *testing.T) {
+	// make sure we add padding for structs with trailing zero-sized fields
+	type T1 struct {
+		n int32
+		z [0]byte
+	}
+	if unsafe.Sizeof(T1{}) != 8 {
+		t.Errorf("sizeof(%#v)==%d, want 8", T1{}, unsafe.Sizeof(T1{}))
+	}
+	type T2 struct {
+		n int64
+		z struct{}
+	}
+	if unsafe.Sizeof(T2{}) != 8 + unsafe.Sizeof(Uintreg(0)) {
+		t.Errorf("sizeof(%#v)==%d, want %d", T2{}, unsafe.Sizeof(T2{}), 8 + unsafe.Sizeof(Uintreg(0)))
+	}
+	type T3 struct {
+		n byte
+		z [4]struct{}
+	}
+	if unsafe.Sizeof(T3{}) != 2 {
+		t.Errorf("sizeof(%#v)==%d, want 2", T3{}, unsafe.Sizeof(T3{}))
+	}
+	// make sure padding can double for both zerosize and alignment
+	type T4 struct {
+		a int32
+		b int16
+		c int8
+		z struct{}
+	}
+	if unsafe.Sizeof(T4{}) != 8 {
+		t.Errorf("sizeof(%#v)==%d, want 8", T4{}, unsafe.Sizeof(T4{}))
+	}
+	// make sure we don't pad a zero-sized thing
+	type T5 struct {
+	}
+	if unsafe.Sizeof(T5{}) != 0 {
+		t.Errorf("sizeof(%#v)==%d, want 0", T5{}, unsafe.Sizeof(T5{}))
+	}
+}

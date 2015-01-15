@@ -4,10 +4,16 @@ bufio: add Reader.Discard (https://golang.org/cl/2260)
 crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
 crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
 encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
+log: add global Output function (https://golang.org/cl/2686)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
 
+Tools:
+
+cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
 
 Performance:
 
 strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
+math/big: faster assembly kernels for amd64 and 386 (https://golang.org/cl/2503, https://golang.org/cl/2560)
+math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://golang.org/cl/2480)

@@ -120,7 +120,7 @@ peep(Prog *firstp)
 		case AMOVSS:
 		case AMOVSD:
 			if(regtyp(&p->to))
-			if(p->from.type == D_CONST)
+			if(p->from.type == D_CONST || p->from.type == D_FCONST)
 				conprop(r);
 			break;
 		}

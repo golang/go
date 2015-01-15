@@ -241,6 +241,19 @@ progedit(Link *ctxt, Prog *p)
 
 	// Rewrite float constants to values stored in memory.
 	switch(p->as) {
+	case AMOVSS:
+		// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
+		if(p->from.type == D_FCONST)
+		if(p->from.u.dval == 0)
+		if(p->to.type >= D_X0)
+		if(p->to.type <= D_X15) {
+			p->as = AXORPS;
+			p->from.type = p->to.type;
+			p->from.index = p->to.index;
+			break;
+		}
+		// fallthrough
+
 	case AFMOVF:
 	case AFADDF:
 	case AFSUBF:
@@ -250,7 +263,6 @@ progedit(Link *ctxt, Prog *p)
 	case AFDIVRF:
 	case AFCOMF:
 	case AFCOMFP:
-	case AMOVSS:
 	case AADDSS:
 	case ASUBSS:
 	case AMULSS:
@@ -258,11 +270,11 @@ progedit(Link *ctxt, Prog *p)
 	case ACOMISS:
 	case AUCOMISS:
 		if(p->from.type == D_FCONST) {
-			int32 i32;
+			uint32 i32;
 			float32 f32;
 			f32 = p->from.u.dval;
 			memmove(&i32, &f32, 4);
-			sprint(literal, "$f32.%08ux", (uint32)i32);
+			sprint(literal, "$f32.%08ux", i32);
 			s = linklookup(ctxt, literal, 0);
 			if(s->type == 0) {
 				s->type = SRODATA;
@@ -274,6 +286,19 @@ progedit(Link *ctxt, Prog *p)
 			p->from.offset = 0;
 		}
 		break;
+
+	case AMOVSD:
+		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
+		if(p->from.type == D_FCONST)
+		if(p->from.u.dval == 0)
+		if(p->to.type >= D_X0)
+		if(p->to.type <= D_X15) {
+			p->as = AXORPS;
+			p->from.type = p->to.type;
+			p->from.index = p->to.index;
+			break;
+		}
+		// fallthrough
 	
 	case AFMOVD:
 	case AFADDD:
@@ -284,7 +309,6 @@ progedit(Link *ctxt, Prog *p)
 	case AFDIVRD:
 	case AFCOMD:
 	case AFCOMDP:
-	case AMOVSD:
 	case AADDSD:
 	case ASUBSD:
 	case AMULSD:
@@ -292,9 +316,9 @@ progedit(Link *ctxt, Prog *p)
 	case ACOMISD:
 	case AUCOMISD:
 		if(p->from.type == D_FCONST) {
-			int64 i64;
+			uint64 i64;
 			memmove(&i64, &p->from.u.dval, 8);
-			sprint(literal, "$f64.%016llux", (uvlong)i64);
+			sprint(literal, "$f64.%016llux", i64);
 			s = linklookup(ctxt, literal, 0);
 			if(s->type == 0) {
 				s->type = SRODATA;

@@ -634,20 +634,43 @@ func newstack() {
 		throw("runtime: stack split at bad time")
 	}
 
-	// The goroutine must be executing in order to call newstack,
-	// so it must be Grunning or Gscanrunning.
-
 	gp := thisg.m.curg
 	morebuf := thisg.m.morebuf
 	thisg.m.morebuf.pc = 0
 	thisg.m.morebuf.lr = 0
 	thisg.m.morebuf.sp = 0
 	thisg.m.morebuf.g = 0
+	rewindmorestack(&gp.sched)
 
+	// NOTE: stackguard0 may change underfoot, if another thread
+	// is about to try to preempt gp. Read it just once and use that same
+	// value now and below.
+	preempt := atomicloaduintptr(&gp.stackguard0) == stackPreempt
+
+	// Be conservative about where we preempt.
+	// We are interested in preempting user Go code, not runtime code.
+	// If we're holding locks, mallocing, or GCing, don't preempt.
+	// This check is very early in newstack so that even the status change
+	// from Grunning to Gwaiting and back doesn't happen in this case.
+	// That status change by itself can be viewed as a small preemption,
+	// because the GC might change Gwaiting to Gscanwaiting, and then
+	// this goroutine has to wait for the GC to finish before continuing.
+	// If the GC is in some way dependent on this goroutine (for example,
+	// it needs a lock held by the goroutine), that small preemption turns
+	// into a real deadlock.
+	if preempt {
+		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.gcing != 0 || thisg.m.p.status != _Prunning {
+			// Let the goroutine keep running for now.
+			// gp->preempt is set, so it will be preempted next time.
+			gp.stackguard0 = gp.stack.lo + _StackGuard
+			gogo(&gp.sched) // never return
+		}
+	}
+
+	// The goroutine must be executing in order to call newstack,
+	// so it must be Grunning (or Gscanrunning).
 	casgstatus(gp, _Grunning, _Gwaiting)
 	gp.waitreason = "stack growth"
-
-	rewindmorestack(&gp.sched)
 
 	if gp.stack.lo == 0 {
 		throw("missing stack in newstack")
@@ -676,7 +699,7 @@ func newstack() {
 		writebarrierptr_nostore((*uintptr)(unsafe.Pointer(&gp.sched.ctxt)), uintptr(gp.sched.ctxt))
 	}
 
-	if gp.stackguard0 == stackPreempt {
+	if preempt {
 		if gp == thisg.m.g0 {
 			throw("runtime: preempt g0")
 		}
@@ -695,16 +718,6 @@ func newstack() {
 			gp.preempt = false
 			gp.preemptscan = false // Tells the GC premption was successful.
 			gogo(&gp.sched)        // never return
-		}
-
-		// Be conservative about where we preempt.
-		// We are interested in preempting user Go code, not runtime code.
-		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.gcing != 0 || thisg.m.p.status != _Prunning {
-			// Let the goroutine keep running for now.
-			// gp->preempt is set, so it will be preempted next time.
-			gp.stackguard0 = gp.stack.lo + _StackGuard
-			casgstatus(gp, _Gwaiting, _Grunning)
-			gogo(&gp.sched) // never return
 		}
 
 		// Act like goroutine called runtime.Gosched.

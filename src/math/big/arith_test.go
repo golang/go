@@ -254,7 +254,7 @@ func benchmarkFunVW(b *testing.B, f funVW, n int) {
 	x := rndV(n)
 	y := rndW()
 	z := make([]Word, n)
-	b.SetBytes(int64(n * _W))
+	b.SetBytes(int64(n * _S))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		f(z, x, y)

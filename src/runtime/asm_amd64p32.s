@@ -411,7 +411,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
 	MOVL	new+8(FP), CX
 	LOCK
 	CMPXCHGL	CX, 0(BX)
-	SETEQ	, ret+16(FP)
+	SETEQ	ret+16(FP)
 	RET
 
 TEXT runtime·casuintptr(SB), NOSPLIT, $0-17
@@ -440,7 +440,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-25
 	MOVQ	new+16(FP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BX)
-	SETEQ	, ret+24(FP)
+	SETEQ	ret+24(FP)
 	RET
 
 // bool casp(void **val, void *old, void *new)
@@ -456,7 +456,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-17
 	MOVL	new+8(FP), CX
 	LOCK
 	CMPXCHGL	CX, 0(BX)
-	SETEQ	, ret+16(FP)
+	SETEQ	ret+16(FP)
 	RET
 
 // uint32 xadd(uint32 volatile *val, int32 delta)
@@ -642,6 +642,23 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	MOVQ	AX, ret+0(FP)
 	RET
 
+// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+// redirects to memhash(p, h, size) using the size
+// stored in the closure.
+TEXT runtime·memhash_varlen(SB),NOSPLIT,$24-12
+	GO_ARGS
+	NO_LOCAL_POINTERS
+	MOVL	p+0(FP), AX
+	MOVL	h+4(FP), BX
+	MOVL	4(DX), CX
+	MOVL	AX, 0(SP)
+	MOVL	BX, 4(SP)
+	MOVL	CX, 8(SP)
+	CALL	runtime·memhash(SB)
+	MOVL	16(SP), AX
+	MOVL	AX, ret+8(FP)
+	RET
+
 // hash function using AES hardware instructions
 // For now, our one amd64p32 system (NaCl) does not
 // support using AES instructions, so have not bothered to
@@ -670,6 +687,20 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-17
 	MOVL	size+8(FP), BX
 	CALL	runtime·memeqbody(SB)
 	MOVB	AX, ret+16(FP)
+	RET
+
+// memequal_varlen(a, b unsafe.Pointer) bool
+TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-9
+	MOVL    a+0(FP), SI
+	MOVL    b+4(FP), DI
+	CMPL    SI, DI
+	JEQ     eq
+	MOVL    4(DX), BX    // compiler stores size at offset 4 in the closure
+	CALL    runtime·memeqbody(SB)
+	MOVB    AX, ret+8(FP)
+	RET
+eq:
+	MOVB    $1, ret+8(FP)
 	RET
 
 // eqstring tests whether two strings are equal.

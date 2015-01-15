@@ -132,6 +132,8 @@ main(int argc, char *argv[])
 	if(assemble(argv[0]))
 		errorexit();
 	Bflush(&bstdout);
+	if(nerrors > 0)
+		errorexit();
 	exits(0);
 }
 

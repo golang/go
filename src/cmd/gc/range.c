@@ -144,6 +144,73 @@ walkrange(Node *n)
 		fatal("walkrange");
 
 	case TARRAY:
+		// Lower n into runtime·memclr if possible, for
+		// fast zeroing of slices and arrays (issue 5373).
+		// Look for instances of
+		//
+		// for i := range a {
+		// 	a[i] = zero
+		// }
+		//
+		// in which the evaluation of a is side-effect-free.
+		if(!debug['N'])
+		if(!flag_race)
+		if(v1 != N)
+		if(v2 == N)
+		if(n->nbody != nil)
+		if(n->nbody->n != N)	// at least one statement in body
+		if(n->nbody->next == nil) {	// at most one statement in body
+			tmp = n->nbody->n;	// first statement of body
+			if(tmp->op == OAS)
+			if(tmp->left->op == OINDEX)
+			if(samesafeexpr(tmp->left->left, a))
+			if(samesafeexpr(tmp->left->right, v1))
+			if(t->type->width > 0)
+			if(iszero(tmp->right)) {
+				// Convert to
+				// if len(a) != 0 {
+				// 	hp = &a[0]
+				// 	hn = len(a)*sizeof(elem(a))
+				// 	memclr(hp, hn)
+				// 	i = len(a) - 1
+				// }
+				n->op = OIF;
+				n->nbody = nil;
+				n->ntest = nod(ONE, nod(OLEN, a, N), nodintconst(0));
+				n->nincr = nil;
+
+				// hp = &a[0]
+				hp = temp(ptrto(types[TUINT8]));
+				tmp = nod(OINDEX, a, nodintconst(0));
+				tmp->bounded = 1;
+				tmp = nod(OADDR, tmp, N);
+				tmp = nod(OCONVNOP, tmp, N);
+				tmp->type = ptrto(types[TUINT8]);
+				n->nbody = list(n->nbody, nod(OAS, hp, tmp));
+
+				// hn = len(a) * sizeof(elem(a))
+				hn = temp(types[TUINTPTR]);
+				tmp = nod(OLEN, a, N);
+				tmp = nod(OMUL, tmp, nodintconst(t->type->width));
+				tmp = conv(tmp, types[TUINTPTR]);
+				n->nbody = list(n->nbody, nod(OAS, hn, tmp));
+
+				// memclr(hp, hn)
+				fn = mkcall("memclr", T, nil, hp, hn);
+				n->nbody = list(n->nbody, fn);
+
+				// i = len(a) - 1
+				v1 = nod(OAS, v1, nod(OSUB, nod(OLEN, a, N), nodintconst(1)));
+				n->nbody = list(n->nbody, v1);
+
+				typecheck(&n->ntest, Erv);
+				typechecklist(n->nbody, Etop);
+				walkstmt(&n);
+				lineno = lno;
+				return;
+			}
+		}
+
 		// orderstmt arranged for a copy of the array/slice variable if needed.
 		ha = a;
 		hv1 = temp(types[TINT]);

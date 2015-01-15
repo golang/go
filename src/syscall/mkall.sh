@@ -244,9 +244,8 @@ solaris_amd64)
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 windows_*)
-	mksyscall=
-	mkerrors=
-	zerrors=
+	echo 'run "go generate syscall_windows.go" instead' 1>&2
+	exit 1
 	;;
 *)
 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
@@ -256,22 +255,13 @@ esac
 
 (
 	if [ -n "$mkerrors" ]; then echo "$mkerrors |gofmt >$zerrors"; fi
-	case "$GOOS" in
-	windows)
-		echo "GOOS= GOARCH= go build mksyscall_windows.go"
-		echo "./mksyscall_windows syscall_windows.go security_windows.go |gofmt >zsyscall_windows.go"
-		echo "rm -f ./mksyscall_windows"
-		;;
-	*)
-		syscall_goos="syscall_$GOOS.go"
-		case "$GOOS" in
-		darwin | dragonfly | freebsd | netbsd | openbsd)
-			syscall_goos="syscall_bsd.go $syscall_goos"
-			;;
-		esac
-		if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go"; fi
-		;;
-	esac
+	syscall_goos="syscall_$GOOS.go"
+ 	case "$GOOS" in
+	darwin | dragonfly | freebsd | netbsd | openbsd)
+		syscall_goos="syscall_bsd.go $syscall_goos"
+ 		;;
+ 	esac
+	if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
 	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
 	if [ -n "$mktypes" ]; then echo "$mktypes types_$GOOS.go |gofmt >ztypes_$GOOSARCH.go"; fi

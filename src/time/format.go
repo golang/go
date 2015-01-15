@@ -1131,24 +1131,28 @@ func leadingInt(s string) (x int64, rem string, err error) {
 		if c < '0' || c > '9' {
 			break
 		}
-		if x >= (1<<63-10)/10 {
+		if x > (1<<63-1)/10 {
 			// overflow
 			return 0, "", errLeadingInt
 		}
 		x = x*10 + int64(c) - '0'
+		if x < 0 {
+			// overflow
+			return 0, "", errLeadingInt
+		}
 	}
 	return x, s[i:], nil
 }
 
-var unitMap = map[string]float64{
-	"ns": float64(Nanosecond),
-	"us": float64(Microsecond),
-	"µs": float64(Microsecond), // U+00B5 = micro symbol
-	"μs": float64(Microsecond), // U+03BC = Greek letter mu
-	"ms": float64(Millisecond),
-	"s":  float64(Second),
-	"m":  float64(Minute),
-	"h":  float64(Hour),
+var unitMap = map[string]int64{
+	"ns": int64(Nanosecond),
+	"us": int64(Microsecond),
+	"µs": int64(Microsecond), // U+00B5 = micro symbol
+	"μs": int64(Microsecond), // U+03BC = Greek letter mu
+	"ms": int64(Millisecond),
+	"s":  int64(Second),
+	"m":  int64(Minute),
+	"h":  int64(Hour),
 }
 
 // ParseDuration parses a duration string.
@@ -1159,7 +1163,7 @@ var unitMap = map[string]float64{
 func ParseDuration(s string) (Duration, error) {
 	// [-+]?([0-9]*(\.[0-9]*)?[a-z]+)+
 	orig := s
-	f := float64(0)
+	var d int64
 	neg := false
 
 	// Consume [-+]?
@@ -1178,22 +1182,23 @@ func ParseDuration(s string) (Duration, error) {
 		return 0, errors.New("time: invalid duration " + orig)
 	}
 	for s != "" {
-		g := float64(0) // this element of the sequence
+		var (
+			v, f  int64       // integers before, after decimal point
+			scale float64 = 1 // value = v + f/scale
+		)
 
-		var x int64
 		var err error
 
 		// The next character must be [0-9.]
-		if !(s[0] == '.' || ('0' <= s[0] && s[0] <= '9')) {
+		if !(s[0] == '.' || '0' <= s[0] && s[0] <= '9') {
 			return 0, errors.New("time: invalid duration " + orig)
 		}
 		// Consume [0-9]*
 		pl := len(s)
-		x, s, err = leadingInt(s)
+		v, s, err = leadingInt(s)
 		if err != nil {
 			return 0, errors.New("time: invalid duration " + orig)
 		}
-		g = float64(x)
 		pre := pl != len(s) // whether we consumed anything before a period
 
 		// Consume (\.[0-9]*)?
@@ -1201,15 +1206,13 @@ func ParseDuration(s string) (Duration, error) {
 		if s != "" && s[0] == '.' {
 			s = s[1:]
 			pl := len(s)
-			x, s, err = leadingInt(s)
+			f, s, err = leadingInt(s)
 			if err != nil {
 				return 0, errors.New("time: invalid duration " + orig)
 			}
-			scale := 1.0
 			for n := pl - len(s); n > 0; n-- {
 				scale *= 10
 			}
-			g += float64(x) / scale
 			post = pl != len(s)
 		}
 		if !pre && !post {
@@ -1221,7 +1224,7 @@ func ParseDuration(s string) (Duration, error) {
 		i := 0
 		for ; i < len(s); i++ {
 			c := s[i]
-			if c == '.' || ('0' <= c && c <= '9') {
+			if c == '.' || '0' <= c && c <= '9' {
 				break
 			}
 		}
@@ -1234,15 +1237,29 @@ func ParseDuration(s string) (Duration, error) {
 		if !ok {
 			return 0, errors.New("time: unknown unit " + u + " in duration " + orig)
 		}
-
-		f += g * unit
+		if v > (1<<63-1)/unit {
+			// overflow
+			return 0, errors.New("time: invalid duration " + orig)
+		}
+		v *= unit
+		if f > 0 {
+			// float64 is needed to be nanosecond accurate for fractions of hours.
+			// v >= 0 && (f*unit/scale) <= 3.6e+12 (ns/h, h is the largest unit)
+			v += int64(float64(f) * (float64(unit) / scale))
+			if v < 0 {
+				// overflow
+				return 0, errors.New("time: invalid duration " + orig)
+			}
+		}
+		d += v
+		if d < 0 {
+			// overflow
+			return 0, errors.New("time: invalid duration " + orig)
+		}
 	}
 
 	if neg {
-		f = -f
+		d = -d
 	}
-	if f < float64(-1<<63) || f > float64(1<<63-1) {
-		return 0, errors.New("time: overflow parsing duration")
-	}
-	return Duration(f), nil
+	return Duration(d), nil
 }

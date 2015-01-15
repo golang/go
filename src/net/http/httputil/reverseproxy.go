@@ -100,6 +100,24 @@ var hopHeaders = []string{
 	"Upgrade",
 }
 
+type requestCanceler interface {
+	CancelRequest(*http.Request)
+}
+
+type runOnFirstRead struct {
+	io.Reader
+
+	fn func() // Run before first Read, then set to nil
+}
+
+func (c *runOnFirstRead) Read(bs []byte) (int, error) {
+	if c.fn != nil {
+		c.fn()
+		c.fn = nil
+	}
+	return c.Reader.Read(bs)
+}
+
 func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 	if transport == nil {
@@ -108,6 +126,34 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	outreq := new(http.Request)
 	*outreq = *req // includes shallow copies of maps, but okay
+
+	if closeNotifier, ok := rw.(http.CloseNotifier); ok {
+		if requestCanceler, ok := transport.(requestCanceler); ok {
+			reqDone := make(chan struct{})
+			defer close(reqDone)
+
+			clientGone := closeNotifier.CloseNotify()
+
+			outreq.Body = struct {
+				io.Reader
+				io.Closer
+			}{
+				Reader: &runOnFirstRead{
+					Reader: outreq.Body,
+					fn: func() {
+						go func() {
+							select {
+							case <-clientGone:
+								requestCanceler.CancelRequest(outreq)
+							case <-reqDone:
+							}
+						}()
+					},
+				},
+				Closer: outreq.Body,
+			}
+		}
+	}
 
 	p.Director(outreq)
 	outreq.Proto = "HTTP/1.1"

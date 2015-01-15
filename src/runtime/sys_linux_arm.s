@@ -18,6 +18,8 @@
 #define SYS_write (SYS_BASE + 4)
 #define SYS_open (SYS_BASE + 5)
 #define SYS_close (SYS_BASE + 6)
+#define SYS_getpid (SYS_BASE + 20)
+#define SYS_kill (SYS_BASE + 37)
 #define SYS_gettimeofday (SYS_BASE + 78)
 #define SYS_clone (SYS_BASE + 120)
 #define SYS_rt_sigreturn (SYS_BASE + 173)
@@ -110,6 +112,15 @@ TEXT	runtime·raise(SB),NOSPLIT,$-4
 	// arg 1 tid already in R0 from gettid
 	MOVW	sig+0(FP), R1	// arg 2 - signal
 	MOVW	$SYS_tkill, R7
+	SWI	$0
+	RET
+
+TEXT	runtime·raiseproc(SB),NOSPLIT,$-4
+	MOVW	$SYS_getpid, R7
+	SWI	$0
+	// arg 1 tid already in R0 from getpid
+	MOVW	sig+0(FP), R1	// arg 2 - signal
+	MOVW	$SYS_kill, R7
 	SWI	$0
 	RET
 

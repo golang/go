@@ -317,6 +317,9 @@ typedef struct {
 #define	DT_VERNEEDNUM	0x6fffffff
 #define	DT_VERSYM	0x6ffffff0
 
+#define DT_PPC64_GLINK	(DT_LOPROC + 0)
+#define DT_PPC64_OPT	(DT_LOPROC + 3)
+
 /* Values for DT_FLAGS */
 /*	Indicates that the object being loaded may make reference to
 	the $ORIGIN substitution string */
@@ -700,6 +703,18 @@ typedef struct {
 					/* Count of defined relocation types. */
 #define	R_PPC_EMB_COUNT		(R_PPC_EMB_RELSDA - R_PPC_EMB_NADDR32 + 1)
 
+#define R_PPC64_REL24		R_PPC_REL24
+#define R_PPC64_JMP_SLOT	R_PPC_JMP_SLOT
+#define R_PPC64_ADDR64		38
+#define R_PPC64_TOC16		47
+#define R_PPC64_TOC16_LO	48
+#define R_PPC64_TOC16_HI	49
+#define R_PPC64_TOC16_HA	50
+#define R_PPC64_TOC16_DS	63
+#define R_PPC64_TOC16_LO_DS	64
+#define R_PPC64_REL16_LO	250
+#define R_PPC64_REL16_HI	251
+#define R_PPC64_REL16_HA	252
 
 #define R_SPARC_NONE		0
 #define R_SPARC_8		1
@@ -970,6 +985,7 @@ uint32	elfwritephdrs(void);
 uint32	elfwriteshdrs(void);
 void	elfwritedynent(LSym*, int, uint64);
 void	elfwritedynentsym(LSym*, int, LSym*);
+void	elfwritedynentsymplus(LSym*, int, LSym*, vlong);
 void	elfwritedynentsymsize(LSym*, int, LSym*);
 uint32	elfhash(uchar*);
 uint64	startelf(void);

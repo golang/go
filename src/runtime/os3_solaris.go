@@ -165,7 +165,7 @@ func newosproc(mp *m, _ unsafe.Pointer) {
 	}
 }
 
-var urandom_dev = []byte("/dev/random\x00")
+var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
 func getRandomData(r []byte) {
@@ -415,6 +415,10 @@ func pthread_create(thread *pthread, attr *pthreadattr, fn uintptr, arg unsafe.P
 }
 
 func raise(sig int32) /* int32 */ {
+	sysvicall1(libc_raise, uintptr(sig))
+}
+
+func raiseproc(sig int32) /* int32 */ {
 	sysvicall1(libc_raise, uintptr(sig))
 }
 

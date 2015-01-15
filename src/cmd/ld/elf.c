@@ -307,11 +307,17 @@ elfwritedynent(LSym *s, int tag, uint64 val)
 void
 elfwritedynentsym(LSym *s, int tag, LSym *t)
 {
+	elfwritedynentsymplus(s, tag, t, 0);
+}
+
+void
+elfwritedynentsymplus(LSym *s, int tag, LSym *t, vlong add)
+{
 	if(elf64)
 		adduint64(ctxt, s, tag);
 	else
 		adduint32(ctxt, s, tag);
-	addaddr(ctxt, s, t);
+	addaddrplus(ctxt, s, t, add);
 }
 
 void
@@ -977,6 +983,8 @@ doelf(void)
 		addstring(shstrtab, ".interp");
 		addstring(shstrtab, ".hash");
 		addstring(shstrtab, ".got");
+		if(thechar == '9')
+			addstring(shstrtab, ".glink");
 		addstring(shstrtab, ".got.plt");
 		addstring(shstrtab, ".dynamic");
 		addstring(shstrtab, ".dynsym");
@@ -1020,7 +1028,14 @@ doelf(void)
 		/* global offset table */
 		s = linklookup(ctxt, ".got", 0);
 		s->reachable = 1;
-		s->type = SELFSECT; // writable
+		s->type = SELFGOT; // writable
+
+		/* ppc64 glink resolver */
+		if(thechar == '9') {
+			s = linklookup(ctxt, ".glink", 0);
+			s->reachable = 1;
+			s->type = SELFRXSECT;
+		}
 
 		/* hash */
 		s = linklookup(ctxt, ".hash", 0);
@@ -1033,7 +1048,12 @@ doelf(void)
 
 		s = linklookup(ctxt, ".plt", 0);
 		s->reachable = 1;
-		s->type = SELFRXSECT;
+		if(thechar == '9')
+			// In the ppc64 ABI, .plt is a data section
+			// written by the dynamic linker.
+			s->type = SELFSECT;
+		else
+			s->type = SELFRXSECT;
 		
 		elfsetupplt();
 		
@@ -1079,8 +1099,14 @@ doelf(void)
 		}
 		if(rpath)
 			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
-		
-		elfwritedynentsym(s, DT_PLTGOT, linklookup(ctxt, ".got.plt", 0));
+
+		if(thechar == '9')
+			elfwritedynentsym(s, DT_PLTGOT, linklookup(ctxt, ".plt", 0));
+		else
+			elfwritedynentsym(s, DT_PLTGOT, linklookup(ctxt, ".got.plt", 0));
+
+		if(thechar == '9')
+			elfwritedynent(s, DT_PPC64_OPT, 0);
 
 		// Solaris dynamic linker can't handle an empty .rela.plt if
 		// DT_JMPREL is emitted so we have to defer generation of DT_PLTREL,
@@ -1309,6 +1335,7 @@ asmbelf(vlong symo)
 
 		switch(eh->machine) {
 		case EM_X86_64:
+		case EM_PPC64:
 			sh = elfshname(".rela.plt");
 			sh->type = SHT_RELA;
 			sh->flags = SHF_ALLOC;
@@ -1345,29 +1372,47 @@ asmbelf(vlong symo)
 			break;
 		}
 
+		if(eh->machine == EM_PPC64) {
+			sh = elfshname(".glink");
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_EXECINSTR;
+			sh->addralign = 4;
+			shsym(sh, linklookup(ctxt, ".glink", 0));
+		}
+
 		sh = elfshname(".plt");
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
 		if(eh->machine == EM_X86_64)
 			sh->entsize = 16;
-		else
+		else if(eh->machine == EM_PPC64) {
+			// On ppc64, this is just a table of addresses
+			// filled by the dynamic linker
+			sh->type = SHT_NOBITS;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 8;
+		} else
 			sh->entsize = 4;
-		sh->addralign = 4;
+		sh->addralign = sh->entsize;
 		shsym(sh, linklookup(ctxt, ".plt", 0));
 
-		sh = elfshname(".got");
-		sh->type = SHT_PROGBITS;
-		sh->flags = SHF_ALLOC+SHF_WRITE;
-		sh->entsize = RegSize;
-		sh->addralign = RegSize;
-		shsym(sh, linklookup(ctxt, ".got", 0));
+		// On ppc64, .got comes from the input files, so don't
+		// create it here, and .got.plt is not used.
+		if(eh->machine != EM_PPC64) {
+			sh = elfshname(".got");
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = RegSize;
+			sh->addralign = RegSize;
+			shsym(sh, linklookup(ctxt, ".got", 0));
 
-		sh = elfshname(".got.plt");
-		sh->type = SHT_PROGBITS;
-		sh->flags = SHF_ALLOC+SHF_WRITE;
-		sh->entsize = RegSize;
-		sh->addralign = RegSize;
-		shsym(sh, linklookup(ctxt, ".got.plt", 0));
+			sh = elfshname(".got.plt");
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = RegSize;
+			sh->addralign = RegSize;
+			shsym(sh, linklookup(ctxt, ".got.plt", 0));
+		}
 		
 		sh = elfshname(".hash");
 		sh->type = SHT_HASH;

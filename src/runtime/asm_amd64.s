@@ -439,7 +439,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
 	MOVL	new+12(FP), CX
 	LOCK
 	CMPXCHGL	CX, 0(BX)
-	SETEQ	, ret+16(FP)
+	SETEQ	ret+16(FP)
 	RET
 
 // bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
@@ -456,7 +456,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-25
 	MOVQ	new+16(FP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BX)
-	SETEQ	, ret+24(FP)
+	SETEQ	ret+24(FP)
 	RET
 	
 TEXT runtime·casuintptr(SB), NOSPLIT, $0-25
@@ -484,7 +484,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-25
 	MOVQ	new+16(FP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BX)
-	SETEQ	, ret+24(FP)
+	SETEQ	ret+24(FP)
 	RET
 
 // uint32 xadd(uint32 volatile *val, int32 delta)
@@ -853,23 +853,42 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	MOVQ	AX, ret+0(FP)
 	RET
 
+// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+// redirects to memhash(p, h, size) using the size
+// stored in the closure.
+TEXT runtime·memhash_varlen(SB),NOSPLIT,$32-24
+	GO_ARGS
+	NO_LOCAL_POINTERS
+	MOVQ	p+0(FP), AX
+	MOVQ	h+8(FP), BX
+	MOVQ	8(DX), CX
+	MOVQ	AX, 0(SP)
+	MOVQ	BX, 8(SP)
+	MOVQ	CX, 16(SP)
+	CALL	runtime·memhash(SB)
+	MOVQ	24(SP), AX
+	MOVQ	AX, ret+16(FP)
+	RET
+
 // hash function using AES hardware instructions
 TEXT runtime·aeshash(SB),NOSPLIT,$0-32
 	MOVQ	p+0(FP), AX	// ptr to data
-	MOVQ	s+8(FP), CX	// size
+	MOVQ	s+16(FP), CX	// size
+	LEAQ	ret+24(FP), DX
 	JMP	runtime·aeshashbody(SB)
 
-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-32
+TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
 	MOVQ	p+0(FP), AX	// ptr to string struct
-	// s+8(FP) is ignored, it is always sizeof(String)
 	MOVQ	8(AX), CX	// length of string
 	MOVQ	(AX), AX	// string data
+	LEAQ	ret+16(FP), DX
 	JMP	runtime·aeshashbody(SB)
 
 // AX: data
 // CX: length
-TEXT runtime·aeshashbody(SB),NOSPLIT,$0-32
-	MOVQ	h+16(FP), X6	// seed to low 64 bits of xmm6
+// DX: address to put return value
+TEXT runtime·aeshashbody(SB),NOSPLIT,$0-0
+	MOVQ	h+8(FP), X6	// seed to low 64 bits of xmm6
 	PINSRQ	$1, CX, X6	// size to high 64 bits of xmm6
 	PSHUFHW	$0, X6, X6	// replace size with its low 2 bytes repeated 4 times
 	MOVO	runtime·aeskeysched(SB), X7
@@ -903,7 +922,7 @@ aes0to15:
 	AESENC	X6, X0
 	AESENC	X7, X0
 	AESENC	X7, X0
-	MOVQ	X0, ret+24(FP)
+	MOVQ	X0, (DX)
 	RET
 
 endofpage:
@@ -917,13 +936,13 @@ endofpage:
 	AESENC	X6, X0
 	AESENC	X7, X0
 	AESENC	X7, X0
-	MOVQ	X0, ret+24(FP)
+	MOVQ	X0, (DX)
 	RET
 
 aes0:
 	// return input seed
-	MOVQ	h+16(FP), AX
-	MOVQ	AX, ret+24(FP)
+	MOVQ	h+8(FP), AX
+	MOVQ	AX, (DX)
 	RET
 
 aes16:
@@ -931,7 +950,7 @@ aes16:
 	AESENC	X6, X0
 	AESENC	X7, X0
 	AESENC	X7, X0
-	MOVQ	X0, ret+24(FP)
+	MOVQ	X0, (DX)
 	RET
 
 aes17to32:
@@ -949,7 +968,7 @@ aes17to32:
 
 	// combine results
 	PXOR	X1, X0
-	MOVQ	X0, ret+24(FP)
+	MOVQ	X0, (DX)
 	RET
 
 aes33to64:
@@ -974,7 +993,7 @@ aes33to64:
 	PXOR	X2, X0
 	PXOR	X3, X1
 	PXOR	X1, X0
-	MOVQ	X0, ret+24(FP)
+	MOVQ	X0, (DX)
 	RET
 
 aes65to128:
@@ -1019,7 +1038,7 @@ aes65to128:
 	PXOR	X2, X0
 	PXOR	X3, X1
 	PXOR	X1, X0
-	MOVQ	X0, ret+24(FP)
+	MOVQ	X0, (DX)
 	RET
 
 aes129plus:
@@ -1105,29 +1124,27 @@ aesloop:
 	PXOR	X2, X0
 	PXOR	X3, X1
 	PXOR	X1, X0
-	MOVQ	X0, ret+24(FP)
+	MOVQ	X0, (DX)
 	RET
 	
-TEXT runtime·aeshash32(SB),NOSPLIT,$0-32
+TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
 	MOVQ	p+0(FP), AX	// ptr to data
-	// s+8(FP) is ignored, it is always sizeof(int32)
-	MOVQ	h+16(FP), X0	// seed
+	MOVQ	h+8(FP), X0	// seed
 	PINSRD	$2, (AX), X0	// data
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
 	AESENC	runtime·aeskeysched+32(SB), X0
-	MOVQ	X0, ret+24(FP)
+	MOVQ	X0, ret+16(FP)
 	RET
 
-TEXT runtime·aeshash64(SB),NOSPLIT,$0-32
+TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
 	MOVQ	p+0(FP), AX	// ptr to data
-	// s+8(FP) is ignored, it is always sizeof(int64)
-	MOVQ	h+16(FP), X0	// seed
+	MOVQ	h+8(FP), X0	// seed
 	PINSRQ	$1, (AX), X0	// data
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
 	AESENC	runtime·aeskeysched+32(SB), X0
-	MOVQ	X0, ret+24(FP)
+	MOVQ	X0, ret+16(FP)
 	RET
 
 // simple mask to get rid of data in the high part of the register.
@@ -1208,6 +1225,20 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-25
 	MOVQ	size+16(FP), BX
 	CALL	runtime·memeqbody(SB)
 	MOVB	AX, ret+24(FP)
+	RET
+
+// memequal_varlen(a, b unsafe.Pointer) bool
+TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
+	MOVQ	a+0(FP), SI
+	MOVQ	b+8(FP), DI
+	CMPQ	SI, DI
+	JEQ	eq
+	MOVQ	8(DX), BX    // compiler stores size at offset 8 in the closure
+	CALL	runtime·memeqbody(SB)
+	MOVB	AX, ret+16(FP)
+	RET
+eq:
+	MOVB	$1, ret+16(FP)
 	RET
 
 // eqstring tests whether two strings are equal.

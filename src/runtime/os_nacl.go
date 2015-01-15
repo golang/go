@@ -49,3 +49,6 @@ func sigpanic() {
 	g.sig = _SIGSEGV
 	panicmem()
 }
+
+func raiseproc(sig int32) {
+}

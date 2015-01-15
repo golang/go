@@ -160,13 +160,14 @@ func block()
 func makeslice(typ *byte, nel int64, cap int64) (ary []any)
 func growslice(typ *byte, old []any, n int64) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
+func memclr(ptr *byte, length uintptr)
 
 func memequal(x, y *any, size uintptr) bool
-func memequal8(x, y *any, size uintptr) bool
-func memequal16(x, y *any, size uintptr) bool
-func memequal32(x, y *any, size uintptr) bool
-func memequal64(x, y *any, size uintptr) bool
-func memequal128(x, y *any, size uintptr) bool
+func memequal8(x, y *any) bool
+func memequal16(x, y *any) bool
+func memequal32(x, y *any) bool
+func memequal64(x, y *any) bool
+func memequal128(x, y *any) bool
 
 // only used on 32-bit
 func int64div(int64, int64) int64

@@ -10,6 +10,8 @@
 #include "textflag.h"
 
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
+	// R1 = stack; R3 = argc; R4 = argv; R13 = C TLS base pointer
+
 	// initialize essential registers
 	BL	runtime·reginit(SB)
 
@@ -27,8 +29,29 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVD	R3, (g_stack+stack_lo)(g)
 	MOVD	R1, (g_stack+stack_hi)(g)
 
-	// TODO: if there is a _cgo_init, call it.
-	// TODO: add TLS
+	// if there is a _cgo_init, call it using the gcc ABI.
+	MOVD	_cgo_init(SB), R12
+	CMP	R0, R12
+	BEQ	nocgo
+	MOVD	R12, CTR		// r12 = "global function entry point"
+	MOVD	R13, R5			// arg 2: TLS base pointer
+	MOVD	$setg_gcc<>(SB), R4 	// arg 1: setg
+	MOVD	g, R3			// arg 0: G
+	// C functions expect 32 bytes of space on caller stack frame
+	// and a 16-byte aligned R1
+	MOVD	R1, R14			// save current stack
+	SUB	$32, R1			// reserve 32 bytes
+	RLDCR	$0, R1, $~15, R1	// 16-byte align
+	BL	(CTR)			// may clobber R0, R3-R12
+	MOVD	R14, R1			// restore stack
+	XOR	R0, R0			// fix R0
+
+nocgo:
+	// update stackguard after _cgo_init
+	MOVD	(g_stack+stack_lo)(g), R3
+	ADD	$const__StackGuard, R3
+	MOVD	R3, g_stackguard0(g)
+	MOVD	R3, g_stackguard1(g)
 
 	// set the per-goroutine and per-mach "registers"
 	MOVD	$runtime·m0(SB), R3
@@ -69,6 +92,11 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
 TEXT runtime·asminit(SB),NOSPLIT,$-8-0
 	RETURN
 
+TEXT _cgo_reginit(SB),NOSPLIT,$-8-0
+	// crosscall_ppc64 and crosscall2 need to reginit, but can't
+	// get at the 'runtime.reginit' symbol.
+	BR	runtime·reginit(SB)
+
 TEXT runtime·reginit(SB),NOSPLIT,$-8-0
 	// set R0 to zero, it's expected by the toolchain
 	XOR R0, R0
@@ -102,6 +130,8 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
 TEXT runtime·gogo(SB), NOSPLIT, $-8-8
 	MOVD	buf+0(FP), R5
 	MOVD	gobuf_g(R5), g	// make sure g is not nil
+	BL	runtime·save_g(SB)
+
 	MOVD	0(g), R4
 	MOVD	gobuf_sp(R5), R1
 	MOVD	gobuf_lr(R5), R31
@@ -133,6 +163,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 	MOVD	g, R3
 	MOVD	g_m(g), R8
 	MOVD	m_g0(R8), g
+	BL	runtime·save_g(SB)
 	CMP	g, R3
 	BNE	2(PC)
 	BR	runtime·badmcall(SB)
@@ -191,6 +222,7 @@ switch:
 
 	// switch to g0
 	MOVD	R5, g
+	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R3
 	// make it look like mstart called systemstack on g0, to stop traceback
 	SUB	$8, R3
@@ -206,6 +238,7 @@ switch:
 	// switch back to g
 	MOVD	g_m(g), R3
 	MOVD	m_curg(R3), g
+	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R1
 	MOVD	R0, (g_sched+gobuf_sp)(g)
 	RETURN
@@ -259,6 +292,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
 
 	// Call newstack on m->g0's stack.
 	MOVD	m_g0(R7), g
+	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R1
 	BL	runtime·newstack(SB)
 
@@ -617,26 +651,207 @@ TEXT gosave<>(SB),NOSPLIT,$-8
 // aligned appropriately for the gcc ABI.
 // See cgocall.c for more details.
 TEXT ·asmcgocall(SB),NOSPLIT,$0-16
-	MOVD	R0, 21(R0)
+	MOVD	fn+0(FP), R3
+	MOVD	arg+8(FP), R4
+	BL	asmcgocall<>(SB)
+	RET
+
+TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-24
+	MOVD	fn+0(FP), R3
+	MOVD	arg+8(FP), R4
+	BL	asmcgocall<>(SB)
+	MOVD	R3, ret+16(FP)
+	RET
+
+// asmcgocall common code. fn in R3, arg in R4. returns errno in R3.
+TEXT asmcgocall<>(SB),NOSPLIT,$0-0
+	MOVD	R1, R2		// save original stack pointer
+	MOVD	g, R5
+
+	// Figure out if we need to switch to m->g0 stack.
+	// We get called to create new OS threads too, and those
+	// come in on the m->g0 stack already.
+	MOVD	g_m(g), R6
+	MOVD	m_g0(R6), R6
+	CMP	R6, g
+	BEQ	g0
+	BL	gosave<>(SB)
+	MOVD	R6, g
+	BL	runtime·save_g(SB)
+	MOVD	(g_sched+gobuf_sp)(g), R1
+
+	// Now on a scheduling stack (a pthread-created stack).
+g0:
+	// Save room for two of our pointers, plus 32 bytes of callee
+	// save area that lives on the caller stack.
+	SUB	$48, R1
+	RLDCR	$0, R1, $~15, R1	// 16-byte alignment for gcc ABI
+	MOVD	R5, 40(R1)	// save old g on stack
+	MOVD	(g_stack+stack_hi)(R5), R5
+	SUB	R2, R5
+	MOVD	R5, 32(R1)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
+	MOVD	R0, 0(R1)	// clear back chain pointer (TODO can we give it real back trace information?)
+	// This is a "global call", so put the global entry point in r12
+	MOVD	R3, R12
+	MOVD	R12, CTR
+	MOVD	R4, R3		// arg in r3
+	BL	(CTR)
+
+	// C code can clobber R0, so set it back to 0.  F27-F31 are
+	// callee save, so we don't need to recover those.
+	XOR	R0, R0
+	// Restore g, stack pointer.  R3 is errno, so don't touch it
+	MOVD	40(R1), g
+	BL	runtime·save_g(SB)
+	MOVD	(g_stack+stack_hi)(g), R5
+	MOVD	32(R1), R6
+	SUB	R6, R5
+	MOVD	R5, R1
+	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
 TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
-	MOVD	R0, 22(R0)
+	MOVD	$fn+0(FP), R3
+	MOVD	R3, 8(R1)
+	MOVD	frame+8(FP), R3
+	MOVD	R3, 16(R1)
+	MOVD	framesize+16(FP), R3
+	MOVD	R3, 24(R1)
+	MOVD	$runtime·cgocallback_gofunc(SB), R3
+	MOVD	R3, CTR
+	BL	(CTR)
+	RET
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$8-24
-	MOVD	R0, 23(R0)
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
+	NO_LOCAL_POINTERS
+
+	// Load m and g from thread-local storage.
+	MOVB	runtime·iscgo(SB), R3
+	CMP	R3, $0
+	BEQ	nocgo
+	BL	runtime·load_g(SB)
+nocgo:
+
+	// If g is nil, Go did not create the current thread.
+	// Call needm to obtain one for temporary use.
+	// In this case, we're running on the thread stack, so there's
+	// lots of space, but the linker doesn't know. Hide the call from
+	// the linker analysis by using an indirect call.
+	CMP	g, $0
+	BNE	havem
+	MOVD	g, savedm-8(SP) // g is zero, so is m.
+	MOVD	$runtime·needm(SB), R3
+	MOVD	R3, CTR
+	BL	(CTR)
+
+	// Set m->sched.sp = SP, so that if a panic happens
+	// during the function we are about to execute, it will
+	// have a valid SP to run on the g0 stack.
+	// The next few lines (after the havem label)
+	// will save this SP onto the stack and then write
+	// the same SP back to m->sched.sp. That seems redundant,
+	// but if an unrecovered panic happens, unwindm will
+	// restore the g->sched.sp from the stack location
+	// and then systemstack will try to use it. If we don't set it here,
+	// that restored SP will be uninitialized (typically 0) and
+	// will not be usable.
+	MOVD	g_m(g), R3
+	MOVD	m_g0(R3), R3
+	MOVD	R1, (g_sched+gobuf_sp)(R3)
+
+havem:
+	MOVD	g_m(g), R8
+	MOVD	R8, savedm-8(SP)
+	// Now there's a valid m, and we're running on its m->g0.
+	// Save current m->g0->sched.sp on stack and then set it to SP.
+	// Save current sp in m->g0->sched.sp in preparation for
+	// switch back to m->curg stack.
+	// NOTE: unwindm knows that the saved g->sched.sp is at 8(R1) aka savedsp-16(SP).
+	MOVD	m_g0(R8), R3
+	MOVD	(g_sched+gobuf_sp)(R3), R4
+	MOVD	R4, savedsp-16(SP)
+	MOVD	R1, (g_sched+gobuf_sp)(R3)
+
+	// Switch to m->curg stack and call runtime.cgocallbackg.
+	// Because we are taking over the execution of m->curg
+	// but *not* resuming what had been running, we need to
+	// save that information (m->curg->sched) so we can restore it.
+	// We can restore m->curg->sched.sp easily, because calling
+	// runtime.cgocallbackg leaves SP unchanged upon return.
+	// To save m->curg->sched.pc, we push it onto the stack.
+	// This has the added benefit that it looks to the traceback
+	// routine like cgocallbackg is going to return to that
+	// PC (because the frame we allocate below has the same
+	// size as cgocallback_gofunc's frame declared above)
+	// so that the traceback will seamlessly trace back into
+	// the earlier calls.
+	//
+	// In the new goroutine, -16(SP) and -8(SP) are unused.
+	MOVD	m_curg(R8), g
+	BL	runtime·save_g(SB)
+	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
+	MOVD	(g_sched+gobuf_pc)(g), R5
+	MOVD	R5, -24(R4)
+	MOVD	$-24(R4), R1
+	BL	runtime·cgocallbackg(SB)
+
+	// Restore g->sched (== m->curg->sched) from saved values.
+	MOVD	0(R1), R5
+	MOVD	R5, (g_sched+gobuf_pc)(g)
+	MOVD	$24(R1), R4
+	MOVD	R4, (g_sched+gobuf_sp)(g)
+
+	// Switch back to m->g0's stack and restore m->g0->sched.sp.
+	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
+	// so we do not have to restore it.)
+	MOVD	g_m(g), R8
+	MOVD	m_g0(R8), g
+	BL	runtime·save_g(SB)
+	MOVD	(g_sched+gobuf_sp)(g), R1
+	MOVD	savedsp-16(SP), R4
+	MOVD	R4, (g_sched+gobuf_sp)(g)
+
+	// If the m on entry was nil, we called needm above to borrow an m
+	// for the duration of the call. Since the call is over, return it with dropm.
+	MOVD	savedm-8(SP), R6
+	CMP	R6, $0
+	BNE	droppedm
+	MOVD	$runtime·dropm(SB), R3
+	MOVD	R3, CTR
+	BL	(CTR)
+droppedm:
+
+	// Done!
+	RET
 
 // void setg(G*); set g. for use by needm.
 TEXT runtime·setg(SB), NOSPLIT, $0-8
-	MOVD	R0, 24(R0)
+	MOVD	gg+0(FP), g
+	// This only happens if iscgo, so jump straight to save_g
+	BL	runtime·save_g(SB)
+	RET
 
-// void setg_gcc(G*); set g called from gcc.
-TEXT setg_gcc<>(SB),NOSPLIT,$0
-	MOVD	R0, 25(R0)
+// void setg_gcc(G*); set g in C TLS.
+// Must obey the gcc calling convention.
+TEXT setg_gcc<>(SB),NOSPLIT,$-8-0
+	// The standard prologue clobbers R31, which is callee-save in
+	// the C ABI, so we have to use $-8-0 and save LR ourselves.
+	MOVD	LR, R4
+	// Also save g and R31, since they're callee-save in C ABI
+	MOVD	R31, R5
+	MOVD	g, R6
+
+	MOVD	R3, g
+	BL	runtime·save_g(SB)
+
+	MOVD	R6, g
+	MOVD	R5, R31
+	MOVD	R4, LR
+	RET
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-16
 	MOVD	0(R1), R3
@@ -685,6 +900,23 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	MOVD	R3, ret+0(FP)
 	RETURN
 
+// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+// redirects to memhash(p, h, size) using the size
+// stored in the closure.
+TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
+	GO_ARGS
+	NO_LOCAL_POINTERS
+	MOVD	p+0(FP), R3
+	MOVD	h+8(FP), R4
+	MOVD	8(R11), R5
+	MOVD	R3, 8(R1)
+	MOVD	R4, 16(R1)
+	MOVD	R5, 24(R1)
+	BL	runtime·memhash(SB)
+	MOVD	32(R1), R3
+	MOVD	R3, ret+16(FP)
+	RETURN
+
 // AES hashing not implemented for ppc64
 TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
 	MOVW	(R0), R1
@@ -715,6 +947,25 @@ test:
 	BEQ	loop
 
 	MOVB	R0, ret+24(FP)
+	RETURN
+
+// memequal_varlen(a, b unsafe.Pointer) bool
+TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
+	MOVD	a+0(FP), R3
+	MOVD	b+8(FP), R4
+	CMP	R3, R4
+	BEQ	eq
+	MOVD	8(R11), R5    // compiler stores size at offset 8 in the closure
+	MOVD	R3, 8(R1)
+	MOVD	R4, 16(R1)
+	MOVD	R5, 24(R1)
+	BL	runtime·memeq(SB)
+	MOVBZ	32(R1), R3
+	MOVB	R3, ret+16(FP)
+	RETURN
+eq:
+	MOVD	$1, R3
+	MOVB	R3, ret+16(FP)
 	RETURN
 
 // eqstring tests whether two strings are equal.
@@ -981,8 +1232,21 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
-TEXT _cgo_topofstack(SB),NOSPLIT,$0
-	MOVD	R0, 26(R0)
+TEXT _cgo_topofstack(SB),NOSPLIT,$-8
+	// g (R30) and R31 are callee-save in the C ABI, so save them
+	MOVD	g, R4
+	MOVD	R31, R5
+	MOVD	LR, R6
+
+	BL	runtime·load_g(SB)	// clobbers g (R30), R31
+	MOVD	g_m(g), R3
+	MOVD	m_curg(R3), R3
+	MOVD	(g_stack+stack_hi)(R3), R3
+
+	MOVD	R4, g
+	MOVD	R5, R31
+	MOVD	R6, LR
+	RET
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.

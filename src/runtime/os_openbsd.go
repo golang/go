@@ -20,6 +20,7 @@ func sigprocmask(mode int32, new uint32) uint32
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 
 func raise(sig int32)
+func raiseproc(sig int32)
 
 //go:noescape
 func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32

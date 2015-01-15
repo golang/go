@@ -75,20 +75,19 @@ func heapSort(data Interface, a, b int) {
 // Quicksort, following Bentley and McIlroy,
 // ``Engineering a Sort Function,'' SP&E November 1993.
 
-// medianOfThree moves the median of the three values data[a], data[b], data[c] into data[a].
-func medianOfThree(data Interface, a, b, c int) {
-	m0 := b
-	m1 := a
-	m2 := c
-	// bubble sort on 3 elements
+// medianOfThree moves the median of the three values data[m0], data[m1], data[m2] into data[m1].
+func medianOfThree(data Interface, m1, m0, m2 int) {
+	// sort 3 elements
 	if data.Less(m1, m0) {
 		data.Swap(m1, m0)
 	}
+	// data[m0] <= data[m1]
 	if data.Less(m2, m1) {
 		data.Swap(m2, m1)
-	}
-	if data.Less(m1, m0) {
-		data.Swap(m1, m0)
+		// data[m0] <= data[m2] && data[m1] < data[m2]
+		if data.Less(m1, m0) {
+			data.Swap(m1, m0)
+		}
 	}
 	// now data[m0] <= data[m1] <= data[m2]
 }
