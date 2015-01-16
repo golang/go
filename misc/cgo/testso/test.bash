@@ -5,6 +5,12 @@
 
 set -e
 
+if [ "$(uname -m)" == ppc64 -o "$(uname -m)" == ppc64le ]; then
+	# External linking not implemented on ppc64
+	echo "skipping test on ppc64 (issue #8912)"
+	exit
+fi
+
 args=
 dyld_envvar=LD_LIBRARY_PATH
 ext=so
