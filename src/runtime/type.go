@@ -22,7 +22,7 @@ type _type struct {
 	// (no indirection), 4 bits per word.
 	// If (kind&KindGCProg)!=0, then gc[1] points to a compiler-generated
 	// read-only GC program; and gc[0] points to BSS space for sparse GC bitmap.
-	// For huge _types (>MaxGCMask), runtime unrolls the program directly into
+	// For huge _types (>maxGCMask), runtime unrolls the program directly into
 	// GC bitmap and gc[0] is not used. For moderately-sized _types, runtime
 	// unrolls the program into gc[0] space on first use. The first byte of gc[0]
 	// (gc[0][0]) contains 'unroll' flag saying whether the program is already

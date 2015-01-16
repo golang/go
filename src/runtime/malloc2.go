@@ -405,6 +405,19 @@ type mspan struct {
 	specials    *special // linked list of special records sorted by offset.
 }
 
+func (s *mspan) base() uintptr {
+	return uintptr(s.start << _PageShift)
+}
+
+func (s *mspan) layout() (size, n, total uintptr) {
+	total = s.npages << _PageShift
+	size = s.elemsize
+	if size > 0 {
+		n = total / size
+	}
+	return
+}
+
 // Every MSpan is in one doubly-linked list,
 // either one of the MHeap's free lists or one of the
 // MCentral's span lists.  We use empty MSpan structures as list heads.

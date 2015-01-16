@@ -296,9 +296,9 @@ func stackfree(stk stack) {
 var maxstacksize uintptr = 1 << 20 // enough until runtime.main sets it for real
 
 var mapnames = []string{
-	_BitsDead:    "---",
-	_BitsScalar:  "scalar",
-	_BitsPointer: "ptr",
+	typeDead:    "---",
+	typeScalar:  "scalar",
+	typePointer: "ptr",
 }
 
 // Stack frame layout
@@ -371,7 +371,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 	minp := adjinfo.old.lo
 	maxp := adjinfo.old.hi
 	delta := adjinfo.delta
-	num := uintptr(bv.n / _BitsPerPointer)
+	num := uintptr(bv.n) / typeBitsWidth
 	for i := uintptr(0); i < num; i++ {
 		if stackDebug >= 4 {
 			print("        ", add(scanp, i*ptrSize), ":", mapnames[ptrbits(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/4], "\n")
@@ -379,13 +379,13 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 		switch ptrbits(&bv, i) {
 		default:
 			throw("unexpected pointer bits")
-		case _BitsDead:
+		case typeDead:
 			if debug.gcdead != 0 {
 				*(*unsafe.Pointer)(add(scanp, i*ptrSize)) = unsafe.Pointer(uintptr(poisonStack))
 			}
-		case _BitsScalar:
+		case typeScalar:
 			// ok
-		case _BitsPointer:
+		case typePointer:
 			p := *(*unsafe.Pointer)(add(scanp, i*ptrSize))
 			up := uintptr(p)
 			if f != nil && 0 < up && up < _PageSize && debug.invalidptr != 0 || up == poisonStack {
@@ -453,7 +453,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 			throw("bad symbol table")
 		}
 		bv = stackmapdata(stackmap, pcdata)
-		size = (uintptr(bv.n) * ptrSize) / _BitsPerPointer
+		size = (uintptr(bv.n) / typeBitsWidth) * ptrSize
 		if stackDebug >= 3 {
 			print("      locals ", pcdata, "/", stackmap.n, " ", size/ptrSize, " words ", bv.bytedata, "\n")
 		}
