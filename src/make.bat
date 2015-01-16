@@ -45,24 +45,24 @@ goto fail
 :: Clean old generated file that will cause problems in the build.
 del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
 
-:: Grab default GOROOT_FINAL and set GOROOT for build.
-:: The expression %VAR:\=\\% means to take %VAR%
-:: and apply the substitution \ = \\, escaping the
-:: backslashes.  Then we wrap that in quotes to create
-:: a C string.
+:: Set GOROOT for build.
 cd ..
 set GOROOT=%CD%
 cd src
-if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
-set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
 
-echo ##### Building C bootstrap tool.
+echo ##### Building Go bootstrap tool.
 echo cmd/dist
 if not exist ..\bin\tool mkdir ..\bin\tool
-:: Windows has no glob expansion, so spell out cmd/dist/*.c.
-gcc -O2 -Wall -Werror -o cmd/dist/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildgo.c cmd/dist/buildruntime.c cmd/dist/main.c cmd/dist/windows.c cmd/dist/arm.c
+if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
+if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
+setlocal
+set GOROOT=%GOROOT_BOOTSTRAP%
+set GOOS=
+set GOARCH=
+"%GOROOT_BOOTSTRAP%\bin\go" build -o cmd\dist\dist.exe .\cmd\dist
+endlocal
 if errorlevel 1 goto fail
-.\cmd\dist\dist env -wp >env.bat
+.\cmd\dist\dist env -w -p >env.bat
 if errorlevel 1 goto fail
 call env.bat
 del env.bat
@@ -112,6 +112,10 @@ goto end
 mkdir "%GOTOOLDIR%" 2>NUL
 copy cmd\dist\dist.exe "%GOTOOLDIR%\"
 goto end
+
+:bootstrapfail
+echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
+echo "Set GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4."
 
 :fail
 set GOBUILDFAIL=1

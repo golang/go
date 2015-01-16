@@ -3,6 +3,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+# See golang.org/s/go15bootstrap for an overview of the build process.
+
 # Environment variables that control make.rc:
 #
 # GOROOT_FINAL: The expected final Go root, baked into binaries.
@@ -45,17 +47,18 @@ rm -f ./runtime/runtime_defs.go
 # Determine the host compiler toolchain.
 eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
 
-echo '# Building C bootstrap tool.'
+echo '# Building Go bootstrap tool.'
 echo cmd/dist
 GOROOT = `{cd .. && pwd}
-if(! ~ $#GOROOT_FINAL 1)
-	GOROOT_FINAL = $GOROOT
-DEFGOROOT='-DGOROOT_FINAL="'$GOROOT_FINAL'"'
-
-for(i in cmd/dist/*.c)
-	$CC -FTVwp+ -DPLAN9 $DEFGOROOT $i
-$LD -o cmd/dist/dist *.$O
-rm *.$O
+if(! ~ $#GOROOT_BOOTSTRAP 1)
+	GOROOT_BOOTSTRAP = $home/go1.4
+if(! test -x $GOROOT_BOOTSTRAP/bin/go){
+	echo 'ERROR: Cannot find '$GOROOT_BOOTSTRAP'/bin/go.' >[1=2]
+	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
+	exit bootstrap
+}
+rm -f cmd/dist/dist
+GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
 
 eval `{./cmd/dist/dist env -9}
 echo
