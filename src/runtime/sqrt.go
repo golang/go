@@ -86,10 +86,10 @@ import "unsafe"
 // Notes:  Rounding mode detection omitted.
 
 const (
-	mask       = 0x7FF
-	shift      = 64 - 11 - 1
-	bias       = 1023
-	maxFloat64 = 1.797693134862315708145274237317043567981e+308 // 2**1023 * (2**53 - 1) / 2**52
+	float64Mask  = 0x7FF
+	float64Shift = 64 - 11 - 1
+	float64Bias  = 1023
+	maxFloat64   = 1.797693134862315708145274237317043567981e+308 // 2**1023 * (2**53 - 1) / 2**52
 )
 
 func float64bits(f float64) uint64     { return *(*uint64)(unsafe.Pointer(&f)) }
@@ -105,25 +105,25 @@ func sqrt(x float64) float64 {
 	}
 	ix := float64bits(x)
 	// normalize x
-	exp := int((ix >> shift) & mask)
+	exp := int((ix >> float64Shift) & float64Mask)
 	if exp == 0 { // subnormal x
-		for ix&1<<shift == 0 {
+		for ix&1<<float64Shift == 0 {
 			ix <<= 1
 			exp--
 		}
 		exp++
 	}
-	exp -= bias // unbias exponent
-	ix &^= mask << shift
-	ix |= 1 << shift
+	exp -= float64Bias // unbias exponent
+	ix &^= float64Mask << float64Shift
+	ix |= 1 << float64Shift
 	if exp&1 == 1 { // odd exp, double x to make it even
 		ix <<= 1
 	}
 	exp >>= 1 // exp = exp/2, exponent of square root
 	// generate sqrt(x) bit by bit
 	ix <<= 1
-	var q, s uint64               // q = sqrt(x)
-	r := uint64(1 << (shift + 1)) // r = moving bit from MSB to LSB
+	var q, s uint64                      // q = sqrt(x)
+	r := uint64(1 << (float64Shift + 1)) // r = moving bit from MSB to LSB
 	for r != 0 {
 		t := s + r
 		if t <= ix {
@@ -138,6 +138,6 @@ func sqrt(x float64) float64 {
 	if ix != 0 { // remainder, result not exact
 		q += q & 1 // round according to extra bit
 	}
-	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
+	ix = q>>1 + uint64(exp-1+float64Bias)<<float64Shift // significand + biased exponent
 	return float64frombits(ix)
 }
