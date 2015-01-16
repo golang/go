@@ -15,15 +15,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+	"golang.org/x/tools/dashboard/auth"
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/storage"
 )
@@ -111,18 +109,9 @@ var bucketProject = map[string]string{
 }
 
 func tokenSource(bucket string) (oauth2.TokenSource, error) {
-	proj := bucketProject[bucket]
-	fileName := filepath.Join(os.Getenv("HOME"), "keys", proj+".key.json")
-	jsonConf, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("Missing JSON key configuration. Download the Service Account JSON key from https://console.developers.google.com/project/%s/apiui/credential and place it at %s", proj, fileName)
-		}
-		return nil, err
+	proj, ok := bucketProject[bucket]
+	if !ok {
+		return nil, fmt.Errorf("unknown project for bucket %q", bucket)
 	}
-	conf, err := google.JWTConfigFromJSON(jsonConf, storage.ScopeReadWrite)
-	if err != nil {
-		return nil, fmt.Errorf("reading JSON config from %s: %v", fileName, err)
-	}
-	return conf.TokenSource(oauth2.NoContext), nil
+	return auth.ProjectTokenSource(proj, storage.ScopeReadWrite)
 }

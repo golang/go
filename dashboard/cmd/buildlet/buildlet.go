@@ -18,6 +18,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -37,8 +38,9 @@ import (
 )
 
 var (
-	scratchDir = flag.String("scratchdir", "", "Temporary directory to use. The contents of this directory may be deleted at any time. If empty, TempDir is used to create one.")
-	listenAddr = flag.String("listen", defaultListenAddr(), "address to listen on. Warning: this service is inherently insecure and offers no protection of its own. Do not expose this port to the world.")
+	haltEntireOS = flag.Bool("halt", true, "halt OS in /halt handler. If false, the buildlet process just ends.")
+	scratchDir   = flag.String("scratchdir", "", "Temporary directory to use. The contents of this directory may be deleted at any time. If empty, TempDir is used to create one.")
+	listenAddr   = flag.String("listen", defaultListenAddr(), "address to listen on. Warning: this service is inherently insecure and offers no protection of its own. Do not expose this port to the world.")
 )
 
 func defaultListenAddr() string {
@@ -58,6 +60,8 @@ func defaultListenAddr() string {
 	}
 	return ":80"
 }
+
+var osHalt func() // set by some machines
 
 func main() {
 	flag.Parse()
@@ -87,8 +91,12 @@ func main() {
 	http.HandleFunc("/", handleRoot)
 
 	password := metadataValue("password")
-	http.Handle("/writetgz", requirePassword{http.HandlerFunc(handleWriteTGZ), password})
-	http.Handle("/exec", requirePassword{http.HandlerFunc(handleExec), password})
+	requireAuth := func(handler func(w http.ResponseWriter, r *http.Request)) http.Handler {
+		return requirePasswordHandler{http.HandlerFunc(handler), password}
+	}
+	http.Handle("/writetgz", requireAuth(handleWriteTGZ))
+	http.Handle("/exec", requireAuth(handleExec))
+	http.Handle("/halt", requireAuth(handleHalt))
 	// TODO: removeall
 
 	tlsCert, tlsKey := metadataValue("tls-cert"), metadataValue("tls-key")
@@ -293,6 +301,51 @@ func handleExec(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Run = %s", state)
 }
 
+func handleHalt(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "requires POST method", http.StatusBadRequest)
+		return
+	}
+	log.Printf("Halting in 1 second.")
+	// do the halt in 1 second, to give the HTTP response time to complete:
+	time.AfterFunc(1*time.Second, haltMachine)
+}
+
+func haltMachine() {
+	if !*haltEntireOS {
+		log.Printf("Ending buildlet process due to halt.")
+		os.Exit(0)
+		return
+	}
+	log.Printf("Halting machine.")
+	time.AfterFunc(5*time.Second, func() { os.Exit(0) })
+	if osHalt != nil {
+		// TODO: Windows: http://msdn.microsoft.com/en-us/library/windows/desktop/aa376868%28v=vs.85%29.aspx
+		osHalt()
+		os.Exit(0)
+	}
+	// Backup mechanism, if exec hangs for any reason:
+	var err error
+	switch runtime.GOOS {
+	case "openbsd":
+		// Quick, no fs flush, and power down:
+		err = exec.Command("halt", "-q", "-n", "-p").Run()
+	case "freebsd":
+		// Power off (-p), via halt (-o), now.
+		err = exec.Command("shutdown", "-p", "-o", "now").Run()
+	case "linux":
+		// Don't sync (-n), force without shutdown (-f), and power off (-p).
+		err = exec.Command("/bin/halt", "-n", "-f", "-p").Run()
+	case "plan9":
+		err = exec.Command("fshalt").Run()
+	default:
+		err = errors.New("No system-specific halt command run; will just end buildlet process.")
+	}
+	log.Printf("Shutdown: %v", err)
+	log.Printf("Ending buildlet process post-halt")
+	os.Exit(0)
+}
+
 // flushWriter is an io.Writer wrapper that writes to w and
 // Flushes the output immediately, if w is an http.Flusher.
 type flushWriter struct {
@@ -336,12 +389,12 @@ func badRequest(msg string) error {
 
 // requirePassword is an http.Handler auth wrapper that enforces a
 // HTTP Basic password. The username is ignored.
-type requirePassword struct {
+type requirePasswordHandler struct {
 	h        http.Handler
 	password string // empty means no password
 }
 
-func (h requirePassword) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h requirePasswordHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, gotPass, _ := r.BasicAuth()
 	if h.password != "" && h.password != gotPass {
 		http.Error(w, "invalid password", http.StatusForbidden)

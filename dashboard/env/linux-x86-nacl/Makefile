@@ -6,7 +6,7 @@ docker: Dockerfile
 	docker build -t gobuilders/linux-x86-nacl .
 
 upload: docker
-	docker save gobuilders/linux-x86-nacl | gzip | (cd ../../cmd/upload && go run upload.go --public go-builder-data/docker-linux.nacl.tar.gz)
+	docker save gobuilders/linux-x86-nacl | gzip | (cd ../../cmd/upload && go run --tags=extdep upload.go --public go-builder-data/docker-linux.nacl.tar.gz)
 
 check: docker
 	docker run gobuilders/linux-x86-nacl /usr/local/bin/builder -rev=77e96c9208d0 -buildroot=/ -v -cmd=/usr/local/bin/build-command.pl -report=false nacl-amd64p32

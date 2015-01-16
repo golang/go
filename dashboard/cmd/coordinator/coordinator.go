@@ -1113,7 +1113,7 @@ func hasComputeScope() bool {
 		return false
 	}
 	for _, v := range scopes {
-		if v == compute.DevstorageFull_controlScope {
+		if v == compute.ComputeScope {
 			return true
 		}
 	}

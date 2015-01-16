@@ -18,42 +18,44 @@ import (
 	"strings"
 )
 
-// KeyPair is the TLS public certificate PEM file and its associated
-// private key PEM file that a builder will use for its HTTPS
-// server. The zero value means no HTTPs, which is used by the
-// coordinator for machines running within a firewall.
-type KeyPair struct {
-	CertPEM string
-	KeyPEM  string
-}
-
-// NoKeyPair is used by the coordinator to speak http directly to buildlets,
-// inside their firewall, without TLS.
-var NoKeyPair = KeyPair{}
-
 // NewClient returns a *Client that will manipulate ipPort,
 // authenticated using the provided keypair.
 //
 // This constructor returns immediately without testing the host or auth.
-func NewClient(ipPort string, tls KeyPair) *Client {
+func NewClient(ipPort string, kp KeyPair) *Client {
 	return &Client{
-		ipPort: ipPort,
-		tls:    tls,
+		ipPort:   ipPort,
+		tls:      kp,
+		password: kp.Password(),
+		httpClient: &http.Client{
+			Transport: &http.Transport{
+				DialTLS: kp.tlsDialer(),
+			},
+		},
 	}
 }
 
 // A Client interacts with a single buildlet.
 type Client struct {
-	ipPort string
-	tls    KeyPair
+	ipPort     string
+	tls        KeyPair
+	password   string // basic auth password or empty for none
+	httpClient *http.Client
 }
 
 // URL returns the buildlet's URL prefix, without a trailing slash.
 func (c *Client) URL() string {
-	if c.tls != NoKeyPair {
-		return "http://" + strings.TrimSuffix(c.ipPort, ":80")
+	if !c.tls.IsZero() {
+		return "https://" + strings.TrimSuffix(c.ipPort, ":443")
 	}
-	return "https://" + strings.TrimSuffix(c.ipPort, ":443")
+	return "http://" + strings.TrimSuffix(c.ipPort, ":80")
+}
+
+func (c *Client) do(req *http.Request) (*http.Response, error) {
+	if c.password != "" {
+		req.SetBasicAuth("gomote", c.password)
+	}
+	return c.httpClient.Do(req)
 }
 
 // PutTarball writes files to the remote buildlet.
@@ -63,7 +65,7 @@ func (c *Client) PutTarball(r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	res, err := http.DefaultClient.Do(req)
+	res, err := c.do(req)
 	if err != nil {
 		return err
 	}
@@ -95,7 +97,15 @@ type ExecOpts struct {
 // seen to completition. If execErr is non-nil, the remoteErr is
 // meaningless.
 func (c *Client) Exec(cmd string, opts ExecOpts) (remoteErr, execErr error) {
-	res, err := http.PostForm(c.URL()+"/exec", url.Values{"cmd": {cmd}})
+	form := url.Values{
+		"cmd": {cmd},
+	}
+	req, err := http.NewRequest("POST", c.URL()+"/exec", strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	res, err := c.do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +138,24 @@ func (c *Client) Exec(cmd string, opts ExecOpts) (remoteErr, execErr error) {
 		return errors.New(state), nil
 	}
 	return nil, nil
+}
+
+// Destroy shuts down the buildlet, destroying all state immediately.
+func (c *Client) Destroy() error {
+	req, err := http.NewRequest("POST", c.URL()+"/halt", nil)
+	if err != nil {
+		return err
+	}
+	res, err := c.do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		slurp, _ := ioutil.ReadAll(io.LimitReader(res.Body, 4<<10))
+		return fmt.Errorf("buildlet: HTTP status %v: %s", res.Status, slurp)
+	}
+	return nil
 }
 
 func condRun(fn func()) {

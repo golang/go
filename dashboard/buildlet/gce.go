@@ -38,6 +38,7 @@ type VMOpts struct {
 	Meta map[string]string
 
 	// DeleteIn optionally specifies a duration at which
+
 	// to delete the VM.
 	DeleteIn time.Duration
 
@@ -102,18 +103,7 @@ func StartNewVM(ts oauth2.TokenSource, instName, builderType string, opts VMOpts
 			// The https-server is authenticated, though.
 			Items: []string{"https-server"},
 		},
-		Metadata: &compute.Metadata{
-			Items: []*compute.MetadataItems{
-				// The buildlet-binary-url is the URL of the buildlet binary
-				// which the VMs are configured to download at boot and run.
-				// This lets us/ update the buildlet more easily than
-				// rebuilding the whole VM image.
-				{
-					Key:   "buildlet-binary-url",
-					Value: "http://storage.googleapis.com/go-builder-data/buildlet." + conf.GOOS() + "-" + conf.GOARCH(),
-				},
-			},
-		},
+		Metadata: &compute.Metadata{},
 		NetworkInterfaces: []*compute.NetworkInterface{
 			&compute.NetworkInterface{
 				AccessConfigs: []*compute.AccessConfig{
@@ -126,6 +116,24 @@ func StartNewVM(ts oauth2.TokenSource, instName, builderType string, opts VMOpts
 			},
 		},
 	}
+	addMeta := func(key, value string) {
+		instance.Metadata.Items = append(instance.Metadata.Items, &compute.MetadataItems{
+			Key:   key,
+			Value: value,
+		})
+	}
+	// The buildlet-binary-url is the URL of the buildlet binary
+	// which the VMs are configured to download at boot and run.
+	// This lets us/ update the buildlet more easily than
+	// rebuilding the whole VM image.
+	addMeta("buildlet-binary-url",
+		"http://storage.googleapis.com/go-builder-data/buildlet."+conf.GOOS()+"-"+conf.GOARCH())
+	addMeta("builder-type", builderType)
+	if !opts.TLS.IsZero() {
+		addMeta("tls-cert", opts.TLS.CertPEM)
+		addMeta("tls-key", opts.TLS.KeyPEM)
+		addMeta("password", opts.TLS.Password())
+	}
 
 	if opts.DeleteIn != 0 {
 		// In case the VM gets away from us (generally: if the
@@ -134,16 +142,11 @@ func StartNewVM(ts oauth2.TokenSource, instName, builderType string, opts VMOpts
 		// we can kill it later when the coordinator is
 		// restarted. The cleanUpOldVMs goroutine loop handles
 		// that killing.
-		instance.Metadata.Items = append(instance.Metadata.Items, &compute.MetadataItems{
-			Key:   "delete-at",
-			Value: fmt.Sprint(time.Now().Add(opts.DeleteIn).Unix()),
-		})
+		addMeta("delete-at", fmt.Sprint(time.Now().Add(opts.DeleteIn).Unix()))
 	}
+
 	for k, v := range opts.Meta {
-		instance.Metadata.Items = append(instance.Metadata.Items, &compute.MetadataItems{
-			Key:   k,
-			Value: v,
-		})
+		addMeta(k, v)
 	}
 
 	op, err := computeService.Instances.Insert(projectID, zone, instance).Do()
@@ -183,26 +186,24 @@ OpLoop:
 		return nil, fmt.Errorf("Error getting instance %s details after creation: %v", instName, err)
 	}
 
-	// Find its internal IP.
-	var ip string
-	for _, iface := range inst.NetworkInterfaces {
-		if strings.HasPrefix(iface.NetworkIP, "10.") {
-			ip = iface.NetworkIP
-		}
-	}
-	if ip == "" {
-		return nil, errors.New("didn't find its internal IP address")
-	}
+	// Finds its internal and/or external IP addresses.
+	intIP, extIP := instanceIPs(inst)
 
 	// Wait for it to boot and its buildlet to come up.
 	var buildletURL string
 	var ipPort string
-	if opts.TLS != NoKeyPair {
-		buildletURL = "https://" + ip
-		ipPort = ip + ":443"
+	if !opts.TLS.IsZero() {
+		if extIP == "" {
+			return nil, errors.New("didn't find its external IP address")
+		}
+		buildletURL = "https://" + extIP
+		ipPort = extIP + ":443"
 	} else {
-		buildletURL = "http://" + ip
-		ipPort = ip + ":80"
+		if intIP == "" {
+			return nil, errors.New("didn't find its internal IP address")
+		}
+		buildletURL = "http://" + intIP
+		ipPort = intIP + ":80"
 	}
 	condRun(opts.OnGotInstanceInfo)
 
@@ -237,4 +238,78 @@ OpLoop:
 	}
 
 	return NewClient(ipPort, opts.TLS), nil
+}
+
+// DestroyVM sends a request to delete a VM. Actual VM description is
+// currently (2015-01-19) very slow for no good reason. This function
+// returns once it's been requested, not when it's done.
+func DestroyVM(ts oauth2.TokenSource, proj, zone, instance string) error {
+	computeService, _ := compute.New(oauth2.NewClient(oauth2.NoContext, ts))
+	_, err := computeService.Instances.Delete(proj, zone, instance).Do()
+	return err
+}
+
+type VM struct {
+	// Name is the name of the GCE VM instance.
+	// For example, it's of the form "mote-bradfitz-plan9-386-foo",
+	// and not "plan9-386-foo".
+	Name   string
+	IPPort string
+	TLS    KeyPair
+	Type   string
+}
+
+// ListVMs lists all VMs.
+func ListVMs(ts oauth2.TokenSource, proj, zone string) ([]VM, error) {
+	var vms []VM
+	computeService, _ := compute.New(oauth2.NewClient(oauth2.NoContext, ts))
+
+	// TODO(bradfitz): paging over results if more than 500
+	list, err := computeService.Instances.List(proj, zone).Do()
+	if err != nil {
+		return nil, err
+	}
+	for _, inst := range list.Items {
+		if inst.Metadata == nil {
+			// Defensive. Not seen in practice.
+			continue
+		}
+		meta := map[string]string{}
+		for _, it := range inst.Metadata.Items {
+			meta[it.Key] = it.Value
+		}
+		builderType := meta["builder-type"]
+		if builderType == "" {
+			continue
+		}
+		vm := VM{
+			Name: inst.Name,
+			Type: builderType,
+			TLS: KeyPair{
+				CertPEM: meta["tls-cert"],
+				KeyPEM:  meta["tls-key"],
+			},
+		}
+		_, extIP := instanceIPs(inst)
+		if extIP == "" || vm.TLS.IsZero() {
+			continue
+		}
+		vm.IPPort = extIP + ":443"
+		vms = append(vms, vm)
+	}
+	return vms, nil
+}
+
+func instanceIPs(inst *compute.Instance) (intIP, extIP string) {
+	for _, iface := range inst.NetworkInterfaces {
+		if strings.HasPrefix(iface.NetworkIP, "10.") {
+			intIP = iface.NetworkIP
+		}
+		for _, accessConfig := range iface.AccessConfigs {
+			if accessConfig.Type == "ONE_TO_ONE_NAT" {
+				extIP = accessConfig.NatIP
+			}
+		}
+	}
+	return
 }
