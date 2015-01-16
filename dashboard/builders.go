@@ -36,6 +36,17 @@ type BuildConfig struct {
 	tool    string   // the tool this configuration is for
 }
 
+func (c *BuildConfig) GOOS() string { return c.Name[:strings.Index(c.Name, "-")] }
+
+func (c *BuildConfig) GOARCH() string {
+	arch := c.Name[strings.Index(c.Name, "-")+1:]
+	i := strings.Index(arch, "-")
+	if i == -1 {
+		return arch
+	}
+	return arch[:i]
+}
+
 func (c *BuildConfig) UsesDocker() bool { return c.VMImage == "" }
 func (c *BuildConfig) UsesVM() bool     { return c.VMImage != "" }
 

@@ -27,7 +27,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,6 +36,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/tools/dashboard"
+	"golang.org/x/tools/dashboard/buildlet"
 	"golang.org/x/tools/dashboard/types"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/cloud/compute/metadata"
@@ -80,6 +80,7 @@ var (
 	projectZone    string
 	computeService *compute.Service
 	externalIP     string
+	tokenSource    oauth2.TokenSource
 )
 
 func initGCE() error {
@@ -105,8 +106,8 @@ func initGCE() error {
 	if err != nil {
 		return fmt.Errorf("ExternalIP: %v", err)
 	}
-	ts := google.ComputeTokenSource("default")
-	computeService, _ = compute.New(oauth2.NewClient(oauth2.NoContext, ts))
+	tokenSource = google.ComputeTokenSource("default")
+	computeService, _ = compute.New(oauth2.NewClient(oauth2.NoContext, tokenSource))
 	return nil
 }
 
@@ -669,8 +670,6 @@ func startBuildingInDocker(conf dashboard.BuildConfig, rev string) (*buildStatus
 	return st, nil
 }
 
-var osArchRx = regexp.MustCompile(`^(\w+-\w+)`)
-
 func randHex(n int) string {
 	buf := make([]byte, n/2)
 	_, err := rand.Read(buf)
@@ -687,95 +686,22 @@ func startBuildingInVM(conf dashboard.BuildConfig, rev string) (*buildStatus, er
 		name: conf.Name,
 		rev:  rev,
 	}
-	st := &buildStatus{
-		builderRev: brev,
-		start:      time.Now(),
-	}
-
 	// name is the project-wide unique name of the GCE instance. It can't be longer
 	// than 61 bytes, so we only use the first 8 bytes of the rev.
 	name := "buildlet-" + conf.Name + "-" + rev[:8] + "-rn" + randHex(6)
 
-	// buildletURL is the URL of the buildlet binary which the VMs
-	// are configured to download at boot and run. This lets us
-	// update the buildlet more easily than rebuilding the whole
-	// VM image. We put this URL in a well-known GCE metadata attribute.
-	// The value will be of the form:
-	//  http://storage.googleapis.com/go-builder-data/buildlet.GOOS-GOARCH
-	m := osArchRx.FindStringSubmatch(conf.Name)
-	if m == nil {
-		return nil, fmt.Errorf("invalid builder name %q", conf.Name)
+	st := &buildStatus{
+		builderRev: brev,
+		start:      time.Now(),
+		instName:   name,
 	}
-	buildletURL := "http://storage.googleapis.com/go-builder-data/buildlet." + m[1]
 
-	prefix := "https://www.googleapis.com/compute/v1/projects/" + projectID
-	machType := prefix + "/zones/" + projectZone + "/machineTypes/" + conf.MachineType()
-
-	instance := &compute.Instance{
-		Name:        name,
-		Description: fmt.Sprintf("Go Builder building %s %s", conf.Name, rev),
-		MachineType: machType,
-		Disks: []*compute.AttachedDisk{
-			{
-				AutoDelete: true,
-				Boot:       true,
-				Type:       "PERSISTENT",
-				InitializeParams: &compute.AttachedDiskInitializeParams{
-					DiskName:    name,
-					SourceImage: "https://www.googleapis.com/compute/v1/projects/" + projectID + "/global/images/" + conf.VMImage,
-					DiskType:    "https://www.googleapis.com/compute/v1/projects/" + projectID + "/zones/" + projectZone + "/diskTypes/pd-ssd",
-				},
-			},
-		},
-		Tags: &compute.Tags{
-			// Warning: do NOT list "http-server" or "allow-ssh" (our
-			// project's custom tag to allow ssh access) here; the
-			// buildlet provides full remote code execution.
-			Items: []string{},
-		},
-		Metadata: &compute.Metadata{
-			Items: []*compute.MetadataItems{
-				{
-					Key:   "buildlet-binary-url",
-					Value: buildletURL,
-				},
-				// In case the VM gets away from us (generally: if the
-				// coordinator dies while a build is running), then we
-				// set this attribute of when it should be killed so
-				// we can kill it later when the coordinator is
-				// restarted. The cleanUpOldVMs goroutine loop handles
-				// that killing.
-				{
-					Key:   "delete-at",
-					Value: fmt.Sprint(time.Now().Add(vmDeleteTimeout).Unix()),
-				},
-			},
-		},
-		NetworkInterfaces: []*compute.NetworkInterface{
-			&compute.NetworkInterface{
-				AccessConfigs: []*compute.AccessConfig{
-					&compute.AccessConfig{
-						Type: "ONE_TO_ONE_NAT",
-						Name: "External NAT",
-					},
-				},
-				Network: prefix + "/global/networks/default",
-			},
-		},
-	}
-	op, err := computeService.Instances.Insert(projectID, projectZone, instance).Do()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create instance: %v", err)
-	}
-	st.createOp = op.Name
-	st.instName = name
-	log.Printf("%v now building in VM %v", brev, st.instName)
-	// Start the goroutine to monitor the VM now that it's booting. This might
-	// take minutes for it to come up, and then even more time to do the build.
 	go func() {
-		err := watchVM(st)
-		if st.hasEvent("instance_created") {
-			deleteVM(projectZone, st.instName)
+		err := buildInVM(conf, st)
+		if err != nil {
+			if st.hasEvent("instance_created") {
+				go deleteVM(projectZone, st.instName)
+			}
 		}
 		st.setDone(err == nil)
 		if err != nil {
@@ -786,8 +712,27 @@ func startBuildingInVM(conf dashboard.BuildConfig, rev string) (*buildStatus, er
 	return st, nil
 }
 
-// watchVM monitors a VM doing a build.
-func watchVM(st *buildStatus) (retErr error) {
+func buildInVM(conf dashboard.BuildConfig, st *buildStatus) (retErr error) {
+	bc, err := buildlet.StartNewVM(tokenSource, st.instName, conf.Name, buildlet.VMOpts{
+		ProjectID:   projectID,
+		Zone:        projectZone,
+		Description: fmt.Sprintf("Go Builder building %s %s", conf.Name, st.rev),
+		DeleteIn:    vmDeleteTimeout,
+		OnInstanceRequested: func() {
+			st.logEventTime("instance_create_requested")
+			log.Printf("%v now booting VM %v for build", st.builderRev, st.instName)
+		},
+		OnInstanceCreated: func() {
+			st.logEventTime("instance_created")
+		},
+		OnGotInstanceInfo: func() {
+			st.logEventTime("waiting_for_buildlet")
+		},
+	})
+	if err != nil {
+		return err
+	}
+	st.logEventTime("buildlet_up")
 	goodRes := func(res *http.Response, err error, what string) bool {
 		if err != nil {
 			retErr = fmt.Errorf("%s: %v", what, err)
@@ -802,82 +747,11 @@ func watchVM(st *buildStatus) (retErr error) {
 		}
 		return true
 	}
-	st.logEventTime("instance_create_requested")
-	// Wait for instance create operation to succeed.
-OpLoop:
-	for {
-		time.Sleep(2 * time.Second)
-		op, err := computeService.ZoneOperations.Get(projectID, projectZone, st.createOp).Do()
-		if err != nil {
-			return fmt.Errorf("Failed to get op %s: %v", st.createOp, err)
-		}
-		switch op.Status {
-		case "PENDING", "RUNNING":
-			continue
-		case "DONE":
-			if op.Error != nil {
-				for _, operr := range op.Error.Errors {
-					return fmt.Errorf("Error creating instance: %+v", operr)
-				}
-				return errors.New("Failed to start.")
-			}
-			break OpLoop
-		default:
-			log.Fatalf("Unknown status %q: %+v", op.Status, op)
-		}
-	}
-	st.logEventTime("instance_created")
-
-	inst, err := computeService.Instances.Get(projectID, projectZone, st.instName).Do()
-	if err != nil {
-		return fmt.Errorf("Error getting instance %s details after creation: %v", st.instName, err)
-	}
-	st.logEventTime("got_instance_info")
-
-	// Find its internal IP.
-	var ip string
-	for _, iface := range inst.NetworkInterfaces {
-		if strings.HasPrefix(iface.NetworkIP, "10.") {
-			ip = iface.NetworkIP
-		}
-	}
-	if ip == "" {
-		return errors.New("didn't find its internal IP address")
-	}
-
-	// Wait for it to boot and its buildlet to come up on port 80.
-	st.logEventTime("waiting_for_buildlet")
-	buildletURL := "http://" + ip
-	const numTries = 60
-	var alive bool
-	impatientClient := &http.Client{Timeout: 2 * time.Second}
-	for i := 1; i <= numTries; i++ {
-		res, err := impatientClient.Get(buildletURL)
-		if err != nil {
-			time.Sleep(1 * time.Second)
-			continue
-		}
-		res.Body.Close()
-		if res.StatusCode != 200 {
-			return fmt.Errorf("buildlet returned HTTP status code %d on try number %d", res.StatusCode, i)
-		}
-		st.logEventTime("buildlet_up")
-		alive = true
-		break
-	}
-	if !alive {
-		return fmt.Errorf("buildlet didn't come up in %d seconds", numTries)
-	}
 
 	// Write the VERSION file.
 	st.logEventTime("start_write_version_tar")
-	verReq, err := http.NewRequest("PUT", buildletURL+"/writetgz", versionTgz(st.rev))
-	if err != nil {
-		return err
-	}
-	verRes, err := http.DefaultClient.Do(verReq)
-	if !goodRes(verRes, err, "writing VERSION tgz") {
-		return
+	if err := bc.PutTarball(versionTgz(st.rev)); err != nil {
+		return fmt.Errorf("writing VERSION tgz: %v", err)
 	}
 
 	// Feed the buildlet a tar file for it to extract.
@@ -889,18 +763,13 @@ OpLoop:
 	}
 
 	st.logEventTime("start_write_tar")
-	putReq, err := http.NewRequest("PUT", buildletURL+"/writetgz", tarRes.Body)
-	if err != nil {
+	if err := bc.PutTarball(tarRes.Body); err != nil {
 		tarRes.Body.Close()
-		return err
+		return fmt.Errorf("writing tarball from Gerrit: %v", err)
 	}
-	putRes, err := http.DefaultClient.Do(putReq)
 	st.logEventTime("end_write_tar")
-	tarRes.Body.Close()
-	if !goodRes(putRes, err, "writing tarball to buildlet") {
-		return
-	}
 
+	// TODO(bradfitz): add an Exec method to buildlet.Client and update this code.
 	// Run the builder
 	cmd := "all.bash"
 	if strings.HasPrefix(st.name, "windows-") {
@@ -910,7 +779,7 @@ OpLoop:
 	}
 	execStartTime := time.Now()
 	st.logEventTime("start_exec")
-	res, err := http.PostForm(buildletURL+"/exec", url.Values{"cmd": {"src/" + cmd}})
+	res, err := http.PostForm(bc.URL()+"/exec", url.Values{"cmd": {"src/" + cmd}})
 	if !goodRes(res, err, "running "+cmd) {
 		return
 	}
@@ -958,7 +827,6 @@ type buildStatus struct {
 	container string // container ID for docker, else it's a VM
 
 	// Immutable, used by VM only:
-	createOp string // Instances.Insert operation name
 	instName string
 
 	mu        sync.Mutex   // guards following
