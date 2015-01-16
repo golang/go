@@ -477,7 +477,7 @@ func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, error) {
 	}
 
 	// determine mantissa
-	z.abs, base, err = z.abs.scan(r, base)
+	z.abs, base, _, err = z.abs.scan(r, base)
 	if err != nil {
 		return nil, base, err
 	}
