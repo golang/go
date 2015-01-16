@@ -12,8 +12,6 @@
 
 package runtime
 
-import "unsafe"
-
 // Initialize a single central free list.
 func mCentral_Init(c *mcentral, sizeclass int32) {
 	c.sizeclass = sizeclass
@@ -167,7 +165,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 	s.needzero = 1
 	s.freelist = 0
 	unlock(&c.lock)
-	unmarkspan(uintptr(s.start)<<_PageShift, s.npages<<_PageShift)
+	heapBitsForSpan(s.base()).clearSpan(s.layout())
 	mHeap_Free(&mheap_, s, 0)
 	return true
 }
@@ -198,6 +196,6 @@ func mCentral_Grow(c *mcentral) *mspan {
 	}
 	tail.ptr().next = 0
 	s.freelist = head
-	markspan(unsafe.Pointer(uintptr(s.start)<<_PageShift), size, n, size*n < s.npages<<_PageShift)
+	heapBitsForSpan(s.base()).initSpan(s.layout())
 	return s
 }

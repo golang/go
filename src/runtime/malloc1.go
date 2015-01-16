@@ -350,8 +350,6 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
 		throw("out of memory")
 	}
 	s.limit = uintptr(s.start)<<_PageShift + size
-	v := unsafe.Pointer(uintptr(s.start) << _PageShift)
-	// setup for mark sweep
-	markspan(v, 0, 0, true)
+	heapBitsForSpan(s.base()).initSpan(s.layout())
 	return s
 }

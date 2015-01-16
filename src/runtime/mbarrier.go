@@ -211,11 +211,11 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	}
 
 	systemstack(func() {
-		mask := loadPtrMask(typ)
+		mask := typeBitmapInHeapBitmapFormat(typ)
 		nptr := typ.size / ptrSize
 		for i := uintptr(0); i < nptr; i += 2 {
 			bits := mask[i/2]
-			if (bits>>2)&_BitsMask == _BitsPointer {
+			if (bits>>2)&typeMask == typePointer {
 				writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
 			} else {
 				*(*uintptr)(dst) = *(*uintptr)(src)
@@ -227,7 +227,7 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 				break
 			}
 			bits >>= 4
-			if (bits>>2)&_BitsMask == _BitsPointer {
+			if (bits>>2)&typeMask == typePointer {
 				writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
 			} else {
 				*(*uintptr)(dst) = *(*uintptr)(src)
@@ -262,11 +262,11 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 		off += frag
 	}
 
-	mask := loadPtrMask(typ)
+	mask := typeBitmapInHeapBitmapFormat(typ)
 	nptr := (off + size) / ptrSize
 	for i := uintptr(off / ptrSize); i < nptr; i++ {
 		bits := mask[i/2] >> ((i & 1) << 2)
-		if (bits>>2)&_BitsMask == _BitsPointer {
+		if (bits>>2)&typeMask == typePointer {
 			writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
 		} else {
 			*(*uintptr)(dst) = *(*uintptr)(src)
@@ -295,14 +295,14 @@ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uin
 	}
 
 	systemstack(func() {
-		mask := loadPtrMask(typ)
+		mask := typeBitmapInHeapBitmapFormat(typ)
 		// retoffset is known to be pointer-aligned (at least).
 		// TODO(rsc): The noescape call should be unnecessary.
 		dst := add(noescape(frame), retoffset)
 		nptr := framesize / ptrSize
 		for i := uintptr(retoffset / ptrSize); i < nptr; i++ {
 			bits := mask[i/2] >> ((i & 1) << 2)
-			if (bits>>2)&_BitsMask == _BitsPointer {
+			if (bits>>2)&typeMask == typePointer {
 				writebarrierptr_nostore((*uintptr)(dst), *(*uintptr)(dst))
 			}
 			// TODO(rsc): The noescape call should be unnecessary.

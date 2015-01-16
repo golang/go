@@ -50,7 +50,7 @@ func TestGCInfo(t *testing.T) {
 func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
 	mask := runtime.GCMask(p)
 	if len(mask) > len(mask0) {
-		mask0 = append(mask0, BitsDead)
+		mask0 = append(mask0, typeDead)
 		mask = mask[:len(mask0)]
 	}
 	if bytes.Compare(mask, mask0) != 0 {
@@ -60,11 +60,11 @@ func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
 }
 
 func nonStackInfo(mask []byte) []byte {
-	// BitsDead is replaced with BitsScalar everywhere except stacks.
+	// typeDead is replaced with typeScalar everywhere except stacks.
 	mask1 := make([]byte, len(mask))
 	for i, v := range mask {
-		if v == BitsDead {
-			v = BitsScalar
+		if v == typeDead {
+			v = typeScalar
 		}
 		mask1[i] = v
 	}
@@ -79,9 +79,9 @@ func escape(p interface{}) interface{} {
 }
 
 const (
-	BitsDead = iota
-	BitsScalar
-	BitsPointer
+	typeDead = iota
+	typeScalar
+	typePointer
 )
 
 const (
@@ -100,7 +100,7 @@ type ScalarPtr struct {
 	y *int
 }
 
-var infoScalarPtr = []byte{BitsScalar, BitsPointer, BitsScalar, BitsPointer, BitsScalar, BitsPointer}
+var infoScalarPtr = []byte{typeScalar, typePointer, typeScalar, typePointer, typeScalar, typePointer}
 
 type PtrScalar struct {
 	q *int
@@ -111,7 +111,7 @@ type PtrScalar struct {
 	y int
 }
 
-var infoPtrScalar = []byte{BitsPointer, BitsScalar, BitsPointer, BitsScalar, BitsPointer, BitsScalar}
+var infoPtrScalar = []byte{typePointer, typeScalar, typePointer, typeScalar, typePointer, typeScalar}
 
 type BigStruct struct {
 	q *int
@@ -128,27 +128,27 @@ func infoBigStruct() []byte {
 	switch runtime.GOARCH {
 	case "386", "arm":
 		return []byte{
-			BitsPointer,                                                // q *int
-			BitsScalar, BitsScalar, BitsScalar, BitsScalar, BitsScalar, // w byte; e [17]byte
-			BitsPointer, BitsDead, BitsDead, // r []byte
-			BitsScalar, BitsScalar, BitsScalar, BitsScalar, // t int; y uint16; u uint64
-			BitsPointer, BitsDead, // i string
+			typePointer,                                                // q *int
+			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+			typePointer, typeDead, typeDead, // r []byte
+			typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
+			typePointer, typeDead, // i string
 		}
 	case "amd64", "ppc64", "ppc64le":
 		return []byte{
-			BitsPointer,                        // q *int
-			BitsScalar, BitsScalar, BitsScalar, // w byte; e [17]byte
-			BitsPointer, BitsDead, BitsDead, // r []byte
-			BitsScalar, BitsScalar, BitsScalar, // t int; y uint16; u uint64
-			BitsPointer, BitsDead, // i string
+			typePointer,                        // q *int
+			typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+			typePointer, typeDead, typeDead, // r []byte
+			typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
+			typePointer, typeDead, // i string
 		}
 	case "amd64p32":
 		return []byte{
-			BitsPointer,                                                // q *int
-			BitsScalar, BitsScalar, BitsScalar, BitsScalar, BitsScalar, // w byte; e [17]byte
-			BitsPointer, BitsDead, BitsDead, // r []byte
-			BitsScalar, BitsScalar, BitsDead, BitsScalar, BitsScalar, // t int; y uint16; u uint64
-			BitsPointer, BitsDead, // i string
+			typePointer,                                                // q *int
+			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+			typePointer, typeDead, typeDead, // r []byte
+			typeScalar, typeScalar, typeDead, typeScalar, typeScalar, // t int; y uint16; u uint64
+			typePointer, typeDead, // i string
 		}
 	default:
 		panic("unknown arch")
@@ -183,8 +183,8 @@ var (
 	dataEface     interface{} = 42
 	dataIface     Iface       = IfaceImpl(42)
 
-	infoString = []byte{BitsPointer, BitsDead}
-	infoSlice  = []byte{BitsPointer, BitsDead, BitsDead}
-	infoEface  = []byte{BitsPointer, BitsPointer}
-	infoIface  = []byte{BitsPointer, BitsPointer}
+	infoString = []byte{typePointer, typeDead}
+	infoSlice  = []byte{typePointer, typeDead, typeDead}
+	infoEface  = []byte{typePointer, typePointer}
+	infoIface  = []byte{typePointer, typePointer}
 )
