@@ -47,6 +47,21 @@ func (c *BuildConfig) GOARCH() string {
 	return arch[:i]
 }
 
+// AllScript returns the relative path to the operating system's script to
+// do the build and run its standard set of tests.
+// Example values are "src/all.bash", "src/all.bat", "src/all.rc".
+func (c *BuildConfig) AllScript() string {
+	if strings.HasPrefix(c.Name, "windows-") {
+		return "src/all.bat"
+	}
+	if strings.HasPrefix(c.Name, "plan9-") {
+		return "src/all.rc"
+	}
+	// TODO(bradfitz): race.bash, etc, once the race builder runs
+	// via the buildlet.
+	return "src/all.bash"
+}
+
 func (c *BuildConfig) UsesDocker() bool { return c.VMImage == "" }
 func (c *BuildConfig) UsesVM() bool     { return c.VMImage != "" }
 

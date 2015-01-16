@@ -769,47 +769,29 @@ func buildInVM(conf dashboard.BuildConfig, st *buildStatus) (retErr error) {
 	}
 	st.logEventTime("end_write_tar")
 
-	// TODO(bradfitz): add an Exec method to buildlet.Client and update this code.
-	// Run the builder
-	cmd := "all.bash"
-	if strings.HasPrefix(st.name, "windows-") {
-		cmd = "all.bat"
-	} else if strings.HasPrefix(st.name, "plan9-") {
-		cmd = "all.rc"
-	}
 	execStartTime := time.Now()
-	st.logEventTime("start_exec")
-	res, err := http.PostForm(bc.URL()+"/exec", url.Values{"cmd": {"src/" + cmd}})
-	if !goodRes(res, err, "running "+cmd) {
-		return
-	}
-	defer res.Body.Close()
-	st.logEventTime("running_exec")
-	// Stream the output:
-	if _, err := io.Copy(st, res.Body); err != nil {
-		return fmt.Errorf("error copying response: %v", err)
+	st.logEventTime("pre_exec")
+
+	remoteErr, err := bc.Exec(conf.AllScript(), buildlet.ExecOpts{
+		Output:      st,
+		OnStartExec: func() { st.logEventTime("running_exec") },
+	})
+	if err != nil {
+		return err
 	}
 	st.logEventTime("done")
-
-	// Don't record to the dashboard unless we heard the trailer from
-	// the buildlet, otherwise it was probably some unrelated error
-	// (like the VM being killed, or the buildlet crashing due to
-	// e.g. https://golang.org/issue/9309, since we require a tip
-	// build of the buildlet to get Trailers support)
-	state := res.Trailer.Get("Process-State")
-	if state == "" {
-		return errors.New("missing Process-State trailer from HTTP response; buildlet built with old (<= 1.4) Go?")
-	}
-
 	var log string
-	if state != "ok" {
+	if remoteErr != nil {
 		log = st.logs()
 	}
-	if err := recordResult(st.name, state == "ok", st.rev, log, time.Since(execStartTime)); err != nil {
-		return fmt.Errorf("Status was %q but failed to report it to the dashboard: %v", state, err)
+	if err := recordResult(st.name, remoteErr == nil, st.rev, log, time.Since(execStartTime)); err != nil {
+		if remoteErr != nil {
+			return fmt.Errorf("Remote error was %q but failed to report it to the dashboard: %v", remoteErr, err)
+		}
+		return fmt.Errorf("Build succeeded but failed to report it to the dashboard: %v", err)
 	}
-	if state != "ok" {
-		return fmt.Errorf("%s failed: %v", cmd, state)
+	if remoteErr != nil {
+		return fmt.Errorf("%s failed: %v", conf.AllScript(), remoteErr)
 	}
 	return nil
 }
@@ -1081,10 +1063,6 @@ func cleanZoneVMs(zone string) error {
 		return fmt.Errorf("listing instances: %v", err)
 	}
 	for _, inst := range list.Items {
-		if !strings.HasPrefix(inst.Name, "buildlet-") {
-			// We only delete ones we created.
-			continue
-		}
 		if inst.Metadata == nil {
 			// Defensive. Not seen in practice.
 			continue
@@ -1103,7 +1081,12 @@ func cleanZoneVMs(zone string) error {
 				}
 			}
 		}
-		if sawDeleteAt && !vmIsBuilding(inst.Name) {
+		// Delete buildlets (things we made) from previous
+		// generations.  Thenaming restriction (buildlet-*)
+		// prevents us from deleting buildlet VMs used by
+		// Gophers for interactive development & debugging
+		// (non-builder users); those are named "mote-*".
+		if sawDeleteAt && strings.HasPrefix(inst.Name, "buildlet-") && !vmIsBuilding(inst.Name) {
 			log.Printf("Deleting VM %q in zone %q from an earlier coordinator generation ...", inst.Name, zone)
 			deleteVM(zone, inst.Name)
 		}

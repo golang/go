@@ -19,6 +19,7 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
+// VMOpts control how new VMs are started.
 type VMOpts struct {
 	// Zone is the GCE zone to create the VM in. Required.
 	Zone string
@@ -149,9 +150,7 @@ func StartNewVM(ts oauth2.TokenSource, instName, builderType string, opts VMOpts
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create instance: %v", err)
 	}
-	if fn := opts.OnInstanceRequested; fn != nil {
-		fn()
-	}
+	condRun(opts.OnInstanceRequested)
 	createOp := op.Name
 
 	// Wait for instance create operation to succeed.
@@ -177,9 +176,7 @@ OpLoop:
 			return nil, fmt.Errorf("Unknown create status %q: %+v", op.Status, op)
 		}
 	}
-	if fn := opts.OnInstanceCreated; fn != nil {
-		fn()
-	}
+	condRun(opts.OnInstanceCreated)
 
 	inst, err := computeService.Instances.Get(projectID, zone, instName).Do()
 	if err != nil {
@@ -207,9 +204,7 @@ OpLoop:
 		buildletURL = "http://" + ip
 		ipPort = ip + ":80"
 	}
-	if fn := opts.OnGotInstanceInfo; fn != nil {
-		fn()
-	}
+	condRun(opts.OnGotInstanceInfo)
 
 	const timeout = 90 * time.Second
 	var alive bool
