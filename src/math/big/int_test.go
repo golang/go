@@ -621,7 +621,7 @@ func TestDivisionSigns(t *testing.T) {
 	}
 }
 
-var bitTests = []nat{
+var bitsTests = []nat{
 	nil,
 	{0},
 	{1},
@@ -639,7 +639,7 @@ func norm(x nat) nat {
 }
 
 func TestBits(t *testing.T) {
-	for _, test := range bitTests {
+	for _, test := range bitsTests {
 		var z Int
 		z.neg = true
 		got := z.SetBits(test)

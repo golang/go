@@ -549,7 +549,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		}
 		s = s[sep+1:]
 		var err error
-		if z.b.abs, _, err = z.b.abs.scan(strings.NewReader(s), 10); err != nil {
+		if z.b.abs, _, _, err = z.b.abs.scan(strings.NewReader(s), 10); err != nil {
 			return nil, false
 		}
 		if len(z.b.abs) == 0 {

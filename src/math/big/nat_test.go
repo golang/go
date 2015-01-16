@@ -88,7 +88,7 @@ var prodNN = []argNN{
 }
 
 func natFromString(s string) nat {
-	x, _, err := nat(nil).scan(strings.NewReader(s), 0)
+	x, _, _, err := nat(nil).scan(strings.NewReader(s), 0)
 	if err != nil {
 		panic(err)
 	}
@@ -271,7 +271,7 @@ func TestString(t *testing.T) {
 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
 		}
 
-		x, b, err := nat(nil).scan(strings.NewReader(a.s), len(a.c))
+		x, b, _, err := nat(nil).scan(strings.NewReader(a.s), len(a.c))
 		if x.cmp(a.x) != 0 {
 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
 		}
@@ -285,16 +285,16 @@ func TestString(t *testing.T) {
 }
 
 var natScanTests = []struct {
-	s    string // string to be scanned
-	base int    // input base
-	x    nat    // expected nat
-	b    int    // expected base
-	ok   bool   // expected success
-	next rune   // next character (or 0, if at EOF)
+	s     string // string to be scanned
+	base  int    // input base
+	x     nat    // expected nat
+	b     int    // expected base
+	count int    // expected digit count
+	ok    bool   // expected success
+	next  rune   // next character (or 0, if at EOF)
 }{
 	// error: illegal base
 	{base: -1},
-	{base: 1},
 	{base: 37},
 
 	// error: no mantissa
@@ -306,31 +306,46 @@ var natScanTests = []struct {
 	{s: "0x"},
 	{s: "345", base: 2},
 
+	// error: incorrect use of decimal point
+	{s: ".0"},
+	{s: ".0", base: 10},
+	{s: ".", base: 1},
+	{s: "0x.0"},
+
 	// no errors
-	{"0", 0, nil, 10, true, 0},
-	{"0", 10, nil, 10, true, 0},
-	{"0", 36, nil, 36, true, 0},
-	{"1", 0, nat{1}, 10, true, 0},
-	{"1", 10, nat{1}, 10, true, 0},
-	{"0 ", 0, nil, 10, true, ' '},
-	{"08", 0, nil, 10, true, '8'},
-	{"018", 0, nat{1}, 8, true, '8'},
-	{"0b1", 0, nat{1}, 2, true, 0},
-	{"0b11000101", 0, nat{0xc5}, 2, true, 0},
-	{"03271", 0, nat{03271}, 8, true, 0},
-	{"10ab", 0, nat{10}, 10, true, 'a'},
-	{"1234567890", 0, nat{1234567890}, 10, true, 0},
-	{"xyz", 36, nat{(33*36+34)*36 + 35}, 36, true, 0},
-	{"xyz?", 36, nat{(33*36+34)*36 + 35}, 36, true, '?'},
-	{"0x", 16, nil, 16, true, 'x'},
-	{"0xdeadbeef", 0, nat{0xdeadbeef}, 16, true, 0},
-	{"0XDEADBEEF", 0, nat{0xdeadbeef}, 16, true, 0},
+	{"0", 0, nil, 10, 1, true, 0},
+	{"0", 10, nil, 10, 1, true, 0},
+	{"0", 36, nil, 36, 1, true, 0},
+	{"1", 0, nat{1}, 10, 1, true, 0},
+	{"1", 10, nat{1}, 10, 1, true, 0},
+	{"0 ", 0, nil, 10, 1, true, ' '},
+	{"08", 0, nil, 10, 1, true, '8'},
+	{"08", 10, nat{8}, 10, 2, true, 0},
+	{"018", 0, nat{1}, 8, 1, true, '8'},
+	{"0b1", 0, nat{1}, 2, 1, true, 0},
+	{"0b11000101", 0, nat{0xc5}, 2, 8, true, 0},
+	{"03271", 0, nat{03271}, 8, 4, true, 0},
+	{"10ab", 0, nat{10}, 10, 2, true, 'a'},
+	{"1234567890", 0, nat{1234567890}, 10, 10, true, 0},
+	{"xyz", 36, nat{(33*36+34)*36 + 35}, 36, 3, true, 0},
+	{"xyz?", 36, nat{(33*36+34)*36 + 35}, 36, 3, true, '?'},
+	{"0x", 16, nil, 16, 1, true, 'x'},
+	{"0xdeadbeef", 0, nat{0xdeadbeef}, 16, 8, true, 0},
+	{"0XDEADBEEF", 0, nat{0xdeadbeef}, 16, 8, true, 0},
+
+	// no errors, decimal point
+	{"0.", 0, nil, 10, 1, true, '.'},
+	{"0.", 1, nil, 10, 0, true, 0},
+	{"0.1.2", 1, nat{1}, 10, -1, true, '.'},
+	{".000", 1, nil, 10, -3, true, 0},
+	{"12.3", 1, nat{123}, 10, -1, true, 0},
+	{"012.345", 1, nat{12345}, 10, -3, true, 0},
 }
 
 func TestScanBase(t *testing.T) {
 	for _, a := range natScanTests {
 		r := strings.NewReader(a.s)
-		x, b, err := nat(nil).scan(r, a.base)
+		x, b, count, err := nat(nil).scan(r, a.base)
 		if err == nil && !a.ok {
 			t.Errorf("scan%+v\n\texpected error", a)
 		}
@@ -345,6 +360,9 @@ func TestScanBase(t *testing.T) {
 		}
 		if b != a.b {
 			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, a.base)
+		}
+		if count != a.count {
+			t.Errorf("scan%+v\n\tgot count = %d; want %d", a, count, a.count)
 		}
 		next, _, err := r.ReadRune()
 		if err == io.EOF {
@@ -413,7 +431,7 @@ var pi = "3" +
 // Test case for BenchmarkScanPi.
 func TestScanPi(t *testing.T) {
 	var x nat
-	z, _, err := x.scan(strings.NewReader(pi), 10)
+	z, _, _, err := x.scan(strings.NewReader(pi), 10)
 	if err != nil {
 		t.Errorf("scanning pi: %s", err)
 	}
@@ -445,7 +463,7 @@ func BenchmarkScanPi(b *testing.B) {
 
 func BenchmarkStringPiParallel(b *testing.B) {
 	var x nat
-	x, _, _ = x.scan(strings.NewReader(pi), 0)
+	x, _, _, _ = x.scan(strings.NewReader(pi), 0)
 	if x.decimalString() != pi {
 		panic("benchmark incorrect: conversion failed")
 	}
@@ -757,14 +775,13 @@ var expNNTests = []struct {
 
 func TestExpNN(t *testing.T) {
 	for i, test := range expNNTests {
-		x, _, _ := nat(nil).scan(strings.NewReader(test.x), 0)
-		y, _, _ := nat(nil).scan(strings.NewReader(test.y), 0)
-		out, _, _ := nat(nil).scan(strings.NewReader(test.out), 0)
+		x := natFromString(test.x)
+		y := natFromString(test.y)
+		out := natFromString(test.out)
 
 		var m nat
-
 		if len(test.m) > 0 {
-			m, _, _ = nat(nil).scan(strings.NewReader(test.m), 0)
+			m = natFromString(test.m)
 		}
 
 		z := nat(nil).expNN(x, y, m)
@@ -841,5 +858,39 @@ func BenchmarkFibo(b *testing.B) {
 		fibo(1e3)
 		fibo(1e4)
 		fibo(1e5)
+	}
+}
+
+var bitTests = []struct {
+	x    string
+	i    uint
+	want uint
+}{
+	{"0", 0, 0},
+	{"0", 1, 0},
+	{"0", 1000, 0},
+
+	{"0x1", 0, 1},
+	{"0x10", 0, 0},
+	{"0x10", 3, 0},
+	{"0x10", 4, 1},
+	{"0x10", 5, 0},
+
+	{"0x8000000000000000", 62, 0},
+	{"0x8000000000000000", 63, 1},
+	{"0x8000000000000000", 64, 0},
+
+	{"0x3" + strings.Repeat("0", 32), 127, 0},
+	{"0x3" + strings.Repeat("0", 32), 128, 1},
+	{"0x3" + strings.Repeat("0", 32), 129, 1},
+	{"0x3" + strings.Repeat("0", 32), 130, 0},
+}
+
+func TestBit(t *testing.T) {
+	for i, test := range bitTests {
+		x := natFromString(test.x)
+		if got := x.bit(test.i); got != test.want {
+			t.Errorf("#%d: %s.bit(%d) = %v; want %v", i, test.x, test.i, got, test.want)
+		}
 	}
 }
