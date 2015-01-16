@@ -610,7 +610,7 @@ func (x nat) bitLen() int {
 const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
 
 func hexValue(ch rune) Word {
-	d := int(MaxBase + 1) // illegal base
+	d := int(MaxBase + 1) // invalid base
 	switch {
 	case '0' <= ch && ch <= '9':
 		d = int(ch - '0')
@@ -634,9 +634,9 @@ func hexValue(ch rune) Word {
 // ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
 //
 func (z nat) scan(r io.RuneScanner, base int) (nat, int, error) {
-	// reject illegal bases
+	// reject invalid bases
 	if base < 0 || base == 1 || MaxBase < base {
-		return z, 0, errors.New("illegal number base")
+		return z, 0, errors.New("invalid number base")
 	}
 
 	// one char look-ahead
@@ -728,7 +728,13 @@ const (
 // decimalString returns a decimal representation of x.
 // It calls x.string with the charset "0123456789".
 func (x nat) decimalString() string {
-	return x.string(lowercaseDigits[0:10])
+	return x.string(lowercaseDigits[:10])
+}
+
+// hexString returns a hexadecimal representation of x.
+// It calls x.string with the charset "0123456789abcdef".
+func (x nat) hexString() string {
+	return x.string(lowercaseDigits[:16])
 }
 
 // string converts x to a string using digits from a charset; a digit with
@@ -739,8 +745,8 @@ func (x nat) string(charset string) string {
 
 	// special cases
 	switch {
-	case b < 2 || MaxBase > 256:
-		panic("illegal base")
+	case b < 2 || b > 256:
+		panic("invalid character set length")
 	case len(x) == 0:
 		return string(charset[0])
 	}
