@@ -621,6 +621,44 @@ func TestDivisionSigns(t *testing.T) {
 	}
 }
 
+var bitTests = []nat{
+	nil,
+	{0},
+	{1},
+	{0, 1, 2, 3, 4},
+	{4, 3, 2, 1, 0},
+	{4, 3, 2, 1, 0, 0, 0, 0},
+}
+
+func norm(x nat) nat {
+	i := len(x)
+	for i > 0 && x[i-1] == 0 {
+		i--
+	}
+	return x[:i]
+}
+
+func TestBits(t *testing.T) {
+	for _, test := range bitTests {
+		var z Int
+		z.neg = true
+		got := z.SetBits(test)
+		want := norm(test)
+		if got.abs.cmp(want) != 0 {
+			t.Errorf("SetBits(%v) = %v; want %v", test, got.abs, want)
+		}
+
+		if got.neg {
+			t.Errorf("SetBits(%v): got negative result")
+		}
+
+		bits := nat(z.Bits())
+		if bits.cmp(want) != 0 {
+			t.Errorf("%v.Bits() = %v; want %v", z.abs, bits, want)
+		}
+	}
+}
+
 func checkSetBytes(b []byte) bool {
 	hex1 := hex.EncodeToString(new(Int).SetBytes(b).Bytes())
 	hex2 := hex.EncodeToString(b)
@@ -962,6 +1000,8 @@ var primes = []string{
 }
 
 var composites = []string{
+	"0",
+	"1",
 	"21284175091214687912771199898307297748211672914763848041968395774954376176754",
 	"6084766654921918907427900243509372380954290099172559290432744450051395395951",
 	"84594350493221918389213352992032324280367711247940675652888030554255915464401",

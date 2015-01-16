@@ -243,16 +243,28 @@ var strTests = []struct {
 	{nil, "01", "0"},
 	{nat{1}, "01", "1"},
 	{nat{0xc5}, "01", "11000101"},
-	{nat{03271}, lowercaseDigits[0:8], "3271"},
-	{nat{10}, lowercaseDigits[0:10], "10"},
-	{nat{1234567890}, uppercaseDigits[0:10], "1234567890"},
-	{nat{0xdeadbeef}, lowercaseDigits[0:16], "deadbeef"},
-	{nat{0xdeadbeef}, uppercaseDigits[0:16], "DEADBEEF"},
-	{nat{0x229be7}, lowercaseDigits[0:17], "1a2b3c"},
-	{nat{0x309663e6}, uppercaseDigits[0:32], "O9COV6"},
+	{nat{03271}, lowercaseDigits[:8], "3271"},
+	{nat{10}, lowercaseDigits[:10], "10"},
+	{nat{1234567890}, uppercaseDigits[:10], "1234567890"},
+	{nat{0xdeadbeef}, lowercaseDigits[:16], "deadbeef"},
+	{nat{0xdeadbeef}, uppercaseDigits[:16], "DEADBEEF"},
+	{nat{0x229be7}, lowercaseDigits[:17], "1a2b3c"},
+	{nat{0x309663e6}, uppercaseDigits[:32], "O9COV6"},
 }
 
 func TestString(t *testing.T) {
+	// test invalid character set explicitly
+	var panicStr string
+	func() {
+		defer func() {
+			panicStr = recover().(string)
+		}()
+		natOne.string("0")
+	}()
+	if panicStr != "invalid character set length" {
+		t.Errorf("expected panic for invalid character set")
+	}
+
 	for _, a := range strTests {
 		s := a.x.string(a.c)
 		if s != a.s {
@@ -474,8 +486,8 @@ func ScanHelper(b *testing.B, base int, x, y Word) {
 	z = z.expWW(x, y)
 
 	var s string
-	s = z.string(lowercaseDigits[0:base])
-	if t := toString(z, lowercaseDigits[0:base]); t != s {
+	s = z.string(lowercaseDigits[:base])
+	if t := toString(z, lowercaseDigits[:base]); t != s {
 		b.Fatalf("scanning: got %s; want %s", s, t)
 	}
 	b.StartTimer()
@@ -513,11 +525,11 @@ func StringHelper(b *testing.B, base int, x, y Word) {
 	b.StopTimer()
 	var z nat
 	z = z.expWW(x, y)
-	z.string(lowercaseDigits[0:base]) // warm divisor cache
+	z.string(lowercaseDigits[:base]) // warm divisor cache
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		_ = z.string(lowercaseDigits[0:base])
+		_ = z.string(lowercaseDigits[:base])
 	}
 }
 
@@ -551,12 +563,12 @@ func LeafSizeHelper(b *testing.B, base Word, size int) {
 	for d := 1; d <= 10000; d *= 10 {
 		b.StopTimer()
 		var z nat
-		z = z.expWW(base, Word(d))            // build target number
-		_ = z.string(lowercaseDigits[0:base]) // warm divisor cache
+		z = z.expWW(base, Word(d))           // build target number
+		_ = z.string(lowercaseDigits[:base]) // warm divisor cache
 		b.StartTimer()
 
 		for i := 0; i < b.N; i++ {
-			_ = z.string(lowercaseDigits[0:base])
+			_ = z.string(lowercaseDigits[:base])
 		}
 	}
 
@@ -581,8 +593,8 @@ func TestStringPowers(t *testing.T) {
 	for b = 2; b <= 16; b++ {
 		for p = 0; p <= 512; p++ {
 			x := nat(nil).expWW(b, p)
-			xs := x.string(lowercaseDigits[0:b])
-			xs2 := toString(x, lowercaseDigits[0:b])
+			xs := x.string(lowercaseDigits[:b])
+			xs2 := toString(x, lowercaseDigits[:b])
 			if xs != xs2 {
 				t.Errorf("failed at %d ** %d in base %d: %s != %s", b, p, b, xs, xs2)
 			}
@@ -691,20 +703,30 @@ func TestModW(t *testing.T) {
 }
 
 func TestTrailingZeroBits(t *testing.T) {
+	// test 0 case explicitly
+	if n := trailingZeroBits(0); n != 0 {
+		t.Errorf("got trailingZeroBits(0) = %d; want 0", n)
+	}
+
 	x := Word(1)
-	for i := uint(0); i <= _W; i++ {
+	for i := uint(0); i < _W; i++ {
 		n := trailingZeroBits(x)
-		if n != i%_W {
+		if n != i {
 			t.Errorf("got trailingZeroBits(%#x) = %d; want %d", x, n, i%_W)
 		}
 		x <<= 1
+	}
+
+	// test 0 case explicitly
+	if n := nat(nil).trailingZeroBits(); n != 0 {
+		t.Errorf("got nat(nil).trailingZeroBits() = %d; want 0", n)
 	}
 
 	y := nat(nil).set(natOne)
 	for i := uint(0); i <= 3*_W; i++ {
 		n := y.trailingZeroBits()
 		if n != i {
-			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.string(lowercaseDigits[0:16]), n, i)
+			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.hexString(), n, i)
 		}
 		y = y.shl(y, 1)
 	}
