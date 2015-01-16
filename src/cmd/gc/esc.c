@@ -511,6 +511,36 @@ esc(EscState *e, Node *n, Node *up)
 
 	case OAS:
 	case OASOP:
+		// Filter out the following special case.
+		//
+		//	func (b *Buffer) Foo() {
+		//		n, m := ...
+		//		b.buf = b.buf[n:m]
+		//	}
+		//
+		// This assignment is a no-op for escape analysis,
+		// it does not store any new pointers into b that were not already there.
+		// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
+		if((n->left->op == OIND || n->left->op == ODOTPTR) && n->left->left->op == ONAME && // dst is ONAME dereference
+			(n->right->op == OSLICE || n->right->op == OSLICE3 || n->right->op == OSLICESTR) && // src is slice operation
+			(n->right->left->op == OIND || n->right->left->op == ODOTPTR) && n->right->left->left->op == ONAME && // slice is applied to ONAME dereference
+			n->left->left == n->right->left->left) { // dst and src reference the same base ONAME
+			// Here we also assume that the statement will not contain calls,
+			// that is, that order will move any calls to init.
+			// Otherwise base ONAME value could change between the moments
+			// when we evaluate it for dst and for src.
+			//
+			// Note, this optimization does not apply to OSLICEARR,
+			// because it does introduce a new pointer into b that was not already there
+			// (pointer to b itself). After such assignment, if b contents escape,
+			// b escapes as well. If we ignore such OSLICEARR, we will conclude
+			// that b does not escape when b contents do.
+			if(debug['m']) {
+				warnl(n->lineno, "%S ignoring self-assignment to %hN",
+					(n->curfn && n->curfn->nname) ? n->curfn->nname->sym : S, n->left);
+			}
+			break;
+		}
 		escassign(e, n->left, n->right);
 		break;
 

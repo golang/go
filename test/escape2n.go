@@ -1519,3 +1519,40 @@ func ptrlitEscape() {
 	x := &Lit{&i} // ERROR "&Lit literal escapes to heap" "&i escapes to heap"
 	sink = x
 }
+
+// self-assignments
+
+type Buffer struct {
+	arr  [64]byte
+	buf1 []byte
+	buf2 []byte
+	str1 string
+	str2 string
+}
+
+func (b *Buffer) foo() { // ERROR "b does not escape"
+	b.buf1 = b.buf1[1:2]   // ERROR "ignoring self-assignment to b.buf1"
+	b.buf1 = b.buf1[1:2:3] // ERROR "ignoring self-assignment to b.buf1"
+	b.buf1 = b.buf2[1:2]   // ERROR "ignoring self-assignment to b.buf1"
+	b.buf1 = b.buf2[1:2:3] // ERROR "ignoring self-assignment to b.buf1"
+}
+
+func (b *Buffer) bar() { // ERROR "leaking param: b"
+	b.buf1 = b.arr[1:2] // ERROR "b.arr escapes to heap"
+}
+
+func (b *Buffer) baz() { // ERROR "b does not escape"
+	b.str1 = b.str1[1:2] // ERROR "ignoring self-assignment to b.str1"
+	b.str1 = b.str2[1:2] // ERROR "ignoring self-assignment to b.str1"
+}
+
+func (b *Buffer) bat() { // ERROR "leaking param: b"
+	o := new(Buffer) // ERROR "new\(Buffer\) escapes to heap"
+	o.buf1 = b.buf1[1:2]
+	sink = o
+}
+
+func quux(sp *string, bp *[]byte) { // ERROR "sp does not escape" "bp does not escape"
+	*sp = (*sp)[1:2] // ERROR "quux ignoring self-assignment to \*sp"
+	*bp = (*bp)[1:2] // ERROR "quux ignoring self-assignment to \*bp"
+}
