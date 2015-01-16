@@ -141,10 +141,6 @@ func main() {
 		os.Exit(2)
 	}
 	flag.Parse()
-	if *tag == "" {
-		fmt.Fprintln(os.Stderr, "you must specify a -tag")
-		os.Exit(2)
-	}
 	if flag.NArg() == 0 {
 		flag.Usage()
 	}
@@ -209,6 +205,10 @@ func main() {
 					}
 				}
 			}
+		}
+		if *tag == "" {
+			fmt.Fprintln(os.Stderr, "you must specify a -tag")
+			os.Exit(2)
 		}
 		if err := b.Do(); err != nil {
 			log.Printf("%s: %v", targ, err)
@@ -755,6 +755,7 @@ func setupOAuthClient() error {
 		ClientSecret: "8YLFgOhXIELWbO-NtF3iqIQz",
 		Endpoint:     google.Endpoint,
 		Scopes:       []string{storage.DevstorageRead_writeScope},
+		RedirectURL:  "oob",
 	}
 	url := config.AuthCodeURL("junk")
 	fmt.Println("Visit the following URL, obtain an authentication" +
