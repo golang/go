@@ -890,7 +890,7 @@ func (z *Int) AndNot(x, y *Int) *Int {
 	}
 
 	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
-	y1 := nat(nil).add(y.abs, natOne)
+	y1 := nat(nil).sub(y.abs, natOne)
 	z.abs = z.abs.and(x.abs, y1)
 	z.neg = false
 	return z
