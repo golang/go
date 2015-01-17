@@ -92,25 +92,18 @@ func run(dir string, mode int, cmd ...string) string {
 			xprintf("%s\n", data)
 		}
 		outputLock.Unlock()
-		atomic.AddInt32(&ndone, +1)
-		die := func() {
-			time.Sleep(100 * time.Millisecond)
-			fatal("FAILED: %v", strings.Join(cmd, " "))
-		}
 		if mode&Background != 0 {
-			// This is a background run, and fatal will
-			// wait for it to finish before exiting.
-			// If we call fatal directly, that's a deadlock.
-			// Instead, call fatal in a background goroutine
-			// and let this run return normally, so that
-			// fatal can wait for it to finish.
-			go die()
-		} else {
-			die()
+			bgdied.Done()
 		}
+		fatal("FAILED: %v", strings.Join(cmd, " "))
 	}
 	if mode&ShowOutput != 0 {
+		outputLock.Lock()
 		os.Stdout.Write(data)
+		outputLock.Unlock()
+	}
+	if vflag > 2 {
+		errprintf("run: %s DONE\n", strings.Join(cmd, " "))
 	}
 	return string(data)
 }
@@ -118,13 +111,19 @@ func run(dir string, mode int, cmd ...string) string {
 var maxbg = 4 /* maximum number of jobs to run at once */
 
 var (
-	bgwork = make(chan func())
-	bgdone = make(chan struct{}, 1e6)
+	bgwork = make(chan func(), 1e5)
+	bgdone = make(chan struct{}, 1e5)
+
+	bgdied sync.WaitGroup
 	nwork  int32
 	ndone  int32
+
+	dying  = make(chan bool)
+	nfatal int32
 )
 
 func bginit() {
+	bgdied.Add(maxbg)
 	for i := 0; i < maxbg; i++ {
 		go bghelper()
 	}
@@ -132,7 +131,14 @@ func bginit() {
 
 func bghelper() {
 	for {
-		(<-bgwork)()
+		w := <-bgwork
+		w()
+
+		// Stop if we're dying.
+		if atomic.LoadInt32(&nfatal) > 0 {
+			bgdied.Done()
+			return
+		}
 	}
 }
 
@@ -145,16 +151,25 @@ func bgrun(dir string, cmd ...string) {
 }
 
 // bgwait waits for pending bgruns to finish.
+// bgwait must be called from only a single goroutine at a time.
 func bgwait() {
 	var wg sync.WaitGroup
 	wg.Add(maxbg)
+	done := make(chan bool)
 	for i := 0; i < maxbg; i++ {
 		bgwork <- func() {
 			wg.Done()
-			wg.Wait()
+
+			// Hold up bg goroutine until either the wait finishes
+			// or the program starts dying due to a call to fatal.
+			select {
+			case <-dying:
+			case <-done:
+			}
 		}
 	}
 	wg.Wait()
+	close(done)
 }
 
 // xgetwd returns the current directory.
@@ -288,7 +303,18 @@ func xworkdir() string {
 // fatal prints an error message to standard error and exits.
 func fatal(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "go tool dist: %s\n", fmt.Sprintf(format, args...))
-	bgwait()
+
+	// Wait for background goroutines to finish,
+	// so that exit handler that removes the work directory
+	// is not fighting with active writes or open files.
+	if atomic.AddInt32(&nfatal, 1) == 1 {
+		close(dying)
+	}
+	for i := 0; i < maxbg; i++ {
+		bgwork <- func() {} // wake up workers so they notice nfatal > 0
+	}
+	bgdied.Wait()
+
 	xexit(2)
 }
 
