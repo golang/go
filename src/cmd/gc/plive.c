@@ -1487,25 +1487,21 @@ livenessepilogue(Liveness *lv)
 				// Annotate ambiguously live variables so that they can
 				// be zeroed at function entry.
 				// livein and liveout are dead here and used as temporaries.
-				// For now, only enabled when using GOEXPERIMENT=precisestack
-				// during make.bash / all.bash.
-				if(precisestack_enabled) {
-					bvresetall(livein);
-					bvandnot(liveout, any, all);
-					if(!bvisempty(liveout)) {
-						for(pos = 0; pos < liveout->n; pos++) {
-							if(!bvget(liveout, pos))
-								continue;
-							bvset(all, pos); // silence future warnings in this block
-							n = *(Node**)arrayget(lv->vars, pos);
-							if(!n->needzero) {
-								n->needzero = 1;
-								if(debuglive >= 1)
-									warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
-								// Record in 'ambiguous' bitmap.
-								xoffset = n->xoffset + stkptrsize;
-								twobitwalktype1(n->type, &xoffset, ambig);
-							}
+				bvresetall(livein);
+				bvandnot(liveout, any, all);
+				if(!bvisempty(liveout)) {
+					for(pos = 0; pos < liveout->n; pos++) {
+						if(!bvget(liveout, pos))
+							continue;
+						bvset(all, pos); // silence future warnings in this block
+						n = *(Node**)arrayget(lv->vars, pos);
+						if(!n->needzero) {
+							n->needzero = 1;
+							if(debuglive >= 1)
+								warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
+							// Record in 'ambiguous' bitmap.
+							xoffset = n->xoffset + stkptrsize;
+							twobitwalktype1(n->type, &xoffset, ambig);
 						}
 					}
 				}

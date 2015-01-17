@@ -994,8 +994,6 @@ EXTERN	int	debuglive;
 EXTERN	Link*	ctxt;
 
 EXTERN	int	nointerface;
-EXTERN	int	fieldtrack_enabled;
-EXTERN	int	precisestack_enabled;
 EXTERN	int	writearchive;
 
 EXTERN	Biobuf	bstdout;

@@ -33,19 +33,6 @@ static char *goos, *goarch, *goroot;
 
 #define	BOM	0xFEFF
 
-// Compiler experiments.
-// These are controlled by the GOEXPERIMENT environment
-// variable recorded when the compiler is built.
-static struct {
-	char *name;
-	int *val;
-} exper[] = {
-//	{"rune32", &rune32},
-	{"fieldtrack", &fieldtrack_enabled},
-	{"precisestack", &precisestack_enabled},
-	{nil, nil},
-};
-
 // Debug arguments.
 // These can be specified with the -d flag, as in "-d nil"
 // to set the debug_checknil variable. In general the list passed
@@ -55,54 +42,7 @@ static struct {
 	int *val;
 } debugtab[] = {
 	{"nil", &debug_checknil},
-	{nil, nil},
 };
-
-static void
-addexp(char *s)
-{
-	int i;
-
-	for(i=0; exper[i].name != nil; i++) {
-		if(strcmp(exper[i].name, s) == 0) {
-			*exper[i].val = 1;
-			return;
-		}
-	}
-	
-	print("unknown experiment %s\n", s);
-	exits("unknown experiment");
-}
-
-static void
-setexp(void)
-{
-	char *f[20];
-	int i, nf;
-
-	precisestack_enabled = 1; // on by default
-
-	// cmd/dist #defines GOEXPERIMENT for us.
-	nf = getfields(GOEXPERIMENT, f, nelem(f), 1, ",");
-	for(i=0; i<nf; i++)
-		addexp(f[i]);
-}
-
-char*
-expstring(void)
-{
-	int i;
-	static char buf[512];
-
-	strcpy(buf, "X");
-	for(i=0; exper[i].name != nil; i++)
-		if(*exper[i].val)
-			seprint(buf+strlen(buf), buf+sizeof buf, ",%s", exper[i].name);
-	if(strlen(buf) == 1)
-		strcpy(buf, "X,none");
-	buf[1] = ':';
-	return buf;
-}
 
 // Our own isdigit, isspace, isalpha, isalnum that take care 
 // of EOF and other out of range arguments.
@@ -272,8 +212,6 @@ main(int argc, char *argv[])
 	if(nacl)
 		flag_largemodel = 1;
 
-	setexp();
-	
 	fmtstrinit(&pragcgobuf);
 	quotefmtinstall();
 
@@ -344,13 +282,14 @@ main(int argc, char *argv[])
 		
 		nf = getfields(debugstr, f, nelem(f), 1, ",");
 		for(i=0; i<nf; i++) {
-			for(j=0; debugtab[j].name != nil; j++) {
+			for(j=0; j<nelem(debugtab); j++) {
 				if(strcmp(debugtab[j].name, f[i]) == 0) {
-					*debugtab[j].val = 1;
+					if(debugtab[j].val != nil)
+						*debugtab[j].val = 1;
 					break;
 				}
 			}
-			if(debugtab[j].name == nil)
+			if(j >= nelem(debugtab))
 				sysfatal("unknown debug information -d '%s'\n", f[i]);
 		}
 	}
