@@ -277,13 +277,27 @@ func (b *Build) Do() error {
 			if b.OS == "windows" {
 				goCmd += ".exe"
 			}
+			// Because on release branches, go install -a std is a NOP,
+			// we have to resort to delete pkg/$GOOS_$GOARCH, install -race,
+			// and then reinstall std so that we're not left with a slower,
+			// race-enabled cmd/go, etc.
+			goPkg := filepath.Join(b.root, "pkg", b.OS+"_"+b.Arch)
+			err = os.RemoveAll(goPkg)
+			if err != nil {
+				return err
+			}
+			_, err = b.run(src, goCmd, "tool", "dist", "install", "runtime")
+			if err != nil {
+				return err
+			}
 			_, err = b.run(src, goCmd, "install", "-race", "std")
 			if err != nil {
 				return err
 			}
-			// Re-install std without -race, so that we're not left
-			// with a slower, race-enabled cmd/go, etc.
-			_, err = b.run(src, goCmd, "install", "-a", "std")
+			_, err = b.run(src, goCmd, "install", "std")
+			if err != nil {
+				return err
+			}
 			// Re-building go command leaves old versions of go.exe as go.exe~ on windows.
 			// See (*builder).copyFile in $GOROOT/src/cmd/go/build.go for details.
 			// Remove it manually.
