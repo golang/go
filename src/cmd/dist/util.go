@@ -397,6 +397,7 @@ func main() {
 
 	xinit()
 	xmain()
+	xexit(0)
 }
 
 // xsamefile reports whether f1 and f2 are the same file (or dir)
