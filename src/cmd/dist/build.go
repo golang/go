@@ -576,7 +576,6 @@ var deptab = []struct {
 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/lib9.a",
 	}},
 	{"runtime", []string{
-		"zaexperiment.h",
 		"zversion.go",
 	}},
 }
@@ -601,7 +600,6 @@ var gentab = []struct {
 	{"anames9.c", mkanames},
 	{"zdefaultcc.go", mkzdefaultcc},
 	{"zversion.go", mkzversion},
-	{"zaexperiment.h", mkzexperiment},
 
 	// not generated anymore, but delete the file if we see it
 	{"enam.c", nil},
@@ -937,8 +935,8 @@ func install(dir string) {
 				)
 			}
 
-			// gc/lex.c records the GOEXPERIMENT setting used during the build.
-			if name == "lex.c" {
+			// liblink/go.c records the GOEXPERIMENT setting used during the build.
+			if name == "go.c" {
 				compile = append(compile,
 					"-D", fmt.Sprintf("GOEXPERIMENT=%q", os.Getenv("GOEXPERIMENT")))
 			}

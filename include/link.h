@@ -586,6 +586,11 @@ void*	emallocz(long n);
 void*	erealloc(void *p, long n);
 char*	estrdup(char *p);
 char*	expandpkg(char *t0, char *pkg);
+void	linksetexp(void);
+char*	expstring(void);
+
+extern	int	fieldtrack_enabled;
+extern	int	framepointer_enabled;
 
 // ld.c
 void	addhist(Link *ctxt, int32 line, int type);
@@ -655,6 +660,9 @@ extern	LinkArch	linkamd64p32;
 extern	LinkArch	linkarm;
 extern	LinkArch	linkppc64;
 extern	LinkArch	linkppc64le;
+
+extern	int	linkbasepointer;
+extern	void	linksetexp(void);
 
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"E"	uint

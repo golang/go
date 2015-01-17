@@ -3163,8 +3163,6 @@ func setMaxThreads(in int) (out int) {
 	return
 }
 
-var goexperiment string = "GOEXPERIMENT" // TODO: defined in zaexperiment.h
-
 func haveexperiment(name string) bool {
 	x := goexperiment
 	for x != "" {
