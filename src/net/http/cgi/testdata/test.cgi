@@ -45,7 +45,7 @@ foreach my $k (sort keys %ENV) {
 
 # NOTE: msys perl returns /c/go/src/... not C:\go\....
 my $dir = getcwd();
-if ($^O eq 'MSWin32' || $^O eq 'msys') {
+if ($^O eq 'MSWin32' || $^O eq 'msys' || $^O eq 'cygwin') {
     if ($dir =~ /^.:/) {
         $dir =~ s!/!\\!g;
     } else {
