@@ -92,7 +92,11 @@ func runTool(cmd *Command, args []string) {
 		return
 	}
 	if toolN {
-		fmt.Printf("%s %s\n", toolPath, strings.Join(args[1:], " "))
+		cmd := toolPath
+		if len(args) > 1 {
+			cmd += " " + strings.Join(args[1:], " ")
+		}
+		fmt.Printf("%s\n", cmd)
 		return
 	}
 	toolCmd := &exec.Cmd{
@@ -101,6 +105,8 @@ func runTool(cmd *Command, args []string) {
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
+		// Set $GOROOT, mainly for go tool dist.
+		Env: mergeEnvLists([]string{"GOROOT=" + goroot}, os.Environ()),
 	}
 	err := toolCmd.Run()
 	if err != nil {
