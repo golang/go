@@ -686,7 +686,6 @@ func asmb() {
 		ld.Hfreebsd,
 		ld.Hnetbsd,
 		ld.Hopenbsd,
-		ld.Hdragonfly,
 		ld.Hnacl:
 		ld.Asmbelf(int64(symo))
 
