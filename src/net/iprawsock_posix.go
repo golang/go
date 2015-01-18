@@ -83,15 +83,26 @@ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
 		addr = &IPAddr{IP: sa.Addr[0:]}
-		if len(b) >= IPv4len { // discard ipv4 header
-			hsize := (int(b[0]) & 0xf) * 4
-			copy(b, b[hsize:])
-			n -= hsize
-		}
+		n = stripIPv4Header(n, b)
 	case *syscall.SockaddrInet6:
 		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
 	}
 	return n, addr, err
+}
+
+func stripIPv4Header(n int, b []byte) int {
+	if len(b) < 20 {
+		return n
+	}
+	l := int(b[0]&0x0f) << 2
+	if 20 > l || l > len(b) {
+		return n
+	}
+	if b[0]>>4 != 4 {
+		return n
+	}
+	copy(b, b[l:])
+	return n - l
 }
 
 // ReadFrom implements the PacketConn ReadFrom method.
