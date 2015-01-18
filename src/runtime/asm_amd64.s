@@ -1364,9 +1364,6 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
 	MOVQ	AX, ret+32(FP)
 	RET
 
-TEXT strings·Compare(SB),NOSPLIT,$0
-        JMP	runtime·cmpstring(SB)
-
 TEXT bytes·Compare(SB),NOSPLIT,$0-56
 	MOVQ	s1+0(FP), SI
 	MOVQ	s1+8(FP), BX
