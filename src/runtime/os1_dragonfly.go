@@ -87,7 +87,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		tid2:       nil,
 	}
 
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
+	mp.tls[0] = uintptr(mp.id) // XXX so 386 asm can find it
 
 	lwp_create(&params)
 	sigprocmask(&oset, nil)

@@ -177,12 +177,6 @@ var faultAddrs = []uint64{
 }
 
 func TestSetPanicOnFault(t *testing.T) {
-	// This currently results in a fault in the signal trampoline on
-	// dragonfly/386 - see issue 7421.
-	if GOOS == "dragonfly" && GOARCH == "386" {
-		t.Skip("skipping test on dragonfly/386")
-	}
-
 	old := debug.SetPanicOnFault(true)
 	defer debug.SetPanicOnFault(old)
 

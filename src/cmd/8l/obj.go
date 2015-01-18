@@ -76,7 +76,6 @@ func linkarchinit() {
 	ld.Thearch.Freebsddynld = "/usr/libexec/ld-elf.so.1"
 	ld.Thearch.Openbsddynld = "/usr/libexec/ld.so"
 	ld.Thearch.Netbsddynld = "/usr/libexec/ld.elf_so"
-	ld.Thearch.Dragonflydynld = "/usr/libexec/ld-elf.so.2"
 	ld.Thearch.Solarisdynld = "/lib/ld.so.1"
 }
 
@@ -97,7 +96,6 @@ func archinit() {
 		}
 
 	case ld.Hdarwin,
-		ld.Hdragonfly,
 		ld.Hfreebsd,
 		ld.Hlinux,
 		ld.Hnetbsd,
@@ -141,8 +139,7 @@ func archinit() {
 	case ld.Hlinux, /* elf32 executable */
 		ld.Hfreebsd,
 		ld.Hnetbsd,
-		ld.Hopenbsd,
-		ld.Hdragonfly:
+		ld.Hopenbsd:
 		ld.Elfinit()
 
 		ld.HEADR = ld.ELFRESERVE
