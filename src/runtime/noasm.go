@@ -10,11 +10,6 @@ package runtime
 
 import _ "unsafe" // for go:linkname
 
-//go:linkname strings_Compare strings.Compare
-func strings_Compare(s1, s2 string) int {
-	return cmpstring(s1, s2)
-}
-
 func cmpstring(s1, s2 string) int {
 	l := len(s1)
 	if len(s2) < l {
