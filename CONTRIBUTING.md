@@ -15,6 +15,8 @@ When filing an issue, make sure to answer these five questions:
 4. What did you expect to see?
 5. What did you see instead?
 
+General questions should go to the [golang-nuts mailing list](https://groups.google.com/group/golang-nuts) instead of the issue tracker.
+The gophers there will answer or ask you to file an issue if you've tripped over a bug.
 
 ## Contributing code
 
