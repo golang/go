@@ -615,15 +615,15 @@ esc(EscState *e, Node *n, Node *up)
 		for(ll=n->list; ll; ll=ll->next)
 			escassign(e, n, ll->n->right);
 		break;
-	
+
 	case OPTRLIT:
 		n->esc = EscNone;  // until proven otherwise
 		e->noesc = list(e->noesc, n);
 		n->escloopdepth = e->loopdepth;
-		// Contents make it to memory, lose track.
-		escassign(e, &e->theSink, n->left);
+		// Link OSTRUCTLIT to OPTRLIT; if OPTRLIT escapes, OSTRUCTLIT elements do too.
+		escassign(e, n, n->left);
 		break;
-	
+
 	case OCALLPART:
 		n->esc = EscNone; // until proven otherwise
 		e->noesc = list(e->noesc, n);
@@ -730,6 +730,7 @@ escassign(EscState *e, Node *dst, Node *src)
 	case OCONVNOP:
 	case OMAPLIT:
 	case OSTRUCTLIT:
+	case OPTRLIT:
 	case OCALLPART:
 		break;
 
