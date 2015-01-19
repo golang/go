@@ -275,7 +275,7 @@ func xremoveall(p string) {
 	os.RemoveAll(p)
 }
 
-// xreaddir replaces dst with a list of the names of the files in dir.
+// xreaddir replaces dst with a list of the names of the files and subdirectories in dir.
 // The names are relative to dir; they are not full paths.
 func xreaddir(dir string) []string {
 	f, err := os.Open(dir)
@@ -286,6 +286,27 @@ func xreaddir(dir string) []string {
 	names, err := f.Readdirnames(-1)
 	if err != nil {
 		fatal("reading %s: %v", dir, err)
+	}
+	return names
+}
+
+// xreaddir replaces dst with a list of the names of the files in dir.
+// The names are relative to dir; they are not full paths.
+func xreaddirfiles(dir string) []string {
+	f, err := os.Open(dir)
+	if err != nil {
+		fatal("%v", err)
+	}
+	defer f.Close()
+	infos, err := f.Readdir(-1)
+	if err != nil {
+		fatal("reading %s: %v", dir, err)
+	}
+	var names []string
+	for _, fi := range infos {
+		if !fi.IsDir() {
+			names = append(names, fi.Name())
+		}
 	}
 	return names
 }
@@ -370,6 +391,8 @@ func main() {
 		if gohostarch == "" {
 			fatal("$objtype is unset")
 		}
+	case "windows":
+		exe = ".exe"
 	}
 
 	sysinit()
