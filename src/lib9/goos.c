@@ -52,8 +52,20 @@ getgo386(void)
 	return defgetenv("GO386", GO386);
 }
 
-char *
+char*
 getgoextlinkenabled(void)
 {
 	return GO_EXTLINK_ENABLED;
+}
+
+char*
+getgohostarch(void)
+{
+	return GOHOSTARCH;
+}
+
+char*
+getgohostos(void)
+{
+	return GOHOSTOS;
 }
