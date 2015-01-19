@@ -119,11 +119,36 @@ static char *rdstring(Biobuf*);
 static void rddata(Biobuf*, uchar**, int*);
 static LSym *rdsym(Link*, Biobuf*, char*);
 
+void	writeobjdirect(Link*, Biobuf*);
+
+void
+writeobj(Link *ctxt, Biobuf *b)
+{
+	char *cmd[2];
+	
+	// TODO(rsc): Use 'go tool objwriter' to write object file,
+	// allowing the bulk of liblink to be moved into Go.
+	// As a first step, we check that we can invoke objwriter at all
+	// (it is an empty program for now).
+	// This tests the cmd/dist bootstrap process, making sure
+	// that objwriter is available when it needs to be.
+	// Once the support mechanisms are there, we can put the
+	// real code in.
+	
+	cmd[0] = smprint("%s/pkg/tool/%s_%s/objwriter", getgoroot(), getgohostos(), getgohostarch());
+	cmd[1] = "ping";
+	cmd[2] = nil;
+	if(runcmd(cmd) < 0)
+		sysfatal("cannot run objwriter: %r");
+
+	writeobjdirect(ctxt, b);
+}
+
 // The Go and C compilers, and the assembler, call writeobj to write
 // out a Go object file.  The linker does not call this; the linker
 // does not write out object files.
 void
-writeobj(Link *ctxt, Biobuf *b)
+writeobjdirect(Link *ctxt, Biobuf *b)
 {
 	int flag, found;
 	Hist *h;
