@@ -402,8 +402,6 @@ type getBasicAuthTest struct {
 	ok                 bool
 }
 
-type parseBasicAuthTest getBasicAuthTest
-
 type basicAuthCredentialsTest struct {
 	username, password string
 }
