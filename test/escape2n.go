@@ -1492,3 +1492,30 @@ func g() (x interface{}) { // ERROR "moved to heap: x"
 	x = &x // ERROR "&x escapes to heap"
 	return
 }
+
+var sink interface{}
+
+type Lit struct {
+	p *int
+}
+
+func ptrlitNoescape() {
+	// Both literal and element do not escape.
+	i := 0
+	x := &Lit{&i} // ERROR "&Lit literal does not escape" "&i does not escape"
+	_ = x
+}
+
+func ptrlitNoEscape2() {
+	// Literal does not escape, but element does.
+	i := 0 // ERROR "moved to heap: i"
+	x := &Lit{&i} // ERROR "&Lit literal does not escape" "&i escapes to heap"
+	sink = *x
+}
+
+func ptrlitEscape() {
+	// Both literal and element escape.
+	i := 0 // ERROR "moved to heap: i"
+	x := &Lit{&i} // ERROR "&Lit literal escapes to heap" "&i escapes to heap"
+	sink = x
+}
