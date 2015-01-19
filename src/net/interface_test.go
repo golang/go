@@ -38,8 +38,7 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
 		return ""
 	}
 	for _, ifa := range ifat {
-		switch ifa := ifa.(type) {
-		case *IPNet:
+		if ifa, ok := ifa.(*IPNet); ok {
 			if ifa.IP.To4() == nil && ifa.IP.IsLinkLocalUnicast() {
 				return ifa.IP.String()
 			}
@@ -49,10 +48,6 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
 }
 
 func TestInterfaces(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("temporarily disabled until golang.org/issue/5395 is fixed")
-	}
-
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -110,10 +105,6 @@ func TestInterfaces(t *testing.T) {
 }
 
 func TestInterfaceAddrs(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("temporarily disabled until golang.org/issue/5395 is fixed")
-	}
-
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
