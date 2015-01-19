@@ -1169,7 +1169,7 @@ static Optab optab[] =
 	{0}
 };
 
-static int32	vaddr(Link*, Addr*, Reloc*);
+static int32	vaddr(Link*, Prog*, Addr*, Reloc*);
 
 // single-instruction no-ops of various lengths.
 // constructed by hand and disassembled with gdb to verify.
@@ -1711,7 +1711,7 @@ relput4(Link *ctxt, Prog *p, Addr *a)
 	vlong v;
 	Reloc rel, *r;
 	
-	v = vaddr(ctxt, a, &rel);
+	v = vaddr(ctxt, p, a, &rel);
 	if(rel.siz != 0) {
 		if(rel.siz != 4)
 			ctxt->diag("bad reloc");
@@ -1723,12 +1723,14 @@ relput4(Link *ctxt, Prog *p, Addr *a)
 }
 
 static int32
-vaddr(Link *ctxt, Addr *a, Reloc *r)
+vaddr(Link *ctxt, Prog *p, Addr *a, Reloc *r)
 {
 	int t;
 	int32 v;
 	LSym *s;
 	
+	USED(p);
+
 	if(r != nil)
 		memset(r, 0, sizeof *r);
 
@@ -1770,11 +1772,13 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
 }
 
 static void
-asmand(Link *ctxt, Addr *a, int r)
+asmand(Link *ctxt, Prog *p, Addr *a, int r)
 {
 	int32 v;
 	int t, scale;
 	Reloc rel;
+	
+	USED(p);
 
 	v = a->offset;
 	t = a->type;
@@ -1787,7 +1791,7 @@ asmand(Link *ctxt, Addr *a, int r)
 			case D_STATIC:
 			case D_EXTERN:
 				t = D_NONE;
-				v = vaddr(ctxt, a, &rel);
+				v = vaddr(ctxt, p, a, &rel);
 				break;
 			case D_AUTO:
 			case D_PARAM:
@@ -1832,7 +1836,7 @@ asmand(Link *ctxt, Addr *a, int r)
 		case D_STATIC:
 		case D_EXTERN:
 			t = D_NONE;
-			v = vaddr(ctxt, a, &rel);
+			v = vaddr(ctxt, p, a, &rel);
 			break;
 		case D_AUTO:
 		case D_PARAM:
@@ -1843,7 +1847,7 @@ asmand(Link *ctxt, Addr *a, int r)
 	} else
 		t -= D_INDIR;
 	if(t == D_TLS)
-		v = vaddr(ctxt, a, &rel);
+		v = vaddr(ctxt, p, a, &rel);
 
 	if(t == D_NONE || (D_CS <= t && t <= D_GS) || t == D_TLS) {
 		*ctxt->andptr++ = (0 << 6) | (5 << 0) | (r << 3);
@@ -2235,35 +2239,35 @@ found:
 	case Zlitm_r:
 		for(; op = o->op[z]; z++)
 			*ctxt->andptr++ = op;
-		asmand(ctxt, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.type]);
 		break;
 
 	case Zm_r:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.type]);
 		break;
 
 	case Zm2_r:
 		*ctxt->andptr++ = op;
 		*ctxt->andptr++ = o->op[z+1];
-		asmand(ctxt, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.type]);
 		break;
 
 	case Zm_r_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.type]);
 		break;
 
 	case Zm_r_i_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.type]);
 		*ctxt->andptr++ = p->to.offset;
 		break;
 
 	case Zibm_r:
 		while ((op = o->op[z++]) != 0)
 			*ctxt->andptr++ = op;
-		asmand(ctxt, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.type]);
 		*ctxt->andptr++ = p->to.offset;
 		break;
 
@@ -2274,7 +2278,7 @@ found:
 		p->from.type = p->from.index;
 		p->from.index = D_NONE;
 		p->ft = 0;
-		asmand(ctxt, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.type]);
 		p->from.index = p->from.type;
 		p->from.type = D_ADDR;
 		p->ft = 0;
@@ -2282,22 +2286,22 @@ found:
 
 	case Zm_o:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->from, o->op[z+1]);
+		asmand(ctxt, p, &p->from, o->op[z+1]);
 		break;
 
 	case Zr_m:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->to, reg[p->from.type]);
+		asmand(ctxt, p, &p->to, reg[p->from.type]);
 		break;
 
 	case Zr_m_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, &p->to, reg[p->from.type]);
+		asmand(ctxt, p, &p->to, reg[p->from.type]);
 		break;
 
 	case Zr_m_i_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, &p->to, reg[p->from.type]);
+		asmand(ctxt, p, &p->to, reg[p->from.type]);
 		*ctxt->andptr++ = p->from.offset;
 		break;
 
@@ -2309,19 +2313,19 @@ found:
 		// fallthrough
 	case Zo_m:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->to, o->op[z+1]);
+		asmand(ctxt, p, &p->to, o->op[z+1]);
 		break;
 
 	case Zm_ibo:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->from, o->op[z+1]);
-		*ctxt->andptr++ = vaddr(ctxt, &p->to, nil);
+		asmand(ctxt, p, &p->from, o->op[z+1]);
+		*ctxt->andptr++ = vaddr(ctxt, p, &p->to, nil);
 		break;
 
 	case Zibo_m:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->to, o->op[z+1]);
-		*ctxt->andptr++ = vaddr(ctxt, &p->from, nil);
+		asmand(ctxt, p, &p->to, o->op[z+1]);
+		*ctxt->andptr++ = vaddr(ctxt, p, &p->from, nil);
 		break;
 
 	case Z_ib:
@@ -2330,20 +2334,20 @@ found:
 			a = &p->from;
 		else
 			a = &p->to;
-		v = vaddr(ctxt, a, nil);
+		v = vaddr(ctxt, p, a, nil);
 		*ctxt->andptr++ = op;
 		*ctxt->andptr++ = v;
 		break;
 
 	case Zib_rp:
 		*ctxt->andptr++ = op + reg[p->to.type];
-		*ctxt->andptr++ = vaddr(ctxt, &p->from, nil);
+		*ctxt->andptr++ = vaddr(ctxt, p, &p->from, nil);
 		break;
 
 	case Zil_rp:
 		*ctxt->andptr++ = op + reg[p->to.type];
 		if(o->prefix == Pe) {
-			v = vaddr(ctxt, &p->from, nil);
+			v = vaddr(ctxt, p, &p->from, nil);
 			*ctxt->andptr++ = v;
 			*ctxt->andptr++ = v>>8;
 		}
@@ -2353,8 +2357,8 @@ found:
 
 	case Zib_rr:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->to, reg[p->to.type]);
-		*ctxt->andptr++ = vaddr(ctxt, &p->from, nil);
+		asmand(ctxt, p, &p->to, reg[p->to.type]);
+		*ctxt->andptr++ = vaddr(ctxt, p, &p->from, nil);
 		break;
 
 	case Z_il:
@@ -2365,7 +2369,7 @@ found:
 			a = &p->to;
 		*ctxt->andptr++ = op;
 		if(o->prefix == Pe) {
-			v = vaddr(ctxt, a, nil);
+			v = vaddr(ctxt, p, a, nil);
 			*ctxt->andptr++ = v;
 			*ctxt->andptr++ = v>>8;
 		}
@@ -2378,13 +2382,13 @@ found:
 		*ctxt->andptr++ = op;
 		if(t[2] == Zilo_m) {
 			a = &p->from;
-			asmand(ctxt, &p->to, o->op[z+1]);
+			asmand(ctxt, p, &p->to, o->op[z+1]);
 		} else {
 			a = &p->to;
-			asmand(ctxt, &p->from, o->op[z+1]);
+			asmand(ctxt, p, &p->from, o->op[z+1]);
 		}
 		if(o->prefix == Pe) {
-			v = vaddr(ctxt, a, nil);
+			v = vaddr(ctxt, p, a, nil);
 			*ctxt->andptr++ = v;
 			*ctxt->andptr++ = v>>8;
 		}
@@ -2394,9 +2398,9 @@ found:
 
 	case Zil_rr:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->to, reg[p->to.type]);
+		asmand(ctxt, p, &p->to, reg[p->to.type]);
 		if(o->prefix == Pe) {
-			v = vaddr(ctxt, &p->from, nil);
+			v = vaddr(ctxt, p, &p->from, nil);
 			*ctxt->andptr++ = v;
 			*ctxt->andptr++ = v>>8;
 		}
@@ -2414,7 +2418,7 @@ found:
 
 	case Zclr:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->to, reg[p->to.type]);
+		asmand(ctxt, p, &p->to, reg[p->to.type]);
 		break;
 	
 	case Zcall:
@@ -2529,7 +2533,7 @@ found:
 		break;
 
 	case Zbyte:
-		v = vaddr(ctxt, &p->from, &rel);
+		v = vaddr(ctxt, p, &p->from, &rel);
 		if(rel.siz != 0) {
 			rel.siz = op;
 			r = addrel(ctxt->cursym);
@@ -2570,11 +2574,11 @@ bad:
 	if(z >= D_BP && z <= D_DI) {
 		if((breg = byteswapreg(ctxt, &p->to)) != D_AX) {
 			*ctxt->andptr++ = 0x87;			/* xchg lhs,bx */
-			asmand(ctxt, &p->from, reg[breg]);
+			asmand(ctxt, p, &p->from, reg[breg]);
 			subreg(&pp, z, breg);
 			doasm(ctxt, &pp);
 			*ctxt->andptr++ = 0x87;			/* xchg lhs,bx */
-			asmand(ctxt, &p->from, reg[breg]);
+			asmand(ctxt, p, &p->from, reg[breg]);
 		} else {
 			*ctxt->andptr++ = 0x90 + reg[z];		/* xchg lsh,ax */
 			subreg(&pp, z, D_AX);
@@ -2587,11 +2591,11 @@ bad:
 	if(z >= D_BP && z <= D_DI) {
 		if((breg = byteswapreg(ctxt, &p->from)) != D_AX) {
 			*ctxt->andptr++ = 0x87;			/* xchg rhs,bx */
-			asmand(ctxt, &p->to, reg[breg]);
+			asmand(ctxt, p, &p->to, reg[breg]);
 			subreg(&pp, z, breg);
 			doasm(ctxt, &pp);
 			*ctxt->andptr++ = 0x87;			/* xchg rhs,bx */
-			asmand(ctxt, &p->to, reg[breg]);
+			asmand(ctxt, p, &p->to, reg[breg]);
 		} else {
 			*ctxt->andptr++ = 0x90 + reg[z];		/* xchg rsh,ax */
 			subreg(&pp, z, D_AX);
@@ -2616,24 +2620,24 @@ mfound:
 
 	case 1:	/* r,m */
 		*ctxt->andptr++ = t[4];
-		asmand(ctxt, &p->to, t[5]);
+		asmand(ctxt, p, &p->to, t[5]);
 		break;
 
 	case 2:	/* m,r */
 		*ctxt->andptr++ = t[4];
-		asmand(ctxt, &p->from, t[5]);
+		asmand(ctxt, p, &p->from, t[5]);
 		break;
 
 	case 3:	/* r,m - 2op */
 		*ctxt->andptr++ = t[4];
 		*ctxt->andptr++ = t[5];
-		asmand(ctxt, &p->to, t[6]);
+		asmand(ctxt, p, &p->to, t[6]);
 		break;
 
 	case 4:	/* m,r - 2op */
 		*ctxt->andptr++ = t[4];
 		*ctxt->andptr++ = t[5];
-		asmand(ctxt, &p->from, t[6]);
+		asmand(ctxt, p, &p->from, t[6]);
 		break;
 
 	case 5:	/* load full pointer, trash heap */
@@ -2661,7 +2665,7 @@ mfound:
 			*ctxt->andptr++ = 0xb5;
 			break;
 		}
-		asmand(ctxt, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.type]);
 		break;
 
 	case 6:	/* double shift */
@@ -2672,14 +2676,14 @@ mfound:
 		case D_CONST:
 			*ctxt->andptr++ = 0x0f;
 			*ctxt->andptr++ = t[4];
-			asmand(ctxt, &p->to, reg[p->from.index]);
+			asmand(ctxt, p, &p->to, reg[p->from.index]);
 			*ctxt->andptr++ = p->from.offset;
 			break;
 		case D_CL:
 		case D_CX:
 			*ctxt->andptr++ = 0x0f;
 			*ctxt->andptr++ = t[5];
-			asmand(ctxt, &p->to, reg[p->from.index]);
+			asmand(ctxt, p, &p->to, reg[p->from.index]);
 			break;
 		}
 		break;
@@ -2691,7 +2695,7 @@ mfound:
 		} else
 			*ctxt->andptr++ = t[4];
 		*ctxt->andptr++ = t[5];
-		asmand(ctxt, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.type]);
 		break;
 	
 	case 8: /* mov tls, r */
@@ -2713,7 +2717,7 @@ mfound:
 			pp.from.scale = 0;
 			*ctxt->andptr++ = 0x65; // GS
 			*ctxt->andptr++ = 0x8B;
-			asmand(ctxt, &pp.from, reg[p->to.type]);
+			asmand(ctxt, p, &pp.from, reg[p->to.type]);
 			break;
 		
 		case Hplan9:
@@ -2725,7 +2729,7 @@ mfound:
 			pp.from.offset = 0;
 			pp.from.index = D_NONE;
 			*ctxt->andptr++ = 0x8B;
-			asmand(ctxt, &pp.from, reg[p->to.type]);
+			asmand(ctxt, p, &pp.from, reg[p->to.type]);
 			break;
 
 		case Hwindows:
@@ -2737,7 +2741,7 @@ mfound:
 			pp.from.scale = 0;
 			*ctxt->andptr++ = 0x64; // FS
 			*ctxt->andptr++ = 0x8B;
-			asmand(ctxt, &pp.from, reg[p->to.type]);
+			asmand(ctxt, p, &pp.from, reg[p->to.type]);
 			break;
 		}
 		break;

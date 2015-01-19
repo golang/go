@@ -1533,7 +1533,7 @@ static Optab optab[] =
 };
 
 static Optab*	opindex[ALAST+1];
-static vlong	vaddr(Link*, Addr*, Reloc*);
+static vlong	vaddr(Link*, Prog*, Addr*, Reloc*);
 
 // isextern reports whether s describes an external symbol that must avoid pc-relative addressing.
 // This happens on systems like Solaris that call .so functions instead of system calls.
@@ -2231,7 +2231,7 @@ relput4(Link *ctxt, Prog *p, Addr *a)
 	vlong v;
 	Reloc rel, *r;
 	
-	v = vaddr(ctxt, a, &rel);
+	v = vaddr(ctxt, p, a, &rel);
 	if(rel.siz != 0) {
 		if(rel.siz != 4)
 			ctxt->diag("bad reloc");
@@ -2263,7 +2263,7 @@ relput8(Prog *p, Addr *a)
 	vlong v;
 	Reloc rel, *r;
 	
-	v = vaddr(ctxt, a, &rel);
+	v = vaddr(ctxt, p, a, &rel);
 	if(rel.siz != 0) {
 		r = addrel(ctxt->cursym);
 		*r = rel;
@@ -2275,12 +2275,14 @@ relput8(Prog *p, Addr *a)
 */
 
 static vlong
-vaddr(Link *ctxt, Addr *a, Reloc *r)
+vaddr(Link *ctxt, Prog *p, Addr *a, Reloc *r)
 {
 	int t;
 	vlong v;
 	LSym *s;
 	
+	USED(p);
+
 	if(r != nil)
 		memset(r, 0, sizeof *r);
 
@@ -2330,13 +2332,15 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
 }
 
 static void
-asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
+asmandsz(Link *ctxt, Prog *p, Addr *a, int r, int rex, int m64)
 {
 	int32 v;
 	int t, scale;
 	Reloc rel;
 
 	USED(m64);
+	USED(p);
+
 	rex &= (0x40 | Rxr);
 	v = a->offset;
 	t = a->type;
@@ -2351,7 +2355,7 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
 				if(!isextern(a->sym))
 					goto bad;
 				t = D_NONE;
-				v = vaddr(ctxt, a, &rel);
+				v = vaddr(ctxt, p, a, &rel);
 				break;
 			case D_AUTO:
 			case D_PARAM:
@@ -2397,7 +2401,7 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
 		case D_STATIC:
 		case D_EXTERN:
 			t = D_NONE;
-			v = vaddr(ctxt, a, &rel);
+			v = vaddr(ctxt, p, a, &rel);
 			break;
 		case D_AUTO:
 		case D_PARAM:
@@ -2408,7 +2412,7 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
 	} else
 		t -= D_INDIR;
 	if(t == D_TLS)
-		v = vaddr(ctxt, a, &rel);
+		v = vaddr(ctxt, p, a, &rel);
 
 	ctxt->rexflag |= (regrex[t] & Rxb) | rex;
 	if(t == D_NONE || (D_CS <= t && t <= D_GS) || t == D_TLS) {
@@ -2483,15 +2487,15 @@ bad:
 }
 
 static void
-asmand(Link *ctxt, Addr *a, Addr *ra)
+asmand(Link *ctxt, Prog *p, Addr *a, Addr *ra)
 {
-	asmandsz(ctxt, a, reg[ra->type], regrex[ra->type], 0);
+	asmandsz(ctxt, p, a, reg[ra->type], regrex[ra->type], 0);
 }
 
 static void
-asmando(Link *ctxt, Addr *a, int o)
+asmando(Link *ctxt, Prog *p, Addr *a, int o)
 {
-	asmandsz(ctxt, a, o, 0, 0);
+	asmandsz(ctxt, p, a, o, 0, 0);
 }
 
 static void
@@ -2825,7 +2829,7 @@ found:
 	case Zlitm_r:
 		for(; op = o->op[z]; z++)
 			*ctxt->andptr++ = op;
-		asmand(ctxt, &p->from, &p->to);
+		asmand(ctxt, p, &p->from, &p->to);
 		break;
 
 	case Zmb_r:
@@ -2833,42 +2837,42 @@ found:
 		/* fall through */
 	case Zm_r:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->from, &p->to);
+		asmand(ctxt, p, &p->from, &p->to);
 		break;
 	case Zm2_r:
 		*ctxt->andptr++ = op;
 		*ctxt->andptr++ = o->op[z+1];
-		asmand(ctxt, &p->from, &p->to);
+		asmand(ctxt, p, &p->from, &p->to);
 		break;
 
 	case Zm_r_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, &p->from, &p->to);
+		asmand(ctxt, p, &p->from, &p->to);
 		break;
 
 	case Zm_r_xm_nr:
 		ctxt->rexflag = 0;
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, &p->from, &p->to);
+		asmand(ctxt, p, &p->from, &p->to);
 		break;
 
 	case Zm_r_i_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, &p->from, &p->to);
+		asmand(ctxt, p, &p->from, &p->to);
 		*ctxt->andptr++ = p->to.offset;
 		break;
 
 	case Zm_r_3d:
 		*ctxt->andptr++ = 0x0f;
 		*ctxt->andptr++ = 0x0f;
-		asmand(ctxt, &p->from, &p->to);
+		asmand(ctxt, p, &p->from, &p->to);
 		*ctxt->andptr++ = op;
 		break;
 
 	case Zibm_r:
 		while ((op = o->op[z++]) != 0)
 			*ctxt->andptr++ = op;
-		asmand(ctxt, &p->from, &p->to);
+		asmand(ctxt, p, &p->from, &p->to);
 		*ctxt->andptr++ = p->to.offset;
 		break;
 
@@ -2878,41 +2882,41 @@ found:
 			ctxt->diag("asmins: Zaut sb type ADDR");
 		p->from.type = p->from.index;
 		p->from.index = D_NONE;
-		asmand(ctxt, &p->from, &p->to);
+		asmand(ctxt, p, &p->from, &p->to);
 		p->from.index = p->from.type;
 		p->from.type = D_ADDR;
 		break;
 
 	case Zm_o:
 		*ctxt->andptr++ = op;
-		asmando(ctxt, &p->from, o->op[z+1]);
+		asmando(ctxt, p, &p->from, o->op[z+1]);
 		break;
 
 	case Zr_m:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->to, &p->from);
+		asmand(ctxt, p, &p->to, &p->from);
 		break;
 
 	case Zr_m_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, &p->to, &p->from);
+		asmand(ctxt, p, &p->to, &p->from);
 		break;
 
 	case Zr_m_xm_nr:
 		ctxt->rexflag = 0;
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, &p->to, &p->from);
+		asmand(ctxt, p, &p->to, &p->from);
 		break;
 
 	case Zr_m_i_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, &p->to, &p->from);
+		asmand(ctxt, p, &p->to, &p->from);
 		*ctxt->andptr++ = p->from.offset;
 		break;
 
 	case Zo_m:
 		*ctxt->andptr++ = op;
-		asmando(ctxt, &p->to, o->op[z+1]);
+		asmando(ctxt, p, &p->to, o->op[z+1]);
 		break;
 
 	case Zcallindreg:
@@ -2923,25 +2927,25 @@ found:
 		// fallthrough
 	case Zo_m64:
 		*ctxt->andptr++ = op;
-		asmandsz(ctxt, &p->to, o->op[z+1], 0, 1);
+		asmandsz(ctxt, p, &p->to, o->op[z+1], 0, 1);
 		break;
 
 	case Zm_ibo:
 		*ctxt->andptr++ = op;
-		asmando(ctxt, &p->from, o->op[z+1]);
-		*ctxt->andptr++ = vaddr(ctxt, &p->to, nil);
+		asmando(ctxt, p, &p->from, o->op[z+1]);
+		*ctxt->andptr++ = vaddr(ctxt, p, &p->to, nil);
 		break;
 
 	case Zibo_m:
 		*ctxt->andptr++ = op;
-		asmando(ctxt, &p->to, o->op[z+1]);
-		*ctxt->andptr++ = vaddr(ctxt, &p->from, nil);
+		asmando(ctxt, p, &p->to, o->op[z+1]);
+		*ctxt->andptr++ = vaddr(ctxt, p, &p->from, nil);
 		break;
 
 	case Zibo_m_xm:
 		z = mediaop(ctxt, o, op, t[3], z);
-		asmando(ctxt, &p->to, o->op[z+1]);
-		*ctxt->andptr++ = vaddr(ctxt, &p->from, nil);
+		asmando(ctxt, p, &p->to, o->op[z+1]);
+		*ctxt->andptr++ = vaddr(ctxt, p, &p->from, nil);
 		break;
 
 	case Z_ib:
@@ -2951,20 +2955,20 @@ found:
 		else
 			a = &p->to;
 		*ctxt->andptr++ = op;
-		*ctxt->andptr++ = vaddr(ctxt, a, nil);
+		*ctxt->andptr++ = vaddr(ctxt, p, a, nil);
 		break;
 
 	case Zib_rp:
 		ctxt->rexflag |= regrex[p->to.type] & (Rxb|0x40);
 		*ctxt->andptr++ = op + reg[p->to.type];
-		*ctxt->andptr++ = vaddr(ctxt, &p->from, nil);
+		*ctxt->andptr++ = vaddr(ctxt, p, &p->from, nil);
 		break;
 
 	case Zil_rp:
 		ctxt->rexflag |= regrex[p->to.type] & Rxb;
 		*ctxt->andptr++ = op + reg[p->to.type];
 		if(o->prefix == Pe) {
-			v = vaddr(ctxt, &p->from, nil);
+			v = vaddr(ctxt, p, &p->from, nil);
 			*ctxt->andptr++ = v;
 			*ctxt->andptr++ = v>>8;
 		}
@@ -2975,14 +2979,14 @@ found:
 	case Zo_iw:
 		*ctxt->andptr++ = op;
 		if(p->from.type != D_NONE){
-			v = vaddr(ctxt, &p->from, nil);
+			v = vaddr(ctxt, p, &p->from, nil);
 			*ctxt->andptr++ = v;
 			*ctxt->andptr++ = v>>8;
 		}
 		break;
 
 	case Ziq_rp:
-		v = vaddr(ctxt, &p->from, &rel);
+		v = vaddr(ctxt, p, &p->from, &rel);
 		l = v>>32;
 		if(l == 0 && rel.siz != 8){
 			//p->mark |= 0100;
@@ -3000,7 +3004,7 @@ found:
 			//p->mark |= 0100;
 			//print("sign: %llux %P\n", v, p);
 			*ctxt->andptr ++ = 0xc7;
-			asmando(ctxt, &p->to, 0);
+			asmando(ctxt, p, &p->to, 0);
 			put4(ctxt, v);
 		}else{	/* need all 8 */
 			//print("all: %llux %P\n", v, p);
@@ -3017,8 +3021,8 @@ found:
 
 	case Zib_rr:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->to, &p->to);
-		*ctxt->andptr++ = vaddr(ctxt, &p->from, nil);
+		asmand(ctxt, p, &p->to, &p->to);
+		*ctxt->andptr++ = vaddr(ctxt, p, &p->from, nil);
 		break;
 
 	case Z_il:
@@ -3029,7 +3033,7 @@ found:
 			a = &p->to;
 		*ctxt->andptr++ = op;
 		if(o->prefix == Pe) {
-			v = vaddr(ctxt, a, nil);
+			v = vaddr(ctxt, p, a, nil);
 			*ctxt->andptr++ = v;
 			*ctxt->andptr++ = v>>8;
 		}
@@ -3042,13 +3046,13 @@ found:
 		*ctxt->andptr++ = op;
 		if(t[2] == Zilo_m) {
 			a = &p->from;
-			asmando(ctxt, &p->to, o->op[z+1]);
+			asmando(ctxt, p, &p->to, o->op[z+1]);
 		} else {
 			a = &p->to;
-			asmando(ctxt, &p->from, o->op[z+1]);
+			asmando(ctxt, p, &p->from, o->op[z+1]);
 		}
 		if(o->prefix == Pe) {
-			v = vaddr(ctxt, a, nil);
+			v = vaddr(ctxt, p, a, nil);
 			*ctxt->andptr++ = v;
 			*ctxt->andptr++ = v>>8;
 		}
@@ -3058,9 +3062,9 @@ found:
 
 	case Zil_rr:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->to, &p->to);
+		asmand(ctxt, p, &p->to, &p->to);
 		if(o->prefix == Pe) {
-			v = vaddr(ctxt, &p->from, nil);
+			v = vaddr(ctxt, p, &p->from, nil);
 			*ctxt->andptr++ = v;
 			*ctxt->andptr++ = v>>8;
 		}
@@ -3081,7 +3085,7 @@ found:
 	case Zclr:
 		ctxt->rexflag &= ~Pw;
 		*ctxt->andptr++ = op;
-		asmand(ctxt, &p->to, &p->to);
+		asmand(ctxt, p, &p->to, &p->to);
 		break;
 
 	case Zcall:
@@ -3192,7 +3196,7 @@ found:
 		break;
 
 	case Zbyte:
-		v = vaddr(ctxt, &p->from, &rel);
+		v = vaddr(ctxt, p, &p->from, &rel);
 		if(rel.siz != 0) {
 			rel.siz = op;
 			r = addrel(ctxt->cursym);
@@ -3241,11 +3245,11 @@ bad:
 				// We certainly don't want to exchange
 				// with AX if the op is MUL or DIV.
 				*ctxt->andptr++ = 0x87;			/* xchg lhs,bx */
-				asmando(ctxt, &p->from, reg[D_BX]);
+				asmando(ctxt, p, &p->from, reg[D_BX]);
 				subreg(&pp, z, D_BX);
 				doasm(ctxt, &pp);
 				*ctxt->andptr++ = 0x87;			/* xchg lhs,bx */
-				asmando(ctxt, &p->from, reg[D_BX]);
+				asmando(ctxt, p, &p->from, reg[D_BX]);
 			} else {
 				*ctxt->andptr++ = 0x90 + reg[z];		/* xchg lsh,ax */
 				subreg(&pp, z, D_AX);
@@ -3258,11 +3262,11 @@ bad:
 		if(z >= D_BP && z <= D_DI) {
 			if(isax(&p->from)) {
 				*ctxt->andptr++ = 0x87;			/* xchg rhs,bx */
-				asmando(ctxt, &p->to, reg[D_BX]);
+				asmando(ctxt, p, &p->to, reg[D_BX]);
 				subreg(&pp, z, D_BX);
 				doasm(ctxt, &pp);
 				*ctxt->andptr++ = 0x87;			/* xchg rhs,bx */
-				asmando(ctxt, &p->to, reg[D_BX]);
+				asmando(ctxt, p, &p->to, reg[D_BX]);
 			} else {
 				*ctxt->andptr++ = 0x90 + reg[z];		/* xchg rsh,ax */
 				subreg(&pp, z, D_AX);
@@ -3288,25 +3292,25 @@ mfound:
 
 	case 1:	/* r,m */
 		*ctxt->andptr++ = t[0];
-		asmando(ctxt, &p->to, t[1]);
+		asmando(ctxt, p, &p->to, t[1]);
 		break;
 
 	case 2:	/* m,r */
 		*ctxt->andptr++ = t[0];
-		asmando(ctxt, &p->from, t[1]);
+		asmando(ctxt, p, &p->from, t[1]);
 		break;
 
 	case 3:	/* r,m - 2op */
 		*ctxt->andptr++ = t[0];
 		*ctxt->andptr++ = t[1];
-		asmando(ctxt, &p->to, t[2]);
+		asmando(ctxt, p, &p->to, t[2]);
 		ctxt->rexflag |= regrex[p->from.type] & (Rxr|0x40);
 		break;
 
 	case 4:	/* m,r - 2op */
 		*ctxt->andptr++ = t[0];
 		*ctxt->andptr++ = t[1];
-		asmando(ctxt, &p->from, t[2]);
+		asmando(ctxt, p, &p->from, t[2]);
 		ctxt->rexflag |= regrex[p->to.type] & (Rxr|0x40);
 		break;
 
@@ -3335,7 +3339,7 @@ mfound:
 			*ctxt->andptr++ = 0xb5;
 			break;
 		}
-		asmand(ctxt, &p->from, &p->to);
+		asmand(ctxt, p, &p->from, &p->to);
 		break;
 
 	case 6:	/* double shift */
@@ -3355,14 +3359,14 @@ mfound:
 		case D_CONST:
 			*ctxt->andptr++ = 0x0f;
 			*ctxt->andptr++ = t[0];
-			asmandsz(ctxt, &p->to, reg[(int)p->from.index], regrex[(int)p->from.index], 0);
+			asmandsz(ctxt, p, &p->to, reg[(int)p->from.index], regrex[(int)p->from.index], 0);
 			*ctxt->andptr++ = p->from.offset;
 			break;
 		case D_CL:
 		case D_CX:
 			*ctxt->andptr++ = 0x0f;
 			*ctxt->andptr++ = t[1];
-			asmandsz(ctxt, &p->to, reg[(int)p->from.index], regrex[(int)p->from.index], 0);
+			asmandsz(ctxt, p, &p->to, reg[(int)p->from.index], regrex[(int)p->from.index], 0);
 			break;
 		}
 		break;
@@ -3386,7 +3390,7 @@ mfound:
 			pp.from.index = D_NONE;
 			ctxt->rexflag |= Pw;
 			*ctxt->andptr++ = 0x8B;
-			asmand(ctxt, &pp.from, &p->to);
+			asmand(ctxt, p, &pp.from, &p->to);
 			break;
 
 		case Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
@@ -3399,7 +3403,7 @@ mfound:
 			ctxt->rexflag |= Pw;
 			*ctxt->andptr++ = 0x64; // FS
 			*ctxt->andptr++ = 0x8B;
-			asmand(ctxt, &pp.from, &p->to);
+			asmand(ctxt, p, &pp.from, &p->to);
 			break;
 		
 		case Hwindows:
@@ -3412,7 +3416,7 @@ mfound:
 			ctxt->rexflag |= Pw;
 			*ctxt->andptr++ = 0x65; // GS
 			*ctxt->andptr++ = 0x8B;
-			asmand(ctxt, &pp.from, &p->to);
+			asmand(ctxt, p, &pp.from, &p->to);
 			break;
 		}
 		break;
