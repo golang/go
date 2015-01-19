@@ -1973,7 +1973,7 @@ isglobal(Node *n)
 {
 	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
 		n = n->left;
-	
+
 	switch(n->op) {
 	case ONAME:
 		switch(n->class) {

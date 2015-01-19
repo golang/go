@@ -284,6 +284,9 @@ struct	Node
 	uchar	readonly;
 	uchar	implicit;
 	uchar	addrtaken;	// address taken, even if not moved to heap
+	uchar	assigned;	// is the variable ever assigned to
+	uchar	captured;	// is the variable captured by a closure
+	uchar	byval;		// is the variable captured by value or by reference
 	uchar	dupok;	// duplicate definitions ok (for func)
 	uchar	wrapper;	// is method wrapper (for func)
 	uchar	reslice;	// this is a reslice x = x[0:y] or x = append(x, ...)
@@ -317,9 +320,11 @@ struct	Node
 	Node*	pack;	// real package for import . names
 	Node*	curfn;	// function for local variables
 	Type*	paramfld; // TFIELD for this PPARAM; also for ODOT, curfn
+	int	decldepth;	// declaration loop depth, increased for every loop or label
 
 	// ONAME func param with PHEAP
 	Node*	heapaddr;	// temp holding heap address of param
+	Node*	outerexpr;	// expression copied into closure for variable
 	Node*	stackparam;	// OPARAM node referring to stack copy of param
 	Node*	alloc;	// allocation call
 
@@ -874,6 +879,7 @@ EXTERN	Biobuf*	bout;
 EXTERN	int	nerrors;
 EXTERN	int	nsavederrors;
 EXTERN	int	nsyntaxerrors;
+EXTERN	int	decldepth;
 EXTERN	int	safemode;
 EXTERN	int	nolocalimports;
 EXTERN	char	namebuf[NSYMB];
@@ -943,7 +949,6 @@ EXTERN	Mpflt*	maxfltval[NTYPE];
 
 EXTERN	NodeList*	xtop;
 EXTERN	NodeList*	externdcl;
-EXTERN	NodeList*	closures;
 EXTERN	NodeList*	exportlist;
 EXTERN	NodeList*	importlist;	// imported functions and methods with inlinable bodies
 EXTERN	NodeList*	funcsyms;
@@ -1068,6 +1073,7 @@ void	bvset(Bvec *bv, int32 i);
 Node*	closurebody(NodeList *body);
 void	closurehdr(Node *ntype);
 void	typecheckclosure(Node *func, int top);
+void	capturevars(Node *func);
 Node*	walkclosure(Node *func, NodeList **init);
 void	typecheckpartialcall(Node*, Node*);
 Node*	walkpartialcall(Node*, NodeList**);
@@ -1454,7 +1460,7 @@ void	typechecklist(NodeList *l, int top);
 Node*	typecheckdef(Node *n);
 void	copytype(Node *n, Type *t);
 void	checkreturn(Node*);
-void	checkassign(Node*);
+void	checkassign(Node *stmt, Node*);
 void	queuemethod(Node *n);
 
 /*

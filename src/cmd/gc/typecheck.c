@@ -27,7 +27,7 @@ static void	typecheckas2(Node*);
 static void	typecheckas(Node*);
 static void	typecheckfunc(Node*);
 static void	checklvalue(Node*, char*);
-static void	checkassignlist(NodeList*);
+static void	checkassignlist(Node*, NodeList*);
 static void	stringtoarraylit(Node**);
 static Node*	resolve(Node*);
 static void	checkdefergo(Node*);
@@ -348,6 +348,8 @@ reswitch:
 		goto ret;
 
 	case ONAME:
+		if(n->decldepth == 0)
+			n->decldepth = decldepth;
 		if(n->etype != 0) {
 			ok |= Ecall;
 			goto ret;
@@ -521,8 +523,8 @@ reswitch:
 	case OASOP:
 		ok |= Etop;
 		l = typecheck(&n->left, Erv);
-		checkassign(n->left);
 		r = typecheck(&n->right, Erv);
+		checkassign(n, n->left);
 		if(l->type == T || r->type == T)
 			goto error;
 		op = n->etype;
@@ -741,11 +743,16 @@ reswitch:
 			goto error;
 		checklvalue(n->left, "take the address of");
 		r = outervalue(n->left);
-		for(l = n->left; l != r; l = l->left)
+		for(l = n->left; l != r; l = l->left) {
 			l->addrtaken = 1;
+			if(l->closure)
+				l->closure->addrtaken = 1;
+		}
 		if(l->orig != l && l->op == ONAME)
 			fatal("found non-orig name node %N", l);
 		l->addrtaken = 1;
+		if(l->closure)
+			l->closure->addrtaken = 1;
 		defaultlit(&n->left, T);
 		l = n->left;
 		if((t = l->type) == T)
@@ -1680,10 +1687,14 @@ reswitch:
 	case ODCL:
 	case OEMPTY:
 	case OGOTO:
-	case OLABEL:
 	case OXFALL:
 	case OVARKILL:
 		ok |= Etop;
+		goto ret;
+
+	case OLABEL:
+		ok |= Etop;
+		decldepth++;
 		goto ret;
 
 	case ODEFER:
@@ -1702,11 +1713,13 @@ reswitch:
 	case OFOR:
 		ok |= Etop;
 		typechecklist(n->ninit, Etop);
+		decldepth++;
 		typecheck(&n->ntest, Erv);
 		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
 			yyerror("non-bool %lN used as for condition", n->ntest);
 		typecheck(&n->nincr, Etop);
 		typechecklist(n->nbody, Etop);
+		decldepth--;
 		goto ret;
 
 	case OIF:
@@ -2811,8 +2824,22 @@ checklvalue(Node *n, char *verb)
 }
 
 void
-checkassign(Node *n)
+checkassign(Node *stmt, Node *n)
 {
+	Node *r, *l;
+
+	if(n->defn != stmt) {
+		r = outervalue(n);
+		for(l = n; l != r; l = l->left) {
+			l->assigned = 1;
+			if(l->closure)
+				l->closure->assigned = 1;
+		}
+		l->assigned = 1;
+		if(l->closure)
+			l->closure->assigned = 1;
+	}
+
 	if(islvalue(n))
 		return;
 	if(n->op == OINDEXMAP) {
@@ -2828,10 +2855,10 @@ checkassign(Node *n)
 }
 
 static void
-checkassignlist(NodeList *l)
+checkassignlist(Node *stmt, NodeList *l)
 {
 	for(; l; l=l->next)
-		checkassign(l->n);
+		checkassign(stmt, l->n);
 }
 
 // Check whether l and r are the same side effect-free expression,
@@ -2881,8 +2908,8 @@ typecheckas(Node *n)
 	if(n->left->defn != n || n->left->ntype)
 		typecheck(&n->left, Erv | Easgn);
 
-	checkassign(n->left);
 	typecheck(&n->right, Erv);
+	checkassign(n, n->left);
 	if(n->right && n->right->type != T) {
 		if(n->left->type != T)
 			n->right = assignconv(n->right, n->left->type, "assignment");
@@ -2953,11 +2980,11 @@ typecheckas2(Node *n)
 	}
 	cl = count(n->list);
 	cr = count(n->rlist);
-	checkassignlist(n->list);
 	if(cl > 1 && cr == 1)
 		typecheck(&n->rlist->n, Erv | Efnstruct);
 	else
 		typechecklist(n->rlist, Erv);
+	checkassignlist(n, n->list);
 
 	if(cl == cr) {
 		// easy
@@ -3048,6 +3075,7 @@ static void
 typecheckfunc(Node *n)
 {
 	Type *t, *rcvr;
+	NodeList *l;
 
 	typecheck(&n->nname, Erv | Easgn);
 	if((t = n->nname->type) == T)
@@ -3057,6 +3085,10 @@ typecheckfunc(Node *n)
 	rcvr = getthisx(t)->type;
 	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
 		addmethod(n->shortname->sym, t, 1, n->nname->nointerface);
+
+	for(l=n->dcl; l; l=l->next)
+		if(l->n->op == ONAME && (l->n->class == PPARAM || l->n->class == PPARAMOUT))
+			l->n->decldepth = 1;
 }
 
 static void

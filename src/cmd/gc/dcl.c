@@ -452,7 +452,6 @@ oldname(Sym *s)
 			c->funcdepth = funcdepth;
 			c->outer = n->closure;
 			n->closure = c;
-			n->addrtaken = 1;
 			c->closure = n;
 			c->xoffset = 0;
 			curfn->cvars = list(curfn->cvars, c);
