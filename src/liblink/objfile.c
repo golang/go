@@ -119,29 +119,45 @@ static char *rdstring(Biobuf*);
 static void rddata(Biobuf*, uchar**, int*);
 static LSym *rdsym(Link*, Biobuf*, char*);
 
-void	writeobjdirect(Link*, Biobuf*);
+void	writeobjdirect(Link *ctxt, Biobuf *b);
+
+void	writeobjgo1(Link*, char*);
+void	writeobjgo2(Link*, char*, int64);
+
+extern char *outfile;
 
 void
 writeobj(Link *ctxt, Biobuf *b)
 {
-	char *cmd[3];
-	
-	// TODO(rsc): Use 'go tool objwriter' to write object file,
-	// allowing the bulk of liblink to be moved into Go.
-	// As a first step, we check that we can invoke objwriter at all
-	// (it is an empty program for now).
-	// This tests the cmd/dist bootstrap process, making sure
-	// that objwriter is available when it needs to be.
-	// Once the support mechanisms are there, we can put the
-	// real code in.
-	
-	cmd[0] = smprint("%s/pkg/tool/%s_%s/objwriter", getgoroot(), getgohostos(), getgohostarch());
-	cmd[1] = "ping";
-	cmd[2] = nil;
-	if(runcmd(cmd) < 0)
-		sysfatal("cannot run objwriter: %r");
+	vlong start;
+	char *env;
 
-	writeobjdirect(ctxt, b);
+	// If $GOOBJ > 0, invoke the Go version of the liblink
+	// output routines via a subprocess.
+	// If $GOOBJ == 1, copy that subprocess's output to
+	// the actual output file.
+	// If $GOOBJ >= 2, generate output using the usual C version
+	// but then check that the subprocess wrote the same bytes.
+	// $GOOBJ is a temporary setting for the transition to a
+	// Go liblink back end. Once the C liblink back ends are deleted,
+	// we will hard code the GOOBJ=1 behavior.
+	env = getenv("GOOBJ");
+	if(env == nil)
+		env = "2";
+	if(atoi(env) == 0) {
+		writeobjdirect(ctxt, b);
+		return;
+	}
+
+	Bflush(b);
+	start = Boffset(b);
+	writeobjgo1(ctxt, outfile);
+	if(atoi(env) > 1) {
+		writeobjdirect(ctxt, b);
+		Bflush(b);
+	}
+	writeobjgo2(ctxt, outfile, start);
+	Bseek(b, 0, 2);
 }
 
 // The Go and C compilers, and the assembler, call writeobj to write

@@ -115,6 +115,7 @@ struct	Prog
 	uchar	ft;	/* 6l, 8l oclass cache */
 	uchar	tt;	// 6l, 8l
 	uchar	isize;	// 6l, 8l
+	uchar	printed;
 
 	char	width;	/* fake for DATA */
 	char	mode;	/* 16, 32, or 64 in 6l, 8l; internal use in 5g, 6g, 8g */
@@ -145,6 +146,7 @@ struct	LSym
 	uchar	localentry;	// ppc64: instrs between global & local entry
 	uchar	seenglobl;
 	uchar	onlist;	// on the textp or datap lists
+	uchar	printed;
 	int16	symid;	// for writing .5/.6/.8 files
 	int32	dynid;
 	int32	sig;
@@ -300,6 +302,7 @@ struct	Hist
 	char*	name;
 	int32	line;
 	int32	offset;
+	uchar	printed;
 };
 
 struct	Plist
