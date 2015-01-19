@@ -398,6 +398,7 @@ var goTools = map[string]targetDir{
 	"cmd/link":                             toTool,
 	"cmd/nm":                               toTool,
 	"cmd/objdump":                          toTool,
+	"cmd/objwriter":                        toTool,
 	"cmd/pack":                             toTool,
 	"cmd/pprof":                            toTool,
 	"cmd/yacc":                             toTool,

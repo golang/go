@@ -356,6 +356,7 @@ var oldtool = []string{
 // not be in release branches.
 var unreleased = []string{
 	"src/cmd/link",
+	"src/cmd/objwriter",
 	"src/debug/goobj",
 	"src/old",
 }
