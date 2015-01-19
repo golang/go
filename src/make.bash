@@ -141,7 +141,6 @@ if [ "$1" = "--dist-tool" ]; then
 	exit 0
 fi
 
-echo "##### Building compilers and Go bootstrap tool for host, $GOHOSTOS/$GOHOSTARCH."
 buildall="-a"
 if [ "$1" = "--no-clean" ]; then
 	buildall=""
