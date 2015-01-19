@@ -24,6 +24,9 @@ import (
 // packages supporting the commands.
 var bootstrapDirs = []string{
 	"internal/obj",
+	"internal/obj/arm",
+	"internal/obj/i386",
+	"internal/obj/ppc64",
 	"internal/obj/x86",
 	"objwriter",
 }
