@@ -203,9 +203,17 @@ func (b *Bar2) LeakSelf2() { // ERROR "leaking param: b"
 }
 
 func foo21() func() int {
+	x := 42
+	return func() int { // ERROR "func literal escapes to heap"
+		return x
+	}
+}
+
+func foo21a() func() int {
 	x := 42             // ERROR "moved to heap: x"
 	return func() int { // ERROR "func literal escapes to heap"
-		return x // ERROR "&x escapes to heap"
+		x++  // ERROR "&x escapes to heap"
+		return x
 	}
 }
 
@@ -216,22 +224,29 @@ func foo22() int {
 	}()
 }
 
-func foo23(x int) func() int { // ERROR "moved to heap: x"
+func foo23(x int) func() int {
 	return func() int { // ERROR "func literal escapes to heap"
-		return x // ERROR "&x escapes to heap"
+		return x
 	}
 }
 
-func foo23a(x int) func() int { // ERROR "moved to heap: x"
+func foo23a(x int) func() int {
 	f := func() int { // ERROR "func literal escapes to heap"
-		return x // ERROR "&x escapes to heap"
+		return x
 	}
 	return f
 }
 
-func foo23b(x int) *(func() int) { // ERROR "moved to heap: x"
-	f := func() int { return x } // ERROR "moved to heap: f" "func literal escapes to heap" "&x escapes to heap"
+func foo23b(x int) *(func() int) {
+	f := func() int { return x } // ERROR "moved to heap: f" "func literal escapes to heap"
 	return &f                    // ERROR "&f escapes to heap"
+}
+
+func foo23c(x int) func() int { // ERROR "moved to heap: x"
+	return func() int { // ERROR "func literal escapes to heap"
+		x++ // ERROR "&x escapes to heap"
+		return x
+	}
 }
 
 func foo24(x int) int {
@@ -525,10 +540,22 @@ func foo72b() [10]*int {
 func foo73() {
 	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
 	for _, v := range s {
+		vv := v
+		// actually just escapes its scope
+		defer func() { // ERROR "func literal escapes to heap"
+			println(vv)
+		}()
+	}
+}
+
+func foo731() {
+	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
+	for _, v := range s {
 		vv := v // ERROR "moved to heap: vv"
 		// actually just escapes its scope
 		defer func() { // ERROR "func literal escapes to heap"
-			println(vv) // ERROR "&vv escapes to heap"
+			vv = 42 // ERROR "&vv escapes to heap"
+			println(vv)
 		}()
 	}
 }
@@ -536,10 +563,23 @@ func foo73() {
 func foo74() {
 	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
 	for _, v := range s {
+		vv := v
+		// actually just escapes its scope
+		fn := func() { // ERROR "func literal escapes to heap"
+			println(vv)
+		}
+		defer fn()
+	}
+}
+
+func foo74a() {
+	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
+	for _, v := range s {
 		vv := v // ERROR "moved to heap: vv"
 		// actually just escapes its scope
 		fn := func() { // ERROR "func literal escapes to heap"
-			println(vv) // ERROR "&vv escapes to heap"
+			vv += 1 // ERROR "&vv escapes to heap"
+			println(vv)
 		}
 		defer fn()
 	}
@@ -550,10 +590,22 @@ func foo74b() {
 	var array [3]func()
 	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
 	for i, v := range s {
+		vv := v
+		// actually just escapes its scope
+		array[i] = func() { // ERROR "func literal escapes to heap"
+			println(vv)
+		}
+	}
+}
+
+func foo74c() {
+	var array [3]func()
+	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
+	for i, v := range s {
 		vv := v // ERROR "moved to heap: vv"
 		// actually just escapes its scope
 		array[i] = func() { // ERROR "func literal escapes to heap"
-			println(vv) // ERROR "&vv escapes to heap"
+			println(&vv) // ERROR "&vv escapes to heap" "&vv does not escape"
 		}
 	}
 }
@@ -1213,9 +1265,9 @@ func foo134() {
 
 func foo135() {
 	var i int   // ERROR "moved to heap: i"
-	p := &i     // ERROR "&i escapes to heap" "moved to heap: p"
+	p := &i     // ERROR "&i escapes to heap"
 	go func() { // ERROR "func literal escapes to heap"
-		q := p   // ERROR "&p escapes to heap"
+		q := p
 		func() { // ERROR "func literal does not escape"
 			r := q
 			_ = r
@@ -1225,9 +1277,9 @@ func foo135() {
 
 func foo136() {
 	var i int   // ERROR "moved to heap: i"
-	p := &i     // ERROR "&i escapes to heap" "moved to heap: p"
+	p := &i     // ERROR "&i escapes to heap"
 	go func() { // ERROR "func literal escapes to heap"
-		q := p   // ERROR "&p escapes to heap" "leaking closure reference p"
+		q := p   // ERROR "leaking closure reference p"
 		func() { // ERROR "func literal does not escape"
 			r := q // ERROR "leaking closure reference q"
 			px = r
@@ -1239,9 +1291,9 @@ func foo137() {
 	var i int // ERROR "moved to heap: i"
 	p := &i   // ERROR "&i escapes to heap"
 	func() {  // ERROR "func literal does not escape"
-		q := p      // ERROR "leaking closure reference p" "moved to heap: q"
+		q := p      // ERROR "leaking closure reference p"
 		go func() { // ERROR "func literal escapes to heap"
-			r := q // ERROR "&q escapes to heap"
+			r := q
 			_ = r
 		}()
 	}()

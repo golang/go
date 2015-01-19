@@ -391,6 +391,7 @@ gcmain(int argc, char *argv[])
 	for(l=xtop; l; l=l->next) {
 		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE) {
 			curfn = l->n;
+			decldepth = 1;
 			saveerrors();
 			typechecklist(l->n->nbody, Etop);
 			checkreturn(l->n);
@@ -399,12 +400,21 @@ gcmain(int argc, char *argv[])
 		}
 	}
 
+	// Phase 4: Decide how to capture variables
+	// and transform closure bodies accordingly.
+	for(l=xtop; l; l=l->next) {
+		if(l->n->op == ODCLFUNC && l->n->closure) {
+			curfn = l->n;
+			capturevars(l->n);
+		}
+	}
+
 	curfn = nil;
 	
 	if(nsavederrors+nerrors)
 		errorexit();
 
-	// Phase 4: Inlining
+	// Phase 5: Inlining
 	if(debug['l'] > 1) {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
@@ -430,7 +440,7 @@ gcmain(int argc, char *argv[])
 				inlcalls(l->n);
 	}
 
-	// Phase 5: Escape analysis.
+	// Phase 6: Escape analysis.
 	// Required for moving heap allocations onto stack,
 	// which in turn is required by the closure implementation,
 	// which stores the addresses of stack variables into the closure.
@@ -442,7 +452,7 @@ gcmain(int argc, char *argv[])
 	// Move large values off stack too.
 	movelarge(xtop);
 
-	// Phase 6: Compile top level functions.
+	// Phase 7: Compile top level functions.
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
 			funccompile(l->n, 0);
@@ -450,7 +460,7 @@ gcmain(int argc, char *argv[])
 	if(nsavederrors+nerrors == 0)
 		fninit(xtop);
 
-	// Phase 7: Check external declarations.
+	// Phase 8: Check external declarations.
 	for(l=externdcl; l; l=l->next)
 		if(l->n->op == ONAME)
 			typecheck(&l->n, Erv);

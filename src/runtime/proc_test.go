@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"math"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -412,6 +413,25 @@ func benchmarkCreateGoroutines(b *testing.B, procs int) {
 	}
 	for i := 0; i < procs; i++ {
 		<-c
+	}
+}
+
+func BenchmarkCreateGoroutinesCapture(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		const N = 4
+		var wg sync.WaitGroup
+		wg.Add(N)
+		for i := 0; i < N; i++ {
+			i := i
+			go func() {
+				if i >= N {
+					b.Logf("bad") // just to capture b
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
 	}
 }
 

@@ -429,7 +429,7 @@ esc(EscState *e, Node *n, Node *up)
 {
 	int lno;
 	NodeList *ll, *lr;
-	Node *a;
+	Node *a, *v;
 
 	if(n == N)
 		return;
@@ -676,12 +676,16 @@ esc(EscState *e, Node *n, Node *up)
 	case OCLOSURE:
 		// Link addresses of captured variables to closure.
 		for(ll=n->cvars; ll; ll=ll->next) {
-			if(ll->n->op == OXXX)  // unnamed out argument; see dcl.c:/^funcargs
+			v = ll->n;
+			if(v->op == OXXX)  // unnamed out argument; see dcl.c:/^funcargs
 				continue;
-			a = nod(OADDR, ll->n->closure, N);
-			a->lineno = ll->n->lineno;
-			a->escloopdepth = e->loopdepth;
-			typecheck(&a, Erv);
+			a = v->closure;
+			if(!v->byval) {
+				a = nod(OADDR, a, N);
+				a->lineno = v->lineno;
+				a->escloopdepth = e->loopdepth;
+				typecheck(&a, Erv);
+			}
 			escassign(e, n, a);
 		}
 		// fallthrough
