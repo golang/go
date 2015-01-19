@@ -178,8 +178,8 @@
 	However, the notation [n] immediately before the verb indicates that the
 	nth one-indexed argument is to be formatted instead. The same notation
 	before a '*' for a width or precision selects the argument index holding
-	the value. After processing a bracketed expression [n], arguments n+1,
-	n+2, etc. will be processed unless otherwise directed.
+	the value. After processing a bracketed expression [n], subsequent verbs
+	will use arguments n+1, n+2, etc. unless otherwise directed.
 
 	For example,
 		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
