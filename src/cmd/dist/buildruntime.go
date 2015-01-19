@@ -27,6 +27,7 @@ func mkzversion(dir, file string) {
 			"\n"+
 			"const defaultGoroot = `%s`\n"+
 			"const theVersion = `%s`\n"+
+			"\n"+
 			"var buildVersion = theVersion\n", goroot_final, goversion)
 
 	writefile(out, file, 0)
