@@ -1,12 +1,19 @@
+Overall:
+
+build: Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
+
 API additions and behavior changes:
 
 bufio: add Reader.Discard (https://golang.org/cl/2260)
 crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
 crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
 encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
 log: add global Output function (https://golang.org/cl/2686)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
+runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
+strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)
 
 Tools:
 
@@ -14,6 +21,8 @@ cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
 
 Performance:
 
+cmd/gc: optimize memclr of slices and arrays (https://golang.org/cl/2520)
+sort: number of Sort performance optimizations (https://golang.org/cl/2100, https://golang.org/cl/2614, ...)
 strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
 math/big: faster assembly kernels for amd64 and 386 (https://golang.org/cl/2503, https://golang.org/cl/2560)
 math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://golang.org/cl/2480)
