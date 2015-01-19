@@ -929,6 +929,8 @@ func install(dir string) {
 				compile = append(compile,
 					"-D", fmt.Sprintf("GOOS=%q", goos),
 					"-D", fmt.Sprintf("GOARCH=%q", goarch),
+					"-D", fmt.Sprintf("GOHOSTOS=%q", gohostos),
+					"-D", fmt.Sprintf("GOHOSTARCH=%q", gohostarch),
 					"-D", fmt.Sprintf("GOROOT=%q", goroot_final),
 					"-D", fmt.Sprintf("GOVERSION=%q", goversion),
 					"-D", fmt.Sprintf("GOARM=%q", goarm),
