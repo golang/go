@@ -1346,7 +1346,7 @@ reswitch:
 			goto error;
 
 		// Unpack multiple-return result before type-checking.
-		if(istype(t, TSTRUCT)) {
+		if(istype(t, TSTRUCT) && t->funarg) {
 			t = t->type;
 			if(istype(t, TFIELD))
 				t = t->type;
