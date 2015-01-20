@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 )
 
@@ -23,11 +22,22 @@ func putTar(args []string) error {
 		os.Exit(1)
 	}
 	var rev string
-	fs.StringVar(&rev, "gorev", "", "If non-empty, git hash to download from gerrit and put to the buildlet. e.g. 886b02d705ff for Go 1.4.1")
+	fs.StringVar(&rev, "gorev", "", "If non-empty, git hash to download from gerrit and put to the buildlet. e.g. 886b02d705ff for Go 1.4.1. This just maps to the --URL flag, so the two options are mutually exclusive.")
+	var dir string
+	fs.StringVar(&dir, "dir", "", "relative directory from buildlet's work dir to extra tarball into")
+	var tarURL string
+	fs.StringVar(&tarURL, "url", "", "URL of tarball, instead of provided file.")
 
 	fs.Parse(args)
 	if fs.NArg() < 1 || fs.NArg() > 2 {
 		fs.Usage()
+	}
+	if rev != "" {
+		if tarURL != "" {
+			fmt.Fprintln(os.Stderr, "--gorev and --url are mutually exclusive")
+			fs.Usage()
+		}
+		tarURL = "https://go.googlesource.com/go/+archive/" + rev + ".tar.gz"
 	}
 
 	name := fs.Arg(0)
@@ -36,24 +46,15 @@ func putTar(args []string) error {
 		return err
 	}
 
-	var tgz io.Reader = os.Stdin
-	if rev != "" {
+	if tarURL != "" {
 		if fs.NArg() != 1 {
 			fs.Usage()
 		}
-		// TODO(bradfitz): tell the buildlet to do this
-		// itself, to avoid network to & from home networks.
-		// Staying Google<->Google will be much faster.
-		res, err := http.Get("https://go.googlesource.com/go/+archive/" + rev + ".tar.gz")
-		if err != nil {
-			return fmt.Errorf("Error fetching rev %s from Gerrit: %v", rev, err)
-		}
-		defer res.Body.Close()
-		if res.StatusCode != 200 {
-			return fmt.Errorf("Error fetching rev %s from Gerrit: %v", rev, res.Status)
-		}
-		tgz = res.Body
-	} else if fs.NArg() == 2 && fs.Arg(1) != "-" {
+		return bc.PutTarFromURL(tarURL, dir)
+	}
+
+	var tgz io.Reader = os.Stdin
+	if fs.NArg() == 2 && fs.Arg(1) != "-" {
 		f, err := os.Open(fs.Arg(1))
 		if err != nil {
 			return err
@@ -61,7 +62,7 @@ func putTar(args []string) error {
 		defer f.Close()
 		tgz = f
 	}
-	return bc.PutTarball(tgz)
+	return bc.PutTar(tgz, dir)
 }
 
 // put single files

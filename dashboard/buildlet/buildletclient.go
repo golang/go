@@ -58,23 +58,48 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 	return c.httpClient.Do(req)
 }
 
-// PutTarball writes files to the remote buildlet.
-// The Reader must be of a tar.gz file.
-func (c *Client) PutTarball(r io.Reader) error {
-	req, err := http.NewRequest("PUT", c.URL()+"/writetgz", r)
-	if err != nil {
-		return err
-	}
+// doOK sends the request and expects a 200 OK response.
+func (c *Client) doOK(req *http.Request) error {
 	res, err := c.do(req)
 	if err != nil {
 		return err
 	}
 	defer res.Body.Close()
-	if res.StatusCode/100 != 2 {
+	if res.StatusCode != http.StatusOK {
 		slurp, _ := ioutil.ReadAll(io.LimitReader(res.Body, 4<<10))
 		return fmt.Errorf("%v; body: %s", res.Status, slurp)
 	}
 	return nil
+}
+
+// PutTar writes files to the remote buildlet, rooted at the relative
+// directory dir.
+// If dir is empty, they're placed at the root of the buildlet's work directory.
+// The dir is created if necessary.
+// The Reader must be of a tar.gz file.
+func (c *Client) PutTar(r io.Reader, dir string) error {
+	req, err := http.NewRequest("PUT", c.URL()+"/writetgz?dir="+url.QueryEscape(dir), r)
+	if err != nil {
+		return err
+	}
+	return c.doOK(req)
+}
+
+// PutTarFromURL tells the buildlet to download the tar.gz file from tarURL
+// and write it to dir, a relative directory from the workdir.
+// If dir is empty, they're placed at the root of the buildlet's work directory.
+// The dir is created if necessary.
+// The url must be of a tar.gz file.
+func (c *Client) PutTarFromURL(tarURL, dir string) error {
+	form := url.Values{
+		"url": {tarURL},
+	}
+	req, err := http.NewRequest("POST", c.URL()+"/writetgz?dir="+url.QueryEscape(dir), strings.NewReader(form.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return c.doOK(req)
 }
 
 // ExecOpts are options for a remote command invocation.

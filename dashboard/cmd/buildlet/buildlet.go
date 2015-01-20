@@ -26,6 +26,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -183,11 +184,49 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleWriteTGZ(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "PUT" {
-		http.Error(w, "requires PUT method", http.StatusBadRequest)
+	var tgz io.Reader
+	switch r.Method {
+	case "PUT":
+		tgz = r.Body
+	case "POST":
+		urlStr := r.FormValue("url")
+		if urlStr == "" {
+			http.Error(w, "missing url POST param", http.StatusBadRequest)
+			return
+		}
+		res, err := http.Get(urlStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("fetching URL %s: %v", urlStr, err), http.StatusInternalServerError)
+			return
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			http.Error(w, fmt.Sprintf("fetching provided url: %s", res.Status), http.StatusInternalServerError)
+			return
+		}
+		tgz = res.Body
+	default:
+		http.Error(w, "requires PUT or POST method", http.StatusBadRequest)
 		return
 	}
-	err := untar(r.Body, *scratchDir)
+
+	urlParam, _ := url.ParseQuery(r.URL.RawQuery)
+	baseDir := *scratchDir
+	if dir := urlParam.Get("dir"); dir != "" {
+		dir = filepath.FromSlash(dir)
+		if strings.Contains(dir, "../") {
+			// This is a remote code execution daemon, so security is kinda pointless, but:
+			http.Error(w, "bogus dir", http.StatusBadRequest)
+			return
+		}
+		baseDir = filepath.Join(baseDir, dir)
+		if err := os.MkdirAll(baseDir, 0755); err != nil {
+			http.Error(w, "mkdir of base: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	err := untar(tgz, baseDir)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if he, ok := err.(httpStatuser); ok {
