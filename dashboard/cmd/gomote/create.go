@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"golang.org/x/tools/dashboard"
@@ -36,13 +37,22 @@ func create(args []string) error {
 	conf, ok := dashboard.Builders[builderType]
 	if !ok || !conf.UsesVM() {
 		var valid []string
+		var prefixMatch []string
 		for k, conf := range dashboard.Builders {
 			if conf.UsesVM() {
 				valid = append(valid, k)
+				if strings.HasPrefix(k, builderType) {
+					prefixMatch = append(prefixMatch, k)
+				}
 			}
 		}
-		sort.Strings(valid)
-		return fmt.Errorf("Invalid builder type %q. Valid options include: %q", builderType, valid)
+		if len(prefixMatch) == 1 {
+			builderType = prefixMatch[0]
+			conf, _ = dashboard.Builders[builderType]
+		} else {
+			sort.Strings(valid)
+			return fmt.Errorf("Invalid builder type %q. Valid options include: %q", builderType, valid)
+		}
 	}
 
 	instName := fmt.Sprintf("mote-%s-%s", username(), builderType)

@@ -102,11 +102,37 @@ func (c *Client) PutTarFromURL(tarURL, dir string) error {
 	return c.doOK(req)
 }
 
+// GetTar returns a .tar.gz stream of the given directory, relative to the buildlet's work dir.
+// The provided dir may be empty to get everything.
+func (c *Client) GetTar(dir string) (tgz io.ReadCloser, err error) {
+	req, err := http.NewRequest("GET", c.URL()+"/tgz?dir="+url.QueryEscape(dir), nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		slurp, _ := ioutil.ReadAll(io.LimitReader(res.Body, 4<<10))
+		res.Body.Close()
+		return nil, fmt.Errorf("%v; body: %s", res.Status, slurp)
+	}
+	return res.Body, nil
+}
+
 // ExecOpts are options for a remote command invocation.
 type ExecOpts struct {
 	// Output is the output of stdout and stderr.
 	// If nil, the output is discarded.
 	Output io.Writer
+
+	// Args are the arguments to pass to the cmd given to Client.Exec.
+	Args []string
+
+	// SystemLevel controls whether the command is run outside of
+	// the buildlet's environment.
+	SystemLevel bool
 
 	// OnStartExec is an optional hook that runs after the 200 OK
 	// response from the buildlet, but before the output begins
@@ -122,8 +148,14 @@ type ExecOpts struct {
 // seen to completition. If execErr is non-nil, the remoteErr is
 // meaningless.
 func (c *Client) Exec(cmd string, opts ExecOpts) (remoteErr, execErr error) {
+	var mode string
+	if opts.SystemLevel {
+		mode = "sys"
+	}
 	form := url.Values{
-		"cmd": {cmd},
+		"cmd":    {cmd},
+		"mode":   {mode},
+		"cmdArg": opts.Args,
 	}
 	req, err := http.NewRequest("POST", c.URL()+"/exec", strings.NewReader(form.Encode()))
 	if err != nil {

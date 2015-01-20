@@ -81,6 +81,7 @@ func registerCommands() {
 	registerCommand("run", "run a command on a buildlet", run)
 	registerCommand("put", "put files on a buildlet", put)
 	registerCommand("puttar", "extract a tar.gz to a buildlet", putTar)
+	registerCommand("gettar", "extract a tar.gz from a buildlet", getTar)
 }
 
 func main() {

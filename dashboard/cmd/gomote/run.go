@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/tools/dashboard/buildlet"
 )
@@ -17,10 +18,12 @@ import (
 func run(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "create usage: gomote run [run-opts] <buildlet-name> <cmd> [args...]")
+		fmt.Fprintln(os.Stderr, "create usage: gomote run [run-opts] <instance> <cmd> [args...]")
 		fs.PrintDefaults()
 		os.Exit(1)
 	}
+	var sys bool
+	fs.BoolVar(&sys, "system", false, "run inside the system, and not inside the workdir; this is implicit if cmd starts with '/'")
 
 	fs.Parse(args)
 	if fs.NArg() < 2 {
@@ -33,7 +36,9 @@ func run(args []string) error {
 	}
 
 	remoteErr, execErr := bc.Exec(cmd, buildlet.ExecOpts{
-		Output: os.Stdout,
+		SystemLevel: sys || strings.HasPrefix(cmd, "/"),
+		Output:      os.Stdout,
+		Args:        fs.Args()[2:],
 	})
 	if execErr != nil {
 		return fmt.Errorf("Error trying to execute %s: %v", cmd, execErr)

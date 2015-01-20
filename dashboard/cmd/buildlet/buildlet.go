@@ -29,10 +29,11 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"google.golang.org/cloud/compute/metadata"
@@ -66,8 +67,12 @@ var osHalt func() // set by some machines
 
 func main() {
 	flag.Parse()
-	if !metadata.OnGCE() && !strings.HasPrefix(*listenAddr, "localhost:") {
+	onGCE := metadata.OnGCE()
+	if !onGCE && !strings.HasPrefix(*listenAddr, "localhost:") {
 		log.Printf("** WARNING ***  This server is unsafe and offers no security. Be careful.")
+	}
+	if onGCE {
+		fixMTU()
 	}
 	if runtime.GOOS == "plan9" {
 		// Plan 9 is too slow on GCE, so stop running run.rc after the basics.
@@ -78,7 +83,6 @@ func main() {
 		// But no need for environment variables quite yet.
 		os.Setenv("GOTESTONLY", "std")
 	}
-
 	if *scratchDir == "" {
 		dir, err := ioutil.TempDir("", "buildlet-scatch")
 		if err != nil {
@@ -86,10 +90,21 @@ func main() {
 		}
 		*scratchDir = dir
 	}
+	// TODO(bradfitz): if this becomes more of a general tool,
+	// perhaps we want to remove this hard-coded here. Also,
+	// if/once the exec handler ever gets generic environment
+	// variable support, it would make sense to remove this too
+	// and push it to the client.  This hard-codes policy. But
+	// that's okay for now.
+	os.Setenv("GOROOT_BOOTSTRAP", filepath.Join(*scratchDir, "go1.4"))
+	os.Setenv("WORKDIR", *scratchDir) // mostly for demos
+
 	if _, err := os.Lstat(*scratchDir); err != nil {
 		log.Fatalf("invalid --scratchdir %q: %v", *scratchDir, err)
 	}
 	http.HandleFunc("/", handleRoot)
+	http.HandleFunc("/debug/goroutines", handleGoroutines)
+	http.HandleFunc("/debug/x", handleX)
 
 	password := metadataValue("password")
 	requireAuth := func(handler func(w http.ResponseWriter, r *http.Request)) http.Handler {
@@ -98,6 +113,7 @@ func main() {
 	http.Handle("/writetgz", requireAuth(handleWriteTGZ))
 	http.Handle("/exec", requireAuth(handleExec))
 	http.Handle("/halt", requireAuth(handleHalt))
+	http.Handle("/tgz", requireAuth(handleGetTGZ))
 	// TODO: removeall
 
 	tlsCert, tlsKey := metadataValue("tls-cert"), metadataValue("tls-key")
@@ -179,8 +195,191 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	return tc, nil
 }
 
+func fixMTU_freebsd() error { return fixMTU_ifconfig("vtnet0") }
+func fixMTU_openbsd() error { return fixMTU_ifconfig("vio0") }
+func fixMTU_ifconfig(iface string) error {
+	out, err := exec.Command("/sbin/ifconfig", iface, "mtu", "1460").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("/sbin/ifconfig %s mtu 1460: %v, %s", iface, err, out)
+	}
+	return nil
+}
+
+func fixMTU_plan9() error {
+	f, err := os.OpenFile("/net/ipifc/0/ctl", os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	if _, err := io.WriteString(f, "mtu 1400\n"); err != nil { // not 1460
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+func fixMTU() {
+	fn, ok := map[string]func() error{
+		"openbsd": fixMTU_openbsd,
+		"freebsd": fixMTU_freebsd,
+		"plan9":   fixMTU_plan9,
+	}[runtime.GOOS]
+	if ok {
+		if err := fn(); err != nil {
+			log.Printf("Failed to set MTU: %v", err)
+		} else {
+			log.Printf("Adjusted MTU.")
+		}
+	}
+}
+
+// mtuWriter is a hack for environments where we can't (or can't yet)
+// fix the machine's MTU.
+// Instead of telling the operating system the MTU, we just cut up our
+// writes into small pieces to make sure we don't get too near the
+// MTU, and we hope the kernel doesn't coalesce different flushed
+// writes back together into the same TCP IP packets.
+type mtuWriter struct {
+	rw http.ResponseWriter
+}
+
+func (mw mtuWriter) Write(p []byte) (n int, err error) {
+	const mtu = 1000 // way less than 1460; since HTTP response headers might be in there too
+	for len(p) > 0 {
+		chunk := p
+		if len(chunk) > mtu {
+			chunk = p[:mtu]
+		}
+		n0, err := mw.rw.Write(chunk)
+		n += n0
+		if n0 != len(chunk) && err == nil {
+			err = io.ErrShortWrite
+		}
+		if err != nil {
+			return n, err
+		}
+		p = p[n0:]
+		mw.rw.(http.Flusher).Flush()
+		if len(p) > 0 {
+			// Whitelisted operating systems:
+			if runtime.GOOS == "openbsd" || runtime.GOOS == "linux" {
+				// Nothing
+			} else {
+				// Try to prevent the kernel from Nagel-ing the IP packets
+				// together into one that's too large.
+				time.Sleep(250 * time.Millisecond)
+			}
+		}
+	}
+	return n, nil
+}
+
 func handleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
 	fmt.Fprintf(w, "buildlet running on %s-%s\n", runtime.GOOS, runtime.GOARCH)
+}
+
+// unauthenticated /debug/goroutines handler
+func handleGoroutines(rw http.ResponseWriter, r *http.Request) {
+	w := mtuWriter{rw}
+	log.Printf("Dumping goroutines.")
+	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	buf := make([]byte, 2<<20)
+	buf = buf[:runtime.Stack(buf, true)]
+	w.Write(buf)
+	log.Printf("Dumped goroutines.")
+}
+
+// unauthenticated /debug/x handler, to test MTU settings.
+func handleX(w http.ResponseWriter, r *http.Request) {
+	n, _ := strconv.Atoi(r.FormValue("n"))
+	if n > 1<<20 {
+		n = 1 << 20
+	}
+	log.Printf("Dumping %d X.", n)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	buf := make([]byte, n)
+	for i := range buf {
+		buf[i] = 'X'
+	}
+	w.Write(buf)
+	log.Printf("Dumped X.")
+}
+
+// This is a remote code execution daemon, so security is kinda pointless, but:
+func validRelativeDir(dir string) bool {
+	if strings.Contains(dir, `\`) || path.IsAbs(dir) {
+		return false
+	}
+	dir = path.Clean(dir)
+	if strings.HasPrefix(dir, "../") || strings.HasSuffix(dir, "/..") || dir == ".." {
+		return false
+	}
+	return true
+}
+
+func handleGetTGZ(rw http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(rw, "requires GET method", http.StatusBadRequest)
+		return
+	}
+	dir := r.FormValue("dir")
+	if !validRelativeDir(dir) {
+		http.Error(rw, "bogus dir", http.StatusBadRequest)
+		return
+	}
+	zw := gzip.NewWriter(mtuWriter{rw})
+	tw := tar.NewWriter(zw)
+	base := filepath.Join(*scratchDir, filepath.FromSlash(dir))
+	err := filepath.Walk(base, func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel := strings.TrimPrefix(strings.TrimPrefix(path, base), "/")
+		var linkName string
+		if fi.Mode()&os.ModeSymlink != 0 {
+			linkName, err = os.Readlink(path)
+			if err != nil {
+				return err
+			}
+		}
+		th, err := tar.FileInfoHeader(fi, linkName)
+		if err != nil {
+			return err
+		}
+		th.Name = rel
+		if fi.IsDir() && !strings.HasSuffix(th.Name, "/") {
+			th.Name += "/"
+		}
+		if th.Name == "/" {
+			return nil
+		}
+		if err := tw.WriteHeader(th); err != nil {
+			return err
+		}
+		if fi.Mode().IsRegular() {
+			f, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			if _, err := io.Copy(tw, f); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Printf("Walk error: %v", err)
+		// Decent way to signal failure to the caller, since it'll break
+		// the chunked response, rather than have a valid EOF.
+		conn, _, _ := rw.(http.Hijacker).Hijack()
+		conn.Close()
+	}
+	tw.Close()
+	zw.Close()
 }
 
 func handleWriteTGZ(w http.ResponseWriter, r *http.Request) {
@@ -213,12 +412,11 @@ func handleWriteTGZ(w http.ResponseWriter, r *http.Request) {
 	urlParam, _ := url.ParseQuery(r.URL.RawQuery)
 	baseDir := *scratchDir
 	if dir := urlParam.Get("dir"); dir != "" {
-		dir = filepath.FromSlash(dir)
-		if strings.Contains(dir, "../") {
-			// This is a remote code execution daemon, so security is kinda pointless, but:
+		if !validRelativeDir(dir) {
 			http.Error(w, "bogus dir", http.StatusBadRequest)
 			return
 		}
+		dir = filepath.FromSlash(dir)
 		baseDir = filepath.Join(baseDir, dir)
 		if err := os.MkdirAll(baseDir, 0755); err != nil {
 			http.Error(w, "mkdir of base: "+err.Error(), http.StatusInternalServerError)
@@ -300,6 +498,11 @@ func untar(r io.Reader, dir string) error {
 const hdrProcessState = "Process-State"
 
 func handleExec(w http.ResponseWriter, r *http.Request) {
+	cn := w.(http.CloseNotifier)
+	clientGone := cn.CloseNotify()
+	handlerDone := make(chan bool)
+	defer close(handlerDone)
+
 	if r.Method != "POST" {
 		http.Error(w, "requires POST method", http.StatusBadRequest)
 		return
@@ -313,21 +516,46 @@ func handleExec(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Trailer", hdrProcessState) // declare it so we can set it
 
 	cmdPath := r.FormValue("cmd") // required
-	if !validRelPath(cmdPath) {
-		http.Error(w, "requires 'cmd' parameter", http.StatusBadRequest)
-		return
+	absCmd := cmdPath
+	sysMode := r.FormValue("mode") == "sys"
+	if sysMode {
+		if cmdPath == "" {
+			http.Error(w, "requires 'cmd' parameter", http.StatusBadRequest)
+			return
+		}
+	} else {
+		if !validRelPath(cmdPath) {
+			http.Error(w, "requires 'cmd' parameter", http.StatusBadRequest)
+			return
+		}
+		absCmd = filepath.Join(*scratchDir, filepath.FromSlash(cmdPath))
 	}
+
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
 
-	absCmd := filepath.Join(*scratchDir, filepath.FromSlash(cmdPath))
 	cmd := exec.Command(absCmd, r.PostForm["cmdArg"]...)
-	cmd.Dir = filepath.Dir(absCmd)
-	cmdOutput := &flushWriter{w: w}
+	if sysMode {
+		cmd.Dir = *scratchDir
+	} else {
+		cmd.Dir = filepath.Dir(absCmd)
+	}
+	cmdOutput := mtuWriter{w}
 	cmd.Stdout = cmdOutput
 	cmd.Stderr = cmdOutput
-	err := cmd.Run()
+	err := cmd.Start()
+	if err == nil {
+		go func() {
+			select {
+			case <-clientGone:
+				cmd.Process.Kill()
+			case <-handlerDone:
+				return
+			}
+		}()
+		err = cmd.Wait()
+	}
 	state := "ok"
 	if err != nil {
 		if ps := cmd.ProcessState; ps != nil {
@@ -383,23 +611,6 @@ func haltMachine() {
 	log.Printf("Shutdown: %v", err)
 	log.Printf("Ending buildlet process post-halt")
 	os.Exit(0)
-}
-
-// flushWriter is an io.Writer wrapper that writes to w and
-// Flushes the output immediately, if w is an http.Flusher.
-type flushWriter struct {
-	mu sync.Mutex
-	w  http.ResponseWriter
-}
-
-func (hw *flushWriter) Write(p []byte) (n int, err error) {
-	hw.mu.Lock()
-	defer hw.mu.Unlock()
-	n, err = hw.w.Write(p)
-	if f, ok := hw.w.(http.Flusher); ok {
-		f.Flush()
-	}
-	return
 }
 
 func validRelPath(p string) bool {
