@@ -35,6 +35,12 @@ static	int	bounded(Node*, int64);
 static	Mpint	mpzero;
 static	void	walkprintfunc(Node**, NodeList**);
 
+// The constant is known to runtime.
+enum
+{
+	tmpstringbufsize = 32,
+};
+
 void
 walk(Node *fn)
 {
@@ -1370,8 +1376,14 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OARRAYBYTESTR:
-		// slicebytetostring([]byte) string;
-		n = mkcall("slicebytetostring", n->type, init, n->left);
+		a = nodnil();
+		if(n->esc == EscNone) {
+			// Create temporary buffer for string on stack.
+			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
+			a = nod(OADDR, temp(t), N);
+		}
+		// slicebytetostring(*[32]byte, []byte) string;
+		n = mkcall("slicebytetostring", n->type, init, a, n->left);
 		goto ret;
 
 	case OARRAYBYTESTRTMP:
@@ -2720,9 +2732,10 @@ writebarrierfn(char *name, Type *l, Type *r)
 static Node*
 addstr(Node *n, NodeList **init)
 {
-	Node *r, *cat, *slice;
+	Node *r, *cat, *slice, *buf;
 	NodeList *args, *l;
 	int c;
+	vlong sz;
 	Type *t;
 
 	// orderexpr rewrote OADDSTR to have a list of strings.
@@ -2730,8 +2743,23 @@ addstr(Node *n, NodeList **init)
 	if(c < 2)
 		yyerror("addstr count %d too small", c);
 
+	buf = nodnil();
+	if(n->esc == EscNone) {
+		sz = 0;
+		for(l=n->list; l != nil; l=l->next) {
+			if(n->op == OLITERAL)
+				sz += n->val.u.sval->len;
+		}
+		// Don't allocate the buffer if the result won't fit.
+		if(sz < tmpstringbufsize) {
+			// Create temporary buffer for result string on stack.
+			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
+			buf = nod(OADDR, temp(t), N);
+		}
+	}
+
 	// build list of string arguments
-	args = nil;
+	args = list1(buf);
 	for(l=n->list; l != nil; l=l->next)
 		args = list(args, conv(l->n, types[TSTRING]));
 
@@ -2747,9 +2775,10 @@ addstr(Node *n, NodeList **init)
 		t->bound = -1;
 		slice = nod(OCOMPLIT, N, typenod(t));
 		slice->alloc = n->alloc;
-		slice->list = args;
+		slice->list = args->next; // skip buf arg
+		args = list1(buf);
+		args = list(args, slice);
 		slice->esc = EscNone;
-		args = list1(slice);
 	}
 	cat = syslook(namebuf, 1);
 	r = nod(OCALL, cat, N);

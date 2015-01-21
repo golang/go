@@ -869,6 +869,15 @@ func BenchmarkFprintInt(b *testing.B) {
 	}
 }
 
+func BenchmarkFprintfBytes(b *testing.B) {
+	data := []byte(string("0123456789"))
+	var buf bytes.Buffer
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Fprintf(&buf, "%s", data)
+	}
+}
+
 func BenchmarkFprintIntNoAlloc(b *testing.B) {
 	var x interface{} = 123456
 	var buf bytes.Buffer
