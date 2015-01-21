@@ -15,6 +15,8 @@ char*	getgoarm(void);
 char*	getgo386(void);
 char*	getgoextlinkenabled(void);
 
+int	runcmd(char**);
+
 void	flagcount(char*, char*, int*);
 void	flagint32(char*, char*, int32*);
 void	flagint64(char*, char*, int64*);
