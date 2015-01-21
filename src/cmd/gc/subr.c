@@ -2617,7 +2617,16 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		fn->dupok = 1;
 	typecheck(&fn, Etop);
 	typechecklist(fn->nbody, Etop);
+
+	// Set inl_nonlocal to whether we are calling a method on a
+	// type defined in a different package.  Checked in inlvar.
+	if(!methodrcvr->local)
+		inl_nonlocal = 1;
+
 	inlcalls(fn);
+
+	inl_nonlocal = 0;
+
 	curfn = nil;
 	funccompile(fn, 0);
 }

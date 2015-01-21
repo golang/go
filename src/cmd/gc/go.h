@@ -982,6 +982,7 @@ EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
 EXTERN	int	compiling_runtime;
 EXTERN	int	compiling_wrappers;
+EXTERN	int	inl_nonlocal;
 EXTERN	int	use_writebarrier;
 EXTERN	int	pure_go;
 EXTERN	char*	flag_installsuffix;

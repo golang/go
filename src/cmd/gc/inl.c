@@ -804,9 +804,12 @@ inlvar(Node *var)
 	n->curfn = curfn;   // the calling function, not the called one
 	n->addrtaken = var->addrtaken;
 
-	// esc pass wont run if we're inlining into a iface wrapper
-	// luckily, we can steal the results from the target func
-	if(var->esc == EscHeap)
+	// Esc pass wont run if we're inlining into a iface wrapper.
+	// Luckily, we can steal the results from the target func.
+	// If inlining a function defined in another package after
+	// escape analysis is done, treat all local vars as escaping.
+	// See issue 9537.
+	if(var->esc == EscHeap || (inl_nonlocal && var->op == ONAME))
 		addrescapes(n);
 
 	curfn->dcl = list(curfn->dcl, n);
