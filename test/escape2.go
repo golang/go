@@ -1556,3 +1556,77 @@ func quux(sp *string, bp *[]byte) { // ERROR "sp does not escape" "bp does not e
 	*sp = (*sp)[1:2] // ERROR "quux ignoring self-assignment to \*sp"
 	*bp = (*bp)[1:2] // ERROR "quux ignoring self-assignment to \*bp"
 }
+
+type StructWithString struct {
+	p *int
+	s string
+}
+
+// This is escape analysis false negative.
+// We assign the pointer to x.p but leak x.s. Escape analysis coarsens flows
+// to just x, and thus &i looks escaping.
+func fieldFlowTracking() {
+	var x StructWithString
+	i := 0 // ERROR "moved to heap: i"
+	x.p = &i // ERROR "&i escapes to heap"
+	sink = x.s
+}
+
+// String operations.
+
+func slicebytetostring0() {
+	b := make([]byte, 20) // ERROR "does not escape"
+	s := string(b)        // ERROR "string\(b\) does not escape"
+	_ = s
+}
+
+func slicebytetostring1() {
+	b := make([]byte, 20) // ERROR "does not escape"
+	s := string(b)        // ERROR "string\(b\) does not escape"
+	s1 := s[0:1]
+	_ = s1
+}
+
+func slicebytetostring2() {
+	b := make([]byte, 20) // ERROR "does not escape"
+	s := string(b)        // ERROR "string\(b\) escapes to heap"
+	s1 := s[0:1]          // ERROR "moved to heap: s1"
+	sink = &s1            // ERROR "&s1 escapes to heap"
+}
+
+func slicebytetostring3() {
+	b := make([]byte, 20) // ERROR "does not escape"
+	s := string(b)        // ERROR "string\(b\) escapes to heap"
+	s1 := s[0:1]
+	sink = s1
+}
+
+func addstr0() {
+	s0 := "a"
+	s1 := "b"
+	s := s0 + s1 // ERROR "s0 \+ s1 does not escape"
+	_ = s
+}
+
+func addstr1() {
+	s0 := "a"
+	s1 := "b"
+	s := "c"
+	s += s0 + s1 // ERROR "s0 \+ s1 does not escape"
+	_ = s
+}
+
+func addstr2() {
+	b := make([]byte, 20) // ERROR "does not escape"
+	s0 := "a"
+	s := string(b) + s0 // ERROR "string\(b\) does not escape" "string\(b\) \+ s0 does not escape"
+	_ = s
+}
+
+func addstr3() {
+	s0 := "a"
+	s1 := "b"
+	s := s0 + s1 // ERROR "s0 \+ s1 escapes to heap"
+	s2 := s[0:1]
+	sink = s2
+}

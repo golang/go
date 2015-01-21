@@ -694,6 +694,19 @@ esc(EscState *e, Node *n, Node *up)
 		e->noesc = list(e->noesc, n);
 		break;
 
+	case OARRAYBYTESTR:
+		n->escloopdepth = e->loopdepth;
+		n->esc = EscNone;  // until proven otherwise
+		e->noesc = list(e->noesc, n);
+		break;
+
+	case OADDSTR:
+		n->escloopdepth = e->loopdepth;
+		n->esc = EscNone;  // until proven otherwise
+		e->noesc = list(e->noesc, n);
+		// Arguments of OADDSTR do not escape.
+		break;
+
 	case OADDR:
 		n->esc = EscNone;  // until proven otherwise
 		e->noesc = list(e->noesc, n);
@@ -806,6 +819,8 @@ escassign(EscState *e, Node *dst, Node *src)
 	case OMAKECHAN:
 	case OMAKEMAP:
 	case OMAKESLICE:
+	case OARRAYBYTESTR:
+	case OADDSTR:
 	case ONEW:
 	case OCLOSURE:
 	case OCALLPART:
@@ -837,6 +852,7 @@ escassign(EscState *e, Node *dst, Node *src)
 	case OSLICE3:
 	case OSLICEARR:
 	case OSLICE3ARR:
+	case OSLICESTR:
 		// Conversions, field access, slice all preserve the input value.
 		escassign(e, dst, src->left);
 		break;
@@ -1227,6 +1243,8 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 	case OMAKECHAN:
 	case OMAKEMAP:
 	case OMAKESLICE:
+	case OARRAYBYTESTR:
+	case OADDSTR:
 	case OMAPLIT:
 	case ONEW:
 	case OCLOSURE:
@@ -1243,6 +1261,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 	case OSLICEARR:
 	case OSLICE3:
 	case OSLICE3ARR:
+	case OSLICESTR:
 		escwalk(e, level, dst, src->left);
 		break;
 

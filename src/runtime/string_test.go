@@ -175,3 +175,14 @@ func TestCompareTempString(t *testing.T) {
 		t.Fatalf("want 0 allocs, got %v", n)
 	}
 }
+
+func TestStringOnStack(t *testing.T) {
+	s := ""
+	for i := 0; i < 3; i++ {
+		s = "a" + s + "b" + s + "c"
+	}
+
+	if want := "aaabcbabccbaabcbabccc"; s != want {
+		t.Fatalf("want: '%v', got '%v'", want, s)
+	}
+}
