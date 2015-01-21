@@ -27,172 +27,67 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+//go:generate go tool yacc a.y
+
 package main
 
-const (
-	Plan9   = 1 << 0
-	Unix    = 1 << 1
-	Windows = 1 << 2
+import (
+	"cmd/internal/asm"
+	"cmd/internal/obj"
+	"cmd/internal/obj/ppc64"
 )
 
-func systemtype(sys int) int {
-	return sys & Windows
+var (
+	yyerror = asm.Yyerror
+	nullgen obj.Addr
+)
 
-	return sys & Plan9
-}
-
-func pathchar() int {
-	return '/'
-}
-
-func Lconv(fp *obj.Fmt) int {
-	return obj.Linklinefmt(ctxt, fp)
-}
-
-func dodef(p string) {
-	if nDlist%8 == 0 {
-		Dlist = allocn(Dlist, nDlist*sizeof(string), 8*sizeof(string)).(*string)
-	}
-	Dlist[nDlist] = p
-	nDlist++
-}
-
-var thelinkarch *obj.LinkArch = &ppc64.Linkppc64
-
-func usage() {
-	fmt.Printf("usage: %ca [options] file.c...\n", thechar)
-	main.Flagprint(1)
-	errorexit()
-}
-
-func main(argc int, argv [XXX]string) {
-	var p string
-
-	thechar = '9'
-	thestring = "ppc64"
-
-	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
-	// but not other values.
-	p = Getgoarch()
-
-	if !strings.HasPrefix(p, thestring) {
-		log.Fatalf("cannot use %cc with GOARCH=%s", thechar, p)
-	}
-	if p == "ppc64le" {
-		thelinkarch = &ppc64.Linkppc64le
-	}
-
-	ctxt = obj.Linknew(thelinkarch)
-	ctxt.Diag = yyerror
-	ctxt.Bso = &bstdout
-	ctxt.Enforce_data_order = 1
-	obj.Binit(&bstdout, 1, main.OWRITE)
-	ppc64.Listinit9()
-	obj.Fmtinstall('L', Lconv)
-
-	ensuresymb(NSYMB)
-	debug = [256]int{}
+func main() {
 	cinit()
-	outfile = ""
-	setinclude(".")
 
-	main.Flagfn1("D", "name[=value]: add #define", dodef)
-	main.Flagfn1("I", "dir: add dir to include path", setinclude)
-	main.Flagcount("S", "print assembly and machine code", &debug['S'])
-	main.Flagcount("m", "debug preprocessor macros", &debug['m'])
-	main.Flagstr("o", "file: set output file", &outfile)
-	main.Flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt.Trimpath)
+	asm.LSCONST = LSCONST
+	asm.LCONST = LCONST
+	asm.LFCONST = LFCONST
+	asm.LNAME = LNAME
+	asm.LVAR = LVAR
+	asm.LLAB = LLAB
 
-	main.Flagparse(&argc, (**string)(&argv), usage)
-	ctxt.Debugasm = int32(debug['S'])
+	asm.Lexinit = lexinit
+	asm.Cclean = cclean
+	asm.Yyparse = yyparse
 
-	if argc < 1 {
-		usage()
-	}
-	if argc > 1 {
-		fmt.Printf("can't assemble multiple files\n")
-		errorexit()
+	asm.Thechar = '9'
+	asm.Thestring = "ppc64"
+	asm.Thelinkarch = &ppc64.Linkppc64
+	asm.Arches = map[string]*obj.LinkArch{
+		"ppc64le": &ppc64.Linkppc64le,
 	}
 
-	if assemble(argv[0]) != 0 {
-		errorexit()
-	}
-	obj.Bflush(&bstdout)
-	if nerrors > 0 {
-		errorexit()
-	}
-	main.Exits("")
+	asm.Main()
 }
 
-func assemble(file string) int {
-	var ofile string
-	var p string
-	var i int
-	var of int
+type yy struct{}
 
-	ofile = alloc(int32(len(file)) + 3).(string) // +3 for .x\0 (x=thechar)
-	ofile = file
-	p = main.Utfrrune(ofile, uint(pathchar()))
-	if p != "" {
-		include[0] = ofile
-		p = ""
-		p = p[1:]
-	} else {
-
-		p = ofile
-	}
-	if outfile == "" {
-		outfile = p
-		if outfile != "" {
-			p = main.Utfrrune(outfile, '.')
-			if p != "" {
-				if p[1] == 's' && p[2] == 0 {
-					p = ""
-				}
-			}
-			p = main.Utfrune(outfile, 0)
-			p[0] = '.'
-			p[1] = byte(thechar)
-			p[2] = 0
-		} else {
-
-			outfile = "/dev/null"
-		}
-	}
-
-	of = main.Create(outfile, main.OWRITE, 0664)
-	if of < 0 {
-		yyerror("%ca: cannot create %s", thechar, outfile)
-		errorexit()
-	}
-
-	obj.Binit(&obuf, of, main.OWRITE)
-	fmt.Fprintf(&obuf, "go object %s %s %s\n", main.Getgoos(), main.Getgoarch(), main.Getgoversion())
-	fmt.Fprintf(&obuf, "!\n")
-
-	for pass = 1; pass <= 2; pass++ {
-		nosched = 0
-		pinit(file)
-		for i = 0; i < nDlist; i++ {
-			dodefine(Dlist[i])
-		}
-		yyparse()
-		cclean()
-		if nerrors != 0 {
-			return nerrors
-		}
-	}
-
-	obj.Writeobj(ctxt, &obuf)
-	obj.Bflush(&obuf)
-	return 0
+func (yy) Lex(v *yySymType) int {
+	var av asm.Yylval
+	tok := asm.Yylex(&av)
+	v.sym = av.Sym
+	v.lval = av.Lval
+	v.sval = av.Sval
+	v.dval = av.Dval
+	return tok
 }
 
-var itab = []struct {
-	name  string
-	type_ uint16
-	value uint16
-}{
+func (yy) Error(msg string) {
+	asm.Yyerror("%s", msg)
+}
+
+func yyparse() {
+	nosched = 0
+	yyParse(yy{})
+}
+
+var lexinit = []asm.Lextab{
 	{"SP", LSP, ppc64.D_AUTO},
 	{"SB", LSB, ppc64.D_EXTERN},
 	{"FP", LFP, ppc64.D_PARAM},
@@ -549,7 +444,6 @@ var itab = []struct {
 	{"ECIWX", LXLD, ppc64.AECIWX},
 	{"ECOWX", LXST, ppc64.AECOWX},
 	{"LWAR", LXLD, ppc64.ALWAR},
-	{"LWAR", LXLD, ppc64.ALWAR},
 	{"STWCCC", LXST, ppc64.ASTWCCC},
 	{"EIEIO", LRETRN, ppc64.AEIEIO},
 	{"TLBIE", LNOP, ppc64.ATLBIE},
@@ -571,33 +465,10 @@ var itab = []struct {
 }
 
 func cinit() {
-	var s *Sym
-	var i int
-
 	nullgen.Type_ = ppc64.D_NONE
 	nullgen.Name = ppc64.D_NONE
 	nullgen.Reg = ppc64.NREG
 	nullgen.Scale = ppc64.NREG // replaced Gen.xreg with Prog.scale
-
-	nerrors = 0
-
-	iostack = nil
-	iofree = nil
-	peekc = IGN
-	nhunk = 0
-	for i = 0; i < NHASH; i++ {
-		hash[i] = nil
-	}
-	for i = 0; itab[i].name != ""; i++ {
-		s = slookup(itab[i].name)
-		s.type_ = itab[i].type_
-		s.value = int64(itab[i].value)
-	}
-}
-
-func syminit(s *Sym) {
-	s.type_ = LNAME
-	s.value = 0
 }
 
 func cclean() {
@@ -605,12 +476,13 @@ func cclean() {
 }
 
 var lastpc *obj.Prog
+var nosched int
 
 func outcode(a int, g1 *obj.Addr, reg int, g2 *obj.Addr) {
 	var p *obj.Prog
 	var pl *obj.Plist
 
-	if pass == 1 {
+	if asm.Pass == 1 {
 		goto out
 	}
 
@@ -626,43 +498,42 @@ func outcode(a int, g1 *obj.Addr, reg int, g2 *obj.Addr) {
 		reg = int(g2.Scale)
 	}
 
-	p = ctxt.Arch.Prg()
+	p = asm.Ctxt.Arch.Prg()
 	p.As = int16(a)
-	p.Lineno = lineno
+	p.Lineno = asm.Lineno
 	if nosched != 0 {
 		p.Mark |= ppc64.NOSCHED
 	}
 	p.From = *g1
 	p.Reg = uint8(reg)
 	p.To = *g2
-	p.Pc = int64(pc)
+	p.Pc = int64(asm.PC)
 
 	if lastpc == nil {
-		pl = obj.Linknewplist(ctxt)
+		pl = obj.Linknewplist(asm.Ctxt)
 		pl.Firstpc = p
 	} else {
-
 		lastpc.Link = p
 	}
 	lastpc = p
 
 out:
 	if a != ppc64.AGLOBL && a != ppc64.ADATA {
-		pc++
+		asm.PC++
 	}
 }
 
-func outgcode(a int, g1 *obj.Addr, reg int, g2 *obj.Addr, g3 *obj.Addr) {
+func outgcode(a int, g1 *obj.Addr, reg int, g2, g3 *obj.Addr) {
 	var p *obj.Prog
 	var pl *obj.Plist
 
-	if pass == 1 {
+	if asm.Pass == 1 {
 		goto out
 	}
 
-	p = ctxt.Arch.Prg()
+	p = asm.Ctxt.Arch.Prg()
 	p.As = int16(a)
-	p.Lineno = lineno
+	p.Lineno = asm.Lineno
 	if nosched != 0 {
 		p.Mark |= ppc64.NOSCHED
 	}
@@ -670,19 +541,18 @@ func outgcode(a int, g1 *obj.Addr, reg int, g2 *obj.Addr, g3 *obj.Addr) {
 	p.Reg = uint8(reg)
 	p.From3 = *g2
 	p.To = *g3
-	p.Pc = int64(pc)
+	p.Pc = int64(asm.PC)
 
 	if lastpc == nil {
-		pl = obj.Linknewplist(ctxt)
+		pl = obj.Linknewplist(asm.Ctxt)
 		pl.Firstpc = p
 	} else {
-
 		lastpc.Link = p
 	}
 	lastpc = p
 
 out:
 	if a != ppc64.AGLOBL && a != ppc64.ADATA {
-		pc++
+		asm.PC++
 	}
 }
