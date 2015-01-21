@@ -71,14 +71,12 @@ echo.
 if x%1==x--dist-tool goto copydist
 if x%2==x--dist-tool goto copydist
 
-echo ##### Building compilers and Go bootstrap tool.
 set buildall=-a
 if x%1==x--no-clean set buildall=
 .\cmd\dist\dist bootstrap %buildall% -v
 if errorlevel 1 goto fail
 :: Delay move of dist tool to now, because bootstrap cleared tool directory.
 move .\cmd\dist\dist.exe "%GOTOOLDIR%\dist.exe"
-"%GOTOOLDIR%\go_bootstrap" clean -i std
 echo.
 
 if not %GOHOSTARCH% == %GOARCH% goto localbuild
