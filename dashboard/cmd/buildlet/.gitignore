@@ -1,5 +1,0 @@
-buildlet
-buildlet.*-*
-stage0/buildlet-stage0.*
-cert.pem
-key.pem

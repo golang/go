@@ -1,9 +1,0 @@
-Change {{shortHash .Commit.Hash}} broke the {{.Builder}} build:
-http://{{.Hostname}}/log/{{.LogHash}}
-
-{{.Commit.Desc}}
-
-https://golang.org/change/{{shortHash .Commit.Hash}}
-
-$ tail -200 < log
-{{printf "%s" .LogText | tail 200}}

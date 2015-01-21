@@ -1,6 +1,0 @@
-$ export BUILD=linux-amd64-gccgo
-$ export BUILDREV=b9151e911a54
-$ docker run \
-    -v $HOME/keys/$BUILD.buildkey:/.gobuildkey \
-    gobuilders/linux-x86-gccgo \
-    /usr/local/bin/builder -tool=gccgo -dashboard='https://build.golang.org/gccgo' -rev=$BUILDREV -buildroot=/gccgo -v -cmd='make check-go -kj' $BUILD
