@@ -28,162 +28,66 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+//go:generate go tool yacc a.y
+
 package main
 
-const (
-	Plan9   = 1 << 0
-	Unix    = 1 << 1
-	Windows = 1 << 2
+import (
+	"cmd/internal/asm"
+	"cmd/internal/obj"
+	"cmd/internal/obj/arm"
 )
 
-func systemtype(sys int) int {
-	return sys & Windows
+var (
+	yyerror  = asm.Yyerror
+	nullgen  obj.Addr
+	stmtline int32
+)
 
-	return sys & Plan9
-}
+const Always = 14
 
-func Lconv(fp *obj.Fmt) int {
-	return obj.Linklinefmt(Ctxt, fp)
-}
-
-func dodef(p string) {
-	if nDlist%8 == 0 {
-		Dlist = asm.Allocn(Dlist, nDlist*sizeof(string), 8*sizeof(string)).(*string)
-	}
-	Dlist[nDlist] = p
-	nDlist++
-}
-
-func usage() {
-	fmt.Printf("usage: %ca [options] file.c...\n", Thechar)
-	main.Flagprint(1)
-	asm.Errorexit()
-}
-
-func main(argc int, argv [XXX]string) {
-	var p string
-
-	Thechar = '5'
-	thestring = "arm"
-
-	Ctxt = obj.Linknew(&arm.Linkarm)
-	Ctxt.Diag = asm.Yyerror
-	Ctxt.Bso = &Bstdout
-	Ctxt.Enforce_data_order = 1
-	obj.Binit(&Bstdout, 1, main.OWRITE)
-	arm.Listinit5()
-	obj.Fmtinstall('L', Lconv)
-
-	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
-	// but not other values.
-	p = Getgoarch()
-
-	if !strings.HasPrefix(p, thestring) {
-		log.Fatalf("cannot use %cc with GOARCH=%s", Thechar, p)
-	}
-
-	asm.Ensuresymb(NSYMB)
-	Debug = [256]int{}
+func main() {
 	cinit()
-	Outfile = ""
-	asm.Setinclude(".")
 
-	main.Flagfn1("D", "name[=value]: add #define", dodef)
-	main.Flagfn1("I", "dir: add dir to include path", asm.Setinclude)
-	main.Flagcount("S", "print assembly and machine code", &Debug['S'])
-	main.Flagcount("m", "debug preprocessor macros", &Debug['m'])
-	main.Flagstr("o", "file: set output file", &Outfile)
-	main.Flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &Ctxt.Trimpath)
+	asm.LSCONST = LSCONST
+	asm.LCONST = LCONST
+	asm.LFCONST = LFCONST
+	asm.LNAME = LNAME
+	asm.LVAR = LVAR
+	asm.LLAB = LLAB
 
-	main.Flagparse(&argc, (**string)(&argv), usage)
-	Ctxt.Debugasm = int32(Debug['S'])
+	asm.Lexinit = lexinit
+	asm.Cclean = cclean
+	asm.Yyparse = yyparse
 
-	if argc < 1 {
-		usage()
-	}
-	if argc > 1 {
-		fmt.Printf("can't assemble multiple files\n")
-		asm.Errorexit()
-	}
+	asm.Thechar = '5'
+	asm.Thestring = "arm"
+	asm.Thelinkarch = &arm.Linkarm
 
-	if assemble(argv[0]) != 0 {
-		asm.Errorexit()
-	}
-	obj.Bflush(&Bstdout)
-	if Nerrors > 0 {
-		asm.Errorexit()
-	}
-	main.Exits("")
+	asm.Main()
 }
 
-func assemble(file string) int {
-	var ofile string
-	var p string
-	var i int
-	var of int
+type yy struct{}
 
-	ofile = asm.Alloc(int32(len(file)) + 3).(string) // +3 for .x\0 (x=thechar)
-	ofile = file
-	p = main.Utfrrune(ofile, '/')
-	if p != "" {
-		Include[0] = ofile
-		p = ""
-		p = p[1:]
-	} else {
-
-		p = ofile
-	}
-	if Outfile == "" {
-		Outfile = p
-		if Outfile != "" {
-			p = main.Utfrrune(Outfile, '.')
-			if p != "" {
-				if p[1] == 's' && p[2] == 0 {
-					p = ""
-				}
-			}
-			p = main.Utfrune(Outfile, 0)
-			p[0] = '.'
-			p[1] = byte(Thechar)
-			p[2] = 0
-		} else {
-
-			Outfile = "/dev/null"
-		}
-	}
-
-	of = main.Create(Outfile, main.OWRITE, 0664)
-	if of < 0 {
-		asm.Yyerror("%ca: cannot create %s", Thechar, Outfile)
-		asm.Errorexit()
-	}
-
-	obj.Binit(&obuf, of, main.OWRITE)
-	fmt.Fprintf(&obuf, "go object %s %s %s\n", main.Getgoos(), main.Getgoarch(), main.Getgoversion())
-	fmt.Fprintf(&obuf, "!\n")
-
-	for pass = 1; pass <= 2; pass++ {
-		asm.Pinit(file)
-		for i = 0; i < nDlist; i++ {
-			asm.Dodefine(Dlist[i])
-		}
-		yyparse()
-		cclean()
-		if Nerrors != 0 {
-			return Nerrors
-		}
-	}
-
-	obj.Writeobj(Ctxt, &obuf)
-	obj.Bflush(&obuf)
-	return 0
+func (yy) Lex(v *yySymType) int {
+	var av asm.Yylval
+	tok := asm.Yylex(&av)
+	v.sym = av.Sym
+	v.lval = int32(av.Lval)
+	v.sval = av.Sval
+	v.dval = av.Dval
+	return tok
 }
 
-var itab = []struct {
-	name  string
-	type_ uint16
-	value uint16
-}{
+func (yy) Error(msg string) {
+	asm.Yyerror("%s", msg)
+}
+
+func yyparse() {
+	yyParse(yy{})
+}
+
+var lexinit = []asm.Lextab{
 	{"SP", LSP, arm.D_AUTO},
 	{"SB", LSB, arm.D_EXTERN},
 	{"FP", LFP, arm.D_PARAM},
@@ -394,39 +298,17 @@ var itab = []struct {
 }
 
 func cinit() {
-	var s *Sym
-	var i int
-
-	Nullgen.Type_ = arm.D_NONE
-	Nullgen.Name = arm.D_NONE
-	Nullgen.Reg = arm.NREG
-
-	Nerrors = 0
-	Iostack = nil
-	Iofree = nil
-	Peekc = IGN
-	nhunk = 0
-	for i = 0; i < NHASH; i++ {
-		Hash[i] = nil
-	}
-	for i = 0; itab[i].name != ""; i++ {
-		s = asm.Slookup(itab[i].name)
-		s.Type_ = itab[i].type_
-		s.Value = int32(itab[i].value)
-	}
+	nullgen.Type_ = arm.D_NONE
+	nullgen.Name = arm.D_NONE
+	nullgen.Reg = arm.NREG
 }
 
-func Syminit(s *Sym) {
-	s.Type_ = LNAME
-	s.Value = 0
-}
-
-func isreg(g *obj.Addr) int {
-	return 1
+func isreg(g *obj.Addr) bool {
+	return true
 }
 
 func cclean() {
-	outcode(arm.AEND, Always, &Nullgen, arm.NREG, &Nullgen)
+	outcode(arm.AEND, Always, &nullgen, arm.NREG, &nullgen)
 }
 
 var bcode = []int{
@@ -450,42 +332,41 @@ var bcode = []int{
 
 var lastpc *obj.Prog
 
-func outcode(a int, scond int, g1 *obj.Addr, reg int, g2 *obj.Addr) {
+func outcode(a, scond int32, g1 *obj.Addr, reg int32, g2 *obj.Addr) {
 	var p *obj.Prog
 	var pl *obj.Plist
 
 	/* hack to make B.NE etc. work: turn it into the corresponding conditional */
 	if a == arm.AB {
-
-		a = bcode[scond&0xf]
-		scond = scond&^0xf | Always
+		a = int32(bcode[scond&0xf])
+		scond = (scond &^ 0xf) | Always
 	}
 
-	if pass == 1 {
+	if asm.Pass == 1 {
 		goto out
 	}
 
 	p = new(obj.Prog)
 	*p = obj.Prog{}
+	p.Ctxt = asm.Ctxt
 	p.As = int16(a)
 	p.Lineno = stmtline
 	p.Scond = uint8(scond)
 	p.From = *g1
 	p.Reg = uint8(reg)
 	p.To = *g2
-	p.Pc = int64(Pc)
+	p.Pc = int64(asm.PC)
 
 	if lastpc == nil {
-		pl = obj.Linknewplist(Ctxt)
+		pl = obj.Linknewplist(asm.Ctxt)
 		pl.Firstpc = p
 	} else {
-
 		lastpc.Link = p
 	}
 	lastpc = p
 
 out:
 	if a != arm.AGLOBL && a != arm.ADATA {
-		Pc++
+		asm.PC++
 	}
 }

@@ -28,171 +28,67 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+//go:generate go tool yacc a.y
+
 package main
 
-const (
-	Plan9   = 1 << 0
-	Unix    = 1 << 1
-	Windows = 1 << 2
+import (
+	"cmd/internal/asm"
+	"cmd/internal/obj"
+	"cmd/internal/obj/x86"
 )
 
-func systemtype(sys int) int {
-	return sys & Windows
+var (
+	yyerror  = asm.Yyerror
+	nullgen  obj.Addr
+	stmtline int32
+)
 
-	return sys & Plan9
-}
-
-func pathchar() int {
-	return '/'
-}
-
-func Lconv(fp *obj.Fmt) int {
-	return obj.Linklinefmt(ctxt, fp)
-}
-
-func dodef(p string) {
-	if nDlist%8 == 0 {
-		Dlist = allocn(Dlist, nDlist*sizeof(string), 8*sizeof(string)).(*string)
-	}
-	Dlist[nDlist] = p
-	nDlist++
-}
-
-var thelinkarch *obj.LinkArch = &x86.Linkamd64
-
-func usage() {
-	fmt.Printf("usage: %ca [options] file.c...\n", thechar)
-	main.Flagprint(1)
-	errorexit()
-}
-
-func main(argc int, argv [XXX]string) {
-	var p string
-
-	thechar = '6'
-	thestring = "amd64"
-
-	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
-	// but not other values.
-	p = Getgoarch()
-
-	if !strings.HasPrefix(p, thestring) {
-		log.Fatalf("cannot use %cc with GOARCH=%s", thechar, p)
-	}
-	if p == "amd64p32" {
-		thelinkarch = &x86.Linkamd64p32
-	}
-
-	ctxt = obj.Linknew(thelinkarch)
-	ctxt.Diag = yyerror
-	ctxt.Bso = &bstdout
-	ctxt.Enforce_data_order = 1
-	obj.Binit(&bstdout, 1, main.OWRITE)
-	x86.Listinit6()
-	obj.Fmtinstall('L', Lconv)
-
-	ensuresymb(NSYMB)
-	debug = [256]int{}
+func main() {
 	cinit()
-	outfile = ""
-	setinclude(".")
 
-	main.Flagfn1("D", "name[=value]: add #define", dodef)
-	main.Flagfn1("I", "dir: add dir to include path", setinclude)
-	main.Flagcount("S", "print assembly and machine code", &debug['S'])
-	main.Flagcount("m", "debug preprocessor macros", &debug['m'])
-	main.Flagstr("o", "file: set output file", &outfile)
-	main.Flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt.Trimpath)
+	asm.LSCONST = LSCONST
+	asm.LCONST = LCONST
+	asm.LFCONST = LFCONST
+	asm.LNAME = LNAME
+	asm.LVAR = LVAR
+	asm.LLAB = LLAB
 
-	main.Flagparse(&argc, (**string)(&argv), usage)
-	ctxt.Debugasm = int32(debug['S'])
-
-	if argc < 1 {
-		usage()
-	}
-	if argc > 1 {
-		fmt.Printf("can't assemble multiple files\n")
-		errorexit()
+	asm.Thechar = '6'
+	asm.Thestring = "amd64"
+	asm.Thelinkarch = &x86.Linkamd64
+	asm.Arches = map[string]*obj.LinkArch{
+		"amd64p32": &x86.Linkamd64p32,
 	}
 
-	if assemble(argv[0]) != 0 {
-		errorexit()
-	}
-	obj.Bflush(&bstdout)
-	if nerrors > 0 {
-		errorexit()
-	}
-	main.Exits("")
+	asm.Lexinit = lexinit
+	asm.Cclean = cclean
+	asm.Yyparse = yyparse
+
+	asm.Main()
 }
 
-func assemble(file string) int {
-	var ofile string
-	var p string
-	var i int
-	var of int
+type yy struct{}
 
-	ofile = alloc(int32(len(file)) + 3).(string) // +3 for .x\0 (x=thechar)
-	ofile = file
-	p = main.Utfrrune(ofile, uint(pathchar()))
-	if p != "" {
-		include[0] = ofile
-		p = ""
-		p = p[1:]
-	} else {
-
-		p = ofile
-	}
-	if outfile == "" {
-		outfile = p
-		if outfile != "" {
-			p = main.Utfrrune(outfile, '.')
-			if p != "" {
-				if p[1] == 's' && p[2] == 0 {
-					p = ""
-				}
-			}
-			p = main.Utfrune(outfile, 0)
-			p[0] = '.'
-			p[1] = byte(thechar)
-			p[2] = 0
-		} else {
-
-			outfile = "/dev/null"
-		}
-	}
-
-	of = main.Create(outfile, main.OWRITE, 0664)
-	if of < 0 {
-		yyerror("%ca: cannot create %s", thechar, outfile)
-		errorexit()
-	}
-
-	obj.Binit(&obuf, of, main.OWRITE)
-	fmt.Fprintf(&obuf, "go object %s %s %s\n", main.Getgoos(), main.Getgoarch(), main.Getgoversion())
-	fmt.Fprintf(&obuf, "!\n")
-
-	for pass = 1; pass <= 2; pass++ {
-		pinit(file)
-		for i = 0; i < nDlist; i++ {
-			dodefine(Dlist[i])
-		}
-		yyparse()
-		cclean()
-		if nerrors != 0 {
-			return nerrors
-		}
-	}
-
-	obj.Writeobj(ctxt, &obuf)
-	obj.Bflush(&obuf)
-	return 0
+func (yy) Lex(v *yySymType) int {
+	var av asm.Yylval
+	tok := asm.Yylex(&av)
+	v.sym = av.Sym
+	v.lval = av.Lval
+	v.sval = av.Sval
+	v.dval = av.Dval
+	return tok
 }
 
-var itab = []struct {
-	name  string
-	type_ uint16
-	value uint16
-}{
+func (yy) Error(msg string) {
+	asm.Yyerror("%s", msg)
+}
+
+func yyparse() {
+	yyParse(yy{})
+}
+
+var lexinit = []asm.Lextab{
 	{"SP", LSP, x86.D_AUTO},
 	{"SB", LSB, x86.D_EXTERN},
 	{"FP", LFP, x86.D_PARAM},
@@ -1019,31 +915,11 @@ var itab = []struct {
 }
 
 func cinit() {
-	var s *Sym
-	var i int
-
 	nullgen.Type_ = x86.D_NONE
 	nullgen.Index = x86.D_NONE
-
-	nerrors = 0
-	iostack = nil
-	iofree = nil
-	peekc = IGN
-	nhunk = 0
-	for i = 0; i < NHASH; i++ {
-		hash[i] = nil
-	}
-	for i = 0; itab[i].name != ""; i++ {
-		s = slookup(itab[i].name)
-		if s.type_ != LNAME {
-			yyerror("double initialization %s", itab[i].name)
-		}
-		s.type_ = itab[i].type_
-		s.value = int64(itab[i].value)
-	}
 }
 
-func checkscale(scale int) {
+func checkscale(scale int8) {
 	switch scale {
 	case 1,
 		2,
@@ -1053,11 +929,6 @@ func checkscale(scale int) {
 	}
 
 	yyerror("scale must be 1248: %d", scale)
-}
-
-func syminit(s *Sym) {
-	s.type_ = LNAME
-	s.value = 0
 }
 
 func cclean() {
@@ -1070,24 +941,30 @@ func cclean() {
 
 var lastpc *obj.Prog
 
+type Addr2 struct {
+	from obj.Addr
+	to   obj.Addr
+}
+
 func outcode(a int, g2 *Addr2) {
 	var p *obj.Prog
 	var pl *obj.Plist
 
-	if pass == 1 {
+	if asm.Pass == 1 {
 		goto out
 	}
 
 	p = new(obj.Prog)
 	*p = obj.Prog{}
+	p.Ctxt = asm.Ctxt
 	p.As = int16(a)
 	p.Lineno = stmtline
 	p.From = g2.from
 	p.To = g2.to
-	p.Pc = int64(pc)
+	p.Pc = int64(asm.PC)
 
 	if lastpc == nil {
-		pl = obj.Linknewplist(ctxt)
+		pl = obj.Linknewplist(asm.Ctxt)
 		pl.Firstpc = p
 	} else {
 
@@ -1097,6 +974,6 @@ func outcode(a int, g2 *Addr2) {
 
 out:
 	if a != x86.AGLOBL && a != x86.ADATA {
-		pc++
+		asm.PC++
 	}
 }
