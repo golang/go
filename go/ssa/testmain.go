@@ -100,7 +100,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Prog:    prog,
 		Members: make(map[string]Member),
 		values:  make(map[types.Object]Value),
-		Object:  types.NewPackage("testmain", "testmain"),
+		Object:  types.NewPackage("test$main", "main"),
 	}
 
 	// Build package's init function.

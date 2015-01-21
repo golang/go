@@ -51,7 +51,7 @@ func (g Graph) Search(roots ...string) map[string]bool {
 	return seen
 }
 
-// Builds scans the specified Go workspace and builds the forward and
+// Build scans the specified Go workspace and builds the forward and
 // reverse import dependency graphs for all its packages.
 // It also returns a mapping from import paths to errors for packages
 // that could not be loaded.
