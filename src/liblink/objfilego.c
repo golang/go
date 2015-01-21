@@ -328,7 +328,7 @@ printhist(Link *ctxt, Biobuf *bw, Hist *h)
 	printptr(ctxt, bw, h);
 	printptr(ctxt, bw, h->link);
 	if(h->name == nil)
-		printstr(ctxt, bw, "<no name>");
+		printstr(ctxt, bw, "<pop>");
 	else
 		printstr(ctxt, bw, h->name);
 	printint(ctxt, bw, h->line);

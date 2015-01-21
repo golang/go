@@ -7,7 +7,6 @@ package obj
 import (
 	"bufio"
 	"fmt"
-	"go/build"
 	"io"
 	"os"
 	"strconv"
@@ -76,29 +75,36 @@ func Bflush(b *Biobuf) error {
 	return b.w.Flush()
 }
 
+func envOr(key, value string) string {
+	if x := os.Getenv(key); x != "" {
+		return x
+	}
+	return value
+}
+
 func Getgoroot() string {
-	return build.Default.GOROOT
+	return envOr("GOROOT", defaultGOROOT)
 }
 
 func Getgoarch() string {
-	return build.Default.GOARCH
+	return envOr("GOARCH", defaultGOARCH)
 }
 
 func Getgoos() string {
-	return build.Default.GOOS
+	return envOr("GOOS", defaultGOOS)
+}
+
+func Getgoarm() string {
+	return envOr("GOARM", defaultGOARM)
+}
+
+func Getgoversion() string {
+	return version
 }
 
 func Atoi(s string) int {
 	i, _ := strconv.Atoi(s)
 	return i
-}
-
-func Getgoarm() string {
-	env := os.Getenv("GOARM")
-	if env != "" {
-		return env
-	}
-	return "5"
 }
 
 func (p *Prog) Line() string {
