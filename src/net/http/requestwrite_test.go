@@ -455,6 +455,37 @@ var reqWriteTests = []reqWriteTest{
 			"ALL-CAPS: x\r\n" +
 			"\r\n",
 	},
+
+	// Request with host header field; IPv6 address with zone identifier
+	{
+		Req: Request{
+			Method: "GET",
+			URL: &url.URL{
+				Host: "[fe80::1%en0]",
+			},
+		},
+
+		WantWrite: "GET / HTTP/1.1\r\n" +
+			"Host: [fe80::1]\r\n" +
+			"User-Agent: Go 1.1 package http\r\n" +
+			"\r\n",
+	},
+
+	// Request with optional host header field; IPv6 address with zone identifier
+	{
+		Req: Request{
+			Method: "GET",
+			URL: &url.URL{
+				Host: "www.example.com",
+			},
+			Host: "[fe80::1%en0]:8080",
+		},
+
+		WantWrite: "GET / HTTP/1.1\r\n" +
+			"Host: [fe80::1]:8080\r\n" +
+			"User-Agent: Go 1.1 package http\r\n" +
+			"\r\n",
+	},
 }
 
 func TestRequestWrite(t *testing.T) {
