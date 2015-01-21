@@ -394,6 +394,7 @@ var goTools = map[string]targetDir{
 	"cmd/addr2line":                        toTool,
 	"cmd/api":                              toTool,
 	"cmd/cgo":                              toTool,
+	"cmd/dist":                             toTool,
 	"cmd/fix":                              toTool,
 	"cmd/link":                             toTool,
 	"cmd/new5a":                            toTool,
