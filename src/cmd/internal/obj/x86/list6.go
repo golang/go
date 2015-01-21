@@ -82,7 +82,7 @@ func Pconv(p *obj.Prog) string {
 func Aconv(i int) string {
 	var fp string
 
-	fp += anames6[i]
+	fp += Anames[i]
 	return fp
 }
 
@@ -93,7 +93,7 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 
 	var i int
 
-	i = int(a.Type_)
+	i = int(a.Type)
 
 	if flag&fmtLong != 0 /*untyped*/ {
 		if i == D_CONST {
@@ -173,11 +173,11 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 		str = fmt.Sprintf("$\"%q\"", a.U.Sval)
 
 	case D_ADDR:
-		a.Type_ = int16(a.Index)
+		a.Type = int16(a.Index)
 		a.Index = D_NONE
 		str = fmt.Sprintf("$%v", Dconv(p, 0, a))
-		a.Index = uint8(a.Type_)
-		a.Type_ = D_ADDR
+		a.Index = uint8(a.Type)
+		a.Type = D_ADDR
 		goto conv
 	}
 
@@ -192,7 +192,7 @@ conv:
 	return fp
 }
 
-var regstr = []string{
+var Register = []string{
 	"AL", /* [D_AL] */
 	"CL",
 	"DL",
@@ -313,7 +313,7 @@ func Rconv(r int) string {
 	var fp string
 
 	if r >= D_AL && r <= D_NONE {
-		str = fmt.Sprintf("%s", regstr[r-D_AL])
+		str = fmt.Sprintf("%s", Register[r-D_AL])
 	} else {
 
 		str = fmt.Sprintf("gok(%d)", r)

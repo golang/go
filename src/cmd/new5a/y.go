@@ -726,7 +726,7 @@ yydefault:
 			var g obj.Addr
 
 			g = nullgen
-			g.Type_ = D_CONST
+			g.Type = D_CONST
 			g.Offset = int64(yyS[yypt-1].lval)
 			outcode(yyS[yypt-6].lval, yyS[yypt-5].lval, &yyS[yypt-4].addr, NREG, &g)
 		}
@@ -736,7 +736,7 @@ yydefault:
 			var g obj.Addr
 
 			g = nullgen
-			g.Type_ = D_CONST
+			g.Type = D_CONST
 			g.Offset = int64(yyS[yypt-3].lval)
 			outcode(yyS[yypt-6].lval, yyS[yypt-5].lval, &g, NREG, &yyS[yypt-0].addr)
 		}
@@ -764,7 +764,7 @@ yydefault:
 		//line a.y:221
 		{
 			asm.Settext(yyS[yypt-2].addr.Sym)
-			yyS[yypt-0].addr.Type_ = D_CONST2
+			yyS[yypt-0].addr.Type = D_CONST2
 			yyS[yypt-0].addr.Offset2 = -obj.ArgsSizeUnknown
 			outcode(yyS[yypt-3].lval, Always, &yyS[yypt-2].addr, 0, &yyS[yypt-0].addr)
 		}
@@ -772,7 +772,7 @@ yydefault:
 		//line a.y:228
 		{
 			asm.Settext(yyS[yypt-4].addr.Sym)
-			yyS[yypt-0].addr.Type_ = D_CONST2
+			yyS[yypt-0].addr.Type = D_CONST2
 			yyS[yypt-0].addr.Offset2 = -obj.ArgsSizeUnknown
 			outcode(yyS[yypt-5].lval, Always, &yyS[yypt-4].addr, yyS[yypt-2].lval, &yyS[yypt-0].addr)
 		}
@@ -780,7 +780,7 @@ yydefault:
 		//line a.y:235
 		{
 			asm.Settext(yyS[yypt-6].addr.Sym)
-			yyS[yypt-2].addr.Type_ = D_CONST2
+			yyS[yypt-2].addr.Type = D_CONST2
 			yyS[yypt-2].addr.Offset2 = yyS[yypt-0].lval
 			outcode(yyS[yypt-7].lval, Always, &yyS[yypt-6].addr, yyS[yypt-4].lval, &yyS[yypt-2].addr)
 		}
@@ -825,7 +825,7 @@ yydefault:
 			var g obj.Addr
 
 			g = nullgen
-			g.Type_ = D_CONST
+			g.Type = D_CONST
 			g.Offset = int64(
 				(0xe << 24) | /* opcode */
 					(yyS[yypt-11].lval << 20) | /* MCR/MRC */
@@ -847,7 +847,7 @@ yydefault:
 	case 40:
 		//line a.y:305
 		{
-			yyS[yypt-2].addr.Type_ = D_REGREG2
+			yyS[yypt-2].addr.Type = D_REGREG2
 			yyS[yypt-2].addr.Offset = int64(yyS[yypt-0].lval)
 			outcode(yyS[yypt-8].lval, yyS[yypt-7].lval, &yyS[yypt-6].addr, int32(yyS[yypt-4].addr.Reg), &yyS[yypt-2].addr)
 		}
@@ -859,7 +859,7 @@ yydefault:
 	case 42:
 		//line a.y:321
 		{
-			if yyS[yypt-2].addr.Type_ != D_CONST || yyS[yypt-0].addr.Type_ != D_CONST {
+			if yyS[yypt-2].addr.Type != D_CONST || yyS[yypt-0].addr.Type != D_CONST {
 				yyerror("arguments to PCDATA must be integer constants")
 			}
 			outcode(yyS[yypt-3].lval, Always, &yyS[yypt-2].addr, NREG, &yyS[yypt-0].addr)
@@ -867,10 +867,10 @@ yydefault:
 	case 43:
 		//line a.y:331
 		{
-			if yyS[yypt-2].addr.Type_ != D_CONST {
+			if yyS[yypt-2].addr.Type != D_CONST {
 				yyerror("index for FUNCDATA must be integer constant")
 			}
-			if yyS[yypt-0].addr.Type_ != D_EXTERN && yyS[yypt-0].addr.Type_ != D_STATIC && yyS[yypt-0].addr.Type_ != D_OREG {
+			if yyS[yypt-0].addr.Type != D_EXTERN && yyS[yypt-0].addr.Type != D_STATIC && yyS[yypt-0].addr.Type != D_OREG {
 				yyerror("value for FUNCDATA must be symbol reference")
 			}
 			outcode(yyS[yypt-3].lval, Always, &yyS[yypt-2].addr, NREG, &yyS[yypt-0].addr)
@@ -899,7 +899,7 @@ yydefault:
 		//line a.y:366
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_BRANCH
+			yyVAL.addr.Type = D_BRANCH
 			yyVAL.addr.Offset = int64(yyS[yypt-3].lval) + int64(asm.PC)
 		}
 	case 51:
@@ -910,33 +910,33 @@ yydefault:
 			if asm.Pass == 2 && yyS[yypt-1].sym.Type != LLAB {
 				yyerror("undefined label: %s", yyS[yypt-1].sym.Labelname)
 			}
-			yyVAL.addr.Type_ = D_BRANCH
+			yyVAL.addr.Type = D_BRANCH
 			yyVAL.addr.Offset = yyS[yypt-1].sym.Value + int64(yyS[yypt-0].lval)
 		}
 	case 52:
 		//line a.y:383
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_CONST
+			yyVAL.addr.Type = D_CONST
 			yyVAL.addr.Offset = int64(yyS[yypt-0].lval)
 		}
 	case 53:
 		//line a.y:389
 		{
 			yyVAL.addr = yyS[yypt-0].addr
-			yyVAL.addr.Type_ = D_CONST
+			yyVAL.addr.Type = D_CONST
 		}
 	case 54:
 		//line a.y:394
 		{
 			yyVAL.addr = yyS[yypt-0].addr
-			yyVAL.addr.Type_ = D_OCONST
+			yyVAL.addr.Type = D_OCONST
 		}
 	case 55:
 		//line a.y:399
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_SCONST
+			yyVAL.addr.Type = D_SCONST
 			yyVAL.addr.U.Sval = yyS[yypt-0].sval
 		}
 	case 56:
@@ -945,14 +945,14 @@ yydefault:
 		//line a.y:408
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_FCONST
+			yyVAL.addr.Type = D_FCONST
 			yyVAL.addr.U.Dval = yyS[yypt-0].dval
 		}
 	case 58:
 		//line a.y:414
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_FCONST
+			yyVAL.addr.Type = D_FCONST
 			yyVAL.addr.U.Dval = -yyS[yypt-0].dval
 		}
 	case 59:
@@ -992,21 +992,21 @@ yydefault:
 		//line a.y:450
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_PSR
+			yyVAL.addr.Type = D_PSR
 			yyVAL.addr.Reg = int8(yyS[yypt-0].lval)
 		}
 	case 67:
 		//line a.y:456
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_FPCR
+			yyVAL.addr.Type = D_FPCR
 			yyVAL.addr.Reg = int8(yyS[yypt-0].lval)
 		}
 	case 68:
 		//line a.y:462
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_OREG
+			yyVAL.addr.Type = D_OREG
 			yyVAL.addr.Offset = int64(yyS[yypt-0].lval)
 		}
 	case 69:
@@ -1026,7 +1026,7 @@ yydefault:
 		//line a.y:481
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_OREG
+			yyVAL.addr.Type = D_OREG
 			yyVAL.addr.Reg = int8(yyS[yypt-1].lval)
 			yyVAL.addr.Offset = 0
 		}
@@ -1036,7 +1036,7 @@ yydefault:
 		//line a.y:491
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_OREG
+			yyVAL.addr.Type = D_OREG
 			yyVAL.addr.Reg = int8(yyS[yypt-1].lval)
 			yyVAL.addr.Offset = int64(yyS[yypt-3].lval)
 		}
@@ -1046,7 +1046,7 @@ yydefault:
 		//line a.y:501
 		{
 			yyVAL.addr = yyS[yypt-3].addr
-			yyVAL.addr.Type_ = D_OREG
+			yyVAL.addr.Type = D_OREG
 			yyVAL.addr.Reg = int8(yyS[yypt-1].lval)
 		}
 	case 78:
@@ -1061,21 +1061,21 @@ yydefault:
 		//line a.y:514
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_CONST
+			yyVAL.addr.Type = D_CONST
 			yyVAL.addr.Offset = int64(yyS[yypt-0].lval)
 		}
 	case 83:
 		//line a.y:522
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_REG
+			yyVAL.addr.Type = D_REG
 			yyVAL.addr.Reg = int8(yyS[yypt-0].lval)
 		}
 	case 84:
 		//line a.y:530
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_REGREG
+			yyVAL.addr.Type = D_REGREG
 			yyVAL.addr.Reg = int8(yyS[yypt-3].lval)
 			yyVAL.addr.Offset = int64(yyS[yypt-1].lval)
 		}
@@ -1083,28 +1083,28 @@ yydefault:
 		//line a.y:539
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_SHIFT
+			yyVAL.addr.Type = D_SHIFT
 			yyVAL.addr.Offset = int64(yyS[yypt-3].lval) | int64(yyS[yypt-0].lval) | (0 << 5)
 		}
 	case 86:
 		//line a.y:545
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_SHIFT
+			yyVAL.addr.Type = D_SHIFT
 			yyVAL.addr.Offset = int64(yyS[yypt-3].lval) | int64(yyS[yypt-0].lval) | (1 << 5)
 		}
 	case 87:
 		//line a.y:551
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_SHIFT
+			yyVAL.addr.Type = D_SHIFT
 			yyVAL.addr.Offset = int64(yyS[yypt-3].lval) | int64(yyS[yypt-0].lval) | (2 << 5)
 		}
 	case 88:
 		//line a.y:557
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_SHIFT
+			yyVAL.addr.Type = D_SHIFT
 			yyVAL.addr.Offset = int64(yyS[yypt-3].lval) | int64(yyS[yypt-0].lval) | (3 << 5)
 		}
 	case 89:
@@ -1163,21 +1163,21 @@ yydefault:
 		//line a.y:616
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_FREG
+			yyVAL.addr.Type = D_FREG
 			yyVAL.addr.Reg = int8(yyS[yypt-0].lval)
 		}
 	case 101:
 		//line a.y:622
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_FREG
+			yyVAL.addr.Type = D_FREG
 			yyVAL.addr.Reg = int8(yyS[yypt-1].lval)
 		}
 	case 102:
 		//line a.y:630
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_OREG
+			yyVAL.addr.Type = D_OREG
 			yyVAL.addr.Name = int8(yyS[yypt-1].lval)
 			yyVAL.addr.Sym = nil
 			yyVAL.addr.Offset = int64(yyS[yypt-3].lval)
@@ -1186,7 +1186,7 @@ yydefault:
 		//line a.y:638
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_OREG
+			yyVAL.addr.Type = D_OREG
 			yyVAL.addr.Name = int8(yyS[yypt-1].lval)
 			yyVAL.addr.Sym = obj.Linklookup(asm.Ctxt, yyS[yypt-4].sym.Name, 0)
 			yyVAL.addr.Offset = int64(yyS[yypt-3].lval)
@@ -1195,7 +1195,7 @@ yydefault:
 		//line a.y:646
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type_ = D_OREG
+			yyVAL.addr.Type = D_OREG
 			yyVAL.addr.Name = D_STATIC
 			yyVAL.addr.Sym = obj.Linklookup(asm.Ctxt, yyS[yypt-6].sym.Name, 1)
 			yyVAL.addr.Offset = int64(yyS[yypt-3].lval)

@@ -84,24 +84,24 @@ func Pconv(p *obj.Prog) string {
 		if p.Mark&NOSCHED != 0 {
 			str += fmt.Sprintf("*")
 		}
-		if p.Reg == NREG && p.From3.Type_ == D_NONE {
+		if p.Reg == NREG && p.From3.Type == D_NONE {
 			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
-		} else if a != ATEXT && p.From.Type_ == D_OREG {
+		} else if a != ATEXT && p.From.Type == D_OREG {
 			str += fmt.Sprintf("%.5d (%v)\t%v\t%d(R%d+R%d),%v", p.Pc, p.Line(), Aconv(a), p.From.Offset, p.From.Reg, p.Reg, Dconv(p, 0, &p.To))
-		} else if p.To.Type_ == D_OREG {
+		} else if p.To.Type == D_OREG {
 			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%d(R%d+R%d)", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From), p.To.Offset, p.To.Reg, p.Reg)
 		} else {
 
 			str += fmt.Sprintf("%.5d (%v)\t%v\t%v", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From))
 			if p.Reg != NREG {
 				ch = 'R'
-				if p.From.Type_ == D_FREG {
+				if p.From.Type == D_FREG {
 					ch = 'F'
 				}
 				str += fmt.Sprintf(",%c%d", ch, p.Reg)
 			}
 
-			if p.From3.Type_ != D_NONE {
+			if p.From3.Type != D_NONE {
 				str += fmt.Sprintf(",%v", Dconv(p, 0, &p.From3))
 			}
 			str += fmt.Sprintf(",%v", Dconv(p, 0, &p.To))
@@ -123,7 +123,7 @@ func Aconv(a int) string {
 
 	s = "???"
 	if a >= AXXX && a < ALAST {
-		s = anames9[a]
+		s = Anames[a]
 	}
 	fp += s
 	return fp
@@ -136,7 +136,7 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 	var v int32
 
 	if flag&fmtLong != 0 /*untyped*/ {
-		if a.Type_ == D_CONST {
+		if a.Type == D_CONST {
 			str = fmt.Sprintf("$%d-%d", int32(a.Offset), int32(a.Offset>>32))
 		} else {
 
@@ -147,9 +147,9 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 		goto ret
 	}
 
-	switch a.Type_ {
+	switch a.Type {
 	default:
-		str = fmt.Sprintf("GOK-type(%d)", a.Type_)
+		str = fmt.Sprintf("GOK-type(%d)", a.Type)
 
 	case D_NONE:
 		str = ""

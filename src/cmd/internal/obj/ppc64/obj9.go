@@ -40,19 +40,19 @@ var zprg = obj.Prog{
 	As:  AGOK,
 	Reg: NREG,
 	From: obj.Addr{
-		Name:  D_NONE,
-		Type_: D_NONE,
-		Reg:   NREG,
+		Name: D_NONE,
+		Type: D_NONE,
+		Reg:  NREG,
 	},
 	From3: obj.Addr{
-		Name:  D_NONE,
-		Type_: D_NONE,
-		Reg:   NREG,
+		Name: D_NONE,
+		Type: D_NONE,
+		Reg:  NREG,
 	},
 	To: obj.Addr{
-		Name:  D_NONE,
-		Type_: D_NONE,
-		Reg:   NREG,
+		Name: D_NONE,
+		Type: D_NONE,
+		Reg:  NREG,
 	},
 }
 
@@ -96,7 +96,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		ADUFFZERO,
 		ADUFFCOPY:
 		if p.To.Sym != nil {
-			p.To.Type_ = D_BRANCH
+			p.To.Type = D_BRANCH
 		}
 		break
 	}
@@ -105,7 +105,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	switch p.As {
 
 	case AFMOVS:
-		if p.From.Type_ == D_FCONST {
+		if p.From.Type == D_FCONST {
 			var i32 uint32
 			var f32 float32
 			f32 = float32(p.From.U.Dval)
@@ -113,20 +113,20 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			literal = fmt.Sprintf("$f32.%08x", i32)
 			s = obj.Linklookup(ctxt, literal, 0)
 			s.Size = 4
-			p.From.Type_ = D_OREG
+			p.From.Type = D_OREG
 			p.From.Sym = s
 			p.From.Name = D_EXTERN
 			p.From.Offset = 0
 		}
 
 	case AFMOVD:
-		if p.From.Type_ == D_FCONST {
+		if p.From.Type == D_FCONST {
 			var i64 uint64
 			i64 = math.Float64bits(p.From.U.Dval)
 			literal = fmt.Sprintf("$f64.%016x", i64)
 			s = obj.Linklookup(ctxt, literal, 0)
 			s.Size = 8
-			p.From.Type_ = D_OREG
+			p.From.Type = D_OREG
 			p.From.Sym = s
 			p.From.Name = D_EXTERN
 			p.From.Offset = 0
@@ -134,12 +134,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 
 		// Put >32-bit constants in memory and load them
 	case AMOVD:
-		if p.From.Type_ == D_CONST && p.From.Name == D_NONE && p.From.Reg == NREG && int64(int32(p.From.Offset)) != p.From.Offset {
+		if p.From.Type == D_CONST && p.From.Name == D_NONE && p.From.Reg == NREG && int64(int32(p.From.Offset)) != p.From.Offset {
 
 			literal = fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
 			s = obj.Linklookup(ctxt, literal, 0)
 			s.Size = 8
-			p.From.Type_ = D_OREG
+			p.From.Type = D_OREG
 			p.From.Sym = s
 			p.From.Name = D_EXTERN
 			p.From.Offset = 0
@@ -150,19 +150,19 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	switch p.As {
 
 	case ASUBC:
-		if p.From.Type_ == D_CONST {
+		if p.From.Type == D_CONST {
 			p.From.Offset = -p.From.Offset
 			p.As = AADDC
 		}
 
 	case ASUBCCC:
-		if p.From.Type_ == D_CONST {
+		if p.From.Type == D_CONST {
 			p.From.Offset = -p.From.Offset
 			p.As = AADDCCC
 		}
 
 	case ASUB:
-		if p.From.Type_ == D_CONST {
+		if p.From.Type == D_CONST {
 			p.From.Offset = -p.From.Offset
 			p.As = AADD
 		}
@@ -241,7 +241,7 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 
 		case ANOR:
 			q = p
-			if p.To.Type_ == D_REG {
+			if p.To.Type == D_REG {
 				if p.To.Reg == REGZERO {
 					p.Mark |= LABEL | SYNC
 				}
@@ -284,7 +284,7 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 			AMOVWZ,
 			AMOVD:
 			q = p
-			switch p.From.Type_ {
+			switch p.From.Type {
 			case D_MSR,
 				D_SPR,
 				D_FPSCR,
@@ -293,7 +293,7 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 				p.Mark |= LABEL | SYNC
 			}
 
-			switch p.To.Type_ {
+			switch p.To.Type {
 			case D_MSR,
 				D_SPR,
 				D_FPSCR,
@@ -440,9 +440,9 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 					q = obj.Appendp(ctxt, p)
 					q.As = AADD
 					q.Lineno = p.Lineno
-					q.From.Type_ = D_CONST
+					q.From.Type = D_CONST
 					q.From.Offset = int64(-autosize)
-					q.To.Type_ = D_REG
+					q.To.Type = D_REG
 					q.To.Reg = REGSP
 					q.Spadj = +autosize
 				}
@@ -463,17 +463,17 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 			q = obj.Appendp(ctxt, q)
 			q.As = AMOVD
 			q.Lineno = p.Lineno
-			q.From.Type_ = D_SPR
+			q.From.Type = D_SPR
 			q.From.Offset = D_LR
-			q.To.Type_ = D_REG
+			q.To.Type = D_REG
 			q.To.Reg = REGTMP
 
 			q = obj.Appendp(ctxt, q)
 			q.As = int16(mov)
 			q.Lineno = p.Lineno
-			q.From.Type_ = D_REG
+			q.From.Type = D_REG
 			q.From.Reg = REGTMP
-			q.To.Type_ = D_OREG
+			q.To.Type = D_OREG
 			q.To.Offset = int64(aoffset)
 			q.To.Reg = REGSP
 			if q.As == AMOVDU {
@@ -501,65 +501,65 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 				q = obj.Appendp(ctxt, q)
 
 				q.As = AMOVD
-				q.From.Type_ = D_OREG
+				q.From.Type = D_OREG
 				q.From.Reg = REGG
 				q.From.Offset = 4 * int64(ctxt.Arch.Ptrsize) // G.panic
-				q.To.Type_ = D_REG
+				q.To.Type = D_REG
 				q.To.Reg = 3
 
 				q = obj.Appendp(ctxt, q)
 				q.As = ACMP
-				q.From.Type_ = D_REG
+				q.From.Type = D_REG
 				q.From.Reg = 0
-				q.To.Type_ = D_REG
+				q.To.Type = D_REG
 				q.To.Reg = 3
 
 				q = obj.Appendp(ctxt, q)
 				q.As = ABEQ
-				q.To.Type_ = D_BRANCH
+				q.To.Type = D_BRANCH
 				p1 = q
 
 				q = obj.Appendp(ctxt, q)
 				q.As = AMOVD
-				q.From.Type_ = D_OREG
+				q.From.Type = D_OREG
 				q.From.Reg = 3
 				q.From.Offset = 0 // Panic.argp
-				q.To.Type_ = D_REG
+				q.To.Type = D_REG
 				q.To.Reg = 4
 
 				q = obj.Appendp(ctxt, q)
 				q.As = AADD
-				q.From.Type_ = D_CONST
+				q.From.Type = D_CONST
 				q.From.Offset = int64(autosize) + 8
 				q.Reg = REGSP
-				q.To.Type_ = D_REG
+				q.To.Type = D_REG
 				q.To.Reg = 5
 
 				q = obj.Appendp(ctxt, q)
 				q.As = ACMP
-				q.From.Type_ = D_REG
+				q.From.Type = D_REG
 				q.From.Reg = 4
-				q.To.Type_ = D_REG
+				q.To.Type = D_REG
 				q.To.Reg = 5
 
 				q = obj.Appendp(ctxt, q)
 				q.As = ABNE
-				q.To.Type_ = D_BRANCH
+				q.To.Type = D_BRANCH
 				p2 = q
 
 				q = obj.Appendp(ctxt, q)
 				q.As = AADD
-				q.From.Type_ = D_CONST
+				q.From.Type = D_CONST
 				q.From.Offset = 8
 				q.Reg = REGSP
-				q.To.Type_ = D_REG
+				q.To.Type = D_REG
 				q.To.Reg = 6
 
 				q = obj.Appendp(ctxt, q)
 				q.As = AMOVD
-				q.From.Type_ = D_REG
+				q.From.Type = D_REG
 				q.From.Reg = 6
-				q.To.Type_ = D_OREG
+				q.To.Type = D_OREG
 				q.To.Reg = 3
 				q.To.Offset = 0 // Panic.argp
 
@@ -571,14 +571,14 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 		case ARETURN:
-			if p.From.Type_ == D_CONST {
+			if p.From.Type == D_CONST {
 				ctxt.Diag("using BECOME (%v) is not supported!", p)
 				break
 			}
 
 			if p.To.Sym != nil { // retjmp
 				p.As = ABR
-				p.To.Type_ = D_BRANCH
+				p.To.Type = D_BRANCH
 				break
 			}
 
@@ -586,23 +586,23 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 				if !(autosize != 0) {
 					p.As = ABR
 					p.From = zprg.From
-					p.To.Type_ = D_SPR
+					p.To.Type = D_SPR
 					p.To.Offset = D_LR
 					p.Mark |= BRANCH
 					break
 				}
 
 				p.As = AADD
-				p.From.Type_ = D_CONST
+				p.From.Type = D_CONST
 				p.From.Offset = int64(autosize)
-				p.To.Type_ = D_REG
+				p.To.Type = D_REG
 				p.To.Reg = REGSP
 				p.Spadj = -autosize
 
 				q = ctxt.Arch.Prg()
 				q.As = ABR
 				q.Lineno = p.Lineno
-				q.To.Type_ = D_SPR
+				q.To.Type = D_SPR
 				q.To.Offset = D_LR
 				q.Mark |= BRANCH
 				q.Spadj = +autosize
@@ -613,18 +613,18 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			p.As = AMOVD
-			p.From.Type_ = D_OREG
+			p.From.Type = D_OREG
 			p.From.Offset = 0
 			p.From.Reg = REGSP
-			p.To.Type_ = D_REG
+			p.To.Type = D_REG
 			p.To.Reg = REGTMP
 
 			q = ctxt.Arch.Prg()
 			q.As = AMOVD
 			q.Lineno = p.Lineno
-			q.From.Type_ = D_REG
+			q.From.Type = D_REG
 			q.From.Reg = REGTMP
-			q.To.Type_ = D_SPR
+			q.To.Type = D_SPR
 			q.To.Offset = D_LR
 
 			q.Link = p.Link
@@ -637,10 +637,10 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 
 				q.As = AMOVD
 				q.Lineno = p.Lineno
-				q.From.Type_ = D_OREG
+				q.From.Type = D_OREG
 				q.From.Offset = 0
 				q.From.Reg = REGTMP
-				q.To.Type_ = D_REG
+				q.To.Type = D_REG
 				q.To.Reg = REGTMP
 
 				q.Link = p.Link
@@ -652,9 +652,9 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 				q = ctxt.Arch.Prg()
 				q.As = AADD
 				q.Lineno = p.Lineno
-				q.From.Type_ = D_CONST
+				q.From.Type = D_CONST
 				q.From.Offset = int64(autosize)
-				q.To.Type_ = D_REG
+				q.To.Type = D_REG
 				q.To.Reg = REGSP
 				q.Spadj = -autosize
 
@@ -665,7 +665,7 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 			q1 = ctxt.Arch.Prg()
 			q1.As = ABR
 			q1.Lineno = p.Lineno
-			q1.To.Type_ = D_SPR
+			q1.To.Type = D_SPR
 			q1.To.Offset = D_LR
 			q1.Mark |= BRANCH
 			q1.Spadj = +autosize
@@ -674,7 +674,7 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 			q.Link = q1
 
 		case AADD:
-			if p.To.Type_ == D_REG && p.To.Reg == REGSP && p.From.Type_ == D_CONST {
+			if p.To.Type == D_REG && p.To.Reg == REGSP && p.From.Type == D_CONST {
 				p.Spadj = int32(-p.From.Offset)
 			}
 			break
@@ -736,13 +736,13 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 	p = obj.Appendp(ctxt, p)
 
 	p.As = AMOVD
-	p.From.Type_ = D_OREG
+	p.From.Type = D_OREG
 	p.From.Reg = REGG
 	p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
 	if ctxt.Cursym.Cfunc != 0 {
 		p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
 	}
-	p.To.Type_ = D_REG
+	p.To.Type = D_REG
 	p.To.Reg = 3
 
 	q = nil
@@ -752,9 +752,9 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 		p = obj.Appendp(ctxt, p)
 
 		p.As = ACMPU
-		p.From.Type_ = D_REG
+		p.From.Type = D_REG
 		p.From.Reg = 3
-		p.To.Type_ = D_REG
+		p.To.Type = D_REG
 		p.To.Reg = REGSP
 	} else if framesize <= obj.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
@@ -763,17 +763,17 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 		p = obj.Appendp(ctxt, p)
 
 		p.As = AADD
-		p.From.Type_ = D_CONST
+		p.From.Type = D_CONST
 		p.From.Offset = int64(-framesize)
 		p.Reg = REGSP
-		p.To.Type_ = D_REG
+		p.To.Type = D_REG
 		p.To.Reg = 4
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ACMPU
-		p.From.Type_ = D_REG
+		p.From.Type = D_REG
 		p.From.Reg = 3
-		p.To.Type_ = D_REG
+		p.To.Type = D_REG
 		p.To.Reg = 4
 	} else {
 
@@ -795,43 +795,43 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 		p = obj.Appendp(ctxt, p)
 
 		p.As = ACMP
-		p.From.Type_ = D_REG
+		p.From.Type = D_REG
 		p.From.Reg = 3
-		p.To.Type_ = D_CONST
+		p.To.Type = D_CONST
 		p.To.Offset = obj.StackPreempt
 
 		p = obj.Appendp(ctxt, p)
 		q = p
 		p.As = ABEQ
-		p.To.Type_ = D_BRANCH
+		p.To.Type = D_BRANCH
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AADD
-		p.From.Type_ = D_CONST
+		p.From.Type = D_CONST
 		p.From.Offset = obj.StackGuard
 		p.Reg = REGSP
-		p.To.Type_ = D_REG
+		p.To.Type = D_REG
 		p.To.Reg = 4
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ASUB
-		p.From.Type_ = D_REG
+		p.From.Type = D_REG
 		p.From.Reg = 3
-		p.To.Type_ = D_REG
+		p.To.Type = D_REG
 		p.To.Reg = 4
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AMOVD
-		p.From.Type_ = D_CONST
+		p.From.Type = D_CONST
 		p.From.Offset = int64(framesize) + obj.StackGuard - obj.StackSmall
-		p.To.Type_ = D_REG
+		p.To.Type = D_REG
 		p.To.Reg = REGTMP
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ACMPU
-		p.From.Type_ = D_REG
+		p.From.Type = D_REG
 		p.From.Reg = REGTMP
-		p.To.Type_ = D_REG
+		p.To.Type = D_REG
 		p.To.Reg = 4
 	}
 
@@ -840,15 +840,15 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 	q1 = p
 
 	p.As = ABLT
-	p.To.Type_ = D_BRANCH
+	p.To.Type = D_BRANCH
 
 	// MOVD	LR, R5
 	p = obj.Appendp(ctxt, p)
 
 	p.As = AMOVD
-	p.From.Type_ = D_SPR
+	p.From.Type = D_SPR
 	p.From.Offset = D_LR
-	p.To.Type_ = D_REG
+	p.To.Type = D_REG
 	p.To.Reg = 5
 	if q != nil {
 		q.Pcond = p
@@ -858,7 +858,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 	p = obj.Appendp(ctxt, p)
 
 	p.As = ABL
-	p.To.Type_ = D_BRANCH
+	p.To.Type = D_BRANCH
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
 	} else {
@@ -870,7 +870,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int) *obj.P
 	p = obj.Appendp(ctxt, p)
 
 	p.As = ABR
-	p.To.Type_ = D_BRANCH
+	p.To.Type = D_BRANCH
 	p.Pcond = ctxt.Cursym.Text.Link
 
 	// placeholder for q1's jump target
@@ -1019,7 +1019,7 @@ loop:
 		q = ctxt.Arch.Prg()
 		q.As = int16(a)
 		q.Lineno = p.Lineno
-		q.To.Type_ = D_BRANCH
+		q.To.Type = D_BRANCH
 		q.To.Offset = p.Pc
 		q.Pcond = p
 		p = q

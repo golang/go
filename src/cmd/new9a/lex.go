@@ -465,7 +465,7 @@ var lexinit = []asm.Lextab{
 }
 
 func cinit() {
-	nullgen.Type_ = ppc64.D_NONE
+	nullgen.Type = ppc64.D_NONE
 	nullgen.Name = ppc64.D_NONE
 	nullgen.Reg = ppc64.NREG
 	nullgen.Scale = ppc64.NREG // replaced Gen.xreg with Prog.scale

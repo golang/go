@@ -3,7 +3,7 @@ package x86
 /*
  * this is the ranlib header
  */
-var anames6 = []string{
+var Anames = []string{
 	"XXX",
 	"AAA",
 	"AAD",

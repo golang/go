@@ -5,7 +5,7 @@ package ppc64
 /*
  * this is the ranlib header
  */
-var anames9 = []string{
+var Anames = []string{
 	"XXX",
 	"ADD",
 	"ADDCC",

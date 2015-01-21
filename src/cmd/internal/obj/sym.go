@@ -234,7 +234,7 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
 	s.Plt = -1
 	s.Got = -1
 	s.Name = symb
-	s.Type_ = 0
+	s.Type = 0
 	s.Version = int16(v)
 	s.Value = 0
 	s.Sig = 0

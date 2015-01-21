@@ -276,14 +276,14 @@ var zprg = obj.Prog{
 	Scond: C_SCOND_NONE,
 	Reg:   NREG,
 	From: obj.Addr{
-		Name:  D_NONE,
-		Type_: D_NONE,
-		Reg:   NREG,
+		Name: D_NONE,
+		Type: D_NONE,
+		Reg:  NREG,
 	},
 	To: obj.Addr{
-		Name:  D_NONE,
-		Type_: D_NONE,
-		Reg:   NREG,
+		Name: D_NONE,
+		Type: D_NONE,
+		Reg:  NREG,
 	},
 }
 
@@ -362,7 +362,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 
 	case AB,
 		ABL:
-		if p.To.Type_ != D_OREG {
+		if p.To.Type != D_OREG {
 			if out != nil {
 				asmout(ctxt, p, o, out)
 			}
@@ -414,7 +414,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 		AMOVW,
 		ASTREX,
 		ASTREXD:
-		if p.To.Type_ == D_REG && p.To.Reg == 15 && p.From.Reg == 13 { // MOVW.W x(R13), PC
+		if p.To.Type == D_REG && p.To.Reg == 15 && p.From.Reg == 13 { // MOVW.W x(R13), PC
 			if out != nil {
 				asmout(ctxt, p, o, out)
 			}
@@ -454,11 +454,11 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			}
 		}
 
-		if p.To.Type_ == D_REG && p.To.Reg == 15 {
+		if p.To.Type == D_REG && p.To.Reg == 15 {
 			ctxt.Diag("unsupported instruction (move to another register and use indirect jump instead): %v", p)
 		}
 
-		if p.To.Type_ == D_OREG && p.To.Reg == 13 && (p.Scond&C_WBIT != 0) && size > 4 {
+		if p.To.Type == D_OREG && p.To.Reg == 13 && (p.Scond&C_WBIT != 0) && size > 4 {
 			// function prolog with very large frame size: MOVW.W R14,-100004(R13)
 			// split it into two instructions:
 			// 	ADD $-100004, R13
@@ -468,7 +468,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			p.Scond &^= C_WBIT
 			*q = *p
 			a = &p.To
-			if p.To.Type_ == D_OREG {
+			if p.To.Type == D_OREG {
 				a2 = &q.To
 			} else {
 
@@ -488,16 +488,16 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 
 			p.From = *a
 			p.From.Reg = NREG
-			p.From.Type_ = D_CONST
+			p.From.Type = D_CONST
 			p.To = zprg.To
-			p.To.Type_ = D_REG
+			p.To.Type = D_REG
 			p.To.Reg = 13
 
 			// make q into p but load/store from 0(R13)
 			q.Spadj = 0
 
 			*a2 = zprg.From
-			a2.Type_ = D_OREG
+			a2.Type = D_OREG
 			a2.Reg = 13
 			a2.Sym = nil
 			a2.Offset = 0
@@ -505,8 +505,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			break
 		}
 
-		if (p.To.Type_ == D_OREG && p.To.Reg != 13 && p.To.Reg != 9) || (p.From.Type_ == D_OREG && p.From.Reg != 13 && p.From.Reg != 9) { // MOVW Rx, X(Ry), y != 13 && y != 9 // MOVW X(Rx), Ry, x != 13 && x != 9
-			if p.To.Type_ == D_OREG {
+		if (p.To.Type == D_OREG && p.To.Reg != 13 && p.To.Reg != 9) || (p.From.Type == D_OREG && p.From.Reg != 13 && p.From.Reg != 9) { // MOVW Rx, X(Ry), y != 13 && y != 9 // MOVW X(Rx), Ry, x != 13 && x != 9
+			if p.To.Type == D_OREG {
 				a = &p.To
 			} else {
 
@@ -548,7 +548,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				}
 				q = ctxt.Arch.Prg()
 				*q = *p
-				if p.To.Type_ == D_OREG {
+				if p.To.Type == D_OREG {
 					a2 = &q.To
 				} else {
 
@@ -567,15 +567,15 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				p.As = AMOVW
 
 				p.From = *a
-				p.From.Type_ = D_CONST
+				p.From.Type = D_CONST
 				p.To = zprg.To
-				p.To.Type_ = D_REG
+				p.To.Type = D_REG
 				p.To.Reg = 11
 
 				// make q into p but load/store from 0(R11)
 				*a2 = zprg.From
 
-				a2.Type_ = D_OREG
+				a2.Type = D_OREG
 				a2.Reg = 11
 				a2.Sym = nil
 				a2.Offset = 0
@@ -589,7 +589,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 	}
 
 	// destination register specific
-	if p.To.Type_ == D_REG {
+	if p.To.Type == D_REG {
 
 		switch p.To.Reg {
 		case 9:
@@ -701,7 +701,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			break
 		}
 
-		if p.As == AMOVW && p.To.Type_ == D_REG && p.To.Reg == REGPC && p.Scond&C_SCOND == C_SCOND_NONE {
+		if p.As == AMOVW && p.To.Type == D_REG && p.To.Reg == REGPC && p.Scond&C_SCOND == C_SCOND_NONE {
 			flushpool(ctxt, p, 0, 0)
 		}
 		c += int32(m)
@@ -896,7 +896,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) int {
 			}
 			q = ctxt.Arch.Prg()
 			q.As = AB
-			q.To.Type_ = D_BRANCH
+			q.To.Type = D_BRANCH
 			q.Pcond = p.Link
 			q.Link = ctxt.Blitrl
 			q.Lineno = p.Lineno
@@ -950,7 +950,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 	default:
 		t.To.Offset = a.Offset
 		t.To.Sym = a.Sym
-		t.To.Type_ = a.Type_
+		t.To.Type = a.Type
 		t.To.Name = a.Name
 
 		if ctxt.Flag_shared != 0 && t.To.Sym != nil {
@@ -967,7 +967,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		C_SAUTO,
 		C_LAUTO,
 		C_LACON:
-		t.To.Type_ = D_CONST
+		t.To.Type = D_CONST
 		t.To.Offset = ctxt.Instoffset
 		break
 	}
@@ -1064,7 +1064,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 	var s *obj.LSym
 	var t int
 
-	switch a.Type_ {
+	switch a.Type {
 	case D_NONE:
 		return C_NONE
 
@@ -1291,7 +1291,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 
 	if false { /*debug['O']*/
 		fmt.Printf("oplook %v %v %v %v\n", Aconv(int(p.As)), DRconv(a1), DRconv(a2), DRconv(a3))
-		fmt.Printf("\t\t%d %d\n", p.From.Type_, p.To.Type_)
+		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
 	}
 
 	e = oprange[r].stop
@@ -1308,8 +1308,8 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 		}
 	}
 
-	ctxt.Diag("illegal combination %v; %v %v %v, %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type_, p.To.Type_)
-	ctxt.Diag("from %d %d to %d %d\n", p.From.Type_, p.From.Name, p.To.Type_, p.To.Name)
+	ctxt.Diag("illegal combination %v; %v %v %v, %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type, p.To.Type)
+	ctxt.Diag("from %d %d to %d %d\n", p.From.Type, p.From.Name, p.To.Type, p.To.Name)
 	prasm(p)
 	if o == nil {
 		o = optab
@@ -1627,7 +1627,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rf = int(p.From.Reg)
 		rt = int(p.To.Reg)
 		r = int(p.Reg)
-		if p.To.Type_ == D_NONE {
+		if p.To.Type == D_NONE {
 			rt = 0
 		}
 		if p.As == AMOVB || p.As == AMOVH || p.As == AMOVW || p.As == AMVN {
@@ -1644,7 +1644,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
 		rt = int(p.To.Reg)
 		r = int(p.Reg)
-		if p.To.Type_ == D_NONE {
+		if p.To.Type == D_NONE {
 			rt = 0
 		}
 		if p.As == AMOVW || p.As == AMVN {
@@ -1680,7 +1680,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			rel.Sym = p.To.Sym
 			v += int32(p.To.Offset)
 			rel.Add = int64(o1) | (int64(v)>>2)&0xffffff
-			rel.Type_ = obj.R_CALLARM
+			rel.Type = obj.R_CALLARM
 			break
 		}
 
@@ -1708,7 +1708,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rel = obj.Addrel(ctxt.Cursym)
 		rel.Off = int32(ctxt.Pc)
 		rel.Siz = 0
-		rel.Type_ = obj.R_CALLIND
+		rel.Type = obj.R_CALLIND
 
 	case 8: /* sll $c,[R],R -> mov (R<<$c),R */
 		aclass(ctxt, &p.From)
@@ -1736,7 +1736,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	case 10: /* swi [$con] */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
-		if p.To.Type_ != D_NONE {
+		if p.To.Type != D_NONE {
 			aclass(ctxt, &p.To)
 			o1 |= uint32(ctxt.Instoffset & 0xffffff)
 		}
@@ -1761,18 +1761,18 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			// Emit a TLS relocation instead of a standard one.
 			if rel.Sym == ctxt.Tlsg {
 
-				rel.Type_ = obj.R_TLS
+				rel.Type = obj.R_TLS
 				if ctxt.Flag_shared != 0 {
 					rel.Add += ctxt.Pc - p.Pcrel.Pc - 8 - int64(rel.Siz)
 				}
 				rel.Xadd = rel.Add
 				rel.Xsym = rel.Sym
 			} else if ctxt.Flag_shared != 0 {
-				rel.Type_ = obj.R_PCREL
+				rel.Type = obj.R_PCREL
 				rel.Add += ctxt.Pc - p.Pcrel.Pc - 8
 			} else {
 
-				rel.Type_ = obj.R_ADDR
+				rel.Type = obj.R_ADDR
 			}
 			o1 = 0
 		}
@@ -1799,7 +1799,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(p.To.Reg)
 		}
 		o2 |= uint32(r) << 16
-		if p.To.Type_ != D_NONE {
+		if p.To.Type != D_NONE {
 			o2 |= uint32(p.To.Reg) << 12
 		}
 
@@ -1926,7 +1926,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		o2 |= uint32(r) << 16
-		if p.To.Type_ != D_NONE {
+		if p.To.Type != D_NONE {
 			o2 |= uint32(p.To.Reg) << 12
 		}
 
@@ -2088,7 +2088,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(immrot(0xff))
 		rt = int(p.To.Reg)
 		r = int(p.From.Reg)
-		if p.To.Type_ == D_NONE {
+		if p.To.Type == D_NONE {
 			rt = 0
 		}
 		if r == NREG {
@@ -2157,7 +2157,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			rel = obj.Addrel(ctxt.Cursym)
 			rel.Off = int32(ctxt.Pc)
 			rel.Siz = 4
-			if p.To.Sym != nil && p.To.Sym.Type_ != 0 {
+			if p.To.Sym != nil && p.To.Sym.Type != 0 {
 				rel.Sym = p.To.Sym
 				rel.Add = p.To.Offset
 			} else {
@@ -2167,11 +2167,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			}
 
 			if o.flag&LPCREL != 0 {
-				rel.Type_ = obj.R_PCREL
+				rel.Type = obj.R_PCREL
 				rel.Add += ctxt.Pc - p.Pcrel.Pc - 16 + int64(rel.Siz)
 			} else {
 
-				rel.Type_ = obj.R_ADDR
+				rel.Type = obj.R_ADDR
 			}
 			o1 = 0
 		}
@@ -2550,7 +2550,7 @@ func mov(ctxt *obj.Link, p *obj.Prog) uint32 {
 	o1 |= uint32(p.From.Offset)
 	rt = int(p.To.Reg)
 	r = int(p.Reg)
-	if p.To.Type_ == D_NONE {
+	if p.To.Type == D_NONE {
 		rt = 0
 	}
 	if p.As == AMOVW || p.As == AMVN {

@@ -702,7 +702,7 @@ var lexinit = []asm.Lextab{
 }
 
 func cinit() {
-	nullgen.Type_ = i386.D_NONE
+	nullgen.Type = i386.D_NONE
 	nullgen.Index = i386.D_NONE
 }
 

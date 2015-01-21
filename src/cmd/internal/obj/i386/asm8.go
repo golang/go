@@ -1709,7 +1709,7 @@ func span8(ctxt *obj.Link, s *obj.LSym) {
 
 	for p = s.Text; p != nil; p = p.Link {
 		n = 0
-		if p.To.Type_ == D_BRANCH {
+		if p.To.Type == D_BRANCH {
 			if p.Pcond == nil {
 				p.Pcond = p
 			}
@@ -1722,7 +1722,7 @@ func span8(ctxt *obj.Link, s *obj.LSym) {
 		}
 		p.Back = uint8(n)
 		if p.As == AADJSP {
-			p.To.Type_ = D_SP
+			p.To.Type = D_SP
 			v = int32(-p.From.Offset)
 			p.From.Offset = int64(v)
 			p.As = AADDL
@@ -1747,7 +1747,7 @@ func span8(ctxt *obj.Link, s *obj.LSym) {
 
 		if p.As == AADJSP {
 
-			p.To.Type_ = D_SP
+			p.To.Type = D_SP
 			v = int32(-p.From.Offset)
 			p.From.Offset = int64(v)
 			p.As = AADDL
@@ -1980,7 +1980,7 @@ func instinit() {
 }
 
 func prefixof(ctxt *obj.Link, a *obj.Addr) int {
-	switch a.Type_ {
+	switch a.Type {
 	case D_INDIR + D_CS:
 		return 0x2e
 
@@ -2023,9 +2023,9 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 func oclass(a *obj.Addr) int {
 	var v int32
 
-	if (a.Type_ >= D_INDIR && a.Type_ < 2*D_INDIR) || a.Index != D_NONE {
+	if (a.Type >= D_INDIR && a.Type < 2*D_INDIR) || a.Index != D_NONE {
 		if a.Index != D_NONE && a.Scale == 0 {
-			if a.Type_ == D_ADDR {
+			if a.Type == D_ADDR {
 				switch a.Index {
 				case D_EXTERN,
 					D_STATIC:
@@ -2047,7 +2047,7 @@ func oclass(a *obj.Addr) int {
 		return Ym
 	}
 
-	switch a.Type_ {
+	switch a.Type {
 	case D_AL:
 		return Yal
 
@@ -2315,7 +2315,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int32 {
 		*r = obj.Reloc{}
 	}
 
-	t = int(a.Type_)
+	t = int(a.Type)
 	v = int32(a.Offset)
 	if t == D_ADDR {
 		t = int(a.Index)
@@ -2330,7 +2330,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int32 {
 				log.Fatalf("bad code")
 			}
 
-			r.Type_ = obj.R_ADDR
+			r.Type = obj.R_ADDR
 			r.Siz = 4
 			r.Off = -1
 			r.Sym = s
@@ -2344,7 +2344,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int32 {
 			log.Fatalf("bad code")
 		}
 
-		r.Type_ = obj.R_TLS_LE
+		r.Type = obj.R_TLS_LE
 		r.Siz = 4
 		r.Off = -1 // caller must fill in
 		r.Add = int64(v)
@@ -2362,7 +2362,7 @@ func asmand(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int) {
 	var rel obj.Reloc
 
 	v = int32(a.Offset)
-	t = int(a.Type_)
+	t = int(a.Type)
 	rel.Siz = 0
 	if a.Index != D_NONE && a.Index != D_TLS {
 		if t < D_INDIR || t >= 2*D_INDIR {
@@ -2425,7 +2425,7 @@ func asmand(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int) {
 
 	scale = int(a.Scale)
 	if t < D_INDIR || t >= 2*D_INDIR {
-		switch a.Type_ {
+		switch a.Type {
 		default:
 			goto bad
 
@@ -2481,7 +2481,7 @@ func asmand(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int) {
 	if t >= D_AX && t <= D_DI {
 		if a.Index == D_TLS {
 			rel = obj.Reloc{}
-			rel.Type_ = obj.R_TLS_IE
+			rel.Type = obj.R_TLS_IE
 			rel.Siz = 4
 			rel.Sym = nil
 			rel.Add = int64(v)
@@ -3133,7 +3133,7 @@ func byteswapreg(ctxt *obj.Link, a *obj.Addr) int {
 	canb = canc
 	cana = canb
 
-	switch a.Type_ {
+	switch a.Type {
 	case D_NONE:
 		cand = 0
 		cana = cand
@@ -3202,13 +3202,13 @@ func subreg(p *obj.Prog, from int, to int) {
 		fmt.Printf("\n%v\ts/%v/%v/\n", p, Rconv(from), Rconv(to))
 	}
 
-	if int(p.From.Type_) == from {
-		p.From.Type_ = int16(to)
+	if int(p.From.Type) == from {
+		p.From.Type = int16(to)
 		p.Ft = 0
 	}
 
-	if int(p.To.Type_) == from {
-		p.To.Type_ = int16(to)
+	if int(p.To.Type) == from {
+		p.To.Type = int16(to)
 		p.Tt = 0
 	}
 
@@ -3223,13 +3223,13 @@ func subreg(p *obj.Prog, from int, to int) {
 	}
 
 	from += D_INDIR
-	if int(p.From.Type_) == from {
-		p.From.Type_ = int16(to + D_INDIR)
+	if int(p.From.Type) == from {
+		p.From.Type = int16(to + D_INDIR)
 		p.Ft = 0
 	}
 
-	if int(p.To.Type_) == from {
-		p.To.Type_ = int16(to + D_INDIR)
+	if int(p.To.Type) == from {
+		p.To.Type = int16(to + D_INDIR)
 		p.Tt = 0
 	}
 
@@ -3382,27 +3382,27 @@ found:
 			ctxt.Andptr[0] = byte(op)
 			ctxt.Andptr = ctxt.Andptr[1:]
 		}
-		asmand(ctxt, p, &p.From, reg[p.To.Type_])
+		asmand(ctxt, p, &p.From, reg[p.To.Type])
 
 	case Zm_r:
 		ctxt.Andptr[0] = byte(op)
 		ctxt.Andptr = ctxt.Andptr[1:]
-		asmand(ctxt, p, &p.From, reg[p.To.Type_])
+		asmand(ctxt, p, &p.From, reg[p.To.Type])
 
 	case Zm2_r:
 		ctxt.Andptr[0] = byte(op)
 		ctxt.Andptr = ctxt.Andptr[1:]
 		ctxt.Andptr[0] = byte(o.op[z+1])
 		ctxt.Andptr = ctxt.Andptr[1:]
-		asmand(ctxt, p, &p.From, reg[p.To.Type_])
+		asmand(ctxt, p, &p.From, reg[p.To.Type])
 
 	case Zm_r_xm:
 		mediaop(ctxt, o, op, int(t[3]), z)
-		asmand(ctxt, p, &p.From, reg[p.To.Type_])
+		asmand(ctxt, p, &p.From, reg[p.To.Type])
 
 	case Zm_r_i_xm:
 		mediaop(ctxt, o, op, int(t[3]), z)
-		asmand(ctxt, p, &p.From, reg[p.To.Type_])
+		asmand(ctxt, p, &p.From, reg[p.To.Type])
 		ctxt.Andptr[0] = byte(p.To.Offset)
 		ctxt.Andptr = ctxt.Andptr[1:]
 
@@ -3417,22 +3417,22 @@ found:
 			ctxt.Andptr[0] = byte(op)
 			ctxt.Andptr = ctxt.Andptr[1:]
 		}
-		asmand(ctxt, p, &p.From, reg[p.To.Type_])
+		asmand(ctxt, p, &p.From, reg[p.To.Type])
 		ctxt.Andptr[0] = byte(p.To.Offset)
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zaut_r:
 		ctxt.Andptr[0] = 0x8d
 		ctxt.Andptr = ctxt.Andptr[1:] /* leal */
-		if p.From.Type_ != D_ADDR {
+		if p.From.Type != D_ADDR {
 			ctxt.Diag("asmins: Zaut sb type ADDR")
 		}
-		p.From.Type_ = int16(p.From.Index)
+		p.From.Type = int16(p.From.Index)
 		p.From.Index = D_NONE
 		p.Ft = 0
-		asmand(ctxt, p, &p.From, reg[p.To.Type_])
-		p.From.Index = uint8(p.From.Type_)
-		p.From.Type_ = D_ADDR
+		asmand(ctxt, p, &p.From, reg[p.To.Type])
+		p.From.Index = uint8(p.From.Type)
+		p.From.Type = D_ADDR
 		p.Ft = 0
 
 	case Zm_o:
@@ -3443,22 +3443,22 @@ found:
 	case Zr_m:
 		ctxt.Andptr[0] = byte(op)
 		ctxt.Andptr = ctxt.Andptr[1:]
-		asmand(ctxt, p, &p.To, reg[p.From.Type_])
+		asmand(ctxt, p, &p.To, reg[p.From.Type])
 
 	case Zr_m_xm:
 		mediaop(ctxt, o, op, int(t[3]), z)
-		asmand(ctxt, p, &p.To, reg[p.From.Type_])
+		asmand(ctxt, p, &p.To, reg[p.From.Type])
 
 	case Zr_m_i_xm:
 		mediaop(ctxt, o, op, int(t[3]), z)
-		asmand(ctxt, p, &p.To, reg[p.From.Type_])
+		asmand(ctxt, p, &p.To, reg[p.From.Type])
 		ctxt.Andptr[0] = byte(p.From.Offset)
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zcallindreg:
 		r = obj.Addrel(ctxt.Cursym)
 		r.Off = int32(p.Pc)
-		r.Type_ = obj.R_CALLIND
+		r.Type = obj.R_CALLIND
 		r.Siz = 0
 		fallthrough
 
@@ -3498,13 +3498,13 @@ found:
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zib_rp:
-		ctxt.Andptr[0] = byte(op + reg[p.To.Type_])
+		ctxt.Andptr[0] = byte(op + reg[p.To.Type])
 		ctxt.Andptr = ctxt.Andptr[1:]
 		ctxt.Andptr[0] = byte(vaddr(ctxt, p, &p.From, nil))
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zil_rp:
-		ctxt.Andptr[0] = byte(op + reg[p.To.Type_])
+		ctxt.Andptr[0] = byte(op + reg[p.To.Type])
 		ctxt.Andptr = ctxt.Andptr[1:]
 		if o.prefix == Pe {
 			v = vaddr(ctxt, p, &p.From, nil)
@@ -3520,7 +3520,7 @@ found:
 	case Zib_rr:
 		ctxt.Andptr[0] = byte(op)
 		ctxt.Andptr = ctxt.Andptr[1:]
-		asmand(ctxt, p, &p.To, reg[p.To.Type_])
+		asmand(ctxt, p, &p.To, reg[p.To.Type])
 		ctxt.Andptr[0] = byte(vaddr(ctxt, p, &p.From, nil))
 		ctxt.Andptr = ctxt.Andptr[1:]
 
@@ -3572,7 +3572,7 @@ found:
 	case Zil_rr:
 		ctxt.Andptr[0] = byte(op)
 		ctxt.Andptr = ctxt.Andptr[1:]
-		asmand(ctxt, p, &p.To, reg[p.To.Type_])
+		asmand(ctxt, p, &p.To, reg[p.To.Type])
 		if o.prefix == Pe {
 			v = vaddr(ctxt, p, &p.From, nil)
 			ctxt.Andptr[0] = byte(v)
@@ -3585,17 +3585,17 @@ found:
 		}
 
 	case Z_rp:
-		ctxt.Andptr[0] = byte(op + reg[p.To.Type_])
+		ctxt.Andptr[0] = byte(op + reg[p.To.Type])
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zrp_:
-		ctxt.Andptr[0] = byte(op + reg[p.From.Type_])
+		ctxt.Andptr[0] = byte(op + reg[p.From.Type])
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zclr:
 		ctxt.Andptr[0] = byte(op)
 		ctxt.Andptr = ctxt.Andptr[1:]
-		asmand(ctxt, p, &p.To, reg[p.To.Type_])
+		asmand(ctxt, p, &p.To, reg[p.To.Type])
 
 	case Zcall:
 		if p.To.Sym == nil {
@@ -3607,7 +3607,7 @@ found:
 		ctxt.Andptr = ctxt.Andptr[1:]
 		r = obj.Addrel(ctxt.Cursym)
 		r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
-		r.Type_ = obj.R_CALL
+		r.Type = obj.R_CALL
 		r.Siz = 4
 		r.Sym = p.To.Sym
 		r.Add = p.To.Offset
@@ -3627,7 +3627,7 @@ found:
 			r = obj.Addrel(ctxt.Cursym)
 			r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
 			r.Sym = p.To.Sym
-			r.Type_ = obj.R_PCREL
+			r.Type = obj.R_PCREL
 			r.Siz = 4
 			put4(ctxt, 0)
 			break
@@ -3724,7 +3724,7 @@ found:
 		}
 		r = obj.Addrel(ctxt.Cursym)
 		r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
-		r.Type_ = obj.R_PCREL
+		r.Type = obj.R_PCREL
 		r.Siz = 4
 		r.Add = p.To.Offset
 		put4(ctxt, 0)
@@ -3736,7 +3736,7 @@ found:
 		ctxt.Andptr = ctxt.Andptr[1:]
 		r = obj.Addrel(ctxt.Cursym)
 		r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
-		r.Type_ = obj.R_ADDR
+		r.Type = obj.R_ADDR
 		r.Siz = 4
 		r.Add = p.To.Offset
 		r.Sym = p.To.Sym
@@ -3791,7 +3791,7 @@ domov:
 bad:
 	pp = *p
 
-	z = int(p.From.Type_)
+	z = int(p.From.Type)
 	if z >= D_BP && z <= D_DI {
 		breg = byteswapreg(ctxt, &p.To)
 		if breg != D_AX {
@@ -3816,7 +3816,7 @@ bad:
 		return
 	}
 
-	z = int(p.To.Type_)
+	z = int(p.To.Type)
 	if z >= D_BP && z <= D_DI {
 		breg = byteswapreg(ctxt, &p.From)
 		if breg != D_AX {
@@ -3841,7 +3841,7 @@ bad:
 		return
 	}
 
-	ctxt.Diag("doasm: notfound t2=%x from=%x to=%x %v", t[2], uint16(p.From.Type_), uint16(p.To.Type_), p)
+	ctxt.Diag("doasm: notfound t2=%x from=%x to=%x %v", t[2], uint16(p.From.Type), uint16(p.To.Type), p)
 	return
 
 mfound:
@@ -3922,10 +3922,10 @@ mfound:
 			break
 		}
 
-		asmand(ctxt, p, &p.From, reg[p.To.Type_])
+		asmand(ctxt, p, &p.From, reg[p.To.Type])
 
 	case 6: /* double shift */
-		z = int(p.From.Type_)
+		z = int(p.From.Type)
 
 		switch z {
 		default:
@@ -3964,7 +3964,7 @@ mfound:
 		}
 		ctxt.Andptr[0] = t[5]
 		ctxt.Andptr = ctxt.Andptr[1:]
-		asmand(ctxt, p, &p.From, reg[p.To.Type_])
+		asmand(ctxt, p, &p.From, reg[p.To.Type])
 
 		// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
 	// where you load the TLS base register into a register and then index off that
@@ -3981,7 +3981,7 @@ mfound:
 			obj.Hnacl:
 			pp.From = p.From
 
-			pp.From.Type_ = D_INDIR + D_GS
+			pp.From.Type = D_INDIR + D_GS
 			pp.From.Offset = 0
 			pp.From.Index = D_NONE
 			pp.From.Scale = 0
@@ -3989,26 +3989,26 @@ mfound:
 			ctxt.Andptr = ctxt.Andptr[1:] // GS
 			ctxt.Andptr[0] = 0x8B
 			ctxt.Andptr = ctxt.Andptr[1:]
-			asmand(ctxt, p, &pp.From, reg[p.To.Type_])
+			asmand(ctxt, p, &pp.From, reg[p.To.Type])
 
 		case obj.Hplan9:
 			if ctxt.Plan9privates == nil {
 				ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
 			}
 			pp.From = obj.Addr{}
-			pp.From.Type_ = D_EXTERN
+			pp.From.Type = D_EXTERN
 			pp.From.Sym = ctxt.Plan9privates
 			pp.From.Offset = 0
 			pp.From.Index = D_NONE
 			ctxt.Andptr[0] = 0x8B
 			ctxt.Andptr = ctxt.Andptr[1:]
-			asmand(ctxt, p, &pp.From, reg[p.To.Type_])
+			asmand(ctxt, p, &pp.From, reg[p.To.Type])
 
 			// Windows TLS base is always 0x14(FS).
 		case obj.Hwindows:
 			pp.From = p.From
 
-			pp.From.Type_ = D_INDIR + D_FS
+			pp.From.Type = D_INDIR + D_FS
 			pp.From.Offset = 0x14
 			pp.From.Index = D_NONE
 			pp.From.Scale = 0
@@ -4016,7 +4016,7 @@ mfound:
 			ctxt.Andptr = ctxt.Andptr[1:] // FS
 			ctxt.Andptr[0] = 0x8B
 			ctxt.Andptr = ctxt.Andptr[1:]
-			asmand(ctxt, p, &pp.From, reg[p.To.Type_])
+			asmand(ctxt, p, &pp.From, reg[p.To.Type])
 			break
 		}
 
@@ -4043,7 +4043,7 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		r = obj.Addrel(ctxt.Cursym)
 		r.Off = 0
 		r.Sym = p.From.Sym
-		r.Type_ = obj.R_USEFIELD
+		r.Type = obj.R_USEFIELD
 		r.Siz = 0
 		return
 	}
@@ -4057,10 +4057,10 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 
 		case ACALL,
 			AJMP:
-			if D_AX <= p.To.Type_ && p.To.Type_ <= D_DI {
+			if D_AX <= p.To.Type && p.To.Type <= D_DI {
 				ctxt.Andptr[0] = 0x83
 				ctxt.Andptr = ctxt.Andptr[1:]
-				ctxt.Andptr[0] = byte(0xe0 | (p.To.Type_ - D_AX))
+				ctxt.Andptr[0] = byte(0xe0 | (p.To.Type - D_AX))
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = 0xe0
 				ctxt.Andptr = ctxt.Andptr[1:]

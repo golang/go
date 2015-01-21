@@ -41,7 +41,7 @@ type Addr struct {
 	}
 	Sym     *LSym
 	Gotype  *LSym
-	Type_   int16
+	Type    int16
 	Index   uint8
 	Scale   int8
 	Reg     int8
@@ -85,7 +85,7 @@ type Prog struct {
 type LSym struct {
 	Name        string
 	Extname     string
-	Type_       int16
+	Type        int16
 	Version     int16
 	Dupok       uint8
 	Cfunc       uint8
@@ -137,7 +137,7 @@ type Reloc struct {
 	Off     int32
 	Siz     uint8
 	Done    uint8
-	Type_   int32
+	Type    int32
 	Variant int32
 	Add     int64
 	Xadd    int64
@@ -149,7 +149,7 @@ type Auto struct {
 	Asym    *LSym
 	Link    *Auto
 	Aoffset int32
-	Type_   int16
+	Type    int16
 	Gotype  *LSym
 }
 
