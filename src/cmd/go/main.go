@@ -662,7 +662,7 @@ func stringList(args ...interface{}) []string {
 		case string:
 			x = append(x, arg)
 		default:
-			panic("stringList: invalid argument")
+			panic("stringList: invalid argument of type " + fmt.Sprintf("%T", arg))
 		}
 	}
 	return x
