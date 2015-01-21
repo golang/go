@@ -67,13 +67,13 @@ var setStringTests = []struct {
 	{"1.", "1", true},
 	{"1e0", "1", true},
 	{"1.e1", "10", true},
-	{in: "1e", ok: false},
-	{in: "1.e", ok: false},
-	{in: "1e+14e-5", ok: false},
-	{in: "1e4.5", ok: false},
-	{in: "r", ok: false},
-	{in: "a/b", ok: false},
-	{in: "a.b", ok: false},
+	{in: "1e"},
+	{in: "1.e"},
+	{in: "1e+14e-5"},
+	{in: "1e4.5"},
+	{in: "r"},
+	{in: "a/b"},
+	{in: "a.b"},
 	{"-0.1", "-1/10", true},
 	{"-.1", "-1/10", true},
 	{"2/4", "1/2", true},
@@ -89,7 +89,7 @@ var setStringTests = []struct {
 	{"53/70893980658822810696", "53/70893980658822810696", true},
 	{"106/141787961317645621392", "53/70893980658822810696", true},
 	{"204211327800791583.81095", "4084226556015831676219/20000", true},
-	{in: "1/0", ok: false},
+	{in: "1/0"},
 }
 
 func TestRatSetString(t *testing.T) {
@@ -118,9 +118,9 @@ func TestRatScan(t *testing.T) {
 		_, err := fmt.Fscanf(&buf, "%v", x)
 		if err == nil != test.ok {
 			if test.ok {
-				t.Errorf("#%d error: %s", i, err)
+				t.Errorf("#%d (%s) error: %s", i, test.in, err)
 			} else {
-				t.Errorf("#%d expected error", i)
+				t.Errorf("#%d (%s) expected error", i, test.in)
 			}
 			continue
 		}

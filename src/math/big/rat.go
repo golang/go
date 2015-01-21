@@ -10,7 +10,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"math"
+	"strconv"
 	"strings"
 )
 
@@ -540,11 +542,11 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	if len(s) == 0 {
 		return nil, false
 	}
+	// len(s) > 0
 
-	// check for a quotient
-	sep := strings.Index(s, "/")
-	if sep >= 0 {
-		if _, ok := z.a.SetString(s[0:sep], 10); !ok {
+	// parse fraction a/b, if any
+	if sep := strings.Index(s, "/"); sep >= 0 {
+		if _, ok := z.a.SetString(s[:sep], 10); !ok {
 			return nil, false
 		}
 		s = s[sep+1:]
@@ -558,37 +560,63 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		return z.norm(), true
 	}
 
-	// check for a decimal point
-	sep = strings.Index(s, ".")
-	// check for an exponent
-	e := strings.IndexAny(s, "eE")
-	var exp Int
-	if e >= 0 {
-		if e < sep {
-			// The E must come after the decimal point.
-			return nil, false
-		}
-		if _, ok := exp.SetString(s[e+1:], 10); !ok {
-			return nil, false
-		}
-		s = s[0:e]
-	}
-	if sep >= 0 {
-		s = s[0:sep] + s[sep+1:]
-		exp.Sub(&exp, NewInt(int64(len(s)-sep)))
+	// parse floating-point number
+
+	// parse sign
+	var neg bool
+	switch s[0] {
+	case '-':
+		neg = true
+		fallthrough
+	case '+':
+		s = s[1:]
 	}
 
-	if _, ok := z.a.SetString(s, 10); !ok {
+	// parse exponent, if any
+	var exp int64
+	if sep := strings.IndexAny(s, "eE"); sep >= 0 {
+		var err error
+		if exp, err = strconv.ParseInt(s[sep+1:], 10, 64); err != nil {
+			return nil, false
+		}
+		s = s[:sep]
+	}
+
+	// parse mantissa
+	var err error
+	var ecorr int // exponent correction, valid if ecorr <= 0
+	r := strings.NewReader(s)
+	if z.a.abs, _, ecorr, err = z.a.abs.scan(r, 1); err != nil {
 		return nil, false
 	}
-	powTen := nat(nil).expNN(natTen, exp.abs, nil)
-	if exp.neg {
+
+	// there should be no unread characters left
+	if _, _, err = r.ReadRune(); err != io.EOF {
+		return nil, false
+	}
+
+	// correct exponent
+	if ecorr < 0 {
+		exp += int64(ecorr)
+	}
+
+	// compute exponent factor
+	expabs := exp
+	if expabs < 0 {
+		expabs = -expabs
+	}
+	powTen := nat(nil).expNN(natTen, nat(nil).setWord(Word(expabs)), nil)
+
+	// complete fraction
+	if exp < 0 {
 		z.b.abs = powTen
 		z.norm()
 	} else {
 		z.a.abs = z.a.abs.mul(z.a.abs, powTen)
-		z.b.abs = z.b.abs.make(0)
+		z.b.abs = z.b.abs[:0]
 	}
+
+	z.a.neg = neg && len(z.a.abs) > 0 // 0 has no sign
 
 	return z, true
 }
@@ -667,7 +695,7 @@ func (x *Rat) GobEncode() ([]byte, error) {
 	}
 	buf := make([]byte, 1+4+(len(x.a.abs)+len(x.b.abs))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
 	i := x.b.abs.bytes(buf)
-	j := x.a.abs.bytes(buf[0:i])
+	j := x.a.abs.bytes(buf[:i])
 	n := i - j
 	if int(uint32(n)) != n {
 		// this should never happen
