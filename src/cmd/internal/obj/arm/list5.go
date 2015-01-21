@@ -84,9 +84,9 @@ func Pconv(p *obj.Prog) string {
 		sc += ".U"
 	}
 	if a == AMOVM {
-		if p.From.Type_ == D_CONST {
+		if p.From.Type == D_CONST {
 			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v", p.Pc, p.Line(), Aconv(a), sc, RAconv(&p.From), Dconv(p, 0, &p.To))
-		} else if p.To.Type_ == D_CONST {
+		} else if p.To.Type == D_CONST {
 			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v", p.Pc, p.Line(), Aconv(a), sc, Dconv(p, 0, &p.From), RAconv(&p.To))
 		} else {
 
@@ -98,7 +98,7 @@ func Pconv(p *obj.Prog) string {
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From), p.Reg, Dconv(p, 0, &p.To))
 	} else if p.Reg == NREG {
 		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v", p.Pc, p.Line(), Aconv(a), sc, Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
-	} else if p.From.Type_ != D_FREG {
+	} else if p.From.Type != D_FREG {
 		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,R%d,%v", p.Pc, p.Line(), Aconv(a), sc, Dconv(p, 0, &p.From), p.Reg, Dconv(p, 0, &p.To))
 	} else {
 
@@ -115,7 +115,7 @@ func Aconv(a int) string {
 
 	s = "???"
 	if a >= AXXX && a < ALAST {
-		s = anames5[a]
+		s = Anames[a]
 	}
 	fp += s
 	return fp
@@ -128,9 +128,9 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 	var op string
 	var v int
 
-	switch a.Type_ {
+	switch a.Type {
 	default:
-		str = fmt.Sprintf("GOK-type(%d)", a.Type_)
+		str = fmt.Sprintf("GOK-type(%d)", a.Type)
 
 	case D_NONE:
 		str = ""
@@ -220,7 +220,7 @@ func RAconv(a *obj.Addr) string {
 	var v int
 
 	str = fmt.Sprintf("GOK-reglist")
-	switch a.Type_ {
+	switch a.Type {
 	case D_CONST,
 		D_CONST2:
 		if a.Reg != NREG {

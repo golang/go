@@ -479,14 +479,14 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR
-					q.To.Type_ = D_BRANCH
+					q.To.Type = D_BRANCH
 					q.Pcond = p.Pcond
 					p.Pcond = q
 					q = ctxt.Arch.Prg()
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR
-					q.To.Type_ = D_BRANCH
+					q.To.Type = D_BRANCH
 					q.Pcond = q.Link.Link
 
 					//addnop(p->link);
@@ -549,7 +549,7 @@ func isuint32(v uint64) int {
 func aclass(ctxt *obj.Link, a *obj.Addr) int {
 	var s *obj.LSym
 
-	switch a.Type_ {
+	switch a.Type {
 	case D_NONE:
 		return C_NONE
 
@@ -652,7 +652,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			if s == nil {
 				break
 			}
-			if s.Type_ == obj.SCONST {
+			if s.Type == obj.SCONST {
 				ctxt.Instoffset = s.Value + a.Offset
 				goto consize
 			}
@@ -1405,7 +1405,7 @@ func addaddrreloc(ctxt *obj.Link, s *obj.LSym, o1 *uint32, o2 *uint32) {
 	rel.Siz = 8
 	rel.Sym = s
 	rel.Add = int64(uint64(*o1)<<32 | uint64(uint32(*o2)))
-	rel.Type_ = obj.R_ADDRPOWER
+	rel.Type = obj.R_ADDRPOWER
 }
 
 /*
@@ -1543,7 +1543,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		break
 
 	case 1: /* mov r1,r2 ==> OR Rs,Rs,Ra */
-		if p.To.Reg == REGZERO && p.From.Type_ == D_CONST {
+		if p.To.Reg == REGZERO && p.From.Type == D_CONST {
 
 			v = regoff(ctxt, &p.From)
 			if r0iszero != 0 /*TypeKind(100016)*/ && v != 0 {
@@ -1630,7 +1630,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		v = regoff(ctxt, &p.To)
-		if p.To.Type_ == D_OREG && p.Reg != NREG {
+		if p.To.Type == D_OREG && p.Reg != NREG {
 			if v != 0 {
 				ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
@@ -1650,7 +1650,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		v = regoff(ctxt, &p.From)
-		if p.From.Type_ == D_OREG && p.Reg != NREG {
+		if p.From.Type == D_OREG && p.Reg != NREG {
 			if v != 0 {
 				ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
@@ -1670,7 +1670,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		v = regoff(ctxt, &p.From)
-		if p.From.Type_ == D_OREG && p.Reg != NREG {
+		if p.From.Type == D_OREG && p.Reg != NREG {
 			if v != 0 {
 				ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
@@ -1717,11 +1717,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			}
 
 			rel.Add = int64(v)
-			rel.Type_ = obj.R_CALLPOWER
+			rel.Type = obj.R_CALLPOWER
 		}
 
 	case 12: /* movb r,r (extsb); movw r,r (extsw) */
-		if p.To.Reg == REGZERO && p.From.Type_ == D_CONST {
+		if p.To.Reg == REGZERO && p.From.Type == D_CONST {
 
 			v = regoff(ctxt, &p.From)
 			if r0iszero != 0 /*TypeKind(100016)*/ && v != 0 {
@@ -1792,7 +1792,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		16: /* bc bo,bi,sbra */
 		a = 0
 
-		if p.From.Type_ == D_CONST {
+		if p.From.Type == D_CONST {
 			a = int(regoff(ctxt, &p.From))
 		}
 		r = int(p.Reg)
@@ -2080,7 +2080,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			rel.Siz = 8
 			rel.Sym = p.From.Sym
 			rel.Add = p.From.Offset
-			rel.Type_ = obj.R_ADDR
+			rel.Type = obj.R_ADDR
 			o2 = 0
 			o1 = o2
 		}
@@ -2188,7 +2188,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = LOP_RRR(uint32(oprrr(ctxt, int(p.As))), uint32(p.To.Reg), uint32(r), 0)
 
 	case 49: /* op Rb; op $n, Rb */
-		if p.From.Type_ != D_REG { /* tlbie $L, rB */
+		if p.From.Type != D_REG { /* tlbie $L, rB */
 			v = regoff(ctxt, &p.From) & 1
 			o1 = AOP_RRR(uint32(oprrr(ctxt, int(p.As))), 0, 0, uint32(p.To.Reg)) | uint32(v)<<21
 		} else {
@@ -2342,7 +2342,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
 
 	case 64: /* mtfsf fr[, $m] {,fpcsr} */
-		if p.From3.Type_ != D_NONE {
+		if p.From3.Type != D_NONE {
 
 			v = regoff(ctxt, &p.From3) & 255
 		} else {
@@ -2359,11 +2359,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_MTFSFI | (uint32(p.To.Reg)&15)<<23 | (uint32(regoff(ctxt, &p.From))&31)<<12
 
 	case 66: /* mov spr,r1; mov r1,spr, also dcr */
-		if p.From.Type_ == D_REG {
+		if p.From.Type == D_REG {
 
 			r = int(p.From.Reg)
 			v = int32(p.To.Offset)
-			if p.To.Type_ == D_DCR {
+			if p.To.Type == D_DCR {
 				o1 = OPVCC(31, 451, 0, 0) /* mtdcr */
 			} else {
 
@@ -2373,7 +2373,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 			r = int(p.To.Reg)
 			v = int32(p.From.Offset)
-			if p.From.Type_ == D_DCR {
+			if p.From.Type == D_DCR {
 				o1 = OPVCC(31, 323, 0, 0) /* mfdcr */
 			} else {
 
@@ -2384,14 +2384,14 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_RRR(o1, uint32(r), 0, 0) | (uint32(v)&0x1f)<<16 | ((uint32(v)>>5)&0x1f)<<11
 
 	case 67: /* mcrf crfD,crfS */
-		if p.From.Type_ != D_CREG || p.From.Reg == NREG || p.To.Type_ != D_CREG || p.To.Reg == NREG {
+		if p.From.Type != D_CREG || p.From.Reg == NREG || p.To.Type != D_CREG || p.To.Reg == NREG {
 
 			ctxt.Diag("illegal CR field number\n%v", p)
 		}
 		o1 = AOP_RRR(OP_MCRF, ((uint32(p.To.Reg) & 7) << 2), ((uint32(p.From.Reg) & 7) << 2), 0)
 
 	case 68: /* mfcr rD; mfocrf CRM,rD */
-		if p.From.Type_ == D_CREG && p.From.Reg != NREG {
+		if p.From.Type == D_CREG && p.From.Reg != NREG {
 
 			v = 1 << uint(7-(p.To.Reg&7))                                         /* CR(n) */
 			o1 = AOP_RRR(OP_MFCR, uint32(p.To.Reg), 0, 0) | 1<<20 | uint32(v)<<12 /* new form, mfocrf */
@@ -2401,7 +2401,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 69: /* mtcrf CRM,rS */
-		if p.From3.Type_ != D_NONE {
+		if p.From3.Type != D_NONE {
 
 			if p.To.Reg != NREG {
 				ctxt.Diag("can't use both mask and CR(n)\n%v", p)
@@ -2443,20 +2443,20 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_RRR(uint32(oprrr(ctxt, int(p.As))), uint32(p.From.Reg), 0, uint32(p.To.Reg))
 
 	case 73: /* mcrfs crfD,crfS */
-		if p.From.Type_ != D_FPSCR || p.From.Reg == NREG || p.To.Type_ != D_CREG || p.To.Reg == NREG {
+		if p.From.Type != D_FPSCR || p.From.Reg == NREG || p.To.Type != D_CREG || p.To.Reg == NREG {
 
 			ctxt.Diag("illegal FPSCR/CR field number\n%v", p)
 		}
 		o1 = AOP_RRR(OP_MCRFS, ((uint32(p.To.Reg) & 7) << 2), ((uint32(p.From.Reg) & 7) << 2), 0)
 
 	case 77: /* syscall $scon, syscall Rx */
-		if p.From.Type_ == D_CONST {
+		if p.From.Type == D_CONST {
 
 			if p.From.Offset > BIG || p.From.Offset < -BIG {
 				ctxt.Diag("illegal syscall, sysnum too large: %v", p)
 			}
 			o1 = AOP_IRR(OP_ADDI, REGZERO, REGZERO, uint32(p.From.Offset))
-		} else if p.From.Type_ == D_REG {
+		} else if p.From.Type == D_REG {
 			o1 = LOP_RRR(OP_OR, REGZERO, uint32(p.From.Reg), uint32(p.From.Reg))
 		} else {
 

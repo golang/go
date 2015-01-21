@@ -67,7 +67,7 @@ func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
 	}
 	Symgrow(ctxt, s, int64(off+siz))
 
-	switch int(p.To.Type_) {
+	switch int(p.To.Type) {
 	default:
 		ctxt.Diag("bad data: %P", p)
 
@@ -89,12 +89,12 @@ func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
 		copy(s.P[off:off+siz], p.To.U.Sval)
 
 	case ctxt.Arch.D_CONST, ctxt.Arch.D_ADDR:
-		if p.To.Sym != nil || int(p.To.Type_) == ctxt.Arch.D_ADDR {
+		if p.To.Sym != nil || int(p.To.Type) == ctxt.Arch.D_ADDR {
 			r := Addrel(s)
 			r.Off = off
 			r.Siz = uint8(siz)
 			r.Sym = p.To.Sym
-			r.Type_ = R_ADDR
+			r.Type = R_ADDR
 			r.Add = p.To.Offset
 			break
 		}
@@ -120,8 +120,8 @@ func Addrel(s *LSym) *Reloc {
 }
 
 func setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
-	if s.Type_ == 0 {
-		s.Type_ = SDATA
+	if s.Type == 0 {
+		s.Type = SDATA
 	}
 	s.Reachable = 1
 	if s.Size < off+wid {
@@ -187,8 +187,8 @@ func addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	var i int64
 	var r *Reloc
 
-	if s.Type_ == 0 {
-		s.Type_ = SDATA
+	if s.Type == 0 {
+		s.Type = SDATA
 	}
 	s.Reachable = 1
 	i = s.Size
@@ -198,7 +198,7 @@ func addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	r.Sym = t
 	r.Off = int32(i)
 	r.Siz = uint8(ctxt.Arch.Ptrsize)
-	r.Type_ = R_ADDR
+	r.Type = R_ADDR
 	r.Add = add
 	return i + int64(r.Siz)
 }
@@ -207,8 +207,8 @@ func addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	var i int64
 	var r *Reloc
 
-	if s.Type_ == 0 {
-		s.Type_ = SDATA
+	if s.Type == 0 {
+		s.Type = SDATA
 	}
 	s.Reachable = 1
 	i = s.Size
@@ -218,7 +218,7 @@ func addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	r.Sym = t
 	r.Off = int32(i)
 	r.Add = add
-	r.Type_ = R_PCREL
+	r.Type = R_PCREL
 	r.Siz = 4
 	return i + int64(r.Siz)
 }
@@ -230,8 +230,8 @@ func addaddr(ctxt *Link, s *LSym, t *LSym) int64 {
 func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
 	var r *Reloc
 
-	if s.Type_ == 0 {
-		s.Type_ = SDATA
+	if s.Type == 0 {
+		s.Type = SDATA
 	}
 	s.Reachable = 1
 	if off+int64(ctxt.Arch.Ptrsize) > s.Size {
@@ -243,7 +243,7 @@ func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
 	r.Sym = t
 	r.Off = int32(off)
 	r.Siz = uint8(ctxt.Arch.Ptrsize)
-	r.Type_ = R_ADDR
+	r.Type = R_ADDR
 	r.Add = add
 	return off + int64(r.Siz)
 }
@@ -256,8 +256,8 @@ func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
 	var i int64
 	var r *Reloc
 
-	if s.Type_ == 0 {
-		s.Type_ = SDATA
+	if s.Type == 0 {
+		s.Type = SDATA
 	}
 	s.Reachable = 1
 	i = s.Size
@@ -267,7 +267,7 @@ func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
 	r.Sym = t
 	r.Off = int32(i)
 	r.Siz = uint8(ctxt.Arch.Ptrsize)
-	r.Type_ = R_SIZE
+	r.Type = R_SIZE
 	return i + int64(r.Siz)
 }
 
@@ -275,8 +275,8 @@ func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	var i int64
 	var r *Reloc
 
-	if s.Type_ == 0 {
-		s.Type_ = SDATA
+	if s.Type == 0 {
+		s.Type = SDATA
 	}
 	s.Reachable = 1
 	i = s.Size
@@ -286,7 +286,7 @@ func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	r.Sym = t
 	r.Off = int32(i)
 	r.Siz = 4
-	r.Type_ = R_ADDR
+	r.Type = R_ADDR
 	r.Add = add
 	return i + int64(r.Siz)
 }

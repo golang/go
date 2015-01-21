@@ -179,7 +179,7 @@ inst:
 		var g obj.Addr
 
 		g = nullgen;
-		g.Type_ = D_CONST;
+		g.Type = D_CONST;
 		g.Offset = int64($6);
 		outcode($1, $2, &$3, NREG, &g);
 	}
@@ -188,7 +188,7 @@ inst:
 		var g obj.Addr
 
 		g = nullgen;
-		g.Type_ = D_CONST;
+		g.Type = D_CONST;
 		g.Offset = int64($4);
 		outcode($1, $2, &g, NREG, &$7);
 	}
@@ -220,21 +220,21 @@ inst:
 |	LTYPEB name ',' imm
 	{
 		asm.Settext($2.Sym);
-		$4.Type_ = D_CONST2;
+		$4.Type = D_CONST2;
 		$4.Offset2 = -obj.ArgsSizeUnknown;
 		outcode($1, Always, &$2, 0, &$4);
 	}
 |	LTYPEB name ',' con ',' imm
 	{
 		asm.Settext($2.Sym);
-		$6.Type_ = D_CONST2;
+		$6.Type = D_CONST2;
 		$6.Offset2 = -obj.ArgsSizeUnknown;
 		outcode($1, Always, &$2, $4, &$6);
 	}
 |	LTYPEB name ',' con ',' imm '-' con
 	{
 		asm.Settext($2.Sym);
-		$6.Type_ = D_CONST2;
+		$6.Type = D_CONST2;
 		$6.Offset2 = $8;
 		outcode($1, Always, &$2, $4, &$6);
 	}
@@ -286,7 +286,7 @@ inst:
 		var g obj.Addr
 
 		g = nullgen;
-		g.Type_ = D_CONST;
+		g.Type = D_CONST;
 		g.Offset = int64(
 			(0xe << 24) |		/* opcode */
 			($1 << 20) |		/* MCR/MRC */
@@ -313,7 +313,7 @@ inst:
  */
 |	LTYPEN cond reg ',' reg ',' reg ',' spreg
 	{
-		$7.Type_ = D_REGREG2;
+		$7.Type = D_REGREG2;
 		$7.Offset = int64($9);
 		outcode($1, $2, &$3, int32($5.Reg), &$7);
 	}
@@ -329,7 +329,7 @@ inst:
  */
 |	LTYPEPC gen ',' gen
 	{
-		if $2.Type_ != D_CONST || $4.Type_ != D_CONST {
+		if $2.Type != D_CONST || $4.Type != D_CONST {
 			yyerror("arguments to PCDATA must be integer constants")
 		}
 		outcode($1, Always, &$2, NREG, &$4);
@@ -339,10 +339,10 @@ inst:
  */
 |	LTYPEF gen ',' gen
 	{
-		if $2.Type_ != D_CONST {
+		if $2.Type != D_CONST {
 			yyerror("index for FUNCDATA must be integer constant")
 		}
-		if $4.Type_ != D_EXTERN && $4.Type_ != D_STATIC && $4.Type_ != D_OREG {
+		if $4.Type != D_EXTERN && $4.Type != D_STATIC && $4.Type != D_OREG {
 			yyerror("value for FUNCDATA must be symbol reference")
 		}
  		outcode($1, Always, &$2, NREG, &$4);
@@ -375,7 +375,7 @@ rel:
 	con '(' LPC ')'
 	{
 		$$ = nullgen;
-		$$.Type_ = D_BRANCH;
+		$$.Type = D_BRANCH;
 		$$.Offset = int64($1) + int64(asm.PC);
 	}
 |	LNAME offset
@@ -385,30 +385,30 @@ rel:
 		if asm.Pass == 2 && $1.Type != LLAB {
 			yyerror("undefined label: %s", $1.Labelname)
 		}
-		$$.Type_ = D_BRANCH;
+		$$.Type = D_BRANCH;
 		$$.Offset = $1.Value + int64($2);
 	}
 
 ximm:	'$' con
 	{
 		$$ = nullgen;
-		$$.Type_ = D_CONST;
+		$$.Type = D_CONST;
 		$$.Offset = int64($2);
 	}
 |	'$' oreg
 	{
 		$$ = $2;
-		$$.Type_ = D_CONST;
+		$$.Type = D_CONST;
 	}
 |	'$' '*' '$' oreg
 	{
 		$$ = $4;
-		$$.Type_ = D_OCONST;
+		$$.Type = D_OCONST;
 	}
 |	'$' LSCONST
 	{
 		$$ = nullgen;
-		$$.Type_ = D_SCONST;
+		$$.Type = D_SCONST;
 		$$.U.Sval = $2
 	}
 |	fcon
@@ -417,13 +417,13 @@ fcon:
 	'$' LFCONST
 	{
 		$$ = nullgen;
-		$$.Type_ = D_FCONST;
+		$$.Type = D_FCONST;
 		$$.U.Dval = $2;
 	}
 |	'$' '-' LFCONST
 	{
 		$$ = nullgen;
-		$$.Type_ = D_FCONST;
+		$$.Type = D_FCONST;
 		$$.U.Dval = -$3;
 	}
 
@@ -459,19 +459,19 @@ gen:
 |	LPSR
 	{
 		$$ = nullgen;
-		$$.Type_ = D_PSR;
+		$$.Type = D_PSR;
 		$$.Reg = int8($1);
 	}
 |	LFCR
 	{
 		$$ = nullgen;
-		$$.Type_ = D_FPCR;
+		$$.Type = D_FPCR;
 		$$.Reg = int8($1);
 	}
 |	con
 	{
 		$$ = nullgen;
-		$$.Type_ = D_OREG;
+		$$.Type = D_OREG;
 		$$.Offset = int64($1);
 	}
 |	oreg
@@ -490,7 +490,7 @@ ireg:
 	'(' spreg ')'
 	{
 		$$ = nullgen;
-		$$.Type_ = D_OREG;
+		$$.Type = D_OREG;
 		$$.Reg = int8($2);
 		$$.Offset = 0;
 	}
@@ -500,7 +500,7 @@ ioreg:
 |	con '(' sreg ')'
 	{
 		$$ = nullgen;
-		$$.Type_ = D_OREG;
+		$$.Type = D_OREG;
 		$$.Reg = int8($3);
 		$$.Offset = int64($1);
 	}
@@ -510,7 +510,7 @@ oreg:
 |	name '(' sreg ')'
 	{
 		$$ = $1;
-		$$.Type_ = D_OREG;
+		$$.Type = D_OREG;
 		$$.Reg = int8($3);
 	}
 |	ioreg
@@ -523,7 +523,7 @@ imsr:
 imm:	'$' con
 	{
 		$$ = nullgen;
-		$$.Type_ = D_CONST;
+		$$.Type = D_CONST;
 		$$.Offset = int64($2);
 	}
 
@@ -531,7 +531,7 @@ reg:
 	spreg
 	{
 		$$ = nullgen;
-		$$.Type_ = D_REG;
+		$$.Type = D_REG;
 		$$.Reg = int8($1);
 	}
 
@@ -539,7 +539,7 @@ regreg:
 	'(' spreg ',' spreg ')'
 	{
 		$$ = nullgen;
-		$$.Type_ = D_REGREG;
+		$$.Type = D_REGREG;
 		$$.Reg = int8($2);
 		$$.Offset = int64($4);
 	}
@@ -548,25 +548,25 @@ shift:
 	spreg '<' '<' rcon
 	{
 		$$ = nullgen;
-		$$.Type_ = D_SHIFT;
+		$$.Type = D_SHIFT;
 		$$.Offset = int64($1) | int64($4) | (0 << 5);
 	}
 |	spreg '>' '>' rcon
 	{
 		$$ = nullgen;
-		$$.Type_ = D_SHIFT;
+		$$.Type = D_SHIFT;
 		$$.Offset = int64($1) | int64($4) | (1 << 5);
 	}
 |	spreg '-' '>' rcon
 	{
 		$$ = nullgen;
-		$$.Type_ = D_SHIFT;
+		$$.Type = D_SHIFT;
 		$$.Offset = int64($1) | int64($4) | (2 << 5);
 	}
 |	spreg LAT '>' rcon
 	{
 		$$ = nullgen;
-		$$.Type_ = D_SHIFT;
+		$$.Type = D_SHIFT;
 		$$.Offset = int64($1) | int64($4) | (3 << 5);
 	}
 
@@ -625,13 +625,13 @@ freg:
 	LFREG
 	{
 		$$ = nullgen;
-		$$.Type_ = D_FREG;
+		$$.Type = D_FREG;
 		$$.Reg = int8($1);
 	}
 |	LF '(' con ')'
 	{
 		$$ = nullgen;
-		$$.Type_ = D_FREG;
+		$$.Type = D_FREG;
 		$$.Reg = int8($3);
 	}
 
@@ -639,7 +639,7 @@ name:
 	con '(' pointer ')'
 	{
 		$$ = nullgen;
-		$$.Type_ = D_OREG;
+		$$.Type = D_OREG;
 		$$.Name = int8($3);
 		$$.Sym = nil;
 		$$.Offset = int64($1);
@@ -647,7 +647,7 @@ name:
 |	LNAME offset '(' pointer ')'
 	{
 		$$ = nullgen;
-		$$.Type_ = D_OREG;
+		$$.Type = D_OREG;
 		$$.Name = int8($4);
 		$$.Sym = obj.Linklookup(asm.Ctxt, $1.Name, 0);
 		$$.Offset = int64($2);
@@ -655,7 +655,7 @@ name:
 |	LNAME '<' '>' offset '(' LSB ')'
 	{
 		$$ = nullgen;
-		$$.Type_ = D_OREG;
+		$$.Type = D_OREG;
 		$$.Name = D_STATIC;
 		$$.Sym = obj.Linklookup(asm.Ctxt, $1.Name, 1);
 		$$.Offset = int64($4);

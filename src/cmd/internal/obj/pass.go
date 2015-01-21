@@ -76,7 +76,7 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		if ctxt.Arch.Progedit != nil {
 			ctxt.Arch.Progedit(ctxt, p)
 		}
-		if int(p.To.Type_) != ctxt.Arch.D_BRANCH {
+		if int(p.To.Type) != ctxt.Arch.D_BRANCH {
 			continue
 		}
 		if p.To.U.Branch != nil {
@@ -108,7 +108,7 @@ func linkpatch(ctxt *Link, sym *LSym) {
 				name = p.To.Sym.Name
 			}
 			ctxt.Diag("branch out of range (%#x)\n%v [%s]", uint32(c), p, name)
-			p.To.Type_ = int16(ctxt.Arch.D_NONE)
+			p.To.Type = int16(ctxt.Arch.D_NONE)
 		}
 
 		p.To.U.Branch = q
@@ -120,7 +120,7 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		if p.Pcond != nil {
 			p.Pcond = brloop(ctxt, p.Pcond)
 			if p.Pcond != nil {
-				if int(p.To.Type_) == ctxt.Arch.D_BRANCH {
+				if int(p.To.Type) == ctxt.Arch.D_BRANCH {
 					p.To.Offset = p.Pcond.Pc
 				}
 			}

@@ -915,7 +915,7 @@ var lexinit = []asm.Lextab{
 }
 
 func cinit() {
-	nullgen.Type_ = x86.D_NONE
+	nullgen.Type = x86.D_NONE
 	nullgen.Index = x86.D_NONE
 }
 

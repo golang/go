@@ -72,7 +72,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 				a = new(Auto)
 				a.Asym = p.From.Sym
 				a.Aoffset = int32(p.From.Offset)
-				a.Type_ = int16(ctxt.Arch.Symtype(&p.From))
+				a.Type = int16(ctxt.Arch.Symtype(&p.From))
 				a.Gotype = p.From.Gotype
 				a.Link = curtext.Autom
 				curtext.Autom = a
@@ -98,17 +98,17 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 				}
 				s.Next = nil
 				s.Size = p.To.Offset
-				if s.Type_ == 0 || s.Type_ == SXREF {
-					s.Type_ = SBSS
+				if s.Type == 0 || s.Type == SXREF {
+					s.Type = SBSS
 				}
 				flag = ctxt.Arch.Textflag(p)
 				if flag&DUPOK != 0 {
 					s.Dupok = 1
 				}
 				if flag&RODATA != 0 {
-					s.Type_ = SRODATA
+					s.Type = SRODATA
 				} else if flag&NOPTR != 0 {
-					s.Type_ = SNOPTRBSS
+					s.Type = SNOPTRBSS
 				}
 				edata = s
 				continue
@@ -150,7 +150,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 					s.Nosplit = 1
 				}
 				s.Next = nil
-				s.Type_ = STEXT
+				s.Type = STEXT
 				s.Text = p
 				s.Etext = p
 				curtext = s
@@ -163,7 +163,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 					continue
 				}
 				if p.To.Sym.Name == "go_args_stackmap" {
-					if int(p.From.Type_) != ctxt.Arch.D_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
+					if int(p.From.Type) != ctxt.Arch.D_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
 						ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
 					}
 					p.To.Sym = Linklookup(ctxt, string(fmt.Sprintf("%s.args_stackmap", curtext.Name)), int(curtext.Version))
@@ -187,7 +187,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 		}
 		found = 0
 		for p = s.Text; p != nil; p = p.Link {
-			if int(p.As) == ctxt.Arch.AFUNCDATA && int(p.From.Type_) == ctxt.Arch.D_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
+			if int(p.As) == ctxt.Arch.AFUNCDATA && int(p.From.Type) == ctxt.Arch.D_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
 				found = 1
 				break
 			}
@@ -196,13 +196,13 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 		if !(found != 0) {
 			p = Appendp(ctxt, s.Text)
 			p.As = int16(ctxt.Arch.AFUNCDATA)
-			p.From.Type_ = int16(ctxt.Arch.D_CONST)
+			p.From.Type = int16(ctxt.Arch.D_CONST)
 			p.From.Offset = FUNCDATA_ArgsPointerMaps
 			if ctxt.Arch.Thechar == '6' || ctxt.Arch.Thechar == '8' {
-				p.To.Type_ = int16(ctxt.Arch.D_EXTERN)
+				p.To.Type = int16(ctxt.Arch.D_EXTERN)
 			} else {
 
-				p.To.Type_ = int16(ctxt.Arch.D_OREG)
+				p.To.Type = int16(ctxt.Arch.D_OREG)
 				p.To.Name = int8(ctxt.Arch.D_EXTERN)
 			}
 
@@ -269,8 +269,8 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		if s.Version != 0 {
 			fmt.Fprintf(ctxt.Bso, "v=%d ", s.Version)
 		}
-		if s.Type_ != 0 {
-			fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type_)
+		if s.Type != 0 {
+			fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
 		}
 		if s.Dupok != 0 {
 			fmt.Fprintf(ctxt.Bso, "dupok ")
@@ -282,7 +282,7 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 			fmt.Fprintf(ctxt.Bso, "nosplit ")
 		}
 		fmt.Fprintf(ctxt.Bso, "size=%d value=%d", int64(s.Size), int64(s.Value))
-		if s.Type_ == STEXT {
+		if s.Type == STEXT {
 			fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
 			if s.Leaf != 0 {
 				fmt.Fprintf(ctxt.Bso, " leaf")
@@ -323,16 +323,16 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 				name = r.Sym.Name
 			}
 			if ctxt.Arch.Thechar == '5' || ctxt.Arch.Thechar == '9' {
-				fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type_, name, uint64(int64(r.Add)))
+				fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(int64(r.Add)))
 			} else {
 
-				fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type_, name, int64(r.Add))
+				fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, int64(r.Add))
 			}
 		}
 	}
 
 	Bputc(b, 0xfe)
-	wrint(b, int64(s.Type_))
+	wrint(b, int64(s.Type))
 	wrstring(b, s.Name)
 	wrint(b, int64(s.Version))
 	wrint(b, int64(s.Dupok))
@@ -345,14 +345,14 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		r = &s.R[i]
 		wrint(b, int64(r.Off))
 		wrint(b, int64(r.Siz))
-		wrint(b, int64(r.Type_))
+		wrint(b, int64(r.Type))
 		wrint(b, r.Add)
 		wrint(b, r.Xadd)
 		wrsym(b, r.Sym)
 		wrsym(b, r.Xsym)
 	}
 
-	if s.Type_ == STEXT {
+	if s.Type == STEXT {
 		wrint(b, int64(s.Args))
 		wrint(b, int64(s.Locals))
 		wrint(b, int64(s.Nosplit))
@@ -365,13 +365,13 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		for a = s.Autom; a != nil; a = a.Link {
 			wrsym(b, a.Asym)
 			wrint(b, int64(a.Aoffset))
-			if int(a.Type_) == ctxt.Arch.D_AUTO {
+			if int(a.Type) == ctxt.Arch.D_AUTO {
 				wrint(b, A_AUTO)
-			} else if int(a.Type_) == ctxt.Arch.D_PARAM {
+			} else if int(a.Type) == ctxt.Arch.D_PARAM {
 				wrint(b, A_PARAM)
 			} else {
 
-				log.Fatalf("%s: invalid local variable type %d", s.Name, a.Type_)
+				log.Fatalf("%s: invalid local variable type %d", s.Name, a.Type)
 			}
 			wrsym(b, a.Gotype)
 		}

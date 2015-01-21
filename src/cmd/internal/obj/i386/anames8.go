@@ -3,7 +3,7 @@ package i386
 /*
  * this is the ranlib header
  */
-var anames8 = []string{
+var Anames = []string{
 	"XXX",
 	"AAA",
 	"AAD",

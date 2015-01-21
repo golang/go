@@ -2194,7 +2194,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 	for p = ctxt.Cursym.Text; p != nil; p = p.Link {
 		n = 0
-		if p.To.Type_ == D_BRANCH {
+		if p.To.Type == D_BRANCH {
 			if p.Pcond == nil {
 				p.Pcond = p
 			}
@@ -2207,7 +2207,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 		}
 		p.Back = uint8(n)
 		if p.As == AADJSP {
-			p.To.Type_ = D_SP
+			p.To.Type = D_SP
 			v = int32(-p.From.Offset)
 			p.From.Offset = int64(v)
 			p.As = int16(spadjop(ctxt, p, AADDL, AADDQ))
@@ -2232,7 +2232,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 		}
 
 		if p.As == AADJSP {
-			p.To.Type_ = D_SP
+			p.To.Type = D_SP
 			v = int32(-p.From.Offset)
 			p.From.Offset = int64(v)
 			p.As = int16(spadjop(ctxt, p, AADDL, AADDQ))
@@ -2519,7 +2519,7 @@ func instinit() {
 }
 
 func prefixof(ctxt *obj.Link, a *obj.Addr) int {
-	switch a.Type_ {
+	switch a.Type {
 	case D_INDIR + D_CS:
 		return 0x2e
 
@@ -2584,9 +2584,9 @@ func oclass(ctxt *obj.Link, a *obj.Addr) int {
 	var v int64
 	var l int32
 
-	if a.Type_ >= D_INDIR || a.Index != D_NONE {
+	if a.Type >= D_INDIR || a.Index != D_NONE {
 		if a.Index != D_NONE && a.Scale == 0 {
-			if a.Type_ == D_ADDR {
+			if a.Type == D_ADDR {
 				switch a.Index {
 				case D_EXTERN,
 					D_STATIC:
@@ -2609,7 +2609,7 @@ func oclass(ctxt *obj.Link, a *obj.Addr) int {
 		return Ym
 	}
 
-	switch a.Type_ {
+	switch a.Type {
 	case D_AL:
 		return Yal
 
@@ -2996,7 +2996,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 		*r = obj.Reloc{}
 	}
 
-	t = int(a.Type_)
+	t = int(a.Type)
 	v = a.Offset
 	if t == D_ADDR {
 		t = int(a.Index)
@@ -3012,20 +3012,20 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 
 		if isextern(s) != 0 {
 			r.Siz = 4
-			r.Type_ = obj.R_ADDR
+			r.Type = obj.R_ADDR
 		} else {
 
 			r.Siz = 4
-			r.Type_ = obj.R_PCREL
+			r.Type = obj.R_PCREL
 		}
 
 		r.Off = -1 // caller must fill in
 		r.Sym = s
 		r.Add = v
 		v = 0
-		if s.Type_ == obj.STLSBSS {
+		if s.Type == obj.STLSBSS {
 			r.Xadd = r.Add - int64(r.Siz)
-			r.Type_ = obj.R_TLS
+			r.Type = obj.R_TLS
 			r.Xsym = s
 		}
 
@@ -3035,7 +3035,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 			log.Fatalf("reloc")
 		}
 
-		r.Type_ = obj.R_TLS_LE
+		r.Type = obj.R_TLS_LE
 		r.Siz = 4
 		r.Off = -1 // caller must fill in
 		r.Add = v
@@ -3054,7 +3054,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 
 	rex &= 0x40 | Rxr
 	v = int32(a.Offset)
-	t = int(a.Type_)
+	t = int(a.Type)
 	rel.Siz = 0
 	if a.Index != D_NONE && a.Index != D_TLS {
 		if t < D_INDIR {
@@ -3121,7 +3121,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 
 	scale = int(a.Scale)
 	if t < D_INDIR {
-		switch a.Type_ {
+		switch a.Type {
 		default:
 			goto bad
 
@@ -3147,7 +3147,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 
 	ctxt.Rexflag |= regrex[t]&Rxb | rex
 	if t == D_NONE || (D_CS <= t && t <= D_GS) || t == D_TLS {
-		if (a.Sym == nil || !(isextern(a.Sym) != 0)) && t == D_NONE && (a.Type_ == D_STATIC || a.Type_ == D_EXTERN) || ctxt.Asmode != 64 {
+		if (a.Sym == nil || !(isextern(a.Sym) != 0)) && t == D_NONE && (a.Type == D_STATIC || a.Type == D_EXTERN) || ctxt.Asmode != 64 {
 			ctxt.Andptr[0] = byte(0<<6 | 5<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
 			goto putrelv
@@ -3187,7 +3187,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 	if t >= D_AX && t <= D_R15 {
 		if a.Index == D_TLS {
 			rel = obj.Reloc{}
-			rel.Type_ = obj.R_TLS_IE
+			rel.Type = obj.R_TLS_IE
 			rel.Siz = 4
 			rel.Sym = nil
 			rel.Add = int64(v)
@@ -3237,7 +3237,7 @@ bad:
 }
 
 func asmand(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, ra *obj.Addr) {
-	asmandsz(ctxt, p, a, reg[ra.Type_], regrex[ra.Type_], 0)
+	asmandsz(ctxt, p, a, reg[ra.Type], regrex[ra.Type], 0)
 }
 
 func asmando(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, o int) {
@@ -3245,8 +3245,8 @@ func asmando(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, o int) {
 }
 
 func bytereg(a *obj.Addr, t *uint8) {
-	if a.Index == D_NONE && (a.Type_ >= D_AX && a.Type_ <= D_R15) {
-		a.Type_ = D_AL + (a.Type_ - D_AX)
+	if a.Index == D_NONE && (a.Type >= D_AX && a.Type <= D_R15) {
+		a.Type = D_AL + (a.Type - D_AX)
 		*t = 0
 	}
 }
@@ -3382,7 +3382,7 @@ var ymovtab = []Movtab{
 }
 
 func isax(a *obj.Addr) int {
-	switch a.Type_ {
+	switch a.Type {
 	case D_AX,
 		D_AL,
 		D_AH,
@@ -3401,11 +3401,11 @@ func subreg(p *obj.Prog, from int, to int) {
 		fmt.Printf("\n%v\ts/%v/%v/\n", p, Rconv(from), Rconv(to))
 	}
 
-	if int(p.From.Type_) == from {
-		p.From.Type_ = int16(to)
+	if int(p.From.Type) == from {
+		p.From.Type = int16(to)
 	}
-	if int(p.To.Type_) == from {
-		p.To.Type_ = int16(to)
+	if int(p.To.Type) == from {
+		p.To.Type = int16(to)
 	}
 
 	if int(p.From.Index) == from {
@@ -3416,11 +3416,11 @@ func subreg(p *obj.Prog, from int, to int) {
 	}
 
 	from += D_INDIR
-	if int(p.From.Type_) == from {
-		p.From.Type_ = int16(to + D_INDIR)
+	if int(p.From.Type) == from {
+		p.From.Type = int16(to + D_INDIR)
 	}
-	if int(p.To.Type_) == from {
-		p.To.Type_ = int16(to + D_INDIR)
+	if int(p.To.Type) == from {
+		p.To.Type = int16(to + D_INDIR)
 	}
 
 	if false { /*debug['Q']*/
@@ -3684,14 +3684,14 @@ found:
 	case Zaut_r:
 		ctxt.Andptr[0] = 0x8d
 		ctxt.Andptr = ctxt.Andptr[1:] /* leal */
-		if p.From.Type_ != D_ADDR {
+		if p.From.Type != D_ADDR {
 			ctxt.Diag("asmins: Zaut sb type ADDR")
 		}
-		p.From.Type_ = int16(p.From.Index)
+		p.From.Type = int16(p.From.Index)
 		p.From.Index = D_NONE
 		asmand(ctxt, p, &p.From, &p.To)
-		p.From.Index = uint8(p.From.Type_)
-		p.From.Type_ = D_ADDR
+		p.From.Index = uint8(p.From.Type)
+		p.From.Type = D_ADDR
 
 	case Zm_o:
 		ctxt.Andptr[0] = byte(op)
@@ -3726,7 +3726,7 @@ found:
 	case Zcallindreg:
 		r = obj.Addrel(ctxt.Cursym)
 		r.Off = int32(p.Pc)
-		r.Type_ = obj.R_CALLIND
+		r.Type = obj.R_CALLIND
 		r.Siz = 0
 		fallthrough
 
@@ -3771,15 +3771,15 @@ found:
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zib_rp:
-		ctxt.Rexflag |= regrex[p.To.Type_] & (Rxb | 0x40)
-		ctxt.Andptr[0] = byte(op + reg[p.To.Type_])
+		ctxt.Rexflag |= regrex[p.To.Type] & (Rxb | 0x40)
+		ctxt.Andptr[0] = byte(op + reg[p.To.Type])
 		ctxt.Andptr = ctxt.Andptr[1:]
 		ctxt.Andptr[0] = byte(vaddr(ctxt, p, &p.From, nil))
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zil_rp:
-		ctxt.Rexflag |= regrex[p.To.Type_] & Rxb
-		ctxt.Andptr[0] = byte(op + reg[p.To.Type_])
+		ctxt.Rexflag |= regrex[p.To.Type] & Rxb
+		ctxt.Andptr[0] = byte(op + reg[p.To.Type])
 		ctxt.Andptr = ctxt.Andptr[1:]
 		if o.prefix == Pe {
 			v = vaddr(ctxt, p, &p.From, nil)
@@ -3795,7 +3795,7 @@ found:
 	case Zo_iw:
 		ctxt.Andptr[0] = byte(op)
 		ctxt.Andptr = ctxt.Andptr[1:]
-		if p.From.Type_ != D_NONE {
+		if p.From.Type != D_NONE {
 			v = vaddr(ctxt, p, &p.From, nil)
 			ctxt.Andptr[0] = byte(v)
 			ctxt.Andptr = ctxt.Andptr[1:]
@@ -3811,10 +3811,10 @@ found:
 			//print("zero: %llux %P\n", v, p);
 			ctxt.Rexflag &^= (0x40 | Rxw)
 
-			ctxt.Rexflag |= regrex[p.To.Type_] & Rxb
-			ctxt.Andptr[0] = byte(0xb8 + reg[p.To.Type_])
+			ctxt.Rexflag |= regrex[p.To.Type] & Rxb
+			ctxt.Andptr[0] = byte(0xb8 + reg[p.To.Type])
 			ctxt.Andptr = ctxt.Andptr[1:]
-			if rel.Type_ != 0 {
+			if rel.Type != 0 {
 				r = obj.Addrel(ctxt.Cursym)
 				*r = rel
 				r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
@@ -3833,11 +3833,11 @@ found:
 		} else {
 
 			//print("all: %llux %P\n", v, p);
-			ctxt.Rexflag |= regrex[p.To.Type_] & Rxb
+			ctxt.Rexflag |= regrex[p.To.Type] & Rxb
 
-			ctxt.Andptr[0] = byte(op + reg[p.To.Type_])
+			ctxt.Andptr[0] = byte(op + reg[p.To.Type])
 			ctxt.Andptr = ctxt.Andptr[1:]
-			if rel.Type_ != 0 {
+			if rel.Type != 0 {
 				r = obj.Addrel(ctxt.Cursym)
 				*r = rel
 				r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
@@ -3914,13 +3914,13 @@ found:
 		}
 
 	case Z_rp:
-		ctxt.Rexflag |= regrex[p.To.Type_] & (Rxb | 0x40)
-		ctxt.Andptr[0] = byte(op + reg[p.To.Type_])
+		ctxt.Rexflag |= regrex[p.To.Type] & (Rxb | 0x40)
+		ctxt.Andptr[0] = byte(op + reg[p.To.Type])
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zrp_:
-		ctxt.Rexflag |= regrex[p.From.Type_] & (Rxb | 0x40)
-		ctxt.Andptr[0] = byte(op + reg[p.From.Type_])
+		ctxt.Rexflag |= regrex[p.From.Type] & (Rxb | 0x40)
+		ctxt.Andptr[0] = byte(op + reg[p.From.Type])
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zclr:
@@ -3941,7 +3941,7 @@ found:
 		r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
 		r.Sym = p.To.Sym
 		r.Add = p.To.Offset
-		r.Type_ = obj.R_CALL
+		r.Type = obj.R_CALL
 		r.Siz = 4
 		put4(ctxt, 0)
 
@@ -3961,7 +3961,7 @@ found:
 			r = obj.Addrel(ctxt.Cursym)
 			r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
 			r.Sym = p.To.Sym
-			r.Type_ = obj.R_PCREL
+			r.Type = obj.R_PCREL
 			r.Siz = 4
 			put4(ctxt, 0)
 			break
@@ -4129,9 +4129,9 @@ bad:
 		 */
 		pp = *p
 
-		z = int(p.From.Type_)
+		z = int(p.From.Type)
 		if z >= D_BP && z <= D_DI {
-			if isax(&p.To) != 0 || p.To.Type_ == D_NONE {
+			if isax(&p.To) != 0 || p.To.Type == D_NONE {
 				// We certainly don't want to exchange
 				// with AX if the op is MUL or DIV.
 				ctxt.Andptr[0] = 0x87
@@ -4155,7 +4155,7 @@ bad:
 			return
 		}
 
-		z = int(p.To.Type_)
+		z = int(p.To.Type)
 		if z >= D_BP && z <= D_DI {
 			if isax(&p.From) != 0 {
 				ctxt.Andptr[0] = 0x87
@@ -4180,7 +4180,7 @@ bad:
 		}
 	}
 
-	ctxt.Diag("doasm: notfound from=%x to=%x %v", uint16(p.From.Type_), uint16(p.To.Type_), p)
+	ctxt.Diag("doasm: notfound from=%x to=%x %v", uint16(p.From.Type), uint16(p.To.Type), p)
 	return
 
 mfound:
@@ -4214,7 +4214,7 @@ mfound:
 		ctxt.Andptr[0] = t[1]
 		ctxt.Andptr = ctxt.Andptr[1:]
 		asmando(ctxt, p, &p.To, int(t[2]))
-		ctxt.Rexflag |= regrex[p.From.Type_] & (Rxr | 0x40)
+		ctxt.Rexflag |= regrex[p.From.Type] & (Rxr | 0x40)
 
 	case 4: /* m,r - 2op */
 		ctxt.Andptr[0] = t[0]
@@ -4223,7 +4223,7 @@ mfound:
 		ctxt.Andptr[0] = t[1]
 		ctxt.Andptr = ctxt.Andptr[1:]
 		asmando(ctxt, p, &p.From, int(t[2]))
-		ctxt.Rexflag |= regrex[p.To.Type_] & (Rxr | 0x40)
+		ctxt.Rexflag |= regrex[p.To.Type] & (Rxr | 0x40)
 
 	case 5: /* load full pointer, trash heap */
 		if t[0] != 0 {
@@ -4279,7 +4279,7 @@ mfound:
 			t = t[1:]
 		}
 
-		z = int(p.From.Type_)
+		z = int(p.From.Type)
 		switch z {
 		default:
 			goto bad
@@ -4318,7 +4318,7 @@ mfound:
 				ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
 			}
 			pp.From = obj.Addr{}
-			pp.From.Type_ = D_EXTERN
+			pp.From.Type = D_EXTERN
 			pp.From.Sym = ctxt.Plan9privates
 			pp.From.Offset = 0
 			pp.From.Index = D_NONE
@@ -4331,7 +4331,7 @@ mfound:
 		case obj.Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
 			pp.From = p.From
 
-			pp.From.Type_ = D_INDIR + D_NONE
+			pp.From.Type = D_INDIR + D_NONE
 			pp.From.Offset = 0
 			pp.From.Index = D_NONE
 			pp.From.Scale = 0
@@ -4346,7 +4346,7 @@ mfound:
 		case obj.Hwindows:
 			pp.From = p.From
 
-			pp.From.Type_ = D_INDIR + D_GS
+			pp.From.Type = D_INDIR + D_GS
 			pp.From.Offset = 0x28
 			pp.From.Index = D_NONE
 			pp.From.Scale = 0
@@ -4432,7 +4432,7 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		r.Off = 0
 		r.Siz = 0
 		r.Sym = p.From.Sym
-		r.Type_ = obj.R_USEFIELD
+		r.Type = obj.R_USEFIELD
 		return
 	}
 
@@ -4469,12 +4469,12 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 
 		case ACALL,
 			AJMP:
-			if D_AX <= p.To.Type_ && p.To.Type_ <= D_DI {
+			if D_AX <= p.To.Type && p.To.Type <= D_DI {
 				// ANDL $~31, reg
 				ctxt.Andptr[0] = 0x83
 				ctxt.Andptr = ctxt.Andptr[1:]
 
-				ctxt.Andptr[0] = byte(0xe0 | (p.To.Type_ - D_AX))
+				ctxt.Andptr[0] = byte(0xe0 | (p.To.Type - D_AX))
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = 0xe0
 				ctxt.Andptr = ctxt.Andptr[1:]
@@ -4485,18 +4485,18 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 
 				ctxt.Andptr[0] = 0x01
 				ctxt.Andptr = ctxt.Andptr[1:]
-				ctxt.Andptr[0] = byte(0xf8 | (p.To.Type_ - D_AX))
+				ctxt.Andptr[0] = byte(0xf8 | (p.To.Type - D_AX))
 				ctxt.Andptr = ctxt.Andptr[1:]
 			}
 
-			if D_R8 <= p.To.Type_ && p.To.Type_ <= D_R15 {
+			if D_R8 <= p.To.Type && p.To.Type <= D_R15 {
 				// ANDL $~31, reg
 				ctxt.Andptr[0] = 0x41
 				ctxt.Andptr = ctxt.Andptr[1:]
 
 				ctxt.Andptr[0] = 0x83
 				ctxt.Andptr = ctxt.Andptr[1:]
-				ctxt.Andptr[0] = byte(0xe0 | (p.To.Type_ - D_R8))
+				ctxt.Andptr[0] = byte(0xe0 | (p.To.Type - D_R8))
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = 0xe0
 				ctxt.Andptr = ctxt.Andptr[1:]
@@ -4507,7 +4507,7 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 
 				ctxt.Andptr[0] = 0x01
 				ctxt.Andptr = ctxt.Andptr[1:]
-				ctxt.Andptr[0] = byte(0xf8 | (p.To.Type_ - D_R8))
+				ctxt.Andptr[0] = byte(0xf8 | (p.To.Type - D_R8))
 				ctxt.Andptr = ctxt.Andptr[1:]
 			}
 
@@ -4593,13 +4593,13 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		if ctxt.Rexflag != 0 {
 			r.Off++
 		}
-		if r.Type_ == obj.R_PCREL || r.Type_ == obj.R_CALL {
+		if r.Type == obj.R_PCREL || r.Type == obj.R_CALL {
 			r.Add -= p.Pc + int64(n) - (int64(r.Off) + int64(r.Siz))
 		}
 	}
 
 	if ctxt.Headtype == obj.Hnacl && p.As != ACMPL && p.As != ACMPQ {
-		switch p.To.Type_ {
+		switch p.To.Type {
 		case D_SP:
 			copy(ctxt.Andptr, naclspfix)
 			ctxt.Andptr = ctxt.Andptr[len(naclspfix):]

@@ -298,7 +298,7 @@ var lexinit = []asm.Lextab{
 }
 
 func cinit() {
-	nullgen.Type_ = arm.D_NONE
+	nullgen.Type = arm.D_NONE
 	nullgen.Name = arm.D_NONE
 	nullgen.Reg = arm.NREG
 }
