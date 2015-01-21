@@ -6,7 +6,6 @@ package x509
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/dsa"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -305,11 +304,10 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		pub      interface{}
-		priv     crypto.Signer
-		checkSig bool
-		sigAlgo  SignatureAlgorithm
+		name      string
+		pub, priv interface{}
+		checkSig  bool
+		sigAlgo   SignatureAlgorithm
 	}{
 		{"RSA/RSA", &rsaPriv.PublicKey, rsaPriv, true, SHA1WithRSA},
 		{"RSA/ECDSA", &rsaPriv.PublicKey, ecdsaPriv, false, ECDSAWithSHA384},
@@ -781,7 +779,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		priv    crypto.Signer
+		priv    interface{}
 		sigAlgo SignatureAlgorithm
 	}{
 		{"RSA", rsaPriv, SHA1WithRSA},
