@@ -326,13 +326,31 @@ func TestReadRequestErrors(t *testing.T) {
 	}
 }
 
+var newRequestHostTests = []struct {
+	in, out string
+}{
+	{"http://www.example.com/", "www.example.com"},
+	{"http://www.example.com:8080/", "www.example.com:8080"},
+
+	{"http://192.168.0.1/", "192.168.0.1"},
+	{"http://192.168.0.1:8080/", "192.168.0.1:8080"},
+
+	{"http://[fe80::1]/", "[fe80::1]"},
+	{"http://[fe80::1]:8080/", "[fe80::1]:8080"},
+	{"http://[fe80::1%25en0]/", "[fe80::1%en0]"},
+	{"http://[fe80::1%25en0]:8080/", "[fe80::1%en0]:8080"},
+}
+
 func TestNewRequestHost(t *testing.T) {
-	req, err := NewRequest("GET", "http://localhost:1234/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if req.Host != "localhost:1234" {
-		t.Errorf("Host = %q; want localhost:1234", req.Host)
+	for i, tt := range newRequestHostTests {
+		req, err := NewRequest("GET", tt.in, nil)
+		if err != nil {
+			t.Errorf("#%v: %v", i, err)
+			continue
+		}
+		if req.Host != tt.out {
+			t.Errorf("got %q; want %q", req.Host, tt.out)
+		}
 	}
 }
 
