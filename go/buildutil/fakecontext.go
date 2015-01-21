@@ -67,8 +67,8 @@ func FakeContext(pkgs map[string]map[string]string) *build.Context {
 	}
 	ctxt.OpenFile = func(filename string) (io.ReadCloser, error) {
 		filename = clean(filename)
-		dir, base := filepath.Split(filename)
-		content, ok := pkgs[filepath.Clean(dir)][base]
+		dir, base := path.Split(filename)
+		content, ok := pkgs[path.Clean(dir)][base]
 		if !ok {
 			return nil, fmt.Errorf("file not found: %s", filename)
 		}

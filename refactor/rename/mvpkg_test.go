@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -39,7 +40,7 @@ var _ foo.T
 `},
 			}),
 			from: "foo", to: "bar",
-			want: "invalid move destination: bar conflicts with directory /go/src/bar",
+			want: `invalid move destination: bar conflicts with directory .go.src.bar`,
 		},
 		// Subpackage already exists.
 		{
@@ -104,7 +105,12 @@ var _ foo.T
 			t.Errorf("%s: nil error. Expected error: %s", prefix, test.want)
 			continue
 		}
-		if test.want != err.Error() {
+		matched, err2 := regexp.MatchString(test.want, err.Error())
+		if err2 != nil {
+			t.Errorf("regexp.MatchString failed %s", err2)
+			continue
+		}
+		if !matched {
 			t.Errorf("%s: conflict does not match expectation:\n"+
 				"Error: %q\n"+
 				"Pattern: %q",
@@ -235,8 +241,9 @@ type T int
 		}
 
 		for file, wantContent := range test.want {
-			gotContent, ok := got[file]
-			delete(got, file)
+			k := filepath.FromSlash(file)
+			gotContent, ok := got[k]
+			delete(got, k)
 			if !ok {
 				// TODO(matloob): some testcases might have files that won't be
 				// rewritten
