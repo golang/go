@@ -35,6 +35,7 @@ src/cmd/gc/mkbuiltin1
 src/cmd/gc/opnames.h
 src/cmd/gc/y.output
 src/cmd/go/zdefaultcc.go
+src/cmd/internal/obj/zbootstrap.go
 src/go/doc/headscan
 src/runtime/mkversion
 src/runtime/zaexperiment.h
