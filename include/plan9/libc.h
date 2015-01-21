@@ -14,6 +14,8 @@ char*	getgoversion(void);
 char*	getgoarm(void);
 char*	getgo386(void);
 char*	getgoextlinkenabled(void);
+char*	getgohostos(void);
+char*	getgohostarch(void);
 
 int	runcmd(char**);
 
