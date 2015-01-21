@@ -626,6 +626,9 @@ func maxPow(b Word) (p Word, n int) {
 
 // pow returns x**n for n > 0, and 1 otherwise.
 func pow(x Word, n int) (p Word) {
+	// n == sum of bi * 2**i, for 0 <= i < imax, and bi is 0 or 1
+	// thus x**n == product of x**(2**i) for all i where bi == 1
+	// (Russian Peasant Method for exponentiation)
 	p = 1
 	for n > 0 {
 		if n&1 != 0 {
