@@ -23,11 +23,16 @@ import (
 // which are commands, and entries beginning with internal/, which are
 // packages supporting the commands.
 var bootstrapDirs = []string{
+	"internal/asm",
 	"internal/obj",
 	"internal/obj/arm",
 	"internal/obj/i386",
 	"internal/obj/ppc64",
 	"internal/obj/x86",
+	"new5a",
+	"new6a",
+	"new8a",
+	"new9a",
 	"objwriter",
 }
 
@@ -112,7 +117,8 @@ func bootstrapFixImports(text, srcFile string) string {
 			inBlock = false
 			continue
 		}
-		if strings.HasPrefix(line, "import \"") || inBlock && strings.HasPrefix(line, "\t\"") {
+		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
+			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
 			lines[i] = strings.Replace(line, `"cmd/internal/`, `"bootstrap/internal/`, -1)
 		}
 	}
