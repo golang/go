@@ -37,7 +37,7 @@ func linklinefmt(ctxt *Link, lno0 int, showAll, showFullPath bool) string {
 		if lno < h.Line {
 			break
 		}
-		if h.Name != "<no name>" {
+		if h.Name != "<pop>" {
 			if h.Offset > 0 {
 				// #line directive
 				if n > 0 && n < int(HISTSZ) {
@@ -148,7 +148,7 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
 		if lno < h.Line {
 			break
 		}
-		if h.Name != "<no name>" {
+		if h.Name != "<pop>" {
 			if h.Offset > 0 {
 				// #line directive
 				if n > 0 && n < HISTSZ {
@@ -214,7 +214,7 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
 	*l = lno
 }
 
-func linklinehist(ctxt *Link, lineno int, f string, offset int) {
+func Linklinehist(ctxt *Link, lineno int, f string, offset int) {
 	var h *Hist
 
 	if false { // debug['f']
@@ -247,7 +247,7 @@ func linklinehist(ctxt *Link, lineno int, f string, offset int) {
 	ctxt.Ehist = h
 }
 
-func linkprfile(ctxt *Link, line int) {
+func Linkprfile(ctxt *Link, line int) {
 	l := int32(line)
 	var i int
 	var n int
@@ -259,7 +259,7 @@ func linkprfile(ctxt *Link, line int) {
 		if l < h.Line {
 			break
 		}
-		if h.Name != "<no name>" {
+		if h.Name != "<pop>" {
 			if h.Offset == 0 {
 				if n >= 0 && n < HISTSZ {
 					a[n] = *h
@@ -296,7 +296,7 @@ func linkprfile(ctxt *Link, line int) {
 /*
  * start a new Prog list.
  */
-func linknewplist(ctxt *Link) *Plist {
+func Linknewplist(ctxt *Link) *Plist {
 
 	var pl *Plist
 
