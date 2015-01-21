@@ -72,14 +72,12 @@ if(~ $1 --dist-tool){
 	exit
 }
 
-echo '# Building compilers and Go bootstrap tool for host,' $GOHOSTOS/$GOHOSTARCH^.
 buildall = -a
 if(~ $1 --no-clean)
 	buildall = ()
 ./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
 # Delay move of dist tool to now, because bootstrap may clear tool directory.
 mv cmd/dist/dist $GOTOOLDIR/dist
-$GOTOOLDIR/go_bootstrap clean -i std
 echo
 
 # Run only one process at a time on 9vx.

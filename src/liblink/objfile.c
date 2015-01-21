@@ -124,7 +124,7 @@ void	writeobjdirect(Link*, Biobuf*);
 void
 writeobj(Link *ctxt, Biobuf *b)
 {
-	char *cmd[2];
+	char *cmd[3];
 	
 	// TODO(rsc): Use 'go tool objwriter' to write object file,
 	// allowing the bulk of liblink to be moved into Go.
