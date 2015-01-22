@@ -1979,7 +1979,7 @@ brcom(int a)
 	case OLE:	return OGT;
 	case OGE:	return OLT;
 	}
-	fatal("brcom: no com for %A\n", a);
+	fatal("brcom: no com for %O\n", a);
 	return a;
 }
 
@@ -1998,7 +1998,7 @@ brrev(int a)
 	case OLE:	return OGE;
 	case OGE:	return OLE;
 	}
-	fatal("brcom: no rev for %A\n", a);
+	fatal("brcom: no rev for %O\n", a);
 	return a;
 }
 
@@ -2566,11 +2566,11 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		// so no space cost to use them here.
 		l = nil;
 		v.ctype = CTSTR;
-		v.u.sval = strlit(rcvr->type->sym->pkg->name);  // package name
+		v.u.sval = newstrlit(rcvr->type->sym->pkg->name);  // package name
 		l = list(l, nodlit(v));
-		v.u.sval = strlit(rcvr->type->sym->name);  // type name
+		v.u.sval = newstrlit(rcvr->type->sym->name);  // type name
 		l = list(l, nodlit(v));
-		v.u.sval = strlit(method->sym->name);
+		v.u.sval = newstrlit(method->sym->name);
 		l = list(l, nodlit(v));  // method name
 		call = nod(OCALL, syslook("panicwrap", 0), N);
 		call->list = l;
@@ -3723,7 +3723,7 @@ mkpkg(Strlit *path)
 }
 
 Strlit*
-strlit(char *s)
+newstrlit(char *s)
 {
 	Strlit *t;
 	

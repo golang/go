@@ -1422,7 +1422,7 @@ int	simsimtype(Type *t);
 void	smagic(Magic *m);
 Type*	sortinter(Type *t);
 uint32	stringhash(char *p);
-Strlit*	strlit(char *s);
+Strlit*	newstrlit(char *s);
 int	structcount(Type *t);
 Type*	structfirst(Iter *s, Type **nn);
 Type*	structnext(Iter *s);

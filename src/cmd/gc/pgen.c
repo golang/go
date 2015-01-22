@@ -386,8 +386,11 @@ cmpstackvar(Node *a, Node *b)
 {
 	int ap, bp;
 
-	if (a->class != b->class)
-		return (a->class == PAUTO) ? +1 : -1;
+	if (a->class != b->class) {
+		if(a->class == PAUTO)
+			return +1;
+		return -1;
+	}
 	if (a->class != PAUTO) {
 		if (a->xoffset < b->xoffset)
 			return -1;

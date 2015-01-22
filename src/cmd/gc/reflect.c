@@ -511,7 +511,7 @@ dimportpath(Pkg *p)
 		return;
 
 	if(gopkg == nil) {
-		gopkg = mkpkg(strlit("go"));
+		gopkg = mkpkg(newstrlit("go"));
 		gopkg->name = "go";
 	}
 	nam = smprint("importpath.%s.", p->prefix);
@@ -540,7 +540,7 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
 		static Sym *ns;
 
 		if(ns == nil)
-			ns = pkglookup("importpath.\"\".", mkpkg(strlit("go")));
+			ns = pkglookup("importpath.\"\".", mkpkg(newstrlit("go")));
 		return arch.dsymptr(s, ot, ns, 0);
 	}
 
@@ -1302,7 +1302,7 @@ dumptypestructs(void)
 		dimportpath(runtimepkg);
 		if(flag_race)
 			dimportpath(racepkg);
-		dimportpath(mkpkg(strlit("main")));
+		dimportpath(mkpkg(newstrlit("main")));
 	}
 }
 
@@ -1411,7 +1411,7 @@ gengcmask(Type *t, uint8 gcmask[16])
 
 	// Unfold the mask for the GC bitmap format:
 	// 4 bits per word, 2 high bits encode pointer info.
-	pos = (uint8*)gcmask;
+	pos = gcmask;
 	nptr = (t->width+widthptr-1)/widthptr;
 	half = 0;
 	// If number of words is odd, repeat the mask.

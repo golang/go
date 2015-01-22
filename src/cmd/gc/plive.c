@@ -618,15 +618,15 @@ freecfg(Array *cfg)
 	BasicBlock *bb0;
 	Prog *p;
 	int32 i;
-	int32 len;
+	int32 n;
 
-	len = arraylength(cfg);
-	if(len > 0) {
+	n = arraylength(cfg);
+	if(n > 0) {
 		bb0 = *(BasicBlock**)arrayget(cfg, 0);
 		for(p = bb0->first; p != P; p = p->link) {
 			p->opt = nil;
 		}
-		for(i = 0; i < len; i++) {
+		for(i = 0; i < n; i++) {
 			bb = *(BasicBlock**)arrayget(cfg, i);
 			freeblock(bb);
 		}
@@ -1670,12 +1670,17 @@ enum
 static uint32
 hashbitmap(uint32 h, Bvec *bv)
 {
-	uchar *p, *ep;
+	int i, n;
+	uint32 w;
 	
-	p = (uchar*)bv->b;
-	ep = p + 4*((bv->n+31)/32);
-	while(p < ep)
-		h = (h*Hp) ^ *p++;
+	n = (bv->n+31)/32;
+	for(i=0; i<n; i++) {
+		w = bv->b[i];
+		h = (h*Hp) ^ (w&0xff);
+		h = (h*Hp) ^ ((w>>8)&0xff);
+		h = (h*Hp) ^ ((w>>16)&0xff);
+		h = (h*Hp) ^ ((w>>24)&0xff);
+	}
 	return h;
 }
 

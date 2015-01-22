@@ -315,7 +315,7 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 		spkg = basetype->sym->pkg;
 	if(spkg == nil) {
 		if(gopkg == nil)
-			gopkg = mkpkg(strlit("go"));
+			gopkg = mkpkg(newstrlit("go"));
 		spkg = gopkg;
 	}
 	sym = pkglookup(p, spkg);

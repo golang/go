@@ -417,7 +417,7 @@ walkexpr(Node **np, NodeList **init)
 	int32 lno;
 	Node *n, *fn, *n1, *n2;
 	Sym *sym;
-	char buf[100], *p;
+	char buf[100], *p, *from, *to;
 
 	n = *np;
 
@@ -672,14 +672,17 @@ walkexpr(Node **np, NodeList **init)
 			n1 = nod(OADDR, n->left, N);
 			r = n->right; // i.(T)
 
-			strcpy(buf, "assertI2T");
+			from = "I";
+			to = "T";
 			if(isnilinter(r->left->type))
-				buf[6] = 'E';
+				from = "E";
 			if(isnilinter(r->type))
-				buf[8] = 'E';
+				to = "E";
 			else if(isinter(r->type))
-				buf[8] = 'I';
+				to = "I";
 			
+			snprint(buf, sizeof buf, "assert%s2%s", from, to);
+
 			fn = syslook(buf, 1);
 			argtype(fn, r->left->type);
 			argtype(fn, r->type);
@@ -850,13 +853,15 @@ walkexpr(Node **np, NodeList **init)
 			n1 = nod(OADDR, n->list->n, N);
 		n1->etype = 1; // addr does not escape
 
-		strcpy(buf, "assertI2T2");
+		from = "I";
+		to = "T";
 		if(isnilinter(r->left->type))
-			buf[6] = 'E';
+			from = "E";
 		if(isnilinter(r->type))
-			buf[8] = 'E';
+			to = "E";
 		else if(isinter(r->type))
-			buf[8] = 'I';
+			to = "I";
+		snprint(buf, sizeof buf, "assert%s2%s2", from, to);
 		
 		fn = syslook(buf, 1);
 		argtype(fn, r->left->type);
@@ -890,20 +895,15 @@ walkexpr(Node **np, NodeList **init)
 		// Build name of function: convI2E etc.
 		// Not all names are possible
 		// (e.g., we'll never generate convE2E or convE2I).
-		strcpy(buf, "conv");
-		p = buf+strlen(buf);
+		from = "T";
+		to = "I";
 		if(isnilinter(n->left->type))
-			*p++ = 'E';
+			from = "E";
 		else if(isinter(n->left->type))
-			*p++ = 'I';
-		else
-			*p++ = 'T';
-		*p++ = '2';
+			from = "I";
 		if(isnilinter(n->type))
-			*p++ = 'E';
-		else
-			*p++ = 'I';
-		*p = '\0';
+			to = "E";
+		snprint(buf, sizeof buf, "conv%s2%s", from, to);
 
 		fn = syslook(buf, 1);
 		ll = nil;

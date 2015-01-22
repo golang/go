@@ -1284,7 +1284,7 @@ methodsym(Sym *nsym, Type *t0, int iface)
 	}
 	if(spkg == nil) {
 		if(toppkg == nil)
-			toppkg = mkpkg(strlit("go"));
+			toppkg = mkpkg(newstrlit("go"));
 		spkg = toppkg;
 	}
 	s = pkglookup(p, spkg);
@@ -1413,7 +1413,7 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
 	for(f=pa->method; f!=T; f=f->down) {
 		d = f;
 		if(f->etype != TFIELD)
-			fatal("addmethod: not TFIELD: %N", f);
+			fatal("addmethod: not TFIELD: %lT", f);
 		if(strcmp(sf->name, f->sym->name) != 0)
 			continue;
 		if(!eqtype(t, f->type))
