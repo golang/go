@@ -128,12 +128,15 @@ catcher(void *v, char *s)
 void
 doversion(void)
 {
-	char *p;
+	char *p, *sep;
 
 	p = expstring();
 	if(strcmp(p, "X:none") == 0)
 		p = "";
-	print("%cg version %s%s%s\n", arch.thechar, getgoversion(), *p ? " " : "", p);
+	sep = "";
+	if(*p)
+		sep = " ";
+	print("%cg version %s%s%s\n", arch.thechar, getgoversion(), sep, p);
 	exits(0);
 }
 
@@ -167,42 +170,42 @@ gcmain(int argc, char *argv[])
 	ctxt->bso = &bstdout;
 	Binit(&bstdout, 1, OWRITE);
 
-	localpkg = mkpkg(strlit(""));
+	localpkg = mkpkg(newstrlit(""));
 	localpkg->prefix = "\"\"";
 	
 	// pseudo-package, for scoping
-	builtinpkg = mkpkg(strlit("go.builtin"));
+	builtinpkg = mkpkg(newstrlit("go.builtin"));
 
 	// pseudo-package, accessed by import "unsafe"
-	unsafepkg = mkpkg(strlit("unsafe"));
+	unsafepkg = mkpkg(newstrlit("unsafe"));
 	unsafepkg->name = "unsafe";
 
 	// real package, referred to by generated runtime calls
-	runtimepkg = mkpkg(strlit("runtime"));
+	runtimepkg = mkpkg(newstrlit("runtime"));
 	runtimepkg->name = "runtime";
 
 	// pseudo-packages used in symbol tables
-	gostringpkg = mkpkg(strlit("go.string"));
+	gostringpkg = mkpkg(newstrlit("go.string"));
 	gostringpkg->name = "go.string";
 	gostringpkg->prefix = "go.string";	// not go%2estring
 
-	itabpkg = mkpkg(strlit("go.itab"));
+	itabpkg = mkpkg(newstrlit("go.itab"));
 	itabpkg->name = "go.itab";
 	itabpkg->prefix = "go.itab";	// not go%2eitab
 
-	weaktypepkg = mkpkg(strlit("go.weak.type"));
+	weaktypepkg = mkpkg(newstrlit("go.weak.type"));
 	weaktypepkg->name = "go.weak.type";
 	weaktypepkg->prefix = "go.weak.type";  // not go%2eweak%2etype
 	
-	typelinkpkg = mkpkg(strlit("go.typelink"));
+	typelinkpkg = mkpkg(newstrlit("go.typelink"));
 	typelinkpkg->name = "go.typelink";
 	typelinkpkg->prefix = "go.typelink"; // not go%2etypelink
 
-	trackpkg = mkpkg(strlit("go.track"));
+	trackpkg = mkpkg(newstrlit("go.track"));
 	trackpkg->name = "go.track";
 	trackpkg->prefix = "go.track";  // not go%2etrack
 
-	typepkg = mkpkg(strlit("type"));
+	typepkg = mkpkg(newstrlit("type"));
 	typepkg->name = "type";
 
 	goroot = getgoroot();
@@ -271,7 +274,7 @@ gcmain(int argc, char *argv[])
 		usage();
 
 	if(flag_race) {
-		racepkg = mkpkg(strlit("runtime/race"));
+		racepkg = mkpkg(newstrlit("runtime/race"));
 		racepkg->name = "race";
 	}
 	
@@ -620,7 +623,7 @@ findpkg(Strlit *name)
 static void
 fakeimport(void)
 {
-	importpkg = mkpkg(strlit("fake"));
+	importpkg = mkpkg(newstrlit("fake"));
 	cannedimports("fake.6", "$$\n");
 }
 
@@ -693,7 +696,7 @@ importfile(Val *f, int line)
 		strcat(cleanbuf, "/");
 		strcat(cleanbuf, path->s);
 		cleanname(cleanbuf);
-		path = strlit(cleanbuf);
+		path = newstrlit(cleanbuf);
 		
 		if(isbadimport(path)) {
 			fakeimport();

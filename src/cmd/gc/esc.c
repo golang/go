@@ -241,7 +241,7 @@ mktag(int mask)
 		return tags[mask];
 
 	snprint(buf, sizeof buf, "esc:0x%x", mask);
-	s = strlit(buf);
+	s = newstrlit(buf);
 	if(mask < nelem(tags))
 		tags[mask] = s;
 	return s;
