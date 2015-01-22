@@ -72,9 +72,9 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		return _NCONT
 	}
 	if flags&_SigNotify != 0 {
-		// TODO(ality): See if os/signal wants it.
-		//if(sigsend(...))
-		//	return _NCONT;
+		if sendNote(note) {
+			return _NCONT
+		}
 	}
 	if flags&_SigKill != 0 {
 		goto Exit
