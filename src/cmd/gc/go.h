@@ -67,8 +67,6 @@ enum
 	MaxStackVarSize = 10*1024*1024,
 };
 
-extern vlong	MAXWIDTH;
-
 /*
  * note this is the representation
  * of the compilers string literals,
@@ -753,8 +751,6 @@ struct	Typedef
 	int	sameas;
 };
 
-extern	Typedef	typedefs[];
-
 typedef	struct	Sig	Sig;
 struct	Sig
 {
@@ -975,9 +971,6 @@ EXTERN	int	widthreg;
 EXTERN	Node*	typesw;
 EXTERN	Node*	nblank;
 
-extern	int	thechar;
-extern	char*	thestring;
-extern	LinkArch*	thelinkarch;
 EXTERN	int  	use_sse;
 
 EXTERN	char*	hunk;
@@ -1293,7 +1286,6 @@ int	duint32(Sym *s, int off, uint32 v);
 int	duint64(Sym *s, int off, uint64 v);
 int	duint8(Sym *s, int off, uint8 v);
 int	duintptr(Sym *s, int off, uint64 v);
-int	dsname(Sym *s, int off, char *dat, int ndat);
 void	dumpobj(void);
 Sym*	stringsym(char*, int);
 void	slicebytes(Node*, char*, int);
@@ -1505,47 +1497,16 @@ EXTERN	Node*	nodfp;
 EXTERN	int	disable_checknil;
 EXTERN	vlong	zerosize;
 
-int	anyregalloc(void);
-void	betypeinit(void);
-void	bgen(Node *n, int true, int likely, Prog *to);
 void	checknil(Node*, NodeList**);
-void	expandchecks(Prog*);
-void	cgen(Node*, Node*);
-void	cgen_asop(Node *n);
-void	cgen_call(Node *n, int proc);
-void	cgen_callinter(Node *n, Node *res, int proc);
 void	cgen_checknil(Node*);
-void	cgen_ret(Node *n);
-void	clearfat(Node *n);
 void	compile(Node*);
-void	defframe(Prog*);
-int	dgostringptr(Sym*, int off, char *str);
-int	dgostrlitptr(Sym*, int off, Strlit*);
-int	dstringptr(Sym *s, int off, char *str);
-int	dsymptr(Sym *s, int off, Sym *x, int xoff);
 int	duintxx(Sym *s, int off, uint64 v, int wid);
-void	dumpdata(void);
-void	fixautoused(Prog*);
-void	gdata(Node*, Node*, int);
-void	gdatacomplex(Node*, Mpcplx*);
-void	gdatastring(Node*, Strlit*);
-void	ggloblnod(Node *nam);
-void	ggloblsym(Sym *s, int32 width, int8 flags);
 void	gvardef(Node*);
 void	gvarkill(Node*);
-Prog*	gjmp(Prog*);
-void	gused(Node*);
 void	movelarge(NodeList*);
-int	isfat(Type*);
-void	linkarchinit(void);
 void	liveness(Node*, Prog*, Sym*, Sym*);
 void	twobitwalktype1(Type*, vlong*, Bvec*);
-void	markautoused(Prog*);
-Plist*	newplist(void);
-Node*	nodarg(Type*, int);
 void	nopout(Prog*);
-void	patch(Prog*, Prog*);
-Prog*	unpatch(Prog*);
 
 #pragma	varargck	type	"B"	Mpint*
 #pragma	varargck	type	"E"	int
@@ -1571,3 +1532,207 @@ Prog*	unpatch(Prog*);
  *	racewalk.c
  */
 void	racewalk(Node *fn);
+
+/*
+ *	flow.c
+ */
+typedef struct Flow Flow;
+typedef struct Graph Graph;
+
+struct Flow {
+	Prog*	prog;   	// actual instruction
+	Flow*	p1;     	// predecessors of this instruction: p1,
+	Flow*	p2;     	// and then p2 linked though p2link.
+	Flow*	p2link;
+	Flow*	s1;     	// successors of this instruction (at most two: s1 and s2).
+	Flow*	s2;
+	Flow*	link;   	// next instruction in function code
+	
+	int32	active;	// usable by client
+
+	int32	rpo;		// reverse post ordering
+	uint16	loop;		// x5 for every loop
+	uchar	refset;		// diagnostic generated
+};
+
+struct Graph
+{
+	Flow*	start;
+	int	num;
+	
+	// After calling flowrpo, rpo lists the flow nodes in reverse postorder,
+	// and each non-dead Flow node f has g->rpo[f->rpo] == f.
+	Flow**	rpo;
+};
+
+void	fixjmp(Prog*);
+Graph*	flowstart(Prog*, int);
+void	flowrpo(Graph*);
+void	flowend(Graph*);
+void	mergetemp(Prog*);
+void	nilopt(Prog*);
+int	noreturn(Prog*);
+Flow*	uniqp(Flow*);
+Flow*	uniqs(Flow*);
+
+/*
+ *	interface to back end
+ */
+
+typedef struct ProgInfo ProgInfo;
+struct ProgInfo
+{
+	uint32 flags; // the bits below
+	uint64 reguse; // registers implicitly used by this instruction
+	uint64 regset; // registers implicitly set by this instruction
+	uint64 regindex; // registers used by addressing mode
+};
+
+enum
+{
+	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
+	Pseudo = 1<<1,
+	
+	// There's nothing to say about the instruction,
+	// but it's still okay to see.
+	OK = 1<<2,
+
+	// Size of right-side write, or right-side read if no write.
+	SizeB = 1<<3,
+	SizeW = 1<<4,
+	SizeL = 1<<5,
+	SizeQ = 1<<6,
+	SizeF = 1<<7, // float aka float32
+	SizeD = 1<<8, // double aka float64
+
+	// Left side (Prog.from): address taken, read, write.
+	LeftAddr = 1<<9,
+	LeftRead = 1<<10,
+	LeftWrite = 1<<11,
+	
+	// Register in middle (Prog.reg); only ever read. (arm, ppc64)
+	RegRead = 1<<12,
+	CanRegRead = 1<<13,
+	
+	// Right side (Prog.to): address taken, read, write.
+	RightAddr = 1<<14,
+	RightRead = 1<<15,
+	RightWrite = 1<<16,
+
+	// Instruction kinds
+	Move = 1<<17, // straight move
+	Conv = 1<<18, // size conversion
+	Cjmp = 1<<19, // conditional jump
+	Break = 1<<20, // breaks control flow (no fallthrough)
+	Call = 1<<21, // function call
+	Jump = 1<<22, // jump
+	Skip = 1<<23, // data instruction
+
+	// Set, use, or kill of carry bit.
+	// Kill means we never look at the carry bit after this kind of instruction.
+	SetCarry = 1<<24,
+	UseCarry = 1<<25,
+	KillCarry = 1<<26,
+
+	// Special cases for register use. (amd64, 386)
+	ShiftCX = 1<<27, // possible shift by CX
+	ImulAXDX = 1<<28, // possible multiply into DX:AX
+
+	// Instruction updates whichever of from/to is type D_OREG. (ppc64)
+	PostInc = 1<<29,
+};
+
+typedef struct Arch Arch;
+
+struct Arch
+{
+	int thechar;
+	char *thestring;
+	LinkArch *thelinkarch;
+	Typedef *typedefs;
+	Prog zprog;
+	
+	int ACALL;
+	int ACHECKNIL;
+	int ADATA;
+	int AFUNCDATA;
+	int AGLOBL;
+	int AJMP;
+	int ANAME;
+	int ANOP;
+	int APCDATA;
+	int ARET;
+	int ASIGNAME;
+	int ATEXT;
+	int ATYPE;
+	int AUNDEF;
+	int AVARDEF;
+	int AVARKILL;
+	int D_AUTO;
+	int D_BRANCH;
+	int D_NONE;
+	int D_PARAM;
+	vlong MAXWIDTH;
+
+	void (*afunclit)(Addr*, Node*);
+	int (*anyregalloc)(void);
+	void (*betypeinit)(void);
+	void (*bgen)(Node*, int, int, Prog*);
+	void (*cgen)(Node*, Node*);
+	void (*cgen_asop)(Node*);
+	void (*cgen_call)(Node*, int);
+	void (*cgen_callinter)(Node*, Node*, int);
+	void (*cgen_ret)(Node*);
+	void (*clearfat)(Node*);
+	void (*clearp)(Prog*);
+	void (*defframe)(Prog*);
+	int (*dgostringptr)(Sym*, int, char*);
+	int (*dgostrlitptr)(Sym*, int, Strlit*);
+	int (*dsname)(Sym*, int, char*, int);
+	int (*dsymptr)(Sym*, int, Sym*, int);
+	void (*dumpdata)(void);
+	void (*dumpit)(char*, Flow*, int);
+	void (*excise)(Flow*);
+	void (*expandchecks)(Prog*);
+	void (*fixautoused)(Prog*);
+	void (*gclean)(void);
+	void	(*gdata)(Node*, Node*, int);
+	void	(*gdatacomplex)(Node*, Mpcplx*);
+	void	(*gdatastring)(Node*, Strlit*);
+	void	(*ggloblnod)(Node*);
+	void	(*ggloblsym)(Sym*, int32, int8);
+	void (*ginit)(void);
+	Prog*	(*gins)(int, Node*, Node*);
+	void	(*ginscall)(Node*, int);
+	Prog*	(*gjmp)(Prog*);
+	void (*gtrack)(Sym*);
+	void	(*gused)(Node*);
+	void	(*igen)(Node*, Node*, Node*);
+	int (*isfat)(Type*);
+	void (*linkarchinit)(void);
+	void (*markautoused)(Prog*);
+	void (*naddr)(Node*, Addr*, int);
+	Plist* (*newplist)(void);
+	Node* (*nodarg)(Type*, int);
+	void (*patch)(Prog*, Prog*);
+	void (*proginfo)(ProgInfo*, Prog*);
+	void (*regalloc)(Node*, Type*, Node*);
+	void (*regfree)(Node*);
+	void (*regopt)(Prog*);
+	int (*regtyp)(Addr*);
+	int (*sameaddr)(Addr*, Addr*);
+	int (*smallindir)(Addr*, Addr*);
+	int (*stackaddr)(Addr*);
+	Prog* (*unpatch)(Prog*);
+};
+
+EXTERN Arch arch;
+
+EXTERN Node *newproc;
+EXTERN Node *deferproc;
+EXTERN Node *deferreturn;
+EXTERN Node *panicindex;
+EXTERN Node *panicslice;
+EXTERN Node *throwreturn;
+
+int	gcmain(int, char**);

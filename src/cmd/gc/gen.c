@@ -265,7 +265,7 @@ gen(Node *n)
 //dump("gen", n);
 
 	lno = setlineno(n);
-	wasregalloc = anyregalloc();
+	wasregalloc = arch.anyregalloc();
 
 	if(n == N)
 		goto ret;
@@ -304,8 +304,8 @@ gen(Node *n)
 
 		// if there are pending gotos, resolve them all to the current pc.
 		for(p1=lab->gotopc; p1; p1=p2) {
-			p2 = unpatch(p1);
-			patch(p1, pc);
+			p2 = arch.unpatch(p1);
+			arch.patch(p1, pc);
 		}
 		lab->gotopc = P;
 		if(lab->labelpc == P)
@@ -332,9 +332,9 @@ gen(Node *n)
 		// of the label in the OLABEL case above.)
 		lab = newlab(n);
 		if(lab->labelpc != P)
-			gjmp(lab->labelpc);
+			arch.gjmp(lab->labelpc);
 		else
-			lab->gotopc = gjmp(lab->gotopc);
+			lab->gotopc = arch.gjmp(lab->gotopc);
 		break;
 
 	case OBREAK:
@@ -349,14 +349,14 @@ gen(Node *n)
 				yyerror("invalid break label %S", n->left->sym);
 				break;
 			}
-			gjmp(lab->breakpc);
+			arch.gjmp(lab->breakpc);
 			break;
 		}
 		if(breakpc == P) {
 			yyerror("break is not in a loop");
 			break;
 		}
-		gjmp(breakpc);
+		arch.gjmp(breakpc);
 		break;
 
 	case OCONTINUE:
@@ -371,20 +371,20 @@ gen(Node *n)
 				yyerror("invalid continue label %S", n->left->sym);
 				break;
 			}
-			gjmp(lab->continpc);
+			arch.gjmp(lab->continpc);
 			break;
 		}
 		if(continpc == P) {
 			yyerror("continue is not in a loop");
 			break;
 		}
-		gjmp(continpc);
+		arch.gjmp(continpc);
 		break;
 
 	case OFOR:
 		sbreak = breakpc;
-		p1 = gjmp(P);			//		goto test
-		breakpc = gjmp(P);		// break:	goto done
+		p1 = arch.gjmp(P);			//		goto test
+		breakpc = arch.gjmp(P);		// break:	goto done
 		scontin = continpc;
 		continpc = pc;
 
@@ -394,11 +394,11 @@ gen(Node *n)
 			lab->continpc = continpc;
 		}
 		gen(n->nincr);				// contin:	incr
-		patch(p1, pc);				// test:
-		bgen(n->ntest, 0, -1, breakpc);		//		if(!test) goto break
+		arch.patch(p1, pc);				// test:
+		arch.bgen(n->ntest, 0, -1, breakpc);		//		if(!test) goto break
 		genlist(n->nbody);				//		body
-		gjmp(continpc);
-		patch(breakpc, pc);			// done:
+		arch.gjmp(continpc);
+		arch.patch(breakpc, pc);			// done:
 		continpc = scontin;
 		breakpc = sbreak;
 		if(lab) {
@@ -408,29 +408,29 @@ gen(Node *n)
 		break;
 
 	case OIF:
-		p1 = gjmp(P);			//		goto test
-		p2 = gjmp(P);			// p2:		goto else
-		patch(p1, pc);				// test:
-		bgen(n->ntest, 0, -n->likely, p2);		//		if(!test) goto p2
+		p1 = arch.gjmp(P);			//		goto test
+		p2 = arch.gjmp(P);			// p2:		goto else
+		arch.patch(p1, pc);				// test:
+		arch.bgen(n->ntest, 0, -n->likely, p2);		//		if(!test) goto p2
 		genlist(n->nbody);				//		then
-		p3 = gjmp(P);			//		goto done
-		patch(p2, pc);				// else:
+		p3 = arch.gjmp(P);			//		goto done
+		arch.patch(p2, pc);				// else:
 		genlist(n->nelse);				//		else
-		patch(p3, pc);				// done:
+		arch.patch(p3, pc);				// done:
 		break;
 
 	case OSWITCH:
 		sbreak = breakpc;
-		p1 = gjmp(P);			//		goto test
-		breakpc = gjmp(P);		// break:	goto done
+		p1 = arch.gjmp(P);			//		goto test
+		breakpc = arch.gjmp(P);		// break:	goto done
 
 		// define break label
 		if((lab = stmtlabel(n)) != L)
 			lab->breakpc = breakpc;
 
-		patch(p1, pc);				// test:
+		arch.patch(p1, pc);				// test:
 		genlist(n->nbody);				//		switch(test) body
-		patch(breakpc, pc);			// done:
+		arch.patch(breakpc, pc);			// done:
 		breakpc = sbreak;
 		if(lab != L)
 			lab->breakpc = P;
@@ -438,23 +438,23 @@ gen(Node *n)
 
 	case OSELECT:
 		sbreak = breakpc;
-		p1 = gjmp(P);			//		goto test
-		breakpc = gjmp(P);		// break:	goto done
+		p1 = arch.gjmp(P);			//		goto test
+		breakpc = arch.gjmp(P);		// break:	goto done
 
 		// define break label
 		if((lab = stmtlabel(n)) != L)
 			lab->breakpc = breakpc;
 
-		patch(p1, pc);				// test:
+		arch.patch(p1, pc);				// test:
 		genlist(n->nbody);				//		select() body
-		patch(breakpc, pc);			// done:
+		arch.patch(breakpc, pc);			// done:
 		breakpc = sbreak;
 		if(lab != L)
 			lab->breakpc = P;
 		break;
 
 	case OASOP:
-		cgen_asop(n);
+		arch.cgen_asop(n);
 		break;
 
 	case ODCL:
@@ -472,11 +472,11 @@ gen(Node *n)
 		break;
 
 	case OCALLINTER:
-		cgen_callinter(n, N, 0);
+		arch.cgen_callinter(n, N, 0);
 		break;
 
 	case OCALLFUNC:
-		cgen_call(n, 0);
+		arch.cgen_call(n, 0);
 		break;
 
 	case OPROC:
@@ -489,7 +489,7 @@ gen(Node *n)
 
 	case ORETURN:
 	case ORETJMP:
-		cgen_ret(n);
+		arch.cgen_ret(n);
 		break;
 	
 	case OCHECKNIL:
@@ -502,7 +502,7 @@ gen(Node *n)
 	}
 
 ret:
-	if(anyregalloc() != wasregalloc) {
+	if(arch.anyregalloc() != wasregalloc) {
 		dump("node", n);
 		fatal("registers left allocated");
 	}
@@ -536,7 +536,7 @@ cgen_callmeth(Node *n, int proc)
 
 	if(n2.left->op == ONAME)
 		n2.left->class = PFUNC;
-	cgen_call(&n2, proc);
+	arch.cgen_call(&n2, proc);
 }
 
 /*
@@ -554,11 +554,11 @@ cgen_proc(Node *n, int proc)
 		break;
 
 	case OCALLINTER:
-		cgen_callinter(n->left, N, proc);
+		arch.cgen_callinter(n->left, N, proc);
 		break;
 
 	case OCALLFUNC:
-		cgen_call(n->left, proc);
+		arch.cgen_call(n->left, proc);
 		break;
 	}
 
@@ -601,7 +601,7 @@ cgen_discard(Node *nr)
 	switch(nr->op) {
 	case ONAME:
 		if(!(nr->class & PHEAP) && nr->class != PEXTERN && nr->class != PFUNC && nr->class != PPARAMREF)
-			gused(nr);
+			arch.gused(nr);
 		break;
 
 	// unary
@@ -643,7 +643,7 @@ cgen_discard(Node *nr)
 	default:
 		tempname(&tmp, nr->type);
 		cgen_as(&tmp, nr);
-		gused(&tmp);
+		arch.gused(&tmp);
 	}
 }
 
@@ -705,7 +705,7 @@ clearslim(Node *n)
 	}
 
 	ullmancalc(&z);
-	cgen(&z, n);
+	arch.cgen(&z, n);
 }
 
 /*
@@ -739,10 +739,10 @@ cgen_as(Node *nl, Node *nr)
 		tl = nl->type;
 		if(tl == T)
 			return;
-		if(isfat(tl)) {
+		if(arch.isfat(tl)) {
 			if(nl->op == ONAME)
 				gvardef(nl);
-			clearfat(nl);
+			arch.clearfat(nl);
 			return;
 		}
 		clearslim(nl);
@@ -753,7 +753,7 @@ cgen_as(Node *nl, Node *nr)
 	if(tl == T)
 		return;
 
-	cgen(nr, nl);
+	arch.cgen(nr, nl);
 }
 
 /*
@@ -773,17 +773,17 @@ cgen_eface(Node *n, Node *res)
 	Node *tmp;
 
 	tmp = temp(types[tptr]);
-	cgen(n->right, tmp);
+	arch.cgen(n->right, tmp);
 
 	gvardef(res);
 
 	dst = *res;
 	dst.type = types[tptr];
 	dst.xoffset += widthptr;
-	cgen(tmp, &dst);
+	arch.cgen(tmp, &dst);
 
 	dst.xoffset -= widthptr;
-	cgen(n->left, &dst);
+	arch.cgen(n->left, &dst);
 }
 
 /*
@@ -824,7 +824,7 @@ cgen_slice(Node *n, Node *res)
 
 	if(isnil(n->left)) {
 		tempname(&src, n->left->type);
-		cgen(n->left, &src);
+		arch.cgen(n->left, &src);
 	} else
 		src = *n->left;
 	if(n->op == OSLICE || n->op == OSLICE3 || n->op == OSLICESTR)
@@ -833,11 +833,11 @@ cgen_slice(Node *n, Node *res)
 	if(n->op == OSLICEARR || n->op == OSLICE3ARR) {
 		if(!isptr[n->left->type->etype])
 			fatal("slicearr is supposed to work on pointer: %+N\n", n);
-		cgen(&src, base);
+		arch.cgen(&src, base);
 		cgen_checknil(base);
 	} else {
 		src.type = types[tptr];
-		cgen(&src, base);
+		arch.cgen(&src, base);
 	}
 	
 	// committed to the update
@@ -846,9 +846,9 @@ cgen_slice(Node *n, Node *res)
 	// compute len and cap.
 	// len = n-i, cap = m-i, and offs = i*width.
 	// computing offs last lets the multiply overwrite i.
-	cgen(len, tmplen);
+	arch.cgen(len, tmplen);
 	if(n->op != OSLICESTR)
-		cgen(cap, tmpcap);
+		arch.cgen(cap, tmpcap);
 
 	// if new cap != 0 { base += add }
 	// This avoids advancing base past the end of the underlying array/string,
@@ -857,40 +857,40 @@ cgen_slice(Node *n, Node *res)
 	// In essence we are replacing x[i:j:k] where i == j == k
 	// or x[i:j] where i == j == cap(x) with x[0:0:0].
 	if(offs != N) {
-		p1 = gjmp(P);
-		p2 = gjmp(P);
-		patch(p1, pc);
+		p1 = arch.gjmp(P);
+		p2 = arch.gjmp(P);
+		arch.patch(p1, pc);
 
 		nodconst(&con, tmpcap->type, 0);
 		cmp = nod(OEQ, tmpcap, &con);
 		typecheck(&cmp, Erv);
-		bgen(cmp, 1, -1, p2);
+		arch.bgen(cmp, 1, -1, p2);
 
 		add = nod(OADD, base, offs);
 		typecheck(&add, Erv);
-		cgen(add, base);
+		arch.cgen(add, base);
 
-		patch(p2, pc);
+		arch.patch(p2, pc);
 	}
 
 	// dst.array = src.array  [ + lo *width ]
 	dst = *res;
 	dst.xoffset += Array_array;
 	dst.type = types[tptr];
-	cgen(base, &dst);
+	arch.cgen(base, &dst);
 
 	// dst.len = hi [ - lo ]
 	dst = *res;
 	dst.xoffset += Array_nel;
 	dst.type = types[simtype[TUINT]];
-	cgen(tmplen, &dst);
+	arch.cgen(tmplen, &dst);
 
 	if(n->op != OSLICESTR) {
 		// dst.cap = cap [ - lo ]
 		dst = *res;
 		dst.xoffset += Array_cap;
 		dst.type = types[simtype[TUINT]];
-		cgen(tmpcap, &dst);
+		arch.cgen(tmpcap, &dst);
 	}
 }
 

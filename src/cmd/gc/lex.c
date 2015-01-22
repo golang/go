@@ -91,7 +91,7 @@ enum
 void
 usage(void)
 {
-	print("usage: %cg [options] file.go...\n", thechar);
+	print("usage: %cg [options] file.go...\n", arch.thechar);
 	flagprint(1);
 	exits("usage");
 }
@@ -133,17 +133,17 @@ doversion(void)
 	p = expstring();
 	if(strcmp(p, "X:none") == 0)
 		p = "";
-	print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
+	print("%cg version %s%s%s\n", arch.thechar, getgoversion(), *p ? " " : "", p);
 	exits(0);
 }
 
 int
-main(int argc, char *argv[])
+gcmain(int argc, char *argv[])
 {
 	int i;
 	NodeList *l;
 	char *p;
-
+	
 #ifdef	SIGBUS	
 	signal(SIGBUS, fault);
 	signal(SIGSEGV, fault);
@@ -154,15 +154,15 @@ main(int argc, char *argv[])
 	// Tell the FPU to handle all exceptions.
 	setfcr(FPPDBL|FPRNR);
 #endif
-	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+	// Allow GOARCH=arch.thestring or GOARCH=arch.thestringsuffix,
 	// but not other values.	
 	p = getgoarch();
-	if(strncmp(p, thestring, strlen(thestring)) != 0)
-		sysfatal("cannot use %cg with GOARCH=%s", thechar, p);
+	if(strncmp(p, arch.thestring, strlen(arch.thestring)) != 0)
+		sysfatal("cannot use %cg with GOARCH=%s", arch.thechar, p);
 	goarch = p;
 
-	linkarchinit();
-	ctxt = linknew(thelinkarch);
+	arch.linkarchinit();
+	ctxt = linknew(arch.thelinkarch);
 	ctxt->diag = yyerror;
 	ctxt->bso = &bstdout;
 	Binit(&bstdout, 1, OWRITE);
@@ -260,7 +260,7 @@ main(int argc, char *argv[])
 	flagcount("wb", "enable write barrier", &use_writebarrier);
 	flagcount("x", "debug lexer", &debug['x']);
 	flagcount("y", "debug declarations in canned imports (with -d)", &debug['y']);
-	if(thechar == '6')
+	if(arch.thechar == '6')
 		flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel);
 
 	flagparse(&argc, &argv, usage);
@@ -301,7 +301,7 @@ main(int argc, char *argv[])
 	if(debug['l'] <= 1)
 		debug['l'] = 1 - debug['l'];
 
-	if(thechar == '8') {
+	if(arch.thechar == '8') {
 		p = getgo386();
 		if(strcmp(p, "387") == 0)
 			use_sse = 0;
@@ -312,7 +312,7 @@ main(int argc, char *argv[])
 	}
 
 	fmtinstallgo();
-	betypeinit();
+	arch.betypeinit();
 	if(widthptr == 0)
 		fatal("betypeinit failed");
 
@@ -571,7 +571,7 @@ findpkg(Strlit *name)
 		snprint(namebuf, sizeof(namebuf), "%Z.a", name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%Z.%c", name, thechar);
+		snprint(namebuf, sizeof(namebuf), "%Z.%c", name, arch.thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 		return 0;
@@ -593,7 +593,7 @@ findpkg(Strlit *name)
 		snprint(namebuf, sizeof(namebuf), "%s/%Z.a", p->dir, name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%s/%Z.%c", p->dir, name, thechar);
+		snprint(namebuf, sizeof(namebuf), "%s/%Z.%c", p->dir, name, arch.thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}
@@ -610,7 +610,7 @@ findpkg(Strlit *name)
 		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.a", goroot, goos, goarch, suffixsep, suffix, name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.%c", goroot, goos, goarch, suffixsep, suffix, name, thechar);
+		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.%c", goroot, goos, goarch, suffixsep, suffix, name, arch.thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}
@@ -2253,10 +2253,10 @@ lexfini(void)
 	}
 
 	// backend-specific builtin types (e.g. int).
-	for(i=0; typedefs[i].name; i++) {
-		s = lookup(typedefs[i].name);
+	for(i=0; arch.typedefs[i].name; i++) {
+		s = lookup(arch.typedefs[i].name);
 		if(s->def == N) {
-			s->def = typenod(types[typedefs[i].etype]);
+			s->def = typenod(types[arch.typedefs[i].etype]);
 			s->origpkg = builtinpkg;
 		}
 	}
@@ -2554,6 +2554,6 @@ mkpackage(char* pkgname)
 		p = strrchr(namebuf, '.');
 		if(p != nil)
 			*p = 0;
-		outfile = smprint("%s.%c", namebuf, thechar);
+		outfile = smprint("%s.%c", namebuf, arch.thechar);
 	}
 }
