@@ -498,7 +498,7 @@ func outcode(a int, g1 *obj.Addr, reg int, g2 *obj.Addr) {
 		reg = int(g2.Scale)
 	}
 
-	p = asm.Ctxt.Arch.Prg()
+	p = asm.Ctxt.NewProg()
 	p.As = int16(a)
 	p.Lineno = asm.Lineno
 	if nosched != 0 {
@@ -531,7 +531,7 @@ func outgcode(a int, g1 *obj.Addr, reg int, g2, g3 *obj.Addr) {
 		goto out
 	}
 
-	p = asm.Ctxt.Arch.Prg()
+	p = asm.Ctxt.NewProg()
 	p.As = int16(a)
 	p.Lineno = asm.Lineno
 	if nosched != 0 {

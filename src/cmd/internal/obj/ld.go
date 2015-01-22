@@ -144,7 +144,7 @@ func mkfwd(sym *LSym) {
 func Copyp(ctxt *Link, q *Prog) *Prog {
 	var p *Prog
 
-	p = ctxt.Arch.Prg()
+	p = ctxt.NewProg()
 	*p = *q
 	return p
 }
@@ -152,7 +152,7 @@ func Copyp(ctxt *Link, q *Prog) *Prog {
 func Appendp(ctxt *Link, q *Prog) *Prog {
 	var p *Prog
 
-	p = ctxt.Arch.Prg()
+	p = ctxt.NewProg()
 	p.Link = q.Link
 	q.Link = p
 	p.Lineno = q.Lineno
