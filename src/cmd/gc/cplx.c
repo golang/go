@@ -14,6 +14,14 @@ static	void	minus(Node *nl, Node *res);
 
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
 
+/*c2go
+static int
+CASE(int a, int b)
+{
+	return a<<16 | b;
+}
+*/
+
 static int
 overlap(Node *f, Node *t)
 {
@@ -308,13 +316,13 @@ complexbool(int op, Node *nl, Node *nr, int true, int likely, Prog *to)
 	na.right = &nc;
 	na.type = types[TBOOL];
 
-	memset(&nb, 0, sizeof(na));
+	memset(&nb, 0, sizeof(nb));
 	nb.op = OEQ;
 	nb.left = &n1;
 	nb.right = &n3;
 	nb.type = types[TBOOL];
 
-	memset(&nc, 0, sizeof(na));
+	memset(&nc, 0, sizeof(nc));
 	nc.op = OEQ;
 	nc.left = &n2;
 	nc.right = &n4;
@@ -442,13 +450,13 @@ complexmul(Node *nl, Node *nr, Node *res)
 	tempname(&tmp, n5.type);
 
 	// real part -> tmp
-	memset(&rm1, 0, sizeof(ra));
+	memset(&rm1, 0, sizeof(rm1));
 	rm1.op = OMUL;
 	rm1.left = &n1;
 	rm1.right = &n3;
 	rm1.type = n1.type;
 
-	memset(&rm2, 0, sizeof(ra));
+	memset(&rm2, 0, sizeof(rm2));
 	rm2.op = OMUL;
 	rm2.left = &n2;
 	rm2.right = &n4;
@@ -462,13 +470,13 @@ complexmul(Node *nl, Node *nr, Node *res)
 	cgen(&ra, &tmp);
 
 	// imag part
-	memset(&rm1, 0, sizeof(ra));
+	memset(&rm1, 0, sizeof(rm1));
 	rm1.op = OMUL;
 	rm1.left = &n1;
 	rm1.right = &n4;
 	rm1.type = n1.type;
 
-	memset(&rm2, 0, sizeof(ra));
+	memset(&rm2, 0, sizeof(rm2));
 	rm2.op = OMUL;
 	rm2.left = &n2;
 	rm2.right = &n3;

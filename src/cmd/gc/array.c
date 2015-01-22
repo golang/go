@@ -10,14 +10,6 @@ enum {
 	DEFAULTCAPACITY = 16,
 };
 
-struct Array
-{
-	int32	length;  // number of elements
-	int32	size;  // element size
-	int32	capacity;  // size of data in elements
-	char	*data;  // element storage
-};
-
 Array*
 arraynew(int32 capacity, int32 size)
 {

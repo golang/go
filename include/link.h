@@ -67,7 +67,7 @@ struct	Addr
 	int8	class;	// for 5l, 9l
 	uint8	etype; // for 5g, 6g, 8g
 	int32	offset2;	// for 5l, 8l
-	struct Node*	node; // for 5g, 6g, 8g
+	void*	node; // for 5g, 6g, 8g
 	int64	width; // for 5g, 6g, 8g
 };
 

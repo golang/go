@@ -735,23 +735,23 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 	}
 	if(info.flags & (LeftRead | LeftWrite | LeftAddr)) {
 		from = &prog->from;
-		if (from->node != nil && from->sym != nil && from->node->curfn == curfn) {
-			switch(from->node->class & ~PHEAP) {
+		if (from->node != nil && from->sym != nil && ((Node*)(from->node))->curfn == curfn) {
+			switch(((Node*)(from->node))->class & ~PHEAP) {
 			case PAUTO:
 			case PPARAM:
 			case PPARAMOUT:
-				pos = (int)(uintptr)from->node->opt - 1; // index in vars
+				pos = (int)(uintptr)((Node*)(from->node))->opt - 1; // index in vars
 				if(pos == -1)
 					goto Next;
 				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != from->node)
 					fatal("bad bookkeeping in liveness %N %d", from->node, pos);
-				if(from->node->addrtaken) {
+				if(((Node*)(from->node))->addrtaken) {
 					bvset(avarinit, pos);
 				} else {
 					if(info.flags & (LeftRead | LeftAddr))
 						bvset(uevar, pos);
 					if(info.flags & LeftWrite)
-						if(from->node != nil && !isfat(from->node->type))
+						if(from->node != nil && !isfat(((Node*)(from->node))->type))
 							bvset(varkill, pos);
 				}
 			}
@@ -760,17 +760,17 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 Next:
 	if(info.flags & (RightRead | RightWrite | RightAddr)) {
 		to = &prog->to;
-		if (to->node != nil && to->sym != nil && to->node->curfn == curfn) {
-			switch(to->node->class & ~PHEAP) {
+		if (to->node != nil && to->sym != nil && ((Node*)(to->node))->curfn == curfn) {
+			switch(((Node*)(to->node))->class & ~PHEAP) {
 			case PAUTO:
 			case PPARAM:
 			case PPARAMOUT:
-				pos = (int)(uintptr)to->node->opt - 1; // index in vars
+				pos = (int)(uintptr)((Node*)(to->node))->opt - 1; // index in vars
 				if(pos == -1)
 					goto Next1;
 				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != to->node)
 					fatal("bad bookkeeping in liveness %N %d", to->node, pos);
-				if(to->node->addrtaken) {
+				if(((Node*)(to->node))->addrtaken) {
 					if(prog->as != AVARKILL)
 						bvset(avarinit, pos);
 					if(prog->as == AVARDEF || prog->as == AVARKILL)
@@ -787,7 +787,7 @@ Next:
 					if((info.flags & RightRead) || (info.flags & (RightAddr|RightWrite)) == RightAddr)
 						bvset(uevar, pos);
 					if(info.flags & RightWrite)
-						if(to->node != nil && (!isfat(to->node->type) || prog->as == AVARDEF))
+						if(to->node != nil && (!isfat(((Node*)(to->node))->type) || prog->as == AVARDEF))
 							bvset(varkill, pos);
 				}
 			}
@@ -898,8 +898,12 @@ printnode(Node *node)
 	char *p;
 	char *a;
 
-	p = haspointers(node->type) ? "^" : "";
-	a = node->addrtaken ? "@" : "";
+	p = "";
+	if(haspointers(node->type))
+		p = "^";
+	a = "";
+	if(node->addrtaken)
+		a = "@";
 	print(" %N%s%s", node, p, a);
 }
 
@@ -1604,11 +1608,11 @@ livenessepilogue(Liveness *lv)
 					fmtstrinit(&fmt);
 					fmtprint(&fmt, "%L: live at ", p->lineno);
 					if(p->as == ACALL && p->to.node)
-						fmtprint(&fmt, "call to %s:", p->to.node->sym->name);
+						fmtprint(&fmt, "call to %s:", ((Node*)(p->to.node))->sym->name);
 					else if(p->as == ACALL)
 						fmtprint(&fmt, "indirect call:");
 					else
-						fmtprint(&fmt, "entry to %s:", p->from.node->sym->name);
+						fmtprint(&fmt, "entry to %s:", ((Node*)(p->from.node))->sym->name);
 					numlive = 0;
 					for(j = 0; j < arraylength(lv->vars); j++) {
 						n = *(Node**)arrayget(lv->vars, j);

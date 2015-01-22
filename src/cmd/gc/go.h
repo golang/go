@@ -128,10 +128,6 @@ struct	Val
 		Strlit*	sval;		// string CTSTR
 	} u;
 };
-
-// prevent incompatible type signatures between libgc and 8g on Plan 9
-#pragma incomplete struct Array
-
 typedef	struct	Array	Array;
 typedef	struct	Bvec	Bvec;
 typedef	struct	Pkg Pkg;
@@ -140,6 +136,14 @@ typedef	struct	Node	Node;
 typedef	struct	NodeList	NodeList;
 typedef	struct	Type	Type;
 typedef	struct	Label	Label;
+
+struct	Array
+{
+	int32	length;  // number of elements
+	int32	size;  // element size
+	int32	capacity;  // size of data in elements
+	char	*data;  // element storage
+};
 
 struct	Type
 {
@@ -708,8 +712,10 @@ enum
 	Ecomplit = 1<<11,	// type in composite literal
 };
 
-#define	BITS	3
-#define	NVAR	(BITS*sizeof(uint64)*8)
+enum {
+	BITS = 3,
+	NVAR = 	(BITS*64)
+};
 
 typedef	struct	Bits	Bits;
 struct	Bits

@@ -227,7 +227,7 @@ regopt(Prog *firstp)
 	}
 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
 		p = r->f.prog;
-		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
+		if(p->as == AVARDEF && isfat(((Node*)(p->to.node))->type) && ((Node*)(p->to.node))->opt != nil) {
 			active++;
 			walkvardef(p->to.node, r, active);
 		}
