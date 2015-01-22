@@ -516,43 +516,18 @@ var deptab = []struct {
 		"anames9.c",
 	}},
 	{"cmd/gc", []string{
-		"-cplx.c",
-		"-pgen.c",
-		"-plive.c",
-		"-popt.c",
-		"-y1.tab.c", // makefile dreg
 		"opnames.h",
 	}},
 	{"cmd/5g", []string{
-		"../gc/cplx.c",
-		"../gc/pgen.c",
-		"../gc/plive.c",
-		"../gc/popt.c",
-		"../gc/popt.h",
 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
 	}},
 	{"cmd/6g", []string{
-		"../gc/cplx.c",
-		"../gc/pgen.c",
-		"../gc/plive.c",
-		"../gc/popt.c",
-		"../gc/popt.h",
 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
 	}},
 	{"cmd/8g", []string{
-		"../gc/cplx.c",
-		"../gc/pgen.c",
-		"../gc/plive.c",
-		"../gc/popt.c",
-		"../gc/popt.h",
 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
 	}},
 	{"cmd/9g", []string{
-		"../gc/cplx.c",
-		"../gc/pgen.c",
-		"../gc/plive.c",
-		"../gc/popt.c",
-		"../gc/popt.h",
 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
 	}},
 	{"cmd/5l", []string{

@@ -34,8 +34,7 @@
 
 #include	<u.h>
 #include	<libc.h>
-#include	"gg.h"
-#include	"opt.h"
+#include	"go.h"
 
 // p is a call instruction. Does the call fail to return?
 int
@@ -82,7 +81,7 @@ chasejmp(Prog *p, int *jmploop)
 	int n;
 
 	n = 0;
-	while(p != P && p->as == AJMP && p->to.type == D_BRANCH) {
+	while(p != P && p->as == arch.AJMP && p->to.type == arch.D_BRANCH) {
 		if(++n > 10) {
 			*jmploop = 1;
 			break;
@@ -113,9 +112,9 @@ mark(Prog *firstp)
 		if(p->opt != dead)
 			break;
 		p->opt = alive;
-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch)
+		if(p->as != arch.ACALL && p->to.type == arch.D_BRANCH && p->to.u.branch)
 			mark(p->to.u.branch);
-		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
+		if(p->as == arch.AJMP || p->as == arch.ARET || p->as == arch.AUNDEF)
 			break;
 	}
 }
@@ -134,7 +133,7 @@ fixjmp(Prog *firstp)
 	for(p=firstp; p; p=p->link) {
 		if(debug['R'] && debug['v'])
 			print("%P\n", p);
-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch && p->to.u.branch->as == AJMP) {
+		if(p->as != arch.ACALL && p->to.type == arch.D_BRANCH && p->to.u.branch && p->to.u.branch->as == arch.AJMP) {
 			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
 			if(debug['R'] && debug['v'])
 				print("->%P\n", p);
@@ -151,8 +150,8 @@ fixjmp(Prog *firstp)
 	last = nil;
 	for(p=firstp; p; p=p->link) {
 		if(p->opt == dead) {
-			if(p->link == P && p->as == ARET && last && last->as != ARET) {
-				// This is the final ARET, and the code so far doesn't have one.
+			if(p->link == P && p->as == arch.ARET && last && last->as != arch.ARET) {
+				// This is the final arch.ARET, and the code so far doesn't have one.
 				// Let it stay. The register allocator assumes that all live code in
 				// the function can be traversed by starting at all the RET instructions
 				// and following predecessor links. If we remove the final RET,
@@ -177,7 +176,7 @@ fixjmp(Prog *firstp)
 	if(!jmploop) {
 		last = nil;
 		for(p=firstp; p; p=p->link) {
-			if(p->as == AJMP && p->to.type == D_BRANCH && p->to.u.branch == p->link) {
+			if(p->as == arch.AJMP && p->to.type == arch.D_BRANCH && p->to.u.branch == p->link) {
 				if(debug['R'] && debug['v'])
 					print("del %P\n", p);
 				continue;
@@ -233,7 +232,7 @@ flowstart(Prog *firstp, int size)
 	nf = 0;
 	for(p = firstp; p != P; p = p->link) {
 		p->opt = nil; // should be already, but just in case
-		proginfo(&info, p);
+		arch.proginfo(&info, p);
 		if(info.flags & Skip)
 			continue;
 		p->opt = (void*)1;
@@ -270,13 +269,13 @@ flowstart(Prog *firstp, int size)
 	// Fill in pred/succ information.
 	for(f = start; f != nil; f = f->link) {
 		p = f->prog;
-		proginfo(&info, p);
+		arch.proginfo(&info, p);
 		if(!(info.flags & Break)) {
 			f1 = f->link;
 			f->s1 = f1;
 			f1->p1 = f;
 		}
-		if(p->to.type == D_BRANCH) {
+		if(p->to.type == arch.D_BRANCH) {
 			if(p->to.u.branch == P)
 				fatal("pnil %P", p);
 			f1 = p->to.u.branch->opt;
@@ -383,6 +382,10 @@ loophead(int32 *idom, Flow *r)
 			return 1;
 	return 0;
 }
+
+enum {
+	LOOP = 3,
+};
 
 static void
 loopmark(Flow **rpo2r, int32 head, Flow *r)
@@ -584,7 +587,7 @@ mergetemp(Prog *firstp)
 	// single-use (that's why we have so many!).
 	for(r = (TempFlow*)g->start; r != nil; r = (TempFlow*)r->f.link) {
 		p = r->f.prog;
-		proginfo(&info, p);
+		arch.proginfo(&info, p);
 
 		if(p->from.node != N && ((Node*)(p->from.node))->opt && p->to.node != N && ((Node*)(p->to.node))->opt)
 			fatal("double node %P", p);
@@ -604,7 +607,7 @@ mergetemp(Prog *firstp)
 	}
 	
 	if(Debug > 1)
-		dumpit("before", g->start, 0);
+		arch.dumpit("before", g->start, 0);
 	
 	nkill = 0;
 
@@ -615,10 +618,10 @@ mergetemp(Prog *firstp)
 		// Used in only one instruction, which had better be a write.
 		if((r = v->use) != nil && r->uselink == nil) {
 			p = r->f.prog;
-			proginfo(&info, p);
+			arch.proginfo(&info, p);
 			if(p->to.node == v->node && (info.flags & RightWrite) && !(info.flags & RightRead)) {
-				p->as = ANOP;
-				p->to = zprog.to;
+				p->as = arch.ANOP;
+				p->to = arch.zprog.to;
 				v->removed = 1;
 				if(Debug)
 					print("drop write-only %S\n", v->node->sym);
@@ -632,9 +635,9 @@ mergetemp(Prog *firstp)
 		// no jumps to the next instruction. Happens mainly in 386 compiler.
 		if((r = v->use) != nil && r->f.link == &r->uselink->f && r->uselink->uselink == nil && uniqp(r->f.link) == &r->f) {
 			p = r->f.prog;
-			proginfo(&info, p);
+			arch.proginfo(&info, p);
 			p1 = r->f.link->prog;
-			proginfo(&info1, p1);
+			arch.proginfo(&info1, p1);
 			enum {
 				SizeAny = SizeB | SizeW | SizeL | SizeQ | SizeF | SizeD,
 			};
@@ -642,7 +645,7 @@ mergetemp(Prog *firstp)
 			   !((info.flags|info1.flags) & (LeftAddr|RightAddr)) &&
 			   (info.flags & SizeAny) == (info1.flags & SizeAny)) {
 				p1->from = p->from;
-				excise(&r->f);
+				arch.excise(&r->f);
 				v->removed = 1;
 				if(Debug)
 					print("drop immediate-use %S\n", v->node->sym);
@@ -738,7 +741,7 @@ mergetemp(Prog *firstp)
 		}
 	
 		if(Debug > 1)
-			dumpit("after", g->start, 0);
+			arch.dumpit("after", g->start, 0);
 	}
 
 	// Update node references to use merged temporaries.
@@ -810,7 +813,7 @@ varkillwalk(TempVar *v, TempFlow *r0, uint32 gen)
 			v->end = p->pc;
 		if(v->start > p->pc)
 			v->start = p->pc;
-		if(p->as == ARET || (p->as == AVARKILL && p->to.node == v->node))
+		if(p->as == arch.ARET || (p->as == arch.AVARKILL && p->to.node == v->node))
 			break;
 	}
 	
@@ -856,16 +859,16 @@ nilopt(Prog *firstp)
 		return;
 
 	if(debug_checknil > 1 /* || strcmp(curfn->nname->sym->name, "f1") == 0 */)
-		dumpit("nilopt", g->start, 0);
+		arch.dumpit("nilopt", g->start, 0);
 
 	ncheck = 0;
 	nkill = 0;
 	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
 		p = r->f.prog;
-		if(p->as != ACHECKNIL || !regtyp(&p->from))
+		if(p->as != arch.ACHECKNIL || !arch.regtyp(&p->from))
 			continue;
 		ncheck++;
-		if(stackaddr(&p->from)) {
+		if(arch.stackaddr(&p->from)) {
 			if(debug_checknil && p->lineno > 1)
 				warnl(p->lineno, "removed nil check of SP address");
 			r->kill = 1;
@@ -888,7 +891,7 @@ nilopt(Prog *firstp)
 	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
 		if(r->kill) {
 			nkill++;
-			excise(&r->f);
+			arch.excise(&r->f);
 		}
 	}
 
@@ -907,13 +910,13 @@ nilwalkback(NilFlow *rcheck)
 	
 	for(r = rcheck; r != nil; r = (NilFlow*)uniqp(&r->f)) {
 		p = r->f.prog;
-		proginfo(&info, p);
-		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from)) {
+		arch.proginfo(&info, p);
+		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from)) {
 			// Found initialization of value we're checking for nil.
 			// without first finding the check, so this one is unchecked.
 			return;
 		}
-		if(r != rcheck && p->as == ACHECKNIL && sameaddr(&p->from, &rcheck->f.prog->from)) {
+		if(r != rcheck && p->as == arch.ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from)) {
 			rcheck->kill = 1;
 			return;
 		}
@@ -934,11 +937,11 @@ nilwalkback(NilFlow *rcheck)
 		
 		// If same check, stop this loop but still check
 		// alternate predecessors up to this point.
-		if(r1 != rcheck && p->as == ACHECKNIL && sameaddr(&p->from, &rcheck->f.prog->from))
+		if(r1 != rcheck && p->as == arch.ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from))
 			break;
 
-		proginfo(&info, p);
-		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from)) {
+		arch.proginfo(&info, p);
+		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from)) {
 			// Found initialization of value we're checking for nil.
 			// without first finding the check, so this one is unchecked.
 			rcheck->kill = 0;
@@ -948,8 +951,8 @@ nilwalkback(NilFlow *rcheck)
 		if(r1->f.p1 == nil && r1->f.p2 == nil) {
 			print("lost pred for %P\n", rcheck->f.prog);
 			for(r1=r0; r1!=nil; r1=(NilFlow*)r1->f.p1) {
-				proginfo(&info, r1->f.prog);
-				print("\t%P %d %d %D %D\n", r1->f.prog, info.flags&RightWrite, sameaddr(&r1->f.prog->to, &rcheck->f.prog->from), &r1->f.prog->to, &rcheck->f.prog->from);
+				arch.proginfo(&info, r1->f.prog);
+				print("\t%P %d %d %D %D\n", r1->f.prog, info.flags&RightWrite, arch.sameaddr(&r1->f.prog->to, &rcheck->f.prog->from), &r1->f.prog->to, &rcheck->f.prog->from);
 			}
 			fatal("lost pred trail");
 		}
@@ -978,25 +981,25 @@ nilwalkfwd(NilFlow *rcheck)
 	last = nil;
 	for(r = (NilFlow*)uniqs(&rcheck->f); r != nil; r = (NilFlow*)uniqs(&r->f)) {
 		p = r->f.prog;
-		proginfo(&info, p);
+		arch.proginfo(&info, p);
 		
-		if((info.flags & LeftRead) && smallindir(&p->from, &rcheck->f.prog->from)) {
+		if((info.flags & LeftRead) && arch.smallindir(&p->from, &rcheck->f.prog->from)) {
 			rcheck->kill = 1;
 			return;
 		}
-		if((info.flags & (RightRead|RightWrite)) && smallindir(&p->to, &rcheck->f.prog->from)) {
+		if((info.flags & (RightRead|RightWrite)) && arch.smallindir(&p->to, &rcheck->f.prog->from)) {
 			rcheck->kill = 1;
 			return;
 		}
 		
 		// Stop if another nil check happens.
-		if(p->as == ACHECKNIL)
+		if(p->as == arch.ACHECKNIL)
 			return;
 		// Stop if value is lost.
-		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from))
+		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from))
 			return;
 		// Stop if memory write.
-		if((info.flags & RightWrite) && !regtyp(&p->to))
+		if((info.flags & RightWrite) && !arch.regtyp(&p->to))
 			return;
 		// Stop if we jump backward.
 		// This test is valid because all the NilFlow* are pointers into

@@ -15,8 +15,7 @@
 
 #include <u.h>
 #include <libc.h>
-#include "gg.h"
-#include "opt.h"
+#include "go.h"
 #include "../ld/textflag.h"
 #include "../../runtime/funcdata.h"
 #include "../../runtime/mgc0.h"
@@ -372,7 +371,7 @@ iscall(Prog *prog, LSym *name)
 		fatal("iscall: prog is nil");
 	if(name == nil)
 		fatal("iscall: function name is nil");
-	if(prog->as != ACALL)
+	if(prog->as != arch.ACALL)
 		return 0;
 	return name == prog->to.sym;
 }
@@ -513,14 +512,14 @@ newcfg(Prog *firstp)
 	bb = newblock(firstp);
 	arrayadd(cfg, &bb);
 	for(p = firstp; p != P; p = p->link) {
-		if(p->to.type == D_BRANCH) {
+		if(p->to.type == arch.D_BRANCH) {
 			if(p->to.u.branch == nil)
 				fatal("prog branch to nil");
 			if(p->to.u.branch->opt == nil) {
 				p->to.u.branch->opt = newblock(p->to.u.branch);
 				arrayadd(cfg, &p->to.u.branch->opt);
 			}
-			if(p->as != AJMP && p->link != nil && p->link->opt == nil) {
+			if(p->as != arch.AJMP && p->link != nil && p->link->opt == nil) {
 				p->link->opt = newblock(p->link);
 				arrayadd(cfg, &p->link->opt);
 			}
@@ -545,26 +544,20 @@ newcfg(Prog *firstp)
 
 			// Stop before an unreachable RET, to avoid creating
 			// unreachable control flow nodes.
-			if(p->link != nil && p->link->as == ARET && p->link->mode == 1)
+			if(p->link != nil && p->link->as == arch.ARET && p->link->mode == 1)
 				break;
 
 			// Collect basic blocks with selectgo calls.
 			if(isselectgocall(p))
 				arrayadd(selectgo, &bb);
 		}
-		if(bb->last->to.type == D_BRANCH)
+		if(bb->last->to.type == arch.D_BRANCH)
 			addedge(bb, bb->last->to.u.branch->opt);
 		if(bb->last->link != nil) {
 			// Add a fall-through when the instruction is
 			// not an unconditional control transfer.
-			switch(bb->last->as) {
-			case AJMP:
-			case ARET:
-			case AUNDEF:
-				break;
-			default:
+			if(bb->last->as != arch.AJMP && bb->last->as != arch.ARET && bb->last->as != arch.AUNDEF)
 				addedge(bb, bb->last->link->opt);
-			}
 		}
 	}
 
@@ -684,8 +677,8 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 	bvresetall(varkill);
 	bvresetall(avarinit);
 
-	proginfo(&info, prog);
-	if(prog->as == ARET) {
+	arch.proginfo(&info, prog);
+	if(prog->as == arch.ARET) {
 		// Return instructions implicitly read all the arguments.  For
 		// the sake of correctness, out arguments must be read.  For the
 		// sake of backtrace quality, we read in arguments as well.
@@ -708,17 +701,17 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 				// If we added it to uevar too, we'd not see any kill
 				// and decide that the varible was live entry, which it is not.
 				// So only use uevar in the non-addrtaken case.
-				// The p->to.type == D_NONE limits the bvset to
+				// The p->to.type == arch.D_NONE limits the bvset to
 				// non-tail-call return instructions; see note above
 				// the for loop for details.
-				if(!node->addrtaken && prog->to.type == D_NONE)
+				if(!node->addrtaken && prog->to.type == arch.D_NONE)
 					bvset(uevar, i);
 				break;
 			}
 		}
 		return;
 	}
-	if(prog->as == ATEXT) {
+	if(prog->as == arch.ATEXT) {
 		// A text instruction marks the entry point to a function and
 		// the definition point of all in arguments.
 		for(i = 0; i < arraylength(vars); i++) {
@@ -751,7 +744,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 					if(info.flags & (LeftRead | LeftAddr))
 						bvset(uevar, pos);
 					if(info.flags & LeftWrite)
-						if(from->node != nil && !isfat(((Node*)(from->node))->type))
+						if(from->node != nil && !arch.isfat(((Node*)(from->node))->type))
 							bvset(varkill, pos);
 				}
 			}
@@ -771,9 +764,9 @@ Next:
 				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != to->node)
 					fatal("bad bookkeeping in liveness %N %d", to->node, pos);
 				if(((Node*)(to->node))->addrtaken) {
-					if(prog->as != AVARKILL)
+					if(prog->as != arch.AVARKILL)
 						bvset(avarinit, pos);
-					if(prog->as == AVARDEF || prog->as == AVARKILL)
+					if(prog->as == arch.AVARDEF || prog->as == arch.AVARKILL)
 						bvset(varkill, pos);
 				} else {
 					// RightRead is a read, obviously.
@@ -787,7 +780,7 @@ Next:
 					if((info.flags & RightRead) || (info.flags & (RightAddr|RightWrite)) == RightAddr)
 						bvset(uevar, pos);
 					if(info.flags & RightWrite)
-						if(to->node != nil && (!isfat(((Node*)(to->node))->type) || prog->as == AVARDEF))
+						if(to->node != nil && (!arch.isfat(((Node*)(to->node))->type) || prog->as == arch.AVARDEF))
 							bvset(varkill, pos);
 				}
 			}
@@ -959,7 +952,7 @@ livenessprintblock(Liveness *lv, BasicBlock *bb)
 	print("\tprog:\n");
 	for(prog = bb->first;; prog = prog->link) {
 		print("\t\t%P", prog);
-		if(prog->as == APCDATA && prog->from.offset == PCDATA_StackMapIndex) {
+		if(prog->as == arch.APCDATA && prog->from.offset == PCDATA_StackMapIndex) {
 			pos = prog->to.offset;
 			live = *(Bvec**)arrayget(lv->livepointers, pos);
 			print(" ");
@@ -1025,13 +1018,13 @@ checkparam(Node *fn, Prog *p, Node *n)
 static void
 checkprog(Node *fn, Prog *p)
 {
-	if(p->from.type == D_AUTO)
+	if(p->from.type == arch.D_AUTO)
 		checkauto(fn, p, p->from.node);
-	if(p->from.type == D_PARAM)
+	if(p->from.type == arch.D_PARAM)
 		checkparam(fn, p, p->from.node);
-	if(p->to.type == D_AUTO)
+	if(p->to.type == arch.D_AUTO)
 		checkauto(fn, p, p->to.node);
-	if(p->to.type == D_PARAM)
+	if(p->to.type == arch.D_PARAM)
 		checkparam(fn, p, p->to.node);
 }
 
@@ -1051,15 +1044,8 @@ checkptxt(Node *fn, Prog *firstp)
 	for(p = firstp; p != P; p = p->link) {
 		if(0)
 			print("analyzing '%P'\n", p);
-		switch(p->as) {
-		case ADATA:
-		case AGLOBL:
-		case ANAME:
-		case ASIGNAME:
-		case ATYPE:
-			continue;
-		}
-		checkprog(fn, p);
+		if(p->as != arch.ADATA && p->as != arch.AGLOBL && p->as != arch.ANAME && p->as != arch.ASIGNAME && p->as != arch.ATYPE)
+			checkprog(fn, p);
 	}
 }
 
@@ -1228,7 +1214,7 @@ unlinkedprog(int as)
 	Prog *p;
 
 	p = mal(sizeof(*p));
-	clearp(p);
+	arch.clearp(p);
 	p->as = as;
 	return p;
 }
@@ -1243,10 +1229,10 @@ newpcdataprog(Prog *prog, int32 index)
 
 	nodconst(&from, types[TINT32], PCDATA_StackMapIndex);
 	nodconst(&to, types[TINT32], index);
-	pcdata = unlinkedprog(APCDATA);
+	pcdata = unlinkedprog(arch.APCDATA);
 	pcdata->lineno = prog->lineno;
-	naddr(&from, &pcdata->from, 0);
-	naddr(&to, &pcdata->to, 0);
+	arch.naddr(&from, &pcdata->from, 0);
+	arch.naddr(&to, &pcdata->to, 0);
 	return pcdata;
 }
 
@@ -1255,7 +1241,7 @@ newpcdataprog(Prog *prog, int32 index)
 static int
 issafepoint(Prog *prog)
 {
-	return prog->as == ATEXT || prog->as == ACALL;
+	return prog->as == arch.ATEXT || prog->as == arch.ACALL;
 }
 
 // Initializes the sets for solving the live variables.  Visits all the
@@ -1552,7 +1538,7 @@ livenessepilogue(Liveness *lv)
 		// walk backward, emit pcdata and populate the maps
 		pos = bb->lastbitmapindex;
 		if(pos < 0) {
-			// the first block we encounter should have the ATEXT so
+			// the first block we encounter should have the arch.ATEXT so
 			// at no point should pos ever be less than zero.
 			fatal("livenessepilogue");
 		}
@@ -1579,7 +1565,7 @@ livenessepilogue(Liveness *lv)
 				// Useful sanity check: on entry to the function,
 				// the only things that can possibly be live are the
 				// input parameters.
-				if(p->as == ATEXT) {
+				if(p->as == arch.ATEXT) {
 					for(j = 0; j < liveout->n; j++) {
 						if(!bvget(liveout, j))
 							continue;
@@ -1597,7 +1583,7 @@ livenessepilogue(Liveness *lv)
 				// Ambiguously live variables are zeroed immediately after
 				// function entry. Mark them live for all the non-entry bitmaps
 				// so that GODEBUG=gcdead=1 mode does not poison them.
-				if(p->as == ACALL)
+				if(p->as == arch.ACALL)
 					bvor(locals, locals, ambig);
 
 				// Show live pointer bitmaps.
@@ -1607,9 +1593,9 @@ livenessepilogue(Liveness *lv)
 				if(msg != nil) {
 					fmtstrinit(&fmt);
 					fmtprint(&fmt, "%L: live at ", p->lineno);
-					if(p->as == ACALL && p->to.node)
+					if(p->as == arch.ACALL && p->to.node)
 						fmtprint(&fmt, "call to %s:", ((Node*)(p->to.node))->sym->name);
-					else if(p->as == ACALL)
+					else if(p->as == arch.ACALL)
 						fmtprint(&fmt, "indirect call:");
 					else
 						fmtprint(&fmt, "entry to %s:", ((Node*)(p->from.node))->sym->name);
@@ -1630,7 +1616,7 @@ livenessepilogue(Liveness *lv)
 
 				// Only CALL instructions need a PCDATA annotation.
 				// The TEXT instruction annotation is implicit.
-				if(p->as == ACALL) {
+				if(p->as == arch.ACALL) {
 					if(isdeferreturn(p)) {
 						// runtime.deferreturn modifies its return address to return
 						// back to the CALL, not to the subsequent instruction.
@@ -1773,7 +1759,7 @@ livenesscompact(Liveness *lv)
 	
 	// Rewrite PCDATA instructions to use new numbering.
 	for(p=lv->ptxt; p != P; p=p->link) {
-		if(p->as == APCDATA && p->from.offset == PCDATA_StackMapIndex) {
+		if(p->as == arch.APCDATA && p->from.offset == PCDATA_StackMapIndex) {
 			i = p->to.offset;
 			if(i >= 0)
 				p->to.offset = remap[i];
@@ -1860,7 +1846,7 @@ livenessprintdebug(Liveness *lv)
 		// program listing, with individual effects listed
 		for(p = bb->first;; p = p->link) {
 			print("%P\n", p);
-			if(p->as == APCDATA && p->from.offset == PCDATA_StackMapIndex)
+			if(p->as == arch.APCDATA && p->from.offset == PCDATA_StackMapIndex)
 				pcdata = p->to.offset;
 			progeffects(p, lv->vars, uevar, varkill, avarinit);
 			printed = 0;
@@ -1937,7 +1923,7 @@ twobitwritesymbol(Array *arr, Sym *sym)
 		}
 	}
 	duint32(sym, 0, i); // number of bitmaps
-	ggloblsym(sym, off, RODATA);
+	arch.ggloblsym(sym, off, RODATA);
 }
 
 static void

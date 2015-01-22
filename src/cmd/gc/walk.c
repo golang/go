@@ -921,7 +921,7 @@ walkexpr(Node **np, NodeList **init)
 				l->class = PEXTERN;
 				l->xoffset = 0;
 				sym->def = l;
-				ggloblsym(sym, widthptr, DUPOK|NOPTR);
+				arch.ggloblsym(sym, widthptr, DUPOK|NOPTR);
 			}
 			l = nod(OADDR, sym->def, N);
 			l->addable = 1;
@@ -989,7 +989,7 @@ walkexpr(Node **np, NodeList **init)
 
 	case OCONV:
 	case OCONVNOP:
-		if(thechar == '5') {
+		if(arch.thechar == '5') {
 			if(isfloat[n->left->type->etype]) {
 				if(n->type->etype == TINT64) {
 					n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
@@ -1579,7 +1579,7 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 			l = tmp;
 		}
 
-		a = nod(OAS, l, nodarg(r, fp));
+		a = nod(OAS, l, arch.nodarg(r, fp));
 		a = convas(a, init);
 		ullmancalc(a);
 		if(a->ullman >= UINF) {
@@ -1632,7 +1632,7 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, Nod
 		walkexpr(&n, init);
 	}
 
-	a = nod(OAS, nodarg(l, fp), n);
+	a = nod(OAS, arch.nodarg(l, fp), n);
 	nn = list(nn, convas(a, init));
 	return nn;
 }
@@ -1712,7 +1712,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
 	if(r != N && lr->next == nil && r->type->etype == TSTRUCT && r->type->funarg) {
 		// optimization - can do block copy
 		if(eqtypenoname(r->type, *nl)) {
-			a = nodarg(*nl, fp);
+			a = arch.nodarg(*nl, fp);
 			r = nod(OCONVNOP, r, N);
 			r->type = a->type;
 			nn = list1(convas(nod(OAS, a, r), init));
@@ -1749,7 +1749,7 @@ loop:
 		// argument to a ddd parameter then it is
 		// passed thru unencapsulated
 		if(r != N && lr->next == nil && isddd && eqtype(l->type, r->type)) {
-			a = nod(OAS, nodarg(l, fp), r);
+			a = nod(OAS, arch.nodarg(l, fp), r);
 			a = convas(a, init);
 			nn = list(nn, a);
 			goto ret;
@@ -1774,7 +1774,7 @@ loop:
 		goto ret;
 	}
 
-	a = nod(OAS, nodarg(l, fp), r);
+	a = nod(OAS, arch.nodarg(l, fp), r);
 	a = convas(a, init);
 	nn = list(nn, a);
 
@@ -2527,7 +2527,7 @@ paramstoheap(Type **argin, int out)
 			// Defer might stop a panic and show the
 			// return values as they exist at the time of panic.
 			// Make sure to zero them on entry to the function.
-			nn = list(nn, nod(OAS, nodarg(t, 1), N));
+			nn = list(nn, nod(OAS, arch.nodarg(t, 1), N));
 		}
 		if(v == N || !(v->class & PHEAP))
 			continue;
@@ -3398,7 +3398,7 @@ walkrotate(Node **np)
 	Node *l, *r;
 	Node *n;
 
-	if(thechar == '9')
+	if(arch.thechar == '9')
 		return;
 	
 	n = *np;
@@ -3526,7 +3526,7 @@ walkdiv(Node **np, NodeList **init)
 	Magic m;
 
 	// TODO(minux)
-	if(thechar == '9')
+	if(arch.thechar == '9')
 		return;
 
 	n = *np;

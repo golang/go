@@ -28,7 +28,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include	"../gc/popt.h"
 
 #define	Z	N
 #define	Adr	Addr
@@ -170,59 +169,6 @@ int	BtoF(uint64);
 /*
  * prog.c
  */
-typedef struct ProgInfo ProgInfo;
-struct ProgInfo
-{
-	uint32 flags; // the bits below
-	uint64 reguse; // registers implicitly used by this instruction
-	uint64 regset; // registers implicitly set by this instruction
-	uint64 regindex; // registers used by addressing mode
-};
-
-enum
-{
-	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
-	Pseudo = 1<<1,
-	
-	// There's nothing to say about the instruction,
-	// but it's still okay to see.
-	OK = 1<<2,
-
-	// Size of right-side write, or right-side read if no write.
-	SizeB = 1<<3,
-	SizeW = 1<<4,
-	SizeL = 1<<5,
-	SizeQ = 1<<6,
-	SizeF = 1<<7, // float aka float32
-	SizeD = 1<<8, // double aka float64
-
-	// Left side (Prog.from): address taken, read, write.
-	LeftAddr = 1<<9,
-	LeftRead = 1<<10,
-	LeftWrite = 1<<11,
-
-	// Register in middle (Prog.reg); only ever read.
-	RegRead = 1<<12,
-	CanRegRead = 1<<13,
-
-	// Right side (Prog.to): address taken, read, write.
-	RightAddr = 1<<14,
-	RightRead = 1<<15,
-	RightWrite = 1<<16,
-
-	// Instruction updates whichever of from/to is type D_OREG
-	PostInc = 1<<17,
-
-	// Instruction kinds
-	Move = 1<<18, // straight move
-	Conv = 1<<19, // size conversion
-	Cjmp = 1<<20, // conditional jump
-	Break = 1<<21, // breaks control flow (no fallthrough)
-	Call = 1<<22, // function call
-	Jump = 1<<23, // jump
-	Skip = 1<<24, // data instruction
-};
-
 void proginfo(ProgInfo*, Prog*);
 
 // Many Power ISA arithmetic and logical instructions come in four
