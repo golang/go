@@ -7,7 +7,7 @@
 #include	"../../runtime/typekind.h"
 
 // Decoding the type.* symbols.	 This has to be in sync with
-// ../../runtime/type.go, or more specificaly, with what
+// ../../runtime/type.go, or more specifically, with what
 // ../gc/reflect.c stuffs in these.
 
 static Reloc*
