@@ -586,7 +586,9 @@ reswitch:
 				l->typecheck = 1;
 				n->left = l;
 				t = l->type;
-			} else if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
+				goto converted;
+			}
+			if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
 				if(isinter(l->type) && !isinter(r->type) && algtype1(r->type, nil) == ANOEQ) {
 					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(r->type));
 					goto error;
@@ -597,6 +599,7 @@ reswitch:
 				n->right = r;
 				t = r->type;
 			}
+		converted:
 			et = t->etype;
 		}
 		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {

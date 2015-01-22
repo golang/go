@@ -58,7 +58,7 @@ noreturn(Prog *p)
 
 	if(p->to.node == nil)
 		return 0;
-	s = p->to.node->sym;
+	s = ((Node*)(p->to.node))->sym;
 	if(s == S)
 		return 0;
 	for(i=0; symlist[i]!=S; i++)
@@ -586,10 +586,14 @@ mergetemp(Prog *firstp)
 		p = r->f.prog;
 		proginfo(&info, p);
 
-		if(p->from.node != N && p->from.node->opt && p->to.node != N && p->to.node->opt)
+		if(p->from.node != N && ((Node*)(p->from.node))->opt && p->to.node != N && ((Node*)(p->to.node))->opt)
 			fatal("double node %P", p);
-		if((n = p->from.node) != N && (v = n->opt) != nil ||
-		   (n = p->to.node) != N && (v = n->opt) != nil) {
+		v = nil;
+		if((n = p->from.node) != N)
+			v = n->opt;
+		if(v == nil && (n = p->to.node) != N)
+			v = n->opt;
+		if(v != nil) {
 		   	if(v->def == nil)
 		   		v->def = r;
 			r->uselink = v->use;

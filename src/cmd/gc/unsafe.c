@@ -27,7 +27,9 @@ unsafenmagic(Node *nn)
 	fn = nn->left;
 	args = nn->list;
 
-	if(safemode || fn == N || fn->op != ONAME || (s = fn->sym) == S)
+	if(safemode || fn == N || fn->op != ONAME)
+		goto no;
+	if((s = fn->sym) == S)
 		goto no;
 	if(s->pkg != unsafepkg)
 		goto no;

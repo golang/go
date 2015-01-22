@@ -128,10 +128,10 @@ markautoused(Prog* p)
 			continue;
 
 		if (p->from.node)
-			p->from.node->used = 1;
+			((Node*)(p->from.node))->used = 1;
 
 		if (p->to.node)
-			p->to.node->used = 1;
+			((Node*)(p->to.node))->used = 1;
 	}
 }
 
@@ -142,11 +142,11 @@ fixautoused(Prog* p)
 	Prog **lp;
 
 	for (lp=&p; (p=*lp) != P; ) {
-		if (p->as == ATYPE && p->from.node && p->from.name == D_AUTO && !p->from.node->used) {
+		if (p->as == ATYPE && p->from.node && p->from.name == D_AUTO && !((Node*)(p->from.node))->used) {
 			*lp = p->link;
 			continue;
 		}
-		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
+		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !((Node*)(p->to.node))->used) {
 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
 			// VARDEFs are interspersed with other code, and a jump might be using the
 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
@@ -158,10 +158,10 @@ fixautoused(Prog* p)
 		}
 
 		if (p->from.name == D_AUTO && p->from.node)
-			p->from.offset += p->from.node->stkdelta;
+			p->from.offset += ((Node*)(p->from.node))->stkdelta;
 
 		if (p->to.name == D_AUTO && p->to.node)
-			p->to.offset += p->to.node->stkdelta;
+			p->to.offset += ((Node*)(p->to.node))->stkdelta;
 
 		lp = &p->link;
 	}

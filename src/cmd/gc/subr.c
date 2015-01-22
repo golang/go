@@ -708,7 +708,7 @@ static int
 methcmp(const void *va, const void *vb)
 {
 	Type *a, *b;
-	int i;
+	int k;
 	
 	a = *(Type**)va;
 	b = *(Type**)vb;
@@ -718,13 +718,13 @@ methcmp(const void *va, const void *vb)
 		return -1;
 	if(b->sym == S)
 		return 1;
-	i = strcmp(a->sym->name, b->sym->name);
-	if(i != 0)
-		return i;
+	k = strcmp(a->sym->name, b->sym->name);
+	if(k != 0)
+		return k;
 	if(!exportname(a->sym->name)) {
-		i = strcmp(a->sym->pkg->path->s, b->sym->pkg->path->s);
-		if(i != 0)
-			return i;
+		k = strcmp(a->sym->pkg->path->s, b->sym->pkg->path->s);
+		if(k != 0)
+			return k;
 	}
 	return 0;
 }
