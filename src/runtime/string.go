@@ -73,8 +73,9 @@ func slicebytetostringtmp(b []byte) string {
 	// that know that the string form will be discarded before
 	// the calling goroutine could possibly modify the original
 	// slice or synchronize with another goroutine.
-	// Today, the only such case is a m[string(k)] lookup where
+	// First such case is a m[string(k)] lookup where
 	// m is a string-keyed map and k is a []byte.
+	// Second such case is "<"+string(b)+">" concatenation where b is []byte.
 
 	if raceenabled && len(b) > 0 {
 		racereadrangepc(unsafe.Pointer(&b[0]),
