@@ -57,6 +57,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
@@ -400,6 +401,9 @@ func Run(pta bool, result *Result) {
 	var mainPkgs []*ssa.Package
 	if testmain := prog.CreateTestMainPackage(allPackages...); testmain != nil {
 		mainPkgs = append(mainPkgs, testmain)
+		if p := testmain.Const("packages"); p != nil {
+			log.Printf("Tested packages: %v", exact.StringVal(p.Value.Value))
+		}
 	}
 	for _, pkg := range allPackages {
 		if pkg.Object.Name() == "main" && pkg.Func("main") != nil {

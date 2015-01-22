@@ -12,8 +12,10 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
+	"sort"
 	"strings"
 
+	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/types"
 )
 
@@ -118,25 +120,33 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 	}
 
 	// Initialize packages to test.
+	var pkgpaths []string
 	for _, pkg := range pkgs {
 		var v Call
 		v.Call.Value = pkg.init
 		v.setType(types.NewTuple())
 		init.emit(&v)
+
+		pkgpaths = append(pkgpaths, pkg.Object.Path())
 	}
+	sort.Strings(pkgpaths)
 	init.emit(new(Return))
 	init.finishBody()
 	testmain.init = init
 	testmain.Object.MarkComplete()
 	testmain.Members[init.name] = init
 
-	main := &Function{
-		name:      "main",
-		Signature: new(types.Signature),
-		Synthetic: "test main function",
-		Prog:      prog,
-		Pkg:       testmain,
-	}
+	// For debugging convenience, define an unexported const
+	// that enumerates the packages.
+	packagesConst := types.NewConst(token.NoPos, testmain.Object, "packages", tString,
+		exact.MakeString(strings.Join(pkgpaths, " ")))
+	memberFromObject(testmain, packagesConst, nil)
+
+	// Create main *types.Func and *ssa.Function
+	mainFunc := types.NewFunc(token.NoPos, testmain.Object, "main", new(types.Signature))
+	memberFromObject(testmain, mainFunc, nil)
+	main := testmain.Func("main")
+	main.Synthetic = "test main function"
 
 	main.startBody()
 
