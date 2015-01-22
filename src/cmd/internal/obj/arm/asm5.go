@@ -463,7 +463,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			// split it into two instructions:
 			// 	ADD $-100004, R13
 			// 	MOVW R14, 0(R13)
-			q = ctxt.Arch.Prg()
+			q = ctxt.NewProg()
 
 			p.Scond &^= C_WBIT
 			*q = *p
@@ -546,7 +546,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 
 					ctxt.Diag("unsupported instruction (.P/.W): %v", p)
 				}
-				q = ctxt.Arch.Prg()
+				q = ctxt.NewProg()
 				*q = *p
 				if p.To.Type == D_OREG {
 					a2 = &q.To
@@ -894,7 +894,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) int {
 			if false && skip == 1 {
 				fmt.Printf("note: flush literal pool at %x: len=%d ref=%x\n", uint64(p.Pc+4), pool.size, pool.start)
 			}
-			q = ctxt.Arch.Prg()
+			q = ctxt.NewProg()
 			q.As = AB
 			q.To.Type = D_BRANCH
 			q.Pcond = p.Link
@@ -906,7 +906,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) int {
 		}
 		if ctxt.Headtype == obj.Hnacl && pool.size%16 != 0 {
 			// if pool is not multiple of 16 bytes, add an alignment marker
-			q = ctxt.Arch.Prg()
+			q = ctxt.NewProg()
 
 			q.As = ADATABUNDLEEND
 			ctxt.Elitrl.Link = q
@@ -983,7 +983,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 
 	if ctxt.Headtype == obj.Hnacl && pool.size%16 == 0 {
 		// start a new data bundle
-		q = ctxt.Arch.Prg()
+		q = ctxt.NewProg()
 
 		*q = zprg
 		q.As = ADATABUNDLE
@@ -1000,7 +1000,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		ctxt.Elitrl = q
 	}
 
-	q = ctxt.Arch.Prg()
+	q = ctxt.NewProg()
 	*q = t
 	q.Pc = int64(pool.size)
 

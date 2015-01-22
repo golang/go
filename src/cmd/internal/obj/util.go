@@ -117,3 +117,9 @@ func (p *Prog) String() string {
 	}
 	return p.Ctxt.Arch.Pconv(p)
 }
+
+func (ctxt *Link) NewProg() *Prog {
+	p := ctxt.Arch.Prg() // should be the only call to this; all others should use ctxt.NewProg
+	p.Ctxt = ctxt
+	return p
+}

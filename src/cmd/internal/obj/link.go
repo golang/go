@@ -49,7 +49,7 @@ type Addr struct {
 	Class   int8
 	Etype   uint8
 	Offset2 int32
-	Node    *struct{}
+	Node    interface{}
 	Width   int64
 }
 
