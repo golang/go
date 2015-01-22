@@ -946,7 +946,7 @@ func TestLinuxSendfile(t *testing.T) {
 	res.Body.Close()
 
 	// Force child to exit cleanly.
-	Get(fmt.Sprintf("http://%s/quit", ln.Addr()))
+	Post(fmt.Sprintf("http://%s/quit", ln.Addr()), "", nil)
 	child.Wait()
 
 	rx := regexp.MustCompile(`sendfile(64)?\(\d+,\s*\d+,\s*NULL,\s*\d+\)\s*=\s*\d+\s*\n`)

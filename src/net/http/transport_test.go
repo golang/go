@@ -2410,6 +2410,80 @@ type closerFunc func() error
 
 func (f closerFunc) Close() error { return f() }
 
+// Issue 4677. If we try to reuse a connection that the server is in the
+// process of closing, we may end up successfully writing out our request (or a
+// portion of our request) only to find a connection error when we try to read
+// from (or finish writing to) the socket.
+//
+// NOTE: we resend a request only if the request is idempotent, we reused a
+// keep-alive connection, and we haven't yet received any header data.  This
+// automatically prevents an infinite resend loop because we'll run out of the
+// cached keep-alive connections eventually.
+func TestRetryIdempotentRequestsOnError(t *testing.T) {
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	c := &Client{Transport: tr}
+
+	const N = 2
+	retryc := make(chan struct{}, N)
+	SetRetriedHook(func() {
+		retryc <- struct{}{}
+	})
+	defer SetRetriedHook(nil)
+
+	for n := 0; n < 100; n++ {
+		// open 2 conns
+		errc := make(chan error, N)
+		for i := 0; i < N; i++ {
+			// start goroutines, send on errc
+			go func() {
+				res, err := c.Get(ts.URL)
+				if err == nil {
+					res.Body.Close()
+				}
+				errc <- err
+			}()
+		}
+		for i := 0; i < N; i++ {
+			if err := <-errc; err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		ts.CloseClientConnections()
+		for i := 0; i < N; i++ {
+			go func() {
+				res, err := c.Get(ts.URL)
+				if err == nil {
+					res.Body.Close()
+				}
+				errc <- err
+			}()
+		}
+
+		for i := 0; i < N; i++ {
+			if err := <-errc; err != nil {
+				t.Fatal(err)
+			}
+		}
+		for i := 0; i < N; i++ {
+			select {
+			case <-retryc:
+				// we triggered a retry, test was successful
+				t.Logf("finished after %d runs\n", n)
+				return
+			default:
+			}
+		}
+	}
+	t.Fatal("did not trigger any retries")
+}
+
 // Issue 6981
 func TestTransportClosesBodyOnError(t *testing.T) {
 	defer afterTest(t)
