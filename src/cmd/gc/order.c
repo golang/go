@@ -58,6 +58,13 @@ static void	orderexprlistinplace(NodeList*, Order*);
 void
 order(Node *fn)
 {
+	char s[50];
+
+	if(debug['W'] > 1) {
+		snprint(s, sizeof(s), "\nbefore order %S", fn->nname->sym);
+		dumplist(s, fn->nbody);
+	}
+
 	orderblock(&fn->nbody);
 }
 
@@ -974,7 +981,7 @@ orderexpr(Node **np, Order *order)
 	Node *n;
 	NodeList *mark, *l;
 	Type *t;
-	int lno;
+	int lno, haslit, hasbyte;
 
 	n = *np;
 	if(n == N)
@@ -1001,6 +1008,26 @@ orderexpr(Node **np, Order *order)
 			t->bound = count(n->list);
 			t->type = types[TSTRING];
 			n->alloc = ordertemp(t, order, 0);
+		}
+
+		// Mark string(byteSlice) arguments to reuse byteSlice backing
+		// buffer during conversion. String concatenation does not
+		// memorize the strings for later use, so it is safe.
+		// However, we can do it only if there is at least one non-empty string literal.
+		// Otherwise if all other arguments are empty strings,
+		// concatstrings will return the reference to the temp string
+		// to the caller.
+		hasbyte = 0;
+		haslit = 0;
+		for(l=n->list; l != nil; l=l->next) {
+			hasbyte |= l->n->op == OARRAYBYTESTR;
+			haslit |= l->n->op == OLITERAL && l->n->val.u.sval->len != 0;
+		}
+		if(haslit && hasbyte) {
+			for(l=n->list; l != nil; l=l->next) {
+				if(l->n->op == OARRAYBYTESTR)
+					l->n->op = OARRAYBYTESTRTMP;
+			}
 		}
 		break;
 
