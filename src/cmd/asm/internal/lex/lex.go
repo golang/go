@@ -107,6 +107,13 @@ type Token struct {
 
 // Make returns a Token with the given rune (ScanToken) and text representation.
 func Make(token ScanToken, text string) Token {
+	// If the symbol starts with center dot, as in ·x, rewrite it as ""·x
+	if token == scanner.Ident && strings.HasPrefix(text, "\u00B7") {
+		text = `""` + text
+	}
+	// Substitute the substitutes for . and /.
+	text = strings.Replace(text, "\u00B7", ".", 1)
+	text = strings.Replace(text, "\u2215", "/", -1)
 	return Token{ScanToken: token, text: text}
 }
 
@@ -130,7 +137,7 @@ func tokenize(str string) []Token {
 		if tok == scanner.EOF {
 			break
 		}
-		tokens = append(tokens, Token{ScanToken: tok, text: t.Text()})
+		tokens = append(tokens, Make(tok, t.Text()))
 	}
 	return tokens
 }

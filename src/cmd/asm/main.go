@@ -30,8 +30,7 @@ func main() {
 		log.Fatalf("asm: unrecognized architecture %s", GOARCH)
 	}
 
-	// Is this right?
-	flags.Parse(build.Default.GOROOT, build.Default.GOOS, GOARCH, architecture.Thechar)
+	flags.Parse(obj.Getgoroot(), obj.Getgoos(), obj.Getgoarch(), architecture.Thechar)
 
 	// Create object file, write header.
 	fd, err := os.Create(*flags.OutputFile)

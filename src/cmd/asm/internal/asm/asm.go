@@ -144,7 +144,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	if !nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Register != arch.RSB {
 		p.errorf("TEXT symbol %q must be an offset from SB", nameAddr.Symbol)
 	}
-	name := strings.Replace(nameAddr.Symbol, "·", ".", 1)
+	name := nameAddr.Symbol
 
 	// Operand 1 is the text flag, a literal integer.
 	flagAddr := p.address(operands[1])
@@ -160,7 +160,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	// Not clear we can do better, but it doesn't matter.
 	op := operands[2]
 	n := len(op)
-	var locals int64
+	locals := int64(obj.ArgsSizeUnknown)
 	if n >= 2 && op[n-2].ScanToken == '-' && op[n-1].ScanToken == scanner.Int {
 		p.start(op[n-1:])
 		locals = int64(p.expr())

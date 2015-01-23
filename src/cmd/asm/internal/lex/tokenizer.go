@@ -39,7 +39,9 @@ func NewTokenizer(name string, r io.Reader, file *os.File) *Tokenizer {
 		scanner.ScanComments
 	s.Position.Filename = name
 	s.IsIdentRune = isIdentRune
-	obj.Linklinehist(linkCtxt, histLine, name, 0)
+	if file != nil {
+		obj.Linklinehist(linkCtxt, histLine, name, 0)
+	}
 	return &Tokenizer{
 		s:        &s,
 		line:     1,
@@ -107,7 +109,9 @@ func (t *Tokenizer) Next() ScanToken {
 	}
 	switch t.tok {
 	case '\n':
-		histLine++
+		if t.file != nil {
+			histLine++
+		}
 		t.line++
 	case '-':
 		if s.Peek() == '>' {
