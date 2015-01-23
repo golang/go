@@ -234,7 +234,7 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 				continue
 			}
 		}
-		tokens = append(tokens, Token{ScanToken(tok), in.Text()})
+		tokens = append(tokens, Make(tok, in.Text()))
 		tok = in.Stack.Next()
 	}
 	return args, tokens
@@ -305,7 +305,7 @@ func (in *Input) argsFor(macro *Macro) map[string][]Token {
 				return args
 			}
 		default:
-			tokens = append(tokens, Token{tok, in.Stack.Text()})
+			tokens = append(tokens, Make(tok, in.Stack.Text()))
 		}
 	}
 }
