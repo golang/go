@@ -1764,56 +1764,6 @@ func doConcurrentTest(t testing.TB, ct concurrentTest) {
 	wg.Wait()
 }
 
-func manyConcurrentQueries(t testing.TB) {
-	maxProcs, numReqs := 16, 500
-	if testing.Short() {
-		maxProcs, numReqs = 4, 50
-	}
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
-
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-
-	stmt, err := db.Prepare("SELECT|people|name|")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer stmt.Close()
-
-	var wg sync.WaitGroup
-	wg.Add(numReqs)
-
-	reqs := make(chan bool)
-	defer close(reqs)
-
-	for i := 0; i < maxProcs*2; i++ {
-		go func() {
-			for range reqs {
-				rows, err := stmt.Query()
-				if err != nil {
-					t.Errorf("error on query:  %v", err)
-					wg.Done()
-					continue
-				}
-
-				var name string
-				for rows.Next() {
-					rows.Scan(&name)
-				}
-				rows.Close()
-
-				wg.Done()
-			}
-		}()
-	}
-
-	for i := 0; i < numReqs; i++ {
-		reqs <- true
-	}
-
-	wg.Wait()
-}
-
 func TestIssue6081(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -1984,4 +1934,32 @@ func BenchmarkConcurrentRandom(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		doConcurrentTest(b, ct)
 	}
+}
+
+func BenchmarkManyConcurrentQueries(b *testing.B) {
+	b.ReportAllocs()
+	// To see lock contention in Go 1.4, 16~ cores and 128~ goroutines are required.
+	const parallelism = 16
+
+	db := newTestDB(b, "magicquery")
+	defer closeDB(b, db)
+	db.SetMaxIdleConns(runtime.GOMAXPROCS(0) * parallelism)
+
+	stmt, err := db.Prepare("SELECT|magicquery|op|op=?,millis=?")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer stmt.Close()
+
+	b.SetParallelism(parallelism)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			rows, err := stmt.Query("sleep", 1)
+			if err != nil {
+				b.Error(err)
+				return
+			}
+			rows.Close()
+		}
+	})
 }
