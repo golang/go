@@ -84,8 +84,23 @@ func run(dir string, mode int, cmd ...string) string {
 
 	xcmd := exec.Command(cmd[0], cmd[1:]...)
 	xcmd.Dir = dir
+	var data []byte
 	var err error
-	data, err := xcmd.CombinedOutput()
+
+	// If we want to show command output and this is not
+	// a background command, assume it's the only thing
+	// running, so we can just let it write directly stdout/stderr
+	// as it runs without fear of mixing the output with some
+	// other command's output. Not buffering lets the output
+	// appear as it is printed instead of once the command exits.
+	// This is most important for the invocation of 'go1.4 build -v bootstrap/...'.
+	if mode&(Background|ShowOutput) == ShowOutput {
+		xcmd.Stdout = os.Stdout
+		xcmd.Stderr = os.Stderr
+		err = xcmd.Run()
+	} else {
+		data, err = xcmd.CombinedOutput()
+	}
 	if err != nil && mode&CheckExit != 0 {
 		outputLock.Lock()
 		if len(data) > 0 {
