@@ -43,6 +43,7 @@ var valids = []string{
 	`package p; func _() { map[int]int{}[0]++; map[int]int{}[0] += 1 }`,
 	`package p; func _(x interface{f()}) { interface{f()}(x).f() }`,
 	`package p; func _(x chan int) { chan int(x) <- 0 }`,
+	`package p; const (x = 0; y; z)`, // issue 9639
 }
 
 func TestValid(t *testing.T) {
@@ -97,7 +98,11 @@ var invalids = []string{
 	`package p; func f() { go f /* ERROR HERE "function must be invoked" */ }`,
 	`package p; func f() { defer func() {} /* ERROR HERE "function must be invoked" */ }`,
 	`package p; func f() { go func() { func() { f(x func /* ERROR "expected '\)'" */ (){}) } } }`,
-	`package p; func f() (a b string /* ERROR "expected '\)'" */ , ok bool) // issue 8656`,
+	`package p; func f() (a b string /* ERROR "expected '\)'" */ , ok bool)`,         // issue 8656
+	`package p; var x /* ERROR "missing variable type or initialization" */ , y, z;`, // issue 9639
+	`package p; const x /* ERROR "missing constant value" */ ;`,                      // issue 9639
+	`package p; const x /* ERROR "missing constant value" */ int;`,                   // issue 9639
+	`package p; const (x = 0; y; z /* ERROR "missing constant value" */ int);`,       // issue 9639
 }
 
 func TestInvalid(t *testing.T) {
