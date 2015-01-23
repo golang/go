@@ -221,8 +221,8 @@ func filterDecl(decl Decl, f Filter, export bool) bool {
 // names from top-level declarations (including struct field and
 // interface method names, but not from parameter lists) that don't
 // pass through the filter f. If the declaration is empty afterwards,
-// the declaration is removed from the AST. The File.Comments list
-// is not changed.
+// the declaration is removed from the AST. Import declarations are
+// always removed. The File.Comments list is not changed.
 //
 // FilterFile returns true if there are any top-level declarations
 // left after filtering; it returns false otherwise.
