@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 
 	"golang.org/x/tools/go/buildutil"
@@ -212,7 +211,6 @@ var _ a.T
 	for _, test := range tests {
 		ctxt := test.ctxt
 
-		var mu sync.Mutex
 		got := make(map[string]string)
 		// Populate got with starting file set. rewriteFile and moveDirectory
 		// will mutate got to produce resulting file set.
@@ -225,19 +223,17 @@ var _ a.T
 				return
 			}
 			f, err := ctxt.OpenFile(path)
-			defer f.Close()
 			if err != nil {
 				t.Errorf("unexpected error opening file: %s", err)
 				return
 			}
 			bytes, err := ioutil.ReadAll(f)
+			f.Close()
 			if err != nil {
 				t.Errorf("unexpected error reading file: %s", err)
 				return
 			}
-			mu.Lock()
 			got[path] = string(bytes)
-			defer mu.Unlock()
 		})
 		rewriteFile = func(fset *token.FileSet, f *ast.File, orig string) error {
 			var out bytes.Buffer

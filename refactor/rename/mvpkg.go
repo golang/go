@@ -26,7 +26,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 
 	"golang.org/x/tools/go/buildutil"
@@ -133,13 +132,12 @@ func srcDir(ctxt *build.Context, pkg string) (string, error) {
 // subpackages returns the set of packages in the given srcDir whose
 // import paths start with dir.
 func subpackages(ctxt *build.Context, srcDir string, dir string) map[string]bool {
-	var mu sync.Mutex
 	subs := map[string]bool{dir: true}
 
 	// Find all packages under srcDir whose import paths start with dir.
 	buildutil.ForEachPackage(ctxt, func(pkg string, err error) {
 		if err != nil {
-			log.Fatalf("unexpected error in ForEackPackage: %v", err)
+			log.Fatalf("unexpected error in ForEachPackage: %v", err)
 		}
 
 		if !strings.HasPrefix(pkg, path.Join(dir, "")) {
@@ -157,9 +155,7 @@ func subpackages(ctxt *build.Context, srcDir string, dir string) map[string]bool
 			return
 		}
 
-		mu.Lock()
 		subs[pkg] = true
-		mu.Unlock()
 	})
 
 	return subs

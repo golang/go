@@ -30,11 +30,8 @@ import (
 //
 func AllPackages(ctxt *build.Context) []string {
 	var list []string
-	var mu sync.Mutex
 	ForEachPackage(ctxt, func(pkg string, _ error) {
-		mu.Lock()
 		list = append(list, pkg)
-		mu.Unlock()
 	})
 	sort.Strings(list)
 	return list
@@ -47,27 +44,42 @@ func AllPackages(ctxt *build.Context) []string {
 // If the package directory exists but could not be read, the second
 // argument to the found function provides the error.
 //
-// The found function and the build.Context file system interface
-// accessors must be concurrency safe.
+// All I/O is done via the build.Context file system interface,
+// which must be concurrency-safe.
 //
 func ForEachPackage(ctxt *build.Context, found func(importPath string, err error)) {
 	// We use a counting semaphore to limit
 	// the number of parallel calls to ReadDir.
 	sema := make(chan bool, 20)
 
+	ch := make(chan item)
+
 	var wg sync.WaitGroup
 	for _, root := range ctxt.SrcDirs() {
 		root := root
 		wg.Add(1)
 		go func() {
-			allPackages(ctxt, sema, root, found)
+			allPackages(ctxt, sema, root, ch)
 			wg.Done()
 		}()
 	}
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	// All calls to found occur in the caller's goroutine.
+	for i := range ch {
+		found(i.importPath, i.err)
+	}
 }
 
-func allPackages(ctxt *build.Context, sema chan bool, root string, found func(string, error)) {
+type item struct {
+	importPath string
+	err        error // (optional)
+}
+
+func allPackages(ctxt *build.Context, sema chan bool, root string, ch chan<- item) {
 	root = filepath.Clean(root) + string(os.PathSeparator)
 
 	var wg sync.WaitGroup
@@ -92,7 +104,7 @@ func allPackages(ctxt *build.Context, sema chan bool, root string, found func(st
 		files, err := ReadDir(ctxt, dir)
 		<-sema
 		if pkg != "" || err != nil {
-			found(pkg, err)
+			ch <- item{pkg, err}
 		}
 		for _, fi := range files {
 			fi := fi
