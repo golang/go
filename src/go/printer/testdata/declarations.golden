@@ -111,6 +111,9 @@ import (
 )
 
 // print import paths as double-quoted strings
+// (we would like more test cases but the go/parser
+// already excludes most incorrect paths, and we don't
+// bother setting up test-ASTs manually)
 import (
 	"fmt"
 	"math"
