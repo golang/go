@@ -357,12 +357,18 @@ func nlz(x Word) uint {
 	return _W - uint(bitLen(x))
 }
 
-// TODO(gri) this assumes a Word is 64 bits
 func nlz64(x uint64) uint {
-	if _W != 64 {
-		panic("size mismatch")
+	// TODO(gri) this can be done more nicely
+	if _W == 32 {
+		if x>>32 == 0 {
+			return 32 + nlz(Word(x))
+		}
+		return nlz(Word(x >> 32))
 	}
-	return nlz(Word(x))
+	if _W == 64 {
+		return nlz(Word(x))
+	}
+	panic("unreachable")
 }
 
 // SetUint64 sets z to x and returns z.
