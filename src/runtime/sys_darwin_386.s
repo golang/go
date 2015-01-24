@@ -221,8 +221,7 @@ TEXT time·now(SB),NOSPLIT,$0
 	MOVL	DX, nsec+8(FP)
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
+// func nanotime() int64
 TEXT runtime·nanotime(SB),NOSPLIT,$0
 	CALL	runtime·now(SB)
 	MOVL	AX, ret_lo+0(FP)
@@ -328,7 +327,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$32
 	INT	$0x80
 	RET
 
-// void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
+// func bsdthread_create(stk unsafe.Pointer, mm *m, gg *g, fn uintptr) int32
 // System call args are: func arg stack pthread flags.
 TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
 	MOVL	$360, AX
@@ -389,7 +388,7 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	CALL	runtime·exit1(SB)
 	RET
 
-// void bsdthread_register(void)
+// func bsdthread_register() int32
 // registers callbacks for threadstart (see bsdthread_create above
 // and wqthread and pthsize (not used).  returns 0 on success.
 TEXT runtime·bsdthread_register(SB),NOSPLIT,$40
@@ -448,35 +447,35 @@ TEXT runtime·mach_task_self(SB),NOSPLIT,$0
 // Mach provides trap versions of the semaphore ops,
 // instead of requiring the use of RPC.
 
-// uint32 mach_semaphore_wait(uint32)
+// func mach_semaphore_wait(sema uint32) int32
 TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	$-36, AX
 	CALL	runtime·sysenter(SB)
 	MOVL	AX, ret+4(FP)
 	RET
 
-// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+// func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
 TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	$-38, AX
 	CALL	runtime·sysenter(SB)
 	MOVL	AX, ret+12(FP)
 	RET
 
-// uint32 mach_semaphore_signal(uint32)
+// func mach_semaphore_signal(sema uint32) int32
 TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	$-33, AX
 	CALL	runtime·sysenter(SB)
 	MOVL	AX, ret+4(FP)
 	RET
 
-// uint32 mach_semaphore_signal_all(uint32)
+// func mach_semaphore_signal_all(sema uint32) int32
 TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	$-34, AX
 	CALL	runtime·sysenter(SB)
 	MOVL	AX, ret+4(FP)
 	RET
 
-// setldt(int entry, int address, int limit)
+// func setldt(entry int, address int, limit int)
 // entry and limit are ignored.
 TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	address+4(FP), BX	// aka base
@@ -523,7 +522,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVL	AX, ret+24(FP)
 	RET
 
-// int32 runtime·kqueue(void);
+// func kqueue() int32
 TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVL	$362, AX
 	INT	$0x80
@@ -532,7 +531,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVL	AX, ret+0(FP)
 	RET
 
-// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+// func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	$363, AX
 	INT	$0x80
@@ -541,7 +540,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	AX, ret+24(FP)
 	RET
 
-// int32 runtime·closeonexec(int32 fd);
+// func closeonexec(fd int32)
 TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	MOVL	$92, AX  // fcntl
 	// 0(SP) is where the caller PC would be; kernel skips it

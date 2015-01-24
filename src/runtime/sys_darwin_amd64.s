@@ -303,7 +303,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SYSCALL
 	RET
 
-// void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
+// func bsdthread_create(stk unsafe.Pointer, mm *m, gg *g, fn uintptr) int32
 TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback
@@ -359,7 +359,7 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	CALL	runtime·exit1(SB)
 	RET
 
-// void bsdthread_register(void)
+// func bsdthread_register() int32
 // registers callbacks for threadstart (see bsdthread_create above
 // and wqthread and pthsize (not used).  returns 0 on success.
 TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
@@ -381,7 +381,7 @@ TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
 
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
 
-// uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
+// func mach_msg_trap(h unsafe.Pointer, op int32, send_size, rcv_size, rcv_name, timeout, notify uint32) int32
 TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
 	MOVQ	h+0(FP), DI
 	MOVL	op+8(FP), SI
@@ -418,7 +418,7 @@ TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
 // Mach provides trap versions of the semaphore ops,
 // instead of requiring the use of RPC.
 
-// uint32 mach_semaphore_wait(uint32)
+// func mach_semaphore_wait(sema uint32) int32
 TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	$(0x1000000+36), AX	// semaphore_wait_trap
@@ -426,7 +426,7 @@ TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+// func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
 TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	sec+4(FP), SI
@@ -436,7 +436,7 @@ TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
 	MOVL	AX, ret+16(FP)
 	RET
 
-// uint32 mach_semaphore_signal(uint32)
+// func mach_semaphore_signal(sema uint32) int32
 TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	$(0x1000000+33), AX	// semaphore_signal_trap
@@ -444,7 +444,7 @@ TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-// uint32 mach_semaphore_signal_all(uint32)
+// func mach_semaphore_signal_all(sema uint32) int32
 TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
 	MOVL	sema+0(FP), DI
 	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
@@ -482,7 +482,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVL	AX, ret+48(FP)
 	RET
 
-// int32 runtime·kqueue(void);
+// func kqueue() int32
 TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVQ    $0, DI
 	MOVQ    $0, SI
@@ -494,7 +494,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVL	AX, ret+0(FP)
 	RET
 
-// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+// func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL    kq+0(FP), DI
 	MOVQ    ch+8(FP), SI
@@ -509,7 +509,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	AX, ret+48(FP)
 	RET
 
-// void runtime·closeonexec(int32 fd);
+// func closeonexec(fd int32)
 TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL    fd+0(FP), DI  // fd
 	MOVQ    $2, SI  // F_SETFD
