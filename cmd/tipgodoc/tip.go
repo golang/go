@@ -151,7 +151,11 @@ func initSide(side, goHash, toolsHash string) (godoc *exec.Cmd, hostport string,
 	}
 	goBin := filepath.Join(goDir, "bin/go")
 	install := exec.Command(goBin, "install", "golang.org/x/tools/cmd/godoc")
-	install.Env = []string{"GOROOT=" + goDir, "GOPATH=" + filepath.Join(dir, "gopath")}
+	install.Env = []string{
+		"GOROOT=" + goDir,
+		"GOPATH=" + filepath.Join(dir, "gopath"),
+		"GOROOT_BOOTSTRAP=" + os.Getenv("GOROOT_BOOTSTRAP"),
+	}
 	if err := runErr(install); err != nil {
 		return nil, "", err
 	}

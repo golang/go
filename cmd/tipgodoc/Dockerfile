@@ -1,6 +1,9 @@
-FROM golang
+FROM golang:1.4.1
 
 RUN apt-get update && apt-get install --no-install-recommends -y -q build-essential git
+
+# golang puts its go install here (weird but true)
+ENV GOROOT_BOOTSTRAP /usr/src/go
 
 # golang sets GOPATH=/go
 ADD . /go/src/tipgodoc
