@@ -37,29 +37,7 @@
 
 static Prog zprg = {
 	.as = AGOK,
-	.reg = NREG,
-	.from = {
-		.name = D_NONE,
-		.type = D_NONE,
-		.reg = NREG,
-	},
-	.from3 = {
-		.name = D_NONE,
-		.type = D_NONE,
-		.reg = NREG,
-	},
-	.to = {
-		.name = D_NONE,
-		.type = D_NONE,
-		.reg = NREG,
-	},
 };
-
-static int
-symtype(Addr *a)
-{
-	return a->name;
-}
 
 static int
 isdata(Prog *p)
@@ -102,7 +80,7 @@ progedit(Link *ctxt, Prog *p)
 	p->from.class = 0;
 	p->to.class = 0;
 
-	// Rewrite BR/BL to symbol as D_BRANCH.
+	// Rewrite BR/BL to symbol as TYPE_BRANCH.
 	switch(p->as) {
 	case ABR:
 	case ABL:
@@ -110,14 +88,14 @@ progedit(Link *ctxt, Prog *p)
 	case ADUFFZERO:
 	case ADUFFCOPY:
 		if(p->to.sym != nil)
-			p->to.type = D_BRANCH;
+			p->to.type = TYPE_BRANCH;
 		break;
 	}
 
 	// Rewrite float constants to values stored in memory.
 	switch(p->as) {
 	case AFMOVS:
-		if(p->from.type == D_FCONST) {
+		if(p->from.type == TYPE_FCONST) {
 			uint32 i32;
 			float32 f32;
 			f32 = p->from.u.dval;
@@ -125,34 +103,34 @@ progedit(Link *ctxt, Prog *p)
 			sprint(literal, "$f32.%08ux", i32);
 			s = linklookup(ctxt, literal, 0);
 			s->size = 4;
-			p->from.type = D_OREG;
+			p->from.type = TYPE_MEM;
 			p->from.sym = s;
-			p->from.name = D_EXTERN;
+			p->from.name = NAME_EXTERN;
 			p->from.offset = 0;
 		}
 		break;
 	case AFMOVD:
-		if(p->from.type == D_FCONST) {
+		if(p->from.type == TYPE_FCONST) {
 			uint64 i64;
 			memmove(&i64, &p->from.u.dval, 8);
 			sprint(literal, "$f64.%016llux", i64);
 			s = linklookup(ctxt, literal, 0);
 			s->size = 8;
-			p->from.type = D_OREG;
+			p->from.type = TYPE_MEM;
 			p->from.sym = s;
-			p->from.name = D_EXTERN;
+			p->from.name = NAME_EXTERN;
 			p->from.offset = 0;
 		}
 		break;
 	case AMOVD:
 		// Put >32-bit constants in memory and load them
-		if(p->from.type == D_CONST && p->from.name == D_NONE && p->from.reg == NREG && (int32)p->from.offset != p->from.offset) {
+		if(p->from.type == TYPE_CONST && p->from.name == NAME_NONE && p->from.reg == 0 && (int32)p->from.offset != p->from.offset) {
 			sprint(literal, "$i64.%016llux", (uvlong)p->from.offset);
 			s = linklookup(ctxt, literal, 0);
 			s->size = 8;
-			p->from.type = D_OREG;
+			p->from.type = TYPE_MEM;
 			p->from.sym = s;
-			p->from.name = D_EXTERN;
+			p->from.name = NAME_EXTERN;
 			p->from.offset = 0;
 		}
 	}
@@ -160,21 +138,21 @@ progedit(Link *ctxt, Prog *p)
 	// Rewrite SUB constants into ADD.
 	switch(p->as) {
 	case ASUBC:
-		if(p->from.type == D_CONST) {
+		if(p->from.type == TYPE_CONST) {
 			p->from.offset = -p->from.offset;
 			p->as = AADDC;
 		}
 		break;
 
 	case ASUBCCC:
-		if(p->from.type == D_CONST) {
+		if(p->from.type == TYPE_CONST) {
 			p->from.offset = -p->from.offset;
 			p->as = AADDCCC;
 		}
 		break;
 
 	case ASUB:
-		if(p->from.type == D_CONST) {
+		if(p->from.type == TYPE_CONST) {
 			p->from.offset = -p->from.offset;
 			p->as = AADD;
 		}
@@ -198,7 +176,7 @@ parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
 }
 
 static void
-addstacksplit(Link *ctxt, LSym *cursym)
+preprocess(Link *ctxt, LSym *cursym)
 {
 	Prog *p, *q, *p1, *p2, *q1;
 	int o, mov, aoffset;
@@ -246,7 +224,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 
 		case ANOR:
 			q = p;
-			if(p->to.type == D_REG)
+			if(p->to.type == TYPE_REG)
 				if(p->to.reg == REGZERO)
 					p->mark |= LABEL|SYNC;
 			break;
@@ -288,22 +266,8 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		case AMOVWZ:
 		case AMOVD:
 			q = p;
-			switch(p->from.type) {
-			case D_MSR:
-			case D_SPR:
-			case D_FPSCR:
-			case D_CREG:
-			case D_DCR:
+			if(p->from.reg >= REG_SPECIAL || p->to.reg >= REG_SPECIAL)
 				p->mark |= LABEL|SYNC;
-			}
-			switch(p->to.type) {
-			case D_MSR:
-			case D_SPR:
-			case D_FPSCR:
-			case D_CREG:
-			case D_DCR:
-				p->mark |= LABEL|SYNC;
-			}
 			continue;
 
 		case AFABS:
@@ -429,9 +393,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
 					q = appendp(ctxt, p);
 					q->as = AADD;
 					q->lineno = p->lineno;
-					q->from.type = D_CONST;
+					q->from.type = TYPE_CONST;
 					q->from.offset = -autosize;
-					q->to.type = D_REG;
+					q->to.type = TYPE_REG;
 					q->to.reg = REGSP;
 					q->spadj = +autosize;
 				}
@@ -453,17 +417,17 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			q = appendp(ctxt, q);
 			q->as = AMOVD;
 			q->lineno = p->lineno;
-			q->from.type = D_SPR;
-			q->from.offset = D_LR;
-			q->to.type = D_REG;
+			q->from.type = TYPE_REG;
+			q->from.reg = REG_LR;
+			q->to.type = TYPE_REG;
 			q->to.reg = REGTMP;
 
 			q = appendp(ctxt, q);
 			q->as = mov;
 			q->lineno = p->lineno;
-			q->from.type = D_REG;
+			q->from.type = TYPE_REG;
 			q->from.reg = REGTMP;
-			q->to.type = D_OREG;
+			q->to.type = TYPE_MEM;
 			q->to.offset = aoffset;
 			q->to.reg = REGSP;
 			if(q->as == AMOVDU)
@@ -490,66 +454,66 @@ addstacksplit(Link *ctxt, LSym *cursym)
 
 				q = appendp(ctxt, q);
 				q->as = AMOVD;
-				q->from.type = D_OREG;
+				q->from.type = TYPE_MEM;
 				q->from.reg = REGG;
 				q->from.offset = 4*ctxt->arch->ptrsize; // G.panic
-				q->to.type = D_REG;
-				q->to.reg = 3;
+				q->to.type = TYPE_REG;
+				q->to.reg = REG_R3;
 
 				q = appendp(ctxt, q);
 				q->as = ACMP;
-				q->from.type = D_REG;
-				q->from.reg = 0;
-				q->to.type = D_REG;
-				q->to.reg = 3;
+				q->from.type = TYPE_REG;
+				q->from.reg = REG_R0;
+				q->to.type = TYPE_REG;
+				q->to.reg = REG_R3;
 
 				q = appendp(ctxt, q);
 				q->as = ABEQ;
-				q->to.type = D_BRANCH;
+				q->to.type = TYPE_BRANCH;
 				p1 = q;
 
 				q = appendp(ctxt, q);
 				q->as = AMOVD;
-				q->from.type = D_OREG;
-				q->from.reg = 3;
+				q->from.type = TYPE_MEM;
+				q->from.reg = REG_R3;
 				q->from.offset = 0; // Panic.argp
-				q->to.type = D_REG;
-				q->to.reg = 4;
+				q->to.type = TYPE_REG;
+				q->to.reg = REG_R4;
 
 				q = appendp(ctxt, q);
 				q->as = AADD;
-				q->from.type = D_CONST;
+				q->from.type = TYPE_CONST;
 				q->from.offset = autosize+8;
 				q->reg = REGSP;
-				q->to.type = D_REG;
-				q->to.reg = 5;
+				q->to.type = TYPE_REG;
+				q->to.reg = REG_R5;
 
 				q = appendp(ctxt, q);
 				q->as = ACMP;
-				q->from.type = D_REG;
-				q->from.reg = 4;
-				q->to.type = D_REG;
-				q->to.reg = 5;
+				q->from.type = TYPE_REG;
+				q->from.reg = REG_R4;
+				q->to.type = TYPE_REG;
+				q->to.reg = REG_R5;
 
 				q = appendp(ctxt, q);
 				q->as = ABNE;
-				q->to.type = D_BRANCH;
+				q->to.type = TYPE_BRANCH;
 				p2 = q;
 
 				q = appendp(ctxt, q);
 				q->as = AADD;
-				q->from.type = D_CONST;
+				q->from.type = TYPE_CONST;
 				q->from.offset = 8;
 				q->reg = REGSP;
-				q->to.type = D_REG;
-				q->to.reg = 6;
+				q->to.type = TYPE_REG;
+				q->to.reg = REG_R6;
 
 				q = appendp(ctxt, q);
 				q->as = AMOVD;
-				q->from.type = D_REG;
-				q->from.reg = 6;
-				q->to.type = D_OREG;
-				q->to.reg = 3;
+				q->from.type = TYPE_REG;
+				q->from.reg = REG_R6;
+				q->to.type = TYPE_MEM;
+				q->to.reg = REG_R3;
 				q->to.offset = 0; // Panic.argp
 
 				q = appendp(ctxt, q);
@@ -561,37 +525,37 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			break;
 
 		case ARETURN:
-			if(p->from.type == D_CONST) {
+			if(p->from.type == TYPE_CONST) {
 				ctxt->diag("using BECOME (%P) is not supported!", p);
 				break;
 			}
 			if(p->to.sym) { // retjmp
 				p->as = ABR;
-				p->to.type = D_BRANCH;
+				p->to.type = TYPE_BRANCH;
 				break;
 			}
 			if(cursym->text->mark & LEAF) {
 				if(!autosize) {
 					p->as = ABR;
 					p->from = zprg.from;
-					p->to.type = D_SPR;
-					p->to.offset = D_LR;
+					p->to.type = TYPE_REG;
+					p->to.reg = REG_LR;
 					p->mark |= BRANCH;
 					break;
 				}
 
 				p->as = AADD;
-				p->from.type = D_CONST;
+				p->from.type = TYPE_CONST;
 				p->from.offset = autosize;
-				p->to.type = D_REG;
+				p->to.type = TYPE_REG;
 				p->to.reg = REGSP;
 				p->spadj = -autosize;
 
 				q = ctxt->arch->prg();
 				q->as = ABR;
 				q->lineno = p->lineno;
-				q->to.type = D_SPR;
-				q->to.offset = D_LR;
+				q->to.type = TYPE_REG;
+				q->to.reg = REG_LR;
 				q->mark |= BRANCH;
 				q->spadj = +autosize;
 
@@ -601,19 +565,19 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			}
 
 			p->as = AMOVD;
-			p->from.type = D_OREG;
+			p->from.type = TYPE_MEM;
 			p->from.offset = 0;
 			p->from.reg = REGSP;
-			p->to.type = D_REG;
+			p->to.type = TYPE_REG;
 			p->to.reg = REGTMP;
 
 			q = ctxt->arch->prg();
 			q->as = AMOVD;
 			q->lineno = p->lineno;
-			q->from.type = D_REG;
+			q->from.type = TYPE_REG;
 			q->from.reg = REGTMP;
-			q->to.type = D_SPR;
-			q->to.offset = D_LR;
+			q->to.type = TYPE_REG;
+			q->to.reg = REG_LR;
 
 			q->link = p->link;
 			p->link = q;
@@ -624,10 +588,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				q = ctxt->arch->prg();
 				q->as = AMOVD;
 				q->lineno = p->lineno;
-				q->from.type = D_OREG;
+				q->from.type = TYPE_MEM;
 				q->from.offset = 0;
 				q->from.reg = REGTMP;
-				q->to.type = D_REG;
+				q->to.type = TYPE_REG;
 				q->to.reg = REGTMP;
 
 				q->link = p->link;
@@ -639,9 +603,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
 				q = ctxt->arch->prg();
 				q->as = AADD;
 				q->lineno = p->lineno;
-				q->from.type = D_CONST;
+				q->from.type = TYPE_CONST;
 				q->from.offset = autosize;
-				q->to.type = D_REG;
+				q->to.type = TYPE_REG;
 				q->to.reg = REGSP;
 				q->spadj = -autosize;
 
@@ -652,8 +616,8 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			q1 = ctxt->arch->prg();
 			q1->as = ABR;
 			q1->lineno = p->lineno;
-			q1->to.type = D_SPR;
-			q1->to.offset = D_LR;
+			q1->to.type = TYPE_REG;
+			q1->to.reg = REG_LR;
 			q1->mark |= BRANCH;
 			q1->spadj = +autosize;
 
@@ -662,7 +626,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			break;
 
 		case AADD:
-			if(p->to.type == D_REG && p->to.reg == REGSP && p->from.type == D_CONST)
+			if(p->to.type == TYPE_REG && p->to.reg == REGSP && p->from.type == TYPE_CONST)
 				p->spadj = -p->from.offset;
 			break;
 		}
@@ -723,13 +687,13 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 	// MOVD	g_stackguard(g), R3
 	p = appendp(ctxt, p);
 	p->as = AMOVD;
-	p->from.type = D_OREG;
+	p->from.type = TYPE_MEM;
 	p->from.reg = REGG;
 	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 	if(ctxt->cursym->cfunc)
 		p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
-	p->to.type = D_REG;
-	p->to.reg = 3;
+	p->to.type = TYPE_REG;
+	p->to.reg = REG_R3;
 
 	q = nil;
 	if(framesize <= StackSmall) {
@@ -737,9 +701,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		//	CMP	stackguard, SP
 		p = appendp(ctxt, p);
 		p->as = ACMPU;
-		p->from.type = D_REG;
-		p->from.reg = 3;
-		p->to.type = D_REG;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_R3;
+		p->to.type = TYPE_REG;
 		p->to.reg = REGSP;
 	} else if(framesize <= StackBig) {
 		// large stack: SP-framesize < stackguard-StackSmall
@@ -747,18 +711,18 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		//	CMP stackguard, R4
 		p = appendp(ctxt, p);
 		p->as = AADD;
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = -framesize;
 		p->reg = REGSP;
-		p->to.type = D_REG;
-		p->to.reg = 4;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_R4;
 
 		p = appendp(ctxt, p);
 		p->as = ACMPU;
-		p->from.type = D_REG;
-		p->from.reg = 3;
-		p->to.type = D_REG;
-		p->to.reg = 4;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_R3;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_R4;
 	} else {
 		// Such a large stack we need to protect against wraparound.
 		// If SP is close to zero:
@@ -777,64 +741,64 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		//	CMPU	R31, R4
 		p = appendp(ctxt, p);
 		p->as = ACMP;
-		p->from.type = D_REG;
-		p->from.reg = 3;
-		p->to.type = D_CONST;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_R3;
+		p->to.type = TYPE_CONST;
 		p->to.offset = StackPreempt;
 
 		q = p = appendp(ctxt, p);
 		p->as = ABEQ;
-		p->to.type = D_BRANCH;
+		p->to.type = TYPE_BRANCH;
 
 		p = appendp(ctxt, p);
 		p->as = AADD;
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = StackGuard;
 		p->reg = REGSP;
-		p->to.type = D_REG;
-		p->to.reg = 4;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_R4;
 
 		p = appendp(ctxt, p);
 		p->as = ASUB;
-		p->from.type = D_REG;
-		p->from.reg = 3;
-		p->to.type = D_REG;
-		p->to.reg = 4;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_R3;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_R4;
 
 		p = appendp(ctxt, p);
 		p->as = AMOVD;
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = framesize + StackGuard - StackSmall;
-		p->to.type = D_REG;
+		p->to.type = TYPE_REG;
 		p->to.reg = REGTMP;
 
 		p = appendp(ctxt, p);
 		p->as = ACMPU;
-		p->from.type = D_REG;
+		p->from.type = TYPE_REG;
 		p->from.reg = REGTMP;
-		p->to.type = D_REG;
-		p->to.reg = 4;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_R4;
 	}
 
 	// q1: BLT	done
 	q1 = p = appendp(ctxt, p);
 	p->as = ABLT;
-	p->to.type = D_BRANCH;
+	p->to.type = TYPE_BRANCH;
 
 	// MOVD	LR, R5
 	p = appendp(ctxt, p);
 	p->as = AMOVD;
-	p->from.type = D_SPR;
-	p->from.offset = D_LR;
-	p->to.type = D_REG;
-	p->to.reg = 5;
+	p->from.type = TYPE_REG;
+	p->from.reg = REG_LR;
+	p->to.type = TYPE_REG;
+	p->to.reg = REG_R5;
 	if(q)
 		q->pcond = p;
 
 	// BL	runtime.morestack(SB)
 	p = appendp(ctxt, p);
 	p->as = ABL;
-	p->to.type = D_BRANCH;
+	p->to.type = TYPE_BRANCH;
 	if(ctxt->cursym->cfunc)
 		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
 	else
@@ -843,7 +807,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 	// BR	start
 	p = appendp(ctxt, p);
 	p->as = ABR;
-	p->to.type = D_BRANCH;
+	p->to.type = TYPE_BRANCH;
 	p->pcond = ctxt->cursym->text->link;
 
 	// placeholder for q1's jump target
@@ -969,7 +933,7 @@ loop:
 		q = ctxt->arch->prg();
 		q->as = a;
 		q->lineno = p->lineno;
-		q->to.type = D_BRANCH;
+		q->to.type = TYPE_BRANCH;
 		q->to.offset = p->pc;
 		q->pcond = p;
 		p = q;
@@ -1011,7 +975,7 @@ LinkArch linkppc64 = {
 	.thechar = '9',
 	.endian = BigEndian,
 
-	.addstacksplit = addstacksplit,
+	.preprocess = preprocess,
 	.assemble = span9,
 	.datasize = datasize,
 	.follow = follow,
@@ -1020,24 +984,11 @@ LinkArch linkppc64 = {
 	.prg = prg,
 	.progedit = progedit,
 	.settextflag = settextflag,
-	.symtype = symtype,
 	.textflag = textflag,
 
 	.minlc = 4,
 	.ptrsize = 8,
 	.regsize = 8,
-
-	.D_ADDR = D_ADDR,
-	.D_AUTO = D_AUTO,
-	.D_BRANCH = D_BRANCH,
-	.D_CONST = D_CONST,
-	.D_EXTERN = D_EXTERN,
-	.D_FCONST = D_FCONST,
-	.D_NONE = D_NONE,
-	.D_PARAM = D_PARAM,
-	.D_SCONST = D_SCONST,
-	.D_STATIC = D_STATIC,
-	.D_OREG = D_OREG,
 
 	.ACALL = ABL,
 	.ADATA = ADATA,
@@ -1058,7 +1009,7 @@ LinkArch linkppc64le = {
 	.thechar = '9',
 	.endian = LittleEndian,
 
-	.addstacksplit = addstacksplit,
+	.preprocess = preprocess,
 	.assemble = span9,
 	.datasize = datasize,
 	.follow = follow,
@@ -1067,24 +1018,11 @@ LinkArch linkppc64le = {
 	.prg = prg,
 	.progedit = progedit,
 	.settextflag = settextflag,
-	.symtype = symtype,
 	.textflag = textflag,
 
 	.minlc = 4,
 	.ptrsize = 8,
 	.regsize = 8,
-
-	.D_ADDR = D_ADDR,
-	.D_AUTO = D_AUTO,
-	.D_BRANCH = D_BRANCH,
-	.D_CONST = D_CONST,
-	.D_EXTERN = D_EXTERN,
-	.D_FCONST = D_FCONST,
-	.D_NONE = D_NONE,
-	.D_PARAM = D_PARAM,
-	.D_SCONST = D_SCONST,
-	.D_STATIC = D_STATIC,
-	.D_OREG = D_OREG,
 
 	.ACALL = ABL,
 	.ADATA = ADATA,
