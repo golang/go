@@ -108,41 +108,38 @@ Dconv(Fmt *fp)
 {
 	char str[STRINGSZ], s[STRINGSZ];
 	Addr *a;
-	int i;
 
 	a = va_arg(fp->args, Addr*);
-	i = a->type;
-
-	if(fp->flags & FmtLong) {
-		if(i == D_CONST2)
-			sprint(str, "$%lld-%d", a->offset, a->offset2);
-		else {
-			// ATEXT dst is not constant
-			sprint(str, "!!%D", a);
-		}
-		goto brk;
-	}
-
-	if(i >= D_INDIR) {
-		if(a->offset)
-			sprint(str, "%lld(%R)", a->offset, i-D_INDIR);
-		else
-			sprint(str, "(%R)", i-D_INDIR);
-		goto brk;
-	}
-	switch(i) {
+	
+	switch(a->type) {
 	default:
-		if(a->offset)
-			sprint(str, "$%lld,%R", a->offset, i);
-		else
-			sprint(str, "%R", i);
+		sprint(str, "type=%d", a->type);
 		break;
 
-	case D_NONE:
+	case TYPE_NONE:
 		str[0] = 0;
 		break;
+	
+	case TYPE_REG:
+		// TODO(rsc): This special case is for instructions like
+		//	PINSRQ	CX,$1,X6
+		// where the $1 is included in the p->to Addr.
+		// Move into a new field.
+		if(a->offset != 0) {
+			sprint(str, "$%lld,%R", a->offset, a->reg);
+			break;
+		}
+		sprint(str, "%R", a->reg);
+		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+		//	SHRQ $32(DX*0), AX
+		// Remove.
+		if(a->index != REG_NONE) {
+			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
+			strcat(str, s);
+		}
+		break;
 
-	case D_BRANCH:
+	case TYPE_BRANCH:
 		if(a->sym != nil)
 			sprint(str, "%s(SB)", a->sym->name);
 		else if(bigP != nil && bigP->pcond != nil)
@@ -153,67 +150,78 @@ Dconv(Fmt *fp)
 			sprint(str, "%lld(PC)", a->offset);
 		break;
 
-	case D_EXTERN:
-		sprint(str, "%s+%lld(SB)", a->sym->name, a->offset);
-		break;
-
-	case D_STATIC:
-		sprint(str, "%s<>+%lld(SB)", a->sym->name, a->offset);
-		break;
-
-	case D_AUTO:
-		if(a->sym)
-			sprint(str, "%s+%lld(SP)", a->sym->name, a->offset);
-		else
-			sprint(str, "%lld(SP)", a->offset);
-		break;
-
-	case D_PARAM:
-		if(a->sym)
-			sprint(str, "%s+%lld(FP)", a->sym->name, a->offset);
-		else
-			sprint(str, "%lld(FP)", a->offset);
-		break;
-
-	case D_CONST:
-		sprint(str, "$%lld", a->offset);
-		break;
-
-	case D_CONST2:
-		if(!(fp->flags & FmtLong)) {
-			// D_CONST2 outside of ATEXT should not happen
-			sprint(str, "!!$%lld-%d", a->offset, a->offset2);
+	case TYPE_MEM:
+		switch(a->name) {
+		default:
+			sprint(str, "name=%d", a->name);
+			break;
+		case NAME_NONE:
+			if(a->offset)
+				sprint(str, "%lld(%R)", a->offset, a->reg);
+			else
+				sprint(str, "(%R)", a->reg);
+			break;
+		case NAME_EXTERN:
+			sprint(str, "%s+%lld(SB)", a->sym->name, a->offset);
+			break;
+		case NAME_STATIC:
+			sprint(str, "%s<>+%lld(SB)", a->sym->name, a->offset);
+			break;
+		case NAME_AUTO:
+			if(a->sym)
+				sprint(str, "%s+%lld(SP)", a->sym->name, a->offset);
+			else
+				sprint(str, "%lld(SP)", a->offset);
+			break;
+		case NAME_PARAM:
+			if(a->sym)
+				sprint(str, "%s+%lld(FP)", a->sym->name, a->offset);
+			else
+				sprint(str, "%lld(FP)", a->offset);
+			break;
+		}
+		if(a->index != REG_NONE) {
+			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
+			strcat(str, s);
 		}
 		break;
 
-	case D_FCONST:
+	case TYPE_CONST:
+		sprint(str, "$%lld", a->offset);
+		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+		//	SHRQ $32(DX*0), AX
+		// Remove.
+		if(a->index != REG_NONE) {
+			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
+			strcat(str, s);
+		}
+		break;
+
+	case TYPE_TEXTSIZE:
+		sprint(str, "$%lld-%d", a->offset, a->u.argsize);
+		break;
+
+	case TYPE_FCONST:
 		sprint(str, "$(%.17g)", a->u.dval);
 		break;
 
-	case D_SCONST:
+	case TYPE_SCONST:
 		sprint(str, "$\"%$\"", a->u.sval);
 		break;
 
-	case D_ADDR:
-		a->type = a->index;
-		a->index = D_NONE;
+	case TYPE_ADDR:
+		a->type = TYPE_MEM;
 		sprint(str, "$%D", a);
-		a->index = a->type;
-		a->type = D_ADDR;
-		goto conv;
+		a->type = TYPE_ADDR;
+		break;
 	}
-brk:
-	if(a->index != D_NONE) {
-		sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
-		strcat(str, s);
-	}
-conv:
+
 	return fmtstrcpy(fp, str);
 }
 
 static char*	regstr[] =
 {
-	"AL",	/* [D_AL] */
+	"AL",	/* [REG_AL] */
 	"CL",
 	"DL",
 	"BL",
@@ -222,7 +230,7 @@ static char*	regstr[] =
 	"DH",
 	"BH",
 
-	"AX",	/* [D_AX] */
+	"AX",	/* [REG_AX] */
 	"CX",
 	"DX",
 	"BX",
@@ -231,7 +239,7 @@ static char*	regstr[] =
 	"SI",
 	"DI",
 
-	"F0",	/* [D_F0] */
+	"F0",	/* [REG_F0] */
 	"F1",
 	"F2",
 	"F3",
@@ -240,20 +248,20 @@ static char*	regstr[] =
 	"F6",
 	"F7",
 
-	"CS",	/* [D_CS] */
+	"CS",	/* [REG_CS] */
 	"SS",
 	"DS",
 	"ES",
 	"FS",
 	"GS",
 
-	"GDTR",	/* [D_GDTR] */
-	"IDTR",	/* [D_IDTR] */
-	"LDTR",	/* [D_LDTR] */
-	"MSW",	/* [D_MSW] */
-	"TASK",	/* [D_TASK] */
+	"GDTR",	/* [REG_GDTR] */
+	"IDTR",	/* [REG_IDTR] */
+	"LDTR",	/* [REG_LDTR] */
+	"MSW",	/* [REG_MSW] */
+	"TASK",	/* [REG_TASK] */
 
-	"CR0",	/* [D_CR] */
+	"CR0",	/* [REG_CR] */
 	"CR1",
 	"CR2",
 	"CR3",
@@ -262,7 +270,7 @@ static char*	regstr[] =
 	"CR6",
 	"CR7",
 
-	"DR0",	/* [D_DR] */
+	"DR0",	/* [REG_DR] */
 	"DR1",
 	"DR2",
 	"DR3",
@@ -271,7 +279,7 @@ static char*	regstr[] =
 	"DR6",
 	"DR7",
 
-	"TR0",	/* [D_TR] */
+	"TR0",	/* [REG_TR] */
 	"TR1",
 	"TR2",
 	"TR3",
@@ -280,7 +288,7 @@ static char*	regstr[] =
 	"TR6",
 	"TR7",
 
-	"X0",	/* [D_X0] */
+	"X0",	/* [REG_X0] */
 	"X1",
 	"X2",
 	"X3",
@@ -289,8 +297,8 @@ static char*	regstr[] =
 	"X6",
 	"X7",
 
-	"TLS",	/* [D_TLS] */
-	"NONE",	/* [D_NONE] */
+	"TLS",	/* [REG_TLS] */
+	"MAXREG",	/* [MAXREG] */
 };
 
 static int
@@ -300,8 +308,10 @@ Rconv(Fmt *fp)
 	int r;
 
 	r = va_arg(fp->args, int);
-	if(r >= D_AL && r <= D_NONE)
-		sprint(str, "%s", regstr[r-D_AL]);
+	if(r == REG_NONE)
+		return fmtstrcpy(fp, "NONE");
+	if(r >= REG_AL && r-REG_AL < nelem(regstr))
+		sprint(str, "%s", regstr[r-REG_AL]);
 	else
 		sprint(str, "gok(%d)", r);
 

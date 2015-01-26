@@ -32,9 +32,6 @@
 #define	Z	N
 #define	Adr	Addr
 
-#define	D_HI	D_NONE
-#define	D_LO	D_NONE
-
 #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
 #define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
 #define	LOAD(r)		(~r->refbehind.b[z] & r->refahead.b[z])
@@ -52,8 +49,6 @@ typedef	struct	Rgn	Rgn;
 extern Node *Z;
 enum
 {
-	D_HI = D_NONE,
-	D_LO = D_NONE,
 	CLOAD = 5,
 	CREF = 5,
 	CINF = 1000,

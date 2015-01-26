@@ -715,8 +715,9 @@ agen(Node *n, Node *res)
 			// LEAL (n3)(n2*w), n3
 			p1 = gins(ALEAL, &n2, &n3);
 			p1->from.scale = w;
-			p1->from.index = p1->from.type;
-			p1->from.type = p1->to.type + D_INDIR;
+			p1->from.type = TYPE_MEM;
+			p1->from.index = p1->from.reg;
+			p1->from.reg = p1->to.reg;
 		} else {
 			nodconst(&tmp, types[TUINT32], w);
 			gins(optoas(OMUL, types[TUINT32]), &tmp, &n2);
@@ -805,7 +806,7 @@ igen(Node *n, Node *a, Node *res)
 	case OINDREG:
 		// Increase the refcount of the register so that igen's caller
 		// has to call regfree.
-		if(n->val.u.reg != D_SP)
+		if(n->val.u.reg != REG_SP)
 			reg[n->val.u.reg]++;
 		*a = *n;
 		return;
@@ -856,7 +857,7 @@ igen(Node *n, Node *a, Node *res)
 		fp = structfirst(&flist, getoutarg(n->left->type));
 		memset(a, 0, sizeof *a);
 		a->op = OINDREG;
-		a->val.u.reg = D_SP;
+		a->val.u.reg = REG_SP;
 		a->addable = 1;
 		a->xoffset = fp->width;
 		a->type = n->type;
@@ -1262,8 +1263,8 @@ sgen(Node *n, Node *res, int64 w)
 		return;
 	}
 
-	nodreg(&dst, types[tptr], D_DI);
-	nodreg(&src, types[tptr], D_SI);
+	nodreg(&dst, types[tptr], REG_DI);
+	nodreg(&src, types[tptr], REG_SI);
 
 	tempname(&tsrc, types[tptr]);
 	tempname(&tdst, types[tptr]);
@@ -1293,23 +1294,23 @@ sgen(Node *n, Node *res, int64 w)
 		// reverse direction
 		gins(ASTD, N, N);		// set direction flag
 		if(c > 0) {
-			gconreg(AADDL, w-1, D_SI);
-			gconreg(AADDL, w-1, D_DI);
+			gconreg(AADDL, w-1, REG_SI);
+			gconreg(AADDL, w-1, REG_DI);
 
-			gconreg(AMOVL, c, D_CX);
+			gconreg(AMOVL, c, REG_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSB, N, N);	// MOVB *(SI)-,*(DI)-
 		}
 
 		if(q > 0) {
 			if(c > 0) {
-				gconreg(AADDL, -3, D_SI);
-				gconreg(AADDL, -3, D_DI);
+				gconreg(AADDL, -3, REG_SI);
+				gconreg(AADDL, -3, REG_DI);
 			} else {
-				gconreg(AADDL, w-4, D_SI);
-				gconreg(AADDL, w-4, D_DI);
+				gconreg(AADDL, w-4, REG_SI);
+				gconreg(AADDL, w-4, REG_DI);
 			}
-			gconreg(AMOVL, q, D_CX);
+			gconreg(AMOVL, q, REG_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSL, N, N);	// MOVL *(SI)-,*(DI)-
 		}
@@ -1319,12 +1320,12 @@ sgen(Node *n, Node *res, int64 w)
 		gins(ACLD, N, N);	// paranoia.  TODO(rsc): remove?
 		// normal direction
 		if(q > 128 || (q >= 4 && nacl)) {
-			gconreg(AMOVL, q, D_CX);
+			gconreg(AMOVL, q, REG_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
 		} else if(q >= 4) {
 			p = gins(ADUFFCOPY, N, N);
-			p->to.type = D_ADDR;
+			p->to.type = TYPE_ADDR;
 			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
 			// 10 and 128 = magic constants: see ../../runtime/asm_386.s
 			p->to.offset = 10*(128-q);
