@@ -81,7 +81,7 @@ chasejmp(Prog *p, int *jmploop)
 	int n;
 
 	n = 0;
-	while(p != P && p->as == arch.AJMP && p->to.type == arch.D_BRANCH) {
+	while(p != P && p->as == arch.AJMP && p->to.type == TYPE_BRANCH) {
 		if(++n > 10) {
 			*jmploop = 1;
 			break;
@@ -112,7 +112,7 @@ mark(Prog *firstp)
 		if(p->opt != dead)
 			break;
 		p->opt = alive;
-		if(p->as != arch.ACALL && p->to.type == arch.D_BRANCH && p->to.u.branch)
+		if(p->as != arch.ACALL && p->to.type == TYPE_BRANCH && p->to.u.branch)
 			mark(p->to.u.branch);
 		if(p->as == arch.AJMP || p->as == arch.ARET || p->as == arch.AUNDEF)
 			break;
@@ -133,7 +133,7 @@ fixjmp(Prog *firstp)
 	for(p=firstp; p; p=p->link) {
 		if(debug['R'] && debug['v'])
 			print("%P\n", p);
-		if(p->as != arch.ACALL && p->to.type == arch.D_BRANCH && p->to.u.branch && p->to.u.branch->as == arch.AJMP) {
+		if(p->as != arch.ACALL && p->to.type == TYPE_BRANCH && p->to.u.branch && p->to.u.branch->as == arch.AJMP) {
 			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
 			if(debug['R'] && debug['v'])
 				print("->%P\n", p);
@@ -176,7 +176,7 @@ fixjmp(Prog *firstp)
 	if(!jmploop) {
 		last = nil;
 		for(p=firstp; p; p=p->link) {
-			if(p->as == arch.AJMP && p->to.type == arch.D_BRANCH && p->to.u.branch == p->link) {
+			if(p->as == arch.AJMP && p->to.type == TYPE_BRANCH && p->to.u.branch == p->link) {
 				if(debug['R'] && debug['v'])
 					print("del %P\n", p);
 				continue;
@@ -275,7 +275,7 @@ flowstart(Prog *firstp, int size)
 			f->s1 = f1;
 			f1->p1 = f;
 		}
-		if(p->to.type == arch.D_BRANCH) {
+		if(p->to.type == TYPE_BRANCH) {
 			if(p->to.u.branch == P)
 				fatal("pnil %P", p);
 			f1 = p->to.u.branch->opt;

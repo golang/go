@@ -127,7 +127,7 @@ removevardef(Prog *firstp)
 	for(p = firstp; p != P; p = p->link) {
 		while(p->link != P && (p->link->as == arch.AVARDEF || p->link->as == arch.AVARKILL))
 			p->link = p->link->link;
-		if(p->to.type == arch.D_BRANCH)
+		if(p->to.type == TYPE_BRANCH)
 			while(p->to.u.branch != P && (p->to.u.branch->as == arch.AVARDEF || p->to.u.branch->as == arch.AVARKILL))
 				p->to.u.branch = p->to.u.branch->link;
 	}

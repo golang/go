@@ -291,7 +291,7 @@ linkpcln(Link *ctxt, LSym *cursym)
 			if(p->as == ctxt->arch->AFUNCDATA) {
 				i = p->from.offset;
 				pcln->funcdataoff[i] = p->to.offset;
-				if(p->to.type != ctxt->arch->D_CONST) {
+				if(p->to.type != TYPE_CONST) {
 					// TODO: Dedup.
 					//funcdata_bytes += p->to.sym->size;
 					pcln->funcdata[i] = p->to.sym;

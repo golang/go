@@ -19,7 +19,7 @@ vlong
 rnd(vlong o, vlong r)
 {
 	if(r < 1 || r > 8 || (r&(r-1)) != 0)
-		fatal("rnd");
+		fatal("rnd %lld", r);
 	return (o+r-1)&~(r-1);
 }
 
