@@ -8,15 +8,15 @@
 #include "opt.h"
 
 // Matches real RtoB but can be used in global initializer.
-#define RtoB(r) (1<<((r)-D_AX))
+#define RtoB(r) (1<<((r)-REG_AX))
 
 enum {
-	AX = RtoB(D_AX),
-	BX = RtoB(D_BX),
-	CX = RtoB(D_CX),
-	DX = RtoB(D_DX),
-	DI = RtoB(D_DI),
-	SI = RtoB(D_SI),
+	AX = RtoB(REG_AX),
+	BX = RtoB(REG_BX),
+	CX = RtoB(REG_CX),
+	DX = RtoB(REG_DX),
+	DI = RtoB(REG_DI),
+	SI = RtoB(REG_SI),
 	
 	LeftRdwr = LeftRead | LeftWrite,
 	RightRdwr = RightRead | RightWrite,
@@ -294,11 +294,11 @@ proginfo(ProgInfo *info, Prog *p)
 	if(info->flags == 0)
 		fatal("unknown instruction %P", p);
 
-	if((info->flags & ShiftCX) && p->from.type != D_CONST)
+	if((info->flags & ShiftCX) && p->from.type != TYPE_CONST)
 		info->reguse |= CX;
 
 	if(info->flags & ImulAXDX) {
-		if(p->to.type == D_NONE) {
+		if(p->to.type == TYPE_NONE) {
 			info->reguse |= AX;
 			info->regset |= AX | DX;
 		} else {
@@ -307,12 +307,12 @@ proginfo(ProgInfo *info, Prog *p)
 	}
 
 	// Addressing makes some registers used.
-	if(p->from.type >= D_INDIR)
-		info->regindex |= RtoB(p->from.type-D_INDIR);
-	if(p->from.index != D_NONE)
+	if(p->from.type == TYPE_MEM && p->from.name == NAME_NONE)
+		info->regindex |= RtoB(p->from.reg);
+	if(p->from.index != REG_NONE)
 		info->regindex |= RtoB(p->from.index);
-	if(p->to.type >= D_INDIR)
-		info->regindex |= RtoB(p->to.type-D_INDIR);
-	if(p->to.index != D_NONE)
+	if(p->to.type == TYPE_MEM && p->to.name == NAME_NONE)
+		info->regindex |= RtoB(p->to.reg);
+	if(p->to.index != REG_NONE)
 		info->regindex |= RtoB(p->to.index);
 }

@@ -39,12 +39,12 @@ static Prog zprg = {
 	.back = 2,
 	.as = AGOK,
 	.from = {
-		.type = D_NONE,
-		.index = D_NONE,
+		.type = TYPE_NONE,
+		.index = TYPE_NONE,
 	},
 	.to = {
-		.type = D_NONE,
-		.index = D_NONE,
+		.type = TYPE_NONE,
+		.index = TYPE_NONE,
 	},
 };
 
@@ -52,19 +52,12 @@ static void
 nopout(Prog *p)
 {
 	p->as = ANOP;
-	p->from.type = D_NONE;
-	p->to.type = D_NONE;
-}
-
-static int
-symtype(Addr *a)
-{
-	int t;
-
-	t = a->type;
-	if(t == D_ADDR)
-		t = a->index;
-	return t;
+	p->from.type = TYPE_NONE;
+	p->from.reg = 0;
+	p->from.name = 0;
+	p->to.type = TYPE_NONE;
+	p->to.reg = 0;
+	p->to.name = 0;
 }
 
 static int
@@ -162,17 +155,17 @@ progedit(Link *ctxt, Prog *p)
 		// TODO(rsc): Remove the Hsolaris special case. It exists only to
 		// guarantee we are producing byte-identical binaries as before this code.
 		// But it should be unnecessary.
-		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == D_TLS && D_AX <= p->to.type && p->to.type <= D_R15 && ctxt->headtype != Hsolaris)
+		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == TYPE_REG && p->from.reg == REG_TLS && p->to.type == TYPE_REG && REG_AX <= p->to.reg && p->to.reg <= REG_R15 && ctxt->headtype != Hsolaris)
 			nopout(p);
-		if(p->from.index == D_TLS && D_INDIR+D_AX <= p->from.type && p->from.type <= D_INDIR+D_R15) {
-			p->from.type = D_INDIR+D_TLS;
+		if(p->from.type == TYPE_MEM && p->from.index == REG_TLS && REG_AX <= p->from.reg && p->from.reg <= REG_R15) {
+			p->from.reg = REG_TLS;
 			p->from.scale = 0;
-			p->from.index = D_NONE;
+			p->from.index = REG_NONE;
 		}
-		if(p->to.index == D_TLS && D_INDIR+D_AX <= p->to.type && p->to.type <= D_INDIR+D_R15) {
-			p->to.type = D_INDIR+D_TLS;
+		if(p->to.type == TYPE_MEM && p->to.index == REG_TLS && REG_AX <= p->to.reg && p->to.reg <= REG_R15) {
+			p->to.reg = REG_TLS;
 			p->to.scale = 0;
-			p->to.index = D_NONE;
+			p->to.index = REG_NONE;
 		}
 	} else {
 		// As a courtesy to the C compilers, rewrite TLS local exec load as TLS initial exec load.
@@ -182,25 +175,27 @@ progedit(Link *ctxt, Prog *p)
 		//	MOVQ TLS, BX
 		//	MOVQ off(BX)(TLS*1), BX
 		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
-		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == D_INDIR+D_TLS && D_AX <= p->to.type && p->to.type <= D_R15) {
+		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == TYPE_MEM && p->from.reg == REG_TLS && p->to.type == TYPE_REG && REG_AX <= p->to.reg && p->to.reg <= REG_R15) {
 			q = appendp(ctxt, p);
 			q->as = p->as;
 			q->from = p->from;
-			q->from.type = D_INDIR + p->to.type;
-			q->from.index = D_TLS;
+			q->from.type = TYPE_MEM;
+			q->from.reg = p->to.reg;
+			q->from.index = REG_TLS;
 			q->from.scale = 2; // TODO: use 1
 			q->to = p->to;
-			p->from.type = D_TLS;
-			p->from.index = D_NONE;
+			p->from.type = TYPE_REG;
+			p->from.reg = REG_TLS;
+			p->from.index = REG_NONE;
 			p->from.offset = 0;
 		}
 	}
 
 	// TODO: Remove.
 	if(ctxt->headtype == Hwindows || ctxt->headtype == Hplan9) {
-		if(p->from.scale == 1 && p->from.index == D_TLS)
+		if(p->from.scale == 1 && p->from.index == REG_TLS)
 			p->from.scale = 2;
-		if(p->to.scale == 1 && p->to.index == D_TLS)
+		if(p->to.scale == 1 && p->to.index == REG_TLS)
 			p->to.scale = 2;
 	}
 
@@ -216,7 +211,7 @@ progedit(Link *ctxt, Prog *p)
 	
 	switch(p->as) {
 	case AMODE:
-		if(p->from.type == D_CONST || p->from.type == D_INDIR+D_NONE) {
+		if(p->from.type == TYPE_CONST || (p->from.type == TYPE_MEM && p->from.reg == REG_NONE)) {
 			switch((int)p->from.offset) {
 			case 16:
 			case 32:
@@ -229,13 +224,13 @@ progedit(Link *ctxt, Prog *p)
 		break;
 	}
 	
-	// Rewrite CALL/JMP/RET to symbol as D_BRANCH.
+	// Rewrite CALL/JMP/RET to symbol as TYPE_BRANCH.
 	switch(p->as) {
 	case ACALL:
 	case AJMP:
 	case ARET:
-		if((p->to.type == D_EXTERN || p->to.type == D_STATIC) && p->to.sym != nil)
-			p->to.type = D_BRANCH;
+		if(p->to.type == TYPE_MEM && (p->to.name == NAME_EXTERN || p->to.name == NAME_STATIC) && p->to.sym != nil)
+			p->to.type = TYPE_BRANCH;
 		break;
 	}
 
@@ -243,13 +238,11 @@ progedit(Link *ctxt, Prog *p)
 	switch(p->as) {
 	case AMOVSS:
 		// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
-		if(p->from.type == D_FCONST)
+		if(p->from.type == TYPE_FCONST)
 		if(p->from.u.dval == 0)
-		if(p->to.type >= D_X0)
-		if(p->to.type <= D_X15) {
+		if(p->to.type == TYPE_REG && REG_X0 <= p->to.reg && p->to.reg <= REG_X15) {
 			p->as = AXORPS;
-			p->from.type = p->to.type;
-			p->from.index = p->to.index;
+			p->from = p->to;
 			break;
 		}
 		// fallthrough
@@ -269,7 +262,7 @@ progedit(Link *ctxt, Prog *p)
 	case ADIVSS:
 	case ACOMISS:
 	case AUCOMISS:
-		if(p->from.type == D_FCONST) {
+		if(p->from.type == TYPE_FCONST) {
 			uint32 i32;
 			float32 f32;
 			f32 = p->from.u.dval;
@@ -281,7 +274,8 @@ progedit(Link *ctxt, Prog *p)
 				adduint32(ctxt, s, i32);
 				s->reachable = 0;
 			}
-			p->from.type = D_EXTERN;
+			p->from.type = TYPE_MEM;
+			p->from.name = NAME_EXTERN;
 			p->from.sym = s;
 			p->from.offset = 0;
 		}
@@ -289,13 +283,11 @@ progedit(Link *ctxt, Prog *p)
 
 	case AMOVSD:
 		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
-		if(p->from.type == D_FCONST)
+		if(p->from.type == TYPE_FCONST)
 		if(p->from.u.dval == 0)
-		if(p->to.type >= D_X0)
-		if(p->to.type <= D_X15) {
+		if(p->to.type == TYPE_REG && REG_X0 <= p->to.reg && p->to.reg <= REG_X15) {
 			p->as = AXORPS;
-			p->from.type = p->to.type;
-			p->from.index = p->to.index;
+			p->from = p->to;
 			break;
 		}
 		// fallthrough
@@ -315,7 +307,7 @@ progedit(Link *ctxt, Prog *p)
 	case ADIVSD:
 	case ACOMISD:
 	case AUCOMISD:
-		if(p->from.type == D_FCONST) {
+		if(p->from.type == TYPE_FCONST) {
 			uint64 i64;
 			memmove(&i64, &p->from.u.dval, 8);
 			sprint(literal, "$f64.%016llux", i64);
@@ -325,7 +317,8 @@ progedit(Link *ctxt, Prog *p)
 				adduint64(ctxt, s, i64);
 				s->reachable = 0;
 			}
-			p->from.type = D_EXTERN;
+			p->from.type = TYPE_MEM;
+			p->from.name = NAME_EXTERN;
 			p->from.sym = s;
 			p->from.offset = 0;
 		}
@@ -339,28 +332,26 @@ nacladdr(Link *ctxt, Prog *p, Addr *a)
 	if(p->as == ALEAL || p->as == ALEAQ)
 		return;
 	
-	if(a->type == D_BP || a->type == D_INDIR+D_BP) {
+	if(a->reg == REG_BP) {
 		ctxt->diag("invalid address: %P", p);
 		return;
 	}
-	if(a->type == D_INDIR+D_TLS)
-		a->type = D_INDIR+D_BP;
-	else if(a->type == D_TLS)
-		a->type = D_BP;
-	if(D_INDIR <= a->type && a->type <= D_INDIR+D_INDIR) {
-		switch(a->type) {
-		case D_INDIR+D_BP:
-		case D_INDIR+D_SP:
-		case D_INDIR+D_R15:
+	if(a->reg == REG_TLS)
+		a->reg = REG_BP;
+	if(a->type == TYPE_MEM && a->name == NAME_NONE) {
+		switch(a->reg) {
+		case REG_BP:
+		case REG_SP:
+		case REG_R15:
 			// all ok
 			break;
 		default:
-			if(a->index != D_NONE)
+			if(a->index != REG_NONE)
 				ctxt->diag("invalid address %P", p);
-			a->index = a->type - D_INDIR;
-			if(a->index != D_NONE)
+			a->index = a->reg;
+			if(a->index != REG_NONE)
 				a->scale = 1;
-			a->type = D_INDIR+D_R15;
+			a->reg = REG_R15;
 			break;
 		}
 	}
@@ -384,7 +375,7 @@ parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
 }
 
 static void
-addstacksplit(Link *ctxt, LSym *cursym)
+preprocess(Link *ctxt, LSym *cursym)
 {
 	Prog *p, *q, *p1, *p2;
 	int32 autoffset, deltasp;
@@ -439,7 +430,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 			ctxt->diag("unaligned stack size %d", autoffset);
 		p = appendp(ctxt, p);
 		p->as = AADJSP;
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = autoffset;
 		p->spadj = autoffset;
 	} else {
@@ -475,63 +466,76 @@ addstacksplit(Link *ctxt, LSym *cursym)
 
 		p = appendp(ctxt, p);
 		p->as = AMOVQ;
-		p->from.type = D_INDIR+D_CX;
+		p->from.type = TYPE_MEM;
+		p->from.reg = REG_CX;
 		p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
-		p->to.type = D_BX;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_BX;
 		if(ctxt->headtype == Hnacl) {
 			p->as = AMOVL;
-			p->from.type = D_INDIR+D_R15;
+			p->from.type = TYPE_MEM;
+			p->from.reg = REG_R15;
 			p->from.scale = 1;
-			p->from.index = D_CX;
+			p->from.index = REG_CX;
 		}
 
 		p = appendp(ctxt, p);
 		p->as = ATESTQ;
-		p->from.type = D_BX;
-		p->to.type = D_BX;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_BX;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_BX;
 		if(ctxt->headtype == Hnacl)
 			p->as = ATESTL;
 
 		p = appendp(ctxt, p);
 		p->as = AJEQ;
-		p->to.type = D_BRANCH;
+		p->to.type = TYPE_BRANCH;
 		p1 = p;
 
 		p = appendp(ctxt, p);
 		p->as = ALEAQ;
-		p->from.type = D_INDIR+D_SP;
+		p->from.type = TYPE_MEM;
+		p->from.reg = REG_SP;
 		p->from.offset = autoffset+8;
-		p->to.type = D_DI;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_DI;
 		if(ctxt->headtype == Hnacl)
 			p->as = ALEAL;
 
 		p = appendp(ctxt, p);
 		p->as = ACMPQ;
-		p->from.type = D_INDIR+D_BX;
+		p->from.type = TYPE_MEM;
+		p->from.reg = REG_BX;
 		p->from.offset = 0; // Panic.argp
-		p->to.type = D_DI;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_DI;
 		if(ctxt->headtype == Hnacl) {
 			p->as = ACMPL;
-			p->from.type = D_INDIR+D_R15;
+			p->from.type = TYPE_MEM;
+			p->from.reg = REG_R15;
 			p->from.scale = 1;
-			p->from.index = D_BX;
+			p->from.index = REG_BX;
 		}
 
 		p = appendp(ctxt, p);
 		p->as = AJNE;
-		p->to.type = D_BRANCH;
+		p->to.type = TYPE_BRANCH;
 		p2 = p;
 
 		p = appendp(ctxt, p);
 		p->as = AMOVQ;
-		p->from.type = D_SP;
-		p->to.type = D_INDIR+D_BX;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_SP;
+		p->to.type = TYPE_MEM;
+		p->to.reg = REG_BX;
 		p->to.offset = 0; // Panic.argp
 		if(ctxt->headtype == Hnacl) {
 			p->as = AMOVL;
-			p->to.type = D_INDIR+D_R15;
+			p->to.type = TYPE_MEM;
+			p->to.reg = REG_R15;
 			p->to.scale = 1;
-			p->to.index = D_BX;
+			p->to.index = REG_BX;
 		}
 
 		p = appendp(ctxt, p);
@@ -546,20 +550,24 @@ addstacksplit(Link *ctxt, LSym *cursym)
 		// false positives in garbage collection.
 		p = appendp(ctxt, p);
 		p->as = AMOVQ;
-		p->from.type = D_SP;
-		p->to.type = D_DI;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_SP;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_DI;
 		
 		p = appendp(ctxt, p);
 		p->as = AMOVQ;
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = autoffset/8;
-		p->to.type = D_CX;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_CX;
 		
 		p = appendp(ctxt, p);
 		p->as = AMOVQ;
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = 0;
-		p->to.type = D_AX;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_AX;
 		
 		p = appendp(ctxt, p);
 		p->as = AREP;
@@ -570,15 +578,15 @@ addstacksplit(Link *ctxt, LSym *cursym)
 	
 	for(; p != nil; p = p->link) {
 		pcsize = p->mode/8;
-		a = p->from.type;
-		if(a == D_AUTO)
+		a = p->from.name;
+		if(a == NAME_AUTO)
 			p->from.offset += deltasp;
-		if(a == D_PARAM)
+		if(a == NAME_PARAM)
 			p->from.offset += deltasp + pcsize;
-		a = p->to.type;
-		if(a == D_AUTO)
+		a = p->to.name;
+		if(a == NAME_AUTO)
 			p->to.offset += deltasp;
-		if(a == D_PARAM)
+		if(a == NAME_PARAM)
 			p->to.offset += deltasp + pcsize;
 
 		switch(p->as) {
@@ -623,7 +631,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
 
 		if(autoffset) {
 			p->as = AADJSP;
-			p->from.type = D_CONST;
+			p->from.type = TYPE_CONST;
 			p->from.offset = -autoffset;
 			p->spadj = -autoffset;
 			p = appendp(ctxt, p);
@@ -643,13 +651,15 @@ static void
 indir_cx(Link *ctxt, Addr *a)
 {
 	if(ctxt->headtype == Hnacl) {
-		a->type = D_INDIR + D_R15;
-		a->index = D_CX;
+		a->type = TYPE_MEM;
+		a->reg = REG_R15;
+		a->index = REG_CX;
 		a->scale = 1;
 		return;
 	}
 
-	a->type = D_INDIR+D_CX;
+	a->type = TYPE_MEM;
+	a->reg = REG_CX;
 }
 
 // Append code to p to load g into cx.
@@ -665,16 +675,18 @@ load_g_cx(Link *ctxt, Prog *p)
 	p->as = AMOVQ;
 	if(ctxt->arch->ptrsize == 4)
 		p->as = AMOVL;
-	p->from.type = D_INDIR+D_TLS;
+	p->from.type = TYPE_MEM;
+	p->from.reg = REG_TLS;
 	p->from.offset = 0;
-	p->to.type = D_CX;
+	p->to.type = TYPE_REG;
+	p->to.reg = REG_CX;
 	
 	next = p->link;
 	progedit(ctxt, p);
 	while(p->link != next)
 		p = p->link;
 	
-	if(p->from.index == D_TLS)
+	if(p->from.index == REG_TLS)
 		p->from.scale = 2;
 
 	return p;
@@ -711,7 +723,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		//	CMPQ SP, stackguard
 		p = appendp(ctxt, p);
 		p->as = cmp;
-		p->from.type = D_SP;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_SP;
 		indir_cx(ctxt, &p->to);
 		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 		if(ctxt->cursym->cfunc)
@@ -722,13 +735,16 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		//	CMPQ AX, stackguard
 		p = appendp(ctxt, p);
 		p->as = lea;
-		p->from.type = D_INDIR+D_SP;
+		p->from.type = TYPE_MEM;
+		p->from.reg = REG_SP;
 		p->from.offset = -(framesize-StackSmall);
-		p->to.type = D_AX;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_AX;
 
 		p = appendp(ctxt, p);
 		p->as = cmp;
-		p->from.type = D_AX;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_AX;
 		indir_cx(ctxt, &p->to);
 		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 		if(ctxt->cursym->cfunc)
@@ -755,46 +771,53 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 		p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
 		if(ctxt->cursym->cfunc)
 			p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
-		p->to.type = D_SI;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_SI;
 
 		p = appendp(ctxt, p);
 		p->as = cmp;
-		p->from.type = D_SI;
-		p->to.type = D_CONST;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_SI;
+		p->to.type = TYPE_CONST;
 		p->to.offset = StackPreempt;
 
 		p = appendp(ctxt, p);
 		p->as = AJEQ;
-		p->to.type = D_BRANCH;
+		p->to.type = TYPE_BRANCH;
 		q1 = p;
 
 		p = appendp(ctxt, p);
 		p->as = lea;
-		p->from.type = D_INDIR+D_SP;
+		p->from.type = TYPE_MEM;
+		p->from.reg = REG_SP;
 		p->from.offset = StackGuard;
-		p->to.type = D_AX;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_AX;
 		
 		p = appendp(ctxt, p);
 		p->as = sub;
-		p->from.type = D_SI;
-		p->to.type = D_AX;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_SI;
+		p->to.type = TYPE_REG;
+		p->to.reg = REG_AX;
 		
 		p = appendp(ctxt, p);
 		p->as = cmp;
-		p->from.type = D_AX;
-		p->to.type = D_CONST;
+		p->from.type = TYPE_REG;
+		p->from.reg = REG_AX;
+		p->to.type = TYPE_CONST;
 		p->to.offset = framesize+(StackGuard-StackSmall);
 	}					
 
 	// common
 	p = appendp(ctxt, p);
 	p->as = AJHI;
-	p->to.type = D_BRANCH;
+	p->to.type = TYPE_BRANCH;
 	q = p;
 
 	p = appendp(ctxt, p);
 	p->as = ACALL;
-	p->to.type = D_BRANCH;
+	p->to.type = TYPE_BRANCH;
 	if(ctxt->cursym->cfunc)
 		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
 	else
@@ -802,7 +825,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
 	
 	p = appendp(ctxt, p);
 	p->as = AJMP;
-	p->to.type = D_BRANCH;
+	p->to.type = TYPE_BRANCH;
 	p->pcond = ctxt->cursym->text->link;
 	
 	if(q != nil)
@@ -960,7 +983,7 @@ loop:
 		q = ctxt->arch->prg();
 		q->as = AJMP;
 		q->lineno = p->lineno;
-		q->to.type = D_BRANCH;
+		q->to.type = TYPE_BRANCH;
 		q->to.offset = p->pc;
 		q->pcond = p;
 		p = q;
@@ -985,7 +1008,7 @@ loop:
 			p->pcond = q;
 		if((q = brchain(ctxt, p->link)) != nil)
 			p->link = q;
-		if(p->from.type == D_CONST) {
+		if(p->from.type == TYPE_CONST) {
 			if(p->from.offset == 1) {
 				/*
 				 * expect conditional jump to be taken.
@@ -1030,7 +1053,7 @@ LinkArch linkamd64 = {
 	.thechar = '6',
 	.endian = LittleEndian,
 
-	.addstacksplit = addstacksplit,
+	.preprocess = preprocess,
 	.assemble = span6,
 	.datasize = datasize,
 	.follow = follow,
@@ -1039,23 +1062,11 @@ LinkArch linkamd64 = {
 	.prg = prg,
 	.progedit = progedit,
 	.settextflag = settextflag,
-	.symtype = symtype,
 	.textflag = textflag,
 
 	.minlc = 1,
 	.ptrsize = 8,
 	.regsize = 8,
-
-	.D_ADDR = D_ADDR,
-	.D_AUTO = D_AUTO,
-	.D_BRANCH = D_BRANCH,
-	.D_CONST = D_CONST,
-	.D_EXTERN = D_EXTERN,
-	.D_FCONST = D_FCONST,
-	.D_NONE = D_NONE,
-	.D_PARAM = D_PARAM,
-	.D_SCONST = D_SCONST,
-	.D_STATIC = D_STATIC,
 
 	.ACALL = ACALL,
 	.ADATA = ADATA,
@@ -1076,7 +1087,7 @@ LinkArch linkamd64p32 = {
 	.thechar = '6',
 	.endian = LittleEndian,
 
-	.addstacksplit = addstacksplit,
+	.preprocess = preprocess,
 	.assemble = span6,
 	.datasize = datasize,
 	.follow = follow,
@@ -1085,23 +1096,11 @@ LinkArch linkamd64p32 = {
 	.prg = prg,
 	.progedit = progedit,
 	.settextflag = settextflag,
-	.symtype = symtype,
 	.textflag = textflag,
 
 	.minlc = 1,
 	.ptrsize = 4,
 	.regsize = 8,
-
-	.D_ADDR = D_ADDR,
-	.D_AUTO = D_AUTO,
-	.D_BRANCH = D_BRANCH,
-	.D_CONST = D_CONST,
-	.D_EXTERN = D_EXTERN,
-	.D_FCONST = D_FCONST,
-	.D_NONE = D_NONE,
-	.D_PARAM = D_PARAM,
-	.D_SCONST = D_SCONST,
-	.D_STATIC = D_STATIC,
 
 	.ACALL = ACALL,
 	.ADATA = ADATA,
