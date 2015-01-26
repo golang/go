@@ -1666,6 +1666,9 @@ reswitch:
 	case OAS:
 		ok |= Etop;
 		typecheckas(n);
+		// Code that creates temps does not bother to set defn, so do it here.
+		if(n->left->op == ONAME && strncmp(n->left->sym->name, "autotmp_", 8) == 0)
+			n->left->defn = n;
 		goto ret;
 
 	case OAS2:
