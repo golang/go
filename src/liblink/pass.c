@@ -77,7 +77,7 @@ linkpatch(Link *ctxt, LSym *sym)
 	for(p = sym->text; p != nil; p = p->link) {
 		if(ctxt->arch->progedit)
 			ctxt->arch->progedit(ctxt, p);
-		if(p->to.type != ctxt->arch->D_BRANCH)
+		if(p->to.type != TYPE_BRANCH)
 			continue;
 		if(p->to.u.branch != nil) {
 			// TODO: Remove to.u.branch in favor of p->pcond.
@@ -100,7 +100,7 @@ linkpatch(Link *ctxt, LSym *sym)
 			if(p->to.sym)
 				name = p->to.sym->name;
 			ctxt->diag("branch out of range (%#ux)\n%P [%s]", c, p, name);
-			p->to.type = ctxt->arch->D_NONE;
+			p->to.type = TYPE_NONE;
 		}
 		p->to.u.branch = q;
 		p->pcond = q;
@@ -111,7 +111,7 @@ linkpatch(Link *ctxt, LSym *sym)
 		if(p->pcond != nil) {
 			p->pcond = brloop(ctxt, p->pcond);
 			if(p->pcond != nil)
-			if(p->to.type == ctxt->arch->D_BRANCH)
+			if(p->to.type == TYPE_BRANCH)
 				p->to.offset = p->pcond->pc;
 		}
 	}

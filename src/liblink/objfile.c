@@ -167,7 +167,7 @@ writeobj(Link *ctxt, Biobuf *b)
 				a = emallocz(sizeof *a);
 				a->asym = p->from.sym;
 				a->aoffset = p->from.offset;
-				a->type = ctxt->arch->symtype(&p->from);
+				a->name = p->from.name;
 				a->gotype = p->from.gotype;
 				a->link = curtext->autom;
 				curtext->autom = a;
@@ -240,7 +240,7 @@ writeobj(Link *ctxt, Biobuf *b)
 				if(curtext == nil) // func _() {}
 					continue;
 				if(strcmp(p->to.sym->name, "go_args_stackmap") == 0) {
-					if(p->from.type != ctxt->arch->D_CONST || p->from.offset != FUNCDATA_ArgsPointerMaps)
+					if(p->from.type != TYPE_CONST || p->from.offset != FUNCDATA_ArgsPointerMaps)
 						ctxt->diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps");
 					p->to.sym = linklookup(ctxt, smprint("%s.args_stackmap", curtext->name), curtext->version);
 				}
@@ -260,7 +260,7 @@ writeobj(Link *ctxt, Biobuf *b)
 			continue;
 		found = 0;
 		for(p = s->text; p != nil; p = p->link) {
-			if(p->as == ctxt->arch->AFUNCDATA && p->from.type == ctxt->arch->D_CONST && p->from.offset == FUNCDATA_ArgsPointerMaps) {
+			if(p->as == ctxt->arch->AFUNCDATA && p->from.type == TYPE_CONST && p->from.offset == FUNCDATA_ArgsPointerMaps) {
 				found = 1;
 				break;
 			}
@@ -268,14 +268,10 @@ writeobj(Link *ctxt, Biobuf *b)
 		if(!found) {
 			p = appendp(ctxt, s->text);
 			p->as = ctxt->arch->AFUNCDATA;
-			p->from.type = ctxt->arch->D_CONST;
+			p->from.type = TYPE_CONST;
 			p->from.offset = FUNCDATA_ArgsPointerMaps;
-			if(ctxt->arch->thechar == '6' || ctxt->arch->thechar == '8')
-				p->to.type = ctxt->arch->D_EXTERN;
-			else {
-				p->to.type = ctxt->arch->D_OREG;
-				p->to.name = ctxt->arch->D_EXTERN;
-			}
+			p->to.type = TYPE_MEM;
+			p->to.name = NAME_EXTERN;
 			p->to.sym = linklookup(ctxt, smprint("%s.args_stackmap", s->name), s->version);
 		}
 	}
@@ -285,7 +281,7 @@ writeobj(Link *ctxt, Biobuf *b)
 		mkfwd(s);
 		linkpatch(ctxt, s);
 		ctxt->arch->follow(ctxt, s);
-		ctxt->arch->addstacksplit(ctxt, s);
+		ctxt->arch->preprocess(ctxt, s);
 		ctxt->arch->assemble(ctxt, s);
 		linkpcln(ctxt, s);
 	}
@@ -407,12 +403,12 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
 		for(a = s->autom; a != nil; a = a->link) {
 			wrsym(b, a->asym);
 			wrint(b, a->aoffset);
-			if(a->type == ctxt->arch->D_AUTO)
+			if(a->name == NAME_AUTO)
 				wrint(b, A_AUTO);
-			else if(a->type == ctxt->arch->D_PARAM)
+			else if(a->name == NAME_PARAM)
 				wrint(b, A_PARAM);
 			else
-				sysfatal("%s: invalid local variable type %d", s->name, a->type);
+				sysfatal("%s: invalid local variable type %d", s->name, a->name);
 			wrsym(b, a->gotype);
 		}
 
@@ -649,7 +645,7 @@ overwrite:
 			a = emallocz(sizeof *a);
 			a->asym = rdsym(ctxt, f, pkg);
 			a->aoffset = rdint(f);
-			a->type = rdint(f);
+			a->name = rdint(f);
 			a->gotype = rdsym(ctxt, f, pkg);
 			a->link = s->autom;
 			s->autom = a;

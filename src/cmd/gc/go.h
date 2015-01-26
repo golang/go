@@ -1675,10 +1675,6 @@ struct Arch
 	int AUNDEF;
 	int AVARDEF;
 	int AVARKILL;
-	int D_AUTO;
-	int D_BRANCH;
-	int D_NONE;
-	int D_PARAM;
 	vlong MAXWIDTH;
 
 	void (*afunclit)(Addr*, Node*);

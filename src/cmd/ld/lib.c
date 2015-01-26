@@ -1411,11 +1411,11 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
 		for(a=s->autom; a; a=a->link) {
 			// Emit a or p according to actual offset, even if label is wrong.
 			// This avoids negative offsets, which cannot be encoded.
-			if(a->type != A_AUTO && a->type != A_PARAM)
+			if(a->name != A_AUTO && a->name != A_PARAM)
 				continue;
 			
 			// compute offset relative to FP
-			if(a->type == A_PARAM)
+			if(a->name == A_PARAM)
 				off = a->aoffset;
 			else
 				off = a->aoffset - PtrSize;

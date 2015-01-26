@@ -512,7 +512,7 @@ newcfg(Prog *firstp)
 	bb = newblock(firstp);
 	arrayadd(cfg, &bb);
 	for(p = firstp; p != P; p = p->link) {
-		if(p->to.type == arch.D_BRANCH) {
+		if(p->to.type == TYPE_BRANCH) {
 			if(p->to.u.branch == nil)
 				fatal("prog branch to nil");
 			if(p->to.u.branch->opt == nil) {
@@ -551,7 +551,7 @@ newcfg(Prog *firstp)
 			if(isselectgocall(p))
 				arrayadd(selectgo, &bb);
 		}
-		if(bb->last->to.type == arch.D_BRANCH)
+		if(bb->last->to.type == TYPE_BRANCH)
 			addedge(bb, bb->last->to.u.branch->opt);
 		if(bb->last->link != nil) {
 			// Add a fall-through when the instruction is
@@ -704,7 +704,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 				// The p->to.type == arch.D_NONE limits the bvset to
 				// non-tail-call return instructions; see note above
 				// the for loop for details.
-				if(!node->addrtaken && prog->to.type == arch.D_NONE)
+				if(!node->addrtaken && prog->to.type == TYPE_NONE)
 					bvset(uevar, i);
 				break;
 			}
@@ -987,6 +987,10 @@ checkauto(Node *fn, Prog *p, Node *n)
 		if(l->n->op == ONAME && l->n->class == PAUTO && l->n == n)
 			return;
 
+	if(n == nil) {
+		print("%L: checkauto %N: nil node in %P\n", p->lineno, curfn, p);
+		return;
+	}
 	print("checkauto %N: %N (%p; class=%d) not found in %P\n", curfn, n, n, n->class, p);
 	for(l = fn->dcl; l != nil; l = l->next)
 		print("\t%N (%p; class=%d)\n", l->n, l->n, l->n->class);
@@ -1018,13 +1022,13 @@ checkparam(Node *fn, Prog *p, Node *n)
 static void
 checkprog(Node *fn, Prog *p)
 {
-	if(p->from.type == arch.D_AUTO)
+	if(p->from.name == NAME_AUTO)
 		checkauto(fn, p, p->from.node);
-	if(p->from.type == arch.D_PARAM)
+	if(p->from.name == NAME_PARAM)
 		checkparam(fn, p, p->from.node);
-	if(p->to.type == arch.D_AUTO)
+	if(p->to.name == NAME_AUTO)
 		checkauto(fn, p, p->to.node);
-	if(p->to.type == arch.D_PARAM)
+	if(p->to.name == NAME_PARAM)
 		checkparam(fn, p, p->to.node);
 }
 
