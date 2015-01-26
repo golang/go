@@ -31,6 +31,7 @@ func Example() {
 	for _, file := range files {
 		hdr := &tar.Header{
 			Name: file.Name,
+			Mode: 0600,
 			Size: int64(len(file.Body)),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
