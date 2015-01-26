@@ -326,7 +326,7 @@ func same(x, y []int) bool {
 
 // TestFowler runs this package's regexp API against the
 // POSIX regular expression tests collected by Glenn Fowler
-// at http://www2.research.att.com/~gsf/testregex/.
+// at http://www2.research.att.com/~astopen/testregex/testregex.html.
 func TestFowler(t *testing.T) {
 	files, err := filepath.Glob("testdata/*.dat")
 	if err != nil {
@@ -361,7 +361,7 @@ Reading:
 			break Reading
 		}
 
-		// http://www2.research.att.com/~gsf/man/man1/testregex.html
+		// http://www2.research.att.com/~astopen/man/man1/testregex.html
 		//
 		// INPUT FORMAT
 		//   Input lines may be blank, a comment beginning with #, or a test
