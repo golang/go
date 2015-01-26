@@ -1454,6 +1454,7 @@ void	typechecklist(NodeList *l, int top);
 Node*	typecheckdef(Node *n);
 void	copytype(Node *n, Type *t);
 void	checkreturn(Node*);
+void	checkassign(Node*);
 void	queuemethod(Node *n);
 
 /*

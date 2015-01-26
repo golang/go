@@ -27,7 +27,6 @@ static void	typecheckas2(Node*);
 static void	typecheckas(Node*);
 static void	typecheckfunc(Node*);
 static void	checklvalue(Node*, char*);
-static void	checkassign(Node*);
 static void	checkassignlist(NodeList*);
 static void	stringtoarraylit(Node**);
 static Node*	resolve(Node*);
@@ -2811,7 +2810,7 @@ checklvalue(Node *n, char *verb)
 		yyerror("cannot %s %N", verb, n);
 }
 
-static void
+void
 checkassign(Node *n)
 {
 	if(islvalue(n))
