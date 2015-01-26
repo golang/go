@@ -181,6 +181,10 @@ mapbucket(Type *t)
 	valuesfield->down = overflowfield;
 	overflowfield->down = T;
 
+	// See comment on hmap.overflow in ../../runtime/hashmap.go.
+	if(!haspointers(t->type) && !haspointers(t->down))
+		bucket->haspointers = 1;  // no pointers
+
 	bucket->width = offset;
 	bucket->local = t->local;
 	t->bucket = bucket;
@@ -197,7 +201,7 @@ static Type*
 hmap(Type *t)
 {
 	Type *h, *bucket;
-	Type *bucketsfield, *oldbucketsfield;
+	Type *bucketsfield, *oldbucketsfield, *overflowfield;
 	int32 offset;
 
 	if(t->hmap != T)
@@ -208,9 +212,10 @@ hmap(Type *t)
 	h->noalg = 1;
 
 	offset = widthint; // count
-	offset += 4;       // flags
-	offset += 4;       // hash0
+	offset += 1;       // flags
 	offset += 1;       // B
+	offset += 2;       // padding
+	offset += 4;       // hash0
 	offset = (offset + widthptr - 1) / widthptr * widthptr;
 	
 	bucketsfield = typ(TFIELD);
@@ -227,12 +232,20 @@ hmap(Type *t)
 	oldbucketsfield->sym->name = "oldbuckets";
 	offset += widthptr;
 
-	offset += widthptr; // nevacuate (last field in Hmap)
+	offset += widthptr; // nevacuate
+
+	overflowfield = typ(TFIELD);
+	overflowfield->type = types[TUNSAFEPTR];
+	overflowfield->width = offset;
+	overflowfield->sym = mal(sizeof(Sym));
+	overflowfield->sym->name = "overflow";
+	offset += widthptr;
 
 	// link up fields
 	h->type = bucketsfield;
 	bucketsfield->down = oldbucketsfield;
-	oldbucketsfield->down = T;
+	oldbucketsfield->down = overflowfield;
+	overflowfield->down = T;
 
 	h->width = offset;
 	h->local = t->local;
@@ -245,7 +258,7 @@ Type*
 hiter(Type *t)
 {
 	int32 n, off;
-	Type *field[7];
+	Type *field[9];
 	Type *i;
 
 	if(t->hiter != T)
@@ -259,6 +272,7 @@ hiter(Type *t)
 	//    h *Hmap
 	//    buckets *Bucket
 	//    bptr *Bucket
+	//    overflow unsafe.Pointer
 	//    other [4]uintptr
 	// }
 	// must match ../../runtime/hashmap.c:hash_iter.
@@ -292,29 +306,39 @@ hiter(Type *t)
 	field[5]->sym = mal(sizeof(Sym));
 	field[5]->sym->name = "bptr";
 	
-	// all other non-pointer fields
 	field[6] = typ(TFIELD);
-	field[6]->type = typ(TARRAY);
-	field[6]->type->type = types[TUINTPTR];
-	field[6]->type->bound = 4;
-	field[6]->type->width = 4 * widthptr;
+	field[6]->type = types[TUNSAFEPTR];
 	field[6]->sym = mal(sizeof(Sym));
-	field[6]->sym->name = "other";
+	field[6]->sym->name = "overflow0";
+
+	field[7] = typ(TFIELD);
+	field[7]->type = types[TUNSAFEPTR];
+	field[7]->sym = mal(sizeof(Sym));
+	field[7]->sym->name = "overflow1";
+
+	// all other non-pointer fields
+	field[8] = typ(TFIELD);
+	field[8]->type = typ(TARRAY);
+	field[8]->type->type = types[TUINTPTR];
+	field[8]->type->bound = 4;
+	field[8]->type->width = 4 * widthptr;
+	field[8]->sym = mal(sizeof(Sym));
+	field[8]->sym->name = "other";
 	
 	// build iterator struct holding the above fields
 	i = typ(TSTRUCT);
 	i->noalg = 1;
 	i->type = field[0];
 	off = 0;
-	for(n = 0; n < 6; n++) {
+	for(n = 0; n < nelem(field)-1; n++) {
 		field[n]->down = field[n+1];
 		field[n]->width = off;
 		off += field[n]->type->width;
 	}
-	field[6]->down = T;
-	off += field[6]->type->width;
-	if(off != 10 * widthptr)
-		yyerror("hash_iter size not correct %d %d", off, 10 * widthptr);
+	field[nelem(field)-1]->down = T;
+	off += field[nelem(field)-1]->type->width;
+	if(off != 12 * widthptr)
+		yyerror("hash_iter size not correct %d %d", off, 11 * widthptr);
 	t->hiter = i;
 	i->map = t;
 	return i;
