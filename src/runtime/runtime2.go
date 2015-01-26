@@ -203,6 +203,7 @@ type g struct {
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	preemptscan  bool // preempted g does scan for gc
 	gcworkdone   bool // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
+	gcscanvalid  bool // false at start of gc cycle, true if G has not run since last scan
 	throwsplit   bool // must not split stack
 	raceignore   int8 // ignore race detection events
 	m            *m   // for debuggers, but offset not hard-coded

@@ -395,6 +395,14 @@ func gcwork(force int32) {
 		gctimer.cycle.markterm = nanotime()
 		systemstack(stoptheworld)
 		systemstack(gcinstalloffwb_m)
+	} else {
+		// For non-concurrent GC (force != 0) g stack have not been scanned so
+		// set gcscanvalid such that mark termination scans all stacks.
+		// No races here since we are in a STW phase.
+		for _, gp := range allgs {
+			gp.gcworkdone = false  // set to true in gcphasework
+			gp.gcscanvalid = false // stack has not been scanned
+		}
 	}
 
 	startTime := nanotime()

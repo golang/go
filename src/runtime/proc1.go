@@ -345,6 +345,9 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 		dumpgstatus(gp)
 		throw("casfrom_Gscanstatus: gp->status is not in scan state")
 	}
+	if newval == _Grunning {
+		gp.gcscanvalid = false
+	}
 }
 
 // This will return false if the gp is not in the expected status and the cas fails.
@@ -358,6 +361,10 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 			return cas(&gp.atomicstatus, oldval, newval)
 		}
 	case _Grunning:
+		if gp.gcscanvalid {
+			print("runtime: castogscanstatus _Grunning and gp.gcscanvalid is true, newval=", hex(newval), "\n")
+			throw("castogscanstatus")
+		}
 		if newval == _Gscanrunning || newval == _Gscanenqueue {
 			return cas(&gp.atomicstatus, oldval, newval)
 		}
@@ -375,9 +382,13 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 func casgstatus(gp *g, oldval, newval uint32) {
 	if (oldval&_Gscan != 0) || (newval&_Gscan != 0) || oldval == newval {
 		systemstack(func() {
-			print("casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
+			print("runtime: casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
 			throw("casgstatus: bad incoming values")
 		})
+	}
+
+	if newval == _Grunning {
+		gp.gcscanvalid = false
 	}
 
 	// loop if gp->atomicstatus is in a scan state giving

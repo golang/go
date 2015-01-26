@@ -587,7 +587,10 @@ func markroot(desc *parfor, i uint32) {
 		}
 
 		// Shrink a stack if not much of it is being used but not in the scan phase.
-		if gcphase != _GCscan { // Do not shrink during GCscan phase.
+		if gcphase == _GCmarktermination {
+			// Shrink during STW GCmarktermination phase thus avoiding
+			// complications introduced by shrinking during
+			// non-STW phases.
 			shrinkstack(gp)
 		}
 		if readgstatus(gp) == _Gdead {
@@ -853,6 +856,9 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
 
 //go:nowritebarrier
 func scanstack(gp *g) {
+	if gp.gcscanvalid {
+		return
+	}
 
 	if readgstatus(gp)&_Gscan == 0 {
 		print("runtime:scanstack: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", hex(readgstatus(gp)), "\n")
@@ -882,6 +888,7 @@ func scanstack(gp *g) {
 
 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
 	tracebackdefers(gp, scanframe, nil)
+	gp.gcscanvalid = true
 }
 
 // Shade the object if it isn't already.
@@ -945,6 +952,7 @@ func gcphasework(gp *g) {
 	case _GCscan:
 		// scan the stack, mark the objects, put pointers in work buffers
 		// hanging off the P where this is being run.
+		// Indicate that the scan is valid until the goroutine runs again
 		scanstack(gp)
 	case _GCmark:
 		// No work.
@@ -1455,7 +1463,8 @@ func gcscan_m() {
 	local_allglen := allglen
 	for i := uintptr(0); i < local_allglen; i++ {
 		gp := allgs[i]
-		gp.gcworkdone = false // set to true in gcphasework
+		gp.gcworkdone = false  // set to true in gcphasework
+		gp.gcscanvalid = false // stack has not been scanned
 	}
 	unlock(&allglock)
 
