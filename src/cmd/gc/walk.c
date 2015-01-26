@@ -1920,9 +1920,19 @@ callnew(Type *t)
 static int
 isstack(Node *n)
 {
+	Node *defn;
+
 	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
 		n = n->left;
-	
+
+	// If n is *autotmp and autotmp = &foo, replace n with foo.
+	// We introduce such temps when initializing struct literals.
+	if(n->op == OIND && n->left->op == ONAME && strncmp(n->left->sym->name, "autotmp_", 8) == 0) {
+		defn = n->left->defn;
+		if(defn != N && defn->op == OAS && defn->right->op == OADDR)
+			n = defn->right->left;
+	}
+
 	switch(n->op) {
 	case OINDREG:
 		// OINDREG only ends up in walk if it's indirect of SP.
