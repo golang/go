@@ -1469,9 +1469,8 @@ func MapOf(key, elem Type) Type {
 
 	// Make a map type.
 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
-	prototype := *(**mapType)(unsafe.Pointer(&imap))
 	mt := new(mapType)
-	*mt = *prototype
+	*mt = **(**mapType)(unsafe.Pointer(&imap))
 	mt.string = &s
 	mt.hash = fnv1(etyp.hash, 'm', byte(ktyp.hash>>24), byte(ktyp.hash>>16), byte(ktyp.hash>>8), byte(ktyp.hash))
 	mt.key = ktyp
@@ -1575,7 +1574,7 @@ func (gc *gcProg) appendProg(t *rtype) {
 		for i := 0; i < c; i++ {
 			gc.appendProg(t.Field(i).Type.common())
 		}
-		if gc.size > oldsize + t.size {
+		if gc.size > oldsize+t.size {
 			panic("reflect: struct components are larger than the struct itself")
 		}
 		gc.size = oldsize + t.size
@@ -1650,6 +1649,12 @@ const (
 )
 
 func bucketOf(ktyp, etyp *rtype) *rtype {
+	// See comment on hmap.overflow in ../runtime/hashmap.go.
+	var kind uint8
+	if ktyp.kind&kindNoPointers != 0 && etyp.kind&kindNoPointers != 0 {
+		kind = kindNoPointers
+	}
+
 	if ktyp.size > maxKeySize {
 		ktyp = PtrTo(ktyp).(*rtype)
 	}
@@ -1679,6 +1684,7 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 
 	b := new(rtype)
 	b.size = gc.size
+	b.kind = kind
 	b.gc[0], _ = gc.finalize()
 	s := "bucket(" + *ktyp.string + "," + *etyp.string + ")"
 	b.string = &s

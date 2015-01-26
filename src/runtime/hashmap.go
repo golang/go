@@ -106,13 +106,24 @@ type hmap struct {
 	// Note: the format of the Hmap is encoded in ../../cmd/gc/reflect.c and
 	// ../reflect/type.go.  Don't change this structure without also changing that code!
 	count int // # live cells == size of map.  Must be first (used by len() builtin)
-	flags uint32
-	hash0 uint32 // hash seed
+	flags uint8
 	B     uint8  // log_2 of # of buckets (can hold up to loadFactor * 2^B items)
+	hash0 uint32 // hash seed
 
 	buckets    unsafe.Pointer // array of 2^B Buckets. may be nil if count==0.
 	oldbuckets unsafe.Pointer // previous bucket array of half the size, non-nil only when growing
 	nevacuate  uintptr        // progress counter for evacuation (buckets less than this have been evacuated)
+
+	// If both key and value do not contain pointers, then we mark bucket
+	// type as containing no pointers. This avoids scanning such maps.
+	// However, bmap.overflow is a pointer. In order to keep overflow buckets
+	// alive, we store pointers to all overflow buckets in hmap.overflow.
+	// Overflow is used only if key and value do not contain pointers.
+	// overflow[0] contains overflow buckets for hmap.buckets.
+	// overflow[1] contains overflow buckets for hmap.oldbuckets.
+	// The first indirection allows us to reduce static size of hmap.
+	// The second indirection allows to store a pointer to the slice in hiter.
+	overflow *[2]*[]*bmap
 }
 
 // A bucket for a Go map.
@@ -135,6 +146,7 @@ type hiter struct {
 	h           *hmap
 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
 	bptr        *bmap          // current bucket
+	overflow    [2]*[]*bmap    // keeps overflow buckets alive
 	startBucket uintptr        // bucket iteration started at
 	offset      uint8          // intra-bucket offset to start from during iteration (should be big enough to hold bucketCnt-1)
 	wrapped     bool           // already wrapped around from end of bucket array to beginning
@@ -152,8 +164,22 @@ func evacuated(b *bmap) bool {
 func (b *bmap) overflow(t *maptype) *bmap {
 	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize))
 }
-func (b *bmap) setoverflow(t *maptype, ovf *bmap) {
+
+func (h *hmap) setoverflow(t *maptype, b, ovf *bmap) {
+	if t.bucket.kind&kindNoPointers != 0 {
+		h.createOverflow()
+		*h.overflow[0] = append(*h.overflow[0], ovf)
+	}
 	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize)) = ovf
+}
+
+func (h *hmap) createOverflow() {
+	if h.overflow == nil {
+		h.overflow = new([2]*[]*bmap)
+	}
+	if h.overflow[0] == nil {
+		h.overflow[0] = new([]*bmap)
+	}
 }
 
 func makemap(t *maptype, hint int64) *hmap {
@@ -463,7 +489,7 @@ again:
 			memstats.next_gc = memstats.heap_alloc
 		}
 		newb := (*bmap)(newobject(t.bucket))
-		b.setoverflow(t, newb)
+		h.setoverflow(t, b, newb)
 		inserti = &newb.tophash[0]
 		insertk = add(unsafe.Pointer(newb), dataOffset)
 		insertv = add(insertk, bucketCnt*uintptr(t.keysize))
@@ -548,6 +574,8 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	it.h = nil
 	it.buckets = nil
 	it.bptr = nil
+	it.overflow[0] = nil
+	it.overflow[1] = nil
 
 	if raceenabled && h != nil {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
@@ -560,7 +588,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 		return
 	}
 
-	if unsafe.Sizeof(hiter{})/ptrSize != 10 {
+	if unsafe.Sizeof(hiter{})/ptrSize != 12 {
 		throw("hash_iter size incorrect") // see ../../cmd/gc/reflect.c
 	}
 	it.t = t
@@ -569,6 +597,14 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	// grab snapshot of bucket state
 	it.B = h.B
 	it.buckets = h.buckets
+	if t.bucket.kind&kindNoPointers != 0 {
+		// Allocate the current slice and remember pointers to both current and old.
+		// This preserves all relevant overflow buckets alive even if
+		// the table grows and/or overflow buckets are added to the table
+		// while we are iterating.
+		h.createOverflow()
+		it.overflow = *h.overflow
+	}
 
 	// decide where to start
 	r := uintptr(fastrand1())
@@ -585,14 +621,8 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 
 	// Remember we have an iterator.
 	// Can run concurrently with another hash_iter_init().
-	for {
-		old := h.flags
-		if old == old|iterator|oldIterator {
-			break
-		}
-		if cas(&h.flags, old, old|iterator|oldIterator) {
-			break
-		}
+	if old := h.flags; old&(iterator|oldIterator) != iterator|oldIterator {
+		atomicor8(&h.flags, iterator|oldIterator)
 	}
 
 	mapiternext(it)
@@ -753,6 +783,15 @@ func hashGrow(t *maptype, h *hmap) {
 	h.buckets = newbuckets
 	h.nevacuate = 0
 
+	if h.overflow != nil {
+		// Promote current overflow buckets to the old generation.
+		if h.overflow[1] != nil {
+			throw("overflow is not nil")
+		}
+		h.overflow[1] = h.overflow[0]
+		h.overflow[0] = nil
+	}
+
 	// the actual copying of the hash table data is done incrementally
 	// by growWork() and evacuate().
 }
@@ -836,7 +875,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 							memstats.next_gc = memstats.heap_alloc
 						}
 						newx := (*bmap)(newobject(t.bucket))
-						x.setoverflow(t, newx)
+						h.setoverflow(t, x, newx)
 						x = newx
 						xi = 0
 						xk = add(unsafe.Pointer(x), dataOffset)
@@ -863,7 +902,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 							memstats.next_gc = memstats.heap_alloc
 						}
 						newy := (*bmap)(newobject(t.bucket))
-						y.setoverflow(t, newy)
+						h.setoverflow(t, y, newy)
 						y = newy
 						yi = 0
 						yk = add(unsafe.Pointer(y), dataOffset)
@@ -899,6 +938,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 		if oldbucket+1 == newbit { // newbit == # of oldbuckets
 			// Growing is all done.  Free old main bucket array.
 			h.oldbuckets = nil
+			// Can discard old overflow buckets as well.
+			// If they are still referenced by an iterator,
+			// then the iterator holds a pointers to the slice.
+			if h.overflow != nil {
+				h.overflow[1] = nil
+			}
 		}
 	}
 }
