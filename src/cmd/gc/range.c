@@ -98,13 +98,13 @@ typecheckrange(Node *n)
 	}
 
 out:
-	typechecklist(n->nbody, Etop);
-
 	// second half of dance
 	n->typecheck = 1;
 	for(ll=n->list; ll; ll=ll->next)
 		if(ll->n->typecheck == 0)
 			typecheck(&ll->n, Erv | Easgn);
+
+	typechecklist(n->nbody, Etop);
 }
 
 void
