@@ -105,7 +105,7 @@ func writebarrierptr(dst *uintptr, src uintptr) {
 		return
 	}
 
-	if src != 0 && (src < _PageSize || src == poisonStack) {
+	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
 		systemstack(func() { throw("bad pointer in write barrier") })
 	}
 
@@ -140,7 +140,7 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 		return
 	}
 
-	if src != 0 && (src < _PageSize || src == poisonStack) {
+	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
 		systemstack(func() { throw("bad pointer in write barrier") })
 	}
 
@@ -422,8 +422,8 @@ func wbshadowinit() {
 	if end < uintptr(unsafe.Pointer(&ebss)) {
 		end = uintptr(unsafe.Pointer(&ebss))
 	}
-	start &^= _PageSize - 1
-	end = round(end, _PageSize)
+	start &^= _PhysPageSize - 1
+	end = round(end, _PhysPageSize)
 	mheap_.data_start = start
 	mheap_.data_end = end
 	reserved = false
