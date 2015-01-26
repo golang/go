@@ -163,30 +163,30 @@ cgen64(Node *n, Node *res)
 
 		// bl * cl -> ah al
 		p1 = gins(AMULLU, N, N);
-		p1->from.type = D_REG;
+		p1->from.type = TYPE_REG;
 		p1->from.reg = bl.val.u.reg;
 		p1->reg = cl.val.u.reg;
-		p1->to.type = D_REGREG;
+		p1->to.type = TYPE_REGREG;
 		p1->to.reg = ah.val.u.reg;
 		p1->to.offset = al.val.u.reg;
 //print("%P\n", p1);
 
 		// bl * ch + ah -> ah
 		p1 = gins(AMULA, N, N);
-		p1->from.type = D_REG;
+		p1->from.type = TYPE_REG;
 		p1->from.reg = bl.val.u.reg;
 		p1->reg = ch.val.u.reg;
-		p1->to.type = D_REGREG2;
+		p1->to.type = TYPE_REGREG2;
 		p1->to.reg = ah.val.u.reg;
 		p1->to.offset = ah.val.u.reg;
 //print("%P\n", p1);
 
 		// bh * cl + ah -> ah
 		p1 = gins(AMULA, N, N);
-		p1->from.type = D_REG;
+		p1->from.type = TYPE_REG;
 		p1->from.reg = bh.val.u.reg;
 		p1->reg = cl.val.u.reg;
-		p1->to.type = D_REGREG2;
+		p1->to.type = TYPE_REGREG2;
 		p1->to.reg = ah.val.u.reg;
 		p1->to.offset = ah.val.u.reg;
 //print("%P\n", p1);
