@@ -38,14 +38,13 @@ dsname(Sym *s, int off, char *t, int n)
 	Prog *p;
 
 	p = gins(ADATA, N, N);
-	p->from.type = D_EXTERN;
-	p->from.index = D_NONE;
+	p->from.type = TYPE_MEM;
+	p->from.name = NAME_EXTERN;
 	p->from.offset = off;
 	p->from.scale = n;
 	p->from.sym = linksym(s);
 	
-	p->to.type = D_SCONST;
-	p->to.index = D_NONE;
+	p->to.type = TYPE_SCONST;
 	memmove(p->to.u.sval, t, n);
 	return off + n;
 }
@@ -60,7 +59,8 @@ datastring(char *s, int len, Addr *a)
 	Sym *sym;
 	
 	sym = stringsym(s, len);
-	a->type = D_EXTERN;
+	a->type = TYPE_MEM;
+	a->name = NAME_EXTERN;
 	a->sym = linksym(sym);
 	a->node = sym->def;
 	a->offset = widthptr+widthint;  // skip header
@@ -77,7 +77,8 @@ datagostring(Strlit *sval, Addr *a)
 	Sym *sym;
 
 	sym = stringsym(sval->s, sval->len);
-	a->type = D_EXTERN;
+	a->type = TYPE_MEM;
+	a->name = NAME_EXTERN;
 	a->sym = linksym(sym);
 	a->node = sym->def;
 	a->offset = 0;  // header
@@ -114,13 +115,13 @@ gdatacomplex(Node *nam, Mpcplx *cval)
 
 	p = gins(ADATA, nam, N);
 	p->from.scale = w;
-	p->to.type = D_FCONST;
+	p->to.type = TYPE_FCONST;
 	p->to.u.dval = mpgetflt(&cval->real);
 
 	p = gins(ADATA, nam, N);
 	p->from.scale = w;
 	p->from.offset += w;
-	p->to.type = D_FCONST;
+	p->to.type = TYPE_FCONST;
 	p->to.u.dval = mpgetflt(&cval->imag);
 }
 
@@ -133,8 +134,7 @@ gdatastring(Node *nam, Strlit *sval)
 	p = gins(ADATA, nam, N);
 	datastring(sval->s, sval->len, &p->to);
 	p->from.scale = types[tptr]->width;
-	p->to.index = p->to.type;
-	p->to.type = D_ADDR;
+	p->to.type = TYPE_ADDR;
 //print("%P\n", p);
 
 	nodconst(&nod1, types[TINT], sval->len);
@@ -150,15 +150,14 @@ dstringptr(Sym *s, int off, char *str)
 
 	off = rnd(off, widthptr);
 	p = gins(ADATA, N, N);
-	p->from.type = D_EXTERN;
-	p->from.index = D_NONE;
+	p->from.type = TYPE_MEM;
+	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
 	p->from.offset = off;
 	p->from.scale = widthptr;
 
 	datastring(str, strlen(str)+1, &p->to);
-	p->to.index = p->to.type;
-	p->to.type = D_ADDR;
+	p->to.type = TYPE_ADDR;
 	p->to.etype = simtype[TINT];
 	off += widthptr;
 
@@ -175,14 +174,13 @@ dgostrlitptr(Sym *s, int off, Strlit *lit)
 
 	off = rnd(off, widthptr);
 	p = gins(ADATA, N, N);
-	p->from.type = D_EXTERN;
-	p->from.index = D_NONE;
+	p->from.type = TYPE_MEM;
+	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
 	p->from.offset = off;
 	p->from.scale = widthptr;
 	datagostring(lit, &p->to);
-	p->to.index = p->to.type;
-	p->to.type = D_ADDR;
+	p->to.type = TYPE_ADDR;
 	p->to.etype = simtype[TINT];
 	off += widthptr;
 
@@ -213,13 +211,13 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
 	off = rnd(off, widthptr);
 
 	p = gins(ADATA, N, N);
-	p->from.type = D_EXTERN;
-	p->from.index = D_NONE;
+	p->from.type = TYPE_MEM;
+	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
 	p->from.offset = off;
 	p->from.scale = widthptr;
-	p->to.type = D_ADDR;
-	p->to.index = D_EXTERN;
+	p->to.type = TYPE_ADDR;
+	p->to.name = NAME_EXTERN;
 	p->to.sym = linksym(x);
 	p->to.offset = xoff;
 	off += widthptr;
@@ -231,5 +229,7 @@ void
 nopout(Prog *p)
 {
 	p->as = ANOP;
+	p->from = zprog.from;
+	p->to = zprog.to;
 }
 
