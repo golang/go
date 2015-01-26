@@ -99,10 +99,10 @@ Pconv(Fmt *fp)
 	if(s & C_UBIT)		/* ambiguous with FBIT */
 		strcat(sc, ".U");
 	if(a == AMOVM) {
-		if(p->from.type == D_CONST)
+		if(p->from.type == TYPE_CONST)
 			sprint(str, "%.5lld (%L)	%A%s	%@,%D", p->pc, p->lineno, a, sc, &p->from, &p->to);
 		else
-		if(p->to.type == D_CONST)
+		if(p->to.type == TYPE_CONST)
 			sprint(str, "%.5lld (%L)	%A%s	%D,%@", p->pc, p->lineno, a, sc, &p->from, &p->to);
 		else
 			sprint(str, "%.5lld (%L)	%A%s	%D,%D", p->pc, p->lineno, a, sc, &p->from, &p->to);
@@ -113,13 +113,10 @@ Pconv(Fmt *fp)
 	if(p->as == ATEXT)
 		sprint(str, "%.5lld (%L)	%A	%D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
 	else
-	if(p->reg == NREG)
+	if(p->reg == 0)
 		sprint(str, "%.5lld (%L)	%A%s	%D,%D", p->pc, p->lineno, a, sc, &p->from, &p->to);
 	else
-	if(p->from.type != D_FREG)
-		sprint(str, "%.5lld (%L)	%A%s	%D,R%d,%D", p->pc, p->lineno, a, sc, &p->from, p->reg, &p->to);
-	else
-		sprint(str, "%.5lld (%L)	%A%s	%D,F%d,%D", p->pc, p->lineno, a, sc, &p->from, p->reg, &p->to);
+		sprint(str, "%.5lld (%L)	%A%s	%D,%R,%D", p->pc, p->lineno, a, sc, &p->from, p->reg, &p->to);
 	bigP = nil;
 	return fmtstrcpy(fp, str);
 }
@@ -152,60 +149,48 @@ Dconv(Fmt *fp)
 		sprint(str, "GOK-type(%d)", a->type);
 		break;
 
-	case D_NONE:
+	case TYPE_NONE:
 		str[0] = 0;
-		if(a->name != D_NONE || a->reg != NREG || a->sym != nil)
-			sprint(str, "%M(R%d)(NONE)", a, a->reg);
+		if(a->name != TYPE_NONE || a->reg != 0 || a->sym != nil)
+			sprint(str, "%M(%R)(NONE)", a, a->reg);
 		break;
 
-	case D_CONST:
-		if(a->reg != NREG)
-			sprint(str, "$%M(R%d)", a, a->reg);
+	case TYPE_CONST:
+		if(a->reg != 0)
+			sprint(str, "$%M(%R)", a, a->reg);
 		else
 			sprint(str, "$%M", a);
 		break;
 
-	case D_CONST2:
-		sprint(str, "$%lld-%d", a->offset, a->offset2);
+	case TYPE_TEXTSIZE:
+		sprint(str, "$%lld-%d", a->offset, a->u.argsize);
 		break;
 
-	case D_SHIFT:
+	case TYPE_SHIFT:
 		v = a->offset;
 		op = &"<<>>->@>"[(((v>>5) & 3) << 1)];
 		if(v & (1<<4))
 			sprint(str, "R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15);
 		else
 			sprint(str, "R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31);
-		if(a->reg != NREG)
-			sprint(str+strlen(str), "(R%d)", a->reg);
+		if(a->reg != 0)
+			sprint(str+strlen(str), "(%R)", a->reg);
 		break;
 
-	case D_OREG:
-		if(a->reg != NREG)
-			sprint(str, "%M(R%d)", a, a->reg);
+	case TYPE_MEM:
+		if(a->reg != 0)
+			sprint(str, "%M(%R)", a, a->reg);
 		else
 			sprint(str, "%M", a);
 		break;
 
-	case D_REG:
-		sprint(str, "R%d", a->reg);
-		if(a->name != D_NONE || a->sym != nil)
-			sprint(str, "%M(R%d)(REG)", a, a->reg);
+	case TYPE_REG:
+		sprint(str, "%R", a->reg);
+		if(a->name != TYPE_NONE || a->sym != nil)
+			sprint(str, "%M(%R)(REG)", a, a->reg);
 		break;
 
-	case D_FREG:
-		sprint(str, "F%d", a->reg);
-		if(a->name != D_NONE || a->sym != nil)
-			sprint(str, "%M(R%d)(REG)", a, a->reg);
-		break;
-
-	case D_PSR:
-		sprint(str, "PSR");
-		if(a->name != D_NONE || a->sym != nil)
-			sprint(str, "%M(PSR)(REG)", a);
-		break;
-
-	case D_BRANCH:
+	case TYPE_BRANCH:
 		if(a->sym != nil)
 			sprint(str, "%s(SB)", a->sym->name);
 		else if(bigP != nil && bigP->pcond != nil)
@@ -216,11 +201,11 @@ Dconv(Fmt *fp)
 			sprint(str, "%lld(PC)", a->offset/*-pc*/);
 		break;
 
-	case D_FCONST:
+	case TYPE_FCONST:
 		sprint(str, "$%.17g", a->u.dval);
 		break;
 
-	case D_SCONST:
+	case TYPE_SCONST:
 		sprint(str, "$\"%$\"", a->u.sval);
 		break;
 	}
@@ -237,9 +222,9 @@ RAconv(Fmt *fp)
 	a = va_arg(fp->args, Addr*);
 	sprint(str, "GOK-reglist");
 	switch(a->type) {
-	case D_CONST:
-	case D_CONST2:
-		if(a->reg != NREG)
+	case TYPE_CONST:
+	case TYPE_TEXTSIZE:
+		if(a->reg != 0)
 			break;
 		if(a->sym != nil)
 			break;
@@ -310,11 +295,27 @@ static int
 Rconv(Fmt *fp)
 {
 	int r;
-	char str[STRINGSZ];
 
 	r = va_arg(fp->args, int);
-	sprint(str, "R%d", r);
-	return fmtstrcpy(fp, str);
+	if(r == 0)
+		return fmtstrcpy(fp, "NONE");
+	if(REG_R0 <= r && r <= REG_R15)
+		return fmtprint(fp, "R%d", r-REG_R0);
+	if(REG_F0 <= r && r <= REG_F15)
+		return fmtprint(fp, "F%d", r-REG_F0);
+
+	switch(r) {
+	case REG_FPSR:
+		return fmtstrcpy(fp, "FPSR");
+	case REG_FPCR:
+		return fmtstrcpy(fp, "FPCR");
+	case REG_CPSR:
+		return fmtstrcpy(fp, "CPSR");
+	case REG_SPSR:
+		return fmtstrcpy(fp, "SPSR");
+	}
+
+	return fmtprint(fp, "badreg(%d)", r);
 }
 
 static int
@@ -348,23 +349,23 @@ Mconv(Fmt *fp)
 		sprint(str, "GOK-name(%d)", a->name);
 		break;
 
-	case D_NONE:
+	case NAME_NONE:
 		sprint(str, "%lld", a->offset);
 		break;
 
-	case D_EXTERN:
+	case NAME_EXTERN:
 		sprint(str, "%s+%d(SB)", s->name, (int)a->offset);
 		break;
 
-	case D_STATIC:
+	case NAME_STATIC:
 		sprint(str, "%s<>+%d(SB)", s->name, (int)a->offset);
 		break;
 
-	case D_AUTO:
+	case NAME_AUTO:
 		sprint(str, "%s-%d(SP)", s->name, (int)-a->offset);
 		break;
 
-	case D_PARAM:
+	case NAME_PARAM:
 		sprint(str, "%s+%d(FP)", s->name, (int)a->offset);
 		break;
 	}
