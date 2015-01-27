@@ -848,7 +848,7 @@ func (v Value) Index(i int) Value {
 		}
 		tt := (*sliceType)(unsafe.Pointer(v.typ))
 		typ := tt.elem
-		val := unsafe.Pointer(uintptr(s.Data) + uintptr(i)*typ.size)
+		val := arrayAt(s.Data, i, typ.size)
 		fl := flagAddr | flagIndir | v.flag&flagRO | flag(typ.Kind())
 		return Value{typ, val, fl}
 
@@ -857,7 +857,7 @@ func (v Value) Index(i int) Value {
 		if uint(i) >= uint(s.Len) {
 			panic("reflect: string index out of range")
 		}
-		p := unsafe.Pointer(uintptr(s.Data) + uintptr(i))
+		p := arrayAt(s.Data, i, 1)
 		fl := v.flag&flagRO | flag(Uint8) | flagIndir
 		return Value{uint8Type, p, fl}
 	}
@@ -1540,7 +1540,7 @@ func (v Value) Slice(i, j int) Value {
 		if i < 0 || j < i || j > s.Len {
 			panic("reflect.Value.Slice: string slice index out of bounds")
 		}
-		t := stringHeader{unsafe.Pointer(uintptr(s.Data) + uintptr(i)), j - i}
+		t := stringHeader{arrayAt(s.Data, i, 1), j - i}
 		return Value{v.typ, unsafe.Pointer(&t), v.flag}
 	}
 
@@ -1556,7 +1556,7 @@ func (v Value) Slice(i, j int) Value {
 	s.Len = j - i
 	s.Cap = cap - i
 	if cap-i > 0 {
-		s.Data = unsafe.Pointer(uintptr(base) + uintptr(i)*typ.elem.Size())
+		s.Data = arrayAt(base, i, typ.elem.Size())
 	} else {
 		// do not advance pointer, to avoid pointing beyond end of slice
 		s.Data = base
@@ -1608,7 +1608,7 @@ func (v Value) Slice3(i, j, k int) Value {
 	s.Len = j - i
 	s.Cap = k - i
 	if k-i > 0 {
-		s.Data = unsafe.Pointer(uintptr(base) + uintptr(i)*typ.elem.Size())
+		s.Data = arrayAt(base, i, typ.elem.Size())
 	} else {
 		// do not advance pointer, to avoid pointing beyond end of slice
 		s.Data = base
