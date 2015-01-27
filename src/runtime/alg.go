@@ -38,6 +38,8 @@ const (
 	alg_max
 )
 
+// typeAlg is also copied/used in reflect/type.go.
+// keep them in sync.
 type typeAlg struct {
 	// function for hashing objects of this type
 	// (ptr to object, seed) -> hash

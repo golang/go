@@ -1767,6 +1767,12 @@ func typesMustMatch(what string, t1, t2 Type) {
 	}
 }
 
+// arrayAt returns the i-th element of p, a C-array whose elements are
+// eltSize wide (in bytes).
+func arrayAt(p unsafe.Pointer, i int, eltSize uintptr) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(p) + uintptr(i)*eltSize)
+}
+
 // grow grows the slice s so that it can hold extra more values, allocating
 // more capacity if needed. It also returns the old and new slice lengths.
 func grow(s Value, extra int) (Value, int, int) {
