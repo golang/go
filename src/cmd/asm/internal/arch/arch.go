@@ -21,8 +21,8 @@ const (
 // Arch wraps the link architecture object with more architecture-specific information.
 type Arch struct {
 	*obj.LinkArch
-	D_INDIR  int16 // TODO: why not in LinkArch?
-	D_CONST2 int16 // TODO: why not in LinkArch?
+	D_INDIR  int // TODO: why not in LinkArch?
+	D_CONST2 int // TODO: why not in LinkArch?
 	// Register number of hardware stack pointer.
 	SP int
 	// Encoding of non-address.
