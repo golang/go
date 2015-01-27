@@ -14,6 +14,7 @@
 package big
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"math"
@@ -472,12 +473,16 @@ func (z *Float) Set(x *Float) *Float {
 }
 
 func high64(x nat) uint64 {
-	if len(x) == 0 {
+	i := len(x) - 1
+	if i < 0 {
 		return 0
 	}
-	v := uint64(x[len(x)-1])
-	if _W == 32 && len(x) > 1 {
-		v = v<<32 | uint64(x[len(x)-2])
+	v := uint64(x[i])
+	if _W == 32 {
+		v <<= 32
+		if i > 0 {
+			v |= uint64(x[i-1])
+		}
 	}
 	return v
 }
@@ -575,40 +580,27 @@ func (z *Float) uadd(x, y *Float) {
 	// Point Addition With Exact Rounding (as in the MPFR Library)"
 	// http://www.vinc17.net/research/papers/rnc6.pdf
 
-	// order x, y by magnitude
-	ex := int(x.exp) - len(x.mant)*_W
-	ey := int(y.exp) - len(y.mant)*_W
-	if ex < ey {
-		// + is commutative => ok to swap operands
-		x, y = y, x
-		ex, ey = ey, ex
+	ex := int64(x.exp) - int64(len(x.mant))*_W
+	ey := int64(y.exp) - int64(len(y.mant))*_W
+
+	var e int64
+	switch {
+	case ex < ey:
+		t := z.mant.shl(y.mant, uint(ey-ex))
+		z.mant = t.add(x.mant, t)
+		e = ex
+	default:
+		// ex == ey
+		z.mant = z.mant.add(x.mant, y.mant)
+		e = ex
+	case ex > ey:
+		t := z.mant.shl(x.mant, uint(ex-ey))
+		z.mant = t.add(t, y.mant)
+		e = ey
 	}
-	// ex >= ey
-	d := uint(ex - ey)
+	// len(z.mant) > 0
 
-	// compute adjusted xmant
-	var n0 uint // nlz(z) before addition
-	xadj := x.mant
-	if d > 0 {
-		xadj = z.mant.shl(x.mant, d) // 1st shift
-		n0 = _W - d%_W
-	}
-	z.exp = x.exp
-
-	// add numbers
-	z.mant = z.mant.add(xadj, y.mant)
-
-	// normalize mantissa
-	n1 := fnorm(z.mant) // 2nd shift (often)
-
-	// adjust exponent if the result got longer (by at most 1 bit)
-	if n1 != n0 {
-		if debugFloat && (n1+1)%_W != n0 {
-			panic(fmt.Sprintf("carry is %d bits, expected at most 1 bit", n0-n1))
-		}
-		z.exp++
-	}
-
+	z.setExp(e + int64(len(z.mant))*_W - int64(fnorm(z.mant)))
 	z.round(0)
 }
 
@@ -619,39 +611,40 @@ func (z *Float) usub(x, y *Float) {
 		panic("usub called with 0 argument")
 	}
 
-	// Note: Like uadd, this implementation is often doing
-	// too much work and could be optimized by separating
-	// the various special cases.
-
-	// determine magnitude difference
-	ex := int(x.exp) - len(x.mant)*_W
-	ey := int(y.exp) - len(y.mant)*_W
-
-	if ex < ey {
+	if x.exp < y.exp {
 		panic("underflow")
 	}
-	// ex >= ey
-	d := uint(ex - ey)
 
-	// compute adjusted x.mant
-	var n uint // nlz(z) after adjustment
-	xadj := x.mant
-	if d > 0 {
-		xadj = z.mant.shl(x.mant, d)
-		n = _W - d%_W
+	// This code is symmetric to uadd.
+
+	ex := int64(x.exp) - int64(len(x.mant))*_W
+	ey := int64(y.exp) - int64(len(y.mant))*_W
+
+	var e int64
+	switch {
+	case ex < ey:
+		t := z.mant.shl(y.mant, uint(ey-ex))
+		z.mant = t.sub(x.mant, t)
+		e = ex
+	default:
+		// ex == ey
+		z.mant = z.mant.sub(x.mant, y.mant)
+		e = ex
+	case ex > ey:
+		t := z.mant.shl(x.mant, uint(ex-ey))
+		z.mant = t.sub(t, y.mant)
+		e = ey
 	}
-	e := int64(x.exp) + int64(n)
 
-	// subtract numbers
-	z.mant = z.mant.sub(xadj, y.mant)
-
-	if len(z.mant) != 0 {
-		e -= int64(len(xadj)-len(z.mant)) * _W
-
-		// normalize mantissa
-		z.setExp(e - int64(fnorm(z.mant)))
+	// operands may have cancelled each other out
+	if len(z.mant) == 0 {
+		z.acc = Exact
+		z.setExp(0)
+		return
 	}
+	// len(z.mant) > 0
 
+	z.setExp(e + int64(len(z.mant))*_W - int64(fnorm(z.mant)))
 	z.round(0)
 }
 
@@ -973,14 +966,22 @@ func (x *Float) String() string {
 	return x.PString() // TODO(gri) fix this
 }
 
-// PString returns x as a string in the format ["-"] "0x" mantissa "p" exponent,
-// with a hexadecimal mantissa and a signed decimal exponent.
+// PString returns x as a string in the format ["-"] "0." mantissa "p" exponent
+// with a hexadecimal mantissa and a decimal exponent, or ["-"] "0" if x is zero.
 func (x *Float) PString() string {
-	prefix := "0."
+	// TODO(gri) handle Inf
+	var buf bytes.Buffer
 	if x.neg {
-		prefix = "-0."
+		buf.WriteByte('-')
 	}
-	return prefix + x.mant.string(lowercaseDigits[:16]) + fmt.Sprintf("p%d", x.exp)
+	buf.WriteByte('0')
+	if len(x.mant) > 0 {
+		// non-zero value
+		buf.WriteByte('.')
+		buf.WriteString(strings.TrimRight(x.mant.string(lowercaseDigits[:16]), "0"))
+		fmt.Fprintf(&buf, "p%d", x.exp)
+	}
+	return buf.String()
 }
 
 // SetString sets z to the value of s and returns z and a boolean indicating
