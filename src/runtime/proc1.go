@@ -1429,10 +1429,7 @@ top:
 	// Check the global runnable queue once in a while to ensure fairness.
 	// Otherwise two goroutines can completely occupy the local runqueue
 	// by constantly respawning each other.
-	tick := _g_.m.p.schedtick
-	// This is a fancy way to say tick%61==0,
-	// it uses 2 MUL instructions instead of a single DIV and so is faster on modern processors.
-	if uint64(tick)-((uint64(tick)*0x4325c53f)>>36)*61 == 0 && sched.runqsize > 0 {
+	if _g_.m.p.schedtick%61 == 0 && sched.runqsize > 0 {
 		lock(&sched.lock)
 		gp = globrunqget(_g_.m.p, 1)
 		unlock(&sched.lock)
