@@ -143,7 +143,7 @@ writeobj(Link *ctxt, Biobuf *b)
 	for(pl = ctxt->plist; pl != nil; pl = pl->link) {
 		for(p = pl->firstpc; p != nil; p = plink) {
 			if(ctxt->debugasm && ctxt->debugvlog)
-				print("obj: %p %P\n", p, p);
+				print("obj: %P\n", p);
 			plink = p->link;
 			p->link = nil;
 
