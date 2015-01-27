@@ -80,7 +80,7 @@ func (p *Parser) Parse() (*obj.Prog, bool) {
 	return p.firstProg, true
 }
 
-// WORD op {, op} '\n'
+// WORD [ arg {, arg} ] '\n'
 func (p *Parser) line() bool {
 	// Skip newlines.
 	var tok lex.ScanToken
@@ -107,18 +107,14 @@ func (p *Parser) line() bool {
 	word := p.lex.Text()
 	operands := make([][]lex.Token, 0, 3)
 	// Zero or more comma-separated operands, one per loop.
-	first := true // Permit ':' to define this as a label.
 	for tok != '\n' && tok != ';' {
 		// Process one operand.
 		items := make([]lex.Token, 0, 3)
 		for {
 			tok = p.lex.Next()
-			if first {
-				if tok == ':' {
-					p.pendingLabels = append(p.pendingLabels, word)
-					return true
-				}
-				first = false
+			if tok == ':' && len(operands) == 0 && len(items) == 0 { // First token.
+				p.pendingLabels = append(p.pendingLabels, word)
+				return true
 			}
 			if tok == scanner.EOF {
 				p.errorf("unexpected EOF")
@@ -131,8 +127,8 @@ func (p *Parser) line() bool {
 		}
 		if len(items) > 0 {
 			operands = append(operands, items)
-		} else if len(operands) > 0 {
-			// Had a comma but nothing after.
+		} else if len(operands) > 0 || tok == ',' {
+			// Had a comma with nothing after.
 			p.errorf("missing operand")
 		}
 	}
@@ -450,6 +446,18 @@ func (p *Parser) term() uint64 {
 	}
 	p.errorf("unexpected %s evaluating expression", tok)
 	return 0
+}
+
+// positiveAtoi returns an int64 that must be >= 0.
+func (p *Parser) positiveAtoi(str string) int64 {
+	value, err := strconv.ParseInt(str, 0, 64)
+	if err != nil {
+		p.errorf("%s", err)
+	}
+	if value < 0 {
+		p.errorf("%s overflows int64", str)
+	}
+	return value
 }
 
 func (p *Parser) atoi(str string) uint64 {

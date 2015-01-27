@@ -40,6 +40,7 @@ func (p *Parser) symbolType(a *addr.Addr) int {
 
 // TODO: configure the architecture
 
+// TODO: This is hacky and irregular. When obj settles down, rewrite for simplicity.
 func (p *Parser) addrToAddr(a *addr.Addr) obj.Addr {
 	out := p.arch.NoAddr
 	if a.Has(addr.Symbol) {
@@ -75,7 +76,7 @@ func (p *Parser) addrToAddr(a *addr.Addr) obj.Addr {
 			out.Type = int16(p.arch.SP)
 		}
 		if a.IsIndirect {
-			out.Type += p.arch.D_INDIR
+			out.Type += int16(p.arch.D_INDIR)
 		}
 		// a.Register2 handled in the instruction method; it's bizarre.
 	}
@@ -89,7 +90,7 @@ func (p *Parser) addrToAddr(a *addr.Addr) obj.Addr {
 		out.Offset = a.Offset
 		if a.Is(addr.Offset) {
 			// RHS of MOVL $0xf1, 0xf1  // crash
-			out.Type = p.arch.D_INDIR + int16(p.arch.D_NONE)
+			out.Type = int16(p.arch.D_INDIR + p.arch.D_NONE)
 		} else if a.IsImmediateConstant && out.Type == int16(p.arch.D_NONE) {
 			out.Type = int16(p.arch.D_CONST)
 		}
@@ -102,15 +103,26 @@ func (p *Parser) addrToAddr(a *addr.Addr) obj.Addr {
 		out.U.Sval = a.String
 		out.Type = int16(p.arch.D_SCONST)
 	}
-	// HACK TODO
+	// TODO from https://go-review.googlesource.com/#/c/3196/ {
+	// There's a general rule underlying this special case and the one at line 91 (RHS OF MOVL $0xf1).
+	//	Unless there's a $, it's an indirect.
+	// 4(R1)(R2*8)
+	// 4(R1)
+	// 4(R2*8)
+	// 4
+	// (R1)(R2*8)
+	// (R1)
+	// (R2*8)
+	// There should be a more general approach that doesn't just pick off cases.
+	// }
 	if a.IsIndirect && !a.Has(addr.Register) && a.Has(addr.Index) {
 		// LHS of LEAQ	0(BX*8), CX
-		out.Type = p.arch.D_INDIR + int16(p.arch.D_NONE)
+		out.Type = int16(p.arch.D_INDIR + p.arch.D_NONE)
 	}
 	return out
 }
 
-func (p *Parser) link(prog *obj.Prog, doLabel bool) {
+func (p *Parser) append(prog *obj.Prog, doLabel bool) {
 	if p.firstProg == nil {
 		p.firstProg = prog
 	} else {
@@ -147,6 +159,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	name := nameAddr.Symbol
 
 	// Operand 1 is the text flag, a literal integer.
+	// TODO: This is optional but this parser takes it as required.
 	flagAddr := p.address(operands[1])
 	if !flagAddr.Is(addr.Offset) {
 		p.errorf("TEXT flag for %s must be an integer", name)
@@ -154,30 +167,37 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	flag := int8(flagAddr.Offset)
 
 	// Operand 2 is the frame and arg size.
-	// Bizarre syntax: $a-b is two words, not subtraction.
-	// We might even see $-b, which means $0-b. Ugly.
-	// Assume if it has this syntax that b is a plain constant.
-	// Not clear we can do better, but it doesn't matter.
+	// Bizarre syntax: $frameSize-argSize is two words, not subtraction.
+	// Both frameSize and argSize must be simple integers; only frameSize
+	// can be negative.
+	// The "-argSize" may be missing; if so, set it to obj.ArgsSizeUnknown.
+	// Parse left to right.
 	op := operands[2]
-	n := len(op)
-	locals := int64(obj.ArgsSizeUnknown)
-	if n >= 2 && op[n-2].ScanToken == '-' && op[n-1].ScanToken == scanner.Int {
-		p.start(op[n-1:])
-		locals = int64(p.expr())
-		op = op[:n-2]
+	if len(op) < 2 || op[0].ScanToken != '$' {
+		p.errorf("TEXT %s: frame size must be an immediate constant", name)
 	}
-	args := int64(0)
-	if len(op) == 1 && op[0].ScanToken == '$' {
-		// Special case for $-8.
-		// Done; args is zero.
-	} else {
-		argsAddr := p.address(op)
-		if !argsAddr.Is(addr.ImmediateConstant | addr.Offset) {
-			p.errorf("TEXT frame size for %s must be an immediate constant", name)
+	op = op[1:]
+	negative := false
+	if op[0].ScanToken == '-' {
+		negative = true
+		op = op[1:]
+	}
+	if len(op) == 0 || op[0].ScanToken != scanner.Int {
+		p.errorf("TEXT %s: frame size must be an immediate constant", name)
+	}
+	frameSize := p.positiveAtoi(op[0].String())
+	if negative {
+		frameSize = -frameSize
+	}
+	op = op[1:]
+	argSize := int64(obj.ArgsSizeUnknown)
+	if len(op) > 0 {
+		// There is an argument size. It must be a minus sign followed by a non-negative integer literal.
+		if len(op) != 2 || op[0].ScanToken != '-' || op[1].ScanToken != scanner.Int {
+			p.errorf("TEXT %s: argument size must be of form -integer", name)
 		}
-		args = argsAddr.Offset
+		argSize = p.positiveAtoi(op[1].String())
 	}
-
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
 		As:     int16(p.arch.ATEXT),
@@ -192,19 +212,19 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 			Index: uint8(p.arch.D_NONE),
 		},
 	}
-	// Encoding of arg and locals depends on architecture.
+	// Encoding of frameSize and argSize depends on architecture.
 	switch p.arch.Thechar {
 	case '6':
 		prog.To.Type = int16(p.arch.D_CONST)
-		prog.To.Offset = (locals << 32) | args
+		prog.To.Offset = (argSize << 32) | frameSize
 	case '8':
-		prog.To.Type = p.arch.D_CONST2
-		prog.To.Offset = args
-		prog.To.Offset2 = int32(locals)
+		prog.To.Type = int16(p.arch.D_CONST2)
+		prog.To.Offset = frameSize
+		prog.To.Offset2 = int32(argSize)
 	default:
-		p.errorf("internal error: can't encode TEXT arg/frame")
+		p.errorf("internal error: can't encode TEXT $arg-frame")
 	}
-	p.link(prog, true)
+	p.append(prog, true)
 }
 
 // asmData assembles a DATA pseudo-op.
@@ -255,7 +275,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 		To: p.addrToAddr(&valueAddr),
 	}
 
-	p.link(prog, false)
+	p.append(prog, false)
 }
 
 // asmGlobl assembles a GLOBL pseudo-op.
@@ -310,7 +330,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 			Offset: size,
 		},
 	}
-	p.link(prog, false)
+	p.append(prog, false)
 }
 
 // asmPCData assembles a PCDATA pseudo-op.
@@ -350,7 +370,7 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
 			Offset: value1,
 		},
 	}
-	p.link(prog, true)
+	p.append(prog, true)
 }
 
 // asmFuncData assembles a FUNCDATA pseudo-op.
@@ -391,7 +411,7 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 			Sym:   obj.Linklookup(p.linkCtxt, name, 0),
 		},
 	}
-	p.link(prog, true)
+	p.append(prog, true)
 }
 
 // asmJump assembles a jump instruction.
@@ -454,7 +474,7 @@ func (p *Parser) asmJump(op int, a []addr.Addr) {
 	default:
 		p.errorf("cannot assemble jump %+v", target)
 	}
-	p.link(prog, true)
+	p.append(prog, true)
 }
 
 func (p *Parser) patch() {
@@ -529,5 +549,5 @@ func (p *Parser) asmInstruction(op int, a []addr.Addr) {
 	default:
 		p.errorf("can't handle instruction with %d operands", len(a))
 	}
-	p.link(prog, true)
+	p.append(prog, true)
 }
