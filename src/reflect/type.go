@@ -262,11 +262,11 @@ type rtype struct {
 // a copy of runtime.typeAlg
 type typeAlg struct {
 	// function for hashing objects of this type
-	// (ptr to object, size, seed) -> hash
-	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
+	// (ptr to object, seed) -> hash
+	hash func(unsafe.Pointer, uintptr) uintptr
 	// function for comparing objects of this type
-	// (ptr to object A, ptr to object B, size) -> ==?
-	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
+	// (ptr to object A, ptr to object B) -> ==?
+	equal func(unsafe.Pointer, unsafe.Pointer) bool
 }
 
 // Method on non-interface type
@@ -1878,26 +1878,24 @@ func SliceOf(t Type) Type {
 //
 // If the resulting type would be larger than the available address space,
 // ArrayOf panics.
-//
-// TODO(rsc): Unexported for now. Export once the alg field is set correctly
-// for the type. This may require significant work.
-//
-// TODO(rsc): TestArrayOf is also disabled. Re-enable.
-func arrayOf(count int, elem Type) Type {
+func ArrayOf(count int, elem Type) Type {
 	typ := elem.(*rtype)
+	// call SliceOf here as it calls cacheGet/cachePut.
+	// ArrayOf also calls cacheGet/cachePut and thus may modify the state of
+	// the lookupCache mutex.
 	slice := SliceOf(elem)
 
 	// Look in cache.
 	ckey := cacheKey{Array, typ, nil, uintptr(count)}
-	if slice := cacheGet(ckey); slice != nil {
-		return slice
+	if array := cacheGet(ckey); array != nil {
+		return array
 	}
 
 	// Look in known types.
 	s := "[" + strconv.Itoa(count) + "]" + *typ.string
 	for _, tt := range typesByString(s) {
-		slice := (*sliceType)(unsafe.Pointer(tt))
-		if slice.elem == typ {
+		array := (*arrayType)(unsafe.Pointer(tt))
+		if array.elem == typ {
 			return cachePut(ckey, tt)
 		}
 	}
@@ -1907,7 +1905,6 @@ func arrayOf(count int, elem Type) Type {
 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
 	array := new(arrayType)
 	*array = *prototype
-	// TODO: Set extra kind bits correctly.
 	array.string = &s
 	array.hash = fnv1(typ.hash, '[')
 	for n := uint32(count); n > 0; n >>= 8 {
@@ -1922,14 +1919,67 @@ func arrayOf(count int, elem Type) Type {
 	array.size = typ.size * uintptr(count)
 	array.align = typ.align
 	array.fieldAlign = typ.fieldAlign
-	// TODO: array.alg
-	// TODO: array.gc
-	// TODO:
 	array.uncommonType = nil
 	array.ptrToThis = nil
-	array.zero = unsafe.Pointer(&make([]byte, array.size)[0])
+	if array.size > 0 {
+		zero := make([]byte, array.size)
+		array.zero = unsafe.Pointer(&zero[0])
+	}
 	array.len = uintptr(count)
 	array.slice = slice.(*rtype)
+
+	var gc gcProg
+	// TODO(sbinet): count could be possibly very large.
+	// use insArray directives from ../runtime/mbitmap.go.
+	for i := 0; i < count; i++ {
+		gc.appendProg(typ)
+	}
+
+	var hasPtr bool
+	array.gc[0], hasPtr = gc.finalize()
+	if !hasPtr {
+		array.kind |= kindNoPointers
+	} else {
+		array.kind &^= kindNoPointers
+	}
+
+	etyp := typ.common()
+	esize := etyp.Size()
+	ealg := etyp.alg
+
+	array.alg = new(typeAlg)
+	if ealg.equal != nil {
+		eequal := ealg.equal
+		array.alg.equal = func(p, q unsafe.Pointer) bool {
+			for i := 0; i < count; i++ {
+				pi := arrayAt(p, i, esize)
+				qi := arrayAt(q, i, esize)
+				if !eequal(pi, qi) {
+					return false
+				}
+
+			}
+			return true
+		}
+	}
+	if ealg.hash != nil {
+		ehash := ealg.hash
+		array.alg.hash = func(ptr unsafe.Pointer, seed uintptr) uintptr {
+			o := seed
+			for i := 0; i < count; i++ {
+				o = ehash(arrayAt(ptr, i, esize), o)
+			}
+			return o
+		}
+	}
+
+	switch {
+	case count == 1 && !ifaceIndir(typ):
+		// array of 1 direct iface type can be direct
+		array.kind |= kindDirectIface
+	default:
+		array.kind &^= kindDirectIface
+	}
 
 	return cachePut(ckey, &array.rtype)
 }
