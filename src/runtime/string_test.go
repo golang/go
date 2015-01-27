@@ -158,3 +158,20 @@ func TestGostringnocopy(t *testing.T) {
 		t.Errorf("want %d, got %d", max+9, newmax)
 	}
 }
+
+func TestCompareTempString(t *testing.T) {
+	s := "foo"
+	b := []byte(s)
+	n := testing.AllocsPerRun(1000, func() {
+		if string(b) != s {
+			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+		}
+		if string(b) == s {
+		} else {
+			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}

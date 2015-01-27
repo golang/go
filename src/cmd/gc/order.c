@@ -1031,6 +1031,18 @@ orderexpr(Node **np, Order *order)
 		}
 		break;
 
+	case OCMPSTR:
+		orderexpr(&n->left, order);
+		orderexpr(&n->right, order);
+		// Mark string(byteSlice) arguments to reuse byteSlice backing
+		// buffer during conversion. String comparison does not
+		// memorize the strings for later use, so it is safe.
+		if(n->left->op == OARRAYBYTESTR)
+			n->left->op = OARRAYBYTESTRTMP;
+		if(n->right->op == OARRAYBYTESTR)
+			n->right->op = OARRAYBYTESTRTMP;
+		break;
+
 	case OINDEXMAP:
 		// key must be addressable
 		orderexpr(&n->left, order);
