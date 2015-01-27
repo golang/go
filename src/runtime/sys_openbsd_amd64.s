@@ -227,9 +227,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	MOVQ	R10, 40(SP)
 	
 	// g = m->signal
-	MOVQ	g_m(R10), BP
-	MOVQ	m_gsignal(BP), BP
-	MOVQ	BP, g(BX)
+	MOVQ	g_m(R10), AX
+	MOVQ	m_gsignal(AX), AX
+	MOVQ	AX, g(BX)
 	
 	MOVQ	DI, 0(SP)
 	MOVQ	SI, 8(SP)
