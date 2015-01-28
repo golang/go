@@ -2902,11 +2902,23 @@ func BenchmarkServer(b *testing.B) {
 	}
 }
 
+// getNoBody wraps Get but closes any Response.Body before returning the response.
+func getNoBody(urlStr string) (*Response, error) {
+	res, err := Get(urlStr)
+	if err != nil {
+		return nil, err
+	}
+	res.Body.Close()
+	return res, nil
+}
+
 // A benchmark for profiling the client without the HTTP server code.
 // The server code runs in a subprocess.
 func BenchmarkClient(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
+	defer afterTest(b)
+
 	port := os.Getenv("TEST_BENCH_SERVER_PORT") // can be set by user
 	if port == "" {
 		port = "39207"
@@ -2922,7 +2934,7 @@ func BenchmarkClient(b *testing.B) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Write(data)
 		})
-		log.Fatal(ListenAndServe(":"+port, nil))
+		log.Fatal(ListenAndServe("localhost:"+port, nil))
 	}
 
 	// Start server process.
@@ -2941,7 +2953,7 @@ func BenchmarkClient(b *testing.B) {
 	url := "http://localhost:" + port + "/"
 	for i := 0; i < 100; i++ {
 		time.Sleep(50 * time.Millisecond)
-		if _, err := Get(url); err == nil {
+		if _, err := getNoBody(url); err == nil {
 			break
 		}
 		if i == 99 {
@@ -2968,7 +2980,7 @@ func BenchmarkClient(b *testing.B) {
 	b.StopTimer()
 
 	// Instruct server process to stop.
-	Get(url + "?stop=yes")
+	getNoBody(url + "?stop=yes")
 	select {
 	case err := <-done:
 		if err != nil {
@@ -2977,7 +2989,6 @@ func BenchmarkClient(b *testing.B) {
 	case <-time.After(5 * time.Second):
 		b.Fatalf("subprocess did not stop")
 	}
-	DefaultTransport.(*Transport).CloseIdleConnections()
 }
 
 func BenchmarkServerFakeConnNoKeepAlive(b *testing.B) {
