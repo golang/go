@@ -36,7 +36,7 @@ func LFStackPop(head *uint64) *LFNode {
 }
 
 type ParFor struct {
-	body   *byte
+	body   func(*ParFor, uint32)
 	done   uint32
 	Nthr   uint32
 	thrseq uint32
