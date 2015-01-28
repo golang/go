@@ -36,14 +36,13 @@ func LFStackPop(head *uint64) *LFNode {
 }
 
 type ParFor struct {
-	body    *byte
-	done    uint32
-	Nthr    uint32
-	nthrmax uint32
-	thrseq  uint32
-	Cnt     uint32
-	Ctx     *byte
-	wait    bool
+	body   *byte
+	done   uint32
+	Nthr   uint32
+	thrseq uint32
+	Cnt    uint32
+	Ctx    *byte
+	wait   bool
 }
 
 func NewParFor(nthrmax uint32) *ParFor {
@@ -69,7 +68,7 @@ func ParForDo(desc *ParFor) {
 
 func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
 	desc1 := (*parfor)(unsafe.Pointer(desc))
-	pos := desc_thr_index(desc1, tid).pos
+	pos := desc1.thr[tid].pos
 	return uint32(pos), uint32(pos >> 32)
 }
 
