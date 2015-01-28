@@ -1051,6 +1051,7 @@ func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err
 // compileDec compiles the decoder engine for a value.  If the value is not a struct,
 // it calls out to compileSingle.
 func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err error) {
+	defer catchError(&err)
 	rt := ut.base
 	srt := rt
 	if srt.Kind() != reflect.Struct || ut.externalDec != 0 {
@@ -1163,8 +1164,9 @@ func (dec *Decoder) decodeValue(wireId typeId, value reflect.Value) {
 	value = decAlloc(value)
 	engine := *enginePtr
 	if st := base; st.Kind() == reflect.Struct && ut.externalDec == 0 {
+		wt := dec.wireType[wireId]
 		if engine.numInstr == 0 && st.NumField() > 0 &&
-			dec.wireType[wireId] != nil && len(dec.wireType[wireId].StructT.Field) > 0 {
+			wt != nil && len(wt.StructT.Field) > 0 {
 			name := base.Name()
 			errorf("type mismatch: no fields matched compiling decoder for %s", name)
 		}
