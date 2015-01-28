@@ -1473,3 +1473,22 @@ func TestFuzzOneByte(t *testing.T) {
 		}
 	}
 }
+
+// Don't crash, just give error with invalid type id.
+// Issue 9649.
+func TestErrorInvalidTypeId(t *testing.T) {
+	data := []byte{0x01, 0x00, 0x01, 0x00}
+	d := NewDecoder(bytes.NewReader(data))
+	// When running d.Decode(&foo) the first time the decoder stops
+	// after []byte{0x01, 0x00} and reports an errBadType. Running
+	// d.Decode(&foo) again on exactly the same input sequence should
+	// give another errBadType, but instead caused a panic because
+	// decoderMap wasn't cleaned up properly after the first error.
+	for i := 0; i < 2; i++ {
+		var foo struct{}
+		err := d.Decode(&foo)
+		if err != errBadType {
+			t.Fatal("decode: expected %s, got %s", errBadType, err)
+		}
+	}
+}
