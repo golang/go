@@ -10,17 +10,17 @@ import "unsafe"
 
 // A parfor holds state for the parallel for operation.
 type parfor struct {
-	body    unsafe.Pointer // go func(*parfor, uint32), executed for each element
-	done    uint32         // number of idle threads
-	nthr    uint32         // total number of threads
-	nthrmax uint32         // maximum number of threads
-	thrseq  uint32         // thread id sequencer
-	cnt     uint32         // iteration space [0, cnt)
-	ctx     unsafe.Pointer // arbitrary user context
-	wait    bool           // if true, wait while all threads finish processing,
+	body   unsafe.Pointer // go func(*parfor, uint32), executed for each element
+	done   uint32         // number of idle threads
+	nthr   uint32         // total number of threads
+	thrseq uint32         // thread id sequencer
+	cnt    uint32         // iteration space [0, cnt)
+	ctx    unsafe.Pointer // arbitrary user context
+	wait   bool           // if true, wait while all threads finish processing,
 	// otherwise parfor may return while other threads are still working
-	thr *parforthread // array of thread descriptors
-	pad uint32        // to align parforthread.pos for 64-bit atomic operations
+
+	thr []parforthread // thread descriptors
+
 	// stats
 	nsteal     uint64
 	nstealcnt  uint64
@@ -42,14 +42,9 @@ type parforthread struct {
 	pad        [_CacheLineSize]byte
 }
 
-func desc_thr_index(desc *parfor, i uint32) *parforthread {
-	return (*parforthread)(add(unsafe.Pointer(desc.thr), uintptr(i)*unsafe.Sizeof(*desc.thr)))
-}
-
 func parforalloc(nthrmax uint32) *parfor {
 	return &parfor{
-		thr:     &make([]parforthread, nthrmax)[0],
-		nthrmax: nthrmax,
+		thr: make([]parforthread, nthrmax),
 	}
 }
 
@@ -66,7 +61,7 @@ func parforalloc(nthrmax uint32) *parfor {
 // The opaque user context ctx is recorded as desc.ctx and can be used by body.
 // TODO(austin): Remove ctx in favor of using a closure for body.
 func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, body func(*parfor, uint32)) {
-	if desc == nil || nthr == 0 || nthr > desc.nthrmax || body == nil {
+	if desc == nil || nthr == 0 || nthr > uint32(len(desc.thr)) || body == nil {
 		print("desc=", desc, " nthr=", nthr, " count=", n, " body=", body, "\n")
 		throw("parfor: invalid args")
 	}
@@ -84,14 +79,10 @@ func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, bo
 	desc.nosyield = 0
 	desc.nsleep = 0
 
-	for i := uint32(0); i < nthr; i++ {
+	for i := range desc.thr {
 		begin := uint32(uint64(n) * uint64(i) / uint64(nthr))
 		end := uint32(uint64(n) * uint64(i+1) / uint64(nthr))
-		pos := &desc_thr_index(desc, i).pos
-		if uintptr(unsafe.Pointer(pos))&7 != 0 {
-			throw("parforsetup: pos is not aligned")
-		}
-		*pos = uint64(begin) | uint64(end)<<32
+		desc.thr[i].pos = uint64(begin) | uint64(end)<<32
 	}
 }
 
@@ -112,7 +103,7 @@ func parfordo(desc *parfor) {
 		return
 	}
 
-	me := desc_thr_index(desc, tid)
+	me := &desc.thr[tid]
 	mypos := &me.pos
 	for {
 		for {
@@ -157,7 +148,7 @@ func parfordo(desc *parfor) {
 			if victim >= tid {
 				victim++
 			}
-			victimpos := &desc_thr_index(desc, victim).pos
+			victimpos := &desc.thr[victim].pos
 			for {
 				// See if it has any work.
 				pos := atomicload64(victimpos)
