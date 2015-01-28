@@ -1490,7 +1490,7 @@ func gcscan_m() {
 	work.ndone = 0
 	work.nproc = 1 // For now do not do this in parallel.
 	//	ackgcphase is not needed since we are not scanning running goroutines.
-	parforsetup(work.markfor, work.nproc, uint32(_RootCount+local_allglen), nil, false, markroot)
+	parforsetup(work.markfor, work.nproc, uint32(_RootCount+local_allglen), false, markroot)
 	parfordo(work.markfor)
 
 	lock(&allglock)
@@ -1588,7 +1588,7 @@ func gc(start_time int64, eagersweep bool) {
 		traceGCScanStart()
 	}
 
-	parforsetup(work.markfor, work.nproc, uint32(_RootCount+allglen), nil, false, markroot)
+	parforsetup(work.markfor, work.nproc, uint32(_RootCount+allglen), false, markroot)
 	if work.nproc > 1 {
 		noteclear(&work.alldone)
 		helpgc(int32(work.nproc))

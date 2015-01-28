@@ -41,7 +41,6 @@ type ParFor struct {
 	Nthr   uint32
 	thrseq uint32
 	Cnt    uint32
-	Ctx    *byte
 	wait   bool
 }
 
@@ -53,9 +52,9 @@ func NewParFor(nthrmax uint32) *ParFor {
 	return desc
 }
 
-func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32)) {
+func ParForSetup(desc *ParFor, nthr, n uint32, wait bool, body func(*ParFor, uint32)) {
 	systemstack(func() {
-		parforsetup((*parfor)(unsafe.Pointer(desc)), nthr, n, unsafe.Pointer(ctx), wait,
+		parforsetup((*parfor)(unsafe.Pointer(desc)), nthr, n, wait,
 			*(*func(*parfor, uint32))(unsafe.Pointer(&body)))
 	})
 }
