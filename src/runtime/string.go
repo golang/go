@@ -185,8 +185,15 @@ type stringStruct struct {
 	len int
 }
 
-func intstring(v int64) string {
-	s, b := rawstring(4)
+func intstring(buf *[4]byte, v int64) string {
+	var s string
+	var b []byte
+	if buf != nil {
+		b = buf[:]
+		s = slicebytetostringtmp(b)
+	} else {
+		s, b = rawstring(4)
+	}
 	n := runetochar(b, rune(v))
 	return s[:n]
 }

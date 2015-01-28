@@ -695,6 +695,7 @@ esc(EscState *e, Node *n, Node *up)
 		break;
 
 	case OARRAYBYTESTR:
+	case ORUNESTR:
 		n->escloopdepth = e->loopdepth;
 		n->esc = EscNone;  // until proven otherwise
 		e->noesc = list(e->noesc, n);
@@ -824,6 +825,7 @@ escassign(EscState *e, Node *dst, Node *src)
 	case ONEW:
 	case OCLOSURE:
 	case OCALLPART:
+	case ORUNESTR:
 		escflows(e, dst, src);
 		break;
 
@@ -1249,6 +1251,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 	case ONEW:
 	case OCLOSURE:
 	case OCALLPART:
+	case ORUNESTR:
 		if(leaks) {
 			src->esc = EscHeap;
 			if(debug['m'])

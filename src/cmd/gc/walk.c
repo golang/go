@@ -1370,9 +1370,14 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case ORUNESTR:
-		// sys_intstring(v)
-		n = mkcall("intstring", n->type, init,
-			conv(n->left, types[TINT64]));
+		a = nodnil();
+		if(n->esc == EscNone) {
+			t = aindex(nodintconst(4), types[TUINT8]);
+			var = temp(t);
+			a = nod(OADDR, var, N);
+		}
+		// intstring(*[4]byte, rune)
+		n = mkcall("intstring", n->type, init, a, conv(n->left, types[TINT64]));
 		goto ret;
 
 	case OARRAYBYTESTR:
