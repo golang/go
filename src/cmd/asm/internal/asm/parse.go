@@ -408,7 +408,11 @@ func (p *Parser) term() uint64 {
 		switch p.peek() {
 		case '*':
 			p.next()
-			value *= p.factor() // OVERFLOW?
+			x := p.factor()
+			if mulOverflows(value, x) {
+				p.errorf("%d * %d overflows", value, x)
+			}
+			value *= x
 		case '/':
 			p.next()
 			value /= p.factor()
@@ -418,10 +422,13 @@ func (p *Parser) term() uint64 {
 		case lex.LSH:
 			p.next()
 			shift := p.factor()
-			if shift < 0 {
+			if int64(shift) < 0 {
 				p.errorf("negative left shift %d", shift)
 			}
-			value <<= uint(shift) // OVERFLOW?
+			if shiftOverflows(value, shift) {
+				p.errorf("%d << %d overflows", value, shift)
+			}
+			return value << shift
 		case lex.RSH:
 			p.next()
 			shift := p.term()
