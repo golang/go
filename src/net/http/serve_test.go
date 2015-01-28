@@ -2977,6 +2977,7 @@ func BenchmarkClient(b *testing.B) {
 	case <-time.After(5 * time.Second):
 		b.Fatalf("subprocess did not stop")
 	}
+	DefaultTransport.(*Transport).CloseIdleConnections()
 }
 
 func BenchmarkServerFakeConnNoKeepAlive(b *testing.B) {
