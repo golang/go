@@ -1630,3 +1630,24 @@ func addstr3() {
 	s2 := s[0:1]
 	sink = s2
 }
+
+func intstring0() bool {
+	// string does not escape
+	x := '0'
+	s := string(x) // ERROR "string\(x\) does not escape"
+	return s == "0"
+}
+
+func intstring1() string {
+	// string does not escape, but the buffer does
+	x := '0'
+	s := string(x) // ERROR "string\(x\) escapes to heap"
+	return s
+}
+
+func intstring2() {
+	// string escapes to heap
+	x := '0'
+	s := string(x) // ERROR "string\(x\) escapes to heap" "moved to heap: s"
+	sink = &s      // ERROR "&s escapes to heap"
+}

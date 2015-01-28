@@ -33,7 +33,7 @@ char *runtimeimport =
 	"func @\"\".concatstrings (? *[32]byte, ? []string) (? string)\n"
 	"func @\"\".cmpstring (? string, ? string) (? int)\n"
 	"func @\"\".eqstring (? string, ? string) (? bool)\n"
-	"func @\"\".intstring (? int64) (? string)\n"
+	"func @\"\".intstring (? *[4]byte, ? int64) (? string)\n"
 	"func @\"\".slicebytetostring (? *[32]byte, ? []byte) (? string)\n"
 	"func @\"\".slicebytetostringtmp (? []byte) (? string)\n"
 	"func @\"\".slicerunetostring (? []rune) (? string)\n"
