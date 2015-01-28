@@ -179,7 +179,7 @@ func (x *Float) validate() {
 	const msb = 1 << (_W - 1)
 	m := len(x.mant)
 	if x.mant[m-1]&msb == 0 {
-		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.PString()))
+		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.pstring()))
 	}
 	if x.prec <= 0 {
 		panic(fmt.Sprintf("invalid precision %d", x.prec))
@@ -566,10 +566,6 @@ func (z *Float) Neg(x *Float) *Float {
 // z = x + y, ignoring signs of x and y.
 // x and y must not be 0.
 func (z *Float) uadd(x, y *Float) {
-	if debugFloat && (len(x.mant) == 0 || len(y.mant) == 0) {
-		panic("uadd called with 0 argument")
-	}
-
 	// Note: This implementation requires 2 shifts most of the
 	// time. It is also inefficient if exponents or precisions
 	// differ by wide margins. The following article describes
@@ -580,60 +576,61 @@ func (z *Float) uadd(x, y *Float) {
 	// Point Addition With Exact Rounding (as in the MPFR Library)"
 	// http://www.vinc17.net/research/papers/rnc6.pdf
 
+	if debugFloat && (len(x.mant) == 0 || len(y.mant) == 0) {
+		panic("uadd called with 0 argument")
+	}
+
+	// compute exponents ex, ey for mantissa with "binary point"
+	// on the right (mantissa.0) - use int64 to avoid overflow
 	ex := int64(x.exp) - int64(len(x.mant))*_W
 	ey := int64(y.exp) - int64(len(y.mant))*_W
 
-	var e int64
+	// TODO(gri) having a combined add-and-shift primitive
+	//           could make this code significantly faster
 	switch {
 	case ex < ey:
 		t := z.mant.shl(y.mant, uint(ey-ex))
 		z.mant = t.add(x.mant, t)
-		e = ex
 	default:
-		// ex == ey
+		// ex == ey, no shift needed
 		z.mant = z.mant.add(x.mant, y.mant)
-		e = ex
 	case ex > ey:
 		t := z.mant.shl(x.mant, uint(ex-ey))
 		z.mant = t.add(t, y.mant)
-		e = ey
+		ex = ey
 	}
 	// len(z.mant) > 0
 
-	z.setExp(e + int64(len(z.mant))*_W - int64(fnorm(z.mant)))
+	z.setExp(ex + int64(len(z.mant))*_W - int64(fnorm(z.mant)))
 	z.round(0)
 }
 
 // z = x - y for x >= y, ignoring signs of x and y.
 // x and y must not be zero.
 func (z *Float) usub(x, y *Float) {
+	// This code is symmetric to uadd.
+	// We have not factored the common code out because
+	// eventually uadd (and usub) should be optimized
+	// by special-casing, and the code will diverge.
+
 	if debugFloat && (len(x.mant) == 0 || len(y.mant) == 0) {
 		panic("usub called with 0 argument")
 	}
 
-	if x.exp < y.exp {
-		panic("underflow")
-	}
-
-	// This code is symmetric to uadd.
-
 	ex := int64(x.exp) - int64(len(x.mant))*_W
 	ey := int64(y.exp) - int64(len(y.mant))*_W
 
-	var e int64
 	switch {
 	case ex < ey:
 		t := z.mant.shl(y.mant, uint(ey-ex))
 		z.mant = t.sub(x.mant, t)
-		e = ex
 	default:
-		// ex == ey
+		// ex == ey, no shift needed
 		z.mant = z.mant.sub(x.mant, y.mant)
-		e = ex
 	case ex > ey:
 		t := z.mant.shl(x.mant, uint(ex-ey))
 		z.mant = t.sub(t, y.mant)
-		e = ey
+		ex = ey
 	}
 
 	// operands may have cancelled each other out
@@ -644,7 +641,7 @@ func (z *Float) usub(x, y *Float) {
 	}
 	// len(z.mant) > 0
 
-	z.setExp(e + int64(len(z.mant))*_W - int64(fnorm(z.mant)))
+	z.setExp(ex + int64(len(z.mant))*_W - int64(fnorm(z.mant)))
 	z.round(0)
 }
 
@@ -962,13 +959,9 @@ func (x *Float) Sign() int {
 	return 1
 }
 
-func (x *Float) String() string {
-	return x.PString() // TODO(gri) fix this
-}
-
-// PString returns x as a string in the format ["-"] "0." mantissa "p" exponent
+// pstring returns x as a string in the format ["-"] "0." mantissa "p" exponent
 // with a hexadecimal mantissa and a decimal exponent, or ["-"] "0" if x is zero.
-func (x *Float) PString() string {
+func (x *Float) pstring() string {
 	// TODO(gri) handle Inf
 	var buf bytes.Buffer
 	if x.neg {
@@ -1029,7 +1022,7 @@ func (z *Float) SetString(s string) (*Float, bool) {
 // is 1.2 * 2**3. If the operation failed, the value of z is undefined but
 // the returned value is nil.
 //
-func (z *Float) scan(r io.RuneScanner) (f *Float, err error) {
+func (z *Float) scan(r io.ByteScanner) (f *Float, err error) {
 	// sign
 	z.neg, err = scanSign(r)
 	if err != nil {
@@ -1090,4 +1083,107 @@ func (z *Float) scan(r io.RuneScanner) (f *Float, err error) {
 	}
 
 	return z, nil
+}
+
+// Scan scans the number corresponding to the longest possible prefix
+// of r representing a floating-point number with a mantissa in the
+// given conversion base (the exponent is always a decimal number).
+// It returns the corresponding Float f, the actual base b, and an
+// error err, if any. The number must be of the form:
+//
+//	number   = [ prefix ] [ sign ] mantissa [ exponent ] .
+//	mantissa = digits | digits "." [ digits ] | "." digits .
+//      prefix   = prefix = "0" ( "x" | "X" | "b" | "B" ) .
+//	sign     = "+" | "-" .
+//	exponent = ( "E" | "e" | "p" ) [ sign ] digits .
+//	digits   = digit { digit } .
+//	digit    = digit  = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
+//
+// The base argument must be 0 or a value between 2 and MaxBase, inclusive.
+//
+// For base 0, the number prefix determines the actual base: A prefix of
+// ``0x'' or ``0X'' selects base 16, and a ``0b'' or ``0B'' prefix selects
+// base 2; otherwise, the actual base is 10 and no prefix is permitted.
+// Note that the octal prefix ``0'' is not supported.
+//
+// A "p" exponent indicates power of 2 for the exponent; for instance "1.2p3"
+// with base 0 or 10 corresponds to the value 1.2 * 2**3.
+//
+// BUG(gri) Currently, Scan only accepts base 10.
+func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+	if base != 10 {
+		err = fmt.Errorf("base %d not supported yet", base)
+		return
+	}
+	b = 10
+	f, err = z.scan(r)
+	return
+}
+
+// Parse is like z.Scan(r, base), but instead of reading from an
+// io.ByteScanner, it parses the string s. An error is returned if the
+// string contains invalid or trailing characters not belonging to the
+// number.
+//
+// TODO(gri) define possible errors more precisely
+func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
+	r := strings.NewReader(s)
+
+	if f, b, err = z.Scan(r, base); err != nil {
+		return
+	}
+
+	// entire string must have been consumed
+	var ch byte
+	if ch, err = r.ReadByte(); err != io.EOF {
+		if err == nil {
+			err = fmt.Errorf("expected end of string, found %q", ch)
+		}
+	}
+
+	return
+}
+
+// ScanFloat is like f.Scan(r, base) with f set to the given precision
+// and rounding mode.
+func ScanFloat(r io.ByteScanner, base int, prec uint, mode RoundingMode) (f *Float, b int, err error) {
+	return NewFloat(0, prec, mode).Scan(r, base)
+}
+
+// ParseFloat is like f.Parse(s, base) with f set to the given precision
+// and rounding mode.
+func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b int, err error) {
+	return NewFloat(0, prec, mode).Parse(s, base)
+}
+
+// Format converts the floating-point number x to a string according
+// to the given format and precision prec.
+//
+// The format is one of
+// 'e' (-d.dddde±dd, decimal exponent),
+// 'E' (-d.ddddE±dd, decimal exponent),
+// 'f' (-ddddd.dddd, no exponent),
+// 'g' ('e' for large exponents, 'f' otherwise),
+// 'G' ('E' for large exponents, 'f' otherwise),
+// 'b' (-ddddddp±dd, binary exponent), or
+// 'p' (-0.ddddp±dd, hexadecimal mantissa, binary exponent).
+//
+// The precision prec controls the number of digits (excluding the exponent)
+// printed by the 'e', 'E', 'f', 'g', and 'G' formats. For 'e', 'E', and 'f'
+// it is the number of digits after the decimal point. For 'g' and 'G' it is
+// the total number of digits. A negative precision selects the smallest
+// number of digits necessary such that ParseFloat will return f exactly.
+// The prec value is ignored for the 'b' or 'p' format.
+//
+// BUG(gri) Currently, Format only accepts the 'p' format.
+func (x *Float) Format(format byte, prec int) string {
+	if format != 'p' {
+		return fmt.Sprintf(`%c`, format)
+	}
+	return x.pstring()
+}
+
+// BUG(gri): Currently, String uses the 'p' (rather than 'g') format.
+func (x *Float) String() string {
+	return x.Format('p', 0)
 }

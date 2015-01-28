@@ -668,7 +668,7 @@ func pow(x Word, n int) (p Word) {
 // base == 1, only), and the number of fractional digits is -count. In this
 // case, the value of the scanned number is res * 10**count.
 //
-func (z nat) scan(r io.RuneScanner, base int) (res nat, b, count int, err error) {
+func (z nat) scan(r io.ByteScanner, base int) (res nat, b, count int, err error) {
 	// reject illegal bases
 	if base < 0 || base > MaxBase {
 		err = errors.New("illegal number base")
@@ -676,7 +676,7 @@ func (z nat) scan(r io.RuneScanner, base int) (res nat, b, count int, err error)
 	}
 
 	// one char look-ahead
-	ch, _, err := r.ReadRune()
+	ch, err := r.ReadByte()
 	if err != nil {
 		return
 	}
@@ -687,7 +687,7 @@ func (z nat) scan(r io.RuneScanner, base int) (res nat, b, count int, err error)
 		// actual base is 10 unless there's a base prefix
 		b = 10
 		if ch == '0' {
-			switch ch, _, err = r.ReadRune(); err {
+			switch ch, err = r.ReadByte(); err {
 			case nil:
 				// possibly one of 0x, 0X, 0b, 0B
 				b = 8
@@ -698,7 +698,7 @@ func (z nat) scan(r io.RuneScanner, base int) (res nat, b, count int, err error)
 					b = 2
 				}
 				if b == 2 || b == 16 {
-					if ch, _, err = r.ReadRune(); err != nil {
+					if ch, err = r.ReadByte(); err != nil {
 						// io.EOF is also an error in this case
 						return
 					}
@@ -736,7 +736,7 @@ func (z nat) scan(r io.RuneScanner, base int) (res nat, b, count int, err error)
 			base = 10 // no 2nd decimal point permitted
 			dp = count
 			// advance
-			if ch, _, err = r.ReadRune(); err != nil {
+			if ch, err = r.ReadByte(); err != nil {
 				if err == io.EOF {
 					err = nil
 					break
@@ -758,7 +758,7 @@ func (z nat) scan(r io.RuneScanner, base int) (res nat, b, count int, err error)
 			d1 = MaxBase + 1
 		}
 		if d1 >= b1 {
-			r.UnreadRune() // ch does not belong to number anymore
+			r.UnreadByte() // ch does not belong to number anymore
 			break
 		}
 		count++
@@ -775,7 +775,7 @@ func (z nat) scan(r io.RuneScanner, base int) (res nat, b, count int, err error)
 		}
 
 		// advance
-		if ch, _, err = r.ReadRune(); err != nil {
+		if ch, err = r.ReadByte(); err != nil {
 			if err == io.EOF {
 				err = nil
 				break
