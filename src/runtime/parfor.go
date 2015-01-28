@@ -6,16 +6,14 @@
 
 package runtime
 
-import "unsafe"
-
 // A parfor holds state for the parallel for operation.
 type parfor struct {
-	body   unsafe.Pointer // go func(*parfor, uint32), executed for each element
-	done   uint32         // number of idle threads
-	nthr   uint32         // total number of threads
-	thrseq uint32         // thread id sequencer
-	cnt    uint32         // iteration space [0, cnt)
-	wait   bool           // if true, wait while all threads finish processing,
+	body   func(*parfor, uint32) // executed for each element
+	done   uint32                // number of idle threads
+	nthr   uint32                // total number of threads
+	thrseq uint32                // thread id sequencer
+	cnt    uint32                // iteration space [0, cnt)
+	wait   bool                  // if true, wait while all threads finish processing,
 	// otherwise parfor may return while other threads are still working
 
 	thr []parforthread // thread descriptors
@@ -63,7 +61,7 @@ func parforsetup(desc *parfor, nthr, n uint32, wait bool, body func(*parfor, uin
 		throw("parfor: invalid args")
 	}
 
-	desc.body = *(*unsafe.Pointer)(unsafe.Pointer(&body))
+	desc.body = body
 	desc.done = 0
 	desc.nthr = nthr
 	desc.thrseq = 0
@@ -91,7 +89,7 @@ func parfordo(desc *parfor) {
 	}
 
 	// If single-threaded, just execute the for serially.
-	body := *(*func(*parfor, uint32))(unsafe.Pointer(&desc.body))
+	body := desc.body
 	if desc.nthr == 1 {
 		for i := uint32(0); i < desc.cnt; i++ {
 			body(desc, i)
