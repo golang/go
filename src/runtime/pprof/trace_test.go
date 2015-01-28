@@ -16,7 +16,21 @@ import (
 	"time"
 )
 
+func skipTraceTestsIfNeeded(t *testing.T) {
+	switch runtime.GOOS {
+	case "solaris":
+		t.Skip("skipping: solaris timer can go backwards which is incompatible with tracer (http://golang.org/issue/8976)")
+	case "windows":
+		t.Skip("skipping: windows tests fail with 'failed to parse trace: no traceEvFrequency event'")
+	case "android":
+		t.Skip("skipping: android tests fail with 'failed to parse trace: g 2 is not runnable before traceEvGoWaiting'")
+	case "plan9":
+		t.Skip("skipping: plan9 tests fail with 'fatal error: trace: out of memory'")
+	}
+}
+
 func TestTraceStartStop(t *testing.T) {
+	skipTraceTestsIfNeeded(t)
 	buf := new(bytes.Buffer)
 	if err := StartTrace(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
@@ -33,6 +47,7 @@ func TestTraceStartStop(t *testing.T) {
 }
 
 func TestTraceDoubleStart(t *testing.T) {
+	skipTraceTestsIfNeeded(t)
 	StopTrace()
 	buf := new(bytes.Buffer)
 	if err := StartTrace(buf); err != nil {
@@ -46,6 +61,7 @@ func TestTraceDoubleStart(t *testing.T) {
 }
 
 func TestTrace(t *testing.T) {
+	skipTraceTestsIfNeeded(t)
 	buf := new(bytes.Buffer)
 	if err := StartTrace(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
@@ -58,6 +74,8 @@ func TestTrace(t *testing.T) {
 }
 
 func TestTraceStress(t *testing.T) {
+	skipTraceTestsIfNeeded(t)
+
 	var wg sync.WaitGroup
 	done := make(chan bool)
 
@@ -188,6 +206,10 @@ func TestTraceStress(t *testing.T) {
 }
 
 func TestTraceSymbolize(t *testing.T) {
+	skipTraceTestsIfNeeded(t)
+	if runtime.GOOS == "nacl" {
+		t.Skip("skipping: nacl tests fail with 'failed to symbolize trace: failed to start addr2line'")
+	}
 	buf := new(bytes.Buffer)
 	if err := StartTrace(buf); err != nil {
 		t.Fatalf("failed to start tracing: %v", err)
@@ -211,7 +233,7 @@ eventLoop:
 		for _, f := range ev.stk {
 			if strings.HasSuffix(f.file, "trace_test.go") &&
 				strings.HasSuffix(f.fn, "pprof_test.TestTraceSymbolize") &&
-				f.line == 195 {
+				f.line == 217 {
 				found = true
 				break eventLoop
 			}
