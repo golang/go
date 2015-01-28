@@ -208,7 +208,7 @@ func TestFloatSetUint64(t *testing.T) {
 	for _, want := range tests {
 		f := new(Float).SetUint64(want)
 		if got := f.Uint64(); got != want {
-			t.Errorf("got %d (%s); want %d", got, f.PString(), want)
+			t.Errorf("got %d (%s); want %d", got, f.pstring(), want)
 		}
 	}
 }
@@ -231,7 +231,7 @@ func TestFloatSetInt64(t *testing.T) {
 			}
 			f := new(Float).SetInt64(want)
 			if got := f.Int64(); got != want {
-				t.Errorf("got %d (%s); want %d", got, f.PString(), want)
+				t.Errorf("got %d (%s); want %d", got, f.pstring(), want)
 			}
 		}
 	}
@@ -256,7 +256,7 @@ func TestFloatSetFloat64(t *testing.T) {
 			}
 			f := new(Float).SetFloat64(want)
 			if got, _ := f.Float64(); got != want {
-				t.Errorf("got %g (%s); want %g", got, f.PString(), want)
+				t.Errorf("got %g (%s); want %g", got, f.pstring(), want)
 			}
 		}
 	}
@@ -687,7 +687,7 @@ func TestFromBits(t *testing.T) {
 
 	for _, test := range tests {
 		f := fromBits(test.bits...)
-		if got := f.PString(); got != test.want {
+		if got := f.pstring(); got != test.want {
 			t.Errorf("setBits(%v) = %s; want %s", test.bits, got, test.want)
 		}
 	}
@@ -757,7 +757,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 	}
 }
 
-func TestFloatPString(t *testing.T) {
+func TestFloatpstring(t *testing.T) {
 	var tests = []struct {
 		x    Float
 		want string
@@ -768,7 +768,7 @@ func TestFloatPString(t *testing.T) {
 		{Float{mant: nat{0x87654321}, exp: -10}, "0.87654321p-10"},
 	}
 	for _, test := range tests {
-		if got := test.x.PString(); got != test.want {
+		if got := test.x.pstring(); got != test.want {
 			t.Errorf("%v: got %s; want %s", test.x, got, test.want)
 		}
 	}

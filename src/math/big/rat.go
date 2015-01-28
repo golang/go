@@ -585,7 +585,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 
 	// there should be no unread characters left
-	if _, _, err = r.ReadRune(); err != io.EOF {
+	if _, err = r.ReadByte(); err != io.EOF {
 		return nil, false
 	}
 
@@ -615,11 +615,11 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	return z, true
 }
 
-func scanExponent(r io.RuneScanner) (exp int64, base int, err error) {
+func scanExponent(r io.ByteScanner) (exp int64, base int, err error) {
 	base = 10
 
-	var ch rune
-	if ch, _, err = r.ReadRune(); err != nil {
+	var ch byte
+	if ch, err = r.ReadByte(); err != nil {
 		if err == io.EOF {
 			err = nil // no exponent; same as e0
 		}
@@ -632,7 +632,7 @@ func scanExponent(r io.RuneScanner) (exp int64, base int, err error) {
 	case 'p':
 		base = 2
 	default:
-		r.UnreadRune()
+		r.UnreadByte()
 		return // no exponent; same as e0
 	}
 
@@ -650,7 +650,7 @@ func scanExponent(r io.RuneScanner) (exp int64, base int, err error) {
 	// since we only care about int64 values - the
 	// from-scratch scan is easy enough and faster
 	for i := 0; ; i++ {
-		if ch, _, err = r.ReadRune(); err != nil {
+		if ch, err = r.ReadByte(); err != nil {
 			if err != io.EOF || i == 0 {
 				return
 			}
@@ -659,7 +659,7 @@ func scanExponent(r io.RuneScanner) (exp int64, base int, err error) {
 		}
 		if ch < '0' || '9' < ch {
 			if i == 0 {
-				r.UnreadRune()
+				r.UnreadByte()
 				err = fmt.Errorf("invalid exponent (missing digits)")
 				return
 			}
