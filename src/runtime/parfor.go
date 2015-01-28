@@ -8,6 +8,28 @@ package runtime
 
 import "unsafe"
 
+// A parfor holds state for the parallel for operation.
+type parfor struct {
+	body    unsafe.Pointer // go func(*parfor, uint32), executed for each element
+	done    uint32         // number of idle threads
+	nthr    uint32         // total number of threads
+	nthrmax uint32         // maximum number of threads
+	thrseq  uint32         // thread id sequencer
+	cnt     uint32         // iteration space [0, cnt)
+	ctx     unsafe.Pointer // arbitrary user context
+	wait    bool           // if true, wait while all threads finish processing,
+	// otherwise parfor may return while other threads are still working
+	thr *parforthread // array of thread descriptors
+	pad uint32        // to align parforthread.pos for 64-bit atomic operations
+	// stats
+	nsteal     uint64
+	nstealcnt  uint64
+	nprocyield uint64
+	nosyield   uint64
+	nsleep     uint64
+}
+
+// A parforthread holds state for a single thread in the parallel for.
 type parforthread struct {
 	// the thread's iteration space [32lsb, 32msb)
 	pos uint64
@@ -24,6 +46,25 @@ func desc_thr_index(desc *parfor, i uint32) *parforthread {
 	return (*parforthread)(add(unsafe.Pointer(desc.thr), uintptr(i)*unsafe.Sizeof(*desc.thr)))
 }
 
+func parforalloc(nthrmax uint32) *parfor {
+	return &parfor{
+		thr:     &make([]parforthread, nthrmax)[0],
+		nthrmax: nthrmax,
+	}
+}
+
+// Parforsetup initializes desc for a parallel for operation with nthr
+// threads executing n jobs.
+//
+// On return the nthr threads are each expected to call parfordo(desc)
+// to run the operation. During those calls, for each i in [0, n), one
+// thread will be used invoke body(desc, i).
+// If wait is true, no parfordo will return until all work has been completed.
+// If wait is false, parfordo may return when there is a small amount
+// of work left, under the assumption that another thread has that
+// work well in hand.
+// The opaque user context ctx is recorded as desc.ctx and can be used by body.
+// TODO(austin): Remove ctx in favor of using a closure for body.
 func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, body func(*parfor, uint32)) {
 	if desc == nil || nthr == 0 || nthr > desc.nthrmax || body == nil {
 		print("desc=", desc, " nthr=", nthr, " count=", n, " body=", body, "\n")
