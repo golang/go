@@ -146,8 +146,8 @@ func (p *Parser) append(prog *obj.Prog, doLabel bool) {
 // asmText assembles a TEXT pseudo-op.
 // TEXT runtime·sigtramp(SB),4,$0-0
 func (p *Parser) asmText(word string, operands [][]lex.Token) {
-	if len(operands) != 3 {
-		p.errorf("expect three operands for TEXT")
+	if len(operands) != 2 && len(operands) != 3 {
+		p.errorf("expect two or three operands for TEXT")
 	}
 
 	// Operand 0 is the symbol name in the form foo(SB).
@@ -157,22 +157,26 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		p.errorf("TEXT symbol %q must be an offset from SB", nameAddr.Symbol)
 	}
 	name := nameAddr.Symbol
+	next := 1
 
-	// Operand 1 is the text flag, a literal integer.
-	// TODO: This is optional but this parser takes it as required.
-	flagAddr := p.address(operands[1])
-	if !flagAddr.Is(addr.Offset) {
-		p.errorf("TEXT flag for %s must be an integer", name)
+	// Next operand is the optional text flag, a literal integer.
+	flag := int8(0)
+	if len(operands) == 3 {
+		flagAddr := p.address(operands[next])
+		if !flagAddr.Is(addr.Offset) {
+			p.errorf("TEXT flag for %s must be an integer", name)
+		}
+		flag = int8(flagAddr.Offset)
+		next++
 	}
-	flag := int8(flagAddr.Offset)
 
-	// Operand 2 is the frame and arg size.
+	// Next operand is the frame and arg size.
 	// Bizarre syntax: $frameSize-argSize is two words, not subtraction.
 	// Both frameSize and argSize must be simple integers; only frameSize
 	// can be negative.
 	// The "-argSize" may be missing; if so, set it to obj.ArgsSizeUnknown.
 	// Parse left to right.
-	op := operands[2]
+	op := operands[next]
 	if len(op) < 2 || op[0].ScanToken != '$' {
 		p.errorf("TEXT %s: frame size must be an immediate constant", name)
 	}
