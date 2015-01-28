@@ -46,7 +46,7 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
 		if i > 0 {
 			name, value = name[:i], name[i+1:]
 		}
-		tokens := tokenize(name)
+		tokens := Tokenize(name)
 		if len(tokens) != 1 || tokens[0].ScanToken != scanner.Ident {
 			fmt.Fprintf(os.Stderr, "asm: parsing -D: %q is not a valid identifier name\n", tokens[0])
 			flags.Usage()
@@ -54,7 +54,7 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
 		macros[name] = &Macro{
 			name:   name,
 			args:   nil,
-			tokens: tokenize(value),
+			tokens: Tokenize(value),
 		}
 	}
 	return macros

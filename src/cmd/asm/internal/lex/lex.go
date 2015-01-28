@@ -128,8 +128,8 @@ type Macro struct {
 	tokens []Token  // Body of macro.
 }
 
-// tokenize turns a string into a list of Tokens; used to parse the -D flag.
-func tokenize(str string) []Token {
+// Tokenize turns a string into a list of Tokens; used to parse the -D flag and in tests.
+func Tokenize(str string) []Token {
 	t := NewTokenizer("command line", strings.NewReader(str), nil)
 	var tokens []Token
 	for {

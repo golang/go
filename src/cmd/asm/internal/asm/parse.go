@@ -345,7 +345,15 @@ func (p *Parser) operand(a *addr.Addr) bool {
 	return true
 }
 
-// expr = term | term '+' term
+// Note: There are two changes in the expression handling here
+// compared to the old yacc/C implemenatations. Neither has
+// much practical consequence because the expressions we
+// see in assembly code are simple, but for the record:
+//
+// 1) Evaluation uses uint64; the old one used int64.
+// 2) Precedence uses Go rules not C rules.
+
+// expr = term | term ('+' | '-' | '|' | '^') term.
 func (p *Parser) expr() uint64 {
 	value := p.term()
 	for {
@@ -393,56 +401,63 @@ func (p *Parser) floatExpr() float64 {
 	return 0
 }
 
-// term = const | term '*' term | '(' expr ')'
+// term = factor | factor ('*' | '/' | '%' | '>>' | '<<' | '&') factor
 func (p *Parser) term() uint64 {
+	value := p.factor()
+	for {
+		switch p.peek() {
+		case '*':
+			p.next()
+			value *= p.factor() // OVERFLOW?
+		case '/':
+			p.next()
+			value /= p.factor()
+		case '%':
+			p.next()
+			value %= p.factor()
+		case lex.LSH:
+			p.next()
+			shift := p.factor()
+			if shift < 0 {
+				p.errorf("negative left shift %d", shift)
+			}
+			value <<= uint(shift) // OVERFLOW?
+		case lex.RSH:
+			p.next()
+			shift := p.term()
+			if shift < 0 {
+				p.errorf("negative right shift %d", shift)
+			}
+			value >>= uint(shift)
+		case '&':
+			p.next()
+			value &= p.factor()
+		default:
+			return value
+		}
+	}
+	p.errorf("unexpected %s evaluating expression", p.peek())
+	return 0
+}
+
+// factor = const | '+' factor | '-' factor | '~' factor | '(' expr ')'
+func (p *Parser) factor() uint64 {
 	tok := p.next()
 	switch tok.ScanToken {
+	case scanner.Int:
+		return p.atoi(tok.String())
+	case '+':
+		return +p.factor()
+	case '-':
+		return -p.factor()
+	case '~':
+		return ^p.factor()
 	case '(':
 		v := p.expr()
 		if p.next().ScanToken != ')' {
 			p.errorf("missing closing paren")
 		}
 		return v
-	case '+':
-		return +p.term()
-	case '-':
-		return -p.term()
-	case '~':
-		return ^p.term()
-	case scanner.Int:
-		value := p.atoi(tok.String())
-		for {
-			switch p.peek() {
-			case '*':
-				p.next()
-				value *= p.term() // OVERFLOW?
-			case '/':
-				p.next()
-				value /= p.term()
-			case '%':
-				p.next()
-				value %= p.term()
-			case lex.LSH:
-				p.next()
-				shift := p.term()
-				if shift < 0 {
-					p.errorf("negative left shift %d", shift)
-				}
-				value <<= uint(shift)
-			case lex.RSH:
-				p.next()
-				shift := p.term()
-				if shift < 0 {
-					p.errorf("negative right shift %d", shift)
-				}
-				value >>= uint(shift)
-			case '&':
-				p.next()
-				value &= p.term()
-			default:
-				return value
-			}
-		}
 	}
 	p.errorf("unexpected %s evaluating expression", tok)
 	return 0
