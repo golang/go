@@ -10,10 +10,7 @@ package runtime_test
 import (
 	. "runtime"
 	"testing"
-	"unsafe"
 )
-
-var gdata []uint64
 
 // Simple serial sanity test for parallelfor.
 func TestParFor(t *testing.T) {
@@ -24,12 +21,7 @@ func TestParFor(t *testing.T) {
 		data[i] = i
 	}
 	desc := NewParFor(P)
-	// Avoid making func a closure: parfor cannot invoke them.
-	// Since it doesn't happen in the C code, it's not worth doing
-	// just for the test.
-	gdata = data
-	ParForSetup(desc, P, N, nil, true, func(desc *ParFor, i uint32) {
-		data := gdata
+	ParForSetup(desc, P, N, true, func(desc *ParFor, i uint32) {
 		data[i] = data[i]*data[i] + 1
 	})
 	ParForDo(desc)
@@ -49,9 +41,8 @@ func TestParFor2(t *testing.T) {
 		data[i] = i
 	}
 	desc := NewParFor(P)
-	ParForSetup(desc, P, N, (*byte)(unsafe.Pointer(&data)), false, func(desc *ParFor, i uint32) {
-		d := *(*[]uint64)(unsafe.Pointer(desc.Ctx))
-		d[i] = d[i]*d[i] + 1
+	ParForSetup(desc, P, N, false, func(desc *ParFor, i uint32) {
+		data[i] = data[i]*data[i] + 1
 	})
 	for p := 0; p < P; p++ {
 		ParForDo(desc)
@@ -70,7 +61,7 @@ func TestParForSetup(t *testing.T) {
 	desc := NewParFor(P)
 	for n := uint32(0); n < N; n++ {
 		for p := uint32(1); p <= P; p++ {
-			ParForSetup(desc, p, n, nil, true, func(desc *ParFor, i uint32) {})
+			ParForSetup(desc, p, n, true, func(desc *ParFor, i uint32) {})
 			sum := uint32(0)
 			size0 := uint32(0)
 			end0 := uint32(0)
@@ -113,9 +104,7 @@ func TestParForParallel(t *testing.T) {
 	P := GOMAXPROCS(-1)
 	c := make(chan bool, P)
 	desc := NewParFor(uint32(P))
-	gdata = data
-	ParForSetup(desc, uint32(P), uint32(N), nil, false, func(desc *ParFor, i uint32) {
-		data := gdata
+	ParForSetup(desc, uint32(P), uint32(N), false, func(desc *ParFor, i uint32) {
 		data[i] = data[i]*data[i] + 1
 	})
 	for p := 1; p < P; p++ {

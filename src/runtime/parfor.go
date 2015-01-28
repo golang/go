@@ -15,7 +15,6 @@ type parfor struct {
 	nthr   uint32         // total number of threads
 	thrseq uint32         // thread id sequencer
 	cnt    uint32         // iteration space [0, cnt)
-	ctx    unsafe.Pointer // arbitrary user context
 	wait   bool           // if true, wait while all threads finish processing,
 	// otherwise parfor may return while other threads are still working
 
@@ -58,9 +57,7 @@ func parforalloc(nthrmax uint32) *parfor {
 // If wait is false, parfordo may return when there is a small amount
 // of work left, under the assumption that another thread has that
 // work well in hand.
-// The opaque user context ctx is recorded as desc.ctx and can be used by body.
-// TODO(austin): Remove ctx in favor of using a closure for body.
-func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, body func(*parfor, uint32)) {
+func parforsetup(desc *parfor, nthr, n uint32, wait bool, body func(*parfor, uint32)) {
 	if desc == nil || nthr == 0 || nthr > uint32(len(desc.thr)) || body == nil {
 		print("desc=", desc, " nthr=", nthr, " count=", n, " body=", body, "\n")
 		throw("parfor: invalid args")
@@ -71,7 +68,6 @@ func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, bo
 	desc.nthr = nthr
 	desc.thrseq = 0
 	desc.cnt = n
-	desc.ctx = ctx
 	desc.wait = wait
 	desc.nsteal = 0
 	desc.nstealcnt = 0
