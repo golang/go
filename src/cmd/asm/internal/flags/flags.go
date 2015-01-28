@@ -14,8 +14,9 @@ import (
 )
 
 var (
-	OutputFile = flag.String("o", "", "output file; default foo.6 for /a/b/c/foo.s on arm64 (unused TODO)")
-	PrintOut   = flag.Bool("S", true, "print assembly and machine code") // TODO: set to false
+	Debug      = flag.Bool("debug", false, "dump instructions as they are parsed")
+	OutputFile = flag.String("o", "", "output file; default foo.6 for /a/b/c/foo.s on amd64")
+	PrintOut   = flag.Bool("S", false, "print assembly and machine code")
 	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths (unused TODO)")
 )
 

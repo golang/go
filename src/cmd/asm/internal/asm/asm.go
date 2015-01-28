@@ -11,6 +11,7 @@ import (
 
 	"cmd/asm/internal/addr"
 	"cmd/asm/internal/arch"
+	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
 )
@@ -140,7 +141,9 @@ func (p *Parser) append(prog *obj.Prog, doLabel bool) {
 		p.pendingLabels = p.pendingLabels[0:0]
 	}
 	prog.Pc = int64(p.pc)
-	fmt.Println(p.histLineNum, prog)
+	if *flags.Debug {
+		fmt.Println(p.histLineNum, prog)
+	}
 }
 
 // asmText assembles a TEXT pseudo-op.
