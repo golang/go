@@ -24,11 +24,11 @@ type ArbitraryType int
 // arbitrary memory. It should be used with extreme care.
 type Pointer *ArbitraryType
 
-// Sizeof takes an expression x of any type and returns the size of
-// a hypothetical variable v as if v was declared via var v = x.
-// Note that the size does not include any memory possibly referenced
-// by x. For instance, if x is a slice,  Sizeof returns the size of the
-// slice descriptor, not the size of the memory referenced by the slice.
+// Sizeof takes an expression x of any type and returns the size in bytes
+// of a hypothetical variable v as if v was declared via var v = x.
+// The size does not include any memory possibly referenced by x.
+// For instance, if x is a slice,  Sizeof returns the size of the slice
+// descriptor, not the size of the memory referenced by the slice.
 func Sizeof(x ArbitraryType) uintptr
 
 // Offsetof returns the offset within the struct of the field represented by x,
