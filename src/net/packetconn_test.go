@@ -15,29 +15,16 @@ import (
 	"time"
 )
 
+// The full stack test cases for IPConn have been moved to the
+// following:
+//	golang.org/x/net/ipv4
+//	golang.org/x/net/ipv6
+//	golang.org/x/net/icmp
+
 func packetConnTestData(t *testing.T, net string, i int) ([]byte, func()) {
 	switch net {
 	case "udp":
 		return []byte("UDP PACKETCONN TEST"), nil
-	case "ip":
-		if skip, skipmsg := skipRawSocketTest(t); skip {
-			return nil, func() {
-				t.Logf(skipmsg)
-			}
-		}
-		b, err := (&icmpMessage{
-			Type: icmpv4EchoRequest, Code: 0,
-			Body: &icmpEcho{
-				ID: os.Getpid() & 0xffff, Seq: i + 1,
-				Data: []byte("IP PACKETCONN TEST"),
-			},
-		}).Marshal()
-		if err != nil {
-			return nil, func() {
-				t.Fatalf("icmpMessage.Marshal failed: %v", err)
-			}
-		}
-		return b, nil
 	case "unixgram":
 		switch runtime.GOOS {
 		case "nacl", "plan9", "windows":
@@ -60,7 +47,6 @@ var packetConnTests = []struct {
 	addr2 string
 }{
 	{"udp", "127.0.0.1:0", "127.0.0.1:0"},
-	{"ip:icmp", "127.0.0.1", "127.0.0.1"},
 	{"unixgram", testUnixAddr(), testUnixAddr()},
 }
 

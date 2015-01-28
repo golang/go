@@ -617,25 +617,6 @@ func (fd *netFD) accept() (*netFD, error) {
 	return netfd, nil
 }
 
-func skipRawSocketTests() (skip bool, skipmsg string, err error) {
-	// From http://msdn.microsoft.com/en-us/library/windows/desktop/ms740548.aspx:
-	// Note: To use a socket of type SOCK_RAW requires administrative privileges.
-	// Users running Winsock applications that use raw sockets must be a member of
-	// the Administrators group on the local computer, otherwise raw socket calls
-	// will fail with an error code of WSAEACCES. On Windows Vista and later, access
-	// for raw sockets is enforced at socket creation. In earlier versions of Windows,
-	// access for raw sockets is enforced during other socket operations.
-	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, 0)
-	if err == syscall.WSAEACCES {
-		return true, "skipping test; no access to raw socket allowed", nil
-	}
-	if err != nil {
-		return true, "", err
-	}
-	defer syscall.Closesocket(s)
-	return false, "", nil
-}
-
 // Unimplemented functions.
 
 func (fd *netFD) dup() (*os.File, error) {

@@ -226,7 +226,3 @@ func setReadBuffer(fd *netFD, bytes int) error {
 func setWriteBuffer(fd *netFD, bytes int) error {
 	return syscall.EPLAN9
 }
-
-func skipRawSocketTests() (skip bool, skipmsg string, err error) {
-	return true, "skipping test on plan9", nil
-}
