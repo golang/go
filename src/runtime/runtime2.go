@@ -439,27 +439,6 @@ type lfnode struct {
 	pushcnt uintptr
 }
 
-// Parallel for descriptor.
-type parfor struct {
-	body    unsafe.Pointer // go func(*parfor, uint32), executed for each element
-	done    uint32         // number of idle threads
-	nthr    uint32         // total number of threads
-	nthrmax uint32         // maximum number of threads
-	thrseq  uint32         // thread id sequencer
-	cnt     uint32         // iteration space [0, cnt)
-	ctx     unsafe.Pointer // arbitrary user context
-	wait    bool           // if true, wait while all threads finish processing,
-	// otherwise parfor may return while other threads are still working
-	thr *parforthread // array of thread descriptors
-	pad uint32        // to align parforthread.pos for 64-bit atomic operations
-	// stats
-	nsteal     uint64
-	nstealcnt  uint64
-	nprocyield uint64
-	nosyield   uint64
-	nsleep     uint64
-}
-
 // Track memory allocated by code not written in Go during a cgo call,
 // so that the garbage collector can see them.
 type cgomal struct {
@@ -627,15 +606,6 @@ var (
  * Initialize uint64 head to 0, compare with 0 to test for emptiness.
  * The stack does not keep pointers to nodes,
  * so they can be garbage collected if there are no other pointers to nodes.
- */
-
-/*
- * Parallel for over [0, n).
- * body() is executed for each iteration.
- * nthr - total number of worker threads.
- * ctx - arbitrary user context.
- * if wait=true, threads return from parfor() when all work is done;
- * otherwise, threads can return while other threads are still finishing processing.
  */
 
 // for mmap, we only pass the lower 32 bits of file offset to the
