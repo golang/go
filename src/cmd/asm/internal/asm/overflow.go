@@ -33,6 +33,23 @@ package asm
 			}
 		}
 	}
+	overflow := func(a, b int) bool {
+		for ; b > 0; b-- {
+			a <<= 1
+			if a >= 256 {
+				return true
+			}
+		}
+		return false
+	}
+	for a := 0; a <= 255; a++ {
+		for b := 0; b <= 255; b++ {
+			ovfl := overflow(a, b)
+			if shiftOverflows(uint8(a), uint8(b)) != ovfl {
+				fmt.Printf("%d<<%d fails\n", a, b)
+			}
+		}
+	}
 */
 
 func addOverflows(a, b uint64) bool {
@@ -49,6 +66,11 @@ func mulOverflows(a, b uint64) bool {
 	}
 	c := a * b
 	return c/b != a
+}
+
+func shiftOverflows(a, b uint64) bool {
+	c := a << b
+	return c>>b != a
 }
 
 /*
@@ -90,5 +112,18 @@ func signedMulOverflows(a, b int64) bool {
 	}
 	c := a * b
 	return c/b != a
+}
+
+func signedShiftOverflows(a, b int64) bool {
+	// Avoid right shift of a negative number.
+	if a >= 0 {
+		c := a << b
+		return c>>b != a
+	}
+	// Otherwise it's negative, so we complement, which
+	// puts zeros at the top.
+	a = ^a
+	c := a << b
+	return c>>b != a
 }
 */
