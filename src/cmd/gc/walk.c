@@ -883,8 +883,8 @@ walkexpr(Node **np, NodeList **init)
 	case OCONVIFACE:
 		walkexpr(&n->left, init);
 
-		// Optimize convT2E as a two-word copy when T is uintptr-shaped.
-		if(isnilinter(n->type) && isdirectiface(n->left->type) && n->left->type->width == widthptr && isint[simsimtype(n->left->type)]) {
+		// Optimize convT2E as a two-word copy when T is pointer-shaped.
+		if(isnilinter(n->type) && isdirectiface(n->left->type)) {
 			l = nod(OEFACE, typename(n->left->type), n->left);
 			l->type = n->type;
 			l->typecheck = n->typecheck;
@@ -927,7 +927,7 @@ walkexpr(Node **np, NodeList **init)
 			l->addable = 1;
 			ll = list(ll, l);
 
-			if(isdirectiface(n->left->type) && n->left->type->width == widthptr && isint[simsimtype(n->left->type)]) {
+			if(isdirectiface(n->left->type)) {
 				/* For pointer types, we can make a special form of optimization
 				 *
 				 * These statements are put onto the expression init list:
