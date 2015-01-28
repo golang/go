@@ -502,13 +502,16 @@ func drainworkbuf(wbuf *workbuf, drainallwbufs bool) {
 	}
 }
 
-// Scan at most count objects in the wbuf.
+// Scan count objects starting with those in wbuf.
 //go:nowritebarrier
 func drainobjects(wbuf *workbuf, count uintptr) {
 	for i := uintptr(0); i < count; i++ {
 		if wbuf.nobj == 0 {
 			putempty(wbuf)
-			return
+			wbuf = trygetfull()
+			if wbuf == nil {
+				return
+			}
 		}
 
 		// This might be a good place to add prefetch code...
@@ -1104,7 +1107,12 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 			}
 			c.local_nlargefree++
 			c.local_largefree += size
-			xadd64(&memstats.next_gc, -int64(size)*int64(gcpercent+100)/100)
+			reduction := int64(size) * int64(gcpercent+100) / 100
+			if int64(memstats.next_gc)-reduction > int64(heapminimum) {
+				xadd64(&memstats.next_gc, -reduction)
+			} else {
+				atomicstore64(&memstats.next_gc, heapminimum)
+			}
 			res = true
 		} else {
 			// Free small object.
@@ -1141,7 +1149,12 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	if nfree > 0 {
 		c.local_nsmallfree[cl] += uintptr(nfree)
 		c.local_cachealloc -= intptr(uintptr(nfree) * size)
-		xadd64(&memstats.next_gc, -int64(nfree)*int64(size)*int64(gcpercent+100)/100)
+		reduction := int64(nfree) * int64(size) * int64(gcpercent+100) / 100
+		if int64(memstats.next_gc)-reduction > int64(heapminimum) {
+			xadd64(&memstats.next_gc, -reduction)
+		} else {
+			atomicstore64(&memstats.next_gc, heapminimum)
+		}
 		res = mCentral_FreeSpan(&mheap_.central[cl].mcentral, s, int32(nfree), head, end, preserve)
 		// MCentral_FreeSpan updates sweepgen
 	}
@@ -1360,6 +1373,11 @@ func updatememstats(stats *gcstats) {
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }
 
+// heapminimum is the minimum number of bytes in the heap.
+// This cleans up the corner case of where we have a very small live set but a lot
+// of allocations and collecting every GOGC * live set is expensive.
+var heapminimum = uint64(4 << 20)
+
 func gcinit() {
 	if unsafe.Sizeof(workbuf{}) != _WorkbufSize {
 		throw("runtime: size of Workbuf is suboptimal")
@@ -1369,7 +1387,7 @@ func gcinit() {
 	gcpercent = readgogc()
 	gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcdata)), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)))
 	gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcbss)), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)))
-	memstats.next_gc = 4 << 20 // 4 megs to start with
+	memstats.next_gc = heapminimum
 }
 
 // Called from malloc.go using onM, stopping and starting the world handled in caller.
@@ -1615,6 +1633,10 @@ func gc(start_time int64, eagersweep bool) {
 	// conservatively set next_gc to high value assuming that everything is live
 	// concurrent/lazy sweep will reduce this number while discovering new garbage
 	memstats.next_gc = memstats.heap_alloc + memstats.heap_alloc*uint64(gcpercent)/100
+	if memstats.next_gc < heapminimum {
+		memstats.next_gc = heapminimum
+	}
+
 	if trace.enabled {
 		traceNextGC()
 	}
