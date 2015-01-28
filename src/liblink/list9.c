@@ -92,18 +92,19 @@ Pconv(Fmt *fp)
 	bigP = p;
 	a = p->as;
 
+	str[0] = 0;
 	if(a == ADATA || a == AINIT || a == ADYNT)
 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
 	else if(a == ATEXT) {
 		if(p->reg != 0)
-			sprint(str, "%.5lld (%L)        %A      %D,%d,%lD", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+			sprint(str, "%.5lld (%L)	%A	%D,%d,%lD", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
 		else
-			sprint(str, "%.5lld (%L)        %A      %D,%lD", p->pc, p->lineno, a, &p->from, &p->to);
+			sprint(str, "%.5lld (%L)	%A	%D,%lD", p->pc, p->lineno, a, &p->from, &p->to);
 	} else if(a == AGLOBL) {
 		if(p->reg != 0)
-			sprint(str, "%.5lld (%L)        %A      %D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+			sprint(str, "%.5lld (%L)	%A	%D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
 		else
-			sprint(str, "%.5lld (%L)        %A      %D,%D", p->pc, p->lineno, a, &p->from, &p->to);
+			sprint(str, "%.5lld (%L)	%A	%D,%D", p->pc, p->lineno, a, &p->from, &p->to);
 	} else {
 		if(p->mark & NOSCHED)
 			sprint(strchr(str, 0), "*");
