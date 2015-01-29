@@ -44,12 +44,12 @@ static struct {
 	char *name;
 	int val;
 } headers[] = {
-	{"android",	Hlinux},
 	{"darwin",	Hdarwin},
 	{"dragonfly",	Hdragonfly},
 	{"elf",		Helf},
 	{"freebsd",	Hfreebsd},
 	{"linux",	Hlinux},
+	{"android",	Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
 	{"nacl",		Hnacl},
 	{"netbsd",	Hnetbsd},
 	{"openbsd",	Hopenbsd},
