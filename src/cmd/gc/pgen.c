@@ -231,20 +231,20 @@ compile(Node *fn)
 	nodconst(&nod1, types[TINT32], 0);
 	ptxt = arch.gins(arch.ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
 	if(fn->dupok)
-		arch.thelinkarch->settextflag(ptxt, arch.thelinkarch->textflag(ptxt) | DUPOK);
+		ptxt->from3.offset |= DUPOK;
 	if(fn->wrapper)
-		arch.thelinkarch->settextflag(ptxt, arch.thelinkarch->textflag(ptxt) | WRAPPER);
+		ptxt->from3.offset |= WRAPPER;
 	if(fn->needctxt)
-		arch.thelinkarch->settextflag(ptxt, arch.thelinkarch->textflag(ptxt) | NEEDCTXT);
+		ptxt->from3.offset |= NEEDCTXT;
 	if(fn->nosplit)
-		arch.thelinkarch->settextflag(ptxt, arch.thelinkarch->textflag(ptxt) | NOSPLIT);
+		ptxt->from3.offset |= NOSPLIT;
 
 	// Clumsy but important.
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
 	if(myimportpath != nil && strcmp(myimportpath, "reflect") == 0) {
 		if(strcmp(curfn->nname->sym->name, "callReflect") == 0 || strcmp(curfn->nname->sym->name, "callMethod") == 0)
-			arch.thelinkarch->settextflag(ptxt, arch.thelinkarch->textflag(ptxt) | WRAPPER);
+			ptxt->from3.offset |= WRAPPER;
 	}	
 	
 	arch.afunclit(&ptxt->from, curfn->nname);

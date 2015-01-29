@@ -189,7 +189,7 @@ writeobj(Link *ctxt, Biobuf *b)
 				s->size = p->to.offset;
 				if(s->type == 0 || s->type == SXREF)
 					s->type = SBSS;
-				flag = ctxt->arch->textflag(p);
+				flag = p->from3.offset;
 				if(flag & DUPOK)
 					s->dupok = 1;
 				if(flag & RODATA)
@@ -222,7 +222,7 @@ writeobj(Link *ctxt, Biobuf *b)
 				else
 					etext->next = s;
 				etext = s;
-				flag = ctxt->arch->textflag(p);
+				flag = p->from3.offset;
 				if(flag & DUPOK)
 					s->dupok = 1;
 				if(flag & NOSPLIT)

@@ -57,18 +57,6 @@ datasize(Prog *p)
 	return p->reg;
 }
 
-static int
-textflag(Prog *p)
-{
-	return p->reg;
-}
-
-static void
-settextflag(Prog *p, int f)
-{
-	p->reg = f;
-}
-
 static void
 progedit(Link *ctxt, Prog *p)
 {
@@ -367,8 +355,8 @@ preprocess(Link *ctxt, LSym *cursym)
 					autosize += 4;
 			p->to.offset = autosize-8;
 
-			if(!(p->reg & NOSPLIT))
-				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
+			if(!(p->from3.offset & NOSPLIT))
+				p = stacksplit(ctxt, p, autosize, !(cursym->text->from3.offset&NEEDCTXT)); // emit split check
 
 			q = p;
 			if(autosize) {
@@ -420,7 +408,7 @@ preprocess(Link *ctxt, LSym *cursym)
 			if(q->as == AMOVDU)
 				q->spadj = -aoffset;
 
-			if(cursym->text->reg & WRAPPER) {
+			if(cursym->text->from3.offset & WRAPPER) {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOVD g_panic(g), R3
@@ -970,8 +958,6 @@ LinkArch linkppc64 = {
 	.isdata = isdata,
 	.prg = prg,
 	.progedit = progedit,
-	.settextflag = settextflag,
-	.textflag = textflag,
 
 	.minlc = 4,
 	.ptrsize = 8,
@@ -1004,8 +990,6 @@ LinkArch linkppc64le = {
 	.isdata = isdata,
 	.prg = prg,
 	.progedit = progedit,
-	.settextflag = settextflag,
-	.textflag = textflag,
 
 	.minlc = 4,
 	.ptrsize = 8,

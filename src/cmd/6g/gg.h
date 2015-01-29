@@ -9,8 +9,6 @@
 #include "../gc/go.h"
 #include "../6l/6.out.h"
 
-#define TEXTFLAG from.scale
-
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[MAXREG];
 EXTERN	int32	pcloc;		// instruction counter

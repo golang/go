@@ -90,9 +90,9 @@ Pconv(Fmt *fp)
 		break;
 
 	case ATEXT:
-		if(p->from.scale) {
-			sprint(str, "%.5lld (%L)	%A	%D,%d,%D",
-				p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
+		if(p->from3.offset) {
+			sprint(str, "%.5lld (%L)	%A	%D,%lld,%D",
+				p->pc, p->lineno, p->as, &p->from, p->from3.offset, &p->to);
 			break;
 		}
 		sprint(str, "%.5lld (%L)	%A	%D,%D",

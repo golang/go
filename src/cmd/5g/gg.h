@@ -9,8 +9,6 @@
 #include "../gc/go.h"
 #include "../5l/5.out.h"
 
-#define TEXTFLAG reg
-
 enum
 {
 	REGALLOC_R0 = REG_R0,

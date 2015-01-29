@@ -60,13 +60,9 @@ struct	Optab
 
 static Optab	optab[] = {
 	{ ATEXT,	C_LEXT,	C_NONE, C_NONE, 	C_TEXTSIZE, 	 0, 0, 0 },
-	{ ATEXT,	C_LEXT,	C_REG, C_NONE, 	C_TEXTSIZE, 	 0, 0, 0 },
 	{ ATEXT,	C_LEXT,	C_NONE, C_LCON, 	C_TEXTSIZE, 	 0, 0, 0 },
-	{ ATEXT,	C_LEXT,	C_REG, C_LCON, 	C_TEXTSIZE, 	 0, 0, 0 },
 	{ ATEXT,	C_ADDR,	C_NONE, C_NONE, 	C_TEXTSIZE, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_REG, C_NONE, 	C_TEXTSIZE, 	 0, 0, 0 },
 	{ ATEXT,	C_ADDR,	C_NONE, C_LCON, 	C_TEXTSIZE, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_REG, C_LCON, 	C_TEXTSIZE, 	 0, 0, 0 },
 
 	/* move register */
 	{ AMOVD,	C_REG,	C_NONE, C_NONE, 	C_REG,		 1, 4, 0 },
