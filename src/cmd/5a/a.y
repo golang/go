@@ -220,7 +220,11 @@ inst:
 |	LTYPEB name ',' con ',' '$' textsize
 	{
 		settext($2.sym);
-		outcode($1, Always, &$2, $4, &$7);
+		outcode($1, Always, &$2, 0, &$7);
+		if(pass > 1) {
+			lastpc->from3.type = TYPE_CONST;
+			lastpc->from3.offset = $4;
+		}
 	}
 /*
  * GLOBL
@@ -233,7 +237,11 @@ inst:
 |	LGLOBL name ',' con ',' imm
 	{
 		settext($2.sym);
-		outcode($1, Always, &$2, $4, &$6);
+		outcode($1, Always, &$2, 0, &$6);
+		if(pass > 1) {
+			lastpc->from3.type = TYPE_CONST;
+			lastpc->from3.offset = $4;
+		}
 	}
 /*
  * DATA

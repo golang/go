@@ -200,9 +200,9 @@ ggloblnod(Node *nam)
 	p->to.type = TYPE_CONST;
 	p->to.offset = nam->type->width;
 	if(nam->readonly)
-		p->reg = RODATA;
+		p->from3.offset = RODATA;
 	if(nam->type != T && !haspointers(nam->type))
-		p->reg |= NOPTR;
+		p->from3.offset |= NOPTR;
 }
 
 void
@@ -228,7 +228,7 @@ ggloblsym(Sym *s, int32 width, int8 flags)
 	p->to.type = TYPE_CONST;
 	p->to.name = NAME_NONE;
 	p->to.offset = width;
-	p->reg = flags;
+	p->from3.offset = flags;
 }
 
 int

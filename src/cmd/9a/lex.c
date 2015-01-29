@@ -650,8 +650,6 @@ cclean(void)
 	outcode(AEND, &nullgen, 0, &nullgen);
 }
 
-static Prog *lastpc;
-
 void
 outcode(int a, Addr *g1, int reg, Addr *g2)
 {

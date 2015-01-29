@@ -112,7 +112,7 @@ Pconv(Fmt *fp)
 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
 	else
 	if(p->as == ATEXT)
-		sprint(str, "%.5lld (%L)	%A	%D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+		sprint(str, "%.5lld (%L)	%A	%D,%lld,%D", p->pc, p->lineno, a, &p->from, p->from3.offset, &p->to);
 	else
 	if(p->reg == 0)
 		sprint(str, "%.5lld (%L)	%A%s	%D,%D", p->pc, p->lineno, a, sc, &p->from, &p->to);

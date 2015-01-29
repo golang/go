@@ -58,18 +58,6 @@ datasize(Prog *p)
 	return p->reg;
 }
 
-static int
-textflag(Prog *p)
-{
-	return p->reg;
-}
-
-static void
-settextflag(Prog *p, int f)
-{
-	p->reg = f;
-}
-
 static void
 progedit(Link *ctxt, Prog *p)
 {
@@ -268,7 +256,7 @@ preprocess(Link *ctxt, LSym *cursym)
 	cursym->args = p->to.u.argsize;
 
 	if(ctxt->debugzerostack) {
-		if(autoffset && !(p->reg&NOSPLIT)) {
+		if(autoffset && !(p->from3.offset&NOSPLIT)) {
 			// MOVW $4(R13), R1
 			p = appendp(ctxt, p);
 			p->as = AMOVW;
@@ -421,8 +409,8 @@ preprocess(Link *ctxt, LSym *cursym)
 					break;
 			}
 
-			if(!(p->reg & NOSPLIT))
-				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
+			if(!(p->from3.offset & NOSPLIT))
+				p = stacksplit(ctxt, p, autosize, !(cursym->text->from3.offset&NEEDCTXT)); // emit split check
 			
 			// MOVW.W		R14,$-autosize(SP)
 			p = appendp(ctxt, p);
@@ -435,7 +423,7 @@ preprocess(Link *ctxt, LSym *cursym)
 			p->to.reg = REGSP;
 			p->spadj = autosize;
 			
-			if(cursym->text->reg & WRAPPER) {
+			if(cursym->text->from3.offset & WRAPPER) {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOVW g_panic(g), R1
@@ -1048,8 +1036,6 @@ LinkArch linkarm = {
 	.isdata = isdata,
 	.prg = prg,
 	.progedit = progedit,
-	.settextflag = settextflag,
-	.textflag = textflag,
 
 	.minlc = 4,
 	.ptrsize = 4,

@@ -78,18 +78,6 @@ datasize(Prog *p)
 	return p->from.scale;
 }
 
-static int
-textflag(Prog *p)
-{
-	return p->from.scale;
-}
-
-static void
-settextflag(Prog *p, int f)
-{
-	p->from.scale = f;
-}
-
 static void nacladdr(Link*, Prog*, Addr*);
 
 static int
@@ -404,24 +392,24 @@ preprocess(Link *ctxt, LSym *cursym)
 	cursym->args = textarg;
 	cursym->locals = p->to.offset;
 
-	if(autoffset < StackSmall && !(p->from.scale & NOSPLIT)) {
+	if(autoffset < StackSmall && !(p->from3.offset & NOSPLIT)) {
 		for(q = p; q != nil; q = q->link) {
 			if(q->as == ACALL)
 				goto noleaf;
 			if((q->as == ADUFFCOPY || q->as == ADUFFZERO) && autoffset >= StackSmall - 8)
 				goto noleaf;
 		}
-		p->from.scale |= NOSPLIT;
+		p->from3.offset |= NOSPLIT;
 	noleaf:;
 	}
 
 	q = nil;
-	if(!(p->from.scale & NOSPLIT) || (p->from.scale & WRAPPER)) {
+	if(!(p->from3.offset & NOSPLIT) || (p->from3.offset & WRAPPER)) {
 		p = appendp(ctxt, p);
 		p = load_g_cx(ctxt, p); // load g into CX
 	}
-	if(!(cursym->text->from.scale & NOSPLIT))
-		p = stacksplit(ctxt, p, autoffset, textarg, !(cursym->text->from.scale&NEEDCTXT), &q); // emit split check
+	if(!(cursym->text->from3.offset & NOSPLIT))
+		p = stacksplit(ctxt, p, autoffset, textarg, !(cursym->text->from3.offset&NEEDCTXT), &q); // emit split check
 
 	if(autoffset) {
 		if(autoffset%ctxt->arch->regsize != 0)
@@ -468,7 +456,7 @@ preprocess(Link *ctxt, LSym *cursym)
 		p->to.reg = REG_BP;
 	}
 	
-	if(cursym->text->from.scale & WRAPPER) {
+	if(cursym->text->from3.offset & WRAPPER) {
 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 		//
 		//	MOVQ g_panic(CX), BX
@@ -564,7 +552,7 @@ preprocess(Link *ctxt, LSym *cursym)
 		p2->pcond = p;
 	}
 
-	if(ctxt->debugzerostack && autoffset && !(cursym->text->from.scale&NOSPLIT)) {
+	if(ctxt->debugzerostack && autoffset && !(cursym->text->from3.offset&NOSPLIT)) {
 		// 6l -Z means zero the stack frame on entry.
 		// This slows down function calls but can help avoid
 		// false positives in garbage collection.
@@ -1093,8 +1081,6 @@ LinkArch linkamd64 = {
 	.isdata = isdata,
 	.prg = prg,
 	.progedit = progedit,
-	.settextflag = settextflag,
-	.textflag = textflag,
 
 	.minlc = 1,
 	.ptrsize = 8,
@@ -1127,8 +1113,6 @@ LinkArch linkamd64p32 = {
 	.isdata = isdata,
 	.prg = prg,
 	.progedit = progedit,
-	.settextflag = settextflag,
-	.textflag = textflag,
 
 	.minlc = 1,
 	.ptrsize = 4,

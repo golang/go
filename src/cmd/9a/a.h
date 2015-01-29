@@ -126,6 +126,7 @@ EXTERN	int32	thunk;
 EXTERN	Biobuf	obuf;
 EXTERN	Link*	ctxt;
 EXTERN	Biobuf	bstdout;
+EXTERN	Prog*	lastpc;
 
 void*	alloc(int32);
 void*	allocn(void*, int32, int32);

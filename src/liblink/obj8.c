@@ -69,18 +69,6 @@ datasize(Prog *p)
 }
 
 static int
-textflag(Prog *p)
-{
-	return p->from.scale;
-}
-
-static void
-settextflag(Prog *p, int f)
-{
-	p->from.scale = f;
-}
-
-static int
 canuselocaltls(Link *ctxt)
 {
 	switch(ctxt->headtype) {
@@ -302,12 +290,12 @@ preprocess(Link *ctxt, LSym *cursym)
 
 	q = nil;
 
-	if(!(p->from.scale & NOSPLIT) || (p->from.scale & WRAPPER)) {
+	if(!(p->from3.offset & NOSPLIT) || (p->from3.offset & WRAPPER)) {
 		p = appendp(ctxt, p);
 		p = load_g_cx(ctxt, p); // load g into CX
 	}
-	if(!(cursym->text->from.scale & NOSPLIT))
-		p = stacksplit(ctxt, p, autoffset, !(cursym->text->from.scale&NEEDCTXT), &q); // emit split check
+	if(!(cursym->text->from3.offset & NOSPLIT))
+		p = stacksplit(ctxt, p, autoffset, !(cursym->text->from3.offset&NEEDCTXT), &q); // emit split check
 
 	if(autoffset) {
 		p = appendp(ctxt, p);
@@ -330,7 +318,7 @@ preprocess(Link *ctxt, LSym *cursym)
 		q->pcond = p;
 	deltasp = autoffset;
 	
-	if(cursym->text->from.scale & WRAPPER) {
+	if(cursym->text->from3.offset & WRAPPER) {
 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 		//
 		//	MOVL g_panic(CX), BX
@@ -401,7 +389,7 @@ preprocess(Link *ctxt, LSym *cursym)
 		p2->pcond = p;
 	}
 	
-	if(ctxt->debugzerostack && autoffset && !(cursym->text->from.scale&NOSPLIT)) {
+	if(ctxt->debugzerostack && autoffset && !(cursym->text->from3.offset&NOSPLIT)) {
 		// 8l -Z means zero the stack frame on entry.
 		// This slows down function calls but can help avoid
 		// false positives in garbage collection.
@@ -894,8 +882,6 @@ LinkArch link386 = {
 	.isdata = isdata,
 	.prg = prg,
 	.progedit = progedit,
-	.settextflag = settextflag,
-	.textflag = textflag,
 
 	.minlc = 1,
 	.ptrsize = 4,

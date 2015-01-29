@@ -72,7 +72,6 @@ static Optab	optab[] =
 	/* struct Optab:
 	  OPCODE,	from, prog->reg, to,		 type,size,param,flag */
 	{ ATEXT,	C_ADDR,	C_NONE,	C_TEXTSIZE, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_REG,	C_TEXTSIZE, 	 0, 0, 0 },
 
 	{ AADD,		C_REG,	C_REG,	C_REG,		 1, 4, 0 },
 	{ AADD,		C_REG,	C_NONE,	C_REG,		 1, 4, 0 },

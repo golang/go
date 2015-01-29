@@ -60,8 +60,8 @@
 %type	<lval>	con expr pointer offset
 %type	<addr>	mem imm reg nam rel rem rim rom omem nmem textsize
 %type	<addr2>	nonnon nonrel nonrem rimnon rimrem remrim
-%type	<addr2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9
-%type	<addr2>	spec10 spec11 spec12 spec13
+%type	<addr2>	spec1 spec3 spec4 spec5 spec6 spec7 spec8 spec9
+%type	<addr2>	spec10 spec12 spec13
 %%
 prog:
 |	prog 
@@ -103,7 +103,7 @@ inst:
 |	LTYPE4 remrim	{ outcode($1, &$2); }
 |	LTYPER nonrel	{ outcode($1, &$2); }
 |	LTYPED spec1	{ outcode($1, &$2); }
-|	LTYPET spec2	{ outcode($1, &$2); }
+|	spec2
 |	LTYPEC spec3	{ outcode($1, &$2); }
 |	LTYPEN spec4	{ outcode($1, &$2); }
 |	LTYPES spec5	{ outcode($1, &$2); }
@@ -112,7 +112,7 @@ inst:
 |	LTYPEXC spec8	{ outcode($1, &$2); }
 |	LTYPEX spec9	{ outcode($1, &$2); }
 |	LTYPERT spec10	{ outcode($1, &$2); }
-|	LTYPEG spec11	{ outcode($1, &$2); }
+|	spec11
 |	LTYPEPC spec12	{ outcode($1, &$2); }
 |	LTYPEF spec13	{ outcode($1, &$2); }
 
@@ -191,18 +191,47 @@ spec1:	/* DATA */
 	}
 
 spec2:	/* TEXT */
-	mem ',' '$' textsize
+	LTYPET mem ',' '$' textsize
 	{
-		settext($1.sym);
-		$$.from = $1;
-		$$.to = $4;
+		Addr2 a;
+		settext($2.sym);
+		a.from = $2;
+		a.to = $5;
+		outcode(ATEXT, &a);
 	}
-|	mem ',' con ',' '$' textsize
+|	LTYPET mem ',' con ',' '$' textsize
 	{
-		settext($1.sym);
-		$$.from = $1;
-		$$.from.scale = $3;
-		$$.to = $6;
+		Addr2 a;
+		settext($2.sym);
+		a.from = $2;
+		a.to = $7;
+		outcode(ATEXT, &a);
+		if(pass > 1) {
+			lastpc->from3.type = TYPE_CONST;
+			lastpc->from3.offset = $4;
+		}
+	}
+
+spec11:	/* GLOBL */
+	LTYPEG mem ',' imm
+	{
+		Addr2 a;
+		settext($2.sym);
+		a.from = $2;
+		a.to = $4;
+		outcode(AGLOBL, &a);
+	}
+|	LTYPEG mem ',' con ',' imm
+	{
+		Addr2 a;
+		settext($2.sym);
+		a.from = $2;
+		a.to = $6;
+		outcode(AGLOBL, &a);
+		if(pass > 1) {
+			lastpc->from3.type = TYPE_CONST;
+			lastpc->from3.offset = $4;
+		}
 	}
 
 spec3:	/* JMP/CALL */
@@ -295,19 +324,6 @@ spec10:	/* RET/RETF */
 	{
 		$$.from = $1;
 		$$.to = nullgen;
-	}
-
-spec11:	/* GLOBL */
-	mem ',' imm
-	{
-		$$.from = $1;
-		$$.to = $3;
-	}
-|	mem ',' con ',' imm
-	{
-		$$.from = $1;
-		$$.from.scale = $3;
-		$$.to = $5;
 	}
 
 spec12:	/* PCDATA */

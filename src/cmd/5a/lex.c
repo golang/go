@@ -497,8 +497,6 @@ static int bcode[] =
 	ANOP,
 };
 
-static Prog *lastpc;
-
 void
 outcode(int a, int scond, Addr *g1, int reg, Addr *g2)
 {

@@ -881,8 +881,6 @@ cclean(void)
 	outcode(AEND, &g2);
 }
 
-static Prog *lastpc;
-
 void
 outcode(int a, Addr2 *g2)
 {

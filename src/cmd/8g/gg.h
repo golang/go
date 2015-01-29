@@ -9,8 +9,6 @@
 #include "../gc/go.h"
 #include "../8l/8.out.h"
 
-#define TEXTFLAG from.scale
-
 // foptoas flags
 enum
 {
