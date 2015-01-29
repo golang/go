@@ -2828,7 +2828,8 @@ checkassign(Node *stmt, Node *n)
 {
 	Node *r, *l;
 
-	if(n->defn != stmt) {
+	// Variables declared in ORANGE are assigned on every iteration.
+	if(n->defn != stmt || stmt->op == ORANGE) {
 		r = outervalue(n);
 		for(l = n; l != r; l = l->left) {
 			l->assigned = 1;

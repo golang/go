@@ -18,14 +18,25 @@ typecheckrange(Node *n)
 	Node *v1, *v2;
 	NodeList *ll;
 
+	// Typechecking order is important here:
+	// 0. first typecheck range expression (slice/map/chan),
+	//	it is evaluated only once and so logically it is not part of the loop.
+	// 1. typcheck produced values,
+	//	this part can declare new vars and so it must be typechecked before body,
+	//	because body can contain a closure that captures the vars.
+	// 2. decldepth++ to denote loop body.
+	// 3. typecheck body.
+	// 4. decldepth--.
+
+	typecheck(&n->right, Erv);
+	if((t = n->right->type) == T)
+		goto out;
+
 	// delicate little dance.  see typecheckas2
 	for(ll=n->list; ll; ll=ll->next)
 		if(ll->n->defn != n)
 			typecheck(&ll->n, Erv | Easgn);
 
-	typecheck(&n->right, Erv);
-	if((t = n->right->type) == T)
-		goto out;
 	if(isptr[t->etype] && isfixedarray(t->type))
 		t = t->type;
 	n->type = t;
@@ -106,7 +117,9 @@ out:
 		if(ll->n->typecheck == 0)
 			typecheck(&ll->n, Erv | Easgn);
 
+	decldepth++;
 	typechecklist(n->nbody, Etop);
+	decldepth--;
 }
 
 void
