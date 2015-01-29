@@ -362,25 +362,12 @@ static Prog*	stacksplit(Link*, Prog*, int32, int32, int, Prog**);
 static void	indir_cx(Link*, Addr*);
 
 static void
-parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
-{
-	*textstksiz = arg & 0xffffffffLL;
-	if(*textstksiz & 0x80000000LL)
-		*textstksiz = -(-*textstksiz & 0xffffffffLL);
-
-	*textarg = (arg >> 32) & 0xffffffffLL;
-	if(*textarg & 0x80000000LL)
-		*textarg = 0;
-	*textarg = (*textarg+7) & ~7LL;
-}
-
-static void
 preprocess(Link *ctxt, LSym *cursym)
 {
 	Prog *p, *q, *p1, *p2;
 	int32 autoffset, deltasp;
 	int a, pcsize, bpsize;
-	vlong textstksiz, textarg;
+	vlong textarg;
 
 	if(ctxt->tlsg == nil)
 		ctxt->tlsg = linklookup(ctxt, "runtime.tlsg", 0);
@@ -398,8 +385,7 @@ preprocess(Link *ctxt, LSym *cursym)
 		return;				
 
 	p = cursym->text;
-	parsetextconst(p->to.offset, &textstksiz, &textarg);
-	autoffset = textstksiz;
+	autoffset = p->to.offset;
 	if(autoffset < 0)
 		autoffset = 0;
 	
@@ -409,14 +395,14 @@ preprocess(Link *ctxt, LSym *cursym)
 		// another function, so in that case we omit this.
 		bpsize = ctxt->arch->ptrsize;
 		autoffset += bpsize;
-		textstksiz += bpsize;
-		p->to.offset = ((uint64)p->to.offset & (0xffffffffull<<32)) | (uint32)autoffset;
+		p->to.offset += bpsize;
 	} else {
 		bpsize = 0;
 	}
 
-	cursym->args = p->to.offset>>32;
-	cursym->locals = textstksiz;
+	textarg = p->to.u.argsize;
+	cursym->args = textarg;
+	cursym->locals = p->to.offset;
 
 	if(autoffset < StackSmall && !(p->from.scale & NOSPLIT)) {
 		for(q = p; q != nil; q = q->link) {

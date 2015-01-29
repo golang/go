@@ -76,6 +76,7 @@ enum
 	Ym,
 	Ybr,
 	Ycol,
+	Ytextsize,
 	Ytls,
 
 	Ycs,	Yss,	Yds,	Yes,	Yfs,	Ygs,
@@ -150,7 +151,7 @@ static uchar	ynone[] =
 };
 static uchar	ytext[] =
 {
-	Ymb,	Yi32,	Zpseudo,1,
+	Ymb,	Ytextsize,	Zpseudo,1,
 	0
 };
 static uchar	ynop[] =
@@ -1538,7 +1539,6 @@ oclass(Link *ctxt, Addr *a)
 		// fall through
 
 	case TYPE_CONST:
-	case TYPE_TEXTSIZE:
 		if(a->sym != nil)
 			ctxt->diag("TYPE_CONST with symbol: %D", a);
 
@@ -1550,6 +1550,9 @@ oclass(Link *ctxt, Addr *a)
 		if(v >= -128 && v <= 127)
 			return Yi8;
 		return Yi32;
+
+	case TYPE_TEXTSIZE:
+		return Ytextsize;
 	}
 
 	if(a->type != TYPE_REG) {

@@ -149,6 +149,7 @@ enum
 	C_HREG,
 
 	C_ADDR,		/* reference to relocatable address */
+	C_TEXTSIZE,
 
 	C_GOK,
 

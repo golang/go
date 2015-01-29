@@ -33,13 +33,13 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/6l/6.out.h"
+#include "../runtime/funcdata.h"
 
 //
 // Format conversions
 //	%A int		Opcodes (instruction mnemonics)
 //
 //	%D Addr*	Addresses (instruction operands)
-//		Flags: "%lD": seperate the high and low words of a constant by "-"
 //
 //	%P Prog*	Instructions
 //
@@ -91,11 +91,11 @@ Pconv(Fmt *fp)
 
 	case ATEXT:
 		if(p->from.scale) {
-			sprint(str, "%.5lld (%L)	%A	%D,%d,%lD",
+			sprint(str, "%.5lld (%L)	%A	%D,%d,%D",
 				p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
 			break;
 		}
-		sprint(str, "%.5lld (%L)	%A	%D,%lD",
+		sprint(str, "%.5lld (%L)	%A	%D,%D",
 			p->pc, p->lineno, p->as, &p->from, &p->to);
 		break;
 
@@ -194,10 +194,6 @@ Dconv(Fmt *fp)
 		break;
 
 	case TYPE_CONST:
-		if(fp->flags & FmtLong) {
-			sprint(str, "$%lld-%lld", a->offset&0xffffffffLL, a->offset>>32);
-			break;
-		}
 		sprint(str, "$%lld", a->offset);
 		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
 		//	SHRQ $32(DX*0), AX
@@ -206,6 +202,13 @@ Dconv(Fmt *fp)
 			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
 			strcat(str, s);
 		}
+		break;
+	
+	case TYPE_TEXTSIZE:
+		if(a->u.argsize == ArgsSizeUnknown)
+			sprint(str, "$%lld", a->offset);
+		else
+			sprint(str, "$%lld-%lld", a->offset, a->u.argsize);
 		break;
 
 	case TYPE_FCONST:

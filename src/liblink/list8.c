@@ -33,6 +33,7 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/8l/8.out.h"
+#include "../runtime/funcdata.h"
 
 static int	Aconv(Fmt *fp);
 static int	Dconv(Fmt *fp);
@@ -77,11 +78,11 @@ Pconv(Fmt *fp)
 
 	case ATEXT:
 		if(p->from.scale) {
-			sprint(str, "%.5lld (%L)	%A	%D,%d,%lD",
+			sprint(str, "%.5lld (%L)	%A	%D,%d,%D",
 				p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
 			break;
 		}
-		sprint(str, "%.5lld (%L)	%A	%D,%lD",
+		sprint(str, "%.5lld (%L)	%A	%D,%D",
 			p->pc, p->lineno, p->as, &p->from, &p->to);
 		break;
 
@@ -198,7 +199,10 @@ Dconv(Fmt *fp)
 		break;
 
 	case TYPE_TEXTSIZE:
-		sprint(str, "$%lld-%d", a->offset, a->u.argsize);
+		if(a->u.argsize == ArgsSizeUnknown)
+			sprint(str, "$%lld", a->offset);
+		else
+			sprint(str, "$%lld-%lld", a->offset, a->u.argsize);
 		break;
 
 	case TYPE_FCONST:

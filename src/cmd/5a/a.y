@@ -62,7 +62,7 @@
 %token	<sym>	LNAME LLAB LVAR
 %type	<lval>	con expr oexpr pointer offset sreg spreg creg
 %type	<lval>	rcon cond reglist
-%type	<addr>	gen rel reg regreg freg shift fcon frcon
+%type	<addr>	gen rel reg regreg freg shift fcon frcon textsize
 %type	<addr>	imm ximm name oreg ireg nireg ioreg imsr
 %%
 prog:
@@ -212,26 +212,15 @@ inst:
 /*
  * TEXT
  */
-|	LTYPEB name ',' imm
+|	LTYPEB name ',' '$' textsize
 	{
 		settext($2.sym);
-		$4.type = TYPE_TEXTSIZE;
-		$4.u.argsize = ArgsSizeUnknown;
-		outcode($1, Always, &$2, 0, &$4);
+		outcode($1, Always, &$2, 0, &$5);
 	}
-|	LTYPEB name ',' con ',' imm
+|	LTYPEB name ',' con ',' '$' textsize
 	{
 		settext($2.sym);
-		$6.type = TYPE_TEXTSIZE;
-		$6.u.argsize = ArgsSizeUnknown;
-		outcode($1, Always, &$2, $4, &$6);
-	}
-|	LTYPEB name ',' con ',' imm '-' con
-	{
-		settext($2.sym);
-		$6.type = TYPE_TEXTSIZE;
-		$6.u.argsize = $8;
-		outcode($1, Always, &$2, $4, &$6);
+		outcode($1, Always, &$2, $4, &$7);
 	}
 /*
  * GLOBL
@@ -391,6 +380,32 @@ rel:
 			yyerror("undefined label: %s", $1->labelname);
 		$$.type = TYPE_BRANCH;
 		$$.offset = $1->value + $2;
+	}
+
+textsize:
+	LCONST
+	{
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = $1;
+		$$.u.argsize = ArgsSizeUnknown;
+	}
+|	'-' LCONST
+	{
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = -$2;
+		$$.u.argsize = ArgsSizeUnknown;
+	}
+|	LCONST '-' LCONST
+	{
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = $1;
+		$$.u.argsize = $3;
+	}
+|	'-' LCONST '-' LCONST
+	{
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = -$2;
+		$$.u.argsize = $4;
 	}
 
 ximm:	'$' con

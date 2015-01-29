@@ -163,24 +163,11 @@ progedit(Link *ctxt, Prog *p)
 static Prog*	stacksplit(Link*, Prog*, int32, int);
 
 static void
-parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
-{
-	*textstksiz = arg & 0xffffffffLL;
-	if(*textstksiz & 0x80000000LL)
-		*textstksiz = -(-*textstksiz & 0xffffffffLL);
-
-	*textarg = (arg >> 32) & 0xffffffffLL;
-	if(*textarg & 0x80000000LL)
-		*textarg = 0;
-	*textarg = (*textarg+7) & ~7LL;
-}
-
-static void
 preprocess(Link *ctxt, LSym *cursym)
 {
 	Prog *p, *q, *p1, *p2, *q1;
 	int o, mov, aoffset;
-	vlong textstksiz, textarg;
+	vlong textstksiz;
 	int32 autosize;
 
 	if(ctxt->symmorestack[0] == nil) {
@@ -195,9 +182,9 @@ preprocess(Link *ctxt, LSym *cursym)
 		return;				
 
 	p = cursym->text;
-	parsetextconst(p->to.offset, &textstksiz, &textarg);
+	textstksiz = p->to.offset;
 	
-	cursym->args = p->to.offset>>32;
+	cursym->args = p->to.u.argsize;
 	cursym->locals = textstksiz;
 
 	/*
@@ -378,7 +365,7 @@ preprocess(Link *ctxt, LSym *cursym)
 			else
 				if(autosize & 4)
 					autosize += 4;
-			p->to.offset = ((uint64)p->to.offset & (0xffffffffull<<32)) | (uint32)(autosize-8);
+			p->to.offset = autosize-8;
 
 			if(!(p->reg & NOSPLIT))
 				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check

@@ -21,13 +21,11 @@ defframe(Prog *ptxt)
 	NodeList *l;
 	Node *n;
 
-	// fill in argument size
-	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
-
-	// fill in final stack size
-	ptxt->to.offset <<= 32;
+	// fill in argument size, stack size
+	ptxt->to.type = TYPE_TEXTSIZE;
+	ptxt->to.u.argsize = rnd(curfn->type->argwid, widthptr);
 	frame = rnd(stksize+maxarg, widthreg);
-	ptxt->to.offset |= frame;
+	ptxt->to.offset = frame;
 	
 	// insert code to zero ambiguously live variables
 	// so that the garbage collector only sees initialized values

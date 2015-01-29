@@ -286,6 +286,7 @@ enum
 	C_ANY,
 	C_GOK,
 	C_ADDR,
+	C_TEXTSIZE,
 
 	C_NCLASS,	/* must be the last */
 };

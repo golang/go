@@ -38,10 +38,6 @@
 %union	{
 	Sym	*sym;
 	int32	lval;
-	struct {
-		int32 v1;
-		int32 v2;
-	} con2;
 	double	dval;
 	char	sval[8];
 	Addr	addr;
@@ -61,8 +57,7 @@
 %token	<sval>	LSCONST LSP
 %token	<sym>	LNAME LLAB LVAR
 %type	<lval>	con expr pointer offset
-%type	<con2>	con2
-%type	<addr>	mem imm imm2 reg nam rel rem rim rom omem nmem
+%type	<addr>	mem imm reg nam rel rem rim rom omem nmem textsize
 %type	<addr2>	nonnon nonrel nonrem rimnon rimrem remrim
 %type	<addr2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9 spec10 spec11 spec12
 %%
@@ -193,18 +188,18 @@ spec1:	/* DATA */
 	}
 
 spec2:	/* TEXT */
-	mem ',' imm2
+	mem ',' '$' textsize
 	{
 		settext($1.sym);
 		$$.from = $1;
-		$$.to = $3;
+		$$.to = $4;
 	}
-|	mem ',' con ',' imm2
+|	mem ',' con ',' '$' textsize
 	{
 		settext($1.sym);
 		$$.from = $1;
 		$$.from.scale = $3;
-		$$.to = $5;
+		$$.to = $6;
 	}
 
 spec3:	/* JMP/CALL */
@@ -453,35 +448,30 @@ imm:
 		$$.u.dval = -$3;
 	}
 
-imm2:
-	'$' con2
-	{
-		$$ = nullgen;
-		$$.type = TYPE_TEXTSIZE;
-		$$.offset = $2.v1;
-		$$.u.argsize = $2.v2;
-	}
-
-con2:
+textsize:
 	LCONST
 	{
-		$$.v1 = $1;
-		$$.v2 = ArgsSizeUnknown;
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = $1;
+		$$.u.argsize = ArgsSizeUnknown;
 	}
 |	'-' LCONST
 	{
-		$$.v1 = -$2;
-		$$.v2 = ArgsSizeUnknown;
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = -$2;
+		$$.u.argsize = ArgsSizeUnknown;
 	}
 |	LCONST '-' LCONST
 	{
-		$$.v1 = $1;
-		$$.v2 = $3;
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = $1;
+		$$.u.argsize = $3;
 	}
 |	'-' LCONST '-' LCONST
 	{
-		$$.v1 = -$2;
-		$$.v2 = $4;
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = -$2;
+		$$.u.argsize = $4;
 	}
 
 mem:

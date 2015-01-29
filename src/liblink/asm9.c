@@ -59,14 +59,14 @@ struct	Optab
 };
 
 static Optab	optab[] = {
-	{ ATEXT,	C_LEXT,	C_NONE, C_NONE, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_LEXT,	C_REG, C_NONE, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_LEXT,	C_NONE, C_LCON, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_LEXT,	C_REG, C_LCON, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_NONE, C_NONE, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_REG, C_NONE, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_NONE, C_LCON, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_REG, C_LCON, 	C_LCON, 	 0, 0, 0 },
+	{ ATEXT,	C_LEXT,	C_NONE, C_NONE, 	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_LEXT,	C_REG, C_NONE, 	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_LEXT,	C_NONE, C_LCON, 	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_LEXT,	C_REG, C_LCON, 	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_ADDR,	C_NONE, C_NONE, 	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_ADDR,	C_REG, C_NONE, 	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_ADDR,	C_NONE, C_LCON, 	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_ADDR,	C_REG, C_LCON, 	C_TEXTSIZE, 	 0, 0, 0 },
 
 	/* move register */
 	{ AMOVD,	C_REG,	C_NONE, C_NONE, 	C_REG,		 1, 4, 0 },
@@ -497,7 +497,7 @@ span9(Link *ctxt, LSym *cursym)
 	if(p == nil || p->link == nil) // handle external functions and ELF section symbols
 		return;
 	ctxt->cursym = cursym;
-	ctxt->autosize = (int32)(p->to.offset & 0xffffffffll) + 8;
+	ctxt->autosize = p->to.offset + 8;
 
 	if(oprange[AANDN].start == nil)
  		buildop(ctxt);
@@ -672,6 +672,9 @@ aclass(Link *ctxt, Addr *a)
 			return C_LOREG;
 		}
 		return C_GOK;
+
+	case TYPE_TEXTSIZE:
+		return C_TEXTSIZE;
 
 	case TYPE_CONST:
 		switch(a->name) {

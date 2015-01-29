@@ -32,6 +32,7 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/9l/9.out.h"
+#include "../runtime/funcdata.h"
 
 enum
 {
@@ -51,7 +52,6 @@ static int	DRconv(Fmt*);
 //	%A int		Opcodes (instruction mnemonics)
 //
 //	%D Addr*	Addresses (instruction operands)
-//		Flags: "%lD": seperate the high and low words of a constant by "-"
 //
 //	%P Prog*	Instructions
 //
@@ -97,9 +97,9 @@ Pconv(Fmt *fp)
 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
 	else if(a == ATEXT) {
 		if(p->reg != 0)
-			sprint(str, "%.5lld (%L)	%A	%D,%d,%lD", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+			sprint(str, "%.5lld (%L)	%A	%D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
 		else
-			sprint(str, "%.5lld (%L)	%A	%D,%lD", p->pc, p->lineno, a, &p->from, &p->to);
+			sprint(str, "%.5lld (%L)	%A	%D,%D", p->pc, p->lineno, a, &p->from, &p->to);
 	} else if(a == AGLOBL) {
 		if(p->reg != 0)
 			sprint(str, "%.5lld (%L)	%A	%D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
@@ -154,16 +154,6 @@ Dconv(Fmt *fp)
 
 	a = va_arg(fp->args, Addr*);
 
-	if(fp->flags & FmtLong) {
-		if(a->type == TYPE_CONST)
-			sprint(str, "$%d-%d", (int32)a->offset, (int32)(a->offset>>32));
-		else {
-			// ATEXT dst is not constant
-			sprint(str, "!!%D", a);
-		}
-		goto ret;
-	}
-
 	switch(a->type) {
 	default:
 		sprint(str, "GOK-type(%d)", a->type);
@@ -180,6 +170,13 @@ Dconv(Fmt *fp)
 			sprint(str, "$%M(%R)", a, a->reg);
 		else
 			sprint(str, "$%M", a);
+		break;
+
+	case TYPE_TEXTSIZE:
+		if(a->u.argsize == ArgsSizeUnknown)
+			sprint(str, "$%lld", a->offset);
+		else
+			sprint(str, "$%lld-%lld", a->offset, a->u.argsize);
 		break;
 
 	case TYPE_MEM:
@@ -222,7 +219,6 @@ Dconv(Fmt *fp)
 		break;
 	}
 
-ret:
 	return fmtstrcpy(fp, str);
 }
 

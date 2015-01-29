@@ -71,8 +71,8 @@ static Optab	optab[] =
 {
 	/* struct Optab:
 	  OPCODE,	from, prog->reg, to,		 type,size,param,flag */
-	{ ATEXT,	C_ADDR,	C_NONE,	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_REG,	C_LCON, 	 0, 0, 0 },
+	{ ATEXT,	C_ADDR,	C_NONE,	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_ADDR,	C_REG,	C_TEXTSIZE, 	 0, 0, 0 },
 
 	{ AADD,		C_REG,	C_REG,	C_REG,		 1, 4, 0 },
 	{ AADD,		C_REG,	C_NONE,	C_REG,		 1, 4, 0 },
@@ -1122,8 +1122,10 @@ aclass(Link *ctxt, Addr *a)
 			return C_SFCON;
 		return C_LFCON;
 
-	case TYPE_CONST:
 	case TYPE_TEXTSIZE:
+		return C_TEXTSIZE;
+
+	case TYPE_CONST:
 		switch(a->name) {
 
 		case TYPE_NONE:
