@@ -122,32 +122,19 @@ var vcsGit = &vcsCmd{
 }
 
 func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
-	outb, err := vcsGit.runOutput(rootDir, "remote -v")
+	cmd := "config remote.origin.url"
+	errParse := errors.New("unable to parse output of git " + cmd)
+	outb, err := vcsGit.runOutput(rootDir, cmd)
 	if err != nil {
 		return "", err
 	}
-	out := string(outb)
-
-	// Expect:
-	// origin	https://github.com/rsc/pdf (fetch)
-	// origin	https://github.com/rsc/pdf (push)
-	// use first line only.
-
-	if !strings.HasPrefix(out, "origin\t") {
-		return "", fmt.Errorf("unable to parse output of git remote -v")
+	repoUrl := strings.TrimSpace(string(outb))
+	for _, s := range vcsGit.scheme {
+		if strings.HasPrefix(repoUrl, s) {
+			return repoUrl, nil
+		}
 	}
-	out = strings.TrimPrefix(out, "origin\t")
-	i := strings.Index(out, "\n")
-	if i < 0 {
-		return "", fmt.Errorf("unable to parse output of git remote -v")
-	}
-	out = out[:i]
-	i = strings.LastIndex(out, " ")
-	if i < 0 {
-		return "", fmt.Errorf("unable to parse output of git remote -v")
-	}
-	out = out[:i]
-	return strings.TrimSpace(string(out)), nil
+	return "", errParse
 }
 
 // vcsBzr describes how to use Bazaar.
