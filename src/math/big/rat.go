@@ -546,12 +546,12 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 
 	// parse fraction a/b, if any
 	if sep := strings.Index(s, "/"); sep >= 0 {
-		if _, ok := z.a.SetString(s[:sep], 10); !ok {
+		if _, ok := z.a.SetString(s[:sep], 0); !ok {
 			return nil, false
 		}
 		s = s[sep+1:]
 		var err error
-		if z.b.abs, _, _, err = z.b.abs.scan(strings.NewReader(s), 10); err != nil {
+		if z.b.abs, _, _, err = z.b.abs.scan(strings.NewReader(s), 0, false); err != nil {
 			return nil, false
 		}
 		if len(z.b.abs) == 0 {
@@ -571,7 +571,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 
 	// mantissa
 	var ecorr int
-	z.a.abs, _, ecorr, err = z.a.abs.scan(r, 1)
+	z.a.abs, _, ecorr, err = z.a.abs.scan(r, 10, true)
 	if err != nil {
 		return nil, false
 	}

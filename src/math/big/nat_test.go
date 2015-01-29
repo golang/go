@@ -88,7 +88,7 @@ var prodNN = []argNN{
 }
 
 func natFromString(s string) nat {
-	x, _, _, err := nat(nil).scan(strings.NewReader(s), 0)
+	x, _, _, err := nat(nil).scan(strings.NewReader(s), 0, false)
 	if err != nil {
 		panic(err)
 	}
@@ -271,7 +271,7 @@ func TestString(t *testing.T) {
 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
 		}
 
-		x, b, _, err := nat(nil).scan(strings.NewReader(a.s), len(a.c))
+		x, b, _, err := nat(nil).scan(strings.NewReader(a.s), len(a.c), false)
 		if x.cmp(a.x) != 0 {
 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
 		}
@@ -287,6 +287,7 @@ func TestString(t *testing.T) {
 var natScanTests = []struct {
 	s     string // string to be scanned
 	base  int    // input base
+	frac  bool   // fraction ok
 	x     nat    // expected nat
 	b     int    // expected base
 	count int    // expected digit count
@@ -313,39 +314,39 @@ var natScanTests = []struct {
 	{s: "0x.0"},
 
 	// no errors
-	{"0", 0, nil, 10, 1, true, 0},
-	{"0", 10, nil, 10, 1, true, 0},
-	{"0", 36, nil, 36, 1, true, 0},
-	{"1", 0, nat{1}, 10, 1, true, 0},
-	{"1", 10, nat{1}, 10, 1, true, 0},
-	{"0 ", 0, nil, 10, 1, true, ' '},
-	{"08", 0, nil, 10, 1, true, '8'},
-	{"08", 10, nat{8}, 10, 2, true, 0},
-	{"018", 0, nat{1}, 8, 1, true, '8'},
-	{"0b1", 0, nat{1}, 2, 1, true, 0},
-	{"0b11000101", 0, nat{0xc5}, 2, 8, true, 0},
-	{"03271", 0, nat{03271}, 8, 4, true, 0},
-	{"10ab", 0, nat{10}, 10, 2, true, 'a'},
-	{"1234567890", 0, nat{1234567890}, 10, 10, true, 0},
-	{"xyz", 36, nat{(33*36+34)*36 + 35}, 36, 3, true, 0},
-	{"xyz?", 36, nat{(33*36+34)*36 + 35}, 36, 3, true, '?'},
-	{"0x", 16, nil, 16, 1, true, 'x'},
-	{"0xdeadbeef", 0, nat{0xdeadbeef}, 16, 8, true, 0},
-	{"0XDEADBEEF", 0, nat{0xdeadbeef}, 16, 8, true, 0},
+	{"0", 0, false, nil, 10, 1, true, 0},
+	{"0", 10, false, nil, 10, 1, true, 0},
+	{"0", 36, false, nil, 36, 1, true, 0},
+	{"1", 0, false, nat{1}, 10, 1, true, 0},
+	{"1", 10, false, nat{1}, 10, 1, true, 0},
+	{"0 ", 0, false, nil, 10, 1, true, ' '},
+	{"08", 0, false, nil, 10, 1, true, '8'},
+	{"08", 10, false, nat{8}, 10, 2, true, 0},
+	{"018", 0, false, nat{1}, 8, 1, true, '8'},
+	{"0b1", 0, false, nat{1}, 2, 1, true, 0},
+	{"0b11000101", 0, false, nat{0xc5}, 2, 8, true, 0},
+	{"03271", 0, false, nat{03271}, 8, 4, true, 0},
+	{"10ab", 0, false, nat{10}, 10, 2, true, 'a'},
+	{"1234567890", 0, false, nat{1234567890}, 10, 10, true, 0},
+	{"xyz", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, 0},
+	{"xyz?", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, '?'},
+	{"0x", 16, false, nil, 16, 1, true, 'x'},
+	{"0xdeadbeef", 0, false, nat{0xdeadbeef}, 16, 8, true, 0},
+	{"0XDEADBEEF", 0, false, nat{0xdeadbeef}, 16, 8, true, 0},
 
 	// no errors, decimal point
-	{"0.", 0, nil, 10, 1, true, '.'},
-	{"0.", 1, nil, 10, 0, true, 0},
-	{"0.1.2", 1, nat{1}, 10, -1, true, '.'},
-	{".000", 1, nil, 10, -3, true, 0},
-	{"12.3", 1, nat{123}, 10, -1, true, 0},
-	{"012.345", 1, nat{12345}, 10, -3, true, 0},
+	{"0.", 0, false, nil, 10, 1, true, '.'},
+	{"0.", 10, true, nil, 10, 0, true, 0},
+	{"0.1.2", 10, true, nat{1}, 10, -1, true, '.'},
+	{".000", 10, true, nil, 10, -3, true, 0},
+	{"12.3", 10, true, nat{123}, 10, -1, true, 0},
+	{"012.345", 10, true, nat{12345}, 10, -3, true, 0},
 }
 
 func TestScanBase(t *testing.T) {
 	for _, a := range natScanTests {
 		r := strings.NewReader(a.s)
-		x, b, count, err := nat(nil).scan(r, a.base)
+		x, b, count, err := nat(nil).scan(r, a.base, a.frac)
 		if err == nil && !a.ok {
 			t.Errorf("scan%+v\n\texpected error", a)
 		}
@@ -431,7 +432,7 @@ var pi = "3" +
 // Test case for BenchmarkScanPi.
 func TestScanPi(t *testing.T) {
 	var x nat
-	z, _, _, err := x.scan(strings.NewReader(pi), 10)
+	z, _, _, err := x.scan(strings.NewReader(pi), 10, false)
 	if err != nil {
 		t.Errorf("scanning pi: %s", err)
 	}
@@ -457,13 +458,13 @@ func TestScanPiParallel(t *testing.T) {
 func BenchmarkScanPi(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var x nat
-		x.scan(strings.NewReader(pi), 10)
+		x.scan(strings.NewReader(pi), 10, false)
 	}
 }
 
 func BenchmarkStringPiParallel(b *testing.B) {
 	var x nat
-	x, _, _, _ = x.scan(strings.NewReader(pi), 0)
+	x, _, _, _ = x.scan(strings.NewReader(pi), 0, false)
 	if x.decimalString() != pi {
 		panic("benchmark incorrect: conversion failed")
 	}
@@ -511,7 +512,7 @@ func ScanHelper(b *testing.B, base int, x, y Word) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		z.scan(strings.NewReader(s), base)
+		z.scan(strings.NewReader(s), base, false)
 	}
 }
 

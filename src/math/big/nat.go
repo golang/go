@@ -649,28 +649,32 @@ func pow(x Word, n int) (p Word) {
 // It returns the corresponding natural number res, the actual base b,
 // a digit count, and an error err, if any.
 //
-//	number = [ prefix ] digits | digits "." [ digits ] | "." digits .
-//	prefix = "0" [ "x" | "X" | "b" | "B" ] .
-//	digits = digit { digit } .
-//	digit  = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
+//	number   = [ prefix ] mantissa .
+//	prefix   = "0" [ "x" | "X" | "b" | "B" ] .
+//      mantissa = digits | digits "." [ digits ] | "." digits .
+//	digits   = digit { digit } .
+//	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
-// The base argument must be a value between 0 and MaxBase (inclusive).
+// The base argument must be 0 or a value between 0 through MaxBase.
+//
 // For base 0, the number prefix determines the actual base: A prefix of
-// ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and
-// a ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base
-// is 10 and no prefix is permitted.
+// ``0x'' or ``0X'' selects base 16; if fracOk is not set, the ``0'' prefix
+// selects base 8, and a ``0b'' or ``0B'' prefix selects base 2. Otherwise
+// the selected base is 10 and no prefix is permitted.
 //
-// Base argument 1 selects actual base 10 but also enables scanning a number
-// with a decimal point.
+// If fracOk is set, an octal prefix is ignored (a leading ``0'' simply
+// stands for a zero digit), and a period followed by a fractional part
+// is permitted. The result value is computed as if there were no period
+// present; and the count value is used to determine the fractional part.
 //
 // A result digit count > 0 corresponds to the number of (non-prefix) digits
-// parsed. A digit count <= 0 indicates the presence of a decimal point (for
-// base == 1, only), and the number of fractional digits is -count. In this
-// case, the value of the scanned number is res * 10**count.
+// parsed. A digit count <= 0 indicates the presence of a period (if fracOk
+// is set, only), and -count is the number of fractional digits found.
+// In this case, the value of the scanned number is res * 10**count.
 //
-func (z nat) scan(r io.ByteScanner, base int) (res nat, b, count int, err error) {
+func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count int, err error) {
 	// reject illegal bases
-	if base < 0 || base > MaxBase {
+	if base != 0 && base < 2 || base > MaxBase {
 		err = errors.New("illegal number base")
 		return
 	}
@@ -682,31 +686,37 @@ func (z nat) scan(r io.ByteScanner, base int) (res nat, b, count int, err error)
 	}
 
 	// determine actual base
-	switch base {
-	case 0:
+	b = base
+	if base == 0 {
 		// actual base is 10 unless there's a base prefix
 		b = 10
 		if ch == '0' {
+			count = 1
 			switch ch, err = r.ReadByte(); err {
 			case nil:
 				// possibly one of 0x, 0X, 0b, 0B
-				b = 8
+				if !fracOk {
+					b = 8
+				}
 				switch ch {
 				case 'x', 'X':
 					b = 16
 				case 'b', 'B':
 					b = 2
 				}
-				if b == 2 || b == 16 {
+				switch b {
+				case 16, 2:
+					count = 0 // prefix is not counted
 					if ch, err = r.ReadByte(); err != nil {
 						// io.EOF is also an error in this case
 						return
 					}
+				case 8:
+					count = 0 // prefix is not counted
 				}
 			case io.EOF:
 				// input is "0"
 				res = z[:0]
-				count = 1
 				err = nil
 				return
 			default:
@@ -714,11 +724,6 @@ func (z nat) scan(r io.ByteScanner, base int) (res nat, b, count int, err error)
 				return
 			}
 		}
-	case 1:
-		// actual base is 10 and decimal point is permitted
-		b = 10
-	default:
-		b = base
 	}
 
 	// convert string
@@ -732,8 +737,8 @@ func (z nat) scan(r io.ByteScanner, base int) (res nat, b, count int, err error)
 	i := 0              // 0 <= i < n
 	dp := -1            // position of decimal point
 	for {
-		if base == 1 && ch == '.' {
-			base = 10 // no 2nd decimal point permitted
+		if fracOk && ch == '.' {
+			fracOk = false
 			dp = count
 			// advance
 			if ch, err = r.ReadByte(); err != nil {

@@ -79,7 +79,7 @@ func testFloatRound(t *testing.T, x, r int64, prec uint, mode RoundingMode) {
 
 // TestFloatRound tests basic rounding.
 func TestFloatRound(t *testing.T) {
-	var tests = []struct {
+	for _, test := range []struct {
 		prec                        uint
 		x, zero, neven, naway, away string // input, results rounded to prec bits
 	}{
@@ -154,9 +154,7 @@ func TestFloatRound(t *testing.T) {
 		{1, "1101001", "1000000", "10000000", "10000000", "10000000"},
 		{1, "1110001", "1000000", "10000000", "10000000", "10000000"},
 		{1, "1111001", "1000000", "10000000", "10000000", "10000000"},
-	}
-
-	for _, test := range tests {
+	} {
 		x := fromBinary(test.x)
 		z := fromBinary(test.zero)
 		e := fromBinary(test.neven)
@@ -195,7 +193,7 @@ func TestFloatRound24(t *testing.T) {
 }
 
 func TestFloatSetUint64(t *testing.T) {
-	var tests = []uint64{
+	for _, want := range []uint64{
 		0,
 		1,
 		2,
@@ -204,8 +202,7 @@ func TestFloatSetUint64(t *testing.T) {
 		1<<32 - 1,
 		1 << 32,
 		1<<64 - 1,
-	}
-	for _, want := range tests {
+	} {
 		f := new(Float).SetUint64(want)
 		if got := f.Uint64(); got != want {
 			t.Errorf("got %d (%s); want %d", got, f.pstring(), want)
@@ -214,7 +211,7 @@ func TestFloatSetUint64(t *testing.T) {
 }
 
 func TestFloatSetInt64(t *testing.T) {
-	var tests = []int64{
+	for _, want := range []int64{
 		0,
 		1,
 		2,
@@ -223,8 +220,7 @@ func TestFloatSetInt64(t *testing.T) {
 		1<<32 - 1,
 		1 << 32,
 		1<<63 - 1,
-	}
-	for _, want := range tests {
+	} {
 		for i := range [2]int{} {
 			if i&1 != 0 {
 				want = -want
@@ -238,7 +234,7 @@ func TestFloatSetInt64(t *testing.T) {
 }
 
 func TestFloatSetFloat64(t *testing.T) {
-	var tests = []float64{
+	for _, want := range []float64{
 		0,
 		1,
 		2,
@@ -248,8 +244,7 @@ func TestFloatSetFloat64(t *testing.T) {
 		3.14159265e10,
 		2.718281828e-123,
 		1.0 / 3,
-	}
-	for _, want := range tests {
+	} {
 		for i := range [2]int{} {
 			if i&1 != 0 {
 				want = -want
@@ -396,7 +391,7 @@ func TestFloatMul(t *testing.T) {
 // TestFloatMul64 tests that Float.Mul/Quo of numbers with
 // 53bit mantissa behaves like float64 multiplication/division.
 func TestFloatMul64(t *testing.T) {
-	var tests = []struct {
+	for _, test := range []struct {
 		x, y float64
 	}{
 		{0, 0},
@@ -407,8 +402,7 @@ func TestFloatMul64(t *testing.T) {
 		{2.718281828, 3.14159265358979},
 		{2.718281828e10, 3.14159265358979e-32},
 		{1.0 / 3, 1e200},
-	}
-	for _, test := range tests {
+	} {
 		for i := range [8]int{} {
 			x0, y0 := test.x, test.y
 			if i&1 != 0 {
@@ -552,7 +546,7 @@ func normBits(x []int) []int {
 }
 
 func TestNormBits(t *testing.T) {
-	var tests = []struct {
+	for _, test := range []struct {
 		x, want []int
 	}{
 		{nil, nil},
@@ -561,9 +555,7 @@ func TestNormBits(t *testing.T) {
 		{[]int{0, 0}, []int{1}},
 		{[]int{3, 1, 1}, []int{2, 3}},
 		{[]int{10, 9, 8, 7, 6, 6}, []int{11}},
-	}
-
-	for _, test := range tests {
+	} {
 		got := fmt.Sprintf("%v", normBits(test.x))
 		want := fmt.Sprintf("%v", test.want)
 		if got != want {
@@ -665,27 +657,25 @@ func fromBits(bits ...int) *Float {
 }
 
 func TestFromBits(t *testing.T) {
-	var tests = []struct {
+	for _, test := range []struct {
 		bits []int
 		want string
 	}{
 		// all different bit numbers
 		{nil, "0"},
-		{[]int{0}, "0.8p1"},
-		{[]int{1}, "0.8p2"},
-		{[]int{-1}, "0.8p0"},
-		{[]int{63}, "0.8p64"},
-		{[]int{33, -30}, "0.8000000000000001p34"},
-		{[]int{255, 0}, "0.8000000000000000000000000000000000000000000000000000000000000001p256"},
+		{[]int{0}, "0x.8p1"},
+		{[]int{1}, "0x.8p2"},
+		{[]int{-1}, "0x.8p0"},
+		{[]int{63}, "0x.8p64"},
+		{[]int{33, -30}, "0x.8000000000000001p34"},
+		{[]int{255, 0}, "0x.8000000000000000000000000000000000000000000000000000000000000001p256"},
 
 		// multiple equal bit numbers
-		{[]int{0, 0}, "0.8p2"},
-		{[]int{0, 0, 0, 0}, "0.8p3"},
-		{[]int{0, 1, 0}, "0.8p3"},
-		{append([]int{2, 1, 0} /* 7 */, []int{3, 1} /* 10 */ ...), "0.88p5" /* 17 */},
-	}
-
-	for _, test := range tests {
+		{[]int{0, 0}, "0x.8p2"},
+		{[]int{0, 0, 0, 0}, "0x.8p3"},
+		{[]int{0, 1, 0}, "0x.8p3"},
+		{append([]int{2, 1, 0} /* 7 */, []int{3, 1} /* 10 */ ...), "0x.88p5" /* 17 */},
+	} {
 		f := fromBits(test.bits...)
 		if got := f.pstring(); got != test.want {
 			t.Errorf("setBits(%v) = %s; want %s", test.bits, got, test.want)
@@ -757,19 +747,39 @@ func TestFloatSetFloat64String(t *testing.T) {
 	}
 }
 
-func TestFloatpstring(t *testing.T) {
-	var tests = []struct {
-		x    Float
-		want string
+func TestFloatFormat(t *testing.T) {
+	for _, test := range []struct {
+		x      string
+		format byte
+		prec   int
+		want   string
 	}{
-		{Float{}, "0"},
-		{Float{neg: true}, "-0"},
-		{Float{mant: nat{0x87654321}}, "0.87654321p0"},
-		{Float{mant: nat{0x87654321}, exp: -10}, "0.87654321p-10"},
-	}
-	for _, test := range tests {
-		if got := test.x.pstring(); got != test.want {
-			t.Errorf("%v: got %s; want %s", test.x, got, test.want)
+		{"0", 'b', 0, "0"},
+		{"-0", 'b', 0, "-0"},
+		{"1.0", 'b', 0, "4503599627370496p1"},
+		{"-1.0", 'b', 0, "-4503599627370496p1"},
+
+		{"0", 'p', 0, "0"},
+		{"-0", 'p', 0, "-0"},
+		{"1024.0", 'p', 0, "0x.8p11"},
+		{"-1024.0", 'p', 0, "-0x.8p11"},
+	} {
+		f64, err := strconv.ParseFloat(test.x, 64)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		f := new(Float).SetFloat64(f64)
+		got := f.Format(test.format, test.prec)
+		if got != test.want {
+			t.Errorf("%v: got %s", test, got)
+		}
+		if test.format == 'b' || test.format == 'p' {
+			continue // 'b', 'p' format not supported or different in strconv.Format
+		}
+		want := strconv.FormatFloat(f64, test.format, test.prec, 64)
+		if got != want {
+			t.Errorf("%v: got %s; want %s", test, got, want)
 		}
 	}
 }
