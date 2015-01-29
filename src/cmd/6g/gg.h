@@ -13,7 +13,6 @@ EXTERN	int32	dynloc;
 EXTERN	uchar	reg[MAXREG];
 EXTERN	int32	pcloc;		// instruction counter
 EXTERN	Strlit	emptystring;
-EXTERN	Prog	zprog;
 EXTERN	Node*	panicdiv;
 extern	vlong	unmappedzero;
 extern	int	addptr;

@@ -36,10 +36,6 @@ betypeinit(void)
 	widthint = 4;
 	widthreg = 4;
 
-	zprog.as = AGOK;
-	zprog.scond = C_SCOND_NONE;
-	arch.zprog = zprog;
-
 	listinit5();
 }
 
@@ -50,7 +46,6 @@ main(int argc, char **argv)
 	arch.thestring = thestring;
 	arch.thelinkarch = thelinkarch;
 	arch.typedefs = typedefs;
-	arch.zprog = zprog;
 	arch.ACALL = ABL;
 	arch.ACHECKNIL = ACHECKNIL;
 	arch.ADATA = ADATA;

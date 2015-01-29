@@ -35,11 +35,6 @@
 #include "../cmd/5l/5.out.h"
 #include "../runtime/stack.h"
 
-static Prog zprg5 = {
-	.as = AGOK,
-	.scond = C_SCOND_NONE,
-};
-
 static int
 isdata(Prog *p)
 {
@@ -179,16 +174,6 @@ progedit(Link *ctxt, Prog *p)
 		if(p->to.type == TYPE_CONST && p->to.name == NAME_EXTERN && p->to.sym == ctxt->tlsg)
 			p->to.type = TYPE_MEM;
 	}
-}
-
-static Prog*
-prg(void)
-{
-	Prog *p;
-
-	p = emallocz(sizeof(*p));
-	*p = zprg5;
-	return p;
 }
 
 static	Prog*	stacksplit(Link*, Prog*, int32, int);
@@ -515,7 +500,7 @@ preprocess(Link *ctxt, LSym *cursym)
 			if(cursym->text->mark & LEAF) {
 				if(!autosize) {
 					p->as = AB;
-					p->from = zprg5.from;
+					p->from = zprog.from;
 					if(p->to.sym) { // retjmp
 						p->to.type = TYPE_BRANCH;
 					} else {
@@ -731,11 +716,11 @@ softfloat(Link *ctxt, LSym *cursym)
 
 	soft:
 		if (!wasfloat || (p->mark&LABEL)) {
-			next = ctxt->arch->prg();
+			next = emallocz(sizeof(Prog));
 			*next = *p;
 
 			// BL _sfloat(SB)
-			*p = zprg5;
+			*p = zprog;
 			p->link = next;
 			p->as = ABL;
  				p->to.type = TYPE_BRANCH;
@@ -889,7 +874,7 @@ follow(Link *ctxt, LSym *s)
 
 	ctxt->cursym = s;
 
-	firstp = ctxt->arch->prg();
+	firstp = emallocz(sizeof(Prog));
 	lastp = firstp;
 	xfol(ctxt, s->text, &lastp);
 	lastp->link = nil;
@@ -957,7 +942,7 @@ loop:
 				continue;
 		copy:
 			for(;;) {
-				r = ctxt->arch->prg();
+				r = emallocz(sizeof(Prog));
 				*r = *p;
 				if(!(r->mark&FOLL))
 					print("can't happen 1\n");
@@ -985,7 +970,7 @@ loop:
 			}
 		}
 		a = AB;
-		q = ctxt->arch->prg();
+		q = emallocz(sizeof(Prog));
 		q->as = a;
 		q->lineno = p->lineno;
 		q->to.type = TYPE_BRANCH;
@@ -1034,7 +1019,6 @@ LinkArch linkarm = {
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,
-	.prg = prg,
 	.progedit = progedit,
 
 	.minlc = 4,

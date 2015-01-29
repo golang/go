@@ -247,6 +247,8 @@ struct	Prog
 	char	mode;	/* 16, 32, or 64 in 6l, 8l; internal use in 5g, 6g, 8g */
 };
 
+extern Prog zprog; // zeroed Prog
+
 // prevent incompatible type signatures between liblink and 8l on Plan 9
 #pragma incomplete struct Section
 
@@ -600,7 +602,6 @@ struct LinkArch
 	void	(*follow)(Link*, LSym*);
 	int	(*iscall)(Prog*);
 	int	(*isdata)(Prog*);
-	Prog*	(*prg)(void);
 	void	(*progedit)(Link*, Prog*);
 
 	int	minlc;

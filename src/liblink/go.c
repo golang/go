@@ -11,6 +11,7 @@
 
 int framepointer_enabled;
 int fieldtrack_enabled;
+Prog zprog;
 
 // Toolchain experiments.
 // These are controlled by the GOEXPERIMENT environment

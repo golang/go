@@ -88,7 +88,6 @@ enum
 	ADIVW,
 	AENTER,
 	AGLOBL,
-	AGOK,
 	AHISTORY,
 	AHLT,
 	AIDIVB,

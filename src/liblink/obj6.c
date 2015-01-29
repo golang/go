@@ -35,18 +35,6 @@
 #include "../cmd/6l/6.out.h"
 #include "../runtime/stack.h"
 
-static Prog zprg = {
-	.as = AGOK,
-	.from = {
-		.type = TYPE_NONE,
-		.index = TYPE_NONE,
-	},
-	.to = {
-		.type = TYPE_NONE,
-		.index = TYPE_NONE,
-	},
-};
-
 static void
 nopout(Prog *p)
 {
@@ -865,7 +853,7 @@ follow(Link *ctxt, LSym *s)
 
 	ctxt->cursym = s;
 
-	firstp = ctxt->arch->prg();
+	firstp = emallocz(sizeof(Prog));
 	lastp = firstp;
 	xfol(ctxt, s->text, &lastp);
 	lastp->link = nil;
@@ -999,7 +987,7 @@ loop:
 				goto loop;
 			}
 		} /* */
-		q = ctxt->arch->prg();
+		q = emallocz(sizeof(Prog));
 		q->as = AJMP;
 		q->lineno = p->lineno;
 		q->to.type = TYPE_BRANCH;
@@ -1057,16 +1045,6 @@ loop:
 	goto loop;
 }
 
-static Prog*
-prg(void)
-{
-	Prog *p;
-
-	p = emallocz(sizeof(*p));
-	*p = zprg;
-	return p;
-}
-
 LinkArch linkamd64 = {
 	.name = "amd64",
 	.thechar = '6',
@@ -1078,7 +1056,6 @@ LinkArch linkamd64 = {
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,
-	.prg = prg,
 	.progedit = progedit,
 
 	.minlc = 1,
@@ -1110,7 +1087,6 @@ LinkArch linkamd64p32 = {
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,
-	.prg = prg,
 	.progedit = progedit,
 
 	.minlc = 1,

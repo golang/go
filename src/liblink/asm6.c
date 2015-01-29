@@ -990,7 +990,6 @@ static Optab optab[] =
 	{ AFXRSTOR64,	ysvrs,	Pw, {0x0f,0xae,(01),0x0f,0xae,(01)} },
 	{ AFXSAVE64,	ysvrs,	Pw, {0x0f,0xae,(00),0x0f,0xae,(00)} },
 	{ AGLOBL },
-	{ AGOK },
 	{ AHISTORY },
 	{ AHLT,		ynone,	Px, {0xf4} },
 	{ AIDIVB,	ydivb,	Pb, {0xf6,(07)} },

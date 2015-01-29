@@ -621,7 +621,7 @@ mergetemp(Prog *firstp)
 			arch.proginfo(&info, p);
 			if(p->to.node == v->node && (info.flags & RightWrite) && !(info.flags & RightRead)) {
 				p->as = arch.ANOP;
-				p->to = arch.zprog.to;
+				p->to = zprog.to;
 				v->removed = 1;
 				if(Debug)
 					print("drop write-only %S\n", v->node->sym);

@@ -1414,7 +1414,7 @@ optoas(int op, Type *t)
 	if(t == T)
 		fatal("optoas: t is nil");
 
-	a = AGOK;
+	a = AXXX;
 	switch(CASE(op, simtype[t->etype])) {
 	default:
 		fatal("optoas: no entry %O-%T etype %T simtype %T", op, t, types[t->etype], types[simtype[t->etype]]);

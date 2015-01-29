@@ -1385,7 +1385,6 @@ predicable(Prog *p)
 	case AXXX:
 	case ADATA:
 	case AGLOBL:
-	case AGOK:
 	case AHISTORY:
 	case ANAME:
 	case ASIGNAME:
