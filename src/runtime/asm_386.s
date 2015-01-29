@@ -555,6 +555,9 @@ TEXT runtime·atomicstore(SB), NOSPLIT, $0-8
 // uint64 atomicload64(uint64 volatile* addr);
 TEXT runtime·atomicload64(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), AX
+	TESTL	$7, AX
+	JZ	2(PC)
+	MOVL	0, AX // crash with nil ptr deref
 	LEAL	ret_lo+4(FP), BX
 	// MOVQ (%EAX), %MM0
 	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
@@ -567,6 +570,9 @@ TEXT runtime·atomicload64(SB), NOSPLIT, $0-12
 // void runtime·atomicstore64(uint64 volatile* addr, uint64 v);
 TEXT runtime·atomicstore64(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), AX
+	TESTL	$7, AX
+	JZ	2(PC)
+	MOVL	0, AX // crash with nil ptr deref
 	// MOVQ and EMMS were introduced on the Pentium MMX.
 	// MOVQ 0x8(%ESP), %MM0
 	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
