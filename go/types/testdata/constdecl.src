@@ -20,17 +20,20 @@ func _() {
 }
 
 // Identifier and expression arity must match.
-const _ /* ERROR "missing init expr for _" */
+// The first error message is produced by the parser.
+// In a real-world scenario, the type-checker would not be run
+// in this case and the 2nd error message would not appear.
+const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
 const _ = 1, 2 /* ERROR "extra init expr 2" */
 
-const _ /* ERROR "missing init expr for _" */ int
+const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
 const _ int = 1, 2 /* ERROR "extra init expr 2" */
 
 const (
-	_ /* ERROR "missing init expr for _" */
+	_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
 	_ = 1, 2 /* ERROR "extra init expr 2" */
 
-	_ /* ERROR "missing init expr for _" */ int
+	_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
 	_ int = 1, 2 /* ERROR "extra init expr 2" */
 )
 
@@ -51,17 +54,17 @@ const (
 )
 
 func _() {
-	const _ /* ERROR "missing init expr for _" */
+	const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
 	const _ = 1, 2 /* ERROR "extra init expr 2" */
 
-	const _ /* ERROR "missing init expr for _" */ int
+	const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
 	const _ int = 1, 2 /* ERROR "extra init expr 2" */
 
 	const (
-		_ /* ERROR "missing init expr for _" */
+		_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
 		_ = 1, 2 /* ERROR "extra init expr 2" */
 
-		_ /* ERROR "missing init expr for _" */ int
+		_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
 		_ int = 1, 2 /* ERROR "extra init expr 2" */
 	)
 
