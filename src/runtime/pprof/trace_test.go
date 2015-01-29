@@ -19,13 +19,14 @@ import (
 func skipTraceTestsIfNeeded(t *testing.T) {
 	switch runtime.GOOS {
 	case "solaris":
-		t.Skip("skipping: solaris timer can go backwards which is incompatible with tracer (http://golang.org/issue/8976)")
-	case "windows":
-		t.Skip("skipping: windows tests fail with 'failed to parse trace: no traceEvFrequency event'")
-	case "android":
-		t.Skip("skipping: android tests fail with 'failed to parse trace: g 2 is not runnable before traceEvGoWaiting'")
+		t.Skip("skipping: solaris timer can go backwards (http://golang.org/issue/8976)")
 	case "plan9":
-		t.Skip("skipping: plan9 tests fail with 'fatal error: trace: out of memory'")
+		t.Skip("skipping: plan9 tests fail with out of memory (http://golang.org/issue/9712")
+	}
+
+	switch runtime.GOARCH {
+	case "arm":
+		t.Skip("skipping: arm tests fail with 'failed to parse trace' (http://golang.org/issue/9725)")
 	}
 }
 
@@ -233,7 +234,7 @@ eventLoop:
 		for _, f := range ev.stk {
 			if strings.HasSuffix(f.file, "trace_test.go") &&
 				strings.HasSuffix(f.fn, "pprof_test.TestTraceSymbolize") &&
-				f.line == 217 {
+				f.line == 218 {
 				found = true
 				break eventLoop
 			}

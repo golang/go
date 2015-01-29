@@ -181,6 +181,11 @@ func parseEvents(rawEvents []RawEvent) (events []*Event, err error) {
 			lastTs = int64(raw.args[1])
 		case traceEvFrequency:
 			ticksPerSec = int64(raw.args[0])
+			if ticksPerSec <= 0 {
+				err = fmt.Errorf("traceEvFrequency contains invalid frequency %v at offset 0x%x",
+					ticksPerSec, raw.off)
+				return
+			}
 		case traceEvTimerGoroutine:
 			timerGoid = raw.args[0]
 		case traceEvStack:
