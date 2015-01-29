@@ -327,15 +327,12 @@ ret:
 void
 excise(Flow *r)
 {
-	Prog *p, *l;
+	Prog *p;
 
 	p = r->prog;
 	if(debug['P'] && debug['v'])
 		print("%P ===delete===\n", p);
-	l = p->link;
-	*p = zprog;
-	p->as = ANOP;
-	p->link = l;
+	nopout(p);
 	ostats.ndelmov++;
 }
 
