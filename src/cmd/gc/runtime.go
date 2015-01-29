@@ -86,7 +86,7 @@ func ifacethash(i1 any) (ret uint32)
 func efacethash(i1 any) (ret uint32)
 
 // *byte is really *runtime.Type
-func makemap(mapType *byte, hint int64) (hmap map[any]any)
+func makemap(mapType *byte, hint int64, mapbuf *any, bucketbuf *any) (hmap map[any]any)
 func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
 func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)

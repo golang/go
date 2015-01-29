@@ -1751,3 +1751,20 @@ func slicerunetostring2() {
 	r := []rune{1, 2, 3} // ERROR "\[\]rune literal does not escape"
 	sink = string(r)     // ERROR "string\(r\) escapes to heap"
 }
+
+func makemap0() {
+	m := make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) does not escape"
+	m[0] = 0
+	m[1]++
+	delete(m, 1)
+	sink = m[0]
+}
+
+func makemap1() map[int]int {
+	return make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) escapes to heap"
+}
+
+func makemap2() {
+	m := make(map[int]int) // ERROR "make\(map\[int\]int\, 0\) escapes to heap"
+	sink = m
+}

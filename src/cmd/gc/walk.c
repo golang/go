@@ -1330,12 +1330,32 @@ walkexpr(Node **np, NodeList **init)
 		t = n->type;
 
 		fn = syslook("makemap", 1);
-		argtype(fn, t->down);	// any-1
-		argtype(fn, t->type);	// any-2
 
-		n = mkcall1(fn, n->type, init,
-			typename(n->type),
-			conv(n->left, types[TINT64]));
+		a = nodnil(); // hmap buffer
+		r = nodnil(); // bucket buffer
+		if(n->esc == EscNone) {
+			// Allocate hmap buffer on stack.
+			var = temp(hmap(t));
+			a = nod(OAS, var, N); // zero temp
+			typecheck(&a, Etop);
+			*init = list(*init, a);
+			a = nod(OADDR, var, N);
+
+			// Allocate one bucket on stack.
+			// Maximum key/value size is 128 bytes, larger objects
+			// are stored with an indirection. So max bucket size is 2048+eps.
+			var = temp(mapbucket(t));
+			r = nod(OAS, var, N); // zero temp
+			typecheck(&r, Etop);
+			*init = list(*init, r);
+			r = nod(OADDR, var, N);
+		}
+
+		argtype(fn, hmap(t));	// hmap buffer
+		argtype(fn, mapbucket(t));	// bucket buffer
+		argtype(fn, t->down);	// key type
+		argtype(fn, t->type);	// value type
+		n = mkcall1(fn, n->type, init, typename(n->type), conv(n->left, types[TINT64]), a, r);
 		goto ret;
 
 	case OMAKESLICE:
