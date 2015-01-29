@@ -50,7 +50,7 @@
 %left	'*' '/' '%'
 %token	<lval>	LMOVW LMOVB LABS LLOGW LSHW LADDW LCMP LCROP
 %token	<lval>	LBRA LFMOV LFCONV LFCMP LFADD LFMA LTRAP LXORW
-%token	<lval>	LNOP LEND LRETT LWORD LTEXT LDATA LRETRN
+%token	<lval>	LNOP LEND LRETT LWORD LTEXT LGLOBL LDATA LRETRN
 %token	<lval>	LCONST LSP LSB LFP LPC LCREG LFLUSH
 %token	<lval>	LREG LFREG LR LCR LF LFPSCR
 %token	<lval>	LLR LCTR LSPR LSPREG LSEG LMSR
@@ -611,7 +611,7 @@ inst:
 		outcode($1, &nullgen, 0, &nullgen);
 	}
 /*
- * TEXT/GLOBL
+ * TEXT
  */
 |	LTEXT name ',' imm
 	{
@@ -632,6 +632,20 @@ inst:
 		$6.offset |= ($8 & 0xffffffffull) << 32;
 		outcode($1, &$2, $4, &$6);
 	}
+/*
+ * GLOBL
+ */
+|	LGLOBL name ',' imm
+	{
+		settext($2.sym);
+		outcode($1, &$2, 0, &$4);
+	}
+|	LGLOBL name ',' con ',' imm
+	{
+		settext($2.sym);
+		outcode($1, &$2, $4, &$6);
+	}
+
 /*
  * DATA
  */
