@@ -387,10 +387,6 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		})
 	}
 
-	if newval == _Grunning {
-		gp.gcscanvalid = false
-	}
-
 	// loop if gp->atomicstatus is in a scan state giving
 	// GC time to finish and change the state to oldval.
 	for !cas(&gp.atomicstatus, oldval, newval) {
@@ -406,6 +402,9 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		// 		gcphasework(gp)
 		// 	})
 		// }
+	}
+	if newval == _Grunning {
+		gp.gcscanvalid = false
 	}
 }
 
