@@ -2028,7 +2028,7 @@ yyreduce:
 		g.offset =
 			(0xe << 24) |		/* opcode */
 			((yyvsp[(1) - (12)].lval) << 20) |		/* MCR/MRC */
-			((yyvsp[(2) - (12)].lval) << 28) |		/* scond */
+			(((yyvsp[(2) - (12)].lval)^C_SCOND_XOR) << 28) |		/* scond */
 			(((yyvsp[(3) - (12)].lval) & 15) << 8) |	/* coprocessor number */
 			(((yyvsp[(5) - (12)].lval) & 7) << 21) |	/* coprocessor operation */
 			(((yyvsp[(7) - (12)].lval) & 15) << 12) |	/* arm register */
