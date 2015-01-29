@@ -60,7 +60,7 @@
 %token	<sval>	LSCONST
 %token	<sym>	LNAME LLAB LVAR
 %type	<lval>	con expr pointer offset sreg
-%type	<addr>	addr rreg regaddr name creg freg xlreg lr ctr
+%type	<addr>	addr rreg regaddr name creg freg xlreg lr ctr textsize
 %type	<addr>	imm ximm fimm rel psr lcr cbit fpscr msr mask
 %%
 prog:
@@ -613,24 +613,15 @@ inst:
 /*
  * TEXT
  */
-|	LTEXT name ',' imm
+|	LTEXT name ',' '$' textsize
 	{
 		settext($2.sym);
-		outcode($1, &$2, 0, &$4);
+		outcode($1, &$2, 0, &$5);
 	}
-|	LTEXT name ',' con ',' imm
+|	LTEXT name ',' con ',' '$' textsize
 	{
 		settext($2.sym);
-		$6.offset &= 0xffffffffull;
-		$6.offset |= (vlong)ArgsSizeUnknown << 32;
-		outcode($1, &$2, $4, &$6);
-	}
-|	LTEXT name ',' con ',' imm '-' con
-	{
-		settext($2.sym);
-		$6.offset &= 0xffffffffull;
-		$6.offset |= ($8 & 0xffffffffull) << 32;
-		outcode($1, &$2, $4, &$6);
+		outcode($1, &$2, $4, &$7);
 	}
 /*
  * GLOBL
@@ -810,6 +801,32 @@ mask:
 		else
 			v = ~(((uint32)~0L>>(me+1)) & (~0L<<(31-(mb-1))));
 		$$.offset = v;
+	}
+
+textsize:
+	LCONST
+	{
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = $1;
+		$$.u.argsize = ArgsSizeUnknown;
+	}
+|	'-' LCONST
+	{
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = -$2;
+		$$.u.argsize = ArgsSizeUnknown;
+	}
+|	LCONST '-' LCONST
+	{
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = $1;
+		$$.u.argsize = $3;
+	}
+|	'-' LCONST '-' LCONST
+	{
+		$$.type = TYPE_TEXTSIZE;
+		$$.offset = -$2;
+		$$.u.argsize = $4;
 	}
 
 ximm:

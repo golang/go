@@ -21,11 +21,10 @@ defframe(Prog *ptxt)
 	NodeList *l;
 	Node *n;
 
-	// fill in argument size
+	// fill in argument size, stack size
+	ptxt->to.type = TYPE_TEXTSIZE;
 	ptxt->to.u.argsize = rnd(curfn->type->argwid, widthptr);
-
-	// fill in final stack size
-	frame = rnd(stksize+maxarg, widthptr);
+	frame = rnd(stksize+maxarg, widthreg);
 	ptxt->to.offset = frame;
 	
 	// insert code to zero ambiguously live variables

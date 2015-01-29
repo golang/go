@@ -33,6 +33,7 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/5l/5.out.h"
+#include "../runtime/funcdata.h"
 
 enum
 {
@@ -163,7 +164,10 @@ Dconv(Fmt *fp)
 		break;
 
 	case TYPE_TEXTSIZE:
-		sprint(str, "$%lld-%d", a->offset, a->u.argsize);
+		if(a->u.argsize == ArgsSizeUnknown)
+			sprint(str, "$%lld", a->offset);
+		else
+			sprint(str, "$%lld-%lld", a->offset, a->u.argsize);
 		break;
 
 	case TYPE_SHIFT:

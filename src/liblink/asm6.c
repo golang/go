@@ -113,6 +113,7 @@ enum
 	Ymr, Ymm,
 	Yxr, Yxm,
 	Ytls,
+	Ytextsize,
 	Ymax,
 
 	Zxxx		= 0,
@@ -197,7 +198,7 @@ static uchar	ynone[] =
 };
 static uchar	ytext[] =
 {
-	Ymb,	Yi64,	Zpseudo,1,
+	Ymb,	Ytextsize,	Zpseudo,1,
 	0
 };
 static uchar	ynop[] =
@@ -1998,6 +1999,9 @@ oclass(Link *ctxt, Addr *a)
 		if((v>>32) == 0)
 			return Yi32;	/* unsigned */
 		return Yi64;
+
+	case TYPE_TEXTSIZE:
+		return Ytextsize;
 	}
 	
 	if(a->type != TYPE_REG) {
