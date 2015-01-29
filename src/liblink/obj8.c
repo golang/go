@@ -36,17 +36,14 @@
 #include "../runtime/stack.h"
 
 static Prog zprg = {
-	.back = 2,
 	.as = AGOK,
 	.from = {
 		.type = TYPE_NONE,
 		.index = REG_NONE,
-		.scale = 1,
 	},
 	.to = {
 		.type = TYPE_NONE,
 		.index = REG_NONE,
-		.scale = 1,
 	},
 };
 

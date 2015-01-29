@@ -36,7 +36,6 @@
 #include "../runtime/stack.h"
 
 static Prog zprg = {
-	.back = 2,
 	.as = AGOK,
 	.from = {
 		.type = TYPE_NONE,
