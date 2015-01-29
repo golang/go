@@ -54,6 +54,7 @@ func main() {
 	}
 	func() {
 		tmp = w // force capture of w, but do not write to it yet
+		_ = tmp
 		func() {
 			func() {
 				w++ // write in a nested closure
