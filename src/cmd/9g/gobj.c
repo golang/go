@@ -236,5 +236,8 @@ void
 nopout(Prog *p)
 {
 	p->as = ANOP;
+	p->from = zprog.from;
+	p->from3 = zprog.from3;
+	p->reg = zprog.reg;
+	p->to = zprog.to;
 }
-
