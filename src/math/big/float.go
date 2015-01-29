@@ -405,13 +405,12 @@ func (z *Float) SetInt64(x int64) *Float {
 // TODO(gri) test denormals, +/-Inf, disallow NaN.
 func (z *Float) SetFloat64(x float64) *Float {
 	z.prec = 53
+	z.neg = math.Signbit(x) // handle -0 correctly (-0 == 0)
 	if x == 0 {
-		z.neg = false
 		z.mant = z.mant[:0]
 		z.exp = 0
 		return z
 	}
-	z.neg = x < 0
 	fmant, exp := math.Frexp(x) // get normalized mantissa
 	z.mant = z.mant.setUint64(1<<63 | math.Float64bits(fmant)<<11)
 	z.exp = int32(exp)
@@ -473,15 +472,16 @@ func (z *Float) Set(x *Float) *Float {
 }
 
 func high64(x nat) uint64 {
-	i := len(x) - 1
-	if i < 0 {
+	i := len(x)
+	if i == 0 {
 		return 0
 	}
-	v := uint64(x[i])
+	// i > 0
+	v := uint64(x[i-1])
 	if _W == 32 {
 		v <<= 32
-		if i > 0 {
-			v |= uint64(x[i-1])
+		if i > 1 {
+			v |= uint64(x[i-2])
 		}
 	}
 	return v
@@ -959,42 +959,13 @@ func (x *Float) Sign() int {
 	return 1
 }
 
-// pstring returns x as a string in the format ["-"] "0." mantissa "p" exponent
-// with a hexadecimal mantissa and a decimal exponent, or ["-"] "0" if x is zero.
-func (x *Float) pstring() string {
-	// TODO(gri) handle Inf
-	var buf bytes.Buffer
-	if x.neg {
-		buf.WriteByte('-')
-	}
-	buf.WriteByte('0')
-	if len(x.mant) > 0 {
-		// non-zero value
-		buf.WriteByte('.')
-		buf.WriteString(strings.TrimRight(x.mant.string(lowercaseDigits[:16]), "0"))
-		fmt.Fprintf(&buf, "p%d", x.exp)
-	}
-	return buf.String()
-}
-
 // SetString sets z to the value of s and returns z and a boolean indicating
-// success. s must be a floating-point number of the form:
-//
-//	number   = [ sign ] mantissa [ exponent ] .
-//	mantissa = digits | digits "." [ digits ] | "." digits .
-//	exponent = ( "E" | "e" | "p" ) [ sign ] digits .
-//	sign     = "+" | "-" .
-//	digits   = digit { digit } .
-//	digit    = "0" ... "9" .
-//
-// A "p" exponent indicates power of 2 for the exponent; for instance 1.2p3
-// is 1.2 * 2**3. If the operation failed, the value of z is undefined but
-// the returned value is nil.
-//
+// success. s must be a floating-point number of the same format as accepted
+// by Scan, with number prefixes permitted.
 func (z *Float) SetString(s string) (*Float, bool) {
 	r := strings.NewReader(s)
 
-	f, err := z.scan(r)
+	f, _, err := z.Scan(r, 0)
 	if err != nil {
 		return nil, false
 	}
@@ -1007,22 +978,32 @@ func (z *Float) SetString(s string) (*Float, bool) {
 	return f, true
 }
 
-// scan sets z to the value of the longest prefix of r representing
-// a floating-point number and returns z or an error, if any.
-// The number must be of the form:
+// Scan scans the number corresponding to the longest possible prefix
+// of r representing a floating-point number with a mantissa in the
+// given conversion base (the exponent is always a decimal number).
+// It returns the corresponding Float f, the actual base b, and an
+// error err, if any. The number must be of the form:
 //
-//	number   = [ sign ] mantissa [ exponent ] .
+//	number   = [ sign ] [ prefix ] mantissa [ exponent ] .
+//	sign     = "+" | "-" .
+//      prefix   = "0" ( "x" | "X" | "b" | "B" ) .
 //	mantissa = digits | digits "." [ digits ] | "." digits .
 //	exponent = ( "E" | "e" | "p" ) [ sign ] digits .
-//	sign     = "+" | "-" .
 //	digits   = digit { digit } .
-//	digit    = "0" ... "9" .
+//	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
-// A "p" exponent indicates power of 2 for the exponent; for instance 1.2p3
-// is 1.2 * 2**3. If the operation failed, the value of z is undefined but
-// the returned value is nil.
+// The base argument must be 0 or a value between 2 through MaxBase.
 //
-func (z *Float) scan(r io.ByteScanner) (f *Float, err error) {
+// For base 0, the number prefix determines the actual base: A prefix of
+// ``0x'' or ``0X'' selects base 16, and a ``0b'' or ``0B'' prefix selects
+// base 2; otherwise, the actual base is 10 and no prefix is permitted.
+// The octal prefix ``0'' is not supported.
+//
+// A "p" exponent indicates power of 2 for the exponent; for instance "1.2p3"
+// with base 0 or 10 corresponds to the value 1.2 * 2**3.
+//
+// BUG(gri) This signature conflicts with Scan(s fmt.ScanState, ch rune) error.
+func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	// sign
 	z.neg, err = scanSign(r)
 	if err != nil {
@@ -1031,7 +1012,7 @@ func (z *Float) scan(r io.ByteScanner) (f *Float, err error) {
 
 	// mantissa
 	var ecorr int // decimal exponent correction; valid if <= 0
-	z.mant, _, ecorr, err = z.mant.scan(r, 1)
+	z.mant, b, ecorr, err = z.mant.scan(r, base, true)
 	if err != nil {
 		return
 	}
@@ -1046,7 +1027,8 @@ func (z *Float) scan(r io.ByteScanner) (f *Float, err error) {
 	// special-case 0
 	if len(z.mant) == 0 {
 		z.exp = 0
-		return z, nil
+		f = z
+		return
 	}
 	// len(z.mant) > 0
 
@@ -1064,7 +1046,8 @@ func (z *Float) scan(r io.ByteScanner) (f *Float, err error) {
 	if exp == 0 {
 		// no decimal exponent
 		z.round(0)
-		return z, nil
+		f = z
+		return
 	}
 	// exp != 0
 
@@ -1082,41 +1065,7 @@ func (z *Float) scan(r io.ByteScanner) (f *Float, err error) {
 		z.umul(z, powTen)
 	}
 
-	return z, nil
-}
-
-// Scan scans the number corresponding to the longest possible prefix
-// of r representing a floating-point number with a mantissa in the
-// given conversion base (the exponent is always a decimal number).
-// It returns the corresponding Float f, the actual base b, and an
-// error err, if any. The number must be of the form:
-//
-//	number   = [ prefix ] [ sign ] mantissa [ exponent ] .
-//	mantissa = digits | digits "." [ digits ] | "." digits .
-//      prefix   = prefix = "0" ( "x" | "X" | "b" | "B" ) .
-//	sign     = "+" | "-" .
-//	exponent = ( "E" | "e" | "p" ) [ sign ] digits .
-//	digits   = digit { digit } .
-//	digit    = digit  = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
-//
-// The base argument must be 0 or a value between 2 and MaxBase, inclusive.
-//
-// For base 0, the number prefix determines the actual base: A prefix of
-// ``0x'' or ``0X'' selects base 16, and a ``0b'' or ``0B'' prefix selects
-// base 2; otherwise, the actual base is 10 and no prefix is permitted.
-// Note that the octal prefix ``0'' is not supported.
-//
-// A "p" exponent indicates power of 2 for the exponent; for instance "1.2p3"
-// with base 0 or 10 corresponds to the value 1.2 * 2**3.
-//
-// BUG(gri) Currently, Scan only accepts base 10.
-func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
-	if base != 10 {
-		err = fmt.Errorf("base %d not supported yet", base)
-		return
-	}
-	b = 10
-	f, err = z.scan(r)
+	f = z
 	return
 }
 
@@ -1157,16 +1106,20 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
 }
 
 // Format converts the floating-point number x to a string according
-// to the given format and precision prec.
+// to the given format and precision prec. The format is one of:
 //
-// The format is one of
-// 'e' (-d.dddde±dd, decimal exponent),
-// 'E' (-d.ddddE±dd, decimal exponent),
-// 'f' (-ddddd.dddd, no exponent),
-// 'g' ('e' for large exponents, 'f' otherwise),
-// 'G' ('E' for large exponents, 'f' otherwise),
-// 'b' (-ddddddp±dd, binary exponent), or
-// 'p' (-0.ddddp±dd, hexadecimal mantissa, binary exponent).
+//	'e'	-d.dddde±dd, decimal exponent
+//	'E'	-d.ddddE±dd, decimal exponent
+//	'f'	-ddddd.dddd, no exponent
+//	'g'	like 'e' for large exponents, like 'f' otherwise
+//	'G'	like 'E' for large exponents, like 'f' otherwise
+//	'b'	-ddddddp±dd, binary exponent
+//	'p'	-0x.dddp±dd, binary exponent, hexadecimal mantissa
+//
+// For the binary exponent formats, the mantissa is printed in normalized form:
+//
+//	'b'	decimal integer mantissa using x.Precision() bits, or -0
+//	'p'	hexadecimal fraction with 0.5 <= 0.mantissa < 1.0, or -0
 //
 // The precision prec controls the number of digits (excluding the exponent)
 // printed by the 'e', 'E', 'f', 'g', and 'G' formats. For 'e', 'E', and 'f'
@@ -1175,15 +1128,75 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
 // number of digits necessary such that ParseFloat will return f exactly.
 // The prec value is ignored for the 'b' or 'p' format.
 //
-// BUG(gri) Currently, Format only accepts the 'p' format.
+// BUG(gri) Currently, Format only accepts the 'b' and 'p' format.
 func (x *Float) Format(format byte, prec int) string {
-	if format != 'p' {
-		return fmt.Sprintf(`%c`, format)
+	switch format {
+	case 'b':
+		return x.bstring()
+	case 'p':
+		return x.pstring()
 	}
-	return x.pstring()
+	return fmt.Sprintf(`%%!c(%s)`, format, x.pstring())
 }
 
 // BUG(gri): Currently, String uses the 'p' (rather than 'g') format.
 func (x *Float) String() string {
 	return x.Format('p', 0)
+}
+
+// TODO(gri) The 'b' and 'p' formats have different meanings here than
+// in strconv: in strconv, the printed exponent is the biased (hardware)
+// exponent; here it is the unbiased exponent. Decide what to do.
+// (a strconv 'p' formatted float value can only be interpreted correctly
+// if the bias is known; i.e., we must know if it's a 32bit or 64bit number).
+
+// bstring returns x as a string in the format ["-"] mantissa "p" exponent
+// with a decimal mantissa and a binary exponent, or ["-"] "0" if x is zero.
+// The mantissa is normalized such that is uses x.Precision() bits in binary
+// representation.
+func (x *Float) bstring() string {
+	// TODO(gri) handle Inf
+	if len(x.mant) == 0 {
+		if x.neg {
+			return "-0"
+		}
+		return "0"
+	}
+	// x != 0
+	// normalize mantissa
+	m := x.mant
+	t := uint(len(x.mant)*_W) - x.prec // 0 <= t < _W
+	if t > 0 {
+		m = nat(nil).shr(m, t)
+	}
+	var buf bytes.Buffer
+	if x.neg {
+		buf.WriteByte('-')
+	}
+	buf.WriteString(m.decimalString())
+	fmt.Fprintf(&buf, "p%d", x.exp)
+	return buf.String()
+}
+
+// pstring returns x as a string in the format ["-"] "0x." mantissa "p" exponent
+// with a hexadecimal mantissa and a binary exponent, or ["-"] "0" if x is zero.
+// The mantissa is normalized such that 0.5 <= 0.mantissa < 1.0.
+func (x *Float) pstring() string {
+	// TODO(gri) handle Inf
+	if len(x.mant) == 0 {
+		if x.neg {
+			return "-0"
+		}
+		return "0"
+	}
+	// x != 0
+	// mantissa is stored in normalized form
+	var buf bytes.Buffer
+	if x.neg {
+		buf.WriteByte('-')
+	}
+	buf.WriteString("0x.")
+	buf.WriteString(strings.TrimRight(x.mant.hexString(), "0"))
+	fmt.Fprintf(&buf, "p%d", x.exp)
+	return buf.String()
 }

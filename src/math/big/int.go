@@ -469,7 +469,7 @@ func (z *Int) scan(r io.ByteScanner, base int) (*Int, int, error) {
 	}
 
 	// determine mantissa
-	z.abs, base, _, err = z.abs.scan(r, base)
+	z.abs, base, _, err = z.abs.scan(r, base, false)
 	if err != nil {
 		return nil, base, err
 	}

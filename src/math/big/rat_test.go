@@ -56,10 +56,12 @@ func TestZeroRat(t *testing.T) {
 	z.Quo(&x, &y)
 }
 
-var setStringTests = []struct {
+type StringTest struct {
 	in, out string
 	ok      bool
-}{
+}
+
+var setStringTests = []StringTest{
 	{"0", "0", true},
 	{"-0", "0", true},
 	{"1", "1", true},
@@ -92,8 +94,22 @@ var setStringTests = []struct {
 	{in: "1/0"},
 }
 
+// These are not supported by fmt.Fscanf.
+var setStringTests2 = []StringTest{
+	{"0x10", "16", true},
+	{"-010/1", "-8", true}, // TODO(gri) should we even permit octal here?
+	{"-010.", "-10", true},
+	{"0x10/0x20", "1/2", true},
+	{"0b1000/3", "8/3", true},
+	// TODO(gri) add more tests
+}
+
 func TestRatSetString(t *testing.T) {
-	for i, test := range setStringTests {
+	var tests []StringTest
+	tests = append(tests, setStringTests...)
+	tests = append(tests, setStringTests2...)
+
+	for i, test := range tests {
 		x, ok := new(Rat).SetString(test.in)
 
 		if ok {
