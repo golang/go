@@ -1615,14 +1615,9 @@ span6(Link *ctxt, LSym *s)
 		instinit();
 	
 	for(p = ctxt->cursym->text; p != nil; p = p->link) {
-		n = 0;
 		if(p->to.type == TYPE_BRANCH)
 			if(p->pcond == nil)
 				p->pcond = p;
-		if((q = p->pcond) != nil)
-			if(q->back != 2)
-				n = 1;
-		p->back = n;
 		if(p->as == AADJSP) {
 			p->to.type = TYPE_REG;
 			p->to.reg = REG_SP;
