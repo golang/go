@@ -153,6 +153,11 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		p.errorf("expect two or three operands for TEXT")
 	}
 
+	// Labels are function scoped. Patch existing labels and
+	// create a new label space for this TEXT.
+	p.patch()
+	p.labels = make(map[string]*obj.Prog)
+
 	// Operand 0 is the symbol name in the form foo(SB).
 	// That means symbol plus indirect on SB and no offset.
 	nameAddr := p.address(operands[0])
@@ -219,6 +224,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 			Index: uint8(p.arch.D_NONE),
 		},
 	}
+
 	// Encoding of frameSize and argSize depends on architecture.
 	switch p.arch.Thechar {
 	case '6':
@@ -231,6 +237,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	default:
 		p.errorf("internal error: can't encode TEXT $arg-frame")
 	}
+
 	p.append(prog, true)
 }
 
@@ -493,6 +500,7 @@ func (p *Parser) patch() {
 			p.branch(patch.prog, targetProg)
 		}
 	}
+	p.toPatch = p.toPatch[:0]
 }
 
 func (p *Parser) branch(jmp, target *obj.Prog) {

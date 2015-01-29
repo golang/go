@@ -360,11 +360,7 @@ func (p *Parser) expr() uint64 {
 		switch p.peek() {
 		case '+':
 			p.next()
-			x := p.term()
-			if addOverflows(x, value) {
-				p.errorf("overflow in %d+%d", value, x)
-			}
-			value += x
+			value += p.term()
 		case '-':
 			p.next()
 			value -= p.term()
@@ -408,13 +404,12 @@ func (p *Parser) term() uint64 {
 		switch p.peek() {
 		case '*':
 			p.next()
-			x := p.factor()
-			if mulOverflows(value, x) {
-				p.errorf("%d * %d overflows", value, x)
-			}
-			value *= x
+			value *= p.factor()
 		case '/':
 			p.next()
+			if value&(1<<63) != 0 {
+				p.errorf("divide with high bit set")
+			}
 			value /= p.factor()
 		case '%':
 			p.next()
@@ -425,15 +420,15 @@ func (p *Parser) term() uint64 {
 			if int64(shift) < 0 {
 				p.errorf("negative left shift %d", shift)
 			}
-			if shiftOverflows(value, shift) {
-				p.errorf("%d << %d overflows", value, shift)
-			}
 			return value << shift
 		case lex.RSH:
 			p.next()
 			shift := p.term()
 			if shift < 0 {
 				p.errorf("negative right shift %d", shift)
+			}
+			if shift > 0 && value&(1<<63) != 0 {
+				p.errorf("right shift with high bit set")
 			}
 			value >>= uint(shift)
 		case '&':
