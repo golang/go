@@ -51,7 +51,7 @@
 %left	'*' '/' '%'
 %token	<lval>	LTYPE1 LTYPE2 LTYPE3 LTYPE4 LTYPE5
 %token	<lval>	LTYPE6 LTYPE7 LTYPE8 LTYPE9 LTYPEA
-%token	<lval>	LTYPEB LTYPEC LTYPED LTYPEE
+%token	<lval>	LTYPEB LGLOBL LTYPEC LTYPED LTYPEE
 %token	<lval>	LTYPEG LTYPEH LTYPEI LTYPEJ LTYPEK
 %token	<lval>	LTYPEL LTYPEM LTYPEN LTYPEBX LTYPEPLD
 %token	<lval>	LCONST LSP LSB LFP LPC
@@ -210,7 +210,7 @@ inst:
 		outcode($1, $2, &nullgen, 0, &nullgen);
 	}
 /*
- * TEXT/GLOBL
+ * TEXT
  */
 |	LTYPEB name ',' imm
 	{
@@ -231,6 +231,19 @@ inst:
 		settext($2.sym);
 		$6.type = TYPE_TEXTSIZE;
 		$6.u.argsize = $8;
+		outcode($1, Always, &$2, $4, &$6);
+	}
+/*
+ * GLOBL
+ */
+|	LGLOBL name ',' imm
+	{
+		settext($2.sym);
+		outcode($1, Always, &$2, 0, &$4);
+	}
+|	LGLOBL name ',' con ',' imm
+	{
+		settext($2.sym);
 		outcode($1, Always, &$2, $4, &$6);
 	}
 /*
