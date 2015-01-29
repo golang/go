@@ -234,6 +234,15 @@ func BenchmarkNewEmptyMap(b *testing.B) {
 	}
 }
 
+func BenchmarkNewSmallMap(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		m := make(map[int]int)
+		m[0] = 0
+		m[1] = 1
+	}
+}
+
 func BenchmarkMapIter(b *testing.B) {
 	m := make(map[int]bool)
 	for i := 0; i < 8; i++ {

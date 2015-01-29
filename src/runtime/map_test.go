@@ -535,3 +535,13 @@ func benchmarkMapPop(b *testing.B, n int) {
 func BenchmarkMapPop100(b *testing.B)   { benchmarkMapPop(b, 100) }
 func BenchmarkMapPop1000(b *testing.B)  { benchmarkMapPop(b, 1000) }
 func BenchmarkMapPop10000(b *testing.B) { benchmarkMapPop(b, 10000) }
+
+func TestNonEscapingMap(t *testing.T) {
+	n := testing.AllocsPerRun(1000, func() {
+		m := make(map[int]int)
+		m[0] = 0
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}
