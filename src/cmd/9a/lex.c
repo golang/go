@@ -670,7 +670,7 @@ outcode(int a, Addr *g1, int reg, Addr *g2)
 		reg = g2->scale;
 	}
 
-	p = ctxt->arch->prg();
+	p = emallocz(sizeof(Prog));
 	p->as = a;
 	p->lineno = lineno;
 	if(nosched)
@@ -700,7 +700,7 @@ outgcode(int a, Addr *g1, int reg, Addr *g2, Addr *g3)
 	if(pass == 1)
 		goto out;
 
-	p = ctxt->arch->prg();
+	p = emallocz(sizeof(Prog));
 	p->as = a;
 	p->lineno = lineno;
 	if(nosched)

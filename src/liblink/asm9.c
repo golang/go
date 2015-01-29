@@ -535,14 +535,14 @@ span9(Link *ctxt, LSym *cursym)
 			if((o->type == 16 || o->type == 17) && p->pcond) {
 				otxt = p->pcond->pc - c;
 				if(otxt < -(1L<<15)+10 || otxt >= (1L<<15)-10) {
-					q = ctxt->arch->prg();
+					q = emallocz(sizeof(Prog));
 					q->link = p->link;
 					p->link = q;
 					q->as = ABR;
 					q->to.type = TYPE_BRANCH;
 					q->pcond = p->pcond;
 					p->pcond = q;
-					q = ctxt->arch->prg();
+					q = emallocz(sizeof(Prog));
 					q->link = p->link;
 					p->link = q;
 					q->as = ABR;

@@ -1657,7 +1657,6 @@ struct Arch
 	char *thestring;
 	LinkArch *thelinkarch;
 	Typedef *typedefs;
-	Prog zprog;
 	
 	int ACALL;
 	int ACHECKNIL;

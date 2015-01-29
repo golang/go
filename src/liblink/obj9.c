@@ -35,10 +35,6 @@
 #include "../runtime/stack.h"
 #include "../runtime/funcdata.h"
 
-static Prog zprg = {
-	.as = AGOK,
-};
-
 static int
 isdata(Prog *p)
 {
@@ -512,7 +508,7 @@ preprocess(Link *ctxt, LSym *cursym)
 			if(cursym->text->mark & LEAF) {
 				if(!autosize) {
 					p->as = ABR;
-					p->from = zprg.from;
+					p->from = zprog.from;
 					p->to.type = TYPE_REG;
 					p->to.reg = REG_LR;
 					p->mark |= BRANCH;
@@ -526,7 +522,7 @@ preprocess(Link *ctxt, LSym *cursym)
 				p->to.reg = REGSP;
 				p->spadj = -autosize;
 
-				q = ctxt->arch->prg();
+				q = emallocz(sizeof(Prog));
 				q->as = ABR;
 				q->lineno = p->lineno;
 				q->to.type = TYPE_REG;
@@ -546,7 +542,7 @@ preprocess(Link *ctxt, LSym *cursym)
 			p->to.type = TYPE_REG;
 			p->to.reg = REGTMP;
 
-			q = ctxt->arch->prg();
+			q = emallocz(sizeof(Prog));
 			q->as = AMOVD;
 			q->lineno = p->lineno;
 			q->from.type = TYPE_REG;
@@ -560,7 +556,7 @@ preprocess(Link *ctxt, LSym *cursym)
 
 			if(0) {
 				// Debug bad returns
-				q = ctxt->arch->prg();
+				q = emallocz(sizeof(Prog));
 				q->as = AMOVD;
 				q->lineno = p->lineno;
 				q->from.type = TYPE_MEM;
@@ -575,7 +571,7 @@ preprocess(Link *ctxt, LSym *cursym)
 			}
 
 			if(autosize) {
-				q = ctxt->arch->prg();
+				q = emallocz(sizeof(Prog));
 				q->as = AADD;
 				q->lineno = p->lineno;
 				q->from.type = TYPE_CONST;
@@ -588,7 +584,7 @@ preprocess(Link *ctxt, LSym *cursym)
 				p->link = q;
 			}
 
-			q1 = ctxt->arch->prg();
+			q1 = emallocz(sizeof(Prog));
 			q1->as = ABR;
 			q1->lineno = p->lineno;
 			q1->to.type = TYPE_REG;
@@ -802,7 +798,7 @@ follow(Link *ctxt, LSym *s)
 
 	ctxt->cursym = s;
 
-	firstp = ctxt->arch->prg();
+	firstp = emallocz(sizeof(Prog));
 	lastp = firstp;
 	xfol(ctxt, s->text, &lastp);
 	lastp->link = nil;
@@ -878,7 +874,7 @@ loop:
 				continue;
 		copy:
 			for(;;) {
-				r = ctxt->arch->prg();
+				r = emallocz(sizeof(Prog));
 				*r = *p;
 				if(!(r->mark&FOLL))
 					print("cant happen 1\n");
@@ -905,7 +901,7 @@ loop:
 		}
 
 		a = ABR;
-		q = ctxt->arch->prg();
+		q = emallocz(sizeof(Prog));
 		q->as = a;
 		q->lineno = p->lineno;
 		q->to.type = TYPE_BRANCH;
@@ -935,16 +931,6 @@ loop:
 	goto loop;
 }
 
-static Prog*
-prg(void)
-{
-	Prog *p;
-
-	p = emallocz(sizeof(*p));
-	*p = zprg;
-	return p;
-}
-
 LinkArch linkppc64 = {
 	.name = "ppc64",
 	.thechar = '9',
@@ -956,7 +942,6 @@ LinkArch linkppc64 = {
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,
-	.prg = prg,
 	.progedit = progedit,
 
 	.minlc = 4,
@@ -988,7 +973,6 @@ LinkArch linkppc64le = {
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,
-	.prg = prg,
 	.progedit = progedit,
 
 	.minlc = 4,

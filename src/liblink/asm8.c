@@ -675,7 +675,6 @@ static Optab optab[] =
 	{ ADIVW,	ydivl,	Pe, {0xf7,(06)} },
 	{ AENTER },				/* botch */
 	{ AGLOBL },
-	{ AGOK },
 	{ AHISTORY },
 	{ AHLT,		ynone,	Px, {0xf4} },
 	{ AIDIVB,	ydivb,	Pb, {0xf6,(07)} },

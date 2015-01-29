@@ -35,18 +35,6 @@
 #include "../cmd/8l/8.out.h"
 #include "../runtime/stack.h"
 
-static Prog zprg = {
-	.as = AGOK,
-	.from = {
-		.type = TYPE_NONE,
-		.index = REG_NONE,
-	},
-	.to = {
-		.type = TYPE_NONE,
-		.index = REG_NONE,
-	},
-};
-
 static int
 isdata(Prog *p)
 {
@@ -242,16 +230,6 @@ progedit(Link *ctxt, Prog *p)
 		}
 		break;
 	}
-}
-
-static Prog*
-prg(void)
-{
-	Prog *p;
-
-	p = emallocz(sizeof(*p));
-	*p = zprg;
-	return p;
 }
 
 static Prog*	load_g_cx(Link*, Prog*);
@@ -681,7 +659,7 @@ follow(Link *ctxt, LSym *s)
 
 	ctxt->cursym = s;
 
-	firstp = ctxt->arch->prg();
+	firstp = emallocz(sizeof(Prog));
 	lastp = firstp;
 	xfol(ctxt, s->text, &lastp);
 	lastp->link = nil;
@@ -808,7 +786,7 @@ loop:
 				goto loop;
 			}
 		} /* */
-		q = ctxt->arch->prg();
+		q = emallocz(sizeof(Prog));
 		q->as = AJMP;
 		q->lineno = p->lineno;
 		q->to.type = TYPE_BRANCH;
@@ -877,7 +855,6 @@ LinkArch link386 = {
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,
-	.prg = prg,
 	.progedit = progedit,
 
 	.minlc = 1,

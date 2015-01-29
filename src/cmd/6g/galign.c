@@ -59,14 +59,6 @@ betypeinit(void)
 		
 	}
 
-	zprog.link = P;
-	zprog.as = AGOK;
-	zprog.from.type = TYPE_NONE;
-	zprog.from.index = TYPE_NONE;
-	zprog.from.scale = 0;
-	zprog.to = zprog.from;
-	arch.zprog = zprog;
-
 	listinit6();
 }
 
@@ -77,7 +69,6 @@ main(int argc, char **argv)
 	arch.thestring = thestring;
 	arch.thelinkarch = thelinkarch;
 	arch.typedefs = typedefs;
-	arch.zprog = zprog;
 	arch.ACALL = ACALL;
 	arch.ACHECKNIL = ACHECKNIL;
 	arch.ADATA = ADATA;

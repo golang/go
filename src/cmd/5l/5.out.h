@@ -253,7 +253,6 @@ enum
 
 	ADATA,
 	AGLOBL,
-	AGOK,
 	AHISTORY,
 	ANAME,
 	ARET,

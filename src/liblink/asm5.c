@@ -351,11 +351,6 @@ static uint32	opbra(Link*, int, int);
 static	Oprang	oprange[ALAST];
 static	uchar	xcmp[C_GOK+1][C_GOK+1];
 
-static Prog zprg = {
-	.as = AGOK,
-	.scond = C_SCOND_NONE,
-};
-
 static LSym *deferreturn;
 
 static void
@@ -515,7 +510,7 @@ asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, uint32 *out)
 			// split it into two instructions:
 			// 	ADD $-100004, R13
 			// 	MOVW R14, 0(R13)
-			q = ctxt->arch->prg();
+			q = emallocz(sizeof(Prog));
 			p->scond &= ~C_WBIT;
 			*q = *p;
 			a = &p->to;
@@ -534,12 +529,12 @@ asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, uint32 *out)
 			p->from = *a;
 			p->from.reg = 0;
 			p->from.type = TYPE_CONST;
-			p->to = zprg.to;
+			p->to = zprog.to;
 			p->to.type = TYPE_REG;
 			p->to.reg = REG_R13;
 			// make q into p but load/store from 0(R13)
 			q->spadj = 0;
-			*a2 = zprg.from;
+			*a2 = zprog.from;
 			a2->type = TYPE_MEM;
 			a2->reg = REG_R13;
 			a2->sym = nil;
@@ -578,7 +573,7 @@ asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, uint32 *out)
 				// This won't handle .W/.P, so we should reject such code.
 				if(p->scond & (C_PBIT|C_WBIT))
 					ctxt->diag("unsupported instruction (.P/.W): %P", p);
-				q = ctxt->arch->prg();
+				q = emallocz(sizeof(Prog));
 				*q = *p;
 				if(p->to.type == TYPE_MEM)
 					a2 = &q->to;
@@ -594,11 +589,11 @@ asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, uint32 *out)
 				p->as = AMOVW;
 				p->from = *a;
 				p->from.type = TYPE_CONST;
-				p->to = zprg.to;
+				p->to = zprog.to;
 				p->to.type = TYPE_REG;
 				p->to.reg = REG_R11;
 				// make q into p but load/store from 0(R11)
-				*a2 = zprg.from;
+				*a2 = zprog.from;
 				a2->type = TYPE_MEM;
 				a2->reg = REG_R11;
 				a2->sym = nil;
@@ -731,14 +726,14 @@ span5(Link *ctxt, LSym *cursym)
 				if(otxt < 0)
 					otxt = -otxt;
 				if(otxt >= (1L<<17) - 10) {
-					q = ctxt->arch->prg();
+					q = emallocz(sizeof(Prog));
 					q->link = p->link;
 					p->link = q;
 					q->as = AB;
 					q->to.type = TYPE_BRANCH;
 					q->pcond = p->pcond;
 					p->pcond = q;
-					q = ctxt->arch->prg();
+					q = emallocz(sizeof(Prog));
 					q->link = p->link;
 					p->link = q;
 					q->as = AB;
@@ -856,7 +851,7 @@ flushpool(Link *ctxt, Prog *p, int skip, int force)
 	if(ctxt->blitrl) {
 		if(skip){
 			if(0 && skip==1)print("note: flush literal pool at %llux: len=%ud ref=%ux\n", p->pc+4, pool.size, pool.start);
-			q = ctxt->arch->prg();
+			q = emallocz(sizeof(Prog));
 			q->as = AB;
 			q->to.type = TYPE_BRANCH;
 			q->pcond = p->link;
@@ -868,7 +863,7 @@ flushpool(Link *ctxt, Prog *p, int skip, int force)
 			return 0;
 		if(ctxt->headtype == Hnacl && pool.size % 16 != 0) {
 			// if pool is not multiple of 16 bytes, add an alignment marker
-			q = ctxt->arch->prg();
+			q = emallocz(sizeof(Prog));
 			q->as = ADATABUNDLEEND;
 			ctxt->elitrl->link = q;
 			ctxt->elitrl = q;
@@ -900,7 +895,7 @@ addpool(Link *ctxt, Prog *p, Addr *a)
 
 	c = aclass(ctxt, a);
 
-	t = zprg;
+	t = zprog;
 	t.as = AWORD;
 
 	switch(c) {
@@ -939,8 +934,8 @@ addpool(Link *ctxt, Prog *p, Addr *a)
 
 	if(ctxt->headtype == Hnacl && pool.size%16 == 0) {
 		// start a new data bundle
-		q = ctxt->arch->prg();
-		*q = zprg;
+		q = emallocz(sizeof(Prog));
+		*q = zprog;
 		q->as = ADATABUNDLE;
 		q->pc = pool.size;
 		pool.size += 4;
@@ -953,7 +948,7 @@ addpool(Link *ctxt, Prog *p, Addr *a)
 		ctxt->elitrl = q;
 	}
 
-	q = ctxt->arch->prg();
+	q = emallocz(sizeof(Prog));
 	*q = t;
 	q->pc = pool.size;
 
