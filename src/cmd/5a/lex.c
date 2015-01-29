@@ -255,23 +255,23 @@ struct
 	"FPSR",		LFCR,	REG_FPSR,
 	"FPCR",		LFCR,	REG_FPCR,
 
-	".EQ",		LCOND,	0,
-	".NE",		LCOND,	1,
-	".CS",		LCOND,	2,
-	".HS",		LCOND,	2,
-	".CC",		LCOND,	3,
-	".LO",		LCOND,	3,
-	".MI",		LCOND,	4,
-	".PL",		LCOND,	5,
-	".VS",		LCOND,	6,
-	".VC",		LCOND,	7,
-	".HI",		LCOND,	8,
-	".LS",		LCOND,	9,
-	".GE",		LCOND,	10,
-	".LT",		LCOND,	11,
-	".GT",		LCOND,	12,
-	".LE",		LCOND,	13,
-	".AL",		LCOND,	Always,
+	".EQ",		LCOND,	C_SCOND_EQ,
+	".NE",		LCOND,	C_SCOND_NE,
+	".CS",		LCOND,	C_SCOND_HS,
+	".HS",		LCOND,	C_SCOND_HS,
+	".CC",		LCOND,	C_SCOND_LO,
+	".LO",		LCOND,	C_SCOND_LO,
+	".MI",		LCOND,	C_SCOND_MI,
+	".PL",		LCOND,	C_SCOND_PL,
+	".VS",		LCOND,	C_SCOND_VS,
+	".VC",		LCOND,	C_SCOND_VC,
+	".HI",		LCOND,	C_SCOND_HI,
+	".LS",		LCOND,	C_SCOND_LS,
+	".GE",		LCOND,	C_SCOND_GE,
+	".LT",		LCOND,	C_SCOND_LT,
+	".GT",		LCOND,	C_SCOND_GT,
+	".LE",		LCOND,	C_SCOND_LE,
+	".AL",		LCOND,	C_SCOND_NONE,
 
 	".U",		LS,	C_UBIT,
 	".S",		LS,	C_SBIT,
@@ -505,8 +505,8 @@ outcode(int a, int scond, Addr *g1, int reg, Addr *g2)
 
 	/* hack to make B.NE etc. work: turn it into the corresponding conditional */
 	if(a == AB){
-		a = bcode[scond&0xf];
-		scond = (scond & ~0xf) | Always;
+		a = bcode[(scond^C_SCOND_XOR)&0xf];
+		scond = (scond & ~0xf) | C_SCOND_NONE;
 	}
 
 	if(pass == 1)

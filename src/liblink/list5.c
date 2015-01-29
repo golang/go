@@ -90,7 +90,7 @@ Pconv(Fmt *fp)
 	bigP = p;
 	a = p->as;
 	s = p->scond;
-	strcpy(sc, extra[s & C_SCOND]);
+	strcpy(sc, extra[(s & C_SCOND) ^ C_SCOND_XOR]);
 	if(s & C_SBIT)
 		strcat(sc, ".S");
 	if(s & C_PBIT)

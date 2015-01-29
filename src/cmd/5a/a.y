@@ -295,7 +295,7 @@ inst:
 		g.offset =
 			(0xe << 24) |		/* opcode */
 			($1 << 20) |		/* MCR/MRC */
-			($2 << 28) |		/* scond */
+			(($2^C_SCOND_XOR) << 28) |		/* scond */
 			(($3 & 15) << 8) |	/* coprocessor number */
 			(($5 & 7) << 21) |	/* coprocessor operation */
 			(($7 & 15) << 12) |	/* arm register */

@@ -94,8 +94,8 @@ enum
 	CMACARG,
 	CMACRO,
 	CPREPROC,
-
-	Always	= 14,
+	
+	Always = C_SCOND_NONE,
 };
 
 EXTERN	int	debug[256];
