@@ -27,19 +27,19 @@
 //
 //      // Parse the specified files and create an ad-hoc package with path "foo".
 //      // All files must have the same 'package' declaration.
-//      err := conf.CreateFromFilenames("foo", "foo.go", "bar.go")
+//      conf.CreateFromFilenames("foo", "foo.go", "bar.go")
 //
 //      // Create an ad-hoc package with path "foo" from
 //      // the specified already-parsed files.
 //      // All ASTs must have the same 'package' declaration.
-//      err := conf.CreateFromFiles("foo", parsedFiles)
+//      conf.CreateFromFiles("foo", parsedFiles)
 //
 //      // Add "runtime" to the set of packages to be loaded.
 //      conf.Import("runtime")
 //
 //      // Adds "fmt" and "fmt_test" to the set of packages
 //      // to be loaded.  "fmt" will include *_test.go files.
-//      err := conf.ImportWithTests("fmt")
+//      conf.ImportWithTests("fmt")
 //
 //      // Finally, load all the packages specified by the configuration.
 //      prog, err := conf.Load()
@@ -182,15 +182,9 @@ package loader
 // The result of using concurrency is about a 2.5x speedup for stdlib_test.
 
 // TODO(adonovan):
-// - (*Config).ParseFile is very handy, but feels like feature creep.
-//   (*Config).CreateFromFiles has a nasty precondition.
 // - cache the calls to build.Import so we don't do it three times per
 //   test package.
 // - Thorough overhaul of package documentation.
-// - Certain errors (e.g. parse error in x_test.go files, or failure to
-//   import an initial package) still cause Load() to fail hard.
-//   Fix that.  (It's tricky because of the way x_test files are parsed
-//   eagerly.)
 
 import (
 	"errors"
@@ -200,6 +194,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -215,7 +210,7 @@ const trace = false // show timing info for type-checking
 // The zero value for Config is a ready-to-use default configuration.
 type Config struct {
 	// Fset is the file set for the parser to use when loading the
-	// program.  If nil, it will be lazily initialized by any
+	// program.  If nil, it may be lazily initialized by any
 	// method of Config.
 	Fset *token.FileSet
 
@@ -280,21 +275,19 @@ type Config struct {
 	AllowErrors bool
 
 	// CreatePkgs specifies a list of non-importable initial
-	// packages to create.  Each element specifies a list of
-	// parsed files to be type-checked into a new package, and a
-	// path for that package.  If the path is "", the package's
-	// name will be used instead.  The path needn't be globally
-	// unique.
-	//
-	// The resulting packages will appear in the corresponding
-	// elements of the Program.Created slice.
-	CreatePkgs []CreatePkg
+	// packages to create.  The resulting packages will appear in
+	// the corresponding elements of the Program.Created slice.
+	CreatePkgs []PkgSpec
 
 	// ImportPkgs specifies a set of initial packages to load from
 	// source.  The map keys are package import paths, used to
-	// locate the package relative to $GOROOT.  The corresponding
-	// values indicate whether to augment the package by *_test.go
-	// files in a second pass.
+	// locate the package relative to $GOROOT.
+	//
+	// The map value indicates whether to load tests.  If true, Load
+	// will add and type-check two lists of files to the package:
+	// non-test files followed by in-package *_test.go files.  In
+	// addition, it will append the external test package (if any)
+	// to Program.Created.
 	ImportPkgs map[string]bool
 
 	// PackageCreated is a hook called when a types.Package
@@ -311,9 +304,14 @@ type Config struct {
 	PackageCreated func(*types.Package)
 }
 
-type CreatePkg struct {
-	Path  string // the import path of the resulting (non-importable) types.Package
-	Files []*ast.File
+// A PkgSpec specifies a non-importable package to be created by Load.
+// Files are processed first, but typically only one of Files and
+// Filenames is provided.  The path needn't be globally unique.
+//
+type PkgSpec struct {
+	Path      string      // import path ("" => use package declaration)
+	Files     []*ast.File // ASTs of already-parsed files
+	Filenames []string    // names of files to be parsed
 }
 
 // A Program is a Go program loaded from source or binary
@@ -321,8 +319,10 @@ type CreatePkg struct {
 type Program struct {
 	Fset *token.FileSet // the file set for this program
 
-	// Created[i] contains the initial package whose ASTs were
-	// supplied by Config.CreatePkgs[i].
+	// Created[i] contains the initial package whose ASTs or
+	// filenames were supplied by Config.CreatePkgs[i], followed by
+	// the external test package, if any, of each package in
+	// Config.ImportPkgs ordered by ImportPath.
 	Created []*PackageInfo
 
 	// Imported contains the initially imported packages,
@@ -376,8 +376,12 @@ func (conf *Config) fset() *token.FileSet {
 	return conf.Fset
 }
 
-// ParseFile is a convenience function that invokes the parser using
-// the Config's FileSet, which is initialized if nil.
+// ParseFile is a convenience function (intended for testing) that invokes
+// the parser using the Config's FileSet, which is initialized if nil.
+//
+// src specifies the parser input as a string, []byte, or io.Reader, and
+// filename is its apparent name.  If src is nil, the contents of
+// filename are read from the file system.
 //
 func (conf *Config) ParseFile(filename string, src interface{}) (*ast.File, error) {
 	// TODO(adonovan): use conf.build() etc like parseFiles does.
@@ -410,9 +414,6 @@ It may take one of two forms:
    import path may denote two packages.  (Whether this behaviour is
    enabled is tool-specific, and may depend on additional flags.)
 
-   Due to current limitations in the type-checker, only the first
-   import path of the command line will contribute any tests.
-
 A '--' argument terminates the list of packages.
 `
 
@@ -424,7 +425,11 @@ A '--' argument terminates the list of packages.
 // set of initial packages to be specified; see FromArgsUsage message
 // for details.
 //
-func (conf *Config) FromArgs(args []string, xtest bool) (rest []string, err error) {
+// Only superficial errors are reported at this stage; errors dependent
+// on I/O are detected during Load.
+//
+func (conf *Config) FromArgs(args []string, xtest bool) ([]string, error) {
+	var rest []string
 	for i, arg := range args {
 		if arg == "--" {
 			rest = args[i+1:]
@@ -441,53 +446,35 @@ func (conf *Config) FromArgs(args []string, xtest bool) (rest []string, err erro
 				return nil, fmt.Errorf("named files must be .go files: %s", arg)
 			}
 		}
-		err = conf.CreateFromFilenames("", args...)
+		conf.CreateFromFilenames("", args...)
 	} else {
 		// Assume args are directories each denoting a
 		// package and (perhaps) an external test, iff xtest.
 		for _, arg := range args {
 			if xtest {
-				err = conf.ImportWithTests(arg)
-				if err != nil {
-					break
-				}
+				conf.ImportWithTests(arg)
 			} else {
 				conf.Import(arg)
 			}
 		}
 	}
 
-	return
+	return rest, nil
 }
 
-// CreateFromFilenames is a convenience function that parses the
-// specified *.go files and adds a package entry for them to
-// conf.CreatePkgs.
+// CreateFromFilenames is a convenience function that adds
+// a conf.CreatePkgs entry to create a package of the specified *.go
+// files.
 //
-// It fails if any file could not be loaded or parsed.
-// TODO(adonovan): make it not return an error, by making CreatePkg
-// store filenames and defer parsing until Load.
-//
-func (conf *Config) CreateFromFilenames(path string, filenames ...string) error {
-	files, errs := parseFiles(conf.fset(), conf.build(), nil, ".", filenames, conf.ParserMode)
-	if len(errs) > 0 {
-		return errs[0]
-	}
-	conf.CreateFromFiles(path, files...)
-	return nil
+func (conf *Config) CreateFromFilenames(path string, filenames ...string) {
+	conf.CreatePkgs = append(conf.CreatePkgs, PkgSpec{Path: path, Filenames: filenames})
 }
 
-// CreateFromFiles is a convenience function that adds a CreatePkgs
+// CreateFromFiles is a convenience function that adds a conf.CreatePkgs
 // entry to create package of the specified path and parsed files.
 //
-// Precondition: conf.Fset is non-nil and was the fileset used to parse
-// the files.  (e.g. the files came from conf.ParseFile().)
-//
 func (conf *Config) CreateFromFiles(path string, files ...*ast.File) {
-	if conf.Fset == nil {
-		panic("nil Fset")
-	}
-	conf.CreatePkgs = append(conf.CreatePkgs, CreatePkg{path, files})
+	conf.CreatePkgs = append(conf.CreatePkgs, PkgSpec{Path: path, Files: files})
 }
 
 // ImportWithTests is a convenience function that adds path to
@@ -500,45 +487,21 @@ func (conf *Config) CreateFromFiles(path string, files ...*ast.File) {
 // declaration, an additional package comprising just those files will
 // be added to CreatePkgs.
 //
-func (conf *Config) ImportWithTests(path string) error {
-	if path == "unsafe" {
-		return nil // ignore; not a real package
-	}
-	conf.Import(path)
-
-	// Load the external test package.
-	bp, err := conf.findSourcePackage(path)
-	if err != nil {
-		return err // package not found
-	}
-	xtestFiles, errs := conf.parsePackageFiles(bp, 'x')
-	if len(errs) > 0 {
-		// TODO(adonovan): fix: parse errors in x_test.go files
-		// cause FromArgs() to fail completely.
-		return errs[0] // I/O or parse error
-	}
-	if len(xtestFiles) > 0 {
-		conf.CreateFromFiles(path+"_test", xtestFiles...)
-	}
-
-	// Mark the non-xtest package for augmentation with
-	// in-package *_test.go files when we import it below.
-	conf.ImportPkgs[path] = true
-	return nil
-}
+func (conf *Config) ImportWithTests(path string) { conf.addImport(path, true) }
 
 // Import is a convenience function that adds path to ImportPkgs, the
 // set of initial packages that will be imported from source.
 //
-func (conf *Config) Import(path string) {
+func (conf *Config) Import(path string) { conf.addImport(path, false) }
+
+func (conf *Config) addImport(path string, tests bool) {
 	if path == "unsafe" {
 		return // ignore; not a real package
 	}
 	if conf.ImportPkgs == nil {
 		conf.ImportPkgs = make(map[string]bool)
 	}
-	// Subtle: adds value 'false' unless value is already true.
-	conf.ImportPkgs[path] = conf.ImportPkgs[path] // unaugmented source package
+	conf.ImportPkgs[path] = conf.ImportPkgs[path] || tests
 }
 
 // PathEnclosingInterval returns the PackageInfo and ast.Node that
@@ -679,59 +642,91 @@ func (conf *Config) Load() (*Program, error) {
 
 	// -- loading proper (concurrent phase) --------------------------------
 
+	var errpkgs []string // packages that contained errors
+
 	// Load the initially imported packages and their dependencies,
 	// in parallel.
 	for _, ii := range imp.loadAll("", conf.ImportPkgs) {
 		if ii.err != nil {
-			return nil, ii.err // failed to create package
+			conf.TypeChecker.Error(ii.err) // failed to create package
+			errpkgs = append(errpkgs, ii.path)
+			continue
 		}
 		prog.Imported[ii.info.Pkg.Path()] = ii.info
 	}
 
-	// Augment the initial packages that need it.
+	// Augment the designated initial packages by their tests.
 	// Dependencies are loaded in parallel.
+	var xtestPkgs []*build.Package
 	for path, augment := range conf.ImportPkgs {
-		if augment {
-			// Find and create the actual package.
-			bp, err := conf.findSourcePackage(path)
-			if err != nil {
-				// "Can't happen" because of previous loop.
-				return nil, err // package not found
-			}
-
-			imp.importedMu.Lock()           // (unnecessary, we're sequential here)
-			info := imp.imported[path].info // must be non-nil, see above
-			imp.importedMu.Unlock()
-
-			files, errs := imp.conf.parsePackageFiles(bp, 't')
-			for _, err := range errs {
-				info.appendError(err)
-			}
-			// The test files augmenting package P cannot be imported,
-			// but may import packages that import P,
-			// so we must disable the cycle check.
-			imp.addFiles(info, files, false)
+		if !augment {
+			continue
 		}
+
+		bp, err := conf.findSourcePackage(path)
+		if err != nil {
+			// Package not found, or can't even parse package declaration.
+			// Already reported by previous loop; ignore it.
+			continue
+		}
+
+		// Needs external test package?
+		if len(bp.XTestGoFiles) > 0 {
+			xtestPkgs = append(xtestPkgs, bp)
+		}
+
+		imp.importedMu.Lock()           // (unnecessary, we're sequential here)
+		info := imp.imported[path].info // must be non-nil, see above
+		imp.importedMu.Unlock()
+
+		// Parse the in-package test files.
+		files, errs := imp.conf.parsePackageFiles(bp, 't')
+		for _, err := range errs {
+			info.appendError(err)
+		}
+
+		// The test files augmenting package P cannot be imported,
+		// but may import packages that import P,
+		// so we must disable the cycle check.
+		imp.addFiles(info, files, false)
 	}
 
-	// CreatePkgs includes all external test packages,
-	// so they must be processed after augmentation.
-	// Dependencies are loaded in parallel.
-	for _, create := range conf.CreatePkgs {
-		path := create.Path
-		if create.Path == "" && len(create.Files) > 0 {
-			path = create.Files[0].Name.Name
-		}
+	createPkg := func(path string, files []*ast.File, errs []error) {
 		info := imp.newPackageInfo(path)
-		// Ad-hoc packages are non-importable; no cycle check is needed.
-		imp.addFiles(info, create.Files, false)
+		for _, err := range errs {
+			info.appendError(err)
+		}
+
+		// Ad-hoc packages are non-importable,
+		// so no cycle check is needed.
+		// addFiles loads dependencies in parallel.
+		imp.addFiles(info, files, false)
 		prog.Created = append(prog.Created, info)
+	}
+
+	// Create packages specified by conf.CreatePkgs.
+	for _, cp := range conf.CreatePkgs {
+		files, errs := parseFiles(conf.fset(), conf.build(), nil, ".", cp.Filenames, conf.ParserMode)
+		files = append(files, cp.Files...)
+
+		path := cp.Path
+		if path == "" && len(files) > 0 {
+			path = files[0].Name.Name
+		}
+		createPkg(path, files, errs)
+	}
+
+	// Create external test packages.
+	sort.Sort(byImportPath(xtestPkgs))
+	for _, bp := range xtestPkgs {
+		files, errs := imp.conf.parsePackageFiles(bp, 'x')
+		createPkg(bp.ImportPath+"_test", files, errs)
 	}
 
 	// -- finishing up (sequential) ----------------------------------------
 
 	if len(prog.Imported)+len(prog.Created) == 0 {
-		return nil, errors.New("no initial packages were specified")
+		return nil, errors.New("no initial packages were loaded")
 	}
 
 	// Create infos for indirectly imported packages.
@@ -749,7 +744,6 @@ func (conf *Config) Load() (*Program, error) {
 
 	if !conf.AllowErrors {
 		// Report errors in indirectly imported packages.
-		var errpkgs []string
 		for _, info := range prog.AllPackages {
 			if len(info.Errors) > 0 {
 				errpkgs = append(errpkgs, info.Pkg.Path())
@@ -770,6 +764,12 @@ func (conf *Config) Load() (*Program, error) {
 
 	return prog, nil
 }
+
+type byImportPath []*build.Package
+
+func (b byImportPath) Len() int           { return len(b) }
+func (b byImportPath) Less(i, j int) bool { return b[i].ImportPath < b[j].ImportPath }
+func (b byImportPath) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
 // markErrorFreePackages sets the TransitivelyErrorFree flag on all
 // applicable packages.

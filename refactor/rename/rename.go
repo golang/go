@@ -365,9 +365,7 @@ func loadProgram(ctxt *build.Context, pkgs map[string]bool) (*loader.Program, er
 	}
 
 	for pkg := range pkgs {
-		if err := conf.ImportWithTests(pkg); err != nil {
-			return nil, err
-		}
+		conf.ImportWithTests(pkg)
 	}
 	return conf.Load()
 }

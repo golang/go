@@ -61,9 +61,7 @@ func doMain() error {
 	}
 
 	// The first Created package is the template.
-	if err := conf.CreateFromFilenames("template", *templateFlag); err != nil {
-		return err //  e.g. "foo.go:1: syntax error"
-	}
+	conf.CreateFromFilenames("template", *templateFlag)
 
 	if len(args) == 0 {
 		fmt.Fprint(os.Stderr, usage)

@@ -72,9 +72,7 @@ func Test(t *testing.T) {
 		"testdata/expr_type_mismatch.template",
 	} {
 		pkgname := strings.TrimSuffix(filepath.Base(filename), ".go")
-		if err := conf.CreateFromFilenames(pkgname, filename); err != nil {
-			t.Fatal(err)
-		}
+		conf.CreateFromFilenames(pkgname, filename)
 	}
 	iprog, err := conf.Load()
 	if err != nil {

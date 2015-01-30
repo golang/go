@@ -37,11 +37,8 @@ func TestStdlib(t *testing.T) {
 		SourceImports: true,
 	}
 	for _, path := range pkgs {
-		if err := conf.ImportWithTests(path); err != nil {
-			t.Error(err)
-		}
+		conf.ImportWithTests(path)
 	}
-
 	iprog, err := conf.Load()
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)

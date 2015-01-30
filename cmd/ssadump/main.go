@@ -203,7 +203,7 @@ func doMain() error {
 		}
 
 		if runtime.GOARCH != build.Default.GOARCH {
-			return fmt.Errorf("cross-interpretation is not yet supported (target has GOARCH %s, interpreter has %s)",
+			return fmt.Errorf("cross-interpretation is not supported (target has GOARCH %s, interpreter has %s)",
 				build.Default.GOARCH, runtime.GOARCH)
 		}
 

@@ -322,7 +322,7 @@ func reduceScope(pos string, conf *loader.Config) {
 	// (and possibly its corresponding tests/production code).
 	// TODO(adonovan): set 'augment' based on which file list
 	// contains
-	_ = conf.ImportWithTests(importPath) // ignore error
+	conf.ImportWithTests(importPath)
 }
 
 func pkgContainsFile(bp *build.Package, filename string) bool {
