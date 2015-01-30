@@ -6,6 +6,7 @@ package pprof_test
 
 import (
 	"bytes"
+	"internal/trace"
 	"net"
 	"os"
 	"runtime"
@@ -66,7 +67,7 @@ func TestTrace(t *testing.T) {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
 	StopTrace()
-	_, err := parseTrace(buf)
+	_, err := trace.Parse(buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
@@ -198,10 +199,151 @@ func TestTraceStress(t *testing.T) {
 	runtime.GOMAXPROCS(procs)
 
 	StopTrace()
-	_, err = parseTrace(buf)
+	_, err = trace.Parse(buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
+}
+
+// Do a bunch of various stuff (timers, GC, network, etc) in a separate goroutine.
+// And concurrently with all that start/stop trace 3 times.
+func TestTraceStressStartStop(t *testing.T) {
+	skipTraceTestsIfNeeded(t)
+
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+	outerDone := make(chan bool)
+
+	go func() {
+		defer func() {
+			outerDone <- true
+		}()
+
+		var wg sync.WaitGroup
+		done := make(chan bool)
+
+		wg.Add(1)
+		go func() {
+			<-done
+			wg.Done()
+		}()
+
+		rp, wp, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("failed to create pipe: %v", err)
+		}
+		defer func() {
+			rp.Close()
+			wp.Close()
+		}()
+		wg.Add(1)
+		go func() {
+			var tmp [1]byte
+			rp.Read(tmp[:])
+			<-done
+			wg.Done()
+		}()
+		time.Sleep(time.Millisecond)
+
+		go func() {
+			runtime.LockOSThread()
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					runtime.Gosched()
+				}
+			}
+		}()
+
+		runtime.GC()
+		// Trigger GC from malloc.
+		for i := 0; i < 1e3; i++ {
+			_ = make([]byte, 1<<20)
+		}
+
+		// Create a bunch of busy goroutines to load all Ps.
+		for p := 0; p < 10; p++ {
+			wg.Add(1)
+			go func() {
+				// Do something useful.
+				tmp := make([]byte, 1<<16)
+				for i := range tmp {
+					tmp[i]++
+				}
+				_ = tmp
+				<-done
+				wg.Done()
+			}()
+		}
+
+		// Block in syscall.
+		wg.Add(1)
+		go func() {
+			var tmp [1]byte
+			rp.Read(tmp[:])
+			<-done
+			wg.Done()
+		}()
+
+		runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+
+		// Test timers.
+		timerDone := make(chan bool)
+		go func() {
+			time.Sleep(time.Millisecond)
+			timerDone <- true
+		}()
+		<-timerDone
+
+		// A bit of network.
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("listen failed: %v", err)
+		}
+		defer ln.Close()
+		go func() {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			time.Sleep(time.Millisecond)
+			var buf [1]byte
+			c.Write(buf[:])
+			c.Close()
+		}()
+		c, err := net.Dial("tcp", ln.Addr().String())
+		if err != nil {
+			t.Fatalf("dial failed: %v", err)
+		}
+		var tmp [1]byte
+		c.Read(tmp[:])
+		c.Close()
+
+		go func() {
+			runtime.Gosched()
+			select {}
+		}()
+
+		// Unblock helper goroutines and wait them to finish.
+		wp.Write(tmp[:])
+		wp.Write(tmp[:])
+		close(done)
+		wg.Wait()
+	}()
+
+	for i := 0; i < 3; i++ {
+		buf := new(bytes.Buffer)
+		if err := StartTrace(buf); err != nil {
+			t.Fatalf("failed to start tracing: %v", err)
+		}
+		time.Sleep(time.Millisecond)
+		StopTrace()
+		if _, err := trace.Parse(buf); err != nil {
+			t.Fatalf("failed to parse trace: %v", err)
+		}
+	}
+	<-outerDone
 }
 
 func TestTraceSymbolize(t *testing.T) {
@@ -215,24 +357,24 @@ func TestTraceSymbolize(t *testing.T) {
 	}
 	runtime.GC()
 	StopTrace()
-	events, err := parseTrace(buf)
+	events, err := trace.Parse(buf)
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
-	err = symbolizeTrace(events, os.Args[0])
+	err = trace.Symbolize(events, os.Args[0])
 	if err != nil {
 		t.Fatalf("failed to symbolize trace: %v", err)
 	}
 	found := false
 eventLoop:
 	for _, ev := range events {
-		if ev.typ != traceEvGCStart {
+		if ev.Type != trace.EvGCStart {
 			continue
 		}
-		for _, f := range ev.stk {
-			if strings.HasSuffix(f.file, "trace_test.go") &&
-				strings.HasSuffix(f.fn, "pprof_test.TestTraceSymbolize") &&
-				f.line == 216 {
+		for _, f := range ev.Stk {
+			if strings.HasSuffix(f.File, "trace_test.go") &&
+				strings.HasSuffix(f.Fn, "pprof_test.TestTraceSymbolize") &&
+				f.Line == 358 {
 				found = true
 				break eventLoop
 			}
