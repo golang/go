@@ -1398,13 +1398,25 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OARRAYRUNESTR:
-		// slicerunetostring([]rune) string;
-		n = mkcall("slicerunetostring", n->type, init, n->left);
+		// slicerunetostring(*[32]byte, []rune) string;
+		a = nodnil();
+		if(n->esc == EscNone) {
+			// Create temporary buffer for string on stack.
+			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
+			a = nod(OADDR, temp(t), N);
+		}
+		n = mkcall("slicerunetostring", n->type, init, a, n->left);
 		goto ret;
 
 	case OSTRARRAYBYTE:
-		// stringtoslicebyte(string) []byte;
-		n = mkcall("stringtoslicebyte", n->type, init, conv(n->left, types[TSTRING]));
+		// stringtoslicebyte(*32[byte], string) []byte;
+		a = nodnil();
+		if(n->esc == EscNone) {
+			// Create temporary buffer for slice on stack.
+			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
+			a = nod(OADDR, temp(t), N);
+		}
+		n = mkcall("stringtoslicebyte", n->type, init, a, conv(n->left, types[TSTRING]));
 		goto ret;
 
 	case OSTRARRAYBYTETMP:
@@ -1413,8 +1425,14 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OSTRARRAYRUNE:
-		// stringtoslicerune(string) []rune
-		n = mkcall("stringtoslicerune", n->type, init, n->left);
+		// stringtoslicerune(*[32]rune, string) []rune
+		a = nodnil();
+		if(n->esc == EscNone) {
+			// Create temporary buffer for slice on stack.
+			t = aindex(nodintconst(tmpstringbufsize), types[TINT32]);
+			a = nod(OADDR, temp(t), N);
+		}
+		n = mkcall("stringtoslicerune", n->type, init, a, n->left);
 		goto ret;
 
 	case OCMPIFACE:
