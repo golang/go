@@ -69,8 +69,11 @@ extern "C" {
 #include <stddef.h>
 #include <math.h>
 #include <ctype.h>	/* for tolower */
-#include <signal.h>
 #include <time.h>
+
+#ifndef PLAN9
+#include <signal.h>
+#endif
 
 /*
  * OS-specific crap
