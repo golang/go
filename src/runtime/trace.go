@@ -190,7 +190,6 @@ func StopTrace() {
 	}
 
 	traceGoSched()
-	traceGoStart()
 
 	for _, p := range &allp {
 		if p == nil {
