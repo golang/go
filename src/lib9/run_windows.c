@@ -19,7 +19,7 @@ runcmd(char **argv)
 	WinRune *r;
 	STARTUPINFOW si;
 	PROCESS_INFORMATION pi;
-	DWORD code;
+	DWORD code, lasterr;
 
 	fmtstrinit(&fmt);
 	for(i=0; argv[i]; i++) {
@@ -63,18 +63,24 @@ runcmd(char **argv)
 	si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
 
 	if(!CreateProcessW(nil, r, nil, nil, TRUE, 0, nil, nil, &si, &pi)) {
+		werrstr("CreateProcess failed: errno=%d", (int)GetLastError());
 		free(r);
 		return -1;
 	}
 
 	free(r);
-	if(WaitForMultipleObjects(1, &pi.hProcess, FALSE, INFINITE) != 0)
+	if(WaitForMultipleObjects(1, &pi.hProcess, FALSE, INFINITE) != 0) {
+		werrstr("WaitForMultipleObjects failed: errno=%d", (int)GetLastError());
 		return -1;
+	}
 	i = GetExitCodeProcess(pi.hProcess, &code);
+	lasterr = GetLastError();
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
-	if(!i)
+	if(!i) {
+		werrstr("GetExitCodeProcess failed: errno=%d", (int)lasterr);
 		return -1;
+	}
 	if(code != 0) {
 		werrstr("unsuccessful exit status: %d", (int)code);
 		return -1;
