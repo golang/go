@@ -244,7 +244,7 @@ type m struct {
 	id            int32
 	mallocing     int32
 	throwing      int32
-	gcing         int32
+	preemptoff    string // if != "", keep curg running on this m
 	locks         int32
 	softfloat     int32
 	dying         int32
