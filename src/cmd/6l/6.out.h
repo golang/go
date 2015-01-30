@@ -834,6 +834,7 @@ enum
 	FREGRET		= REG_X0,
 	REGSP		= REG_SP,
 	REGTMP		= REG_DI,
+	REGCTXT		= REG_DX,
 	REGEXT		= REG_R15,	/* compiler allocates external registers R15 down */
 	FREGMIN		= REG_X0+5,	/* first register variable */
 	FREGEXT		= REG_X0+15,	/* first external register */

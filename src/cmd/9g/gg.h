@@ -12,10 +12,7 @@
 // TODO(minux): Remove when no longer used.
 #define noimpl sysfatal("%s not implemented (%s:%d).", __func__, __FILE__, __LINE__)
 
-EXTERN	int32	dynloc;
 EXTERN	uchar	reg[NREG+NFREG];
-EXTERN	int32	pcloc;		// instruction counter
-EXTERN	Strlit	emptystring;
 EXTERN	Node*	panicdiv;
 extern	vlong	unmappedzero;
 

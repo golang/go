@@ -17,10 +17,7 @@ enum
 	REGALLOC_FMAX = FREGEXT,
 };
 
-EXTERN	int32	dynloc;
 EXTERN	uchar	reg[REGALLOC_FMAX+1];
-EXTERN	int32	pcloc;		// instruction counter
-EXTERN	Strlit	emptystring;
 extern	long	unmappedzero;
 
 /*

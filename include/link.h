@@ -277,6 +277,9 @@ enum {
 	A_ARCHSPECIFIC, // first architecture-specific opcode value
 };
 
+void	nopout(Prog*);
+void	nocache(Prog*);
+
 // prevent incompatible type signatures between liblink and 8l on Plan 9
 #pragma incomplete struct Section
 

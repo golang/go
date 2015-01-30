@@ -725,7 +725,7 @@ mkvar(Reg *r, Adr *a)
 	flag = 0;
 	switch(t) {
 	default:
-		print("type %d %d %D\n", t, a->name, a);
+		print("mkvar: type %d %d %D\n", t, a->name, a);
 		goto none;
 
 	case TYPE_NONE:

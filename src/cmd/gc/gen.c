@@ -304,8 +304,8 @@ gen(Node *n)
 
 		// if there are pending gotos, resolve them all to the current pc.
 		for(p1=lab->gotopc; p1; p1=p2) {
-			p2 = arch.unpatch(p1);
-			arch.patch(p1, pc);
+			p2 = unpatch(p1);
+			patch(p1, pc);
 		}
 		lab->gotopc = P;
 		if(lab->labelpc == P)
@@ -332,9 +332,9 @@ gen(Node *n)
 		// of the label in the OLABEL case above.)
 		lab = newlab(n);
 		if(lab->labelpc != P)
-			arch.gjmp(lab->labelpc);
+			gjmp(lab->labelpc);
 		else
-			lab->gotopc = arch.gjmp(lab->gotopc);
+			lab->gotopc = gjmp(lab->gotopc);
 		break;
 
 	case OBREAK:
@@ -349,14 +349,14 @@ gen(Node *n)
 				yyerror("invalid break label %S", n->left->sym);
 				break;
 			}
-			arch.gjmp(lab->breakpc);
+			gjmp(lab->breakpc);
 			break;
 		}
 		if(breakpc == P) {
 			yyerror("break is not in a loop");
 			break;
 		}
-		arch.gjmp(breakpc);
+		gjmp(breakpc);
 		break;
 
 	case OCONTINUE:
@@ -371,20 +371,20 @@ gen(Node *n)
 				yyerror("invalid continue label %S", n->left->sym);
 				break;
 			}
-			arch.gjmp(lab->continpc);
+			gjmp(lab->continpc);
 			break;
 		}
 		if(continpc == P) {
 			yyerror("continue is not in a loop");
 			break;
 		}
-		arch.gjmp(continpc);
+		gjmp(continpc);
 		break;
 
 	case OFOR:
 		sbreak = breakpc;
-		p1 = arch.gjmp(P);			//		goto test
-		breakpc = arch.gjmp(P);		// break:	goto done
+		p1 = gjmp(P);			//		goto test
+		breakpc = gjmp(P);		// break:	goto done
 		scontin = continpc;
 		continpc = pc;
 
@@ -394,11 +394,11 @@ gen(Node *n)
 			lab->continpc = continpc;
 		}
 		gen(n->nincr);				// contin:	incr
-		arch.patch(p1, pc);				// test:
+		patch(p1, pc);				// test:
 		arch.bgen(n->ntest, 0, -1, breakpc);		//		if(!test) goto break
 		genlist(n->nbody);				//		body
-		arch.gjmp(continpc);
-		arch.patch(breakpc, pc);			// done:
+		gjmp(continpc);
+		patch(breakpc, pc);			// done:
 		continpc = scontin;
 		breakpc = sbreak;
 		if(lab) {
@@ -408,29 +408,29 @@ gen(Node *n)
 		break;
 
 	case OIF:
-		p1 = arch.gjmp(P);			//		goto test
-		p2 = arch.gjmp(P);			// p2:		goto else
-		arch.patch(p1, pc);				// test:
+		p1 = gjmp(P);			//		goto test
+		p2 = gjmp(P);			// p2:		goto else
+		patch(p1, pc);				// test:
 		arch.bgen(n->ntest, 0, -n->likely, p2);		//		if(!test) goto p2
 		genlist(n->nbody);				//		then
-		p3 = arch.gjmp(P);			//		goto done
-		arch.patch(p2, pc);				// else:
+		p3 = gjmp(P);			//		goto done
+		patch(p2, pc);				// else:
 		genlist(n->nelse);				//		else
-		arch.patch(p3, pc);				// done:
+		patch(p3, pc);				// done:
 		break;
 
 	case OSWITCH:
 		sbreak = breakpc;
-		p1 = arch.gjmp(P);			//		goto test
-		breakpc = arch.gjmp(P);		// break:	goto done
+		p1 = gjmp(P);			//		goto test
+		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
 		if((lab = stmtlabel(n)) != L)
 			lab->breakpc = breakpc;
 
-		arch.patch(p1, pc);				// test:
+		patch(p1, pc);				// test:
 		genlist(n->nbody);				//		switch(test) body
-		arch.patch(breakpc, pc);			// done:
+		patch(breakpc, pc);			// done:
 		breakpc = sbreak;
 		if(lab != L)
 			lab->breakpc = P;
@@ -438,16 +438,16 @@ gen(Node *n)
 
 	case OSELECT:
 		sbreak = breakpc;
-		p1 = arch.gjmp(P);			//		goto test
-		breakpc = arch.gjmp(P);		// break:	goto done
+		p1 = gjmp(P);			//		goto test
+		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
 		if((lab = stmtlabel(n)) != L)
 			lab->breakpc = breakpc;
 
-		arch.patch(p1, pc);				// test:
+		patch(p1, pc);				// test:
 		genlist(n->nbody);				//		select() body
-		arch.patch(breakpc, pc);			// done:
+		patch(breakpc, pc);			// done:
 		breakpc = sbreak;
 		if(lab != L)
 			lab->breakpc = P;
@@ -601,7 +601,7 @@ cgen_discard(Node *nr)
 	switch(nr->op) {
 	case ONAME:
 		if(!(nr->class & PHEAP) && nr->class != PEXTERN && nr->class != PFUNC && nr->class != PPARAMREF)
-			arch.gused(nr);
+			gused(nr);
 		break;
 
 	// unary
@@ -643,7 +643,7 @@ cgen_discard(Node *nr)
 	default:
 		tempname(&tmp, nr->type);
 		cgen_as(&tmp, nr);
-		arch.gused(&tmp);
+		gused(&tmp);
 	}
 }
 
@@ -739,7 +739,7 @@ cgen_as(Node *nl, Node *nr)
 		tl = nl->type;
 		if(tl == T)
 			return;
-		if(arch.isfat(tl)) {
+		if(isfat(tl)) {
 			if(nl->op == ONAME)
 				gvardef(nl);
 			arch.clearfat(nl);
@@ -857,9 +857,9 @@ cgen_slice(Node *n, Node *res)
 	// In essence we are replacing x[i:j:k] where i == j == k
 	// or x[i:j] where i == j == cap(x) with x[0:0:0].
 	if(offs != N) {
-		p1 = arch.gjmp(P);
-		p2 = arch.gjmp(P);
-		arch.patch(p1, pc);
+		p1 = gjmp(P);
+		p2 = gjmp(P);
+		patch(p1, pc);
 
 		nodconst(&con, tmpcap->type, 0);
 		cmp = nod(OEQ, tmpcap, &con);
@@ -870,7 +870,7 @@ cgen_slice(Node *n, Node *res)
 		typecheck(&add, Erv);
 		arch.cgen(add, base);
 
-		arch.patch(p2, pc);
+		patch(p2, pc);
 	}
 
 	// dst.array = src.array  [ + lo *width ]

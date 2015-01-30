@@ -1514,7 +1514,6 @@ void	gvarkill(Node*);
 void	movelarge(NodeList*);
 void	liveness(Node*, Prog*, Sym*, Sym*);
 void	twobitwalktype1(Type*, vlong*, Bvec*);
-void	nopout(Prog*);
 
 #pragma	varargck	type	"B"	Mpint*
 #pragma	varargck	type	"E"	int
@@ -1659,9 +1658,10 @@ struct Arch
 	LinkArch *thelinkarch;
 	Typedef *typedefs;
 
+	int	REGSP;
+	int	REGCTXT;
 	vlong MAXWIDTH;
 
-	void (*afunclit)(Addr*, Node*);
 	int (*anyregalloc)(void);
 	void (*betypeinit)(void);
 	void (*bgen)(Node*, int, int, Prog*);
@@ -1671,37 +1671,15 @@ struct Arch
 	void (*cgen_callinter)(Node*, Node*, int);
 	void (*cgen_ret)(Node*);
 	void (*clearfat)(Node*);
-	void (*clearp)(Prog*);
-	void (*defframe)(Prog*);
-	int (*dgostringptr)(Sym*, int, char*);
-	int (*dgostrlitptr)(Sym*, int, Strlit*);
-	int (*dsname)(Sym*, int, char*, int);
-	int (*dsymptr)(Sym*, int, Sym*, int);
-	void (*dumpdata)(void);
 	void (*dumpit)(char*, Flow*, int);
 	void (*excise)(Flow*);
 	void (*expandchecks)(Prog*);
-	void (*fixautoused)(Prog*);
 	void (*gclean)(void);
-	void	(*gdata)(Node*, Node*, int);
-	void	(*gdatacomplex)(Node*, Mpcplx*);
-	void	(*gdatastring)(Node*, Strlit*);
-	void	(*ggloblnod)(Node*);
-	void	(*ggloblsym)(Sym*, int32, int8);
 	void (*ginit)(void);
 	Prog*	(*gins)(int, Node*, Node*);
 	void	(*ginscall)(Node*, int);
-	Prog*	(*gjmp)(Prog*);
-	void (*gtrack)(Sym*);
-	void	(*gused)(Node*);
 	void	(*igen)(Node*, Node*, Node*);
-	int (*isfat)(Type*);
 	void (*linkarchinit)(void);
-	void (*markautoused)(Prog*);
-	void (*naddr)(Node*, Addr*, int);
-	Plist* (*newplist)(void);
-	Node* (*nodarg)(Type*, int);
-	void (*patch)(Prog*, Prog*);
 	void (*proginfo)(ProgInfo*, Prog*);
 	void (*regalloc)(Node*, Type*, Node*);
 	void (*regfree)(Node*);
@@ -1710,8 +1688,37 @@ struct Arch
 	int (*sameaddr)(Addr*, Addr*);
 	int (*smallindir)(Addr*, Addr*);
 	int (*stackaddr)(Addr*);
-	Prog* (*unpatch)(Prog*);
 };
+
+void afunclit(Addr*, Node*);
+void clearp(Prog*);
+void defframe(Prog*);
+int dgostringptr(Sym*, int, char*);
+int dgostrlitptr(Sym*, int, Strlit*);
+int dsname(Sym*, int, char*, int);
+int dsymptr(Sym*, int, Sym*, int);
+void dumpdata(void);
+void fixautoused(Prog*);
+void	gdata(Node*, Node*, int);
+void	gdatacomplex(Node*, Mpcplx*);
+void	gdatastring(Node*, Strlit*);
+void	ggloblnod(Node*);
+void	ggloblsym(Sym*, int32, int8);
+Prog*	gjmp(Prog*);
+void gtrack(Sym*);
+void	gused(Node*);
+int isfat(Type*);
+void markautoused(Prog*);
+void naddr(Node*, Addr*, int);
+Plist* newplist(void);
+Node* nodarg(Type*, int);
+void patch(Prog*, Prog*);
+Prog* unpatch(Prog*);
+void datagostring(Strlit *sval, Addr *a);
+int ismem(Node*);
+int samereg(Node*, Node*);
+
+EXTERN int32	pcloc;
 
 EXTERN Arch arch;
 

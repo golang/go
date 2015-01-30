@@ -115,52 +115,6 @@ appendpp(Prog *p, int as, int ftype, int freg, vlong foffset, int ttype, int tre
 	return q;	
 }
 
-// Sweep the prog list to mark any used nodes.
-void
-markautoused(Prog* p)
-{
-	for (; p; p = p->link) {
-		if (p->as == ATYPE || p->as == AVARDEF || p->as == AVARKILL)
-			continue;
-
-		if (p->from.node)
-			((Node*)(p->from.node))->used = 1;
-
-		if (p->to.node)
-			((Node*)(p->to.node))->used = 1;
-	}
-}
-
-// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
-void
-fixautoused(Prog *p)
-{
-	Prog **lp;
-
-	for (lp=&p; (p=*lp) != P; ) {
-		if (p->as == ATYPE && p->from.node && p->from.name == NAME_AUTO && !((Node*)(p->from.node))->used) {
-			*lp = p->link;
-			continue;
-		}
-		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !((Node*)(p->to.node))->used) {
-			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
-			// VARDEFs are interspersed with other code, and a jump might be using the
-			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
-			// the no-ops.
-			nopout(p);
-			continue;
-		}
-		if (p->from.name == NAME_AUTO && p->from.node)
-			p->from.offset += ((Node*)(p->from.node))->stkdelta;
-
-		if (p->to.name == NAME_AUTO && p->to.node)
-			p->to.offset += ((Node*)(p->to.node))->stkdelta;
-
-		lp = &p->link;
-	}
-}
-
-
 /*
  * generate:
  *	call f
@@ -614,20 +568,6 @@ hard:
 
 ret:
 	;
-}
-
-int
-samereg(Node *a, Node *b)
-{
-	if(a == N || b == N)
-		return 0;
-	if(a->op != OREGISTER)
-		return 0;
-	if(b->op != OREGISTER)
-		return 0;
-	if(a->val.u.reg != b->val.u.reg)
-		return 0;
-	return 1;
 }
 
 /*

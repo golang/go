@@ -96,6 +96,7 @@ static Optab	optab[] =
 	{ ABL,		C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },
 	{ ABX,		C_NONE,	C_NONE,	C_SBRA,		 74, 20, 0 },
 	{ ABEQ,		C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },
+	{ ABEQ,		C_RCON,	C_NONE,	C_SBRA,		 5, 4, 0 }, // prediction hinted form, hint ignored
 
 	{ AB,		C_NONE,	C_NONE,	C_ROREG,	 6, 4, 0,	LPOOL },
 	{ ABL,		C_NONE,	C_NONE,	C_ROREG,	 7, 4, 0 },
@@ -352,14 +353,6 @@ static	Oprang	oprange[ALAST];
 static	uchar	xcmp[C_GOK+1][C_GOK+1];
 
 static LSym *deferreturn;
-
-static void
-nocache(Prog *p)
-{
-	p->optab = 0;
-	p->from.class = 0;
-	p->to.class = 0;
-}
 
 /* size of a case statement including jump table */
 static int32

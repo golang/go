@@ -35,18 +35,6 @@
 #include "../cmd/6l/6.out.h"
 #include "../runtime/stack.h"
 
-static void
-nopout(Prog *p)
-{
-	p->as = ANOP;
-	p->from.type = TYPE_NONE;
-	p->from.reg = 0;
-	p->from.name = 0;
-	p->to.type = TYPE_NONE;
-	p->to.reg = 0;
-	p->to.name = 0;
-}
-
 static void nacladdr(Link*, Prog*, Addr*);
 
 static int
