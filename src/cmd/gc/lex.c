@@ -8,6 +8,10 @@
 #include	"y.tab.h"
 #include	<ar.h>
 
+#ifndef PLAN9
+#include	<signal.h>
+#endif
+
 #undef	getc
 #undef	ungetc
 #define	getc	ccgetc
@@ -1275,7 +1279,7 @@ talph:
 		if(c >= Runeself) {
 			ungetc(c);
 			rune = getr();
-			// 0xb7 · is used for internal names
+			// 0xb7 Â· is used for internal names
 			if(!isalpharune(rune) && !isdigitrune(rune) && (importpkg == nil || rune != 0xb7))
 				yyerror("invalid identifier character U+%04x", rune);
 			cp += runetochar(cp, &rune);
