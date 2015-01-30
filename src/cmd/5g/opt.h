@@ -177,10 +177,3 @@ int	BtoF(uint32);
  * prog.c
  */
 void proginfo(ProgInfo*, Prog*);
-
-// To allow use of AJMP and ACALL in ../gc/popt.c.
-enum
-{
-	AJMP = AB,
-	ACALL = ABL,
-};

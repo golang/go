@@ -1657,23 +1657,7 @@ struct Arch
 	char *thestring;
 	LinkArch *thelinkarch;
 	Typedef *typedefs;
-	
-	int ACALL;
-	int ACHECKNIL;
-	int ADATA;
-	int AFUNCDATA;
-	int AGLOBL;
-	int AJMP;
-	int ANAME;
-	int ANOP;
-	int APCDATA;
-	int ARET;
-	int ASIGNAME;
-	int ATEXT;
-	int ATYPE;
-	int AUNDEF;
-	int AVARDEF;
-	int AVARKILL;
+
 	vlong MAXWIDTH;
 
 	void (*afunclit)(Addr*, Node*);

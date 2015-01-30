@@ -249,6 +249,35 @@ struct	Prog
 
 extern Prog zprog; // zeroed Prog
 
+// Prog.as opcodes.
+// These are the portable opcodes, common to all architectures.
+// Each architecture defines many more arch-specific opcodes,
+// with values starting at A_ARCHSPECIFIC.
+enum {
+	AXXX = 0,
+
+	ACALL,
+	ACHECKNIL,
+	ADATA,
+	ADUFFCOPY,
+	ADUFFZERO,
+	AEND,
+	AFUNCDATA,
+	AGLOBL,
+	AJMP,
+	ANOP,
+	APCDATA,
+	ARET,
+	ATEXT,
+	ATYPE,
+	AUNDEF,
+	AUSEFIELD,
+	AVARDEF,
+	AVARKILL,
+	
+	A_ARCHSPECIFIC, // first architecture-specific opcode value
+};
+
 // prevent incompatible type signatures between liblink and 8l on Plan 9
 #pragma incomplete struct Section
 
@@ -599,26 +628,11 @@ struct LinkArch
 	void	(*preprocess)(Link*, LSym*);
 	void	(*assemble)(Link*, LSym*);
 	void	(*follow)(Link*, LSym*);
-	int	(*iscall)(Prog*);
-	int	(*isdata)(Prog*);
 	void	(*progedit)(Link*, Prog*);
 
 	int	minlc;
 	int	ptrsize;
 	int	regsize;
-	
-	int	ACALL;
-	int	ADATA;
-	int	AEND;
-	int	AFUNCDATA;
-	int	AGLOBL;
-	int	AJMP;
-	int	ANOP;
-	int	APCDATA;
-	int	ARET;
-	int	ATEXT;
-	int	ATYPE;
-	int	AUSEFIELD;
 };
 
 /* executable header types */

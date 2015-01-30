@@ -1788,7 +1788,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 			r = p->to.reg;
 		if(p->as == AADD && (!r0iszero && p->reg == 0 || r0iszero && p->to.reg == 0))
 			ctxt->diag("literal operation on R0\n%P", p);
-		o1 = AOP_IRR(opirr(ctxt, p->as+AEND), p->to.reg, r, v>>16);
+		o1 = AOP_IRR(opirr(ctxt, p->as+ALAST), p->to.reg, r, v>>16);
 		break;
 
 	case 22:	/* add $lcon,r1,r2 ==> cau+or+add */	/* could do add/sub more efficiently */
@@ -2157,7 +2157,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		r = p->reg;
 		if(r == 0)
 			r = p->to.reg;
-		o1 = LOP_IRR(opirr(ctxt, p->as+AEND), p->to.reg, r, v>>16);	/* oris, xoris, andis */
+		o1 = LOP_IRR(opirr(ctxt, p->as+ALAST), p->to.reg, r, v>>16);	/* oris, xoris, andis */
 		break;
 
 	case 60:	/* tw to,a,b */
@@ -2632,10 +2632,10 @@ opirr(Link *ctxt, int a)
 	case AADD:	return OPVCC(14,0,0,0);
 	case AADDC:	return OPVCC(12,0,0,0);
 	case AADDCCC:	return OPVCC(13,0,0,0);
-	case AADD+AEND:	return OPVCC(15,0,0,0);		/* ADDIS/CAU */
+	case AADD+ALAST:	return OPVCC(15,0,0,0);		/* ADDIS/CAU */
 
 	case AANDCC:	return OPVCC(28,0,0,0);
-	case AANDCC+AEND:	return OPVCC(29,0,0,0);		/* ANDIS./ANDIU. */
+	case AANDCC+ALAST:	return OPVCC(29,0,0,0);		/* ANDIS./ANDIU. */
 
 	case ABR:	return OPVCC(18,0,0,0);
 	case ABL:	return OPVCC(18,0,0,0) | 1;
@@ -2662,7 +2662,7 @@ opirr(Link *ctxt, int a)
 	case AMULLW:	return OPVCC(7,0,0,0);
 
 	case AOR:	return OPVCC(24,0,0,0);
-	case AOR+AEND:	return OPVCC(25,0,0,0);		/* ORIS/ORIU */
+	case AOR+ALAST:	return OPVCC(25,0,0,0);		/* ORIS/ORIU */
 
 	case ARLWMI:	return OPVCC(20,0,0,0);		/* rlwimi */
 	case ARLWMICC:	return OPVCC(20,0,0,1);
@@ -2692,7 +2692,7 @@ opirr(Link *ctxt, int a)
 	case ATD:	return OPVCC(2,0,0,0);
 
 	case AXOR:	return OPVCC(26,0,0,0);		/* XORIL */
-	case AXOR+AEND:	return OPVCC(27,0,0,0);		/* XORIU */
+	case AXOR+ALAST:	return OPVCC(27,0,0,0);		/* XORIU */
 	}
 	ctxt->diag("bad opcode i/r %A", a);
 	return 0;

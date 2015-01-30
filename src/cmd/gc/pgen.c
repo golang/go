@@ -30,7 +30,7 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 	pnod = newname(sym);
 	pnod->class = PEXTERN;
 	nodconst(&nod, types[TINT32], funcdatakind);
-	arch.gins(arch.AFUNCDATA, &nod, pnod);
+	arch.gins(AFUNCDATA, &nod, pnod);
 	return sym;
 }
 
@@ -110,13 +110,13 @@ gvardefx(Node *n, int as)
 void
 gvardef(Node *n)
 {
-	gvardefx(n, arch.AVARDEF);
+	gvardefx(n, AVARDEF);
 }
 
 void
 gvarkill(Node *n)
 {
-	gvardefx(n, arch.AVARKILL);
+	gvardefx(n, AVARKILL);
 }
 
 static void
@@ -125,10 +125,10 @@ removevardef(Prog *firstp)
 	Prog *p;
 
 	for(p = firstp; p != P; p = p->link) {
-		while(p->link != P && (p->link->as == arch.AVARDEF || p->link->as == arch.AVARKILL))
+		while(p->link != P && (p->link->as == AVARDEF || p->link->as == AVARKILL))
 			p->link = p->link->link;
 		if(p->to.type == TYPE_BRANCH)
-			while(p->to.u.branch != P && (p->to.u.branch->as == arch.AVARDEF || p->to.u.branch->as == arch.AVARKILL))
+			while(p->to.u.branch != P && (p->to.u.branch->as == AVARDEF || p->to.u.branch->as == AVARKILL))
 				p->to.u.branch = p->to.u.branch->link;
 	}
 }
@@ -229,7 +229,7 @@ compile(Node *fn)
 	setlineno(curfn);
 
 	nodconst(&nod1, types[TINT32], 0);
-	ptxt = arch.gins(arch.ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
+	ptxt = arch.gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
 	if(fn->dupok)
 		ptxt->from3.offset |= DUPOK;
 	if(fn->wrapper)
@@ -266,7 +266,7 @@ compile(Node *fn)
 		case PPARAM:
 		case PPARAMOUT:
 			nodconst(&nod1, types[TUINTPTR], l->n->type->width);
-			p = arch.gins(arch.ATYPE, l->n, &nod1);
+			p = arch.gins(ATYPE, l->n, &nod1);
 			p->from.gotype = linksym(ngotype(l->n));
 			break;
 		}
@@ -297,7 +297,7 @@ compile(Node *fn)
 	if(nerrors != 0)
 		goto ret;
 
-	pc->as = arch.ARET;	// overwrite AEND
+	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
 	fixjmp(ptxt);
@@ -535,9 +535,9 @@ cgen_checknil(Node *n)
 	if(((arch.thechar == '5' || arch.thechar == '9') && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
 		arch.regalloc(&reg, types[tptr], n);
 		arch.cgen(n, &reg);
-		arch.gins(arch.ACHECKNIL, &reg, N);
+		arch.gins(ACHECKNIL, &reg, N);
 		arch.regfree(&reg);
 		return;
 	}
-	arch.gins(arch.ACHECKNIL, n, N);
+	arch.gins(ACHECKNIL, n, N);
 }

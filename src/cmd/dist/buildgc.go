@@ -53,7 +53,7 @@ func gcopnames(dir, file string) {
 func mkanames(dir, file string) {
 	ch := file[len(file)-3]
 	targ := pathf("%s/../cmd/%cl/%c.out.h", dir, ch, ch)
-	in := readfile(targ)
+	in := readfile(pathf("%s/../../include/link.h", dir)) + readfile(targ)
 	lines := splitlines(in)
 
 	// Include link.h so that the extern declaration there is
@@ -69,8 +69,18 @@ func mkanames(dir, file string) {
 
 	fmt.Fprintf(&out, "char*	anames%c[] = {\n", ch)
 	for _, line := range lines {
-		if strings.HasPrefix(line, "\tA") {
+		// Use all A names found in the headers,
+		// except don't use A_ARCHSPECIFIC (left to arch to define),
+		// and don't use any aliases (= A...),
+		// except do use the arch-defined alias for A_ARCHSPECIFIC.
+		if strings.Contains(line, ";") {
+			continue
+		}
+		if strings.HasPrefix(line, "\tA") && !strings.Contains(line, "\tA_") && (!strings.Contains(line, "= A") || strings.Contains(line, "= A_ARCHSPECIFIC")) {
 			if i := strings.Index(line, ","); i >= 0 {
+				line = line[:i]
+			}
+			if i := strings.Index(line, "="); i >= 0 {
 				line = line[:i]
 			}
 			if i := strings.Index(line, "\n"); i >= 0 {
