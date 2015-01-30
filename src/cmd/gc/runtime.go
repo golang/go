@@ -50,10 +50,10 @@ func eqstring(string, string) bool
 func intstring(*[4]byte, int64) string
 func slicebytetostring(*[32]byte, []byte) string
 func slicebytetostringtmp([]byte) string
-func slicerunetostring([]rune) string
-func stringtoslicebyte(string) []byte
+func slicerunetostring(*[32]byte, []rune) string
+func stringtoslicebyte(*[32]byte, string) []byte
 func stringtoslicebytetmp(string) []byte
-func stringtoslicerune(string) []rune
+func stringtoslicerune(*[32]rune, string) []rune
 func stringiter(string, int) int
 func stringiter2(string, int) (retk int, retv rune)
 func slicecopy(to any, fr any, wid uintptr) int

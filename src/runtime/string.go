@@ -129,8 +129,13 @@ func slicebytetostringtmp(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
-func stringtoslicebyte(s string) []byte {
-	b := rawbyteslice(len(s))
+func stringtoslicebyte(buf *tmpBuf, s string) []byte {
+	var b []byte
+	if buf != nil && len(s) <= len(buf) {
+		b = buf[:len(s)]
+	} else {
+		b = rawbyteslice(len(s))
+	}
 	copy(b, s)
 	return b
 }
@@ -147,7 +152,7 @@ func stringtoslicebytetmp(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(&ret))
 }
 
-func stringtoslicerune(s string) []rune {
+func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
 	// two passes.
 	// unlike slicerunetostring, no race because strings are immutable.
 	n := 0
@@ -157,7 +162,12 @@ func stringtoslicerune(s string) []rune {
 		s = s[k:]
 		n++
 	}
-	a := rawruneslice(n)
+	var a []rune
+	if buf != nil && n <= len(buf) {
+		a = buf[:n]
+	} else {
+		a = rawruneslice(n)
+	}
 	n = 0
 	for len(t) > 0 {
 		r, k := charntorune(t)
@@ -168,7 +178,7 @@ func stringtoslicerune(s string) []rune {
 	return a
 }
 
-func slicerunetostring(a []rune) string {
+func slicerunetostring(buf *tmpBuf, a []rune) string {
 	if raceenabled && len(a) > 0 {
 		racereadrangepc(unsafe.Pointer(&a[0]),
 			uintptr(len(a))*unsafe.Sizeof(a[0]),
@@ -180,7 +190,7 @@ func slicerunetostring(a []rune) string {
 	for _, r := range a {
 		size1 += runetochar(dum[:], r)
 	}
-	s, b := rawstring(size1 + 3)
+	s, b := rawstringtmp(buf, size1+3)
 	size2 := 0
 	for _, r := range a {
 		// check for race
@@ -307,11 +317,6 @@ func gobytes(p *byte, n int) []byte {
 	x := make([]byte, n)
 	memmove(unsafe.Pointer(&x[0]), unsafe.Pointer(p), uintptr(n))
 	return x
-}
-
-func gostringsize(n int) string {
-	s, _ := rawstring(n)
-	return s
 }
 
 func gostring(p *byte) string {
