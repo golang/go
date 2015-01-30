@@ -651,24 +651,28 @@ con:
 textsize:
 	LCONST
 	{
+		$$ = nullgen;
 		$$.type = TYPE_TEXTSIZE;
 		$$.offset = $1;
 		$$.u.argsize = ArgsSizeUnknown;
 	}
 |	'-' LCONST
 	{
+		$$ = nullgen;
 		$$.type = TYPE_TEXTSIZE;
 		$$.offset = -$2;
 		$$.u.argsize = ArgsSizeUnknown;
 	}
 |	LCONST '-' LCONST
 	{
+		$$ = nullgen;
 		$$.type = TYPE_TEXTSIZE;
 		$$.offset = $1;
 		$$.u.argsize = $3;
 	}
 |	'-' LCONST '-' LCONST
 	{
+		$$ = nullgen;
 		$$.type = TYPE_TEXTSIZE;
 		$$.offset = -$2;
 		$$.u.argsize = $4;

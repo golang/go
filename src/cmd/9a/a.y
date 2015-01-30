@@ -826,24 +826,28 @@ mask:
 textsize:
 	LCONST
 	{
+		$$ = nullgen;
 		$$.type = TYPE_TEXTSIZE;
 		$$.offset = $1;
 		$$.u.argsize = ArgsSizeUnknown;
 	}
 |	'-' LCONST
 	{
+		$$ = nullgen;
 		$$.type = TYPE_TEXTSIZE;
 		$$.offset = -$2;
 		$$.u.argsize = ArgsSizeUnknown;
 	}
 |	LCONST '-' LCONST
 	{
+		$$ = nullgen;
 		$$.type = TYPE_TEXTSIZE;
 		$$.offset = $1;
 		$$.u.argsize = $3;
 	}
 |	'-' LCONST '-' LCONST
 	{
+		$$ = nullgen;
 		$$.type = TYPE_TEXTSIZE;
 		$$.offset = -$2;
 		$$.u.argsize = $4;
@@ -853,7 +857,7 @@ ximm:
 	'$' addr
 	{
 		$$ = $2;
-		$$.type = TYPE_CONST;
+		$$.type = TYPE_ADDR;
 	}
 |	'$' LSCONST
 	{

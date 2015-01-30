@@ -67,6 +67,83 @@ brloop(Link *ctxt, Prog *p)
 	return q;
 }
 
+static void
+checkaddr(Link *ctxt, Prog *p, Addr *a)
+{
+	// Check expected encoding, especially TYPE_CONST vs TYPE_ADDR.
+	switch(a->type) {
+	case TYPE_NONE:
+		return;
+
+	case TYPE_BRANCH:
+		if(a->reg != 0 || a->index != 0 || a->scale != 0 || a->name != 0)
+			break;
+		return;
+
+	case TYPE_TEXTSIZE:
+		if(a->reg != 0 || a->index != 0 || a->scale != 0 || a->name != 0)
+			break;
+		return;
+
+	case TYPE_MEM:
+		//if(a->u.bits != 0)
+		//	break;
+		return;
+
+	case TYPE_CONST:
+		// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
+		if(a->name != 0 || a->sym != 0 || a->reg != 0) {
+			ctxt->diag("argument %D is TYPE_CONST, should be TYPE_ADDR, in %P", a, p);
+			return;
+		}
+		if(a->reg != 0 || a->scale != 0 || a->name != 0 || a->sym != nil || a->u.bits != 0)
+			break;
+		return;
+
+	case TYPE_FCONST:
+	case TYPE_SCONST:
+		if(a->reg != 0 || a->index != 0 || a->scale != 0 || a->name != 0 || a->offset != 0 || a->sym != nil)
+			break;
+		return;
+
+	case TYPE_REG:
+		// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
+		// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
+		if(a->scale != 0 || a->name != 0 || a->sym != nil)
+			break;
+		return;
+
+	case TYPE_ADDR:
+		if(a->u.bits != 0)
+			break;
+		if(a->reg == 0 && a->index == 0 && a->scale == 0 && a->name == 0 && a->sym == nil)
+			ctxt->diag("argument %D is TYPE_ADDR, should be TYPE_CONST, in %P", a, p);
+		return;
+
+	case TYPE_SHIFT:
+		if(a->index != 0 || a->scale != 0 || a->name != 0 || a->sym != nil || a->u.bits != 0)
+			break;
+		return;
+
+	case TYPE_REGREG:
+		if(a->index != 0 || a->scale != 0 || a->name != 0 || a->sym != nil || a->u.bits != 0)
+			break;
+		return;
+
+	case TYPE_REGREG2:
+		return;
+
+	case TYPE_INDIR:
+		// Expect sym and name to be set, nothing else.
+		// Technically more is allowed, but this is only used for *name(SB).
+		if(a->reg != 0 || a->index != 0 || a->scale != 0 || a->name == 0 || a->offset != 0 || a->sym == nil || a->u.bits != 0)
+			break;
+		return;
+	}
+
+	ctxt->diag("invalid encoding for argument %D in %P", a, p);
+}
+
 void
 linkpatch(Link *ctxt, LSym *sym)
 {
@@ -77,6 +154,10 @@ linkpatch(Link *ctxt, LSym *sym)
 	ctxt->cursym = sym;
 	
 	for(p = sym->text; p != nil; p = p->link) {
+		checkaddr(ctxt, p, &p->from);
+		checkaddr(ctxt, p, &p->from3);
+		checkaddr(ctxt, p, &p->to);
+
 		if(ctxt->arch->progedit)
 			ctxt->arch->progedit(ctxt, p);
 		if(p->to.type != TYPE_BRANCH)

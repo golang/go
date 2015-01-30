@@ -625,7 +625,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	// If there's a stack fixup coming (after BL newproc or BL deferproc),
 	// delay the load until after the fixup.
 	p2 = p->link;
-	if(p2 && p2->as == AMOVW && p2->from.type == TYPE_CONST && p2->from.reg == REGSP && p2->to.reg == REGSP && p2->to.type == TYPE_REG)
+	if(p2 && p2->as == AMOVW && p2->from.type == TYPE_ADDR && p2->from.reg == REGSP && p2->to.reg == REGSP && p2->to.type == TYPE_REG)
 		p = p2;
 
 	p1->link = p->link;
@@ -641,7 +641,9 @@ addmove(Reg *r, int bn, int rn, int f)
 	a->offset = v->offset;
 	a->etype = v->etype;
 	a->type = TYPE_MEM;
-	if(a->etype == TARRAY || a->sym == nil)
+	if(a->etype == TARRAY)
+		a->type = TYPE_ADDR;
+	else if(a->sym == nil)
 		a->type = TYPE_CONST;
 
 	if(v->addr)
@@ -740,8 +742,13 @@ mkvar(Reg *r, Adr *a)
 		if(a->reg != 0)
 			bit.b[0] |= RtoB(a->reg);
 		return bit;
-
+	
 	case TYPE_CONST:
+		if(a->reg != 0)
+			fatal("found CONST instead of ADDR: %D", a);
+		break;
+
+	case TYPE_ADDR:
 	case TYPE_REG:
 	case TYPE_SHIFT:
 		if(a->reg != 0) {

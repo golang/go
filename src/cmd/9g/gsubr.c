@@ -253,7 +253,7 @@ isfat(Type *t)
 void
 afunclit(Addr *a, Node *n)
 {
-	if(a->type == TYPE_CONST && a->name == NAME_EXTERN) {
+	if(a->type == TYPE_ADDR && a->name == NAME_EXTERN) {
 		a->type = TYPE_MEM;
 		a->sym = linksym(n->sym);
 	}
@@ -1049,7 +1049,7 @@ gins(int as, Node *f, Node *t)
 		break;
 	case AMOVD:
 	case AMOVDU:
-		if(af.type == TYPE_CONST)
+		if(af.type == TYPE_CONST || af.type == TYPE_ADDR)
 			break;
 		w = 8;
 		break;
@@ -1153,7 +1153,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 			break;
 		case PFUNC:
 			a->name = NAME_EXTERN;
-			a->type = TYPE_CONST;
+			a->type = TYPE_ADDR;
 			a->width = widthptr;
 			s = funcsym(s);
 			break;
@@ -1277,7 +1277,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->etype = tptr;
 		switch(a->type) {
 		case TYPE_MEM:
-			a->type = TYPE_CONST;
+			a->type = TYPE_ADDR;
 			break;
 
 		case TYPE_REG:

@@ -543,12 +543,12 @@ static const yytype_uint16 yyrline[] =
      259,   262,   267,   277,   282,   292,   297,   302,   309,   317,
      327,   336,   347,   348,   351,   352,   353,   357,   361,   362,
      363,   366,   367,   370,   376,   387,   393,   399,   405,   411,
-     417,   425,   431,   441,   447,   453,   459,   465,   473,   479,
-     485,   491,   499,   500,   503,   510,   517,   524,   534,   544,
-     554,   560,   566,   573,   582,   593,   597,   606,   614,   624,
-     627,   631,   637,   638,   642,   645,   646,   650,   654,   658,
-     662,   668,   669,   673,   677,   681,   685,   689,   693,   697,
-     701,   705
+     417,   425,   431,   441,   447,   453,   459,   465,   473,   480,
+     487,   494,   503,   504,   507,   514,   521,   528,   538,   548,
+     558,   564,   570,   577,   586,   597,   601,   610,   618,   628,
+     631,   635,   641,   642,   646,   649,   650,   654,   658,   662,
+     666,   672,   673,   677,   681,   685,   689,   693,   697,   701,
+     705,   709
 };
 #endif
 
@@ -2174,7 +2174,7 @@ yyreduce:
 		(yyval.addr) = (yyvsp[(2) - (2)].addr);
 		(yyval.addr).type = TYPE_ADDR;
 		/*
-		if($2.name == D_AUTO || $2.name == D_PARAM)
+		if($2.name == NAME_AUTO || $2.name == NAME_PARAM)
 			yyerror("constant cannot be automatic: %s",
 				$2.sym->name);
 		 */
@@ -2229,6 +2229,7 @@ yyreduce:
   case 88:
 #line 474 "a.y"
     {
+		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_TEXTSIZE;
 		(yyval.addr).offset = (yyvsp[(1) - (1)].lval);
 		(yyval.addr).u.argsize = ArgsSizeUnknown;
@@ -2236,8 +2237,9 @@ yyreduce:
     break;
 
   case 89:
-#line 480 "a.y"
+#line 481 "a.y"
     {
+		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_TEXTSIZE;
 		(yyval.addr).offset = -(yyvsp[(2) - (2)].lval);
 		(yyval.addr).u.argsize = ArgsSizeUnknown;
@@ -2245,8 +2247,9 @@ yyreduce:
     break;
 
   case 90:
-#line 486 "a.y"
+#line 488 "a.y"
     {
+		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_TEXTSIZE;
 		(yyval.addr).offset = (yyvsp[(1) - (3)].lval);
 		(yyval.addr).u.argsize = (yyvsp[(3) - (3)].lval);
@@ -2254,8 +2257,9 @@ yyreduce:
     break;
 
   case 91:
-#line 492 "a.y"
+#line 495 "a.y"
     {
+		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_TEXTSIZE;
 		(yyval.addr).offset = -(yyvsp[(2) - (4)].lval);
 		(yyval.addr).u.argsize = (yyvsp[(4) - (4)].lval);
@@ -2263,7 +2267,7 @@ yyreduce:
     break;
 
   case 94:
-#line 504 "a.y"
+#line 508 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2273,7 +2277,7 @@ yyreduce:
     break;
 
   case 95:
-#line 511 "a.y"
+#line 515 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2283,7 +2287,7 @@ yyreduce:
     break;
 
   case 96:
-#line 518 "a.y"
+#line 522 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2293,7 +2297,7 @@ yyreduce:
     break;
 
   case 97:
-#line 525 "a.y"
+#line 529 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2306,7 +2310,7 @@ yyreduce:
     break;
 
   case 98:
-#line 535 "a.y"
+#line 539 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2319,7 +2323,7 @@ yyreduce:
     break;
 
   case 99:
-#line 545 "a.y"
+#line 549 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2332,7 +2336,7 @@ yyreduce:
     break;
 
   case 100:
-#line 555 "a.y"
+#line 559 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2341,7 +2345,7 @@ yyreduce:
     break;
 
   case 101:
-#line 561 "a.y"
+#line 565 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2350,7 +2354,7 @@ yyreduce:
     break;
 
   case 102:
-#line 567 "a.y"
+#line 571 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2360,7 +2364,7 @@ yyreduce:
     break;
 
   case 103:
-#line 574 "a.y"
+#line 578 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2372,7 +2376,7 @@ yyreduce:
     break;
 
   case 104:
-#line 583 "a.y"
+#line 587 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2384,14 +2388,14 @@ yyreduce:
     break;
 
   case 105:
-#line 594 "a.y"
+#line 598 "a.y"
     {
 		(yyval.addr) = (yyvsp[(1) - (1)].addr);
 	}
     break;
 
   case 106:
-#line 598 "a.y"
+#line 602 "a.y"
     {
 		(yyval.addr) = (yyvsp[(1) - (6)].addr);
 		(yyval.addr).index = (yyvsp[(3) - (6)].lval);
@@ -2401,7 +2405,7 @@ yyreduce:
     break;
 
   case 107:
-#line 607 "a.y"
+#line 611 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2412,7 +2416,7 @@ yyreduce:
     break;
 
   case 108:
-#line 615 "a.y"
+#line 619 "a.y"
     {
 		(yyval.addr) = nullgen;
 		(yyval.addr).type = TYPE_MEM;
@@ -2423,133 +2427,133 @@ yyreduce:
     break;
 
   case 109:
-#line 624 "a.y"
+#line 628 "a.y"
     {
 		(yyval.lval) = 0;
 	}
     break;
 
   case 110:
-#line 628 "a.y"
+#line 632 "a.y"
     {
 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
 	}
     break;
 
   case 111:
-#line 632 "a.y"
+#line 636 "a.y"
     {
 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
 	}
     break;
 
   case 113:
-#line 639 "a.y"
+#line 643 "a.y"
     {
 		(yyval.lval) = NAME_AUTO;
 	}
     break;
 
   case 116:
-#line 647 "a.y"
+#line 651 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (1)].sym)->value;
 	}
     break;
 
   case 117:
-#line 651 "a.y"
+#line 655 "a.y"
     {
 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
 	}
     break;
 
   case 118:
-#line 655 "a.y"
+#line 659 "a.y"
     {
 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
 	}
     break;
 
   case 119:
-#line 659 "a.y"
+#line 663 "a.y"
     {
 		(yyval.lval) = ~(yyvsp[(2) - (2)].lval);
 	}
     break;
 
   case 120:
-#line 663 "a.y"
+#line 667 "a.y"
     {
 		(yyval.lval) = (yyvsp[(2) - (3)].lval);
 	}
     break;
 
   case 122:
-#line 670 "a.y"
+#line 674 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (3)].lval) + (yyvsp[(3) - (3)].lval);
 	}
     break;
 
   case 123:
-#line 674 "a.y"
+#line 678 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (3)].lval) - (yyvsp[(3) - (3)].lval);
 	}
     break;
 
   case 124:
-#line 678 "a.y"
+#line 682 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (3)].lval) * (yyvsp[(3) - (3)].lval);
 	}
     break;
 
   case 125:
-#line 682 "a.y"
+#line 686 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (3)].lval) / (yyvsp[(3) - (3)].lval);
 	}
     break;
 
   case 126:
-#line 686 "a.y"
+#line 690 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (3)].lval) % (yyvsp[(3) - (3)].lval);
 	}
     break;
 
   case 127:
-#line 690 "a.y"
+#line 694 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (4)].lval) << (yyvsp[(4) - (4)].lval);
 	}
     break;
 
   case 128:
-#line 694 "a.y"
+#line 698 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (4)].lval) >> (yyvsp[(4) - (4)].lval);
 	}
     break;
 
   case 129:
-#line 698 "a.y"
+#line 702 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (3)].lval) & (yyvsp[(3) - (3)].lval);
 	}
     break;
 
   case 130:
-#line 702 "a.y"
+#line 706 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (3)].lval) ^ (yyvsp[(3) - (3)].lval);
 	}
     break;
 
   case 131:
-#line 706 "a.y"
+#line 710 "a.y"
     {
 		(yyval.lval) = (yyvsp[(1) - (3)].lval) | (yyvsp[(3) - (3)].lval);
 	}
@@ -2557,7 +2561,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 2561 "y.tab.c"
+#line 2565 "y.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);

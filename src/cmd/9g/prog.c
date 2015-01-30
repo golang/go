@@ -142,20 +142,20 @@ proginfo(ProgInfo *info, Prog *p)
 		info->flags |= /*CanRegRead |*/ RightRead;
 	}
 
-	if((p->from.type == TYPE_MEM || p->from.type == TYPE_CONST) && p->from.reg != 0) {
+	if((p->from.type == TYPE_MEM || p->from.type == TYPE_ADDR) && p->from.reg != 0) {
 		info->regindex |= RtoB(p->from.reg);
 		if(info->flags & PostInc) {
 			info->regset |= RtoB(p->from.reg);
 		}
 	}
-	if((p->to.type == TYPE_MEM || p->to.type == TYPE_CONST) && p->to.reg != 0) {
+	if((p->to.type == TYPE_MEM || p->to.type == TYPE_ADDR) && p->to.reg != 0) {
 		info->regindex |= RtoB(p->to.reg);
 		if(info->flags & PostInc) {
 			info->regset |= RtoB(p->to.reg);
 		}
 	}
 
-	if(p->from.type == TYPE_CONST && p->from.sym != nil && (info->flags & LeftRead)) {
+	if(p->from.type == TYPE_ADDR && p->from.sym != nil && (info->flags & LeftRead)) {
 		info->flags &= ~LeftRead;
 		info->flags |= LeftAddr;
 	}

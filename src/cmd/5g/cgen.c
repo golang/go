@@ -1029,7 +1029,7 @@ agenr(Node *n, Node *a, Node *res)
 			regalloc(&n3, types[tptr], res);
 			p1 = gins(AMOVW, N, &n3);
 			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
-			p1->from.type = TYPE_CONST;
+			p1->from.type = TYPE_ADDR;
 		} else
 		if(isslice(nl->type) || nl->type->etype == TSTRING) {
 			n1 = n3;
@@ -1552,7 +1552,7 @@ sgen(Node *n, Node *res, int64 w)
 		regalloc(&nend, types[TUINT32], N);
 
 		p = gins(AMOVW, &src, &nend);
-		p->from.type = TYPE_CONST;
+		p->from.type = TYPE_ADDR;
 		if(dir < 0)
 			p->from.offset = dir;
 		else
@@ -1562,11 +1562,11 @@ sgen(Node *n, Node *res, int64 w)
 	// move src and dest to the end of block if necessary
 	if(dir < 0) {
 		p = gins(AMOVW, &src, &src);
-		p->from.type = TYPE_CONST;
+		p->from.type = TYPE_ADDR;
 		p->from.offset = w + dir;
 
 		p = gins(AMOVW, &dst, &dst);
-		p->from.type = TYPE_CONST;
+		p->from.type = TYPE_ADDR;
 		p->from.offset = w + dir;
 	}
 	

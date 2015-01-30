@@ -254,7 +254,7 @@ isfat(Type *t)
 void
 afunclit(Addr *a, Node *n)
 {
-	if(a->type == TYPE_CONST && a->name == NAME_EXTERN || a->type == TYPE_REG) {
+	if(a->type == TYPE_ADDR && a->name == NAME_EXTERN || a->type == TYPE_REG) {
 		a->type = TYPE_MEM;
 		if(n->op == ONAME)
 			a->sym = linksym(n->sym);
@@ -1222,7 +1222,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 //		if(a->type >= D_AX && a->type <= D_DI)
 //			a->type += D_INDIR;
 //		else
-//		if(a->type == TYPE_CONST)
+//		if(a->type == TYPE_ADDR)
 //			a->type = TYPE_NONE+D_INDIR;
 //		else
 //		if(a->type == TYPE_ADDR) {
@@ -1307,7 +1307,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 			break;
 		case PFUNC:
 			a->name = NAME_EXTERN;
-			a->type = TYPE_CONST;
+			a->type = TYPE_ADDR;
 			s = funcsym(s);
 			break;
 		}
@@ -1387,11 +1387,11 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->etype = tptr;
 		switch(a->type) {
 		case TYPE_MEM:
-			a->type = TYPE_CONST;
+			a->type = TYPE_ADDR;
 			break;
 
 		case TYPE_REG:
-		case TYPE_CONST:
+		case TYPE_ADDR:
 			break;
 		
 		default:

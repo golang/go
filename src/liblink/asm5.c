@@ -588,7 +588,7 @@ asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, uint32 *out)
 				// make p into MOVW $X(R), R11
 				p->as = AMOVW;
 				p->from = *a;
-				p->from.type = TYPE_CONST;
+				p->from.type = TYPE_ADDR;
 				p->to = zprog.to;
 				p->to.type = TYPE_REG;
 				p->to.reg = REG_R11;
@@ -1125,6 +1125,7 @@ aclass(Link *ctxt, Addr *a)
 		return C_TEXTSIZE;
 
 	case TYPE_CONST:
+	case TYPE_ADDR:
 		switch(a->name) {
 
 		case TYPE_NONE:

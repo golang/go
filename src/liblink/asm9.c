@@ -673,6 +673,7 @@ aclass(Link *ctxt, Addr *a)
 		return C_TEXTSIZE;
 
 	case TYPE_CONST:
+	case TYPE_ADDR:
 		switch(a->name) {
 		case TYPE_NONE:
 			ctxt->instoffset = a->offset;
