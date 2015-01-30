@@ -9,21 +9,24 @@ import "unsafe"
 var bloc uintptr
 var memlock mutex
 
-const memRound = _PAGESIZE - 1
+func memRound(p uintptr) uintptr {
+	return (p + _PAGESIZE - 1) &^ (_PAGESIZE - 1)
+}
 
 func initBloc() {
-	bloc = uintptr(unsafe.Pointer(&end))
+	bloc = memRound(uintptr(unsafe.Pointer(&end)))
 }
 
 func sbrk(n uintptr) unsafe.Pointer {
 	lock(&memlock)
 	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c
-	bl := (bloc + memRound) &^ memRound
+	bl := bloc
+	n = memRound(n)
 	if brk_(unsafe.Pointer(bl+n)) < 0 {
 		unlock(&memlock)
 		return nil
 	}
-	bloc = bl + n
+	bloc += n
 	unlock(&memlock)
 	return unsafe.Pointer(bl)
 }
@@ -42,7 +45,7 @@ func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
 	// from tiny/mem.c
 	// Push pointer back if this is a free
 	// of the most recent sysAlloc.
-	n += (n + memRound) &^ memRound
+	n = memRound(n)
 	if bloc == uintptr(v)+n {
 		bloc -= n
 	}
