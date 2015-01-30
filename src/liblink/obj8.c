@@ -36,18 +36,6 @@
 #include "../runtime/stack.h"
 
 static int
-isdata(Prog *p)
-{
-	return p->as == ADATA || p->as == AGLOBL;
-}
-
-static int
-iscall(Prog *p)
-{
-	return p->as == ACALL;
-}
-
-static int
 canuselocaltls(Link *ctxt)
 {
 	switch(ctxt->headtype) {
@@ -846,24 +834,9 @@ LinkArch link386 = {
 	.preprocess = preprocess,
 	.assemble = span8,
 	.follow = follow,
-	.iscall = iscall,
-	.isdata = isdata,
 	.progedit = progedit,
 
 	.minlc = 1,
 	.ptrsize = 4,
 	.regsize = 4,
-
-	.ACALL = ACALL,
-	.ADATA = ADATA,
-	.AEND = AEND,
-	.AFUNCDATA = AFUNCDATA,
-	.AGLOBL = AGLOBL,
-	.AJMP = AJMP,
-	.ANOP = ANOP,
-	.APCDATA = APCDATA,
-	.ARET = ARET,
-	.ATEXT = ATEXT,
-	.ATYPE = ATYPE,
-	.AUSEFIELD = AUSEFIELD,
 };

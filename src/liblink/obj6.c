@@ -47,18 +47,6 @@ nopout(Prog *p)
 	p->to.name = 0;
 }
 
-static int
-isdata(Prog *p)
-{
-	return p->as == ADATA || p->as == AGLOBL;
-}
-
-static int
-iscall(Prog *p)
-{
-	return p->as == ACALL;
-}
-
 static void nacladdr(Link*, Prog*, Addr*);
 
 static int
@@ -1047,26 +1035,11 @@ LinkArch linkamd64 = {
 	.preprocess = preprocess,
 	.assemble = span6,
 	.follow = follow,
-	.iscall = iscall,
-	.isdata = isdata,
 	.progedit = progedit,
 
 	.minlc = 1,
 	.ptrsize = 8,
 	.regsize = 8,
-
-	.ACALL = ACALL,
-	.ADATA = ADATA,
-	.AEND = AEND,
-	.AFUNCDATA = AFUNCDATA,
-	.AGLOBL = AGLOBL,
-	.AJMP = AJMP,
-	.ANOP = ANOP,
-	.APCDATA = APCDATA,
-	.ARET = ARET,
-	.ATEXT = ATEXT,
-	.ATYPE = ATYPE,
-	.AUSEFIELD = AUSEFIELD,
 };
 
 LinkArch linkamd64p32 = {
@@ -1077,24 +1050,9 @@ LinkArch linkamd64p32 = {
 	.preprocess = preprocess,
 	.assemble = span6,
 	.follow = follow,
-	.iscall = iscall,
-	.isdata = isdata,
 	.progedit = progedit,
 
 	.minlc = 1,
 	.ptrsize = 4,
 	.regsize = 8,
-
-	.ACALL = ACALL,
-	.ADATA = ADATA,
-	.AEND = AEND,
-	.AFUNCDATA = AFUNCDATA,
-	.AGLOBL = AGLOBL,
-	.AJMP = AJMP,
-	.ANOP = ANOP,
-	.APCDATA = APCDATA,
-	.ARET = ARET,
-	.ATEXT = ATEXT,
-	.ATYPE = ATYPE,
-	.AUSEFIELD = AUSEFIELD,
 };

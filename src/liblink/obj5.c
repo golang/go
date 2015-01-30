@@ -35,18 +35,6 @@
 #include "../cmd/5l/5.out.h"
 #include "../runtime/stack.h"
 
-static int
-isdata(Prog *p)
-{
-	return p->as == ADATA || p->as == AGLOBL;
-}
-
-static int
-iscall(Prog *p)
-{
-	return p->as == ABL;
-}
-
 static void
 progedit(Link *ctxt, Prog *p)
 {
@@ -1010,24 +998,9 @@ LinkArch linkarm = {
 	.preprocess = preprocess,
 	.assemble = span5,
 	.follow = follow,
-	.iscall = iscall,
-	.isdata = isdata,
 	.progedit = progedit,
 
 	.minlc = 4,
 	.ptrsize = 4,
 	.regsize = 4,
-
-	.ACALL = ABL,
-	.ADATA = ADATA,
-	.AEND = AEND,
-	.AFUNCDATA = AFUNCDATA,
-	.AGLOBL = AGLOBL,
-	.AJMP = AB,
-	.ANOP = ANOP,
-	.APCDATA = APCDATA,
-	.ARET = ARET,
-	.ATEXT = ATEXT,
-	.ATYPE = ATYPE,
-	.AUSEFIELD = AUSEFIELD,
 };

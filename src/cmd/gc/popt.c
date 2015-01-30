@@ -81,7 +81,7 @@ chasejmp(Prog *p, int *jmploop)
 	int n;
 
 	n = 0;
-	while(p != P && p->as == arch.AJMP && p->to.type == TYPE_BRANCH) {
+	while(p != P && p->as == AJMP && p->to.type == TYPE_BRANCH) {
 		if(++n > 10) {
 			*jmploop = 1;
 			break;
@@ -112,9 +112,9 @@ mark(Prog *firstp)
 		if(p->opt != dead)
 			break;
 		p->opt = alive;
-		if(p->as != arch.ACALL && p->to.type == TYPE_BRANCH && p->to.u.branch)
+		if(p->as != ACALL && p->to.type == TYPE_BRANCH && p->to.u.branch)
 			mark(p->to.u.branch);
-		if(p->as == arch.AJMP || p->as == arch.ARET || p->as == arch.AUNDEF)
+		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
 			break;
 	}
 }
@@ -133,7 +133,7 @@ fixjmp(Prog *firstp)
 	for(p=firstp; p; p=p->link) {
 		if(debug['R'] && debug['v'])
 			print("%P\n", p);
-		if(p->as != arch.ACALL && p->to.type == TYPE_BRANCH && p->to.u.branch && p->to.u.branch->as == arch.AJMP) {
+		if(p->as != ACALL && p->to.type == TYPE_BRANCH && p->to.u.branch && p->to.u.branch->as == AJMP) {
 			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
 			if(debug['R'] && debug['v'])
 				print("->%P\n", p);
@@ -150,8 +150,8 @@ fixjmp(Prog *firstp)
 	last = nil;
 	for(p=firstp; p; p=p->link) {
 		if(p->opt == dead) {
-			if(p->link == P && p->as == arch.ARET && last && last->as != arch.ARET) {
-				// This is the final arch.ARET, and the code so far doesn't have one.
+			if(p->link == P && p->as == ARET && last && last->as != ARET) {
+				// This is the final ARET, and the code so far doesn't have one.
 				// Let it stay. The register allocator assumes that all live code in
 				// the function can be traversed by starting at all the RET instructions
 				// and following predecessor links. If we remove the final RET,
@@ -176,7 +176,7 @@ fixjmp(Prog *firstp)
 	if(!jmploop) {
 		last = nil;
 		for(p=firstp; p; p=p->link) {
-			if(p->as == arch.AJMP && p->to.type == TYPE_BRANCH && p->to.u.branch == p->link) {
+			if(p->as == AJMP && p->to.type == TYPE_BRANCH && p->to.u.branch == p->link) {
 				if(debug['R'] && debug['v'])
 					print("del %P\n", p);
 				continue;
@@ -620,7 +620,7 @@ mergetemp(Prog *firstp)
 			p = r->f.prog;
 			arch.proginfo(&info, p);
 			if(p->to.node == v->node && (info.flags & RightWrite) && !(info.flags & RightRead)) {
-				p->as = arch.ANOP;
+				p->as = ANOP;
 				p->to = zprog.to;
 				v->removed = 1;
 				if(Debug)
@@ -813,7 +813,7 @@ varkillwalk(TempVar *v, TempFlow *r0, uint32 gen)
 			v->end = p->pc;
 		if(v->start > p->pc)
 			v->start = p->pc;
-		if(p->as == arch.ARET || (p->as == arch.AVARKILL && p->to.node == v->node))
+		if(p->as == ARET || (p->as == AVARKILL && p->to.node == v->node))
 			break;
 	}
 	
@@ -865,7 +865,7 @@ nilopt(Prog *firstp)
 	nkill = 0;
 	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
 		p = r->f.prog;
-		if(p->as != arch.ACHECKNIL || !arch.regtyp(&p->from))
+		if(p->as != ACHECKNIL || !arch.regtyp(&p->from))
 			continue;
 		ncheck++;
 		if(arch.stackaddr(&p->from)) {
@@ -916,7 +916,7 @@ nilwalkback(NilFlow *rcheck)
 			// without first finding the check, so this one is unchecked.
 			return;
 		}
-		if(r != rcheck && p->as == arch.ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from)) {
+		if(r != rcheck && p->as == ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from)) {
 			rcheck->kill = 1;
 			return;
 		}
@@ -937,7 +937,7 @@ nilwalkback(NilFlow *rcheck)
 		
 		// If same check, stop this loop but still check
 		// alternate predecessors up to this point.
-		if(r1 != rcheck && p->as == arch.ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from))
+		if(r1 != rcheck && p->as == ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from))
 			break;
 
 		arch.proginfo(&info, p);
@@ -993,7 +993,7 @@ nilwalkfwd(NilFlow *rcheck)
 		}
 		
 		// Stop if another nil check happens.
-		if(p->as == arch.ACHECKNIL)
+		if(p->as == ACHECKNIL)
 			return;
 		// Stop if value is lost.
 		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from))

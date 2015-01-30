@@ -2187,13 +2187,13 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 = oprrr(ctxt, p->as, p->scond);
 		o1 |= ((p->from.reg&15)<<0);
 		o1 |= ((FREGTMP&15)<<12);
-		o2 = oprrr(ctxt, AMOVFW+AEND, p->scond);
+		o2 = oprrr(ctxt, AMOVFW+ALAST, p->scond);
 		o2 |= ((FREGTMP&15)<<16);
 		o2 |= ((p->to.reg&15)<<12);
 		break;
 	case 87:	/* movwf reg,freg - fix-to-float */
 		// macro for movw reg,FTMP; movwf FTMP,freg
-		o1 = oprrr(ctxt, AMOVWF+AEND, p->scond);
+		o1 = oprrr(ctxt, AMOVWF+ALAST, p->scond);
 		o1 |= ((p->from.reg&15)<<12);
 		o1 |= ((FREGTMP&15)<<16);
 		o2 = oprrr(ctxt, p->as, p->scond);
@@ -2201,17 +2201,17 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 		o2 |= ((p->to.reg&15)<<12);
 		break;
 	case 88:	/* movw reg,freg  */
-		o1 = oprrr(ctxt, AMOVWF+AEND, p->scond);
+		o1 = oprrr(ctxt, AMOVWF+ALAST, p->scond);
 		o1 |= ((p->from.reg&15)<<12);
 		o1 |= ((p->to.reg&15)<<16);
 		break;
 	case 89:	/* movw freg,reg  */
-		o1 = oprrr(ctxt, AMOVFW+AEND, p->scond);
+		o1 = oprrr(ctxt, AMOVFW+ALAST, p->scond);
 		o1 |= ((p->from.reg&15)<<16);
 		o1 |= ((p->to.reg&15)<<12);
 		break;
 	case 90:	/* tst reg  */
-		o1 = oprrr(ctxt, ACMP+AEND, p->scond);
+		o1 = oprrr(ctxt, ACMP+ALAST, p->scond);
 		o1 |= (p->from.reg&15)<<16;
 		break;
 	case 91:	/* ldrexd oreg,reg */
@@ -2416,11 +2416,11 @@ oprrr(Link *ctxt, int a, int sc)
 			return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
 				(1<<18) | (1<<8) | (1<<7);	// toint, double, trunc
 
-	case AMOVWF+AEND:	// copy WtoF
+	case AMOVWF+ALAST:	// copy WtoF
 		return o | (0xe<<24) | (0x0<<20) | (0xb<<8) | (1<<4);
-	case AMOVFW+AEND:	// copy FtoW
+	case AMOVFW+ALAST:	// copy FtoW
 		return o | (0xe<<24) | (0x1<<20) | (0xb<<8) | (1<<4);
-	case ACMP+AEND:	// cmp imm
+	case ACMP+ALAST:	// cmp imm
 		return o | (0x3<<24) | (0x5<<20);
 
 	case ACLZ:

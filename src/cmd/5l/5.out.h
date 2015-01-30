@@ -158,9 +158,7 @@ enum
 
 enum
 {
-	AXXX,
-
-	AAND,
+	AAND = A_ARCHSPECIFIC,
 	AEOR,
 	ASUB,
 	ARSB,
@@ -176,9 +174,6 @@ enum
 	ABIC,
 
 	AMVN,
-
-	AB,
-	ABL,
 
 /*
  * Do not reorder or fragment the conditional branch
@@ -246,24 +241,14 @@ enum
 	ASWPBU,
 	ASWPW,
 
-	ANOP,
 	ARFE,
 	ASWI,
 	AMULA,
 
-	ADATA,
-	AGLOBL,
-	AHISTORY,
-	ANAME,
-	ARET,
-	ATEXT,
 	AWORD,
-	ADYNT_,
-	AINIT_,
 	ABCASE,
 	ACASE,
 
-	AEND,
 
 	AMULL,
 	AMULAL,
@@ -274,7 +259,6 @@ enum
 	ABXRET,
 	ADWORD,
 
-	ASIGNAME,
 
 	ALDREX,
 	ASTREX,
@@ -284,7 +268,6 @@ enum
 
 	APLD,
 
-	AUNDEF,
 
 	ACLZ,
 
@@ -293,21 +276,16 @@ enum
 	AMULAWT,
 	AMULAWB,
 	
-	AUSEFIELD,
-	ATYPE,
-	AFUNCDATA,
-	APCDATA,
-	ACHECKNIL,
-	AVARDEF,
-	AVARKILL,
-	ADUFFCOPY,
-	ADUFFZERO,
 	ADATABUNDLE,
 	ADATABUNDLEEND,
 
 	AMRC, // MRC/MCR
 
 	ALAST,
+	
+	// aliases
+	AB = AJMP,
+	ABL = ACALL,
 };
 
 /* scond byte */

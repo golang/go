@@ -93,7 +93,7 @@ Pconv(Fmt *fp)
 	a = p->as;
 
 	str[0] = 0;
-	if(a == ADATA || a == AINIT || a == ADYNT)
+	if(a == ADATA)
 		sprint(str, "%.5lld (%L)	%A	%D/%lld,%D", p->pc, p->lineno, a, &p->from, p->from3.offset, &p->to);
 	else if(a == ATEXT || a == AGLOBL) {
 		if(p->from3.offset != 0)

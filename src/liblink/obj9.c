@@ -35,18 +35,6 @@
 #include "../runtime/stack.h"
 #include "../runtime/funcdata.h"
 
-static int
-isdata(Prog *p)
-{
-	return p->as == ADATA || p->as == AGLOBL;
-}
-
-static int
-iscall(Prog *p)
-{
-	return p->as == ABL;
-}
-
 static void
 progedit(Link *ctxt, Prog *p)
 {
@@ -933,26 +921,11 @@ LinkArch linkppc64 = {
 	.preprocess = preprocess,
 	.assemble = span9,
 	.follow = follow,
-	.iscall = iscall,
-	.isdata = isdata,
 	.progedit = progedit,
 
 	.minlc = 4,
 	.ptrsize = 8,
 	.regsize = 8,
-
-	.ACALL = ABL,
-	.ADATA = ADATA,
-	.AEND = AEND,
-	.AFUNCDATA = AFUNCDATA,
-	.AGLOBL = AGLOBL,
-	.AJMP = ABR,
-	.ANOP = ANOP,
-	.APCDATA = APCDATA,
-	.ARET = ARETURN,
-	.ATEXT = ATEXT,
-	.ATYPE = ATYPE,
-	.AUSEFIELD = AUSEFIELD,
 };
 
 LinkArch linkppc64le = {
@@ -963,24 +936,9 @@ LinkArch linkppc64le = {
 	.preprocess = preprocess,
 	.assemble = span9,
 	.follow = follow,
-	.iscall = iscall,
-	.isdata = isdata,
 	.progedit = progedit,
 
 	.minlc = 4,
 	.ptrsize = 8,
 	.regsize = 8,
-
-	.ACALL = ABL,
-	.ADATA = ADATA,
-	.AEND = AEND,
-	.AFUNCDATA = AFUNCDATA,
-	.AGLOBL = AGLOBL,
-	.AJMP = ABR,
-	.ANOP = ANOP,
-	.APCDATA = APCDATA,
-	.ARET = ARETURN,
-	.ATEXT = ATEXT,
-	.ATYPE = ATYPE,
-	.AUSEFIELD = AUSEFIELD,
 };

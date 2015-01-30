@@ -53,6 +53,8 @@ struct	Optab
 	uchar	op[13];
 };
 
+static Optab*	opindex[ALAST+1];
+
 enum
 {
 	Yxxx		= 0,
@@ -675,7 +677,6 @@ static Optab optab[] =
 	{ ADIVW,	ydivl,	Pe, {0xf7,(06)} },
 	{ AENTER },				/* botch */
 	{ AGLOBL },
-	{ AHISTORY },
 	{ AHLT,		ynone,	Px, {0xf4} },
 	{ AIDIVB,	ydivb,	Pb, {0xf6,(07)} },
 	{ AIDIVL,	ydivl,	Px, {0xf7,(07)} },
@@ -748,7 +749,6 @@ static Optab optab[] =
 	{ AMULB,	ydivb,	Pb, {0xf6,(04)} },
 	{ AMULL,	ydivl,	Px, {0xf7,(04)} },
 	{ AMULW,	ydivl,	Pe, {0xf7,(04)} },
-	{ ANAME },
 	{ ANEGB,	yscond,	Px, {0xf6,(03)} },
 	{ ANEGL,	yscond,	Px, {0xf7,(03)} }, // TODO(rsc): yscond is wrong here.
 	{ ANEGW,	yscond,	Pe, {0xf7,(03)} }, // TODO(rsc): yscond is wrong here.
@@ -967,9 +967,6 @@ static Optab optab[] =
 	{ AFYL2X,	ynone,	Px, {0xd9, 0xf1} },
 	{ AFYL2XP1,	ynone,	Px, {0xd9, 0xf9} },
 	{ AEND },
-	{ ADYNT_ },
-	{ AINIT_ },
-	{ ASIGNAME },
 	{ ACMPXCHGB,	yrb_mb,	Pm, {0xb0} },
 	{ ACMPXCHGL,	yrl_ml,	Pm, {0xb1} },
 	{ ACMPXCHGW,	yrl_ml,	Pm, {0xb1} },
@@ -1379,11 +1376,14 @@ span8(Link *ctxt, LSym *s)
 static void
 instinit(void)
 {
-	int i;
+	int i, c;
 
-	for(i=1; optab[i].as; i++)
-		if(i != optab[i].as)
-			sysfatal("phase error in optab: at %A found %A", i, optab[i].as);
+	for(i=1; optab[i].as; i++) {
+		c = optab[i].as;
+		if(opindex[c] != nil)
+			sysfatal("phase error in optab: %d (%A)", i, c);
+		opindex[c] = &optab[i];
+	}
 
 	for(i=0; i<Ymax; i++)
 		ycover[i*Ymax + i] = 1;
@@ -2198,7 +2198,7 @@ doasm(Link *ctxt, Prog *p)
 
 	ft = p->ft * Ymax;
 	tt = p->tt * Ymax;
-	o = &optab[p->as];
+	o = opindex[p->as];
 	t = o->ytab;
 	if(t == 0) {
 		ctxt->diag("asmins: noproto %P", p);
