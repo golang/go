@@ -47,6 +47,15 @@ var lexTests = []lexTest{
 		"1.+.3.+.2.\n",
 	},
 	{
+		"argumented macro invoked without arguments",
+		lines(
+			"#define X() foo ",
+			"X()",
+			"X",
+		),
+		"foo.\n.X.\n",
+	},
+	{
 		"multiline macro without arguments",
 		lines(
 			"#define A 1\\",
