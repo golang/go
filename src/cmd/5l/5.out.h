@@ -41,6 +41,22 @@ enum
 /*c2go enum { REGARG = -1 }; */
 
 // avoid conflict with ucontext.h. sigh.
+#undef REG_R0
+#undef REG_R1
+#undef REG_R2
+#undef REG_R3
+#undef REG_R4
+#undef REG_R5
+#undef REG_R6
+#undef REG_R7
+#undef REG_R8
+#undef REG_R9
+#undef REG_R10
+#undef REG_R11
+#undef REG_R12
+#undef REG_R13
+#undef REG_R14
+#undef REG_R15
 #define REG_R0 GO_REG_R0
 #define REG_R1 GO_REG_R1
 #define REG_R2 GO_REG_R2
