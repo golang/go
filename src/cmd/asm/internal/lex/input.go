@@ -25,6 +25,10 @@ type Input struct {
 	beginningOfLine bool
 	ifdefStack      []bool
 	macros          map[string]*Macro
+	text            string // Text of last token returned by Next.
+	peek            bool
+	peekToken       ScanToken
+	peekText        string
 }
 
 // NewInput returns a
@@ -67,7 +71,7 @@ func (in *Input) Error(args ...interface{}) {
 
 // expectText is like Error but adds "got XXX" where XXX is a quoted representation of the most recent token.
 func (in *Input) expectText(args ...interface{}) {
-	in.Error(append(args, "; got", strconv.Quote(in.Text()))...)
+	in.Error(append(args, "; got", strconv.Quote(in.Stack.Text()))...)
 }
 
 // enabled reports whether the input is enabled by an ifdef, or is at the top level.
@@ -83,6 +87,12 @@ func (in *Input) expectNewline(directive string) {
 }
 
 func (in *Input) Next() ScanToken {
+	if in.peek {
+		in.peek = false
+		tok := in.peekToken
+		in.text = in.peekText
+		return tok
+	}
 	for {
 		tok := in.Stack.Next()
 		switch tok {
@@ -103,12 +113,17 @@ func (in *Input) Next() ScanToken {
 		default:
 			in.beginningOfLine = tok == '\n'
 			if in.enabled() {
+				in.text = in.Stack.Text()
 				return tok
 			}
 		}
 	}
 	in.Error("recursive macro invocation")
 	return 0
+}
+
+func (in *Input) Text() string {
+	return in.text
 }
 
 // hash processes a # preprocessor directive. It returns true iff it completes.
@@ -121,14 +136,14 @@ func (in *Input) hash() bool {
 	if !in.enabled() {
 		// Can only start including again if we are at #else or #endif.
 		// We let #line through because it might affect errors.
-		switch in.Text() {
+		switch in.Stack.Text() {
 		case "else", "endif", "line":
 			// Press on.
 		default:
 			return false
 		}
 	}
-	switch in.Text() {
+	switch in.Stack.Text() {
 	case "define":
 		in.define()
 	case "else":
@@ -146,7 +161,7 @@ func (in *Input) hash() bool {
 	case "undef":
 		in.undef()
 	default:
-		in.Error("unexpected identifier after '#':", in.Text())
+		in.Error("unexpected token after '#':", in.Stack.Text())
 	}
 	return true
 }
@@ -159,7 +174,7 @@ func (in *Input) macroName() string {
 		in.expectText("expected identifier after # directive")
 	}
 	// Name is alphanumeric by definition.
-	return in.Text()
+	return in.Stack.Text()
 }
 
 // #define processing.
@@ -230,7 +245,7 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 				in.Error(`can only escape \ or \n in definition for macro:`, name)
 			}
 		}
-		tokens = append(tokens, Make(tok, in.Text()))
+		tokens = append(tokens, Make(tok, in.Stack.Text()))
 		tok = in.Stack.Next()
 	}
 	return args, tokens
@@ -249,6 +264,21 @@ func lookup(args []string, arg string) int {
 // parameters substituted for the formals.
 // Invoking a macro does not touch the PC/line history.
 func (in *Input) invokeMacro(macro *Macro) {
+	// If the macro has no arguments, just substitute the text.
+	if macro.args == nil {
+		in.Push(NewSlice(in.File(), in.Line(), macro.tokens))
+		return
+	}
+	tok := in.Stack.Next()
+	if tok != '(' {
+		// If the macro has arguments but is invoked without them, all we push is the macro name.
+		// First, put back the token.
+		in.peekToken = tok
+		in.peekText = in.text
+		in.peek = true
+		in.Push(NewSlice(in.File(), in.Line(), []Token{Make(macroName, macro.name)}))
+		return
+	}
 	actuals := in.argsFor(macro)
 	var tokens []Token
 	for _, tok := range macro.tokens {
@@ -266,15 +296,9 @@ func (in *Input) invokeMacro(macro *Macro) {
 	in.Push(NewSlice(in.File(), in.Line(), tokens))
 }
 
-// argsFor returns a map from formal name to actual value for this macro invocation.
+// argsFor returns a map from formal name to actual value for this argumented macro invocation.
+// The opening parenthesis has been absorbed.
 func (in *Input) argsFor(macro *Macro) map[string][]Token {
-	if macro.args == nil {
-		return nil
-	}
-	tok := in.Stack.Next()
-	if tok != '(' {
-		in.Error("missing arguments for invocation of macro:", macro.name)
-	}
 	var args [][]Token
 	// One macro argument per iteration. Collect them all and check counts afterwards.
 	for argNum := 0; ; argNum++ {
@@ -356,7 +380,7 @@ func (in *Input) include() {
 	if tok != scanner.String {
 		in.expectText("expected string after #include")
 	}
-	name, err := strconv.Unquote(in.Text())
+	name, err := strconv.Unquote(in.Stack.Text())
 	if err != nil {
 		in.Error("unquoting include file name: ", err)
 	}
