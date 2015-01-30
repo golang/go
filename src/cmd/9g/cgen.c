@@ -1506,6 +1506,11 @@ sgen(Node *n, Node *ns, int64 w)
 		patch(gbranch(ABNE, T, 0), ploop);
  		regfree(&nend);
 	} else {
+		// TODO(austin): Instead of generating ADD $-8,R8; ADD
+		// $-8,R7; n*(MOVDU 8(R8),R9; MOVDU R9,8(R7);) just
+		// generate the offsets directly and eliminate the
+		// ADDs.  That will produce shorter, more
+		// pipeline-able code.
 		while(c-- > 0) {
 			p = gins(op, &src, &tmp);
 			p->from.type = TYPE_MEM;
