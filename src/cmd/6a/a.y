@@ -60,7 +60,7 @@
 %type	<lval>	con expr pointer offset
 %type	<addr>	mem imm reg nam rel rem rim rom omem nmem textsize
 %type	<addr2>	nonnon nonrel nonrem rimnon rimrem remrim
-%type	<addr2>	spec1 spec3 spec4 spec5 spec6 spec7 spec8 spec9
+%type	<addr2>	spec3 spec4 spec5 spec6 spec7 spec8 spec9
 %type	<addr2>	spec10 spec12 spec13
 %%
 prog:
@@ -102,7 +102,7 @@ inst:
 |	LTYPE3 rimrem	{ outcode($1, &$2); }
 |	LTYPE4 remrim	{ outcode($1, &$2); }
 |	LTYPER nonrel	{ outcode($1, &$2); }
-|	LTYPED spec1	{ outcode($1, &$2); }
+|	spec1
 |	spec2
 |	LTYPEC spec3	{ outcode($1, &$2); }
 |	LTYPEN spec4	{ outcode($1, &$2); }
@@ -183,11 +183,16 @@ nonrel:
 	}
 
 spec1:	/* DATA */
-	nam '/' con ',' imm
+	LTYPED nam '/' con ',' imm
 	{
-		$$.from = $1;
-		$$.from.scale = $3;
-		$$.to = $5;
+		Addr2 a;
+		a.from = $2;
+		a.to = $6;
+		outcode(ADATA, &a);
+		if(pass > 1) {
+			lastpc->from3.type = TYPE_CONST;
+			lastpc->from3.offset = $4;
+		}
 	}
 
 spec2:	/* TEXT */

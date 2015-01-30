@@ -72,8 +72,8 @@ Pconv(Fmt *fp)
 	bigP = p;
 	switch(p->as) {
 	case ADATA:
-		sprint(str, "%.5lld (%L)	%A	%D/%d,%D",
-			p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
+		sprint(str, "%.5lld (%L)	%A	%D/%lld,%D",
+			p->pc, p->lineno, p->as, &p->from, p->from3.offset, &p->to);
 		break;
 
 	case ATEXT:

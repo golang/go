@@ -47,12 +47,6 @@ iscall(Prog *p)
 	return p->as == ABL;
 }
 
-static int
-datasize(Prog *p)
-{
-	return p->reg;
-}
-
 static void
 progedit(Link *ctxt, Prog *p)
 {
@@ -1015,7 +1009,6 @@ LinkArch linkarm = {
 
 	.preprocess = preprocess,
 	.assemble = span5,
-	.datasize = datasize,
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,

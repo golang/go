@@ -43,7 +43,8 @@ dsname(Sym *s, int off, char *t, int n)
 	p->from.offset = off;
 	p->from.sym = linksym(s);
 
-	p->reg = n;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = n;
 	
 	p->to.type = TYPE_SCONST;
 	p->to.name = NAME_NONE;
@@ -106,7 +107,8 @@ gdata(Node *nam, Node *nr, int wid)
 		}
 	}
 	p = gins(ADATA, nam, nr);
-	p->reg = wid;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = wid;
 }
 
 void
@@ -119,12 +121,14 @@ gdatacomplex(Node *nam, Mpcplx *cval)
 	w = types[w]->width;
 
 	p = gins(ADATA, nam, N);
-	p->reg = w;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = w;
 	p->to.type = TYPE_FCONST;
 	p->to.u.dval = mpgetflt(&cval->real);
 
 	p = gins(ADATA, nam, N);
-	p->reg = w;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = w;
 	p->from.offset += w;
 	p->to.type = TYPE_FCONST;
 	p->to.u.dval = mpgetflt(&cval->imag);
@@ -138,13 +142,15 @@ gdatastring(Node *nam, Strlit *sval)
 
 	p = gins(ADATA, nam, N);
 	datastring(sval->s, sval->len, &p->to);
-	p->reg = types[tptr]->width;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = types[tptr]->width;
 	p->to.type = TYPE_CONST;
 	p->to.etype = simtype[tptr];
 
 	nodconst(&nod1, types[TINT], sval->len);
 	p = gins(ADATA, nam, &nod1);
-	p->reg = widthint;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = widthint;
 	p->from.offset += widthptr;
 }
 
@@ -159,7 +165,8 @@ dstringptr(Sym *s, int off, char *str)
 	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
 	p->from.offset = off;
-	p->reg = widthptr;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = widthptr;
 
 	datastring(str, strlen(str)+1, &p->to);
 	p->to.type = TYPE_CONST;
@@ -183,7 +190,8 @@ dgostrlitptr(Sym *s, int off, Strlit *lit)
 	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
 	p->from.offset = off;
-	p->reg = widthptr;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = widthptr;
 	datagostring(lit, &p->to);
 	p->to.type = TYPE_CONST;
 	p->to.etype = simtype[TINT];
@@ -220,7 +228,8 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
 	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
 	p->from.offset = off;
-	p->reg = widthptr;
+	p->from3.type = TYPE_CONST;
+	p->from3.offset = widthptr;
 	p->to.type = TYPE_CONST;
 	p->to.name = NAME_EXTERN;
 	p->to.sym = linksym(x);

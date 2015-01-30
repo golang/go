@@ -598,7 +598,6 @@ struct LinkArch
 
 	void	(*preprocess)(Link*, LSym*);
 	void	(*assemble)(Link*, LSym*);
-	int	(*datasize)(Prog*);
 	void	(*follow)(Link*, LSym*);
 	int	(*iscall)(Prog*);
 	int	(*isdata)(Prog*);
