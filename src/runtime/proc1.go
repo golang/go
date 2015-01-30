@@ -2462,7 +2462,7 @@ func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
 				pc = (*uint8)(unsafe.Pointer(uintptr(funcPC(_ExternalCode) + _PCQuantum)))
 			}
 			stk[0] = uintptr(unsafe.Pointer(pc))
-			if mp.gcing != 0 || mp.helpgc != 0 {
+			if mp.preemptoff != "" || mp.helpgc != 0 {
 				stk[1] = funcPC(_GC) + _PCQuantum
 			} else {
 				stk[1] = funcPC(_System) + _PCQuantum
@@ -3021,7 +3021,7 @@ func schedtrace(detailed bool) {
 		if lockedg != nil {
 			id3 = lockedg.goid
 		}
-		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " gcing=", mp.gcing, ""+" locks=", mp.locks, " dying=", mp.dying, " helpgc=", mp.helpgc, " spinning=", mp.spinning, " blocked=", getg().m.blocked, " lockedg=", id3, "\n")
+		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " preemptoff=", mp.preemptoff, ""+" locks=", mp.locks, " dying=", mp.dying, " helpgc=", mp.helpgc, " spinning=", mp.spinning, " blocked=", getg().m.blocked, " lockedg=", id3, "\n")
 	}
 
 	lock(&allglock)

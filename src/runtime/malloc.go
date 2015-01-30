@@ -362,7 +362,7 @@ func gcwork(force int32) {
 	// Ok, we're doing it!  Stop everybody else
 
 	mp := acquirem()
-	mp.gcing = 1
+	mp.preemptoff = "gcing"
 	releasem(mp)
 	gctimer.count++
 	if force == 0 {
@@ -443,7 +443,7 @@ func gcwork(force int32) {
 	}
 
 	// all done
-	mp.gcing = 0
+	mp.preemptoff = ""
 
 	if force == 0 {
 		gctimer.cycle.sweep = nanotime()

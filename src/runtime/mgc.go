@@ -143,12 +143,12 @@ var gcpercent int32
 // The procedure is:
 //
 //	semacquire(&worldsema);
-//	m.gcing = 1;
+//	m.preemptoff = "reason";
 //	stoptheworld();
 //
 //	... do stuff ...
 //
-//	m.gcing = 0;
+//	m.preemptoff = "";
 //	semrelease(&worldsema);
 //	starttheworld();
 //

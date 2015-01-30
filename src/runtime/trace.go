@@ -121,7 +121,7 @@ func StartTrace() error {
 	// of all goroutines at the beginning of the trace.
 	semacquire(&worldsema, false)
 	_g_ := getg()
-	_g_.m.gcing = 1
+	_g_.m.preemptoff = "start tracing"
 	systemstack(stoptheworld)
 
 	// We are in stop-the-world, but syscalls can finish and write to trace concurrently.
@@ -133,7 +133,7 @@ func StartTrace() error {
 
 	if trace.enabled || trace.shutdown {
 		unlock(&trace.bufLock)
-		_g_.m.gcing = 0
+		_g_.m.preemptoff = ""
 		semrelease(&worldsema)
 		systemstack(starttheworld)
 		return errorString("tracing is already enabled")
@@ -162,7 +162,7 @@ func StartTrace() error {
 
 	unlock(&trace.bufLock)
 
-	_g_.m.gcing = 0
+	_g_.m.preemptoff = ""
 	semrelease(&worldsema)
 	systemstack(starttheworld)
 	return nil
@@ -175,7 +175,7 @@ func StopTrace() {
 	// and also to avoid races with traceEvent.
 	semacquire(&worldsema, false)
 	_g_ := getg()
-	_g_.m.gcing = 1
+	_g_.m.preemptoff = "stop tracing"
 	systemstack(stoptheworld)
 
 	// See the comment in StartTrace.
@@ -183,7 +183,7 @@ func StopTrace() {
 
 	if !trace.enabled {
 		unlock(&trace.bufLock)
-		_g_.m.gcing = 0
+		_g_.m.preemptoff = ""
 		semrelease(&worldsema)
 		systemstack(starttheworld)
 		return
@@ -224,7 +224,7 @@ func StopTrace() {
 
 	unlock(&trace.bufLock)
 
-	_g_.m.gcing = 0
+	_g_.m.preemptoff = ""
 	semrelease(&worldsema)
 	systemstack(starttheworld)
 
