@@ -20,8 +20,6 @@ func skipTraceTestsIfNeeded(t *testing.T) {
 	switch runtime.GOOS {
 	case "solaris":
 		t.Skip("skipping: solaris timer can go backwards (http://golang.org/issue/8976)")
-	case "plan9":
-		t.Skip("skipping: plan9 tests fail with out of memory (http://golang.org/issue/9712")
 	}
 
 	switch runtime.GOARCH {
@@ -234,7 +232,7 @@ eventLoop:
 		for _, f := range ev.stk {
 			if strings.HasSuffix(f.file, "trace_test.go") &&
 				strings.HasSuffix(f.fn, "pprof_test.TestTraceSymbolize") &&
-				f.line == 218 {
+				f.line == 216 {
 				found = true
 				break eventLoop
 			}
