@@ -28,9 +28,55 @@ func (h *handler) set(sig int) {
 	h.mask[sig/32] |= 1 << uint(sig&31)
 }
 
+func (h *handler) clear(sig int) {
+	h.mask[sig/32] &^= 1 << uint(sig&31)
+}
+
+// Stop relaying the signals, sigs, to any channels previously registered to
+// receive them and either reset the signal handlers to their original values
+// (action=disableSignal) or ignore the signals (action=ignoreSignal).
+func cancel(sigs []os.Signal, action func(int)) {
+	handlers.Lock()
+	defer handlers.Unlock()
+
+	remove := func(n int) {
+		var zerohandler handler
+
+		for c, h := range handlers.m {
+			if h.want(n) {
+				handlers.ref[n]--
+				h.clear(n)
+				if h.mask == zerohandler.mask {
+					delete(handlers.m, c)
+				}
+			}
+		}
+
+		action(n)
+	}
+
+	if len(sigs) == 0 {
+		for n := 0; n < numSig; n++ {
+			remove(n)
+		}
+	} else {
+		for _, s := range sigs {
+			remove(signum(s))
+		}
+	}
+}
+
+// Ignore causes the provided signals to be ignored. If they are received by
+// the program, nothing will happen. Ignore undoes the effect of any prior
+// calls to Notify for the provided signals.
+// If no signals are provided, all incoming signals will be ignored.
+func Ignore(sig ...os.Signal) {
+	cancel(sig, ignoreSignal)
+}
+
 // Notify causes package signal to relay incoming signals to c.
-// If no signals are listed, all incoming signals will be relayed to c.
-// Otherwise, just the listed signals will.
+// If no signals are provided, all incoming signals will be relayed to c.
+// Otherwise, just the provided signals will.
 //
 // Package signal will not block sending to c: the caller must ensure
 // that c has sufficient buffer space to keep up with the expected
@@ -83,6 +129,13 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 			add(signum(s))
 		}
 	}
+}
+
+// Reset undoes the effect of any prior calls to Notify for the provided
+// signals.
+// If no signals are provided, all signal handlers will be reset.
+func Reset(sig ...os.Signal) {
+	cancel(sig, disableSignal)
 }
 
 // Stop causes package signal to stop relaying incoming signals to c.

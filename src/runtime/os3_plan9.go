@@ -106,6 +106,9 @@ func sigenable(sig uint32) {
 func sigdisable(sig uint32) {
 }
 
+func sigignore(sig uint32) {
+}
+
 func resetcpuprofiler(hz int32) {
 	// TODO: Enable profiling interrupts.
 	getg().m.profilehz = hz

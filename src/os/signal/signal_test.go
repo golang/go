@@ -109,6 +109,72 @@ func TestStress(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 }
 
+func testCancel(t *testing.T, ignore bool) {
+	// Send SIGWINCH. By default this signal should be ignored.
+	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
+	time.Sleep(100 * time.Millisecond)
+
+	// Ask to be notified on c1 when a SIGWINCH is received.
+	c1 := make(chan os.Signal, 1)
+	Notify(c1, syscall.SIGWINCH)
+	defer Stop(c1)
+
+	// Ask to be notified on c2 when a SIGHUP is received.
+	c2 := make(chan os.Signal, 1)
+	Notify(c2, syscall.SIGHUP)
+	defer Stop(c2)
+
+	// Send this process a SIGWINCH and wait for notification on c1.
+	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
+	waitSig(t, c1, syscall.SIGWINCH)
+
+	// Send this process a SIGHUP and wait for notification on c2.
+	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
+	waitSig(t, c2, syscall.SIGHUP)
+
+	// Ignore, or reset the signal handlers for, SIGWINCH and SIGHUP.
+	if ignore {
+		Ignore(syscall.SIGWINCH, syscall.SIGHUP)
+	} else {
+		Reset(syscall.SIGWINCH, syscall.SIGHUP)
+	}
+
+	// Send this process a SIGWINCH. It should be ignored.
+	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
+
+	// If ignoring, Send this process a SIGHUP. It should be ignored.
+	if ignore {
+		syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
+	}
+
+	select {
+	case s := <-c1:
+		t.Fatalf("unexpected signal %v", s)
+	case <-time.After(100 * time.Millisecond):
+		// nothing to read - good
+	}
+
+	select {
+	case s := <-c2:
+		t.Fatalf("unexpected signal %v", s)
+	case <-time.After(100 * time.Millisecond):
+		// nothing to read - good
+	}
+
+	// Reset the signal handlers for all signals.
+	Reset()
+}
+
+// Test that Reset cancels registration for listed signals on all channels.
+func TestReset(t *testing.T) {
+	testCancel(t, false)
+}
+
+// Test that Ignore cancels registration for listed signals on all channels.
+func TestIgnore(t *testing.T) {
+	testCancel(t, true)
+}
+
 var sendUncaughtSighup = flag.Int("send_uncaught_sighup", 0, "send uncaught SIGHUP during TestStop")
 
 // Test that Stop cancels the channel's registrations.
