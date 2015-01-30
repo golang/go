@@ -185,7 +185,7 @@ loop1:
 			case AXOR:
 			case AOR:
 				/* irregular instructions */
-				if(p1->from.type == TYPE_CONST)
+				if(p1->from.type == TYPE_CONST || p1->from.type == TYPE_ADDR)
 					continue;
 				break;
 			}
@@ -342,7 +342,7 @@ excise(Flow *r)
 static int
 regzer(Addr *a)
 {
-	if(a->type == TYPE_CONST)
+	if(a->type == TYPE_CONST || a->type == TYPE_ADDR)
 		if(a->sym == nil && a->reg == 0)
 			if(a->offset == 0)
 				return 1;
@@ -890,7 +890,7 @@ copyau(Addr *a, Addr *v)
 	if(copyas(a, v))
 		return 1;
 	if(v->type == TYPE_REG)
-		if(a->type == TYPE_MEM || (a->type == TYPE_CONST && a->reg != 0))
+		if(a->type == TYPE_MEM || (a->type == TYPE_ADDR && a->reg != 0))
 			if(v->reg == a->reg)
 				return 1;
 	return 0;

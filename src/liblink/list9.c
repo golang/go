@@ -161,6 +161,7 @@ Dconv(Fmt *fp)
 		break;
 
 	case TYPE_CONST:
+	case TYPE_ADDR:
 		if(a->reg != 0)
 			sprint(str, "$%M(%R)", a, a->reg);
 		else

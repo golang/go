@@ -144,7 +144,7 @@ gdatastring(Node *nam, Strlit *sval)
 	datastring(sval->s, sval->len, &p->to);
 	p->from3.type = TYPE_CONST;
 	p->from3.offset = types[tptr]->width;
-	p->to.type = TYPE_CONST;
+	p->to.type = TYPE_ADDR;
 	p->to.etype = simtype[tptr];
 
 	nodconst(&nod1, types[TINT], sval->len);
@@ -193,7 +193,7 @@ dgostrlitptr(Sym *s, int off, Strlit *lit)
 	p->from3.type = TYPE_CONST;
 	p->from3.offset = widthptr;
 	datagostring(lit, &p->to);
-	p->to.type = TYPE_CONST;
+	p->to.type = TYPE_ADDR;
 	p->to.etype = simtype[TINT];
 	off += widthptr;
 
@@ -230,7 +230,7 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
 	p->from.offset = off;
 	p->from3.type = TYPE_CONST;
 	p->from3.offset = widthptr;
-	p->to.type = TYPE_CONST;
+	p->to.type = TYPE_ADDR;
 	p->to.name = NAME_EXTERN;
 	p->to.sym = linksym(x);
 	p->to.offset = xoff;

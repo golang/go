@@ -338,7 +338,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 	} else {
 		// go/defer. generate go func value.
 		p = gins(AMOVD, &nodo, &nodr);	// REG = &(32+offset(REG)) -- i.tab->fun[f]
-		p->from.type = TYPE_CONST;
+		p->from.type = TYPE_ADDR;
 	}
 
 	nodr.type = n->left->type;
@@ -482,7 +482,7 @@ cgen_ret(Node *n)
 	p = gins(ARET, N, N);
 	if(n != N && n->op == ORETJMP) {
 		p->to.name = NAME_EXTERN;
-		p->to.type = TYPE_CONST;
+		p->to.type = TYPE_ADDR;
 		p->to.sym = linksym(n->left->sym);
 	}
 }
@@ -923,7 +923,7 @@ clearfat(Node *nl)
 
 		regalloc(&end, types[tptr], N);
 		p = gins(AMOVD, &dst, &end);
-		p->from.type = TYPE_CONST;
+		p->from.type = TYPE_ADDR;
 		p->from.offset = q*8;
 
 		p = gins(AMOVDU, &r0, &dst);

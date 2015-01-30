@@ -247,7 +247,7 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
 	p->from.offset = off;
 	p->from3.type = TYPE_CONST;
 	p->from3.offset = widthptr;
-	p->to.type = TYPE_CONST;
+	p->to.type = TYPE_ADDR;
 	p->to.name = NAME_EXTERN;
 	p->to.sym = linksym(x);
 	p->to.offset = xoff;

@@ -749,7 +749,7 @@ agenr(Node *n, Node *a, Node *res)
 			regalloc(&n3, types[tptr], res);
 			p1 = gins(AMOVD, N, &n3);
 			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
-			p1->from.type = TYPE_CONST;
+			p1->from.type = TYPE_ADDR;
 		} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
 			n1 = n3;
 			n1.op = OINDREG;
@@ -1483,7 +1483,7 @@ sgen(Node *n, Node *ns, int64 w)
 		if(c >= 4) {
 			regalloc(&nend, types[tptr], N);
 			p = gins(AMOVD, &src, &nend);
-			p->from.type = TYPE_CONST;
+			p->from.type = TYPE_ADDR;
 			p->from.offset = w;
 		}
 	}

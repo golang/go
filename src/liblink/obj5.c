@@ -151,9 +151,9 @@ progedit(Link *ctxt, Prog *p)
 		if(ctxt->tlsg == nil)
 			ctxt->tlsg = linklookup(ctxt, "runtime.tlsg", 0);
 
-		if(p->from.type == TYPE_CONST && p->from.name == NAME_EXTERN && p->from.sym == ctxt->tlsg)
+		if(p->from.type == TYPE_ADDR && p->from.name == NAME_EXTERN && p->from.sym == ctxt->tlsg)
 			p->from.type = TYPE_MEM;
-		if(p->to.type == TYPE_CONST && p->to.name == NAME_EXTERN && p->to.sym == ctxt->tlsg)
+		if(p->to.type == TYPE_ADDR && p->to.name == NAME_EXTERN && p->to.sym == ctxt->tlsg)
 			p->to.type = TYPE_MEM;
 	}
 }
@@ -227,7 +227,7 @@ preprocess(Link *ctxt, LSym *cursym)
 			// MOVW $4(R13), R1
 			p = appendp(ctxt, p);
 			p->as = AMOVW;
-			p->from.type = TYPE_CONST;
+			p->from.type = TYPE_ADDR;
 			p->from.reg = REG_R13;
 			p->from.offset = 4;
 			p->to.type = TYPE_REG;
@@ -236,7 +236,7 @@ preprocess(Link *ctxt, LSym *cursym)
 			// MOVW $n(R13), R2
 			p = appendp(ctxt, p);
 			p->as = AMOVW;
-			p->from.type = TYPE_CONST;
+			p->from.type = TYPE_ADDR;
 			p->from.reg = REG_R13;
 			p->from.offset = 4 + autoffset;
 			p->to.type = TYPE_REG;
@@ -631,7 +631,7 @@ preprocess(Link *ctxt, LSym *cursym)
 				p->spadj = -p->to.offset;
 			if((p->scond & C_PBIT) && p->from.type == TYPE_MEM && p->from.reg == REGSP && p->to.reg != REGPC)
 				p->spadj = -p->from.offset;
-			if(p->from.type == TYPE_CONST && p->from.reg == REGSP && p->to.type == TYPE_REG && p->to.reg == REGSP)
+			if(p->from.type == TYPE_ADDR && p->from.reg == REGSP && p->to.type == TYPE_REG && p->to.reg == REGSP)
 				p->spadj = -p->from.offset;
 			break;
 		}
@@ -747,7 +747,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		//	CMP stackguard, R2
 		p = appendp(ctxt, p);
 		p->as = AMOVW;
-		p->from.type = TYPE_CONST;
+		p->from.type = TYPE_ADDR;
 		p->from.reg = REGSP;
 		p->from.offset = -framesize;
 		p->to.type = TYPE_REG;
@@ -777,7 +777,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 
 		p = appendp(ctxt, p);
 		p->as = AMOVW;
-		p->from.type = TYPE_CONST;
+		p->from.type = TYPE_ADDR;
 		p->from.reg = REGSP;
 		p->from.offset = StackGuard;
 		p->to.type = TYPE_REG;
@@ -794,7 +794,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
 		
 		p = appendp(ctxt, p);
 		p->as = AMOVW;
-		p->from.type = TYPE_CONST;
+		p->from.type = TYPE_ADDR;
 		p->from.offset = framesize + (StackGuard - StackSmall);
 		p->to.type = TYPE_REG;
 		p->to.reg = REG_R3;

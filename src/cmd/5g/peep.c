@@ -677,7 +677,6 @@ shiftprop(Flow *r)
 	}
 
 	/* make the substitution */
-	p2->from.type = TYPE_SHIFT;
 	p2->from.reg = 0;
 	o = p->reg;
 	if(o == 0)
@@ -703,6 +702,8 @@ shiftprop(Flow *r)
 		o |= 2<<5;
 		break;
 	}
+	p2->from = zprog.from;
+	p2->from.type = TYPE_SHIFT;
 	p2->from.offset = o;
 	if(debug['P'])
 		print("\t=>%P\tSUCCEED\n", p2);
@@ -863,7 +864,7 @@ xtramodes(Graph *g, Flow *r, Adr *a)
 			if(p1->from.type == TYPE_REG ||
 			   (p1->from.type == TYPE_SHIFT && (p1->from.offset&(1<<4)) == 0 &&
 			    ((p->as != AMOVB && p->as != AMOVBS) || (a == &p->from && (p1->from.offset&~0xf) == 0))) ||
-			   (p1->from.type == TYPE_CONST &&
+			   ((p1->from.type == TYPE_ADDR || p1->from.type == TYPE_CONST) &&
 			    p1->from.offset > -4096 && p1->from.offset < 4096))
 			if(nochange(uniqs(r1), r, p1)) {
 				if(a != &p->from || v.reg != p->to.reg)
@@ -878,6 +879,7 @@ xtramodes(Graph *g, Flow *r, Adr *a)
 					/* register offset */
 					if(nacl)
 						return 0;
+					*a = zprog.from;
 					a->type = TYPE_SHIFT;
 					a->offset = p1->from.reg&15;
 					break;
@@ -885,8 +887,10 @@ xtramodes(Graph *g, Flow *r, Adr *a)
 					/* scaled register offset */
 					if(nacl)
 						return 0;
+					*a = zprog.from;
 					a->type = TYPE_SHIFT;
 				case TYPE_CONST:
+				case TYPE_ADDR:
 					/* immediate offset */
 					a->offset = p1->from.offset;
 					break;
@@ -1251,7 +1255,7 @@ copyau(Adr *a, Adr *v)
 	if(copyas(a, v))
 		return 1;
 	if(v->type == TYPE_REG) {
-		if(a->type == TYPE_CONST && a->reg != 0) {
+		if(a->type == TYPE_ADDR && a->reg != 0) {
 			if(a->reg == v->reg)
 				return 1;
 		} else
@@ -1546,9 +1550,7 @@ predicate(Graph *g)
 static int
 isdconst(Addr *a)
 {
-	if(a->type == TYPE_CONST && a->reg == 0)
-		return 1;
-	return 0;
+	return a->type == TYPE_CONST;
 }
 
 static int

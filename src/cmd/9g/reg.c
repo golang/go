@@ -568,7 +568,9 @@ addmove(Reg *r, int bn, int rn, int f)
 	a->offset = v->offset;
 	a->etype = v->etype;
 	a->type = TYPE_MEM;
-	if(a->etype == TARRAY || a->sym == nil)
+	if(a->etype == TARRAY)
+		a->type = TYPE_ADDR;
+	else if(a->sym == nil)
 		a->type = TYPE_CONST;
 
 	if(v->addr)
@@ -669,6 +671,7 @@ mkvar(Reg *r, Adr *a)
 	case TYPE_FCONST:
 	case TYPE_SCONST:
 	case TYPE_MEM:
+	case TYPE_ADDR:
 		break;
 
 	case TYPE_REG:

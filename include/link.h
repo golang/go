@@ -62,13 +62,11 @@ typedef	struct	Pciter	Pciter;
 //
 //	$<mem>
 //		Effective address of memory reference <mem>, defined above.
-//		NOTE: Today, on arm and ppc64, type = TYPE_CONST instead.
 //		Encoding: same as memory reference, but type = TYPE_ADDR.
 //
 //	$<±integer value>
 //		This is a special case of $<mem>, in which only ±offset is present.
 //		It has a separate type for easy recognition.
-//		NOTE: Today, on arm and ppc64, TYPE_CONST and TYPE_ADDR are merged into just TYPE_CONST.
 //		Encoding:
 //			type = TYPE_CONST
 //			offset = ±integer value
@@ -157,6 +155,7 @@ struct	Addr
 		float64	dval;
 		Prog*	branch;
 		int32	argsize;	// for 5l, 8l
+		uint64	bits; // raw union bits, for testing if anything has been written to any field
 	} u;
 
 	// gotype is the name of the Go type descriptor for sym.
