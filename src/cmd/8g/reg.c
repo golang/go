@@ -615,6 +615,8 @@ mkvar(Reg *r, Adr *a)
 
 	case TYPE_MEM:
 		switch(a->name) {
+		default:
+			goto none;
 		case NAME_EXTERN:
 		case NAME_STATIC:
 		case NAME_PARAM:
