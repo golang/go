@@ -40,6 +40,72 @@ enum
 
 #include "../ld/textflag.h"
 
+// avoid conflict with ucontext.h. sigh.
+#undef REG_R0
+#undef REG_R1
+#undef REG_R2
+#undef REG_R3
+#undef REG_R4
+#undef REG_R5
+#undef REG_R6
+#undef REG_R7
+#undef REG_R8
+#undef REG_R9
+#undef REG_R10
+#undef REG_R11
+#undef REG_R12
+#undef REG_R13
+#undef REG_R14
+#undef REG_R15
+#undef REG_R16
+#undef REG_R17
+#undef REG_R18
+#undef REG_R19
+#undef REG_R20
+#undef REG_R21
+#undef REG_R22
+#undef REG_R23
+#undef REG_R24
+#undef REG_R25
+#undef REG_R26
+#undef REG_R27
+#undef REG_R28
+#undef REG_R29
+#undef REG_R30
+#undef REG_R31
+#define REG_R0 GO_REG_R0
+#define REG_R1 GO_REG_R1
+#define REG_R2 GO_REG_R2
+#define REG_R3 GO_REG_R3
+#define REG_R4 GO_REG_R4
+#define REG_R5 GO_REG_R5
+#define REG_R6 GO_REG_R6
+#define REG_R7 GO_REG_R7
+#define REG_R8 GO_REG_R8
+#define REG_R9 GO_REG_R9
+#define REG_R10 GO_REG_R10
+#define REG_R11 GO_REG_R11
+#define REG_R12 GO_REG_R12
+#define REG_R13 GO_REG_R13
+#define REG_R14 GO_REG_R14
+#define REG_R15 GO_REG_R15
+#define REG_R16 GO_REG_R16
+#define REG_R17 GO_REG_R17
+#define REG_R18 GO_REG_R18
+#define REG_R19 GO_REG_R19
+#define REG_R20 GO_REG_R20
+#define REG_R21 GO_REG_R21
+#define REG_R22 GO_REG_R22
+#define REG_R23 GO_REG_R23
+#define REG_R24 GO_REG_R24
+#define REG_R25 GO_REG_R25
+#define REG_R26 GO_REG_R26
+#define REG_R27 GO_REG_R27
+#define REG_R28 GO_REG_R28
+#define REG_R29 GO_REG_R29
+#define REG_R30 GO_REG_R30
+#define REG_R31 GO_REG_R31
+
 enum
 {
 	REG_R0 = 32,
