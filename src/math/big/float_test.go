@@ -205,7 +205,7 @@ func TestFloatSetUint64(t *testing.T) {
 	} {
 		f := new(Float).SetUint64(want)
 		if got := f.Uint64(); got != want {
-			t.Errorf("got %d (%s); want %d", got, f.pstring(), want)
+			t.Errorf("got %d (%s); want %d", got, f.Format('p', 0), want)
 		}
 	}
 }
@@ -227,7 +227,7 @@ func TestFloatSetInt64(t *testing.T) {
 			}
 			f := new(Float).SetInt64(want)
 			if got := f.Int64(); got != want {
-				t.Errorf("got %d (%s); want %d", got, f.pstring(), want)
+				t.Errorf("got %d (%s); want %d", got, f.Format('p', 0), want)
 			}
 		}
 	}
@@ -251,7 +251,7 @@ func TestFloatSetFloat64(t *testing.T) {
 			}
 			f := new(Float).SetFloat64(want)
 			if got, _ := f.Float64(); got != want {
-				t.Errorf("got %g (%s); want %g", got, f.pstring(), want)
+				t.Errorf("got %g (%s); want %g", got, f.Format('p', 0), want)
 			}
 		}
 	}
@@ -677,7 +677,7 @@ func TestFromBits(t *testing.T) {
 		{append([]int{2, 1, 0} /* 7 */, []int{3, 1} /* 10 */ ...), "0x.88p5" /* 17 */},
 	} {
 		f := fromBits(test.bits...)
-		if got := f.pstring(); got != test.want {
+		if got := f.Format('p', 0); got != test.want {
 			t.Errorf("setBits(%v) = %s; want %s", test.bits, got, test.want)
 		}
 	}

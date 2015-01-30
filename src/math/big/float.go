@@ -176,7 +176,7 @@ func (x *Float) validate() {
 	const msb = 1 << (_W - 1)
 	m := len(x.mant)
 	if x.mant[m-1]&msb == 0 {
-		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.pstring()))
+		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Format('p', 0)))
 	}
 	if x.prec <= 0 {
 		panic(fmt.Sprintf("invalid precision %d", x.prec))
