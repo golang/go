@@ -80,7 +80,7 @@ func (p *Parser) Parse() (*obj.Prog, bool) {
 	return p.firstProg, true
 }
 
-// WORD [ arg {, arg} ] '\n'
+// WORD [ arg {, arg} ] (';' | '\n')
 func (p *Parser) line() bool {
 	// Skip newlines.
 	var tok lex.ScanToken

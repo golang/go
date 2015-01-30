@@ -12,7 +12,7 @@ type Stack struct {
 	tr []TokenReader
 }
 
-// Push adds tr to the top (ehd) of the input stack. (Popping happens automatically.)
+// Push adds tr to the top (end) of the input stack. (Popping happens automatically.)
 func (s *Stack) Push(tr TokenReader) {
 	s.tr = append(s.tr, tr)
 }

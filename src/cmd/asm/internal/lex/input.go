@@ -229,10 +229,6 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 			if tok != '\n' && tok != '\\' {
 				in.Error(`can only escape \ or \n in definition for macro:`, name)
 			}
-			if tok == '\n' { // backslash-newline is discarded
-				tok = in.Stack.Next()
-				continue
-			}
 		}
 		tokens = append(tokens, Make(tok, in.Text()))
 		tok = in.Stack.Next()
@@ -279,34 +275,49 @@ func (in *Input) argsFor(macro *Macro) map[string][]Token {
 	if tok != '(' {
 		in.Error("missing arguments for invocation of macro:", macro.name)
 	}
-	var tokens []Token
-	args := make(map[string][]Token)
-	argNum := 0
-	for {
-		tok = in.Stack.Next()
-		switch tok {
-		case scanner.EOF, '\n':
-			in.Error("unterminated arg list invoking macro:", macro.name)
-		case ',', ')':
-			if argNum >= len(macro.args) {
-				in.Error("too many arguments for macro:", macro.name)
-			}
-			if len(macro.args) == 0 && argNum == 0 && len(tokens) == 0 {
-				// Zero-argument macro invoked with no arguments.
-				return args
-			}
-			args[macro.args[argNum]] = tokens
-			tokens = nil
-			argNum++
-			if tok == ')' {
-				if argNum != len(macro.args) {
-					in.Error("too few arguments for macro:", macro.name)
-				}
-				return args
-			}
-		default:
-			tokens = append(tokens, Make(tok, in.Stack.Text()))
+	var args [][]Token
+	// One macro argument per iteration. Collect them all and check counts afterwards.
+	for argNum := 0; ; argNum++ {
+		tokens, tok := in.collectArgument(macro)
+		args = append(args, tokens)
+		if tok == ')' {
+			break
 		}
+	}
+	// Zero-argument macros are tricky.
+	if len(macro.args) == 0 && len(args) == 1 && args[0] == nil {
+		args = nil
+	} else if len(args) != len(macro.args) {
+		in.Error("wrong arg count for macro", macro.name)
+	}
+	argMap := make(map[string][]Token)
+	for i, arg := range args {
+		argMap[macro.args[i]] = arg
+	}
+	return argMap
+}
+
+// collectArgument returns the actual tokens for a single argument of a macro.
+// It also returns the token that terminated the argument, which will always
+// be either ',' or ')'. The starting '(' has been scanned.
+func (in *Input) collectArgument(macro *Macro) ([]Token, ScanToken) {
+	nesting := 0
+	var tokens []Token
+	for {
+		tok := in.Stack.Next()
+		if tok == scanner.EOF || tok == '\n' {
+			in.Error("unterminated arg list invoking macro:", macro.name)
+		}
+		if nesting == 0 && (tok == ')' || tok == ',') {
+			return tokens, tok
+		}
+		if tok == '(' {
+			nesting++
+		}
+		if tok == ')' {
+			nesting--
+		}
+		tokens = append(tokens, Make(tok, in.Stack.Text()))
 	}
 }
 
