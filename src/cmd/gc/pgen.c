@@ -39,7 +39,7 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 // where a complete initialization (definition) of a variable begins.
 // Since the liveness analysis can see initialization of single-word
 // variables quite easy, gvardef is usually only called for multi-word
-// or 'fat' variables, those satisfying arch.isfat(n->type).
+// or 'fat' variables, those satisfying isfat(n->type).
 // However, gvardef is also called when a non-fat variable is initialized
 // via a block move; the only time this happens is when you have
 //	return f()
@@ -223,7 +223,7 @@ compile(Node *fn)
 	continpc = P;
 	breakpc = P;
 
-	pl = arch.newplist();
+	pl = newplist();
 	pl->name = linksym(curfn->nname->sym);
 
 	setlineno(curfn);
@@ -247,7 +247,7 @@ compile(Node *fn)
 			ptxt->from3.offset |= WRAPPER;
 	}	
 	
-	arch.afunclit(&ptxt->from, curfn->nname);
+	afunclit(&ptxt->from, curfn->nname);
 
 	arch.ginit();
 
@@ -255,7 +255,7 @@ compile(Node *fn)
 	gclocals = makefuncdatasym("gclocals·%d", FUNCDATA_LocalsPointerMaps);
 
 	for(t=curfn->paramfld; t; t=t->down)
-		arch.gtrack(tracksym(t->type));
+		gtrack(tracksym(t->type));
 
 	for(l=fn->dcl; l; l=l->next) {
 		n = l->n;
@@ -325,7 +325,7 @@ compile(Node *fn)
 	gcsymdup(gcargs);
 	gcsymdup(gclocals);
 
-	arch.defframe(ptxt);
+	defframe(ptxt);
 
 	if(0)
 		frame(0);
@@ -369,7 +369,7 @@ emitptrargsmap(void)
 		for(j = 0; j < bv->n; j += 32)
 			off = duint32(sym, off, bv->b[j/32]);
 	}
-	arch.ggloblsym(sym, off, RODATA);
+	ggloblsym(sym, off, RODATA);
 	free(bv);
 }
 
@@ -438,7 +438,7 @@ allocauto(Prog* ptxt)
 		if (ll->n->class == PAUTO)
 			ll->n->used = 0;
 
-	arch.markautoused(ptxt);
+	markautoused(ptxt);
 
 	listsort(&curfn->dcl, cmpstackvar);
 
@@ -448,7 +448,7 @@ allocauto(Prog* ptxt)
 	if (n->class == PAUTO && n->op == ONAME && !n->used) {
 		// No locals used at all
 		curfn->dcl = nil;
-		arch.fixautoused(ptxt);
+		fixautoused(ptxt);
 		return;
 	}
 
@@ -486,7 +486,7 @@ allocauto(Prog* ptxt)
 	stksize = rnd(stksize, widthreg);
 	stkptrsize = rnd(stkptrsize, widthreg);
 
-	arch.fixautoused(ptxt);
+	fixautoused(ptxt);
 
 	// The debug information needs accurate offsets on the symbols.
 	for(ll = curfn->dcl; ll != nil; ll=ll->next) {

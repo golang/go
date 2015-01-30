@@ -117,52 +117,6 @@ appendpp(Prog *p, int as, int ftype, int freg, int32 foffset, int ttype, int tre
 	return q;	
 }
 
-// Sweep the prog list to mark any used nodes.
-void
-markautoused(Prog* p)
-{
-	for (; p; p = p->link) {
-		if (p->as == ATYPE || p->as == AVARDEF || p->as == AVARKILL)
-			continue;
-
-		if (p->from.node)
-			((Node*)(p->from.node))->used = 1;
-
-		if (p->to.node)
-			((Node*)(p->to.node))->used = 1;
-	}
-}
-
-// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
-void
-fixautoused(Prog* p)
-{
-	Prog **lp;
-
-	for (lp=&p; (p=*lp) != P; ) {
-		if (p->as == ATYPE && p->from.node && p->from.name == NAME_AUTO && !((Node*)(p->from.node))->used) {
-			*lp = p->link;
-			continue;
-		}
-		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !((Node*)(p->to.node))->used) {
-			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
-			// VARDEFs are interspersed with other code, and a jump might be using the
-			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
-			// the no-ops.
-			nopout(p);
-			continue;
-		}
-
-		if (p->from.name == NAME_AUTO && p->from.node)
-			p->from.offset += ((Node*)(p->from.node))->stkdelta;
-
-		if (p->to.name == NAME_AUTO && p->to.node)
-			p->to.offset += ((Node*)(p->to.node))->stkdelta;
-
-		lp = &p->link;
-	}
-}
-
 /*
  * generate:
  *	call f
@@ -176,7 +130,7 @@ void
 ginscall(Node *f, int proc)
 {
 	Prog *p;
-	Node n1, r, r1, con;
+	Node r, r1, con;
 	int32 extra;
 
 	if(f->type != T) {
@@ -238,10 +192,7 @@ ginscall(Node *f, int proc)
 		p->to.reg = REGSP;
 		p->to.offset = 4;
 
-		memset(&n1, 0, sizeof n1);
-		n1.op = OADDR;
-		n1.left = f;
-		gins(AMOVW, &n1, &r);
+		gins(AMOVW, f, &r);
 		p = gins(AMOVW, &r, N);
 		p->to.type = TYPE_MEM;
 		p->to.reg = REGSP;
@@ -613,18 +564,6 @@ hard64:
 
 ret:
 	;
-}
-
-int
-samereg(Node *a, Node *b)
-{
-	if(a->op != OREGISTER)
-		return 0;
-	if(b->op != OREGISTER)
-		return 0;
-	if(a->val.u.reg != b->val.u.reg)
-		return 0;
-	return 1;
 }
 
 /*

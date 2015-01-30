@@ -744,7 +744,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 					if(info.flags & (LeftRead | LeftAddr))
 						bvset(uevar, pos);
 					if(info.flags & LeftWrite)
-						if(from->node != nil && !arch.isfat(((Node*)(from->node))->type))
+						if(from->node != nil && !isfat(((Node*)(from->node))->type))
 							bvset(varkill, pos);
 				}
 			}
@@ -780,7 +780,7 @@ Next:
 					if((info.flags & RightRead) || (info.flags & (RightAddr|RightWrite)) == RightAddr)
 						bvset(uevar, pos);
 					if(info.flags & RightWrite)
-						if(to->node != nil && (!arch.isfat(((Node*)(to->node))->type) || prog->as == AVARDEF))
+						if(to->node != nil && (!isfat(((Node*)(to->node))->type) || prog->as == AVARDEF))
 							bvset(varkill, pos);
 				}
 			}
@@ -1218,7 +1218,7 @@ unlinkedprog(int as)
 	Prog *p;
 
 	p = mal(sizeof(*p));
-	arch.clearp(p);
+	clearp(p);
 	p->as = as;
 	return p;
 }
@@ -1235,8 +1235,8 @@ newpcdataprog(Prog *prog, int32 index)
 	nodconst(&to, types[TINT32], index);
 	pcdata = unlinkedprog(APCDATA);
 	pcdata->lineno = prog->lineno;
-	arch.naddr(&from, &pcdata->from, 0);
-	arch.naddr(&to, &pcdata->to, 0);
+	naddr(&from, &pcdata->from, 0);
+	naddr(&to, &pcdata->to, 0);
 	return pcdata;
 }
 
@@ -1932,7 +1932,7 @@ twobitwritesymbol(Array *arr, Sym *sym)
 		}
 	}
 	duint32(sym, 0, i); // number of bitmaps
-	arch.ggloblsym(sym, off, RODATA);
+	ggloblsym(sym, off, RODATA);
 }
 
 static void

@@ -547,15 +547,15 @@ dimportpath(Pkg *p)
 	n->xoffset = 0;
 	p->pathsym = n->sym;
 
-	arch.gdatastring(n, p->path);
-	arch.ggloblsym(n->sym, types[TSTRING]->width, DUPOK|RODATA);
+	gdatastring(n, p->path);
+	ggloblsym(n->sym, types[TSTRING]->width, DUPOK|RODATA);
 }
 
 static int
 dgopkgpath(Sym *s, int ot, Pkg *pkg)
 {
 	if(pkg == nil)
-		return arch.dgostringptr(s, ot, nil);
+		return dgostringptr(s, ot, nil);
 
 	// Emit reference to go.importpath.""., which 6l will
 	// rewrite using the correct import path.  Every package
@@ -565,11 +565,11 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
 
 		if(ns == nil)
 			ns = pkglookup("importpath.\"\".", mkpkg(newstrlit("go")));
-		return arch.dsymptr(s, ot, ns, 0);
+		return dsymptr(s, ot, ns, 0);
 	}
 
 	dimportpath(pkg);
-	return arch.dsymptr(s, ot, pkg->pathsym, 0);
+	return dsymptr(s, ot, pkg->pathsym, 0);
 }
 
 /*
@@ -589,7 +589,7 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 
 	// fill in *extraType pointer in header
 	off = rnd(off, widthptr);
-	arch.dsymptr(sym, ptroff, sym, off);
+	dsymptr(sym, ptroff, sym, off);
 
 	n = 0;
 	for(a=m; a; a=a->link) {
@@ -600,18 +600,18 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 	ot = off;
 	s = sym;
 	if(t->sym) {
-		ot = arch.dgostringptr(s, ot, t->sym->name);
+		ot = dgostringptr(s, ot, t->sym->name);
 		if(t != types[t->etype] && t != errortype)
 			ot = dgopkgpath(s, ot, t->sym->pkg);
 		else
-			ot = arch.dgostringptr(s, ot, nil);
+			ot = dgostringptr(s, ot, nil);
 	} else {
-		ot = arch.dgostringptr(s, ot, nil);
-		ot = arch.dgostringptr(s, ot, nil);
+		ot = dgostringptr(s, ot, nil);
+		ot = dgostringptr(s, ot, nil);
 	}
 
 	// slice header
-	ot = arch.dsymptr(s, ot, s, ot + widthptr + 2*widthint);
+	ot = dsymptr(s, ot, s, ot + widthptr + 2*widthint);
 	ot = duintxx(s, ot, n, widthint);
 	ot = duintxx(s, ot, n, widthint);
 
@@ -619,16 +619,16 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 	for(a=m; a; a=a->link) {
 		// method
 		// ../../runtime/type.go:/method
-		ot = arch.dgostringptr(s, ot, a->name);
+		ot = dgostringptr(s, ot, a->name);
 		ot = dgopkgpath(s, ot, a->pkg);
-		ot = arch.dsymptr(s, ot, dtypesym(a->mtype), 0);
-		ot = arch.dsymptr(s, ot, dtypesym(a->type), 0);
+		ot = dsymptr(s, ot, dtypesym(a->mtype), 0);
+		ot = dsymptr(s, ot, dtypesym(a->type), 0);
 		if(a->isym)
-			ot = arch.dsymptr(s, ot, a->isym, 0);
+			ot = dsymptr(s, ot, a->isym, 0);
 		else
 			ot = duintptr(s, ot, 0);
 		if(a->tsym)
-			ot = arch.dsymptr(s, ot, a->tsym, 0);
+			ot = dsymptr(s, ot, a->tsym, 0);
 		else
 			ot = duintptr(s, ot, 0);
 	}
@@ -816,17 +816,17 @@ dcommontype(Sym *s, int ot, Type *t)
 		i |= KindGCProg;
 	ot = duint8(s, ot, i);  // kind
 	if(algsym == S)
-		ot = arch.dsymptr(s, ot, algarray, alg*sizeofAlg);
+		ot = dsymptr(s, ot, algarray, alg*sizeofAlg);
 	else
-		ot = arch.dsymptr(s, ot, algsym, 0);
+		ot = dsymptr(s, ot, algsym, 0);
 	// gc
 	if(gcprog) {
 		gengcprog(t, &gcprog0, &gcprog1);
 		if(gcprog0 != S)
-			ot = arch.dsymptr(s, ot, gcprog0, 0);
+			ot = dsymptr(s, ot, gcprog0, 0);
 		else
 			ot = duintptr(s, ot, 0);
-		ot = arch.dsymptr(s, ot, gcprog1, 0);
+		ot = dsymptr(s, ot, gcprog1, 0);
 	} else {
 		gengcmask(t, gcmask);
 		x1 = 0;
@@ -845,14 +845,14 @@ dcommontype(Sym *s, int ot, Type *t)
 			sbits->flags |= SymUniq;
 			for(i = 0; i < 2*widthptr; i++)
 				duint8(sbits, i, gcmask[i]);
-			arch.ggloblsym(sbits, 2*widthptr, DUPOK|RODATA);
+			ggloblsym(sbits, 2*widthptr, DUPOK|RODATA);
 		}
-		ot = arch.dsymptr(s, ot, sbits, 0);
+		ot = dsymptr(s, ot, sbits, 0);
 		ot = duintptr(s, ot, 0);
 	}
 	p = smprint("%-uT", t);
 	//print("dcommontype: %s\n", p);
-	ot = arch.dgostringptr(s, ot, p);	// string
+	ot = dgostringptr(s, ot, p);	// string
 	free(p);
 
 	// skip pointer to extraType,
@@ -861,8 +861,8 @@ dcommontype(Sym *s, int ot, Type *t)
 	// otherwise linker will assume 0.
 	ot += widthptr;
 
-	ot = arch.dsymptr(s, ot, sptr, 0);  // ptrto type
-	ot = arch.dsymptr(s, ot, zero, 0);  // ptr to zero value
+	ot = dsymptr(s, ot, sptr, 0);  // ptrto type
+	ot = dsymptr(s, ot, zero, 0);  // ptr to zero value
 	return ot;
 }
 
@@ -1092,15 +1092,15 @@ ok:
 			s2 = dtypesym(t2);
 			ot = dcommontype(s, ot, t);
 			xt = ot - 3*widthptr;
-			ot = arch.dsymptr(s, ot, s1, 0);
-			ot = arch.dsymptr(s, ot, s2, 0);
+			ot = dsymptr(s, ot, s1, 0);
+			ot = dsymptr(s, ot, s2, 0);
 			ot = duintptr(s, ot, t->bound);
 		} else {
 			// ../../runtime/type.go:/SliceType
 			s1 = dtypesym(t->type);
 			ot = dcommontype(s, ot, t);
 			xt = ot - 3*widthptr;
-			ot = arch.dsymptr(s, ot, s1, 0);
+			ot = dsymptr(s, ot, s1, 0);
 		}
 		break;
 
@@ -1109,7 +1109,7 @@ ok:
 		s1 = dtypesym(t->type);
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
-		ot = arch.dsymptr(s, ot, s1, 0);
+		ot = dsymptr(s, ot, s1, 0);
 		ot = duintptr(s, ot, t->chan);
 		break;
 
@@ -1130,21 +1130,21 @@ ok:
 
 		// two slice headers: in and out.
 		ot = rnd(ot, widthptr);
-		ot = arch.dsymptr(s, ot, s, ot+2*(widthptr+2*widthint));
+		ot = dsymptr(s, ot, s, ot+2*(widthptr+2*widthint));
 		n = t->thistuple + t->intuple;
 		ot = duintxx(s, ot, n, widthint);
 		ot = duintxx(s, ot, n, widthint);
-		ot = arch.dsymptr(s, ot, s, ot+1*(widthptr+2*widthint)+n*widthptr);
+		ot = dsymptr(s, ot, s, ot+1*(widthptr+2*widthint)+n*widthptr);
 		ot = duintxx(s, ot, t->outtuple, widthint);
 		ot = duintxx(s, ot, t->outtuple, widthint);
 
 		// slice data
 		for(t1=getthisx(t)->type; t1; t1=t1->down, n++)
-			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
+			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
 		for(t1=getinargx(t)->type; t1; t1=t1->down, n++)
-			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
+			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
 		for(t1=getoutargx(t)->type; t1; t1=t1->down, n++)
-			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
+			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
 		break;
 
 	case TINTER:
@@ -1158,14 +1158,14 @@ ok:
 		// ../../runtime/type.go:/InterfaceType
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
-		ot = arch.dsymptr(s, ot, s, ot+widthptr+2*widthint);
+		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
 		ot = duintxx(s, ot, n, widthint);
 		ot = duintxx(s, ot, n, widthint);
 		for(a=m; a; a=a->link) {
 			// ../../runtime/type.go:/imethod
-			ot = arch.dgostringptr(s, ot, a->name);
+			ot = dgostringptr(s, ot, a->name);
 			ot = dgopkgpath(s, ot, a->pkg);
-			ot = arch.dsymptr(s, ot, dtypesym(a->type), 0);
+			ot = dsymptr(s, ot, dtypesym(a->type), 0);
 		}
 		break;
 
@@ -1177,10 +1177,10 @@ ok:
 		s4 = dtypesym(hmap(t));
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
-		ot = arch.dsymptr(s, ot, s1, 0);
-		ot = arch.dsymptr(s, ot, s2, 0);
-		ot = arch.dsymptr(s, ot, s3, 0);
-		ot = arch.dsymptr(s, ot, s4, 0);
+		ot = dsymptr(s, ot, s1, 0);
+		ot = dsymptr(s, ot, s2, 0);
+		ot = dsymptr(s, ot, s3, 0);
+		ot = dsymptr(s, ot, s4, 0);
 		if(t->down->width > MAXKEYSIZE) {
 			ot = duint8(s, ot, widthptr);
 			ot = duint8(s, ot, 1); // indirect
@@ -1210,7 +1210,7 @@ ok:
 		s1 = dtypesym(t->type);
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
-		ot = arch.dsymptr(s, ot, s1, 0);
+		ot = dsymptr(s, ot, s1, 0);
 		break;
 
 	case TSTRUCT:
@@ -1223,32 +1223,32 @@ ok:
 		}
 		ot = dcommontype(s, ot, t);
 		xt = ot - 3*widthptr;
-		ot = arch.dsymptr(s, ot, s, ot+widthptr+2*widthint);
+		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
 		ot = duintxx(s, ot, n, widthint);
 		ot = duintxx(s, ot, n, widthint);
 		for(t1=t->type; t1!=T; t1=t1->down) {
 			// ../../runtime/type.go:/structField
 			if(t1->sym && !t1->embedded) {
-				ot = arch.dgostringptr(s, ot, t1->sym->name);
+				ot = dgostringptr(s, ot, t1->sym->name);
 				if(exportname(t1->sym->name))
-					ot = arch.dgostringptr(s, ot, nil);
+					ot = dgostringptr(s, ot, nil);
 				else
 					ot = dgopkgpath(s, ot, t1->sym->pkg);
 			} else {
-				ot = arch.dgostringptr(s, ot, nil);
+				ot = dgostringptr(s, ot, nil);
 				if(t1->type->sym != S && t1->type->sym->pkg == builtinpkg)
 					ot = dgopkgpath(s, ot, localpkg);
 				else
-					ot = arch.dgostringptr(s, ot, nil);
+					ot = dgostringptr(s, ot, nil);
 			}
-			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
-			ot = arch.dgostrlitptr(s, ot, t1->note);
+			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
+			ot = dgostrlitptr(s, ot, t1->note);
 			ot = duintptr(s, ot, t1->width);	// field offset
 		}
 		break;
 	}
 	ot = dextratype(s, ot, t, xt);
-	arch.ggloblsym(s, ot, dupok|RODATA);
+	ggloblsym(s, ot, dupok|RODATA);
 
 	// generate typelink.foo pointing at s = type.foo.
 	// The linker will leave a table of all the typelinks for
@@ -1261,8 +1261,8 @@ ok:
 		case TCHAN:
 		case TMAP:
 			slink = typelinksym(t);
-			arch.dsymptr(slink, 0, s, 0);
-			arch.ggloblsym(slink, widthptr, dupok|RODATA);
+			dsymptr(slink, 0, s, 0);
+			ggloblsym(slink, widthptr, dupok|RODATA);
 		}
 	}
 
@@ -1354,18 +1354,18 @@ dalgsym(Type *t)
 		hashfunc = pkglookup(p, typepkg);
 		free(p);
 		ot = 0;
-		ot = arch.dsymptr(hashfunc, ot, pkglookup("memhash_varlen", runtimepkg), 0);
+		ot = dsymptr(hashfunc, ot, pkglookup("memhash_varlen", runtimepkg), 0);
 		ot = duintxx(hashfunc, ot, t->width, widthptr); // size encoded in closure
-		arch.ggloblsym(hashfunc, ot, DUPOK|RODATA);
+		ggloblsym(hashfunc, ot, DUPOK|RODATA);
 
 		// make equality closure
 		p = smprint(".eqfunc%lld", t->width);
 		eqfunc = pkglookup(p, typepkg);
 		free(p);
 		ot = 0;
-		ot = arch.dsymptr(eqfunc, ot, pkglookup("memequal_varlen", runtimepkg), 0);
+		ot = dsymptr(eqfunc, ot, pkglookup("memequal_varlen", runtimepkg), 0);
 		ot = duintxx(eqfunc, ot, t->width, widthptr);
-		arch.ggloblsym(eqfunc, ot, DUPOK|RODATA);
+		ggloblsym(eqfunc, ot, DUPOK|RODATA);
 	} else {
 		// generate an alg table specific to this type
 		s = typesymprefix(".alg", t);
@@ -1378,16 +1378,16 @@ dalgsym(Type *t)
 		geneq(eq, t);
 
 		// make Go funcs (closures) for calling hash and equal from Go
-		arch.dsymptr(hashfunc, 0, hash, 0);
-		arch.ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
-		arch.dsymptr(eqfunc, 0, eq, 0);
-		arch.ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
+		dsymptr(hashfunc, 0, hash, 0);
+		ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
+		dsymptr(eqfunc, 0, eq, 0);
+		ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
 	}
 	// ../../runtime/alg.go:/typeAlg
 	ot = 0;
-	ot = arch.dsymptr(s, ot, hashfunc, 0);
-	ot = arch.dsymptr(s, ot, eqfunc, 0);
-	arch.ggloblsym(s, ot, DUPOK|RODATA);
+	ot = dsymptr(s, ot, hashfunc, 0);
+	ot = dsymptr(s, ot, eqfunc, 0);
+	ggloblsym(s, ot, DUPOK|RODATA);
 	return s;
 }
 
@@ -1570,7 +1570,7 @@ gengcprog(Type *t, Sym **pgc0, Sym **pgc1)
 	// Don't generate it if it's too large, runtime will unroll directly into GC bitmap.
 	if(size <= MaxGCMask) {
 		gc0 = typesymprefix(".gc", t);
-		arch.ggloblsym(gc0, size, DUPOK|NOPTR);
+		ggloblsym(gc0, size, DUPOK|NOPTR);
 		*pgc0 = gc0;
 	}
 
@@ -1580,7 +1580,7 @@ gengcprog(Type *t, Sym **pgc0, Sym **pgc1)
 	xoffset = 0;
 	gengcprog1(&g, t, &xoffset);
 	ot = proggenfini(&g);
-	arch.ggloblsym(gc1, ot, DUPOK|RODATA);
+	ggloblsym(gc1, ot, DUPOK|RODATA);
 	*pgc1 = gc1;
 }
 
