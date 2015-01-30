@@ -48,12 +48,6 @@ iscall(Prog *p)
 }
 
 static int
-datasize(Prog *p)
-{
-	return p->from.scale;
-}
-
-static int
 canuselocaltls(Link *ctxt)
 {
 	switch(ctxt->headtype) {
@@ -851,7 +845,6 @@ LinkArch link386 = {
 
 	.preprocess = preprocess,
 	.assemble = span8,
-	.datasize = datasize,
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,

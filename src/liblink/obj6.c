@@ -59,12 +59,6 @@ iscall(Prog *p)
 	return p->as == ACALL;
 }
 
-static int
-datasize(Prog *p)
-{
-	return p->from.scale;
-}
-
 static void nacladdr(Link*, Prog*, Addr*);
 
 static int
@@ -1052,7 +1046,6 @@ LinkArch linkamd64 = {
 
 	.preprocess = preprocess,
 	.assemble = span6,
-	.datasize = datasize,
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,
@@ -1083,7 +1076,6 @@ LinkArch linkamd64p32 = {
 
 	.preprocess = preprocess,
 	.assemble = span6,
-	.datasize = datasize,
 	.follow = follow,
 	.iscall = iscall,
 	.isdata = isdata,

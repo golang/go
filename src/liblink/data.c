@@ -80,7 +80,7 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
 	Reloc *r;
 
 	off = p->from.offset;
-	siz = ctxt->arch->datasize(p);
+	siz = p->from3.offset;
 	if(off < 0 || siz < 0 || off >= 1<<30 || siz >= 100)
 		mangle(pn);
 	if(ctxt->enforce_data_order && off < s->np)

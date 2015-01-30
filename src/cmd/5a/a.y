@@ -248,7 +248,11 @@ inst:
  */
 |	LTYPEC name '/' con ',' ximm
 	{
-		outcode($1, Always, &$2, $4, &$6);
+		outcode($1, Always, &$2, 0, &$6);
+		if(pass > 1) {
+			lastpc->from3.type = TYPE_CONST;
+			lastpc->from3.offset = $4;
+		}
 	}
 /*
  * CASE
