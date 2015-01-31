@@ -209,7 +209,8 @@ capturevars(Node *xfunc)
 		dowidth(v->type);
 		outer = v->outerexpr;
 		v->outerexpr = N;
-		if(!v->closure->addrtaken && !v->closure->assigned && v->type->width <= 128)
+		// out parameters will be assigned to implicitly upon return.
+		if(outer->class != PPARAMOUT && !v->closure->addrtaken && !v->closure->assigned && v->type->width <= 128)
 			v->byval = 1;
 		else {
 			outer = nod(OADDR, outer, N);
