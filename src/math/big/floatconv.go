@@ -184,7 +184,7 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
 //
 // BUG(gri) Currently, Format only accepts the 'b' and 'p' format.
 func (x *Float) Format(format byte, prec int) string {
-	const extra = 10 // TODO(gri) determine a good/better vaue here
+	const extra = 10 // TODO(gri) determine a good/better value here
 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
 }
 

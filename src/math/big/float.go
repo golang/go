@@ -58,7 +58,7 @@ const debugFloat = true // enable for debugging
 // rounding, Float arithmetic operations emulate the corresponding float32
 // or float64 IEEE-754 operations (except for denormalized numbers and NaNs).
 //
-// CAUTION: THIS IS WORK IN PROGRESS - DO NOT USE YET.
+// CAUTION: THIS IS WORK IN PROGRESS - USE AT YOUR OWN RISK.
 //
 type Float struct {
 	mode RoundingMode
