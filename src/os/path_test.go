@@ -207,12 +207,13 @@ func TestMkdirAllAtSlash(t *testing.T) {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 	RemoveAll("/_go_os_test")
-	err := MkdirAll("/_go_os_test/dir", 0777)
+	const dir = "/go_os_test/dir"
+	err := MkdirAll(dir, 0777)
 	if err != nil {
 		pathErr, ok := err.(*PathError)
 		// common for users not to be able to write to /
 		if ok && (pathErr.Err == syscall.EACCES || pathErr.Err == syscall.EROFS) {
-			return
+			t.Skipf("could not create %v: %v", dir, err)
 		}
 		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v`, err)
 	}
