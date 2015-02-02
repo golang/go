@@ -474,6 +474,10 @@ func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, isStar bool, s
 		// Shouldn't happen, so catch it with prejudice.
 		panic("negative arg num")
 	}
+	if argNum == 0 {
+		f.Badf(call.Pos(), `index value [0] for %s("%s"); indexes start at 1`, state.name, state.format)
+		return false
+	}
 	if argNum < len(call.Args)-1 {
 		return true // Always OK.
 	}

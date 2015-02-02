@@ -174,6 +174,8 @@ func PrintfTests() {
 	Printf("%[3]*s", "hi", 2)            // ERROR "missing argument for Printf.* reads arg 3, have only 2"
 	fmt.Sprintf("%[3]d", 2)              // ERROR "missing argument for Sprintf.* reads arg 3, have only 1"
 	Printf("%[2]*.[1]*[3]d", 2, "hi", 4) // ERROR "arg .hi. for \* in printf format not of type int"
+	Printf("%[0]s", "arg1")              // ERROR "index value \[0\] for Printf.*; indexes start at 1"
+	Printf("%[0]d", 1)                   // ERROR "index value \[0\] for Printf.*; indexes start at 1"
 	// Something that satisfies the error interface.
 	var e error
 	fmt.Println(e.Error()) // ok
