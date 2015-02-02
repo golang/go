@@ -19,6 +19,7 @@ testing/quick: support generation of arrays (https://golang.org/cl/3865)
 Tools:
 
 cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
+cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
 
 Performance:
 
