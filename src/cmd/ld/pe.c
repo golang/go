@@ -646,7 +646,9 @@ asmbpe(void)
 	addpersrc();
 
 	fh.NumberOfSections = nsect;
-	fh.TimeDateStamp = time(0);
+	// Being able to produce identical output for identical input is
+	// much more beneficial than having build timestamp in the header.
+	fh.TimeDateStamp = 0;
 	fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED|
 		IMAGE_FILE_EXECUTABLE_IMAGE|IMAGE_FILE_DEBUG_STRIPPED;
 	if (pe64) {
