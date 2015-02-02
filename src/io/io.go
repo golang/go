@@ -336,8 +336,9 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 }
 
 // Copy copies from src to dst until either EOF is reached
-// on src or an error occurs.  It returns the number of bytes
-// copied and the first error encountered while copying, if any.
+// on src or an error occurs. It returns the number of bytes
+// copied and the error that prevented it from progressing
+// further, if any.
 //
 // A successful Copy returns err == nil, not err == EOF.
 // Because Copy is defined to read from src until EOF, it does
