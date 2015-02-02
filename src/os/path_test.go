@@ -13,6 +13,8 @@ import (
 	"testing"
 )
 
+var isReadonlyError = func(error) bool { return false }
+
 func TestMkdirAll(t *testing.T) {
 	tmpDir := TempDir()
 	path := tmpDir + "/_TestMkdirAll_/dir/./dir2"
@@ -212,7 +214,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
 	if err != nil {
 		pathErr, ok := err.(*PathError)
 		// common for users not to be able to write to /
-		if ok && (pathErr.Err == syscall.EACCES || pathErr.Err == syscall.EROFS) {
+		if ok && (pathErr.Err == syscall.EACCES || isReadonlyError(pathErr.Err)) {
 			t.Skipf("could not create %v: %v", dir, err)
 		}
 		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v`, err)
