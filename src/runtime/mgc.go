@@ -628,6 +628,19 @@ func clearpools() {
 		poolcleanup()
 	}
 
+	// Clear central sudog cache.
+	// Leave per-P caches alone, they have strictly bounded size.
+	// Disconnect cached list before dropping it on the floor,
+	// so that a dangling ref to one entry does not pin all of them.
+	lock(&sched.sudoglock)
+	var sg, sgnext *sudog
+	for sg = sched.sudogcache; sg != nil; sg = sgnext {
+		sgnext = sg.next
+		sg.next = nil
+	}
+	sched.sudogcache = nil
+	unlock(&sched.sudoglock)
+
 	for _, p := range &allp {
 		if p == nil {
 			break
@@ -636,15 +649,6 @@ func clearpools() {
 		if c := p.mcache; c != nil {
 			c.tiny = nil
 			c.tinyoffset = 0
-
-			// disconnect cached list before dropping it on the floor,
-			// so that a dangling ref to one entry does not pin all of them.
-			var sg, sgnext *sudog
-			for sg = c.sudogcache; sg != nil; sg = sgnext {
-				sgnext = sg.next
-				sg.next = nil
-			}
-			c.sudogcache = nil
 		}
 
 		// clear defer pools
