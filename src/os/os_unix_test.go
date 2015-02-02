@@ -13,6 +13,10 @@ import (
 	"testing"
 )
 
+func init() {
+	isReadonlyError = func(err error) bool { return err == syscall.EROFS }
+}
+
 func checkUidGid(t *testing.T, path string, uid, gid int) {
 	dir, err := Stat(path)
 	if err != nil {
