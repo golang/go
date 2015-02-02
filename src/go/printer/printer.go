@@ -496,9 +496,10 @@ func stripCommonPrefix(lines []string) {
 	// Compute maximum common white prefix of all but the first,
 	// last, and blank lines, and replace blank lines with empty
 	// lines (the first line starts with /* and has no prefix).
-	// In case of two-line comments, consider the last line for
-	// the prefix computation since otherwise the prefix would
-	// be empty.
+	// In cases where only the first and last lines are not blank,
+	// such as two-line comments, or comments where all inner lines
+	// are blank, consider the last line for the prefix computation
+	// since otherwise the prefix would be empty.
 	//
 	// Note that the first and last line are never empty (they
 	// contain the opening /* and closing */ respectively) and
@@ -516,6 +517,10 @@ func stripCommonPrefix(lines []string) {
 			default:
 				prefix = commonPrefix(prefix, line)
 			}
+		}
+		if first { // all lines were blank (except first and last)
+			line := lines[len(lines)-1]
+			prefix = commonPrefix(line, line)
 		}
 	} else { // len(lines) == 2, lines cannot be blank (contain /* and */)
 		line := lines[1]
