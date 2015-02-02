@@ -329,6 +329,9 @@ type p struct {
 	gfree    *g
 	gfreecnt int32
 
+	sudogcache []*sudog
+	sudogbuf   [128]*sudog
+
 	tracebuf *traceBuf
 
 	pad [64]byte
@@ -364,6 +367,10 @@ type schedt struct {
 	gflock mutex
 	gfree  *g
 	ngfree int32
+
+	// Central cache of sudog structs.
+	sudoglock  mutex
+	sudogcache *sudog
 
 	gcwaiting  uint32 // gc is waiting to run
 	stopwait   int32

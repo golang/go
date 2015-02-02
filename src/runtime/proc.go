@@ -167,17 +167,6 @@ func goready(gp *g) {
 
 //go:nosplit
 func acquireSudog() *sudog {
-	c := gomcache()
-	s := c.sudogcache
-	if s != nil {
-		if s.elem != nil {
-			throw("acquireSudog: found s.elem != nil in cache")
-		}
-		c.sudogcache = s.next
-		s.next = nil
-		return s
-	}
-
 	// Delicate dance: the semaphore implementation calls
 	// acquireSudog, acquireSudog calls new(sudog),
 	// new calls malloc, malloc can call the garbage collector,
@@ -187,12 +176,31 @@ func acquireSudog() *sudog {
 	// The acquirem/releasem increments m.locks during new(sudog),
 	// which keeps the garbage collector from being invoked.
 	mp := acquirem()
-	p := new(sudog)
-	if p.elem != nil {
-		throw("acquireSudog: found p.elem != nil after new")
+	pp := mp.p
+	if len(pp.sudogcache) == 0 {
+		lock(&sched.sudoglock)
+		// First, try to grab a batch from central cache.
+		for len(pp.sudogcache) < cap(pp.sudogcache)/2 && sched.sudogcache != nil {
+			s := sched.sudogcache
+			sched.sudogcache = s.next
+			s.next = nil
+			pp.sudogcache = append(pp.sudogcache, s)
+		}
+		unlock(&sched.sudoglock)
+		// If the central cache is empty, allocate a new one.
+		if len(pp.sudogcache) == 0 {
+			pp.sudogcache = append(pp.sudogcache, new(sudog))
+		}
+	}
+	ln := len(pp.sudogcache)
+	s := pp.sudogcache[ln-1]
+	pp.sudogcache[ln-1] = nil
+	pp.sudogcache = pp.sudogcache[:ln-1]
+	if s.elem != nil {
+		throw("acquireSudog: found s.elem != nil in cache")
 	}
 	releasem(mp)
-	return p
+	return s
 }
 
 //go:nosplit
@@ -216,9 +224,30 @@ func releaseSudog(s *sudog) {
 	if gp.param != nil {
 		throw("runtime: releaseSudog with non-nil gp.param")
 	}
-	c := gomcache()
-	s.next = c.sudogcache
-	c.sudogcache = s
+	mp := acquirem() // avoid rescheduling to another P
+	pp := mp.p
+	if len(pp.sudogcache) == cap(pp.sudogcache) {
+		// Transfer half of local cache to the central cache.
+		var first, last *sudog
+		for len(pp.sudogcache) > cap(pp.sudogcache)/2 {
+			ln := len(pp.sudogcache)
+			p := pp.sudogcache[ln-1]
+			pp.sudogcache[ln-1] = nil
+			pp.sudogcache = pp.sudogcache[:ln-1]
+			if first == nil {
+				first = p
+			} else {
+				last.next = p
+			}
+			last = p
+		}
+		lock(&sched.sudoglock)
+		last.next = sched.sudogcache
+		sched.sudogcache = first
+		unlock(&sched.sudoglock)
+	}
+	pp.sudogcache = append(pp.sudogcache, s)
+	releasem(mp)
 }
 
 // funcPC returns the entry PC of the function f.
