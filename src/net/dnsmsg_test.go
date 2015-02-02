@@ -18,7 +18,7 @@ func TestDNSParseSRVReply(t *testing.T) {
 	msg := new(dnsMsg)
 	ok := msg.Unpack(data)
 	if !ok {
-		t.Fatalf("unpacking packet failed")
+		t.Fatal("unpacking packet failed")
 	}
 	msg.String() // exercise this code path
 	if g, e := len(msg.answer), 5; g != e {
@@ -32,13 +32,19 @@ func TestDNSParseSRVReply(t *testing.T) {
 			t.Errorf("answer[%d] = %T; want *dnsRR_SRV", idx, rr)
 		}
 	}
-	_, addrs, err := answer("_xmpp-server._tcp.google.com.", "foo:53", msg, uint16(dnsTypeSRV))
-	if err != nil {
-		t.Fatalf("answer: %v", err)
-	}
-	if g, e := len(addrs), 5; g != e {
-		t.Errorf("len(addrs) = %d; want %d", g, e)
-		t.Logf("addrs = %#v", addrs)
+	for _, name := range [...]string{
+		"_xmpp-server._tcp.google.com.",
+		"_XMPP-Server._TCP.Google.COM.",
+		"_XMPP-SERVER._TCP.GOOGLE.COM.",
+	} {
+		_, addrs, err := answer(name, "foo:53", msg, uint16(dnsTypeSRV))
+		if err != nil {
+			t.Error(err)
+		}
+		if g, e := len(addrs), 5; g != e {
+			t.Errorf("len(addrs) = %d; want %d", g, e)
+			t.Logf("addrs = %#v", addrs)
+		}
 	}
 	// repack and unpack.
 	data2, ok := msg.Pack()
@@ -46,9 +52,9 @@ func TestDNSParseSRVReply(t *testing.T) {
 	msg2.Unpack(data2)
 	switch {
 	case !ok:
-		t.Errorf("failed to repack message")
+		t.Error("failed to repack message")
 	case !reflect.DeepEqual(msg, msg2):
-		t.Errorf("repacked message differs from original")
+		t.Error("repacked message differs from original")
 	}
 }
 
