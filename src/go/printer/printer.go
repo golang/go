@@ -504,26 +504,25 @@ func stripCommonPrefix(lines []string) {
 	// Note that the first and last line are never empty (they
 	// contain the opening /* and closing */ respectively) and
 	// thus they can be ignored by the blank line check.
-	var prefix string
+	prefix := ""
+	prefixSet := false
 	if len(lines) > 2 {
-		first := true
 		for i, line := range lines[1 : len(lines)-1] {
-			switch {
-			case isBlank(line):
+			if isBlank(line) {
 				lines[1+i] = "" // range starts with lines[1]
-			case first:
-				prefix = commonPrefix(line, line)
-				first = false
-			default:
+			} else {
+				if !prefixSet {
+					prefix = line
+					prefixSet = true
+				}
 				prefix = commonPrefix(prefix, line)
 			}
+
 		}
-		if first { // all lines were blank (except first and last)
-			line := lines[len(lines)-1]
-			prefix = commonPrefix(line, line)
-		}
-	} else { // len(lines) == 2, lines cannot be blank (contain /* and */)
-		line := lines[1]
+	}
+	// If we don't have a prefix yet, consider the last line.
+	if !prefixSet {
+		line := lines[len(lines)-1]
 		prefix = commonPrefix(line, line)
 	}
 
