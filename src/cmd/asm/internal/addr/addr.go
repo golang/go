@@ -71,7 +71,7 @@ func (a *Addr) Has(mask int) bool {
 	return false
 }
 
-// Is reports whether the address has exactly the specified elements.
+// Is reports whether the address has all the specified elements.
 // Indirect and immediate are checked.
 func (a *Addr) Is(mask int) bool {
 	if (mask&ImmediateConstant == 0) != !a.IsImmediateConstant {
