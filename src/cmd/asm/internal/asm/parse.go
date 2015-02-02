@@ -92,7 +92,7 @@ func (p *Parser) line() bool {
 		p.lineNum = p.lex.Line()
 		p.histLineNum = lex.HistLine()
 		switch tok {
-		case '\n':
+		case '\n', ';':
 			continue
 		case scanner.EOF:
 			return false
@@ -438,8 +438,6 @@ func (p *Parser) term() uint64 {
 			return value
 		}
 	}
-	p.errorf("unexpected %s evaluating expression", p.peek())
-	return 0
 }
 
 // factor = const | '+' factor | '-' factor | '~' factor | '(' expr ')'

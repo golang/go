@@ -302,7 +302,8 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 
 	// Operand 0 has the general form foo<>+0x04(SB).
 	nameAddr := p.address(operands[0])
-	if !nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Register != arch.RSB {
+	ok := nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect|addr.Offset)
+	if !ok || nameAddr.Register != arch.RSB {
 		p.errorf("GLOBL symbol %q must be an offset from SB", nameAddr.Symbol)
 	}
 	name := strings.Replace(nameAddr.Symbol, "·", ".", 1)
@@ -399,17 +400,19 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 	if !valueAddr.Is(addr.ImmediateConstant | addr.Offset) {
 		p.errorf("FUNCDATA value must be an immediate constant")
 	}
-	value := valueAddr.Offset
+	value0 := valueAddr.Offset
 
 	// Operand 1 is a symbol name in the form foo(SB).
 	// That means symbol plus indirect on SB and no offset.
 	nameAddr := p.address(operands[1])
-	if !nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Register != arch.RSB {
+	ok := nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect|addr.Offset)
+	if !ok || nameAddr.Register != arch.RSB {
 		p.errorf("FUNCDATA symbol %q must be an offset from SB", nameAddr.Symbol)
 	}
 	name := strings.Replace(nameAddr.Symbol, "·", ".", 1)
+	value1 := nameAddr.Offset
 
-	// log.Printf("FUNCDATA %s, $%d", name, value)
+	// log.Printf("FUNCDATA $%d, %d", value0, value1)
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
 		As:     int16(p.arch.AFUNCDATA),
@@ -417,12 +420,13 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 		From: obj.Addr{
 			Type:   int16(p.arch.D_CONST),
 			Index:  uint8(p.arch.D_NONE),
-			Offset: value,
+			Offset: value0,
 		},
 		To: obj.Addr{
-			Type:  int16(p.symbolType(&nameAddr)),
-			Index: uint8(p.arch.D_NONE),
-			Sym:   obj.Linklookup(p.linkCtxt, name, 0),
+			Type:   int16(p.symbolType(&nameAddr)),
+			Index:  uint8(p.arch.D_NONE),
+			Sym:    obj.Linklookup(p.linkCtxt, name, 0),
+			Offset: value1,
 		},
 	}
 	p.append(prog, true)

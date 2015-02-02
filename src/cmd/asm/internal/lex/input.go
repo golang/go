@@ -93,7 +93,9 @@ func (in *Input) Next() ScanToken {
 		in.text = in.peekText
 		return tok
 	}
-	for {
+	// If we cannot generate a token after 100 tries, we're in trouble.
+	// The usual case is caught by Push, below, but be safe.
+	for i := 0; i < 100; i++ {
 		tok := in.Stack.Next()
 		switch tok {
 		case '#':

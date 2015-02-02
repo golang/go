@@ -49,7 +49,7 @@ func Usage() {
 	os.Exit(2)
 }
 
-func Parse(goroot, goos, goarch string, theChar int) { // TODO: see below
+func Parse(theChar int) {
 	flag.Usage = Usage
 	flag.Parse()
 	if flag.NArg() != 1 {
@@ -64,8 +64,4 @@ func Parse(goroot, goos, goarch string, theChar int) { // TODO: see below
 		}
 		*OutputFile = fmt.Sprintf("%s.%c", input, theChar)
 	}
-	// Initialize to include $GOROOT/pkg/$GOOS_GOARCH/ so we find textflag.h
-	// TODO: Delete last line once asm is installed because the go command takes care of this.
-	// The arguments to Parse can be simplified then too.
-	I = append(I, filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch)))
 }
