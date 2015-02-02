@@ -536,10 +536,11 @@ func (r *Request) BasicAuth() (username, password string, ok bool) {
 // parseBasicAuth parses an HTTP Basic Authentication string.
 // "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==" returns ("Aladdin", "open sesame", true).
 func parseBasicAuth(auth string) (username, password string, ok bool) {
-	if !strings.HasPrefix(auth, "Basic ") {
+	const prefix = "Basic "
+	if !strings.HasPrefix(auth, prefix) {
 		return
 	}
-	c, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(auth, "Basic "))
+	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
 	if err != nil {
 		return
 	}
