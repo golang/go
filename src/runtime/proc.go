@@ -245,18 +245,6 @@ func lockedOSThread() bool {
 	return gp.lockedm != nil && gp.m.lockedg != nil
 }
 
-func newP() *p {
-	return new(p)
-}
-
-func newM() *m {
-	return new(m)
-}
-
-func newG() *g {
-	return new(g)
-}
-
 var (
 	allgs    []*g
 	allglock mutex
