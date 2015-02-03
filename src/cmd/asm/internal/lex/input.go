@@ -422,6 +422,10 @@ func (in *Input) line() {
 	if err != nil {
 		in.Error("unquoting #line file name: ", err)
 	}
+	tok = in.Stack.Next()
+	if tok != '\n' {
+		in.Error("unexpected token at end of #line: ", tok)
+	}
 	obj.Linklinehist(linkCtxt, histLine, file, line)
 	in.Stack.SetPos(line, file)
 }
