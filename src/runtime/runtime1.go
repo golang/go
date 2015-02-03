@@ -309,7 +309,7 @@ type dbgVar struct {
 // TODO(rsc): Make GC respect debug.invalidptr.
 
 // Holds variables parsed from GODEBUG env var,
-// except for "memprofrate" since there is an
+// except for "memprofilerate" since there is an
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
@@ -357,9 +357,9 @@ func parsedebugvars() {
 		key, value := field[:i], field[i+1:]
 
 		// Update MemProfileRate directly here since it
-		// int, not int32, and should only be updated
+		// is int, not int32, and should only be updated
 		// if specified in GODEBUG.
-		if key == "memprofrate" {
+		if key == "memprofilerate" {
 			MemProfileRate = atoi(value)
 		} else {
 			for _, v := range dbgvars {
