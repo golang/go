@@ -2540,6 +2540,9 @@ func procresize(new int32) *p {
 			p = newP()
 			p.id = i
 			p.status = _Pgcstop
+			for i := range p.deferpool {
+				p.deferpool[i] = p.deferpoolbuf[i][:0]
+			}
 			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(p))
 		}
 		if p.mcache == nil {
@@ -2578,6 +2581,13 @@ func procresize(new int32) *p {
 			}
 			sched.runqsize++
 		}
+		for i := range p.deferpool {
+			for j := range p.deferpoolbuf[i] {
+				p.deferpoolbuf[i][j] = nil
+			}
+			p.deferpool[i] = p.deferpoolbuf[i][:0]
+		}
+
 		freemcache(p.mcache)
 		p.mcache = nil
 		gfpurge(p)
