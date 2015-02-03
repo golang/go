@@ -467,6 +467,7 @@ enum
 	OARRAYBYTESTRTMP, // string(bytes) ephemeral
 	OARRAYRUNESTR,	// string(runes)
 	OSTRARRAYBYTE,	// []byte(s)
+	OSTRARRAYBYTETMP,	// []byte(s) ephemeral
 	OSTRARRAYRUNE,	// []rune(s)
 	OAS,	// x = y or x := y
 	OAS2,	// x, y, z = xx, yy, zz
