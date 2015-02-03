@@ -113,7 +113,7 @@ func Make(token ScanToken, text string) Token {
 		text = `""` + text
 	}
 	// Substitute the substitutes for . and /.
-	text = strings.Replace(text, "\u00B7", ".", 1)
+	text = strings.Replace(text, "\u00B7", ".", -1)
 	text = strings.Replace(text, "\u2215", "/", -1)
 	return Token{ScanToken: token, text: text}
 }
