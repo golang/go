@@ -757,6 +757,10 @@ orderstmt(Node *n, Order *order)
 		default:
 			fatal("orderstmt range %T", n->type);
 		case TARRAY:
+			// Mark []byte(str) range expression to reuse string backing storage.
+			// It is safe because the storage cannot be mutated.
+			if(n->right->op == OSTRARRAYBYTE)
+				n->right->op = OSTRARRAYBYTETMP;
 			if(count(n->list) < 2 || isblank(n->list->next->n)) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.

@@ -221,3 +221,17 @@ func TestIntStringAllocs(t *testing.T) {
 		t.Fatalf("want 0 allocs, got %v", n)
 	}
 }
+
+func TestRangeStringCast(t *testing.T) {
+	s := "abc"
+	n := testing.AllocsPerRun(1000, func() {
+		for i, c := range []byte(s) {
+			if c != s[i] {
+				t.Fatalf("want '%c' at pos %v, got '%c'", s[i], i, c)
+			}
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}

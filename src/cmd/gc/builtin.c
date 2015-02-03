@@ -38,6 +38,7 @@ char *runtimeimport =
 	"func @\"\".slicebytetostringtmp (? []byte) (? string)\n"
 	"func @\"\".slicerunetostring (? []rune) (? string)\n"
 	"func @\"\".stringtoslicebyte (? string) (? []byte)\n"
+	"func @\"\".stringtoslicebytetmp (? string) (? []byte)\n"
 	"func @\"\".stringtoslicerune (? string) (? []rune)\n"
 	"func @\"\".stringiter (? string, ? int) (? int)\n"
 	"func @\"\".stringiter2 (? string, ? int) (@\"\".retk·1 int, @\"\".retv·2 rune)\n"

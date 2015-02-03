@@ -52,6 +52,7 @@ func slicebytetostring(*[32]byte, []byte) string
 func slicebytetostringtmp([]byte) string
 func slicerunetostring([]rune) string
 func stringtoslicebyte(string) []byte
+func stringtoslicebytetmp(string) []byte
 func stringtoslicerune(string) []rune
 func stringiter(string, int) int
 func stringiter2(string, int) (retk int, retv rune)
