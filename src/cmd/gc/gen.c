@@ -453,10 +453,6 @@ gen(Node *n)
 			lab->breakpc = P;
 		break;
 
-	case OASOP:
-		arch.cgen_asop(n);
-		break;
-
 	case ODCL:
 		cgen_dcl(n->left);
 		break;

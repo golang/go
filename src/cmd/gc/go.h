@@ -1666,7 +1666,6 @@ struct Arch
 	void (*betypeinit)(void);
 	void (*bgen)(Node*, int, int, Prog*);
 	void (*cgen)(Node*, Node*);
-	void (*cgen_asop)(Node*);
 	void (*cgen_call)(Node*, int);
 	void (*cgen_callinter)(Node*, Node*, int);
 	void (*cgen_ret)(Node*);
