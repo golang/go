@@ -2439,12 +2439,27 @@ func chansend(t *rtype, ch unsafe.Pointer, val unsafe.Pointer, nb bool) bool
 
 func makechan(typ *rtype, size uint64) (ch unsafe.Pointer)
 func makemap(t *rtype) (m unsafe.Pointer)
+
+//go:noescape
 func mapaccess(t *rtype, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer)
+
 func mapassign(t *rtype, m unsafe.Pointer, key, val unsafe.Pointer)
+
+//go:noescape
 func mapdelete(t *rtype, m unsafe.Pointer, key unsafe.Pointer)
+
+// m escapes into the return value, but the caller of mapiterinit
+// doesn't let the return value escape.
+//go:noescape
 func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer
+
+//go:noescape
 func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
+
+//go:noescape
 func mapiternext(it unsafe.Pointer)
+
+//go:noescape
 func maplen(m unsafe.Pointer) int
 
 // call calls fn with a copy of the n argument bytes pointed at by arg.
