@@ -468,7 +468,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	// Adjust saved base pointer if there is one.
 	if thechar == '6' && frame.argp-frame.varp == 2*ptrSize {
 		if !framepointer_enabled {
-			print("runtime: found space for saved base pointer, but no framepointer experiment")
+			print("runtime: found space for saved base pointer, but no framepointer experiment\n")
 			throw("bad frame layout")
 		}
 		if stackDebug >= 3 {
