@@ -1963,8 +1963,7 @@ isstack(Node *n)
 {
 	Node *defn;
 
-	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
-		n = n->left;
+	n = outervalue(n);
 
 	// If n is *autotmp and autotmp = &foo, replace n with foo.
 	// We introduce such temps when initializing struct literals.
@@ -1995,8 +1994,7 @@ isstack(Node *n)
 static int
 isglobal(Node *n)
 {
-	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
-		n = n->left;
+	n = outervalue(n);
 
 	switch(n->op) {
 	case ONAME:
@@ -2355,7 +2353,9 @@ Node*
 outervalue(Node *n)
 {	
 	for(;;) {
-		if(n->op == ODOT || n->op == OPAREN) {
+		if(n->op == OXDOT)
+			fatal("OXDOT in walk");
+		if(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP) {
 			n = n->left;
 			continue;
 		}
