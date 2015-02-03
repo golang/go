@@ -191,20 +191,14 @@ func (c *conn) noteClientGone() {
 	c.clientGone = true
 }
 
-// A switchReader can have its Reader changed at runtime.
-// It's not safe for concurrent Reads and switches.
-type switchReader struct {
-	io.Reader
-}
-
 // A switchWriter can have its Writer changed at runtime.
 // It's not safe for concurrent Writes and switches.
 type switchWriter struct {
 	io.Writer
 }
 
-// A liveSwitchReader is a switchReader that's safe for concurrent
-// reads and switches, if its mutex is held.
+// A liveSwitchReader can have its Reader changed at runtime. It's
+// safe for concurrent reads and switches, if its mutex is held.
 type liveSwitchReader struct {
 	sync.Mutex
 	r io.Reader
