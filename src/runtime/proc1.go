@@ -29,72 +29,6 @@ const (
 	_GoidCacheBatch = 16
 )
 
-/*
-SchedT	sched;
-int32	gomaxprocs;
-uint32	needextram;
-bool	iscgo;
-M	m0;
-G	g0;	// idle goroutine for m0
-G*	lastg;
-M*	allm;
-M*	extram;
-P*	allp[MaxGomaxprocs+1];
-int8*	goos;
-int32	ncpu;
-int32	newprocs;
-
-Mutex allglock;	// the following vars are protected by this lock or by stoptheworld
-G**	allg;
-Slice	allgs;
-uintptr allglen;
-ForceGCState	forcegc;
-
-void mstart(void);
-static void runqput(P*, G*);
-static G* runqget(P*);
-static bool runqputslow(P*, G*, uint32, uint32);
-static G* runqsteal(P*, P*);
-static void mput(M*);
-static M* mget(void);
-static void mcommoninit(M*);
-static void schedule(void);
-static void procresize(int32);
-static void acquirep(P*);
-static P* releasep(void);
-static void newm(void(*)(void), P*);
-static void stopm(void);
-static void startm(P*, bool);
-static void handoffp(P*);
-static void wakep(void);
-static void stoplockedm(void);
-static void startlockedm(G*);
-static void sysmon(void);
-static uint32 retake(int64);
-static void incidlelocked(int32);
-static void checkdead(void);
-static void exitsyscall0(G*);
-void park_m(G*);
-static void goexit0(G*);
-static void gfput(P*, G*);
-static G* gfget(P*);
-static void gfpurge(P*);
-static void globrunqput(G*);
-static void globrunqputbatch(G*, G*, int32);
-static G* globrunqget(P*, int32);
-static P* pidleget(void);
-static void pidleput(P*);
-static void injectglist(G*);
-static bool preemptall(void);
-static bool preemptone(P*);
-static bool exitsyscallfast(void);
-static bool haveexperiment(int8*);
-void allgadd(G*);
-static void dropg(void);
-
-extern String buildVersion;
-*/
-
 // The bootstrap sequence is:
 //
 //	call osinit
@@ -813,7 +747,7 @@ func allocm(_p_ *p) *m {
 	if _g_.m.p == nil {
 		acquirep(_p_) // temporarily borrow p for mallocs in this function
 	}
-	mp := newM()
+	mp := new(m)
 	mcommoninit(mp)
 
 	// In case of cgo or Solaris, pthread_create will make us a stack.
@@ -834,10 +768,6 @@ func allocm(_p_ *p) *m {
 	}
 
 	return mp
-}
-
-func allocg() *g {
-	return newG()
 }
 
 // needm is called when a cgo callback happens on a
@@ -2048,7 +1978,7 @@ func syscall_runtime_AfterFork() {
 
 // Allocate a new g, with a stack big enough for stacksize bytes.
 func malg(stacksize int32) *g {
-	newg := allocg()
+	newg := new(g)
 	if stacksize >= 0 {
 		stacksize = round2(_StackSystem + stacksize)
 		systemstack(func() {
@@ -2524,41 +2454,41 @@ func setcpuprofilerate_m(hz int32) {
 // gcworkbufs are not being modified by either the GC or
 // the write barrier code.
 // Returns list of Ps with local work, they need to be scheduled by the caller.
-func procresize(new int32) *p {
+func procresize(nprocs int32) *p {
 	old := gomaxprocs
-	if old < 0 || old > _MaxGomaxprocs || new <= 0 || new > _MaxGomaxprocs {
+	if old < 0 || old > _MaxGomaxprocs || nprocs <= 0 || nprocs > _MaxGomaxprocs {
 		throw("procresize: invalid arg")
 	}
 	if trace.enabled {
-		traceGomaxprocs(new)
+		traceGomaxprocs(nprocs)
 	}
 
 	// initialize new P's
-	for i := int32(0); i < new; i++ {
-		p := allp[i]
-		if p == nil {
-			p = newP()
-			p.id = i
-			p.status = _Pgcstop
-			for i := range p.deferpool {
-				p.deferpool[i] = p.deferpoolbuf[i][:0]
+	for i := int32(0); i < nprocs; i++ {
+		pp := allp[i]
+		if pp == nil {
+			pp = new(p)
+			pp.id = i
+			pp.status = _Pgcstop
+			for i := range pp.deferpool {
+				pp.deferpool[i] = pp.deferpoolbuf[i][:0]
 			}
-			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(p))
+			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(pp))
 		}
-		if p.mcache == nil {
+		if pp.mcache == nil {
 			if old == 0 && i == 0 {
 				if getg().m.mcache == nil {
 					throw("missing mcache?")
 				}
-				p.mcache = getg().m.mcache // bootstrap
+				pp.mcache = getg().m.mcache // bootstrap
 			} else {
-				p.mcache = allocmcache()
+				pp.mcache = allocmcache()
 			}
 		}
 	}
 
 	// free unused P's
-	for i := new; i < old; i++ {
+	for i := nprocs; i < old; i++ {
 		p := allp[i]
 		if trace.enabled {
 			if p == getg().m.p {
@@ -2597,7 +2527,7 @@ func procresize(new int32) *p {
 	}
 
 	_g_ := getg()
-	if _g_.m.p != nil && _g_.m.p.id < new {
+	if _g_.m.p != nil && _g_.m.p.id < nprocs {
 		// continue to use the current P
 		_g_.m.p.status = _Prunning
 	} else {
@@ -2616,7 +2546,7 @@ func procresize(new int32) *p {
 		}
 	}
 	var runnablePs *p
-	for i := new - 1; i >= 0; i-- {
+	for i := nprocs - 1; i >= 0; i-- {
 		p := allp[i]
 		if _g_.m.p == p {
 			continue
@@ -2631,7 +2561,7 @@ func procresize(new int32) *p {
 		}
 	}
 	var int32p *int32 = &gomaxprocs // make compiler check that gomaxprocs is an int32
-	atomicstore((*uint32)(unsafe.Pointer(int32p)), uint32(new))
+	atomicstore((*uint32)(unsafe.Pointer(int32p)), uint32(nprocs))
 	return runnablePs
 }
 
