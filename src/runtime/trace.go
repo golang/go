@@ -231,6 +231,9 @@ func StopTrace() {
 	// The world is started but we've set trace.shutdown, so new tracing can't start.
 	// Wait for the trace reader to flush pending buffers and stop.
 	semacquire(&trace.shutdownSema, false)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&trace.shutdownSema))
+	}
 
 	// The lock protects us from races with StartTrace/StopTrace because they do stop-the-world.
 	lock(&trace.lock)
@@ -331,6 +334,12 @@ func ReadTrace() []byte {
 	if trace.shutdown {
 		trace.lockOwner = nil
 		unlock(&trace.lock)
+		if raceenabled {
+			// Model synchronization on trace.shutdownSema, which race
+			// detector does not see. This is required to avoid false
+			// race reports on writer passed to pprof.StartTrace.
+			racerelease(unsafe.Pointer(&trace.shutdownSema))
+		}
 		// trace.enabled is already reset, so can call traceable functions.
 		semrelease(&trace.shutdownSema)
 		return nil
