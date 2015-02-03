@@ -9,55 +9,53 @@ import (
 	"testing"
 )
 
-var floatSetFloat64StringTests = []struct {
-	s string
-	x float64
-}{
-	{"0", 0},
-	{"-0", -0},
-	{"+0", 0},
-	{"1", 1},
-	{"-1", -1},
-	{"+1", 1},
-	{"1.234", 1.234},
-	{"-1.234", -1.234},
-	{"+1.234", 1.234},
-	{".1", 0.1},
-	{"1.", 1},
-	{"+1.", 1},
-
-	{"0e100", 0},
-	{"-0e+100", 0},
-	{"+0e-100", 0},
-	{"0E100", 0},
-	{"-0E+100", 0},
-	{"+0E-100", 0},
-	{"0p100", 0},
-	{"-0p+100", 0},
-	{"+0p-100", 0},
-
-	{"1.e10", 1e10},
-	{"1e+10", 1e10},
-	{"+1e-10", 1e-10},
-	{"1E10", 1e10},
-	{"1.E+10", 1e10},
-	{"+1E-10", 1e-10},
-	{"1p10", 1 << 10},
-	{"1p+10", 1 << 10},
-	{"+1.p-10", 1.0 / (1 << 10)},
-
-	{"-687436.79457e-245", -687436.79457e-245},
-	{"-687436.79457E245", -687436.79457e245},
-	{"1024.p-12", 0.25},
-	{"-1.p10", -1024},
-	{"0.25p2", 1},
-
-	{".0000000000000000000000000000000000000001", 1e-40},
-	{"+10000000000000000000000000000000000000000e-0", 1e40},
-}
-
 func TestFloatSetFloat64String(t *testing.T) {
-	for _, test := range floatSetFloat64StringTests {
+	for _, test := range []struct {
+		s string
+		x float64
+	}{
+		{"0", 0},
+		{"-0", -0},
+		{"+0", 0},
+		{"1", 1},
+		{"-1", -1},
+		{"+1", 1},
+		{"1.234", 1.234},
+		{"-1.234", -1.234},
+		{"+1.234", 1.234},
+		{".1", 0.1},
+		{"1.", 1},
+		{"+1.", 1},
+
+		{"0e100", 0},
+		{"-0e+100", 0},
+		{"+0e-100", 0},
+		{"0E100", 0},
+		{"-0E+100", 0},
+		{"+0E-100", 0},
+		{"0p100", 0},
+		{"-0p+100", 0},
+		{"+0p-100", 0},
+
+		{"1.e10", 1e10},
+		{"1e+10", 1e10},
+		{"+1e-10", 1e-10},
+		{"1E10", 1e10},
+		{"1.E+10", 1e10},
+		{"+1E-10", 1e-10},
+		{"1p10", 1 << 10},
+		{"1p+10", 1 << 10},
+		{"+1.p-10", 1.0 / (1 << 10)},
+
+		{"-687436.79457e-245", -687436.79457e-245},
+		{"-687436.79457E245", -687436.79457e245},
+		{"1024.p-12", 0.25},
+		{"-1.p10", -1024},
+		{"0.25p2", 1},
+
+		{".0000000000000000000000000000000000000001", 1e-40},
+		{"+10000000000000000000000000000000000000000e-0", 1e40},
+	} {
 		var x Float
 		x.prec = 53 // TODO(gri) find better solution
 		_, ok := x.SetString(test.s)
@@ -82,8 +80,9 @@ func TestFloatFormat(t *testing.T) {
 	}{
 		{"0", 'b', 0, "0"},
 		{"-0", 'b', 0, "-0"},
-		{"1.0", 'b', 0, "4503599627370496p1"},
-		{"-1.0", 'b', 0, "-4503599627370496p1"},
+		{"1.0", 'b', 0, "4503599627370496p-52"},
+		{"-1.0", 'b', 0, "-4503599627370496p-52"},
+		{"4503599627370496", 'b', 0, "4503599627370496p+0"},
 
 		{"0", 'p', 0, "0"},
 		{"-0", 'p', 0, "-0"},
@@ -95,14 +94,21 @@ func TestFloatFormat(t *testing.T) {
 			t.Error(err)
 			continue
 		}
+
 		f := new(Float).SetFloat64(f64)
 		got := f.Format(test.format, test.prec)
 		if got != test.want {
-			t.Errorf("%v: got %s", test, got)
+			t.Errorf("%v: got %s; want %s", test, got, test.want)
 		}
-		if test.format == 'b' || test.format == 'p' {
-			continue // 'b', 'p' format not supported or different in strconv.Format
+
+		if test.format == 'b' && f64 == 0 {
+			continue // 'b' format in strconv.Float requires knowledge of bias for 0.0
 		}
+		if test.format == 'p' {
+			continue // 'p' format not supported in strconv.Format
+		}
+
+		// verify that Float format matches strconv format
 		want := strconv.FormatFloat(f64, test.format, test.prec, 64)
 		if got != want {
 			t.Errorf("%v: got %s; want %s", test, got, want)

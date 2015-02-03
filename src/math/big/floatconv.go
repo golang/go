@@ -205,12 +205,6 @@ func (x *Float) String() string {
 	return x.Format('p', 0)
 }
 
-// TODO(gri) The 'b' and 'p' formats have different meanings here than
-// in strconv: in strconv, the printed exponent is the biased (hardware)
-// exponent; here it is the unbiased exponent. Decide what to do.
-// (a strconv 'p' formatted float value can only be interpreted correctly
-// if the bias is known; i.e., we must know if it's a 32bit or 64bit number).
-
 // bstring appends the string of x in the format ["-"] mantissa "p" exponent
 // with a decimal mantissa and a binary exponent, or ["-"] "0" if x is zero,
 // and returns the extended buffer.
@@ -233,7 +227,11 @@ func (x *Float) bstring(buf []byte) []byte {
 	}
 	buf = append(buf, m.decimalString()...)
 	buf = append(buf, 'p')
-	return strconv.AppendInt(buf, int64(x.exp), 10)
+	e := int64(x.exp) - int64(x.prec)
+	if e >= 0 {
+		buf = append(buf, '+')
+	}
+	return strconv.AppendInt(buf, e, 10)
 }
 
 // pstring appends the string of x in the format ["-"] "0x." mantissa "p" exponent
