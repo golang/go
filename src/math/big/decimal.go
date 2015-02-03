@@ -71,19 +71,18 @@ func (x *decimal) init(m nat, shift int) {
 	x.exp = n
 	// Trim trailing zeros; instead the exponent is tracking
 	// the decimal point independent of the number of digits.
-	for n > 0 && s[n-1] == 0 {
+	for n > 0 && s[n-1] == '0' {
 		n--
 	}
-	x.mant = make([]byte, n)
-	copy(x.mant, s)
+	x.mant = append(x.mant[:0], s[:n]...)
 
 	// Do any (remaining) shift right in decimal representation.
 	if shift < 0 {
 		for shift < -maxShift {
-			x.shr(maxShift)
+			shr(x, maxShift)
 			shift += maxShift
 		}
-		x.shr(uint(-shift))
+		shr(x, uint(-shift))
 	}
 }
 
@@ -94,7 +93,7 @@ func (x *decimal) init(m nat, shift int) {
 // single +'0' pass at the end).
 
 // shr implements x >> s, for s <= maxShift.
-func (x *decimal) shr(s uint) {
+func shr(x *decimal, s uint) {
 	// Division by 1<<s using shift-and-subtract algorithm.
 
 	// pick up enough leading digits to cover first shift
@@ -146,12 +145,7 @@ func (x *decimal) shr(s uint) {
 		n = n * 10
 	}
 
-	// remove trailing zeros
-	w = len(x.mant)
-	for w > 0 && x.mant[w-1] == '0' {
-		w--
-	}
-	x.mant = x.mant[:w]
+	trim(x)
 }
 
 func (x *decimal) String() string {
@@ -188,4 +182,74 @@ func appendZeros(buf []byte, n int) []byte {
 		buf = append(buf, '0')
 	}
 	return buf
+}
+
+// shouldRoundUp reports if x should be rounded up
+// if shortened to n digits. n must be a valid index
+// for x.mant.
+func shouldRoundUp(x *decimal, n int) bool {
+	if x.mant[n] == '5' && n+1 == len(x.mant) {
+		// exactly halfway - round to even
+		return n > 0 && (x.mant[n-1]-'0')&1 != 0
+	}
+	// not halfway - digit tells all (x.mant has no trailing zeros)
+	return x.mant[n] >= '5'
+}
+
+// round sets x to (at most) n mantissa digits by rounding it
+// to the nearest even value with n (or fever) mantissa digits.
+// If n < 0, x remains unchanged.
+func (x *decimal) round(n int) {
+	if n < 0 || n >= len(x.mant) {
+		return // nothing to do
+	}
+
+	if shouldRoundUp(x, n) {
+		x.roundUp(n)
+	} else {
+		x.roundDown(n)
+	}
+}
+
+func (x *decimal) roundUp(n int) {
+	if n < 0 || n >= len(x.mant) {
+		return // nothing to do
+	}
+	// 0 <= n < len(x.mant)
+
+	// find first digit < '9'
+	for n > 0 && x.mant[n-1] >= '9' {
+		n--
+	}
+
+	if n == 0 {
+		// all digits are '9's => round up to '1' and update exponent
+		x.mant[0] = '1' // ok since len(x.mant) > n
+		x.mant = x.mant[:1]
+		x.exp++
+		return
+	}
+
+	// n > 0 && x.mant[n-1] < '9'
+	x.mant[n-1]++
+	x.mant = x.mant[:n]
+	// x already trimmed
+}
+
+func (x *decimal) roundDown(n int) {
+	if n < 0 || n >= len(x.mant) {
+		return // nothing to do
+	}
+	x.mant = x.mant[:n]
+	trim(x)
+}
+
+// trim cuts off any trailing zeros from x's mantissa;
+// they are meaningless for the value of x.
+func trim(x *decimal) {
+	i := len(x.mant)
+	for i > 0 && x.mant[i-1] == '0' {
+		i--
+	}
+	x.mant = x.mant[:i]
 }
