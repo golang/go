@@ -71,6 +71,10 @@ extern "C" {
 #include <ctype.h>	/* for tolower */
 #include <time.h>
 
+#ifdef _WIN32
+#include <signal.h>
+#endif
+
 /*
  * OS-specific crap
  */
