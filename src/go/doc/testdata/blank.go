@@ -44,6 +44,13 @@ const (
 	I2
 )
 
+// Unexported constants counting from blank iota.
+// See issue 9615.
+const (
+	_   = iota
+	one = iota + 1
+)
+
 // Blanks not in doc output:
 
 // S has a padding field.
