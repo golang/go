@@ -21,11 +21,14 @@ func main() {
 		return
 	}
 	a, err := build.ArchChar(runtime.GOARCH)
-	if err != nil {
-		fmt.Println("BUG:", err)
-		os.Exit(1)
-	}
-	out := run("go", "tool", a+"g", "-S", filepath.Join("fixedbugs", "issue9355.dir", "a.go"))
+	check(err)
+
+	err = os.Chdir(filepath.Join("fixedbugs", "issue9355.dir"))
+	check(err)
+
+	out := run("go", "tool", a+"g", "-S", "a.go")
+	os.Remove("a." + a)
+
 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
 	patterns := []string{
 		`rel 0\+\d t=1 \"\"\.x\+8\r?\n`,       // y = &x.b
@@ -49,4 +52,11 @@ func run(cmd string, args ...string) []byte {
 		os.Exit(1)
 	}
 	return out
+}
+
+func check(err error) {
+	if err != nil {
+		fmt.Println("BUG:", err)
+		os.Exit(1)
+	}
 }
