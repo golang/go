@@ -30,8 +30,7 @@ CONSTANTS
 
 	// Package constants. 
 	const (
-		_	int	= iota
-		I1
+		I1	int
 		I2
 	)
 
@@ -50,8 +49,7 @@ TYPES
 
 	// T constants counting from a blank constant. 
 	const (
-		_	T	= iota
-		T1
+		T1	T
 		T2
 	)
 

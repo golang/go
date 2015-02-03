@@ -12,13 +12,12 @@ import (
 )
 
 // filterIdentList removes unexported names from list in place
-// and returns the resulting list. If blankOk is set, blank
-// identifiers are considered exported names.
+// and returns the resulting list.
 //
-func filterIdentList(list []*ast.Ident, blankOk bool) []*ast.Ident {
+func filterIdentList(list []*ast.Ident) []*ast.Ident {
 	j := 0
 	for _, x := range list {
-		if ast.IsExported(x.Name) || (blankOk && x.Name == "_") {
+		if ast.IsExported(x.Name) {
 			list[j] = x
 			j++
 		}
@@ -26,11 +25,11 @@ func filterIdentList(list []*ast.Ident, blankOk bool) []*ast.Ident {
 	return list[0:j]
 }
 
-// hasExportedOrBlankName reports whether list contains any exported or blank names.
+// hasExportedName reports whether list contains any exported names.
 //
-func hasExportedOrBlankName(list []*ast.Ident) bool {
+func hasExportedName(list []*ast.Ident) bool {
 	for _, x := range list {
-		if x.IsExported() || x.Name == "_" {
+		if x.IsExported() {
 			return true
 		}
 	}
@@ -89,7 +88,7 @@ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp 
 				r.remember(ityp)
 			}
 		} else {
-			field.Names = filterIdentList(field.Names, false)
+			field.Names = filterIdentList(field.Names)
 			if len(field.Names) < n {
 				removedFields = true
 			}
@@ -157,9 +156,7 @@ func (r *reader) filterSpec(spec ast.Spec, tok token.Token) bool {
 		// always keep imports so we can collect them
 		return true
 	case *ast.ValueSpec:
-		// special case: consider blank constants as exported
-		// (work-around for issue 5397)
-		s.Names = filterIdentList(s.Names, tok == token.CONST)
+		s.Names = filterIdentList(s.Names)
 		if len(s.Names) > 0 {
 			r.filterType(nil, s.Type)
 			return true
@@ -207,9 +204,8 @@ func (r *reader) filterSpecList(list []ast.Spec, tok token.Token) []ast.Spec {
 				// provide current spec with an explicit type
 				spec.Type = copyConstType(prevType, spec.Pos())
 			}
-			if hasExportedOrBlankName(spec.Names) {
-				// both exported and blank names are preserved
-				// so there's no need to propagate the type
+			if hasExportedName(spec.Names) {
+				// exported names are preserved so there's no need to propagate the type
 				prevType = nil
 			} else {
 				prevType = spec.Type
