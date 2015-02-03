@@ -572,6 +572,8 @@ getc(void)
 	c = peekc;
 	if(c != IGN) {
 		peekc = IGN;
+		if(c == '\n')
+			lineno++;
 		return c;
 	}
 	c = GETC();
@@ -633,7 +635,7 @@ loop:
 				return l;
 			}
 		}
-		peekc = c;
+		unget(c);
 		return l;
 	}
 	switch(c)

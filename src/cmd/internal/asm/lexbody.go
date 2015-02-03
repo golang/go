@@ -534,6 +534,9 @@ func getc() int {
 	c = peekc
 	if c != IGN {
 		peekc = IGN
+		if c == '\n' {
+			Lineno++
+		}
 		return c
 	}
 
@@ -599,6 +602,7 @@ loop:
 		}
 
 		peekc = c
+		unget(c)
 		return l
 	}
 
