@@ -235,7 +235,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 		// If framepointer_enabled and there's a frame, then
 		// there's a saved bp here.
 		if GOARCH == "amd64" && frame.varp > frame.sp && framepointer_enabled {
-			frame.varp -= ptrSize
+			frame.varp -= regSize
 		}
 
 		// Derive size of arguments.
