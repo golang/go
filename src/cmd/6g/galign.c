@@ -76,7 +76,6 @@ main(int argc, char **argv)
 	arch.betypeinit = betypeinit;
 	arch.bgen = bgen;
 	arch.cgen = cgen;
-	arch.cgen_asop = cgen_asop;
 	arch.cgen_call = cgen_call;
 	arch.cgen_callinter = cgen_callinter;
 	arch.cgen_ret = cgen_ret;

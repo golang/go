@@ -442,13 +442,6 @@ cgen_ret(Node *n)
 	}
 }
 
-void
-cgen_asop(Node *n)
-{
-	USED(n);
-	fatal("cgen_asop"); // no longer used
-}
-
 /*
  * generate division.
  * generates one of:
