@@ -143,7 +143,7 @@ writeobj(Link *ctxt, Biobuf *b)
 	// we will hard code the GOOBJ=1 behavior.
 	env = getenv("GOOBJ");
 	if(env == nil)
-		env = "2";
+		env = "0";
 	if(atoi(env) == 0) {
 		writeobjdirect(ctxt, b);
 		return;
