@@ -144,6 +144,12 @@ type TestIntptrAlias *int
 
 func fIntptrAlias(a TestIntptrAlias) TestIntptrAlias { return a }
 
+func fArray(a [4]byte) [4]byte { return a }
+
+type TestArrayAlias [4]byte
+
+func fArrayAlias(a TestArrayAlias) TestArrayAlias { return a }
+
 func reportError(property string, err error, t *testing.T) {
 	if err != nil {
 		t.Errorf("%s: %s", property, err)
@@ -195,6 +201,8 @@ func TestCheckEqual(t *testing.T) {
 	reportError("fUintptrAlias", CheckEqual(fUintptrAlias, fUintptrAlias, nil), t)
 	reportError("fIntptr", CheckEqual(fIntptr, fIntptr, nil), t)
 	reportError("fIntptrAlias", CheckEqual(fIntptrAlias, fIntptrAlias, nil), t)
+	reportError("fArray", CheckEqual(fArray, fArray, nil), t)
+	reportError("fArrayAlais", CheckEqual(fArrayAlias, fArrayAlias, nil), t)
 }
 
 // This tests that ArbitraryValue is working by checking that all the arbitrary

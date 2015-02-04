@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Runtime _type representation.
+// Runtime type representation.
 
 package runtime
 
@@ -17,13 +17,13 @@ type _type struct {
 	fieldalign uint8
 	kind       uint8
 	alg        *typeAlg
-	// gc stores _type info required for garbage collector.
+	// gc stores type info required for garbage collector.
 	// If (kind&KindGCProg)==0, then gc[0] points at sparse GC bitmap
 	// (no indirection), 4 bits per word.
 	// If (kind&KindGCProg)!=0, then gc[1] points to a compiler-generated
 	// read-only GC program; and gc[0] points to BSS space for sparse GC bitmap.
-	// For huge _types (>maxGCMask), runtime unrolls the program directly into
-	// GC bitmap and gc[0] is not used. For moderately-sized _types, runtime
+	// For huge types (>maxGCMask), runtime unrolls the program directly into
+	// GC bitmap and gc[0] is not used. For moderately-sized types, runtime
 	// unrolls the program into gc[0] space on first use. The first byte of gc[0]
 	// (gc[0][0]) contains 'unroll' flag saying whether the program is already
 	// unrolled into gc[0] or not.
@@ -31,7 +31,7 @@ type _type struct {
 	_string *string
 	x       *uncommontype
 	ptrto   *_type
-	zero    *byte // ptr to the zero value for this _type
+	zero    *byte // ptr to the zero value for this type
 }
 
 type method struct {
@@ -64,8 +64,8 @@ type maptype struct {
 	typ           _type
 	key           *_type
 	elem          *_type
-	bucket        *_type // internal _type representing a hash bucket
-	hmap          *_type // internal _type representing a hmap
+	bucket        *_type // internal type representing a hash bucket
+	hmap          *_type // internal type representing a hmap
 	keysize       uint8  // size of key slot
 	indirectkey   bool   // store ptr to key instead of key itself
 	valuesize     uint8  // size of value slot

@@ -88,8 +88,8 @@ loop1:
 			// Convert uses to $0 to uses of R0 and
 			// propagate R0
 			if(regzer(&p->from))
-			if(p->to.type == D_REG) {
-				p->from.type = D_REG;
+			if(p->to.type == TYPE_REG) {
+				p->from.type = TYPE_REG;
 				p->from.reg = REGZERO;
 				if(copyprop(r)) {
 					excise(r);
@@ -119,7 +119,7 @@ loop1:
 		case AMOVBZ:
 		case AMOVW:
 		case AMOVWZ:
-			if(p->to.type != D_REG)
+			if(p->to.type != TYPE_REG)
 				continue;
 			break;
 		}
@@ -129,9 +129,9 @@ loop1:
 		p1 = r1->prog;
 		if(p1->as != p->as)
 			continue;
-		if(p1->from.type != D_REG || p1->from.reg != p->to.reg)
+		if(p1->from.type != TYPE_REG || p1->from.reg != p->to.reg)
 			continue;
-		if(p1->to.type != D_REG || p1->to.reg != p->to.reg)
+		if(p1->to.type != TYPE_REG || p1->to.reg != p->to.reg)
 			continue;
 		excise(r1);
 	}
@@ -177,7 +177,7 @@ loop1:
 			if(r1 == nil)
 				continue;
 			p1 = r1->prog;
-			if(p1->to.type != D_REG || p1->to.reg != p->from.reg)
+			if(p1->to.type != TYPE_REG || p1->to.reg != p->from.reg)
 				continue;
 			switch(p1->as) {
 			case ASUB:
@@ -185,7 +185,7 @@ loop1:
 			case AXOR:
 			case AOR:
 				/* irregular instructions */
-				if(p1->from.type == D_CONST)
+				if(p1->from.type == TYPE_CONST || p1->from.type == TYPE_ADDR)
 					continue;
 				break;
 			}
@@ -194,7 +194,7 @@ loop1:
 				continue;
 			case AMOVW:
 			case AMOVD:
-				if(p1->from.type != D_REG)
+				if(p1->from.type != TYPE_REG)
 					continue;
 				continue;
 			case AANDCC:
@@ -327,15 +327,12 @@ ret:
 void
 excise(Flow *r)
 {
-	Prog *p, *l;
+	Prog *p;
 
 	p = r->prog;
 	if(debug['P'] && debug['v'])
 		print("%P ===delete===\n", p);
-	l = p->link;
-	*p = zprog;
-	p->as = ANOP;
-	p->link = l;
+	nopout(p);
 	ostats.ndelmov++;
 }
 
@@ -345,11 +342,11 @@ excise(Flow *r)
 static int
 regzer(Addr *a)
 {
-	if(a->type == D_CONST)
-		if(a->sym == nil && a->reg == NREG)
+	if(a->type == TYPE_CONST || a->type == TYPE_ADDR)
+		if(a->sym == nil && a->reg == 0)
 			if(a->offset == 0)
 				return 1;
-	if(a->type == D_REG)
+	if(a->type == TYPE_REG)
 		if(a->reg == REGZERO)
 			return 1;
 	return 0;
@@ -358,15 +355,8 @@ regzer(Addr *a)
 int
 regtyp(Adr *a)
 {
-	switch(a->type) {
-	default:
-		return 0;
-	case D_REG:
-		if(a->reg == REGZERO)
-			return 0;
-	case D_FREG:
-		return 1;
-	}
+	// TODO(rsc): Floating point register exclusions?
+	return a->type == TYPE_REG && REG_R0 <= a->reg && a->reg <= REG_F31 && a->reg != REGZERO;
 }
 
 /*
@@ -581,7 +571,7 @@ copy1(Addr *v1, Addr *v2, Flow *r, int f)
 int
 copyu(Prog *p, Addr *v, Addr *s)
 {
-	if(p->from3.type != D_NONE)
+	if(p->from3.type != TYPE_NONE)
 		// 9g never generates a from3
 		print("copyu: from3 (%D) not implemented\n", p->from3);
 
@@ -633,7 +623,7 @@ copyu(Prog *p, Addr *v, Addr *s)
 		}
 		if(copyas(&p->to, v)) {
 			// Fix up implicit from
-			if(p->from.type == D_NONE)
+			if(p->from.type == TYPE_NONE)
 				p->from = p->to;
 			if(copyau(&p->from, v))
 				return 4;
@@ -652,7 +642,7 @@ copyu(Prog *p, Addr *v, Addr *s)
 	case AMOVHZU:
 	case AMOVWZU:
 	case AMOVDU:
-		if(p->from.type == D_OREG) {
+		if(p->from.type == TYPE_MEM) {
 			if(copyas(&p->from, v))
 				// No s!=nil check; need to fail
 				// anyway in that case
@@ -664,7 +654,7 @@ copyu(Prog *p, Addr *v, Addr *s)
 			}
 			if(copyas(&p->to, v))
 				return 3;
-		} else if (p->to.type == D_OREG) {
+		} else if (p->to.type == TYPE_MEM) {
 			if(copyas(&p->to, v))
 				return 2;
 			if(s != nil) {
@@ -743,7 +733,7 @@ copyu(Prog *p, Addr *v, Addr *s)
 			return 0;
 		}
 		if(copyas(&p->to, v)) {
-			if(p->reg == NREG)
+			if(p->reg == 0)
 				// Fix up implicit reg (e.g., ADD
 				// R3,R4 -> ADD R3,R4,R4) so we can
 				// update reg and to separately.
@@ -811,17 +801,20 @@ copyu(Prog *p, Addr *v, Addr *s)
 		return 3;
 
 	case ABL:	/* funny */
-		if(v->type == D_REG) {
-			if(v->reg <= REGEXT && v->reg > exregoffset)
+		if(v->type == TYPE_REG) {
+			// TODO(rsc): REG_R0 and REG_F0 used to be
+			// (when register numbers started at 0) exregoffset and exfregoffset,
+			// which are unset entirely. 
+			// It's strange that this handles R0 and F0 differently from the other
+			// registers. Possible failure to optimize?
+			if(REG_R0 < v->reg && v->reg <= REGEXT)
 				return 2;
 			if(v->reg == REGARG)
 				return 2;
-		}
-		if(v->type == D_FREG) {
-			if(v->reg <= FREGEXT && v->reg > exfregoffset)
+			if(REG_F0 < v->reg && v->reg <= FREGEXT)
 				return 2;
 		}
-		if(p->from.type == D_REG && v->type == D_REG && p->from.reg == v->reg)
+		if(p->from.type == TYPE_REG && v->type == TYPE_REG && p->from.reg == v->reg)
 			return 2;
 
 		if(s != nil) {
@@ -836,7 +829,7 @@ copyu(Prog *p, Addr *v, Addr *s)
 	case ADUFFZERO:
 		// R0 is zero, used by DUFFZERO, cannot be substituted.
 		// R3 is ptr to memory, used and set, cannot be substituted.
-		if(v->type == D_REG) {
+		if(v->type == TYPE_REG) {
 			if(v->reg == 0)
 				return 1;
 			if(v->reg == 3)
@@ -847,7 +840,7 @@ copyu(Prog *p, Addr *v, Addr *s)
 	case ADUFFCOPY:
 		// R3, R4 are ptr to src, dst, used and set, cannot be substituted.
 		// R5 is scratch, set by DUFFCOPY, cannot be substituted.
-		if(v->type == D_REG) {
+		if(v->type == TYPE_REG) {
 			if(v->reg == 3 || v->reg == 4)
 				return 2;
 			if(v->reg == 5)
@@ -856,7 +849,7 @@ copyu(Prog *p, Addr *v, Addr *s)
 		return 0;
 
 	case ATEXT:	/* funny */
-		if(v->type == D_REG)
+		if(v->type == TYPE_REG)
 			if(v->reg == REGARG)
 				return 3;
 		return 0;
@@ -867,18 +860,6 @@ copyu(Prog *p, Addr *v, Addr *s)
 	case AVARKILL:
 		return 0;
 	}
-}
-
-int
-a2type(Prog *p)
-{
-	ProgInfo info;
-	proginfo(&info, p);
-	if(info.flags & (SizeB|SizeW|SizeL|SizeQ))
-		return D_REG;
-	if(info.flags & (SizeF|SizeD))
-		return D_FREG;
-	return D_NONE;
 }
 
 // copyas returns 1 if a and v address the same register.
@@ -908,8 +889,8 @@ copyau(Addr *a, Addr *v)
 {
 	if(copyas(a, v))
 		return 1;
-	if(v->type == D_REG)
-		if(a->type == D_OREG || (a->type == D_CONST && a->reg != NREG))
+	if(v->type == TYPE_REG)
+		if(a->type == TYPE_MEM || (a->type == TYPE_ADDR && a->reg != 0))
 			if(v->reg == a->reg)
 				return 1;
 	return 0;
@@ -920,17 +901,9 @@ copyau(Addr *a, Addr *v)
 static int
 copyau1(Prog *p, Addr *v)
 {
-	if(regtyp(v))
-		if(p->from.type == v->type || p->to.type == v->type)
-		if(p->reg == v->reg) {
-			// Whether p->reg is a GPR or an FPR is
-			// implied by the instruction (both are
-			// numbered from 0).  But the type should
-			// match v->type.  Sanity check this.
-			if(a2type(p) != v->type)
-				print("botch a2type %P\n", p);
+	if(regtyp(v) && v->reg != 0)
+		if(p->reg == v->reg)
 			return 1;
-		}
 	return 0;
 }
 
@@ -963,7 +936,7 @@ sameaddr(Addr *a, Addr *v)
 		return 0;
 	if(regtyp(v) && a->reg == v->reg)
 		return 1;
-	if(v->type == D_AUTO || v->type == D_PARAM)
+	if(v->type == NAME_AUTO || v->type == NAME_PARAM)
 		if(v->offset == a->offset)
 			return 1;
 	return 0;
@@ -972,7 +945,7 @@ sameaddr(Addr *a, Addr *v)
 int
 smallindir(Addr *a, Addr *reg)
 {
-	return reg->type == D_REG && a->type == D_OREG &&
+	return reg->type == TYPE_REG && a->type == TYPE_MEM &&
 		a->reg == reg->reg &&
 		0 <= a->offset && a->offset < 4096;
 }
@@ -980,5 +953,5 @@ smallindir(Addr *a, Addr *reg)
 int
 stackaddr(Addr *a)
 {
-	return a->type == D_REG && a->reg == REGSP;
+	return a->type == TYPE_REG && a->reg == REGSP;
 }

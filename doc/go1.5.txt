@@ -9,11 +9,12 @@ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream i
 crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
 crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
 encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
-log: add global Output function (https://golang.org/cl/2686)
+log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
 net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
 net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
 runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
 strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)
+testing/quick: support generation of arrays (https://golang.org/cl/3865)
 
 Tools:
 

@@ -74,7 +74,7 @@ rnops(Flow *r)
 	if(r != nil)
 	for(;;) {
 		p = r->prog;
-		if(p->as != ANOP || p->from.type != D_NONE || p->to.type != D_NONE)
+		if(p->as != ANOP || p->from.type != TYPE_NONE || p->to.type != TYPE_NONE)
 			break;
 		r1 = uniqs(r);
 		if(r1 == nil)
@@ -110,7 +110,7 @@ peep(Prog *firstp)
 		case ALEAL:
 			if(regtyp(&p->to))
 			if(p->from.sym != nil)
-			if(p->from.index == D_NONE || p->from.index == D_CONST)
+			if(p->from.index == REG_NONE)
 				conprop(r);
 			break;
 
@@ -120,7 +120,7 @@ peep(Prog *firstp)
 		case AMOVSS:
 		case AMOVSD:
 			if(regtyp(&p->to))
-			if(p->from.type == D_CONST || p->from.type == D_FCONST)
+			if(p->from.type == TYPE_CONST || p->from.type == TYPE_FCONST)
 				conprop(r);
 			break;
 		}
@@ -158,7 +158,7 @@ loop1:
 				r1 = rnops(uniqs(r));
 				if(r1 != nil) {
 					p1 = r1->prog;
-					if(p->as == p1->as && p->to.type == p1->from.type){
+					if(p->as == p1->as && p->to.type == p1->from.type && p->to.reg == p1->from.reg){
 						p1->as = AMOVL;
 						t++;
 					}
@@ -168,7 +168,7 @@ loop1:
 
 		case AADDL:
 		case AADDW:
-			if(p->from.type != D_CONST || needc(p->link))
+			if(p->from.type != TYPE_CONST || needc(p->link))
 				break;
 			if(p->from.offset == -1){
 				if(p->as == AADDL)
@@ -190,7 +190,7 @@ loop1:
 
 		case ASUBL:
 		case ASUBW:
-			if(p->from.type != D_CONST || needc(p->link))
+			if(p->from.type != TYPE_CONST || needc(p->link))
 				break;
 			if(p->from.offset == -1) {
 				if(p->as == ASUBL)
@@ -239,9 +239,7 @@ excise(Flow *r)
 	if(debug['P'] && debug['v'])
 		print("%P ===delete===\n", p);
 
-	p->as = ANOP;
-	p->from = zprog.from;
-	p->to = zprog.to;
+	nopout(p);
 
 	ostats.ndelmov++;
 }
@@ -249,14 +247,7 @@ excise(Flow *r)
 int
 regtyp(Adr *a)
 {
-	int t;
-
-	t = a->type;
-	if(t >= D_AX && t <= D_DI)
-		return 1;
-	if(t >= D_X0 && t <= D_X7)
-		return 1;
-	return 0;
+	return a->type == TYPE_REG && (REG_AX <= a->reg && a->reg <= REG_DI || REG_X0 <= a->reg && a->reg <= REG_X7);
 }
 
 // movb elimination.
@@ -293,7 +284,7 @@ elimshortmov(Graph *g)
 				p->as = ANOTL;
 				break;
 			}
-			if(regtyp(&p->from) || p->from.type == D_CONST) {
+			if(regtyp(&p->from) || p->from.type == TYPE_CONST) {
 				// move or artihmetic into partial register.
 				// from another register or constant can be movl.
 				// we don't switch to 32-bit arithmetic if it can
@@ -398,7 +389,7 @@ subprop(Flow *r0)
 		if(info.reguse | info.regset)
 			return 0;
 
-		if((info.flags & Move) && (info.flags & (SizeL|SizeQ|SizeF|SizeD)) && p->to.type == v1->type)
+		if((info.flags & Move) && (info.flags & (SizeL|SizeQ|SizeF|SizeD)) && p->to.type == v1->type && p->to.reg == v1->reg)
 			goto gotit;
 
 		if(copyau(&p->from, v2) || copyau(&p->to, v2))
@@ -412,7 +403,7 @@ gotit:
 	copysub(&p->to, v1, v2, 1);
 	if(debug['P']) {
 		print("gotit: %D->%D\n%P", v1, v2, r->prog);
-		if(p->from.type == v2->type)
+		if(p->from.type == v2->type && p->from.reg == v2->reg)
 			print(" excise");
 		print("\n");
 	}
@@ -423,9 +414,9 @@ gotit:
 		if(debug['P'])
 			print("%P\n", r->prog);
 	}
-	t = v1->type;
-	v1->type = v2->type;
-	v2->type = t;
+	t = v1->reg;
+	v1->reg = v2->reg;
+	v2->reg = t;
 	if(debug['P'])
 		print("%P last\n", r->prog);
 	return 1;
@@ -566,11 +557,11 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 3;
 
 	case ACALL:
-		if(REGEXT && v->type <= REGEXT && v->type > exregoffset)
+		if(REGEXT && v->type == TYPE_REG && v->reg <= REGEXT && v->reg > exregoffset)
 			return 2;
-		if(REGARG >= 0 && v->type == (uchar)REGARG)
+		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == (uchar)REGARG)
 			return 2;
-		if(v->type == p->from.type)
+		if(v->type == p->from.type && v->reg == p->from.reg)
 			return 2;
 
 		if(s != nil) {
@@ -583,7 +574,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 3;
 
 	case ATEXT:
-		if(REGARG >= 0 && v->type == (uchar)REGARG)
+		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == (uchar)REGARG)
 			return 3;
 		return 0;
 	}
@@ -592,7 +583,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 0;
 	proginfo(&info, p);
 
-	if((info.reguse|info.regset) & RtoB(v->type))
+	if((info.reguse|info.regset) & RtoB(v->reg))
 		return 2;
 		
 	if(info.flags & LeftAddr)
@@ -636,16 +627,16 @@ copyu(Prog *p, Adr *v, Adr *s)
 static int
 copyas(Adr *a, Adr *v)
 {
-	if(D_AL <= a->type && a->type <= D_BL)
+	if(REG_AL <= a->reg && a->reg <= REG_BL)
 		fatal("use of byte register");
-	if(D_AL <= v->type && v->type <= D_BL)
+	if(REG_AL <= v->reg && v->reg <= REG_BL)
 		fatal("use of byte register");
 
-	if(a->type != v->type)
+	if(a->type != v->type || a->name != v->name || a->reg != v->reg)
 		return 0;
 	if(regtyp(v))
 		return 1;
-	if(v->type == D_AUTO || v->type == D_PARAM)
+	if(v->type == TYPE_MEM && (v->name == NAME_AUTO || v->name == NAME_PARAM))
 		if(v->offset == a->offset)
 			return 1;
 	return 0;
@@ -654,11 +645,11 @@ copyas(Adr *a, Adr *v)
 int
 sameaddr(Addr *a, Addr *v)
 {
-	if(a->type != v->type)
+	if(a->type != v->type || a->name != v->name || a->reg != v->reg)
 		return 0;
 	if(regtyp(v))
 		return 1;
-	if(v->type == D_AUTO || v->type == D_PARAM)
+	if(v->type == TYPE_MEM && (v->name == NAME_AUTO || v->name == NAME_PARAM))
 		if(v->offset == a->offset)
 			return 1;
 	return 0;
@@ -674,9 +665,9 @@ copyau(Adr *a, Adr *v)
 	if(copyas(a, v))
 		return 1;
 	if(regtyp(v)) {
-		if(a->type-D_INDIR == v->type)
+		if(a->type == TYPE_MEM && a->reg == v->reg)
 			return 1;
-		if(a->index == v->type)
+		if(a->index == v->reg)
 			return 1;
 	}
 	return 0;
@@ -689,28 +680,28 @@ copyau(Adr *a, Adr *v)
 static int
 copysub(Adr *a, Adr *v, Adr *s, int f)
 {
-	int t;
+	int reg;
 
 	if(copyas(a, v)) {
-		t = s->type;
-		if(t >= D_AX && t <= D_DI || t >= D_X0 && t <= D_X7) {
+		reg = s->reg;
+		if(reg >= REG_AX && reg <= REG_DI || reg >= REG_X0 && reg <= REG_X7) {
 			if(f)
-				a->type = t;
+				a->reg = reg;
 		}
 		return 0;
 	}
 	if(regtyp(v)) {
-		t = v->type;
-		if(a->type == t+D_INDIR) {
-			if((s->type == D_BP) && a->index != D_NONE)
+		reg = v->reg;
+		if(a->type == TYPE_MEM && a->reg == reg) {
+			if((s->reg == REG_BP) && a->index != TYPE_NONE)
 				return 1;	/* can't use BP-base with index */
 			if(f)
-				a->type = s->type+D_INDIR;
+				a->reg = s->reg;
 //			return 0;
 		}
-		if(a->index == t) {
+		if(a->index == reg) {
 			if(f)
-				a->index = s->type;
+				a->index = s->reg;
 			return 0;
 		}
 		return 0;
@@ -751,10 +742,11 @@ loop:
 	case 3:	// set
 		if(p->as == p0->as)
 		if(p->from.type == p0->from.type)
+		if(p->from.reg == p0->from.reg)
 		if(p->from.node == p0->from.node)
 		if(p->from.offset == p0->from.offset)
 		if(p->from.scale == p0->from.scale)
-		if(p->from.type == D_FCONST && p->from.u.dval == p0->from.u.dval)
+		if(p->from.type == TYPE_FCONST && p->from.u.dval == p0->from.u.dval)
 		if(p->from.index == p0->from.index) {
 			excise(r);
 			goto loop;
@@ -767,13 +759,13 @@ int
 smallindir(Addr *a, Addr *reg)
 {
 	return regtyp(reg) &&
-		a->type == D_INDIR + reg->type &&
-		a->index == D_NONE &&
+		a->type == TYPE_MEM && a->reg == reg->reg &&
+		a->index == REG_NONE &&
 		0 <= a->offset && a->offset < 4096;
 }
 
 int
 stackaddr(Addr *a)
 {
-	return regtyp(a) && a->type == D_SP;
+	return a->type == TYPE_REG && a->reg == REG_SP;
 }

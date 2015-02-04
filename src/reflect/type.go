@@ -1469,9 +1469,8 @@ func MapOf(key, elem Type) Type {
 
 	// Make a map type.
 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
-	prototype := *(**mapType)(unsafe.Pointer(&imap))
 	mt := new(mapType)
-	*mt = *prototype
+	*mt = **(**mapType)(unsafe.Pointer(&imap))
 	mt.string = &s
 	mt.hash = fnv1(etyp.hash, 'm', byte(ktyp.hash>>24), byte(ktyp.hash>>16), byte(ktyp.hash>>8), byte(ktyp.hash))
 	mt.key = ktyp
@@ -1575,7 +1574,7 @@ func (gc *gcProg) appendProg(t *rtype) {
 		for i := 0; i < c; i++ {
 			gc.appendProg(t.Field(i).Type.common())
 		}
-		if gc.size > oldsize + t.size {
+		if gc.size > oldsize+t.size {
 			panic("reflect: struct components are larger than the struct itself")
 		}
 		gc.size = oldsize + t.size
@@ -1650,6 +1649,12 @@ const (
 )
 
 func bucketOf(ktyp, etyp *rtype) *rtype {
+	// See comment on hmap.overflow in ../runtime/hashmap.go.
+	var kind uint8
+	if ktyp.kind&kindNoPointers != 0 && etyp.kind&kindNoPointers != 0 {
+		kind = kindNoPointers
+	}
+
 	if ktyp.size > maxKeySize {
 		ktyp = PtrTo(ktyp).(*rtype)
 	}
@@ -1679,6 +1684,7 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 
 	b := new(rtype)
 	b.size = gc.size
+	b.kind = kind
 	b.gc[0], _ = gc.finalize()
 	s := "bucket(" + *ktyp.string + "," + *etyp.string + ")"
 	b.string = &s
@@ -1803,6 +1809,7 @@ type layoutType struct {
 	argSize   uintptr // size of arguments
 	retOffset uintptr // offset of return values.
 	stack     *bitVector
+	framePool *sync.Pool
 }
 
 var layoutCache struct {
@@ -1816,7 +1823,7 @@ var layoutCache struct {
 // The returned type exists only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program.  We also fill in
 // the name for possible debugging use.
-func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stack *bitVector) {
+func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stack *bitVector, framePool *sync.Pool) {
 	if t.Kind() != Func {
 		panic("reflect: funcLayout of non-func type")
 	}
@@ -1827,13 +1834,13 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	layoutCache.RLock()
 	if x := layoutCache.m[k]; x.t != nil {
 		layoutCache.RUnlock()
-		return x.t, x.argSize, x.retOffset, x.stack
+		return x.t, x.argSize, x.retOffset, x.stack, x.framePool
 	}
 	layoutCache.RUnlock()
 	layoutCache.Lock()
 	if x := layoutCache.m[k]; x.t != nil {
 		layoutCache.Unlock()
-		return x.t, x.argSize, x.retOffset, x.stack
+		return x.t, x.argSize, x.retOffset, x.stack, x.framePool
 	}
 
 	tt := (*funcType)(unsafe.Pointer(t))
@@ -1897,14 +1904,18 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	if layoutCache.m == nil {
 		layoutCache.m = make(map[layoutKey]layoutType)
 	}
+	framePool = &sync.Pool{New: func() interface{} {
+		return unsafe_New(x)
+	}}
 	layoutCache.m[k] = layoutType{
 		t:         x,
 		argSize:   argSize,
 		retOffset: retOffset,
 		stack:     stack,
+		framePool: framePool,
 	}
 	layoutCache.Unlock()
-	return x, argSize, retOffset, stack
+	return x, argSize, retOffset, stack, framePool
 }
 
 // ifaceIndir reports whether t is stored indirectly in an interface value.

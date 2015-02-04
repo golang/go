@@ -158,3 +158,80 @@ func TestGostringnocopy(t *testing.T) {
 		t.Errorf("want %d, got %d", max+9, newmax)
 	}
 }
+
+func TestCompareTempString(t *testing.T) {
+	s := "foo"
+	b := []byte(s)
+	n := testing.AllocsPerRun(1000, func() {
+		if string(b) != s {
+			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+		}
+		if string(b) == s {
+		} else {
+			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}
+
+func TestStringOnStack(t *testing.T) {
+	s := ""
+	for i := 0; i < 3; i++ {
+		s = "a" + s + "b" + s + "c"
+	}
+
+	if want := "aaabcbabccbaabcbabccc"; s != want {
+		t.Fatalf("want: '%v', got '%v'", want, s)
+	}
+}
+
+func TestIntString(t *testing.T) {
+	// Non-escaping result of intstring.
+	s := ""
+	for i := 0; i < 4; i++ {
+		s += string(i+'0') + string(i+'0'+1)
+	}
+	if want := "01122334"; s != want {
+		t.Fatalf("want '%v', got '%v'", want, s)
+	}
+
+	// Escaping result of intstring.
+	var a [4]string
+	for i := 0; i < 4; i++ {
+		a[i] = string(i + '0')
+	}
+	s = a[0] + a[1] + a[2] + a[3]
+	if want := "0123"; s != want {
+		t.Fatalf("want '%v', got '%v'", want, s)
+	}
+}
+
+func TestIntStringAllocs(t *testing.T) {
+	unknown := '0'
+	n := testing.AllocsPerRun(1000, func() {
+		s1 := string(unknown)
+		s2 := string(unknown + 1)
+		if s1 == s2 {
+			t.Fatalf("bad")
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}
+
+func TestRangeStringCast(t *testing.T) {
+	s := "abc"
+	n := testing.AllocsPerRun(1000, func() {
+		for i, c := range []byte(s) {
+			if c != s[i] {
+				t.Fatalf("want '%c' at pos %v, got '%c'", s[i], i, c)
+			}
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}

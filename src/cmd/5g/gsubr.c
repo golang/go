@@ -42,14 +42,14 @@ void
 clearp(Prog *p)
 {
 	p->as = AEND;
-	p->reg = NREG;
+	p->reg = 0;
 	p->scond = C_SCOND_NONE;
-	p->from.type = D_NONE;
-	p->from.name = D_NONE;
-	p->from.reg = NREG;
-	p->to.type = D_NONE;
-	p->to.name = D_NONE;
-	p->to.reg = NREG;
+	p->from.type = TYPE_NONE;
+	p->from.name = NAME_NONE;
+	p->from.reg = 0;
+	p->to.type = TYPE_NONE;
+	p->to.name = NAME_NONE;
+	p->to.reg = 0;
 	p->pc = pcloc;
 	pcloc++;
 }
@@ -124,7 +124,7 @@ gbranch(int as, Type *t, int likely)
 	USED(likely);  // TODO: record this for linker
 
 	p = prog(as);
-	p->to.type = D_BRANCH;
+	p->to.type = TYPE_BRANCH;
 	p->to.u.branch = P;
 	return p;
 }
@@ -135,7 +135,7 @@ gbranch(int as, Type *t, int likely)
 void
 patch(Prog *p, Prog *to)
 {
-	if(p->to.type != D_BRANCH)
+	if(p->to.type != TYPE_BRANCH)
 		fatal("patch: not a branch");
 	p->to.u.branch = to;
 	p->to.offset = to->pc;
@@ -146,7 +146,7 @@ unpatch(Prog *p)
 {
 	Prog *q;
 
-	if(p->to.type != D_BRANCH)
+	if(p->to.type != TYPE_BRANCH)
 		fatal("unpatch: not a branch");
 	q = p->to.u.branch;
 	p->to.u.branch = P;
@@ -197,12 +197,12 @@ ggloblnod(Node *nam)
 	p->lineno = nam->lineno;
 	p->from.sym->gotype = linksym(ngotype(nam));
 	p->to.sym = nil;
-	p->to.type = D_CONST;
+	p->to.type = TYPE_CONST;
 	p->to.offset = nam->type->width;
 	if(nam->readonly)
-		p->reg = RODATA;
+		p->from3.offset = RODATA;
 	if(nam->type != T && !haspointers(nam->type))
-		p->reg |= NOPTR;
+		p->from3.offset |= NOPTR;
 }
 
 void
@@ -211,13 +211,13 @@ ggloblsym(Sym *s, int32 width, int8 flags)
 	Prog *p;
 
 	p = gins(AGLOBL, N, N);
-	p->from.type = D_OREG;
-	p->from.name = D_EXTERN;
+	p->from.type = TYPE_MEM;
+	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
-	p->to.type = D_CONST;
-	p->to.name = D_NONE;
+	p->to.type = TYPE_CONST;
+	p->to.name = NAME_NONE;
 	p->to.offset = width;
-	p->reg = flags;
+	p->from3.offset = flags;
 }
 
 void
@@ -226,8 +226,8 @@ gtrack(Sym *s)
 	Prog *p;
 	
 	p = gins(AUSEFIELD, N, N);
-	p->from.type = D_OREG;
-	p->from.name = D_EXTERN;
+	p->from.type = TYPE_MEM;
+	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
 }
 
@@ -249,13 +249,13 @@ isfat(Type *t)
  * naddr of func generates code for address of func.
  * if using opcode that can take address implicitly,
  * call afunclit to fix up the argument.
- * also fix up direct register references to be D_OREG.
+ * also fix up direct register references to be TYPE_MEM.
  */
 void
 afunclit(Addr *a, Node *n)
 {
-	if(a->type == D_CONST && a->name == D_EXTERN || a->type == D_REG) {
-		a->type = D_OREG;
+	if(a->type == TYPE_ADDR && a->name == NAME_EXTERN || a->type == TYPE_REG) {
+		a->type = TYPE_MEM;
 		if(n->op == ONAME)
 			a->sym = linksym(n->sym);
 	}
@@ -385,7 +385,7 @@ regalloc(Node *n, Type *t, Node *o)
 	yyerror("regalloc: unknown type %T", t);
 
 err:
-	nodreg(n, t, 0);
+	nodreg(n, t, REG_R0);
 	return;
 
 out:
@@ -852,9 +852,9 @@ gmove(Node *f, Node *t)
 		regalloc(&r2, thi.type, N);
 		gmove(f, &r1);
 		p1 = gins(AMOVW, &r1, &r2);
-		p1->from.type = D_SHIFT;
-		p1->from.offset = 2 << 5 | 31 << 7 | r1.val.u.reg; // r1->31
-		p1->from.reg = NREG;
+		p1->from.type = TYPE_SHIFT;
+		p1->from.offset = 2 << 5 | 31 << 7 | (r1.val.u.reg&15); // r1->31
+		p1->from.reg = 0;
 //print("gmove: %P\n", p1);
 		gins(AMOVW, &r1, &tlo);
 		gins(AMOVW, &r2, &thi);
@@ -1124,12 +1124,12 @@ raddr(Node *n, Prog *p)
 	Addr a;
 
 	naddr(n, &a, 1);
-	if(a.type != D_REG && a.type != D_FREG) {
+	if(a.type != TYPE_REG) {
 		if(n)
 			fatal("bad in raddr: %O", n->op);
 		else
 			fatal("bad in raddr: <null>");
-		p->reg = NREG;
+		p->reg = 0;
 	} else
 		p->reg = a.reg;
 }
@@ -1164,8 +1164,8 @@ gshift(int as, Node *lhs, int32 stype, int32 sval, Node *rhs)
 	sval = sval&0x1f;
 
 	p = gins(as, N, rhs);
-	p->from.type = D_SHIFT;
-	p->from.offset = stype | sval<<7 | lhs->val.u.reg;
+	p->from.type = TYPE_SHIFT;
+	p->from.offset = stype | sval<<7 | (lhs->val.u.reg&15);
 	return p;
 }
 
@@ -1176,8 +1176,8 @@ gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs)
 {
 	Prog *p;
 	p = gins(as, N, rhs);
-	p->from.type = D_SHIFT;
-	p->from.offset = stype | reg->val.u.reg << 8 | 1<<4 | lhs->val.u.reg;
+	p->from.type = TYPE_SHIFT;
+	p->from.offset = stype | (reg->val.u.reg&15) << 8 | 1<<4 | (lhs->val.u.reg&15);
 	return p;
 }
 
@@ -1190,9 +1190,9 @@ naddr(Node *n, Addr *a, int canemitcode)
 {
 	Sym *s;
 
-	a->type = D_NONE;
-	a->name = D_NONE;
-	a->reg = NREG;
+	a->type = TYPE_NONE;
+	a->name = NAME_NONE;
+	a->reg = 0;
 	a->gotype = nil;
 	a->node = N;
 	a->etype = 0;
@@ -1210,13 +1210,8 @@ naddr(Node *n, Addr *a, int canemitcode)
 		break;
 
 	case OREGISTER:
-		if(n->val.u.reg <= REGALLOC_RMAX) {
-			a->type = D_REG;
-			a->reg = n->val.u.reg;
-		} else {
-			a->type = D_FREG;
-			a->reg = n->val.u.reg - REGALLOC_F0;
-		}
+		a->type = TYPE_REG;
+		a->reg = n->val.u.reg;
 		a->sym = nil;
 		break;
 
@@ -1227,12 +1222,12 @@ naddr(Node *n, Addr *a, int canemitcode)
 //		if(a->type >= D_AX && a->type <= D_DI)
 //			a->type += D_INDIR;
 //		else
-//		if(a->type == D_CONST)
-//			a->type = D_NONE+D_INDIR;
+//		if(a->type == TYPE_ADDR)
+//			a->type = TYPE_NONE+D_INDIR;
 //		else
-//		if(a->type == D_ADDR) {
+//		if(a->type == TYPE_ADDR) {
 //			a->type = a->index;
-//			a->index = D_NONE;
+//			a->index = TYPE_NONE;
 //		} else
 //			goto bad;
 //		if(n->op == OINDEX) {
@@ -1242,7 +1237,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 //		break;
 
 	case OINDREG:
-		a->type = D_OREG;
+		a->type = TYPE_MEM;
 		a->reg = n->val.u.reg;
 		a->sym = linksym(n->sym);
 		a->offset = n->xoffset;
@@ -1255,16 +1250,16 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->width = n->left->type->width;
 		a->offset = n->xoffset;
 		a->sym = linksym(n->left->sym);
-		a->type = D_OREG;
-		a->name = D_PARAM;
+		a->type = TYPE_MEM;
+		a->name = NAME_PARAM;
 		a->node = n->left->orig;
 		break;
 	
 	case OCLOSUREVAR:
 		if(!curfn->needctxt)
 			fatal("closurevar without needctxt");
-		a->type = D_OREG;
-		a->reg = 7;
+		a->type = TYPE_MEM;
+		a->reg = REG_R7;
 		a->offset = n->xoffset;
 		a->sym = nil;
 		break;		
@@ -1277,7 +1272,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case ONAME:
 		a->etype = 0;
 		a->width = 0;
-		a->reg = NREG;
+		a->reg = 0;
 		if(n->type != T) {
 			a->etype = simtype[n->type->etype];
 			a->width = n->type->width;
@@ -1296,23 +1291,23 @@ naddr(Node *n, Addr *a, int canemitcode)
 				s = pkglookup(s->name, n->type->sym->pkg);
 		}
 
-		a->type = D_OREG;
+		a->type = TYPE_MEM;
 		switch(n->class) {
 		default:
 			fatal("naddr: ONAME class %S %d\n", n->sym, n->class);
 		case PEXTERN:
-			a->name = D_EXTERN;
+			a->name = NAME_EXTERN;
 			break;
 		case PAUTO:
-			a->name = D_AUTO;
+			a->name = NAME_AUTO;
 			break;
 		case PPARAM:
 		case PPARAMOUT:
-			a->name = D_PARAM;
+			a->name = NAME_PARAM;
 			break;
 		case PFUNC:
-			a->name = D_EXTERN;
-			a->type = D_CONST;
+			a->name = NAME_EXTERN;
+			a->type = TYPE_ADDR;
 			s = funcsym(s);
 			break;
 		}
@@ -1325,13 +1320,13 @@ naddr(Node *n, Addr *a, int canemitcode)
 			fatal("naddr: const %lT", n->type);
 			break;
 		case CTFLT:
-			a->type = D_FCONST;
+			a->type = TYPE_FCONST;
 			a->u.dval = mpgetflt(n->val.u.fval);
 			break;
 		case CTINT:
 		case CTRUNE:
 			a->sym = nil;
-			a->type = D_CONST;
+			a->type = TYPE_CONST;
 			a->offset = mpgetfix(n->val.u.xval);
 			break;
 		case CTSTR:
@@ -1339,12 +1334,12 @@ naddr(Node *n, Addr *a, int canemitcode)
 			break;
 		case CTBOOL:
 			a->sym = nil;
-			a->type = D_CONST;
+			a->type = TYPE_CONST;
 			a->offset = n->val.u.bval;
 			break;
 		case CTNIL:
 			a->sym = nil;
-			a->type = D_CONST;
+			a->type = TYPE_CONST;
 			a->offset = 0;
 			break;
 		}
@@ -1354,7 +1349,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		// itable of interface value
 		naddr(n->left, a, canemitcode);
 		a->etype = simtype[tptr];
-		if(a->type == D_CONST && a->offset == 0)
+		if(a->type == TYPE_CONST && a->offset == 0)
 			break;	// len(nil)
 		a->width = widthptr;
 		break;
@@ -1362,7 +1357,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case OSPTR:
 		// pointer in a string or slice
 		naddr(n->left, a, canemitcode);
-		if(a->type == D_CONST && a->offset == 0)
+		if(a->type == TYPE_CONST && a->offset == 0)
 			break;	// ptr(nil)
 		a->etype = simtype[tptr];
 		a->offset += Array_array;
@@ -1373,7 +1368,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		// len of string or slice
 		naddr(n->left, a, canemitcode);
 		a->etype = TINT32;
-		if(a->type == D_CONST && a->offset == 0)
+		if(a->type == TYPE_CONST && a->offset == 0)
 			break;	// len(nil)
 		a->offset += Array_nel;
 		break;
@@ -1382,7 +1377,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		// cap of string or slice
 		naddr(n->left, a, canemitcode);
 		a->etype = TINT32;
-		if(a->type == D_CONST && a->offset == 0)
+		if(a->type == TYPE_CONST && a->offset == 0)
 			break;	// cap(nil)
 		a->offset += Array_cap;
 		break;
@@ -1391,12 +1386,12 @@ naddr(Node *n, Addr *a, int canemitcode)
 		naddr(n->left, a, canemitcode);
 		a->etype = tptr;
 		switch(a->type) {
-		case D_OREG:
-			a->type = D_CONST;
+		case TYPE_MEM:
+			a->type = TYPE_ADDR;
 			break;
 
-		case D_REG:
-		case D_CONST:
+		case TYPE_REG:
+		case TYPE_ADDR:
 			break;
 		
 		default:
@@ -1419,7 +1414,7 @@ optoas(int op, Type *t)
 	if(t == T)
 		fatal("optoas: t is nil");
 
-	a = AGOK;
+	a = AXXX;
 	switch(CASE(op, simtype[t->etype])) {
 	default:
 		fatal("optoas: no entry %O-%T etype %T simtype %T", op, t, types[t->etype], types[simtype[t->etype]]);
@@ -1903,8 +1898,8 @@ odot:
 		n1.xoffset = -(oary[i]+1);
 	}
 
-	a->type = D_NONE;
-	a->name = D_NONE;
+	a->type = TYPE_NONE;
+	a->name = NAME_NONE;
 	n1.type = n->type;
 	naddr(&n1, a, 1);
 	goto yes;
@@ -2022,7 +2017,7 @@ oindex:
 	}
 
 	naddr(reg1, a, 1);
-	a->type = D_OREG;
+	a->type = TYPE_MEM;
 	a->reg = reg->val.u.reg;
 	a->offset = 0;
 	goto yes;
@@ -2069,8 +2064,8 @@ oindex_const:
 	n2 = *reg;
 	n2.op = OINDREG;
 	n2.xoffset = v * (*w);
-	a->type = D_NONE;
-	a->name = D_NONE;
+	a->type = TYPE_NONE;
+	a->name = NAME_NONE;
 	naddr(&n2, a, 1);
 	goto yes;
 

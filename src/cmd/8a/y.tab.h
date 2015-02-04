@@ -118,17 +118,13 @@ typedef union YYSTYPE
 {
 	Sym	*sym;
 	int32	lval;
-	struct {
-		int32 v1;
-		int32 v2;
-	} con2;
 	double	dval;
 	char	sval[8];
 	Addr	addr;
 	Addr2	addr2;
 }
 /* Line 1529 of yacc.c.  */
-#line 132 "y.tab.h"
+#line 128 "y.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

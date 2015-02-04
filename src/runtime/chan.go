@@ -96,7 +96,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		if !block {
 			return false
 		}
-		gopark(nil, nil, "chan send (nil chan)")
+		gopark(nil, nil, "chan send (nil chan)", traceEvGoStop)
 		throw("unreachable")
 	}
 
@@ -178,7 +178,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		mysg.selectdone = nil
 		gp.param = nil
 		c.sendq.enqueue(mysg)
-		goparkunlock(&c.lock, "chan send")
+		goparkunlock(&c.lock, "chan send", traceEvGoBlockSend)
 
 		// someone woke us up.
 		if mysg != gp.waiting {
@@ -217,7 +217,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		mysg.elem = nil
 		mysg.selectdone = nil
 		c.sendq.enqueue(mysg)
-		goparkunlock(&c.lock, "chan send")
+		goparkunlock(&c.lock, "chan send", traceEvGoBlockSend)
 
 		// someone woke us up - try again
 		if mysg.releasetime > 0 {
@@ -340,7 +340,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 		if !block {
 			return
 		}
-		gopark(nil, nil, "chan receive (nil chan)")
+		gopark(nil, nil, "chan receive (nil chan)", traceEvGoStop)
 		throw("unreachable")
 	}
 
@@ -414,7 +414,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 		mysg.selectdone = nil
 		gp.param = nil
 		c.recvq.enqueue(mysg)
-		goparkunlock(&c.lock, "chan receive")
+		goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv)
 
 		// someone woke us up
 		if mysg != gp.waiting {
@@ -471,7 +471,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 		mysg.selectdone = nil
 
 		c.recvq.enqueue(mysg)
-		goparkunlock(&c.lock, "chan receive")
+		goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv)
 
 		// someone woke us up - try again
 		if mysg.releasetime > 0 {

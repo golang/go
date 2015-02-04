@@ -9,7 +9,6 @@ import (
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha1"
-	"crypto/sha256"
 	"hash"
 )
 
@@ -64,13 +63,15 @@ func prf10(result, secret, label, seed []byte) {
 	}
 }
 
-// prf12 implements the TLS 1.2 pseudo-random function, as defined in RFC 5246, section 5.
-func prf12(result, secret, label, seed []byte) {
-	labelAndSeed := make([]byte, len(label)+len(seed))
-	copy(labelAndSeed, label)
-	copy(labelAndSeed[len(label):], seed)
-
-	pHash(result, secret, labelAndSeed, sha256.New)
+// prf12New returns a function implementing the TLS 1.2 pseudo-random function,
+// as defined in RFC 5246, section 5, using the given hash.
+func prf12New(tls12Hash crypto.Hash) func(result, secret, label, seed []byte) {
+	return func(result, secret, label, seed []byte) {
+		labelAndSeed := make([]byte, len(label)+len(seed))
+		copy(labelAndSeed, label)
+		copy(labelAndSeed[len(label):], seed)
+		pHash(result, secret, labelAndSeed, tls12Hash.New)
+	}
 }
 
 // prf30 implements the SSL 3.0 pseudo-random function, as defined in
@@ -117,14 +118,14 @@ var keyExpansionLabel = []byte("key expansion")
 var clientFinishedLabel = []byte("client finished")
 var serverFinishedLabel = []byte("server finished")
 
-func prfForVersion(version uint16) func(result, secret, label, seed []byte) {
+func prfForVersion(version uint16, tls12Hash crypto.Hash) func(result, secret, label, seed []byte) {
 	switch version {
 	case VersionSSL30:
 		return prf30
 	case VersionTLS10, VersionTLS11:
 		return prf10
 	case VersionTLS12:
-		return prf12
+		return prf12New(tls12Hash)
 	default:
 		panic("unknown version")
 	}
@@ -132,26 +133,26 @@ func prfForVersion(version uint16) func(result, secret, label, seed []byte) {
 
 // masterFromPreMasterSecret generates the master secret from the pre-master
 // secret. See http://tools.ietf.org/html/rfc5246#section-8.1
-func masterFromPreMasterSecret(version uint16, preMasterSecret, clientRandom, serverRandom []byte) []byte {
+func masterFromPreMasterSecret(version uint16, tls12Hash crypto.Hash, preMasterSecret, clientRandom, serverRandom []byte) []byte {
 	var seed [tlsRandomLength * 2]byte
 	copy(seed[0:len(clientRandom)], clientRandom)
 	copy(seed[len(clientRandom):], serverRandom)
 	masterSecret := make([]byte, masterSecretLength)
-	prfForVersion(version)(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
+	prfForVersion(version, tls12Hash)(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
 	return masterSecret
 }
 
 // keysFromMasterSecret generates the connection keys from the master
 // secret, given the lengths of the MAC key, cipher key and IV, as defined in
 // RFC 2246, section 6.3.
-func keysFromMasterSecret(version uint16, masterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
+func keysFromMasterSecret(version uint16, tls12Hash crypto.Hash, masterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
 	var seed [tlsRandomLength * 2]byte
 	copy(seed[0:len(clientRandom)], serverRandom)
 	copy(seed[len(serverRandom):], clientRandom)
 
 	n := 2*macLen + 2*keyLen + 2*ivLen
 	keyMaterial := make([]byte, n)
-	prfForVersion(version)(keyMaterial, masterSecret, keyExpansionLabel, seed[0:])
+	prfForVersion(version, tls12Hash)(keyMaterial, masterSecret, keyExpansionLabel, seed[0:])
 	clientMAC = keyMaterial[:macLen]
 	keyMaterial = keyMaterial[macLen:]
 	serverMAC = keyMaterial[:macLen]
@@ -166,11 +167,11 @@ func keysFromMasterSecret(version uint16, masterSecret, clientRandom, serverRand
 	return
 }
 
-func newFinishedHash(version uint16) finishedHash {
+func newFinishedHash(version uint16, tls12Hash crypto.Hash) finishedHash {
 	if version >= VersionTLS12 {
-		return finishedHash{sha256.New(), sha256.New(), nil, nil, version}
+		return finishedHash{tls12Hash.New(), tls12Hash.New(), nil, nil, version, prfForVersion(version, tls12Hash)}
 	}
-	return finishedHash{sha1.New(), sha1.New(), md5.New(), md5.New(), version}
+	return finishedHash{sha1.New(), sha1.New(), md5.New(), md5.New(), version, prfForVersion(version, tls12Hash)}
 }
 
 // A finishedHash calculates the hash of a set of handshake messages suitable
@@ -184,6 +185,7 @@ type finishedHash struct {
 	serverMD5 hash.Hash
 
 	version uint16
+	prf     func(result, secret, label, seed []byte)
 }
 
 func (h finishedHash) Write(msg []byte) (n int, err error) {
@@ -242,12 +244,12 @@ func (h finishedHash) clientSum(masterSecret []byte) []byte {
 	out := make([]byte, finishedVerifyLength)
 	if h.version >= VersionTLS12 {
 		seed := h.client.Sum(nil)
-		prf12(out, masterSecret, clientFinishedLabel, seed)
+		h.prf(out, masterSecret, clientFinishedLabel, seed)
 	} else {
 		seed := make([]byte, 0, md5.Size+sha1.Size)
 		seed = h.clientMD5.Sum(seed)
 		seed = h.client.Sum(seed)
-		prf10(out, masterSecret, clientFinishedLabel, seed)
+		h.prf(out, masterSecret, clientFinishedLabel, seed)
 	}
 	return out
 }
@@ -262,12 +264,12 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
 	out := make([]byte, finishedVerifyLength)
 	if h.version >= VersionTLS12 {
 		seed := h.server.Sum(nil)
-		prf12(out, masterSecret, serverFinishedLabel, seed)
+		h.prf(out, masterSecret, serverFinishedLabel, seed)
 	} else {
 		seed := make([]byte, 0, md5.Size+sha1.Size)
 		seed = h.serverMD5.Sum(seed)
 		seed = h.server.Sum(seed)
-		prf10(out, masterSecret, serverFinishedLabel, seed)
+		h.prf(out, masterSecret, serverFinishedLabel, seed)
 	}
 	return out
 }

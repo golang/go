@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const _BIT16SZ = 2
+
 func sameFile(fs1, fs2 *fileStat) bool {
 	a := fs1.sys.(*syscall.Dir)
 	b := fs2.sys.(*syscall.Dir)
@@ -41,16 +43,14 @@ func fileInfoFromStat(d *syscall.Dir) FileInfo {
 // arg is an open *File or a path string.
 func dirstat(arg interface{}) (*syscall.Dir, error) {
 	var name string
+	var err error
 
-	// This is big enough for most stat messages
-	// and rounded to a multiple of 128 bytes.
-	size := (syscall.STATFIXLEN + 16*4 + 128) &^ 128
+	size := syscall.STATFIXLEN + 16*4
 
 	for i := 0; i < 2; i++ {
-		buf := make([]byte, size)
+		buf := make([]byte, _BIT16SZ+size)
 
 		var n int
-		var err error
 		switch a := arg.(type) {
 		case *File:
 			name = a.name
@@ -61,10 +61,8 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 		default:
 			panic("phase error in dirstat")
 		}
-		if err != nil {
-			return nil, &PathError{"stat", name, err}
-		}
-		if n < syscall.STATFIXLEN {
+
+		if n < _BIT16SZ {
 			return nil, &PathError{"stat", name, syscall.ErrShortStat}
 		}
 
@@ -73,17 +71,21 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 
 		// If the stat message is larger than our buffer we will
 		// go around the loop and allocate one that is big enough.
-		if size > n {
-			continue
+		if size <= n {
+			d, err := syscall.UnmarshalDir(buf[:n])
+			if err != nil {
+				return nil, &PathError{"stat", name, err}
+			}
+			return d, nil
 		}
 
-		d, err := syscall.UnmarshalDir(buf[:n])
-		if err != nil {
-			return nil, &PathError{"stat", name, err}
-		}
-		return d, nil
 	}
-	return nil, &PathError{"stat", name, syscall.ErrBadStat}
+
+	if err == nil {
+		err = syscall.ErrBadStat
+	}
+
+	return nil, &PathError{"stat", name, err}
 }
 
 // Stat returns a FileInfo describing the named file.

@@ -72,6 +72,78 @@ func TestSignAndVerify(t *testing.T) {
 	testSignAndVerify(t, elliptic.P521(), "p521")
 }
 
+func testNonceSafety(t *testing.T, c elliptic.Curve, tag string) {
+	priv, _ := GenerateKey(c, rand.Reader)
+
+	hashed := []byte("testing")
+	r0, s0, err := Sign(zeroReader, priv, hashed)
+	if err != nil {
+		t.Errorf("%s: error signing: %s", tag, err)
+		return
+	}
+
+	hashed = []byte("testing...")
+	r1, s1, err := Sign(zeroReader, priv, hashed)
+	if err != nil {
+		t.Errorf("%s: error signing: %s", tag, err)
+		return
+	}
+
+	if s0.Cmp(s1) == 0 {
+		// This should never happen.
+		t.Errorf("%s: the signatures on two different messages were the same")
+	}
+
+	if r0.Cmp(r1) == 0 {
+		t.Errorf("%s: the nonce used for two diferent messages was the same")
+	}
+}
+
+func TestNonceSafety(t *testing.T) {
+	testNonceSafety(t, elliptic.P224(), "p224")
+	if testing.Short() {
+		return
+	}
+	testNonceSafety(t, elliptic.P256(), "p256")
+	testNonceSafety(t, elliptic.P384(), "p384")
+	testNonceSafety(t, elliptic.P521(), "p521")
+}
+
+func testINDCCA(t *testing.T, c elliptic.Curve, tag string) {
+	priv, _ := GenerateKey(c, rand.Reader)
+
+	hashed := []byte("testing")
+	r0, s0, err := Sign(rand.Reader, priv, hashed)
+	if err != nil {
+		t.Errorf("%s: error signing: %s", tag, err)
+		return
+	}
+
+	r1, s1, err := Sign(rand.Reader, priv, hashed)
+	if err != nil {
+		t.Errorf("%s: error signing: %s", tag, err)
+		return
+	}
+
+	if s0.Cmp(s1) == 0 {
+		t.Errorf("%s: two signatures of the same message produced the same result")
+	}
+
+	if r0.Cmp(r1) == 0 {
+		t.Errorf("%s: two signatures of the same message produced the same nonce")
+	}
+}
+
+func TestINDCCA(t *testing.T) {
+	testINDCCA(t, elliptic.P224(), "p224")
+	if testing.Short() {
+		return
+	}
+	testINDCCA(t, elliptic.P256(), "p256")
+	testINDCCA(t, elliptic.P384(), "p384")
+	testINDCCA(t, elliptic.P521(), "p521")
+}
+
 func fromHex(s string) *big.Int {
 	r, ok := new(big.Int).SetString(s, 16)
 	if !ok {

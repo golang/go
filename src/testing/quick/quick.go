@@ -118,6 +118,14 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 			}
 			v.Index(i).Set(elem)
 		}
+	case reflect.Array:
+		for i := 0; i < v.Len(); i++ {
+			elem, ok := Value(concrete.Elem(), rand)
+			if !ok {
+				return reflect.Value{}, false
+			}
+			v.Index(i).Set(elem)
+		}
 	case reflect.String:
 		numChars := rand.Intn(complexSize)
 		codePoints := make([]rune, numChars)

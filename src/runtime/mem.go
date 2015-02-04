@@ -81,14 +81,14 @@ func ReadMemStats(m *MemStats) {
 	// a pending garbage collection already calling it.
 	semacquire(&worldsema, false)
 	gp := getg()
-	gp.m.gcing = 1
+	gp.m.preemptoff = "read mem stats"
 	systemstack(stoptheworld)
 
 	systemstack(func() {
 		readmemstats_m(m)
 	})
 
-	gp.m.gcing = 0
+	gp.m.preemptoff = ""
 	gp.m.locks++
 	semrelease(&worldsema)
 	systemstack(starttheworld)
@@ -99,14 +99,14 @@ func ReadMemStats(m *MemStats) {
 func runtime_debug_WriteHeapDump(fd uintptr) {
 	semacquire(&worldsema, false)
 	gp := getg()
-	gp.m.gcing = 1
+	gp.m.preemptoff = "write heap dump"
 	systemstack(stoptheworld)
 
 	systemstack(func() {
 		writeheapdump_m(fd)
 	})
 
-	gp.m.gcing = 0
+	gp.m.preemptoff = ""
 	gp.m.locks++
 	semrelease(&worldsema)
 	systemstack(starttheworld)

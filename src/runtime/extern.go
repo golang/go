@@ -45,6 +45,10 @@ a comma-separated list of name=val pairs. Supported names are:
 	This should only be used as a temporary workaround to diagnose buggy code.
 	The real fix is to not store integers in pointer-typed locations.
 
+	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
+	When set to 0 memory profiling is disabled.  Refer to the description of
+	MemProfileRate for the default value.
+
 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
 	detailed multiline info every X milliseconds, describing state of the scheduler,
 	processors, threads and goroutines.

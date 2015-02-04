@@ -18,14 +18,25 @@ typecheckrange(Node *n)
 	Node *v1, *v2;
 	NodeList *ll;
 
+	// Typechecking order is important here:
+	// 0. first typecheck range expression (slice/map/chan),
+	//	it is evaluated only once and so logically it is not part of the loop.
+	// 1. typcheck produced values,
+	//	this part can declare new vars and so it must be typechecked before body,
+	//	because body can contain a closure that captures the vars.
+	// 2. decldepth++ to denote loop body.
+	// 3. typecheck body.
+	// 4. decldepth--.
+
+	typecheck(&n->right, Erv);
+	if((t = n->right->type) == T)
+		goto out;
+
 	// delicate little dance.  see typecheckas2
 	for(ll=n->list; ll; ll=ll->next)
 		if(ll->n->defn != n)
 			typecheck(&ll->n, Erv | Easgn);
 
-	typecheck(&n->right, Erv);
-	if((t = n->right->type) == T)
-		goto out;
 	if(isptr[t->etype] && isfixedarray(t->type))
 		t = t->type;
 	n->type = t;
@@ -89,22 +100,26 @@ typecheckrange(Node *n)
 			v1->type = t1;
 		else if(v1->type != T && assignop(t1, v1->type, &why) == 0)
 			yyerror("cannot assign type %T to %lN in range%s", t1, v1, why);
+		checkassign(n, v1);
 	}
 	if(v2) {
 		if(v2->defn == n)
 			v2->type = t2;
 		else if(v2->type != T && assignop(t2, v2->type, &why) == 0)
 			yyerror("cannot assign type %T to %lN in range%s", t2, v2, why);
+		checkassign(n, v2);
 	}
 
 out:
-	typechecklist(n->nbody, Etop);
-
 	// second half of dance
 	n->typecheck = 1;
 	for(ll=n->list; ll; ll=ll->next)
 		if(ll->n->typecheck == 0)
 			typecheck(&ll->n, Erv | Easgn);
+
+	decldepth++;
+	typechecklist(n->nbody, Etop);
+	decldepth--;
 }
 
 void

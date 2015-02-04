@@ -5,18 +5,22 @@
 // Package big implements multi-precision arithmetic (big numbers).
 // The following numeric types are supported:
 //
-//	- Int	signed integers
-//	- Rat	rational numbers
+//   Int    signed integers
+//   Rat    rational numbers
+//   Float  floating-point numbers
 //
 // Methods are typically of the form:
 //
-//	func (z *Int) Op(x, y *Int) *Int	(similar for *Rat)
+//   func (z *T) Unary(x *T) *T        // z = op x
+//   func (z *T) Binary(x, y *T) *T    // z = x op y
+//   func (x *T) M() T1                // v = x.M()
 //
-// and implement operations z = x Op y with the result as receiver; if it
-// is one of the operands it may be overwritten (and its memory reused).
+// with T one of Int, Rat, or Float. For unary and binary operations, the
+// result is the receiver (usually named z in that case); if it is one of
+// the operands x or y it may be overwritten (and its memory reused).
 // To enable chaining of operations, the result is also returned. Methods
-// returning a result other than *Int or *Rat take one of the operands as
-// the receiver.
+// returning a result other than *Int, *Rat, or *Float take an operand as
+// the receiver (usually named x in that case).
 //
 package big
 
@@ -24,13 +28,7 @@ package big
 // These are the building blocks for the operations on signed integers
 // and rationals.
 
-import (
-	"errors"
-	"io"
-	"math"
-	"math/rand"
-	"sync"
-)
+import "math/rand"
 
 // An unsigned integer x of the form
 //
@@ -68,7 +66,7 @@ func (z nat) norm() nat {
 
 func (z nat) make(n int) nat {
 	if n <= cap(z) {
-		return z[0:n] // reuse z
+		return z[:n] // reuse z
 	}
 	// Choosing a good value for e has significant performance impact
 	// because it increases the chance that a value can be reused.
@@ -78,7 +76,7 @@ func (z nat) make(n int) nat {
 
 func (z nat) setWord(x Word) nat {
 	if x == 0 {
-		return z.make(0)
+		return z[:0]
 	}
 	z = z.make(1)
 	z[0] = x
@@ -122,7 +120,7 @@ func (z nat) add(x, y nat) nat {
 		return z.add(y, x)
 	case m == 0:
 		// n == 0 because m >= n; result is 0
-		return z.make(0)
+		return z[:0]
 	case n == 0:
 		// result is x
 		return z.set(x)
@@ -148,7 +146,7 @@ func (z nat) sub(x, y nat) nat {
 		panic("underflow")
 	case m == 0:
 		// n == 0 because m >= n; result is 0
-		return z.make(0)
+		return z[:0]
 	case n == 0:
 		// result is x
 		return z.set(x)
@@ -384,7 +382,7 @@ func (z nat) mul(x, y nat) nat {
 	case m < n:
 		return z.mul(y, x)
 	case m == 0 || n == 0:
-		return z.make(0)
+		return z[:0]
 	case n == 1:
 		return z.mulAddWW(x, y[0], 0)
 	}
@@ -488,7 +486,7 @@ func (z nat) divW(x nat, y Word) (q nat, r Word) {
 		q = z.set(x) // result is x
 		return
 	case m == 0:
-		q = z.make(0) // result is 0
+		q = z[:0] // result is 0
 		return
 	}
 	// m > 0
@@ -504,7 +502,7 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
 	}
 
 	if u.cmp(v) < 0 {
-		q = z.make(0)
+		q = z[:0]
 		r = z2.set(u)
 		return
 	}
@@ -543,7 +541,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 		u = nil // u is an alias for uIn or v - cannot reuse
 	}
 	u = u.make(len(uIn) + 1)
-	u.clear()
+	u.clear() // TODO(gri) no need to clear if we allocated a new u
 
 	// D1.
 	shift := leadingZeros(v[n-1])
@@ -606,385 +604,6 @@ func (x nat) bitLen() int {
 	return 0
 }
 
-// MaxBase is the largest number base accepted for string conversions.
-const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
-
-func hexValue(ch rune) Word {
-	d := int(MaxBase + 1) // illegal base
-	switch {
-	case '0' <= ch && ch <= '9':
-		d = int(ch - '0')
-	case 'a' <= ch && ch <= 'z':
-		d = int(ch - 'a' + 10)
-	case 'A' <= ch && ch <= 'Z':
-		d = int(ch - 'A' + 10)
-	}
-	return Word(d)
-}
-
-// scan sets z to the natural number corresponding to the longest possible prefix
-// read from r representing an unsigned integer in a given conversion base.
-// It returns z, the actual conversion base used, and an error, if any. In the
-// error case, the value of z is undefined. The syntax follows the syntax of
-// unsigned integer literals in Go.
-//
-// The base argument must be 0 or a value from 2 through MaxBase. If the base
-// is 0, the string prefix determines the actual conversion base. A prefix of
-// ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
-// ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
-//
-func (z nat) scan(r io.RuneScanner, base int) (nat, int, error) {
-	// reject illegal bases
-	if base < 0 || base == 1 || MaxBase < base {
-		return z, 0, errors.New("illegal number base")
-	}
-
-	// one char look-ahead
-	ch, _, err := r.ReadRune()
-	if err != nil {
-		return z, 0, err
-	}
-
-	// determine base if necessary
-	b := Word(base)
-	if base == 0 {
-		b = 10
-		if ch == '0' {
-			switch ch, _, err = r.ReadRune(); err {
-			case nil:
-				b = 8
-				switch ch {
-				case 'x', 'X':
-					b = 16
-				case 'b', 'B':
-					b = 2
-				}
-				if b == 2 || b == 16 {
-					if ch, _, err = r.ReadRune(); err != nil {
-						return z, 0, err
-					}
-				}
-			case io.EOF:
-				return z.make(0), 10, nil
-			default:
-				return z, 10, err
-			}
-		}
-	}
-
-	// convert string
-	// - group as many digits d as possible together into a "super-digit" dd with "super-base" bb
-	// - only when bb does not fit into a word anymore, do a full number mulAddWW using bb and dd
-	z = z.make(0)
-	bb := Word(1)
-	dd := Word(0)
-	for max := _M / b; ; {
-		d := hexValue(ch)
-		if d >= b {
-			r.UnreadRune() // ch does not belong to number anymore
-			break
-		}
-
-		if bb <= max {
-			bb *= b
-			dd = dd*b + d
-		} else {
-			// bb * b would overflow
-			z = z.mulAddWW(z, bb, dd)
-			bb = b
-			dd = d
-		}
-
-		if ch, _, err = r.ReadRune(); err != nil {
-			if err != io.EOF {
-				return z, int(b), err
-			}
-			break
-		}
-	}
-
-	switch {
-	case bb > 1:
-		// there was at least one mantissa digit
-		z = z.mulAddWW(z, bb, dd)
-	case base == 0 && b == 8:
-		// there was only the octal prefix 0 (possibly followed by digits > 7);
-		// return base 10, not 8
-		return z, 10, nil
-	case base != 0 || b != 8:
-		// there was neither a mantissa digit nor the octal prefix 0
-		return z, int(b), errors.New("syntax error scanning number")
-	}
-
-	return z.norm(), int(b), nil
-}
-
-// Character sets for string conversion.
-const (
-	lowercaseDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
-	uppercaseDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-)
-
-// decimalString returns a decimal representation of x.
-// It calls x.string with the charset "0123456789".
-func (x nat) decimalString() string {
-	return x.string(lowercaseDigits[0:10])
-}
-
-// string converts x to a string using digits from a charset; a digit with
-// value d is represented by charset[d]. The conversion base is determined
-// by len(charset), which must be >= 2 and <= 256.
-func (x nat) string(charset string) string {
-	b := Word(len(charset))
-
-	// special cases
-	switch {
-	case b < 2 || MaxBase > 256:
-		panic("illegal base")
-	case len(x) == 0:
-		return string(charset[0])
-	}
-
-	// allocate buffer for conversion
-	i := int(float64(x.bitLen())/math.Log2(float64(b))) + 1 // off by one at most
-	s := make([]byte, i)
-
-	// convert power of two and non power of two bases separately
-	if b == b&-b {
-		// shift is base-b digit size in bits
-		shift := trailingZeroBits(b) // shift > 0 because b >= 2
-		mask := Word(1)<<shift - 1
-		w := x[0]
-		nbits := uint(_W) // number of unprocessed bits in w
-
-		// convert less-significant words
-		for k := 1; k < len(x); k++ {
-			// convert full digits
-			for nbits >= shift {
-				i--
-				s[i] = charset[w&mask]
-				w >>= shift
-				nbits -= shift
-			}
-
-			// convert any partial leading digit and advance to next word
-			if nbits == 0 {
-				// no partial digit remaining, just advance
-				w = x[k]
-				nbits = _W
-			} else {
-				// partial digit in current (k-1) and next (k) word
-				w |= x[k] << nbits
-				i--
-				s[i] = charset[w&mask]
-
-				// advance
-				w = x[k] >> (shift - nbits)
-				nbits = _W - (shift - nbits)
-			}
-		}
-
-		// convert digits of most-significant word (omit leading zeros)
-		for nbits >= 0 && w != 0 {
-			i--
-			s[i] = charset[w&mask]
-			w >>= shift
-			nbits -= shift
-		}
-
-	} else {
-		// determine "big base"; i.e., the largest possible value bb
-		// that is a power of base b and still fits into a Word
-		// (as in 10^19 for 19 decimal digits in a 64bit Word)
-		bb := b      // big base is b**ndigits
-		ndigits := 1 // number of base b digits
-		for max := Word(_M / b); bb <= max; bb *= b {
-			ndigits++ // maximize ndigits where bb = b**ndigits, bb <= _M
-		}
-
-		// construct table of successive squares of bb*leafSize to use in subdivisions
-		// result (table != nil) <=> (len(x) > leafSize > 0)
-		table := divisors(len(x), b, ndigits, bb)
-
-		// preserve x, create local copy for use by convertWords
-		q := nat(nil).set(x)
-
-		// convert q to string s in base b
-		q.convertWords(s, charset, b, ndigits, bb, table)
-
-		// strip leading zeros
-		// (x != 0; thus s must contain at least one non-zero digit
-		// and the loop will terminate)
-		i = 0
-		for zero := charset[0]; s[i] == zero; {
-			i++
-		}
-	}
-
-	return string(s[i:])
-}
-
-// Convert words of q to base b digits in s. If q is large, it is recursively "split in half"
-// by nat/nat division using tabulated divisors. Otherwise, it is converted iteratively using
-// repeated nat/Word division.
-//
-// The iterative method processes n Words by n divW() calls, each of which visits every Word in the
-// incrementally shortened q for a total of n + (n-1) + (n-2) ... + 2 + 1, or n(n+1)/2 divW()'s.
-// Recursive conversion divides q by its approximate square root, yielding two parts, each half
-// the size of q. Using the iterative method on both halves means 2 * (n/2)(n/2 + 1)/2 divW()'s
-// plus the expensive long div(). Asymptotically, the ratio is favorable at 1/2 the divW()'s, and
-// is made better by splitting the subblocks recursively. Best is to split blocks until one more
-// split would take longer (because of the nat/nat div()) than the twice as many divW()'s of the
-// iterative approach. This threshold is represented by leafSize. Benchmarking of leafSize in the
-// range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and
-// ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
-// specific hardware.
-//
-func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word, table []divisor) {
-	// split larger blocks recursively
-	if table != nil {
-		// len(q) > leafSize > 0
-		var r nat
-		index := len(table) - 1
-		for len(q) > leafSize {
-			// find divisor close to sqrt(q) if possible, but in any case < q
-			maxLength := q.bitLen()     // ~= log2 q, or at of least largest possible q of this bit length
-			minLength := maxLength >> 1 // ~= log2 sqrt(q)
-			for index > 0 && table[index-1].nbits > minLength {
-				index-- // desired
-			}
-			if table[index].nbits >= maxLength && table[index].bbb.cmp(q) >= 0 {
-				index--
-				if index < 0 {
-					panic("internal inconsistency")
-				}
-			}
-
-			// split q into the two digit number (q'*bbb + r) to form independent subblocks
-			q, r = q.div(r, q, table[index].bbb)
-
-			// convert subblocks and collect results in s[:h] and s[h:]
-			h := len(s) - table[index].ndigits
-			r.convertWords(s[h:], charset, b, ndigits, bb, table[0:index])
-			s = s[:h] // == q.convertWords(s, charset, b, ndigits, bb, table[0:index+1])
-		}
-	}
-
-	// having split any large blocks now process the remaining (small) block iteratively
-	i := len(s)
-	var r Word
-	if b == 10 {
-		// hard-coding for 10 here speeds this up by 1.25x (allows for / and % by constants)
-		for len(q) > 0 {
-			// extract least significant, base bb "digit"
-			q, r = q.divW(q, bb)
-			for j := 0; j < ndigits && i > 0; j++ {
-				i--
-				// avoid % computation since r%10 == r - int(r/10)*10;
-				// this appears to be faster for BenchmarkString10000Base10
-				// and smaller strings (but a bit slower for larger ones)
-				t := r / 10
-				s[i] = charset[r-t<<3-t-t] // TODO(gri) replace w/ t*10 once compiler produces better code
-				r = t
-			}
-		}
-	} else {
-		for len(q) > 0 {
-			// extract least significant, base bb "digit"
-			q, r = q.divW(q, bb)
-			for j := 0; j < ndigits && i > 0; j++ {
-				i--
-				s[i] = charset[r%b]
-				r /= b
-			}
-		}
-	}
-
-	// prepend high-order zeroes
-	zero := charset[0]
-	for i > 0 { // while need more leading zeroes
-		i--
-		s[i] = zero
-	}
-}
-
-// Split blocks greater than leafSize Words (or set to 0 to disable recursive conversion)
-// Benchmark and configure leafSize using: go test -bench="Leaf"
-//   8 and 16 effective on 3.0 GHz Xeon "Clovertown" CPU (128 byte cache lines)
-//   8 and 16 effective on 2.66 GHz Core 2 Duo "Penryn" CPU
-var leafSize int = 8 // number of Word-size binary values treat as a monolithic block
-
-type divisor struct {
-	bbb     nat // divisor
-	nbits   int // bit length of divisor (discounting leading zeroes) ~= log2(bbb)
-	ndigits int // digit length of divisor in terms of output base digits
-}
-
-var cacheBase10 struct {
-	sync.Mutex
-	table [64]divisor // cached divisors for base 10
-}
-
-// expWW computes x**y
-func (z nat) expWW(x, y Word) nat {
-	return z.expNN(nat(nil).setWord(x), nat(nil).setWord(y), nil)
-}
-
-// construct table of powers of bb*leafSize to use in subdivisions
-func divisors(m int, b Word, ndigits int, bb Word) []divisor {
-	// only compute table when recursive conversion is enabled and x is large
-	if leafSize == 0 || m <= leafSize {
-		return nil
-	}
-
-	// determine k where (bb**leafSize)**(2**k) >= sqrt(x)
-	k := 1
-	for words := leafSize; words < m>>1 && k < len(cacheBase10.table); words <<= 1 {
-		k++
-	}
-
-	// reuse and extend existing table of divisors or create new table as appropriate
-	var table []divisor // for b == 10, table overlaps with cacheBase10.table
-	if b == 10 {
-		cacheBase10.Lock()
-		table = cacheBase10.table[0:k] // reuse old table for this conversion
-	} else {
-		table = make([]divisor, k) // create new table for this conversion
-	}
-
-	// extend table
-	if table[k-1].ndigits == 0 {
-		// add new entries as needed
-		var larger nat
-		for i := 0; i < k; i++ {
-			if table[i].ndigits == 0 {
-				if i == 0 {
-					table[0].bbb = nat(nil).expWW(bb, Word(leafSize))
-					table[0].ndigits = ndigits * leafSize
-				} else {
-					table[i].bbb = nat(nil).mul(table[i-1].bbb, table[i-1].bbb)
-					table[i].ndigits = 2 * table[i-1].ndigits
-				}
-
-				// optimization: exploit aggregated extra bits in macro blocks
-				larger = nat(nil).set(table[i].bbb)
-				for mulAddVWW(larger, larger, b, 0) == 0 {
-					table[i].bbb = table[i].bbb.set(larger)
-					table[i].ndigits++
-				}
-
-				table[i].nbits = table[i].bbb.bitLen()
-			}
-		}
-	}
-
-	if b == 10 {
-		cacheBase10.Unlock()
-	}
-
-	return table
-}
-
 const deBruijn32 = 0x077CB531
 
 var deBruijn32Lookup = []byte{
@@ -1041,7 +660,7 @@ func (x nat) trailingZeroBits() uint {
 func (z nat) shl(x nat, s uint) nat {
 	m := len(x)
 	if m == 0 {
-		return z.make(0)
+		return z[:0]
 	}
 	// m > 0
 
@@ -1058,7 +677,7 @@ func (z nat) shr(x nat, s uint) nat {
 	m := len(x)
 	n := m - int(s/_W)
 	if n <= 0 {
-		return z.make(0)
+		return z[:0]
 	}
 	// n > 0
 
@@ -1097,12 +716,36 @@ func (z nat) setBit(x nat, i uint, b uint) nat {
 	panic("set bit is not 0 or 1")
 }
 
-func (z nat) bit(i uint) uint {
-	j := int(i / _W)
-	if j >= len(z) {
+// bit returns the value of the i'th bit, with lsb == bit 0.
+func (x nat) bit(i uint) uint {
+	j := i / _W
+	if j >= uint(len(x)) {
 		return 0
 	}
-	return uint(z[j] >> (i % _W) & 1)
+	// 0 <= j < len(x)
+	return uint(x[j] >> (i % _W) & 1)
+}
+
+// sticky returns 1 if there's a 1 bit within the
+// i least significant bits, otherwise it returns 0.
+func (x nat) sticky(i uint) uint {
+	j := i / _W
+	if j >= uint(len(x)) {
+		if len(x) == 0 {
+			return 0
+		}
+		return 1
+	}
+	// 0 <= j < len(x)
+	for _, x := range x[:j] {
+		if x != 0 {
+			return 1
+		}
+	}
+	if x[j]<<(_W-i%_W) != 0 {
+		return 1
+	}
+	return 0
 }
 
 func (z nat) and(x, y nat) nat {

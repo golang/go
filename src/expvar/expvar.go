@@ -32,6 +32,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 )
 
 // Var is an abstract type for all exported variables.
@@ -41,26 +42,19 @@ type Var interface {
 
 // Int is a 64-bit integer variable that satisfies the Var interface.
 type Int struct {
-	mu sync.RWMutex
-	i  int64
+	i int64
 }
 
 func (v *Int) String() string {
-	v.mu.RLock()
-	defer v.mu.RUnlock()
-	return strconv.FormatInt(v.i, 10)
+	return strconv.FormatInt(atomic.LoadInt64(&v.i), 10)
 }
 
 func (v *Int) Add(delta int64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.i += delta
+	atomic.AddInt64(&v.i, delta)
 }
 
 func (v *Int) Set(value int64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.i = value
+	atomic.StoreInt64(&v.i, value)
 }
 
 // Float is a 64-bit float variable that satisfies the Var interface.

@@ -73,9 +73,9 @@ cgen64(Node *n, Node *res)
 		r = &t2;
 	}
 
-	nodreg(&ax, types[TINT32], D_AX);
-	nodreg(&cx, types[TINT32], D_CX);
-	nodreg(&dx, types[TINT32], D_DX);
+	nodreg(&ax, types[TINT32], REG_AX);
+	nodreg(&cx, types[TINT32], REG_CX);
+	nodreg(&dx, types[TINT32], REG_DX);
 
 	// Setup for binary operation.
 	split64(l, &lo1, &hi1);
@@ -159,10 +159,10 @@ cgen64(Node *n, Node *res)
 		} else {
 			gins(AMOVL, &dx, &cx);
 			p1 = gins(ASHLL, ncon(v), &dx);
-			p1->from.index = D_AX;	// double-width shift
+			p1->from.index = REG_AX;	// double-width shift
 			p1->from.scale = 0;
 			p1 = gins(ASHLL, ncon(v), &ax);
-			p1->from.index = D_CX;	// double-width shift
+			p1->from.index = REG_CX;	// double-width shift
 			p1->from.scale = 0;
 		}
 		break;
@@ -198,7 +198,7 @@ cgen64(Node *n, Node *res)
 			gins(AMOVL, &lo1, &ax);
 			gins(AMOVL, &hi1, &dx);
 			p1 = gins(ASHLL, ncon(v), &dx);
-			p1->from.index = D_AX;	// double-width shift
+			p1->from.index = REG_AX;	// double-width shift
 			p1->from.scale = 0;
 			gins(ASHLL, ncon(v), &ax);
 			break;
@@ -240,7 +240,7 @@ cgen64(Node *n, Node *res)
 
 		// general shift
 		p1 = gins(ASHLL, &cx, &dx);
-		p1->from.index = D_AX;	// double-width shift
+		p1->from.index = REG_AX;	// double-width shift
 		p1->from.scale = 0;
 		gins(ASHLL, &cx, &ax);
 		patch(p2, pc);
@@ -287,7 +287,7 @@ cgen64(Node *n, Node *res)
 			gins(AMOVL, &lo1, &ax);
 			gins(AMOVL, &hi1, &dx);
 			p1 = gins(ASHRL, ncon(v), &ax);
-			p1->from.index = D_DX;	// double-width shift
+			p1->from.index = REG_DX;	// double-width shift
 			p1->from.scale = 0;
 			gins(optoas(ORSH, hi1.type), ncon(v), &dx);
 			break;
@@ -339,7 +339,7 @@ cgen64(Node *n, Node *res)
 
 		// general shift
 		p1 = gins(ASHRL, &cx, &ax);
-		p1->from.index = D_DX;	// double-width shift
+		p1->from.index = REG_DX;	// double-width shift
 		p1->from.scale = 0;
 		gins(optoas(ORSH, hi1.type), &cx, &dx);
 		patch(p2, pc);

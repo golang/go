@@ -45,6 +45,9 @@
 #define SYS_epoll_wait (SYS_BASE + 252)
 #define SYS_epoll_create1 (SYS_BASE + 357)
 #define SYS_fcntl (SYS_BASE + 55)
+#define SYS_access (SYS_BASE + 33)
+#define SYS_connect (SYS_BASE + 283)
+#define SYS_socket (SYS_BASE + 281)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 
@@ -471,3 +474,29 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
 	MOVW	$0xffff0fe0, R0
 	B	(R0)
+
+TEXT runtime·access(SB),NOSPLIT,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	$SYS_access, R7
+	SWI	$0
+	MOVW	R0, ret+8(FP)
+	RET
+
+TEXT runtime·connect(SB),NOSPLIT,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	$SYS_connect, R7
+	SWI	$0
+	MOVW	R0, ret+12(FP)
+	RET
+
+TEXT runtime·socket(SB),NOSPLIT,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	$SYS_socket, R7
+	SWI	$0
+	MOVW	R0, ret+12(FP)
+	RET

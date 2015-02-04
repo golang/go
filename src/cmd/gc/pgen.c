@@ -9,9 +9,10 @@
 #include	<u.h>
 #include	<libc.h>
 #include	"md5.h"
-#include	"gg.h"
-#include	"opt.h"
+#include	"go.h"
+//#include	"opt.h"
 #include	"../../runtime/funcdata.h"
+#include	"../ld/textflag.h"
 
 static void allocauto(Prog* p);
 static void emitptrargsmap(void);
@@ -29,7 +30,7 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 	pnod = newname(sym);
 	pnod->class = PEXTERN;
 	nodconst(&nod, types[TINT32], funcdatakind);
-	gins(AFUNCDATA, &nod, pnod);
+	arch.gins(AFUNCDATA, &nod, pnod);
 	return sym;
 }
 
@@ -38,7 +39,7 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 // where a complete initialization (definition) of a variable begins.
 // Since the liveness analysis can see initialization of single-word
 // variables quite easy, gvardef is usually only called for multi-word
-// or 'fat' variables, those satisfying isfat(n->type).
+// or 'fat' variables, those satisfying arch.isfat(n->type).
 // However, gvardef is also called when a non-fat variable is initialized
 // via a block move; the only time this happens is when you have
 //	return f()
@@ -102,7 +103,7 @@ gvardefx(Node *n, int as)
 	case PAUTO:
 	case PPARAM:
 	case PPARAMOUT:
-		gins(as, N, n);
+		arch.gins(as, N, n);
 	}
 }
 
@@ -126,7 +127,7 @@ removevardef(Prog *firstp)
 	for(p = firstp; p != P; p = p->link) {
 		while(p->link != P && (p->link->as == AVARDEF || p->link->as == AVARKILL))
 			p->link = p->link->link;
-		if(p->to.type == D_BRANCH)
+		if(p->to.type == TYPE_BRANCH)
 			while(p->to.u.branch != P && (p->to.u.branch->as == AVARDEF || p->to.u.branch->as == AVARKILL))
 				p->to.u.branch = p->to.u.branch->link;
 	}
@@ -222,39 +223,39 @@ compile(Node *fn)
 	continpc = P;
 	breakpc = P;
 
-	pl = newplist();
+	pl = arch.newplist();
 	pl->name = linksym(curfn->nname->sym);
 
 	setlineno(curfn);
 
 	nodconst(&nod1, types[TINT32], 0);
-	ptxt = gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
+	ptxt = arch.gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
 	if(fn->dupok)
-		ptxt->TEXTFLAG |= DUPOK;
+		ptxt->from3.offset |= DUPOK;
 	if(fn->wrapper)
-		ptxt->TEXTFLAG |= WRAPPER;
+		ptxt->from3.offset |= WRAPPER;
 	if(fn->needctxt)
-		ptxt->TEXTFLAG |= NEEDCTXT;
+		ptxt->from3.offset |= NEEDCTXT;
 	if(fn->nosplit)
-		ptxt->TEXTFLAG |= NOSPLIT;
+		ptxt->from3.offset |= NOSPLIT;
 
 	// Clumsy but important.
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
 	if(myimportpath != nil && strcmp(myimportpath, "reflect") == 0) {
 		if(strcmp(curfn->nname->sym->name, "callReflect") == 0 || strcmp(curfn->nname->sym->name, "callMethod") == 0)
-			ptxt->TEXTFLAG |= WRAPPER;
+			ptxt->from3.offset |= WRAPPER;
 	}	
 	
-	afunclit(&ptxt->from, curfn->nname);
+	arch.afunclit(&ptxt->from, curfn->nname);
 
-	ginit();
+	arch.ginit();
 
 	gcargs = makefuncdatasym("gcargs·%d", FUNCDATA_ArgsPointerMaps);
 	gclocals = makefuncdatasym("gclocals·%d", FUNCDATA_LocalsPointerMaps);
 
 	for(t=curfn->paramfld; t; t=t->down)
-		gtrack(tracksym(t->type));
+		arch.gtrack(tracksym(t->type));
 
 	for(l=fn->dcl; l; l=l->next) {
 		n = l->n;
@@ -265,7 +266,7 @@ compile(Node *fn)
 		case PPARAM:
 		case PPARAMOUT:
 			nodconst(&nod1, types[TUINTPTR], l->n->type->width);
-			p = gins(ATYPE, l->n, &nod1);
+			p = arch.gins(ATYPE, l->n, &nod1);
 			p->from.gotype = linksym(ngotype(l->n));
 			break;
 		}
@@ -273,7 +274,7 @@ compile(Node *fn)
 
 	genlist(curfn->enter);
 	genlist(curfn->nbody);
-	gclean();
+	arch.gclean();
 	checklabels();
 	if(nerrors != 0)
 		goto ret;
@@ -281,18 +282,18 @@ compile(Node *fn)
 		lineno = curfn->endlineno;
 
 	if(curfn->type->outtuple != 0)
-		ginscall(throwreturn, 0);
+		arch.ginscall(throwreturn, 0);
 
-	ginit();
+	arch.ginit();
 	// TODO: Determine when the final cgen_ret can be omitted. Perhaps always?
-	cgen_ret(nil);
+	arch.cgen_ret(nil);
 	if(hasdefer) {
 		// deferreturn pretends to have one uintptr argument.
 		// Reserve space for it so stack scanner is happy.
 		if(maxarg < widthptr)
 			maxarg = widthptr;
 	}
-	gclean();
+	arch.gclean();
 	if(nerrors != 0)
 		goto ret;
 
@@ -301,10 +302,10 @@ compile(Node *fn)
 
 	fixjmp(ptxt);
 	if(!debug['N'] || debug['R'] || debug['P']) {
-		regopt(ptxt);
+		arch.regopt(ptxt);
 		nilopt(ptxt);
 	}
-	expandchecks(ptxt);
+	arch.expandchecks(ptxt);
 
 	oldstksize = stksize;
 	allocauto(ptxt);
@@ -324,7 +325,7 @@ compile(Node *fn)
 	gcsymdup(gcargs);
 	gcsymdup(gclocals);
 
-	defframe(ptxt);
+	arch.defframe(ptxt);
 
 	if(0)
 		frame(0);
@@ -368,7 +369,7 @@ emitptrargsmap(void)
 		for(j = 0; j < bv->n; j += 32)
 			off = duint32(sym, off, bv->b[j/32]);
 	}
-	ggloblsym(sym, off, RODATA);
+	arch.ggloblsym(sym, off, RODATA);
 	free(bv);
 }
 
@@ -385,8 +386,11 @@ cmpstackvar(Node *a, Node *b)
 {
 	int ap, bp;
 
-	if (a->class != b->class)
-		return (a->class == PAUTO) ? +1 : -1;
+	if (a->class != b->class) {
+		if(a->class == PAUTO)
+			return +1;
+		return -1;
+	}
 	if (a->class != PAUTO) {
 		if (a->xoffset < b->xoffset)
 			return -1;
@@ -434,7 +438,7 @@ allocauto(Prog* ptxt)
 		if (ll->n->class == PAUTO)
 			ll->n->used = 0;
 
-	markautoused(ptxt);
+	arch.markautoused(ptxt);
 
 	listsort(&curfn->dcl, cmpstackvar);
 
@@ -444,7 +448,7 @@ allocauto(Prog* ptxt)
 	if (n->class == PAUTO && n->op == ONAME && !n->used) {
 		// No locals used at all
 		curfn->dcl = nil;
-		fixautoused(ptxt);
+		arch.fixautoused(ptxt);
 		return;
 	}
 
@@ -465,13 +469,13 @@ allocauto(Prog* ptxt)
 
 		dowidth(n->type);
 		w = n->type->width;
-		if(w >= MAXWIDTH || w < 0)
+		if(w >= arch.MAXWIDTH || w < 0)
 			fatal("bad width");
 		stksize += w;
 		stksize = rnd(stksize, n->type->align);
 		if(haspointers(n->type))
 			stkptrsize = stksize;
-		if(thechar == '5' || thechar == '9')
+		if(arch.thechar == '5' || arch.thechar == '9')
 			stksize = rnd(stksize, widthptr);
 		if(stksize >= (1ULL<<31)) {
 			setlineno(curfn);
@@ -482,7 +486,7 @@ allocauto(Prog* ptxt)
 	stksize = rnd(stksize, widthreg);
 	stkptrsize = rnd(stkptrsize, widthreg);
 
-	fixautoused(ptxt);
+	arch.fixautoused(ptxt);
 
 	// The debug information needs accurate offsets on the symbols.
 	for(ll = curfn->dcl; ll != nil; ll=ll->next) {
@@ -528,12 +532,12 @@ cgen_checknil(Node *n)
 		dump("checknil", n);
 		fatal("bad checknil");
 	}
-	if(((thechar == '5' || thechar == '9') && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
-		regalloc(&reg, types[tptr], n);
-		cgen(n, &reg);
-		gins(ACHECKNIL, &reg, N);
-		regfree(&reg);
+	if(((arch.thechar == '5' || arch.thechar == '9') && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
+		arch.regalloc(&reg, types[tptr], n);
+		arch.cgen(n, &reg);
+		arch.gins(ACHECKNIL, &reg, N);
+		arch.regfree(&reg);
 		return;
 	}
-	gins(ACHECKNIL, n, N);
+	arch.gins(ACHECKNIL, n, N);
 }

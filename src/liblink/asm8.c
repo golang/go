@@ -53,6 +53,8 @@ struct	Optab
 	uchar	op[13];
 };
 
+static Optab*	opindex[ALAST+1];
+
 enum
 {
 	Yxxx		= 0,
@@ -76,6 +78,7 @@ enum
 	Ym,
 	Ybr,
 	Ycol,
+	Ytextsize,
 	Ytls,
 
 	Ycs,	Yss,	Yds,	Yes,	Yfs,	Ygs,
@@ -140,7 +143,7 @@ enum
 };
 
 static	uchar	ycover[Ymax*Ymax];
-static	int	reg[D_NONE];
+static	int	reg[MAXREG];
 static	void	asmins(Link *ctxt, Prog *p);
 
 static uchar	ynone[] =
@@ -150,7 +153,7 @@ static uchar	ynone[] =
 };
 static uchar	ytext[] =
 {
-	Ymb,	Yi32,	Zpseudo,1,
+	Ymb,	Ytextsize,	Zpseudo,1,
 	0
 };
 static uchar	ynop[] =
@@ -674,8 +677,6 @@ static Optab optab[] =
 	{ ADIVW,	ydivl,	Pe, {0xf7,(06)} },
 	{ AENTER },				/* botch */
 	{ AGLOBL },
-	{ AGOK },
-	{ AHISTORY },
 	{ AHLT,		ynone,	Px, {0xf4} },
 	{ AIDIVB,	ydivb,	Pb, {0xf6,(07)} },
 	{ AIDIVL,	ydivl,	Px, {0xf7,(07)} },
@@ -748,14 +749,13 @@ static Optab optab[] =
 	{ AMULB,	ydivb,	Pb, {0xf6,(04)} },
 	{ AMULL,	ydivl,	Px, {0xf7,(04)} },
 	{ AMULW,	ydivl,	Pe, {0xf7,(04)} },
-	{ ANAME },
 	{ ANEGB,	yscond,	Px, {0xf6,(03)} },
-	{ ANEGL,	yscond,	Px, {0xf7,(03)} },
-	{ ANEGW,	yscond,	Pe, {0xf7,(03)} },
+	{ ANEGL,	yscond,	Px, {0xf7,(03)} }, // TODO(rsc): yscond is wrong here.
+	{ ANEGW,	yscond,	Pe, {0xf7,(03)} }, // TODO(rsc): yscond is wrong here.
 	{ ANOP,		ynop,	Px, {0,0} },
 	{ ANOTB,	yscond,	Px, {0xf6,(02)} },
-	{ ANOTL,	yscond,	Px, {0xf7,(02)} },
-	{ ANOTW,	yscond,	Pe, {0xf7,(02)} },
+	{ ANOTL,	yscond,	Px, {0xf7,(02)} }, // TODO(rsc): yscond is wrong here.
+	{ ANOTW,	yscond,	Pe, {0xf7,(02)} }, // TODO(rsc): yscond is wrong here.
 	{ AORB,		yxorb,	Pb, {0x0c,0x80,(01),0x08,0x0a} },
 	{ AORL,		yxorl,	Px, {0x83,(01),0x0d,0x81,(01),0x09,0x0b} },
 	{ AORW,		yxorl,	Pe, {0x83,(01),0x0d,0x81,(01),0x09,0x0b} },
@@ -967,13 +967,10 @@ static Optab optab[] =
 	{ AFYL2X,	ynone,	Px, {0xd9, 0xf1} },
 	{ AFYL2XP1,	ynone,	Px, {0xd9, 0xf9} },
 	{ AEND },
-	{ ADYNT_ },
-	{ AINIT_ },
-	{ ASIGNAME },
 	{ ACMPXCHGB,	yrb_mb,	Pm, {0xb0} },
 	{ ACMPXCHGL,	yrl_ml,	Pm, {0xb1} },
 	{ ACMPXCHGW,	yrl_ml,	Pm, {0xb1} },
-	{ ACMPXCHG8B,	yscond,	Pm, {0xc7,(01)} },
+	{ ACMPXCHG8B,	yscond,	Pm, {0xc7,(01)} }, // TODO(rsc): yscond is wrong here.
 
 	{ ACPUID,	ynone,	Pm, {0xa2} },
 	{ ARDTSC,	ynone,	Pm, {0x31} },
@@ -1230,16 +1227,12 @@ span8(Link *ctxt, LSym *s)
 		instinit();
 
 	for(p = s->text; p != nil; p = p->link) {
-		n = 0;
-		if(p->to.type == D_BRANCH)
+		if(p->to.type == TYPE_BRANCH)
 			if(p->pcond == nil)
 				p->pcond = p;
-		if((q = p->pcond) != nil)
-			if(q->back != 2)
-				n = 1;
-		p->back = n;
 		if(p->as == AADJSP) {
-			p->to.type = D_SP;
+			p->to.type = TYPE_REG;
+			p->to.reg = REG_SP;
 			v = -p->from.offset;
 			p->from.offset = v;
 			p->as = AADDL;
@@ -1259,7 +1252,8 @@ span8(Link *ctxt, LSym *s)
 			p->back |= 1;	// backward jump
 
 		if(p->as == AADJSP) {
-			p->to.type = D_SP;
+			p->to.type = TYPE_REG;
+			p->to.reg = REG_SP;
 			v = -p->from.offset;
 			p->from.offset = v;
 			p->as = AADDL;
@@ -1382,11 +1376,14 @@ span8(Link *ctxt, LSym *s)
 static void
 instinit(void)
 {
-	int i;
+	int i, c;
 
-	for(i=1; optab[i].as; i++)
-		if(i != optab[i].as)
-			sysfatal("phase error in optab: at %A found %A", i, optab[i].as);
+	for(i=1; optab[i].as; i++) {
+		c = optab[i].as;
+		if(opindex[c] != nil)
+			sysfatal("phase error in optab: %d (%A)", i, c);
+		opindex[c] = &optab[i];
+	}
 
 	for(i=0; i<Ymax; i++)
 		ycover[i*Ymax + i] = 1;
@@ -1437,196 +1434,218 @@ instinit(void)
 	ycover[Ym*Ymax + Yxm] = 1;
 	ycover[Yxr*Ymax + Yxm] = 1;
 
-	for(i=0; i<D_NONE; i++) {
+	for(i=0; i<MAXREG; i++) {
 		reg[i] = -1;
-		if(i >= D_AL && i <= D_BH)
-			reg[i] = (i-D_AL) & 7;
-		if(i >= D_AX && i <= D_DI)
-			reg[i] = (i-D_AX) & 7;
-		if(i >= D_F0 && i <= D_F0+7)
-			reg[i] = (i-D_F0) & 7;
-		if(i >= D_X0 && i <= D_X0+7)
-			reg[i] = (i-D_X0) & 7;
+		if(i >= REG_AL && i <= REG_BH)
+			reg[i] = (i-REG_AL) & 7;
+		if(i >= REG_AX && i <= REG_DI)
+			reg[i] = (i-REG_AX) & 7;
+		if(i >= REG_F0 && i <= REG_F0+7)
+			reg[i] = (i-REG_F0) & 7;
+		if(i >= REG_X0 && i <= REG_X0+7)
+			reg[i] = (i-REG_X0) & 7;
 	}
 }
 
 static int
 prefixof(Link *ctxt, Addr *a)
 {
-	switch(a->type) {
-	case D_INDIR+D_CS:
-		return 0x2e;
-	case D_INDIR+D_DS:
-		return 0x3e;
-	case D_INDIR+D_ES:
-		return 0x26;
-	case D_INDIR+D_FS:
-		return 0x64;
-	case D_INDIR+D_GS:
-		return 0x65;
-	case D_INDIR+D_TLS:
-		// NOTE: Systems listed here should be only systems that
-		// support direct TLS references like 8(TLS) implemented as
-		// direct references from FS or GS. Systems that require
-		// the initial-exec model, where you load the TLS base into
-		// a register and then index from that register, do not reach
-		// this code and should not be listed.
-		switch(ctxt->headtype) {
-		default:
-			sysfatal("unknown TLS base register for %s", headstr(ctxt->headtype));
-		case Hdarwin:
-		case Hdragonfly:
-		case Hfreebsd:
-		case Hnetbsd:
-		case Hopenbsd:
-			return 0x65; // GS
+	if(a->type == TYPE_MEM && a->name == NAME_NONE) {
+		switch(a->reg) {
+		case REG_CS:
+			return 0x2e;
+		case REG_DS:
+			return 0x3e;
+		case REG_ES:
+			return 0x26;
+		case REG_FS:
+			return 0x64;
+		case REG_GS:
+			return 0x65;
+		case REG_TLS:
+			// NOTE: Systems listed here should be only systems that
+			// support direct TLS references like 8(TLS) implemented as
+			// direct references from FS or GS. Systems that require
+			// the initial-exec model, where you load the TLS base into
+			// a register and then index from that register, do not reach
+			// this code and should not be listed.
+			switch(ctxt->headtype) {
+			default:
+				sysfatal("unknown TLS base register for %s", headstr(ctxt->headtype));
+			case Hdarwin:
+			case Hdragonfly:
+			case Hfreebsd:
+			case Hnetbsd:
+			case Hopenbsd:
+				return 0x65; // GS
+			}
 		}
 	}
 	return 0;
 }
 
 static int
-oclass(Addr *a)
+oclass(Link *ctxt, Addr *a)
 {
 	int32 v;
 
-	if((a->type >= D_INDIR && a->type < 2*D_INDIR) || a->index != D_NONE) {
-		if(a->index != D_NONE && a->scale == 0) {
-			if(a->type == D_ADDR) {
-				switch(a->index) {
-				case D_EXTERN:
-				case D_STATIC:
-					return Yi32;
-				case D_AUTO:
-				case D_PARAM:
-					return Yiauto;
-				}
-				return Yxxx;
-			}
-			//if(a->type == D_INDIR+D_ADDR)
-			//	print("*Ycol\n");
-			return Ycol;
-		}
-		return Ym;
-	}
-	switch(a->type)
-	{
-	case D_AL:
-		return Yal;
+	// TODO(rsc): This special case is for SHRQ $3, AX:DX,
+	// which encodes as SHRQ $32(DX*0), AX.
+	// Similarly SHRQ CX, AX:DX is really SHRQ CX(DX*0), AX.
+	// Change encoding and remove.
+	if((a->type == TYPE_CONST || a->type == TYPE_REG) && a->index != REG_NONE && a->scale == 0)
+		return Ycol;
 
-	case D_AX:
-		return Yax;
-
-	case D_CL:
-	case D_DL:
-	case D_BL:
-	case D_AH:
-	case D_CH:
-	case D_DH:
-	case D_BH:
-		return Yrb;
-
-	case D_CX:
-		return Ycx;
-
-	case D_DX:
-	case D_BX:
-		return Yrx;
-
-	case D_SP:
-	case D_BP:
-	case D_SI:
-	case D_DI:
-		return Yrl;
-
-	case D_F0+0:
-		return	Yf0;
-
-	case D_F0+1:
-	case D_F0+2:
-	case D_F0+3:
-	case D_F0+4:
-	case D_F0+5:
-	case D_F0+6:
-	case D_F0+7:
-		return	Yrf;
-
-	case D_X0+0:
-	case D_X0+1:
-	case D_X0+2:
-	case D_X0+3:
-	case D_X0+4:
-	case D_X0+5:
-	case D_X0+6:
-	case D_X0+7:
-		return	Yxr;
-
-	case D_NONE:
+	switch(a->type) {
+	case TYPE_NONE:
 		return Ynone;
 
-	case D_CS:	return	Ycs;
-	case D_SS:	return	Yss;
-	case D_DS:	return	Yds;
-	case D_ES:	return	Yes;
-	case D_FS:	return	Yfs;
-	case D_GS:	return	Ygs;
-	case D_TLS:	return	Ytls;
+	case TYPE_BRANCH:
+		return Ybr;
+	
+	case TYPE_INDIR:
+		// TODO(rsc): Why this is also Ycol is a mystery. Should split the two meanings.
+		if(a->name != NAME_NONE && a->reg == REG_NONE && a->index == REG_NONE && a->scale == 0)
+			return Ycol;
+		return Yxxx;
 
-	case D_GDTR:	return	Ygdtr;
-	case D_IDTR:	return	Yidtr;
-	case D_LDTR:	return	Yldtr;
-	case D_MSW:	return	Ymsw;
-	case D_TASK:	return	Ytask;
-
-	case D_CR+0:	return	Ycr0;
-	case D_CR+1:	return	Ycr1;
-	case D_CR+2:	return	Ycr2;
-	case D_CR+3:	return	Ycr3;
-	case D_CR+4:	return	Ycr4;
-	case D_CR+5:	return	Ycr5;
-	case D_CR+6:	return	Ycr6;
-	case D_CR+7:	return	Ycr7;
-
-	case D_DR+0:	return	Ydr0;
-	case D_DR+1:	return	Ydr1;
-	case D_DR+2:	return	Ydr2;
-	case D_DR+3:	return	Ydr3;
-	case D_DR+4:	return	Ydr4;
-	case D_DR+5:	return	Ydr5;
-	case D_DR+6:	return	Ydr6;
-	case D_DR+7:	return	Ydr7;
-
-	case D_TR+0:	return	Ytr0;
-	case D_TR+1:	return	Ytr1;
-	case D_TR+2:	return	Ytr2;
-	case D_TR+3:	return	Ytr3;
-	case D_TR+4:	return	Ytr4;
-	case D_TR+5:	return	Ytr5;
-	case D_TR+6:	return	Ytr6;
-	case D_TR+7:	return	Ytr7;
-
-	case D_EXTERN:
-	case D_STATIC:
-	case D_AUTO:
-	case D_PARAM:
+	case TYPE_MEM:
 		return Ym;
 
-	case D_CONST:
-	case D_CONST2:
-	case D_ADDR:
-		if(a->sym == nil) {
-			v = a->offset;
-			if(v == 0)
-				return Yi0;
-			if(v == 1)
-				return Yi1;
-			if(v >= -128 && v <= 127)
-				return Yi8;
+	case TYPE_ADDR:
+		switch(a->name) {
+		case NAME_EXTERN:
+		case NAME_STATIC:
+			return Yi32;
+		case NAME_AUTO:
+		case NAME_PARAM:
+			return Yiauto;
 		}
+
+		// DUFFZERO/DUFFCOPY encoding forgot to set a->index
+		// and got Yi32 in an earlier version of this code.
+		// Keep doing that until we fix yduff etc.
+		if(a->sym != nil && strncmp(a->sym->name, "runtime.duff", 12) == 0)
+			return Yi32;
+		
+		if(a->sym != nil || a->name != NAME_NONE)
+			ctxt->diag("unexpected addr: %D", a);
+		// fall through
+
+	case TYPE_CONST:
+		if(a->sym != nil)
+			ctxt->diag("TYPE_CONST with symbol: %D", a);
+
+		v = a->offset;
+		if(v == 0)
+			return Yi0;
+		if(v == 1)
+			return Yi1;
+		if(v >= -128 && v <= 127)
+			return Yi8;
 		return Yi32;
 
-	case D_BRANCH:
-		return Ybr;
+	case TYPE_TEXTSIZE:
+		return Ytextsize;
+	}
+
+	if(a->type != TYPE_REG) {
+		ctxt->diag("unexpected addr1: type=%d %D", a->type, a);
+		return Yxxx;
+	}
+
+	switch(a->reg) {
+	case REG_AL:
+		return Yal;
+
+	case REG_AX:
+		return Yax;
+
+	case REG_CL:
+	case REG_DL:
+	case REG_BL:
+	case REG_AH:
+	case REG_CH:
+	case REG_DH:
+	case REG_BH:
+		return Yrb;
+
+	case REG_CX:
+		return Ycx;
+
+	case REG_DX:
+	case REG_BX:
+		return Yrx;
+
+	case REG_SP:
+	case REG_BP:
+	case REG_SI:
+	case REG_DI:
+		return Yrl;
+
+	case REG_F0+0:
+		return	Yf0;
+
+	case REG_F0+1:
+	case REG_F0+2:
+	case REG_F0+3:
+	case REG_F0+4:
+	case REG_F0+5:
+	case REG_F0+6:
+	case REG_F0+7:
+		return	Yrf;
+
+	case REG_X0+0:
+	case REG_X0+1:
+	case REG_X0+2:
+	case REG_X0+3:
+	case REG_X0+4:
+	case REG_X0+5:
+	case REG_X0+6:
+	case REG_X0+7:
+		return	Yxr;
+
+	case REG_CS:	return	Ycs;
+	case REG_SS:	return	Yss;
+	case REG_DS:	return	Yds;
+	case REG_ES:	return	Yes;
+	case REG_FS:	return	Yfs;
+	case REG_GS:	return	Ygs;
+	case REG_TLS:	return	Ytls;
+
+	case REG_GDTR:	return	Ygdtr;
+	case REG_IDTR:	return	Yidtr;
+	case REG_LDTR:	return	Yldtr;
+	case REG_MSW:	return	Ymsw;
+	case REG_TASK:	return	Ytask;
+
+	case REG_CR+0:	return	Ycr0;
+	case REG_CR+1:	return	Ycr1;
+	case REG_CR+2:	return	Ycr2;
+	case REG_CR+3:	return	Ycr3;
+	case REG_CR+4:	return	Ycr4;
+	case REG_CR+5:	return	Ycr5;
+	case REG_CR+6:	return	Ycr6;
+	case REG_CR+7:	return	Ycr7;
+
+	case REG_DR+0:	return	Ydr0;
+	case REG_DR+1:	return	Ydr1;
+	case REG_DR+2:	return	Ydr2;
+	case REG_DR+3:	return	Ydr3;
+	case REG_DR+4:	return	Ydr4;
+	case REG_DR+5:	return	Ydr5;
+	case REG_DR+6:	return	Ydr6;
+	case REG_DR+7:	return	Ydr7;
+
+	case REG_TR+0:	return	Ytr0;
+	case REG_TR+1:	return	Ytr1;
+	case REG_TR+2:	return	Ytr2;
+	case REG_TR+3:	return	Ytr3;
+	case REG_TR+4:	return	Ytr4;
+	case REG_TR+5:	return	Ytr5;
+	case REG_TR+6:	return	Ytr6;
+	case REG_TR+7:	return	Ytr7;
+
 	}
 	return Yxxx;
 }
@@ -1640,17 +1659,17 @@ asmidx(Link *ctxt, int scale, int index, int base)
 	default:
 		goto bad;
 
-	case D_NONE:
+	case TYPE_NONE:
 		i = 4 << 3;
 		goto bas;
 
-	case D_AX:
-	case D_CX:
-	case D_DX:
-	case D_BX:
-	case D_BP:
-	case D_SI:
-	case D_DI:
+	case REG_AX:
+	case REG_CX:
+	case REG_DX:
+	case REG_BX:
+	case REG_BP:
+	case REG_SI:
+	case REG_DI:
 		i = reg[index] << 3;
 		break;
 	}
@@ -1673,17 +1692,17 @@ bas:
 	switch(base) {
 	default:
 		goto bad;
-	case D_NONE:	/* must be mod=00 */
+	case REG_NONE:	/* must be mod=00 */
 		i |= 5;
 		break;
-	case D_AX:
-	case D_CX:
-	case D_DX:
-	case D_BX:
-	case D_SP:
-	case D_BP:
-	case D_SI:
-	case D_DI:
+	case REG_AX:
+	case REG_CX:
+	case REG_DX:
+	case REG_BX:
+	case REG_SP:
+	case REG_BP:
+	case REG_SI:
+	case REG_DI:
 		i |= reg[base];
 		break;
 	}
@@ -1725,8 +1744,6 @@ relput4(Link *ctxt, Prog *p, Addr *a)
 static int32
 vaddr(Link *ctxt, Prog *p, Addr *a, Reloc *r)
 {
-	int t;
-	int32 v;
 	LSym *s;
 	
 	USED(p);
@@ -1734,13 +1751,9 @@ vaddr(Link *ctxt, Prog *p, Addr *a, Reloc *r)
 	if(r != nil)
 		memset(r, 0, sizeof *r);
 
-	t = a->type;
-	v = a->offset;
-	if(t == D_ADDR)
-		t = a->index;
-	switch(t) {
-	case D_STATIC:
-	case D_EXTERN:
+	switch(a->name) {
+	case NAME_STATIC:
+	case NAME_EXTERN:
 		s = a->sym;
 		if(s != nil) {
 			if(r == nil) {
@@ -1751,12 +1764,13 @@ vaddr(Link *ctxt, Prog *p, Addr *a, Reloc *r)
 			r->siz = 4;
 			r->off = -1;
 			r->sym = s;
-			r->add = v;
-			v = 0;
+			r->add = a->offset;
+			return 0;
 		}
-		break;
+		return a->offset;
+	}
 	
-	case D_INDIR+D_TLS:
+	if((a->type == TYPE_MEM || a->type == TYPE_ADDR) && a->reg == REG_TLS) {
 		if(r == nil) {
 			ctxt->diag("need reloc for %D", a);
 			sysfatal("bad code");
@@ -1764,113 +1778,120 @@ vaddr(Link *ctxt, Prog *p, Addr *a, Reloc *r)
 		r->type = R_TLS_LE;
 		r->siz = 4;
 		r->off = -1; // caller must fill in
-		r->add = v;
-		v = 0;
-		break;
+		r->add = a->offset;
+		return 0;
 	}
-	return v;
+
+	return a->offset;
 }
 
 static void
 asmand(Link *ctxt, Prog *p, Addr *a, int r)
 {
 	int32 v;
-	int t, scale;
+	int base;
 	Reloc rel;
 	
 	USED(p);
 
 	v = a->offset;
-	t = a->type;
 	rel.siz = 0;
-	if(a->index != D_NONE && a->index != D_TLS) {
-		if(t < D_INDIR || t >= 2*D_INDIR) {
-			switch(t) {
-			default:
-				goto bad;
-			case D_STATIC:
-			case D_EXTERN:
-				t = D_NONE;
-				v = vaddr(ctxt, p, a, &rel);
-				break;
-			case D_AUTO:
-			case D_PARAM:
-				t = D_SP;
-				break;
-			}
-		} else
-			t -= D_INDIR;
 
-		if(t == D_NONE) {
+	switch(a->type) {
+	case TYPE_ADDR:
+		if(a->name == NAME_NONE)
+			ctxt->diag("unexpected TYPE_ADDR with NAME_NONE");
+		if(a->index == REG_TLS)
+			ctxt->diag("unexpected TYPE_ADDR with index==REG_TLS");
+		goto bad;
+	
+	case TYPE_REG:
+		if((a->reg < REG_AL || REG_F7 < a->reg) && (a->reg < REG_X0 || REG_X0+7 < a->reg))
+			goto bad;
+		if(v)
+			goto bad;
+		*ctxt->andptr++ = (3 << 6) | (reg[a->reg] << 0) | (r << 3);
+		return;
+	}
+
+	if(a->type != TYPE_MEM)
+		goto bad;
+
+	if(a->index != REG_NONE && a->index != REG_TLS) {
+		base = a->reg;
+		switch(a->name) {
+		case NAME_EXTERN:
+		case NAME_STATIC:
+			base = REG_NONE;
+			v = vaddr(ctxt, p, a, &rel);
+			break;
+		case NAME_AUTO:
+		case NAME_PARAM:
+			base = REG_SP;
+			break;
+		}
+
+		if(base == REG_NONE) {
 			*ctxt->andptr++ = (0 << 6) | (4 << 0) | (r << 3);
-			asmidx(ctxt, a->scale, a->index, t);
+			asmidx(ctxt, a->scale, a->index, base);
 			goto putrelv;
 		}
-		if(v == 0 && rel.siz == 0 && t != D_BP) {
+		if(v == 0 && rel.siz == 0 && base != REG_BP) {
 			*ctxt->andptr++ = (0 << 6) | (4 << 0) | (r << 3);
-			asmidx(ctxt, a->scale, a->index, t);
+			asmidx(ctxt, a->scale, a->index, base);
 			return;
 		}
 		if(v >= -128 && v < 128 && rel.siz == 0) {
 			*ctxt->andptr++ = (1 << 6) | (4 << 0) | (r << 3);
-			asmidx(ctxt, a->scale, a->index, t);
+			asmidx(ctxt, a->scale, a->index, base);
 			*ctxt->andptr++ = v;
 			return;
 		}
 		*ctxt->andptr++ = (2 << 6) | (4 << 0) | (r << 3);
-		asmidx(ctxt, a->scale, a->index, t);
+		asmidx(ctxt, a->scale, a->index, base);
 		goto putrelv;
 	}
-	if(t >= D_AL && t <= D_F7 || t >= D_X0 && t <= D_X7) {
-		if(v)
-			goto bad;
-		*ctxt->andptr++ = (3 << 6) | (reg[t] << 0) | (r << 3);
-		return;
+
+	base = a->reg;
+	switch(a->name) {
+	case NAME_STATIC:
+	case NAME_EXTERN:
+		base = REG_NONE;
+		v = vaddr(ctxt, p, a, &rel);
+		break;
+	case NAME_AUTO:
+	case NAME_PARAM:
+		base = REG_SP;
+		break;
 	}
 	
-	scale = a->scale;
-	if(t < D_INDIR || t >= 2*D_INDIR) {
-		switch(a->type) {
-		default:
-			goto bad;
-		case D_STATIC:
-		case D_EXTERN:
-			t = D_NONE;
-			v = vaddr(ctxt, p, a, &rel);
-			break;
-		case D_AUTO:
-		case D_PARAM:
-			t = D_SP;
-			break;
-		}
-		scale = 1;
-	} else
-		t -= D_INDIR;
-	if(t == D_TLS)
+	if(base == REG_TLS)
 		v = vaddr(ctxt, p, a, &rel);
-
-	if(t == D_NONE || (D_CS <= t && t <= D_GS) || t == D_TLS) {
+	
+	if(base == REG_NONE || (REG_CS <= base && base <= REG_GS) || base == REG_TLS) {
 		*ctxt->andptr++ = (0 << 6) | (5 << 0) | (r << 3);
 		goto putrelv;
 	}
-	if(t == D_SP) {
+
+	if(base == REG_SP) {
 		if(v == 0 && rel.siz == 0) {
 			*ctxt->andptr++ = (0 << 6) | (4 << 0) | (r << 3);
-			asmidx(ctxt, scale, D_NONE, t);
+			asmidx(ctxt, a->scale, REG_NONE, base);
 			return;
 		}
 		if(v >= -128 && v < 128 && rel.siz == 0) {
 			*ctxt->andptr++ = (1 << 6) | (4 << 0) | (r << 3);
-			asmidx(ctxt, scale, D_NONE, t);
+			asmidx(ctxt, a->scale, REG_NONE, base);
 			*ctxt->andptr++ = v;
 			return;
 		}
 		*ctxt->andptr++ = (2 << 6) | (4 << 0) | (r << 3);
-		asmidx(ctxt, scale, D_NONE, t);
+		asmidx(ctxt, a->scale, REG_NONE, base);
 		goto putrelv;
 	}
-	if(t >= D_AX && t <= D_DI) {
-		if(a->index == D_TLS) {
+
+	if(REG_AX <= base && base <= REG_DI) {
+		if(a->index == REG_TLS) {
 			memset(&rel, 0, sizeof rel);
 			rel.type = R_TLS_IE;
 			rel.siz = 4;
@@ -1878,17 +1899,17 @@ asmand(Link *ctxt, Prog *p, Addr *a, int r)
 			rel.add = v;
 			v = 0;
 		}
-		if(v == 0 && rel.siz == 0 && t != D_BP) {
-			*ctxt->andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
+		if(v == 0 && rel.siz == 0 && base != REG_BP) {
+			*ctxt->andptr++ = (0 << 6) | (reg[base] << 0) | (r << 3);
 			return;
 		}
 		if(v >= -128 && v < 128 && rel.siz == 0)  {
-			ctxt->andptr[0] = (1 << 6) | (reg[t] << 0) | (r << 3);
+			ctxt->andptr[0] = (1 << 6) | (reg[base] << 0) | (r << 3);
 			ctxt->andptr[1] = v;
 			ctxt->andptr += 2;
 			return;
 		}
-		*ctxt->andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
+		*ctxt->andptr++ = (2 << 6) | (reg[base] << 0) | (r << 3);
 		goto putrelv;
 	}
 	goto bad;
@@ -2028,7 +2049,7 @@ static uchar	ymovtab[] =
 };
 
 // byteswapreg returns a byte-addressable register (AX, BX, CX, DX)
-// which is not referenced in a->type.
+// which is not referenced in a.
 // If a is empty, it returns BX to account for MULB-like instructions
 // that might use DX and AX.
 static int
@@ -2038,57 +2059,60 @@ byteswapreg(Link *ctxt, Addr *a)
 
 	cana = canb = canc = cand = 1;
 
-	switch(a->type) {
-	case D_NONE:
+	if(a->type == TYPE_NONE)
 		cana = cand = 0;
-		break;
-	case D_AX:
-	case D_AL:
-	case D_AH:
-	case D_INDIR+D_AX:
-		cana = 0;
-		break;
-	case D_BX:
-	case D_BL:
-	case D_BH:
-	case D_INDIR+D_BX:
-		canb = 0;
-		break;
-	case D_CX:
-	case D_CL:
-	case D_CH:
-	case D_INDIR+D_CX:
-		canc = 0;
-		break;
-	case D_DX:
-	case D_DL:
-	case D_DH:
-	case D_INDIR+D_DX:
-		cand = 0;
-		break;
+
+	if(a->type == TYPE_REG || ((a->type == TYPE_MEM || a->type == TYPE_ADDR) && a->name == NAME_NONE)) {
+		switch(a->reg) {
+		case REG_NONE:
+			cana = cand = 0;
+			break;
+		case REG_AX:
+		case REG_AL:
+		case REG_AH:
+			cana = 0;
+			break;
+		case REG_BX:
+		case REG_BL:
+		case REG_BH:
+			canb = 0;
+			break;
+		case REG_CX:
+		case REG_CL:
+		case REG_CH:
+			canc = 0;
+			break;
+		case REG_DX:
+		case REG_DL:
+		case REG_DH:
+			cand = 0;
+			break;
+		}
 	}
-	switch(a->index) {
-	case D_AX:
-		cana = 0;
-		break;
-	case D_BX:
-		canb = 0;
-		break;
-	case D_CX:
-		canc = 0;
-		break;
-	case D_DX:
-		cand = 0;
-		break;
+	if(a->type == TYPE_MEM || a->type == TYPE_ADDR) {
+		switch(a->index) {
+		case REG_AX:
+			cana = 0;
+			break;
+		case REG_BX:
+			canb = 0;
+			break;
+		case REG_CX:
+			canc = 0;
+			break;
+		case REG_DX:
+			cand = 0;
+			break;
+		}
 	}
 	if(cana)
-		return D_AX;
+		return REG_AX;
 	if(canb)
-		return D_BX;
+		return REG_BX;
 	if(canc)
-		return D_CX;
+		return REG_CX;
 	if(cand)
-		return D_DX;
+		return REG_DX;
 
 	ctxt->diag("impossible byte register");
 	sysfatal("bad code");
@@ -2098,16 +2122,15 @@ byteswapreg(Link *ctxt, Addr *a)
 static void
 subreg(Prog *p, int from, int to)
 {
-
 	if(0 /* debug['Q'] */)
 		print("\n%P	s/%R/%R/\n", p, from, to);
 
-	if(p->from.type == from) {
-		p->from.type = to;
+	if(p->from.reg == from) {
+		p->from.reg = to;
 		p->ft = 0;
 	}
-	if(p->to.type == from) {
-		p->to.type = to;
+	if(p->to.reg == from) {
+		p->to.reg = to;
 		p->tt = 0;
 	}
 
@@ -2117,16 +2140,6 @@ subreg(Prog *p, int from, int to)
 	}
 	if(p->to.index == from) {
 		p->to.index = to;
-		p->tt = 0;
-	}
-
-	from += D_INDIR;
-	if(p->from.type == from) {
-		p->from.type = to+D_INDIR;
-		p->ft = 0;
-	}
-	if(p->to.type == from) {
-		p->to.type = to+D_INDIR;
 		p->tt = 0;
 	}
 
@@ -2179,13 +2192,13 @@ doasm(Link *ctxt, Prog *p)
 		*ctxt->andptr++ = pre;
 
 	if(p->ft == 0)
-		p->ft = oclass(&p->from);
+		p->ft = oclass(ctxt, &p->from);
 	if(p->tt == 0)
-		p->tt = oclass(&p->to);
+		p->tt = oclass(ctxt, &p->to);
 
 	ft = p->ft * Ymax;
 	tt = p->tt * Ymax;
-	o = &optab[p->as];
+	o = opindex[p->as];
 	t = o->ytab;
 	if(t == 0) {
 		ctxt->diag("asmins: noproto %P", p);
@@ -2239,48 +2252,46 @@ found:
 	case Zlitm_r:
 		for(; op = o->op[z]; z++)
 			*ctxt->andptr++ = op;
-		asmand(ctxt, p, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.reg]);
 		break;
 
 	case Zm_r:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, p, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.reg]);
 		break;
 
 	case Zm2_r:
 		*ctxt->andptr++ = op;
 		*ctxt->andptr++ = o->op[z+1];
-		asmand(ctxt, p, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.reg]);
 		break;
 
 	case Zm_r_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, p, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.reg]);
 		break;
 
 	case Zm_r_i_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, p, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.reg]);
 		*ctxt->andptr++ = p->to.offset;
 		break;
 
 	case Zibm_r:
 		while ((op = o->op[z++]) != 0)
 			*ctxt->andptr++ = op;
-		asmand(ctxt, p, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.reg]);
 		*ctxt->andptr++ = p->to.offset;
 		break;
 
 	case Zaut_r:
 		*ctxt->andptr++ = 0x8d;	/* leal */
-		if(p->from.type != D_ADDR)
+		if(p->from.type != TYPE_ADDR)
 			ctxt->diag("asmins: Zaut sb type ADDR");
-		p->from.type = p->from.index;
-		p->from.index = D_NONE;
+		p->from.type = TYPE_MEM;
 		p->ft = 0;
-		asmand(ctxt, p, &p->from, reg[p->to.type]);
-		p->from.index = p->from.type;
-		p->from.type = D_ADDR;
+		asmand(ctxt, p, &p->from, reg[p->to.reg]);
+		p->from.type = TYPE_ADDR;
 		p->ft = 0;
 		break;
 
@@ -2291,17 +2302,17 @@ found:
 
 	case Zr_m:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, p, &p->to, reg[p->from.type]);
+		asmand(ctxt, p, &p->to, reg[p->from.reg]);
 		break;
 
 	case Zr_m_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, p, &p->to, reg[p->from.type]);
+		asmand(ctxt, p, &p->to, reg[p->from.reg]);
 		break;
 
 	case Zr_m_i_xm:
 		mediaop(ctxt, o, op, t[3], z);
-		asmand(ctxt, p, &p->to, reg[p->from.type]);
+		asmand(ctxt, p, &p->to, reg[p->from.reg]);
 		*ctxt->andptr++ = p->from.offset;
 		break;
 
@@ -2340,12 +2351,12 @@ found:
 		break;
 
 	case Zib_rp:
-		*ctxt->andptr++ = op + reg[p->to.type];
+		*ctxt->andptr++ = op + reg[p->to.reg];
 		*ctxt->andptr++ = vaddr(ctxt, p, &p->from, nil);
 		break;
 
 	case Zil_rp:
-		*ctxt->andptr++ = op + reg[p->to.type];
+		*ctxt->andptr++ = op + reg[p->to.reg];
 		if(o->prefix == Pe) {
 			v = vaddr(ctxt, p, &p->from, nil);
 			*ctxt->andptr++ = v;
@@ -2357,7 +2368,7 @@ found:
 
 	case Zib_rr:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, p, &p->to, reg[p->to.type]);
+		asmand(ctxt, p, &p->to, reg[p->to.reg]);
 		*ctxt->andptr++ = vaddr(ctxt, p, &p->from, nil);
 		break;
 
@@ -2398,7 +2409,7 @@ found:
 
 	case Zil_rr:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, p, &p->to, reg[p->to.type]);
+		asmand(ctxt, p, &p->to, reg[p->to.reg]);
 		if(o->prefix == Pe) {
 			v = vaddr(ctxt, p, &p->from, nil);
 			*ctxt->andptr++ = v;
@@ -2409,16 +2420,16 @@ found:
 		break;
 
 	case Z_rp:
-		*ctxt->andptr++ = op + reg[p->to.type];
+		*ctxt->andptr++ = op + reg[p->to.reg];
 		break;
 
 	case Zrp_:
-		*ctxt->andptr++ = op + reg[p->from.type];
+		*ctxt->andptr++ = op + reg[p->from.reg];
 		break;
 
 	case Zclr:
 		*ctxt->andptr++ = op;
-		asmand(ctxt, p, &p->to, reg[p->to.type]);
+		asmand(ctxt, p, &p->to, reg[p->to.reg]);
 		break;
 	
 	case Zcall:
@@ -2570,9 +2581,9 @@ bad:
 	 * instruction with the operands renamed.
 	 */
 	pp = *p;
-	z = p->from.type;
-	if(z >= D_BP && z <= D_DI) {
-		if((breg = byteswapreg(ctxt, &p->to)) != D_AX) {
+	z = p->from.reg;
+	if(p->from.type == TYPE_REG && z >= REG_BP && z <= REG_DI) {
+		if((breg = byteswapreg(ctxt, &p->to)) != REG_AX) {
 			*ctxt->andptr++ = 0x87;			/* xchg lhs,bx */
 			asmand(ctxt, p, &p->from, reg[breg]);
 			subreg(&pp, z, breg);
@@ -2581,15 +2592,15 @@ bad:
 			asmand(ctxt, p, &p->from, reg[breg]);
 		} else {
 			*ctxt->andptr++ = 0x90 + reg[z];		/* xchg lsh,ax */
-			subreg(&pp, z, D_AX);
+			subreg(&pp, z, REG_AX);
 			doasm(ctxt, &pp);
 			*ctxt->andptr++ = 0x90 + reg[z];		/* xchg lsh,ax */
 		}
 		return;
 	}
-	z = p->to.type;
-	if(z >= D_BP && z <= D_DI) {
-		if((breg = byteswapreg(ctxt, &p->from)) != D_AX) {
+	z = p->to.reg;
+	if(p->to.type == TYPE_REG && z >= REG_BP && z <= REG_DI) {
+		if((breg = byteswapreg(ctxt, &p->from)) != REG_AX) {
 			*ctxt->andptr++ = 0x87;			/* xchg rhs,bx */
 			asmand(ctxt, p, &p->to, reg[breg]);
 			subreg(&pp, z, breg);
@@ -2598,13 +2609,13 @@ bad:
 			asmand(ctxt, p, &p->to, reg[breg]);
 		} else {
 			*ctxt->andptr++ = 0x90 + reg[z];		/* xchg rsh,ax */
-			subreg(&pp, z, D_AX);
+			subreg(&pp, z, REG_AX);
 			doasm(ctxt, &pp);
 			*ctxt->andptr++ = 0x90 + reg[z];		/* xchg rsh,ax */
 		}
 		return;
 	}
-	ctxt->diag("doasm: notfound t2=%ux from=%ux to=%ux %P", t[2], p->from.type, p->to.type, p);
+	ctxt->diag("doasm: notfound t2=%d from=%d to=%d %P", t[2], p->ft, p->tt, p);
 	return;
 
 mfound:
@@ -2646,44 +2657,51 @@ mfound:
 		switch(p->to.index) {
 		default:
 			goto bad;
-		case D_DS:
+		case REG_DS:
 			*ctxt->andptr++ = 0xc5;
 			break;
-		case D_SS:
+		case REG_SS:
 			*ctxt->andptr++ = 0x0f;
 			*ctxt->andptr++ = 0xb2;
 			break;
-		case D_ES:
+		case REG_ES:
 			*ctxt->andptr++ = 0xc4;
 			break;
-		case D_FS:
+		case REG_FS:
 			*ctxt->andptr++ = 0x0f;
 			*ctxt->andptr++ = 0xb4;
 			break;
-		case D_GS:
+		case REG_GS:
 			*ctxt->andptr++ = 0x0f;
 			*ctxt->andptr++ = 0xb5;
 			break;
 		}
-		asmand(ctxt, p, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.reg]);
 		break;
 
 	case 6:	/* double shift */
-		z = p->from.type;
-		switch(z) {
+		switch(p->from.type) {
 		default:
 			goto bad;
-		case D_CONST:
+
+		case TYPE_CONST:
 			*ctxt->andptr++ = 0x0f;
 			*ctxt->andptr++ = t[4];
 			asmand(ctxt, p, &p->to, reg[p->from.index]);
 			*ctxt->andptr++ = p->from.offset;
 			break;
-		case D_CL:
-		case D_CX:
-			*ctxt->andptr++ = 0x0f;
-			*ctxt->andptr++ = t[5];
-			asmand(ctxt, p, &p->to, reg[p->from.index]);
+		
+		case TYPE_REG:
+			switch(p->from.reg) {
+			default:
+				goto bad;
+			case REG_CL:
+			case REG_CX:
+				*ctxt->andptr++ = 0x0f;
+				*ctxt->andptr++ = t[5];
+				asmand(ctxt, p, &p->to, reg[p->from.index]);
+				break;
+			}
 			break;
 		}
 		break;
@@ -2695,7 +2713,7 @@ mfound:
 		} else
 			*ctxt->andptr++ = t[4];
 		*ctxt->andptr++ = t[5];
-		asmand(ctxt, p, &p->from, reg[p->to.type]);
+		asmand(ctxt, p, &p->from, reg[p->to.reg]);
 		break;
 	
 	case 8: /* mov tls, r */
@@ -2711,37 +2729,40 @@ mfound:
 		case Hnacl:
 			// ELF TLS base is 0(GS).
 			pp.from = p->from;
-			pp.from.type = D_INDIR+D_GS;
+			pp.from.type = TYPE_MEM;
+			pp.from.reg = REG_GS;
 			pp.from.offset = 0;
-			pp.from.index = D_NONE;
+			pp.from.index = REG_NONE;
 			pp.from.scale = 0;
 			*ctxt->andptr++ = 0x65; // GS
 			*ctxt->andptr++ = 0x8B;
-			asmand(ctxt, p, &pp.from, reg[p->to.type]);
+			asmand(ctxt, p, &pp.from, reg[p->to.reg]);
 			break;
 		
 		case Hplan9:
 			if(ctxt->plan9privates == nil)
 				ctxt->plan9privates = linklookup(ctxt, "_privates", 0);
 			memset(&pp.from, 0, sizeof pp.from);
-			pp.from.type = D_EXTERN;
+			pp.from.type = TYPE_MEM;
+			pp.from.name = NAME_EXTERN;
 			pp.from.sym = ctxt->plan9privates;
 			pp.from.offset = 0;
-			pp.from.index = D_NONE;
+			pp.from.index = REG_NONE;
 			*ctxt->andptr++ = 0x8B;
-			asmand(ctxt, p, &pp.from, reg[p->to.type]);
+			asmand(ctxt, p, &pp.from, reg[p->to.reg]);
 			break;
 
 		case Hwindows:
 			// Windows TLS base is always 0x14(FS).
 			pp.from = p->from;
-			pp.from.type = D_INDIR+D_FS;
+			pp.from.type = TYPE_MEM;
+			pp.from.reg = REG_FS;
 			pp.from.offset = 0x14;
-			pp.from.index = D_NONE;
+			pp.from.index = REG_NONE;
 			pp.from.scale = 0;
 			*ctxt->andptr++ = 0x64; // FS
 			*ctxt->andptr++ = 0x8B;
-			asmand(ctxt, p, &pp.from, reg[p->to.type]);
+			asmand(ctxt, p, &pp.from, reg[p->to.reg]);
 			break;
 		}
 		break;
@@ -2779,9 +2800,9 @@ asmins(Link *ctxt, Prog *p)
 			return;
 		case ACALL:
 		case AJMP:
-			if(D_AX <= p->to.type && p->to.type <= D_DI) {
+			if(p->to.type == TYPE_REG && REG_AX <= p->to.reg && p->to.reg <= REG_DI) {
 				*ctxt->andptr++ = 0x83;
-				*ctxt->andptr++ = 0xe0 | (p->to.type - D_AX);
+				*ctxt->andptr++ = 0xe0 | (p->to.reg - REG_AX);
 				*ctxt->andptr++ = 0xe0;
 			}
 			break;

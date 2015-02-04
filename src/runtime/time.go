@@ -56,7 +56,7 @@ func timeSleep(ns int64) {
 	t.arg = getg()
 	lock(&timers.lock)
 	addtimerLocked(t)
-	goparkunlock(&timers.lock, "sleep")
+	goparkunlock(&timers.lock, "sleep", traceEvGoSleep)
 }
 
 // startTimer adds t to the timer heap.
@@ -200,7 +200,7 @@ func timerproc() {
 		if delta < 0 || faketime > 0 {
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true
-			goparkunlock(&timers.lock, "timer goroutine (idle)")
+			goparkunlock(&timers.lock, "timer goroutine (idle)", traceEvGoBlock)
 			continue
 		}
 		// At least one timer pending.  Sleep until then.

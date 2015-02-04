@@ -75,7 +75,7 @@ func goroutineLeaked() bool {
 	return true
 }
 
-func afterTest(t *testing.T) {
+func afterTest(t testing.TB) {
 	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
 	if testing.Short() {
 		return

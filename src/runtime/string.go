@@ -8,7 +8,18 @@ import (
 	"unsafe"
 )
 
-func concatstrings(a []string) string {
+// The constant is known to the compiler.
+// There is no fundamental theory behind this number.
+const tmpStringBufSize = 32
+
+type tmpBuf [tmpStringBufSize]byte
+
+// concatstrings implements a Go string concatenation x+y+z+...
+// The operands are passed in the slice a.
+// If buf != nil, the compiler has determined that the result does not
+// escape the calling function, so the string data can be stored in buf
+// if small enough.
+func concatstrings(buf *tmpBuf, a []string) string {
 	idx := 0
 	l := 0
 	count := 0
@@ -27,10 +38,14 @@ func concatstrings(a []string) string {
 	if count == 0 {
 		return ""
 	}
-	if count == 1 {
+
+	// If there is just one string and either it is not on the stack
+	// or our result does not escape the calling frame (buf != nil),
+	// then we can return that string directly.
+	if count == 1 && (buf != nil || !stringDataOnStack(a[idx])) {
 		return a[idx]
 	}
-	s, b := rawstring(l)
+	s, b := rawstringtmp(buf, l)
 	l = 0
 	for _, x := range a {
 		copy(b[l:], x)
@@ -39,32 +54,59 @@ func concatstrings(a []string) string {
 	return s
 }
 
-func concatstring2(a [2]string) string {
-	return concatstrings(a[:])
+func concatstring2(buf *tmpBuf, a [2]string) string {
+	return concatstrings(buf, a[:])
 }
 
-func concatstring3(a [3]string) string {
-	return concatstrings(a[:])
+func concatstring3(buf *tmpBuf, a [3]string) string {
+	return concatstrings(buf, a[:])
 }
 
-func concatstring4(a [4]string) string {
-	return concatstrings(a[:])
+func concatstring4(buf *tmpBuf, a [4]string) string {
+	return concatstrings(buf, a[:])
 }
 
-func concatstring5(a [5]string) string {
-	return concatstrings(a[:])
+func concatstring5(buf *tmpBuf, a [5]string) string {
+	return concatstrings(buf, a[:])
 }
 
-func slicebytetostring(b []byte) string {
-	if raceenabled && len(b) > 0 {
+// Buf is a fixed-size buffer for the result,
+// it is not nil if the result does not escape.
+func slicebytetostring(buf *tmpBuf, b []byte) string {
+	l := len(b)
+	if l == 0 {
+		// Turns out to be a relatively common case.
+		// Consider that you want to parse out data between parens in "foo()bar",
+		// you find the indices and convert the subslice to string.
+		return ""
+	}
+	if raceenabled && l > 0 {
 		racereadrangepc(unsafe.Pointer(&b[0]),
-			uintptr(len(b)),
+			uintptr(l),
 			getcallerpc(unsafe.Pointer(&b)),
 			funcPC(slicebytetostring))
 	}
-	s, c := rawstring(len(b))
+	s, c := rawstringtmp(buf, l)
 	copy(c, b)
 	return s
+}
+
+// stringDataOnStack reports whether the string's data is
+// stored on the current goroutine's stack.
+func stringDataOnStack(s string) bool {
+	ptr := uintptr((*stringStruct)(unsafe.Pointer(&s)).str)
+	stk := getg().stack
+	return stk.lo <= ptr && ptr < stk.hi
+}
+
+func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
+	if buf != nil && l <= len(buf) {
+		b = buf[:l]
+		s = slicebytetostringtmp(b)
+	} else {
+		s, b = rawstring(l)
+	}
+	return
 }
 
 func slicebytetostringtmp(b []byte) string {
@@ -73,8 +115,10 @@ func slicebytetostringtmp(b []byte) string {
 	// that know that the string form will be discarded before
 	// the calling goroutine could possibly modify the original
 	// slice or synchronize with another goroutine.
-	// Today, the only such case is a m[string(k)] lookup where
+	// First such case is a m[string(k)] lookup where
 	// m is a string-keyed map and k is a []byte.
+	// Second such case is "<"+string(b)+">" concatenation where b is []byte.
+	// Third such case is string(b)=="foo" comparison where b is []byte.
 
 	if raceenabled && len(b) > 0 {
 		racereadrangepc(unsafe.Pointer(&b[0]),
@@ -89,6 +133,18 @@ func stringtoslicebyte(s string) []byte {
 	b := rawbyteslice(len(s))
 	copy(b, s)
 	return b
+}
+
+func stringtoslicebytetmp(s string) []byte {
+	// Return a slice referring to the actual string bytes.
+	// This is only for use by internal compiler optimizations
+	// that know that the slice won't be mutated.
+	// The only such case today is:
+	// for i, c := range []byte(str)
+
+	str := (*stringStruct)(unsafe.Pointer(&s))
+	ret := slice{array: (*byte)(str.str), len: uint(str.len), cap: uint(str.len)}
+	return *(*[]byte)(unsafe.Pointer(&ret))
 }
 
 func stringtoslicerune(s string) []rune {
@@ -141,8 +197,15 @@ type stringStruct struct {
 	len int
 }
 
-func intstring(v int64) string {
-	s, b := rawstring(4)
+func intstring(buf *[4]byte, v int64) string {
+	var s string
+	var b []byte
+	if buf != nil {
+		b = buf[:]
+		s = slicebytetostringtmp(b)
+	} else {
+		s, b = rawstring(4)
+	}
 	n := runetochar(b, rune(v))
 	return s[:n]
 }

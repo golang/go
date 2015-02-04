@@ -187,47 +187,48 @@ struct
 	ushort	value;
 } itab[] =
 {
-	"SP",		LSP,	D_AUTO,
-	"SB",		LSB,	D_EXTERN,
-	"FP",		LFP,	D_PARAM,
-	"PC",		LPC,	D_BRANCH,
+	"SP",		LSP,	NAME_AUTO,
+	"SB",		LSB,	NAME_EXTERN,
+	"FP",		LFP,	NAME_PARAM,
+	"PC",		LPC,	TYPE_BRANCH,
 
-	"R",		LR,	0,
-	"R0",		LREG,	0,
-	"R1",		LREG,	1,
-	"R2",		LREG,	2,
-	"R3",		LREG,	3,
-	"R4",		LREG,	4,
-	"R5",		LREG,	5,
-	"R6",		LREG,	6,
-	"R7",		LREG,	7,
-	"R8",		LREG,	8,
-	"R9",		LREG,	9,
-	"g",		LREG,	10, // avoid unintentionally clobber g using R10
-	"R11",		LREG,	11,
-	"R12",		LREG,	12,
-	"R13",		LREG,	13,
-	"R14",		LREG,	14,
-	"R15",		LREG,	15,
+	"R",		LR,	REG_F0,
 
-	"F",		LF,	0,
+	"R0",		LREG,	REG_R0,
+	"R1",		LREG,	REG_R1,
+	"R2",		LREG,	REG_R2,
+	"R3",		LREG,	REG_R3,
+	"R4",		LREG,	REG_R4,
+	"R5",		LREG,	REG_R5,
+	"R6",		LREG,	REG_R6,
+	"R7",		LREG,	REG_R7,
+	"R8",		LREG,	REG_R8,
+	"R9",		LREG,	REG_R9,
+	"g",		LREG,	REG_R10, // avoid unintentionally clobber g using R10
+	"R11",		LREG,	REG_R11,
+	"R12",		LREG,	REG_R12,
+	"R13",		LREG,	REG_R13,
+	"R14",		LREG,	REG_R14,
+	"R15",		LREG,	REG_R15,
 
-	"F0",		LFREG,	0,
-	"F1",		LFREG,	1,
-	"F2",		LFREG,	2,
-	"F3",		LFREG,	3,
-	"F4",		LFREG,	4,
-	"F5",		LFREG,	5,
-	"F6",		LFREG,	6,
-	"F7",		LFREG,	7,
-	"F8",		LFREG,	8,
-	"F9",		LFREG,	9,
-	"F10",		LFREG,	10,
-	"F11",		LFREG,	11,
-	"F12",		LFREG,	12,
-	"F13",		LFREG,	13,
-	"F14",		LFREG,	14,
-	"F15",		LFREG,	15,
+	"F",		LF,	REG_F0,
+
+	"F0",		LFREG,	REG_F0,
+	"F1",		LFREG,	REG_F1,
+	"F2",		LFREG,	REG_F2,
+	"F3",		LFREG,	REG_F3,
+	"F4",		LFREG,	REG_F4,
+	"F5",		LFREG,	REG_F5,
+	"F6",		LFREG,	REG_F6,
+	"F7",		LFREG,	REG_F7,
+	"F8",		LFREG,	REG_F8,
+	"F9",		LFREG,	REG_F9,
+	"F10",		LFREG,	REG_F10,
+	"F11",		LFREG,	REG_F11,
+	"F12",		LFREG,	REG_F12,
+	"F13",		LFREG,	REG_F13,
+	"F14",		LFREG,	REG_F14,
+	"F15",		LFREG,	REG_F15,
 
 	"C",		LC,	0,
 
@@ -248,29 +249,29 @@ struct
 	"C14",		LCREG,	14,
 	"C15",		LCREG,	15,
 
-	"CPSR",		LPSR,	0,
-	"SPSR",		LPSR,	1,
+	"CPSR",		LPSR,	REG_CPSR,
+	"SPSR",		LPSR,	REG_SPSR,
 
-	"FPSR",		LFCR,	0,
-	"FPCR",		LFCR,	1,
+	"FPSR",		LFCR,	REG_FPSR,
+	"FPCR",		LFCR,	REG_FPCR,
 
-	".EQ",		LCOND,	0,
-	".NE",		LCOND,	1,
-	".CS",		LCOND,	2,
-	".HS",		LCOND,	2,
-	".CC",		LCOND,	3,
-	".LO",		LCOND,	3,
-	".MI",		LCOND,	4,
-	".PL",		LCOND,	5,
-	".VS",		LCOND,	6,
-	".VC",		LCOND,	7,
-	".HI",		LCOND,	8,
-	".LS",		LCOND,	9,
-	".GE",		LCOND,	10,
-	".LT",		LCOND,	11,
-	".GT",		LCOND,	12,
-	".LE",		LCOND,	13,
-	".AL",		LCOND,	Always,
+	".EQ",		LCOND,	C_SCOND_EQ,
+	".NE",		LCOND,	C_SCOND_NE,
+	".CS",		LCOND,	C_SCOND_HS,
+	".HS",		LCOND,	C_SCOND_HS,
+	".CC",		LCOND,	C_SCOND_LO,
+	".LO",		LCOND,	C_SCOND_LO,
+	".MI",		LCOND,	C_SCOND_MI,
+	".PL",		LCOND,	C_SCOND_PL,
+	".VS",		LCOND,	C_SCOND_VS,
+	".VC",		LCOND,	C_SCOND_VC,
+	".HI",		LCOND,	C_SCOND_HI,
+	".LS",		LCOND,	C_SCOND_LS,
+	".GE",		LCOND,	C_SCOND_GE,
+	".LT",		LCOND,	C_SCOND_LT,
+	".GT",		LCOND,	C_SCOND_GT,
+	".LE",		LCOND,	C_SCOND_LE,
+	".AL",		LCOND,	C_SCOND_NONE,
 
 	".U",		LS,	C_UBIT,
 	".S",		LS,	C_SBIT,
@@ -405,7 +406,7 @@ struct
 	"RFE",		LTYPEA, ARFE,
 
 	"TEXT",		LTYPEB, ATEXT,
-	"GLOBL",	LTYPEB, AGLOBL,
+	"GLOBL",	LGLOBL, AGLOBL,
 	"DATA",		LTYPEC, ADATA,
 	"CASE",		LTYPED, ACASE,
 	"END",		LTYPEE, AEND,
@@ -437,9 +438,8 @@ cinit(void)
 	Sym *s;
 	int i;
 
-	nullgen.type = D_NONE;
-	nullgen.name = D_NONE;
-	nullgen.reg = NREG;
+	nullgen.type = TYPE_NONE;
+	nullgen.name = NAME_NONE;
 
 	nerrors = 0;
 	iostack = I;
@@ -474,7 +474,7 @@ isreg(Addr *g)
 void
 cclean(void)
 {
-	outcode(AEND, Always, &nullgen, NREG, &nullgen);
+	outcode(AEND, Always, &nullgen, 0, &nullgen);
 }
 
 static int bcode[] =
@@ -497,8 +497,6 @@ static int bcode[] =
 	ANOP,
 };
 
-static Prog *lastpc;
-
 void
 outcode(int a, int scond, Addr *g1, int reg, Addr *g2)
 {
@@ -507,8 +505,8 @@ outcode(int a, int scond, Addr *g1, int reg, Addr *g2)
 
 	/* hack to make B.NE etc. work: turn it into the corresponding conditional */
 	if(a == AB){
-		a = bcode[scond&0xf];
-		scond = (scond & ~0xf) | Always;
+		a = bcode[(scond^C_SCOND_XOR)&0xf];
+		scond = (scond & ~0xf) | C_SCOND_NONE;
 	}
 
 	if(pass == 1)

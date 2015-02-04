@@ -731,7 +731,7 @@ agenr(Node *n, Node *a, Node *res)
 				else {
 					regalloc(&n4, types[TUINT64], N);
 					p1 = gins(AMOVD, N, &n4);
-					p1->from.type = D_CONST;
+					p1->from.type = TYPE_CONST;
 					p1->from.offset = nl->type->bound;
 				}
 			}
@@ -749,7 +749,7 @@ agenr(Node *n, Node *a, Node *res)
 			regalloc(&n3, types[tptr], res);
 			p1 = gins(AMOVD, N, &n3);
 			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
-			p1->from.type = D_CONST;
+			p1->from.type = TYPE_ADDR;
 		} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
 			n1 = n3;
 			n1.op = OINDREG;
@@ -968,7 +968,7 @@ igen(Node *n, Node *a, Node *res)
 	case OINDREG:
 		// Increase the refcount of the register so that igen's caller
 		// has to call regfree.
-		if(n->val.u.reg != D_R0+REGSP)
+		if(n->val.u.reg != REGSP)
 			reg[n->val.u.reg]++;
 		*a = *n;
 		return;
@@ -1006,7 +1006,7 @@ igen(Node *n, Node *a, Node *res)
 		fp = structfirst(&flist, getoutarg(n->left->type));
 		memset(a, 0, sizeof *a);
 		a->op = OINDREG;
-		a->val.u.reg = D_R0+REGSP;
+		a->val.u.reg = REGSP;
 		a->addable = 1;
 		a->xoffset = fp->width + widthptr; // +widthptr: saved lr at 0(SP)
 		a->type = n->type;
@@ -1465,25 +1465,25 @@ sgen(Node *n, Node *ns, int64 w)
 		}
 
 		p = gins(AADD, N, &src);
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = w;
 
 		p = gins(AADD, N, &dst);
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = w;
 	} else {
 		p = gins(AADD, N, &src);
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = -dir;
 
 		p = gins(AADD, N, &dst);
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = -dir;
 
 		if(c >= 4) {
 			regalloc(&nend, types[tptr], N);
 			p = gins(AMOVD, &src, &nend);
-			p->from.type = D_CONST;
+			p->from.type = TYPE_ADDR;
 			p->from.offset = w;
 		}
 	}
@@ -1493,12 +1493,12 @@ sgen(Node *n, Node *ns, int64 w)
 	// TODO: enable duffcopy for larger copies.
 	if(c >= 4) {
 		p = gins(op, &src, &tmp);
-		p->from.type = D_OREG;
+		p->from.type = TYPE_MEM;
 		p->from.offset = dir;
 		ploop = p;
 
 		p = gins(op, &tmp, &dst);
-		p->to.type = D_OREG;
+		p->to.type = TYPE_MEM;
 		p->to.offset = dir;
 
 		p = gins(ACMP, &src, &nend);
@@ -1506,13 +1506,18 @@ sgen(Node *n, Node *ns, int64 w)
 		patch(gbranch(ABNE, T, 0), ploop);
  		regfree(&nend);
 	} else {
+		// TODO(austin): Instead of generating ADD $-8,R8; ADD
+		// $-8,R7; n*(MOVDU 8(R8),R9; MOVDU R9,8(R7);) just
+		// generate the offsets directly and eliminate the
+		// ADDs.  That will produce shorter, more
+		// pipeline-able code.
 		while(c-- > 0) {
 			p = gins(op, &src, &tmp);
-			p->from.type = D_OREG;
+			p->from.type = TYPE_MEM;
 			p->from.offset = dir;
 	
 			p = gins(op, &tmp, &dst);
-			p->to.type = D_OREG;
+			p->to.type = TYPE_MEM;
 			p->to.offset = dir;
 		}
 	}

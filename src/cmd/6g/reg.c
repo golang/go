@@ -134,7 +134,7 @@ regopt(Prog *firstp)
 
 	if(first) {
 		fmtinstall('Q', Qconv);
-		exregoffset = D_R15;
+		exregoffset = REG_R15;
 		first = 0;
 	}
 
@@ -153,7 +153,7 @@ regopt(Prog *firstp)
 		var[i].node = regnodes[i];
 	}
 
-	regbits = RtoB(D_SP);
+	regbits = RtoB(REG_SP);
 	for(z=0; z<BITS; z++) {
 		externs.b[z] = 0;
 		params.b[z] = 0;
@@ -185,7 +185,7 @@ regopt(Prog *firstp)
 		proginfo(&info, p);
 
 		// Avoid making variables for direct-called functions.
-		if(p->as == ACALL && p->to.type == D_EXTERN)
+		if(p->as == ACALL && p->to.type == TYPE_MEM && p->to.name == NAME_EXTERN)
 			continue;
 
 		r->use1.b[0] |= info.reguse | info.regindex;
@@ -255,7 +255,7 @@ regopt(Prog *firstp)
 	}
 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
 		p = r->f.prog;
-		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
+		if(p->as == AVARDEF && isfat(((Node*)(p->to.node))->type) && ((Node*)(p->to.node))->opt != nil) {
 			active++;
 			walkvardef(p->to.node, r, active);
 		}
@@ -440,7 +440,7 @@ brk:
 	for(p=firstp; p!=P; p=p->link) {
 		while(p->link != P && p->link->as == ANOP)
 			p->link = p->link->link;
-		if(p->to.type == D_BRANCH)
+		if(p->to.type == TYPE_BRANCH)
 			while(p->to.u.branch != P && p->to.u.branch->as == ANOP)
 				p->to.u.branch = p->to.u.branch->link;
 	}
@@ -523,7 +523,8 @@ addmove(Reg *r, int bn, int rn, int f)
 	a = &p1->to;
 	a->offset = v->offset;
 	a->etype = v->etype;
-	a->type = v->name;
+	a->type = TYPE_MEM;
+	a->name = v->name;
 	a->node = v->node;
 	a->sym = linksym(v->node->sym);
 
@@ -559,11 +560,14 @@ addmove(Reg *r, int bn, int rn, int f)
 		break;
 	}
 
-	p1->from.type = rn;
+	p1->from.type = TYPE_REG;
+	p1->from.reg = rn;
+	p1->from.name = NAME_NONE;
 	if(!f) {
 		p1->from = *a;
 		*a = zprog.from;
-		a->type = rn;
+		a->type = TYPE_REG;
+		a->reg = rn;
 		if(v->etype == TUINT8)
 			p1->as = AMOVB;
 		if(v->etype == TUINT16)
@@ -580,18 +584,16 @@ doregbits(int r)
 	uint32 b;
 
 	b = 0;
-	if(r >= D_INDIR)
-		r -= D_INDIR;
-	if(r >= D_AX && r <= D_R15)
+	if(r >= REG_AX && r <= REG_R15)
 		b |= RtoB(r);
 	else
-	if(r >= D_AL && r <= D_R15B)
-		b |= RtoB(r-D_AL+D_AX);
+	if(r >= REG_AL && r <= REG_R15B)
+		b |= RtoB(r-REG_AL+REG_AX);
 	else
-	if(r >= D_AH && r <= D_BH)
-		b |= RtoB(r-D_AH+D_AX);
+	if(r >= REG_AH && r <= REG_BH)
+		b |= RtoB(r-REG_AH+REG_AX);
 	else
-	if(r >= D_X0 && r <= D_X0+15)
+	if(r >= REG_X0 && r <= REG_X0+15)
 		b |= FtoB(r);
 	return b;
 }
@@ -614,7 +616,7 @@ Bits
 mkvar(Reg *r, Adr *a)
 {
 	Var *v;
-	int i, t, n, et, z, flag;
+	int i, n, et, z, flag;
 	int64 w;
 	uint32 regu;
 	int64 o;
@@ -624,39 +626,40 @@ mkvar(Reg *r, Adr *a)
 	/*
 	 * mark registers used
 	 */
-	t = a->type;
-	if(t == D_NONE)
+	if(a->type == TYPE_NONE)
 		goto none;
 
 	if(r != R)
 		r->use1.b[0] |= doregbits(a->index);
 
-	if(t >= D_INDIR && t < 2*D_INDIR)
-		goto none;
-
-	switch(t) {
+	switch(a->type) {
 	default:
-		regu = doregbits(t);
+		regu = doregbits(a->reg);
 		if(regu == 0)
 			goto none;
 		bit = zbits;
 		bit.b[0] = regu;
 		return bit;
 
-	case D_ADDR:
-		a->type = a->index;
+	case TYPE_ADDR:
+		a->type = TYPE_MEM;
 		bit = mkvar(r, a);
 		setaddrs(bit);
-		a->type = t;
+		a->type = TYPE_ADDR;
 		ostats.naddr++;
 		goto none;
 
-	case D_EXTERN:
-	case D_STATIC:
-	case D_PARAM:
-	case D_AUTO:
-		n = t;
-		break;
+	case TYPE_MEM:
+		switch(a->name) {
+		default:
+			goto none;
+		case NAME_EXTERN:
+		case NAME_STATIC:
+		case NAME_PARAM:
+		case NAME_AUTO:
+			n = a->name;
+			break;
+		}
 	}
 
 	node = a->node;
@@ -730,10 +733,10 @@ mkvar(Reg *r, Adr *a)
 	node->opt = v;
 
 	bit = blsh(i);
-	if(n == D_EXTERN || n == D_STATIC)
+	if(n == NAME_EXTERN || n == NAME_STATIC)
 		for(z=0; z<BITS; z++)
 			externs.b[z] |= bit.b[z];
-	if(n == D_PARAM)
+	if(n == NAME_PARAM)
 		for(z=0; z<BITS; z++)
 			params.b[z] |= bit.b[z];
 
@@ -1161,7 +1164,9 @@ addreg(Adr *a, int rn)
 	a->sym = nil;
 	a->node = nil;
 	a->offset = 0;
-	a->type = rn;
+	a->type = TYPE_REG;
+	a->reg = rn;
+	a->name = 0;
 
 	ostats.ncvtreg++;
 }
@@ -1170,9 +1175,9 @@ uint32
 RtoB(int r)
 {
 
-	if(r < D_AX || r > D_R15)
+	if(r < REG_AX || r > REG_R15)
 		return 0;
-	return 1L << (r-D_AX);
+	return 1L << (r-REG_AX);
 }
 
 int
@@ -1180,10 +1185,13 @@ BtoR(uint32 b)
 {
 	b &= 0xffffL;
 	if(nacl)
-		b &= ~((1<<(D_BP-D_AX)) | (1<<(D_R15-D_AX)));
+		b &= ~((1<<(REG_BP-REG_AX)) | (1<<(REG_R15-REG_AX)));
+	else if(framepointer_enabled)
+		// BP is part of the calling convention if framepointer_enabled.
+		b &= ~(1<<(REG_BP-REG_AX));
 	if(b == 0)
 		return 0;
-	return bitno(b) + D_AX;
+	return bitno(b) + REG_AX;
 }
 
 /*
@@ -1195,9 +1203,9 @@ BtoR(uint32 b)
 uint32
 FtoB(int f)
 {
-	if(f < D_X0 || f > D_X15)
+	if(f < REG_X0 || f > REG_X15)
 		return 0;
-	return 1L << (f - D_X0 + 16);
+	return 1L << (f - REG_X0 + 16);
 }
 
 int
@@ -1207,7 +1215,7 @@ BtoF(uint32 b)
 	b &= 0xFFFF0000L;
 	if(b == 0)
 		return 0;
-	return bitno(b) - 16 + D_X0;
+	return bitno(b) - 16 + REG_X0;
 }
 
 void

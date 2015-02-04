@@ -125,6 +125,7 @@ type gobuf struct {
 	ctxt unsafe.Pointer // this has to be a pointer so that gc scans it
 	ret  uintreg
 	lr   uintptr
+	bp   uintptr // for GOEXPERIMENT=framepointer
 }
 
 // Known to compiler.
@@ -203,6 +204,7 @@ type g struct {
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	preemptscan  bool // preempted g does scan for gc
 	gcworkdone   bool // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
+	gcscanvalid  bool // false at start of gc cycle, true if G has not run since last scan
 	throwsplit   bool // must not split stack
 	raceignore   int8 // ignore race detection events
 	m            *m   // for debuggers, but offset not hard-coded
@@ -213,6 +215,7 @@ type g struct {
 	sigcode1     uintptr
 	sigpc        uintptr
 	gopc         uintptr // pc of go statement that created this goroutine
+	startpc      uintptr // pc of goroutine function
 	racectx      uintptr
 	waiting      *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
 }
@@ -242,7 +245,7 @@ type m struct {
 	id            int32
 	mallocing     int32
 	throwing      int32
-	gcing         int32
+	preemptoff    string // if != "", keep curg running on this m
 	locks         int32
 	softfloat     int32
 	dying         int32
@@ -276,6 +279,8 @@ type m struct {
 	traceback     uint8
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
 	waitlock      unsafe.Pointer
+	waittraceev   byte
+	syscalltick   uint32
 	//#ifdef GOOS_windows
 	thread uintptr // thread handle
 	// these are here because they are too large to be on the stack
@@ -323,6 +328,8 @@ type p struct {
 	// Available G's (status == Gdead)
 	gfree    *g
 	gfreecnt int32
+
+	tracebuf *traceBuf
 
 	pad [64]byte
 }
@@ -431,27 +438,6 @@ type itab struct {
 type lfnode struct {
 	next    uint64
 	pushcnt uintptr
-}
-
-// Parallel for descriptor.
-type parfor struct {
-	body    unsafe.Pointer // go func(*parfor, uint32), executed for each element
-	done    uint32         // number of idle threads
-	nthr    uint32         // total number of threads
-	nthrmax uint32         // maximum number of threads
-	thrseq  uint32         // thread id sequencer
-	cnt     uint32         // iteration space [0, cnt)
-	ctx     unsafe.Pointer // arbitrary user context
-	wait    bool           // if true, wait while all threads finish processing,
-	// otherwise parfor may return while other threads are still working
-	thr *parforthread // array of thread descriptors
-	pad uint32        // to align parforthread.pos for 64-bit atomic operations
-	// stats
-	nsteal     uint64
-	nstealcnt  uint64
-	nprocyield uint64
-	nosyield   uint64
-	nsleep     uint64
 }
 
 // Track memory allocated by code not written in Go during a cgo call,
@@ -621,15 +607,6 @@ var (
  * Initialize uint64 head to 0, compare with 0 to test for emptiness.
  * The stack does not keep pointers to nodes,
  * so they can be garbage collected if there are no other pointers to nodes.
- */
-
-/*
- * Parallel for over [0, n).
- * body() is executed for each iteration.
- * nthr - total number of worker threads.
- * ctx - arbitrary user context.
- * if wait=true, threads return from parfor() when all work is done;
- * otherwise, threads can return while other threads are still finishing processing.
  */
 
 // for mmap, we only pass the lower 32 bits of file offset to the

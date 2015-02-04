@@ -69,8 +69,11 @@ extern "C" {
 #include <stddef.h>
 #include <math.h>
 #include <ctype.h>	/* for tolower */
-#include <signal.h>
 #include <time.h>
+
+#ifdef _WIN32
+#include <signal.h>
+#endif
 
 /*
  * OS-specific crap

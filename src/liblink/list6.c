@@ -33,13 +33,13 @@
 #include <bio.h>
 #include <link.h>
 #include "../cmd/6l/6.out.h"
+#include "../runtime/funcdata.h"
 
 //
 // Format conversions
 //	%A int		Opcodes (instruction mnemonics)
 //
 //	%D Addr*	Addresses (instruction operands)
-//		Flags: "%lD": seperate the high and low words of a constant by "-"
 //
 //	%P Prog*	Instructions
 //
@@ -85,17 +85,17 @@ Pconv(Fmt *fp)
 
 	switch(p->as) {
 	case ADATA:
-		sprint(str, "%.5lld (%L)	%A	%D/%d,%D",
-			p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
+		sprint(str, "%.5lld (%L)	%A	%D/%lld,%D",
+			p->pc, p->lineno, p->as, &p->from, p->from3.offset, &p->to);
 		break;
 
 	case ATEXT:
-		if(p->from.scale) {
-			sprint(str, "%.5lld (%L)	%A	%D,%d,%lD",
-				p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
+		if(p->from3.offset) {
+			sprint(str, "%.5lld (%L)	%A	%D,%lld,%D",
+				p->pc, p->lineno, p->as, &p->from, p->from3.offset, &p->to);
 			break;
 		}
-		sprint(str, "%.5lld (%L)	%A	%D,%lD",
+		sprint(str, "%.5lld (%L)	%A	%D,%D",
 			p->pc, p->lineno, p->as, &p->from, &p->to);
 		break;
 
@@ -122,41 +122,31 @@ Dconv(Fmt *fp)
 {
 	char str[STRINGSZ], s[STRINGSZ];
 	Addr *a;
-	int i;
 
 	a = va_arg(fp->args, Addr*);
-	i = a->type;
 
-	if(fp->flags & FmtLong) {
-		if(i == D_CONST)
-			sprint(str, "$%lld-%lld", a->offset&0xffffffffLL, a->offset>>32);
-		else {
-			// ATEXT dst is not constant
-			sprint(str, "!!%D", a);
-		}
-		goto brk;
-	}
-
-	if(i >= D_INDIR) {
-		if(a->offset)
-			sprint(str, "%lld(%R)", a->offset, i-D_INDIR);
-		else
-			sprint(str, "(%R)", i-D_INDIR);
-		goto brk;
-	}
-	switch(i) {
+	switch(a->type) {
 	default:
-		if(a->offset)
-			sprint(str, "$%lld,%R", a->offset, i);
-		else
-			sprint(str, "%R", i);
+		sprint(str, "type=%d", a->type);
 		break;
 
-	case D_NONE:
+	case TYPE_NONE:
 		str[0] = 0;
 		break;
+	
+	case TYPE_REG:
+		// TODO(rsc): This special case is for instructions like
+		//	PINSRQ	CX,$1,X6
+		// where the $1 is included in the p->to Addr.
+		// Move into a new field.
+		if(a->offset != 0) {
+			sprint(str, "$%lld,%R", a->offset, a->reg);
+			break;
+		}
+		sprint(str, "%R", a->reg);
+		break;
 
-	case D_BRANCH:
+	case TYPE_BRANCH:
 		if(a->sym != nil)
 			sprint(str, "%s(SB)", a->sym->name);
 		else if(bigP != nil && bigP->pcond != nil)
@@ -167,54 +157,74 @@ Dconv(Fmt *fp)
 			sprint(str, "%lld(PC)", a->offset);
 		break;
 
-	case D_EXTERN:
-		sprint(str, "%s+%lld(SB)", a->sym->name, a->offset);
+	case TYPE_MEM:
+		switch(a->name) {
+		default:
+			sprint(str, "name=%d", a->name);
+			break;
+		case NAME_NONE:
+			if(a->offset)
+				sprint(str, "%lld(%R)", a->offset, a->reg);
+			else
+				sprint(str, "(%R)", a->reg);
+			break;
+		case NAME_EXTERN:
+			sprint(str, "%s+%lld(SB)", a->sym->name, a->offset);
+			break;
+		case NAME_STATIC:
+			sprint(str, "%s<>+%lld(SB)", a->sym->name, a->offset);
+			break;
+		case NAME_AUTO:
+			if(a->sym)
+				sprint(str, "%s+%lld(SP)", a->sym->name, a->offset);
+			else
+				sprint(str, "%lld(SP)", a->offset);
+			break;
+		case NAME_PARAM:
+			if(a->sym)
+				sprint(str, "%s+%lld(FP)", a->sym->name, a->offset);
+			else
+				sprint(str, "%lld(FP)", a->offset);
+			break;
+		}
+		if(a->index != REG_NONE) {
+			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
+			strcat(str, s);
+		}
 		break;
 
-	case D_STATIC:
-		sprint(str, "%s<>+%lld(SB)", a->sym->name, a->offset);
-		break;
-
-	case D_AUTO:
-		if(a->sym)
-			sprint(str, "%s+%lld(SP)", a->sym->name, a->offset);
-		else
-			sprint(str, "%lld(SP)", a->offset);
-		break;
-
-	case D_PARAM:
-		if(a->sym)
-			sprint(str, "%s+%lld(FP)", a->sym->name, a->offset);
-		else
-			sprint(str, "%lld(FP)", a->offset);
-		break;
-
-	case D_CONST:
+	case TYPE_CONST:
 		sprint(str, "$%lld", a->offset);
+		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+		//	SHRQ $32(DX*0), AX
+		// Remove.
+		if(a->index != REG_NONE) {
+			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
+			strcat(str, s);
+		}
+		break;
+	
+	case TYPE_TEXTSIZE:
+		if(a->u.argsize == ArgsSizeUnknown)
+			sprint(str, "$%lld", a->offset);
+		else
+			sprint(str, "$%lld-%lld", a->offset, a->u.argsize);
 		break;
 
-	case D_FCONST:
+	case TYPE_FCONST:
 		sprint(str, "$(%.17g)", a->u.dval);
 		break;
 
-	case D_SCONST:
+	case TYPE_SCONST:
 		sprint(str, "$\"%$\"", a->u.sval);
 		break;
 
-	case D_ADDR:
-		a->type = a->index;
-		a->index = D_NONE;
+	case TYPE_ADDR:
+		a->type = TYPE_MEM;
 		sprint(str, "$%D", a);
-		a->index = a->type;
-		a->type = D_ADDR;
-		goto conv;
+		a->type = TYPE_ADDR;
+		break;
 	}
-brk:
-	if(a->index != D_NONE) {
-		sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
-		strcat(str, s);
-	}
-conv:
 	return fmtstrcpy(fp, str);
 }
 
@@ -343,7 +353,7 @@ static char*	regstr[] =
 	"TR7",
 
 	"TLS",	/* [D_TLS] */
-	"NONE",	/* [D_NONE] */
+	"MAXREG",	/* [MAXREG] */
 };
 
 static int
@@ -353,8 +363,11 @@ Rconv(Fmt *fp)
 	int r;
 
 	r = va_arg(fp->args, int);
-	if(r >= D_AL && r <= D_NONE)
-		sprint(str, "%s", regstr[r-D_AL]);
+	if(r == REG_NONE)
+		return fmtstrcpy(fp, "NONE");
+
+	if(REG_AL <= r && r-REG_AL < nelem(regstr))
+		sprint(str, "%s", regstr[r-REG_AL]);
 	else
 		sprint(str, "gok(%d)", r);
 

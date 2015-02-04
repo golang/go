@@ -570,7 +570,7 @@ func NewAlpha(r Rectangle) *Alpha {
 	return &Alpha{pix, 1 * w, r}
 }
 
-// Alpha16 is an in-memory image whose At method returns color.Alpha64 values.
+// Alpha16 is an in-memory image whose At method returns color.Alpha16 values.
 type Alpha16 struct {
 	// Pix holds the image's pixels, as alpha values in big-endian format. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*2].

@@ -19,7 +19,7 @@ vlong
 rnd(vlong o, vlong r)
 {
 	if(r < 1 || r > 8 || (r&(r-1)) != 0)
-		fatal("rnd");
+		fatal("rnd %lld", r);
 	return (o+r-1)&~(r-1);
 }
 
@@ -35,7 +35,7 @@ offmod(Type *t)
 			fatal("offmod: not TFIELD: %lT", f);
 		f->width = o;
 		o += widthptr;
-		if(o >= MAXWIDTH) {
+		if(o >= arch.MAXWIDTH) {
 			yyerror("interface too large");
 			o = widthptr;
 		}
@@ -86,7 +86,7 @@ widstruct(Type *errtype, Type *t, vlong o, int flag)
 		if(w == 0)
 			lastzero = o;
 		o += w;
-		if(o >= MAXWIDTH) {
+		if(o >= arch.MAXWIDTH) {
 			yyerror("type %lT too large", errtype);
 			o = 8;  // small but nonzero
 		}
@@ -260,7 +260,7 @@ dowidth(Type *t)
 
 			dowidth(t->type);
 			if(t->type->width != 0) {
-				cap = (MAXWIDTH-1) / t->type->width;
+				cap = (arch.MAXWIDTH-1) / t->type->width;
 				if(t->bound > cap)
 					yyerror("type %lT larger than address space", t);
 			}
@@ -613,15 +613,15 @@ typeinit(void)
 	simtype[TFUNC] = tptr;
 	simtype[TUNSAFEPTR] = tptr;
 
-	/* pick up the backend typedefs */
-	for(i=0; typedefs[i].name; i++) {
-		s = lookup(typedefs[i].name);
-		s1 = pkglookup(typedefs[i].name, builtinpkg);
+	/* pick up the backend arch.typedefs */
+	for(i=0; arch.typedefs[i].name; i++) {
+		s = lookup(arch.typedefs[i].name);
+		s1 = pkglookup(arch.typedefs[i].name, builtinpkg);
 
-		etype = typedefs[i].etype;
+		etype = arch.typedefs[i].etype;
 		if(etype < 0 || etype >= nelem(types))
 			fatal("typeinit: %s bad etype", s->name);
-		sameas = typedefs[i].sameas;
+		sameas = arch.typedefs[i].sameas;
 		if(sameas < 0 || sameas >= nelem(types))
 			fatal("typeinit: %s bad sameas", s->name);
 		simtype[etype] = sameas;

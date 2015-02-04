@@ -70,7 +70,7 @@ closurebody(NodeList *body)
 	for(l=func->cvars; l; l=l->next) {
 		v = l->n;
 		v->closure->closure = v->outer;
-		v->heapaddr = nod(OADDR, oldname(v->sym), N);
+		v->outerexpr = oldname(v->sym);
 	}
 
 	return func;
@@ -81,48 +81,46 @@ static Node* makeclosure(Node *func);
 void
 typecheckclosure(Node *func, int top)
 {
-	Node *oldfn;
+	Node *oldfn, *n;
 	NodeList *l;
-	Node *v;
+	int olddd;
+
+	for(l=func->cvars; l; l=l->next) {
+		n = l->n->closure;
+		if(!n->captured) {
+			n->captured = 1;
+			if(n->decldepth == 0)
+				fatal("typecheckclosure: var %hN does not have decldepth assigned", n);
+			// Ignore assignments to the variable in straightline code
+			// preceding the first capturing by a closure.
+			if(n->decldepth == decldepth)
+				n->assigned = 0;
+		}
+	}
+
+	for(l=func->dcl; l; l=l->next)
+		if(l->n->op == ONAME && (l->n->class == PPARAM || l->n->class == PPARAMOUT))
+			l->n->decldepth = 1;
 
 	oldfn = curfn;
 	typecheck(&func->ntype, Etype);
 	func->type = func->ntype->type;
-	
+
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not
 	// ready to type check code yet; we'll check it later, because the
 	// underlying closure function we create is added to xtop.
 	if(curfn && func->type != T) {
 		curfn = func;
+		olddd = decldepth;
+		decldepth = 1;
 		typechecklist(func->nbody, Etop);
+		decldepth = olddd;
 		curfn = oldfn;
 	}
 
-	// type check the & of closed variables outside the closure,
-	// so that the outer frame also grabs them and knows they
-	// escape.
-	func->enter = nil;
-	for(l=func->cvars; l; l=l->next) {
-		v = l->n;
-		if(v->type == T) {
-			// if v->type is nil, it means v looked like it was
-			// going to be used in the closure but wasn't.
-			// this happens because when parsing a, b, c := f()
-			// the a, b, c gets parsed as references to older
-			// a, b, c before the parser figures out this is a
-			// declaration.
-			v->op = 0;
-			continue;
-		}
-		// For a closure that is called in place, but not
-		// inside a go statement, avoid moving variables to the heap.
-		if ((top & (Ecall|Eproc)) == Ecall)
-			v->heapaddr->etype = 1;
-		typecheck(&v->heapaddr, Erv);
-		func->enter = list(func->enter, v->heapaddr);
-		v->heapaddr = N;
-	}
+	// Remember closure context for capturevars.
+	func->etype = (top & (Ecall|Eproc)) == Ecall;
 
 	// Create top-level function 
 	xtop = list(xtop, makeclosure(func));
@@ -131,11 +129,8 @@ typecheckclosure(Node *func, int top)
 static Node*
 makeclosure(Node *func)
 {
-	Node *xtype, *v, *addr, *xfunc, *cv;
-	NodeList *l, *body;
+	Node *xtype, *xfunc;
 	static int closgen;
-	char *p;
-	vlong offset;
 
 	/*
 	 * wrap body in external function
@@ -156,37 +151,6 @@ makeclosure(Node *func)
 	xfunc->nname->funcdepth = func->funcdepth;
 	xfunc->funcdepth = func->funcdepth;
 	xfunc->endlineno = func->endlineno;
-	
-	// declare variables holding addresses taken from closure
-	// and initialize in entry prologue.
-	body = nil;
-	offset = widthptr;
-	xfunc->needctxt = func->cvars != nil;
-	for(l=func->cvars; l; l=l->next) {
-		v = l->n;
-		if(v->op == 0)
-			continue;
-		addr = nod(ONAME, N, N);
-		p = smprint("&%s", v->sym->name);
-		addr->sym = lookup(p);
-		free(p);
-		addr->ntype = nod(OIND, typenod(v->type), N);
-		addr->class = PAUTO;
-		addr->addable = 1;
-		addr->ullman = 1;
-		addr->used = 1;
-		addr->curfn = xfunc;
-		xfunc->dcl = list(xfunc->dcl, addr);
-		v->heapaddr = addr;
-		cv = nod(OCLOSUREVAR, N, N);
-		cv->type = ptrto(v->type);
-		cv->xoffset = offset;
-		body = list(body, nod(OAS, addr, cv));
-		offset += widthptr;
-	}
-	typechecklist(body, Etop);
-	walkstmtlist(body);
-	xfunc->enter = body;
 
 	xfunc->nbody = func->nbody;
 	xfunc->dcl = concat(func->dcl, xfunc->dcl);
@@ -204,13 +168,107 @@ makeclosure(Node *func)
 	return xfunc;
 }
 
+// capturevars is called in a separate phase after all typechecking is done.
+// It decides whether each variable captured by a closure should be captured
+// by value or by reference.
+// We use value capturing for values <= 128 bytes that are never reassigned
+// after declaration.
+void
+capturevars(Node *xfunc)
+{
+	Node *func, *v, *addr, *cv, *outer;
+	NodeList *l, *body;
+	char *p;
+	vlong offset;
+	int nvar, lno;
+
+	lno = lineno;
+	lineno = xfunc->lineno;
+
+	nvar = 0;
+	body = nil;
+	offset = widthptr;
+	func = xfunc->closure;
+	func->enter = nil;
+	for(l=func->cvars; l; l=l->next) {
+		v = l->n;
+		if(v->type == T) {
+			// if v->type is nil, it means v looked like it was
+			// going to be used in the closure but wasn't.
+			// this happens because when parsing a, b, c := f()
+			// the a, b, c gets parsed as references to older
+			// a, b, c before the parser figures out this is a
+			// declaration.
+			v->op = OXXX;
+			continue;
+		}
+		nvar++;
+
+		// type check the & of closed variables outside the closure,
+		// so that the outer frame also grabs them and knows they escape.
+		dowidth(v->type);
+		outer = v->outerexpr;
+		v->outerexpr = N;
+		// out parameters will be assigned to implicitly upon return.
+		if(outer->class != PPARAMOUT && !v->closure->addrtaken && !v->closure->assigned && v->type->width <= 128)
+			v->byval = 1;
+		else {
+			outer = nod(OADDR, outer, N);
+			// For a closure that is called in place, but not
+			// inside a go statement, avoid moving variables to the heap.
+			outer->etype = func->etype;
+		}
+		if(debug['m'] > 1)
+			warnl(v->lineno, "%S capturing by %s: %S (addr=%d assign=%d width=%d)",
+				(v->curfn && v->curfn->nname) ? v->curfn->nname->sym : S, v->byval ? "value" : "ref",
+				v->sym, v->closure->addrtaken, v->closure->assigned, (int32)v->type->width);
+		typecheck(&outer, Erv);
+		func->enter = list(func->enter, outer);
+
+		// declare variables holding addresses taken from closure
+		// and initialize in entry prologue.
+		addr = nod(ONAME, N, N);
+		p = smprint("&%s", v->sym->name);
+		addr->sym = lookup(p);
+		free(p);
+		addr->ntype = nod(OIND, typenod(v->type), N);
+		addr->class = PAUTO;
+		addr->addable = 1;
+		addr->ullman = 1;
+		addr->used = 1;
+		addr->curfn = xfunc;
+		xfunc->dcl = list(xfunc->dcl, addr);
+		v->heapaddr = addr;
+		cv = nod(OCLOSUREVAR, N, N);
+		if(v->byval) {
+			cv->type = v->type;
+			offset = rnd(offset, v->type->align);
+			cv->xoffset = offset;
+			offset += v->type->width;
+			body = list(body, nod(OAS, addr, nod(OADDR, cv, N)));
+		} else {
+			v->closure->addrtaken = 1;
+			cv->type = ptrto(v->type);
+			offset = rnd(offset, widthptr);
+			cv->xoffset = offset;
+			offset += widthptr;
+			body = list(body, nod(OAS, addr, cv));
+		}
+	}
+	typechecklist(body, Etop);
+	walkstmtlist(body);
+	xfunc->enter = body;
+	xfunc->needctxt = nvar > 0;
+	func->etype = 0;
+
+	lineno = lno;
+}
+
 Node*
 walkclosure(Node *func, NodeList **init)
 {
-	Node *clos, *typ;
+	Node *clos, *typ, *typ1, *v;
 	NodeList *l;
-	char buf[20];
-	int narg;
 
 	// If no closure vars, don't bother wrapping.
 	if(func->cvars == nil)
@@ -230,14 +288,16 @@ walkclosure(Node *func, NodeList **init)
 	// the struct is unnamed so that closures in multiple packages with the
 	// same struct type can share the descriptor.
 
-	narg = 0;
 	typ = nod(OTSTRUCT, N, N);
 	typ->list = list1(nod(ODCLFIELD, newname(lookup("F")), typenod(types[TUINTPTR])));
 	for(l=func->cvars; l; l=l->next) {
-		if(l->n->op == 0)
+		v = l->n;
+		if(v->op == OXXX)
 			continue;
-		snprint(buf, sizeof buf, "A%d", narg++);
-		typ->list = list(typ->list, nod(ODCLFIELD, newname(lookup(buf)), l->n->heapaddr->ntype));
+		typ1 = typenod(v->type);
+		if(!v->byval)
+			typ1 = nod(OIND, typ1, N);
+		typ->list = list(typ->list, nod(ODCLFIELD, newname(v->sym), typ1));
 	}
 
 	clos = nod(OCOMPLIT, N, nod(OIND, typ, N));
@@ -315,7 +375,7 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
 		spkg = basetype->sym->pkg;
 	if(spkg == nil) {
 		if(gopkg == nil)
-			gopkg = mkpkg(strlit("go"));
+			gopkg = mkpkg(newstrlit("go"));
 		spkg = gopkg;
 	}
 	sym = pkglookup(p, spkg);

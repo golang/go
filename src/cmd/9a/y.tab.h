@@ -60,45 +60,46 @@
      LRETT = 276,
      LWORD = 277,
      LTEXT = 278,
-     LDATA = 279,
-     LRETRN = 280,
-     LCONST = 281,
-     LSP = 282,
-     LSB = 283,
-     LFP = 284,
-     LPC = 285,
-     LCREG = 286,
-     LFLUSH = 287,
-     LREG = 288,
-     LFREG = 289,
-     LR = 290,
-     LCR = 291,
-     LF = 292,
-     LFPSCR = 293,
-     LLR = 294,
-     LCTR = 295,
-     LSPR = 296,
-     LSPREG = 297,
-     LSEG = 298,
-     LMSR = 299,
-     LPCDAT = 300,
-     LFUNCDAT = 301,
-     LSCHED = 302,
-     LXLD = 303,
-     LXST = 304,
-     LXOP = 305,
-     LXMV = 306,
-     LRLWM = 307,
-     LMOVMW = 308,
-     LMOVEM = 309,
-     LMOVFL = 310,
-     LMTFSB = 311,
-     LMA = 312,
-     LFCONST = 313,
-     LSCONST = 314,
-     LNAME = 315,
-     LLAB = 316,
-     LVAR = 317
+     LGLOBL = 279,
+     LDATA = 280,
+     LRETRN = 281,
+     LCONST = 282,
+     LSP = 283,
+     LSB = 284,
+     LFP = 285,
+     LPC = 286,
+     LCREG = 287,
+     LFLUSH = 288,
+     LREG = 289,
+     LFREG = 290,
+     LR = 291,
+     LCR = 292,
+     LF = 293,
+     LFPSCR = 294,
+     LLR = 295,
+     LCTR = 296,
+     LSPR = 297,
+     LSPREG = 298,
+     LSEG = 299,
+     LMSR = 300,
+     LPCDAT = 301,
+     LFUNCDAT = 302,
+     LSCHED = 303,
+     LXLD = 304,
+     LXST = 305,
+     LXOP = 306,
+     LXMV = 307,
+     LRLWM = 308,
+     LMOVMW = 309,
+     LMOVEM = 310,
+     LMOVFL = 311,
+     LMTFSB = 312,
+     LMA = 313,
+     LFCONST = 314,
+     LSCONST = 315,
+     LNAME = 316,
+     LLAB = 317,
+     LVAR = 318
    };
 #endif
 /* Tokens.  */
@@ -123,45 +124,46 @@
 #define LRETT 276
 #define LWORD 277
 #define LTEXT 278
-#define LDATA 279
-#define LRETRN 280
-#define LCONST 281
-#define LSP 282
-#define LSB 283
-#define LFP 284
-#define LPC 285
-#define LCREG 286
-#define LFLUSH 287
-#define LREG 288
-#define LFREG 289
-#define LR 290
-#define LCR 291
-#define LF 292
-#define LFPSCR 293
-#define LLR 294
-#define LCTR 295
-#define LSPR 296
-#define LSPREG 297
-#define LSEG 298
-#define LMSR 299
-#define LPCDAT 300
-#define LFUNCDAT 301
-#define LSCHED 302
-#define LXLD 303
-#define LXST 304
-#define LXOP 305
-#define LXMV 306
-#define LRLWM 307
-#define LMOVMW 308
-#define LMOVEM 309
-#define LMOVFL 310
-#define LMTFSB 311
-#define LMA 312
-#define LFCONST 313
-#define LSCONST 314
-#define LNAME 315
-#define LLAB 316
-#define LVAR 317
+#define LGLOBL 279
+#define LDATA 280
+#define LRETRN 281
+#define LCONST 282
+#define LSP 283
+#define LSB 284
+#define LFP 285
+#define LPC 286
+#define LCREG 287
+#define LFLUSH 288
+#define LREG 289
+#define LFREG 290
+#define LR 291
+#define LCR 292
+#define LF 293
+#define LFPSCR 294
+#define LLR 295
+#define LCTR 296
+#define LSPR 297
+#define LSPREG 298
+#define LSEG 299
+#define LMSR 300
+#define LPCDAT 301
+#define LFUNCDAT 302
+#define LSCHED 303
+#define LXLD 304
+#define LXST 305
+#define LXOP 306
+#define LXMV 307
+#define LRLWM 308
+#define LMOVMW 309
+#define LMOVEM 310
+#define LMOVFL 311
+#define LMTFSB 312
+#define LMA 313
+#define LFCONST 314
+#define LSCONST 315
+#define LNAME 316
+#define LLAB 317
+#define LVAR 318
 
 
 
@@ -177,7 +179,7 @@ typedef union YYSTYPE
 	Addr	addr;
 }
 /* Line 1529 of yacc.c.  */
-#line 181 "y.tab.h"
+#line 183 "y.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

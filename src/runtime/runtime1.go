@@ -95,45 +95,47 @@ func environ() []string {
 	return envs
 }
 
-func testAtomic64() {
-	var z64, x64 uint64
+// TODO: These should be locals in testAtomic64, but we don't 8-byte
+// align stack variables on 386.
+var test_z64, test_x64 uint64
 
-	z64 = 42
-	x64 = 0
-	prefetcht0(uintptr(unsafe.Pointer(&z64)))
-	prefetcht1(uintptr(unsafe.Pointer(&z64)))
-	prefetcht2(uintptr(unsafe.Pointer(&z64)))
-	prefetchnta(uintptr(unsafe.Pointer(&z64)))
-	if cas64(&z64, x64, 1) {
+func testAtomic64() {
+	test_z64 = 42
+	test_x64 = 0
+	prefetcht0(uintptr(unsafe.Pointer(&test_z64)))
+	prefetcht1(uintptr(unsafe.Pointer(&test_z64)))
+	prefetcht2(uintptr(unsafe.Pointer(&test_z64)))
+	prefetchnta(uintptr(unsafe.Pointer(&test_z64)))
+	if cas64(&test_z64, test_x64, 1) {
 		throw("cas64 failed")
 	}
-	if x64 != 0 {
+	if test_x64 != 0 {
 		throw("cas64 failed")
 	}
-	x64 = 42
-	if !cas64(&z64, x64, 1) {
+	test_x64 = 42
+	if !cas64(&test_z64, test_x64, 1) {
 		throw("cas64 failed")
 	}
-	if x64 != 42 || z64 != 1 {
+	if test_x64 != 42 || test_z64 != 1 {
 		throw("cas64 failed")
 	}
-	if atomicload64(&z64) != 1 {
+	if atomicload64(&test_z64) != 1 {
 		throw("load64 failed")
 	}
-	atomicstore64(&z64, (1<<40)+1)
-	if atomicload64(&z64) != (1<<40)+1 {
+	atomicstore64(&test_z64, (1<<40)+1)
+	if atomicload64(&test_z64) != (1<<40)+1 {
 		throw("store64 failed")
 	}
-	if xadd64(&z64, (1<<40)+1) != (2<<40)+2 {
+	if xadd64(&test_z64, (1<<40)+1) != (2<<40)+2 {
 		throw("xadd64 failed")
 	}
-	if atomicload64(&z64) != (2<<40)+2 {
+	if atomicload64(&test_z64) != (2<<40)+2 {
 		throw("xadd64 failed")
 	}
-	if xchg64(&z64, (3<<40)+3) != (2<<40)+2 {
+	if xchg64(&test_z64, (3<<40)+3) != (2<<40)+2 {
 		throw("xchg64 failed")
 	}
-	if atomicload64(&z64) != (3<<40)+3 {
+	if atomicload64(&test_z64) != (3<<40)+3 {
 		throw("xchg64 failed")
 	}
 }
@@ -306,7 +308,10 @@ type dbgVar struct {
 
 // TODO(rsc): Make GC respect debug.invalidptr.
 
-// Holds variables parsed from GODEBUG env var.
+// Holds variables parsed from GODEBUG env var,
+// except for "memprofilerate" since there is an
+// existing int var for that value, which may
+// already have an initial value.
 var debug struct {
 	allocfreetrace int32
 	efence         int32
@@ -350,9 +355,17 @@ func parsedebugvars() {
 			continue
 		}
 		key, value := field[:i], field[i+1:]
-		for _, v := range dbgvars {
-			if v.name == key {
-				*v.value = int32(atoi(value))
+
+		// Update MemProfileRate directly here since it
+		// is int, not int32, and should only be updated
+		// if specified in GODEBUG.
+		if key == "memprofilerate" {
+			MemProfileRate = atoi(value)
+		} else {
+			for _, v := range dbgvars {
+				if v.name == key {
+					*v.value = int32(atoi(value))
+				}
 			}
 		}
 	}

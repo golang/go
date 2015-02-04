@@ -278,6 +278,12 @@ Jconv(Fmt *fp)
 	if(n->embedded != 0)
 		fmtprint(fp, " embedded(%d)", n->embedded);
 
+	if(n->addrtaken != 0)
+		fmtprint(fp, " addrtaken");
+
+	if(n->assigned != 0)
+		fmtprint(fp, " assigned");
+
 	if(!c && n->used != 0)
 		fmtprint(fp, " used(%d)", n->used);
 	return 0;

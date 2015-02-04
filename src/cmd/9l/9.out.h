@@ -40,32 +40,186 @@ enum
 
 #include "../ld/textflag.h"
 
+// avoid conflict with ucontext.h. sigh.
+#undef REG_R0
+#undef REG_R1
+#undef REG_R2
+#undef REG_R3
+#undef REG_R4
+#undef REG_R5
+#undef REG_R6
+#undef REG_R7
+#undef REG_R8
+#undef REG_R9
+#undef REG_R10
+#undef REG_R11
+#undef REG_R12
+#undef REG_R13
+#undef REG_R14
+#undef REG_R15
+#undef REG_R16
+#undef REG_R17
+#undef REG_R18
+#undef REG_R19
+#undef REG_R20
+#undef REG_R21
+#undef REG_R22
+#undef REG_R23
+#undef REG_R24
+#undef REG_R25
+#undef REG_R26
+#undef REG_R27
+#undef REG_R28
+#undef REG_R29
+#undef REG_R30
+#undef REG_R31
+#define REG_R0 GO_REG_R0
+#define REG_R1 GO_REG_R1
+#define REG_R2 GO_REG_R2
+#define REG_R3 GO_REG_R3
+#define REG_R4 GO_REG_R4
+#define REG_R5 GO_REG_R5
+#define REG_R6 GO_REG_R6
+#define REG_R7 GO_REG_R7
+#define REG_R8 GO_REG_R8
+#define REG_R9 GO_REG_R9
+#define REG_R10 GO_REG_R10
+#define REG_R11 GO_REG_R11
+#define REG_R12 GO_REG_R12
+#define REG_R13 GO_REG_R13
+#define REG_R14 GO_REG_R14
+#define REG_R15 GO_REG_R15
+#define REG_R16 GO_REG_R16
+#define REG_R17 GO_REG_R17
+#define REG_R18 GO_REG_R18
+#define REG_R19 GO_REG_R19
+#define REG_R20 GO_REG_R20
+#define REG_R21 GO_REG_R21
+#define REG_R22 GO_REG_R22
+#define REG_R23 GO_REG_R23
+#define REG_R24 GO_REG_R24
+#define REG_R25 GO_REG_R25
+#define REG_R26 GO_REG_R26
+#define REG_R27 GO_REG_R27
+#define REG_R28 GO_REG_R28
+#define REG_R29 GO_REG_R29
+#define REG_R30 GO_REG_R30
+#define REG_R31 GO_REG_R31
+
 enum
 {
-	REGZERO		= 0,	/* set to zero */
-	REGSP		= 1,
-	REGSB		= 2,
-	REGRET		= 3,
-	REGARG		= -1,	/* -1 disables passing the first argument in register */
-	REGRT1		= 3,	/* reserved for runtime, duffzero and duffcopy */
-	REGRT2		= 4,	/* reserved for runtime, duffcopy */
-	REGMIN		= 7,	/* register variables allocated from here to REGMAX */
-	REGENV		= 11,	/* environment for closures */
-	REGTLS		= 13,	/* C ABI TLS base pointer */
-	REGMAX		= 27,
-	REGEXT		= 30,	/* external registers allocated from here down */
-	REGG		= 30,	/* G */
-	REGTMP		= 31,	/* used by the linker */
+	REG_R0 = 32,
+	REG_R1,
+	REG_R2,
+	REG_R3,
+	REG_R4,
+	REG_R5,
+	REG_R6,
+	REG_R7,
+	REG_R8,
+	REG_R9,
+	REG_R10,
+	REG_R11,
+	REG_R12,
+	REG_R13,
+	REG_R14,
+	REG_R15,
+	REG_R16,
+	REG_R17,
+	REG_R18,
+	REG_R19,
+	REG_R20,
+	REG_R21,
+	REG_R22,
+	REG_R23,
+	REG_R24,
+	REG_R25,
+	REG_R26,
+	REG_R27,
+	REG_R28,
+	REG_R29,
+	REG_R30,
+	REG_R31,
 
-	FREGRET		= 0,
-	FREGMIN		= 17,	/* first register variable */
-	FREGMAX		= 26,	/* last register variable for 9g only */
-	FREGEXT		= 26,	/* first external register */
-	FREGCVI		= 27,	/* floating conversion constant */
-	FREGZERO	= 28,	/* both float and double */
-	FREGHALF	= 29,	/* double */
-	FREGONE		= 30,	/* double */
-	FREGTWO		= 31	/* double */
+	REG_F0 = 64,
+	REG_F1,
+	REG_F2,
+	REG_F3,
+	REG_F4,
+	REG_F5,
+	REG_F6,
+	REG_F7,
+	REG_F8,
+	REG_F9,
+	REG_F10,
+	REG_F11,
+	REG_F12,
+	REG_F13,
+	REG_F14,
+	REG_F15,
+	REG_F16,
+	REG_F17,
+	REG_F18,
+	REG_F19,
+	REG_F20,
+	REG_F21,
+	REG_F22,
+	REG_F23,
+	REG_F24,
+	REG_F25,
+	REG_F26,
+	REG_F27,
+	REG_F28,
+	REG_F29,
+	REG_F30,
+	REG_F31,
+	
+	REG_SPECIAL = 96,
+
+	REG_C0 = 96,
+	REG_C1,
+	REG_C2,
+	REG_C3,
+	REG_C4,
+	REG_C5,
+	REG_C6,
+	REG_C7,
+	
+	REG_MSR = 104,
+	REG_FPSCR,
+	REG_CR,
+
+	REG_SPR0 = 1024, // first of 1024 registers
+	REG_DCR0 = 2048, // first of 1024 registers
+	
+	REG_XER = REG_SPR0 + 1,
+	REG_LR = REG_SPR0 + 8,
+	REG_CTR = REG_SPR0 + 9,
+
+	REGZERO		= REG_R0,	/* set to zero */
+	REGSP		= REG_R1,
+	REGSB		= REG_R2,
+	REGRET		= REG_R3,
+	REGARG		= -1,	/* -1 disables passing the first argument in register */
+	REGRT1		= REG_R3,	/* reserved for runtime, duffzero and duffcopy */
+	REGRT2		= REG_R4,	/* reserved for runtime, duffcopy */
+	REGMIN		= REG_R7,	/* register variables allocated from here to REGMAX */
+	REGENV		= REG_R11,	/* environment for closures */
+	REGTLS		= REG_R13,	/* C ABI TLS base pointer */
+	REGMAX		= REG_R27,
+	REGEXT		= REG_R30,	/* external registers allocated from here down */
+	REGG		= REG_R30,	/* G */
+	REGTMP		= REG_R31,	/* used by the linker */
+
+	FREGRET		= REG_F0,
+	FREGMIN		= REG_F17,	/* first register variable */
+	FREGMAX		= REG_F26,	/* last register variable for 9g only */
+	FREGEXT		= REG_F26,	/* first external register */
+	FREGCVI		= REG_F27,	/* floating conversion constant */
+	FREGZERO	= REG_F28,	/* both float and double */
+	FREGHALF	= REG_F29,	/* double */
+	FREGONE		= REG_F30,	/* double */
+	FREGTWO		= REG_F31	/* double */
 /*
  * GENERAL:
  *
@@ -132,14 +286,14 @@ enum
 	C_ANY,
 	C_GOK,
 	C_ADDR,
+	C_TEXTSIZE,
 
 	C_NCLASS,	/* must be the last */
 };
 
 enum
 {
-	AXXX,
-	AADD,
+	AADD = A_ARCHSPECIFIC,
 	AADDCC,
 	AADDV,
 	AADDVCC,
@@ -168,11 +322,9 @@ enum
 	ABEQ,
 	ABGE,
 	ABGT,
-	ABL,
 	ABLE,
 	ABLT,
 	ABNE,
-	ABR,
 	ABVC,
 	ABVS,
 	ACMP,
@@ -356,19 +508,7 @@ enum
 	ATW,
 
 	ASYSCALL,
-	ADATA,
-	AGLOBL,
-	AGOK,
-	AHISTORY,
-	ANAME,
-	ANOP,
-	ARETURN,
-	ATEXT,
 	AWORD,
-	AEND,
-	ADYNT,
-	AINIT,
-	ASIGNAME,
 
 	ARFCI,
 
@@ -457,62 +597,12 @@ enum
 	/* more 64-bit operations */
 	AHRFID,
 
-	AUNDEF,
-	AUSEFIELD,
-	ATYPE,
-	AFUNCDATA,
-	APCDATA,
-	ACHECKNIL,
-	AVARDEF,
-	AVARKILL,
-	ADUFFCOPY,
-	ADUFFZERO,
-
-	ALAST
-};
-
-/* type/name */
-enum
-{
-	D_GOK	= 0,
-	D_NONE,
-
-/* name */
-	D_EXTERN,
-	D_STATIC,
-	D_AUTO,
-	D_PARAM,
-
-/* type */
-	D_BRANCH,
-	D_OREG,
-	D_CONST,
-	D_FCONST,
-	D_SCONST,
-	D_REG,
-	D_FPSCR,
-	D_MSR,
-	D_FREG,
-	D_CREG,
-	D_SPR,
-	D_OPT,	/* branch/trap option */
-	D_FILE,
-	D_FILE1,
-	D_DCR,	/* device control register */
-	D_DCONST,
-	D_ADDR, // not used, use D_CONST with non-empty sym.
-
-	D_LAST,
-
-/* reg names for 9g OREGISTER */
-	D_R0 = 0, // type is D_REG
-	D_F0 = D_R0+NREG, // type is D_FREG
-
-/* reg names in offset field iff type is D_SPR */
-	D_XER	= 1,
-	D_LR	= 8,
-	D_CTR	= 9
-	/* and many supervisor level registers */
+	ALAST,
+	
+	// aliases
+	ABR = AJMP,
+	ABL = ACALL,
+	ARETURN = ARET,
 };
 
 /*

@@ -21,13 +21,11 @@ defframe(Prog *ptxt)
 	NodeList *l;
 	Node *n;
 
-	// fill in argument size
-	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
-
-	// fill in final stack size
-	ptxt->to.offset <<= 32;
+	// fill in argument size, stack size
+	ptxt->to.type = TYPE_TEXTSIZE;
+	ptxt->to.u.argsize = rnd(curfn->type->argwid, widthptr);
 	frame = rnd(stksize+maxarg, widthreg);
-	ptxt->to.offset |= frame;
+	ptxt->to.offset = frame;
 	
 	// insert code to zero ambiguously live variables
 	// so that the garbage collector only sees initialized values
@@ -72,25 +70,25 @@ zerorange(Prog *p, vlong frame, vlong lo, vlong hi)
 		return p;
 	if(cnt < 4*widthptr) {
 		for(i = 0; i < cnt; i += widthptr)
-			p = appendpp(p, AMOVD, D_REG, REGZERO, 0, D_OREG, REGSP, 8+frame+lo+i);
+			p = appendpp(p, AMOVD, TYPE_REG, REGZERO, 0, TYPE_MEM, REGSP, 8+frame+lo+i);
 	} else if(cnt <= 128*widthptr) {
-		p = appendpp(p, AADD, D_CONST, NREG, 8+frame+lo-8, D_REG, REGRT1, 0);
+		p = appendpp(p, AADD, TYPE_CONST, 0, 8+frame+lo-8, TYPE_REG, REGRT1, 0);
 		p->reg = REGSP;
-		p = appendpp(p, ADUFFZERO, D_NONE, NREG, 0, D_OREG, NREG, 0);
+		p = appendpp(p, ADUFFZERO, TYPE_NONE, 0, 0, TYPE_MEM, 0, 0);
 		f = sysfunc("duffzero");
 		naddr(f, &p->to, 1);
 		afunclit(&p->to, f);
 		p->to.offset = 4*(128-cnt/widthptr);
 	} else {
-		p = appendpp(p, AMOVD, D_CONST, NREG, 8+frame+lo-8, D_REG, REGTMP, 0);
-		p = appendpp(p, AADD, D_REG, REGTMP, 0, D_REG, REGRT1, 0);
+		p = appendpp(p, AMOVD, TYPE_CONST, 0, 8+frame+lo-8, TYPE_REG, REGTMP, 0);
+		p = appendpp(p, AADD, TYPE_REG, REGTMP, 0, TYPE_REG, REGRT1, 0);
 		p->reg = REGSP;
-		p = appendpp(p, AMOVD, D_CONST, NREG, cnt, D_REG, REGTMP, 0);
-		p = appendpp(p, AADD, D_REG, REGTMP, 0, D_REG, REGRT2, 0);
+		p = appendpp(p, AMOVD, TYPE_CONST, 0, cnt, TYPE_REG, REGTMP, 0);
+		p = appendpp(p, AADD, TYPE_REG, REGTMP, 0, TYPE_REG, REGRT2, 0);
 		p->reg = REGRT1;
-		p1 = p = appendpp(p, AMOVDU, D_REG, REGZERO, 0, D_OREG, REGRT1, widthptr);
-		p = appendpp(p, ACMP, D_REG, REGRT1, 0, D_REG, REGRT2, 0);
-		p = appendpp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);
+		p1 = p = appendpp(p, AMOVDU, TYPE_REG, REGZERO, 0, TYPE_MEM, REGRT1, widthptr);
+		p = appendpp(p, ACMP, TYPE_REG, REGRT1, 0, TYPE_REG, REGRT2, 0);
+		p = appendpp(p, ABNE, TYPE_NONE, 0, 0, TYPE_BRANCH, 0, 0);
 		patch(p, p1);
 	}
 	return p;
@@ -124,10 +122,10 @@ markautoused(Prog *p)
 			continue;
 
 		if (p->from.node)
-			p->from.node->used = 1;
+			((Node*)(p->from.node))->used = 1;
 
 		if (p->to.node)
-			p->to.node->used = 1;
+			((Node*)(p->to.node))->used = 1;
 	}
 }
 
@@ -138,25 +136,23 @@ fixautoused(Prog *p)
 	Prog **lp;
 
 	for (lp=&p; (p=*lp) != P; ) {
-		if (p->as == ATYPE && p->from.node && p->from.name == D_AUTO && !p->from.node->used) {
+		if (p->as == ATYPE && p->from.node && p->from.name == NAME_AUTO && !((Node*)(p->from.node))->used) {
 			*lp = p->link;
 			continue;
 		}
-		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
+		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !((Node*)(p->to.node))->used) {
 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
 			// VARDEFs are interspersed with other code, and a jump might be using the
 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
 			// the no-ops.
-			p->to.type = D_NONE;
-			p->to.node = N;
-			p->as = ANOP;
+			nopout(p);
 			continue;
 		}
-		if (p->from.name == D_AUTO && p->from.node)
-			p->from.offset += p->from.node->stkdelta;
+		if (p->from.name == NAME_AUTO && p->from.node)
+			p->from.offset += ((Node*)(p->from.node))->stkdelta;
 
-		if (p->to.name == D_AUTO && p->to.node)
-			p->to.offset += p->to.node->stkdelta;
+		if (p->to.name == NAME_AUTO && p->to.node)
+			p->to.offset += ((Node*)(p->to.node))->stkdelta;
 
 		lp = &p->link;
 	}
@@ -172,11 +168,11 @@ ginsBL(Node *reg, Node *f)
 {
 	Prog *p;
 	p = gins(AMOVD, f, N);
-	p->to.type = D_SPR;
-	p->to.offset = D_CTR;
+	p->to.type = TYPE_REG;
+	p->to.reg = REG_CTR;
 	p = gins(ABL, reg, N);
-	p->to.type = D_SPR;
-	p->to.offset = D_CTR;
+	p->to.type = TYPE_REG;
+	p->to.reg = REG_CTR;
 }
 
 /*
@@ -221,7 +217,7 @@ ginscall(Node *f, int proc)
 				// The ppc64 NOP is really or r0, r0, r0; use that description
 				// because the NOP pseudo-instruction would be removed by
 				// the linker.
-				nodreg(&reg, types[TINT], D_R0);
+				nodreg(&reg, types[TINT], REG_R0);
 				gins(AOR, &reg, &reg);
 			}
 			p = gins(ABL, N, f);
@@ -230,8 +226,8 @@ ginscall(Node *f, int proc)
 				gins(AUNDEF, N, N);
 			break;
 		}
-		nodreg(&reg, types[tptr], D_R0+REGENV);
-		nodreg(&r1, types[tptr], D_R0+3);
+		nodreg(&reg, types[tptr], REGENV);
+		nodreg(&r1, types[tptr], REG_R3);
 		gmove(f, &reg);
 		reg.op = OINDREG;
 		gmove(&reg, &r1);
@@ -246,18 +242,18 @@ ginscall(Node *f, int proc)
 	case 1:	// call in new proc (go)
 	case 2:	// deferred call (defer)
 		nodconst(&con, types[TINT64], argsize(f->type));
-		nodreg(&reg, types[TINT64], D_R0+3);
-		nodreg(&reg2, types[TINT64], D_R0+4);
+		nodreg(&reg, types[TINT64], REG_R3);
+		nodreg(&reg2, types[TINT64], REG_R4);
 		gmove(f, &reg);
 
 		gmove(&con, &reg2);
 		p = gins(AMOVW, &reg2, N);
-		p->to.type = D_OREG;
+		p->to.type = TYPE_MEM;
 		p->to.reg = REGSP;
 		p->to.offset = 8;
 
 		p = gins(AMOVD, &reg, N);
-		p->to.type = D_OREG;
+		p->to.type = TYPE_MEM;
 		p->to.reg = REGSP;
 		p->to.offset = 16;
 
@@ -270,10 +266,10 @@ ginscall(Node *f, int proc)
 		}
 
 		if(proc == 2) {
-			nodreg(&reg, types[TINT64], D_R0+3);
+			nodreg(&reg, types[TINT64], REG_R3);
 			p = gins(ACMP, &reg, N);
-			p->to.type = D_REG;
-			p->to.reg = D_R0;
+			p->to.type = TYPE_REG;
+			p->to.reg = REG_R0;
 			p = gbranch(ABEQ, T, +1);
 			cgen_ret(N);
 			patch(p, pc);
@@ -315,7 +311,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 	// register to hold its address.
 	igen(i, &nodi, res);		// REG = &inter
 
-	nodindreg(&nodsp, types[tptr], D_R0+REGSP);
+	nodindreg(&nodsp, types[tptr], REGSP);
 	nodsp.xoffset = widthptr;
 	if(proc != 0)
 		nodsp.xoffset += 2 * widthptr; // leave room for size & fn
@@ -342,7 +338,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 	} else {
 		// go/defer. generate go func value.
 		p = gins(AMOVD, &nodo, &nodr);	// REG = &(32+offset(REG)) -- i.tab->fun[f]
-		p->from.type = D_CONST;
+		p->from.type = TYPE_ADDR;
 	}
 
 	nodr.type = n->left->type;
@@ -424,7 +420,7 @@ cgen_callret(Node *n, Node *res)
 
 	memset(&nod, 0, sizeof(nod));
 	nod.op = OINDREG;
-	nod.val.u.reg = D_R0+REGSP;
+	nod.val.u.reg = REGSP;
 	nod.addable = 1;
 
 	nod.xoffset = fp->width + widthptr; // +widthptr: saved LR at 0(R1)
@@ -454,7 +450,7 @@ cgen_aret(Node *n, Node *res)
 
 	memset(&nod1, 0, sizeof(nod1));
 	nod1.op = OINDREG;
-	nod1.val.u.reg = D_R0 + REGSP;
+	nod1.val.u.reg = REGSP;
 	nod1.addable = 1;
 
 	nod1.xoffset = fp->width + widthptr; // +widthptr: saved lr at 0(SP)
@@ -485,8 +481,8 @@ cgen_ret(Node *n)
 	genlist(curfn->exit);
 	p = gins(ARET, N, N);
 	if(n != N && n->op == ORETJMP) {
-		p->to.name = D_EXTERN;
-		p->to.type = D_CONST;
+		p->to.name = NAME_EXTERN;
+		p->to.type = TYPE_ADDR;
 		p->to.sym = linksym(n->left->sym);
 	}
 }
@@ -575,7 +571,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
 
 	// Handle divide-by-zero panic.
 	p1 = gins(optoas(OCMP, t), &tr, N);
-	p1->to.type = D_REG;
+	p1->to.type = TYPE_REG;
 	p1->to.reg = REGZERO;
 	p1 = gbranch(optoas(ONE, t), T, +1);
 	if(panicdiv == N)
@@ -774,7 +770,7 @@ cgen_hmul(Node *nl, Node *nr, Node *res)
 	case TINT32:
 		gins(optoas(OMUL, t), &n2, &n1);
 		p = gins(ASRAD, N, &n1);
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = w;
 		break;
 	case TUINT8:
@@ -782,7 +778,7 @@ cgen_hmul(Node *nl, Node *nr, Node *res)
 	case TUINT32:
 		gins(optoas(OMUL, t), &n2, &n1);
 		p = gins(ASRD, N, &n1);
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = w;
 		break;
 	case TINT64:
@@ -915,23 +911,23 @@ clearfat(Node *nl)
 	if(reg[REGRT1] > 0)
 		fatal("R%d in use during clearfat", REGRT1);
 
-	nodreg(&r0, types[TUINT64], 0); // r0 is always zero
-	nodreg(&dst, types[tptr], D_R0+REGRT1);
+	nodreg(&r0, types[TUINT64], REG_R0); // r0 is always zero
+	nodreg(&dst, types[tptr], REGRT1);
 	reg[REGRT1]++;
 	agen(nl, &dst);
 
 	if(q > 128) {
 		p = gins(ASUB, N, &dst);
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = 8;
 
 		regalloc(&end, types[tptr], N);
 		p = gins(AMOVD, &dst, &end);
-		p->from.type = D_CONST;
+		p->from.type = TYPE_ADDR;
 		p->from.offset = q*8;
 
 		p = gins(AMOVDU, &r0, &dst);
-		p->to.type = D_OREG;
+		p->to.type = TYPE_MEM;
 		p->to.offset = 8;
 		pl = p;
 
@@ -943,7 +939,7 @@ clearfat(Node *nl)
 		boff = 8;
 	} else if(q >= 4) {
 		p = gins(ASUB, N, &dst);
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = 8;
 		f = sysfunc("duffzero");
 		p = gins(ADUFFZERO, N, f);
@@ -955,7 +951,7 @@ clearfat(Node *nl)
 	} else {
 		for(t = 0; t < q; t++) {
 			p = gins(AMOVD, &r0, &dst);
-			p->to.type = D_OREG;
+			p->to.type = TYPE_MEM;
 			p->to.offset = 8*t;
 		}
 		boff = 8*q;
@@ -963,7 +959,7 @@ clearfat(Node *nl)
 
 	for(t = 0; t < c; t++) {
 		p = gins(AMOVB, &r0, &dst);
-		p->to.type = D_OREG;
+		p->to.type = TYPE_MEM;
 		p->to.offset = t+boff;
 	}
 	reg[REGRT1]--;
@@ -983,7 +979,7 @@ expandchecks(Prog *firstp)
 			continue;
 		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
 			warnl(p->lineno, "generated nil check");
-		if(p->from.type != D_REG)
+		if(p->from.type != TYPE_REG)
 			fatal("invalid nil check %P\n", p);
 		/*
 		// check is
@@ -994,11 +990,11 @@ expandchecks(Prog *firstp)
 		reg = p->from.reg;
 		p->as = ATD;
 		p->from = p->to = p->from3 = zprog.from;
-		p->from.type = D_CONST;
+		p->from.type = TYPE_CONST;
 		p->from.offset = 4;
-		p->from.reg = NREG;
-		p->reg = 0;
-		p->to.type = D_REG;
+		p->from.reg = 0;
+		p->reg = REG_R0;
+		p->to.type = TYPE_REG;
 		p->to.reg = reg;
 		*/
 		// check is
@@ -1017,19 +1013,19 @@ expandchecks(Prog *firstp)
 		p1->pc = 9999;
 		p2->pc = 9999;
 		p->as = ACMP;
-		p->to.type = D_REG;
+		p->to.type = TYPE_REG;
 		p->to.reg = REGZERO;
 		p1->as = ABNE;
-		//p1->from.type = D_CONST;
+		//p1->from.type = TYPE_CONST;
 		//p1->from.offset = 1; // likely
-		p1->to.type = D_BRANCH;
+		p1->to.type = TYPE_BRANCH;
 		p1->to.u.branch = p2->link;
 		// crash by write to memory address 0.
 		p2->as = AMOVD;
-		p2->from.type = D_REG;
-		p2->from.reg = 0;
-		p2->to.type = D_OREG;
-		p2->to.reg = 0;
+		p2->from.type = TYPE_REG;
+		p2->from.reg = REG_R0;
+		p2->to.type = TYPE_MEM;
+		p2->to.reg = REG_R0;
 		p2->to.offset = 0;
 	}
 }

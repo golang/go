@@ -326,6 +326,18 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			Subject: pkix.Name{
 				CommonName:   commonName,
 				Organization: []string{"Σ Acme Co"},
+				Country:      []string{"US"},
+				ExtraNames: []pkix.AttributeTypeAndValue{
+					{
+						Type:  []int{2, 5, 4, 42},
+						Value: "Gopher",
+					},
+					// This should override the Country, above.
+					{
+						Type:  []int{2, 5, 4, 6},
+						Value: "NL",
+					},
+				},
 			},
 			NotBefore: time.Unix(1000, 0),
 			NotAfter:  time.Unix(100000, 0),
@@ -389,6 +401,21 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 		if cert.Subject.CommonName != commonName {
 			t.Errorf("%s: subject wasn't correctly copied from the template. Got %s, want %s", test.name, cert.Subject.CommonName, commonName)
+		}
+
+		if len(cert.Subject.Country) != 1 || cert.Subject.Country[0] != "NL" {
+			t.Errorf("%s: ExtraNames didn't override Country", test.name)
+		}
+
+		found := false
+		for _, atv := range cert.Subject.Names {
+			if atv.Type.Equal([]int{2, 5, 4, 42}) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("%s: Names didn't contain oid 2.5.4.42 from ExtraNames", test.name)
 		}
 
 		if cert.Issuer.CommonName != commonName {

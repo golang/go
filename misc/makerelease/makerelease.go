@@ -736,6 +736,7 @@ func (b *Build) Upload(version string, filename string) error {
 		OS:       b.OS,
 		Arch:     b.Arch,
 		Checksum: sum,
+		Size:     len(file),
 		Kind:     kind,
 	})
 	if err != nil {
@@ -760,6 +761,7 @@ type File struct {
 	Arch     string
 	Version  string
 	Checksum string `datastore:",noindex"`
+	Size     int    `datastore:",noindex"`
 	Kind     string // "archive", "installer", "source"
 }
 

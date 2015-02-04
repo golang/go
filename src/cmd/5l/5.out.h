@@ -42,24 +42,64 @@ enum
 
 enum
 {
-	REGRET = 0,
+	REG_R0 = 32, // must be 16-aligned
+	REG_R1,
+	REG_R2,
+	REG_R3,
+	REG_R4,
+	REG_R5,
+	REG_R6,
+	REG_R7,
+	REG_R8,
+	REG_R9,
+	REG_R10,
+	REG_R11,
+	REG_R12,
+	REG_R13,
+	REG_R14,
+	REG_R15,
+	
+	REG_F0, // must be 16-aligned
+	REG_F1,
+	REG_F2,
+	REG_F3,
+	REG_F4,
+	REG_F5,
+	REG_F6,
+	REG_F7,
+	REG_F8,
+	REG_F9,
+	REG_F10,
+	REG_F11,
+	REG_F12,
+	REG_F13,
+	REG_F14,
+	REG_F15,
+
+	REG_FPSR, // must be 2-aligned
+	REG_FPCR,
+
+	REG_CPSR, // must be 2-aligned
+	REG_SPSR,
+
+	REGRET = REG_R0,
 	/* compiler allocates R1 up as temps */
 	/* compiler allocates register variables R3 up */
 	/* compiler allocates external registers R10 down */
-	REGEXT = 10,
+	REGEXT = REG_R10,
 	/* these two registers are declared in runtime.h */
 	REGG = REGEXT-0,
 	REGM = REGEXT-1,
 
-	REGTMP = 11,
-	REGSP = 13,
-	REGLINK = 14,
-	REGPC = 15,
+	REGTMP = REG_R11,
+	REGSP = REG_R13,
+	REGLINK = REG_R14,
+	REGPC = REG_R15,
 	
 	NFREG = 16,
-	FREGRET = 0,
-	FREGEXT = 7,
-	FREGTMP = 15,
+	FREGRET = REG_F0,
+	FREGEXT = REG_F7,
+	FREGTMP = REG_F15,
 };
 /* compiler allocates register variables F0 up */
 /* compiler allocates external registers F7 down */
@@ -109,6 +149,7 @@ enum
 	C_HREG,
 
 	C_ADDR,		/* reference to relocatable address */
+	C_TEXTSIZE,
 
 	C_GOK,
 
@@ -117,9 +158,7 @@ enum
 
 enum
 {
-	AXXX,
-
-	AAND,
+	AAND = A_ARCHSPECIFIC,
 	AEOR,
 	ASUB,
 	ARSB,
@@ -135,9 +174,6 @@ enum
 	ABIC,
 
 	AMVN,
-
-	AB,
-	ABL,
 
 /*
  * Do not reorder or fragment the conditional branch
@@ -205,25 +241,14 @@ enum
 	ASWPBU,
 	ASWPW,
 
-	ANOP,
 	ARFE,
 	ASWI,
 	AMULA,
 
-	ADATA,
-	AGLOBL,
-	AGOK,
-	AHISTORY,
-	ANAME,
-	ARET,
-	ATEXT,
 	AWORD,
-	ADYNT_,
-	AINIT_,
 	ABCASE,
 	ACASE,
 
-	AEND,
 
 	AMULL,
 	AMULAL,
@@ -234,7 +259,6 @@ enum
 	ABXRET,
 	ADWORD,
 
-	ASIGNAME,
 
 	ALDREX,
 	ASTREX,
@@ -244,7 +268,6 @@ enum
 
 	APLD,
 
-	AUNDEF,
 
 	ACLZ,
 
@@ -253,21 +276,16 @@ enum
 	AMULAWT,
 	AMULAWB,
 	
-	AUSEFIELD,
-	ATYPE,
-	AFUNCDATA,
-	APCDATA,
-	ACHECKNIL,
-	AVARDEF,
-	AVARKILL,
-	ADUFFCOPY,
-	ADUFFZERO,
 	ADATABUNDLE,
 	ADATABUNDLEEND,
 
 	AMRC, // MRC/MCR
 
 	ALAST,
+	
+	// aliases
+	AB = AJMP,
+	ABL = ACALL,
 };
 
 /* scond byte */
@@ -280,22 +298,27 @@ enum
 	C_FBIT = 1<<7,	/* psr flags-only */
 	C_UBIT = 1<<7,	/* up bit, unsigned bit */
 
-	C_SCOND_EQ = 0,
-	C_SCOND_NE = 1,
-	C_SCOND_HS = 2,
-	C_SCOND_LO = 3,
-	C_SCOND_MI = 4,
-	C_SCOND_PL = 5,
-	C_SCOND_VS = 6,
-	C_SCOND_VC = 7,
-	C_SCOND_HI = 8,
-	C_SCOND_LS = 9,
-	C_SCOND_GE = 10,
-	C_SCOND_LT = 11,
-	C_SCOND_GT = 12,
-	C_SCOND_LE = 13,
-	C_SCOND_NONE = 14,
-	C_SCOND_NV = 15,
+	// These constants are the ARM condition codes encodings,
+	// XORed with 14 so that C_SCOND_NONE has value 0,
+	// so that a zeroed Prog.scond means "always execute".
+	C_SCOND_XOR = 14,
+
+	C_SCOND_EQ = 0 ^ C_SCOND_XOR,
+	C_SCOND_NE = 1 ^ C_SCOND_XOR,
+	C_SCOND_HS = 2 ^ C_SCOND_XOR,
+	C_SCOND_LO = 3 ^ C_SCOND_XOR,
+	C_SCOND_MI = 4 ^ C_SCOND_XOR,
+	C_SCOND_PL = 5 ^ C_SCOND_XOR,
+	C_SCOND_VS = 6 ^ C_SCOND_XOR,
+	C_SCOND_VC = 7 ^ C_SCOND_XOR,
+	C_SCOND_HI = 8 ^ C_SCOND_XOR,
+	C_SCOND_LS = 9 ^ C_SCOND_XOR,
+	C_SCOND_GE = 10 ^ C_SCOND_XOR,
+	C_SCOND_LT = 11 ^ C_SCOND_XOR,
+	C_SCOND_GT = 12 ^ C_SCOND_XOR,
+	C_SCOND_LE = 13 ^ C_SCOND_XOR,
+	C_SCOND_NONE = 14 ^ C_SCOND_XOR,
+	C_SCOND_NV = 15 ^ C_SCOND_XOR,
 
 	/* D_SHIFT type */
 	SHIFT_LL = 0<<5,
@@ -304,43 +327,6 @@ enum
 	SHIFT_RR = 3<<5,
 };
 
-enum
-{
-/* type/name */
-	D_GOK = 0,
-	D_NONE = 1,
-
-/* type */
-	D_BRANCH = (D_NONE+1),
-	D_OREG = (D_NONE+2),
-	D_CONST = (D_NONE+7),
-	D_FCONST = (D_NONE+8),
-	D_SCONST = (D_NONE+9),
-	D_PSR = (D_NONE+10),
-	D_REG = (D_NONE+12),
-	D_FREG = (D_NONE+13),
-	D_FILE = (D_NONE+16),
-	D_OCONST = (D_NONE+17),
-	D_FILE1 = (D_NONE+18),
-
-	D_SHIFT = (D_NONE+19),
-	D_FPCR = (D_NONE+20),
-	D_REGREG = (D_NONE+21), // (reg, reg)
-	D_ADDR = (D_NONE+22),
-
-	D_SBIG = (D_NONE+23),
-	D_CONST2 = (D_NONE+24),
-
-	D_REGREG2 = (D_NONE+25), // reg, reg
-
-/* name */
-	D_EXTERN = (D_NONE+3),
-	D_STATIC = (D_NONE+4),
-	D_AUTO = (D_NONE+5),
-	D_PARAM = (D_NONE+6),
-
-	D_LAST = (D_NONE+26),
-};
 
 /*
  * this is the ranlib header

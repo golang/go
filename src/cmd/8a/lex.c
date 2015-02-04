@@ -192,87 +192,88 @@ struct
 	ushort	value;
 } itab[] =
 {
-	"SP",		LSP,	D_AUTO,
-	"SB",		LSB,	D_EXTERN,
-	"FP",		LFP,	D_PARAM,
-	"PC",		LPC,	D_BRANCH,
+	"SP",		LSP,	NAME_AUTO,
+	"SB",		LSB,	NAME_EXTERN,
+	"FP",		LFP,	NAME_PARAM,
 
-	"AL",		LBREG,	D_AL,
-	"CL",		LBREG,	D_CL,
-	"DL",		LBREG,	D_DL,
-	"BL",		LBREG,	D_BL,
-	"AH",		LBREG,	D_AH,
-	"CH",		LBREG,	D_CH,
-	"DH",		LBREG,	D_DH,
-	"BH",		LBREG,	D_BH,
+	"PC",		LPC,	TYPE_BRANCH,
 
-	"AX",		LLREG,	D_AX,
-	"CX",		LLREG,	D_CX,
-	"DX",		LLREG,	D_DX,
-	"BX",		LLREG,	D_BX,
-/*	"SP",		LLREG,	D_SP,	*/
-	"BP",		LLREG,	D_BP,
-	"SI",		LLREG,	D_SI,
-	"DI",		LLREG,	D_DI,
+	"AL",		LBREG,	REG_AL,
+	"CL",		LBREG,	REG_CL,
+	"DL",		LBREG,	REG_DL,
+	"BL",		LBREG,	REG_BL,
+	"AH",		LBREG,	REG_AH,
+	"CH",		LBREG,	REG_CH,
+	"DH",		LBREG,	REG_DH,
+	"BH",		LBREG,	REG_BH,
 
-	"F0",		LFREG,	D_F0+0,
-	"F1",		LFREG,	D_F0+1,
-	"F2",		LFREG,	D_F0+2,
-	"F3",		LFREG,	D_F0+3,
-	"F4",		LFREG,	D_F0+4,
-	"F5",		LFREG,	D_F0+5,
-	"F6",		LFREG,	D_F0+6,
-	"F7",		LFREG,	D_F0+7,
+	"AX",		LLREG,	REG_AX,
+	"CX",		LLREG,	REG_CX,
+	"DX",		LLREG,	REG_DX,
+	"BX",		LLREG,	REG_BX,
+/*	"SP",		LLREG,	REG_SP,	*/
+	"BP",		LLREG,	REG_BP,
+	"SI",		LLREG,	REG_SI,
+	"DI",		LLREG,	REG_DI,
 
-	"X0",		LXREG,	D_X0+0,
-	"X1",		LXREG,	D_X0+1,
-	"X2",		LXREG,	D_X0+2,
-	"X3",		LXREG,	D_X0+3,
-	"X4",		LXREG,	D_X0+4,
-	"X5",		LXREG,	D_X0+5,
-	"X6",		LXREG,	D_X0+6,
-	"X7",		LXREG,	D_X0+7,
+	"F0",		LFREG,	REG_F0+0,
+	"F1",		LFREG,	REG_F0+1,
+	"F2",		LFREG,	REG_F0+2,
+	"F3",		LFREG,	REG_F0+3,
+	"F4",		LFREG,	REG_F0+4,
+	"F5",		LFREG,	REG_F0+5,
+	"F6",		LFREG,	REG_F0+6,
+	"F7",		LFREG,	REG_F0+7,
 
-	"CS",		LSREG,	D_CS,
-	"SS",		LSREG,	D_SS,
-	"DS",		LSREG,	D_DS,
-	"ES",		LSREG,	D_ES,
-	"FS",		LSREG,	D_FS,
-	"GS",		LSREG,	D_GS,
-	"TLS",		LSREG,	D_TLS,
+	"X0",		LXREG,	REG_X0+0,
+	"X1",		LXREG,	REG_X0+1,
+	"X2",		LXREG,	REG_X0+2,
+	"X3",		LXREG,	REG_X0+3,
+	"X4",		LXREG,	REG_X0+4,
+	"X5",		LXREG,	REG_X0+5,
+	"X6",		LXREG,	REG_X0+6,
+	"X7",		LXREG,	REG_X0+7,
 
-	"GDTR",		LBREG,	D_GDTR,
-	"IDTR",		LBREG,	D_IDTR,
-	"LDTR",		LBREG,	D_LDTR,
-	"MSW",		LBREG,	D_MSW,
-	"TASK",		LBREG,	D_TASK,
+	"CS",		LSREG,	REG_CS,
+	"SS",		LSREG,	REG_SS,
+	"DS",		LSREG,	REG_DS,
+	"ES",		LSREG,	REG_ES,
+	"FS",		LSREG,	REG_FS,
+	"GS",		LSREG,	REG_GS,
+	"TLS",		LSREG,	REG_TLS,
 
-	"CR0",		LBREG,	D_CR+0,
-	"CR1",		LBREG,	D_CR+1,
-	"CR2",		LBREG,	D_CR+2,
-	"CR3",		LBREG,	D_CR+3,
-	"CR4",		LBREG,	D_CR+4,
-	"CR5",		LBREG,	D_CR+5,
-	"CR6",		LBREG,	D_CR+6,
-	"CR7",		LBREG,	D_CR+7,
+	"GDTR",		LBREG,	REG_GDTR,
+	"IDTR",		LBREG,	REG_IDTR,
+	"LDTR",		LBREG,	REG_LDTR,
+	"MSW",		LBREG,	REG_MSW,
+	"TASK",		LBREG,	REG_TASK,
 
-	"DR0",		LBREG,	D_DR+0,
-	"DR1",		LBREG,	D_DR+1,
-	"DR2",		LBREG,	D_DR+2,
-	"DR3",		LBREG,	D_DR+3,
-	"DR4",		LBREG,	D_DR+4,
-	"DR5",		LBREG,	D_DR+5,
-	"DR6",		LBREG,	D_DR+6,
-	"DR7",		LBREG,	D_DR+7,
+	"CR0",		LBREG,	REG_CR+0,
+	"CR1",		LBREG,	REG_CR+1,
+	"CR2",		LBREG,	REG_CR+2,
+	"CR3",		LBREG,	REG_CR+3,
+	"CR4",		LBREG,	REG_CR+4,
+	"CR5",		LBREG,	REG_CR+5,
+	"CR6",		LBREG,	REG_CR+6,
+	"CR7",		LBREG,	REG_CR+7,
 
-	"TR0",		LBREG,	D_TR+0,
-	"TR1",		LBREG,	D_TR+1,
-	"TR2",		LBREG,	D_TR+2,
-	"TR3",		LBREG,	D_TR+3,
-	"TR4",		LBREG,	D_TR+4,
-	"TR5",		LBREG,	D_TR+5,
-	"TR6",		LBREG,	D_TR+6,
-	"TR7",		LBREG,	D_TR+7,
+	"DR0",		LBREG,	REG_DR+0,
+	"DR1",		LBREG,	REG_DR+1,
+	"DR2",		LBREG,	REG_DR+2,
+	"DR3",		LBREG,	REG_DR+3,
+	"DR4",		LBREG,	REG_DR+4,
+	"DR5",		LBREG,	REG_DR+5,
+	"DR6",		LBREG,	REG_DR+6,
+	"DR7",		LBREG,	REG_DR+7,
+
+	"TR0",		LBREG,	REG_TR+0,
+	"TR1",		LBREG,	REG_TR+1,
+	"TR2",		LBREG,	REG_TR+2,
+	"TR3",		LBREG,	REG_TR+3,
+	"TR4",		LBREG,	REG_TR+4,
+	"TR5",		LBREG,	REG_TR+5,
+	"TR6",		LBREG,	REG_TR+6,
+	"TR7",		LBREG,	REG_TR+7,
 
 	"AAA",		LTYPE0,	AAAA,
 	"AAD",		LTYPE0,	AAAD,
@@ -829,8 +830,8 @@ cinit(void)
 	Sym *s;
 	int i;
 
-	nullgen.type = D_NONE;
-	nullgen.index = D_NONE;
+	nullgen.type = TYPE_NONE;
+	nullgen.index = TYPE_NONE;
 
 	nerrors = 0;
 	iostack = I;
@@ -879,8 +880,6 @@ cclean(void)
 	g2.to = nullgen;
 	outcode(AEND, &g2);
 }
-
-static Prog *lastpc;
 
 void
 outcode(int a, Addr2 *g2)

@@ -474,6 +474,7 @@ isartificial(Node *n)
 static int
 callinstr(Node **np, NodeList **init, int wr, int skip)
 {
+	char *name;
 	Node *f, *b, *n;
 	Type *t;
 	int class, hascalls;
@@ -508,10 +509,16 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 		n = treecopy(n);
 		makeaddable(n);
 		if(t->etype == TSTRUCT || isfixedarray(t)) {
-			f = mkcall(wr ? "racewriterange" : "racereadrange", T, init, uintptraddr(n),
-					nodintconst(t->width));
-		} else
-			f = mkcall(wr ? "racewrite" : "raceread", T, init, uintptraddr(n));
+			name = "racereadrange";
+			if(wr)
+				name = "racewriterange";
+			f = mkcall(name, T, init, uintptraddr(n), nodintconst(t->width));
+		} else {
+			name = "raceread";
+			if(wr)
+				name = "racewrite";
+			f = mkcall(name, T, init, uintptraddr(n));
+		}
 		*init = list(*init, f);
 		return 1;
 	}

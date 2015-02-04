@@ -46,6 +46,9 @@ var stackpoolmu mutex
 
 var stackfreequeue stack
 
+// Cached value of haveexperiment("framepointer")
+var framepointer_enabled bool
+
 func stackinit() {
 	if _StackCacheSize&_PageMask != 0 {
 		throw("cache size must be a multiple of page size")
@@ -208,7 +211,7 @@ func stackalloc(n uint32) stack {
 		}
 		var x gclinkptr
 		c := thisg.m.mcache
-		if c == nil || thisg.m.gcing != 0 || thisg.m.helpgc != 0 {
+		if c == nil || thisg.m.preemptoff != "" || thisg.m.helpgc != 0 {
 			// c == nil can happen in the guts of exitsyscall or
 			// procresize. Just get a stack from the global pool.
 			// Also don't touch stackcache during gc
@@ -271,7 +274,7 @@ func stackfree(stk stack) {
 		}
 		x := gclinkptr(v)
 		c := gp.m.mcache
-		if c == nil || gp.m.gcing != 0 || gp.m.helpgc != 0 {
+		if c == nil || gp.m.preemptoff != "" || gp.m.helpgc != 0 {
 			lock(&stackpoolmu)
 			stackpoolfree(x, order)
 			unlock(&stackpoolmu)
@@ -308,6 +311,8 @@ var mapnames = []string{
 // | args from caller |
 // +------------------+ <- frame->argp
 // |  return address  |
+// +------------------+
+// |  caller's BP (*) | (*) if framepointer_enabled && varp < sp
 // +------------------+ <- frame->varp
 // |     locals       |
 // +------------------+
@@ -458,6 +463,19 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 			print("      locals ", pcdata, "/", stackmap.n, " ", size/ptrSize, " words ", bv.bytedata, "\n")
 		}
 		adjustpointers(unsafe.Pointer(frame.varp-size), &bv, adjinfo, f)
+	}
+
+	// Adjust saved base pointer if there is one.
+	if thechar == '6' && frame.argp-frame.varp == 2*regSize {
+		if !framepointer_enabled {
+			print("runtime: found space for saved base pointer, but no framepointer experiment\n")
+			print("argp=", hex(frame.argp), " varp=", hex(frame.varp), "\n")
+			throw("bad frame layout")
+		}
+		if stackDebug >= 3 {
+			print("      saved bp\n")
+		}
+		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
 	}
 
 	// Adjust arguments.
@@ -648,7 +666,8 @@ func newstack() {
 
 	// Be conservative about where we preempt.
 	// We are interested in preempting user Go code, not runtime code.
-	// If we're holding locks, mallocing, or GCing, don't preempt.
+	// If we're holding locks, mallocing, or preemption is disabled, don't
+	// preempt.
 	// This check is very early in newstack so that even the status change
 	// from Grunning to Gwaiting and back doesn't happen in this case.
 	// That status change by itself can be viewed as a small preemption,
@@ -658,7 +677,7 @@ func newstack() {
 	// it needs a lock held by the goroutine), that small preemption turns
 	// into a real deadlock.
 	if preempt {
-		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.gcing != 0 || thisg.m.p.status != _Prunning {
+		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.preemptoff != "" || thisg.m.p.status != _Prunning {
 			// Let the goroutine keep running for now.
 			// gp->preempt is set, so it will be preempted next time.
 			gp.stackguard0 = gp.stack.lo + _StackGuard
@@ -721,7 +740,7 @@ func newstack() {
 
 		// Act like goroutine called runtime.Gosched.
 		casgstatus(gp, _Gwaiting, _Grunning)
-		gosched_m(gp) // never return
+		gopreempt_m(gp) // never return
 	}
 
 	// Allocate a bigger segment and move the stack.

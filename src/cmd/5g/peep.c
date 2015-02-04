@@ -46,6 +46,7 @@ static int	copysub1(Prog*, Adr*, Adr*, int);
 static Flow*	findpre(Flow *r, Adr *v);
 static int	copyau1(Prog *p, Adr *v);
 static int	isdconst(Addr *a);
+static int	isfloatreg(Addr*);
 
 static uint32	gactive;
 
@@ -53,6 +54,7 @@ static uint32	gactive;
 int	shiftprop(Flow *r);
 void	constprop(Adr *c1, Adr *v1, Flow *r);
 void	predicate(Graph*);
+
 
 void
 peep(Prog *firstp)
@@ -79,7 +81,7 @@ loop1:
 		case ASRL:
 		case ASRA:
 			/*
-			 * elide shift into D_SHIFT operand of subsequent instruction
+			 * elide shift into TYPE_SHIFT operand of subsequent instruction
 			 */
 //			if(shiftprop(r)) {
 //				excise(r);
@@ -94,7 +96,7 @@ loop1:
 		case AMOVF:
 		case AMOVD:
 			if(regtyp(&p->from))
-			if(p->from.type == p->to.type)
+			if(p->from.type == p->to.type && isfloatreg(&p->from) == isfloatreg(&p->to))
 			if(p->scond == C_SCOND_NONE) {
 				if(copyprop(g, r)) {
 					excise(r);
@@ -113,13 +115,14 @@ loop1:
 		case AMOVHU:
 		case AMOVBS:
 		case AMOVBU:
-			if(p->from.type == D_REG) {
+			if(p->from.type == TYPE_REG) {
 				if(shortprop(r))
 					t++;
 			}
 			break;
 
 #ifdef NOTDEF
+XXX
 			if(p->scond == C_SCOND_NONE)
 			if(regtyp(&p->to))
 			if(isdconst(&p->from)) {
@@ -141,12 +144,12 @@ loop1:
 			 */
 			if(isdconst(&p->from) && p->from.offset == -1) {
 				p->as = AMVN;
-				p->from.type = D_REG;
-				if(p->reg != NREG)
+				p->from.type = TYPE_REG;
+				if(p->reg != 0)
 					p->from.reg = p->reg;
 				else
 					p->from.reg = p->to.reg;
-				p->reg = NREG;
+				p->reg = 0;
 			}
 			break;
 		}
@@ -159,10 +162,10 @@ loop1:
 		case AMOVB:
 		case AMOVBS:
 		case AMOVBU:
-			if(p->from.type == D_OREG && p->from.offset == 0)
+			if(p->from.type == TYPE_MEM && p->from.offset == 0)
 				xtramodes(g, r, &p->from);
 			else
-			if(p->to.type == D_OREG && p->to.offset == 0)
+			if(p->to.type == TYPE_MEM && p->to.offset == 0)
 				xtramodes(g, r, &p->to);
 			else
 				continue;
@@ -205,17 +208,17 @@ loop1:
 //			if(r1 == nil)
 //				continue;
 //			p1 = r1->prog;
-//			if(p1->to.type != D_REG)
+//			if(p1->to.type != TYPE_REG)
 //				continue;
 //			if(p1->to.reg != p->reg)
-//			if(!(p1->as == AMOVW && p1->from.type == D_REG && p1->from.reg == p->reg))
+//			if(!(p1->as == AMOVW && p1->from.type == TYPE_REG && p1->from.reg == p->reg))
 //				continue;
 //
 //			switch(p1->as) {
 //			default:
 //				continue;
 //			case AMOVW:
-//				if(p1->from.type != D_REG)
+//				if(p1->from.type != TYPE_REG)
 //					continue;
 //			case AAND:
 //			case AEOR:
@@ -245,12 +248,7 @@ loop1:
 int
 regtyp(Adr *a)
 {
-
-	if(a->type == D_REG)
-		return 1;
-	if(a->type == D_FREG)
-		return 1;
-	return 0;
+	return a->type == TYPE_REG && (REG_R0 <= a->reg && a->reg <= REG_R15 || REG_F0 <= a->reg && a->reg <= REG_F15);
 }
 
 /*
@@ -293,7 +291,7 @@ subprop(Flow *r0)
 		if(info.flags & Call)
 			return 0;
 
-		if((info.flags & CanRegRead) && p->to.type == D_REG) {
+		if((info.flags & CanRegRead) && p->to.type == TYPE_REG) {
 			info.flags |= RegRead;
 			info.flags &= ~(CanRegRead | RightRead);
 			p->reg = p->to.reg;
@@ -575,12 +573,12 @@ shiftprop(Flow *r)
 	Adr a;
 
 	p = r->prog;
-	if(p->to.type != D_REG)
+	if(p->to.type != TYPE_REG)
 		FAIL("BOTCH: result not reg");
 	n = p->to.reg;
 	a = zprog.from;
-	if(p->reg != NREG && p->reg != p->to.reg) {
-		a.type = D_REG;
+	if(p->reg != 0 && p->reg != p->to.reg) {
+		a.type = TYPE_REG;
 		a.reg = p->reg;
 	}
 	if(debug['P'])
@@ -598,8 +596,8 @@ shiftprop(Flow *r)
 			print("\n%P", p1);
 		switch(copyu(p1, &p->to, nil)) {
 		case 0:	/* not used or set */
-			if((p->from.type == D_REG && copyu(p1, &p->from, nil) > 1) ||
-			   (a.type == D_REG && copyu(p1, &a, nil) > 1))
+			if((p->from.type == TYPE_REG && copyu(p1, &p->from, nil) > 1) ||
+			   (a.type == TYPE_REG && copyu(p1, &a, nil) > 1))
 				FAIL("args modified");
 			continue;
 		case 3:	/* set, not used */
@@ -620,8 +618,8 @@ shiftprop(Flow *r)
 	case ASBC:
 	case ARSB:
 	case ARSC:
-		if(p1->reg == n || (p1->reg == NREG && p1->to.type == D_REG && p1->to.reg == n)) {
-			if(p1->from.type != D_REG)
+		if(p1->reg == n || (p1->reg == 0 && p1->to.type == TYPE_REG && p1->to.reg == n)) {
+			if(p1->from.type != TYPE_REG)
 				FAIL("can't swap");
 			p1->reg = p1->from.reg;
 			p1->from.reg = n;
@@ -648,12 +646,12 @@ shiftprop(Flow *r)
 	case ACMN:
 		if(p1->reg == n)
 			FAIL("can't swap");
-		if(p1->reg == NREG && p1->to.reg == n)
+		if(p1->reg == 0 && p1->to.reg == n)
 			FAIL("shift result used twice");
 //	case AMVN:
-		if(p1->from.type == D_SHIFT)
+		if(p1->from.type == TYPE_SHIFT)
 			FAIL("shift result used in shift");
-		if(p1->from.type != D_REG || p1->from.reg != n)
+		if(p1->from.type != TYPE_REG || p1->from.reg != n)
 			FAIL("BOTCH: where is it used?");
 		break;
 	}
@@ -679,18 +677,18 @@ shiftprop(Flow *r)
 	}
 
 	/* make the substitution */
-	p2->from.type = D_SHIFT;
-	p2->from.reg = NREG;
+	p2->from.reg = 0;
 	o = p->reg;
-	if(o == NREG)
+	if(o == 0)
 		o = p->to.reg;
+	o &= 15;
 
 	switch(p->from.type){
-	case D_CONST:
+	case TYPE_CONST:
 		o |= (p->from.offset&0x1f)<<7;
 		break;
-	case D_REG:
-		o |= (1<<4) | (p->from.reg<<8);
+	case TYPE_REG:
+		o |= (1<<4) | ((p->from.reg&15)<<8);
 		break;
 	}
 	switch(p->as){
@@ -704,6 +702,8 @@ shiftprop(Flow *r)
 		o |= 2<<5;
 		break;
 	}
+	p2->from = zprog.from;
+	p2->from.type = TYPE_SHIFT;
 	p2->from.offset = o;
 	if(debug['P'])
 		print("\t=>%P\tSUCCEED\n", p2);
@@ -774,16 +774,16 @@ nochange(Flow *r, Flow *r2, Prog *p)
 	if(r == r2)
 		return 1;
 	n = 0;
-	if(p->reg != NREG && p->reg != p->to.reg) {
-		a[n].type = D_REG;
+	if(p->reg != 0 && p->reg != p->to.reg) {
+		a[n].type = TYPE_REG;
 		a[n++].reg = p->reg;
 	}
 	switch(p->from.type) {
-	case D_SHIFT:
-		a[n].type = D_REG;
-		a[n++].reg = p->from.offset&0xf;
-	case D_REG:
-		a[n].type = D_REG;
+	case TYPE_SHIFT:
+		a[n].type = TYPE_REG;
+		a[n++].reg = REG_R0 + (p->from.offset&0xf);
+	case TYPE_REG:
+		a[n].type = TYPE_REG;
 		a[n++].reg = p->from.reg;
 	}
 	if(n == 0)
@@ -851,55 +851,58 @@ xtramodes(Graph *g, Flow *r, Adr *a)
 
 	p = r->prog;
 	v = *a;
-	v.type = D_REG;
+	v.type = TYPE_REG;
 	r1 = findpre(r, &v);
 	if(r1 != nil) {
 		p1 = r1->prog;
-		if(p1->to.type == D_REG && p1->to.reg == v.reg)
+		if(p1->to.type == TYPE_REG && p1->to.reg == v.reg)
 		switch(p1->as) {
 		case AADD:
 			if(p1->scond & C_SBIT)
 				// avoid altering ADD.S/ADC sequences.
 				break;
-			if(p1->from.type == D_REG ||
-			   (p1->from.type == D_SHIFT && (p1->from.offset&(1<<4)) == 0 &&
+			if(p1->from.type == TYPE_REG ||
+			   (p1->from.type == TYPE_SHIFT && (p1->from.offset&(1<<4)) == 0 &&
 			    ((p->as != AMOVB && p->as != AMOVBS) || (a == &p->from && (p1->from.offset&~0xf) == 0))) ||
-			   (p1->from.type == D_CONST &&
+			   ((p1->from.type == TYPE_ADDR || p1->from.type == TYPE_CONST) &&
 			    p1->from.offset > -4096 && p1->from.offset < 4096))
 			if(nochange(uniqs(r1), r, p1)) {
 				if(a != &p->from || v.reg != p->to.reg)
 				if (finduse(g, r->s1, &v)) {
-					if(p1->reg == NREG || p1->reg == v.reg)
+					if(p1->reg == 0 || p1->reg == v.reg)
 						/* pre-indexing */
 						p->scond |= C_WBIT;
 					else return 0;
 				}
 				switch (p1->from.type) {
-				case D_REG:
+				case TYPE_REG:
 					/* register offset */
 					if(nacl)
 						return 0;
-					a->type = D_SHIFT;
-					a->offset = p1->from.reg;
+					*a = zprog.from;
+					a->type = TYPE_SHIFT;
+					a->offset = p1->from.reg&15;
 					break;
-				case D_SHIFT:
+				case TYPE_SHIFT:
 					/* scaled register offset */
 					if(nacl)
 						return 0;
-					a->type = D_SHIFT;
-				case D_CONST:
+					*a = zprog.from;
+					a->type = TYPE_SHIFT;
+				case TYPE_CONST:
+				case TYPE_ADDR:
 					/* immediate offset */
 					a->offset = p1->from.offset;
 					break;
 				}
-				if(p1->reg != NREG)
+				if(p1->reg != 0)
 					a->reg = p1->reg;
 				excise(r1);
 				return 1;
 			}
 			break;
 		case AMOVW:
-			if(p1->from.type == D_REG)
+			if(p1->from.type == TYPE_REG)
 			if((r2 = findinc(r1, r, &p1->from)) != nil) {
 			for(r3=uniqs(r2); r3->prog->as==ANOP; r3=uniqs(r3))
 				;
@@ -948,9 +951,9 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 2;
 
 	case AMOVM:
-		if(v->type != D_REG)
+		if(v->type != TYPE_REG)
 			return 0;
-		if(p->from.type == D_CONST) {	/* read reglist, read/rar */
+		if(p->from.type == TYPE_CONST) {	/* read reglist, read/rar */
 			if(s != nil) {
 				if(p->from.offset&(1<<v->reg))
 					return 1;
@@ -1002,8 +1005,8 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AMOVFD:
 	case AMOVDF:
 		if(p->scond&(C_WBIT|C_PBIT))
-		if(v->type == D_REG) {
-			if(p->from.type == D_OREG || p->from.type == D_SHIFT) {
+		if(v->type == TYPE_REG) {
+			if(p->from.type == TYPE_MEM || p->from.type == TYPE_SHIFT) {
 				if(p->from.reg == v->reg)
 					return 2;
 			} else {
@@ -1084,7 +1087,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		if(copyas(&p->to, v)) {
 			if(p->scond != C_SCOND_NONE)
 				return 2;
-			if(p->reg == NREG)
+			if(p->reg == 0)
 				p->reg = p->to.reg;
 			if(copyau(&p->from, v))
 				return 4;
@@ -1143,16 +1146,20 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 3;
 
 	case ABL:	/* funny */
-		if(v->type == D_REG) {
-			if(v->reg <= REGEXT && v->reg > exregoffset)
+		if(v->type == TYPE_REG) {
+			// TODO(rsc): REG_R0 and REG_F0 used to be
+			// (when register numbers started at 0) exregoffset and exfregoffset,
+			// which are unset entirely. 
+			// It's strange that this handles R0 and F0 differently from the other
+			// registers. Possible failure to optimize?
+			if(REG_R0 < v->reg && v->reg <= REGEXT)
 				return 2;
 			if(v->reg == REGARG)
 				return 2;
-		}
-		if(v->type == D_FREG)
-			if(v->reg <= FREGEXT && v->reg > exfregoffset)
+			if(REG_F0 < v->reg && v->reg <= FREGEXT)
 				return 2;
-		if(p->from.type == D_REG && v->type == D_REG && p->from.reg == v->reg)
+		}
+		if(p->from.type == TYPE_REG && v->type == TYPE_REG && p->from.reg == v->reg)
 			return 2;
 
 		if(s != nil) {
@@ -1166,7 +1173,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ADUFFZERO:
 		// R0 is zero, used by DUFFZERO, cannot be substituted.
 		// R1 is ptr to memory, used and set, cannot be substituted.
-		if(v->type == D_REG) {
+		if(v->type == TYPE_REG) {
 			if(v->reg == REGALLOC_R0)
 				return 1;
 			if(v->reg == REGALLOC_R0+1)
@@ -1176,7 +1183,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ADUFFCOPY:
 		// R0 is scratch, set by DUFFCOPY, cannot be substituted.
 		// R1, R2 areptr to src, dst, used and set, cannot be substituted.
-		if(v->type == D_REG) {
+		if(v->type == TYPE_REG) {
 			if(v->reg == REGALLOC_R0)
 				return 3;
 			if(v->reg == REGALLOC_R0+1 || v->reg == REGALLOC_R0+2)
@@ -1185,7 +1192,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 0;
 			
 	case ATEXT:	/* funny */
-		if(v->type == D_REG)
+		if(v->type == TYPE_REG)
 			if(v->reg == REGARG)
 				return 3;
 		return 0;
@@ -1212,7 +1219,7 @@ copyas(Adr *a, Adr *v)
 		if(a->reg == v->reg)
 			return 1;
 	} else
-	if(v->type == D_CONST) {		/* for constprop */
+	if(v->type == TYPE_CONST) {		/* for constprop */
 		if(a->type == v->type)
 		if(a->name == v->name)
 		if(a->sym == v->sym)
@@ -1230,10 +1237,11 @@ sameaddr(Adr *a, Adr *v)
 		return 0;
 	if(regtyp(v) && a->reg == v->reg)
 		return 1;
-	if(v->type == D_AUTO || v->type == D_PARAM) {
-		if(v->offset == a->offset)
-			return 1;
-	}
+	// TODO(rsc): Change v->type to v->name and enable.
+	//if(v->type == NAME_AUTO || v->type == NAME_PARAM) {
+	//	if(v->offset == a->offset)
+	//		return 1;
+	//}
 	return 0;
 }
 
@@ -1246,92 +1254,29 @@ copyau(Adr *a, Adr *v)
 
 	if(copyas(a, v))
 		return 1;
-	if(v->type == D_REG) {
-		if(a->type == D_CONST && a->reg != NREG) {
+	if(v->type == TYPE_REG) {
+		if(a->type == TYPE_ADDR && a->reg != 0) {
 			if(a->reg == v->reg)
 				return 1;
 		} else
-		if(a->type == D_OREG) {
+		if(a->type == TYPE_MEM) {
 			if(a->reg == v->reg)
 				return 1;
 		} else
-		if(a->type == D_REGREG || a->type == D_REGREG2) {
+		if(a->type == TYPE_REGREG || a->type == TYPE_REGREG2) {
 			if(a->reg == v->reg)
 				return 1;
 			if(a->offset == v->reg)
 				return 1;
 		} else
-		if(a->type == D_SHIFT) {
-			if((a->offset&0xf) == v->reg)
+		if(a->type == TYPE_SHIFT) {
+			if((a->offset&0xf) == v->reg - REG_R0)
 				return 1;
-			if((a->offset&(1<<4)) && (a->offset>>8) == v->reg)
+			if((a->offset&(1<<4)) && ((a->offset>>8)&0xf) == v->reg - REG_R0)
 				return 1;
 		}
 	}
 	return 0;
-}
-
-static int
-a2type(Prog *p)
-{
-	if(p->reg == NREG)
-		return D_NONE;
-
-	switch(p->as) {
-	default:
-		fatal("a2type: unhandled %P", p);
-
-	case AAND:
-	case AEOR:
-	case ASUB:
-	case ARSB:
-	case AADD:
-	case AADC:
-	case ASBC:
-	case ARSC:
-	case ATST:
-	case ATEQ:
-	case ACMP:
-	case ACMN:
-	case AORR:
-	case ABIC:
-	case AMVN:
-	case ASRL:
-	case ASRA:
-	case ASLL:
-	case AMULU:
-	case ADIVU:
-	case AMUL:
-	case ADIV:
-	case AMOD:
-	case AMODU:
-	case AMULA:
-	case AMULL:
-	case AMULAL:
-	case AMULLU:
-	case AMULALU:
-	case AMULWT:
-	case AMULWB:
-	case AMULAWT:
-	case AMULAWB:
-		return D_REG;
-
-	case ACMPF:
-	case ACMPD:
-	case AADDF:
-	case AADDD:
-	case ASUBF:
-	case ASUBD:
-	case AMULF:
-	case AMULD:
-	case ADIVF:
-	case ADIVD:
-	case ASQRTF:
-	case ASQRTD:
-	case AABSF:
-	case AABSD:
-		return D_FREG;
-	}
 }
 
 /*
@@ -1341,9 +1286,9 @@ a2type(Prog *p)
 static int
 copyau1(Prog *p, Adr *v)
 {
-	if(v->type == D_REG && v->reg == NREG)
+	if(v->type == TYPE_REG && v->reg == 0)
 		return 0;
-	return p->reg == v->reg && a2type(p) == v->type;
+	return p->reg == v->reg;
 }
 
 /*
@@ -1356,13 +1301,13 @@ copysub(Adr *a, Adr *v, Adr *s, int f)
 
 	if(f)
 	if(copyau(a, v)) {
-		if(a->type == D_SHIFT) {
-			if((a->offset&0xf) == v->reg)
-				a->offset = (a->offset&~0xf)|s->reg;
-			if((a->offset&(1<<4)) && (a->offset>>8) == v->reg)
-				a->offset = (a->offset&~(0xf<<8))|(s->reg<<8);
+		if(a->type == TYPE_SHIFT) {
+			if((a->offset&0xf) == v->reg - REG_R0)
+				a->offset = (a->offset&~0xf)|(s->reg&0xf);
+			if((a->offset&(1<<4)) && ((a->offset>>8)&0xf) == v->reg - REG_R0)
+				a->offset = (a->offset&~(0xf<<8))|((s->reg&0xf)<<8);
 		} else
-		if(a->type == D_REGREG || a->type == D_REGREG2) {
+		if(a->type == TYPE_REGREG || a->type == TYPE_REGREG2) {
 			if(a->offset == v->reg)
 				a->offset = s->reg;
 			if(a->reg == v->reg)
@@ -1444,10 +1389,6 @@ predicable(Prog *p)
 	case AXXX:
 	case ADATA:
 	case AGLOBL:
-	case AGOK:
-	case AHISTORY:
-	case ANAME:
-	case ASIGNAME:
 	case ATEXT:
 	case AWORD:
 	case ABCASE:
@@ -1609,9 +1550,13 @@ predicate(Graph *g)
 static int
 isdconst(Addr *a)
 {
-	if(a->type == D_CONST && a->reg == NREG)
-		return 1;
-	return 0;
+	return a->type == TYPE_CONST;
+}
+
+static int
+isfloatreg(Addr *a)
+{
+	return REG_F0 <= a->reg && a->reg <= REG_F15;
 }
 
 int
@@ -1623,7 +1568,7 @@ stackaddr(Addr *a)
 int
 smallindir(Addr *a, Addr *reg)
 {
-	return reg->type == D_REG && a->type == D_OREG &&
+	return reg->type == TYPE_REG && a->type == TYPE_MEM &&
 		a->reg == reg->reg &&
 		0 <= a->offset && a->offset < 4096;
 }

@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strings"
 )
 
 // A Rat represents a quotient a/b of arbitrary precision.
@@ -324,14 +323,14 @@ func (z *Rat) SetFrac64(a, b int64) *Rat {
 // SetInt sets z to x (by making a copy of x) and returns z.
 func (z *Rat) SetInt(x *Int) *Rat {
 	z.a.Set(x)
-	z.b.abs = z.b.abs.make(0)
+	z.b.abs = z.b.abs[:0]
 	return z
 }
 
 // SetInt64 sets z to x and returns z.
 func (z *Rat) SetInt64(x int64) *Rat {
 	z.a.SetInt64(x)
-	z.b.abs = z.b.abs.make(0)
+	z.b.abs = z.b.abs[:0]
 	return z
 }
 
@@ -370,7 +369,7 @@ func (z *Rat) Inv(x *Rat) *Rat {
 	}
 	b := z.a.abs
 	if b.cmp(natOne) == 0 {
-		b = b.make(0) // normalize denominator
+		b = b[:0] // normalize denominator
 	}
 	z.a.abs, z.b.abs = a, b // sign doesn't change
 	return z
@@ -415,12 +414,12 @@ func (z *Rat) norm() *Rat {
 	case len(z.a.abs) == 0:
 		// z == 0 - normalize sign and denominator
 		z.a.neg = false
-		z.b.abs = z.b.abs.make(0)
+		z.b.abs = z.b.abs[:0]
 	case len(z.b.abs) == 0:
 		// z is normalized int - nothing to do
 	case z.b.abs.cmp(natOne) == 0:
 		// z is int - normalize denominator
-		z.b.abs = z.b.abs.make(0)
+		z.b.abs = z.b.abs[:0]
 	default:
 		neg := z.a.neg
 		z.a.neg = false
@@ -430,7 +429,7 @@ func (z *Rat) norm() *Rat {
 			z.b.abs, _ = z.b.abs.div(nil, z.b.abs, f.abs)
 			if z.b.abs.cmp(natOne) == 0 {
 				// z is int - normalize denominator
-				z.b.abs = z.b.abs.make(0)
+				z.b.abs = z.b.abs[:0]
 			}
 		}
 		z.a.neg = neg
@@ -512,151 +511,6 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
 	return z.norm()
 }
 
-func ratTok(ch rune) bool {
-	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
-}
-
-// Scan is a support routine for fmt.Scanner. It accepts the formats
-// 'e', 'E', 'f', 'F', 'g', 'G', and 'v'. All formats are equivalent.
-func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
-	tok, err := s.Token(true, ratTok)
-	if err != nil {
-		return err
-	}
-	if strings.IndexRune("efgEFGv", ch) < 0 {
-		return errors.New("Rat.Scan: invalid verb")
-	}
-	if _, ok := z.SetString(string(tok)); !ok {
-		return errors.New("Rat.Scan: invalid syntax")
-	}
-	return nil
-}
-
-// SetString sets z to the value of s and returns z and a boolean indicating
-// success. s can be given as a fraction "a/b" or as a floating-point number
-// optionally followed by an exponent. If the operation failed, the value of
-// z is undefined but the returned value is nil.
-func (z *Rat) SetString(s string) (*Rat, bool) {
-	if len(s) == 0 {
-		return nil, false
-	}
-
-	// check for a quotient
-	sep := strings.Index(s, "/")
-	if sep >= 0 {
-		if _, ok := z.a.SetString(s[0:sep], 10); !ok {
-			return nil, false
-		}
-		s = s[sep+1:]
-		var err error
-		if z.b.abs, _, err = z.b.abs.scan(strings.NewReader(s), 10); err != nil {
-			return nil, false
-		}
-		if len(z.b.abs) == 0 {
-			return nil, false
-		}
-		return z.norm(), true
-	}
-
-	// check for a decimal point
-	sep = strings.Index(s, ".")
-	// check for an exponent
-	e := strings.IndexAny(s, "eE")
-	var exp Int
-	if e >= 0 {
-		if e < sep {
-			// The E must come after the decimal point.
-			return nil, false
-		}
-		if _, ok := exp.SetString(s[e+1:], 10); !ok {
-			return nil, false
-		}
-		s = s[0:e]
-	}
-	if sep >= 0 {
-		s = s[0:sep] + s[sep+1:]
-		exp.Sub(&exp, NewInt(int64(len(s)-sep)))
-	}
-
-	if _, ok := z.a.SetString(s, 10); !ok {
-		return nil, false
-	}
-	powTen := nat(nil).expNN(natTen, exp.abs, nil)
-	if exp.neg {
-		z.b.abs = powTen
-		z.norm()
-	} else {
-		z.a.abs = z.a.abs.mul(z.a.abs, powTen)
-		z.b.abs = z.b.abs.make(0)
-	}
-
-	return z, true
-}
-
-// String returns a string representation of x in the form "a/b" (even if b == 1).
-func (x *Rat) String() string {
-	s := "/1"
-	if len(x.b.abs) != 0 {
-		s = "/" + x.b.abs.decimalString()
-	}
-	return x.a.String() + s
-}
-
-// RatString returns a string representation of x in the form "a/b" if b != 1,
-// and in the form "a" if b == 1.
-func (x *Rat) RatString() string {
-	if x.IsInt() {
-		return x.a.String()
-	}
-	return x.String()
-}
-
-// FloatString returns a string representation of x in decimal form with prec
-// digits of precision after the decimal point and the last digit rounded.
-func (x *Rat) FloatString(prec int) string {
-	if x.IsInt() {
-		s := x.a.String()
-		if prec > 0 {
-			s += "." + strings.Repeat("0", prec)
-		}
-		return s
-	}
-	// x.b.abs != 0
-
-	q, r := nat(nil).div(nat(nil), x.a.abs, x.b.abs)
-
-	p := natOne
-	if prec > 0 {
-		p = nat(nil).expNN(natTen, nat(nil).setUint64(uint64(prec)), nil)
-	}
-
-	r = r.mul(r, p)
-	r, r2 := r.div(nat(nil), r, x.b.abs)
-
-	// see if we need to round up
-	r2 = r2.add(r2, r2)
-	if x.b.abs.cmp(r2) <= 0 {
-		r = r.add(r, natOne)
-		if r.cmp(p) >= 0 {
-			q = nat(nil).add(q, natOne)
-			r = nat(nil).sub(r, p)
-		}
-	}
-
-	s := q.decimalString()
-	if x.a.neg {
-		s = "-" + s
-	}
-
-	if prec > 0 {
-		rs := r.decimalString()
-		leadingZeros := prec - len(rs)
-		s += "." + strings.Repeat("0", leadingZeros) + rs
-	}
-
-	return s
-}
-
 // Gob codec version. Permits backward-compatible changes to the encoding.
 const ratGobVersion byte = 1
 
@@ -667,7 +521,7 @@ func (x *Rat) GobEncode() ([]byte, error) {
 	}
 	buf := make([]byte, 1+4+(len(x.a.abs)+len(x.b.abs))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
 	i := x.b.abs.bytes(buf)
-	j := x.a.abs.bytes(buf[0:i])
+	j := x.a.abs.bytes(buf[:i])
 	n := i - j
 	if int(uint32(n)) != n {
 		// this should never happen

@@ -27,8 +27,7 @@ static void	typecheckas2(Node*);
 static void	typecheckas(Node*);
 static void	typecheckfunc(Node*);
 static void	checklvalue(Node*, char*);
-static void	checkassign(Node*);
-static void	checkassignlist(NodeList*);
+static void	checkassignlist(Node*, NodeList*);
 static void	stringtoarraylit(Node**);
 static Node*	resolve(Node*);
 static void	checkdefergo(Node*);
@@ -349,6 +348,8 @@ reswitch:
 		goto ret;
 
 	case ONAME:
+		if(n->decldepth == 0)
+			n->decldepth = decldepth;
 		if(n->etype != 0) {
 			ok |= Ecall;
 			goto ret;
@@ -522,8 +523,8 @@ reswitch:
 	case OASOP:
 		ok |= Etop;
 		l = typecheck(&n->left, Erv);
-		checkassign(n->left);
 		r = typecheck(&n->right, Erv);
+		checkassign(n, n->left);
 		if(l->type == T || r->type == T)
 			goto error;
 		op = n->etype;
@@ -586,7 +587,9 @@ reswitch:
 				l->typecheck = 1;
 				n->left = l;
 				t = l->type;
-			} else if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
+				goto converted;
+			}
+			if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
 				if(isinter(l->type) && !isinter(r->type) && algtype1(r->type, nil) == ANOEQ) {
 					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(r->type));
 					goto error;
@@ -597,6 +600,7 @@ reswitch:
 				n->right = r;
 				t = r->type;
 			}
+		converted:
 			et = t->etype;
 		}
 		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
@@ -739,11 +743,16 @@ reswitch:
 			goto error;
 		checklvalue(n->left, "take the address of");
 		r = outervalue(n->left);
-		for(l = n->left; l != r; l = l->left)
+		for(l = n->left; l != r; l = l->left) {
 			l->addrtaken = 1;
+			if(l->closure)
+				l->closure->addrtaken = 1;
+		}
 		if(l->orig != l && l->op == ONAME)
 			fatal("found non-orig name node %N", l);
 		l->addrtaken = 1;
+		if(l->closure)
+			l->closure->addrtaken = 1;
 		defaultlit(&n->left, T);
 		l = n->left;
 		if((t = l->type) == T)
@@ -1346,7 +1355,7 @@ reswitch:
 			goto error;
 
 		// Unpack multiple-return result before type-checking.
-		if(istype(t, TSTRUCT)) {
+		if(istype(t, TSTRUCT) && t->funarg) {
 			t = t->type;
 			if(istype(t, TFIELD))
 				t = t->type;
@@ -1663,6 +1672,9 @@ reswitch:
 	case OAS:
 		ok |= Etop;
 		typecheckas(n);
+		// Code that creates temps does not bother to set defn, so do it here.
+		if(n->left->op == ONAME && strncmp(n->left->sym->name, "autotmp_", 8) == 0)
+			n->left->defn = n;
 		goto ret;
 
 	case OAS2:
@@ -1675,10 +1687,14 @@ reswitch:
 	case ODCL:
 	case OEMPTY:
 	case OGOTO:
-	case OLABEL:
 	case OXFALL:
 	case OVARKILL:
 		ok |= Etop;
+		goto ret;
+
+	case OLABEL:
+		ok |= Etop;
+		decldepth++;
 		goto ret;
 
 	case ODEFER:
@@ -1697,11 +1713,13 @@ reswitch:
 	case OFOR:
 		ok |= Etop;
 		typechecklist(n->ninit, Etop);
+		decldepth++;
 		typecheck(&n->ntest, Erv);
 		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
 			yyerror("non-bool %lN used as for condition", n->ntest);
 		typecheck(&n->nincr, Etop);
 		typechecklist(n->nbody, Etop);
+		decldepth--;
 		goto ret;
 
 	case OIF:
@@ -2346,7 +2364,7 @@ toomany:
  */
 
 static void
-fielddup(Node *n, Node *hash[], ulong nhash)
+fielddup(Node *n, Node **hash, ulong nhash)
 {
 	uint h;
 	char *s;
@@ -2367,7 +2385,7 @@ fielddup(Node *n, Node *hash[], ulong nhash)
 }
 
 static void
-keydup(Node *n, Node *hash[], ulong nhash)
+keydup(Node *n, Node **hash, ulong nhash)
 {
 	uint h;
 	ulong b;
@@ -2434,7 +2452,7 @@ keydup(Node *n, Node *hash[], ulong nhash)
 }
 
 static void
-indexdup(Node *n, Node *hash[], ulong nhash)
+indexdup(Node *n, Node **hash, ulong nhash)
 {
 	uint h;
 	Node *a;
@@ -2549,7 +2567,7 @@ static void
 typecheckcomplit(Node **np)
 {
 	int bad, i, nerr;
-	int64 len;
+	int64 length;
 	Node *l, *n, *norig, *r, **hash;
 	NodeList *ll;
 	Type *t, *f;
@@ -2603,7 +2621,7 @@ typecheckcomplit(Node **np)
 	case TARRAY:
 		nhash = inithash(n, &hash, autohash, nelem(autohash));
 
-		len = 0;
+		length = 0;
 		i = 0;
 		for(ll=n->list; ll; ll=ll->next) {
 			l = ll->n;
@@ -2626,11 +2644,11 @@ typecheckcomplit(Node **np)
 			if(i >= 0)
 				indexdup(l->left, hash, nhash);
 			i++;
-			if(i > len) {
-				len = i;
-				if(t->bound >= 0 && len > t->bound) {
+			if(i > length) {
+				length = i;
+				if(t->bound >= 0 && length > t->bound) {
 					setlineno(l);
-					yyerror("array index %lld out of bounds [0:%lld]", len-1, t->bound);
+					yyerror("array index %lld out of bounds [0:%lld]", length-1, t->bound);
 					t->bound = -1;	// no more errors
 				}
 			}
@@ -2642,9 +2660,9 @@ typecheckcomplit(Node **np)
 			l->right = assignconv(r, t->type, "array element");
 		}
 		if(t->bound == -100)
-			t->bound = len;
+			t->bound = length;
 		if(t->bound < 0)
-			n->right = nodintconst(len);
+			n->right = nodintconst(length);
 		n->op = OARRAYLIT;
 		break;
 
@@ -2805,9 +2823,24 @@ checklvalue(Node *n, char *verb)
 		yyerror("cannot %s %N", verb, n);
 }
 
-static void
-checkassign(Node *n)
+void
+checkassign(Node *stmt, Node *n)
 {
+	Node *r, *l;
+
+	// Variables declared in ORANGE are assigned on every iteration.
+	if(n->defn != stmt || stmt->op == ORANGE) {
+		r = outervalue(n);
+		for(l = n; l != r; l = l->left) {
+			l->assigned = 1;
+			if(l->closure)
+				l->closure->assigned = 1;
+		}
+		l->assigned = 1;
+		if(l->closure)
+			l->closure->assigned = 1;
+	}
+
 	if(islvalue(n))
 		return;
 	if(n->op == OINDEXMAP) {
@@ -2823,10 +2856,10 @@ checkassign(Node *n)
 }
 
 static void
-checkassignlist(NodeList *l)
+checkassignlist(Node *stmt, NodeList *l)
 {
 	for(; l; l=l->next)
-		checkassign(l->n);
+		checkassign(stmt, l->n);
 }
 
 // Check whether l and r are the same side effect-free expression,
@@ -2876,8 +2909,8 @@ typecheckas(Node *n)
 	if(n->left->defn != n || n->left->ntype)
 		typecheck(&n->left, Erv | Easgn);
 
-	checkassign(n->left);
 	typecheck(&n->right, Erv);
+	checkassign(n, n->left);
 	if(n->right && n->right->type != T) {
 		if(n->left->type != T)
 			n->right = assignconv(n->right, n->left->type, "assignment");
@@ -2948,11 +2981,11 @@ typecheckas2(Node *n)
 	}
 	cl = count(n->list);
 	cr = count(n->rlist);
-	checkassignlist(n->list);
 	if(cl > 1 && cr == 1)
 		typecheck(&n->rlist->n, Erv | Efnstruct);
 	else
 		typechecklist(n->rlist, Erv);
+	checkassignlist(n, n->list);
 
 	if(cl == cr) {
 		// easy
@@ -3043,6 +3076,7 @@ static void
 typecheckfunc(Node *n)
 {
 	Type *t, *rcvr;
+	NodeList *l;
 
 	typecheck(&n->nname, Erv | Easgn);
 	if((t = n->nname->type) == T)
@@ -3052,6 +3086,10 @@ typecheckfunc(Node *n)
 	rcvr = getthisx(t)->type;
 	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
 		addmethod(n->shortname->sym, t, 1, n->nname->nointerface);
+
+	for(l=n->dcl; l; l=l->next)
+		if(l->n->op == ONAME && (l->n->class == PPARAM || l->n->class == PPARAMOUT))
+			l->n->decldepth = 1;
 }
 
 static void
