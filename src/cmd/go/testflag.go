@@ -77,7 +77,6 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "x", boolVar: &buildX},
 	{name: "i", boolVar: &buildI},
 	{name: "work", boolVar: &buildWork},
-	{name: "ccflags"},
 	{name: "gcflags"},
 	{name: "exec"},
 	{name: "ldflags"},
@@ -162,11 +161,6 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			setIntFlag(&buildP, value)
 		case "exec":
 			execCmd, err = splitQuotedFields(value)
-			if err != nil {
-				fatalf("invalid flag argument for -%s: %v", f.name, err)
-			}
-		case "ccflags":
-			buildCcflags, err = splitQuotedFields(value)
 			if err != nil {
 				fatalf("invalid flag argument for -%s: %v", f.name, err)
 			}

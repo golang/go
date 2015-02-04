@@ -25,9 +25,6 @@
 # GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
 # building the commands.
 #
-# GO_CCFLAGS: Additional 5c/6c/8c arguments to use when
-# building.
-#
 # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
 # to include all cgo related files, .c and .go file with "cgo"
 # build directive, in the build. Set it to 0 to ignore them.
@@ -89,12 +86,12 @@ if(~ $sysname vx32)
 if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
 	echo '# Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
-		$GOTOOLDIR/go_bootstrap install -ccflags $"GO_CCFLAGS -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
+		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
 	echo
 }
 
 echo '# Building packages and commands for' $GOOS/$GOARCH^.
-$GOTOOLDIR/go_bootstrap install -ccflags $"GO_CCFLAGS -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
+$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
 echo
 
 rm -f $GOTOOLDIR/go_bootstrap
