@@ -111,9 +111,8 @@ func fmtE(buf []byte, fmt byte, prec int, neg bool, d decimal) []byte {
 	// .moredigits
 	if prec > 0 {
 		buf = append(buf, '.')
-		// TODO(gri) clean up logic below
 		i := 1
-		m := len(d.mant) + prec + 1 - max(len(d.mant), prec+1)
+		m := min(len(d.mant), prec+1)
 		if i < m {
 			buf = append(buf, d.mant[i:m]...)
 			i = m
@@ -151,14 +150,11 @@ func fmtF(buf []byte, prec int, neg bool, d decimal) []byte {
 		buf = append(buf, '-')
 	}
 
-	// integer, padded with zeros as needed.
+	// integer, padded with zeros as needed
 	if d.exp > 0 {
-		// TODO(gri) fuse loops below and/or cleanup
-		var i int
-		for i = 0; i < int(d.exp) && i < len(d.mant); i++ {
-			buf = append(buf, d.mant[i])
-		}
-		for ; i < d.exp; i++ {
+		m := min(len(d.mant), d.exp)
+		buf = append(buf, d.mant[:m]...)
+		for ; m < d.exp; m++ {
 			buf = append(buf, '0')
 		}
 	} else {
@@ -178,4 +174,11 @@ func fmtF(buf []byte, prec int, neg bool, d decimal) []byte {
 	}
 
 	return buf
+}
+
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
 }
