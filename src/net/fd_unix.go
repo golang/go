@@ -187,9 +187,7 @@ func (fd *netFD) writeUnlock() {
 }
 
 func (fd *netFD) Close() error {
-	fd.pd.Lock() // needed for both fd.incref(true) and pollDesc.Evict
 	if !fd.fdmu.IncrefAndClose() {
-		fd.pd.Unlock()
 		return errClosing
 	}
 	// Unblock any I/O.  Once it all unblocks and returns,
@@ -197,12 +195,8 @@ func (fd *netFD) Close() error {
 	// the final decref will close fd.sysfd.  This should happen
 	// fairly quickly, since all the I/O is non-blocking, and any
 	// attempts to block in the pollDesc will return errClosing.
-	doWakeup := fd.pd.Evict()
-	fd.pd.Unlock()
+	fd.pd.Evict()
 	fd.decref()
-	if doWakeup {
-		fd.pd.Wakeup()
-	}
 	return nil
 }
 
