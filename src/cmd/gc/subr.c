@@ -1703,36 +1703,31 @@ ptrto(Type *t)
 void
 frame(int context)
 {
-	char *p;
 	NodeList *l;
 	Node *n;
-	int flag;
+	vlong w;
 
-	p = "stack";
-	l = nil;
-	if(curfn)
-		l = curfn->dcl;
 	if(context) {
-		p = "external";
+		print("--- external frame ---\n");
 		l = externdcl;
-	}
+	} else if(curfn) {
+		print("--- %S frame ---\n", curfn->nname->sym);
+		l = curfn->dcl;
+	} else
+		return;
 
-	flag = 1;
 	for(; l; l=l->next) {
 		n = l->n;
+		w = -1;
+		if(n->type)
+			w = n->type->width;
 		switch(n->op) {
 		case ONAME:
-			if(flag)
-				print("--- %s frame ---\n", p);
-			print("%O %S G%d %T\n", n->op, n->sym, n->vargen, n->type);
-			flag = 0;
+			print("%O %S G%d %T width=%lld\n", n->op, n->sym, n->vargen, n->type, w);
 			break;
 
 		case OTYPE:
-			if(flag)
-				print("--- %s frame ---\n", p);
-			print("%O %T\n", n->op, n->type);
-			flag = 0;
+			print("%O %T width=%lld\n", n->op, n->type, w);
 			break;
 		}
 	}

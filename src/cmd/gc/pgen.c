@@ -327,7 +327,7 @@ compile(Node *fn)
 
 	defframe(ptxt);
 
-	if(0)
+	if(debug['f'])
 		frame(0);
 
 	// Remove leftover instrumentation from the instruction stream.
