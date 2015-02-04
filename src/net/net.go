@@ -38,9 +38,6 @@ The Listen function creates servers:
 */
 package net
 
-// TODO(rsc):
-//	support for raw ethernet sockets
-
 import (
 	"errors"
 	"io"
