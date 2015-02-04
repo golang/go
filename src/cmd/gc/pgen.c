@@ -302,7 +302,7 @@ compile(Node *fn)
 
 	fixjmp(ptxt);
 	if(!debug['N'] || debug['R'] || debug['P']) {
-		arch.regopt(ptxt);
+		regopt(ptxt);
 		nilopt(ptxt);
 	}
 	arch.expandchecks(ptxt);

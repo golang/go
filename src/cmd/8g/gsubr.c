@@ -187,6 +187,14 @@ optoas(int op, Type *t)
 	case CASE(OAS, TPTR32):
 		a = AMOVL;
 		break;
+	
+	case CASE(OAS, TFLOAT32):
+		a = AMOVSS;
+		break;
+	
+	case CASE(OAS, TFLOAT64):
+		a = AMOVSD;
+		break;
 
 	case CASE(OADD, TINT8):
 	case CASE(OADD, TUINT8):
