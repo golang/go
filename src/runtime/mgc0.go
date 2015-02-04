@@ -67,7 +67,7 @@ func backgroundgc() {
 		gcwork(0)
 		lock(&bggc.lock)
 		bggc.working = 0
-		goparkunlock(&bggc.lock, "Concurrent GC wait")
+		goparkunlock(&bggc.lock, "Concurrent GC wait", traceEvGoBlock)
 	}
 }
 
@@ -88,6 +88,6 @@ func bgsweep() {
 			continue
 		}
 		sweep.parked = true
-		goparkunlock(&gclock, "GC sweep wait")
+		goparkunlock(&gclock, "GC sweep wait", traceEvGoBlock)
 	}
 }

@@ -95,9 +95,9 @@ dumpobj(void)
 	externdcl = tmp;
 
 	zero = pkglookup("zerovalue", runtimepkg);
-	ggloblsym(zero, zerosize, DUPOK|RODATA);
+	arch.ggloblsym(zero, zerosize, DUPOK|RODATA);
 
-	dumpdata();
+	arch.dumpdata();
 	writeobj(ctxt, bout);
 
 	if(writearchive) {
@@ -106,7 +106,7 @@ dumpobj(void)
 		if(size&1)
 			Bputc(bout, 0);
 		Bseek(bout, startobj - ArhdrSize, 0);
-		snprint(namebuf, sizeof namebuf, "_go_.%c", thechar);
+		snprint(namebuf, sizeof namebuf, "_go_.%c", arch.thechar);
 		formathdr(arhdr, namebuf, size);
 		Bwrite(bout, arhdr, ArhdrSize);
 	}
@@ -133,13 +133,13 @@ dumpglobls(void)
 			continue;
 		dowidth(n->type);
 
-		ggloblnod(n);
+		arch.ggloblnod(n);
 	}
 	
 	for(l=funcsyms; l; l=l->next) {
 		n = l->n;
-		dsymptr(n->sym, 0, n->sym->def->shortname->sym, 0);
-		ggloblsym(n->sym, widthptr, DUPOK|RODATA);
+		arch.dsymptr(n->sym, 0, n->sym->def->shortname->sym, 0);
+		arch.ggloblsym(n->sym, widthptr, DUPOK|RODATA);
 	}
 	
 	// Do not reprocess funcsyms on next dumpglobls call.
@@ -250,7 +250,7 @@ stringsym(char *s, int len)
 	off = 0;
 	
 	// string header
-	off = dsymptr(sym, off, sym, widthptr+widthint);
+	off = arch.dsymptr(sym, off, sym, widthptr+widthint);
 	off = duintxx(sym, off, len, widthint);
 	
 	// string data
@@ -258,11 +258,11 @@ stringsym(char *s, int len)
 		m = 8;
 		if(m > len-n)
 			m = len-n;
-		off = dsname(sym, off, s+n, m);
+		off = arch.dsname(sym, off, s+n, m);
 	}
 	off = duint8(sym, off, 0);  // terminating NUL for runtime
 	off = (off+widthptr-1)&~(widthptr-1);  // round to pointer alignment
-	ggloblsym(sym, off, DUPOK|RODATA);
+	arch.ggloblsym(sym, off, DUPOK|RODATA);
 
 	return sym;	
 }
@@ -283,14 +283,14 @@ slicebytes(Node *nam, char *s, int len)
 		m = 8;
 		if(m > len-n)
 			m = len-n;
-		off = dsname(sym, off, s+n, m);
+		off = arch.dsname(sym, off, s+n, m);
 	}
-	ggloblsym(sym, off, NOPTR);
+	arch.ggloblsym(sym, off, NOPTR);
 	
 	if(nam->op != ONAME)
 		fatal("slicebytes %N", nam);
 	off = nam->xoffset;
-	off = dsymptr(nam->sym, off, sym, 0);
+	off = arch.dsymptr(nam->sym, off, sym, 0);
 	off = duintxx(nam->sym, off, len, widthint);
 	duintxx(nam->sym, off, len, widthint);
 }

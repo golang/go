@@ -24,17 +24,19 @@ type ArbitraryType int
 // arbitrary memory. It should be used with extreme care.
 type Pointer *ArbitraryType
 
-// Sizeof returns the size in bytes occupied by the value v.  The size is that of the
-// "top level" of the value only.  For instance, if v is a slice, it returns the size of
-// the slice descriptor, not the size of the memory referenced by the slice.
-func Sizeof(v ArbitraryType) uintptr
+// Sizeof takes an expression x of any type and returns the size in bytes
+// of a hypothetical variable v as if v was declared via var v = x.
+// The size does not include any memory possibly referenced by x.
+// For instance, if x is a slice,  Sizeof returns the size of the slice
+// descriptor, not the size of the memory referenced by the slice.
+func Sizeof(x ArbitraryType) uintptr
 
-// Offsetof returns the offset within the struct of the field represented by v,
+// Offsetof returns the offset within the struct of the field represented by x,
 // which must be of the form structValue.field.  In other words, it returns the
 // number of bytes between the start of the struct and the start of the field.
-func Offsetof(v ArbitraryType) uintptr
+func Offsetof(x ArbitraryType) uintptr
 
-// Alignof returns the alignment of the value v.  It is the maximum value m such
-// that the address of a variable with the type of v will always be zero mod m.
-// If v is of the form structValue.field, it returns the alignment of field f within struct object obj.
-func Alignof(v ArbitraryType) uintptr
+// Alignof takes an expression x of any type and returns the alignment
+// of a hypothetical variable v as if v was declared via var v = x.
+// It is the largest value m such that the address of v is zero mod m.
+func Alignof(x ArbitraryType) uintptr

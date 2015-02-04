@@ -28,13 +28,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include	"../gc/popt.h"
 
 #define	Z	N
 #define	Adr	Addr
 
-#define	D_HI	D_NONE
-#define	D_LO	D_NONE
+#define	D_HI	TYPE_NONE
+#define	D_LO	TYPE_NONE
 
 #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
 #define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
@@ -53,8 +52,8 @@ typedef	struct	Rgn	Rgn;
 extern Node *Z;
 enum
 {
-	D_HI = D_NONE,
-	D_LO = D_NONE,
+	D_HI = TYPE_NONE,
+	D_LO = TYPE_NONE,
 	CLOAD = 5,
 	CREF = 5,
 	CINF = 1000,
@@ -117,8 +116,6 @@ struct	Rgn
 	short	regno;
 };
 
-EXTERN	int32	exregoffset;		// not set
-EXTERN	int32	exfregoffset;		// not set
 EXTERN	Reg	zreg;
 EXTERN	Reg*	freer;
 EXTERN	Reg**	rpo2r;
@@ -127,7 +124,6 @@ EXTERN	Rgn*	rgp;
 EXTERN	int	nregion;
 EXTERN	int	nvar;
 EXTERN	int32	regbits;
-EXTERN	int32	exregbits;
 EXTERN	Bits	externs;
 EXTERN	Bits	params;
 EXTERN	Bits	consts;
@@ -180,58 +176,4 @@ int	BtoF(uint32);
 /*
  * prog.c
  */
-typedef struct ProgInfo ProgInfo;
-struct ProgInfo
-{
-	uint32 flags; // the bits below
-};
-
-enum
-{
-	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
-	Pseudo = 1<<1,
-	
-	// There's nothing to say about the instruction,
-	// but it's still okay to see.
-	OK = 1<<2,
-
-	// Size of right-side write, or right-side read if no write.
-	SizeB = 1<<3,
-	SizeW = 1<<4,
-	SizeL = 1<<5,
-	SizeQ = 1<<6,
-	SizeF = 1<<7, // float aka float32
-	SizeD = 1<<8, // double aka float64
-
-	// Left side (Prog.from): address taken, read, write.
-	LeftAddr = 1<<9,
-	LeftRead = 1<<10,
-	LeftWrite = 1<<11,
-	
-	// Register in middle (Prog.reg); only ever read.
-	RegRead = 1<<12,
-	CanRegRead = 1<<13,
-	
-	// Right side (Prog.to): address taken, read, write.
-	RightAddr = 1<<14,
-	RightRead = 1<<15,
-	RightWrite = 1<<16,
-
-	// Instruction kinds
-	Move = 1<<17, // straight move
-	Conv = 1<<18, // size conversion
-	Cjmp = 1<<19, // conditional jump
-	Break = 1<<20, // breaks control flow (no fallthrough)
-	Call = 1<<21, // function call
-	Jump = 1<<22, // jump
-	Skip = 1<<23, // data instruction
-};
-
 void proginfo(ProgInfo*, Prog*);
-
-// To allow use of AJMP and ACALL in ../gc/popt.c.
-enum
-{
-	AJMP = AB,
-	ACALL = ABL,
-};

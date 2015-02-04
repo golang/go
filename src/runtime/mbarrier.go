@@ -105,31 +105,36 @@ func writebarrierptr(dst *uintptr, src uintptr) {
 		return
 	}
 
-	if src != 0 && (src < _PageSize || src == poisonStack) {
+	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
 		systemstack(func() { throw("bad pointer in write barrier") })
 	}
 
 	if mheap_.shadow_enabled {
-		systemstack(func() {
-			addr := uintptr(unsafe.Pointer(dst))
-			shadow := shadowptr(addr)
-			if shadow == nil {
-				return
-			}
-			// There is a race here but only if the program is using
-			// racy writes instead of sync/atomic. In that case we
-			// don't mind crashing.
-			if *shadow != *dst && *shadow != noShadow && istrackedptr(*dst) {
-				mheap_.shadow_enabled = false
-				print("runtime: write barrier dst=", dst, " old=", hex(*dst), " shadow=", shadow, " old=", hex(*shadow), " new=", hex(src), "\n")
-				throw("missed write barrier")
-			}
-			*shadow = src
-		})
+		writebarrierptr_shadow(dst, src)
 	}
 
 	*dst = src
 	writebarrierptr_nostore1(dst, src)
+}
+
+//go:nosplit
+func writebarrierptr_shadow(dst *uintptr, src uintptr) {
+	systemstack(func() {
+		addr := uintptr(unsafe.Pointer(dst))
+		shadow := shadowptr(addr)
+		if shadow == nil {
+			return
+		}
+		// There is a race here but only if the program is using
+		// racy writes instead of sync/atomic. In that case we
+		// don't mind crashing.
+		if *shadow != *dst && *shadow != noShadow && istrackedptr(*dst) {
+			mheap_.shadow_enabled = false
+			print("runtime: write barrier dst=", dst, " old=", hex(*dst), " shadow=", shadow, " old=", hex(*shadow), " new=", hex(src), "\n")
+			throw("missed write barrier")
+		}
+		*shadow = src
+	})
 }
 
 // Like writebarrierptr, but the store has already been applied.
@@ -140,7 +145,7 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 		return
 	}
 
-	if src != 0 && (src < _PageSize || src == poisonStack) {
+	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
 		systemstack(func() { throw("bad pointer in write barrier") })
 	}
 
@@ -422,8 +427,8 @@ func wbshadowinit() {
 	if end < uintptr(unsafe.Pointer(&ebss)) {
 		end = uintptr(unsafe.Pointer(&ebss))
 	}
-	start &^= _PageSize - 1
-	end = round(end, _PageSize)
+	start &^= _PhysPageSize - 1
+	end = round(end, _PhysPageSize)
 	mheap_.data_start = start
 	mheap_.data_end = end
 	reserved = false

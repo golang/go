@@ -180,7 +180,7 @@ func notetsleep_internal(n *note, ns int64) bool {
 
 func notetsleep(n *note, ns int64) bool {
 	gp := getg()
-	if gp != gp.m.g0 && gp.m.gcing == 0 {
+	if gp != gp.m.g0 && gp.m.preemptoff != "" {
 		throw("notetsleep not on g0")
 	}
 

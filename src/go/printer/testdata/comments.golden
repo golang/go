@@ -413,6 +413,68 @@ func _() {
 		aligned line */
 }
 
+// Issue 9751.
+func _() {
+	/*a string
+
+	b string*/
+
+	/*A string
+
+
+
+	Z string*/
+
+	/*a string
+
+	b string
+
+	c string*/
+
+	{
+		/*a string
+		b string*/
+
+		/*a string
+
+		b string*/
+
+		/*a string
+
+		b string
+
+		c string*/
+	}
+
+	{
+		/*a string
+		b string*/
+
+		/*a string
+
+		b string*/
+
+		/*a string
+
+		b string
+
+		c string*/
+	}
+
+	/*
+	 */
+
+	/*
+
+	 */
+
+	/*
+
+	 * line
+
+	 */
+}
+
 /*
  * line
  * of

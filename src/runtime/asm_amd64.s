@@ -96,8 +96,8 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVQ	$runtime·main·f(SB), BP		// entry
-	PUSHQ	BP
+	MOVQ	$runtime·main·f(SB), AX		// entry
+	PUSHQ	AX
 	PUSHQ	$0			// arg size
 	CALL	runtime·newproc(SB)
 	POPQ	AX
@@ -134,6 +134,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
 	MOVQ	BX, gobuf_pc(AX)
 	MOVQ	$0, gobuf_ret(AX)
 	MOVQ	$0, gobuf_ctxt(AX)
+	MOVQ	BP, gobuf_bp(AX)
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	BX, gobuf_g(AX)
@@ -150,9 +151,11 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
 	MOVQ	gobuf_sp(BX), SP	// restore SP
 	MOVQ	gobuf_ret(BX), AX
 	MOVQ	gobuf_ctxt(BX), DX
+	MOVQ	gobuf_bp(BX), BP
 	MOVQ	$0, gobuf_sp(BX)	// clear to help garbage collector
 	MOVQ	$0, gobuf_ret(BX)
 	MOVQ	$0, gobuf_ctxt(BX)
+	MOVQ	$0, gobuf_bp(BX)
 	MOVQ	gobuf_pc(BX), BX
 	JMP	BX
 
@@ -170,6 +173,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	LEAQ	fn+0(FP), BX	// caller's SP
 	MOVQ	BX, (g_sched+gobuf_sp)(AX)
 	MOVQ	AX, (g_sched+gobuf_g)(AX)
+	MOVQ	BP, (g_sched+gobuf_bp)(AX)
 
 	// switch to m->g0 & its stack, call fn
 	MOVQ	g(CX), BX
@@ -213,8 +217,8 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	CMPQ	AX, DX
 	JEQ	noswitch
 
-	MOVQ	m_curg(BX), BP
-	CMPQ	AX, BP
+	MOVQ	m_curg(BX), R8
+	CMPQ	AX, R8
 	JEQ	switch
 	
 	// Bad: g is not gsignal, not g0, not curg. What is it?
@@ -224,10 +228,11 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 switch:
 	// save our state in g->sched.  Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOVQ	$runtime·systemstack_switch(SB), BP
-	MOVQ	BP, (g_sched+gobuf_pc)(AX)
+	MOVQ	$runtime·systemstack_switch(SB), SI
+	MOVQ	SI, (g_sched+gobuf_pc)(AX)
 	MOVQ	SP, (g_sched+gobuf_sp)(AX)
 	MOVQ	AX, (g_sched+gobuf_g)(AX)
+	MOVQ	BP, (g_sched+gobuf_bp)(AX)
 
 	// switch to g0
 	MOVQ	DX, g(CX)
@@ -303,11 +308,12 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	LEAQ	8(SP), AX // f's SP
 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
 	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
+	MOVQ	BP, (g_sched+gobuf_bp)(SI)
 
 	// Call newstack on m->g0's stack.
-	MOVQ	m_g0(BX), BP
-	MOVQ	BP, g(CX)
-	MOVQ	(g_sched+gobuf_sp)(BP), SP
+	MOVQ	m_g0(BX), BX
+	MOVQ	BX, g(CX)
+	MOVQ	(g_sched+gobuf_sp)(BX), SP
 	CALL	runtime·newstack(SB)
 	MOVQ	$0, 0x1003	// crash if newstack returns
 	RET
@@ -592,6 +598,7 @@ TEXT gosave<>(SB),NOSPLIT,$0
 	MOVQ	R9, (g_sched+gobuf_sp)(R8)
 	MOVQ	$0, (g_sched+gobuf_ret)(R8)
 	MOVQ	$0, (g_sched+gobuf_ctxt)(R8)
+	MOVQ	BP, (g_sched+gobuf_bp)(R8)
 	RET
 
 // asmcgocall(void(*fn)(void*), void *arg)
@@ -619,17 +626,17 @@ TEXT asmcgocall<>(SB),NOSPLIT,$0-0
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
 	get_tls(CX)
-	MOVQ	g(CX), BP
-	MOVQ	g_m(BP), BP
-	MOVQ	m_g0(BP), SI
+	MOVQ	g(CX), R8
+	MOVQ	g_m(R8), R8
+	MOVQ	m_g0(R8), SI
 	MOVQ	g(CX), DI
 	CMPQ	SI, DI
 	JEQ	nosave
-	MOVQ	m_gsignal(BP), SI
+	MOVQ	m_gsignal(R8), SI
 	CMPQ	SI, DI
 	JEQ	nosave
 	
-	MOVQ	m_g0(BP), SI
+	MOVQ	m_g0(R8), SI
 	CALL	gosave<>(SB)
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
@@ -683,15 +690,15 @@ TEXT ·cgocallback_gofunc(SB),NOSPLIT,$8-24
 	// the linker analysis by using an indirect call through AX.
 	get_tls(CX)
 #ifdef GOOS_windows
-	MOVL	$0, BP
+	MOVL	$0, BX
 	CMPQ	CX, $0
 	JEQ	2(PC)
 #endif
-	MOVQ	g(CX), BP
-	CMPQ	BP, $0
+	MOVQ	g(CX), BX
+	CMPQ	BX, $0
 	JEQ	needm
-	MOVQ	g_m(BP), BP
-	MOVQ	BP, R8 // holds oldm until end of function
+	MOVQ	g_m(BX), BX
+	MOVQ	BX, R8 // holds oldm until end of function
 	JMP	havem
 needm:
 	MOVQ	$0, 0(SP)
@@ -699,8 +706,8 @@ needm:
 	CALL	AX
 	MOVQ	0(SP), R8
 	get_tls(CX)
-	MOVQ	g(CX), BP
-	MOVQ	g_m(BP), BP
+	MOVQ	g(CX), BX
+	MOVQ	g_m(BX), BX
 	
 	// Set m->sched.sp = SP, so that if a panic happens
 	// during the function we are about to execute, it will
@@ -713,7 +720,7 @@ needm:
 	// and then systemstack will try to use it. If we don't set it here,
 	// that restored SP will be uninitialized (typically 0) and
 	// will not be usable.
-	MOVQ	m_g0(BP), SI
+	MOVQ	m_g0(BX), SI
 	MOVQ	SP, (g_sched+gobuf_sp)(SI)
 
 havem:
@@ -722,7 +729,7 @@ havem:
 	// Save current sp in m->g0->sched.sp in preparation for
 	// switch back to m->curg stack.
 	// NOTE: unwindm knows that the saved g->sched.sp is at 0(SP).
-	MOVQ	m_g0(BP), SI
+	MOVQ	m_g0(BX), SI
 	MOVQ	(g_sched+gobuf_sp)(SI), AX
 	MOVQ	AX, 0(SP)
 	MOVQ	SP, (g_sched+gobuf_sp)(SI)
@@ -742,30 +749,43 @@ havem:
 	// the earlier calls.
 	//
 	// In the new goroutine, 0(SP) holds the saved R8.
-	MOVQ	m_curg(BP), SI
+	MOVQ	m_curg(BX), SI
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
-	MOVQ	(g_sched+gobuf_pc)(SI), BP
-	MOVQ	BP, -8(DI)
-	LEAQ	-(8+8)(DI), SP
+	MOVQ	(g_sched+gobuf_pc)(SI), BX
+	MOVQ	BX, -8(DI)
+	// Compute the size of the frame, including return PC and, if
+	// GOEXPERIMENT=framepointer, the saved based pointer
+	LEAQ	x+0(FP), AX
+	SUBQ	SP, AX
+	SUBQ	AX, DI
+	MOVQ	DI, SP
+
 	MOVQ	R8, 0(SP)
 	CALL	runtime·cgocallbackg(SB)
 	MOVQ	0(SP), R8
 
+	// Compute the size of the frame again.  FP and SP have
+	// completely different values here than they did above,
+	// but only their difference matters.
+	LEAQ	x+0(FP), AX
+	SUBQ	SP, AX
+
 	// Restore g->sched (== m->curg->sched) from saved values.
 	get_tls(CX)
 	MOVQ	g(CX), SI
-	MOVQ	8(SP), BP
-	MOVQ	BP, (g_sched+gobuf_pc)(SI)
-	LEAQ	(8+8)(SP), DI
+	MOVQ	SP, DI
+	ADDQ	AX, DI
+	MOVQ	-8(DI), BX
+	MOVQ	BX, (g_sched+gobuf_pc)(SI)
 	MOVQ	DI, (g_sched+gobuf_sp)(SI)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
 	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
 	// so we do not have to restore it.)
-	MOVQ	g(CX), BP
-	MOVQ	g_m(BP), BP
-	MOVQ	m_g0(BP), SI
+	MOVQ	g(CX), BX
+	MOVQ	g_m(BX), BX
+	MOVQ	m_g0(BX), SI
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
 	MOVQ	0(SP), AX
@@ -915,8 +935,8 @@ aes0to15:
 	// a page boundary, so we can load it directly.
 	MOVOU	-16(AX), X0
 	ADDQ	CX, CX
-	MOVQ	$masks<>(SB), BP
-	PAND	(BP)(CX*8), X0
+	MOVQ	$masks<>(SB), AX
+	PAND	(AX)(CX*8), X0
 
 	// scramble 3 times
 	AESENC	X6, X0
@@ -931,8 +951,8 @@ endofpage:
 	// Then shift bytes down using pshufb.
 	MOVOU	-32(AX)(CX*1), X0
 	ADDQ	CX, CX
-	MOVQ	$shifts<>(SB), BP
-	PSHUFB	(BP)(CX*8), X0
+	MOVQ	$shifts<>(SB), AX
+	PSHUFB	(AX)(CX*8), X0
 	AESENC	X6, X0
 	AESENC	X7, X0
 	AESENC	X7, X0
@@ -1384,13 +1404,13 @@ TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
 	CMPQ	SI, DI
 	JEQ	allsame
 	CMPQ	BX, DX
-	MOVQ	DX, BP
-	CMOVQLT	BX, BP // BP = min(alen, blen) = # of bytes to compare
-	CMPQ	BP, $8
+	MOVQ	DX, R8
+	CMOVQLT	BX, R8 // R8 = min(alen, blen) = # of bytes to compare
+	CMPQ	R8, $8
 	JB	small
 
 loop:
-	CMPQ	BP, $16
+	CMPQ	R8, $16
 	JBE	_0through16
 	MOVOU	(SI), X0
 	MOVOU	(DI), X1
@@ -1400,7 +1420,7 @@ loop:
 	JNE	diff16	// branch if at least one byte is not equal
 	ADDQ	$16, SI
 	ADDQ	$16, DI
-	SUBQ	$16, BP
+	SUBQ	$16, R8
 	JMP	loop
 	
 	// AX = bit mask of differences
@@ -1415,15 +1435,15 @@ diff16:
 
 	// 0 through 16 bytes left, alen>=8, blen>=8
 _0through16:
-	CMPQ	BP, $8
+	CMPQ	R8, $8
 	JBE	_0through8
 	MOVQ	(SI), AX
 	MOVQ	(DI), CX
 	CMPQ	AX, CX
 	JNE	diff8
 _0through8:
-	MOVQ	-8(SI)(BP*1), AX
-	MOVQ	-8(DI)(BP*1), CX
+	MOVQ	-8(SI)(R8*1), AX
+	MOVQ	-8(DI)(R8*1), CX
 	CMPQ	AX, CX
 	JEQ	allsame
 
@@ -1440,7 +1460,7 @@ diff8:
 
 	// 0-7 bytes in common
 small:
-	LEAQ	(BP*8), CX	// bytes left -> bits left
+	LEAQ	(R8*8), CX	// bytes left -> bits left
 	NEGQ	CX		//  - bits lift (== 64 - bits left mod 64)
 	JEQ	allsame
 
@@ -1450,7 +1470,7 @@ small:
 	MOVQ	(SI), SI
 	JMP	si_finish
 si_high:
-	MOVQ	-8(SI)(BP*1), SI
+	MOVQ	-8(SI)(R8*1), SI
 	SHRQ	CX, SI
 si_finish:
 	SHLQ	CX, SI
@@ -1461,7 +1481,7 @@ si_finish:
 	MOVQ	(DI), DI
 	JMP	di_finish
 di_high:
-	MOVQ	-8(DI)(BP*1), DI
+	MOVQ	-8(DI)(R8*1), DI
 	SHRQ	CX, DI
 di_finish:
 	SHLQ	CX, DI

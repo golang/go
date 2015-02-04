@@ -104,7 +104,7 @@ regopt(Prog *firstp)
 
 	if(first) {
 		fmtinstall('Q', Qconv);
-		exregoffset = D_DI;	// no externals
+		exregoffset = REG_DI;	// no externals
 		first = 0;
 	}
 
@@ -123,7 +123,7 @@ regopt(Prog *firstp)
 		var[i].node = regnodes[i];
 	}
 
-	regbits = RtoB(D_SP);
+	regbits = RtoB(REG_SP);
 	for(z=0; z<BITS; z++) {
 		externs.b[z] = 0;
 		params.b[z] = 0;
@@ -155,7 +155,7 @@ regopt(Prog *firstp)
 		proginfo(&info, p);
 
 		// Avoid making variables for direct-called functions.
-		if(p->as == ACALL && p->to.type == D_EXTERN)
+		if(p->as == ACALL && p->to.type == TYPE_MEM && p->to.name == NAME_EXTERN)
 			continue;
 
 		r->use1.b[0] |= info.reguse | info.regindex;
@@ -227,7 +227,7 @@ regopt(Prog *firstp)
 	}
 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
 		p = r->f.prog;
-		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
+		if(p->as == AVARDEF && isfat(((Node*)(p->to.node))->type) && ((Node*)(p->to.node))->opt != nil) {
 			active++;
 			walkvardef(p->to.node, r, active);
 		}
@@ -401,17 +401,17 @@ brk:
 	for(p=firstp; p!=P; p=p->link) {
 		while(p->link != P && p->link->as == ANOP)
 			p->link = p->link->link;
-		if(p->to.type == D_BRANCH)
+		if(p->to.type == TYPE_BRANCH)
 			while(p->to.u.branch != P && p->to.u.branch->as == ANOP)
 				p->to.u.branch = p->to.u.branch->link;
 	}
 
 	if(!use_sse)
 	for(p=firstp; p!=P; p=p->link) {
-		if(p->from.type >= D_X0 && p->from.type <= D_X7)
-			fatal("invalid use of %R with GO386=387: %P", p->from.type, p);
-		if(p->to.type >= D_X0 && p->to.type <= D_X7)
-			fatal("invalid use of %R with GO386=387: %P", p->to.type, p);
+		if(p->from.reg >= REG_X0 && p->from.reg <= REG_X7)
+			fatal("invalid use of %R with GO386=387: %P", p->from.reg, p);
+		if(p->to.reg >= REG_X0 && p->to.reg <= REG_X7)
+			fatal("invalid use of %R with GO386=387: %P", p->to.reg, p);
 	}
 
 	if(debug['R']) {
@@ -492,7 +492,8 @@ addmove(Reg *r, int bn, int rn, int f)
 	a = &p1->to;
 	a->offset = v->offset;
 	a->etype = v->etype;
-	a->type = v->name;
+	a->type = TYPE_MEM;
+	a->name = v->name;
 	a->node = v->node;
 	a->sym = linksym(v->node->sym);
 
@@ -525,11 +526,14 @@ addmove(Reg *r, int bn, int rn, int f)
 		break;
 	}
 
-	p1->from.type = rn;
+	p1->from.type = TYPE_REG;
+	p1->from.reg = rn;
+	p1->from.name = 0;
 	if(!f) {
 		p1->from = *a;
 		*a = zprog.from;
-		a->type = rn;
+		a->type = TYPE_REG;
+		a->reg = rn;
 		if(v->etype == TUINT8)
 			p1->as = AMOVB;
 		if(v->etype == TUINT16)
@@ -546,18 +550,16 @@ doregbits(int r)
 	uint32 b;
 
 	b = 0;
-	if(r >= D_INDIR)
-		r -= D_INDIR;
-	if(r >= D_AX && r <= D_DI)
+	if(r >= REG_AX && r <= REG_DI)
 		b |= RtoB(r);
 	else
-	if(r >= D_AL && r <= D_BL)
-		b |= RtoB(r-D_AL+D_AX);
+	if(r >= REG_AL && r <= REG_BL)
+		b |= RtoB(r-REG_AL+REG_AX);
 	else
-	if(r >= D_AH && r <= D_BH)
-		b |= RtoB(r-D_AH+D_AX);
+	if(r >= REG_AH && r <= REG_BH)
+		b |= RtoB(r-REG_AH+REG_AX);
 	else
-	if(r >= D_X0 && r <= D_X0+7)
+	if(r >= REG_X0 && r <= REG_X0+7)
 		b |= FtoB(r);
 	return b;
 }
@@ -580,7 +582,7 @@ Bits
 mkvar(Reg *r, Adr *a)
 {
 	Var *v;
-	int i, t, n, et, z, w, flag, regu;
+	int i, n, et, z, w, flag, regu;
 	int32 o;
 	Bits bit;
 	Node *node;
@@ -588,36 +590,40 @@ mkvar(Reg *r, Adr *a)
 	/*
 	 * mark registers used
 	 */
-	t = a->type;
-	if(t == D_NONE)
+	if(a->type == TYPE_NONE)
 		goto none;
 
 	if(r != R)
 		r->use1.b[0] |= doregbits(a->index);
 
-	switch(t) {
+	switch(a->type) {
 	default:
-		regu = doregbits(t);
+		regu = doregbits(a->reg);
 		if(regu == 0)
 			goto none;
 		bit = zbits;
 		bit.b[0] = regu;
 		return bit;
 
-	case D_ADDR:
-		a->type = a->index;
+	case TYPE_ADDR:
+		a->type = TYPE_MEM;
 		bit = mkvar(r, a);
 		setaddrs(bit);
-		a->type = t;
+		a->type = TYPE_ADDR;
 		ostats.naddr++;
 		goto none;
 
-	case D_EXTERN:
-	case D_STATIC:
-	case D_PARAM:
-	case D_AUTO:
-		n = t;
-		break;
+	case TYPE_MEM:
+		switch(a->name) {
+		default:
+			goto none;
+		case NAME_EXTERN:
+		case NAME_STATIC:
+		case NAME_PARAM:
+		case NAME_AUTO:
+			n = a->name;
+			break;
+		}
 	}
 
 	node = a->node;
@@ -693,10 +699,10 @@ mkvar(Reg *r, Adr *a)
 	node->opt = v;
 
 	bit = blsh(i);
-	if(n == D_EXTERN || n == D_STATIC)
+	if(n == NAME_EXTERN || n == NAME_STATIC)
 		for(z=0; z<BITS; z++)
 			externs.b[z] |= bit.b[z];
-	if(n == D_PARAM)
+	if(n == NAME_PARAM)
 		for(z=0; z<BITS; z++)
 			params.b[z] |= bit.b[z];
 		
@@ -967,13 +973,13 @@ paint1(Reg *r, int bn)
 			if(r->use1.b[z] & bb) {
 				change += CREF * r->f.loop;
 				if(p->as == AFMOVL || p->as == AFMOVW)
-					if(BtoR(bb) != D_F0)
+					if(BtoR(bb) != REG_F0)
 						change = -CINF;
 			}
 			if((r->use2.b[z]|r->set.b[z]) & bb) {
 				change += CREF * r->f.loop;
 				if(p->as == AFMOVL || p->as == AFMOVW)
-					if(BtoR(bb) != D_F0)
+					if(BtoR(bb) != REG_F0)
 						change = -CINF;
 			}
 		}
@@ -981,7 +987,7 @@ paint1(Reg *r, int bn)
 		if(STORE(r) & r->regdiff.b[z] & bb) {
 			change -= CLOAD * r->f.loop;
 			if(p->as == AFMOVL || p->as == AFMOVW)
-				if(BtoR(bb) != D_F0)
+				if(BtoR(bb) != REG_F0)
 					change = -CINF;
 		}
 
@@ -1139,7 +1145,9 @@ addreg(Adr *a, int rn)
 	a->sym = nil;
 	a->node = nil;
 	a->offset = 0;
-	a->type = rn;
+	a->type = TYPE_REG;
+	a->reg = rn;
+	a->name = 0;
 
 	ostats.ncvtreg++;
 }
@@ -1148,9 +1156,9 @@ uint32
 RtoB(int r)
 {
 
-	if(r < D_AX || r > D_DI)
+	if(r < REG_AX || r > REG_DI)
 		return 0;
-	return 1L << (r-D_AX);
+	return 1L << (r-REG_AX);
 }
 
 int
@@ -1160,15 +1168,15 @@ BtoR(uint32 b)
 	b &= 0xffL;
 	if(b == 0)
 		return 0;
-	return bitno(b) + D_AX;
+	return bitno(b) + REG_AX;
 }
 
 uint32
 FtoB(int f)
 {
-	if(f < D_X0 || f > D_X7)
+	if(f < REG_X0 || f > REG_X7)
 		return 0;
-	return 1L << (f - D_X0 + 8);
+	return 1L << (f - REG_X0 + 8);
 }
 
 int
@@ -1177,7 +1185,7 @@ BtoF(uint32 b)
 	b &= 0xFF00L;
 	if(b == 0)
 		return 0;
-	return bitno(b) - 8 + D_X0;
+	return bitno(b) - 8 + REG_X0;
 }
 
 void

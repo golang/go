@@ -15,6 +15,12 @@ import (
 	"time"
 )
 
+// The full stack test cases for IPConn have been moved to the
+// following:
+//	golang.org/x/net/ipv4
+//	golang.org/x/net/ipv6
+//	golang.org/x/net/icmp
+
 // testUnixAddr uses ioutil.TempFile to get a name that is unique. It
 // also uses /tmp directory in case it is prohibited to create UNIX
 // sockets in TMPDIR.
@@ -173,8 +179,8 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 }
 
 func TestIPConnSpecificMethods(t *testing.T) {
-	if skip, skipmsg := skipRawSocketTest(t); skip {
-		t.Skip(skipmsg)
+	if os.Getuid() != 0 {
+		t.Skip("must be root")
 	}
 
 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
@@ -194,30 +200,6 @@ func TestIPConnSpecificMethods(t *testing.T) {
 	c.SetReadBuffer(2048)
 	c.SetWriteBuffer(2048)
 
-	wb, err := (&icmpMessage{
-		Type: icmpv4EchoRequest, Code: 0,
-		Body: &icmpEcho{
-			ID: os.Getpid() & 0xffff, Seq: 1,
-			Data: []byte("IPCONN TEST "),
-		},
-	}).Marshal()
-	if err != nil {
-		t.Fatalf("icmpMessage.Marshal failed: %v", err)
-	}
-	rb := make([]byte, 20+len(wb))
-	if _, err := c.WriteToIP(wb, c.LocalAddr().(*IPAddr)); err != nil {
-		t.Fatalf("IPConn.WriteToIP failed: %v", err)
-	}
-	if _, _, err := c.ReadFromIP(rb); err != nil {
-		t.Fatalf("IPConn.ReadFromIP failed: %v", err)
-	}
-	if _, _, err := c.WriteMsgIP(wb, nil, c.LocalAddr().(*IPAddr)); err != nil {
-		condFatalf(t, "IPConn.WriteMsgIP failed: %v", err)
-	}
-	if _, _, _, _, err := c.ReadMsgIP(rb, nil); err != nil {
-		condFatalf(t, "IPConn.ReadMsgIP failed: %v", err)
-	}
-
 	if f, err := c.File(); err != nil {
 		condFatalf(t, "IPConn.File failed: %v", err)
 	} else {
@@ -230,6 +212,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
 		}
 	}()
 
+	wb := []byte("IPCONN TEST")
 	c.WriteToIP(wb, nil)
 	c.WriteMsgIP(wb, nil, nil)
 }

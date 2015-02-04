@@ -46,5 +46,5 @@ func runVetFiles(p *Package, files []string) {
 	for i := range files {
 		files[i] = filepath.Join(p.Dir, files[i])
 	}
-	run(tool("vet"), relPaths(files))
+	run(buildToolExec, tool("vet"), relPaths(files))
 }

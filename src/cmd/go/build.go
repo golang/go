@@ -74,25 +74,27 @@ and test commands:
 	-x
 		print the commands.
 
-	-ccflags 'arg list'
-		arguments to pass on each 5c, 6c, or 8c compiler invocation.
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags 'arg list'
 		arguments to pass on each gccgo compiler/linker invocation.
 	-gcflags 'arg list'
-		arguments to pass on each 5g, 6g, or 8g compiler invocation.
+		arguments to pass on each 5g, 6g, 8g, or 9g compiler invocation.
 	-installsuffix suffix
 		a suffix to use in the name of the package installation directory,
 		in order to keep output separate from default builds.
 		If using the -race flag, the install suffix is automatically set to race
 		or, if set explicitly, has _race appended to it.
 	-ldflags 'flag list'
-		arguments to pass on each 5l, 6l, or 8l linker invocation.
+		arguments to pass on each 5l, 6l, 8l, or 9l linker invocation.
 	-tags 'tag list'
 		a list of build tags to consider satisfied during the build.
 		For more information about build tags, see the description of
 		build constraints in the documentation for the go/build package.
+	-toolexec 'cmd args'
+		a program to use to invoke toolchain programs like 5a, 5g, and 5l.
+		For example, instead of running 5g, the go command will run
+		'cmd args /path/to/5g <arguments for 5g>'.
 
 The list flags accept a space-separated list of strings. To embed spaces
 in an element in the list, surround it with either single or double quotes.
@@ -127,10 +129,10 @@ var buildI bool               // -i flag
 var buildO = cmdBuild.Flag.String("o", "", "output file")
 var buildWork bool           // -work flag
 var buildGcflags []string    // -gcflags flag
-var buildCcflags []string    // -ccflags flag
 var buildLdflags []string    // -ldflags flag
 var buildGccgoflags []string // -gccgoflags flag
 var buildRace bool           // -race flag
+var buildToolExec []string   // -toolexec flag
 
 var buildContext = build.Default
 var buildToolchain toolchain = noToolchain{}
@@ -178,12 +180,12 @@ func addBuildFlags(cmd *Command) {
 	cmd.Flag.BoolVar(&buildX, "x", false, "")
 	cmd.Flag.BoolVar(&buildWork, "work", false, "")
 	cmd.Flag.Var((*stringsFlag)(&buildGcflags), "gcflags", "")
-	cmd.Flag.Var((*stringsFlag)(&buildCcflags), "ccflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildLdflags), "ldflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildGccgoflags), "gccgoflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
 	cmd.Flag.BoolVar(&buildRace, "race", false, "")
+	cmd.Flag.Var((*stringsFlag)(&buildToolExec), "toolexec", "")
 }
 
 func addBuildFlagsNX(cmd *Command) {
@@ -1229,6 +1231,7 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
 //	go tool cover -mode=b.coverMode -var="varName" -o dst.go src.go
 func (b *builder) cover(a *action, dst, src string, perm os.FileMode, varName string) error {
 	return b.run(a.objdir, "cover "+a.p.ImportPath, nil,
+		buildToolExec,
 		tool("cover"),
 		"-mode", a.p.coverMode,
 		"-var", varName,
@@ -1657,7 +1660,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
 	}
 
-	args := stringList(tool(archChar+"g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
+	args := stringList(buildToolExec, tool(archChar+"g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
 	if ofile == archive {
 		args = append(args, "-pack")
 	}
@@ -1681,7 +1684,7 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	sfile = mkAbs(p.Dir, sfile)
-	args := []interface{}{tool(archChar + "a"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, sfile}
+	args := []interface{}{buildToolExec, tool(archChar + "a"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, sfile}
 	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
 		return err
 	}
@@ -1744,7 +1747,7 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 
 	// Need actual pack.
 	cmdline[0] = tool("pack")
-	return b.run(p.Dir, p.ImportPath, nil, cmdline)
+	return b.run(p.Dir, p.ImportPath, nil, buildToolExec, cmdline)
 }
 
 func packInternal(b *builder, afile string, ofiles []string) error {
@@ -1852,7 +1855,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 		}
 	}
 	ldflags = append(ldflags, buildLdflags...)
-	return b.run(".", p.ImportPath, nil, tool(archChar+"l"), "-o", out, importArgs, ldflags, mainpkg)
+	return b.run(".", p.ImportPath, nil, stringList(buildToolExec, tool(archChar+"l"), "-o", out, importArgs, ldflags, mainpkg))
 }
 
 func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
@@ -2241,7 +2244,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, gccfi
 		}
 		objExt = "o"
 	}
-	if err := b.run(p.Dir, p.ImportPath, cgoenv, cgoExe, "-objdir", obj, cgoflags, "--", cgoCPPFLAGS, cgoexeCFLAGS, p.CgoFiles); err != nil {
+	if err := b.run(p.Dir, p.ImportPath, cgoenv, buildToolExec, cgoExe, "-objdir", obj, cgoflags, "--", cgoCPPFLAGS, cgoexeCFLAGS, p.CgoFiles); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)
@@ -2373,7 +2376,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, gccfi
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-dynlinker") // record path to dynamic linker
 	}
-	if err := b.run(p.Dir, p.ImportPath, nil, cgoExe, "-objdir", obj, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags); err != nil {
+	if err := b.run(p.Dir, p.ImportPath, nil, buildToolExec, cgoExe, "-objdir", obj, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, importGo)
@@ -2670,7 +2673,6 @@ func raceInit() {
 	}
 	buildGcflags = append(buildGcflags, "-race")
 	buildLdflags = append(buildLdflags, "-race")
-	buildCcflags = append(buildCcflags, "-D", "RACE")
 	if buildContext.InstallSuffix != "" {
 		buildContext.InstallSuffix += "_"
 	}

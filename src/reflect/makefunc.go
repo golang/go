@@ -56,7 +56,7 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 
 	// makeFuncImpl contains a stack map for use by the runtime
-	_, _, _, stack := funcLayout(t, nil)
+	_, _, _, stack, _ := funcLayout(t, nil)
 
 	impl := &makeFuncImpl{code: code, stack: stack, typ: ftyp, fn: fn}
 
@@ -104,7 +104,7 @@ func makeMethodValue(op string, v Value) Value {
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 
 	// methodValue contains a stack map for use by the runtime
-	_, _, _, stack := funcLayout(funcType, nil)
+	_, _, _, stack, _ := funcLayout(funcType, nil)
 
 	fv := &methodValue{
 		fn:     code,

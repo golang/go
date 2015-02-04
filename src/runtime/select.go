@@ -173,7 +173,7 @@ func selparkcommit(gp *g, sel unsafe.Pointer) bool {
 }
 
 func block() {
-	gopark(nil, nil, "select (no cases)") // forever
+	gopark(nil, nil, "select (no cases)", traceEvGoStop) // forever
 }
 
 // overwrites return pc on stack to signal which case of the select
@@ -363,7 +363,7 @@ loop:
 
 	// wait for someone to wake us up
 	gp.param = nil
-	gopark(selparkcommit, unsafe.Pointer(sel), "select")
+	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect)
 
 	// someone woke us up
 	sellock(sel)

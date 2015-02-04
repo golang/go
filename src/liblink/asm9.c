@@ -59,14 +59,10 @@ struct	Optab
 };
 
 static Optab	optab[] = {
-	{ ATEXT,	C_LEXT,	C_NONE, C_NONE, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_LEXT,	C_REG, C_NONE, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_LEXT,	C_NONE, C_LCON, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_LEXT,	C_REG, C_LCON, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_NONE, C_NONE, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_REG, C_NONE, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_NONE, C_LCON, 	C_LCON, 	 0, 0, 0 },
-	{ ATEXT,	C_ADDR,	C_REG, C_LCON, 	C_LCON, 	 0, 0, 0 },
+	{ ATEXT,	C_LEXT,	C_NONE, C_NONE, 	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_LEXT,	C_NONE, C_LCON, 	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_ADDR,	C_NONE, C_NONE, 	C_TEXTSIZE, 	 0, 0, 0 },
+	{ ATEXT,	C_ADDR,	C_NONE, C_LCON, 	C_TEXTSIZE, 	 0, 0, 0 },
 
 	/* move register */
 	{ AMOVD,	C_REG,	C_NONE, C_NONE, 	C_REG,		 1, 4, 0 },
@@ -497,7 +493,7 @@ span9(Link *ctxt, LSym *cursym)
 	if(p == nil || p->link == nil) // handle external functions and ELF section symbols
 		return;
 	ctxt->cursym = cursym;
-	ctxt->autosize = (int32)(p->to.offset & 0xffffffffll) + 8;
+	ctxt->autosize = p->to.offset + 8;
 
 	if(oprange[AANDN].start == nil)
  		buildop(ctxt);
@@ -539,18 +535,18 @@ span9(Link *ctxt, LSym *cursym)
 			if((o->type == 16 || o->type == 17) && p->pcond) {
 				otxt = p->pcond->pc - c;
 				if(otxt < -(1L<<15)+10 || otxt >= (1L<<15)-10) {
-					q = ctxt->arch->prg();
+					q = emallocz(sizeof(Prog));
 					q->link = p->link;
 					p->link = q;
 					q->as = ABR;
-					q->to.type = D_BRANCH;
+					q->to.type = TYPE_BRANCH;
 					q->pcond = p->pcond;
 					p->pcond = q;
-					q = ctxt->arch->prg();
+					q = emallocz(sizeof(Prog));
 					q->link = p->link;
 					p->link = q;
 					q->as = ABR;
-					q->to.type = D_BRANCH;
+					q->to.type = TYPE_BRANCH;
 					q->pcond = q->link->link;
 					//addnop(p->link);
 					//addnop(p);
@@ -614,57 +610,56 @@ aclass(Link *ctxt, Addr *a)
 	LSym *s;
 
 	switch(a->type) {
-	case D_NONE:
+	case TYPE_NONE:
 		return C_NONE;
 
-	case D_REG:
-		return C_REG;
+	case TYPE_REG:
+		if(REG_R0 <= a->reg && a->reg <= REG_R31)
+			return C_REG;
+		if(REG_F0 <= a->reg && a->reg <= REG_F31)
+			return C_FREG;
+		if(REG_C0 <= a->reg && a->reg <= REG_C7 || a->reg == REG_CR)
+			return C_CREG;
+		if(REG_SPR0 <= a->reg && a->reg <= REG_SPR0+1023) {
+			switch(a->reg) {
+			case REG_LR:
+				return C_LR;
+			case REG_XER:
+				return C_XER;
+			case REG_CTR:
+				return C_CTR;
+			}
+			return C_SPR;
+		}
+		if(REG_DCR0 <= a->reg && a->reg <= REG_DCR0+1023)
+			return C_SPR;
+		if(a->reg == REG_FPSCR)
+			return C_FPSCR;
+		if(a->reg == REG_MSR)
+			return C_MSR;
+		return C_GOK;
 
-	case D_FREG:
-		return C_FREG;
-
-	case D_CREG:
-		return C_CREG;
-
-	case D_SPR:
-		if(a->offset == D_LR)
-			return C_LR;
-		if(a->offset == D_XER)
-			return C_XER;
-		if(a->offset == D_CTR)
-			return C_CTR;
-		return C_SPR;
-
-	case D_DCR:
-		return C_SPR;
-
-	case D_FPSCR:
-		return C_FPSCR;
-
-	case D_MSR:
-		return C_MSR;
-
-	case D_OREG:
+	case TYPE_MEM:
 		switch(a->name) {
-		case D_EXTERN:
-		case D_STATIC:
+		case NAME_EXTERN:
+		case NAME_STATIC:
 			if(a->sym == nil)
 				break;
 			ctxt->instoffset = a->offset;
 			if(a->sym != nil) // use relocation
 				return C_ADDR;
 			return C_LEXT;
-		case D_AUTO:
+		case NAME_AUTO:
 			ctxt->instoffset = ctxt->autosize + a->offset;
 			if(ctxt->instoffset >= -BIG && ctxt->instoffset < BIG)
 				return C_SAUTO;
 			return C_LAUTO;
-		case D_PARAM:
+		case NAME_PARAM:
 			ctxt->instoffset = ctxt->autosize + a->offset + 8L;
 			if(ctxt->instoffset >= -BIG && ctxt->instoffset < BIG)
 				return C_SAUTO;
 			return C_LAUTO;
-		case D_NONE:
+		case TYPE_NONE:
 			ctxt->instoffset = a->offset;
 			if(ctxt->instoffset == 0)
 				return C_ZOREG;
@@ -674,17 +669,15 @@ aclass(Link *ctxt, Addr *a)
 		}
 		return C_GOK;
 
-	case D_OPT:
-		ctxt->instoffset = a->offset & 31L;
-		if(a->name == D_NONE)
-			return C_SCON;
-		return C_GOK;
+	case TYPE_TEXTSIZE:
+		return C_TEXTSIZE;
 
-	case D_CONST:
+	case TYPE_CONST:
+	case TYPE_ADDR:
 		switch(a->name) {
-		case D_NONE:
+		case TYPE_NONE:
 			ctxt->instoffset = a->offset;
-			if(a->reg != NREG) {
+			if(a->reg != 0) {
 				if(-BIG <= ctxt->instoffset && ctxt->instoffset <= BIG)
 					return C_SACON;
 				if(isint32(ctxt->instoffset))
@@ -693,8 +686,8 @@ aclass(Link *ctxt, Addr *a)
 			}
 			goto consize;
 
-		case D_EXTERN:
-		case D_STATIC:
+		case NAME_EXTERN:
+		case NAME_STATIC:
 			s = a->sym;
 			if(s == nil)
 				break;
@@ -706,13 +699,13 @@ aclass(Link *ctxt, Addr *a)
 			/* not sure why this barfs */
 			return C_LCON;
 
-		case D_AUTO:
+		case NAME_AUTO:
 			ctxt->instoffset = ctxt->autosize + a->offset;
 			if(ctxt->instoffset >= -BIG && ctxt->instoffset < BIG)
 				return C_SACON;
 			return C_LACON;
 
-		case D_PARAM:
+		case NAME_PARAM:
 			ctxt->instoffset = ctxt->autosize + a->offset + 8L;
 			if(ctxt->instoffset >= -BIG && ctxt->instoffset < BIG)
 				return C_SACON;
@@ -742,7 +735,7 @@ aclass(Link *ctxt, Addr *a)
 			return C_LCON;
 		return C_DCON;
 
-	case D_BRANCH:
+	case TYPE_BRANCH:
 		return C_SBRA;
 	}
 	return C_GOK;
@@ -783,7 +776,7 @@ oplook(Link *ctxt, Prog *p)
 	}
 	a4--;
 	a2 = C_NONE;
-	if(p->reg != NREG)
+	if(p->reg != 0)
 		a2 = C_REG;
 //print("oplook %P %d %d %d %d\n", p, a1, a2, a3, a4);
 	r = p->as;
@@ -1515,7 +1508,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		break;
 
 	case 1:		/* mov r1,r2 ==> OR Rs,Rs,Ra */
-		if(p->to.reg == REGZERO && p->from.type == D_CONST) {
+		if(p->to.reg == REGZERO && p->from.type == TYPE_CONST) {
 			v = regoff(ctxt, &p->from);
 			if(r0iszero && v != 0) {
 				//nerrors--;
@@ -1529,7 +1522,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 2:		/* int/cr/fp op Rb,[Ra],Rd */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, p->from.reg);
 		break;
@@ -1538,7 +1531,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		d = vregoff(ctxt, &p->from);
 		v = d;
 		r = p->from.reg;
-		if(r == NREG)
+		if(r == 0)
 			r = o->param;
 		if(r0iszero && p->to.reg == 0 && (r != 0 || v != 0))
 			ctxt->diag("literal operation on R0\n%P", p);
@@ -1562,7 +1555,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 	case 4:		/* add/mul $scon,[r1],r2 */
 		v = regoff(ctxt, &p->from);
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		if(r0iszero && p->to.reg == 0)
 			ctxt->diag("literal operation on R0\n%P", p);
@@ -1577,17 +1570,17 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 6:		/* logical op Rb,[Rs,]Ra; no literal */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		o1 = LOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, p->from.reg);
 		break;
 
 	case 7:		/* mov r, soreg ==> stw o(r) */
 		r = p->to.reg;
-		if(r == NREG)
+		if(r == 0)
 			r = o->param;
 		v = regoff(ctxt, &p->to);
-		if(p->to.type == D_OREG && p->reg != NREG) {
+		if(p->to.type == TYPE_MEM && p->reg != 0) {
 			if(v)
 				ctxt->diag("illegal indexed instruction\n%P", p);
 			o1 = AOP_RRR(opstorex(ctxt, p->as), p->from.reg, p->reg, r);
@@ -1600,10 +1593,10 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 8:		/* mov soreg, r ==> lbz/lhz/lwz o(r) */
 		r = p->from.reg;
-		if(r == NREG)
+		if(r == 0)
 			r = o->param;
 		v = regoff(ctxt, &p->from);
-		if(p->from.type == D_OREG && p->reg != NREG) {
+		if(p->from.type == TYPE_MEM && p->reg != 0) {
 			if(v)
 				ctxt->diag("illegal indexed instruction\n%P", p);
 			o1 = AOP_RRR(oploadx(ctxt, p->as), p->to.reg, p->reg, r);
@@ -1616,10 +1609,10 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 9:		/* movb soreg, r ==> lbz o(r),r2; extsb r2,r2 */
 		r = p->from.reg;
-		if(r == NREG)
+		if(r == 0)
 			r = o->param;
 		v = regoff(ctxt, &p->from);
-		if(p->from.type == D_OREG && p->reg != NREG) {
+		if(p->from.type == TYPE_MEM && p->reg != 0) {
 			if(v)
 				ctxt->diag("illegal indexed instruction\n%P", p);
 			o1 = AOP_RRR(oploadx(ctxt, p->as), p->to.reg, p->reg, r);
@@ -1630,7 +1623,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 10:		/* sub Ra,[Rb],Rd => subf Rd,Ra,Rb */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, p->from.reg, r);
 		break;
@@ -1663,7 +1656,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		break;
 
 	case 12:	/* movb r,r (extsb); movw r,r (extsw) */
-		if(p->to.reg == REGZERO && p->from.type == D_CONST) {
+		if(p->to.reg == REGZERO && p->from.type == TYPE_CONST) {
 			v = regoff(ctxt, &p->from);
 			if(r0iszero && v != 0) {
 				ctxt->diag("literal operation on R0\n%P", p);
@@ -1692,7 +1685,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 14:	/* rldc[lr] Rb,Rs,$mask,Ra -- left, right give different masks */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		d = vregoff(ctxt, &p->from3);
 		maskgen64(ctxt, p, mask, d);
@@ -1720,10 +1713,10 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 	case 17:	/* bc bo,bi,lbra (same for now) */
 	case 16:	/* bc bo,bi,sbra */
 		a = 0;
-		if(p->from.type == D_CONST)
+		if(p->from.type == TYPE_CONST)
 			a = regoff(ctxt, &p->from);
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = 0;
 		v = 0;
 		if(p->pcond)
@@ -1743,9 +1736,9 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		else
 			v = 20;	/* unconditional */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = 0;
-		o1 = AOP_RRR(OP_MTSPR, p->to.reg, 0, 0) | ((D_LR&0x1f)<<16) | (((D_LR>>5)&0x1f)<<11);
+		o1 = AOP_RRR(OP_MTSPR, p->to.reg, 0, 0) | ((REG_LR&0x1f)<<16) | (((REG_LR>>5)&0x1f)<<11);
 		o2 = OPVCC(19, 16, 0, 0);
 		if(p->as == ABL || p->as == ABCL)
 			o2 |= 1;
@@ -1758,7 +1751,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		else
 			v = 20;	/* unconditional */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = 0;
 		switch(oclass(&p->to)) {
 		case C_CTR:
@@ -1792,11 +1785,11 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 	case 20:	/* add $ucon,,r */
 		v = regoff(ctxt, &p->from);
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		if(p->as == AADD && (!r0iszero && p->reg == 0 || r0iszero && p->to.reg == 0))
 			ctxt->diag("literal operation on R0\n%P", p);
-		o1 = AOP_IRR(opirr(ctxt, p->as+AEND), p->to.reg, r, v>>16);
+		o1 = AOP_IRR(opirr(ctxt, p->as+ALAST), p->to.reg, r, v>>16);
 		break;
 
 	case 22:	/* add $lcon,r1,r2 ==> cau+or+add */	/* could do add/sub more efficiently */
@@ -1806,7 +1799,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		o1 = loadu32(REGTMP, d);
 		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, (int32)d);
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		o3 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, REGTMP, r);
 		if(p->from.sym != nil)
@@ -1821,7 +1814,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		o1 = loadu32(REGTMP, d);
 		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, (int32)d);
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		o3 = LOP_RRR(oprrr(ctxt, p->as), p->to.reg, REGTMP, r);
 		if(p->from.sym != nil)
@@ -1837,7 +1830,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		else if(v > 63)
 			v = 63;
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		switch(p->as){
 		case ASLD: case ASLDCC:
@@ -1869,7 +1862,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 			ctxt->diag("can't synthesize large constant\n%P", p);
 		v = regoff(ctxt, &p->from);
 		r = p->from.reg;
-		if(r == NREG)
+		if(r == 0)
 			r = o->param;
 		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
 		o2 = AOP_IRR(OP_ADDI, p->to.reg, REGTMP, v);
@@ -1961,7 +1954,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 32:	/* fmul frc,fra,frd */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, 0)|((p->from.reg&31L)<<6);
 		break;
@@ -1980,7 +1973,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 	case 35:	/* mov r,lext/lauto/loreg ==> cau $(v>>16),sb,r'; store o(r') */
 		v = regoff(ctxt, &p->to);
 		r = p->to.reg;
-		if(r == NREG)
+		if(r == 0)
 			r = o->param;
 		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
 		o2 = AOP_IRR(opstore(ctxt, p->as), p->from.reg, REGTMP, v);
@@ -1989,7 +1982,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 	case 36:	/* mov bz/h/hz lext/lauto/lreg,r ==> lbz/lha/lhz etc */
 		v = regoff(ctxt, &p->from);
 		r = p->from.reg;
-		if(r == NREG)
+		if(r == 0)
 			r = o->param;
 		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
 		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
@@ -1998,7 +1991,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 	case 37:	/* movb lext/lauto/lreg,r ==> lbz o(reg),r; extsb r */
 		v = regoff(ctxt, &p->from);
 		r = p->from.reg;
-		if(r == NREG)
+		if(r == 0)
 			r = o->param;
 		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
 		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
@@ -2019,20 +2012,20 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 43:	/* unary indexed source: dcbf (b); dcbf (a+b) */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = 0;
 		o1 = AOP_RRR(oprrr(ctxt, p->as), 0, r, p->from.reg);
 		break;
 
 	case 44:	/* indexed store */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = 0;
 		o1 = AOP_RRR(opstorex(ctxt, p->as), p->from.reg, r, p->to.reg);
 		break;
 	case 45:	/* indexed load */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = 0;
 		o1 = AOP_RRR(oploadx(ctxt, p->as), p->to.reg, r, p->from.reg);
 		break;
@@ -2043,20 +2036,20 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 47:	/* op Ra, Rd; also op [Ra,] Rd */
 		r = p->from.reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, 0);
 		break;
 
 	case 48:	/* op Rs, Ra */
 		r = p->from.reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		o1 = LOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, 0);
 		break;
 
 	case 49:	/* op Rb; op $n, Rb */
-		if(p->from.type != D_REG){	/* tlbie $L, rB */
+		if(p->from.type != TYPE_REG){	/* tlbie $L, rB */
 			v = regoff(ctxt, &p->from) & 1;
 			o1 = AOP_RRR(oprrr(ctxt, p->as), 0, 0, p->to.reg) | (v<<21);
 		}else
@@ -2065,7 +2058,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 50:	/* rem[u] r1[,r2],r3 */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		v = oprrr(ctxt, p->as);
 		t = v & ((1<<10)|1);	/* OE|Rc */
@@ -2081,7 +2074,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 
 	case 51:	/* remd[u] r1[,r2],r3 */
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		v = oprrr(ctxt, p->as);
 		t = v & ((1<<10)|1);	/* OE|Rc */
@@ -2116,7 +2109,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 	case 56:	/* sra $sh,[s,]a; srd $sh,[s,]a */
 		v = regoff(ctxt, &p->from);
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		o1 = AOP_RRR(opirr(ctxt, p->as), r, p->to.reg, v&31L);
 		if(p->as == ASRAD && (v&0x20))
@@ -2126,7 +2119,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 	case 57:	/* slw $sh,[s,]a -> rlwinm ... */
 		v = regoff(ctxt, &p->from);
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		/*
 		 * Let user (gs) shoot himself in the foot. 
@@ -2155,7 +2148,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 	case 58:		/* logical $andcon,[s],a */
 		v = regoff(ctxt, &p->from);
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
 		o1 = LOP_IRR(opirr(ctxt, p->as), p->to.reg, r, v);
 		break;
@@ -2163,9 +2156,9 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 	case 59:	/* or/and $ucon,,r */
 		v = regoff(ctxt, &p->from);
 		r = p->reg;
-		if(r == NREG)
+		if(r == 0)
 			r = p->to.reg;
-		o1 = LOP_IRR(opirr(ctxt, p->as+AEND), p->to.reg, r, v>>16);	/* oris, xoris, andis */
+		o1 = LOP_IRR(opirr(ctxt, p->as+ALAST), p->to.reg, r, v>>16);	/* oris, xoris, andis */
 		break;
 
 	case 60:	/* tw to,a,b */
@@ -2193,7 +2186,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		break;
 
 	case 64:	/* mtfsf fr[, $m] {,fpcsr} */
-		if(p->from3.type != D_NONE)
+		if(p->from3.type != TYPE_NONE)
 			v = regoff(ctxt, &p->from3)&255L;
 		else
 			v = 255;
@@ -2201,23 +2194,23 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		break;
 
 	case 65:	/* MOVFL $imm,FPSCR(n) => mtfsfi crfd,imm */
-		if(p->to.reg == NREG)
+		if(p->to.reg == 0)
 			ctxt->diag("must specify FPSCR(n)\n%P", p);
 		o1 = OP_MTFSFI | ((p->to.reg&15L)<<23) | ((regoff(ctxt, &p->from)&31L)<<12);
 		break;
 
 	case 66:	/* mov spr,r1; mov r1,spr, also dcr */
-		if(p->from.type == D_REG) {
+		if(REG_R0 <= p->from.reg && p->from.reg <= REG_R31) {
 			r = p->from.reg;
-			v = p->to.offset;
-			if(p->to.type == D_DCR)
+			v = p->to.reg;
+			if(REG_DCR0 <= v && v <= REG_DCR0+1023)
 				o1 = OPVCC(31,451,0,0);	/* mtdcr */
 			else
 				o1 = OPVCC(31,467,0,0); /* mtspr */
 		} else {
 			r = p->to.reg;
-			v = p->from.offset;
-			if(p->from.type == D_DCR)
+			v = p->from.reg;
+			if(REG_DCR0 <= v && v <= REG_DCR0+1023)
 				o1 = OPVCC(31,323,0,0);	/* mfdcr */
 			else
 				o1 = OPVCC(31,339,0,0);	/* mfspr */
@@ -2226,14 +2219,14 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		break;
 
 	case 67:	/* mcrf crfD,crfS */
-		if(p->from.type != D_CREG || p->from.reg == NREG ||
-		   p->to.type != D_CREG || p->to.reg == NREG)
+		if(p->from.type != TYPE_REG || p->from.reg < REG_C0 || REG_C7 < p->from.reg ||
+		   p->to.type != TYPE_REG || p->to.reg < REG_C0 || REG_C7 < p->to.reg)
 			ctxt->diag("illegal CR field number\n%P", p);
 		o1 = AOP_RRR(OP_MCRF, ((p->to.reg&7L)<<2), ((p->from.reg&7)<<2), 0);
 		break;
 
 	case 68:	/* mfcr rD; mfocrf CRM,rD */
-		if(p->from.type == D_CREG && p->from.reg != NREG){
+		if(p->from.type == TYPE_REG && REG_C0 <= p->from.reg && p->from.reg <= REG_C7) {
 			v = 1<<(7-(p->to.reg&7));	/* CR(n) */
 			o1 = AOP_RRR(OP_MFCR, p->to.reg, 0, 0) | (1<<20) | (v<<12);	/* new form, mfocrf */
 		}else
@@ -2241,12 +2234,12 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		break;
 
 	case 69:	/* mtcrf CRM,rS */
-		if(p->from3.type != D_NONE) {
-			if(p->to.reg != NREG)
+		if(p->from3.type != TYPE_NONE) {
+			if(p->to.reg != 0)
 				ctxt->diag("can't use both mask and CR(n)\n%P", p);
 			v = regoff(ctxt, &p->from3) & 0xff;
 		} else {
-			if(p->to.reg == NREG)
+			if(p->to.reg == 0)
 				v = 0xff;	/* CR */
 			else
 				v = 1<<(7-(p->to.reg&7));	/* CR(n) */
@@ -2255,7 +2248,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		break;
 
 	case 70:	/* [f]cmp r,r,cr*/
-		if(p->reg == NREG)
+		if(p->reg == 0)
 			r = 0;
 		else
 			r = (p->reg&7)<<2;
@@ -2263,7 +2256,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		break;
 
 	case 71:	/* cmp[l] r,i,cr*/
-		if(p->reg == NREG)
+		if(p->reg == 0)
 			r = 0;
 		else
 			r = (p->reg&7)<<2;
@@ -2275,18 +2268,18 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
 		break;
 
 	case 73:	/* mcrfs crfD,crfS */
-		if(p->from.type != D_FPSCR || p->from.reg == NREG ||
-		   p->to.type != D_CREG || p->to.reg == NREG)
+		if(p->from.type != TYPE_REG || p->from.reg != REG_FPSCR ||
+		   p->to.type != TYPE_REG || p->to.reg < REG_C0 || REG_C7 < p->to.reg)
 			ctxt->diag("illegal FPSCR/CR field number\n%P", p);
-		o1 = AOP_RRR(OP_MCRFS, ((p->to.reg&7L)<<2), ((p->from.reg&7)<<2), 0);
+		o1 = AOP_RRR(OP_MCRFS, ((p->to.reg&7L)<<2), ((0&7)<<2), 0);
 		break;
 
 	case 77:	/* syscall $scon, syscall Rx */
-		if(p->from.type == D_CONST) {
+		if(p->from.type == TYPE_CONST) {
 			if(p->from.offset > BIG || p->from.offset < -BIG)
 				ctxt->diag("illegal syscall, sysnum too large: %P", p);
 			o1 = AOP_IRR(OP_ADDI, REGZERO, REGZERO, p->from.offset);
-		} else if(p->from.type == D_REG) {
+		} else if(p->from.type == TYPE_REG) {
 			o1 = LOP_RRR(OP_OR, REGZERO, p->from.reg, p->from.reg);
 		} else {
 			ctxt->diag("illegal syscall: %P", p);
@@ -2640,10 +2633,10 @@ opirr(Link *ctxt, int a)
 	case AADD:	return OPVCC(14,0,0,0);
 	case AADDC:	return OPVCC(12,0,0,0);
 	case AADDCCC:	return OPVCC(13,0,0,0);
-	case AADD+AEND:	return OPVCC(15,0,0,0);		/* ADDIS/CAU */
+	case AADD+ALAST:	return OPVCC(15,0,0,0);		/* ADDIS/CAU */
 
 	case AANDCC:	return OPVCC(28,0,0,0);
-	case AANDCC+AEND:	return OPVCC(29,0,0,0);		/* ANDIS./ANDIU. */
+	case AANDCC+ALAST:	return OPVCC(29,0,0,0);		/* ANDIS./ANDIU. */
 
 	case ABR:	return OPVCC(18,0,0,0);
 	case ABL:	return OPVCC(18,0,0,0) | 1;
@@ -2670,7 +2663,7 @@ opirr(Link *ctxt, int a)
 	case AMULLW:	return OPVCC(7,0,0,0);
 
 	case AOR:	return OPVCC(24,0,0,0);
-	case AOR+AEND:	return OPVCC(25,0,0,0);		/* ORIS/ORIU */
+	case AOR+ALAST:	return OPVCC(25,0,0,0);		/* ORIS/ORIU */
 
 	case ARLWMI:	return OPVCC(20,0,0,0);		/* rlwimi */
 	case ARLWMICC:	return OPVCC(20,0,0,1);
@@ -2700,7 +2693,7 @@ opirr(Link *ctxt, int a)
 	case ATD:	return OPVCC(2,0,0,0);
 
 	case AXOR:	return OPVCC(26,0,0,0);		/* XORIL */
-	case AXOR+AEND:	return OPVCC(27,0,0,0);		/* XORIU */
+	case AXOR+ALAST:	return OPVCC(27,0,0,0);		/* XORIU */
 	}
 	ctxt->diag("bad opcode i/r %A", a);
 	return 0;

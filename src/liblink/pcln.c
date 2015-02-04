@@ -160,7 +160,7 @@ pctofileline(Link *ctxt, LSym *sym, int32 oldval, Prog *p, int32 phase, void *ar
 
 	USED(sym);
 
-	if(p->as == ctxt->arch->ATEXT || p->as == ctxt->arch->ANOP || p->as == ctxt->arch->AUSEFIELD || p->lineno == 0 || phase == 1)
+	if(p->as == ATEXT || p->as == ANOP || p->as == AUSEFIELD || p->lineno == 0 || phase == 1)
 		return oldval;
 	linkgetline(ctxt, p->lineno, &f, &l);
 	if(f == nil) {
@@ -223,7 +223,7 @@ pctopcdata(Link *ctxt, LSym *sym, int32 oldval, Prog *p, int32 phase, void *arg)
 {
 	USED(sym);
 
-	if(phase == 0 || p->as != ctxt->arch->APCDATA || p->from.offset != (uintptr)arg)
+	if(phase == 0 || p->as != APCDATA || p->from.offset != (uintptr)arg)
 		return oldval;
 	if((int32)p->to.offset != p->to.offset) {
 		ctxt->diag("overflow in PCDATA instruction: %P", p);
@@ -248,9 +248,9 @@ linkpcln(Link *ctxt, LSym *cursym)
 	npcdata = 0;
 	nfuncdata = 0;
 	for(p = cursym->text; p != nil; p = p->link) {
-		if(p->as == ctxt->arch->APCDATA && p->from.offset >= npcdata)
+		if(p->as == APCDATA && p->from.offset >= npcdata)
 			npcdata = p->from.offset+1;
-		if(p->as == ctxt->arch->AFUNCDATA && p->from.offset >= nfuncdata)
+		if(p->as == AFUNCDATA && p->from.offset >= nfuncdata)
 			nfuncdata = p->from.offset+1;
 	}
 
@@ -269,12 +269,12 @@ linkpcln(Link *ctxt, LSym *cursym)
 	havepc = emallocz(n);
 	havefunc = havepc + (npcdata+31)/32;
 	for(p = cursym->text; p != nil; p = p->link) {
-		if(p->as == ctxt->arch->AFUNCDATA) {
+		if(p->as == AFUNCDATA) {
 			if((havefunc[p->from.offset/32]>>(p->from.offset%32))&1)
 				ctxt->diag("multiple definitions for FUNCDATA $%d", p->from.offset);
 			havefunc[p->from.offset/32] |= 1<<(p->from.offset%32);
 		}
-		if(p->as == ctxt->arch->APCDATA)
+		if(p->as == APCDATA)
 			havepc[p->from.offset/32] |= 1<<(p->from.offset%32);
 	}
 	// pcdata.
@@ -288,10 +288,10 @@ linkpcln(Link *ctxt, LSym *cursym)
 	// funcdata
 	if(nfuncdata > 0) {
 		for(p = cursym->text; p != nil; p = p->link) {
-			if(p->as == ctxt->arch->AFUNCDATA) {
+			if(p->as == AFUNCDATA) {
 				i = p->from.offset;
 				pcln->funcdataoff[i] = p->to.offset;
-				if(p->to.type != ctxt->arch->D_CONST) {
+				if(p->to.type != TYPE_CONST) {
 					// TODO: Dedup.
 					//funcdata_bytes += p->to.sym->size;
 					pcln->funcdata[i] = p->to.sym;

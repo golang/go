@@ -135,7 +135,7 @@ func canpanic(gp *g) bool {
 	if gp == nil || gp != _m_.curg {
 		return false
 	}
-	if _m_.locks-_m_.softfloat != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.gcing != 0 || _m_.dying != 0 {
+	if _m_.locks-_m_.softfloat != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.preemptoff != "" || _m_.dying != 0 {
 		return false
 	}
 	status := readgstatus(gp)

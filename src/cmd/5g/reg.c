@@ -67,11 +67,7 @@ excise(Flow *r)
 	Prog *p;
 
 	p = r->prog;
-	p->as = ANOP;
-	p->scond = zprog.scond;
-	p->from = zprog.from;
-	p->to = zprog.to;
-	p->reg = zprog.reg;
+	nopout(p);
 }
 
 static void
@@ -199,7 +195,7 @@ regopt(Prog *firstp)
 		proginfo(&info, p);
 
 		// Avoid making variables for direct-called functions.
-		if(p->as == ABL && p->to.name == D_EXTERN)
+		if(p->as == ABL && p->to.name == NAME_EXTERN)
 			continue;
 
 		bit = mkvar(r, &p->from);
@@ -209,12 +205,8 @@ regopt(Prog *firstp)
 		if(info.flags & LeftAddr)
 			setaddrs(bit);
 
-		if(info.flags & RegRead) {	
-			if(p->from.type != D_FREG)
-				r->use1.b[0] |= RtoB(p->reg);
-			else
-				r->use1.b[0] |= FtoB(p->reg);
-		}
+		if(info.flags & RegRead)	
+			r->use1.b[0] |= RtoB(p->reg);
 
 		if(info.flags & (RightAddr | RightRead | RightWrite)) {
 			bit = mkvar(r, &p->to);
@@ -230,7 +222,7 @@ regopt(Prog *firstp)
 
 		/* the mod/div runtime routines smash R12 */
 		if(p->as == ADIV || p->as == ADIVU || p->as == AMOD || p->as == AMODU)
-			r->set.b[0] |= RtoB(12);
+			r->set.b[0] |= RtoB(REG_R12);
 	}
 	if(firstr == R)
 		return;
@@ -274,7 +266,7 @@ regopt(Prog *firstp)
 	}
 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
 		p = r->f.prog;
-		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
+		if(p->as == AVARDEF && isfat(((Node*)(p->to.node))->type) && ((Node*)(p->to.node))->opt != nil) {
 			active++;
 			walkvardef(p->to.node, r, active);
 		}
@@ -463,18 +455,11 @@ brk:
 		vreg = paint2(rgp->enter, rgp->varno, 0);
 		vreg = allreg(vreg, rgp);
 		if(debug['R']) {
-			if(rgp->regno >= NREG)
-				print("%L $%d F%d: %Q\n",
-					rgp->enter->f.prog->lineno,
-					rgp->cost,
-					rgp->regno-NREG,
-					bit);
-			else
-				print("%L $%d R%d: %Q\n",
-					rgp->enter->f.prog->lineno,
-					rgp->cost,
-					rgp->regno,
-					bit);
+			print("%L $%d %R: %Q\n",
+				rgp->enter->f.prog->lineno,
+				rgp->cost,
+				rgp->regno,
+				bit);
 		}
 		if(rgp->regno != 0)
 			paint3(rgp->enter, rgp->varno, vreg, rgp->regno);
@@ -529,7 +514,7 @@ brk:
 	for(p = firstp; p != P; p = p->link) {
 		while(p->link != P && p->link->as == ANOP)
 			p->link = p->link->link;
-		if(p->to.type == D_BRANCH)
+		if(p->to.type == TYPE_BRANCH)
 			while(p->to.u.branch != P && p->to.u.branch->as == ANOP)
 				p->to.u.branch = p->to.u.branch->link;
 		if(p->as == AMOVW && p->to.reg == 13) {
@@ -538,7 +523,7 @@ brk:
 //				print("%P adjusting %d\n", p, vreg);
 				continue;
 			}
-			if(p->from.type == D_CONST && p->to.type == D_REG) {
+			if(p->from.type == TYPE_CONST && p->to.type == TYPE_REG) {
 				if(p->from.offset != vreg)
 					print("in and out different\n");
 //				print("%P finish %d\n", p, vreg);
@@ -546,18 +531,18 @@ brk:
 				continue;
 			}
 
-//			print("%P %d %d from type\n", p, p->from.type, D_CONST);
-//			print("%P %d %d to type\n\n", p, p->to.type, D_REG);
+//			print("%P %d %d from type\n", p, p->from.type, TYPE_CONST);
+//			print("%P %d %d to type\n\n", p, p->to.type, TYPE_REG);
 		}
 
 		if(p->as == AMOVW && vreg != 0) {
 			if(p->from.sym != nil)
-			if(p->from.name == D_AUTO || p->from.name == D_PARAM) {
+			if(p->from.name == NAME_AUTO || p->from.name == NAME_PARAM) {
 				p->from.offset += vreg;
 //				print("%P adjusting from %d %d\n", p, vreg, p->from.type);
 			}
 			if(p->to.sym != nil)
-			if(p->to.name == D_AUTO || p->to.name == D_PARAM) {
+			if(p->to.name == NAME_AUTO || p->to.name == NAME_PARAM) {
 				p->to.offset += vreg;
 //				print("%P adjusting to %d %d\n", p, vreg, p->from.type);
 			}
@@ -640,7 +625,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	// If there's a stack fixup coming (after BL newproc or BL deferproc),
 	// delay the load until after the fixup.
 	p2 = p->link;
-	if(p2 && p2->as == AMOVW && p2->from.type == D_CONST && p2->from.reg == REGSP && p2->to.reg == REGSP && p2->to.type == D_REG)
+	if(p2 && p2->as == AMOVW && p2->from.type == TYPE_ADDR && p2->from.reg == REGSP && p2->to.reg == REGSP && p2->to.type == TYPE_REG)
 		p = p2;
 
 	p1->link = p->link;
@@ -655,9 +640,11 @@ addmove(Reg *r, int bn, int rn, int f)
 	a->sym = linksym(v->node->sym);
 	a->offset = v->offset;
 	a->etype = v->etype;
-	a->type = D_OREG;
-	if(a->etype == TARRAY || a->sym == nil)
-		a->type = D_CONST;
+	a->type = TYPE_MEM;
+	if(a->etype == TARRAY)
+		a->type = TYPE_ADDR;
+	else if(a->sym == nil)
+		a->type = TYPE_CONST;
 
 	if(v->addr)
 		fatal("addmove: shouldn't be doing this %A\n", a);
@@ -693,21 +680,13 @@ addmove(Reg *r, int bn, int rn, int f)
 		break;
 	}
 
-	p1->from.type = D_REG;
+	p1->from.type = TYPE_REG;
 	p1->from.reg = rn;
-	if(rn >= NREG) {
-		p1->from.type = D_FREG;
-		p1->from.reg = rn-NREG;
-	}
 	if(!f) {
 		p1->from = *a;
 		*a = zprog.from;
-		a->type = D_REG;
+		a->type = TYPE_REG;
 		a->reg = rn;
-		if(rn >= NREG) {
-			a->type = D_FREG;
-			a->reg = rn-NREG;
-		}
 		if(v->etype == TUINT8 || v->etype == TBOOL)
 			p1->as = AMOVBU;
 		if(v->etype == TUINT16)
@@ -749,33 +728,38 @@ mkvar(Reg *r, Adr *a)
 		print("type %d %d %D\n", t, a->name, a);
 		goto none;
 
-	case D_NONE:
-	case D_FCONST:
-	case D_BRANCH:
+	case TYPE_NONE:
+	case TYPE_FCONST:
+	case TYPE_BRANCH:
 		break;
 
 
-	case D_REGREG:
-	case D_REGREG2:
+	case TYPE_REGREG:
+	case TYPE_REGREG2:
 		bit = zbits;
-		if(a->offset != NREG)
+		if(a->offset != 0)
 			bit.b[0] |= RtoB(a->offset);
-		if(a->reg != NREG)
+		if(a->reg != 0)
 			bit.b[0] |= RtoB(a->reg);
 		return bit;
+	
+	case TYPE_CONST:
+		if(a->reg != 0)
+			fatal("found CONST instead of ADDR: %D", a);
+		break;
 
-	case D_CONST:
-	case D_REG:
-	case D_SHIFT:
-		if(a->reg != NREG) {
+	case TYPE_ADDR:
+	case TYPE_REG:
+	case TYPE_SHIFT:
+		if(a->reg != 0) {
 			bit = zbits;
 			bit.b[0] = RtoB(a->reg);
 			return bit;
 		}
 		break;
 
-	case D_OREG:
-		if(a->reg != NREG) {
+	case TYPE_MEM:
+		if(a->reg != 0) {
 			if(a == &r->f.prog->from)
 				r->use1.b[0] |= RtoB(a->reg);
 			else
@@ -784,24 +768,16 @@ mkvar(Reg *r, Adr *a)
 				r->set.b[0] |= RtoB(a->reg);
 		}
 		break;
-
-	case D_FREG:
-		if(a->reg != NREG) {
-			bit = zbits;
-			bit.b[0] = FtoB(a->reg);
-			return bit;
-		}
-		break;
 	}
 
 	switch(a->name) {
 	default:
 		goto none;
 
-	case D_EXTERN:
-	case D_STATIC:
-	case D_AUTO:
-	case D_PARAM:
+	case NAME_EXTERN:
+	case NAME_STATIC:
+	case NAME_AUTO:
+	case NAME_PARAM:
 		n = a->name;
 		break;
 	}
@@ -878,10 +854,10 @@ mkvar(Reg *r, Adr *a)
 	node->opt = v;
 	
 	bit = blsh(i);
-	if(n == D_EXTERN || n == D_STATIC)
+	if(n == NAME_EXTERN || n == NAME_STATIC)
 		for(z=0; z<BITS; z++)
 			externs.b[z] |= bit.b[z];
-	if(n == D_PARAM)
+	if(n == NAME_PARAM)
 		for(z=0; z<BITS; z++)
 			params.b[z] |= bit.b[z];
 
@@ -1103,8 +1079,8 @@ allreg(uint32 b, Rgn *r)
 	case TFLOAT64:
 		i = BtoF(~b);
 		if(i && r->cost >= 0) {
-			r->regno = i+NREG;
-			return FtoB(i);
+			r->regno = i;
+			return RtoB(i);
 		}
 		break;
 
@@ -1329,13 +1305,9 @@ addreg(Adr *a, int rn)
 {
 	a->sym = nil;
 	a->node = nil;
-	a->name = D_NONE;
-	a->type = D_REG;
+	a->name = NAME_NONE;
+	a->type = TYPE_REG;
 	a->reg = rn;
-	if(rn >= NREG) {
-		a->type = D_FREG;
-		a->reg = rn-NREG;
-	}
 }
 
 /*
@@ -1345,13 +1317,29 @@ addreg(Adr *a, int rn)
  *	...	...
  *	10	R10
  *	12  R12
+ *
+ *	bit	reg
+ *	18	F2
+ *	19	F3
+ *	...	...
+ *	31	F15
  */
 uint32
 RtoB(int r)
 {
-	if(r >= REGTMP-2 && r != 12)	// excluded R9 and R10 for m and g, but not R12
-		return 0;
-	return 1L << r;
+	if(REG_R0 <= r && r <= REG_R15) {
+		if(r >= REGTMP-2 && r != REG_R12)	// excluded R9 and R10 for m and g, but not R12
+			return 0;
+		return 1L << (r - REG_R0);
+	}
+	
+	if(REG_F0 <= r && r <= REG_F15) {
+		if(r < REG_F2 || r > REG_F0+NFREG-1)
+			return 0;
+		return 1L << ((r - REG_F0) + 16);
+	}
+	
+	return 0;
 }
 
 int
@@ -1362,33 +1350,16 @@ BtoR(uint32 b)
 	b &= 0x11fcL;	// excluded R9 and R10 for m and g, but not R12
 	if(b == 0)
 		return 0;
-	return bitno(b);
-}
-
-/*
- *	bit	reg
- *	18	F2
- *	19	F3
- *	...	...
- *	31	F15
- */
-uint32
-FtoB(int f)
-{
-
-	if(f < 2 || f > NFREG-1)
-		return 0;
-	return 1L << (f + 16);
+	return bitno(b) + REG_R0;
 }
 
 int
 BtoF(uint32 b)
 {
-
 	b &= 0xfffc0000L;
 	if(b == 0)
 		return 0;
-	return bitno(b) - 16;
+	return bitno(b) - 16 + REG_F0;
 }
 
 void

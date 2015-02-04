@@ -38,8 +38,7 @@
 
 enum
 {
-	AXXX,
-	AAAA,
+	AAAA = A_ARCHSPECIFIC,
 	AAAD,
 	AAAM,
 	AAAS,
@@ -69,7 +68,6 @@ enum
 	ABTSL,
 	ABTSW,
 	ABYTE,
-	ACALL,
 	ACLC,
 	ACLD,
 	ACLI,
@@ -83,7 +81,6 @@ enum
 	ACMPSW,
 	ADAA,
 	ADAS,
-	ADATA,
 	ADECB,
 	ADECL,
 	ADECQ,
@@ -92,9 +89,6 @@ enum
 	ADIVL,
 	ADIVW,
 	AENTER,
-	AGLOBL,
-	AGOK,
-	AHISTORY,
 	AHLT,
 	AIDIVB,
 	AIDIVL,
@@ -127,7 +121,6 @@ enum
 	AJLS,
 	AJLT,
 	AJMI,
-	AJMP,
 	AJNE,
 	AJOC,
 	AJOS,
@@ -170,11 +163,9 @@ enum
 	AMULB,
 	AMULL,
 	AMULW,
-	ANAME,
 	ANEGB,
 	ANEGL,
 	ANEGW,
-	ANOP,
 	ANOTB,
 	ANOTL,
 	ANOTW,
@@ -208,7 +199,6 @@ enum
 	ARCRW,
 	AREP,
 	AREPN,
-	ARET,
 	AROLB,
 	AROLL,
 	AROLW,
@@ -265,7 +255,6 @@ enum
 	ATESTB,
 	ATESTL,
 	ATESTW,
-	ATEXT,
 	AVERR,
 	AVERW,
 	AWAIT,
@@ -386,12 +375,8 @@ enum
 	AFYL2X,
 	AFYL2XP1,
 
-	AEND,
 
-	ADYNT_,
-	AINIT_,
 
-	ASIGNAME,
 
 	/* extra 32-bit operations */
 	ACMPXCHGB,
@@ -745,7 +730,6 @@ enum
 	ABSWAPL,
 	ABSWAPQ,
 	
-	AUNDEF,
 
 	AAESENC,
 	AAESENCLAST,
@@ -757,115 +741,102 @@ enum
 	APSHUFD,
 	APCLMULQDQ,
 	
-	AUSEFIELD,
-	ATYPE,
-	AFUNCDATA,
-	APCDATA,
-	ACHECKNIL,
-	AVARDEF,
-	AVARKILL,
-	ADUFFCOPY,
-	ADUFFZERO,
 	
 	ALAST
 };
 
 enum
 {
+	REG_NONE	= 0,
 
-	D_AL		= 0,
-	D_CL,
-	D_DL,
-	D_BL,
-	D_SPB,
-	D_BPB,
-	D_SIB,
-	D_DIB,
-	D_R8B,
-	D_R9B,
-	D_R10B,
-	D_R11B,
-	D_R12B,
-	D_R13B,
-	D_R14B,
-	D_R15B,
+	REG_AL		= 0+16,
+	REG_CL,
+	REG_DL,
+	REG_BL,
+	REG_SPB,
+	REG_BPB,
+	REG_SIB,
+	REG_DIB,
+	REG_R8B,
+	REG_R9B,
+	REG_R10B,
+	REG_R11B,
+	REG_R12B,
+	REG_R13B,
+	REG_R14B,
+	REG_R15B,
 
-	D_AX		= 16,
-	D_CX,
-	D_DX,
-	D_BX,
-	D_SP,
-	D_BP,
-	D_SI,
-	D_DI,
-	D_R8,
-	D_R9,
-	D_R10,
-	D_R11,
-	D_R12,
-	D_R13,
-	D_R14,
-	D_R15,
+	REG_AX		= 16+16,
+	REG_CX,
+	REG_DX,
+	REG_BX,
+	REG_SP,
+	REG_BP,
+	REG_SI,
+	REG_DI,
+	REG_R8,
+	REG_R9,
+	REG_R10,
+	REG_R11,
+	REG_R12,
+	REG_R13,
+	REG_R14,
+	REG_R15,
 
-	D_AH		= 32,
-	D_CH,
-	D_DH,
-	D_BH,
+	REG_AH		= 32+16,
+	REG_CH,
+	REG_DH,
+	REG_BH,
 
-	D_F0		= 36,
+	REG_F0		= 36+16,
 
-	D_M0		= 44,
+	REG_M0		= 44+16,
 
-	D_X0		= 52,
-	D_X1,
-	D_X2,
-	D_X3,
-	D_X4,
-	D_X5,
-	D_X6,
-	D_X7,
-	D_X8,
-	D_X9,
-	D_X10,
-	D_X11,
-	D_X12,
-	D_X13,
-	D_X14,
-	D_X15,
+	REG_X0		= 52+16,
+	REG_X1,
+	REG_X2,
+	REG_X3,
+	REG_X4,
+	REG_X5,
+	REG_X6,
+	REG_X7,
+	REG_X8,
+	REG_X9,
+	REG_X10,
+	REG_X11,
+	REG_X12,
+	REG_X13,
+	REG_X14,
+	REG_X15,
 
-	D_CS		= 68,
-	D_SS,
-	D_DS,
-	D_ES,
-	D_FS,
-	D_GS,
+	REG_CS		= 68+16,
+	REG_SS,
+	REG_DS,
+	REG_ES,
+	REG_FS,
+	REG_GS,
 
-	D_GDTR,		/* global descriptor table register */
-	D_IDTR,		/* interrupt descriptor table register */
-	D_LDTR,		/* local descriptor table register */
-	D_MSW,		/* machine status word */
-	D_TASK,		/* task register */
+	REG_GDTR,		/* global descriptor table register */
+	REG_IDTR,		/* interrupt descriptor table register */
+	REG_LDTR,		/* local descriptor table register */
+	REG_MSW,		/* machine status word */
+	REG_TASK,		/* task register */
 
-	D_CR		= 79,
-	D_DR		= 95,
-	D_TR		= 103,
+	REG_CR		= 79+16,
+	REG_DR		= 95+16,
+	REG_TR		= 103+16,
 
-	D_TLS		= 111,
-	D_NONE		= 112,
+	REG_TLS		= 111+16,
+	MAXREG,
 
-	D_BRANCH	= 113,
-	D_EXTERN	= 114,
-	D_STATIC	= 115,
-	D_AUTO		= 116,
-	D_PARAM		= 117,
-	D_CONST		= 118,
-	D_FCONST	= 119,
-	D_SCONST	= 120,
-	D_ADDR		= 121,
-
-	D_INDIR,	/* additive */
-
-	D_LAST,
+	REGARG		= -1,
+	REGRET		= REG_AX,
+	FREGRET		= REG_X0,
+	REGSP		= REG_SP,
+	REGTMP		= REG_DI,
+	REGEXT		= REG_R15,	/* compiler allocates external registers R15 down */
+	FREGMIN		= REG_X0+5,	/* first register variable */
+	FREGEXT		= REG_X0+15,	/* first external register */
 
 	T_TYPE		= 1<<0,
 	T_INDEX		= 1<<1,
@@ -875,15 +846,6 @@ enum
 	T_SCONST	= 1<<5,
 	T_64		= 1<<6,
 	T_GOTYPE	= 1<<7,
-
-	REGARG		= -1,
-	REGRET		= D_AX,
-	FREGRET		= D_X0,
-	REGSP		= D_SP,
-	REGTMP		= D_DI,
-	REGEXT		= D_R15,	/* compiler allocates external registers R15 down */
-	FREGMIN		= D_X0+5,	/* first register variable */
-	FREGEXT		= D_X0+15	/* first external register */
 };
 
 /*

@@ -1658,7 +1658,7 @@ writelines(void)
 		dwfunc->hash = varhash;	 // enable indexing of children by name
 		memset(varhash, 0, sizeof varhash);
 		for(a = s->autom; a; a = a->link) {
-			switch (a->type) {
+			switch (a->name) {
 			case A_AUTO:
 				dt = DW_ABRV_AUTO;
 				offs = a->aoffset - PtrSize;

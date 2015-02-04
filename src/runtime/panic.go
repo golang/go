@@ -353,11 +353,14 @@ func gopanic(e interface{}) {
 		print("\n")
 		throw("panic during malloc")
 	}
-	if gp.m.gcing != 0 {
+	if gp.m.preemptoff != "" {
 		print("panic: ")
 		printany(e)
 		print("\n")
-		throw("panic during gc")
+		print("preempt off reason: ")
+		print(gp.m.preemptoff)
+		print("\n")
+		throw("panic during preemptoff")
 	}
 	if gp.m.locks != 0 {
 		print("panic: ")

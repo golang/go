@@ -15,8 +15,7 @@
 
 #include <u.h>
 #include <libc.h>
-#include "gg.h"
-#include "opt.h"
+#include "go.h"
 #include "../ld/textflag.h"
 #include "../../runtime/funcdata.h"
 #include "../../runtime/mgc0.h"
@@ -513,7 +512,7 @@ newcfg(Prog *firstp)
 	bb = newblock(firstp);
 	arrayadd(cfg, &bb);
 	for(p = firstp; p != P; p = p->link) {
-		if(p->to.type == D_BRANCH) {
+		if(p->to.type == TYPE_BRANCH) {
 			if(p->to.u.branch == nil)
 				fatal("prog branch to nil");
 			if(p->to.u.branch->opt == nil) {
@@ -552,19 +551,13 @@ newcfg(Prog *firstp)
 			if(isselectgocall(p))
 				arrayadd(selectgo, &bb);
 		}
-		if(bb->last->to.type == D_BRANCH)
+		if(bb->last->to.type == TYPE_BRANCH)
 			addedge(bb, bb->last->to.u.branch->opt);
 		if(bb->last->link != nil) {
 			// Add a fall-through when the instruction is
 			// not an unconditional control transfer.
-			switch(bb->last->as) {
-			case AJMP:
-			case ARET:
-			case AUNDEF:
-				break;
-			default:
+			if(bb->last->as != AJMP && bb->last->as != ARET && bb->last->as != AUNDEF)
 				addedge(bb, bb->last->link->opt);
-			}
 		}
 	}
 
@@ -625,15 +618,15 @@ freecfg(Array *cfg)
 	BasicBlock *bb0;
 	Prog *p;
 	int32 i;
-	int32 len;
+	int32 n;
 
-	len = arraylength(cfg);
-	if(len > 0) {
+	n = arraylength(cfg);
+	if(n > 0) {
 		bb0 = *(BasicBlock**)arrayget(cfg, 0);
 		for(p = bb0->first; p != P; p = p->link) {
 			p->opt = nil;
 		}
-		for(i = 0; i < len; i++) {
+		for(i = 0; i < n; i++) {
 			bb = *(BasicBlock**)arrayget(cfg, i);
 			freeblock(bb);
 		}
@@ -684,7 +677,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 	bvresetall(varkill);
 	bvresetall(avarinit);
 
-	proginfo(&info, prog);
+	arch.proginfo(&info, prog);
 	if(prog->as == ARET) {
 		// Return instructions implicitly read all the arguments.  For
 		// the sake of correctness, out arguments must be read.  For the
@@ -708,10 +701,10 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 				// If we added it to uevar too, we'd not see any kill
 				// and decide that the varible was live entry, which it is not.
 				// So only use uevar in the non-addrtaken case.
-				// The p->to.type == D_NONE limits the bvset to
+				// The p->to.type == arch.D_NONE limits the bvset to
 				// non-tail-call return instructions; see note above
 				// the for loop for details.
-				if(!node->addrtaken && prog->to.type == D_NONE)
+				if(!node->addrtaken && prog->to.type == TYPE_NONE)
 					bvset(uevar, i);
 				break;
 			}
@@ -735,23 +728,23 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 	}
 	if(info.flags & (LeftRead | LeftWrite | LeftAddr)) {
 		from = &prog->from;
-		if (from->node != nil && from->sym != nil && from->node->curfn == curfn) {
-			switch(from->node->class & ~PHEAP) {
+		if (from->node != nil && from->sym != nil && ((Node*)(from->node))->curfn == curfn) {
+			switch(((Node*)(from->node))->class & ~PHEAP) {
 			case PAUTO:
 			case PPARAM:
 			case PPARAMOUT:
-				pos = (int)(uintptr)from->node->opt - 1; // index in vars
+				pos = (int)(uintptr)((Node*)(from->node))->opt - 1; // index in vars
 				if(pos == -1)
 					goto Next;
 				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != from->node)
 					fatal("bad bookkeeping in liveness %N %d", from->node, pos);
-				if(from->node->addrtaken) {
+				if(((Node*)(from->node))->addrtaken) {
 					bvset(avarinit, pos);
 				} else {
 					if(info.flags & (LeftRead | LeftAddr))
 						bvset(uevar, pos);
 					if(info.flags & LeftWrite)
-						if(from->node != nil && !isfat(from->node->type))
+						if(from->node != nil && !arch.isfat(((Node*)(from->node))->type))
 							bvset(varkill, pos);
 				}
 			}
@@ -760,17 +753,17 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 Next:
 	if(info.flags & (RightRead | RightWrite | RightAddr)) {
 		to = &prog->to;
-		if (to->node != nil && to->sym != nil && to->node->curfn == curfn) {
-			switch(to->node->class & ~PHEAP) {
+		if (to->node != nil && to->sym != nil && ((Node*)(to->node))->curfn == curfn) {
+			switch(((Node*)(to->node))->class & ~PHEAP) {
 			case PAUTO:
 			case PPARAM:
 			case PPARAMOUT:
-				pos = (int)(uintptr)to->node->opt - 1; // index in vars
+				pos = (int)(uintptr)((Node*)(to->node))->opt - 1; // index in vars
 				if(pos == -1)
 					goto Next1;
 				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != to->node)
 					fatal("bad bookkeeping in liveness %N %d", to->node, pos);
-				if(to->node->addrtaken) {
+				if(((Node*)(to->node))->addrtaken) {
 					if(prog->as != AVARKILL)
 						bvset(avarinit, pos);
 					if(prog->as == AVARDEF || prog->as == AVARKILL)
@@ -787,7 +780,7 @@ Next:
 					if((info.flags & RightRead) || (info.flags & (RightAddr|RightWrite)) == RightAddr)
 						bvset(uevar, pos);
 					if(info.flags & RightWrite)
-						if(to->node != nil && (!isfat(to->node->type) || prog->as == AVARDEF))
+						if(to->node != nil && (!arch.isfat(((Node*)(to->node))->type) || prog->as == AVARDEF))
 							bvset(varkill, pos);
 				}
 			}
@@ -898,8 +891,12 @@ printnode(Node *node)
 	char *p;
 	char *a;
 
-	p = haspointers(node->type) ? "^" : "";
-	a = node->addrtaken ? "@" : "";
+	p = "";
+	if(haspointers(node->type))
+		p = "^";
+	a = "";
+	if(node->addrtaken)
+		a = "@";
 	print(" %N%s%s", node, p, a);
 }
 
@@ -990,6 +987,10 @@ checkauto(Node *fn, Prog *p, Node *n)
 		if(l->n->op == ONAME && l->n->class == PAUTO && l->n == n)
 			return;
 
+	if(n == nil) {
+		print("%L: checkauto %N: nil node in %P\n", p->lineno, curfn, p);
+		return;
+	}
 	print("checkauto %N: %N (%p; class=%d) not found in %P\n", curfn, n, n, n->class, p);
 	for(l = fn->dcl; l != nil; l = l->next)
 		print("\t%N (%p; class=%d)\n", l->n, l->n, l->n->class);
@@ -1021,13 +1022,13 @@ checkparam(Node *fn, Prog *p, Node *n)
 static void
 checkprog(Node *fn, Prog *p)
 {
-	if(p->from.type == D_AUTO)
+	if(p->from.name == NAME_AUTO)
 		checkauto(fn, p, p->from.node);
-	if(p->from.type == D_PARAM)
+	if(p->from.name == NAME_PARAM)
 		checkparam(fn, p, p->from.node);
-	if(p->to.type == D_AUTO)
+	if(p->to.name == NAME_AUTO)
 		checkauto(fn, p, p->to.node);
-	if(p->to.type == D_PARAM)
+	if(p->to.name == NAME_PARAM)
 		checkparam(fn, p, p->to.node);
 }
 
@@ -1047,15 +1048,8 @@ checkptxt(Node *fn, Prog *firstp)
 	for(p = firstp; p != P; p = p->link) {
 		if(0)
 			print("analyzing '%P'\n", p);
-		switch(p->as) {
-		case ADATA:
-		case AGLOBL:
-		case ANAME:
-		case ASIGNAME:
-		case ATYPE:
-			continue;
-		}
-		checkprog(fn, p);
+		if(p->as != ADATA && p->as != AGLOBL && p->as != ATYPE)
+			checkprog(fn, p);
 	}
 }
 
@@ -1224,7 +1218,7 @@ unlinkedprog(int as)
 	Prog *p;
 
 	p = mal(sizeof(*p));
-	clearp(p);
+	arch.clearp(p);
 	p->as = as;
 	return p;
 }
@@ -1241,8 +1235,8 @@ newpcdataprog(Prog *prog, int32 index)
 	nodconst(&to, types[TINT32], index);
 	pcdata = unlinkedprog(APCDATA);
 	pcdata->lineno = prog->lineno;
-	naddr(&from, &pcdata->from, 0);
-	naddr(&to, &pcdata->to, 0);
+	arch.naddr(&from, &pcdata->from, 0);
+	arch.naddr(&to, &pcdata->to, 0);
 	return pcdata;
 }
 
@@ -1487,25 +1481,21 @@ livenessepilogue(Liveness *lv)
 				// Annotate ambiguously live variables so that they can
 				// be zeroed at function entry.
 				// livein and liveout are dead here and used as temporaries.
-				// For now, only enabled when using GOEXPERIMENT=precisestack
-				// during make.bash / all.bash.
-				if(precisestack_enabled) {
-					bvresetall(livein);
-					bvandnot(liveout, any, all);
-					if(!bvisempty(liveout)) {
-						for(pos = 0; pos < liveout->n; pos++) {
-							if(!bvget(liveout, pos))
-								continue;
-							bvset(all, pos); // silence future warnings in this block
-							n = *(Node**)arrayget(lv->vars, pos);
-							if(!n->needzero) {
-								n->needzero = 1;
-								if(debuglive >= 1)
-									warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
-								// Record in 'ambiguous' bitmap.
-								xoffset = n->xoffset + stkptrsize;
-								twobitwalktype1(n->type, &xoffset, ambig);
-							}
+				bvresetall(livein);
+				bvandnot(liveout, any, all);
+				if(!bvisempty(liveout)) {
+					for(pos = 0; pos < liveout->n; pos++) {
+						if(!bvget(liveout, pos))
+							continue;
+						bvset(all, pos); // silence future warnings in this block
+						n = *(Node**)arrayget(lv->vars, pos);
+						if(!n->needzero) {
+							n->needzero = 1;
+							if(debuglive >= 1)
+								warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
+							// Record in 'ambiguous' bitmap.
+							xoffset = n->xoffset + stkptrsize;
+							twobitwalktype1(n->type, &xoffset, ambig);
 						}
 					}
 				}
@@ -1608,11 +1598,11 @@ livenessepilogue(Liveness *lv)
 					fmtstrinit(&fmt);
 					fmtprint(&fmt, "%L: live at ", p->lineno);
 					if(p->as == ACALL && p->to.node)
-						fmtprint(&fmt, "call to %s:", p->to.node->sym->name);
+						fmtprint(&fmt, "call to %s:", ((Node*)(p->to.node))->sym->name);
 					else if(p->as == ACALL)
 						fmtprint(&fmt, "indirect call:");
 					else
-						fmtprint(&fmt, "entry to %s:", p->from.node->sym->name);
+						fmtprint(&fmt, "entry to %s:", ((Node*)(p->from.node))->sym->name);
 					numlive = 0;
 					for(j = 0; j < arraylength(lv->vars); j++) {
 						n = *(Node**)arrayget(lv->vars, j);
@@ -1684,12 +1674,17 @@ enum
 static uint32
 hashbitmap(uint32 h, Bvec *bv)
 {
-	uchar *p, *ep;
+	int i, n;
+	uint32 w;
 	
-	p = (uchar*)bv->b;
-	ep = p + 4*((bv->n+31)/32);
-	while(p < ep)
-		h = (h*Hp) ^ *p++;
+	n = (bv->n+31)/32;
+	for(i=0; i<n; i++) {
+		w = bv->b[i];
+		h = (h*Hp) ^ (w&0xff);
+		h = (h*Hp) ^ ((w>>8)&0xff);
+		h = (h*Hp) ^ ((w>>16)&0xff);
+		h = (h*Hp) ^ ((w>>24)&0xff);
+	}
 	return h;
 }
 
@@ -1937,7 +1932,7 @@ twobitwritesymbol(Array *arr, Sym *sym)
 		}
 	}
 	duint32(sym, 0, i); // number of bitmaps
-	ggloblsym(sym, off, RODATA);
+	arch.ggloblsym(sym, off, RODATA);
 }
 
 static void

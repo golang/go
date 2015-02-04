@@ -10,6 +10,7 @@ import _ "unsafe" // for go:linkname
 
 var ticks struct {
 	lock mutex
+	pad  uint32 // ensure 8-byte alignment of val on 386
 	val  uint64
 }
 
@@ -44,14 +45,6 @@ func tickspersecond() int64 {
 
 func makeStringSlice(n int) []string {
 	return make([]string, n)
-}
-
-// TODO: Move to parfor.go when parfor.c becomes parfor.go.
-func parforalloc(nthrmax uint32) *parfor {
-	return &parfor{
-		thr:     &make([]parforthread, nthrmax)[0],
-		nthrmax: nthrmax,
-	}
 }
 
 var envs []string

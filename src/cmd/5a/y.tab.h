@@ -50,43 +50,44 @@
      LTYPE9 = 266,
      LTYPEA = 267,
      LTYPEB = 268,
-     LTYPEC = 269,
-     LTYPED = 270,
-     LTYPEE = 271,
-     LTYPEG = 272,
-     LTYPEH = 273,
-     LTYPEI = 274,
-     LTYPEJ = 275,
-     LTYPEK = 276,
-     LTYPEL = 277,
-     LTYPEM = 278,
-     LTYPEN = 279,
-     LTYPEBX = 280,
-     LTYPEPLD = 281,
-     LCONST = 282,
-     LSP = 283,
-     LSB = 284,
-     LFP = 285,
-     LPC = 286,
-     LTYPEX = 287,
-     LTYPEPC = 288,
-     LTYPEF = 289,
-     LR = 290,
-     LREG = 291,
-     LF = 292,
-     LFREG = 293,
-     LC = 294,
-     LCREG = 295,
-     LPSR = 296,
-     LFCR = 297,
-     LCOND = 298,
-     LS = 299,
-     LAT = 300,
-     LFCONST = 301,
-     LSCONST = 302,
-     LNAME = 303,
-     LLAB = 304,
-     LVAR = 305
+     LGLOBL = 269,
+     LTYPEC = 270,
+     LTYPED = 271,
+     LTYPEE = 272,
+     LTYPEG = 273,
+     LTYPEH = 274,
+     LTYPEI = 275,
+     LTYPEJ = 276,
+     LTYPEK = 277,
+     LTYPEL = 278,
+     LTYPEM = 279,
+     LTYPEN = 280,
+     LTYPEBX = 281,
+     LTYPEPLD = 282,
+     LCONST = 283,
+     LSP = 284,
+     LSB = 285,
+     LFP = 286,
+     LPC = 287,
+     LTYPEX = 288,
+     LTYPEPC = 289,
+     LTYPEF = 290,
+     LR = 291,
+     LREG = 292,
+     LF = 293,
+     LFREG = 294,
+     LC = 295,
+     LCREG = 296,
+     LPSR = 297,
+     LFCR = 298,
+     LCOND = 299,
+     LS = 300,
+     LAT = 301,
+     LFCONST = 302,
+     LSCONST = 303,
+     LNAME = 304,
+     LLAB = 305,
+     LVAR = 306
    };
 #endif
 /* Tokens.  */
@@ -101,43 +102,44 @@
 #define LTYPE9 266
 #define LTYPEA 267
 #define LTYPEB 268
-#define LTYPEC 269
-#define LTYPED 270
-#define LTYPEE 271
-#define LTYPEG 272
-#define LTYPEH 273
-#define LTYPEI 274
-#define LTYPEJ 275
-#define LTYPEK 276
-#define LTYPEL 277
-#define LTYPEM 278
-#define LTYPEN 279
-#define LTYPEBX 280
-#define LTYPEPLD 281
-#define LCONST 282
-#define LSP 283
-#define LSB 284
-#define LFP 285
-#define LPC 286
-#define LTYPEX 287
-#define LTYPEPC 288
-#define LTYPEF 289
-#define LR 290
-#define LREG 291
-#define LF 292
-#define LFREG 293
-#define LC 294
-#define LCREG 295
-#define LPSR 296
-#define LFCR 297
-#define LCOND 298
-#define LS 299
-#define LAT 300
-#define LFCONST 301
-#define LSCONST 302
-#define LNAME 303
-#define LLAB 304
-#define LVAR 305
+#define LGLOBL 269
+#define LTYPEC 270
+#define LTYPED 271
+#define LTYPEE 272
+#define LTYPEG 273
+#define LTYPEH 274
+#define LTYPEI 275
+#define LTYPEJ 276
+#define LTYPEK 277
+#define LTYPEL 278
+#define LTYPEM 279
+#define LTYPEN 280
+#define LTYPEBX 281
+#define LTYPEPLD 282
+#define LCONST 283
+#define LSP 284
+#define LSB 285
+#define LFP 286
+#define LPC 287
+#define LTYPEX 288
+#define LTYPEPC 289
+#define LTYPEF 290
+#define LR 291
+#define LREG 292
+#define LF 293
+#define LFREG 294
+#define LC 295
+#define LCREG 296
+#define LPSR 297
+#define LFCR 298
+#define LCOND 299
+#define LS 300
+#define LAT 301
+#define LFCONST 302
+#define LSCONST 303
+#define LNAME 304
+#define LLAB 305
+#define LVAR 306
 
 
 
@@ -153,7 +155,7 @@ typedef union YYSTYPE
 	Addr	addr;
 }
 /* Line 1529 of yacc.c.  */
-#line 157 "y.tab.h"
+#line 159 "y.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

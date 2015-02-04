@@ -241,7 +241,7 @@ mktag(int mask)
 		return tags[mask];
 
 	snprint(buf, sizeof buf, "esc:0x%x", mask);
-	s = strlit(buf);
+	s = newstrlit(buf);
 	if(mask < nelem(tags))
 		tags[mask] = s;
 	return s;
@@ -429,7 +429,7 @@ esc(EscState *e, Node *n, Node *up)
 {
 	int lno;
 	NodeList *ll, *lr;
-	Node *a;
+	Node *a, *v;
 
 	if(n == N)
 		return;
@@ -511,6 +511,36 @@ esc(EscState *e, Node *n, Node *up)
 
 	case OAS:
 	case OASOP:
+		// Filter out the following special case.
+		//
+		//	func (b *Buffer) Foo() {
+		//		n, m := ...
+		//		b.buf = b.buf[n:m]
+		//	}
+		//
+		// This assignment is a no-op for escape analysis,
+		// it does not store any new pointers into b that were not already there.
+		// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
+		if((n->left->op == OIND || n->left->op == ODOTPTR) && n->left->left->op == ONAME && // dst is ONAME dereference
+			(n->right->op == OSLICE || n->right->op == OSLICE3 || n->right->op == OSLICESTR) && // src is slice operation
+			(n->right->left->op == OIND || n->right->left->op == ODOTPTR) && n->right->left->left->op == ONAME && // slice is applied to ONAME dereference
+			n->left->left == n->right->left->left) { // dst and src reference the same base ONAME
+			// Here we also assume that the statement will not contain calls,
+			// that is, that order will move any calls to init.
+			// Otherwise base ONAME value could change between the moments
+			// when we evaluate it for dst and for src.
+			//
+			// Note, this optimization does not apply to OSLICEARR,
+			// because it does introduce a new pointer into b that was not already there
+			// (pointer to b itself). After such assignment, if b contents escape,
+			// b escapes as well. If we ignore such OSLICEARR, we will conclude
+			// that b does not escape when b contents do.
+			if(debug['m']) {
+				warnl(n->lineno, "%S ignoring self-assignment to %hN",
+					(n->curfn && n->curfn->nname) ? n->curfn->nname->sym : S, n->left);
+			}
+			break;
+		}
 		escassign(e, n->left, n->right);
 		break;
 
@@ -615,15 +645,15 @@ esc(EscState *e, Node *n, Node *up)
 		for(ll=n->list; ll; ll=ll->next)
 			escassign(e, n, ll->n->right);
 		break;
-	
+
 	case OPTRLIT:
 		n->esc = EscNone;  // until proven otherwise
 		e->noesc = list(e->noesc, n);
 		n->escloopdepth = e->loopdepth;
-		// Contents make it to memory, lose track.
-		escassign(e, &e->theSink, n->left);
+		// Link OSTRUCTLIT to OPTRLIT; if OPTRLIT escapes, OSTRUCTLIT elements do too.
+		escassign(e, n, n->left);
 		break;
-	
+
 	case OCALLPART:
 		n->esc = EscNone; // until proven otherwise
 		e->noesc = list(e->noesc, n);
@@ -646,12 +676,16 @@ esc(EscState *e, Node *n, Node *up)
 	case OCLOSURE:
 		// Link addresses of captured variables to closure.
 		for(ll=n->cvars; ll; ll=ll->next) {
-			if(ll->n->op == OXXX)  // unnamed out argument; see dcl.c:/^funcargs
+			v = ll->n;
+			if(v->op == OXXX)  // unnamed out argument; see dcl.c:/^funcargs
 				continue;
-			a = nod(OADDR, ll->n->closure, N);
-			a->lineno = ll->n->lineno;
-			a->escloopdepth = e->loopdepth;
-			typecheck(&a, Erv);
+			a = v->closure;
+			if(!v->byval) {
+				a = nod(OADDR, a, N);
+				a->lineno = v->lineno;
+				a->escloopdepth = e->loopdepth;
+				typecheck(&a, Erv);
+			}
 			escassign(e, n, a);
 		}
 		// fallthrough
@@ -662,6 +696,20 @@ esc(EscState *e, Node *n, Node *up)
 		n->escloopdepth = e->loopdepth;
 		n->esc = EscNone;  // until proven otherwise
 		e->noesc = list(e->noesc, n);
+		break;
+
+	case OARRAYBYTESTR:
+	case ORUNESTR:
+		n->escloopdepth = e->loopdepth;
+		n->esc = EscNone;  // until proven otherwise
+		e->noesc = list(e->noesc, n);
+		break;
+
+	case OADDSTR:
+		n->escloopdepth = e->loopdepth;
+		n->esc = EscNone;  // until proven otherwise
+		e->noesc = list(e->noesc, n);
+		// Arguments of OADDSTR do not escape.
 		break;
 
 	case OADDR:
@@ -730,6 +778,7 @@ escassign(EscState *e, Node *dst, Node *src)
 	case OCONVNOP:
 	case OMAPLIT:
 	case OSTRUCTLIT:
+	case OPTRLIT:
 	case OCALLPART:
 		break;
 
@@ -775,9 +824,12 @@ escassign(EscState *e, Node *dst, Node *src)
 	case OMAKECHAN:
 	case OMAKEMAP:
 	case OMAKESLICE:
+	case OARRAYBYTESTR:
+	case OADDSTR:
 	case ONEW:
 	case OCLOSURE:
 	case OCALLPART:
+	case ORUNESTR:
 		escflows(e, dst, src);
 		break;
 
@@ -806,6 +858,7 @@ escassign(EscState *e, Node *dst, Node *src)
 	case OSLICE3:
 	case OSLICEARR:
 	case OSLICE3ARR:
+	case OSLICESTR:
 		// Conversions, field access, slice all preserve the input value.
 		escassign(e, dst, src->left);
 		break;
@@ -1196,10 +1249,13 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 	case OMAKECHAN:
 	case OMAKEMAP:
 	case OMAKESLICE:
+	case OARRAYBYTESTR:
+	case OADDSTR:
 	case OMAPLIT:
 	case ONEW:
 	case OCLOSURE:
 	case OCALLPART:
+	case ORUNESTR:
 		if(leaks) {
 			src->esc = EscHeap;
 			if(debug['m'])
@@ -1212,6 +1268,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 	case OSLICEARR:
 	case OSLICE3:
 	case OSLICE3ARR:
+	case OSLICESTR:
 		escwalk(e, level, dst, src->left);
 		break;
 

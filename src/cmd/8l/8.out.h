@@ -34,8 +34,7 @@
 
 enum
 {
-	AXXX,
-	AAAA,
+	AAAA = A_ARCHSPECIFIC,
 	AAAD,
 	AAAM,
 	AAAS,
@@ -65,7 +64,6 @@ enum
 	ABTSL,
 	ABTSW,
 	ABYTE,
-	ACALL,
 	ACLC,
 	ACLD,
 	ACLI,
@@ -79,7 +77,6 @@ enum
 	ACMPSW,
 	ADAA,
 	ADAS,
-	ADATA,
 	ADECB,
 	ADECL,
 	ADECW,
@@ -87,9 +84,6 @@ enum
 	ADIVL,
 	ADIVW,
 	AENTER,
-	AGLOBL,
-	AGOK,
-	AHISTORY,
 	AHLT,
 	AIDIVB,
 	AIDIVL,
@@ -122,7 +116,6 @@ enum
 	AJLS,
 	AJLT,
 	AJMI,
-	AJMP,
 	AJNE,
 	AJOC,
 	AJOS,
@@ -162,11 +155,9 @@ enum
 	AMULB,
 	AMULL,
 	AMULW,
-	ANAME,
 	ANEGB,
 	ANEGL,
 	ANEGW,
-	ANOP,
 	ANOTB,
 	ANOTL,
 	ANOTW,
@@ -200,7 +191,6 @@ enum
 	ARCRW,
 	AREP,
 	AREPN,
-	ARET,
 	AROLB,
 	AROLL,
 	AROLW,
@@ -257,7 +247,6 @@ enum
 	ATESTB,
 	ATESTL,
 	ATESTW,
-	ATEXT,
 	AVERR,
 	AVERW,
 	AWAIT,
@@ -382,12 +371,8 @@ enum
 	AFYL2X,
 	AFYL2XP1,
 
-	AEND,
 
-	ADYNT_,
-	AINIT_,
 
-	ASIGNAME,
 
 	ACMPXCHGB,
 	ACMPXCHGL,
@@ -457,7 +442,6 @@ enum
 	
 	ABSWAPL,
 	
-	AUNDEF,
 
 	// SSE2
 	AADDPD,
@@ -577,87 +561,64 @@ enum
 	APINSRD,
 	APSHUFB,
 
-	AUSEFIELD,
-	ATYPE,
-	AFUNCDATA,
-	APCDATA,
-	ACHECKNIL,
-	AVARDEF,
-	AVARKILL,
-	ADUFFCOPY,
-	ADUFFZERO,
 	
 	ALAST
 };
 
 enum
 {
-	D_AL		= 0,
-	D_CL,
-	D_DL,
-	D_BL,
+	REG_NONE	= 0,
 
-	D_AH		= 4,
-	D_CH,
-	D_DH,
-	D_BH,
+	REG_AL		= 0+16,
+	REG_CL,
+	REG_DL,
+	REG_BL,
 
-	D_AX		= 8,
-	D_CX,
-	D_DX,
-	D_BX,
-	D_SP,
-	D_BP,
-	D_SI,
-	D_DI,
+	REG_AH		= 4+16,
+	REG_CH,
+	REG_DH,
+	REG_BH,
 
-	D_F0		= 16,
-	D_F7		= D_F0 + 7,
+	REG_AX		= 8+16,
+	REG_CX,
+	REG_DX,
+	REG_BX,
+	REG_SP,
+	REG_BP,
+	REG_SI,
+	REG_DI,
 
-	D_CS		= 24,
-	D_SS,
-	D_DS,
-	D_ES,
-	D_FS,
-	D_GS,
+	REG_F0		= 16+16,
+	REG_F7		= REG_F0 + 7+16,
 
-	D_GDTR,		/* global descriptor table register */
-	D_IDTR,		/* interrupt descriptor table register */
-	D_LDTR,		/* local descriptor table register */
-	D_MSW,		/* machine status word */
-	D_TASK,		/* task register */
+	REG_CS		= 24+16,
+	REG_SS,
+	REG_DS,
+	REG_ES,
+	REG_FS,
+	REG_GS,
 
-	D_CR		= 35,
-	D_DR		= 43,
-	D_TR		= 51,
+	REG_GDTR,		/* global descriptor table register */
+	REG_IDTR,		/* interrupt descriptor table register */
+	REG_LDTR,		/* local descriptor table register */
+	REG_MSW,		/* machine status word */
+	REG_TASK,		/* task register */
 
-	D_X0		= 59,
-	D_X1,
-	D_X2,
-	D_X3,
-	D_X4,
-	D_X5,
-	D_X6,
-	D_X7,
+	REG_CR		= 35+16,
+	REG_DR		= 43+16,
+	REG_TR		= 51+16,
+
+	REG_X0		= 59+16,
+	REG_X1,
+	REG_X2,
+	REG_X3,
+	REG_X4,
+	REG_X5,
+	REG_X6,
+	REG_X7,
 	
-	D_TLS		= 67,
-	D_NONE		= 68,
-
-	D_BRANCH	= 69,
-	D_EXTERN	= 70,
-	D_STATIC	= 71,
-	D_AUTO		= 72,
-	D_PARAM		= 73,
-	D_CONST		= 74,
-	D_FCONST	= 75,
-	D_SCONST	= 76,
-	D_ADDR		= 77,
-
-	D_INDIR,	/* additive */
-
-	D_CONST2 = D_INDIR+D_INDIR,
-
-	D_LAST,
+	REG_TLS		= 67+16,
+	MAXREG		= 68+16,
 
 	T_TYPE		= 1<<0,
 	T_INDEX		= 1<<1,
@@ -669,10 +630,10 @@ enum
 	T_GOTYPE	= 1<<7,
 
 	REGARG		= -1,
-	REGRET		= D_AX,
-	FREGRET		= D_F0,
-	REGSP		= D_SP,
-	REGTMP		= D_DI,
+	REGRET		= REG_AX,
+	FREGRET		= REG_F0,
+	REGSP		= REG_SP,
+	REGTMP		= REG_DI,
 };
 
 /*

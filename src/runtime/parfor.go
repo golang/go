@@ -6,8 +6,27 @@
 
 package runtime
 
-import "unsafe"
+// A parfor holds state for the parallel for operation.
+type parfor struct {
+	body   func(*parfor, uint32) // executed for each element
+	done   uint32                // number of idle threads
+	nthr   uint32                // total number of threads
+	thrseq uint32                // thread id sequencer
+	cnt    uint32                // iteration space [0, cnt)
+	wait   bool                  // if true, wait while all threads finish processing,
+	// otherwise parfor may return while other threads are still working
 
+	thr []parforthread // thread descriptors
+
+	// stats
+	nsteal     uint64
+	nstealcnt  uint64
+	nprocyield uint64
+	nosyield   uint64
+	nsleep     uint64
+}
+
+// A parforthread holds state for a single thread in the parallel for.
 type parforthread struct {
 	// the thread's iteration space [32lsb, 32msb)
 	pos uint64
@@ -20,22 +39,33 @@ type parforthread struct {
 	pad        [_CacheLineSize]byte
 }
 
-func desc_thr_index(desc *parfor, i uint32) *parforthread {
-	return (*parforthread)(add(unsafe.Pointer(desc.thr), uintptr(i)*unsafe.Sizeof(*desc.thr)))
+func parforalloc(nthrmax uint32) *parfor {
+	return &parfor{
+		thr: make([]parforthread, nthrmax),
+	}
 }
 
-func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, body func(*parfor, uint32)) {
-	if desc == nil || nthr == 0 || nthr > desc.nthrmax || body == nil {
+// Parforsetup initializes desc for a parallel for operation with nthr
+// threads executing n jobs.
+//
+// On return the nthr threads are each expected to call parfordo(desc)
+// to run the operation. During those calls, for each i in [0, n), one
+// thread will be used invoke body(desc, i).
+// If wait is true, no parfordo will return until all work has been completed.
+// If wait is false, parfordo may return when there is a small amount
+// of work left, under the assumption that another thread has that
+// work well in hand.
+func parforsetup(desc *parfor, nthr, n uint32, wait bool, body func(*parfor, uint32)) {
+	if desc == nil || nthr == 0 || nthr > uint32(len(desc.thr)) || body == nil {
 		print("desc=", desc, " nthr=", nthr, " count=", n, " body=", body, "\n")
 		throw("parfor: invalid args")
 	}
 
-	desc.body = *(*unsafe.Pointer)(unsafe.Pointer(&body))
+	desc.body = body
 	desc.done = 0
 	desc.nthr = nthr
 	desc.thrseq = 0
 	desc.cnt = n
-	desc.ctx = ctx
 	desc.wait = wait
 	desc.nsteal = 0
 	desc.nstealcnt = 0
@@ -43,14 +73,10 @@ func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, bo
 	desc.nosyield = 0
 	desc.nsleep = 0
 
-	for i := uint32(0); i < nthr; i++ {
+	for i := range desc.thr {
 		begin := uint32(uint64(n) * uint64(i) / uint64(nthr))
 		end := uint32(uint64(n) * uint64(i+1) / uint64(nthr))
-		pos := &desc_thr_index(desc, i).pos
-		if uintptr(unsafe.Pointer(pos))&7 != 0 {
-			throw("parforsetup: pos is not aligned")
-		}
-		*pos = uint64(begin) | uint64(end)<<32
+		desc.thr[i].pos = uint64(begin) | uint64(end)<<32
 	}
 }
 
@@ -63,7 +89,7 @@ func parfordo(desc *parfor) {
 	}
 
 	// If single-threaded, just execute the for serially.
-	body := *(*func(*parfor, uint32))(unsafe.Pointer(&desc.body))
+	body := desc.body
 	if desc.nthr == 1 {
 		for i := uint32(0); i < desc.cnt; i++ {
 			body(desc, i)
@@ -71,7 +97,7 @@ func parfordo(desc *parfor) {
 		return
 	}
 
-	me := desc_thr_index(desc, tid)
+	me := &desc.thr[tid]
 	mypos := &me.pos
 	for {
 		for {
@@ -116,7 +142,7 @@ func parfordo(desc *parfor) {
 			if victim >= tid {
 				victim++
 			}
-			victimpos := &desc_thr_index(desc, victim).pos
+			victimpos := &desc.thr[victim].pos
 			for {
 				// See if it has any work.
 				pos := atomicload64(victimpos)

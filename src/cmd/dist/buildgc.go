@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -50,12 +49,11 @@ func gcopnames(dir, file string) {
 
 // mkanames reads [5689].out.h and writes anames[5689].c
 // The format is much the same as the Go opcodes above.
-// It also writes out cnames array for C_* constants and the dnames
-// array for D_* constants.
+// It also writes out cnames array for C_* constants.
 func mkanames(dir, file string) {
 	ch := file[len(file)-3]
 	targ := pathf("%s/../cmd/%cl/%c.out.h", dir, ch, ch)
-	in := readfile(targ)
+	in := readfile(pathf("%s/../../include/link.h", dir)) + readfile(targ)
 	lines := splitlines(in)
 
 	// Include link.h so that the extern declaration there is
@@ -71,8 +69,18 @@ func mkanames(dir, file string) {
 
 	fmt.Fprintf(&out, "char*	anames%c[] = {\n", ch)
 	for _, line := range lines {
-		if strings.HasPrefix(line, "\tA") {
+		// Use all A names found in the headers,
+		// except don't use A_ARCHSPECIFIC (left to arch to define),
+		// and don't use any aliases (= A...),
+		// except do use the arch-defined alias for A_ARCHSPECIFIC.
+		if strings.Contains(line, ";") {
+			continue
+		}
+		if strings.HasPrefix(line, "\tA") && !strings.Contains(line, "\tA_") && (!strings.Contains(line, "= A") || strings.Contains(line, "= A_ARCHSPECIFIC")) {
 			if i := strings.Index(line, ","); i >= 0 {
+				line = line[:i]
+			}
+			if i := strings.Index(line, "="); i >= 0 {
 				line = line[:i]
 			}
 			if i := strings.Index(line, "\n"); i >= 0 {
@@ -103,67 +111,6 @@ func mkanames(dir, file string) {
 	fmt.Fprintf(&out2, "};\n")
 	if j > 0 {
 		out.Write(out2.Bytes())
-	}
-
-	var dnames [128][]string
-	j = 0
-	unknown := false
-	n := -1
-	for _, line := range lines {
-		if strings.HasPrefix(line, "\tD_") {
-			if i := strings.Index(line, ","); i >= 0 {
-				line = line[:i]
-			}
-
-			// Parse explicit value, if any
-			if i := strings.Index(line, "="); i >= 0 {
-				value := strings.TrimSpace(line[i+1:])
-				line = strings.TrimSpace(line[:i])
-				var err error
-				n, err = strconv.Atoi(value)
-				if err != nil {
-					// We can't do anything about
-					// non-numeric values or anything that
-					// follows.
-					unknown = true
-					continue
-				}
-				unknown = false
-			} else {
-				n++
-			}
-
-			if unknown || n < 0 || n >= len(dnames) {
-				continue
-			}
-
-			line = strings.TrimSpace(line)
-			line = line[len("D_"):]
-
-			if strings.Contains(line, "LAST") {
-				continue
-			}
-			dnames[n] = append(dnames[n], line)
-			j++
-		}
-	}
-
-	if j > 0 {
-		fmt.Fprintf(&out, "char*	dnames%c[D_LAST] = {\n", ch)
-		for _, d := range dnames {
-			if len(d) == 0 {
-				continue
-			}
-			fmt.Fprintf(&out, "\t[D_%s] = \"", d[0])
-			for k, name := range d {
-				if k > 0 {
-					fmt.Fprintf(&out, "/")
-				}
-				fmt.Fprintf(&out, "%s", name)
-			}
-			fmt.Fprintf(&out, "\",\n")
-		}
-		fmt.Fprintf(&out, "};\n")
 	}
 
 	writefile(out.String(), file, 0)

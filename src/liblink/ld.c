@@ -217,7 +217,8 @@ copyp(Link *ctxt, Prog *q)
 {
 	Prog *p;
 
-	p = ctxt->arch->prg();
+	USED(ctxt);
+	p = emallocz(sizeof(Prog));
 	*p = *q;
 	return p;
 }
@@ -227,7 +228,8 @@ appendp(Link *ctxt, Prog *q)
 {
 	Prog *p;
 
-	p = ctxt->arch->prg();
+	USED(ctxt);
+	p = emallocz(sizeof(Prog));
 	p->link = q->link;
 	q->link = p;
 	p->lineno = q->lineno;

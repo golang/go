@@ -35,6 +35,12 @@ static	int	bounded(Node*, int64);
 static	Mpint	mpzero;
 static	void	walkprintfunc(Node**, NodeList**);
 
+// The constant is known to runtime.
+enum
+{
+	tmpstringbufsize = 32,
+};
+
 void
 walk(Node *fn)
 {
@@ -417,7 +423,7 @@ walkexpr(Node **np, NodeList **init)
 	int32 lno;
 	Node *n, *fn, *n1, *n2;
 	Sym *sym;
-	char buf[100], *p;
+	char buf[100], *p, *from, *to;
 
 	n = *np;
 
@@ -672,14 +678,17 @@ walkexpr(Node **np, NodeList **init)
 			n1 = nod(OADDR, n->left, N);
 			r = n->right; // i.(T)
 
-			strcpy(buf, "assertI2T");
+			from = "I";
+			to = "T";
 			if(isnilinter(r->left->type))
-				buf[6] = 'E';
+				from = "E";
 			if(isnilinter(r->type))
-				buf[8] = 'E';
+				to = "E";
 			else if(isinter(r->type))
-				buf[8] = 'I';
+				to = "I";
 			
+			snprint(buf, sizeof buf, "assert%s2%s", from, to);
+
 			fn = syslook(buf, 1);
 			argtype(fn, r->left->type);
 			argtype(fn, r->type);
@@ -850,13 +859,15 @@ walkexpr(Node **np, NodeList **init)
 			n1 = nod(OADDR, n->list->n, N);
 		n1->etype = 1; // addr does not escape
 
-		strcpy(buf, "assertI2T2");
+		from = "I";
+		to = "T";
 		if(isnilinter(r->left->type))
-			buf[6] = 'E';
+			from = "E";
 		if(isnilinter(r->type))
-			buf[8] = 'E';
+			to = "E";
 		else if(isinter(r->type))
-			buf[8] = 'I';
+			to = "I";
+		snprint(buf, sizeof buf, "assert%s2%s2", from, to);
 		
 		fn = syslook(buf, 1);
 		argtype(fn, r->left->type);
@@ -878,8 +889,8 @@ walkexpr(Node **np, NodeList **init)
 	case OCONVIFACE:
 		walkexpr(&n->left, init);
 
-		// Optimize convT2E as a two-word copy when T is uintptr-shaped.
-		if(isnilinter(n->type) && isdirectiface(n->left->type) && n->left->type->width == widthptr && isint[simsimtype(n->left->type)]) {
+		// Optimize convT2E as a two-word copy when T is pointer-shaped.
+		if(isnilinter(n->type) && isdirectiface(n->left->type)) {
 			l = nod(OEFACE, typename(n->left->type), n->left);
 			l->type = n->type;
 			l->typecheck = n->typecheck;
@@ -890,20 +901,15 @@ walkexpr(Node **np, NodeList **init)
 		// Build name of function: convI2E etc.
 		// Not all names are possible
 		// (e.g., we'll never generate convE2E or convE2I).
-		strcpy(buf, "conv");
-		p = buf+strlen(buf);
+		from = "T";
+		to = "I";
 		if(isnilinter(n->left->type))
-			*p++ = 'E';
+			from = "E";
 		else if(isinter(n->left->type))
-			*p++ = 'I';
-		else
-			*p++ = 'T';
-		*p++ = '2';
+			from = "I";
 		if(isnilinter(n->type))
-			*p++ = 'E';
-		else
-			*p++ = 'I';
-		*p = '\0';
+			to = "E";
+		snprint(buf, sizeof buf, "conv%s2%s", from, to);
 
 		fn = syslook(buf, 1);
 		ll = nil;
@@ -921,13 +927,13 @@ walkexpr(Node **np, NodeList **init)
 				l->class = PEXTERN;
 				l->xoffset = 0;
 				sym->def = l;
-				ggloblsym(sym, widthptr, DUPOK|NOPTR);
+				arch.ggloblsym(sym, widthptr, DUPOK|NOPTR);
 			}
 			l = nod(OADDR, sym->def, N);
 			l->addable = 1;
 			ll = list(ll, l);
 
-			if(isdirectiface(n->left->type) && n->left->type->width == widthptr && isint[simsimtype(n->left->type)]) {
+			if(isdirectiface(n->left->type)) {
 				/* For pointer types, we can make a special form of optimization
 				 *
 				 * These statements are put onto the expression init list:
@@ -989,7 +995,7 @@ walkexpr(Node **np, NodeList **init)
 
 	case OCONV:
 	case OCONVNOP:
-		if(thechar == '5') {
+		if(arch.thechar == '5') {
 			if(isfloat[n->left->type->etype]) {
 				if(n->type->etype == TINT64) {
 					n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
@@ -1364,14 +1370,25 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case ORUNESTR:
-		// sys_intstring(v)
-		n = mkcall("intstring", n->type, init,
-			conv(n->left, types[TINT64]));
+		a = nodnil();
+		if(n->esc == EscNone) {
+			t = aindex(nodintconst(4), types[TUINT8]);
+			var = temp(t);
+			a = nod(OADDR, var, N);
+		}
+		// intstring(*[4]byte, rune)
+		n = mkcall("intstring", n->type, init, a, conv(n->left, types[TINT64]));
 		goto ret;
 
 	case OARRAYBYTESTR:
-		// slicebytetostring([]byte) string;
-		n = mkcall("slicebytetostring", n->type, init, n->left);
+		a = nodnil();
+		if(n->esc == EscNone) {
+			// Create temporary buffer for string on stack.
+			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
+			a = nod(OADDR, temp(t), N);
+		}
+		// slicebytetostring(*[32]byte, []byte) string;
+		n = mkcall("slicebytetostring", n->type, init, a, n->left);
 		goto ret;
 
 	case OARRAYBYTESTRTMP:
@@ -1387,6 +1404,11 @@ walkexpr(Node **np, NodeList **init)
 	case OSTRARRAYBYTE:
 		// stringtoslicebyte(string) []byte;
 		n = mkcall("stringtoslicebyte", n->type, init, conv(n->left, types[TSTRING]));
+		goto ret;
+
+	case OSTRARRAYBYTETMP:
+		// stringtoslicebytetmp(string) []byte;
+		n = mkcall("stringtoslicebytetmp", n->type, init, conv(n->left, types[TSTRING]));
 		goto ret;
 
 	case OSTRARRAYRUNE:
@@ -1579,7 +1601,7 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 			l = tmp;
 		}
 
-		a = nod(OAS, l, nodarg(r, fp));
+		a = nod(OAS, l, arch.nodarg(r, fp));
 		a = convas(a, init);
 		ullmancalc(a);
 		if(a->ullman >= UINF) {
@@ -1632,7 +1654,7 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, Nod
 		walkexpr(&n, init);
 	}
 
-	a = nod(OAS, nodarg(l, fp), n);
+	a = nod(OAS, arch.nodarg(l, fp), n);
 	nn = list(nn, convas(a, init));
 	return nn;
 }
@@ -1712,7 +1734,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
 	if(r != N && lr->next == nil && r->type->etype == TSTRUCT && r->type->funarg) {
 		// optimization - can do block copy
 		if(eqtypenoname(r->type, *nl)) {
-			a = nodarg(*nl, fp);
+			a = arch.nodarg(*nl, fp);
 			r = nod(OCONVNOP, r, N);
 			r->type = a->type;
 			nn = list1(convas(nod(OAS, a, r), init));
@@ -1749,7 +1771,7 @@ loop:
 		// argument to a ddd parameter then it is
 		// passed thru unencapsulated
 		if(r != N && lr->next == nil && isddd && eqtype(l->type, r->type)) {
-			a = nod(OAS, nodarg(l, fp), r);
+			a = nod(OAS, arch.nodarg(l, fp), r);
 			a = convas(a, init);
 			nn = list(nn, a);
 			goto ret;
@@ -1774,7 +1796,7 @@ loop:
 		goto ret;
 	}
 
-	a = nod(OAS, nodarg(l, fp), r);
+	a = nod(OAS, arch.nodarg(l, fp), r);
 	a = convas(a, init);
 	nn = list(nn, a);
 
@@ -1920,9 +1942,19 @@ callnew(Type *t)
 static int
 isstack(Node *n)
 {
+	Node *defn;
+
 	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
 		n = n->left;
-	
+
+	// If n is *autotmp and autotmp = &foo, replace n with foo.
+	// We introduce such temps when initializing struct literals.
+	if(n->op == OIND && n->left->op == ONAME && strncmp(n->left->sym->name, "autotmp_", 8) == 0) {
+		defn = n->left->defn;
+		if(defn != N && defn->op == OAS && defn->right->op == OADDR)
+			n = defn->right->left;
+	}
+
 	switch(n->op) {
 	case OINDREG:
 		// OINDREG only ends up in walk if it's indirect of SP.
@@ -1946,7 +1978,7 @@ isglobal(Node *n)
 {
 	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
 		n = n->left;
-	
+
 	switch(n->op) {
 	case ONAME:
 		switch(n->class) {
@@ -2521,13 +2553,13 @@ paramstoheap(Type **argin, int out)
 		v = t->nname;
 		if(v && v->sym && v->sym->name[0] == '~' && v->sym->name[1] == 'r') // unnamed result
 			v = N;
-		// In precisestack mode, the garbage collector assumes results
+		// For precise stacks, the garbage collector assumes results
 		// are always live, so zero them always.
-		if(out && (precisestack_enabled || (v == N && hasdefer))) {
+		if(out) {
 			// Defer might stop a panic and show the
 			// return values as they exist at the time of panic.
 			// Make sure to zero them on entry to the function.
-			nn = list(nn, nod(OAS, nodarg(t, 1), N));
+			nn = list(nn, nod(OAS, arch.nodarg(t, 1), N));
 		}
 		if(v == N || !(v->class & PHEAP))
 			continue;
@@ -2710,9 +2742,10 @@ writebarrierfn(char *name, Type *l, Type *r)
 static Node*
 addstr(Node *n, NodeList **init)
 {
-	Node *r, *cat, *slice;
+	Node *r, *cat, *slice, *buf;
 	NodeList *args, *l;
 	int c;
+	vlong sz;
 	Type *t;
 
 	// orderexpr rewrote OADDSTR to have a list of strings.
@@ -2720,8 +2753,23 @@ addstr(Node *n, NodeList **init)
 	if(c < 2)
 		yyerror("addstr count %d too small", c);
 
+	buf = nodnil();
+	if(n->esc == EscNone) {
+		sz = 0;
+		for(l=n->list; l != nil; l=l->next) {
+			if(n->op == OLITERAL)
+				sz += n->val.u.sval->len;
+		}
+		// Don't allocate the buffer if the result won't fit.
+		if(sz < tmpstringbufsize) {
+			// Create temporary buffer for result string on stack.
+			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
+			buf = nod(OADDR, temp(t), N);
+		}
+	}
+
 	// build list of string arguments
-	args = nil;
+	args = list1(buf);
 	for(l=n->list; l != nil; l=l->next)
 		args = list(args, conv(l->n, types[TSTRING]));
 
@@ -2737,9 +2785,10 @@ addstr(Node *n, NodeList **init)
 		t->bound = -1;
 		slice = nod(OCOMPLIT, N, typenod(t));
 		slice->alloc = n->alloc;
-		slice->list = args;
+		slice->list = args->next; // skip buf arg
+		args = list1(buf);
+		args = list(args, slice);
 		slice->esc = EscNone;
-		args = list1(slice);
 	}
 	cat = syslook(namebuf, 1);
 	r = nod(OCALL, cat, N);
@@ -3398,7 +3447,7 @@ walkrotate(Node **np)
 	Node *l, *r;
 	Node *n;
 
-	if(thechar == '9')
+	if(arch.thechar == '9')
 		return;
 	
 	n = *np;
@@ -3526,7 +3575,7 @@ walkdiv(Node **np, NodeList **init)
 	Magic m;
 
 	// TODO(minux)
-	if(thechar == '9')
+	if(arch.thechar == '9')
 		return;
 
 	n = *np;

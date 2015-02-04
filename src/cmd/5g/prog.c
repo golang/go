@@ -136,12 +136,12 @@ proginfo(ProgInfo *info, Prog *p)
 	if(info->flags == 0)
 		fatal("unknown instruction %P", p);
 
-	if(p->from.type == D_CONST && p->from.sym != nil && (info->flags & LeftRead)) {
+	if(p->from.type == TYPE_ADDR && p->from.sym != nil && (info->flags & LeftRead)) {
 		info->flags &= ~LeftRead;
 		info->flags |= LeftAddr;
 	}
 
-	if((info->flags & RegRead) && p->reg == NREG) {
+	if((info->flags & RegRead) && p->reg == 0) {
 		info->flags &= ~RegRead;
 		info->flags |= CanRegRead | RightRead;
 	}

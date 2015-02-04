@@ -708,7 +708,7 @@ static int
 methcmp(const void *va, const void *vb)
 {
 	Type *a, *b;
-	int i;
+	int k;
 	
 	a = *(Type**)va;
 	b = *(Type**)vb;
@@ -718,13 +718,13 @@ methcmp(const void *va, const void *vb)
 		return -1;
 	if(b->sym == S)
 		return 1;
-	i = strcmp(a->sym->name, b->sym->name);
-	if(i != 0)
-		return i;
+	k = strcmp(a->sym->name, b->sym->name);
+	if(k != 0)
+		return k;
 	if(!exportname(a->sym->name)) {
-		i = strcmp(a->sym->pkg->path->s, b->sym->pkg->path->s);
-		if(i != 0)
-			return i;
+		k = strcmp(a->sym->pkg->path->s, b->sym->pkg->path->s);
+		if(k != 0)
+			return k;
 	}
 	return 0;
 }
@@ -1979,7 +1979,7 @@ brcom(int a)
 	case OLE:	return OGT;
 	case OGE:	return OLT;
 	}
-	fatal("brcom: no com for %A\n", a);
+	fatal("brcom: no com for %O\n", a);
 	return a;
 }
 
@@ -1998,7 +1998,7 @@ brrev(int a)
 	case OLE:	return OGE;
 	case OGE:	return OLE;
 	}
-	fatal("brcom: no rev for %A\n", a);
+	fatal("brcom: no rev for %O\n", a);
 	return a;
 }
 
@@ -2121,10 +2121,10 @@ setmaxarg(Type *t, int32 extra)
 
 	dowidth(t);
 	w = t->argwid;
-	if(w >= MAXWIDTH)
+	if(w >= arch.MAXWIDTH)
 		fatal("bad argwid %T", t);
 	w += extra;
-	if(w >= MAXWIDTH)
+	if(w >= arch.MAXWIDTH)
 		fatal("bad argwid %d + %T", extra, t);
 	if(w > maxarg)
 		maxarg = w;
@@ -2566,11 +2566,11 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		// so no space cost to use them here.
 		l = nil;
 		v.ctype = CTSTR;
-		v.u.sval = strlit(rcvr->type->sym->pkg->name);  // package name
+		v.u.sval = newstrlit(rcvr->type->sym->pkg->name);  // package name
 		l = list(l, nodlit(v));
-		v.u.sval = strlit(rcvr->type->sym->name);  // type name
+		v.u.sval = newstrlit(rcvr->type->sym->name);  // type name
 		l = list(l, nodlit(v));
-		v.u.sval = strlit(method->sym->name);
+		v.u.sval = newstrlit(method->sym->name);
 		l = list(l, nodlit(v));  // method name
 		call = nod(OCALL, syslook("panicwrap", 0), N);
 		call->list = l;
@@ -2617,7 +2617,16 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		fn->dupok = 1;
 	typecheck(&fn, Etop);
 	typechecklist(fn->nbody, Etop);
+
+	// Set inl_nonlocal to whether we are calling a method on a
+	// type defined in a different package.  Checked in inlvar.
+	if(!methodrcvr->local)
+		inl_nonlocal = 1;
+
 	inlcalls(fn);
+
+	inl_nonlocal = 0;
+
 	curfn = nil;
 	funccompile(fn, 0);
 }
@@ -3714,7 +3723,7 @@ mkpkg(Strlit *path)
 }
 
 Strlit*
-strlit(char *s)
+newstrlit(char *s)
 {
 	Strlit *t;
 	

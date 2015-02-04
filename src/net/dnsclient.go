@@ -43,8 +43,8 @@ func reverseaddr(addr string) (arpa string, err error) {
 		return "", &DNSError{Err: "unrecognized address", Name: addr}
 	}
 	if ip.To4() != nil {
-		return itoa(int(ip[15])) + "." + itoa(int(ip[14])) + "." + itoa(int(ip[13])) + "." +
-			itoa(int(ip[12])) + ".in-addr.arpa.", nil
+		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." +
+			uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
 	}
 	// Must be IPv6
 	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))
@@ -94,7 +94,7 @@ Cname:
 				continue
 			}
 			h := rr.Header()
-			if h.Class == dnsClassINET && h.Name == name {
+			if h.Class == dnsClassINET && equalASCIILabel(h.Name, name) {
 				switch h.Rrtype {
 				case qtype:
 					addrs = append(addrs, rr)
@@ -112,6 +112,26 @@ Cname:
 	}
 
 	return "", nil, &DNSError{Err: "too many redirects", Name: name, Server: server}
+}
+
+func equalASCIILabel(x, y string) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i := 0; i < len(x); i++ {
+		a := x[i]
+		b := y[i]
+		if 'A' <= a && a <= 'Z' {
+			a += 0x20
+		}
+		if 'A' <= b && b <= 'Z' {
+			b += 0x20
+		}
+		if a != b {
+			return false
+		}
+	}
+	return true
 }
 
 func isDomainName(s string) bool {

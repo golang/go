@@ -523,8 +523,3 @@ type stackmap struct {
 	nbit     int32   // number of bits in each bitmap
 	bytedata [1]byte // bitmaps, each starting on a 32-bit boundary
 }
-
-// Returns pointer map data for the given stackmap index
-// (the index is encoded in PCDATA_StackMapIndex).
-
-// defined in mgc0.go

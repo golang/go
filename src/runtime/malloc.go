@@ -31,10 +31,12 @@ type pageID uintptr
 // base address for all 0-byte allocations
 var zerobase uintptr
 
+// Trigger the concurrent GC when 1/triggerratio memory is available to allocate.
+// Adjust this ratio as part of a scheme to ensure that mutators have enough
+// memory to allocate in durring a concurrent GC cycle.
+var triggerratio = int64(8)
+
 // Determine whether to initiate a GC.
-// Currently the primitive heuristic we use will start a new
-// concurrent GC when approximately half the available space
-// made available by the last GC cycle has been used.
 // If the GC is already working no need to trigger another one.
 // This should establish a feedback loop where if the GC does not
 // have sufficient time to complete then more memory will be
@@ -44,7 +46,7 @@ var zerobase uintptr
 // A false negative simple does not start a GC, a false positive
 // will start a GC needlessly. Neither have correctness issues.
 func shouldtriggergc() bool {
-	return memstats.heap_alloc+memstats.heap_alloc*3/4 >= memstats.next_gc && atomicloaduint(&bggc.working) == 0
+	return triggerratio*(int64(memstats.next_gc)-int64(memstats.heap_alloc)) <= int64(memstats.next_gc) && atomicloaduint(&bggc.working) == 0
 }
 
 // Allocate an object of size bytes.
@@ -360,12 +362,18 @@ func gcwork(force int32) {
 	// Ok, we're doing it!  Stop everybody else
 
 	mp := acquirem()
-	mp.gcing = 1
+	mp.preemptoff = "gcing"
 	releasem(mp)
 	gctimer.count++
 	if force == 0 {
 		gctimer.cycle.sweepterm = nanotime()
 	}
+
+	if trace.enabled {
+		traceGoSched()
+		traceGCStart()
+	}
+
 	// Pick up the remaining unswept/not being swept spans before we STW
 	for gosweepone() != ^uintptr(0) {
 		sweep.nbgsweep++
@@ -387,6 +395,14 @@ func gcwork(force int32) {
 		gctimer.cycle.markterm = nanotime()
 		systemstack(stoptheworld)
 		systemstack(gcinstalloffwb_m)
+	} else {
+		// For non-concurrent GC (force != 0) g stack have not been scanned so
+		// set gcscanvalid such that mark termination scans all stacks.
+		// No races here since we are in a STW phase.
+		for _, gp := range allgs {
+			gp.gcworkdone = false  // set to true in gcphasework
+			gp.gcscanvalid = false // stack has not been scanned
+		}
 	}
 
 	startTime := nanotime()
@@ -421,8 +437,13 @@ func gcwork(force int32) {
 		gccheckmark_m(startTime, eagersweep)
 	})
 
+	if trace.enabled {
+		traceGCDone()
+		traceGoStart()
+	}
+
 	// all done
-	mp.gcing = 0
+	mp.preemptoff = ""
 
 	if force == 0 {
 		gctimer.cycle.sweep = nanotime()

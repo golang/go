@@ -24,13 +24,13 @@ func GOMAXPROCS(n int) int {
 
 	semacquire(&worldsema, false)
 	gp := getg()
-	gp.m.gcing = 1
+	gp.m.preemptoff = "GOMAXPROCS"
 	systemstack(stoptheworld)
 
 	// newprocs will be processed by starttheworld
 	newprocs = int32(n)
 
-	gp.m.gcing = 0
+	gp.m.preemptoff = ""
 	semrelease(&worldsema)
 	systemstack(starttheworld)
 	return ret

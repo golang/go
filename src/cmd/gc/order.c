@@ -58,6 +58,13 @@ static void	orderexprlistinplace(NodeList*, Order*);
 void
 order(Node *fn)
 {
+	char s[50];
+
+	if(debug['W'] > 1) {
+		snprint(s, sizeof(s), "\nbefore order %S", fn->nname->sym);
+		dumplist(s, fn->nbody);
+	}
+
 	orderblock(&fn->nbody);
 }
 
@@ -750,6 +757,10 @@ orderstmt(Node *n, Order *order)
 		default:
 			fatal("orderstmt range %T", n->type);
 		case TARRAY:
+			// Mark []byte(str) range expression to reuse string backing storage.
+			// It is safe because the storage cannot be mutated.
+			if(n->right->op == OSTRARRAYBYTE)
+				n->right->op = OSTRARRAYBYTETMP;
 			if(count(n->list) < 2 || isblank(n->list->next->n)) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.
@@ -974,7 +985,7 @@ orderexpr(Node **np, Order *order)
 	Node *n;
 	NodeList *mark, *l;
 	Type *t;
-	int lno;
+	int lno, haslit, hasbyte;
 
 	n = *np;
 	if(n == N)
@@ -1002,6 +1013,38 @@ orderexpr(Node **np, Order *order)
 			t->type = types[TSTRING];
 			n->alloc = ordertemp(t, order, 0);
 		}
+
+		// Mark string(byteSlice) arguments to reuse byteSlice backing
+		// buffer during conversion. String concatenation does not
+		// memorize the strings for later use, so it is safe.
+		// However, we can do it only if there is at least one non-empty string literal.
+		// Otherwise if all other arguments are empty strings,
+		// concatstrings will return the reference to the temp string
+		// to the caller.
+		hasbyte = 0;
+		haslit = 0;
+		for(l=n->list; l != nil; l=l->next) {
+			hasbyte |= l->n->op == OARRAYBYTESTR;
+			haslit |= l->n->op == OLITERAL && l->n->val.u.sval->len != 0;
+		}
+		if(haslit && hasbyte) {
+			for(l=n->list; l != nil; l=l->next) {
+				if(l->n->op == OARRAYBYTESTR)
+					l->n->op = OARRAYBYTESTRTMP;
+			}
+		}
+		break;
+
+	case OCMPSTR:
+		orderexpr(&n->left, order);
+		orderexpr(&n->right, order);
+		// Mark string(byteSlice) arguments to reuse byteSlice backing
+		// buffer during conversion. String comparison does not
+		// memorize the strings for later use, so it is safe.
+		if(n->left->op == OARRAYBYTESTR)
+			n->left->op = OARRAYBYTESTRTMP;
+		if(n->right->op == OARRAYBYTESTR)
+			n->right->op = OARRAYBYTESTRTMP;
 		break;
 
 	case OINDEXMAP:

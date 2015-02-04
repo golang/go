@@ -135,6 +135,8 @@ var ptrSizeMap = map[string]int64{
 	"arm":     4,
 	"ppc64":   8,
 	"ppc64le": 8,
+	"s390":    4,
+	"s390x":   8,
 }
 
 var intSizeMap = map[string]int64{
@@ -143,6 +145,8 @@ var intSizeMap = map[string]int64{
 	"arm":     4,
 	"ppc64":   8,
 	"ppc64le": 8,
+	"s390":    4,
+	"s390x":   4,
 }
 
 var cPrefix string

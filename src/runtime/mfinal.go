@@ -127,7 +127,7 @@ func runfinq() {
 			fing = gp
 			fingwait = true
 			gp.issystem = true
-			goparkunlock(&finlock, "finalizer wait")
+			goparkunlock(&finlock, "finalizer wait", traceEvGoBlock)
 			gp.issystem = false
 			continue
 		}
@@ -136,8 +136,8 @@ func runfinq() {
 			racefingo()
 		}
 		for fb != nil {
-			for i := int32(0); i < fb.cnt; i++ {
-				f := (*finalizer)(add(unsafe.Pointer(&fb.fin), uintptr(i)*unsafe.Sizeof(finalizer{})))
+			for i := fb.cnt; i > 0; i-- {
+				f := (*finalizer)(add(unsafe.Pointer(&fb.fin), uintptr(i-1)*unsafe.Sizeof(finalizer{})))
 
 				framesz := unsafe.Sizeof((interface{})(nil)) + uintptr(f.nret)
 				if framecap < framesz {
@@ -175,8 +175,8 @@ func runfinq() {
 				f.fn = nil
 				f.arg = nil
 				f.ot = nil
+				fb.cnt = i - 1
 			}
-			fb.cnt = 0
 			next := fb.next
 			lock(&finlock)
 			fb.next = finc

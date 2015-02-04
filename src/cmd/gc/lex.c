@@ -8,6 +8,10 @@
 #include	"y.tab.h"
 #include	<ar.h>
 
+#ifndef PLAN9
+#include	<signal.h>
+#endif
+
 #undef	getc
 #undef	ungetc
 #define	getc	ccgetc
@@ -33,19 +37,6 @@ static char *goos, *goarch, *goroot;
 
 #define	BOM	0xFEFF
 
-// Compiler experiments.
-// These are controlled by the GOEXPERIMENT environment
-// variable recorded when the compiler is built.
-static struct {
-	char *name;
-	int *val;
-} exper[] = {
-//	{"rune32", &rune32},
-	{"fieldtrack", &fieldtrack_enabled},
-	{"precisestack", &precisestack_enabled},
-	{nil, nil},
-};
-
 // Debug arguments.
 // These can be specified with the -d flag, as in "-d nil"
 // to set the debug_checknil variable. In general the list passed
@@ -55,54 +46,7 @@ static struct {
 	int *val;
 } debugtab[] = {
 	{"nil", &debug_checknil},
-	{nil, nil},
 };
-
-static void
-addexp(char *s)
-{
-	int i;
-
-	for(i=0; exper[i].name != nil; i++) {
-		if(strcmp(exper[i].name, s) == 0) {
-			*exper[i].val = 1;
-			return;
-		}
-	}
-	
-	print("unknown experiment %s\n", s);
-	exits("unknown experiment");
-}
-
-static void
-setexp(void)
-{
-	char *f[20];
-	int i, nf;
-
-	precisestack_enabled = 1; // on by default
-
-	// cmd/dist #defines GOEXPERIMENT for us.
-	nf = getfields(GOEXPERIMENT, f, nelem(f), 1, ",");
-	for(i=0; i<nf; i++)
-		addexp(f[i]);
-}
-
-char*
-expstring(void)
-{
-	int i;
-	static char buf[512];
-
-	strcpy(buf, "X");
-	for(i=0; exper[i].name != nil; i++)
-		if(*exper[i].val)
-			seprint(buf+strlen(buf), buf+sizeof buf, ",%s", exper[i].name);
-	if(strlen(buf) == 1)
-		strcpy(buf, "X,none");
-	buf[1] = ':';
-	return buf;
-}
 
 // Our own isdigit, isspace, isalpha, isalnum that take care 
 // of EOF and other out of range arguments.
@@ -151,7 +95,7 @@ enum
 void
 usage(void)
 {
-	print("usage: %cg [options] file.go...\n", thechar);
+	print("usage: %cg [options] file.go...\n", arch.thechar);
 	flagprint(1);
 	exits("usage");
 }
@@ -188,22 +132,25 @@ catcher(void *v, char *s)
 void
 doversion(void)
 {
-	char *p;
+	char *p, *sep;
 
 	p = expstring();
 	if(strcmp(p, "X:none") == 0)
 		p = "";
-	print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
+	sep = "";
+	if(*p)
+		sep = " ";
+	print("%cg version %s%s%s\n", arch.thechar, getgoversion(), sep, p);
 	exits(0);
 }
 
 int
-main(int argc, char *argv[])
+gcmain(int argc, char *argv[])
 {
 	int i;
 	NodeList *l;
 	char *p;
-
+	
 #ifdef	SIGBUS	
 	signal(SIGBUS, fault);
 	signal(SIGSEGV, fault);
@@ -214,55 +161,55 @@ main(int argc, char *argv[])
 	// Tell the FPU to handle all exceptions.
 	setfcr(FPPDBL|FPRNR);
 #endif
-	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+	// Allow GOARCH=arch.thestring or GOARCH=arch.thestringsuffix,
 	// but not other values.	
 	p = getgoarch();
-	if(strncmp(p, thestring, strlen(thestring)) != 0)
-		sysfatal("cannot use %cg with GOARCH=%s", thechar, p);
+	if(strncmp(p, arch.thestring, strlen(arch.thestring)) != 0)
+		sysfatal("cannot use %cg with GOARCH=%s", arch.thechar, p);
 	goarch = p;
 
-	linkarchinit();
-	ctxt = linknew(thelinkarch);
+	arch.linkarchinit();
+	ctxt = linknew(arch.thelinkarch);
 	ctxt->diag = yyerror;
 	ctxt->bso = &bstdout;
 	Binit(&bstdout, 1, OWRITE);
 
-	localpkg = mkpkg(strlit(""));
+	localpkg = mkpkg(newstrlit(""));
 	localpkg->prefix = "\"\"";
 	
 	// pseudo-package, for scoping
-	builtinpkg = mkpkg(strlit("go.builtin"));
+	builtinpkg = mkpkg(newstrlit("go.builtin"));
 
 	// pseudo-package, accessed by import "unsafe"
-	unsafepkg = mkpkg(strlit("unsafe"));
+	unsafepkg = mkpkg(newstrlit("unsafe"));
 	unsafepkg->name = "unsafe";
 
 	// real package, referred to by generated runtime calls
-	runtimepkg = mkpkg(strlit("runtime"));
+	runtimepkg = mkpkg(newstrlit("runtime"));
 	runtimepkg->name = "runtime";
 
 	// pseudo-packages used in symbol tables
-	gostringpkg = mkpkg(strlit("go.string"));
+	gostringpkg = mkpkg(newstrlit("go.string"));
 	gostringpkg->name = "go.string";
 	gostringpkg->prefix = "go.string";	// not go%2estring
 
-	itabpkg = mkpkg(strlit("go.itab"));
+	itabpkg = mkpkg(newstrlit("go.itab"));
 	itabpkg->name = "go.itab";
 	itabpkg->prefix = "go.itab";	// not go%2eitab
 
-	weaktypepkg = mkpkg(strlit("go.weak.type"));
+	weaktypepkg = mkpkg(newstrlit("go.weak.type"));
 	weaktypepkg->name = "go.weak.type";
 	weaktypepkg->prefix = "go.weak.type";  // not go%2eweak%2etype
 	
-	typelinkpkg = mkpkg(strlit("go.typelink"));
+	typelinkpkg = mkpkg(newstrlit("go.typelink"));
 	typelinkpkg->name = "go.typelink";
 	typelinkpkg->prefix = "go.typelink"; // not go%2etypelink
 
-	trackpkg = mkpkg(strlit("go.track"));
+	trackpkg = mkpkg(newstrlit("go.track"));
 	trackpkg->name = "go.track";
 	trackpkg->prefix = "go.track";  // not go%2etrack
 
-	typepkg = mkpkg(strlit("type"));
+	typepkg = mkpkg(newstrlit("type"));
 	typepkg->name = "type";
 
 	goroot = getgoroot();
@@ -272,8 +219,6 @@ main(int argc, char *argv[])
 	if(nacl)
 		flag_largemodel = 1;
 
-	setexp();
-	
 	fmtstrinit(&pragcgobuf);
 	quotefmtinstall();
 
@@ -322,7 +267,7 @@ main(int argc, char *argv[])
 	flagcount("wb", "enable write barrier", &use_writebarrier);
 	flagcount("x", "debug lexer", &debug['x']);
 	flagcount("y", "debug declarations in canned imports (with -d)", &debug['y']);
-	if(thechar == '6')
+	if(arch.thechar == '6')
 		flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel);
 
 	flagparse(&argc, &argv, usage);
@@ -333,7 +278,7 @@ main(int argc, char *argv[])
 		usage();
 
 	if(flag_race) {
-		racepkg = mkpkg(strlit("runtime/race"));
+		racepkg = mkpkg(newstrlit("runtime/race"));
 		racepkg->name = "race";
 	}
 	
@@ -344,13 +289,14 @@ main(int argc, char *argv[])
 		
 		nf = getfields(debugstr, f, nelem(f), 1, ",");
 		for(i=0; i<nf; i++) {
-			for(j=0; debugtab[j].name != nil; j++) {
+			for(j=0; j<nelem(debugtab); j++) {
 				if(strcmp(debugtab[j].name, f[i]) == 0) {
-					*debugtab[j].val = 1;
+					if(debugtab[j].val != nil)
+						*debugtab[j].val = 1;
 					break;
 				}
 			}
-			if(debugtab[j].name == nil)
+			if(j >= nelem(debugtab))
 				sysfatal("unknown debug information -d '%s'\n", f[i]);
 		}
 	}
@@ -362,7 +308,7 @@ main(int argc, char *argv[])
 	if(debug['l'] <= 1)
 		debug['l'] = 1 - debug['l'];
 
-	if(thechar == '8') {
+	if(arch.thechar == '8') {
 		p = getgo386();
 		if(strcmp(p, "387") == 0)
 			use_sse = 0;
@@ -373,7 +319,7 @@ main(int argc, char *argv[])
 	}
 
 	fmtinstallgo();
-	betypeinit();
+	arch.betypeinit();
 	if(widthptr == 0)
 		fatal("betypeinit failed");
 
@@ -449,6 +395,7 @@ main(int argc, char *argv[])
 	for(l=xtop; l; l=l->next) {
 		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE) {
 			curfn = l->n;
+			decldepth = 1;
 			saveerrors();
 			typechecklist(l->n->nbody, Etop);
 			checkreturn(l->n);
@@ -457,12 +404,21 @@ main(int argc, char *argv[])
 		}
 	}
 
+	// Phase 4: Decide how to capture variables
+	// and transform closure bodies accordingly.
+	for(l=xtop; l; l=l->next) {
+		if(l->n->op == ODCLFUNC && l->n->closure) {
+			curfn = l->n;
+			capturevars(l->n);
+		}
+	}
+
 	curfn = nil;
 	
 	if(nsavederrors+nerrors)
 		errorexit();
 
-	// Phase 4: Inlining
+	// Phase 5: Inlining
 	if(debug['l'] > 1) {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
@@ -488,7 +444,7 @@ main(int argc, char *argv[])
 				inlcalls(l->n);
 	}
 
-	// Phase 5: Escape analysis.
+	// Phase 6: Escape analysis.
 	// Required for moving heap allocations onto stack,
 	// which in turn is required by the closure implementation,
 	// which stores the addresses of stack variables into the closure.
@@ -500,7 +456,7 @@ main(int argc, char *argv[])
 	// Move large values off stack too.
 	movelarge(xtop);
 
-	// Phase 6: Compile top level functions.
+	// Phase 7: Compile top level functions.
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
 			funccompile(l->n, 0);
@@ -508,7 +464,7 @@ main(int argc, char *argv[])
 	if(nsavederrors+nerrors == 0)
 		fninit(xtop);
 
-	// Phase 7: Check external declarations.
+	// Phase 8: Check external declarations.
 	for(l=externdcl; l; l=l->next)
 		if(l->n->op == ONAME)
 			typecheck(&l->n, Erv);
@@ -632,7 +588,7 @@ findpkg(Strlit *name)
 		snprint(namebuf, sizeof(namebuf), "%Z.a", name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%Z.%c", name, thechar);
+		snprint(namebuf, sizeof(namebuf), "%Z.%c", name, arch.thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 		return 0;
@@ -654,7 +610,7 @@ findpkg(Strlit *name)
 		snprint(namebuf, sizeof(namebuf), "%s/%Z.a", p->dir, name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%s/%Z.%c", p->dir, name, thechar);
+		snprint(namebuf, sizeof(namebuf), "%s/%Z.%c", p->dir, name, arch.thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}
@@ -671,7 +627,7 @@ findpkg(Strlit *name)
 		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.a", goroot, goos, goarch, suffixsep, suffix, name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.%c", goroot, goos, goarch, suffixsep, suffix, name, thechar);
+		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.%c", goroot, goos, goarch, suffixsep, suffix, name, arch.thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}
@@ -681,7 +637,7 @@ findpkg(Strlit *name)
 static void
 fakeimport(void)
 {
-	importpkg = mkpkg(strlit("fake"));
+	importpkg = mkpkg(newstrlit("fake"));
 	cannedimports("fake.6", "$$\n");
 }
 
@@ -754,7 +710,7 @@ importfile(Val *f, int line)
 		strcat(cleanbuf, "/");
 		strcat(cleanbuf, path->s);
 		cleanname(cleanbuf);
-		path = strlit(cleanbuf);
+		path = newstrlit(cleanbuf);
 		
 		if(isbadimport(path)) {
 			fakeimport();
@@ -1323,7 +1279,7 @@ talph:
 		if(c >= Runeself) {
 			ungetc(c);
 			rune = getr();
-			// 0xb7 · is used for internal names
+			// 0xb7 Â· is used for internal names
 			if(!isalpharune(rune) && !isdigitrune(rune) && (importpkg == nil || rune != 0xb7))
 				yyerror("invalid identifier character U+%04x", rune);
 			cp += runetochar(cp, &rune);
@@ -2314,10 +2270,10 @@ lexfini(void)
 	}
 
 	// backend-specific builtin types (e.g. int).
-	for(i=0; typedefs[i].name; i++) {
-		s = lookup(typedefs[i].name);
+	for(i=0; arch.typedefs[i].name; i++) {
+		s = lookup(arch.typedefs[i].name);
 		if(s->def == N) {
-			s->def = typenod(types[typedefs[i].etype]);
+			s->def = typenod(types[arch.typedefs[i].etype]);
 			s->origpkg = builtinpkg;
 		}
 	}
@@ -2615,6 +2571,6 @@ mkpackage(char* pkgname)
 		p = strrchr(namebuf, '.');
 		if(p != nil)
 			*p = 0;
-		outfile = smprint("%s.%c", namebuf, thechar);
+		outfile = smprint("%s.%c", namebuf, arch.thechar);
 	}
 }

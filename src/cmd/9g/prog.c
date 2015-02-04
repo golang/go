@@ -137,37 +137,37 @@ proginfo(ProgInfo *info, Prog *p)
 		fatal("proginfo: unknown instruction %P", p);
 	}
 
-	if((info->flags & RegRead) && p->reg == NREG) {
+	if((info->flags & RegRead) && p->reg == 0) {
 		info->flags &= ~RegRead;
 		info->flags |= /*CanRegRead |*/ RightRead;
 	}
 
-	if((p->from.type == D_OREG || p->from.type == D_CONST) && p->from.reg != NREG) {
+	if((p->from.type == TYPE_MEM || p->from.type == TYPE_ADDR) && p->from.reg != 0) {
 		info->regindex |= RtoB(p->from.reg);
 		if(info->flags & PostInc) {
 			info->regset |= RtoB(p->from.reg);
 		}
 	}
-	if((p->to.type == D_OREG || p->to.type == D_CONST) && p->to.reg != NREG) {
+	if((p->to.type == TYPE_MEM || p->to.type == TYPE_ADDR) && p->to.reg != 0) {
 		info->regindex |= RtoB(p->to.reg);
 		if(info->flags & PostInc) {
 			info->regset |= RtoB(p->to.reg);
 		}
 	}
 
-	if(p->from.type == D_CONST && p->from.sym != nil && (info->flags & LeftRead)) {
+	if(p->from.type == TYPE_ADDR && p->from.sym != nil && (info->flags & LeftRead)) {
 		info->flags &= ~LeftRead;
 		info->flags |= LeftAddr;
 	}
 
 	if(p->as == ADUFFZERO) {
-		info->reguse |= (1<<D_R0) | RtoB(3);
-		info->regset |= RtoB(3);
+		info->reguse |= (1<<0) | RtoB(REG_R3);
+		info->regset |= RtoB(REG_R3);
 	}
 	if(p->as == ADUFFCOPY) {
 		// TODO(austin) Revisit when duffcopy is implemented
-		info->reguse |= RtoB(3) | RtoB(4) | RtoB(5);
-		info->regset |= RtoB(3) | RtoB(4);
+		info->reguse |= RtoB(REG_R3) | RtoB(REG_R4) | RtoB(REG_R5);
+		info->regset |= RtoB(REG_R3) | RtoB(REG_R4);
 	}
 }
 

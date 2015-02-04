@@ -393,9 +393,18 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 	nout := t.NumOut()
 
-	// Compute frame type, allocate a chunk of memory for frame
-	frametype, _, retOffset, _ := funcLayout(t, rcvrtype)
-	args := unsafe_New(frametype)
+	// Compute frame type.
+	frametype, _, retOffset, _, framePool := funcLayout(t, rcvrtype)
+
+	// Allocate a chunk of memory for frame.
+	var args unsafe.Pointer
+	if nout == 0 {
+		args = framePool.Get().(unsafe.Pointer)
+	} else {
+		// Can't use pool if the function has return values.
+		// We will leak pointer to args in ret, so its lifetime is not scoped.
+		args = unsafe_New(frametype)
+	}
 	off := uintptr(0)
 
 	// Copy inputs into args.
@@ -427,16 +436,26 @@ func (v Value) call(op string, in []Value) []Value {
 		runtime.GC()
 	}
 
-	// Copy return values out of args.
-	ret := make([]Value, nout)
-	off = retOffset
-	for i := 0; i < nout; i++ {
-		tv := t.Out(i)
-		a := uintptr(tv.Align())
-		off = (off + a - 1) &^ (a - 1)
-		fl := flagIndir | flag(tv.Kind())
-		ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(args) + off), fl}
-		off += tv.Size()
+	var ret []Value
+	if nout == 0 {
+		memclr(args, frametype.size)
+		framePool.Put(args)
+	} else {
+		// Zero the now unused input area of args,
+		// because the Values returned by this function contain pointers to the args object,
+		// and will thus keep the args object alive indefinitely.
+		memclr(args, retOffset)
+		// Copy return values out of args.
+		ret = make([]Value, nout)
+		off = retOffset
+		for i := 0; i < nout; i++ {
+			tv := t.Out(i)
+			a := uintptr(tv.Align())
+			off = (off + a - 1) &^ (a - 1)
+			fl := flagIndir | flag(tv.Kind())
+			ret[i] = Value{tv.common(), unsafe.Pointer(uintptr(args) + off), fl}
+			off += tv.Size()
+		}
 	}
 
 	return ret
@@ -596,10 +615,10 @@ func align(x, n uintptr) uintptr {
 func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	rcvr := ctxt.rcvr
 	rcvrtype, t, fn := methodReceiver("call", rcvr, ctxt.method)
-	frametype, argSize, retOffset, _ := funcLayout(t, rcvrtype)
+	frametype, argSize, retOffset, _, framePool := funcLayout(t, rcvrtype)
 
 	// Make a new frame that is one word bigger so we can store the receiver.
-	args := unsafe_New(frametype)
+	args := framePool.Get().(unsafe.Pointer)
 
 	// Copy in receiver and rest of args.
 	storeRcvr(rcvr, args)
@@ -622,6 +641,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 		unsafe.Pointer(uintptr(args)+retOffset),
 		retOffset,
 		frametype.size-retOffset)
+
+	memclr(args, frametype.size)
+	framePool.Put(args)
 }
 
 // funcName returns the name of f, for use in error messages.
@@ -2447,6 +2469,9 @@ func typedmemmovepartial(t *rtype, dst, src unsafe.Pointer, off, size uintptr)
 // returning the number of elements copied.
 //go:noescape
 func typedslicecopy(elemType *rtype, dst, src sliceHeader) int
+
+//go:noescape
+func memclr(ptr unsafe.Pointer, n uintptr)
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that

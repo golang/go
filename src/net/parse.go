@@ -171,43 +171,30 @@ func xtoi2(s string, e byte) (byte, bool) {
 	return byte(n), ok && ei == 2
 }
 
-// Integer to decimal.
-func itoa(i int) string {
-	var buf [30]byte
-	n := len(buf)
-	neg := false
-	if i < 0 {
-		i = -i
-		neg = true
+// Convert integer to decimal string.
+func itoa(val int) string {
+	if val < 0 {
+		return "-" + uitoa(uint(-val))
 	}
-	ui := uint(i)
-	for ui > 0 || n == len(buf) {
-		n--
-		buf[n] = byte('0' + ui%10)
-		ui /= 10
-	}
-	if neg {
-		n--
-		buf[n] = '-'
-	}
-	return string(buf[n:])
+	return uitoa(uint(val))
 }
 
-// Convert i to decimal string.
-func itod(i uint) string {
-	if i == 0 {
+// Convert unsigned integer to decimal string.
+func uitoa(val uint) string {
+	if val == 0 { // avoid string allocation
 		return "0"
 	}
-
-	// Assemble decimal in reverse order.
-	var b [32]byte
-	bp := len(b)
-	for ; i > 0; i /= 10 {
-		bp--
-		b[bp] = byte(i%10) + '0'
+	var buf [20]byte // big enough for 64bit value base 10
+	i := len(buf) - 1
+	for val >= 10 {
+		q := val / 10
+		buf[i] = byte('0' + val - q*10)
+		i--
+		val = q
 	}
-
-	return string(b[bp:])
+	// val < 10
+	buf[i] = byte('0' + val)
+	return string(buf[i:])
 }
 
 // Convert i to a hexadecimal string. Leading zeros are not printed.

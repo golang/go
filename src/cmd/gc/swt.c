@@ -939,6 +939,8 @@ typecheckswitch(Node *n)
 					// multiple entry type switch or default
 					nvar->ntype = typenod(n->type);
 				}
+				typecheck(&nvar, Erv | Easgn);
+				ncase->nname = nvar;
 			}
 		}
 		typechecklist(ncase->nbody, Etop);

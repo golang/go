@@ -232,6 +232,12 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf 
 			frame.varp -= regSize
 		}
 
+		// If framepointer_enabled and there's a frame, then
+		// there's a saved bp here.
+		if framepointer_enabled && GOARCH == "amd64" && frame.varp > frame.sp {
+			frame.varp -= regSize
+		}
+
 		// Derive size of arguments.
 		// Most functions have a fixed-size argument block,
 		// so we can use metadata about the function f.

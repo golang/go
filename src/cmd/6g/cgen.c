@@ -759,9 +759,10 @@ agenr(Node *n, Node *a, Node *res)
 			// nothing to do
 		} else if(w == 1 || w == 2 || w == 4 || w == 8) {
 			p1 = gins(ALEAQ, &n2, &n3);
+			p1->from.type = TYPE_MEM;
 			p1->from.scale = w;
-			p1->from.index = p1->from.type;
-			p1->from.type = p1->to.type + D_INDIR;
+			p1->from.index = p1->from.reg;
+			p1->from.reg = p1->to.reg;
 		} else {
 			ginscon(optoas(OMUL, t), w, &n2);
 			gins(optoas(OADD, types[tptr]), &n2, &n3);
@@ -941,7 +942,7 @@ igen(Node *n, Node *a, Node *res)
 	case OINDREG:
 		// Increase the refcount of the register so that igen's caller
 		// has to call regfree.
-		if(n->val.u.reg != D_SP)
+		if(n->val.u.reg != REG_SP)
 			reg[n->val.u.reg]++;
 		*a = *n;
 		return;
@@ -979,7 +980,7 @@ igen(Node *n, Node *a, Node *res)
 		fp = structfirst(&flist, getoutarg(n->left->type));
 		memset(a, 0, sizeof *a);
 		a->op = OINDREG;
-		a->val.u.reg = D_SP;
+		a->val.u.reg = REG_SP;
 		a->addable = 1;
 		a->xoffset = fp->width;
 		a->type = n->type;
@@ -1401,8 +1402,8 @@ sgen(Node *n, Node *ns, int64 w)
 		agenr(n, &nodr, N);
 	}
 	
-	nodreg(&noddi, types[tptr], D_DI);
-	nodreg(&nodsi, types[tptr], D_SI);
+	nodreg(&noddi, types[tptr], REG_DI);
+	nodreg(&nodsi, types[tptr], REG_SI);
 	gmove(&nodl, &noddi);
 	gmove(&nodr, &nodsi);
 	regfree(&nodl);
@@ -1411,7 +1412,7 @@ sgen(Node *n, Node *ns, int64 w)
 	c = w % 8;	// bytes
 	q = w / 8;	// quads
 
-	savex(D_CX, &cx, &oldcx, N, types[TINT64]);
+	savex(REG_CX, &cx, &oldcx, N, types[TINT64]);
 
 	// if we are copying forward on the stack and
 	// the src and dst overlap, then reverse direction
@@ -1419,23 +1420,23 @@ sgen(Node *n, Node *ns, int64 w)
 		// reverse direction
 		gins(ASTD, N, N);		// set direction flag
 		if(c > 0) {
-			gconreg(addptr, w-1, D_SI);
-			gconreg(addptr, w-1, D_DI);
+			gconreg(addptr, w-1, REG_SI);
+			gconreg(addptr, w-1, REG_DI);
 
-			gconreg(movptr, c, D_CX);
+			gconreg(movptr, c, REG_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSB, N, N);	// MOVB *(SI)-,*(DI)-
 		}
 
 		if(q > 0) {
 			if(c > 0) {
-				gconreg(addptr, -7, D_SI);
-				gconreg(addptr, -7, D_DI);
+				gconreg(addptr, -7, REG_SI);
+				gconreg(addptr, -7, REG_DI);
 			} else {
-				gconreg(addptr, w-8, D_SI);
-				gconreg(addptr, w-8, D_DI);
+				gconreg(addptr, w-8, REG_SI);
+				gconreg(addptr, w-8, REG_DI);
 			}
-			gconreg(movptr, q, D_CX);
+			gconreg(movptr, q, REG_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)-,*(DI)-
 		}
@@ -1444,12 +1445,12 @@ sgen(Node *n, Node *ns, int64 w)
 	} else {
 		// normal direction
 		if(q > 128 || (nacl && q >= 4)) {
-			gconreg(movptr, q, D_CX);
+			gconreg(movptr, q, REG_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
 		} else if (q >= 4) {
 			p = gins(ADUFFCOPY, N, N);
-			p->to.type = D_ADDR;
+			p->to.type = TYPE_ADDR;
 			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
 			// 14 and 128 = magic constants: see ../../runtime/asm_amd64.s
 			p->to.offset = 14*(128-q);

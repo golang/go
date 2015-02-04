@@ -197,97 +197,97 @@ struct
 	ushort	value;
 } itab[] =
 {
-	"SP",		LSP,	D_AUTO,
-	"SB",		LSB,	D_EXTERN,
-	"FP",		LFP,	D_PARAM,
-	"PC",		LPC,	D_BRANCH,
+	"SP",		LSP,	NAME_AUTO,
+	"SB",		LSB,	NAME_EXTERN,
+	"FP",		LFP,	NAME_PARAM,
+	"PC",		LPC,	TYPE_BRANCH,
 
-	"LR",		LLR,	D_LR,
-	"CTR",		LCTR,	D_CTR,
+	"LR",		LLR,	REG_LR,
+	"CTR",		LCTR,	REG_CTR,
 
-	"XER",		LSPREG,	D_XER,
-	"MSR",		LMSR,	D_MSR,
-	"FPSCR",	LFPSCR,	D_FPSCR,
-	"SPR",		LSPR,	D_SPR,
-	"DCR",		LSPR,	D_DCR,
+	"XER",		LSPREG,	REG_XER,
+	"MSR",		LMSR,	REG_MSR,
+	"FPSCR",	LFPSCR,	REG_FPSCR,
+	"SPR",		LSPR,	REG_SPR0,
+	"DCR",		LSPR,	REG_DCR0,
 
-	"CR",		LCR,	0,
-	"CR0",		LCREG,	0,
-	"CR1",		LCREG,	1,
-	"CR2",		LCREG,	2,
-	"CR3",		LCREG,	3,
-	"CR4",		LCREG,	4,
-	"CR5",		LCREG,	5,
-	"CR6",		LCREG,	6,
-	"CR7",		LCREG,	7,
+	"CR",		LCR,	REG_CR,
+	"CR0",		LCREG,	REG_C0,
+	"CR1",		LCREG,	REG_C1,
+	"CR2",		LCREG,	REG_C2,
+	"CR3",		LCREG,	REG_C3,
+	"CR4",		LCREG,	REG_C4,
+	"CR5",		LCREG,	REG_C5,
+	"CR6",		LCREG,	REG_C6,
+	"CR7",		LCREG,	REG_C7,
 
 	"R",		LR,	0,
-	"R0",		LREG,	0,
-	"R1",		LREG,	1,
-	"R2",		LREG,	2,
-	"R3",		LREG,	3,
-	"R4",		LREG,	4,
-	"R5",		LREG,	5,
-	"R6",		LREG,	6,
-	"R7",		LREG,	7,
-	"R8",		LREG,	8,
-	"R9",		LREG,	9,
-	"R10",		LREG,	10,
-	"R11",		LREG,	11,
-	"R12",		LREG,	12,
-	"R13",		LREG,	13,
-	"R14",		LREG,	14,
-	"R15",		LREG,	15,
-	"R16",		LREG,	16,
-	"R17",		LREG,	17,
-	"R18",		LREG,	18,
-	"R19",		LREG,	19,
-	"R20",		LREG,	20,
-	"R21",		LREG,	21,
-	"R22",		LREG,	22,
-	"R23",		LREG,	23,
-	"R24",		LREG,	24,
-	"R25",		LREG,	25,
-	"R26",		LREG,	26,
-	"R27",		LREG,	27,
-	"R28",		LREG,	28,
-	"R29",		LREG,	29,
-	"g",		LREG,	30, // avoid unintentionally clobbering g using R30
-	"R31",		LREG,	31,
+	"R0",		LREG,	REG_R0,
+	"R1",		LREG,	REG_R1,
+	"R2",		LREG,	REG_R2,
+	"R3",		LREG,	REG_R3,
+	"R4",		LREG,	REG_R4,
+	"R5",		LREG,	REG_R5,
+	"R6",		LREG,	REG_R6,
+	"R7",		LREG,	REG_R7,
+	"R8",		LREG,	REG_R8,
+	"R9",		LREG,	REG_R9,
+	"R10",		LREG,	REG_R10,
+	"R11",		LREG,	REG_R11,
+	"R12",		LREG,	REG_R12,
+	"R13",		LREG,	REG_R13,
+	"R14",		LREG,	REG_R14,
+	"R15",		LREG,	REG_R15,
+	"R16",		LREG,	REG_R16,
+	"R17",		LREG,	REG_R17,
+	"R18",		LREG,	REG_R18,
+	"R19",		LREG,	REG_R19,
+	"R20",		LREG,	REG_R20,
+	"R21",		LREG,	REG_R21,
+	"R22",		LREG,	REG_R22,
+	"R23",		LREG,	REG_R23,
+	"R24",		LREG,	REG_R24,
+	"R25",		LREG,	REG_R25,
+	"R26",		LREG,	REG_R26,
+	"R27",		LREG,	REG_R27,
+	"R28",		LREG,	REG_R28,
+	"R29",		LREG,	REG_R29,
+	"g",		LREG,	REG_R30, // avoid unintentionally clobbering g using R30
+	"R31",		LREG,	REG_R31,
 
 	"F",		LF,	0,
-	"F0",		LFREG,	0,
-	"F1",		LFREG,	1,
-	"F2",		LFREG,	2,
-	"F3",		LFREG,	3,
-	"F4",		LFREG,	4,
-	"F5",		LFREG,	5,
-	"F6",		LFREG,	6,
-	"F7",		LFREG,	7,
-	"F8",		LFREG,	8,
-	"F9",		LFREG,	9,
-	"F10",		LFREG,	10,
-	"F11",		LFREG,	11,
-	"F12",		LFREG,	12,
-	"F13",		LFREG,	13,
-	"F14",		LFREG,	14,
-	"F15",		LFREG,	15,
-	"F16",		LFREG,	16,
-	"F17",		LFREG,	17,
-	"F18",		LFREG,	18,
-	"F19",		LFREG,	19,
-	"F20",		LFREG,	20,
-	"F21",		LFREG,	21,
-	"F22",		LFREG,	22,
-	"F23",		LFREG,	23,
-	"F24",		LFREG,	24,
-	"F25",		LFREG,	25,
-	"F26",		LFREG,	26,
-	"F27",		LFREG,	27,
-	"F28",		LFREG,	28,
-	"F29",		LFREG,	29,
-	"F30",		LFREG,	30,
-	"F31",		LFREG,	31,
+	"F0",		LFREG,	REG_F0,
+	"F1",		LFREG,	REG_F1,
+	"F2",		LFREG,	REG_F2,
+	"F3",		LFREG,	REG_F3,
+	"F4",		LFREG,	REG_F4,
+	"F5",		LFREG,	REG_F5,
+	"F6",		LFREG,	REG_F6,
+	"F7",		LFREG,	REG_F7,
+	"F8",		LFREG,	REG_F8,
+	"F9",		LFREG,	REG_F9,
+	"F10",		LFREG,	REG_F10,
+	"F11",		LFREG,	REG_F11,
+	"F12",		LFREG,	REG_F12,
+	"F13",		LFREG,	REG_F13,
+	"F14",		LFREG,	REG_F14,
+	"F15",		LFREG,	REG_F15,
+	"F16",		LFREG,	REG_F16,
+	"F17",		LFREG,	REG_F17,
+	"F18",		LFREG,	REG_F18,
+	"F19",		LFREG,	REG_F19,
+	"F20",		LFREG,	REG_F20,
+	"F21",		LFREG,	REG_F21,
+	"F22",		LFREG,	REG_F22,
+	"F23",		LFREG,	REG_F23,
+	"F24",		LFREG,	REG_F24,
+	"F25",		LFREG,	REG_F25,
+	"F26",		LFREG,	REG_F26,
+	"F27",		LFREG,	REG_F27,
+	"F28",		LFREG,	REG_F28,
+	"F29",		LFREG,	REG_F29,
+	"F30",		LFREG,	REG_F30,
+	"F31",		LFREG,	REG_F31,
 
 	"CREQV",	LCROP, ACREQV,
 	"CRXOR",	LCROP, ACRXOR,
@@ -454,7 +454,7 @@ struct
 	"FMOVS",	LFMOV, AFMOVS,
 	"FMOVDCC",	LFCONV,	AFMOVDCC,	/* fmr. */
 
-	"GLOBL",	LTEXT, AGLOBL,
+	"GLOBL",	LGLOBL, AGLOBL,
 
 	"MOVB",		LMOVB, AMOVB,
 	"MOVBZ",	LMOVB, AMOVBZ,
@@ -616,10 +616,10 @@ cinit(void)
 	Sym *s;
 	int i;
 
-	nullgen.type = D_NONE;
-	nullgen.name = D_NONE;
-	nullgen.reg = NREG;
-	nullgen.scale = NREG; // replaced Gen.xreg with Prog.scale
+	nullgen.type = TYPE_NONE;
+	nullgen.name = NAME_NONE;
+	nullgen.reg = 0;
+	nullgen.scale = 0; // replaced Gen.xreg with Prog.scale
 
 	nerrors = 0;
 	iostack = I;
@@ -647,10 +647,8 @@ void
 cclean(void)
 {
 
-	outcode(AEND, &nullgen, NREG, &nullgen);
+	outcode(AEND, &nullgen, 0, &nullgen);
 }
-
-static Prog *lastpc;
 
 void
 outcode(int a, Addr *g1, int reg, Addr *g2)
@@ -661,18 +659,18 @@ outcode(int a, Addr *g1, int reg, Addr *g2)
 	if(pass == 1)
 		goto out;
 
-	if(g1->scale != NREG) {
-		if(reg != NREG || g2->scale != NREG)
+	if(g1->scale != 0) {
+		if(reg != 0 || g2->scale != 0)
 			yyerror("bad addressing modes");
 		reg = g1->scale;
 	} else
-	if(g2->scale != NREG) {
-		if(reg != NREG)
+	if(g2->scale != 0) {
+		if(reg != 0)
 			yyerror("bad addressing modes");
 		reg = g2->scale;
 	}
 
-	p = ctxt->arch->prg();
+	p = emallocz(sizeof(Prog));
 	p->as = a;
 	p->lineno = lineno;
 	if(nosched)
@@ -702,7 +700,7 @@ outgcode(int a, Addr *g1, int reg, Addr *g2, Addr *g3)
 	if(pass == 1)
 		goto out;
 
-	p = ctxt->arch->prg();
+	p = emallocz(sizeof(Prog));
 	p->as = a;
 	p->lineno = lineno;
 	if(nosched)

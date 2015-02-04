@@ -7,7 +7,7 @@
 #include "go.h"
 
 enum {
-	WORDSIZE = sizeof(uint32),
+	WORDSIZE = 4,
 	WORDBITS = 32,
 	WORDMASK = WORDBITS - 1,
 	WORDSHIFT = 5,

@@ -39,19 +39,20 @@ func printsp()
 func printlock()
 func printunlock()
 
-func concatstring2(string, string) string
-func concatstring3(string, string, string) string
-func concatstring4(string, string, string, string) string
-func concatstring5(string, string, string, string, string) string
-func concatstrings([]string) string
+func concatstring2(*[32]byte, string, string) string
+func concatstring3(*[32]byte, string, string, string) string
+func concatstring4(*[32]byte, string, string, string, string) string
+func concatstring5(*[32]byte, string, string, string, string, string) string
+func concatstrings(*[32]byte, []string) string
 
 func cmpstring(string, string) int
 func eqstring(string, string) bool
-func intstring(int64) string
-func slicebytetostring([]byte) string
+func intstring(*[4]byte, int64) string
+func slicebytetostring(*[32]byte, []byte) string
 func slicebytetostringtmp([]byte) string
 func slicerunetostring([]rune) string
 func stringtoslicebyte(string) []byte
+func stringtoslicebytetmp(string) []byte
 func stringtoslicerune(string) []rune
 func stringiter(string, int) int
 func stringiter2(string, int) (retk int, retv rune)

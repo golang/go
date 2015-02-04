@@ -274,9 +274,9 @@ printprog(Link *ctxt, Biobuf *bw, Prog *p0)
 	
 	q = p;
 	for(p=p0; p!=q; p=p->link) {
-		if(p->from.type == ctxt->arch->D_BRANCH)
+		if(p->from.type == TYPE_BRANCH)
 			printprog(ctxt, bw, p->from.u.branch);
-		if(p->to.type == ctxt->arch->D_BRANCH)
+		if(p->to.type == TYPE_BRANCH)
 			printprog(ctxt, bw, p->to.u.branch);
 	}
 }
@@ -288,7 +288,7 @@ printaddr(Link *ctxt, Biobuf *bw, Addr *a)
 
 	printtype(ctxt, bw, TypeAddr);
 	printint(ctxt, bw, a->offset);
-	if(a->type == ctxt->arch->D_FCONST) {
+	if(a->type == TYPE_FCONST) {
 		uint64 u;
 		float64 f;
 		f = a->u.dval;
@@ -296,11 +296,11 @@ printaddr(Link *ctxt, Biobuf *bw, Addr *a)
 		printint(ctxt, bw, u);
 	} else
 		printint(ctxt, bw, 0);
-	if(a->type == ctxt->arch->D_SCONST)
+	if(a->type == TYPE_SCONST)
 		Bwrite(bw, a->u.sval, 8);
 	else
 		Bwrite(bw, zero, 8);
-	if(a->type == ctxt->arch->D_BRANCH)
+	if(a->type == TYPE_BRANCH)
 		printptr(ctxt, bw, a->u.branch);
 	else	
 		printptr(ctxt, bw, nil);
@@ -313,7 +313,10 @@ printaddr(Link *ctxt, Biobuf *bw, Addr *a)
 	printint(ctxt, bw, a->name);
 	printint(ctxt, bw, a->class);
 	printint(ctxt, bw, a->etype);
-	printint(ctxt, bw, a->offset2);
+	if(a->type == TYPE_TEXTSIZE)
+		printint(ctxt, bw, a->u.argsize);
+	else
+		printint(ctxt, bw, 0);
 	printint(ctxt, bw, a->width);
 }
 

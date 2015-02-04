@@ -80,14 +80,14 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
 	Reloc *r;
 
 	off = p->from.offset;
-	siz = ctxt->arch->datasize(p);
+	siz = p->from3.offset;
 	if(off < 0 || siz < 0 || off >= 1<<30 || siz >= 100)
 		mangle(pn);
 	if(ctxt->enforce_data_order && off < s->np)
 		ctxt->diag("data out of order (already have %d)\n%P", p);
 	symgrow(ctxt, s, off+siz);
 
-	if(p->to.type == ctxt->arch->D_FCONST) {
+	if(p->to.type == TYPE_FCONST) {
 		switch(siz) {
 		default:
 		case 4:
@@ -102,10 +102,10 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
 				s->p[off+i] = cast[fnuxi8[i]];
 			break;
 		}
-	} else if(p->to.type == ctxt->arch->D_SCONST) {
+	} else if(p->to.type == TYPE_SCONST) {
 		for(i=0; i<siz; i++)
 			s->p[off+i] = p->to.u.sval[i];
-	} else if(p->to.type == ctxt->arch->D_CONST) {
+	} else if(p->to.type == TYPE_CONST) {
 		if(p->to.sym)
 			goto addr;
 		o = p->to.offset;
@@ -132,7 +132,7 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
 				s->p[off+i] = cast[inuxi8[i]];
 			break;
 		}
-	} else if(p->to.type == ctxt->arch->D_ADDR) {
+	} else if(p->to.type == TYPE_ADDR) {
 	addr:
 		r = addrel(s);
 		r->off = off;

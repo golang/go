@@ -8,7 +8,7 @@ const (
 	thechar           = '6'
 	_BigEndian        = 0
 	_CacheLineSize    = 64
-	_RuntimeGogoBytes = 64 + (goos_plan9|goos_solaris|goos_windows)*16
+	_RuntimeGogoBytes = 80 + (goos_solaris)*16
 	_PhysPageSize     = 4096
 	_PCQuantum        = 1
 	_Int64Align       = 8

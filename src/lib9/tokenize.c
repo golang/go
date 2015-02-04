@@ -1,5 +1,3 @@
-// +build !plan9
-
 /*
 Inferno lib9/tokenize.c
 http://code.google.com/p/inferno-os/source/browse/lib9/tokenize.c

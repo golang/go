@@ -46,6 +46,23 @@ func TestMemStats(t *testing.T) {
 	}
 }
 
+func TestStringConcatenationAllocs(t *testing.T) {
+	n := testing.AllocsPerRun(1e3, func() {
+		b := make([]byte, 10)
+		for i := 0; i < 10; i++ {
+			b[i] = byte(i) + '0'
+		}
+		s := "foo" + string(b)
+		if want := "foo0123456789"; s != want {
+			t.Fatalf("want %v, got %v", want, s)
+		}
+	})
+	// Only string concatenation allocates.
+	if n != 1 {
+		t.Fatalf("want 1 allocation, got %v", n)
+	}
+}
+
 var mallocSink uintptr
 
 func BenchmarkMalloc8(b *testing.B) {

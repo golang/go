@@ -10,16 +10,8 @@ enum {
 	DEFAULTCAPACITY = 16,
 };
 
-struct Array
-{
-	int32	length;  // number of elements
-	int32	size;  // element size
-	int32	capacity;  // size of data in elements
-	char	*data;  // element storage
-};
-
 Array*
-arraynew(int32 capacity, int32 size)
+arraynew(int capacity, int32 size)
 {
 	Array *result;
 
@@ -48,14 +40,14 @@ arrayfree(Array *array)
 	free(array);
 }
 
-int32
+int
 arraylength(Array *array)
 {
 	return array->length;
 }
 
 void*
-arrayget(Array *array, int32 index)
+arrayget(Array *array, int index)
 {
 	if(array == nil)
 		fatal("arrayget: array is nil\n");
@@ -65,7 +57,7 @@ arrayget(Array *array, int32 index)
 }
 
 void
-arrayset(Array *array, int32 index, void *element)
+arrayset(Array *array, int index, void *element)
 {
 	if(array == nil)
 		fatal("arrayset: array is nil\n");
@@ -77,7 +69,7 @@ arrayset(Array *array, int32 index, void *element)
 }
 
 static void
-ensurecapacity(Array *array, int32 capacity)
+ensurecapacity(Array *array, int capacity)
 {
 	int32 newcapacity;
 	char *newdata;
