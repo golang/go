@@ -52,8 +52,8 @@ func Set(GOARCH string) *Arch {
 
 func arch386() *Arch {
 	noAddr := obj.Addr{
-		Type:  x86.D_NONE,
-		Index: x86.D_NONE,
+		Type:  i386.D_NONE,
+		Index: i386.D_NONE,
 	}
 
 	registers := make(map[string]int)
@@ -73,86 +73,86 @@ func arch386() *Arch {
 		instructions[s] = i
 	}
 	// Annoying aliases.
-	instructions["JA"] = x86.AJHI
-	instructions["JAE"] = x86.AJCC
-	instructions["JB"] = x86.AJCS
-	instructions["JBE"] = x86.AJLS
-	instructions["JC"] = x86.AJCS
-	instructions["JE"] = x86.AJEQ
-	instructions["JG"] = x86.AJGT
-	instructions["JHS"] = x86.AJCC
-	instructions["JL"] = x86.AJLT
-	instructions["JLO"] = x86.AJCS
-	instructions["JNA"] = x86.AJLS
-	instructions["JNAE"] = x86.AJCS
-	instructions["JNB"] = x86.AJCC
-	instructions["JNBE"] = x86.AJHI
-	instructions["JNC"] = x86.AJCC
-	instructions["JNG"] = x86.AJLE
-	instructions["JNGE"] = x86.AJLT
-	instructions["JNL"] = x86.AJGE
-	instructions["JNLE"] = x86.AJGT
-	instructions["JNO"] = x86.AJOC
-	instructions["JNP"] = x86.AJPC
-	instructions["JNS"] = x86.AJPL
-	instructions["JNZ"] = x86.AJNE
-	instructions["JO"] = x86.AJOS
-	instructions["JP"] = x86.AJPS
-	instructions["JPE"] = x86.AJPS
-	instructions["JPO"] = x86.AJPC
-	instructions["JS"] = x86.AJMI
-	instructions["JZ"] = x86.AJEQ
-	instructions["MASKMOVDQU"] = x86.AMASKMOVOU
-	instructions["MOVOA"] = x86.AMOVO
-	instructions["MOVNTDQ"] = x86.AMOVNTO
+	instructions["JA"] = i386.AJHI
+	instructions["JAE"] = i386.AJCC
+	instructions["JB"] = i386.AJCS
+	instructions["JBE"] = i386.AJLS
+	instructions["JC"] = i386.AJCS
+	instructions["JE"] = i386.AJEQ
+	instructions["JG"] = i386.AJGT
+	instructions["JHS"] = i386.AJCC
+	instructions["JL"] = i386.AJLT
+	instructions["JLO"] = i386.AJCS
+	instructions["JNA"] = i386.AJLS
+	instructions["JNAE"] = i386.AJCS
+	instructions["JNB"] = i386.AJCC
+	instructions["JNBE"] = i386.AJHI
+	instructions["JNC"] = i386.AJCC
+	instructions["JNG"] = i386.AJLE
+	instructions["JNGE"] = i386.AJLT
+	instructions["JNL"] = i386.AJGE
+	instructions["JNLE"] = i386.AJGT
+	instructions["JNO"] = i386.AJOC
+	instructions["JNP"] = i386.AJPC
+	instructions["JNS"] = i386.AJPL
+	instructions["JNZ"] = i386.AJNE
+	instructions["JO"] = i386.AJOS
+	instructions["JP"] = i386.AJPS
+	instructions["JPE"] = i386.AJPS
+	instructions["JPO"] = i386.AJPC
+	instructions["JS"] = i386.AJMI
+	instructions["JZ"] = i386.AJEQ
+	instructions["MASKMOVDQU"] = i386.AMASKMOVOU
+	instructions["MOVOA"] = i386.AMOVO
+	instructions["MOVNTDQ"] = i386.AMOVNTO
 
 	pseudos := make(map[string]int) // TEXT, DATA etc.
-	pseudos["DATA"] = x86.ADATA
-	pseudos["FUNCDATA"] = x86.AFUNCDATA
-	pseudos["GLOBL"] = x86.AGLOBL
-	pseudos["PCDATA"] = x86.APCDATA
-	pseudos["TEXT"] = x86.ATEXT
+	pseudos["DATA"] = i386.ADATA
+	pseudos["FUNCDATA"] = i386.AFUNCDATA
+	pseudos["GLOBL"] = i386.AGLOBL
+	pseudos["PCDATA"] = i386.APCDATA
+	pseudos["TEXT"] = i386.ATEXT
 
 	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
 	// These instructions write to prog.To.
-	unaryDestination[x86.ABSWAPL] = true
-	unaryDestination[x86.ACMPXCHG8B] = true
-	unaryDestination[x86.ADECB] = true
-	unaryDestination[x86.ADECL] = true
-	unaryDestination[x86.ADECW] = true
-	unaryDestination[x86.AINCB] = true
-	unaryDestination[x86.AINCL] = true
-	unaryDestination[x86.AINCW] = true
-	unaryDestination[x86.ANEGB] = true
-	unaryDestination[x86.ANEGL] = true
-	unaryDestination[x86.ANEGW] = true
-	unaryDestination[x86.ANOTB] = true
-	unaryDestination[x86.ANOTL] = true
-	unaryDestination[x86.ANOTW] = true
-	unaryDestination[x86.APOPL] = true
-	unaryDestination[x86.APOPW] = true
-	unaryDestination[x86.ASETCC] = true
-	unaryDestination[x86.ASETCS] = true
-	unaryDestination[x86.ASETEQ] = true
-	unaryDestination[x86.ASETGE] = true
-	unaryDestination[x86.ASETGT] = true
-	unaryDestination[x86.ASETHI] = true
-	unaryDestination[x86.ASETLE] = true
-	unaryDestination[x86.ASETLS] = true
-	unaryDestination[x86.ASETLT] = true
-	unaryDestination[x86.ASETMI] = true
-	unaryDestination[x86.ASETNE] = true
-	unaryDestination[x86.ASETOC] = true
-	unaryDestination[x86.ASETOS] = true
-	unaryDestination[x86.ASETPC] = true
-	unaryDestination[x86.ASETPL] = true
-	unaryDestination[x86.ASETPS] = true
-	unaryDestination[x86.AFFREE] = true
-	unaryDestination[x86.AFLDENV] = true
-	unaryDestination[x86.AFSAVE] = true
-	unaryDestination[x86.AFSTCW] = true
-	unaryDestination[x86.AFSTENV] = true
-	unaryDestination[x86.AFSTSW] = true
+	unaryDestination[i386.ABSWAPL] = true
+	unaryDestination[i386.ACMPXCHG8B] = true
+	unaryDestination[i386.ADECB] = true
+	unaryDestination[i386.ADECL] = true
+	unaryDestination[i386.ADECW] = true
+	unaryDestination[i386.AINCB] = true
+	unaryDestination[i386.AINCL] = true
+	unaryDestination[i386.AINCW] = true
+	unaryDestination[i386.ANEGB] = true
+	unaryDestination[i386.ANEGL] = true
+	unaryDestination[i386.ANEGW] = true
+	unaryDestination[i386.ANOTB] = true
+	unaryDestination[i386.ANOTL] = true
+	unaryDestination[i386.ANOTW] = true
+	unaryDestination[i386.APOPL] = true
+	unaryDestination[i386.APOPW] = true
+	unaryDestination[i386.ASETCC] = true
+	unaryDestination[i386.ASETCS] = true
+	unaryDestination[i386.ASETEQ] = true
+	unaryDestination[i386.ASETGE] = true
+	unaryDestination[i386.ASETGT] = true
+	unaryDestination[i386.ASETHI] = true
+	unaryDestination[i386.ASETLE] = true
+	unaryDestination[i386.ASETLS] = true
+	unaryDestination[i386.ASETLT] = true
+	unaryDestination[i386.ASETMI] = true
+	unaryDestination[i386.ASETNE] = true
+	unaryDestination[i386.ASETOC] = true
+	unaryDestination[i386.ASETOS] = true
+	unaryDestination[i386.ASETPC] = true
+	unaryDestination[i386.ASETPL] = true
+	unaryDestination[i386.ASETPS] = true
+	unaryDestination[i386.AFFREE] = true
+	unaryDestination[i386.AFLDENV] = true
+	unaryDestination[i386.AFSAVE] = true
+	unaryDestination[i386.AFSTCW] = true
+	unaryDestination[i386.AFSTENV] = true
+	unaryDestination[i386.AFSTSW] = true
 
 	return &Arch{
 		LinkArch:         &i386.Link386,
