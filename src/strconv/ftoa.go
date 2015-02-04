@@ -119,7 +119,7 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 		// Precision for shortest representation mode.
 		switch fmt {
 		case 'e', 'E':
-			prec = digs.nd - 1
+			prec = max(digs.nd-1, 0)
 		case 'f':
 			prec = max(digs.nd-digs.dp, 0)
 		case 'g', 'G':
@@ -348,14 +348,13 @@ func fmtE(dst []byte, neg bool, d decimalSlice, prec int, fmt byte) []byte {
 	if prec > 0 {
 		dst = append(dst, '.')
 		i := 1
-		m := d.nd + prec + 1 - max(d.nd, prec+1)
-		for i < m {
-			dst = append(dst, d.d[i])
-			i++
+		m := min(d.nd, prec+1)
+		if i < m {
+			dst = append(dst, d.d[i:m]...)
+			i = m
 		}
-		for i <= prec {
+		for ; i <= prec; i++ {
 			dst = append(dst, '0')
-			i++
 		}
 	}
 
@@ -373,27 +372,16 @@ func fmtE(dst []byte, neg bool, d decimalSlice, prec int, fmt byte) []byte {
 	}
 	dst = append(dst, ch)
 
-	// dddd
-	var buf [3]byte
-	i := len(buf)
-	for exp >= 10 {
-		i--
-		buf[i] = byte(exp%10 + '0')
-		exp /= 10
+	// dd or ddd
+	switch {
+	case exp < 10:
+		dst = append(dst, '0', byte(exp)+'0')
+	case exp < 100:
+		dst = append(dst, byte(exp/10)+'0', byte(exp%10)+'0')
+	default:
+		dst = append(dst, byte(exp/100)+'0', byte(exp/10)%10+'0', byte(exp%10)+'0')
 	}
-	// exp < 10
-	i--
-	buf[i] = byte(exp + '0')
 
-	switch i {
-	case 0:
-		dst = append(dst, buf[0], buf[1], buf[2])
-	case 1:
-		dst = append(dst, buf[1], buf[2])
-	case 2:
-		// leading zeroes
-		dst = append(dst, '0', buf[2])
-	}
 	return dst
 }
 
@@ -406,11 +394,9 @@ func fmtF(dst []byte, neg bool, d decimalSlice, prec int) []byte {
 
 	// integer, padded with zeros as needed.
 	if d.dp > 0 {
-		var i int
-		for i = 0; i < d.dp && i < d.nd; i++ {
-			dst = append(dst, d.d[i])
-		}
-		for ; i < d.dp; i++ {
+		m := min(d.nd, d.dp)
+		dst = append(dst, d.d[:m]...)
+		for ; m < d.dp; m++ {
 			dst = append(dst, '0')
 		}
 	} else {
@@ -465,6 +451,13 @@ func fmtB(dst []byte, neg bool, mant uint64, exp int, flt *floatInfo) []byte {
 		buf[w] = '-'
 	}
 	return append(dst, buf[w:]...)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func max(a, b int) int {
