@@ -564,6 +564,14 @@ func TestHandshakeServerAESGCM(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
+func TestHandshakeServerAES256GCMSHA384(t *testing.T) {
+	test := &serverTest{
+		name:    "RSA-AES256-GCM-SHA384",
+		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "ECDHE-RSA-AES256-GCM-SHA384"},
+	}
+	runServerTestTLS12(t, test)
+}
+
 func TestHandshakeServerECDHEECDSAAES(t *testing.T) {
 	config := *testConfig
 	config.Certificates = make([]Certificate, 1)
