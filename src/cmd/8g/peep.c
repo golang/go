@@ -31,10 +31,11 @@
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
-#include "opt.h"
+#include "../gc/popt.h"
 
 enum {
 	REGEXT = 0,
+	exregoffset = REG_DI,
 };
 
 static void	conprop(Flow *r);
@@ -45,6 +46,7 @@ static int	copy1(Adr*, Adr*, Flow*, int);
 static int	copyas(Adr*, Adr*);
 static int	copyau(Adr*, Adr*);
 static int	copysub(Adr*, Adr*, Adr*, int);
+static int	copyu(Prog*, Adr*, Adr*);
 
 static uint32	gactive;
 
@@ -535,7 +537,7 @@ copy1(Adr *v1, Adr *v2, Flow *r, int f)
  * 4 if set and used
  * 0 otherwise (not touched)
  */
-int
+static int
 copyu(Prog *p, Adr *v, Adr *s)
 {
 	ProgInfo info;

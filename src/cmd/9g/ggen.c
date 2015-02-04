@@ -7,7 +7,7 @@
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
-#include "opt.h"
+#include "../gc/popt.h"
 
 static Prog *appendpp(Prog *p, int as, int ftype, int freg, vlong foffset, int ttype, int treg, vlong toffset);
 static Prog *zerorange(Prog *p, vlong frame, vlong lo, vlong hi);

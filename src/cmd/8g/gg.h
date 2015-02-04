@@ -171,3 +171,19 @@ int sameaddr(Addr*, Addr*);
 int smallindir(Addr*, Addr*);
 int stackaddr(Addr*);
 Prog* unpatch(Prog*);
+
+/*
+ * reg.c
+ */
+uint64 excludedregs(void);
+uint64 RtoB(int);
+uint64 FtoB(int);
+int BtoR(uint64);
+int BtoF(uint64);
+uint64 doregbits(int);
+char** regnames(int*);
+
+/*
+ * peep.c
+ */
+void peep(Prog*);

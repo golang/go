@@ -66,14 +66,22 @@ main(int argc, char **argv)
 	arch.ginscall = ginscall;
 	arch.igen = igen;
 	arch.linkarchinit = linkarchinit;
+	arch.peep = peep;
 	arch.proginfo = proginfo;
 	arch.regalloc = regalloc;
 	arch.regfree = regfree;
-	arch.regopt = regopt;
 	arch.regtyp = regtyp;
 	arch.sameaddr = sameaddr;
 	arch.smallindir = smallindir;
 	arch.stackaddr = stackaddr;
+	arch.excludedregs = excludedregs;
+	arch.RtoB = RtoB;
+	arch.FtoB = FtoB;
+	arch.BtoR = BtoR;
+	arch.BtoF = BtoF;
+	arch.optoas = optoas;
+	arch.doregbits = doregbits;
+	arch.regnames = regnames;
 	
 	gcmain(argc, argv);
 }

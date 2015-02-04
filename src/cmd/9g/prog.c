@@ -5,6 +5,7 @@
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
+#include "../gc/popt.h"
 #include "opt.h"
 
 enum {

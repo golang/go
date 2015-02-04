@@ -1679,14 +1679,22 @@ struct Arch
 	void	(*ginscall)(Node*, int);
 	void	(*igen)(Node*, Node*, Node*);
 	void (*linkarchinit)(void);
+	void (*peep)(Prog*);
 	void (*proginfo)(ProgInfo*, Prog*);
 	void (*regalloc)(Node*, Type*, Node*);
 	void (*regfree)(Node*);
-	void (*regopt)(Prog*);
 	int (*regtyp)(Addr*);
 	int (*sameaddr)(Addr*, Addr*);
 	int (*smallindir)(Addr*, Addr*);
 	int (*stackaddr)(Addr*);
+	uint64 (*excludedregs)(void);
+	uint64 (*RtoB)(int);
+	uint64 (*FtoB)(int);
+	int (*BtoR)(uint64);
+	int (*BtoF)(uint64);
+	int (*optoas)(int, Type*);
+	uint64 (*doregbits)(int);
+	char **(*regnames)(int*);
 };
 
 void afunclit(Addr*, Node*);
@@ -1716,6 +1724,7 @@ Prog* unpatch(Prog*);
 void datagostring(Strlit *sval, Addr *a);
 int ismem(Node*);
 int samereg(Node*, Node*);
+void	regopt(Prog*);
 
 EXTERN int32	pcloc;
 

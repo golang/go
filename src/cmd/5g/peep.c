@@ -32,7 +32,7 @@
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
-#include "opt.h"
+#include "../gc/popt.h"
 
 static int	xtramodes(Graph*, Flow*, Adr*);
 static int	shortprop(Flow *r);
@@ -47,6 +47,7 @@ static Flow*	findpre(Flow *r, Adr *v);
 static int	copyau1(Prog *p, Adr *v);
 static int	isdconst(Addr *a);
 static int	isfloatreg(Addr*);
+static int	copyu(Prog *p, Adr *v, Adr *s);
 
 static uint32	gactive;
 
@@ -941,7 +942,7 @@ xtramodes(Graph *g, Flow *r, Adr *a)
  * 4 if set and used
  * 0 otherwise (not touched)
  */
-int
+static int
 copyu(Prog *p, Adr *v, Adr *s)
 {
 	switch(p->as) {
@@ -1571,4 +1572,13 @@ smallindir(Addr *a, Addr *reg)
 	return reg->type == TYPE_REG && a->type == TYPE_MEM &&
 		a->reg == reg->reg &&
 		0 <= a->offset && a->offset < 4096;
+}
+
+void
+excise(Flow *r)
+{
+	Prog *p;
+
+	p = r->prog;
+	nopout(p);
 }

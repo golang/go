@@ -31,6 +31,7 @@
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
+#include "../gc/popt.h"
 #include "opt.h"
 
 static int	regzer(Addr *a);
@@ -42,6 +43,7 @@ static int	copyau(Addr*, Addr*);
 static int	copysub(Addr*, Addr*, Addr*, int);
 static int	copysub1(Prog*, Addr*, Addr*, int);
 static int	copyau1(Prog *p, Addr *v);
+static int	copyu(Prog *p, Addr *v, Addr *s);
 
 static uint32	gactive;
 
@@ -568,7 +570,7 @@ copy1(Addr *v1, Addr *v2, Flow *r, int f)
 //	4 if v is set in one address and used in another (so addresses
 // 	  can be rewritten independently)
 //	0 otherwise (not touched)
-int
+static int
 copyu(Prog *p, Addr *v, Addr *s)
 {
 	if(p->from3.type != TYPE_NONE)

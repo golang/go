@@ -28,7 +28,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-
 #define	Z	N
 #define	Adr	Addr
 
@@ -91,7 +90,7 @@ struct	Reg
 	Bits	regdiff;
 	Bits	act;
 
-	int32	regu;		// register used bitmap
+	uint64	regu;		// register used bitmap
 };
 #define	R	((Reg*)0)
 /*c2go extern Reg *R; */
@@ -116,15 +115,12 @@ struct	Rgn
 	short	regno;
 };
 
-EXTERN	int32	exregoffset;		// not set
-EXTERN	int32	exfregoffset;		// not set
 EXTERN	Reg	zreg;
 EXTERN	Rgn	region[NRGN];
 EXTERN	Rgn*	rgp;
 EXTERN	int	nregion;
 EXTERN	int	nvar;
-EXTERN	int32	regbits;
-EXTERN	int32	exregbits;
+EXTERN	uint64	regbits;
 EXTERN	Bits	externs;
 EXTERN	Bits	params;
 EXTERN	Bits	consts;
@@ -153,28 +149,23 @@ void	addmove(Reg*, int, int, int);
 Bits	mkvar(Reg*, Adr*);
 void	prop(Reg*, Bits, Bits);
 void	synch(Reg*, Bits);
-uint32	allreg(uint32, Rgn*);
+uint64	allreg(uint64, Rgn*);
 void	paint1(Reg*, int);
-uint32	paint2(Reg*, int, int);
-void	paint3(Reg*, int, uint32, int);
+uint64	paint2(Reg*, int, int);
+void	paint3(Reg*, int, uint64, int);
 void	addreg(Adr*, int);
 void	dumpone(Flow*, int);
 void	dumpit(char*, Flow*, int);
 
 /*
  * peep.c
- */
 void	peep(Prog*);
 void	excise(Flow*);
 int	copyu(Prog*, Adr*, Adr*);
-
-uint32	RtoB(int);
-uint32	FtoB(int);
-int	BtoR(uint32);
-int	BtoF(uint32);
+ */
 
 /*
  * prog.c
- */
 
 void proginfo(ProgInfo*, Prog*);
+ */
