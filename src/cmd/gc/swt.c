@@ -503,7 +503,7 @@ exprbsw(Case *c0, int ncase, int arg)
 
 /*
  * normal (expression) switch.
- * rebulid case statements into if .. goto
+ * rebuild case statements into if .. goto
  */
 static void
 exprswitch(Node *sw)
@@ -533,12 +533,15 @@ exprswitch(Node *sw)
 	 */
 	exprname = N;
 	cas = nil;
-	if(arg != Strue && arg != Sfalse) {
+	if(arg == Strue || arg == Sfalse)
+		exprname = nodbool(arg == Strue);
+	else if(consttype(sw->ntest) >= 0)
+		// leave constants to enable dead code elimination (issue 9608)
+		exprname = sw->ntest;
+	else {
 		exprname = temp(sw->ntest->type);
 		cas = list1(nod(OAS, exprname, sw->ntest));
 		typechecklist(cas, Etop);
-	} else {
-		exprname = nodbool(arg == Strue);
 	}
 
 	c0 = mkcaselist(sw, arg);
