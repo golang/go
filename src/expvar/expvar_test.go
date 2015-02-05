@@ -271,7 +271,7 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
 	// Setup P client/server connections.
 	clients := make([]net.Conn, P)
 	servers := make([]net.Conn, P)
-	ln, err := net.Listen("tcp", laddr)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		b.Fatalf("Listen failed: %v", err)
 	}
