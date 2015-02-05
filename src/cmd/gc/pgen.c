@@ -30,7 +30,7 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
 	pnod = newname(sym);
 	pnod->class = PEXTERN;
 	nodconst(&nod, types[TINT32], funcdatakind);
-	arch.gins(AFUNCDATA, &nod, pnod);
+	thearch.gins(AFUNCDATA, &nod, pnod);
 	return sym;
 }
 
@@ -103,7 +103,7 @@ gvardefx(Node *n, int as)
 	case PAUTO:
 	case PPARAM:
 	case PPARAMOUT:
-		arch.gins(as, N, n);
+		thearch.gins(as, N, n);
 	}
 }
 
@@ -229,7 +229,7 @@ compile(Node *fn)
 	setlineno(curfn);
 
 	nodconst(&nod1, types[TINT32], 0);
-	ptxt = arch.gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
+	ptxt = thearch.gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
 	if(fn->dupok)
 		ptxt->from3.offset |= DUPOK;
 	if(fn->wrapper)
@@ -249,7 +249,7 @@ compile(Node *fn)
 	
 	afunclit(&ptxt->from, curfn->nname);
 
-	arch.ginit();
+	thearch.ginit();
 
 	gcargs = makefuncdatasym("gcargs·%d", FUNCDATA_ArgsPointerMaps);
 	gclocals = makefuncdatasym("gclocals·%d", FUNCDATA_LocalsPointerMaps);
@@ -266,7 +266,7 @@ compile(Node *fn)
 		case PPARAM:
 		case PPARAMOUT:
 			nodconst(&nod1, types[TUINTPTR], l->n->type->width);
-			p = arch.gins(ATYPE, l->n, &nod1);
+			p = thearch.gins(ATYPE, l->n, &nod1);
 			p->from.gotype = linksym(ngotype(l->n));
 			break;
 		}
@@ -274,7 +274,7 @@ compile(Node *fn)
 
 	genlist(curfn->enter);
 	genlist(curfn->nbody);
-	arch.gclean();
+	thearch.gclean();
 	checklabels();
 	if(nerrors != 0)
 		goto ret;
@@ -282,18 +282,18 @@ compile(Node *fn)
 		lineno = curfn->endlineno;
 
 	if(curfn->type->outtuple != 0)
-		arch.ginscall(throwreturn, 0);
+		thearch.ginscall(throwreturn, 0);
 
-	arch.ginit();
+	thearch.ginit();
 	// TODO: Determine when the final cgen_ret can be omitted. Perhaps always?
-	arch.cgen_ret(nil);
+	thearch.cgen_ret(nil);
 	if(hasdefer) {
 		// deferreturn pretends to have one uintptr argument.
 		// Reserve space for it so stack scanner is happy.
 		if(maxarg < widthptr)
 			maxarg = widthptr;
 	}
-	arch.gclean();
+	thearch.gclean();
 	if(nerrors != 0)
 		goto ret;
 
@@ -305,7 +305,7 @@ compile(Node *fn)
 		regopt(ptxt);
 		nilopt(ptxt);
 	}
-	arch.expandchecks(ptxt);
+	thearch.expandchecks(ptxt);
 
 	oldstksize = stksize;
 	allocauto(ptxt);
@@ -325,7 +325,7 @@ compile(Node *fn)
 	gcsymdup(gcargs);
 	gcsymdup(gclocals);
 
-	defframe(ptxt);
+	thearch.defframe(ptxt);
 
 	if(debug['f'])
 		frame(0);
@@ -469,13 +469,13 @@ allocauto(Prog* ptxt)
 
 		dowidth(n->type);
 		w = n->type->width;
-		if(w >= arch.MAXWIDTH || w < 0)
+		if(w >= thearch.MAXWIDTH || w < 0)
 			fatal("bad width");
 		stksize += w;
 		stksize = rnd(stksize, n->type->align);
 		if(haspointers(n->type))
 			stkptrsize = stksize;
-		if(arch.thechar == '5' || arch.thechar == '9')
+		if(thearch.thechar == '5' || thearch.thechar == '9')
 			stksize = rnd(stksize, widthptr);
 		if(stksize >= (1ULL<<31)) {
 			setlineno(curfn);
@@ -532,12 +532,12 @@ cgen_checknil(Node *n)
 		dump("checknil", n);
 		fatal("bad checknil");
 	}
-	if(((arch.thechar == '5' || arch.thechar == '9') && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
-		arch.regalloc(&reg, types[tptr], n);
-		arch.cgen(n, &reg);
-		arch.gins(ACHECKNIL, &reg, N);
-		arch.regfree(&reg);
+	if(((thearch.thechar == '5' || thearch.thechar == '9') && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
+		thearch.regalloc(&reg, types[tptr], n);
+		thearch.cgen(n, &reg);
+		thearch.gins(ACHECKNIL, &reg, N);
+		thearch.regfree(&reg);
 		return;
 	}
-	arch.gins(ACHECKNIL, n, N);
+	thearch.gins(ACHECKNIL, n, N);
 }

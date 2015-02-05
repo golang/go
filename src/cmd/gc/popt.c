@@ -35,6 +35,7 @@
 #include	<u.h>
 #include	<libc.h>
 #include	"go.h"
+#include	"popt.h"
 
 // p is a call instruction. Does the call fail to return?
 int
@@ -233,7 +234,7 @@ flowstart(Prog *firstp, int size)
 	nf = 0;
 	for(p = firstp; p != P; p = p->link) {
 		p->opt = nil; // should be already, but just in case
-		arch.proginfo(&info, p);
+		thearch.proginfo(&info, p);
 		if(info.flags & Skip)
 			continue;
 		p->opt = (void*)1;
@@ -277,7 +278,7 @@ flowstart(Prog *firstp, int size)
 	// Fill in pred/succ information.
 	for(f = start; f != nil; f = f->link) {
 		p = f->prog;
-		arch.proginfo(&info, p);
+		thearch.proginfo(&info, p);
 		if(!(info.flags & Break)) {
 			f1 = f->link;
 			f->s1 = f1;
@@ -390,10 +391,6 @@ loophead(int32 *idom, Flow *r)
 			return 1;
 	return 0;
 }
-
-enum {
-	LOOP = 3,
-};
 
 static void
 loopmark(Flow **rpo2r, int32 head, Flow *r)
@@ -596,7 +593,7 @@ mergetemp(Prog *firstp)
 	// single-use (that's why we have so many!).
 	for(f = g->start; f != nil; f = f->link) {
 		p = f->prog;
-		arch.proginfo(&info, p);
+		thearch.proginfo(&info, p);
 
 		if(p->from.node != N && ((Node*)(p->from.node))->opt && p->to.node != N && ((Node*)(p->to.node))->opt)
 			fatal("double node %P", p);
@@ -616,7 +613,7 @@ mergetemp(Prog *firstp)
 	}
 	
 	if(debugmerge > 1 && debug['v'])
-		arch.dumpit("before", g->start, 0);
+		dumpit("before", g->start, 0);
 	
 	nkill = 0;
 
@@ -627,7 +624,7 @@ mergetemp(Prog *firstp)
 		// Used in only one instruction, which had better be a write.
 		if((f = v->use) != nil && (Flow*)f->data == nil) {
 			p = f->prog;
-			arch.proginfo(&info, p);
+			thearch.proginfo(&info, p);
 			if(p->to.node == v->node && (info.flags & RightWrite) && !(info.flags & RightRead)) {
 				p->as = ANOP;
 				p->to = zprog.to;
@@ -644,9 +641,9 @@ mergetemp(Prog *firstp)
 		// no jumps to the next instruction. Happens mainly in 386 compiler.
 		if((f = v->use) != nil && f->link == (Flow*)f->data && (Flow*)((Flow*)f->data)->data == nil && uniqp(f->link) == f) {
 			p = f->prog;
-			arch.proginfo(&info, p);
+			thearch.proginfo(&info, p);
 			p1 = f->link->prog;
-			arch.proginfo(&info1, p1);
+			thearch.proginfo(&info1, p1);
 			enum {
 				SizeAny = SizeB | SizeW | SizeL | SizeQ | SizeF | SizeD,
 			};
@@ -654,7 +651,7 @@ mergetemp(Prog *firstp)
 			   !((info.flags|info1.flags) & (LeftAddr|RightAddr)) &&
 			   (info.flags & SizeAny) == (info1.flags & SizeAny)) {
 				p1->from = p->from;
-				arch.excise(f);
+				thearch.excise(f);
 				v->removed = 1;
 				if(debugmerge > 0 && debug['v'])
 					print("drop immediate-use %S\n", v->node->sym);
@@ -757,7 +754,7 @@ mergetemp(Prog *firstp)
 		}
 	
 		if(debugmerge > 1 && debug['v'])
-			arch.dumpit("after", g->start, 0);
+			dumpit("after", g->start, 0);
 	}
 
 	// Update node references to use merged temporaries.
@@ -871,16 +868,16 @@ nilopt(Prog *firstp)
 		return;
 
 	if(debug_checknil > 1 /* || strcmp(curfn->nname->sym->name, "f1") == 0 */)
-		arch.dumpit("nilopt", g->start, 0);
+		dumpit("nilopt", g->start, 0);
 
 	ncheck = 0;
 	nkill = 0;
 	for(f = g->start; f != nil; f = f->link) {
 		p = f->prog;
-		if(p->as != ACHECKNIL || !arch.regtyp(&p->from))
+		if(p->as != ACHECKNIL || !thearch.regtyp(&p->from))
 			continue;
 		ncheck++;
-		if(arch.stackaddr(&p->from)) {
+		if(thearch.stackaddr(&p->from)) {
 			if(debug_checknil && p->lineno > 1)
 				warnl(p->lineno, "removed nil check of SP address");
 			f->data = &killed;
@@ -903,7 +900,7 @@ nilopt(Prog *firstp)
 	for(f = g->start; f != nil; f = f->link) {
 		if(f->data != nil) {
 			nkill++;
-			arch.excise(f);
+			thearch.excise(f);
 		}
 	}
 
@@ -922,13 +919,13 @@ nilwalkback(Flow *fcheck)
 	
 	for(f = fcheck; f != nil; f = uniqp(f)) {
 		p = f->prog;
-		arch.proginfo(&info, p);
-		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &fcheck->prog->from)) {
+		thearch.proginfo(&info, p);
+		if((info.flags & RightWrite) && thearch.sameaddr(&p->to, &fcheck->prog->from)) {
 			// Found initialization of value we're checking for nil.
 			// without first finding the check, so this one is unchecked.
 			return;
 		}
-		if(f != fcheck && p->as == ACHECKNIL && arch.sameaddr(&p->from, &fcheck->prog->from)) {
+		if(f != fcheck && p->as == ACHECKNIL && thearch.sameaddr(&p->from, &fcheck->prog->from)) {
 			fcheck->data = &killed;
 			return;
 		}
@@ -949,11 +946,11 @@ nilwalkback(Flow *fcheck)
 		
 		// If same check, stop this loop but still check
 		// alternate predecessors up to this point.
-		if(f1 != fcheck && p->as == ACHECKNIL && arch.sameaddr(&p->from, &fcheck->prog->from))
+		if(f1 != fcheck && p->as == ACHECKNIL && thearch.sameaddr(&p->from, &fcheck->prog->from))
 			break;
 
-		arch.proginfo(&info, p);
-		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &fcheck->prog->from)) {
+		thearch.proginfo(&info, p);
+		if((info.flags & RightWrite) && thearch.sameaddr(&p->to, &fcheck->prog->from)) {
 			// Found initialization of value we're checking for nil.
 			// without first finding the check, so this one is unchecked.
 			fcheck->kill = 0;
@@ -963,8 +960,8 @@ nilwalkback(Flow *fcheck)
 		if(f1->p1 == nil && f1->p2 == nil) {
 			print("lost pred for %P\n", fcheck->prog);
 			for(f1=f0; f1!=nil; f1=f1->p1) {
-				arch.proginfo(&info, f1->prog);
-				print("\t%P %d %d %D %D\n", r1->prog, info.flags&RightWrite, arch.sameaddr(&f1->prog->to, &fcheck->prog->from), &f1->prog->to, &fcheck->prog->from);
+				thearch.proginfo(&info, f1->prog);
+				print("\t%P %d %d %D %D\n", r1->prog, info.flags&RightWrite, thearch.sameaddr(&f1->prog->to, &fcheck->prog->from), &f1->prog->to, &fcheck->prog->from);
 			}
 			fatal("lost pred trail");
 		}
@@ -993,13 +990,13 @@ nilwalkfwd(Flow *fcheck)
 	last = nil;
 	for(f = uniqs(fcheck); f != nil; f = uniqs(f)) {
 		p = f->prog;
-		arch.proginfo(&info, p);
+		thearch.proginfo(&info, p);
 		
-		if((info.flags & LeftRead) && arch.smallindir(&p->from, &fcheck->prog->from)) {
+		if((info.flags & LeftRead) && thearch.smallindir(&p->from, &fcheck->prog->from)) {
 			fcheck->data = &killed;
 			return;
 		}
-		if((info.flags & (RightRead|RightWrite)) && arch.smallindir(&p->to, &fcheck->prog->from)) {
+		if((info.flags & (RightRead|RightWrite)) && thearch.smallindir(&p->to, &fcheck->prog->from)) {
 			fcheck->data = &killed;
 			return;
 		}
@@ -1008,10 +1005,10 @@ nilwalkfwd(Flow *fcheck)
 		if(p->as == ACHECKNIL)
 			return;
 		// Stop if value is lost.
-		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &fcheck->prog->from))
+		if((info.flags & RightWrite) && thearch.sameaddr(&p->to, &fcheck->prog->from))
 			return;
 		// Stop if memory write.
-		if((info.flags & RightWrite) && !arch.regtyp(&p->to))
+		if((info.flags & RightWrite) && !thearch.regtyp(&p->to))
 			return;
 		// Stop if we jump backward.
 		if(last != nil && f->id <= last->id)

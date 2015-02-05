@@ -599,7 +599,7 @@ enum
 	OCHECKNIL, // emit code to ensure pointer/interface not nil
 	OVARKILL, // variable is dead
 
-	// arch-specific registers
+	// thearch-specific registers
 	OREGISTER,	// a register, such as AX.
 	OINDREG,	// offset plus indirect of a register, such as 8(SP).
 
@@ -1497,7 +1497,7 @@ Node*	outervalue(Node*);
 void	usefield(Node*);
 
 /*
- *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c/plive.c
+ *	thearch-specific ggen.c/gsubr.c/gobj.c/pgen.c/plive.c
  */
 #define	P	((Prog*)0)
 
@@ -1678,7 +1678,7 @@ struct Arch
 	void (*cgen_callinter)(Node*, Node*, int);
 	void (*cgen_ret)(Node*);
 	void (*clearfat)(Node*);
-	void (*dumpit)(char*, Flow*, int);
+	void (*defframe)(Prog*);
 	void (*excise)(Flow*);
 	void (*expandchecks)(Prog*);
 	void (*gclean)(void);
@@ -1707,7 +1707,6 @@ struct Arch
 
 void afunclit(Addr*, Node*);
 void clearp(Prog*);
-void defframe(Prog*);
 int dgostringptr(Sym*, int, char*);
 int dgostrlitptr(Sym*, int, Strlit*);
 int dsname(Sym*, int, char*, int);
@@ -1736,7 +1735,7 @@ void	regopt(Prog*);
 
 EXTERN int32	pcloc;
 
-EXTERN Arch arch;
+EXTERN Arch thearch;
 
 EXTERN Node *newproc;
 EXTERN Node *deferproc;

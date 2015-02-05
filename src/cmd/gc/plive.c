@@ -677,7 +677,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 	bvresetall(varkill);
 	bvresetall(avarinit);
 
-	arch.proginfo(&info, prog);
+	thearch.proginfo(&info, prog);
 	if(prog->as == ARET) {
 		// Return instructions implicitly read all the arguments.  For
 		// the sake of correctness, out arguments must be read.  For the
@@ -701,7 +701,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 				// If we added it to uevar too, we'd not see any kill
 				// and decide that the varible was live entry, which it is not.
 				// So only use uevar in the non-addrtaken case.
-				// The p->to.type == arch.D_NONE limits the bvset to
+				// The p->to.type == thearch.D_NONE limits the bvset to
 				// non-tail-call return instructions; see note above
 				// the for loop for details.
 				if(!node->addrtaken && prog->to.type == TYPE_NONE)

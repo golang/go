@@ -1015,7 +1015,7 @@ walkexpr(Node **np, NodeList **init)
 
 	case OCONV:
 	case OCONVNOP:
-		if(arch.thechar == '5') {
+		if(thearch.thechar == '5') {
 			if(isfloat[n->left->type->etype]) {
 				if(n->type->etype == TINT64) {
 					n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
@@ -3547,7 +3547,7 @@ walkrotate(Node **np)
 	Node *l, *r;
 	Node *n;
 
-	if(arch.thechar == '9')
+	if(thearch.thechar == '9')
 		return;
 	
 	n = *np;
@@ -3675,7 +3675,7 @@ walkdiv(Node **np, NodeList **init)
 	Magic m;
 
 	// TODO(minux)
-	if(arch.thechar == '9')
+	if(thearch.thechar == '9')
 		return;
 
 	n = *np;

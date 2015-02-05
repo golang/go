@@ -561,7 +561,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ACALL:
 		if(REGEXT && v->type == TYPE_REG && v->reg <= REGEXT && v->reg > exregoffset)
 			return 2;
-		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == (uchar)REGARG)
+		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == REGARG)
 			return 2;
 		if(v->type == p->from.type && v->reg == p->from.reg)
 			return 2;
@@ -576,7 +576,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 3;
 
 	case ATEXT:
-		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == (uchar)REGARG)
+		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == REGARG)
 			return 3;
 		return 0;
 	}

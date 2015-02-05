@@ -311,7 +311,7 @@ transformclosure(Node *xfunc)
 			cv->xoffset = offset;
 			offset += cv->type->width;
 
-			if(v->byval && v->type->width <= 2*widthptr && arch.thechar == '6') {
+			if(v->byval && v->type->width <= 2*widthptr && thearch.thechar == '6') {
 				//  If it is a small variable captured by value, downgrade it to PAUTO.
 				// This optimization is currently enabled only for amd64, see:
 				// https://github.com/golang/go/issues/9865
