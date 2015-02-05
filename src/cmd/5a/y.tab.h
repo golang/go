@@ -149,7 +149,7 @@ typedef union YYSTYPE
 #line 39 "a.y"
 {
 	Sym	*sym;
-	int32	lval;
+	int64	lval;
 	double	dval;
 	char	sval[8];
 	Addr	addr;

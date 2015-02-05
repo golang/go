@@ -204,7 +204,7 @@ typedef union YYSTYPE
 #line 39 "a.y"
 {
 	Sym	*sym;
-	int32	lval;
+	int64	lval;
 	double	dval;
 	char	sval[8];
 	Addr	addr;
@@ -2223,7 +2223,7 @@ yyreduce:
   case 64:
 #line 462 "a.y"
     {
-		(yyval.lval) = 1 << (yyvsp[(1) - (1)].lval);
+		(yyval.lval) = 1ULL << (yyvsp[(1) - (1)].lval);
 	}
     break;
 
@@ -2233,16 +2233,16 @@ yyreduce:
 		int i;
 		(yyval.lval)=0;
 		for(i=(yyvsp[(1) - (3)].lval); i<=(yyvsp[(3) - (3)].lval); i++)
-			(yyval.lval) |= 1<<i;
+			(yyval.lval) |= 1ULL<<i;
 		for(i=(yyvsp[(3) - (3)].lval); i<=(yyvsp[(1) - (3)].lval); i++)
-			(yyval.lval) |= 1<<i;
+			(yyval.lval) |= 1ULL<<i;
 	}
     break;
 
   case 66:
 #line 475 "a.y"
     {
-		(yyval.lval) = (1<<(yyvsp[(1) - (3)].lval)) | (yyvsp[(3) - (3)].lval);
+		(yyval.lval) = (1ULL<<(yyvsp[(1) - (3)].lval)) | (yyvsp[(3) - (3)].lval);
 	}
     break;
 
