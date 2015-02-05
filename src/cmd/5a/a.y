@@ -38,7 +38,7 @@
 %union
 {
 	Sym	*sym;
-	int32	lval;
+	int64	lval;
 	double	dval;
 	char	sval[8];
 	Addr	addr;
@@ -460,20 +460,20 @@ fcon:
 reglist:
 	spreg
 	{
-		$$ = 1 << $1;
+		$$ = 1ULL << $1;
 	}
 |	spreg '-' spreg
 	{
 		int i;
 		$$=0;
 		for(i=$1; i<=$3; i++)
-			$$ |= 1<<i;
+			$$ |= 1ULL<<i;
 		for(i=$3; i<=$1; i++)
-			$$ |= 1<<i;
+			$$ |= 1ULL<<i;
 	}
 |	spreg comma reglist
 	{
-		$$ = (1<<$1) | $3;
+		$$ = (1ULL<<$1) | $3;
 	}
 
 gen:
