@@ -618,7 +618,8 @@ mergetemp(Prog *firstp)
 	nkill = 0;
 
 	// Special case.
-	for(v = var; v < var+nvar; v++) {
+	for(i = 0; i < nvar; i++) {
+		v = &var[i];
 		if(v->addr)
 			continue;
 		// Used in only one instruction, which had better be a write.
@@ -665,7 +666,8 @@ mergetemp(Prog *firstp)
 	// Each flood uses a new value of gen so that we don't have
 	// to clear all the r->active words after each variable.
 	gen = 0;
-	for(v = var; v < var+nvar; v++) {
+	for(i = 0; i < nvar; i++) {
+		v = &var[i];
 		gen++;
 		for(f = v->use; f != nil; f = (Flow*)f->data)
 			mergewalk(v, f, gen);
@@ -740,7 +742,8 @@ mergetemp(Prog *firstp)
 
 	if(debugmerge > 0 && debug['v']) {
 		print("%S [%d - %d]\n", curfn->nname->sym, nvar, nkill);
-		for(v=var; v<var+nvar; v++) {
+		for(i = 0; i < nvar; i++) {
+			v = &var[i];
 			print("var %#N %T %lld-%lld", v->node, v->node->type, v->start, v->end);
 			if(v->addr)
 				print(" addr=1");
@@ -779,8 +782,10 @@ mergetemp(Prog *firstp)
 	}
 
 	// Clear aux structures.
-	for(v=var; v<var+nvar; v++)
+	for(i = 0; i < nvar; i++) {
+		v = &var[i];
 		v->node->opt = nil;
+	}
 	free(var);
 	free(bystart);
 	free(inuse);
