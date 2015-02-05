@@ -222,8 +222,7 @@ RAconv(Fmt *fp)
 {
 	char str[STRINGSZ];
 	Addr *a;
-	int i;
-	vlong v;
+	int i, v;
 
 	a = va_arg(fp->args, Addr*);
 	sprint(str, "GOK-reglist");
@@ -233,7 +232,7 @@ RAconv(Fmt *fp)
 			break;
 		if(a->sym != nil)
 			break;
-		v = a->offset >> REG_R0;
+		v = a->offset;
 		strcpy(str, "");
 		for(i=0; i<NREG; i++) {
 			if(v & (1<<i)) {
