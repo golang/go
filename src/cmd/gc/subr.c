@@ -38,6 +38,19 @@ parserline(void)
 	return lineno;
 }
 
+void
+adderrorname(Node *n)
+{
+	char *old;
+	
+	if(n->op != ODOT)
+		return;
+	old = smprint("%L: undefined: %N\n", n->lineno, n->left);
+	if(nerr > 0 && err[nerr-1].lineno == n->lineno && strcmp(err[nerr-1].msg, old) == 0)
+		err[nerr-1].msg = smprint("%L: undefined: %N in %N\n", n->lineno, n->left, n);
+	free(old);
+}
+
 static void
 adderr(int line, char *fmt, va_list arg)
 {

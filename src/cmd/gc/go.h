@@ -1448,6 +1448,7 @@ void	warn(char *fmt, ...);
 void	warnl(int line, char *fmt, ...);
 void	yyerror(char *fmt, ...);
 void	yyerrorl(int line, char *fmt, ...);
+void	adderrorname(Node*);
 
 /*
  *	swt.c
