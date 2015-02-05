@@ -14,12 +14,10 @@ static int
 mplen(Mpint *a)
 {
 	int i, n;
-	long *a1;
 
 	n = -1;
-	a1 = &a->a[0];
 	for(i=0; i<Mpprec; i++) {
-		if(*a1++ != 0)
+		if(a->a[i] != 0)
 			n = i;
 	}
 	return n+1;
@@ -32,19 +30,18 @@ mplen(Mpint *a)
 static void
 mplsh(Mpint *a, int quiet)
 {
-	long *a1, x;
+	long x;
 	int i, c;
 
 	c = 0;
-	a1 = &a->a[0];
 	for(i=0; i<Mpprec; i++) {
-		x = (*a1 << 1) + c;
+		x = (a->a[i] << 1) + c;
 		c = 0;
 		if(x >= Mpbase) {
 			x -= Mpbase;
 			c = 1;
 		}
-		*a1++ = x;
+		a->a[i] = x;
 	}
 	a->ovf = c;
 	if(a->ovf && !quiet)
@@ -58,20 +55,17 @@ mplsh(Mpint *a, int quiet)
 static void
 mplshw(Mpint *a, int quiet)
 {
-	long *a1;
 	int i;
 
-	a1 = &a->a[Mpprec-1];
-	if(*a1) {
+	i = Mpprec-1;
+	if(a->a[i]) {
 		a->ovf = 1;
 		if(!quiet)
 			yyerror("constant shift overflow");
 	}
-	for(i=1; i<Mpprec; i++) {
-		a1[0] = a1[-1];
-		a1--;
-	}
-	a1[0] = 0;
+	for(; i > 0; i--)
+		a->a[i] = a->a[i-1];
+	a->a[i] = 0;
 }
 
 //
@@ -81,15 +75,14 @@ mplshw(Mpint *a, int quiet)
 static void
 mprsh(Mpint *a)
 {
-	long *a1, x, lo;
+	long x, lo;
 	int i, c;
 
 	c = 0;
 	lo = a->a[0] & 1;
-	a1 = &a->a[Mpprec];
-	for(i=0; i<Mpprec; i++) {
-		x = *--a1;
-		*a1 = (x + c) >> 1;
+	for(i=Mpprec-1; i>=0; i--) {
+		x = a->a[i];
+		a->a[i] = (x + c) >> 1;
 		c = 0;
 		if(x & 1)
 			c = Mpbase;
@@ -105,16 +98,14 @@ mprsh(Mpint *a)
 static void
 mprshw(Mpint *a)
 {
-	long *a1, lo;
+	long lo;
 	int i;
 
 	lo = a->a[0];
-	a1 = &a->a[0];
-	for(i=1; i<Mpprec; i++) {
-		a1[0] = a1[1];
-		a1++;
+	for(i=0; i<Mpprec-1; i++) {
+		a->a[i] = a->a[i+1];
 	}
-	a1[0] = 0;
+	a->a[i] = 0;
 	if(a->neg && lo != 0)
 		mpaddcfix(a, -1);
 }
@@ -125,7 +116,7 @@ mprshw(Mpint *a)
 static int
 mpcmp(Mpint *a, Mpint *b)
 {
-	long x, *a1, *b1;
+	long x;
 	int i;
 
 	if(a->ovf || b->ovf) {
@@ -134,11 +125,8 @@ mpcmp(Mpint *a, Mpint *b)
 		return 0;
 	}
 
-	a1 = &a->a[0] + Mpprec;
-	b1 = &b->a[0] + Mpprec;
-
-	for(i=0; i<Mpprec; i++) {
-		x = *--a1 - *--b1;
+	for(i=Mpprec-1; i>=0; i--) {
+		x = a->a[i] - b->a[i];
 		if(x > 0)
 			return +1;
 		if(x < 0)
@@ -154,19 +142,18 @@ mpcmp(Mpint *a, Mpint *b)
 static void
 mpneg(Mpint *a)
 {
-	long x, *a1;
+	long x;
 	int i, c;
 
-	a1 = &a->a[0];
 	c = 0;
 	for(i=0; i<Mpprec; i++) {
-		x = -*a1 -c;
+		x = -a->a[i] -c;
 		c = 0;
 		if(x < 0) {
 			x += Mpbase;
 			c = 1;
 		}
-		*a1++ = x;
+		a->a[i] = x;
 	}
 }
 
@@ -202,7 +189,7 @@ void
 mpaddfixfix(Mpint *a, Mpint *b, int quiet)
 {
 	int i, c;
-	long x, *a1, *b1;
+	long x;
 
 	if(a->ovf || b->ovf) {
 		if(nsavederrors+nerrors == 0)
@@ -212,20 +199,18 @@ mpaddfixfix(Mpint *a, Mpint *b, int quiet)
 	}
 
 	c = 0;
-	a1 = &a->a[0];
-	b1 = &b->a[0];
 	if(a->neg != b->neg)
 		goto sub;
 
 	// perform a+b
 	for(i=0; i<Mpprec; i++) {
-		x = *a1 + *b1++ + c;
+		x = a->a[i] + b->a[i] + c;
 		c = 0;
 		if(x >= Mpbase) {
 			x -= Mpbase;
 			c = 1;
 		}
-		*a1++ = x;
+		a->a[i] = x;
 	}
 	a->ovf = c;
 	if(a->ovf && !quiet)
@@ -242,26 +227,26 @@ sub:
 
 	case 1:
 		for(i=0; i<Mpprec; i++) {
-			x = *a1 - *b1++ - c;
+			x = a->a[i] - b->a[i] - c;
 			c = 0;
 			if(x < 0) {
 				x += Mpbase;
 				c = 1;
 			}
-			*a1++ = x;
+			a->a[i] = x;
 		}
 		break;
 
 	case -1:
 		a->neg ^= 1;
 		for(i=0; i<Mpprec; i++) {
-			x = *b1++ - *a1 - c;
+			x = b->a[i] - a->a[i] - c;
 			c = 0;
 			if(x < 0) {
 				x += Mpbase;
 				c = 1;
 			}
-			*a1++ = x;
+			a->a[i] = x;
 		}
 		break;
 	}
@@ -272,8 +257,9 @@ mpmulfixfix(Mpint *a, Mpint *b)
 {
 
 	int i, j, na, nb;
-	long *a1, x;
+	long x;
 	Mpint s, q;
+	Mpint *c;
 
 	if(a->ovf || b->ovf) {
 		if(nsavederrors+nerrors == 0)
@@ -288,17 +274,17 @@ mpmulfixfix(Mpint *a, Mpint *b)
 	nb = mplen(b);
 	if(na > nb) {
 		mpmovefixfix(&s, a);
-		a1 = &b->a[0];
+		c = b;
 		na = nb;
 	} else {
 		mpmovefixfix(&s, b);
-		a1 = &a->a[0];
+		c = a;
 	}
 	s.neg = 0;
 
 	mpmovecfix(&q, 0);
 	for(i=0; i<na; i++) {
-		x = *a1++;
+		x = c->a[i];
 		for(j=0; j<Mpscale; j++) {
 			if(x & 1) {
 				if(s.ovf) {
@@ -326,7 +312,7 @@ mpmulfract(Mpint *a, Mpint *b)
 {
 
 	int i, j;
-	long *a1, x;
+	long x;
 	Mpint s, q;
 
 	if(a->ovf || b->ovf) {
@@ -337,16 +323,16 @@ mpmulfract(Mpint *a, Mpint *b)
 	}
 
 	mpmovefixfix(&s, b);
-	a1 = &a->a[Mpprec];
 	s.neg = 0;
 	mpmovecfix(&q, 0);
 
-	x = *--a1;
+	i = Mpprec-1;
+	x = a->a[i];
 	if(x != 0)
 		yyerror("mpmulfract not normal");
 
-	for(i=0; i<Mpprec-1; i++) {
-		x = *--a1;
+	for(i--; i >= 0; i--) {
+		x = a->a[i];
 		if(x == 0) {
 			mprshw(&s);
 			continue;
@@ -369,7 +355,7 @@ void
 mporfixfix(Mpint *a, Mpint *b)
 {
 	int i;
-	long x, *a1, *b1;
+	long x;
 
 	x = 0;
 	if(a->ovf || b->ovf) {
@@ -386,11 +372,9 @@ mporfixfix(Mpint *a, Mpint *b)
 	if(b->neg)
 		mpneg(b);
 
-	a1 = &a->a[0];
-	b1 = &b->a[0];
 	for(i=0; i<Mpprec; i++) {
-		x = *a1 | *b1++;
-		*a1++ = x;
+		x = a->a[i] | b->a[i];
+		a->a[i] = x;
 	}
 
 	if(b->neg)
@@ -405,7 +389,7 @@ void
 mpandfixfix(Mpint *a, Mpint *b)
 {
 	int i;
-	long x, *a1, *b1;
+	long x;
 
 	x = 0;
 	if(a->ovf || b->ovf) {
@@ -422,11 +406,9 @@ mpandfixfix(Mpint *a, Mpint *b)
 	if(b->neg)
 		mpneg(b);
 
-	a1 = &a->a[0];
-	b1 = &b->a[0];
 	for(i=0; i<Mpprec; i++) {
-		x = *a1 & *b1++;
-		*a1++ = x;
+		x = a->a[i] & b->a[i];
+		a->a[i] = x;
 	}
 
 	if(b->neg)
@@ -441,7 +423,7 @@ void
 mpandnotfixfix(Mpint *a, Mpint *b)
 {
 	int i;
-	long x, *a1, *b1;
+	long x;
 
 	x = 0;
 	if(a->ovf || b->ovf) {
@@ -458,11 +440,9 @@ mpandnotfixfix(Mpint *a, Mpint *b)
 	if(b->neg)
 		mpneg(b);
 
-	a1 = &a->a[0];
-	b1 = &b->a[0];
 	for(i=0; i<Mpprec; i++) {
-		x = *a1 & ~*b1++;
-		*a1++ = x;
+		x = a->a[i] & ~b->a[i];
+		a->a[i] = x;
 	}
 
 	if(b->neg)
@@ -477,7 +457,7 @@ void
 mpxorfixfix(Mpint *a, Mpint *b)
 {
 	int i;
-	long x, *a1, *b1;
+	long x;
 
 	x = 0;
 	if(a->ovf || b->ovf) {
@@ -494,11 +474,9 @@ mpxorfixfix(Mpint *a, Mpint *b)
 	if(b->neg)
 		mpneg(b);
 
-	a1 = &a->a[0];
-	b1 = &b->a[0];
 	for(i=0; i<Mpprec; i++) {
-		x = *a1 ^ *b1++;
-		*a1++ = x;
+		x = a->a[i] ^ b->a[i];
+		a->a[i] = x;
 	}
 
 	if(b->neg)
@@ -585,7 +563,6 @@ void
 mpmovecfix(Mpint *a, vlong c)
 {
 	int i;
-	long *a1;
 	vlong x;
 
 	a->neg = 0;
@@ -597,9 +574,8 @@ mpmovecfix(Mpint *a, vlong c)
 		x = -(uvlong)x;
 	}
 
-	a1 = &a->a[0];
 	for(i=0; i<Mpprec; i++) {
-		*a1++ = x&Mpmask;
+		a->a[i] = x&Mpmask;
 		x >>= Mpscale;
 	}
 }
@@ -658,13 +634,11 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 static int
 mpiszero(Mpint *a)
 {
-	long *a1;
 	int i;
-	a1 = &a->a[0] + Mpprec;
-	for(i=0; i<Mpprec; i++) {
-		if(*--a1 != 0)
+
+	for(i=Mpprec-1; i>=0; i--)
+		if(a->a[i] != 0)
 			return 0;
-	}
 	return 1;
 }
 
@@ -673,16 +647,15 @@ mpdivfract(Mpint *a, Mpint *b)
 {
 	Mpint n, d;
 	int i, j, neg;
-	long *a1, x;
+	long x;
 
 	mpmovefixfix(&n, a);	// numerator
 	mpmovefixfix(&d, b);	// denominator
-	a1 = &a->a[Mpprec];	// quotient
 
 	neg = n.neg ^ d.neg;
 	n.neg = 0;
 	d.neg = 0;
-	for(i=0; i<Mpprec; i++) {
+	for(i=Mpprec-1; i >= 0; i--) {
 		x = 0;
 		for(j=0; j<Mpscale; j++) {
 			x <<= 1;
@@ -693,7 +666,7 @@ mpdivfract(Mpint *a, Mpint *b)
 			}
 			mprsh(&d);
 		}
-		*--a1 = x;
+		a->a[i] = x;
 	}
 	a->neg = neg;
 }

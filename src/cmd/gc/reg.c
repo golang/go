@@ -103,6 +103,7 @@ regopt(Prog *firstp)
 	int nreg;
 	char **regnames;
 	Bits bit;
+	Rgn *rgp;
 
 	if(first) {
 		fmtinstall('Q', Qconv);
@@ -198,7 +199,8 @@ regopt(Prog *firstp)
 	}
 
 	for(i=0; i<nvar; i++) {
-		Var *v = var+i;
+		Var *v;
+		v = var+i;
 		if(v->addr) {
 			bit = blsh(i);
 			for(z=0; z<BITS; z++)
@@ -206,7 +208,7 @@ regopt(Prog *firstp)
 		}
 
 		if(debug['R'] && debug['v'])
-			print("bit=%2d addr=%d et=%-6E w=%-2d s=%N + %lld\n",
+			print("bit=%2d addr=%d et=%E w=%-2d s=%N + %lld\n",
 				i, v->addr, v->etype, v->width, v->node, v->offset);
 	}
 
@@ -334,7 +336,6 @@ loop2:
 	}
 	for(f = firstf; f != nil; f = f->link)
 		((Reg*)f->data)->act = zbits;
-	rgp = region;
 	nregion = 0;
 	for(f = firstf; f != nil; f = f->link) {
 		r = (Reg*)f->data;
@@ -361,10 +362,10 @@ loop2:
 					print("too many regions\n");
 				goto brk;
 			}
+			rgp = &region[nregion];
 			rgp->enter = f;
 			rgp->varno = i;
 			rgp->cost = change;
-			rgp++;
 			nregion++;
 		}
 	}
@@ -379,10 +380,10 @@ brk:
 	 * determine used registers (paint2)
 	 * replace code (paint3)
 	 */
-	rgp = region;
 	if(debug['R'] && debug['v'])
 		print("\nregisterizing\n");
 	for(i=0; i<nregion; i++) {
+		rgp = &region[i];
 		if(debug['R'] && debug['v'])
 			print("region %d: cost %d varno %d enter %lld\n", i, rgp->cost, rgp->varno, rgp->enter->prog->pc);
 		bit = blsh(rgp->varno);
@@ -393,12 +394,11 @@ brk:
 				Var *v;
 
 				v = var + rgp->varno;
-				print("registerize %N+%lld (bit=%2d et=%2E) in %R usedreg=%#llx vreg=%#llx\n",
+				print("registerize %N+%lld (bit=%2d et=%E) in %R usedreg=%#llx vreg=%#llx\n",
 						v->node, v->offset, rgp->varno, v->etype, rgp->regno, usedreg, vreg);
 			}
 			paint3(rgp->enter, rgp->varno, vreg, rgp->regno);
 		}
-		rgp++;
 	}
 
 	/*
@@ -477,7 +477,7 @@ walkvardef(Node *n, Flow *f, int active)
 		if(f1->prog->as == AVARKILL && f1->prog->to.node == n)
 			break;
 		for(v=n->opt; v!=nil; v=v->nextinnode) {
-			bn = v - var;
+			bn = v->id;
 			biset(&((Reg*)f1->data)->act, bn);
 		}
 		if(f1->prog->as == ACALL)
@@ -680,6 +680,7 @@ mkvar(Flow *f, Adr *a)
 	i = nvar;
 	nvar++;
 	v = var+i;
+	v->id = i;
 	v->offset = o;
 	v->name = n;
 	v->etype = et;
@@ -739,7 +740,7 @@ mkvar(Flow *f, Adr *a)
 		v->addr = 1;
 
 	if(debug['R'])
-		print("bit=%2d et=%2E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+		print("bit=%2d et=%E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
 	ostats.nvar++;
 
 	return bit;
@@ -753,7 +754,7 @@ prop(Flow *f, Bits ref, Bits cal)
 {
 	Flow *f1, *f2;
 	Reg *r, *r1;
-	int z, i, j;
+	int z, i;
 	Var *v, *v1;
 
 	for(f1 = f; f1 != nil; f1 = f1->p1) {
@@ -820,11 +821,9 @@ prop(Flow *f, Bits ref, Bits cal)
 					// v is the head of the list or if the head's bit is not yet turned on.
 					// This will set the bits at most twice, keeping the overall loop linear.
 					v1 = v->node->opt;
-					j = v1 - var;
-					if(v == v1 || !btest(&cal, j)) {
+					if(v == v1 || !btest(&cal, v1->id)) {
 						for(; v1 != nil; v1 = v1->nextinnode) {
-							j = v1 - var;
-							biset(&cal, j);
+							biset(&cal, v1->id);
 						}
 					}
 				}
