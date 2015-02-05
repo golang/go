@@ -33,24 +33,25 @@ package obj
 import "encoding/binary"
 
 type Addr struct {
+	Type   int16
+	Reg    int16
+	Index  int16
+	Scale  int8
+	Name   int8
 	Offset int64
+	Sym    *LSym
 	U      struct {
-		Sval   string
-		Dval   float64
-		Branch *Prog
+		Sval    string
+		Dval    float64
+		Branch  *Prog
+		Argsize int32
+		Bits    uint64
 	}
-	Sym     *LSym
-	Gotype  *LSym
-	Type    int16
-	Index   uint8
-	Scale   int8
-	Reg     int8
-	Name    int8
-	Class   int8
-	Etype   uint8
-	Offset2 int32
-	Node    interface{}
-	Width   int64
+	Gotype *LSym
+	Class  int8
+	Etype  uint8
+	Node   interface{}
+	Width  int64
 }
 
 type Prog struct {
@@ -61,7 +62,7 @@ type Prog struct {
 	As       int16
 	Scond    uint8
 	From     Addr
-	Reg      uint8
+	Reg      int16
 	From3    Addr
 	To       Addr
 	Opt      interface{}
@@ -79,7 +80,6 @@ type Prog struct {
 	Printed  uint8
 	Width    int8
 	Mode     int8
-	TEXTFLAG uint8
 }
 
 type LSym struct {
@@ -149,7 +149,7 @@ type Auto struct {
 	Asym    *LSym
 	Link    *Auto
 	Aoffset int32
-	Type    int16
+	Name    int16
 	Gotype  *LSym
 }
 
@@ -240,48 +240,18 @@ type Plist struct {
 }
 
 type LinkArch struct {
-	Pconv         func(*Prog) string
-	Name          string
-	Thechar       int
-	Endian        int32
-	ByteOrder     binary.ByteOrder
-	Addstacksplit func(*Link, *LSym)
-	Assemble      func(*Link, *LSym)
-	Datasize      func(*Prog) int
-	Follow        func(*Link, *LSym)
-	Iscall        func(*Prog) bool
-	Isdata        func(*Prog) bool
-	Prg           func() *Prog
-	Progedit      func(*Link, *Prog)
-	Settextflag   func(*Prog, int)
-	Symtype       func(*Addr) int
-	Textflag      func(*Prog) int
-	Minlc         int
-	Ptrsize       int
-	Regsize       int
-	D_ADDR        int
-	D_AUTO        int
-	D_BRANCH      int
-	D_CONST       int
-	D_EXTERN      int
-	D_FCONST      int
-	D_NONE        int
-	D_PARAM       int
-	D_SCONST      int
-	D_STATIC      int
-	D_OREG        int
-	ACALL         int
-	ADATA         int
-	AEND          int
-	AFUNCDATA     int
-	AGLOBL        int
-	AJMP          int
-	ANOP          int
-	APCDATA       int
-	ARET          int
-	ATEXT         int
-	ATYPE         int
-	AUSEFIELD     int
+	Pconv      func(*Prog) string
+	ByteOrder  binary.ByteOrder
+	Name       string
+	Thechar    int
+	Endian     int32
+	Preprocess func(*Link, *LSym)
+	Assemble   func(*Link, *LSym)
+	Follow     func(*Link, *LSym)
+	Progedit   func(*Link, *Prog)
+	Minlc      int
+	Ptrsize    int
+	Regsize    int
 }
 
 type Library struct {
@@ -318,7 +288,156 @@ type Pciter struct {
 	done    int
 }
 
-// prevent incompatible type signatures between liblink and 8l on Plan 9
+// An Addr is an argument to an instruction.
+// The general forms and their encodings are:
+//
+//	sym±offset(symkind)(reg)(index*scale)
+//		Memory reference at address &sym(symkind) + offset + reg + index*scale.
+//		Any of sym(symkind), ±offset, (reg), (index*scale), and *scale can be omitted.
+//		If (reg) and *scale are both omitted, the resulting expression (index) is parsed as (reg).
+//		To force a parsing as index*scale, write (index*1).
+//		Encoding:
+//			type = TYPE_MEM
+//			name = symkind (NAME_AUTO, ...) or 0 (NAME_NONE)
+//			sym = sym
+//			offset = ±offset
+//			reg = reg (REG_*)
+//			index = index (REG_*)
+//			scale = scale (1, 2, 4, 8)
+//
+//	$<mem>
+//		Effective address of memory reference <mem>, defined above.
+//		Encoding: same as memory reference, but type = TYPE_ADDR.
+//
+//	$<±integer value>
+//		This is a special case of $<mem>, in which only ±offset is present.
+//		It has a separate type for easy recognition.
+//		Encoding:
+//			type = TYPE_CONST
+//			offset = ±integer value
+//
+//	*<mem>
+//		Indirect reference through memory reference <mem>, defined above.
+//		Only used on x86 for CALL/JMP *sym(SB), which calls/jumps to a function
+//		pointer stored in the data word sym(SB), not a function named sym(SB).
+//		Encoding: same as above, but type = TYPE_INDIR.
+//
+//	$*$<mem>
+//		No longer used.
+//		On machines with actual SB registers, $*$<mem> forced the
+//		instruction encoding to use a full 32-bit constant, never a
+//		reference relative to SB.
+//
+//	$<floating point literal>
+//		Floating point constant value.
+//		Encoding:
+//			type = TYPE_FCONST
+//			u.dval = floating point value
+//
+//	$<string literal, up to 8 chars>
+//		String literal value (raw bytes used for DATA instruction).
+//		Encoding:
+//			type = TYPE_SCONST
+//			u.sval = string
+//
+//	<register name>
+//		Any register: integer, floating point, control, segment, and so on.
+//		If looking for specific register kind, must check type and reg value range.
+//		Encoding:
+//			type = TYPE_REG
+//			reg = reg (REG_*)
+//
+//	x(PC)
+//		Encoding:
+//			type = TYPE_BRANCH
+//			u.branch = Prog* reference OR ELSE offset = target pc (branch takes priority)
+//
+//	$±x-±y
+//		Final argument to TEXT, specifying local frame size x and argument size y.
+//		In this form, x and y are integer literals only, not arbitrary expressions.
+//		This avoids parsing ambiguities due to the use of - as a separator.
+//		The ± are optional.
+//		If the final argument to TEXT omits the -±y, the encoding should still
+//		use TYPE_TEXTSIZE (not TYPE_CONST), with u.argsize = ArgsSizeUnknown.
+//		Encoding:
+//			type = TYPE_TEXTSIZE
+//			offset = x
+//			u.argsize = y
+//
+//	reg<<shift, reg>>shift, reg->shift, reg@>shift
+//		Shifted register value, for ARM.
+//		In this form, reg must be a register and shift can be a register or an integer constant.
+//		Encoding:
+//			type = TYPE_SHIFT
+//			offset = (reg&15) | shifttype<<5 | count
+//			shifttype = 0, 1, 2, 3 for <<, >>, ->, @>
+//			count = (reg&15)<<8 | 1<<4 for a register shift count, (n&31)<<7 for an integer constant.
+//
+//	(reg, reg)
+//		A destination register pair. When used as the last argument of an instruction,
+//		this form makes clear that both registers are destinations.
+//		Encoding:
+//			type = TYPE_REGREG
+//			reg = first register
+//			offset = second register
+//
+//	reg, reg
+//		TYPE_REGREG2, to be removed.
+//
+
+const (
+	NAME_NONE = 0 + iota
+	NAME_EXTERN
+	NAME_STATIC
+	NAME_AUTO
+	NAME_PARAM
+)
+
+const (
+	TYPE_NONE   = 0
+	TYPE_BRANCH = 5 + iota - 1
+	TYPE_TEXTSIZE
+	TYPE_MEM
+	TYPE_CONST
+	TYPE_FCONST
+	TYPE_SCONST
+	TYPE_REG
+	TYPE_ADDR
+	TYPE_SHIFT
+	TYPE_REGREG
+	TYPE_REGREG2
+	TYPE_INDIR
+)
+
+// TODO(rsc): Describe prog.
+// TODO(rsc): Describe TEXT/GLOBL flag in from3, DATA width in from3.
+
+// Prog.as opcodes.
+// These are the portable opcodes, common to all architectures.
+// Each architecture defines many more arch-specific opcodes,
+// with values starting at A_ARCHSPECIFIC.
+const (
+	AXXX = 0 + iota
+	ACALL
+	ACHECKNIL
+	ADATA
+	ADUFFCOPY
+	ADUFFZERO
+	AEND
+	AFUNCDATA
+	AGLOBL
+	AJMP
+	ANOP
+	APCDATA
+	ARET
+	ATEXT
+	ATYPE
+	AUNDEF
+	AUSEFIELD
+	AVARDEF
+	AVARKILL
+	A_ARCHSPECIFIC
+)
 
 // prevent incompatible type signatures between liblink and 8l on Plan 9
 
@@ -397,7 +516,7 @@ const (
 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
 )
 
-// Auto.type
+// Auto.name
 const (
 	A_AUTO = 1 + iota
 	A_PARAM
@@ -461,3 +580,17 @@ const (
 // go.c
 
 // ld.c
+
+// list[5689].c
+
+// obj.c
+
+// objfile.c
+
+// pass.c
+
+// pcln.c
+
+// sym.c
+
+var linkbasepointer int

@@ -1930,11 +1930,13 @@ prefixof(Link *ctxt, Addr *a)
 }
 
 static int
-oclass(Link *ctxt, Addr *a)
+oclass(Link *ctxt, Prog *p, Addr *a)
 {
 	vlong v;
 	int32 l;
 	
+	USED(p);
+
 	// TODO(rsc): This special case is for SHRQ $3, AX:DX,
 	// which encodes as SHRQ $32(DX*0), AX.
 	// Similarly SHRQ CX, AX:DX is really SHRQ CX(DX*0), AX.
@@ -2756,9 +2758,9 @@ doasm(Link *ctxt, Prog *p)
 		*ctxt->andptr++ = pre;
 
 	if(p->ft == 0)
-		p->ft = oclass(ctxt, &p->from);
+		p->ft = oclass(ctxt, p, &p->from);
 	if(p->tt == 0)
-		p->tt = oclass(ctxt, &p->to);
+		p->tt = oclass(ctxt, p, &p->to);
 
 	ft = p->ft * Ymax;
 	tt = p->tt * Ymax;
@@ -3291,7 +3293,7 @@ bad:
 			return;
 		}
 	}
-	ctxt->diag("doasm: notfound ft=%d tt=%d %P %d %d", p->ft, p->tt, p, oclass(ctxt, &p->from), oclass(ctxt, &p->to));
+	ctxt->diag("doasm: notfound ft=%d tt=%d %P %d %d", p->ft, p->tt, p, oclass(ctxt, p, &p->from), oclass(ctxt, p, &p->to));
 	return;
 
 mfound:

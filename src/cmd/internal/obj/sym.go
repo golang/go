@@ -49,10 +49,6 @@ var headers = []struct {
 	struct {
 		name string
 		val  int
-	}{"android", Hlinux},
-	struct {
-		name string
-		val  int
 	}{"darwin", Hdarwin},
 	struct {
 		name string
@@ -70,6 +66,10 @@ var headers = []struct {
 		name string
 		val  int
 	}{"linux", Hlinux},
+	struct {
+		name string
+		val  int
+	}{"android", Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
 	struct {
 		name string
 		val  int
@@ -129,6 +129,8 @@ func Linknew(arch *LinkArch) *Link {
 	var p string
 	var buf string
 
+	linksetexp()
+
 	ctxt = new(Link)
 	ctxt.Arch = arch
 	ctxt.Version = HistVersion
@@ -151,7 +153,6 @@ func Linknew(arch *LinkArch) *Link {
 	// Record thread-local storage offset.
 	// TODO(rsc): Move tlsoffset back into the linker.
 	switch ctxt.Headtype {
-
 	default:
 		log.Fatalf("unknown thread-local storage offset for %s", Headstr(ctxt.Headtype))
 
@@ -194,7 +195,6 @@ func Linknew(arch *LinkArch) *Link {
 		 */
 	case Hdarwin:
 		switch ctxt.Arch.Thechar {
-
 		default:
 			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
 
@@ -211,12 +211,10 @@ func Linknew(arch *LinkArch) *Link {
 
 	// On arm, record goarm.
 	if ctxt.Arch.Thechar == '5' {
-
 		p = Getgoarm()
 		if p != "" {
 			ctxt.Goarm = int32(Atoi(p))
 		} else {
-
 			ctxt.Goarm = 6
 		}
 	}
@@ -281,6 +279,5 @@ func Linklookup(ctxt *Link, name string, v int) *LSym {
 
 // read-only lookup
 func linkrlookup(ctxt *Link, name string, v int) *LSym {
-
 	return _lookup(ctxt, name, v, 0)
 }

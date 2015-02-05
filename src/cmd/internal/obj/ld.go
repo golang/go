@@ -116,7 +116,6 @@ func mkfwd(sym *LSym) {
 		if i == 0 {
 			cnt[i] = 1
 		} else {
-
 			cnt[i] = LOG * cnt[i-1]
 		}
 		dwn[i] = 1

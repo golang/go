@@ -15,7 +15,7 @@ const (
 	NSYM   = 50
 )
 
-func linklinefmt(ctxt *Link, lno0 int, showAll, showFullPath bool) string {
+func Linklinefmt(ctxt *Link, lno0 int, showAll, showFullPath bool) string {
 	var a [HISTSZ]struct {
 		incl *Hist
 		idel int32
@@ -222,11 +222,9 @@ func Linklinehist(ctxt *Link, lineno int, f string, offset int) {
 			if offset != 0 {
 				fmt.Printf("%4d: %s (#line %d)\n", lineno, f, offset)
 			} else {
-
 				fmt.Printf("%4d: %s\n", lineno, f)
 			}
 		} else {
-
 			fmt.Printf("%4d: <pop>\n", lineno)
 		}
 	}
@@ -297,7 +295,6 @@ func Linkprfile(ctxt *Link, line int) {
  * start a new Prog list.
  */
 func Linknewplist(ctxt *Link) *Plist {
-
 	var pl *Plist
 
 	pl = new(Plist)
@@ -305,7 +302,6 @@ func Linknewplist(ctxt *Link) *Plist {
 	if ctxt.Plist == nil {
 		ctxt.Plist = pl
 	} else {
-
 		ctxt.Plast.Link = pl
 	}
 	ctxt.Plast = pl

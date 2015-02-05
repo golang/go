@@ -44,7 +44,7 @@ var (
 	stmtline int32
 )
 
-const Always = 14
+const Always = arm.C_SCOND_NONE
 
 func main() {
 	cinit()
@@ -88,44 +88,46 @@ func yyparse() {
 }
 
 var lexinit = []asm.Lextab{
-	{"SP", LSP, arm.D_AUTO},
-	{"SB", LSB, arm.D_EXTERN},
-	{"FP", LFP, arm.D_PARAM},
-	{"PC", LPC, arm.D_BRANCH},
+	{"SP", LSP, obj.NAME_AUTO},
+	{"SB", LSB, obj.NAME_EXTERN},
+	{"FP", LFP, obj.NAME_PARAM},
+	{"PC", LPC, obj.TYPE_BRANCH},
+
 	{"R", LR, 0},
-	{"R0", LREG, 0},
-	{"R1", LREG, 1},
-	{"R2", LREG, 2},
-	{"R3", LREG, 3},
-	{"R4", LREG, 4},
-	{"R5", LREG, 5},
-	{"R6", LREG, 6},
-	{"R7", LREG, 7},
-	{"R8", LREG, 8},
-	{"R9", LREG, 9},
-	{"g", LREG, 10}, // avoid unintentionally clobber g using R10
-	{"R11", LREG, 11},
-	{"R12", LREG, 12},
-	{"R13", LREG, 13},
-	{"R14", LREG, 14},
-	{"R15", LREG, 15},
+
+	{"R0", LREG, arm.REG_R0},
+	{"R1", LREG, arm.REG_R1},
+	{"R2", LREG, arm.REG_R2},
+	{"R3", LREG, arm.REG_R3},
+	{"R4", LREG, arm.REG_R4},
+	{"R5", LREG, arm.REG_R5},
+	{"R6", LREG, arm.REG_R6},
+	{"R7", LREG, arm.REG_R7},
+	{"R8", LREG, arm.REG_R8},
+	{"R9", LREG, arm.REG_R9},
+	{"g", LREG, arm.REG_R10}, // avoid unintentionally clobber g using R10
+	{"R11", LREG, arm.REG_R11},
+	{"R12", LREG, arm.REG_R12},
+	{"R13", LREG, arm.REG_R13},
+	{"R14", LREG, arm.REG_R14},
+	{"R15", LREG, arm.REG_R15},
 	{"F", LF, 0},
-	{"F0", LFREG, 0},
-	{"F1", LFREG, 1},
-	{"F2", LFREG, 2},
-	{"F3", LFREG, 3},
-	{"F4", LFREG, 4},
-	{"F5", LFREG, 5},
-	{"F6", LFREG, 6},
-	{"F7", LFREG, 7},
-	{"F8", LFREG, 8},
-	{"F9", LFREG, 9},
-	{"F10", LFREG, 10},
-	{"F11", LFREG, 11},
-	{"F12", LFREG, 12},
-	{"F13", LFREG, 13},
-	{"F14", LFREG, 14},
-	{"F15", LFREG, 15},
+	{"F0", LFREG, arm.REG_F0},
+	{"F1", LFREG, arm.REG_F1},
+	{"F2", LFREG, arm.REG_F2},
+	{"F3", LFREG, arm.REG_F3},
+	{"F4", LFREG, arm.REG_F4},
+	{"F5", LFREG, arm.REG_F5},
+	{"F6", LFREG, arm.REG_F6},
+	{"F7", LFREG, arm.REG_F7},
+	{"F8", LFREG, arm.REG_F8},
+	{"F9", LFREG, arm.REG_F9},
+	{"F10", LFREG, arm.REG_F10},
+	{"F11", LFREG, arm.REG_F11},
+	{"F12", LFREG, arm.REG_F12},
+	{"F13", LFREG, arm.REG_F13},
+	{"F14", LFREG, arm.REG_F14},
+	{"F15", LFREG, arm.REG_F15},
 	{"C", LC, 0},
 	{"C0", LCREG, 0},
 	{"C1", LCREG, 1},
@@ -143,27 +145,27 @@ var lexinit = []asm.Lextab{
 	{"C13", LCREG, 13},
 	{"C14", LCREG, 14},
 	{"C15", LCREG, 15},
-	{"CPSR", LPSR, 0},
-	{"SPSR", LPSR, 1},
-	{"FPSR", LFCR, 0},
-	{"FPCR", LFCR, 1},
-	{".EQ", LCOND, 0},
-	{".NE", LCOND, 1},
-	{".CS", LCOND, 2},
-	{".HS", LCOND, 2},
-	{".CC", LCOND, 3},
-	{".LO", LCOND, 3},
-	{".MI", LCOND, 4},
-	{".PL", LCOND, 5},
-	{".VS", LCOND, 6},
-	{".VC", LCOND, 7},
-	{".HI", LCOND, 8},
-	{".LS", LCOND, 9},
-	{".GE", LCOND, 10},
-	{".LT", LCOND, 11},
-	{".GT", LCOND, 12},
-	{".LE", LCOND, 13},
-	{".AL", LCOND, Always},
+	{"CPSR", LPSR, arm.REG_CPSR},
+	{"SPSR", LPSR, arm.REG_SPSR},
+	{"FPSR", LFCR, arm.REG_FPSR},
+	{"FPCR", LFCR, arm.REG_FPCR},
+	{".EQ", LCOND, arm.C_SCOND_EQ},
+	{".NE", LCOND, arm.C_SCOND_NE},
+	{".CS", LCOND, arm.C_SCOND_HS},
+	{".HS", LCOND, arm.C_SCOND_HS},
+	{".CC", LCOND, arm.C_SCOND_LO},
+	{".LO", LCOND, arm.C_SCOND_LO},
+	{".MI", LCOND, arm.C_SCOND_MI},
+	{".PL", LCOND, arm.C_SCOND_PL},
+	{".VS", LCOND, arm.C_SCOND_VS},
+	{".VC", LCOND, arm.C_SCOND_VC},
+	{".HI", LCOND, arm.C_SCOND_HI},
+	{".LS", LCOND, arm.C_SCOND_LS},
+	{".GE", LCOND, arm.C_SCOND_GE},
+	{".LT", LCOND, arm.C_SCOND_LT},
+	{".GT", LCOND, arm.C_SCOND_GT},
+	{".LE", LCOND, arm.C_SCOND_LE},
+	{".AL", LCOND, arm.C_SCOND_NONE},
 	{".U", LS, arm.C_UBIT},
 	{".S", LS, arm.C_SBIT},
 	{".W", LS, arm.C_WBIT},
@@ -274,33 +276,30 @@ var lexinit = []asm.Lextab{
 	{"MOVM", LTYPE8, arm.AMOVM},
 	{"SWPBU", LTYPE9, arm.ASWPBU},
 	{"SWPW", LTYPE9, arm.ASWPW},
-	{"RET", LTYPEA, arm.ARET},
+	{"RET", LTYPEA, obj.ARET},
 	{"RFE", LTYPEA, arm.ARFE},
-	{"TEXT", LTYPEB, arm.ATEXT},
-	{"GLOBL", LTYPEB, arm.AGLOBL},
-	{"DATA", LTYPEC, arm.ADATA},
+	{"TEXT", LTYPEB, obj.ATEXT},
+	{"GLOBL", LGLOBL, obj.AGLOBL},
+	{"DATA", LTYPEC, obj.ADATA},
 	{"CASE", LTYPED, arm.ACASE},
-	{"END", LTYPEE, arm.AEND},
+	{"END", LTYPEE, obj.AEND},
 	{"WORD", LTYPEH, arm.AWORD},
-	{"NOP", LTYPEI, arm.ANOP},
+	{"NOP", LTYPEI, obj.ANOP},
 	{"MCR", LTYPEJ, 0},
 	{"MRC", LTYPEJ, 1},
 	{"PLD", LTYPEPLD, arm.APLD},
-	{"UNDEF", LTYPEE, arm.AUNDEF},
+	{"UNDEF", LTYPEE, obj.AUNDEF},
 	{"CLZ", LTYPE2, arm.ACLZ},
 	{"MULWT", LTYPE1, arm.AMULWT},
 	{"MULWB", LTYPE1, arm.AMULWB},
 	{"MULAWT", LTYPEN, arm.AMULAWT},
 	{"MULAWB", LTYPEN, arm.AMULAWB},
-	{"USEFIELD", LTYPEN, arm.AUSEFIELD},
-	{"PCDATA", LTYPEPC, arm.APCDATA},
-	{"FUNCDATA", LTYPEF, arm.AFUNCDATA},
+	{"USEFIELD", LTYPEN, obj.AUSEFIELD},
+	{"PCDATA", LTYPEPC, obj.APCDATA},
+	{"FUNCDATA", LTYPEF, obj.AFUNCDATA},
 }
 
 func cinit() {
-	nullgen.Type = arm.D_NONE
-	nullgen.Name = arm.D_NONE
-	nullgen.Reg = arm.NREG
 }
 
 func isreg(g *obj.Addr) bool {
@@ -308,7 +307,7 @@ func isreg(g *obj.Addr) bool {
 }
 
 func cclean() {
-	outcode(arm.AEND, Always, &nullgen, arm.NREG, &nullgen)
+	outcode(obj.AEND, Always, &nullgen, 0, &nullgen)
 }
 
 var bcode = []int{
@@ -327,7 +326,7 @@ var bcode = []int{
 	arm.ABGT,
 	arm.ABLE,
 	arm.AB,
-	arm.ANOP,
+	obj.ANOP,
 }
 
 var lastpc *obj.Prog
@@ -338,7 +337,7 @@ func outcode(a, scond int32, g1 *obj.Addr, reg int32, g2 *obj.Addr) {
 
 	/* hack to make B.NE etc. work: turn it into the corresponding conditional */
 	if a == arm.AB {
-		a = int32(bcode[scond&0xf])
+		a = int32(bcode[(scond^arm.C_SCOND_XOR)&0xf])
 		scond = (scond &^ 0xf) | Always
 	}
 
@@ -353,7 +352,7 @@ func outcode(a, scond int32, g1 *obj.Addr, reg int32, g2 *obj.Addr) {
 	p.Lineno = stmtline
 	p.Scond = uint8(scond)
 	p.From = *g1
-	p.Reg = uint8(reg)
+	p.Reg = int16(reg)
 	p.To = *g2
 	p.Pc = int64(asm.PC)
 
@@ -366,7 +365,7 @@ func outcode(a, scond int32, g1 *obj.Addr, reg int32, g2 *obj.Addr) {
 	lastpc = p
 
 out:
-	if a != arm.AGLOBL && a != arm.ADATA {
+	if a != obj.AGLOBL && a != obj.ADATA {
 		asm.PC++
 	}
 }

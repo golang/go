@@ -1,12 +1,13 @@
-// cmd/9l/noop.c, cmd/9l/pass.c, cmd/9l/span.c from Vita Nuova.
+// Inferno utils/5c/list.c
+// http://code.google.com/p/inferno-os/source/browse/utils/5c/list.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
 //	Portions Copyright © 1997-1999 Vita Nuova Limited
-//	Portions Copyright © 2000-2008 Vita Nuova Holdings Limited (www.vitanuova.com)
+//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
-//	Revisions Copyright © 2000-2008 Lucent Technologies Inc. and others
+//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
 //	Portions Copyright © 2009 The Go Authors.  All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -74,5 +75,5 @@ const (
 	FUNCDATA_ArgsPointerMaps   = 0
 	FUNCDATA_LocalsPointerMaps = 1
 	FUNCDATA_DeadValueMaps     = 2
-	ArgsSizeUnknown            = 0x80000000
+	ArgsSizeUnknown            = -0x80000000
 )

@@ -17,7 +17,6 @@ var outfile string
 // out a Go object file.  The linker does not call this; the linker
 // does not write out object files.
 func Writeobjdirect(ctxt *Link, b *Biobuf) {
-
 	var flag int
 	var found int
 	var h *Hist
@@ -44,16 +43,16 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	for pl = ctxt.Plist; pl != nil; pl = pl.Link {
 		for p = pl.Firstpc; p != nil; p = plink {
 			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
-				fmt.Printf("obj: %p %v\n", p, p)
+				fmt.Printf("obj: %v\n", p)
 			}
 			plink = p.Link
 			p.Link = nil
 
-			if int(p.As) == ctxt.Arch.AEND {
+			if p.As == AEND {
 				continue
 			}
 
-			if int(p.As) == ctxt.Arch.ATYPE {
+			if p.As == ATYPE {
 				// Assume each TYPE instruction describes
 				// a different local variable or parameter,
 				// so no dedup.
@@ -66,20 +65,19 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 				// If something else could use them, we could arrange to
 				// preserve them.
 				if curtext == nil {
-
 					continue
 				}
 				a = new(Auto)
 				a.Asym = p.From.Sym
 				a.Aoffset = int32(p.From.Offset)
-				a.Type = int16(ctxt.Arch.Symtype(&p.From))
+				a.Name = int16(p.From.Name)
 				a.Gotype = p.From.Gotype
 				a.Link = curtext.Autom
 				curtext.Autom = a
 				continue
 			}
 
-			if int(p.As) == ctxt.Arch.AGLOBL {
+			if p.As == AGLOBL {
 				s = p.From.Sym
 				tmp6 := s.Seenglobl
 				s.Seenglobl++
@@ -93,7 +91,6 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 				if data == nil {
 					data = s
 				} else {
-
 					edata.Next = s
 				}
 				s.Next = nil
@@ -101,7 +98,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 				if s.Type == 0 || s.Type == SXREF {
 					s.Type = SBSS
 				}
-				flag = ctxt.Arch.Textflag(p)
+				flag = int(p.From3.Offset)
 				if flag&DUPOK != 0 {
 					s.Dupok = 1
 				}
@@ -114,12 +111,12 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 				continue
 			}
 
-			if int(p.As) == ctxt.Arch.ADATA {
+			if p.As == ADATA {
 				savedata(ctxt, p.From.Sym, p, "<input>")
 				continue
 			}
 
-			if int(p.As) == ctxt.Arch.ATEXT {
+			if p.As == ATEXT {
 				s = p.From.Sym
 				if s == nil {
 					// func _() { }
@@ -138,11 +135,10 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 				if text == nil {
 					text = s
 				} else {
-
 					etext.Next = s
 				}
 				etext = s
-				flag = ctxt.Arch.Textflag(p)
+				flag = int(p.From3.Offset)
 				if flag&DUPOK != 0 {
 					s.Dupok = 1
 				}
@@ -157,16 +153,16 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 				continue
 			}
 
-			if int(p.As) == ctxt.Arch.AFUNCDATA {
+			if p.As == AFUNCDATA {
 				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
 				if curtext == nil { // func _() {}
 					continue
 				}
 				if p.To.Sym.Name == "go_args_stackmap" {
-					if int(p.From.Type) != ctxt.Arch.D_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
+					if p.From.Type != TYPE_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
 						ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
 					}
-					p.To.Sym = Linklookup(ctxt, string(fmt.Sprintf("%s.args_stackmap", curtext.Name)), int(curtext.Version))
+					p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
 				}
 			}
 
@@ -181,13 +177,12 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 
 	// Add reference to Go arguments for C or assembly functions without them.
 	for s = text; s != nil; s = s.Next {
-
 		if !strings.HasPrefix(s.Name, "\"\".") {
 			continue
 		}
 		found = 0
 		for p = s.Text; p != nil; p = p.Link {
-			if int(p.As) == ctxt.Arch.AFUNCDATA && int(p.From.Type) == ctxt.Arch.D_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
+			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
 				found = 1
 				break
 			}
@@ -195,28 +190,21 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 
 		if !(found != 0) {
 			p = Appendp(ctxt, s.Text)
-			p.As = int16(ctxt.Arch.AFUNCDATA)
-			p.From.Type = int16(ctxt.Arch.D_CONST)
+			p.As = AFUNCDATA
+			p.From.Type = TYPE_CONST
 			p.From.Offset = FUNCDATA_ArgsPointerMaps
-			if ctxt.Arch.Thechar == '6' || ctxt.Arch.Thechar == '8' {
-				p.To.Type = int16(ctxt.Arch.D_EXTERN)
-			} else {
-
-				p.To.Type = int16(ctxt.Arch.D_OREG)
-				p.To.Name = int8(ctxt.Arch.D_EXTERN)
-			}
-
-			p.To.Sym = Linklookup(ctxt, string(fmt.Sprintf("%s.args_stackmap", s.Name)), int(s.Version))
+			p.To.Type = TYPE_MEM
+			p.To.Name = NAME_EXTERN
+			p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", s.Name), int(s.Version))
 		}
 	}
 
 	// Turn functions into machine code images.
 	for s = text; s != nil; s = s.Next {
-
 		mkfwd(s)
 		linkpatch(ctxt, s)
 		ctxt.Arch.Follow(ctxt, s)
-		ctxt.Arch.Addstacksplit(ctxt, s)
+		ctxt.Arch.Preprocess(ctxt, s)
 		ctxt.Arch.Assemble(ctxt, s)
 		linkpcln(ctxt, s)
 	}
@@ -230,7 +218,6 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 
 	// Emit autolib.
 	for h = ctxt.Hist; h != nil; h = h.Link {
-
 		if h.Offset < 0 {
 			wrstring(b, h.Name)
 		}
@@ -239,7 +226,6 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 
 	// Emit symbols.
 	for s = text; s != nil; s = s.Next {
-
 		writesym(ctxt, b, s)
 	}
 	for s = data; s != nil; s = s.Next {
@@ -307,7 +293,6 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 				if ' ' <= c && c <= 0x7e {
 					fmt.Fprintf(ctxt.Bso, "%c", c)
 				} else {
-
 					fmt.Fprintf(ctxt.Bso, ".")
 				}
 			}
@@ -325,7 +310,6 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 			if ctxt.Arch.Thechar == '5' || ctxt.Arch.Thechar == '9' {
 				fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(int64(r.Add)))
 			} else {
-
 				fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, int64(r.Add))
 			}
 		}
@@ -365,13 +349,12 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		for a = s.Autom; a != nil; a = a.Link {
 			wrsym(b, a.Asym)
 			wrint(b, int64(a.Aoffset))
-			if int(a.Type) == ctxt.Arch.D_AUTO {
+			if a.Name == NAME_AUTO {
 				wrint(b, A_AUTO)
-			} else if int(a.Type) == ctxt.Arch.D_PARAM {
+			} else if a.Name == NAME_PARAM {
 				wrint(b, A_PARAM)
 			} else {
-
-				log.Fatalf("%s: invalid local variable type %d", s.Name, a.Type)
+				log.Fatalf("%s: invalid local variable type %d", s.Name, a.Name)
 			}
 			wrsym(b, a.Gotype)
 		}

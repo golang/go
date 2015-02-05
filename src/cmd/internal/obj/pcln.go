@@ -28,7 +28,6 @@ func addvarint(ctxt *Link, d *Pcdata, val uint32) {
 // where func is the function, val is the current value, p is the instruction being
 // considered, and arg can be used to further parameterize valfunc.
 func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) {
-
 	var dbg int
 	var i int
 	var oldval int32
@@ -83,7 +82,6 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		// instruction. Keep going, so that we only emit a delta
 		// for a true instruction boundary in the program.
 		if p.Link != nil && p.Link.Pc == p.Pc {
-
 			val = valfunc(ctxt, func_, val, p, 1, arg)
 			if ctxt.Debugpcln != 0 {
 				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(int64(p.Pc)), "", p)
@@ -106,7 +104,6 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		// where the 0x80 bit indicates that the integer continues.
 
 		if ctxt.Debugpcln != 0 {
-
 			fmt.Fprintf(ctxt.Bso, "%6x %6d %v\n", uint64(int64(p.Pc)), val, p)
 		}
 
@@ -119,7 +116,6 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if delta>>31 != 0 {
 			delta = 1 | ^(delta << 1)
 		} else {
-
 			delta <<= 1
 		}
 		addvarint(ctxt, dst, delta)
@@ -152,13 +148,12 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 // Because p->lineno applies to p, phase == 0 (before p)
 // takes care of the update.
 func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
-
 	var i int32
 	var l int32
 	var f *LSym
 	var pcln *Pcln
 
-	if int(p.As) == ctxt.Arch.ATEXT || int(p.As) == ctxt.Arch.ANOP || int(p.As) == ctxt.Arch.AUSEFIELD || p.Lineno == 0 || phase == 1 {
+	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Lineno == 0 || phase == 1 {
 		return oldval
 	}
 	linkgetline(ctxt, p.Lineno, &f, &l)
@@ -195,7 +190,6 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 // The adjustment by p takes effect only after p, so we
 // apply the change during phase == 1.
 func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
-
 	if oldval == -1 { // starting
 		oldval = 0
 	}
@@ -216,8 +210,7 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
 // Since PCDATA instructions have no width in the final code,
 // it does not matter which phase we use for the update.
 func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
-
-	if phase == 0 || int(p.As) != ctxt.Arch.APCDATA || p.From.Offset != int64(arg.(uint32)) {
+	if phase == 0 || p.As != APCDATA || p.From.Offset != int64(arg.(uint32)) {
 		return oldval
 	}
 	if int64(int32(p.To.Offset)) != p.To.Offset {
@@ -243,10 +236,10 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	npcdata = 0
 	nfuncdata = 0
 	for p = cursym.Text; p != nil; p = p.Link {
-		if int(p.As) == ctxt.Arch.APCDATA && p.From.Offset >= int64(npcdata) {
+		if p.As == APCDATA && p.From.Offset >= int64(npcdata) {
 			npcdata = int(p.From.Offset + 1)
 		}
-		if int(p.As) == ctxt.Arch.AFUNCDATA && p.From.Offset >= int64(nfuncdata) {
+		if p.As == AFUNCDATA && p.From.Offset >= int64(nfuncdata) {
 			nfuncdata = int(p.From.Offset + 1)
 		}
 	}
@@ -265,21 +258,20 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	havepc := make([]uint32, (npcdata+31)/32)
 	havefunc := make([]uint32, (nfuncdata+31)/32)
 	for p = cursym.Text; p != nil; p = p.Link {
-		if int(p.As) == ctxt.Arch.AFUNCDATA {
+		if p.As == AFUNCDATA {
 			if (havefunc[p.From.Offset/32]>>uint64(p.From.Offset%32))&1 != 0 {
 				ctxt.Diag("multiple definitions for FUNCDATA $%d", p.From.Offset)
 			}
 			havefunc[p.From.Offset/32] |= 1 << uint64(p.From.Offset%32)
 		}
 
-		if int(p.As) == ctxt.Arch.APCDATA {
+		if p.As == APCDATA {
 			havepc[p.From.Offset/32] |= 1 << uint64(p.From.Offset%32)
 		}
 	}
 
 	// pcdata.
 	for i = 0; i < npcdata; i++ {
-
 		if (havepc[i/32]>>uint(i%32))&1 == 0 {
 			continue
 		}
@@ -288,12 +280,11 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 
 	// funcdata
 	if nfuncdata > 0 {
-
 		for p = cursym.Text; p != nil; p = p.Link {
-			if int(p.As) == ctxt.Arch.AFUNCDATA {
+			if p.As == AFUNCDATA {
 				i = int(p.From.Offset)
 				pcln.Funcdataoff[i] = p.To.Offset
-				if int(p.To.Type) != ctxt.Arch.D_CONST {
+				if p.To.Type != TYPE_CONST {
 					// TODO: Dedup.
 					//funcdata_bytes += p->to.sym->size;
 					pcln.Funcdata[i] = p.To.Sym
@@ -306,7 +297,6 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 // iteration over encoded pcdata tables.
 
 func getvarint(pp *[]byte) uint32 {
-
 	var p []byte
 	var shift int
 	var v uint32

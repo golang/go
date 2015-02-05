@@ -67,8 +67,7 @@ const (
 var optab = []Optab{
 	/* struct Optab:
 	OPCODE,	from, prog->reg, to,		 type,size,param,flag */
-	Optab{ATEXT, C_ADDR, C_NONE, C_LCON, 0, 0, 0, 0, 0},
-	Optab{ATEXT, C_ADDR, C_REG, C_LCON, 0, 0, 0, 0, 0},
+	Optab{obj.ATEXT, C_ADDR, C_NONE, C_TEXTSIZE, 0, 0, 0, 0, 0},
 	Optab{AADD, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
 	Optab{AADD, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
 	Optab{AMOVW, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
@@ -245,20 +244,20 @@ var optab = []Optab{
 	Optab{ALDREXD, C_SOREG, C_NONE, C_REG, 91, 4, 0, 0, 0},
 	Optab{ASTREXD, C_SOREG, C_REG, C_REG, 92, 4, 0, 0, 0},
 	Optab{APLD, C_SOREG, C_NONE, C_NONE, 95, 4, 0, 0, 0},
-	Optab{AUNDEF, C_NONE, C_NONE, C_NONE, 96, 4, 0, 0, 0},
+	Optab{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 96, 4, 0, 0, 0},
 	Optab{ACLZ, C_REG, C_NONE, C_REG, 97, 4, 0, 0, 0},
 	Optab{AMULWT, C_REG, C_REG, C_REG, 98, 4, 0, 0, 0},
 	Optab{AMULAWT, C_REG, C_REG, C_REGREG2, 99, 4, 0, 0, 0},
-	Optab{AUSEFIELD, C_ADDR, C_NONE, C_NONE, 0, 0, 0, 0, 0},
-	Optab{APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0, 0},
-	Optab{AFUNCDATA, C_LCON, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
-	Optab{ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
-	Optab{ADUFFZERO, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as ABL
-	Optab{ADUFFCOPY, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as ABL
+	Optab{obj.AUSEFIELD, C_ADDR, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+	Optab{obj.APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0, 0},
+	Optab{obj.AFUNCDATA, C_LCON, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
+	Optab{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+	Optab{obj.ADUFFZERO, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as ABL
+	Optab{obj.ADUFFCOPY, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as ABL
 
 	Optab{ADATABUNDLE, C_NONE, C_NONE, C_NONE, 100, 4, 0, 0, 0},
 	Optab{ADATABUNDLEEND, C_NONE, C_NONE, C_NONE, 100, 0, 0, 0, 0},
-	Optab{AXXX, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0},
+	Optab{obj.AXXX, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0},
 }
 
 var pool struct {
@@ -271,22 +270,6 @@ var oprange [ALAST]Oprang
 
 var xcmp [C_GOK + 1][C_GOK + 1]uint8
 
-var zprg = obj.Prog{
-	As:    AGOK,
-	Scond: C_SCOND_NONE,
-	Reg:   NREG,
-	From: obj.Addr{
-		Name: D_NONE,
-		Type: D_NONE,
-		Reg:  NREG,
-	},
-	To: obj.Addr{
-		Name: D_NONE,
-		Type: D_NONE,
-		Reg:  NREG,
-	},
-}
-
 var deferreturn *obj.LSym
 
 func nocache(p *obj.Prog) {
@@ -297,7 +280,6 @@ func nocache(p *obj.Prog) {
 
 /* size of a case statement including jump table */
 func casesz(ctxt *obj.Link, p *obj.Prog) int32 {
-
 	var jt int = 0
 	var n int32 = 0
 	var o *Optab
@@ -315,13 +297,17 @@ func casesz(ctxt *obj.Link, p *obj.Prog) int32 {
 	return n
 }
 
+// Note about encoding: Prog.scond holds the condition encoding,
+// but XOR'ed with C_SCOND_XOR, so that C_SCOND_NONE == 0.
+// The code that shifts the value << 28 has the responsibility
+// for XORing with C_SCOND_XOR too.
+
 // asmoutnacl assembles the instruction p. It replaces asmout for NaCl.
 // It returns the total number of bytes put in out, and it can change
 // p->pc if extra padding is necessary.
 // In rare cases, asmoutnacl might split p into two instructions.
 // origPC is the PC for this Prog (no padding is taken into account).
 func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint32) int {
-
 	var size int
 	var reg int
 	var q *obj.Prog
@@ -332,7 +318,6 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 
 	// instruction specific
 	switch p.As {
-
 	default:
 		if out != nil {
 			asmout(ctxt, p, o, out)
@@ -346,12 +331,12 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			asmout(ctxt, p, o, out)
 		}
 
-	case AUNDEF,
+	case obj.AUNDEF,
 		APLD:
 		size = 4
 		if out != nil {
 			switch p.As {
-			case AUNDEF:
+			case obj.AUNDEF:
 				out[0] = 0xe7fedef0 // NACL_INSTR_ARM_ABORT_NOW (UDF #0xEDE0)
 
 			case APLD:
@@ -362,24 +347,23 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 
 	case AB,
 		ABL:
-		if p.To.Type != D_OREG {
+		if p.To.Type != obj.TYPE_MEM {
 			if out != nil {
 				asmout(ctxt, p, o, out)
 			}
 		} else {
-
-			if p.To.Offset != 0 || size != 4 || p.To.Reg >= 16 || p.To.Reg < 0 {
+			if p.To.Offset != 0 || size != 4 || p.To.Reg > REG_R15 || p.To.Reg < REG_R0 {
 				ctxt.Diag("unsupported instruction: %v", p)
 			}
 			if p.Pc&15 == 12 {
 				p.Pc += 4
 			}
 			if out != nil {
-				out[0] = (uint32(p.Scond)&C_SCOND)<<28 | 0x03c0013f | uint32(p.To.Reg)<<12 | uint32(p.To.Reg)<<16 // BIC $0xc000000f, Rx
+				out[0] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03c0013f | (uint32(p.To.Reg)&15)<<12 | (uint32(p.To.Reg)&15)<<16 // BIC $0xc000000f, Rx
 				if p.As == AB {
-					out[1] = (uint32(p.Scond)&C_SCOND)<<28 | 0x012fff10 | uint32(p.To.Reg) // BX Rx // ABL
+					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff10 | (uint32(p.To.Reg)&15)<<0 // BX Rx // ABL
 				} else {
-					out[1] = (uint32(p.Scond)&C_SCOND)<<28 | 0x012fff30 | uint32(p.To.Reg) // BLX Rx
+					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff30 | (uint32(p.To.Reg)&15)<<0 // BLX Rx
 				}
 			}
 
@@ -388,14 +372,12 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 
 		// align the last instruction (the actual BL) to the last instruction in a bundle
 		if p.As == ABL {
-
 			if deferreturn == nil {
 				deferreturn = obj.Linklookup(ctxt, "runtime.deferreturn", 0)
 			}
 			if p.To.Sym == deferreturn {
 				p.Pc = ((int64(origPC) + 15) &^ 15) + 16 - int64(size)
 			} else {
-
 				p.Pc += (16 - ((p.Pc + int64(size)) & 15)) & 15
 			}
 		}
@@ -414,7 +396,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 		AMOVW,
 		ASTREX,
 		ASTREXD:
-		if p.To.Type == D_REG && p.To.Reg == 15 && p.From.Reg == 13 { // MOVW.W x(R13), PC
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_R15 && p.From.Reg == REG_R13 { // MOVW.W x(R13), PC
 			if out != nil {
 				asmout(ctxt, p, o, out)
 			}
@@ -422,9 +404,9 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				if out != nil {
 					// Note: 5c and 5g reg.c know that DIV/MOD smashes R12
 					// so that this return instruction expansion is valid.
-					out[0] = out[0] &^ 0x3000                           // change PC to R12
-					out[1] = (uint32(p.Scond)&C_SCOND)<<28 | 0x03ccc13f // BIC $0xc000000f, R12
-					out[2] = (uint32(p.Scond)&C_SCOND)<<28 | 0x012fff1c // BX R12
+					out[0] = out[0] &^ 0x3000                                         // change PC to R12
+					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03ccc13f // BIC $0xc000000f, R12
+					out[2] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff1c // BX R12
 				}
 
 				size += 8
@@ -433,20 +415,17 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				}
 				break
 			} else {
-
 				// if the instruction used more than 4 bytes, then it must have used a very large
 				// offset to update R13, so we need to additionally mask R13.
 				if out != nil {
-
-					out[size/4-1] &^= 0x3000                                   // change PC to R12
-					out[size/4] = (uint32(p.Scond)&C_SCOND)<<28 | 0x03cdd103   // BIC $0xc0000000, R13
-					out[size/4+1] = (uint32(p.Scond)&C_SCOND)<<28 | 0x03ccc13f // BIC $0xc000000f, R12
-					out[size/4+2] = (uint32(p.Scond)&C_SCOND)<<28 | 0x012fff1c // BX R12
+					out[size/4-1] &^= 0x3000                                                 // change PC to R12
+					out[size/4] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03cdd103   // BIC $0xc0000000, R13
+					out[size/4+1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03ccc13f // BIC $0xc000000f, R12
+					out[size/4+2] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff1c // BX R12
 				}
 
 				// p->pc+size is only ok at 4 or 12 mod 16.
 				if (p.Pc+int64(size))%8 == 0 {
-
 					p.Pc += 4
 				}
 				size += 12
@@ -454,24 +433,23 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			}
 		}
 
-		if p.To.Type == D_REG && p.To.Reg == 15 {
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_R15 {
 			ctxt.Diag("unsupported instruction (move to another register and use indirect jump instead): %v", p)
 		}
 
-		if p.To.Type == D_OREG && p.To.Reg == 13 && (p.Scond&C_WBIT != 0) && size > 4 {
+		if p.To.Type == obj.TYPE_MEM && p.To.Reg == REG_R13 && (p.Scond&C_WBIT != 0) && size > 4 {
 			// function prolog with very large frame size: MOVW.W R14,-100004(R13)
 			// split it into two instructions:
 			// 	ADD $-100004, R13
 			// 	MOVW R14, 0(R13)
-			q = ctxt.NewProg()
+			q = new(obj.Prog)
 
 			p.Scond &^= C_WBIT
 			*q = *p
 			a = &p.To
-			if p.To.Type == D_OREG {
+			if p.To.Type == obj.TYPE_MEM {
 				a2 = &q.To
 			} else {
-
 				a2 = &q.From
 			}
 			nocache(q)
@@ -487,43 +465,40 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			p.As = AADD
 
 			p.From = *a
-			p.From.Reg = NREG
-			p.From.Type = D_CONST
-			p.To = zprg.To
-			p.To.Type = D_REG
-			p.To.Reg = 13
+			p.From.Reg = 0
+			p.From.Type = obj.TYPE_CONST
+			p.To = obj.Zprog.To
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = REG_R13
 
 			// make q into p but load/store from 0(R13)
 			q.Spadj = 0
 
-			*a2 = zprg.From
-			a2.Type = D_OREG
-			a2.Reg = 13
+			*a2 = obj.Zprog.From
+			a2.Type = obj.TYPE_MEM
+			a2.Reg = REG_R13
 			a2.Sym = nil
 			a2.Offset = 0
 			size = int(oplook(ctxt, p).size)
 			break
 		}
 
-		if (p.To.Type == D_OREG && p.To.Reg != 13 && p.To.Reg != 9) || (p.From.Type == D_OREG && p.From.Reg != 13 && p.From.Reg != 9) { // MOVW Rx, X(Ry), y != 13 && y != 9 // MOVW X(Rx), Ry, x != 13 && x != 9
-			if p.To.Type == D_OREG {
+		if (p.To.Type == obj.TYPE_MEM && p.To.Reg != REG_R13 && p.To.Reg != REG_R9) || (p.From.Type == obj.TYPE_MEM && p.From.Reg != REG_R13 && p.From.Reg != REG_R9) { // MOVW Rx, X(Ry), y != 13 && y != 9 // MOVW X(Rx), Ry, x != 13 && x != 9
+			if p.To.Type == obj.TYPE_MEM {
 				a = &p.To
 			} else {
-
 				a = &p.From
 			}
 			reg = int(a.Reg)
 			if size == 4 {
-				// if addr.reg == NREG, then it is probably load from x(FP) with small x, no need to modify.
-				if reg == NREG {
-
+				// if addr.reg == 0, then it is probably load from x(FP) with small x, no need to modify.
+				if reg == 0 {
 					if out != nil {
 						asmout(ctxt, p, o, out)
 					}
 				} else {
-
 					if out != nil {
-						out[0] = (uint32(p.Scond)&C_SCOND)<<28 | 0x03c00103 | uint32(reg)<<16 | uint32(reg)<<12 // BIC $0xc0000000, Rx
+						out[0] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03c00103 | (uint32(reg)&15)<<16 | (uint32(reg)&15)<<12 // BIC $0xc0000000, Rx
 					}
 					if p.Pc&15 == 12 {
 						p.Pc += 4
@@ -536,22 +511,19 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 
 				break
 			} else {
-
 				// if a load/store instruction takes more than 1 word to implement, then
 				// we need to seperate the instruction into two:
 				// 1. explicitly load the address into R11.
 				// 2. load/store from R11.
 				// This won't handle .W/.P, so we should reject such code.
 				if p.Scond&(C_PBIT|C_WBIT) != 0 {
-
 					ctxt.Diag("unsupported instruction (.P/.W): %v", p)
 				}
-				q = ctxt.NewProg()
+				q = new(obj.Prog)
 				*q = *p
-				if p.To.Type == D_OREG {
+				if p.To.Type == obj.TYPE_MEM {
 					a2 = &q.To
 				} else {
-
 					a2 = &q.From
 				}
 				nocache(q)
@@ -567,16 +539,16 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				p.As = AMOVW
 
 				p.From = *a
-				p.From.Type = D_CONST
-				p.To = zprg.To
-				p.To.Type = D_REG
-				p.To.Reg = 11
+				p.From.Type = obj.TYPE_ADDR
+				p.To = obj.Zprog.To
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REG_R11
 
 				// make q into p but load/store from 0(R11)
-				*a2 = zprg.From
+				*a2 = obj.Zprog.From
 
-				a2.Type = D_OREG
-				a2.Reg = 11
+				a2.Type = obj.TYPE_MEM
+				a2.Reg = REG_R11
 				a2.Sym = nil
 				a2.Offset = 0
 				size = int(oplook(ctxt, p).size)
@@ -589,13 +561,12 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 	}
 
 	// destination register specific
-	if p.To.Type == D_REG {
-
+	if p.To.Type == obj.TYPE_REG {
 		switch p.To.Reg {
-		case 9:
+		case REG_R9:
 			ctxt.Diag("invalid instruction, cannot write to R9: %v", p)
 
-		case 13:
+		case REG_R13:
 			if out != nil {
 				out[size/4] = 0xe3cdd103 // BIC $0xc0000000, R13
 			}
@@ -659,7 +630,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 		if ctxt.Headtype != obj.Hnacl {
 			m = int(o.size)
 		} else {
-
 			m = asmoutnacl(ctxt, c, p, o, nil)
 			c = int32(p.Pc)     // asmoutnacl might change pc for alignment
 			o = oplook(ctxt, p) // asmoutnacl might change p in rare cases
@@ -671,7 +641,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 
 		// must check literal pool here in case p generates many instructions
 		if ctxt.Blitrl != nil {
-
 			i = m
 			if p.As == ACASE {
 				i = int(casesz(ctxt, p))
@@ -682,7 +651,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 		}
 
-		if m == 0 && (p.As != AFUNCDATA && p.As != APCDATA && p.As != ADATABUNDLEEND && p.As != ANOP) {
+		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
 			ctxt.Diag("zero-width instruction\n%v", p)
 			continue
 		}
@@ -701,7 +670,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			break
 		}
 
-		if p.As == AMOVW && p.To.Type == D_REG && p.To.Reg == REGPC && p.Scond&C_SCOND == C_SCOND_NONE {
+		if p.As == AMOVW && p.To.Type == obj.TYPE_REG && p.To.Reg == REGPC && p.Scond&C_SCOND == C_SCOND_NONE {
 			flushpool(ctxt, p, 0, 0)
 		}
 		c += int32(m)
@@ -738,18 +707,18 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 				if(otxt < 0)
 					otxt = -otxt;
 				if(otxt >= (1L<<17) - 10) {
-					q = ctxt->arch->prg();
+					q = emallocz(sizeof(Prog));
 					q->link = p->link;
 					p->link = q;
 					q->as = AB;
-					q->to.type = D_BRANCH;
+					q->to.type = TYPE_BRANCH;
 					q->pcond = p->pcond;
 					p->pcond = q;
-					q = ctxt->arch->prg();
+					q = emallocz(sizeof(Prog));
 					q->link = p->link;
 					p->link = q;
 					q->as = AB;
-					q->to.type = D_BRANCH;
+					q->to.type = TYPE_BRANCH;
 					q->pcond = q->link->link;
 					bflag = 1;
 				}
@@ -760,7 +729,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			if ctxt.Headtype != obj.Hnacl {
 				m = int(o.size)
 			} else {
-
 				m = asmoutnacl(ctxt, c, p, o, nil)
 			}
 			if p.Pc != int64(opc) {
@@ -777,8 +745,8 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			if m/4 > len(out) {
 				ctxt.Diag("instruction size too large: %d > %d", m/4, len(out))
 			}
-			if m == 0 && (p.As != AFUNCDATA && p.As != APCDATA && p.As != ADATABUNDLEEND && p.As != ANOP) {
-				if p.As == ATEXT {
+			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
+				if p.As == obj.ATEXT {
 					ctxt.Autosize = int32(p.To.Offset + 4)
 					continue
 				}
@@ -807,7 +775,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 	 * perhaps we'd be able to parallelize the span loop above.
 	 */
 	if ctxt.Tlsg == nil {
-
 		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
 	}
 
@@ -826,7 +793,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			asmout(ctxt, p, o, out[:])
 			m = int(o.size)
 		} else {
-
 			m = asmoutnacl(ctxt, c, p, o, out[:])
 			if int64(opc) != p.Pc {
 				ctxt.Diag("asmoutnacl broken: pc changed (%d->%d) in last stage: %v", opc, int32(p.Pc), p)
@@ -877,7 +843,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
  * this happens only in extended basic blocks that exceed 4k.
  */
 func checkpool(ctxt *obj.Link, p *obj.Prog, sz int) int {
-
 	if pool.size >= 0xff0 || immaddr(int32((p.Pc+int64(sz)+4)+4+int64(12+pool.size)-int64(pool.start+8))) == 0 {
 		return flushpool(ctxt, p, 1, 0)
 	} else if p.Link == nil {
@@ -894,9 +859,9 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) int {
 			if false && skip == 1 {
 				fmt.Printf("note: flush literal pool at %x: len=%d ref=%x\n", uint64(p.Pc+4), pool.size, pool.start)
 			}
-			q = ctxt.NewProg()
+			q = new(obj.Prog)
 			q.As = AB
-			q.To.Type = D_BRANCH
+			q.To.Type = obj.TYPE_BRANCH
 			q.Pcond = p.Link
 			q.Link = ctxt.Blitrl
 			q.Lineno = p.Lineno
@@ -906,7 +871,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) int {
 		}
 		if ctxt.Headtype == obj.Hnacl && pool.size%16 != 0 {
 			// if pool is not multiple of 16 bytes, add an alignment marker
-			q = ctxt.NewProg()
+			q = new(obj.Prog)
 
 			q.As = ADATABUNDLEEND
 			ctxt.Elitrl.Link = q
@@ -920,7 +885,6 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) int {
 		// for now, we set line number to the last instruction preceding them at least
 		// this won't bloat the .debug_line tables
 		for ctxt.Blitrl != nil {
-
 			ctxt.Blitrl.Lineno = p.Lineno
 			ctxt.Blitrl = ctxt.Blitrl.Link
 		}
@@ -943,7 +907,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 
 	c = aclass(ctxt, a)
 
-	t = zprg
+	t = obj.Zprog
 	t.As = AWORD
 
 	switch c {
@@ -967,7 +931,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		C_SAUTO,
 		C_LAUTO,
 		C_LACON:
-		t.To.Type = D_CONST
+		t.To.Type = obj.TYPE_CONST
 		t.To.Offset = ctxt.Instoffset
 		break
 	}
@@ -983,9 +947,9 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 
 	if ctxt.Headtype == obj.Hnacl && pool.size%16 == 0 {
 		// start a new data bundle
-		q = ctxt.NewProg()
+		q = new(obj.Prog)
 
-		*q = zprg
+		*q = obj.Zprog
 		q.As = ADATABUNDLE
 		q.Pc = int64(pool.size)
 		pool.size += 4
@@ -993,14 +957,13 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 			ctxt.Blitrl = q
 			pool.start = uint32(p.Pc)
 		} else {
-
 			ctxt.Elitrl.Link = q
 		}
 
 		ctxt.Elitrl = q
 	}
 
-	q = ctxt.NewProg()
+	q = new(obj.Prog)
 	*q = t
 	q.Pc = int64(pool.size)
 
@@ -1008,7 +971,6 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		ctxt.Blitrl = q
 		pool.start = uint32(p.Pc)
 	} else {
-
 		ctxt.Elitrl.Link = q
 	}
 	ctxt.Elitrl = q
@@ -1065,31 +1027,37 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 	var t int
 
 	switch a.Type {
-	case D_NONE:
+	case obj.TYPE_NONE:
 		return C_NONE
 
-	case D_REG:
-		return C_REG
+	case obj.TYPE_REG:
+		if REG_R0 <= a.Reg && a.Reg <= REG_R15 {
+			return C_REG
+		}
+		if REG_F0 <= a.Reg && a.Reg <= REG_F15 {
+			return C_FREG
+		}
+		if a.Reg == REG_FPSR || a.Reg == REG_FPCR {
+			return C_FCR
+		}
+		if a.Reg == REG_CPSR || a.Reg == REG_SPSR {
+			return C_PSR
+		}
+		return C_GOK
 
-	case D_REGREG:
+	case obj.TYPE_REGREG:
 		return C_REGREG
 
-	case D_REGREG2:
+	case obj.TYPE_REGREG2:
 		return C_REGREG2
 
-	case D_SHIFT:
+	case obj.TYPE_SHIFT:
 		return C_SHIFT
 
-	case D_FREG:
-		return C_FREG
-
-	case D_FPCR:
-		return C_FCR
-
-	case D_OREG:
+	case obj.TYPE_MEM:
 		switch a.Name {
-		case D_EXTERN,
-			D_STATIC:
+		case obj.NAME_EXTERN,
+			obj.NAME_STATIC:
 			if a.Sym == nil || a.Sym.Name == "" {
 				fmt.Printf("null sym external\n")
 				return C_GOK
@@ -1098,7 +1066,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			ctxt.Instoffset = 0 // s.b. unused but just in case
 			return C_ADDR
 
-		case D_AUTO:
+		case obj.NAME_AUTO:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset
 			t = int(immaddr(int32(ctxt.Instoffset)))
 			if t != 0 {
@@ -1117,7 +1085,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 			return C_LAUTO
 
-		case D_PARAM:
+		case obj.NAME_PARAM:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + 4
 			t = int(immaddr(int32(ctxt.Instoffset)))
 			if t != 0 {
@@ -1136,7 +1104,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 			return C_LAUTO
 
-		case D_NONE:
+		case obj.TYPE_NONE:
 			ctxt.Instoffset = a.Offset
 			t = int(immaddr(int32(ctxt.Instoffset)))
 			if t != 0 {
@@ -1169,20 +1137,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 		return C_GOK
 
-	case D_PSR:
-		return C_PSR
-
-	case D_OCONST:
-		switch a.Name {
-		case D_EXTERN,
-			D_STATIC:
-			ctxt.Instoffset = 0 // s.b. unused but just in case
-			return C_ADDR
-		}
-
-		return C_GOK
-
-	case D_FCONST:
+	case obj.TYPE_FCONST:
 		if chipzero5(ctxt, a.U.Dval) >= 0 {
 			return C_ZFCON
 		}
@@ -1191,12 +1146,15 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 		}
 		return C_LFCON
 
-	case D_CONST,
-		D_CONST2:
+	case obj.TYPE_TEXTSIZE:
+		return C_TEXTSIZE
+
+	case obj.TYPE_CONST,
+		obj.TYPE_ADDR:
 		switch a.Name {
-		case D_NONE:
+		case obj.TYPE_NONE:
 			ctxt.Instoffset = a.Offset
-			if a.Reg != NREG {
+			if a.Reg != 0 {
 				return aconsize(ctxt)
 			}
 
@@ -1204,14 +1162,14 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			if t != 0 {
 				return C_RCON
 			}
-			t = int(immrot(uint32(^ctxt.Instoffset)))
+			t = int(immrot(^uint32(ctxt.Instoffset)))
 			if t != 0 {
 				return C_NCON
 			}
 			return C_LCON
 
-		case D_EXTERN,
-			D_STATIC:
+		case obj.NAME_EXTERN,
+			obj.NAME_STATIC:
 			s = a.Sym
 			if s == nil {
 				break
@@ -1219,18 +1177,18 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			ctxt.Instoffset = 0 // s.b. unused but just in case
 			return C_LCONADDR
 
-		case D_AUTO:
+		case obj.NAME_AUTO:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset
 			return aconsize(ctxt)
 
-		case D_PARAM:
+		case obj.NAME_PARAM:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + 4
 			return aconsize(ctxt)
 		}
 
 		return C_GOK
 
-	case D_BRANCH:
+	case obj.TYPE_BRANCH:
 		return C_SBRA
 	}
 
@@ -1280,7 +1238,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 
 	a3--
 	a2 = C_NONE
-	if p.Reg != NREG {
+	if p.Reg != 0 {
 		a2 = C_REG
 	}
 	r = int(p.As)
@@ -1427,12 +1385,11 @@ func buildop(ctxt *obj.Link) {
 			}
 		}
 	}
-	for n = 0; optab[n].as != AXXX; n++ {
+	for n = 0; optab[n].as != obj.AXXX; n++ {
 		if optab[n].flag&LPCREL != 0 {
 			if ctxt.Flag_shared != 0 {
 				optab[n].size += int8(optab[n].pcrelsiz)
 			} else {
-
 				optab[n].flag &^= LPCREL
 			}
 		}
@@ -1516,17 +1473,17 @@ func buildop(ctxt *obj.Link) {
 			ABL,
 			ABX,
 			ABXRET,
-			ADUFFZERO,
-			ADUFFCOPY,
+			obj.ADUFFZERO,
+			obj.ADUFFCOPY,
 			ASWI,
 			AWORD,
 			AMOVM,
 			ARFE,
-			ATEXT,
-			AUSEFIELD,
+			obj.ATEXT,
+			obj.AUSEFIELD,
 			ACASE,
 			ABCASE,
-			ATYPE:
+			obj.ATYPE:
 			break
 
 		case AADDF:
@@ -1574,11 +1531,11 @@ func buildop(ctxt *obj.Link) {
 			ASTREXD,
 			ATST,
 			APLD,
-			AUNDEF,
+			obj.AUNDEF,
 			ACLZ,
-			AFUNCDATA,
-			APCDATA,
-			ANOP,
+			obj.AFUNCDATA,
+			obj.APCDATA,
+			obj.ANOP,
 			ADATABUNDLE,
 			ADATABUNDLEEND:
 			break
@@ -1627,15 +1584,15 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rf = int(p.From.Reg)
 		rt = int(p.To.Reg)
 		r = int(p.Reg)
-		if p.To.Type == D_NONE {
+		if p.To.Type == obj.TYPE_NONE {
 			rt = 0
 		}
 		if p.As == AMOVB || p.As == AMOVH || p.As == AMOVW || p.As == AMVN {
 			r = 0
-		} else if r == NREG {
+		} else if r == 0 {
 			r = rt
 		}
-		o1 |= uint32(rf) | uint32(r)<<16 | uint32(rt)<<12
+		o1 |= (uint32(rf)&15)<<0 | (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
 
 	case 2: /* movbu $I,[R],R */
 		aclass(ctxt, &p.From)
@@ -1644,15 +1601,15 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
 		rt = int(p.To.Reg)
 		r = int(p.Reg)
-		if p.To.Type == D_NONE {
+		if p.To.Type == obj.TYPE_NONE {
 			rt = 0
 		}
 		if p.As == AMOVW || p.As == AMVN {
 			r = 0
-		} else if r == NREG {
+		} else if r == 0 {
 			r = rt
 		}
-		o1 |= uint32(r)<<16 | uint32(rt)<<12
+		o1 |= (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
 
 	case 3: /* add R<<[IR],[R],R */
 		o1 = mov(ctxt, p)
@@ -1663,11 +1620,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = oprrr(ctxt, AADD, int(p.Scond))
 		o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
 		r = int(p.From.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
-		o1 |= uint32(r) << 16
-		o1 |= uint32(p.To.Reg) << 12
+		o1 |= (uint32(r) & 15) << 16
+		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 5: /* bra s */
 		o1 = opbra(ctxt, int(p.As), int(p.Scond))
@@ -1694,8 +1651,8 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 		o1 = oprrr(ctxt, AADD, int(p.Scond))
 		o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
-		o1 |= uint32(p.To.Reg) << 16
-		o1 |= REGPC << 12
+		o1 |= (uint32(p.To.Reg) & 15) << 16
+		o1 |= (REGPC & 15) << 12
 
 	case 7: /* bl (R) -> blx R */
 		aclass(ctxt, &p.To)
@@ -1704,7 +1661,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			ctxt.Diag("%v: doesn't support BL offset(REG) where offset != 0", p)
 		}
 		o1 = oprrr(ctxt, ABL, int(p.Scond))
-		o1 |= uint32(p.To.Reg)
+		o1 |= (uint32(p.To.Reg) & 15) << 0
 		rel = obj.Addrel(ctxt.Cursym)
 		rel.Off = int32(ctxt.Pc)
 		rel.Siz = 0
@@ -1715,28 +1672,28 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 		r = int(p.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		o1 |= uint32(r)
+		o1 |= (uint32(r) & 15) << 0
 		o1 |= uint32((ctxt.Instoffset & 31) << 7)
-		o1 |= uint32(p.To.Reg) << 12
+		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 9: /* sll R,[R],R -> mov (R<<R),R */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
 		r = int(p.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		o1 |= uint32(r)
-		o1 |= uint32(p.From.Reg)<<8 | 1<<4
-		o1 |= uint32(p.To.Reg) << 12
+		o1 |= (uint32(r) & 15) << 0
+		o1 |= (uint32(p.From.Reg)&15)<<8 | 1<<4
+		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 10: /* swi [$con] */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
-		if p.To.Type != D_NONE {
+		if p.To.Type != obj.TYPE_NONE {
 			aclass(ctxt, &p.To)
 			o1 |= uint32(ctxt.Instoffset & 0xffffff)
 		}
@@ -1760,7 +1717,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			// to the thread-local g and m pointers.
 			// Emit a TLS relocation instead of a standard one.
 			if rel.Sym == ctxt.Tlsg {
-
 				rel.Type = obj.R_TLS
 				if ctxt.Flag_shared != 0 {
 					rel.Add += ctxt.Pc - p.Pcrel.Pc - 8 - int64(rel.Siz)
@@ -1771,7 +1727,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 				rel.Type = obj.R_PCREL
 				rel.Add += ctxt.Pc - p.Pcrel.Pc - 8
 			} else {
-
 				rel.Type = obj.R_ADDR
 			}
 			o1 = 0
@@ -1781,7 +1736,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = omvl(ctxt, p, &p.From, int(p.To.Reg))
 
 		if o.flag&LPCREL != 0 {
-			o2 = oprrr(ctxt, AADD, int(p.Scond)) | uint32(p.To.Reg) | REGPC<<16 | uint32(p.To.Reg)<<12
+			o2 = oprrr(ctxt, AADD, int(p.Scond)) | (uint32(p.To.Reg)&15)<<0 | (REGPC&15)<<16 | (uint32(p.To.Reg)&15)<<12
 		}
 
 	case 13: /* op $lcon, [R], R */
@@ -1791,16 +1746,16 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			break
 		}
 		o2 = oprrr(ctxt, int(p.As), int(p.Scond))
-		o2 |= REGTMP
+		o2 |= REGTMP & 15
 		r = int(p.Reg)
 		if p.As == AMOVW || p.As == AMVN {
 			r = 0
-		} else if r == NREG {
+		} else if r == 0 {
 			r = int(p.To.Reg)
 		}
-		o2 |= uint32(r) << 16
-		if p.To.Type != D_NONE {
-			o2 |= uint32(p.To.Reg) << 12
+		o2 |= (uint32(r) & 15) << 16
+		if p.To.Type != obj.TYPE_NONE {
+			o2 |= (uint32(p.To.Reg) & 15) << 12
 		}
 
 	case 14: /* movb/movbu/movh/movhu R,R */
@@ -1809,18 +1764,16 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if p.As == AMOVBU || p.As == AMOVHU {
 			o2 = oprrr(ctxt, ASRL, int(p.Scond))
 		} else {
-
 			o2 = oprrr(ctxt, ASRA, int(p.Scond))
 		}
 
 		r = int(p.To.Reg)
-		o1 |= uint32(p.From.Reg) | uint32(r)<<12
-		o2 |= uint32(r) | uint32(r)<<12
+		o1 |= (uint32(p.From.Reg)&15)<<0 | (uint32(r)&15)<<12
+		o2 |= uint32(r)&15 | (uint32(r)&15)<<12
 		if p.As == AMOVB || p.As == AMOVBS || p.As == AMOVBU {
 			o1 |= 24 << 7
 			o2 |= 24 << 7
 		} else {
-
 			o1 |= 16 << 7
 			o2 |= 16 << 7
 		}
@@ -1831,7 +1784,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rf = int(p.From.Reg)
 		rt = int(p.To.Reg)
 		r = int(p.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = rt
 		}
 		if rt == r {
@@ -1840,13 +1793,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		if false {
-			if rt == r || rf == REGPC || r == REGPC || rt == REGPC {
+			if rt == r || rf == REGPC&15 || r == REGPC&15 || rt == REGPC&15 {
 				ctxt.Diag("bad registers in MUL")
 				prasm(p)
 			}
 		}
 
-		o1 |= uint32(rf)<<8 | uint32(r) | uint32(rt)<<16
+		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16
 
 	case 16: /* div r,[r,]r */
 		o1 = 0xf << 28
@@ -1859,13 +1812,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rt = int(p.To.Reg)
 		rt2 = int(p.To.Offset)
 		r = int(p.Reg)
-		o1 |= uint32(rf)<<8 | uint32(r) | uint32(rt)<<16 | uint32(rt2)<<12
+		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16 | (uint32(rt2)&15)<<12
 
 	case 20: /* mov/movb/movbu R,O(R) */
 		aclass(ctxt, &p.To)
 
 		r = int(p.To.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
 		o1 = osr(ctxt, int(p.As), int(p.From.Reg), int32(ctxt.Instoffset), r, int(p.Scond))
@@ -1874,7 +1827,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		aclass(ctxt, &p.From)
 
 		r = int(p.From.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
 		o1 = olr(ctxt, int32(ctxt.Instoffset), r, int(p.To.Reg), int(p.Scond))
@@ -1889,10 +1842,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			break
 		}
 		r = int(p.To.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
-		o2 = osrr(ctxt, int(p.From.Reg), REGTMP, r, int(p.Scond))
+		o2 = osrr(ctxt, int(p.From.Reg), REGTMP&15, r, int(p.Scond))
 		if p.As != AMOVW {
 			o2 |= 1 << 22
 		}
@@ -1904,10 +1857,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			break
 		}
 		r = int(p.From.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
-		o2 = olrr(ctxt, REGTMP, r, int(p.To.Reg), int(p.Scond))
+		o2 = olrr(ctxt, REGTMP&15, r, int(p.To.Reg), int(p.Scond))
 		if p.As == AMOVBU || p.As == AMOVBS || p.As == AMOVB {
 			o2 |= 1 << 22
 		}
@@ -1920,22 +1873,22 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		o2 = oprrr(ctxt, AADD, int(p.Scond))
-		o2 |= REGTMP
+		o2 |= REGTMP & 15
 		r = int(p.From.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
-		o2 |= uint32(r) << 16
-		if p.To.Type != D_NONE {
-			o2 |= uint32(p.To.Reg) << 12
+		o2 |= (uint32(r) & 15) << 16
+		if p.To.Type != obj.TYPE_NONE {
+			o2 |= (uint32(p.To.Reg) & 15) << 12
 		}
 
 	case 35: /* mov PSR,R */
 		o1 = 2<<23 | 0xf<<16 | 0<<0
 
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 		o1 |= (uint32(p.From.Reg) & 1) << 22
-		o1 |= uint32(p.To.Reg) << 12
+		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 36: /* mov R,PSR */
 		o1 = 2<<23 | 0x29f<<12 | 0<<4
@@ -1943,9 +1896,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if p.Scond&C_FBIT != 0 {
 			o1 ^= 0x010 << 12
 		}
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 		o1 |= (uint32(p.To.Reg) & 1) << 22
-		o1 |= uint32(p.From.Reg) << 0
+		o1 |= (uint32(p.From.Reg) & 15) << 0
 
 	case 37: /* mov $con,PSR */
 		aclass(ctxt, &p.From)
@@ -1954,10 +1907,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if p.Scond&C_FBIT != 0 {
 			o1 ^= 0x010 << 12
 		}
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 		o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
 		o1 |= (uint32(p.To.Reg) & 1) << 22
-		o1 |= uint32(p.From.Reg) << 0
+		o1 |= (uint32(p.From.Reg) & 15) << 0
 
 	case 38,
 		39:
@@ -1966,14 +1919,14 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			o1 = 0x4 << 25
 
 			o1 |= uint32(p.From.Offset & 0xffff)
-			o1 |= uint32(p.To.Reg) << 16
+			o1 |= (uint32(p.To.Reg) & 15) << 16
 			aclass(ctxt, &p.To)
 
 		case 39: /* movm oreg,$con -> ldm */
 			o1 = 0x4<<25 | 1<<20
 
 			o1 |= uint32(p.To.Offset & 0xffff)
-			o1 |= uint32(p.From.Reg) << 16
+			o1 |= (uint32(p.From.Reg) & 15) << 16
 			aclass(ctxt, &p.From)
 			break
 		}
@@ -1981,7 +1934,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if ctxt.Instoffset != 0 {
 			ctxt.Diag("offset must be zero in MOVM; %v", p)
 		}
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 		if p.Scond&C_PBIT != 0 {
 			o1 |= 1 << 24
 		}
@@ -2005,10 +1958,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if p.As != ASWPW {
 			o1 |= 1 << 22
 		}
-		o1 |= uint32(p.From.Reg) << 16
-		o1 |= uint32(p.Reg) << 0
-		o1 |= uint32(p.To.Reg) << 12
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
+		o1 |= (uint32(p.From.Reg) & 15) << 16
+		o1 |= (uint32(p.Reg) & 15) << 0
+		o1 |= (uint32(p.To.Reg) & 15) << 12
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 
 	case 41: /* rfe -> movm.s.w.u 0(r13),[r15] */
 		o1 = 0xe8fd8000
@@ -2017,7 +1970,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		v = regoff(ctxt, &p.To)
 
 		r = int(p.To.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
 		o1 = ofsr(ctxt, int(p.As), int(p.From.Reg), v, r, int(p.Scond), p)
@@ -2026,7 +1979,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		v = regoff(ctxt, &p.From)
 
 		r = int(p.From.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
 		o1 = ofsr(ctxt, int(p.As), int(p.To.Reg), v, r, int(p.Scond), p) | 1<<20
@@ -2038,10 +1991,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			break
 		}
 		r = int(p.To.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
-		o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP<<12 | REGTMP<<16 | uint32(r)
+		o2 = oprrr(ctxt, AADD, int(p.Scond)) | (REGTMP&15)<<12 | (REGTMP&15)<<16 | (uint32(r)&15)<<0
 		o3 = ofsr(ctxt, int(p.As), int(p.From.Reg), 0, REGTMP, int(p.Scond), p)
 
 	case 53: /* floating point load, int32 offset UGLY */
@@ -2051,11 +2004,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			break
 		}
 		r = int(p.From.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
-		o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP<<12 | REGTMP<<16 | uint32(r)
-		o3 = ofsr(ctxt, int(p.As), int(p.To.Reg), 0, REGTMP, int(p.Scond), p) | 1<<20
+		o2 = oprrr(ctxt, AADD, int(p.Scond)) | (REGTMP&15)<<12 | (REGTMP&15)<<16 | (uint32(r)&15)<<0
+		o3 = ofsr(ctxt, int(p.As), int(p.To.Reg), 0, (REGTMP&15), int(p.Scond), p) | 1<<20
 
 	case 54: /* floating point arith */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
@@ -2063,24 +2016,24 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rf = int(p.From.Reg)
 		rt = int(p.To.Reg)
 		r = int(p.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = rt
 			if p.As == AMOVF || p.As == AMOVD || p.As == AMOVFD || p.As == AMOVDF || p.As == ASQRTF || p.As == ASQRTD || p.As == AABSF || p.As == AABSD {
 				r = 0
 			}
 		}
 
-		o1 |= uint32(rf) | uint32(r)<<16 | uint32(rt)<<12
+		o1 |= (uint32(rf)&15)<<0 | (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
 
 	case 56: /* move to FP[CS]R */
-		o1 = (uint32(p.Scond)&C_SCOND)<<28 | 0xe<<24 | 1<<8 | 1<<4
+		o1 = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0xe<<24 | 1<<8 | 1<<4
 
-		o1 |= (uint32(p.To.Reg)+1)<<21 | uint32(p.From.Reg)<<12
+		o1 |= ((uint32(p.To.Reg)&1)+1)<<21 | (uint32(p.From.Reg)&15)<<12
 
 	case 57: /* move from FP[CS]R */
-		o1 = (uint32(p.Scond)&C_SCOND)<<28 | 0xe<<24 | 1<<8 | 1<<4
+		o1 = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0xe<<24 | 1<<8 | 1<<4
 
-		o1 |= (uint32(p.From.Reg)+1)<<21 | uint32(p.To.Reg)<<12 | 1<<20
+		o1 |= ((uint32(p.From.Reg)&1)+1)<<21 | (uint32(p.To.Reg)&15)<<12 | 1<<20
 
 	case 58: /* movbu R,R */
 		o1 = oprrr(ctxt, AAND, int(p.Scond))
@@ -2088,17 +2041,16 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(immrot(0xff))
 		rt = int(p.To.Reg)
 		r = int(p.From.Reg)
-		if p.To.Type == D_NONE {
+		if p.To.Type == obj.TYPE_NONE {
 			rt = 0
 		}
-		if r == NREG {
+		if r == 0 {
 			r = rt
 		}
-		o1 |= uint32(r)<<16 | uint32(rt)<<12
+		o1 |= (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
 
 	case 59: /* movw/bu R<<I(R),R -> ldr indexed */
-		if p.From.Reg == NREG {
-
+		if p.From.Reg == 0 {
 			if p.As != AMOVW {
 				ctxt.Diag("byte MOV from shifter operand")
 			}
@@ -2115,8 +2067,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 60: /* movb R(R),R -> ldrsb indexed */
-		if p.From.Reg == NREG {
-
+		if p.From.Reg == 0 {
 			ctxt.Diag("byte MOV from shifter operand")
 			o1 = mov(ctxt, p)
 			break
@@ -2129,8 +2080,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 ^= 1<<5 | 1<<6
 
 	case 61: /* movw/b/bu R,R<<[IR](R) -> str indexed */
-		if p.To.Reg == NREG {
-
+		if p.To.Reg == 0 {
 			ctxt.Diag("MOV to shifter operand")
 		}
 		o1 = osrr(ctxt, int(p.From.Reg), int(p.To.Offset), int(p.To.Reg), int(p.Scond))
@@ -2140,20 +2090,17 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 62: /* case R -> movw	R<<2(PC),PC */
 		if o.flag&LPCREL != 0 {
-
-			o1 = oprrr(ctxt, AADD, int(p.Scond)) | uint32(immrot(1)) | uint32(p.From.Reg)<<16 | REGTMP<<12
-			o2 = olrr(ctxt, REGTMP, REGPC, REGTMP, int(p.Scond))
+			o1 = oprrr(ctxt, AADD, int(p.Scond)) | uint32(immrot(1)) | (uint32(p.From.Reg)&15)<<16 | (REGTMP&15)<<12
+			o2 = olrr(ctxt, REGTMP&15, REGPC, REGTMP, int(p.Scond))
 			o2 |= 2 << 7
-			o3 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP | REGPC<<16 | REGPC<<12
+			o3 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP&15 | (REGPC&15)<<16 | (REGPC&15)<<12
 		} else {
-
-			o1 = olrr(ctxt, int(p.From.Reg), REGPC, REGPC, int(p.Scond))
+			o1 = olrr(ctxt, int(p.From.Reg)&15, REGPC, REGPC, int(p.Scond))
 			o1 |= 2 << 7
 		}
 
 	case 63: /* bcase */
 		if p.Pcond != nil {
-
 			rel = obj.Addrel(ctxt.Cursym)
 			rel.Off = int32(ctxt.Pc)
 			rel.Siz = 4
@@ -2161,7 +2108,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 				rel.Sym = p.To.Sym
 				rel.Add = p.To.Offset
 			} else {
-
 				rel.Sym = ctxt.Cursym
 				rel.Add = p.Pcond.Pc
 			}
@@ -2170,7 +2116,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 				rel.Type = obj.R_PCREL
 				rel.Add += ctxt.Pc - p.Pcrel.Pc - 16 + int64(rel.Siz)
 			} else {
-
 				rel.Type = obj.R_ADDR
 			}
 			o1 = 0
@@ -2186,7 +2131,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o2 = osr(ctxt, int(p.As), int(p.From.Reg), 0, REGTMP, int(p.Scond))
 		if o.flag&LPCREL != 0 {
 			o3 = o2
-			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP | REGPC<<16 | REGTMP<<12
+			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP&15 | (REGPC&15)<<16 | (REGTMP&15)<<12
 		}
 
 	case 65: /* mov/movbu addr,R */
@@ -2201,7 +2146,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 		if o.flag&LPCREL != 0 {
 			o3 = o2
-			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP | REGPC<<16 | REGTMP<<12
+			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP&15 | (REGPC&15)<<16 | (REGTMP&15)<<12
 		}
 
 	case 68: /* floating point store -> ADDR */
@@ -2213,7 +2158,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o2 = ofsr(ctxt, int(p.As), int(p.From.Reg), 0, REGTMP, int(p.Scond), p)
 		if o.flag&LPCREL != 0 {
 			o3 = o2
-			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP | REGPC<<16 | REGTMP<<12
+			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP&15 | (REGPC&15)<<16 | (REGTMP&15)<<12
 		}
 
 	case 69: /* floating point load <- ADDR */
@@ -2222,10 +2167,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if !(o1 != 0) {
 			break
 		}
-		o2 = ofsr(ctxt, int(p.As), int(p.To.Reg), 0, REGTMP, int(p.Scond), p) | 1<<20
+		o2 = ofsr(ctxt, int(p.As), int(p.To.Reg), 0, (REGTMP&15), int(p.Scond), p) | 1<<20
 		if o.flag&LPCREL != 0 {
 			o3 = o2
-			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP | REGPC<<16 | REGTMP<<12
+			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP&15 | (REGPC&15)<<16 | (REGTMP&15)<<12
 		}
 
 		/* ArmV4 ops: */
@@ -2233,7 +2178,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		aclass(ctxt, &p.To)
 
 		r = int(p.To.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
 		o1 = oshr(ctxt, int(p.From.Reg), int32(ctxt.Instoffset), r, int(p.Scond))
@@ -2242,7 +2187,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		aclass(ctxt, &p.From)
 
 		r = int(p.From.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
 		o1 = olhr(ctxt, int32(ctxt.Instoffset), r, int(p.To.Reg), int(p.Scond))
@@ -2259,10 +2204,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			break
 		}
 		r = int(p.To.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
-		o2 = oshrr(ctxt, int(p.From.Reg), REGTMP, r, int(p.Scond))
+		o2 = oshrr(ctxt, int(p.From.Reg), REGTMP&15, r, int(p.Scond))
 
 	case 73: /* movb/movh/movhu L(R),R -> ldrsb/ldrsh/ldrh */
 		o1 = omvl(ctxt, p, &p.From, REGTMP)
@@ -2271,10 +2216,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			break
 		}
 		r = int(p.From.Reg)
-		if r == NREG {
+		if r == 0 {
 			r = int(o.param)
 		}
-		o2 = olhrr(ctxt, REGTMP, r, int(p.To.Reg), int(p.Scond))
+		o2 = olhrr(ctxt, REGTMP&15, r, int(p.To.Reg), int(p.Scond))
 		if p.As == AMOVB || p.As == AMOVBS {
 			o2 ^= 1<<5 | 1<<6
 		} else if p.As == AMOVH || p.As == AMOVHS {
@@ -2292,17 +2237,17 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		/*
-			o1 = 	oprrr(ctxt, AADD, p->scond) | immrot(0) | (REGPC<<16) | (REGLINK<<12);	// mov PC, LR
-			o2 = ((p->scond&C_SCOND)<<28) | (0x12fff<<8) | (1<<4) | p->to.reg;		// BX R
+			o1 = 	oprrr(ctxt, AADD, p->scond) | immrot(0) | ((REGPC&15)<<16) | ((REGLINK&15)<<12);	// mov PC, LR
+			o2 = (((p->scond&C_SCOND) ^ C_SCOND_XOR)<<28) | (0x12fff<<8) | (1<<4) | ((p->to.reg&15) << 0);		// BX R
 		*/
 		// p->to.reg may be REGLINK
 		o1 = oprrr(ctxt, AADD, int(p.Scond))
 
 		o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
-		o1 |= uint32(p.To.Reg) << 16
-		o1 |= REGTMP << 12
-		o2 = oprrr(ctxt, AADD, int(p.Scond)) | uint32(immrot(0)) | REGPC<<16 | REGLINK<<12 // mov PC, LR
-		o3 = (uint32(p.Scond)&C_SCOND)<<28 | 0x12fff<<8 | 1<<4 | REGTMP                    // BX Rtmp
+		o1 |= (uint32(p.To.Reg) & 15) << 16
+		o1 |= (REGTMP & 15) << 12
+		o2 = oprrr(ctxt, AADD, int(p.Scond)) | uint32(immrot(0)) | (REGPC&15)<<16 | (REGLINK&15)<<12 // mov PC, LR
+		o3 = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x12fff<<8 | 1<<4 | REGTMP&15             // BX Rtmp
 
 	case 76: /* bx O(R) when returning from fn*/
 		ctxt.Diag("ABXRET")
@@ -2314,9 +2259,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			ctxt.Diag("offset must be zero in LDREX")
 		}
 		o1 = 0x19<<20 | 0xf9f
-		o1 |= uint32(p.From.Reg) << 16
-		o1 |= uint32(p.To.Reg) << 12
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
+		o1 |= (uint32(p.From.Reg) & 15) << 16
+		o1 |= (uint32(p.To.Reg) & 15) << 12
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 
 	case 78: /* strex reg,oreg,reg */
 		aclass(ctxt, &p.From)
@@ -2325,42 +2270,40 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			ctxt.Diag("offset must be zero in STREX")
 		}
 		o1 = 0x18<<20 | 0xf90
-		o1 |= uint32(p.From.Reg) << 16
-		o1 |= uint32(p.Reg) << 0
-		o1 |= uint32(p.To.Reg) << 12
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
+		o1 |= (uint32(p.From.Reg) & 15) << 16
+		o1 |= (uint32(p.Reg) & 15) << 0
+		o1 |= (uint32(p.To.Reg) & 15) << 12
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 
 	case 80: /* fmov zfcon,freg */
 		if p.As == AMOVD {
-
 			o1 = 0xeeb00b00 // VMOV imm 64
 			o2 = oprrr(ctxt, ASUBD, int(p.Scond))
 		} else {
-
 			o1 = 0x0eb00a00 // VMOV imm 32
 			o2 = oprrr(ctxt, ASUBF, int(p.Scond))
 		}
 
 		v = 0x70 // 1.0
-		r = int(p.To.Reg)
+		r = (int(p.To.Reg) & 15) << 0
 
 		// movf $1.0, r
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 
-		o1 |= uint32(r) << 12
+		o1 |= (uint32(r) & 15) << 12
 		o1 |= (uint32(v) & 0xf) << 0
 		o1 |= (uint32(v) & 0xf0) << 12
 
 		// subf r,r,r
-		o2 |= uint32(r) | uint32(r)<<16 | uint32(r)<<12
+		o2 |= (uint32(r)&15)<<0 | (uint32(r)&15)<<16 | (uint32(r)&15)<<12
 
 	case 81: /* fmov sfcon,freg */
 		o1 = 0x0eb00a00 // VMOV imm 32
 		if p.As == AMOVD {
 			o1 = 0xeeb00b00 // VMOV imm 64
 		}
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
-		o1 |= uint32(p.To.Reg) << 12
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
+		o1 |= (uint32(p.To.Reg) & 15) << 12
 		v = int32(chipfloat5(ctxt, p.From.U.Dval))
 		o1 |= (uint32(v) & 0xf) << 0
 		o1 |= (uint32(v) & 0xf0) << 12
@@ -2368,65 +2311,65 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	case 82: /* fcmp freg,freg, */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
-		o1 |= uint32(p.Reg)<<12 | uint32(p.From.Reg)<<0
+		o1 |= (uint32(p.Reg)&15)<<12 | (uint32(p.From.Reg)&15)<<0
 		o2 = 0x0ef1fa10 // VMRS R15
-		o2 |= (uint32(p.Scond) & C_SCOND) << 28
+		o2 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 
 	case 83: /* fcmp freg,, */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
-		o1 |= uint32(p.From.Reg)<<12 | 1<<16
+		o1 |= (uint32(p.From.Reg)&15)<<12 | 1<<16
 		o2 = 0x0ef1fa10 // VMRS R15
-		o2 |= (uint32(p.Scond) & C_SCOND) << 28
+		o2 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 
 	case 84: /* movfw freg,freg - truncate float-to-fix */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
-		o1 |= uint32(p.From.Reg) << 0
-		o1 |= uint32(p.To.Reg) << 12
+		o1 |= (uint32(p.From.Reg) & 15) << 0
+		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 85: /* movwf freg,freg - fix-to-float */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
-		o1 |= uint32(p.From.Reg) << 0
-		o1 |= uint32(p.To.Reg) << 12
+		o1 |= (uint32(p.From.Reg) & 15) << 0
+		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 		// macro for movfw freg,FTMP; movw FTMP,reg
 	case 86: /* movfw freg,reg - truncate float-to-fix */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
-		o1 |= uint32(p.From.Reg) << 0
-		o1 |= FREGTMP << 12
-		o2 = oprrr(ctxt, AMOVFW+AEND, int(p.Scond))
-		o2 |= FREGTMP << 16
-		o2 |= uint32(p.To.Reg) << 12
+		o1 |= (uint32(p.From.Reg) & 15) << 0
+		o1 |= (FREGTMP & 15) << 12
+		o2 = oprrr(ctxt, AMOVFW+ALAST, int(p.Scond))
+		o2 |= (FREGTMP & 15) << 16
+		o2 |= (uint32(p.To.Reg) & 15) << 12
 
 		// macro for movw reg,FTMP; movwf FTMP,freg
 	case 87: /* movwf reg,freg - fix-to-float */
-		o1 = oprrr(ctxt, AMOVWF+AEND, int(p.Scond))
+		o1 = oprrr(ctxt, AMOVWF+ALAST, int(p.Scond))
 
-		o1 |= uint32(p.From.Reg) << 12
-		o1 |= FREGTMP << 16
+		o1 |= (uint32(p.From.Reg) & 15) << 12
+		o1 |= (FREGTMP & 15) << 16
 		o2 = oprrr(ctxt, int(p.As), int(p.Scond))
-		o2 |= FREGTMP << 0
-		o2 |= uint32(p.To.Reg) << 12
+		o2 |= (FREGTMP & 15) << 0
+		o2 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 88: /* movw reg,freg  */
-		o1 = oprrr(ctxt, AMOVWF+AEND, int(p.Scond))
+		o1 = oprrr(ctxt, AMOVWF+ALAST, int(p.Scond))
 
-		o1 |= uint32(p.From.Reg) << 12
-		o1 |= uint32(p.To.Reg) << 16
+		o1 |= (uint32(p.From.Reg) & 15) << 12
+		o1 |= (uint32(p.To.Reg) & 15) << 16
 
 	case 89: /* movw freg,reg  */
-		o1 = oprrr(ctxt, AMOVFW+AEND, int(p.Scond))
+		o1 = oprrr(ctxt, AMOVFW+ALAST, int(p.Scond))
 
-		o1 |= uint32(p.From.Reg) << 16
-		o1 |= uint32(p.To.Reg) << 12
+		o1 |= (uint32(p.From.Reg) & 15) << 16
+		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 90: /* tst reg  */
-		o1 = oprrr(ctxt, ACMP+AEND, int(p.Scond))
+		o1 = oprrr(ctxt, ACMP+ALAST, int(p.Scond))
 
-		o1 |= uint32(p.From.Reg) << 16
+		o1 |= (uint32(p.From.Reg) & 15) << 16
 
 	case 91: /* ldrexd oreg,reg */
 		aclass(ctxt, &p.From)
@@ -2435,9 +2378,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			ctxt.Diag("offset must be zero in LDREX")
 		}
 		o1 = 0x1b<<20 | 0xf9f
-		o1 |= uint32(p.From.Reg) << 16
-		o1 |= uint32(p.To.Reg) << 12
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
+		o1 |= (uint32(p.From.Reg) & 15) << 16
+		o1 |= (uint32(p.To.Reg) & 15) << 12
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 
 	case 92: /* strexd reg,oreg,reg */
 		aclass(ctxt, &p.From)
@@ -2446,10 +2389,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			ctxt.Diag("offset must be zero in STREX")
 		}
 		o1 = 0x1a<<20 | 0xf90
-		o1 |= uint32(p.From.Reg) << 16
-		o1 |= uint32(p.Reg) << 0
-		o1 |= uint32(p.To.Reg) << 12
-		o1 |= (uint32(p.Scond) & C_SCOND) << 28
+		o1 |= (uint32(p.From.Reg) & 15) << 16
+		o1 |= (uint32(p.Reg) & 15) << 0
+		o1 |= (uint32(p.To.Reg) & 15) << 12
+		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 
 	case 93: /* movb/movh/movhu addr,R -> ldrsb/ldrsh/ldrh */
 		o1 = omvl(ctxt, p, &p.From, REGTMP)
@@ -2465,7 +2408,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 		if o.flag&LPCREL != 0 {
 			o3 = o2
-			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP | REGPC<<16 | REGTMP<<12
+			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP&15 | (REGPC&15)<<16 | (REGTMP&15)<<12
 		}
 
 	case 94: /* movh/movhu R,addr -> strh */
@@ -2477,18 +2420,17 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o2 = oshr(ctxt, int(p.From.Reg), 0, REGTMP, int(p.Scond))
 		if o.flag&LPCREL != 0 {
 			o3 = o2
-			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP | REGPC<<16 | REGTMP<<12
+			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP&15 | (REGPC&15)<<16 | (REGTMP&15)<<12
 		}
 
 	case 95: /* PLD off(reg) */
 		o1 = 0xf5d0f000
 
-		o1 |= uint32(p.From.Reg) << 16
+		o1 |= (uint32(p.From.Reg) & 15) << 16
 		if p.From.Offset < 0 {
 			o1 &^= (1 << 23)
 			o1 |= uint32((-p.From.Offset) & 0xfff)
 		} else {
-
 			o1 |= uint32(p.From.Offset & 0xfff)
 		}
 
@@ -2503,29 +2445,28 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	case 97: /* CLZ Rm, Rd */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
-		o1 |= uint32(p.To.Reg) << 12
-		o1 |= uint32(p.From.Reg)
+		o1 |= (uint32(p.To.Reg) & 15) << 12
+		o1 |= (uint32(p.From.Reg) & 15) << 0
 
 	case 98: /* MULW{T,B} Rs, Rm, Rd */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
-		o1 |= uint32(p.To.Reg) << 16
-		o1 |= uint32(p.From.Reg) << 8
-		o1 |= uint32(p.Reg)
+		o1 |= (uint32(p.To.Reg) & 15) << 16
+		o1 |= (uint32(p.From.Reg) & 15) << 8
+		o1 |= (uint32(p.Reg) & 15) << 0
 
 	case 99: /* MULAW{T,B} Rs, Rm, Rn, Rd */
 		o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 
-		o1 |= uint32(p.To.Reg) << 12
-		o1 |= uint32(p.From.Reg) << 8
-		o1 |= uint32(p.Reg)
-		o1 |= uint32(p.To.Offset << 16)
+		o1 |= (uint32(p.To.Reg) & 15) << 12
+		o1 |= (uint32(p.From.Reg) & 15) << 8
+		o1 |= (uint32(p.Reg) & 15) << 0
+		o1 |= uint32((p.To.Offset & 15) << 16)
 
 		// DATABUNDLE: BKPT $0x5be0, signify the start of NaCl data bundle;
 	// DATABUNDLEEND: zero width alignment marker
 	case 100:
 		if p.As == ADATABUNDLE {
-
 			o1 = 0xe125be70
 		}
 		break
@@ -2549,23 +2490,23 @@ func mov(ctxt *obj.Link, p *obj.Prog) uint32 {
 	o1 = oprrr(ctxt, int(p.As), int(p.Scond))
 	o1 |= uint32(p.From.Offset)
 	rt = int(p.To.Reg)
-	r = int(p.Reg)
-	if p.To.Type == D_NONE {
+	if p.To.Type == obj.TYPE_NONE {
 		rt = 0
 	}
+	r = int(p.Reg)
 	if p.As == AMOVW || p.As == AMVN {
 		r = 0
-	} else if r == NREG {
+	} else if r == 0 {
 		r = rt
 	}
-	o1 |= uint32(r)<<16 | uint32(rt)<<12
+	o1 |= (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
 	return o1
 }
 
 func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
 	var o uint32
 
-	o = (uint32(sc) & C_SCOND) << 28
+	o = ((uint32(sc) & C_SCOND) ^ C_SCOND_XOR) << 28
 	if sc&C_SBIT != 0 {
 		o |= 1 << 20
 	}
@@ -2671,7 +2612,6 @@ func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
 
 	case AMOVWF:
 		if sc&C_UBIT == 0 {
-
 			o |= 1 << 7 /* signed */
 		}
 		return o | 0xe<<24 | 0xb<<20 | 8<<16 | 0xa<<8 | 4<<4 | 0<<18 | 0<<8 // toint, double
@@ -2684,7 +2624,6 @@ func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
 
 	case AMOVFW:
 		if sc&C_UBIT == 0 {
-
 			o |= 1 << 16 /* signed */
 		}
 		return o | 0xe<<24 | 0xb<<20 | 8<<16 | 0xa<<8 | 4<<4 | 1<<18 | 0<<8 | 1<<7 // toint, double, trunc
@@ -2695,13 +2634,13 @@ func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
 		}
 		return o | 0xe<<24 | 0xb<<20 | 8<<16 | 0xa<<8 | 4<<4 | 1<<18 | 1<<8 | 1<<7 // toint, double, trunc
 
-	case AMOVWF + AEND: // copy WtoF
+	case AMOVWF + ALAST: // copy WtoF
 		return o | 0xe<<24 | 0x0<<20 | 0xb<<8 | 1<<4
 
-	case AMOVFW + AEND: // copy FtoW
+	case AMOVFW + ALAST: // copy FtoW
 		return o | 0xe<<24 | 0x1<<20 | 0xb<<8 | 1<<4
 
-	case ACMP + AEND: // cmp imm
+	case ACMP + ALAST: // cmp imm
 		return o | 0x3<<24 | 0x5<<20
 
 		// CLZ doesn't support .nil
@@ -2734,7 +2673,8 @@ func opbra(ctxt *obj.Link, a int, sc int) uint32 {
 		ctxt.Diag(".nil/.nil/.W on bra instruction")
 	}
 	sc &= C_SCOND
-	if a == ABL || a == ADUFFZERO || a == ADUFFCOPY {
+	sc ^= C_SCOND_XOR
+	if a == ABL || a == obj.ADUFFZERO || a == obj.ADUFFCOPY {
 		return uint32(sc)<<28 | 0x5<<25 | 0x1<<24
 	}
 	if sc != 0xe {
@@ -2788,7 +2728,7 @@ func olr(ctxt *obj.Link, v int32, b int, r int, sc int) uint32 {
 	if sc&C_SBIT != 0 {
 		ctxt.Diag(".nil on LDR/STR instruction")
 	}
-	o = (uint32(sc) & C_SCOND) << 28
+	o = ((uint32(sc) & C_SCOND) ^ C_SCOND_XOR) << 28
 	if !(sc&C_PBIT != 0) {
 		o |= 1 << 24
 	}
@@ -2811,8 +2751,8 @@ func olr(ctxt *obj.Link, v int32, b int, r int, sc int) uint32 {
 		ctxt.Diag("literal span too large: %d (R%d)\n%v", v, b, ctxt.Printp)
 	}
 	o |= uint32(v)
-	o |= uint32(b) << 16
-	o |= uint32(r) << 12
+	o |= (uint32(b) & 15) << 16
+	o |= (uint32(r) & 15) << 12
 	return o
 }
 
@@ -2822,7 +2762,7 @@ func olhr(ctxt *obj.Link, v int32, b int, r int, sc int) uint32 {
 	if sc&C_SBIT != 0 {
 		ctxt.Diag(".nil on LDRH/STRH instruction")
 	}
-	o = (uint32(sc) & C_SCOND) << 28
+	o = ((uint32(sc) & C_SCOND) ^ C_SCOND_XOR) << 28
 	if !(sc&C_PBIT != 0) {
 		o |= 1 << 24
 	}
@@ -2839,8 +2779,8 @@ func olhr(ctxt *obj.Link, v int32, b int, r int, sc int) uint32 {
 		ctxt.Diag("literal span too large: %d (R%d)\n%v", v, b, ctxt.Printp)
 	}
 	o |= uint32(v)&0xf | (uint32(v)>>4)<<8 | 1<<22
-	o |= uint32(b) << 16
-	o |= uint32(r) << 12
+	o |= (uint32(b) & 15) << 16
+	o |= (uint32(r) & 15) << 12
 	return o
 }
 
@@ -2883,7 +2823,7 @@ func ofsr(ctxt *obj.Link, a int, r int, v int32, b int, sc int, p *obj.Prog) uin
 	if sc&C_SBIT != 0 {
 		ctxt.Diag(".nil on FLDR/FSTR instruction")
 	}
-	o = (uint32(sc) & C_SCOND) << 28
+	o = ((uint32(sc) & C_SCOND) ^ C_SCOND_XOR) << 28
 	if !(sc&C_PBIT != 0) {
 		o |= 1 << 24
 	}
@@ -2902,8 +2842,8 @@ func ofsr(ctxt *obj.Link, a int, r int, v int32, b int, sc int, p *obj.Prog) uin
 		ctxt.Diag("literal span too large: %d\n%v", v, p)
 	}
 	o |= (uint32(v) >> 2) & 0xFF
-	o |= uint32(b) << 16
-	o |= uint32(r) << 12
+	o |= (uint32(b) & 15) << 16
+	o |= (uint32(r) & 15) << 12
 
 	switch a {
 	default:
@@ -2926,7 +2866,7 @@ func omvl(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 	var o1 uint32
 	if !(p.Pcond != nil) {
 		aclass(ctxt, a)
-		v = immrot(uint32(^ctxt.Instoffset))
+		v = immrot(^uint32(ctxt.Instoffset))
 		if v == 0 {
 			ctxt.Diag("missing literal")
 			prasm(p)
@@ -2935,9 +2875,8 @@ func omvl(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 
 		o1 = oprrr(ctxt, AMVN, int(p.Scond)&C_SCOND)
 		o1 |= uint32(v)
-		o1 |= uint32(dr) << 12
+		o1 |= (uint32(dr) & 15) << 12
 	} else {
-
 		v = int32(p.Pcond.Pc - p.Pc - 8)
 		o1 = olr(ctxt, v, REGPC, dr, int(p.Scond)&C_SCOND)
 	}
@@ -2948,7 +2887,6 @@ func omvl(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 func chipzero5(ctxt *obj.Link, e float64) int {
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
 	if ctxt.Goarm < 7 || e != 0 {
-
 		return -1
 	}
 	return 0
@@ -2963,7 +2901,6 @@ func chipfloat5(ctxt *obj.Link, e float64) int {
 
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
 	if ctxt.Goarm < 7 {
-
 		goto no
 	}
 
@@ -2982,13 +2919,11 @@ func chipfloat5(ctxt *obj.Link, e float64) int {
 
 	// sign bit (a)
 	if h&0x80000000 != 0 {
-
 		n |= 1 << 7
 	}
 
 	// exp sign bit (b)
 	if h1 == 0x3fc00000 {
-
 		n |= 1 << 6
 	}
 

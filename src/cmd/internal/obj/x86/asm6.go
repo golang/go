@@ -128,8 +128,9 @@ const (
 	Yxr
 	Yxm
 	Ytls
+	Ytextsize
 	Ymax
-	Zxxx = 0 + iota - 67
+	Zxxx = 0 + iota - 68
 	Zlit
 	Zlitm_r
 	Z_rp
@@ -197,9 +198,9 @@ const (
 
 var ycover [Ymax * Ymax]uint8
 
-var reg [D_NONE]int
+var reg [MAXREG]int
 
-var regrex [D_NONE + 1]int
+var regrex [MAXREG + 1]int
 
 var ynone = []uint8{
 	Ynone,
@@ -211,7 +212,7 @@ var ynone = []uint8{
 
 var ytext = []uint8{
 	Ymb,
-	Yi64,
+	Ytextsize,
 	Zpseudo,
 	1,
 	0,
@@ -1423,7 +1424,7 @@ var yaes2 = []uint8{
 var optab =
 /*	as, ytab, andproto, opcode */
 []Optab{
-	Optab{AXXX, nil, 0, [23]uint8{}},
+	Optab{obj.AXXX, nil, 0, [23]uint8{}},
 	Optab{AAAA, ynone, P32, [23]uint8{0x37}},
 	Optab{AAAD, ynone, P32, [23]uint8{0xd5, 0x0a}},
 	Optab{AAAM, ynone, P32, [23]uint8{0xd4, 0x0a}},
@@ -1473,7 +1474,7 @@ var optab =
 	Optab{ABTSW, ybtl, Pq, [23]uint8{0xba, 05, 0xab}},
 	Optab{ABTW, ybtl, Pq, [23]uint8{0xba, 04, 0xa3}},
 	Optab{ABYTE, ybyte, Px, [23]uint8{1}},
-	Optab{ACALL, ycall, Px, [23]uint8{0xff, 02, 0xe8}},
+	Optab{obj.ACALL, ycall, Px, [23]uint8{0xff, 02, 0xe8}},
 	Optab{ACDQ, ynone, Px, [23]uint8{0x99}},
 	Optab{ACLC, ynone, Px, [23]uint8{0xf8}},
 	Optab{ACLD, ynone, Px, [23]uint8{0xfc}},
@@ -1570,7 +1571,7 @@ var optab =
 	Optab{ACQO, ynone, Pw, [23]uint8{0x99}},
 	Optab{ADAA, ynone, P32, [23]uint8{0x27}},
 	Optab{ADAS, ynone, P32, [23]uint8{0x2f}},
-	Optab{ADATA, nil, 0, [23]uint8{}},
+	Optab{obj.ADATA, nil, 0, [23]uint8{}},
 	Optab{ADECB, yincb, Pb, [23]uint8{0xfe, 01}},
 	Optab{ADECL, yincl, Px, [23]uint8{0xff, 01}},
 	Optab{ADECQ, yincl, Pw, [23]uint8{0xff, 01}},
@@ -1589,9 +1590,7 @@ var optab =
 	Optab{AFXSAVE, ysvrs, Pm, [23]uint8{0xae, 00, 0xae, 00}},
 	Optab{AFXRSTOR64, ysvrs, Pw, [23]uint8{0x0f, 0xae, 01, 0x0f, 0xae, 01}},
 	Optab{AFXSAVE64, ysvrs, Pw, [23]uint8{0x0f, 0xae, 00, 0x0f, 0xae, 00}},
-	Optab{AGLOBL, nil, 0, [23]uint8{}},
-	Optab{AGOK, nil, 0, [23]uint8{}},
-	Optab{AHISTORY, nil, 0, [23]uint8{}},
+	Optab{obj.AGLOBL, nil, 0, [23]uint8{}},
 	Optab{AHLT, ynone, Px, [23]uint8{0xf4}},
 	Optab{AIDIVB, ydivb, Pb, [23]uint8{0xf6, 07}},
 	Optab{AIDIVL, ydivl, Px, [23]uint8{0xf7, 07}},
@@ -1629,7 +1628,7 @@ var optab =
 	Optab{AJLS, yjcond, Px, [23]uint8{0x76, 0x86}},
 	Optab{AJLT, yjcond, Px, [23]uint8{0x7c, 0x8c}},
 	Optab{AJMI, yjcond, Px, [23]uint8{0x78, 0x88}},
-	Optab{AJMP, yjmp, Px, [23]uint8{0xff, 04, 0xeb, 0xe9}},
+	Optab{obj.AJMP, yjmp, Px, [23]uint8{0xff, 04, 0xeb, 0xe9}},
 	Optab{AJNE, yjcond, Px, [23]uint8{0x75, 0x85}},
 	Optab{AJOC, yjcond, Px, [23]uint8{0x71, 0x81, 00}},
 	Optab{AJOS, yjcond, Px, [23]uint8{0x70, 0x80, 00}},
@@ -1716,12 +1715,11 @@ var optab =
 	Optab{AMULSD, yxm, Pf2, [23]uint8{0x59}},
 	Optab{AMULSS, yxm, Pf3, [23]uint8{0x59}},
 	Optab{AMULW, ydivl, Pe, [23]uint8{0xf7, 04}},
-	Optab{ANAME, nil, 0, [23]uint8{}},
 	Optab{ANEGB, yscond, Pb, [23]uint8{0xf6, 03}},
 	Optab{ANEGL, yscond, Px, [23]uint8{0xf7, 03}},
 	Optab{ANEGQ, yscond, Pw, [23]uint8{0xf7, 03}},
 	Optab{ANEGW, yscond, Pe, [23]uint8{0xf7, 03}},
-	Optab{ANOP, ynop, Px, [23]uint8{0, 0}},
+	Optab{obj.ANOP, ynop, Px, [23]uint8{0, 0}},
 	Optab{ANOTB, yscond, Pb, [23]uint8{0xf6, 02}},
 	Optab{ANOTL, yscond, Px, [23]uint8{0xf7, 02}},
 	Optab{ANOTQ, yscond, Pw, [23]uint8{0xf7, 02}},
@@ -1859,7 +1857,7 @@ var optab =
 	Optab{ARCRW, yshl, Pe, [23]uint8{0xd1, 03, 0xc1, 03, 0xd3, 03, 0xd3, 03}},
 	Optab{AREP, ynone, Px, [23]uint8{0xf3}},
 	Optab{AREPN, ynone, Px, [23]uint8{0xf2}},
-	Optab{ARET, ynone, Px, [23]uint8{0xc3}},
+	Optab{obj.ARET, ynone, Px, [23]uint8{0xc3}},
 	Optab{ARETFW, yret, Pe, [23]uint8{0xcb, 0xca}},
 	Optab{ARETFL, yret, Px, [23]uint8{0xcb, 0xca}},
 	Optab{ARETFQ, yret, Pw, [23]uint8{0xcb, 0xca}},
@@ -1942,7 +1940,7 @@ var optab =
 	Optab{ATESTL, ytestl, Px, [23]uint8{0xa9, 0xf7, 00, 0x85, 0x85}},
 	Optab{ATESTQ, ytestl, Pw, [23]uint8{0xa9, 0xf7, 00, 0x85, 0x85}},
 	Optab{ATESTW, ytestl, Pe, [23]uint8{0xa9, 0xf7, 00, 0x85, 0x85}},
-	Optab{ATEXT, ytext, Px, [23]uint8{}},
+	Optab{obj.ATEXT, ytext, Px, [23]uint8{}},
 	Optab{AUCOMISD, yxcmp, Pe, [23]uint8{0x2e}},
 	Optab{AUCOMISS, yxcmp, Pm, [23]uint8{0x2e}},
 	Optab{AUNPCKHPD, yxm, Pe, [23]uint8{0x15}},
@@ -2091,7 +2089,7 @@ var optab =
 	Optab{APREFETCHT2, yprefetch, Pm, [23]uint8{0x18, 03}},
 	Optab{APREFETCHNTA, yprefetch, Pm, [23]uint8{0x18, 00}},
 	Optab{AMOVQL, yrl_ml, Px, [23]uint8{0x89}},
-	Optab{AUNDEF, ynone, Px, [23]uint8{0x0f, 0x0b}},
+	Optab{obj.AUNDEF, ynone, Px, [23]uint8{0x0f, 0x0b}},
 	Optab{AAESENC, yaes, Pq, [23]uint8{0x38, 0xdc, 0}},
 	Optab{AAESENCLAST, yaes, Pq, [23]uint8{0x38, 0xdd, 0}},
 	Optab{AAESDEC, yaes, Pq, [23]uint8{0x38, 0xde, 0}},
@@ -2100,16 +2098,16 @@ var optab =
 	Optab{AAESKEYGENASSIST, yaes2, Pq, [23]uint8{0x3a, 0xdf, 0}},
 	Optab{APSHUFD, yaes2, Pq, [23]uint8{0x70, 0}},
 	Optab{APCLMULQDQ, yxshuf, Pq, [23]uint8{0x3a, 0x44, 0}},
-	Optab{AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
-	Optab{ATYPE, nil, 0, [23]uint8{}},
-	Optab{AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
-	Optab{APCDATA, ypcdata, Px, [23]uint8{0, 0}},
-	Optab{ACHECKNIL, nil, 0, [23]uint8{}},
-	Optab{AVARDEF, nil, 0, [23]uint8{}},
-	Optab{AVARKILL, nil, 0, [23]uint8{}},
-	Optab{ADUFFCOPY, yduff, Px, [23]uint8{0xe8}},
-	Optab{ADUFFZERO, yduff, Px, [23]uint8{0xe8}},
-	Optab{AEND, nil, 0, [23]uint8{}},
+	Optab{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
+	Optab{obj.ATYPE, nil, 0, [23]uint8{}},
+	Optab{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
+	Optab{obj.APCDATA, ypcdata, Px, [23]uint8{0, 0}},
+	Optab{obj.ACHECKNIL, nil, 0, [23]uint8{}},
+	Optab{obj.AVARDEF, nil, 0, [23]uint8{}},
+	Optab{obj.AVARKILL, nil, 0, [23]uint8{}},
+	Optab{obj.ADUFFCOPY, yduff, Px, [23]uint8{0xe8}},
+	Optab{obj.ADUFFZERO, yduff, Px, [23]uint8{0xe8}},
+	Optab{obj.AEND, nil, 0, [23]uint8{}},
 	Optab{0, nil, 0, [23]uint8{}},
 }
 
@@ -2121,7 +2119,6 @@ var opindex [ALAST + 1]*Optab
 // around a Solaris-specific bug that should be fixed differently, but we don't know
 // what that bug is. And this does fix it.
 func isextern(s *obj.LSym) int {
-
 	// All the Solaris dynamic imports from libc.so begin with "libc_".
 	return bool2int(strings.HasPrefix(s.Name, "libc_"))
 }
@@ -2144,7 +2141,6 @@ var nop = [][16]uint8{
 // Native Client rejects the repeated 0x66 prefix.
 // {0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
 func fillnop(p []byte, n int) {
-
 	var m int
 
 	for n > 0 {
@@ -2193,21 +2189,14 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 	}
 
 	for p = ctxt.Cursym.Text; p != nil; p = p.Link {
-		n = 0
-		if p.To.Type == D_BRANCH {
+		if p.To.Type == obj.TYPE_BRANCH {
 			if p.Pcond == nil {
 				p.Pcond = p
 			}
 		}
-		q = p.Pcond
-		if q != nil {
-			if q.Back != 2 {
-				n = 1
-			}
-		}
-		p.Back = uint8(n)
 		if p.As == AADJSP {
-			p.To.Type = D_SP
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = REG_SP
 			v = int32(-p.From.Offset)
 			p.From.Offset = int64(v)
 			p.As = int16(spadjop(ctxt, p, AADDL, AADDQ))
@@ -2218,7 +2207,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 			}
 
 			if v == 0 {
-				p.As = ANOP
+				p.As = obj.ANOP
 			}
 		}
 	}
@@ -2232,7 +2221,8 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 		}
 
 		if p.As == AADJSP {
-			p.To.Type = D_SP
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = REG_SP
 			v = int32(-p.From.Offset)
 			p.From.Offset = int64(v)
 			p.As = int16(spadjop(ctxt, p, AADDL, AADDQ))
@@ -2243,7 +2233,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 			}
 
 			if v == 0 {
-				p.As = ANOP
+				p.As = obj.ANOP
 			}
 		}
 	}
@@ -2267,21 +2257,18 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 				// pad everything to avoid crossing 32-byte boundary
 				if c>>5 != (c+int32(p.Isize)-1)>>5 {
-
 					c = naclpad(ctxt, s, c, -c&31)
 				}
 
 				// pad call deferreturn to start at 32-byte boundary
 				// so that subtracting 5 in jmpdefer will jump back
 				// to that boundary and rerun the call.
-				if p.As == ACALL && p.To.Sym == deferreturn {
-
+				if p.As == obj.ACALL && p.To.Sym == deferreturn {
 					c = naclpad(ctxt, s, c, -c&31)
 				}
 
 				// pad call to end at 32-byte boundary
-				if p.As == ACALL {
-
+				if p.As == obj.ACALL {
 					c = naclpad(ctxt, s, c, -(c+int32(p.Isize))&31)
 				}
 
@@ -2290,7 +2277,6 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 				// make sure REP has room for 2 more bytes, so that
 				// padding will not be inserted before the next instruction.
 				if (p.As == AREP || p.As == AREPN) && c>>5 != (c+3-1)>>5 {
-
 					c = naclpad(ctxt, s, c, -c&31)
 				}
 
@@ -2298,7 +2284,6 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 				// various instructions follow; the longest is 4 bytes.
 				// give ourselves 8 bytes so as to avoid surprises.
 				if p.As == ALOCK && c>>5 != (c+8-1)>>5 {
-
 					c = naclpad(ctxt, s, c, -c&31)
 				}
 			}
@@ -2318,7 +2303,6 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 			// process forward jumps to p
 			for q = p.Comefrom; q != nil; q = q.Forwd {
-
 				v = int32(p.Pc - (q.Pc + int64(q.Mark)))
 				if q.Back&2 != 0 { // short
 					if v > 127 {
@@ -2329,11 +2313,9 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 					if q.As == AJCXZL {
 						s.P[q.Pc+2] = byte(v)
 					} else {
-
 						s.P[q.Pc+1] = byte(v)
 					}
 				} else {
-
 					bp = s.P[q.Pc+int64(q.Mark)-4:]
 					bp[0] = byte(v)
 					bp = bp[1:]
@@ -2477,358 +2459,374 @@ func instinit() {
 	ycover[Ym*Ymax+Yxm] = 1
 	ycover[Yxr*Ymax+Yxm] = 1
 
-	for i = 0; i < D_NONE; i++ {
+	for i = 0; i < MAXREG; i++ {
 		reg[i] = -1
-		if i >= D_AL && i <= D_R15B {
-			reg[i] = (i - D_AL) & 7
-			if i >= D_SPB && i <= D_DIB {
+		if i >= REG_AL && i <= REG_R15B {
+			reg[i] = (i - REG_AL) & 7
+			if i >= REG_SPB && i <= REG_DIB {
 				regrex[i] = 0x40
 			}
-			if i >= D_R8B && i <= D_R15B {
+			if i >= REG_R8B && i <= REG_R15B {
 				regrex[i] = Rxr | Rxx | Rxb
 			}
 		}
 
-		if i >= D_AH && i <= D_BH {
-			reg[i] = 4 + ((i - D_AH) & 7)
+		if i >= REG_AH && i <= REG_BH {
+			reg[i] = 4 + ((i - REG_AH) & 7)
 		}
-		if i >= D_AX && i <= D_R15 {
-			reg[i] = (i - D_AX) & 7
-			if i >= D_R8 {
+		if i >= REG_AX && i <= REG_R15 {
+			reg[i] = (i - REG_AX) & 7
+			if i >= REG_R8 {
 				regrex[i] = Rxr | Rxx | Rxb
 			}
 		}
 
-		if i >= D_F0 && i <= D_F0+7 {
-			reg[i] = (i - D_F0) & 7
+		if i >= REG_F0 && i <= REG_F0+7 {
+			reg[i] = (i - REG_F0) & 7
 		}
-		if i >= D_M0 && i <= D_M0+7 {
-			reg[i] = (i - D_M0) & 7
+		if i >= REG_M0 && i <= REG_M0+7 {
+			reg[i] = (i - REG_M0) & 7
 		}
-		if i >= D_X0 && i <= D_X0+15 {
-			reg[i] = (i - D_X0) & 7
-			if i >= D_X0+8 {
+		if i >= REG_X0 && i <= REG_X0+15 {
+			reg[i] = (i - REG_X0) & 7
+			if i >= REG_X0+8 {
 				regrex[i] = Rxr | Rxx | Rxb
 			}
 		}
 
-		if i >= D_CR+8 && i <= D_CR+15 {
+		if i >= REG_CR+8 && i <= REG_CR+15 {
 			regrex[i] = Rxr
 		}
 	}
 }
 
 func prefixof(ctxt *obj.Link, a *obj.Addr) int {
-	switch a.Type {
-	case D_INDIR + D_CS:
-		return 0x2e
+	if a.Type == obj.TYPE_MEM && a.Name == obj.NAME_NONE {
+		switch a.Reg {
+		case REG_CS:
+			return 0x2e
 
-	case D_INDIR + D_DS:
-		return 0x3e
+		case REG_DS:
+			return 0x3e
 
-	case D_INDIR + D_ES:
-		return 0x26
+		case REG_ES:
+			return 0x26
 
-	case D_INDIR + D_FS:
-		return 0x64
+		case REG_FS:
+			return 0x64
 
-	case D_INDIR + D_GS:
-		return 0x65
+		case REG_GS:
+			return 0x65
 
-		// NOTE: Systems listed here should be only systems that
-	// support direct TLS references like 8(TLS) implemented as
-	// direct references from FS or GS. Systems that require
-	// the initial-exec model, where you load the TLS base into
-	// a register and then index from that register, do not reach
-	// this code and should not be listed.
-	case D_INDIR + D_TLS:
-		switch ctxt.Headtype {
+			// NOTE: Systems listed here should be only systems that
+		// support direct TLS references like 8(TLS) implemented as
+		// direct references from FS or GS. Systems that require
+		// the initial-exec model, where you load the TLS base into
+		// a register and then index from that register, do not reach
+		// this code and should not be listed.
+		case REG_TLS:
+			switch ctxt.Headtype {
+			default:
+				log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
 
-		default:
-			log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
+			case obj.Hdragonfly,
+				obj.Hfreebsd,
+				obj.Hlinux,
+				obj.Hnetbsd,
+				obj.Hopenbsd,
+				obj.Hsolaris:
+				return 0x64 // FS
 
-		case obj.Hdragonfly,
-			obj.Hfreebsd,
-			obj.Hlinux,
-			obj.Hnetbsd,
-			obj.Hopenbsd,
-			obj.Hsolaris:
-			return 0x64 // FS
-
-		case obj.Hdarwin:
-			return 0x65 // GS
+			case obj.Hdarwin:
+				return 0x65 // GS
+			}
 		}
 	}
 
 	switch a.Index {
-	case D_CS:
+	case REG_CS:
 		return 0x2e
 
-	case D_DS:
+	case REG_DS:
 		return 0x3e
 
-	case D_ES:
+	case REG_ES:
 		return 0x26
 
-	case D_FS:
+	case REG_FS:
 		return 0x64
 
-	case D_GS:
+	case REG_GS:
 		return 0x65
 	}
 
 	return 0
 }
 
-func oclass(ctxt *obj.Link, a *obj.Addr) int {
+func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	var v int64
 	var l int32
 
-	if a.Type >= D_INDIR || a.Index != D_NONE {
-		if a.Index != D_NONE && a.Scale == 0 {
-			if a.Type == D_ADDR {
-				switch a.Index {
-				case D_EXTERN,
-					D_STATIC:
-					if a.Sym != nil && isextern(a.Sym) != 0 {
-						return Yi32
-					}
-					return Yiauto // use pc-relative addressing
-
-				case D_AUTO,
-					D_PARAM:
-					return Yiauto
-				}
-
-				return Yxxx
-			}
-
-			return Ycol
-		}
-
-		return Ym
+	// TODO(rsc): This special case is for SHRQ $3, AX:DX,
+	// which encodes as SHRQ $32(DX*0), AX.
+	// Similarly SHRQ CX, AX:DX is really SHRQ CX(DX*0), AX.
+	// Change encoding and remove.
+	if (a.Type == obj.TYPE_CONST || a.Type == obj.TYPE_REG) && a.Index != REG_NONE && a.Scale == 0 {
+		return Ycol
 	}
 
 	switch a.Type {
-	case D_AL:
+	case obj.TYPE_NONE:
+		return Ynone
+
+	case obj.TYPE_BRANCH:
+		return Ybr
+
+	case obj.TYPE_MEM:
+		return Ym
+
+	case obj.TYPE_ADDR:
+		switch a.Name {
+		case obj.NAME_EXTERN,
+			obj.NAME_STATIC:
+			if a.Sym != nil && isextern(a.Sym) != 0 {
+				return Yi32
+			}
+			return Yiauto // use pc-relative addressing
+
+		case obj.NAME_AUTO,
+			obj.NAME_PARAM:
+			return Yiauto
+		}
+
+		// TODO(rsc): DUFFZERO/DUFFCOPY encoding forgot to set a->index
+		// and got Yi32 in an earlier version of this code.
+		// Keep doing that until we fix yduff etc.
+		if a.Sym != nil && strings.HasPrefix(a.Sym.Name, "runtime.duff") {
+			return Yi32
+		}
+
+		if a.Sym != nil || a.Name != obj.NAME_NONE {
+			ctxt.Diag("unexpected addr: %v", Dconv(p, 0, a))
+		}
+		fallthrough
+
+		// fall through
+
+	case obj.TYPE_CONST:
+		if a.Sym != nil {
+			ctxt.Diag("TYPE_CONST with symbol: %v", Dconv(p, 0, a))
+		}
+
+		v = a.Offset
+		if v == 0 {
+			return Yi0
+		}
+		if v == 1 {
+			return Yi1
+		}
+		if v >= -128 && v <= 127 {
+			return Yi8
+		}
+		l = int32(v)
+		if int64(l) == v {
+			return Ys32 /* can sign extend */
+		}
+		if v>>32 == 0 {
+			return Yi32 /* unsigned */
+		}
+		return Yi64
+
+	case obj.TYPE_TEXTSIZE:
+		return Ytextsize
+	}
+
+	if a.Type != obj.TYPE_REG {
+		ctxt.Diag("unexpected addr1: type=%d %v", a.Type, Dconv(p, 0, a))
+		return Yxxx
+	}
+
+	switch a.Reg {
+	case REG_AL:
 		return Yal
 
-	case D_AX:
+	case REG_AX:
 		return Yax
 
 		/*
-			case D_SPB:
+			case REG_SPB:
 		*/
-	case D_BPB,
-		D_SIB,
-		D_DIB,
-		D_R8B,
-		D_R9B,
-		D_R10B,
-		D_R11B,
-		D_R12B,
-		D_R13B,
-		D_R14B,
-		D_R15B:
+	case REG_BPB,
+		REG_SIB,
+		REG_DIB,
+		REG_R8B,
+		REG_R9B,
+		REG_R10B,
+		REG_R11B,
+		REG_R12B,
+		REG_R13B,
+		REG_R14B,
+		REG_R15B:
 		if ctxt.Asmode != 64 {
-
 			return Yxxx
 		}
 		fallthrough
 
-	case D_DL,
-		D_BL,
-		D_AH,
-		D_CH,
-		D_DH,
-		D_BH:
+	case REG_DL,
+		REG_BL,
+		REG_AH,
+		REG_CH,
+		REG_DH,
+		REG_BH:
 		return Yrb
 
-	case D_CL:
+	case REG_CL:
 		return Ycl
 
-	case D_CX:
+	case REG_CX:
 		return Ycx
 
-	case D_DX,
-		D_BX:
+	case REG_DX,
+		REG_BX:
 		return Yrx
 
-	case D_R8, /* not really Yrl */
-		D_R9,
-		D_R10,
-		D_R11,
-		D_R12,
-		D_R13,
-		D_R14,
-		D_R15:
+	case REG_R8, /* not really Yrl */
+		REG_R9,
+		REG_R10,
+		REG_R11,
+		REG_R12,
+		REG_R13,
+		REG_R14,
+		REG_R15:
 		if ctxt.Asmode != 64 {
-
 			return Yxxx
 		}
 		fallthrough
 
-	case D_SP,
-		D_BP,
-		D_SI,
-		D_DI:
+	case REG_SP,
+		REG_BP,
+		REG_SI,
+		REG_DI:
 		return Yrl
 
-	case D_F0 + 0:
+	case REG_F0 + 0:
 		return Yf0
 
-	case D_F0 + 1,
-		D_F0 + 2,
-		D_F0 + 3,
-		D_F0 + 4,
-		D_F0 + 5,
-		D_F0 + 6,
-		D_F0 + 7:
+	case REG_F0 + 1,
+		REG_F0 + 2,
+		REG_F0 + 3,
+		REG_F0 + 4,
+		REG_F0 + 5,
+		REG_F0 + 6,
+		REG_F0 + 7:
 		return Yrf
 
-	case D_M0 + 0,
-		D_M0 + 1,
-		D_M0 + 2,
-		D_M0 + 3,
-		D_M0 + 4,
-		D_M0 + 5,
-		D_M0 + 6,
-		D_M0 + 7:
+	case REG_M0 + 0,
+		REG_M0 + 1,
+		REG_M0 + 2,
+		REG_M0 + 3,
+		REG_M0 + 4,
+		REG_M0 + 5,
+		REG_M0 + 6,
+		REG_M0 + 7:
 		return Ymr
 
-	case D_X0 + 0,
-		D_X0 + 1,
-		D_X0 + 2,
-		D_X0 + 3,
-		D_X0 + 4,
-		D_X0 + 5,
-		D_X0 + 6,
-		D_X0 + 7,
-		D_X0 + 8,
-		D_X0 + 9,
-		D_X0 + 10,
-		D_X0 + 11,
-		D_X0 + 12,
-		D_X0 + 13,
-		D_X0 + 14,
-		D_X0 + 15:
+	case REG_X0 + 0,
+		REG_X0 + 1,
+		REG_X0 + 2,
+		REG_X0 + 3,
+		REG_X0 + 4,
+		REG_X0 + 5,
+		REG_X0 + 6,
+		REG_X0 + 7,
+		REG_X0 + 8,
+		REG_X0 + 9,
+		REG_X0 + 10,
+		REG_X0 + 11,
+		REG_X0 + 12,
+		REG_X0 + 13,
+		REG_X0 + 14,
+		REG_X0 + 15:
 		return Yxr
 
-	case D_NONE:
-		return Ynone
-
-	case D_CS:
+	case REG_CS:
 		return Ycs
-	case D_SS:
+	case REG_SS:
 		return Yss
-	case D_DS:
+	case REG_DS:
 		return Yds
-	case D_ES:
+	case REG_ES:
 		return Yes
-	case D_FS:
+	case REG_FS:
 		return Yfs
-	case D_GS:
+	case REG_GS:
 		return Ygs
-	case D_TLS:
+	case REG_TLS:
 		return Ytls
 
-	case D_GDTR:
+	case REG_GDTR:
 		return Ygdtr
-	case D_IDTR:
+	case REG_IDTR:
 		return Yidtr
-	case D_LDTR:
+	case REG_LDTR:
 		return Yldtr
-	case D_MSW:
+	case REG_MSW:
 		return Ymsw
-	case D_TASK:
+	case REG_TASK:
 		return Ytask
 
-	case D_CR + 0:
+	case REG_CR + 0:
 		return Ycr0
-	case D_CR + 1:
+	case REG_CR + 1:
 		return Ycr1
-	case D_CR + 2:
+	case REG_CR + 2:
 		return Ycr2
-	case D_CR + 3:
+	case REG_CR + 3:
 		return Ycr3
-	case D_CR + 4:
+	case REG_CR + 4:
 		return Ycr4
-	case D_CR + 5:
+	case REG_CR + 5:
 		return Ycr5
-	case D_CR + 6:
+	case REG_CR + 6:
 		return Ycr6
-	case D_CR + 7:
+	case REG_CR + 7:
 		return Ycr7
-	case D_CR + 8:
+	case REG_CR + 8:
 		return Ycr8
 
-	case D_DR + 0:
+	case REG_DR + 0:
 		return Ydr0
-	case D_DR + 1:
+	case REG_DR + 1:
 		return Ydr1
-	case D_DR + 2:
+	case REG_DR + 2:
 		return Ydr2
-	case D_DR + 3:
+	case REG_DR + 3:
 		return Ydr3
-	case D_DR + 4:
+	case REG_DR + 4:
 		return Ydr4
-	case D_DR + 5:
+	case REG_DR + 5:
 		return Ydr5
-	case D_DR + 6:
+	case REG_DR + 6:
 		return Ydr6
-	case D_DR + 7:
+	case REG_DR + 7:
 		return Ydr7
 
-	case D_TR + 0:
+	case REG_TR + 0:
 		return Ytr0
-	case D_TR + 1:
+	case REG_TR + 1:
 		return Ytr1
-	case D_TR + 2:
+	case REG_TR + 2:
 		return Ytr2
-	case D_TR + 3:
+	case REG_TR + 3:
 		return Ytr3
-	case D_TR + 4:
+	case REG_TR + 4:
 		return Ytr4
-	case D_TR + 5:
+	case REG_TR + 5:
 		return Ytr5
-	case D_TR + 6:
+	case REG_TR + 6:
 		return Ytr6
-	case D_TR + 7:
+	case REG_TR + 7:
 		return Ytr7
-
-	case D_EXTERN,
-		D_STATIC,
-		D_AUTO,
-		D_PARAM:
-		return Ym
-
-	case D_CONST,
-		D_ADDR:
-		if a.Sym == nil {
-			v = a.Offset
-			if v == 0 {
-				return Yi0
-			}
-			if v == 1 {
-				return Yi1
-			}
-			if v >= -128 && v <= 127 {
-				return Yi8
-			}
-			l = int32(v)
-			if int64(l) == v {
-				return Ys32 /* can sign extend */
-			}
-			if v>>32 == 0 {
-				return Yi32 /* unsigned */
-			}
-			return Yi64
-		}
-
-		return Yi32
-
-	case D_BRANCH:
-		return Ybr
 	}
 
 	return Yxxx
@@ -2841,30 +2839,30 @@ func asmidx(ctxt *obj.Link, scale int, index int, base int) {
 	default:
 		goto bad
 
-	case D_NONE:
+	case REG_NONE:
 		i = 4 << 3
 		goto bas
 
-	case D_R8,
-		D_R9,
-		D_R10,
-		D_R11,
-		D_R12,
-		D_R13,
-		D_R14,
-		D_R15:
+	case REG_R8,
+		REG_R9,
+		REG_R10,
+		REG_R11,
+		REG_R12,
+		REG_R13,
+		REG_R14,
+		REG_R15:
 		if ctxt.Asmode != 64 {
 			goto bad
 		}
 		fallthrough
 
-	case D_AX,
-		D_CX,
-		D_DX,
-		D_BX,
-		D_BP,
-		D_SI,
-		D_DI:
+	case REG_AX,
+		REG_CX,
+		REG_DX,
+		REG_BX,
+		REG_BP,
+		REG_SI,
+		REG_DI:
 		i = reg[index] << 3
 		break
 	}
@@ -2892,30 +2890,30 @@ bas:
 	default:
 		goto bad
 
-	case D_NONE: /* must be mod=00 */
+	case REG_NONE: /* must be mod=00 */
 		i |= 5
 
-	case D_R8,
-		D_R9,
-		D_R10,
-		D_R11,
-		D_R12,
-		D_R13,
-		D_R14,
-		D_R15:
+	case REG_R8,
+		REG_R9,
+		REG_R10,
+		REG_R11,
+		REG_R12,
+		REG_R13,
+		REG_R14,
+		REG_R15:
 		if ctxt.Asmode != 64 {
 			goto bad
 		}
 		fallthrough
 
-	case D_AX,
-		D_CX,
-		D_DX,
-		D_BX,
-		D_SP,
-		D_BP,
-		D_SI,
-		D_DI:
+	case REG_AX,
+		REG_CX,
+		REG_DX,
+		REG_BX,
+		REG_SP,
+		REG_BP,
+		REG_SI,
+		REG_DI:
 		i |= reg[base]
 		break
 	}
@@ -2987,23 +2985,15 @@ relput8(Prog *p, Addr *a)
 }
 */
 func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
-
-	var t int
-	var v int64
 	var s *obj.LSym
 
 	if r != nil {
 		*r = obj.Reloc{}
 	}
 
-	t = int(a.Type)
-	v = a.Offset
-	if t == D_ADDR {
-		t = int(a.Index)
-	}
-	switch t {
-	case D_STATIC,
-		D_EXTERN:
+	switch a.Name {
+	case obj.NAME_STATIC,
+		obj.NAME_EXTERN:
 		s = a.Sym
 		if r == nil {
 			ctxt.Diag("need reloc for %v", Dconv(p, 0, a))
@@ -3014,22 +3004,23 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 			r.Siz = 4
 			r.Type = obj.R_ADDR
 		} else {
-
 			r.Siz = 4
 			r.Type = obj.R_PCREL
 		}
 
 		r.Off = -1 // caller must fill in
 		r.Sym = s
-		r.Add = v
-		v = 0
+		r.Add = a.Offset
 		if s.Type == obj.STLSBSS {
 			r.Xadd = r.Add - int64(r.Siz)
 			r.Type = obj.R_TLS
 			r.Xsym = s
 		}
 
-	case D_INDIR + D_TLS:
+		return 0
+	}
+
+	if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && a.Reg == REG_TLS {
 		if r == nil {
 			ctxt.Diag("need reloc for %v", Dconv(p, 0, a))
 			log.Fatalf("reloc")
@@ -3038,66 +3029,85 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 		r.Type = obj.R_TLS_LE
 		r.Siz = 4
 		r.Off = -1 // caller must fill in
-		r.Add = v
-		v = 0
-		break
+		r.Add = a.Offset
+		return 0
 	}
 
-	return v
+	return a.Offset
 }
 
 func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int) {
 	var v int32
-	var t int
-	var scale int
+	var base int
 	var rel obj.Reloc
 
 	rex &= 0x40 | Rxr
 	v = int32(a.Offset)
-	t = int(a.Type)
 	rel.Siz = 0
-	if a.Index != D_NONE && a.Index != D_TLS {
-		if t < D_INDIR {
-			switch t {
-			default:
-				goto bad
 
-			case D_EXTERN,
-				D_STATIC:
-				if !(isextern(a.Sym) != 0) {
-					goto bad
-				}
-				t = D_NONE
-				v = int32(vaddr(ctxt, p, a, &rel))
-
-			case D_AUTO,
-				D_PARAM:
-				t = D_SP
-				break
-			}
-		} else {
-
-			t -= D_INDIR
+	switch a.Type {
+	case obj.TYPE_ADDR:
+		if a.Name == obj.NAME_NONE {
+			ctxt.Diag("unexpected TYPE_ADDR with NAME_NONE")
 		}
-		ctxt.Rexflag |= regrex[int(a.Index)]&Rxx | regrex[t]&Rxb | rex
-		if t == D_NONE {
+		if a.Index == REG_TLS {
+			ctxt.Diag("unexpected TYPE_ADDR with index==REG_TLS")
+		}
+		goto bad
+
+	case obj.TYPE_REG:
+		if a.Reg < REG_AL || REG_X0+15 < a.Reg {
+			goto bad
+		}
+		if v != 0 {
+			goto bad
+		}
+		ctxt.Andptr[0] = byte(3<<6 | reg[a.Reg]<<0 | r<<3)
+		ctxt.Andptr = ctxt.Andptr[1:]
+		ctxt.Rexflag |= regrex[a.Reg]&(0x40|Rxb) | rex
+		return
+	}
+
+	if a.Type != obj.TYPE_MEM {
+		goto bad
+	}
+
+	if a.Index != REG_NONE && a.Index != REG_TLS {
+		base = int(a.Reg)
+		switch a.Name {
+		case obj.NAME_EXTERN,
+			obj.NAME_STATIC:
+			if !(isextern(a.Sym) != 0) {
+				goto bad
+			}
+			base = REG_NONE
+			v = int32(vaddr(ctxt, p, a, &rel))
+
+		case obj.NAME_AUTO,
+			obj.NAME_PARAM:
+			base = REG_SP
+			break
+		}
+
+		ctxt.Rexflag |= regrex[int(a.Index)]&Rxx | regrex[base]&Rxb | rex
+		if base == REG_NONE {
 			ctxt.Andptr[0] = byte(0<<6 | 4<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
-			asmidx(ctxt, int(a.Scale), int(a.Index), t)
+			asmidx(ctxt, int(a.Scale), int(a.Index), base)
 			goto putrelv
 		}
 
-		if v == 0 && rel.Siz == 0 && t != D_BP && t != D_R13 {
+		if v == 0 && rel.Siz == 0 && base != REG_BP && base != REG_R13 {
 			ctxt.Andptr[0] = byte(0<<6 | 4<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
-			asmidx(ctxt, int(a.Scale), int(a.Index), t)
+			asmidx(ctxt, int(a.Scale), int(a.Index), base)
 			return
 		}
 
 		if v >= -128 && v < 128 && rel.Siz == 0 {
 			ctxt.Andptr[0] = byte(1<<6 | 4<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
-			asmidx(ctxt, int(a.Scale), int(a.Index), t)
+			asmidx(ctxt, int(a.Scale), int(a.Index), base)
 			ctxt.Andptr[0] = byte(v)
 			ctxt.Andptr = ctxt.Andptr[1:]
 			return
@@ -3105,49 +3115,33 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 
 		ctxt.Andptr[0] = byte(2<<6 | 4<<0 | r<<3)
 		ctxt.Andptr = ctxt.Andptr[1:]
-		asmidx(ctxt, int(a.Scale), int(a.Index), t)
+		asmidx(ctxt, int(a.Scale), int(a.Index), base)
 		goto putrelv
 	}
 
-	if t >= D_AL && t <= D_X0+15 {
-		if v != 0 {
-			goto bad
+	base = int(a.Reg)
+	switch a.Name {
+	case obj.NAME_STATIC,
+		obj.NAME_EXTERN:
+		if a.Sym == nil {
+			ctxt.Diag("bad addr: %v", p)
 		}
-		ctxt.Andptr[0] = byte(3<<6 | reg[t]<<0 | r<<3)
-		ctxt.Andptr = ctxt.Andptr[1:]
-		ctxt.Rexflag |= regrex[t]&(0x40|Rxb) | rex
-		return
+		base = REG_NONE
+		v = int32(vaddr(ctxt, p, a, &rel))
+
+	case obj.NAME_AUTO,
+		obj.NAME_PARAM:
+		base = REG_SP
+		break
 	}
 
-	scale = int(a.Scale)
-	if t < D_INDIR {
-		switch a.Type {
-		default:
-			goto bad
-
-		case D_STATIC,
-			D_EXTERN:
-			t = D_NONE
-			v = int32(vaddr(ctxt, p, a, &rel))
-
-		case D_AUTO,
-			D_PARAM:
-			t = D_SP
-			break
-		}
-
-		scale = 1
-	} else {
-
-		t -= D_INDIR
-	}
-	if t == D_TLS {
+	if base == REG_TLS {
 		v = int32(vaddr(ctxt, p, a, &rel))
 	}
 
-	ctxt.Rexflag |= regrex[t]&Rxb | rex
-	if t == D_NONE || (D_CS <= t && t <= D_GS) || t == D_TLS {
-		if (a.Sym == nil || !(isextern(a.Sym) != 0)) && t == D_NONE && (a.Type == D_STATIC || a.Type == D_EXTERN) || ctxt.Asmode != 64 {
+	ctxt.Rexflag |= regrex[base]&Rxb | rex
+	if base == REG_NONE || (REG_CS <= base && base <= REG_GS) || base == REG_TLS {
+		if (a.Sym == nil || !(isextern(a.Sym) != 0)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN) || ctxt.Asmode != 64 {
 			ctxt.Andptr[0] = byte(0<<6 | 5<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
 			goto putrelv
@@ -3161,31 +3155,31 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 		goto putrelv
 	}
 
-	if t == D_SP || t == D_R12 {
+	if base == REG_SP || base == REG_R12 {
 		if v == 0 {
-			ctxt.Andptr[0] = byte(0<<6 | reg[t]<<0 | r<<3)
+			ctxt.Andptr[0] = byte(0<<6 | reg[base]<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
-			asmidx(ctxt, scale, D_NONE, t)
+			asmidx(ctxt, int(a.Scale), REG_NONE, base)
 			return
 		}
 
 		if v >= -128 && v < 128 {
-			ctxt.Andptr[0] = byte(1<<6 | reg[t]<<0 | r<<3)
+			ctxt.Andptr[0] = byte(1<<6 | reg[base]<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
-			asmidx(ctxt, scale, D_NONE, t)
+			asmidx(ctxt, int(a.Scale), REG_NONE, base)
 			ctxt.Andptr[0] = byte(v)
 			ctxt.Andptr = ctxt.Andptr[1:]
 			return
 		}
 
-		ctxt.Andptr[0] = byte(2<<6 | reg[t]<<0 | r<<3)
+		ctxt.Andptr[0] = byte(2<<6 | reg[base]<<0 | r<<3)
 		ctxt.Andptr = ctxt.Andptr[1:]
-		asmidx(ctxt, scale, D_NONE, t)
+		asmidx(ctxt, int(a.Scale), REG_NONE, base)
 		goto putrelv
 	}
 
-	if t >= D_AX && t <= D_R15 {
-		if a.Index == D_TLS {
+	if REG_AX <= base && base <= REG_R15 {
+		if a.Index == REG_TLS {
 			rel = obj.Reloc{}
 			rel.Type = obj.R_TLS_IE
 			rel.Siz = 4
@@ -3194,20 +3188,20 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 			v = 0
 		}
 
-		if v == 0 && rel.Siz == 0 && t != D_BP && t != D_R13 {
-			ctxt.Andptr[0] = byte(0<<6 | reg[t]<<0 | r<<3)
+		if v == 0 && rel.Siz == 0 && base != REG_BP && base != REG_R13 {
+			ctxt.Andptr[0] = byte(0<<6 | reg[base]<<0 | r<<3)
 			ctxt.Andptr = ctxt.Andptr[1:]
 			return
 		}
 
 		if v >= -128 && v < 128 && rel.Siz == 0 {
-			ctxt.Andptr[0] = byte(1<<6 | reg[t]<<0 | r<<3)
+			ctxt.Andptr[0] = byte(1<<6 | reg[base]<<0 | r<<3)
 			ctxt.Andptr[1] = byte(v)
 			ctxt.Andptr = ctxt.Andptr[2:]
 			return
 		}
 
-		ctxt.Andptr[0] = byte(2<<6 | reg[t]<<0 | r<<3)
+		ctxt.Andptr[0] = byte(2<<6 | reg[base]<<0 | r<<3)
 		ctxt.Andptr = ctxt.Andptr[1:]
 		goto putrelv
 	}
@@ -3237,7 +3231,7 @@ bad:
 }
 
 func asmand(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, ra *obj.Addr) {
-	asmandsz(ctxt, p, a, reg[ra.Type], regrex[ra.Type], 0)
+	asmandsz(ctxt, p, a, reg[ra.Reg], regrex[ra.Reg], 0)
 }
 
 func asmando(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, o int) {
@@ -3245,8 +3239,8 @@ func asmando(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, o int) {
 }
 
 func bytereg(a *obj.Addr, t *uint8) {
-	if a.Index == D_NONE && (a.Type >= D_AX && a.Type <= D_R15) {
-		a.Type = D_AL + (a.Type - D_AX)
+	if a.Type == obj.TYPE_REG && a.Index == REG_NONE && (REG_AX <= a.Reg && a.Reg <= REG_R15) {
+		a.Reg += REG_AL - REG_AX
 		*t = 0
 	}
 }
@@ -3382,48 +3376,45 @@ var ymovtab = []Movtab{
 }
 
 func isax(a *obj.Addr) int {
-	switch a.Type {
-	case D_AX,
-		D_AL,
-		D_AH,
-		D_INDIR + D_AX:
+	switch a.Reg {
+	case REG_AX,
+		REG_AL,
+		REG_AH:
 		return 1
 	}
 
-	if a.Index == D_AX {
+	if a.Index == REG_AX {
 		return 1
 	}
 	return 0
 }
 
 func subreg(p *obj.Prog, from int, to int) {
-	if false { /*debug['Q']*/
+	if false { /* debug['Q'] */
 		fmt.Printf("\n%v\ts/%v/%v/\n", p, Rconv(from), Rconv(to))
 	}
 
-	if int(p.From.Type) == from {
-		p.From.Type = int16(to)
+	if int(p.From.Reg) == from {
+		p.From.Reg = int16(to)
+		p.Ft = 0
 	}
-	if int(p.To.Type) == from {
-		p.To.Type = int16(to)
+
+	if int(p.To.Reg) == from {
+		p.To.Reg = int16(to)
+		p.Tt = 0
 	}
 
 	if int(p.From.Index) == from {
-		p.From.Index = uint8(to)
+		p.From.Index = int16(to)
+		p.Ft = 0
 	}
+
 	if int(p.To.Index) == from {
-		p.To.Index = uint8(to)
+		p.To.Index = int16(to)
+		p.Tt = 0
 	}
 
-	from += D_INDIR
-	if int(p.From.Type) == from {
-		p.From.Type = int16(to + D_INDIR)
-	}
-	if int(p.To.Type) == from {
-		p.To.Type = int16(to + D_INDIR)
-	}
-
-	if false { /*debug['Q']*/
+	if false { /* debug['Q'] */
 		fmt.Printf("%v\n", p)
 	}
 }
@@ -3499,10 +3490,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 	}
 
 	if p.Ft == 0 {
-		p.Ft = uint8(oclass(ctxt, &p.From))
+		p.Ft = uint8(oclass(ctxt, p, &p.From))
 	}
 	if p.Tt == 0 {
-		p.Tt = uint8(oclass(ctxt, &p.To))
+		p.Tt = uint8(oclass(ctxt, p, &p.To))
 	}
 
 	ft = int(p.Ft) * Ymax
@@ -3560,7 +3551,6 @@ found:
 
 	case Pw: /* 64-bit escape */
 		if p.Mode != 64 {
-
 			ctxt.Diag("asmins: illegal 64: %v", p)
 		}
 		ctxt.Rexflag |= Pw
@@ -3572,13 +3562,11 @@ found:
 
 	case P32: /* 32 bit but illegal if 64-bit mode */
 		if p.Mode == 64 {
-
 			ctxt.Diag("asmins: illegal in 64-bit mode: %v", p)
 		}
 
 	case Py: /* 64-bit only, no prefix */
 		if p.Mode != 64 {
-
 			ctxt.Diag("asmins: illegal in %d-bit mode: %v", p.Mode, p)
 		}
 		break
@@ -3684,14 +3672,12 @@ found:
 	case Zaut_r:
 		ctxt.Andptr[0] = 0x8d
 		ctxt.Andptr = ctxt.Andptr[1:] /* leal */
-		if p.From.Type != D_ADDR {
+		if p.From.Type != obj.TYPE_ADDR {
 			ctxt.Diag("asmins: Zaut sb type ADDR")
 		}
-		p.From.Type = int16(p.From.Index)
-		p.From.Index = D_NONE
+		p.From.Type = obj.TYPE_MEM
 		asmand(ctxt, p, &p.From, &p.To)
-		p.From.Index = uint8(p.From.Type)
-		p.From.Type = D_ADDR
+		p.From.Type = obj.TYPE_ADDR
 
 	case Zm_o:
 		ctxt.Andptr[0] = byte(op)
@@ -3762,7 +3748,6 @@ found:
 		if t[2] == Zib_ {
 			a = &p.From
 		} else {
-
 			a = &p.To
 		}
 		ctxt.Andptr[0] = byte(op)
@@ -3771,15 +3756,15 @@ found:
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zib_rp:
-		ctxt.Rexflag |= regrex[p.To.Type] & (Rxb | 0x40)
-		ctxt.Andptr[0] = byte(op + reg[p.To.Type])
+		ctxt.Rexflag |= regrex[p.To.Reg] & (Rxb | 0x40)
+		ctxt.Andptr[0] = byte(op + reg[p.To.Reg])
 		ctxt.Andptr = ctxt.Andptr[1:]
 		ctxt.Andptr[0] = byte(vaddr(ctxt, p, &p.From, nil))
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zil_rp:
-		ctxt.Rexflag |= regrex[p.To.Type] & Rxb
-		ctxt.Andptr[0] = byte(op + reg[p.To.Type])
+		ctxt.Rexflag |= regrex[p.To.Reg] & Rxb
+		ctxt.Andptr[0] = byte(op + reg[p.To.Reg])
 		ctxt.Andptr = ctxt.Andptr[1:]
 		if o.prefix == Pe {
 			v = vaddr(ctxt, p, &p.From, nil)
@@ -3788,14 +3773,13 @@ found:
 			ctxt.Andptr[0] = byte(v >> 8)
 			ctxt.Andptr = ctxt.Andptr[1:]
 		} else {
-
 			relput4(ctxt, p, &p.From)
 		}
 
 	case Zo_iw:
 		ctxt.Andptr[0] = byte(op)
 		ctxt.Andptr = ctxt.Andptr[1:]
-		if p.From.Type != D_NONE {
+		if p.From.Type != obj.TYPE_NONE {
 			v = vaddr(ctxt, p, &p.From, nil)
 			ctxt.Andptr[0] = byte(v)
 			ctxt.Andptr = ctxt.Andptr[1:]
@@ -3811,8 +3795,8 @@ found:
 			//print("zero: %llux %P\n", v, p);
 			ctxt.Rexflag &^= (0x40 | Rxw)
 
-			ctxt.Rexflag |= regrex[p.To.Type] & Rxb
-			ctxt.Andptr[0] = byte(0xb8 + reg[p.To.Type])
+			ctxt.Rexflag |= regrex[p.To.Reg] & Rxb
+			ctxt.Andptr[0] = byte(0xb8 + reg[p.To.Reg])
 			ctxt.Andptr = ctxt.Andptr[1:]
 			if rel.Type != 0 {
 				r = obj.Addrel(ctxt.Cursym)
@@ -3831,11 +3815,10 @@ found:
 			asmando(ctxt, p, &p.To, 0)
 			put4(ctxt, int32(v)) /* need all 8 */
 		} else {
-
 			//print("all: %llux %P\n", v, p);
-			ctxt.Rexflag |= regrex[p.To.Type] & Rxb
+			ctxt.Rexflag |= regrex[p.To.Reg] & Rxb
 
-			ctxt.Andptr[0] = byte(op + reg[p.To.Type])
+			ctxt.Andptr[0] = byte(op + reg[p.To.Reg])
 			ctxt.Andptr = ctxt.Andptr[1:]
 			if rel.Type != 0 {
 				r = obj.Addrel(ctxt.Cursym)
@@ -3858,7 +3841,6 @@ found:
 		if t[2] == Zil_ {
 			a = &p.From
 		} else {
-
 			a = &p.To
 		}
 		ctxt.Andptr[0] = byte(op)
@@ -3870,7 +3852,6 @@ found:
 			ctxt.Andptr[0] = byte(v >> 8)
 			ctxt.Andptr = ctxt.Andptr[1:]
 		} else {
-
 			relput4(ctxt, p, a)
 		}
 
@@ -3882,7 +3863,6 @@ found:
 			a = &p.From
 			asmando(ctxt, p, &p.To, int(o.op[z+1]))
 		} else {
-
 			a = &p.To
 			asmando(ctxt, p, &p.From, int(o.op[z+1]))
 		}
@@ -3894,7 +3874,6 @@ found:
 			ctxt.Andptr[0] = byte(v >> 8)
 			ctxt.Andptr = ctxt.Andptr[1:]
 		} else {
-
 			relput4(ctxt, p, a)
 		}
 
@@ -3909,18 +3888,17 @@ found:
 			ctxt.Andptr[0] = byte(v >> 8)
 			ctxt.Andptr = ctxt.Andptr[1:]
 		} else {
-
 			relput4(ctxt, p, &p.From)
 		}
 
 	case Z_rp:
-		ctxt.Rexflag |= regrex[p.To.Type] & (Rxb | 0x40)
-		ctxt.Andptr[0] = byte(op + reg[p.To.Type])
+		ctxt.Rexflag |= regrex[p.To.Reg] & (Rxb | 0x40)
+		ctxt.Andptr[0] = byte(op + reg[p.To.Reg])
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zrp_:
-		ctxt.Rexflag |= regrex[p.From.Type] & (Rxb | 0x40)
-		ctxt.Andptr[0] = byte(op + reg[p.From.Type])
+		ctxt.Rexflag |= regrex[p.From.Reg] & (Rxb | 0x40)
+		ctxt.Andptr[0] = byte(op + reg[p.From.Reg])
 		ctxt.Andptr = ctxt.Andptr[1:]
 
 	case Zclr:
@@ -3950,7 +3928,6 @@ found:
 		Zjmp,
 		Zloop:
 		if p.To.Sym != nil {
-
 			if t[2] != Zjmp {
 				ctxt.Diag("branch to ATEXT")
 				log.Fatalf("bad code")
@@ -3992,7 +3969,6 @@ found:
 			} else if t[2] == Zloop {
 				ctxt.Diag("loop too far: %v", p)
 			} else {
-
 				v -= 5 - 2
 				if t[2] == Zbr {
 					ctxt.Andptr[0] = 0x0f
@@ -4031,7 +4007,6 @@ found:
 		} else if t[2] == Zloop {
 			ctxt.Diag("loop too far: %v", p)
 		} else {
-
 			if t[2] == Zbr {
 				ctxt.Andptr[0] = 0x0f
 				ctxt.Andptr = ctxt.Andptr[1:]
@@ -4129,24 +4104,23 @@ bad:
 		 */
 		pp = *p
 
-		z = int(p.From.Type)
-		if z >= D_BP && z <= D_DI {
-			if isax(&p.To) != 0 || p.To.Type == D_NONE {
+		z = int(p.From.Reg)
+		if p.From.Type == obj.TYPE_REG && z >= REG_BP && z <= REG_DI {
+			if isax(&p.To) != 0 || p.To.Type == obj.TYPE_NONE {
 				// We certainly don't want to exchange
 				// with AX if the op is MUL or DIV.
 				ctxt.Andptr[0] = 0x87
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg lhs,bx */
-				asmando(ctxt, p, &p.From, reg[D_BX])
-				subreg(&pp, z, D_BX)
+				asmando(ctxt, p, &p.From, reg[REG_BX])
+				subreg(&pp, z, REG_BX)
 				doasm(ctxt, &pp)
 				ctxt.Andptr[0] = 0x87
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg lhs,bx */
-				asmando(ctxt, p, &p.From, reg[D_BX])
+				asmando(ctxt, p, &p.From, reg[REG_BX])
 			} else {
-
 				ctxt.Andptr[0] = byte(0x90 + reg[z])
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg lsh,ax */
-				subreg(&pp, z, D_AX)
+				subreg(&pp, z, REG_AX)
 				doasm(ctxt, &pp)
 				ctxt.Andptr[0] = byte(0x90 + reg[z])
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg lsh,ax */
@@ -4155,22 +4129,21 @@ bad:
 			return
 		}
 
-		z = int(p.To.Type)
-		if z >= D_BP && z <= D_DI {
+		z = int(p.To.Reg)
+		if p.To.Type == obj.TYPE_REG && z >= REG_BP && z <= REG_DI {
 			if isax(&p.From) != 0 {
 				ctxt.Andptr[0] = 0x87
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg rhs,bx */
-				asmando(ctxt, p, &p.To, reg[D_BX])
-				subreg(&pp, z, D_BX)
+				asmando(ctxt, p, &p.To, reg[REG_BX])
+				subreg(&pp, z, REG_BX)
 				doasm(ctxt, &pp)
 				ctxt.Andptr[0] = 0x87
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg rhs,bx */
-				asmando(ctxt, p, &p.To, reg[D_BX])
+				asmando(ctxt, p, &p.To, reg[REG_BX])
 			} else {
-
 				ctxt.Andptr[0] = byte(0x90 + reg[z])
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg rsh,ax */
-				subreg(&pp, z, D_AX)
+				subreg(&pp, z, REG_AX)
 				doasm(ctxt, &pp)
 				ctxt.Andptr[0] = byte(0x90 + reg[z])
 				ctxt.Andptr = ctxt.Andptr[1:] /* xchg rsh,ax */
@@ -4180,7 +4153,7 @@ bad:
 		}
 	}
 
-	ctxt.Diag("doasm: notfound from=%x to=%x %v", uint16(p.From.Type), uint16(p.To.Type), p)
+	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
 	return
 
 mfound:
@@ -4190,7 +4163,6 @@ mfound:
 
 	case 0: /* lit */
 		for z = 0; t[z] != E; z++ {
-
 			ctxt.Andptr[0] = t[z]
 			ctxt.Andptr = ctxt.Andptr[1:]
 		}
@@ -4214,7 +4186,7 @@ mfound:
 		ctxt.Andptr[0] = t[1]
 		ctxt.Andptr = ctxt.Andptr[1:]
 		asmando(ctxt, p, &p.To, int(t[2]))
-		ctxt.Rexflag |= regrex[p.From.Type] & (Rxr | 0x40)
+		ctxt.Rexflag |= regrex[p.From.Reg] & (Rxr | 0x40)
 
 	case 4: /* m,r - 2op */
 		ctxt.Andptr[0] = t[0]
@@ -4223,11 +4195,10 @@ mfound:
 		ctxt.Andptr[0] = t[1]
 		ctxt.Andptr = ctxt.Andptr[1:]
 		asmando(ctxt, p, &p.From, int(t[2]))
-		ctxt.Rexflag |= regrex[p.To.Type] & (Rxr | 0x40)
+		ctxt.Rexflag |= regrex[p.To.Reg] & (Rxr | 0x40)
 
 	case 5: /* load full pointer, trash heap */
 		if t[0] != 0 {
-
 			ctxt.Andptr[0] = t[0]
 			ctxt.Andptr = ctxt.Andptr[1:]
 		}
@@ -4235,27 +4206,27 @@ mfound:
 		default:
 			goto bad
 
-		case D_DS:
+		case REG_DS:
 			ctxt.Andptr[0] = 0xc5
 			ctxt.Andptr = ctxt.Andptr[1:]
 
-		case D_SS:
+		case REG_SS:
 			ctxt.Andptr[0] = 0x0f
 			ctxt.Andptr = ctxt.Andptr[1:]
 			ctxt.Andptr[0] = 0xb2
 			ctxt.Andptr = ctxt.Andptr[1:]
 
-		case D_ES:
+		case REG_ES:
 			ctxt.Andptr[0] = 0xc4
 			ctxt.Andptr = ctxt.Andptr[1:]
 
-		case D_FS:
+		case REG_FS:
 			ctxt.Andptr[0] = 0x0f
 			ctxt.Andptr = ctxt.Andptr[1:]
 			ctxt.Andptr[0] = 0xb4
 			ctxt.Andptr = ctxt.Andptr[1:]
 
-		case D_GS:
+		case REG_GS:
 			ctxt.Andptr[0] = 0x0f
 			ctxt.Andptr = ctxt.Andptr[1:]
 			ctxt.Andptr[0] = 0xb5
@@ -4267,7 +4238,6 @@ mfound:
 
 	case 6: /* double shift */
 		if t[0] == Pw {
-
 			if p.Mode != 64 {
 				ctxt.Diag("asmins: illegal 64: %v", p)
 			}
@@ -4279,12 +4249,11 @@ mfound:
 			t = t[1:]
 		}
 
-		z = int(p.From.Type)
-		switch z {
+		switch p.From.Type {
 		default:
 			goto bad
 
-		case D_CONST:
+		case obj.TYPE_CONST:
 			ctxt.Andptr[0] = 0x0f
 			ctxt.Andptr = ctxt.Andptr[1:]
 			ctxt.Andptr[0] = t[0]
@@ -4293,14 +4262,20 @@ mfound:
 			ctxt.Andptr[0] = byte(p.From.Offset)
 			ctxt.Andptr = ctxt.Andptr[1:]
 
-		case D_CL,
-			D_CX:
-			ctxt.Andptr[0] = 0x0f
-			ctxt.Andptr = ctxt.Andptr[1:]
-			ctxt.Andptr[0] = t[1]
-			ctxt.Andptr = ctxt.Andptr[1:]
-			asmandsz(ctxt, p, &p.To, reg[int(p.From.Index)], regrex[int(p.From.Index)], 0)
-			break
+		case obj.TYPE_REG:
+			switch p.From.Reg {
+			default:
+				goto bad
+
+			case REG_CL,
+				REG_CX:
+				ctxt.Andptr[0] = 0x0f
+				ctxt.Andptr = ctxt.Andptr[1:]
+				ctxt.Andptr[0] = t[1]
+				ctxt.Andptr = ctxt.Andptr[1:]
+				asmandsz(ctxt, p, &p.To, reg[int(p.From.Index)], regrex[int(p.From.Index)], 0)
+				break
+			}
 		}
 
 		// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
@@ -4309,7 +4284,6 @@ mfound:
 	// are handled in prefixof above and should not be listed here.
 	case 7: /* mov tls, r */
 		switch ctxt.Headtype {
-
 		default:
 			log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
 
@@ -4318,10 +4292,11 @@ mfound:
 				ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
 			}
 			pp.From = obj.Addr{}
-			pp.From.Type = D_EXTERN
+			pp.From.Type = obj.TYPE_MEM
+			pp.From.Name = obj.NAME_EXTERN
 			pp.From.Sym = ctxt.Plan9privates
 			pp.From.Offset = 0
-			pp.From.Index = D_NONE
+			pp.From.Index = REG_NONE
 			ctxt.Rexflag |= Pw
 			ctxt.Andptr[0] = 0x8B
 			ctxt.Andptr = ctxt.Andptr[1:]
@@ -4331,9 +4306,11 @@ mfound:
 		case obj.Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
 			pp.From = p.From
 
-			pp.From.Type = D_INDIR + D_NONE
+			pp.From.Type = obj.TYPE_MEM
+			pp.From.Name = obj.NAME_NONE
+			pp.From.Reg = REG_NONE
 			pp.From.Offset = 0
-			pp.From.Index = D_NONE
+			pp.From.Index = REG_NONE
 			pp.From.Scale = 0
 			ctxt.Rexflag |= Pw
 			ctxt.Andptr[0] = 0x64
@@ -4346,9 +4323,11 @@ mfound:
 		case obj.Hwindows:
 			pp.From = p.From
 
-			pp.From.Type = D_INDIR + D_GS
+			pp.From.Type = obj.TYPE_MEM
+			pp.From.Name = obj.NAME_NONE
+			pp.From.Reg = REG_GS
 			pp.From.Offset = 0x28
-			pp.From.Index = D_NONE
+			pp.From.Index = REG_NONE
 			pp.From.Scale = 0
 			ctxt.Rexflag |= Pw
 			ctxt.Andptr[0] = 0x65
@@ -4405,11 +4384,11 @@ var naclstos = []uint8{
 }
 
 func nacltrunc(ctxt *obj.Link, reg int) {
-	if reg >= D_R8 {
+	if reg >= REG_R8 {
 		ctxt.Andptr[0] = 0x45
 		ctxt.Andptr = ctxt.Andptr[1:]
 	}
-	reg = (reg - D_AX) & 7
+	reg = (reg - REG_AX) & 7
 	ctxt.Andptr[0] = 0x89
 	ctxt.Andptr = ctxt.Andptr[1:]
 	ctxt.Andptr[0] = byte(3<<6 | reg<<3 | reg)
@@ -4427,7 +4406,7 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 	ctxt.Andptr = ctxt.And[:]
 	ctxt.Asmode = int(p.Mode)
 
-	if p.As == AUSEFIELD {
+	if p.As == obj.AUSEFIELD {
 		r = obj.Addrel(ctxt.Cursym)
 		r.Off = 0
 		r.Siz = 0
@@ -4453,28 +4432,28 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		}
 
 		if p.As != ALEAQ && p.As != ALEAL {
-			if p.From.Index != D_NONE && p.From.Scale > 0 {
+			if p.From.Index != obj.TYPE_NONE && p.From.Scale > 0 {
 				nacltrunc(ctxt, int(p.From.Index))
 			}
-			if p.To.Index != D_NONE && p.To.Scale > 0 {
+			if p.To.Index != obj.TYPE_NONE && p.To.Scale > 0 {
 				nacltrunc(ctxt, int(p.To.Index))
 			}
 		}
 
 		switch p.As {
-		case ARET:
+		case obj.ARET:
 			copy(ctxt.Andptr, naclret)
 			ctxt.Andptr = ctxt.Andptr[len(naclret):]
 			return
 
-		case ACALL,
-			AJMP:
-			if D_AX <= p.To.Type && p.To.Type <= D_DI {
+		case obj.ACALL,
+			obj.AJMP:
+			if p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_DI {
 				// ANDL $~31, reg
 				ctxt.Andptr[0] = 0x83
 				ctxt.Andptr = ctxt.Andptr[1:]
 
-				ctxt.Andptr[0] = byte(0xe0 | (p.To.Type - D_AX))
+				ctxt.Andptr[0] = byte(0xe0 | (p.To.Reg - REG_AX))
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = 0xe0
 				ctxt.Andptr = ctxt.Andptr[1:]
@@ -4485,18 +4464,18 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 
 				ctxt.Andptr[0] = 0x01
 				ctxt.Andptr = ctxt.Andptr[1:]
-				ctxt.Andptr[0] = byte(0xf8 | (p.To.Type - D_AX))
+				ctxt.Andptr[0] = byte(0xf8 | (p.To.Reg - REG_AX))
 				ctxt.Andptr = ctxt.Andptr[1:]
 			}
 
-			if D_R8 <= p.To.Type && p.To.Type <= D_R15 {
+			if p.To.Type == obj.TYPE_REG && REG_R8 <= p.To.Reg && p.To.Reg <= REG_R15 {
 				// ANDL $~31, reg
 				ctxt.Andptr[0] = 0x41
 				ctxt.Andptr = ctxt.Andptr[1:]
 
 				ctxt.Andptr[0] = 0x83
 				ctxt.Andptr = ctxt.Andptr[1:]
-				ctxt.Andptr[0] = byte(0xe0 | (p.To.Type - D_R8))
+				ctxt.Andptr[0] = byte(0xe0 | (p.To.Reg - REG_R8))
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = 0xe0
 				ctxt.Andptr = ctxt.Andptr[1:]
@@ -4507,7 +4486,7 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 
 				ctxt.Andptr[0] = 0x01
 				ctxt.Andptr = ctxt.Andptr[1:]
-				ctxt.Andptr[0] = byte(0xf8 | (p.To.Type - D_R8))
+				ctxt.Andptr[0] = byte(0xf8 | (p.To.Reg - REG_R8))
 				ctxt.Andptr = ctxt.Andptr[1:]
 			}
 
@@ -4568,7 +4547,6 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		 * note that the handbook often misleadingly shows 66/f2/f3 in `opcode'.
 		 */
 		if p.Mode != 64 {
-
 			ctxt.Diag("asmins: illegal in mode %d: %v", p.Mode, p)
 		}
 		n = -cap(ctxt.Andptr) + cap(and0)
@@ -4598,13 +4576,13 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 		}
 	}
 
-	if ctxt.Headtype == obj.Hnacl && p.As != ACMPL && p.As != ACMPQ {
-		switch p.To.Type {
-		case D_SP:
+	if ctxt.Headtype == obj.Hnacl && p.As != ACMPL && p.As != ACMPQ && p.To.Type == obj.TYPE_REG {
+		switch p.To.Reg {
+		case REG_SP:
 			copy(ctxt.Andptr, naclspfix)
 			ctxt.Andptr = ctxt.Andptr[len(naclspfix):]
 
-		case D_BP:
+		case REG_BP:
 			copy(ctxt.Andptr, naclbpfix)
 			ctxt.Andptr = ctxt.Andptr[len(naclbpfix):]
 			break

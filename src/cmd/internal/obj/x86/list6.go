@@ -40,7 +40,6 @@ import (
 //	%A int		Opcodes (instruction mnemonics)
 //
 //	%D Addr*	Addresses (instruction operands)
-//		Flags: "%lD": seperate the high and low words of a constant by "-"
 //
 //	%P Prog*	Instructions
 //
@@ -59,16 +58,16 @@ func Pconv(p *obj.Prog) string {
 	var fp string
 
 	switch p.As {
-	case ADATA:
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), p.From.Scale, Dconv(p, 0, &p.To))
+	case obj.ADATA:
+		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), p.From3.Offset, Dconv(p, 0, &p.To))
 
-	case ATEXT:
-		if p.From.Scale != 0 {
-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), p.From.Scale, Dconv(p, fmtLong, &p.To))
+	case obj.ATEXT:
+		if p.From3.Offset != 0 {
+			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), p.From3.Offset, Dconv(p, 0, &p.To))
 			break
 		}
 
-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, fmtLong, &p.To))
+		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
 
 	default:
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
@@ -91,45 +90,26 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 	var s string
 	var fp string
 
-	var i int
-
-	i = int(a.Type)
-
-	if flag&fmtLong != 0 /*untyped*/ {
-		if i == D_CONST {
-			str = fmt.Sprintf("$%d-%d", a.Offset&0xffffffff, a.Offset>>32)
-		} else {
-
-			// ATEXT dst is not constant
-			str = fmt.Sprintf("!!%v", Dconv(p, 0, a))
-		}
-
-		goto brk
-	}
-
-	if i >= D_INDIR {
-		if a.Offset != 0 {
-			str = fmt.Sprintf("%d(%v)", a.Offset, Rconv(i-D_INDIR))
-		} else {
-
-			str = fmt.Sprintf("(%v)", Rconv(i-D_INDIR))
-		}
-		goto brk
-	}
-
-	switch i {
+	switch a.Type {
 	default:
-		if a.Offset != 0 {
-			str = fmt.Sprintf("$%d,%v", a.Offset, Rconv(i))
-		} else {
+		str = fmt.Sprintf("type=%d", a.Type)
 
-			str = fmt.Sprintf("%v", Rconv(i))
-		}
-
-	case D_NONE:
+	case obj.TYPE_NONE:
 		str = ""
 
-	case D_BRANCH:
+		// TODO(rsc): This special case is for instructions like
+	//	PINSRQ	CX,$1,X6
+	// where the $1 is included in the p->to Addr.
+	// Move into a new field.
+	case obj.TYPE_REG:
+		if a.Offset != 0 {
+			str = fmt.Sprintf("$%d,%v", a.Offset, Rconv(int(a.Reg)))
+			break
+		}
+
+		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
+
+	case obj.TYPE_BRANCH:
 		if a.Sym != nil {
 			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
 		} else if p != nil && p.Pcond != nil {
@@ -137,57 +117,79 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 		} else if a.U.Branch != nil {
 			str = fmt.Sprintf("%d", a.U.Branch.Pc)
 		} else {
-
 			str = fmt.Sprintf("%d(PC)", a.Offset)
 		}
 
-	case D_EXTERN:
-		str = fmt.Sprintf("%s+%d(SB)", a.Sym.Name, a.Offset)
+	case obj.TYPE_MEM:
+		switch a.Name {
+		default:
+			str = fmt.Sprintf("name=%d", a.Name)
 
-	case D_STATIC:
-		str = fmt.Sprintf("%s<>+%d(SB)", a.Sym.Name, a.Offset)
+		case obj.NAME_NONE:
+			if a.Offset != 0 {
+				str = fmt.Sprintf("%d(%v)", a.Offset, Rconv(int(a.Reg)))
+			} else {
+				str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
+			}
 
-	case D_AUTO:
-		if a.Sym != nil {
-			str = fmt.Sprintf("%s+%d(SP)", a.Sym.Name, a.Offset)
-		} else {
+		case obj.NAME_EXTERN:
+			str = fmt.Sprintf("%s+%d(SB)", a.Sym.Name, a.Offset)
 
-			str = fmt.Sprintf("%d(SP)", a.Offset)
+		case obj.NAME_STATIC:
+			str = fmt.Sprintf("%s<>+%d(SB)", a.Sym.Name, a.Offset)
+
+		case obj.NAME_AUTO:
+			if a.Sym != nil {
+				str = fmt.Sprintf("%s+%d(SP)", a.Sym.Name, a.Offset)
+			} else {
+				str = fmt.Sprintf("%d(SP)", a.Offset)
+			}
+
+		case obj.NAME_PARAM:
+			if a.Sym != nil {
+				str = fmt.Sprintf("%s+%d(FP)", a.Sym.Name, a.Offset)
+			} else {
+				str = fmt.Sprintf("%d(FP)", a.Offset)
+			}
+			break
 		}
 
-	case D_PARAM:
-		if a.Sym != nil {
-			str = fmt.Sprintf("%s+%d(FP)", a.Sym.Name, a.Offset)
-		} else {
-
-			str = fmt.Sprintf("%d(FP)", a.Offset)
+		if a.Index != REG_NONE {
+			s = fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+			str += s
 		}
 
-	case D_CONST:
+	case obj.TYPE_CONST:
 		str = fmt.Sprintf("$%d", a.Offset)
 
-	case D_FCONST:
+		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+		//	SHRQ $32(DX*0), AX
+		// Remove.
+		if a.Index != REG_NONE {
+			s = fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+			str += s
+		}
+
+	case obj.TYPE_TEXTSIZE:
+		if a.U.Argsize == obj.ArgsSizeUnknown {
+			str = fmt.Sprintf("$%d", a.Offset)
+		} else {
+			str = fmt.Sprintf("$%d-%d", a.Offset, a.U.Argsize)
+		}
+
+	case obj.TYPE_FCONST:
 		str = fmt.Sprintf("$(%.17g)", a.U.Dval)
 
-	case D_SCONST:
+	case obj.TYPE_SCONST:
 		str = fmt.Sprintf("$\"%q\"", a.U.Sval)
 
-	case D_ADDR:
-		a.Type = int16(a.Index)
-		a.Index = D_NONE
+	case obj.TYPE_ADDR:
+		a.Type = obj.TYPE_MEM
 		str = fmt.Sprintf("$%v", Dconv(p, 0, a))
-		a.Index = uint8(a.Type)
-		a.Type = D_ADDR
-		goto conv
+		a.Type = obj.TYPE_ADDR
+		break
 	}
 
-brk:
-	if a.Index != D_NONE {
-		s = fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
-		str += s
-	}
-
-conv:
 	fp += str
 	return fp
 }
@@ -304,18 +306,22 @@ var Register = []string{
 	"TR5",
 	"TR6",
 	"TR7",
-	"TLS",  /* [D_TLS] */
-	"NONE", /* [D_NONE] */
+	"TLS",    /* [D_TLS] */
+	"MAXREG", /* [MAXREG] */
 }
 
 func Rconv(r int) string {
 	var str string
 	var fp string
 
-	if r >= D_AL && r <= D_NONE {
-		str = fmt.Sprintf("%s", Register[r-D_AL])
-	} else {
+	if r == REG_NONE {
+		fp += "NONE"
+		return fp
+	}
 
+	if REG_AL <= r && r-REG_AL < len(Register) {
+		str = fmt.Sprintf("%s", Register[r-REG_AL])
+	} else {
 		str = fmt.Sprintf("gok(%d)", r)
 	}
 
