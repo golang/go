@@ -1820,14 +1820,14 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 		switch(o->type) {
 		case 38:	/* movm $con,oreg -> stm */
 			o1 = (0x4 << 25);
-			o1 |= (p->from.offset >> REG_R0) & 0xffff;
+			o1 |= p->from.offset & 0xffff;
 			o1 |= (p->to.reg&15) << 16;
 			aclass(ctxt, &p->to);
 			break;
 	
 		case 39:	/* movm oreg,$con -> ldm */
 			o1 = (0x4 << 25) | (1 << 20);
-			o1 |= (p->to.offset >> REG_R0) & 0xffff;
+			o1 |= p->to.offset & 0xffff;
 			o1 |= (p->from.reg&15) << 16;
 			aclass(ctxt, &p->from);
 			break;
