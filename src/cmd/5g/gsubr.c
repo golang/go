@@ -69,7 +69,7 @@ gclean(void)
 			yyerror("reg %R left allocated\n", i);
 }
 
-int32
+int
 anyregalloc(void)
 {
 	int i, j;
@@ -239,22 +239,25 @@ split64(Node *n, Node *lo, Node *hi)
 	nsclean++;
 	switch(n->op) {
 	default:
-		if(!dotaddable(n, &n1)) {
-			igen(n, &n1, N);
-			sclean[nsclean-1] = n1;
-		}
-		n = &n1;
-		goto common;
-	case ONAME:
-		if(n->class == PPARAMREF) {
-			cgen(n->heapaddr, &n1);
-			sclean[nsclean-1] = n1;
-			// fall through.
+		switch(n->op) {
+		default:
+			if(!dotaddable(n, &n1)) {
+				igen(n, &n1, N);
+				sclean[nsclean-1] = n1;
+			}
 			n = &n1;
+			break;
+		case ONAME:
+			if(n->class == PPARAMREF) {
+				cgen(n->heapaddr, &n1);
+				sclean[nsclean-1] = n1;
+				n = &n1;
+			}
+			break;
+		case OINDREG:
+			// nothing
+			break;
 		}
-		goto common;
-	case OINDREG:
-	common:
 		*lo = *n;
 		*hi = *n;
 		lo->type = types[TUINT32];

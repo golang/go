@@ -31,33 +31,24 @@
 #define	Z	N
 #define	Adr	Addr
 
-#define	D_HI	TYPE_NONE
-#define	D_LO	TYPE_NONE
-
 #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
 #define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
 #define	LOAD(r)		(~r->refbehind.b[z] & r->refahead.b[z])
 #define	STORE(r)	(~r->calbehind.b[z] & r->calahead.b[z])
 
-#define	CLOAD	5
-#define	CREF	5
-#define	CINF	1000
-#define	LOOP	3
+enum
+{
+	CLOAD = 5,
+	CREF = 5,
+	CINF = 1000,
+	LOOP = 3,
+};
 
 typedef	struct	Reg	Reg;
 typedef	struct	Rgn	Rgn;
 
 /*c2go
 extern Node *Z;
-enum
-{
-	D_HI = TYPE_NONE,
-	D_LO = TYPE_NONE,
-	CLOAD = 5,
-	CREF = 5,
-	CINF = 1000,
-	LOOP = 3,
-};
 
 uint32 BLOAD(Reg*);
 uint32 BSTORE(Reg*);

@@ -956,17 +956,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 
 	switch(n->op) {
 	default:
-	def:
-		regalloc(&n1, n->type, N);
-		cgen(n, &n1);
-		nodconst(&n2, n->type, 0);
-		gins(optoas(OCMP, n->type), &n1, &n2);
-		a = AJNE;
-		if(!true)
-			a = AJEQ;
-		patch(gbranch(a, n->type, likely), to);
-		regfree(&n1);
-		return;
+		goto def;
 
 	case OLITERAL:
 		// need to ask if it is bool?
@@ -986,27 +976,20 @@ bgen(Node *n, int true, int likely, Prog *to)
 		return;
 
 	case OANDAND:
-		if(!true)
-			goto caseor;
-
-	caseand:
-		p1 = gbranch(AJMP, T, 0);
-		p2 = gbranch(AJMP, T, 0);
-		patch(p1, pc);
-		bgen(n->left, !true, -likely, p2);
-		bgen(n->right, !true, -likely, p2);
-		p1 = gbranch(AJMP, T, 0);
-		patch(p1, to);
-		patch(p2, pc);
-		return;
-
 	case OOROR:
-		if(!true)
-			goto caseand;
-
-	caseor:
-		bgen(n->left, true, likely, to);
-		bgen(n->right, true, likely, to);
+		if((n->op == OANDAND) == true) {
+			p1 = gbranch(AJMP, T, 0);
+			p2 = gbranch(AJMP, T, 0);
+			patch(p1, pc);
+			bgen(n->left, !true, -likely, p2);
+			bgen(n->right, !true, -likely, p2);
+			p1 = gbranch(AJMP, T, 0);
+			patch(p1, to);
+			patch(p2, pc);
+		} else {
+			bgen(n->left, true, likely, to);
+			bgen(n->right, true, likely, to);
+		}
 		return;
 
 	case OEQ:
@@ -1150,6 +1133,19 @@ cmp:
 		regfree(nr);
 		break;
 	}
+	return;
+
+def:
+	regalloc(&n1, n->type, N);
+	cgen(n, &n1);
+	nodconst(&n2, n->type, 0);
+	gins(optoas(OCMP, n->type), &n1, &n2);
+	a = AJNE;
+	if(!true)
+		a = AJEQ;
+	patch(gbranch(a, n->type, likely), to);
+	regfree(&n1);
+	return;
 }
 
 /*

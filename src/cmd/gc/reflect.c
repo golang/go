@@ -1349,7 +1349,7 @@ usegcprog(Type *t)
 
 // Generates sparse GC bitmask (4 bits per word).
 static void
-gengcmask(Type *t, uint8 gcmask[16])
+gengcmask(Type *t, uint8 *gcmask)
 {
 	Bvec *vec;
 	vlong xoffset, nptr, i, j;

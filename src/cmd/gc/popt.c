@@ -782,10 +782,9 @@ mergetemp(Prog *firstp)
 	}
 
 	// Clear aux structures.
-	for(i = 0; i < nvar; i++) {
-		v = &var[i];
-		v->node->opt = nil;
-	}
+	for(i = 0; i < nvar; i++)
+		var[i].node->opt = nil;
+
 	free(var);
 	free(bystart);
 	free(inuse);

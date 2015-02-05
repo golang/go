@@ -667,7 +667,7 @@ gclean(void)
 			yyerror("reg %R left allocated\n", i);
 }
 
-int32
+int
 anyregalloc(void)
 {
 	int i, j;
@@ -724,9 +724,9 @@ regalloc(Node *n, Type *t, Node *o)
 			if(reg[i] == 0)
 				goto out;
 
-		fprint(2, "registers allocated at\n");
+		print("registers allocated at\n");
 		for(i=REG_AX; i<=REG_DI; i++)
-			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
+			print("\t%R\t%#lux\n", i, regpc[i]);
 		fatal("out of fixed registers");
 		goto err;
 
@@ -744,9 +744,9 @@ regalloc(Node *n, Type *t, Node *o)
 		for(i=REG_X0; i<=REG_X7; i++)
 			if(reg[i] == 0)
 				goto out;
-		fprint(2, "registers allocated at\n");
+		print("registers allocated at\n");
 		for(i=REG_X0; i<=REG_X7; i++)
-			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
+			print("\t%R\t%#lux\n", i, regpc[i]);
 		fatal("out of floating registers");
 	}
 	yyerror("regalloc: unknown type %T", t);
@@ -853,22 +853,25 @@ split64(Node *n, Node *lo, Node *hi)
 	nsclean++;
 	switch(n->op) {
 	default:
-		if(!dotaddable(n, &n1)) {
-			igen(n, &n1, N);
-			sclean[nsclean-1] = n1;
-		}
-		n = &n1;
-		goto common;
-	case ONAME:
-		if(n->class == PPARAMREF) {
-			cgen(n->heapaddr, &n1);
-			sclean[nsclean-1] = n1;
-			// fall through.
+		switch(n->op) {
+		default:
+			if(!dotaddable(n, &n1)) {
+				igen(n, &n1, N);
+				sclean[nsclean-1] = n1;
+			}
 			n = &n1;
+			break;
+		case ONAME:
+			if(n->class == PPARAMREF) {
+				cgen(n->heapaddr, &n1);
+				sclean[nsclean-1] = n1;
+				n = &n1;
+			}
+			break;
+		case OINDREG:
+			// nothing
+			break;
 		}
-		goto common;
-	case OINDREG:
-	common:
 		*lo = *n;
 		*hi = *n;
 		lo->type = types[TUINT32];
@@ -1466,7 +1469,7 @@ floatmove_387(Node *f, Node *t)
 		gmove(f, &t1);
 		switch(tt) {
 		default:
-			fatal("gmove %T", t);
+			fatal("gmove %N", t);
 		case TINT8:
 			gins(ACMPL, &t1, ncon(-0x80));
 			p1 = gbranch(optoas(OLT, types[TINT32]), T, -1);

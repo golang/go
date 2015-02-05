@@ -95,7 +95,7 @@ gclean(void)
 			yyerror("reg %R left allocated\n", i);
 }
 
-int32
+int
 anyregalloc(void)
 {
 	int i, j;

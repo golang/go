@@ -696,14 +696,7 @@ evconst(Node *n)
 	// run op
 	switch(TUP(n->op, v.ctype)) {
 	default:
-	illegal:
-		if(!n->diag) {
-			yyerror("illegal constant expression: %T %O %T",
-				nl->type, n->op, nr->type);
-			n->diag = 1;
-		}
-		return;
-
+		goto illegal;
 	case TUP(OADD, CTINT):
 	case TUP(OADD, CTRUNE):
 		mpaddfixfix(v.u.xval, rv.u.xval, 0);
@@ -1036,6 +1029,14 @@ setfalse:
 	*n = *nodbool(0);
 	n->orig = norig;
 	return;
+
+illegal:
+	if(!n->diag) {
+		yyerror("illegal constant expression: %T %O %T",
+			nl->type, n->op, nr->type);
+		n->diag = 1;
+	}
+	return;
 }
 
 Node*
@@ -1214,28 +1215,31 @@ defaultlit(Node **np, Type *t)
 	case CTCPLX:
 		t1 = types[TCOMPLEX128];
 		goto num;
-	num:
-		if(t != T) {
-			if(isint[t->etype]) {
-				t1 = t;
-				n->val = toint(n->val);
-			}
-			else
-			if(isfloat[t->etype]) {
-				t1 = t;
-				n->val = toflt(n->val);
-			}
-			else
-			if(iscomplex[t->etype]) {
-				t1 = t;
-				n->val = tocplx(n->val);
-			}
-		}
-		overflow(n->val, t1);
-		convlit(np, t1);
-		break;
 	}
 	lineno = lno;
+	return;
+
+num:
+	if(t != T) {
+		if(isint[t->etype]) {
+			t1 = t;
+			n->val = toint(n->val);
+		}
+		else
+		if(isfloat[t->etype]) {
+			t1 = t;
+			n->val = toflt(n->val);
+		}
+		else
+		if(iscomplex[t->etype]) {
+			t1 = t;
+			n->val = tocplx(n->val);
+		}
+	}
+	overflow(n->val, t1);
+	convlit(np, t1);
+	lineno = lno;
+	return;
 }
 
 /*

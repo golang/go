@@ -9,9 +9,6 @@
 #include "../gc/go.h"
 #include "../9l/9.out.h"
 
-// TODO(minux): Remove when no longer used.
-#define noimpl sysfatal("%s not implemented (%s:%d).", __func__, __FILE__, __LINE__)
-
 EXTERN	uchar	reg[NREG+NFREG];
 EXTERN	Node*	panicdiv;
 extern	vlong	unmappedzero;

@@ -575,7 +575,7 @@ copyu(Prog *p, Addr *v, Addr *s)
 {
 	if(p->from3.type != TYPE_NONE)
 		// 9g never generates a from3
-		print("copyu: from3 (%D) not implemented\n", p->from3);
+		print("copyu: from3 (%D) not implemented\n", &p->from3);
 
 	switch(p->as) {
 
