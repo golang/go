@@ -37,7 +37,6 @@ import (
 )
 
 func mangle(file string) {
-
 	log.Fatalf("%s: mangled input file", file)
 }
 
@@ -58,7 +57,7 @@ func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
 
 func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
 	off := int32(p.From.Offset)
-	siz := int32(ctxt.Arch.Datasize(p))
+	siz := int32(p.From3.Offset)
 	if off < 0 || siz < 0 || off >= 1<<30 || siz >= 100 {
 		mangle(pn)
 	}
@@ -71,7 +70,7 @@ func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
 	default:
 		ctxt.Diag("bad data: %P", p)
 
-	case ctxt.Arch.D_FCONST:
+	case TYPE_FCONST:
 		switch siz {
 		default:
 			ctxt.Diag("unexpected %d-byte floating point constant", siz)
@@ -85,11 +84,11 @@ func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
 			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], flt)
 		}
 
-	case ctxt.Arch.D_SCONST:
+	case TYPE_SCONST:
 		copy(s.P[off:off+siz], p.To.U.Sval)
 
-	case ctxt.Arch.D_CONST, ctxt.Arch.D_ADDR:
-		if p.To.Sym != nil || int(p.To.Type) == ctxt.Arch.D_ADDR {
+	case TYPE_CONST, TYPE_ADDR:
+		if p.To.Sym != nil || int(p.To.Type) == TYPE_ADDR {
 			r := Addrel(s)
 			r.Off = off
 			r.Siz = uint8(siz)
@@ -119,7 +118,7 @@ func Addrel(s *LSym) *Reloc {
 	return &s.R[len(s.R)-1]
 }
 
-func setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
+func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
@@ -147,7 +146,7 @@ func adduintxx(ctxt *Link, s *LSym, v uint64, wid int) int64 {
 	var off int64
 
 	off = s.Size
-	setuintxx(ctxt, s, off, v, int64(wid))
+	Setuintxx(ctxt, s, off, v, int64(wid))
 	return off
 }
 
@@ -168,19 +167,19 @@ func Adduint64(ctxt *Link, s *LSym, v uint64) int64 {
 }
 
 func setuint8(ctxt *Link, s *LSym, r int64, v uint8) int64 {
-	return setuintxx(ctxt, s, r, uint64(v), 1)
+	return Setuintxx(ctxt, s, r, uint64(v), 1)
 }
 
 func setuint16(ctxt *Link, s *LSym, r int64, v uint16) int64 {
-	return setuintxx(ctxt, s, r, uint64(v), 2)
+	return Setuintxx(ctxt, s, r, uint64(v), 2)
 }
 
 func setuint32(ctxt *Link, s *LSym, r int64, v uint32) int64 {
-	return setuintxx(ctxt, s, r, uint64(v), 4)
+	return Setuintxx(ctxt, s, r, uint64(v), 4)
 }
 
 func setuint64(ctxt *Link, s *LSym, r int64, v uint64) int64 {
-	return setuintxx(ctxt, s, r, v, 8)
+	return Setuintxx(ctxt, s, r, v, 8)
 }
 
 func addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {

@@ -88,92 +88,92 @@ func yyparse() {
 }
 
 var lexinit = []asm.Lextab{
-	{"SP", LSP, ppc64.D_AUTO},
-	{"SB", LSB, ppc64.D_EXTERN},
-	{"FP", LFP, ppc64.D_PARAM},
-	{"PC", LPC, ppc64.D_BRANCH},
-	{"LR", LLR, ppc64.D_LR},
-	{"CTR", LCTR, ppc64.D_CTR},
-	{"XER", LSPREG, ppc64.D_XER},
-	{"MSR", LMSR, ppc64.D_MSR},
-	{"FPSCR", LFPSCR, ppc64.D_FPSCR},
-	{"SPR", LSPR, ppc64.D_SPR},
-	{"DCR", LSPR, ppc64.D_DCR},
-	{"CR", LCR, 0},
-	{"CR0", LCREG, 0},
-	{"CR1", LCREG, 1},
-	{"CR2", LCREG, 2},
-	{"CR3", LCREG, 3},
-	{"CR4", LCREG, 4},
-	{"CR5", LCREG, 5},
-	{"CR6", LCREG, 6},
-	{"CR7", LCREG, 7},
+	{"SP", LSP, obj.NAME_AUTO},
+	{"SB", LSB, obj.NAME_EXTERN},
+	{"FP", LFP, obj.NAME_PARAM},
+	{"PC", LPC, obj.TYPE_BRANCH},
+	{"LR", LLR, ppc64.REG_LR},
+	{"CTR", LCTR, ppc64.REG_CTR},
+	{"XER", LSPREG, ppc64.REG_XER},
+	{"MSR", LMSR, ppc64.REG_MSR},
+	{"FPSCR", LFPSCR, ppc64.REG_FPSCR},
+	{"SPR", LSPR, ppc64.REG_SPR0},
+	{"DCR", LSPR, ppc64.REG_DCR0},
+	{"CR", LCR, ppc64.REG_CR},
+	{"CR0", LCREG, ppc64.REG_C0},
+	{"CR1", LCREG, ppc64.REG_C1},
+	{"CR2", LCREG, ppc64.REG_C2},
+	{"CR3", LCREG, ppc64.REG_C3},
+	{"CR4", LCREG, ppc64.REG_C4},
+	{"CR5", LCREG, ppc64.REG_C5},
+	{"CR6", LCREG, ppc64.REG_C6},
+	{"CR7", LCREG, ppc64.REG_C7},
 	{"R", LR, 0},
-	{"R0", LREG, 0},
-	{"R1", LREG, 1},
-	{"R2", LREG, 2},
-	{"R3", LREG, 3},
-	{"R4", LREG, 4},
-	{"R5", LREG, 5},
-	{"R6", LREG, 6},
-	{"R7", LREG, 7},
-	{"R8", LREG, 8},
-	{"R9", LREG, 9},
-	{"R10", LREG, 10},
-	{"R11", LREG, 11},
-	{"R12", LREG, 12},
-	{"R13", LREG, 13},
-	{"R14", LREG, 14},
-	{"R15", LREG, 15},
-	{"R16", LREG, 16},
-	{"R17", LREG, 17},
-	{"R18", LREG, 18},
-	{"R19", LREG, 19},
-	{"R20", LREG, 20},
-	{"R21", LREG, 21},
-	{"R22", LREG, 22},
-	{"R23", LREG, 23},
-	{"R24", LREG, 24},
-	{"R25", LREG, 25},
-	{"R26", LREG, 26},
-	{"R27", LREG, 27},
-	{"R28", LREG, 28},
-	{"R29", LREG, 29},
-	{"g", LREG, 30}, // avoid unintentionally clobbering g using R30
-	{"R31", LREG, 31},
+	{"R0", LREG, ppc64.REG_R0},
+	{"R1", LREG, ppc64.REG_R1},
+	{"R2", LREG, ppc64.REG_R2},
+	{"R3", LREG, ppc64.REG_R3},
+	{"R4", LREG, ppc64.REG_R4},
+	{"R5", LREG, ppc64.REG_R5},
+	{"R6", LREG, ppc64.REG_R6},
+	{"R7", LREG, ppc64.REG_R7},
+	{"R8", LREG, ppc64.REG_R8},
+	{"R9", LREG, ppc64.REG_R9},
+	{"R10", LREG, ppc64.REG_R10},
+	{"R11", LREG, ppc64.REG_R11},
+	{"R12", LREG, ppc64.REG_R12},
+	{"R13", LREG, ppc64.REG_R13},
+	{"R14", LREG, ppc64.REG_R14},
+	{"R15", LREG, ppc64.REG_R15},
+	{"R16", LREG, ppc64.REG_R16},
+	{"R17", LREG, ppc64.REG_R17},
+	{"R18", LREG, ppc64.REG_R18},
+	{"R19", LREG, ppc64.REG_R19},
+	{"R20", LREG, ppc64.REG_R20},
+	{"R21", LREG, ppc64.REG_R21},
+	{"R22", LREG, ppc64.REG_R22},
+	{"R23", LREG, ppc64.REG_R23},
+	{"R24", LREG, ppc64.REG_R24},
+	{"R25", LREG, ppc64.REG_R25},
+	{"R26", LREG, ppc64.REG_R26},
+	{"R27", LREG, ppc64.REG_R27},
+	{"R28", LREG, ppc64.REG_R28},
+	{"R29", LREG, ppc64.REG_R29},
+	{"g", LREG, ppc64.REG_R30}, // avoid unintentionally clobbering g using R30
+	{"R31", LREG, ppc64.REG_R31},
 	{"F", LF, 0},
-	{"F0", LFREG, 0},
-	{"F1", LFREG, 1},
-	{"F2", LFREG, 2},
-	{"F3", LFREG, 3},
-	{"F4", LFREG, 4},
-	{"F5", LFREG, 5},
-	{"F6", LFREG, 6},
-	{"F7", LFREG, 7},
-	{"F8", LFREG, 8},
-	{"F9", LFREG, 9},
-	{"F10", LFREG, 10},
-	{"F11", LFREG, 11},
-	{"F12", LFREG, 12},
-	{"F13", LFREG, 13},
-	{"F14", LFREG, 14},
-	{"F15", LFREG, 15},
-	{"F16", LFREG, 16},
-	{"F17", LFREG, 17},
-	{"F18", LFREG, 18},
-	{"F19", LFREG, 19},
-	{"F20", LFREG, 20},
-	{"F21", LFREG, 21},
-	{"F22", LFREG, 22},
-	{"F23", LFREG, 23},
-	{"F24", LFREG, 24},
-	{"F25", LFREG, 25},
-	{"F26", LFREG, 26},
-	{"F27", LFREG, 27},
-	{"F28", LFREG, 28},
-	{"F29", LFREG, 29},
-	{"F30", LFREG, 30},
-	{"F31", LFREG, 31},
+	{"F0", LFREG, ppc64.REG_F0},
+	{"F1", LFREG, ppc64.REG_F1},
+	{"F2", LFREG, ppc64.REG_F2},
+	{"F3", LFREG, ppc64.REG_F3},
+	{"F4", LFREG, ppc64.REG_F4},
+	{"F5", LFREG, ppc64.REG_F5},
+	{"F6", LFREG, ppc64.REG_F6},
+	{"F7", LFREG, ppc64.REG_F7},
+	{"F8", LFREG, ppc64.REG_F8},
+	{"F9", LFREG, ppc64.REG_F9},
+	{"F10", LFREG, ppc64.REG_F10},
+	{"F11", LFREG, ppc64.REG_F11},
+	{"F12", LFREG, ppc64.REG_F12},
+	{"F13", LFREG, ppc64.REG_F13},
+	{"F14", LFREG, ppc64.REG_F14},
+	{"F15", LFREG, ppc64.REG_F15},
+	{"F16", LFREG, ppc64.REG_F16},
+	{"F17", LFREG, ppc64.REG_F17},
+	{"F18", LFREG, ppc64.REG_F18},
+	{"F19", LFREG, ppc64.REG_F19},
+	{"F20", LFREG, ppc64.REG_F20},
+	{"F21", LFREG, ppc64.REG_F21},
+	{"F22", LFREG, ppc64.REG_F22},
+	{"F23", LFREG, ppc64.REG_F23},
+	{"F24", LFREG, ppc64.REG_F24},
+	{"F25", LFREG, ppc64.REG_F25},
+	{"F26", LFREG, ppc64.REG_F26},
+	{"F27", LFREG, ppc64.REG_F27},
+	{"F28", LFREG, ppc64.REG_F28},
+	{"F29", LFREG, ppc64.REG_F29},
+	{"F30", LFREG, ppc64.REG_F30},
+	{"F31", LFREG, ppc64.REG_F31},
 	{"CREQV", LCROP, ppc64.ACREQV},
 	{"CRXOR", LCROP, ppc64.ACRXOR},
 	{"CRAND", LCROP, ppc64.ACRAND},
@@ -321,7 +321,7 @@ var lexinit = []asm.Lextab{
 	{"FMOVD", LFMOV, ppc64.AFMOVD},
 	{"FMOVS", LFMOV, ppc64.AFMOVS},
 	{"FMOVDCC", LFCONV, ppc64.AFMOVDCC}, /* fmr. */
-	{"GLOBL", LTEXT, ppc64.AGLOBL},
+	{"GLOBL", LGLOBL, obj.AGLOBL},
 	{"MOVB", LMOVB, ppc64.AMOVB},
 	{"MOVBZ", LMOVB, ppc64.AMOVBZ},
 	{"MOVBU", LMOVB, ppc64.AMOVBU},
@@ -348,16 +348,16 @@ var lexinit = []asm.Lextab{
 	{"NEGV", LABS, ppc64.ANEGV},
 	{"NEGCC", LABS, ppc64.ANEGCC},
 	{"NEGVCC", LABS, ppc64.ANEGVCC},
-	{"NOP", LNOP, ppc64.ANOP}, /* ori 0,0,0 */
+	{"NOP", LNOP, obj.ANOP}, /* ori 0,0,0 */
 	{"SYSCALL", LNOP, ppc64.ASYSCALL},
-	{"UNDEF", LNOP, ppc64.AUNDEF},
-	{"RET", LRETRN, ppc64.ARETURN},
-	{"RETURN", LRETRN, ppc64.ARETURN},
+	{"UNDEF", LNOP, obj.AUNDEF},
+	{"RET", LRETRN, obj.ARET},
+	{"RETURN", LRETRN, obj.ARET},
 	{"RFI", LRETRN, ppc64.ARFI},
 	{"RFCI", LRETRN, ppc64.ARFCI},
-	{"DATA", LDATA, ppc64.ADATA},
-	{"END", LEND, ppc64.AEND},
-	{"TEXT", LTEXT, ppc64.ATEXT},
+	{"DATA", LDATA, obj.ADATA},
+	{"END", LEND, obj.AEND},
+	{"TEXT", LTEXT, obj.ATEXT},
 
 	/* 64-bit instructions */
 	{"CNTLZD", LABS, ppc64.ACNTLZD},
@@ -460,19 +460,15 @@ var lexinit = []asm.Lextab{
 	{"DWORD", LWORD, ppc64.ADWORD},
 	{"SCHED", LSCHED, 0},
 	{"NOSCHED", LSCHED, 0x80},
-	{"PCDATA", LPCDAT, ppc64.APCDATA},
-	{"FUNCDATA", LFUNCDAT, ppc64.AFUNCDATA},
+	{"PCDATA", LPCDAT, obj.APCDATA},
+	{"FUNCDATA", LFUNCDAT, obj.AFUNCDATA},
 }
 
 func cinit() {
-	nullgen.Type = ppc64.D_NONE
-	nullgen.Name = ppc64.D_NONE
-	nullgen.Reg = ppc64.NREG
-	nullgen.Scale = ppc64.NREG // replaced Gen.xreg with Prog.scale
 }
 
 func cclean() {
-	outcode(ppc64.AEND, &nullgen, ppc64.NREG, &nullgen)
+	outcode(obj.AEND, &nullgen, 0, &nullgen)
 }
 
 var lastpc *obj.Prog
@@ -486,13 +482,13 @@ func outcode(a int, g1 *obj.Addr, reg int, g2 *obj.Addr) {
 		goto out
 	}
 
-	if g1.Scale != ppc64.NREG {
-		if reg != ppc64.NREG || g2.Scale != ppc64.NREG {
+	if g1.Scale != 0 {
+		if reg != 0 || g2.Scale != 0 {
 			yyerror("bad addressing modes")
 		}
 		reg = int(g1.Scale)
-	} else if g2.Scale != ppc64.NREG {
-		if reg != ppc64.NREG {
+	} else if g2.Scale != 0 {
+		if reg != 0 {
 			yyerror("bad addressing modes")
 		}
 		reg = int(g2.Scale)
@@ -505,7 +501,7 @@ func outcode(a int, g1 *obj.Addr, reg int, g2 *obj.Addr) {
 		p.Mark |= ppc64.NOSCHED
 	}
 	p.From = *g1
-	p.Reg = uint8(reg)
+	p.Reg = int16(reg)
 	p.To = *g2
 	p.Pc = int64(asm.PC)
 
@@ -518,7 +514,7 @@ func outcode(a int, g1 *obj.Addr, reg int, g2 *obj.Addr) {
 	lastpc = p
 
 out:
-	if a != ppc64.AGLOBL && a != ppc64.ADATA {
+	if a != obj.AGLOBL && a != obj.ADATA {
 		asm.PC++
 	}
 }
@@ -538,7 +534,7 @@ func outgcode(a int, g1 *obj.Addr, reg int, g2, g3 *obj.Addr) {
 		p.Mark |= ppc64.NOSCHED
 	}
 	p.From = *g1
-	p.Reg = uint8(reg)
+	p.Reg = int16(reg)
 	p.From3 = *g2
 	p.To = *g3
 	p.Pc = int64(asm.PC)
@@ -552,7 +548,7 @@ func outgcode(a int, g1 *obj.Addr, reg int, g2, g3 *obj.Addr) {
 	lastpc = p
 
 out:
-	if a != ppc64.AGLOBL && a != ppc64.ADATA {
+	if a != obj.AGLOBL && a != obj.ADATA {
 		asm.PC++
 	}
 }

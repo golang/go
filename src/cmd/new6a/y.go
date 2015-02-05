@@ -117,213 +117,215 @@ var yyExca = []int{
 	-2, 2,
 }
 
-const yyNprod = 134
+const yyNprod = 133
 const yyPrivate = 57344
 
 var yyTokenNames []string
 var yyStates []string
 
-const yyLast = 565
+const yyLast = 593
 
 var yyAct = []int{
 
-	49, 61, 186, 123, 38, 3, 81, 80, 51, 62,
-	47, 188, 269, 268, 267, 71, 70, 118, 86, 48,
-	263, 69, 84, 256, 75, 101, 103, 99, 85, 209,
-	112, 254, 59, 112, 170, 242, 240, 82, 238, 222,
-	220, 211, 55, 54, 210, 64, 171, 111, 241, 235,
-	113, 112, 93, 95, 97, 120, 121, 122, 212, 107,
-	109, 55, 133, 128, 174, 145, 52, 138, 119, 71,
-	115, 129, 208, 232, 112, 136, 139, 169, 55, 54,
-	86, 53, 231, 230, 84, 52, 73, 142, 143, 56,
-	85, 146, 224, 60, 144, 131, 130, 223, 57, 82,
-	53, 154, 52, 153, 37, 132, 152, 66, 56, 151,
-	150, 149, 37, 148, 147, 72, 155, 53, 141, 137,
-	135, 68, 73, 134, 62, 56, 176, 177, 127, 34,
-	114, 32, 31, 112, 120, 28, 229, 29, 71, 30,
-	228, 185, 187, 57, 183, 252, 253, 40, 42, 45,
-	41, 43, 46, 195, 194, 44, 248, 112, 112, 112,
-	112, 112, 166, 168, 112, 112, 112, 247, 182, 167,
-	237, 213, 173, 257, 198, 199, 200, 201, 202, 219,
-	120, 205, 206, 207, 184, 114, 196, 197, 165, 164,
-	163, 161, 162, 156, 157, 158, 159, 160, 184, 264,
-	227, 166, 168, 258, 112, 112, 140, 218, 167, 216,
-	236, 55, 54, 55, 54, 239, 246, 261, 217, 260,
-	35, 233, 234, 226, 255, 243, 214, 244, 181, 33,
-	124, 249, 125, 126, 251, 52, 250, 52, 172, 90,
-	116, 189, 190, 191, 192, 193, 259, 117, 89, 245,
-	53, 7, 53, 125, 126, 73, 262, 73, 56, 62,
-	56, 265, 266, 9, 10, 11, 12, 13, 17, 15,
-	18, 14, 16, 25, 26, 19, 20, 21, 22, 23,
-	24, 27, 55, 54, 83, 156, 157, 158, 159, 160,
-	39, 158, 159, 160, 204, 4, 175, 8, 203, 5,
-	6, 110, 2, 55, 54, 1, 52, 77, 108, 106,
-	40, 42, 45, 41, 43, 46, 105, 104, 44, 87,
-	102, 53, 55, 54, 100, 79, 50, 52, 98, 56,
-	96, 40, 42, 45, 41, 43, 46, 94, 92, 44,
-	57, 88, 53, 55, 54, 83, 52, 50, 78, 62,
-	56, 76, 74, 65, 63, 58, 221, 67, 215, 225,
-	0, 53, 0, 0, 55, 54, 73, 52, 0, 56,
-	0, 40, 42, 45, 41, 43, 46, 0, 0, 44,
-	87, 0, 53, 0, 0, 55, 54, 50, 52, 0,
-	56, 0, 40, 42, 45, 41, 43, 46, 0, 0,
-	44, 57, 0, 53, 0, 0, 0, 91, 50, 52,
-	0, 56, 0, 40, 42, 45, 41, 43, 46, 55,
-	54, 44, 57, 0, 53, 0, 0, 0, 36, 50,
-	0, 0, 56, 0, 0, 0, 55, 54, 0, 0,
-	55, 54, 0, 52, 0, 0, 0, 40, 42, 45,
-	41, 43, 46, 55, 54, 44, 57, 0, 53, 0,
-	52, 0, 0, 50, 52, 0, 56, 0, 40, 42,
-	45, 41, 43, 46, 0, 53, 44, 52, 0, 53,
-	73, 0, 188, 56, 50, 55, 54, 56, 0, 0,
-	72, 0, 53, 0, 55, 179, 0, 73, 55, 54,
-	56, 163, 161, 162, 156, 157, 158, 159, 160, 52,
-	161, 162, 156, 157, 158, 159, 160, 0, 52, 180,
-	0, 0, 52, 0, 53, 0, 0, 0, 178, 73,
-	0, 0, 56, 53, 0, 57, 0, 53, 73, 0,
-	0, 56, 50, 0, 0, 56, 165, 164, 163, 161,
-	162, 156, 157, 158, 159, 160, 164, 163, 161, 162,
-	156, 157, 158, 159, 160,
+	52, 227, 41, 3, 80, 208, 269, 64, 123, 50,
+	51, 79, 54, 170, 268, 74, 267, 118, 85, 72,
+	83, 263, 73, 255, 253, 98, 241, 84, 81, 239,
+	237, 100, 102, 112, 221, 219, 112, 210, 209, 171,
+	240, 107, 234, 62, 211, 174, 143, 138, 65, 207,
+	111, 119, 115, 113, 112, 231, 67, 169, 120, 121,
+	122, 249, 230, 92, 94, 96, 128, 226, 225, 224,
+	104, 106, 74, 58, 57, 154, 136, 112, 129, 85,
+	153, 83, 151, 150, 139, 141, 149, 148, 84, 81,
+	140, 147, 142, 146, 145, 144, 63, 55, 58, 57,
+	137, 43, 45, 48, 44, 46, 49, 40, 135, 47,
+	69, 134, 56, 127, 155, 40, 34, 37, 53, 31,
+	59, 32, 55, 35, 33, 223, 176, 177, 222, 217,
+	60, 215, 220, 112, 120, 243, 114, 56, 74, 242,
+	216, 236, 183, 76, 173, 59, 58, 57, 256, 166,
+	168, 251, 252, 192, 194, 196, 167, 112, 112, 112,
+	112, 112, 195, 184, 112, 112, 112, 264, 58, 57,
+	55, 212, 257, 248, 197, 198, 199, 200, 201, 182,
+	120, 204, 205, 206, 218, 56, 42, 114, 152, 38,
+	65, 76, 55, 59, 190, 191, 184, 261, 260, 166,
+	168, 229, 258, 112, 112, 75, 167, 56, 89, 235,
+	36, 71, 65, 76, 238, 59, 108, 109, 254, 213,
+	232, 233, 125, 126, 228, 244, 247, 203, 245, 88,
+	124, 181, 125, 126, 246, 158, 159, 160, 175, 250,
+	202, 25, 185, 186, 187, 188, 189, 16, 15, 6,
+	110, 259, 7, 2, 1, 262, 156, 157, 158, 159,
+	160, 265, 266, 105, 9, 10, 11, 12, 13, 17,
+	28, 18, 14, 29, 30, 26, 19, 20, 21, 22,
+	23, 24, 27, 58, 57, 82, 165, 164, 163, 161,
+	162, 156, 157, 158, 159, 160, 4, 103, 8, 101,
+	5, 99, 97, 58, 57, 95, 93, 55, 91, 87,
+	77, 43, 45, 48, 44, 46, 49, 68, 66, 47,
+	86, 61, 56, 70, 214, 0, 78, 55, 53, 0,
+	59, 43, 45, 48, 44, 46, 49, 172, 0, 47,
+	60, 0, 56, 58, 57, 82, 0, 65, 53, 0,
+	59, 43, 45, 48, 44, 46, 49, 0, 0, 47,
+	0, 0, 0, 58, 57, 0, 0, 55, 0, 0,
+	0, 43, 45, 48, 44, 46, 49, 0, 0, 47,
+	86, 0, 56, 58, 57, 0, 0, 55, 53, 0,
+	59, 43, 45, 48, 44, 46, 49, 0, 0, 47,
+	60, 0, 56, 58, 57, 0, 90, 55, 53, 0,
+	59, 43, 45, 48, 44, 46, 49, 58, 133, 47,
+	60, 0, 56, 0, 0, 0, 39, 55, 53, 0,
+	59, 43, 45, 48, 44, 46, 49, 58, 57, 47,
+	60, 55, 56, 0, 58, 57, 0, 0, 53, 0,
+	59, 131, 130, 0, 60, 0, 56, 58, 57, 0,
+	0, 55, 132, 0, 59, 0, 116, 0, 55, 58,
+	57, 0, 0, 117, 0, 0, 56, 0, 0, 0,
+	0, 55, 76, 56, 59, 58, 179, 0, 193, 76,
+	0, 59, 0, 55, 75, 0, 56, 58, 57, 0,
+	0, 0, 76, 180, 59, 0, 0, 0, 56, 55,
+	0, 58, 57, 0, 76, 0, 59, 0, 0, 178,
+	0, 55, 0, 0, 56, 0, 0, 0, 0, 0,
+	76, 0, 59, 0, 60, 55, 56, 0, 0, 0,
+	0, 0, 53, 0, 59, 0, 0, 0, 0, 0,
+	56, 0, 0, 0, 0, 0, 76, 0, 59, 165,
+	164, 163, 161, 162, 156, 157, 158, 159, 160, 164,
+	163, 161, 162, 156, 157, 158, 159, 160, 163, 161,
+	162, 156, 157, 158, 159, 160, 161, 162, 156, 157,
+	158, 159, 160,
 }
 var yyPact = []int{
 
-	-1000, -1000, 249, -1000, 86, -1000, 89, 82, 80, 77,
-	376, 294, 294, 410, 69, 97, 489, 273, 355, 294,
-	294, 294, 110, -46, -46, 489, 294, 294, -1000, 33,
-	-1000, -1000, 33, -1000, -1000, -1000, 410, -1000, -1000, -1000,
-	-1000, -1000, -1000, -1000, -1000, -1000, -1000, -1000, -1000, 17,
-	202, 15, -1000, -1000, 33, 33, 33, 223, -1000, 76,
-	-1000, -1000, 52, -1000, 71, -1000, 68, -1000, 444, -1000,
-	67, 14, 244, 33, -1000, 194, -1000, 66, -1000, 334,
-	-1000, -1000, -1000, 431, -1000, -1000, 12, 223, -1000, -1000,
-	-1000, 410, -1000, 62, -1000, 61, -1000, 59, -1000, 58,
-	-1000, 57, -1000, -1000, -1000, 54, -1000, 51, -1000, 49,
-	249, 542, -1000, 542, -1000, 124, 23, -8, 184, 134,
-	-1000, -1000, -1000, 11, 288, 33, 33, -1000, -1000, -1000,
-	-1000, -1000, 485, 476, 410, 294, -1000, 444, 149, -1000,
-	33, 427, -1000, -1000, -1000, 163, 11, 410, 410, 410,
-	410, 410, 204, 294, 294, -1000, 33, 33, 33, 33,
-	33, 291, 286, 33, 33, 33, 18, -10, -13, 5,
-	33, -1000, -1000, 215, 173, 244, -1000, -1000, -14, 313,
-	-1000, -1000, -1000, -1000, -15, 45, -1000, 40, 190, 91,
-	87, -1000, 31, 30, -1000, 21, -1000, -1000, 280, 280,
-	-1000, -1000, -1000, 33, 33, 503, 495, 551, -4, 33,
-	-1000, -1000, 132, -16, 33, -18, -1000, -1000, -1000, -5,
-	-1000, -19, -1000, -46, -44, -1000, 239, 183, 129, 117,
-	33, 110, -46, 276, 276, 107, -23, 213, -1000, -31,
-	-1000, 137, -1000, -1000, -1000, 170, 236, -1000, -1000, -1000,
-	-1000, -1000, 208, 206, -1000, 33, -1000, -34, -1000, 166,
-	33, 33, -40, -1000, -1000, -41, -42, -1000, -1000, -1000,
+	-1000, -1000, 250, -1000, 70, -1000, 74, 66, 72, 65,
+	374, 294, 294, 394, 159, -1000, -1000, 274, 354, 294,
+	294, 294, 314, -5, -5, -1000, 294, 294, 84, 488,
+	488, -1000, 502, -1000, -1000, 502, -1000, -1000, -1000, 394,
+	-1000, -1000, -1000, -1000, -1000, -1000, -1000, -1000, -1000, -1000,
+	-1000, -1000, -2, 428, -3, -1000, -1000, 502, 502, 502,
+	223, -1000, 61, -1000, -1000, 408, -1000, 59, -1000, 56,
+	-1000, 448, -1000, 48, -7, 213, 502, -1000, 334, -1000,
+	-1000, -1000, 64, -1000, -1000, -8, 223, -1000, -1000, -1000,
+	394, -1000, 42, -1000, 41, -1000, 39, -1000, 35, -1000,
+	34, -1000, -1000, -1000, 31, -1000, 30, 176, 28, 23,
+	250, 555, -1000, 555, -1000, 111, 2, -16, 282, 106,
+	-1000, -1000, -1000, -9, 230, 502, 502, -1000, -1000, -1000,
+	-1000, -1000, 476, 460, 394, 294, -1000, 448, 128, -1000,
+	-1000, -1000, -1000, 161, -9, 394, 394, 394, 394, 394,
+	294, 294, 502, 435, 137, -1000, 502, 502, 502, 502,
+	502, 233, 219, 502, 502, 502, -6, -17, -18, -10,
+	502, -1000, -1000, 208, 95, 213, -1000, -1000, -20, 89,
+	-1000, -1000, -1000, -1000, -21, 79, 76, -1000, 17, 16,
+	-1000, -1000, 15, 191, 10, -1000, 3, 224, 224, -1000,
+	-1000, -1000, 502, 502, 579, 572, 564, -12, 502, -1000,
+	-1000, 103, -25, 502, -26, -1000, -1000, -1000, -14, -1000,
+	-29, -1000, 101, 96, 502, 314, -5, -1000, 216, 140,
+	8, -5, 247, 247, 113, -31, 207, -1000, -32, -1000,
+	112, -1000, -1000, -1000, -1000, -1000, -1000, 139, 192, 191,
+	-1000, 187, 186, -1000, 502, -1000, -34, -1000, 134, -1000,
+	502, 502, -39, -1000, -1000, -41, -49, -1000, -1000, -1000,
 }
 var yyPgo = []int{
 
-	0, 0, 359, 17, 358, 3, 290, 1, 2, 4,
-	8, 6, 93, 32, 7, 10, 19, 229, 357, 220,
-	355, 354, 353, 352, 351, 348, 341, 338, 337, 330,
-	328, 324, 320, 317, 309, 308, 305, 302, 5, 301,
-	300,
+	0, 0, 17, 324, 8, 186, 7, 1, 2, 12,
+	4, 96, 43, 11, 9, 10, 210, 323, 189, 321,
+	318, 317, 310, 309, 308, 306, 305, 302, 301, 299,
+	297, 263, 254, 253, 3, 250, 249, 248, 247, 241,
 }
 var yyR1 = []int{
 
-	0, 36, 37, 36, 39, 38, 38, 38, 38, 40,
-	40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
-	40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
-	17, 17, 21, 22, 20, 20, 19, 19, 18, 18,
-	18, 23, 24, 24, 25, 25, 26, 26, 27, 27,
-	28, 28, 29, 29, 29, 30, 31, 32, 32, 33,
-	33, 34, 35, 12, 12, 14, 14, 14, 14, 14,
-	14, 13, 13, 11, 11, 9, 9, 9, 9, 9,
-	9, 9, 8, 7, 7, 7, 7, 7, 7, 7,
-	6, 6, 15, 15, 15, 15, 15, 15, 15, 15,
-	15, 15, 15, 16, 16, 10, 10, 5, 5, 5,
-	4, 4, 4, 1, 1, 1, 1, 1, 1, 2,
-	2, 2, 2, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 3,
+	0, 32, 33, 32, 35, 34, 34, 34, 34, 36,
+	36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+	36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+	16, 16, 20, 21, 19, 19, 18, 18, 17, 17,
+	17, 37, 38, 38, 39, 39, 22, 22, 23, 23,
+	24, 24, 25, 25, 26, 26, 26, 27, 28, 29,
+	29, 30, 31, 11, 11, 13, 13, 13, 13, 13,
+	13, 12, 12, 10, 10, 8, 8, 8, 8, 8,
+	8, 8, 6, 6, 6, 6, 6, 6, 6, 5,
+	5, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+	14, 14, 15, 15, 9, 9, 4, 4, 4, 3,
+	3, 3, 1, 1, 1, 1, 1, 1, 7, 7,
+	7, 7, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2,
 }
 var yyR2 = []int{
 
 	0, 0, 0, 3, 0, 4, 1, 2, 2, 3,
-	3, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-	2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	3, 2, 2, 2, 2, 2, 2, 1, 1, 2,
+	2, 2, 2, 2, 2, 2, 2, 1, 2, 2,
 	0, 1, 3, 3, 2, 1, 2, 1, 2, 1,
-	3, 5, 3, 5, 2, 1, 1, 1, 3, 5,
-	3, 5, 2, 1, 3, 5, 5, 0, 1, 3,
-	5, 3, 3, 1, 1, 1, 1, 2, 2, 1,
+	3, 6, 5, 7, 4, 6, 2, 1, 1, 1,
+	3, 5, 3, 5, 2, 1, 3, 5, 5, 0,
+	1, 3, 3, 1, 1, 1, 1, 2, 2, 1,
 	1, 1, 1, 4, 2, 1, 1, 1, 1, 1,
-	1, 1, 2, 2, 2, 2, 2, 4, 5, 3,
-	1, 1, 1, 4, 4, 4, 6, 9, 9, 3,
-	3, 5, 8, 1, 6, 5, 7, 0, 2, 2,
-	1, 1, 1, 1, 1, 2, 2, 2, 3, 1,
-	2, 3, 4, 1, 3, 3, 3, 3, 3, 4,
-	4, 3, 3, 3,
+	1, 1, 2, 2, 2, 2, 4, 5, 3, 1,
+	1, 1, 4, 4, 4, 6, 9, 9, 3, 3,
+	5, 8, 1, 6, 5, 7, 0, 2, 2, 1,
+	1, 1, 1, 1, 2, 2, 2, 3, 1, 2,
+	3, 4, 1, 3, 3, 3, 3, 3, 4, 4,
+	3, 3, 3,
 }
 var yyChk = []int{
 
-	-1000, -36, -37, -38, 46, 50, -40, 2, 48, 14,
-	15, 16, 17, 18, 22, 20, 23, 19, 21, 26,
-	27, 28, 29, 30, 31, 24, 25, 32, 49, 51,
-	50, 50, 51, -17, 52, -19, 52, -12, -9, -6,
-	37, 40, 38, 41, 45, 39, 42, -15, -16, -1,
-	53, -10, 33, 48, 10, 9, 56, 46, -20, -13,
-	-12, -7, 55, -21, -13, -22, -12, -18, 52, -11,
-	-7, -1, 46, 53, -23, -10, -24, -6, -25, 52,
-	-14, -11, -16, 11, -9, -15, -1, 46, -26, -17,
-	-19, 52, -27, -13, -28, -13, -29, -13, -30, -9,
-	-31, -7, -32, -7, -33, -6, -34, -13, -35, -13,
-	-39, -3, -1, -3, -12, 53, 38, 45, -3, 53,
-	-1, -1, -1, -5, 7, 9, 10, 52, -1, -10,
-	44, 43, 53, 10, 52, 52, -11, 52, 53, -5,
-	12, 52, -14, -9, -15, 53, -5, 52, 52, 52,
-	52, 52, 52, 52, 52, -38, 9, 10, 11, 12,
-	13, 7, 8, 6, 5, 4, 38, 45, 39, 54,
-	11, 54, 54, 38, 53, 8, -1, -1, 43, 10,
-	43, -12, -13, -11, 35, -1, -8, -1, 55, -12,
-	-12, -12, -12, -12, -7, -1, -13, -13, -3, -3,
-	-3, -3, -3, 7, 8, -3, -3, -3, 54, 11,
-	54, 54, 53, -1, 11, -4, 36, 45, 34, -5,
-	54, 43, 54, 52, 52, -2, 33, 10, 49, 49,
-	52, 52, 52, -3, -3, 53, -1, 38, 54, -1,
-	54, 53, 54, -7, -8, 10, 33, 38, 39, -1,
-	-9, -7, 38, 39, 54, 11, 54, 36, 33, 10,
-	11, 11, -1, 54, 33, -1, -1, 54, 54, 54,
+	-1000, -32, -33, -34, 46, 50, -36, 2, 48, 14,
+	15, 16, 17, 18, 22, -37, -38, 19, 21, 26,
+	27, 28, 29, 30, 31, -39, 25, 32, 20, 23,
+	24, 49, 51, 50, 50, 51, -16, 52, -18, 52,
+	-11, -8, -5, 37, 40, 38, 41, 45, 39, 42,
+	-14, -15, -1, 54, -9, 33, 48, 10, 9, 56,
+	46, -19, -12, -11, -6, 53, -20, -12, -21, -11,
+	-17, 52, -10, -6, -1, 46, 54, -22, 52, -13,
+	-10, -15, 11, -8, -14, -1, 46, -23, -16, -18,
+	52, -24, -12, -25, -12, -26, -12, -27, -8, -28,
+	-6, -29, -6, -30, -12, -31, -12, -9, -5, -5,
+	-35, -2, -1, -2, -11, 54, 38, 45, -2, 54,
+	-1, -1, -1, -4, 7, 9, 10, 52, -1, -9,
+	44, 43, 54, 10, 52, 52, -10, 52, 54, -4,
+	-13, -8, -14, 54, -4, 52, 52, 52, 52, 52,
+	52, 52, 12, 52, 52, -34, 9, 10, 11, 12,
+	13, 7, 8, 6, 5, 4, 38, 45, 39, 55,
+	11, 55, 55, 38, 54, 8, -1, -1, 43, 10,
+	43, -11, -12, -10, 35, -11, -11, -11, -11, -11,
+	-12, -12, -1, 53, -1, -6, -1, -2, -2, -2,
+	-2, -2, 7, 8, -2, -2, -2, 55, 11, 55,
+	55, 54, -1, 11, -3, 36, 45, 34, -4, 55,
+	43, 55, 49, 49, 52, 52, 52, -7, 33, 10,
+	52, 52, -2, -2, 54, -1, 38, 55, -1, 55,
+	54, 55, 38, 39, -1, -8, -6, 10, 33, 53,
+	-6, 38, 39, 55, 11, 55, 36, 33, 10, -7,
+	11, 11, -1, 55, 33, -1, -1, 55, 55, 55,
 }
 var yyDef = []int{
 
 	1, -2, 0, 3, 0, 6, 0, 0, 0, 30,
-	0, 0, 0, 0, 0, 0, 0, 0, 30, 0,
-	0, 0, 0, 0, 57, 0, 0, 0, 4, 0,
-	7, 8, 0, 11, 31, 12, 0, 37, 63, 64,
-	75, 76, 77, 78, 79, 80, 81, 90, 91, 92,
-	0, 103, 113, 114, 0, 0, 0, 107, 13, 35,
-	71, 72, 0, 14, 0, 15, 0, 16, 0, 39,
-	0, 0, 107, 0, 17, 0, 18, 0, 19, 0,
-	45, 65, 66, 0, 69, 70, 92, 107, 20, 46,
-	47, 31, 21, 0, 22, 0, 23, 53, 24, 0,
-	25, 0, 26, 58, 27, 0, 28, 0, 29, 0,
-	0, 9, 123, 10, 36, 0, 0, 0, 0, 0,
-	115, 116, 117, 0, 0, 0, 0, 34, 83, 84,
-	85, 86, 0, 0, 0, 0, 38, 0, 0, 74,
-	0, 0, 44, 67, 68, 0, 74, 0, 0, 52,
+	0, 0, 0, 0, 0, 17, 18, 0, 30, 0,
+	0, 0, 0, 0, 59, 27, 0, 0, 0, 0,
+	0, 4, 0, 7, 8, 0, 11, 31, 12, 0,
+	37, 63, 64, 75, 76, 77, 78, 79, 80, 81,
+	89, 90, 91, 0, 102, 112, 113, 0, 0, 0,
+	106, 13, 35, 71, 72, 0, 14, 0, 15, 0,
+	16, 0, 39, 0, 0, 106, 0, 19, 0, 47,
+	65, 66, 0, 69, 70, 91, 106, 20, 48, 49,
+	31, 21, 0, 22, 0, 23, 55, 24, 0, 25,
+	0, 26, 60, 28, 0, 29, 0, 0, 0, 0,
+	0, 9, 122, 10, 36, 0, 0, 0, 0, 0,
+	114, 115, 116, 0, 0, 0, 0, 34, 82, 83,
+	84, 85, 0, 0, 0, 0, 38, 0, 0, 74,
+	46, 67, 68, 0, 74, 0, 0, 54, 0, 0,
 	0, 0, 0, 0, 0, 5, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 99,
-	0, 100, 118, 0, 0, 107, 108, 109, 0, 0,
-	89, 32, 33, 40, 0, 0, 42, 0, 0, 48,
-	50, 54, 0, 0, 59, 0, 61, 62, 124, 125,
-	126, 127, 128, 0, 0, 131, 132, 133, 93, 0,
-	94, 95, 0, 0, 0, 0, 110, 111, 112, 0,
-	87, 0, 73, 0, 0, 82, 119, 0, 0, 0,
-	0, 0, 0, 129, 130, 0, 0, 0, 101, 0,
-	105, 0, 88, 41, 43, 0, 120, 49, 51, 55,
-	56, 60, 0, 0, 96, 0, 104, 0, 121, 0,
-	0, 0, 0, 106, 122, 0, 0, 102, 97, 98,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 98,
+	0, 99, 117, 0, 0, 106, 107, 108, 0, 0,
+	88, 32, 33, 40, 0, 50, 52, 56, 0, 0,
+	61, 62, 0, 0, 0, 44, 0, 123, 124, 125,
+	126, 127, 0, 0, 130, 131, 132, 92, 0, 93,
+	94, 0, 0, 0, 0, 109, 110, 111, 0, 86,
+	0, 73, 0, 0, 0, 0, 0, 42, 118, 0,
+	0, 0, 128, 129, 0, 0, 0, 100, 0, 104,
+	0, 87, 51, 53, 57, 58, 41, 0, 119, 0,
+	45, 0, 0, 95, 0, 103, 0, 120, 0, 43,
+	0, 0, 0, 105, 121, 0, 0, 101, 96, 97,
 }
 var yyTok1 = []int{
 
 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 3, 3, 55, 13, 6, 3,
-	53, 54, 11, 9, 52, 10, 3, 12, 3, 3,
+	3, 3, 3, 3, 3, 3, 53, 13, 6, 3,
+	54, 55, 11, 9, 52, 10, 3, 12, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 49, 50,
 	7, 51, 8, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -635,16 +637,6 @@ yydefault:
 		{
 			outcode(int(yyS[yypt-1].lval), &yyS[yypt-0].addr2)
 		}
-	case 17:
-		//line a.y:111
-		{
-			outcode(int(yyS[yypt-1].lval), &yyS[yypt-0].addr2)
-		}
-	case 18:
-		//line a.y:112
-		{
-			outcode(int(yyS[yypt-1].lval), &yyS[yypt-0].addr2)
-		}
 	case 19:
 		//line a.y:113
 		{
@@ -682,11 +674,6 @@ yydefault:
 		}
 	case 26:
 		//line a.y:120
-		{
-			outcode(int(yyS[yypt-1].lval), &yyS[yypt-0].addr2)
-		}
-	case 27:
-		//line a.y:121
 		{
 			outcode(int(yyS[yypt-1].lval), &yyS[yypt-0].addr2)
 		}
@@ -769,149 +756,158 @@ yydefault:
 	case 41:
 		//line a.y:193
 		{
-			yyVAL.addr2.from = yyS[yypt-4].addr
-			yyVAL.addr2.from.Scale = int8(yyS[yypt-2].lval)
-			yyVAL.addr2.to = yyS[yypt-0].addr
+			var a Addr2
+			a.from = yyS[yypt-4].addr
+			a.to = yyS[yypt-0].addr
+			outcode(obj.ADATA, &a)
+			if asm.Pass > 1 {
+				lastpc.From3.Type = obj.TYPE_CONST
+				lastpc.From3.Offset = yyS[yypt-2].lval
+			}
 		}
 	case 42:
-		//line a.y:201
+		//line a.y:206
 		{
-			asm.Settext(yyS[yypt-2].addr.Sym)
-			yyVAL.addr2.from = yyS[yypt-2].addr
-			yyVAL.addr2.to = yyS[yypt-0].addr
+			asm.Settext(yyS[yypt-3].addr.Sym)
+			outcode(obj.ATEXT, &Addr2{yyS[yypt-3].addr, yyS[yypt-0].addr})
 		}
 	case 43:
-		//line a.y:207
+		//line a.y:211
 		{
-			asm.Settext(yyS[yypt-4].addr.Sym)
-			yyVAL.addr2.from = yyS[yypt-4].addr
-			yyVAL.addr2.from.Scale = int8(yyS[yypt-2].lval)
-			yyVAL.addr2.to = yyS[yypt-0].addr
+			asm.Settext(yyS[yypt-5].addr.Sym)
+			outcode(obj.ATEXT, &Addr2{yyS[yypt-5].addr, yyS[yypt-0].addr})
+			if asm.Pass > 1 {
+				lastpc.From3.Type = obj.TYPE_CONST
+				lastpc.From3.Offset = yyS[yypt-3].lval
+			}
 		}
 	case 44:
-		//line a.y:216
+		//line a.y:222
 		{
-			yyVAL.addr2.from = nullgen
-			yyVAL.addr2.to = yyS[yypt-0].addr
+			asm.Settext(yyS[yypt-2].addr.Sym)
+			outcode(obj.AGLOBL, &Addr2{yyS[yypt-2].addr, yyS[yypt-0].addr})
 		}
 	case 45:
-		//line a.y:221
+		//line a.y:227
+		{
+			asm.Settext(yyS[yypt-4].addr.Sym)
+			outcode(obj.AGLOBL, &Addr2{yyS[yypt-4].addr, yyS[yypt-0].addr})
+			if asm.Pass > 1 {
+				lastpc.From3.Type = obj.TYPE_CONST
+				lastpc.From3.Offset = yyS[yypt-2].lval
+			}
+		}
+	case 46:
+		//line a.y:238
 		{
 			yyVAL.addr2.from = nullgen
 			yyVAL.addr2.to = yyS[yypt-0].addr
 		}
-	case 46:
-		yyVAL.addr2 = yyS[yypt-0].addr2
 	case 47:
-		yyVAL.addr2 = yyS[yypt-0].addr2
-	case 48:
-		//line a.y:232
+		//line a.y:243
 		{
-			yyVAL.addr2.from = yyS[yypt-2].addr
+			yyVAL.addr2.from = nullgen
 			yyVAL.addr2.to = yyS[yypt-0].addr
 		}
+	case 48:
+		yyVAL.addr2 = yyS[yypt-0].addr2
 	case 49:
-		//line a.y:237
-		{
-			yyVAL.addr2.from = yyS[yypt-4].addr
-			yyVAL.addr2.to = yyS[yypt-2].addr
-			if yyVAL.addr2.from.Index != x86.D_NONE {
-				yyerror("dp shift with lhs index")
-			}
-			yyVAL.addr2.from.Index = uint8(yyS[yypt-0].lval)
-		}
+		yyVAL.addr2 = yyS[yypt-0].addr2
 	case 50:
-		//line a.y:248
+		//line a.y:254
 		{
 			yyVAL.addr2.from = yyS[yypt-2].addr
 			yyVAL.addr2.to = yyS[yypt-0].addr
 		}
 	case 51:
-		//line a.y:253
+		//line a.y:259
 		{
 			yyVAL.addr2.from = yyS[yypt-4].addr
 			yyVAL.addr2.to = yyS[yypt-2].addr
-			if yyVAL.addr2.to.Index != x86.D_NONE {
-				yyerror("dp move with lhs index")
+			if yyVAL.addr2.from.Index != obj.TYPE_NONE {
+				yyerror("dp shift with lhs index")
 			}
-			yyVAL.addr2.to.Index = uint8(yyS[yypt-0].lval)
+			yyVAL.addr2.from.Index = int16(yyS[yypt-0].lval)
 		}
 	case 52:
-		//line a.y:264
-		{
-			yyVAL.addr2.from = yyS[yypt-1].addr
-			yyVAL.addr2.to = nullgen
-		}
-	case 53:
-		//line a.y:269
-		{
-			yyVAL.addr2.from = yyS[yypt-0].addr
-			yyVAL.addr2.to = nullgen
-		}
-	case 54:
-		//line a.y:274
+		//line a.y:270
 		{
 			yyVAL.addr2.from = yyS[yypt-2].addr
 			yyVAL.addr2.to = yyS[yypt-0].addr
 		}
+	case 53:
+		//line a.y:275
+		{
+			yyVAL.addr2.from = yyS[yypt-4].addr
+			yyVAL.addr2.to = yyS[yypt-2].addr
+			if yyVAL.addr2.to.Index != obj.TYPE_NONE {
+				yyerror("dp move with lhs index")
+			}
+			yyVAL.addr2.to.Index = int16(yyS[yypt-0].lval)
+		}
+	case 54:
+		//line a.y:286
+		{
+			yyVAL.addr2.from = yyS[yypt-1].addr
+			yyVAL.addr2.to = nullgen
+		}
 	case 55:
-		//line a.y:281
+		//line a.y:291
+		{
+			yyVAL.addr2.from = yyS[yypt-0].addr
+			yyVAL.addr2.to = nullgen
+		}
+	case 56:
+		//line a.y:296
+		{
+			yyVAL.addr2.from = yyS[yypt-2].addr
+			yyVAL.addr2.to = yyS[yypt-0].addr
+		}
+	case 57:
+		//line a.y:303
 		{
 			yyVAL.addr2.from = yyS[yypt-4].addr
 			yyVAL.addr2.to = yyS[yypt-2].addr
 			yyVAL.addr2.to.Offset = yyS[yypt-0].lval
 		}
-	case 56:
-		//line a.y:289
-		{
-			yyVAL.addr2.from = yyS[yypt-2].addr
-			yyVAL.addr2.to = yyS[yypt-0].addr
-			if yyS[yypt-4].addr.Type != x86.D_CONST {
-				yyerror("illegal constant")
-			}
-			yyVAL.addr2.to.Offset = yyS[yypt-4].addr.Offset
-		}
-	case 57:
-		//line a.y:299
-		{
-			yyVAL.addr2.from = nullgen
-			yyVAL.addr2.to = nullgen
-		}
 	case 58:
-		//line a.y:304
-		{
-			yyVAL.addr2.from = yyS[yypt-0].addr
-			yyVAL.addr2.to = nullgen
-		}
-	case 59:
 		//line a.y:311
 		{
 			yyVAL.addr2.from = yyS[yypt-2].addr
 			yyVAL.addr2.to = yyS[yypt-0].addr
+			if yyS[yypt-4].addr.Type != obj.TYPE_CONST {
+				yyerror("illegal constant")
+			}
+			yyVAL.addr2.to.Offset = yyS[yypt-4].addr.Offset
+		}
+	case 59:
+		//line a.y:321
+		{
+			yyVAL.addr2.from = nullgen
+			yyVAL.addr2.to = nullgen
 		}
 	case 60:
-		//line a.y:316
+		//line a.y:326
 		{
-			yyVAL.addr2.from = yyS[yypt-4].addr
-			yyVAL.addr2.from.Scale = int8(yyS[yypt-2].lval)
-			yyVAL.addr2.to = yyS[yypt-0].addr
+			yyVAL.addr2.from = yyS[yypt-0].addr
+			yyVAL.addr2.to = nullgen
 		}
 	case 61:
-		//line a.y:324
+		//line a.y:333
 		{
-			if yyS[yypt-2].addr.Type != x86.D_CONST || yyS[yypt-0].addr.Type != x86.D_CONST {
+			if yyS[yypt-2].addr.Type != obj.TYPE_CONST || yyS[yypt-0].addr.Type != obj.TYPE_CONST {
 				yyerror("arguments to asm.PCDATA must be integer constants")
 			}
 			yyVAL.addr2.from = yyS[yypt-2].addr
 			yyVAL.addr2.to = yyS[yypt-0].addr
 		}
 	case 62:
-		//line a.y:334
+		//line a.y:343
 		{
-			if yyS[yypt-2].addr.Type != x86.D_CONST {
+			if yyS[yypt-2].addr.Type != obj.TYPE_CONST {
 				yyerror("index for FUNCDATA must be integer constant")
 			}
-			if yyS[yypt-0].addr.Type != x86.D_EXTERN && yyS[yypt-0].addr.Type != x86.D_STATIC {
+			if yyS[yypt-0].addr.Type != obj.TYPE_MEM || (yyS[yypt-0].addr.Name != obj.NAME_EXTERN && yyS[yypt-0].addr.Name != obj.NAME_STATIC) {
 				yyerror("value for FUNCDATA must be symbol reference")
 			}
 			yyVAL.addr2.from = yyS[yypt-2].addr
@@ -926,12 +922,12 @@ yydefault:
 	case 66:
 		yyVAL.addr = yyS[yypt-0].addr
 	case 67:
-		//line a.y:353
+		//line a.y:362
 		{
 			yyVAL.addr = yyS[yypt-0].addr
 		}
 	case 68:
-		//line a.y:357
+		//line a.y:366
 		{
 			yyVAL.addr = yyS[yypt-0].addr
 		}
@@ -944,367 +940,388 @@ yydefault:
 	case 72:
 		yyVAL.addr = yyS[yypt-0].addr
 	case 73:
-		//line a.y:369
+		//line a.y:378
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_BRANCH
+			yyVAL.addr.Type = obj.TYPE_BRANCH
 			yyVAL.addr.Offset = yyS[yypt-3].lval + int64(asm.PC)
 		}
 	case 74:
-		//line a.y:375
+		//line a.y:384
 		{
 			yyS[yypt-1].sym = asm.LabelLookup(yyS[yypt-1].sym)
 			yyVAL.addr = nullgen
 			if asm.Pass == 2 && yyS[yypt-1].sym.Type != LLAB {
 				yyerror("undefined label: %s", yyS[yypt-1].sym.Labelname)
 			}
-			yyVAL.addr.Type = x86.D_BRANCH
+			yyVAL.addr.Type = obj.TYPE_BRANCH
 			yyVAL.addr.Offset = yyS[yypt-1].sym.Value + yyS[yypt-0].lval
 		}
 	case 75:
-		//line a.y:387
+		//line a.y:396
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(yyS[yypt-0].lval)
+			yyVAL.addr.Type = obj.TYPE_REG
+			yyVAL.addr.Reg = int16(yyS[yypt-0].lval)
 		}
 	case 76:
-		//line a.y:392
-		{
-			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(yyS[yypt-0].lval)
-		}
-	case 77:
-		//line a.y:397
-		{
-			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(yyS[yypt-0].lval)
-		}
-	case 78:
 		//line a.y:402
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(yyS[yypt-0].lval)
+			yyVAL.addr.Type = obj.TYPE_REG
+			yyVAL.addr.Reg = int16(yyS[yypt-0].lval)
+		}
+	case 77:
+		//line a.y:408
+		{
+			yyVAL.addr = nullgen
+			yyVAL.addr.Type = obj.TYPE_REG
+			yyVAL.addr.Reg = int16(yyS[yypt-0].lval)
+		}
+	case 78:
+		//line a.y:414
+		{
+			yyVAL.addr = nullgen
+			yyVAL.addr.Type = obj.TYPE_REG
+			yyVAL.addr.Reg = int16(yyS[yypt-0].lval)
 		}
 	case 79:
-		//line a.y:407
+		//line a.y:420
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_SP
+			yyVAL.addr.Type = obj.TYPE_REG
+			yyVAL.addr.Reg = x86.REG_SP
 		}
 	case 80:
-		//line a.y:412
+		//line a.y:426
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(yyS[yypt-0].lval)
+			yyVAL.addr.Type = obj.TYPE_REG
+			yyVAL.addr.Reg = int16(yyS[yypt-0].lval)
 		}
 	case 81:
-		//line a.y:417
+		//line a.y:432
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(yyS[yypt-0].lval)
+			yyVAL.addr.Type = obj.TYPE_REG
+			yyVAL.addr.Reg = int16(yyS[yypt-0].lval)
 		}
 	case 82:
-		//line a.y:423
+		//line a.y:440
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_CONST
+			yyVAL.addr.Type = obj.TYPE_CONST
 			yyVAL.addr.Offset = yyS[yypt-0].lval
 		}
 	case 83:
-		//line a.y:431
-		{
-			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_CONST
-			yyVAL.addr.Offset = yyS[yypt-0].lval
-		}
-	case 84:
-		//line a.y:437
+		//line a.y:446
 		{
 			yyVAL.addr = yyS[yypt-0].addr
-			yyVAL.addr.Index = uint8(yyS[yypt-0].addr.Type)
-			yyVAL.addr.Type = x86.D_ADDR
+			yyVAL.addr.Type = obj.TYPE_ADDR
 			/*
 				if($2.Type == x86.D_AUTO || $2.Type == x86.D_PARAM)
 					yyerror("constant cannot be automatic: %s",
 						$2.sym.Name);
 			*/
 		}
-	case 85:
-		//line a.y:447
+	case 84:
+		//line a.y:455
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_SCONST
+			yyVAL.addr.Type = obj.TYPE_SCONST
 			yyVAL.addr.U.Sval = (yyS[yypt-0].sval + "\x00\x00\x00\x00\x00\x00\x00\x00")[:8]
 		}
-	case 86:
-		//line a.y:453
+	case 85:
+		//line a.y:461
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_FCONST
+			yyVAL.addr.Type = obj.TYPE_FCONST
 			yyVAL.addr.U.Dval = yyS[yypt-0].dval
 		}
-	case 87:
-		//line a.y:459
+	case 86:
+		//line a.y:467
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_FCONST
+			yyVAL.addr.Type = obj.TYPE_FCONST
 			yyVAL.addr.U.Dval = yyS[yypt-1].dval
 		}
-	case 88:
-		//line a.y:465
+	case 87:
+		//line a.y:473
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_FCONST
+			yyVAL.addr.Type = obj.TYPE_FCONST
 			yyVAL.addr.U.Dval = -yyS[yypt-1].dval
 		}
-	case 89:
-		//line a.y:471
+	case 88:
+		//line a.y:479
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_FCONST
+			yyVAL.addr.Type = obj.TYPE_FCONST
 			yyVAL.addr.U.Dval = -yyS[yypt-0].dval
 		}
+	case 89:
+		yyVAL.addr = yyS[yypt-0].addr
 	case 90:
 		yyVAL.addr = yyS[yypt-0].addr
 	case 91:
-		yyVAL.addr = yyS[yypt-0].addr
-	case 92:
-		//line a.y:483
+		//line a.y:491
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_INDIR + x86.D_NONE
+			yyVAL.addr.Type = obj.TYPE_MEM
 			yyVAL.addr.Offset = yyS[yypt-0].lval
 		}
-	case 93:
-		//line a.y:489
+	case 92:
+		//line a.y:497
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(x86.D_INDIR + yyS[yypt-1].lval)
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Reg = int16(yyS[yypt-1].lval)
+			yyVAL.addr.Offset = yyS[yypt-3].lval
+		}
+	case 93:
+		//line a.y:504
+		{
+			yyVAL.addr = nullgen
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Reg = x86.REG_SP
 			yyVAL.addr.Offset = yyS[yypt-3].lval
 		}
 	case 94:
-		//line a.y:495
+		//line a.y:511
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(x86.D_INDIR + x86.D_SP)
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Reg = int16(yyS[yypt-1].lval)
 			yyVAL.addr.Offset = yyS[yypt-3].lval
 		}
 	case 95:
-		//line a.y:501
+		//line a.y:518
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(x86.D_INDIR + yyS[yypt-1].lval)
-			yyVAL.addr.Offset = yyS[yypt-3].lval
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Offset = yyS[yypt-5].lval
+			yyVAL.addr.Index = int16(yyS[yypt-3].lval)
+			yyVAL.addr.Scale = int8(yyS[yypt-1].lval)
+			checkscale(yyVAL.addr.Scale)
 		}
 	case 96:
-		//line a.y:507
+		//line a.y:527
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(x86.D_INDIR + x86.D_NONE)
-			yyVAL.addr.Offset = yyS[yypt-5].lval
-			yyVAL.addr.Index = uint8(yyS[yypt-3].lval)
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Reg = int16(yyS[yypt-6].lval)
+			yyVAL.addr.Offset = yyS[yypt-8].lval
+			yyVAL.addr.Index = int16(yyS[yypt-3].lval)
 			yyVAL.addr.Scale = int8(yyS[yypt-1].lval)
 			checkscale(yyVAL.addr.Scale)
 		}
 	case 97:
-		//line a.y:516
+		//line a.y:537
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(x86.D_INDIR + yyS[yypt-6].lval)
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Reg = int16(yyS[yypt-6].lval)
 			yyVAL.addr.Offset = yyS[yypt-8].lval
-			yyVAL.addr.Index = uint8(yyS[yypt-3].lval)
+			yyVAL.addr.Index = int16(yyS[yypt-3].lval)
 			yyVAL.addr.Scale = int8(yyS[yypt-1].lval)
 			checkscale(yyVAL.addr.Scale)
 		}
 	case 98:
-		//line a.y:525
+		//line a.y:547
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(x86.D_INDIR + yyS[yypt-6].lval)
-			yyVAL.addr.Offset = yyS[yypt-8].lval
-			yyVAL.addr.Index = uint8(yyS[yypt-3].lval)
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Reg = int16(yyS[yypt-1].lval)
+		}
+	case 99:
+		//line a.y:553
+		{
+			yyVAL.addr = nullgen
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Reg = x86.REG_SP
+		}
+	case 100:
+		//line a.y:559
+		{
+			yyVAL.addr = nullgen
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Index = int16(yyS[yypt-3].lval)
 			yyVAL.addr.Scale = int8(yyS[yypt-1].lval)
 			checkscale(yyVAL.addr.Scale)
 		}
-	case 99:
-		//line a.y:534
-		{
-			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(x86.D_INDIR + yyS[yypt-1].lval)
-		}
-	case 100:
-		//line a.y:539
-		{
-			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(x86.D_INDIR + x86.D_SP)
-		}
 	case 101:
-		//line a.y:544
+		//line a.y:567
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(x86.D_INDIR + x86.D_NONE)
-			yyVAL.addr.Index = uint8(yyS[yypt-3].lval)
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Reg = int16(yyS[yypt-6].lval)
+			yyVAL.addr.Index = int16(yyS[yypt-3].lval)
 			yyVAL.addr.Scale = int8(yyS[yypt-1].lval)
 			checkscale(yyVAL.addr.Scale)
 		}
 	case 102:
-		//line a.y:552
-		{
-			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(x86.D_INDIR + yyS[yypt-6].lval)
-			yyVAL.addr.Index = uint8(yyS[yypt-3].lval)
-			yyVAL.addr.Scale = int8(yyS[yypt-1].lval)
-			checkscale(yyVAL.addr.Scale)
-		}
-	case 103:
-		//line a.y:562
+		//line a.y:578
 		{
 			yyVAL.addr = yyS[yypt-0].addr
 		}
-	case 104:
-		//line a.y:566
+	case 103:
+		//line a.y:582
 		{
 			yyVAL.addr = yyS[yypt-5].addr
-			yyVAL.addr.Index = uint8(yyS[yypt-3].lval)
+			yyVAL.addr.Index = int16(yyS[yypt-3].lval)
 			yyVAL.addr.Scale = int8(yyS[yypt-1].lval)
 			checkscale(yyVAL.addr.Scale)
 		}
-	case 105:
-		//line a.y:575
+	case 104:
+		//line a.y:591
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = int16(yyS[yypt-1].lval)
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Name = int8(yyS[yypt-1].lval)
 			yyVAL.addr.Sym = obj.Linklookup(asm.Ctxt, yyS[yypt-4].sym.Name, 0)
 			yyVAL.addr.Offset = yyS[yypt-3].lval
 		}
-	case 106:
-		//line a.y:582
+	case 105:
+		//line a.y:599
 		{
 			yyVAL.addr = nullgen
-			yyVAL.addr.Type = x86.D_STATIC
+			yyVAL.addr.Type = obj.TYPE_MEM
+			yyVAL.addr.Name = obj.NAME_STATIC
 			yyVAL.addr.Sym = obj.Linklookup(asm.Ctxt, yyS[yypt-6].sym.Name, 1)
 			yyVAL.addr.Offset = yyS[yypt-3].lval
 		}
-	case 107:
-		//line a.y:590
+	case 106:
+		//line a.y:608
 		{
 			yyVAL.lval = 0
 		}
-	case 108:
-		//line a.y:594
+	case 107:
+		//line a.y:612
 		{
 			yyVAL.lval = yyS[yypt-0].lval
 		}
-	case 109:
-		//line a.y:598
+	case 108:
+		//line a.y:616
 		{
 			yyVAL.lval = -yyS[yypt-0].lval
 		}
-	case 110:
+	case 109:
 		yyVAL.lval = yyS[yypt-0].lval
-	case 111:
-		//line a.y:605
+	case 110:
+		//line a.y:623
 		{
-			yyVAL.lval = x86.D_AUTO
+			yyVAL.lval = obj.NAME_AUTO
 		}
+	case 111:
+		yyVAL.lval = yyS[yypt-0].lval
 	case 112:
 		yyVAL.lval = yyS[yypt-0].lval
 	case 113:
-		yyVAL.lval = yyS[yypt-0].lval
-	case 114:
-		//line a.y:613
+		//line a.y:631
 		{
 			yyVAL.lval = yyS[yypt-0].sym.Value
 		}
-	case 115:
-		//line a.y:617
+	case 114:
+		//line a.y:635
 		{
 			yyVAL.lval = -yyS[yypt-0].lval
 		}
-	case 116:
-		//line a.y:621
+	case 115:
+		//line a.y:639
 		{
 			yyVAL.lval = yyS[yypt-0].lval
 		}
-	case 117:
-		//line a.y:625
+	case 116:
+		//line a.y:643
 		{
 			yyVAL.lval = ^yyS[yypt-0].lval
 		}
-	case 118:
-		//line a.y:629
+	case 117:
+		//line a.y:647
 		{
 			yyVAL.lval = yyS[yypt-1].lval
 		}
-	case 119:
-		//line a.y:635
+	case 118:
+		//line a.y:653
 		{
-			yyVAL.lval = int64(uint64(yyS[yypt-0].lval&0xffffffff) + (obj.ArgsSizeUnknown << 32))
+			yyVAL.addr = nullgen
+			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+			yyVAL.addr.Offset = yyS[yypt-0].lval
+			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
+		}
+	case 119:
+		//line a.y:660
+		{
+			yyVAL.addr = nullgen
+			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+			yyVAL.addr.Offset = -yyS[yypt-0].lval
+			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
 		}
 	case 120:
-		//line a.y:639
+		//line a.y:667
 		{
-			yyVAL.lval = int64(uint64(-yyS[yypt-0].lval&0xffffffff) + (obj.ArgsSizeUnknown << 32))
+			yyVAL.addr = nullgen
+			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+			yyVAL.addr.Offset = yyS[yypt-2].lval
+			yyVAL.addr.U.Argsize = int32(yyS[yypt-0].lval)
 		}
 	case 121:
-		//line a.y:643
+		//line a.y:674
 		{
-			yyVAL.lval = (yyS[yypt-2].lval & 0xffffffff) + ((yyS[yypt-0].lval & 0xffff) << 32)
+			yyVAL.addr = nullgen
+			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+			yyVAL.addr.Offset = -yyS[yypt-2].lval
+			yyVAL.addr.U.Argsize = int32(yyS[yypt-0].lval)
 		}
 	case 122:
-		//line a.y:647
-		{
-			yyVAL.lval = (-yyS[yypt-2].lval & 0xffffffff) + ((yyS[yypt-0].lval & 0xffff) << 32)
-		}
-	case 123:
 		yyVAL.lval = yyS[yypt-0].lval
-	case 124:
-		//line a.y:654
+	case 123:
+		//line a.y:684
 		{
 			yyVAL.lval = yyS[yypt-2].lval + yyS[yypt-0].lval
 		}
-	case 125:
-		//line a.y:658
+	case 124:
+		//line a.y:688
 		{
 			yyVAL.lval = yyS[yypt-2].lval - yyS[yypt-0].lval
 		}
-	case 126:
-		//line a.y:662
+	case 125:
+		//line a.y:692
 		{
 			yyVAL.lval = yyS[yypt-2].lval * yyS[yypt-0].lval
 		}
-	case 127:
-		//line a.y:666
+	case 126:
+		//line a.y:696
 		{
 			yyVAL.lval = yyS[yypt-2].lval / yyS[yypt-0].lval
 		}
-	case 128:
-		//line a.y:670
+	case 127:
+		//line a.y:700
 		{
 			yyVAL.lval = yyS[yypt-2].lval % yyS[yypt-0].lval
 		}
-	case 129:
-		//line a.y:674
+	case 128:
+		//line a.y:704
 		{
 			yyVAL.lval = yyS[yypt-3].lval << uint(yyS[yypt-0].lval)
 		}
-	case 130:
-		//line a.y:678
+	case 129:
+		//line a.y:708
 		{
 			yyVAL.lval = yyS[yypt-3].lval >> uint(yyS[yypt-0].lval)
 		}
-	case 131:
-		//line a.y:682
+	case 130:
+		//line a.y:712
 		{
 			yyVAL.lval = yyS[yypt-2].lval & yyS[yypt-0].lval
 		}
-	case 132:
-		//line a.y:686
+	case 131:
+		//line a.y:716
 		{
 			yyVAL.lval = yyS[yypt-2].lval ^ yyS[yypt-0].lval
 		}
-	case 133:
-		//line a.y:690
+	case 132:
+		//line a.y:720
 		{
 			yyVAL.lval = yyS[yypt-2].lval | yyS[yypt-0].lval
 		}

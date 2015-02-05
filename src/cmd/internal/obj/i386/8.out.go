@@ -30,9 +30,10 @@
 
 package i386
 
+import "cmd/internal/obj"
+
 const (
-	AXXX = iota
-	AAAA
+	AAAA = obj.A_ARCHSPECIFIC + iota
 	AAAD
 	AAAM
 	AAAS
@@ -62,7 +63,6 @@ const (
 	ABTSL
 	ABTSW
 	ABYTE
-	ACALL
 	ACLC
 	ACLD
 	ACLI
@@ -76,7 +76,6 @@ const (
 	ACMPSW
 	ADAA
 	ADAS
-	ADATA
 	ADECB
 	ADECL
 	ADECW
@@ -84,9 +83,6 @@ const (
 	ADIVL
 	ADIVW
 	AENTER
-	AGLOBL
-	AGOK
-	AHISTORY
 	AHLT
 	AIDIVB
 	AIDIVL
@@ -119,7 +115,6 @@ const (
 	AJLS
 	AJLT
 	AJMI
-	AJMP
 	AJNE
 	AJOC
 	AJOS
@@ -159,11 +154,9 @@ const (
 	AMULB
 	AMULL
 	AMULW
-	ANAME
 	ANEGB
 	ANEGL
 	ANEGW
-	ANOP
 	ANOTB
 	ANOTL
 	ANOTW
@@ -197,7 +190,6 @@ const (
 	ARCRW
 	AREP
 	AREPN
-	ARET
 	AROLB
 	AROLL
 	AROLW
@@ -254,7 +246,6 @@ const (
 	ATESTB
 	ATESTL
 	ATESTW
-	ATEXT
 	AVERR
 	AVERW
 	AWAIT
@@ -367,10 +358,6 @@ const (
 	AFXTRACT
 	AFYL2X
 	AFYL2XP1
-	AEND
-	ADYNT_
-	AINIT_
-	ASIGNAME
 	ACMPXCHGB
 	ACMPXCHGL
 	ACMPXCHGW
@@ -429,7 +416,6 @@ const (
 	APREFETCHT2
 	APREFETCHNTA
 	ABSWAPL
-	AUNDEF
 	AADDPD
 	AADDPS
 	AADDSD
@@ -544,73 +530,53 @@ const (
 	AAESENC
 	APINSRD
 	APSHUFB
-	AUSEFIELD
-	ATYPE
-	AFUNCDATA
-	APCDATA
-	ACHECKNIL
-	AVARDEF
-	AVARKILL
-	ADUFFCOPY
-	ADUFFZERO
 	ALAST
 )
 
 const (
-	D_AL = 0 + iota
-	D_CL
-	D_DL
-	D_BL
-	D_AH = 4 + iota - 4
-	D_CH
-	D_DH
-	D_BH
-	D_AX = 8 + iota - 8
-	D_CX
-	D_DX
-	D_BX
-	D_SP
-	D_BP
-	D_SI
-	D_DI
-	D_F0 = 16
-	D_F7 = D_F0 + 7
-	D_CS = 24 + iota - 18
-	D_SS
-	D_DS
-	D_ES
-	D_FS
-	D_GS
-	D_GDTR
-	D_IDTR
-	D_LDTR
-	D_MSW
-	D_TASK
-	D_CR = 35
-	D_DR = 43
-	D_TR = 51
-	D_X0 = 59 + iota - 32
-	D_X1
-	D_X2
-	D_X3
-	D_X4
-	D_X5
-	D_X6
-	D_X7
-	D_TLS    = 67
-	D_NONE   = 68
-	D_BRANCH = 69
-	D_EXTERN = 70
-	D_STATIC = 71
-	D_AUTO   = 72
-	D_PARAM  = 73
-	D_CONST  = 74
-	D_FCONST = 75
-	D_SCONST = 76
-	D_ADDR   = 77 + iota - 50
-	D_INDIR
-	D_CONST2 = D_INDIR + D_INDIR + iota - 52
-	D_LAST
+	REG_NONE = 0
+	REG_AL   = 0 + 16 + iota - 1
+	REG_CL
+	REG_DL
+	REG_BL
+	REG_AH = 4 + 16 + iota - 5
+	REG_CH
+	REG_DH
+	REG_BH
+	REG_AX = 8 + 16 + iota - 9
+	REG_CX
+	REG_DX
+	REG_BX
+	REG_SP
+	REG_BP
+	REG_SI
+	REG_DI
+	REG_F0 = 16 + 16
+	REG_F7 = REG_F0 + 7 + 16
+	REG_CS = 24 + 16 + iota - 19
+	REG_SS
+	REG_DS
+	REG_ES
+	REG_FS
+	REG_GS
+	REG_GDTR
+	REG_IDTR
+	REG_LDTR
+	REG_MSW
+	REG_TASK
+	REG_CR = 35 + 16
+	REG_DR = 43 + 16
+	REG_TR = 51 + 16
+	REG_X0 = 59 + 16 + iota - 33
+	REG_X1
+	REG_X2
+	REG_X3
+	REG_X4
+	REG_X5
+	REG_X6
+	REG_X7
+	REG_TLS   = 67 + 16
+	MAXREG    = 68 + 16
 	T_TYPE    = 1 << 0
 	T_INDEX   = 1 << 1
 	T_OFFSET  = 1 << 2
@@ -620,8 +586,8 @@ const (
 	T_OFFSET2 = 1 << 6
 	T_GOTYPE  = 1 << 7
 	REGARG    = -1
-	REGRET    = D_AX
-	FREGRET   = D_F0
-	REGSP     = D_SP
-	REGTMP    = D_DI
+	REGRET    = REG_AX
+	FREGRET   = REG_F0
+	REGSP     = REG_SP
+	REGTMP    = REG_DI
 )

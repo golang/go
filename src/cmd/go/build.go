@@ -1678,7 +1678,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 // verifyAsm specifies whether to check the assemblers written in Go
 // against the assemblers written in C. If set, asm will run both (say) 6a and new6a
 // and fail if the two produce different output files.
-const verifyAsm = false
+const verifyAsm = true
 
 func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
@@ -1691,8 +1691,8 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	if verifyAsm {
 		newArgs := make([]interface{}, len(args))
 		copy(newArgs, args)
-		newArgs[0] = tool("new" + archChar + "a")
-		newArgs[2] = ofile + ".new" // x.6 becomes x.6.new
+		newArgs[1] = tool("new" + archChar + "a")
+		newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
 		if err := b.run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
 			return err
 		}
@@ -1705,7 +1705,7 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 			return err
 		}
 		if !bytes.Equal(data1, data2) {
-			return fmt.Errorf("%sa and n%sa produced different output files:\n%s\n%s", archChar, archChar, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
+			return fmt.Errorf("%sa and new%sa produced different output files:\n%s\n%s", archChar, archChar, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
 		}
 	}
 	return nil

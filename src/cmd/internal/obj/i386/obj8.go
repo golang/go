@@ -38,51 +38,6 @@ import (
 	"math"
 )
 
-var zprg = obj.Prog{
-	Back: 2,
-	As:   AGOK,
-	From: obj.Addr{
-		Type:  D_NONE,
-		Index: D_NONE,
-		Scale: 1,
-	},
-	To: obj.Addr{
-		Type:  D_NONE,
-		Index: D_NONE,
-		Scale: 1,
-	},
-}
-
-func symtype(a *obj.Addr) int {
-	var t int
-
-	t = int(a.Type)
-	if t == D_ADDR {
-		t = int(a.Index)
-	}
-	return t
-}
-
-func isdata(p *obj.Prog) bool {
-	return p.As == ADATA || p.As == AGLOBL
-}
-
-func iscall(p *obj.Prog) bool {
-	return p.As == ACALL
-}
-
-func datasize(p *obj.Prog) int {
-	return int(p.From.Scale)
-}
-
-func textflag(p *obj.Prog) int {
-	return int(p.From.Scale)
-}
-
-func settextflag(p *obj.Prog, f int) {
-	p.From.Scale = int8(f)
-}
-
 func canuselocaltls(ctxt *obj.Link) int {
 	switch ctxt.Headtype {
 	case obj.Hlinux,
@@ -102,7 +57,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 
 	// See obj6.c for discussion of TLS.
 	if canuselocaltls(ctxt) != 0 {
-
 		// Reduce TLS initial exec model to TLS local exec model.
 		// Sequences like
 		//	MOVL TLS, BX
@@ -110,26 +64,26 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		// become
 		//	NOP
 		//	... off(TLS) ...
-		if p.As == AMOVL && p.From.Type == D_TLS && D_AX <= p.To.Type && p.To.Type <= D_DI {
-
-			p.As = ANOP
-			p.From.Type = D_NONE
-			p.To.Type = D_NONE
+		if p.As == AMOVL && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_DI {
+			p.As = obj.ANOP
+			p.From.Type = obj.TYPE_NONE
+			p.To.Type = obj.TYPE_NONE
 		}
 
-		if p.From.Index == D_TLS && D_INDIR+D_AX <= p.From.Type && p.From.Type <= D_INDIR+D_DI {
-			p.From.Type = D_INDIR + D_TLS
+		if p.From.Type == obj.TYPE_MEM && p.From.Index == REG_TLS && REG_AX <= p.From.Reg && p.From.Reg <= REG_DI {
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = REG_TLS
 			p.From.Scale = 0
-			p.From.Index = D_NONE
+			p.From.Index = REG_NONE
 		}
 
-		if p.To.Index == D_TLS && D_INDIR+D_AX <= p.To.Type && p.To.Type <= D_INDIR+D_DI {
-			p.To.Type = D_INDIR + D_TLS
+		if p.To.Type == obj.TYPE_MEM && p.To.Index == REG_TLS && REG_AX <= p.To.Reg && p.To.Reg <= REG_DI {
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = REG_TLS
 			p.To.Scale = 0
-			p.To.Index = D_NONE
+			p.To.Index = REG_NONE
 		}
 	} else {
-
 		// As a courtesy to the C compilers, rewrite TLS local exec load as TLS initial exec load.
 		// The instruction
 		//	MOVL off(TLS), BX
@@ -137,59 +91,52 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		//	MOVL TLS, BX
 		//	MOVL off(BX)(TLS*1), BX
 		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
-		if p.As == AMOVL && p.From.Type == D_INDIR+D_TLS && D_AX <= p.To.Type && p.To.Type <= D_DI {
-
+		if p.As == AMOVL && p.From.Type == obj.TYPE_MEM && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_DI {
 			q = obj.Appendp(ctxt, p)
 			q.As = p.As
-			q.From = p.From
-			q.From.Type = D_INDIR + p.To.Type
-			q.From.Index = D_TLS
+			q.From.Type = obj.TYPE_MEM
+			q.From.Reg = p.To.Reg
+			q.From.Index = REG_TLS
 			q.From.Scale = 2 // TODO: use 1
 			q.To = p.To
-			p.From.Type = D_TLS
-			p.From.Index = D_NONE
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = REG_TLS
+			p.From.Index = REG_NONE
 			p.From.Offset = 0
 		}
 	}
 
 	// TODO: Remove.
 	if ctxt.Headtype == obj.Hplan9 {
-
-		if p.From.Scale == 1 && p.From.Index == D_TLS {
+		if p.From.Scale == 1 && p.From.Index == REG_TLS {
 			p.From.Scale = 2
 		}
-		if p.To.Scale == 1 && p.To.Index == D_TLS {
+		if p.To.Scale == 1 && p.To.Index == REG_TLS {
 			p.To.Scale = 2
 		}
 	}
 
-	// Rewrite CALL/JMP/RET to symbol as D_BRANCH.
+	// Rewrite CALL/JMP/RET to symbol as TYPE_BRANCH.
 	switch p.As {
-
-	case ACALL,
-		AJMP,
-		ARET:
-		if (p.To.Type == D_EXTERN || p.To.Type == D_STATIC) && p.To.Sym != nil {
-			p.To.Type = D_BRANCH
+	case obj.ACALL,
+		obj.AJMP,
+		obj.ARET:
+		if p.To.Type == obj.TYPE_MEM && (p.To.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_STATIC) && p.To.Sym != nil {
+			p.To.Type = obj.TYPE_BRANCH
 		}
 		break
 	}
 
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
-
 	// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
 	case AMOVSS:
-		if p.From.Type == D_FCONST {
-
+		if p.From.Type == obj.TYPE_FCONST {
 			if p.From.U.Dval == 0 {
-				if p.To.Type >= D_X0 {
-					if p.To.Type <= D_X7 {
-						p.As = AXORPS
-						p.From.Type = p.To.Type
-						p.From.Index = p.To.Index
-						break
-					}
+				if p.To.Type == obj.TYPE_REG && REG_X0 <= p.To.Reg && p.To.Reg <= REG_X7 {
+					p.As = AXORPS
+					p.From = p.To
+					break
 				}
 			}
 		}
@@ -212,8 +159,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		ADIVSS,
 		ACOMISS,
 		AUCOMISS:
-		if p.From.Type == D_FCONST {
-
+		if p.From.Type == obj.TYPE_FCONST {
 			var i32 uint32
 			var f32 float32
 			f32 = float32(p.From.U.Dval)
@@ -226,23 +172,20 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 				s.Reachable = 0
 			}
 
-			p.From.Type = D_EXTERN
+			p.From.Type = obj.TYPE_MEM
+			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
 			p.From.Offset = 0
 		}
 
 		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
 	case AMOVSD:
-		if p.From.Type == D_FCONST {
-
+		if p.From.Type == obj.TYPE_FCONST {
 			if p.From.U.Dval == 0 {
-				if p.To.Type >= D_X0 {
-					if p.To.Type <= D_X7 {
-						p.As = AXORPS
-						p.From.Type = p.To.Type
-						p.From.Index = p.To.Index
-						break
-					}
+				if p.To.Type == obj.TYPE_REG && REG_X0 <= p.To.Reg && p.To.Reg <= REG_X7 {
+					p.As = AXORPS
+					p.From = p.To
+					break
 				}
 			}
 		}
@@ -265,8 +208,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		ADIVSD,
 		ACOMISD,
 		AUCOMISD:
-		if p.From.Type == D_FCONST {
-
+		if p.From.Type == obj.TYPE_FCONST {
 			var i64 uint64
 			i64 = math.Float64bits(p.From.U.Dval)
 			literal = fmt.Sprintf("$f64.%016x", i64)
@@ -277,7 +219,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 				s.Reachable = 0
 			}
 
-			p.From.Type = D_EXTERN
+			p.From.Type = obj.TYPE_MEM
+			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
 			p.From.Offset = 0
 		}
@@ -286,12 +229,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	}
 }
 
-func prg() *obj.Prog {
-	p := zprg
-	return &p
-}
-
-func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
+func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	var p *obj.Prog
 	var q *obj.Prog
 	var p1 *obj.Prog
@@ -322,37 +260,35 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	cursym.Locals = autoffset
-	cursym.Args = p.To.Offset2
+	cursym.Args = p.To.U.Argsize
 
 	q = nil
 
-	if !(p.From.Scale&obj.NOSPLIT != 0) || (p.From.Scale&obj.WRAPPER != 0) {
+	if !(p.From3.Offset&obj.NOSPLIT != 0) || (p.From3.Offset&obj.WRAPPER != 0) {
 		p = obj.Appendp(ctxt, p)
 		p = load_g_cx(ctxt, p) // load g into CX
 	}
 
-	if !(cursym.Text.From.Scale&obj.NOSPLIT != 0) {
-		p = stacksplit(ctxt, p, autoffset, bool2int(!(cursym.Text.From.Scale&obj.NEEDCTXT != 0)), &q) // emit split check
+	if !(cursym.Text.From3.Offset&obj.NOSPLIT != 0) {
+		p = stacksplit(ctxt, p, autoffset, bool2int(!(cursym.Text.From3.Offset&obj.NEEDCTXT != 0)), &q) // emit split check
 	}
 
 	if autoffset != 0 {
-
 		p = obj.Appendp(ctxt, p)
 		p.As = AADJSP
-		p.From.Type = D_CONST
+		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(autoffset)
 		p.Spadj = autoffset
 	} else {
-
 		// zero-byte stack adjustment.
 		// Insert a fake non-zero adjustment so that stkcheck can
 		// recognize the end of the stack-splitting prolog.
 		p = obj.Appendp(ctxt, p)
 
-		p.As = ANOP
+		p.As = obj.ANOP
 		p.Spadj = int32(-ctxt.Arch.Ptrsize)
 		p = obj.Appendp(ctxt, p)
-		p.As = ANOP
+		p.As = obj.ANOP
 		p.Spadj = int32(ctxt.Arch.Ptrsize)
 	}
 
@@ -361,7 +297,7 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 	deltasp = autoffset
 
-	if cursym.Text.From.Scale&obj.WRAPPER != 0 {
+	if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 		//
 		//	MOVL g_panic(CX), BX
@@ -380,71 +316,85 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 		p = obj.Appendp(ctxt, p)
 
 		p.As = AMOVL
-		p.From.Type = D_INDIR + D_CX
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REG_CX
 		p.From.Offset = 4 * int64(ctxt.Arch.Ptrsize) // G.panic
-		p.To.Type = D_BX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_BX
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ATESTL
-		p.From.Type = D_BX
-		p.To.Type = D_BX
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_BX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_BX
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AJEQ
-		p.To.Type = D_BRANCH
+		p.To.Type = obj.TYPE_BRANCH
 		p1 = p
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ALEAL
-		p.From.Type = D_INDIR + D_SP
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REG_SP
 		p.From.Offset = int64(autoffset) + 4
-		p.To.Type = D_DI
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_DI
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ACMPL
-		p.From.Type = D_INDIR + D_BX
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REG_BX
 		p.From.Offset = 0 // Panic.argp
-		p.To.Type = D_DI
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_DI
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AJNE
-		p.To.Type = D_BRANCH
+		p.To.Type = obj.TYPE_BRANCH
 		p2 = p
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AMOVL
-		p.From.Type = D_SP
-		p.To.Type = D_INDIR + D_BX
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_SP
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = REG_BX
 		p.To.Offset = 0 // Panic.argp
 
 		p = obj.Appendp(ctxt, p)
 
-		p.As = ANOP
+		p.As = obj.ANOP
 		p1.Pcond = p
 		p2.Pcond = p
 	}
 
-	if ctxt.Debugzerostack != 0 && autoffset != 0 && !(cursym.Text.From.Scale&obj.NOSPLIT != 0) {
+	if ctxt.Debugzerostack != 0 && autoffset != 0 && !(cursym.Text.From3.Offset&obj.NOSPLIT != 0) {
 		// 8l -Z means zero the stack frame on entry.
 		// This slows down function calls but can help avoid
 		// false positives in garbage collection.
 		p = obj.Appendp(ctxt, p)
 
 		p.As = AMOVL
-		p.From.Type = D_SP
-		p.To.Type = D_DI
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_SP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_DI
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AMOVL
-		p.From.Type = D_CONST
+		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(autoffset) / 4
-		p.To.Type = D_CX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_CX
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AMOVL
-		p.From.Type = D_CONST
+		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 0
-		p.To.Type = D_AX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_AX
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AREP
@@ -454,18 +404,18 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	for ; p != nil; p = p.Link {
-		a = int(p.From.Type)
-		if a == D_AUTO {
+		a = int(p.From.Name)
+		if a == obj.NAME_AUTO {
 			p.From.Offset += int64(deltasp)
 		}
-		if a == D_PARAM {
+		if a == obj.NAME_PARAM {
 			p.From.Offset += int64(deltasp) + 4
 		}
-		a = int(p.To.Type)
-		if a == D_AUTO {
+		a = int(p.To.Name)
+		if a == obj.NAME_AUTO {
 			p.To.Offset += int64(deltasp)
 		}
-		if a == D_PARAM {
+		if a == obj.NAME_PARAM {
 			p.To.Offset += int64(deltasp) + 4
 		}
 
@@ -497,7 +447,7 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 			p.Spadj = -2
 			continue
 
-		case ARET:
+		case obj.ARET:
 			break
 		}
 
@@ -507,11 +457,11 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 
 		if autoffset != 0 {
 			p.As = AADJSP
-			p.From.Type = D_CONST
+			p.From.Type = obj.TYPE_CONST
 			p.From.Offset = int64(-autoffset)
 			p.Spadj = -autoffset
 			p = obj.Appendp(ctxt, p)
-			p.As = ARET
+			p.As = obj.ARET
 
 			// If there are instructions following
 			// this ARET, they come from a branch
@@ -521,7 +471,7 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 		}
 
 		if p.To.Sym != nil { // retjmp
-			p.As = AJMP
+			p.As = obj.AJMP
 		}
 	}
 }
@@ -532,13 +482,14 @@ func addstacksplit(ctxt *obj.Link, cursym *obj.LSym) {
 // prologue (caller must call appendp first) and in the epilogue.
 // Returns last new instruction.
 func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
-
 	var next *obj.Prog
 
 	p.As = AMOVL
-	p.From.Type = D_INDIR + D_TLS
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = REG_TLS
 	p.From.Offset = 0
-	p.To.Type = D_CX
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = REG_CX
 
 	next = p.Link
 	progedit(ctxt, p)
@@ -546,7 +497,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 		p = p.Link
 	}
 
-	if p.From.Index == D_TLS {
+	if p.From.Index == REG_TLS {
 		p.From.Scale = 2
 	}
 
@@ -560,7 +511,6 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 // On return, *jmpok is the instruction that should jump
 // to the stack frame allocation if no split is needed.
 func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int, jmpok **obj.Prog) *obj.Prog {
-
 	var q *obj.Prog
 	var q1 *obj.Prog
 
@@ -573,23 +523,25 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int, jmpok 
 		p = obj.Appendp(ctxt, p)
 
 		p.As = ACMPL
-		p.From.Type = D_INDIR + D_CX
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REG_CX
 		p.From.Offset = 4
-		p.To.Type = D_SP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_SP
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AJCC
-		p.To.Type = D_BRANCH
+		p.To.Type = obj.TYPE_BRANCH
 		p.To.Offset = 4
 		q1 = p
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AINT
-		p.From.Type = D_CONST
+		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 3
 
 		p = obj.Appendp(ctxt, p)
-		p.As = ANOP
+		p.As = obj.ANOP
 		q1.Pcond = p
 	}
 
@@ -601,8 +553,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int, jmpok 
 		p = obj.Appendp(ctxt, p)
 
 		p.As = ACMPL
-		p.From.Type = D_SP
-		p.To.Type = D_INDIR + D_CX
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_SP
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = REG_CX
 		p.To.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
 		if ctxt.Cursym.Cfunc != 0 {
 			p.To.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
@@ -614,20 +568,23 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int, jmpok 
 		p = obj.Appendp(ctxt, p)
 
 		p.As = ALEAL
-		p.From.Type = D_INDIR + D_SP
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REG_SP
 		p.From.Offset = -(int64(framesize) - obj.StackSmall)
-		p.To.Type = D_AX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_AX
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ACMPL
-		p.From.Type = D_AX
-		p.To.Type = D_INDIR + D_CX
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_AX
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = REG_CX
 		p.To.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
 		if ctxt.Cursym.Cfunc != 0 {
 			p.To.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
 		}
 	} else {
-
 		// Such a large stack we need to protect against wraparound
 		// if SP is close to zero.
 		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
@@ -645,41 +602,49 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int, jmpok 
 		p = obj.Appendp(ctxt, p)
 
 		p.As = AMOVL
-		p.From.Type = D_INDIR + D_CX
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REG_CX
 		p.From.Offset = 0
 		p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
 		if ctxt.Cursym.Cfunc != 0 {
 			p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
 		}
-		p.To.Type = D_SI
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_SI
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ACMPL
-		p.From.Type = D_SI
-		p.To.Type = D_CONST
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_SI
+		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = int64(uint32(obj.StackPreempt & (1<<32 - 1)))
 
 		p = obj.Appendp(ctxt, p)
 		p.As = AJEQ
-		p.To.Type = D_BRANCH
+		p.To.Type = obj.TYPE_BRANCH
 		q1 = p
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ALEAL
-		p.From.Type = D_INDIR + D_SP
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REG_SP
 		p.From.Offset = obj.StackGuard
-		p.To.Type = D_AX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_AX
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ASUBL
-		p.From.Type = D_SI
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_SI
 		p.From.Offset = 0
-		p.To.Type = D_AX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_AX
 
 		p = obj.Appendp(ctxt, p)
 		p.As = ACMPL
-		p.From.Type = D_AX
-		p.To.Type = D_CONST
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_AX
+		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = int64(framesize) + (obj.StackGuard - obj.StackSmall)
 	}
 
@@ -687,23 +652,22 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt int, jmpok 
 	p = obj.Appendp(ctxt, p)
 
 	p.As = AJHI
-	p.To.Type = D_BRANCH
+	p.To.Type = obj.TYPE_BRANCH
 	p.To.Offset = 4
 	q = p
 
 	p = obj.Appendp(ctxt, p)
-	p.As = ACALL
-	p.To.Type = D_BRANCH
+	p.As = obj.ACALL
+	p.To.Type = obj.TYPE_BRANCH
 	if ctxt.Cursym.Cfunc != 0 {
 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
 	} else {
-
 		p.To.Sym = ctxt.Symmorestack[noctxt]
 	}
 
 	p = obj.Appendp(ctxt, p)
-	p.As = AJMP
-	p.To.Type = D_BRANCH
+	p.As = obj.AJMP
+	p.To.Type = obj.TYPE_BRANCH
 	p.Pcond = ctxt.Cursym.Text.Link
 
 	if q != nil {
@@ -723,7 +687,7 @@ func follow(ctxt *obj.Link, s *obj.LSym) {
 
 	ctxt.Cursym = s
 
-	firstp = ctxt.NewProg()
+	firstp = new(obj.Prog)
 	lastp = firstp
 	xfol(ctxt, s.Text, &lastp)
 	lastp.Link = nil
@@ -732,11 +696,11 @@ func follow(ctxt *obj.Link, s *obj.LSym) {
 
 func nofollow(a int) int {
 	switch a {
-	case AJMP,
-		ARET,
+	case obj.AJMP,
+		obj.ARET,
 		AIRETL,
 		AIRETW,
-		AUNDEF:
+		obj.AUNDEF:
 		return 1
 	}
 
@@ -808,9 +772,9 @@ loop:
 	if p == nil {
 		return
 	}
-	if p.As == AJMP {
+	if p.As == obj.AJMP {
 		q = p.Pcond
-		if q != nil && q.As != ATEXT {
+		if q != nil && q.As != obj.ATEXT {
 			/* mark instruction as done and continue layout at target of jump */
 			p.Mark = 1
 
@@ -829,7 +793,6 @@ loop:
 		i = 0
 		q = p
 		for ; i < 4; (func() { i++; q = q.Link })() {
-
 			if q == nil {
 				break
 			}
@@ -837,7 +800,7 @@ loop:
 				break
 			}
 			a = int(q.As)
-			if a == ANOP {
+			if a == obj.ANOP {
 				i--
 				continue
 			}
@@ -848,11 +811,11 @@ loop:
 			if q.Pcond == nil || q.Pcond.Mark != 0 {
 				continue
 			}
-			if a == ACALL || a == ALOOP {
+			if a == obj.ACALL || a == ALOOP {
 				continue
 			}
 			for {
-				if p.As == ANOP {
+				if p.As == obj.ANOP {
 					p = p.Link
 					continue
 				}
@@ -879,10 +842,10 @@ loop:
 				/* */
 			}
 		}
-		q = ctxt.NewProg()
-		q.As = AJMP
+		q = new(obj.Prog)
+		q.As = obj.AJMP
 		q.Lineno = p.Lineno
-		q.To.Type = D_BRANCH
+		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc
 		q.Pcond = p
 		p = q
@@ -897,10 +860,9 @@ loop:
 
 	/* continue loop with what comes after p */
 	if nofollow(a) != 0 {
-
 		return
 	}
-	if p.Pcond != nil && a != ACALL {
+	if p.Pcond != nil && a != obj.ACALL {
 		/*
 		 * some kind of conditional branch.
 		 * recurse to follow one path.
@@ -908,14 +870,13 @@ loop:
 		 */
 		q = obj.Brchain(ctxt, p.Pcond)
 		if q != nil {
-
 			p.Pcond = q
 		}
 		q = obj.Brchain(ctxt, p.Link)
 		if q != nil {
 			p.Link = q
 		}
-		if p.From.Type == D_CONST {
+		if p.From.Type == obj.TYPE_CONST {
 			if p.From.Offset == 1 {
 				/*
 				 * expect conditional jump to be taken.
@@ -928,7 +889,6 @@ loop:
 				p.Pcond = q
 			}
 		} else {
-
 			q = p.Link
 			if q.Mark != 0 {
 				if a != ALOOP {
@@ -952,45 +912,16 @@ loop:
 }
 
 var Link386 = obj.LinkArch{
-	ByteOrder:     binary.LittleEndian,
-	Pconv:         Pconv,
-	Name:          "386",
-	Thechar:       '8',
-	Endian:        obj.LittleEndian,
-	Addstacksplit: addstacksplit,
-	Assemble:      span8,
-	Datasize:      datasize,
-	Follow:        follow,
-	Iscall:        iscall,
-	Isdata:        isdata,
-	Prg:           prg,
-	Progedit:      progedit,
-	Settextflag:   settextflag,
-	Symtype:       symtype,
-	Textflag:      textflag,
-	Minlc:         1,
-	Ptrsize:       4,
-	Regsize:       4,
-	D_ADDR:        D_ADDR,
-	D_AUTO:        D_AUTO,
-	D_BRANCH:      D_BRANCH,
-	D_CONST:       D_CONST,
-	D_EXTERN:      D_EXTERN,
-	D_FCONST:      D_FCONST,
-	D_NONE:        D_NONE,
-	D_PARAM:       D_PARAM,
-	D_SCONST:      D_SCONST,
-	D_STATIC:      D_STATIC,
-	ACALL:         ACALL,
-	ADATA:         ADATA,
-	AEND:          AEND,
-	AFUNCDATA:     AFUNCDATA,
-	AGLOBL:        AGLOBL,
-	AJMP:          AJMP,
-	ANOP:          ANOP,
-	APCDATA:       APCDATA,
-	ARET:          ARET,
-	ATEXT:         ATEXT,
-	ATYPE:         ATYPE,
-	AUSEFIELD:     AUSEFIELD,
+	ByteOrder:  binary.LittleEndian,
+	Pconv:      Pconv,
+	Name:       "386",
+	Thechar:    '8',
+	Endian:     obj.LittleEndian,
+	Preprocess: preprocess,
+	Assemble:   span8,
+	Follow:     follow,
+	Progedit:   progedit,
+	Minlc:      1,
+	Ptrsize:    4,
+	Regsize:    4,
 }

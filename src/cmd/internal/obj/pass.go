@@ -33,11 +33,10 @@ package obj
 // Code and data passes.
 
 func Brchain(ctxt *Link, p *Prog) *Prog {
-
 	var i int
 
 	for i = 0; i < 20; i++ {
-		if p == nil || int(p.As) != ctxt.Arch.AJMP || p.Pcond == nil {
+		if p == nil || p.As != AJMP || p.Pcond == nil {
 			return p
 		}
 		p = p.Pcond
@@ -52,7 +51,7 @@ func brloop(ctxt *Link, p *Prog) *Prog {
 
 	c = 0
 	for q = p; q != nil; q = q.Pcond {
-		if int(q.As) != ctxt.Arch.AJMP || q.Pcond == nil {
+		if q.As != AJMP || q.Pcond == nil {
 			break
 		}
 		c++
@@ -64,6 +63,92 @@ func brloop(ctxt *Link, p *Prog) *Prog {
 	return q
 }
 
+func checkaddr(ctxt *Link, p *Prog, a *Addr) {
+	// Check expected encoding, especially TYPE_CONST vs TYPE_ADDR.
+	switch a.Type {
+	case TYPE_NONE:
+		return
+
+	case TYPE_BRANCH:
+		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 {
+			break
+		}
+		return
+
+	case TYPE_TEXTSIZE:
+		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 {
+			break
+		}
+		return
+
+		//if(a->u.bits != 0)
+	//	break;
+	case TYPE_MEM:
+		return
+
+		// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
+	case TYPE_CONST:
+		if a.Name != 0 || a.Sym != nil || a.Reg != 0 {
+			ctxt.Diag("argument is TYPE_CONST, should be TYPE_ADDR, in %v", p)
+			return
+		}
+
+		if a.Reg != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
+			break
+		}
+		return
+
+	case TYPE_FCONST,
+		TYPE_SCONST:
+		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Offset != 0 || a.Sym != nil {
+			break
+		}
+		return
+
+		// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
+	// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
+	case TYPE_REG:
+		if a.Scale != 0 || a.Name != 0 || a.Sym != nil {
+			break
+		}
+		return
+
+	case TYPE_ADDR:
+		if a.U.Bits != 0 {
+			break
+		}
+		if a.Reg == 0 && a.Index == 0 && a.Scale == 0 && a.Name == 0 && a.Sym == nil {
+			ctxt.Diag("argument is TYPE_ADDR, should be TYPE_CONST, in %v", p)
+		}
+		return
+
+	case TYPE_SHIFT:
+		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
+			break
+		}
+		return
+
+	case TYPE_REGREG:
+		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
+			break
+		}
+		return
+
+	case TYPE_REGREG2:
+		return
+
+		// Expect sym and name to be set, nothing else.
+	// Technically more is allowed, but this is only used for *name(SB).
+	case TYPE_INDIR:
+		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.U.Bits != 0 {
+			break
+		}
+		return
+	}
+
+	ctxt.Diag("invalid encoding for argument %v", p)
+}
+
 func linkpatch(ctxt *Link, sym *LSym) {
 	var c int32
 	var name string
@@ -73,10 +158,14 @@ func linkpatch(ctxt *Link, sym *LSym) {
 	ctxt.Cursym = sym
 
 	for p = sym.Text; p != nil; p = p.Link {
+		checkaddr(ctxt, p, &p.From)
+		checkaddr(ctxt, p, &p.From3)
+		checkaddr(ctxt, p, &p.To)
+
 		if ctxt.Arch.Progedit != nil {
 			ctxt.Arch.Progedit(ctxt, p)
 		}
-		if int(p.To.Type) != ctxt.Arch.D_BRANCH {
+		if p.To.Type != TYPE_BRANCH {
 			continue
 		}
 		if p.To.U.Branch != nil {
@@ -97,7 +186,6 @@ func linkpatch(ctxt *Link, sym *LSym) {
 			if q.Forwd != nil && int64(c) >= q.Forwd.Pc {
 				q = q.Forwd
 			} else {
-
 				q = q.Link
 			}
 		}
@@ -108,7 +196,7 @@ func linkpatch(ctxt *Link, sym *LSym) {
 				name = p.To.Sym.Name
 			}
 			ctxt.Diag("branch out of range (%#x)\n%v [%s]", uint32(c), p, name)
-			p.To.Type = int16(ctxt.Arch.D_NONE)
+			p.To.Type = TYPE_NONE
 		}
 
 		p.To.U.Branch = q
@@ -120,7 +208,7 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		if p.Pcond != nil {
 			p.Pcond = brloop(ctxt, p.Pcond)
 			if p.Pcond != nil {
-				if int(p.To.Type) == ctxt.Arch.D_BRANCH {
+				if p.To.Type == TYPE_BRANCH {
 					p.To.Offset = p.Pcond.Pc
 				}
 			}

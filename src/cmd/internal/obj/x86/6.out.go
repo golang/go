@@ -30,12 +30,13 @@
 
 package x86
 
+import "cmd/internal/obj"
+
 /*
  *	amd64
  */
 const (
-	AXXX = iota
-	AAAA
+	AAAA = obj.A_ARCHSPECIFIC + iota
 	AAAD
 	AAAM
 	AAAS
@@ -65,7 +66,6 @@ const (
 	ABTSL
 	ABTSW
 	ABYTE
-	ACALL
 	ACLC
 	ACLD
 	ACLI
@@ -79,7 +79,6 @@ const (
 	ACMPSW
 	ADAA
 	ADAS
-	ADATA
 	ADECB
 	ADECL
 	ADECQ
@@ -88,9 +87,6 @@ const (
 	ADIVL
 	ADIVW
 	AENTER
-	AGLOBL
-	AGOK
-	AHISTORY
 	AHLT
 	AIDIVB
 	AIDIVL
@@ -123,7 +119,6 @@ const (
 	AJLS
 	AJLT
 	AJMI
-	AJMP
 	AJNE
 	AJOC
 	AJOS
@@ -166,11 +161,9 @@ const (
 	AMULB
 	AMULL
 	AMULW
-	ANAME
 	ANEGB
 	ANEGL
 	ANEGW
-	ANOP
 	ANOTB
 	ANOTL
 	ANOTW
@@ -204,7 +197,6 @@ const (
 	ARCRW
 	AREP
 	AREPN
-	ARET
 	AROLB
 	AROLL
 	AROLW
@@ -261,7 +253,6 @@ const (
 	ATESTB
 	ATESTL
 	ATESTW
-	ATEXT
 	AVERR
 	AVERW
 	AWAIT
@@ -370,10 +361,6 @@ const (
 	AFXTRACT
 	AFYL2X
 	AFYL2XP1
-	AEND
-	ADYNT_
-	AINIT_
-	ASIGNAME
 	ACMPXCHGB
 	ACMPXCHGL
 	ACMPXCHGW
@@ -714,7 +701,6 @@ const (
 	AMOVQL
 	ABSWAPL
 	ABSWAPQ
-	AUNDEF
 	AAESENC
 	AAESENCLAST
 	AAESDEC
@@ -723,100 +709,89 @@ const (
 	AAESKEYGENASSIST
 	APSHUFD
 	APCLMULQDQ
-	AUSEFIELD
-	ATYPE
-	AFUNCDATA
-	APCDATA
-	ACHECKNIL
-	AVARDEF
-	AVARKILL
-	ADUFFCOPY
-	ADUFFZERO
 	ALAST
 )
 
 const (
-	D_AL = 0 + iota
-	D_CL
-	D_DL
-	D_BL
-	D_SPB
-	D_BPB
-	D_SIB
-	D_DIB
-	D_R8B
-	D_R9B
-	D_R10B
-	D_R11B
-	D_R12B
-	D_R13B
-	D_R14B
-	D_R15B
-	D_AX = 16 + iota - 16
-	D_CX
-	D_DX
-	D_BX
-	D_SP
-	D_BP
-	D_SI
-	D_DI
-	D_R8
-	D_R9
-	D_R10
-	D_R11
-	D_R12
-	D_R13
-	D_R14
-	D_R15
-	D_AH = 32 + iota - 32
-	D_CH
-	D_DH
-	D_BH
-	D_F0 = 36
-	D_M0 = 44
-	D_X0 = 52 + iota - 38
-	D_X1
-	D_X2
-	D_X3
-	D_X4
-	D_X5
-	D_X6
-	D_X7
-	D_X8
-	D_X9
-	D_X10
-	D_X11
-	D_X12
-	D_X13
-	D_X14
-	D_X15
-	D_CS = 68 + iota - 54
-	D_SS
-	D_DS
-	D_ES
-	D_FS
-	D_GS
-	D_GDTR
-	D_IDTR
-	D_LDTR
-	D_MSW
-	D_TASK
-	D_CR     = 79
-	D_DR     = 95
-	D_TR     = 103
-	D_TLS    = 111
-	D_NONE   = 112
-	D_BRANCH = 113
-	D_EXTERN = 114
-	D_STATIC = 115
-	D_AUTO   = 116
-	D_PARAM  = 117
-	D_CONST  = 118
-	D_FCONST = 119
-	D_SCONST = 120
-	D_ADDR   = 121 + iota - 78
-	D_INDIR
-	D_LAST
+	REG_NONE = 0
+	REG_AL   = 0 + 16 + iota - 1
+	REG_CL
+	REG_DL
+	REG_BL
+	REG_SPB
+	REG_BPB
+	REG_SIB
+	REG_DIB
+	REG_R8B
+	REG_R9B
+	REG_R10B
+	REG_R11B
+	REG_R12B
+	REG_R13B
+	REG_R14B
+	REG_R15B
+	REG_AX = 16 + 16 + iota - 17
+	REG_CX
+	REG_DX
+	REG_BX
+	REG_SP
+	REG_BP
+	REG_SI
+	REG_DI
+	REG_R8
+	REG_R9
+	REG_R10
+	REG_R11
+	REG_R12
+	REG_R13
+	REG_R14
+	REG_R15
+	REG_AH = 32 + 16 + iota - 33
+	REG_CH
+	REG_DH
+	REG_BH
+	REG_F0 = 36 + 16
+	REG_M0 = 44 + 16
+	REG_X0 = 52 + 16 + iota - 39
+	REG_X1
+	REG_X2
+	REG_X3
+	REG_X4
+	REG_X5
+	REG_X6
+	REG_X7
+	REG_X8
+	REG_X9
+	REG_X10
+	REG_X11
+	REG_X12
+	REG_X13
+	REG_X14
+	REG_X15
+	REG_CS = 68 + 16 + iota - 55
+	REG_SS
+	REG_DS
+	REG_ES
+	REG_FS
+	REG_GS
+	REG_GDTR
+	REG_IDTR
+	REG_LDTR
+	REG_MSW
+	REG_TASK
+	REG_CR  = 79 + 16
+	REG_DR  = 95 + 16
+	REG_TR  = 103 + 16
+	REG_TLS = 111 + 16 + iota - 69
+	MAXREG
+	REGARG   = -1
+	REGRET   = REG_AX
+	FREGRET  = REG_X0
+	REGSP    = REG_SP
+	REGTMP   = REG_DI
+	REGEXT   = REG_R15
+	FREGMIN  = REG_X0 + 5
+	FREGEXT  = REG_X0 + 15
 	T_TYPE   = 1 << 0
 	T_INDEX  = 1 << 1
 	T_OFFSET = 1 << 2
@@ -825,12 +800,4 @@ const (
 	T_SCONST = 1 << 5
 	T_64     = 1 << 6
 	T_GOTYPE = 1 << 7
-	REGARG   = -1
-	REGRET   = D_AX
-	FREGRET  = D_X0
-	REGSP    = D_SP
-	REGTMP   = D_DI
-	REGEXT   = D_R15
-	FREGMIN  = D_X0 + 5
-	FREGEXT  = D_X0 + 15
 )

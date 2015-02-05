@@ -25,8 +25,17 @@ func Cputime() float64 {
 type Biobuf struct {
 	unget     int
 	haveUnget bool
+	f         *os.File
 	r         *bufio.Reader
 	w         *bufio.Writer
+}
+
+func Bopenw(name string) (*Biobuf, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return &Biobuf{f: f, w: bufio.NewWriter(f)}, nil
 }
 
 func Binitw(w io.Writer) *Biobuf {
@@ -75,6 +84,15 @@ func Bflush(b *Biobuf) error {
 	return b.w.Flush()
 }
 
+func Bterm(b *Biobuf) error {
+	err := b.w.Flush()
+	err1 := b.f.Close()
+	if err == nil {
+		err = err1
+	}
+	return err
+}
+
 func envOr(key, value string) string {
 	if x := os.Getenv(key); x != "" {
 		return x
@@ -108,7 +126,7 @@ func Atoi(s string) int {
 }
 
 func (p *Prog) Line() string {
-	return linklinefmt(p.Ctxt, int(p.Lineno), false, false)
+	return Linklinefmt(p.Ctxt, int(p.Lineno), false, false)
 }
 
 func (p *Prog) String() string {
@@ -119,7 +137,11 @@ func (p *Prog) String() string {
 }
 
 func (ctxt *Link) NewProg() *Prog {
-	p := ctxt.Arch.Prg() // should be the only call to this; all others should use ctxt.NewProg
+	p := new(Prog) // should be the only call to this; all others should use ctxt.NewProg
 	p.Ctxt = ctxt
 	return p
+}
+
+func (ctxt *Link) Line(n int) string {
+	return Linklinefmt(ctxt, n, false, false)
 }
