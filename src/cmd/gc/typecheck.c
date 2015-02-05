@@ -786,10 +786,12 @@ reswitch:
 	case ODOT:
 		typecheck(&n->left, Erv|Etype);
 		defaultlit(&n->left, T);
-		if((t = n->left->type) == T)
-			goto error;
 		if(n->right->op != ONAME) {
 			yyerror("rhs of . must be a name");	// impossible
+			goto error;
+		}
+		if((t = n->left->type) == T) {
+			adderrorname(n);
 			goto error;
 		}
 		r = n->right;
@@ -3303,6 +3305,8 @@ typecheckdef(Node *n)
 			n->diag = 1;
 			if(n->lineno != 0)
 				lineno = n->lineno;
+			// Note: adderrorname looks for this string and
+			// adds context about the outer expression
 			yyerror("undefined: %S", n->sym);
 		}
 		return n;
