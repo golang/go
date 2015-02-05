@@ -521,6 +521,47 @@ func TestFloatQuo(t *testing.T) {
 	}
 }
 
+// TestFloatQuoSmoke tests all divisions x/y for values x, y in the range [-n, +n];
+// it serves as a smoke test for basic correctness of division.
+func TestFloatQuoSmoke(t *testing.T) {
+	n := 1000
+	if testing.Short() {
+		n = 10
+	}
+
+	const dprec = 3         // max. precision variation
+	const prec = 10 + dprec // enough bits to hold n precisely
+	for x := -n; x <= n; x++ {
+		for y := -n; y < n; y++ {
+			if y == 0 {
+				continue
+			}
+
+			a := float64(x)
+			b := float64(y)
+			c := a / b
+
+			// vary operand precision (only ok as long as a, b can be represented correctly)
+			for ad := -dprec; ad <= dprec; ad++ {
+				for bd := -dprec; bd <= dprec; bd++ {
+					A := NewFloat(a, uint(prec+ad), 0)
+					B := NewFloat(b, uint(prec+bd), 0)
+					C := NewFloat(0, 53, 0).Quo(A, B) // C has float64 mantissa width
+
+					cc, acc := C.Float64()
+					if cc != c {
+						t.Errorf("%g/%g = %s; want %.5g\n", a, b, C.Format('g', 5), c)
+						continue
+					}
+					if acc != Exact {
+						t.Errorf("%g/%g got %s result; want exact result", a, b, acc)
+					}
+				}
+			}
+		}
+	}
+}
+
 // normBits returns the normalized bits for x: It
 // removes multiple equal entries by treating them
 // as an addition (e.g., []int{5, 5} => []int{6}),
