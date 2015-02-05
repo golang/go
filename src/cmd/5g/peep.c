@@ -65,7 +65,7 @@ peep(Prog *firstp)
 	Prog *p;
 	int t;
 
-	g = flowstart(firstp, sizeof(Flow));
+	g = flowstart(firstp, 0);
 	if(g == nil)
 		return;
 	gactive = 0;
