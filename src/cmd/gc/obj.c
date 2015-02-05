@@ -106,7 +106,7 @@ dumpobj(void)
 		if(size&1)
 			Bputc(bout, 0);
 		Bseek(bout, startobj - ArhdrSize, 0);
-		snprint(namebuf, sizeof namebuf, "_go_.%c", arch.thechar);
+		snprint(namebuf, sizeof namebuf, "_go_.%c", thearch.thechar);
 		formathdr(arhdr, namebuf, size);
 		Bwrite(bout, arhdr, ArhdrSize);
 	}
@@ -300,7 +300,7 @@ dsname(Sym *s, int off, char *t, int n)
 {
 	Prog *p;
 
-	p = arch.gins(ADATA, N, N);
+	p = thearch.gins(ADATA, N, N);
 	p->from.type = TYPE_MEM;
 	p->from.name = NAME_EXTERN;
 	p->from.offset = off;
@@ -364,7 +364,7 @@ gdata(Node *nam, Node *nr, int wid)
 			return;
 		}
 	}
-	p = arch.gins(ADATA, nam, nr);
+	p = thearch.gins(ADATA, nam, nr);
 	p->from3.type = TYPE_CONST;
 	p->from3.offset = wid;
 }
@@ -378,13 +378,13 @@ gdatacomplex(Node *nam, Mpcplx *cval)
 	w = cplxsubtype(nam->type->etype);
 	w = types[w]->width;
 
-	p = arch.gins(ADATA, nam, N);
+	p = thearch.gins(ADATA, nam, N);
 	p->from3.type = TYPE_CONST;
 	p->from3.offset = w;
 	p->to.type = TYPE_FCONST;
 	p->to.u.dval = mpgetflt(&cval->real);
 
-	p = arch.gins(ADATA, nam, N);
+	p = thearch.gins(ADATA, nam, N);
 	p->from3.type = TYPE_CONST;
 	p->from3.offset = w;
 	p->from.offset += w;
@@ -398,7 +398,7 @@ gdatastring(Node *nam, Strlit *sval)
 	Prog *p;
 	Node nod1;
 
-	p = arch.gins(ADATA, nam, N);
+	p = thearch.gins(ADATA, nam, N);
 	datastring(sval->s, sval->len, &p->to);
 	p->from3.type = TYPE_CONST;
 	p->from3.offset = types[tptr]->width;
@@ -406,7 +406,7 @@ gdatastring(Node *nam, Strlit *sval)
 //print("%P\n", p);
 
 	nodconst(&nod1, types[TINT], sval->len);
-	p = arch.gins(ADATA, nam, &nod1);
+	p = thearch.gins(ADATA, nam, &nod1);
 	p->from3.type = TYPE_CONST;
 	p->from3.offset = widthint;
 	p->from.offset += widthptr;
@@ -418,7 +418,7 @@ dstringptr(Sym *s, int off, char *str)
 	Prog *p;
 
 	off = rnd(off, widthptr);
-	p = arch.gins(ADATA, N, N);
+	p = thearch.gins(ADATA, N, N);
 	p->from.type = TYPE_MEM;
 	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
@@ -443,7 +443,7 @@ dgostrlitptr(Sym *s, int off, Strlit *lit)
 		return duintptr(s, off, 0);
 
 	off = rnd(off, widthptr);
-	p = arch.gins(ADATA, N, N);
+	p = thearch.gins(ADATA, N, N);
 	p->from.type = TYPE_MEM;
 	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
@@ -481,7 +481,7 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
 
 	off = rnd(off, widthptr);
 
-	p = arch.gins(ADATA, N, N);
+	p = thearch.gins(ADATA, N, N);
 	p->from.type = TYPE_MEM;
 	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);

@@ -2129,10 +2129,10 @@ setmaxarg(Type *t, int32 extra)
 
 	dowidth(t);
 	w = t->argwid;
-	if(w >= arch.MAXWIDTH)
+	if(w >= thearch.MAXWIDTH)
 		fatal("bad argwid %T", t);
 	w += extra;
-	if(w >= arch.MAXWIDTH)
+	if(w >= thearch.MAXWIDTH)
 		fatal("bad argwid %d + %T", extra, t);
 	if(w > maxarg)
 		maxarg = w;

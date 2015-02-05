@@ -1223,7 +1223,7 @@ stataddr(Node *nam, Node *n)
 		if(l < 0)
 			break;
 		// Check for overflow.
-		if(n->type->width != 0 && arch.MAXWIDTH/n->type->width <= l)
+		if(n->type->width != 0 && thearch.MAXWIDTH/n->type->width <= l)
 			break;
  		nam->xoffset += l*n->type->width;
 		nam->type = n->type;

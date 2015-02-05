@@ -116,7 +116,7 @@ regopt(Prog *firstp)
 	 * than in generated c code.  define pseudo-variables for
 	 * registers, so we have complete register usage information.
 	 */
-	regnames = arch.regnames(&nreg);
+	regnames = thearch.regnames(&nreg);
 	nvar = nreg;
 	memset(var, 0, nreg*sizeof var[0]);
 	for(i=0; i<nreg; i++) {
@@ -125,7 +125,7 @@ regopt(Prog *firstp)
 		var[i].node = regnodes[i];
 	}
 
-	regbits = arch.excludedregs();
+	regbits = thearch.excludedregs();
 	externs = zbits;
 	params = zbits;
 	consts = zbits;
@@ -152,7 +152,7 @@ regopt(Prog *firstp)
 		p = f->prog;
 		if(p->as == AVARDEF || p->as == AVARKILL)
 			continue;
-		arch.proginfo(&info, p);
+		thearch.proginfo(&info, p);
 
 		// Avoid making variables for direct-called functions.
 		if(p->as == ACALL && p->to.type == TYPE_MEM && p->to.name == NAME_EXTERN)
@@ -177,7 +177,7 @@ regopt(Prog *firstp)
 
 		// Compute used register for reg
 		if(info.flags & RegRead)
-			r->use1.b[0] |= arch.RtoB(p->reg);
+			r->use1.b[0] |= thearch.RtoB(p->reg);
 
 		// Currently we never generate three register forms.
 		// If we do, this will need to change.
@@ -345,7 +345,7 @@ loop2:
 			if(debug['w'])
 				print("%L: set and not used: %Q\n", f->prog->lineno, bit);
 			f->refset = 1;
-			arch.excise(f);
+			thearch.excise(f);
 		}
 		for(z=0; z<BITS; z++)
 			bit.b[z] = LOAD(r) & ~(r->act.b[z] | addrs.b[z]);
@@ -423,7 +423,7 @@ brk:
 	 * peep-hole on basic block
 	 */
 	if(!debug['R'] || debug['P'])
-		arch.peep(firstp);
+		thearch.peep(firstp);
 
 	/*
 	 * eliminate nops
@@ -525,10 +525,10 @@ addmove(Flow *r, int bn, int rn, int f)
 		a->type = TYPE_CONST;
 	*/
 
-	p1->as = arch.optoas(OAS, types[(uchar)v->etype]);
+	p1->as = thearch.optoas(OAS, types[(uchar)v->etype]);
 	// TODO(rsc): Remove special case here.
-	if((arch.thechar == '9' || arch.thechar == '5') && v->etype == TBOOL)
-		p1->as = arch.optoas(OAS, types[TUINT8]);
+	if((thearch.thechar == '9' || thearch.thechar == '5') && v->etype == TBOOL)
+		p1->as = thearch.optoas(OAS, types[TUINT8]);
 	p1->from.type = TYPE_REG;
 	p1->from.reg = rn;
 	p1->from.name = NAME_NONE;
@@ -577,11 +577,11 @@ mkvar(Flow *f, Adr *a)
 		goto none;
 
 	r = (Reg*)f->data;
-	r->use1.b[0] |= arch.doregbits(a->index); // TODO: Use RtoB
+	r->use1.b[0] |= thearch.doregbits(a->index); // TODO: Use RtoB
 
 	switch(a->type) {
 	default:
-		regu = arch.doregbits(a->reg) | arch.RtoB(a->reg); // TODO: Use RtoB
+		regu = thearch.doregbits(a->reg) | thearch.RtoB(a->reg); // TODO: Use RtoB
 		if(regu == 0)
 			goto none;
 		bit = zbits;
@@ -590,7 +590,7 @@ mkvar(Flow *f, Adr *a)
 
 	case TYPE_ADDR:
 		// TODO(rsc): Remove special case here.
-		if(arch.thechar == '9' || arch.thechar == '5')
+		if(thearch.thechar == '9' || thearch.thechar == '5')
 			goto memcase;
 		a->type = TYPE_MEM;
 		bit = mkvar(f, a);
@@ -602,7 +602,7 @@ mkvar(Flow *f, Adr *a)
 	case TYPE_MEM:
 	memcase:
 		if(r != R) {
-			r->use1.b[0] |= arch.RtoB(a->reg);
+			r->use1.b[0] |= thearch.RtoB(a->reg);
 			/* NOTE: 5g did
 				if(r->f.prog->scond & (C_PBIT|C_WBIT))
 					r->set.b[0] |= RtoB(a->reg);
@@ -642,7 +642,7 @@ mkvar(Flow *f, Adr *a)
 			if(v->etype == et)
 			if(v->width == w) {
 				// TODO(rsc): Remove special case for arm here.
-				if(!flag || arch.thechar != '5')
+				if(!flag || thearch.thechar != '5')
 					return blsh(i);
 			}
 
@@ -920,19 +920,19 @@ allreg(uint64 b, Rgn *r)
 	case TBOOL:
 	case TPTR32:
 	case TPTR64:
-		i = arch.BtoR(~b);
+		i = thearch.BtoR(~b);
 		if(i && r->cost > 0) {
 			r->regno = i;
-			return arch.RtoB(i);
+			return thearch.RtoB(i);
 		}
 		break;
 
 	case TFLOAT32:
 	case TFLOAT64:
-		i = arch.BtoF(~b);
+		i = thearch.BtoF(~b);
 		if(i && r->cost > 0) {
 			r->regno = i;
-			return arch.FtoB(i);
+			return thearch.FtoB(i);
 		}
 		break;
 	}

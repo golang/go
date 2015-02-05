@@ -265,7 +265,7 @@ gen(Node *n)
 //dump("gen", n);
 
 	lno = setlineno(n);
-	wasregalloc = arch.anyregalloc();
+	wasregalloc = thearch.anyregalloc();
 
 	if(n == N)
 		goto ret;
@@ -395,7 +395,7 @@ gen(Node *n)
 		}
 		gen(n->nincr);				// contin:	incr
 		patch(p1, pc);				// test:
-		arch.bgen(n->ntest, 0, -1, breakpc);		//		if(!test) goto break
+		thearch.bgen(n->ntest, 0, -1, breakpc);		//		if(!test) goto break
 		genlist(n->nbody);				//		body
 		gjmp(continpc);
 		patch(breakpc, pc);			// done:
@@ -411,7 +411,7 @@ gen(Node *n)
 		p1 = gjmp(P);			//		goto test
 		p2 = gjmp(P);			// p2:		goto else
 		patch(p1, pc);				// test:
-		arch.bgen(n->ntest, 0, -n->likely, p2);		//		if(!test) goto p2
+		thearch.bgen(n->ntest, 0, -n->likely, p2);		//		if(!test) goto p2
 		genlist(n->nbody);				//		then
 		p3 = gjmp(P);			//		goto done
 		patch(p2, pc);				// else:
@@ -468,11 +468,11 @@ gen(Node *n)
 		break;
 
 	case OCALLINTER:
-		arch.cgen_callinter(n, N, 0);
+		thearch.cgen_callinter(n, N, 0);
 		break;
 
 	case OCALLFUNC:
-		arch.cgen_call(n, 0);
+		thearch.cgen_call(n, 0);
 		break;
 
 	case OPROC:
@@ -485,7 +485,7 @@ gen(Node *n)
 
 	case ORETURN:
 	case ORETJMP:
-		arch.cgen_ret(n);
+		thearch.cgen_ret(n);
 		break;
 	
 	case OCHECKNIL:
@@ -498,7 +498,7 @@ gen(Node *n)
 	}
 
 ret:
-	if(arch.anyregalloc() != wasregalloc) {
+	if(thearch.anyregalloc() != wasregalloc) {
 		dump("node", n);
 		fatal("registers left allocated");
 	}
@@ -532,7 +532,7 @@ cgen_callmeth(Node *n, int proc)
 
 	if(n2.left->op == ONAME)
 		n2.left->class = PFUNC;
-	arch.cgen_call(&n2, proc);
+	thearch.cgen_call(&n2, proc);
 }
 
 /*
@@ -550,11 +550,11 @@ cgen_proc(Node *n, int proc)
 		break;
 
 	case OCALLINTER:
-		arch.cgen_callinter(n->left, N, proc);
+		thearch.cgen_callinter(n->left, N, proc);
 		break;
 
 	case OCALLFUNC:
-		arch.cgen_call(n->left, proc);
+		thearch.cgen_call(n->left, proc);
 		break;
 	}
 
@@ -701,7 +701,7 @@ clearslim(Node *n)
 	}
 
 	ullmancalc(&z);
-	arch.cgen(&z, n);
+	thearch.cgen(&z, n);
 }
 
 /*
@@ -738,7 +738,7 @@ cgen_as(Node *nl, Node *nr)
 		if(isfat(tl)) {
 			if(nl->op == ONAME)
 				gvardef(nl);
-			arch.clearfat(nl);
+			thearch.clearfat(nl);
 			return;
 		}
 		clearslim(nl);
@@ -749,7 +749,7 @@ cgen_as(Node *nl, Node *nr)
 	if(tl == T)
 		return;
 
-	arch.cgen(nr, nl);
+	thearch.cgen(nr, nl);
 }
 
 /*
@@ -769,17 +769,17 @@ cgen_eface(Node *n, Node *res)
 	Node *tmp;
 
 	tmp = temp(types[tptr]);
-	arch.cgen(n->right, tmp);
+	thearch.cgen(n->right, tmp);
 
 	gvardef(res);
 
 	dst = *res;
 	dst.type = types[tptr];
 	dst.xoffset += widthptr;
-	arch.cgen(tmp, &dst);
+	thearch.cgen(tmp, &dst);
 
 	dst.xoffset -= widthptr;
-	arch.cgen(n->left, &dst);
+	thearch.cgen(n->left, &dst);
 }
 
 /*
@@ -820,7 +820,7 @@ cgen_slice(Node *n, Node *res)
 
 	if(isnil(n->left)) {
 		tempname(&src, n->left->type);
-		arch.cgen(n->left, &src);
+		thearch.cgen(n->left, &src);
 	} else
 		src = *n->left;
 	if(n->op == OSLICE || n->op == OSLICE3 || n->op == OSLICESTR)
@@ -829,11 +829,11 @@ cgen_slice(Node *n, Node *res)
 	if(n->op == OSLICEARR || n->op == OSLICE3ARR) {
 		if(!isptr[n->left->type->etype])
 			fatal("slicearr is supposed to work on pointer: %+N\n", n);
-		arch.cgen(&src, base);
+		thearch.cgen(&src, base);
 		cgen_checknil(base);
 	} else {
 		src.type = types[tptr];
-		arch.cgen(&src, base);
+		thearch.cgen(&src, base);
 	}
 	
 	// committed to the update
@@ -842,9 +842,9 @@ cgen_slice(Node *n, Node *res)
 	// compute len and cap.
 	// len = n-i, cap = m-i, and offs = i*width.
 	// computing offs last lets the multiply overwrite i.
-	arch.cgen(len, tmplen);
+	thearch.cgen(len, tmplen);
 	if(n->op != OSLICESTR)
-		arch.cgen(cap, tmpcap);
+		thearch.cgen(cap, tmpcap);
 
 	// if new cap != 0 { base += add }
 	// This avoids advancing base past the end of the underlying array/string,
@@ -860,11 +860,11 @@ cgen_slice(Node *n, Node *res)
 		nodconst(&con, tmpcap->type, 0);
 		cmp = nod(OEQ, tmpcap, &con);
 		typecheck(&cmp, Erv);
-		arch.bgen(cmp, 1, -1, p2);
+		thearch.bgen(cmp, 1, -1, p2);
 
 		add = nod(OADD, base, offs);
 		typecheck(&add, Erv);
-		arch.cgen(add, base);
+		thearch.cgen(add, base);
 
 		patch(p2, pc);
 	}
@@ -873,20 +873,20 @@ cgen_slice(Node *n, Node *res)
 	dst = *res;
 	dst.xoffset += Array_array;
 	dst.type = types[tptr];
-	arch.cgen(base, &dst);
+	thearch.cgen(base, &dst);
 
 	// dst.len = hi [ - lo ]
 	dst = *res;
 	dst.xoffset += Array_nel;
 	dst.type = types[simtype[TUINT]];
-	arch.cgen(tmplen, &dst);
+	thearch.cgen(tmplen, &dst);
 
 	if(n->op != OSLICESTR) {
 		// dst.cap = cap [ - lo ]
 		dst = *res;
 		dst.xoffset += Array_cap;
 		dst.type = types[simtype[TUINT]];
-		arch.cgen(tmpcap, &dst);
+		thearch.cgen(tmpcap, &dst);
 	}
 }
 

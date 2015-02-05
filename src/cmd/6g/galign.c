@@ -15,9 +15,9 @@ linkarchinit(void)
 {
 	if(strcmp(getgoarch(), "amd64p32") == 0) {
 		thelinkarch = &linkamd64p32;
-		arch.thelinkarch = thelinkarch;
+		thearch.thelinkarch = thelinkarch;
 		thestring = "amd64p32";
-		arch.thestring = "amd64p32";
+		thearch.thestring = "amd64p32";
 	}
 }
 
@@ -65,46 +65,46 @@ betypeinit(void)
 void
 main(int argc, char **argv)
 {
-	arch.thechar = thechar;
-	arch.thestring = thestring;
-	arch.thelinkarch = thelinkarch;
-	arch.typedefs = typedefs;
-	arch.REGSP = REGSP;
-	arch.REGCTXT = REGCTXT;
-	arch.MAXWIDTH = MAXWIDTH;
-	arch.anyregalloc = anyregalloc;
-	arch.betypeinit = betypeinit;
-	arch.bgen = bgen;
-	arch.cgen = cgen;
-	arch.cgen_call = cgen_call;
-	arch.cgen_callinter = cgen_callinter;
-	arch.cgen_ret = cgen_ret;
-	arch.clearfat = clearfat;
-	arch.dumpit = dumpit;
-	arch.excise = excise;
-	arch.expandchecks = expandchecks;
-	arch.gclean = gclean;
-	arch.ginit = ginit;
-	arch.gins = gins;
-	arch.ginscall = ginscall;
-	arch.igen = igen;
-	arch.linkarchinit = linkarchinit;
-	arch.peep = peep;
-	arch.proginfo = proginfo;
-	arch.regalloc = regalloc;
-	arch.regfree = regfree;
-	arch.regtyp = regtyp;
-	arch.sameaddr = sameaddr;
-	arch.smallindir = smallindir;
-	arch.stackaddr = stackaddr;
-	arch.excludedregs = excludedregs;
-	arch.RtoB = RtoB;
-	arch.FtoB = FtoB;
-	arch.BtoR = BtoR;
-	arch.BtoF = BtoF;
-	arch.optoas = optoas;
-	arch.doregbits = doregbits;
-	arch.regnames = regnames;
+	thearch.thechar = thechar;
+	thearch.thestring = thestring;
+	thearch.thelinkarch = thelinkarch;
+	thearch.typedefs = typedefs;
+	thearch.REGSP = REGSP;
+	thearch.REGCTXT = REGCTXT;
+	thearch.MAXWIDTH = MAXWIDTH;
+	thearch.anyregalloc = anyregalloc;
+	thearch.betypeinit = betypeinit;
+	thearch.bgen = bgen;
+	thearch.cgen = cgen;
+	thearch.cgen_call = cgen_call;
+	thearch.cgen_callinter = cgen_callinter;
+	thearch.cgen_ret = cgen_ret;
+	thearch.clearfat = clearfat;
+	thearch.defframe = defframe;
+	thearch.excise = excise;
+	thearch.expandchecks = expandchecks;
+	thearch.gclean = gclean;
+	thearch.ginit = ginit;
+	thearch.gins = gins;
+	thearch.ginscall = ginscall;
+	thearch.igen = igen;
+	thearch.linkarchinit = linkarchinit;
+	thearch.peep = peep;
+	thearch.proginfo = proginfo;
+	thearch.regalloc = regalloc;
+	thearch.regfree = regfree;
+	thearch.regtyp = regtyp;
+	thearch.sameaddr = sameaddr;
+	thearch.smallindir = smallindir;
+	thearch.stackaddr = stackaddr;
+	thearch.excludedregs = excludedregs;
+	thearch.RtoB = RtoB;
+	thearch.FtoB = FtoB;
+	thearch.BtoR = BtoR;
+	thearch.BtoF = BtoF;
+	thearch.optoas = optoas;
+	thearch.doregbits = doregbits;
+	thearch.regnames = regnames;
 	
 	gcmain(argc, argv);
 }

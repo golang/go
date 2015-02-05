@@ -39,7 +39,7 @@ ggloblnod(Node *nam)
 {
 	Prog *p;
 
-	p = arch.gins(AGLOBL, nam, N);
+	p = thearch.gins(AGLOBL, nam, N);
 	p->lineno = nam->lineno;
 	p->from.sym->gotype = linksym(ngotype(nam));
 	p->to.sym = nil;
@@ -56,7 +56,7 @@ gtrack(Sym *s)
 {
 	Prog *p;
 	
-	p = arch.gins(AUSEFIELD, N, N);
+	p = thearch.gins(AUSEFIELD, N, N);
 	p->from.type = TYPE_MEM;
 	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
@@ -67,7 +67,7 @@ ggloblsym(Sym *s, int32 width, int8 flags)
 {
 	Prog *p;
 
-	p = arch.gins(AGLOBL, N, N);
+	p = thearch.gins(AGLOBL, N, N);
 	p->from.type = TYPE_MEM;
 	p->from.name = NAME_EXTERN;
 	p->from.sym = linksym(s);
@@ -155,7 +155,7 @@ gbranch(int as, Type *t, int likely)
 	p = prog(as);
 	p->to.type = TYPE_BRANCH;
 	p->to.u.branch = P;
-	if(as != AJMP && likely != 0 && arch.thechar != '9') {
+	if(as != AJMP && likely != 0 && thearch.thechar != '9') {
 		p->from.type = TYPE_CONST;
 		p->from.offset = likely > 0;
 	}
@@ -207,7 +207,7 @@ newplist(void)
 void
 gused(Node *n)
 {
-	arch.gins(ANOP, n, N);	// used
+	thearch.gins(ANOP, n, N);	// used
 }
 
 Prog*
@@ -293,7 +293,7 @@ ismem(Node *n)
 	case OCLOSUREVAR:
 		return 1;
 	case OADDR:
-		return arch.thechar == '6' || arch.thechar == '9'; // because 6g uses PC-relative addressing; TODO(rsc): not sure why 9g too
+		return thearch.thechar == '6' || thearch.thechar == '9'; // because 6g uses PC-relative addressing; TODO(rsc): not sure why 9g too
 	}
 	return 0;
 }
@@ -411,10 +411,10 @@ fp:
 	switch(fp) {
 	case 0:		// output arg
 		n->op = OINDREG;
-		n->val.u.reg = arch.REGSP;
-		if(arch.thechar == '5')
+		n->val.u.reg = thearch.REGSP;
+		if(thearch.thechar == '5')
 			n->xoffset += 4;
-		if(arch.thechar == '9')
+		if(thearch.thechar == '9')
 			n->xoffset += 8;
 		break;
 
@@ -425,7 +425,7 @@ fp:
 	case 2:		// offset output arg
 fatal("shouldn't be used");
 		n->op = OINDREG;
-		n->val.u.reg = arch.REGSP;
+		n->val.u.reg = thearch.REGSP;
 		n->xoffset += types[tptr]->width;
 		break;
 	}
@@ -466,7 +466,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->type = TYPE_REG;
 		a->reg = n->val.u.reg;
 		a->sym = nil;
-		if(arch.thechar == '8') // TODO(rsc): Never clear a->width.
+		if(thearch.thechar == '8') // TODO(rsc): Never clear a->width.
 			a->width = 0;
 		break;
 
@@ -477,7 +477,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->offset = n->xoffset;
 		if(a->offset != (int32)a->offset)
 			yyerror("offset %lld too large for OINDREG", a->offset);
-		if(arch.thechar == '8') // TODO(rsc): Never clear a->width.
+		if(thearch.thechar == '8') // TODO(rsc): Never clear a->width.
 			a->width = 0;
 		break;
 
@@ -497,7 +497,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		if(!curfn->needctxt)
 			fatal("closurevar without needctxt");
 		a->type = TYPE_MEM;
-		a->reg = arch.REGCTXT;
+		a->reg = thearch.REGCTXT;
 		a->sym = nil;
 		a->offset = n->xoffset;
 		break;
@@ -550,7 +550,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		break;
 
 	case OLITERAL:
-		if(arch.thechar == '8')
+		if(thearch.thechar == '8')
 			a->width = 0;
 		switch(n->val.ctype) {
 		default:
@@ -585,7 +585,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case OADDR:
 		naddr(n->left, a, canemitcode);
 		a->etype = tptr;
-		if(arch.thechar != '5' && arch.thechar != '9') // TODO(rsc): Do this even for arm, ppc64.
+		if(thearch.thechar != '5' && thearch.thechar != '9') // TODO(rsc): Do this even for arm, ppc64.
 			a->width = widthptr;
 		if(a->type != TYPE_MEM)
 			fatal("naddr: OADDR %D (from %O)", a, n->left->op);
@@ -617,10 +617,10 @@ naddr(Node *n, Addr *a, int canemitcode)
 		if(a->type == TYPE_CONST && a->offset == 0)
 			break;	// len(nil)
 		a->etype = simtype[TUINT];
-		if(arch.thechar == '9')
+		if(thearch.thechar == '9')
 			a->etype = simtype[TINT];
 		a->offset += Array_nel;
-		if(arch.thechar != '5') // TODO(rsc): Do this even on arm.
+		if(thearch.thechar != '5') // TODO(rsc): Do this even on arm.
 			a->width = widthint;
 		break;
 
@@ -630,10 +630,10 @@ naddr(Node *n, Addr *a, int canemitcode)
 		if(a->type == TYPE_CONST && a->offset == 0)
 			break;	// cap(nil)
 		a->etype = simtype[TUINT];
-		if(arch.thechar == '9')
+		if(thearch.thechar == '9')
 			a->etype = simtype[TINT];
 		a->offset += Array_cap;
-		if(arch.thechar != '5') // TODO(rsc): Do this even on arm.
+		if(thearch.thechar != '5') // TODO(rsc): Do this even on arm.
 			a->width = widthint;
 		break;
 
