@@ -139,17 +139,19 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	return c.WriteToUDP(b, a)
 }
 
-// WriteMsgUDP writes a packet to addr via c, copying the payload from
-// b and the associated out-of-band data from oob.  It returns the
-// number of payload and out-of-band bytes written.
+// WriteMsgUDP writes a packet to addr via c if c isn't connected, or
+// to c's remote destination address if c is connected (in which case
+// addr must be nil).  The payload is copied from b and the associated
+// out-of-band data is copied from oob.  It returns the number of
+// payload and out-of-band bytes written.
 func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
 	if !c.ok() {
 		return 0, 0, syscall.EINVAL
 	}
-	if c.fd.isConnected {
+	if c.fd.isConnected && addr != nil {
 		return 0, 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
 	}
-	if addr == nil {
+	if !c.fd.isConnected && addr == nil {
 		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
 	}
 	sa, err := addr.sockaddr(c.fd.family)
