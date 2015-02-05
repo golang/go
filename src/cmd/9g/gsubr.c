@@ -1700,6 +1700,7 @@ int
 sudoaddable(int as, Node *n, Addr *a)
 {
 	// TODO(minux)
-	USED(as); USED(n); USED(a);
+	USED(as); USED(n);
+	memset(a, 0, sizeof *a);
 	return 0;
 }

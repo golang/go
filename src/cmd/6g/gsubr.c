@@ -1966,6 +1966,8 @@ sudoaddable(int as, Node *n, Addr *a)
 	if(n->type == T)
 		return 0;
 
+	memset(a, 0, sizeof *a);
+
 	switch(n->op) {
 	case OLITERAL:
 		if(!isconst(n, CTINT))
