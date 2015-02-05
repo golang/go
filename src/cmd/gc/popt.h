@@ -68,11 +68,8 @@ uint64 STORE(Reg*);
 // A Reg is a wrapper around a single Prog (one instruction) that holds
 // register optimization information while the optimizer runs.
 // r->prog is the instruction.
-// r->prog->opt points back to r.
 struct	Reg
 {
-	Flow	f;
-
 	Bits	set;  		// regopt variables written by this instruction.
 	Bits	use1; 		// regopt variables read by prog->from.
 	Bits	use2; 		// regopt variables read by prog->to.
@@ -109,7 +106,7 @@ struct	Reg
 // cost.
 struct	Rgn
 {
-	Reg*	enter;
+	Flow*	enter;
 	short	cost;
 	short	varno;
 	short	regno;
@@ -143,17 +140,7 @@ EXTERN	struct
 /*
  * reg.c
  */
-int	rcmp(const void*, const void*);
 void	regopt(Prog*);
-void	addmove(Reg*, int, int, int);
-Bits	mkvar(Reg*, Adr*);
-void	prop(Reg*, Bits, Bits);
-void	synch(Reg*, Bits);
-uint64	allreg(uint64, Rgn*);
-void	paint1(Reg*, int);
-uint64	paint2(Reg*, int, int);
-void	paint3(Reg*, int, uint64, int);
-void	addreg(Adr*, int);
 void	dumpone(Flow*, int);
 void	dumpit(char*, Flow*, int);
 

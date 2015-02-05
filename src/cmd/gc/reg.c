@@ -33,10 +33,20 @@
 #include "go.h"
 #include "popt.h"
 
-static	Reg*	firstr;
+static	Flow*	firstf;
 static	int	first	= 1;
 
-int
+static void	addmove(Flow*, int, int, int);
+static Bits	mkvar(Flow*, Adr*);
+static void	prop(Flow*, Bits, Bits);
+static void	synch(Flow*, Bits);
+static uint64	allreg(uint64, Rgn*);
+static void	paint1(Flow*, int);
+static uint64	paint2(Flow*, int, int);
+static void	paint3(Flow*, int, uint64, int);
+static void	addreg(Adr*, int);
+
+static int
 rcmp(const void *a1, const void *a2)
 {
 	Rgn *p1, *p2;
@@ -76,12 +86,13 @@ setaddrs(Bits bit)
 
 static Node* regnodes[64];
 
-static void walkvardef(Node *n, Reg *r, int active);
+static void walkvardef(Node *n, Flow *r, int active);
 
 void
 regopt(Prog *firstp)
 {
-	Reg *r, *r1;
+	Flow *f, *f1;
+	Reg *r;
 	Prog *p;
 	Graph *g;
 	ProgInfo info;
@@ -134,10 +145,10 @@ regopt(Prog *firstp)
 		return;
 	}
 
-	firstr = (Reg*)g->start;
+	firstf = g->start;
 
-	for(r = firstr; r != R; r = (Reg*)r->f.link) {
-		p = r->f.prog;
+	for(f = firstf; f != nil; f = f->link) {
+		p = f->prog;
 		if(p->as == AVARDEF || p->as == AVARKILL)
 			continue;
 		arch.proginfo(&info, p);
@@ -147,10 +158,11 @@ regopt(Prog *firstp)
 			continue;
 
 		// from vs to doesn't matter for registers.
+		r = (Reg*)f->data;
 		r->use1.b[0] |= info.reguse | info.regindex;
 		r->set.b[0] |= info.regset;
 
-		bit = mkvar(r, &p->from);
+		bit = mkvar(f, &p->from);
 		if(bany(&bit)) {
 			if(info.flags & LeftAddr)
 				setaddrs(bit);
@@ -171,7 +183,7 @@ regopt(Prog *firstp)
 		if(p->from3.type != TYPE_NONE)
 			fatal("regopt not implemented for from3");
 
-		bit = mkvar(r, &p->to);
+		bit = mkvar(f, &p->to);
 		if(bany(&bit)) {	
 			if(info.flags & RightAddr)
 				setaddrs(bit);
@@ -198,7 +210,7 @@ regopt(Prog *firstp)
 	}
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass1", &firstr->f, 1);
+		dumpit("pass1", firstf, 1);
 
 	/*
 	 * pass 2
@@ -207,7 +219,7 @@ regopt(Prog *firstp)
 	flowrpo(g);
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass2", &firstr->f, 1);
+		dumpit("pass2", firstf, 1);
 
 	/*
 	 * pass 2.5
@@ -217,15 +229,16 @@ regopt(Prog *firstp)
 	 * but we'll be done with it by then.)
 	 */
 	active = 0;
-	for(r = firstr; r != R; r = (Reg*)r->f.link) {
-		r->f.active = 0;
+	for(f = firstf; f != nil; f = f->link) {
+		f->active = 0;
+		r = (Reg*)f->data;
 		r->act = zbits;
 	}
-	for(r = firstr; r != R; r = (Reg*)r->f.link) {
-		p = r->f.prog;
+	for(f = firstf; f != nil; f = f->link) {
+		p = f->prog;
 		if(p->as == AVARDEF && isfat(((Node*)(p->to.node))->type) && ((Node*)(p->to.node))->opt != nil) {
 			active++;
-			walkvardef(p->to.node, r, active);
+			walkvardef(p->to.node, f, active);
 		}
 	}
 
@@ -236,18 +249,18 @@ regopt(Prog *firstp)
 	 */
 loop1:
 	change = 0;
-	for(r = firstr; r != R; r = (Reg*)r->f.link)
-		r->f.active = 0;
-	for(r = firstr; r != R; r = (Reg*)r->f.link)
-		if(r->f.prog->as == ARET)
-			prop(r, zbits, zbits);
+	for(f = firstf; f != nil; f = f->link)
+		f->active = 0;
+	for(f = firstf; f != nil; f = f->link)
+		if(f->prog->as == ARET)
+			prop(f, zbits, zbits);
 loop11:
 	/* pick up unreachable code */
 	i = 0;
-	for(r = firstr; r != R; r = r1) {
-		r1 = (Reg*)r->f.link;
-		if(r1 && r1->f.active && !r->f.active) {
-			prop(r, zbits, zbits);
+	for(f = firstf; f != nil; f = f1) {
+		f1 = f->link;
+		if(f1 && f1->active && !f->active) {
+			prop(f, zbits, zbits);
 			i = 1;
 		}
 	}
@@ -257,7 +270,7 @@ loop11:
 		goto loop1;
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass3", &firstr->f, 1);
+		dumpit("pass3", firstf, 1);
 
 	/*
 	 * pass 4
@@ -266,14 +279,14 @@ loop11:
 	 */
 loop2:
 	change = 0;
-	for(r = firstr; r != R; r = (Reg*)r->f.link)
-		r->f.active = 0;
-	synch(firstr, zbits);
+	for(f = firstf; f != nil; f = f->link)
+		f->active = 0;
+	synch(firstf, zbits);
 	if(change)
 		goto loop2;
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass4", &firstr->f, 1);
+		dumpit("pass4", firstf, 1);
 
 	/*
 	 * pass 4.5
@@ -283,7 +296,8 @@ loop2:
 		mask = ~0ULL; // can't rely on C to shift by 64
 	else
 		mask = (1ULL<<nreg) - 1;
-	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+	for(f = firstf; f != nil; f = f->link) {
+		r = (Reg*)f->data;
 		r->regu = (r->refbehind.b[0] | r->set.b[0]) & mask;
 		r->set.b[0] &= ~mask;
 		r->use1.b[0] &= ~mask;
@@ -297,47 +311,49 @@ loop2:
 	}
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass4.5", &firstr->f, 1);
+		dumpit("pass4.5", firstf, 1);
 
 	/*
 	 * pass 5
 	 * isolate regions
 	 * calculate costs (paint1)
 	 */
-	r = firstr;
-	if(r) {
+	f = firstf;
+	if(f) {
+		r = (Reg*)f->data;
 		for(z=0; z<BITS; z++)
 			bit.b[z] = (r->refahead.b[z] | r->calahead.b[z]) &
 			  ~(externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z]);
-		if(bany(&bit) && !r->f.refset) {
+		if(bany(&bit) && !f->refset) {
 			// should never happen - all variables are preset
 			if(debug['w'])
-				print("%L: used and not set: %Q\n", r->f.prog->lineno, bit);
-			r->f.refset = 1;
+				print("%L: used and not set: %Q\n", f->prog->lineno, bit);
+			f->refset = 1;
 		}
 	}
-	for(r = firstr; r != R; r = (Reg*)r->f.link)
-		r->act = zbits;
+	for(f = firstf; f != nil; f = f->link)
+		((Reg*)f->data)->act = zbits;
 	rgp = region;
 	nregion = 0;
-	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+	for(f = firstf; f != nil; f = f->link) {
+		r = (Reg*)f->data;
 		for(z=0; z<BITS; z++)
 			bit.b[z] = r->set.b[z] &
 			  ~(r->refahead.b[z] | r->calahead.b[z] | addrs.b[z]);
-		if(bany(&bit) && !r->f.refset) {
+		if(bany(&bit) && !f->refset) {
 			if(debug['w'])
-				print("%L: set and not used: %Q\n", r->f.prog->lineno, bit);
-			r->f.refset = 1;
-			arch.excise(&r->f);
+				print("%L: set and not used: %Q\n", f->prog->lineno, bit);
+			f->refset = 1;
+			arch.excise(f);
 		}
 		for(z=0; z<BITS; z++)
 			bit.b[z] = LOAD(r) & ~(r->act.b[z] | addrs.b[z]);
 		while(bany(&bit)) {
 			i = bnum(bit);
-			rgp->enter = r;
+			rgp->enter = f;
 			rgp->varno = i;
 			change = 0;
-			paint1(r, i);
+			paint1(f, i);
 			biclr(&bit, i);
 			if(change <= 0)
 				continue;
@@ -355,7 +371,7 @@ brk:
 	qsort(region, nregion, sizeof(region[0]), rcmp);
 
 	if(debug['R'] && debug['v'])
-		dumpit("pass5", &firstr->f, 1);
+		dumpit("pass5", firstf, 1);
 
 	/*
 	 * pass 6
@@ -367,7 +383,7 @@ brk:
 		print("\nregisterizing\n");
 	for(i=0; i<nregion; i++) {
 		if(debug['R'] && debug['v'])
-			print("region %d: cost %d varno %d enter %lld\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
+			print("region %d: cost %d varno %d enter %lld\n", i, rgp->cost, rgp->varno, rgp->enter->prog->pc);
 		bit = blsh(rgp->varno);
 		usedreg = paint2(rgp->enter, rgp->varno, 0);
 		vreg = allreg(usedreg, rgp);
@@ -390,15 +406,15 @@ brk:
 	for(i=0; i<nvar; i++)
 		var[i].node->opt = nil;
 	flowend(g);
-	firstr = R;
+	firstf = nil;
 
 	if(debug['R'] && debug['v']) {
 		// Rebuild flow graph, since we inserted instructions
-		g = flowstart(firstp, sizeof(Reg));
-		firstr = (Reg*)g->start;
-		dumpit("pass6", &firstr->f, 1);
+		g = flowstart(firstp, 0);
+		firstf = g->start;
+		dumpit("pass6", firstf, 0);
 		flowend(g);
-		firstr = R;
+		firstf = nil;
 	}
 
 	/*
@@ -447,37 +463,37 @@ brk:
 }
 
 static void
-walkvardef(Node *n, Reg *r, int active)
+walkvardef(Node *n, Flow *f, int active)
 {
-	Reg *r1, *r2;
+	Flow *f1, *f2;
 	int bn;
 	Var *v;
 	
-	for(r1=r; r1!=R; r1=(Reg*)r1->f.s1) {
-		if(r1->f.active == active)
+	for(f1=f; f1!=nil; f1=f1->s1) {
+		if(f1->active == active)
 			break;
-		r1->f.active = active;
-		if(r1->f.prog->as == AVARKILL && r1->f.prog->to.node == n)
+		f1->active = active;
+		if(f1->prog->as == AVARKILL && f1->prog->to.node == n)
 			break;
 		for(v=n->opt; v!=nil; v=v->nextinnode) {
 			bn = v - var;
-			biset(&r1->act, bn);
+			biset(&((Reg*)f1->data)->act, bn);
 		}
-		if(r1->f.prog->as == ACALL)
+		if(f1->prog->as == ACALL)
 			break;
 	}
 
-	for(r2=r; r2!=r1; r2=(Reg*)r2->f.s1)
-		if(r2->f.s2 != nil)
-			walkvardef(n, (Reg*)r2->f.s2, active);
+	for(f2=f; f2!=f1; f2=f2->s1)
+		if(f2->s2 != nil)
+			walkvardef(n, f2->s2, active);
 }
 
 /*
  * add mov b,rn
  * just after r
  */
-void
-addmove(Reg *r, int bn, int rn, int f)
+static void
+addmove(Flow *r, int bn, int rn, int f)
 {
 	Prog *p, *p1;
 	Adr *a;
@@ -487,7 +503,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	clearp(p1);
 	p1->pc = 9999;
 
-	p = r->f.prog;
+	p = r->prog;
 	p1->link = p->link;
 	p->link = p1;
 	p1->lineno = p->lineno;
@@ -540,8 +556,8 @@ overlap(int64 o1, int w1, int64 o2, int w2)
 	return 1;
 }
 
-Bits
-mkvar(Reg *r, Adr *a)
+static Bits
+mkvar(Flow *f, Adr *a)
 {
 	Var *v;
 	int i, n, et, z, flag;
@@ -550,6 +566,8 @@ mkvar(Reg *r, Adr *a)
 	int64 o;
 	Bits bit;
 	Node *node;
+	Reg *r;
+	
 
 	/*
 	 * mark registers used
@@ -557,8 +575,8 @@ mkvar(Reg *r, Adr *a)
 	if(a->type == TYPE_NONE)
 		goto none;
 
-	if(r != R)
-		r->use1.b[0] |= arch.doregbits(a->index); // TODO: Use RtoB
+	r = (Reg*)f->data;
+	r->use1.b[0] |= arch.doregbits(a->index); // TODO: Use RtoB
 
 	switch(a->type) {
 	default:
@@ -574,7 +592,7 @@ mkvar(Reg *r, Adr *a)
 		if(arch.thechar == '9' || arch.thechar == '5')
 			goto memcase;
 		a->type = TYPE_MEM;
-		bit = mkvar(r, a);
+		bit = mkvar(f, a);
 		setaddrs(bit);
 		a->type = TYPE_ADDR;
 		ostats.naddr++;
@@ -729,14 +747,16 @@ none:
 	return zbits;
 }
 
-void
-prop(Reg *r, Bits ref, Bits cal)
+static void
+prop(Flow *f, Bits ref, Bits cal)
 {
-	Reg *r1, *r2;
+	Flow *f1, *f2;
+	Reg *r, *r1;
 	int z, i, j;
 	Var *v, *v1;
 
-	for(r1 = r; r1 != R; r1 = (Reg*)r1->f.p1) {
+	for(f1 = f; f1 != nil; f1 = f1->p1) {
+		r1 = (Reg*)f1->data;
 		for(z=0; z<BITS; z++) {
 			ref.b[z] |= r1->refahead.b[z];
 			if(ref.b[z] != r1->refahead.b[z]) {
@@ -749,9 +769,9 @@ prop(Reg *r, Bits ref, Bits cal)
 				change++;
 			}
 		}
-		switch(r1->f.prog->as) {
+		switch(f1->prog->as) {
 		case ACALL:
-			if(noreturn(r1->f.prog))
+			if(noreturn(f1->prog))
 				break;
 
 			// Mark all input variables (ivar) as used, because that's what the
@@ -831,22 +851,27 @@ prop(Reg *r, Bits ref, Bits cal)
 			r1->refbehind.b[z] = ref.b[z];
 			r1->calbehind.b[z] = cal.b[z];
 		}
-		if(r1->f.active)
+		if(f1->active)
 			break;
-		r1->f.active = 1;
+		f1->active = 1;
 	}
-	for(; r != r1; r = (Reg*)r->f.p1)
-		for(r2 = (Reg*)r->f.p2; r2 != R; r2 = (Reg*)r2->f.p2link)
-			prop(r2, r->refbehind, r->calbehind);
+
+	for(; f != f1; f = f->p1) {
+		r = (Reg*)f->data;
+		for(f2 = f->p2; f2 != nil; f2 = f2->p2link)
+			prop(f2, r->refbehind, r->calbehind);
+	}
 }
 
-void
-synch(Reg *r, Bits dif)
+static void
+synch(Flow *f, Bits dif)
 {
+	Flow *f1;
 	Reg *r1;
 	int z;
 
-	for(r1 = r; r1 != R; r1 = (Reg*)r1->f.s1) {
+	for(f1 = f; f1 != nil; f1 = f1->s1) {
+		r1 = (Reg*)f1->data;
 		for(z=0; z<BITS; z++) {
 			dif.b[z] = (dif.b[z] &
 				~(~r1->refbehind.b[z] & r1->refahead.b[z])) |
@@ -856,17 +881,17 @@ synch(Reg *r, Bits dif)
 				change++;
 			}
 		}
-		if(r1->f.active)
+		if(f1->active)
 			break;
-		r1->f.active = 1;
+		f1->active = 1;
 		for(z=0; z<BITS; z++)
 			dif.b[z] &= ~(~r1->calbehind.b[z] & r1->calahead.b[z]);
-		if(r1->f.s2 != nil)
-			synch((Reg*)r1->f.s2, dif);
+		if(f1->s2 != nil)
+			synch(f1->s2, dif);
 	}
 }
 
-uint64
+static uint64
 allreg(uint64 b, Rgn *r)
 {
 	Var *v;
@@ -913,61 +938,66 @@ allreg(uint64 b, Rgn *r)
 	return 0;
 }
 
-void
-paint1(Reg *r, int bn)
+static void
+paint1(Flow *f, int bn)
 {
-	Reg *r1;
+	Flow *f1;
+	Reg *r, *r1;
 	int z;
 	uint64 bb;
 
 	z = bn/64;
 	bb = 1LL<<(bn%64);
+	r = (Reg*)f->data;
 	if(r->act.b[z] & bb)
 		return;
 	for(;;) {
 		if(!(r->refbehind.b[z] & bb))
 			break;
-		r1 = (Reg*)r->f.p1;
-		if(r1 == R)
+		f1 = f->p1;
+		if(f1 == nil)
 			break;
+		r1 = (Reg*)f1->data;
 		if(!(r1->refahead.b[z] & bb))
 			break;
 		if(r1->act.b[z] & bb)
 			break;
+		f = f1;
 		r = r1;
 	}
 
 	if(LOAD(r) & ~(r->set.b[z]&~(r->use1.b[z]|r->use2.b[z])) & bb) {
-		change -= CLOAD * r->f.loop;
+		change -= CLOAD * f->loop;
 	}
 	for(;;) {
 		r->act.b[z] |= bb;
 
-		if(r->f.prog->as != ANOP) { // don't give credit for NOPs
+		if(f->prog->as != ANOP) { // don't give credit for NOPs
 			if(r->use1.b[z] & bb)
-				change += CREF * r->f.loop;
+				change += CREF * f->loop;
 			if((r->use2.b[z]|r->set.b[z]) & bb)
-				change += CREF * r->f.loop;
+				change += CREF * f->loop;
 		}
 
 		if(STORE(r) & r->regdiff.b[z] & bb) {
-			change -= CLOAD * r->f.loop;
+			change -= CLOAD * f->loop;
 		}
 
 		if(r->refbehind.b[z] & bb)
-			for(r1 = (Reg*)r->f.p2; r1 != R; r1 = (Reg*)r1->f.p2link)
-				if(r1->refahead.b[z] & bb)
-					paint1(r1, bn);
+			for(f1 = f->p2; f1 != nil; f1 = f1->p2link)
+				if(((Reg*)f1->data)->refahead.b[z] & bb)
+					paint1(f1, bn);
 
 		if(!(r->refahead.b[z] & bb))
 			break;
-		r1 = (Reg*)r->f.s2;
-		if(r1 != R)
-			if(r1->refbehind.b[z] & bb)
-				paint1(r1, bn);
-		r = (Reg*)r->f.s1;
-		if(r == R)
+		f1 = f->s2;
+		if(f1 != nil)
+			if(((Reg*)f1->data)->refbehind.b[z] & bb)
+				paint1(f1, bn);
+		f = f->s1;
+		if(f == nil)
 			break;
+		r = (Reg*)f->data;
 		if(r->act.b[z] & bb)
 			break;
 		if(!(r->refbehind.b[z] & bb))
@@ -975,52 +1005,57 @@ paint1(Reg *r, int bn)
 	}
 }
 
-uint64
-paint2(Reg *r, int bn, int depth)
+static uint64
+paint2(Flow *f, int bn, int depth)
 {
-	Reg *r1;
+	Flow *f1;
+	Reg *r, *r1;
 	int z;
 	uint64 bb, vreg;
 
 	z = bn/64;
 	bb = 1LL << (bn%64);
 	vreg = regbits;
+	r = (Reg*)f->data;
 	if(!(r->act.b[z] & bb))
 		return vreg;
 	for(;;) {
 		if(!(r->refbehind.b[z] & bb))
 			break;
-		r1 = (Reg*)r->f.p1;
-		if(r1 == R)
+		f1 = f->p1;
+		if(f1 == nil)
 			break;
+		r1 = (Reg*)f1->data;
 		if(!(r1->refahead.b[z] & bb))
 			break;
 		if(!(r1->act.b[z] & bb))
 			break;
+		f = f1;
 		r = r1;
 	}
 	for(;;) {
 		if(debug['R'] && debug['v'])
-			print("  paint2 %d %P\n", depth, r->f.prog);
+			print("  paint2 %d %P\n", depth, f->prog);
 
 		r->act.b[z] &= ~bb;
 
 		vreg |= r->regu;
 
 		if(r->refbehind.b[z] & bb)
-			for(r1 = (Reg*)r->f.p2; r1 != R; r1 = (Reg*)r1->f.p2link)
-				if(r1->refahead.b[z] & bb)
-					vreg |= paint2(r1, bn, depth+1);
+			for(f1 = f->p2; f1 != nil; f1 = f1->p2link)
+				if(((Reg*)f1->data)->refahead.b[z] & bb)
+					vreg |= paint2(f1, bn, depth+1);
 
 		if(!(r->refahead.b[z] & bb))
 			break;
-		r1 = (Reg*)r->f.s2;
-		if(r1 != R)
-			if(r1->refbehind.b[z] & bb)
-				vreg |= paint2(r1, bn, depth+1);
-		r = (Reg*)r->f.s1;
-		if(r == R)
+		f1 = f->s2;
+		if(f1 != nil)
+			if(((Reg*)f1->data)->refbehind.b[z] & bb)
+				vreg |= paint2(f1, bn, depth+1);
+		f = f->s1;
+		if(f == nil)
 			break;
+		r = (Reg*)f->data;
 		if(!(r->act.b[z] & bb))
 			break;
 		if(!(r->refbehind.b[z] & bb))
@@ -1030,36 +1065,40 @@ paint2(Reg *r, int bn, int depth)
 	return vreg;
 }
 
-void
-paint3(Reg *r, int bn, uint64 rb, int rn)
+static void
+paint3(Flow *f, int bn, uint64 rb, int rn)
 {
-	Reg *r1;
+	Flow *f1;
+	Reg *r, *r1;
 	Prog *p;
 	int z;
 	uint64 bb;
 
 	z = bn/64;
 	bb = 1LL << (bn%64);
+	r = (Reg*)f->data;
 	if(r->act.b[z] & bb)
 		return;
 	for(;;) {
 		if(!(r->refbehind.b[z] & bb))
 			break;
-		r1 = (Reg*)r->f.p1;
-		if(r1 == R)
+		f1 = f->p1;
+		if(f1 == nil)
 			break;
+		r1 = (Reg*)f1->data;
 		if(!(r1->refahead.b[z] & bb))
 			break;
 		if(r1->act.b[z] & bb)
 			break;
+		f = f1;
 		r = r1;
 	}
 
 	if(LOAD(r) & ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z])) & bb)
-		addmove(r, bn, rn, 0);
+		addmove(f, bn, rn, 0);
 	for(;;) {
 		r->act.b[z] |= bb;
-		p = r->f.prog;
+		p = f->prog;
 
 		if(r->use1.b[z] & bb) {
 			if(debug['R'] && debug['v'])
@@ -1077,23 +1116,24 @@ paint3(Reg *r, int bn, uint64 rb, int rn)
 		}
 
 		if(STORE(r) & r->regdiff.b[z] & bb)
-			addmove(r, bn, rn, 1);
+			addmove(f, bn, rn, 1);
 		r->regu |= rb;
 
 		if(r->refbehind.b[z] & bb)
-			for(r1 = (Reg*)r->f.p2; r1 != R; r1 = (Reg*)r1->f.p2link)
-				if(r1->refahead.b[z] & bb)
-					paint3(r1, bn, rb, rn);
+			for(f1 = f->p2; f1 != nil; f1 = f1->p2link)
+				if(((Reg*)f1->data)->refahead.b[z] & bb)
+					paint3(f1, bn, rb, rn);
 
 		if(!(r->refahead.b[z] & bb))
 			break;
-		r1 = (Reg*)r->f.s2;
-		if(r1 != R)
-			if(r1->refbehind.b[z] & bb)
-				paint3(r1, bn, rb, rn);
-		r = (Reg*)r->f.s1;
-		if(r == R)
+		f1 = f->s2;
+		if(f1 != nil)
+			if(((Reg*)f1->data)->refbehind.b[z] & bb)
+				paint3(f1, bn, rb, rn);
+		f = f->s1;
+		if(f == nil)
 			break;
+		r = (Reg*)f->data;
 		if(r->act.b[z] & bb)
 			break;
 		if(!(r->refbehind.b[z] & bb))
@@ -1101,7 +1141,7 @@ paint3(Reg *r, int bn, uint64 rb, int rn)
 	}
 }
 
-void
+static void
 addreg(Adr *a, int rn)
 {
 	a->sym = nil;
@@ -1123,7 +1163,7 @@ dumpone(Flow *f, int isreg)
 
 	print("%d:%P", f->loop, f->prog);
 	if(isreg) {	
-		r = (Reg*)f;
+		r = (Reg*)f->data;
 		for(z=0; z<BITS; z++)
 			bit.b[z] =
 				r->set.b[z] |

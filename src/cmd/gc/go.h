@@ -1557,9 +1557,12 @@ struct Flow {
 	
 	int32	active;	// usable by client
 
+	int32	id;		// sequence number in flow graph
 	int32	rpo;		// reverse post ordering
 	uint16	loop;		// x5 for every loop
 	uchar	refset;		// diagnostic generated
+	
+	void*	data;	// for use by client
 };
 
 struct Graph
