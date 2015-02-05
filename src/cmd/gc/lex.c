@@ -660,7 +660,7 @@ importfile(Val *f, int line)
 	Biobuf *imp;
 	char *file, *p, *q, *tag;
 	int32 c;
-	int len;
+	int n;
 	Strlit *path;
 	char *cleanbuf, *prefix;
 
@@ -758,8 +758,8 @@ importfile(Val *f, int line)
 	}
 	file = strdup(namebuf);
 
-	len = strlen(namebuf);
-	if(len > 2 && namebuf[len-2] == '.' && namebuf[len-1] == 'a') {
+	n = strlen(namebuf);
+	if(n > 2 && namebuf[n-2] == '.' && namebuf[n-1] == 'a') {
 		if(!skiptopkgdef(imp)) {
 			yyerror("import %s: not a package file", file);
 			errorexit();
@@ -783,7 +783,7 @@ importfile(Val *f, int line)
 
 	// assume files move (get installed)
 	// so don't record the full path.
-	linehist(file + len - path->len - 2, -1, 1);	// acts as #pragma lib
+	linehist(file + n - path->len - 2, -1, 1);	// acts as #pragma lib
 
 	/*
 	 * position the input right
@@ -987,17 +987,7 @@ l0:
 			rune = c;
 			clen += runetochar(cp+clen, &rune);
 		}
-
-	strlit:
-		*(int32*)cp = clen-sizeof(int32);	// length
-		do {
-			cp[clen++] = 0;
-		} while(clen & MAXALIGN);
-		yylval.val.u.sval = (Strlit*)cp;
-		yylval.val.ctype = CTSTR;
-		DBG("lex: string literal\n");
-		strcpy(litbuf, "string literal");
-		return LLITERAL;
+		goto strlit;
 
 	case '\'':
 		/* '.' */
@@ -1292,7 +1282,7 @@ talph:
 		if(c >= Runeself) {
 			ungetc(c);
 			rune = getr();
-			// 0xb7 Â· is used for internal names
+			// 0xb7 · is used for internal names
 			if(!isalpharune(rune) && !isdigitrune(rune) && (importpkg == nil || rune != 0xb7))
 				yyerror("invalid identifier character U+%04x", rune);
 			cp += runetochar(cp, &rune);
@@ -1479,6 +1469,17 @@ caseout:
 	DBG("lex: floating literal\n");
 	strcpy(litbuf, "literal ");
 	strcat(litbuf, lexbuf);
+	return LLITERAL;
+
+strlit:
+	*(int32*)cp = clen-sizeof(int32);	// length
+	do {
+		cp[clen++] = 0;
+	} while(clen & MAXALIGN);
+	yylval.val.u.sval = (Strlit*)cp;
+	yylval.val.ctype = CTSTR;
+	DBG("lex: string literal\n");
+	strcpy(litbuf, "string literal");
 	return LLITERAL;
 }
 

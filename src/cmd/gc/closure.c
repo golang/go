@@ -208,10 +208,19 @@ capturevars(Node *xfunc)
 			v->closure->addrtaken = 1;
 			outer = nod(OADDR, outer, N);
 		}
-		if(debug['m'] > 1)
+		if(debug['m'] > 1) {
+			Sym *name;
+			char *how;
+			name = nil;
+			if(v->curfn && v->curfn->nname)
+				name = v->curfn->nname->sym;
+			how = "ref";
+			if(v->byval)
+				how = "value";
 			warnl(v->lineno, "%S capturing by %s: %S (addr=%d assign=%d width=%d)",
-				(v->curfn && v->curfn->nname) ? v->curfn->nname->sym : S, v->byval ? "value" : "ref",
+				name, how,
 				v->sym, v->closure->addrtaken, v->closure->assigned, (int32)v->type->width);
+		}
 		typecheck(&outer, Erv);
 		func->enter = list(func->enter, outer);
 	}

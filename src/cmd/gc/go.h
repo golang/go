@@ -743,6 +743,7 @@ struct	Var
 	Node*	node;
 	Var*	nextinnode;
 	int	width;
+	int	id;
 	char	name;
 	char	etype;
 	char	addr;
@@ -1732,6 +1733,13 @@ void datagostring(Strlit *sval, Addr *a);
 int ismem(Node*);
 int samereg(Node*, Node*);
 void	regopt(Prog*);
+int	Tconv(Fmt*);
+int	Oconv(Fmt*);
+Prog*	gbranch(int as, Type *t, int likely);
+void	nodindreg(Node *n, Type *t, int r);
+void	nodreg(Node *n, Type *t, int r);
+Prog*	prog(int as);
+void	datastring(char*, int, Addr*);
 
 EXTERN int32	pcloc;
 

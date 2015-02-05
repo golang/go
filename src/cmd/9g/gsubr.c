@@ -87,7 +87,7 @@ gclean(void)
 			yyerror("reg %R left allocated, %p\n", i+REG_R0, regpc[i]);
 }
 
-int32
+int
 anyregalloc(void)
 {
 	int i, j;
@@ -732,8 +732,7 @@ fixlargeoffset(Node *n)
 	if(n->xoffset != (int32)n->xoffset) {
 		// TODO(minux): offset too large, move into R31 and add to R31 instead.
 		// this is used only in test/fixedbugs/issue6036.go.
-		print("offset too large: %N\n", n);
-		noimpl;
+		fatal("offset too large: %N", n);
 		a = *n;
 		a.op = OREGISTER;
 		a.type = types[tptr];

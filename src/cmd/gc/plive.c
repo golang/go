@@ -1909,15 +1909,15 @@ static void
 twobitwritesymbol(Array *arr, Sym *sym)
 {
 	Bvec *bv;
-	int off, i, j, len;
+	int off, i, j, n;
 	uint32 word;
 
-	len = arraylength(arr);
+	n = arraylength(arr);
 	off = 0;
 	off += 4; // number of bitmaps, to fill in later
 	bv = *(Bvec**)arrayget(arr, 0);
 	off = duint32(sym, off, bv->n); // number of bits in each bitmap
-	for(i = 0; i < len; i++) {
+	for(i = 0; i < n; i++) {
 		// bitmap words
 		bv = *(Bvec**)arrayget(arr, i);
 		if(bv == nil)

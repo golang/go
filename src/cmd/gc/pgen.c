@@ -161,6 +161,7 @@ compile(Node *fn)
 	Iter save;
 	vlong oldstksize;
 	NodeList *l;
+	Node *nam;
 	Sym *gcargs;
 	Sym *gclocals;
 
@@ -229,7 +230,10 @@ compile(Node *fn)
 	setlineno(curfn);
 
 	nodconst(&nod1, types[TINT32], 0);
-	ptxt = thearch.gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
+	nam = curfn->nname;
+	if(isblank(nam))
+		nam = N;
+	ptxt = thearch.gins(ATEXT, nam, &nod1);
 	if(fn->dupok)
 		ptxt->from3.offset |= DUPOK;
 	if(fn->wrapper)
