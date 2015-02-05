@@ -969,30 +969,30 @@ eq:
 	RETURN
 
 // eqstring tests whether two strings are equal.
+// The compiler guarantees that strings passed
+// to eqstring have equal length.
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$0-33
-	MOVD	s1len+8(FP), R4
-	MOVD	s2len+24(FP), R5
-	CMP	R4, R5
-	BNE	noteq
-
 	MOVD	s1str+0(FP), R3
 	MOVD	s2str+16(FP), R4
+	MOVD	$1, R5
+	MOVB	R5, ret+32(FP)
+	CMP	R3, R4
+	BNE	2(PC)
+	RETURN
+	MOVD	s1len+8(FP), R5
 	SUB	$1, R3
 	SUB	$1, R4
 	ADD	R3, R5, R8
 loop:
 	CMP	R3, R8
-	BNE	4(PC)
-	MOVD	$1, R3
-	MOVB	R3, ret+32(FP)
+	BNE	2(PC)
 	RETURN
 	MOVBZU	1(R3), R6
 	MOVBZU	1(R4), R7
 	CMP	R6, R7
 	BEQ	loop
-noteq:
 	MOVB	R0, ret+32(FP)
 	RETURN
 
