@@ -806,21 +806,18 @@ eq:
 	RET
 
 // eqstring tests whether two strings are equal.
+// The compiler guarantees that strings passed
+// to eqstring have equal length.
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
-	MOVW	s1len+4(FP), R0
-	MOVW	s2len+12(FP), R1
-	MOVW	$0, R7
-	CMP	R0, R1
-	MOVB.NE R7, v+16(FP)
-	RET.NE
 	MOVW	s1str+0(FP), R2
 	MOVW	s2str+8(FP), R3
 	MOVW	$1, R8
 	MOVB	R8, v+16(FP)
 	CMP	R2, R3
 	RET.EQ
+	MOVW	s1len+4(FP), R0
 	ADD	R2, R0, R6
 loop:
 	CMP	R2, R6
@@ -829,7 +826,8 @@ loop:
 	MOVBU.P	1(R3), R5
 	CMP	R4, R5
 	BEQ	loop
-	MOVB	R7, v+16(FP)
+	MOVW	$0, R8
+	MOVB	R8, v+16(FP)
 	RET
 
 // void setg_gcc(G*); set g called from gcc.

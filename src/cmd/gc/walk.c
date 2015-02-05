@@ -1273,6 +1273,7 @@ walkexpr(Node **np, NodeList **init)
 				conv(n->right, types[TSTRING]));
 
 			// quick check of len before full compare for == or !=
+			// eqstring assumes that the lengths are equal
 			if(n->etype == OEQ) {
 				// len(left) == len(right) && eqstring(left, right)
 				r = nod(OANDAND, nod(OEQ, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
