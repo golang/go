@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test case for http://code.google.com/p/go/issues/detail?id=700
+// Test case for http://golang.org/issue/700
 
 package main
 

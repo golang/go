@@ -200,7 +200,7 @@ func BenchmarkDecodeDigits(b *testing.B) { benchmarkDecode(b, digits) }
 func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
 
 func TestBufferOverrun(t *testing.T) {
-	// Tests https://code.google.com/p/go/issues/detail?id=5747.
+	// Tests https://golang.org/issue/5747.
 	buffer := bytes.NewReader([]byte(bufferOverrunBase64))
 	decoder := base64.NewDecoder(base64.StdEncoding, buffer)
 	decompressor := NewReader(decoder)
@@ -209,7 +209,7 @@ func TestBufferOverrun(t *testing.T) {
 }
 
 func TestOutOfRangeSelector(t *testing.T) {
-	// Tests https://code.google.com/p/go/issues/detail?id=8363.
+	// Tests https://golang.org/issue/8363.
 	buffer := bytes.NewReader(outOfRangeSelector)
 	decompressor := NewReader(buffer)
 	// This shouldn't panic.

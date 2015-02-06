@@ -1008,7 +1008,7 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
 	}
 }
 
-func TestBug3486(t *testing.T) { // http://code.google.com/p/go/issues/detail?id=3486
+func TestBug3486(t *testing.T) { // http://golang.org/issue/3486
 	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
 	if err != nil {
 		t.Fatal(err)
