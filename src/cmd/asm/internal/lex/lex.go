@@ -61,8 +61,9 @@ var (
 // HistLine reports the cumulative source line number of the token,
 // for use in the Prog structure for the linker. (It's always handling the
 // instruction from the current lex line.)
-func HistLine() int {
-	return histLine
+// It returns int32 because that's what type ../asm prefers.
+func HistLine() int32 {
+	return int32(histLine)
 }
 
 // NewLexer returns a lexer for the named file and the given link context.

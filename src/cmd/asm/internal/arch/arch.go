@@ -1,5 +1,3 @@
-// +build ignore
-
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -23,20 +21,20 @@ const (
 // Arch wraps the link architecture object with more architecture-specific information.
 type Arch struct {
 	*obj.LinkArch
-	D_INDIR  int // TODO: why not in LinkArch?
-	D_CONST2 int // TODO: why not in LinkArch?
-	// Register number of hardware stack pointer.
-	SP int
-	// Encoding of non-address.
-	NoAddr obj.Addr
 	// Map of instruction names to enumeration.
 	Instructions map[string]int
 	// Map of register names to enumeration.
-	Registers map[string]int
-	// Map of pseudo-instructions (TEXT, DATA etc.)  to enumeration.
-	Pseudos map[string]int
+	Registers map[string]int16
 	// Instructions that take one operand whose result is a destination.
 	UnaryDestination map[int]bool
+}
+
+var Pseudos = map[string]int{
+	"DATA":     obj.ADATA,
+	"FUNCDATA": obj.AFUNCDATA,
+	"GLOBL":    obj.AGLOBL,
+	"PCDATA":   obj.APCDATA,
+	"TEXT":     obj.ATEXT,
 }
 
 // Set configures the architecture specified by GOARCH and returns its representation.
@@ -53,21 +51,16 @@ func Set(GOARCH string) *Arch {
 }
 
 func arch386() *Arch {
-	noAddr := obj.Addr{
-		Type:  i386.D_NONE,
-		Index: i386.D_NONE,
-	}
 
-	registers := make(map[string]int)
+	registers := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// TODO: Should this be done in obj for us?
 	for i, s := range i386.Register {
-		registers[s] = i
+		registers[s] = int16(i + i386.REG_AL)
 	}
 	// Pseudo-registers.
 	registers["SB"] = RSB
 	registers["FP"] = RFP
-	registers["SP"] = RSP
 	registers["PC"] = RPC
 
 	instructions := make(map[string]int)
@@ -107,13 +100,6 @@ func arch386() *Arch {
 	instructions["MASKMOVDQU"] = i386.AMASKMOVOU
 	instructions["MOVOA"] = i386.AMOVO
 	instructions["MOVNTDQ"] = i386.AMOVNTO
-
-	pseudos := make(map[string]int) // TEXT, DATA etc.
-	pseudos["DATA"] = i386.ADATA
-	pseudos["FUNCDATA"] = i386.AFUNCDATA
-	pseudos["GLOBL"] = i386.AGLOBL
-	pseudos["PCDATA"] = i386.APCDATA
-	pseudos["TEXT"] = i386.ATEXT
 
 	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
 	// These instructions write to prog.To.
@@ -158,33 +144,23 @@ func arch386() *Arch {
 
 	return &Arch{
 		LinkArch:         &i386.Link386,
-		D_INDIR:          i386.D_INDIR,
-		D_CONST2:         i386.D_CONST2,
-		SP:               i386.D_SP,
-		NoAddr:           noAddr,
 		Instructions:     instructions,
 		Registers:        registers,
-		Pseudos:          pseudos,
 		UnaryDestination: unaryDestination,
 	}
 }
 
 func archAmd64() *Arch {
-	noAddr := obj.Addr{
-		Type:  x86.D_NONE,
-		Index: x86.D_NONE,
-	}
 
-	registers := make(map[string]int)
+	registers := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// TODO: Should this be done in obj for us?
 	for i, s := range x86.Register {
-		registers[s] = i
+		registers[s] = int16(i + x86.REG_AL)
 	}
 	// Pseudo-registers.
 	registers["SB"] = RSB
 	registers["FP"] = RFP
-	registers["SP"] = RSP
 	registers["PC"] = RPC
 
 	instructions := make(map[string]int)
@@ -222,13 +198,6 @@ func archAmd64() *Arch {
 	instructions["MASKMOVDQU"] = x86.AMASKMOVOU
 	instructions["MOVD"] = x86.AMOVQ
 	instructions["MOVDQ2Q"] = x86.AMOVQ
-
-	pseudos := make(map[string]int) // TEXT, DATA etc.
-	pseudos["DATA"] = x86.ADATA
-	pseudos["FUNCDATA"] = x86.AFUNCDATA
-	pseudos["GLOBL"] = x86.AGLOBL
-	pseudos["PCDATA"] = x86.APCDATA
-	pseudos["TEXT"] = x86.ATEXT
 
 	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
 	// These instructions write to prog.To.
@@ -282,13 +251,8 @@ func archAmd64() *Arch {
 
 	return &Arch{
 		LinkArch:         &x86.Linkamd64,
-		D_INDIR:          x86.D_INDIR,
-		D_CONST2:         x86.D_NONE,
-		SP:               x86.D_SP,
-		NoAddr:           noAddr,
 		Instructions:     instructions,
 		Registers:        registers,
-		Pseudos:          pseudos,
 		UnaryDestination: unaryDestination,
 	}
 }

@@ -22,13 +22,6 @@ func (s *Stack) Next() ScanToken {
 	tok := tos.Next()
 	for tok == scanner.EOF && len(s.tr) > 1 {
 		tos.Close()
-		/*
-			// If it's not a macro (a Slice at this point), pop the line history stack and close the file descriptor.
-			if _, isMacro := tos.(*Slice); !isMacro {
-				// TODO: close file descriptor.
-				obj.Linklinehist(linkCtxt, histLine, "<pop>", 0)
-			}
-		*/
 		// Pop the topmost item from the stack and resume with the next one down.
 		s.tr = s.tr[:len(s.tr)-1]
 		tok = s.Next()
