@@ -102,6 +102,11 @@ Pconv(Fmt *fp)
 	default:
 		sprint(str, "%.5lld (%L)	%A	%D,%D",
 			p->pc, p->lineno, p->as, &p->from, &p->to);
+		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+		//	SHRQ $32(DX*0), AX
+		// Remove.
+		if((p->from.type == TYPE_REG || p->from.type == TYPE_CONST) && p->from.index != REG_NONE)
+			sprint(strchr(str, 0), ":%R", p->from.index);
 		break;
 	}
 	bigP = nil;
@@ -195,13 +200,6 @@ Dconv(Fmt *fp)
 
 	case TYPE_CONST:
 		sprint(str, "$%lld", a->offset);
-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
-		//	SHRQ $32(DX*0), AX
-		// Remove.
-		if(a->index != REG_NONE) {
-			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
-			strcat(str, s);
-		}
 		break;
 	
 	case TYPE_TEXTSIZE:
