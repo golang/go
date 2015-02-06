@@ -11,7 +11,7 @@ import (
 )
 
 func checkGdbPython(t *testing.T) {
-	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-ex", "python import sys; print('go gdb python support')")
+	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')")
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
