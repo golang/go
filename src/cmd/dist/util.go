@@ -471,24 +471,38 @@ func xgetgoarm() string {
 		// FreeBSD has broken VFP support.
 		return "5"
 	}
-	if xtryexecfunc(useVFPv3) {
+	if goos != "linux" {
+		// All other arm platforms that we support
+		// require ARMv7.
 		return "7"
 	}
-	if xtryexecfunc(useVFPv1) {
-		return "6"
+	cpuinfo := readfile("/proc/cpuinfo")
+	goarm := "5"
+	for _, line := range splitlines(cpuinfo) {
+		line := strings.SplitN(line, ":", 2)
+		if len(line) < 2 {
+			continue
+		}
+		if strings.TrimSpace(line[0]) != "Features" {
+			continue
+		}
+		features := splitfields(line[1])
+		sort.Strings(features) // so vfpv3 sorts after vfp
+
+		// Infer GOARM value from the vfp features available
+		// on this host. Values of GOARM detected are:
+		// 5: no vfp support was found
+		// 6: vfp (v1) support was detected, but no higher
+		// 7: vfpv3 support was detected.
+		// This matches the assertions in runtime.checkarm.
+		for _, f := range features {
+			switch f {
+			case "vfp":
+				goarm = "6"
+			case "vfpv3":
+				goarm = "7"
+			}
+		}
 	}
-	return "5"
+	return goarm
 }
-
-func xtryexecfunc(f func()) bool {
-	// TODO(rsc): Implement.
-	// The C cmd/dist used this to test whether certain assembly
-	// sequences could be executed properly. It used signals and
-	// timers and sigsetjmp, which is basically not possible in Go.
-	// We probably have to invoke ourselves as a subprocess instead,
-	// to contain the fault/timeout.
-	return false
-}
-
-func useVFPv1()
-func useVFPv3()
