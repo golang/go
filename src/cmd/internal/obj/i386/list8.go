@@ -59,6 +59,12 @@ func Pconv(p *obj.Prog) string {
 
 	default:
 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
+		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+		//	SHRQ $32(DX*0), AX
+		// Remove.
+		if (p.From.Type == obj.TYPE_REG || p.From.Type == obj.TYPE_CONST) && p.From.Index != 0 {
+			str += fmt.Sprintf(":%s", Rconv(int(p.From.Index)))
+		}
 		break
 	}
 
@@ -96,14 +102,6 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 		}
 
 		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
-
-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
-		//	SHRQ $32(DX*0), AX
-		// Remove.
-		if a.Index != REG_NONE {
-			s = fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
-			str += s
-		}
 
 	case obj.TYPE_BRANCH:
 		if a.Sym != nil {
@@ -157,14 +155,6 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
 
 	case obj.TYPE_CONST:
 		str = fmt.Sprintf("$%d", a.Offset)
-
-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
-		//	SHRQ $32(DX*0), AX
-		// Remove.
-		if a.Index != REG_NONE {
-			s = fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
-			str += s
-		}
 
 	case obj.TYPE_TEXTSIZE:
 		if a.U.Argsize == obj.ArgsSizeUnknown {
