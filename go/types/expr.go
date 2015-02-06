@@ -1057,7 +1057,12 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 						break // cannot continue
 					}
 					// i < len(fields)
-					etyp := fields[i].typ
+					fld := fields[i]
+					if !fld.Exported() && fld.pkg != check.pkg {
+						check.errorf(x.pos(), "implicit assignment to unexported field %s in %s literal", fld.name, typ)
+						continue
+					}
+					etyp := fld.typ
 					if !check.assignment(x, etyp) {
 						if x.mode != invalid {
 							check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)

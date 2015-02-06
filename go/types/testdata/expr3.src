@@ -4,6 +4,8 @@
 
 package expr3
 
+import "time"
+
 func indexes() {
 	_ = 1 /* ERROR "cannot index" */ [0]
 	_ = indexes /* ERROR "cannot index" */ [0]
@@ -26,7 +28,7 @@ func indexes() {
 	a0 = a[0]
 	_ = a0
 	var a1 int32
-	a1 = a /* ERROR "cannot assign" */ [1] 
+	a1 = a /* ERROR "cannot assign" */ [1]
 	_ = a1
 
 	_ = a[9]
@@ -100,7 +102,6 @@ func indexes() {
 	var ok mybool
 	_, ok = m["bar"]
 	_ = ok
-
 
 	var t string
 	_ = t[- /* ERROR "negative" */ 1]
@@ -201,6 +202,15 @@ func struct_literals() {
 		x int
 	}
 	_ = P /* ERROR "invalid composite literal type" */ {}
+
+	// unexported fields
+	_ = time.Time{}
+	_ = time.Time{sec /* ERROR "unknown field" */ : 0}
+	_ = time.Time{
+		0 /* ERROR implicit assignment to unexported field sec in time.Time literal */,
+		0 /* ERROR implicit assignment */ ,
+		nil /* ERROR implicit assignment */ ,
+	}
 }
 
 func array_literals() {
@@ -237,7 +247,7 @@ func array_literals() {
 
 	a0 := [...]int{}
 	assert(len(a0) == 0)
-	
+
 	a1 := [...]int{0, 1, 2}
 	assert(len(a1) == 3)
 	var a13 [3]int
@@ -245,7 +255,7 @@ func array_literals() {
 	a13 = a1
 	a14 = a1 /* ERROR "cannot assign" */
 	_, _ = a13, a14
-	
+
 	a2 := [...]int{- /* ERROR "negative" */ 1: 0}
 	_ = a2
 
