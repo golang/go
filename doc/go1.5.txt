@@ -2,6 +2,9 @@ Overall:
 
 build: Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
 
+New Ports:
+Darwin/ARM, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
+
 API additions and behavior changes:
 
 bufio: add Reader.Discard (https://golang.org/cl/2260)
