@@ -274,6 +274,7 @@ type m struct {
 	waitsemacount uint32
 	waitsemalock  uint32
 	gcstats       gcstats
+	currentwbuf   uintptr // use locks or atomic operations such as xchguinptr to access.
 	needextram    bool
 	traceback     uint8
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
