@@ -74,11 +74,17 @@ func initLocal() {
 }
 
 func loadLocation(name string) (*Location, error) {
+	var firstErr error
 	for _, zoneDir := range zoneDirs {
 		if z, err := loadZoneFile(zoneDir, name); err == nil {
 			z.name = name
 			return z, nil
+		} else if firstErr == nil && !isNotExist(err) {
+			firstErr = err
 		}
+	}
+	if firstErr != nil {
+		return nil, firstErr
 	}
 	return nil, errors.New("unknown time zone " + name)
 }
