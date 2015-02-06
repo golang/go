@@ -18,10 +18,6 @@ import (
 	"math"
 )
 
-// TODO(gri): Determine if there's a more natural way to set the precision.
-// Should there be a special meaning for prec 0? Such as "full precision"?
-// (would be possible for all ops except quotient).
-
 const debugFloat = true // enable for debugging
 
 // Internal representation: A floating-point value x != 0 consists
@@ -45,14 +41,15 @@ const debugFloat = true // enable for debugging
 //
 //   sign * mantissa * 2**exponent
 //
-// Each value also has a precision, rounding mode, and accuracy value:
-// The precision is the number of mantissa bits used to represent a
-// value, and the result of operations is rounded to that many bits
-// according to the value's rounding mode (unless specified othewise).
+// Each value also has a precision, rounding mode, and accuracy value.
+// The precision is the number of mantissa bits used to represent the
+// value, and the result of an operation is rounded to that many bits
+// according to the value's rounding mode (unless specified otherwise).
 // The accuracy value indicates the rounding error with respect to the
 // exact (not rounded) value.
 //
-// The zero value for a Float represents the number 0.
+// The zero (uninitialized) value for a Float is ready to use and
+// represents the number 0.0 of 0 bit precision.
 //
 // By setting the desired precision to 24 (or 53) and using ToNearestEven
 // rounding, Float arithmetic operations emulate the corresponding float32
@@ -71,14 +68,26 @@ type Float struct {
 
 // NewFloat returns a new Float with value x rounded
 // to prec bits according to the given rounding mode.
+// If prec == 0, the result has value 0.0 independent
+// of the value of x.
+// BUG(gri) For prec == 0 and x == Inf, the result
+// should be Inf as well.
 func NewFloat(x float64, prec uint, mode RoundingMode) *Float {
-	// TODO(gri) should make this more efficient
-	z := new(Float).SetFloat64(x)
-	return z.Round(z, prec, mode)
+	var z Float
+	if prec > 0 {
+		// TODO(gri) should make this more efficient
+		z.SetFloat64(x)
+		return z.Round(&z, prec, mode)
+	}
+	z.mode = mode // TODO(gri) don't do this twice for prec > 0
+	return &z
 }
 
-// infExp is the exponent value for infinity.
-const infExp = 1<<31 - 1
+// Special exponent values.
+const (
+	maxExp = math.MaxInt32
+	infExp = -maxExp - 1 // exponent value for Inf values
+)
 
 // NewInf returns a new Float with value positive infinity (sign >= 0),
 // or negative infinity (sign < 0).
@@ -86,12 +95,16 @@ func NewInf(sign int) *Float {
 	return &Float{neg: sign < 0, exp: infExp}
 }
 
+// setExp sets the exponent for z.
+// If the exponent is too small or too large, z becomes +/-Inf.
 func (z *Float) setExp(e int64) {
-	e32 := int32(e)
-	if int64(e32) != e {
-		panic("exponent overflow") // TODO(gri) handle this gracefully
+	if -maxExp <= e && e <= maxExp {
+		z.exp = int32(e)
+		return
 	}
-	z.exp = e32
+	// Inf
+	z.mant = z.mant[:0]
+	z.exp = infExp
 }
 
 // Accuracy describes the rounding error produced by the most recent
@@ -155,7 +168,7 @@ func (mode RoundingMode) String() string {
 }
 
 // Precision returns the mantissa precision of x in bits.
-// The precision may be 0 if x == 0. // TODO(gri) Determine a better approach.
+// The precision may be 0 for |x| == 0 or |x| == Inf.
 func (x *Float) Precision() uint {
 	return uint(x.prec)
 }
@@ -170,9 +183,17 @@ func (x *Float) Mode() RoundingMode {
 	return x.mode
 }
 
+// IsInf reports whether x is an infinity, according to sign.
+// If sign > 0, IsInf reports whether x is positive infinity.
+// If sign < 0, IsInf reports whether x is negative infinity.
+// If sign == 0, IsInf reports whether x is either infinity.
+func (x *Float) IsInf(sign int) bool {
+	return x.exp == infExp && (sign == 0 || x.neg == (sign < 0))
+}
+
 // debugging support
 func (x *Float) validate() {
-	// assumes x != 0
+	// assumes x != 0 && x != Inf
 	const msb = 1 << (_W - 1)
 	m := len(x.mant)
 	if x.mant[m-1]&msb == 0 {
@@ -195,6 +216,9 @@ func (z *Float) round(sbit uint) {
 		z.exp = 0
 		return
 	}
+
+	// handle Inf
+	// TODO(gri) handle Inf
 
 	if debugFloat {
 		z.validate()
@@ -399,10 +423,15 @@ func (z *Float) SetInt64(x int64) *Float {
 
 // SetFloat64 sets z to x and returns z.
 // Precision is set to 53 bits.
-// TODO(gri) test denormals, +/-Inf, disallow NaN.
+// TODO(gri) test denormals, disallow NaN.
 func (z *Float) SetFloat64(x float64) *Float {
-	z.prec = 53
 	z.neg = math.Signbit(x) // handle -0 correctly (-0 == 0)
+	z.prec = 53
+	if math.IsInf(x, 0) {
+		z.mant = z.mant[:0]
+		z.exp = infExp
+		return z
+	}
 	if x == 0 {
 		z.mant = z.mant[:0]
 		z.exp = 0
@@ -484,7 +513,7 @@ func high64(x nat) uint64 {
 	return v
 }
 
-// TODO(gri) FIX THIS (rounding mode, errors, accuracy, etc.)
+// TODO(gri) FIX THIS (Inf, rounding mode, errors, accuracy, etc.)
 func (x *Float) Uint64() uint64 {
 	m := high64(x.mant)
 	s := x.exp
@@ -494,7 +523,7 @@ func (x *Float) Uint64() uint64 {
 	return 0 // imprecise
 }
 
-// TODO(gri) FIX THIS (rounding mode, errors, etc.)
+// TODO(gri) FIX THIS (inf, rounding mode, errors, etc.)
 func (x *Float) Int64() int64 {
 	v := int64(x.Uint64())
 	if x.neg {
@@ -507,6 +536,15 @@ func (x *Float) Int64() int64 {
 // by rounding to nearest with 53 bits precision.
 // TODO(gri) implement/document error scenarios.
 func (x *Float) Float64() (float64, Accuracy) {
+	// x == +/-Inf
+	if x.exp == infExp {
+		var sign int
+		if x.neg {
+			sign = -1
+		}
+		return math.Inf(sign), Exact
+	}
+	// x == 0
 	if len(x.mant) == 0 {
 		return 0, Exact
 	}
@@ -561,7 +599,7 @@ func (z *Float) Neg(x *Float) *Float {
 }
 
 // z = x + y, ignoring signs of x and y.
-// x and y must not be 0.
+// x and y must not be 0 or an Inf.
 func (z *Float) uadd(x, y *Float) {
 	// Note: This implementation requires 2 shifts most of the
 	// time. It is also inefficient if exponents or precisions
@@ -603,7 +641,7 @@ func (z *Float) uadd(x, y *Float) {
 }
 
 // z = x - y for x >= y, ignoring signs of x and y.
-// x and y must not be zero.
+// x and y must not be 0 or an Inf.
 func (z *Float) usub(x, y *Float) {
 	// This code is symmetric to uadd.
 	// We have not factored the common code out because
@@ -643,7 +681,7 @@ func (z *Float) usub(x, y *Float) {
 }
 
 // z = x * y, ignoring signs of x and y.
-// x and y must not be zero.
+// x and y must not be 0 or an Inf.
 func (z *Float) umul(x, y *Float) {
 	if debugFloat && (len(x.mant) == 0 || len(y.mant) == 0) {
 		panic("umul called with 0 argument")
@@ -664,7 +702,7 @@ func (z *Float) umul(x, y *Float) {
 }
 
 // z = x / y, ignoring signs of x and y.
-// x and y must not be zero.
+// x and y must not be 0 or an Inf.
 func (z *Float) uquo(x, y *Float) {
 	if debugFloat && (len(x.mant) == 0 || len(y.mant) == 0) {
 		panic("uquo called with 0 argument")
@@ -708,7 +746,7 @@ func (z *Float) uquo(x, y *Float) {
 }
 
 // ucmp returns -1, 0, or 1, depending on whether x < y, x == y, or x > y,
-// while ignoring the signs of x and y. x and y must not be zero.
+// while ignoring the signs of x and y. x and y must not be 0 or an Inf.
 func (x *Float) ucmp(y *Float) int {
 	if debugFloat && (len(x.mant) == 0 || len(y.mant) == 0) {
 		panic("ucmp called with 0 argument")
@@ -765,16 +803,24 @@ func (x *Float) ucmp(y *Float) int {
 // sign as x even when x is zero.
 
 // Add sets z to the rounded sum x+y and returns z.
+// If z's precision is 0, it is set to the larger of
+// x's or y's precision before the operation.
 // Rounding is performed according to z's precision
 // and rounding mode; and z's accuracy reports the
 // result error relative to the exact (not rounded)
 // result.
 func (z *Float) Add(x, y *Float) *Float {
+	if z.prec == 0 {
+		z.prec = umax(x.prec, y.prec)
+	}
+
 	// TODO(gri) what about -0?
 	if len(y.mant) == 0 {
+		// TODO(gri) handle Inf
 		return z.Round(x, z.prec, z.mode)
 	}
 	if len(x.mant) == 0 {
+		// TODO(gri) handle Inf
 		return z.Round(y, z.prec, z.mode)
 	}
 
@@ -799,13 +845,15 @@ func (z *Float) Add(x, y *Float) *Float {
 }
 
 // Sub sets z to the rounded difference x-y and returns z.
-// Rounding is performed according to z's precision
-// and rounding mode; and z's accuracy reports the
-// result error relative to the exact (not rounded)
-// result.
+// Precision, rounding, and accuracy reporting are as for Add.
 func (z *Float) Sub(x, y *Float) *Float {
+	if z.prec == 0 {
+		z.prec = umax(x.prec, y.prec)
+	}
+
 	// TODO(gri) what about -0?
 	if len(y.mant) == 0 {
+		// TODO(gri) handle Inf
 		return z.Round(x, z.prec, z.mode)
 	}
 	if len(x.mant) == 0 {
@@ -836,11 +884,14 @@ func (z *Float) Sub(x, y *Float) *Float {
 }
 
 // Mul sets z to the rounded product x*y and returns z.
-// Rounding is performed according to z's precision
-// and rounding mode; and z's accuracy reports the
-// result error relative to the exact (not rounded)
-// result.
+// Precision, rounding, and accuracy reporting are as for Add.
 func (z *Float) Mul(x, y *Float) *Float {
+	if z.prec == 0 {
+		z.prec = umax(x.prec, y.prec)
+	}
+
+	// TODO(gri) handle Inf
+
 	// TODO(gri) what about -0?
 	if len(x.mant) == 0 || len(y.mant) == 0 {
 		z.neg = false
@@ -858,46 +909,61 @@ func (z *Float) Mul(x, y *Float) *Float {
 
 // Quo sets z to the rounded quotient x/y and returns z.
 // If y == 0, a division-by-zero run-time panic occurs. TODO(gri) this should become Inf
-// Rounding is performed according to z's precision
-// and rounding mode; and z's accuracy reports the
-// result error relative to the exact (not rounded)
-// result.
+// Precision, rounding, and accuracy reporting are as for Add.
 func (z *Float) Quo(x, y *Float) *Float {
-	// TODO(gri) what about -0?
+	if z.prec == 0 {
+		z.prec = umax(x.prec, y.prec)
+	}
+
+	// TODO(gri) handle Inf
+
+	// TODO(gri) check that this is correct
+	z.neg = x.neg != y.neg
+
+	if len(y.mant) == 0 {
+		z.setExp(infExp)
+		return z
+	}
+
 	if len(x.mant) == 0 {
-		z.neg = false
 		z.mant = z.mant[:0]
 		z.exp = 0
 		z.acc = Exact
 		return z
 	}
-	if len(y.mant) == 0 {
-		panic("division-by-zero") // TODO(gri) handle this better
-	}
 
 	// x, y != 0
 	z.uquo(x, y)
-	z.neg = x.neg != y.neg
 	return z
 }
 
 // Lsh sets z to the rounded x * (1<<s) and returns z.
+// If z's precision is 0, it is set to x's precision.
 // Rounding is performed according to z's precision
 // and rounding mode; and z's accuracy reports the
 // result error relative to the exact (not rounded)
 // result.
 func (z *Float) Lsh(x *Float, s uint, mode RoundingMode) *Float {
+	if z.prec == 0 {
+		z.prec = x.prec
+	}
+
+	// TODO(gri) handle Inf
+
 	z.Round(x, z.prec, mode)
 	z.setExp(int64(z.exp) + int64(s))
 	return z
 }
 
 // Rsh sets z to the rounded x / (1<<s) and returns z.
-// Rounding is performed according to z's precision
-// and rounding mode; and z's accuracy reports the
-// result error relative to the exact (not rounded)
-// result.
+// Precision, rounding, and accuracy reporting are as for Lsh.
 func (z *Float) Rsh(x *Float, s uint, mode RoundingMode) *Float {
+	if z.prec == 0 {
+		z.prec = x.prec
+	}
+
+	// TODO(gri) handle Inf
+
 	z.Round(x, z.prec, mode)
 	z.setExp(int64(z.exp) - int64(s))
 	return z
@@ -910,6 +976,8 @@ func (z *Float) Rsh(x *Float, s uint, mode RoundingMode) *Float {
 //   +1 if x >  y
 //
 func (x *Float) Cmp(y *Float) int {
+	// TODO(gri) handle Inf
+
 	// special cases
 	switch {
 	case len(x.mant) == 0:
@@ -943,7 +1011,7 @@ func (x *Float) Cmp(y *Float) int {
 // Sign returns:
 //
 //	-1 if x <  0
-//	 0 if x == 0 (incl. x == -0)
+//	 0 if x == 0 (incl. x == -0) // TODO(gri) is this correct?
 //	+1 if x >  0
 //
 func (x *Float) Sign() int {
@@ -954,4 +1022,11 @@ func (x *Float) Sign() int {
 		return -1
 	}
 	return 1
+}
+
+func umax(x, y uint) uint {
+	if x < y {
+		return x
+	}
+	return y
 }

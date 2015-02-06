@@ -192,9 +192,9 @@ func TestFloat64Format(t *testing.T) {
 
 		// {math.NaN(), 'g', -1, "NaN"},
 		// {-math.NaN(), 'g', -1, "NaN"},
-		// {math.Inf(0), 'g', -1, "+Inf"},
-		// {math.Inf(-1), 'g', -1, "-Inf"},
-		// {-math.Inf(0), 'g', -1, "-Inf"},
+		{math.Inf(0), 'g', -1, "+Inf"},
+		{math.Inf(-1), 'g', -1, "-Inf"},
+		{-math.Inf(0), 'g', -1, "-Inf"},
 
 		{-1, 'b', -1, "-4503599627370496p-52"},
 
