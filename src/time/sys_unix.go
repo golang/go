@@ -74,3 +74,5 @@ func preadn(fd uintptr, buf []byte, off int) error {
 	}
 	return nil
 }
+
+func isNotExist(err error) bool { return err == syscall.ENOENT }
