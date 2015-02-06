@@ -628,6 +628,26 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OCALLFUNC:
+		if(n->left->op == OCLOSURE) {
+			// Transform direct call of a closure to call of a normal function.
+			// transformclosure already did all preparation work.
+
+			// Append captured variables to argument list.
+			n->list = concat(n->list, n->left->enter);
+			n->left->enter = NULL;
+			// Replace OCLOSURE with ONAME/PFUNC.
+			n->left = n->left->closure->nname;
+			// Update type of OCALLFUNC node.
+			// Output arguments had not changed, but their offsets could.
+			if(n->left->type->outtuple == 1) {
+				t = getoutargx(n->left->type)->type;
+				if(t->etype == TFIELD)
+					t = t->type;
+				n->type = t;
+			} else
+				n->type = getoutargx(n->left->type);
+		}
+
 		t = n->left->type;
 		if(n->list && n->list->n->op == OAS)
 			goto ret;

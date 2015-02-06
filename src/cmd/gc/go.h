@@ -331,6 +331,7 @@ struct	Node
 	// ONAME closure param with PPARAMREF
 	Node*	outer;	// outer PPARAMREF in nested closure
 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
+	int	top;	// top context (Ecall, Eproc, etc)
 
 	// ONAME substitute while inlining
 	Node* inlvar;
@@ -1075,6 +1076,7 @@ Node*	closurebody(NodeList *body);
 void	closurehdr(Node *ntype);
 void	typecheckclosure(Node *func, int top);
 void	capturevars(Node *func);
+void	transformclosure(Node *func);
 Node*	walkclosure(Node *func, NodeList **init);
 void	typecheckpartialcall(Node*, Node*);
 Node*	walkpartialcall(Node*, NodeList**);
