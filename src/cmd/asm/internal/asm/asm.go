@@ -1,5 +1,3 @@
-// +build ignore
-
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -8,132 +6,18 @@ package asm
 
 import (
 	"fmt"
-	"strings"
 	"text/scanner"
 
-	"cmd/asm/internal/addr"
 	"cmd/asm/internal/arch"
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
 )
 
-// TODO: This package has many numeric conversions that should be unnecessary.
-
-// symbolType returns the extern/static etc. type appropriate for the symbol.
-func (p *Parser) symbolType(a *addr.Addr) int {
-	switch a.Register {
-	case arch.RFP:
-		return p.arch.D_PARAM
-	case arch.RSP:
-		return p.arch.D_AUTO
-	case arch.RSB:
-		// See comment in addrToAddr.
-		if a.IsImmediateAddress {
-			return p.arch.D_ADDR
-		}
-		if a.IsStatic {
-			return p.arch.D_STATIC
-		}
-		return p.arch.D_EXTERN
-	}
-	p.errorf("invalid register for symbol %s", a.Symbol)
-	return 0
-}
-
-// staticVersion reports whether the data's Symbol has <>, as in data<>.
-// It returns 1 for static, 0 for non-static, because that's what obj wants.
-func staticVersion(a *addr.Addr) int {
-	if a.Symbol != "" && a.IsStatic {
-		return 1
-	}
-	return 0
-}
-
 // TODO: configure the architecture
 
-// TODO: This is hacky and irregular. When obj settles down, rewrite for simplicity.
-func (p *Parser) addrToAddr(a *addr.Addr) obj.Addr {
-	out := p.arch.NoAddr
-	if a.Has(addr.Symbol) {
-		// How to encode the symbols:
-		// syntax = Typ,Index
-		// $a(SB) = ADDR,EXTERN
-		// $a<>(SB) = ADDR,STATIC
-		// a(SB) = EXTERN,NONE
-		// a<>(SB) = STATIC,NONE
-		// The call to symbolType does the first column; we need to fix up Index here.
-		out.Type = int16(p.symbolType(a))
-		if a.IsImmediateAddress {
-			// Index field says whether it's a static.
-			switch a.Register {
-			case arch.RSB:
-				if a.IsStatic {
-					out.Index = uint8(p.arch.D_STATIC)
-				} else {
-					out.Index = uint8(p.arch.D_EXTERN)
-				}
-			default:
-				p.errorf("can't handle immediate address of %s not (SB)\n", a.Symbol)
-			}
-		}
-		out.Sym = obj.Linklookup(p.linkCtxt, a.Symbol, staticVersion(a))
-	} else if a.Has(addr.Register) {
-		// TODO: SP is tricky, and this isn't good enough.
-		// SP = D_SP
-		// 4(SP) = 4(D_SP)
-		// x+4(SP) = D_AUTO with sym=x TODO
-		out.Type = a.Register
-		if a.Register == arch.RSP {
-			out.Type = int16(p.arch.SP)
-		}
-		if a.IsIndirect {
-			out.Type += int16(p.arch.D_INDIR)
-		}
-		// a.Register2 handled in the instruction method; it's bizarre.
-	}
-	if a.Has(addr.Index) {
-		out.Index = uint8(a.Index) // TODO: out.Index == p.NoArch.Index should be same type as Register.
-	}
-	if a.Has(addr.Scale) {
-		out.Scale = a.Scale
-	}
-	if a.Has(addr.Offset) {
-		out.Offset = a.Offset
-		if a.Is(addr.Offset) {
-			// RHS of MOVL $0xf1, 0xf1  // crash
-			out.Type = int16(p.arch.D_INDIR + p.arch.D_NONE)
-		} else if a.IsImmediateConstant && out.Type == int16(p.arch.D_NONE) {
-			out.Type = int16(p.arch.D_CONST)
-		}
-	}
-	if a.Has(addr.Float) {
-		out.U.Dval = a.Float
-		out.Type = int16(p.arch.D_FCONST)
-	}
-	if a.Has(addr.String) {
-		out.U.Sval = a.String
-		out.Type = int16(p.arch.D_SCONST)
-	}
-	// TODO from https://go-review.googlesource.com/#/c/3196/ {
-	// There's a general rule underlying this special case and the one at line 91 (RHS OF MOVL $0xf1).
-	//	Unless there's a $, it's an indirect.
-	// 4(R1)(R2*8)
-	// 4(R1)
-	// 4(R2*8)
-	// 4
-	// (R1)(R2*8)
-	// (R1)
-	// (R2*8)
-	// There should be a more general approach that doesn't just pick off cases.
-	// }
-	if a.IsIndirect && !a.Has(addr.Register) && a.Has(addr.Index) {
-		// LHS of LEAQ	0(BX*8), CX
-		out.Type = int16(p.arch.D_INDIR + p.arch.D_NONE)
-	}
-	return out
-}
-
+// append adds the Prog to the end of the program-thus-far.
+// If doLabel is set, it also defines the labels collect for this Prog.
 func (p *Parser) append(prog *obj.Prog, doLabel bool) {
 	if p.firstProg == nil {
 		p.firstProg = prog
@@ -157,6 +41,23 @@ func (p *Parser) append(prog *obj.Prog, doLabel bool) {
 	}
 }
 
+func (p *Parser) validatePseudoSymbol(pseudo string, addr *obj.Addr, offsetOk bool) {
+	if addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
+		p.errorf("%s symbol %q must be a symbol(SB)", pseudo, addr.Sym.Name)
+	}
+	if !offsetOk && addr.Offset != 0 {
+		p.errorf("%s symbol %q must not be offset from SB", pseudo, addr.Sym.Name)
+	}
+}
+
+func (p *Parser) evalInteger(pseudo string, operands []lex.Token) int64 {
+	addr := p.address(operands)
+	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
+		p.errorf("%s: text flag must be an integer constant")
+	}
+	return addr.Offset
+}
+
 // asmText assembles a TEXT pseudo-op.
 // TEXT runtime·sigtramp(SB),4,$0-0
 func (p *Parser) asmText(word string, operands [][]lex.Token) {
@@ -172,20 +73,14 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	// Operand 0 is the symbol name in the form foo(SB).
 	// That means symbol plus indirect on SB and no offset.
 	nameAddr := p.address(operands[0])
-	if !nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Register != arch.RSB {
-		p.errorf("TEXT symbol %q must be an offset from SB", nameAddr.Symbol)
-	}
-	name := nameAddr.Symbol
+	p.validatePseudoSymbol("TEXT", &nameAddr, false)
+	name := nameAddr.Sym.Name
 	next := 1
 
 	// Next operand is the optional text flag, a literal integer.
-	flag := int8(0)
+	var flag = int64(0)
 	if len(operands) == 3 {
-		flagAddr := p.address(operands[next])
-		if !flagAddr.Is(addr.Offset) {
-			p.errorf("TEXT flag for %s must be an integer", name)
-		}
-		flag = int8(flagAddr.Offset)
+		flag = p.evalInteger("TEXT", operands[1])
 		next++
 	}
 
@@ -223,31 +118,19 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	}
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
-		As:     int16(p.arch.ATEXT),
-		Lineno: int32(p.histLineNum),
-		From: obj.Addr{
-			Type:  int16(p.symbolType(&nameAddr)),
-			Index: uint8(p.arch.D_NONE),
-			Sym:   obj.Linklookup(p.linkCtxt, name, staticVersion(&nameAddr)),
-			Scale: flag,
+		As:     obj.ATEXT,
+		Lineno: p.histLineNum,
+		From:   nameAddr,
+		From3: obj.Addr{
+			Offset: flag,
 		},
 		To: obj.Addr{
-			Index: uint8(p.arch.D_NONE),
+			Type:   obj.TYPE_TEXTSIZE,
+			Offset: frameSize,
+			// Argsize set below.
 		},
 	}
-
-	// Encoding of frameSize and argSize depends on architecture.
-	switch p.arch.Thechar {
-	case '6':
-		prog.To.Type = int16(p.arch.D_CONST)
-		prog.To.Offset = (argSize << 32) | frameSize
-	case '8':
-		prog.To.Type = int16(p.arch.D_CONST2)
-		prog.To.Offset = frameSize
-		prog.To.Offset2 = int32(argSize)
-	default:
-		p.errorf("internal error: can't encode TEXT $arg-frame")
-	}
+	prog.To.U.Argsize = int32(argSize)
 
 	p.append(prog, true)
 }
@@ -265,39 +148,36 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 	if n < 3 || op[n-2].ScanToken != '/' || op[n-1].ScanToken != scanner.Int {
 		p.errorf("expect /size for DATA argument")
 	}
-	scale := p.scale(op[n-1].String())
+	scale := p.parseScale(op[n-1].String())
 	op = op[:n-2]
 	nameAddr := p.address(op)
-	ok := nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect|addr.Offset)
-	if !ok || nameAddr.Register != arch.RSB {
-		p.errorf("DATA symbol %q must be an offset from SB", nameAddr.Symbol)
-	}
-	name := strings.Replace(nameAddr.Symbol, "·", ".", 1)
+	p.validatePseudoSymbol("DATA", &nameAddr, true)
+	name := nameAddr.Sym.Name
 
 	// Operand 1 is an immediate constant or address.
 	valueAddr := p.address(operands[1])
-	if !valueAddr.IsImmediateConstant && !valueAddr.IsImmediateAddress {
+	switch valueAddr.Type {
+	case obj.TYPE_CONST, obj.TYPE_FCONST, obj.TYPE_SCONST, obj.TYPE_ADDR:
+		// OK
+	default:
 		p.errorf("DATA value must be an immediate constant or address")
 	}
 
 	// The addresses must not overlap. Easiest test: require monotonicity.
 	if lastAddr, ok := p.dataAddr[name]; ok && nameAddr.Offset < lastAddr {
-		p.errorf("overlapping DATA entry for %s", nameAddr.Symbol)
+		p.errorf("overlapping DATA entry for %s", name)
 	}
 	p.dataAddr[name] = nameAddr.Offset + int64(scale)
 
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
-		As:     int16(p.arch.ADATA),
-		Lineno: int32(p.histLineNum),
-		From: obj.Addr{
-			Type:   int16(p.symbolType(&nameAddr)),
-			Index:  uint8(p.arch.D_NONE),
-			Sym:    obj.Linklookup(p.linkCtxt, name, staticVersion(&nameAddr)),
-			Offset: nameAddr.Offset,
-			Scale:  scale,
+		As:     obj.ADATA,
+		Lineno: p.histLineNum,
+		From:   nameAddr,
+		From3: obj.Addr{
+			Offset: int64(scale),
 		},
-		To: p.addrToAddr(&valueAddr),
+		To: valueAddr,
 	}
 
 	p.append(prog, false)
@@ -313,46 +193,36 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 
 	// Operand 0 has the general form foo<>+0x04(SB).
 	nameAddr := p.address(operands[0])
-	ok := nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect|addr.Offset)
-	if !ok || nameAddr.Register != arch.RSB {
-		p.errorf("GLOBL symbol %q must be an offset from SB", nameAddr.Symbol)
-	}
-	name := strings.Replace(nameAddr.Symbol, "·", ".", 1)
+	p.validatePseudoSymbol("GLOBL", &nameAddr, false)
+	name := nameAddr.Sym.Name
+	next := 1
 
-	// If three operands, middle operand is a scale.
-	scale := int8(0)
-	op := operands[1]
+	// Next operand is the optional flag, a literal integer.
+	var flag = int64(0)
 	if len(operands) == 3 {
-		scaleAddr := p.address(op)
-		if !scaleAddr.Is(addr.Offset) {
-			p.errorf("GLOBL scale must be a constant")
-		}
-		scale = int8(scaleAddr.Offset)
-		op = operands[2]
+		flag = p.evalInteger("GLOBL", operands[1])
+		next++
 	}
 
 	// Final operand is an immediate constant.
-	sizeAddr := p.address(op)
-	if !sizeAddr.Is(addr.ImmediateConstant | addr.Offset) {
-		p.errorf("GLOBL size must be an immediate constant")
+	op := operands[next]
+	if len(op) < 2 || op[0].ScanToken != '$' || op[1].ScanToken != scanner.Int {
+		p.errorf("GLOBL %s: size must be an immediate constant", name)
 	}
-	size := sizeAddr.Offset
+	size := p.positiveAtoi(op[1].String())
 
-	// log.Printf("GLOBL %s %d, $%d", name, scale, size)
+	// log.Printf("GLOBL %s %d, $%d", name, flag, size)
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
-		As:     int16(p.arch.AGLOBL),
-		Lineno: int32(p.histLineNum),
-		From: obj.Addr{
-			Type:   int16(p.symbolType(&nameAddr)),
-			Index:  uint8(p.arch.D_NONE),
-			Sym:    obj.Linklookup(p.linkCtxt, name, staticVersion(&nameAddr)),
-			Offset: nameAddr.Offset,
-			Scale:  scale,
+		As:     obj.AGLOBL,
+		Lineno: p.histLineNum,
+		From:   nameAddr,
+		From3: obj.Addr{
+			Offset: flag,
 		},
 		To: obj.Addr{
-			Type:   int16(p.arch.D_CONST),
-			Index:  uint8(p.arch.D_NONE),
+			Type:   obj.TYPE_CONST,
+			Index:  0,
 			Offset: size,
 		},
 	}
@@ -367,34 +237,24 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
 	}
 
 	// Operand 0 must be an immediate constant.
-	addr0 := p.address(operands[0])
-	if !addr0.Is(addr.ImmediateConstant | addr.Offset) {
-		p.errorf("PCDATA value must be an immediate constant")
+	key := p.address(operands[0])
+	if key.Type != obj.TYPE_CONST {
+		p.errorf("PCDATA key must be an immediate constant")
 	}
-	value0 := addr0.Offset
 
 	// Operand 1 must be an immediate constant.
-	addr1 := p.address(operands[1])
-	if !addr1.Is(addr.ImmediateConstant | addr.Offset) {
+	value := p.address(operands[1])
+	if value.Type != obj.TYPE_CONST {
 		p.errorf("PCDATA value must be an immediate constant")
 	}
-	value1 := addr1.Offset
 
-	// log.Printf("PCDATA $%d, $%d", value0, value1)
+	// log.Printf("PCDATA $%d, $%d", key.Offset, value.Offset)
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
-		As:     int16(p.arch.APCDATA),
-		Lineno: int32(p.histLineNum),
-		From: obj.Addr{
-			Type:   int16(p.arch.D_CONST),
-			Index:  uint8(p.arch.D_NONE),
-			Offset: value0,
-		},
-		To: obj.Addr{
-			Type:   int16(p.arch.D_CONST),
-			Index:  uint8(p.arch.D_NONE),
-			Offset: value1,
-		},
+		As:     obj.APCDATA,
+		Lineno: p.histLineNum,
+		From:   key,
+		To:     value,
 	}
 	p.append(prog, true)
 }
@@ -408,37 +268,20 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 
 	// Operand 0 must be an immediate constant.
 	valueAddr := p.address(operands[0])
-	if !valueAddr.Is(addr.ImmediateConstant | addr.Offset) {
-		p.errorf("FUNCDATA value must be an immediate constant")
+	if valueAddr.Type != obj.TYPE_CONST {
+		p.errorf("FUNCDATA value0 must be an immediate constant")
 	}
-	value0 := valueAddr.Offset
 
 	// Operand 1 is a symbol name in the form foo(SB).
-	// That means symbol plus indirect on SB and no offset.
 	nameAddr := p.address(operands[1])
-	ok := nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect|addr.Offset)
-	if !ok || nameAddr.Register != arch.RSB {
-		p.errorf("FUNCDATA symbol %q must be an offset from SB", nameAddr.Symbol)
-	}
-	name := strings.Replace(nameAddr.Symbol, "·", ".", 1)
-	value1 := nameAddr.Offset
+	p.validatePseudoSymbol("FUNCDATA", &nameAddr, true)
 
-	// log.Printf("FUNCDATA $%d, %d", value0, value1)
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
-		As:     int16(p.arch.AFUNCDATA),
-		Lineno: int32(p.histLineNum),
-		From: obj.Addr{
-			Type:   int16(p.arch.D_CONST),
-			Index:  uint8(p.arch.D_NONE),
-			Offset: value0,
-		},
-		To: obj.Addr{
-			Type:   int16(p.symbolType(&nameAddr)),
-			Index:  uint8(p.arch.D_NONE),
-			Sym:    obj.Linklookup(p.linkCtxt, name, staticVersion(&nameAddr)),
-			Offset: value1,
-		},
+		As:     obj.AFUNCDATA,
+		Lineno: p.histLineNum,
+		From:   valueAddr,
+		To:     nameAddr,
 	}
 	p.append(prog, true)
 }
@@ -447,58 +290,52 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 // JMP	R1
 // JMP	exit
 // JMP	3(PC)
-func (p *Parser) asmJump(op int, a []addr.Addr) {
-	var target *addr.Addr
+func (p *Parser) asmJump(op int, a []obj.Addr) {
+	var target *obj.Addr
 	switch len(a) {
-	default:
-		p.errorf("jump must have one or two addresses")
 	case 1:
 		target = &a[0]
-	case 2:
-		if !a[0].Is(0) {
-			p.errorf("two-address jump must have empty first address")
-		}
-		target = &a[1]
+	default:
+		p.errorf("wrong number of arguments to jump instruction")
 	}
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
-		Lineno: int32(p.histLineNum),
+		Lineno: p.histLineNum,
 		As:     int16(op),
-		From:   p.arch.NoAddr,
 	}
 	switch {
-	case target.Is(addr.Register):
+	case target.Type == obj.TYPE_REG:
 		// JMP R1
-		prog.To = p.addrToAddr(target)
-	case target.Is(addr.Symbol):
+		prog.To = *target
+	case target.Type == obj.TYPE_MEM && (target.Name == obj.NAME_EXTERN || target.Name == obj.NAME_STATIC):
+		// JMP main·morestack(SB)
+		isStatic := 0
+		if target.Name == obj.NAME_STATIC {
+			isStatic = 1
+		}
+		prog.To = obj.Addr{
+			Type:   obj.TYPE_BRANCH,
+			Sym:    obj.Linklookup(p.linkCtxt, target.Sym.Name, isStatic),
+			Index:  0,
+			Offset: target.Offset,
+		}
+	case target.Type == obj.TYPE_MEM && target.Reg == 0 && target.Offset == 0:
 		// JMP exit
-		targetProg := p.labels[target.Symbol]
+		targetProg := p.labels[target.Sym.Name]
 		if targetProg == nil {
-			p.toPatch = append(p.toPatch, Patch{prog, target.Symbol})
+			p.toPatch = append(p.toPatch, Patch{prog, target.Sym.Name})
 		} else {
 			p.branch(prog, targetProg)
 		}
-	case target.Is(addr.Register | addr.Indirect), target.Is(addr.Register | addr.Indirect | addr.Offset):
-		// JMP 4(AX)
-		if target.Register == arch.RPC {
+	case target.Type == obj.TYPE_MEM && target.Name == obj.NAME_NONE:
+		// JMP 4(PC)
+		if target.Reg == arch.RPC {
 			prog.To = obj.Addr{
-				Type:   int16(p.arch.D_BRANCH),
-				Index:  uint8(p.arch.D_NONE),
+				Type:   obj.TYPE_BRANCH,
 				Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in link, below.
 			}
 		} else {
-			prog.To = p.addrToAddr(target)
-		}
-	case target.Is(addr.Symbol | addr.Indirect | addr.Register):
-		// JMP main·morestack(SB)
-		if target.Register != arch.RSB {
-			p.errorf("jmp to symbol must be SB-relative")
-		}
-		prog.To = obj.Addr{
-			Type:   int16(p.arch.D_BRANCH),
-			Sym:    obj.Linklookup(p.linkCtxt, target.Symbol, staticVersion(target)),
-			Index:  uint8(p.arch.D_NONE),
-			Offset: target.Offset,
+			prog.To = *target
 		}
 	default:
 		p.errorf("cannot assemble jump %+v", target)
@@ -520,62 +357,63 @@ func (p *Parser) patch() {
 
 func (p *Parser) branch(jmp, target *obj.Prog) {
 	jmp.To = obj.Addr{
-		Type:  int16(p.arch.D_BRANCH),
-		Index: uint8(p.arch.D_NONE),
+		Type:  obj.TYPE_BRANCH,
+		Index: 0,
 	}
 	jmp.To.U.Branch = target
 }
 
 // asmInstruction assembles an instruction.
 // MOVW R9, (R10)
-func (p *Parser) asmInstruction(op int, a []addr.Addr) {
+func (p *Parser) asmInstruction(op int, a []obj.Addr) {
 	prog := &obj.Prog{
 		Ctxt:   p.linkCtxt,
-		Lineno: int32(p.histLineNum),
+		Lineno: p.histLineNum,
 		As:     int16(op),
 	}
 	switch len(a) {
 	case 0:
-		prog.From = p.arch.NoAddr
-		prog.To = p.arch.NoAddr
+		// Nothing to do.
 	case 1:
 		if p.arch.UnaryDestination[op] {
-			prog.From = p.arch.NoAddr
-			prog.To = p.addrToAddr(&a[0])
+			// prog.From is no address.
+			prog.To = a[0]
 		} else {
-			prog.From = p.addrToAddr(&a[0])
-			prog.To = p.arch.NoAddr
+			prog.From = a[0]
+			// prog.To is no address.
 		}
 	case 2:
-		prog.From = p.addrToAddr(&a[0])
-		prog.To = p.addrToAddr(&a[1])
+		prog.From = a[0]
+		prog.To = a[1]
 		// DX:AX as a register pair can only appear on the RHS.
 		// Bizarrely, to obj it's specified by setting index on the LHS.
 		// TODO: can we fix this?
-		if a[1].Has(addr.Register2) {
-			if int(prog.From.Index) != p.arch.D_NONE {
-				p.errorf("register pair operand on RHS must have register on LHS")
+		if a[1].Class != 0 {
+			if a[0].Class != 0 {
+				p.errorf("register pair must be on LHS")
 			}
-			prog.From.Index = uint8(a[1].Register2)
+			prog.From.Index = int16(a[1].Class)
+			prog.To.Class = 0
 		}
 	case 3:
 		// CMPSD etc.; third operand is imm8, stored in offset, or a register.
-		prog.From = p.addrToAddr(&a[0])
-		prog.To = p.addrToAddr(&a[1])
-		switch {
-		case a[2].Is(addr.Offset):
+		prog.From = a[0]
+		prog.To = a[1]
+		switch a[2].Type {
+		case obj.TYPE_MEM:
 			prog.To.Offset = a[2].Offset
-		case a[2].Is(addr.Register):
+		case obj.TYPE_REG:
 			// Strange reodering.
-			prog.To = p.addrToAddr(&a[2])
-			prog.From = p.addrToAddr(&a[1])
-			if !a[0].IsImmediateConstant {
-				p.errorf("expected $value for 1st operand")
+			prog.To = a[2]
+			prog.From = a[1]
+			if a[0].Type != obj.TYPE_CONST {
+				p.errorf("expected immediate constant for 1st operand")
 			}
 			prog.To.Offset = a[0].Offset
 		default:
 			p.errorf("expected offset or register for 3rd operand")
 		}
+
 	default:
 		p.errorf("can't handle instruction with %d operands", len(a))
 	}
