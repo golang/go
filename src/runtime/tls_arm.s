@@ -77,6 +77,27 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	MOVW	0(R0), g
 	RET
 
+TEXT runtime·_initcgo(SB),NOSPLIT,$0
+#ifndef GOOS_nacl
+	// if there is an _cgo_init, call it.
+	MOVW	_cgo_init(SB), R4
+	CMP	$0, R4
+	B.EQ	nocgo
+	MRC     15, 0, R0, C13, C0, 3 	// load TLS base pointer
+	MOVW 	R0, R3 			// arg 3: TLS base pointer
+	MOVW 	$runtime·tlsg(SB), R2 	// arg 2: tlsg
+	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
+	MOVW	g, R0 			// arg 0: G
+	BL	(R4) // will clobber R0-R3
+#endif
+nocgo:
+	RET
+
+// void setg_gcc(G*); set g called from gcc.
+TEXT setg_gcc<>(SB),NOSPLIT,$0
+	MOVW	R0, g
+	B		runtime·save_g(SB)
+
 #ifdef TLSG_IS_VARIABLE
 GLOBL runtime·tlsg+0(SB), NOPTR, $4
 #endif
