@@ -405,8 +405,9 @@ gcmain(int argc, char *argv[])
 		}
 	}
 
-	// Phase 4: Decide how to capture variables
-	// and transform closure bodies accordingly.
+	// Phase 4: Decide how to capture closed variables.
+	// This needs to run before escape analysis,
+	// because variables captured by value do not escape.
 	for(l=xtop; l; l=l->next) {
 		if(l->n->op == ODCLFUNC && l->n->closure) {
 			curfn = l->n;
@@ -457,7 +458,18 @@ gcmain(int argc, char *argv[])
 	// Move large values off stack too.
 	movelarge(xtop);
 
-	// Phase 7: Compile top level functions.
+	// Phase 7: Transform closure bodies to properly reference captured variables.
+	// This needs to happen before walk, because closures must be transformed
+	// before walk reaches a call of a closure.
+	for(l=xtop; l; l=l->next) {
+		if(l->n->op == ODCLFUNC && l->n->closure) {
+			curfn = l->n;
+			transformclosure(l->n);
+		}
+	}
+	curfn = N;
+
+	// Phase 8: Compile top level functions.
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
 			funccompile(l->n);
@@ -465,7 +477,7 @@ gcmain(int argc, char *argv[])
 	if(nsavederrors+nerrors == 0)
 		fninit(xtop);
 
-	// Phase 8: Check external declarations.
+	// Phase 9: Check external declarations.
 	for(l=externdcl; l; l=l->next)
 		if(l->n->op == ONAME)
 			typecheck(&l->n, Erv);

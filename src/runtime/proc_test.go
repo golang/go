@@ -435,6 +435,18 @@ func BenchmarkCreateGoroutinesCapture(b *testing.B) {
 	}
 }
 
+func BenchmarkClosureCall(b *testing.B) {
+	sum := 0
+	off1 := 1
+	for i := 0; i < b.N; i++ {
+		off2 := 2
+		func() {
+			sum += i + off1 + off2
+		}()
+	}
+	_ = sum
+}
+
 type Matrix [][]float64
 
 func BenchmarkMatmult(b *testing.B) {
