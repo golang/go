@@ -13,7 +13,7 @@
 // Both gccgo and gofmt correctly refuse this program as is and accept it
 // when the semicolons are present.
 
-// This is a test case for issue 777 ( http://code.google.com/p/go/issues/detail?id=777 ).
+// This is a test case for issue 777 ( http://golang.org/issue/777 ).
 
 package main
 

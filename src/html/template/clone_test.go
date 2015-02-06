@@ -166,7 +166,7 @@ func TestCloneThenParse(t *testing.T) {
 	}
 }
 
-// https://code.google.com/p/go/issues/detail?id=5980
+// https://golang.org/issue/5980
 func TestFuncMapWorksAfterClone(t *testing.T) {
 	funcs := FuncMap{"customFunc": func() (string, error) {
 		return "", errors.New("issue5980")
