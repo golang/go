@@ -6,10 +6,69 @@ package big
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"testing"
 )
+
+func TestFloatZeroValue(t *testing.T) {
+	// zero (uninitialized) value is a ready-to-use 0.0
+	var x Float
+	if s := x.Format('f', 1); s != "0.0" {
+		t.Errorf("zero value = %s; want 0.0", s)
+	}
+
+	// zero value has precision 0
+	if prec := x.Precision(); prec != 0 {
+		t.Errorf("prec = %d; want 0", prec)
+	}
+
+	// zero value can be used in any and all positions of binary operations
+	make := func(x int) *Float {
+		if x == 0 {
+			return new(Float) // 0 translates into the zero value
+		}
+		return NewFloat(float64(x), 10, 0)
+	}
+	for _, test := range []struct {
+		z, x, y, want int
+		opname        rune
+		op            func(z, x, y *Float) *Float
+	}{
+		{0, 0, 0, 0, '+', (*Float).Add},
+		{0, 1, 2, 3, '+', (*Float).Add},
+		{1, 2, 0, 2, '+', (*Float).Add},
+		{2, 0, 1, 1, '+', (*Float).Add},
+
+		{0, 0, 0, 0, '-', (*Float).Sub},
+		{0, 1, 2, -1, '-', (*Float).Sub},
+		{1, 2, 0, 2, '-', (*Float).Sub},
+		{2, 0, 1, -1, '-', (*Float).Sub},
+
+		{0, 0, 0, 0, '*', (*Float).Mul},
+		{0, 1, 2, 2, '*', (*Float).Mul},
+		{1, 2, 0, 0, '*', (*Float).Mul},
+		{2, 0, 1, 0, '*', (*Float).Mul},
+
+		{0, 0, 0, 0, '/', (*Float).Quo},
+		{0, 2, 1, 2, '/', (*Float).Quo},
+		{1, 2, 0, 0, '/', (*Float).Quo},
+		{2, 0, 1, 0, '/', (*Float).Quo},
+	} {
+		z := make(test.z)
+		test.op(z, make(test.x), make(test.y))
+		if got := int(z.Int64()); got != test.want {
+			t.Errorf("%d %c %d = %d; want %d", test.x, test.opname, test.y, got, test.want)
+		}
+	}
+
+	// TODO(gri) test how precision is set for zero value results
+}
+
+func TestFloatInf(t *testing.T) {
+	// TODO(gri) implement this
+}
 
 func fromBinary(s string) int64 {
 	x, err := strconv.ParseInt(s, 2, 64)
@@ -244,6 +303,9 @@ func TestFloatSetFloat64(t *testing.T) {
 		3.14159265e10,
 		2.718281828e-123,
 		1.0 / 3,
+		math.Inf(-1),
+		math.Inf(0),
+		-math.Inf(1),
 	} {
 		for i := range [2]int{} {
 			if i&1 != 0 {
