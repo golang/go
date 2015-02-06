@@ -603,6 +603,7 @@ outer:
 			}
 			levprd[nprod] |= ACTFLAG
 			fmt.Fprintf(fcode, "\n\tcase %v:", nprod)
+			fmt.Fprintf(fcode, "\n\t\t%sDollar = %sS[%spt-%v:%spt+1]", prefix, prefix, prefix, mem-1, prefix)
 			cpyact(curprod, mem)
 
 			// action within rule...
@@ -1345,7 +1346,7 @@ loop:
 				ungetrune(finput, c)
 				continue loop
 			}
-			fmt.Fprintf(fcode, "%sS[%spt-%v]", prefix, prefix, max-j-1)
+			fmt.Fprintf(fcode, "%sDollar[%v]", prefix, j)
 
 			// put out the proper tag
 			if ntypes != 0 {
@@ -3264,6 +3265,7 @@ func $$Parse($$lex $$Lexer) int {
 	var $$n int
 	var $$lval $$SymType
 	var $$VAL $$SymType
+	var $$Dollar []$$SymType
 	$$S := make([]$$SymType, $$MaxDepth)
 
 	Nerrs := 0   /* number of errors */
