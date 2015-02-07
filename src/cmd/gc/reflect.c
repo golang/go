@@ -833,12 +833,12 @@ dcommontype(Sym *s, int ot, Type *t)
 		for(i=0; i<8; i++)
 			x1 = x1<<8 | gcmask[i];
 		if(widthptr == 4) {
-			p = smprint("gcbits.%#016llux", x1);
+			p = smprint("gcbits.0x%016llux", x1);
 		} else {
 			x2 = 0;
 			for(i=0; i<8; i++)
 				x2 = x2<<8 | gcmask[i+8];
-			p = smprint("gcbits.%#016llux%016llux", x1, x2);
+			p = smprint("gcbits.0x%016llux%016llux", x1, x2);
 		}
 		sbits = pkglookup(p, runtimepkg);
 		if((sbits->flags & SymUniq) == 0) {
