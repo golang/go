@@ -262,9 +262,21 @@ func TestFloatSetUint64(t *testing.T) {
 		1 << 32,
 		1<<64 - 1,
 	} {
-		f := new(Float).SetUint64(want)
+		var f Float
+		f.SetUint64(want)
 		if got := f.Uint64(); got != want {
-			t.Errorf("got %d (%s); want %d", got, f.Format('p', 0), want)
+			t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
+		}
+	}
+
+	// test basic rounding behavior (exhaustive rounding testing is done elsewhere)
+	const x uint64 = 0x8765432187654321 // 64 bits needed
+	for prec := uint(1); prec <= 64; prec++ {
+		f := NewFloat(0, prec, ToZero).SetUint64(x)
+		got := f.Uint64()
+		want := x &^ (1<<(64-prec) - 1) // cut off (round to zero) low 64-prec bits
+		if got != want {
+			t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
 		}
 	}
 }
@@ -284,10 +296,22 @@ func TestFloatSetInt64(t *testing.T) {
 			if i&1 != 0 {
 				want = -want
 			}
-			f := new(Float).SetInt64(want)
+			var f Float
+			f.SetInt64(want)
 			if got := f.Int64(); got != want {
-				t.Errorf("got %d (%s); want %d", got, f.Format('p', 0), want)
+				t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
 			}
+		}
+	}
+
+	// test basic rounding behavior (exhaustive rounding testing is done elsewhere)
+	const x int64 = 0x7654321076543210 // 63 bits needed
+	for prec := uint(1); prec <= 63; prec++ {
+		f := NewFloat(0, prec, ToZero).SetInt64(x)
+		got := f.Int64()
+		want := x &^ (1<<(63-prec) - 1) // cut off (round to zero) low 63-prec bits
+		if got != want {
+			t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
 		}
 	}
 }
@@ -311,16 +335,77 @@ func TestFloatSetFloat64(t *testing.T) {
 			if i&1 != 0 {
 				want = -want
 			}
-			f := new(Float).SetFloat64(want)
+			var f Float
+			f.SetFloat64(want)
 			if got, _ := f.Float64(); got != want {
 				t.Errorf("got %g (%s); want %g", got, f.Format('p', 0), want)
 			}
 		}
 	}
+
+	// test basic rounding behavior (exhaustive rounding testing is done elsewhere)
+	const x uint64 = 0x8765432143218 // 53 bits needed
+	for prec := uint(1); prec <= 52; prec++ {
+		f := NewFloat(0, prec, ToZero).SetFloat64(float64(x))
+		got, _ := f.Float64()
+		want := float64(x &^ (1<<(52-prec) - 1)) // cut off (round to zero) low 53-prec bits
+		if got != want {
+			t.Errorf("got %g (%s); want %g", got, f.Format('p', 0), want)
+		}
+	}
 }
 
 func TestFloatSetInt(t *testing.T) {
-	// TODO(gri) implement
+	for _, want := range []string{
+		"0",
+		"1",
+		"-1",
+		"1234567890",
+		"123456789012345678901234567890",
+		"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890",
+	} {
+		var x Int
+		_, ok := x.SetString(want, 0)
+		if !ok {
+			t.Errorf("invalid integer %s", want)
+			continue
+		}
+		var f Float
+		f.SetInt(&x)
+		got := f.Format('g', 100)
+		if got != want {
+			t.Errorf("got %s (%s); want %s", got, f.Format('p', 0), want)
+		}
+	}
+
+	// TODO(gri) test basic rounding behavior
+}
+
+func TestFloatSetRat(t *testing.T) {
+	for _, want := range []string{
+		"0",
+		"1",
+		"-1",
+		"1234567890",
+		"123456789012345678901234567890",
+		"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890",
+		"1.2",
+		"3.14159265",
+		// TODO(gri) expand
+	} {
+		var x Rat
+		_, ok := x.SetString(want)
+		if !ok {
+			t.Errorf("invalid fraction %s", want)
+			continue
+		}
+		f := NewFloat(0, 1000, 0) // set a high precision - TODO(gri) find a cleaner way
+		f.SetRat(&x)
+		got := f.Format('g', 100)
+		if got != want {
+			t.Errorf("got %s (%s); want %s", got, f.Format('p', 0), want)
+		}
+	}
 }
 
 // Selected precisions with which to run various tests.
