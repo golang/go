@@ -18,7 +18,7 @@ goto end
 set GOROOT=%CD%\..
 call make.bat --dist-tool >NUL
 if errorlevel 1 goto fail
-.\cmd\dist\dist env -wp >env.bat
+.\cmd\dist\dist env -w -p >env.bat
 if errorlevel 1 goto fail
 call env.bat
 del env.bat
