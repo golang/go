@@ -62,7 +62,6 @@ func clearpools() {
 // bggc holds the state of the backgroundgc.
 func backgroundgc() {
 	bggc.g = getg()
-	bggc.g.issystem = true
 	for {
 		gcwork(0)
 		lock(&bggc.lock)
@@ -73,7 +72,6 @@ func backgroundgc() {
 
 func bgsweep() {
 	sweep.g = getg()
-	getg().issystem = true
 	for {
 		for gosweepone() != ^uintptr(0) {
 			sweep.nbgsweep++

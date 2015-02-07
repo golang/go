@@ -199,7 +199,6 @@ type g struct {
 	waitsince    int64  // approx time when the g become blocked
 	waitreason   string // if status==gwaiting
 	schedlink    *g
-	issystem     bool // do not output in stack dump, ignore in deadlock detector
 	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	preemptscan  bool // preempted g does scan for gc
