@@ -208,7 +208,7 @@ Dconv(Fmt *fp)
 		if(a->u.argsize == ArgsSizeUnknown)
 			sprint(str, "$%lld", a->offset);
 		else
-			sprint(str, "$%lld-%lld", a->offset, a->u.argsize);
+			sprint(str, "$%lld-%d", a->offset, a->u.argsize);
 		break;
 
 	case TYPE_FCONST:
