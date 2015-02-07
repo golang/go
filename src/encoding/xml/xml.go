@@ -723,7 +723,7 @@ func (d *Decoder) rawToken() (Token, error) {
 		return nil, d.err
 	}
 
-	attr = make([]Attr, 0, 4)
+	attr = []Attr{}
 	for {
 		d.space()
 		if b, ok = d.mustgetc(); !ok {
@@ -747,7 +747,11 @@ func (d *Decoder) rawToken() (Token, error) {
 
 		n := len(attr)
 		if n >= cap(attr) {
-			nattr := make([]Attr, n, 2*cap(attr))
+			nCap := 2 * cap(attr)
+			if nCap == 0 {
+				nCap = 4
+			}
+			nattr := make([]Attr, n, nCap)
 			copy(nattr, attr)
 			attr = nattr
 		}
