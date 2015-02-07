@@ -2636,7 +2636,7 @@ func checkdead() {
 	lock(&allglock)
 	for i := 0; i < len(allgs); i++ {
 		gp := allgs[i]
-		if gp.issystem {
+		if isSystemGoroutine(gp) {
 			continue
 		}
 		s := readgstatus(gp)

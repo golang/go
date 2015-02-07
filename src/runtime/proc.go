@@ -110,7 +110,6 @@ func init() {
 
 func forcegchelper() {
 	forcegc.g = getg()
-	forcegc.g.issystem = true
 	for {
 		lock(&forcegc.lock)
 		if forcegc.idle != 0 {
