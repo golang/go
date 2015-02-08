@@ -7,7 +7,6 @@
 package time
 
 import (
-	"errors"
 	"runtime"
 	"syscall"
 )
