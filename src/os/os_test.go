@@ -21,7 +21,6 @@ import (
 	"sync"
 	"syscall"
 	"testing"
-	"text/template"
 	"time"
 )
 
@@ -1328,39 +1327,9 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	defer RemoveAll(dir)
-
-	src := filepath.Join(dir, "main.go")
-	f, err := Create(src)
-	if err != nil {
-		t.Fatalf("Failed to create %v: %v", src, err)
-	}
-	st := template.Must(template.New("source").Parse(`
-package main
-import "time"
-func main() {
-	time.Sleep(time.Second)
-}
-`))
-	err = st.Execute(f, nil)
-	if err != nil {
-		f.Close()
-		t.Fatalf("Failed to execute template: %v", err)
-	}
-	f.Close()
-
-	exe := filepath.Join(dir, "main.exe")
-	output, err := osexec.Command("go", "build", "-o", exe, src).CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to build exe %v: %v %v", exe, err, string(output))
-	}
-
-	cmd := osexec.Command(exe)
-	err = cmd.Start()
+	// Re-exec the test binary itself to emulate "sleep 1".
+	cmd := osexec.Command(Args[0], "-test.run", "TestSleep")
+	err := cmd.Start()
 	if err != nil {
 		t.Fatalf("Failed to start test process: %v", err)
 	}
@@ -1372,6 +1341,15 @@ func main() {
 	if err == nil {
 		t.Errorf("Test process succeeded, but expected to fail")
 	}
+}
+
+// TestSleep emulates "sleep 1". It is a helper for testKillProcess, so we
+// don't have to rely on an external "sleep" command being available.
+func TestSleep(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+	time.Sleep(time.Second)
 }
 
 func TestKillStartProcess(t *testing.T) {
