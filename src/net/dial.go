@@ -159,12 +159,14 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Addr: nil, Err: err}
 	}
-	dialer := func(deadline time.Time) (Conn, error) {
-		return dialSingle(network, address, d.LocalAddr, ra.toAddr(), deadline)
-	}
+	var dialer func(deadline time.Time) (Conn, error)
 	if ras, ok := ra.(addrList); ok && d.DualStack && network == "tcp" {
 		dialer = func(deadline time.Time) (Conn, error) {
 			return dialMulti(network, address, d.LocalAddr, ras, deadline)
+		}
+	} else {
+		dialer = func(deadline time.Time) (Conn, error) {
+			return dialSingle(network, address, d.LocalAddr, ra.toAddr(), deadline)
 		}
 	}
 	c, err := dial(network, ra.toAddr(), dialer, d.deadline())
