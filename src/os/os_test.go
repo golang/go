@@ -491,6 +491,30 @@ func TestReaddirStatFailures(t *testing.T) {
 	}
 }
 
+// Readdir on a regular file should fail.
+func TestReaddirOfFile(t *testing.T) {
+	f, err := ioutil.TempFile("", "_Go_ReaddirOfFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer Remove(f.Name())
+	f.Write([]byte("foo"))
+	f.Close()
+	reg, err := Open(f.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reg.Close()
+
+	names, err := reg.Readdirnames(-1)
+	if err == nil {
+		t.Error("Readdirnames succeeded; want non-nil error")
+	}
+	if len(names) > 0 {
+		t.Errorf("unexpected dir names in regular file: %q", names)
+	}
+}
+
 func TestHardLink(t *testing.T) {
 	// Hardlinks are not supported under windows or Plan 9.
 	if runtime.GOOS == "plan9" {
