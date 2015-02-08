@@ -296,7 +296,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
 //    and Jukka Teuhola; Nordic Journal of Computing 3,1 (1996), 27-40:
 //    The given algorithms are in-place, number of Swap and Assignments
 //    grow as n log n but the algorithm is not stable.
-//  - "Fast Stable In-Plcae Sorting with O(n) Data Moves" J.I. Munro and
+//  - "Fast Stable In-Place Sorting with O(n) Data Moves" J.I. Munro and
 //    V. Raman in Algorithmica (1996) 16, 115-160:
 //    This algorithm either needs additional 2n bits or works only if there
 //    are enough different elements available to encode some permutations
