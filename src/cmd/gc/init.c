@@ -191,5 +191,5 @@ fninit(NodeList *n)
 	typecheck(&fn, Etop);
 	typechecklist(r, Etop);
 	curfn = nil;
-	funccompile(fn, 0);
+	funccompile(fn);
 }

@@ -459,7 +459,7 @@ gcmain(int argc, char *argv[])
 	// Phase 7: Compile top level functions.
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
-			funccompile(l->n, 0);
+			funccompile(l->n);
 
 	if(nsavederrors+nerrors == 0)
 		fninit(xtop);

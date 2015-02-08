@@ -1128,7 +1128,7 @@ void	dumpdcl(char *st);
 Node*	embedded(Sym *s, Pkg *pkg);
 Node*	fakethis(void);
 void	funcbody(Node *n);
-void	funccompile(Node *n, int isclosure);
+void	funccompile(Node *n);
 void	funchdr(Node *n);
 Type*	functype(Node *this, NodeList *in, NodeList *out);
 void	ifacedcl(Node *n);
