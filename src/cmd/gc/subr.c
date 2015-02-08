@@ -2628,7 +2628,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	inl_nonlocal = 0;
 
 	curfn = nil;
-	funccompile(fn, 0);
+	funccompile(fn);
 }
 
 static Node*
@@ -2876,7 +2876,7 @@ genhash(Sym *sym, Type *t)
 	// an unexported field of type unsafe.Pointer.
 	old_safemode = safemode;
 	safemode = 0;
-	funccompile(fn, 0);
+	funccompile(fn);
 	safemode = old_safemode;
 }
 
@@ -3096,7 +3096,7 @@ geneq(Sym *sym, Type *t)
 	// an unexported field of type unsafe.Pointer.
 	old_safemode = safemode;
 	safemode = 0;
-	funccompile(fn, 0);
+	funccompile(fn);
 	safemode = old_safemode;
 }
 
