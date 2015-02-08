@@ -68,40 +68,7 @@ func ReadDirent(fd int, buf []byte) (n int, err error) {
 	// actual system call is getdirentries64, 64 is a good guess.
 	// TODO(rsc): Can we use a single global basep for all calls?
 	var base = (*uintptr)(unsafe.Pointer(new(uint64)))
-	n, err = Getdirentries(fd, buf, base)
-
-	// On OS X 10.10 Yosemite, if you have a directory that can be returned
-	// in a single getdirentries64 call (for example, a directory with one file),
-	// and you read from the directory at EOF twice, you get EOF both times:
-	//	fd = open("dir")
-	//	getdirentries64(fd) // returns data
-	//	getdirentries64(fd) // returns 0 (EOF)
-	//	getdirentries64(fd) // returns 0 (EOF)
-	//
-	// But if you remove the file in the middle between the two calls, the
-	// second call returns an error instead.
-	//	fd = open("dir")
-	//	getdirentries64(fd) // returns data
-	//	getdirentries64(fd) // returns 0 (EOF)
-	//	remove("dir/file")
-	//	getdirentries64(fd) // returns ENOENT/EINVAL
-	//
-	// Whether you get ENOENT or EINVAL depends on exactly what was
-	// in the directory. It is deterministic, just data-dependent.
-	//
-	// This only happens in small directories. A directory containing more data
-	// than fits in a 4k getdirentries64 call will return EOF correctly.
-	// (It's not clear if the criteria is that the directory be split across multiple
-	// getdirentries64 calls or that it be split across multiple file system blocks.)
-	//
-	// We could change package os to avoid the second read at EOF,
-	// and maybe we should, but that's a bit involved.
-	// For now, treat the EINVAL/ENOENT as EOF.
-	if runtime.GOOS == "darwin" && (err == EINVAL || err == ENOENT) {
-		err = nil
-	}
-
-	return
+	return Getdirentries(fd, buf, base)
 }
 
 // Wait status is 7 bits at bottom, either 0 (exited),
