@@ -290,6 +290,9 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			a.Type = obj.TYPE_ADDR
 		}
 		a.Reg = r1
+		if r1 == arch.RPC && prefix != 0 {
+			p.errorf("illegal addressing mode for PC")
+		}
 		a.Scale = scale
 		p.get(')')
 		if scale == 0 && p.peek() == '(' {
@@ -363,14 +366,22 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	}
 	a.Sym = obj.Linklookup(p.linkCtxt, name, isStatic)
 	if p.peek() == scanner.EOF {
+		if prefix != 0 {
+			p.errorf("illegal addressing mode for symbol %s", name)
+		}
 		return
 	}
-	// Expect (SB) or (FP) or (SP).
+	// Expect (SB) or (FP), (PC), (SB), or (SP)
 	p.get('(')
 	reg := p.get(scanner.Ident).String()
 	switch reg {
 	case "FP":
 		a.Name = obj.NAME_PARAM
+	case "PC":
+		// Fine as is.
+		if prefix != 0 {
+			p.errorf("illegal addressing mode for PC")
+		}
 	case "SB":
 		a.Name = obj.NAME_EXTERN
 		if isStatic != 0 {
