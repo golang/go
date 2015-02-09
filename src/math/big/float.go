@@ -439,7 +439,7 @@ func (z *Float) SetInt64(x int64) *Float {
 	return z
 }
 
-// SetInt64 sets z to the (possibly rounded) value of x and returns z.
+// SetFloat64 sets z to the (possibly rounded) value of x and returns z.
 // If z's precision is 0, it is changed to 53 (and rounding will have
 // no effect).
 // If x is denormalized or NaN, the result is unspecified.
@@ -525,8 +525,7 @@ func (z *Float) SetRat(x *Rat) *Float {
 	a.SetInt(x.Num())
 	b.SetInt(x.Denom())
 	if z.prec == 0 {
-		// TODO(gri) think about a.prec type to avoid excessive conversions
-		z.prec = uint(max(int(a.prec), int(b.prec)))
+		z.prec = umax(a.prec, b.prec)
 	}
 	return z.Quo(&a, &b)
 }
@@ -1072,7 +1071,7 @@ func (x *Float) Sign() int {
 }
 
 func umax(x, y uint) uint {
-	if x < y {
+	if x > y {
 		return x
 	}
 	return y
