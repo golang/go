@@ -237,7 +237,7 @@ func doCallgraph(ctxt *build.Context, algo, format string, tests bool, args []st
 	case "graphviz":
 		before = "digraph callgraph {\n"
 		after = "}\n"
-		format = `  {{printf "%q" .Caller}} -> {{printf "%q" .Callee}}"`
+		format = `  {{printf "%q" .Caller}} -> {{printf "%q" .Callee}}`
 	}
 
 	tmpl, err := template.New("-format").Parse(format)
