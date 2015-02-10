@@ -138,3 +138,6 @@ func Rename(oldpath, newpath string) error {
 	}
 	return MoveFileEx(from, to, MOVEFILE_REPLACE_EXISTING)
 }
+
+//sys	GetACP() (acp uint, err error) = kernel32.GetACP
+//sys	MultiByteToWideChar(codePage uint, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int, err error) = kernel32.MultiByteToWideChar
