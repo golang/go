@@ -132,8 +132,13 @@ func testWriteToConn(t *testing.T, raddr string) {
 		t.Fatalf("WriteMsgUDP should fail as ErrWriteToConnected: %v", err)
 	}
 	_, _, err = c.(*UDPConn).WriteMsgUDP([]byte("Connection-oriented mode socket"), nil, nil)
-	if err != nil {
-		t.Fatal(err)
+	switch runtime.GOOS {
+	case "nacl", "windows": // see golang.org/issue/9252
+		t.Skipf("not implemented yet on %s", runtime.GOOS)
+	default:
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -172,8 +177,13 @@ func testWriteToPacketConn(t *testing.T, raddr string) {
 		t.Fatalf("WriteMsgUDP should fail as errMissingAddress: %v", err)
 	}
 	_, _, err = c.(*UDPConn).WriteMsgUDP([]byte("Connection-less mode socket"), nil, ra)
-	if err != nil {
-		t.Fatal(err)
+	switch runtime.GOOS {
+	case "nacl", "windows": // see golang.org/issue/9252
+		t.Skipf("not implemented yet on %s", runtime.GOOS)
+	default:
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
