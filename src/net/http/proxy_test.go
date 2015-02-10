@@ -18,7 +18,7 @@ var UseProxyTests = []struct {
 	match bool
 }{
 	// Never proxy localhost:
-	{"localhost:80", false},
+	{"localhost", false},
 	{"127.0.0.1", false},
 	{"127.0.0.2", false},
 	{"[::1]", false},
