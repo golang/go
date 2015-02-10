@@ -172,6 +172,86 @@ func (x *Float) Mode() RoundingMode {
 	return x.mode
 }
 
+// Sign returns:
+//
+//	-1 if x <  0
+//	 0 if x == 0 or x == -0
+//	+1 if x >  0
+//
+func (x *Float) Sign() int {
+	s := 0
+	if len(x.mant) != 0 || x.exp == infExp {
+		s = 1 // non-zero x
+	}
+	if x.neg {
+		s = -s
+	}
+	return s
+}
+
+// MantExp breaks x into its mantissa and exponent components.
+// It returns mant and exp satisfying x == mant × 2**exp, with
+// the absolute value of mant satisfying 0.5 <= |mant| < 1.0.
+// mant has the same precision and rounding mode as x.
+//
+// Special cases are:
+//
+//	(  ±0).MantExp() =   ±0, 0
+//	(±Inf).MantExp() = ±Inf, 0
+//
+// MantExp does not modify x; the result mant is a new Float.
+func (x *Float) MantExp() (mant *Float, exp int) {
+	mant = new(Float).Copy(x)
+	if x.exp != infExp {
+		mant.exp = 0
+		exp = int(x.exp)
+	}
+	return
+}
+
+// SetMantExp is the inverse of MantExp. It sets z to mant × 2**exp and
+// and returns z. The result z has the same precision and rounding mode
+// as mant.
+//
+// Special cases are:
+//
+//	z.SetMantExp(  ±0, exp) =   ±0
+//	z.SetMantExp(±Inf, exp) = ±Inf
+//
+// The result is ±Inf if the magnitude of exp is > MaxExp.
+func (z *Float) SetMantExp(mant *Float, exp int) *Float {
+	z.Copy(mant)
+	if len(z.mant) == 0 || z.exp == infExp {
+		return z
+	}
+	z.setExp(int64(exp))
+	return z
+}
+
+// IsInt reports whether x is an integer.
+// ±Inf are not considered integers.
+func (x *Float) IsInt() bool {
+	// pick off easy cases
+	if len(x.mant) == 0 {
+		return x.exp != infExp // x == 0
+	}
+	// x != 0
+	if x.exp <= 0 {
+		return false // 0 < |x| <= 0.5
+	}
+	// x.exp > 0
+	if uint(x.exp) >= x.prec {
+		return true // not enough precision for fractional mantissa
+	}
+	if debugFloat {
+		x.validate()
+	}
+	// x.mant[len(x.mant)-1] != 0
+	// determine minimum required precision for x
+	minPrec := uint(len(x.mant))*_W - x.mant.trailingZeroBits()
+	return uint(x.exp) >= minPrec
+}
+
 // IsInf reports whether x is an infinity, according to sign.
 // If sign > 0, IsInf reports whether x is positive infinity.
 // If sign < 0, IsInf reports whether x is negative infinity.
@@ -181,7 +261,7 @@ func (x *Float) IsInf(sign int) bool {
 }
 
 // setExp sets the exponent for z.
-// If the exponent's magnitude is too large, z becomes +/-Inf.
+// If the exponent's magnitude is too large, z becomes ±Inf.
 func (z *Float) setExp(e int64) {
 	if -MaxExp <= e && e <= MaxExp {
 		z.exp = int32(e)
@@ -374,9 +454,8 @@ func (z *Float) round(sbit uint) {
 
 // Round sets z to the value of x rounded according to mode to prec bits and returns z.
 // TODO(gri) rethink this signature.
-// TODO(gri) adjust this to match precision semantics.
 func (z *Float) Round(x *Float, prec uint, mode RoundingMode) *Float {
-	z.Set(x)
+	z.Copy(x)
 	z.prec = prec
 	z.mode = mode
 	z.round(0)
@@ -530,14 +609,38 @@ func (z *Float) SetRat(x *Rat) *Float {
 	return z.Quo(&a, &b)
 }
 
-// Set sets z to x, with the same precision as x, and returns z.
-// TODO(gri) adjust this to match precision semantics.
+// Set sets z to the (possibly rounded) value of x and returns z.
+// If z's precision is 0, it is changed to the precision of x
+// before setting z (and rounding will have no effect).
+// Rounding is performed according to z's precision and rounding
+// mode; and z's accuracy reports the result error relative to the
+// exact (not rounded) result.
 func (z *Float) Set(x *Float) *Float {
 	if z != x {
+		if z.prec == 0 {
+			z.prec = x.prec
+		}
+		z.acc = Exact
+		z.neg = x.neg
+		z.exp = x.exp
+		z.mant = z.mant.set(x.mant)
+		if z.prec < x.prec {
+			z.round(0)
+		}
+	}
+	return z
+}
+
+// Copy sets z to x, with the same precision and rounding mode as x,
+// and returns z.
+func (z *Float) Copy(x *Float) *Float {
+	if z != x {
+		z.acc = Exact
 		z.neg = x.neg
 		z.exp = x.exp
 		z.mant = z.mant.set(x.mant)
 		z.prec = x.prec
+		z.mode = x.mode
 	}
 	return z
 }
@@ -581,7 +684,7 @@ func (x *Float) Int64() int64 {
 // by rounding to nearest with 53 bits precision.
 // TODO(gri) implement/document error scenarios.
 func (x *Float) Float64() (float64, Accuracy) {
-	// x == +/-Inf
+	// x == ±Inf
 	if x.exp == infExp {
 		var sign int
 		if x.neg {
@@ -604,40 +707,26 @@ func (x *Float) Float64() (float64, Accuracy) {
 	return math.Float64frombits(s | e<<52 | m), r.acc
 }
 
-func (x *Float) Int() *Int {
-	if len(x.mant) == 0 {
-		return new(Int)
-	}
+// BUG(gri) Int is not yet implemented
+func (x *Float) Int() (*Int, Accuracy) {
 	panic("unimplemented")
 }
 
+// BUG(gri) Rat is not yet implemented
 func (x *Float) Rat() *Rat {
 	panic("unimplemented")
 }
 
-func (x *Float) IsInt() bool {
-	if len(x.mant) == 0 {
-		return true
-	}
-	if x.exp <= 0 {
-		return false
-	}
-	if uint(x.exp) >= x.prec {
-		return true
-	}
-	panic("unimplemented")
-}
-
-// Abs sets z to |x| (the absolute value of x) and returns z.
-// TODO(gri) adjust this to match precision semantics.
+// Abs sets z to the (possibly rounded) value |x| (the absolute value of x)
+// and returns z.
 func (z *Float) Abs(x *Float) *Float {
 	z.Set(x)
 	z.neg = false
 	return z
 }
 
-// Neg sets z to x with its sign negated, and returns z.
-// TODO(gri) adjust this to match precision semantics.
+// Neg sets z to the (possibly rounded) value of x with its sign negated,
+// and returns z.
 func (z *Float) Neg(x *Float) *Float {
 	z.Set(x)
 	z.neg = !z.neg
@@ -1022,52 +1111,31 @@ func (z *Float) Rsh(x *Float, s uint, mode RoundingMode) *Float {
 //   +1 if x >  y
 //
 func (x *Float) Cmp(y *Float) int {
-	// TODO(gri) handle Inf
-
-	// special cases
-	switch {
-	case len(x.mant) == 0:
-		// 0 cmp y == -sign(y)
-		return -y.Sign()
-	case len(y.mant) == 0:
-		// x cmp 0 == sign(x)
-		return x.Sign()
+	if debugFloat {
+		x.validate()
+		y.validate()
 	}
-	// x != 0 && y != 0
 
-	// x cmp y == x cmp y
-	// x cmp (-y) == 1
-	// (-x) cmp y == -1
-	// (-x) cmp (-y) == -(x cmp y)
+	mx := x.mag()
+	my := y.mag()
+
 	switch {
-	case x.neg == y.neg:
-		r := x.ucmp(y)
-		if x.neg {
-			r = -r
-		}
-		return r
-	case x.neg:
+	case mx < my:
 		return -1
-	default:
-		return 1
+	case mx > my:
+		return +1
 	}
+	// mx == my
+
+	// only if |mx| == 1 we have to compare the mantissae
+	switch mx {
+	case -1:
+		return -x.ucmp(y)
+	case +1:
+		return +x.ucmp(y)
+	}
+
 	return 0
-}
-
-// Sign returns:
-//
-//	-1 if x <  0
-//	 0 if x == 0 (incl. x == -0) // TODO(gri) is this correct?
-//	+1 if x >  0
-//
-func (x *Float) Sign() int {
-	if len(x.mant) == 0 {
-		return 0
-	}
-	if x.neg {
-		return -1
-	}
-	return 1
 }
 
 func umax(x, y uint) uint {
@@ -1075,4 +1143,27 @@ func umax(x, y uint) uint {
 		return x
 	}
 	return y
+}
+
+// mag returns:
+//
+//	-2 if x == -Inf
+//	-1 if x < 0
+//	 0 if x == -0 or x == +0
+//	+1 if x > 0
+//	+2 if x == +Inf
+//
+// mag is a helper function for Cmp.
+func (x *Float) mag() int {
+	m := 1
+	if len(x.mant) == 0 {
+		m = 0
+		if x.exp == infExp {
+			m = 2
+		}
+	}
+	if x.neg {
+		m = -m
+	}
+	return m
 }

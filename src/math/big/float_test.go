@@ -9,6 +9,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -66,7 +67,126 @@ func TestFloatZeroValue(t *testing.T) {
 	// TODO(gri) test how precision is set for zero value results
 }
 
-func TestFloatInf(t *testing.T) {
+func makeFloat(s string) *Float {
+	if s == "Inf" || s == "+Inf" {
+		return NewInf(+1)
+	}
+	if s == "-Inf" {
+		return NewInf(-1)
+	}
+	var x Float
+	x.prec = 100 // TODO(gri) find a better way to do this
+	if _, ok := x.SetString(s); !ok {
+		panic(fmt.Sprintf("%q is not a valid float", s))
+	}
+	return &x
+}
+
+func TestFloatSign(t *testing.T) {
+	for _, test := range []struct {
+		x string
+		s int
+	}{
+		{"-Inf", -1},
+		{"-1", -1},
+		{"-0", 0},
+		{"+0", 0},
+		{"+1", +1},
+		{"+Inf", +1},
+	} {
+		x := makeFloat(test.x)
+		s := x.Sign()
+		if s != test.s {
+			t.Errorf("%s.Sign() = %d; want %d", test.x, s, test.s)
+		}
+	}
+}
+
+// feq(x, y) is like x.Cmp(y) == 0 but it also considers the sign of 0 (0 != -0).
+func feq(x, y *Float) bool {
+	return x.Cmp(y) == 0 && x.neg == y.neg
+}
+
+func TestFloatMantExp(t *testing.T) {
+	for _, test := range []struct {
+		x    string
+		frac string
+		exp  int
+	}{
+		{"0", "0", 0},
+		{"+0", "0", 0},
+		{"-0", "-0", 0},
+		{"Inf", "+Inf", 0},
+		{"+Inf", "+Inf", 0},
+		{"-Inf", "-Inf", 0},
+		{"1.5", "0.75", 1},
+		{"1.024e3", "0.5", 11},
+		{"-0.125", "-0.5", -2},
+	} {
+		x := makeFloat(test.x)
+		frac := makeFloat(test.frac)
+		f, e := x.MantExp()
+		if !feq(f, frac) || e != test.exp {
+			t.Errorf("%s.MantExp() = %s, %d; want %s, %d", test.x, f.Format('g', 10), e, test.frac, test.exp)
+		}
+	}
+}
+
+func TestFloatSetMantExp(t *testing.T) {
+	for _, test := range []struct {
+		frac string
+		exp  int
+		z    string
+	}{
+		{"0", 0, "0"},
+		{"+0", 0, "0"},
+		{"-0", 0, "-0"},
+		{"Inf", 1234, "+Inf"},
+		{"+Inf", -1234, "+Inf"},
+		{"-Inf", -1234, "-Inf"},
+		{"0", -MaxExp - 1, "0"},
+		{"1", -MaxExp - 1, "+Inf"},  // exponent magnitude too large
+		{"-1", -MaxExp - 1, "-Inf"}, // exponent magnitude too large
+		{"0.75", 1, "1.5"},
+		{"0.5", 11, "1024"},
+		{"-0.5", -2, "-0.125"},
+	} {
+		frac := makeFloat(test.frac)
+		want := makeFloat(test.z)
+		var z Float
+		z.SetMantExp(frac, test.exp)
+		if !feq(&z, want) {
+			t.Errorf("SetMantExp(%s, %d) = %s; want %s", test.frac, test.exp, z.Format('g', 10), test.z)
+		}
+	}
+}
+
+func TestFloatIsInt(t *testing.T) {
+	for _, test := range []string{
+		"0 int",
+		"-0 int",
+		"1 int",
+		"-1 int",
+		"0.5",
+		"1.23",
+		"1.23e1",
+		"1.23e2 int",
+		"0.000000001e+8",
+		"0.000000001e+9 int",
+		"1.2345e200 int",
+		"Inf",
+		"+Inf",
+		"-Inf",
+	} {
+		s := strings.TrimSuffix(test, " int")
+		want := s != test
+		if got := makeFloat(s).IsInt(); got != want {
+			t.Errorf("%s.IsInt() == %t", s, got)
+		}
+	}
+}
+
+func TestFloatIsInf(t *testing.T) {
 	// TODO(gri) implement this
 }
 
@@ -707,6 +827,10 @@ func TestFloatQuoSmoke(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestFloatCmp(t *testing.T) {
+	// TODO(gri) implement this
 }
 
 // normBits returns the normalized bits for x: It

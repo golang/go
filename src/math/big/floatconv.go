@@ -57,6 +57,7 @@ func (z *Float) SetString(s string) (*Float, bool) {
 // with base 0 or 10 corresponds to the value 1.2 * 2**3.
 //
 // BUG(gri) This signature conflicts with Scan(s fmt.ScanState, ch rune) error.
+// TODO(gri) What should the default precision be?
 func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	// sign
 	z.neg, err = scanSign(r)
