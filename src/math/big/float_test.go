@@ -593,6 +593,53 @@ func TestFloatRat(t *testing.T) {
 	// TODO(gri) implement this
 }
 
+func TestFloatAbs(t *testing.T) {
+	for _, test := range []string{
+		"0",
+		"1",
+		"1234",
+		"1.23e-2",
+		"1e-1000",
+		"1e1000",
+		"Inf",
+	} {
+		p := makeFloat(test)
+		a := new(Float).Abs(p)
+		if !feq(a, p) {
+			t.Errorf("%s: got %s; want %s", test, a.Format('g', 10), test)
+		}
+
+		n := makeFloat("-" + test)
+		a.Abs(n)
+		if !feq(a, p) {
+			t.Errorf("-%s: got %s; want %s", test, a.Format('g', 10), test)
+		}
+	}
+}
+
+func TestFloatNeg(t *testing.T) {
+	for _, test := range []string{
+		"0",
+		"1",
+		"1234",
+		"1.23e-2",
+		"1e-1000",
+		"1e1000",
+		"Inf",
+	} {
+		p1 := makeFloat(test)
+		n1 := makeFloat("-" + test)
+		n2 := new(Float).Neg(p1)
+		p2 := new(Float).Neg(n2)
+		if !feq(n2, n1) {
+			t.Errorf("%s: got %s; want %s", test, n2.Format('g', 10), n1.Format('g', 10))
+		}
+		if !feq(p2, p1) {
+			t.Errorf("%s: got %s; want %s", test, p2.Format('g', 10), p1.Format('g', 10))
+		}
+	}
+}
+
 // Selected precisions with which to run various tests.
 var precList = [...]uint{1, 2, 5, 8, 10, 16, 23, 24, 32, 50, 53, 64, 100, 128, 500, 511, 512, 513, 1000, 10000}
 
