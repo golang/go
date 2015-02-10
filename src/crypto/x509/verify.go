@@ -323,6 +323,8 @@ nextIntermediate:
 }
 
 func matchHostnames(pattern, host string) bool {
+	host = strings.TrimSuffix(host, ".")
+
 	if len(pattern) == 0 || len(host) == 0 {
 		return false
 	}
