@@ -14,6 +14,8 @@ var (
 	procGetAdaptersAddresses = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procGetComputerNameExW   = modkernel32.NewProc("GetComputerNameExW")
 	procMoveFileExW          = modkernel32.NewProc("MoveFileExW")
+	procGetACP               = modkernel32.NewProc("GetACP")
+	procMultiByteToWideChar  = modkernel32.NewProc("MultiByteToWideChar")
 )
 
 func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
@@ -39,6 +41,32 @@ func GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) {
 func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procMoveFileExW.Addr(), 3, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), uintptr(flags))
 	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func MultiByteToWideChar(codePage uint, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int, err error) {
+	r0, _, e1 := syscall.Syscall6(procMultiByteToWideChar.Addr(), 6, uintptr(codePage), uintptr(dwFlags), uintptr(unsafe.Pointer(str)), uintptr(nstr), uintptr(unsafe.Pointer(wchar)), uintptr(nwchar))
+	nwrite = int(r0)
+	if nwrite == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetACP() (acp uint, err error) {
+	r0, _, e1 := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
+	acp = uint(r0)
+	if acp == 0 {
 		if e1 != 0 {
 			err = error(e1)
 		} else {
