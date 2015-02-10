@@ -221,13 +221,16 @@ func Main() {
 	obj.Flagcount("wb", "enable write barrier", &use_writebarrier)
 	obj.Flagcount("x", "debug lexer", &Debug['x'])
 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
+	var flag_shared int
 	if Thearch.Thechar == '6' {
 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
+		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
 	}
 
 	obj.Flagstr("cpuprofile", "file: write cpu profile to file", &cpuprofile)
 	obj.Flagstr("memprofile", "file: write memory profile to file", &memprofile)
 	obj.Flagparse(usage)
+	Ctxt.Flag_shared = int32(flag_shared)
 	Ctxt.Debugasm = int32(Debug['S'])
 	Ctxt.Debugvlog = int32(Debug['v'])
 
