@@ -22,7 +22,7 @@ const debugFloat = true // enable for debugging
 
 // A Float represents a multi-precision floating point number of the form
 //
-//   sign * mantissa * 2**exponent
+//   sign × mantissa × 2**exponent
 //
 // with 0.5 <= mantissa < 1.0, and MinExp <= exponent <= MaxExp (with the
 // exception of 0 and Inf which have a 0 mantissa and special exponents).
@@ -231,20 +231,17 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 // IsInt reports whether x is an integer.
 // ±Inf are not considered integers.
 func (x *Float) IsInt() bool {
-	// pick off easy cases
-	if len(x.mant) == 0 {
-		return x.exp != infExp // x == 0
+	if debugFloat {
+		x.validate()
 	}
-	// x != 0
+	// pick off easy cases
 	if x.exp <= 0 {
-		return false // 0 < |x| <= 0.5
+		// |x| < 1 || |x| == Inf
+		return len(x.mant) == 0 && x.exp != infExp
 	}
 	// x.exp > 0
 	if uint(x.exp) >= x.prec {
 		return true // not enough precision for fractional mantissa
-	}
-	if debugFloat {
-		x.validate()
 	}
 	// x.mant[len(x.mant)-1] != 0
 	// determine minimum required precision for x
@@ -264,6 +261,9 @@ func (x *Float) IsInf(sign int) bool {
 // If the exponent's magnitude is too large, z becomes ±Inf.
 func (z *Float) setExp(e int64) {
 	if -MaxExp <= e && e <= MaxExp {
+		if len(z.mant) == 0 {
+			e = 0
+		}
 		z.exp = int32(e)
 		return
 	}
@@ -706,9 +706,50 @@ func (x *Float) Float64() (float64, Accuracy) {
 	return math.Float64frombits(s | e<<52 | m), r.acc
 }
 
-// BUG(gri) Int is not yet implemented
-func (x *Float) Int() (*Int, Accuracy) {
-	panic("unimplemented")
+// Int returns the result of truncating x towards zero; or nil
+// if x is an infinity. The result is Exact if x.IsInt();
+// otherwise it is Below for x > 0, and Above for x < 0.
+func (x *Float) Int() (res *Int, acc Accuracy) {
+	if debugFloat {
+		x.validate()
+	}
+	// accuracy for inexact results
+	acc = Below // truncation
+	if x.neg {
+		acc = Above
+	}
+	// pick off easy cases
+	if x.exp <= 0 {
+		// |x| < 1 || |x| == Inf
+		if x.exp == infExp {
+			return nil, acc // ±Inf
+		}
+		if len(x.mant) == 0 {
+			acc = Exact // ±0
+		}
+		return new(Int), acc // ±0.xxx
+	}
+	// x.exp > 0
+	// x.mant[len(x.mant)-1] != 0
+	// determine minimum required precision for x
+	allBits := uint(len(x.mant)) * _W
+	minPrec := allBits - x.mant.trailingZeroBits()
+	exp := uint(x.exp)
+	if exp >= minPrec {
+		acc = Exact
+	}
+	// shift mantissa as needed
+	res = &Int{neg: x.neg}
+	// TODO(gri) should have a shift that takes positive and negative shift counts
+	switch {
+	case exp > allBits:
+		res.abs = res.abs.shl(x.mant, exp-allBits)
+	default:
+		res.abs = res.abs.set(x.mant)
+	case exp < allBits:
+		res.abs = res.abs.shr(x.mant, allBits-exp)
+	}
+	return
 }
 
 // BUG(gri) Rat is not yet implemented
@@ -1042,7 +1083,6 @@ func (z *Float) Mul(x, y *Float) *Float {
 }
 
 // Quo sets z to the rounded quotient x/y and returns z.
-// If y == 0, a division-by-zero run-time panic occurs. TODO(gri) this should become Inf
 // Precision, rounding, and accuracy reporting are as for Add.
 func (z *Float) Quo(x, y *Float) *Float {
 	if z.prec == 0 {

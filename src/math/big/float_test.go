@@ -75,7 +75,7 @@ func makeFloat(s string) *Float {
 		return NewInf(-1)
 	}
 	var x Float
-	x.prec = 100 // TODO(gri) find a better way to do this
+	x.prec = 1000 // TODO(gri) find a better way to do this
 	if _, ok := x.SetString(s); !ok {
 		panic(fmt.Sprintf("%q is not a valid float", s))
 	}
@@ -553,6 +553,46 @@ func TestFloatSetRat(t *testing.T) {
 	}
 }
 
+func TestFloatInt(t *testing.T) {
+	for _, test := range []struct {
+		x   string
+		out string
+		acc Accuracy
+	}{
+		{"0", "0", Exact},
+		{"+0", "0", Exact},
+		{"-0", "0", Exact},
+		{"Inf", "nil", Below},
+		{"+Inf", "nil", Below},
+		{"-Inf", "nil", Above},
+		{"1", "1", Exact},
+		{"-1", "-1", Exact},
+		{"1.23", "1", Below},
+		{"-1.23", "-1", Above},
+		{"123e-2", "1", Below},
+		{"123e-3", "0", Below},
+		{"123e-4", "0", Below},
+		{"1e-1000", "0", Below},
+		{"-1e-1000", "0", Above},
+		{"1e+10", "10000000000", Exact},
+		{"1e+100", "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", Exact},
+	} {
+		x := makeFloat(test.x)
+		out, acc := x.Int()
+		got := "nil"
+		if out != nil {
+			got = out.String()
+		}
+		if got != test.out || acc != test.acc {
+			t.Errorf("%s: got %s (%s); want %s (%s)", test.x, got, acc, test.out, test.acc)
+		}
+	}
+}
+
+func TestFloatRat(t *testing.T) {
+	// TODO(gri) implement this
+}
+
 // Selected precisions with which to run various tests.
 var precList = [...]uint{1, 2, 5, 8, 10, 16, 23, 24, 32, 50, 53, 64, 100, 128, 500, 511, 512, 513, 1000, 10000}
 
@@ -678,6 +718,7 @@ func TestFloatAdd64(t *testing.T) {
 }
 
 func TestFloatMul(t *testing.T) {
+	// TODO(gri) implement this
 }
 
 // TestFloatMul64 tests that Float.Mul/Quo of numbers with
