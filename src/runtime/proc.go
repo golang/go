@@ -105,6 +105,14 @@ func main() {
 	}
 }
 
+// os_beforeExit is called from os.Exit(0).
+//go:linkname os_beforeExit os.runtime_beforeExit
+func os_beforeExit() {
+	if raceenabled {
+		racefini()
+	}
+}
+
 // start forcegc helper goroutine
 func init() {
 	go forcegchelper()
