@@ -104,6 +104,15 @@ renumberfiles(Link *ctxt, LSym **files, int nfiles, Pcdata *d)
 	*d = out;	
 }
 
+static int
+container(LSym *s)
+{
+	// We want to generate func table entries only for the "lowest level" symbols,
+	// not containers of subsymbols.
+	if(s != nil && s->sub != nil)
+		return 1;
+	return 0;
+}
 
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
@@ -111,7 +120,7 @@ void
 pclntab(void)
 {
 	int32 i, nfunc, start, funcstart;
-	LSym *ftab, *s;
+	LSym *ftab, *s, *last;
 	int32 off, end, frameptrsize;
 	int64 funcdata_bytes;
 	Pcln *pcln;
@@ -130,8 +139,10 @@ pclntab(void)
 	//	end PC [PtrSize bytes]
 	//	offset to file table [4 bytes]
 	nfunc = 0;
-	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next)
-		nfunc++;
+	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
+		if(!container(ctxt->cursym))
+			nfunc++;
+	}
 	symgrow(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize+4);
 	setuint32(ctxt, ftab, 0, 0xfffffffb);
 	setuint8(ctxt, ftab, 6, MINLC);
@@ -139,7 +150,11 @@ pclntab(void)
 	setuintxx(ctxt, ftab, 8, nfunc, PtrSize);
 
 	nfunc = 0;
-	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next, nfunc++) {
+	last = S;
+	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
+		last = ctxt->cursym;
+		if(container(ctxt->cursym))
+			continue;
 		pcln = ctxt->cursym->pcln;
 		if(pcln == nil)
 			pcln = &zpcln;
@@ -222,10 +237,10 @@ pclntab(void)
 			errorexit();
 		}
 	
-		// Final entry of table is just end pc.
-		if(ctxt->cursym->next == nil)
-			setaddrplus(ctxt, ftab, 8+PtrSize+(nfunc+1)*2*PtrSize, ctxt->cursym, ctxt->cursym->size);
+		nfunc++;
 	}
+	// Final entry of table is just end pc.
+	setaddrplus(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize, last, last->size);
 	
 	// Start file table.
 	start = ftab->np;
@@ -246,6 +261,8 @@ pclntab(void)
 enum {
 	BUCKETSIZE = 256*MINFUNC,
 	SUBBUCKETS = 16,
+	SUBBUCKETSIZE = BUCKETSIZE/SUBBUCKETS,
+	NOIDX = 0x7fffffff
 };
 
 // findfunctab generates a lookup table to quickly find the containing
@@ -253,9 +270,10 @@ enum {
 void
 findfunctab(void)
 {
-	LSym *t, *s;
-	int32 idx, bidx, i, j, nbuckets;
-	vlong min, max;
+	LSym *t, *s, *e;
+	int32 idx, i, j, nbuckets, n, base;
+	vlong min, max, p, q;
+	int32 *indexes;
 
 	t = linklookup(ctxt, "runtime.findfunctab", 0);
 	t->type = SRODATA;
@@ -267,33 +285,60 @@ findfunctab(void)
 	for(s = ctxt->textp; s != nil; s = s->next)
 		max = s->value + s->size;
 
+	// for each subbucket, compute the minimum of all symbol indexes
+	// that map to that subbucket.
+	n = (max-min+SUBBUCKETSIZE-1)/SUBBUCKETSIZE;
+	indexes = (int32*)malloc(n*4);
+	if(indexes == nil) {
+		diag("out of memory");
+		errorexit();
+	}
+	for(i = 0; i < n; i++)
+		indexes[i] = NOIDX;
+	idx = 0;
+	for(s = ctxt->textp; s != nil; s = s->next) {
+		if(container(s))
+			continue;
+		p = s->value;
+		e = s->next;
+		while(container(e))
+			e = e->next;
+		if(e != nil)
+			q = e->value;
+		else
+			q = max;
+
+		//print("%d: [%lld %lld] %s\n", idx, p, q, s->name);
+		for(; p < q; p += SUBBUCKETSIZE) {
+			i = (p - min) / SUBBUCKETSIZE;
+			if(indexes[i] > idx)
+				indexes[i] = idx;
+		}
+		i = (q - 1 - min) / SUBBUCKETSIZE;
+		if(indexes[i] > idx)
+			indexes[i] = idx;
+		idx++;
+	}
+
 	// allocate table
 	nbuckets = (max-min+BUCKETSIZE-1)/BUCKETSIZE;
-	symgrow(ctxt, t, nbuckets * (4+SUBBUCKETS));
+	symgrow(ctxt, t, 4*nbuckets + n);
 
 	// fill in table
-	s = ctxt->textp;
-	idx = 0;
 	for(i = 0; i < nbuckets; i++) {
-		// Find first function which overlaps this bucket.
-		// Only do leaf symbols; skip symbols which are just containers (sub != nil but outer == nil).
-		while(s != nil && (s->value+s->size <= min + i * BUCKETSIZE || s->sub != nil && s->outer == nil)) {
-			s = s->next;
-			idx++;
-		}
-		// record this function in bucket header
-		setuint32(ctxt, t, i*(4+SUBBUCKETS), idx);
-		bidx = idx;
-
-		// compute SUBBUCKETS deltas
-		for(j = 0; j < SUBBUCKETS; j++) {
-			while(s != nil && (s->value+s->size <= min + i * BUCKETSIZE + j * (BUCKETSIZE/SUBBUCKETS) || s->sub != nil && s->outer == nil)) {
-				s = s->next;
-				idx++;
+		base = indexes[i*SUBBUCKETS];
+		if(base == NOIDX)
+			diag("hole in findfunctab");
+		setuint32(ctxt, t, i*(4+SUBBUCKETS), base);
+		for(j = 0; j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++) {
+			idx = indexes[i*SUBBUCKETS+j];
+			if(idx == NOIDX)
+				diag("hole in findfunctab");
+			if(idx - base >= 256) {
+				diag("too many functions in a findfunc bucket! %d/%d %d %d", i, nbuckets, j, idx-base);
 			}
-			if(idx - bidx >= 256)
-				diag("too many functions in a findfunc bucket! %d %s", idx-bidx, s->name);
-			setuint8(ctxt, t, i*(4+SUBBUCKETS)+4+j, idx-bidx);
+			setuint8(ctxt, t, i*(4+SUBBUCKETS)+4+j, idx-base);
 		}
 	}
+	free(indexes);
 }
