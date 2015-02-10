@@ -328,6 +328,13 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 	dstp := unsafe.Pointer(dst.array)
 	srcp := unsafe.Pointer(src.array)
 
+	if raceenabled {
+		callerpc := getcallerpc(unsafe.Pointer(&typ))
+		pc := funcPC(slicecopy)
+		racewriterangepc(dstp, uintptr(n)*typ.size, callerpc, pc)
+		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
+	}
+
 	if !needwb() {
 		memmove(dstp, srcp, uintptr(n)*typ.size)
 		return int(n)

@@ -205,6 +205,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OCALLFUNC:
 		// Instrument dst argument of runtime.writebarrier* calls
 		// as we do not instrument runtime code.
+		// typedslicecopy is instrumented in runtime.
 		if(n->left->sym != S && n->left->sym->pkg == runtimepkg && 
 		(strncmp(n->left->sym->name, "writebarrier", 12) == 0 || strcmp(n->left->sym->name, "typedmemmove") == 0)) {
 			// Find the dst argument.
