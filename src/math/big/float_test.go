@@ -490,8 +490,20 @@ func TestFloatSetInt(t *testing.T) {
 			t.Errorf("invalid integer %s", want)
 			continue
 		}
+		n := x.BitLen()
+
 		var f Float
 		f.SetInt(&x)
+
+		// check precision
+		if n < 64 {
+			n = 64
+		}
+		if prec := f.Precision(); prec != uint(n) {
+			t.Errorf("got prec = %d; want %d", prec, n)
+		}
+
+		// check value
 		got := f.Format('g', 100)
 		if got != want {
 			t.Errorf("got %s (%s); want %s", got, f.Format('p', 0), want)
@@ -519,11 +531,24 @@ func TestFloatSetRat(t *testing.T) {
 			t.Errorf("invalid fraction %s", want)
 			continue
 		}
-		f := NewFloat(0, 1000, 0) // set a high precision - TODO(gri) find a cleaner way
-		f.SetRat(&x)
-		got := f.Format('g', 100)
+		n := max(x.Num().BitLen(), x.Denom().BitLen())
+
+		var f1 Float
+		var f2 = NewFloat(0, 1000, 0) // set a high precision - TODO(gri) find a cleaner way
+		f1.SetRat(&x)
+		f2.SetRat(&x)
+
+		// check precision when set automatically
+		if n < 64 {
+			n = 64
+		}
+		if prec := f1.Precision(); prec != uint(n) {
+			t.Errorf("got prec = %d; want %d", prec, n)
+		}
+
+		got := f2.Format('g', 100)
 		if got != want {
-			t.Errorf("got %s (%s); want %s", got, f.Format('p', 0), want)
+			t.Errorf("got %s (%s); want %s", got, f2.Format('p', 0), want)
 		}
 	}
 }

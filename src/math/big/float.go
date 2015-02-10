@@ -567,15 +567,15 @@ func fnorm(m nat) uint {
 }
 
 // SetInt sets z to the (possibly rounded) value of x and returns z.
-// If z's precision is 0, it is changed to x.BitLen() (and rounding will have
-// no effect).
+// If z's precision is 0, it is changed to the larger of x.BitLen()
+// or 64 (and rounding will have no effect).
 func (z *Float) SetInt(x *Int) *Float {
 	// TODO(gri) can be more efficient if z.prec > 0
 	// but small compared to the size of x, or if there
 	// are many trailing 0's.
 	bits := uint(x.BitLen())
 	if z.prec == 0 {
-		z.prec = bits
+		z.prec = umax(bits, 64)
 	}
 	z.acc = Exact
 	z.neg = x.neg
@@ -595,9 +595,8 @@ func (z *Float) SetInt(x *Int) *Float {
 }
 
 // SetRat sets z to the (possibly rounded) value of x and returns z.
-// If z's precision is 0, it is changed to the larger of a.BitLen()
-// and b.BitLen(), where a and b are the numerator and denominator
-// of x, respectively (x = a/b).
+// If z's precision is 0, it is changed to the largest of a.BitLen(),
+// b.BitLen(), or 64; with x = a/b.
 func (z *Float) SetRat(x *Rat) *Float {
 	// TODO(gri) can be more efficient if x is an integer
 	var a, b Float
@@ -1110,6 +1109,7 @@ func (z *Float) Rsh(x *Float, s uint, mode RoundingMode) *Float {
 //    0 if x == y (incl. -0 == 0)
 //   +1 if x >  y
 //
+// Infinities with matching sign are equal.
 func (x *Float) Cmp(y *Float) int {
 	if debugFloat {
 		x.validate()
@@ -1118,7 +1118,6 @@ func (x *Float) Cmp(y *Float) int {
 
 	mx := x.mag()
 	my := y.mag()
-
 	switch {
 	case mx < my:
 		return -1
