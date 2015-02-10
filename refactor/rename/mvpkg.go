@@ -255,12 +255,8 @@ func (m *mover) move() error {
 		}
 	}
 
-	// For each affected package, rewrite all imports of the package to
-	// use the new import path.
+	// Update import paths for all imports by affected packages.
 	for ap := range m.affectedPackages {
-		if ap == m.from {
-			continue
-		}
 		info, ok := m.iprog.Imported[ap]
 		if !ok {
 			log.Fatalf("unexpected: package %s is not in import map", ap)
