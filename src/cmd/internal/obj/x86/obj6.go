@@ -43,6 +43,8 @@ func canuselocaltls(ctxt *obj.Link) bool {
 	case obj.Hplan9,
 		obj.Hwindows:
 		return false
+	case obj.Hlinux:
+		return ctxt.Flag_shared == 0
 	}
 
 	return true

@@ -1838,7 +1838,7 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 		case REG_GS:
 			return 0x65
 
-			// NOTE: Systems listed here should be only systems that
+		// NOTE: Systems listed here should be only systems that
 		// support direct TLS references like 8(TLS) implemented as
 		// direct references from FS or GS. Systems that require
 		// the initial-exec model, where you load the TLS base into
@@ -1849,9 +1849,15 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 			default:
 				log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
 
+			case obj.Hlinux:
+				if ctxt.Flag_shared != 0 {
+					log.Fatalf("unknown TLS base register for linux with -shared")
+				} else {
+					return 0x64 // FS
+				}
+
 			case obj.Hdragonfly,
 				obj.Hfreebsd,
-				obj.Hlinux,
 				obj.Hnetbsd,
 				obj.Hopenbsd,
 				obj.Hsolaris:
@@ -1872,6 +1878,21 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 
 	case REG_ES:
 		return 0x26
+
+	case REG_TLS:
+		if ctxt.Flag_shared != 0 {
+			// When building for inclusion into a shared library, an instruction of the form
+			//     MOV 0(CX)(TLS*1), AX
+			// becomes
+			//     mov %fs:(%rcx), %rax
+			// which assumes that the correct TLS offset has been loaded into %rcx (today
+			// there is only one TLS variable -- g -- so this is OK). When not building for
+			// a shared library the instruction does not require a prefix.
+			if a.Offset != 0 {
+				log.Fatalf("cannot handle non-0 offsets to TLS")
+			}
+			return 0x64
+		}
 
 	case REG_FS:
 		return 0x64
@@ -2486,7 +2507,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 	}
 
 	if REG_AX <= base && base <= REG_R15 {
-		if a.Index == REG_TLS {
+		if a.Index == REG_TLS && ctxt.Flag_shared == 0 {
 			rel = obj.Reloc{}
 			rel.Type = obj.R_TLS_IE
 			rel.Siz = 4
@@ -3488,7 +3509,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 							}
 						}
 
-						// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
+					// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
 					// where you load the TLS base register into a register and then index off that
 					// register to access the actual TLS variables. Systems that allow direct TLS access
 					// are handled in prefixof above and should not be listed here.

@@ -292,6 +292,13 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 			return -1
 		}
 
+	case ld.R_TLS_IE:
+		if r.Siz == 4 {
+			ld.Thearch.Vput(ld.R_X86_64_GOTTPOFF | uint64(elfsym)<<32)
+		} else {
+			return -1
+		}
+
 	case ld.R_CALL:
 		if r.Siz == 4 {
 			if r.Xsym.Type == ld.SDYNIMPORT {
