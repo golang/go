@@ -34,6 +34,9 @@ const (
 	// Fields.
 	fColorMapFollows = 1 << 7
 
+	// Screen Descriptor flags.
+	sdGlobalColorTable = 1 << 7
+
 	// Image fields.
 	ifLocalColorTable = 1 << 7
 	ifInterlace       = 1 << 6
@@ -41,6 +44,14 @@ const (
 
 	// Graphic control flags.
 	gcTransparentColorSet = 1 << 0
+	gcDisposalMethodMask  = 7 << 2
+)
+
+// Disposal Methods.
+const (
+	DisposalNone       = 0x01
+	DisposalBackground = 0x02
+	DisposalPrevious   = 0x03
 )
 
 // Section indicators.
@@ -66,11 +77,11 @@ type decoder struct {
 	vers            string
 	width           int
 	height          int
-	flags           byte
 	headerFields    byte
 	backgroundIndex byte
 	loopCount       int
 	delayTime       int
+	disposalMethod  byte
 
 	// Unused from header.
 	aspect byte
@@ -87,9 +98,10 @@ type decoder struct {
 	globalColorMap color.Palette
 
 	// Used when decoding.
-	delay []int
-	image []*image.Paletted
-	tmp   [1024]byte // must be at least 768 so we can read color map
+	delay    []int
+	disposal []byte
+	image    []*image.Paletted
+	tmp      [1024]byte // must be at least 768 so we can read color map
 }
 
 // blockReader parses the block structure of GIF image data, which
@@ -235,6 +247,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 
 			d.image = append(d.image, m)
 			d.delay = append(d.delay, d.delayTime)
+			d.disposal = append(d.disposal, d.disposalMethod)
 			// The GIF89a spec, Section 23 (Graphic Control Extension) says:
 			// "The scope of this extension is the first graphic rendering block
 			// to follow." We therefore reset the GCE fields to zero.
@@ -265,7 +278,9 @@ func (d *decoder) readHeaderAndScreenDescriptor() error {
 	d.width = int(d.tmp[6]) + int(d.tmp[7])<<8
 	d.height = int(d.tmp[8]) + int(d.tmp[9])<<8
 	d.headerFields = d.tmp[10]
-	d.backgroundIndex = d.tmp[11]
+	if d.headerFields&sdGlobalColorTable != 0 {
+		d.backgroundIndex = d.tmp[11]
+	}
 	d.aspect = d.tmp[12]
 	d.loopCount = -1
 	d.pixelSize = uint(d.headerFields&7) + 1
@@ -346,9 +361,10 @@ func (d *decoder) readGraphicControl() error {
 	if _, err := io.ReadFull(d.r, d.tmp[0:6]); err != nil {
 		return fmt.Errorf("gif: can't read graphic control: %s", err)
 	}
-	d.flags = d.tmp[1]
+	flags := d.tmp[1]
+	d.disposalMethod = (flags & gcDisposalMethodMask) >> 2
 	d.delayTime = int(d.tmp[2]) | int(d.tmp[3])<<8
-	if d.flags&gcTransparentColorSet != 0 {
+	if flags&gcTransparentColorSet != 0 {
 		d.transparentIndex = d.tmp[4]
 		d.hasTransparentIndex = true
 	}
@@ -428,7 +444,11 @@ func Decode(r io.Reader) (image.Image, error) {
 type GIF struct {
 	Image     []*image.Paletted // The successive images.
 	Delay     []int             // The successive delay times, one per frame, in 100ths of a second.
+	Disposal  []byte            // The successive disposal methods, one per frame.
 	LoopCount int               // The loop count.
+	Config    image.Config
+	// The background index in the Global Color Map.
+	BackgroundIndex byte
 }
 
 // DecodeAll reads a GIF image from r and returns the sequential frames
@@ -442,6 +462,13 @@ func DecodeAll(r io.Reader) (*GIF, error) {
 		Image:     d.image,
 		LoopCount: d.loopCount,
 		Delay:     d.delay,
+		Disposal:  d.disposal,
+		Config: image.Config{
+			ColorModel: d.globalColorMap,
+			Width:      d.width,
+			Height:     d.height,
+		},
+		BackgroundIndex: d.backgroundIndex,
 	}
 	return gif, nil
 }
