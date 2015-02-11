@@ -93,9 +93,9 @@ func (in *Input) Next() ScanToken {
 		in.text = in.peekText
 		return tok
 	}
-	// If we cannot generate a token after 100 tries, we're in trouble.
+	// If we cannot generate a token after 100 macro invocations, we're in trouble.
 	// The usual case is caught by Push, below, but be safe.
-	for i := 0; i < 100; i++ {
+	for nesting := 0; nesting < 100; {
 		tok := in.Stack.Next()
 		switch tok {
 		case '#':
@@ -108,6 +108,7 @@ func (in *Input) Next() ScanToken {
 			name := in.Stack.Text()
 			macro := in.macros[name]
 			if macro != nil {
+				nesting++
 				in.invokeMacro(macro)
 				continue
 			}

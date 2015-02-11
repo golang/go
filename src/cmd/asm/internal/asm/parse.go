@@ -235,6 +235,9 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			break // Nothing can follow.
 		}
 		p.symbolReference(a, tok.String(), prefix)
+		if p.peek() == '(' {
+			p.registerIndirect(a, prefix)
+		}
 	case scanner.Int, scanner.Float, scanner.String, '+', '-', '~', '(':
 		if p.have(scanner.Float) {
 			if prefix != '$' {
@@ -276,39 +279,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			}
 			break // Nothing can follow.
 		}
-		p.next()
-		tok := p.next()
-		r1, r2, scale, ok := p.register(tok.String(), 0)
-		if !ok {
-			p.errorf("indirect through non-register %s", tok)
-		}
-		if r2 != 0 {
-			p.errorf("indirect through register pair")
-		}
-		a.Type = obj.TYPE_MEM
-		if prefix == '$' {
-			a.Type = obj.TYPE_ADDR
-		}
-		a.Reg = r1
-		if r1 == arch.RPC && prefix != 0 {
-			p.errorf("illegal addressing mode for PC")
-		}
-		a.Scale = scale
-		p.get(')')
-		if scale == 0 && p.peek() == '(' {
-			p.next()
-			tok := p.next()
-			r1, r2, scale, ok = p.register(tok.String(), 0)
-			if !ok {
-				p.errorf("indirect through non-register %s", tok)
-			}
-			if r2 != 0 {
-				p.errorf("unimplemented two-register form")
-			}
-			a.Index = r1
-			a.Scale = scale
-			p.get(')')
-		}
+		p.registerIndirect(a, prefix)
 	}
 	p.expect(scanner.EOF)
 	return true
@@ -394,6 +365,51 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	}
 	a.Reg = 0 // There is no register here; these are pseudo-registers.
 	p.get(')')
+}
+
+// registerIndirect parses the general form of a register indirection.
+// It is can be (R1), (R2*scale), or (R1)(R2*scale) where R1 may be a simple
+// register or register pair R:R.
+// The opening parenthesis is known to be present.
+func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+	p.next()
+	tok := p.next()
+	r1, r2, scale, ok := p.register(tok.String(), 0)
+	if !ok {
+		p.errorf("indirect through non-register %s", tok)
+	}
+	if r2 != 0 {
+		p.errorf("indirect through register pair")
+	}
+	a.Type = obj.TYPE_MEM
+	if prefix == '$' {
+		a.Type = obj.TYPE_ADDR
+	}
+	a.Reg = r1
+	if r1 == arch.RPC && prefix != 0 {
+		p.errorf("illegal addressing mode for PC")
+	}
+	p.get(')')
+	if scale == 0 && p.peek() == '(' {
+		// General form (R)(R*scale).
+		p.next()
+		tok := p.next()
+		r1, r2, scale, ok = p.register(tok.String(), 0)
+		if !ok {
+			p.errorf("indirect through non-register %s", tok)
+		}
+		if r2 != 0 {
+			p.errorf("unimplemented two-register form")
+		}
+		a.Index = r1
+		a.Scale = scale
+		p.get(')')
+	} else if scale != 0 {
+		// First (R) was missing, all we have is (R*scale).
+		a.Reg = 0
+		a.Index = r1
+		a.Scale = scale
+	}
 }
 
 // Note: There are two changes in the expression handling here

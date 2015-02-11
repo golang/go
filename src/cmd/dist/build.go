@@ -629,7 +629,7 @@ func install(dir string) {
 	}
 
 	isgo := true
-	ispkg := !strings.HasPrefix(dir, "cmd/") || strings.HasPrefix(dir, "cmd/internal/")
+	ispkg := !strings.HasPrefix(dir, "cmd/") || strings.HasPrefix(dir, "cmd/internal/") || strings.HasPrefix(dir, "cmd/asm/internal/")
 	islib := false
 
 	// Legacy C exceptions.

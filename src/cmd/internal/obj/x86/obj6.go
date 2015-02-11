@@ -1063,6 +1063,7 @@ loop:
 		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc
 		q.Pcond = p
+		q.Ctxt = p.Ctxt
 		p = q
 	}
 
