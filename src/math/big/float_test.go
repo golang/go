@@ -13,6 +13,14 @@ import (
 	"testing"
 )
 
+func (x *Float) uint64() uint64 {
+	u, acc := x.Uint64()
+	if acc != Exact {
+		panic(fmt.Sprintf("%s is not a uint64", x.Format('g', 10)))
+	}
+	return u
+}
+
 func TestFloatZeroValue(t *testing.T) {
 	// zero (uninitialized) value is a ready-to-use 0.0
 	var x Float
@@ -52,14 +60,18 @@ func TestFloatZeroValue(t *testing.T) {
 		{1, 2, 0, 0, '*', (*Float).Mul},
 		{2, 0, 1, 0, '*', (*Float).Mul},
 
-		{0, 0, 0, 0, '/', (*Float).Quo},
+		{0, 0, 0, 0, '/', (*Float).Quo}, // = +Inf
 		{0, 2, 1, 2, '/', (*Float).Quo},
-		{1, 2, 0, 0, '/', (*Float).Quo},
+		{1, 2, 0, 0, '/', (*Float).Quo}, // = +Inf
 		{2, 0, 1, 0, '/', (*Float).Quo},
 	} {
 		z := make(test.z)
 		test.op(z, make(test.x), make(test.y))
-		if got := int(z.Int64()); got != test.want {
+		got := 0
+		if !z.IsInf(0) {
+			got = int(z.Int64())
+		}
+		if got != test.want {
 			t.Errorf("%d %c %d = %d; want %d", test.x, test.opname, test.y, got, test.want)
 		}
 	}
@@ -384,7 +396,7 @@ func TestFloatSetUint64(t *testing.T) {
 	} {
 		var f Float
 		f.SetUint64(want)
-		if got := f.Uint64(); got != want {
+		if got := f.uint64(); got != want {
 			t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
 		}
 	}
@@ -393,7 +405,7 @@ func TestFloatSetUint64(t *testing.T) {
 	const x uint64 = 0x8765432187654321 // 64 bits needed
 	for prec := uint(1); prec <= 64; prec++ {
 		f := NewFloat(0, prec, ToZero).SetUint64(x)
-		got := f.Uint64()
+		got := f.uint64()
 		want := x &^ (1<<(64-prec) - 1) // cut off (round to zero) low 64-prec bits
 		if got != want {
 			t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
@@ -549,6 +561,32 @@ func TestFloatSetRat(t *testing.T) {
 		got := f2.Format('g', 100)
 		if got != want {
 			t.Errorf("got %s (%s); want %s", got, f2.Format('p', 0), want)
+		}
+	}
+}
+
+func TestFloatUint64(t *testing.T) {
+	for _, test := range []struct {
+		x   string
+		out uint64
+		acc Accuracy
+	}{
+		{"0", 0, Exact},
+		{"-0", 0, Exact},
+		{"-1", 0, Above},
+		{"-Inf", 0, Above},
+		{"-1e-1000", 0, Above},
+		{"1e-1000", 0, Below},
+		{"12345.0", 12345, Exact},
+		{"12345.6", 12345, Below},
+		{"18446744073709551615", 18446744073709551615, Exact},
+		{"18446744073709551615.000000000000000000001", math.MaxUint64, Below},
+		{"1e10000", math.MaxUint64, Below},
+	} {
+		x := makeFloat(test.x)
+		out, acc := x.Uint64()
+		if out != test.out || acc != test.acc {
+			t.Errorf("%s: got %d (%s); want %d (%s)", test.x, out, acc, test.out, test.acc)
 		}
 	}
 }

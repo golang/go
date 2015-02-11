@@ -660,23 +660,66 @@ func high64(x nat) uint64 {
 	return v
 }
 
-// TODO(gri) FIX THIS (Inf, rounding mode, errors, accuracy, etc.)
-func (x *Float) Uint64() uint64 {
-	m := high64(x.mant)
-	s := x.exp
-	if s >= 0 {
-		return m >> (64 - uint(s))
+// Uint64 returns the unsigned integer resulting from truncating x
+// towards zero. If 0 <= x < 2**64, the result is Exact if x is an
+// integer; and Below if x has a fractional part. The result is (0,
+// Above) for x < 0, and (math.MaxUint64, Below) for x > math.MaxUint64.
+func (x *Float) Uint64() (uint64, Accuracy) {
+	// TODO(gri) there ought to be an easier way to implement this efficiently
+	if debugFloat {
+		x.validate()
 	}
-	return 0 // imprecise
+	// pick off easy cases
+	if x.exp <= 0 {
+		// |x| < 1 || |x| == Inf
+		if x.exp == infExp {
+			// ±Inf
+			if x.neg {
+				return 0, Above // -Inf
+			}
+			return math.MaxUint64, Below // +Inf
+		}
+		if len(x.mant) == 0 {
+			return 0, Exact // ±0
+		}
+		// 0 < |x| < 1
+		if x.neg {
+			return 0, Above
+		}
+		return 0, Below
+	}
+	// x.exp > 0
+	if x.neg {
+		return 0, Above
+	}
+	// x > 0
+	if x.exp <= 64 {
+		// u = trunc(x) fits into a uint64
+		u := high64(x.mant) >> (64 - uint32(x.exp))
+		// x.mant[len(x.mant)-1] != 0
+		// determine minimum required precision for x
+		minPrec := uint(len(x.mant))*_W - x.mant.trailingZeroBits()
+		if minPrec <= 64 {
+			return u, Exact
+		}
+		return u, Below
+	}
+	// x is too large
+	return math.MaxUint64, Below
 }
 
 // TODO(gri) FIX THIS (inf, rounding mode, errors, etc.)
 func (x *Float) Int64() int64 {
-	v := int64(x.Uint64())
-	if x.neg {
-		return -v
+	m := high64(x.mant)
+	s := x.exp
+	var i int64
+	if s >= 0 {
+		i = int64(m >> (64 - uint(s)))
 	}
-	return v
+	if x.neg {
+		return -i
+	}
+	return i
 }
 
 // Float64 returns the closest float64 value of x
