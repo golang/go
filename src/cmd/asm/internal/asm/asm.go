@@ -309,16 +309,11 @@ func (p *Parser) asmJump(op int, a []obj.Addr) {
 		prog.To = *target
 	case target.Type == obj.TYPE_MEM && (target.Name == obj.NAME_EXTERN || target.Name == obj.NAME_STATIC):
 		// JMP main·morestack(SB)
-		isStatic := 0
-		if target.Name == obj.NAME_STATIC {
-			isStatic = 1
-		}
-		prog.To = obj.Addr{
-			Type:   obj.TYPE_BRANCH,
-			Sym:    obj.Linklookup(p.linkCtxt, target.Sym.Name, isStatic),
-			Index:  0,
-			Offset: target.Offset,
-		}
+		prog.To = *target
+	case target.Type == obj.TYPE_INDIR && (target.Name == obj.NAME_EXTERN || target.Name == obj.NAME_STATIC):
+		// JMP *main·morestack(SB)
+		prog.To = *target
+		prog.To.Type = obj.TYPE_INDIR
 	case target.Type == obj.TYPE_MEM && target.Reg == 0 && target.Offset == 0:
 		// JMP exit
 		targetProg := p.labels[target.Sym.Name]
