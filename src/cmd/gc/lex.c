@@ -179,6 +179,7 @@ gcmain(int argc, char *argv[])
 	
 	// pseudo-package, for scoping
 	builtinpkg = mkpkg(newstrlit("go.builtin"));
+	builtinpkg->prefix = "go.builtin"; // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
 	unsafepkg = mkpkg(newstrlit("unsafe"));
