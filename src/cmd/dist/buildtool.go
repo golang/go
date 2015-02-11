@@ -29,6 +29,11 @@ var bootstrapDirs = []string{
 	"internal/obj/i386",
 	"internal/obj/ppc64",
 	"internal/obj/x86",
+	"asm",
+	"asm/internal/arch",
+	"asm/internal/asm",
+	"asm/internal/flags",
+	"asm/internal/lex",
 	"new5a",
 	"new6a",
 	"new8a",
@@ -119,7 +124,7 @@ func bootstrapFixImports(text, srcFile string) string {
 		}
 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
 			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
-			lines[i] = strings.Replace(line, `"cmd/internal/`, `"bootstrap/internal/`, -1)
+			lines[i] = strings.Replace(line, `"cmd/`, `"bootstrap/`, -1)
 		}
 	}
 
