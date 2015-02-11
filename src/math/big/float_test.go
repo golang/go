@@ -21,6 +21,14 @@ func (x *Float) uint64() uint64 {
 	return u
 }
 
+func (x *Float) int64() int64 {
+	i, acc := x.Int64()
+	if acc != Exact {
+		panic(fmt.Sprintf("%s is not an int64", x.Format('g', 10)))
+	}
+	return i
+}
+
 func TestFloatZeroValue(t *testing.T) {
 	// zero (uninitialized) value is a ready-to-use 0.0
 	var x Float
@@ -69,7 +77,7 @@ func TestFloatZeroValue(t *testing.T) {
 		test.op(z, make(test.x), make(test.y))
 		got := 0
 		if !z.IsInf(0) {
-			got = int(z.Int64())
+			got = int(z.int64())
 		}
 		if got != test.want {
 			t.Errorf("%d %c %d = %d; want %d", test.x, test.opname, test.y, got, test.want)
@@ -257,7 +265,7 @@ func testFloatRound(t *testing.T, x, r int64, prec uint, mode RoundingMode) {
 	f.Round(f, prec, mode)
 
 	// check result
-	r1 := f.Int64()
+	r1 := f.int64()
 	p1 := f.Precision()
 	a1 := f.Accuracy()
 	if r1 != r || p1 != prec || a1 != a {
@@ -430,7 +438,7 @@ func TestFloatSetInt64(t *testing.T) {
 			}
 			var f Float
 			f.SetInt64(want)
-			if got := f.Int64(); got != want {
+			if got := f.int64(); got != want {
 				t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
 			}
 		}
@@ -440,7 +448,7 @@ func TestFloatSetInt64(t *testing.T) {
 	const x int64 = 0x7654321076543210 // 63 bits needed
 	for prec := uint(1); prec <= 63; prec++ {
 		f := NewFloat(0, prec, ToZero).SetInt64(x)
-		got := f.Int64()
+		got := f.int64()
 		want := x &^ (1<<(63-prec) - 1) // cut off (round to zero) low 63-prec bits
 		if got != want {
 			t.Errorf("got %#x (%s); want %#x", got, f.Format('p', 0), want)
@@ -571,20 +579,62 @@ func TestFloatUint64(t *testing.T) {
 		out uint64
 		acc Accuracy
 	}{
-		{"0", 0, Exact},
-		{"-0", 0, Exact},
-		{"-1", 0, Above},
 		{"-Inf", 0, Above},
+		{"-1", 0, Above},
 		{"-1e-1000", 0, Above},
+		{"-0", 0, Exact},
+		{"0", 0, Exact},
 		{"1e-1000", 0, Below},
+		{"1", 1, Exact},
+		{"1.000000000000000000001", 1, Below},
 		{"12345.0", 12345, Exact},
-		{"12345.6", 12345, Below},
+		{"12345.000000000000000000001", 12345, Below},
 		{"18446744073709551615", 18446744073709551615, Exact},
 		{"18446744073709551615.000000000000000000001", math.MaxUint64, Below},
+		{"18446744073709551616", math.MaxUint64, Below},
 		{"1e10000", math.MaxUint64, Below},
+		{"+Inf", math.MaxUint64, Below},
 	} {
 		x := makeFloat(test.x)
 		out, acc := x.Uint64()
+		if out != test.out || acc != test.acc {
+			t.Errorf("%s: got %d (%s); want %d (%s)", test.x, out, acc, test.out, test.acc)
+		}
+	}
+}
+
+func TestFloatInt64(t *testing.T) {
+	for _, test := range []struct {
+		x   string
+		out int64
+		acc Accuracy
+	}{
+		{"-Inf", math.MinInt64, Above},
+		{"-1e10000", math.MinInt64, Above},
+		{"-9223372036854775809", math.MinInt64, Above},
+		{"-9223372036854775808.000000000000000000001", math.MinInt64, Above},
+		{"-9223372036854775808", -9223372036854775808, Exact},
+		{"-9223372036854775807.000000000000000000001", -9223372036854775807, Above},
+		{"-9223372036854775807", -9223372036854775807, Exact},
+		{"-12345.000000000000000000001", -12345, Above},
+		{"-12345.0", -12345, Exact},
+		{"-1.000000000000000000001", -1, Above},
+		{"-1", -1, Exact},
+		{"-1e-1000", 0, Above},
+		{"0", 0, Exact},
+		{"1e-1000", 0, Below},
+		{"1", 1, Exact},
+		{"1.000000000000000000001", 1, Below},
+		{"12345.0", 12345, Exact},
+		{"12345.000000000000000000001", 12345, Below},
+		{"9223372036854775807", 9223372036854775807, Exact},
+		{"9223372036854775807.000000000000000000001", math.MaxInt64, Below},
+		{"9223372036854775808", math.MaxInt64, Below},
+		{"1e10000", math.MaxInt64, Below},
+		{"+Inf", math.MaxInt64, Below},
+	} {
+		x := makeFloat(test.x)
+		out, acc := x.Int64()
 		if out != test.out || acc != test.acc {
 			t.Errorf("%s: got %d (%s); want %d (%s)", test.x, out, acc, test.out, test.acc)
 		}

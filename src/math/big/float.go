@@ -240,13 +240,7 @@ func (x *Float) IsInt() bool {
 		return len(x.mant) == 0 && x.exp != infExp
 	}
 	// x.exp > 0
-	if uint(x.exp) >= x.prec {
-		return true // not enough precision for fractional mantissa
-	}
-	// x.mant[len(x.mant)-1] != 0
-	// determine minimum required precision for x
-	minPrec := uint(len(x.mant))*_W - x.mant.trailingZeroBits()
-	return uint(x.exp) >= minPrec
+	return x.prec <= uint(x.exp) || x.minPrec() <= uint(x.exp) // not enough bits for fractional mantissa
 }
 
 // IsInf reports whether x is an infinity, according to sign.
@@ -660,66 +654,104 @@ func high64(x nat) uint64 {
 	return v
 }
 
+// minPrec returns the minimum precision required to represent
+// x without loss of accuracy.
+// TODO(gri) this might be useful to export, perhaps under a better name
+func (x *Float) minPrec() uint {
+	return uint(len(x.mant))*_W - x.mant.trailingZeroBits()
+}
+
 // Uint64 returns the unsigned integer resulting from truncating x
-// towards zero. If 0 <= x < 2**64, the result is Exact if x is an
-// integer; and Below if x has a fractional part. The result is (0,
-// Above) for x < 0, and (math.MaxUint64, Below) for x > math.MaxUint64.
+// towards zero. If 0 <= x <= math.MaxUint64, the result is Exact
+// if x is an integer and Below otherwise.
+// The result is (0, Above) for x < 0, and (math.MaxUint64, Below)
+// for x > math.MaxUint64.
 func (x *Float) Uint64() (uint64, Accuracy) {
-	// TODO(gri) there ought to be an easier way to implement this efficiently
 	if debugFloat {
 		x.validate()
 	}
-	// pick off easy cases
-	if x.exp <= 0 {
-		// |x| < 1 || |x| == Inf
-		if x.exp == infExp {
-			// ±Inf
-			if x.neg {
-				return 0, Above // -Inf
-			}
-			return math.MaxUint64, Below // +Inf
-		}
-		if len(x.mant) == 0 {
-			return 0, Exact // ±0
-		}
-		// 0 < |x| < 1
-		if x.neg {
-			return 0, Above
-		}
-		return 0, Below
-	}
-	// x.exp > 0
-	if x.neg {
+	switch x.ord() {
+	case -2, -1:
+		// x < 0
 		return 0, Above
-	}
-	// x > 0
-	if x.exp <= 64 {
-		// u = trunc(x) fits into a uint64
-		u := high64(x.mant) >> (64 - uint32(x.exp))
-		// x.mant[len(x.mant)-1] != 0
-		// determine minimum required precision for x
-		minPrec := uint(len(x.mant))*_W - x.mant.trailingZeroBits()
-		if minPrec <= 64 {
-			return u, Exact
+	case 0:
+		// x == 0 || x == -0
+		return 0, Exact
+	case 1:
+		// 0 < x < +Inf
+		if x.exp <= 0 {
+			// 0 < x < 1
+			return 0, Below
 		}
-		return u, Below
+		// 1 <= x < +Inf
+		if x.exp <= 64 {
+			// u = trunc(x) fits into a uint64
+			u := high64(x.mant) >> (64 - uint32(x.exp))
+			if x.minPrec() <= 64 {
+				return u, Exact
+			}
+			return u, Below // x truncated
+		}
+		fallthrough // x too large
+	case 2:
+		// x == +Inf
+		return math.MaxUint64, Below
 	}
-	// x is too large
-	return math.MaxUint64, Below
+	panic("unreachable")
 }
 
-// TODO(gri) FIX THIS (inf, rounding mode, errors, etc.)
-func (x *Float) Int64() int64 {
-	m := high64(x.mant)
-	s := x.exp
-	var i int64
-	if s >= 0 {
-		i = int64(m >> (64 - uint(s)))
+// Int64 returns the integer resulting from truncating x towards zero.
+// If math.MinInt64 <= x <= math.MaxInt64, the result is Exact if x is
+// an integer, and Above (x < 0) or Below (x > 0) otherwise.
+// The result is (math.MinInt64, Above) for x < math.MinInt64, and
+// (math.MaxInt64, Below) for x > math.MaxInt64.
+func (x *Float) Int64() (int64, Accuracy) {
+	if debugFloat {
+		x.validate()
 	}
-	if x.neg {
-		return -i
+
+	switch x.ord() {
+	case -2:
+		// x == -Inf
+		return math.MinInt64, Above
+	case 0:
+		// x == 0 || x == -0
+		return 0, Exact
+	case -1, 1:
+		// 0 < |x| < +Inf
+		acc := Below
+		if x.neg {
+			acc = Above
+		}
+		if x.exp <= 0 {
+			// 0 < |x| < 1
+			return 0, acc
+		}
+		// 1 <= |x| < +Inf
+		if x.exp <= 63 {
+			// i = trunc(x) fits into an int64 (excluding math.MinInt64)
+			i := int64(high64(x.mant) >> (64 - uint32(x.exp)))
+			if x.neg {
+				i = -i
+			}
+			if x.minPrec() <= 63 {
+				return i, Exact
+			}
+			return i, acc // x truncated
+		}
+		if x.neg {
+			// check for special case x == math.MinInt64 (i.e., x == -(0.5 << 64))
+			if x.exp == 64 && x.minPrec() == 1 {
+				acc = Exact
+			}
+			return math.MinInt64, acc
+		}
+		fallthrough
+	case 2:
+		// x == +Inf
+		return math.MaxInt64, Below
 	}
-	return i
+	panic("unreachable")
 }
 
 // Float64 returns the closest float64 value of x
@@ -776,9 +808,8 @@ func (x *Float) Int() (res *Int, acc Accuracy) {
 	// x.mant[len(x.mant)-1] != 0
 	// determine minimum required precision for x
 	allBits := uint(len(x.mant)) * _W
-	minPrec := allBits - x.mant.trailingZeroBits()
 	exp := uint(x.exp)
-	if exp >= minPrec {
+	if x.minPrec() <= exp {
 		acc = Exact
 	}
 	// shift mantissa as needed
@@ -1199,8 +1230,8 @@ func (x *Float) Cmp(y *Float) int {
 		y.validate()
 	}
 
-	mx := x.mag()
-	my := y.mag()
+	mx := x.ord()
+	my := y.ord()
 	switch {
 	case mx < my:
 		return -1
@@ -1227,17 +1258,17 @@ func umax(x, y uint) uint {
 	return y
 }
 
-// mag returns:
+// ord classifies x and returns:
 //
-//	-2 if x == -Inf
-//	-1 if x < 0
-//	 0 if x == -0 or x == +0
-//	+1 if x > 0
+//	-2 if -Inf == x
+//	-1 if -Inf < x < 0
+//	 0 if x == 0 (signed or unsigned)
+//	+1 if 0 < x < +Inf
 //	+2 if x == +Inf
 //
-// mag is a helper function for Cmp.
-func (x *Float) mag() int {
-	m := 1
+// TODO(gri) export (and remove IsInf)?
+func (x *Float) ord() int {
+	m := 1 // common case
 	if len(x.mant) == 0 {
 		m = 0
 		if x.exp == infExp {
