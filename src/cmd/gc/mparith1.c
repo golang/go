@@ -334,18 +334,23 @@ mpatoflt(Mpflt *a, char *as)
 				break;
 			}
 		}
-		if(start == nil)
+		if(start == nil) {
+			yyerror("malformed hex constant: %s", as);
 			goto bad;
+		}
 
 		mphextofix(&a->val, start, s-start);
-		if(a->val.ovf)
+		if(a->val.ovf) {
+			yyerror("constant too large: %s", as);
 			goto bad;
+		}
 		a->exp = 0;
 		mpnorm(a);
 	}
 	for(;;) {
 		switch(c = *s++) {
 		default:
+			yyerror("malformed constant: %s (at %c)", as, c);
 			goto bad;
 
 		case '-':
@@ -357,8 +362,10 @@ mpatoflt(Mpflt *a, char *as)
 			continue;
 
 		case '.':
-			if(base == 16)
+			if(base == 16) {
+				yyerror("decimal point in hex constant: %s", as);
 				goto bad;
+			}
 			dp = 1;
 			continue;
 
@@ -414,8 +421,10 @@ mpatoflt(Mpflt *a, char *as)
 	}
 
 	if(eb) {
-		if(dp)
+		if(dp) {
+			yyerror("decimal point and binary point in constant: %s", as);
 			goto bad;
+		}
 		mpsetexp(a, a->exp+ex);
 		goto out;
 	}
@@ -444,7 +453,6 @@ out:
 	return;
 
 bad:
-	yyerror("constant too large: %s", as);
 	mpmovecflt(a, 0.0);
 }
 
@@ -483,6 +491,7 @@ mpatofix(Mpint *a, char *as)
 			c = *s++;
 			continue;
 		}
+		yyerror("malformed decimal constant: %s", as);
 		goto bad;
 	}
 	goto out;
@@ -498,6 +507,7 @@ oct:
 			c = *s++;
 			continue;
 		}
+		yyerror("malformed octal constant: %s", as);
 		goto bad;
 	}
 	goto out;
@@ -511,11 +521,14 @@ hex:
 			c = *s;
 			continue;
 		}
+		yyerror("malformed hex constant: %s", as);
 		goto bad;
 	}
 	mphextofix(a, s0, s-s0);
-	if(a->ovf)
+	if(a->ovf) {
+		yyerror("constant too large: %s", as);
 		goto bad;
+	}
 
 out:
 	if(f)
@@ -523,7 +536,6 @@ out:
 	return;
 
 bad:
-	yyerror("constant too large: %s", as);
 	mpmovecfix(a, 0);
 }
 
