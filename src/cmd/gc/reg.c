@@ -50,15 +50,16 @@ static int
 rcmp(const void *a1, const void *a2)
 {
 	Rgn *p1, *p2;
-	int c1, c2;
 
 	p1 = (Rgn*)a1;
 	p2 = (Rgn*)a2;
-	c1 = p2->cost;
-	c2 = p1->cost;
-	if(c1 -= c2)
-		return c1;
-	return p2->varno - p1->varno;
+	if(p1->cost != p2->cost)
+		return p2->cost - p1->cost;
+	if(p1->varno != p2->varno)
+		return p2->varno - p1->varno;
+	if(p1->enter != p2->enter)
+		return p2->enter->id - p1->enter->id;
+	return 0;
 }
 
 static void

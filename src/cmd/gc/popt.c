@@ -532,6 +532,14 @@ startcmp(const void *va, const void *vb)
 		return -1;
 	if(a->start > b->start)
 		return +1;
+	// Order what's left by id or symbol name,
+	// just so that sort is forced into a specific ordering,
+	// so that the result of the sort does not depend on
+	// the sort implementation.
+	if(a->def != b->def)
+		return a->def->id - b->def->id;
+	if(a->node != b->node)
+		return strcmp(a->node->sym->name, b->node->sym->name);
 	return 0;
 }
 
