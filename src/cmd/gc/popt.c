@@ -567,7 +567,7 @@ mergetemp(Prog *firstp)
 	int32 gen;
 	Graph *g;
 
-	enum { Debug = 0 };
+	enum { debugmerge = 1 };
 
 	g = flowstart(firstp, 0);
 	if(g == nil)
@@ -615,7 +615,7 @@ mergetemp(Prog *firstp)
 		}
 	}
 	
-	if(Debug > 1)
+	if(debugmerge > 1 && debug['v'])
 		arch.dumpit("before", g->start, 0);
 	
 	nkill = 0;
@@ -632,7 +632,7 @@ mergetemp(Prog *firstp)
 				p->as = ANOP;
 				p->to = zprog.to;
 				v->removed = 1;
-				if(Debug)
+				if(debugmerge > 0 && debug['v'])
 					print("drop write-only %S\n", v->node->sym);
 			} else
 				fatal("temp used and not set: %P", p);
@@ -656,7 +656,7 @@ mergetemp(Prog *firstp)
 				p1->from = p->from;
 				arch.excise(f);
 				v->removed = 1;
-				if(Debug)
+				if(debugmerge > 0 && debug['v'])
 					print("drop immediate-use %S\n", v->node->sym);
 			}
 			nkill++;
@@ -696,6 +696,9 @@ mergetemp(Prog *firstp)
 	nfree = nvar;
 	for(i=0; i<nvar; i++) {
 		v = bystart[i];
+		if(debugmerge > 0 && debug['v'])
+			print("consider %#N: removed=%d\n", v->node, v->removed);
+			
 		if(v->removed)
 			continue;
 
@@ -705,10 +708,14 @@ mergetemp(Prog *firstp)
 			inuse[--nfree] = v1;
 		}
 
+		if(debugmerge > 0 && debug['v'])
+			print("consider %#N: removed=%d nfree=%d nvar=%d\n", v->node, v->removed, nfree, nvar);
 		// Find old temp to reuse if possible.
 		t = v->node->type;
 		for(j=nfree; j<nvar; j++) {
 			v1 = inuse[j];
+			if(debugmerge > 0 && debug['v'])
+				print("consider %#N: maybe %#N: type=%T,%T addrtaken=%d,%d\n", v->node, v1->node, t, v1->node->type, v->node->addrtaken, v1->node->addrtaken);
 			// Require the types to match but also require the addrtaken bits to match.
 			// If a variable's address is taken, that disables registerization for the individual
 			// words of the variable (for example, the base,len,cap of a slice).
@@ -734,7 +741,7 @@ mergetemp(Prog *firstp)
 		inuse[j] = v;
 	}
 
-	if(Debug) {
+	if(debugmerge > 0 && debug['v']) {
 		print("%S [%d - %d]\n", curfn->nname->sym, nvar, nkill);
 		for(v=var; v<var+nvar; v++) {
 			print("var %#N %T %lld-%lld", v->node, v->node->type, v->start, v->end);
@@ -744,12 +751,12 @@ mergetemp(Prog *firstp)
 				print(" dead=1");
 			if(v->merge)
 				print(" merge %#N", v->merge->node);
-			if(v->start == v->end)
+			if(v->start == v->end && v->def != nil)
 				print(" %P", v->def->prog);
 			print("\n");
 		}
 	
-		if(Debug > 1)
+		if(debugmerge > 1 && debug['v'])
 			arch.dumpit("after", g->start, 0);
 	}
 
