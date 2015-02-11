@@ -1689,24 +1689,39 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 		return err
 	}
 	if verifyAsm {
-		newArgs := make([]interface{}, len(args))
-		copy(newArgs, args)
-		newArgs[1] = tool("new" + archChar + "a")
-		newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
-		if err := b.run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
+		if err := asmVerify(b, p, "new"+archChar+"a", ofile, args); err != nil {
 			return err
 		}
-		data1, err := ioutil.ReadFile(ofile)
-		if err != nil {
-			return err
+		switch goarch {
+		case "386", "amd64": // Asm only supports these architectures so far.
+			if err := asmVerify(b, p, "asm", ofile, args); err != nil {
+				return err
+			}
 		}
-		data2, err := ioutil.ReadFile(ofile + ".new")
-		if err != nil {
-			return err
-		}
-		if !bytes.Equal(data1, data2) {
-			return fmt.Errorf("%sa and new%sa produced different output files:\n%s\n%s", archChar, archChar, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
-		}
+	}
+	return nil
+}
+
+// asmVerify checks that the assembly run for the specified assembler (asm) agrees
+// with the C-implemented original assembly output, bit for bit.
+func asmVerify(b *builder, p *Package, asm string, ofile string, args []interface{}) error {
+	newArgs := make([]interface{}, len(args))
+	copy(newArgs, args)
+	newArgs[1] = tool(asm)
+	newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
+	if err := b.run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
+		return err
+	}
+	data1, err := ioutil.ReadFile(ofile)
+	if err != nil {
+		return err
+	}
+	data2, err := ioutil.ReadFile(ofile + ".new")
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(data1, data2) {
+		return fmt.Errorf("%sa and %s produced different output files:\n%s\n%s", archChar, asm, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
 	}
 	return nil
 }
