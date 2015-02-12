@@ -173,6 +173,11 @@ mapbucket(Type *t)
 	field[nelem(field)-1]->down = T;
 	dowidth(bucket);
 
+	// Pad to the native integer alignment.
+	// This is usually the same as widthptr; the exception (as usual) is amd64p32.
+	if(widthreg > widthptr)
+		bucket->width += widthreg - widthptr;
+
 	// See comment on hmap.overflow in ../../runtime/hashmap.go.
 	if(!haspointers(t->type) && !haspointers(t->down))
 		bucket->haspointers = 1;  // no pointers
