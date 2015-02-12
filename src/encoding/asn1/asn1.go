@@ -579,6 +579,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				result, err = parseObjectIdentifier(innerBytes)
 			case tagUTCTime:
 				result, err = parseUTCTime(innerBytes)
+			case tagGeneralizedTime:
+				result, err = parseGeneralizedTime(innerBytes)
 			case tagOctetString:
 				result = innerBytes
 			default:
