@@ -46,11 +46,12 @@ func (z *Float) SetString(s string) (*Float, bool) {
 //	digits   = digit { digit } .
 //	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
-// The base argument must be 0 or a value between 2 through MaxBase.
+// The base argument must be 0, 2, 10, or 16. Providing an invalid base
+// argument will lead to a run-time panic.
 //
 // For base 0, the number prefix determines the actual base: A prefix of
 // ``0x'' or ``0X'' selects base 16, and a ``0b'' or ``0B'' prefix selects
-// base 2; otherwise, the actual base is 10 and no prefix is permitted.
+// base 2; otherwise, the actual base is 10 and no prefix is accepted.
 // The octal prefix ``0'' is not supported.
 //
 // A "p" exponent indicates power of 2 for the exponent; for instance "1.2p3"
@@ -75,7 +76,7 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	// exponent
 	var exp int64
 	var ebase int
-	exp, ebase, err = scanExponent(r)
+	exp, ebase, err = scanExponent(r, true)
 	if err != nil {
 		return
 	}
