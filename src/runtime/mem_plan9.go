@@ -48,6 +48,7 @@ func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
 	n = memRound(n)
 	if bloc == uintptr(v)+n {
 		bloc -= n
+		memclr(unsafe.Pointer(bloc), n)
 	}
 	unlock(&memlock)
 }
