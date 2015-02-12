@@ -11,6 +11,7 @@ import (
 //go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler "kernel32.dll"
 //go:cgo_import_dynamic runtime._CloseHandle CloseHandle "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateEventA CreateEventA "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateThread CreateThread "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA "kernel32.dll"
 //go:cgo_import_dynamic runtime._CryptAcquireContextW CryptAcquireContextW "advapi32.dll"
@@ -21,6 +22,7 @@ import (
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext "kernel32.dll"
@@ -37,6 +39,10 @@ import (
 //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer "kernel32.dll"
 //go:cgo_import_dynamic runtime._Sleep Sleep "kernel32.dll"
 //go:cgo_import_dynamic runtime._SuspendThread SuspendThread "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualFree VirtualFree "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualProtect VirtualProtect "kernel32.dll"
+//go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult "ws2_32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile "kernel32.dll"
 //go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod "winmm.dll"
@@ -48,6 +54,7 @@ var (
 	_AddVectoredExceptionHandler,
 	_CloseHandle,
 	_CreateEventA,
+	_CreateIoCompletionPort,
 	_CreateThread,
 	_CreateWaitableTimerA,
 	_CryptAcquireContextW,
@@ -58,6 +65,7 @@ var (
 	_FreeEnvironmentStringsW,
 	_GetEnvironmentStringsW,
 	_GetProcAddress,
+	_GetQueuedCompletionStatus,
 	_GetStdHandle,
 	_GetSystemInfo,
 	_GetThreadContext,
@@ -74,6 +82,10 @@ var (
 	_SetWaitableTimer,
 	_Sleep,
 	_SuspendThread,
+	_VirtualAlloc,
+	_VirtualFree,
+	_VirtualProtect,
+	_WSAGetOverlappedResult,
 	_WaitForSingleObject,
 	_WriteFile,
 	_timeBeginPeriod stdFunction
