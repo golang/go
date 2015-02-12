@@ -8,26 +8,10 @@ import (
 	"unsafe"
 )
 
-func dumpregs(r *context) {
-	print("eax     ", hex(r.eax), "\n")
-	print("ebx     ", hex(r.ebx), "\n")
-	print("ecx     ", hex(r.ecx), "\n")
-	print("edx     ", hex(r.edx), "\n")
-	print("edi     ", hex(r.edi), "\n")
-	print("esi     ", hex(r.esi), "\n")
-	print("ebp     ", hex(r.ebp), "\n")
-	print("esp     ", hex(r.esp), "\n")
-	print("eip     ", hex(r.eip), "\n")
-	print("eflags  ", hex(r.eflags), "\n")
-	print("cs      ", hex(r.segcs), "\n")
-	print("fs      ", hex(r.segfs), "\n")
-	print("gs      ", hex(r.seggs), "\n")
-}
-
 func isgoexception(info *exceptionrecord, r *context) bool {
 	// Only handle exception if executing instructions in Go binary
 	// (not Windows library code).
-	if r.eip < uint32(themoduledata.text) || uint32(themoduledata.etext) < r.eip {
+	if r.ip() < themoduledata.text || themoduledata.etext < r.ip() {
 		return false
 	}
 
@@ -53,21 +37,21 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 	gp.sig = info.exceptioncode
 	gp.sigcode0 = uintptr(info.exceptioninformation[0])
 	gp.sigcode1 = uintptr(info.exceptioninformation[1])
-	gp.sigpc = uintptr(r.eip)
+	gp.sigpc = r.ip()
 
-	// Only push runtime·sigpanic if r->eip != 0.
-	// If r->eip == 0, probably panicked because of a
+	// Only push runtime·sigpanic if r.ip() != 0.
+	// If r.ip() == 0, probably panicked because of a
 	// call to a nil func.  Not pushing that onto sp will
 	// make the trace look like a call to runtime·sigpanic instead.
 	// (Otherwise the trace will end at runtime·sigpanic and we
 	// won't get to see who faulted.)
-	if r.eip != 0 {
-		sp := unsafe.Pointer(uintptr(r.esp))
+	if r.ip() != 0 {
+		sp := unsafe.Pointer(r.sp())
 		sp = add(sp, ^uintptr(unsafe.Sizeof(uintptr(0))-1)) // sp--
-		*((*uintptr)(sp)) = uintptr(r.eip)
-		r.esp = uint32(uintptr(sp))
+		*((*uintptr)(sp)) = r.ip()
+		r.setsp(uintptr(sp))
 	}
-	r.eip = uint32(funcPC(sigpanic))
+	r.setip(funcPC(sigpanic))
 	return _EXCEPTION_CONTINUE_EXECUTION
 }
 
@@ -87,9 +71,9 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	}
 	panicking = 1
 
-	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.eip), "\n")
+	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.ip()), "\n")
 
-	print("PC=", hex(r.eip), "\n")
+	print("PC=", hex(r.ip()), "\n")
 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
 		print("signal arrived during cgo execution\n")
 		gp = _g_.m.lockedg
@@ -98,7 +82,7 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 
 	var docrash bool
 	if gotraceback(&docrash) > 0 {
-		tracebacktrap(uintptr(r.eip), uintptr(r.esp), 0, gp)
+		tracebacktrap(r.ip(), r.sp(), 0, gp)
 		tracebackothers(gp)
 		dumpregs(r)
 	}
