@@ -751,6 +751,12 @@ func TestServeContent(t *testing.T) {
 			wantContentType: "text/css; charset=utf-8",
 			wantLastMod:     "Wed, 25 Jun 2014 17:12:18 GMT",
 		},
+		"unix_zero_modtime": {
+			content:         strings.NewReader("<html>foo"),
+			modtime:         time.Unix(0, 0),
+			wantStatus:      StatusOK,
+			wantContentType: "text/html; charset=utf-8",
+		},
 	}
 	for testName, tt := range tests {
 		var content io.ReadSeeker
