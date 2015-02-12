@@ -461,6 +461,9 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 // If drainallwbufs is true find all other available workbufs and repeat the process.
 //go:nowritebarrier
 func drainworkbuf(wbuf *workbuf, drainallwbufs bool) {
+	if wbuf == nil {
+		wbuf = getpartialorempty(472)
+	}
 	checknocurrentwbuf()
 	if gcphase != _GCmark && gcphase != _GCmarktermination {
 		throw("scanblock phase incorrect")
@@ -1149,10 +1152,7 @@ func gchelper() {
 	// parallel mark for over GC roots
 	parfordo(work.markfor)
 	if gcphase != _GCscan {
-		wbuf := scanblock(0, 0, nil, nil) // blocks in getfull
-		if wbuf != nil {
-			throw("gchelper did not extinguish wbuf")
-		}
+		drainworkbuf(nil, true) // blocks in getfull
 	}
 
 	if trace.enabled {
@@ -1414,13 +1414,9 @@ func gcscan_m() {
 // This is the concurrent mark phase.
 //go:nowritebarrier
 func gcmark_m() {
-	// If one is available grab this M's workbuffer.
-	wbuf := scanblock(0, 0, nil, nil)
-	if wbuf != nil {
-		throw("gcmark_m did not extinguish wbuf")
-	}
+	drainworkbuf(nil, true)
 	// TODO add another harvestwbuf and reset work.nwait=0, work.ndone=0, and work.nproc=1
-	// and repeat the above scanblock.
+	// and repeat the above drainworkbuf.
 }
 
 // For now this must be bracketed with a stoptheworld and a starttheworld to ensure
@@ -1505,10 +1501,7 @@ func gc(start_time int64, eagersweep bool) {
 	harvestwbufs() // move local workbufs onto global queues where the GC can find them
 	gchelperstart()
 	parfordo(work.markfor)
-	wbuf := scanblock(0, 0, nil, nil)
-	if wbuf != nil {
-		throw("gc does not extinguish wbuf")
-	}
+	drainworkbuf(nil, true)
 
 	if work.full != 0 {
 		throw("work.full != 0")
