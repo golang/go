@@ -419,9 +419,8 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 	return wbuf
 }
 
-// scanblock starts by scanning b as scanobject would.
-// If the gcphase is GCscan, that's all scanblock does.
-// Otherwise it traverses some fraction of the pointers it found in b, recursively.
+// scanblock scans b as scanobject would.
+// If the gcphase is GCscan, scanblock performs additional checks.
 //go:nowritebarrier
 func scanblock(b0, n0 uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 	// Use local copies of original parameters, so that a stack trace
@@ -443,11 +442,8 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 			// b is in heap, we are in GCscan so there should be a ptrmask.
 			throw("scanblock: In GCscan phase and inheap is true.")
 		}
-		return wbuf
 	}
-
-	drainworkbuf(wbuf, false)
-	return nil
+	return wbuf
 }
 
 // Scan objects in wbuf until wbuf is empty (and on empty queue) or
