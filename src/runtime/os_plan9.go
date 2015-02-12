@@ -6,6 +6,11 @@ package runtime
 
 import "unsafe"
 
+func close(fd int32) int32
+
+//go:noescape
+func open(name *byte, mode, perm int32) int32
+
 //go:noescape
 func pread(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
 
