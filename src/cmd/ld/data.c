@@ -30,11 +30,14 @@
 
 // Data layout and relocation.
 
-#include	"l.h"
-#include	"../ld/lib.h"
-#include	"../ld/elf.h"
-#include	"../ld/macho.h"
-#include	"../ld/pe.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
+#include	"lib.h"
+#include	"elf.h"
+#include	"macho.h"
+#include	"pe.h"
 #include	"../../runtime/mgc0.h"
 
 void	dynreloc(void);
@@ -150,7 +153,7 @@ relocsym(LSym *s)
 			diag("%s: invalid relocation %d+%d not in [%d,%d)", s->name, off, siz, 0, s->np);
 			continue;
 		}
-		if(r->sym != S && ((r->sym->type & (SMASK | SHIDDEN)) == 0 || (r->sym->type & SMASK) == SXREF)) {
+		if(r->sym != nil && ((r->sym->type & (SMASK | SHIDDEN)) == 0 || (r->sym->type & SMASK) == SXREF)) {
 			diag("%s: not defined", r->sym->name);
 			continue;
 		}
@@ -160,9 +163,9 @@ relocsym(LSym *s)
 			continue;
 
 		// Solaris needs the ability to reference dynimport symbols.
-		if(HEADTYPE != Hsolaris && r->sym != S && r->sym->type == SDYNIMPORT)
+		if(HEADTYPE != Hsolaris && r->sym != nil && r->sym->type == SDYNIMPORT)
 			diag("unhandled relocation for %s (type %d rtype %d)", r->sym->name, r->sym->type, r->type);
-		if(r->sym != S && r->sym->type != STLSBSS && !r->sym->reachable)
+		if(r->sym != nil && r->sym->type != STLSBSS && !r->sym->reachable)
 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);
 
 		// Android emulates runtime.tlsg as a regular variable.
@@ -172,11 +175,11 @@ relocsym(LSym *s)
 		switch(r->type) {
 		default:
 			o = 0;
-			if(archreloc(r, s, &o) < 0)
+			if(thearch.archreloc(r, s, &o) < 0)
 				diag("unknown reloc %d", r->type);
 			break;
 		case R_TLS:
-			if(linkmode == LinkInternal && iself && thechar == '5') {
+			if(linkmode == LinkInternal && iself && thearch.thechar == '5') {
 				// On ELF ARM, the thread pointer is 8 bytes before
 				// the start of the thread-local data block, so add 8
 				// to the actual TLS offset (r->sym->value).
@@ -189,7 +192,7 @@ relocsym(LSym *s)
 			}
 			r->done = 0;
 			o = 0;
-			if(thechar != '6')
+			if(thearch.thechar != '6')
 				o = r->add;
 			break;
 		case R_TLS_LE:
@@ -199,7 +202,7 @@ relocsym(LSym *s)
 				r->xsym = ctxt->tlsg;
 				r->xadd = r->add;
 				o = 0;
-				if(thechar != '6')
+				if(thearch.thechar != '6')
 					o = r->add;
 				break;
 			}
@@ -213,7 +216,7 @@ relocsym(LSym *s)
 				r->xsym = ctxt->tlsg;
 				r->xadd = r->add;
 				o = 0;
-				if(thechar != '6')
+				if(thearch.thechar != '6')
 					o = r->add;
 				break;
 			}
@@ -241,7 +244,7 @@ relocsym(LSym *s)
 
 				o = r->xadd;
 				if(iself) {
-					if(thechar == '6')
+					if(thearch.thechar == '6')
 						o = 0;
 				} else if(HEADTYPE == Hdarwin) {
 					if(rs->type != SHOSTOBJ)
@@ -258,7 +261,7 @@ relocsym(LSym *s)
 			// fail at runtime. See http://golang.org/issue/7980.
 			// Instead of special casing only amd64, we treat this as an error on all
 			// 64-bit architectures so as to be future-proof.
-			if((int32)o < 0 && PtrSize > 4 && siz == 4) {
+			if((int32)o < 0 && thearch.ptrsize > 4 && siz == 4) {
 				diag("non-pc-relative relocation address is too big: %#llux", o);
 				errorexit();
 			}
@@ -283,7 +286,7 @@ relocsym(LSym *s)
 
 				o = r->xadd;
 				if(iself) {
-					if(thechar == '6')
+					if(thearch.thechar == '6')
 						o = 0;
 				} else if(HEADTYPE == Hdarwin) {
 					if(r->type == R_CALL) {
@@ -314,7 +317,7 @@ relocsym(LSym *s)
 			break;
 		}
 		if(r->variant != RV_NONE)
-			o = archrelocvariant(r, s, o);
+			o = thearch.archrelocvariant(r, s, o);
 //print("relocate %s %#llux (%#llux+%#llux, size %d) => %s %#llux +%#llx [%llx]\n", s->name, (uvlong)(s->value+off), (uvlong)s->value, (uvlong)r->off, r->siz, r->sym ? r->sym->name : "<nil>", (uvlong)symaddr(r->sym), (vlong)r->add, (vlong)o);
 		switch(siz) {
 		default:
@@ -363,9 +366,9 @@ reloc(void)
 		Bprint(&bso, "%5.2f reloc\n", cputime());
 	Bflush(&bso);
 
-	for(s=ctxt->textp; s!=S; s=s->next)
+	for(s=ctxt->textp; s!=nil; s=s->next)
 		relocsym(s);
-	for(s=datap; s!=S; s=s->next)
+	for(s=datap; s!=nil; s=s->next)
 		relocsym(s);
 }
 
@@ -392,7 +395,7 @@ dynrelocsym(LSym *s)
 				r->add = targ->plt;
 
 				// jmp *addr
-				if(thechar == '8') {
+				if(thearch.thechar == '8') {
 					adduint8(ctxt, rel, 0xff);
 					adduint8(ctxt, rel, 0x25);
 					addaddr(ctxt, rel, targ);
@@ -414,10 +417,10 @@ dynrelocsym(LSym *s)
 	}
 
 	for(r=s->r; r<s->r+s->nr; r++) {
-		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256) {
-			if(r->sym != S && !r->sym->reachable)
+		if(r->sym != nil && r->sym->type == SDYNIMPORT || r->type >= 256) {
+			if(r->sym != nil && !r->sym->reachable)
 				diag("internal inconsistency: dynamic symbol %s is not reachable.", r->sym->name);
-			adddynrel(s, r);
+			thearch.adddynrel(s, r);
 		}
 	}
 }
@@ -435,9 +438,9 @@ dynreloc(void)
 		Bprint(&bso, "%5.2f reloc\n", cputime());
 	Bflush(&bso);
 
-	for(s=ctxt->textp; s!=S; s=s->next)
+	for(s=ctxt->textp; s!=nil; s=s->next)
 		dynrelocsym(s);
-	for(s=datap; s!=S; s=s->next)
+	for(s=datap; s!=nil; s=s->next)
 		dynrelocsym(s);
 	if(iself)
 		elfdynhash();
@@ -650,7 +653,7 @@ addstrdata(char *name, char *value)
 	s->dupok = 1;
 	reachable = s->reachable;
 	addaddr(ctxt, s, sp);
-	adduintxx(ctxt, s, strlen(value), PtrSize);
+	adduintxx(ctxt, s, strlen(value), thearch.ptrsize);
 
 	// addstring, addaddr, etc., mark the symbols as reachable.
 	// In this case that is not necessarily true, so stick to what
@@ -701,7 +704,7 @@ symalign(LSym *s)
 	if(s->align != 0)
 		return s->align;
 
-	align = MaxAlign;
+	align = thearch.maxalign;
 	while(align > s->size && align > 1)
 		align >>= 1;
 	if(align < s->align)
@@ -723,7 +726,7 @@ maxalign(LSym *s, int type)
 	int32 align, max;
 	
 	max = 0;
-	for(; s != S && s->type <= type; s = s->next) {
+	for(; s != nil && s->type <= type; s = s->next) {
 		align = symalign(s);
 		if(max < align)
 			max = align;
@@ -789,7 +792,7 @@ proggenskip(ProgGen *g, vlong off, vlong v)
 	vlong i;
 
 	for(i = off; i < off+v; i++) {
-		if((i%PtrSize) == 0)
+		if((i%thearch.ptrsize) == 0)
 			proggendata(g, BitsScalar);
 	}
 }
@@ -802,7 +805,7 @@ proggenarray(ProgGen *g, vlong len)
 
 	proggendataflush(g);
 	proggenemit(g, insArray);
-	for(i = 0; i < PtrSize; i++, len >>= 8)
+	for(i = 0; i < thearch.ptrsize; i++, len >>= 8)
 		proggenemit(g, len);
 }
 
@@ -843,39 +846,39 @@ proggenaddsym(ProgGen *g, LSym *s)
 	// and not SDATA, but sometimes that doesn't happen.
 	// Leave debugging the SDATA issue for the Go rewrite.
 
-	if(s->gotype == nil && s->size >= PtrSize && s->name[0] != '.') {
+	if(s->gotype == nil && s->size >= thearch.ptrsize && s->name[0] != '.') {
 		// conservative scan
 		diag("missing Go type information for global symbol: %s size %d", s->name, (int)s->size);
-		if((s->size%PtrSize) || (g->pos%PtrSize))
+		if((s->size%thearch.ptrsize) || (g->pos%thearch.ptrsize))
 			diag("proggenaddsym: unaligned conservative symbol %s: size=%lld pos=%lld",
 				s->name, s->size, g->pos);
-		size = (s->size+PtrSize-1)/PtrSize*PtrSize;
-		if(size < 32*PtrSize) {
+		size = (s->size+thearch.ptrsize-1)/thearch.ptrsize*thearch.ptrsize;
+		if(size < 32*thearch.ptrsize) {
 			// Emit small symbols as data.
-			for(i = 0; i < size/PtrSize; i++)
+			for(i = 0; i < size/thearch.ptrsize; i++)
 				proggendata(g, BitsPointer);
 		} else {
 			// Emit large symbols as array.
-			proggenarray(g, size/PtrSize);
+			proggenarray(g, size/thearch.ptrsize);
 			proggendata(g, BitsPointer);
 			proggenarrayend(g);
 		}
 		g->pos = s->value + size;
-	} else if(s->gotype == nil || decodetype_noptr(s->gotype) || s->size < PtrSize || s->name[0] == '.') {
+	} else if(s->gotype == nil || decodetype_noptr(s->gotype) || s->size < thearch.ptrsize || s->name[0] == '.') {
 		// no scan
-		if(s->size < 32*PtrSize) {
+		if(s->size < 32*thearch.ptrsize) {
 			// Emit small symbols as data.
 			// This case also handles unaligned and tiny symbols, so tread carefully.
 			for(i = s->value; i < s->value+s->size; i++) {
-				if((i%PtrSize) == 0)
+				if((i%thearch.ptrsize) == 0)
 					proggendata(g, BitsScalar);
 			}
 		} else {
 			// Emit large symbols as array.
-			if((s->size%PtrSize) || (g->pos%PtrSize))
+			if((s->size%thearch.ptrsize) || (g->pos%thearch.ptrsize))
 				diag("proggenaddsym: unaligned noscan symbol %s: size=%lld pos=%lld",
 					s->name, s->size, g->pos);
-			proggenarray(g, s->size/PtrSize);
+			proggenarray(g, s->size/thearch.ptrsize);
 			proggendata(g, BitsScalar);
 			proggenarrayend(g);
 		}
@@ -885,7 +888,7 @@ proggenaddsym(ProgGen *g, LSym *s)
 		proggendataflush(g);
 		gcprog = decodetype_gcprog(s->gotype);
 		size = decodetype_size(s->gotype);
-		if((size%PtrSize) || (g->pos%PtrSize))
+		if((size%thearch.ptrsize) || (g->pos%thearch.ptrsize))
 			diag("proggenaddsym: unaligned gcprog symbol %s: size=%lld pos=%lld",
 				s->name, s->size, g->pos);
 		for(i = 0; i < gcprog->np-1; i++)
@@ -895,11 +898,11 @@ proggenaddsym(ProgGen *g, LSym *s)
 		// gc mask, it's small so emit as data
 		mask = decodetype_gcmask(s->gotype);
 		size = decodetype_size(s->gotype);
-		if((size%PtrSize) || (g->pos%PtrSize))
+		if((size%thearch.ptrsize) || (g->pos%thearch.ptrsize))
 			diag("proggenaddsym: unaligned gcmask symbol %s: size=%lld pos=%lld",
 				s->name, s->size, g->pos);
-		for(i = 0; i < size; i += PtrSize)
-			proggendata(g, (mask[i/PtrSize/2]>>((i/PtrSize%2)*4+2))&BitsMask);
+		for(i = 0; i < size; i += thearch.ptrsize)
+			proggendata(g, (mask[i/thearch.ptrsize/2]>>((i/thearch.ptrsize%2)*4+2))&BitsMask);
 		g->pos = s->value + size;
 	}
 }
@@ -935,7 +938,7 @@ dodata(void)
 	last = nil;
 	datap = nil;
 
-	for(s=ctxt->allsym; s!=S; s=s->allsym) {
+	for(s=ctxt->allsym; s!=nil; s=s->allsym) {
 		if(!s->reachable || s->special)
 			continue;
 		if(STEXT < s->type && s->type < SXREF) {
@@ -1134,7 +1137,7 @@ dodata(void)
 	
 	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && HEADTYPE != Hopenbsd) {
 		sect = addsection(&segdata, ".tbss", 06);
-		sect->align = PtrSize;
+		sect->align = thearch.ptrsize;
 		sect->vaddr = 0;
 		datsize = 0;
 		for(; s != nil && s->type == STLSBSS; s = s->next) {
@@ -1311,9 +1314,9 @@ textaddress(void)
 		else
 			va = rnd(va, funcalign);
 		sym->value = 0;
-		for(sub = sym; sub != S; sub = sub->sub)
+		for(sub = sym; sub != nil; sub = sub->sub)
 			sub->value += va;
-		if(sym->size == 0 && sym->sub != S)
+		if(sym->size == 0 && sym->sub != nil)
 			ctxt->cursym = sym;
 		if(sym->size < MINFUNC)
 			va += MINFUNC; // spacing required for findfunctab

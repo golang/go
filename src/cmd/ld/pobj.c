@@ -31,31 +31,33 @@
 // Reading object files.
 
 #define	EXTERN
-#include	"l.h"
-#include	"../ld/lib.h"
-#include	"../ld/elf.h"
-#include	"../ld/macho.h"
-#include	"../ld/dwarf.h"
-#include	"../ld/pe.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
+#include	"lib.h"
+#include	"elf.h"
+#include	"macho.h"
+#include	"dwarf.h"
+#include	"pe.h"
 #include	<ar.h>
 
 char	*noname		= "<none>";
 char*	paramspace	= "FP";
 
 void
-main(int argc, char *argv[])
+ldmain(int argc, char **argv)
 {
 	int i;
 
-	linkarchinit();
 	ctxt = linknew(thelinkarch);
-	ctxt->thechar = thechar;
+	ctxt->thechar = thearch.thechar;
 	ctxt->thestring = thestring;
 	ctxt->diag = diag;
 	ctxt->bso = &bso;
 
 	Binit(&bso, 1, OWRITE);
-	listinit();
+	thearch.listinit();
 	memset(debug, 0, sizeof(debug));
 	nerrors = 0;
 	outfile = nil;
@@ -73,30 +75,30 @@ main(int argc, char *argv[])
 		if(strcmp(argv[i], "-crash_for_testing") == 0)
 			*(volatile int*)0 = 0;
 	
-	if(thechar == '5' && ctxt->goarm == 5)
+	if(thearch.thechar == '5' && ctxt->goarm == 5)
 		debug['F'] = 1;
 
 	flagcount("1", "use alternate profiling code", &debug['1']);
-	if(thechar == '6')
+	if(thearch.thechar == '6')
 		flagcount("8", "assume 64-bit addresses", &debug['8']);
 	flagfn1("B", "info: define ELF NT_GNU_BUILD_ID note", addbuildinfo);
 	flagcount("C", "check Go calls to C code", &debug['C']);
 	flagint64("D", "addr: data address", &INITDAT);
 	flagstr("E", "sym: entry symbol", &INITENTRY);
-	if(thechar == '5')
+	if(thearch.thechar == '5')
 		flagcount("G", "debug pseudo-ops", &debug['G']);
 	flagfn1("I", "interp: set ELF interp", setinterp);
 	flagfn1("L", "dir: add dir to library path", Lflag);
 	flagfn1("H", "head: header type", setheadtype);
 	flagcount("K", "add stack underflow checks", &debug['K']);
-	if(thechar == '5')
+	if(thearch.thechar == '5')
 		flagcount("M", "disable software div/mod", &debug['M']);
 	flagcount("O", "print pc-line tables", &debug['O']);
 	flagcount("Q", "debug byte-register code gen", &debug['Q']);
-	if(thechar == '5')
+	if(thearch.thechar == '5')
 		flagcount("P", "debug code generation", &debug['P']);
 	flagint32("R", "rnd: address rounding", &INITRND);
-	flagcount("S", "check type signatures", &debug['S']);
+	flagcount("nil", "check type signatures", &debug['S']);
 	flagint64("T", "addr: text address", &INITTEXT);
 	flagfn0("V", "print version and exit", doversion);
 	flagcount("W", "disassemble input", &debug['W']);
@@ -117,7 +119,7 @@ main(int argc, char *argv[])
 	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
 	flagcount("race", "enable race detector", &flag_race);
 	flagcount("s", "disable symbol table", &debug['s']);
-	if(thechar == '5' || thechar == '6')
+	if(thearch.thechar == '5' || thearch.thechar == '6')
 		flagcount("shared", "generate shared object (implies -linkmode external)", &flag_shared);
 	flagstr("tmpdir", "dir: leave temporary files in this directory", &tmpdir);
 	flagcount("u", "reject unsafe packages", &debug['u']);
@@ -139,9 +141,9 @@ main(int argc, char *argv[])
 
 	if(outfile == nil) {
 		if(HEADTYPE == Hwindows)
-			outfile = smprint("%c.out.exe", thechar);
+			outfile = smprint("%c.out.exe", thearch.thechar);
 		else
-			outfile = smprint("%c.out", thechar);
+			outfile = smprint("%c.out", thearch.thechar);
 	}
 	libinit(); // creates outfile
 
@@ -151,7 +153,7 @@ main(int argc, char *argv[])
 	if(headstring == nil)
 		headstring = headstr(HEADTYPE);
 
-	archinit();
+	thearch.archinit();
 	ctxt->debugfloat = debug['F'];
 
 	if(debug['v'])
@@ -165,7 +167,7 @@ main(int argc, char *argv[])
 	addlibpath(ctxt, "command line", "command line", argv[0], "main");
 	loadlib();
 	
-	if(thechar == '5') {
+	if(thearch.thechar == '5') {
 		// mark some functions that are only referenced after linker code editing
 		if(debug['F'])
 			mark(linkrlookup(ctxt, "_sfloat", 0));
@@ -184,7 +186,7 @@ main(int argc, char *argv[])
 	if(HEADTYPE == Hwindows)
 		dope();
 	addexport();
-	gentext();		// trampolines, call stubs, etc.
+	thearch.gentext();		// trampolines, call stubs, etc.
 	textaddress();
 	pclntab();
 	findfunctab();
@@ -193,7 +195,7 @@ main(int argc, char *argv[])
 	address();
 	doweak();
 	reloc();
-	asmb();
+	thearch.asmb();
 	undef();
 	hostlink();
 	if(debug['v']) {

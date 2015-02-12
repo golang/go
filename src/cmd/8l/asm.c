@@ -37,13 +37,6 @@
 #include	"../ld/macho.h"
 #include	"../ld/pe.h"
 
-char linuxdynld[] = "/lib/ld-linux.so.2";
-char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
-char openbsddynld[] = "/usr/libexec/ld.so";
-char netbsddynld[] = "/usr/libexec/ld.elf_so";
-char dragonflydynld[] = "/usr/libexec/ld-elf.so.2";
-char solarisdynld[] = "/lib/ld.so.1";
-
 static int
 needlib(char *name)
 {
@@ -63,8 +56,6 @@ needlib(char *name)
 	}
 	return 0;
 }
-
-int	nelfsym = 1;
 
 static void	addpltsym(Link*, LSym*);
 static void	addgotsym(Link*, LSym*);
@@ -141,7 +132,7 @@ adddynrel(LSym *s, Reloc *r)
 		}
 		addgotsym(ctxt, targ);
 		r->type = R_CONST;	// write r->add during relocsym
-		r->sym = S;
+		r->sym = nil;
 		r->add += targ->got;
 		return;
 	
@@ -218,7 +209,7 @@ adddynrel(LSym *s, Reloc *r)
 			addaddrplus(ctxt, rel, s, r->off);
 			adduint32(ctxt, rel, ELF32_R_INFO(targ->dynid, R_386_32));
 			r->type = R_CONST;	// write r->add during relocsym
-			r->sym = S;
+			r->sym = nil;
 			return;
 		}
 		if(HEADTYPE == Hdarwin && s->size == PtrSize && r->off == 0) {
@@ -256,7 +247,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 {
 	int32 elfsym;
 
-	LPUT(sectoff);
+	thearch.lput(sectoff);
 
 	elfsym = r->xsym->elfsym;
 	switch(r->type) {
@@ -265,7 +256,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 
 	case R_ADDR:
 		if(r->siz == 4)
-			LPUT(R_386_32 | elfsym<<8);
+			thearch.lput(R_386_32 | elfsym<<8);
 		else
 			return -1;
 		break;
@@ -273,7 +264,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 	case R_CALL:
 	case R_PCREL:
 		if(r->siz == 4)
-			LPUT(R_386_PC32 | elfsym<<8);
+			thearch.lput(R_386_PC32 | elfsym<<8);
 		else
 			return -1;
 		break;
@@ -281,7 +272,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 	case R_TLS_LE:
 	case R_TLS_IE:
 		if(r->siz == 4)
-			LPUT(R_386_TLS_LE | elfsym<<8);
+			thearch.lput(R_386_TLS_LE | elfsym<<8);
 		else
 			return -1;
 	}
@@ -342,8 +333,8 @@ machoreloc1(Reloc *r, vlong sectoff)
 		break;
 	}
 
-	LPUT(sectoff);
-	LPUT(v);
+	thearch.lput(sectoff);
+	thearch.lput(v);
 	return 0;
 }
 
@@ -714,30 +705,4 @@ asmb(void)
 		break;
 	}
 	cflush();
-}
-
-void
-s8put(char *n)
-{
-	char name[8];
-	int i;
-
-	strncpy(name, n, sizeof(name));
-	for(i=0; i<sizeof(name); i++)
-		cput(name[i]);
-}
-
-int32
-rnd(int32 v, int32 r)
-{
-	int32 c;
-
-	if(r <= 0)
-		return v;
-	v += r - 1;
-	c = v % r;
-	if(c < 0)
-		c += r;
-	v -= c;
-	return v;
 }

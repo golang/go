@@ -30,9 +30,12 @@
 
 // Symbol table.
 
-#include	"l.h"
-#include	"../ld/lib.h"
-#include	"../ld/elf.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
+#include	"lib.h"
+#include	"elf.h"
 
 static int maxelfstr;
 
@@ -76,24 +79,24 @@ putelfstr(char *s)
 static void
 putelfsyment(int off, vlong addr, vlong size, int info, int shndx, int other)
 {
-	switch(thechar) {
+	switch(thearch.thechar) {
 	case '6':
 	case '9':
-		LPUT(off);
+		thearch.lput(off);
 		cput(info);
 		cput(other);
-		WPUT(shndx);
-		VPUT(addr);
-		VPUT(size);
+		thearch.wput(shndx);
+		thearch.vput(addr);
+		thearch.vput(size);
 		symsize += ELF64SYMSIZE;
 		break;
 	default:
-		LPUT(off);
-		LPUT(addr);
-		LPUT(size);
+		thearch.lput(off);
+		thearch.lput(addr);
+		thearch.lput(size);
 		cput(info);
 		cput(other);
-		WPUT(shndx);
+		thearch.wput(shndx);
 		symsize += ELF32SYMSIZE;
 		break;
 	}
@@ -172,7 +175,7 @@ putelfsymshndx(vlong sympos, int shndx)
 	vlong here;
 
 	here = cpos();
-	switch(thechar) {
+	switch(thearch.thechar) {
 	case '6':
 		cseek(sympos+6);
 		break;
@@ -180,7 +183,7 @@ putelfsymshndx(vlong sympos, int shndx)
 		cseek(sympos+14);
 		break;
 	}
-	WPUT(shndx);
+	thearch.wput(shndx);
 	cseek(here);
 }
 
@@ -218,7 +221,7 @@ asmelfsym(void)
 	elfglobalsymndx = numelfsym;
 	genasmsym(putelfsym);
 	
-	for(s=ctxt->allsym; s!=S; s=s->allsym) {
+	for(s=ctxt->allsym; s!=nil; s=s->allsym) {
 		if(s->type != SHOSTOBJ && !(s->type == SDYNIMPORT && s->reachable))
 			continue;
 		if(s->type == SDYNIMPORT)
@@ -253,7 +256,7 @@ putplan9sym(LSym *x, char *s, int t, vlong addr, vlong size, int ver, LSym *go)
 	case 'Z':
 	case 'm':
 		l = 4;
-		if(HEADTYPE == Hplan9 && thechar == '6' && !debug['8']) {
+		if(HEADTYPE == Hplan9 && thearch.thechar == '6' && !debug['8']) {
 			lputb(addr>>32);
 			l = 8;
 		}
@@ -307,7 +310,7 @@ wputb(ushort w)
 }
 
 void
-lputb(int32 l)
+lputb(uint32 l)
 {
 	cput(l>>24);
 	cput(l>>16);
@@ -316,7 +319,7 @@ lputb(int32 l)
 }
 
 void
-lputl(int32 l)
+lputl(uint32 l)
 {
 	cput(l);
 	cput(l>>8);
@@ -408,7 +411,7 @@ symtab(void)
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
 	// hide the specific symbols.
-	for(s = ctxt->allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != nil; s = s->allsym) {
 		if(!s->reachable || s->special || s->type != SRODATA)
 			continue;
 		if(strncmp(s->name, "type.", 5) == 0) {

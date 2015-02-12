@@ -37,12 +37,51 @@
 #include	"../ld/dwarf.h"
 #include	<ar.h>
 
-char *thestring = "arm";
-LinkArch *thelinkarch = &linkarm;
+void
+main(int argc, char **argv)
+{
+	linkarchinit();
+	ldmain(argc, argv);
+}
+
 
 void
 linkarchinit(void)
 {
+	thestring = "arm";
+	thelinkarch = &linkarm;
+
+	thearch.thechar = thechar;
+	thearch.ptrsize = thelinkarch->ptrsize;
+	thearch.intsize = thelinkarch->ptrsize;
+	thearch.regsize = thelinkarch->regsize;
+	thearch.funcalign = FuncAlign;
+	thearch.maxalign = MaxAlign;
+	thearch.minlc = MINLC;
+	thearch.dwarfregsp = DWARFREGSP;
+
+	thearch.adddynlib = adddynlib;
+	thearch.adddynrel = adddynrel;
+	thearch.adddynsym = adddynsym;
+	thearch.archinit = archinit;
+	thearch.archreloc = archreloc;
+	thearch.archrelocvariant = archrelocvariant;
+	thearch.asmb = asmb;
+	thearch.elfreloc1 = elfreloc1;
+	thearch.elfsetupplt = elfsetupplt;
+	thearch.gentext = gentext;
+	thearch.listinit = listinit;
+	thearch.machoreloc1 = machoreloc1;
+	thearch.lput = lputl;
+	thearch.wput = wputl;
+	thearch.vput = vputl;
+
+	thearch.linuxdynld = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
+	thearch.freebsddynld = "/usr/libexec/ld-elf.so.1";
+	thearch.openbsddynld = "XXX";
+	thearch.netbsddynld = "/libexec/ld.elf_so";
+	thearch.dragonflydynld = "XXX";
+	thearch.solarisdynld = "XXX";
 }
 
 void

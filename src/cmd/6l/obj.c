@@ -38,17 +38,52 @@
 #include	"../ld/pe.h"
 #include	<ar.h>
 
-char*	thestring 	= "amd64";
-LinkArch*	thelinkarch = &linkamd64;
+void
+main(int argc, char **argv)
+{
+	linkarchinit();
+	ldmain(argc, argv);
+}
 
 void
 linkarchinit(void)
 {
+	thestring = "amd64";
+	thelinkarch = &linkamd64;
 	if(strcmp(getgoarch(), "amd64p32") == 0)
 		thelinkarch = &linkamd64p32;
-	PtrSize = thelinkarch->ptrsize;
-	IntSize = PtrSize;
-	RegSize = thelinkarch->regsize;
+
+	thearch.thechar = thechar;
+	thearch.ptrsize = thelinkarch->ptrsize;
+	thearch.intsize = thelinkarch->ptrsize;
+	thearch.regsize = thelinkarch->regsize;
+	thearch.funcalign = FuncAlign;
+	thearch.maxalign = MaxAlign;
+	thearch.minlc = MINLC;
+	thearch.dwarfregsp = DWARFREGSP;
+
+	thearch.adddynlib = adddynlib;
+	thearch.adddynrel = adddynrel;
+	thearch.adddynsym = adddynsym;
+	thearch.archinit = archinit;
+	thearch.archreloc = archreloc;
+	thearch.archrelocvariant = archrelocvariant;
+	thearch.asmb = asmb;
+	thearch.elfreloc1 = elfreloc1;
+	thearch.elfsetupplt = elfsetupplt;
+	thearch.gentext = gentext;
+	thearch.listinit = listinit;
+	thearch.machoreloc1 = machoreloc1;
+	thearch.lput = lputl;
+	thearch.wput = wputl;
+	thearch.vput = vputl;
+	
+	thearch.linuxdynld = "/lib64/ld-linux-x86-64.so.2";
+	thearch.freebsddynld = "/libexec/ld-elf.so.1";
+	thearch.openbsddynld = "/usr/libexec/ld.so";
+	thearch.netbsddynld = "/libexec/ld.elf_so";
+	thearch.dragonflydynld = "/usr/libexec/ld-elf.so.2";
+	thearch.solarisdynld = "/lib/amd64/ld.so.1";
 }
 
 void

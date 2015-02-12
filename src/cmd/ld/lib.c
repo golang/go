@@ -29,10 +29,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include	"l.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
 #include	"lib.h"
-#include	"../ld/elf.h"
-#include	"../ld/dwarf.h"
+#include	"elf.h"
+#include	"dwarf.h"
 #include	"../../runtime/stack.h"
 #include	"../../runtime/funcdata.h"
 
@@ -105,7 +108,7 @@ libinit(void)
 {
 	char *suffix, *suffixsep;
 
-	funcalign = FuncAlign;
+	funcalign = thearch.funcalign;
 	fmtinstall('i', iconv);
 	fmtinstall('Y', Yconv);
 	fmtinstall('Z', Zconv);
@@ -191,7 +194,7 @@ loadlib(void)
 	}
 
 	loadinternal("runtime");
-	if(thechar == '5')
+	if(thearch.thechar == '5')
 		loadinternal("math");
 	if(flag_race)
 		loadinternal("runtime/race");
@@ -218,7 +221,7 @@ loadlib(void)
 		// dependency problems when compiling natively (external linking requires
 		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
 		// compiled using external linking.)
-		if(thechar == '5' && HEADTYPE == Hdarwin && iscgo)
+		if(thearch.thechar == '5' && HEADTYPE == Hdarwin && iscgo)
 			linkmode = LinkExternal;
 	}
 
@@ -251,7 +254,7 @@ loadlib(void)
 	if(linkmode == LinkInternal) {
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
-		for(s = ctxt->allsym; s != S; s = s->allsym)
+		for(s = ctxt->allsym; s != nil; s = s->allsym)
 			if(s->type == SHOSTOBJ) {
 				// If a symbol was marked both
 				// cgo_import_static and cgo_import_dynamic,
@@ -272,7 +275,7 @@ loadlib(void)
 	// when the runtime has not declared its type already.
 	if(tlsg->type == 0)
 		tlsg->type = STLSBSS;
-	tlsg->size = PtrSize;
+	tlsg->size = thearch.ptrsize;
 	tlsg->hide = 1;
 	tlsg->reachable = 1;
 	ctxt->tlsg = tlsg;
@@ -440,7 +443,7 @@ dowrite(int fd, char *p, int n)
 	while(n > 0) {
 		m = write(fd, p, n);
 		if(m <= 0) {
-			ctxt->cursym = S;
+			ctxt->cursym = nil;
 			diag("write error: %r");
 			errorexit();
 		}
@@ -529,7 +532,7 @@ hostobjs(void)
 		h = &hostobj[i];
 		f = Bopen(h->file, OREAD);
 		if(f == nil) {
-			ctxt->cursym = S;
+			ctxt->cursym = nil;
 			diag("cannot reopen %s: %r", h->pn);
 			errorexit();
 		}
@@ -603,7 +606,7 @@ hostlink(void)
 	if(extld == nil)
 		extld = "gcc";
 	argv[argc++] = extld;
-	switch(thechar){
+	switch(thearch.thechar){
 	case '8':
 		argv[argc++] = "-m32";
 		break;
@@ -651,7 +654,7 @@ hostlink(void)
 		h = &hostobj[i];
 		f = Bopen(h->file, OREAD);
 		if(f == nil) {
-			ctxt->cursym = S;
+			ctxt->cursym = nil;
 			diag("cannot reopen %s: %r", h->pn);
 			errorexit();
 		}
@@ -660,7 +663,7 @@ hostlink(void)
 		argv[argc++] = p;
 		w = create(p, 1, 0775);
 		if(w < 0) {
-			ctxt->cursym = S;
+			ctxt->cursym = nil;
 			diag("cannot create %s: %r", p);
 			errorexit();
 		}
@@ -672,7 +675,7 @@ hostlink(void)
 			len -= n;
 		}
 		if(close(w) < 0) {
-			ctxt->cursym = S;
+			ctxt->cursym = nil;
 			diag("cannot write %s: %r", p);
 			errorexit();
 		}
@@ -719,7 +722,7 @@ hostlink(void)
 	}
 
 	if(runcmd(argv) < 0) {
-		ctxt->cursym = S;
+		ctxt->cursym = nil;
 		diag("%s: running %s failed: %r", argv0, argv[0]);
 		errorexit();
 	}
@@ -774,7 +777,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
 	line[n] = '\0';
 	if(strncmp(line, "go object ", 10) != 0) {
 		if(strlen(pn) > 3 && strcmp(pn+strlen(pn)-3, ".go") == 0) {
-			print("%cl: input %s is not .%c file (use %cg to compile .go files)\n", thechar, pn, thechar, thechar);
+			print("%cl: input %s is not .%c file (use %cg to compile .go files)\n", thearch.thechar, pn, thearch.thechar, thearch.thechar);
 			errorexit();
 		}
 		if(strcmp(line, thestring) == 0) {
@@ -860,7 +863,7 @@ mywhatsys(void)
 	goarch = getgoarch();
 
 	if(strncmp(goarch, thestring, strlen(thestring)) != 0)
-		sysfatal("cannot use %cc with GOARCH=%s", thechar, goarch);
+		sysfatal("cannot use %cc with GOARCH=%s", thearch.thechar, goarch);
 }
 
 int
@@ -988,7 +991,7 @@ addsection(Segment *seg, char *name, int rwx)
 	sect->rwx = rwx;
 	sect->name = name;
 	sect->seg = seg;
-	sect->align = PtrSize; // everything is at least pointer-aligned
+	sect->align = thearch.ptrsize; // everything is at least pointer-aligned
 	*l = sect;
 	return sect;
 }
@@ -1046,20 +1049,21 @@ static void stkbroke(Chain*, int);
 static LSym *morestack;
 static LSym *newstack;
 
-enum
-{
-	HasLinkRegister = (thechar == '5' || thechar == '9'),
-};
-
 // TODO: Record enough information in new object files to
 // allow stack checks here.
 
 static int
+haslinkregister(void)
+{
+	return thearch.thechar == '5' || thearch.thechar == '9';
+}
+
+static int
 callsize(void)
 {
-	if(HasLinkRegister)
+	if(haslinkregister())
 		return 0;
-	return RegSize;
+	return thearch.regsize;
 }
 
 void
@@ -1180,8 +1184,8 @@ stkcheck(Chain *up, int depth)
 				// to StackLimit beyond the frame size.
 				if(strncmp(r->sym->name, "runtime.morestack", 17) == 0) {
 					limit = StackLimit + s->locals;
-					if(HasLinkRegister)
-						limit += RegSize;
+					if(haslinkregister())
+						limit += thearch.regsize;
 				}
 				break;
 
@@ -1229,8 +1233,8 @@ stkprint(Chain *ch, int limit)
 		else
 			print("\t%d\tguaranteed after split check in %s\n", ch->limit, name);
 	} else {
-		stkprint(ch->up, ch->limit + (!HasLinkRegister)*RegSize);
-		if(!HasLinkRegister)
+		stkprint(ch->up, ch->limit + callsize());
+		if(!haslinkregister())
 			print("\t%d\ton entry to %s\n", ch->limit, name);
 	}
 	if(ch->limit != limit)
@@ -1246,7 +1250,7 @@ Yconv(Fmt *fp)
 	char *str;
 
 	s = va_arg(fp->args, LSym*);
-	if (s == S) {
+	if (s == nil) {
 		fmtprint(fp, "<nil>");
 	} else {
 		fmtstrinit(&fmt);
@@ -1331,7 +1335,7 @@ cwrite(void *buf, int n)
 void
 usage(void)
 {
-	fprint(2, "usage: %cl [options] main.%c\n", thechar, thechar);
+	fprint(2, "usage: %cl [options] main.%c\n", thearch.thechar, thearch.thechar);
 	flagprint(2);
 	exits("usage");
 }
@@ -1360,7 +1364,7 @@ setinterp(char *s)
 void
 doversion(void)
 {
-	print("%cl version %s\n", thechar, getgoversion());
+	print("%cl version %s\n", thearch.thechar, getgoversion());
 	errorexit();
 }
 
@@ -1380,7 +1384,7 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
 	if(s->type == STEXT)
 		put(s, s->name, 'T', s->value, s->size, s->version, 0);
 
-	for(s=ctxt->allsym; s!=S; s=s->allsym) {
+	for(s=ctxt->allsym; s!=nil; s=s->allsym) {
 		if(s->hide || (s->name[0] == '.' && s->version == 0 && strcmp(s->name, ".rathole") != 0))
 			continue;
 		switch(s->type&SMASK) {
@@ -1420,7 +1424,7 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
 
 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
-		put(nil, ".frame", 'm', s->locals+PtrSize, 0, 0, 0);
+		put(nil, ".frame", 'm', s->locals+thearch.ptrsize, 0, 0, 0);
 
 		for(a=s->autom; a; a=a->link) {
 			// Emit a or p according to actual offset, even if label is wrong.
@@ -1432,7 +1436,7 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
 			if(a->name == A_PARAM)
 				off = a->aoffset;
 			else
-				off = a->aoffset - PtrSize;
+				off = a->aoffset - thearch.ptrsize;
 			
 			// FP
 			if(off >= 0) {
@@ -1441,8 +1445,8 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
 			}
 			
 			// SP
-			if(off <= -PtrSize) {
-				put(nil, a->asym->name, 'a', -(off+PtrSize), 0, 0, a->gotype);
+			if(off <= -thearch.ptrsize) {
+				put(nil, a->asym->name, 'a', -(off+thearch.ptrsize), 0, 0, a->gotype);
 				continue;
 			}
 			
@@ -1563,7 +1567,7 @@ diag(char *fmt, ...)
 
 	tn = "";
 	sep = "";
-	if(ctxt->cursym != S) {
+	if(ctxt->cursym != nil) {
 		tn = ctxt->cursym->name;
 		sep = ": ";
 	}
@@ -1630,4 +1634,19 @@ checkgo(void)
 			}
 		}
 	}
+}
+
+vlong
+rnd(vlong v, vlong r)
+{
+	vlong c;
+
+	if(r <= 0)
+		return v;
+	v += r - 1;
+	c = v % r;
+	if(c < 0)
+		c += r;
+	v -= c;
+	return v;
 }

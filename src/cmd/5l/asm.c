@@ -36,13 +36,6 @@
 #include	"../ld/macho.h"
 #include	"../ld/dwarf.h"
 
-char linuxdynld[] = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
-char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
-char openbsddynld[] = "XXX";
-char netbsddynld[] = "/libexec/ld.elf_so";
-char dragonflydynld[] = "XXX";
-char solarisdynld[] = "XXX";
-
 static int
 needlib(char *name)
 {
@@ -62,8 +55,6 @@ needlib(char *name)
 	}
 	return 0;
 }
-
-int	nelfsym = 1;
 
 static void	addpltsym(Link*, LSym*);
 static void	addgotsym(Link*, LSym*);
@@ -127,11 +118,11 @@ adddynrel(LSym *s, Reloc *r)
 			addgotsym(ctxt, targ);
 		}
 		r->type = R_CONST;	// write r->add during relocsym
-		r->sym = S;
+		r->sym = nil;
 		r->add += targ->got;
 		return;
 
-	case 256 + R_ARM_GOT_PREL: // GOT(S) + A - P
+	case 256 + R_ARM_GOT_PREL: // GOT(nil) + A - nil
 		if(targ->type != SDYNIMPORT) {
 			addgotsyminternal(ctxt, targ);
 		} else {
@@ -178,7 +169,7 @@ adddynrel(LSym *s, Reloc *r)
 			// R_ARM_V4BX is ABS relocation, so this symbol is a dummy symbol, ignore it
 			r->sym->type = 0;
 		}
-		r->sym = S;
+		r->sym = nil;
 		return;
 
 	case 256 + R_ARM_PC24:
@@ -210,9 +201,9 @@ adddynrel(LSym *s, Reloc *r)
 			adddynsym(ctxt, targ);
 			rel = linklookup(ctxt, ".rel", 0);
 			addaddrplus(ctxt, rel, s, r->off);
-			adduint32(ctxt, rel, ELF32_R_INFO(targ->dynid, R_ARM_GLOB_DAT)); // we need a S + A dynmic reloc
+			adduint32(ctxt, rel, ELF32_R_INFO(targ->dynid, R_ARM_GLOB_DAT)); // we need a nil + A dynmic reloc
 			r->type = R_CONST;	// write r->add during relocsym
-			r->sym = S;
+			r->sym = nil;
 			return;
 		}
 		break;
@@ -227,7 +218,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 {
 	int32 elfsym;
 	
-	LPUT(sectoff);
+	thearch.lput(sectoff);
 
 	elfsym = r->xsym->elfsym;
 	switch(r->type) {
@@ -236,14 +227,14 @@ elfreloc1(Reloc *r, vlong sectoff)
 
 	case R_ADDR:
 		if(r->siz == 4)
-			LPUT(R_ARM_ABS32 | elfsym<<8);
+			thearch.lput(R_ARM_ABS32 | elfsym<<8);
 		else
 			return -1;
 		break;
 
 	case R_PCREL:
 		if(r->siz == 4)
-			LPUT(R_ARM_REL32 | elfsym<<8);
+			thearch.lput(R_ARM_REL32 | elfsym<<8);
 		else
 			return -1;
 		break;
@@ -251,9 +242,9 @@ elfreloc1(Reloc *r, vlong sectoff)
 	case R_CALLARM:
 		if(r->siz == 4) {
 			if((r->add & 0xff000000) == 0xeb000000) // BL
-				LPUT(R_ARM_CALL | elfsym<<8);
+				thearch.lput(R_ARM_CALL | elfsym<<8);
 			else
-				LPUT(R_ARM_JUMP24 | elfsym<<8);
+				thearch.lput(R_ARM_JUMP24 | elfsym<<8);
 		} else
 			return -1;
 		break;
@@ -261,9 +252,9 @@ elfreloc1(Reloc *r, vlong sectoff)
 	case R_TLS:
 		if(r->siz == 4) {
 			if(flag_shared)
-				LPUT(R_ARM_TLS_IE32 | elfsym<<8);
+				thearch.lput(R_ARM_TLS_IE32 | elfsym<<8);
 			else
-				LPUT(R_ARM_TLS_LE32 | elfsym<<8);
+				thearch.lput(R_ARM_TLS_LE32 | elfsym<<8);
 		} else
 			return -1;
 		break;
@@ -350,8 +341,8 @@ machoreloc1(Reloc *r, vlong sectoff)
 		break;
 	}
 
-	LPUT(sectoff);
-	LPUT(v);
+	thearch.lput(sectoff);
+	thearch.lput(v);
 	return 0;
 }
 
@@ -727,14 +718,14 @@ asmb(void)
 	switch(HEADTYPE) {
 	default:
 	case Hplan9:	/* plan 9 */
-		LPUT(0x647);			/* magic */
-		LPUT(segtext.filelen);			/* sizes */
-		LPUT(segdata.filelen);
-		LPUT(segdata.len - segdata.filelen);
-		LPUT(symsize);			/* nsyms */
-		LPUT(entryvalue());		/* va of entry */
-		LPUT(0L);
-		LPUT(lcsize);
+		thearch.lput(0x647);			/* magic */
+		thearch.lput(segtext.filelen);			/* sizes */
+		thearch.lput(segdata.filelen);
+		thearch.lput(segdata.len - segdata.filelen);
+		thearch.lput(symsize);			/* nsyms */
+		thearch.lput(entryvalue());		/* va of entry */
+		thearch.lput(0L);
+		thearch.lput(lcsize);
 		break;
 	case Hlinux:
 	case Hfreebsd:
@@ -756,19 +747,4 @@ asmb(void)
 		print("lcsize=%d\n", lcsize);
 		print("total=%lld\n", segtext.filelen+segdata.len+symsize+lcsize);
 	}
-}
-
-int32
-rnd(int32 v, int32 r)
-{
-	int32 c;
-
-	if(r <= 0)
-		return v;
-	v += r - 1;
-	c = v % r;
-	if(c < 0)
-		c += r;
-	v -= c;
-	return v;
 }

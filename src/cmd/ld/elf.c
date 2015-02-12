@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include	"l.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
 #include	"lib.h"
-#include	"../ld/elf.h"
+#include	"elf.h"
 
 /*
  * We use the 64-bit data structures on both 32- and 64-bit machines
@@ -14,6 +17,8 @@
 #define	NSECT	48
 
 int	iself;
+
+int	nelfsym = 1;
 
 static	int	elf64;
 static	ElfEhdr	hdr;
@@ -42,7 +47,7 @@ elfinit(void)
 {
 	iself = 1;
 
-	switch(thechar) {
+	switch(thearch.thechar) {
 	// 64-bit architectures
 	case '9':
 		if(ctxt->arch->endian == BigEndian)
@@ -77,14 +82,14 @@ elfinit(void)
 void
 elf64phdr(ElfPhdr *e)
 {
-	LPUT(e->type);
-	LPUT(e->flags);
-	VPUT(e->off);
-	VPUT(e->vaddr);
-	VPUT(e->paddr);
-	VPUT(e->filesz);
-	VPUT(e->memsz);
-	VPUT(e->align);
+	thearch.lput(e->type);
+	thearch.lput(e->flags);
+	thearch.vput(e->off);
+	thearch.vput(e->vaddr);
+	thearch.vput(e->paddr);
+	thearch.vput(e->filesz);
+	thearch.vput(e->memsz);
+	thearch.vput(e->align);
 }
 
 void
@@ -103,44 +108,44 @@ elf32phdr(ElfPhdr *e)
 		e->filesz += frag;
 		e->memsz += frag;
 	}
-	LPUT(e->type);
-	LPUT(e->off);
-	LPUT(e->vaddr);
-	LPUT(e->paddr);
-	LPUT(e->filesz);
-	LPUT(e->memsz);
-	LPUT(e->flags);
-	LPUT(e->align);
+	thearch.lput(e->type);
+	thearch.lput(e->off);
+	thearch.lput(e->vaddr);
+	thearch.lput(e->paddr);
+	thearch.lput(e->filesz);
+	thearch.lput(e->memsz);
+	thearch.lput(e->flags);
+	thearch.lput(e->align);
 }
 
 void
 elf64shdr(ElfShdr *e)
 {
-	LPUT(e->name);
-	LPUT(e->type);
-	VPUT(e->flags);
-	VPUT(e->addr);
-	VPUT(e->off);
-	VPUT(e->size);
-	LPUT(e->link);
-	LPUT(e->info);
-	VPUT(e->addralign);
-	VPUT(e->entsize);
+	thearch.lput(e->name);
+	thearch.lput(e->type);
+	thearch.vput(e->flags);
+	thearch.vput(e->addr);
+	thearch.vput(e->off);
+	thearch.vput(e->size);
+	thearch.lput(e->link);
+	thearch.lput(e->info);
+	thearch.vput(e->addralign);
+	thearch.vput(e->entsize);
 }
 
 void
 elf32shdr(ElfShdr *e)
 {
-	LPUT(e->name);
-	LPUT(e->type);
-	LPUT(e->flags);
-	LPUT(e->addr);
-	LPUT(e->off);
-	LPUT(e->size);
-	LPUT(e->link);
-	LPUT(e->info);
-	LPUT(e->addralign);
-	LPUT(e->entsize);
+	thearch.lput(e->name);
+	thearch.lput(e->type);
+	thearch.lput(e->flags);
+	thearch.lput(e->addr);
+	thearch.lput(e->off);
+	thearch.lput(e->size);
+	thearch.lput(e->link);
+	thearch.lput(e->info);
+	thearch.lput(e->addralign);
+	thearch.lput(e->entsize);
 }
 
 uint32
@@ -231,19 +236,19 @@ elf64writehdr(void)
 
 	for (i = 0; i < EI_NIDENT; i++)
 		cput(hdr.ident[i]);
-	WPUT(hdr.type);
-	WPUT(hdr.machine);
-	LPUT(hdr.version);
-	VPUT(hdr.entry);
-	VPUT(hdr.phoff);
-	VPUT(hdr.shoff);
-	LPUT(hdr.flags);
-	WPUT(hdr.ehsize);
-	WPUT(hdr.phentsize);
-	WPUT(hdr.phnum);
-	WPUT(hdr.shentsize);
-	WPUT(hdr.shnum);
-	WPUT(hdr.shstrndx);
+	thearch.wput(hdr.type);
+	thearch.wput(hdr.machine);
+	thearch.lput(hdr.version);
+	thearch.vput(hdr.entry);
+	thearch.vput(hdr.phoff);
+	thearch.vput(hdr.shoff);
+	thearch.lput(hdr.flags);
+	thearch.wput(hdr.ehsize);
+	thearch.wput(hdr.phentsize);
+	thearch.wput(hdr.phnum);
+	thearch.wput(hdr.shentsize);
+	thearch.wput(hdr.shnum);
+	thearch.wput(hdr.shstrndx);
 	return ELF64HDRSIZE;
 }
 
@@ -254,19 +259,19 @@ elf32writehdr(void)
 
 	for (i = 0; i < EI_NIDENT; i++)
 		cput(hdr.ident[i]);
-	WPUT(hdr.type);
-	WPUT(hdr.machine);
-	LPUT(hdr.version);
-	LPUT(hdr.entry);
-	LPUT(hdr.phoff);
-	LPUT(hdr.shoff);
-	LPUT(hdr.flags);
-	WPUT(hdr.ehsize);
-	WPUT(hdr.phentsize);
-	WPUT(hdr.phnum);
-	WPUT(hdr.shentsize);
-	WPUT(hdr.shnum);
-	WPUT(hdr.shstrndx);
+	thearch.wput(hdr.type);
+	thearch.wput(hdr.machine);
+	thearch.lput(hdr.version);
+	thearch.lput(hdr.entry);
+	thearch.lput(hdr.phoff);
+	thearch.lput(hdr.shoff);
+	thearch.lput(hdr.flags);
+	thearch.wput(hdr.ehsize);
+	thearch.wput(hdr.phentsize);
+	thearch.wput(hdr.phnum);
+	thearch.wput(hdr.shentsize);
+	thearch.wput(hdr.shnum);
+	thearch.wput(hdr.shstrndx);
 	return ELF32HDRSIZE;
 }
 
@@ -381,9 +386,9 @@ elfwritenotehdr(char *str, uint32 namesz, uint32 descsz, uint32 tag)
 
 	// Write Elf_Note header.
 	cseek(sh->off);
-	LPUT(namesz);
-	LPUT(descsz);
-	LPUT(tag);
+	thearch.lput(namesz);
+	thearch.lput(descsz);
+	thearch.lput(tag);
 
 	return sh;
 }
@@ -416,7 +421,7 @@ elfwritenetbsdsig(void)
 
 	// Followed by NetBSD string and version.
 	cwrite(ELF_NOTE_NETBSD_NAME, ELF_NOTE_NETBSD_NAMESZ + 1);
-	LPUT(ELF_NOTE_NETBSD_VERSION);
+	thearch.lput(ELF_NOTE_NETBSD_VERSION);
 
 	return sh->size;
 }
@@ -449,7 +454,7 @@ elfwriteopenbsdsig(void)
 
 	// Followed by OpenBSD string and version.
 	cwrite(ELF_NOTE_OPENBSD_NAME, ELF_NOTE_OPENBSD_NAMESZ);
-	LPUT(ELF_NOTE_OPENBSD_VERSION);
+	thearch.lput(ELF_NOTE_OPENBSD_VERSION);
 
 	return sh->size;
 }
@@ -525,7 +530,6 @@ elfwritebuildinfo(void)
 	return sh->size;
 }
 
-extern int nelfsym;
 int elfverneed;
 
 typedef struct Elfaux Elfaux;
@@ -610,7 +614,7 @@ elfdynhash(void)
 	memset(need, 0, nsym * sizeof need[0]);
 	memset(chain, 0, nsym * sizeof chain[0]);
 	memset(buckets, 0, nbucket * sizeof buckets[0]);
-	for(sy=ctxt->allsym; sy!=S; sy=sy->allsym) {
+	for(sy=ctxt->allsym; sy!=nil; sy=sy->allsym) {
 		if (sy->dynid <= 0)
 			continue;
 
@@ -690,7 +694,7 @@ elfdynhash(void)
 		elfwritedynentsym(s, DT_VERSYM, linklookup(ctxt, ".gnu.version", 0));
 	}
 
-	if(thechar == '6' || thechar == '9') {
+	if(thearch.thechar == '6' || thearch.thechar == '9') {
 		sy = linklookup(ctxt, ".rela.plt", 0);
 		if(sy->size > 0) {
 			elfwritedynent(s, DT_PLTREL, DT_RELA);
@@ -816,7 +820,7 @@ elfshreloc(Section *sect)
 	if(strcmp(sect->name, ".shstrtab") == 0 || strcmp(sect->name, ".tbss") == 0)
 		return nil;
 
-	if(thechar == '6' || thechar == '9') {
+	if(thearch.thechar == '6' || thearch.thechar == '9') {
 		prefix = ".rela";
 		typ = SHT_RELA;
 	} else {
@@ -827,12 +831,12 @@ elfshreloc(Section *sect)
 	snprint(buf, sizeof buf, "%s%s", prefix, sect->name);
 	sh = elfshname(buf);
 	sh->type = typ;
-	sh->entsize = RegSize*(2+(typ==SHT_RELA));
+	sh->entsize = thearch.regsize*(2+(typ==SHT_RELA));
 	sh->link = elfshname(".symtab")->shnum;
 	sh->info = sect->elfsect->shnum;
 	sh->off = sect->reloff;
 	sh->size = sect->rellen;
-	sh->addralign = RegSize;
+	sh->addralign = thearch.regsize;
 	return sh;
 }
 
@@ -875,7 +879,7 @@ elfrelocsect(Section *sect, LSym *first)
 			}
 			if(r->xsym->elfsym == 0)
 				diag("reloc %d to non-elf symbol %s (outer=%s) %d", r->type, r->sym->name, r->xsym->name, r->sym->type);
-			if(elfreloc1(r, sym->value+r->off - sect->vaddr) < 0)
+			if(thearch.elfreloc1(r, sym->value+r->off - sect->vaddr) < 0)
 				diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
 		}
 	}
@@ -943,7 +947,7 @@ doelf(void)
 		debug['s'] = 0;
 		debug['d'] = 1;
 
-		if(thechar == '6' || thechar == '9') {
+		if(thearch.thechar == '6' || thearch.thechar == '9') {
 			addstring(shstrtab, ".rela.text");
 			addstring(shstrtab, ".rela.rodata");
 			addstring(shstrtab, ".rela.typelink");
@@ -966,7 +970,7 @@ doelf(void)
 
 	if(flag_shared) {
 		addstring(shstrtab, ".init_array");
-		if(thechar == '6' || thechar == '9')
+		if(thearch.thechar == '6' || thearch.thechar == '9')
 			addstring(shstrtab, ".rela.init_array");
 		else
 			addstring(shstrtab, ".rel.init_array");
@@ -983,13 +987,13 @@ doelf(void)
 		addstring(shstrtab, ".interp");
 		addstring(shstrtab, ".hash");
 		addstring(shstrtab, ".got");
-		if(thechar == '9')
+		if(thearch.thechar == '9')
 			addstring(shstrtab, ".glink");
 		addstring(shstrtab, ".got.plt");
 		addstring(shstrtab, ".dynamic");
 		addstring(shstrtab, ".dynsym");
 		addstring(shstrtab, ".dynstr");
-		if(thechar == '6' || thechar == '9') {
+		if(thearch.thechar == '6' || thearch.thechar == '9') {
 			addstring(shstrtab, ".rela");
 			addstring(shstrtab, ".rela.plt");
 		} else {
@@ -1004,7 +1008,7 @@ doelf(void)
 		s = linklookup(ctxt, ".dynsym", 0);
 		s->type = SELFROSECT;
 		s->reachable = 1;
-		if(thechar == '6' || thechar == '9')
+		if(thearch.thechar == '6' || thearch.thechar == '9')
 			s->size += ELF64SYMSIZE;
 		else
 			s->size += ELF32SYMSIZE;
@@ -1018,7 +1022,7 @@ doelf(void)
 		dynstr = s;
 
 		/* relocation table */
-		if(thechar == '6' || thechar == '9')
+		if(thearch.thechar == '6' || thearch.thechar == '9')
 			s = linklookup(ctxt, ".rela", 0);
 		else
 			s = linklookup(ctxt, ".rel", 0);
@@ -1031,7 +1035,7 @@ doelf(void)
 		s->type = SELFGOT; // writable
 
 		/* ppc64 glink resolver */
-		if(thechar == '9') {
+		if(thearch.thechar == '9') {
 			s = linklookup(ctxt, ".glink", 0);
 			s->reachable = 1;
 			s->type = SELFRXSECT;
@@ -1048,16 +1052,16 @@ doelf(void)
 
 		s = linklookup(ctxt, ".plt", 0);
 		s->reachable = 1;
-		if(thechar == '9')
+		if(thearch.thechar == '9')
 			// In the ppc64 ABI, .plt is a data section
 			// written by the dynamic linker.
 			s->type = SELFSECT;
 		else
 			s->type = SELFRXSECT;
 		
-		elfsetupplt();
+		thearch.elfsetupplt();
 		
-		if(thechar == '6' || thechar == '9')
+		if(thearch.thechar == '6' || thearch.thechar == '9')
 			s = linklookup(ctxt, ".rela.plt", 0);
 		else
 			s = linklookup(ctxt, ".rel.plt", 0);
@@ -1082,13 +1086,13 @@ doelf(void)
 		 */
 		elfwritedynentsym(s, DT_HASH, linklookup(ctxt, ".hash", 0));
 		elfwritedynentsym(s, DT_SYMTAB, linklookup(ctxt, ".dynsym", 0));
-		if(thechar == '6' || thechar == '9')
+		if(thearch.thechar == '6' || thearch.thechar == '9')
 			elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE);
 		else
 			elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE);
 		elfwritedynentsym(s, DT_STRTAB, linklookup(ctxt, ".dynstr", 0));
 		elfwritedynentsymsize(s, DT_STRSZ, linklookup(ctxt, ".dynstr", 0));
-		if(thechar == '6' || thechar == '9') {
+		if(thearch.thechar == '6' || thearch.thechar == '9') {
 			elfwritedynentsym(s, DT_RELA, linklookup(ctxt, ".rela", 0));
 			elfwritedynentsymsize(s, DT_RELASZ, linklookup(ctxt, ".rela", 0));
 			elfwritedynent(s, DT_RELAENT, ELF64RELASIZE);
@@ -1100,12 +1104,12 @@ doelf(void)
 		if(rpath)
 			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
 
-		if(thechar == '9')
+		if(thearch.thechar == '9')
 			elfwritedynentsym(s, DT_PLTGOT, linklookup(ctxt, ".plt", 0));
 		else
 			elfwritedynentsym(s, DT_PLTGOT, linklookup(ctxt, ".got.plt", 0));
 
-		if(thechar == '9')
+		if(thearch.thechar == '9')
 			elfwritedynent(s, DT_PPC64_OPT, 0);
 
 		// Solaris dynamic linker can't handle an empty .rela.plt if
@@ -1167,7 +1171,7 @@ asmbelf(vlong symo)
 	Section *sect;
 
 	eh = getElfEhdr();
-	switch(thechar) {
+	switch(thearch.thechar) {
 	default:
 		diag("unknown architecture in asmbelf");
 		errorexit();
@@ -1228,22 +1232,22 @@ asmbelf(vlong symo)
 		if(interpreter == nil) {
 			switch(HEADTYPE) {
 			case Hlinux:
-				interpreter = linuxdynld;
+				interpreter = thearch.linuxdynld;
 				break;
 			case Hfreebsd:
-				interpreter = freebsddynld;
+				interpreter = thearch.freebsddynld;
 				break;
 			case Hnetbsd:
-				interpreter = netbsddynld;
+				interpreter = thearch.netbsddynld;
 				break;
 			case Hopenbsd:
-				interpreter = openbsddynld;
+				interpreter = thearch.openbsddynld;
 				break;
 			case Hdragonfly:
-				interpreter = dragonflydynld;
+				interpreter = thearch.dragonflydynld;
 				break;
 			case Hsolaris:
-				interpreter = solarisdynld;
+				interpreter = thearch.solarisdynld;
 				break;
 			}
 		}
@@ -1304,7 +1308,7 @@ asmbelf(vlong symo)
 			sh->entsize = ELF64SYMSIZE;
 		else
 			sh->entsize = ELF32SYMSIZE;
-		sh->addralign = RegSize;
+		sh->addralign = thearch.regsize;
 		sh->link = elfshname(".dynstr")->shnum;
 		// sh->info = index of first non-local symbol (number of local symbols)
 		shsym(sh, linklookup(ctxt, ".dynsym", 0));
@@ -1327,7 +1331,7 @@ asmbelf(vlong symo)
 			sh = elfshname(".gnu.version_r");
 			sh->type = SHT_GNU_VERNEED;
 			sh->flags = SHF_ALLOC;
-			sh->addralign = RegSize;
+			sh->addralign = thearch.regsize;
 			sh->info = elfverneed;
 			sh->link = elfshname(".dynstr")->shnum;
 			shsym(sh, linklookup(ctxt, ".gnu.version_r", 0));
@@ -1340,7 +1344,7 @@ asmbelf(vlong symo)
 			sh->type = SHT_RELA;
 			sh->flags = SHF_ALLOC;
 			sh->entsize = ELF64RELASIZE;
-			sh->addralign = RegSize;
+			sh->addralign = thearch.regsize;
 			sh->link = elfshname(".dynsym")->shnum;
 			sh->info = elfshname(".plt")->shnum;
 			shsym(sh, linklookup(ctxt, ".rela.plt", 0));
@@ -1402,15 +1406,15 @@ asmbelf(vlong symo)
 			sh = elfshname(".got");
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC+SHF_WRITE;
-			sh->entsize = RegSize;
-			sh->addralign = RegSize;
+			sh->entsize = thearch.regsize;
+			sh->addralign = thearch.regsize;
 			shsym(sh, linklookup(ctxt, ".got", 0));
 
 			sh = elfshname(".got.plt");
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC+SHF_WRITE;
-			sh->entsize = RegSize;
-			sh->addralign = RegSize;
+			sh->entsize = thearch.regsize;
+			sh->addralign = thearch.regsize;
 			shsym(sh, linklookup(ctxt, ".got.plt", 0));
 		}
 		
@@ -1418,7 +1422,7 @@ asmbelf(vlong symo)
 		sh->type = SHT_HASH;
 		sh->flags = SHF_ALLOC;
 		sh->entsize = 4;
-		sh->addralign = RegSize;
+		sh->addralign = thearch.regsize;
 		sh->link = elfshname(".dynsym")->shnum;
 		shsym(sh, linklookup(ctxt, ".hash", 0));
 
@@ -1426,8 +1430,8 @@ asmbelf(vlong symo)
 		sh = elfshname(".dynamic");
 		sh->type = SHT_DYNAMIC;
 		sh->flags = SHF_ALLOC+SHF_WRITE;
-		sh->entsize = 2*RegSize;
-		sh->addralign = RegSize;
+		sh->entsize = 2*thearch.regsize;
+		sh->addralign = thearch.regsize;
 		sh->link = elfshname(".dynstr")->shnum;
 		shsym(sh, linklookup(ctxt, ".dynamic", 0));
 		ph = newElfPhdr();
@@ -1446,7 +1450,7 @@ asmbelf(vlong symo)
 			ph->type = PT_TLS;
 			ph->flags = PF_R;
 			ph->memsz = -ctxt->tlsoffset;
-			ph->align = RegSize;
+			ph->align = thearch.regsize;
 		}
 	}
 
@@ -1454,12 +1458,12 @@ asmbelf(vlong symo)
 		ph = newElfPhdr();
 		ph->type = PT_GNU_STACK;
 		ph->flags = PF_W+PF_R;
-		ph->align = RegSize;
+		ph->align = thearch.regsize;
 		
 		ph = newElfPhdr();
 		ph->type = PT_PAX_FLAGS;
 		ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
-		ph->align = RegSize;
+		ph->align = thearch.regsize;
 	}
 
 elfobj:
@@ -1501,7 +1505,7 @@ elfobj:
 	if(linkmode == LinkInternal && !debug['d'] && HEADTYPE != Hopenbsd) {
 		sh = elfshname(".tbss");
 		sh->type = SHT_NOBITS;
-		sh->addralign = RegSize;
+		sh->addralign = thearch.regsize;
 		sh->size = -ctxt->tlsoffset;
 		sh->flags = SHF_ALLOC | SHF_TLS | SHF_WRITE;
 	}
@@ -1511,8 +1515,8 @@ elfobj:
 		sh->type = SHT_SYMTAB;
 		sh->off = symo;
 		sh->size = symsize;
-		sh->addralign = RegSize;
-		sh->entsize = 8+2*RegSize;
+		sh->addralign = thearch.regsize;
+		sh->entsize = 8+2*thearch.regsize;
 		sh->link = elfshname(".strtab")->shnum;
 		sh->info = elfglobalsymndx;
 

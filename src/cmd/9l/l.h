@@ -44,55 +44,21 @@ enum
 	IntSize = 8,
 	RegSize = 8,
 	MaxAlign = 32,	// max data alignment
-	FuncAlign = 8
-};
-
-#define	P		((Prog*)0)
-#define	S		((LSym*)0)
-
-enum
-{
-	FPCHIP		= 1,
-	STRINGSZ	= 200,
-	MAXHIST		= 20,				/* limit of path elements for history symbols */
-	DATBLK		= 1024,
-	NHASH		= 10007,
-	NHUNK		= 100000,
-	MINSIZ		= 64,
-	NENT		= 100,
-	NSCHED		= 20,
+	FuncAlign = 8,
 	MINLC		= 4,
-
-	Roffset	= 22,		/* no. bits for offset in relocation address */
-	Rindex	= 10		/* no. bits for index in relocation address */
 };
 
-EXTERN	int32	autosize;
-EXTERN	LSym*	datap;
-EXTERN	int	debug[128];
-EXTERN	int32	lcsize;
-EXTERN	char	literal[32];
-EXTERN	int	nerrors;
-EXTERN	vlong	instoffset;
-EXTERN	char*	rpath;
-EXTERN	vlong	pc;
-EXTERN	int32	symsize;
-EXTERN	int32	staticgen;
-EXTERN	Prog*	lastp;
-EXTERN	vlong	textsize;
-
-void	asmb(void);
 void	adddynlib(char *lib);
 void	adddynrel(LSym *s, Reloc *r);
+void	adddynrela(LSym *rela, LSym *s, Reloc *r);
 void	adddynsym(Link *ctxt, LSym *s);
 int	archreloc(Reloc *r, LSym *s, vlong *val);
 vlong	archrelocvariant(Reloc *r, LSym *s, vlong t);
+void	asmb(void);
+int	elfreloc1(Reloc *r, vlong sectoff);
+void	elfsetupplt(void);
 void	listinit(void);
-vlong	rnd(vlong, int32);
-
-#define	LPUT(a)	(ctxt->arch->endian == BigEndian ? lputb(a):lputl(a))
-#define	WPUT(a)	(ctxt->arch->endian == BigEndian ? wputb(a):wputl(a))
-#define	VPUT(a)	(ctxt->arch->endian == BigEndian ? vputb(a):vputl(a))
+int	machoreloc1(Reloc *r, vlong sectoff);
 
 /* Used by ../ld/dwarf.c */
 enum

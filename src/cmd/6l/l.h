@@ -32,7 +32,6 @@
 #include	<libc.h>
 #include	<bio.h>
 #include	<link.h>
-#include	"6.out.h"
 
 #ifndef	EXTERN
 #define	EXTERN	extern
@@ -42,49 +41,14 @@ enum
 {
 	thechar = '6',
 	MaxAlign = 32,	// max data alignment
-	
-	// Loop alignment constants:
-	// want to align loop entry to LoopAlign-byte boundary,
-	// and willing to insert at most MaxLoopPad bytes of NOP to do so.
-	// We define a loop entry as the target of a backward jump.
-	//
-	// gcc uses MaxLoopPad = 10 for its 'generic x86-64' config,
-	// and it aligns all jump targets, not just backward jump targets.
-	//
-	// As of 6/1/2012, the effect of setting MaxLoopPad = 10 here
-	// is very slight but negative, so the alignment is disabled by
-	// setting MaxLoopPad = 0. The code is here for reference and
-	// for future experiments.
-	// 
-	LoopAlign = 16,
-	MaxLoopPad = 0,
-
 	FuncAlign = 16
 };
 
-EXTERN	int	PtrSize;
-EXTERN	int	IntSize;
-EXTERN	int	RegSize;
-
-#define	P		((Prog*)0)
-#define	S		((LSym*)0)
 enum
 {
 	MINLC		= 1,
 };
 
-#pragma	varargck	type	"I"	uchar*
-
-EXTERN	LSym*	datap;
-EXTERN	int	debug[128];
-EXTERN	char	literal[32];
-EXTERN	int32	lcsize;
-EXTERN	char*	rpath;
-EXTERN	int32	spsize;
-EXTERN	LSym*	symlist;
-EXTERN	int32	symsize;
-
-int	Iconv(Fmt *fp);
 void	adddynlib(char *lib);
 void	adddynrel(LSym *s, Reloc *r);
 void	adddynrela(LSym *rela, LSym *s, Reloc *r);
@@ -96,12 +60,6 @@ int	elfreloc1(Reloc *r, vlong sectoff);
 void	elfsetupplt(void);
 void	listinit(void);
 int	machoreloc1(Reloc *r, vlong sectoff);
-vlong	rnd(vlong v, vlong r);
-
-/* Native is little-endian */
-#define	LPUT(a)	lputl(a)
-#define	WPUT(a)	wputl(a)
-#define	VPUT(a)	vputl(a)
 
 /* Used by ../ld/dwarf.c */
 enum
