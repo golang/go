@@ -39,13 +39,6 @@
 
 #define PADDR(a)	((uint32)(a) & ~0x80000000)
 
-char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
-char freebsddynld[] = "/libexec/ld-elf.so.1";
-char openbsddynld[] = "/usr/libexec/ld.so";
-char netbsddynld[] = "/libexec/ld.elf_so";
-char dragonflydynld[] = "/usr/libexec/ld-elf.so.2";
-char solarisdynld[] = "/lib/amd64/ld.so.1";
-
 char	zeroes[32];
 
 static int
@@ -67,8 +60,6 @@ needlib(char *name)
 	}
 	return 0;
 }
-
-int nelfsym = 1;
 
 static void addpltsym(LSym*);
 static void addgotsym(LSym*);
@@ -236,7 +227,7 @@ adddynrel(LSym *s, Reloc *r)
 			r->type = 256;	// ignore during relocsym
 			return;
 		}
-		if(HEADTYPE == Hdarwin && s->size == PtrSize && r->off == 0) {
+		if(HEADTYPE == Hdarwin && s->size == thearch.ptrsize && r->off == 0) {
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation
 			// that is too much bother to deal with.
@@ -271,7 +262,7 @@ elfreloc1(Reloc *r, vlong sectoff)
 {
 	int32 elfsym;
 
-	VPUT(sectoff);
+	thearch.vput(sectoff);
 
 	elfsym = r->xsym->elfsym;
 	switch(r->type) {
@@ -280,16 +271,16 @@ elfreloc1(Reloc *r, vlong sectoff)
 
 	case R_ADDR:
 		if(r->siz == 4)
-			VPUT(R_X86_64_32 | (uint64)elfsym<<32);
+			thearch.vput(R_X86_64_32 | (uint64)elfsym<<32);
 		else if(r->siz == 8)
-			VPUT(R_X86_64_64 | (uint64)elfsym<<32);
+			thearch.vput(R_X86_64_64 | (uint64)elfsym<<32);
 		else
 			return -1;
 		break;
 
 	case R_TLS_LE:
 		if(r->siz == 4)
-			VPUT(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
+			thearch.vput(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
 		else
 			return -1;
 		break;
@@ -297,16 +288,16 @@ elfreloc1(Reloc *r, vlong sectoff)
 	case R_CALL:
 		if(r->siz == 4) {
 			if(r->xsym->type == SDYNIMPORT)
-				VPUT(R_X86_64_GOTPCREL | (uint64)elfsym<<32);
+				thearch.vput(R_X86_64_GOTPCREL | (uint64)elfsym<<32);
 			else
-				VPUT(R_X86_64_PC32 | (uint64)elfsym<<32);
+				thearch.vput(R_X86_64_PC32 | (uint64)elfsym<<32);
 		} else
 			return -1;
 		break;
 
 	case R_PCREL:
 		if(r->siz == 4) {
-			VPUT(R_X86_64_PC32 | (uint64)elfsym<<32);
+			thearch.vput(R_X86_64_PC32 | (uint64)elfsym<<32);
 		} else
 			return -1;
 		break;
@@ -314,15 +305,15 @@ elfreloc1(Reloc *r, vlong sectoff)
 	case R_TLS:
 		if(r->siz == 4) {
 			if(flag_shared)
-				VPUT(R_X86_64_GOTTPOFF | (uint64)elfsym<<32);
+				thearch.vput(R_X86_64_GOTTPOFF | (uint64)elfsym<<32);
 			else
-				VPUT(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
+				thearch.vput(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
 		} else
 			return -1;
 		break;		
 	}
 
-	VPUT(r->xadd);
+	thearch.vput(r->xadd);
 	return 0;
 }
 
@@ -382,8 +373,8 @@ machoreloc1(Reloc *r, vlong sectoff)
 		break;
 	}
 
-	LPUT(sectoff);
-	LPUT(v);
+	thearch.lput(sectoff);
+	thearch.lput(v);
 	return 0;
 }
 
@@ -797,19 +788,4 @@ asmb(void)
 		break;
 	}
 	cflush();
-}
-
-vlong
-rnd(vlong v, vlong r)
-{
-	vlong c;
-
-	if(r <= 0)
-		return v;
-	v += r - 1;
-	c = v % r;
-	if(c < 0)
-		c += r;
-	v -= c;
-	return v;
 }

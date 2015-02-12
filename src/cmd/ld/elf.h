@@ -1021,12 +1021,6 @@ void	dwarfaddelfsectionsyms(void);
 void	dwarfaddelfheaders(void);
 void	asmbelf(vlong symo);
 void	asmbelfsetup(void);
-extern char linuxdynld[];
-extern char freebsddynld[];
-extern char netbsddynld[];
-extern char openbsddynld[];
-extern char dragonflydynld[];
-extern char solarisdynld[];
 int	elfreloc1(Reloc*, vlong sectoff);
 void	putelfsectionsyms(void);
 

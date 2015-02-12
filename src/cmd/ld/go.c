@@ -4,8 +4,11 @@
 
 // go-specific code shared across loaders (5l, 6l, 8l).
 
-#include	"l.h"
-#include	"../ld/lib.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
+#include	"lib.h"
 
 // accumulate all type information from .6 files.
 // check for inconsistencies.
@@ -401,7 +404,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
 				// allow #pragma dynimport _ _ "foo.so"
 				// to force a link of foo.so.
 				havedynamic = 1;
-				adddynlib(lib);
+				thearch.adddynlib(lib);
 				continue;
 			}
 
@@ -518,7 +521,7 @@ static LSym *emarkq;
 static void
 mark1(LSym *s, LSym *parent)
 {
-	if(s == S || s->reachable)
+	if(s == nil || s->reachable)
 		return;
 	if(strncmp(s->name, "go.weak.", 8) == 0)
 		return;
@@ -544,7 +547,7 @@ markflood(void)
 	LSym *s;
 	int i;
 	
-	for(s=markq; s!=S; s=s->queue) {
+	for(s=markq; s!=nil; s=s->queue) {
 		if(s->type == STEXT) {
 			if(debug['v'] > 1)
 				Bprint(&bso, "marktext %s\n", s->name);
@@ -608,7 +611,7 @@ deadcode(void)
 	markflood();
 	
 	// keep each beginning with 'typelink.' if the symbol it points at is being kept.
-	for(s = ctxt->allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != nil; s = s->allsym) {
 		if(strncmp(s->name, "go.typelink.", 12) == 0)
 			s->reachable = s->nr==1 && s->r[0].sym->reachable;
 	}
@@ -630,7 +633,7 @@ deadcode(void)
 	else
 		last->next = nil;
 	
-	for(s = ctxt->allsym; s != S; s = s->allsym)
+	for(s = ctxt->allsym; s != nil; s = s->allsym)
 		if(strncmp(s->name, "go.weak.", 8) == 0) {
 			s->special = 1;  // do not lay out in data segment
 			s->reachable = 1;
@@ -639,7 +642,7 @@ deadcode(void)
 	
 	// record field tracking references
 	fmtstrinit(&fmt);
-	for(s = ctxt->allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != nil; s = s->allsym) {
 		if(strncmp(s->name, "go.track.", 9) == 0) {
 			s->special = 1;  // do not lay out in data segment
 			s->hide = 1;
@@ -668,7 +671,7 @@ doweak(void)
 
 	// resolve weak references only if
 	// target symbol will be in binary anyway.
-	for(s = ctxt->allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != nil; s = s->allsym) {
 		if(strncmp(s->name, "go.weak.", 8) == 0) {
 			t = linkrlookup(ctxt, s->name+8, s->version);
 			if(t && t->type != 0 && t->reachable) {
@@ -693,7 +696,7 @@ addexport(void)
 		return;
 
 	for(i=0; i<ndynexp; i++)
-		adddynsym(ctxt, dynexp[i]);
+		thearch.adddynsym(ctxt, dynexp[i]);
 }
 
 /* %Z from gc, for quoting import paths */

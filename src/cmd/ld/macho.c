@@ -5,10 +5,13 @@
 // Mach-O file writing
 // http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
 
-#include "l.h"
-#include "../ld/dwarf.h"
-#include "../ld/lib.h"
-#include "../ld/macho.h"
+#include <u.h>
+#include <libc.h>
+#include <bio.h>
+#include <link.h>
+#include "dwarf.h"
+#include "lib.h"
+#include "macho.h"
 
 static	int	macho64;
 static	MachoHdr	hdr;
@@ -41,7 +44,7 @@ static	void	machodysymtab(void);
 void
 machoinit(void)
 {
-	switch(thechar) {
+	switch(thearch.thechar) {
 	// 64-bit architectures
 	case '6':
 	case '9':
@@ -146,85 +149,85 @@ machowrite(void)
 	}
 
 	if(macho64)
-		LPUT(0xfeedfacf);
+		thearch.lput(0xfeedfacf);
 	else
-		LPUT(0xfeedface);
-	LPUT(hdr.cpu);
-	LPUT(hdr.subcpu);
+		thearch.lput(0xfeedface);
+	thearch.lput(hdr.cpu);
+	thearch.lput(hdr.subcpu);
 	if(linkmode == LinkExternal)
-		LPUT(1);	/* file type - mach object */
+		thearch.lput(1);	/* file type - mach object */
 	else
-		LPUT(2);	/* file type - mach executable */
-	LPUT(nload+nseg+ndebug);
-	LPUT(loadsize);
-	LPUT(1);	/* flags - no undefines */
+		thearch.lput(2);	/* file type - mach executable */
+	thearch.lput(nload+nseg+ndebug);
+	thearch.lput(loadsize);
+	thearch.lput(1);	/* flags - no undefines */
 	if(macho64)
-		LPUT(0);	/* reserved */
+		thearch.lput(0);	/* reserved */
 
 	for(i=0; i<nseg; i++) {
 		s = &seg[i];
 		if(macho64) {
-			LPUT(25);	/* segment 64 */
-			LPUT(72+80*s->nsect);
+			thearch.lput(25);	/* segment 64 */
+			thearch.lput(72+80*s->nsect);
 			strnput(s->name, 16);
-			VPUT(s->vaddr);
-			VPUT(s->vsize);
-			VPUT(s->fileoffset);
-			VPUT(s->filesize);
-			LPUT(s->prot1);
-			LPUT(s->prot2);
-			LPUT(s->nsect);
-			LPUT(s->flag);
+			thearch.vput(s->vaddr);
+			thearch.vput(s->vsize);
+			thearch.vput(s->fileoffset);
+			thearch.vput(s->filesize);
+			thearch.lput(s->prot1);
+			thearch.lput(s->prot2);
+			thearch.lput(s->nsect);
+			thearch.lput(s->flag);
 		} else {
-			LPUT(1);	/* segment 32 */
-			LPUT(56+68*s->nsect);
+			thearch.lput(1);	/* segment 32 */
+			thearch.lput(56+68*s->nsect);
 			strnput(s->name, 16);
-			LPUT(s->vaddr);
-			LPUT(s->vsize);
-			LPUT(s->fileoffset);
-			LPUT(s->filesize);
-			LPUT(s->prot1);
-			LPUT(s->prot2);
-			LPUT(s->nsect);
-			LPUT(s->flag);
+			thearch.lput(s->vaddr);
+			thearch.lput(s->vsize);
+			thearch.lput(s->fileoffset);
+			thearch.lput(s->filesize);
+			thearch.lput(s->prot1);
+			thearch.lput(s->prot2);
+			thearch.lput(s->nsect);
+			thearch.lput(s->flag);
 		}
 		for(j=0; j<s->nsect; j++) {
 			t = &s->sect[j];
 			if(macho64) {
 				strnput(t->name, 16);
 				strnput(t->segname, 16);
-				VPUT(t->addr);
-				VPUT(t->size);
-				LPUT(t->off);
-				LPUT(t->align);
-				LPUT(t->reloc);
-				LPUT(t->nreloc);
-				LPUT(t->flag);
-				LPUT(t->res1);	/* reserved */
-				LPUT(t->res2);	/* reserved */
-				LPUT(0);	/* reserved */
+				thearch.vput(t->addr);
+				thearch.vput(t->size);
+				thearch.lput(t->off);
+				thearch.lput(t->align);
+				thearch.lput(t->reloc);
+				thearch.lput(t->nreloc);
+				thearch.lput(t->flag);
+				thearch.lput(t->res1);	/* reserved */
+				thearch.lput(t->res2);	/* reserved */
+				thearch.lput(0);	/* reserved */
 			} else {
 				strnput(t->name, 16);
 				strnput(t->segname, 16);
-				LPUT(t->addr);
-				LPUT(t->size);
-				LPUT(t->off);
-				LPUT(t->align);
-				LPUT(t->reloc);
-				LPUT(t->nreloc);
-				LPUT(t->flag);
-				LPUT(t->res1);	/* reserved */
-				LPUT(t->res2);	/* reserved */
+				thearch.lput(t->addr);
+				thearch.lput(t->size);
+				thearch.lput(t->off);
+				thearch.lput(t->align);
+				thearch.lput(t->reloc);
+				thearch.lput(t->nreloc);
+				thearch.lput(t->flag);
+				thearch.lput(t->res1);	/* reserved */
+				thearch.lput(t->res2);	/* reserved */
 			}
 		}
 	}
 
 	for(i=0; i<nload; i++) {
 		l = &load[i];
-		LPUT(l->type);
-		LPUT(4*(l->ndata+2));
+		thearch.lput(l->type);
+		thearch.lput(4*(l->ndata+2));
 		for(j=0; j<l->ndata; j++)
-			LPUT(l->data[j]);
+			thearch.lput(l->data[j]);
 	}
 
 	return cpos() - o1;
@@ -353,7 +356,7 @@ asmbmacho(void)
 	/* apple MACH */
 	va = INITTEXT - HEADR;
 	mh = getMachoHdr();
-	switch(thechar){
+	switch(thearch.thechar){
 	default:
 		diag("unknown mach architecture");
 		errorexit();
@@ -416,7 +419,7 @@ asmbmacho(void)
 		machoshbits(ms, sect, "__DATA");
 
 	if(linkmode != LinkExternal) {
-		switch(thechar) {
+		switch(thearch.thechar) {
 		default:
 			diag("unknown macho architecture");
 			errorexit();
@@ -615,7 +618,7 @@ machosymtab(void)
 			adduint8(ctxt, symtab, 0x01); // type N_EXT, external symbol
 			adduint8(ctxt, symtab, 0); // no section
 			adduint16(ctxt, symtab, 0); // desc
-			adduintxx(ctxt, symtab, 0, PtrSize); // no value
+			adduintxx(ctxt, symtab, 0, thearch.ptrsize); // no value
 		} else {
 			if(s->cgoexport)
 				adduint8(ctxt, symtab, 0x0f);
@@ -630,7 +633,7 @@ machosymtab(void)
 			} else
 				adduint8(ctxt, symtab, o->sect->extnum);
 			adduint16(ctxt, symtab, 0); // desc
-			adduintxx(ctxt, symtab, symaddr(s), PtrSize);
+			adduintxx(ctxt, symtab, symaddr(s), thearch.ptrsize);
 		}
 	}
 }
@@ -756,7 +759,7 @@ machorelocsect(Section *sect, LSym *first)
 		for(r = sym->r; r < sym->r+sym->nr; r++) {
 			if(r->done)
 				continue;
-			if(machoreloc1(r, sym->value+r->off - sect->vaddr) < 0)
+			if(thearch.machoreloc1(r, sym->value+r->off - sect->vaddr) < 0)
 				diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
 		}
 	}

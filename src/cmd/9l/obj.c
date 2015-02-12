@@ -36,8 +36,12 @@
 #include	"../ld/dwarf.h"
 #include	<ar.h>
 
-char *thestring = "ppc64";
-LinkArch *thelinkarch;
+void
+main(int argc, char **argv)
+{
+	linkarchinit();
+	ldmain(argc, argv);
+}
 
 void
 linkarchinit(void)
@@ -47,6 +51,45 @@ linkarchinit(void)
 		thelinkarch = &linkppc64le;
 	else
 		thelinkarch = &linkppc64;
+
+	thearch.thechar = thechar;
+	thearch.ptrsize = thelinkarch->ptrsize;
+	thearch.intsize = thelinkarch->ptrsize;
+	thearch.regsize = thelinkarch->regsize;
+	thearch.funcalign = FuncAlign;
+	thearch.maxalign = MaxAlign;
+	thearch.minlc = MINLC;
+	thearch.dwarfregsp = DWARFREGSP;
+
+	thearch.adddynlib = adddynlib;
+	thearch.adddynrel = adddynrel;
+	thearch.adddynsym = adddynsym;
+	thearch.archinit = archinit;
+	thearch.archreloc = archreloc;
+	thearch.archrelocvariant = archrelocvariant;
+	thearch.asmb = asmb;
+	thearch.elfreloc1 = elfreloc1;
+	thearch.elfsetupplt = elfsetupplt;
+	thearch.gentext = gentext;
+	thearch.listinit = listinit;
+	thearch.machoreloc1 = machoreloc1;
+	if(thelinkarch == &linkppc64le) {
+		thearch.lput = lputl;
+		thearch.wput = wputl;
+		thearch.vput = vputl;
+	} else {
+		thearch.lput = lputb;
+		thearch.wput = wputb;
+		thearch.vput = vputb;
+	}
+
+	// TODO(austin): ABI v1 uses /usr/lib/ld.so.1
+	thearch.linuxdynld = "/lib64/ld64.so.1";
+	thearch.freebsddynld = "XXX";
+	thearch.openbsddynld = "XXX";
+	thearch.netbsddynld = "XXX";
+	thearch.dragonflydynld = "XXX";
+	thearch.solarisdynld = "XXX";
 }
 
 void

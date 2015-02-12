@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include	"l.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
 #include	"lib.h"
 #include	"../../runtime/funcdata.h"
 
@@ -134,23 +137,23 @@ pclntab(void)
 
 	// See golang.org/s/go12symtab for the format. Briefly:
 	//	8-byte header
-	//	nfunc [PtrSize bytes]
-	//	function table, alternating PC and offset to func struct [each entry PtrSize bytes]
-	//	end PC [PtrSize bytes]
+	//	nfunc [thearch.ptrsize bytes]
+	//	function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
+	//	end PC [thearch.ptrsize bytes]
 	//	offset to file table [4 bytes]
 	nfunc = 0;
 	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
 		if(!container(ctxt->cursym))
 			nfunc++;
 	}
-	symgrow(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize+4);
+	symgrow(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize+thearch.ptrsize+4);
 	setuint32(ctxt, ftab, 0, 0xfffffffb);
-	setuint8(ctxt, ftab, 6, MINLC);
-	setuint8(ctxt, ftab, 7, PtrSize);
-	setuintxx(ctxt, ftab, 8, nfunc, PtrSize);
+	setuint8(ctxt, ftab, 6, thearch.minlc);
+	setuint8(ctxt, ftab, 7, thearch.ptrsize);
+	setuintxx(ctxt, ftab, 8, nfunc, thearch.ptrsize);
 
 	nfunc = 0;
-	last = S;
+	last = nil;
 	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
 		last = ctxt->cursym;
 		if(container(ctxt->cursym))
@@ -160,15 +163,15 @@ pclntab(void)
 			pcln = &zpcln;
 	
 		funcstart = ftab->np;
-		funcstart += -ftab->np & (PtrSize-1);
+		funcstart += -ftab->np & (thearch.ptrsize-1);
 
-		setaddr(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize, ctxt->cursym);
-		setuintxx(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize, funcstart, PtrSize);
+		setaddr(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize, ctxt->cursym);
+		setuintxx(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize+thearch.ptrsize, funcstart, thearch.ptrsize);
 
 		// fixed size of struct, checked below
 		off = funcstart;
-		end = funcstart + PtrSize + 3*4 + 5*4 + pcln->npcdata*4 + pcln->nfuncdata*PtrSize;
-		if(pcln->nfuncdata > 0 && (end&(PtrSize-1)))
+		end = funcstart + thearch.ptrsize + 3*4 + 5*4 + pcln->npcdata*4 + pcln->nfuncdata*thearch.ptrsize;
+		if(pcln->nfuncdata > 0 && (end&(thearch.ptrsize-1)))
 			end += 4;
 		symgrow(ctxt, ftab, end);
 
@@ -188,7 +191,7 @@ pclntab(void)
 		// when a called function doesn't have argument information.
 		// We need to make sure everything has argument information
 		// and then remove this.
-		frameptrsize = PtrSize;
+		frameptrsize = thearch.ptrsize;
 		if(ctxt->cursym->leaf)
 			frameptrsize = 0;
 		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + frameptrsize);
@@ -218,38 +221,38 @@ pclntab(void)
 		// funcdata, must be pointer-aligned and we're only int32-aligned.
 		// Missing funcdata will be 0 (nil pointer).
 		if(pcln->nfuncdata > 0) {
-			if(off&(PtrSize-1))
+			if(off&(thearch.ptrsize-1))
 				off += 4;
 			for(i=0; i<pcln->nfuncdata; i++) {
 				if(pcln->funcdata[i] == nil)
-					setuintxx(ctxt, ftab, off+PtrSize*i, pcln->funcdataoff[i], PtrSize);
+					setuintxx(ctxt, ftab, off+thearch.ptrsize*i, pcln->funcdataoff[i], thearch.ptrsize);
 				else {
 					// TODO: Dedup.
 					funcdata_bytes += pcln->funcdata[i]->size;
-					setaddrplus(ctxt, ftab, off+PtrSize*i, pcln->funcdata[i], pcln->funcdataoff[i]);
+					setaddrplus(ctxt, ftab, off+thearch.ptrsize*i, pcln->funcdata[i], pcln->funcdataoff[i]);
 				}
 			}
-			off += pcln->nfuncdata*PtrSize;
+			off += pcln->nfuncdata*thearch.ptrsize;
 		}
 
 		if(off != end) {
-			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln->npcdata, pcln->nfuncdata, PtrSize);
+			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln->npcdata, pcln->nfuncdata, thearch.ptrsize);
 			errorexit();
 		}
 	
 		nfunc++;
 	}
 	// Final entry of table is just end pc.
-	setaddrplus(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize, last, last->size);
+	setaddrplus(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize, last, last->size);
 	
 	// Start file table.
 	start = ftab->np;
-	start += -ftab->np & (PtrSize-1);
-	setuint32(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize, start);
+	start += -ftab->np & (thearch.ptrsize-1);
+	setuint32(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize+thearch.ptrsize, start);
 
 	symgrow(ctxt, ftab, start+(ctxt->nhistfile+1)*4);
 	setuint32(ctxt, ftab, start, ctxt->nhistfile);
-	for(s = ctxt->filesyms; s != S; s = s->next)
+	for(s = ctxt->filesyms; s != nil; s = s->next)
 		setuint32(ctxt, ftab, start + s->value*4, ftabaddstring(ftab, s->name));
 
 	ftab->size = ftab->np;

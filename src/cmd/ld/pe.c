@@ -5,10 +5,13 @@
 // PE (Portable Executable) file writing
 // http://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
 
-#include "l.h"
-#include "../ld/lib.h"
-#include "../ld/pe.h"
-#include "../ld/dwarf.h"
+#include <u.h>
+#include <libc.h>
+#include <bio.h>
+#include <link.h>
+#include "lib.h"
+#include "pe.h"
+#include "dwarf.h"
 
 // DOS stub that prints out
 // "This program cannot be run in DOS mode."
@@ -139,7 +142,7 @@ peinit(void)
 {
 	int32 l;
 
-	switch(thechar) {
+	switch(thearch.thechar) {
 	// 64-bit architectures
 	case '6':
 		pe64 = 1;
@@ -204,7 +207,7 @@ initdynimport(void)
 
 	dr = nil;
 	m = nil;
-	for(s = ctxt->allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != nil; s = s->allsym) {
 		if(!s->reachable || s->type != SDYNIMPORT)
 			continue;
 		for(d = dr; d != nil; d = d->next) {
@@ -234,9 +237,9 @@ initdynimport(void)
 			m->s->sub = dynamic->sub;
 			dynamic->sub = m->s;
 			m->s->value = dynamic->size;
-			dynamic->size += PtrSize;
+			dynamic->size += thearch.ptrsize;
 		}
-		dynamic->size += PtrSize;
+		dynamic->size += thearch.ptrsize;
 	}
 		
 	return dr;
@@ -344,7 +347,7 @@ initdynexport(void)
 	LSym *s;
 	
 	nexport = 0;
-	for(s = ctxt->allsym; s != S; s = s->allsym) {
+	for(s = ctxt->allsym; s != nil; s = s->allsym) {
 		if(!s->reachable || !(s->cgoexport & CgoExportDynamic))
 			continue;
 		if(nexport+1 > sizeof(dexport)/sizeof(dexport[0])) {
@@ -611,7 +614,7 @@ asmbpe(void)
 {
 	IMAGE_SECTION_HEADER *t, *d;
 
-	switch(thechar) {
+	switch(thearch.thechar) {
 	default:
 		diag("unknown PE architecture");
 		errorexit();

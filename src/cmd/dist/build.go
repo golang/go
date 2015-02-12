@@ -529,16 +529,16 @@ var deptab = []struct {
 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
 	}},
 	{"cmd/5l", []string{
-		"../ld/*",
+		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
 	}},
 	{"cmd/6l", []string{
-		"../ld/*",
+		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
 	}},
 	{"cmd/8l", []string{
-		"../ld/*",
+		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
 	}},
 	{"cmd/9l", []string{
-		"../ld/*",
+		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
 	}},
 	{"cmd/go", []string{
 		"zdefaultcc.go",
@@ -624,7 +624,7 @@ func install(dir string) {
 		ldargs = splitfields(defaultldflags)
 	}
 
-	islib := strings.HasPrefix(dir, "lib") || dir == "cmd/gc"
+	islib := strings.HasPrefix(dir, "lib") || dir == "cmd/gc" || dir == "cmd/ld"
 	ispkg := !islib && !strings.HasPrefix(dir, "cmd/")
 	isgo := ispkg || dir == "cmd/go" || dir == "cmd/cgo"
 
@@ -1101,6 +1101,7 @@ var buildorder = []string{
 	"liblink",
 
 	"cmd/gc",  // must be before g
+	"cmd/ld",  // must be before l
 	"cmd/%sl", // must be before a, g
 	"cmd/%sa",
 	"cmd/%sg",
