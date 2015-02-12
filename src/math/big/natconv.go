@@ -8,6 +8,7 @@ package big
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"sync"
@@ -50,7 +51,7 @@ func pow(x Word, n int) (p Word) {
 // scan scans the number corresponding to the longest possible prefix
 // from r representing an unsigned number in a given conversion base.
 // It returns the corresponding natural number res, the actual base b,
-// a digit count, and an error err, if any.
+// a digit count, and a read or syntax error err, if any.
 //
 //	number   = [ prefix ] mantissa .
 //	prefix   = "0" [ "x" | "X" | "b" | "B" ] .
@@ -58,12 +59,15 @@ func pow(x Word, n int) (p Word) {
 //	digits   = digit { digit } .
 //	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
-// The base argument must be 0 or a value between 0 through MaxBase.
+// Unless fracOk is set, the base argument must be 0 or a value between
+// 2 through MaxBase. If fracOk is set, the base argument must be one of
+// 0, 2, 10, or 16. Providing an invalid base argument leads to a run-
+// time panic.
 //
 // For base 0, the number prefix determines the actual base: A prefix of
 // ``0x'' or ``0X'' selects base 16; if fracOk is not set, the ``0'' prefix
 // selects base 8, and a ``0b'' or ``0B'' prefix selects base 2. Otherwise
-// the selected base is 10 and no prefix is permitted.
+// the selected base is 10 and no prefix is accepted.
 //
 // If fracOk is set, an octal prefix is ignored (a leading ``0'' simply
 // stands for a zero digit), and a period followed by a fractional part
@@ -73,13 +77,15 @@ func pow(x Word, n int) (p Word) {
 // A result digit count > 0 corresponds to the number of (non-prefix) digits
 // parsed. A digit count <= 0 indicates the presence of a period (if fracOk
 // is set, only), and -count is the number of fractional digits found.
-// In this case, the value of the scanned number is res * 10**count.
+// In this case, the actual value of the scanned number is res * b**count.
 //
 func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count int, err error) {
 	// reject illegal bases
-	if base != 0 && base < 2 || base > MaxBase {
-		err = errors.New("illegal number base")
-		return
+	baseOk := base == 0 ||
+		!fracOk && 2 <= base && base <= MaxBase ||
+		fracOk && (base == 2 || base == 10 || base == 16)
+	if !baseOk {
+		panic(fmt.Sprintf("illegal number base %d", base))
 	}
 
 	// one char look-ahead
