@@ -229,10 +229,11 @@ func TestZip64(t *testing.T) {
 		t.Skip("slow test; skipping")
 	}
 	const size = 1 << 32 // before the "END\n" part
-	testZip64(t, size)
+	buf := testZip64(t, size)
+	testZip64DirectoryRecordLength(buf, t)
 }
 
-func testZip64(t testing.TB, size int64) {
+func testZip64(t testing.TB, size int64) *rleBuffer {
 	const chunkSize = 1024
 	chunks := int(size / chunkSize)
 	// write 2^32 bytes plus "END\n" to a zip file
@@ -301,6 +302,37 @@ func testZip64(t testing.TB, size int64) {
 
 	if got, want := f0.UncompressedSize64, uint64(size)+uint64(len(end)); got != want {
 		t.Errorf("UncompressedSize64 %d, want %d", got, want)
+	}
+
+	return buf
+}
+
+// Issue 9857
+func testZip64DirectoryRecordLength(buf *rleBuffer, t *testing.T) {
+	d := make([]byte, 1024)
+	if _, err := buf.ReadAt(d, buf.Size()-int64(len(d))); err != nil {
+		t.Fatal("read:", err)
+	}
+
+	sigOff := findSignatureInBlock(d)
+	dirOff, err := findDirectory64End(buf, buf.Size()-int64(len(d))+int64(sigOff))
+	if err != nil {
+		t.Fatal("findDirectory64End:", err)
+	}
+
+	d = make([]byte, directory64EndLen)
+	if _, err := buf.ReadAt(d, dirOff); err != nil {
+		t.Fatal("read:", err)
+	}
+
+	b := readBuf(d)
+	if sig := b.uint32(); sig != directory64EndSignature {
+		t.Fatalf("Expected directory64EndSignature (%d), got %d", directory64EndSignature, sig)
+	}
+
+	size := b.uint64()
+	if size != directory64EndLen-12 {
+		t.Fatalf("Expected length of %d, got %d", directory64EndLen-12, size)
 	}
 }
 
