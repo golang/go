@@ -78,9 +78,8 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 
 	// exponent
 	var exp int64
-	var ebase int
-	exp, ebase, err = scanExponent(r)
-	if ebase == 2 || err != nil {
+	exp, _, err = scanExponent(r, false)
+	if err != nil {
 		return nil, false
 	}
 
@@ -115,7 +114,17 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	return z, true
 }
 
-func scanExponent(r io.ByteScanner) (exp int64, base int, err error) {
+// scanExponent scans the longest possible prefix of r representing a decimal
+// ('e', 'E') or binary ('p') exponent, if any. It returns the exponent, the
+// exponent base (10 or 2), or a read or syntax error, if any.
+//
+//	exponent = ( "E" | "e" | "p" ) [ sign ] digits .
+//	sign     = "+" | "-" .
+//	digits   = digit { digit } .
+//	digit    = "0" ... "9" .
+//
+// A binary exponent is only permitted if binExpOk is set.
+func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err error) {
 	base = 10
 
 	var ch byte
@@ -130,7 +139,11 @@ func scanExponent(r io.ByteScanner) (exp int64, base int, err error) {
 	case 'e', 'E':
 		// ok
 	case 'p':
-		base = 2
+		if binExpOk {
+			base = 2
+			break // ok
+		}
+		fallthrough // binary exponent not permitted
 	default:
 		r.UnreadByte()
 		return // no exponent; same as e0
