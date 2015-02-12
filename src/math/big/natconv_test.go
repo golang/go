@@ -98,10 +98,6 @@ var natScanTests = []struct {
 	ok    bool   // expected success
 	next  rune   // next character (or 0, if at EOF)
 }{
-	// error: illegal base
-	{base: -1},
-	{base: 37},
-
 	// error: no mantissa
 	{},
 	{s: "?"},
@@ -114,7 +110,7 @@ var natScanTests = []struct {
 	// error: incorrect use of decimal point
 	{s: ".0"},
 	{s: ".0", base: 10},
-	{s: ".", base: 1},
+	{s: ".", base: 0},
 	{s: "0x.0"},
 
 	// no errors
