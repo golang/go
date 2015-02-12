@@ -213,6 +213,14 @@ Dconv(Fmt *fp)
 	case TYPE_SCONST:
 		sprint(str, "$\"%$\"", a->u.sval);
 		break;
+	
+	case TYPE_REGREG:
+		sprint(str, "(%R, %R)", a->reg, (int)a->offset);
+		break;
+	
+	case TYPE_REGREG2:
+		sprint(str, "%R, %R", a->reg, (int)a->offset);
+		break;
 	}
 	return fmtstrcpy(fp, str);
 }
