@@ -122,15 +122,15 @@ func (w *Writer) Close() error {
 
 		// zip64 end of central directory record
 		b.uint32(directory64EndSignature)
-		b.uint64(directory64EndLen)
-		b.uint16(zipVersion45) // version made by
-		b.uint16(zipVersion45) // version needed to extract
-		b.uint32(0)            // number of this disk
-		b.uint32(0)            // number of the disk with the start of the central directory
-		b.uint64(records)      // total number of entries in the central directory on this disk
-		b.uint64(records)      // total number of entries in the central directory
-		b.uint64(size)         // size of the central directory
-		b.uint64(offset)       // offset of start of central directory with respect to the starting disk number
+		b.uint64(directory64EndLen - 12) // length minus signature (uint32) and length fields (uint64)
+		b.uint16(zipVersion45)           // version made by
+		b.uint16(zipVersion45)           // version needed to extract
+		b.uint32(0)                      // number of this disk
+		b.uint32(0)                      // number of the disk with the start of the central directory
+		b.uint64(records)                // total number of entries in the central directory on this disk
+		b.uint64(records)                // total number of entries in the central directory
+		b.uint64(size)                   // size of the central directory
+		b.uint64(offset)                 // offset of start of central directory with respect to the starting disk number
 
 		// zip64 end of central directory locator
 		b.uint32(directory64LocSignature)
