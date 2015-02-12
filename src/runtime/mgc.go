@@ -452,7 +452,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 
 	drainallwbufs := b == 0
 	drainworkbuf(wbuf, drainallwbufs)
-	checknocurrentwbuf()
 	return nil
 }
 
@@ -471,13 +470,12 @@ func drainworkbuf(wbuf *workbuf, drainallwbufs bool) {
 		if wbuf.nobj == 0 {
 			putempty(wbuf, 496)
 			if !drainallwbufs {
-				checknocurrentwbuf()
-				return
+				break
 			}
 			// Refill workbuf from global queue.
 			wbuf = getfull(504)
 			if wbuf == nil { // nil means out of work barrier reached
-				return
+				break
 			}
 			wbuf.checknonempty()
 		}
@@ -501,6 +499,7 @@ func drainworkbuf(wbuf *workbuf, drainallwbufs bool) {
 		// a performance hit as we keep fetching fresh wbufs.
 		wbuf = scanobject(b, 0, nil, wbuf)
 	}
+	checknocurrentwbuf()
 }
 
 // Scan count objects starting with those in wbuf.
