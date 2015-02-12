@@ -817,7 +817,8 @@ func gchelpwork() {
 			wbuf = trygetfull(1228)
 		}
 		if wbuf != nil {
-			wbuf = gcDrainN(wbuf, len(wbuf.obj)) // drain upto one buffer's worth of objects
+			const n = len(workbuf{}.obj)
+			wbuf = gcDrainN(wbuf, n) // drain upto one buffer's worth of objects
 			if wbuf != nil {
 				if wbuf.nobj != 0 {
 					putfull(wbuf, 1175)
