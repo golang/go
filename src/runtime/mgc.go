@@ -446,10 +446,10 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
 	return wbuf
 }
 
-// Scan objects in work buffers (starting with wbuf), blackening grey
+// gcDrain scans objects in work buffers (starting with wbuf), blackening grey
 // objects until all work buffers have been drained.
 //go:nowritebarrier
-func drainworkbuf(wbuf *workbuf) {
+func gcDrain(wbuf *workbuf) {
 	if wbuf == nil {
 		wbuf = getpartialorempty(472)
 	}
@@ -491,11 +491,12 @@ func drainworkbuf(wbuf *workbuf) {
 	checknocurrentwbuf()
 }
 
-// Scan count objects starting with those in wbuf.
+// gcDrainN scans n objects starting with those in wbuf, blackening
+// grey objects.
 //go:nowritebarrier
-func drainobjects(wbuf *workbuf, count uintptr) *workbuf {
+func gcDrainN(wbuf *workbuf, n uintptr) *workbuf {
 	checknocurrentwbuf()
-	for i := uintptr(0); i < count; i++ {
+	for i := uintptr(0); i < n; i++ {
 		if wbuf.nobj == 0 {
 			putempty(wbuf, 544)
 			wbuf = trygetfull(545)
@@ -816,7 +817,7 @@ func gchelpwork() {
 			wbuf = trygetfull(1228)
 		}
 		if wbuf != nil {
-			wbuf = drainobjects(wbuf, uintptr(len(wbuf.obj))) // drain upto one buffer's worth of objects
+			wbuf = gcDrainN(wbuf, uintptr(len(wbuf.obj))) // drain upto one buffer's worth of objects
 			if wbuf != nil {
 				if wbuf.nobj != 0 {
 					putfull(wbuf, 1175)
@@ -1138,7 +1139,7 @@ func gchelper() {
 	// parallel mark for over GC roots
 	parfordo(work.markfor)
 	if gcphase != _GCscan {
-		drainworkbuf(nil) // blocks in getfull
+		gcDrain(nil) // blocks in getfull
 	}
 
 	if trace.enabled {
@@ -1400,9 +1401,9 @@ func gcscan_m() {
 // This is the concurrent mark phase.
 //go:nowritebarrier
 func gcmark_m() {
-	drainworkbuf(nil)
+	gcDrain(nil)
 	// TODO add another harvestwbuf and reset work.nwait=0, work.ndone=0, and work.nproc=1
-	// and repeat the above drainworkbuf.
+	// and repeat the above gcDrain.
 }
 
 // For now this must be bracketed with a stoptheworld and a starttheworld to ensure
@@ -1487,7 +1488,7 @@ func gc(start_time int64, eagersweep bool) {
 	harvestwbufs() // move local workbufs onto global queues where the GC can find them
 	gchelperstart()
 	parfordo(work.markfor)
-	drainworkbuf(nil)
+	gcDrain(nil)
 
 	if work.full != 0 {
 		throw("work.full != 0")
