@@ -361,13 +361,15 @@ func goLookupHost(name string) (addrs []string, err error) {
 // Normally we let cgo use the C library resolver instead of
 // depending on our lookup code, so that Go and C get the same
 // answers.
-func goLookupIP(name string) (addrs []IP, err error) {
+func goLookupIP(name string) (addrs []IPAddr, err error) {
 	// Use entries from /etc/hosts if possible.
 	haddrs := lookupStaticHost(name)
 	if len(haddrs) > 0 {
 		for _, haddr := range haddrs {
+			haddr, zone := splitHostZone(haddr)
 			if ip := ParseIP(haddr); ip != nil {
-				addrs = append(addrs, ip)
+				addr := IPAddr{IP: ip, Zone: zone}
+				addrs = append(addrs, addr)
 			}
 		}
 		if len(addrs) > 0 {
@@ -396,9 +398,15 @@ func goLookupIP(name string) (addrs []IP, err error) {
 		}
 		switch racer.qtype {
 		case dnsTypeA:
-			addrs = append(addrs, convertRR_A(racer.rrs)...)
+			for _, ip := range convertRR_A(racer.rrs) {
+				addr := IPAddr{IP: ip}
+				addrs = append(addrs, addr)
+			}
 		case dnsTypeAAAA:
-			addrs = append(addrs, convertRR_AAAA(racer.rrs)...)
+			for _, ip := range convertRR_AAAA(racer.rrs) {
+				addr := IPAddr{IP: ip}
+				addrs = append(addrs, addr)
+			}
 		}
 	}
 	if len(addrs) == 0 && lastErr != nil {

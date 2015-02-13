@@ -81,7 +81,7 @@ func cgoLookupPort(net, service string) (port int, err error, completed bool) {
 	return 0, &AddrError{"unknown port", net + "/" + service}, true
 }
 
-func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, completed bool) {
+func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error, completed bool) {
 	acquireThread()
 	defer releaseThread()
 
@@ -135,16 +135,18 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, complet
 			continue
 		case C.AF_INET:
 			sa := (*syscall.RawSockaddrInet4)(unsafe.Pointer(r.ai_addr))
-			addrs = append(addrs, copyIP(sa.Addr[:]))
+			addr := IPAddr{IP: copyIP(sa.Addr[:])}
+			addrs = append(addrs, addr)
 		case C.AF_INET6:
 			sa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(r.ai_addr))
-			addrs = append(addrs, copyIP(sa.Addr[:]))
+			addr := IPAddr{IP: copyIP(sa.Addr[:]), Zone: zoneToString(int(sa.Scope_id))}
+			addrs = append(addrs, addr)
 		}
 	}
 	return addrs, cname, nil, true
 }
 
-func cgoLookupIP(name string) (addrs []IP, err error, completed bool) {
+func cgoLookupIP(name string) (addrs []IPAddr, err error, completed bool) {
 	addrs, _, err, completed = cgoLookupIPCNAME(name)
 	return
 }

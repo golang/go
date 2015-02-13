@@ -64,7 +64,7 @@ var errNoSuitableAddress = errors.New("no suitable address found")
 // implement the netaddr interface. Known filters are nil, ipv4only
 // and ipv6only. It returns any address when filter is nil. The result
 // contains at least one address when error is nil.
-func firstFavoriteAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr) (netaddr, error) {
+func firstFavoriteAddr(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) netaddr) (netaddr, error) {
 	if filter != nil {
 		return firstSupportedAddr(filter, ips, inetaddr)
 	}
@@ -79,14 +79,14 @@ func firstFavoriteAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr) 
 		// possible. This is especially relevant if localhost
 		// resolves to [ipv6-localhost, ipv4-localhost]. Too
 		// much code assumes localhost == ipv4-localhost.
-		if ip4 := ipv4only(ip); ip4 != nil && !ipv4 {
-			list = append(list, inetaddr(ip4))
+		if ipv4only(ip) && !ipv4 {
+			list = append(list, inetaddr(ip))
 			ipv4 = true
 			if ipv6 {
 				swap = true
 			}
-		} else if ip6 := ipv6only(ip); ip6 != nil && !ipv6 {
-			list = append(list, inetaddr(ip6))
+		} else if ipv6only(ip) && !ipv6 {
+			list = append(list, inetaddr(ip))
 			ipv6 = true
 		}
 		if ipv4 && ipv6 {
@@ -106,33 +106,25 @@ func firstFavoriteAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr) 
 	}
 }
 
-func firstSupportedAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr) (netaddr, error) {
+func firstSupportedAddr(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) netaddr) (netaddr, error) {
 	for _, ip := range ips {
-		if ip := filter(ip); ip != nil {
+		if filter(ip) {
 			return inetaddr(ip), nil
 		}
 	}
 	return nil, errNoSuitableAddress
 }
 
-// ipv4only returns IPv4 addresses that we can use with the kernel's
-// IPv4 addressing modes. If ip is an IPv4 address, ipv4only returns ip.
-// Otherwise it returns nil.
-func ipv4only(ip IP) IP {
-	if supportsIPv4 && ip.To4() != nil {
-		return ip
-	}
-	return nil
+// ipv4only reports whether the kernel supports IPv4 addressing mode
+// and addr is an IPv4 address.
+func ipv4only(addr IPAddr) bool {
+	return supportsIPv4 && addr.IP.To4() != nil
 }
 
-// ipv6only returns IPv6 addresses that we can use with the kernel's
-// IPv6 addressing modes.  It returns IPv4-mapped IPv6 addresses as
-// nils and returns other IPv6 address types as IPv6 addresses.
-func ipv6only(ip IP) IP {
-	if supportsIPv6 && len(ip) == IPv6len && ip.To4() == nil {
-		return ip
-	}
-	return nil
+// ipv6only reports whether the kernel supports IPv6 addressing mode
+// and addr is an IPv6 address except IPv4-mapped IPv6 address.
+func ipv6only(addr IPAddr) bool {
+	return supportsIPv6 && len(addr.IP) == IPv6len && addr.IP.To4() == nil
 }
 
 // SplitHostPort splits a network address of the form "host:port",
@@ -236,9 +228,9 @@ func JoinHostPort(host, port string) string {
 // address when error is nil.
 func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) {
 	var (
-		err              error
-		host, port, zone string
-		portnum          int
+		err        error
+		host, port string
+		portnum    int
 	)
 	switch net {
 	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
@@ -257,40 +249,40 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) 
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	inetaddr := func(ip IP) netaddr {
+	inetaddr := func(ip IPAddr) netaddr {
 		switch net {
 		case "tcp", "tcp4", "tcp6":
-			return &TCPAddr{IP: ip, Port: portnum, Zone: zone}
+			return &TCPAddr{IP: ip.IP, Port: portnum, Zone: ip.Zone}
 		case "udp", "udp4", "udp6":
-			return &UDPAddr{IP: ip, Port: portnum, Zone: zone}
+			return &UDPAddr{IP: ip.IP, Port: portnum, Zone: ip.Zone}
 		case "ip", "ip4", "ip6":
-			return &IPAddr{IP: ip, Zone: zone}
+			return &IPAddr{IP: ip.IP, Zone: ip.Zone}
 		default:
 			panic("unexpected network: " + net)
 		}
 	}
 	if host == "" {
-		return inetaddr(nil), nil
+		return inetaddr(IPAddr{}), nil
 	}
 	// Try as a literal IP address.
 	var ip IP
 	if ip = parseIPv4(host); ip != nil {
-		return inetaddr(ip), nil
+		return inetaddr(IPAddr{IP: ip}), nil
 	}
+	var zone string
 	if ip, zone = parseIPv6(host, true); ip != nil {
-		return inetaddr(ip), nil
+		return inetaddr(IPAddr{IP: ip, Zone: zone}), nil
 	}
 	// Try as a DNS name.
-	host, zone = splitHostZone(host)
 	ips, err := lookupIPDeadline(host, deadline)
 	if err != nil {
 		return nil, err
 	}
-	var filter func(IP) IP
+	var filter func(IPAddr) bool
 	if net != "" && net[len(net)-1] == '4' {
 		filter = ipv4only
 	}
-	if net != "" && net[len(net)-1] == '6' || zone != "" {
+	if net != "" && net[len(net)-1] == '6' {
 		filter = ipv6only
 	}
 	return firstFavoriteAddr(filter, ips, inetaddr)
