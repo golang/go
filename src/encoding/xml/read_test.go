@@ -5,6 +5,8 @@
 package xml
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"reflect"
 	"strings"
@@ -484,6 +486,34 @@ func TestUnmarshalNS(t *testing.T) {
 	}
 }
 
+func TestRoundTrip(t *testing.T) {
+	// From issue 7535
+	const s = `<ex:element xmlns:ex="http://example.com/schema"></ex:element>`
+	in := bytes.NewBufferString(s)
+	for i := 0; i < 10; i++ {
+		out := &bytes.Buffer{}
+		d := NewDecoder(in)
+		e := NewEncoder(out)
+
+		for {
+			t, err := d.Token()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				fmt.Println("failed:", err)
+				return
+			}
+			e.EncodeToken(t)
+		}
+		e.Flush()
+		in = out
+	}
+	if got := in.String(); got != s {
+		t.Errorf("have: %q\nwant: %q\n", got, s)
+	}
+}
+
 func TestMarshalNS(t *testing.T) {
 	dst := Tables{"hello", "world"}
 	data, err := Marshal(&dst)
@@ -607,7 +637,7 @@ func TestMarshalNSAttr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
-	want := `<TableAttrs><TAttr xmlns:html4="http://www.w3.org/TR/html4/" html4:table="hello" xmlns:furniture="http://www.w3schools.com/furniture" furniture:table="world" xml:lang="en_US" xmlns:_xml="http://golang.org/xml/" _xml:other="other1" xmlns:_xmlfoo="http://golang.org/xmlfoo/" _xmlfoo:other="other2" xmlns:json="http://golang.org/json/" json:other="other3" xmlns:json_1="http://golang.org/2/json/" json_1:other="other4"></TAttr></TableAttrs>`
+	want := `<TableAttrs><TAttr xmlns:json_1="http://golang.org/2/json/" xmlns:json="http://golang.org/json/" xmlns:_xmlfoo="http://golang.org/xmlfoo/" xmlns:_xml="http://golang.org/xml/" xmlns:furniture="http://www.w3schools.com/furniture" xmlns:html4="http://www.w3.org/TR/html4/" html4:table="hello" furniture:table="world" xml:lang="en_US" _xml:other="other1" _xmlfoo:other="other2" json:other="other3" json_1:other="other4"></TAttr></TableAttrs>`
 	str := string(data)
 	if str != want {
 		t.Errorf("Marshal:\nhave: %#q\nwant: %#q\n", str, want)
@@ -694,7 +724,7 @@ type Pod struct {
 	Pea interface{} `xml:"Pea"`
 }
 
-// https://code.google.com/p/go/issues/detail?id=6836
+// https://golang.org/issue/6836
 func TestUnmarshalIntoInterface(t *testing.T) {
 	pod := new(Pod)
 	pod.Pea = new(Pea)

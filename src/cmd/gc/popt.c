@@ -35,6 +35,7 @@
 #include	<u.h>
 #include	<libc.h>
 #include	"go.h"
+#include	"popt.h"
 
 // p is a call instruction. Does the call fail to return?
 int
@@ -202,7 +203,7 @@ fixjmp(Prog *firstp)
 // Control flow analysis. The Flow structures hold predecessor and successor
 // information as well as basic loop analysis.
 //
-//	graph = flowstart(firstp, sizeof(Flow));
+//	graph = flowstart(firstp, 0);
 //	... use flow graph ...
 //	flowend(graph); // free graph
 //
@@ -214,25 +215,26 @@ fixjmp(Prog *firstp)
 // f->p1 and this list:
 //
 //	for(f2 = f->p2; f2 != nil; f2 = f2->p2link)
-//	
-// Often the Flow struct is embedded as the first field inside a larger struct S.
-// In that case casts are needed to convert Flow* to S* in many places but the
-// idea is the same. Pass sizeof(S) instead of sizeof(Flow) to flowstart.
+//
+// The size argument to flowstart specifies an amount of zeroed memory
+// to allocate in every f->data field, for use by the client.
+// If size == 0, f->data will be nil.
 
 Graph*
 flowstart(Prog *firstp, int size)
 {
-	int nf;
+	int id, nf;
 	Flow *f, *f1, *start, *last;
 	Graph *graph;
 	Prog *p;
 	ProgInfo info;
+	char *data;
 
 	// Count and mark instructions to annotate.
 	nf = 0;
 	for(p = firstp; p != P; p = p->link) {
 		p->opt = nil; // should be already, but just in case
-		arch.proginfo(&info, p);
+		thearch.proginfo(&info, p);
 		if(info.flags & Skip)
 			continue;
 		p->opt = (void*)1;
@@ -248,12 +250,16 @@ flowstart(Prog *firstp, int size)
 	}
 
 	// Allocate annotations and assign to instructions.
-	graph = calloc(sizeof *graph + size*nf, 1);
+	graph = calloc(sizeof *graph + sizeof(Flow)*nf + size*nf, 1);
 	if(graph == nil)
 		fatal("out of memory");
 	start = (Flow*)(graph+1);
 	last = nil;
 	f = start;
+	data = (char*)(f+nf);
+	if(size == 0)
+		data = nil;
+	id = 0;
 	for(p = firstp; p != P; p = p->link) {
 		if(p->opt == nil)
 			continue;
@@ -262,14 +268,17 @@ flowstart(Prog *firstp, int size)
 		if(last)
 			last->link = f;
 		last = f;
-		
-		f = (Flow*)((uchar*)f + size);
+		f->data = data;
+		f->id = id;
+		f++;
+		id++;
+		data += size;
 	}
 
 	// Fill in pred/succ information.
 	for(f = start; f != nil; f = f->link) {
 		p = f->prog;
-		arch.proginfo(&info, p);
+		thearch.proginfo(&info, p);
 		if(!(info.flags & Break)) {
 			f1 = f->link;
 			f->s1 = f1;
@@ -383,10 +392,6 @@ loophead(int32 *idom, Flow *r)
 	return 0;
 }
 
-enum {
-	LOOP = 3,
-};
-
 static void
 loopmark(Flow **rpo2r, int32 head, Flow *r)
 {
@@ -498,25 +503,18 @@ uniqs(Flow *r)
 // ACM TOPLAS 1999.
 
 typedef struct TempVar TempVar;
-typedef struct TempFlow TempFlow;
 
 struct TempVar
 {
 	Node *node;
-	TempFlow *def; // definition of temp var
-	TempFlow *use; // use list, chained through TempFlow.uselink
+	Flow *def; // definition of temp var
+	Flow *use; // use list, chained through Flow.data
 	TempVar *freelink; // next free temp in Type.opt list
 	TempVar *merge; // merge var with this one
 	vlong start; // smallest Prog.pc in live range
 	vlong end; // largest Prog.pc in live range
 	uchar addr; // address taken - no accurate end
 	uchar removed; // removed from program
-};
-
-struct TempFlow
-{
-	Flow	f;
-	TempFlow *uselink;
 };
 
 static int
@@ -531,6 +529,14 @@ startcmp(const void *va, const void *vb)
 		return -1;
 	if(a->start > b->start)
 		return +1;
+	// Order what's left by id or symbol name,
+	// just so that sort is forced into a specific ordering,
+	// so that the result of the sort does not depend on
+	// the sort implementation.
+	if(a->def != b->def)
+		return a->def->id - b->def->id;
+	if(a->node != b->node)
+		return strcmp(a->node->sym->name, b->node->sym->name);
 	return 0;
 }
 
@@ -541,15 +547,15 @@ canmerge(Node *n)
 	return n->class == PAUTO && strncmp(n->sym->name, "autotmp", 7) == 0;
 }
 
-static void mergewalk(TempVar*, TempFlow*, uint32);
-static void varkillwalk(TempVar*, TempFlow*, uint32);
+static void mergewalk(TempVar*, Flow*, uint32);
+static void varkillwalk(TempVar*, Flow*, uint32);
 
 void
 mergetemp(Prog *firstp)
 {
 	int i, j, nvar, ninuse, nfree, nkill;
 	TempVar *var, *v, *v1, **bystart, **inuse;
-	TempFlow *r;
+	Flow *f;
 	NodeList *l, **lp;
 	Node *n;
 	Prog *p, *p1;
@@ -558,9 +564,9 @@ mergetemp(Prog *firstp)
 	int32 gen;
 	Graph *g;
 
-	enum { Debug = 0 };
+	enum { debugmerge = 1 };
 
-	g = flowstart(firstp, sizeof(TempFlow));
+	g = flowstart(firstp, 0);
 	if(g == nil)
 		return;
 	
@@ -585,9 +591,9 @@ mergetemp(Prog *firstp)
 	// We assume that the earliest reference to a temporary is its definition.
 	// This is not true of variables in general but our temporaries are all
 	// single-use (that's why we have so many!).
-	for(r = (TempFlow*)g->start; r != nil; r = (TempFlow*)r->f.link) {
-		p = r->f.prog;
-		arch.proginfo(&info, p);
+	for(f = g->start; f != nil; f = f->link) {
+		p = f->prog;
+		thearch.proginfo(&info, p);
 
 		if(p->from.node != N && ((Node*)(p->from.node))->opt && p->to.node != N && ((Node*)(p->to.node))->opt)
 			fatal("double node %P", p);
@@ -598,32 +604,33 @@ mergetemp(Prog *firstp)
 			v = n->opt;
 		if(v != nil) {
 		   	if(v->def == nil)
-		   		v->def = r;
-			r->uselink = v->use;
-			v->use = r;
+		   		v->def = f;
+		   	f->data = v->use;
+			v->use = f;
 			if(n == p->from.node && (info.flags & LeftAddr))
 				v->addr = 1;
 		}
 	}
 	
-	if(Debug > 1)
-		arch.dumpit("before", g->start, 0);
+	if(debugmerge > 1 && debug['v'])
+		dumpit("before", g->start, 0);
 	
 	nkill = 0;
 
 	// Special case.
-	for(v = var; v < var+nvar; v++) {
+	for(i = 0; i < nvar; i++) {
+		v = &var[i];
 		if(v->addr)
 			continue;
 		// Used in only one instruction, which had better be a write.
-		if((r = v->use) != nil && r->uselink == nil) {
-			p = r->f.prog;
-			arch.proginfo(&info, p);
+		if((f = v->use) != nil && (Flow*)f->data == nil) {
+			p = f->prog;
+			thearch.proginfo(&info, p);
 			if(p->to.node == v->node && (info.flags & RightWrite) && !(info.flags & RightRead)) {
 				p->as = ANOP;
 				p->to = zprog.to;
 				v->removed = 1;
-				if(Debug)
+				if(debugmerge > 0 && debug['v'])
 					print("drop write-only %S\n", v->node->sym);
 			} else
 				fatal("temp used and not set: %P", p);
@@ -633,11 +640,11 @@ mergetemp(Prog *firstp)
 		
 		// Written in one instruction, read in the next, otherwise unused,
 		// no jumps to the next instruction. Happens mainly in 386 compiler.
-		if((r = v->use) != nil && r->f.link == &r->uselink->f && r->uselink->uselink == nil && uniqp(r->f.link) == &r->f) {
-			p = r->f.prog;
-			arch.proginfo(&info, p);
-			p1 = r->f.link->prog;
-			arch.proginfo(&info1, p1);
+		if((f = v->use) != nil && f->link == (Flow*)f->data && (Flow*)((Flow*)f->data)->data == nil && uniqp(f->link) == f) {
+			p = f->prog;
+			thearch.proginfo(&info, p);
+			p1 = f->link->prog;
+			thearch.proginfo(&info1, p1);
 			enum {
 				SizeAny = SizeB | SizeW | SizeL | SizeQ | SizeF | SizeD,
 			};
@@ -645,9 +652,9 @@ mergetemp(Prog *firstp)
 			   !((info.flags|info1.flags) & (LeftAddr|RightAddr)) &&
 			   (info.flags & SizeAny) == (info1.flags & SizeAny)) {
 				p1->from = p->from;
-				arch.excise(&r->f);
+				thearch.excise(f);
 				v->removed = 1;
-				if(Debug)
+				if(debugmerge > 0 && debug['v'])
 					print("drop immediate-use %S\n", v->node->sym);
 			}
 			nkill++;
@@ -657,16 +664,17 @@ mergetemp(Prog *firstp)
 
 	// Traverse live range of each variable to set start, end.
 	// Each flood uses a new value of gen so that we don't have
-	// to clear all the r->f.active words after each variable.
+	// to clear all the r->active words after each variable.
 	gen = 0;
-	for(v = var; v < var+nvar; v++) {
+	for(i = 0; i < nvar; i++) {
+		v = &var[i];
 		gen++;
-		for(r = v->use; r != nil; r = r->uselink)
-			mergewalk(v, r, gen);
+		for(f = v->use; f != nil; f = (Flow*)f->data)
+			mergewalk(v, f, gen);
 		if(v->addr) {
 			gen++;
-			for(r = v->use; r != nil; r = r->uselink)
-				varkillwalk(v, r, gen);
+			for(f = v->use; f != nil; f = (Flow*)f->data)
+				varkillwalk(v, f, gen);
 		}
 	}
 
@@ -687,6 +695,9 @@ mergetemp(Prog *firstp)
 	nfree = nvar;
 	for(i=0; i<nvar; i++) {
 		v = bystart[i];
+		if(debugmerge > 0 && debug['v'])
+			print("consider %#N: removed=%d\n", v->node, v->removed);
+			
 		if(v->removed)
 			continue;
 
@@ -696,10 +707,14 @@ mergetemp(Prog *firstp)
 			inuse[--nfree] = v1;
 		}
 
+		if(debugmerge > 0 && debug['v'])
+			print("consider %#N: removed=%d nfree=%d nvar=%d\n", v->node, v->removed, nfree, nvar);
 		// Find old temp to reuse if possible.
 		t = v->node->type;
 		for(j=nfree; j<nvar; j++) {
 			v1 = inuse[j];
+			if(debugmerge > 0 && debug['v'])
+				print("consider %#N: maybe %#N: type=%T,%T addrtaken=%d,%d\n", v->node, v1->node, t, v1->node->type, v->node->addrtaken, v1->node->addrtaken);
 			// Require the types to match but also require the addrtaken bits to match.
 			// If a variable's address is taken, that disables registerization for the individual
 			// words of the variable (for example, the base,len,cap of a slice).
@@ -725,9 +740,10 @@ mergetemp(Prog *firstp)
 		inuse[j] = v;
 	}
 
-	if(Debug) {
+	if(debugmerge > 0 && debug['v']) {
 		print("%S [%d - %d]\n", curfn->nname->sym, nvar, nkill);
-		for(v=var; v<var+nvar; v++) {
+		for(i = 0; i < nvar; i++) {
+			v = &var[i];
 			print("var %#N %T %lld-%lld", v->node, v->node->type, v->start, v->end);
 			if(v->addr)
 				print(" addr=1");
@@ -735,18 +751,18 @@ mergetemp(Prog *firstp)
 				print(" dead=1");
 			if(v->merge)
 				print(" merge %#N", v->merge->node);
-			if(v->start == v->end)
-				print(" %P", v->def->f.prog);
+			if(v->start == v->end && v->def != nil)
+				print(" %P", v->def->prog);
 			print("\n");
 		}
 	
-		if(Debug > 1)
-			arch.dumpit("after", g->start, 0);
+		if(debugmerge > 1 && debug['v'])
+			dumpit("after", g->start, 0);
 	}
 
 	// Update node references to use merged temporaries.
-	for(r = (TempFlow*)g->start; r != nil; r = (TempFlow*)r->f.link) {
-		p = r->f.prog;
+	for(f = g->start; f != nil; f = f->link) {
+		p = f->prog;
 		if((n = p->from.node) != N && (v = n->opt) != nil && v->merge != nil)
 			p->from.node = v->merge->node;
 		if((n = p->to.node) != N && (v = n->opt) != nil && v->merge != nil)
@@ -766,8 +782,9 @@ mergetemp(Prog *firstp)
 	}
 
 	// Clear aux structures.
-	for(v=var; v<var+nvar; v++)
-		v->node->opt = nil;
+	for(i = 0; i < nvar; i++)
+		var[i].node->opt = nil;
+
 	free(var);
 	free(bystart);
 	free(inuse);
@@ -775,40 +792,40 @@ mergetemp(Prog *firstp)
 }
 
 static void
-mergewalk(TempVar *v, TempFlow *r0, uint32 gen)
+mergewalk(TempVar *v, Flow *f0, uint32 gen)
 {
 	Prog *p;
-	TempFlow *r1, *r, *r2;
+	Flow *f1, *f, *f2;
 	
-	for(r1 = r0; r1 != nil; r1 = (TempFlow*)r1->f.p1) {
-		if(r1->f.active == gen)
+	for(f1 = f0; f1 != nil; f1 = f1->p1) {
+		if(f1->active == gen)
 			break;
-		r1->f.active = gen;
-		p = r1->f.prog;
+		f1->active = gen;
+		p = f1->prog;
 		if(v->end < p->pc)
 			v->end = p->pc;
-		if(r1 == v->def) {
+		if(f1 == v->def) {
 			v->start = p->pc;
 			break;
 		}
 	}
 	
-	for(r = r0; r != r1; r = (TempFlow*)r->f.p1)
-		for(r2 = (TempFlow*)r->f.p2; r2 != nil; r2 = (TempFlow*)r2->f.p2link)
-			mergewalk(v, r2, gen);
+	for(f = f0; f != f1; f = f->p1)
+		for(f2 = f->p2; f2 != nil; f2 = f2->p2link)
+			mergewalk(v, f2, gen);
 }
 
 static void
-varkillwalk(TempVar *v, TempFlow *r0, uint32 gen)
+varkillwalk(TempVar *v, Flow *f0, uint32 gen)
 {
 	Prog *p;
-	TempFlow *r1, *r;
+	Flow *f1, *f;
 	
-	for(r1 = r0; r1 != nil; r1 = (TempFlow*)r1->f.s1) {
-		if(r1->f.active == gen)
+	for(f1 = f0; f1 != nil; f1 = f1->s1) {
+		if(f1->active == gen)
 			break;
-		r1->f.active = gen;
-		p = r1->f.prog;
+		f1->active = gen;
+		p = f1->prog;
 		if(v->end < p->pc)
 			v->end = p->pc;
 		if(v->start > p->pc)
@@ -817,8 +834,8 @@ varkillwalk(TempVar *v, TempFlow *r0, uint32 gen)
 			break;
 	}
 	
-	for(r = r0; r != r1; r = (TempFlow*)r->f.s1)
-		varkillwalk(v, (TempFlow*)r->f.s2, gen);
+	for(f = f0; f != f1; f = f->s1)
+		varkillwalk(v, f->s2, gen);
 }
 
 // Eliminate redundant nil pointer checks.
@@ -836,62 +853,58 @@ varkillwalk(TempVar *v, TempFlow *r0, uint32 gen)
 // each load.
 	
 typedef struct NilVar NilVar;
-typedef struct NilFlow NilFlow;
 
-struct NilFlow {
-	Flow f;
-	int kill;
-};
+static void nilwalkback(Flow *rcheck);
+static void nilwalkfwd(Flow *rcheck);
 
-static void nilwalkback(NilFlow *rcheck);
-static void nilwalkfwd(NilFlow *rcheck);
+static int killed; // f->data is either nil or &killed
 
 void
 nilopt(Prog *firstp)
 {
-	NilFlow *r;
+	Flow *f;
 	Prog *p;
 	Graph *g;
 	int ncheck, nkill;
 
-	g = flowstart(firstp, sizeof(NilFlow));
+	g = flowstart(firstp, 0);
 	if(g == nil)
 		return;
 
 	if(debug_checknil > 1 /* || strcmp(curfn->nname->sym->name, "f1") == 0 */)
-		arch.dumpit("nilopt", g->start, 0);
+		dumpit("nilopt", g->start, 0);
 
 	ncheck = 0;
 	nkill = 0;
-	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
-		p = r->f.prog;
-		if(p->as != ACHECKNIL || !arch.regtyp(&p->from))
+	for(f = g->start; f != nil; f = f->link) {
+		p = f->prog;
+		if(p->as != ACHECKNIL || !thearch.regtyp(&p->from))
 			continue;
 		ncheck++;
-		if(arch.stackaddr(&p->from)) {
+		if(thearch.stackaddr(&p->from)) {
 			if(debug_checknil && p->lineno > 1)
 				warnl(p->lineno, "removed nil check of SP address");
-			r->kill = 1;
+			f->data = &killed;
 			continue;
 		}
-		nilwalkfwd(r);
-		if(r->kill) {
+		nilwalkfwd(f);
+		if(f->data != nil) {
 			if(debug_checknil && p->lineno > 1)
 				warnl(p->lineno, "removed nil check before indirect");
 			continue;
 		}
-		nilwalkback(r);
-		if(r->kill) {
+		nilwalkback(f);
+		if(f->data != nil) {
 			if(debug_checknil && p->lineno > 1)
 				warnl(p->lineno, "removed repeated nil check");
 			continue;
 		}
 	}
 	
-	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
-		if(r->kill) {
+	for(f = g->start; f != nil; f = f->link) {
+		if(f->data != nil) {
 			nkill++;
-			arch.excise(&r->f);
+			thearch.excise(f);
 		}
 	}
 
@@ -902,72 +915,72 @@ nilopt(Prog *firstp)
 }
 
 static void
-nilwalkback(NilFlow *rcheck)
+nilwalkback(Flow *fcheck)
 {
 	Prog *p;
 	ProgInfo info;
-	NilFlow *r;
+	Flow *f;
 	
-	for(r = rcheck; r != nil; r = (NilFlow*)uniqp(&r->f)) {
-		p = r->f.prog;
-		arch.proginfo(&info, p);
-		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from)) {
+	for(f = fcheck; f != nil; f = uniqp(f)) {
+		p = f->prog;
+		thearch.proginfo(&info, p);
+		if((info.flags & RightWrite) && thearch.sameaddr(&p->to, &fcheck->prog->from)) {
 			// Found initialization of value we're checking for nil.
 			// without first finding the check, so this one is unchecked.
 			return;
 		}
-		if(r != rcheck && p->as == ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from)) {
-			rcheck->kill = 1;
+		if(f != fcheck && p->as == ACHECKNIL && thearch.sameaddr(&p->from, &fcheck->prog->from)) {
+			fcheck->data = &killed;
 			return;
 		}
 	}
 
 	// Here is a more complex version that scans backward across branches.
-	// It assumes rcheck->kill = 1 has been set on entry, and its job is to find a reason
-	// to keep the check (setting rcheck->kill = 0).
+	// It assumes fcheck->kill = 1 has been set on entry, and its job is to find a reason
+	// to keep the check (setting fcheck->kill = 0).
 	// It doesn't handle copying of aggregates as well as I would like,
 	// nor variables with their address taken,
 	// and it's too subtle to turn on this late in Go 1.2. Perhaps for Go 1.3.
 	/*
-	for(r1 = r0; r1 != nil; r1 = (NilFlow*)r1->f.p1) {
-		if(r1->f.active == gen)
+	for(f1 = f0; f1 != nil; f1 = f1->p1) {
+		if(f1->active == gen)
 			break;
-		r1->f.active = gen;
-		p = r1->f.prog;
+		f1->active = gen;
+		p = f1->prog;
 		
 		// If same check, stop this loop but still check
 		// alternate predecessors up to this point.
-		if(r1 != rcheck && p->as == ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from))
+		if(f1 != fcheck && p->as == ACHECKNIL && thearch.sameaddr(&p->from, &fcheck->prog->from))
 			break;
 
-		arch.proginfo(&info, p);
-		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from)) {
+		thearch.proginfo(&info, p);
+		if((info.flags & RightWrite) && thearch.sameaddr(&p->to, &fcheck->prog->from)) {
 			// Found initialization of value we're checking for nil.
 			// without first finding the check, so this one is unchecked.
-			rcheck->kill = 0;
+			fcheck->kill = 0;
 			return;
 		}
 		
-		if(r1->f.p1 == nil && r1->f.p2 == nil) {
-			print("lost pred for %P\n", rcheck->f.prog);
-			for(r1=r0; r1!=nil; r1=(NilFlow*)r1->f.p1) {
-				arch.proginfo(&info, r1->f.prog);
-				print("\t%P %d %d %D %D\n", r1->f.prog, info.flags&RightWrite, arch.sameaddr(&r1->f.prog->to, &rcheck->f.prog->from), &r1->f.prog->to, &rcheck->f.prog->from);
+		if(f1->p1 == nil && f1->p2 == nil) {
+			print("lost pred for %P\n", fcheck->prog);
+			for(f1=f0; f1!=nil; f1=f1->p1) {
+				thearch.proginfo(&info, f1->prog);
+				print("\t%P %d %d %D %D\n", r1->prog, info.flags&RightWrite, thearch.sameaddr(&f1->prog->to, &fcheck->prog->from), &f1->prog->to, &fcheck->prog->from);
 			}
 			fatal("lost pred trail");
 		}
 	}
 
-	for(r = r0; r != r1; r = (NilFlow*)r->f.p1)
-		for(r2 = (NilFlow*)r->f.p2; r2 != nil; r2 = (NilFlow*)r2->f.p2link)
-			nilwalkback(rcheck, r2, gen);
+	for(f = f0; f != f1; f = f->p1)
+		for(f2 = f->p2; f2 != nil; f2 = f2->p2link)
+			nilwalkback(fcheck, f2, gen);
 	*/
 }
 
 static void
-nilwalkfwd(NilFlow *rcheck)
+nilwalkfwd(Flow *fcheck)
 {
-	NilFlow *r, *last;
+	Flow *f, *last;
 	Prog *p;
 	ProgInfo info;
 	
@@ -979,16 +992,16 @@ nilwalkfwd(NilFlow *rcheck)
 	//	_ = *x // should panic
 	//	for {} // no writes but infinite loop may be considered visible
 	last = nil;
-	for(r = (NilFlow*)uniqs(&rcheck->f); r != nil; r = (NilFlow*)uniqs(&r->f)) {
-		p = r->f.prog;
-		arch.proginfo(&info, p);
+	for(f = uniqs(fcheck); f != nil; f = uniqs(f)) {
+		p = f->prog;
+		thearch.proginfo(&info, p);
 		
-		if((info.flags & LeftRead) && arch.smallindir(&p->from, &rcheck->f.prog->from)) {
-			rcheck->kill = 1;
+		if((info.flags & LeftRead) && thearch.smallindir(&p->from, &fcheck->prog->from)) {
+			fcheck->data = &killed;
 			return;
 		}
-		if((info.flags & (RightRead|RightWrite)) && arch.smallindir(&p->to, &rcheck->f.prog->from)) {
-			rcheck->kill = 1;
+		if((info.flags & (RightRead|RightWrite)) && thearch.smallindir(&p->to, &fcheck->prog->from)) {
+			fcheck->data = &killed;
 			return;
 		}
 		
@@ -996,17 +1009,14 @@ nilwalkfwd(NilFlow *rcheck)
 		if(p->as == ACHECKNIL)
 			return;
 		// Stop if value is lost.
-		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from))
+		if((info.flags & RightWrite) && thearch.sameaddr(&p->to, &fcheck->prog->from))
 			return;
 		// Stop if memory write.
-		if((info.flags & RightWrite) && !arch.regtyp(&p->to))
+		if((info.flags & RightWrite) && !thearch.regtyp(&p->to))
 			return;
 		// Stop if we jump backward.
-		// This test is valid because all the NilFlow* are pointers into
-		// a single contiguous array. We will need to add an explicit
-		// numbering when the code is converted to Go.
-		if(last != nil && r <= last)
+		if(last != nil && f->id <= last->id)
 			return;
-		last = r;
+		last = f;
 	}
 }

@@ -116,6 +116,12 @@ type context struct {
 	lastexceptionfromrip uint64
 }
 
+func (c *context) ip() uintptr { return uintptr(c.rip) }
+func (c *context) sp() uintptr { return uintptr(c.rsp) }
+
+func (c *context) setip(x uintptr) { c.rip = uint64(x) }
+func (c *context) setsp(x uintptr) { c.rsp = uint64(x) }
+
 type overlapped struct {
 	internal     uint64
 	internalhigh uint64

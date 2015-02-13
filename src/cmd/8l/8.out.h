@@ -634,6 +634,7 @@ enum
 	FREGRET		= REG_F0,
 	REGSP		= REG_SP,
 	REGTMP		= REG_DI,
+	REGCTXT		= REG_DX,
 };
 
 /*

@@ -54,7 +54,6 @@ func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
 	if uintptr(p) < 4096 {
 		if uintptr(p) == _EACCES {
 			print("runtime: mmap: access denied\n")
-			print("if you're running SELinux, enable execmem for this process.\n")
 			exit(2)
 		}
 		if uintptr(p) == _EAGAIN {

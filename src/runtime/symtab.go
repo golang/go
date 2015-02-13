@@ -44,8 +44,8 @@ type functab struct {
 	funcoff uintptr
 }
 
-const minfunc = 16 // minimum function size
-const pcbucketsize = 256*minfunc // size of bucket in the pc->func lookup table
+const minfunc = 16                 // minimum function size
+const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup table
 
 // findfunctab is an array of these structures.
 // Each bucket represents 4096 bytes of the text segment.
@@ -56,7 +56,7 @@ const pcbucketsize = 256*minfunc // size of bucket in the pc->func lookup table
 // index to find the target function.
 // This table uses 20 bytes for every 4096 bytes of code, or ~0.5% overhead.
 type findfuncbucket struct {
-	idx uint32
+	idx        uint32
 	subbuckets [16]byte
 }
 
@@ -154,9 +154,9 @@ func findfunc(pc uintptr) *_func {
 
 	x := pc - minpc
 	b := x / pcbucketsize
-	i := x % pcbucketsize / (pcbucketsize/nsub)
+	i := x % pcbucketsize / (pcbucketsize / nsub)
 
-	ffb := (*findfuncbucket)(add(unsafe.Pointer(&findfunctab), b * unsafe.Sizeof(findfuncbucket{})))
+	ffb := (*findfuncbucket)(add(unsafe.Pointer(&findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
 	idx := ffb.idx + uint32(ffb.subbuckets[i])
 	if pc < ftab[idx].entry {
 		throw("findfunc: bad findfunctab entry")

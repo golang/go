@@ -555,168 +555,7 @@ reswitch:
 		if(l->type == T || r->type == T)
 			goto error;
 		op = n->op;
-	arith:
-		if(op == OLSH || op == ORSH)
-			goto shift;
-		// ideal mixed with non-ideal
-		defaultlit2(&l, &r, 0);
-		n->left = l;
-		n->right = r;
-		if(l->type == T || r->type == T)
-			goto error;
-		t = l->type;
-		if(t->etype == TIDEAL)
-			t = r->type;
-		et = t->etype;
-		if(et == TIDEAL)
-			et = TINT;
-		if(iscmp[n->op] && t->etype != TIDEAL && !eqtype(l->type, r->type)) {
-			// comparison is okay as long as one side is
-			// assignable to the other.  convert so they have
-			// the same type.
-			//
-			// the only conversion that isn't a no-op is concrete == interface.
-			// in that case, check comparability of the concrete type.
-			if(r->type->etype != TBLANK && (aop = assignop(l->type, r->type, nil)) != 0) {
-				if(isinter(r->type) && !isinter(l->type) && algtype1(l->type, nil) == ANOEQ) {
-					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(l->type));
-					goto error;
-				}
-				l = nod(aop, l, N);
-				l->type = r->type;
-				l->typecheck = 1;
-				n->left = l;
-				t = l->type;
-				goto converted;
-			}
-			if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
-				if(isinter(l->type) && !isinter(r->type) && algtype1(r->type, nil) == ANOEQ) {
-					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(r->type));
-					goto error;
-				}
-				r = nod(aop, r, N);
-				r->type = l->type;
-				r->typecheck = 1;
-				n->right = r;
-				t = r->type;
-			}
-		converted:
-			et = t->etype;
-		}
-		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
-			defaultlit2(&l, &r, 1);
-			if(n->op == OASOP && n->implicit) {
-				yyerror("invalid operation: %N (non-numeric type %T)", n, l->type);
-				goto error;
-			}
-			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
-			goto error;
-		}
-		if(!okfor[op][et]) {
-			yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(t));
-			goto error;
-		}
-		// okfor allows any array == array, map == map, func == func.
-		// restrict to slice/map/func == nil and nil == slice/map/func.
-		if(isfixedarray(l->type) && algtype1(l->type, nil) == ANOEQ) {
-			yyerror("invalid operation: %N (%T cannot be compared)", n, l->type);
-			goto error;
-		}
-		if(isslice(l->type) && !isnil(l) && !isnil(r)) {
-			yyerror("invalid operation: %N (slice can only be compared to nil)", n);
-			goto error;
-		}
-		if(l->type->etype == TMAP && !isnil(l) && !isnil(r)) {
-			yyerror("invalid operation: %N (map can only be compared to nil)", n);
-			goto error;
-		}
-		if(l->type->etype == TFUNC && !isnil(l) && !isnil(r)) {
-			yyerror("invalid operation: %N (func can only be compared to nil)", n);
-			goto error;
-		}
-		if(l->type->etype == TSTRUCT && algtype1(l->type, &badtype) == ANOEQ) {
-			yyerror("invalid operation: %N (struct containing %T cannot be compared)", n, badtype);
-			goto error;
-		}
-		
-		t = l->type;
-		if(iscmp[n->op]) {
-			evconst(n);
-			t = idealbool;
-			if(n->op != OLITERAL) {
-				defaultlit2(&l, &r, 1);
-				n->left = l;
-				n->right = r;
-			}
-		} else if(n->op == OANDAND || n->op == OOROR) {
-			if(l->type == r->type)
-				t = l->type;
-			else if(l->type == idealbool)
-				t = r->type;
-			else if(r->type == idealbool)
-				t = l->type;
-		// non-comparison operators on ideal bools should make them lose their ideal-ness
-		} else if(t == idealbool)
-			t = types[TBOOL];
-
-		if(et == TSTRING) {
-			if(iscmp[n->op]) {
-				n->etype = n->op;
-				n->op = OCMPSTR;
-			} else if(n->op == OADD) {
-				// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
-				n->op = OADDSTR;
-				if(l->op == OADDSTR)
-					n->list = l->list;
-				else
-					n->list = list1(l);
-				if(r->op == OADDSTR)
-					n->list = concat(n->list, r->list);
-				else
-					n->list = list(n->list, r);
-				n->left = N;
-				n->right = N;
-			}
-		}
-		if(et == TINTER) {
-			if(l->op == OLITERAL && l->val.ctype == CTNIL) {
-				// swap for back end
-				n->left = r;
-				n->right = l;
-			} else if(r->op == OLITERAL && r->val.ctype == CTNIL) {
-				// leave alone for back end
-			} else {
-				n->etype = n->op;
-				n->op = OCMPIFACE;
-			}
-		}
-
-		if((op == ODIV || op == OMOD) && isconst(r, CTINT))
-		if(mpcmpfixc(r->val.u.xval, 0) == 0) {
-			yyerror("division by zero");
-			goto error;
-		} 
-
-		n->type = t;
-		goto ret;
-
-	shift:
-		defaultlit(&r, types[TUINT]);
-		n->right = r;
-		t = r->type;
-		if(!isint[t->etype] || issigned[t->etype]) {
-			yyerror("invalid operation: %N (shift count type %T, must be unsigned integer)", n, r->type);
-			goto error;
-		}
-		t = l->type;
-		if(t != T && t->etype != TIDEAL && !isint[t->etype]) {
-			yyerror("invalid operation: %N (shift of type %T)", n, t);
-			goto error;
-		}
-		// no defaultlit for left
-		// the outer context gives the type
-		n->type = l->type;
-		goto ret;
+		goto arith;
 
 	case OCOM:
 	case OMINUS:
@@ -776,10 +615,12 @@ reswitch:
 	case ODOT:
 		typecheck(&n->left, Erv|Etype);
 		defaultlit(&n->left, T);
-		if((t = n->left->type) == T)
-			goto error;
 		if(n->right->op != ONAME) {
 			yyerror("rhs of . must be a name");	// impossible
+			goto error;
+		}
+		if((t = n->left->type) == T) {
+			adderrorname(n);
 			goto error;
 		}
 		r = n->right;
@@ -1442,41 +1283,7 @@ reswitch:
 		goto ret;
 
 	case OCONV:
-	doconv:
-		ok |= Erv;
-		saveorignode(n);
-		typecheck(&n->left, Erv | (top & (Eindir | Eiota)));
-		convlit1(&n->left, n->type, 1);
-		if((t = n->left->type) == T || n->type == T)
-			goto error;
-		if((n->op = convertop(t, n->type, &why)) == 0) {
-			if(!n->diag && !n->type->broke) {
-				yyerror("cannot convert %lN to type %T%s", n->left, n->type, why);
-				n->diag = 1;
-			}
-			n->op = OCONV;
-		}
-		switch(n->op) {
-		case OCONVNOP:
-			if(n->left->op == OLITERAL && n->type != types[TBOOL]) {
-				r = nod(OXXX, N, N);
-				n->op = OCONV;
-				n->orig = r;
-				*r = *n;
-				n->op = OLITERAL;
-				n->val = n->left->val;
-			}
-			break;
-		case OSTRARRAYBYTE:
-			// do not use stringtoarraylit.
-			// generated code and compiler memory footprint is better without it.
-			break;
-		case OSTRARRAYRUNE:
-			if(n->left->op == OLITERAL)
-				stringtoarraylit(&n);
-			break;
-		}
-		goto ret;
+		goto doconv;
 
 	case OMAKE:
 		ok |= Erv;
@@ -1494,13 +1301,14 @@ reswitch:
 
 		switch(t->etype) {
 		default:
-		badmake:
 			yyerror("cannot make type %T", t);
 			goto error;
 
 		case TARRAY:
-			if(!isslice(t))
-				goto badmake;
+			if(!isslice(t)) {
+				yyerror("cannot make type %T", t);
+				goto error;
+			}
 			if(args == nil) {
 				yyerror("missing len argument to make(%T)", t);
 				goto error;
@@ -1793,6 +1601,216 @@ reswitch:
 			checkwidth(n->left->type);
 		goto ret;
 	}
+	goto ret;
+
+arith:
+	if(op == OLSH || op == ORSH)
+		goto shift;
+	// ideal mixed with non-ideal
+	defaultlit2(&l, &r, 0);
+	n->left = l;
+	n->right = r;
+	if(l->type == T || r->type == T)
+		goto error;
+	t = l->type;
+	if(t->etype == TIDEAL)
+		t = r->type;
+	et = t->etype;
+	if(et == TIDEAL)
+		et = TINT;
+	aop = 0;
+	if(iscmp[n->op] && t->etype != TIDEAL && !eqtype(l->type, r->type)) {
+		// comparison is okay as long as one side is
+		// assignable to the other.  convert so they have
+		// the same type.
+		//
+		// the only conversion that isn't a no-op is concrete == interface.
+		// in that case, check comparability of the concrete type.
+		// The conversion allocates, so only do it if the concrete type is huge.
+		if(r->type->etype != TBLANK && (aop = assignop(l->type, r->type, nil)) != 0) {
+			if(isinter(r->type) && !isinter(l->type) && algtype1(l->type, nil) == ANOEQ) {
+				yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(l->type));
+				goto error;
+			}
+			dowidth(l->type);
+			if(isinter(r->type) == isinter(l->type) || l->type->width >= 1<<16) {
+				l = nod(aop, l, N);
+				l->type = r->type;
+				l->typecheck = 1;
+				n->left = l;
+			}
+			t = r->type;
+			goto converted;
+		}
+		if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
+			if(isinter(l->type) && !isinter(r->type) && algtype1(r->type, nil) == ANOEQ) {
+				yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(r->type));
+				goto error;
+			}
+			dowidth(r->type);
+			if(isinter(r->type) == isinter(l->type) || r->type->width >= 1<<16) {
+				r = nod(aop, r, N);
+				r->type = l->type;
+				r->typecheck = 1;
+				n->right = r;
+			}
+			t = l->type;
+		}
+	converted:
+		et = t->etype;
+	}
+	if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
+		defaultlit2(&l, &r, 1);
+		if(n->op == OASOP && n->implicit) {
+			yyerror("invalid operation: %N (non-numeric type %T)", n, l->type);
+			goto error;
+		}
+		if(isinter(r->type) == isinter(l->type) || aop == 0) {
+			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
+			goto error;
+		}
+	}
+	if(!okfor[op][et]) {
+		yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(t));
+		goto error;
+	}
+	// okfor allows any array == array, map == map, func == func.
+	// restrict to slice/map/func == nil and nil == slice/map/func.
+	if(isfixedarray(l->type) && algtype1(l->type, nil) == ANOEQ) {
+		yyerror("invalid operation: %N (%T cannot be compared)", n, l->type);
+		goto error;
+	}
+	if(isslice(l->type) && !isnil(l) && !isnil(r)) {
+		yyerror("invalid operation: %N (slice can only be compared to nil)", n);
+		goto error;
+	}
+	if(l->type->etype == TMAP && !isnil(l) && !isnil(r)) {
+		yyerror("invalid operation: %N (map can only be compared to nil)", n);
+		goto error;
+	}
+	if(l->type->etype == TFUNC && !isnil(l) && !isnil(r)) {
+		yyerror("invalid operation: %N (func can only be compared to nil)", n);
+		goto error;
+	}
+	if(l->type->etype == TSTRUCT && algtype1(l->type, &badtype) == ANOEQ) {
+		yyerror("invalid operation: %N (struct containing %T cannot be compared)", n, badtype);
+		goto error;
+	}
+	
+	t = l->type;
+	if(iscmp[n->op]) {
+		evconst(n);
+		t = idealbool;
+		if(n->op != OLITERAL) {
+			defaultlit2(&l, &r, 1);
+			n->left = l;
+			n->right = r;
+		}
+	} else if(n->op == OANDAND || n->op == OOROR) {
+		if(l->type == r->type)
+			t = l->type;
+		else if(l->type == idealbool)
+			t = r->type;
+		else if(r->type == idealbool)
+			t = l->type;
+	// non-comparison operators on ideal bools should make them lose their ideal-ness
+	} else if(t == idealbool)
+		t = types[TBOOL];
+
+	if(et == TSTRING) {
+		if(iscmp[n->op]) {
+			n->etype = n->op;
+			n->op = OCMPSTR;
+		} else if(n->op == OADD) {
+			// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
+			n->op = OADDSTR;
+			if(l->op == OADDSTR)
+				n->list = l->list;
+			else
+				n->list = list1(l);
+			if(r->op == OADDSTR)
+				n->list = concat(n->list, r->list);
+			else
+				n->list = list(n->list, r);
+			n->left = N;
+			n->right = N;
+		}
+	}
+	if(et == TINTER) {
+		if(l->op == OLITERAL && l->val.ctype == CTNIL) {
+			// swap for back end
+			n->left = r;
+			n->right = l;
+		} else if(r->op == OLITERAL && r->val.ctype == CTNIL) {
+			// leave alone for back end
+		} else if(isinter(r->type) == isinter(l->type)) {
+			n->etype = n->op;
+			n->op = OCMPIFACE;
+		}
+	}
+
+	if((op == ODIV || op == OMOD) && isconst(r, CTINT))
+	if(mpcmpfixc(r->val.u.xval, 0) == 0) {
+		yyerror("division by zero");
+		goto error;
+	} 
+
+	n->type = t;
+	goto ret;
+
+shift:
+	defaultlit(&r, types[TUINT]);
+	n->right = r;
+	t = r->type;
+	if(!isint[t->etype] || issigned[t->etype]) {
+		yyerror("invalid operation: %N (shift count type %T, must be unsigned integer)", n, r->type);
+		goto error;
+	}
+	t = l->type;
+	if(t != T && t->etype != TIDEAL && !isint[t->etype]) {
+		yyerror("invalid operation: %N (shift of type %T)", n, t);
+		goto error;
+	}
+	// no defaultlit for left
+	// the outer context gives the type
+	n->type = l->type;
+	goto ret;
+
+doconv:
+	ok |= Erv;
+	saveorignode(n);
+	typecheck(&n->left, Erv | (top & (Eindir | Eiota)));
+	convlit1(&n->left, n->type, 1);
+	if((t = n->left->type) == T || n->type == T)
+		goto error;
+	if((n->op = convertop(t, n->type, &why)) == 0) {
+		if(!n->diag && !n->type->broke) {
+			yyerror("cannot convert %lN to type %T%s", n->left, n->type, why);
+			n->diag = 1;
+		}
+		n->op = OCONV;
+	}
+	switch(n->op) {
+	case OCONVNOP:
+		if(n->left->op == OLITERAL && n->type != types[TBOOL]) {
+			r = nod(OXXX, N, N);
+			n->op = OCONV;
+			n->orig = r;
+			*r = *n;
+			n->op = OLITERAL;
+			n->val = n->left->val;
+		}
+		break;
+	case OSTRARRAYBYTE:
+		// do not use stringtoarraylit.
+		// generated code and compiler memory footprint is better without it.
+		break;
+	case OSTRARRAYRUNE:
+		if(n->left->op == OLITERAL)
+			stringtoarraylit(&n);
+		break;
+	}
+	goto ret;
 
 ret:
 	t = n->type;
@@ -1913,7 +1931,7 @@ checkdefergo(Node *n)
 	case OPRINTN:
 	case ORECOVER:
 		// ok
-		break;
+		return;
 	case OAPPEND:
 	case OCAP:
 	case OCOMPLEX:
@@ -1927,23 +1945,21 @@ checkdefergo(Node *n)
 	case OREAL:
 	case OLITERAL: // conversion or unsafe.Alignof, Offsetof, Sizeof
 		if(n->left->orig != N && n->left->orig->op == OCONV)
-			goto conv;
-		yyerror("%s discards result of %N", what, n->left);
-		break;
-	default:
-	conv:
-		// type is broken or missing, most likely a method call on a broken type
-		// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
-		if(n->left->type == T || n->left->type->broke)
 			break;
+		yyerror("%s discards result of %N", what, n->left);
+		return;
+	}
 
-		if(!n->diag) {
-			// The syntax made sure it was a call, so this must be
-			// a conversion.
-			n->diag = 1;
-			yyerror("%s requires function call, not conversion", what);
-		}
-		break;
+	// type is broken or missing, most likely a method call on a broken type
+	// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
+	if(n->left->type == T || n->left->type->broke)
+		return;
+
+	if(!n->diag) {
+		// The syntax made sure it was a call, so this must be
+		// a conversion.
+		n->diag = 1;
+		yyerror("%s requires function call, not conversion", what);
 	}
 }
 
@@ -3036,15 +3052,20 @@ typecheckas2(Node *n)
 			goto out;
 		switch(r->op) {
 		case OINDEXMAP:
-			n->op = OAS2MAPR;
-			goto common;
 		case ORECV:
-			n->op = OAS2RECV;
-			goto common;
 		case ODOTTYPE:
-			n->op = OAS2DOTTYPE;
-			r->op = ODOTTYPE2;
-		common:
+			switch(r->op) {
+			case OINDEXMAP:
+				n->op = OAS2MAPR;
+				break;
+			case ORECV:
+				n->op = OAS2RECV;
+				break;
+			case ODOTTYPE:
+				n->op = OAS2DOTTYPE;
+				r->op = ODOTTYPE2;
+				break;
+			}
 			if(l->type != T)
 				checkassignto(r->type, l);
 			if(l->defn == n)
@@ -3293,6 +3314,8 @@ typecheckdef(Node *n)
 			n->diag = 1;
 			if(n->lineno != 0)
 				lineno = n->lineno;
+			// Note: adderrorname looks for this string and
+			// adds context about the outer expression
 			yyerror("undefined: %S", n->sym);
 		}
 		return n;

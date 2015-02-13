@@ -161,11 +161,16 @@ var matchHostnamesTests = []matchHostnamesTest{
 	{"", "b.b.c", false},
 	{"a.b.c", "", false},
 	{"example.com", "example.com", true},
+	{"example.com", "example.com.", true},
 	{"example.com", "www.example.com", false},
 	{"*.example.com", "www.example.com", true},
+	{"*.example.com", "www.example.com.", true},
 	{"*.example.com", "xyz.www.example.com", false},
 	{"*.*.example.com", "xyz.www.example.com", true},
 	{"*.www.*.com", "xyz.www.example.com", true},
+	{"", ".", false},
+	{".", "", false},
+	{".", ".", false},
 }
 
 func TestMatchHostnames(t *testing.T) {

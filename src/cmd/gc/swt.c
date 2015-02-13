@@ -454,31 +454,22 @@ exprbsw(Case *c0, int ncase, int arg)
 			n = c0->node;
 			lno = setlineno(n);
 
-			if(assignop(n->left->type, exprname->type, nil) == OCONVIFACE ||
-			   assignop(exprname->type, n->left->type, nil) == OCONVIFACE)
-				goto snorm;
-
-			switch(arg) {
-			case Strue:
-				a = nod(OIF, N, N);
-				a->ntest = n->left;			// if val
-				a->nbody = list1(n->right);			// then goto l
-				break;
-
-			case Sfalse:
-				a = nod(OIF, N, N);
-				a->ntest = nod(ONOT, n->left, N);	// if !val
-				typecheck(&a->ntest, Erv);
-				a->nbody = list1(n->right);			// then goto l
-				break;
-
-			default:
-			snorm:
+			if((arg != Strue && arg != Sfalse) ||
+			   assignop(n->left->type, exprname->type, nil) == OCONVIFACE ||
+			   assignop(exprname->type, n->left->type, nil) == OCONVIFACE) {
 				a = nod(OIF, N, N);
 				a->ntest = nod(OEQ, exprname, n->left);	// if name == val
 				typecheck(&a->ntest, Erv);
 				a->nbody = list1(n->right);			// then goto l
-				break;
+			} else if(arg == Strue) {
+				a = nod(OIF, N, N);
+				a->ntest = n->left;			// if val
+				a->nbody = list1(n->right);			// then goto l
+			} else { // arg == Sfalse
+				a = nod(OIF, N, N);
+				a->ntest = nod(ONOT, n->left, N);	// if !val
+				typecheck(&a->ntest, Erv);
+				a->nbody = list1(n->right);			// then goto l
 			}
 
 			cas = list(cas, a);
@@ -503,7 +494,7 @@ exprbsw(Case *c0, int ncase, int arg)
 
 /*
  * normal (expression) switch.
- * rebulid case statements into if .. goto
+ * rebuild case statements into if .. goto
  */
 static void
 exprswitch(Node *sw)
@@ -533,12 +524,15 @@ exprswitch(Node *sw)
 	 */
 	exprname = N;
 	cas = nil;
-	if(arg != Strue && arg != Sfalse) {
+	if(arg == Strue || arg == Sfalse)
+		exprname = nodbool(arg == Strue);
+	else if(consttype(sw->ntest) >= 0)
+		// leave constants to enable dead code elimination (issue 9608)
+		exprname = sw->ntest;
+	else {
 		exprname = temp(sw->ntest->type);
 		cas = list1(nod(OAS, exprname, sw->ntest));
 		typechecklist(cas, Etop);
-	} else {
-		exprname = nodbool(arg == Strue);
 	}
 
 	c0 = mkcaselist(sw, arg);

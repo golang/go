@@ -1531,7 +1531,7 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok 
 		output, toUnit = float64(value)/1024, "kB"
 	case "mb", "mbyte", "megabyte":
 		output, toUnit = float64(value)/(1024*1024), "MB"
-	case "gb", "gbyte", "giggabyte":
+	case "gb", "gbyte", "gigabyte":
 		output, toUnit = float64(value)/(1024*1024*1024), "GB"
 	}
 	return output, toUnit, true

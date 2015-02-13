@@ -258,6 +258,8 @@ func (l *TCPListener) Close() error {
 }
 
 // Addr returns the listener's network address, a *TCPAddr.
+// The Addr returned is shared by all invocations of Addr, so
+// do not modify it.
 func (l *TCPListener) Addr() Addr { return l.fd.laddr }
 
 // SetDeadline sets the deadline associated with the listener.

@@ -14,32 +14,32 @@ Usage:
 
 The commands are:
 
-    build       compile packages and dependencies
-    clean       remove object files
-    env         print Go environment information
-    fix         run go tool fix on packages
-    fmt         run gofmt on package sources
-    generate    generate Go files by processing source
-    get         download and install packages and dependencies
-    install     compile and install packages and dependencies
-    list        list packages
-    run         compile and run Go program
-    test        test packages
-    tool        run specified go tool
-    version     print Go version
-    vet         run go tool vet on packages
+	build       compile packages and dependencies
+	clean       remove object files
+	env         print Go environment information
+	fix         run go tool fix on packages
+	fmt         run gofmt on package sources
+	generate    generate Go files by processing source
+	get         download and install packages and dependencies
+	install     compile and install packages and dependencies
+	list        list packages
+	run         compile and run Go program
+	test        test packages
+	tool        run specified go tool
+	version     print Go version
+	vet         run go tool vet on packages
 
 Use "go help [command]" for more information about a command.
 
 Additional help topics:
 
-    c           calling between Go and C
-    filetype    file types
-    gopath      GOPATH environment variable
-    importpath  import path syntax
-    packages    description of package lists
-    testflag    description of testing flags
-    testfunc    description of testing functions
+	c           calling between Go and C
+	filetype    file types
+	gopath      GOPATH environment variable
+	importpath  import path syntax
+	packages    description of package lists
+	testflag    description of testing flags
+	testfunc    description of testing functions
 
 Use "go help [topic]" for more information about that topic.
 
@@ -310,6 +310,7 @@ The generator is run in the package's source directory.
 Go generate accepts one specific flag:
 
 	-run=""
+		TODO: This flag is unimplemented.
 		if non-empty, specifies a regular expression to
 		select directives whose command matches the expression.
 

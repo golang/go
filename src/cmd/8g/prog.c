@@ -5,7 +5,7 @@
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
-#include "opt.h"
+#include "../gc/popt.h"
 
 // Matches real RtoB but can be used in global initializer.
 #define RtoB(r) (1<<((r)-REG_AX))

@@ -53,7 +53,7 @@ func TestLookupStaticHost(t *testing.T) {
 	hostsPath = p
 }
 
-// https://code.google.com/p/go/issues/detail?id=6646
+// https://golang.org/issue/6646
 func TestSingleLineHostsFile(t *testing.T) {
 	p := hostsPath
 	hostsPath = "testdata/hosts_singleline"

@@ -325,9 +325,6 @@ type context struct {
 // shouldTest looks for build tags in a source file and returns
 // whether the file should be used according to the tags.
 func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
-	if idx := strings.Index(src, "\npackage"); idx >= 0 {
-		src = src[:idx]
-	}
 	for _, line := range strings.Split(src, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "//") {
@@ -417,7 +414,8 @@ func (t *test) run() {
 		t.err = errors.New("double newline not found")
 		return
 	}
-	if ok, why := shouldTest(t.src, goos, goarch); !ok {
+	// Check for build constraints only upto the first blank line.
+	if ok, why := shouldTest(t.src[:pos], goos, goarch); !ok {
 		t.action = "skip"
 		if *showSkips {
 			fmt.Printf("%-20s %-20s: %s\n", t.action, t.goFileName(), why)

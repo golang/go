@@ -28,6 +28,58 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#ifndef	EXTERN
+#define	EXTERN	extern
+#endif
+
+typedef struct Arch Arch;
+struct Arch {
+	int	thechar;
+	int	ptrsize;
+	int	intsize;
+	int	regsize;
+	int	funcalign;
+	int	maxalign;
+	int	minlc;
+	int	dwarfregsp;
+	
+	char *linuxdynld;
+	char *freebsddynld;
+	char *netbsddynld;
+	char *openbsddynld;
+	char *dragonflydynld;
+	char *solarisdynld;
+	
+	void	(*adddynlib)(char*);
+	void	(*adddynrel)(LSym*, Reloc*);
+	void	(*adddynsym)(Link*, LSym*);
+	void	(*archinit)(void);
+	int	(*archreloc)(Reloc*, LSym*, vlong*);
+	vlong	(*archrelocvariant)(Reloc*, LSym*, vlong);
+	void	(*asmb)(void);
+	int	(*elfreloc1)(Reloc*, vlong);
+	void	(*elfsetupplt)(void);
+	void	(*gentext)(void);
+	void	(*listinit)(void);
+	int	(*machoreloc1)(Reloc*, vlong);
+	
+	void	(*lput)(uint32);
+	void	(*wput)(uint16);
+	void	(*vput)(uint64);
+};
+
+vlong rnd(vlong, vlong);
+
+EXTERN	Arch	thearch;
+EXTERN	LSym*	datap;
+EXTERN	int	debug[128];
+EXTERN	char	literal[32];
+EXTERN	int32	lcsize;
+EXTERN	char*	rpath;
+EXTERN	int32	spsize;
+EXTERN	LSym*	symlist;
+EXTERN	int32	symsize;
+
 // Terrible but standard terminology.
 // A segment describes a block of file to load into memory.
 // A section further describes the pieces of that block for
@@ -71,8 +123,8 @@ struct Section
 extern	char	symname[];
 
 EXTERN	char*	INITENTRY;
-extern	char*	thestring;
-extern	LinkArch*	thelinkarch;
+EXTERN	char*	thestring;
+EXTERN	LinkArch*	thelinkarch;
 EXTERN	char*	outfile;
 EXTERN	int	ndynexp;
 EXTERN	LSym**	dynexp;
@@ -82,6 +134,7 @@ EXTERN	int	havedynamic;
 EXTERN	int	funcalign;
 EXTERN	int	iscgo;
 EXTERN	int	elfglobalsymndx;
+extern	int	nelfsym;
 EXTERN	char*	flag_installsuffix;
 EXTERN	int	flag_race;
 EXTERN	int flag_shared;
@@ -250,8 +303,8 @@ void	libinit(void);
 LSym*	listsort(LSym *l, int (*cmp)(LSym*, LSym*), int off);
 void	loadinternal(char *name);
 void	loadlib(void);
-void	lputb(int32 l);
-void	lputl(int32 l);
+void	lputb(uint32 l);
+void	lputl(uint32 l);
 void*	mal(uint32 n);
 void	mark(LSym *s);
 void	mywhatsys(void);
@@ -289,4 +342,8 @@ void	zerosig(char *sp);
 void	archinit(void);
 void	diag(char *fmt, ...);
 
+void	ldmain(int, char**);
+
 #pragma	varargck	argpos	diag	1
+
+#define	SYMDEF	"__.GOSYMDEF"

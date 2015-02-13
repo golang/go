@@ -25,7 +25,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include	"l.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
 #include	"lib.h"
 
 enum {
@@ -477,7 +480,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	m->len = len;
 	m->name = pn;
 	
-	switch(thechar) {
+	switch(thearch.thechar) {
 	default:
 		diag("%s: mach-o %s unimplemented", pn, thestring);
 		return;
@@ -627,7 +630,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			werrstr("reference to invalid section %s/%s", sect->segname, sect->name);
 			continue;
 		}
-		if(s->outer != S) {
+		if(s->outer != nil) {
 			if(s->dupok)
 				continue;
 			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
@@ -652,13 +655,13 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	// This keeps textp in increasing address order.
 	for(i=0; i<c->seg.nsect; i++) {
 		sect = &c->seg.sect[i];
-		if((s = sect->sym) == S)
+		if((s = sect->sym) == nil)
 			continue;
 		if(s->sub) {
 			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
 			
 			// assign sizes, now that we know symbols in sorted order.
-			for(s1 = s->sub; s1 != S; s1 = s1->sub) {
+			for(s1 = s->sub; s1 != nil; s1 = s1->sub) {
 				if(s1->sub)
 					s1->size = s1->sub->value - s1->value;
 				else
@@ -674,7 +677,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			else
 				ctxt->textp = s;
 			ctxt->etextp = s;
-			for(s1 = s->sub; s1 != S; s1 = s1->sub) {
+			for(s1 = s->sub; s1 != nil; s1 = s1->sub) {
 				if(s1->onlist)
 					sysfatal("symbol %s listed multiple times", s1->name);
 				s1->onlist = 1;
@@ -687,7 +690,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	// load relocations
 	for(i=0; i<c->seg.nsect; i++) {
 		sect = &c->seg.sect[i];
-		if((s = sect->sym) == S)
+		if((s = sect->sym) == nil)
 			continue;
 		macholoadrel(m, sect);
 		if(sect->rel == nil)
@@ -700,7 +703,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 				int k;
 				MachoSect *ks;
 
-				if(thechar != '8') {
+				if(thearch.thechar != '8') {
 					// mach-o only uses scattered relocation on 32-bit platforms
 					diag("unexpected scattered relocation");
 					continue;
@@ -750,7 +753,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 				werrstr("unsupported scattered relocation: invalid address %#ux", rel->addr);
 				goto bad;
 			foundk:
-				if(ks->sym != S) {
+				if(ks->sym != nil) {
 					rp->sym = ks->sym;
 					rp->add += rel->value - ks->addr;
 				} else if(strcmp(ks->segname, "__IMPORT") == 0 && strcmp(ks->name, "__pointers") == 0) {
@@ -788,7 +791,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			rp->off = rel->addr;
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
-			if (thechar == '6' && rel->extrn == 0 && rel->type == 1) {
+			if (thearch.thechar == '6' && rel->extrn == 0 && rel->type == 1) {
 				// Calculate the addend as the offset into the section.
 				//
 				// The rip-relative offset stored in the object file is encoded
@@ -812,7 +815,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			// For i386 Mach-O PC-relative, the addend is written such that
 			// it *is* the PC being subtracted.  Use that to make
 			// it match our version of PC-relative.
-			if(rel->pcrel && thechar == '8')
+			if(rel->pcrel && thearch.thechar == '8')
 				rp->add += rp->off+rp->siz;
 			if(!rel->extrn) {
 				if(rel->symnum < 1 || rel->symnum > c->seg.nsect) {
@@ -828,7 +831,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 				// include that information in the addend.
 				// We only care about the delta from the 
 				// section base.
-				if(thechar == '8')
+				if(thearch.thechar == '8')
 					rp->add -= c->seg.sect[rel->symnum-1].addr;
 			} else {
 				if(rel->symnum >= symtab->nsym) {

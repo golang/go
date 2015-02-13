@@ -302,13 +302,13 @@ staticcopy(Node *l, Node *r, NodeList **out)
 	case OLITERAL:
 		if(iszero(r))
 			return 1;
-		arch.gdata(l, r, l->type->width);
+		gdata(l, r, l->type->width);
 		return 1;
 
 	case OADDR:
 		switch(r->left->op) {
 		case ONAME:
-			arch.gdata(l, r, l->type->width);
+			gdata(l, r, l->type->width);
 			return 1;
 		}
 		break;
@@ -322,7 +322,7 @@ staticcopy(Node *l, Node *r, NodeList **out)
 		case OSTRUCTLIT:
 		case OMAPLIT:
 			// copy pointer
-			arch.gdata(l, nod(OADDR, r->nname, N), l->type->width);
+			gdata(l, nod(OADDR, r->nname, N), l->type->width);
 			return 1;
 		}
 		break;
@@ -333,11 +333,11 @@ staticcopy(Node *l, Node *r, NodeList **out)
 			a = r->nname;
 			n1 = *l;
 			n1.xoffset = l->xoffset + Array_array;
-			arch.gdata(&n1, nod(OADDR, a, N), widthptr);
+			gdata(&n1, nod(OADDR, a, N), widthptr);
 			n1.xoffset = l->xoffset + Array_nel;
-			arch.gdata(&n1, r->right, widthint);
+			gdata(&n1, r->right, widthint);
 			n1.xoffset = l->xoffset + Array_cap;
-			arch.gdata(&n1, r->right, widthint);
+			gdata(&n1, r->right, widthint);
 			return 1;
 		}
 		// fall through
@@ -349,7 +349,7 @@ staticcopy(Node *l, Node *r, NodeList **out)
 			n1.xoffset = l->xoffset + e->xoffset;
 			n1.type = e->expr->type;
 			if(e->expr->op == OLITERAL)
-				arch.gdata(&n1, e->expr, n1.type->width);
+				gdata(&n1, e->expr, n1.type->width);
 			else {
 				ll = nod(OXXX, N, N);
 				*ll = n1;
@@ -394,14 +394,14 @@ staticassign(Node *l, Node *r, NodeList **out)
 	case OLITERAL:
 		if(iszero(r))
 			return 1;
-		arch.gdata(l, r, l->type->width);
+		gdata(l, r, l->type->width);
 		return 1;
 
 	case OADDR:
 		if(stataddr(&nam, r->left)) {
 			n1 = *r;
 			n1.left = &nam;
-			arch.gdata(l, &n1, l->type->width);
+			gdata(l, &n1, l->type->width);
 			return 1;
 		}
 	
@@ -417,7 +417,7 @@ staticassign(Node *l, Node *r, NodeList **out)
 			// Init pointer.
 			a = staticname(r->left->type, 1);
 			r->nname = a;
-			arch.gdata(l, nod(OADDR, a, N), l->type->width);
+			gdata(l, nod(OADDR, a, N), l->type->width);
 			// Init underlying literal.
 			if(!staticassign(a, r->left, out))
 				*out = list(*out, nod(OAS, a, r->left));
@@ -444,11 +444,11 @@ staticassign(Node *l, Node *r, NodeList **out)
 			r->nname = a;
 			n1 = *l;
 			n1.xoffset = l->xoffset + Array_array;
-			arch.gdata(&n1, nod(OADDR, a, N), widthptr);
+			gdata(&n1, nod(OADDR, a, N), widthptr);
 			n1.xoffset = l->xoffset + Array_nel;
-			arch.gdata(&n1, r->right, widthint);
+			gdata(&n1, r->right, widthint);
 			n1.xoffset = l->xoffset + Array_cap;
-			arch.gdata(&n1, r->right, widthint);
+			gdata(&n1, r->right, widthint);
 			// Fall through to init underlying array.
 			l = a;
 		}
@@ -462,7 +462,7 @@ staticassign(Node *l, Node *r, NodeList **out)
 			n1.xoffset = l->xoffset + e->xoffset;
 			n1.type = e->expr->type;
 			if(e->expr->op == OLITERAL)
-				arch.gdata(&n1, e->expr, n1.type->width);
+				gdata(&n1, e->expr, n1.type->width);
 			else {
 				a = nod(OXXX, N, N);
 				*a = n1;
@@ -1223,7 +1223,7 @@ stataddr(Node *nam, Node *n)
 		if(l < 0)
 			break;
 		// Check for overflow.
-		if(n->type->width != 0 && arch.MAXWIDTH/n->type->width <= l)
+		if(n->type->width != 0 && thearch.MAXWIDTH/n->type->width <= l)
 			break;
  		nam->xoffset += l*n->type->width;
 		nam->type = n->type;
@@ -1303,16 +1303,16 @@ gen_as_init(Node *n)
 	case TPTR64:
 	case TFLOAT32:
 	case TFLOAT64:
-		arch.gdata(&nam, nr, nr->type->width);
+		gdata(&nam, nr, nr->type->width);
 		break;
 
 	case TCOMPLEX64:
 	case TCOMPLEX128:
-		arch.gdatacomplex(&nam, nr->val.u.cval);
+		gdatacomplex(&nam, nr->val.u.cval);
 		break;
 
 	case TSTRING:
-		arch.gdatastring(&nam, nr->val.u.sval);
+		gdatastring(&nam, nr->val.u.sval);
 		break;
 	}
 
@@ -1320,7 +1320,7 @@ yes:
 	return 1;
 
 slice:
-	arch.gused(N); // in case the data is the dest of a goto
+	gused(N); // in case the data is the dest of a goto
 	nl = nr;
 	if(nr == N || nr->op != OADDR)
 		goto no;
@@ -1333,14 +1333,14 @@ slice:
 		goto no;
 
 	nam.xoffset += Array_array;
-	arch.gdata(&nam, nl, types[tptr]->width);
+	gdata(&nam, nl, types[tptr]->width);
 
 	nam.xoffset += Array_nel-Array_array;
 	nodconst(&nod1, types[TINT], nr->type->bound);
-	arch.gdata(&nam, &nod1, widthint);
+	gdata(&nam, &nod1, widthint);
 
 	nam.xoffset += Array_cap-Array_nel;
-	arch.gdata(&nam, &nod1, widthint);
+	gdata(&nam, &nod1, widthint);
 
 	goto yes;
 

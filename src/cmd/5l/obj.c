@@ -33,15 +33,55 @@
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
+#include	"../ld/macho.h"
 #include	"../ld/dwarf.h"
 #include	<ar.h>
 
-char *thestring = "arm";
-LinkArch *thelinkarch = &linkarm;
+void
+main(int argc, char **argv)
+{
+	linkarchinit();
+	ldmain(argc, argv);
+}
+
 
 void
 linkarchinit(void)
 {
+	thestring = "arm";
+	thelinkarch = &linkarm;
+
+	thearch.thechar = thechar;
+	thearch.ptrsize = thelinkarch->ptrsize;
+	thearch.intsize = thelinkarch->ptrsize;
+	thearch.regsize = thelinkarch->regsize;
+	thearch.funcalign = FuncAlign;
+	thearch.maxalign = MaxAlign;
+	thearch.minlc = MINLC;
+	thearch.dwarfregsp = DWARFREGSP;
+
+	thearch.adddynlib = adddynlib;
+	thearch.adddynrel = adddynrel;
+	thearch.adddynsym = adddynsym;
+	thearch.archinit = archinit;
+	thearch.archreloc = archreloc;
+	thearch.archrelocvariant = archrelocvariant;
+	thearch.asmb = asmb;
+	thearch.elfreloc1 = elfreloc1;
+	thearch.elfsetupplt = elfsetupplt;
+	thearch.gentext = gentext;
+	thearch.listinit = listinit;
+	thearch.machoreloc1 = machoreloc1;
+	thearch.lput = lputl;
+	thearch.wput = wputl;
+	thearch.vput = vputl;
+
+	thearch.linuxdynld = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
+	thearch.freebsddynld = "/usr/libexec/ld-elf.so.1";
+	thearch.openbsddynld = "XXX";
+	thearch.netbsddynld = "/libexec/ld.elf_so";
+	thearch.dragonflydynld = "XXX";
+	thearch.solarisdynld = "XXX";
 }
 
 void
@@ -64,6 +104,7 @@ archinit(void)
 	case Hlinux:
 	case Hfreebsd:
 	case Hnacl:
+	case Hdarwin:
 		break;
 	}
 
@@ -103,6 +144,17 @@ archinit(void)
 			INITDAT = 0;
 		if(INITRND == -1)
 			INITRND = 0x10000;
+		break;
+	case Hdarwin:   /* apple MACH */
+		debug['w'] = 1; // disable DWARF generataion
+		machoinit();
+		HEADR = INITIAL_MACHO_HEADR;
+		if(INITTEXT == -1)
+			INITTEXT = 4096+HEADR;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = 4096;
 		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)

@@ -32,7 +32,7 @@
 #include <u.h>
 #include <libc.h>
 #include "gg.h"
-#include "opt.h"
+#include "../gc/popt.h"
 
 static int	xtramodes(Graph*, Flow*, Adr*);
 static int	shortprop(Flow *r);
@@ -47,6 +47,7 @@ static Flow*	findpre(Flow *r, Adr *v);
 static int	copyau1(Prog *p, Adr *v);
 static int	isdconst(Addr *a);
 static int	isfloatreg(Addr*);
+static int	copyu(Prog *p, Adr *v, Adr *s);
 
 static uint32	gactive;
 
@@ -64,7 +65,7 @@ peep(Prog *firstp)
 	Prog *p;
 	int t;
 
-	g = flowstart(firstp, sizeof(Flow));
+	g = flowstart(firstp, 0);
 	if(g == nil)
 		return;
 	gactive = 0;
@@ -121,15 +122,14 @@ loop1:
 			}
 			break;
 
-#ifdef NOTDEF
-XXX
+			/*
 			if(p->scond == C_SCOND_NONE)
 			if(regtyp(&p->to))
 			if(isdconst(&p->from)) {
 				constprop(&p->from, &p->to, r->s1);
 			}
 			break;
-#endif
+			*/
 		}
 	}
 	if(t)
@@ -561,8 +561,6 @@ gotit:
  * AXXX (x<<y),a,b
  * ..
  */
-#define FAIL(msg) { if(debug['P']) print("\t%s; FAILURE\n", msg); return 0; }
-/*c2go void FAIL(char*); */
 
 int
 shiftprop(Flow *r)
@@ -573,8 +571,11 @@ shiftprop(Flow *r)
 	Adr a;
 
 	p = r->prog;
-	if(p->to.type != TYPE_REG)
-		FAIL("BOTCH: result not reg");
+	if(p->to.type != TYPE_REG) {
+		if(debug['P'])
+			print("\tBOTCH: result not reg; FAILURE\n");
+		return 0;
+	}
 	n = p->to.reg;
 	a = zprog.from;
 	if(p->reg != 0 && p->reg != p->to.reg) {
@@ -587,28 +588,43 @@ shiftprop(Flow *r)
 	for(;;) {
 		/* find first use of shift result; abort if shift operands or result are changed */
 		r1 = uniqs(r1);
-		if(r1 == nil)
-			FAIL("branch");
-		if(uniqp(r1) == nil)
-			FAIL("merge");
+		if(r1 == nil) {
+			if(debug['P'])
+				print("\tbranch; FAILURE\n");
+			return 0;
+		}
+		if(uniqp(r1) == nil) {
+			if(debug['P'])
+				print("\tmerge; FAILURE\n");
+			return 0;
+		}
 		p1 = r1->prog;
 		if(debug['P'])
 			print("\n%P", p1);
 		switch(copyu(p1, &p->to, nil)) {
 		case 0:	/* not used or set */
 			if((p->from.type == TYPE_REG && copyu(p1, &p->from, nil) > 1) ||
-			   (a.type == TYPE_REG && copyu(p1, &a, nil) > 1))
-				FAIL("args modified");
+			   (a.type == TYPE_REG && copyu(p1, &a, nil) > 1)) {
+				if(debug['P'])
+					print("\targs modified; FAILURE\n");
+				return 0;
+			}
 			continue;
-		case 3:	/* set, not used */
-			FAIL("BOTCH: noref");
+		case 3:	/* set, not used */ {
+			if(debug['P'])
+				print("\tBOTCH: noref; FAILURE\n");
+			return 0;
+		}
 		}
 		break;
 	}
 	/* check whether substitution can be done */
 	switch(p1->as) {
 	default:
-		FAIL("non-dpi");
+		if(debug['P'])
+			print("\tnon-dpi; FAILURE\n");
+		return 0;
+
 	case AAND:
 	case AEOR:
 	case AADD:
@@ -619,8 +635,11 @@ shiftprop(Flow *r)
 	case ARSB:
 	case ARSC:
 		if(p1->reg == n || (p1->reg == 0 && p1->to.type == TYPE_REG && p1->to.reg == n)) {
-			if(p1->from.type != TYPE_REG)
-				FAIL("can't swap");
+			if(p1->from.type != TYPE_REG) {
+				if(debug['P'])
+					print("\tcan't swap; FAILURE\n");
+				return 0;
+			}
 			p1->reg = p1->from.reg;
 			p1->from.reg = n;
 			switch(p1->as) {
@@ -644,15 +663,27 @@ shiftprop(Flow *r)
 	case ATST:
 	case ACMP:
 	case ACMN:
-		if(p1->reg == n)
-			FAIL("can't swap");
-		if(p1->reg == 0 && p1->to.reg == n)
-			FAIL("shift result used twice");
+		if(p1->reg == n) {
+			if(debug['P'])
+				print("\tcan't swap; FAILURE\n");
+			return 0;
+		}
+		if(p1->reg == 0 && p1->to.reg == n) {
+			if(debug['P'])
+				print("\tshift result used twice; FAILURE\n");
+			return 0;
+		}
 //	case AMVN:
-		if(p1->from.type == TYPE_SHIFT)
-			FAIL("shift result used in shift");
-		if(p1->from.type != TYPE_REG || p1->from.reg != n)
-			FAIL("BOTCH: where is it used?");
+		if(p1->from.type == TYPE_SHIFT) {
+			if(debug['P'])
+				print("\tshift result used in shift; FAILURE\n");
+			return 0;
+		}
+		if(p1->from.type != TYPE_REG || p1->from.reg != n) {
+			if(debug['P'])
+				print("\tBOTCH: where is it used?; FAILURE\n");
+			return 0;
+		}
 		break;
 	}
 	/* check whether shift result is used subsequently */
@@ -660,8 +691,11 @@ shiftprop(Flow *r)
 	if(p1->to.reg != n)
 	for (;;) {
 		r1 = uniqs(r1);
-		if(r1 == nil)
-			FAIL("inconclusive");
+		if(r1 == nil) {
+			if(debug['P'])
+				print("\tinconclusive; FAILURE\n");
+			return 0;
+		}
 		p1 = r1->prog;
 		if(debug['P'])
 			print("\n%P", p1);
@@ -671,7 +705,9 @@ shiftprop(Flow *r)
 		case 3: /* set, not used */
 			break;
 		default:/* used */
-			FAIL("reused");
+			if(debug['P'])
+				print("\treused; FAILURE\n");
+			return 0;
 		}
 		break;
 	}
@@ -941,7 +977,7 @@ xtramodes(Graph *g, Flow *r, Adr *a)
  * 4 if set and used
  * 0 otherwise (not touched)
  */
-int
+static int
 copyu(Prog *p, Adr *v, Adr *s)
 {
 	switch(p->as) {
@@ -1571,4 +1607,13 @@ smallindir(Addr *a, Addr *reg)
 	return reg->type == TYPE_REG && a->type == TYPE_MEM &&
 		a->reg == reg->reg &&
 		0 <= a->offset && a->offset < 4096;
+}
+
+void
+excise(Flow *r)
+{
+	Prog *p;
+
+	p = r->prog;
+	nopout(p);
 }

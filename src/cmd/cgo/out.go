@@ -636,7 +636,7 @@ func (p *Package) writeExports(fgo2, fm io.Writer) {
 	fgcc := creat(*objDir + "_cgo_export.c")
 	fgcch := creat(*objDir + "_cgo_export.h")
 
-	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
+	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n/*  This file is arch-specific.  */\n")
 	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 
@@ -1309,6 +1309,10 @@ typedef float GoFloat32;
 typedef double GoFloat64;
 typedef __complex float GoComplex64;
 typedef __complex double GoComplex128;
+
+// static assertion to make sure the file is being used on architecture
+// at least with matching size of GoInt.
+typedef char _check_for_GOINTBITS_bit_pointer_matching_GoInt[sizeof(void*)==GOINTBITS/8 ? 1:-1];
 
 typedef struct { char *p; GoInt n; } GoString;
 typedef void *GoMap;

@@ -133,18 +133,16 @@ walkselect(Node *sel)
 				break;
 
 			case OSELRECV:
-				ch = n->right->left;
-			Selrecv1:
-				if(n->left == N)
-					n = n->right;
-				else
-					n->op = OAS;
-				break;
-			
 			case OSELRECV2:
 				ch = n->right->left;
-				if(n->ntest == N)
-					goto Selrecv1;
+				if(n->op == OSELRECV || n->ntest == N) {
+					if(n->left == N)
+						n = n->right;
+					else
+						n->op = OAS;
+					break;
+				}
+			
 				if(n->left == N) {
 					typecheck(&nblank, Erv | Easgn);
 					n->left = nblank;

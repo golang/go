@@ -171,7 +171,7 @@ goopnames[] =
 };
 
 // Fmt "%O":  Node opcodes
-static int
+int
 Oconv(Fmt *fp)
 {
 	int o;
@@ -1558,7 +1558,7 @@ Sconv(Fmt *fp)
 // Flags: 'l' print definition, not name
 //	  'h' omit 'func' and receiver from function types, short type names
 //	  'u' package name, not prefix (FTypeId mode, sticky)
-static int
+int
 Tconv(Fmt *fp)
 {
 	Type *t;

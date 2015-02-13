@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include	"l.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
 #include	"lib.h"
 #include	"../../runtime/funcdata.h"
 
@@ -104,6 +107,15 @@ renumberfiles(Link *ctxt, LSym **files, int nfiles, Pcdata *d)
 	*d = out;	
 }
 
+static int
+container(LSym *s)
+{
+	// We want to generate func table entries only for the "lowest level" symbols,
+	// not containers of subsymbols.
+	if(s != nil && s->sub != nil)
+		return 1;
+	return 0;
+}
 
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
@@ -111,7 +123,7 @@ void
 pclntab(void)
 {
 	int32 i, nfunc, start, funcstart;
-	LSym *ftab, *s;
+	LSym *ftab, *s, *last;
 	int32 off, end, frameptrsize;
 	int64 funcdata_bytes;
 	Pcln *pcln;
@@ -125,35 +137,41 @@ pclntab(void)
 
 	// See golang.org/s/go12symtab for the format. Briefly:
 	//	8-byte header
-	//	nfunc [PtrSize bytes]
-	//	function table, alternating PC and offset to func struct [each entry PtrSize bytes]
-	//	end PC [PtrSize bytes]
+	//	nfunc [thearch.ptrsize bytes]
+	//	function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
+	//	end PC [thearch.ptrsize bytes]
 	//	offset to file table [4 bytes]
 	nfunc = 0;
-	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next)
-		nfunc++;
-	symgrow(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize+4);
+	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
+		if(!container(ctxt->cursym))
+			nfunc++;
+	}
+	symgrow(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize+thearch.ptrsize+4);
 	setuint32(ctxt, ftab, 0, 0xfffffffb);
-	setuint8(ctxt, ftab, 6, MINLC);
-	setuint8(ctxt, ftab, 7, PtrSize);
-	setuintxx(ctxt, ftab, 8, nfunc, PtrSize);
+	setuint8(ctxt, ftab, 6, thearch.minlc);
+	setuint8(ctxt, ftab, 7, thearch.ptrsize);
+	setuintxx(ctxt, ftab, 8, nfunc, thearch.ptrsize);
 
 	nfunc = 0;
-	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next, nfunc++) {
+	last = nil;
+	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
+		last = ctxt->cursym;
+		if(container(ctxt->cursym))
+			continue;
 		pcln = ctxt->cursym->pcln;
 		if(pcln == nil)
 			pcln = &zpcln;
 	
 		funcstart = ftab->np;
-		funcstart += -ftab->np & (PtrSize-1);
+		funcstart += -ftab->np & (thearch.ptrsize-1);
 
-		setaddr(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize, ctxt->cursym);
-		setuintxx(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize, funcstart, PtrSize);
+		setaddr(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize, ctxt->cursym);
+		setuintxx(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize+thearch.ptrsize, funcstart, thearch.ptrsize);
 
 		// fixed size of struct, checked below
 		off = funcstart;
-		end = funcstart + PtrSize + 3*4 + 5*4 + pcln->npcdata*4 + pcln->nfuncdata*PtrSize;
-		if(pcln->nfuncdata > 0 && (end&(PtrSize-1)))
+		end = funcstart + thearch.ptrsize + 3*4 + 5*4 + pcln->npcdata*4 + pcln->nfuncdata*thearch.ptrsize;
+		if(pcln->nfuncdata > 0 && (end&(thearch.ptrsize-1)))
 			end += 4;
 		symgrow(ctxt, ftab, end);
 
@@ -173,7 +191,7 @@ pclntab(void)
 		// when a called function doesn't have argument information.
 		// We need to make sure everything has argument information
 		// and then remove this.
-		frameptrsize = PtrSize;
+		frameptrsize = thearch.ptrsize;
 		if(ctxt->cursym->leaf)
 			frameptrsize = 0;
 		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + frameptrsize);
@@ -203,38 +221,38 @@ pclntab(void)
 		// funcdata, must be pointer-aligned and we're only int32-aligned.
 		// Missing funcdata will be 0 (nil pointer).
 		if(pcln->nfuncdata > 0) {
-			if(off&(PtrSize-1))
+			if(off&(thearch.ptrsize-1))
 				off += 4;
 			for(i=0; i<pcln->nfuncdata; i++) {
 				if(pcln->funcdata[i] == nil)
-					setuintxx(ctxt, ftab, off+PtrSize*i, pcln->funcdataoff[i], PtrSize);
+					setuintxx(ctxt, ftab, off+thearch.ptrsize*i, pcln->funcdataoff[i], thearch.ptrsize);
 				else {
 					// TODO: Dedup.
 					funcdata_bytes += pcln->funcdata[i]->size;
-					setaddrplus(ctxt, ftab, off+PtrSize*i, pcln->funcdata[i], pcln->funcdataoff[i]);
+					setaddrplus(ctxt, ftab, off+thearch.ptrsize*i, pcln->funcdata[i], pcln->funcdataoff[i]);
 				}
 			}
-			off += pcln->nfuncdata*PtrSize;
+			off += pcln->nfuncdata*thearch.ptrsize;
 		}
 
 		if(off != end) {
-			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln->npcdata, pcln->nfuncdata, PtrSize);
+			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln->npcdata, pcln->nfuncdata, thearch.ptrsize);
 			errorexit();
 		}
 	
-		// Final entry of table is just end pc.
-		if(ctxt->cursym->next == nil)
-			setaddrplus(ctxt, ftab, 8+PtrSize+(nfunc+1)*2*PtrSize, ctxt->cursym, ctxt->cursym->size);
+		nfunc++;
 	}
+	// Final entry of table is just end pc.
+	setaddrplus(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize, last, last->size);
 	
 	// Start file table.
 	start = ftab->np;
-	start += -ftab->np & (PtrSize-1);
-	setuint32(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize, start);
+	start += -ftab->np & (thearch.ptrsize-1);
+	setuint32(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize+thearch.ptrsize, start);
 
 	symgrow(ctxt, ftab, start+(ctxt->nhistfile+1)*4);
 	setuint32(ctxt, ftab, start, ctxt->nhistfile);
-	for(s = ctxt->filesyms; s != S; s = s->next)
+	for(s = ctxt->filesyms; s != nil; s = s->next)
 		setuint32(ctxt, ftab, start + s->value*4, ftabaddstring(ftab, s->name));
 
 	ftab->size = ftab->np;
@@ -246,6 +264,8 @@ pclntab(void)
 enum {
 	BUCKETSIZE = 256*MINFUNC,
 	SUBBUCKETS = 16,
+	SUBBUCKETSIZE = BUCKETSIZE/SUBBUCKETS,
+	NOIDX = 0x7fffffff
 };
 
 // findfunctab generates a lookup table to quickly find the containing
@@ -253,9 +273,10 @@ enum {
 void
 findfunctab(void)
 {
-	LSym *t, *s;
-	int32 idx, bidx, i, j, nbuckets;
-	vlong min, max;
+	LSym *t, *s, *e;
+	int32 idx, i, j, nbuckets, n, base;
+	vlong min, max, p, q;
+	int32 *indexes;
 
 	t = linklookup(ctxt, "runtime.findfunctab", 0);
 	t->type = SRODATA;
@@ -267,33 +288,60 @@ findfunctab(void)
 	for(s = ctxt->textp; s != nil; s = s->next)
 		max = s->value + s->size;
 
+	// for each subbucket, compute the minimum of all symbol indexes
+	// that map to that subbucket.
+	n = (max-min+SUBBUCKETSIZE-1)/SUBBUCKETSIZE;
+	indexes = (int32*)malloc(n*4);
+	if(indexes == nil) {
+		diag("out of memory");
+		errorexit();
+	}
+	for(i = 0; i < n; i++)
+		indexes[i] = NOIDX;
+	idx = 0;
+	for(s = ctxt->textp; s != nil; s = s->next) {
+		if(container(s))
+			continue;
+		p = s->value;
+		e = s->next;
+		while(container(e))
+			e = e->next;
+		if(e != nil)
+			q = e->value;
+		else
+			q = max;
+
+		//print("%d: [%lld %lld] %s\n", idx, p, q, s->name);
+		for(; p < q; p += SUBBUCKETSIZE) {
+			i = (p - min) / SUBBUCKETSIZE;
+			if(indexes[i] > idx)
+				indexes[i] = idx;
+		}
+		i = (q - 1 - min) / SUBBUCKETSIZE;
+		if(indexes[i] > idx)
+			indexes[i] = idx;
+		idx++;
+	}
+
 	// allocate table
 	nbuckets = (max-min+BUCKETSIZE-1)/BUCKETSIZE;
-	symgrow(ctxt, t, nbuckets * (4+SUBBUCKETS));
+	symgrow(ctxt, t, 4*nbuckets + n);
 
 	// fill in table
-	s = ctxt->textp;
-	idx = 0;
 	for(i = 0; i < nbuckets; i++) {
-		// Find first function which overlaps this bucket.
-		// Only do leaf symbols; skip symbols which are just containers (sub != nil but outer == nil).
-		while(s != nil && (s->value+s->size <= min + i * BUCKETSIZE || s->sub != nil && s->outer == nil)) {
-			s = s->next;
-			idx++;
-		}
-		// record this function in bucket header
-		setuint32(ctxt, t, i*(4+SUBBUCKETS), idx);
-		bidx = idx;
-
-		// compute SUBBUCKETS deltas
-		for(j = 0; j < SUBBUCKETS; j++) {
-			while(s != nil && (s->value+s->size <= min + i * BUCKETSIZE + j * (BUCKETSIZE/SUBBUCKETS) || s->sub != nil && s->outer == nil)) {
-				s = s->next;
-				idx++;
+		base = indexes[i*SUBBUCKETS];
+		if(base == NOIDX)
+			diag("hole in findfunctab");
+		setuint32(ctxt, t, i*(4+SUBBUCKETS), base);
+		for(j = 0; j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++) {
+			idx = indexes[i*SUBBUCKETS+j];
+			if(idx == NOIDX)
+				diag("hole in findfunctab");
+			if(idx - base >= 256) {
+				diag("too many functions in a findfunc bucket! %d/%d %d %d", i, nbuckets, j, idx-base);
 			}
-			if(idx - bidx >= 256)
-				diag("too many functions in a findfunc bucket! %d %s", idx-bidx, s->name);
-			setuint8(ctxt, t, i*(4+SUBBUCKETS)+4+j, idx-bidx);
+			setuint8(ctxt, t, i*(4+SUBBUCKETS)+4+j, idx-base);
 		}
 	}
+	free(indexes);
 }

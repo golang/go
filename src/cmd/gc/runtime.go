@@ -50,10 +50,10 @@ func eqstring(string, string) bool
 func intstring(*[4]byte, int64) string
 func slicebytetostring(*[32]byte, []byte) string
 func slicebytetostringtmp([]byte) string
-func slicerunetostring([]rune) string
-func stringtoslicebyte(string) []byte
+func slicerunetostring(*[32]byte, []rune) string
+func stringtoslicebyte(*[32]byte, string) []byte
 func stringtoslicebytetmp(string) []byte
-func stringtoslicerune(string) []rune
+func stringtoslicerune(*[32]rune, string) []rune
 func stringiter(string, int) int
 func stringiter2(string, int) (retk int, retv rune)
 func slicecopy(to any, fr any, wid uintptr) int
@@ -86,7 +86,7 @@ func ifacethash(i1 any) (ret uint32)
 func efacethash(i1 any) (ret uint32)
 
 // *byte is really *runtime.Type
-func makemap(mapType *byte, hint int64) (hmap map[any]any)
+func makemap(mapType *byte, hint int64, mapbuf *any, bucketbuf *any) (hmap map[any]any)
 func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
 func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)

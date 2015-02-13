@@ -81,10 +81,6 @@ func schedinit() {
 	}
 }
 
-func newsysmon() {
-	_newm(sysmon, nil)
-}
-
 func dumpgstatus(gp *g) {
 	_g_ := getg()
 	print("runtime: gp: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
@@ -638,7 +634,7 @@ func starttheworld() {
 			notewakeup(&mp.park)
 		} else {
 			// Start M to run P.  Do not start another M below.
-			_newm(nil, p)
+			newm(nil, p)
 			add = false
 		}
 	}
@@ -658,7 +654,7 @@ func starttheworld() {
 		// coordinate.  This lazy approach works out in practice:
 		// we don't mind if the first couple gc rounds don't have quite
 		// the maximum number of procs.
-		_newm(mhelpgc, nil)
+		newm(mhelpgc, nil)
 	}
 	_g_.m.locks--
 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
@@ -960,7 +956,7 @@ func unlockextra(mp *m) {
 }
 
 // Create a new m.  It will start off with a call to fn, or else the scheduler.
-func _newm(fn func(), _p_ *p) {
+func newm(fn func(), _p_ *p) {
 	mp := allocm(_p_)
 	mp.nextp = _p_
 	mp.mstartfn = *(*unsafe.Pointer)(unsafe.Pointer(&fn))
@@ -1037,7 +1033,7 @@ func startm(_p_ *p, spinning bool) {
 		if spinning {
 			fn = mspinning
 		}
-		_newm(fn, _p_)
+		newm(fn, _p_)
 		return
 	}
 	if mp.spinning {
@@ -2636,7 +2632,7 @@ func checkdead() {
 	lock(&allglock)
 	for i := 0; i < len(allgs); i++ {
 		gp := allgs[i]
-		if gp.issystem {
+		if isSystemGoroutine(gp) {
 			continue
 		}
 		s := readgstatus(gp)
@@ -2667,7 +2663,7 @@ func checkdead() {
 		}
 		mp := mget()
 		if mp == nil {
-			_newm(nil, _p_)
+			newm(nil, _p_)
 		} else {
 			mp.nextp = _p_
 			notewakeup(&mp.park)

@@ -35,15 +35,6 @@
 #include	"../ld/elf.h"
 #include	"../ld/dwarf.h"
 
-
-// TODO(austin): ABI v1 uses /usr/lib/ld.so.1
-char linuxdynld[] = "/lib64/ld64.so.1";
-char freebsddynld[] = "XXX";
-char openbsddynld[] = "XXX";
-char netbsddynld[] = "XXX";
-char dragonflydynld[] = "XXX";
-char solarisdynld[] = "XXX";
-
 static int
 needlib(char *name)
 {
@@ -63,8 +54,6 @@ needlib(char *name)
 	}
 	return 0;
 }
-
-int	nelfsym = 1;
 
 static void	gencallstub(int abicase, LSym *stub, LSym *targ);
 static void	addpltsym(Link*, LSym*);
@@ -129,7 +118,7 @@ gentext(void)
 	// This assumes "case 1" from the ABI, where the caller needs
 	// us to save and restore the TOC pointer.
 	pprevtextp = &ctxt->textp;
-	for(s=*pprevtextp; s!=S; pprevtextp=&s->next, s=*pprevtextp) {
+	for(s=*pprevtextp; s!=nil; pprevtextp=&s->next, s=*pprevtextp) {
 		for(r=s->r; r<s->r+s->nr; r++) {
 			if(!(r->type == 256 + R_PPC64_REL24 &&
 			     r->sym->type == SDYNIMPORT))
@@ -797,14 +786,14 @@ asmb(void)
 	switch(HEADTYPE) {
 	default:
 	case Hplan9:	/* plan 9 */
-		LPUT(0x647);			/* magic */
-		LPUT(segtext.filelen);			/* sizes */
-		LPUT(segdata.filelen);
-		LPUT(segdata.len - segdata.filelen);
-		LPUT(symsize);			/* nsyms */
-		LPUT(entryvalue());		/* va of entry */
-		LPUT(0L);
-		LPUT(lcsize);
+		thearch.lput(0x647);			/* magic */
+		thearch.lput(segtext.filelen);			/* sizes */
+		thearch.lput(segdata.filelen);
+		thearch.lput(segdata.len - segdata.filelen);
+		thearch.lput(symsize);			/* nsyms */
+		thearch.lput(entryvalue());		/* va of entry */
+		thearch.lput(0L);
+		thearch.lput(lcsize);
 		break;
 	case Hlinux:
 	case Hfreebsd:
@@ -823,19 +812,4 @@ asmb(void)
 		print("lcsize=%d\n", lcsize);
 		print("total=%lld\n", segtext.filelen+segdata.len+symsize+lcsize);
 	}
-}
-
-vlong
-rnd(vlong v, int32 r)
-{
-	vlong c;
-
-	if(r <= 0)
-		return v;
-	v += r - 1;
-	c = v % r;
-	if(c < 0)
-		c += r;
-	v -= c;
-	return v;
 }

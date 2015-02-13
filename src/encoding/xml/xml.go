@@ -35,13 +35,22 @@ func (e *SyntaxError) Error() string {
 	return "XML syntax error on line " + strconv.Itoa(e.Line) + ": " + e.Msg
 }
 
-// A Name represents an XML name (Local) annotated
-// with a name space identifier (Space).
-// In tokens returned by Decoder.Token, the Space identifier
-// is given as a canonical URL, not the short prefix used
-// in the document being parsed.
+// A Name represents an XML name (Local) annotated with a name space
+// identifier (Space). In tokens returned by Decoder.Token, the Space
+// identifier is given as a canonical URL, not the short prefix used in
+// the document being parsed.
+//
+// As a special case, XML namespace declarations will use the literal
+// string "xmlns" for the Space field instead of the fully resolved URL.
+// See Encoder.EncodeToken for more information on namespace encoding
+// behaviour.
 type Name struct {
 	Space, Local string
+}
+
+// isNamespace reports whether the name is a namespace-defining name.
+func (name Name) isNamespace() bool {
+	return name.Local == "xmlns" || name.Space == "xmlns"
 }
 
 // An Attr represents an attribute in an XML element (Name=Value).
@@ -70,6 +79,24 @@ func (e StartElement) Copy() StartElement {
 // End returns the corresponding XML end element.
 func (e StartElement) End() EndElement {
 	return EndElement{e.Name}
+}
+
+// setDefaultNamespace sets the namespace of the element
+// as the default for all elements contained within it.
+func (e *StartElement) setDefaultNamespace() {
+	if e.Name.Space == "" {
+		// If there's no namespace on the element, don't
+		// set the default. Strictly speaking this might be wrong, as
+		// we can't tell if the element had no namespace set
+		// or was just using the default namespace.
+		return
+	}
+	e.Attr = append(e.Attr, Attr{
+		Name: Name{
+			Local: "xmlns",
+		},
+		Value: e.Name.Space,
+	})
 }
 
 // An EndElement represents an XML end element.
@@ -723,7 +750,7 @@ func (d *Decoder) rawToken() (Token, error) {
 		return nil, d.err
 	}
 
-	attr = make([]Attr, 0, 4)
+	attr = []Attr{}
 	for {
 		d.space()
 		if b, ok = d.mustgetc(); !ok {
@@ -747,7 +774,11 @@ func (d *Decoder) rawToken() (Token, error) {
 
 		n := len(attr)
 		if n >= cap(attr) {
-			nattr := make([]Attr, n, 2*cap(attr))
+			nCap := 2 * cap(attr)
+			if nCap == 0 {
+				nCap = 4
+			}
+			nattr := make([]Attr, n, nCap)
 			copy(nattr, attr)
 			attr = nattr
 		}

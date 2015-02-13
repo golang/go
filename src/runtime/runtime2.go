@@ -199,7 +199,6 @@ type g struct {
 	waitsince    int64  // approx time when the g become blocked
 	waitreason   string // if status==gwaiting
 	schedlink    *g
-	issystem     bool // do not output in stack dump, ignore in deadlock detector
 	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
 	paniconfault bool // panic (instead of crash) on unexpected fault address
 	preemptscan  bool // preempted g does scan for gc
@@ -275,6 +274,7 @@ type m struct {
 	waitsemacount uint32
 	waitsemalock  uint32
 	gcstats       gcstats
+	currentwbuf   uintptr // use locks or atomic operations such as xchguinptr to access.
 	needextram    bool
 	traceback     uint8
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool

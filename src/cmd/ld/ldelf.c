@@ -25,9 +25,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include	"l.h"
+#include	<u.h>
+#include	<libc.h>
+#include	<bio.h>
+#include	<link.h>
 #include	"lib.h"
-#include	"../ld/elf.h"
+#include	"elf.h"
 
 enum
 {
@@ -414,7 +417,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		return;
 	}
 
-	switch(thechar) {
+	switch(thearch.thechar) {
 	default:
 		diag("%s: elf %s unimplemented", pn, thestring);
 		return;
@@ -590,7 +593,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		if(sym.shndx >= obj->nsect || sym.shndx == 0)
 			continue;
 		// even when we pass needSym == 1 to readsym, it might still return nil to skip some unwanted symbols
-		if(sym.sym == S)
+		if(sym.sym == nil)
 			continue;
 		sect = obj->sect+sym.shndx;
 		if(sect->sym == nil) {
@@ -600,7 +603,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			continue;
 		}
 		s = sym.sym;
-		if(s->outer != S) {
+		if(s->outer != nil) {
 			if(s->dupok)
 				continue;
 			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
@@ -632,7 +635,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 	// This keeps textp in increasing address order.
 	for(i=0; i<obj->nsect; i++) {
 		s = obj->sect[i].sym;
-		if(s == S)
+		if(s == nil)
 			continue;
 		if(s->sub)
 			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
@@ -645,7 +648,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			else
 				ctxt->textp = s;
 			ctxt->etextp = s;
-			for(s = s->sub; s != S; s = s->sub) {
+			for(s = s->sub; s != nil; s = s->sub) {
 				if(s->onlist)
 					sysfatal("symbol %s listed multiple times", s->name);
 				s->onlist = 1;
@@ -700,7 +703,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 				continue;
 			}
 			if((info >> 32) == 0) { // absolute relocation, don't bother reading the null symbol
-				rp->sym = S;
+				rp->sym = nil;
 			} else {
 				if(readsym(obj, info>>32, &sym, 0) < 0)
 					goto bad;
@@ -844,7 +847,7 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
 			}
 			break;
 		case ElfSymBindLocal:
-			if(thechar == '5' && (strncmp(sym->name, "$a", 2) == 0 || strncmp(sym->name, "$d", 2) == 0)) {
+			if(thearch.thechar == '5' && (strncmp(sym->name, "$a", 2) == 0 || strncmp(sym->name, "$d", 2) == 0)) {
 				// binutils for arm generate these mapping
 				// symbols, ignore these
 				break;
@@ -905,7 +908,7 @@ rbyoff(const void *va, const void *vb)
 static int
 reltype(char *pn, int elftype, uchar *siz)
 {
-	switch(R(thechar, elftype)) {
+	switch(R(thearch.thechar, elftype)) {
 	default:
 		diag("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype);
 	case R('9', R_PPC64_TOC16):

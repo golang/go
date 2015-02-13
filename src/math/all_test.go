@@ -2606,7 +2606,7 @@ func TestLargeTan(t *testing.T) {
 
 // Check that math constants are accepted by compiler
 // and have right value (assumes strconv.ParseFloat works).
-// http://code.google.com/p/go/issues/detail?id=201
+// http://golang.org/issue/201
 
 type floatTest struct {
 	val  interface{}

@@ -805,7 +805,7 @@ ginsadd(int as, vlong off, Node *dst)
 void
 agen(Node *n, Node *res)
 {
-	Node *nl, *nr;
+	Node *nl;
 	Node n1, n2, n3;
 
 	if(debug['g']) {
@@ -848,8 +848,6 @@ agen(Node *n, Node *res)
 	}
 
 	nl = n->left;
-	nr = n->right;
-	USED(nr);
 
 	switch(n->op) {
 	default:
@@ -1109,27 +1107,20 @@ bgen(Node *n, int true, int likely, Prog *to)
 		goto ret;
 
 	case OANDAND:
-		if(!true)
-			goto caseor;
-
-	caseand:
-		p1 = gbranch(ABR, T, 0);
-		p2 = gbranch(ABR, T, 0);
-		patch(p1, pc);
-		bgen(n->left, !true, -likely, p2);
-		bgen(n->right, !true, -likely, p2);
-		p1 = gbranch(ABR, T, 0);
-		patch(p1, to);
-		patch(p2, pc);
-		goto ret;
-
 	case OOROR:
-		if(!true)
-			goto caseand;
-
-	caseor:
-		bgen(n->left, true, likely, to);
-		bgen(n->right, true, likely, to);
+		if((n->op == OANDAND) == true) {
+			p1 = gbranch(AJMP, T, 0);
+			p2 = gbranch(AJMP, T, 0);
+			patch(p1, pc);
+			bgen(n->left, !true, -likely, p2);
+			bgen(n->right, !true, -likely, p2);
+			p1 = gbranch(AJMP, T, 0);
+			patch(p1, to);
+			patch(p2, pc);
+		} else {
+			bgen(n->left, true, likely, to);
+			bgen(n->right, true, likely, to);
+		}
 		goto ret;
 
 	case OEQ:
@@ -1554,7 +1545,7 @@ cadable(Node *n)
 int
 componentgen(Node *nr, Node *nl)
 {
-	Node nodl, nodr;
+	Node nodl, nodr, tmp;
 	Type *t;
 	int freel, freer;
 	vlong fldcount;
@@ -1602,7 +1593,7 @@ componentgen(Node *nr, Node *nl)
 
 	nodl = *nl;
 	if(!cadable(nl)) {
-		if(nr == N || !cadable(nr))
+		if(nr != N && !cadable(nr))
 			goto no;
 		igen(nl, &nodl, N);
 		freel = 1;
@@ -1614,6 +1605,12 @@ componentgen(Node *nr, Node *nl)
 			igen(nr, &nodr, N);
 			freer = 1;
 		}
+	} else {
+		// When zeroing, prepare a register containing zero.
+		nodconst(&tmp, nl->type, 0);
+		regalloc(&nodr, types[TUINT], N);
+		gmove(&tmp, &nodr);
+		freer = 1;
 	}
 	
 	// nl and nr are 'cadable' which basically means they are names (variables) now.
@@ -1650,8 +1647,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1660,8 +1656,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_cap-Array_nel;
@@ -1670,8 +1665,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_cap-Array_nel;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;
@@ -1685,8 +1679,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1695,8 +1688,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;
@@ -1710,8 +1702,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
@@ -1720,8 +1711,7 @@ componentgen(Node *nr, Node *nl)
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
 			nodr.type = nodl.type;
-		} else
-			nodconst(&nodr, nodl.type, 0);
+		}
 		gmove(&nodr, &nodl);
 
 		goto yes;

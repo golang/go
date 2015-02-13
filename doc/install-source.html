@@ -77,12 +77,25 @@ The full set of supported combinations is listed in the discussion of
 
 </div>
 
-<h2 id="ctools">Install C tools, if needed</h2>
+<h2 id="go14">Install Go compiler binaries</h2>
 
 <p>
-The Go tool chain is written in C. To build it, you need a C compiler installed. 
-Please refer to the <a href="//golang.org/wiki/InstallFromSource#install-c-tools">InstallFromSource</a>
-page on the Go community Wiki for operating system specific instructions.
+The Go tool chain is written in Go. To build it, you need a Go compiler installed.
+The scripts that do the initial build of the tools look for an existing Go tool
+chain in <code>$HOME/go1.4</code>.
+(This path may be overridden by setting the <code>GOROOT_BOOTSTRAP</code>
+environment variable.)
+</p>
+
+<p>
+Build the tools with Go version 1.4 or a point release (1.4.1, 1.4.2 etc.).
+Go 1.4 binaries can be found at <a href="/dl/">the downloads page</a>.
+</p>
+
+<p>
+Download the zip or tarball of Go 1.4 for your platform and extract it to
+<code>$HOME/go1.4</code> (or your nominated <code>GOROOT_BOOTSTRAP</code>
+location).
 </p>
 
 <h2 id="git">Install Git, if needed</h2>

@@ -102,7 +102,10 @@ func wakefing() *g {
 	return res
 }
 
-var fingCreate uint32
+var (
+	fingCreate  uint32
+	fingRunning bool
+)
 
 func createfing() {
 	// start the finalizer goroutine exactly once
@@ -126,9 +129,7 @@ func runfinq() {
 			gp := getg()
 			fing = gp
 			fingwait = true
-			gp.issystem = true
 			goparkunlock(&finlock, "finalizer wait", traceEvGoBlock)
-			gp.issystem = false
 			continue
 		}
 		unlock(&finlock)
@@ -169,7 +170,9 @@ func runfinq() {
 				default:
 					throw("bad kind in runfinq")
 				}
+				fingRunning = true
 				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz))
+				fingRunning = false
 
 				// drop finalizer queue references to finalized object
 				f.fn = nil

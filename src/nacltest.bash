@@ -62,7 +62,7 @@ fi
 # Run host build to get toolchain for running zip generator.
 unset GOOS GOARCH
 if [ ! -f make.bash ]; then
-	echo 'nacl.bash must be run from $GOROOT/src' 1>&2
+	echo 'nacltest.bash must be run from $GOROOT/src' 1>&2
 	exit 1
 fi
 GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH ./make.bash

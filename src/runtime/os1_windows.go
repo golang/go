@@ -11,6 +11,7 @@ import (
 //go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler "kernel32.dll"
 //go:cgo_import_dynamic runtime._CloseHandle CloseHandle "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateEventA CreateEventA "kernel32.dll"
+//go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateThread CreateThread "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA "kernel32.dll"
 //go:cgo_import_dynamic runtime._CryptAcquireContextW CryptAcquireContextW "advapi32.dll"
@@ -21,6 +22,7 @@ import (
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext "kernel32.dll"
@@ -37,14 +39,22 @@ import (
 //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer "kernel32.dll"
 //go:cgo_import_dynamic runtime._Sleep Sleep "kernel32.dll"
 //go:cgo_import_dynamic runtime._SuspendThread SuspendThread "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualFree VirtualFree "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualProtect VirtualProtect "kernel32.dll"
+//go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult "ws2_32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile "kernel32.dll"
 //go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod "winmm.dll"
 
 var (
+	// Following syscalls are available on every Windows PC.
+	// All these variables are set by the Windows executable
+	// loader before the Go program starts.
 	_AddVectoredExceptionHandler,
 	_CloseHandle,
 	_CreateEventA,
+	_CreateIoCompletionPort,
 	_CreateThread,
 	_CreateWaitableTimerA,
 	_CryptAcquireContextW,
@@ -55,6 +65,7 @@ var (
 	_FreeEnvironmentStringsW,
 	_GetEnvironmentStringsW,
 	_GetProcAddress,
+	_GetQueuedCompletionStatus,
 	_GetStdHandle,
 	_GetSystemInfo,
 	_GetThreadContext,
@@ -71,12 +82,36 @@ var (
 	_SetWaitableTimer,
 	_Sleep,
 	_SuspendThread,
+	_VirtualAlloc,
+	_VirtualFree,
+	_VirtualProtect,
+	_WSAGetOverlappedResult,
 	_WaitForSingleObject,
 	_WriteFile,
 	_timeBeginPeriod stdFunction
+
+	// Following syscalls are only available on some Windows PCs.
+	// We will load syscalls, if available, before using them.
+	_AddVectoredContinueHandler,
+	_GetQueuedCompletionStatusEx stdFunction
 )
 
-var _GetQueuedCompletionStatusEx stdFunction
+func loadOptionalSyscalls() {
+	var buf [50]byte // large enough for longest string
+	strtoptr := func(s string) uintptr {
+		buf[copy(buf[:], s)] = 0 // nil-terminated for OS
+		return uintptr(noescape(unsafe.Pointer(&buf[0])))
+	}
+	l := stdcall1(_LoadLibraryA, strtoptr("kernel32.dll"))
+	findfunc := func(name string) stdFunction {
+		f := stdcall2(_GetProcAddress, l, strtoptr(name))
+		return stdFunction(unsafe.Pointer(f))
+	}
+	if l != 0 {
+		_AddVectoredContinueHandler = findfunc("AddVectoredContinueHandler")
+		_GetQueuedCompletionStatusEx = findfunc("GetQueuedCompletionStatusEx")
+	}
+}
 
 // in sys_windows_386.s and sys_windows_amd64.s
 func externalthreadhandler()
@@ -117,34 +152,24 @@ func disableWER() {
 	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
 }
 
-var (
-	kernel32Name                    = []byte("kernel32.dll\x00")
-	addVectoredContinueHandlerName  = []byte("AddVectoredContinueHandler\x00")
-	getQueuedCompletionStatusExName = []byte("GetQueuedCompletionStatusEx\x00")
-)
-
 func osinit() {
 	setBadSignalMsg()
 
-	kernel32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32Name[0])))
+	loadOptionalSyscalls()
 
 	disableWER()
 
 	externalthreadhandlerp = funcPC(externalthreadhandler)
 
 	stdcall2(_AddVectoredExceptionHandler, 1, funcPC(exceptiontramp))
-	addVectoredContinueHandler := uintptr(0)
-	if kernel32 != 0 {
-		addVectoredContinueHandler = stdcall2(_GetProcAddress, kernel32, uintptr(unsafe.Pointer(&addVectoredContinueHandlerName[0])))
-	}
-	if addVectoredContinueHandler == 0 || unsafe.Sizeof(&kernel32) == 4 {
+	if _AddVectoredContinueHandler == nil || unsafe.Sizeof(&_AddVectoredContinueHandler) == 4 {
 		// use SetUnhandledExceptionFilter for windows-386 or
 		// if VectoredContinueHandler is unavailable.
 		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
 		stdcall1(_SetUnhandledExceptionFilter, funcPC(lastcontinuetramp))
 	} else {
-		stdcall2(stdFunction(unsafe.Pointer(addVectoredContinueHandler)), 1, funcPC(firstcontinuetramp))
-		stdcall2(stdFunction(unsafe.Pointer(addVectoredContinueHandler)), 0, funcPC(lastcontinuetramp))
+		stdcall2(_AddVectoredContinueHandler, 1, funcPC(firstcontinuetramp))
+		stdcall2(_AddVectoredContinueHandler, 0, funcPC(lastcontinuetramp))
 	}
 
 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
@@ -158,10 +183,6 @@ func osinit() {
 	// equivalent threads that all do a mix of GUI, IO, computations, etc.
 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
-
-	if kernel32 != 0 {
-		_GetQueuedCompletionStatusEx = stdFunction(unsafe.Pointer(stdcall2(_GetProcAddress, kernel32, uintptr(unsafe.Pointer(&getQueuedCompletionStatusExName[0])))))
-	}
 }
 
 //go:nosplit
@@ -506,7 +527,7 @@ func profilem(mp *m) {
 	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
 	r.contextflags = _CONTEXT_CONTROL
 	stdcall2(_GetThreadContext, mp.thread, uintptr(unsafe.Pointer(r)))
-	dosigprof(r, gp, mp)
+	sigprof((*byte)(unsafe.Pointer(r.ip())), (*byte)(unsafe.Pointer(r.sp())), nil, gp, mp)
 }
 
 func profileloop1() {

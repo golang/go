@@ -2735,6 +2735,8 @@ var tagGetTests = []struct {
 	{`protobuf:"PB(1,2)"`, `rotobuf`, ``},
 	{`protobuf:"PB(1,2)" json:"name"`, `json`, `name`},
 	{`protobuf:"PB(1,2)" json:"name"`, `protobuf`, `PB(1,2)`},
+	{`k0:"values contain spaces" k1:"and\ttabs"`, "k0", "values contain spaces"},
+	{`k0:"values contain spaces" k1:"and\ttabs"`, "k1", "and\ttabs"},
 }
 
 func TestTagGet(t *testing.T) {

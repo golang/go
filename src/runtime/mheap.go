@@ -318,8 +318,7 @@ HaveSpan:
 		t.needzero = s.needzero
 		s.state = _MSpanStack // prevent coalescing with s
 		t.state = _MSpanStack
-		mHeap_FreeSpanLocked(h, t, false, false)
-		t.unusedsince = s.unusedsince // preserve age (TODO: wrong: t is possibly merged and/or deallocated at this point)
+		mHeap_FreeSpanLocked(h, t, false, false, s.unusedsince)
 		s.state = _MSpanFree
 	}
 	s.unusedsince = 0
@@ -395,7 +394,7 @@ func mHeap_Grow(h *mheap, npage uintptr) bool {
 	h_spans[p+s.npages-1] = s
 	atomicstore(&s.sweepgen, h.sweepgen)
 	s.state = _MSpanInUse
-	mHeap_FreeSpanLocked(h, s, false, true)
+	mHeap_FreeSpanLocked(h, s, false, true, 0)
 	return true
 }
 
@@ -442,7 +441,7 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
 			memstats.heap_alloc -= uint64(s.npages << _PageShift)
 			memstats.heap_objects--
 		}
-		mHeap_FreeSpanLocked(h, s, true, true)
+		mHeap_FreeSpanLocked(h, s, true, true, 0)
 		if trace.enabled {
 			traceHeapAlloc()
 		}
@@ -458,11 +457,11 @@ func mHeap_FreeStack(h *mheap, s *mspan) {
 	s.needzero = 1
 	lock(&h.lock)
 	memstats.stacks_inuse -= uint64(s.npages << _PageShift)
-	mHeap_FreeSpanLocked(h, s, true, true)
+	mHeap_FreeSpanLocked(h, s, true, true, 0)
 	unlock(&h.lock)
 }
 
-func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool) {
+func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsince int64) {
 	switch s.state {
 	case _MSpanStack:
 		if s.ref != 0 {
@@ -488,7 +487,10 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool) {
 
 	// Stamp newly unused spans. The scavenger will use that
 	// info to potentially give back some pages to the OS.
-	s.unusedsince = nanotime()
+	s.unusedsince = unusedsince
+	if unusedsince == 0 {
+		s.unusedsince = nanotime()
+	}
 	s.npreleased = 0
 
 	// Coalesce with earlier, later spans.

@@ -38,229 +38,6 @@
 // At the same time, can raise StackBig in ../../runtime/stack.h.
 long unmappedzero = 4096;
 
-void
-clearp(Prog *p)
-{
-	p->as = AEND;
-	p->reg = 0;
-	p->scond = C_SCOND_NONE;
-	p->from.type = TYPE_NONE;
-	p->from.name = NAME_NONE;
-	p->from.reg = 0;
-	p->to.type = TYPE_NONE;
-	p->to.name = NAME_NONE;
-	p->to.reg = 0;
-	p->pc = pcloc;
-	pcloc++;
-}
-
-static int ddumped;
-static Prog *dfirst;
-static Prog *dpc;
-
-/*
- * generate and return proc with p->as = as,
- * linked into program.  pc is next instruction.
- */
-Prog*
-prog(int as)
-{
-	Prog *p;
-
-	if(as == ADATA || as == AGLOBL) {
-		if(ddumped)
-			fatal("already dumped data");
-		if(dpc == nil) {
-			dpc = mal(sizeof(*dpc));
-			dfirst = dpc;
-		}
-		p = dpc;
-		dpc = mal(sizeof(*dpc));
-		p->link = dpc;
-		p->reg = 0;  // used for flags
-	} else {
-		p = pc;
-		pc = mal(sizeof(*pc));
-		clearp(pc);
-		p->link = pc;
-	}
-
-	if(lineno == 0) {
-		if(debug['K'])
-			warn("prog: line 0");
-	}
-
-	p->as = as;
-	p->lineno = lineno;
-	return p;
-}
-
-void
-dumpdata(void)
-{
-	ddumped = 1;
-	if(dfirst == nil)
-		return;
-	newplist();
-	*pc = *dfirst;
-	pc = dpc;
-	clearp(pc);
-}
-
-/*
- * generate a branch.
- * t is ignored.
- * likely values are for branch prediction:
- *	-1 unlikely
- *	0 no opinion
- *	+1 likely
- */
-Prog*
-gbranch(int as, Type *t, int likely)
-{
-	Prog *p;
-
-	USED(t);
-	USED(likely);  // TODO: record this for linker
-
-	p = prog(as);
-	p->to.type = TYPE_BRANCH;
-	p->to.u.branch = P;
-	return p;
-}
-
-/*
- * patch previous branch to jump to to.
- */
-void
-patch(Prog *p, Prog *to)
-{
-	if(p->to.type != TYPE_BRANCH)
-		fatal("patch: not a branch");
-	p->to.u.branch = to;
-	p->to.offset = to->pc;
-}
-
-Prog*
-unpatch(Prog *p)
-{
-	Prog *q;
-
-	if(p->to.type != TYPE_BRANCH)
-		fatal("unpatch: not a branch");
-	q = p->to.u.branch;
-	p->to.u.branch = P;
-	p->to.offset = 0;
-	return q;
-}
-
-/*
- * start a new Prog list.
- */
-Plist*
-newplist(void)
-{
-	Plist *pl;
-
-	pl = linknewplist(ctxt);
-
-	pc = mal(sizeof(*pc));
-	clearp(pc);
-	pl->firstpc = pc;
-
-	return pl;
-}
-
-void
-gused(Node *n)
-{
-	gins(ANOP, n, N);	// used
-}
-
-Prog*
-gjmp(Prog *to)
-{
-	Prog *p;
-
-	p = gbranch(AB, T, 0);
-	if(to != P)
-		patch(p, to);
-	return p;
-}
-
-void
-ggloblnod(Node *nam)
-{
-	Prog *p;
-
-	p = gins(AGLOBL, nam, N);
-	p->lineno = nam->lineno;
-	p->from.sym->gotype = linksym(ngotype(nam));
-	p->to.sym = nil;
-	p->to.type = TYPE_CONST;
-	p->to.offset = nam->type->width;
-	if(nam->readonly)
-		p->from3.offset = RODATA;
-	if(nam->type != T && !haspointers(nam->type))
-		p->from3.offset |= NOPTR;
-}
-
-void
-ggloblsym(Sym *s, int32 width, int8 flags)
-{
-	Prog *p;
-
-	p = gins(AGLOBL, N, N);
-	p->from.type = TYPE_MEM;
-	p->from.name = NAME_EXTERN;
-	p->from.sym = linksym(s);
-	p->to.type = TYPE_CONST;
-	p->to.name = NAME_NONE;
-	p->to.offset = width;
-	p->from3.offset = flags;
-}
-
-void
-gtrack(Sym *s)
-{
-	Prog *p;
-	
-	p = gins(AUSEFIELD, N, N);
-	p->from.type = TYPE_MEM;
-	p->from.name = NAME_EXTERN;
-	p->from.sym = linksym(s);
-}
-
-int
-isfat(Type *t)
-{
-	if(t != T)
-	switch(t->etype) {
-	case TSTRUCT:
-	case TARRAY:
-	case TSTRING:
-	case TINTER:	// maybe remove later
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * naddr of func generates code for address of func.
- * if using opcode that can take address implicitly,
- * call afunclit to fix up the argument.
- * also fix up direct register references to be TYPE_MEM.
- */
-void
-afunclit(Addr *a, Node *n)
-{
-	if(a->type == TYPE_ADDR && a->name == NAME_EXTERN || a->type == TYPE_REG) {
-		a->type = TYPE_MEM;
-		if(n->op == ONAME)
-			a->sym = linksym(n->sym);
-	}
-}
-
 static	int	resvd[] =
 {
 	9,     // reserved for m
@@ -292,7 +69,7 @@ gclean(void)
 			yyerror("reg %R left allocated\n", i);
 }
 
-int32
+int
 anyregalloc(void)
 {
 	int i, j;
@@ -427,101 +204,6 @@ regfree(Node *n)
 }
 
 /*
- * initialize n to be register r of type t.
- */
-void
-nodreg(Node *n, Type *t, int r)
-{
-	if(t == T)
-		fatal("nodreg: t nil");
-
-	memset(n, 0, sizeof(*n));
-	n->op = OREGISTER;
-	n->addable = 1;
-	ullmancalc(n);
-	n->val.u.reg = r;
-	n->type = t;
-}
-
-/*
- * initialize n to be indirect of register r; n is type t.
- */
-void
-nodindreg(Node *n, Type *t, int r)
-{
-	nodreg(n, t, r);
-	n->op = OINDREG;
-}
-
-Node*
-nodarg(Type *t, int fp)
-{
-	Node *n;
-	NodeList *l;
-	Type *first;
-	Iter savet;
-
-	// entire argument struct, not just one arg
-	if(t->etype == TSTRUCT && t->funarg) {
-		n = nod(ONAME, N, N);
-		n->sym = lookup(".args");
-		n->type = t;
-		first = structfirst(&savet, &t);
-		if(first == nil)
-			fatal("nodarg: bad struct");
-		if(first->width == BADWIDTH)
-			fatal("nodarg: offset not computed for %T", t);
-		n->xoffset = first->width;
-		n->addable = 1;
-		goto fp;
-	}
-
-	if(t->etype != TFIELD)
-		fatal("nodarg: not field %T", t);
-
-	if(fp == 1) {
-		for(l=curfn->dcl; l; l=l->next) {
-			n = l->n;
-			if((n->class == PPARAM || n->class == PPARAMOUT) && !isblanksym(t->sym) && n->sym == t->sym)
-				return n;
-		}
-	}
-
-	n = nod(ONAME, N, N);
-	n->type = t->type;
-	n->sym = t->sym;
-	if(t->width == BADWIDTH)
-		fatal("nodarg: offset not computed for %T", t);
-	n->xoffset = t->width;
-	n->addable = 1;
-	n->orig = t->nname;
-
-fp:
-	// Rewrite argument named _ to __,
-	// or else the assignment to _ will be
-	// discarded during code generation.
-	if(isblank(n))
-		n->sym = lookup("__");
-
-	switch(fp) {
-	default:
-		fatal("nodarg %T %d", t, fp);
-
-	case 0:		// output arg for calling another function
-		n->op = OINDREG;
-		n->val.u.reg = REGSP;
-		n->xoffset += 4;
-		break;
-
-	case 1:		// input arg to current function
-		n->class = PPARAM;
-		break;
-	}
-	n->typecheck = 1;
-	return n;
-}
-
-/*
  * return constant i node.
  * overwritten by next call, but useful in calls to gins.
  */
@@ -534,22 +216,6 @@ ncon(uint32 i)
 		nodconst(&n, types[TUINT32], 0);
 	mpmovecfix(n.val.u.xval, i);
 	return &n;
-}
-
-/*
- * Is this node a memory operand?
- */
-int
-ismem(Node *n)
-{
-	switch(n->op) {
-	case OINDREG:
-	case ONAME:
-	case OPARAM:
-	case OCLOSUREVAR:
-		return 1;
-	}
-	return 0;
 }
 
 Node sclean[10];
@@ -573,22 +239,25 @@ split64(Node *n, Node *lo, Node *hi)
 	nsclean++;
 	switch(n->op) {
 	default:
-		if(!dotaddable(n, &n1)) {
-			igen(n, &n1, N);
-			sclean[nsclean-1] = n1;
-		}
-		n = &n1;
-		goto common;
-	case ONAME:
-		if(n->class == PPARAMREF) {
-			cgen(n->heapaddr, &n1);
-			sclean[nsclean-1] = n1;
-			// fall through.
+		switch(n->op) {
+		default:
+			if(!dotaddable(n, &n1)) {
+				igen(n, &n1, N);
+				sclean[nsclean-1] = n1;
+			}
 			n = &n1;
+			break;
+		case ONAME:
+			if(n->class == PPARAMREF) {
+				cgen(n->heapaddr, &n1);
+				sclean[nsclean-1] = n1;
+				n = &n1;
+			}
+			break;
+		case OINDREG:
+			// nothing
+			break;
 		}
-		goto common;
-	case OINDREG:
-	common:
 		*lo = *n;
 		*hi = *n;
 		lo->type = types[TUINT32];
@@ -1182,228 +851,6 @@ gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs)
 }
 
 /*
- * generate code to compute n;
- * make a refer to result.
- */
-void
-naddr(Node *n, Addr *a, int canemitcode)
-{
-	Sym *s;
-
-	a->type = TYPE_NONE;
-	a->name = NAME_NONE;
-	a->reg = 0;
-	a->gotype = nil;
-	a->node = N;
-	a->etype = 0;
-	if(n == N)
-		return;
-
-	if(n->type != T && n->type->etype != TIDEAL) {
-		dowidth(n->type);
-		a->width = n->type->width;
-	}
-
-	switch(n->op) {
-	default:
-		fatal("naddr: bad %O %D", n->op, a);
-		break;
-
-	case OREGISTER:
-		a->type = TYPE_REG;
-		a->reg = n->val.u.reg;
-		a->sym = nil;
-		break;
-
-	case OINDEX:
-	case OIND:
-		fatal("naddr: OINDEX");
-//		naddr(n->left, a);
-//		if(a->type >= D_AX && a->type <= D_DI)
-//			a->type += D_INDIR;
-//		else
-//		if(a->type == TYPE_ADDR)
-//			a->type = TYPE_NONE+D_INDIR;
-//		else
-//		if(a->type == TYPE_ADDR) {
-//			a->type = a->index;
-//			a->index = TYPE_NONE;
-//		} else
-//			goto bad;
-//		if(n->op == OINDEX) {
-//			a->index = idx.reg;
-//			a->scale = n->scale;
-//		}
-//		break;
-
-	case OINDREG:
-		a->type = TYPE_MEM;
-		a->reg = n->val.u.reg;
-		a->sym = linksym(n->sym);
-		a->offset = n->xoffset;
-		break;
-
-	case OPARAM:
-		// n->left is PHEAP ONAME for stack parameter.
-		// compute address of actual parameter on stack.
-		a->etype = simtype[n->left->type->etype];
-		a->width = n->left->type->width;
-		a->offset = n->xoffset;
-		a->sym = linksym(n->left->sym);
-		a->type = TYPE_MEM;
-		a->name = NAME_PARAM;
-		a->node = n->left->orig;
-		break;
-	
-	case OCLOSUREVAR:
-		if(!curfn->needctxt)
-			fatal("closurevar without needctxt");
-		a->type = TYPE_MEM;
-		a->reg = REG_R7;
-		a->offset = n->xoffset;
-		a->sym = nil;
-		break;		
-
-	case OCFUNC:
-		naddr(n->left, a, canemitcode);
-		a->sym = linksym(n->left->sym);
-		break;
-
-	case ONAME:
-		a->etype = 0;
-		a->width = 0;
-		a->reg = 0;
-		if(n->type != T) {
-			a->etype = simtype[n->type->etype];
-			a->width = n->type->width;
-		}
-		a->offset = n->xoffset;
-		s = n->sym;
-		a->node = n->orig;
-		//if(a->node >= (Node*)&n)
-		//	fatal("stack node");
-		if(s == S)
-			s = lookup(".noname");
-		if(n->method) {
-			if(n->type != T)
-			if(n->type->sym != S)
-			if(n->type->sym->pkg != nil)
-				s = pkglookup(s->name, n->type->sym->pkg);
-		}
-
-		a->type = TYPE_MEM;
-		switch(n->class) {
-		default:
-			fatal("naddr: ONAME class %S %d\n", n->sym, n->class);
-		case PEXTERN:
-			a->name = NAME_EXTERN;
-			break;
-		case PAUTO:
-			a->name = NAME_AUTO;
-			break;
-		case PPARAM:
-		case PPARAMOUT:
-			a->name = NAME_PARAM;
-			break;
-		case PFUNC:
-			a->name = NAME_EXTERN;
-			a->type = TYPE_ADDR;
-			s = funcsym(s);
-			break;
-		}
-		a->sym = linksym(s);
-		break;
-
-	case OLITERAL:
-		switch(n->val.ctype) {
-		default:
-			fatal("naddr: const %lT", n->type);
-			break;
-		case CTFLT:
-			a->type = TYPE_FCONST;
-			a->u.dval = mpgetflt(n->val.u.fval);
-			break;
-		case CTINT:
-		case CTRUNE:
-			a->sym = nil;
-			a->type = TYPE_CONST;
-			a->offset = mpgetfix(n->val.u.xval);
-			break;
-		case CTSTR:
-			datagostring(n->val.u.sval, a);
-			break;
-		case CTBOOL:
-			a->sym = nil;
-			a->type = TYPE_CONST;
-			a->offset = n->val.u.bval;
-			break;
-		case CTNIL:
-			a->sym = nil;
-			a->type = TYPE_CONST;
-			a->offset = 0;
-			break;
-		}
-		break;
-
-	case OITAB:
-		// itable of interface value
-		naddr(n->left, a, canemitcode);
-		a->etype = simtype[tptr];
-		if(a->type == TYPE_CONST && a->offset == 0)
-			break;	// len(nil)
-		a->width = widthptr;
-		break;
-
-	case OSPTR:
-		// pointer in a string or slice
-		naddr(n->left, a, canemitcode);
-		if(a->type == TYPE_CONST && a->offset == 0)
-			break;	// ptr(nil)
-		a->etype = simtype[tptr];
-		a->offset += Array_array;
-		a->width = widthptr;
-		break;
-
-	case OLEN:
-		// len of string or slice
-		naddr(n->left, a, canemitcode);
-		a->etype = TINT32;
-		if(a->type == TYPE_CONST && a->offset == 0)
-			break;	// len(nil)
-		a->offset += Array_nel;
-		break;
-
-	case OCAP:
-		// cap of string or slice
-		naddr(n->left, a, canemitcode);
-		a->etype = TINT32;
-		if(a->type == TYPE_CONST && a->offset == 0)
-			break;	// cap(nil)
-		a->offset += Array_cap;
-		break;
-
-	case OADDR:
-		naddr(n->left, a, canemitcode);
-		a->etype = tptr;
-		switch(a->type) {
-		case TYPE_MEM:
-			a->type = TYPE_ADDR;
-			break;
-
-		case TYPE_REG:
-		case TYPE_ADDR:
-			break;
-		
-		default:
-			fatal("naddr: OADDR %d\n", a->type);
-		}
-	}
-	
-	if(a->width < 0)
-		fatal("naddr: bad width for %N -> %D", n, a);
-}
-
-/*
  * return Axxx for Oxxx on type t.
  */
 int
@@ -1811,6 +1258,8 @@ sudoaddable(int as, Node *n, Addr *a, int *w)
 
 	if(n->type == T)
 		return 0;
+
+	memset(a, 0, sizeof *a);
 
 	switch(n->op) {
 	case OLITERAL:

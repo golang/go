@@ -32,7 +32,6 @@
 #include	<libc.h>
 #include	<bio.h>
 #include	<link.h>
-#include	"5.out.h"
 
 enum
 {
@@ -41,43 +40,14 @@ enum
 	IntSize = 4,
 	RegSize = 4,
 	MaxAlign = 8,	// max data alignment
-	FuncAlign = 4  // single-instruction alignment
+	FuncAlign = 4,  // single-instruction alignment
+	MINLC	= 4,
 };
 
 #ifndef	EXTERN
 #define	EXTERN	extern
 #endif
 
-#define	P		((Prog*)0)
-#define	S		((LSym*)0)
-
-enum
-{
-/* mark flags */
-	FOLL		= 1<<0,
-	LABEL		= 1<<1,
-	LEAF		= 1<<2,
-
-	MINLC	= 4,
-};
-
-EXTERN	int32	autosize;
-EXTERN	LSym*	datap;
-EXTERN	int	debug[128];
-EXTERN	char*	noname;
-EXTERN	Prog*	lastp;
-EXTERN	int32	lcsize;
-EXTERN	char	literal[32];
-EXTERN	int	nerrors;
-EXTERN	int32	instoffset;
-EXTERN	char*	rpath;
-EXTERN	uint32	stroffset;
-EXTERN	int32	symsize;
-EXTERN	int	armsize;
-
-#pragma	varargck	type	"I"	uint32*
-
-int	Iconv(Fmt *fp);
 void	adddynlib(char *lib);
 void	adddynrel(LSym *s, Reloc *r);
 void	adddynrela(LSym *rel, LSym *s, Reloc *r);
@@ -89,13 +59,6 @@ int	elfreloc1(Reloc *r, vlong sectoff);
 void	elfsetupplt(void);
 void	listinit(void);
 int	machoreloc1(Reloc *r, vlong sectoff);
-void	main(int argc, char *argv[]);
-int32	rnd(int32 v, int32 r);
-
-/* Native is little-endian */
-#define	LPUT(a)	lputl(a)
-#define	WPUT(a)	wputl(a)
-#define	VPUT(a)	abort()
 
 /* Used by ../ld/dwarf.c */
 enum

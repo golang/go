@@ -677,7 +677,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 	bvresetall(varkill);
 	bvresetall(avarinit);
 
-	arch.proginfo(&info, prog);
+	thearch.proginfo(&info, prog);
 	if(prog->as == ARET) {
 		// Return instructions implicitly read all the arguments.  For
 		// the sake of correctness, out arguments must be read.  For the
@@ -701,7 +701,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 				// If we added it to uevar too, we'd not see any kill
 				// and decide that the varible was live entry, which it is not.
 				// So only use uevar in the non-addrtaken case.
-				// The p->to.type == arch.D_NONE limits the bvset to
+				// The p->to.type == thearch.D_NONE limits the bvset to
 				// non-tail-call return instructions; see note above
 				// the for loop for details.
 				if(!node->addrtaken && prog->to.type == TYPE_NONE)
@@ -744,7 +744,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
 					if(info.flags & (LeftRead | LeftAddr))
 						bvset(uevar, pos);
 					if(info.flags & LeftWrite)
-						if(from->node != nil && !arch.isfat(((Node*)(from->node))->type))
+						if(from->node != nil && !isfat(((Node*)(from->node))->type))
 							bvset(varkill, pos);
 				}
 			}
@@ -780,7 +780,7 @@ Next:
 					if((info.flags & RightRead) || (info.flags & (RightAddr|RightWrite)) == RightAddr)
 						bvset(uevar, pos);
 					if(info.flags & RightWrite)
-						if(to->node != nil && (!arch.isfat(((Node*)(to->node))->type) || prog->as == AVARDEF))
+						if(to->node != nil && (!isfat(((Node*)(to->node))->type) || prog->as == AVARDEF))
 							bvset(varkill, pos);
 				}
 			}
@@ -1218,7 +1218,7 @@ unlinkedprog(int as)
 	Prog *p;
 
 	p = mal(sizeof(*p));
-	arch.clearp(p);
+	clearp(p);
 	p->as = as;
 	return p;
 }
@@ -1235,8 +1235,8 @@ newpcdataprog(Prog *prog, int32 index)
 	nodconst(&to, types[TINT32], index);
 	pcdata = unlinkedprog(APCDATA);
 	pcdata->lineno = prog->lineno;
-	arch.naddr(&from, &pcdata->from, 0);
-	arch.naddr(&to, &pcdata->to, 0);
+	naddr(&from, &pcdata->from, 0);
+	naddr(&to, &pcdata->to, 0);
 	return pcdata;
 }
 
@@ -1909,15 +1909,15 @@ static void
 twobitwritesymbol(Array *arr, Sym *sym)
 {
 	Bvec *bv;
-	int off, i, j, len;
+	int off, i, j, n;
 	uint32 word;
 
-	len = arraylength(arr);
+	n = arraylength(arr);
 	off = 0;
 	off += 4; // number of bitmaps, to fill in later
 	bv = *(Bvec**)arrayget(arr, 0);
 	off = duint32(sym, off, bv->n); // number of bits in each bitmap
-	for(i = 0; i < len; i++) {
+	for(i = 0; i < n; i++) {
 		// bitmap words
 		bv = *(Bvec**)arrayget(arr, i);
 		if(bv == nil)
@@ -1932,7 +1932,7 @@ twobitwritesymbol(Array *arr, Sym *sym)
 		}
 	}
 	duint32(sym, 0, i); // number of bitmaps
-	arch.ggloblsym(sym, off, RODATA);
+	ggloblsym(sym, off, RODATA);
 }
 
 static void

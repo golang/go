@@ -240,7 +240,7 @@ var pkgDeps = map[string][]string{
 	// Basic networking.
 	// Because net must be used by any package that wants to
 	// do networking portably, it must have a small dependency set: just L1+basic os.
-	"net": {"L1", "CGO", "os", "syscall", "time"},
+	"net": {"L1", "CGO", "os", "syscall", "time", "internal/syscall/windows"},
 
 	// NET enables use of basic network-related packages.
 	"NET": {

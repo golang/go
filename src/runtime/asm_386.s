@@ -1298,25 +1298,21 @@ eq:
 	RET
 
 // eqstring tests whether two strings are equal.
+// The compiler guarantees that strings passed
+// to eqstring have equal length.
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$0-17
-	MOVL	s1len+4(FP), AX
-	MOVL	s2len+12(FP), BX
-	CMPL	AX, BX
-	JNE	different
 	MOVL	s1str+0(FP), SI
 	MOVL	s2str+8(FP), DI
 	CMPL	SI, DI
 	JEQ	same
+	MOVL	s1len+4(FP), BX
 	CALL	runtime·memeqbody(SB)
 	MOVB	AX, v+16(FP)
 	RET
 same:
 	MOVB	$1, v+16(FP)
-	RET
-different:
-	MOVB	$0, v+16(FP)
 	RET
 
 TEXT bytes·Equal(SB),NOSPLIT,$0-25

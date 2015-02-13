@@ -87,7 +87,7 @@ func mkanames(dir, file string) {
 				line = line[:i]
 			}
 			line = line[2:]
-			fmt.Fprintf(&out, "\t\"%s\",\n", line)
+			fmt.Fprintf(&out, "\t\"%s\",\n", strings.TrimSpace(line))
 		}
 	}
 	fmt.Fprintf(&out, "};\n")

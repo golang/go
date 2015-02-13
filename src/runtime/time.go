@@ -153,7 +153,6 @@ func deltimer(t *timer) bool {
 // If addtimer inserts a new earlier event, addtimer1 wakes timerproc early.
 func timerproc() {
 	timers.gp = getg()
-	timers.gp.issystem = true
 	for {
 		lock(&timers.lock)
 		timers.sleeping = false

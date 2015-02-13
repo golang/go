@@ -7,14 +7,22 @@
 
 enum {
 #ifdef GOOS_windows
-#define StackSystem (512*sizeof(uintptr))
-#else
+#define STACKSYSTEM (512 * sizeof(uintptr))
+#endif // GOOS_windows
 #ifdef GOOS_plan9
-#define StackSystem (512)
-#else
-	StackSystem = 0,
-#endif	// Plan 9
-#endif	// Windows
+#define STACKSYSTEM	512
+#endif // GOOS_plan9
+#ifdef GOOS_darwin
+#ifdef GOARCH_arm
+#define STACKSYSTEM 1024
+#endif // GOARCH_arm
+#endif // GOOS_darwin
+
+#ifndef STACKSYSTEM
+#define STACKSYSTEM 0
+#endif
+
+	StackSystem = STACKSYSTEM,
 
 	StackBig = 4096,
 	StackGuard = 640 + StackSystem,

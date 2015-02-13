@@ -38,6 +38,19 @@ parserline(void)
 	return lineno;
 }
 
+void
+adderrorname(Node *n)
+{
+	char *old;
+	
+	if(n->op != ODOT)
+		return;
+	old = smprint("%L: undefined: %N\n", n->lineno, n->left);
+	if(nerr > 0 && err[nerr-1].lineno == n->lineno && strcmp(err[nerr-1].msg, old) == 0)
+		err[nerr-1].msg = smprint("%L: undefined: %N in %N\n", n->lineno, n->left, n);
+	free(old);
+}
+
 static void
 adderr(int line, char *fmt, va_list arg)
 {
@@ -1211,7 +1224,7 @@ assignop(Type *src, Type *dst, char **why)
 		*why = "";
 
 	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
-	// https://code.google.com/p/go/issues/detail?id=2795
+	// https://golang.org/issue/2795
 	if(safemode && importpkg == nil && src != T && src->etype == TUNSAFEPTR) {
 		yyerror("cannot use unsafe.Pointer");
 		errorexit();
@@ -1703,36 +1716,31 @@ ptrto(Type *t)
 void
 frame(int context)
 {
-	char *p;
 	NodeList *l;
 	Node *n;
-	int flag;
+	vlong w;
 
-	p = "stack";
-	l = nil;
-	if(curfn)
-		l = curfn->dcl;
 	if(context) {
-		p = "external";
+		print("--- external frame ---\n");
 		l = externdcl;
-	}
+	} else if(curfn) {
+		print("--- %S frame ---\n", curfn->nname->sym);
+		l = curfn->dcl;
+	} else
+		return;
 
-	flag = 1;
 	for(; l; l=l->next) {
 		n = l->n;
+		w = -1;
+		if(n->type)
+			w = n->type->width;
 		switch(n->op) {
 		case ONAME:
-			if(flag)
-				print("--- %s frame ---\n", p);
-			print("%O %S G%d %T\n", n->op, n->sym, n->vargen, n->type);
-			flag = 0;
+			print("%O %S G%d %T width=%lld\n", n->op, n->sym, n->vargen, n->type, w);
 			break;
 
 		case OTYPE:
-			if(flag)
-				print("--- %s frame ---\n", p);
-			print("%O %T\n", n->op, n->type);
-			flag = 0;
+			print("%O %T width=%lld\n", n->op, n->type, w);
 			break;
 		}
 	}
@@ -2121,10 +2129,10 @@ setmaxarg(Type *t, int32 extra)
 
 	dowidth(t);
 	w = t->argwid;
-	if(w >= arch.MAXWIDTH)
+	if(w >= thearch.MAXWIDTH)
 		fatal("bad argwid %T", t);
 	w += extra;
-	if(w >= arch.MAXWIDTH)
+	if(w >= thearch.MAXWIDTH)
 		fatal("bad argwid %d + %T", extra, t);
 	if(w > maxarg)
 		maxarg = w;
@@ -2628,7 +2636,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	inl_nonlocal = 0;
 
 	curfn = nil;
-	funccompile(fn, 0);
+	funccompile(fn);
 }
 
 static Node*
@@ -2876,7 +2884,7 @@ genhash(Sym *sym, Type *t)
 	// an unexported field of type unsafe.Pointer.
 	old_safemode = safemode;
 	safemode = 0;
-	funccompile(fn, 0);
+	funccompile(fn);
 	safemode = old_safemode;
 }
 
@@ -3096,7 +3104,7 @@ geneq(Sym *sym, Type *t)
 	// an unexported field of type unsafe.Pointer.
 	old_safemode = safemode;
 	safemode = 0;
-	funccompile(fn, 0);
+	funccompile(fn);
 	safemode = old_safemode;
 }
 
