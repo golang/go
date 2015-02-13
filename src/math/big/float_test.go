@@ -729,14 +729,20 @@ func TestFloatNeg(t *testing.T) {
 }
 
 func TestFloatInc(t *testing.T) {
-	var x, one Float
-	// x.prec = 256 TODO(gri) This doesn't work at the moment
-	one.SetInt64(1)
-	for i := 0; i < 10; i++ {
-		x.Add(&x, &one)
-	}
-	if s := x.Format('g', 10); s != "10" {
-		t.Errorf("got %s; want 10", s)
+	const n = 10
+	for _, prec := range precList {
+		if 1<<prec < n {
+			continue // prec must be large enough to hold all numbers from 0 to n
+		}
+		var x, one Float
+		x.prec = prec
+		one.SetInt64(1)
+		for i := 0; i < n; i++ {
+			x.Add(&x, &one)
+		}
+		if x.Cmp(new(Float).SetInt64(n)) != 0 {
+			t.Errorf("prec = %d: got %s; want %d", prec, &x, n)
+		}
 	}
 }
 
