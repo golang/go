@@ -1627,6 +1627,11 @@ func (gcToolchain) linker() string {
 	return tool(archChar + "l")
 }
 
+// verifyCompiler specifies whether to check the compilers written in Go
+// against the assemblers written in C. If set, asm will run both (say) 6g and new6g
+// and fail if the two produce different output files.
+const verifyCompiler = true
+
 func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
 	if archive != "" {
 		ofile = archive
@@ -1660,7 +1665,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
 	}
 
-	args := stringList(buildToolExec, tool(archChar+"g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
+	args := []interface{}{buildToolExec, tool(archChar + "g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
 	if ofile == archive {
 		args = append(args, "-pack")
 	}
@@ -1671,7 +1676,12 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 		args = append(args, mkAbs(p.Dir, f))
 	}
 
-	output, err = b.runOut(p.Dir, p.ImportPath, nil, args)
+	output, err = b.runOut(p.Dir, p.ImportPath, nil, args...)
+	if err == nil && verifyCompiler {
+		if err := toolVerify(b, p, "new"+archChar+"g", ofile, args); err != nil {
+			return ofile, output, err
+		}
+	}
 	return ofile, output, err
 }
 
@@ -1689,12 +1699,12 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 		return err
 	}
 	if verifyAsm {
-		if err := asmVerify(b, p, "new"+archChar+"a", ofile, args); err != nil {
+		if err := toolVerify(b, p, "new"+archChar+"a", ofile, args); err != nil {
 			return err
 		}
 		switch goarch {
 		case "386", "amd64", "amd64p32", "arm": // Asm only supports these architectures so far.
-			if err := asmVerify(b, p, "asm", ofile, args); err != nil {
+			if err := toolVerify(b, p, "asm", ofile, args); err != nil {
 				return err
 			}
 		}
@@ -1702,12 +1712,12 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	return nil
 }
 
-// asmVerify checks that the assembly run for the specified assembler (asm) agrees
-// with the C-implemented original assembly output, bit for bit.
-func asmVerify(b *builder, p *Package, asm string, ofile string, args []interface{}) error {
+// toolVerify checks that the command line args writes the same output file
+// if run using newTool instead.
+func toolVerify(b *builder, p *Package, newTool string, ofile string, args []interface{}) error {
 	newArgs := make([]interface{}, len(args))
 	copy(newArgs, args)
-	newArgs[1] = tool(asm)
+	newArgs[1] = tool(newTool)
 	newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
 	if err := b.run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
 		return err
@@ -1721,7 +1731,7 @@ func asmVerify(b *builder, p *Package, asm string, ofile string, args []interfac
 		return err
 	}
 	if !bytes.Equal(data1, data2) {
-		return fmt.Errorf("%sa and %s produced different output files:\n%s\n%s", archChar, asm, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
+		return fmt.Errorf("%s and %s produced different output files:\n%s\n%s", filepath.Base(args[1].(string)), newTool, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
 	}
 	return nil
 }
