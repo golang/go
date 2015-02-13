@@ -151,13 +151,13 @@ func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
 // ScanFloat is like f.Scan(r, base) with f set to the given precision
 // and rounding mode.
 func ScanFloat(r io.ByteScanner, base int, prec uint, mode RoundingMode) (f *Float, b int, err error) {
-	return NewFloat(0, prec, mode).Scan(r, base)
+	return new(Float).SetPrec(prec).SetMode(mode).Scan(r, base)
 }
 
 // ParseFloat is like f.Parse(s, base) with f set to the given precision
 // and rounding mode.
 func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b int, err error) {
-	return NewFloat(0, prec, mode).Parse(s, base)
+	return new(Float).SetPrec(prec).SetMode(mode).Parse(s, base)
 }
 
 // Format converts the floating-point number x to a string according
