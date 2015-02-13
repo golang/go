@@ -16,19 +16,17 @@ func Getenv(key string) (value string, found bool) {
 	if err != nil {
 		return "", false
 	}
-	b := make([]uint16, 100)
-	n, e := GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
-	if n == 0 && e == ERROR_ENVVAR_NOT_FOUND {
-		return "", false
-	}
-	if n > uint32(len(b)) {
-		b = make([]uint16, n)
-		n, e = GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
-		if n > uint32(len(b)) {
-			n = 0
+	n := uint32(100)
+	for {
+		b := make([]uint16, n)
+		n, err = GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
+		if n == 0 && err == ERROR_ENVVAR_NOT_FOUND {
+			return "", false
+		}
+		if n <= uint32(len(b)) {
+			return string(utf16.Decode(b[:n])), true
 		}
 	}
-	return string(utf16.Decode(b[0:n])), true
 }
 
 func Setenv(key, value string) error {
